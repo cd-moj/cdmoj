@@ -66,6 +66,7 @@ if [[ -d "$NEWCONTEST/enunciados" ]]; then
     #copia enunciados para html
     mkdir -p $HTMLDIR/contests/$CONTEST_ID/
     cp -r $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
+    cp -r $NEWCONTEST/enunciados/* $CONTESTSDIR/$CONTEST_ID/enunciados/
     chmod a+rX -R $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
 fi
 
