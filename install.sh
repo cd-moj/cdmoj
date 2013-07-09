@@ -12,6 +12,9 @@ bash configure.sh "$PREFIX" "$HTMLDIR"
 rsync -aHx --delete-during html/ "$HTMLDIR"
 rsync -aHx --delete-during bin judge scripts "$PREFIX"
 
+mkdir -p "$HTMLDIR/contests"
+tar cfj "$HTMLDIR/contests/sample.tar.bz2" contests/sample
+
 if [[ ! -d "$PREFIX/etc/" ]]; then
     mkdir -p "$PREFIX/etc"
     echo "[ Ok ] Creating $PREFIX/etc"

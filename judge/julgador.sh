@@ -23,6 +23,18 @@ for ARQ in $SUBMISSIONDIR/*; do
     LING="$(cut -d: -f6 <<< "$N")"
     #LING="$(file $ARQ|awk '{print $3}')"
 
+    if [[ "$CONTEST" == "admin" ]]; then
+        LOGIN="$(cut -d: -f2 <<< "$N")"
+        FILENAME="$(cut -d: -f3 <<< "$N")"
+        TMPDIR=$(mktemp -d)
+        tar xf "$ARQ" -C $TMPDIR/
+        CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
+        bash #SCRIPTSDIR#/../bin/cria-contest.sh $CAMINHO
+        rm "$ARQ"
+
+        continue
+    fi
+
     #carregar contest
     source $CONTESTSDIR/$CONTEST/conf
 
