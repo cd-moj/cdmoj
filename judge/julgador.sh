@@ -25,7 +25,6 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     #carregar contest
     source $CONTESTSDIR/$CONTEST/conf
-    source $CONTESTSDIR/$CONTEST/prova.conf
 
     #SITE do problema:
     SITE=${PROBS[PROBID]}

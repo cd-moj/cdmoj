@@ -18,6 +18,12 @@ if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]]; then
     exit 0
 fi
 
+if [[ "$CONTEST" == "admin" ]]; then
+    bash admin.sh
+    exit 0
+fi
+
+
 #o contest é valido, tem que verificar o login
 if verifica-login $CONTEST| grep -q Nao; then
     tela-login $CONTEST
@@ -30,7 +36,6 @@ printf "<h1>$(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
 #mostrar exercicios
 printf "<h2>Problems</h2>\n"
-source $CONTESTSDIR/$CONTEST/prova.conf
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 SELETOR=

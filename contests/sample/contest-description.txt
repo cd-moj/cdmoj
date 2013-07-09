@@ -1,0 +1,13 @@
+"teste"
+"Prova de Teste do Sistema"
+1372801500
+1373492700
+3
+spoj-br PLACAR "Quem vai ser reprovado?" A reprovado.txt
+uri 1110 "Jogando Cartas Fora" B jogando-cartas-fora.pdf
+spoj-www TEST "Life, the Universe, and Everything" C site
+4
+ribas:fiesta:Buno Ribas
+ricardo:busao:Ricardo Oliveira
+vinicius:hyundai:Vinicius Ruoso
+willian:gol:Willian Zalewski

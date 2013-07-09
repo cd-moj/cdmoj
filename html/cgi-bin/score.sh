@@ -14,7 +14,8 @@ CAMINHO="$PATH_INFO"
 #contest é a base do caminho
 CONTEST=$(cut -d'/' -f2 <<< "$CAMINHO")
 
-if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]]; then
+if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || 
+    [[ "$CONTEST" == "admin" ]]; then
     tela-erro
     exit 0
 fi
@@ -36,7 +37,6 @@ printf "</ul><br/><br/>"
 
 
 #Gerar Tabela com pontuacao
-source $CONTESTSDIR/$CONTEST/prova.conf
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 SELETOR=

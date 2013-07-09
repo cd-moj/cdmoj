@@ -15,7 +15,7 @@ cabecalho-html
 printf "<h1>Contests</h1>\n"
 
 for contest in $CONTESTSDIR/*; do
-    if [[ "$contest" == "$CONTESTSDIR/*" ]]; then
+    if [[ "$contest" == "$CONTESTSDIR/*" || "$contest" == "$CONTESTSDIR/admin" ]]; then
         continue
     fi
     NOW=$(date +%s)

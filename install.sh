@@ -8,9 +8,26 @@ if (( $# != 2 )); then
     exit 0
 fi
 
-bash configure.sh $PREFIX
+bash configure.sh "$PREFIX" "$HTMLDIR"
 rsync -aHx --delete-during html/ "$HTMLDIR"
-rsync -aHx --delete-during etc judge scripts "$PREFIX"
+rsync -aHx --delete-during judge scripts "$PREFIX"
+
+if [[ ! -d "$PREFIX/etc/" ]]; then
+    mkdir -p "$PREFIX/etc"
+    echo "[ Ok ] Creating $PREFIX/etc"
+fi
+
+if [[ ! -e "$PREFIX/etc/common.conf" ]]; then
+    cp etc/common.conf "$PREFIX/etc/common.conf"
+    echo "[ Ok ] Copying common.conf to $PREFIX/etc"
+fi
+
+if [[ ! -e "$PREFIX/etc/judge.conf" ]]; then
+    cp etc/judge.conf "$PREFIX/etc/judge.conf"
+    echo "[ Ok ] Copying judge.conf to $PREFIX/etc"
+    chmod 600 "$PREFIX/etc/judge.conf"
+    echo "[ Ok ] chmod 600 $PREFIX/etc/judge.conf"
+fi
 
 echo "============================================="
 echo "Please edit $PREFIX/etc/common.conf and"
