@@ -58,15 +58,15 @@ chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/data"
     echo "CONTEST_START=$CONTEST_START"
     echo "CONTEST_END=$CONTEST_END"
     echo "PROBS=(${ALLPROBS[@]})"
-} $CONTESTSDIR/$CONTEST_ID/conf
+} > $CONTESTSDIR/$CONTEST_ID/conf
 
 printf "$USUARIOS" > $CONTESTSDIR/$CONTEST_ID/passwd
 
 if [[ -d "$NEWCONTEST/enunciados" ]]; then
     #copia enunciados para html
     mkdir -p $HTMLDIR/contests/$CONTEST_ID/
-    cp -r $CONTESTDESC/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
-    chmod a+rX -R $CONTESTDESC/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
+    cp -r $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
+    chmod a+rX -R $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
 fi
 
 exit 0
