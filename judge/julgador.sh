@@ -5,6 +5,11 @@ source #CONFDIR#/common.conf
 source #SCRIPTSDIR#/enviar-spoj.sh
 source #SCRIPTSDIR#/enviar-uri.sh
 
+mkdir -p $SUBMISSIONDIR-julgados
+
+#make $SUBMISSIONDIR is world writtable
+chmod 777 $SUBMISSIONDIR
+
 #ordem de ARQ: $CONTEST:$AGORA:$RAND:$LOGIN:$PROBLEMA:$FILETYPE
 for ARQ in $SUBMISSIONDIR/*; do
     if [[ ! -e "$ARQ" ]]; then
@@ -29,6 +34,10 @@ for ARQ in $SUBMISSIONDIR/*; do
     IDSITE=${PROBS[PROBID+1]}
     login-$SITE
     CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING)"
+
+    #aguarda um pouco
+    sleep 3
+
     RESP="$(pega-resultado-$SITE $CODIGOSUBMISSAO)"
 
     mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
@@ -40,8 +49,6 @@ for ARQ in $SUBMISSIONDIR/*; do
     TENTATIVAS=0
     if [[ -e $PROBIDFILE ]]; then
         source $PROBIDFILE
-    else
-        printf "PENALIDADES=20\nJAACERTOU=0\nTENTATIVAS=1\n" > $PROBIDFILE
     fi
 
     if [[ "$RESP" == "Accepted"  && "$JAACERTOU" == "0" ]] ; then
@@ -50,13 +57,22 @@ for ARQ in $SUBMISSIONDIR/*; do
         (( PENALIDADES= PENALIDADES + TEMPO/60 ))
         JAACERTOU=$TEMPO
         ((TENTATIVAS++))
-        printf "PENALIDADES=$PENALIDADES\nJAACERTOU=$TEMPO\nTENTATIVAS=$TENTATIVAS\n" > $PROBIDFILE
+        {
+            echo "PENALIDADES=$PENALIDADES"
+            echo "JAACERTOU=$JAACERTOU"
+            echo "TENTATIVAS=$TENTATIVAS"
+        } > $PROBIDFILE
     elif [[ "$JAACERTOU" == "0" ]]; then
         ((TENTATIVAS++))
         ((PENALIDADES+=20))
-        printf "PENALIDADES=$PENALIDADES\nJAACERTOU=0\nTENTATIVAS=$TENTATIVAS\n" > $PROBIDFILE
-
+        {
+            echo "PENALIDADES=$PENALIDADES"
+            echo "JAACERTOU=0"
+            echo "TENTATIVAS=$TENTATIVAS"
+        } > $PROBIDFILE
     fi
+
+
     #gerar arquivo para montar o score
     ACUMPENALIDADES=0
     ACUMACERTOS=0
@@ -96,5 +112,9 @@ for ARQ in $SUBMISSIONDIR/*; do
     sed -i -e "s/^$ID:.*/$ID:$PROBID:$RESP/" "$USRFILE"
     chmod 777 "$USRFILE"
     cp "$ARQ" $SUBMISSIONDIR-julgados/
+
+    #copiar $ARQ para o diretorio com historico de submissoes
+    cp "$ARQ" "$CONTESTSDIR/$CONTEST/submissions/$ID-$LOGIN-${PROBS[PROBID+3]}.$LING"
+
     rm -f "$ARQ"
 done
