@@ -5,6 +5,7 @@ HTMLDIR="$2"
 
 if (( $# != 2 )); then
     echo "$0 PREFIX HTMLDIR"
+    exit 0
 fi
 
 bash configure.sh $PREFIX
