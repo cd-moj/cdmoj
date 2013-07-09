@@ -62,9 +62,10 @@ for ARQ in $SUBMISSIONDIR/*; do
         source $PROBIDFILE
     fi
 
+    TEMPO="$(cut -d: -f1 <<< "$ID")"
+    ((TEMPO= (TEMPO - CONTEST_START) ))
+
     if [[ "$RESP" == "Accepted"  && "$JAACERTOU" == "0" ]] ; then
-        TEMPO="$(cut -d: -f1 <<< "$ID")"
-        ((TEMPO= (TEMPO - CONTEST_START) ))
         (( PENALIDADES= PENALIDADES + TEMPO/60 ))
         JAACERTOU=$TEMPO
         ((TENTATIVAS++))
@@ -82,6 +83,8 @@ for ARQ in $SUBMISSIONDIR/*; do
             echo "TENTATIVAS=$TENTATIVAS"
         } > $PROBIDFILE
     fi
+
+    echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP" >> $CONTESTSDIR/$CONTEST/controle/history
 
 
     #gerar arquivo para montar o score
