@@ -6,6 +6,5 @@ if [[ "x$PREFIX" == "x" ]]; then
     exit 0
 fi
 
-sed -i -e "s/#CONFDIR#/$HOME\/etc/g,s/#SCRIPTSDIR#/$HOME\/scripts/g" \
-    judge/* \
-    html/cgi-bin/*sh
+sed -ibkp -e "s/#CONFDIR#/$PREFIX\/etc/g" -e "s/#SCRIPTSDIR#/$PREFIX\/scripts/g" \
+    judge/*sh html/cgi-bin/*sh
