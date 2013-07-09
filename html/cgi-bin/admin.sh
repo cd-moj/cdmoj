@@ -9,7 +9,7 @@ fi
 
 #ok logados
 LOGIN=$(pega-login)
-NOME="$(pega-nome)"
+NOME="$(pega-nome admin)"
 TMP=$(mktemp)
 POST=$TMP
 cat > $TMP
