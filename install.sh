@@ -10,7 +10,7 @@ fi
 
 bash configure.sh "$PREFIX" "$HTMLDIR"
 rsync -aHx --delete-during html/ "$HTMLDIR"
-rsync -aHx --delete-during judge scripts "$PREFIX"
+rsync -aHx --delete-during bin judge scripts "$PREFIX"
 
 if [[ ! -d "$PREFIX/etc/" ]]; then
     mkdir -p "$PREFIX/etc"
