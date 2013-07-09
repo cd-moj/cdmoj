@@ -13,7 +13,9 @@ rsync -aHx --delete-during html/ "$HTMLDIR"
 rsync -aHx --delete-during bin judge scripts "$PREFIX"
 
 mkdir -p "$HTMLDIR/contests"
-tar cfj "$HTMLDIR/contests/sample.tar.bz2" contests/sample
+cp -r contests/sample .
+tar cfj "$HTMLDIR/contests/sample.tar.bz2" sample
+rm -rf sample
 
 if [[ ! -d "$PREFIX/etc/" ]]; then
     mkdir -p "$PREFIX/etc"

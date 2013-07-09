@@ -30,7 +30,7 @@ for ARQ in $SUBMISSIONDIR/*; do
         tar xf "$ARQ" -C $TMPDIR/
         CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
         bash #SCRIPTSDIR#/../bin/cria-contest.sh $CAMINHO
-        rm "$ARQ"
+        rm -f "$ARQ"
 
         continue
     fi

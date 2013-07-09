@@ -3,21 +3,27 @@
 source common.sh
 
 #o contest é valido, tem que verificar o login
-if verifica-login $CONTEST| grep -q Nao; then
-    tela-login $CONTEST
+if verifica-login admin| grep -q Nao; then
+    tela-login admin
 fi
 
 #ok logados
-POST="$(cat |tr -d '\r' )"
-if [[ "x$POST" != "x" ]]; then
+TMP=$(mktemp)
+POST=$TMP
+cat > $TMP
+if [[ "x$(< $TMP)" != "x" ]]; then
     LOGIN=$(pega-login)
-    FILENAME="$(grep 'filename' <<< "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g')"
+    FILENAME="$(grep -a 'filename'  "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g')"
     fd='Content-Type: '
-    boundary="$(head -n1 <<< "$POST")"
-    sed -e "1,/$fd/d;/^$/d;/$boundary/,\$d" <<< "$POST" > $SUBMISSIONDIR/admin:$LOGIN:$FILENAME
+    boundary="$(head -n1 "$POST")"
+    INICIO=$(cat -n $TMP| grep -a Content-Type|awk '{print $1}')
+    ((INICIO++))
+    sed -i  -e "1,${INICIO}d" $TMP
+    cp $TMP $SUBMISSIONDIR/admin:$LOGIN:$FILENAME
+    rm $TMP
 
 fi
-
+cabecalho-html
 printf "<h1>Administrador</h1>\n"
 
 printf "<h2>Baixe o contest template</h2>\n"
