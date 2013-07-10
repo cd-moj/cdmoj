@@ -3,6 +3,8 @@
 source common.sh
 
 
+AGORA=$(date +%s)
+
 #limpar caminho, exemplo
 #www.brunoribas.com.br/~ribas/moj/cgi-bin/contest.sh/contest-teste/oi
 #vira 'contest-teste/oi'
@@ -33,6 +35,22 @@ source $CONTESTSDIR/$CONTEST/conf
 #estamos logados
 cabecalho-html
 printf "<h1>$(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"</h1>\n"
+
+if (( AGORA < CONTEST_START )); then
+    ((FALTA = CONTEST_START - AGORA))
+    MSG=
+    if (( FALTA >= 60 )); then
+        MSG="$((FALTA/60)) minutos"
+    fi
+    ((FALTA=FALTA%60))
+    if ((FALTA > 0 )); then
+        MSG="$MSG e $FALTA segundos"
+    fi
+    printf "<p>O Contest ainda <b>NÃO</b> está em execução</p>\n"
+    printf "<center>Aguarde $MSG</center>"
+    cat ../footer.html
+    exit 0
+fi
 
 #mostrar exercicios
 printf "<h2>Problems</h2>\n"
@@ -82,7 +100,6 @@ echo "</table>"
 echo "<br/><br/>"
 printf "<h2>Submit Problem</h2>\n"
 
-AGORA=$(date +%s)
 if (( AGORA > CONTEST_END )); then
     echo "<p> O contest não está mais em andamento</p>"
 else
