@@ -27,6 +27,22 @@ printf "<h1>SCORE de \"<em>$CONTEST_NAME</em>\"</h1>\n"
 printf "<ul><li>Início: $(date --date=@$CONTEST_START)</li>"
 printf "<li>Término:  $(date --date=@$CONTEST_END)</li>"
 
+if (( AGORA < CONTEST_START )); then
+    ((FALTA = CONTEST_START - AGORA))
+    MSG=
+    if (( FALTA >= 60 )); then
+        MSG="$((FALTA/60)) minutos"
+    fi
+    ((FALTA=FALTA%60))
+    if ((FALTA > 0 )); then
+        MSG="$MSG e $FALTA segundos"
+    fi
+    printf "<p>O Contest ainda <b>NÃO</b> está em execução</p>\n"
+    printf "<center>Aguarde $MSG</center>"
+    cat ../footer.html
+    exit 0
+fi
+
 if (( AGORA > CONTEST_END )); then
     printf "<li><i>Contest Encerrado</i></li>"
 else
