@@ -9,7 +9,7 @@ if (( $# != 2 )); then
 fi
 
 bash configure.sh "$PREFIX" "$HTMLDIR"
-rsync -aHx --delete-during html/ "$HTMLDIR"
+rsync -aHx --delete-during --exclude=contests html/ "$HTMLDIR"
 rsync -aHx --delete-during bin judge scripts "$PREFIX"
 
 mkdir -p "$HTMLDIR/contests"
