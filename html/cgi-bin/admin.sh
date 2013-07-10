@@ -22,9 +22,9 @@ if [[ "x$(< $TMP)" != "x" ]]; then
     sed -i  -e "1,${INICIO}d" $TMP
     chmod a+r "$TMP"
     cp $TMP $SUBMISSIONDIR/admin:$LOGIN:$FILENAME
-    rm $TMP
-
 fi
+rm $TMP
+
 cabecalho-html
 printf "<h1>Administrador $NOME</h1>\n"
 
