@@ -26,7 +26,7 @@ function enviar-spoj()
 
     #C é 11, mas vamos deixar 41
     if [[ "$LINGUAGEM" == "C" ]];then
-        LINGUAGEM=41;
+        LINGUAGEM=11;
     elif [[ "$LINGUAGEM" == "Cpp" ]];then
         LINGUAGEM=41;
     elif [[ "$LINGUAGEM" == "CPP" ]];then
