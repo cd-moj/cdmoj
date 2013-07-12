@@ -14,6 +14,7 @@ if (( AGORA > CONTEST_END )); then
     echo "<h1>O contest \"$CONTEST_NAME\" não está mais em execução</h1>"
     echo "<p> A sua submissão não foi armazenada</p>"
     cat ../footer.html
+    exit 0
 fi
 
 if [[ "x$POST" == "x" ]]; then
