@@ -116,7 +116,7 @@ for ARQ in $SUBMISSIONDIR/*; do
         printf "<td>$ACUMACERTOS ($ACUMPENALIDADES)</td></tr>:$ACUMACERTOS:$ACUMPENALIDADES\n"
     } > $CONTESTSDIR/$CONTEST/controle/$LOGIN.score
     cat $CONTESTSDIR/$CONTEST/controle/*.score|sort -n -t ':' -k3|
-        sort -n -r -t ':' -k2|
+        sort -s -n -r -t ':' -k2|
         cut -d: -f1 > $CONTESTSDIR/$CONTEST/controle/SCORE
 
 
