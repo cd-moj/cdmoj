@@ -57,7 +57,7 @@ TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 SELETOR=
 echo "<table border=1 width=100%>"
-echo "<tr><td>Nome</td>"
+echo "<tr><td>#</td><td>Nome</td>"
 for ((i=0;i<TOTPROBS;i+=5)); do
     printf "<td>${PROBS[$((i+3))]}</td>"
 done

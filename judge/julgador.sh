@@ -95,7 +95,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     #nome | A | B | C | D | ... | Acertos | Penalidade |
     {
         NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
-        printf "<tr><td>$NOME</td>"
+        printf "<td>$NOME</td>"
         for((prob=0;prob<TAMARRAY;prob+=5)); do
             PENALIDADES=0
             JAACERTOU=0
@@ -115,9 +115,14 @@ for ARQ in $SUBMISSIONDIR/*; do
         done
         printf "<td>$ACUMACERTOS ($ACUMPENALIDADES)</td></tr>:$ACUMACERTOS:$ACUMPENALIDADES\n"
     } > $CONTESTSDIR/$CONTEST/controle/$LOGIN.score
+    CLASSIFICACAO=1
     cat $CONTESTSDIR/$CONTEST/controle/*.score|sort -n -t ':' -k3|
         sort -s -n -r -t ':' -k2|
-        cut -d: -f1 > $CONTESTSDIR/$CONTEST/controle/SCORE
+        cut -d: -f1|
+        while read LINE; do
+            echo "<tr><td>$CLASSIFICACAO</td>$LINE";
+            ((CLASSIFICACAO++))
+        done  > $CONTESTSDIR/$CONTEST/controle/SCORE
 
 
     #gravar no arquivo de solucoes
