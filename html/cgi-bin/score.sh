@@ -15,9 +15,9 @@ CAMINHO="$PATH_INFO"
 CONTEST=$(cut -d'/' -f2 <<< "$CAMINHO")
 
 if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || 
-    [[ "$CONTEST" == "admin" ]]; then
-    tela-erro
-    exit 0
+  [[ "$CONTEST" == "admin" ]]; then
+  tela-erro
+  exit 0
 fi
 
 source $CONTESTSDIR/$CONTEST/conf
@@ -28,26 +28,26 @@ printf "<ul><li>Início: $(date --date=@$CONTEST_START)</li>"
 printf "<li>Término:  $(date --date=@$CONTEST_END)</li>"
 
 if (( AGORA < CONTEST_START )); then
-    ((FALTA = CONTEST_START - AGORA))
-    MSG=
-    if (( FALTA >= 60 )); then
-        MSG="$((FALTA/60)) minutos"
-    fi
-    ((FALTA=FALTA%60))
-    if ((FALTA > 0 )); then
-        MSG="$MSG e $FALTA segundos"
-    fi
-    printf "<p>O Contest ainda <b>NÃO</b> está em execução</p>\n"
-    printf "<center>Aguarde $MSG</center>"
-    cat ../footer.html
-    exit 0
+  ((FALTA = CONTEST_START - AGORA))
+  MSG=
+  if (( FALTA >= 60 )); then
+    MSG="$((FALTA/60)) minutos"
+  fi
+  ((FALTA=FALTA%60))
+  if ((FALTA > 0 )); then
+    MSG="$MSG e $FALTA segundos"
+  fi
+  printf "<p>O Contest ainda <b>NÃO</b> está em execução</p>\n"
+  printf "<center>Aguarde $MSG</center>"
+  cat ../footer.html
+  exit 0
 fi
 
 if (( AGORA > CONTEST_END )); then
-    printf "<li><i>Contest Encerrado</i></li>"
+  printf "<li><i>Contest Encerrado</i></li>"
 else
-    ((FALTA= (CONTEST_END-AGORA)/60 ))
-    printf "<li>Faltam $FALTA minutos para o encerramento</li>"
+  ((FALTA= (CONTEST_END-AGORA)/60 ))
+  printf "<li>Faltam $FALTA minutos para o encerramento</li>"
 fi
 printf "</ul><br/><br/>"
 
@@ -59,7 +59,7 @@ SELETOR=
 echo "<table border=1 width=100%>"
 echo "<tr><td>#</td><td>Nome</td>"
 for ((i=0;i<TOTPROBS;i+=5)); do
-    printf "<td>${PROBS[$((i+3))]}</td>"
+  printf "<td>${PROBS[$((i+3))]}</td>"
 done
 echo "<td>Total</td></tr>"
 cat $CONTESTSDIR/$CONTEST/controle/SCORE
