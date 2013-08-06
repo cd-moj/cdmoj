@@ -4,7 +4,7 @@ source common.sh
 
 #o contest é valido, tem que verificar o login
 if verifica-login admin| grep -q Nao; then
-    tela-login admin
+  tela-login admin
 fi
 
 #ok logados
@@ -14,14 +14,14 @@ TMP=$(mktemp)
 POST=$TMP
 cat > $TMP
 if [[ "x$(< $TMP)" != "x" ]]; then
-    FILENAME="$(grep -a 'filename'  "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g')"
-    fd='Content-Type: '
-    boundary="$(head -n1 "$POST")"
-    INICIO=$(cat -n $TMP| grep -a Content-Type|awk '{print $1}')
-    ((INICIO++))
-    sed -i  -e "1,${INICIO}d" $TMP
-    chmod a+r "$TMP"
-    cp $TMP $SUBMISSIONDIR/admin:$LOGIN:$FILENAME
+  FILENAME="$(grep -a 'filename'  "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g')"
+  fd='Content-Type: '
+  boundary="$(head -n1 "$POST")"
+  INICIO=$(cat -n $TMP| grep -a Content-Type|awk '{print $1}')
+  ((INICIO++))
+  sed -i  -e "1,${INICIO}d" $TMP
+  chmod a+r "$TMP"
+  cp $TMP $SUBMISSIONDIR/admin:$LOGIN:$FILENAME
 fi
 rm $TMP
 
@@ -50,19 +50,19 @@ da prova, depois serão N linhas com as descrições dos problemas</td></tr>
 <tr><td>SITE ID "Nome Completo" Nome_Pequeno link-enunciado</td><td>
 N linhas com esse formato, onde cada elemento representa:
 <ul>
-    <li>SITE: pode ser spoj-br spoj-www uri</li>
-    <li>ID: é o ID do problema no SITE</li>
-    <li>"Nome completo": nome full do problema, entre ASPAS</li>
-    <li>Nome_pequeno: pode ser Letra ou numero mas coloque em ordem nesse
-    arquivo</li>
-    <li>link-enunciado: pode ser:
-        <ul>
-            <li> site , redireciona pro SITE</li>
-            <li>um link inicando por http://</li>
-            <li>none para nao ter um enunciado</li>
-            <li>o nome de um arquivo dentro do diretorio enunciados/</li>
-        </ul>
-    </li>
+  <li>SITE: pode ser spoj-br spoj-www uri</li>
+  <li>ID: é o ID do problema no SITE</li>
+  <li>"Nome completo": nome full do problema, entre ASPAS</li>
+  <li>Nome_pequeno: pode ser Letra ou numero mas coloque em ordem nesse
+  arquivo</li>
+  <li>link-enunciado: pode ser:
+    <ul>
+      <li> site , redireciona pro SITE</li>
+      <li>um link inicando por http://</li>
+      <li>none para nao ter um enunciado</li>
+      <li>o nome de um arquivo dentro do diretorio enunciados/</li>
+    </ul>
+  </li>
 </ul></td></tr>
 <tr><td>M</td><td>Número Inteiro representando a quantidade de usuários
 cadastrados</td></tr>
@@ -78,11 +78,11 @@ cat << EOF
 <p> Reenviar um contest já existente irá recriá-lo sem perder as submissões
 </p>
 <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/admin.sh" method="post">
-    <input type="hidden" name="MAX_FILE_SIZE" value="30000">
-    File: <input name="myfile" type="file">
-    <br/>
-    <input type="submit" value="Submit">
-    <br/>
+  <input type="hidden" name="MAX_FILE_SIZE" value="30000">
+  File: <input name="myfile" type="file">
+  <br/>
+  <input type="submit" value="Submit">
+  <br/>
 </form>
 EOF
 cat ../footer.html
