@@ -26,7 +26,8 @@ for contest in $CONTESTSDIR/*; do
     else
         printf "Finished"
     fi
-    printf " | <a href=\"score.sh/$CONTEST_ID\">Score</a></span>"
+    printf " | <a href=\"score.sh/$CONTEST_ID\">Score</a>"
+    printf " | <a href=\"statistic.sh/$CONTEST_ID\">Statistic</a></span>"
     printf "<ul><li>&emsp;&emsp;&emsp;&emsp;Início: $(date --date=@$CONTEST_START)</li>"
     printf "<li>&emsp;&emsp;&emsp;&emsp;Término:  $(date --date=@$CONTEST_END)</li></ul><br/><br/>\n"
 done|sort -t" " -k1 -n -r|sort -s -n -r -t" " -k2 |cut -d" " -f3-
