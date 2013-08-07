@@ -38,6 +38,22 @@ for ARQ in $SUBMISSIONDIR/*; do
   #carregar contest
   source $CONTESTSDIR/$CONTEST/conf
 
+  if [[ "$PROBID" == "login" && ! -d $CONTESTSDIR/$CONTEST/controle/$LOGIN.d ]]; then
+    mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
+
+    {
+      NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
+      printf "<td>$NOME</td>"
+      TAMARRAY=${#PROBS[@]}
+      for ((prob=0;prob<TAMARRAY;prob+=5)); do
+          printf "<td></td>"
+      done
+      printf "<td>0</td></tr>"
+    } > $CONTESTSDIR/$CONTEST/controle/$LOGIN.score
+    echo "<tr><td>--</td>$(<$CONTESTSDIR/$CONTEST/controle/$LOGIN.score)" >> $CONTESTSDIR/$CONTEST/controle/SCORE
+    continue
+  fi
+
   #SITE do problema:
   SITE=${PROBS[PROBID]}
 

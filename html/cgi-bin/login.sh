@@ -16,6 +16,9 @@ if [[ "x$POST" != "x" ]]; then
   NOVAHASH=$(echo "$(date +%s)$RANDOM$LOGIN" |md5sum |awk '{print $1}')
   printf "$NOVAHASH" > "$CACHEDIR/$LOGIN-$CONTEST"
 
+  #avisa do login
+  touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:login:dummy
+
   #enviar cookie
   ((ESPIRA= AGORA + 36000))
   printf "Set-Cookie: login=$LOGIN; Path=/;  expires=$(date --date=@$ESPIRA)\n"
