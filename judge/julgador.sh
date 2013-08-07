@@ -40,6 +40,7 @@ for ARQ in $SUBMISSIONDIR/*; do
 
   if [[ "$PROBID" == "login" && ! -d $CONTESTSDIR/$CONTEST/controle/$LOGIN.d ]]; then
     mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
+    rm -f "$ARQ"
 
     {
       NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
