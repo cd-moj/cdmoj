@@ -79,7 +79,7 @@ echo "</ul>"
 echo "<br/><br/>"
 printf "<h2>My Submissions</h2>\n"
 cat << EOF
-<table border="1" width="100%"> <tr><td>Problema</td><td>Resposta</td><td>Submissão em</td><td>Tempo de Prova</td></tr>
+<table border="1" width="100%"> <tr><th>Problema</th><th>Resposta</th><th>Submissão em</th><th>Tempo de Prova</th></tr>
 EOF
 
 LOGIN=$(pega-login)
