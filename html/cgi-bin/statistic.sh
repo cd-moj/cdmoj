@@ -37,7 +37,7 @@ fi
 printf "<br/><br/><h2>Problems</h2>\n"
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
-echo "<table border=1><tr><td>ID</td><td>Full Name</td><td>Local Description</td><td>OJ Link</td></tr>"
+echo "<table border=1><tr><th>ID</th><th>Full Name</th><th>Local Description</th><th>OJ Link</th></tr>"
 for ((i=0;i<TOTPROBS;i+=5)); do
   printf "<tr><td>${PROBS[$((i+3))]}</td><td>${PROBS[$((i+2))]}</td>"
   LINK="${PROBS[$((i+4))]}"
@@ -57,7 +57,7 @@ echo "</table>"
 #Gerar Tabela com pontuacao
 printf "<br/><br/><h2>Runs by Problems</h2>\n"
 echo "<table border=1>"
-echo "<tr><td>#</td><td>Total</td><td>Accepted</td></tr>"
+echo "<tr><th>#</th><th>Total</th><th>Accepted</th></tr>"
 for ((i=0;i<TOTPROBS;i+=5)); do
   ID=$i
   TOTALRUNS="$(cut -d: -f3 $CONTESTSDIR/$CONTEST/controle/history|grep -c "^$ID$")"
@@ -72,11 +72,11 @@ echo "</table>"
 
 printf "<br/><br/><h2>Runs by User and Problem</h2>\n"
 echo "<table border=1>"
-echo "<tr><td>Users x Problems</td>"
+echo "<tr><th>Users x Problems</th>"
 for ((i=0;i<TOTPROBS;i+=5)); do
-  printf "<td>${PROBS[$((i+3))]}</td>"
+  printf "<th>${PROBS[$((i+3))]}</th>"
 done
-echo "<td>Total</td><td>Accepted</td></tr>"
+echo "<th>Total</th><th>Accepted</th></tr>"
 
 for LOGIN in $CONTESTSDIR/$CONTEST/controle/*.d; do
   LOGINN="$(basename $LOGIN .d)"
