@@ -57,11 +57,11 @@ TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 SELETOR=
 echo "<table border=1 width=100%>"
-echo "<tr><td>#</td><td>Nome</td>"
+echo "<tr><td><b>#</b></td><td><b>Nome</b></td>"
 for ((i=0;i<TOTPROBS;i+=5)); do
-  printf "<td>${PROBS[$((i+3))]}</td>"
+  printf "<td><b>${PROBS[$((i+3))]}</b></td>"
 done
-echo "<td>Total</td></tr>"
+echo "<td><b>Total</b></td></tr>"
 cat $CONTESTSDIR/$CONTEST/controle/SCORE
 echo "</table>"
 
