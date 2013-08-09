@@ -38,9 +38,13 @@ for ARQ in $SUBMISSIONDIR/*; do
   #carregar contest
   source $CONTESTSDIR/$CONTEST/conf
 
-  if [[ "$PROBID" == "login" && ! -d $CONTESTSDIR/$CONTEST/controle/$LOGIN.d ]]; then
-    mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
+  if [[ "$PROBID" == "login" ]]; then
     rm -f "$ARQ"
+
+    if [[ -d $CONTESTSDIR/$CONTEST/controle/$LOGIN.d ]]; then
+      continue
+    fi
+    mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
 
     {
       NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
@@ -49,9 +53,9 @@ for ARQ in $SUBMISSIONDIR/*; do
       for ((prob=0;prob<TAMARRAY;prob+=5)); do
           printf "<td></td>"
       done
-      printf "<td>0</td></tr>"
+      printf "<td>0</td></tr>:0:0\n"
     } > $CONTESTSDIR/$CONTEST/controle/$LOGIN.score
-    echo "<tr><td>--</td>$(<$CONTESTSDIR/$CONTEST/controle/$LOGIN.score)" >> $CONTESTSDIR/$CONTEST/controle/SCORE
+    echo "<tr><td>--</td>$(<$CONTESTSDIR/$CONTEST/controle/$LOGIN.score)"|cut -d: -f1 >> $CONTESTSDIR/$CONTEST/controle/SCORE
     continue
   fi
 
