@@ -8,6 +8,7 @@ if verifica-login admin| grep -q Nao; then
 fi
 
 #ok logados
+AGORA="$(date +%s)"
 LOGIN=$(pega-login)
 NOME="$(pega-nome admin)"
 TMP=$(mktemp)
@@ -21,7 +22,7 @@ if [[ "x$(< $TMP)" != "x" ]]; then
   ((INICIO++))
   sed -i  -e "1,${INICIO}d" $TMP
   chmod a+r "$TMP"
-  cp $TMP $SUBMISSIONDIR/admin:$LOGIN:$FILENAME
+  cp $TMP $SUBMISSIONDIR/admin:$AGORA:$RANDOM:$LOGIN:newcontest
 fi
 rm $TMP
 
