@@ -3,7 +3,7 @@ body{
     font-family: Arial, Helvetica, sans-serif;
 }
 body.bg{
-    background: url(/~moj/images/bg_top.png) repeat-x top;}
+    background: url(/images/bg_top.png) repeat-x top;}
 
 :focus { outline: 0;}
 .clear{clear: both;}
@@ -26,17 +26,17 @@ li{list-style: none;}
 h1{font-size: 22px;
    margin-bottom: 13px;
    color: #444444;
-   background: url(/~moj/images/h1_line.png) no-repeat bottom right;
+   background: url(/images/h1_line.png) no-repeat bottom right;
    padding-bottom: 10px;
 }
 
 
 #header{
-    background: url(/~moj/images/menu_bar.png) repeat-x bottom;
+    background: url(/images/menu_bar.png) repeat-x bottom;
     width: 100%;
 }
 #header #logo_icpc{
-    background: url(/~moj/images/logo_acm_icpc.png) no-repeat left top;
+    background: url(/images/logo_acm_icpc.png) no-repeat left top;
     display: block;
     width: 490px;
     height: 76px;
@@ -49,14 +49,14 @@ h1{font-size: 22px;
     margin-bottom: 15px;
 }
 #header #utfpr .logo_utfprpatobranco{
-    background: url(/~moj/images/logo_utfprpatobranco.png) no-repeat left top;
+    background: url(/images/logo_utfprpatobranco.png) no-repeat left top;
     width: 355px;
     height: 76px;
     display: block;
     float: left;
 }
 #header #utfpr .logo_maratona{
-    background: url(/~moj/images/logo_maratona.png) no-repeat right top;
+    background: url(/images/logo_maratona.png) no-repeat right top;
     width: 95px;
     height: 76px;
     display: block;
@@ -91,7 +91,7 @@ h1{font-size: 22px;
 #header #etapas li.four span{background: #5f3433}
 
 #content{
-    background: url(/~moj/images/bg_etapas.png) no-repeat;
+    background: url(/images/bg_etapas.png) no-repeat;
     padding-top: 20px;
     position: relative;
     clear: both;
@@ -111,14 +111,14 @@ h1{font-size: 22px;
     font-size: 14px;
 }
 #content #menu li{
-    background: url(/~moj/images/menu_line.png) no-repeat bottom left;
+    background: url(/images/menu_line.png) no-repeat bottom left;
     display: block;
     padding: 5px 0 10px 5px;
 }
 
 
 #footer{
-    background: url(/~moj/images/bottom_line.png) no-repeat center top;
+    background: url(/images/bottom_line.png) no-repeat center top;
     width: 100%;
     font-size: 8px;    
     padding-top: 15px;
@@ -162,7 +162,7 @@ input, textarea{
     border: 1px solid #929293;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 12px;
-    background: url(/~moj/images/bg_black_transparent.png);
+    background: url(/images/bg_black_transparent.png);
 }
 textarea{height: 105px;}
 form th{
