@@ -1,16 +1,3 @@
-body {
-  font-family: Times;
-  font-size: 22pt;
-  color: purple;
-  background: yellow;
-  line-height: 1.5em;
-}
-
-h1 {
-  color: red;
-  font-size: 30pt;
-}
-
 /* Transitions */
 
 @keyframes appear
