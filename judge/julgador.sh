@@ -72,7 +72,7 @@ for ARQ in $SUBMISSIONDIR/*; do
   if [[ ! -e "$ARQ" ]]; then
     continue
   fi
-  N="$(basename $ARQ)"
+  N="$(basename "$ARQ")"
   CONTEST="$(cut -d: -f1 <<< "$N")"
   ID="$(cut -d: -f2,3 <<< "$N")"
   LOGIN="$(cut -d: -f4 <<< "$N")"
@@ -160,6 +160,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     chmod 777 "$USRFILE"
     cp "$ARQ" $SUBMISSIONDIR-julgados/
 
+    NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
     updatedotscore "$LOGIN" "$NOME" "$CONTEST"
     updatescore $CONTEST
 
@@ -177,7 +178,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       source $PROBIDFILE
     fi
 
-    if [[ "$JAACERTOU" == "1" ]] ; then
+    if (( $JAACERTOU > 0 )) ; then
       RESP=Ignored
       #gravar no arquivo de solucoes
       USRFILE="$CONTESTSDIR/$CONTEST/data/$LOGIN"
