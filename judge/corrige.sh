@@ -4,6 +4,7 @@ source #CONFDIR#/judge.conf
 source #CONFDIR#/common.conf
 source #SCRIPTSDIR#/enviar-spoj.sh
 source #SCRIPTSDIR#/enviar-uri.sh
+source #SCRIPTSDIR#/enviar-cdmoj.sh
 
 
 #ordem de ARQ: $CONTEST:$AGORA:$RAND:$LOGIN:comando:$PROBLEMA:$FILETYPE
@@ -33,7 +34,7 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
   #aguarda um pouco
   sleep 3
 
-  RESP="$(pega-resultado-$SITE $CODIGOSUBMISSAO)"
+  RESP="$(pega-resultado-$SITE "$CODIGOSUBMISSAO")"
 
   mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
 
