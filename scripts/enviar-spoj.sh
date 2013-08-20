@@ -9,13 +9,6 @@ function login-spoj()
        http://$SITE.spoj.com > /dev/null
 }
 
-function link-prob-spoj()
-{
-  local SITE=$1
-  PROBID=$2
-  echo "http://$SITE.spoj.com/problems/$2"
-}
-
 #retorna o ID da submissao
 function enviar-spoj()
 {
@@ -121,14 +114,4 @@ function enviar-spoj-www()
 function pega-resultado-spoj-www()
 {
   pega-resultado-spoj $1 www
-}
-
-function link-prob-spoj-br()
-{
-  link-prob-spoj br $1
-}
-
-function link-prob-spoj-www()
-{
-  link-prob-spoj www $1
 }

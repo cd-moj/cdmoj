@@ -1,12 +1,6 @@
 #ARQFONTE=arquivo-com-a-fonte
 #PROBID=id-do-problema
 
-function link-prob-cdmoj()
-{
-  PROBID=$1
-  echo "nil"
-}
-
 function login-cdmoj()
 {
   true

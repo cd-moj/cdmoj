@@ -4,12 +4,6 @@
 
 URILANGS=(C Cpp Java)
 
-function link-prob-uri()
-{
-  PROBID=$1
-  echo "http://www.urionlinejudge.com.br/judge/problems/view/$PROBID"
-}
-
 function login-uri()
 {
   #source config
