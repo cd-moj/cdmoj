@@ -1,4 +1,4 @@
-"teste"
+teste
 "Prova de Teste do Sistema"
 1372801500
 1373492700
