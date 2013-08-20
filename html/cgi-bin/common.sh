@@ -1,27 +1,6 @@
 #!/bin/bash
 source #CONFDIR#/common.conf
-
-function link-prob-spoj()
-{
-  local SITE=$1
-  local PROBID=$2
-  echo "http://$SITE.spoj.com/problems/$2"
-}
-function link-prob-spoj-br()
-{
-  link-prob-spoj br $1
-}
-
-function link-prob-spoj-www()
-{
-  link-prob-spoj www $1
-}
-
-function link-prob-uri()
-{
-  local PROBID=$1
-  echo "http://www.urionlinejudge.com.br/judge/problems/view/$PROBID"
-}
+source #SCRIPTSDIR#/oj-links.sh
 
 function cabecalho-html()
 {
