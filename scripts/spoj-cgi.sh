@@ -13,3 +13,13 @@ function link-prob-spoj-www()
 {
   link-prob-spoj www $1
 }
+
+function link-prob-spoj-br-pdf()
+{
+  link-prob-spoj br ${1}.pdf
+}
+
+function link-prob-spoj-www-pdf()
+{
+  link-prob-spoj www ${1}.pdf
+}
