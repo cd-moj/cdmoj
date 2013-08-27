@@ -40,7 +40,7 @@ for contest in $CONTESTSDIR/*; do
   THIS="$THIS<ul><li>&emsp;&emsp;&emsp;&emsp;Início: $(date --date=@$CONTEST_START)</li>"
   THIS="$THIS<li>&emsp;&emsp;&emsp;&emsp;Término:  $(date --date=@$CONTEST_END)</li></ul><br/><br/>\n"
 
-  if (( NOW < $CONTEST_START )); then
+  if (( NOW +1800 < $CONTEST_START )); then
     UPCOMING="$UPCOMING$THIS"
   elif (( NOW > $CONTEST_END )); then
     ENDED="$ENDED$THIS"
