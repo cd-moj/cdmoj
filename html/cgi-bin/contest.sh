@@ -64,6 +64,8 @@ for ((i=0;i<TOTPROBS;i+=5)); do
   LINK="${PROBS[$((i+4))]}"
   if [[ "${PROBS[$((i+4))]}" == "site" ]]; then
     LINK="$(link-prob-${PROBS[i]} ${PROBS[$((i+1))]})"
+  elif [[ "${PROBS[$((i+4))]}" == "sitepdf" ]]; then
+    LINK="$(link-prob-${PROBS[i]}-pdf ${PROBS[$((i+1))]})"
   fi
 
   if [[ "$LINK" =~ "http://" ]]; then
