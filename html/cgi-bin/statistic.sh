@@ -109,4 +109,29 @@ for LOGIN in $CONTESTSDIR/$CONTEST/controle/*.d; do
 done|sort -n -r -t':' -k2|cut -d: -f1
 echo "</table>"
 
+CONT=1
+printf "<br/><br/><h2>Runs</h2>\n"
+echo "<table border=1 width=100%>"
+printf "<tr><th>#</th><th>User</th><th>Time</th><th>Problem</th>"
+printf "<th>Language</th><th>Local Time</th><th>Answer</th></tr>\n"
+sort -t':' -n $CONTESTSDIR/$CONTEST/controle/history|
+while read LINE; do
+  TEMPO="$(cut -d: -f1 <<< "$LINE")"
+  ((TMPOMIN= TEMPO/60 ))
+  ((LOCALTIME= CONTEST_START + TEMPO))
+  LOCALTIME="$(date --date=@$LOCALTIME)"
+  LOGIN="$(cut -d: -f2 <<< "$LINE")"
+  PROBID="$(cut -d: -f3 <<< "$LINE")"
+  LING="$(cut -d: -f4 <<< "$LINE")"
+  RESP="$(cut -d: -f5 <<< "$LINE")"
+  NOME=$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd |cut -d':' -f3)
+  printf "<tr><td>$CONT</td><td>$NOME</td><td>$TMPOMIN</td>"
+  printf "<td>${PROBS[$((PROBID+3))]}</td><td>$LING</td>"
+  printf "<td>$LOCALTIME</td><td>$RESP</td></tr>"
+
+  ((CONT++))
+done
+echo "</table>"
+
+
 cat ../footer.html
