@@ -22,7 +22,7 @@ if [[ "x$POST" == "x" ]]; then
   exit 0
 
 elif verifica-login $CONTEST |grep -q Nao; then
-  tela-login "$CONTEST_NAME"
+  tela-login $CONTEST
 fi
 
 LOGIN=$(pega-login)

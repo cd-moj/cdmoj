@@ -25,13 +25,13 @@ if [[ "$CONTEST" == "admin" ]]; then
   exit 0
 fi
 
-source $CONTESTSDIR/$CONTEST/conf
 
 #o contest é valido, tem que verificar o login
 if verifica-login $CONTEST| grep -q Nao; then
-  tela-login "$CONTEST_NAME"
+  tela-login $CONTEST
 fi
 
+source $CONTESTSDIR/$CONTEST/conf
 #estamos logados
 cabecalho-html
 printf "<h1>$(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"</h1>\n"
