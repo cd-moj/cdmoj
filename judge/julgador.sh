@@ -14,7 +14,7 @@ function updatescore()
       sort -s -n -r -t ':' -k2|
       cut -d: -f1|
       while read LINE; do
-        echo "<tr><td>$CLASSIFICACAO</td>$LINE";
+        echo "<tr><td>$CLASSIFICACAO<br/></td>$LINE";
         ((CLASSIFICACAO++))
       done  > $CONTESTSDIR/$CONTEST/controle/SCORE
 }
