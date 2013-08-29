@@ -99,14 +99,14 @@ h1{font-size: 22px;
 }
 
 #content #text {
-    width: 682px;
+    width: 800px;
     float: right;
     font-size: 12px;
     padding-bottom: 25px;
 }
 #content #text li{padding: 5px 0; border-bottom: 1px dotted #c1c1c1;}
 #content #menu {
-    width: 200px;
+    width: 224px;
     float: left;
     font-size: 14px;
 }
@@ -130,7 +130,7 @@ h1{font-size: 22px;
 #footer a{color: #363636;}
 
 #geral {
-    width: 900px;
+    width: 1024px;
     margin: auto;
     position: relative;
 }
