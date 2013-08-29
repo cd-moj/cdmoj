@@ -53,7 +53,7 @@ function updatedotscore()
         if (( PENDING > 0 )); then
           PENDINGBLINK="<blink>?Yes?</blink>"
         fi
-        printf "<td>$PENDINGBLINK<small>$TENTATIVAS/-</small></td>"
+        printf "<td>$PENDINGBLINK<br/><small>$TENTATIVAS/-</small></td>"
       fi
     done
     printf "<td>$ACUMACERTOS ($ACUMPENALIDADES)</td></tr>:$ACUMACERTOS:$ACUMPENALIDADES\n"
