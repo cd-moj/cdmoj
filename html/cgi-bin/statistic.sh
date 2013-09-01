@@ -37,9 +37,14 @@ fi
 printf "<br/><br/><h2>Problems</h2>\n"
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
+LINHA=1
 echo "<table border=1><tr><th>ID</th><th>Full Name</th><th>Local Description</th><th>OJ Link</th></tr>"
 for ((i=0;i<TOTPROBS;i+=5)); do
-  printf "<tr><td>${PROBS[$((i+3))]}</td><td>${PROBS[$((i+2))]}</td>"
+  BGCOLOR=
+  if (( LINHA%2 == 0 )); then
+    BGCOLOR="bgcolor='#00EEEE'"
+  fi
+  printf "<tr $BGCOLOR><td>${PROBS[$((i+3))]}</td><td>${PROBS[$((i+2))]}</td>"
   LINK="${PROBS[$((i+4))]}"
 
   if [[ "$LINK" =~ "http://" ]]; then
@@ -51,10 +56,12 @@ for ((i=0;i<TOTPROBS;i+=5)); do
   fi
   LINK="$(link-prob-${PROBS[i]} ${PROBS[$((i+1))]})"
   printf "<td> <a href='$LINK'>${PROBS[$((i+1))]}</td></tr>\n"
+  ((LINHA++))
 done
 echo "</table>"
 
 #Gerar Tabela com pontuacao
+LINHA=0
 printf "<br/><br/><h2>Runs by Problems</h2>\n"
 echo "<table border=1>"
 echo "<tr><th>#</th><th>Total</th><th>Accepted</th></tr>"
@@ -66,7 +73,12 @@ for ((i=0;i<TOTPROBS;i+=5)); do
   if ((TOTALRUNS > 0)); then
     ACPER="($((TOTALAC*100/TOTALRUNS))%%)"
   fi
-  printf "<td>${PROBS[$((i+3))]}</td><td>$TOTALRUNS</td><td>$TOTALAC ${ACPER}</td></tr>"
+  BGCOLOR=
+  if (( LINHA%2 == 0 )); then
+    BGCOLOR="bgcolor='#00EEEE'"
+  fi
+  printf "<tr $BGCOLOR><td>${PROBS[$((i+3))]}</td><td>$TOTALRUNS</td><td>$TOTALAC ${ACPER}</td></tr>"
+  ((LINHA++))
 done
 echo "</table>"
 
@@ -125,7 +137,11 @@ while read LINE; do
   LING="$(cut -d: -f4 <<< "$LINE")"
   RESP="$(cut -d: -f5 <<< "$LINE")"
   NOME=$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd |cut -d':' -f3)
-  printf "<tr><td>$CONT</td><td>$NOME</td><td>$TMPOMIN</td>"
+  BGCOLOR=
+  if (( CONT%2 == 0 )); then
+    BGCOLOR="bgcolor='#00EEEE'"
+  fi
+  printf "<tr $BGCOLOR><td>$CONT</td><td>$NOME</td><td>$TMPOMIN</td>"
   printf "<td>${PROBS[$((PROBID+3))]}</td><td>$LING</td>"
   printf "<td>$LOCALTIME</td><td>$RESP</td></tr>"
 
