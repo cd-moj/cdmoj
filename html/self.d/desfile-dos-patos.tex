@@ -1,0 +1,53 @@
+\section{Problema H: Desfile dos Patos}
+\vspace{-0.52cm}
+\noindent \begin{verbatim}Arquivo: desfile.[c|cpp|pas]\end{verbatim}
+
+Em uma pacata cidade do interior um curioso desfile acontece toda manhã às seis
+horas. O desfile dos Patos acontece na avenida mais badalada da cidade (a Av.
+Tupi). Esse desfile é tão reconhecido que pelo menos uma vez por semana
+a televisão local filma o evento e transmite para a micro-região. Os patos
+sempre saem para seu desfile alimentados e percorrem a avenida como verdadeiros
+reis da cidade. Não é por acaso que a cidade possui o Trevo do Patinho com
+a estátua do mais reconhecido Pato que viveu nessa cidade, o famoso
+Pato Branco de polainas.
+
+Durante o desfile dessa manhã, Bozena, percebeu que vários Patos possuem
+uma mecha em suas penas. Essas mechas são um filete de alguma cor. Marciano,
+um aluno de uma escola local, percebeu que uma cor é a majoritária (mais da
+metade dos patos tem essa cor) no conjunto de todas as cores nas mechas, porém,
+Patrick (colega de Marciano) não consegue decidir qual é a cor majoritária,
+algumas cores parecem ter a maioria por pouca diferença e por isso é difícil
+saber qual é a majoritária. Então Patrick o desafiou a escrever um programa de
+computador que dada uma sequência das cores que aparecem nos patos durante o
+desfile diga qual é a cor majoritária.
+
+\subsection*{Entrada}
+
+A entrada possui vários casos de teste. A primeira linha de um caso de teste
+possui um número $N$ ($1 \leq N \leq 5000$ )que representa quantos patos foram observados. A segunda
+linha de um caso de teste possui $N$ inteiros, $a_i$ ( $1 \leq a_i \leq 10^5$),
+separados por um espaço em branco, correspondendo ao código da cor que estava
+na mecha do Pato. A entrada termina quando $N = 0$.
+
+\subsection*{Saída}
+
+Para cada caso de teste imprima, em uma única linha, o código da cor que é
+a majoritária no desfile.
+
+\subsection*{Exemplo}
+
+\begin{multicols}{2}
+\subsubsection*{Entrada}
+\begin{verbatim}
+5
+1 0 1 2 1
+13
+1 1 1 3 3 2 2 3 3 3 2 3 3
+\end{verbatim}
+\columnbreak
+\subsubsection*{Saída}
+\begin{verbatim}
+1
+3
+\end{verbatim}
+\end{multicols}
