@@ -1,5 +1,5 @@
 function link-prob-cdmoj()
 {
   PROBID=$1
-  echo "nil"
+  echo "$BASEURL/self.shtml"
 }
