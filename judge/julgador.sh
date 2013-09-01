@@ -14,7 +14,11 @@ function updatescore()
       sort -s -n -r -t ':' -k2|
       cut -d: -f1|
       while read LINE; do
-        echo "<tr><td>$CLASSIFICACAO<br/></td>$LINE";
+        BGCOLOR=""
+        if (( CLASSIFICACAO%2 == 0 ))
+          BGCOLOR="bgcolor='#00EEEE'"
+        fi
+        echo "<tr $BGCOLOR><td>$CLASSIFICACAO<br/></td>$LINE";
         ((CLASSIFICACAO++))
       done  > $CONTESTSDIR/$CONTEST/controle/SCORE
 }
