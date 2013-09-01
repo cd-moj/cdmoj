@@ -15,7 +15,7 @@ function updatescore()
       cut -d: -f1|
       while read LINE; do
         BGCOLOR=""
-        if (( CLASSIFICACAO%2 == 0 ))
+        if (( CLASSIFICACAO%2 == 0 ));then
           BGCOLOR="bgcolor='#00EEEE'"
         fi
         echo "<tr $BGCOLOR><td>$CLASSIFICACAO<br/></td>$LINE";
