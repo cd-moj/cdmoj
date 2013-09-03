@@ -96,6 +96,24 @@ for ARQ in $SUBMISSIONDIR/*; do
     tar xf "$ARQ" -C $TMPDIR/
     CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
     bash #SCRIPTSDIR#/../bin/cria-contest.sh "$CAMINHO" "$LOGIN"
+    CONTEST="$(head -n1 "$CAMINHO/contest-description.txt")"
+
+    #Se já tem alguém logado no contest atualiza todos os .score
+    UPSCORE=false
+    for D in $CONTEST_ID/$CONTEST/controle/*.d; do
+      if [[ ! -e "$D" ]]; then
+        continue
+      fi
+      LOGIN="$(basename "$D" .d)"
+      NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
+      updatedotscore "$LOGIN" "$NOME" "$CONTEST"
+      UPSCORE=true
+    done
+
+    if [[ "$UPSCORE" == true ]]; then
+      updatescore $CONTEST
+    fi
+
     rm -rf $TMPDIR
 
   elif [[ "$COMANDO" == "login" ]]; then
