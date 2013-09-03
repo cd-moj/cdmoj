@@ -95,7 +95,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     TMPDIR=$(mktemp -d)
     tar xf "$ARQ" -C $TMPDIR/
     CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
-    bash #SCRIPTSDIR#/../bin/cria-contest.sh $CAMINHO
+    bash #SCRIPTSDIR#/../bin/cria-contest.sh "$CAMINHO" "$LOGIN"
     rm -rf $TMPDIR
 
   elif [[ "$COMANDO" == "login" ]]; then
