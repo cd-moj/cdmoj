@@ -3,6 +3,7 @@
 source #CONFDIR#/common.conf
 
 NEWCONTEST="$1"
+ADMINLOGIN="$2"
 CONTESTDESC="$1/contest-description.txt"
 
 if (( $# != 1 )); then
@@ -69,5 +70,9 @@ if [[ -d "$NEWCONTEST/enunciados" ]]; then
     cp -r $NEWCONTEST/enunciados/* $CONTESTSDIR/$CONTEST_ID/enunciados/
     chmod a+rX -R $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
 fi
+
+DROPBOXDIR="$HOME/Dropbox/cd-moj/admins/cd-moj-$ADMINLOGIN-contests"
+mkdir -p "$DROPBOXDIR"
+ln -s $CONTESTSDIR/$CONTEST_ID "$DROPBOXDIR"
 
 exit 0
