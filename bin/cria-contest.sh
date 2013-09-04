@@ -6,8 +6,8 @@ NEWCONTEST="$1"
 ADMINLOGIN="$2"
 CONTESTDESC="$1/contest-description.txt"
 
-if (( $# != 1 )); then
-    echo "$0 path/to/contest-description.txt"
+if (( $# != 2 )); then
+    echo "$0 path/to/contest-description.txt adminlogin"
     echo "    check file format"
     exit 0
 fi
