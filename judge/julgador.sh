@@ -90,8 +90,6 @@ for ARQ in $SUBMISSIONDIR/*; do
   source $CONTESTSDIR/$CONTEST/conf
 
   if [[ "$CONTEST" == "admin" && "$COMANDO" == "newcontest" ]]; then
-    LOGIN="$(cut -d: -f2 <<< "$N")"
-    FILENAME="$(cut -d: -f3 <<< "$N")"
     TMPDIR=$(mktemp -d)
     tar xf "$ARQ" -C $TMPDIR/
     CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
