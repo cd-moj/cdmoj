@@ -42,20 +42,20 @@ h1{font-size: 22px;
     height: 76px;
     margin-bottom: 15px;
 }
-#header #utfpr{
+#header #moj{
     width: 100%;
     height: 76px;
     border-bottom: 3px solid #b1b1b1;
     margin-bottom: 15px;
 }
-#header #utfpr .logo_utfprpatobranco{
-    background: url(/images/logo_utfprpatobranco.png) no-repeat left top;
+#header #moj .logo_mojpatobranco{
+    background: url(/images/logo_mojpatobranco.png) no-repeat left top;
     width: 355px;
     height: 76px;
     display: block;
     float: left;
 }
-#header #utfpr .logo_maratona{
+#header #moj .logo_maratona{
     background: url(/images/logo_maratona.png) no-repeat right top;
     width: 95px;
     height: 76px;
