@@ -36,6 +36,10 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
 
   RESP="$(pega-resultado-$SITE "$CODIGOSUBMISSAO")"
 
+  if [[ "${RESP// }" == "" || "${RESP// }" == "??" ]]; then
+    continue
+  fi
+
   mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
 
   PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
