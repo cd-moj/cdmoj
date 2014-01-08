@@ -49,7 +49,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 
   if [[ "$LINK" =~ "http://" ]]; then
     printf "<td><a href=\"$LINK\" target=\"_blank\">desc</a></td>"
-  elif [[ "$LINK" != "none" ]]; then
+  elif [[ "$LINK" != "none" && "$LINK" != "site" ]]; then
     printf "<td><a href=\"$BASEURL/contests/$CONTEST_ID/$LINK\" target=\"_blank\">desc</a></td>"
   else
     printf "<td> - - </td>"
