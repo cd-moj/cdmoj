@@ -28,9 +28,15 @@ printf "<ul><li>Início: $(date --date=@$CONTEST_START)</li>"
 printf "<li>Término:  $(date --date=@$CONTEST_END)</li>"
 
 if (( AGORA < CONTEST_END )); then
-  printf "<p>O Contest ainda <b>NÃO</b> encerrou. Aguarde</p>\n"
-  cat ../footer.html
-  exit 0
+  printf "<p>O Contest ainda <b>NÃO</b> encerrou.</p>\n"
+  if [[ "$PARTIALSTATISTIC" == "1" ]]; then
+    printf "<p> As estatísticas disponibilizadas aqui são PARCIAIS e são "
+    printf "atualizadas a cada submissão</p>\n"
+  else
+    printf "<p> Este contest NÃO permite estatísticas parciais, aguarde!</p>\n"
+    cat ../footer.html
+    exit 0
+  fi
 fi
 
 #mostrar exercicios
