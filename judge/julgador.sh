@@ -51,11 +51,11 @@ function updatedotscore()
         ((ACUMACERTOS++))
         ((ACUMPENALIDADES+=PENALIDADES))
         ((JAACERTOU = JAACERTOU/60))
-        printf "<td>Yes<br/><small>$TENTATIVAS/$JAACERTOU</small></td>"
+        printf "<td><img src='/images/yes.png'/><br/><small>$TENTATIVAS/$JAACERTOU</small></td>"
       else
         PENDINGBLINK=
         if (( PENDING > 0 )); then
-          PENDINGBLINK="<blink>?Yes?</blink>"
+          PENDINGBLINK="<blink><img src='/images/yes.png'/></blink>"
         fi
         printf "<td>$PENDINGBLINK<br/><small>$TENTATIVAS/-</small></td>"
       fi
