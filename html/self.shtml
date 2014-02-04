@@ -20,7 +20,7 @@ em outro OJ</th></tr>
     <td>Bruno Ribas</td>
     <td><a href="self.d/desfile-dos-patos.pdf">PDF</a> |
         <a href="self.d/desfile-dos-patos.tex">TeX</a></td>
-    <td><a href="http://br.spoj.com/status/DESFILE/">SPOJ</a></td>
+    <td><a href="http://br.spoj.com/problems/DESFILE/">SPOJ</a></td>
 </tr>
 <tr><th>pokemon</th>
     <td>Batalha Pokemon!</td>
@@ -43,12 +43,54 @@ em outro OJ</th></tr>
     <td><a href="http://ncpc.idi.ntnu.no/ncpc2007/ncpc2007problems.pdf">PDF</a></td>
     <td>não??</td>
 </tr>
-<tr><th>tv</th>
+<tr><th>logotipo</th>
     <td>Logotipo publicitário na TV da Vovó</td>
     <td>Bruno Ribas</td>
     <td><a href="self.d/logotipo-tv.pdf">PDF</a> |
         <a href="self.d/logotipo-tv.tex">TeX</a></td>
-    <td><a href="http://br.spoj.com/status/LOGOTIPO/">SPOJ</a></td>
+    <td><a href="http://br.spoj.com/problems/LOGOTIPO/">SPOJ</a></td>
+</tr>
+<tr><th>fila</th>
+    <td>Fila do Bandeijão</td>
+    <td>Marcio Oshiro</td>
+    <td>- -</a> |
+        - -</a></td>
+    <td><a href="http://br.spoj.com/problems/FILA/">SPOJ</a></td>
+</tr>
+<tr><th>lotofacil</th>
+    <td>Lotofácil</td>
+    <td>Bruno Ribas</td>
+    <td>- -</a> |
+        - -</a></td>
+    <td><a href="http://br.spoj.com/problems/LOTOFACI/">SPOJ</a></td>
+</tr>
+<tr><th>tv</th>
+    <td>TV da Vovó</td>
+    <td>Raphael Ribas</td>
+    <td>- -</a> |
+        - -</a></td>
+    <td><a href="http://br.spoj.com/problems/TV7CN/">SPOJ</a></td>
+</tr>
+<tr><th>defeito</th>
+    <td>Defeito de Fabricação</td>
+    <td>Ricardo Oliveira</td>
+    <td>- -</a> |
+        - -</a></td>
+    <td><a href="http://br.spoj.com/problems/DEFEITO/">SPOJ</a></td>
+</tr>
+<tr><th>anonovo</th>
+    <td>Ano Novo</td>
+    <td>Ricardo Oliveira</td>
+    <td>- -</a> |
+        - -</a></td>
+    <td><a href="http://br.spoj.com/problems/ANONOVO/">SPOJ</a></td>
+</tr>
+<tr><th>lanches</th>
+    <td>Transportando Lanches</td>
+    <td>Marcio Oshiro</td>
+    <td>- -</a> |
+        - -</a></td>
+    <td><a href="http://br.spoj.com/problems/LANCHES/">SPOJ</a></td>
 </tr>
 </table>
 
