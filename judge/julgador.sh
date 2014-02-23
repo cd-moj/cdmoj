@@ -144,6 +144,9 @@ for ARQ in $SUBMISSIONDIR/*; do
       source $PROBIDFILE
     fi
 
+    #incrementar tentativas
+    ((TENTATIVAS++))
+
     TEMPO="$(cut -d: -f1 <<< "$ID")"
     ((TEMPO= (TEMPO - CONTEST_START) ))
 
@@ -207,7 +210,6 @@ for ARQ in $SUBMISSIONDIR/*; do
     elif [[ "$JAACERTOU" == "0" ]] ; then
       cp "$ARQ" $SUBMISSIONDIR-enviaroj/
 
-      ((TENTATIVAS++))
       ((PENDING++))
       {
         echo "PENALIDADES=$PENALIDADES"
