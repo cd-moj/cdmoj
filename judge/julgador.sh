@@ -45,7 +45,7 @@ function updatedotscore()
       TENTATIVAS=0
       PENDING=0
       source $CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$prob 2>/dev/null
-      if (( TENTATIVAS == 0 )) ; then
+      if (( TENTATIVAS == 0 )) && (( PENDING==0 )) ; then
         printf "<td></td>"
       elif (( JAACERTOU > 0 )); then
         ((ACUMACERTOS++))
@@ -54,10 +54,13 @@ function updatedotscore()
         printf "<td><img src='/images/yes.png'/><br/><small>$TENTATIVAS/$JAACERTOU</small></td>"
       else
         PENDINGBLINK=
+        TENTATIVASSTAT=""
         if (( PENDING > 0 )); then
           PENDINGBLINK="<blink><img src='/images/yes.png'/></blink>"
+        elif (( TENTATIVAS > 0 )); then
+          TENTATIVASSTAT="$TENTATIVAS/-"
         fi
-        printf "<td>$PENDINGBLINK<br/><small>$TENTATIVAS/-</small></td>"
+        printf "<td>$PENDINGBLINK<br/><small>$TENTATIVASSTAT</small></td>"
       fi
     done
     printf "<td>$ACUMACERTOS ($ACUMPENALIDADES)</td></tr>:$ACUMACERTOS:$ACUMPENALIDADES\n"
