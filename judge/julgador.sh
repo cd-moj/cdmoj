@@ -29,6 +29,7 @@ function updatedotscore()
   local LOGIN="$1"
   local CONTEST="$3"
 
+  local PENALTYCOST=20
   source $CONTESTSDIR/$CONTEST/conf
 
   #gerar arquivo para montar o score
@@ -50,7 +51,7 @@ function updatedotscore()
       elif (( JAACERTOU > 0 )); then
         ((ACUMACERTOS++))
         ((JAACERTOU = JAACERTOU/60))
-        ((ACUMPENALIDADES+= (TENTATIVAS-1)*20 + JAACERTOU))
+        ((ACUMPENALIDADES+= (TENTATIVAS-1)*PENALTYCOST + JAACERTOU))
         printf "<td><img src='/images/yes.png'/><br/><small>$TENTATIVAS/$JAACERTOU</small></td>"
       else
         PENDINGBLINK=
