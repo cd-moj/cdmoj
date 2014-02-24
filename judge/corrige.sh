@@ -40,21 +40,6 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
     continue
   fi
 
-  mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
-
-  PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
-
-  PENALIDADES=0
-  JAACERTOU=0
-  TENTATIVAS=0
-  if [[ -e $PROBIDFILE ]]; then
-    source $PROBIDFILE
-  fi
-
-  if (( JAACERTOU > 0 )); then
-    RESP="Ignored"
-  fi
-
   #ordem de ARQ: $CONTEST:$AGORA:$RAND:$LOGIN:comando:$PROBLEMA:$FILETYPE
   touch "$SUBMISSIONDIR/$CONTEST:$ID:$LOGIN:corrigido:$PROBID:$LING:$RESP"
 
