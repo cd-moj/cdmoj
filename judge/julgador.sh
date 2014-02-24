@@ -41,7 +41,6 @@ function updatedotscore()
   {
     printf "<td>$NOME</td>"
     for((prob=0;prob<TAMARRAY;prob+=5)); do
-      PENALIDADES=0
       JAACERTOU=0
       TENTATIVAS=0
       PENDING=0
@@ -140,7 +139,6 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
 
-    PENALIDADES=0
     JAACERTOU=0
     TENTATIVAS=0
     PENDING=0
@@ -160,7 +158,6 @@ for ARQ in $SUBMISSIONDIR/*; do
     if [[ "$RESP" != "Ignored" ]]; then
       ((TENTATIVAS++))
       {
-        echo "PENALIDADES=$PENALIDADES"
         echo "JAACERTOU=$JAACERTOU"
         echo "TENTATIVAS=$TENTATIVAS"
         echo "PENDING=$PENDING"
@@ -186,7 +183,6 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
 
-    PENALIDADES=0
     JAACERTOU=0
     TENTATIVAS=0
     PENDING=0
@@ -205,7 +201,6 @@ for ARQ in $SUBMISSIONDIR/*; do
 
       ((PENDING++))
       {
-        echo "PENALIDADES=$PENALIDADES"
         echo "JAACERTOU=0"
         echo "TENTATIVAS=$TENTATIVAS"
         echo "PENDING=$PENDING"
