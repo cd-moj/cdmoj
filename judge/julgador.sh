@@ -49,8 +49,8 @@ function updatedotscore()
         printf "<td></td>"
       elif (( JAACERTOU > 0 )); then
         ((ACUMACERTOS++))
-        ((ACUMPENALIDADES+=PENALIDADES))
         ((JAACERTOU = JAACERTOU/60))
+        ((ACUMPENALIDADES+= (TENTATIVAS-1)*20 + JAACERTOU))
         printf "<td><img src='/images/yes.png'/><br/><small>$TENTATIVAS/$JAACERTOU</small></td>"
       else
         PENDINGBLINK=
@@ -147,34 +147,23 @@ for ARQ in $SUBMISSIONDIR/*; do
       source $PROBIDFILE
     fi
 
-    #incrementar tentativas
-    ((TENTATIVAS++))
+    ((PENDING--))
 
     TEMPO="$(cut -d: -f1 <<< "$ID")"
     ((TEMPO= (TEMPO - CONTEST_START) ))
 
     if [[ "$RESP" == "Accepted"  && "$JAACERTOU" == "0" ]] ; then
-      (( PENALIDADES= PENALIDADES + TEMPO/60 ))
       JAACERTOU=$TEMPO
-      ((PENDING--))
+    fi
+
+    if [[ "$RESP" != "Ignored" ]]; then
+      ((TENTATIVAS++))
       {
         echo "PENALIDADES=$PENALIDADES"
         echo "JAACERTOU=$JAACERTOU"
         echo "TENTATIVAS=$TENTATIVAS"
         echo "PENDING=$PENDING"
       } > $PROBIDFILE
-    elif [[ "$JAACERTOU" == "0" && "$RESP" != "Ignored" ]]; then
-      ((PENALIDADES+=20))
-      ((PENDING--))
-      {
-        echo "PENALIDADES=$PENALIDADES"
-        echo "JAACERTOU=0"
-        echo "TENTATIVAS=$TENTATIVAS"
-        echo "PENDING=$PENDING"
-      } > $PROBIDFILE
-    fi
-
-    if [[ "$RESP" != "Ignored" ]]; then
       echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP" >> $CONTESTSDIR/$CONTEST/controle/history
     fi
 
