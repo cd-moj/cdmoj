@@ -57,7 +57,8 @@ function updatedotscore()
         TENTATIVASSTAT=""
         if (( PENDING > 0 )); then
           PENDINGBLINK="<blink><img src='/images/yes.png'/></blink>"
-        elif (( TENTATIVAS > 0 )); then
+        fi
+        if (( TENTATIVAS > 0 )); then
           TENTATIVASSTAT="$TENTATIVAS/-"
         fi
         printf "<td>$PENDINGBLINK<br/><small>$TENTATIVASSTAT</small></td>"
