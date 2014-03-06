@@ -154,7 +154,7 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     if [[ "$RESP" == "Accepted"  && "$JAACERTOU" == "0" ]] ; then
       JAACERTOU=$TEMPO
-    elif [[ "$RESP" == "Accepted"  && "$JAACERTOU" != "0" ]] ; then
+    elif [[ "$JAACERTOU" != "0" ]] ; then
       RESP=Ignored
     fi
 
