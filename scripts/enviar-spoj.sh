@@ -38,6 +38,20 @@ function enviar-spoj()
     LINGUAGEM=28;
   elif [[ "$LINGUAGEM" == "SH" ]];then
     LINGUAGEM=28;
+  elif [[ "$LINGUAGEM" == "PY" ]];then
+    LINGUAGEM=4;
+  elif [[ "$LINGUAGEM" == "PERL" ]];then
+    LINGUAGEM=3;
+  elif [[ "$LINGUAGEM" == "CS" ]];then
+    LINGUAGEM=27;
+  elif [[ "$LINGUAGEM" == "HS" ]];then
+    LINGUAGEM=21;
+  elif [[ "$LINGUAGEM" == "LUA" ]];then
+    LINGUAGEM=26;
+  elif [[ "$LINGUAGEM" == "RB" ]];then
+    LINGUAGEM=7;
+  elif [[ "$LINGUAGEM" == "PHP" ]];then
+    LINGUAGEM=29;
   else
     LINGUAGEM=41;
   fi
