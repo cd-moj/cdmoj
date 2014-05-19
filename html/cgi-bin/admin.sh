@@ -41,7 +41,7 @@ aparecer na tela inicial, deve ser escrito com ASPAS</td></tr>
 o comando date, por exemplo, se a prova deve começar às 15:00 de hoje:
 <br/>
 <pre>
-date --date="15:00:00 today" +%sh
+date --date="15:00:00 today" +%s
 </pre></td></tr>
 <tr><td>TERMINO-da-prova</td><td>Termino da prova em segundos, gere com o
 comando date, por exemplo, se a prova deve terminar hoje às 17:00:<br/>
