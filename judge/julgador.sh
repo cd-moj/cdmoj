@@ -81,6 +81,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     continue
   fi
   N="$(basename "$ARQ")"
+  printf "\n$N\n"
   CONTEST="$(cut -d: -f1 <<< "$N")"
   ID="$(cut -d: -f2,3 <<< "$N")"
   LOGIN="$(cut -d: -f4 <<< "$N")"
