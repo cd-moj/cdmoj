@@ -10,7 +10,7 @@ fi
 
 bash configure.sh "$PREFIX" "$HTMLDIR"
 rsync -aHx --delete-during --exclude=contests html/ "$HTMLDIR"
-rsync -aHx --delete-during bin judge scripts "$PREFIX"
+rsync -aHx --delete-during bin judge scripts daemons "$PREFIX"
 
 mkdir -p "$HTMLDIR/contests"
 cp -r contests/sample .
