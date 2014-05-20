@@ -21,11 +21,6 @@ if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]]; then
   exit 0
 fi
 
-if [[ "$CONTEST" == "admin" ]]; then
-  bash admin.sh
-  exit 0
-fi
-
 #o contest é valido, tem que verificar o login
 if verifica-login $CONTEST| grep -q Nao; then
   tela-login $CONTEST
