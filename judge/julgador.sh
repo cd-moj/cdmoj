@@ -136,6 +136,12 @@ for ARQ in $SUBMISSIONDIR/*; do
       echo "<tr><td>--</td>$(<$CONTESTSDIR/$CONTEST/controle/$LOGIN.score)"|
         cut -d: -f1 >> $CONTESTSDIR/$CONTEST/controle/SCORE
     fi
+  elif [[ "$COMANDO" == "passwd" ]]; then
+    OLDPASSWD=$PROBID
+    NEWPASSWD=$LING
+    if grep -q "^$LOGIN:$OLDPASSWD:" $CONTESTSDIR/$CONTEST/passwd; then
+      sed -i -e "s/^$LOGIN:$OLDPASSWD:/$LOGIN:$NEWPASSWD:/" $CONTESTSDIR/$CONTEST/passwd
+    fi
 
   elif [[ "$COMANDO" == "corrigido" ]]; then
 
