@@ -21,7 +21,11 @@ if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] ||
 fi
 
 source $CONTESTSDIR/$CONTEST/conf
-cabecalho-html
+if verifica-login $CONTEST| grep -q Nao; then
+  cabecalho-html
+else
+  incontest-cabecalho-html $CONTEST
+fi
 printf "<h1>SCORE de \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
 printf "<ul><li>Início: $(date --date=@$CONTEST_START)</li>"
@@ -39,7 +43,11 @@ if (( AGORA < CONTEST_START )); then
   fi
   printf "<p>O Contest ainda <b>NÃO</b> está em execução</p>\n"
   printf "<center>Aguarde $MSG</center>"
-  cat ../footer.html
+  if verifica-login $CONTEST| grep -q Nao; then
+    cat ../footer.html
+  else
+    incontest-footer
+  fi
   exit 0
 fi
 
@@ -65,4 +73,8 @@ echo "<td><b>Total</b></td></tr>"
 cat $CONTESTSDIR/$CONTEST/controle/SCORE
 echo "</table>"
 
-cat ../footer.html
+if verifica-login $CONTEST| grep -q Nao; then
+  cat ../footer.html
+else
+  incontest-footer
+fi

@@ -2,6 +2,59 @@
 source #CONFDIR#/common.conf
 source #SCRIPTSDIR#/oj-links.sh
 
+function incontest-footer()
+{
+  cat << EOF
+</div>
+</div>
+<div id="footer">
+--- <BR/>
+Gerado em: $(date)
+</div>
+<script type="text/javascript">cufon();</script>
+</body>
+</html>
+EOF
+}
+function incontest-cabecalho-html()
+{
+  local CONTEST=$1
+  local MSG="$2"
+  printf "Content-type: text/html\n\n"
+  cat << EOF
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CD-MOJ - Contest Driven Meta Online Judge</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+        <script src="/js/application.js" type="text/javascript"></script>
+        <script src="/js/cufon.js" type="text/javascript"></script>
+        <script src="/js/AvantGarde_Bk_BT_400.font.js" type="text/javascript"></script>
+
+        <!-- CSS -->
+        <link type="text/css" rel="stylesheet" href="/css/incontest.css" media="screen" />
+        <link type="text/css" rel="stylesheet" href="/css/badideas.css" media="screen" />
+    </head>
+    <body class="bg">
+      <div id="geral">
+        <div id="header">
+          <h1><font color="white">CD-MOJ</font></h1>
+          <p style="float:right;">$MSG</font></p>
+          <p><font color=lightyellow>$(pega-nome $CONTEST)</font><font color=white> em <em>$CONTEST_NAME</em></font></p>
+        </div>
+        <div id="content">
+          <ul id="menu">
+            <li><a href="/cgi-bin/contest.sh/$CONTEST">Problemas e Submissões</a></li>
+            <li><a href="/cgi-bin/score.sh/$CONTEST">Score</a></li>
+            <li><a href="/cgi-bin/passwd.sh/$CONTEST">Trocar Senha</a></li>
+            <li><a href="/cgi-bin/logout.sh/$CONTEST">Logout</a></li>
+          </ul>
+          <br/><br/>
+          <div id="text">
+EOF
+}
+
 function cabecalho-html()
 {
   printf "Content-type: text/html\n\n"

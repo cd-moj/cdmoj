@@ -33,8 +33,8 @@ fi
 
 source $CONTESTSDIR/$CONTEST/conf
 #estamos logados
-cabecalho-html
-printf "<h1>$(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"</h1>\n"
+incontest-cabecalho-html $CONTEST
+#printf "<h1>$(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
 if (( AGORA < CONTEST_START )); then
   ((FALTA = CONTEST_START - AGORA))
@@ -48,7 +48,7 @@ if (( AGORA < CONTEST_START )); then
   fi
   printf "<p>O Contest ainda <b>NÃO</b> está em execução</p>\n"
   printf "<center>Aguarde $MSG</center>"
-  cat ../footer.html
+  incontest-footer
   exit 0
 fi
 
@@ -117,4 +117,4 @@ cat << EOF
 EOF
 fi
 
-cat ../footer.html
+incontest-footer

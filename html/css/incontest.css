@@ -1,0 +1,186 @@
+body{
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+}
+body.bg{
+    background: url(/images/bg_top.png) repeat-x top;}
+
+:focus { outline: 0;}
+.clear{clear: both;}
+.float-left{float: left;}
+.float-right{float: right;}
+:focus { outline: 0;}
+.clear{clear: both;}
+#content a {text-decoration: none; border: 0; color: #666;}
+a:hover {text-decoration: underline;}
+a img {border: 0;}
+.center {text-align: center !important;}
+ul, li, p {margin: 0; padding: 0; list-style: none;}
+/*table {border-collapse: collapse;}*/
+/*table td, table th {padding: 0;}*/
+h1, h2, h3 {margin: 0; padding: 0;}
+label{font-weight: bold; display: block; color: #525252;}
+.upcase {text-transform: uppercase;}
+.top {vertical-align: top;}
+li{list-style: none;}
+h1{font-size: 22px;
+   margin-bottom: 13px;
+   color: #444444;
+   background: url(/images/h1_line.png) no-repeat bottom right;
+   padding-bottom: 10px;
+}
+h2{font-size: 18px;
+   margin-bottom: 13px;
+   color: #444444;
+   background: url(/images/h1_line.png) no-repeat bottom right;
+   padding-bottom: 10px;
+}
+
+
+#header{
+    background: url(/images/menu_bar.png) repeat-x bottom;
+    width: 100%;
+}
+#header #logo_icpc{
+    background: url(/images/logo_acm_icpc.png) no-repeat left top;
+    display: block;
+    width: 490px;
+    height: 76px;
+    margin-bottom: 15px;
+}
+#header #moj{
+    width: 100%;
+    height: 76px;
+    border-bottom: 3px solid #b1b1b1;
+    margin-bottom: 15px;
+}
+#header #moj .logo_moj{
+    background: url(/images/logo_moj.png) no-repeat left top;
+    width: 355px;
+    height: 76px;
+    display: block;
+    float: left;
+}
+#header #moj .logo_maratona{
+    background: url(/images/logo_maratona.png) no-repeat right top;
+    width: 95px;
+    height: 76px;
+    display: block;
+    float: right;
+}
+#header #etapas{
+    clear: both;
+}
+#header #etapas li{
+    height: 94px;
+    margin-right: 8px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+    float: left;
+    padding: 3px;
+    list-style: none;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 15px;
+}
+#header #etapas li li{float: none;height: auto; margin-bottom: 2px;}
+#header #etapas li a{color: #ffffff; display: block;}
+#header #etapas li span{width: 99%;display: block;padding: 2px; margin-bottom: 8px;font-size: 16px;}
+
+#header #etapas li.one{width: 194px; margin-right: 9px; background: #6a6a6a;}
+#header #etapas li.one span{background: #585858}
+#header #etapas li.two{width: 219px; background: #2870b8;}
+#header #etapas li.two span{background: #50667d}
+#header #etapas li.three{width: 219px; background: #ffaa19;}
+#header #etapas li.three span{background: #c2a575;}
+#header #etapas li.four{width: 219px; background: #a11813; margin-right: 0px !important;}
+#header #etapas li.four span{background: #5f3433}
+
+#content{
+    #background: url(/images/bg_etapas.png) no-repeat;
+    padding-top: 20px;
+    position: relative;
+    clear: both;
+    min-height: 100px;
+}
+
+#content #text {
+    width: 100%;
+    float: right;
+    font-size: 12px;
+    padding-bottom: 25px;
+}
+#content #text li{padding: 5px 0; border-bottom: 1px dotted #c1c1c1;}
+#content #menu {
+    width: 100%;
+    float: left;
+    font-size: 16px;
+}
+#content #menu li{
+    background: url(/images/menu_line.png) no-repeat bottom left;
+    display: inline;
+    padding: 5px 0 10px 5px;
+}
+
+
+#footer{
+    background: url(/images/bottom_line.png) no-repeat center top;
+    width: 100%;
+    font-size: 8px;    
+    padding-top: 15px;
+    text-align: right;
+    margin: 30px 0 5px 0;
+    color: #363636;
+    clear: both;
+}
+#footer a{color: #363636;}
+
+#geral {
+    width: 98%;
+    margin: auto;
+    position: relative;
+}
+
+
+/* --- FORMULARIOS --- */
+
+/* remocao de borda pontilhada ie/ff  */
+input, input:active, input:focus{
+    outline: 0;
+    outline-style:none;
+    outline-width:0;}
+button::-moz-focus-inner,
+input[type="reset"]::-moz-focus-inner,
+input[type="button"]::-moz-focus-inner,
+input[type="submit"]::-moz-focus-inner,
+input[type="file"] > input[type="button"]::-moz-focus-inner {
+    border: none;
+}
+
+input[type=submit]{
+    width: auto!important;
+}
+input[type=text]{height: 18px;}
+input, textarea{
+    color: black;
+    width: 230px;
+    margin:0 0 10px 5px;
+    border: 1px solid #929293;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    background: url(/images/bg_black_transparent.png);
+}
+textarea{height: 105px;}
+form th{
+    text-align: right;
+    vertical-align: top;
+    text-transform: uppercase;
+    padding-top: 5px;
+    font-size: 12px;
+}
+form#contato{
+    padding-top: 80px;
+}
+
+/* classe roseal */
+.titcontest { font-size: 14px; }
