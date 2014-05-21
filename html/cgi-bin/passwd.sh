@@ -42,6 +42,7 @@ if [[ "x$POST" != "x" ]]; then
   printf "Content-type: text/html\n\n"
   cat << EOF
   <script type="text/javascript">
+    window.alert("Senha Trocada com Sucesso");
     top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
   </script>
 
@@ -59,7 +60,7 @@ printf "<h1>Trocar SENHA de $(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"<
   Senha Antiga: <input name="senhaantiga" type="password"><br/>
   Nova Senha: <input name="senha" type="password"><br/>
   <br/>
-  <input type="submit" value="Login">
+  <input type="submit" value="Trocar">
   <br/>
 </form>
 EOF
