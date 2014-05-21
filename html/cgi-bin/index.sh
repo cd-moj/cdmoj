@@ -50,7 +50,7 @@ for contest in $CONTESTSDIR/*; do
 done
 RUNNING="$(printf "$RUNNING"|sort -t" " -k1 -n -r|cut -d" " -f3-)"
 ENDED="$(printf "$ENDED"|sort -t" " -k1 -n -r|cut -d" " -f3-)"
-UPCOMING="$(printf "$UPCOMING"|sort -t" " -k1 -n -r|cut -d" " -f3-)"
+UPCOMING="$(printf "$UPCOMING"|sort -t" " -k1 -n|cut -d" " -f3-)"
 cat << EOF
 <div class="simpleTabs">
             <ul class="simpleTabsNavigation">
