@@ -29,7 +29,7 @@ LOGIN=$(pega-login)
 RAND=$RANDOM
 PROBLEMA="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 FILENAME="$(grep 'filename' <<< "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g')"
-FILETYPE="$(awk -F'.' '{print $NF}' <<< $FILENAME|tr '[a-z]' '[A-Z]')"
+FILETYPE="$(awk -F'.' '{print $NF}' <<< "$FILENAME"|tr '[a-z]' '[A-Z]')"
 fd='Content-Type: '
 boundary="$(head -n1 <<< "$POST")"
 sed -e "1,/$fd/d;/^$/d;/$boundary/,\$d" <<< "$POST" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:submit:$PROBLEMA:$FILETYPE
