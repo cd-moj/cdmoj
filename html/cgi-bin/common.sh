@@ -55,8 +55,8 @@ function incontest-cabecalho-html()
             <li><a href="$URL/contest.sh/$CONTEST">Problemas e Submissões</a></li>
             <li><a href="$URL/score.sh/$CONTEST">Score</a></li>
             <li><a href="$URL/passwd.sh/$CONTEST">Trocar Senha</a></li>
-            <li><a href="$URL/logout.sh/$CONTEST">Logout</a></li>
             $ADMINMENU
+            <li><a href="$URL/logout.sh/$CONTEST">Logout</a></li>
           </ul>
           <br/><br/>
           <div id="text">
