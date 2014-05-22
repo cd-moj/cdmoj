@@ -123,6 +123,10 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     if [[ ! -d $CONTESTSDIR/$CONTEST/controle/$LOGIN.d ]]; then
       mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
+      #admin não deve aparecer no score
+      if grep -q "\.admin$" <<< "$LOGIN"; then
+        continue
+      fi
 
       {
         NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
@@ -172,7 +176,11 @@ for ARQ in $SUBMISSIONDIR/*; do
         echo "TENTATIVAS=$TENTATIVAS"
         echo "PENDING=$PENDING"
       } > $PROBIDFILE
-      echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP" >> $CONTESTSDIR/$CONTEST/controle/history
+      if grep -q "\.admin$" <<< "$LOGIN"; then
+        rm $PROBIDFILE
+      else
+        echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP" >> $CONTESTSDIR/$CONTEST/controle/history
+      fi
     fi
 
 
@@ -217,9 +225,14 @@ for ARQ in $SUBMISSIONDIR/*; do
       } > $PROBIDFILE
     fi
 
-    NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
-    updatedotscore "$LOGIN" "$NOME" "$CONTEST"
-    updatescore $CONTEST
+    #admin não deve aparecer no score
+    if grep -q "\.admin$" <<< "$LOGIN"; then
+      rm $PROBIDFILE
+    else
+      NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
+      updatedotscore "$LOGIN" "$NOME" "$CONTEST"
+      updatescore $CONTEST
+    fi
 
 
     #copiar $ARQ para o diretorio com historico de submissoes
