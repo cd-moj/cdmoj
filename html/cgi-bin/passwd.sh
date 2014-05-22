@@ -29,8 +29,11 @@ source $CONTESTSDIR/$CONTEST/conf
 LOGIN=$(pega-login)
 
 if [[ "x$POST" != "x" ]]; then
-  SENHAVELHA=$(grep -A2 'name="senhaantiga"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')
-  SENHA=$(grep -A2 'name="senha"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')
+  SENHAVELHA="$(grep -A2 'name="senhaantiga"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+  SENHA="$(grep -A2 'name="senha"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+  #escapar coisas perigosas
+  SENHAVELHA="$(echo $SENHAVELHA | sed -e 's/\([[\/.*]\|\]\)/\\&/g')"
+  SENHA="$(echo $SENHA | sed -e 's/\([[\/.*]\|\]\)/\\&/g')"
   if ! grep -q "^$LOGIN:$SENHAVELHA:" $CONTESTSDIR/$CONTEST/passwd; then
     tela-login $CONTEST
   fi
