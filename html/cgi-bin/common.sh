@@ -20,11 +20,12 @@ function incontest-cabecalho-html()
 {
   local CONTEST=$1
   local MSG="$2"
+  local URL="$BASEURL/cgi-bin"
   ADMINMENU=
   if is-admin | grep -q Sim ; then
-    ADMINMENU="<li><a href=\"/cgi-bin/statistic.sh/$CONTEST\">Estatísticas</a></li>"
-    ADMINMENU+="<li><a href=\"/cgi-bin/sherlock.sh/$CONTEST\">Sherlock (experimental)</a></li>"
-    ADMINMENU+="<li><a href=\"/cgi-bin/all-runs.sh/$CONTEST\">Todas Submissões</a></li>"
+    ADMINMENU="<li><a href=\"$URL/statistic.sh/$CONTEST\">Estatísticas</a></li>"
+    ADMINMENU+="<li><a href=\"$URL/sherlock.sh/$CONTEST\">Sherlock (experimental)</a></li>"
+    ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\">Todas Submissões</a></li>"
   fi
   printf "Content-type: text/html\n\n"
   cat << EOF
@@ -51,10 +52,10 @@ function incontest-cabecalho-html()
         </div>
         <div id="content">
           <ul id="menu">
-            <li><a href="/cgi-bin/contest.sh/$CONTEST">Problemas e Submissões</a></li>
-            <li><a href="/cgi-bin/score.sh/$CONTEST">Score</a></li>
-            <li><a href="/cgi-bin/passwd.sh/$CONTEST">Trocar Senha</a></li>
-            <li><a href="/cgi-bin/logout.sh/$CONTEST">Logout</a></li>
+            <li><a href="$URL/contest.sh/$CONTEST">Problemas e Submissões</a></li>
+            <li><a href="$URL/score.sh/$CONTEST">Score</a></li>
+            <li><a href="$URL/passwd.sh/$CONTEST">Trocar Senha</a></li>
+            <li><a href="$URL/logout.sh/$CONTEST">Logout</a></li>
             $ADMINMENU
           </ul>
           <br/><br/>
