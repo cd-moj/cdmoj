@@ -104,7 +104,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     #Se já tem alguém logado no contest atualiza todos os .score
     UPSCORE=false
     for D in $CONTEST_ID/$CONTEST/controle/*.d; do
-      if [[ ! -e "$D" ]]; then
+      if [[ ! -e "$D" ]] || grep -q '\.admin' <<< "$D"; then
         continue
       fi
       LOGIN="$(basename "$D" .d)"
