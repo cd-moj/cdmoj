@@ -54,7 +54,7 @@ da prova, depois serão N linhas com as descrições dos problemas</td></tr>
 <tr><td>SITE ID "Nome Completo" Nome_Pequeno link-enunciado</td><td>
 N linhas com esse formato, onde cada elemento representa:
 <ul>
-  <li>SITE: pode ser spoj-br spoj-www uri</li>
+  <li>SITE: pode ser spoj-br spoj-www</li>
   <li>ID: é o ID do problema no SITE</li>
   <li>"Nome completo": nome full do problema, entre ASPAS</li>
   <li>Nome_pequeno: pode ser Letra ou numero mas coloque em ordem nesse
