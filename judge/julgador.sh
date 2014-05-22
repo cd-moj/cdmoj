@@ -147,6 +147,57 @@ for ARQ in $SUBMISSIONDIR/*; do
       sed -i -e "s/^$LOGIN:$OLDPASSWD:/$LOGIN:$NEWPASSWD:/" $CONTESTSDIR/$CONTEST/passwd
     fi
 
+  elif [[ "$COMANDO" == "rejulgado" ]]; then
+    PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
+
+    JAACERTOU=0
+    TENTATIVAS=0
+    PENDING=0
+    if [[ -e $PROBIDFILE ]]; then
+      source $PROBIDFILE
+    fi
+
+    TEMPO="$(cut -d: -f1 <<< "$ID")"
+    ((TEMPO= (TEMPO - CONTEST_START) ))
+
+    #gravar nova resposta no arquivo de solucoes
+    #TODO colocar um lock no arquivo do usuario
+    USRFILE="$CONTESTSDIR/$CONTEST/data/$LOGIN"
+    sed -i -e "s/^$ID:.*/$ID:$PROBID:$RESP/" "$USRFILE"
+    chmod 777 "$USRFILE"
+
+    #Recontar tentativas
+    JAACERTOU=0
+    TENTATIVAS=0
+    PENDING=0
+    while read LINE; do
+      RESPOLD="$(cut -d: -f2 <<< "$LINE")"
+      if grep -q "Accepted" <<< "$RESPOLD"; then
+        JAACERTOU=$(cut -d: -f3 <<< "$LINE")
+        ((JAACERTOU= JAACERTOU - CONTEST_START))
+        ((TENTATIVAS++))
+        break
+      else
+        ((TENTATIVAS++))
+      fi
+    done <<< "$(awk -F: '{print $3":"$4":"$1":"$2}' $CONTESTSDIR/$CONTEST/data/$LOGIN | grep "^$PROBID:")"
+    {
+      echo "JAACERTOU=$JAACERTOU"
+      echo "TENTATIVAS=$TENTATIVAS"
+      echo "PENDING=$PENDING"
+    } > $PROBIDFILE
+    if grep -q "\.admin$" <<< "$LOGIN"; then
+      rm $PROBIDFILE
+    else
+      echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP" >> $CONTESTSDIR/$CONTEST/controle/history
+    fi
+
+    cp "$ARQ" $SUBMISSIONDIR-julgados/
+
+    NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
+    updatedotscore "$LOGIN" "$NOME" "$CONTEST"
+    updatescore $CONTEST
+
   elif [[ "$COMANDO" == "corrigido" ]]; then
 
     PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID

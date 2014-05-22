@@ -62,7 +62,11 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
   fi
 
   #ordem de ARQ: $CONTEST:$AGORA:$RAND:$LOGIN:comando:$PROBLEMA:$FILETYPE
-  touch "$SUBMISSIONDIR/$CONTEST:$ID:$LOGIN:corrigido:$PROBID:$LING:$RESP"
+  CMDRESP=corrigido
+  if [[ "$COMANDO" == "rejulgar" ]]; then
+    CMDRESP=rejulgado
+  fi
+  touch "$SUBMISSIONDIR/$CONTEST:$ID:$LOGIN:$CMDRESP:$PROBID:$LING:$RESP"
 
   rm -f "$ARQ"
 
