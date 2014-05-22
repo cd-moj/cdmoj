@@ -20,6 +20,11 @@ function incontest-cabecalho-html()
 {
   local CONTEST=$1
   local MSG="$2"
+  ADMINMENU=
+  if is-admin | grep -q Sim ; then
+    ADMINMENU="<li><a href=\"/cgi-bin/statistic.sh/$CONTEST\">Estatísticas</a></li>"
+    ADMINMENU+="<li><a href=\"/cgi-bin/sherlock.sh/$CONTEST\">Sherlock (experimental)</a></li>"
+  fi
   printf "Content-type: text/html\n\n"
   cat << EOF
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -49,7 +54,7 @@ function incontest-cabecalho-html()
             <li><a href="/cgi-bin/score.sh/$CONTEST">Score</a></li>
             <li><a href="/cgi-bin/passwd.sh/$CONTEST">Trocar Senha</a></li>
             <li><a href="/cgi-bin/logout.sh/$CONTEST">Logout</a></li>
-            $(is-admin | grep -q Sim && echo "<li><a href=\"/cgi-bin/statistic.sh/$CONTEST\">Estatísticas</a></li>")
+            $ADMINMENU
           </ul>
           <br/><br/>
           <div id="text">
