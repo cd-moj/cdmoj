@@ -11,7 +11,7 @@ if [[ "x$POST" != "x" ]]; then
   LOGIN="$(grep -A2 'name="login"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
   SENHA="$(grep -A2 'name="senha"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
   #escapar coisa perigosa
-  LOGIN="$(echo $LOGIN | sed -e 's/\([[\/.*]\|\]\)/\\&/g')"
+  LOGIN="$(echo $LOGIN | sed -e 's/\([[\/*]\|\]\)/\\&/g')"
   SENHA="$(echo $SENHA | sed -e 's/\([[\/.*]\|\]\)/\\&/g')"
   if ! grep -q "^$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd; then
     tela-login $CONTEST
