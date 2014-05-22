@@ -43,17 +43,23 @@ for i in *; do
   <tr><th>Problema</th><th>Resposta</th><th>Horário da
   Submissão</th><th>fonte</th></tr>
 EOF
+  LINHA=1
   while read LINE; do
     CODIGO=$(cut -d: -f1,2 <<< $LINE)
     HORA=$(cut -d: -f1 <<< $LINE)
     HORA="$(date --date=@$HORA)"
     RESP=$(cut -d: -f4 <<< $LINE)
     EXERCICIO=$(cut -d: -f3 <<< $LINE)
+    BGCOLOR=
+    if (( LINHA%2 == 0 )); then
+      BGCOLOR="bgcolor='#00EEEE'"
+    fi
     cat <<EOF
-    <tr><td>${PROBS[$((EXERCICIO+3))]}</td><td>$RESP</td><td>$HORA</td>
+    <tr $BGCOLOR><td>${PROBS[$((EXERCICIO+3))]}</td><td>$RESP</td><td>$HORA</td>
     <td><a target=_blank href='$BASEURL/cgi-bin/getcode.sh/$CONTEST/$CODIGO-$i-${PROBS[$((EXERCICIO+3))]}'>codigo</a>
     </td></tr>
 EOF
+  ((LINHA++))
   done < $i
   echo "</table><br/>"
 done
