@@ -29,6 +29,9 @@ rm $TMP
 cabecalho-html
 printf "<h1>Administrador $NOME</h1>\n"
 
+printf "<h2>Trocar Senha</h2>\n"
+printf "<p> - <a href='$BASEURL/cgi-bin/passwd.sh/admin'>passwd</a></p><br/>"
+
 printf "<h2>Baixe o contest template</h2>\n"
 printf "<p> <a href=\"$BASEURL/contests/sample.tar.bz2\">AQUI</a></h1>\n"
 printf "<h3>Formato do arquivo contest-description.txt</h3>"
