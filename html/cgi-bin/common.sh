@@ -24,6 +24,7 @@ function incontest-cabecalho-html()
   if is-admin | grep -q Sim ; then
     ADMINMENU="<li><a href=\"/cgi-bin/statistic.sh/$CONTEST\">Estatísticas</a></li>"
     ADMINMENU+="<li><a href=\"/cgi-bin/sherlock.sh/$CONTEST\">Sherlock (experimental)</a></li>"
+    ADMINMENU+="<li><a href=\"/cgi-bin/all-runs.sh/$CONTEST\">Todas Submissões</a></li>"
   fi
   printf "Content-type: text/html\n\n"
   cat << EOF
