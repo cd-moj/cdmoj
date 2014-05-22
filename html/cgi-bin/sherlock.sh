@@ -51,7 +51,7 @@ TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 SELETOR=
 for ((i=0;i<TOTPROBS;i+=5)); do
-  printf "<h1>${PROBS[$((i+3))]} - ${PROBS[$((i+2))]}</h1>"
+  printf "<h2>${PROBS[$((i+3))]} - ${PROBS[$((i+2))]}</h2>"
   printf "<pre>"
   cd $CONTESTSDIR/$CONTEST
   ARQUIVOS=$(grep ":$i:Accepted" data/*|cut -d: -f2,3| while read LINE; do echo submissions/${LINE}*-${PROBS[$((i+3))]}.*; done)
