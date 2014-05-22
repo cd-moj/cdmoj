@@ -21,13 +21,17 @@ if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] ||
 fi
 
 source $CONTESTSDIR/$CONTEST/conf
-cabecalho-html
+if (verifica-login $CONTEST| grep -q Sim) && (is-admin |grep -q Sim); then
+  incontest-cabecalho-html $CONTEST
+else
+  cabecalho-html
+fi
 printf "<h1>Estatísticas de \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
 printf "<ul><li>Início: $(date --date=@$CONTEST_START)</li>"
 printf "<li>Término:  $(date --date=@$CONTEST_END)</li>"
 
-if (( AGORA < CONTEST_END )); then
+if (( AGORA < CONTEST_END )) && (is-admin | grep -q Nao); then
   printf "<p>O Contest ainda <b>NÃO</b> encerrou.</p>\n"
   if [[ "$PARTIALSTATISTIC" == "1" ]]; then
     printf "<p> As estatísticas disponibilizadas aqui são PARCIAIS e são "
@@ -156,4 +160,8 @@ done
 echo "</table>"
 
 
-cat ../footer.html
+if (verifica-login $CONTEST| grep -q Sim) && (is-admin |grep -q Sim); then
+  incontest-footer
+else
+  cat ../footer.html
+fi

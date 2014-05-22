@@ -49,6 +49,7 @@ function incontest-cabecalho-html()
             <li><a href="/cgi-bin/score.sh/$CONTEST">Score</a></li>
             <li><a href="/cgi-bin/passwd.sh/$CONTEST">Trocar Senha</a></li>
             <li><a href="/cgi-bin/logout.sh/$CONTEST">Logout</a></li>
+            $(is-admin | grep -q Sim && echo "<li><a href=\"/cgi-bin/statistic.sh/$CONTEST\">Estatísticas</a></li>")
           </ul>
           <br/><br/>
           <div id="text">
@@ -76,6 +77,15 @@ EOF
 EOF
 }
 
+function is-admin()
+{
+  local LOGIN=$(pega-login)
+  if grep -q '\.admin$' <<< "$LOGIN"; then
+    echo Sim
+  else
+    echo Nao
+  fi
+}
 function pega-login()
 {
   local  LOGIN="$(echo "$HTTP_COOKIE"|sed -e 's/COOKIE=/ /' | tr ';' '\n'|grep login=|cut -d'=' -f2)"
