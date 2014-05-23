@@ -189,7 +189,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     if grep -q "\.admin$" <<< "$LOGIN"; then
       rm $PROBIDFILE
     else
-      echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP" >> $CONTESTSDIR/$CONTEST/controle/history
+      sed -i "s/^$TEMPO:$LOGIN:$PROBID:$LING:.*:$ID$/$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
 
     cp "$ARQ" $SUBMISSIONDIR-julgados/
@@ -230,7 +230,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       if grep -q "\.admin$" <<< "$LOGIN"; then
         rm $PROBIDFILE
       else
-        echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP" >> $CONTESTSDIR/$CONTEST/controle/history
+        echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID" >> $CONTESTSDIR/$CONTEST/controle/history
       fi
     fi
 
