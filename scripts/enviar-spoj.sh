@@ -16,6 +16,10 @@ function enviar-spoj()
   PROBID=$2
   LINGUAGEM=$3
   local SITE=$4
+  if (( $(wc -l "$ARQFONTE") == 0 )); then
+    echo "Arquivo_Corrompido"
+    return
+  fi
 
   #C é 11, mas vamos deixar 41
   if [[ "$LINGUAGEM" == "C" ]];then
@@ -71,14 +75,18 @@ function pega-resultado-spoj()
   #source enviar-conf
   JOBID=$1
   local SITE=$2
-
-  RESP="$(curl -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
-  RESP=${RESP// }
-  while [[ "$RESP" == "??" ]]; do
-    sleep 5
+  RESP=
+  if [[ "$JOBID" == "Arquivo_Corrompido" ]]; then
+    RESP="Arquivo Corrompido, reenvie"
+  else
     RESP="$(curl -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
     RESP=${RESP// }
+    while [[ "$RESP" == "??" ]]; do
+      sleep 5
+      RESP="$(curl -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
+      RESP=${RESP// }
   done
+  fi
   case "$RESP" in
     AC)
       RESP="Accepted"
