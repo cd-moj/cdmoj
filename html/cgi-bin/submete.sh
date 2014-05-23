@@ -35,7 +35,7 @@ fd='Content-Type: '
 boundary="$(head -n1 <<< "$POST")"
 sed -e "1,/$fd/d;/^$/d;/$boundary/,\$d" <<< "$POST" > $SUBMISSIONDIR/$CONTEST:$AGORA:$ID:$LOGIN:submit:$PROBLEMA:$FILETYPE
 
-echo "$AGORA:$RAND:$PROBLEMA:Not Answered Yet" >> $CONTESTSDIR/$CONTEST/data/$LOGIN
+echo "$AGORA:$ID:$PROBLEMA:Not Answered Yet" >> $CONTESTSDIR/$CONTEST/data/$LOGIN
 
 #printf "Location: /~moj/cgi-bin/contest.sh/$CONTEST\n\n"
   printf "Content-type: text/html\n\n"
