@@ -16,7 +16,7 @@ function enviar-spoj()
   PROBID=$2
   LINGUAGEM=$3
   local SITE=$4
-  if (( $(wc -l "$ARQFONTE") == 0 )); then
+  if (( $(wc -l "$ARQFONTE" |awk '{print $1}') == 0 )); then
     echo "Arquivo_Corrompido"
     return
   fi
