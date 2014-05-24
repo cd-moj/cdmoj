@@ -53,7 +53,7 @@ if (( AGORA < CONTEST_START )); then
 fi
 
 #mostrar exercicios
-printf "<h2>Problems</h2>\n"
+printf "<h2>Problemas</h2>\n"
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 SELETOR=
@@ -79,7 +79,7 @@ done
 echo "</ul>"
 
 echo "<br/><br/>"
-printf "<h2>My Submissions</h2>\n"
+printf "<h2>Minhas Submissões</h2>\n"
 cat << EOF
 <table border="1" width="100%"> <tr><th>Problema</th><th>Resposta</th><th>Submissão em</th><th>Tempo de Prova</th></tr>
 EOF
@@ -100,7 +100,7 @@ done < $CONTESTSDIR/$CONTEST/data/$LOGIN
 echo "</table>"
 
 echo "<br/><br/>"
-printf "<h2>Submit Problem</h2>\n"
+printf "<h2>Enviar uma Solução</h2>\n"
 
 if (( AGORA > CONTEST_END )); then
   echo "<p> O contest não está mais em andamento</p>"
