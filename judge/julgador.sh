@@ -99,23 +99,30 @@ for ARQ in $SUBMISSIONDIR/*; do
     TMPDIR=$(mktemp -d)
     tar xf "$ARQ" -C $TMPDIR/
     CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
-    bash #SCRIPTSDIR#/../bin/cria-contest.sh "$CAMINHO" "$LOGIN"
-    CONTEST="$(head -n1 "$CAMINHO/contest-description.txt")"
+    MSG="$(bash #SCRIPTSDIR#/../bin/cria-contest.sh "$CAMINHO" "$LOGIN")"
+    SAIDA=$?
+    echo "$(date) $MSG" >> $CONTESTSDIR/admin/$LOGIN.msgs
+    tail -n 20 $CONTESTSDIR/admin/$LOGIN.msgs > $TMPDIR.msgs
+    mv $TMPDIR.msgs $CONTESTSDIR/admin/$LOGIN.msgs
 
-    #Se já tem alguém logado no contest atualiza todos os .score
-    UPSCORE=false
-    for D in $CONTEST_ID/$CONTEST/controle/*.d; do
-      if [[ ! -e "$D" ]] || grep -q '\.admin' <<< "$D"; then
-        continue
+    if (( SAIDA == 0 )); then
+      CONTEST="$(head -n1 "$CAMINHO/contest-description.txt")"
+
+      #Se já tem alguém logado no contest atualiza todos os .score
+      UPSCORE=false
+      for D in $CONTEST_ID/$CONTEST/controle/*.d; do
+        if [[ ! -e "$D" ]] || grep -q '\.admin' <<< "$D"; then
+          continue
+        fi
+        LOGIN="$(basename "$D" .d)"
+        NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
+        updatedotscore "$LOGIN" "$NOME" "$CONTEST"
+        UPSCORE=true
+      done
+
+      if [[ "$UPSCORE" == true ]]; then
+        updatescore $CONTEST
       fi
-      LOGIN="$(basename "$D" .d)"
-      NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
-      updatedotscore "$LOGIN" "$NOME" "$CONTEST"
-      UPSCORE=true
-    done
-
-    if [[ "$UPSCORE" == true ]]; then
-      updatescore $CONTEST
     fi
 
     rm -rf $TMPDIR
