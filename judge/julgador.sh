@@ -20,7 +20,8 @@ function updatescore()
         fi
         echo "<tr $BGCOLOR><td>$CLASSIFICACAO<br/></td>$LINE";
         ((CLASSIFICACAO++))
-      done  > $CONTESTSDIR/$CONTEST/controle/SCORE
+      done  > $CONTESTSDIR/$CONTEST/controle/SCORE.tmp
+      mv $CONTESTSDIR/$CONTEST/controle/SCORE{.tmp,}
 }
 
 function updatedotscore()
