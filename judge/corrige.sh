@@ -5,6 +5,7 @@ source #CONFDIR#/common.conf
 source #SCRIPTSDIR#/enviar-spoj.sh
 source #SCRIPTSDIR#/enviar-uri.sh
 source #SCRIPTSDIR#/enviar-cdmoj.sh
+source #SCRIPTSDIR#/enviar-cdmoj2.sh
 
 PENDING=
 #ordem de ARQ: $CONTEST:$AGORA:$RAND:$LOGIN:comando:$PROBLEMA:$FILETYPE
