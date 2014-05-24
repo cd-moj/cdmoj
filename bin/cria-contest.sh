@@ -44,6 +44,12 @@ USUARIOS=
     done
 } < "$CONTESTDESC"
 
+if [[ -d "$CONTESTSDIR/$CONTEST_ID" ]] &&
+      [[ -e "$CONTESTSDIR/$CONTEST_ID/owner" ]] &&
+      [[ "$ADMINLOGIN" != "$(< $CONTESTSDIR/$CONTEST_ID/owner)" ]]; then
+    printf "$CONTEST_ID já existe e donos diferem, abortando\n"
+    exit 1
+fi
 mkdir "$CONTESTSDIR/$CONTEST_ID"
 
 for i in controle data enunciados submissions; do
@@ -79,5 +85,7 @@ mkdir -p "$DROPBOXDIR"
 if [[ ! -e "$DROPBOXDIR/$CONTEST_ID" ]]; then
   ln -s $CONTESTSDIR/$CONTEST_ID "$DROPBOXDIR"
 fi
+
+echo "$CONTEST_ID criado com sucesso"
 
 exit 0
