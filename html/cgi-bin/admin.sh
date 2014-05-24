@@ -25,6 +25,7 @@ if [[ "x$(< $TMP)" != "x" ]]; then
   cp $TMP $SUBMISSIONDIR/admin:$AGORA:$RANDOM:$LOGIN:newcontest
 fi
 rm $TMP
+sleep 3
 
 cabecalho-html
 printf "<h1>Administrador $NOME</h1>\n"
@@ -89,6 +90,11 @@ cat << EOF
   <br/>
 </form>
 EOF
+echo "<br/><br/>"
+printf "<h2>Últimas mensagens do LOG do admin $LOGIN</h2>"
+echo "<pre>"
+cat $CONTESTSDIR/admin/$LOGIN.msgs
+echo "</pre>"
 cat ../footer.html
 
 exit 0
