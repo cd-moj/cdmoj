@@ -47,7 +47,7 @@ USUARIOS=
 mkdir "$CONTESTSDIR/$CONTEST_ID"
 
 for i in controle data enunciados submissions; do
-    mkdir "$CONTESTSDIR/$CONTEST_ID/$i"
+    mkdir -p "$CONTESTSDIR/$CONTEST_ID/$i"
 done
 
 #data of users must be writabble by www-data
@@ -66,13 +66,18 @@ printf "$USUARIOS" > $CONTESTSDIR/$CONTEST_ID/passwd
 if [[ -d "$NEWCONTEST/enunciados" ]]; then
     #copia enunciados para html
     mkdir -p $HTMLDIR/contests/$CONTEST_ID/
-    cp -r $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
-    cp -r $NEWCONTEST/enunciados/* $CONTESTSDIR/$CONTEST_ID/enunciados/
+    rsync -a --delete $NEWCONTEST/enunciados/ $HTMLDIR/contests/$CONTEST_ID/
+    rsync -a --delete $NEWCONTEST/enunciados/ $CONTESTSDIR/$CONTEST_ID/enunciados/
     chmod a+rX -R $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
 fi
 
+#gravar dono no CONTEST
+echo "$ADMINLOGIN" > $CONTESTSDIR/$CONTEST_ID/owner
+
 DROPBOXDIR="$HOME/Dropbox/cd-moj/admins/cd-moj-$ADMINLOGIN-contests"
 mkdir -p "$DROPBOXDIR"
-ln -s $CONTESTSDIR/$CONTEST_ID "$DROPBOXDIR"
+if [[ ! -e "$DROPBOXDIR/$CONTEST_ID" ]]; then
+  ln -s $CONTESTSDIR/$CONTEST_ID "$DROPBOXDIR"
+fi
 
 exit 0
