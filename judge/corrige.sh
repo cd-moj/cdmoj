@@ -30,25 +30,6 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
   #ID no SITE
   IDSITE=${PROBS[PROBID+1]}
 
-  #com CDMOJDELEGATION, repassa a correcao para servidores auxiliares,
-  # liberando a fila atual.
-  # Isso é válido apenas para os contests com essa variável habilitada, ou
-  # quando é uma variável global do ambiente que chamou este script.
-  #   Tem essa característica para evitar quebrar compatibilidade com os
-  #   contests em execução, pois pode acontecer dos servidores DELEGATION
-  #   não possuírem todos os problemas habilitados por padrão no CDMOJ.
-  if [[ "$IDSITE" == "cdmoj" && "$CDMOJDELEGATION" == "true" ]]; then
-    if [[ ! -e /tmp/cdmoj-delegation-lastserver ]]; then
-      echo 0 > /tmp/cdmoj-delegation-lastserver
-    fi
-
-    LASTSERVER=$(< /tmp/cdmoj-delegation-lastserver)
-    TOTALSERVERS=$(ls -d "$SUBMISSIONDIR/../cdmoj-delegation-server*"|wc -l)
-    ((NEXT= (LASTSERVER+1)%TOTALSERVERS))
-    mv "$ARQ" "$SUBMISSIONSDIR/../cdmoj-delegation-server$NEXT/"
-    continue
-  fi
-
   login-$SITE
   CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING)"
   PENDING="$PENDING $SITE:$CODIGOSUBMISSAO:$ARQ"
