@@ -52,6 +52,16 @@ if (( AGORA < CONTEST_START )); then
   exit 0
 fi
 
+#Mostra alguma mensagem Geral do CD-MOJ, caso exista
+if [[ -e "../motd" ]]; then
+  cat "../motd"
+fi
+
+#Mostra alguma mensagem para o contest caso ela exista
+if [[ -e "$CONTESTSDIR/$CONTEST_ID/motd" ]]; then
+  cat "$CONTESTSDIR/$CONTEST_ID/motd"
+fi
+
 #mostrar exercicios
 printf "<h2>Problemas</h2>\n"
 TOTPROBS=${#PROBS[@]}
