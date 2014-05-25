@@ -32,7 +32,7 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
   IDSITE=${PROBS[PROBID+1]}
 
   login-$SITE
-  CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING)"
+  CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING|tr ' ' '_')"
   PENDING="$PENDING $SITE:$CODIGOSUBMISSAO:$ARQ"
 
 done
@@ -43,7 +43,7 @@ echo "-- Pegando Submissões pendentes"
 for SUBMISSIONS in $PENDING; do
 
   SITE="$(cut -d: -f1 <<< "$SUBMISSIONS")"
-  CODIGOSUBMISSAO="$(cut -d: -f2 <<< "$SUBMISSIONS")"
+  CODIGOSUBMISSAO="$(cut -d: -f2 <<< "$SUBMISSIONS"|tr '_' ' ')"
   ARQ="$(cut -d: -f3- <<< "$SUBMISSIONS")"
   N="$(basename "$ARQ")"
   printf "  $N\n"
