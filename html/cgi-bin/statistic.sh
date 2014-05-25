@@ -102,6 +102,9 @@ echo "<th>Total</th><th>Accepted</th></tr>"
 
 for LOGIN in $CONTESTSDIR/$CONTEST/controle/*.d; do
   LOGINN="$(basename $LOGIN .d)"
+  if grep -q "\.admin$" <<< "$LOGINN"; then
+    continue
+  fi
   NOME=$(grep "^$LOGINN:" $CONTESTSDIR/$CONTEST/passwd |cut -d':' -f3)
   TOTALRUNS="$(cut -d: -f2 $CONTESTSDIR/$CONTEST/controle/history|grep -c "^$LOGINN$")"
   AC=0
