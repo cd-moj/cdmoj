@@ -201,8 +201,10 @@ for ARQ in $SUBMISSIONDIR/*; do
     fi
 
     NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
-    updatedotscore "$LOGIN" "$NOME" "$CONTEST"
-    updatescore $CONTEST
+    if ! grep -q "\.admin$" <<< "$LOGIN"; then
+      updatedotscore "$LOGIN" "$NOME" "$CONTEST"
+      updatescore $CONTEST
+    fi
 
   elif [[ "$COMANDO" == "corrigido" ]]; then
 
@@ -248,8 +250,10 @@ for ARQ in $SUBMISSIONDIR/*; do
     chmod 777 "$USRFILE"
 
     NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
-    updatedotscore "$LOGIN" "$NOME" "$CONTEST"
-    updatescore $CONTEST
+    if ! grep -q "\.admin$" <<< "$LOGIN"; then
+      updatedotscore "$LOGIN" "$NOME" "$CONTEST"
+      updatescore $CONTEST
+    fi
 
   elif [[ "$COMANDO" == "submit" ]]; then
     #SITE do problema:
