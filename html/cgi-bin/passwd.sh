@@ -57,6 +57,7 @@ fi
 cabecalho-html
 printf "<h1>Trocar SENHA de $(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
+if [[ "x$PASSWD" == "x1" ]]; then
 #formulário para trocar a senha
   cat << EOF
 <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/passwd.sh/$CONTEST" method="post">
@@ -67,6 +68,10 @@ printf "<h1>Trocar SENHA de $(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"<
   <br/>
 </form>
 EOF
+else
+  printf "<h2>Troca de senha desabilitada</h2>"
+  printf "<p>O administrador deste contest desabilitou a troca de senhas</p>"
+fi
 
 cat ../footer.html
 exit 0
