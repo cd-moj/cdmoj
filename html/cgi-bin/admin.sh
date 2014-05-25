@@ -72,7 +72,10 @@ N linhas com esse formato, onde cada elemento representa:
 <tr><td>M</td><td>Número Inteiro representando a quantidade de usuários
 cadastrados</td></tr>
 <tr><td>login:senha:Nome Completo</td><td>M linhas com os usuarios que tem
-permissão de logar nesse contest</td></tr>
+permissão de logar nesse contest. Todo login que terminar com .admin será
+considerado um usuário do tipo Administrador e terá acesso a várias
+funcionalidades administrativas, como acesso contínuo às Estatísticas mesmo
+sem ter PARTIALSTATISTIC=1.</td></tr>
 </table>
 EOF
 

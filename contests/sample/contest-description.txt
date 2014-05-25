@@ -6,7 +6,8 @@ teste
 spoj-br PLACAR "Quem vai ser reprovado?" A reprovado.txt
 cdmoj cartasfora "Jogando Cartas Fora" B jogando-cartas-fora.pdf
 spoj-www TEST "Life, the Universe, and Everything" C site
-4
+5
+ribas.admin:senhasecretaADMIN:Bruno Ribas Aministrador
 ribas:fiesta:Buno Ribas
 ricardo:busao:Ricardo Oliveira
 vinicius:hyundai:Vinicius Ruoso

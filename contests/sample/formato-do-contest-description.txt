@@ -14,3 +14,4 @@ SITE ID "Nome Completo" Nome_Pequeno link-enunciado
 #                         o nome de um arquivo dentro do diretorio enunciados/
 Numero-de-usuarios
 login:senha:Nome Completo
+login.admin:senha:Usuario do Tipo Administrador
