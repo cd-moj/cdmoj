@@ -33,9 +33,6 @@ printf "<h1>Todas Submissões em \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
 cd $CONTESTSDIR/$CONTEST/data/
 for i in *; do
-  if grep -q '\.admin' <<< "$i" ; then
-    continue
-  fi
   NOME="$(grep "^$i:" ../passwd |cut -d: -f3)"
   cat << EOF
   <h2>$NOME ($i)</h2>
