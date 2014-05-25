@@ -23,9 +23,9 @@ function incontest-cabecalho-html()
   local URL="$BASEURL/cgi-bin"
   ADMINMENU=
   if is-admin | grep -q Sim ; then
-    ADMINMENU="<li><a href=\"$URL/statistic.sh/$CONTEST\">Estatísticas</a></li>"
-    ADMINMENU+="<li><a href=\"$URL/sherlock.sh/$CONTEST\">Sherlock (experimental)</a></li>"
-    ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\">Todas Submissões</a></li>"
+    ADMINMENU="<li><a href=\"$URL/statistic.sh/$CONTEST\"><span class=\"title\">Estatísticas</span><span class=\"text\">Relatório do Contest</span></a></li>"
+    ADMINMENU+="<li><a href=\"$URL/sherlock.sh/$CONTEST\"><span class=\"title\">Sherlock</span><span class=\"text\">Identificação de Plágio</span></a></li>"
+    ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
   fi
   printf "Content-type: text/html\n\n"
   cat << EOF
@@ -41,6 +41,7 @@ function incontest-cabecalho-html()
 
         <!-- CSS -->
         <link type="text/css" rel="stylesheet" href="/css/incontest.css" media="screen" />
+        <link type="text/css" rel="stylesheet" href="/css/menu1.css" media="screen" />
         <link type="text/css" rel="stylesheet" href="/css/badideas.css" media="screen" />
     </head>
     <body class="bg">
@@ -51,13 +52,19 @@ function incontest-cabecalho-html()
           <p><font color=lightyellow>$(pega-nome $CONTEST)</font><font color=white> em <em>$CONTEST_NAME</em></font></p>
         </div>
         <div id="content">
-          <ul id="menu">
-            <li><a href="$URL/contest.sh/$CONTEST">Problemas e Submissões</a></li>
-            <li><a href="$URL/score.sh/$CONTEST">Score</a></li>
-            <li><a href="$URL/passwd.sh/$CONTEST">Trocar Senha</a></li>
+          <div id="menu1">
+          <ul>
+            <li><a href="$URL/contest.sh/$CONTEST"><span class="title">Contest</span>
+                                                   <span class="text">Problemas e Submissões</span></a></li>
+            <li><a href="$URL/score.sh/$CONTEST"><span class="title">Score</span>
+                                                   <span class="text">Placar atualizado</span></a></li>
+            <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span>
+                                                   <span class="text">CD-MOJ mais pessoal</span></a></li>
             $ADMINMENU
-            <li><a href="$URL/logout.sh/$CONTEST">Logout</a></li>
+            <li><a href="$URL/logout.sh/$CONTEST"><span class="title">Logout</span>
+                                                   <span class="text">Sair</span></a></li>
           </ul>
+          </div>
           <br/><br/>
           <div id="text">
 EOF

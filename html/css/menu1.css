@@ -1,0 +1,45 @@
+#menu1 ul {
+    list-style:none;
+    font-family: Georgia, serif;
+    font-size: 16px;
+    font-style: italic;
+    font-weight: normal;
+    letter-spacing: normal;
+    line-height: 1.4em;
+    border:2px solid #000;
+    border-left:none;
+    float:left;
+    clear:both;
+    margin:5px;
+}
+#menu1 ul li{
+    float:left;
+}
+#menu1 ul li a{
+    display:block;
+    text-decoration:none;
+    background-color:#444;
+    padding:5px 10px;
+    color:#fff;
+    width:140px;
+    border-right:1px solid #666;
+    border-left:1px solid #000;
+}
+#menu1 ul li a span{
+    display:block;
+}
+#menu1 ul li a span.title{
+    border-bottom:1px solid #444;
+}
+#menu1 ul li a:hover span.title{
+    border-bottom:1px dashed #f0f0f0;
+    color:#ef0000;
+}
+#menu1 ul li a span.text{
+    visibility:hidden;
+    font-size:12px;
+    text-align:right;
+}
+#menu1 ul li a:hover span.text{
+    visibility:visible;
+}
