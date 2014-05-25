@@ -26,6 +26,7 @@ CONTEST_ID=
 CONTEST_NAME=
 ALLPROBS=
 USUARIOS=
+VARIAVEISADICIONAIS=
 {
     read CONTEST_ID
     read CONTEST_NAME
@@ -41,6 +42,9 @@ USUARIOS=
     for((i=0;i<USUARIOSCOUNT;i++)); do
         read LINHA
         USUARIOS="$USUARIOS$LINHA\n"
+    done
+    while read LINE; do
+      VARIAVEISADICIONAIS="$VARIAVEISADICIONAIS $LINE"
     done
 } < "$CONTESTDESC"
 
@@ -65,6 +69,9 @@ chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/data"
     echo "CONTEST_START=$CONTEST_START"
     echo "CONTEST_END=$CONTEST_END"
     echo "PROBS=(${ALLPROBS[@]})"
+    for VAR in $VARIAVEISADICIONAIS; do
+      echo "$VAR"
+    done
 } > $CONTESTSDIR/$CONTEST_ID/conf
 
 printf "$USUARIOS" > $CONTESTSDIR/$CONTEST_ID/passwd
