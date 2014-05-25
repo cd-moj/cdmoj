@@ -14,14 +14,14 @@ function enviar-cdmoj2()
   local LINGUAGEM=$3
   local ARQ="$(basename "$ARQFONTE")"
 
-  if [[ ! -e /tmp/cdmoj2-delegation-lastserver ]]; then
-    echo 0 > /tmp/cdmoj2-delegation-lastserver
+  if [[ ! -e /tmp/cdmoj2-delegation-lastserver-$USER ]]; then
+    echo 0 > /tmp/cdmoj2-delegation-lastserver-$USER
   fi
 
-  LASTSERVER=$(< /tmp/cdmoj2-delegation-lastserver)
+  LASTSERVER=$(< /tmp/cdmoj2-delegation-lastserver-$USER)
   TOTALSERVERS=$(ls -d $SUBMISSIONDIR/../cdmoj2-delegation-server*|wc -l)
   ((NEXT= (LASTSERVER+1)%TOTALSERVERS))
-  echo "$NEXT" > /tmp/cdmoj2-delegation-lastserver
+  echo "$NEXT" > /tmp/cdmoj2-delegation-lastserver-$USER
   ID="$NEXT.$(awk -F: '{print $2"."$3}' <<< "$ARQ")"
 
   cp "$ARQFONTE" "$SUBMISSIONDIR/../cdmoj2-delegation-server$NEXT/submit:$PROBID:$ID:$LINGUAGEM"
