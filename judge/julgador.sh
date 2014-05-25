@@ -70,7 +70,7 @@ function updatedotscore()
 }
 
 
-mkdir -p $SUBMISSIONDIR-julgados
+mkdir -p $SUBMISSIONDIR-log
 mkdir -p $SUBMISSIONDIR-enviaroj
 
 #make $SUBMISSIONDIR world writtable
@@ -200,8 +200,6 @@ for ARQ in $SUBMISSIONDIR/*; do
       sed -i "s/^$TEMPO:$LOGIN:$PROBID:$LING:.*:$ID$/$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
 
-    cp "$ARQ" $SUBMISSIONDIR-julgados/
-
     NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
     updatedotscore "$LOGIN" "$NOME" "$CONTEST"
     updatescore $CONTEST
@@ -248,7 +246,6 @@ for ARQ in $SUBMISSIONDIR/*; do
     USRFILE="$CONTESTSDIR/$CONTEST/data/$LOGIN"
     sed -i -e "s/^$ID:.*/$ID:$PROBID:$RESP/" "$USRFILE"
     chmod 777 "$USRFILE"
-    cp "$ARQ" $SUBMISSIONDIR-julgados/
 
     NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
     updatedotscore "$LOGIN" "$NOME" "$CONTEST"
@@ -298,5 +295,5 @@ for ARQ in $SUBMISSIONDIR/*; do
     cp "$ARQ" "$CONTESTSDIR/$CONTEST/submissions/$ID-$LOGIN-${PROBS[PROBID+3]}.$LING"
 
   fi
-    rm -f "$ARQ"
+    mv "$ARQ" $SUBMISSIONDIR-log/
 done
