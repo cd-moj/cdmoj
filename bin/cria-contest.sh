@@ -83,6 +83,9 @@ if [[ -d "$NEWCONTEST/enunciados" ]]; then
     rsync -a --delete $NEWCONTEST/enunciados/ $CONTESTSDIR/$CONTEST_ID/enunciados/
     chmod a+rX -R $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
 fi
+if [[ -e "$NEWCONTEST/motd" ]]; then
+  cp "$NEWCONTEST/motd" $CONTESTSDIR/$CONTEST_ID/
+fi
 
 #gravar dono no CONTEST
 echo "$ADMINLOGIN" > $CONTESTSDIR/$CONTEST_ID/owner
