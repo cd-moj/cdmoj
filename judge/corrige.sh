@@ -22,6 +22,10 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
   PROBID="$(cut -d: -f6 <<< "$N")"
   LING="$(cut -d: -f7 <<< "$N")"
 
+  if [[ "x$LING" == "x" ]]; then
+    LING="UNKNOWN"
+  fi
+
   #carregar contest
   source $CONTESTSDIR/$CONTEST/conf
 
