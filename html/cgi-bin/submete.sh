@@ -29,6 +29,7 @@ LOGIN=$(pega-login)
 PROBLEMA="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 FILENAME="$(grep 'filename' <<< "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g')"
 FILETYPE="$(awk -F'.' '{print $NF}' <<< "$FILENAME"|tr '[a-z]' '[A-Z]')"
+FILETYPE="${FILETYPE// }"
 ID="$(echo "$AGORA $LOGIN $POST $RANDOM"|md5sum |awk '{print $1}')"
 
 fd='Content-Type: '
