@@ -48,21 +48,18 @@ function incontest-cabecalho-html()
       <div id="geral">
         <div id="header">
           <h1><font color="white">CD-MOJ</font></h1>
+          <img src="http://mojnext.naquadah.tk/images/h1_line_2.png">
           <p style="float:right;">$MSG</font></p>
           <p><font color=lightyellow>$(pega-nome $CONTEST)</font><font color=white> em <em>$CONTEST_NAME</em></font></p>
         </div>
         <div id="content">
           <div id="menu1">
           <ul>
-            <li><a href="$URL/contest.sh/$CONTEST"><span class="title">Contest</span>
-                                                   <span class="text">Problemas e Submissões</span></a></li>
-            <li><a href="$URL/score.sh/$CONTEST"><span class="title">Score</span>
-                                                   <span class="text">Placar atualizado</span></a></li>
-            <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span>
-                                                   <span class="text">CD-MOJ mais pessoal</span></a></li>
+            <li><a href="$URL/contest.sh/$CONTEST"><span class="title">Contest</span><span class="text">Problemas e Submissões</span></a></li>
+            <li><a href="$URL/score.sh/$CONTEST"><span class="title">Score</span><span class="text">Placar atualizado</span></a></li>
+            <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span><span class="text">CD-MOJ mais pessoal</span></a></li>
             $ADMINMENU
-            <li><a href="$URL/logout.sh/$CONTEST"><span class="title">Logout</span>
-                                                   <span class="text">Sair</span></a></li>
+            <li><a href="$URL/logout.sh/$CONTEST"><span class="title">Logout</span><span class="text">Sair</span></a></li>
           </ul>
           </div>
           <br/><br/>

@@ -11,6 +11,9 @@ function cufon() {
     Cufon.replace('h1', {
         fontFamily: "AvantGarde Bk BT"
     });
+    Cufon.replace('#menu1', {
+        fontFamily: "AvantGarde Bk BT"
+    });
     Cufon.now();
 }
 

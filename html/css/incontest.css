@@ -23,7 +23,17 @@ label{font-weight: bold; display: block; color: #525252;}
 .upcase {text-transform: uppercase;}
 .top {vertical-align: top;}
 li{list-style: none;}
-h1{font-size: 22px;
+
+
+#header h1 {padding-top: 10px; padding-bottom:0;}
+#header img {margin-top: -15px; width:100%;}
+h2 {background: url(/images/h1_line_2.png) no-repeat bottom left;}
+#text table {width: 100%;border: 1px #999;border-collapse: collapse;}
+#text td {padding: 3px;}
+#menu1 ul {border: 1px solid #333;-moz-border-radius: 3px;border-radius: 3px;background: #6a6a6a;}
+
+
+#content h1{font-size: 22px;
    margin-bottom: 13px;
    color: #444444;
    background: url(/images/h1_line.png) no-repeat bottom left;
