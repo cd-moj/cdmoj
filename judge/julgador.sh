@@ -299,5 +299,6 @@ for ARQ in $SUBMISSIONDIR/*; do
     cp "$ARQ" "$CONTESTSDIR/$CONTEST/submissions/$ID-$LOGIN-${PROBS[PROBID+3]}.$LING"
 
   fi
-    mv "$ARQ" $SUBMISSIONDIR-log/
+    cp "$ARQ" $SUBMISSIONDIR-log/
+    rm -f "$ARQ"
 done
