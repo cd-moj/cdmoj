@@ -30,6 +30,8 @@ h1{font-size: 22px;
    padding-bottom: 10px;
 }
 
+#text table {width: 100%;border: 1px #999;border-collapse: collapse;}
+#text td {padding: 3px;}
 
 #header{
     background: url(/images/menu_bar.png) repeat-x bottom;
