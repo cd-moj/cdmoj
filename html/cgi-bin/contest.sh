@@ -13,7 +13,8 @@ CAMINHO="$PATH_INFO"
 #CAMINHO="$(sed -e 's#.*/contest.sh/##' <<< "$CAMINHO")"
 
 #contest é a base do caminho
-CONTEST=$(cut -d'/' -f2 <<< "$CAMINHO")
+CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
+CONTEST="${CONTEST// }"
 
 if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]]; then
   tela-erro

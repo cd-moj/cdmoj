@@ -5,7 +5,8 @@ source common.sh
 POST="$(cat )"
 AGORA="$(date +%s)"
 CAMINHO="$PATH_INFO"
-CONTEST=$(cut -d'/' -f2 <<< "$CAMINHO")
+CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
+CONTEST="${CONTEST// }"
 
 if [[ "x$POST" != "x" ]]; then
   LOGIN="$(grep -A2 'name="login"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
