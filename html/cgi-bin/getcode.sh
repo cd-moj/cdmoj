@@ -31,13 +31,13 @@ elif is-admin | grep -q Nao; then
   exit 0
 fi
 
-TEMPO=$(cut -d: -f1 <<< "$ARQUIVO")
-USUARIO=$(cut -d- -f2 <<< "$ARQUIVO")
-((TEMPO= (TEMPO - CONTEST_START) ))
-TYPE=$(grep "^$TEMPO:$USUARIO:" $CONTESTSDIR/$CONTEST/controle/history|cut -d: -f4)
-if [[ ! -e "$CONTESTSDIR/$CONTEST/submissions/$ARQUIVO.$TYPE" ]]; then
+TYPE="$(awk -F'.' '{print $NF}' <<< "$ARQUIVO")"
+ARQUIVO="$(basename "$ARQUIVO" ".$TYPE")"
+TYPE="$(tr '[a-z]' '[A-Z]' <<< "$TYPE")"
+ARQUIVO="$ARQUIVO.$TYPE"
+if [[ ! -e "$CONTESTSDIR/$CONTEST/submissions/$ARQUIVO" ]]; then
   tela-erro
   exit 0
 fi
 printf "Content-type: text/txt\n\n"
-cat "$CONTESTSDIR/$CONTEST/submissions/$ARQUIVO.$TYPE"
+cat "$CONTESTSDIR/$CONTEST/submissions/$ARQUIVO"
