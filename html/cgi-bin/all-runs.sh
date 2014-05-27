@@ -59,7 +59,7 @@ EOF
 
     cat <<EOF
     <tr $BGCOLOR><td>${PROBS[$((EXERCICIO+3))]}</td><td>$RESP</td><td>$HORA</td>
-    <td><a target=_blank href='$BASEURL/cgi-bin/getcode.sh/$CONTEST/$CODIGO-$i-${PROBS[$((EXERCICIO+3))]}.$TYPE'>codigo</a>
+    <td><a target=_blank href='$BASEURL/cgi-bin/getcode.sh/$CONTEST/$CODIGO-$i-${PROBS[$((EXERCICIO+3))]}.$TYPE'>código</a>
     </td></tr>
 EOF
   ((LINHA++))
