@@ -156,7 +156,7 @@ input[type="file"] > input[type="button"]::-moz-focus-inner {
 input[type=submit]{
     width: auto!important;
 }
-input[type=text]{height: 18px;}
+input[type=text],input[type=password]{height: 18px;}
 input, textarea{
     color: black;
     width: 230px;
