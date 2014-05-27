@@ -1,4 +1,5 @@
 source #CONFDIR#/judge.conf
+source #CONFDIR#/common.conf
 
 if (( $# != 1 )); then
   printf "Uso: $0 <Number of Delegation Servers>\n"
@@ -11,7 +12,7 @@ TOTALSERVERS=$1
 
 DIRS=$(ls -d $SUBMISSIONDIR/../cdmoj2-delegation-server*|wc -l)
 
-if (( DIRS == 0 )); then
+if (( DIRS < TOTALSERVERS )); then
   for((i=0;i< TOTALSERVERS;i++)); do
     mkdir -p $SUBMISSIONDIR/../cdmoj2-delegation-server$i
   done
