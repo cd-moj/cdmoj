@@ -20,6 +20,7 @@ ul, li, p {margin: 0; padding: 0; list-style: none;}
 /*table td, table th {padding: 0;}*/
 h1, h2, h3 {margin: 0; padding: 0;}
 label{font-weight: bold; display: block; color: #525252;}
+label.login { float: left; width: 50px; font-weight: bold; display: block; color: #525252;}
 .upcase {text-transform: uppercase;}
 .top {vertical-align: top;}
 li{list-style: none;}

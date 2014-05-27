@@ -150,8 +150,8 @@ function tela-login()
   printf "<h1>Login em $1</h1>\n"
   cat << EOF
 <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/login.sh/$1" method="post">
-  Login: <input name="login" type="text"><br/>
-  Senha: <input name="senha" type="password"><br/>
+<label class="login">Login:</label><input name="login" type="text"><br/>
+<label class="login">Senha:</label><input name="senha" type="password"><br/>
   <br/>
   <input type="submit" value="Login">
   <br/>
