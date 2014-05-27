@@ -15,7 +15,14 @@ if [[ "x$POST" != "x" ]]; then
   LOGIN="$(echo $LOGIN | sed -e 's/\([[\/*]\|\]\)/\\&/g')"
   SENHA="$(echo $SENHA | sed -e 's/\([[\/.*]\|\]\)/\\&/g')"
   if ! grep -q "^$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd; then
-    tela-login $CONTEST
+    cabecalho-html
+    cat << EOF
+  <script type="text/javascript">
+    window.alert("Senha Incorreta");
+    top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
+  </script>
+EOF
+    exit 0
   fi
   NOVAHASH=$(echo "$(date +%s)$RANDOM$LOGIN" |md5sum |awk '{print $1}')
   printf "$NOVAHASH" > "$CACHEDIR/$LOGIN-$CONTEST"
