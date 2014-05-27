@@ -37,7 +37,7 @@ source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
 #printf "<h1>$(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
-if (( AGORA < CONTEST_START )); then
+if (( AGORA < CONTEST_START )) && is-admin|grep -q Nao; then
   ((FALTA = CONTEST_START - AGORA))
   MSG=
   if (( FALTA >= 60 )); then
@@ -113,7 +113,7 @@ echo "</table>"
 echo "<br/><br/>"
 printf "<h2>Enviar uma Solução</h2>\n"
 
-if (( AGORA > CONTEST_END )); then
+if (( AGORA > CONTEST_END )) && is-admin |grep -q Nao ; then
   echo "<p> O contest não está mais em andamento</p>"
 else
 cat << EOF

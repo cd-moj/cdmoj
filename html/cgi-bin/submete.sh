@@ -10,7 +10,7 @@ CONTEST="${CONTEST// }"
 AGORA="$(date +%s)"
 source $CONTESTSDIR/$CONTEST/conf
 
-if (( AGORA > CONTEST_END )); then
+if (( AGORA > CONTEST_END )) && is-admin |grep -q Nao ; then
   cabecalho-html
   echo "<h1>O contest \"$CONTEST_NAME\" não está mais em execução</h1>"
   echo "<p> A sua submissão não foi armazenada</p>"
