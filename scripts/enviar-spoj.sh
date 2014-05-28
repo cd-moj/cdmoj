@@ -2,7 +2,7 @@ SPOJLANGS=(C Cpp Java Pascal Bash)
 
 function login-spoj()
 {
-  local SITE=$1
+  local SITE="$1"
   #source enviar-conf
    curl -c $HOME/.cache/cookie-spoj-$SITE -s -A "Mozilla/4.0" \
      -F "login_user=$LOGINSPOJ" -F "password=$PASSWDSPOJ" \
@@ -12,12 +12,12 @@ function login-spoj()
 #retorna o ID da submissao
 function enviar-spoj()
 {
-  ARQFONTE=$1
-  PROBID=$2
-  LINGUAGEM=$3
-  local SITE=$4
+  ARQFONTE="$1"
+  PROBID="$2"
+  LINGUAGEM="$3"
+  local SITE="$4"
   if (( $(wc -l "$ARQFONTE" |awk '{print $1}') == 0 )); then
-    echo "Arquivo_Corrompido"
+    echo "ArquivoCorrompido"
     return
   fi
 
@@ -73,10 +73,10 @@ function enviar-spoj()
 function pega-resultado-spoj()
 {
   #source enviar-conf
-  JOBID=$1
-  local SITE=$2
+  JOBID="$1"
+  local SITE="$2"
   RESP=
-  if [[ "$JOBID" == "Arquivo_Corrompido" ]]; then
+  if [[ "$JOBID" == "ArquivoCorrompido" ]]; then
     RESP="Arquivo Corrompido, reenvie"
   else
     RESP="$(curl -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
@@ -115,12 +115,12 @@ function login-spoj-br()
 
 function enviar-spoj-br()
 {
-  enviar-spoj $1 $2 $3 br
+  enviar-spoj "$1" "$2" "$3" br
 }
 
 function pega-resultado-spoj-br()
 {
-  pega-resultado-spoj $1 br
+  pega-resultado-spoj "$1" br
 }
 
 function login-spoj-www()
@@ -130,10 +130,10 @@ function login-spoj-www()
 
 function enviar-spoj-www()
 {
-  enviar-spoj $1 $2 $3 www
+  enviar-spoj "$1" "$2" "$3" www
 }
 
 function pega-resultado-spoj-www()
 {
-  pega-resultado-spoj $1 www
+  pega-resultado-spoj "$1" www
 }
