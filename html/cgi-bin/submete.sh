@@ -62,10 +62,9 @@ if ! touch "/tmp/$DESTINO$FILETYPE"; then
   cat "$TMP" > "$SUBMISSIONDIR/${DESTINO}DESCONHECIDO"
 else
   cat "$TMP" > "$SUBMISSIONDIR/$DESTINO$FILETYPE"
-  rm -f "/tmp/$SUBMISSIONDIR/$DESTINO$FILETYPE"
+  rm -f "/tmp/$DESTINO$FILETYPE"
 fi
 rm -f "$TMP"
-
 
 echo "$AGORA:$ID:$PROBLEMA:Not Answered Yet" >> "$CONTESTSDIR/$CONTEST/data/$LOGIN"
 
