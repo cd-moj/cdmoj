@@ -10,6 +10,19 @@ CONTEST="${CONTEST// }"
 AGORA="$(date +%s)"
 source $CONTESTSDIR/$CONTEST/conf
 
+function submete-sair-com-erro()
+{
+  MSG="$1"
+  printf "Content-type: text/html\n\n"
+  cat << EOF
+  <script type="text/javascript">
+    window.alert("$MSG");
+    top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
+  </script>
+EOF
+exit 0
+}
+
 if (( AGORA > CONTEST_END )) && is-admin |grep -q Nao ; then
   cabecalho-html
   echo "<h1>O contest \"$CONTEST_NAME\" não está mais em execução</h1>"
@@ -28,23 +41,39 @@ fi
 
 LOGIN=$(pega-login)
 PROBLEMA="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-FILENAME="$(grep 'filename' <<< "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g'|head -n1)"
+FILENAME="$(grep 'filename' <<< "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g'|head -n1|sed -e 's/\([[\/?*]\|\]\)/\\&/g')"
 FILETYPE="$(awk -F'.' '{print $NF}' <<< "$FILENAME"|tr '[a-z]' '[A-Z]')"
 FILETYPE="${FILETYPE// }"
 ID="$(echo "$AGORA $LOGIN $POST $RANDOM"|md5sum |awk '{print $1}')"
 
 fd='Content-Type: '
 boundary="$(head -n1 <<< "$POST")"
-sed -e "1,/$fd/d;/^$/d;/$boundary/,\$d" <<< "$POST" > "$SUBMISSIONDIR/$CONTEST:$AGORA:$ID:$LOGIN:submit:$PROBLEMA:$FILETYPE"
+DESTINO="$CONTEST:$AGORA:$ID:$LOGIN:submit:$PROBLEMA:"
+TMP="$(mktemp)"
+
+sed -e "1,/$fd/d;/^$/d;/$boundary/,\$d" <<< "$POST" > "$TMP"
+if ! file "$TMP" | grep -q -i "text"; then
+  rm -f "$TMP"
+  submete-sair-com-erro "Arquivo Corrompido, ou vazio, ou binário. Envie o código fonte"
+fi
+
+#testar criar aquivo
+if ! touch "/tmp/$DESTINO$FILETYPE"; then
+  cat "$TMP" > "$SUBMISSIONDIR/${DESTINO}DESCONHECIDO"
+else
+  cat "$TMP" > "$SUBMISSIONDIR/$DESTINO$FILETYPE"
+  rm -f "/tmp/$SUBMISSIONDIR/$DESTINO$FILETYPE"
+fi
+rm -f "$TMP"
+
 
 echo "$AGORA:$ID:$PROBLEMA:Not Answered Yet" >> "$CONTESTSDIR/$CONTEST/data/$LOGIN"
 
-#printf "Location: /~moj/cgi-bin/contest.sh/$CONTEST\n\n"
-  printf "Content-type: text/html\n\n"
-  cat << EOF
-  <script type="text/javascript">
-    top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
-  </script>
 
+printf "Content-type: text/html\n\n"
+cat << EOF
+<script type="text/javascript">
+  top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
+</script>
 EOF
 exit 0
