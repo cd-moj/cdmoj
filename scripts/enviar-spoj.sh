@@ -3,6 +3,10 @@ SPOJLANGS=(C Cpp Java Pascal Bash)
 function login-spoj()
 {
   local SITE="$1"
+  if [[ "x$SITE" == "x" ]]; then
+    SITE=www
+  fi
+
   #source enviar-conf
    curl -c $HOME/.cache/cookie-spoj-$SITE -s -A "Mozilla/4.0" \
      -F "login_user=$LOGINSPOJ" -F "password=$PASSWDSPOJ" \
@@ -16,6 +20,10 @@ function enviar-spoj()
   PROBID="$2"
   LINGUAGEM="$3"
   local SITE="$4"
+  if [[ "x$SITE" == "x" ]]; then
+    SITE=www
+  fi
+
   if (( $(wc -l "$ARQFONTE" |awk '{print $1}') == 0 )); then
     echo "ArquivoCorrompido"
     return
@@ -75,6 +83,10 @@ function pega-resultado-spoj()
   #source enviar-conf
   JOBID="$1"
   local SITE="$2"
+  if [[ "x$SITE" == "x" ]]; then
+    SITE=www
+  fi
+
   RESP=
   if [[ "$JOBID" == "ArquivoCorrompido" ]]; then
     RESP="Arquivo Corrompido, reenvie"

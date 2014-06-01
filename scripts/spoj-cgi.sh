@@ -1,25 +1,29 @@
 function link-prob-spoj()
 {
-  local SITE=$1
-  local PROBID=$2
-  echo "http://$SITE.spoj.com/problems/$2"
+  local SITE=$2
+  if [[ "x$SITE" == "x" ]]; then
+    SITE=www
+  fi
+
+  local PROBID=$1
+  echo "http://$SITE.spoj.com/problems/$PROBID"
 }
 function link-prob-spoj-br()
 {
-  link-prob-spoj br $1
+  link-prob-spoj $1 br
 }
 
 function link-prob-spoj-www()
 {
-  link-prob-spoj www $1
+  link-prob-spoj $1 www
 }
 
 function link-prob-spoj-br-pdf()
 {
-  link-prob-spoj br ${1}.pdf
+  link-prob-spoj ${1}.pdf br
 }
 
 function link-prob-spoj-www-pdf()
 {
-  link-prob-spoj www ${1}.pdf
+  link-prob-spoj ${1}.pdf www
 }
