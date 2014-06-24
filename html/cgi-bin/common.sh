@@ -146,8 +146,9 @@ function tela-erro()
 
 function tela-login()
 {
+  source $CONTESTSDIR/$1/conf
   cabecalho-html
-  printf "<h1>Login em $1</h1>\n"
+  printf "<h1>Login em $CONTEST_NAME</h1>\n"
   cat << EOF
 <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/login.sh/$1" method="post">
 <label class="login">Login:</label><input name="login" type="text"><br/>
