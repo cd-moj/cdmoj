@@ -12,7 +12,8 @@ function enviar-cdmoj()
   ARQFONTE=$1
   PROBID=$2
   LINGUAGEM=$3
-  ssh mojjudge@naquadria.brunoribas.com.br "bash autojudge-sh.sh $LINGUAGEM $PROBID" < "$ARQFONTE"
+  CODIGO=$(cut -d: -f3 <<< "$ARQFONTE")
+  ssh mojjudge@naquadria.brunoribas.com.br "bash autojudge-sh.sh $LINGUAGEM $PROBID $CODIGO" < "$ARQFONTE"
 }
 
 #Retorna string do resultado
