@@ -8,6 +8,7 @@ source #SCRIPTSDIR#/enviar-cdmoj.sh
 source #SCRIPTSDIR#/enviar-cdmoj2.sh
 
 PENDING=
+LOGGEDIN=
 #ordem de ARQ: $CONTEST:$AGORA:$RAND:$LOGIN:comando:$PROBLEMA:$FILETYPE
 for ARQ in $SUBMISSIONDIR-enviaroj/*; do
   if [[ ! -e "$ARQ" ]]; then
@@ -35,7 +36,11 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
   #ID no SITE
   IDSITE=${PROBS[PROBID+1]}
 
-  login-$SITE
+  if ! grep -q "\<$SITE\>" <<< "$LOGGEDIN" ; then
+    login-$SITE
+    LOGGEDIN="$LOGGEDIN $SITE"
+  fi
+
   CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING|tr ' ' '_')"
   PENDING="$PENDING $SITE:$CODIGOSUBMISSAO:$ARQ"
 
