@@ -80,11 +80,13 @@ if [[ -d "$NEWCONTEST/enunciados" ]]; then
     #copia enunciados para html
     mkdir -p $HTMLDIR/contests/$CONTEST_ID/
     rsync -a --delete $NEWCONTEST/enunciados/ $HTMLDIR/contests/$CONTEST_ID/
-    rsync -a --delete $NEWCONTEST/enunciados/ $CONTESTSDIR/$CONTEST_ID/enunciados/
-    chmod a+rX -R $NEWCONTEST/enunciados/* $HTMLDIR/contests/$CONTEST_ID/
+    ln -s $HTMLDIR/contests/$CONTEST_ID/ $CONTESTSDIR/$CONTEST_ID/enunciados/
+    chmod a+rX -R $HTMLDIR/contests/$CONTEST_ID/
 fi
 if [[ -e "$NEWCONTEST/motd" ]]; then
   cp "$NEWCONTEST/motd" $CONTESTSDIR/$CONTEST_ID/
+else
+  touch $CONTESTSDIR/$CONTEST_ID/motd
 fi
 
 #gravar dono no CONTEST
@@ -93,7 +95,11 @@ echo "$ADMINLOGIN" > $CONTESTSDIR/$CONTEST_ID/owner
 DROPBOXDIR="$HOME/Dropbox/cd-moj/admins/cd-moj-$ADMINLOGIN-contests"
 mkdir -p "$DROPBOXDIR"
 if [[ ! -e "$DROPBOXDIR/$CONTEST_ID" ]]; then
-  ln -s $CONTESTSDIR/$CONTEST_ID "$DROPBOXDIR"
+  #ln -s $CONTESTSDIR/$CONTEST_ID "$DROPBOXDIR"
+  mkdir -p "$DROPBOXDIR/$CONTEST_ID"
+  for i in conf motd passwd submissions; do
+    ln -s "$CONTESTSDIR/$CONTEST_ID/$i" "$DROPBOXDIR/$CONTEST_ID/$i"
+  done
 fi
 
 echo "$CONTEST_ID criado com sucesso"
