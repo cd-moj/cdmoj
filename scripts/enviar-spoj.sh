@@ -8,7 +8,7 @@ function login-spoj()
   fi
 
   #source enviar-conf
-   curl -c $HOME/.cache/cookie-spoj-$SITE -s -A "Mozilla/4.0" \
+   curl -m 30 -c $HOME/.cache/cookie-spoj-$SITE -s -A "Mozilla/4.0" \
      -F "login_user=$LOGINSPOJ" -F "password=$PASSWDSPOJ" \
        http://$SITE.spoj.com > /dev/null
 }
@@ -69,7 +69,7 @@ function enviar-spoj()
   fi
 
   #enviar
-  curl -A "Mozilla/4.0" -b ~/.cache/cookie-spoj-$SITE \
+  curl -m 30 -A "Mozilla/4.0" -b ~/.cache/cookie-spoj-$SITE \
     -F "subm_file=@$ARQFONTE" \
     -F "lang=$LINGUAGEM" \
     -F "problemcode=$PROBID" \
@@ -91,11 +91,11 @@ function pega-resultado-spoj()
   if [[ "$JOBID" == "ArquivoCorrompido" ]]; then
     RESP="Arquivo Corrompido, reenvie"
   else
-    RESP="$(curl -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
+    RESP="$(curl -m 30 -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
     RESP=${RESP// }
     while [[ "$RESP" == "??" ]]; do
       sleep 5
-      RESP="$(curl -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
+      RESP="$(curl -m 30 -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
       RESP=${RESP// }
   done
   fi
