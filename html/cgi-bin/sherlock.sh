@@ -41,7 +41,7 @@ sobre esta ferramente acesse
 acontecer falsos positivos, por isso uma análise mais criteriosa nos
 arquivos apontados como identicos deve ser utilizada</p>
 <br>
-<p>Aqui serão mostrados apenas similaridades acima de 50%.</p>
+<p>Aqui serão mostrados apenas similaridades acima de 20%.</p>
 <br>
 <p>Esta página ainda é EXPERIMENTAL, alguma coisa ainda pode dar
 errado</p><br/>
@@ -56,7 +56,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
   printf "<pre>"
   cd $CONTESTSDIR/$CONTEST
   ARQUIVOS=$(grep ":$i:Accepted" data/*|cut -d: -f2,3| while read LINE; do echo submissions/${LINE}*-${PROBS[$((i+3))]}.*; done)
-  $CONTESTSDIR/../bin/sherlock -t 50 $ARQUIVOS
+  $CONTESTSDIR/../bin/sherlock -t 20 $ARQUIVOS
   printf "</pre>"
   printf "<br/><br/>"
 done
