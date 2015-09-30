@@ -1,19 +1,5 @@
 SPOJLANGS=(C Cpp Java Pascal Bash)
 
-function login-spoj()
-{
-  local SITE="$1"
-  if [[ "x$SITE" == "x" ]]; then
-    SITE=www
-  fi
-
-  #source enviar-conf
-   curl -m 30 -c $HOME/.cache/cookie-spoj-$SITE -s -A "Mozilla/4.0" \
-     -F "login_user=$LOGINSPOJ" -F "password=$PASSWDSPOJ" \
-       http://$SITE.spoj.com > /dev/null
-}
-
-#retorna o ID da submissao
 function enviar-spoj()
 {
   ARQFONTE="$1"
@@ -29,7 +15,6 @@ function enviar-spoj()
     return
   fi
 
-  #C é 11, mas vamos deixar 41
   if [[ "$LINGUAGEM" == "C" ]];then
     LINGUAGEM=11;
   elif [[ "$LINGUAGEM" == "Cpp" ]];then
@@ -68,19 +53,14 @@ function enviar-spoj()
     LINGUAGEM=41;
   fi
 
-  #enviar
-  curl -m 30 -A "Mozilla/4.0" -b ~/.cache/cookie-spoj-$SITE \
-    -F "subm_file=@$ARQFONTE" \
-    -F "lang=$LINGUAGEM" \
-    -F "problemcode=$PROBID" \
-      http://$SITE.spoj.com/submit/complete/ |
-    grep newSubmissionId |awk -F'"' '{print $(NF-1)}'
+  curl -m 30 -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE \
+    -d "lang=$LINGUAGEM&problemcode=$PROBID" \
+    --data-urlencode "file@$ARQFONTE" http://$SITE.spoj.com/submit/complete/ |
+    grep newSubmissionId | awk -F'"' '{print $(NF-1)}'
 }
 
-#Retorna string do resultado
 function pega-resultado-spoj()
 {
-  #source enviar-conf
   JOBID="$1"
   local SITE="$2"
   if [[ "x$SITE" == "x" ]]; then
@@ -91,11 +71,11 @@ function pega-resultado-spoj()
   if [[ "$JOBID" == "ArquivoCorrompido" ]]; then
     RESP="Arquivo Corrompido, reenvie"
   else
-    RESP="$(curl -m 30 -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
+    RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
     RESP=${RESP// }
     while [[ "$RESP" == "??" ]]; do
       sleep 5
-      RESP="$(curl -m 30 -s -A "Mozilla/4.0" http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
+      RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
       RESP=${RESP// }
   done
   fi
@@ -119,10 +99,11 @@ function pega-resultado-spoj()
   echo "$RESP"
 }
 
-#wrappers
 function login-spoj-br()
 {
-  login-spoj br
+  curl -m 30 -c $HOME/.cache/cookie-spoj-br -s -A "Mozilla/4.0" \
+    -d "login_user=$LOGINSPOJ&password=$PASSWDSPOJ" \
+    http://www.spoj.com/login/aHR0cDovL2JyLnNwb2ouY29tLw== > /dev/null
 }
 
 function enviar-spoj-br()
@@ -137,7 +118,9 @@ function pega-resultado-spoj-br()
 
 function login-spoj-www()
 {
-  login-spoj www
+  curl -m 30 -c $HOME/.cache/cookie-spoj-www -s -A "Mozilla/4.0" \
+    -d "login_user=$LOGINSPOJ&password=$PASSWDSPOJ" \
+    http://www.spoj.com > /dev/null
 }
 
 function enviar-spoj-www()
