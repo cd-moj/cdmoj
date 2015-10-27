@@ -49,6 +49,8 @@ function enviar-spoj()
     LINGUAGEM=17;
   elif [[ "$LINGUAGEM" == "PHP" ]];then
     LINGUAGEM=29;
+  elif [[ "$LINGUAGEM" == "F95" ]]; then
+    LINGUAGEM=5;
   else
     LINGUAGEM=41;
   fi
