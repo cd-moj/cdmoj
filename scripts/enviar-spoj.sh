@@ -53,6 +53,8 @@ function enviar-spoj()
     LINGUAGEM=5;
   else
     LINGUAGEM=41;
+    echo "LangNotFound"
+    return
   fi
 
   curl -m 30 -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE \
@@ -69,18 +71,27 @@ function pega-resultado-spoj()
     SITE=www
   fi
 
+  local CONT=0
   RESP=
   if [[ "$JOBID" == "ArquivoCorrompido" ]]; then
     RESP="Arquivo Corrompido, reenvie"
+  elif [[ "$JOBID" == "LangNotFound" ]]; then
+    RESP="Linguagem nao identificada, utilize a extensão correta."
   else
     RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
     RESP=${RESP// }
-    while [[ "$RESP" == "??" ]]; do
+    while [[ "$RESP" == "??" ]] && ((CONT < 25)); do
+      ((CONT++))
       sleep 5
       RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
       RESP=${RESP// }
   done
   fi
+
+  if (( CONT >= 25 )); then
+    RESP="??"
+  fi
+
   case "$RESP" in
     AC)
       RESP="Accepted"
