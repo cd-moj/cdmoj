@@ -111,7 +111,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       #Se já tem alguém logado no contest atualiza todos os .score
       UPSCORE=false
       for D in $CONTESTSDIR/$CONTEST/controle/*.d; do
-        if [[ ! -e "$D" ]] || grep -q '\.admin' <<< "$D"; then
+        if [[ ! -e "$D" ]] || egrep -q '\.(admin|mon)' <<< "$D"; then
           continue
         fi
         LOGIN="$(basename "$D" .d)"
@@ -131,8 +131,8 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     if [[ ! -d $CONTESTSDIR/$CONTEST/controle/$LOGIN.d ]]; then
       mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
-      #admin não deve aparecer no score
-      if grep -q "\.admin$" <<< "$LOGIN"; then
+      #admin e mon(itor) não devem aparecer no score
+      if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
         continue
       fi
 
@@ -194,14 +194,14 @@ for ARQ in $SUBMISSIONDIR/*; do
       echo "TENTATIVAS=$TENTATIVAS"
       echo "PENDING=$PENDING"
     } > $PROBIDFILE
-    if grep -q "\.admin$" <<< "$LOGIN"; then
+    if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       rm $PROBIDFILE
     else
       sed -i "s/^$TEMPO:$LOGIN:$PROBID:$LING:.*:$ID$/$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
 
     NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
-    if ! grep -q "\.admin$" <<< "$LOGIN"; then
+    if ! egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       updatedotscore "$LOGIN" "$NOME" "$CONTEST"
       updatescore $CONTEST
     fi
@@ -235,7 +235,7 @@ for ARQ in $SUBMISSIONDIR/*; do
         echo "TENTATIVAS=$TENTATIVAS"
         echo "PENDING=$PENDING"
       } > $PROBIDFILE
-      if grep -q "\.admin$" <<< "$LOGIN"; then
+      if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
         rm $PROBIDFILE
       else
         echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID" >> $CONTESTSDIR/$CONTEST/controle/history
@@ -250,7 +250,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     chmod 777 "$USRFILE"
 
     NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
-    if ! grep -q "\.admin$" <<< "$LOGIN"; then
+    if ! egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       updatedotscore "$LOGIN" "$NOME" "$CONTEST"
       updatescore $CONTEST
     fi
@@ -285,8 +285,8 @@ for ARQ in $SUBMISSIONDIR/*; do
       } > $PROBIDFILE
     fi
 
-    #admin não deve aparecer no score
-    if grep -q "\.admin$" <<< "$LOGIN"; then
+    #admin e mon(itor) não devem aparecer no score
+    if grep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       rm $PROBIDFILE
     else
       NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
