@@ -29,3 +29,7 @@ to maintain and easy to create plugins.
 
 If you would like to contribute to our platform, please feel free to send
 bug reports and pull requests.
+
+##Running Instance
+
+You can check a running instance of CD-MOJ at: http://moj.naquadah.com.br
