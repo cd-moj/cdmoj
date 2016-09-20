@@ -8,5 +8,5 @@ if [[ "x$PREFIX" == "x" ]]; then
 fi
 
 sed -ibkp -e "s;#CONFDIR#;$PREFIX/etc;g" -e "s;#SCRIPTSDIR#;$PREFIX/scripts;g" \
-  -e "s;#HTMLDIR#;$HTMLDIR;g" \
+  -e "s;#HTMLDIR#;$HTMLDIR;g" -e "s;#BASEDIR#;$PREFIX;g"\
   judge/*sh html/cgi-bin/*sh bin/*sh etc/* scripts/* daemons/*sh
