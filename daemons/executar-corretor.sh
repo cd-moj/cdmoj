@@ -23,5 +23,5 @@ while true; do
 		sleep 3
 		continue
 	fi
-	bash ~/opt/judge/corrige.sh
+	bash #BASEDIR#/judge/corrige.sh
 done
