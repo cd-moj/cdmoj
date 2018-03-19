@@ -33,11 +33,11 @@ function enviar-spoj()
   if [[ "$LINGUAGEM" == "C" ]];then
     LINGUAGEM=11;
   elif [[ "$LINGUAGEM" == "Cpp" ]];then
-    LINGUAGEM=41;
+    LINGUAGEM=1;
   elif [[ "$LINGUAGEM" == "CPP" ]];then
-    LINGUAGEM=41;
+    LINGUAGEM=1;
   elif [[ "$LINGUAGEM" == "C++" ]];then
-    LINGUAGEM=41;
+    LINGUAGEM=1;
   elif [[ "$LINGUAGEM" == "Java" ]];then
     LINGUAGEM=10;
   elif [[ "$LINGUAGEM" == "JAVA" ]];then
@@ -67,7 +67,7 @@ function enviar-spoj()
   elif [[ "$LINGUAGEM" == "F95" ]]; then
     LINGUAGEM=5;
   else
-    LINGUAGEM=41;
+    LINGUAGEM=1;
     echo "LangNotFound"
     return
   fi
