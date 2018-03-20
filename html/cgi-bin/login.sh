@@ -46,11 +46,11 @@ EOF
 
   #enviar cookie
   ((ESPIRA= AGORA + 36000))
-  printf "Set-Cookie: login=$LOGIN; Path=/;  expires=$(date --date=@$ESPIRA)\n"
-  printf "Set-Cookie: hash=$NOVAHASH; Path=/; expires=$(date --date=@$ESPIRA)\n"
   printf "Content-type: text/html\n\n"
   cat << EOF
   <script type="text/javascript">
+    document.cookie="login=$LOGIN; expires=$(date --utc --date=@$ESPIRA); Path=/"
+    document.cookie="hash=$NOVAHASH; expires=$(date --utc --date=@$ESPIRA); Path=/"
     top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
   </script>
 
