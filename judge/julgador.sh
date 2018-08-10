@@ -300,7 +300,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     fi
 
     #admin e mon(itor) não devem aparecer no score
-    if grep -q "\.(admin|mon)$" <<< "$LOGIN"; then
+    if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       rm $PROBIDFILE
     else
       NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
