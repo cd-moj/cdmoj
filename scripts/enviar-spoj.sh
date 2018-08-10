@@ -74,7 +74,7 @@ function enviar-spoj()
 
   curl -m 30 -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE \
     -d "lang=$LINGUAGEM&problemcode=$PROBID" \
-    --data-urlencode "file@$ARQFONTE" http://$SITE.spoj.com/submit/complete/ |
+    --data-urlencode "file@$ARQFONTE" https://$SITE.spoj.com/submit/complete/ |
     grep newSubmissionId | awk -F'"' '{print $(NF-1)}'
 }
 
@@ -93,12 +93,12 @@ function pega-resultado-spoj()
   elif [[ "$JOBID" == "LangNotFound" ]]; then
     RESP="Linguagem nao identificada, utilize a extensão correta."
   else
-    RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
+    RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE https://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
     RESP=${RESP// }
     while [[ "$RESP" == "??" ]] && ((CONT < 25)); do
       ((CONT++))
       sleep 5
-      RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE http://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
+      RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE https://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
       RESP=${RESP// }
   done
   fi
@@ -131,7 +131,7 @@ function login-spoj-br()
 {
   curl -m 30 -c $HOME/.cache/cookie-spoj-br -s -A "Mozilla/4.0" \
     -d "login_user=$LOGINSPOJ&password=$PASSWDSPOJ" \
-    http://www.spoj.com/login/aHR0cDovL2JyLnNwb2ouY29tLw== > /dev/null
+    https://www.spoj.com/login/aHR0cDovL2JyLnNwb2ouY29tLw== > /dev/null
 }
 
 function enviar-spoj-br()
@@ -148,7 +148,7 @@ function login-spoj-www()
 {
   curl -m 30 -c $HOME/.cache/cookie-spoj-www -s -A "Mozilla/4.0" \
     -d "login_user=$LOGINSPOJ&password=$PASSWDSPOJ" \
-    http://www.spoj.com > /dev/null
+    https://www.spoj.com > /dev/null
 }
 
 function enviar-spoj-www()
