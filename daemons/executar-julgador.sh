@@ -13,7 +13,7 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-source #CONFDIR#/judge.conf
+source #CONFDIR#/common.conf
 
 cd $SUBMISSIONDIR
 
