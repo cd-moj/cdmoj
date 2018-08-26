@@ -98,5 +98,5 @@ EOF
 }
 
 function new-contest-form() {
-  sed -e "s/\$LOGIN/${LOGIN}_$(date +%s)/" ../new-contest-form.html
+  sed -e "s/\$LOGIN/${LOGIN}_$(date +%s)/" -e "s/\$BASEURL/$BASEURL/g" ../new-contest-form.html
 }
