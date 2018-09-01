@@ -41,19 +41,19 @@ function new-contest-old() {
   printf "<h3>Formato do arquivo contest-description.txt</h3>"
 cat << EOF
 <table border=1>
-<tr><td>CONTEST_ID</td><td>ID do contest em um nome padrao UNIX, sem espaco</td></tr>
+<tr><td>CONTEST_ID</td><td>ID do contest em um nome padrão UNIX, sem espaço</td></tr>
 <tr><td>"Nome Completo do Contest"</td><td>Nome completo do contest para
 aparecer na tela inicial, deve ser escrito com ASPAS</td></tr>
-<tr><td>INICIO-da-prova</td><td>Inicio da prova em segundos, no padrão UNIX gere com
+<tr><td>INICIO-da-prova</td><td>Início da prova em segundos, no padrão UNIX gere com
 o comando date, por exemplo, se a prova deve começar às 15:00 de hoje:
 <br/>
 <pre>
 date --date="15:00:00 today" +%s
 </pre></td></tr>
-<tr><td>TERMINO-da-prova</td><td>Termino da prova em segundos, gere com o
+<tr><td>TERMINO-da-prova</td><td>Término da prova em segundos, gere com o
 comando date, por exemplo, se a prova deve terminar hoje às 17:00:<br/>
 <pre> date --date="17:00:00 today" +%s</pre></tr></td>
-<tr><td>N</td><td>Numero inteiro com a quantidade de problemas
+<tr><td>N</td><td>Número inteiro com a quantidade de problemas
 da prova, depois serão N linhas com as descrições dos problemas</td></tr>
 <tr><td>SITE ID "Nome Completo" Nome_Pequeno link-enunciado</td><td>
 N linhas com esse formato, onde cada elemento representa:
@@ -61,7 +61,7 @@ N linhas com esse formato, onde cada elemento representa:
   <li>SITE: pode ser spoj-br spoj-www</li>
   <li>ID: é o ID do problema no SITE</li>
   <li>"Nome completo": nome full do problema, entre ASPAS</li>
-  <li>Nome_pequeno: pode ser Letra ou numero mas coloque em ordem nesse
+  <li>Nome_pequeno: pode ser Letra ou número mas coloque em ordem nesse
   arquivo</li>
   <li>link-enunciado: pode ser:
     <ul>
