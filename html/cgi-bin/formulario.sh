@@ -32,7 +32,7 @@ POST=$TMP
 cat > $TMP
 if [[ "x$(< $TMP)" != "x" ]]; then
   BOUNDARY="$(head -n1 "$POST")"
-  CONTEST_ID="$(grep -a -A3 'contest_id' "$POST"|tr '\n' '&'|cut '-d&' -f3|sed -e 's/\r//')"
+  CONTEST_ID="$(grep -a -A3 'contest_id' "$POST"|tr '\n' '&'|cut '-d&' -f3|tr -d ' '|sed -e 's/\r//')"
   NOME_COMPLETO="$(grep -a -A3 'nome_completo' "$POST"|tr '\n' '&'|cut '-d&' -f3|sed -e 's/\r//')"
   DATA_INICIO="$(grep -a -A3 'data_inicio' "$POST"|tr '\n' '&'|cut '-d&' -f3|sed -e 's/\r//')"
   HORA_INICIO="$(grep -a -A3 'hora_inicio' "$POST"|tr '\n' '&'|cut '-d&' -f3|sed -e 's/\r//')"
