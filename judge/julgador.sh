@@ -14,10 +14,10 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-source #CONFDIR#/judge.conf
-source #CONFDIR#/common.conf
-source #SCRIPTSDIR#/enviar-spoj.sh
-source #SCRIPTSDIR#/enviar-uri.sh
+source /home/work/etc/judge.conf
+source /home/work/etc/common.conf
+source /home/work/scripts/enviar-spoj.sh
+source /home/work/scripts/enviar-uri.sh
 
 function updatescore()
 {
@@ -55,10 +55,11 @@ function updatedotscore()
   #nome | A | B | C | D | ... | Acertos | Penalidade |
   {
     printf "<td>$NOME</td>"
-    for((prob=0;prob<TAMARRAY;prob+=5)); do
+    for((prob=0;prob<TAMARRAY;prob+=7)); do
       JAACERTOU=0
       TENTATIVAS=0
       PENDING=0
+      PESO=0
       source $CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$prob 2>/dev/null
       if (( TENTATIVAS == 0 )) && (( PENDING==0 )) ; then
         printf "<td></td>"
@@ -66,7 +67,7 @@ function updatedotscore()
         ((ACUMACERTOS++))
         ((JAACERTOU = JAACERTOU/60))
         ((ACUMPENALIDADES+= (TENTATIVAS-1)*PENALTYCOST + JAACERTOU))
-        printf "<td><img src='/images/yes.png'/><br/><small>$TENTATIVAS/$JAACERTOU</small></td>"
+        printf "<td><img src='/images/yes.png'/><br/><small>$TENTATIVAS/$JAACERTOU/$PESO</small></td>"
       else
         PENDINGBLINK=
         TENTATIVASSTAT=""
@@ -82,7 +83,6 @@ function updatedotscore()
     printf "<td>$ACUMACERTOS ($ACUMPENALIDADES)</td></tr>:$ACUMACERTOS:$ACUMPENALIDADES\n"
   } > $CONTESTSDIR/$CONTEST/controle/$LOGIN.score
 }
-
 
 mkdir -p $SUBMISSIONDIR-log
 mkdir -p $SUBMISSIONDIR-enviaroj
@@ -113,7 +113,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     TMPDIR=$(mktemp -d)
     tar xf "$ARQ" -C $TMPDIR/
     CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
-    MSG="$(bash #SCRIPTSDIR#/../bin/cria-contest.sh "$CAMINHO" "$LOGIN")"
+    MSG="$(bash /home/work/scripts/../bin/cria-contest.sh "$CAMINHO" "$LOGIN")"
     SAIDA=$?
     echo "$(date) $MSG" >> $CONTESTSDIR/admin/$LOGIN.msgs
     tail -n 20 $CONTESTSDIR/admin/$LOGIN.msgs > $TMPDIR.msgs
@@ -137,8 +137,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       if [[ "$UPSCORE" == true ]]; then
         updatescore $CONTEST
       fi
-    fi
-
+    fi 
     rm -rf $TMPDIR
 
   elif [[ "$COMANDO" == "login" ]]; then
@@ -154,7 +153,7 @@ for ARQ in $SUBMISSIONDIR/*; do
         NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
         printf "<td>$NOME</td>"
         TAMARRAY=${#PROBS[@]}
-        for ((prob=0;prob<TAMARRAY;prob+=5)); do
+        for ((prob=0;prob<TAMARRAY;prob+=7)); do
             printf "<td></td>"
         done
         printf "<td>0</td></tr>:0:0\n"
@@ -227,6 +226,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     JAACERTOU=0
     TENTATIVAS=0
     PENDING=0
+    PESO=0
     if [[ -e $PROBIDFILE ]]; then
       source $PROBIDFILE
     fi
@@ -244,10 +244,15 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     if [[ "$RESP" != "Ignored" ]]; then
       ((TENTATIVAS++))
+      if [[ "$JAACERTOU" == "0" ]]; then
+        PENALIDADE="${PROBS[PROBID+5]}"
+        PESO="$(( $PESO-$PENALIDADE ))"
+      fi
       {
         echo "JAACERTOU=$JAACERTOU"
         echo "TENTATIVAS=$TENTATIVAS"
         echo "PENDING=$PENDING"
+        echo "PESO=$PESO"
       } > $PROBIDFILE
       if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
         rm $PROBIDFILE
@@ -278,6 +283,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     JAACERTOU=0
     TENTATIVAS=0
     PENDING=0
+    PESO="${PROBS[PROBID+4]}"
     if [[ -e $PROBIDFILE ]]; then
       source $PROBIDFILE
     fi
@@ -290,12 +296,12 @@ for ARQ in $SUBMISSIONDIR/*; do
       chmod 777 "$USRFILE"
     elif [[ "$JAACERTOU" == "0" ]] ; then
       cp "$ARQ" $SUBMISSIONDIR-enviaroj/
-
       ((PENDING++))
       {
         echo "JAACERTOU=0"
         echo "TENTATIVAS=$TENTATIVAS"
         echo "PENDING=$PENDING"
+        echo "PESO=$PESO"
       } > $PROBIDFILE
     fi
 

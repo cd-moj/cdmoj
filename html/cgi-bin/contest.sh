@@ -45,7 +45,6 @@ fi
 if verifica-login $CONTEST| grep -q Nao; then
   tela-login $CONTEST
 fi
-
 source $CONTESTSDIR/$CONTEST/conf
 #estamos logados
 incontest-cabecalho-html $CONTEST
@@ -81,26 +80,60 @@ fi
 printf "<h2>Problemas</h2>\n"
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
-SELETOR=
-echo "<ul>"
-for ((i=0;i<TOTPROBS;i+=5)); do
-  SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
-  printf "<li>&emsp;&emsp;&emsp;&emsp;<b>${PROBS[$((i+3))]}</b> - ${PROBS[$((i+2))]}"
-  LINK="${PROBS[$((i+4))]}"
-  if [[ "${PROBS[$((i+4))]}" == "site" ]]; then
-    LINK="$(link-prob-${PROBS[i]} ${PROBS[$((i+1))]})"
-  elif [[ "${PROBS[$((i+4))]}" == "sitepdf" ]]; then
-    LINK="$(link-prob-${PROBS[i]}-pdf ${PROBS[$((i+1))]})"
-  fi
 
-  if [[ "$LINK" =~ "http://" ]]; then
-    printf " - [<a href=\"$LINK\" target=\"_blank\">problem description</a>]</li>\n"
-  elif [[ "$LINK" != "none" ]]; then
-    printf " - [<a href=\"$BASEURL/contests/$CONTEST_ID/$LINK\" target=\"_blank\">problem description</a>]</li>\n"
-  else
+SELETOR=
+PESO=1
+
+echo "<ul>"
+LOGIN=$(pega-login)
+
+if [[ "$CONTEST_TYPE" == "prova" ]]; then
+  for ((i=0;i<TOTPROBS;i+=7)); do
+    source $CONTESTSDIR/$CONTEST/controle/${LOGIN}.d/$i
+    if [[ "$CONTEST_TYPE" == "prova" && "$PESO" > "0" ]]; then
+      SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
+    elif [[ "$CONTEST_TYPE" == "competicao" && "$PESO" > "0" && "$SUBMISSOES" -gt "$TENTATIVAS" ]]; then
+      SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
+    fi
+    printf "<li>&emsp;&emsp;&emsp;&emsp;<b>${PROBS[$((i+3))]}</b> - ${PROBS[$((i+2))]}"
+    LINK="${PROBS[$((i+6))]}"
+    if [[ "${PROBS[$((i+6))]}" == "site" ]]; then
+      LINK="$(link-prob-${PROBS[i]} ${PROBS[$((i+1))]})"
+    elif [[ "${PROBS[$((i+6))]}" == "sitepdf" ]]; then
+      LINK="$(link-prob-${PROBS[i]}-pdf ${PROBS[$((i+1))]})"
+    fi
+
+    if [[ "$LINK" =~ "http://" ]]; then
+      printf " - [<a href=\"$LINK\" target=\"_blank\">problem description</a>]\n"
+    elif [[ "$LINK" != "none" ]]; then
+      printf " - [<a href=\"$BASEURL/contests/$CONTEST_ID/$LINK\" target=\"_blank\">problem description</a>]\n"
+    fi
+
+    if [[ "$CONTEST_TYPE" == "competicao" ]]; then 
+    printf "<br>&emsp;&emsp;&emsp;&emsp;&emsp;Peso: [${PROBS[$((i+4))]} pontos]&emsp;-&emsp;Penalidade: [${PROBS[$((i+5))]} pontos] por submissão errada&emsp;-&emsp;Limite de submissões: [${PROBS[$((i+6))]} submissões]</li>\n"
+    else
+      printf "<br>&emsp;&emsp;&emsp;&emsp;&emsp;Peso: [${PROBS[$((i+4))]} pontos]&emsp;-&emsp;Penalidade: [${PROBS[$((i+5))]} pontos] por submissão errada</li>\n"
+    fi
+  done
+else
+  for ((i=0;i<TOTPROBS;i+=7)); do
+    SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
+    printf "<li>&emsp;&emsp;&emsp;&emsp;<b>${PROBS[$((i+3))]}</b> - ${PROBS[$((i+2))]}"
+    LINK="${PROBS[$((i+6))]}"
+    if [[ "${PROBS[$((i+6))]}" == "site" ]]; then
+      LINK="$(link-prob-${PROBS[i]} ${PROBS[$((i+1))]})"
+    elif [[ "${PROBS[$((i+6))]}" == "sitepdf" ]]; then
+      LINK="$(link-prob-${PROBS[i]}-pdf ${PROBS[$((i+1))]})"
+    fi
+
+    if [[ "$LINK" =~ "http://" ]]; then
+      printf " - [<a href=\"$LINK\" target=\"_blank\">problem description</a>]\n"
+    elif [[ "$LINK" != "none" ]]; then
+      printf " - [<a href=\"$BASEURL/contests/$CONTEST_ID/$LINK\" target=\"_blank\">problem description</a>]\n"
+    fi
     printf "</li>\n"
-  fi
-done
+  done
+fi
 echo "</ul>"
 
 echo "<br/><br/>"
@@ -109,7 +142,7 @@ cat << EOF
 <table border="1" width="100%"> <tr><th>Problema</th><th>Resposta</th><th>Submissão em</th><th>Tempo de Prova</th></tr>
 EOF
 
-LOGIN=$(pega-login)
+#LOGIN=$(pega-login)
 
 while read LINE; do
   PROB="$(cut -d ':' -f3 <<< "$LINE")"

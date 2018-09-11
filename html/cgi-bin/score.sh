@@ -81,7 +81,7 @@ TOTPROBS=${#PROBS[@]}
 SELETOR=
 echo "<table border=1 width=100%>"
 echo "<tr><td><b>#</b></td><td><b>Nome</b></td>"
-for ((i=0;i<TOTPROBS;i+=5)); do
+for ((i=0;i<TOTPROBS;i+=7)); do
   printf "<td><b>${PROBS[$((i+3))]}</b></td>"
 done
 echo "<td><b>Total</b></td></tr>"
