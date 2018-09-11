@@ -8,10 +8,12 @@
         novoInputs = novo.getElementsByTagName('input');
         for (let i = 0; i < novoInputs.length; i++) {
           novoInputs[i].value = "";
-          if (i==(novoInputs.length - 2)) {
+          if (i==(novoInputs.length - 4)) {
             cont+=1;
             novoInputs[i].value = String.fromCharCode(cont);
-          }
+          }else if( (i==(novoInputs.length - 3)) || (i==(novoInputs.length - 2))){
+                  novoInputs[i].value = "0";
+           }
         }
         btn.parentNode.insertBefore(novo, btn.previousSibling);
       }
@@ -21,8 +23,11 @@
      #SITE_ID,#ID_SITE,#NOME_COMPLETO_SITE,#ENUNCIADO{
          width: 99%;
      }
-     #NOME_PEQUENO{
+     #NOME_PEQUENO,#PESO_PROBLEMA,#PESO_PENALIDADE{
        width: 25%
+     }
+     #TIPO_CONTEST{
+       width: 15%
      }
    </style>
   <body>
@@ -65,25 +70,34 @@
                 <label align="left">Usuarios</label>
                 <textarea align="left" name="users" id="Users_TextArea"></textarea>
               </td>
+              <td>
+                 <label align="left">Tipo</label>
+                 <input type="radio" name="tipo_contest" id="TIPO_CONTEST" value="lista" checked="checked">&ensp;LISTA DE EXERCÍCIOS</input><br>
+                 <input type="radio" name="tipo_contest" id="TIPO_CONTEST" value="prova">&ensp;PROVA</input><br>
+              </td>
             </tr>
             </table>
             <div class="contest">
               <table>
                 <tr>
                   <td>
-                  <label>Site ID:</label>
+                  <label>Site ID</label>
                     <select name="site_id" id="SITE_ID">
                       <option value="cdmoj">CD-MOJ</option>
                       <option value="spoj-br">SPOJ-BR</option>
                       <option value="spoj-www">SPOJ-WWW</option>
                     </select></td>
-                    <td><label>ID Contest:</label>
+                    <td><label>ID Contest</label>
                     <input type="text" name="id_site" id="ID_SITE" size="20"></td>
-                    <td><label>Título:</label>
+                    <td><label>Título</label>
                     <input type="text" name="titulo" id="NOME_COMPLETO_SITE" size="20"></td>
-                    <td><label>Nome Pequeno:</label>
+                    <td><label>Nome Pequeno</label>
                     <input type="text" name="nome_pequeno" id="NOME_PEQUENO" value="A" size="20"></td>
-                    <td><label>Enunciado:</label>
+		    <td><label>Peso</label>
+                    <input type="text" name="peso_problema" id="PESO_PROBLEMA" size="20" value="0"></input>
+                    <td><label>Penalidade</label>
+                    <input type="text" name="peso_penalidade" id="PESO_PENALIDADE" size="20" value="0"></input>		  
+                    <td><label>Enunciado</label>
                     <input type="file" name="enunciado_problema" id="ENUNCIADO" size="20" value="upload"></input></td>
                     </tr>
               </table>

@@ -41,28 +41,30 @@ function new-contest-old() {
   printf "<h3>Formato do arquivo contest-description.txt</h3>"
 cat << EOF
 <table border=1>
-<tr><td>CONTEST_ID</td><td>ID do contest em um nome padrão UNIX, sem espaço</td></tr>
+<tr><td>CONTEST_ID</td><td>ID do contest em um nome padrao UNIX, sem espaco</td></tr>
 <tr><td>"Nome Completo do Contest"</td><td>Nome completo do contest para
 aparecer na tela inicial, deve ser escrito com ASPAS</td></tr>
-<tr><td>INICIO-da-prova</td><td>Início da prova em segundos, no padrão UNIX gere com
+<tr><td>INÍCIO-da-prova</td><td>Início da prova em segundos, no padrão UNIX gere com
 o comando date, por exemplo, se a prova deve começar às 15:00 de hoje:
 <br/>
 <pre>
 date --date="15:00:00 today" +%s
 </pre></td></tr>
-<tr><td>TERMINO-da-prova</td><td>Término da prova em segundos, gere com o
+<tr><td>TÉRMINO-da-prova</td><td>Término da prova em segundos, gere com o
 comando date, por exemplo, se a prova deve terminar hoje às 17:00:<br/>
 <pre> date --date="17:00:00 today" +%s</pre></tr></td>
 <tr><td>N</td><td>Número inteiro com a quantidade de problemas
 da prova, depois serão N linhas com as descrições dos problemas</td></tr>
-<tr><td>SITE ID "Nome Completo" Nome_Pequeno link-enunciado</td><td>
+<tr><td>SITE ID "Nome Completo" Nome_Pequeno peso penalidade link-enunciado</td><td>
 N linhas com esse formato, onde cada elemento representa:
 <ul>
   <li>SITE: pode ser spoj-br spoj-www</li>
   <li>ID: é o ID do problema no SITE</li>
   <li>"Nome completo": nome full do problema, entre ASPAS</li>
-  <li>Nome_pequeno: pode ser Letra ou número mas coloque em ordem nesse
+  <li>Nome_pequeno: pode ser Letra ou numero mas coloque em ordem nesse
   arquivo</li>
+  <li>Peso: quantidade de pontos que valem o problema. No caso de ser lista de exercícios o peso deve ser zero</li>
+  <li>Penalidade: quantidade de pontos que devem ser descontados por submissão errada. No caso de ser lista de exercícios a penalidade deve ser zero</li>
   <li>link-enunciado: pode ser:
     <ul>
       <li> site , redireciona pro SITE</li>
@@ -74,11 +76,12 @@ N linhas com esse formato, onde cada elemento representa:
 </ul></td></tr>
 <tr><td>M</td><td>Número Inteiro representando a quantidade de usuários
 cadastrados</td></tr>
-<tr><td>login:senha:Nome Completo</td><td>M linhas com os usuarios que tem
+<tr><td>login:senha:Nome Completo</td><td>M linhas com os usuários que tem
 permissão de logar nesse contest. Todo login que terminar com .admin será
 considerado um usuário do tipo Administrador e terá acesso a várias
 funcionalidades administrativas, como acesso contínuo às Estatísticas mesmo
 sem ter PARTIALSTATISTIC=1.</td></tr>
+<tr><td>CONTEST_TYPE=tipo</td><td>Tipo pode ser prova ou lista para lista de exercício</td></tr>
 </table>
 EOF
 
@@ -98,5 +101,5 @@ EOF
 }
 
 function new-contest-form() {
-  sed -e "s/\$LOGIN/${LOGIN}_$(date +%s)/" -e "s#\$BASEURL#$BASEURL#g" ../new-contest-form.html
+  sed -e "s/\$LOGIN/${LOGIN}_$(date +%s)/" -e "s#\$BASEURL#${BASEURL}#" ../new-contest-form.html
 }
