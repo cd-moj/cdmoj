@@ -33,11 +33,11 @@ function enviar-spoj()
   if [[ "$LINGUAGEM" == "C" ]];then
     LINGUAGEM=11;
   elif [[ "$LINGUAGEM" == "Cpp" ]];then
-    LINGUAGEM=1;
+    LINGUAGEM=44;
   elif [[ "$LINGUAGEM" == "CPP" ]];then
-    LINGUAGEM=1;
+    LINGUAGEM=44;
   elif [[ "$LINGUAGEM" == "C++" ]];then
-    LINGUAGEM=1;
+    LINGUAGEM=44;
   elif [[ "$LINGUAGEM" == "Java" ]];then
     LINGUAGEM=10;
   elif [[ "$LINGUAGEM" == "JAVA" ]];then
