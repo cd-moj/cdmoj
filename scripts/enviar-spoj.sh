@@ -67,7 +67,7 @@ function enviar-spoj()
   elif [[ "$LINGUAGEM" == "F95" ]]; then
     LINGUAGEM=5;
   else
-    LINGUAGEM=1;
+    LINGUAGEM=44;
     echo "LangNotFound"
     return
   fi
