@@ -66,7 +66,7 @@ function incontest-cabecalho-html()
       <div id="geral">
         <div id="header">
           <h1><font color="white">CD-MOJ</font></h1>
-          <img src="http://$BASEURL/images/h1_line_2.png">
+          <img src="$BASEURL/images/h1_line_2.png">
           <p style="float:right;">$MSG</font></p>
           <p><font color=lightyellow>$(pega-nome $CONTEST)</font><font color=white> em <em>$CONTEST_NAME</em></font></p>
         </div>
