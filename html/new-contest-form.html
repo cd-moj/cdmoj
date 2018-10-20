@@ -6,10 +6,11 @@
         let novo = document.querySelector('div.contest').cloneNode(true);
         btn = document.getElementById('botoes');
         novoInputs = novo.getElementsByTagName('input');
+        if(cont > 89) cont=64;
         for (let i = 0; i < novoInputs.length; i++) {
           novoInputs[i].value = "";
           if (i==(novoInputs.length - 2)) {
-            cont+=1;
+            cont++;
             novoInputs[i].value = String.fromCharCode(cont);
           }
         }
