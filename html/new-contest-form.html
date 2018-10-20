@@ -6,10 +6,11 @@
         let novo = document.querySelector('div.contest').cloneNode(true);
         btn = document.getElementById('botoes');
         novoInputs = novo.getElementsByTagName('input');
+        if(cont > 89) cont=64;
         for (let i = 0; i < novoInputs.length; i++) {
           novoInputs[i].value = "";
           if (i==(novoInputs.length - 2)) {
-            cont+=1;
+            cont++;
             novoInputs[i].value = String.fromCharCode(cont);
           }
         }
@@ -83,6 +84,8 @@
                     <input type="text" name="titulo" id="NOME_COMPLETO_SITE" size="20"></td>
                     <td><label>Nome Pequeno:</label>
                     <input type="text" name="nome_pequeno" id="NOME_PEQUENO" value="A" size="20"></td>
+                    <td><label>Peso</label>
+                    <input type="text" name="peso_problema" id="PESO_PROBLEMA" size="20" size="20"></td>
                     <td><label>Enunciado:</label>
                     <input type="file" name="enunciado_problema" id="ENUNCIADO" size="20" value="upload"></input></td>
                     </tr>
