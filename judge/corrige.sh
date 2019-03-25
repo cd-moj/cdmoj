@@ -55,7 +55,13 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
     LOGGEDIN="$LOGGEDIN $SITE"
   fi
 
-  CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING|tr ' ' '_')"
+  if grep -q "$LING" <<< "$LANGUAGES"; then
+    CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING|tr ' ' '_')"
+    unset LANGUAGES
+  else
+    CODIGOSUBMISSAO="Wrong_Language_Choice"
+  fi
+
   PENDING="$PENDING $SITE:$CODIGOSUBMISSAO:$ARQ"
 
 done
@@ -86,7 +92,11 @@ for SUBMISSIONS in $PENDING; do
   #ID no SITE
   IDSITE=${PROBS[PROBID+1]}
 
-  RESP="$(pega-resultado-$SITE "$CODIGOSUBMISSAO")"
+  if [[ "$CODIGOSUBMISSAO" != "Wrong_Language_Choice" ]]; then
+    RESP="$(pega-resultado-$SITE "$CODIGOSUBMISSAO")"
+  else
+    RESP="Wrong Language Choice"
+  fi
 
   #Se RESP voltar vazio ou ??, significa que deve ser reenviado
   if [[ "${RESP// }" == "" || "${RESP// }" == "??" ]]; then
