@@ -1,0 +1,102 @@
+<html>
+  <head>
+    <script language="javascript">
+      var cont = 65;
+      function newContest() {
+        let novo = document.querySelector('div.contest').cloneNode(true);
+        btn = document.getElementById('botoes');
+        novoInputs = novo.getElementsByTagName('input');
+        if(cont > 89) cont=64;
+        for (let i = 0; i < novoInputs.length; i++) {
+          novoInputs[i].value = "";
+          if (i==(novoInputs.length - 2)) {
+            cont++;
+            novoInputs[i].value = String.fromCharCode(cont);
+          }
+        }
+        btn.parentNode.insertBefore(novo, btn.previousSibling);
+      }
+    </script>
+   </head>
+   <style>
+     #SITE_ID,#ID_SITE,#NOME_COMPLETO_SITE,#ENUNCIADO{
+         width: 99%;
+     }
+     #NOME_PEQUENO{
+       width: 25%
+     }
+   </style>
+  <body>
+      <fieldset>
+        <legend>NOVO CONTEST</legend>
+        <form method="post" action="$BASEURL/cgi-bin/formulario.sh" id="FormIdContest" enctype="multipart/form-data">
+          <table>
+            <tr>
+              <td align="left">
+                <label id="Contest_Id_label">Contest ID</label>
+                <input type="text" name="contest_id" id="Contest_Id_input" size="20" value="$LOGIN">
+              </td>
+              <td align="left">
+                <label id="Nome_Completo_label">Nome Completo</label>
+                <input type="text" name="nome_completo" id="Nome_Completo_input" size="20">
+              </td>
+            </tr>
+            <tr>
+              <td align="left">
+                <label id="Data_Inicio_label">Data de Inicio</label>
+                <input type="date" name="data_inicio" id="Data_Inicio_input" size="20">
+              </td>
+              <td align="left">
+                <label id="Hora_Inicio_label">Hora de Inicio</label>
+                <input type="time" name="hora_inicio" id="Hora_Inicio_input" size="20">
+              </td>
+            </tr>
+            <tr>
+              <td align="left">
+                <label id="Data_Fim_label">Data Final</label>
+                <input type="date" name="data_fim" id="Data_Fim_input" size="20">
+              </td>
+              <td align="left">
+                <label id="Hora_Final_label">Hora Final</label>
+                <input type="time" name="hora_fim" id="Hora_Final_input" size="20">
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <label align="left">Usuarios</label>
+                <textarea align="left" name="users" id="Users_TextArea"></textarea>
+              </td>
+            </tr>
+            </table>
+            <div class="contest">
+              <table>
+                <tr>
+                  <td>
+                  <label>Site ID:</label>
+                    <select name="site_id" id="SITE_ID">
+                      <option value="cdmoj">CD-MOJ</option>
+                      <option value="spoj-br">SPOJ-BR</option>
+                      <option value="spoj-www">SPOJ-WWW</option>
+                    </select></td>
+                    <td><label>ID Contest:</label>
+                    <input type="text" name="id_site" id="ID_SITE" size="20"></td>
+                    <td><label>Título:</label>
+                    <input type="text" name="titulo" id="NOME_COMPLETO_SITE" size="20"></td>
+                    <td><label>Nome Pequeno:</label>
+                    <input type="text" name="nome_pequeno" id="NOME_PEQUENO" value="A" size="20"></td>
+                    <td><label>Enunciado:</label>
+                    <input type="file" name="enunciado_problema" id="ENUNCIADO" size="20" value="upload"></input></td>
+                    </tr>
+              </table>
+            </div>
+            <div id="botoes">
+            <table>
+              <td><button type="button" id="botao" onclick="newContest()">+</button></td>
+              <td><button type="submit" id="submitContest">Submit</button></td>
+            </table>
+          </div>
+        </form>
+        <p>Reenviar um contest já existente irá recriá-lo sem perder as submissões</p>
+      </fieldset>
+  </body>
+</html>

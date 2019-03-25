@@ -42,6 +42,9 @@ function incontest-cabecalho-html()
     ADMINMENU+="<li><a href=\"$URL/sherlock.sh/$CONTEST\"><span class=\"title\">Sherlock</span><span class=\"text\">Identificação de Plágio</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
   fi
+  if is-mon | grep -q Sim ; then
+    ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
+  fi
   printf "Content-type: text/html\n\n"
   cat << EOF
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -63,7 +66,7 @@ function incontest-cabecalho-html()
       <div id="geral">
         <div id="header">
           <h1><font color="white">CD-MOJ</font></h1>
-          <img src="http://mojnext.naquadah.tk/images/h1_line_2.png">
+          <img src="$BASEURL/images/h1_line_2.png">
           <p style="float:right;">$MSG</font></p>
           <p><font color=lightyellow>$(pega-nome $CONTEST)</font><font color=white> em <em>$CONTEST_NAME</em></font></p>
         </div>
@@ -107,6 +110,15 @@ function is-admin()
 {
   local LOGIN=$(pega-login)
   if grep -q '\.admin$' <<< "$LOGIN"; then
+    echo Sim
+  else
+    echo Nao
+  fi
+}
+function is-mon()
+{
+  local LOGIN=$(pega-login)
+  if grep -q '\.mon$' <<< "$LOGIN"; then
     echo Sim
   else
     echo Nao

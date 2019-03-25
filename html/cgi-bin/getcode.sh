@@ -40,7 +40,7 @@ fi
 source $CONTESTSDIR/$CONTEST/conf
 if verifica-login $CONTEST| grep -q Nao; then
   tela-login $CONTEST
-elif is-admin | grep -q Nao; then
+elif (is-admin | grep -q Nao) && (is-mon|grep -q Nao); then
   tela-erro
   exit 0
 fi
