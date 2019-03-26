@@ -55,7 +55,7 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
     LOGGEDIN="$LOGGEDIN $SITE"
   fi
 
-  if grep -q "$LING" <<< "$LANGUAGES"; then
+  if [[ "$LANGUAGES" == "" ]] || grep -q "$LING" <<< "$LANGUAGES"; then
     CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING|tr ' ' '_')"
     unset LANGUAGES
   else
