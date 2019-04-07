@@ -92,7 +92,7 @@ for SUBMISSIONS in $PENDING; do
   #ID no SITE
   IDSITE=${PROBS[PROBID+1]}
 
-  if [[ "$CODIGOSUBMISSAO" != "Wrong_Language_Choice" ]]; then
+  if [[ "$CODIGOSUBMISSAO" != "Wrong Language Choice" ]]; then
     RESP="$(pega-resultado-$SITE "$CODIGOSUBMISSAO")"
   else
     RESP="Wrong Language Choice"
