@@ -32,8 +32,8 @@ function enviar-spoj()
 
   if [[ "$LINGUAGEM" == "C" ]];then
     LINGUAGEM=11;
-  elif [[ "$LINGUAGEM" == "Cpp" ]];then
-    LINGUAGEM=44;
+  elif [[ "$LINGUAGEM" == "CXX" ]];then
+    LINGUAGEM=1;
   elif [[ "$LINGUAGEM" == "CPP" ]];then
     LINGUAGEM=44;
   elif [[ "$LINGUAGEM" == "C++" ]];then
@@ -67,7 +67,7 @@ function enviar-spoj()
   elif [[ "$LINGUAGEM" == "F95" ]]; then
     LINGUAGEM=5;
   else
-    LINGUAGEM=44;
+    LINGUAGEM=1;
     echo "LangNotFound"
     return
   fi
@@ -76,6 +76,9 @@ function enviar-spoj()
     -d "lang=$LINGUAGEM&problemcode=$PROBID" \
     --data-urlencode "file@$ARQFONTE" https://$SITE.spoj.com/submit/complete/ |
     grep newSubmissionId | awk -F'"' '{print $(NF-1)}'
+  if echo "${PIPESTATUS[@]}"|grep -q 1; then
+    mv ${ARQFONTE} ${ARQFONTE%PP}XX
+  fi
 }
 
 function pega-resultado-spoj()
