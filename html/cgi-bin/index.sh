@@ -37,33 +37,36 @@ EOF
 RUNNING=
 ENDED=
 UPCOMING=
+NOW=$(date +%s)
 for contest in $CONTESTSDIR/*; do
   if [[ "$contest" == "$CONTESTSDIR/*" || "$contest" == "$CONTESTSDIR/admin" ]]; then
     continue
   fi
-  NOW=$(date +%s)
+  if [[ -e "/dev/shm/cache.ended-${contest##*/}" ]]; then
+    continue
+  fi
   source $contest/conf
   THIS="$CONTEST_START $CONTEST_END <span class=\"titcontest\"><b>$CONTEST_NAME</b> : "
   if (( $CONTEST_END > NOW )); then
-    THIS="$THIS<a href=\"contest.sh/$CONTEST_ID\">Join</a>"
+    THIS+="<a href=\"contest.sh/$CONTEST_ID\">Join</a>"
   else
-    THIS="${THIS}Finished"
+    THIS+="<a href=\"contest.sh/$CONTEST_ID\">Finished</a>"
   fi
-  THIS="$THIS | <a href=\"score.sh/$CONTEST_ID\">Score</a>"
-  THIS="$THIS | <a href=\"statistic.sh/$CONTEST_ID\">Statistic</a></span>"
-  THIS="$THIS<ul><li>&emsp;&emsp;&emsp;&emsp;Início: $(date --date=@$CONTEST_START)</li>"
-  THIS="$THIS<li>&emsp;&emsp;&emsp;&emsp;Término:  $(date --date=@$CONTEST_END)</li></ul><br/><br/>\n"
+  THIS+=" | <a href=\"score.sh/$CONTEST_ID\">Score</a>"
+  THIS+=" | <a href=\"statistic.sh/$CONTEST_ID\">Statistic</a></span>"
+  THIS+="<ul><li>&emsp;&emsp;&emsp;&emsp;Início: $(date --date=@$CONTEST_START)</li>"
+  THIS+="<li>&emsp;&emsp;&emsp;&emsp;Término:  $(date --date=@$CONTEST_END)</li></ul><br/><br/>"
 
   if (( NOW +1800 < $CONTEST_START )); then
-    UPCOMING="$UPCOMING$THIS"
+    UPCOMING+="$THIS\n"
   elif (( NOW > $CONTEST_END )); then
-    ENDED="$ENDED$THIS"
+    echo "$THIS" > "/dev/shm/cache.ended-${contest##*/}"
   else
-    RUNNING="$RUNNING$THIS"
+    RUNNING+="$THIS\n"
   fi
 done
 RUNNING="$(printf "$RUNNING"|sort -t" " -k1 -n -r|cut -d" " -f3-)"
-ENDED="$(printf "$ENDED"|sort -t" " -k1 -n -r|cut -d" " -f3-)"
+ENDED="$(cat /dev/shm/cache.ended-*|sort -t" " -k1 -n -r|cut -d" " -f3-)"
 UPCOMING="$(printf "$UPCOMING"|sort -t" " -k1 -n|cut -d" " -f3-)"
 cat << EOF
 <div class="simpleTabs">
