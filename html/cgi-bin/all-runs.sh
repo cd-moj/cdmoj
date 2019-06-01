@@ -68,14 +68,14 @@ while read LINE; do
   if (( LINHAMAPA[${VET[1]}]%2 == 0 )); then
     BGCOLOR="bgcolor='#00EEEE'"
   fi
-  USUARIO=$i
+  USUARIO=${VET[1]}
   ((TEMPO= (TEMPO - CONTEST_START) ))
   TYPE=${VET[3],}
   #TYPE="$(echo $TYPE | tr '[A-Z]' '[a-z]')"
 
   MAPA[${VET[1]}]+="
   <tr $BGCOLOR><td>${PROBS[$((EXERCICIO+3))]}</td>
-  <td><a target=_blank href='$BASEURL/cgi-bin/getcode.sh/$CONTEST/$CODIGO-$i-${PROBS[$((EXERCICIO+3))]}.$TYPE'>(fonte)</a> $RESP</td>
+  <td><a target=_blank href='$BASEURL/cgi-bin/getcode.sh/$CONTEST/$CODIGO-${VET[1]}-${PROBS[$((EXERCICIO+3))]}.$TYPE'>(fonte)</a> $RESP</td>
   <td>$CODIGO</td><td>$HORA</td>
   </tr>"
   MAPACOMSOLUCAO[${VET[1]}]=1
