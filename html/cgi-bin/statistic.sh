@@ -58,6 +58,12 @@ if (( AGORA < CONTEST_END )) && (is-admin | grep -q Nao); then
   fi
 fi
 
+if (( AGORA > CONTEST_END )) && ( is-admin |grep -q Nao ) && [[ "$STATISTICS" == "0" ]]; then
+  printf "<p> Este contest NÃO permite estatísticas!</p>\n"
+  cat ../footer.html
+  exit 0
+fi
+
 #mostrar exercicios
 printf "<br/><br/><h2>Problems</h2>\n"
 TOTPROBS=${#PROBS[@]}
