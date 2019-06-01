@@ -64,13 +64,16 @@ if (( AGORA > CONTEST_END )) && ( is-admin |grep -q Nao ) && [[ "$STATISTICS" ==
   exit 0
 fi
 
+declare -A APOIO
 #mostrar exercicios
 printf "<br/><br/><h2>Problems</h2>\n"
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 LINHA=1
-echo "<table border=1><tr><th>ID</th><th>Full Name</th><th>Local Description</th><th>OJ Link</th></tr>"
+printf "<table border=1><tr><th>ID</th><th>Full Name</th><th>Local Description</th><th>OJ Link</th></tr>"
 for ((i=0;i<TOTPROBS;i+=5)); do
+  APOIO[acerto,$i]=0
+  APOIO[errado,$i]=0
   BGCOLOR=
   if (( LINHA%2 == 0 )); then
     BGCOLOR="bgcolor='#00EEEE'"
@@ -89,17 +92,51 @@ for ((i=0;i<TOTPROBS;i+=5)); do
   printf "<td> <a href='$LINK'>${PROBS[$((i+1))]}</td></tr>\n"
   ((LINHA++))
 done
-echo "</table>"
+printf "</table>"
+
+declare -A MAPAUSUARIO
+while read l; do
+	MAPAUSUARIO[${l%%:*}]="$(cut -d: -f3 <<< "$l")"
+done < $CONTESTSDIR/$CONTEST/passwd
+
+#6979:ingridcarvalhoisc30:0:C:Presentation Error:
+RUNLIST=""
+while read l; do
+  readarray -t -d: TMP <<< "$l"
+  ((APOIO[runs,${TMP[1]}]++))
+  ((APOIO[run,${TMP[1]},${TMP[2]},tentativas]++))
+  if [[ "${TMP[4]}" =~ "Accepted" ]]; then
+    (( APOIO[acerto,${TMP[2]}]++ ))
+    APOIO[run,${TMP[1]},${TMP[2]},acerto]=${TMP[0]}
+  else
+    (( APOIO[errado,${TMP[2]}]++ ))
+  fi
+
+  #RUN LIST
+  ((TMPOMIN= TMP[0]/60 ))
+  ((LOCALTIME= CONTEST_START + TEMPO))
+  LOCALTIME="$(date --date=@$LOCALTIME)"
+  BGCOLOR=
+  if (( CONT%2 == 0 )); then
+    BGCOLOR="bgcolor='#00EEEE'"
+  fi
+  RUNLIST+="<tr $BGCOLOR><td>$CONT</td><td>${MAPAUSUARIO[${TMP[1]}]}</td><td>$TMPOMIN</td>"
+  RUNLIST+="<td>${PROBS[$((${TMP[2]}+3))]}</td><td>${TMP[3]}</td>"
+  RUNLIST+="<td>$LOCALTIME</td><td>${TMP[4]}</td></tr>"
+
+  ((CONT++))
+done < $CONTESTSDIR/$CONTEST/controle/history
+
 
 #Gerar Tabela com pontuacao
 LINHA=0
 printf "<br/><br/><h2>Runs by Problems</h2>\n"
-echo "<table border=1>"
-echo "<tr><th>#</th><th>Total</th><th>Accepted</th></tr>"
+printf "<table border=1>"
+printf "<tr><th>#</th><th>Total</th><th>Accepted</th></tr>"
 for ((i=0;i<TOTPROBS;i+=5)); do
   ID=$i
-  TOTALRUNS="$(cut -d: -f3 $CONTESTSDIR/$CONTEST/controle/history|grep -c "^$ID$")"
-  TOTALAC="$(cut -d: -f3,5 $CONTESTSDIR/$CONTEST/controle/history|grep -c "^$ID:Accepted$")"
+  ((TOTALRUNS=APOIO[acerto,$ID]+APOIO[errado,$ID]))
+  TOTALAC="${APOIO[acerto,$ID]}"
   ACPER=""
   if ((TOTALRUNS > 0)); then
     ACPER="($((TOTALAC*100/TOTALRUNS))%%)"
@@ -111,38 +148,41 @@ for ((i=0;i<TOTPROBS;i+=5)); do
   printf "<tr $BGCOLOR><td>${PROBS[$((i+3))]}</td><td>$TOTALRUNS</td><td>$TOTALAC ${ACPER}</td></tr>"
   ((LINHA++))
 done
-echo "</table>"
+printf "</table>"
 
 printf "<br/><br/><h2>Runs by User and Problem</h2>\n"
-echo "<table border=1>"
-echo "<tr><th>Users x Problems</th>"
+printf "<table border=1>"
+printf "<tr><th>Users x Problems</th>"
 for ((i=0;i<TOTPROBS;i+=5)); do
   printf "<th>${PROBS[$((i+3))]}</th>"
 done
-echo "<th>Total</th><th>Accepted</th></tr>"
+printf "<th>Total</th><th>Accepted</th></tr>"
 
-for LOGIN in $CONTESTSDIR/$CONTEST/controle/*.d; do
-  LOGINN="$(basename $LOGIN .d)"
-  if grep -q "\.admin$" <<< "$LOGINN"; then
+#for LOGIN in $CONTESTSDIR/$CONTEST/controle/*.d; do
+for LOGINN in ${!MAPAUSUARIO[@]}; do
+  #LOGINN="$(basename $LOGIN .d)"
+  if [[ "$LOGINN" =~ ".admin" ]] ||  [[ "$LOGINN" =~ ".mon" ]]; then
     continue
   fi
-  NOME=$(grep "^$LOGINN:" $CONTESTSDIR/$CONTEST/passwd |cut -d':' -f3)
-  TOTALRUNS="$(cut -d: -f2 $CONTESTSDIR/$CONTEST/controle/history|grep -c "^$LOGINN$")"
+  NOME="${MAPAUSUARIO[$LOGINN]}"
+  TOTALRUNS="${APOIO[runs,$LOGINN]}"
+  [[ -z "$TOTALRUNS" ]] && TOTALRUNS=0
   AC=0
   printf "<td>$NOME</td>"
   for ((i=0;i<TOTPROBS;i+=5)); do
-    JAACERTOU=0
-    TENTATIVAS=0
-    source $LOGIN/$i 2>/dev/null
+    JAACERTOU="${APOIO[run,$LOGINN,$i,acerto]}"
+    TENTATIVAS="${APOIO[run,$LOGINN,$i,tentativas]}"
     COR=lightgreen
-    if (( JAACERTOU == 0 ));then
+    if [[ -z "$JAACERTOU" ]];then
       COR=white
     else
       ((AC++))
     fi
 
-    if (( TENTATIVAS != 0 )) && ((TOTALRUNS!=0)); then
-      TENTATIVAS="$TENTATIVAS ( $((TENTATIVAS*100/TOTALRUNS))%%)"
+    if [[ -n "$TENTATIVAS" ]] && ((TOTALRUNS!=0)); then
+      TENTATIVAS+=" ( $((TENTATIVAS*100/TOTALRUNS))%%)"
+    elif [[ -z "$TENTATIVAS" ]]; then
+      TENTATIVAS=0
     fi
     printf "<td bgcolor=$COR>$TENTATIVAS</td>"
   done
@@ -153,35 +193,15 @@ for LOGIN in $CONTESTSDIR/$CONTEST/controle/*.d; do
   fi
   echo "<td>$TOTALRUNS</td><td>$AC</td></tr>:$ACO"
 done|sort -n -r -t':' -k2|cut -d: -f1
-echo "</table>"
+printf "</table>"
 
 CONT=1
 printf "<br/><br/><h2>Runs</h2>\n"
-echo "<table border=1 width=100%>"
+printf "<table border=1 width=100%>"
 printf "<tr><th>#</th><th>User</th><th>Time</th><th>Problem</th>"
 printf "<th>Language</th><th>Local Time</th><th>Answer</th></tr>\n"
-sort -t':' -n $CONTESTSDIR/$CONTEST/controle/history|
-while read LINE; do
-  TEMPO="$(cut -d: -f1 <<< "$LINE")"
-  ((TMPOMIN= TEMPO/60 ))
-  ((LOCALTIME= CONTEST_START + TEMPO))
-  LOCALTIME="$(date --date=@$LOCALTIME)"
-  LOGIN="$(cut -d: -f2 <<< "$LINE")"
-  PROBID="$(cut -d: -f3 <<< "$LINE")"
-  LING="$(cut -d: -f4 <<< "$LINE")"
-  RESP="$(cut -d: -f5 <<< "$LINE")"
-  NOME=$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd |cut -d':' -f3)
-  BGCOLOR=
-  if (( CONT%2 == 0 )); then
-    BGCOLOR="bgcolor='#00EEEE'"
-  fi
-  printf "<tr $BGCOLOR><td>$CONT</td><td>$NOME</td><td>$TMPOMIN</td>"
-  printf "<td>${PROBS[$((PROBID+3))]}</td><td>$LING</td>"
-  printf "<td>$LOCALTIME</td><td>$RESP</td></tr>"
-
-  ((CONT++))
-done
-echo "</table>"
+printf "$RUNLIST"
+printf "</table>"
 
 
 if (verifica-login $CONTEST| grep -q Sim) && (is-admin |grep -q Sim); then
