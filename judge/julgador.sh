@@ -211,7 +211,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       rm $PROBIDFILE
     else
-      sed -i "s/^$TEMPO:$LOGIN:$PROBID:$LING:.*:$ID$/$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID/" $CONTESTSDIR/$CONTEST/controle/history
+      sed -i "s/^$TEMPO:$LOGIN:$PROBID:.*:.*:$ID$/$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
 
     NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
@@ -239,10 +239,10 @@ for ARQ in $SUBMISSIONDIR/*; do
     if [[ "$RESP" == "Accepted"  && "$JAACERTOU" == "0" ]] ; then
       JAACERTOU=$TEMPO
     elif [[ "$JAACERTOU" != "0" ]] ; then
-      RESP=Ignored
+      RESP="$RESP (Ignored)"
     fi
 
-    if [[ "$RESP" != "Ignored" ]]; then
+    if ! [[ "$RESP" =~ "Ignored" ]]; then
       ((TENTATIVAS++))
       {
         echo "JAACERTOU=$JAACERTOU"
@@ -251,10 +251,9 @@ for ARQ in $SUBMISSIONDIR/*; do
       } > $PROBIDFILE
       if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
         rm $PROBIDFILE
-      else
-        echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID" >> $CONTESTSDIR/$CONTEST/controle/history
       fi
     fi
+    echo "$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID" >> $CONTESTSDIR/$CONTEST/controle/history
 
 
     #gravar no arquivo de solucoes
@@ -267,6 +266,21 @@ for ARQ in $SUBMISSIONDIR/*; do
     if ! egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       updatedotscore "$LOGIN" "$NOME" "$CONTEST"
       updatescore $CONTEST
+    fi
+
+  elif [[ "$COMANDO" == "rejulgar" ]]; then
+    cp "$ARQ" $SUBMISSIONDIR-enviaroj/
+    USRFILE="$CONTESTSDIR/$CONTEST/data/$LOGIN"
+    sed -i -e "s/^$ID:\(.*\)$/$ID:\1 (Rejulgando)/" "$USRFILE"
+    chmod 777 "$USRFILE"
+
+    TEMPO="$(cut -d: -f1 <<< "$ID")"
+    ((TEMPO= (TEMPO - CONTEST_START) ))
+
+    if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
+      continue
+    else
+      sed -i "s/^$TEMPO:\(.*\):$ID$/$TEMPO:\1 (Rejulgando):$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
 
   elif [[ "$COMANDO" == "submit" ]]; then
@@ -282,14 +296,15 @@ for ARQ in $SUBMISSIONDIR/*; do
       source $PROBIDFILE
     fi
 
+    cp "$ARQ" $SUBMISSIONDIR-enviaroj/
     if (( $JAACERTOU > 0 )) ; then
-      RESP=Ignored
+      true
+      #RESP=Ignored
       #gravar no arquivo de solucoes
-      USRFILE="$CONTESTSDIR/$CONTEST/data/$LOGIN"
-      sed -i -e "s/^$ID:.*/$ID:$PROBID:$RESP/" "$USRFILE"
-      chmod 777 "$USRFILE"
+      #USRFILE="$CONTESTSDIR/$CONTEST/data/$LOGIN"
+      #sed -i -e "s/^$ID:.*/$ID:$PROBID:$RESP/" "$USRFILE"
+      #chmod 777 "$USRFILE"
     elif [[ "$JAACERTOU" == "0" ]] ; then
-      cp "$ARQ" $SUBMISSIONDIR-enviaroj/
 
       ((PENDING++))
       {
