@@ -91,6 +91,7 @@ mkdir -p $SUBMISSIONDIR-enviaroj
 chmod 777 $SUBMISSIONDIR
 
 #ordem de ARQ: $CONTEST:$AGORA:$RAND:$LOGIN:comando:$PROBLEMA:$FILETYPE:$RESP
+#Variaveis: CONTEST; ID; LOGIN; COMANDO; PROBID; LING; RESP;
 for ARQ in $SUBMISSIONDIR/*; do
   if [[ ! -e "$ARQ" ]]; then
     continue
@@ -107,6 +108,7 @@ for ARQ in $SUBMISSIONDIR/*; do
   #LING="$(file $ARQ|awk '{print $3}')"
 
   #carregar contest
+  unset ALLOWLATEUSER
   source $CONTESTSDIR/$CONTEST/conf
 
   if [[ "$CONTEST" == "admin" && "$COMANDO" == "newcontest" ]]; then
@@ -162,6 +164,17 @@ for ARQ in $SUBMISSIONDIR/*; do
       echo "<tr><td>--</td>$(<$CONTESTSDIR/$CONTEST/controle/$LOGIN.score)"|
         cut -d: -f1 >> $CONTESTSDIR/$CONTEST/controle/SCORE
     fi
+  elif [[ "$COMANDO" == "adduser" && "$ID" == "mojinho:abc"  && "$ALLOWLATEUSER" == "y" ]]; then
+    #Variaveis: CONTEST; ID; LOGIN; COMANDO; PROBID; LING; RESP;
+    NEWUSERNAME="$LOGIN"
+    NEWPASSWORD="$PROBID"
+    NEWFULLNAME="$LING"
+    NEWEMAIL="$RESP"
+    if ! grep -q "^$LOGIN" $CONTESTSDIR/$CONTEST/passwd; then
+      echo "$NEWUSERNAME:$NEWPASSWORD:$NEWFULLNAME:$NEWEMAIL" >> $CONTESTSDIR/$CONTEST/passwd
+    fi
+    unset NEWUSERNAME NEWPASSWORD NEWFULLNAME NEWEMAIL
+
   elif [[ "$COMANDO" == "passwd" ]]; then
     OLDPASSWD=$PROBID
     NEWPASSWD=$LING
