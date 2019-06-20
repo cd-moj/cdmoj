@@ -113,8 +113,8 @@ while read l; do
   fi
 
   #RUN LIST
-  ((TMPOMIN= TMP[0]/60 ))
-  ((LOCALTIME= CONTEST_START + TEMPO))
+  ((TEMPOMIN= TMP[0]/60 ))
+  ((LOCALTIME= CONTEST_START + TMP[0]))
   LOCALTIME="$(date --date=@$LOCALTIME)"
   BGCOLOR=
   if (( CONT%2 == 0 )); then
