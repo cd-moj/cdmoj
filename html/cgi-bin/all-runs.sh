@@ -70,7 +70,7 @@ while read LINE; do
   fi
   USUARIO=${VET[1]}
   ((TEMPO= (TEMPO - CONTEST_START) ))
-  TYPE=${VET[3],}
+  TYPE=${VET[3],,}
   #TYPE="$(echo $TYPE | tr '[A-Z]' '[a-z]')"
 
   MAPA[${VET[1]}]+="
@@ -80,6 +80,33 @@ while read LINE; do
   </tr>"
   MAPACOMSOLUCAO[${VET[1]}]=1
 done < $CONTESTSDIR/$CONTEST/controle/history
+
+cd $CONTESTSDIR/$CONTEST/data/
+for i in *.mon; do
+  NOME="${MAPAUSUARIO[$i]}"
+  LINHA=1
+  while read LINE; do
+    CODIGO=$(cut -d: -f1,2 <<< $LINE)
+    TEMPO=$(cut -d: -f1 <<< $LINE)
+    HORA="$(date --date=@$TEMPO)"
+    RESP=$(cut -d: -f4 <<< $LINE)
+    EXERCICIO=$(cut -d: -f3 <<< $LINE)
+    BGCOLOR=
+    if (( LINHA%2 == 0 )); then
+      BGCOLOR="bgcolor='#00EEEE'"
+    fi
+    USUARIO=$i
+    ((TEMPO= (TEMPO - CONTEST_START) ))
+    #TYPE=$(grep "^$TEMPO:$USUARIO:" $CONTESTSDIR/$CONTEST/controle/history|cut -d: -f4)
+    #TYPE="$(echo $TYPE | tr '[A-Z]' '[a-z]')"
+    MAPACOMSOLUCAO[$i]=1
+    MAPA[$i]+="<tr $BGCOLOR><td>${PROBS[$((EXERCICIO+3))]}</td>
+    <td><a target=_blank href='$BASEURL/cgi-bin/getcode.sh/$CONTEST/$CODIGO-$i-${PROBS[$((EXERCICIO+3))]}.$TYPE'>(fonte)</a> $RESP</td>
+    <td>$CODIGO</td><td>$HORA</td>
+    </td></tr>"
+  ((LINHA++))
+  done < $i
+done
 
 cd $CONTESTSDIR/$CONTEST/data/
 for i in ${!MAPACOMSOLUCAO[@]}; do
