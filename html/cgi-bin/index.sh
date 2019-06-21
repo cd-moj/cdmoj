@@ -14,6 +14,8 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
+#TEMPOI=$(awk '{print $1}' /proc/uptime)
+
 source common.sh
 
 
@@ -42,9 +44,10 @@ for contest in $CONTESTSDIR/*; do
   if [[ "$contest" == "$CONTESTSDIR/*" || "$contest" == "$CONTESTSDIR/admin" ]]; then
     continue
   fi
-  if [[ -e "/dev/shm/cache.ended-${contest##*/}" ]]; then
+  if [[ -e "/dev/shm/cache.ended-${contest##*/}" ]] && [[ "/dev/shm/cache.ended-${contest##*/}" -nt $contest/conf ]]; then
     continue
   fi
+  rm -f "/dev/shm/cache.ended-${contest##*/}"
   source $contest/conf
   THIS="$CONTEST_START $CONTEST_END <span class=\"titcontest\"><b>$CONTEST_NAME</b> : "
   if (( $CONTEST_END > NOW )); then
