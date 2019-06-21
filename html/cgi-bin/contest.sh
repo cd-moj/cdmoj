@@ -94,9 +94,15 @@ for ((i=0;i<TOTPROBS;i+=5)); do
   fi
 
   if [[ "$LINK" =~ "http://" ]]; then
-    printf " - [<a href=\"$LINK\" target=\"_blank\">problem description</a>]</li>\n"
+    printf " - [<a href=\"$LINK\" target=\"_blank\">LINK</a>]</li>\n"
   elif [[ "$LINK" != "none" ]]; then
-    printf " - [<a href=\"$BASEURL/contests/$CONTEST_ID/$LINK\" target=\"_blank\">problem description</a>]</li>\n"
+    LOOKDIR="/home/html/moj.naquadah.com.br/contests/$CONTEST_ID/"
+    #printf " - problem description"
+    printf " -"
+    [[ -e "$LOOKDIR/$LINK.html" ]] && printf " [<a href=\"$BASEURL/contests/$CONTEST_ID/$LINK.html\" target=\"_blank\">HTML</a>]"
+    [[ -e "$LOOKDIR/$LINK.pdf" ]] && printf " [<a href=\"$BASEURL/contests/$CONTEST_ID/$LINK.pdf\" target=\"_blank\">PDF</a>]"
+    [[ -e "$LOOKDIR/$LINK" ]] && printf " [<a href=\"$BASEURL/contests/$CONTEST_ID/$LINK\" target=\"_blank\">LINK</a>]</li>\n"
+    printf "</li>\n"
   else
     printf "</li>\n"
   fi
