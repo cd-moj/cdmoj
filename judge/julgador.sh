@@ -223,9 +223,8 @@ for ARQ in $SUBMISSIONDIR/*; do
     } > $PROBIDFILE
     if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       rm $PROBIDFILE
-    else
-      sed -i "s/^$TEMPO:$LOGIN:$PROBID:.*:.*:$ID$/$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
+      sed -i "s/^$TEMPO:$LOGIN:$PROBID:.*:.*:$ID$/$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID/" $CONTESTSDIR/$CONTEST/controle/history
 
     NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
     if ! egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
