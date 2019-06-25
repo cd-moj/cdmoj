@@ -290,7 +290,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     ((TEMPO= (TEMPO - CONTEST_START) ))
 
     if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
-      continue
+      true
     else
       sed -i "s/^$TEMPO:\(.*\):$ID$/$TEMPO:\1 (Rejulgando):$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
