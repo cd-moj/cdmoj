@@ -28,7 +28,10 @@ if [[ "x$POST" != "x" ]]; then
   #escapar coisa perigosa
   LOGIN="$(echo $LOGIN | sed -e 's/\([[\/*]\|\]\)/\\&/g')"
   SENHA="$(echo $SENHA | sed -e 's/\([[\/.*]\|\]\)/\\&/g')"
-  if ! grep -q "^$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd; then
+  if ! grep -qF "$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd; then
+    #invalida qualquer hash
+    NOVAHASHI=$(echo "$(date +%s)$RANDOM$RANDOM" |md5sum |awk '{print $1}')
+    printf "$NOVAHASHI" > "$CACHEDIR/$LOGIN-$CONTEST"
     cabecalho-html
     cat << EOF
   <script type="text/javascript">
