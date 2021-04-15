@@ -23,8 +23,9 @@ source #SCRIPTSDIR#/enviar-cdmoj2.sh
 
 PENDING=
 LOGGEDIN=
+COUNT=0
 #ordem de ARQ: $CONTEST:$AGORA:$RAND:$LOGIN:comando:$PROBLEMA:$FILETYPE
-for ARQ in $SUBMISSIONDIR-enviaroj/*; do
+for ARQ in $SUBMISSIONDIR-enviaroj/*submit* $SUBMISSIONDIR-enviaroj/*rejulgar*; do
   if [[ ! -e "$ARQ" ]]; then
     continue
   fi
@@ -63,11 +64,13 @@ for ARQ in $SUBMISSIONDIR-enviaroj/*; do
   fi
 
   PENDING="$PENDING $SITE:$CODIGOSUBMISSAO:$ARQ"
+  ((COUNT++))
+  (( COUNT >= 50 )) && break
 
 done
 
 #dar um tempo para o OJ começar a corrigir
-sleep 3
+sleep 1
 echo "-- Pegando Submissões pendentes"
 for SUBMISSIONS in $PENDING; do
 
