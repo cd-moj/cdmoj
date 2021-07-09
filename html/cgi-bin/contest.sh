@@ -121,6 +121,7 @@ while read LINE; do
   PROB="$(cut -d ':' -f3 <<< "$LINE")"
   RESP="$(cut -d ':' -f4 <<< "$LINE")"
   TIME="$(cut -d ':' -f1 <<< "$LINE")"
+  SUBMISSIONID="$(cut -d ':' -f1,2 <<< "$LINE")"
   TIMEE="$(date --date=@$TIME)"
   PROBSHORTNAME=${PROBS[$((PROB+3))]}
   PROBFULLNAME="${PROBS[$((PROB+2))]}"
