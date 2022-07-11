@@ -41,6 +41,7 @@ function incontest-cabecalho-html()
     ADMINMENU="<li><a href=\"$URL/statistic.sh/$CONTEST\"><span class=\"title\">Estatísticas</span><span class=\"text\">Relatório do Contest</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/sherlock.sh/$CONTEST\"><span class=\"title\">Sherlock</span><span class=\"text\">Identificação de Plágio</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
+    ADMINMENU+="<li><a href=\"$URL/clarification.sh\"><span class=\"title\">Clarification</span><span class=\"text\">Resolução de dúvidas</span></a></li>"
   fi
   if is-mon | grep -q Sim ; then
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
