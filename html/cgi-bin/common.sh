@@ -185,6 +185,16 @@ function tela-login()
   <br/>
 </form>
 EOF
+  if [[ "$ALLOWLATEUSER" == "y" ]]; then
+      cat <<EOF
+<p>Este contest permite entrada por meio do robô do telegram  <a
+href='https://t.me/mojinho_bot' target=_blank>@mojinho_bot</a>, você
+pode pegar a sua senha de acesso enviando a seguinte mensagem:
+<pre>
+participar $CONTEST_ID
+</pre>
+EOF
+  fi
   cat ../footer.html
   exit 0;
 }
