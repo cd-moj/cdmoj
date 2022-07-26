@@ -22,12 +22,14 @@ POST="$(cat )"
 
 CAMINHO="$PATH_INFO"
 
+
 #contest é a base do caminho
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
 source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
+
 
 echo "<h1>Respondendo...</h1>"
 #echo "$POST"
@@ -37,12 +39,13 @@ USER="$(cut -d: -f1 <<< "$INFOS")"
 CONTEST="$(cut -d: -f2 <<< "$INFOS")"
 PROBLEM="$(cut -d: -f3 <<< "$INFOS")"
 CLARIFICATION="$(cut -d: -f4 <<< "$INFOS")"
+TIME="$(cut -d: -f5 <<< "$INFOS")"
 
 cat << EOF
 	<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
         <div>
             <label>Clarification: </label>
-	    <textarea name="clarification" value="$CLARIFICATION" rows="4" cols="50" disabled>$CLARIFICATION</textarea>
+	    <textarea name="clarification" value="$PROBLEM:$TIME:$CLARIFICATION" rows="4" cols="50" disabled>$CLARIFICATION</textarea>
         </div>
 	<div>
             <label>Answer: </label>

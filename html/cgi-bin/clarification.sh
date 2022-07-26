@@ -30,7 +30,7 @@ CONTEST="${CONTEST// }"
 source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
 
-
+echo "<h1>Clarification</h1>"
 
 TOTPROBS=${#PROBS[@]}
 for ((i=0;i<TOTPROBS;i+=5)); do
@@ -41,57 +41,34 @@ if is-admin | grep -q Nao; then
 
     if [[ "$(ls -A $CACHEDIR/messages/clarifications/ | wc -l)" > 0 ]]; then
     cat << EOF
-    <table border="1" width="10%"> <tr><th>Problema</th><th>Resposta</th></tr>
+    <table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th></tr>
 EOF
     #Talvez seja necessario ver ma solucao pra atualizar a tabela
     #for para completar toda a tabela de duvidas ja feitas
     for ARQ in $CACHEDIR/messages/clarifications/*; do
 	if [[ ! -e "$ARQ" ]]; then
 		continue
-	fi 
-
-	LINES="$(wc -l -ge "$ARQ")"
-	echo "$LINES"
-	if [[ $LINES >= 1 ]]; then
-		echo "asdasdas"
-		PROBLEMS=()
-		for problem in $ARQ; do
-			PROBLEM="$(cut -d: -f1 "$ARQ")"
-			PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
-  			PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
-			PROBLEMS+="$(cut -d: -f2 "$ARQ")"
-			#MSG="$(cut -d: -f2 "$ARQ")"
-		done
-		echo "$PROBLEM"
 	fi
 
-
-
 	N="$(basename $ARQ)"
-	#PROBLEM="$(cut -d: -f1 "$ARQ")"
-	#PROBSHORTNAME=${PROBS[$((PROBLEM+3))]}
-  	#PROBFULLNAME="${PROBS[$((PROBLEM+2))]}"
+	TIME="$(cut -d: -f3 <<< "$ARQ")"
+	PROBLEM="$(cut -d: -f1 "$ARQ")"
+	PROBSHORTNAME=${PROBS[$((PROBLEM+3))]}
+  	PROBFULLNAME="${PROBS[$((PROBLEM+2))]}"
 	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
-	#MSG="$(cut -d: -f2 "$ARQ")"
-	#echo "$(cut -d: -f3 <<< "$ARQ")"
+	MSG="$(cut -d: -f2 "$ARQ")"
 	if [[ "$(cut -d: -f3 <<< "$ARQ")" == "CLARIFICATION" ]]; then
 		MSG="$(echo "Not Answered Yet")"
 	fi
 
 
 	for ARQ in $CACHEDIR/messages/answers/*; do
-		#echo "$PROBSHORTNAME"
-		#echo "$(cut -d: -f4 <<< "$ARQ")"
 		if [[ "$PROBSHORTNAME" == "$(cut -d: -f4 <<< "$ARQ")" ]]; then
 			N2="$(basename $ARQ)"
-			#echo "$(cut -d: -f3 <<< "$ARQ")"
 			if [[ "$(cut -d: -f3 <<< "$ARQ")" == "ANSWER" ]]; then
 				STATUS="$(echo "Answered")"
 				USER="$(cut -d: -f1 <<< "$N2")"
-				#echo "$CONTEST"
-				
-				MSG="$(cut -d: -f2 "$CACHEDIR/messages/answers/$USER:$CONTEST:ANSWER:$PROBSHORTNAME")"
-				#echo "$MSG"
+				ANSWER="$(cut -d: -f2 "$CACHEDIR/messages/answers/$USER:$CONTEST:ANSWER:$PROBSHORTNAME")"
 			fi
 			else
 				STATUS="$(echo "Not Answered Yet")"
@@ -101,7 +78,7 @@ EOF
 
 
 
-	echo "<tr><td>$PROBLEM</td><td>$MSG</td></tr>"	
+	echo "<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"	
 	#echo "$MSG"
     done
 	
@@ -118,20 +95,11 @@ EOF
     ((TEMPODEPROVA= (TIME - CONTEST_START)/60 ))
     #Corrigir questao dos acentos
     MSG="$(echo $MSG_CLARIFICATION | iconv -f UTF8 -t 'ASCII//TRANSLIT')"
-    #echo "$MSG"
-    #mkdir MSGS
     #Guardando dúvidas para recuperar posteriormente; Tentar identificar usuário pelo login
     #ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
-    #[ -s  $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM ] && 
-#	    echo -e "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" > $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM || echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" > $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM
 
-    echo "$REQUEST_METHOD"
-    if [[ "$REQUEST_METHOD" == "POST" ]]; then
-    	if [ -s  $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM ]; then 
-		echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM
-    	else
-		echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" > $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM
-    	fi
+    if [[ "$REQUEST_METHOD" == "POST" ]]; then 
+		echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:$TIME:CLARIFICATION:$SHORTPROBLEM
     fi
     cat << EOF
     <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
@@ -148,12 +116,9 @@ EOF
     </form>
 EOF
 else
-
-    printf "<div style='text-align: left;'><h1>Quadro de D&uacute;vidas</h1></div>"
-
 	if [ "$(ls -A $CACHEDIR/messages/clarifications/)" ]; then
     cat << EOF
-    <table border="1" width="10%"> <tr><th>Contest</th><th>Usu&aacute;rio</th><th>Problema</th><th>Status</th><th>Clarification</th><th>Answer</th></tr>
+    <table border="1" width="10%"> <tr><th>Contest</th><th>Usu&aacute;rio</th><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Answer</th></tr>
 EOF
     #Talvez seja necessario ver ma solucao pra atualizar a tabela
     #for para completar toda a tabela de duvidas ja feitas
@@ -162,62 +127,60 @@ EOF
 		continue
 	fi
 
-
-	if [ $(wc -l < "$ARQ") > 0 ]; then
-		PROBLEMS=()
-		for problem in $ARQ; do
-			PROBLEM_="$(cut -d: -f4 "$ARQ")"
-			PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
-  			PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
-			PROBLEMS+="$(cut -d: -f2 "$ARQ")"
-			#MSG="$(cut -d: -f2 "$ARQ")"
-		done
-	fi
-
-
 	N="$(basename $ARQ)"
-	#PROBLEM_="$(cut -d: -f4 "$ARQ")"
-	#PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
-  	#PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
+	TIME="$(cut -d: -f3 "$ARQ")"
+	PROBLEM_="$(cut -d: -f1 "$ARQ")"
+	PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
+  	PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
 	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
 	MSG="$(cut -d: -f2 "$ARQ")"
-	STATUS=""
+	ANSWER="Not Answered Yet"
+	USER="$(cut -d: -f1 <<< "$N")"	
 
-	if [[ "$REQUEST_METHOD" == "POST" ]]; then
-	    echo "$PROBSHORTNAME"
-	    
-	    ANSWER="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-	    echo "$PROBLEM:$ANSWER" > $CACHEDIR/messages/answers/$LOGIN:$CONTEST:ANSWER:$PROBSHORTNAME
-        fi
 
+	
+
+	#echo "$time\n"
+	#echo "$(cut -d: -f3 <<< "$ARQ")"	
 	for ARQ in $CACHEDIR/messages/answers/*; do
-		if [[ "$PROBSHORTNAME" == "$(cut -d: -f4 <<< "$ARQ")" ]]; then
-			N2="$(basename $ARQ)"
-			#echo "$(cut -d: -f3 <<< "$ARQ")"
-			if [[ "$(cut -d: -f3 <<< "$ARQ")" == "ANSWER" ]]; then
+		TIME_="$(cut -d: -f3 "$ARQ")"
+		echo "$TIME_"
+		if [[ "$PROBSHORTNAME" == "$(cut -d: -f5 "$ARQ")" && "$(grep -qF "*:$TIME:*" <<< "$ARQ")" ]]; then
+			if [[ "$(cut -d: -f4 <<< "$ARQ")" == "ANSWER" ]]; then
 				STATUS="$(echo "Answered")"
 				#echo "$CACHEDIR/messages/answers/$LOGIN:$CONTEST:ANSWER:$PROBSHORTNAME"
-				ANSWER="$(cut -d: -f2 "$CACHEDIR/messages/answers/$LOGIN:$CONTEST:ANSWER:$PROBSHORTNAME")"
+				ANSWER="$(cut -d: -f2 "$ARQ")"
 			fi
 			else
 				STATUS="$(echo "Not Answered Yet")"
 				ANSWER=""
 			fi
 	done
-	CONTEST2="$(cut -d: -f2 <<< "$N")"
-	USER="$(cut -d: -f1 <<< "$N")"
-	echo "<tr><td>$CONTEST</td><td>$USER</td><td>$PROBSHORTNAME</td><td>$STATUS</td><td>
+	
+
+	
+
+	echo "<tr><td>$CONTEST</td><td>$USER</td><td>$PROBSHORTNAME</td><td>$TIME</td><td>
 	<form method='post' enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;'>
-       		<input type='hidden' name='clarification_info' value='$USER:$CONTEST:$PROBLEM_:$MSG'>	
+       		<input type='hidden' name='clarification_info' value='$USER:$CONTEST:$PROBLEM_:$MSG:$TIME'>	
 		<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>$MSG</button>
 	</form>
 	</td><td>$ANSWER</td>"
     done
-	
     echo "</table>"
+   
+    if [[ "$REQUEST_METHOD" == "POST" ]]; then
+	    INFOS="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+	    ANSWER="$(cut -d: -f3 "$INFOS")"
+	    TIME_="$(cut -d: -f2 "$INFOS")"
+	    PROBLEM_="$(cut -d: -f1 "$INFOS")"
+	    PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
+	    echo "$PROBLEM_:$ANSWER:$TIME_" > $CACHEDIR/messages/answers/$LOGIN:$CONTEST:$AGORA:ANSWER:$PROBSHORTNAME
+    fi
+
+
+
     else
 	 echo "<h3>Nenhuma d&uacute;vida</h3>"
     fi
 fi
-
-
