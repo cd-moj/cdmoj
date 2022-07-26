@@ -21,6 +21,8 @@ POST="$(cat )"
 echo "$POST" > $CACHEDIR/POSTT
 CAMINHO="$PATH_INFO"
 
+
+
 #contest é a base do caminho
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
@@ -28,14 +30,16 @@ CONTEST="${CONTEST// }"
 source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
 
+
+
 TOTPROBS=${#PROBS[@]}
 for ((i=0;i<TOTPROBS;i+=5)); do
    SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
 done
 
 if is-admin | grep -q Nao; then
-    
-    if [ "$(ls -A $CACHEDIR/messages/clarifications/)" ]; then
+
+    if [[ "$(ls -A $CACHEDIR/messages/clarifications/ | wc -l)" > 0 ]]; then
     cat << EOF
     <table border="1" width="10%"> <tr><th>Problema</th><th>Resposta</th></tr>
 EOF
@@ -44,17 +48,59 @@ EOF
     for ARQ in $CACHEDIR/messages/clarifications/*; do
 	if [[ ! -e "$ARQ" ]]; then
 		continue
+	fi 
+
+	LINES="$(wc -l -ge "$ARQ")"
+	echo "$LINES"
+	if [[ $LINES >= 1 ]]; then
+		echo "asdasdas"
+		PROBLEMS=()
+		for problem in $ARQ; do
+			PROBLEM="$(cut -d: -f1 "$ARQ")"
+			PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
+  			PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
+			PROBLEMS+="$(cut -d: -f2 "$ARQ")"
+			#MSG="$(cut -d: -f2 "$ARQ")"
+		done
+		echo "$PROBLEM"
 	fi
+
+
+
 	N="$(basename $ARQ)"
-	PROBLEM="$(cut -d: -f1 "$ARQ")"
-	PROBSHORTNAME=${PROBS[$((PROBLEM+3))]}
-  	PROBFULLNAME="${PROBS[$((PROBLEM+2))]}"
+	#PROBLEM="$(cut -d: -f1 "$ARQ")"
+	#PROBSHORTNAME=${PROBS[$((PROBLEM+3))]}
+  	#PROBFULLNAME="${PROBS[$((PROBLEM+2))]}"
 	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
-	MSG="$(cut -d: -f2 "$ARQ")"
+	#MSG="$(cut -d: -f2 "$ARQ")"
 	#echo "$(cut -d: -f3 <<< "$ARQ")"
 	if [[ "$(cut -d: -f3 <<< "$ARQ")" == "CLARIFICATION" ]]; then
 		MSG="$(echo "Not Answered Yet")"
 	fi
+
+
+	for ARQ in $CACHEDIR/messages/answers/*; do
+		#echo "$PROBSHORTNAME"
+		#echo "$(cut -d: -f4 <<< "$ARQ")"
+		if [[ "$PROBSHORTNAME" == "$(cut -d: -f4 <<< "$ARQ")" ]]; then
+			N2="$(basename $ARQ)"
+			#echo "$(cut -d: -f3 <<< "$ARQ")"
+			if [[ "$(cut -d: -f3 <<< "$ARQ")" == "ANSWER" ]]; then
+				STATUS="$(echo "Answered")"
+				USER="$(cut -d: -f1 <<< "$N2")"
+				#echo "$CONTEST"
+				
+				MSG="$(cut -d: -f2 "$CACHEDIR/messages/answers/$USER:$CONTEST:ANSWER:$PROBSHORTNAME")"
+				#echo "$MSG"
+			fi
+			else
+				STATUS="$(echo "Not Answered Yet")"
+				ANSWER="$(echo "Not Answered Yet")"
+			fi
+	done
+
+
+
 	echo "<tr><td>$PROBLEM</td><td>$MSG</td></tr>"	
 	#echo "$MSG"
     done
@@ -76,7 +122,17 @@ EOF
     #mkdir MSGS
     #Guardando dúvidas para recuperar posteriormente; Tentar identificar usuário pelo login
     #ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
-    echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" > $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM
+    #[ -s  $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM ] && 
+#	    echo -e "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" > $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM || echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" > $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM
+
+    echo "$REQUEST_METHOD"
+    if [[ "$REQUEST_METHOD" == "POST" ]]; then
+    	if [ -s  $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM ]; then 
+		echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM
+    	else
+		echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" > $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:CLARIFICATION:$SHORTPROBLEM
+    	fi
+    fi
     cat << EOF
     <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
         <div>
@@ -105,16 +161,31 @@ EOF
 	if [[ ! -e "$ARQ" ]]; then
 		continue
 	fi
+
+
+	if [ $(wc -l < "$ARQ") > 0 ]; then
+		PROBLEMS=()
+		for problem in $ARQ; do
+			PROBLEM_="$(cut -d: -f4 "$ARQ")"
+			PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
+  			PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
+			PROBLEMS+="$(cut -d: -f2 "$ARQ")"
+			#MSG="$(cut -d: -f2 "$ARQ")"
+		done
+	fi
+
+
 	N="$(basename $ARQ)"
-	PROBLEM_="$(cut -d: -f1 "$ARQ")"
-	PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
-  	PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
+	#PROBLEM_="$(cut -d: -f4 "$ARQ")"
+	#PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
+  	#PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
 	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
 	MSG="$(cut -d: -f2 "$ARQ")"
 	STATUS=""
 
 	if [[ "$REQUEST_METHOD" == "POST" ]]; then
 	    echo "$PROBSHORTNAME"
+	    
 	    ANSWER="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 	    echo "$PROBLEM:$ANSWER" > $CACHEDIR/messages/answers/$LOGIN:$CONTEST:ANSWER:$PROBSHORTNAME
         fi
@@ -122,15 +193,18 @@ EOF
 	for ARQ in $CACHEDIR/messages/answers/*; do
 		if [[ "$PROBSHORTNAME" == "$(cut -d: -f4 <<< "$ARQ")" ]]; then
 			N2="$(basename $ARQ)"
-			echo "$(cut -d: -f3 <<< "$ARQ")"
+			#echo "$(cut -d: -f3 <<< "$ARQ")"
 			if [[ "$(cut -d: -f3 <<< "$ARQ")" == "ANSWER" ]]; then
 				STATUS="$(echo "Answered")"
+				#echo "$CACHEDIR/messages/answers/$LOGIN:$CONTEST:ANSWER:$PROBSHORTNAME"
+				ANSWER="$(cut -d: -f2 "$CACHEDIR/messages/answers/$LOGIN:$CONTEST:ANSWER:$PROBSHORTNAME")"
 			fi
 			else
 				STATUS="$(echo "Not Answered Yet")"
+				ANSWER=""
 			fi
 	done
-	CONTEST="$(cut -d: -f2 <<< "$N")"
+	CONTEST2="$(cut -d: -f2 <<< "$N")"
 	USER="$(cut -d: -f1 <<< "$N")"
 	echo "<tr><td>$CONTEST</td><td>$USER</td><td>$PROBSHORTNAME</td><td>$STATUS</td><td>
 	<form method='post' enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;'>
@@ -141,7 +215,8 @@ EOF
     done
 	
     echo "</table>"
-
+    else
+	 echo "<h3>Nenhuma d&uacute;vida</h3>"
     fi
 fi
 
