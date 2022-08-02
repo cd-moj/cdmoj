@@ -32,25 +32,31 @@ incontest-cabecalho-html $CONTEST
 
 
 echo "<h1>Respondendo...</h1>"
-#echo "$POST"
+
+echo "$POST" > $CACHEDIR/POST
+
 INFOS="$(grep -A2 'name="clarification_info"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 #echo "$INFOS"
-USER="$(cut -d: -f1 <<< "$INFOS")"
-CONTEST="$(cut -d: -f2 <<< "$INFOS")"
-PROBLEM="$(cut -d: -f3 <<< "$INFOS")"
-CLARIFICATION="$(cut -d: -f4 <<< "$INFOS")"
-TIME="$(cut -d: -f5 <<< "$INFOS")"
+USER="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+CONTEST="$(grep -A2 'name="contest"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+PROBLEM="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+CLARIFICATION="$(grep -A2 'name="clarification"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+TIME="$(grep -A2 'name="time"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+echo "$TIME"
 
 cat << EOF
 	<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
         <div>
             <label>Clarification: </label>
-	    <textarea name="clarification" value="$PROBLEM:$TIME:$CLARIFICATION" rows="4" cols="50" disabled>$CLARIFICATION</textarea>
+	    <textarea name="clarification" value="" rows="4" cols="50" disabled>$CLARIFICATION</textarea>
         </div>
 	<div>
             <label>Answer: </label>
-            <textarea name="answer" value="answer" rows="4" cols="50"></textarea>
+            <textarea name="answer" value="$ANSWER" rows="4" cols="50"></textarea>
         </div>
+	<input type="hidden" name="time" value="$AGORA">
+	<input type="hidden" name="problem" value="$PROBLEM">
+	<input type="hidden" name="user" value="$USER">
 
         <div>
             <input type="submit" value="Enviar">

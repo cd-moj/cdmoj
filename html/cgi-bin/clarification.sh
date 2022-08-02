@@ -98,8 +98,10 @@ EOF
     #Guardando dúvidas para recuperar posteriormente; Tentar identificar usuário pelo login
     #ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
 
-    if [[ "$REQUEST_METHOD" == "POST" ]]; then 
-		echo "$PROBLEM:$MSG_CLARIFICATION:$TIME:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:$TIME:CLARIFICATION:$SHORTPROBLEM
+    if [[ "$REQUEST_METHOD" == "POST" ]]; then
+	        #avisa que ha clarification
+		touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:clarification
+		echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:$AGORA:CLARIFICATION:$SHORTPROBLEM
     fi
     cat << EOF
     <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
@@ -118,6 +120,7 @@ EOF
 else
 	if [ "$(ls -A $CACHEDIR/messages/clarifications/)" ]; then
     cat << EOF
+      
     <table border="1" width="10%"> <tr><th>Contest</th><th>Usu&aacute;rio</th><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Answer</th></tr>
 EOF
     #Talvez seja necessario ver ma solucao pra atualizar a tabela
@@ -128,57 +131,70 @@ EOF
 	fi
 
 	N="$(basename $ARQ)"
-	TIME="$(cut -d: -f3 "$ARQ")"
+	TIME="$(cut -d: -f3 <<< "$ARQ")"
 	PROBLEM_="$(cut -d: -f1 "$ARQ")"
 	PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
   	PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
 	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
 	MSG="$(cut -d: -f2 "$ARQ")"
+	USER="$(cut -d: -f1 <<<  "$N")"
 	ANSWER="Not Answered Yet"
-	USER="$(cut -d: -f1 <<< "$N")"	
-
-
-	
-
-	#echo "$time\n"
-	#echo "$(cut -d: -f3 <<< "$ARQ")"	
 	for ARQ in $CACHEDIR/messages/answers/*; do
-		TIME_="$(cut -d: -f3 "$ARQ")"
-		echo "$TIME_"
-		if [[ "$PROBSHORTNAME" == "$(cut -d: -f5 "$ARQ")" && "$(grep -qF "*:$TIME:*" <<< "$ARQ")" ]]; then
-			if [[ "$(cut -d: -f4 <<< "$ARQ")" == "ANSWER" ]]; then
-				STATUS="$(echo "Answered")"
-				#echo "$CACHEDIR/messages/answers/$LOGIN:$CONTEST:ANSWER:$PROBSHORTNAME"
-				ANSWER="$(cut -d: -f2 "$ARQ")"
-			fi
-			else
-				STATUS="$(echo "Not Answered Yet")"
-				ANSWER=""
-			fi
+		USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
+		TIME_AUX="$(cut -d: -f4 <<< "$ARQ")"
+		if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
+			ANSWER="$(cut -d: -f2 "$ARQ")"
+		fi
+
 	done
-	
 
+echo "<tr>
 	
-
-	echo "<tr><td>$CONTEST</td><td>$USER</td><td>$PROBSHORTNAME</td><td>$TIME</td><td>
-	<form method='post' enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;'>
-       		<input type='hidden' name='clarification_info' value='$USER:$CONTEST:$PROBLEM_:$MSG:$TIME'>	
-		<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>$MSG</button>
+ 	<form method='post' enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;'>
+	<td>
+		<input type="hidden" name="contest" value="$CONTEST">
+		$CONTEST
+	</td>
+	<td>
+		<input type="hidden" name="user" value="$USER">
+		$USER
+	</td>
+	<td>
+		<input type="hidden" name="problem" value="$PROBLEM_">
+		$PROBSHORTNAME
+	</td>
+	<td>		
+		<input type="hidden" name="time" value="$TIME">
+		$TIME
+	</td>
+	<td>
+	<input type="hidden" name="clarification" size="60" value="$MSG">
+	
+	<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>
+				$MSG
+		</button>
+	</td>
+	<td>
+		$ANSWER
+	</td>
 	</form>
-	</td><td>$ANSWER</td>"
-    done
-    echo "</table>"
-   
-    if [[ "$REQUEST_METHOD" == "POST" ]]; then
-	    INFOS="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-	    ANSWER="$(cut -d: -f3 "$INFOS")"
-	    TIME_="$(cut -d: -f2 "$INFOS")"
-	    PROBLEM_="$(cut -d: -f1 "$INFOS")"
-	    PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
-	    echo "$PROBLEM_:$ANSWER:$TIME_" > $CACHEDIR/messages/answers/$LOGIN:$CONTEST:$AGORA:ANSWER:$PROBSHORTNAME
+     <tr>"		
+     
+     	if [[ "$REQUEST_METHOD" == "POST" ]]; then
+		RESP="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+   		USR="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		TIM="$(grep -A2 'name="time"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+   		PROBL="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+    		PROBSHORTNAME="${PROBS[$((PROBL+3))]}"
+    		
+		if [[ "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
+			echo "$PROBL:$RESP:$TIM" > $CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
+			REQUEST_METHOD=""	
+		fi
     fi
 
-
+done
+echo "</table>"
 
     else
 	 echo "<h3>Nenhuma d&uacute;vida</h3>"
