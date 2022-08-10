@@ -76,7 +76,8 @@ function incontest-cabecalho-html()
           <ul>
             <li><a href="$URL/contest.sh/$CONTEST"><span class="title">Contest</span><span class="text">Problemas e Submissões</span></a></li>
             <li><a href="$URL/score.sh/$CONTEST"><span class="title">Score</span><span class="text">Placar atualizado</span></a></li>
-    <li><a href="$URL/clarification-2.sh/$CONTEST"><span class=\"title\">Clarification $PENDING</span><span class="text">Resolução de dúvidas</sp</li>
+    <li><a href="$URL/clarification-2.sh/$CONTEST"><span class=\"title\">Clarification</span><span class="text">Resolução de dúvidas</sp</l>
+	    <li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">Respostas</span></a></li>
 	    <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span><span class="text">CD-MOJ mais pessoal</span></a></li>
             $ADMINMENU
             <li><a href="$URL/logout.sh/$CONTEST"><span class="title">Logout</span><span class="text">Sair</span></a></li>
@@ -197,18 +198,16 @@ function alerta-clarification()
   FILES_BEFORE="$CACHEDIR/$CONTEST/files_before_ans"
   FILES_AFTER="$CACHEDIR/$CONTEST/files_after_ans"
 
-  DIFF="$(diff -q $FILES_AFTER $FILES_BEFORE)"
-
   if is-admin | grep -q Sim ; then
 	 FILES_BEFORE="$CACHEDIR/$CONTEST/files_before"
  	 FILES_AFTER="$CACHEDIR/$CONTEST/files_after"
-  	if diff -q $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
+  	if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
 	  	echo "<blink><img src='/images/new.gif'></blink>"
   	else
 		echo ''
   	fi
   else
-	if diff -q $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
+	if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
 	  	echo "<blink><img src='/images/new.gif'></blink>"
   	else
 		echo ''

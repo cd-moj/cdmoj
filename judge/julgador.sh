@@ -307,7 +307,13 @@ for ARQ in $SUBMISSIONDIR/*; do
 	chmod 755 $CACHEDIR/$CONTEST/files_after
 	chmod 755 $CACHEDIR/$CONTEST/files_before
 	chown www-data $CACHEDIR/$CONTEST/files_after
-	chown www-data $CACHEDIR/$CONTEST/files_before 
+	chown www-data $CACHEDIR/$CONTEST/files_before
+	touch $CACHEDIR/$CONTEST/files_after_ans
+	touch $CACHEDIR/$CONTEST/files_before_ans
+	chmod 755 $CACHEDIR/$CONTEST/files_after_ans
+	chmod 755 $CACHEDIR/$CONTEST/files_before_ans
+	chown www-data $CACHEDIR/$CONTEST/files_after_ans
+	chown www-data $CACHEDIR/$CONTEST/files_before_ans 
     fi
 
   elif [[ "$COMANDO" == "answer" ]];then	  

@@ -68,10 +68,8 @@ EOF
 		fi
 	done
 
-
-
-	echo "<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"	
-	#echo "$MSG"
+	echo "<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"			
+ 
     done
 	
     echo "</table>"
@@ -90,12 +88,12 @@ EOF
     #Guardando dúvidas para recuperar posteriormente; Tentar identificar usuário pelo login
     #ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
 
-    echo "$REQUEST_METHOD"
     if [[ "$REQUEST_METHOD" == "POST" ]]; then
 	        echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_before_ans
 		#avisa que ha clarification
 		touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:clarification
 		echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:$AGORA:CLARIFICATION:$SHORTPROBLEM
+		sleep 0.5
 		echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_after
 		REQUEST_METHOD=""
     fi
@@ -216,4 +214,3 @@ fi
 
 cat ../footer.html
 exit 0
-
