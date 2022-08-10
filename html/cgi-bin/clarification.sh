@@ -21,14 +21,14 @@ POST="$(cat )"
 echo "$POST" > $CACHEDIR/POSTT
 CAMINHO="$PATH_INFO"
 
-
-
 #contest é a base do caminho
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
 source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
+
+#echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
 
 echo "<h1>Clarification</h1>"
 
@@ -51,29 +51,21 @@ EOF
 	fi
 
 	N="$(basename $ARQ)"
+	USER="$(cut -d: -f1 <<<  "$N")"
 	TIME="$(cut -d: -f3 <<< "$ARQ")"
 	PROBLEM="$(cut -d: -f1 "$ARQ")"
 	PROBSHORTNAME=${PROBS[$((PROBLEM+3))]}
   	PROBFULLNAME="${PROBS[$((PROBLEM+2))]}"
 	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
 	MSG="$(cut -d: -f2 "$ARQ")"
-	if [[ "$(cut -d: -f3 <<< "$ARQ")" == "CLARIFICATION" ]]; then
-		MSG="$(echo "Not Answered Yet")"
-	fi
-
+	ANSWER="Not Answered Yet"
 
 	for ARQ in $CACHEDIR/messages/answers/*; do
-		if [[ "$PROBSHORTNAME" == "$(cut -d: -f4 <<< "$ARQ")" ]]; then
-			N2="$(basename $ARQ)"
-			if [[ "$(cut -d: -f3 <<< "$ARQ")" == "ANSWER" ]]; then
-				STATUS="$(echo "Answered")"
-				USER="$(cut -d: -f1 <<< "$N2")"
-				ANSWER="$(cut -d: -f2 "$CACHEDIR/messages/answers/$USER:$CONTEST:ANSWER:$PROBSHORTNAME")"
-			fi
-			else
-				STATUS="$(echo "Not Answered Yet")"
-				ANSWER="$(echo "Not Answered Yet")"
-			fi
+		USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
+		TIME_AUX="$(cut -d: -f4 <<< "$ARQ")"
+		if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
+			ANSWER="$(cut -d: -f2 "$ARQ")"
+		fi
 	done
 
 
@@ -98,10 +90,14 @@ EOF
     #Guardando dúvidas para recuperar posteriormente; Tentar identificar usuário pelo login
     #ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
 
+    echo "$REQUEST_METHOD"
     if [[ "$REQUEST_METHOD" == "POST" ]]; then
-	        #avisa que ha clarification
+	        echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_before_ans
+		#avisa que ha clarification
 		touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:clarification
 		echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:$AGORA:CLARIFICATION:$SHORTPROBLEM
+		echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_after
+		REQUEST_METHOD=""
     fi
     cat << EOF
     <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
@@ -138,7 +134,10 @@ EOF
 	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
 	MSG="$(cut -d: -f2 "$ARQ")"
 	USER="$(cut -d: -f1 <<<  "$N")"
-	ANSWER="Not Answered Yet"
+	ANSWER="Not Answered Yet"	
+	#echo "user: $USER<br>"
+
+	#echo "1:$ARQ<br>"
 	for ARQ in $CACHEDIR/messages/answers/*; do
 		USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
 		TIME_AUX="$(cut -d: -f4 <<< "$ARQ")"
@@ -150,7 +149,7 @@ EOF
 
 echo "<tr>
 	
- 	<form method='post' enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;'>
+ 	<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;' method="post">
 	<td>
 		<input type="hidden" name="contest" value="$CONTEST">
 		$CONTEST
@@ -168,7 +167,6 @@ echo "<tr>
 		$TIME
 	</td>
 	<td>
-	<input type="hidden" name="clarification" size="60" value="$MSG">
 	
 	<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>
 				$MSG
@@ -181,22 +179,41 @@ echo "<tr>
      <tr>"		
      
      	if [[ "$REQUEST_METHOD" == "POST" ]]; then
-		RESP="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+   		RESP="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
    		USR="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-		TIM="$(grep -A2 'name="time"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		TIME_ANS="$(grep -A2 'name="timeANS"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		TIME_CLR="$(grep -A2 'name="timeCLR"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+
    		PROBL="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
     		PROBSHORTNAME="${PROBS[$((PROBL+3))]}"
     		
-		if [[ "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
-			echo "$PROBL:$RESP:$TIM" > $CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
-			REQUEST_METHOD=""	
+		if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
+			echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
+    			echo "$PROBL:$RESP:$TIM" > $CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
+			
+			#avisa que tem uma resposta para um clarification
+			if [[ "$GLOBAL" == "GLOBAL" ]]; then
+				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer:$GLOBAL 
+			else
+				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer
+			fi
+			echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_after_ans
+			REQUEST_METHOD=""
+
 		fi
     fi
 
+
 done
 echo "</table>"
+
 
     else
 	 echo "<h3>Nenhuma d&uacute;vida</h3>"
     fi
 fi
+
+cat ../footer.html
+exit 0
+

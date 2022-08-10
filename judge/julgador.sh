@@ -106,6 +106,7 @@ for ARQ in $SUBMISSIONDIR/*; do
   LING="$(cut -d: -f7 <<< "$N")"
   RESP="$(cut -d: -f8 <<< "$N")"
   #LING="$(file $ARQ|awk '{print $3}')"
+  STATUS="$(cut -d: -f9 <<< "$N")"
 
   #carregar contest
   unset ALLOWLATEUSER
@@ -293,6 +294,39 @@ for ARQ in $SUBMISSIONDIR/*; do
       true
     else
       sed -i "s/^$TEMPO:\(.*\):$ID$/$TEMPO:\1 (Rejulgando):$ID/" $CONTESTSDIR/$CONTEST/controle/history
+    fi
+  elif [[ "$COMANDO" == "clarification" ]];then
+    if [[ ! -d $CONTESTSDIR/$CONTEST/messages ]]; then
+	    mkdir -p $CONTESTSDIR/$CONTEST/messages
+	   
+    fi
+    if [[ ! -d $CACHEDIR/$CONTEST ]]; then
+ 	mkdir -p $CACHEDIR/$CONTEST
+	touch $CACHEDIR/$CONTEST/files_after
+	touch $CACHEDIR/$CONTEST/files_before
+	chmod 755 $CACHEDIR/$CONTEST/files_after
+	chmod 755 $CACHEDIR/$CONTEST/files_before
+	chown www-data $CACHEDIR/$CONTEST/files_after
+	chown www-data $CACHEDIR/$CONTEST/files_before 
+    fi
+
+  elif [[ "$COMANDO" == "answer" ]];then	  
+    GLOBAL="$(cut -d: -f6 <<< "$N")"
+
+    if [[ ! -e $CACHEDIR/$CONTEST/files_after_ans ]]; then
+	touch $CACHEDIR/$CONTEST/files_after_ans
+	touch $CACHEDIR/$CONTEST/files_before_ans
+	chmod 755 $CACHEDIR/$CONTEST/files_after_ans
+	chmod 755 $CACHEDIR/$CONTEST/files_before_ans
+	chown www-data $CACHEDIR/$CONTEST/files_after_ans
+	chown www-data $CACHEDIR/$CONTEST/files_before_ans 
+    fi
+
+
+    if [[ "$GLOBAL" == "GLOBAL" ]]; then
+	touch $CONTESTSDIR/$CONTEST/controle/global
+    	MOTD=$(<"$ARQ")
+	echo "<blink><img src='/images/new.gif'/></blink>$MOTD<br>" >> $CONTESTSDIR/$CONTEST/motd
     fi
 
   elif [[ "$COMANDO" == "submit" ]]; then
