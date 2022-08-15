@@ -50,33 +50,52 @@ for ARQ in $CACHEDIR/messages/clarifications/*; do
 done
 
 cat << EOF
-	<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
-        <div>
-            <label>Clarification: </label>
-	    <textarea name="clarification" value="" rows="4" cols="50" disabled>$CLARIFICATION</textarea>
+	<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/answer.sh/$CONTEST" method="post">
+        <div class="row">
+	    <div class="row__cell--1">
+            	<label>Clarification: </label>
+	    </div>
+	    <div class="row__cell">
+	    	<textarea id="textarea-form" name="clarification" value="" rows="4" cols="50" disabled>$CLARIFICATION</textarea>
+	    </div>
         </div>
-	<div>
-            <label>Answer: </label>
+	<div class="row">
+	    <div class="row__cell--1">
+            	<label>Answer: </label>
+	    </div>
 EOF
 	   if [[ -f "$CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME" ]];then
 		   ANSWER="$(cut -d: -f2 "$CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME")"
-         echo "<textarea name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea>
-		<div>
-           	   <input type="submit" value="Enviar" disabled>
-	        </div>"
+         echo "<div class="row__cell"><textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea></div>
+	        </div>
+		<div class="row">
+			<div class="row__cell--1"></div>
+			<div class="row__cell--fill--btn">
+           	   		<input id="btn-form" type="submit" value="Enviar" disabled>
+				<input id="btn-form" type="reset" value="Limpar" disabled>
+			</div>
+	         </div>"
  	   else
 		cat << EOF
-		   <textarea name="answer" value="$ANSWER" rows="4" cols="50"></textarea>
+		   <div class="row__cell">
+		   	<textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50"></textarea>
+		   </div>
 	 	   </div>
-			<input type="checkbox" name="global" value="GLOBAL">
-			<label for="global">Dispon&iacute;vel para todos no contest</label>
+			<div class="row">
+				<input type="checkbox" name="global" value="GLOBAL">
+				<label id="checkbox-label" for="global">Dispon&iacute;vel para todos no contest</label>
+			</div>
 		   <input type="hidden" name="timeCLR" value="$TIME">
 		   <input type="hidden" name="timeANS" value="$AGORA">
 		   <input type="hidden" name="problem" value="$PROBLEM">
 		   <input type="hidden" name="user" value="$USER">
 
-        	   <div>
-           	   <input type="submit" value="Enviar">
+        	   <div class="row">
+			<div class="row__cell--1"></div>
+			<div class="row__cell--fill--btn">
+           	   		<input id="btn-form" type="submit" value="Enviar">
+				<input id="btn-form" type="reset" value="Limpar">
+			</div>
 	           </div>
 EOF
 	   fi

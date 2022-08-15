@@ -295,44 +295,42 @@ for ARQ in $SUBMISSIONDIR/*; do
     else
       sed -i "s/^$TEMPO:\(.*\):$ID$/$TEMPO:\1 (Rejulgando):$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
+
   elif [[ "$COMANDO" == "clarification" ]];then
     if [[ ! -d $CONTESTSDIR/$CONTEST/messages ]]; then
 	    mkdir -p $CONTESTSDIR/$CONTEST/messages
-	   
+	    chmod go+rwx "$CONTESTSDIR/$CONTEST/messages"
     fi
+
     if [[ ! -d $CACHEDIR/$CONTEST ]]; then
- 	mkdir -p $CACHEDIR/$CONTEST
-	touch $CACHEDIR/$CONTEST/files_after
-	touch $CACHEDIR/$CONTEST/files_before
-	chmod 755 $CACHEDIR/$CONTEST/files_after
-	chmod 755 $CACHEDIR/$CONTEST/files_before
-	chown www-data $CACHEDIR/$CONTEST/files_after
-	chown www-data $CACHEDIR/$CONTEST/files_before
-	touch $CACHEDIR/$CONTEST/files_after_ans
-	touch $CACHEDIR/$CONTEST/files_before_ans
-	chmod 755 $CACHEDIR/$CONTEST/files_after_ans
-	chmod 755 $CACHEDIR/$CONTEST/files_before_ans
-	chown www-data $CACHEDIR/$CONTEST/files_after_ans
-	chown www-data $CACHEDIR/$CONTEST/files_before_ans 
+      mkdir -p $CACHEDIR/$CONTEST
+      chmod go+rwx "$CACHEDIR/$CONTEST"
+
+      touch $CACHEDIR/$CONTEST/files_after
+      touch $CACHEDIR/$CONTEST/files_before
+      touch $CACHEDIR/$CONTEST/files_after_ans
+      touch $CACHEDIR/$CONTEST/files_before_ans
+      chmod 777 $CACHEDIR/$CONTEST/*
+      #chmod 777 $CACHEDIR/$CONTEST/files_after
+      #chmod 777 $CACHEDIR/$CONTEST/files_before
+      #chmod 777 $CACHEDIR/$CONTEST/files_after_ans
+      #chmod 777 $CACHEDIR/$CONTEST/files_before_ans 
     fi
 
   elif [[ "$COMANDO" == "answer" ]];then	  
     GLOBAL="$(cut -d: -f6 <<< "$N")"
 
     if [[ ! -e $CACHEDIR/$CONTEST/files_after_ans ]]; then
-	touch $CACHEDIR/$CONTEST/files_after_ans
-	touch $CACHEDIR/$CONTEST/files_before_ans
-	chmod 755 $CACHEDIR/$CONTEST/files_after_ans
-	chmod 755 $CACHEDIR/$CONTEST/files_before_ans
-	chown www-data $CACHEDIR/$CONTEST/files_after_ans
-	chown www-data $CACHEDIR/$CONTEST/files_before_ans 
+      touch $CACHEDIR/$CONTEST/files_after_ans
+      touch $CACHEDIR/$CONTEST/files_before_ans
+      chmod 777 $CACHEDIR/$CONTEST/*
+      #chmod 777 $CACHEDIR/$CONTEST/files_before_ans 
     fi
 
-
     if [[ "$GLOBAL" == "GLOBAL" ]]; then
-	touch $CONTESTSDIR/$CONTEST/controle/global
+	    touch $CONTESTSDIR/$CONTEST/controle/global
     	MOTD=$(<"$ARQ")
-	echo "<blink><img src='/images/new.gif'/></blink>$MOTD<br>" >> $CONTESTSDIR/$CONTEST/motd
+	    echo "<blink><img src='/images/new.gif'/></blink>$MOTD<br>" >> $CONTESTSDIR/$CONTEST/motd
     fi
 
   elif [[ "$COMANDO" == "submit" ]]; then

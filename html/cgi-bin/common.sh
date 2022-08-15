@@ -39,12 +39,16 @@ function incontest-cabecalho-html()
   local PENDING=$(alerta-clarification)
   ADMINMENU=
   if is-admin | grep -q Sim ; then
-    ADMINMENU="<li><a href=\"$URL/statistic.sh/$CONTEST\"><span class=\"title\">Estatísticas</span><span class=\"text\">Relatório do Contest</span></a></li>"
+    ADMINMENU="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Clarification$PENDING</span><span class="text">D&uacute;vidas && Respostas</span></a></li>"
+    ADMINMENU+="<li><a href=\"$URL/statistic.sh/$CONTEST\"><span class=\"title\">Estatísticas</span><span class=\"text\">Relatório do Contest</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/sherlock.sh/$CONTEST\"><span class=\"title\">Sherlock</span><span class=\"text\">Identificação de Plágio</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
-  fi
-  if is-mon | grep -q Sim ; then
+  elif is-mon | grep -q Sim ; then
+    ADMINMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">D&uacute;vidas && Respostas</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
+  else
+    USERMENU="<li><a href="$URL/clarification-2.sh/$CONTEST"><span class=\"title\">Clarification</span><span class="text">Resolução de dúvidas</an></li>"
+    USERMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">Respostas</span></a></li>"
   fi
   printf "Content-type: text/html\n\n"
   cat << EOF
@@ -62,6 +66,7 @@ function incontest-cabecalho-html()
         <link type="text/css" rel="stylesheet" href="/css/incontest.css" media="screen" />
         <link type="text/css" rel="stylesheet" href="/css/menu1.css" media="screen" />
         <link type="text/css" rel="stylesheet" href="/css/badideas.css" media="screen" />
+	      <link type="text/css" rel="stylesheet" href="/css/clarification/form.css" media="screen" />
     </head>
     <body class="bg">
       <div id="geral">
@@ -76,10 +81,9 @@ function incontest-cabecalho-html()
           <ul>
             <li><a href="$URL/contest.sh/$CONTEST"><span class="title">Contest</span><span class="text">Problemas e Submissões</span></a></li>
             <li><a href="$URL/score.sh/$CONTEST"><span class="title">Score</span><span class="text">Placar atualizado</span></a></li>
-    <li><a href="$URL/clarification-2.sh/$CONTEST"><span class=\"title\">Clarification</span><span class="text">Resolução de dúvidas</sp</l>
-	    <li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">Respostas</span></a></li>
-	    <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span><span class="text">CD-MOJ mais pessoal</span></a></li>
+            $USERMENU
             $ADMINMENU
+    	      <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span><span class="text">CD-MOJ mais pessoal</span></a></li>
             <li><a href="$URL/logout.sh/$CONTEST"><span class="title">Logout</span><span class="text">Sair</span></a></li>
           </ul>
           </div>
@@ -199,19 +203,18 @@ function alerta-clarification()
   FILES_AFTER="$CACHEDIR/$CONTEST/files_after_ans"
 
   if is-admin | grep -q Sim ; then
-	 FILES_BEFORE="$CACHEDIR/$CONTEST/files_before"
- 	 FILES_AFTER="$CACHEDIR/$CONTEST/files_after"
+	  FILES_BEFORE="$CACHEDIR/$CONTEST/files_before"
+ 	  FILES_AFTER="$CACHEDIR/$CONTEST/files_after"
   	if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
 	  	echo "<blink><img src='/images/new.gif'></blink>"
   	else
-		echo ''
+		  echo ''
   	fi
   else
-	if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
-	  	echo "<blink><img src='/images/new.gif'></blink>"
-  	else
-		echo ''
-  	fi
-
+    if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
+        echo "<blink><img src='/images/new.gif'></blink>"
+    else
+      echo ''
+    fi
   fi
 }

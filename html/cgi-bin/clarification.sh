@@ -40,9 +40,9 @@ done
 if is-admin | grep -q Nao; then
 
     if [[ "$(ls -A $CACHEDIR/messages/clarifications/ | wc -l)" > 0 ]]; then
-    cat << EOF
-    <table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th></tr>
-EOF
+   # cat << EOF
+   # <table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th></tr>
+#EOF
     #Talvez seja necessario ver ma solucao pra atualizar a tabela
     #for para completar toda a tabela de duvidas ja feitas
     for ARQ in $CACHEDIR/messages/clarifications/*; do
@@ -68,11 +68,13 @@ EOF
 		fi
 	done
 
-	echo "<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"			
+
+	#echo "<h2>$PROBLEM</h2>"
+	#echo "<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"			
  
     done
 	
-    echo "</table>"
+    #echo "</table>"
 
     fi
 
@@ -89,25 +91,39 @@ EOF
     #ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
 
     if [[ "$REQUEST_METHOD" == "POST" ]]; then
-	        echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_before_ans
 		#avisa que ha clarification
 		touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:clarification
+		#sleep 1
+	        echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_before_ans
 		echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:$AGORA:CLARIFICATION:$SHORTPROBLEM
-		sleep 0.5
 		echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_after
 		REQUEST_METHOD=""
     fi
     cat << EOF
     <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
-        <div>
-            <label>Problema: <select name="problems">$SELETOR</select></label><br>
-        </div>
-        <div>
-            <label>Clarification: </label>
-            <textarea name="msg_clarification" rows="4" cols="50" value="$MSG_CLARIFICATION"></textarea>
-        </div>
-        <div>
-            <input type="submit" value="Enviar">
+	<div class="row">
+        	<div class="row__cell--1">
+            		<label>Problema: </label><br>
+        	</div>
+		<div class="row__cell">
+			<select name="problems" id="select-clarification">$SELETOR</select>
+		</div>
+	</div>
+	<div class="row">
+        	<div class="row__cell--1">
+            		<label>Clarification: </label>
+		</div>
+		<div class="row__cell">
+           		<textarea id="textarea-form" name="msg_clarification" value="$MSG_CLARIFICATION"></textarea>
+        	</div>
+	</div>
+        <div class="row">
+	    <div class="row__cell--1"></div>	
+	    <div class="row__cell--fill--btn">
+            	<input id="btn-form" type="submit" value="Enviar">
+	    	<input id="btn-form" type="reset" value="Limpar">
+	    </div>
+	</div>
 	</div>
     </form>
 EOF
@@ -187,18 +203,17 @@ echo "<tr>
     		PROBSHORTNAME="${PROBS[$((PROBL+3))]}"
     		
 		if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
-			echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
-    			echo "$PROBL:$RESP:$TIM" > $CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
-			
 			#avisa que tem uma resposta para um clarification
 			if [[ "$GLOBAL" == "GLOBAL" ]]; then
 				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer:$GLOBAL 
 			else
 				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer
 			fi
+			#sleep 1
+			echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
+    		echo "$PROBL:$RESP:$TIM" > $CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
 			echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_after_ans
 			REQUEST_METHOD=""
-
 		fi
     fi
 

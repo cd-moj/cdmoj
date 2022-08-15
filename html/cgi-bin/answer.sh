@@ -38,11 +38,16 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 	PROBLEM="${PROBS[$((i+3))]} - ${PROBS[$((i+2))]}"
 	
    	echo "<h2>$PROBLEM</h2>"
-	cat << EOF
+	ADMINTABLE="<table border="1" width="10%"> <tr><th>Contest</th><th>Usu&aacute;rio</th><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Answer</th></tr>"  
+ 	USERTABLE="<table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th></tr>"
+	if is-admin | grep -q Sim; then
+		echo "$ADMINTABLE"
+	elif is-mon | grep -q Sim; then
+		echo "$ADMINTABLE"
+	else
+ 		echo "$USERTABLE"
+	fi
 
-   	 <table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th></tr>
-EOF
-	
 	for ARQ in $CACHEDIR/messages/clarifications/*; do
 		N="$(basename $ARQ)"
 		TIME="$(cut -d: -f3 <<< "$ARQ")"
@@ -57,7 +62,6 @@ EOF
 			continue
 		fi
 
-		#echo "<h2>$PROBLEM</h2>"
    		if [[ "${PROBS[$((i+3))]}" == "$PROBSHORTNAME" ]];then
 			for ARQ in $CACHEDIR/messages/answers/*; do
 				USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
@@ -66,10 +70,72 @@ EOF
 					ANSWER="$(cut -d: -f2 "$ARQ")"
 				fi
 			done
-			echo "<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"
+		ADMINTABLECONTENT="<tr>
+ 			<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;' method="post">
+				<td>
+					<input type="hidden" name="contest" value="$CONTEST">
+					$CONTEST
+				</td>
+				<td>
+					<input type="hidden" name="user" value="$USER">
+					$USER
+				</td>
+				<td>
+					<input type="hidden" name="problem" value="$PROBLEM_">
+					$PROBSHORTNAME
+				</td>
+				<td>		
+					<input type="hidden" name="time" value="$TIME">
+					$TIME
+				</td>
+				<td>
+				
+				<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>
+							$MSG
+					</button>
+				</td>
+				<td>
+					$ANSWER
+				</td>
+				</form>
+			<tr>"
+			USERTABLECONTENT="<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"
+			if is-admin | grep -q Sim; then
+				echo "$ADMINTABLECONTENT"
+			elif is-mon | grep -q Sim; then
+				echo "$ADMINTABLECONTENT"
+			else
+				echo "$USERTABLECONTENT"
+			fi
 		fi
 	done
+
 	echo "</table><br><br>"
+
+	if [[ "$REQUEST_METHOD" == "POST" ]]; then
+		RESP="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		USR="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		TIME_ANS="$(grep -A2 'name="timeANS"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		TIME_CLR="$(grep -A2 'name="timeCLR"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		PROBL="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+		PROBSHORTNAME="${PROBS[$((PROBL+3))]}"
+		
+		if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
+			#avisa que tem uma resposta para um clarification
+			if [[ "$GLOBAL" == "GLOBAL" ]]; then
+				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer:$GLOBAL 
+			else
+				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer
+			fi
+			#sleep 1
+			echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
+			echo "$PROBL:$RESP:$TIM" > $CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
+			echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_after_ans
+			REQUEST_METHOD=""
+
+		fi
+	fi
 done
 
 cat ../footer.html
