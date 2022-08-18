@@ -28,8 +28,6 @@ CONTEST="${CONTEST// }"
 source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
 
-#echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
-
 echo "<h1>Clarification</h1>"
 
 TOTPROBS=${#PROBS[@]}
@@ -39,13 +37,10 @@ done
 
 if is-admin | grep -q Nao; then
 
-    if [[ "$(ls -A $CACHEDIR/messages/clarifications/ | wc -l)" > 0 ]]; then
-   # cat << EOF
-   # <table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th></tr>
-#EOF
+    if [[ "$(ls -A $CONTESTSDIR/$CONTEST/messages/clarifications/ | wc -l)" > 0 ]]; then
     #Talvez seja necessario ver ma solucao pra atualizar a tabela
     #for para completar toda a tabela de duvidas ja feitas
-    for ARQ in $CACHEDIR/messages/clarifications/*; do
+    for ARQ in $CONTESTSDIR/$CONTEST/messages/clarifications/*; do
 	if [[ ! -e "$ARQ" ]]; then
 		continue
 	fi
@@ -60,7 +55,7 @@ if is-admin | grep -q Nao; then
 	MSG="$(cut -d: -f2 "$ARQ")"
 	ANSWER="Not Answered Yet"
 
-	for ARQ in $CACHEDIR/messages/answers/*; do
+	for ARQ in $CONTESTSDIR/$CONTEST/messages/answers/*; do
 		USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
 		TIME_AUX="$(cut -d: -f4 <<< "$ARQ")"
 		if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
@@ -68,13 +63,7 @@ if is-admin | grep -q Nao; then
 		fi
 	done
 
-
-	#echo "<h2>$PROBLEM</h2>"
-	#echo "<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"			
- 
     done
-	
-    #echo "</table>"
 
     fi
 
@@ -94,13 +83,13 @@ if is-admin | grep -q Nao; then
 		#avisa que ha clarification
 		touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:clarification
 		#sleep 1
-	        echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_before_ans
-		echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> $CACHEDIR/messages/clarifications/$LOGIN:$CONTEST:$AGORA:CLARIFICATION:$SHORTPROBLEM
-		echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_after
+	    echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/messages/files_before_ans
+		echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> $CONTESTSDIR/$CONTEST/messages/clarifications/$LOGIN:$CONTEST:$AGORA:CLARIFICATION:$SHORTPROBLEM
+		echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CONTESTSDIR/$CONTEST/messages/files_after
 		REQUEST_METHOD=""
     fi
     cat << EOF
-    <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-2.sh/$CONTEST" method="post">
+    <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification.sh/$CONTEST" method="post">
 	<div class="row">
         	<div class="row__cell--1">
             		<label>Problema: </label><br>
@@ -128,14 +117,14 @@ if is-admin | grep -q Nao; then
     </form>
 EOF
 else
-	if [ "$(ls -A $CACHEDIR/messages/clarifications/)" ]; then
+	if [ "$(ls -A $CONTESTSDIR/$CONTEST/messages/clarifications)" ]; then
     cat << EOF
       
     <table border="1" width="10%"> <tr><th>Contest</th><th>Usu&aacute;rio</th><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Answer</th></tr>
 EOF
     #Talvez seja necessario ver ma solucao pra atualizar a tabela
     #for para completar toda a tabela de duvidas ja feitas
-    for ARQ in $CACHEDIR/messages/clarifications/*; do
+    for ARQ in $CONTESTSDIR/$CONTEST/messages/clarifications/*; do
 	if [[ ! -e "$ARQ" ]]; then
 		continue
 	fi
@@ -149,10 +138,8 @@ EOF
 	MSG="$(cut -d: -f2 "$ARQ")"
 	USER="$(cut -d: -f1 <<<  "$N")"
 	ANSWER="Not Answered Yet"	
-	#echo "user: $USER<br>"
 
-	#echo "1:$ARQ<br>"
-	for ARQ in $CACHEDIR/messages/answers/*; do
+	for ARQ in $CONTESTSDIR/$CONTEST/messages/answers/*; do
 		USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
 		TIME_AUX="$(cut -d: -f4 <<< "$ARQ")"
 		if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
@@ -210,9 +197,9 @@ echo "<tr>
 				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer
 			fi
 			#sleep 1
-			echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
-    		echo "$PROBL:$RESP:$TIM" > $CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
-			echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_after_ans
+			echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CONTESTSDIR/$CONTEST/messages/files_before
+    		echo "$PROBL:$RESP:$TIM" > $CONTESTSDIR/$CONTEST/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
+			echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/messages/files_after_ans
 			REQUEST_METHOD=""
 		fi
     fi

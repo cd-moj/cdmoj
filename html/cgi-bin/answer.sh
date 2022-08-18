@@ -28,8 +28,6 @@ CONTEST="${CONTEST// }"
 source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
 
-#echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
-
 echo "<h1>Respostas</h1>"
 
 TOTPROBS=${#PROBS[@]}
@@ -38,7 +36,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 	PROBLEM="${PROBS[$((i+3))]} - ${PROBS[$((i+2))]}"
 	
    	echo "<h2>$PROBLEM</h2>"
-	ADMINTABLE="<table border="1" width="10%"> <tr><th>Contest</th><th>Usu&aacute;rio</th><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Answer</th></tr>"  
+	ADMINTABLE="<table border="1" width="10%"> <tr><th>Contest</th><th>Usu&aacute;rio</th><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Answer</th><th>Respondido por</th></tr>"  
  	USERTABLE="<table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th></tr>"
 	if is-admin | grep -q Sim; then
 		echo "$ADMINTABLE"
@@ -48,7 +46,12 @@ for ((i=0;i<TOTPROBS;i+=5)); do
  		echo "$USERTABLE"
 	fi
 
-	for ARQ in $CACHEDIR/messages/clarifications/*; do
+	for ARQ in $CONTESTSDIR/$CONTEST/messages/clarifications/*; do	
+
+		if [[ ! -e "$ARQ" ]]; then
+			continue
+		fi
+
 		N="$(basename $ARQ)"
 		TIME="$(cut -d: -f3 <<< "$ARQ")"
 		PROBLEM_="$(cut -d: -f1 "$ARQ")"
@@ -58,45 +61,53 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 		MSG="$(cut -d: -f2 "$ARQ")"
 		USER="$(cut -d: -f1 <<<  "$N")"
 		ANSWER="Not Answered Yet"
-		if [[ ! -e "$ARQ" ]]; then
-			continue
-		fi
+		MANAGER="Nobody"
 
    		if [[ "${PROBS[$((i+3))]}" == "$PROBSHORTNAME" ]];then
-			for ARQ in $CACHEDIR/messages/answers/*; do
+			for ARQ in $CONTESTSDIR/$CONTEST/messages/answers/*; do		
+
+				if [[ ! -e "$ARQ" ]]; then
+					continue
+				fi
+				
+				N="$(basename $ARQ)"
 				USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
 				TIME_AUX="$(cut -d: -f4 <<< "$ARQ")"
 				if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
 					ANSWER="$(cut -d: -f2 "$ARQ")"
+					MANAGER="$(cut -d: -f1 <<< "$N" | cut -d. -f1)"
 				fi
-			done
-		ADMINTABLECONTENT="<tr>
- 			<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;' method="post">
-				<td>
-					<input type="hidden" name="contest" value="$CONTEST">
-					$CONTEST
-				</td>
-				<td>
-					<input type="hidden" name="user" value="$USER">
-					$USER
-				</td>
-				<td>
-					<input type="hidden" name="problem" value="$PROBLEM_">
-					$PROBSHORTNAME
-				</td>
-				<td>		
-					<input type="hidden" name="time" value="$TIME">
-					$TIME
-				</td>
-				<td>
-				
-				<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>
-							$MSG
-					</button>
-				</td>
-				<td>
-					$ANSWER
-				</td>
+			done	
+			ADMINTABLECONTENT="<tr>
+				<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;' method="post">
+					<td>
+						<input type="hidden" name="contest" value="$CONTEST">
+						$CONTEST
+					</td>
+					<td>
+						<input type="hidden" name="user" value="$USER">
+						$USER
+					</td>
+					<td>
+						<input type="hidden" name="problem" value="$PROBLEM_">
+						$PROBSHORTNAME
+					</td>
+					<td>		
+						<input type="hidden" name="time" value="$TIME">
+						$TIME
+					</td>
+					<td>
+					
+					<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>
+								$MSG
+						</button>
+					</td>
+					<td>
+						$ANSWER
+					</td>
+					<td>
+						$MANAGER
+					</td>
 				</form>
 			<tr>"
 			USERTABLECONTENT="<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"
@@ -105,21 +116,39 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 			elif is-mon | grep -q Sim; then
 				echo "$ADMINTABLECONTENT"
 			else
-				echo "$USERTABLECONTENT"
+				if [[ "$USER" == "$(pega-login)" ]];then
+					echo "$USERTABLECONTENT"
+				fi
 			fi
 		fi
 	done
 
 	echo "</table><br><br>"
+done
 
-	if [[ "$REQUEST_METHOD" == "POST" ]]; then
-		RESP="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-		USR="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-		TIME_ANS="$(grep -A2 'name="timeANS"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-		TIME_CLR="$(grep -A2 'name="timeCLR"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-		PROBL="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-		GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-		PROBSHORTNAME="${PROBS[$((PROBL+3))]}"
+if [[ "$REQUEST_METHOD" == "POST" ]]; then
+	RESP="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+	USR="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+	TIME_ANS="$(grep -A2 'name="timeANS"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+	TIME_CLR="$(grep -A2 'name="timeCLR"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+	PROBL="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+	GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+	PROBSHORTNAME="${PROBS[$((PROBL+3))]}"
+		
+	for ARQ in $CONTESTSDIR/$CONTEST/messages/clarifications/*; do
+		if [[ ! -e "$ARQ" ]]; then
+			continue
+		fi
+
+		N="$(basename $ARQ)"
+		TIME="$(cut -d: -f3 <<< "$ARQ")"
+		PROBLEM_="$(cut -d: -f1 "$ARQ")"
+		PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
+  		PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
+		PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
+		MSG="$(cut -d: -f2 "$ARQ")"
+		USER="$(cut -d: -f1 <<<  "$N")"
+		ANSWER="Not Answered Yet"
 		
 		if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
 			#avisa que tem uma resposta para um clarification
@@ -129,14 +158,14 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer
 			fi
 			#sleep 1
-			echo "$(ls $CACHEDIR/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
-			echo "$PROBL:$RESP:$TIM" > $CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
-			echo "$(ls $CACHEDIR/messages/answers/)" > $CACHEDIR/$CONTEST/files_after_ans
+			echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CONTESTSDIR/$CONTEST/messages/files_before
+			echo "$PROBL:$RESP:$TIM" > $CONTESTSDIR/$CONTEST/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
+			echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/messages/files_after_ans
 			REQUEST_METHOD=""
 
 		fi
-	fi
-done
+	done
+fi
 
 cat ../footer.html
 exit 0

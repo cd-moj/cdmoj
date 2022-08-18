@@ -40,7 +40,7 @@ PROBLEM="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r'
 TIME="$(grep -A2 'name="time"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBSHORTNAME="${PROBS[$((PROBLEM+3))]}"
 
-for ARQ in $CACHEDIR/messages/clarifications/*; do
+for ARQ in $CONTESTSDIR/$CONTEST/messages/clarifications/*; do
 	N="$(basename $ARQ)"
 	USR_AUX="$(cut -d: -f1 <<< "$N")"
 	TIME_AUX="$(cut -d: -f3 <<< "$ARQ")"
@@ -64,21 +64,20 @@ cat << EOF
             	<label>Answer: </label>
 	    </div>
 EOF
-	   if [[ -f "$CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME" ]];then
-		   ANSWER="$(cut -d: -f2 "$CACHEDIR/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME")"
-         echo "<div class="row__cell"><textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea></div>
-	        </div>
-		<div class="row">
-			<div class="row__cell--1"></div>
-			<div class="row__cell--fill--btn">
-           	   		<input id="btn-form" type="submit" value="Enviar" disabled>
-				<input id="btn-form" type="reset" value="Limpar" disabled>
-			</div>
-	         </div>"
+	   if [[ -f "$CONTESTSDIR/$CONTEST/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME" ]];then
+		   ANSWER="$(cut -d: -f2 "$CONTESTSDIR/$CONTEST/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME")"
+         	echo "<div class="row__cell"><textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea></div></div>
+				<div class="row">
+					<div class="row__cell--1"></div>
+					<div class="row__cell--fill--btn">
+							<input id="btn-form" type="submit" value="Enviar" disabled>
+						<input id="btn-form" type="reset" value="Limpar" disabled>
+					</div>
+				</div>"
  	   else
 		cat << EOF
 		   <div class="row__cell">
-		   	<textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50"></textarea>
+				<textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50"></textarea>
 		   </div>
 	 	   </div>
 			<div class="row">
@@ -89,14 +88,13 @@ EOF
 		   <input type="hidden" name="timeANS" value="$AGORA">
 		   <input type="hidden" name="problem" value="$PROBLEM">
 		   <input type="hidden" name="user" value="$USER">
-
-        	   <div class="row">
-			<div class="row__cell--1"></div>
-			<div class="row__cell--fill--btn">
+        	<div class="row">
+				<div class="row__cell--1"></div>
+				<div class="row__cell--fill--btn">
            	   		<input id="btn-form" type="submit" value="Enviar">
 				<input id="btn-form" type="reset" value="Limpar">
 			</div>
-	           </div>
+	        </div>
 EOF
 	   fi
 	   

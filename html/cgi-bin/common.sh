@@ -37,6 +37,7 @@ function incontest-cabecalho-html()
   local MSG="$2"
   local URL="$BASEURL/cgi-bin"
   local PENDING=$(alerta-clarification)
+
   ADMINMENU=
   if is-admin | grep -q Sim ; then
     ADMINMENU="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Clarification$PENDING</span><span class="text">D&uacute;vidas && Respostas</span></a></li>"
@@ -47,8 +48,8 @@ function incontest-cabecalho-html()
     ADMINMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">D&uacute;vidas && Respostas</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
   else
-    USERMENU="<li><a href="$URL/clarification-2.sh/$CONTEST"><span class=\"title\">Clarification</span><span class="text">Resolução de dúvidas</an></li>"
-    USERMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">Respostas</span></a></li>"
+	  USERMENU="<li><a href="$URL/clarification.sh/$CONTEST"><span class=\"title\">Clarification</span><span class="text">Resolução de dúvidas</an></li>"
+	  USERMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">Respostas</span></a></li>"
   fi
   printf "Content-type: text/html\n\n"
   cat << EOF
@@ -66,7 +67,7 @@ function incontest-cabecalho-html()
         <link type="text/css" rel="stylesheet" href="/css/incontest.css" media="screen" />
         <link type="text/css" rel="stylesheet" href="/css/menu1.css" media="screen" />
         <link type="text/css" rel="stylesheet" href="/css/badideas.css" media="screen" />
-	      <link type="text/css" rel="stylesheet" href="/css/clarification/form.css" media="screen" />
+	<link type="text/css" rel="stylesheet" href="/css/clarification/form.css" media="screen" />
     </head>
     <body class="bg">
       <div id="geral">
@@ -81,9 +82,9 @@ function incontest-cabecalho-html()
           <ul>
             <li><a href="$URL/contest.sh/$CONTEST"><span class="title">Contest</span><span class="text">Problemas e Submissões</span></a></li>
             <li><a href="$URL/score.sh/$CONTEST"><span class="title">Score</span><span class="text">Placar atualizado</span></a></li>
-            $USERMENU
-            $ADMINMENU
-    	      <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span><span class="text">CD-MOJ mais pessoal</span></a></li>
+	    $USERMENU
+	    $ADMINMENU
+    	    <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span><span class="text">CD-MOJ mais pessoal</span></a></li>
             <li><a href="$URL/logout.sh/$CONTEST"><span class="title">Logout</span><span class="text">Sair</span></a></li>
           </ul>
           </div>
@@ -198,23 +199,27 @@ EOF
 
 function alerta-clarification()
 {
-  WATCH_DIR=$CONTESTSDIR/$CONTEST/messages/clarification
-  FILES_BEFORE="$CACHEDIR/$CONTEST/files_before_ans"
-  FILES_AFTER="$CACHEDIR/$CONTEST/files_after_ans"
+  FILES_BEFORE="$CONTESTSDIR/$CONTEST/messages/files_before"
+  FILES_AFTER="$CONTESTSDIR/$CONTEST/messages/files_after"
 
-  if is-admin | grep -q Sim ; then
-	  FILES_BEFORE="$CACHEDIR/$CONTEST/files_before"
- 	  FILES_AFTER="$CACHEDIR/$CONTEST/files_after"
-  	if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
-	  	echo "<blink><img src='/images/new.gif'></blink>"
-  	else
-		  echo ''
-  	fi
+  if is-admin | grep -q Sim; then 
+	  verificar-diff $FILES_AFTER $FILES_BEFORE
+  elif is-mon | grep -q Sim; then
+	  verificar-diff $FILES_AFTER $FILES_BEFORE
   else
-    if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
-        echo "<blink><img src='/images/new.gif'></blink>"
-    else
-      echo ''
-    fi
+	  FILES_BEFORE="$CONTESTSDIR/$CONTEST/messages/files_before_ans"
+  	FILES_AFTER="$CONTESTSDIR/$CONTEST/messages/files_after_ans"		
+	  verificar-diff $FILES_AFTER $FILES_BEFORE
+  fi
+}
+
+function verificar-diff()
+{
+	local FILES_AFTER=$1
+  local FILES_BEFORE=$2 	
+	if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
+	  	echo "<blink><img src='/images/new.gif'></blink>"
+  else
+		echo ''
   fi
 }
