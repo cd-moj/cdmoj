@@ -26,7 +26,11 @@ CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
 source $CONTESTSDIR/$CONTEST/conf
+
+
 incontest-cabecalho-html $CONTEST
+
+#echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
 
 echo "<h1>Respostas</h1>"
 
@@ -64,50 +68,70 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 		MANAGER="Nobody"
 
    		if [[ "${PROBS[$((i+3))]}" == "$PROBSHORTNAME" ]];then
-			for ARQ in $CONTESTSDIR/$CONTEST/messages/answers/*; do		
+			for ARQA in $CONTESTSDIR/$CONTEST/messages/answers/*; do
+				
 
-				if [[ ! -e "$ARQ" ]]; then
+				if [[ ! -e "$ARQA" ]]; then
 					continue
 				fi
-				
-				N="$(basename $ARQ)"
-				USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
-				TIME_AUX="$(cut -d: -f4 <<< "$ARQ")"
+
+	
+				N="$(basename $ARQA)"
+				USR_AUX="$(cut -d: -f1 <<< "$N")"
+				TIME_AUX="$(cut -d: -f3 <<< "$N")"				   #MANAGER="$(cut -d: -f1 <<< "$N" | cut -d. -f1)"
+				#echo "$USER::$USR_AUX<br>"	
 				if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
-					ANSWER="$(cut -d: -f2 "$ARQ")"
-					MANAGER="$(cut -d: -f1 <<< "$N" | cut -d. -f1)"
+					ANSWER="$(cut -d: -f5 "$ARQA")"
+					MANAGER="$(cut -d: -f1 "$ARQA" | cut -d. -f1)"
+					FILE="$ARQA"
+					TYPE="ANSWER"
 				fi
-			done	
-			ADMINTABLECONTENT="<tr>
-				<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;' method="post">
-					<td>
-						<input type="hidden" name="contest" value="$CONTEST">
-						$CONTEST
-					</td>
-					<td>
-						<input type="hidden" name="user" value="$USER">
-						$USER
-					</td>
-					<td>
-						<input type="hidden" name="problem" value="$PROBLEM_">
-						$PROBSHORTNAME
-					</td>
-					<td>		
-						<input type="hidden" name="time" value="$TIME">
-						$TIME
-					</td>
-					<td>
-					
-					<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>
-								$MSG
-						</button>
-					</td>
-					<td>
-						$ANSWER
-					</td>
-					<td>
-						$MANAGER
-					</td>
+
+			done
+
+			ANSWER="Not Answered Yet"
+			MANAGER="Nobody"
+
+			if [[ ! -e $FILE ]];then
+				FILE="$ARQ"
+				TYPE="CLARIFICATION"
+			fi
+			while read LINE; do
+				if [[ "$TYPE" == "ANSWER" ]]; then
+					ANSWER="$(cut -d: -f5 <<< "$LINE")"
+					MANAGER="$(cut -d: -f1 <<< "$LINE" | cut -d. -f1)"
+					FILE=""
+				fi
+		ADMINTABLECONTENT="<tr>
+ 			<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;' method="post">
+				<td>
+					<input type="hidden" name="contest" value="$CONTEST">
+					$CONTEST
+				</td>
+				<td>
+					<input type="hidden" name="user" value="$USER">
+					$USER
+				</td>
+				<td>
+					<input type="hidden" name="problem" value="$PROBLEM_">
+					$PROBSHORTNAME
+				</td>
+				<td>		
+					<input type="hidden" name="time" value="$TIME">
+					$TIME
+				</td>
+				<td>
+				
+				<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>
+							$MSG
+					</button>
+				</td>
+				<td>
+					$ANSWER
+				</td>
+				<td>
+					$MANAGER
+				</td>
 				</form>
 			<tr>"
 			USERTABLECONTENT="<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"
@@ -120,6 +144,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					echo "$USERTABLECONTENT"
 				fi
 			fi
+		done < $FILE
 		fi
 	done
 
@@ -134,34 +159,35 @@ if [[ "$REQUEST_METHOD" == "POST" ]]; then
 	PROBL="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 	GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 	PROBSHORTNAME="${PROBS[$((PROBL+3))]}"
-		
+
 	for ARQ in $CONTESTSDIR/$CONTEST/messages/clarifications/*; do
 		if [[ ! -e "$ARQ" ]]; then
 			continue
 		fi
 
 		N="$(basename $ARQ)"
-		TIME="$(cut -d: -f3 <<< "$ARQ")"
-		PROBLEM_="$(cut -d: -f1 "$ARQ")"
-		PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
-  		PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
-		PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
-		MSG="$(cut -d: -f2 "$ARQ")"
-		USER="$(cut -d: -f1 <<<  "$N")"
-		ANSWER="Not Answered Yet"
-		
-		if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
-			#avisa que tem uma resposta para um clarification
-			if [[ "$GLOBAL" == "GLOBAL" ]]; then
-				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer:$GLOBAL 
-			else
-				echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer
-			fi
-			#sleep 1
-			echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CONTESTSDIR/$CONTEST/messages/files_before
-			echo "$PROBL:$RESP:$TIM" > $CONTESTSDIR/$CONTEST/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
-			echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/messages/files_after_ans
-			REQUEST_METHOD=""
+			TIME="$(cut -d: -f3 <<< "$ARQ")"
+			PROBLEM_="$(cut -d: -f1 "$ARQ")"
+			PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
+			PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
+			PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
+			MSG="$(cut -d: -f2 "$ARQ")"
+			USER="$(cut -d: -f1 <<<  "$N")"
+			ANSWER="Not Answered Yet"
+			
+			if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
+				#avisa que tem uma resposta para um clarification
+				if [[ "$GLOBAL" == "GLOBAL" ]]; then
+					echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer:$GLOBAL 
+				else
+					echo "$RESP" > $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:answer
+				fi
+				#sleep 1
+				echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CONTESTSDIR/$CONTEST/messages/files_before
+				#echo "$PROBL:$RESP:$TIM" > $CONTESTSDIR/$CONTEST/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
+				echo "$LOGIN:$USER:$CONTEST:$PROBL:$RESP:$TIME" >> $CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
+				echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/messages/files_after_ans
+				REQUEST_METHOD=""
 
 		fi
 	done
