@@ -48,8 +48,8 @@ function incontest-cabecalho-html()
     ADMINMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">D&uacute;vidas && Respostas</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
   else
-	  USERMENU="<li><a href="$URL/clarification.sh/$CONTEST"><span class=\"title\">Clarification</span><span class="text">Resolução de dúvidas</an></li>"
-	  USERMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">Respostas</span></a></li>"
+	USERMENU="<li><a href="$URL/clarification.sh/$CONTEST"><span class=\"title\">Clarification</span><span class="text">Resolução de dúvidas</an></li>"
+	USERMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas$PENDING</span><span class="text">Respostas</span></a></li>"
   fi
   printf "Content-type: text/html\n\n"
   cat << EOF
@@ -199,6 +199,7 @@ EOF
 
 function alerta-clarification()
 {
+  local LOGIN=$(pega-login)
   FILES_BEFORE="$CONTESTSDIR/$CONTEST/messages/files_before"
   FILES_AFTER="$CONTESTSDIR/$CONTEST/messages/files_after"
 
@@ -207,16 +208,16 @@ function alerta-clarification()
   elif is-mon | grep -q Sim; then
 	  verificar-diff $FILES_AFTER $FILES_BEFORE
   else
-	  FILES_BEFORE="$CONTESTSDIR/$CONTEST/messages/files_before_ans"
-  	FILES_AFTER="$CONTESTSDIR/$CONTEST/messages/files_after_ans"		
-	  verificar-diff $FILES_AFTER $FILES_BEFORE
+    FILES_BEFORE="$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/files_before_ans"
+    FILES_AFTER="$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/files_after_ans"		
+    verificar-diff $FILES_AFTER $FILES_BEFORE
   fi
 }
 
 function verificar-diff()
 {
 	local FILES_AFTER=$1
-  local FILES_BEFORE=$2 	
+       	local FILES_BEFORE=$2 	
 	if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
 	  	echo "<blink><img src='/images/new.gif'></blink>"
   else

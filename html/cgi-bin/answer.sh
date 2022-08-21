@@ -18,7 +18,6 @@ source common.sh
 AGORA=$(date +%s)
 LOGIN=$(pega-login)
 POST="$(cat )"
-echo "$POST" > $CACHEDIR/POSTT
 CAMINHO="$PATH_INFO"
 
 #contest é a base do caminho
@@ -29,8 +28,6 @@ source $CONTESTSDIR/$CONTEST/conf
 
 
 incontest-cabecalho-html $CONTEST
-
-#echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CACHEDIR/$CONTEST/files_before
 
 echo "<h1>Respostas</h1>"
 
@@ -75,7 +72,6 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					continue
 				fi
 
-	
 				N="$(basename $ARQA)"
 				USR_AUX="$(cut -d: -f1 <<< "$N")"
 				TIME_AUX="$(cut -d: -f3 <<< "$N")"				   #MANAGER="$(cut -d: -f1 <<< "$N" | cut -d. -f1)"
@@ -110,6 +106,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				</td>
 				<td>
 					<input type="hidden" name="user" value="$USER">
+					<input type="hidden" name="manager" value="$MANAGER">
 					$USER
 				</td>
 				<td>
@@ -127,6 +124,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					</button>
 				</td>
 				<td>
+					<input type="hidden" name="answer" value="$ANSWER">
 					$ANSWER
 				</td>
 				<td>
@@ -174,7 +172,7 @@ if [[ "$REQUEST_METHOD" == "POST" ]]; then
 			MSG="$(cut -d: -f2 "$ARQ")"
 			USER="$(cut -d: -f1 <<<  "$N")"
 			ANSWER="Not Answered Yet"
-			
+
 			if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
 				#avisa que tem uma resposta para um clarification
 				if [[ "$GLOBAL" == "GLOBAL" ]]; then
@@ -186,9 +184,8 @@ if [[ "$REQUEST_METHOD" == "POST" ]]; then
 				echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CONTESTSDIR/$CONTEST/messages/files_before
 				#echo "$PROBL:$RESP:$TIM" > $CONTESTSDIR/$CONTEST/messages/answers/$LOGIN:$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
 				echo "$LOGIN:$USER:$CONTEST:$PROBL:$RESP:$TIME" >> $CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME
-				echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/messages/files_after_ans
+				echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/controle/$USER.d/files_after_ans
 				REQUEST_METHOD=""
-
 		fi
 	done
 fi

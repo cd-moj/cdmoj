@@ -79,11 +79,6 @@ for i in clarifications answers; do
   chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/messages/$i"
 done
 
-for i in files_after files_before files_after_ans files_before_ans; do
-	touch "$CONTESTSDIR/$CONTEST_ID/messages/$i"
-	chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/messages/$i"
-done
-
 #data of users must be writabble by www-data
 chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/data"
 

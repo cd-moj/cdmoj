@@ -64,7 +64,7 @@ if is-admin | grep -q Nao; then
 	done
 
     done
-
+	
     fi
 
     MSG_CLARIFICATION="$(grep -A2 'name="msg_clarification"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
@@ -83,7 +83,7 @@ if is-admin | grep -q Nao; then
 		#avisa que ha clarification
 		touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RANDOM:$LOGIN:clarification
 		#sleep 1
-	    echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/messages/files_before_ans
+	    echo "$(ls $CONTESTSDIR/$CONTEST/messages/answers/)" > $CONTESTSDIR/$CONTEST/controle/$USER.d/files_before_ans
 		echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> $CONTESTSDIR/$CONTEST/messages/clarifications/$LOGIN:$CONTEST:$AGORA:CLARIFICATION:$SHORTPROBLEM
 		echo "$(ls $CONTESTSDIR/$CONTEST/messages/clarifications/)" > $CONTESTSDIR/$CONTEST/messages/files_after
 		REQUEST_METHOD=""
@@ -137,7 +137,7 @@ EOF
 	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
 	MSG="$(cut -d: -f2 "$ARQ")"
 	USER="$(cut -d: -f1 <<<  "$N")"
-	ANSWER="Not Answered Yet"	
+	ANSWER="Not Answered Yet"
 
 	for ARQ in $CONTESTSDIR/$CONTEST/messages/answers/*; do
 		USR_AUX="$(cut -d: -f2 <<< "$ARQ")"
@@ -203,11 +203,8 @@ echo "<tr>
 			REQUEST_METHOD=""
 		fi
     fi
-
-
 done
 echo "</table>"
-
 
     else
 	 echo "<h3>Nenhuma d&uacute;vida</h3>"
