@@ -16,8 +16,9 @@
 
 source common.sh
 AGORA=$(date +%s)
-LOGIN=$(pega-login)
 POST="$(cat )"
+echo "$POST" > $CACHEDIR/ELPOST
+LOGIN="$(pega-login)"
 
 
 CAMINHO="$PATH_INFO"
@@ -30,7 +31,6 @@ CONTEST="${CONTEST// }"
 source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
 
-
 echo "<h1>Respondendo...</h1>"
 
 INFOS="$(grep -A2 'name="clarification_info"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
@@ -39,7 +39,7 @@ MANAGER="$(grep -A2 'name="manager"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r'
 CONTEST="$(grep -A2 'name="contest"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBLEM="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 TIME="$(grep -A2 'name="time"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-ANSWER="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+ANS="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBSHORTNAME="${PROBS[$((PROBLEM+3))]}"
 
 for ARQ in $CONTESTSDIR/$CONTEST/messages/clarifications/*; do
@@ -66,23 +66,27 @@ cat << EOF
             	<label>Answer: </label>
 	    </div>
 EOF
-	   if [[ -f "$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME" ]];then
-		   #while read LINE; do
-		#	USER_AUX="$(cut -d: -f1 <<< "$LINE" | cut -d. -f1)"
-		#	if [[ "$USER_AUX" == "$MANAGER" ]]; then
-				#ANSWER="$(cut -d: -f5 "$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME")"
-				ANSWER="$ANSWER"
-			#fi
-		#done < "$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME"
-         echo "<div class="row__cell"><textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea></div>
-	        </div>
-		<div class="row">
-			<div class="row__cell--1"></div>
-			<div class="row__cell--fill--btn">
-           	   		<input id="btn-form" type="submit" value="Enviar" disabled>
-				<input id="btn-form" type="reset" value="Limpar" disabled>
-			</div>
-	         </div>"
+	   if [[ ! -f "$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME" ]];then
+	   	FILE="$ARQ"
+	   else
+		   FILE="$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME"
+	   fi
+		while read LINE; do
+			USER_AUX="$(cut -d: -f1 <<< "$LINE")"
+			if [[ "$USER_AUX" == "$LOGIN" ]]; then
+				ANSWER="$ANS"
+			
+         			echo "<div class="row__cell"><textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea></div>
+	        			</div>
+					<div class="row">
+						<div class="row__cell--1"></div>
+						<div class="row__cell--fill--btn">
+           	   					<input id="btn-form" type="submit" value="Enviar" disabled>
+							<input id="btn-form" type="reset" value="Limpar" disabled>
+						</div>
+	         			</div>"
+	
+		break
  	   else
 		cat << EOF
 		   <div class="row__cell">
@@ -107,7 +111,8 @@ EOF
 	           </div>
 EOF
 	   fi
-	   
+	   done < "$FILE"
+
           echo "</form>"
 
 cat ../footer.html

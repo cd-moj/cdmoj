@@ -124,7 +124,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					</button>
 				</td>
 				<td>
-					<input type="hidden" name="answer" value="$ANSWER">
+					<input type="hidden" name="answer" value='$ANSWER'>
 					$ANSWER
 				</td>
 				<td>
