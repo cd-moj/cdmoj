@@ -199,26 +199,27 @@ EOF
 
 function alerta-clarification()
 {
-  local LOGIN=$(pega-login)
+  local LOGIN
+  LOGIN=$(pega-login)
   FILES_BEFORE="$CONTESTSDIR/$CONTEST/messages/files_before"
   FILES_AFTER="$CONTESTSDIR/$CONTEST/messages/files_after"
 
   if is-admin | grep -q Sim; then 
-	  verificar-diff $FILES_AFTER $FILES_BEFORE
+	  verificar-diff "$FILES_AFTER" "$FILES_BEFORE"
   elif is-mon | grep -q Sim; then
-	  verificar-diff $FILES_AFTER $FILES_BEFORE
+	  verificar-diff "$FILES_AFTER" "$FILES_BEFORE"
   else
     FILES_BEFORE="$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/files_before_ans"
     FILES_AFTER="$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/files_after_ans"		
-    verificar-diff $FILES_AFTER $FILES_BEFORE
+    verificar-diff "$FILES_AFTER" "$FILES_BEFORE"
   fi
 }
 
 function verificar-diff()
 {
-	local FILES_AFTER=$1
-       	local FILES_BEFORE=$2 	
-	if diff -Bq $FILES_AFTER $FILES_BEFORE | grep -q "differ"; then
+  local FILES_AFTER=$1
+  local FILES_BEFORE=$2 
+	if diff -Bq "$FILES_AFTER" "$FILES_BEFORE" | grep -q "differ"; then
 	  	echo "<blink><img src='/images/new.gif'></blink>"
   else
 		echo ''

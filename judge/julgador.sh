@@ -295,11 +295,6 @@ for ARQ in $SUBMISSIONDIR/*; do
     else
       sed -i "s/^$TEMPO:\(.*\):$ID$/$TEMPO:\1 (Rejulgando):$ID/" $CONTESTSDIR/$CONTEST/controle/history
     fi
-  elif [[ "$COMANDO" == "clarification" ]];then
-    if [[ ! -d $CONTESTSDIR/$CONTEST/messages ]]; then
-    	    mkdir -p $CONTESTSDIR/$CONTEST/messages
-    	    chmod go+rwx "$CONTESTSDIR/$CONTEST/messages"
-    fi
 
   elif [[ "$COMANDO" == "answer" ]];then	  
     GLOBAL="$(cut -d: -f6 <<< "$N")"

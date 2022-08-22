@@ -17,35 +17,30 @@
 source common.sh
 AGORA=$(date +%s)
 POST="$(cat )"
-echo "$POST" > $CACHEDIR/ELPOST
 LOGIN="$(pega-login)"
 
-
 CAMINHO="$PATH_INFO"
-
 
 #contest é a base do caminho
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
-source $CONTESTSDIR/$CONTEST/conf
-incontest-cabecalho-html $CONTEST
+source "$CONTESTSDIR"/"$CONTEST"/conf
+incontest-cabecalho-html "$CONTEST"
 
 echo "<h1>Respondendo...</h1>"
 
-INFOS="$(grep -A2 'name="clarification_info"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 USER="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r' | cut -d . -f1)"
-MANAGER="$(grep -A2 'name="manager"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 CONTEST="$(grep -A2 'name="contest"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBLEM="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 TIME="$(grep -A2 'name="time"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 ANS="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBSHORTNAME="${PROBS[$((PROBLEM+3))]}"
 
-for ARQ in $CONTESTSDIR/$CONTEST/messages/clarifications/*; do
-	N="$(basename $ARQ)"
+for ARQ in "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/*; do
+	N="$(basename "$ARQ")"
 	USR_AUX="$(cut -d: -f1 <<< "$N")"
-	TIME_AUX="$(cut -d: -f3 <<< "$ARQ")"
+	TIME_AUX="$(cut -d: -f3 <<< "$N")"
 	if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
 		CLARIFICATION="$(cut -d: -f2 "$ARQ")"
 	fi
@@ -67,9 +62,9 @@ cat << EOF
 	    </div>
 EOF
 	   if [[ ! -f "$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME" ]];then
-	   	FILE="$ARQ"
+	   		FILE="$ARQ"
 	   else
-		   FILE="$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME"
+			FILE="$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME"
 	   fi
 		while read LINE; do
 			USER_AUX="$(cut -d: -f1 <<< "$LINE")"
