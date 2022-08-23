@@ -24,14 +24,23 @@ CAMINHO="$PATH_INFO"
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
-source $CONTESTSDIR/$CONTEST/conf
-incontest-cabecalho-html $CONTEST
+if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]]; then
+  tela-erro
+  exit 0
+fi
+
+source "$CONTESTSDIR"/"$CONTEST"/conf
+if verifica-login "$CONTEST"| grep -q Nao; then
+  tela-login "$CONTEST"
+else
+  incontest-cabecalho-html "$CONTEST"
+fi
 
 echo "<h1>Respostas</h1>"
 
 TOTPROBS=${#PROBS[@]}
 for ((i=0;i<TOTPROBS;i+=5)); do
-   SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
+   	SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
 	PROBLEM="${PROBS[$((i+3))]} - ${PROBS[$((i+2))]}"
 	
    	echo "<h2>$PROBLEM</h2>"

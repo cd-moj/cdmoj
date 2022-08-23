@@ -24,8 +24,23 @@ CAMINHO="$PATH_INFO"
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
+if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]]; then
+  tela-erro
+  exit 0
+fi
+
 source "$CONTESTSDIR"/"$CONTEST"/conf
-incontest-cabecalho-html "$CONTEST"
+if verifica-login "$CONTEST"| grep -q Nao; then
+  tela-login "$CONTEST"
+elif is-admin | grep -q Sim; then
+  tela-erro
+  exit 0
+elif is-mon | grep -q Sim; then
+  tela-erro
+  exit 0
+else
+  incontest-cabecalho-html "$CONTEST"
+fi
 
 echo "<h1>Clarification</h1>"
 
