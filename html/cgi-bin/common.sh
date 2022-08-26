@@ -219,9 +219,12 @@ function verificar-diff()
 {
   local FILES_AFTER=$1
   local FILES_BEFORE=$2 
-	if diff -Bq "$FILES_AFTER" "$FILES_BEFORE" | grep -q "differ"; then
-	  	echo "<blink><img src='/images/new.gif'></blink>"
-  else
-		echo ''
+  
+  if [[ -f "$FILES_BEFORE" && -f "$FILES_AFTER" ]]; then
+    if diff -Bq "$FILES_AFTER" "$FILES_BEFORE" | grep -q "differ"; then
+      echo "<blink><img src='/images/new.gif'></blink>"
+    else
+      echo ''
+    fi
   fi
 }

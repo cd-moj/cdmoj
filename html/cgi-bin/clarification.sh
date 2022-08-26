@@ -32,9 +32,6 @@ fi
 source "$CONTESTSDIR"/"$CONTEST"/conf
 if verifica-login "$CONTEST"| grep -q Nao; then
   tela-login "$CONTEST"
-elif is-admin | grep -q Sim; then
-  tela-erro
-  exit 0
 elif is-mon | grep -q Sim; then
   tela-erro
   exit 0
@@ -51,8 +48,54 @@ done
 
 MSG_CLARIFICATION="$(grep -A2 'name="msg_clarification"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBLEM="$(grep -A2 'name="problems"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 SHORTPROBLEM="${PROBS[$(($PROBLEM + 3))]}"
 ((FALTA= (CONTEST_START - AGORA)))
+
+if is-admin | grep -q Sim; then
+	if [[ "$REQUEST_METHOD" == "POST" ]]; then
+		#avisa que ha clarification
+		touch  "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
+		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
+		echo ""$LOGIN":global:"$CONTEST":"$PROBLEM":"$MSG_CLARIFICATION":"$AGORA"" > "$CONTESTSDIR"/"$CONTEST"/messages/answers/global:"$CONTEST":"$AGORA":ANSWER:"$SHORTPROBLEM"
+		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
+		REQUEST_METHOD=""
+	fi
+
+	cat << EOF
+	<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification.sh/$CONTEST" method="post">
+		<div class="row">
+			<div class="row__cell--1">
+				<label>Problema: </label><br>
+			</div>
+			<div class="row__cell">
+				<select name="problems" id="select-clarification">$SELETOR</select>
+			</div>
+		</div>
+		<div class="row">
+			<div class="row__cell--1">
+				<label>Clarification: </label>
+			</div>
+			<div class="row__cell">
+				<textarea id="textarea-form" name="msg_clarification" value="$MSG_CLARIFICATION"></textarea>
+			</div>
+		</div>
+		<div class="row">
+			<input type="checkbox" name="global" value="GLOBAL">
+			<label id="checkbox-label" for="global">Dispon&iacute;vel para todos no contest</label>
+		</div>
+		<div class="row">
+			<div class="row__cell--1"></div>	
+			<div class="row__cell--fill--btn">
+				<input id="btn-form" type="submit" value="Enviar">
+				<input id="btn-form" type="reset" value="Limpar">
+			</div>
+		</div>
+		</div>
+	</form>
+EOF
+fi
+
 
 #ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
 if [[ "$REQUEST_METHOD" == "POST" ]]; then
@@ -63,6 +106,8 @@ if [[ "$REQUEST_METHOD" == "POST" ]]; then
 	echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
 	REQUEST_METHOD=""
 fi
+
+
 cat << EOF
 	<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification.sh/$CONTEST" method="post">
 		<div class="row">

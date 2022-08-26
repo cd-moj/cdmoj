@@ -148,6 +148,10 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     if [[ ! -d $CONTESTSDIR/$CONTEST/controle/$LOGIN.d ]]; then
       mkdir -p $CONTESTSDIR/$CONTEST/controle/$LOGIN.d
+      for i in files_after_ans files_before_ans; do
+	      touch "$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$i"
+	      chmod go+rwx "$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$i"
+      done
       #admin e mon(itor) não devem aparecer no score
       if egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
         continue
@@ -299,9 +303,9 @@ for ARQ in $SUBMISSIONDIR/*; do
   elif [[ "$COMANDO" == "answer" ]];then	  
     GLOBAL="$(cut -d: -f6 <<< "$N")"
     if [[ "$GLOBAL" == "GLOBAL" ]]; then
-      touch $CONTESTSDIR/$CONTEST/controle/global
-      MOTD=$(<"$ARQ")
-      echo "<blink><img src='/images/new.gif'/></blink>$MOTD<br>" >> $CONTESTSDIR/$CONTEST/motd
+	    touch $CONTESTSDIR/$CONTEST/controle/global
+    	MOTD=$(<"$ARQ")
+	    echo "<blink><img src='/images/new.gif'/></blink>$MOTD<br>" >> $CONTESTSDIR/$CONTEST/motd
     fi
 
   elif [[ "$COMANDO" == "submit" ]]; then
