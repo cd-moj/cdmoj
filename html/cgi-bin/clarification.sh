@@ -49,7 +49,7 @@ GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 SHORTPROBLEM="${PROBS[$(($PROBLEM + 3))]}"
 ((FALTA= (CONTEST_START - AGORA)))
 
-if is-admin | grep -q Sim; then
+if (is-admin | grep -q Sim && is-mon | grep -q Nao) || (is-admin | grep -q Nao && is-mon | grep -q Sim); then
 	if [[ ! -z  "${MSG_CLARIFICATION// }" ]]; then
 		if [[ "$REQUEST_METHOD" == "POST" ]]; then
 			#avisa que ha clarification
