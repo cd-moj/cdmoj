@@ -32,9 +32,6 @@ fi
 source "$CONTESTSDIR"/"$CONTEST"/conf
 if verifica-login "$CONTEST"| grep -q Nao; then
   tela-login "$CONTEST"
-elif is-mon | grep -q Sim; then
-  tela-erro
-  exit 0
 else
   incontest-cabecalho-html "$CONTEST"
 fi
@@ -53,13 +50,20 @@ SHORTPROBLEM="${PROBS[$(($PROBLEM + 3))]}"
 ((FALTA= (CONTEST_START - AGORA)))
 
 if is-admin | grep -q Sim; then
-	if [[ "$REQUEST_METHOD" == "POST" ]]; then
-		#avisa que ha clarification
-		touch  "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
-		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
-		echo ""$LOGIN":global:"$CONTEST":"$PROBLEM":"$MSG_CLARIFICATION":"$AGORA"" > "$CONTESTSDIR"/"$CONTEST"/messages/answers/global:"$CONTEST":"$AGORA":ANSWER:"$SHORTPROBLEM"
-		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
-		REQUEST_METHOD=""
+	if [[ ! -z  "${MSG_CLARIFICATION// }" ]]; then
+		if [[ "$REQUEST_METHOD" == "POST" ]]; then
+			#avisa que ha clarification
+			if [[ "$GLOBAL" == "GLOBAL" ]]; then
+				echo "$MSG_CLARIFICATION" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer:"$GLOBAL"
+			else
+				echo "$MSG_CLARIFICATION" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
+			fi
+			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
+			TIME_TMP="$AGORA"
+			echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA"  >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$TIME_TMP":CLARIFICATION:"$SHORTPROBLEM"
+			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
+			REQUEST_METHOD=""
+		fi
 	fi
 
 	cat << EOF
@@ -94,48 +98,49 @@ if is-admin | grep -q Sim; then
 		</div>
 	</form>
 EOF
-fi
+else
+	if [[ ! -z  "${MSG_CLARIFICATION// }" ]]; then
+		#ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
+		if [[ "$REQUEST_METHOD" == "POST" ]]; then
+			#avisa que ha clarification
+			touch  "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":clarification
+			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
+			echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$AGORA":CLARIFICATION:"$SHORTPROBLEM"
+			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
+			REQUEST_METHOD=""
+		fi
+	fi
 
 
-#ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
-if [[ "$REQUEST_METHOD" == "POST" ]]; then
-	#avisa que ha clarification
-	touch  "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":clarification
-	echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
-	echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$AGORA":CLARIFICATION:"$SHORTPROBLEM"
-	echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
-	REQUEST_METHOD=""
-fi
-
-
-cat << EOF
-	<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification.sh/$CONTEST" method="post">
-		<div class="row">
-				<div class="row__cell--1">
-						<label>Problema: </label><br>
-				</div>
-			<div class="row__cell">
-				<select name="problems" id="select-clarification">$SELETOR</select>
-			</div>
-		</div>
-		<div class="row">
-				<div class="row__cell--1">
-						<label>Clarification: </label>
-			</div>
-			<div class="row__cell">
-					<textarea id="textarea-form" name="msg_clarification" value="$MSG_CLARIFICATION"></textarea>
-				</div>
-		</div>
+	cat << EOF
+		<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification.sh/$CONTEST" method="post">
 			<div class="row">
-				<div class="row__cell--1"></div>	
-				<div class="row__cell--fill--btn">
-					<input id="btn-form" type="submit" value="Enviar">
-					<input id="btn-form" type="reset" value="Limpar">
+					<div class="row__cell--1">
+							<label>Problema: </label><br>
+					</div>
+				<div class="row__cell">
+					<select name="problems" id="select-clarification">$SELETOR</select>
 				</div>
 			</div>
-		</div>
-	</form>
+			<div class="row">
+					<div class="row__cell--1">
+							<label>Clarification: </label>
+				</div>
+				<div class="row__cell">
+						<textarea id="textarea-form" name="msg_clarification" value="$MSG_CLARIFICATION"></textarea>
+					</div>
+			</div>
+				<div class="row">
+					<div class="row__cell--1"></div>	
+					<div class="row__cell--fill--btn">
+						<input id="btn-form" type="submit" value="Enviar">
+						<input id="btn-form" type="reset" value="Limpar">
+					</div>
+				</div>
+			</div>
+		</form>
 EOF
+fi
 
 cat ../footer.html
 exit 0

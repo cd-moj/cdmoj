@@ -81,7 +81,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				N="$(basename "$ARQA")"
 				USR_AUX="$(cut -d: -f1 <<< "$N")"
 				TIME_AUX="$(cut -d: -f3 <<< "$N")"
-
+	
 				if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
 					ANSWER="$(cut -d: -f5 "$ARQA")"
 					MANAGER="$(cut -d: -f1 "$ARQA" | cut -d. -f1)"
@@ -91,8 +91,22 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 
 			done
 
-			ANSWER="Not Answered Yet"
-			MANAGER="Nobody"
+			if grep -q '\.admin$' <<< $USER; then
+				ANSWER="Clarified by admin"
+				MANAGER="Answered by himself"
+				COLOR="background-color: darkseagreen;"
+				LINK="$MSG"
+			elif grep -q '\.mon$' <<< $USER; then
+				ANSWER="Clarified by monitor"
+				MANAGER="Answered by himself"
+				COLOR="background-color: darkseagreen;"
+				LINK="$MSG"
+			else
+				ANSWER="Not Answered Yet"
+				MANAGER="Nobody"
+				LINK="<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>$MSG</button>"
+				COLOR=""
+			fi
 
 			if [[ ! -e $FILE ]];then
 				FILE="$ARQ"
@@ -104,7 +118,8 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					MANAGER="$(cut -d: -f1 <<< "$LINE" | cut -d. -f1)"
 					FILE=""
 				fi
-			ADMINTABLECONTENT="<tr>
+
+			ADMINTABLECONTENT="<tr style='$COLOR'>
  			<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification-answer.sh/$CONTEST" style='diplay: inline;' method="post">
 				<td>
 					<input type="hidden" name="contest" value="$CONTEST">
@@ -123,10 +138,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					$TIME
 				</td>
 				<td>
-				
-				<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>
-							$MSG
-					</button>
+					$LINK	
 				</td>
 				<td>
 					<input type="hidden" name="answer" value='$ANSWER'>
@@ -136,14 +148,17 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					$MANAGER
 				</td>
 				</form>
-			<tr>"
-			USERTABLECONTENT="<tr><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"
+			</tr>"
+			USERTABLECONTENT="<tr style='$COLOR'>><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"
+
 			if is-admin | grep -q Sim; then
 				echo "$ADMINTABLECONTENT"
 			elif is-mon | grep -q Sim; then
 				echo "$ADMINTABLECONTENT"
 			else
 				if [[ "$USER" == "$(pega-login)" ]];then
+					echo "$USERTABLECONTENT"
+				elif grep -q '\.admin$' <<< $USER || grep -q '\.mon$' <<< $USER; then
 					echo "$USERTABLECONTENT"
 				fi
 			fi
@@ -178,18 +193,20 @@ if [[ "$REQUEST_METHOD" == "POST" ]]; then
 			ANSWER="Not Answered Yet"
 
 			if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
-				#avisa que tem uma nova resposta para uma clarification
-				if [[ "$GLOBAL" == "GLOBAL" ]]; then
-					echo "$RESP" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer:"$GLOBAL" 
-				else
-					echo "$RESP" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
+				if [[ ! -z  "${RESP// }" ]]; then
+					#avisa que tem uma nova resposta para uma clarification
+					if [[ "$GLOBAL" == "GLOBAL" ]]; then
+						echo "$RESP" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer:"$GLOBAL" 
+					else
+						echo "$RESP" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
+					fi
+					#Cria um historico para os supervisores do contest para verificar as clarifications dos usuarios
+					echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_before
+					echo ""$LOGIN":"$USER":"$CONTEST":"$PROBL":"$RESP":"$TIME"" >> "$CONTESTSDIR"/"$CONTEST"/messages/answers/"$USER":"$CONTEST":"$TIME":ANSWER:"$PROBSHORTNAME"
+					#Cria um historico para os participantes do contest para verificar as respostas dos supervisores
+					echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$USER".d/files_after_ans
+					REQUEST_METHOD=""
 				fi
-				#Cria um historico para os supervisores do contest para verificar as clarifications dos usuarios
-				echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_before
-				echo ""$LOGIN":"$USER":"$CONTEST":"$PROBL":"$RESP":"$TIME"" >> "$CONTESTSDIR"/"$CONTEST"/messages/answers/"$USER":"$CONTEST":"$TIME":ANSWER:"$PROBSHORTNAME"
-				#Cria um historico para os participantes do contest para verificar as respostas dos supervisores
-				echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$USER".d/files_after_ans
-				REQUEST_METHOD=""
 		fi
 	done
 fi

@@ -68,7 +68,7 @@ cat << EOF
 	    	<textarea id="textarea-form" name="clarification" value="" rows="4" cols="50" disabled>$CLARIFICATION</textarea>
 	    </div>
         </div>
-	<div class="row">
+		<div class="row">
 	    <div class="row__cell--1">
             	<label>Answer: </label>
 	    </div>
@@ -120,7 +120,7 @@ EOF
 	   fi
 	   done < "$FILE"
 
-          echo "</form>"
+    echo "</form>"
 
 cat ../footer.html
 exit 0
