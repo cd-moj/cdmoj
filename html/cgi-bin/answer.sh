@@ -149,7 +149,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				</td>
 				</form>
 			</tr>"
-			USERTABLECONTENT="<tr style='$COLOR'><td>$PROBLEM</td><td>$TIME</td><td>$MSG</td><td>$ANSWER</td></tr>"
+			USERTABLECONTENT="<tr style='$COLOR'><td>$PROBLEM</td><td>$(date --date=@$TIME)</td><td>$MSG</td><td>$ANSWER</td></tr>"
 
 			if is-admin | grep -q Sim; then
 				echo "$ADMINTABLECONTENT"
