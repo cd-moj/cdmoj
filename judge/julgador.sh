@@ -308,6 +308,26 @@ for ARQ in $SUBMISSIONDIR/*; do
 	    echo "<blink><img src='/images/new.gif'/></blink>$MOTD<br>" >> $CONTESTSDIR/$CONTEST/motd
     fi
 
+    elif [[ "$COMANDO" == "jplag" ]]; then
+    	ACAO="$(cut -d: -f6 <<< "$N")"
+    	LINGUAGEM="$(cut -d: -f7 <<< "$N")"
+
+    	#baixar o jplag e alocar dentro da pasta do contest
+	    if [ -d "$CONTESTSDIR/$CONTEST_ID/jplag" ]; then
+  		  mkdir -p "$CONTESTSDIR/$CONTEST_ID/jplag"
+	    fi
+
+      if [ -z $(find "$CONTESTSDIR"/"$CONTEST_ID"/jplag/  -maxdepth 1 -name '*.jar' -printf 1 -quit) ]; then
+          wget  --directory-prefix=$CONTESTSDIR/$CONTEST_ID/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
+      fi
+
+    	if [[ "$ACAO" == "analisar" ]]; then
+        if [ -d "$HTMLDIR/jplag" ]; then
+      		mkdir -p "$HTMLDIR/jplag"
+        fi
+      	java -jar "$CONTESTSDIR"/"$CONTEST_ID"/jplag/*.jar -l $LINGUAGEM $CONTESTSDIR/$CONTEST/submissions/ -r "$HTMLDIR"/jplag/$CONTEST_ID/ &> /dev/null 
+  	  fi
+
   elif [[ "$COMANDO" == "submit" ]]; then
     #SITE do problema:
     SITE=${PROBS[PROBID]}
@@ -348,7 +368,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       updatescore $CONTEST
     fi
 
-
+    LING="$(echo $LING | tr '[:upper:]' '[:lower:]')"
     #copiar $ARQ para o diretorio com historico de submissoes
     cp "$ARQ" "$CONTESTSDIR/$CONTEST/submissions/$ID-$LOGIN-${PROBS[PROBID+3]}.$LING"
 
