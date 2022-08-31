@@ -15,6 +15,7 @@
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
 source common.sh
+source "$CONTESTSDIR"/"$CONTEST"/conf
 AGORA=$(date +%s)
 POST="$(cat )"
 LOGIN="$(pega-login)"
@@ -25,12 +26,11 @@ CAMINHO="$PATH_INFO"
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
-if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]]; then
+if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || [[ -z $CLARIFICATION ]] || [ $CLARIFICATION -eq 0]; then
   tela-erro
   exit 0
 fi
 
-source "$CONTESTSDIR"/"$CONTEST"/conf
 if verifica-login "$CONTEST"| grep -q Nao; then
   tela-login "$CONTEST"
 elif (is-admin | grep -q Nao) && (is-mon | grep -q Nao); then
