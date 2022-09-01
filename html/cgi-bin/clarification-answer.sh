@@ -15,7 +15,6 @@
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
 source common.sh
-source "$CONTESTSDIR"/"$CONTEST"/conf
 AGORA=$(date +%s)
 POST="$(cat )"
 LOGIN="$(pega-login)"
@@ -26,7 +25,8 @@ CAMINHO="$PATH_INFO"
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
-if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || [[ -z $CLARIFICATION ]] || [ $CLARIFICATION -eq 0]; then
+source "$CONTESTSDIR"/"$CONTEST"/conf
+if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || [[ $CLARIFICATION -eq 0 ]] || [[ -z ${CLARIFICATION// }  ]] ; then
   tela-erro
   exit 0
 fi
@@ -54,7 +54,7 @@ for ARQ in "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/*; do
 	USR_AUX="$(cut -d: -f1 <<< "$N")"
 	TIME_AUX="$(cut -d: -f3 <<< "$N")"
 	if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
-		CLARIFICATION="$(cut -d: -f2 "$ARQ")"
+		CLARIFICATION="$(awk -F '>>' '{ print $2 }' $ARQ | sed -e 's/&/\n/g')"
 	fi
 done
 

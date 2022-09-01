@@ -15,7 +15,6 @@
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
 source common.sh
-source "$CONTESTSDIR"/"$CONTEST"/conf
 AGORA=$(date +%s)
 LOGIN=$(pega-login)
 POST="$(cat )"
@@ -25,7 +24,8 @@ CAMINHO="$PATH_INFO"
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
-if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || [[ -z $CLARIFICATION ]] || [ $CLARIFICATION -eq 0]; then
+source "$CONTESTSDIR"/"$CONTEST"/conf
+if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || [[ $CLARIFICATION -eq 0 ]] || [[ -z ${CLARIFICATION// }  ]] ; then
   tela-erro
   exit 0
 fi
@@ -62,11 +62,11 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 
 		N="$(basename "$ARQ")"
 		TIME="$(cut -d: -f3 <<< "$N")"
-		PROBLEM_="$(cut -d: -f1 "$ARQ")"
+		PROBLEM_="$(awk -F '>>' '{ print $1 }' "$ARQ")"
 		PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
   		PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
 		PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
-		MSG="$(cut -d: -f2 "$ARQ")"
+		MSG="$(awk -F '>>' '{ print $2 }' $ARQ | sed -e 's/&/<br>/g')"
 		USER="$(cut -d: -f1 <<<  "$N")"
 		ANSWER="Not Answered Yet"
 		MANAGER="Nobody"
@@ -83,8 +83,8 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				TIME_AUX="$(cut -d: -f3 <<< "$N")"
 	
 				if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
-					ANSWER="$(cut -d: -f5 "$ARQA")"
-					MANAGER="$(cut -d: -f1 "$ARQA" | cut -d. -f1)"
+					ANSWER="$( awk -F '>>' '{ print $5 }' "$ARQA")"
+					MANAGER="$(awk -F '>>' '{ print $1 }' "$ARQA")"
 					FILE="$ARQA"
 					TYPE="ANSWER"
 				fi
@@ -104,7 +104,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 			else
 				ANSWER="Not Answered Yet"
 				MANAGER="Nobody"
-				LINK="<button style='background: none; border: none; color: #666; text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>$MSG</button>"
+				LINK="<button style='background: none; border: none; color: #666; text-align: justify;text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>$MSG</button>"
 				COLOR=""
 			fi
 
@@ -114,8 +114,8 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 			fi
 			while read LINE; do
 				if [[ "$TYPE" == "ANSWER" ]]; then
-					ANSWER="$(cut -d: -f5 <<< "$LINE")"
-					MANAGER="$(cut -d: -f1 <<< "$LINE" | cut -d. -f1)"
+					ANSWER="$( awk -F '>>' '{ print $5 }' <<< "$LINE")"
+					MANAGER="$( awk -F '>>' '{ print $1 }' <<< "$LINE" | cut -d. -f1)"
 					FILE=""
 				fi
 
@@ -184,11 +184,11 @@ if [[ "$REQUEST_METHOD" == "POST" ]]; then
 
 			N="$(basename "$ARQ")"
 			TIME="$(cut -d: -f3 <<< "$N")"
-			PROBLEM_="$(cut -d: -f1 "$ARQ")"
+			PROBLEM_="$(awk -F '>>' '{ print $1 }' "$ARQ")"
 			PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
 			PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
 			PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
-			MSG="$(cut -d: -f2 "$ARQ")"
+			MSG="$(awk -F '>>' '{ print $2 }' $ARQ | sed -e 's/&/<br>/g')"
 			USER="$(cut -d: -f1 <<<  "$N")"
 			ANSWER="Not Answered Yet"
 
@@ -202,7 +202,7 @@ if [[ "$REQUEST_METHOD" == "POST" ]]; then
 					fi
 					#Cria um historico para os supervisores do contest para verificar as clarifications dos usuarios
 					echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_before
-					echo ""$LOGIN":"$USER":"$CONTEST":"$PROBL":"$RESP":"$TIME"" >> "$CONTESTSDIR"/"$CONTEST"/messages/answers/"$USER":"$CONTEST":"$TIME":ANSWER:"$PROBSHORTNAME"
+					echo ""$LOGIN">>"$USER">>"$CONTEST">>"$PROBL">>"$RESP">>"$TIME"" >> "$CONTESTSDIR"/"$CONTEST"/messages/answers/"$USER":"$CONTEST":"$TIME":ANSWER:"$PROBSHORTNAME"
 					#Cria um historico para os participantes do contest para verificar as respostas dos supervisores
 					echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$USER".d/files_after_ans
 					REQUEST_METHOD=""

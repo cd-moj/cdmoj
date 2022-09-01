@@ -15,7 +15,6 @@
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
 source common.sh
-source "$CONTESTSDIR"/"$CONTEST"/conf
 AGORA=$(date +%s)
 LOGIN=$(pega-login)
 POST="$(cat )"
@@ -25,7 +24,8 @@ CAMINHO="$PATH_INFO"
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 
-if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || [[ -z $CLARIFICATION ]] || [ $CLARIFICATION -eq 0]; then
+source "$CONTESTSDIR"/"$CONTEST"/conf
+if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]] || [[ $CLARIFICATION -eq 0 ]] || [[ -z ${CLARIFICATION// }  ]] ; then
   tela-erro
   exit 0
 fi
@@ -43,27 +43,26 @@ for ((i=0;i<TOTPROBS;i+=5)); do
    SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
 done
 
-MSG_CLARIFICATION="$(grep -A2 'name="msg_clarification"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+boundary="$( grep -a -A10 'msg_clarification' <<< "$POST" |  tail -n1)"
+MSG_CLARIFICATION="$(grep -a -A10 'msg_clarification' <<< "$POST" | sed -e 's/Content-Disposition: form-data; name="msg_clarification"//' | sed -e "s/$boundary//" | sed -e "s/\r//g" | tr '\n' '&' | sed -r -e 's/(.{0}).{2}//')"
 PROBLEM="$(grep -A2 'name="problems"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 SHORTPROBLEM="${PROBS[$(($PROBLEM + 3))]}"
 ((FALTA= (CONTEST_START - AGORA)))
 
 if (is-admin | grep -q Sim && is-mon | grep -q Nao) || (is-admin | grep -q Nao && is-mon | grep -q Sim); then
-	if [[ ! -z  "${MSG_CLARIFICATION// }" ]]; then
-		if [[ "$REQUEST_METHOD" == "POST" ]]; then
-			#avisa que ha clarification
-			if [[ "$GLOBAL" == "GLOBAL" ]]; then
-				echo "$MSG_CLARIFICATION" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer:"$GLOBAL"
-			else
-				echo "$MSG_CLARIFICATION" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
-			fi
-			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
-			TIME_TMP="$AGORA"
-			echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA"  >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$TIME_TMP":CLARIFICATION:"$SHORTPROBLEM"
-			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
-			REQUEST_METHOD=""
+	if [[ ! -z  "${MSG_CLARIFICATION// }" ]] && [[ "$REQUEST_METHOD" == "POST" ]]; then
+		#avisa que ha clarification
+		if [[ "$GLOBAL" == "GLOBAL" ]]; then
+			echo "$MSG_CLARIFICATION" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer:"$GLOBAL"
+		else
+			echo "$MSG_CLARIFICATION" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
 		fi
+		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
+		TIME_TMP="$AGORA"
+		echo "$PROBLEM>>$MSG_CLARIFICATION>>$AGORA>>$FALTA"  >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$TIME_TMP":CLARIFICATION:"$SHORTPROBLEM"
+		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
+		REQUEST_METHOD=""
 	fi
 
 	cat << EOF
@@ -99,16 +98,14 @@ if (is-admin | grep -q Sim && is-mon | grep -q Nao) || (is-admin | grep -q Nao &
 	</form>
 EOF
 else
-	if [[ ! -z  "${MSG_CLARIFICATION// }" ]]; then
+	if [[ ! -z  "${MSG_CLARIFICATION// }" ]] && [[ "$REQUEST_METHOD" == "POST" ]]; then
 		#ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
-		if [[ "$REQUEST_METHOD" == "POST" ]]; then
-			#avisa que ha clarification
-			touch  "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":clarification
-			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
-			echo "$PROBLEM:$MSG_CLARIFICATION:$AGORA:$FALTA" >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$AGORA":CLARIFICATION:"$SHORTPROBLEM"
-			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
-			REQUEST_METHOD=""
-		fi
+		#avisa que ha clarification
+		touch  "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":clarification
+		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
+		echo "$PROBLEM>>$MSG_CLARIFICATION>>$AGORA>>$FALTA" >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$AGORA":CLARIFICATION:"$SHORTPROBLEM"
+		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
+		REQUEST_METHOD=""
 	fi
 
 
