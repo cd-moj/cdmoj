@@ -14,6 +14,20 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
+function declare-variables()
+{			
+	local arq=$1
+	N="$(basename "$arq")"
+	TIME="$(cut -d: -f3 <<< "$N")"
+	PROBLEM_ID="$(awk -F '>>' '{ print $1 }' "$arq")"
+	PROBSHORTNAME="${PROBS[$((PROBLEM_ID+3))]}"
+	PROBFULLNAME="${PROBS[$((PROBLEM_ID+2))]}"
+	PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
+	MSG="$(awk -F '>>' '{ print $2 }' "$arq" | sed -e 's/&/<br>/g')"
+	USER="$(cut -d: -f1 <<<  "$N")"
+	ANSWER="Not Answered Yet"
+}
+
 source common.sh
 AGORA=$(date +%s)
 LOGIN=$(pega-login)
@@ -60,18 +74,9 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 			continue
 		fi
 
-		N="$(basename "$ARQ")"
-		TIME="$(cut -d: -f3 <<< "$N")"
-		PROBLEM_="$(awk -F '>>' '{ print $1 }' "$ARQ")"
-		PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
-  		PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
-		PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
-		MSG="$(awk -F '>>' '{ print $2 }' $ARQ | sed -e 's/&/<br>/g')"
-		USER="$(cut -d: -f1 <<<  "$N")"
-		ANSWER="Not Answered Yet"
-		MANAGER="Nobody"
-
-   		if [[ "${PROBS[$((i+3))]}" == "$PROBSHORTNAME" ]];then
+		declare-variables "$ARQ"
+   		
+		if [[ "${PROBS[$((i+3))]}" == "$PROBSHORTNAME" ]];then
 			for ARQA in "$CONTESTSDIR/$CONTEST/messages/answers"/*; do
 
 				if [[ ! -e "$ARQA" ]]; then
@@ -83,20 +88,18 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				TIME_AUX="$(cut -d: -f3 <<< "$N")"
 	
 				if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
-					ANSWER="$( awk -F '>>' '{ print $5 }' "$ARQA")"
-					MANAGER="$(awk -F '>>' '{ print $1 }' "$ARQA")"
 					FILE="$ARQA"
 					TYPE="ANSWER"
 				fi
 
 			done
 
-			if grep -q '\.admin$' <<< $USER; then
+			if grep -q '\.admin$' <<< "$USER"; then
 				ANSWER="Clarified by admin"
 				MANAGER="Answered by himself"
 				COLOR="background-color: darkseagreen;"
 				LINK="$MSG"
-			elif grep -q '\.mon$' <<< $USER; then
+			elif grep -q '\.mon$' <<< "$USER"; then
 				ANSWER="Clarified by monitor"
 				MANAGER="Answered by himself"
 				COLOR="background-color: darkseagreen;"
@@ -112,9 +115,9 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				FILE="$ARQ"
 				TYPE="CLARIFICATION"
 			fi
-			while read LINE; do
+			while read -r LINE; do
 				if [[ "$TYPE" == "ANSWER" ]]; then
-					ANSWER="$( awk -F '>>' '{ print $5 }' <<< "$LINE")"
+					ANSWER="$( awk -F '>>' '{ print $5 }' <<< "$LINE" | sed -e 's/&/<br>/g')"
 					MANAGER="$( awk -F '>>' '{ print $1 }' <<< "$LINE" | cut -d. -f1)"
 					FILE=""
 				fi
@@ -130,12 +133,12 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					$USER
 				</td>
 				<td>
-					<input type="hidden" name="problem" value="$PROBLEM_">
+					<input type="hidden" name="problem" value="$PROBLEM_ID">
 					$PROBSHORTNAME
 				</td>
 				<td>		
 					<input type="hidden" name="time" value="$TIME">
-					$(date --date=@$TIME)
+					$(date --date=@"$TIME")
 				</td>
 				<td>
 					$LINK	
@@ -149,7 +152,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				</td>
 				</form>
 			</tr>"
-			USERTABLECONTENT="<tr style='$COLOR'><td>$PROBLEM</td><td>$(date --date=@$TIME)</td><td>$MSG</td><td>$ANSWER</td></tr>"
+			USERTABLECONTENT="<tr style='$COLOR'><td>$PROBLEM</td><td>$(date --date=@"$TIME")</td><td>$MSG</td><td>$ANSWER</td></tr>"
 
 			if is-admin | grep -q Sim; then
 				echo "$ADMINTABLECONTENT"
@@ -158,7 +161,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 			else
 				if [[ "$USER" == "$(pega-login)" ]];then
 					echo "$USERTABLECONTENT"
-				elif grep -q '\.admin$' <<< $USER || grep -q '\.mon$' <<< $USER; then
+				elif grep -q '\.admin$' <<< "$USER" || grep -q '\.mon$' <<< "$USER"; then
 					echo "$USERTABLECONTENT"
 				fi
 			fi
@@ -170,7 +173,9 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 done
 
 if [[ "$REQUEST_METHOD" == "POST" ]]; then
-	RESP="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+	boundary="$( grep -a -B2 'answer' <<< "$POST" | head -n1)"
+	RESP="$(grep -a -A15 'answer' <<< "$POST" | tr '\n' '&')"
+    RESP="$(echo $RESP | awk -F "$boundary" '{ print $1 }' | sed -e 's/Content-Disposition: form-data; name="answer"//' | sed -e "s/\r//g" | sed -r -e 's/(.{0}).{2}//')"
 	USR="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 	TIME_CLR="$(grep -A2 'name="timeCLR"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 	PROBL="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
@@ -182,31 +187,21 @@ if [[ "$REQUEST_METHOD" == "POST" ]]; then
 			continue
 		fi
 
-			N="$(basename "$ARQ")"
-			TIME="$(cut -d: -f3 <<< "$N")"
-			PROBLEM_="$(awk -F '>>' '{ print $1 }' "$ARQ")"
-			PROBSHORTNAME="${PROBS[$((PROBLEM_+3))]}"
-			PROBFULLNAME="${PROBS[$((PROBLEM_+2))]}"
-			PROBLEM="$PROBSHORTNAME - $PROBFULLNAME"
-			MSG="$(awk -F '>>' '{ print $2 }' $ARQ | sed -e 's/&/<br>/g')"
-			USER="$(cut -d: -f1 <<<  "$N")"
-			ANSWER="Not Answered Yet"
+		declare-variables "$ARQ"
 
-			if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_" && "$USER" == "$USR"  ]]; then
-				if [[ ! -z  "${RESP// }" ]]; then
-					#avisa que tem uma nova resposta para uma clarification
-					if [[ "$GLOBAL" == "GLOBAL" ]]; then
-						echo "$RESP" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer:"$GLOBAL" 
-					else
-						echo "$RESP" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
-					fi
-					#Cria um historico para os supervisores do contest para verificar as clarifications dos usuarios
-					echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_before
-					echo ""$LOGIN">>"$USER">>"$CONTEST">>"$PROBL">>"$RESP">>"$TIME"" >> "$CONTESTSDIR"/"$CONTEST"/messages/answers/"$USER":"$CONTEST":"$TIME":ANSWER:"$PROBSHORTNAME"
-					#Cria um historico para os participantes do contest para verificar as respostas dos supervisores
-					echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$USER".d/files_after_ans
-					REQUEST_METHOD=""
-				fi
+		if [[ "$TIME" == "$TIME_CLR" && "$PROBL" == "$PROBLEM_ID" && "$USER" == "$USR"  ]] && [[ -n "${RESP// }" ]]; then
+			#avisa que tem uma nova resposta para uma clarification
+			if [[ "$GLOBAL" == "GLOBAL" ]]; then
+				echo "$RESP" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer:"$GLOBAL" 
+			else
+				echo "$RESP" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
+			fi
+			#Cria um historico para os supervisores do contest para verificar as clarifications dos usuarios
+			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_before
+			echo ""$LOGIN">>"$USER">>"$CONTEST">>"$PROBL">>"$RESP">>"$TIME"" >> "$CONTESTSDIR"/"$CONTEST"/messages/answers/"$USER":"$CONTEST":"$TIME":ANSWER:"$PROBSHORTNAME"
+			#Cria um historico para os participantes do contest para verificar as respostas dos supervisores
+			echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$USER".d/files_after_ans
+			REQUEST_METHOD=""
 		fi
 	done
 fi

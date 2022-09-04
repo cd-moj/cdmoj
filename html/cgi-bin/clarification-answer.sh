@@ -42,11 +42,11 @@ fi
 
 echo "<h1>Respondendo...</h1>"
 
+ANSWER="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n' | tr -d '\r' | sed -e 's/<br>/\n/g')"
 USER="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r' | cut -d . -f1)"
 CONTEST="$(grep -A2 'name="contest"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBLEM="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 TIME="$(grep -A2 'name="time"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-ANS="$(grep -A2 'name="answer"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBSHORTNAME="${PROBS[$((PROBLEM+3))]}"
 
 for ARQ in "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/*; do
@@ -54,7 +54,7 @@ for ARQ in "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/*; do
 	USR_AUX="$(cut -d: -f1 <<< "$N")"
 	TIME_AUX="$(cut -d: -f3 <<< "$N")"
 	if [[ "$USER" == "$USR_AUX" && "$TIME_AUX" == "$TIME"  ]]; then
-		CLARIFICATION="$(awk -F '>>' '{ print $2 }' $ARQ | sed -e 's/&/\n/g')"
+		CLARIFICATION="$(awk -F '>>' '{ print $2 }' "$ARQ" | sed -e 's/&/\n/g')"
 	fi
 done
 
@@ -73,30 +73,27 @@ cat << EOF
             	<label>Answer: </label>
 	    </div>
 EOF
-	   if [[ ! -f "$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME" ]];then
+	   	if [[ ! -f "$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME" ]];then
 	   		FILE="$ARQ"
-	   else
+	   	else
 			FILE="$CONTESTSDIR/$CONTEST/messages/answers/$USER:$CONTEST:$TIME:ANSWER:$PROBSHORTNAME"
-	   fi
+	   	fi
 		while read LINE; do
-			USER_AUX="$(cut -d: -f1 <<< "$LINE")"
-			if [[ "$USER_AUX" == "$LOGIN" ]]; then
-				ANSWER="$ANS"
-			
-         			echo "<div class="row__cell"><textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea></div>
-	        			</div>
-					<div class="row">
-						<div class="row__cell--1"></div>
-						<div class="row__cell--fill--btn">
-           	   					<input id="btn-form" type="submit" value="Enviar" disabled>
-							<input id="btn-form" type="reset" value="Limpar" disabled>
-						</div>
-	         			</div>"
-	
-		break
+			USER_AUX="$(awk -F '>>' '{ print $1 }' <<< "$LINE")"
+			if [[ "$USER_AUX" == "$LOGIN" ]]; then	
+				echo "<div class="row__cell"><textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea></div>
+					</div>
+				<div class="row">
+					<div class="row__cell--1"></div>
+					<div class="row__cell--fill--btn">
+							<input id="btn-form" type="submit" value="Enviar" disabled>
+						<input id="btn-form" type="reset" value="Limpar" disabled>
+					</div>
+					</div>"
+				break
  	   else
 		cat << EOF
-		   <div class="row__cell">
+		  <div class="row__cell">
 		   	<textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50"></textarea>
 		   </div>
 	 	   </div>

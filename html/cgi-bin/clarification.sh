@@ -14,6 +14,21 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
+function make-clarification()
+{
+	#ORDEMDOPROBLEMA>>MENSAGEM>>TEMPODEENVIODAMSG>>TEMPORESTANTEPROVA
+	#avisa que ha clarification
+	touch  "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":clarification
+	#Cria um historico para os participantes do contest verificar as respostas dos supervisores
+	echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
+	#Cria um arquivo e o preenche com os dados da Clarification
+	echo "$PROBLEM>>$MSG_CLARIFICATION>>$AGORA>>$FALTA" >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$AGORA":CLARIFICATION:"$SHORTPROBLEM"
+	#Cria um historico para os supervisores do contest para verificar as clarifications
+	echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
+	REQUEST_METHOD=""
+}
+
+
 source common.sh
 AGORA=$(date +%s)
 LOGIN=$(pega-login)
@@ -43,10 +58,17 @@ for ((i=0;i<TOTPROBS;i+=5)); do
    SELETOR="$SELETOR <option value=\"$i\">${PROBS[$((i+3))]}</option>"
 done
 
-boundary="$( grep -a -A10 'msg_clarification' <<< "$POST" |  tail -n1)"
-MSG_CLARIFICATION="$(grep -a -A10 'msg_clarification' <<< "$POST" | sed -e 's/Content-Disposition: form-data; name="msg_clarification"//' | sed -e "s/$boundary//" | sed -e "s/\r//g" | tr '\n' '&' | sed -r -e 's/(.{0}).{2}//')"
 PROBLEM="$(grep -A2 'name="problems"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+if [[ "$GLOBAL" == "GLOBAL" ]]; then
+	boundary="$( grep -a -A3 'msg_clarification' <<< "$POST" |  tail -n1)"
+	MSG_CLARIFICATION="$(grep -a -A15 'msg_clarification' <<< "$POST")"
+	MSG_CLARIFICATION="$(echo $MSG_CLARIFICATION | awk -F "$boundary" '{ print $1 }' | sed -e 's/Content-Disposition: form-data; name="msg_clarification"//' | sed -e "s/\r//g" | tr '\n' '&' | sed -r -e 's/(.{0}).{2}//')"
+else
+	boundary="$( grep -a -A15 'msg_clarification' <<< "$POST" |  tail -n1)"
+	MSG_CLARIFICATION="$(grep -a -A15 'msg_clarification' <<< "$POST" | sed -e 's/Content-Disposition: form-data; name="msg_clarification"//' | sed -e "s/$boundary//" | sed -e "s/\r//g" | tr '\n' '&' | sed -r -e 's/(.{0}).{2}//')"
+fi
+
 SHORTPROBLEM="${PROBS[$(($PROBLEM + 3))]}"
 ((FALTA= (CONTEST_START - AGORA)))
 
@@ -58,11 +80,8 @@ if (is-admin | grep -q Sim && is-mon | grep -q Nao) || (is-admin | grep -q Nao &
 		else
 			echo "$MSG_CLARIFICATION" > "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":answer
 		fi
-		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
-		TIME_TMP="$AGORA"
-		echo "$PROBLEM>>$MSG_CLARIFICATION>>$AGORA>>$FALTA"  >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$TIME_TMP":CLARIFICATION:"$SHORTPROBLEM"
-		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
-		REQUEST_METHOD=""
+
+		make-clarification
 	fi
 
 	cat << EOF
@@ -99,15 +118,8 @@ if (is-admin | grep -q Sim && is-mon | grep -q Nao) || (is-admin | grep -q Nao &
 EOF
 else
 	if [[ ! -z  "${MSG_CLARIFICATION// }" ]] && [[ "$REQUEST_METHOD" == "POST" ]]; then
-		#ORDEMDOPROBLEMA:MENSAGEM:TEMPODEENVIODAMSG:TEMPORESTANTEPROVA
-		#avisa que ha clarification
-		touch  "$SUBMISSIONDIR"/"$CONTEST":"$AGORA":"$RANDOM":"$LOGIN":clarification
-		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/answers/)" > "$CONTESTSDIR"/"$CONTEST"/controle/"$LOGIN".d/files_before_ans
-		echo "$PROBLEM>>$MSG_CLARIFICATION>>$AGORA>>$FALTA" >> "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/"$LOGIN":"$CONTEST":"$AGORA":CLARIFICATION:"$SHORTPROBLEM"
-		echo "$(ls "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/)" > "$CONTESTSDIR"/"$CONTEST"/messages/files_after
-		REQUEST_METHOD=""
+		make-clarification
 	fi
-
 
 	cat << EOF
 		<form enctype="multipart/form-data" action="$BASEURL/cgi-bin/clarification.sh/$CONTEST" method="post">
