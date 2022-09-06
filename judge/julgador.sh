@@ -312,20 +312,55 @@ for ARQ in $SUBMISSIONDIR/*; do
     	ACAO="$(cut -d: -f6 <<< "$N")"
     	LINGUAGEM="$(cut -d: -f7 <<< "$N")"
 
+	<< comment
+	while IFS= read -r line; do
+		readarray -d: -t VET <<< "$line"
+  		CODIGO=${VET[5]}:${VET[6]}
+		RESP="${VET[4]}"
+  		EXERCICIO="${VET[2]}"
+  		USUARIO=${VET[1]}
+  		TYPE=${VET[3],,}
+		
+		if [[ "$RESP" == "Accepted"  ]]; then
+			ARQ="$CODIGO-${VET[1]}-${PROBS[$((EXERCICIO+3))]}.$TYPE"
+			TYPE="$(awk -F'.' '{print $NF}' <<< "$ARQ")"
+			ARQUIVO="$(basename "$ARQ" ".$TYPE" | tr -d '\n')"	
+			if [ ! -f $CONTESTSDIR/$CONTEST_ID/submissions/accepted/"$ARQUIVO" ]; then
+				cp -s $CONTESTSDIR/$CONTEST_ID/submissions/"$ARQUIVO" $CONTESTSDIR/$CONTEST_ID/submissions/accepted/
+			fi	
+		fi
+	done < "$CONTESTSDIR/$CONTEST_ID/controle/history"
+comment
+   	
     	#baixar o jplag e alocar dentro da pasta do contest
 	    if [ -d "$CONTESTSDIR/$CONTEST_ID/jplag" ]; then
   		  mkdir -p "$CONTESTSDIR/$CONTEST_ID/jplag"
 	    fi
-
       if [ -z $(find "$CONTESTSDIR"/"$CONTEST_ID"/jplag/  -maxdepth 1 -name '*.jar' -printf 1 -quit) ]; then
           wget  --directory-prefix=$CONTESTSDIR/$CONTEST_ID/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
       fi
 
     	if [[ "$ACAO" == "analisar" ]]; then
+        rm -rf $HTMLDIR/jplag/*
         if [ -d "$HTMLDIR/jplag" ]; then
-      		mkdir -p "$HTMLDIR/jplag"
+          mkdir -p "$HTMLDIR/jplag"
         fi
-      	java -jar "$CONTESTSDIR"/"$CONTEST_ID"/jplag/*.jar -l $LINGUAGEM $CONTESTSDIR/$CONTEST/submissions/ -r "$HTMLDIR"/jplag/$CONTEST_ID/ &> /dev/null 
+        if [ -d "$HTMLDIR/jplag/$CONTEST_ID/$LINGUAGEM" ]; then
+          mkdir -p "$HTMLDIR/jplag/$CONTEST_ID/$LINGUAGEM" 
+        fi
+        if [ "$LINGUAGEM" == "all" ];then
+          LINGUAGENS=(java python3 cpp csharp char text scheme)
+          TOTLINGS=${#LINGUAGENS[@]}
+
+          for ((i=0;i<TOTLINGS;i+=1)); do
+            if [ -d "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" ]; then
+              mkdir -p "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" 
+            fi
+            java -jar "$CONTESTSDIR"/"$CONTEST_ID"/jplag/*.jar -l ${LINGUAGENS[$i]} $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" 
+          done
+        else
+              java -jar "$CONTESTSDIR"/"$CONTEST_ID"/jplag/*.jar -l $LINGUAGEM $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR"/jplag/$CONTEST_ID/$LINGUAGEM
+        fi
   	  fi
 
   elif [[ "$COMANDO" == "submit" ]]; then

@@ -16,31 +16,46 @@
 
 function print-problems(){
     local TOTPROBS=$1
-    if [[ -f $HTMLDIR/jplag/$CONTEST/matches_avg.csv ]]; then 
-        for ((i=0;i<TOTPROBS;i+=5)); do
-            printf "<h3>${PROBS[$((i+3))]} - ${PROBS[$((i+2))]}</h3>"
-            cat << EOF
-                <table border="1"><tr><th>Submiss&atilde;o 1</th><th>Submiss&atilde;o 2</th><th>Taxa de Pl&aacute;gio</th></tr>
+    for ((i=0;i<TOTPROBS;i+=5)); do
+        printf "<h3>${PROBS[$((i+3))]} - ${PROBS[$((i+2))]} - <a href="$BASEURL/jplag/$CONTEST/index.html">Geral</a></h3>"
+        cat << EOF
+            <table border="1"><tr><th>Submiss&atilde;o 1</th><th>Submiss&atilde;o 2</th><th>Linguagem</th><th>Taxa de Pl&aacute;gio</th></tr>
 EOF
-            while read LINE; do
-                PROBLEM="$(cut -d '-' -f3 <<< "$LINE" | cut -d. -f1 | cut -d ';' -f1)"
-                SUBMISSION1="$(cut -d '-' -f2 <<< "$LINE" | cut -d. -f1 | cut -d ';' -f1)"
-                SUBMISSION2="$(cut -d '-' -f4 <<< "$LINE" | cut -d. -f1 | cut -d ';' -f1)"
-                TAXA="$(cut -d ';' -f4 <<< "$LINE" | cut -d ';' -f1)"
-        
-                if [[ "${PROBS[$((i+3))]}" == "$PROBLEM" ]]; then
-                    cat << EOF
-                        <tr>
-                            <td>$SUBMISSION1</td>
-                            <td>$SUBMISSION2</td>
-                            <td><a href="$BASEURL/jplag/$CONTEST/index.html">$TAXA</a></td>
-                        </tr>
+        for dir in "${LINGUAGENS[@]}"; do
+            for file in $HTMLDIR/jplag/$CONTEST/$dir/*; do
+                N="$(basename $file)"	    
+                if [[ "matches_avg.csv" == "$N" ]]; then
+                    INDEX=0
+                    while read LINE; do
+                        PROBID="$(cut -d ':' -f2 <<< "$LINE" | cut -d '-' -f1 | cut -d ';' -f1)"
+                        PROBLEM="$(cut -d '-' -f3 <<< "$LINE" | cut -d. -f1 | cut -d ';' -f1)"
+                        SUBMISSION1="$(cut -d '-' -f2 <<< "$LINE" | cut -d. -f1 | cut -d ';' -f1)"
+                        SUBMISSION2="$(cut -d '-' -f4 <<< "$LINE" | cut -d. -f1 | cut -d ';' -f1)"
+                        TAXA="$(cut -d ';' -f4 <<< "$LINE" | cut -d ';' -f1)"
+                        LING="$(cut -d '.' -f2 <<< "$LINE" | cut -d ';' -f1)"
+    
+                        if [[ "${PROBS[$((i+3))]}" == "$PROBLEM" ]]; then
+                            aux=$(echo $TAXA | cut -d. -f1)
+                            taxa_int="$(( $aux + 0 ))"
+                            if [[ $taxa_int -gt 70  ]]; then
+                                link="$BASEURL/jplag/$CONTEST/$dir/match$INDEX.html"
+                                INDEX=$((INDEX+1))
+                            fi		
+                            cat << EOF
+                                <tr>
+                                    <td>$SUBMISSION1</td>
+                                    <td>$SUBMISSION2</td>
+                                    <td>$LING<td>
+                                    <td><a href="$link">$TAXA</a></td>
+                                </tr>
 EOF
+                        fi
+                    done < $file
                 fi
-            done < $HTMLDIR/jplag/$CONTEST/matches_avg.csv 
-            echo "</table><br><br>"
-        done 
-    fi
+            done
+        done
+         echo "</table><br><br>"
+    done
 }
 
 source common.sh
@@ -85,7 +100,7 @@ EOF
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 
-LINGUAGENS=(java python3 cpp csharp char text scheme)
+LINGUAGENS=(java python3 cpp csharp char text scheme all)
 TOTLINGS=${#LINGUAGENS[@]}
 for ((i=0;i<TOTLINGS;i+=1)); do
     SELETOR="$SELETOR <option value=\"$i\">${LINGUAGENS[$i]}</option>"
@@ -99,9 +114,29 @@ echo "
 "
 
 if [[ "$REQUEST_METHOD" == "POST" ]];then
+
+	while read -r line; do
+        readarray -d: -t VET <<< "$line"
+        CODIGO=${VET[5]}:${VET[6]}
+        RESP="${VET[4]}"
+        EXERCICIO="${VET[2]}"
+        USUARIO=${VET[1]}
+        TYPE=${VET[3],,}
+		
+        if [[ "$RESP" == "Accepted"  ]]; then
+            ARQ="$CODIGO-${VET[1]}-${PROBS[$((EXERCICIO+3))]}.$TYPE"
+            TYPE="$(awk -F'.' '{print $NF}' <<< "$ARQ")"
+            ARQUIVO="$(basename "$ARQ" ".$TYPE" | tr -d '\n')"	
+            if [ ! -f $CONTESTSDIR/$CONTEST_ID/submissions/accepted/"$ARQUIVO" ]; then
+                cp -s $CONTESTSDIR/$CONTEST_ID/submissions/"$ARQUIVO" $CONTESTSDIR/$CONTEST_ID/submissions/accepted/
+                    
+            fi	
+        fi	
+    done < "$CONTESTSDIR/$CONTEST_ID/controle/history"
+
     LINGUAGEM="$(grep -A2 'name="linguagem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-    LINGUAGEM=${LINGUAGENS[$LINGUAGEM]}
-    touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:jplag:analisar:"$LINGUAGEM"
+    LING=${LINGUAGENS[$LINGUAGEM]}
+    touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:jplag:analisar:"$LING"
 
     print-problems $TOTPROBS
 else
