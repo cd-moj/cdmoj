@@ -63,7 +63,7 @@ GLOBAL="$(grep -A2 'name="global"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 if [[ "$GLOBAL" == "GLOBAL" ]]; then
 	boundary="$( grep -a -A3 'msg_clarification' <<< "$POST" |  tail -n1)"
 	MSG_CLARIFICATION="$(grep -a -A15 'msg_clarification' <<< "$POST")"
-	MSG_CLARIFICATION="$(echo $MSG_CLARIFICATION | awk -F "$boundary" '{ print $1 }' | sed -e 's/Content-Disposition: form-data; name="msg_clarification"//' | sed -e "s/\r//g" | tr '\n' '&' | sed -r -e 's/(.{0}).{2}//')"
+	MSG_CLARIFICATION="$(echo $MSG_CLARIFICATION | awk -F "$boundary" '{ print $1 }' | sed -e 's/Content-Disposition: form-data; name="msg_clarification"//' | sed -e "s/\r//g" | sed -r -e 's/(.{0}).{2}//')"
 else
 	boundary="$( grep -a -A15 'msg_clarification' <<< "$POST" |  tail -n1)"
 	MSG_CLARIFICATION="$(grep -a -A15 'msg_clarification' <<< "$POST" | sed -e 's/Content-Disposition: form-data; name="msg_clarification"//' | sed -e "s/$boundary//" | sed -e "s/\r//g" | tr '\n' '&' | sed -r -e 's/(.{0}).{2}//')"
