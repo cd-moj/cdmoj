@@ -311,26 +311,6 @@ for ARQ in $SUBMISSIONDIR/*; do
     elif [[ "$COMANDO" == "jplag" ]]; then
     	ACAO="$(cut -d: -f6 <<< "$N")"
     	LINGUAGEM="$(cut -d: -f7 <<< "$N")"
-
-	<< comment
-	while IFS= read -r line; do
-		readarray -d: -t VET <<< "$line"
-  		CODIGO=${VET[5]}:${VET[6]}
-		RESP="${VET[4]}"
-  		EXERCICIO="${VET[2]}"
-  		USUARIO=${VET[1]}
-  		TYPE=${VET[3],,}
-		
-		if [[ "$RESP" == "Accepted"  ]]; then
-			ARQ="$CODIGO-${VET[1]}-${PROBS[$((EXERCICIO+3))]}.$TYPE"
-			TYPE="$(awk -F'.' '{print $NF}' <<< "$ARQ")"
-			ARQUIVO="$(basename "$ARQ" ".$TYPE" | tr -d '\n')"	
-			if [ ! -f $CONTESTSDIR/$CONTEST_ID/submissions/accepted/"$ARQUIVO" ]; then
-				cp -s $CONTESTSDIR/$CONTEST_ID/submissions/"$ARQUIVO" $CONTESTSDIR/$CONTEST_ID/submissions/accepted/
-			fi	
-		fi
-	done < "$CONTESTSDIR/$CONTEST_ID/controle/history"
-comment
    	
     	#baixar o jplag e alocar dentro da pasta do contest
 	    if [ -d "$CONTESTSDIR/$CONTEST_ID/jplag" ]; then

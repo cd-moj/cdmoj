@@ -45,7 +45,7 @@ EOF
                                 <tr>
                                     <td>$SUBMISSION1</td>
                                     <td>$SUBMISSION2</td>
-                                    <td>$LING<td>
+                                    <td>$LING</td>
                                     <td><a href="$link">$TAXA</a></td>
                                 </tr>
 EOF
@@ -127,12 +127,11 @@ if [[ "$REQUEST_METHOD" == "POST" ]];then
             ARQ="$CODIGO-${VET[1]}-${PROBS[$((EXERCICIO+3))]}.$TYPE"
             TYPE="$(awk -F'.' '{print $NF}' <<< "$ARQ")"
             ARQUIVO="$(basename "$ARQ" ".$TYPE" | tr -d '\n')"	
-            if [ ! -f $CONTESTSDIR/$CONTEST_ID/submissions/accepted/"$ARQUIVO" ]; then
-                cp -s $CONTESTSDIR/$CONTEST_ID/submissions/"$ARQUIVO" $CONTESTSDIR/$CONTEST_ID/submissions/accepted/
-                    
+            if [ ! -f $CONTESTSDIR/$CONTEST/submissions/accepted/"$ARQUIVO" ]; then
+                cp -s $CONTESTSDIR/$CONTEST/submissions/"$ARQUIVO" $CONTESTSDIR/$CONTEST/submissions/accepted/ 
             fi	
         fi	
-    done < "$CONTESTSDIR/$CONTEST_ID/controle/history"
+    done < "$CONTESTSDIR/$CONTEST/controle/history"
 
     LINGUAGEM="$(grep -A2 'name="linguagem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
     LING=${LINGUAGENS[$LINGUAGEM]}

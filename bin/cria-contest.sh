@@ -84,6 +84,10 @@ for i in files_after files_before; do
   chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/messages/$i"
 done
 
+#Pasta para copiar submissoes aceitas
+mkdir -p "$CONTESTSDIR/$CONTEST_ID/submissions/accepted"
+chmod 777 "$CONTESTSDIR/$CONTEST_ID/submissions/accepted"
+
 #data of users must be writabble by www-data
 chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/data"
 
