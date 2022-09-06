@@ -58,7 +58,11 @@ for contest in $CONTESTSDIR/*; do
   THIS+=" | <a href=\"score.sh/$CONTEST_ID\">Score</a>"
   THIS+=" | <a href=\"statistic.sh/$CONTEST_ID\">Statistic</a></span>"
   THIS+="<ul><li>&emsp;&emsp;&emsp;&emsp;Início: $(date --date=@$CONTEST_START)</li>"
-  THIS+="<li>&emsp;&emsp;&emsp;&emsp;Término:  $(date --date=@$CONTEST_END)</li></ul><br/><br/>"
+  THIS+="<li>&emsp;&emsp;&emsp;&emsp;Término:  $(date --date=@$CONTEST_END)</li>"
+  if [[ "$ALLOWLATEUSER" == "y" ]] && (( CONTEST_END > NOW )) ; then
+    THIS+="<li>&emsp;&emsp;&emsp;&emsp;Entre com o <a href='https://t.me/mojinho_bot' target=_blank>@mojinho_bot</a> enviando: <i>participar $CONTEST_ID</i></li>"
+  fi
+  THIS+="</ul><br/><br/>"
 
   if (( NOW +1800 < $CONTEST_START )); then
     UPCOMING+="$THIS\n"
