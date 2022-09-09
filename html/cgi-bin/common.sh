@@ -36,14 +36,19 @@ function incontest-cabecalho-html()
   local CONTEST=$1
   local MSG="$2"
   local URL="$BASEURL/cgi-bin"
+  local PENDING=$(alerta-clarification)
+  source $CONTESTSDIR/$CONTEST/conf
+
   ADMINMENU=
+  COMMONMENU="<li><a href="$URL/clarification.sh/$CONTEST"><span class="title">Clarification</span><span class="text">Esclarecimento</span></a></li>"
+  COMMONMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas $PENDING</span><span class="text">D&uacute;vidas && Respostas</span></a></li>"
   if is-admin | grep -q Sim ; then
     ADMINMENU="<li><a href=\"$URL/statistic.sh/$CONTEST\"><span class=\"title\">Estatísticas</span><span class=\"text\">Relatório do Contest</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/sherlock.sh/$CONTEST\"><span class=\"title\">Sherlock</span><span class=\"text\">Identificação de Plágio</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
   fi
-  if is-mon | grep -q Sim ; then
-    ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
+  if [ $CLARIFICATION -eq 0 ] || [ -z $CLARIFICATION ]; then
+	  unset COMMONMENU
   fi
   printf "Content-type: text/html\n\n"
   cat << EOF
@@ -61,6 +66,7 @@ function incontest-cabecalho-html()
         <link type="text/css" rel="stylesheet" href="/css/incontest.css" media="screen" />
         <link type="text/css" rel="stylesheet" href="/css/menu1.css" media="screen" />
         <link type="text/css" rel="stylesheet" href="/css/badideas.css" media="screen" />
+	<link type="text/css" rel="stylesheet" href="/css/clarification/form.css" media="screen" />
     </head>
     <body class="bg">
       <div id="geral">
@@ -75,8 +81,9 @@ function incontest-cabecalho-html()
           <ul>
             <li><a href="$URL/contest.sh/$CONTEST"><span class="title">Contest</span><span class="text">Problemas e Submissões</span></a></li>
             <li><a href="$URL/score.sh/$CONTEST"><span class="title">Score</span><span class="text">Placar atualizado</span></a></li>
-            <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span><span class="text">CD-MOJ mais pessoal</span></a></li>
+            $COMMONMENU 
             $ADMINMENU
+    	    <li><a href="$URL/passwd.sh/$CONTEST"><span class="title">Trocar Senha</span><span class="text">CD-MOJ mais pessoal</span></a></li>
             <li><a href="$URL/logout.sh/$CONTEST"><span class="title">Logout</span><span class="text">Sair</span></a></li>
           </ul>
           </div>
@@ -197,4 +204,36 @@ EOF
   fi
   cat ../footer.html
   exit 0;
+}
+
+function alerta-clarification()
+{
+  local LOGIN
+  LOGIN=$(pega-login)
+  FILES_BEFORE="$CONTESTSDIR/$CONTEST/messages/files_before"
+  FILES_AFTER="$CONTESTSDIR/$CONTEST/messages/files_after"
+
+  if is-admin | grep -q Sim; then 
+	  verificar-diff "$FILES_AFTER" "$FILES_BEFORE"
+  elif is-mon | grep -q Sim; then
+	  verificar-diff "$FILES_AFTER" "$FILES_BEFORE"
+  else
+    FILES_BEFORE="$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/files_before_ans"
+    FILES_AFTER="$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/files_after_ans"		
+    verificar-diff "$FILES_AFTER" "$FILES_BEFORE"
+  fi
+}
+
+function verificar-diff()
+{
+  local FILES_AFTER=$1
+  local FILES_BEFORE=$2 
+  
+  if [[ -f "$FILES_BEFORE" && -f "$FILES_AFTER" ]]; then
+    if diff -Bq "$FILES_AFTER" "$FILES_BEFORE" | grep -q "differ"; then
+      echo "<blink><img src='/images/new.gif'></blink>"
+    else
+      echo ''
+    fi
+  fi
 }
