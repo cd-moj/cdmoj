@@ -96,17 +96,17 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 
 			if grep -q '\.admin$' <<< "$USER"; then
 				ANSWER="Clarified by admin"
-				MANAGER="Answered by himself"
+				MANAGER_="Answered by himself"
 				COLOR="background-color: darkseagreen;"
 				LINK="$MSG"
 			elif grep -q '\.mon$' <<< "$USER"; then
 				ANSWER="Clarified by monitor"
-				MANAGER="Answered by himself"
+				MANAGER_="Answered by himself"
 				COLOR="background-color: darkseagreen;"
 				LINK="$MSG"
 			else
 				ANSWER="Not Answered Yet"
-				MANAGER="Nobody"
+				MANAGER_="Nobody"
 				LINK="<button style='background: none; border: none; color: #666; text-align: justify;text-decoration: none; cursor: pointer; font-size: 12px; font-family: serif;' type='submit'>$MSG</button>"
 				COLOR=""
 			fi
@@ -118,7 +118,9 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 			while read -r LINE; do
 				if [[ "$TYPE" == "ANSWER" ]]; then
 					ANSWER="$( awk -F '>>' '{ print $5 }' <<< "$LINE" | sed -e 's/&/<br>/g')"
-					MANAGER="$( awk -F '>>' '{ print $1 }' <<< "$LINE" | cut -d. -f1)"
+					MANAGER="$( awk -F '>>' '{ print $1 }' <<< "$LINE")"
+					# Supervisor sem .admin ou .mon
+					MANAGER_="$( awk -F '>>' '{ print $1 }' <<< "$LINE" | cut -d. -f1)"
 					FILE=""
 				fi
 
@@ -148,7 +150,8 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 					$ANSWER
 				</td>
 				<td>
-					$MANAGER
+					<input type="hidden" name="manager" value='$MANAGER'>
+					$MANAGER_
 				</td>
 				</form>
 			</tr>"
@@ -156,13 +159,17 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 
 			if is-admin | grep -q Sim; then
 				echo "$ADMINTABLECONTENT"
+				unset MANAGER
 			elif is-mon | grep -q Sim; then
 				echo "$ADMINTABLECONTENT"
+				unset MANAGER
 			else
 				if [[ "$USER" == "$(pega-login)" ]];then
 					echo "$USERTABLECONTENT"
+					unset MANAGER
 				elif grep -q '\.admin$' <<< "$USER" || grep -q '\.mon$' <<< "$USER"; then
 					echo "$USERTABLECONTENT"
+					unset MANAGER
 				fi
 			fi
 		done < "$FILE"
@@ -174,7 +181,7 @@ done
 
 if [[ "$REQUEST_METHOD" == "POST" ]]; then
 	boundary="$( grep -a -B2 'answer' <<< "$POST" | head -n1)"
-	RESP="$(grep -a -A15 'answer' <<< "$POST" | tr '\n' '&')"
+	RESP="$(grep -a -A15 'answer' <<< "$POST")"
     RESP="$(echo $RESP | awk -F "$boundary" '{ print $1 }' | sed -e 's/Content-Disposition: form-data; name="answer"//' | sed -e "s/\r//g" | sed -r -e 's/(.{0}).{2}//')"
 	USR="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 	TIME_CLR="$(grep -A2 'name="timeCLR"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
