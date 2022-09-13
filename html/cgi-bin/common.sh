@@ -44,7 +44,7 @@ function incontest-cabecalho-html()
   COMMONMENU+="<li><a href="$URL/answer.sh/$CONTEST"><span class="title">Respostas $PENDING</span><span class="text">D&uacute;vidas && Respostas</span></a></li>"
   if is-admin | grep -q Sim ; then
     ADMINMENU="<li><a href=\"$URL/statistic.sh/$CONTEST\"><span class=\"title\">Estatísticas</span><span class=\"text\">Relatório do Contest</span></a></li>"
-    ADMINMENU+="<li><a href=\"$URL/sherlock.sh/$CONTEST\"><span class=\"title\">Sherlock</span><span class=\"text\">Identificação de Plágio</span></a></li>"
+    ADMINMENU+="<li><a href=\"$URL/jplag.sh/$CONTEST\"><span class=\"title\">Jplag</span><span class=\"text\">Identificação de Plágio</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
   fi
   if [ $CLARIFICATION -eq 0 ] || [ -z $CLARIFICATION ]; then

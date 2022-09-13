@@ -308,6 +308,41 @@ for ARQ in $SUBMISSIONDIR/*; do
 	    echo "<blink><img src='/images/new.gif'/></blink>$MOTD<br>" >> $CONTESTSDIR/$CONTEST/motd
     fi
 
+    elif [[ "$COMANDO" == "jplag" ]]; then
+    	ACAO="$(cut -d: -f6 <<< "$N")"
+    	LINGUAGEM="$(cut -d: -f7 <<< "$N")"
+   	
+    	#baixar o jplag e alocar dentro da pasta do contest
+	    if [ -d "$CONTESTSDIR/$CONTEST_ID/jplag" ]; then
+  		  mkdir -p "$CONTESTSDIR/$CONTEST_ID/jplag"
+	    fi
+      if [ -z $(find "$CONTESTSDIR"/"$CONTEST_ID"/jplag/  -maxdepth 1 -name '*.jar' -printf 1 -quit) ]; then
+          wget  --directory-prefix=$CONTESTSDIR/$CONTEST_ID/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
+      fi
+
+    	if [[ "$ACAO" == "analisar" ]]; then
+        rm -rf $HTMLDIR/jplag/*
+        if [ -d "$HTMLDIR/jplag" ]; then
+          mkdir -p "$HTMLDIR/jplag"
+        fi
+        if [ -d "$HTMLDIR/jplag/$CONTEST_ID/$LINGUAGEM" ]; then
+          mkdir -p "$HTMLDIR/jplag/$CONTEST_ID/$LINGUAGEM" 
+        fi
+        if [ "$LINGUAGEM" == "all" ];then
+          LINGUAGENS=(java python3 cpp csharp char text scheme)
+          TOTLINGS=${#LINGUAGENS[@]}
+
+          for ((i=0;i<TOTLINGS;i+=1)); do
+            if [ -d "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" ]; then
+              mkdir -p "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" 
+            fi
+            java -jar "$CONTESTSDIR"/"$CONTEST_ID"/jplag/*.jar -l ${LINGUAGENS[$i]} $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" 
+          done
+        else
+              java -jar "$CONTESTSDIR"/"$CONTEST_ID"/jplag/*.jar -l $LINGUAGEM $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR"/jplag/$CONTEST_ID/$LINGUAGEM
+        fi
+  	  fi
+
   elif [[ "$COMANDO" == "submit" ]]; then
     #SITE do problema:
     SITE=${PROBS[PROBID]}
@@ -348,7 +383,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       updatescore $CONTEST
     fi
 
-
+    LING="$(echo $LING | tr '[:upper:]' '[:lower:]')"
     #copiar $ARQ para o diretorio com historico de submissoes
     cp "$ARQ" "$CONTESTSDIR/$CONTEST/submissions/$ID-$LOGIN-${PROBS[PROBID+3]}.$LING"
 

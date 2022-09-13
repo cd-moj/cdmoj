@@ -84,6 +84,10 @@ for i in files_after files_before; do
   chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/messages/$i"
 done
 
+#Pasta para copiar submissoes aceitas
+mkdir -p "$CONTESTSDIR/$CONTEST_ID/submissions/accepted"
+chmod 777 "$CONTESTSDIR/$CONTEST_ID/submissions/accepted"
+
 #data of users must be writabble by www-data
 chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/data"
 
@@ -124,6 +128,12 @@ if [[ ! -e "$DROPBOXDIR/$CONTEST_ID" ]]; then
   for i in conf motd passwd submissions; do
     ln -s "$CONTESTSDIR/$CONTEST_ID/$i" "$DROPBOXDIR/$CONTEST_ID/$i"
   done
+fi
+
+#baixar o jplag e alocar dentro da pasta do contest
+if [ ! $(find -L $CONTESTSDIR/$CONTEST_ID/ -name "*jplag*" -print0 | grep "jplag") ]; then
+  mkdir -p "$CONTESTSDIR/$CONTEST_ID/jplag"
+  wget  --directory-prefix=$CONTESTSDIR/$CONTEST_ID/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
 fi
 
 echo "$CONTEST_ID criado com sucesso"

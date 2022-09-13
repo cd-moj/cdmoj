@@ -47,6 +47,7 @@ USER="$(grep -A2 'name="user"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r' | cut
 CONTEST="$(grep -A2 'name="contest"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBLEM="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 TIME="$(grep -A2 'name="time"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+MANAGER="$(grep -A2 'name="manager"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
 PROBSHORTNAME="${PROBS[$((PROBLEM+3))]}"
 
 for ARQ in "$CONTESTSDIR"/"$CONTEST"/messages/clarifications/*; do
@@ -80,7 +81,7 @@ EOF
 	   	fi
 		while read LINE; do
 			USER_AUX="$(awk -F '>>' '{ print $1 }' <<< "$LINE")"
-			if [[ "$USER_AUX" == "$LOGIN" ]]; then	
+			if [[ "$MANAGER" == "$LOGIN" ]]; then	
 				echo "<div class="row__cell"><textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50" disabled>$ANSWER</textarea></div>
 					</div>
 				<div class="row">
@@ -91,8 +92,8 @@ EOF
 					</div>
 					</div>"
 				break
- 	   else
-		cat << EOF
+            else
+				cat << EOF
 		  <div class="row__cell">
 		   	<textarea id="textarea-form" name="answer" value="$ANSWER" rows="4" cols="50"></textarea>
 		   </div>
@@ -114,6 +115,7 @@ EOF
 			</div>
 	           </div>
 EOF
+			break
 	   fi
 	   done < "$FILE"
 
