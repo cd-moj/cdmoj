@@ -59,7 +59,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 	
    	echo "<h2>$PROBLEM</h2>"
 	ADMINTABLE="<table border="1" width="10%"> <tr><th>Contest</th><th>Usu&aacute;rio</th><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Answer</th><th>Respondido por</th></tr>"  
- 	USERTABLE="<table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th></tr>"
+ 	USERTABLE="<table border="1" width="10%"> <tr><th>Problema</th><th>Tempo</th><th>Clarification</th><th>Resposta</th><th>Respondido por</th></tr>"
 	if is-admin | grep -q Sim; then
 		echo "$ADMINTABLE"
 	elif is-mon | grep -q Sim; then
@@ -155,7 +155,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
 				</td>
 				</form>
 			</tr>"
-			USERTABLECONTENT="<tr style='$COLOR'><td>$PROBLEM</td><td>$(date --date=@"$TIME")</td><td>$MSG</td><td>$ANSWER</td></tr>"
+			USERTABLECONTENT="<tr style='$COLOR'><td>$PROBLEM</td><td>$(date --date=@"$TIME")</td><td>$MSG</td><td>$ANSWER</td><td>$MANAGER_</td></tr>"
 
 			if is-admin | grep -q Sim; then
 				echo "$ADMINTABLECONTENT"
