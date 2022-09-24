@@ -82,6 +82,11 @@ rm -f "$TMP"
 
 echo "$AGORA:$ID:$PROBLEMA:Not Answered Yet" >> "$CONTESTSDIR/$CONTEST/data/$LOGIN"
 
+if [[ -d "$CONTESTSDIR/$CONTEST/log" ]]; then
+  mkdir -p  "$CONTESTDIR/$CONTEST/log/$LOGIN"
+  env > "$CONTESTDIR/$CONTEST/log/$LOGIN/$AGORA:$ID:$PROBLEMA"
+fi
+
 
 printf "Content-type: text/html\n\n"
 cat << EOF
