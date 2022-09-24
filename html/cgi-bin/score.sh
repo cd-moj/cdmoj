@@ -46,7 +46,7 @@ printf "<h1>SCORE de \"<em>$CONTEST_NAME</em>\"</h1>\n"
 printf "<ul><li>Início: $(date --date=@$CONTEST_START)</li>"
 printf "<li>Término:  $(date --date=@$CONTEST_END)</li>"
 
-if (( AGORA < CONTEST_START )); then
+if (( AGORA < CONTEST_START )) ; then
   ((FALTA = CONTEST_START - AGORA))
   MSG=
   if (( FALTA >= 60 )); then
@@ -79,15 +79,19 @@ printf "</ul><br/><br/>"
 TOTPROBS=${#PROBS[@]}
 #((TOTPROBS=TOTPROBS/5))
 SELETOR=
-echo "<table border=1 width=100%>"
-echo "<tr><td><b>#</b></td><td><b>Nome</b></td>"
-for ((i=0;i<TOTPROBS;i+=5)); do
-  printf "<td><b>${PROBS[$((i+3))]}</b></td>"
-done
-echo "<td><b>Total</b></td></tr>"
-cat $CONTESTSDIR/$CONTEST/controle/SCORE
-echo "</table>"
 
+if [[ -e "$CONTESTSDIR/$CONTEST/rank/SCORETABLE" ]]; then
+  cat $CONTESTSDIR/$CONTEST/rank/SCORETABLE
+else
+  echo "<table border=1 width=100%>"
+  echo "<tr><td><b>#</b></td><td><b>Nome</b></td>"
+  for ((i=0;i<TOTPROBS;i+=5)); do
+    printf "<td><b>${PROBS[$((i+3))]}</b></td>"
+  done
+  echo "<td><b>Total</b></td></tr>"
+  cat $CONTESTSDIR/$CONTEST/controle/SCORE
+  echo "</table>"
+fi
 if verifica-login $CONTEST| grep -q Nao; then
   cat ../footer.html
 else
