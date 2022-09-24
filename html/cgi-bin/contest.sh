@@ -136,7 +136,14 @@ printf "<h2>Enviar uma Solução</h2>\n"
 
 if (( AGORA > CONTEST_END )) && is-admin |grep -q Nao ; then
   echo "<p> O contest não está mais em andamento</p>"
+elif (( DISABLESUBMIT==1 )) && is-admin |grep -q Nao; then
+  echo "<p>AGUARDE, este contest ainda não está recebendo submissões, você
+  já pode ler enunciados</p>"
+elif [[ -e /dev/shm/pausa ]]; then
+  echo "<p>AGUARDE... UMA QUANTIDADE MASSIVA DE REJULGAMENTOS ESTÁ EM ANDAMENTO</p>"
 else
+  (( DISABLESUBMIT == 1 )) && echo "<p>Usuarios e Monitores estao com a
+  submissao desativada neste momento. DISABLESUBMIT=1</p>"
 cat << EOF
 <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/submete.sh/$CONTEST" method="post">
   <input type="hidden" name="MAX_FILE_SIZE" value="30000">

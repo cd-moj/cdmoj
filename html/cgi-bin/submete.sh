@@ -37,7 +37,7 @@ EOF
 exit 0
 }
 
-if (( AGORA > CONTEST_END )) && is-admin |grep -q Nao ; then
+if (( AGORA > CONTEST_END )) && DISABLESUBMIT!=1 && is-admin |grep -q Nao ; then
   cabecalho-html
   echo "<h1>O contest \"$CONTEST_NAME\" não está mais em execução</h1>"
   echo "<p> A sua submissão não foi armazenada</p>"
