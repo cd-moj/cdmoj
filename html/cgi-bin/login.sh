@@ -28,8 +28,9 @@ if [[ "x$POST" != "x" ]]; then
   #escapar coisa perigosa
   LOGIN="$(echo $LOGIN | sed -e 's/\([[\/*]\|\]\)/\\&/g')"
   SENHA="$(echo $SENHA | sed -e 's/\([[\/.*]\|\]\)/\\&/g')"
-  if ! grep -qF "$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd; then
+  if ! ( grep -qF "$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd && grep -q "^$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd); then
     #invalida qualquer hash
+    env &>  $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:tentativadelogin:dummy
     NOVAHASHI=$(echo "$(date +%s)$RANDOM$RANDOM" |md5sum |awk '{print $1}')
     printf "$NOVAHASHI" > "$CACHEDIR/$LOGIN-$CONTEST"
     cabecalho-html
@@ -45,7 +46,7 @@ EOF
   printf "$NOVAHASH" > "$CACHEDIR/$LOGIN-$CONTEST"
 
   #avisa do login
-  touch  $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:login:dummy
+  env &>  $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:login:dummy
 
   #enviar cookie
   ((ESPIRA= AGORA + 36000))
