@@ -184,7 +184,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     OLDPASSWD=$PROBID
     NEWPASSWD=$LING
     if grep -q "^$LOGIN:$OLDPASSWD:" $CONTESTSDIR/$CONTEST/passwd; then
-      sed -i -e "s/^$LOGIN:$OLDPASSWD:/$LOGIN:$NEWPASSWD:/" $CONTESTSDIR/$CONTEST/passwd
+      sed -i --follow-symlinks -e "s/^$LOGIN:$OLDPASSWD:/$LOGIN:$NEWPASSWD:/" $CONTESTSDIR/$CONTEST/passwd
     fi
 
   elif [[ "$COMANDO" == "rejulgado" ]]; then
