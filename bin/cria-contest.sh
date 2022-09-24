@@ -70,7 +70,7 @@ if [[ -d "$CONTESTSDIR/$CONTEST_ID" ]] &&
 fi
 mkdir "$CONTESTSDIR/$CONTEST_ID"
 
-for i in controle data enunciados submissions; do
+for i in controle data enunciados submissions log; do
     mkdir -p "$CONTESTSDIR/$CONTEST_ID/$i"
 done
 
@@ -90,6 +90,7 @@ chmod 777 "$CONTESTSDIR/$CONTEST_ID/submissions/accepted"
 
 #data of users must be writabble by www-data
 chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/data"
+chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/log"
 
 {
     echo "CONTEST_ID=$CONTEST_ID"
