@@ -253,7 +253,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     TEMPO="$(cut -d: -f1 <<< "$ID")"
     ((TEMPO= (TEMPO - CONTEST_START) ))
 
-    if [[ "$RESP" == "Accepted"  && "$JAACERTOU" == "0" ]] ; then
+    if [[ "$RESP" =~ "Accepted"  && "$JAACERTOU" == "0" ]] ; then
       JAACERTOU=$TEMPO
     elif [[ "$JAACERTOU" != "0" ]] ; then
       RESP="$RESP (Ignored)"
