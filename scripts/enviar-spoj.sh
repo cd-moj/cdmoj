@@ -51,6 +51,9 @@ function enviar-spoj()
   elif [[ "$LINGUAGEM" == "SH" ]];then
     LINGUAGEM=28;
   elif [[ "$LINGUAGEM" == "PY" ]];then
+    LINGUAGEM=116;
+    grep -q "python2" $ARQFONTE && LINGUAGEM=4
+  elif [[ "$LINGUAGEM" == "PY2" ]];then
     LINGUAGEM=4;
   elif [[ "$LINGUAGEM" == "PERL" ]];then
     LINGUAGEM=3;
@@ -77,7 +80,10 @@ function enviar-spoj()
     --data-urlencode "file@$ARQFONTE" https://$SITE.spoj.com/submit/complete/ |
     grep newSubmissionId | awk -F'"' '{print $(NF-1)}'
   if echo "${PIPESTATUS[@]}"|grep -q 1; then
-    mv ${ARQFONTE} ${ARQFONTE%PP}XX
+    [[ "$ARQFONTE" =~ "CPP" ]] && mv ${ARQFONTE} ${ARQFONTE%PP}XX
+    [[ "$ARQFONTE" =~ "PY" ]] && mv ${ARQFONTE} ${ARQFONTE}2
+    [[ "$ARQFONTE" =~ "CXX" ]] && echo "CPPERROR"
+    [[ "$ARQFONTE" =~ "PY2" ]] && echo "PYERROR"
   fi
 }
 
@@ -93,6 +99,10 @@ function pega-resultado-spoj()
   RESP=
   if [[ "$JOBID" == "ArquivoCorrompido" ]]; then
     RESP="Arquivo Corrompido, reenvie"
+  elif [[ "$JOBID" =~ "CPPERROR" ]]; then
+	  RESP="Tentei com C++14 e C++ (clássico), SPOJ recusou os dois"
+  elif [[ "$JOBID" =~ "PYERROR" ]]; then
+	  RESP="Tentei com Python 3 e Python 2, SPOJ recusou os dois"
   elif [[ "$JOBID" == "LangNotFound" ]]; then
     RESP="Linguagem nao identificada, utilize a extensão correta."
   else
@@ -152,6 +162,11 @@ function login-spoj-www()
   curl -m 30 -c $HOME/.cache/cookie-spoj-www -s -A "Mozilla/4.0" \
     -d "login_user=$LOGINSPOJ&password=$PASSWDSPOJ" \
     https://www.spoj.com > /dev/null
+}
+
+function login-spoj()
+{
+  login-spoj-www
 }
 
 function enviar-spoj-www()
