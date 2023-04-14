@@ -15,18 +15,21 @@
 
 #ARQFONTE=arquivo-com-a-fonte
 #PROBID=id-do-problema
-MOJPORTS=(20000 40000 20001 40000)
+MOJPORTS=()
+MOJPORTS+=(localhost:40000)
+MOJPORTS+=(jaguapitanga.naquadah.com.br:40000)
 
 function login-cdmoj()
 {
   true
-  if [[ ! -e /tmp/mojports ]]; then
-    for PORT in ${MOJPORTS[@]}; do
-      if echo '{ "cmd": "null" }'| nc -w 1 localhost $PORT &>/dev/null; then
+  #if [[ ! -e /tmp/mojports ]] || find /tmp/mojports -mmin +2|grep mojports &>/dev/null; then
+    rm -f /tmp/mojports
+    for PORT in ${MOJPORTS[0]} ${MOJPORTS[@]}; do
+      if echo '{ "cmd": "null" }'| timeout 3 nc -w 1 ${PORT/:??*} ${PORT/??*:/}|grep "Invalid Command" &>/dev/null; then
         echo $PORT >> /tmp/mojports
       fi
     done
-  fi
+  #fi
 }
 
 #retorna o ID da submissao
@@ -39,6 +42,7 @@ function enviar-cdmoj()
   PORT=${PORTS[0]}
   unset PORTS[0]
   PORTS+=( $PORT )
+  #nao precisa round robin
   rm /tmp/mojports
   for p in ${PORTS[@]}; do
 	  echo $p >> /tmp/mojports
@@ -54,35 +58,37 @@ function enviar-cdmoj()
 { "cmd": "run", "problemid": "$PROBID", "language": "$LINGUAGEM", "filename": "Main.$LINGUAGEM", "fileb64": "$(base64 -w 0 $ARQFONTE)", "metadata": "$ARQFONTE" }
 EOF
   cat $TEMP >&2
-  cat $TEMP |nc localhost $PORT | base64 -d|gunzip| jshon -e jobid |tr -d '"' > $TEMP.a
+  cat $TEMP |timeout 30 nc ${PORT/:??*} ${PORT/??*:/} | jshon -e jobid |tr -d '"' > $TEMP.a
   CODIGO=$(<$TEMP.a)
-  echo "$PORT.$CODIGO"
-  echo "$PORT.$CODIGO" >&2
+  echo "$PORT-$CODIGO" |tr ':' ','
+  echo "$PORT-$CODIGO" >&2
   echo "=== $CODIGO" >&2
   rm $TEMP.a $TEMP
   ## Gambiarra horrível
   local COMPETICAO="$(basename $ARQFONTE|cut -d: -f1)"
   local LOCALID="$(basename $ARQFONTE|cut -d: -f2,3)"
   mkdir -p $HOME/contests/$COMPETICAO/mojlog/
-  echo "localhost $PORT $CODIGO" >> $HOME/contests/$COMPETICAO/mojlog/$LOCALID
+  echo "${PORT/:??*} ${PORT/??*:/} $CODIGO" > $HOME/contests/$COMPETICAO/mojlog/$LOCALID
 }
 
 #Retorna string do resultado
 function pega-resultado-cdmoj()
 {
-  local PORT=$(echo $1 |cut -d '.' -f1)
-  local JOBID=$(echo $1|cut -d '.' -f2)
+  local PORT=$(echo $1 |cut -d '-' -f1|tr ',' ':')
+  local JOBID=$(echo $1|cut -d '-' -f2)
   local TEMP=$(mktemp)
   local COUNT=0
-  echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| nc localhost $PORT| base64 -d|gunzip |jshon -e status|tr -d '"' > $TEMP
+  echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| timeout 30 nc ${PORT/:??*} ${PORT/??*:/} |jshon -e status|tr -d '"' > $TEMP
   echo "($PORT) { \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }" >&2
   RESULT="$(<$TEMP)"
-  while (( COUNT < 15 )) && ( [[ "$RESULT" == "On queue" ]] || [[ "$RESULT" == "Running" ]] ); do
-    sleep 5
-    echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| nc localhost $PORT|base64 -d|gunzip |jshon -e status|tr -d '"' > $TEMP
+  while (( COUNT < 3*600 )) && ( [[ "$RESULT" == "On queue" ]] || [[ "$RESULT" == "Running" ]] ); do
+    sleep 0.5
+    echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| timeout 30 nc ${PORT/:??*} ${PORT/??*:/} |jshon -e status|tr -d '"' > $TEMP
     RESULT="$(<$TEMP)"
     ((COUNT++))
   done
+  ([[ "$RESULT" == "On queue" ]] ||  [[ "$RESULT" == "Running" ]] || [[ "$RESULT" =~ "Wrong Problem ID" ]] ) && RESULT=""
+  [[ "$RESULT" == "Presentation Error" ]] && RESULT=Accepted
   echo "$RESULT"
   rm $TEMP
 }
