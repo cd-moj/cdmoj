@@ -37,6 +37,13 @@ EOF
 exit 0
 }
 
+if ((DISABLESUBMIT==1)) && is-admin |grep -q Nao ; then
+  cabecalho-html
+  echo "<h1>O contest \"$CONTEST_NAME\" está com as submissões suspensas temporariamente</h1>"
+  echo "<p> A sua submissão não foi armazenada</p>"
+  cat ../footer.html
+  exit 0
+fi
 if (( AGORA > CONTEST_END )) && DISABLESUBMIT!=1 && is-admin |grep -q Nao ; then
   cabecalho-html
   echo "<h1>O contest \"$CONTEST_NAME\" não está mais em execução</h1>"
@@ -66,7 +73,7 @@ DESTINO="$CONTEST:$AGORA:$ID:$LOGIN:submit:$PROBLEMA:"
 TMP="$(mktemp)"
 
 sed -e "1,/$fd/d;/^$/d;/$boundary/,\$d" <<< "$POST" > "$TMP"
-if ! file "$TMP" | grep -q -i "text"; then
+if ! file "$TMP" | egrep -q -i "(text|compressed)"; then
   rm -f "$TMP"
   submete-sair-com-erro "Arquivo Corrompido, ou vazio, ou binário. Envie o código fonte"
 fi
@@ -83,10 +90,12 @@ rm -f "$TMP"
 echo "$AGORA:$ID:$PROBLEMA:Not Answered Yet" >> "$CONTESTSDIR/$CONTEST/data/$LOGIN"
 
 if [[ -d "$CONTESTSDIR/$CONTEST/log" ]]; then
-  mkdir -p  "$CONTESTDIR/$CONTEST/log/$LOGIN"
-  env > "$CONTESTDIR/$CONTEST/log/$LOGIN/$AGORA:$ID:$PROBLEMA"
+	mkdir -p  "$CONTESTDIR/$CONTEST/log/$LOGIN"
+	env > "$CONTESTDIR/$CONTEST/log/$LOGIN/$AGORA:$ID:$PROBLEMA"
 fi
 
+mkdir -p "/tmp/$CONTEST/log/$LOGIN"
+env > "/tmp/$CONTEST/log/$LOGIN/$AGORA-$ID-$PROBLEMA"
 
 printf "Content-type: text/html\n\n"
 cat << EOF

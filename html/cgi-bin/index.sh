@@ -45,9 +45,11 @@ for contest in $CONTESTSDIR/*; do
     continue
   fi
   if [[ -e "/dev/shm/cache.ended-${contest##*/}" ]] && [[ "/dev/shm/cache.ended-${contest##*/}" -nt $contest/conf ]]; then
+    #ENDED+="$(< /dev/shm/cache.ended-$CONTEST_ID)"
     continue
   fi
   rm -f "/dev/shm/cache.ended-${contest##*/}"
+  unset ALLOWLATEUSER
   source $contest/conf
   THIS="$CONTEST_START $CONTEST_END <span class=\"titcontest\"><b>$CONTEST_NAME</b> : "
   if (( $CONTEST_END > NOW )); then
@@ -68,6 +70,7 @@ for contest in $CONTESTSDIR/*; do
     UPCOMING+="$THIS\n"
   elif (( NOW > $CONTEST_END )); then
     echo "$THIS" > "/dev/shm/cache.ended-${contest##*/}"
+    #ENDED+="$THIS"
   else
     RUNNING+="$THIS\n"
   fi
@@ -88,4 +91,7 @@ cat << EOF
         </div>
 EOF
 cat ../footer.html
+
+#TEMPOF=$(awk '{print $1}' /proc/uptime)
+#echo "===> $( bc -l <<< "$TEMPOF - $TEMPOI" )"
 exit 0

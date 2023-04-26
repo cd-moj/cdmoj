@@ -51,22 +51,6 @@ source $CONTESTSDIR/$CONTEST/conf
 incontest-cabecalho-html $CONTEST
 #printf "<h1>$(pega-nome $CONTEST) em \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
-if (( AGORA < CONTEST_START )) && is-admin|grep -q Nao; then
-  ((FALTA = CONTEST_START - AGORA))
-  MSG=
-  if (( FALTA >= 60 )); then
-    MSG="$((FALTA/60)) minutos"
-  fi
-  ((FALTA=FALTA%60))
-  if ((FALTA > 0 )); then
-    MSG="$MSG e $FALTA segundos"
-  fi
-  printf "<p>O Contest ainda <b>NÃO</b> está em execução</p>\n"
-  printf "<center>Aguarde $MSG</center>"
-  incontest-footer
-  exit 0
-fi
-
 #Mostra alguma mensagem Geral do CD-MOJ, caso exista
 if [[ -e "../motd" ]]; then
   cat "../motd"
@@ -77,6 +61,23 @@ if [[ -e "$CONTESTSDIR/$CONTEST_ID/motd" ]]; then
   cat "$CONTESTSDIR/$CONTEST_ID/motd"
 fi
 
+
+if (( AGORA < CONTEST_START )) && is-admin|grep -q Nao; then
+  ((FALTA = CONTEST_START - AGORA))
+  MSG=
+  if (( FALTA >= 60 )); then
+    MSG="$((FALTA/60)) minutos"
+  fi
+  ((FALTA=FALTA%60))
+  if ((FALTA > 0 )); then
+    MSG="$MSG e $FALTA segundos"
+  fi
+  printf "<br/><br/><h1>AGUARDE...</h1>\n"
+  printf "<p>O Contest ainda <b>NÃO</b> está em execução</p>\n"
+  printf "<center>Aguarde $MSG</center>"
+  incontest-footer
+  exit 0
+fi
 #mostrar exercicios
 printf "<h2>Problemas</h2>\n"
 TOTPROBS=${#PROBS[@]}
@@ -112,7 +113,8 @@ echo "</ul>"
 echo "<br/><br/>"
 printf "<h2>Minhas Submissões</h2>\n"
 cat << EOF
-<table border="1" width="100%"> <tr><th>Problema</th><th>Resposta</th><th>Submissão em</th><th>Tempo de Prova</th></tr>
+<table border="1" width="100%">
+<tr><th>Problema</th><th>Resposta</th><th>Submissão em</th><th>Código</th><th>Tempo de Prova</th></tr>
 EOF
 
 LOGIN=$(pega-login)
@@ -121,12 +123,21 @@ while read LINE; do
   PROB="$(cut -d ':' -f3 <<< "$LINE")"
   RESP="$(cut -d ':' -f4 <<< "$LINE")"
   TIME="$(cut -d ':' -f1 <<< "$LINE")"
-  SUBMISSIONID="$(cut -d ':' -f1,2 <<< "$LINE")"
+  if [[ "$SHOWCODE" == "1" ]]; then
+    if [[ "${PROBS[$PROB]}" != "cdmoj" ]]; then
+      CODE="não disponível"
+    else
+      CODE="$(cut -d ':' -f1,2 <<< "$LINE")"
+    fi
+  else
+    CODE="desabilitado"
+  fi
   TIMEE="$(date --date=@$TIME)"
   PROBSHORTNAME=${PROBS[$((PROB+3))]}
   PROBFULLNAME="${PROBS[$((PROB+2))]}"
   ((TEMPODEPROVA= (TIME - CONTEST_START)/60 ))
-  echo "<tr><td>$PROBSHORTNAME - $PROBFULLNAME</td><td>$RESP</td><td>$TIMEE</td><td>$TEMPODEPROVA</td></tr>"
+  echo "<tr><td>$PROBSHORTNAME -
+  $PROBFULLNAME</td><td>$RESP</td><td>$TIMEE</td><td>$CODE</td><td>$TEMPODEPROVA</td></tr>"
 done < $CONTESTSDIR/$CONTEST/data/$LOGIN
 
 echo "</table>"
