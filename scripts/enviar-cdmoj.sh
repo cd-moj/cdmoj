@@ -22,32 +22,18 @@ MOJPORTS+=(jaguapitanga.naquadah.com.br:40000)
 function login-cdmoj()
 {
   true
-  #if [[ ! -e /tmp/mojports ]] || find /tmp/mojports -mmin +2|grep mojports &>/dev/null; then
-    rm -f /tmp/mojports
-    for PORT in ${MOJPORTS[0]} ${MOJPORTS[@]}; do
-      if echo '{ "cmd": "null" }'| timeout 3 nc -w 1 ${PORT/:??*} ${PORT/??*:/}|grep "Invalid Command" &>/dev/null; then
-        echo $PORT >> /tmp/mojports
-      fi
-    done
-  #fi
 }
 
 #retorna o ID da submissao
 function enviar-cdmoj()
 {
-  local PORTS
-  declare -a PORTS
-  readarray -t PORTS < /tmp/mojports
-  local PORT
-  PORT=${PORTS[0]}
-  unset PORTS[0]
-  PORTS+=( $PORT )
-  #nao precisa round robin
-  rm /tmp/mojports
-  for p in ${PORTS[@]}; do
-	  echo $p >> /tmp/mojports
+  PORT=
+  for p in ${MOJPORTS[@]}; do
+    PORT="$p"
+    echo '{ "cmd": "islocked" }'|timeout 3 nc -w 1 ${p/:??*} ${p/??*:}|grep -q "false" && break
+    unset PORT
   done
-
+  [[ -z "$PORT" ]] && echo "== Sem servidor livre do MOJ" >&2 && echo "No_Servers" && sleep 5 && return
   local ARQFONTE=$1
   local PROBID=$2
   local LINGUAGEM=$(echo $3|tr '[A-Z]' '[a-z]')
@@ -57,7 +43,7 @@ function enviar-cdmoj()
   cat << EOF > $TEMP
 { "cmd": "run", "problemid": "$PROBID", "language": "$LINGUAGEM", "filename": "Main.$LINGUAGEM", "fileb64": "$(base64 -w 0 $ARQFONTE)", "metadata": "$ARQFONTE" }
 EOF
-  cat $TEMP >&2
+  #cat $TEMP >&2
   cat $TEMP |timeout 30 nc ${PORT/:??*} ${PORT/??*:/} | jshon -e jobid |tr -d '"' > $TEMP.a
   CODIGO=$(<$TEMP.a)
   echo "$PORT-$CODIGO" |tr ':' ','
@@ -74,6 +60,7 @@ EOF
 #Retorna string do resultado
 function pega-resultado-cdmoj()
 {
+  [[ "$1" == "No Servers" ]] && echo "" && return
   local PORT=$(echo $1 |cut -d '-' -f1|tr ',' ':')
   local JOBID=$(echo $1|cut -d '-' -f2)
   local TEMP=$(mktemp)
@@ -81,8 +68,10 @@ function pega-resultado-cdmoj()
   echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| timeout 30 nc ${PORT/:??*} ${PORT/??*:/} |jshon -e status|tr -d '"' > $TEMP
   echo "($PORT) { \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }" >&2
   RESULT="$(<$TEMP)"
-  while (( COUNT < 3*600 )) && ( [[ "$RESULT" == "On queue" ]] || [[ "$RESULT" == "Running" ]] ); do
-    sleep 0.5
+  SLEEPTIME=0.5
+  local INICIO=$EPOCHSECONDS
+  while (( EPOCHSECONDS - INICIO < 7200 )) && ( [[ "$RESULT" == "On queue" ]] || [[ "$RESULT" == "Running" ]] ); do
+    sleep $SLEEPTIME
     echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| timeout 30 nc ${PORT/:??*} ${PORT/??*:/} |jshon -e status|tr -d '"' > $TEMP
     RESULT="$(<$TEMP)"
     ((COUNT++))
