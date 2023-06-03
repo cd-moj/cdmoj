@@ -108,7 +108,8 @@ function pega-resultado-spoj()
   else
     RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE https://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
     RESP=${RESP// }
-    while [[ "$RESP" == "??" ]] && ((CONT < 25)); do
+    local INICIO=$EPOCHSECONDS
+    while [[ "$RESP" == "??" ]] && (( EPOCHSECONDS - INICIO < 3600 )); do
       ((CONT++))
       sleep 5
       RESP="$(curl -m 30 -s -A "Mozilla/4.0" -b $HOME/.cache/cookie-spoj-$SITE https://$SITE.spoj.com/status/$LOGINSPOJ/signedlist/|grep $JOBID|awk -F'|' '{print $5}')"
