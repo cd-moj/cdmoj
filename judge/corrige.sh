@@ -125,6 +125,9 @@ while true; do
     fi
 
     PENDING[$ARQ]="$SITE:$CODIGOSUBMISSAO:$ARQ"
+    pegaresultado "${PENDING[$ARQ]}" &
+    PENDINGPID[$ARQ,PID]=$!
+    PENDINGPID[$ARQ,TIME]=$EPOCHSECONDS
 
   done
   #dar um tempo para o OJ começar a corrigir
@@ -143,9 +146,6 @@ while true; do
       unset PENDING[$ARQ] PENDINGPID[$ARQ,PID]
       continue
     fi
-    pegaresultado "${PENDING[$ARQ]}" &
-    PENDINGPID[$ARQ,PID]=$!
-    PENDINGPID[$ARQ,TIME]=$EPOCHSECONDS
   done
 done
 
