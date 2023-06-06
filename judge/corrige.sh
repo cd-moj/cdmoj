@@ -14,12 +14,12 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-source /home/moj/moj/etc/common.conf
-source /home/moj/moj/etc/judge.conf
-source /home/moj/moj/scripts/enviar-spoj.sh
-source /home/moj/moj/scripts/enviar-uri.sh
-source /home/moj/moj/scripts/enviar-cdmoj.sh
-source /home/moj/moj/scripts/enviar-cdmoj2.sh
+source #CONFDIR#/judge.conf
+source #CONFDIR#/common.conf
+source #SCRIPTSDIR#/enviar-spoj.sh
+source #SCRIPTSDIR#/enviar-uri.sh
+source #SCRIPTSDIR#/enviar-cdmoj.sh
+source #SCRIPTSDIR#/enviar-cdmoj2.sh
 
 ANIMACAO='/-\|'
 ANIPOS=0
