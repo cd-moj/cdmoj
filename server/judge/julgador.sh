@@ -14,10 +14,10 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-source /home/lucas/cdmoj/moj-serverside/etc/judge.conf
-source /home/lucas/cdmoj/moj-serverside/etc/common.conf
-source /home/lucas/cdmoj/moj-serverside/scripts/enviar-spoj.sh
-source /home/lucas/cdmoj/moj-serverside/scripts/enviar-uri.sh
+source $CONFDIR/judge.conf
+source $CONFDIR/common.conf
+source $SCRIPTSDIR/enviar-spoj.sh
+source $SCRIPTSDIR/enviar-uri.sh
 
 function updatescore()
 {
@@ -116,7 +116,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     TMPDIR=$(mktemp -d)
     tar xf "$ARQ" -C $TMPDIR/
     CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
-    MSG="$(bash /home/lucas/cdmoj/moj-serverside/scripts/../bin/cria-contest.sh "$CAMINHO" "$LOGIN")"
+    MSG="$(bash $SCRIPTSDIR/../bin/cria-contest.sh "$CAMINHO" "$LOGIN")"
     SAIDA=$?
     echo "$(date) $MSG" >> $CONTESTSDIR/admin/$LOGIN.msgs
     tail -n 20 $CONTESTSDIR/admin/$LOGIN.msgs > $TMPDIR.msgs
@@ -313,11 +313,11 @@ for ARQ in $SUBMISSIONDIR/*; do
     	LINGUAGEM="$(cut -d: -f7 <<< "$N")"
    	
     	#baixar o jplag e alocar dentro da pasta do contest
-	    if [ -d "$JPLAGDIR" ]; then
-  		  mkdir -p "$JPLAGDIR"
+	    if [ -d "$CONTESTSDIR/$CONTEST_ID/jplag" ]; then
+  		  mkdir -p "$CONTESTSDIR/$CONTEST_ID/jplag"
 	    fi
-      if [ -z $(find "$JPLAGDIR"/  -maxdepth 1 -name '*.jar' -printf 1 -quit) ]; then
-          wget  --directory-prefix=$JPLAGDIR https://github.com/jplag/JPlag/releases/download/v4.3.0/jplag-4.3.0-jar-with-dependencies.jar &> /dev/null
+      if [ -z $(find "$CONTESTSDIR"/"$CONTEST_ID"/jplag/  -maxdepth 1 -name '*.jar' -printf 1 -quit) ]; then
+          wget  --directory-prefix=$CONTESTSDIR/$CONTEST_ID/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
       fi
 
     	if [[ "$ACAO" == "analisar" ]]; then
