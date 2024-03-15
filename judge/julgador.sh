@@ -14,10 +14,10 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-source $CONFDIR/judge.conf
-source $CONFDIR/common.conf
-source $SCRIPTSDIR/enviar-spoj.sh
-source $SCRIPTSDIR/enviar-uri.sh
+source #CONFDIR#/judge.conf
+source #CONFDIR#/common.conf
+source #SCRIPTSDIR#/enviar-spoj.sh
+source #SCRIPTSDIR#/enviar-uri.sh
 
 function updatescore()
 {
@@ -116,7 +116,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     TMPDIR=$(mktemp -d)
     tar xf "$ARQ" -C $TMPDIR/
     CAMINHO="$(dirname $(find $TMPDIR -name 'contest-description.txt'))"
-    MSG="$(bash $SCRIPTSDIR/../bin/cria-contest.sh "$CAMINHO" "$LOGIN")"
+    MSG="$(bash #SCRIPTSDIR#/../bin/cria-contest.sh "$CAMINHO" "$LOGIN")"
     SAIDA=$?
     echo "$(date) $MSG" >> $CONTESTSDIR/admin/$LOGIN.msgs
     tail -n 20 $CONTESTSDIR/admin/$LOGIN.msgs > $TMPDIR.msgs

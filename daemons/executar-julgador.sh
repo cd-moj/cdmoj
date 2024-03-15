@@ -13,6 +13,15 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-for OJ in uri spoj cdmoj; do
-  source $SCRIPTSDIR/$OJ-cgi.sh
+source #CONFDIR#/common.conf
+
+cd $SUBMISSIONDIR
+
+while true; do
+	if (( $(ls |wc -l) == 0 )); then
+		printf "."
+		sleep 3
+		continue
+	fi
+	bash #BASEDIR#/judge/julgador.sh
 done
