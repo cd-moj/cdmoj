@@ -90,7 +90,10 @@ message:
 	$(MAKE) -s clear_tmp
 	@echo "\n\n\n\n\n======================================================================"
 	@echo "Please, make sure that $(SERVERDIR)/etc/judge.conf"
-	@echo "contanis your spoj credencials"
+	@echo "contanis your spoj credencials."
+	@echo "======================================================================"
+	@echo "Please, make sure that $(SERVERDIR)/scripts/sync-training.sh"
+	@echo "contains a valid repository in the REPO_URL variable."
 	@echo "======================================================================\n\n"
 
 
