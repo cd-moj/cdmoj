@@ -45,7 +45,6 @@ cp "$SERVERDIR/repository/"*.html "$CONTESTSDIR/treino/enunciados"
 
 
 
-
 # --------- ALL_TAGS
 ALL_TAGS=()
 
@@ -94,3 +93,35 @@ for questao in $SERVERDIR/repository/*/; do
         echo "$THIS" >>$CONTESTSDIR/treino/var/tags-by-contest/$CONTEST_ID
     fi
 done
+
+
+
+# --------- CONTESTS BY TAG
+if [ -d "$CONTESTSDIR/treino/var/contests-by-tags" ]; then
+    rm -rf $CONTESTSDIR/treino/var/contests-by-tags
+fi
+mkdir -p $CONTESTSDIR/treino/var/contests-by-tags
+
+for questao in $SERVERDIR/repository/*/; do
+
+    CONTEST_ID=$(basename $questao)
+
+    if [ ! -f "$SERVERDIR/repository/$CONTEST_ID.html" ]; then
+        continue
+    fi
+
+    if [ -f "$questao/tags" ]; then
+        while IFS= read -r line; do
+            THIS="<li><span class=\"titcontest\"><a href=\"/cgi-bin/questao.sh/$CONTEST_ID\">"
+            THIS+="<b>$(basename $CONTEST_ID)</b></a></span>"
+            THIS+="<div class=\"inTags\"><b>Tags: </b><div class=\"contestTags\">"
+            THIS+=$(awk '{printf "<a class=\"tagCell\" href=\"%s\">%s</a>", substr($0, 2), $0}' $questao/tags)
+            THIS+="</div></div></li>"
+
+            echo "$THIS" >>$CONTESTSDIR/treino/var/contests-by-tags/$line
+        done <"$questao/tags"
+    fi
+    cp $questao/tags $CONTESTSDIR/treino/var/contests-by-tags/$CONTEST_ID
+done
+
+
