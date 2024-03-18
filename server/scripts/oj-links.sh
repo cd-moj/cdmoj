@@ -14,5 +14,5 @@
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
 for OJ in uri spoj cdmoj; do
-  source #SCRIPTSDIR#/$OJ-cgi.sh
+  source $SCRIPTSDIR/$OJ-cgi.sh
 done

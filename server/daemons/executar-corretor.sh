@@ -13,7 +13,7 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-source #CONFDIR#/common.conf
+source $CONFDIR/common.conf
 
 cd $SUBMISSIONDIR-enviaroj
 
@@ -23,5 +23,5 @@ while true; do
 		sleep 3
 		continue
 	fi
-	bash #BASEDIR#/judge/corrige.sh
+	bash $BASEDIR/judge/corrige.sh
 done
