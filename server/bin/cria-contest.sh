@@ -132,9 +132,9 @@ if [[ ! -e "$DROPBOXDIR/$CONTEST_ID" ]]; then
 fi
 
 #baixar o jplag e alocar dentro da pasta do contest
-if [ ! $(find -L $CONTESTSDIR/$CONTEST_ID/ -name "*jplag*" -print0 | grep "jplag") ]; then
-  mkdir -p "$CONTESTSDIR/$CONTEST_ID/jplag"
-  wget  --directory-prefix=$CONTESTSDIR/$CONTEST_ID/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
+if [ ! $(find -L $SERVERDIR/jplag/ -name "*jplag*" -print0 | grep "jplag") ]; then
+  mkdir -p "$SERVERDIR/jplag/"
+  wget  --directory-prefix=$SERVERDIR/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
 fi
 
 echo "$CONTEST_ID criado com sucesso"

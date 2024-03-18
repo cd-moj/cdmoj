@@ -313,11 +313,11 @@ for ARQ in $SUBMISSIONDIR/*; do
     	LINGUAGEM="$(cut -d: -f7 <<< "$N")"
    	
     	#baixar o jplag e alocar dentro da pasta do contest
-	    if [ -d "$CONTESTSDIR/$CONTEST_ID/jplag" ]; then
-  		  mkdir -p "$CONTESTSDIR/$CONTEST_ID/jplag"
+	    if [ -d "$SERVERDIR/jplag" ]; then
+  		  mkdir -p "$SERVERDIR/jplag"
 	    fi
-      if [ -z $(find "$CONTESTSDIR"/"$CONTEST_ID"/jplag/  -maxdepth 1 -name '*.jar' -printf 1 -quit) ]; then
-          wget  --directory-prefix=$CONTESTSDIR/$CONTEST_ID/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
+      if [ -z $(find "$SERVERDIR"/jplag/  -maxdepth 1 -name '*.jar' -printf 1 -quit) ]; then
+          wget --directory-prefix="$SERVERDIR"/jplag/  https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> "$SERVERDIR"/jplag/status
       fi
 
     	if [[ "$ACAO" == "analisar" ]]; then
@@ -336,10 +336,10 @@ for ARQ in $SUBMISSIONDIR/*; do
             if [ -d "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" ]; then
               mkdir -p "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" 
             fi
-            java -jar "$CONTESTSDIR"/"$CONTEST_ID"/jplag/*.jar -l ${LINGUAGENS[$i]} $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" 
+            java -jar "$SERVERDIR"/jplag/*.jar -l ${LINGUAGENS[$i]} $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" -t 10
           done
         else
-              java -jar "$CONTESTSDIR"/"$CONTEST_ID"/jplag/*.jar -l $LINGUAGEM $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR"/jplag/$CONTEST_ID/$LINGUAGEM
+              java -jar "$SERVERDIR"/jplag/*.jar -l $LINGUAGEM $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/$LINGUAGEM" -t 10
         fi
   	  fi
 
