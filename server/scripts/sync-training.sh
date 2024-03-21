@@ -5,6 +5,12 @@ source $SERVERDIR/etc/common.conf
 # --------- CONTESTSDIR
 mkdir -p "$CONTESTSDIR/treino/enunciados"
 mkdir -p "$CONTESTSDIR/treino/var"
+mkdir -p "$CONTESTSDIR/treino/data"
+
+if [ ! -f "$CONTESTSDIR/treino/conf" ]; then
+    echo 'CONTEST_ID=Treino
+    CONTEST_NAME="Treino Livre"' > "$CONTESTSDIR/treino/conf"
+fi
 
 
 
