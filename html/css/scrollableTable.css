@@ -1,0 +1,30 @@
+#table-wrapper {
+    position:relative;
+  }
+  #table-scroll {
+    max-height:150px;
+    overflow:auto;  
+    margin:20px 0 0 0;
+  }
+  #table-wrapper table {
+    text-align: left;
+    border-bottom:1px solid #ccc;
+    width:100%;
+  }
+  #table-wrapper table thead {
+    text-align: left;
+    border-bottom:1px solid #ccc;
+    padding-bottom: 10px;
+  }
+  #table-wrapper table thead th .text {
+    position:absolute;
+    top:-20px;
+    z-index:2;
+    height:20px;
+  }
+  #table-wrapper table tbody td{
+    padding: 10px 2px;
+  }
+  #table-wrapper table tbody td:last-child{
+    width:110px;
+  }
