@@ -67,12 +67,12 @@ if [[ "x$POST" == "x" ]]; then
 
 elif verifica-login $CONTEST |grep -q Nao; then
   if [[ "$CONTEST" == "treino" ]]; then
-    LOGIN=mockLoginTeste
+    tela-login treino/$PROBLEMA
   else
     tela-login $CONTEST
-    LOGIN=$(pega-login)
   fi
 fi
+LOGIN=$(pega-login)
 
 if [[ "x$PROBLEMA" == "x" ]]; then # look up "verifica-treino" session
   PROBLEMA="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"

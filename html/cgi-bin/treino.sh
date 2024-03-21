@@ -35,6 +35,13 @@ MENSAGEM="
   <p>Entre com o <a href='https://t.me/mojinho_bot' target=_blank>@mojinho_bot</a> enviando: <i>participar treino</i></p>
 </div>
 "
+if verifica-login treino | grep -q Sim; then
+  MENSAGEM="
+  <div style=\"border:1px solid #E0E0E0; padding:5px 15px 5px;margin:0 10px 10px 10px; display:flex;justify-content: end;\">
+    <a href=\"/cgi-bin/logout.sh\"><span>Logout</span></a>
+  </div>
+  "
+fi
 
 RUNNING=""
 if [ -d "$CONTESTSDIR/treino/var/tags-by-contest" ]; then

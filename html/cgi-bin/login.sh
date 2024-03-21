@@ -16,60 +16,71 @@
 
 source common.sh
 
-POST="$(cat )"
+POST="$(cat)"
 AGORA="$(date +%s)"
 CAMINHO="$PATH_INFO"
-CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
-CONTEST="${CONTEST// }"
+CONTEST="$(cut -d'/' -f2 <<<"$CAMINHO")"
+CONTEST="${CONTEST// /}"
+
+QUESTAO=$(basename $CAMINHO)
+if [[ "$CONTEST" == "treino" ]]; then
+  HREF="$BASEURL/cgi-bin/questao.sh/$QUESTAO"
+else
+  HREF="$BASEURL/cgi-bin/contest.sh/$CONTEST"
+fi
 
 if [[ "x$POST" != "x" ]]; then
-  LOGIN="$(grep -A2 'name="login"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
-  SENHA="$(grep -A2 'name="senha"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+  LOGIN="$(grep -A2 'name="login"' <<<"$POST" | tail -n1 | tr -d '\n' | tr -d '\r')"
+  SENHA="$(grep -A2 'name="senha"' <<<"$POST" | tail -n1 | tr -d '\n' | tr -d '\r')"
   #escapar coisa perigosa
   LOGIN="$(echo $LOGIN | sed -e 's/\([[\/*]\|\]\)/\\&/g')"
   SENHA="$(echo $SENHA | sed -e 's/\([[\/.*]\|\]\)/\\&/g')"
-  if ! ( grep -qF "$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd && grep -q "^$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd); then
+  if ! (grep -qF "$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd && grep -q "^$LOGIN:$SENHA:" $CONTESTSDIR/$CONTEST/passwd); then
     #invalida qualquer hash
-    env &>  $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:tentativadelogin:dummy
-    NOVAHASHI=$(echo "$(date +%s)$RANDOM$RANDOM" |md5sum |awk '{print $1}')
-    printf "$NOVAHASHI" > "$CACHEDIR/$LOGIN-$CONTEST"
+    env &>$SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:tentativadelogin:dummy
+    NOVAHASHI=$(echo "$(date +%s)$RANDOM$RANDOM" | md5sum | awk '{print $1}')
+    printf "$NOVAHASHI" >"$CACHEDIR/$LOGIN-$CONTEST"
     cabecalho-html
-    cat << EOF
+    cat <<EOF
   <script type="text/javascript">
     window.alert("Senha Incorreta");
-    top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
+    top.location.href = "$HREF"
   </script>
 EOF
     exit 0
   fi
-  NOVAHASH=$(echo "$(date +%s)$RANDOM$LOGIN" |md5sum |awk '{print $1}')
-  printf "$NOVAHASH" > "$CACHEDIR/$LOGIN-$CONTEST"
+  NOVAHASH=$(echo "$(date +%s)$RANDOM$LOGIN" | md5sum | awk '{print $1}')
+  printf "$NOVAHASH" >"$CACHEDIR/$LOGIN-$CONTEST"
 
   #avisa do login
-  env &>  $SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:login:dummy
+  env &>$SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:login:dummy
 
   #enviar cookie
-  ((ESPIRA= AGORA + 36000))
+  ((ESPIRA = AGORA + 36000))
   printf "Content-type: text/html\n\n"
-  cat << EOF
+  cat <<EOF
   <script type="text/javascript">
     document.cookie="login=$LOGIN; expires=$(date --utc --date=@$ESPIRA); Path=/"
     document.cookie="hash=$NOVAHASH; expires=$(date --utc --date=@$ESPIRA); Path=/"
-    top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
+    top.location.href = "$HREF"
   </script>
 
 EOF
   exit 0
 
-elif verifica-login $CONTEST |grep -q Nao; then
-  tela-login $CONTEST
+elif verifica-login $CONTEST | grep -q Nao; then
+  if [[ "$CONTEST" == "treino" ]]; then
+    tela-login $CONTEST/$QUESTAO
+  else
+    tela-login $CONTEST
+  fi
 fi
 
 #printf "Location: /~moj/cgi-bin/contest.sh/$CONTEST\n\n"
-  printf "Content-type: text/html\n\n"
-  cat << EOF
+printf "Content-type: text/html\n\n"
+cat <<EOF
   <script type="text/javascript">
-    top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
+    top.location.href = "$HREF"
   </script>
 
 EOF

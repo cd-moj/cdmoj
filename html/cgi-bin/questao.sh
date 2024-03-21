@@ -22,6 +22,11 @@ CAMINHO="$PATH_INFO"
 CONTEST="$(cut -d'/' -f2 <<<"$CAMINHO")"
 CONTEST_HTML=$CONTESTSDIR/treino/enunciados/$CONTEST.html
 
+if verifica-login treino |grep -q Nao; then
+  tela-login treino/$CONTEST
+fi
+LOGIN=$(pega-login)
+
 TABLE=$(awk -v CONTEST="$CONTEST" -F ':' '{
     PROB=$3
 
@@ -34,7 +39,7 @@ TABLE=$(awk -v CONTEST="$CONTEST" -F ':' '{
 
       print "<tr><td>" RESP "</td><td>" HUMANTIME "</td><td>" CODE "</td></tr>"
     }
-}' "$CONTESTSDIR/treino/data/mockLoginTeste")
+}' "$CONTESTSDIR/treino/data/$LOGIN")
 
 if [ -z "$TABLE" ]; then
   TABLE="Voce ainda não tentou resolver essa quetão, basta enviar sua solução."
