@@ -6,6 +6,8 @@ source $SERVERDIR/etc/common.conf
 mkdir -p "$CONTESTSDIR/treino/enunciados"
 mkdir -p "$CONTESTSDIR/treino/var"
 mkdir -p "$CONTESTSDIR/treino/data"
+mkdir -p "$CONTESTSDIR/treino/submissions"
+mkdir -p "$CONTESTSDIR/treino/controle"
 
 if [ ! -f "$CONTESTSDIR/treino/conf" ]; then
     echo 'CONTEST_ID=Treino
@@ -129,5 +131,3 @@ for questao in $SERVERDIR/repository/*/; do
     fi
     cp $questao/tags $CONTESTSDIR/treino/var/contests-by-tags/$CONTEST_ID
 done
-
-
