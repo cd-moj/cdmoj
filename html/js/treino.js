@@ -115,6 +115,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     paginationContainer.appendChild(nextButton);
 
+    if (!document.querySelector(".conquistas")) {
+      const conqButton = document.createElement("button");
+      conqButton.classList.add("conqButton");
+      conqButton.textContent = "Conquistas";
+      conqButton.addEventListener("click", function () {
+        window.location.href = "/cgi-bin/conquistas.sh";
+      });
+      paginationContainer.appendChild(conqButton);
+    }
+
     const tabs = document.querySelector(".treinoTabs");
 
     tabs.insertBefore(paginationContainer, tabs.firstChild);

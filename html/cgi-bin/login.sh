@@ -24,7 +24,11 @@ CONTEST="${CONTEST// /}"
 
 QUESTAO=$(basename $CAMINHO)
 if [[ "$CONTEST" == "treino" ]]; then
-  HREF="$BASEURL/cgi-bin/questao.sh/$QUESTAO"
+  if [[ "$QUESTAO" == "conquistas.usuario" ]]; then
+    HREF="$BASEURL/cgi-bin/conquistas.sh"
+  else
+    HREF="$BASEURL/cgi-bin/questao.sh/$QUESTAO"
+  fi
 else
   HREF="$BASEURL/cgi-bin/contest.sh/$CONTEST"
 fi
