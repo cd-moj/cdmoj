@@ -23,5 +23,5 @@ while true; do
 		sleep 3
 		continue
 	fi
-	bash $BASEDIR/judge/julgador.sh
+	bash $SERVERDIR/judge/julgador.sh
 done

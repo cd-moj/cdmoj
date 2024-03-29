@@ -2,6 +2,7 @@
 SERVERDIR := $(1)
 HTMLDIR := $(2)
 
+
 # Verifica se SERVERDIR e HTMLDIR foram especificados
 ifeq ($(SERVERDIR),)
 $(error SERVERDIR não especificado. Use 'make SERVERDIR=<path>')
@@ -11,64 +12,66 @@ ifeq ($(HTMLDIR),)
 $(error HTMLDIR não especificado. Use 'make HTMLDIR=<path>')
 endif
 
-export BASEDIR=$(SERVERDIR)
 export CONFDIR=$(SERVERDIR)/etc
 export SCRIPTSDIR=$(SERVERDIR)/scripts
-export HTMLDIR=$(HTMLDIR)"
+export HTMLDIR=$(HTMLDIR)
 
 .PHONY: packages
 packages:
+	@echo $(SERVERDIR)
+	@echo $(HTMLDIR)
 	-apt update
 	-apt install pandoc python3-pip graphviz graphviz-dev gcc git apache2 rsync xclip curl default-jre default-jdk openjdk-17-jre openjdk-17-jdk
 	-pip install pygraphviz
 	-pip install pandocfilters
 
-change_token:
-	find server -type d -exec mkdir -p /tmp/{} \;
-	find server -type f -exec sh -c "envsubst '\$$BASEDIR\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR\$$SERVERDIR'< {} >> /tmp/{}" \;
 
-	find html -type d -exec mkdir /tmp/{} \;
-	find html -type f -exec sh -c "envsubst '\$$BASEDIR\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR\$$SERVERDIR'< {} >> /tmp/{}" \;
+change_token:
+	find server -type d -exec mkdir -p /tmp/cdmoj-make-stubs/{} \;
+	find server -type f -exec sh -c "envsubst '\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR\$$SERVERDIR'< {} >> /tmp/cdmoj-make-stubs/{}" \;
+
+	find html -type d -exec mkdir /tmp/cdmoj-make-stubs/{} \;
+	find html -type f -exec sh -c "envsubst '\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR\$$SERVERDIR'< {} >> /tmp/cdmoj-make-stubs/{}" \;
 
 
 install_html:
 	mkdir -p $(HTMLDIR)
-	-install -D -m 755 /tmp/html/* $(HTMLDIR)/
-	install -D /tmp/html/cgi-bin/* -t $(HTMLDIR)/cgi-bin/
-	install -D /tmp/html/images/* -t $(HTMLDIR)/images/
-	install -D /tmp/html/js/* -t $(HTMLDIR)/js/
-	install -D /tmp/html/self.d/* -t $(HTMLDIR)/self.d/
+	-install -D -m 755 /tmp/cdmoj-make-stubs/html/* $(HTMLDIR)/
+	install -D /tmp/cdmoj-make-stubs/html/cgi-bin/* -t $(HTMLDIR)/cgi-bin/
+	install -D /tmp/cdmoj-make-stubs/html/images/* -t $(HTMLDIR)/images/
+	install -D /tmp/cdmoj-make-stubs/html/js/* -t $(HTMLDIR)/js/
+	install -D /tmp/cdmoj-make-stubs/html/self.d/* -t $(HTMLDIR)/self.d/
 
-	-install -D /tmp/html/css/* -t $(HTMLDIR)/css/
-	install -D /tmp/html/css/clarification/* -t $(HTMLDIR)/css/clarification
+	-install -D /tmp/cdmoj-make-stubs/html/css/* -t $(HTMLDIR)/css/
+	install -D /tmp/cdmoj-make-stubs/html/css/clarification/* -t $(HTMLDIR)/css/clarification
 
-	install -o www-data -g www-data -m 755 -d $(HTMLDIR)/contests
+	install -o www-data -g www-data -m 755 -d $(HTMLDIR)/../contests
 	install -d -m 777 $(HTMLDIR)/submissions
 	install -d -m 777 $(HTMLDIR)/submissions-enviaroj
 
 
 install_server:
-	install -D /tmp/server/bin/* -t $(SERVERDIR)/bin/
-	install -D /tmp/server/daemons/* -t $(SERVERDIR)/daemons/
-	install -D /tmp/server/etc/* -t $(SERVERDIR)/etc/
-	install -D /tmp/server/judge/* -t $(SERVERDIR)/judge/
-	install -D /tmp/server/scripts/* -t $(SERVERDIR)/scripts/
+	install -D /tmp/cdmoj-make-stubs/server/bin/* -t $(SERVERDIR)/bin/
+	install -D /tmp/cdmoj-make-stubs/server/daemons/* -t $(SERVERDIR)/daemons/
+	install -D /tmp/cdmoj-make-stubs/server/etc/* -t $(SERVERDIR)/etc/
+	install -D /tmp/cdmoj-make-stubs/server/judge/* -t $(SERVERDIR)/judge/
+	install -D /tmp/cdmoj-make-stubs/server/scripts/* -t $(SERVERDIR)/scripts/
 	install -d -m 777 $(SERVERDIR)/jplag
 
 
 apache_conf:
-	envsubst '\$$BASEDIR\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR'< server/apache/apache2.conf >> /tmp/apache2.conf
-	if ! grep -qF -x -f /tmp/apache2.conf /etc/apache2/apache2.conf; then \
-		cat /tmp/apache2.conf >> /etc/apache2/apache2.conf; \
+	envsubst '\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR'< server/apache/apache2.conf >> /tmp/cdmoj-make-stubs/apache2.conf
+	if ! grep -qF -x -f /tmp/cdmoj-make-stubs/apache2.conf /etc/apache2/apache2.conf; then \
+		cat /tmp/cdmoj-make-stubs/apache2.conf >> /etc/apache2/apache2.conf; \
 	fi
 
-	envsubst '\$$BASEDIR\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR'< server/apache/moj.conf >> /tmp/moj.conf
-	if ! grep -qF -x -f /tmp/moj.conf /etc/apache2/sites-available/moj.conf; then \
-		cat /tmp/moj.conf >> /etc/apache2/sites-available/moj.conf; \
+	envsubst '\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR'< server/apache/moj.conf >> /tmp/cdmoj-make-stubs/moj.conf
+	if ! grep -qF -x -f /tmp/cdmoj-make-stubs/moj.conf /etc/apache2/sites-available/moj.conf; then \
+		cat /tmp/cdmoj-make-stubs/moj.conf >> /etc/apache2/sites-available/moj.conf; \
 	fi
 
-	envsubst '\$$BASEDIR\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR'< server/apache/serve-cgi-bin.conf >> /tmp/serve-cgi-bin.conf
-	install -C -D /tmp/serve-cgi-bin.conf /etc/apache2/conf-available/serve-cgi-bin.conf
+	envsubst '\$$CONFDIR\$$SCRIPTSDIR\$$HTMLDIR'< server/apache/serve-cgi-bin.conf >> /tmp/cdmoj-make-stubs/serve-cgi-bin.conf
+	install -C -D /tmp/cdmoj-make-stubs/serve-cgi-bin.conf /etc/apache2/conf-available/serve-cgi-bin.conf
 				# sed -i 's@ScriptAlias /cgi-bin/ /usr/lib/cgi-bin/@ScriptAlias /cgi-bin/  $HTMLDIR/cgi-bin/@g' /etc/apache2/conf-available/serve-cgi-bin.conf
 				# sed -i 's@<Directory "/usr/lib/cgi-bin/">@<Directory "$HTMLDIR/cgi-bin/">@g' /etc/apache2/conf-available/serve-cgi-bin.conf
 
@@ -79,11 +82,11 @@ apache_conf:
 
 .PHONY: clear_tmp
 clear_tmp:
-	-rm -r /tmp/server
-	-rm -r /tmp/html
-	-rm /tmp/apache2.conf
-	-rm /tmp/moj.conf
-	-rm /tmp/serve-cgi-bin.conf
+	-rm -r /tmp/cdmoj-make-stubs/server
+	-rm -r /tmp/cdmoj-make-stubs/html
+	-rm /tmp/cdmoj-make-stubs/apache2.conf
+	-rm /tmp/cdmoj-make-stubs/moj.conf
+	-rm /tmp/cdmoj-make-stubs/serve-cgi-bin.conf
 
 .PHONY: message
 message:
