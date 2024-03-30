@@ -18,19 +18,11 @@
 
 source common.sh
 
-#limpar caminho, exemplo
-#www.brunoribas.com.br/~ribas/moj/cgi-bin/index.sh/contest-teste/oi
-#vira 'contest-teste/oi'
-CAMINHO="$0"
-A="$PATH_INFO"
-# CAMINHO=($(sed -e 's#.*/index.sh/##' <<<"$CAMINHO"))
+TAG="$PATH_INFO"
 
-#contest é a base do caminho
-CONTEST=$(cut -d'/' -f1 <<<"CAMINHO")
+RUNNING=$(awk '{print $0}' $CONTESTSDIR/treino/var/tags/#${TAG:1})
 
-RUNNING=$(awk '{print $0}' $CONTESTSDIR/treino/var/contests-by-tags/#${A:1})
-
-SHOW_TAGS=$(awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/ALL_TAGS)
+SHOW_TAGS=$(awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/all-tags)
 
 MENSAGEM="
 <div style=\"border:1px solid #E0E0E0; padding:5px 15px 5px;margin:0 10px 10px 10px;\">
@@ -54,7 +46,7 @@ cat <<EOF
   @import "/css/treino.css";
 </style>
 
-<h1> TAG: ${A:1} </h1>
+<h1> TAG: ${TAG:1} </h1>
   $MENSAGEM
 
 <div class="treino">

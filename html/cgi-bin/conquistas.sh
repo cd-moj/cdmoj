@@ -14,16 +14,8 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-#TEMPOI=$(awk '{print $1}' /proc/uptime)
-
 source common.sh
 
-#limpar caminho, exemplo
-#www.brunoribas.com.br/~ribas/moj/cgi-bin/index.sh/contest-teste/oi
-#vira 'contest-teste/oi'
-CAMINHO="$0"
-CAMINHO=($(sed -e 's#.*/index.sh/##' <<<"$CAMINHO"))
-CONTEST=$(cut -d'/' -f1 <<<"CAMINHO")
 
 if verifica-login treino |grep -q Nao; then
   tela-login treino/conquistas.usuario
@@ -39,7 +31,7 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
   for registro in "$CONTESTSDIR/treino/controle/$LOGIN.d"/*; do
     QUESTAO="$(basename "$registro")"
     if [ -f "$CONTESTSDIR/treino/enunciados/$QUESTAO".html ]; then
-      RUNNING+="$(cat "$CONTESTSDIR/treino/var/tags-by-contest/"$QUESTAO)"
+      RUNNING+="$(cat "$CONTESTSDIR/treino/var/questoes/$QUESTAO/li")"
       
       source $registro
       ACERTOU=$(expr $ACERTOU + $JAACERTOU)
@@ -76,10 +68,9 @@ cat <<EOF
 <script type="text/javascript" src="/js/treino.js"></script>
 
 <style type="text/css" media="screen">
- <!-- @import "/css/simpletabs.css"; -->
   @import "/css/treino.css";
-
 </style>
+
 <h1>Conquistas do Usuario</h1>
   $KD
 <div class="treino">

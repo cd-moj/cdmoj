@@ -58,7 +58,7 @@ fi
 if [[ "$CONTEST" == "treino" ]]; then
   PROBLEMA="$(cut -d'/' -f3 <<< "$CAMINHO")"
   PROBLEMA="${PROBLEMA// }"
-  HREF="$BASEURL/cgi-bin/questao.sh/$PROBLEMA"
+  HREF="$BASEURL/cgi-bin/questao.sh/${PROBLEMA//#/%23}"
 fi
 
 if [[ "x$POST" == "x" ]]; then
@@ -101,12 +101,6 @@ else
   rm -f "/tmp/$DESTINO$FILETYPE"
 fi
 rm -f "$TMP"
-
-# if [[ "$CONTEST" == "treino" ]]; then
-#   echo "$AGORA:$ID:$PROBLEMA:Not Answered Yet" >> "$CONTESTSDIR/$CONTEST/data/$PROBLEMA/$LOGIN"
-# else
-#   echo "$AGORA:$ID:$PROBLEMA:Not Answered Yet" >> "$CONTESTSDIR/$CONTEST/data/$LOGIN"
-# fi
 
 echo "$AGORA:$ID:$PROBLEMA:Not Answered Yet" >> "$CONTESTSDIR/$CONTEST/data/$LOGIN"
 

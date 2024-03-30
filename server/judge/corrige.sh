@@ -114,8 +114,8 @@ while true; do
       #SITE do problema:
       SITE="cdmoj"
       #ID no SITE
-      IDSITE="$PROBID"
-    else
+      IDSITE="${PROBID//#//}" # --> "rep#probid" para "rep/probid"
+    else 
       SITE=${PROBS[PROBID]}
       IDSITE=${PROBS[PROBID+1]}
     fi

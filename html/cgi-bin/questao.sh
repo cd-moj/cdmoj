@@ -14,23 +14,22 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-#TEMPOI=$(awk '{print $1}' /proc/uptime)
-
 source common.sh
 
 CAMINHO="$PATH_INFO"
-CONTEST="$(cut -d'/' -f2 <<<"$CAMINHO")"
-CONTEST_HTML=$CONTESTSDIR/treino/enunciados/$CONTEST.html
+QUESTAO="$(cut -d'/' -f2 <<<"$CAMINHO")"
+CONTEST_HTML=$CONTESTSDIR/treino/enunciados/$QUESTAO.html
 
 if verifica-login treino |grep -q Nao; then
-  tela-login treino/$CONTEST
+  # espacar o "#" do no me da questao -> ${nome_questao//#/%23}
+  tela-login treino/${QUESTAO//#/%23}
 fi
 LOGIN=$(pega-login)
 
-TABLE=$(awk -v CONTEST="$CONTEST" -F ':' '{
+TABLE=$(awk -v QUESTAO="$QUESTAO" -F ':' '{
     PROB=$3
 
-    if(PROB == CONTEST) {
+    if(PROB == QUESTAO) {
       TIME=$1
       CODE=$1":"$2
       RESP=$4
@@ -64,6 +63,8 @@ else
     "
 fi
 
+TLE=$(awk 'NR==1 {printf "<option disabled selected style=\"display:none;\">%s</option>", $0; next} {printf "<option disabled>%s</option>", $0}' $CONTESTSDIR/treino/var/questoes/$QUESTAO/tl)
+
 cabecalho-html
 cat <<EOF
 <script type="text/javascript" src="/js/simpletabs_1.3.packed.js"></script>
@@ -77,7 +78,7 @@ cat <<EOF
   $TABLE
 
   <div style="display: flex; justify-content: space-between; border-bottom:1px solid #ccc; padding:15px 0 10px 0;">
-    <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/submete.sh/treino/$CONTEST" method="post">
+    <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/submete.sh/treino/${QUESTAO//#/%23}" method="post">
       <p><strong>Enviar uma solução:</strong></p>
       <input type="hidden" name="MAX_FILE_SIZE" value="30000">
       <div>
@@ -86,9 +87,12 @@ cat <<EOF
       </div>
     </form>
 
-    <div>
-      <p><strong>Observações:</strong></p>
-      <p style="margin-top: 15px;">Tempo Limite de execução: 250ms</p>
+    <div class="tle_info">
+      <p style="margin-bottom: 10px;"><strong>Observações:</strong></p>
+      <label for="cars">Time Limit</label>
+      <select>
+        $TLE
+      </select>
     </div>
   </div>
 

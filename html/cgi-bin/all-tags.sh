@@ -14,13 +14,7 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-#TEMPOI=$(awk '{print $1}' /proc/uptime)
-
 source common.sh
-
-#limpar caminho, exemplo
-#www.brunoribas.com.br/~ribas/moj/cgi-bin/index.sh/contest-teste/oi
-#vira 'contest-teste/oi'
 
 # Array para armazenar as linhas do arquivo
 ALL_TAGS=()
@@ -28,13 +22,12 @@ ALL_TAGS=()
 # Ler cada linha do arquivo e adicionar ao array
 while IFS= read -r line; do
     ALL_TAGS+=("$line")
-done < $CONTESTSDIR/treino/var/ALL_TAGS
+done < $CONTESTSDIR/treino/var/all-tags
 
 ALL_TAGS=($(printf "%s\n" "${ALL_TAGS[@]}" | sort))
 
 
 SECTIONS=""
-
 # Function to add a new section
 add_section() {
     SECTIONS+="<div class=\"tagSection\">
@@ -86,6 +79,4 @@ cat <<EOF
 EOF
 cat ../footer.html
 
-#TEMPOF=$(awk '{print $1}' /proc/uptime)
-#echo "===> $( bc -l <<< "$TEMPOF - $TEMPOI" )"
 exit 0

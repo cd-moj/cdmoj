@@ -345,7 +345,7 @@ for ARQ in $SUBMISSIONDIR/*; do
 
   elif [[ "$COMANDO" == "submit" ]]; then
     #SITE do problema:
-    SITE=${PROBS[PROBID]}
+    # SITE=${PROBS[PROBID]}
 
     PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
 
@@ -385,7 +385,11 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     LING="$(echo $LING | tr '[:upper:]' '[:lower:]')"
     #copiar $ARQ para o diretorio com historico de submissoes
-    cp "$ARQ" "$CONTESTSDIR/$CONTEST/submissions/$ID-$LOGIN-${PROBS[PROBID+3]}.$LING"
+    if [[ "$CONTEST" == "treino" ]]; then
+      cp "$ARQ" "$CONTESTSDIR/$CONTEST/submissions/$ID-$LOGIN-$PROBID.$LING"
+    else
+      cp "$ARQ" "$CONTESTSDIR/$CONTEST/submissions/$ID-$LOGIN-${PROBS[PROBID+3]}.$LING"
+    fi
 
   fi
     cp "$ARQ" $SUBMISSIONDIR-log/

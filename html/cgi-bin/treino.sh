@@ -14,20 +14,10 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
-#TEMPOI=$(awk '{print $1}' /proc/uptime)
-
 source common.sh
 
-#limpar caminho, exemplo
-#www.brunoribas.com.br/~ribas/moj/cgi-bin/index.sh/contest-teste/oi
-#vira 'contest-teste/oi'
-CAMINHO="$0"
-CAMINHO=($(sed -e 's#.*/index.sh/##' <<<"$CAMINHO"))
 
-#contest é a base do caminho
-CONTEST=$(cut -d'/' -f1 <<<"CAMINHO")
-
-SHOW_TAGS=$(awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"tag.sh/%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/ALL_TAGS)
+SHOW_TAGS=$(awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"tag.sh/%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/all-tags)
 
 MENSAGEM="
 <div style=\"border:1px solid #E0E0E0; padding:5px 15px 5px;margin:0 10px 10px 10px;\">
@@ -44,8 +34,8 @@ if verifica-login treino | grep -q Sim; then
 fi
 
 RUNNING=""
-if [ -d "$CONTESTSDIR/treino/var/tags-by-contest" ]; then
-    for file in "$CONTESTSDIR/treino/var/tags-by-contest"/*; do
+if [ -d "$CONTESTSDIR/treino/var/questoes" ]; then
+    for file in "$CONTESTSDIR/treino/var/questoes"/*/li; do
         if [ -f "$file" ]; then
             RUNNING+="$(cat "$file")"
         fi

@@ -18,12 +18,8 @@ export HTMLDIR=$(HTMLDIR)
 
 .PHONY: packages
 packages:
-	@echo $(SERVERDIR)
-	@echo $(HTMLDIR)
 	-apt update
-	-apt install pandoc python3-pip graphviz graphviz-dev gcc git apache2 rsync xclip curl default-jre default-jdk openjdk-17-jre openjdk-17-jdk
-	-pip install pygraphviz
-	-pip install pandocfilters
+	-apt install gcc git apache2 rsync xclip curl default-jre default-jdk openjdk-17-jre openjdk-17-jdk
 
 
 change_token:
@@ -80,6 +76,7 @@ apache_conf:
 	a2ensite moj
 	systemctl reload apache2
 
+
 .PHONY: clear_tmp
 clear_tmp:
 	-rm -r /tmp/cdmoj-make-stubs/server
@@ -87,6 +84,7 @@ clear_tmp:
 	-rm /tmp/cdmoj-make-stubs/apache2.conf
 	-rm /tmp/cdmoj-make-stubs/moj.conf
 	-rm /tmp/cdmoj-make-stubs/serve-cgi-bin.conf
+
 
 .PHONY: message
 message:
@@ -96,7 +94,7 @@ message:
 	@echo "contanis your spoj credencials."
 	@echo "======================================================================"
 	@echo "Please, make sure that $(SERVERDIR)/scripts/sync-training.sh"
-	@echo "contains a valid repository in the REPO_URL variable."
+	@echo "contains a valid HOST and PORT"
 	@echo "======================================================================\n\n"
 
 

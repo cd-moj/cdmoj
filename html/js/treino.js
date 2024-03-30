@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   const content = document.querySelector(".treinoList");
-  const itemsPerPage = 2;
+  const itemsPerPage = 8;
   let currentPage = 0;
   const items = Array.from(content.getElementsByTagName("li")).slice(0);
 

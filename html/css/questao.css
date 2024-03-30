@@ -70,3 +70,17 @@
         color: gray;
         text-align: center;
         }
+
+.tle_info select {
+        background-color: transparent;
+        border: none;
+        color: #525252;
+        font-size: 14px;
+        cursor: pointer;
+}
+
+.tle_info label {
+        display: inline-block;
+        text-align: right;
+        margin-right: 10px;
+}

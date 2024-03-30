@@ -23,6 +23,8 @@ CONTEST="$(cut -d'/' -f2 <<<"$CAMINHO")"
 CONTEST="${CONTEST// /}"
 
 QUESTAO=$(basename $CAMINHO)
+# escapar o "#" do no me da questao -> ${nome_questao//#/%23}
+QUESTAO=${QUESTAO//#/%23}
 if [[ "$CONTEST" == "treino" ]]; then
   if [[ "$QUESTAO" == "conquistas.usuario" ]]; then
     HREF="$BASEURL/cgi-bin/conquistas.sh"
