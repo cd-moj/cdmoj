@@ -16,6 +16,8 @@
 
 source common.sh
 
+CAMINHO="$PATH_INFO"
+CONQ_OPT="$(cut -d'/' -f2 <<<"$CAMINHO")"
 
 if verifica-login treino |grep -q Nao; then
   tela-login treino/conquistas.usuario
@@ -25,31 +27,32 @@ LOGIN=$(pega-login)
 ACERTOU=0
 SUBMISSOES=0
 
-RUNNING=""
-
+TO_SHOW=""
 if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
   for registro in "$CONTESTSDIR/treino/controle/$LOGIN.d"/*; do
-    QUESTAO="$(basename "$registro")"
-    if [ -f "$CONTESTSDIR/treino/enunciados/$QUESTAO".html ]; then
-      RUNNING+="$(cat "$CONTESTSDIR/treino/var/questoes/$QUESTAO/li")"
-      
+    questao="$(basename "$registro")"
+    if [ -f "$CONTESTSDIR/treino/enunciados/$questao".html ]; then
+      TO_SHOW+="$(cat "$CONTESTSDIR/treino/var/questoes/$questao/li")"
+      TO_SHOW=${TO_SHOW::-5} # removento </li>
+
       source $registro
       ACERTOU=$(expr $ACERTOU + $JAACERTOU)
       SUBMISSOES=$(expr $SUBMISSOES + $TENTATIVAS)
       
-      RUNNING+="
+      TO_SHOW+="
         <div class="titcontest" style='border-bottom: 1px dotted #c1c1c1; display: flex; justify-content: space-between; padding-bottom: 5px'>
           <span><b>Acertos: </b> $JAACERTOU </span> |
           <span><b>Tentativas: </b>$TENTATIVAS </span> |
           <span><b>K/D: </b>$(printf "%.2f\n" $(echo "scale=3; ($JAACERTOU / $TENTATIVAS) + 0.005" | bc))</span>
         </div>
+      </li>
       "
     fi
   done
 fi
 
 KD="
-  <div style='border: 1px solid #e0e0e0; margin: 10px;  padding: 15px; font-size: 18px;'>
+  <div class='simpleTabsContent currentTab' style='border: 1px solid #e0e0e0; padding: 15px; font-size: 18px;'>
     <span><b>Usuario: </b> $LOGIN </span>
     <div style='display: flex; justify-content: space-between;  padding-top: 15px'>
     <span><b>Acertos: </b>$ACERTOU </span> |
@@ -58,9 +61,98 @@ KD="
     </div>
   </div>
 "
+TO_SHOW=""
+if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
 
-if [ -z "$RUNNING" ]; then
-  RUNNING="Oops, parece que voce ainda nao possui conquistas"
+# QUESTOES -----------------------------------------------
+  if [ -z "$CONQ_OPT" ]; then
+    for login_data in "$CONTESTSDIR/treino/controle/$LOGIN.d"/*; do
+      questao="$(basename "$login_data")"
+
+      if [ -f "$CONTESTSDIR/treino/enunciados/$questao".html ]; then
+        source $login_data
+
+        TO_SHOW+="
+          <li>
+            <span class=\"titcontest\"><a href=\"questao.sh/${questao//#/%23}\">
+            <b>${questao#*#}</b></a></span>
+
+            <div class=\"inTags\"><b>Tags: </b><div class=\"contestTags\">
+              $(awk '{printf "<a class=\"tagCell\" href=\"tag.sh/%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/questoes/$questao/tags)
+            </div></div>          
+            
+            <div class="titcontest" style='border-bottom: 1px dotted #c1c1c1; display: flex; justify-content: space-between; padding-bottom: 5px'>
+              <span><b>Acertos: </b> $JAACERTOU </span> |
+              <span><b>Tentativas: </b>$TENTATIVAS </span> |
+              <span><b>K/D: </b>$(printf "%.2f\n" $(echo "scale=3; ($JAACERTOU / $TENTATIVAS) + 0.005" | bc))</span>
+            </div>
+          </li>
+        "
+      fi
+    done
+
+# TAGS -----------------------------------------------
+  elif [ "$CONQ_OPT" == "tags" ]; then
+    declare -A tag_jaacertou_totals
+    declare -A tag_tentativas_totals
+    declare -A tag_questions
+
+    for login_data in "$CONTESTSDIR/treino/controle/$LOGIN.d/"*; do
+        questao=$(basename "$login_data")
+
+        if [ -f "$CONTESTSDIR/treino/enunciados/$questao".html ]; then
+          source $login_data
+          total_jaacertou="$JAACERTOU"
+          total_tentativas="$TENTATIVAS"
+          
+          tags_file="$CONTESTSDIR/treino/var/questoes/$questao/tags"
+          
+          if [ -f "$tags_file" ]; then
+              while IFS= read -r tag; do
+                  tag_jaacertou_totals["$tag"]=$((tag_jaacertou_totals["$tag"] + total_jaacertou))
+                  tag_tentativas_totals["$tag"]=$((tag_tentativas_totals["$tag"] + total_tentativas))
+                  tag_questions["$tag"]+="$questao "
+                  
+              done < "$tags_file"
+          fi
+        fi
+    done
+
+    for tag in "${!tag_jaacertou_totals[@]}"; do
+        total_jaacertou="${tag_jaacertou_totals["$tag"]}"
+        total_tentativas="${tag_tentativas_totals["$tag"]}"
+        questions="${tag_questions["$tag"]}"
+          
+        TO_SHOW+="
+        <li>
+          <div>
+            <span class="titcontest"><a href="tag.sh/${tag:1}"><b>$tag</b></a></span>
+          </div>
+
+          <div class="inTags"><b>Questoes: </b>
+            <div class="contestTags">
+        "
+        for question in ${questions}; do
+          TO_SHOW+=$(printf "<a class=\"tagCell\" href=\"questao.sh/%s\">%s</a>" ${question//#/%23} ${question#*#})
+        done <<< "$questions"
+
+        TO_SHOW+="
+            </div>
+          </div>
+
+          <div class="titcontest" style='border-bottom: 1px dotted #c1c1c1; display: flex; justify-content: space-between; padding-bottom: 5px'>
+            <span><b>Acertos: </b> $total_jaacertou </span> |
+            <span><b>Tentativas: </b>$total_tentativas </span> |
+            <span><b>K/D: </b>$(printf "%.2f\n" $(echo "scale=3; ($total_jaacertou / $total_tentativas) + 0.005" | bc))</span>
+          </div>
+        </li>
+        "
+    done
+  fi
+fi
+
+if [ -z "$TO_SHOW" ]; then
+  TO_SHOW="Oops, parece que voce ainda nao possui conquistas"
 fi
 
 cabecalho-html
@@ -68,17 +160,25 @@ cat <<EOF
 <script type="text/javascript" src="/js/treino.js"></script>
 
 <style type="text/css" media="screen">
+  @import "/css/simpletabs.css";
   @import "/css/treino.css";
 </style>
 
 <h1>Conquistas do Usuario</h1>
+
+<div class="simpleTabs">
+  <ul class="simpleTabsNavigation">
+      <li><a href="/cgi-bin/conquistas.sh">Questoes</a></li>
+      <li><a href="/cgi-bin/conquistas.sh/tags">Tags</a></li>
+  </ul>
   $KD
+</div>
 <div class="treino">
   <div class="treinoTabs" style="width: 100%;">
     <!--- Pagination script --->
     <div class="conquistas">
       <ul class="treinoList">
-        $RUNNING
+        $TO_SHOW
       </ul>
     </div>
   </div>
