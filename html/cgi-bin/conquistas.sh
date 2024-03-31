@@ -24,43 +24,33 @@ if verifica-login treino |grep -q Nao; then
 fi
 LOGIN=$(pega-login)
 
-ACERTOU=0
-SUBMISSOES=0
-
-TO_SHOW=""
+# TOTAL KD -----------------------------------------------
+KD=""
 if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
+  ACERTOU=0
+  SUBMISSOES=0
+
   for registro in "$CONTESTSDIR/treino/controle/$LOGIN.d"/*; do
     questao="$(basename "$registro")"
     if [ -f "$CONTESTSDIR/treino/enunciados/$questao".html ]; then
-      TO_SHOW+="$(cat "$CONTESTSDIR/treino/var/questoes/$questao/li")"
-      TO_SHOW=${TO_SHOW::-5} # removento </li>
-
       source $registro
       ACERTOU=$(expr $ACERTOU + $JAACERTOU)
       SUBMISSOES=$(expr $SUBMISSOES + $TENTATIVAS)
-      
-      TO_SHOW+="
-        <div class="titcontest" style='border-bottom: 1px dotted #c1c1c1; display: flex; justify-content: space-between; padding-bottom: 5px'>
-          <span><b>Acertos: </b> $JAACERTOU </span> |
-          <span><b>Tentativas: </b>$TENTATIVAS </span> |
-          <span><b>K/D: </b>$(printf "%.2f\n" $(echo "scale=3; ($JAACERTOU / $TENTATIVAS) + 0.005" | bc))</span>
-        </div>
-      </li>
-      "
     fi
   done
+
+  KD="
+    <div class='simpleTabsContent currentTab' style='border: 1px solid #e0e0e0; padding: 15px; font-size: 18px;'>
+      <span><b>Usuario: </b> $LOGIN </span>
+      <div style='display: flex; justify-content: space-between;  padding-top: 15px'>
+      <span><b>Acertos: </b>$ACERTOU </span> |
+      <span><b>Tentativas: </b>$SUBMISSOES </span> |
+      <span><b>K/D: </b>$(printf "%.2f\n" $(echo "scale=3; ($ACERTOU / $SUBMISSOES) + 0.005" | bc))</span>
+      </div>
+    </div>
+  "
 fi
 
-KD="
-  <div class='simpleTabsContent currentTab' style='border: 1px solid #e0e0e0; padding: 15px; font-size: 18px;'>
-    <span><b>Usuario: </b> $LOGIN </span>
-    <div style='display: flex; justify-content: space-between;  padding-top: 15px'>
-    <span><b>Acertos: </b>$ACERTOU </span> |
-    <span><b>Tentativas: </b>$SUBMISSOES </span> |
-    <span><b>K/D: </b>$(printf "%.2f\n" $(echo "scale=3; ($ACERTOU / $SUBMISSOES) + 0.005" | bc))</span>
-    </div>
-  </div>
-"
 TO_SHOW=""
 if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
 
@@ -74,11 +64,10 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
 
         TO_SHOW+="
           <li>
-            <span class=\"titcontest\"><a href=\"questao.sh/${questao//#/%23}\">
-            <b>${questao#*#}</b></a></span>
+            <span class=\"titcontest\"><a href=\"questao.sh/${questao//#/%23}\"><b>${questao#*#}</b></a></span>
 
             <div class=\"inTags\"><b>Tags: </b><div class=\"contestTags\">
-              $(awk '{printf "<a class=\"tagCell\" href=\"tag.sh/%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/questoes/$questao/tags)
+              $(awk '{printf "<a class=\"tagCell\" href=\"/cgi-bin/tag.sh/%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/questoes/$questao/tags)
             </div></div>          
             
             <div class="titcontest" style='border-bottom: 1px dotted #c1c1c1; display: flex; justify-content: space-between; padding-bottom: 5px'>
@@ -125,15 +114,13 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
           
         TO_SHOW+="
         <li>
-          <div>
-            <span class="titcontest"><a href="tag.sh/${tag:1}"><b>$tag</b></a></span>
-          </div>
+          <span class="titcontest"><a href="/cgi-bin/tag.sh/${tag:1}"><b>$tag</b></a></span>
 
           <div class="inTags"><b>Questoes: </b>
             <div class="contestTags">
         "
         for question in ${questions}; do
-          TO_SHOW+=$(printf "<a class=\"tagCell\" href=\"questao.sh/%s\">%s</a>" ${question//#/%23} ${question#*#})
+          TO_SHOW+=$(printf "<a class=\"tagCell\" href=\"/cgi-bin/questao.sh/%s\">%s</a>" ${question//#/%23} ${question#*#})
         done <<< "$questions"
 
         TO_SHOW+="
