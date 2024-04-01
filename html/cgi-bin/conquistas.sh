@@ -24,6 +24,28 @@ if verifica-login treino |grep -q Nao; then
 fi
 LOGIN=$(pega-login)
 
+USER_CONQS="$CONTESTSDIR/treino/var/conquistas/$LOGIN"
+
+# Verifica se o arquivo de buffer ja existe. life span = 5min
+if [[ -f "$USER_CONQS" ]]; then
+  CONQT=$(stat -c %Y "$USER_CONQS")
+  if (( EPOCHSECONDS - CONQT < 300 )); then
+    (
+      flock -x 42
+      cat "$USER_CONQS"
+      exit 0
+    ) 42<"$USER_CONQS"
+
+      exit 0
+  fi
+fi
+
+# flock para evitar concorrencia. File descriptor = 42;
+(
+flock -x 42
+exec > >(tee "$USER_CONQS")
+
+
 # TOTAL KD -----------------------------------------------
 KD=""
 if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
@@ -160,6 +182,7 @@ cat <<EOF
   </ul>
   $KD
 </div>
+
 <div class="treino">
   <div class="treinoTabs" style="width: 100%;">
     <!--- Pagination script --->
@@ -170,7 +193,14 @@ cat <<EOF
     </div>
   </div>
 </div>
+
+<div class="treinoTabs" style="width: 100%;">
+  <ul class="treinoList" style="padding: 5px;">
+    Ultima atualização: $(date +"%d/%m/%Y %H:%M:%S")
+  </ul>
+</div>
 EOF
 cat ../footer.html
 
+) 42>"$USER_CONQS"
 exit 0

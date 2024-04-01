@@ -8,6 +8,7 @@ PORT=10000
 # --------- CONTESTSDIR
 mkdir -p "$CONTESTSDIR/treino/enunciados"
 mkdir -p "$CONTESTSDIR/treino/var"
+mkdir -p "$CONTESTSDIR/treino/var/conquistas/"
 mkdir -p "$CONTESTSDIR/treino/data"
 mkdir -p "$CONTESTSDIR/treino/submissions"
 mkdir -p "$CONTESTSDIR/treino/controle"
