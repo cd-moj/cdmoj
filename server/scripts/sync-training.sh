@@ -22,8 +22,18 @@ fi
 # --------- GET PROBLEMS
 echo "[i]    Updating listproblems: $HOST $PORT"
 problems_json=$(echo '{"cmd": "listproblems"}' | nc "$HOST" "$PORT")
-
 problems=$(jq -r '.problems[] | @json' <<< "$problems_json")
+
+# Removendo problemas locais que nao foram encontratos no host
+enunciados_locais=$(find "$CONTESTSDIR/treino/enunciados" -name "*.html" -exec basename {} .html \;)
+
+for enunciado_local in $enunciados_locais; do
+    nome_problema="${enunciado_local//#//}"
+    if ! grep -q "$nome_problema" <<< "$problems"; then
+    	echo "[+]    O enunciado '$enunciado_local' nao foi encontrado no host. Removendo..."
+        rm "$CONTESTSDIR/treino/enunciados/$enunciado_local".html
+    fi
+done
 
 # Iterar sobre cada problema
 while IFS=" " read -r problem; do
