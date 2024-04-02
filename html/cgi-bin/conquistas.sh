@@ -27,14 +27,14 @@ LOGIN=$(pega-login)
 USER_CONQS="$CONTESTSDIR/treino/var/conquistas/$LOGIN"
 
 # Verifica se o arquivo de buffer ja existe. life span = 5min
-if [[ -f "$USER_CONQS" ]]; then
-  CONQT=$(stat -c %Y "$USER_CONQS")
+if [[ -f "$USER_CONQS""$CONQ_OPT" ]]; then
+  CONQT=$(stat -c %Y "$USER_CONQS""$CONQ_OPT")
   if (( EPOCHSECONDS - CONQT < 300 )); then
     (
       flock -x 42
-      cat "$USER_CONQS"
+      cat "$USER_CONQS""$CONQ_OPT"
       exit 0
-    ) 42<"$USER_CONQS"
+    ) 42<"$USER_CONQS""$CONQ_OPT"
 
       exit 0
   fi
@@ -43,7 +43,7 @@ fi
 # flock para evitar concorrencia. File descriptor = 42;
 (
 flock -x 42
-exec > >(tee "$USER_CONQS")
+exec > >(tee "$USER_CONQS""$CONQ_OPT")
 
 
 # TOTAL KD -----------------------------------------------
@@ -202,5 +202,5 @@ cat <<EOF
 EOF
 cat ../footer.html
 
-) 42>"$USER_CONQS"
+) 42>"$USER_CONQS""$CONQ_OPT"
 exit 0
