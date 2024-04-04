@@ -35,9 +35,10 @@ fi
 
 RUNNING=""
 if [ -d "$CONTESTSDIR/treino/var/questoes" ]; then
-    for file in "$CONTESTSDIR/treino/var/questoes"/*/li; do
-        if [ -f "$file" ]; then
-            RUNNING+="$(cat "$file")"
+    for questao in "$CONTESTSDIR/treino/var/questoes"/*/; do
+        questao_name=$(basename $questao)
+        if [ -f "$CONTESTSDIR/treino/enunciados/$questao_name".html ]; then
+            RUNNING+="$(< "$questao/li")"
         fi
     done
 fi

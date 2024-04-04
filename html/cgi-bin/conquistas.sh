@@ -54,7 +54,7 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
 
   for registro in "$CONTESTSDIR/treino/controle/$LOGIN.d"/*; do
     questao="$(basename "$registro")"
-    if [ -f "$CONTESTSDIR/treino/enunciados/$questao".html ]; then
+    if [ -d "$CONTESTSDIR/treino/var/questoes/$questao" ]; then
       source $registro
       ACERTOU=$(expr $ACERTOU + $JAACERTOU)
       SUBMISSOES=$(expr $SUBMISSOES + $TENTATIVAS)
@@ -81,17 +81,14 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
     for login_data in "$CONTESTSDIR/treino/controle/$LOGIN.d"/*; do
       questao="$(basename "$login_data")"
 
-      if [ -f "$CONTESTSDIR/treino/enunciados/$questao".html ]; then
+      if [ -d "$CONTESTSDIR/treino/var/questoes/$questao" ]; then
         source $login_data
 
-        TO_SHOW+="
-          <li>
-            <span class=\"titcontest\"><a href=\"questao.sh/${questao//#/%23}\"><b>${questao#*#}</b></a></span>
+        TO_SHOW+=$( < $CONTESTSDIR/treino/var/questoes/$questao/li)
 
-            <div class=\"inTags\"><b>Tags: </b><div class=\"contestTags\">
-              $(awk '{printf "<a class=\"tagCell\" href=\"/cgi-bin/tag.sh/%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/questoes/$questao/tags)
-            </div></div>          
-            
+        # Removendo </li> para adicionar div abaixo
+        TOSHOW="${TOSHOW::-5}"
+        TOSHOW+="    
             <div class="titcontest" style='border-bottom: 1px dotted #c1c1c1; display: flex; justify-content: space-between; padding-bottom: 5px'>
               <span><b>Acertos: </b> $JAACERTOU </span> |
               <span><b>Tentativas: </b>$TENTATIVAS </span> |
@@ -111,7 +108,7 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
     for login_data in "$CONTESTSDIR/treino/controle/$LOGIN.d/"*; do
         questao=$(basename "$login_data")
 
-        if [ -f "$CONTESTSDIR/treino/enunciados/$questao".html ]; then
+        if [ -d "$CONTESTSDIR/treino/var/questoes/$questao" ]; then
           source $login_data
           total_jaacertou="$JAACERTOU"
           total_tentativas="$TENTATIVAS"
@@ -142,7 +139,11 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
             <div class="contestTags">
         "
         for question in ${questions}; do
-          TO_SHOW+=$(printf "<a class=\"tagCell\" href=\"/cgi-bin/questao.sh/%s\">%s</a>" ${question//#/%23} ${question#*#})
+          if [ -f "$CONTESTSDIR/treino/enunciados/$question".html ]; then
+            TO_SHOW+=$(printf "<a class=\"tagCell\" href=\"/cgi-bin/questao.sh/%s\">%s</a>" ${question//#/%23} ${question#*#})
+          else
+            TO_SHOW+=$(printf "<a class=\"tagCell\" style=\"color: #888 !important;\">%s</a>"  ${question#*#})
+          fi
         done <<< "$questions"
 
         TO_SHOW+="
