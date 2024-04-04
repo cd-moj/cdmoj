@@ -1,156 +1,147 @@
 document.addEventListener("DOMContentLoaded", function () {
-  const content = document.querySelector(".treinoList");
-  const itemsPerPage = 8;
-  let currentPage = 0;
-  const items = Array.from(content.getElementsByTagName("li")).slice(0);
+  class Pagination {
+    constructor(content) {
+      this.content = content;
+      this.itemsPerPage = 8;
+      this.currentPage = 0;
+      this.items = Array.from(this.content.getElementsByTagName("li")).slice(0);
+      this.createPageButtons();
+      this.showPage(this.currentPage);
+    }
 
-  // paginated requests done wrong 101
-  function updateTable(page) {
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "treino.sh/" + page);
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === XMLHttpRequest.DONE) {
-        if (xhr.status === 200) {
-          console.log(xhr.responseText);
-        } else {
-          alert("Erro ao carregar conteúdo do treinamento.");
+    showPage(page) {
+      const startIndex = page * this.itemsPerPage;
+      const endIndex = startIndex + this.itemsPerPage;
+      this.items.forEach((item, index) => {
+        item.classList.toggle("hidden", index < startIndex || index >= endIndex);
+      });
+      this.updateActiveButtonStates();
+      this.updateButtons()
+    }
+
+    createPageButtons() {
+      const totalPages = Math.ceil(this.items.length / this.itemsPerPage);
+      this.paginationContainer = document.createElement("div");
+      this.paginationContainer.classList.add("pagination");
+
+      const createButtons = (s, f) => {
+        for (let i = s; i < f; i++) {
+          const pageButton = document.createElement("button");
+          pageButton.classList.add("page");
+          pageButton.textContent = i;
+          pageButton.addEventListener("click", () => {
+            this.currentPage = i - 1;
+            this.showPage(this.currentPage);
+          });
+          this.paginationContainer.appendChild(pageButton);
         }
-      }
-    };
-    xhr.send();
-  }
+      };
 
-  function showPage(page) {
-    const startIndex = page * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    items.forEach((item, index) => {
-      item.classList.toggle("hidden", index < startIndex || index >= endIndex);
-    });
-    updateActiveButtonStates();
-    updateButtons();
-  }
+      const createFirst = () => {
+        const separator = document.createElement("i");
+        separator.textContent = "...";
 
-  function createPageButtons() {
-    const totalPages = Math.ceil(items.length / itemsPerPage);
-    const paginationContainer = document.createElement("div");
-    paginationContainer.classList.add("pagination");
-
-    function createButtons(s, f) {
-      for (let i = s; i < f; i++) {
         const pageButton = document.createElement("button");
         pageButton.classList.add("page");
-        pageButton.textContent = i;
+        pageButton.textContent = 1;
         pageButton.addEventListener("click", () => {
-          currentPage = i - 1;
-          showPage(currentPage);
+          this.currentPage = 0;
+          this.showPage(this.currentPage);
         });
-        paginationContainer.appendChild(pageButton);
-      }
-    }
+        this.paginationContainer.appendChild(pageButton);
+        this.paginationContainer.appendChild(separator);
+      };
 
-    function createFirst() {
-      const separator = document.createElement("i");
-      separator.textContent = "...";
+      const createLast = () => {
+        const separator = document.createElement("i");
+        separator.textContent = "...";
+        const pageButton = document.createElement("button");
+        pageButton.classList.add("page");
+        pageButton.textContent = totalPages;
+        pageButton.addEventListener("click", () => {
+          this.currentPage = totalPages - 1;
+          this.showPage(this.currentPage);
+        });
+        this.paginationContainer.appendChild(separator);
+        this.paginationContainer.appendChild(pageButton);
+      };
 
-      const pageButton = document.createElement("button");
-      pageButton.classList.add("page");
-      pageButton.textContent = 1;
-      pageButton.addEventListener("click", () => {
-        currentPage = 0;
-        showPage(currentPage);
+      const previousButton = document.createElement("button");
+      previousButton.classList.add("previousbutton");
+      previousButton.textContent = "◄";
+      previousButton.addEventListener("click", () => {
+        if (this.currentPage > 0) {
+          this.currentPage--;
+          this.showPage(this.currentPage);
+        }
       });
-      paginationContainer.appendChild(pageButton);
-      paginationContainer.appendChild(separator);
-    }
+      this.paginationContainer.appendChild(previousButton);
 
-    function createLast() {
-      const separator = document.createElement("i");
-      separator.textContent = "...";
-      const pageButton = document.createElement("button");
-      pageButton.classList.add("page");
-      pageButton.textContent = totalPages;
-      pageButton.addEventListener("click", () => {
-        currentPage = totalPages - 1;
-        showPage(currentPage);
-      });
-      paginationContainer.appendChild(separator);
-      paginationContainer.appendChild(pageButton);
-    }
+      const surround = 3;
 
-    const previousButton = document.createElement("button");
-    previousButton.classList.add("previousbutton");
-    previousButton.textContent = "◄";
-    previousButton.addEventListener("click", () => {
-      if (currentPage > 0) {
-        currentPage--;
-        showPage(currentPage);
-      }
-    });
-    paginationContainer.appendChild(previousButton);
-
-    const surround = 3;
-
-    if (totalPages < 10) {
-      createButtons(1, totalPages + 1);
-    } else if (currentPage < surround * 3 - 2) {
-      createButtons(1, surround * 3 - 1);
-      createLast();
-    } else if (currentPage > totalPages - surround * 2 - 1) {
-      createFirst();
-      createButtons(totalPages - surround * 2 + 1, totalPages + 1);
-    } else {
-      createFirst();
-      createButtons(currentPage - 1, currentPage + 4);
-      createLast();
-    }
-
-    const nextButton = document.createElement("button");
-    nextButton.classList.add("nextbutton");
-    nextButton.textContent = "►";
-    nextButton.addEventListener("click", () => {
-      if (currentPage < totalPages - 1) {
-        currentPage++;
-        showPage(currentPage);
-      }
-    });
-    paginationContainer.appendChild(nextButton);
-
-    if (!document.querySelector(".conquistas")) {
-      const conqButton = document.createElement("button");
-      conqButton.classList.add("conqButton");
-      conqButton.textContent = "Conquistas";
-      conqButton.addEventListener("click", function () {
-        window.location.href = "/cgi-bin/conquistas.sh";
-      });
-      paginationContainer.appendChild(conqButton);
-    }
-
-    const tabs = document.querySelector(".treinoTabs");
-
-    tabs.insertBefore(paginationContainer, tabs.firstChild);
-
-    updateActiveButtonStates();
-  }
-
-  function updateButtons() {
-    const pagination = document.querySelectorAll(".pagination");
-    pagination[0].remove();
-    createPageButtons();
-  }
-
-  function updateActiveButtonStates() {
-    const pageButtons = document.querySelectorAll(".pagination button.page");
-    pageButtons.forEach((button, index) => {
-      if (Number(button.innerText) - 1 === currentPage) {
-        button.classList.add("active");
+      if (totalPages < 10) {
+        createButtons(1, totalPages + 1);
+      } else if (this.currentPage < surround * 3 - 2) {
+        createButtons(1, surround * 3 - 1);
+        createLast();
+      } else if (this.currentPage > totalPages - surround * 2 - 1) {
+        createFirst();
+        createButtons(totalPages - surround * 2 + 1, totalPages + 1);
       } else {
-        button.classList.remove("active");
+        createFirst();
+        createButtons(this.currentPage - 1, this.currentPage + 4);
+        createLast();
       }
-    });
+
+      const nextButton = document.createElement("button");
+      nextButton.classList.add("nextbutton");
+      nextButton.textContent = "►";
+      nextButton.addEventListener("click", () => {
+        if (this.currentPage < totalPages - 1) {
+          this.currentPage++;
+          this.showPage(this.currentPage);
+        }
+      });
+      this.paginationContainer.appendChild(nextButton);
+      
+      
+		if (!document.querySelector(".conquistas")) {
+		  const conqButton = document.createElement("button");
+		  conqButton.classList.add("conqButton");
+		  conqButton.textContent = "Conquistas";
+		  conqButton.addEventListener("click", function () {
+		    window.location.href = "/cgi-bin/conquistas.sh";
+		  });
+		  this.paginationContainer.appendChild(conqButton);
+		}
+
+      const tabs = this.content.closest('.treinoTabs');
+      
+      tabs.insertBefore(this.paginationContainer, tabs.firstChild);
+
+      this.updateActiveButtonStates();
+    }
+
+    updateButtons() {
+      const pagination = this.content.closest('.treinoTabs').querySelector(".pagination");
+      pagination.remove();
+      this.createPageButtons();
+    }
+    
+    updateActiveButtonStates() {
+      const pageButtons = this.paginationContainer.querySelectorAll(".pagination button.page");
+      console.log(pageButtons);
+      pageButtons.forEach((button, index) => {
+        console.log(button.innerText, "<b = i>", index, " cp>", this.currentPage);
+        if (Number(button.innerText) - 1 === this.currentPage) {
+          button.classList.add("active");
+        } else {
+          button.classList.remove("active");
+        }
+      });
+    }
   }
 
-  if (items.length > 0) {
-    createPageButtons();
-    showPage(currentPage);
-  }
+  const treinoLists = document.querySelectorAll(".treinoList");
+  treinoLists.forEach(content => new Pagination(content));
 });
