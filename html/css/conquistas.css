@@ -53,3 +53,14 @@ div.simpleTabsContent.currentTab {
   padding: 15px 0;
   width: 100%;
 }
+
+form {
+  border: 1px solid #e0e0e0;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+}
+
+form input {
+  height: 22px;
+  margin: 0;
+}

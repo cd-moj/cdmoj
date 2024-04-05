@@ -23,6 +23,37 @@ if verifica-login treino |grep -q Nao; then
 fi
 LOGIN=$(pega-login)
 
+
+IS_ADMIN=""
+if [[ "$LOGIN" =~ ".admin" ]] ||  [[ "$LOGIN" =~ ".mon" ]]; then
+  IS_ADMIN="
+    <script type="text/javascript">
+      document.addEventListener('DOMContentLoaded', function() {
+        const isAdminContainer = document.createElement('div');
+        isAdminContainer.innerHTML = \`
+          <form enctype="multipart/form-data" action="$BASEURL/cgi-bin/conquistas.sh" method="post">
+              <label>Escolha um usuario:</label>
+              <input name="user" type="text">
+              <input type="submit" value="personificar">
+          </form>
+        \`;
+        const titulo = document.querySelector('h1');
+        titulo.insertAdjacentElement('afterend', isAdminContainer);
+      });
+    </script>
+  "
+  POST="$(cat)"
+  if [[ "x$POST" != "x" ]]; then
+    LOGIN="$(grep -A2 'name="user"' <<<"$POST" | tail -n1 | tr -d '\n' | tr -d '\r')"
+
+    if [ ! -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
+      tela-erro
+      exit 0
+    fi
+  fi
+fi
+
+
 USER_CONQS="$CONTESTSDIR/treino/var/conquistas/$LOGIN"
 
 # Verifica se o arquivo de buffer ja existe. life span = 5min
@@ -32,6 +63,7 @@ if [[ -f "$USER_CONQS" ]]; then
     (
       flock -x 42
       cat "$USER_CONQS"
+      echo $IS_ADMIN
       exit 0
     ) 42<"$USER_CONQS"
 
@@ -216,4 +248,7 @@ EOF
 cat ../footer.html
 
 ) 42>"$USER_CONQS"
+
+echo $IS_ADMIN
+
 exit 0
