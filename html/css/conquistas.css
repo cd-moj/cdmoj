@@ -1,0 +1,55 @@
+div.simpleTabs {
+  position: relative;
+  padding: 0;
+}
+
+ul.simpleTabsNavigation {
+  position: absolute;
+  top: 14px;
+  right: 0;
+
+  margin: 0 10px;
+  padding: 0;
+  text-align: left;
+}
+
+ul.simpleTabsNavigation li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline-block;
+  border: none !important;
+}
+
+ul.simpleTabsNavigation li a {
+  border: 1px solid #ccc !important;
+  padding: 3px 6px;
+  background: #f0f0f0;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+ul.simpleTabsNavigation li a:hover {
+  background-color: #f6f6f6;
+}
+
+ul.simpleTabsNavigation li a.current {
+  background: #fff;
+  color: #222;
+  border-bottom: 1px solid #fff;
+}
+
+div.simpleTabsContent {
+  margin-top: 3px;
+  display: none;
+}
+div.simpleTabsContent.currentTab {
+  display: block;
+}
+
+.simpleTabs .simpleTabsContent .treino .treinoTabs {
+  box-sizing: border-box;
+  width: 65%;
+  padding: 15px 0;
+  width: 100%;
+}
