@@ -66,9 +66,20 @@ while IFS=" " read -r problem; do
         # HTML ---
         # Verifica se o html nao esta vazio e o coloca no diretorio de enunciados
         questao_html=$(jq -r .html <<< "$questao_json" | base64 -d)
+        questao_title=$(jq -r .title <<< "$questao_json")
         if [[ "x$questao_html" != "x" ]]; then
             echo "$questao_html" > "$CONTESTSDIR/treino/enunciados/$local_name".html
+            # trocando data de criacao do arquivo local
             touch -m -d @"$modified" "$CONTESTSDIR/treino/enunciados/$local_name".html
+
+            mkdir -p "$CONTESTSDIR/treino/var/questoes/$local_name"
+            if [[ "x$questao_title" != "x" ]]; then
+                echo "$questao_title" > "$CONTESTSDIR/treino/var/questoes/$local_name/title"
+                echo "[+]    Atualizando o titulo de $name"
+            else
+                echo "${local_name#*#}" > "$CONTESTSDIR/treino/var/questoes/$local_name/title"
+                echo "[-]    $name nao possui titilo. O ID sera usado como titulo..."
+            fi
         else
             echo "[-]    $name nao possui HTML. Abortando..."
             continue
@@ -77,9 +88,8 @@ while IFS=" " read -r problem; do
         # TAGS ---
         # Verifica as tags e as coloca no diretorio
         echo "[+]    Atualizando as TAGS de $name"
-        questao_tags=$(jq -r .tags <<< "$questao_json" | base64 -d)
+        questao_tags=$(jq -r .tags <<< "$questao_json" | base64 -d | tr ' ' '_' | tr '/' '_')
         if [[ ! -z "$questao_tags" ]]; then
-            mkdir -p "$CONTESTSDIR/treino/var/questoes/$local_name"
             echo "$questao_tags" > "$CONTESTSDIR/treino/var/questoes/$local_name/tags"
         fi
 
@@ -102,9 +112,10 @@ done <<< "$problems"
 for questao in $CONTESTSDIR/treino/var/questoes/*/; do
 
     nome_questao=$(basename $questao)
+    titulo=$( < "$questao/title")
 
     if [ ! -f "$CONTESTSDIR/treino/enunciados/$nome_questao".html ]; then
-        THIS="<li><span class=\"titcontest\"><b style=\"color: #aaa; font-size: 18px;\">${nome_questao#*#}</b></span>"
+        THIS="<li><span class=\"titcontest\"><b style=\"color: #aaa; font-size: 18px;\">$titulo</b></span>"
         THIS+="<p>Não disponível</p>"
         THIS+="<div class=\"inTags\"><b>Tags: </b><div class=\"contestTags\">"
         THIS+=$(awk '{printf "<a class=\"tagCell\" href=\"tag.sh/%s\">%s</a>", substr($0, 2), $0}' $questao/tags)
@@ -117,7 +128,7 @@ for questao in $CONTESTSDIR/treino/var/questoes/*/; do
     if [ -f "$CONTESTSDIR/treino/var/questoes/$nome_questao/tags" ]; then
         # espacar o "#" do no me da questao -> ${nome_questao//#/%23}
         THIS="<li><span class=\"titcontest\"><a href=\"questao.sh/${nome_questao//#/%23}\">"
-        THIS+="<b>${nome_questao#*#}</b></a></span>"
+        THIS+="<b>$titulo</b></a></span>"
         THIS+="<div class=\"inTags\"><b>Tags: </b><div class=\"contestTags\">"
         THIS+=$(awk '{printf "<a class=\"tagCell\" href=\"tag.sh/%s\">%s</a>", substr($0, 2), $0}' $questao/tags)
         THIS+="</div></div></li>"
@@ -137,12 +148,14 @@ mkdir -p $CONTESTSDIR/treino/var/tags
 for questao in $CONTESTSDIR/treino/var/questoes/*/; do
 
     nome_questao=$(basename $questao)
+    titulo=$( < "$questao/title")
+
     if [ -f "$CONTESTSDIR/treino/enunciados/$nome_questao".html ]; then
         if [ -f "$questao/tags" ]; then
             while IFS= read -r line; do
                 if ! echo "$line" | grep -q '[/ ]'; then
                     THIS="<li><span class=\"titcontest\"><a href=\"/cgi-bin/questao.sh/${nome_questao//#/%23}\">"
-                    THIS+="<b>${nome_questao#*#}</b></a></span>"
+                    THIS+="<b>$titulo</b></a></span>"
                     THIS+="<div class=\"inTags\"><b>Tags: </b><div class=\"contestTags\">"
                     THIS+=$(awk '{printf "<a class=\"tagCell\" href=\"%s\">%s</a>", substr($0, 2), $0}' $questao/tags)
                     THIS+="</div></div></li>"
