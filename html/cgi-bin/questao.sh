@@ -20,6 +20,11 @@ CAMINHO="$PATH_INFO"
 QUESTAO="$(cut -d'/' -f2 <<<"$CAMINHO")"
 CONTEST_HTML=$CONTESTSDIR/treino/enunciados/$QUESTAO.html
 
+if [[ ! -f "$CONTEST_HTML" ]]; then 
+  tela-erro
+  exit 0
+fi
+
 if verifica-login treino |grep -q Nao; then
   # espacar o "#" do no me da questao -> ${nome_questao//#/%23}
   tela-login treino/${QUESTAO//#/%23}

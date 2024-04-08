@@ -18,9 +18,14 @@
 
 source common.sh
 
-TAG="$PATH_INFO"
+TAG="${PATH_INFO:1}"
 
-RUNNING=$(awk '{print $0}' $CONTESTSDIR/treino/var/tags/#${TAG:1})
+if [[ ! -f "$CONTESTSDIR/treino/var/tags/#$TAG" ]]; then 
+  tela-erro
+  exit 0
+fi
+
+RUNNING=$(awk '{print $0}' $CONTESTSDIR/treino/var/tags/#$TAG)
 
 SHOW_TAGS=$(awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/all-tags)
 
@@ -46,7 +51,7 @@ cat <<EOF
   @import "/css/treino.css";
 </style>
 
-<h1> TAG: ${TAG:1} </h1>
+<h1> TAG: $TAG </h1>
   $MENSAGEM
 
 <div class="treino">
