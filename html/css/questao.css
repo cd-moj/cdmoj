@@ -1,0 +1,86 @@
+.questao {
+    line-height: 140%;
+    padding-top: 15px;
+}
+.questao pre {
+    border: 1px dotted gray;
+    background-color: #ececec;
+    color: #111111;
+    padding: 0.5em;
+}
+.questao blockquote {
+  color: #666666;
+  margin: 0;
+  padding-left: 3em;
+  border-left: 0.5em #EEE solid;
+}
+
+.questao code {
+    font-family: monospace;
+}
+.questao h1 a, h2 a, h3 a, h4 a, h5 a { 
+    text-decoration: none;
+    color: #7a5ada; 
+}
+.questao h1, h2, h3, h4, h5 { font-family: verdana;
+                     font-weight: bold;
+                     border-bottom: 1px dotted black;
+                     color: #7a5ada; }
+.questao h1 {
+        font-size: 130%;
+}
+
+.questao h2 {
+        font-size: 110%;
+}
+
+.questao h3 {
+        font-size: 95%;
+}
+
+.questao h4 {
+        font-size: 90%;
+        font-style: italic;
+}
+
+.questao h5 {
+        font-size: 90%;
+        font-style: italic;
+}
+
+.questao h1.title {
+        font-size: 200%;
+        font-weight: bold;
+        padding-top: 0.2em;
+        padding-bottom: 0.2em;
+        text-align: left;
+        border: none;
+}
+
+.questao dt code {
+        font-weight: bold;
+}
+.questao dd p {
+        margin-top: 0;
+}
+
+.questao #footer {
+        padding-top: 1em;
+        font-size: 70%;
+        color: gray;
+        text-align: center;
+        }
+
+.tle_info select {
+        background-color: transparent;
+        border: none;
+        color: #525252;
+        font-size: 14px;
+        cursor: pointer;
+}
+
+.tle_info label {
+        display: inline-block;
+        text-align: right;
+        margin-right: 10px;
+}

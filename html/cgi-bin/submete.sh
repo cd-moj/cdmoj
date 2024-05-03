@@ -22,6 +22,8 @@ CAMINHO="$PATH_INFO"
 CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
 CONTEST="${CONTEST// }"
 AGORA="$(date +%s)"
+HREF="$BASEURL/cgi-bin/contest.sh/$CONTEST"
+
 source $CONTESTSDIR/$CONTEST/conf
 
 function submete-sair-com-erro()
@@ -31,7 +33,7 @@ function submete-sair-com-erro()
   cat << EOF
   <script type="text/javascript">
     window.alert("$MSG");
-    top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
+    top.location.href = "$HREF"
   </script>
 EOF
 exit 0
@@ -52,16 +54,29 @@ if (( AGORA > CONTEST_END )) && DISABLESUBMIT!=1 && is-admin |grep -q Nao ; then
   exit 0
 fi
 
+# verifica-treino
+if [[ "$CONTEST" == "treino" ]]; then
+  PROBLEMA="$(cut -d'/' -f3 <<< "$CAMINHO")"
+  PROBLEMA="${PROBLEMA// }"
+  HREF="$BASEURL/cgi-bin/questao.sh/${PROBLEMA//#/%23}"
+fi
+
 if [[ "x$POST" == "x" ]]; then
   tela-erro
   exit 0
 
 elif verifica-login $CONTEST |grep -q Nao; then
-  tela-login $CONTEST
+  if [[ "$CONTEST" == "treino" ]]; then
+    tela-login treino/$PROBLEMA
+  else
+    tela-login $CONTEST
+  fi
 fi
-
 LOGIN=$(pega-login)
-PROBLEMA="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+
+if [[ "x$PROBLEMA" == "x" ]]; then # look up "verifica-treino" session
+  PROBLEMA="$(grep -A2 'name="problem"' <<< "$POST" |tail -n1|tr -d '\n'|tr -d '\r')"
+fi
 FILENAME="$(grep 'filename' <<< "$POST" |sed -e 's/.*filename="\(.*\)".*/\1/g'|head -n1|sed -e 's/\([[\/?*]\|\]\)/\\&/g')"
 FILETYPE="$(awk -F'.' '{print $NF}' <<< "$FILENAME"|tr '[a-z]' '[A-Z]')"
 FILETYPE="${FILETYPE// }"
@@ -100,7 +115,7 @@ env > "/tmp/$CONTEST/log/$LOGIN/$AGORA-$ID-$PROBLEMA"
 printf "Content-type: text/html\n\n"
 cat << EOF
 <script type="text/javascript">
-  top.location.href = "$BASEURL/cgi-bin/contest.sh/$CONTEST"
+  top.location.href = "$HREF"
 </script>
 EOF
 exit 0

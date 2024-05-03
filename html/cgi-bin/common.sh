@@ -180,7 +180,13 @@ function tela-erro()
 
 function tela-login()
 {
-  source $CONTESTSDIR/$1/conf
+  CONTEST="$(cut -d'/' -f1 <<<"$1")"
+  if [[ "$CONTEST" == "treino" ]]; then
+    source $CONTESTSDIR/treino/conf
+  else
+    source $CONTESTSDIR/$1/conf
+  fi
+
   cabecalho-html
   printf "<h1>Login em $CONTEST_NAME</h1>\n"
   cat << EOF

@@ -41,11 +41,16 @@ function pegaresultado()
   #carregar contest
   source $CONTESTSDIR/$CONTEST/conf
 
-  #SITE do problema:
-  SITE=${PROBS[PROBID]}
 
-  #ID no SITE
-  IDSITE=${PROBS[PROBID+1]}
+  if [[ "$CONTEST" == "treino" ]]; then
+    #SITE do problema:
+    SITE="cdmoj"
+    #ID no SITE
+    IDSITE="$PROBID"
+  else
+    SITE=${PROBS[PROBID]}
+    IDSITE=${PROBS[PROBID+1]}
+  fi
 
   if [[ "$CODIGOSUBMISSAO" != "Wrong Language Choice" ]]; then
     RESP="$(pega-resultado-$SITE "$CODIGOSUBMISSAO")"
@@ -105,11 +110,16 @@ while true; do
     #carregar contest
     source $CONTESTSDIR/$CONTEST/conf
 
-    #SITE do problema:
-    SITE=${PROBS[PROBID]}
+    if [[ "$CONTEST" == "treino" ]]; then
+      #SITE do problema:
+      SITE="cdmoj"
+      #ID no SITE
+      IDSITE="${PROBID//#//}" # --> "rep#probid" para "rep/probid"
+    else 
+      SITE=${PROBS[PROBID]}
+      IDSITE=${PROBS[PROBID+1]}
+    fi
 
-    #ID no SITE
-    IDSITE=${PROBS[PROBID+1]}
 
     if [[ -z "${LOGGEDIN[$SITE]}" ]] || (( EPOCHSECONDS - ${LOGGEDIN[$SITE]} > 300 )); then
       login-$SITE

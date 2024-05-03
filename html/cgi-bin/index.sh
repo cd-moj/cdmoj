@@ -41,7 +41,7 @@ ENDED=
 UPCOMING=
 NOW=$(date +%s)
 for contest in $CONTESTSDIR/*; do
-  if [[ "$contest" == "$CONTESTSDIR/*" || "$contest" == "$CONTESTSDIR/admin" ]]; then
+  if [[ "$contest" == "$CONTESTSDIR/*" || "$contest" == "$CONTESTSDIR/admin" || "$contest" == "$CONTESTSDIR/treino" ]]; then
     continue
   fi
   if [[ -e "/dev/shm/cache.ended-${contest##*/}" ]] && [[ "/dev/shm/cache.ended-${contest##*/}" -nt $contest/conf ]]; then
