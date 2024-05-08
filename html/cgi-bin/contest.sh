@@ -97,7 +97,7 @@ for ((i=0;i<TOTPROBS;i+=5)); do
   if [[ "$LINK" =~ "http://" ]]; then
     printf " - [<a href=\"$LINK\" target=\"_blank\">LINK</a>]</li>\n"
   elif [[ "$LINK" != "none" ]]; then
-    LOOKDIR="/home/html/moj.naquadah.com.br/contests/$CONTEST_ID/"
+    LOOKDIR="$HTMLDIR/contests/$CONTEST_ID/"
     #printf " - problem description"
     printf " -"
     [[ -e "$LOOKDIR/$LINK.html" ]] && printf " [<a href=\"$BASEURL/contests/$CONTEST_ID/$LINK.html\" target=\"_blank\">HTML</a>]"
