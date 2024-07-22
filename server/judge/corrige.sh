@@ -37,6 +37,9 @@ function pegaresultado()
   local PROBID="$(cut -d: -f6 <<< "$N")"
   local LING="$(cut -d: -f7 <<< "$N")"
   local RESP
+  local CMDRESP
+  local SITE
+  local IDSITE
 
   #carregar contest
   source $CONTESTSDIR/$CONTEST/conf
@@ -68,7 +71,7 @@ function pegaresultado()
   if [[ "$COMANDO" == "rejulgar" ]]; then
     CMDRESP=rejulgado
   fi
-  touch "$SUBMISSIONDIR/$CONTEST:$ID:$LOGIN:$CMDRESP:$PROBID:$LING:$RESP"
+  touch "$SUBMISSIONDIR/$CONTEST:$ID:$LOGIN:$CMDRESP:$PROBID:$LING:$RESP" || return
 
   rm -f "$ARQ"
 
@@ -89,6 +92,7 @@ while true; do
 		continue
 	fi
 	X=0
+  REJULGAR=0
   for ARQ in $SUBMISSIONDIR-enviaroj/*submit* $SUBMISSIONDIR-enviaroj/*rejulgar*; do
     if [[ ! -e "$ARQ" ]]; then
       continue
@@ -128,15 +132,22 @@ while true; do
 
     if [[ "$LANGUAGES" == "" ]] || grep -q "$LING" <<< "$LANGUAGES"; then
       CODIGOSUBMISSAO="$(enviar-$SITE "$ARQ" $IDSITE $LING|tr ' ' '_')"
-      unset LANGUAGES
     else
       CODIGOSUBMISSAO="Wrong_Language_Choice"
     fi
+
+    #unset common optional contest variables
+    unset LANGUAGES
+    unset MOJCONTESTSERVERS
+    unset CONTEST_TYPE
 
     PENDING[$ARQ]="$SITE:$CODIGOSUBMISSAO:$ARQ"
     pegaresultado "${PENDING[$ARQ]}" &
     PENDINGPID[$ARQ,PID]=$!
     PENDINGPID[$ARQ,TIME]=$EPOCHSECONDS
+
+    [[ "$ARQ" =~ "rejulgar" ]] && ((REJULGAR++))
+    (( REJULGAR > 5 )) && break
 
   done
   #dar um tempo para o OJ começar a corrigir
