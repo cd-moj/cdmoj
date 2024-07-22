@@ -87,7 +87,7 @@ boundary="$(head -n1 <<< "$POST")"
 DESTINO="$CONTEST:$AGORA:$ID:$LOGIN:submit:$PROBLEMA:"
 TMP="$(mktemp)"
 
-sed -e "1,/$fd/d;/^$/d;/$boundary/,\$d" <<< "$POST" > "$TMP"
+sed -e "1,/$fd/d;/$boundary/,\$d" <<< "$POST" > "$TMP"
 if ! file "$TMP" | egrep -q -i "(text|compressed)"; then
   rm -f "$TMP"
   submete-sair-com-erro "Arquivo Corrompido, ou vazio, ou binário. Envie o código fonte"
