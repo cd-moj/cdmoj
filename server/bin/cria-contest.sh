@@ -49,15 +49,22 @@ VARIAVEISADICIONAIS=
     read PROBCOUNT
     for((i=0;i<PROBCOUNT;i++)); do
         read PROBDESC
+        [[ -z "$PROBDESC" ]] && echo "Lista de problemas terminou prematuramente. $i < $PROBCOUNT" && exit 1
         ALLPROBS=( "${ALLPROBS[@]}" "$PROBDESC" )
     done
 
     read USUARIOSCOUNT
+    [[ -z "$USUARIOSCOUNT" ]] && echo "Esperava ler quantidade de usuários, mas li uma linha VAZIA." && exit 1
     for((i=0;i<USUARIOSCOUNT;i++)); do
-        read LINHA
-        USUARIOS="$USUARIOS$LINHA\n"
+      read LINHA
+      [[ -z "$LINHA" ]] && echo "Lista de usuários terminou prematuramente. $i < $USUARIOSCOUNT" && exit 1
+      USUARIOS="$USUARIOS$LINHA\n"
     done
     while read LINE; do
+      if ! [[ "$LINE" =~ "=" ]]; then
+        echo "Problema ao ler uma definição de variável. Esperava atribuição, mas encontrei '$LINE'"
+        exit 1
+      fi
       VARIAVEISADICIONAIS="$VARIAVEISADICIONAIS $LINE"
     done
 } < "$CONTESTDESC"
@@ -137,6 +144,7 @@ if [ ! $(find -L $SERVERDIR/jplag/ -name "*jplag*" -print0 | grep "jplag") ]; th
   wget  --directory-prefix=$SERVERDIR/jplag/ https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> /dev/null
 fi
 
+cp $CONTESTDESC $CONTESTSDIR/$CONTEST_ID/
 echo "$CONTEST_ID criado com sucesso"
 
 exit 0
