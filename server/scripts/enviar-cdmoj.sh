@@ -59,7 +59,7 @@ function enviar-cdmoj()
   local TEMP=$(mktemp)
   #ssh mojjudge@mojjudge.naquadah.com.br "bash autojudge-sh.sh $LINGUAGEM $PROBID $CODIGO" < "$ARQFONTE"
   cat << EOF > $TEMP
-{ "cmd": "run", "problemid": "$PROBID", "language": "$LINGUAGEM", "filename": "Main.$LINGUAGEM", "fileb64": "$(base64 -w 0 $ARQFONTE)", "metadata": "$ARQFONTE" }
+{ "cmd": "run", "contest_servers": "$MOJCONTESTSERVERS", "contest_end": "$CONTEST_END", "type": "$CONTEST_TYPE", "problemid": "$PROBID", "language": "$LINGUAGEM", "filename": "Main.$LINGUAGEM", "fileb64": "$(base64 -w 0 $ARQFONTE)", "metadata": "$ARQFONTE" }
 EOF
   #cat $TEMP >&2
   cat $TEMP |timeout 60 nc ${PORT/:??*} ${PORT/??*:/} | jshon -e jobid |tr -d '"' > $TEMP.a
