@@ -321,7 +321,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       fi
 
     	if [[ "$ACAO" == "analisar" ]]; then
-        rm -rf $HTMLDIR/jplag/*
+        rm -rf "$HTMLDIR/jplag/$CONTEST_ID"
         if [ -d "$HTMLDIR/jplag" ]; then
           mkdir -p "$HTMLDIR/jplag"
         fi
@@ -336,10 +336,10 @@ for ARQ in $SUBMISSIONDIR/*; do
             if [ -d "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" ]; then
               mkdir -p "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" 
             fi
-            java -jar "$SERVERDIR"/jplag/*.jar -l ${LINGUAGENS[$i]} $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" -t 10
+            java -jar "$SERVERDIR"/jplag/*.jar -m 50 -n -1 -l ${LINGUAGENS[$i]} $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/${LINGUAGENS[$i]}" -t 10
           done
         else
-              java -jar "$SERVERDIR"/jplag/*.jar -l $LINGUAGEM $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/$LINGUAGEM" -t 10
+              java -jar "$SERVERDIR"/jplag/*.jar -m 50 -n -1 -l $LINGUAGEM $CONTESTSDIR/$CONTEST/submissions/accepted -r "$HTMLDIR/jplag/$CONTEST_ID/$LINGUAGEM" -t 10
         fi
   	  fi
 
