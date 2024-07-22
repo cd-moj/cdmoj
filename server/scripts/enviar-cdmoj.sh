@@ -16,24 +16,42 @@
 #ARQFONTE=arquivo-com-a-fonte
 #PROBID=id-do-problema
 MOJPORTS=()
-MOJPORTS+=(localhost:40000)
-MOJPORTS+=(jaguapitanga.naquadah.com.br:40000)
+MOJPORTS+=(localhost:42000)
+MOJPORTS+=(localhost:42050)
+MOJPORTS+=(localhost:42100)
+MOJPORTS+=(localhost:43000)
+MOJPORTS+=(localhost:43050)
+MOJPORTS+=(localhost:43100)
+MOJPORTS+=(localhost:43150)
+MOJPORTS+=(localhost:41050)
+MOJPORTS+=(localhost:41000)
+#MOJPORTS+=(localhost:40000)
+#MOJPORTS+=(jaguapitanga.naquadah.com.br:40000)
 
 function login-cdmoj()
 {
   true
+  #if [[ ! -e /tmp/mojports ]] || find /tmp/mojports -mmin +2|grep mojports &>/dev/null; then
+  #  rm -f /tmp/mojports
+  #  for PORT in ${MOJPORTS[0]} ${MOJPORTS[@]}; do
+  #    if echo '{ "cmd": "null" }'| timeout 3 nc -w 1 ${PORT/:??*} ${PORT/??*:/}|grep "Invalid Command" &>/dev/null; then
+  #      echo $PORT >> /tmp/mojports
+  #    fi
+  #  done
+  #fi
 }
 
 #retorna o ID da submissao
 function enviar-cdmoj()
 {
   PORT=
-  for p in ${MOJPORTS[@]}; do
+  [[ -z "${MOJCONTESTSERVERS}" ]] && MOJCONTESTSERVERS="${MOJPORTS[@]}"
+  for p in ${MOJCONTESTSERVERS}; do
     PORT="$p"
     echo '{ "cmd": "islocked" }'|timeout 3 nc -w 1 ${p/:??*} ${p/??*:}|grep -q "false" && break
     unset PORT
   done
-  [[ -z "$PORT" ]] && echo "== Sem servidor livre do MOJ" >&2 && echo "No_Servers" && sleep 5 && return
+  [[ -z "$PORT" ]] && echo "== Sem servidor livre do MOJ ($MOJCONTESTSERVERS)" >&2 && sleep 5 && echo "No_Servers" && return
   local ARQFONTE=$1
   local PROBID=$2
   local LINGUAGEM=$(echo $3|tr '[A-Z]' '[a-z]')
@@ -44,7 +62,7 @@ function enviar-cdmoj()
 { "cmd": "run", "problemid": "$PROBID", "language": "$LINGUAGEM", "filename": "Main.$LINGUAGEM", "fileb64": "$(base64 -w 0 $ARQFONTE)", "metadata": "$ARQFONTE" }
 EOF
   #cat $TEMP >&2
-  cat $TEMP |timeout 30 nc ${PORT/:??*} ${PORT/??*:/} | jshon -e jobid |tr -d '"' > $TEMP.a
+  cat $TEMP |timeout 60 nc ${PORT/:??*} ${PORT/??*:/} | jshon -e jobid |tr -d '"' > $TEMP.a
   CODIGO=$(<$TEMP.a)
   echo "$PORT-$CODIGO" |tr ':' ','
   echo "$PORT-$CODIGO" >&2
@@ -55,28 +73,36 @@ EOF
   local LOCALID="$(basename $ARQFONTE|cut -d: -f2,3)"
   mkdir -p $HOME/contests/$COMPETICAO/mojlog/
   echo "${PORT/:??*} ${PORT/??*:/} $CODIGO" > $HOME/contests/$COMPETICAO/mojlog/$LOCALID
+  MOJCONTESTSERVERS=""
+  unset MOJCONTESTSERVERS
 }
 
 #Retorna string do resultado
 function pega-resultado-cdmoj()
 {
   [[ "$1" == "No Servers" ]] && echo "" && return
+  sleep 1
   local PORT=$(echo $1 |cut -d '-' -f1|tr ',' ':')
   local JOBID=$(echo $1|cut -d '-' -f2)
   local TEMP=$(mktemp)
   local COUNT=0
+  local RESULT
+  local SLEEPTIME
   echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| timeout 30 nc ${PORT/:??*} ${PORT/??*:/} |jshon -e status|tr -d '"' > $TEMP
   echo "($PORT) { \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }" >&2
   RESULT="$(<$TEMP)"
   SLEEPTIME=0.5
   local INICIO=$EPOCHSECONDS
-  while (( EPOCHSECONDS - INICIO < 7200 )) && ( [[ "$RESULT" == "On queue" ]] || [[ "$RESULT" == "Running" ]] ); do
+  while (( COUNT < 600 )) && (( EPOCHSECONDS - INICIO < 24*3600 )) && ( [[ -z "$RESULT" ]] || [[ "$RESULT" == "On queue" ]] || [[ "$RESULT" == "Running" ]] ); do
     sleep $SLEEPTIME
+    [[ -z "$RESULT" ]] && ((COUNT++))
     echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| timeout 30 nc ${PORT/:??*} ${PORT/??*:/} |jshon -e status|tr -d '"' > $TEMP
     RESULT="$(<$TEMP)"
-    ((COUNT++))
+    #SLEEPTIME=$(echo "$SLEEPTIME + 0.5" |bc)
+    #(( $(echo "$SLEEPTIME > 10" |bc) == 1 )) && SLEEPTIME=0.5
   done
-  ([[ "$RESULT" == "On queue" ]] ||  [[ "$RESULT" == "Running" ]] || [[ "$RESULT" =~ "Wrong Problem ID" ]] ) && RESULT=""
+  RESULT="${RESULT/ \[?*\]/}"
+  ([[ "$RESULT" == "On queue" ]] ||  [[ "$RESULT" == "Running" ]] ) && RESULT=""
   [[ "$RESULT" == "Presentation Error" ]] && RESULT=Accepted
   echo "$RESULT"
   rm $TEMP
