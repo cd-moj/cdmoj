@@ -115,7 +115,7 @@ printf "<h1>JPLAG</h1>\n"
 
 cat << EOF
 <p>JPlag é um sistema que encontra semelhanças entre vários conjuntos de arquivos de código-fonte Desta forma, pode detectar plágio de software e conluio no desenvolvimento de software. <br>O JPlag atualmente suporta várias linguagens de programação, metamodelos EMF e texto em linguagem natural.</p><br>
-<p><b>Caso a página não atualize com novos dados aós clicar no botão de anále atualize a página.</b></p>
+<p><b>Caso a página não atualize com novos dados aós clicar no botão de análise atualize a página.</b></p>
 <p>Esta página ainda é EXPERIMENTAL, alguma coisa ainda pode dar
 errado</p><br/>
 EOF
