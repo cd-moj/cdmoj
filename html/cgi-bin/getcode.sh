@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 #This file is part of CD-MOJ.
 #
 #CD-MOJ is free software: you can redistribute it and/or modify
@@ -47,7 +47,7 @@ fi
 
 TYPE="$(awk -F'.' '{print $NF}' <<< "$ARQUIVO")"
 ARQUIVO="$(basename "$ARQUIVO" ".$TYPE")"
-TYPE="$(tr '[a-z]' '[A-Z]' <<< "$TYPE")"
+#TYPE="$(tr '[a-z]' '[A-Z]' <<< "$TYPE")"
 ARQUIVO="$ARQUIVO.$TYPE"
 if [[ ! -e "$CONTESTSDIR/$CONTEST/submissions/$ARQUIVO" ]]; then
   tela-erro
