@@ -55,11 +55,12 @@ fi
 
 
 USER_CONQS="$CONTESTSDIR/treino/var/conquistas/$LOGIN"
+NOME=$(pega-nome treino)
 
 # Verifica se o arquivo de buffer ja existe. life span = 5min
 if [[ -f "$USER_CONQS" ]]; then
   CONQT=$(stat -c %Y "$USER_CONQS")
-  if (( EPOCHSECONDS - CONQT < 300 )); then
+  if (( EPOCHSECONDS - CONQT < 3 )); then
     (
       flock -x 42
       cat "$USER_CONQS"
@@ -86,14 +87,14 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
     questao="$(basename "$registro")"
     if [ -d "$CONTESTSDIR/treino/var/questoes/$questao" ]; then
       source $registro
-      ACERTOU=$(expr $ACERTOU + $JAACERTOU)
+      (( JAACERTOU != 0 )) && ((ACERTOU++))
       SUBMISSOES=$(expr $SUBMISSOES + $TENTATIVAS)
     fi
   done
 
   KD="
     <div style='border: 1px solid #e0e0e0; padding: 15px; font-size: 18px;'>
-      <span><b>Usuario: </b> $LOGIN </span>
+      <span><b>Usuario: </b> $NOME </span>
       <div style='display: flex; justify-content: space-between;  padding-top: 15px'>
       <span><b>Acertos: </b>$ACERTOU </span> |
       <span><b>Tentativas: </b>$SUBMISSOES </span> |
@@ -119,9 +120,9 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
         QUESTOES="${QUESTOES::-5}"
         QUESTOES+="    
             <div class="titcontest" style='border-bottom: 1px dotted #c1c1c1; display: flex; justify-content: space-between; padding-bottom: 5px'>
-              <span><b>Acertos: </b> $JAACERTOU </span> |
+            <span><b>Quando Acertou: </b> $( ((JAACERTOU!=0)) && date --date=@$JAACERTOU || echo 'Ainda não acertou') </span> |
               <span><b>Tentativas: </b>$TENTATIVAS </span> |
-              <span><b>K/D: </b>$(printf "%.2f\n" $(echo "scale=3; ($JAACERTOU / $TENTATIVAS) + 0.005" | bc))</span>
+              <span><b>K/D: </b>$( ((JAACERTOU!=0 )) && printf "%.2f\n" $(echo "scale=3; (1 / $TENTATIVAS) + 0.005" | bc) || echo 'nil')</span>
             </div>
           </li>
         "
@@ -138,7 +139,8 @@ if [ -d "$CONTESTSDIR/treino/controle/$LOGIN.d" ]; then
 
     if [ -d "$CONTESTSDIR/treino/var/questoes/$questao" ]; then
       source $login_data
-      total_jaacertou="$JAACERTOU"
+      total_jaacertou="0"
+      (( JAACERTOU != 0 )) && total_jaacertou=1
       total_tentativas="$TENTATIVAS"
       
       tags_file="$CONTESTSDIR/treino/var/questoes/$questao/tags"
