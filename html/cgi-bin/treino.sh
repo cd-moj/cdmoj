@@ -17,30 +17,36 @@
 source common.sh
 
 
-SHOW_TAGS=$(awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"tag.sh/%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/all-tags)
+SHOW_TAGS=$( (echo "#.comeceaqui"; sort -R $CONTESTSDIR/treino/var/all-tags|grep -v comeceaqui|grep -v beecrowd|head -n10) | awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"tag.sh/%s\">%s</a>", substr($0, 2), $0}')
 
 MENSAGEM="
 <div style=\"border:1px solid #E0E0E0; padding:5px 15px 5px;margin:0 10px 10px 10px;\">
-  <p style=\"color:#666;font-size:14px;\">Desenvolva suas habilidades com os desafios da nossa plataforma!</p>
-  <p>Entre com o <a href='https://t.me/mojinho_bot' target=_blank>@mojinho_bot</a> enviando: <i>participar treino</i></p>
+  <p style=\"color:#666;font-size:22px;\">Desenvolva suas habilidades com os desafios da nossa plataforma!</p>
+  <p style=\"font-size:18px;\">Envie \"<i>participar treino</i>\" para <a href='https://t.me/mojinho_bot' target=_blank>@mojinho_bot</a> para conseguir login e senha</p>
 </div>
 "
 if verifica-login treino | grep -q Sim; then
   MENSAGEM="
-  <div style=\"border:1px solid #E0E0E0; padding:5px 15px 5px;margin:0 10px 10px 10px; display:flex;justify-content: end;\">
-    <a href=\"/cgi-bin/logout.sh\"><span>Logout</span></a>
+  <div style=\"border:1px solid #E0E0E0; padding:5px 15px 5px;margin:0 10px 10px 10px; display:flex;\">
+   <p style=\"font-size:16px;\">A maioria dos problemas permite submissão em qualquer uma das seguintes linguagens: C, C++, Python, Pascal, Golang, Bash, Rust, Ocaml, Javascript, Java, Assembly RiscV, Assembly Mips.</p>
+  <p style=\"font-size:16px;\"> Para enviar os problemas nessas linguagens, bastar nomear o arquivo submetido com as seguintes extensões: c, cpp, py, pas, go, sh, rs, ml, js, java, riscv, spim</p>
+    <a href=\"/cgi-bin/logout.sh\" style=\"justify-contet:end;\"><span>Logout</span></a>
   </div>
   "
 fi
 
 RUNNING=""
-if [ -d "$CONTESTSDIR/treino/var/questoes" ]; then
-    for questao in "$CONTESTSDIR/treino/var/questoes"/*/; do
+
+if [[ -e "$CONTESTSDIRtreino/var/questoes.cache" ]]; then
+  RUNNING="$(< $CONTESTSDIRtreino/var/questoes.cache)"
+fi
+if false && [ -d "$CONTESTSDIR/treino/var/questoes" ]; then
+  RUNNING=$(for questao in "$CONTESTSDIR/treino/var/questoes"/*/; do
         questao_name=$(basename $questao)
-        if [ -f "$CONTESTSDIR/treino/enunciados/$questao_name".html ]; then
-            RUNNING+="$(< "$questao/li")"
+        if [ -f "$CONTESTSDIR/treino/enunciados/$questao_name".html ] && [ -f "$questao/li" ]; then
+            cat $questao/li
         fi
-    done
+      done|sort -t'>' -k5)
 fi
 
 if [ -z "$RUNNING" ]; then

@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
   class Pagination {
     constructor(content) {
       this.content = content;
-      this.itemsPerPage = 8;
+      this.itemsPerPage = 15;
       this.currentPage = 0;
       this.items = Array.from(this.content.getElementsByTagName("li")).slice(0);
       this.createPageButtons();

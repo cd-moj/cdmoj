@@ -1,9 +1,9 @@
 #!/bin/bash
 
-source $SERVERDIR/etc/common.conf
+source $CONFDIR/common.conf
 
 HOST="localhost"
-PORT=10000
+PORT=41000
 
 # --------- CONTESTSDIR
 mkdir -p "$CONTESTSDIR/treino/enunciados"
@@ -36,7 +36,7 @@ enunciados_locais=$(find "$CONTESTSDIR/treino/enunciados" -name "*.html" -exec b
 
 for enunciado_local in $enunciados_locais; do
     nome_problema="${enunciado_local//#//}"
-    if ! grep -q "$nome_problema" <<< "$problems"; then
+    if ! grep -q "$nome_problema\"" <<< "$problems"; then
     	echo "[+]    O enunciado '$enunciado_local' nao foi encontrado no host. Removendo..."
         rm "$CONTESTSDIR/treino/enunciados/$enunciado_local".html
     fi
@@ -90,7 +90,7 @@ while IFS=" " read -r problem; do
         echo "[+]    Atualizando as TAGS de $name"
         questao_tags=$(jq -r .tags <<< "$questao_json" | base64 -d | tr ' ' '_' | tr '/' '_')
         if [[ ! -z "$questao_tags" ]]; then
-            echo "$questao_tags" > "$CONTESTSDIR/treino/var/questoes/$local_name/tags"
+            echo "${questao_tags,,}" > "$CONTESTSDIR/treino/var/questoes/$local_name/tags"
         fi
 
         # TL ---
@@ -145,7 +145,8 @@ if [ -d "$CONTESTSDIR/treino/var/tags" ]; then
 fi
 mkdir -p $CONTESTSDIR/treino/var/tags
 
-for questao in $CONTESTSDIR/treino/var/questoes/*/; do
+ls -d $CONTESTSDIR/treino/var/questoes/*|sort -t'#' -k2| while read questao; do
+#for questao in $CONTESTSDIR/treino/var/questoes/*/; do
 
     nome_questao=$(basename $questao)
     titulo=$( < "$questao/title")
@@ -167,27 +168,36 @@ for questao in $CONTESTSDIR/treino/var/questoes/*/; do
     fi
 done
 
-
+for T in $CONTESTSDIRtreino/var/tags/*; do
+  sort -t'>' -k5 $T > ${T}.x
+  mv ${T}.x $T
+done
 
 # --------- ALL_TAGS
-ALL_TAGS=()
+declare -A ALL_TAGS
 
 new_tag() {
     local elemento="$1"
-    local -n conjunto="$2"
 
-    if [[ ! " ${conjunto[*]} " =~ $elemento ]]; then
-        conjunto+=("$elemento")
-    fi
+    [[ -z "${ALL_TAGS[$elemento]}" ]] && ALL_TAGS[$elemento]=1
 }
 
 for questao in $CONTESTSDIR/treino/var/questoes/*/; do
     if [ -f "$questao/tags" ]; then
         if ! echo "$line" | grep -q '[/ ]'; then
             while IFS= read -r line; do
-                new_tag $line ALL_TAGS
+                ALL_TAGS[$line]=1
             done <"$questao/tags"
         fi
     fi
 done
-printf '%s\n' "${ALL_TAGS[@]}" > $CONTESTSDIR/treino/var/all-tags
+printf '%s\n' "${!ALL_TAGS[@]}" > $CONTESTSDIR/treino/var/all-tags
+
+if [ -d "$CONTESTSDIR/treino/var/questoes" ]; then
+  for questao in "$CONTESTSDIR/treino/var/questoes"/*/; do
+    questao_name=$(basename $questao)
+    if [ -f "$CONTESTSDIR/treino/enunciados/$questao_name".html ] && [ -f "$questao/li" ]; then
+      cat $questao/li
+    fi
+  done|sort -t'>' -k5 > $CONTESTSDIR/treino/var/questoes.cache
+fi

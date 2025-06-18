@@ -17,8 +17,8 @@
 source common.sh
 
 CAMINHO="$PATH_INFO"
-QUESTAO="$(cut -d'/' -f2 <<<"$CAMINHO")"
-CONTEST_HTML=$CONTESTSDIR/treino/enunciados/$QUESTAO.html
+QUESTAO="$(cut -d'/' -f2 <<<"$CAMINHO"|tr -d '/')"
+CONTEST_HTML="$CONTESTSDIR/treino/enunciados/$QUESTAO.html"
 
 if [[ ! -f "$CONTEST_HTML" ]]; then 
   tela-erro
@@ -41,9 +41,9 @@ TABLE=$(awk -v QUESTAO="$QUESTAO" -F ':' '{
 
       HUMANTIME=strftime("%c", TIME)
 
-      print "<tr><td>" RESP "</td><td>" HUMANTIME "</td><td>" CODE "</td></tr>"
+      print TIME":<tr><td>" RESP "</td><td>" HUMANTIME "</td><td>" CODE "</td></tr>"
     }
-}' "$CONTESTSDIR/treino/data/$LOGIN")
+}' "$CONTESTSDIR/treino/data/$LOGIN"|sort -n -r -t: -k1|cut -d: -f2-)
 
 if [ -z "$TABLE" ]; then
   TABLE="Voce ainda não tentou resolver essa quetão, basta enviar sua solução."
@@ -75,7 +75,11 @@ cat <<EOF
 <script type="text/javascript" src="/js/simpletabs_1.3.packed.js"></script>
 <style type="text/css" media="screen">
   @import "/css/scrollableTable.css";
-  @import "/css/questao.css";
+</style>
+
+<style>
+@import "https://raw.githubusercontent.com/premasagar/cleanslate/master/cleanslate.css";
+@import "/css/questao.css";
 </style>
 
 <div style="border:1px solid #ccc; padding:10px; font-size:14px; color: #666;">
@@ -101,7 +105,11 @@ cat <<EOF
     </div>
   </div>
 
-  <div class="questao">
+  <div class="questao cleanslate">
+<style>
+.questao * { all: revert;}
+@import "/css/questao.css";
+</style>
     $(< $CONTEST_HTML)
   </div>
 </div>

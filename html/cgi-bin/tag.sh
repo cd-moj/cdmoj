@@ -18,7 +18,7 @@
 
 source common.sh
 
-TAG="${PATH_INFO:1}"
+TAG="$(tr '/' '_' <<< "${PATH_INFO:1}")"
 
 if [[ ! -f "$CONTESTSDIR/treino/var/tags/#$TAG" ]]; then 
   tela-erro
@@ -27,7 +27,7 @@ fi
 
 RUNNING=$(awk '{print $0}' $CONTESTSDIR/treino/var/tags/#$TAG)
 
-SHOW_TAGS=$(awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"%s\">%s</a>", substr($0, 2), $0}' $CONTESTSDIR/treino/var/all-tags)
+SHOW_TAGS=$(shuf -n10 $CONTESTSDIR/treino/var/all-tags|awk 'NR <= 10 {printf "<a class=\"tagCell\" href=\"%s\">%s</a>", substr($0, 2), $0}')
 
 MENSAGEM="
 <div style=\"border:1px solid #E0E0E0; padding:5px 15px 5px;margin:0 10px 10px 10px;\">

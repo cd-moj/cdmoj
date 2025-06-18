@@ -1,86 +1,107 @@
+/*.questao { all: revert !important; }*/
 .questao {
-    line-height: 140%;
-    padding-top: 15px;
+    line-height: 140% !important;
+    padding-top: 15px !important;
+    margin: auto !important;
+    padding-right: 1em !important;
+    padding-left: 1em !important;
+    max-width: 80em !important;
+    border-left: 1px solid black !important;
+    border-right: 1px solid black !important;
+    color: black !important;
+    font-family: Verdana, sans-serif !important;
+    font-size: 100% !important;
+    line-height: 140% !important;
+    color: #333 !important;
 }
+.questao img { max-width: 44em !important;}
 .questao pre {
-    border: 1px dotted gray;
-    background-color: #ececec;
-    color: #111111;
-    padding: 0.5em;
+    border: 1px dotted gray !important;
+    background-color: #ececec !important;
+    color: #1111111 !important;
+    padding: 0.5em !important;
+    font-family: monospace !important;
 }
 .questao blockquote {
-  color: #666666;
-  margin: 0;
-  padding-left: 3em;
-  border-left: 0.5em #EEE solid;
+  color: #666666 !important;
+  margin: 0 !important;
+  padding-left: 3em !important;
+  border-left: 0.5em #EEE solid !important;
 }
 
+.questao li{padding: revert !important; border-bottom: revert !important;}
+
 .questao code {
-    font-family: monospace;
+    font-family: monospace !important;
+    white-space: pre-wrap !important;
+    line-height: 140% !important;
+    font-size: 100% !important;
 }
 .questao h1 a, h2 a, h3 a, h4 a, h5 a { 
-    text-decoration: none;
-    color: #7a5ada; 
+    text-decoration: none !important;
+    color: #7a5ada !important; 
 }
-.questao h1, h2, h3, h4, h5 { font-family: verdana;
-                     font-weight: bold;
-                     border-bottom: 1px dotted black;
-                     color: #7a5ada; }
+.questao h1, h2, h3, h4, h5 { font-family: verdana !important;
+                     font-weight: bold !important;
+                     border-bottom: 1px dotted black !important;
+                     color: #7a5ada !important; }
 .questao h1 {
-        font-size: 130%;
+        font-size: 140% !important;
 }
 
 .questao h2 {
-        font-size: 110%;
+        font-size: 120% !important;
 }
 
 .questao h3 {
-        font-size: 95%;
+        font-size: 100% !important;
 }
 
 .questao h4 {
-        font-size: 90%;
-        font-style: italic;
+        font-size: 90% !important;
+        font-style: italic !important;
 }
 
 .questao h5 {
-        font-size: 90%;
-        font-style: italic;
+        font-size: 90% !important;
+        font-style: italic !important;
 }
 
 .questao h1.title {
-        font-size: 200%;
-        font-weight: bold;
-        padding-top: 0.2em;
-        padding-bottom: 0.2em;
-        text-align: left;
-        border: none;
+        font-size: 200% !important;
+        font-weight: bold !important;
+        padding-top: 0.2em !important;
+        padding-bottom: 0.2em !important;
+        text-align: left !important;
+        border: none !important;
 }
 
 .questao dt code {
-        font-weight: bold;
+        font-weight: bold !important;
 }
 .questao dd p {
-        margin-top: 0;
+        margin-top: 0 !important;
 }
 
 .questao #footer {
-        padding-top: 1em;
-        font-size: 70%;
-        color: gray;
-        text-align: center;
+  background: revert !important;
+        padding-top: 1em !important;
+        font-size: 80% !important;
+        color: gray !important;
+        text-align: center !important;
         }
 
 .tle_info select {
-        background-color: transparent;
-        border: none;
-        color: #525252;
-        font-size: 14px;
-        cursor: pointer;
+        background-color: transparent !important;
+        border: none !important;
+        color: #525252 !important;
+        font-size: 14px !important;
+        cursor: pointer !important;
 }
 
 .tle_info label {
-        display: inline-block;
-        text-align: right;
-        margin-right: 10px;
+        display: inline-block !important;
+        text-align: right !important;
+        margin-right: 10px !important;
 }
+
