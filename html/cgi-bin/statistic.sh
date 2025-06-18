@@ -48,6 +48,11 @@ else
 fi
 printf "<h1>Estatísticas de \"<em>$CONTEST_NAME</em>\"</h1>\n"
 
+if [[ -e $CONTESTSDIR/$CONTEST/data/.statistic.cache ]] && [[ "$CONTESTSDIR/$CONTEST/data/.statistic.cache" -nt "$CONTESTSDIR/$CONTEST/controle/history" ]] && [[ "$CONTESTSDIR/$CONTEST/data/.statistic.cache" -nt "$CONTESTSDIR/$CONTEST/conf" ]] && (( $(stat -c %Y $CONTESTSDIR/$CONTEST/data/.statistic.cache) > CONTEST_END+100 )); then
+  cat $CONTESTSDIR/$CONTEST/data/.statistic.cache
+else
+(
+  flock -n 9 || exit 1
 printf "<ul><li>Início: $(date --date=@$CONTEST_START)</li>"
 printf "<li>Término:  $(date --date=@$CONTEST_END)</li>"
 
@@ -207,8 +212,10 @@ printf "<tr><th>#</th><th>User</th><th>Time</th><th>Problem</th>"
 printf "<th>Language</th><th>Local Time</th><th>Answer</th></tr>\n"
 printf "$RUNLIST"
 printf "</table>"
-
-
+echo "<p>Gerado em $(date -R)</p>"
+) 9>/var/lock/stat-$CONTEST > $CONTESTSDIR/$CONTEST/data/.statistic.cache
+cat  $CONTESTSDIR/$CONTEST/data/.statistic.cache
+fi
 if (verifica-login $CONTEST| grep -q Sim) && (is-admin |grep -q Sim); then
   incontest-footer
 else
