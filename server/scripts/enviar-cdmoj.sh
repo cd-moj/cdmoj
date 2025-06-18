@@ -16,16 +16,17 @@
 #ARQFONTE=arquivo-com-a-fonte
 #PROBID=id-do-problema
 MOJPORTS=()
-MOJPORTS+=(localhost:42000)
-MOJPORTS+=(localhost:42050)
-MOJPORTS+=(localhost:42100)
-MOJPORTS+=(localhost:43000)
-MOJPORTS+=(localhost:43050)
-MOJPORTS+=(localhost:43100)
-MOJPORTS+=(localhost:43150)
-MOJPORTS+=(localhost:41050)
-MOJPORTS+=(localhost:41000)
-#MOJPORTS+=(localhost:40000)
+#MOJPORTS+=(localhost:42000)
+#MOJPORTS+=(localhost:42050)
+#MOJPORTS+=(localhost:42100)
+#MOJPORTS+=(localhost:43000)
+#MOJPORTS+=(localhost:43050)
+#MOJPORTS+=(localhost:43100)
+#MOJPORTS+=(localhost:43150)
+#MOJPORTS+=(localhost:41050)
+#MOJPORTS+=(localhost:41000)
+MOJPORTS+=(localhost:27000)
+MOJPORTS+=(localhost:40000)
 #MOJPORTS+=(jaguapitanga.naquadah.com.br:40000)
 
 function login-cdmoj()
@@ -45,10 +46,9 @@ function login-cdmoj()
 function enviar-cdmoj()
 {
   PORT=
-  [[ -z "${MOJCONTESTSERVERS}" ]] && MOJCONTESTSERVERS="${MOJPORTS[@]}"
-  for p in ${MOJCONTESTSERVERS}; do
+  for p in ${MOJPORTS[@]}; do
     PORT="$p"
-    echo '{ "cmd": "islocked" }'|timeout 3 nc -w 1 ${p/:??*} ${p/??*:}|grep -q "false" && break
+    echo '{ "cmd": "islocked" }'|timeout 30 nc -w 10 ${p/:??*} ${p/??*:}|grep -q "false" && break
     unset PORT
   done
   [[ -z "$PORT" ]] && echo "== Sem servidor livre do MOJ ($MOJCONTESTSERVERS)" >&2 && sleep 5 && echo "No_Servers" && return
@@ -62,6 +62,7 @@ function enviar-cdmoj()
 { "cmd": "run", "contest_servers": "$MOJCONTESTSERVERS", "contest_end": "$CONTEST_END", "type": "$CONTEST_TYPE", "problemid": "$PROBID", "language": "$LINGUAGEM", "filename": "Main.$LINGUAGEM", "fileb64": "$(base64 -w 0 $ARQFONTE)", "metadata": "$ARQFONTE" }
 EOF
   #cat $TEMP >&2
+  cat "$TEMP" >&2
   cat $TEMP |timeout 60 nc ${PORT/:??*} ${PORT/??*:/} | jshon -e jobid |tr -d '"' > $TEMP.a
   CODIGO=$(<$TEMP.a)
   echo "$PORT-$CODIGO" |tr ':' ','
@@ -96,7 +97,7 @@ function pega-resultado-cdmoj()
   while (( COUNT < 600 )) && (( EPOCHSECONDS - INICIO < 24*3600 )) && ( [[ -z "$RESULT" ]] || [[ "$RESULT" == "On queue" ]] || [[ "$RESULT" == "Running" ]] ); do
     sleep $SLEEPTIME
     [[ -z "$RESULT" ]] && ((COUNT++))
-    echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| timeout 30 nc ${PORT/:??*} ${PORT/??*:/} |jshon -e status|tr -d '"' > $TEMP
+    echo "{ \"cmd\": \"getresult\", \"jobid\": \"$JOBID\" }"| timeout 30 nc ${PORT/:??*} ${PORT/??*:/} |jshon -e status -u|tr -d '"'|tr '/' ',' > $TEMP
     RESULT="$(<$TEMP)"
     #SLEEPTIME=$(echo "$SLEEPTIME + 0.5" |bc)
     #(( $(echo "$SLEEPTIME > 10" |bc) == 1 )) && SLEEPTIME=0.5

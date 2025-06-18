@@ -15,6 +15,6 @@
 
 function link-prob-cdmoj()
 {
-  PROBID=$1
-  echo "$BASEURL/self.shtml"
+  local PROBID=$1
+  echo "$BASEURL/cgi-bin/questao.sh/${PROBID/\//%%23}"
 }
