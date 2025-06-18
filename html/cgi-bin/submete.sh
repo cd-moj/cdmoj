@@ -46,7 +46,7 @@ if ((DISABLESUBMIT==1)) && is-admin |grep -q Nao ; then
   cat ../footer.html
   exit 0
 fi
-if (( AGORA > CONTEST_END )) && DISABLESUBMIT!=1 && is-admin |grep -q Nao ; then
+if (( AGORA > CONTEST_END )) && is-admin |grep -q Nao ; then
   cabecalho-html
   echo "<h1>O contest \"$CONTEST_NAME\" não está mais em execução</h1>"
   echo "<p> A sua submissão não foi armazenada</p>"
@@ -87,11 +87,13 @@ boundary="$(head -n1 <<< "$POST")"
 DESTINO="$CONTEST:$AGORA:$ID:$LOGIN:submit:$PROBLEMA:"
 TMP="$(mktemp)"
 
-sed -e "1,/$fd/d;/$boundary/,\$d" <<< "$POST" > "$TMP"
-if ! file "$TMP" | egrep -q -i "(text|compressed)"; then
-  rm -f "$TMP"
-  submete-sair-com-erro "Arquivo Corrompido, ou vazio, ou binário. Envie o código fonte"
-fi
+sed -e "1,/$fd/d;/$boundary/,\$d" <<< "$POST"|sed -e '1d;${/^$/d}' > "$TMP"
+#if ! file "$TMP" | egrep -q -i "(text|compressed)"; then
+#  rm -f "$TMP"
+#  submete-sair-com-erro "Arquivo Corrompido, ou vazio, ou binário. Envie o código fonte"
+#fi
+
+#cat <<< "$POST" > $SUBMISSIONDIR/../doido/testedoido-$DESTINO
 
 #testar criar aquivo
 if ! touch "/tmp/$DESTINO$FILETYPE"; then
