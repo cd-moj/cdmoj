@@ -94,6 +94,7 @@ while true; do
 	X=0
   REJULGAR=0
   for ARQ in $SUBMISSIONDIR-enviaroj/*submit* $SUBMISSIONDIR-enviaroj/*rejulgar*; do
+    (( ${#PENDING[@]} > 30 )) && [[ "$ARQ" =~ "rejulgar" ]] && echo "$(date -R): Ops, muitas submissões, esperando um pouco para liberar as filas. Temos ${#PENDING[@]} em julgamento, ignorando rejulgamentos por enquanto" && break
     if [[ ! -e "$ARQ" ]]; then
       continue
     fi
@@ -151,7 +152,7 @@ while true; do
 
   done
   #dar um tempo para o OJ começar a corrigir
-  sleep 1
+  sleep 0.2
   #echo -e "\n-- Pegando Submissões pendentes"
   echo -en "${ANIMACAO:$ANIPOS:1} \r"
   ((ANIPOS=(ANIPOS+1)%${#ANIMACAO}))
