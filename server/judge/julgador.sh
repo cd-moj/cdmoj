@@ -19,25 +19,6 @@ source $CONFDIR/common.conf
 source $SCRIPTSDIR/enviar-spoj.sh
 source $SCRIPTSDIR/enviar-uri.sh
 
-function updatescore()
-{
-    contest=$1
-
-    CLASSIFICACAO=1
-    cat $CONTESTSDIR/$contest/controle/*.score|sort -n -t ':' -k3|
-      sort -s -n -r -t ':' -k2|
-      cut -d: -f1|
-      while read LINE; do
-        BGCOLOR=""
-        if (( CLASSIFICACAO%2 == 0 ));then
-          BGCOLOR="bgcolor='#00EEEE'"
-        fi
-        echo "<tr $BGCOLOR><td>$CLASSIFICACAO<br/></td>$LINE";
-        ((CLASSIFICACAO++))
-      done  > $CONTESTSDIR/$CONTEST/controle/SCORE.tmp
-      mv $CONTESTSDIR/$CONTEST/controle/SCORE{.tmp,}
-}
-
 function updatedotscore()
 {
   local NOME="$2"
@@ -110,7 +91,12 @@ for ARQ in $SUBMISSIONDIR/*; do
 
   #carregar contest
   unset ALLOWLATEUSER
+  unset SCORETYPE
+  unset SONIC
   source $CONTESTSDIR/$CONTEST/conf
+  [[ "$SCORETYPE" == "OBI" ]] && . $SCRIPTSDIR/updatescore-obi.sh
+  [[ -z "$SCORETYPE" ]] && . $SCRIPTSDIR/updatescore.sh
+  [[ "$SONIC" == 1 ]] && . $SCRIPTSDIR/sonic.sh
 
   if [[ "$CONTEST" == "admin" && "$COMANDO" == "newcontest" ]]; then
     TMPDIR=$(mktemp -d)
@@ -124,6 +110,10 @@ for ARQ in $SUBMISSIONDIR/*; do
 
     if (( SAIDA == 0 )); then
       CONTEST="$(head -n1 "$CAMINHO/contest-description.txt")"
+      source $CONTESTSDIR/$CONTEST/conf
+      [[ "$SCORETYPE" == "OBI" ]] && . $SCRIPTSDIR/updatescore-obi.sh
+      [[ -z "$SCORETYPE" ]] && . $SCRIPTSDIR/updatescore.sh
+      [[ "$SONIC" == 1 ]] && . $SCRIPTSDIR/sonic.sh
 
       #Se já tem alguém logado no contest atualiza todos os .score
       UPSCORE=false
@@ -132,8 +122,9 @@ for ARQ in $SUBMISSIONDIR/*; do
           continue
         fi
         LOGIN="$(basename "$D" .d)"
-        NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
+        NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3|tr -d '\n')"
         updatedotscore "$LOGIN" "$NOME" "$CONTEST"
+        touch $CONTESTSDIR/$CONTEST/data/$LOGIN
         UPSCORE=true
       done
 
@@ -189,6 +180,8 @@ for ARQ in $SUBMISSIONDIR/*; do
 
   elif [[ "$COMANDO" == "rejulgado" ]]; then
     PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
+    SONICFILE=$CONTESTSDIR/$CONTEST/running/$ID
+    [[ -e "$SONICFILE" ]] && rm "$SONICFILE"
 
     JAACERTOU=0
     TENTATIVAS=0
@@ -231,7 +224,7 @@ for ARQ in $SUBMISSIONDIR/*; do
     fi
       sed -i "s/^$TEMPO:$LOGIN:$PROBID:.*:.*:$ID$/$TEMPO:$LOGIN:$PROBID:$LING:$RESP:$ID/" $CONTESTSDIR/$CONTEST/controle/history
 
-    NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3)"
+    NOME="$(grep "^$LOGIN:" $CONTESTSDIR/$CONTEST/passwd|cut -d: -f3|tr -d '\n')"
     if ! egrep -q "\.(admin|mon)$" <<< "$LOGIN"; then
       updatedotscore "$LOGIN" "$NOME" "$CONTEST"
       updatescore $CONTEST
@@ -240,6 +233,8 @@ for ARQ in $SUBMISSIONDIR/*; do
   elif [[ "$COMANDO" == "corrigido" ]]; then
 
     PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
+    SONICFILE=$CONTESTSDIR/$CONTEST/running/$ID
+    [[ -e "$SONICFILE" ]] && rm "$SONICFILE"
 
     JAACERTOU=0
     TENTATIVAS=0
@@ -290,6 +285,8 @@ for ARQ in $SUBMISSIONDIR/*; do
     USRFILE="$CONTESTSDIR/$CONTEST/data/$LOGIN"
     sed -i -e "s/^$ID:\(.*\)$/$ID:\1 (Rejulgando)/" "$USRFILE"
     chmod 777 "$USRFILE"
+    SONICFILE=$CONTESTSDIR/$CONTEST/running/$ID
+    [[ "$SONIC" = 1 ]] && createsonicfile $CONTEST $PROBID $ID $LOGIN REJULGANDO
 
     TEMPO="$(cut -d: -f1 <<< "$ID")"
     ((TEMPO= (TEMPO - CONTEST_START) ))
@@ -298,6 +295,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       true
     else
       sed -i "s/^$TEMPO:\(.*\):$ID$/$TEMPO:\1 (Rejulgando):$ID/" $CONTESTSDIR/$CONTEST/controle/history
+      [[ "$SONIC" == 1 ]] && updatescore $CONTEST
     fi
 
   elif [[ "$COMANDO" == "answer" ]];then	  
@@ -319,6 +317,7 @@ for ARQ in $SUBMISSIONDIR/*; do
       if [ -z $(find "$SERVERDIR"/jplag/  -maxdepth 1 -name '*.jar' -printf 1 -quit) ]; then
           wget --directory-prefix="$SERVERDIR"/jplag/  https://github.com/jplag/JPlag/releases/download/v3.0.0/jplag-3.0.0-jar-with-dependencies.jar &> "$SERVERDIR"/jplag/status
       fi
+      ( cd $CONTESTSDIR$CONTEST/submissions/accepted; grep Accepted ../../controle/history |cut -d: -f6-|while read XXX; do ln -s ../${XXX}*;done)
 
     	if [[ "$ACAO" == "analisar" ]]; then
         rm -rf "$HTMLDIR/jplag/$CONTEST_ID"
@@ -348,6 +347,8 @@ for ARQ in $SUBMISSIONDIR/*; do
     # SITE=${PROBS[PROBID]}
 
     PROBIDFILE=$CONTESTSDIR/$CONTEST/controle/$LOGIN.d/$PROBID
+    SONICFILE=$CONTESTSDIR/$CONTEST/running/$ID
+    [[ "$SONIC" = 1 ]] && createsonicfile $CONTEST $PROBID $ID $LOGIN
 
     JAACERTOU=0
     TENTATIVAS=0
