@@ -36,6 +36,9 @@ fi
 #    exit 0
 #fi
 
+tr -d '\r' < $CONTESTDESC > ${CONTESTDESC}.x
+mv ${CONTESTDESC}.x $CONTESTDESC
+
 CONTEST_ID=
 CONTEST_NAME=
 ALLPROBS=
@@ -65,7 +68,7 @@ VARIAVEISADICIONAIS=
         echo "Problema ao ler uma definição de variável. Esperava atribuição, mas encontrei '$LINE'"
         exit 1
       fi
-      VARIAVEISADICIONAIS="$VARIAVEISADICIONAIS $LINE"
+      VARIAVEISADICIONAIS+="$LINE\n"
     done
 } < "$CONTESTDESC"
 
@@ -105,9 +108,10 @@ chmod go+rwx "$CONTESTSDIR/$CONTEST_ID/log"
     echo "CONTEST_START=$CONTEST_START"
     echo "CONTEST_END=$CONTEST_END"
     echo "PROBS=(${ALLPROBS[@]})"
-    for VAR in $VARIAVEISADICIONAIS; do
-      echo "$VAR"
-    done
+    #for VAR in $VARIAVEISADICIONAIS; do
+    #  echo "$VAR"
+    #done
+    printf "$VARIAVEISADICIONAIS"
 } > $CONTESTSDIR/$CONTEST_ID/conf
 
 printf "$USUARIOS" > $CONTESTSDIR/$CONTEST_ID/passwd
