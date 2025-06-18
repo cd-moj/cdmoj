@@ -160,6 +160,8 @@ for ARQ in $SUBMISSIONDIR/*; do
       echo "<tr><td>--</td>$(<$CONTESTSDIR/$CONTEST/controle/$LOGIN.score)"|
         cut -d: -f1 >> $CONTESTSDIR/$CONTEST/controle/SCORE
     fi
+  elif [[ "$COMANDO" == "synctreino" ]]; then
+    bash $SCRIPTSDIR/sync-training.sh > $ARQ
   elif [[ "$COMANDO" == "alteravigenciacontest" ]]; then
     NOVAVIGENCIA=$PROBID
     echo "#alteracao via mojinho $ARQ" >> $CONTESTSDIR$CONTEST/conf
