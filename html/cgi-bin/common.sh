@@ -47,7 +47,7 @@ function incontest-cabecalho-html()
     ADMINMENU+="<li><a href=\"$URL/jplag.sh/$CONTEST\"><span class=\"title\">Jplag</span><span class=\"text\">Identificação de Plágio</span></a></li>"
     ADMINMENU+="<li><a href=\"$URL/all-runs.sh/$CONTEST\"><span class=\"title\">Todas Submissões</span><span class=\"text\">Separadas por usuários</span></a></li>"
   fi
-  if [ $CLARIFICATION -eq 0 ] || [ -z $CLARIFICATION ]; then
+  if [ -z "$CLARIFICATION" ] || [ $CLARIFICATION -eq 0 ] ; then
 	  unset COMMONMENU
   fi
   printf "Content-type: text/html\n\n"
@@ -96,7 +96,8 @@ function cabecalho-html()
 {
   printf "Content-type: text/html\n\n"
   cat ../header.html
-  cat ../menu.html
+  [[ -z "$ESP" ]] && cat ../menu.html
+  [[ -n "$ESP" ]] && cat ../menu-empty.html
   cat << EOF
           <div id="text">
 EOF

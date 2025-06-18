@@ -13,6 +13,11 @@
 #
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
+if [[ "https://$SERVER_NAME" != "$BASEURL" ]]; then
+  CONTEST=${SERVER_NAME%.moj.naquadah.com.br*}
+  BASEURL="https://$SERVER_NAME"
+  ESP=1
+fi
 
 source common.sh
 AGORA=$(date +%s)

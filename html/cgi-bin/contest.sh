@@ -14,6 +14,11 @@
 #You should have received a copy of the GNU General Public License
 #along with CD-MOJ.  If not, see <http://www.gnu.org/licenses/>.
 
+if [[ "$SERVER_NAME" != "moj.naquadah.com.br" ]]; then
+  CONTEST=${SERVER_NAME%.moj.naquadah.com.br*}
+  BASEURL="https://$SERVER_NAME"
+  ESP=1
+fi
 source common.sh
 
 
@@ -27,8 +32,21 @@ CAMINHO="$PATH_INFO"
 #CAMINHO="$(sed -e 's#.*/contest.sh/##' <<< "$CAMINHO")"
 
 #contest é a base do caminho
-CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
-CONTEST="${CONTEST// }"
+if [[ -z "$CONTEST" ]]; then
+  CONTEST="$(cut -d'/' -f2 <<< "$CAMINHO")"
+  CONTEST="${CONTEST// }"
+fi
+
+if [[ "$CONTEST" == "treino" ]]; then
+cat <<EOF
+Content-type: text/html
+
+
+<script type="text/javascript">
+    top.location.href = "/cgi-bin/treino.sh"
+</script>
+EOF
+fi
 
 if [[ "x$CONTEST" == "x" ]] || [[ ! -d "$CONTESTSDIR/$CONTEST" ]]; then
   tela-erro

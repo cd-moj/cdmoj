@@ -62,7 +62,7 @@ EOF
   env &>$SUBMISSIONDIR/$CONTEST:$AGORA:$RAND:$LOGIN:login:dummy
 
   #enviar cookie
-  ((ESPIRA = AGORA + 36000))
+  ((ESPIRA = AGORA + 2592000))
   printf "Content-type: text/html\n\n"
   cat <<EOF
   <script type="text/javascript">

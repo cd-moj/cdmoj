@@ -25,6 +25,31 @@ source common.sh
 CAMINHO="$0"
 CAMINHO=($(sed -e 's#.*/index.sh/##' <<< "$CAMINHO"))
 
+if [[ "https://$SERVER_NAME" != "$BASEURL" ]] &&  [[ "https://$SERVER_NAME" != "https://www.moj.naquadah.com.br" ]]; then
+  CONTEST=${SERVER_NAME%.moj.naquadah.com.br*}
+cat << EOF
+Content-type: text/html
+
+
+<script type="text/javascript">
+    top.location.href = "/cgi-bin/contest.sh/$CONTEST"
+</script>
+EOF
+exit 0
+fi
+
+if [[ "https://$SERVER_NAME" == "https://www.moj.naquadah.com.br" ]]; then
+cat << EOF
+Content-type: text/html
+
+
+<script type="text/javascript">
+    top.location.href = "$BASEURL"
+</script>
+EOF
+exit 0
+fi
+
 #contest é a base do caminho
 CONTEST=$(cut -d'/' -f1 <<< "CAMINHO")
 cabecalho-html
