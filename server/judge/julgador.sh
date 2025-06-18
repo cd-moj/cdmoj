@@ -160,6 +160,10 @@ for ARQ in $SUBMISSIONDIR/*; do
       echo "<tr><td>--</td>$(<$CONTESTSDIR/$CONTEST/controle/$LOGIN.score)"|
         cut -d: -f1 >> $CONTESTSDIR/$CONTEST/controle/SCORE
     fi
+  elif [[ "$COMANDO" == "alteravigenciacontest" ]]; then
+    NOVAVIGENCIA=$PROBID
+    echo "#alteracao via mojinho $ARQ" >> $CONTESTSDIR$CONTEST/conf
+    echo "CONTEST_END=$PROBID" >> $CONTESTSDIR$CONTEST/conf
   elif [[ "$COMANDO" == "adduser" && "$ID" == "mojinho:abc"  && "$ALLOWLATEUSER" == "y" ]]; then
     #Variaveis: CONTEST; ID; LOGIN; COMANDO; PROBID; LING; RESP;
     NEWUSERNAME="$LOGIN"
