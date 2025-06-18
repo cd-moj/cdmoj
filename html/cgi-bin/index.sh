@@ -75,7 +75,9 @@ for contest in $CONTESTSDIR/*; do
   fi
   rm -f "/dev/shm/cache.ended-${contest##*/}"
   unset ALLOWLATEUSER
+  unset PRIVATECONTEST
   source $contest/conf
+  [[ "$PRIVATECONTEST" == "y" ]] && continue
   THIS="$CONTEST_START $CONTEST_END <span class=\"titcontest\"><b>$CONTEST_NAME</b> : "
   if (( $CONTEST_END > NOW )); then
     THIS+="<a href=\"contest.sh/$CONTEST_ID\">Join</a>"
