@@ -1,0 +1,52 @@
+obi
+asc:username:team name:A:B:C:D:E:F:Total
+1:yan:Yan Santos Rodrigues:100:100:100:100:100:100:600:
+1:weliton:Weliton César Pereira Barreto:100:100:100:100:100:100:600:
+1:samiel:Samuel Pereira da Silveira:100:100:100:100:100:100:600:
+1:rodri:Rodrigo Sousa Alves Ferreira:100:100:100:100:100:100:600:
+1:ric:Ricardo Henrique Silva Rodrigues:100:100:100:100:100:100:600:
+1:ress:Renato Santos Soares:100:100:100:100:100:100:600:
+1:reara:Renato Araujo Gameiro:100:100:100:100:100:100:600:
+1:pedro:Pedro Augusto martins dos Santos:100:100:100:100:100:100:600:
+1:maria:Maria Clara Sena de Lima:100:100:100:100:100:100:600:
+1:marcus:Marcus Vinícius Paiva Martins:100:100:100:100:100:100:600:
+1:mvm:Marcos Vinicius Monteiro:100:100:100:100:100:100:600:
+1:mvgs:Marcos Vinícius Gündel da Silva:100:100:100:100:100:100:600:
+1:mvs:Marcos Vinícius da Silva:100:100:100:100:100:100:600:
+1:lag:Luís Antônio Gomes:100:100:100:100:100:100:600:
+1:jvs:João Vítor da Silva:100:100:100:100:100:100:600:
+1:jppo:João Pedro Pirolo Oliveira:100:100:100:100:100:100:600:
+1:ibss:Igor Brandão Santos Salles:100:100:100:100:100:100:600:
+1:ggl:Gustavo Gontijo Lima:100:100:100:100:100:100:600:
+1:gsc:Guilherme Silva Cavalcante:100:100:100:100:100:100:600:
+1:ecm:Enzo Cardoso Martins:100:100:100:100:100:100:600:
+1:dlm:Daniel Lustosa Miranda:100:100:100:100:100:100:600:
+1:ccf:Carla de Castro França:100:100:100:100:100:100:600:
+1:cll:Caio Lauro de Lima:100:100:100:100:100:100:600:
+1:cdf:Caio Dias Fleury:100:100:100:100:100:100:600:
+1:aaa:Arthur Aurélio de Almeida:100:100:100:100:100:100:600:
+1:alsp:Ana Luísa de Souza Paraguassu:100:100:100:100:100:100:600:
+2:pprc:Pedro Paulo Rodrigues Cardoso:100:100:100:100:-:100:500:
+3:dhco:Danilo Hermano Calegário de Oliveira:100:10:40:100:100:100:450:
+4:tgrx:Thaís Gabriely Rocha Xavier:100:-:100:100:-:100:400:
+4:jmamr:João Marcos Aragão Mesquita Rogerio:100:100:100:100:-:0:400:
+4:grsc:Gustavo Ramos Simões da Conceição:100:100:100:100:-:0:400:
+5:ypgoo:Yago Patrick Gomide Oliveira Ortolan:-:-:100:100:-:100:300:
+5:ilsb:Isaac Lucas Souza Bezerra:100:100:-:-:100:-:300:
+5:aba:Antônio Brasileiro de Almeida:100:-:100:-:100:-:300:
+6:vjbg:Vinícius de Jesus Bessa Fernandes:100:100:40:-:-:-:240:
+7:dgs:Daniel Fernandes Silva:100:100:-:-:-:-:200:
+7:av:Antonio Vitor:100:100:-:-:-:-:200:
+8:ncaf:Nicolas Coqueiro Almeida de Freitas:100:10:-:-:-:-:110:
+9:pclo:Pedro César Lopes de Oliveira:100:-:-:-:-:-:100:
+9:lhla:Luís Henrique Luna de Arruda:100:-:-:-:-:-:100:
+9:lbs:Luana Barbosa Souza:100:0:-:-:-:-:100:
+9:drb:Diogo Rodrigues Barboza:100:-:-:-:-:-:100:
+10:ron:Rafael Oliveira Nunes:-:-:-:-:-:-:0:
+10:rsr:Rafaela Soares Rodrigues:-:-:-:-:-:-:0:
+10:mca:Marcel Capistrano Almeida Rodrigues:-:-:-:-:-:-:0:
+10:lca:Luana Carvalho de Almeida:-:-:-:-:-:-:0:
+10:lsr:Laura Santos Ramos:-:-:-:-:-:-:0:
+10:dsf:Davi Severiano Freitas:-:-:-:-:-:-:0:
+10:clf:Cibelly Lourenço Ferreira:-:-:-:-:-:-:0:
+10:avcl:Ana Vitoria Centeno Larucci:-:-:-:-:-:-:0:

@@ -1,0 +1,13 @@
+{
+  "id": "flia-problems#bomberda-simples",
+  "title": "bomberda-simples",
+  "time_limits": {
+    "default": "300"
+  },
+  "tags": [
+    "#bomberda",
+    "#pddl",
+    "#planejamento"
+  ],
+  "statement_html_b64": ""
+}

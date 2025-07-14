@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login - CONTEST</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="login-bg">
+  <div class="contest-title-login" id="contest-name">...</div>
+  <div class="time-block" id="contest-times">...</div>
+  <div class="countdown" style="display:none;" id="countdown-box">
+    <span class="countdown-lbl" id="countdown-lbl"></span>
+    <span id="countdown-time"></span>
+  </div>
+  <form class="login-card" id="login-form" style="display:none;">
+    <div>
+      <label id="lbl-user" for="login-user">Login:</label><br>
+      <input id="login-user" name="user" autocomplete="username" required/><br>
+      <label id="lbl-pass" for="login-pass">Senha:</label><br>
+      <input type="password" id="login-pass" name="pass" autocomplete="current-password" required/><br>
+      <button class="login-btn" type="submit">Entrar</button>
+      <div id="login-error"></div>
+    </div>
+  </form>
+  <div class="flagbar" id="flagbar"></div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>

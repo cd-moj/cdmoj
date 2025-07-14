@@ -1,0 +1,129 @@
+window.renderProblemsList = function(probs) {
+  const list = document.getElementById('problem-list');
+  const subs = window.contestSubmissionsRaw || [];
+  list.innerHTML = probs.filter(p=>p.show!==false).map(p => {
+    const pid = p.problem_id, sn = p.short_name, full = p.full_name;
+    // Test success for problem
+    let accepted = subs.some(s =>
+      s && s.probid === pid && s.verdict && /Accepted/i.test(s.verdict));
+    // Time limits
+    let tltxt = "";
+    const tl = p.timelimits || {};
+    if (Object.keys(tl).length > 0) {
+      tltxt = `<div style="margin:.8em 0;"><b>Time Limits</b>
+      <table class="tl-table"><thead><tr>${Object.keys(tl).map(lang=>`<th>${lang}</th>`).join('')}</tr></thead>
+      <tbody><tr>${Object.values(tl).map(v=>`<td>${v} s</td>`).join('')}</tr></tbody>
+      </table></div>`;
+    }
+    // Statement links
+    let statementLinks = '';
+    if (p.statement_html_b64)
+      statementLinks += `<a href="#" class="prob-openenun" onclick="window.openStatementHTML('${pid}');return false;">HTML</a>`;
+    if (p.statement_pdf_b64)
+      statementLinks += `<a href="data:application/pdf;base64,${p.statement_pdf_b64}" target="_blank" class="prob-openenun">PDF</a>`;
+    // Submit
+    let submitform = `
+      <form class="problem-submit-form" id="problem-send-${pid}" autocomplete="off" data-prob="${pid}">
+        <input type="file" id="file-upload-${pid}" accept=".c,.cpp,.py,.java" required style="width:155px;">
+        <button type="submit" class="submit-btn" id="sbmbt-${pid}">Enviar</button>
+        <span class="problem-submit-status" id="submit-msg-${pid}" style="min-width:3em; margin-left:.9em"></span>
+      </form>
+    `;
+    return `<div class="problem-acc-item${accepted ? " problem-accepted" : ""}" id="acc-${pid}">
+      <div class="problem-acc-row">
+        <span class="acc-header-left" onclick="window.expandCollapseProblem('${pid}')">
+          <span class="acc-toggle" id="acc-toggle-${pid}">&#9654;</span>
+          <span style="font-weight:bold">${sn}</span>&nbsp;<span style="font-size:1.1em">${full}</span>
+        </span>
+        <span class="acc-header-right">
+          ${statementLinks}
+          ${submitform}
+        </span>
+      </div>
+      <div class="problem-acc-detail" id="acc-detail-${pid}" style="display:none;">
+        ${tltxt}
+        ${p.statement_html_b64 ? `
+          <span class="statement-block-toggle" onclick="window.toggleStatement('${pid}')" id="smtoggle-${pid}">
+            Mostrar enunciado
+          </span>
+          <div class="statement-block hidecontent" id="smdiv-${pid}"></div>
+        ` : ""}
+      </div>
+    </div>`;
+  }).join('');
+};
+
+// Accordion: abre/fecha detalhes do problema
+window.expandCollapseProblem = function(pid) {
+  const row = document.getElementById('acc-detail-' + pid);
+  const tgl = document.getElementById('acc-toggle-' + pid);
+  if (!row || !tgl) return;
+  const opened = row.style.display !== "none";
+  row.style.display = opened ? "none" : "block";
+  tgl.innerHTML = opened ? "&#9654;" : "&#9660;";
+};
+
+// Toggle statement HTML inline (como antes)
+window.toggleStatement = function(pid) {
+  const div = document.getElementById("smdiv-" + pid);
+  const btn = document.getElementById("smtoggle-" + pid);
+  if (!div || !btn) return;
+  if (div.classList.contains("hidecontent")) {
+    if (!div.hasAttribute("data-rendered")) {
+      const pb = window.contestProblems.find(p => p.problem_id === pid);
+      if (pb && pb.statement_html_b64) {
+        const htmlString = atob(pb.statement_html_b64);
+        div.innerHTML = htmlString;
+        div.querySelectorAll("h1,h2,h3").forEach(h=>h.style.color="#2577bf");
+        div.querySelectorAll("pre").forEach(pre=>{
+          pre.style.background = "#ececec";
+          pre.style.border = "1px dotted gray";
+          pre.style.borderRadius = "5px";
+          pre.style.padding = ".9em 1.2em";
+          pre.style.fontFamily = `"Fira Mono", "DejaVu Sans Mono", Consolas, monospace`;
+          pre.style.overflowX = "auto";
+        });
+      } else div.innerHTML = "<i>Indisponível</i>";
+      div.setAttribute("data-rendered","1");
+    }
+    div.classList.remove("hidecontent");
+    div.classList.add("showcontent");
+    btn.textContent = window.contestLocale === "pt" ? "Esconder enunciado" : "Hide statement";
+  } else {
+    div.classList.add("hidecontent");
+    div.classList.remove("showcontent");
+    btn.textContent = window.contestLocale === "pt" ? "Mostrar enunciado" : "Show statement";
+  }
+};
+window.openStatementHTML = function(pid) {
+  const p = window.contestProblems.find(p => p.problem_id === pid);
+  if (!p) return;
+  if (p.statement_html_b64) {
+    fetch("contest-statement.css").then(resp=>resp.text()).then(css => {
+      let htmlString = atob(p.statement_html_b64);
+      let onlyBody = htmlString;
+      try {
+        const m = htmlString.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if(m && m[1]) onlyBody = m[1];
+      } catch(e){}
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><title>Enunciado</title>
+  <style>${css}</style>
+</head>
+<body>
+<div id="statement-content" class="statement-content">${onlyBody}</div>
+</body></html>`;
+      const blob = new Blob([html], {type:"text/html"});
+      const url = URL.createObjectURL(blob);
+      window.open(url,"_blank");
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    });
+    return;
+  }
+  if(p.statement_pdf_b64) {
+    const url = "data:application/pdf;base64," + p.statement_pdf_b64;
+    window.open(url,"_blank");
+  }
+};

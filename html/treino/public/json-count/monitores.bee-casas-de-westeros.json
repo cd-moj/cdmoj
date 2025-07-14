@@ -1,0 +1,13 @@
+{
+  "id": "monitores.bee-casas-de-westeros",
+  "title": "Casas de Westeros",
+  "tags": [
+    "#grafos_componentes_conexos",
+    "#grafos_dfs",
+    "#grafos_busca_em_profundidade",
+    "#beecrowd_nivel6",
+    "#beecrowd_1862"
+  ],
+  "solved_count": 0,
+  "attempted_count": 0
+}

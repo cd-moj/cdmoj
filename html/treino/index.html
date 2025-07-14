@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <title>Buscar Problemas | Treino Livre - MOJ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <img src="../img/logo_moj.png" alt="Logo MOJ" />
+          <span class="brand-title">MOJ</span>
+          <span class="beta-badge">BETA</span>
+          <span class="brand-subtitle">Buscar Problemas · Treino Livre</span>
+        </div>
+        <div id="topbar-userbox" class="navlinks">
+          <!-- login/logout vai aqui JS -->
+        </div>
+      </div>
+      <!-- Botões rápidos logo abaixo -->
+      <nav class="quicknav">
+        <a class="quicknav-btn" href="../">Página Inicial</a>
+        <a class="quicknav-btn" href="https://cd-moj.github.io/cd-moj.docs/" target="_blank" rel="noopener">📕 Documentação</a>
+      </nav>
+
+      <div class="searchbar">
+        <div>
+          <input type="radio" name="searchmode" value="title" id="searchmode-title" checked>
+          <label for="searchmode-title">Buscar por título</label>
+          <input type="radio" name="searchmode" value="tag" id="searchmode-tag" style="margin-left:1.2em;">
+          <label for="searchmode-tag">Buscar por tag</label>
+        </div>
+        <input type="text" id="search-title" placeholder="Buscar problema pelo título/tag..." autocomplete="off"/>
+        <span id="search-count" style="color:#175;font-size:.99em;"></span>
+      </div>
+      <div class="tag-area-collapse">
+        <button class="toggle-tags-btn" id="toggle-tags-btn" type="button">Mostrar tags</button>
+        <div id="tags-area" class="tag-list-group"></div>
+      </div>
+      <div class="problem-user-filter" style="margin-bottom: 1em; text-align:left;">
+        <span><b>Mostrar:</b></span>
+        <span id="userfilt-btns"></span>
+      </div>
+      <div style="margin-top:2.2em;overflow-x:auto;">
+        <div style="text-align:right; margin: .8em 0 0 0;">
+          <button id="toggle-blur-tags" class="quicknav-btn" type="button">Desborrar Tags</button>
+        </div>
+        <div class="pager" id="pager"></div>
+        <table id="problems-table" class="problems-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="title">Título <span class="sort-ind"></span></th>
+              <th class="tagcol" style="width:32%;min-width:120px;">Tags</th>
+              <th class="sortable" data-sort="percent">Acerto/Dificuldade <span class="sort-ind"></span></th>
+            </tr>
+          </thead>
+          <tbody id="problems-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>

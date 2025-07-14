@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Estatísticas do Contest</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="contest.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <div class="topbar-line1"><div id="contest-title"></div></div>
+    <div class="topbar-line2">
+      <div class="mojo-brand">
+        <img src="/static/logo-moj.png" class="mojo-logo" alt="logo">
+        <span class="mojo-label">MOJ</span>
+        <span class="beta-badge">BETA</span>
+      </div>
+      <span class="countdown-contest" id="countdown-contest"></span>
+      <button id="logout-btn" type="button">Logout</button>
+    </div>
+  </div>
+  <div id="contest-nav"></div>
+  <div class="section" id="user-details"></div>
+  <div class="section" id="stats-region-filter"></div>
+  <div class="section">
+    <h2>Submissões e aceitos por problema</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:1.7em 3.7em;">
+      <canvas class="chart-small" id="pie-sub-count"></canvas>
+      <canvas class="chart-small" id="pie-sub-acc"></canvas>
+    </div>
+    <div id="stats-problem-table"></div>
+  </div>
+  <div class="section">
+    <h2>Veredictos por problema</h2>
+    <div id="stats-verdict-picker"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:1.9em;">
+      <canvas class="chart-small" id="pie-verdicts"></canvas>
+    </div>
+    <div id="stats-verdict-prob-table"></div>
+  </div>
+  <div class="section">
+    <h2>Linguagens utilizadas</h2>
+    <div id="stats-lang-table"></div>
+    <div style="display:flex;gap:2em;flex-wrap:wrap;">
+      <canvas class="chart-small" id="pie-lang-run"></canvas>
+      <canvas class="chart-small" id="pie-lang-acc"></canvas>
+    </div>
+    <div>
+      <canvas id="bar-lang-verdict" width="370" height="180"></canvas>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Histograma de envios</h2>
+    <div style="display:flex;gap:2em;flex-wrap:wrap;">
+      <canvas class="chart-small" id="hist-all-submit"></canvas>
+      <canvas class="chart-small" id="hist-accepted-submit"></canvas>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Submissões por time</h2>
+    <div id="stats-teamsubs-table"></div>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script src="user.js"></script>
+<script src="nav.js"></script>
+<script src="score-regions.js"></script>
+<script src="stats-contest.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

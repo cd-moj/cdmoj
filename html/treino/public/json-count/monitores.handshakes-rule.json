@@ -1,0 +1,13 @@
+{
+  "id": "monitores.handshakes-rule",
+  "title": "Regra dos seis apertos de mão",
+  "tags": [
+    "#grafo",
+    "#bfs",
+    "#ordenacao",
+    "#buscabinaria",
+    "#hash"
+  ],
+  "solved_count": 1,
+  "attempted_count": 2
+}

@@ -1,0 +1,22 @@
+icpc
+asc:flag:username:univ short:team name:univ full:A:B:C:D:E:F:Total
+18:VE:ven-merida-B:ULA:MERIDAB:Universidad de Los Andes::::4/139:::7
+1:BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:1/240:::1/68::15
+2:BR:br-df-beta:UNB:BETA:Universidade de Brasília::::::4/110:1/-:8
+3:BR:br-go-gama:UFG:GAMA:Universidade Federal de Goiás:2/55::::3/90::10
+4:BR:br-go-delta:UFG:DELTA:Universidade Federal de Goiás:::::::6
+5:BR:br-pr-alpha:UFPR:ALPHA:Universidade Federal do Paraná:3/-::2/93:1/70:::11
+6:BR:br-pr-beta:UTFPR:BETAPAR:UTFPR Curitiba:::::2/-:2/99:7
+7:BR:br-sc-gamma:UFSC:GAMMASC:Universidade Federal de Santa Catarina::1/64:::::5
+8:BR:br-sc-delta:UFSC:DELTA-SC:Universidade Federal de Santa Catarina:1/-:2/-:3/-::::4
+9:BR:br-rs-omega:UFRGS:OMEGA:Universidade Federal do Rio Grande do Sul::1/-:1/-:2/-:3/-::4
+10:BR:br-rs-thunder:UFRGS:THUNDER:UFRGS::::2/84:2/129::7
+11:CO:col-bogota-1:UNIANDES:BOGOTA1:Universidad de los Andes:1/50:3/-::2/92:::11
+12:CO:col-medellin-2:UDEA:MEDELLIN2:Universidad de Antioquia::::5/122:::9
+13:CO:col-medellin-3:UDEA:MED3:Universidad de Antioquia::2/78:::1/-::8
+14:CO:col-cali-4:UNIVALLE:CALI4:Universidad del Valle:1/110::::::2
+15:CO:col-cali-5:UNIVALLE:CALI5:Universidad del Valle::::3/-:1/92::8
+16:CO:col-cartagena-6:UNICARTAGENA:CARTAGENA6:Universidad de Cartagena:::::2/-::3
+17:VE:ven-caracas-A:UCV:VECARACAS:Universidad Central de Venezuela:2/-::3/99::::6
+1:VE:ven-maracay-C:UCLA:MARACAYC:Universidad Centroccidental Lisandro Alvarado::1/65:::::12
+2:VE:ven-maracay-D:UCLA:MARACAYD:Universidad Centroccidental Lisandro Alvarado:2/-:2/80:1/-::::5

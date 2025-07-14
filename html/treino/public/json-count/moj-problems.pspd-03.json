@@ -1,0 +1,10 @@
+{
+  "id": "moj-problems.pspd-03",
+  "title": "paralelas com threads",
+  "tags": [
+    "#omp",
+    "#soma_paralela"
+  ],
+  "solved_count": 4,
+  "attempted_count": 12
+}

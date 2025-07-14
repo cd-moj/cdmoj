@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <title>Estatísticas do Usuário - Treino Livre MOJ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+    <div class="container">
+    <div class="topbar">
+    <div class="brand">
+    <img src="../../img/logo_moj.png" alt="Logo MOJ" />
+    <span class="brand-title">MOJ</span>
+    <span class="beta-badge">BETA</span>
+    <span class="brand-subtitle">Usuário no Treino Livre</span>
+    </div>
+    <div id="topbar-userbox" class="navlinks"></div>
+    </div>
+    <nav class="quicknav">
+    <a class="quicknav-btn" href="/~ribas/">Página Inicial</a>
+    <a class="quicknav-btn" href="https://cd-moj.github.io/cd-moj.docs/" target="_blank" rel="noopener">📕 Documentação</a>
+    </nav>
+
+    <div class="section">
+    <div class="userinfo-big" id="user-fullname">Carregando...</div>
+    <div class="userinfo-login" id="user-login"></div>
+    </div>
+
+    <div class="section">
+    <h2>Submissões nos últimos 30 dias</h2>
+    <div class="big-chart-center">
+    <div class="chartpanel-title">Submissões por dia</div>
+    <canvas id="days-chart"></canvas>
+    </div>
+    <div class="stats-bar" id="user-quickstats"></div>
+    </div>
+
+    <div class="section">
+    <h2>Acertos, erros e tentativas</h2>
+    <div class="chart-group">
+    <div class="chart-panel">
+    <div class="chartpanel-title">Respostas por tipo</div>
+    <canvas id="verdict-chart" height="280" ></canvas>
+    </div>
+    <div class="stats-bar" id="answer-stats"></div>
+    </div>
+    </div>
+
+    <div class="section">
+    <h2>Linguagens utilizadas</h2>
+    <div class="chart-group">
+    <div class="chart-panel">
+    <div class="chartpanel-title">Distribuição por Linguagem</div>
+    <canvas id="lang-pie-chart" width="280" height="220"></canvas>
+    </div>
+    <div class="chart-panel">
+    <div class="chartpanel-title">Taxa de acerto por Linguagem</div>
+    <canvas id="lang-bar-chart" width="280" height="220"></canvas>
+    </div>
+    </div>
+    </div>
+
+    <div class="section">
+    <h2>Tags dos problemas resolvidos/tentados</h2>
+    <div class="pie-charts-tags">
+    <div class="piepanel">
+    <div class="chartpanel-title">Problemas resolvidos (por tag)</div>
+    <canvas id="tags-pie-resolvidos" height="260"></canvas>
+    </div>
+    <div class="piepanel">
+    <div class="chartpanel-title">Problemas tentados (por tag)</div>
+    <canvas id="tags-pie-tentativas" height="260"></canvas>
+    </div>
+    </div>
+    </div>
+
+    <div class="section">
+    <h2>Histórico completo de submissões</h2>
+    <table class="history-table" id="user-history-table">
+    <thead>
+    <tr>
+    <th class="sortable" data-sort="date">Data/Hora <span class="sortind"></span></th>
+    <th class="sortable" data-sort="problem">Problema <span class="sortind"></span></th>
+    <th class="sortable" data-sort="lang">Linguagem <span class="sortind"></span></th>
+    <th id="logcol-th">Log/Cód</th>
+    <th class="sortable" data-sort="status">Status <span class="sortind"></span></th>
+    </tr>
+    </thead>
+    <tbody id="history-tbody"></tbody>
+    </table>
+    </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

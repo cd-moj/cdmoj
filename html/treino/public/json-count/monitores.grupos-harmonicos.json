@@ -1,0 +1,10 @@
+{
+  "id": "monitores.grupos-harmonicos",
+  "title": "Grupos Harmônicos",
+  "tags": [
+    "#grafos",
+    "#grafo-bipartido"
+  ],
+  "solved_count": 5,
+  "attempted_count": 11
+}

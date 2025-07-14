@@ -1,3 +1,116 @@
-<script type="text/javascript">
-    top.location.href = "cgi-bin/index.sh"
-</script>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Moj.naquadah.com.br - Página Inicial</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="index/style.css">
+</head>
+<body>
+<div class="container">
+
+  <!-- Banner com logotipo, slogan e docs -->
+  <div class="banner-bar">
+    <div class="banner-logo">
+      <img src="img/logo_moj.png" alt="Logo MOJ" />
+      <span class="banner-title">MOJ</span>
+      <span class="beta-badge">BETA</span>
+      <span class="banner-subtitle">Melhor Online Judge</span>
+    </div>
+    <a class="banner-docs-link" href="https://cd-moj.github.io/cd-moj.docs/" target="_blank" rel="noopener">📕 Documentação do MOJ</a>
+  </div>
+
+  <!-- Barra de menu rápido -->
+  <nav class="quick-menu-bar" aria-label="Menu rápido">
+    <a class="quick-menu-link" href="#open-training-anchor">Treino Livre</a>
+    <a class="quick-menu-link" href="#news-anchor">Notícias</a>
+    <a class="quick-menu-link" href="#contests-anchor">Competições</a>
+    <a class="quick-menu-link" href="treino" rel="noopener">🔎 Buscar Problemas</a>
+
+  </nav>
+
+  <!-- Top 10 do Treino Livre -->
+  <div id="top-users-anchor" class="anchor"></div>
+  <div class="section">
+    <h2>🔥 Top 10 usuários do Treino Livre</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>🏆</th>
+          <th>Usuário</th>
+          <th>Exercícios resolvidos</th>
+        </tr>
+      </thead>
+      <tbody id="top-users-table"></tbody>
+    </table>
+  </div>
+
+  <!-- Destaque: Treino Livre -->
+  <div id="open-training-anchor" class="anchor"></div>
+  <div class="featured" id="open-training-section">
+    <h2>🥇 Treino Livre</h2>
+    <div class="split-flex">
+      <div class="split-half">
+        <h3>Últimas resoluções</h3>
+        <ul id="recent-solved-list"></ul>
+      </div>
+      <div class="split-half">
+        <h3>Mais resolvidos na última semana</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Problema</th>
+              <th>Resoluções</th>
+            </tr>
+          </thead>
+          <tbody id="most-solved-week-table"></tbody>
+        </table>
+     </div>
+    </div>
+    <a id="search-problems-link" class="problems-link" href="treino/">
+      Ver e procurar problemas do Treino Livre &rarr;
+    </a>
+  </div>
+
+  <!-- Notícias -->
+  <div id="news-anchor" class="anchor"></div>
+  <div class="section" id="news-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <h2 style="margin-right:1em;">Notícias Recentes</h2>
+      <a id="all-news-link"
+         style="display:inline-block;background:#f1f5fb;color:#296cc2;text-decoration:none;padding:.32em 1.3em;border-radius:1.9em;font-weight:bold;font-size:1.03em;letter-spacing:.01em;border:1px solid #b2c8e4;transition:background .14s;"
+         href="/news">Ver todas as notícias &rarr;</a>
+    </div>
+    <ul id="news-list"></ul>
+  </div>
+
+  <!-- Area de contests com divisores coloridos -->
+  <div id="contests-anchor" class="anchor"></div>
+  <div class="section" id="contests-section">
+    <h2>Competições (Contests)</h2>
+
+    <div class="contest-group">
+      <div class="contest-group-bar contest-open-bar">Abertos</div>
+      <input type="text" id="open-filter" placeholder="Filtrar competições abertas..." autocomplete="off"/>
+      <ul id="open-contests-list"></ul>
+    </div>
+
+    <div class="contest-group">
+      <div class="contest-group-bar contest-upcoming-bar">Por Vir</div>
+      <input type="text" id="upcoming-filter" placeholder="Filtrar competições por vir..." autocomplete="off"/>
+      <ul id="upcoming-contests-list"></ul>
+    </div>
+
+    <div class="contest-group">
+      <div class="contest-group-bar contest-closed-bar">Encerrados</div>
+      <input type="text" id="closed-filter" placeholder="Filtrar encerrados..." autocomplete="off"/>
+      <ul id="closed-contests-list"></ul>
+      <button id="closed-prev" disabled>Anterior</button>
+      <span id="closed-page-info"></span>
+      <button id="closed-next" disabled>Próxima</button>
+    </div>
+  </div>
+</div>
+<script src="index/index-script.js"></script>
+</body>
+</html>

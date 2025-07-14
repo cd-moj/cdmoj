@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login - [Contest Name]</title>
+<style>
+body { font-family: sans-serif; margin:0; min-height:100vh; background: linear-gradient(120deg,#407bff,#e2e2ff); }
+.login-bg { display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;}
+.contest-title-login {font-size:2.25em; font-weight:bold; color:#154ca4; margin-bottom:1.7em; margin-top:2em; letter-spacing:.01em;text-shadow:0 1.2px 5px #fff2;}
+.time-block { margin-bottom:.45em; font-size:1.19em; color:#2f80ed; }
+.login-card { background:#fafdff; border-radius:1em; box-shadow: 0 4px 16px #7eaafc33; padding:2.6em 2.2em 2em 2.2em; min-width:320px;margin-top:1.7em;}
+.login-card label {font-weight:bold;}
+.login-card input { border-radius:6px; border:1px solid #bad3fe; margin-bottom:1em; padding:.55em 1.1em; font-size:1.1em;}
+.login-btn { font-weight:bold; background:#3777e7; color:#fff; padding:.6em 2.2em;
+             border:none; border-radius:2em; font-size:1.14em; margin-top:.5em;}
+.login-btn:hover { background:#12488d;}
+#login-error { color:#c14035; margin-top:.7em; font-weight:bold;}
+</style>
+</head>
+<body>
+<div class="login-bg">
+  <div class="contest-title-login" id="contest-name">...</div>
+  <div class="time-block" id="contest-times">...</div>
+  <form class="login-card" id="login-form">
+    <div>
+      <label id="lbl-user" for="login-user">Login:</label><br>
+      <input id="login-user" name="user" autocomplete="username" required/><br>
+      <label id="lbl-pass" for="login-pass">Senha:</label><br>
+      <input type="password" id="login-pass" name="pass" autocomplete="current-password" required/><br>
+      <button class="login-btn" type="submit">Entrar</button>
+    </div>
+    <div id="login-error"></div>
+  </form>
+</div>
+<script>
+let contestLocale = "pt";
+function fmtDate(epoch, pt) {
+  if (!epoch) return '';
+  let d = new Date(epoch*1000);
+  if(pt) return d.toLocaleString("pt-BR",{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  else   return d.toLocaleString("en-US",{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+// Troca idioma (via contest json)
+  //fetch("/api/contest/basic").then(r=>r.json()).then(basic=>{
+  fetch("basic.json").then(r=>r.json()).then(basic=>{
+  let pt = basic.locale==="pt";
+  contestLocale = basic.locale;
+  document.getElementById("contest-name").textContent = basic.contest_name;
+  document.getElementById("contest-times").textContent =
+    pt
+    ? `Início: ${fmtDate(basic.start_time,true)}, Término: ${fmtDate(basic.end_time,true)}`
+    : `Start: ${fmtDate(basic.start_time,false)}, End: ${fmtDate(basic.end_time,false)}`;
+  document.getElementById("lbl-user").textContent = pt ? "Login:" : "Username:";
+  document.getElementById("lbl-pass").textContent = pt ? "Senha:" : "Password:";
+  document.querySelector(".login-btn").textContent = pt ? "Entrar" : "Login";
+});
+document.getElementById("login-form").onsubmit = function(e){
+  e.preventDefault();
+  let btn = this.querySelector('.login-btn');
+  btn.disabled = true;
+  document.getElementById("login-error").innerHTML = "";
+//  fetch("/api/contest/login",{
+  fetch("login.json",{
+    method:"POST",
+    body:JSON.stringify({
+      user:this["login-user"].value,
+      pass:this["login-pass"].value
+    }),
+    headers:{"Content-Type":"application/json"}
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    btn.disabled = false;
+    if (data.success && data.token) {
+      localStorage.setItem('contest_token', data.token);
+      // Redireciona rotineiramente para a página que o usuário tentava acessar (caso esteja em ?next=...)
+      let u = new URLSearchParams(window.location.search), go = u.get('next')||'/';
+      window.location.href = go;
+    } else {
+      document.getElementById("login-error").textContent = (contestLocale==="pt" ? "Erro de login, tente novamente" : "Login error, try again");
+    }
+  });
+};
+</script>
+</body>
+</html>

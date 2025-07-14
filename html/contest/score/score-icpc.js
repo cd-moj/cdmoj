@@ -1,0 +1,260 @@
+function balloonIsDark(hex) {
+    // Remove # se houver
+    hex = hex.replace('#','');
+    if (hex.length === 3)
+        hex = hex.split('').map(x=>x+x).join('');
+    let r = parseInt(hex.substr(0,2),16);
+    let g = parseInt(hex.substr(2,2),16);
+    let b = parseInt(hex.substr(4,2),16);
+    // Luminância relativa
+    let lum = (0.299*r + 0.587*g + 0.114*b)/255;
+    return lum < 0.5;
+}
+
+window.parseICPCScore = function(txt, balloonColors) {
+    let lines = txt.trim().split('\n');
+    if (!lines.length || !/icpc/i.test(lines[0])) return null;
+    let rawCols = lines[1].split(":");
+    let cols = [], sortFields = [];
+    for(let i=0;i<rawCols.length;i++) {
+        if(/^asc$/i.test(rawCols[i])) continue; // Completely ignore asc now!
+        cols.push({ field: rawCols[i], i });
+    }
+    // enums
+    function idx(name) { return cols.findIndex(x => x.field.toLowerCase() === name.toLowerCase()); }
+    let idxFlag = idx("flag"),
+        idxUsername = idx("username"),
+        idxUnivS = idx("univ short"),
+        idxUnivF = idx("univ full"),
+        idxTeamName = idx("team name"),
+        idxTotal = idx("total");
+    const sysCols = ["flag","username","univ short","univ full","team name","total"];
+    let probStart = cols.findIndex(x=>!sysCols.includes(x.field.toLowerCase()));
+    if (probStart < 0) probStart = 0;
+    let probEnd = cols.findIndex(x => x.field.toLowerCase()=="total");
+    if (probEnd === -1) probEnd = cols.length;
+    let probShorts = [];
+    for(let i=probStart;i<probEnd;i++) probShorts.push(cols[i].field);
+
+    let data = lines.slice(2).map(l => l.split(":"));
+    let teams = data.map(vals=>{
+        let obj = {};
+        cols.forEach(f=> obj[f.field]=vals[f.i]||"");
+        obj.flag = obj.flag;
+        obj.username = obj.username;
+        obj.probShorts = probShorts;
+        obj.probs = {};
+        obj.colors = {};
+        obj.teamName = obj["team name"];
+        obj.univShort = obj["univ short"];
+        obj.univFull = obj["univ full"];
+        probShorts.forEach((pname,idx)=>{
+            obj.probs[pname]=vals[cols[probStart+idx].i]||"";
+            if(balloonColors && balloonColors[pname]) {
+                obj.colors[pname]=typeof balloonColors[pname]==="string"
+                    ? balloonColors[pname] : balloonColors[pname].hex;
+            }
+        });
+        obj.total = obj["Total"] || obj["total"];
+        return obj;
+    });
+    // Empates numéricos (aproveita ordem vinda do arquivo)
+    let placements = [], lastscore = null, place = 1, skip = 0;
+    for(let i=0; i<teams.length; i++){
+        let score = teams[i].total;
+        if(score===lastscore) skip++;
+        else { place = i+1; skip=0; }
+        placements[i]=place;
+        lastscore=score;
+    }
+    teams.forEach((obj,i)=>obj.place = placements[i]);
+    let shownFields = cols.map(x=>x.field).filter(f=>!/^asc$/i.test(f) && f!=="Total");
+    return {fields: shownFields, probShorts, teams};
+};
+
+// OBI: cada problema é field de pontos
+window.parseOBIScore = function(txt) {
+    let lines = txt.trim().split('\n');
+    if (!lines.length || !/obi/i.test(lines[0])) return null;
+    let rawCols = lines[1].split(":").filter(f=>!/^asc$/i.test(f));
+    let probShorts = rawCols.slice(5, -1);
+    let data = lines.slice(2).map(l => l.split(":"));
+    let teams = data.map(vals=>{
+        let obj = {};
+        rawCols.forEach((f,ix)=> obj[f]=vals[ix]||"");
+        obj.probShorts = probShorts;
+        obj.probs = {};
+        probShorts.forEach((pname,idx)=> obj.probs[pname] = vals[5+idx]||"");
+        obj.total = obj["Total"] || obj["total"];
+        return obj;
+    });
+    teams.forEach((obj,i)=>obj.place = (i+1));
+    return {fields: rawCols, probShorts, teams};
+};
+
+window.parseOutroScore = function(txt) {
+    let lines = txt.trim().split('\n');
+    if (!lines.length || /icpc|obi/i.test(lines[0])) return null;
+    let headers = lines[1].split(":").filter(f=>!/^asc$/i.test(f));
+    let data = lines.slice(2).map(l => l.split(":",headers.length));
+    let teams = data.map(vals=>{
+        let obj = {};
+        headers.forEach((f,ix)=> obj[f]=vals[ix]||"");
+        obj.place = (1+parseInt(obj.Posicao||obj.Rank||ix||"0"));
+        return obj;
+    });
+    return {fields:headers, teams};
+};
+
+window.renderICPCScore = function(parsed, searchTerm, regionFilterFn, favoriteList, oldOrder, regionUI) {
+    if(!parsed) return "<div>Placar indisponível ou formato inválido.</div>";
+
+    // Para ordenar: "problem" ou "prob:PROBLEMA"
+    let orderIsProblem = window.sortField && window.sortField.startsWith('prob:');
+    let orderProblem = orderIsProblem ? window.sortField.slice(5) : null;
+
+    let teams = window.fuzzyTeamFilter ? window.fuzzyTeamFilter(parsed.teams, searchTerm) : parsed.teams;
+
+    if(regionFilterFn) teams = teams.filter(regionFilterFn);
+
+    // --- Ordenação por problema?
+    if (orderIsProblem && orderProblem) {
+        // Accepted ficam em cima, mesma ordem do placar, resto depois
+        const accepted = teams.filter(t=>
+            t.probs[orderProblem] &&
+                /^\d+\/\d+(\/)?$/.test(t.probs[orderProblem])
+        );
+        const rest = teams.filter(t=>
+            !t.probs[orderProblem] ||
+                !/^\d+\/\d+(\/)?$/.test(t.probs[orderProblem])
+        );
+        teams = accepted.concat(rest);
+    }
+
+    // Cabeçalho
+    let thIndex = 0;
+    let ths = `<th class="sortable${window.sortField==="place"?' sorted':''}" data-sort="place">#</th>
+    <th>Bandeira</th>
+    <th>Equipe</th>
+    ${parsed.probShorts.map(pb=>{
+      let cc = (window.balloonColors&&window.balloonColors[pb])
+        ? (typeof window.balloonColors[pb]==="string"?window.balloonColors[pb]:window.balloonColors[pb].hex)
+        : '';
+      let balloon = cc ? `<svg class="balloon-svg" viewBox="0 0 42 47">
+        <ellipse cx="21" cy="21" rx="18" ry="18" fill="${cc}" stroke="#b2b2b2" stroke-width="2"/>
+        <ellipse cx="16" cy="14" rx="5" ry="5.1" fill="#fff" fill-opacity=".48"/>
+        <polygon points="18,36 24,36 21,46" fill="${cc}" stroke="#b2b2b2" stroke-width="1.4" stroke-linejoin="round"/>
+        <ellipse cx="14" cy="15" rx="1.4" ry="2.8" fill="#fff" fill-opacity=".30" />
+        <ellipse cx="12" cy="22" rx="1.1" ry="1.5" fill="#fff" fill-opacity=".22"/>
+        </svg>` : '';
+      let sorted = window.sortField === `prob:${pb}`;
+      let sortIcon = sorted ? (window.sortAsc ? '🔼':'🔽') : "⇅";
+      return `<th class="sortable${sorted?' sorted':''}" data-sort="prob:${pb}">
+        ${balloon} ${pb} <span class="sort-icon">${sortIcon}</span>
+        </th>`;
+    }).join('')}
+    <th class="sortable${window.sortField==="total" ? " sorted": ""}" data-sort="total">Total</th>`;
+
+    /** ...código de rows igual ao seu renderer, sem alterar... **/
+
+    // O resto da função pode ser igual ou se quiser adicionar sortable por "total", "team name", etc.
+    // No main.js, adicione handler para o th dos problemas:
+    // document.querySelectorAll('.score-table th.sortable').forEach(th => ...)
+
+    // O retorno:
+    return (regionUI || "") + `<table class="score-table"><thead><tr>${ths}</tr></thead><tbody>${
+    teams.map((t,i)=>{
+      let fav = favoriteList && favoriteList.includes && favoriteList.includes(t.username);
+      let probcells = parsed.probShorts.map(sn=>{
+        let v = t.probs[sn], color = t.colors ? t.colors[sn] : '';
+//let color = t.colors ? t.colors[sn] : '';
+let style = '';
+if (color) {
+  style = `background:${color};`;
+  if (balloonIsDark(color)) style += "color:#fff;font-weight:bold;";
+  else style += "color:#222;font-weight:bold;";
+} else {
+  style = "background:#e2ffe9;color:#222;font-weight:bold;";
+}
+        if(v.match(/^\d+\/\d+(\/)?$/))
+          return `<td class="prob-color-cell" style="${style};">${v}</td>`;
+        else if(v.match(/^\d+\/-/))
+          return `<td class="prob-wait-cell">${v}</td>`;
+        else
+          return `<td>${v}</td>`;
+      }).join('');
+      let flagcell = t.flag
+        ? `<img src="https://flagcdn.com/${t.flag.toLowerCase()}.svg" style="height:22px;vertical-align:middle;border-radius:4px;">`
+        : "";
+/*      let equipe = `[${t.univShort||""}] ${t.teamName||t.username}`;
+      let equipeCell = `<span title="${t.univFull||t.univShort||""}">${equipe}</span>`;*/
+let equipe = (t.univShort ? `[${t.univShort}] ` : "") + (t.teamName||t.username);
+let equipeCell = t.univFull
+  ? `<span title="${t.univFull}">${equipe}</span>`
+  : `<span>${equipe}</span>`;
+      return `<tr id="tr-team-${t.username.replace(/\W/g,'_')}">
+        <td class="cl-place">${t.place}</td>
+        <td>${flagcell}</td>
+        <td>${equipeCell}</td>
+        ${probcells}
+        <td>${t.total}</td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+};
+
+/******************
+window.renderICPCScore = function(parsed, searchTerm, regionFilterFn, favoriteList, oldOrder, regionUI) {
+  if(!parsed) return "<div>Placar indisponível ou formato inválido.</div>";
+  let teams = window.fuzzyTeamFilter ? window.fuzzyTeamFilter(parsed.teams, searchTerm) : parsed.teams;
+  if(regionFilterFn) teams = teams.filter(regionFilterFn);
+  let oldPos = {}; if (oldOrder) oldOrder.forEach((t, idx) => {oldPos[t.username]=idx;});
+  let regionFilterHtml = regionUI || "";
+  let ths = `<th>#</th>
+    <th>Bandeira</th>
+    <th>Equipe</th>
+    ${parsed.probShorts.map(pb=>{
+      let cc = (window.balloonColors&&window.balloonColors[pb])
+        ? (typeof window.balloonColors[pb]==="string"?window.balloonColors[pb]:window.balloonColors[pb].hex)
+        : '';
+      let balloon = cc ? `<svg class="balloon-svg" viewBox="0 0 42 47">
+        <ellipse cx="21" cy="21" rx="18" ry="18" fill="${cc}" stroke="#b2b2b2" stroke-width="2"/>
+        <ellipse cx="16" cy="14" rx="5" ry="5.1" fill="#fff" fill-opacity=".48"/>
+        <polygon points="18,36 24,36 21,46" fill="${cc}" stroke="#b2b2b2" stroke-width="1.4" stroke-linejoin="round"/>
+        <ellipse cx="14" cy="15" rx="1.4" ry="2.8" fill="#fff" fill-opacity=".30" />
+        <ellipse cx="12" cy="22" rx="1.1" ry="1.5" fill="#fff" fill-opacity=".22"/>
+      </svg>` : '';
+      return `<th>${balloon} ${pb}</th>`;
+    }).join('')}
+    <th>Total</th>`;
+  let rows = teams.map((t,i)=>{
+    let fav = favoriteList && favoriteList.includes && favoriteList.includes(t.username);
+    let moveCls = "";
+    if (oldPos && oldPos[t.username]!=null) {
+      let oldIdx = oldPos[t.username];
+      if (oldIdx > i) moveCls = "placing-up";
+      else if (oldIdx < i) moveCls = "placing-down";
+    }
+    let probcells = parsed.probShorts.map(sn=>{
+      let v = t.probs[sn], color = t.colors ? t.colors[sn] : '';
+      if(v.match(/^\d+\/\d+$/)||v.match(/^\d+\/\d+\/?$/))
+        return `<td class="prob-color-cell" style="background:${color||'#e2ffe9'};">${v}</td>`;
+      else if(v.match(/^\d+\/-/))
+        return `<td class="prob-wait-cell">${v}</td>`;
+      else
+        return `<td>${v}</td>`;
+    }).join('');
+    let flagcell = t.flag
+      ? `<img src="https://flagcdn.com/${t.flag.toLowerCase()}.svg" style="height:22px;vertical-align:middle;border-radius:4px;">`
+      : "";
+    let equipe = `[${t.univShort||""}] ${t.teamName||t.username}`;
+    let equipeCell = `<span title="${t.univFull||t.univShort||""}">${equipe}</span>`;
+    return `<tr id="tr-team-${t.username.replace(/\W/g,'_')}"${moveCls?` class="${moveCls}"`:''}>
+      <td class="cl-place">${t.place}</td>
+      <td>${flagcell}</td>
+      <td>${equipeCell}</td>
+      ${probcells}
+      <td>${t.total}</td></tr>`;
+  }).join('');
+  return (regionFilterHtml || "") + `<table class="score-table"><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table>`;
+};
+***************/

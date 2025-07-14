@@ -1,0 +1,10 @@
+{
+  "id": "moj-problems.fso-timedshell",
+  "title": "Timed mini-shell",
+  "tags": [
+    "#execl",
+    "#fork"
+  ],
+  "solved_count": 3,
+  "attempted_count": 34
+}

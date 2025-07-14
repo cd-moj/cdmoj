@@ -1,0 +1,9 @@
+{
+  "id": "moj-problems.dlfun",
+  "title": "Carga dinâmica de bibliotecas: `#include <dlfcn.h>`",
+  "tags": [
+    "#libs"
+  ],
+  "solved_count": 0,
+  "attempted_count": 0
+}

@@ -1,0 +1,32 @@
+#statement-content.statement-content {max-width: 1200px; margin: auto; font-family: sans-serif;min-height: 15em; margin-bottom:1.5em; line-height: 1.6; font-size: 1.09em; }
+.statement-content code {
+  font-family: "Fira Mono", "DejaVu Sans Mono", Consolas, monospace;
+  font-size: 1.01em;
+  color: #173d7b;
+  border-radius: 4px;
+}
+.statement-content pre {
+  font-family: "Fira Mono", "DejaVu Sans Mono", Consolas, monospace;
+  background: #ececec;
+  color: #111;
+  border: 1px dotted gray;
+  border-radius: 5px;
+  padding: .9em 1.2em;
+  margin: 1em 0;
+  font-size: 1.02em;
+  overflow-x: auto;
+}
+.statement-content #footer, .statement-content footer {
+  color: #757575;
+  font-size: 0.96em;
+  text-align: right;
+  margin-top: 2.4em;
+  margin-bottom: 1.4em;
+}
+.statement-content h1, .statement-content h2, .statement-content h3, .statement-content h4, .statement-content h5 {
+  text-decoration: none;
+  color: #7a5ada;
+}
+//.statement-content h1.title { display: none !important; }
+
+.statement-content img { max-width: 100%; display:block; margin:1.0em auto; }

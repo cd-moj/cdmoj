@@ -1,0 +1,160 @@
+body { font-family:sans-serif;background:#eff3f9;margin:0;}
+.container { max-width: 100%; margin: auto; }
+.topbar {
+  background: linear-gradient(120deg,#3875e9 65%,#8bc5ff 100%);
+  border-radius: 9px; margin-bottom:0.6em; box-shadow:0 4px 14px 0 #7eaafc16;
+  padding:0 2em;}
+.topbar-line1 {display:flex;align-items:flex-end;justify-content:center;padding-top:.8em;}
+#contest-title {font-size:2em;color:#fff;font-weight:bold;text-shadow:0 2px 9px #3071c788;letter-spacing:.01em; text-align:center;word-break:break-word;}
+.topbar-line2 {display:flex;justify-content:space-between;align-items:center;
+  padding-bottom:.5em;margin-top:.3em;flex-wrap:wrap;}
+.mojo-brand{display:flex;align-items:center;gap:.86em;}
+.mojo-logo { height:44px; border-radius:50%; background:#fff; box-shadow:0 2px 12px #4592ff1a;padding:.13em;}
+.mojo-label { font-size:1.20em;font-weight:bold;color:#1651bb;letter-spacing:.04em;}
+.beta-badge {
+  display:inline-block; font-size:.95em; font-weight:bold; color:#1b2b36;
+  background:#ffe554; border-radius:.8em; padding:.17em .76em; margin-left:.36em; box-shadow:0 1px 4px #edeec19c; border:1.4px solid #ffe78a;
+  vertical-align:middle; letter-spacing:.03em;}
+.countdown-contest { font-size:1.12em;color:#ff9800;font-weight:bold;padding:.13em 1.26em;margin:0;
+  background:#fbeeb7;border-radius:1em; box-shadow:0 1px 5px #fff2ab24;}
+#logout-btn {background:#f4716b;color:#fff;font-weight:bold;
+  border:none;border-radius:2em;padding:.37em 1.29em;font-size:1.04em;margin-left:.7em;cursor:pointer;
+  transition: background .17s, color .19s;}
+#logout-btn:hover { background: #d62d23;}
+#contest-nav { display:flex; justify-content:center; gap:1.2em; margin:0 0 1.2em 0; flex-wrap:wrap;}
+#contest-nav .nav-btn { font-size:1.07em; padding:.43em 1.11em;background:#e3ecfa;color:#2776da;
+  border:1px solid #add0fb; border-radius:1.1em; font-weight:bold;
+  transition:background .13s, color .16s; margin-bottom:.12em;}
+#contest-nav .nav-btn.selected,#contest-nav .nav-btn:focus{ background:#2f80ed;color:#fff;}
+#contest-nav .nav-btn:hover { background:#b4d0f9; color:#0a3457;}
+.section {
+  background: #f6f7fa;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px #a6b3cc1b, 0 1.5px 2px #bfdcff2f;
+  margin: 2.2em 0;
+  padding: 2.3em 2.3em 2.1em 2.3em;
+  border: 1.5px solid #d9e5fa;
+  position: relative;
+}
+.section h2 {
+  border-bottom:1.3px solid #d4e1f7;
+  padding-bottom:.38em;
+  margin-bottom: 1.13em;
+  font-size:1.14em;
+  color: #265caa;
+  background: #edf1fa;
+  border-radius: .4em .4em 0 0;
+  padding-left:.4em;
+  margin-left:-.4em;
+  margin-right:-.4em;
+  box-shadow:0 3px 8px #bcd1ed13;
+}
+.section:before {
+  content:"";
+  display:block;
+  position:absolute;
+  left:0; right:0; top:0; bottom:0;
+  border-radius:12px; pointer-events:none;
+  box-shadow:0 2.5px 8px #bddbfc22;
+  z-index:0;
+}
+.section > * { position:relative; z-index:2; }
+.section:nth-of-type(even) { background: #ecf1f7; }
+
+#user-details {
+  background: #ecf6fd; border-radius:1.2em; color:#286; margin:.7em 0 2em 0; padding:1.4em 2em;}
+#user-title { font-size:1.19em; color: #1557af; font-weight: bold;}
+#user-login { color:#3b5f8c; font-size:1.1em;}
+#user-more { color:#598; font-size:.99em;}
+#user-more span { display:inline-block; margin-right:1.6em;}
+
+/* Barra de filtros */
+#score-filter-bar{
+  display: flex;
+  align-items: center;
+  gap:1em;
+  flex-wrap: wrap;
+  margin-top: .2em; margin-bottom:.5em;
+}
+
+#score-filter-bar input[type="text"] {
+  background: #fafdff;
+  border: 1.4px solid #bdd9f8;
+}
+
+#fav-team-bar span {
+  margin-bottom:.15em
+}
+
+/* Tabela score */
+.score-table {
+  width: 98%;
+  margin: 2em auto;
+  border-radius: 14px;
+  border-collapse: separate;
+  border-spacing: 0;
+  box-shadow: 0 4px 18px #b0dbff23, 0 1.5px 2px #bfdcff2f;
+  background: #fafdff;
+  overflow: hidden;
+  font-size: 1em;
+}
+.score-table th, .score-table td {
+  padding: .77em 1.12em;
+  text-align: left;
+  background: #fafdff;
+  border-bottom: 1.5px solid #e7eaf7;
+  transition: background .12s;
+  font-variant-numeric: tabular-nums;
+}
+.score-table th {
+  background: #e3ecfa;
+  color: #216097;
+  letter-spacing: .01em;
+  font-size: 1.03em;
+  font-weight: bold;
+  border-bottom: 2px solid #b8d2fa;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  cursor:pointer;
+}
+.score-table th.sorted { background:#d8eaff;color:#1850a9; }
+.score-table th .sort-icon { font-size: 1.1em; margin-left:.19em; color: #4386de;}
+//.score-table tr:hover td:not(.prob-color-cell) { background: #ebf8ff !important; }
+.score-table tr:hover td:not(.prob-color-cell) { background: #d0e8f8 !important; }
+.score-table tr.favorite-row { box-shadow: 0 3px 19px #fff8be33, 0 0.5px 2px #f1e08446;background: #fffbe1 !important; }
+.score-table td { color: #1f3348; }
+.score-table .nowrap { white-space: nowrap; }
+.score-table .balloon-svg { width: 1.8em; height:2.2em;display:inline;margin-right:.19em;vertical-align:middle;}
+.score-table .prob-color-cell {
+  background: #e7ffef;
+  color:#222;
+  font-weight:bold;
+  border-radius: 5.1px;
+  box-shadow:0 1px 12px #8dfb8f1a inset;
+  text-align:left;
+}
+.score-table .prob-color-cell svg {margin-right:.25em;vertical-align:middle;}
+.score-table .prob-wait-cell {
+  background: #fffbe0;
+  color: #a38510;
+  font-weight: bold;
+  border-radius: 5.1px;
+  text-align: center;
+}
+.score-table .empate { background:#fff5cb; color:#b2880c;}
+.score-table tr.placing-up td, .score-table tr.placing-up { background:#cffff0 !important; transition: background .9s;}
+.score-table tr.placing-down td, .score-table tr.placing-down { background:#ffe7e1 !important; transition: background .9s;}
+.score-table td.cl-place { font-weight:bold; color:#944;}
+.score-table img { vertical-align: middle; background:#f7f7f7; border-radius:5px; border:1px solid #c4caed; }
+@media (max-width:750px){
+  .score-table th,.score-table td{font-size:.97em;padding:.48em .4em;}
+  .score-table {font-size:.94em;}
+}
+@media (max-width:470px){
+  .score-table th, .score-table td { font-size:.83em; padding:.27em .25em;}
+}
+.score-table td.prob-score {
+  text-align: left;
+}

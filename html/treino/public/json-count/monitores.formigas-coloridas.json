@@ -1,0 +1,13 @@
+{
+  "id": "monitores.formigas-coloridas",
+  "title": "🐜🌈 Formigas Coloridas",
+  "tags": [
+    "#grafo",
+    "#grafo_de_sucessores",
+    "#dfs",
+    "#bfs",
+    "#componentes"
+  ],
+  "solved_count": 0,
+  "attempted_count": 0
+}

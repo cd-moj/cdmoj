@@ -1,0 +1,12 @@
+{
+  "id": "moj-problems#nlz-fac",
+  "title": "Número de zeros precedentes",
+  "time_limits": {
+    "default": ".6140",
+    "c": ".6140"
+  },
+  "tags": [
+    "#aritmetica_inteira"
+  ],
+  "statement_html_b64": ""
+}
