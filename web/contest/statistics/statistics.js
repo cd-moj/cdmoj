@@ -42,7 +42,7 @@ function totalsCards(t) {
 function problemsTable(ps) {
   const tb = el('tbody');
   ps.forEach((p) => tb.append(el('tr', {},
-    el('td', {}, el('b', {}, shortOf(p.problem_id)), el('div', { class: 'small muted' }, p.problem_id)),
+    el('td', {}, el('b', {}, p.short_name || shortOf(p.problem_id)), el('div', { class: 'small muted' }, p.full_name || '')),
     el('td', { class: 'n' }, String(p.submissions)),
     el('td', { class: 'n' }, String(p.accepted_subs != null ? p.accepted_subs : '—')),
     el('td', { class: 'n' }, String(p.attempted)),
@@ -90,6 +90,9 @@ function langTable(ls) {
 
 function render(s) {
   app.innerHTML = '';
+  // o backend já resolve letra/nome (mesmo p/ contests legados onde o history guarda
+  // o offset interno) — semeia o mapa p/ que shortOf() funcione na matriz/balões/gráficos
+  (s.problems || []).forEach((p) => { if (p.short_name) probMap[p.problem_id] = p.short_name; });
   app.append(totalsCards(s.totals || {}));
   app.append(highlights(s));
 

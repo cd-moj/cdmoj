@@ -9,6 +9,8 @@
     .field { margin:.55rem 0 }
     .field label { display:block; font-weight:600; font-size:.9rem; margin-bottom:.2rem }
     .field input, .field select, .field textarea { width:100%; box-sizing:border-box }
+    .field input[type=checkbox], .field input[type=radio] { width:auto; vertical-align:middle; margin:0 .45em 0 0 }
+    .field label:has(> input[type=checkbox]), .field label:has(> input[type=radio]) { display:inline-flex; align-items:center; font-weight:400 }
     .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:.8rem }
     .prob-row { display:grid; grid-template-columns:46px 1fr auto; gap:.5rem; align-items:start;
       padding:.55rem; border:1px solid #e3e9f2; border-radius:9px; margin:.4rem 0; background:#fafcff }
