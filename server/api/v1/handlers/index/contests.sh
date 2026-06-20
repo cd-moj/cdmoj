@@ -8,6 +8,10 @@ set +o noglob
 PAGE="$(param page)"; [[ "$PAGE" =~ ^[0-9]+$ ]] || PAGE=1
 (( PAGE < 1 )) && PAGE=1
 PERPAGE=20
+# all=1 -> devolve TODOS os encerrados (sem paginar). Usado pela página de arquivo
+# (/contests/) p/ navegar o histórico completo, que na home vinha truncado em 20.
+ALL="$(param all)"; ALLMODE=0
+case "$ALL" in 1|true|all) ALLMODE=1;; esac
 NOW="$EPOCHSECONDS"
 
 # Para cada contest emite "<start> <status> <json>" (status: r/u/e). Pula treino e *.admin.
@@ -46,6 +50,7 @@ while IFS=$'\t' read -r start st obj; do
 done <<< "$LINES"
 
 TOTAL="${#CLOSED[@]}"
+(( ALLMODE )) && { PAGE=1; PERPAGE=$TOTAL; }
 FROM=$(( (PAGE-1) * PERPAGE ))
 declare -a CPAGE
 for (( i=FROM; i<FROM+PERPAGE && i<TOTAL; i++ )); do CPAGE+=("${CLOSED[$i]}"); done

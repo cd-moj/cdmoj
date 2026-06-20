@@ -16,7 +16,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | Rota | I/O |
 |---|---|
 | `/index/news` | `{news:[{id,title,date,summary,url}]}` |
-| `/index/contests?page=N` | `{open:[…],upcoming:[…],closed:{items:[…],page,pages}}` (cada item `{id,title,start_time,end_time,problems_count,url,scoreboard_url}`) |
+| `/index/contests?page=N` | `{open:[…],upcoming:[…],closed:{items:[…],page,per_page,total}}` (cada item `{id,title,start_time,end_time,problems_count,url,scoreboard_url}`). Encerrados paginados (20/pág); **`?all=1`** devolve todos (usado pela página de arquivo `/contests/`). |
 | `/index/open_training` | `{top_users:[{username,name,solved_count}],recent_solved:[…],most_solved_week:[…]}` |
 
 ## Treino
@@ -79,7 +79,7 @@ Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na ses
 | `/contest/admin/user-remove?contest=<c>` | POST | `{login}` → remove (não pode remover a si mesmo) |
 
 > Reusa os editores de `web/shared/contest-config/` (os mesmos da criação). Bandeiras **locais/offline** em `/shared/flags/` (271 países + 27 estados); GIFs do Sonic em `/shared/assets/sonic/`. `USERS_FROM=<contest>` no conf faz o login cair no `passwd` compartilhado (ex.: treino), mantendo o `.admin` próprio.
-| `/contest/score?contest=<c>` | — | **TXT** (1ª linha = modo) — ver `SCOREBOARD.md` |
+| `/contest/score?contest=<c>` | — | **TXT** (1ª linha = modo) — ver `SCOREBOARD.md`. Cache preguiçoso: (re)gera `placar.txt` se a fonte (`history`/`conf`) mudou ou se nunca foi montado (cobre contests importados). |
 
 ## Admin / Judge / Ops (Bearer + papel)
 | Rota | Método | Papel | Ação |
@@ -132,7 +132,7 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 | `/contest/admin/access-log?contest=<c>&day=` | GET | admin | log de acessos (epoch/login/ip/UA) + alertas |
 | `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/allow_late/score_anon`, `login_ua_substring` |
 | `/contest/admin/problems?contest=<c>` | GET/POST | admin | `{action:add\|remove\|reorder\|rename,…}` (reescreve PROBS) |
-| `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema, por-linguagem, veredictos, linha do tempo |
+| `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema (letra/nome resolvidos do conf), por-linguagem, veredictos, linha do tempo. **Só usuários normais** (descarta `.admin/.judge/.staff/.mon`). Cache preguiçoso em `var/statistics.cache.json` (gerado por `server/score/stats-gen.sh`), invalidado por `history`/`conf`. |
 | `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas) |
 | `/contest/clarification-ask?contest=<c>` | POST | Bearer | `{problem?,question}` |
 | `/contest/clarification-answer?contest=<c>` | POST | admin/judge/mon | `{id,answer,public?}` |

@@ -5,11 +5,18 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 
-emit_text
 f="$CONTESTSDIR/$contest/controle/placar.txt"
+# Cache preguiçoso: (re)gera o placar se a fonte (history/conf) mudou ou se ele
+# nunca foi montado. O daemon já reconstrói a cada veredicto; isto cobre contests
+# importados/legados cujo placar nunca foi gerado (ficava eternamente vazio).
+regen_locked "$CONTESTSDIR/$contest/var/.placar.lock" \
+  "$f" "$CONTESTSDIR/$contest/controle/history" "$CONTESTSDIR/$contest/conf" \
+  -- bash "$SCOREDIR/build.sh" "$contest"
+
+emit_text
 if [[ -f "$f" ]]; then
   cat "$f"
 else
-  # placar ainda não gerado: front renderiza vazio com base no modo da 1ª linha.
+  # placar ainda não gerado (contest sem history): front renderiza vazio pelo modo.
   score_mode_of "$contest"; printf '\n'
 fi

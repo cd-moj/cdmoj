@@ -11,7 +11,9 @@ _LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${SESSIONDIR:=/home/ribas/moj/run/sessions}"
 : "${SPOOLDIR:=/home/ribas/moj/run/spool/submissions}"
 : "${NEWSDIR:=/home/ribas/moj/server/var/news}"
+: "${SCOREDIR:=/home/ribas/moj/server/score}"
 : "${DEFAULT_SCORE_MODE:=icpc}"
+export CONTESTSDIR SCOREDIR   # herdados por sub-processos (ex.: server/score/build.sh)
 
 # --- resposta (CGI) -------------------------------------------------------
 # CGI: emitimos "Status:" (fcgiwrap/nginx traduzem p/ status HTTP) + Content-Type.
@@ -67,6 +69,40 @@ score_mode_of() {  # ecoa o modo de placar do contest (default DEFAULT_SCORE_MOD
     lista-publica|lista-privada) printf 'treino';;
     *) printf '%s' "$DEFAULT_SCORE_MODE";;
   esac
+}
+
+# --- cache preguiçoso (regenera só quando a fonte muda) -------------------
+# Espelha o comportamento legado do MOJ: o processamento (placar/estatísticas) só
+# é refeito quando houve modificação na fonte (history/conf); senão serve o que já
+# está pronto. E se nada foi gerado ainda, gera na hora (lazy).
+#
+# stale_cache <cache> <fonte...> : 0 (stale) se o cache não existe OU alguma fonte
+# é mais nova que ele (mtime). 1 (fresco) caso contrário.
+stale_cache() {
+  local cache="$1"; shift
+  [[ -f "$cache" ]] || return 0
+  local s
+  for s in "$@"; do [[ -e "$s" && "$s" -nt "$cache" ]] && return 0; done
+  return 1
+}
+
+# regen_locked <lockfile> <fonte...> -- <comando...> : se o cache estiver velho,
+# adquire um flock (evita rebuild concorrente — cache stampede), reconfere e roda o
+# comando de geração. O 1º argumento da lista de fontes é tratado como o próprio
+# cache p/ a reconferência. Silencioso; nunca aborta a request se a geração falha.
+regen_locked() {
+  local lock="$1"; shift
+  local cache="$1"
+  local -a srcs=() cmd=()
+  while (( $# )); do [[ "$1" == "--" ]] && { shift; break; }; srcs+=("$1"); shift; done
+  cmd=("$@")
+  stale_cache "$cache" "${srcs[@]:1}" || return 0
+  mkdir -p "$(dirname "$lock")" 2>/dev/null
+  (
+    flock -w 20 9 || exit 0
+    stale_cache "$cache" "${srcs[@]:1}" || exit 0   # double-check após o lock
+    "${cmd[@]}" >/dev/null 2>&1 || true
+  ) 9>"$lock"
 }
 
 # --- util -----------------------------------------------------------------

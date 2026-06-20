@@ -3,48 +3,10 @@ import { apiGet } from '/shared/api.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { editorLabel } from '/shared/editors.js';
 import { renderCreateContestLink } from '/shared/create-contest-link.js';
+import { contestCard } from '/shared/contest-card.js';
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-let openAll = [], upAll = [], closedAll = [], closedPage = 0; const CPAGE = 12;
-
-function relTime(epoch) {
-  const d = Number(epoch) - Date.now() / 1000, a = Math.abs(d);
-  const days = Math.round(a / 86400);
-  const s = a >= 86400 ? days + (days > 1 ? ' dias' : ' dia')
-          : a >= 3600 ? Math.round(a / 3600) + 'h'
-          : Math.max(1, Math.round(a / 60)) + 'min';
-  return (d >= 0 ? 'em ' : 'há ') + s;
-}
-
-function contestCard(c, status) {
-  const id = c.id || '';
-  // no site principal, abre o contest pelo subdomínio (ID.moj.<base>); senão cai no ?c=
-  const sub = /^moj\./i.test(location.hostname) ? (location.protocol + '//' + id + '.' + location.host) : '';
-  const url = sub ? (sub + '/') : ('/contest/?c=' + encodeURIComponent(id));
-  const score = sub ? (sub + '/contest/score/') : ('/contest/score/?c=' + encodeURIComponent(id));
-  const start = c.start_time || c.start, end = c.end_time || c.end;
-  const label = { open: '🟢 Aberto', upcoming: '🔵 Em breve', closed: '⚪ Encerrado' }[status];
-  const when = status === 'open' ? 'termina ' + relTime(end)
-             : status === 'upcoming' ? 'começa ' + relTime(start)
-             : 'encerrado ' + relTime(end);
-  const bs = 'padding:.32rem .7rem; font-size:.82rem';
-  const actions = [];
-  if (status === 'open') actions.push(el('a', { class: 'btn', href: url, style: bs }, 'Entrar →'));
-  else actions.push(el('a', { class: 'btn ghost', href: url, style: bs }, status === 'upcoming' ? 'Detalhes' : 'Ver'));
-  actions.push(el('a', { class: 'btn ghost', href: score, style: bs }, 'Placar'));
-
-  const meta = el('div', { class: 'cc-meta' },
-    el('span', { class: 'cc-when' }, when),
-    el('span', {}, 'início ' + fmtDate(start)),
-    el('span', {}, 'fim ' + fmtDate(end)));
-  if (c.problems_count != null) meta.append(el('span', {}, c.problems_count + ' problemas'));
-
-  return el('div', { class: 'contest-card ' + status },
-    el('span', { class: 'cc-badge ' + status }, label),
-    el('div', { class: 'cc-main' },
-      el('a', { class: 'cc-title', href: url }, c.title || c.name || id), meta),
-    el('div', { class: 'cc-actions' }, ...actions));
-}
+let openAll = [], upAll = [], closedAll = [], closedPage = 0, closedTotal = 0; const CPAGE = 12;
 
 function fillGroup(boxId, countId, arr, status) {
   document.getElementById(countId).textContent = arr.length;
@@ -60,7 +22,8 @@ function renderContests() {
   fillGroup('c-upcoming', 'n-upcoming', upAll.filter(m), 'upcoming');
 
   const closed = closedAll.filter(m);
-  document.getElementById('n-closed').textContent = closed.length;
+  // o badge mostra o TOTAL real de encerrados (a home só carrega os 20 mais recentes)
+  document.getElementById('n-closed').textContent = (!f && closedTotal) ? closedTotal : closed.length;
   const pages = Math.max(1, Math.ceil(closed.length / CPAGE));
   if (closedPage >= pages) closedPage = 0;
   const cl = document.getElementById('c-closed'); cl.innerHTML = '';
@@ -73,6 +36,11 @@ function renderContests() {
       el('span', { class: 'small muted' }, ` página ${closedPage + 1} de ${pages} `),
       el('button', { class: 'btn ghost', onclick: () => { if (closedPage < pages - 1) { closedPage++; renderContests(); } } }, 'próxima ›'));
   }
+  // a home traz só os mais recentes — link p/ o arquivo completo dos encerrados
+  if (closedTotal > closedAll.length) {
+    pg.append(el('a', { class: 'btn ghost', href: '/contests/', style: 'margin-left:.4rem' },
+      `ver todos os ${closedTotal} encerrados →`));
+  }
 }
 
 async function loadContests() {
@@ -80,6 +48,7 @@ async function loadContests() {
   try { j = await apiGet('/index/contests', {}); } catch { document.getElementById('contests').classList.add('hidden'); return; }
   openAll = j.open || []; upAll = j.upcoming || [];
   closedAll = (j.closed && j.closed.items) || (Array.isArray(j.closed) ? j.closed : []);
+  closedTotal = (j.closed && j.closed.total) || closedAll.length;
   document.getElementById('cfilter').addEventListener('input', () => { closedPage = 0; renderContests(); });
   renderContests();
 }

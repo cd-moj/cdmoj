@@ -19,11 +19,11 @@ moj/
       handlers/    auth/ index/ treino/ contest/ submission/ admin/ ops/  (1 arquivo por rota)
     daemons/       judged.sh (consumidor do spool, inotify)
     judge-gw/      judge.sh (judge_run: mock/local/cluster) + result-sink.sh (push) + register.sh (heartbeat)
-    score/         build.sh (recalcula placar), jplag-run.sh
+    score/         build.sh (recalcula placar), stats-gen.sh (gera o cache de estatísticas), jplag-run.sh
     etc/           common.conf, nginx/, systemd/
   web/             frontend vanilla (ES modules, sem build), servido estático
     shared/        api.js auth.js ui.js editor.js charts(/lib) flags.js sonic.js contest-host/guard/shell.js contest-config/
-    index/ status/ treino/ contest/    (home, status público, treino livre, ambiente de contest)
+    index/ contests/ status/ treino/ contest/  (home, arquivo de encerrados, status público, treino, contest)
   judge/           cluster (master :27000 + workers pos/gpu/cm/hu) + mojtools (sandbox bubblewrap)
   mojinho-bot/     bot do Telegram (vira cliente da API)
   contests/<id>/   DADOS (conf, passwd, controle/history+placar.txt, data/, submissions/, mojlog/, var/, …) — fonte da verdade

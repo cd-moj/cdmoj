@@ -9,7 +9,10 @@ Princípio: **adicionar um modo = 1 gerador (`server/score/updatescore-<modo>.sh
    `lista-publica`/`lista-privada` → `treino`; ausente → `icpc`).
 2. `server/score/build.sh <contest>` despacha para `updatescore-<modo>.sh` e grava
    `contests/<contest>/controle/placar.txt` (atômico). É chamado pelo daemon após cada veredicto.
-3. A rota `GET /api/v1/contest/score?contest=<c>` serve esse TXT cru.
+3. A rota `GET /api/v1/contest/score?contest=<c>` serve esse TXT cru — com **cache preguiçoso**:
+   se o `placar.txt` está velho (`history`/`conf` mais novos) ou nunca foi gerado, a rota
+   chama `build.sh` na hora (sob `flock`, sem estampida) e então serve. Assim contests
+   importados/legados (cujo daemon nunca rodou) deixam de ficar com placar vazio.
 4. O front (`web/contest/score/`) lê a **1ª linha = modo** e despacha para o renderizador.
 
 ## Formato do TXT
