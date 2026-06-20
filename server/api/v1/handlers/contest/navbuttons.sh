@@ -11,7 +11,7 @@ emit_json 200 OK
 if is_staff; then
   jq -cn '{success:true, buttons:[
     {label:"Score", url:"/contest/score/"},
-    {label:"Tarefas", url:"/contest/admin_tasks/"},
+    {label:"Tarefas", url:"/contest/admin/"},
     {label:"Logout", url:"/logout"}
   ]}'
   exit 0
@@ -24,12 +24,10 @@ buttons='[{label:"Contest", url:"/"},
 
 if is_admin; then
   buttons="$buttons + [
-    {label:\"⚙ Configurar\",         url:\"/contest/admin/\"},
-    {label:\"Tarefas Administrativas\", url:\"/contest/admin_tasks/\"},
-    {label:\"Todas Submissões\",      url:\"/contest/allsubmissions/\"},
-    {label:\"Estatísticas\",          url:\"/contest/statistics/\"},
-    {label:\"jplag\",                 url:\"/contest/jplag/\"},
-    {label:\"Log\",                   url:\"/contest/log/\"}]"
+    {label:\"⚙ Administração\",  url:\"/contest/admin/\"},
+    {label:\"Todas Submissões\", url:\"/contest/allsubmissions/\"},
+    {label:\"Estatísticas\",     url:\"/contest/statistics/\"},
+    {label:\"jplag\",            url:\"/contest/jplag/\"}]"
 elif is_judge; then
   buttons="$buttons + [
     {label:\"Submissões Pendentes\", url:\"/contest/judge/\"},

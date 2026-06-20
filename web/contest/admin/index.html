@@ -3,36 +3,48 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin do contest — MOJ</title>
+  <title>Administração — Contest — MOJ</title>
   <link rel="stylesheet" href="/shared/ui.css">
   <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
     .field { margin:.5rem 0 }
     .field label { display:block; font-weight:600; font-size:.9rem; margin-bottom:.2rem }
     .field input, .field select, .field textarea { width:100%; box-sizing:border-box }
     .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:.8rem }
     .cred { font-family:var(--mono,monospace); background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:.1rem .4rem }
-    table.moj { width:100%; border-collapse:collapse; font-size:.92rem }
+    table.moj { width:100%; border-collapse:collapse; font-size:.9rem }
     table.moj th, table.moj td { padding:.35rem .4rem; border-top:1px solid #eef2f8; text-align:left }
     table.moj thead th { border-top:0; color:#64748b; font-size:.82rem }
     .chart-wrap { overflow-x:auto }
+    td.ua { max-width:300px; word-break:break-all; white-space:normal; font-size:.78rem; color:#475569 }
+    td.ip { font-family:var(--mono,monospace); max-width:150px; word-break:break-all; white-space:normal }
+    .alert { background:#fff7e0; border:1px solid #f3df9e; color:#7a5c00; padding:.5rem .7rem; border-radius:8px; margin:.4rem 0; font-size:.9rem }
+    .flag-anom { color:#b3261e; font-weight:700 }
+    .tabbar { display:flex; gap:.4rem; flex-wrap:wrap; margin:.2rem 0 1rem; border-bottom:1px solid #e3e9f2; padding-bottom:.5rem }
+    .tabbar button { border:1px solid #d7dee8; background:#fff; border-radius:8px; padding:.4rem .9rem; cursor:pointer; font-weight:600 }
+    .tabbar button.active { background:#1e57c4; color:#fff; border-color:#1e57c4 }
+    .row-actions { display:flex; gap:.3rem; flex-wrap:wrap }
   </style>
 </head>
 <body>
   <header class="topbar">
-    <div class="bar">
-      <a class="brand" href="/"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
-        <span class="slogan">Admin do contest</span></a>
-      <div class="spacer"></div>
-      <nav class="navlinks">
-        <a id="backLink" href="#">← Contest</a>
-        <a id="scoreLink" href="#">Placar</a>
-      </nav>
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
     </div>
   </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
   <main class="container">
-    <h1 id="ctitle" style="margin:.2rem 0 1rem">Admin do contest</h1>
+    <h1 style="margin:.2rem 0 1rem">🛠 Administração do contest</h1>
     <div id="app"><p class="muted">carregando…</p></div>
   </main>
-  <script type="module" src="/contest/admin/admin.js"></script>
+  <script type="module" src="./admin.js"></script>
 </body>
 </html>

@@ -72,7 +72,7 @@ check "userinfo no token -> 401" '[[ "$OUT" == *"Status: 401"* ]]'
 echo "== contest/navbuttons (Bearer, admin) =="
 call "/contest/navbuttons" GET "contest=$CONTEST" "$TOKEN"
 check "navbuttons 200 + valid JSON" 'okstatus && jvalid'
-check "admin sees Todas Submissões & Log & Logout" 'printf "%s" "$BODY" | jq -e "[.buttons[].label] as \$l | (\$l|index(\"Todas Submissões\")) and (\$l|index(\"Log\")) and (\$l|index(\"Logout\"))" >/dev/null'
+check "admin sees Todas Submissões & Administração & Logout" 'printf "%s" "$BODY" | jq -e "[.buttons[].label] as \$l | (\$l|index(\"Todas Submissões\")) and (\$l|index(\"⚙ Administração\")) and (\$l|index(\"Logout\"))" >/dev/null'
 check "navbuttons base has Contest/Score/Clarification" 'printf "%s" "$BODY" | jq -e "[.buttons[].label] as \$l | (\$l|index(\"Contest\")) and (\$l|index(\"Score\")) and (\$l|index(\"Clarification\"))" >/dev/null'
 
 echo "== contest/problems (Bearer) =="
