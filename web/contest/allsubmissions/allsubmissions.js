@@ -7,7 +7,7 @@ import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
 
 const qs = new URLSearchParams(location.search);
-const CONTEST = qs.get('c') || '';
+const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 let problems = [];
 let subs = [];
 let groupBy = 'all';

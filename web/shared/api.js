@@ -1,4 +1,5 @@
 // shared/api.js — cliente da API MOJ v1 (fetch + Bearer + envelope).
+import './contest-guard.js';   // isolamento por subdomínio (roda em toda página que usa a API)
 export const API_BASE = '/api/v1';
 
 export class ApiError extends Error {

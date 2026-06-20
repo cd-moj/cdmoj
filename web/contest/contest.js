@@ -6,7 +6,7 @@ import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 
 const qs = new URLSearchParams(location.search);
-const CONTEST = qs.get('c') || '';
+const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const LANGS = [ // [editorLang, label, ext]
   ['c', 'C', 'c'], ['cpp', 'C++', 'cpp'], ['python', 'Python', 'py'],
   ['java', 'Java', 'java'], ['rust', 'Rust', 'rs'], ['javascript', 'JavaScript', 'js'],

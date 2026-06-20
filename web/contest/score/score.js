@@ -10,7 +10,7 @@ import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
 
 const qs = new URLSearchParams(location.search);
-const CONTEST = qs.get('c') || '';
+const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 let LOCALE = 'pt';
 let basic = null;
 let isAuth = false;

@@ -36,6 +36,20 @@ for s in "${_seg[@]}"; do
   [[ "$s" =~ ^[A-Za-z0-9_-]+$ ]] || fail 404 "No such route" "route_invalid"
   _safe="$_safe/$s"
 done
+
+# Isolamento por subdomínio: se a requisição chegou por <ID>.moj... o nginx injeta
+# CONTEST_HOST (não vem do cliente). Nesse modo só rotas DAQUELE contest são acessíveis
+# — nada de treino, índice, admin global ou outro contest. Defesa em profundidade
+# (o frontend também redireciona), para o cenário "máquina de prova travada no contest".
+if [[ -n "${CONTEST_HOST:-}" ]] && valid_id "$CONTEST_HOST"; then
+  case "${_seg[0]}" in
+    auth|contest|submit|submission) ;;   # rotas pertinentes ao contest
+    *) fail 403 "Recurso fora do contest '$CONTEST_HOST' (ambiente isolado)" "contest_isolated" ;;
+  esac
+  _qc="${PARAMS[contest]:-}"
+  [[ -z "$_qc" || "$_qc" == "$CONTEST_HOST" ]] || fail 403 "Acesso a outro contest bloqueado" "contest_mismatch"
+fi
+
 handler="$HANDLERS$_safe.sh"
 [[ -f "$handler" ]] || fail 404 "No such route: $route" "route_notfound"
 source "$handler"

@@ -5,7 +5,7 @@ import { el } from '/shared/ui.js';
 import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor } from '/shared/contest-config/index.js';
 
 const qs = new URLSearchParams(location.search);
-const CONTEST = qs.get('c') || '';
+const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const G = { contest: CONTEST, auth: true };
 const enc = encodeURIComponent;
