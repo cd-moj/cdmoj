@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clarifications — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
+    .field label { display:block; font-weight:600; font-size:.9rem; margin-bottom:.2rem }
+    .field { margin:.5rem 0 }
+    .clar { border:1px solid #e3e9f2; border-radius:9px; padding:.6rem .8rem; margin:.5rem 0; background:#fff }
+    .clar.answered { border-color:#b6e7c6 }
+    .ans { background:#f1f8f3; border-radius:6px; padding:.35rem .55rem; margin-top:.35rem }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+  <main class="container">
+    <h1 style="margin:.2rem 0 1rem">💬 Clarifications</h1>
+    <div id="app"><p class="muted">carregando…</p></div>
+  </main>
+  <script type="module" src="./clarification.js"></script>
+</body>
+</html>
