@@ -361,8 +361,9 @@ function toggleDetail(p, item, toggle, submitWrap) {
           el('thead', {}, el('tr', {}, ...keys.map(k => el('th', {}, k)))),
           el('tbody', {}, el('tr', {}, ...keys.map(k => el('td', {}, tl[k] + ' s')))))));
     }
-    // editor de código embutido (CodeMirror via shared/editor.js)
-    detail.append(submitWrap.editorBlock);
+    // editor de código embutido (CodeMirror) — só se o admin do contest o habilitou
+    const editorOn = !(userinfo && userinfo.show_editor === false);
+    if (editorOn) detail.append(submitWrap.editorBlock);
     // enunciado inline (toggle)
     if (p.statement_html_b64) {
       const stmtToggle = el('span', { class: 'stmt-toggle' }, T('Mostrar enunciado', 'Show statement'));
@@ -383,7 +384,7 @@ function toggleDetail(p, item, toggle, submitWrap) {
       detail.append(stmtToggle, stmtDiv);
     }
     detail.dataset.rendered = '1';
-    submitWrap.mountEditor();
+    if (editorOn) submitWrap.mountEditor();
   }
   detail.classList.remove('hidden');
 }

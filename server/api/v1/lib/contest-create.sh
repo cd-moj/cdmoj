@@ -264,6 +264,62 @@ cc_del_conf_var(){
   cat "$tmp" > "$cf" && rm -f "$tmp"
 }
 
+# cc_build_probs <target_dir> <problems_json_array> [enun_src_dir] -> ecoa "PROBS=(...)"
+# e grava os enunciados em <target_dir>/enunciados/. Letra: usa .letter se válida, senão A,B,...
+# Retorna 1 em validação inválida.
+cc_build_probs(){
+  local tdir="$1" spec="$2" enun="${3:-}" probs="PROBS=(" i=0
+  local letterauto=( {A..Z} ) p pid src pname letter bankid stmt_b64 stmt_file skey bf html
+  mkdir -p "$tdir/enunciados"
+  while IFS= read -r p; do
+    [[ -n "$p" ]] || continue
+    pid="$(jq -r '.problem_id // ""' <<<"$p")"; bankid="$(jq -r '.bank_id // ""' <<<"$p")"
+    [[ -z "$pid" && -n "$bankid" ]] && pid="${bankid//#//}"
+    src="$(jq -r '.source // "cdmoj"' <<<"$p")"; pname="$(jq -r '.name // ""' <<<"$p")"
+    letter="$(jq -r '.letter // ""' <<<"$p")"; stmt_b64="$(jq -r '.statement_b64 // ""' <<<"$p")"
+    stmt_file="$(jq -r '.statement_file // ""' <<<"$p")"
+    [[ -z "$pname" ]] && pname="$pid"
+    [[ -n "$pid" ]] || { ((i++)); continue; }
+    { [[ "$pid" =~ ^[A-Za-z0-9._/#@+-]+$ ]] && [[ "$pid" != *..* ]]; } || return 1
+    [[ "$src" =~ ^[A-Za-z0-9._-]+$ ]] || return 1
+    [[ -z "$letter" ]] && letter="${letterauto[$i]:-$((i+1))}"
+    [[ "$letter" =~ ^[A-Za-z0-9]{1,3}$ ]] || return 1
+    skey="${pid//\//#}"
+    { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || return 1
+    html=""
+    if [[ -n "$stmt_b64" ]]; then html="$(printf '%s' "$stmt_b64" | base64 -d 2>/dev/null)" || return 1
+    elif [[ -n "$enun" && -n "$stmt_file" && -f "$enun/$stmt_file" ]]; then html="$(cat "$enun/$stmt_file")"
+    elif [[ -n "$bankid" ]]; then bf="$CONTESTSDIR/treino/var/jsons/$bankid.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
+    else bf="$CONTESTSDIR/treino/var/jsons/$skey.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"; fi
+    [[ -n "$html" ]] && printf '%s' "$html" > "$tdir/enunciados/$skey.html"
+    probs+=" $(printf '%q' "$src") $(printf '%q' "$pid") $(printf '%q' "$pname") $(printf '%q' "$letter") $(printf '%q' "$skey")"
+    ((i++))
+  done < <(jq -c '.[]' <<<"$spec")
+  probs+=" )"
+  printf '%s' "$probs"
+}
+
+# cc_set_probs <contest> <problems_json_array> — reescreve a linha PROBS= no conf.
+cc_set_probs(){
+  local cf="$CONTESTSDIR/$1/conf" line tmp
+  line="$(cc_build_probs "$CONTESTSDIR/$1" "$2")" || return 1
+  tmp="$(mktemp "${cf}.XXXXXX")" || return 1
+  grep -v '^PROBS=' "$cf" 2>/dev/null > "$tmp"
+  printf '%s\n' "$line" >> "$tmp"
+  cat "$tmp" > "$cf" && rm -f "$tmp"
+}
+
+# cc_probs_json <contest> -> [{source,problem_id,name,letter,statement_key}] do PROBS atual
+cc_probs_json(){
+  ( CONTEST_TYPE=""; PROBS=(); . "$CONTESTSDIR/$1/conf" 2>/dev/null
+    for ((i=0; i+4 < ${#PROBS[@]}; i+=5)); do
+      jq -cn --arg s "${PROBS[$i]:-}" --arg p "${PROBS[$((i+1))]:-}" --arg n "${PROBS[$((i+2))]:-}" \
+         --arg l "${PROBS[$((i+3))]:-}" --arg k "${PROBS[$((i+4))]:-}" \
+         '{source:$s, problem_id:$p, name:$n, letter:$l, statement_key:$k}'
+    done
+  ) | jq -cs '.'
+}
+
 # lista contests criados pela interface (têm marcador created-by)
 cc_list_created(){
   set +o noglob; shopt -s nullglob

@@ -17,11 +17,16 @@ owner=""
 if (( ${#sfiles[@]} > 0 )); then
   base="${sfiles[0]##*/}"; after="${base#*"$sid"-}"; owner="${after%%-*}"
 fi
-SHOWCODE=0
+SHOWCODE=0; SHOWLOG=""
 load_contest_conf "$contest"
-if [[ -n "$owner" && "$owner" != "$SESSION_LOGIN" ]] && ! is_judge && [[ "${SHOWCODE:-0}" != 1 ]]; then
-  shopt -u nullglob
-  fail 403 "Log not visible" "log_forbidden"
+# juiz/admin sempre veem; dono vê salvo se o admin escondeu o log (SHOWLOG=0).
+if ! is_judge; then
+  if [[ -n "$owner" && "$owner" != "$SESSION_LOGIN" && "${SHOWCODE:-0}" != 1 ]]; then
+    shopt -u nullglob; fail 403 "Log not visible" "log_forbidden"
+  fi
+  if [[ "$SHOWLOG" == 0 ]]; then
+    shopt -u nullglob; fail 403 "Log oculto pelo admin do contest" "log_hidden"
+  fi
 fi
 
 logs=("$CONTESTSDIR/$contest/mojlog/"*"$sid"*)
