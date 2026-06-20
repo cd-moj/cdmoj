@@ -13,9 +13,12 @@
     .big-num { font-size:2rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums }
     .big-sub { color:#64748b; font-size:.88rem; margin-top:.2rem }
     .two-col { display:flex; gap:1.2rem; flex-wrap:wrap }
-    .two-col > div { flex:1; min-width:300px }
+    .two-col > div { flex:1 1 320px; min-width:0 }   /* min-width:0 deixa o flex encolher */
     .chart-title { text-align:center; font-weight:600; margin-bottom:.3rem }
     .chart-wrap { overflow-x:auto }
+    /* SVGs responsivos: caem dentro da coluna sem estourar a borda */
+    svg.chart { max-width:100%; height:auto; display:block; margin:0 auto }
+    .vp-table td.hot { font-weight:700 }
     table.moj { width:100%; border-collapse:collapse; font-size:.9rem }
     table.moj th, table.moj td { padding:.35rem .45rem; border-top:1px solid #eef2f8; text-align:left }
     table.moj thead th { border-top:0; color:#64748b; font-size:.82rem }

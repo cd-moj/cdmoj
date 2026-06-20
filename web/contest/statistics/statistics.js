@@ -28,6 +28,7 @@ function highlights(s) {
   if (hardest) items.push('🔥 Mais difícil: ' + shortOf(hardest.problem_id) + ' (' + pct(hardest.accept_rate) + ' de acerto)');
   if (ls[0]) items.push('⌨ Linguagem mais usada: ' + ls[0].lang + ' (' + ls[0].submissions + ' submissões)');
   if ((s.totals || {}).submissions) items.push('✅ Taxa global de aceitação: ' + pct((s.totals.accepted || 0) / s.totals.submissions));
+  if ((s.totals || {}).users) items.push('📨 Média de ' + ((s.totals.submissions || 0) / s.totals.users).toFixed(1) + ' submissões por participante');
   return items.length ? el('div', { class: 'section' }, el('h2', {}, 'Destaques'), el('ul', { style: 'margin:.2rem 0 0 1.1rem' }, ...items.map((x) => el('li', {}, x)))) : el('div', {});
 }
 
@@ -43,13 +44,39 @@ function problemsTable(ps) {
   ps.forEach((p) => tb.append(el('tr', {},
     el('td', {}, el('b', {}, shortOf(p.problem_id)), el('div', { class: 'small muted' }, p.problem_id)),
     el('td', { class: 'n' }, String(p.submissions)),
+    el('td', { class: 'n' }, String(p.accepted_subs != null ? p.accepted_subs : '—')),
     el('td', { class: 'n' }, String(p.attempted)),
     el('td', { class: 'n' }, String(p.solved)),
     el('td', { class: 'n' }, pct(p.accept_rate)),
+    el('td', { class: 'n' }, p.avg_subs != null ? p.avg_subs.toFixed(1) : '—'),
     el('td', {}, p.first_solver ? (p.first_solver + ' · ' + p.first_minute + 'min') : '—'))));
   return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-    el('thead', {}, el('tr', {}, el('th', {}, 'Problema'), el('th', {}, 'Subs'), el('th', {}, 'Tentaram'),
-      el('th', {}, 'Resolveram'), el('th', {}, 'Taxa'), el('th', {}, '1º a resolver'))), tb));
+    el('thead', {}, el('tr', {}, el('th', {}, 'Problema'), el('th', {}, 'Subs'), el('th', {}, 'Aceitas'), el('th', {}, 'Tentaram'),
+      el('th', {}, 'Resolveram'), el('th', {}, 'Taxa'), el('th', {}, 'Subs/pessoa'), el('th', {}, '1º a resolver'))), tb));
+}
+
+function verdictMatrix(s) {
+  const vbp = s.verdict_by_problem || [];
+  if (!vbp.length) return el('div', {});
+  const gv = {}; vbp.forEach((x) => { gv[x.verdict] = (gv[x.verdict] || 0) + x.count; });
+  const cols = Object.keys(gv).sort((a, b) => gv[b] - gv[a]).slice(0, 6);
+  const m = {}; vbp.forEach((x) => { (m[x.problem] = m[x.problem] || {})[x.verdict] = x.count; });
+  const tb = el('tbody');
+  (s.problems || []).forEach((p) => {
+    const row = m[p.problem_id] || {}, maxv = Math.max(0, ...cols.map((c) => row[c] || 0));
+    tb.append(el('tr', {}, el('td', {}, el('b', {}, shortOf(p.problem_id))),
+      ...cols.map((c) => { const v = row[c] || 0; return el('td', { class: 'n' + (v && v === maxv ? ' hot' : '') }, v ? String(v) : '·'); })));
+  });
+  return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj vp-table' },
+    el('thead', {}, el('tr', {}, el('th', {}, 'Problema'), ...cols.map((c) => el('th', {}, c)))), tb));
+}
+
+function balloonsSection(ps) {
+  const solved = (ps || []).filter((p) => p.first_solver).slice().sort((a, b) => a.first_minute - b.first_minute);
+  if (!solved.length) return el('div', {});
+  const ol = el('ol', { style: 'margin:.2rem 0 0 1.2rem' });
+  solved.forEach((p) => ol.append(el('li', {}, el('b', {}, shortOf(p.problem_id)), ' — ', p.first_solver, el('span', { class: 'small muted' }, ' aos ' + p.first_minute + ' min'))));
+  return el('div', { class: 'section' }, el('h2', {}, '🎈 Primeiras resoluções (balões)'), ol);
 }
 
 function langTable(ls) {
@@ -74,11 +101,14 @@ function render(s) {
       el('div', {}, el('div', { class: 'chart-title' }, 'Resolvedores por problema'),
         barChart((s.problems || []).map((p) => ({ label: shortOf(p.problem_id), value: p.solved })), { rotateLabels: true })))));
 
+  app.append(balloonsSection(s.problems));
+
   app.append(el('div', { class: 'section' }, el('h2', {}, 'Veredictos e linguagens'),
     el('div', { class: 'two-col' },
       el('div', {}, el('div', { class: 'chart-title' }, 'Distribuição de veredictos'),
         pieChart((s.verdicts || []).map((v) => ({ label: v.verdict, value: v.count })))),
-      el('div', {}, el('div', { class: 'chart-title' }, 'Linguagens'), langTable(s.languages || [])))));
+      el('div', {}, el('div', { class: 'chart-title' }, 'Linguagens'), langTable(s.languages || []))),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, 'Veredictos por problema'), verdictMatrix(s)));
 
   if ((s.timeline || []).length) {
     app.append(el('div', { class: 'section' }, el('h2', {}, 'Linha do tempo'),

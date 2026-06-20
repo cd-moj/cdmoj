@@ -155,6 +155,8 @@ async function boot() {
   document.querySelectorAll('[data-group]').forEach(btn => btn.addEventListener('click', () => { groupBy = btn.dataset.group; render(); }));
   ['fUser', 'fProblem', 'fVerdict'].forEach(id => document.getElementById(id).addEventListener('input', render));
   document.getElementById('markAll').addEventListener('click', () => { filteredSubs().forEach(s => selected.add(s.submission_id)); render(); });
+  const clearBtn = el('button', { class: 'btn ghost', onclick: () => { selected.clear(); render(); } }, T('Desmarcar todos', 'Clear selection'));
+  document.getElementById('markAll').after(clearBtn);
   document.getElementById('rejudgeBtn').addEventListener('click', doRejudge);
 
   await loadSubs();

@@ -15,11 +15,11 @@ awk -F: '
   mn=$1; user=$2; prob=$3; lang=$4; v=$5;
   tot++; isac=(v ~ /^Accepted/);
   puk=prob SUBSEP user; if(!(puk in solvedAt)){ att[puk]=att[puk]+1; if(isac) solvedAt[puk]=att[puk] }
-  vc=v; sub(/,.*/,"",vc); sub(/ *\(.*/,"",vc); gsub(/^ +| +$/,"",vc); if(vc=="")vc="?"; vcl[vc]++;
+  vc=v; sub(/,.*/,"",vc); sub(/ *\(.*/,"",vc); gsub(/^ +| +$/,"",vc); if(vc=="")vc="?"; vcl[vc]++; pv[prob SUBSEP vc]++;
   psub[prob]++; lsub[lang]++; users[user]=1;
   if(!((prob SUBSEP user) in patt)){ patt[prob SUBSEP user]=1; pattn[prob]++; }
   if(isac){
-    acc++; lacc[lang]++;
+    acc++; lacc[lang]++; pacc[prob]++;
     if(!((prob SUBSEP user) in psol)){ psol[prob SUBSEP user]=1; psoln[prob]++; }
     if(!((lang SUBSEP user) in lsol)){ lsol[lang SUBSEP user]=1; lsoln[lang]++; }
     if(!(prob in fmin) || (mn+0)<(fmin[prob]+0)){ fmin[prob]=mn+0; fuser[prob]=user; }
@@ -28,7 +28,8 @@ awk -F: '
   b=int((mn+0)/10); if(b<0)b=0; if(b>20000)b=20000; tl[b]++; if(isac)tla[b]++; if(b>maxb)maxb=b;
 }
 END{
-  for(p in psub) printf "P\t%s\t%d\t%d\t%d\t%s\t%d\n", p, psub[p], pattn[p], psoln[p]+0, (p in fuser?fuser[p]:""), (p in fmin?fmin[p]:-1);
+  for(p in psub) printf "P\t%s\t%d\t%d\t%d\t%s\t%d\t%d\n", p, psub[p], pattn[p], psoln[p]+0, (p in fuser?fuser[p]:""), (p in fmin?fmin[p]:-1), pacc[p]+0;
+  for(pu in pv){ split(pu,xx,SUBSEP); printf "PV\t%s\t%s\t%d\n", xx[1], xx[2], pv[pu] }
   for(l in lsub) printf "L\t%s\t%d\t%d\t%d\n", l, lsub[l], lacc[l]+0, lsoln[l]+0;
   for(x in vcl) printf "V\t%s\t%d\n", x, vcl[x];
   for(i=0;i<=maxb;i++) if(tl[i]) printf "T\t%d\t%d\t%d\n", i*10, tl[i], tla[i]+0;
@@ -43,10 +44,11 @@ END{
   [ split("\n")[] | select(length>0) | split("\t") ] as $r
   | { success:true,
       totals: ( ([ $r[] | select(.[0]=="G") ][0]) as $g | if $g then {submissions:($g[1]|tonumber), accepted:($g[2]|tonumber), users:($g[3]|tonumber), problems_solved:($g[4]|tonumber)} else {submissions:0,accepted:0,users:0,problems_solved:0} end),
-      problems: ([ $r[] | select(.[0]=="P") | {problem_id:.[1], submissions:(.[2]|tonumber), attempted:(.[3]|tonumber), solved:(.[4]|tonumber), first_solver:.[5], first_minute:(.[6]|tonumber), accept_rate:(if (.[3]|tonumber)>0 then ((.[4]|tonumber)/(.[3]|tonumber)) else 0 end)} ] | sort_by(.problem_id)),
+      problems: ([ $r[] | select(.[0]=="P") | {problem_id:.[1], submissions:(.[2]|tonumber), attempted:(.[3]|tonumber), solved:(.[4]|tonumber), accepted_subs:(.[7]|tonumber? // 0), first_solver:.[5], first_minute:(.[6]|tonumber), accept_rate:(if (.[3]|tonumber)>0 then ((.[4]|tonumber)/(.[3]|tonumber)) else 0 end), avg_subs:(if (.[3]|tonumber)>0 then (((.[2]|tonumber)/(.[3]|tonumber)*100)|floor)/100 else 0 end)} ] | sort_by(.problem_id)),
       languages: ([ $r[] | select(.[0]=="L") | {lang:.[1], submissions:(.[2]|tonumber), accepted:(.[3]|tonumber), solvers:(.[4]|tonumber)} ] | sort_by(-.submissions)),
       verdicts: ([ $r[] | select(.[0]=="V") | {verdict:.[1], count:(.[2]|tonumber)} ] | sort_by(-.count)),
       timeline: ([ $r[] | select(.[0]=="T") | {minute:(.[1]|tonumber), submissions:(.[2]|tonumber), accepted:(.[3]|tonumber)} ] | sort_by(.minute)),
       problems_solved_dist: ([ $r[] | select(.[0]=="D") | {solved:(.[1]|tonumber), users:(.[2]|tonumber)} ] | sort_by(.solved)),
-      attempts_dist: ([ $r[] | select(.[0]=="A") | {attempts:(.[1]|tonumber), count:(.[2]|tonumber)} ] | sort_by(.attempts)) }' \
+      attempts_dist: ([ $r[] | select(.[0]=="A") | {attempts:(.[1]|tonumber), count:(.[2]|tonumber)} ] | sort_by(.attempts)),
+      verdict_by_problem: ([ $r[] | select(.[0]=="PV") | {problem:.[1], verdict:.[2], count:(.[3]|tonumber)} ]) }' \
   2>/dev/null || jq -cn '{success:true, totals:{submissions:0}, problems:[], languages:[], verdicts:[], timeline:[]}'
