@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <style>
+    /* Login full-screen do contest (porta do protótipo, adaptado à identidade MOJ) */
+    .contest-login-bg { min-height:100vh; display:flex; flex-direction:column; justify-content:center;
+      align-items:center; padding:2rem 1rem; }
+    .contest-login-bg .contest-name { font-size:2.3rem; font-weight:800; color:var(--blue-dark);
+      text-align:center; margin:.4rem 0 1.4rem; max-width:900px; }
+    .contest-login-bg .time-block { color:var(--muted); text-align:center; margin-bottom:1.4rem; font-size:1.05rem; }
+    .contest-login-bg .countdown-big { font-size:3rem; color:var(--warn); font-weight:800;
+      font-variant-numeric:tabular-nums; letter-spacing:.05em; margin:.3rem 0 1.4rem; }
+    .contest-login-bg .countdown-lbl { display:block; font-size:1rem; color:var(--blue-dark); font-weight:600; margin-bottom:.2rem; }
+    .login-card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+      box-shadow:var(--shadow); padding:1.8rem 2rem; min-width:320px; max-width:380px; width:100%; }
+    .login-card .field { margin:.6rem 0; }
+    .login-card .field label { font-weight:600; font-size:.9rem; color:var(--blue-dark); }
+    .login-card .btn { width:100%; margin-top:.6rem; }
+    .login-mini-brand { display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; opacity:.9; }
+    .login-mini-brand img { height:30px; }
+
+    /* topbar do contest (linha de título + linha de marca/countdown/logout) */
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
+
+    /* problemas (accordion) */
+    .prob-item { border:1px solid var(--line); border-radius:10px; margin:.5rem 0; overflow:hidden; background:#fff; }
+    .prob-item.accepted { border-color:#abf7c3; }
+    .prob-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.6rem .9rem; cursor:pointer; flex-wrap:wrap; }
+    .prob-row:hover { background:#f4f9ff; }
+    .prob-left { display:flex; align-items:center; gap:.5rem; min-width:0; }
+    .prob-toggle { color:var(--muted); font-size:.8rem; width:1em; }
+    .prob-sn { font-weight:800; }
+    .prob-full { color:var(--ink); }
+    .prob-right { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; }
+    .prob-detail { padding:.2rem .9rem 1rem; border-top:1px solid var(--line); }
+    .prob-submit { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    .tl-table { border-collapse:collapse; margin:.5rem 0; font-size:.9rem; }
+    .tl-table th, .tl-table td { border:1px solid var(--line); padding:.25rem .6rem; text-align:center; }
+    .tl-table th { background:var(--blue-soft); color:var(--blue-dark); }
+    .balloon-svg { width:20px; height:23px; vertical-align:middle; }
+    .stmt-toggle { display:inline-block; cursor:pointer; color:var(--blue); font-weight:600; margin:.5rem 0; }
+    .stmt-toggle:hover { text-decoration:underline; }
+    .subfilter { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.6rem; }
+    .subfilter .tag { cursor:pointer; }
+    .subfilter .tag.active { background:var(--blue); color:#fff; }
+  </style>
+</head>
+<body>
+  <!-- ===== VIEW: login full-screen (mostrada quando não logado) ===== -->
+  <div id="loginView" class="contest-login-bg hidden">
+    <div class="contest-name" id="loginContestName">…</div>
+    <div class="time-block" id="loginTimes"></div>
+    <div class="countdown-big hidden" id="loginCountdown">
+      <span class="countdown-lbl" id="loginCountdownLbl"></span>
+      <span id="loginCountdownTime"></span>
+    </div>
+    <form class="login-card hidden" id="loginForm" autocomplete="on">
+      <div class="login-mini-brand">
+        <img src="/shared/assets/logo_moj.png" alt="MOJ"> <b>MOJ</b>
+        <span class="badge-beta">BETA</span>
+      </div>
+      <div class="field">
+        <label id="loginUserLbl" for="loginUser">Usuário</label>
+        <input id="loginUser" name="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label id="loginPassLbl" for="loginPass">Senha</label>
+        <input id="loginPass" type="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn" type="submit" id="loginBtn">Entrar</button>
+      <div id="loginError" class="error-box small hidden" style="margin-top:.6rem"></div>
+    </form>
+    <div class="small muted" style="margin-top:1.4rem">
+      <a href="/">Página Inicial</a> · <a href="/docs/" target="_blank">Documentação</a>
+    </div>
+  </div>
+
+  <!-- ===== VIEW: contest principal (mostrada quando logado) ===== -->
+  <div id="mainView" class="hidden">
+    <header class="topbar">
+      <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+        <div class="contest-topbar-title" id="contestTitle">…</div>
+        <div class="row" style="align-items:center">
+          <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+            <span class="badge-beta">BETA</span></a>
+          <div class="spacer"></div>
+          <span class="countdown" id="contestCountdown"></span>
+          <button id="logoutBtn" class="btn ghost">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+
+    <main class="container">
+      <div class="section" id="userSection"></div>
+
+      <div class="section hidden" id="newsSection">
+        <h2 id="newsTitle">Informações &amp; Notícias</h2>
+        <ul id="newsList" style="margin:0; padding-left:1.1rem"></ul>
+      </div>
+
+      <div class="section hidden" id="resourcesSection">
+        <h2>Arquivos &amp; Recursos</h2>
+        <ul id="resourcesList" style="margin:0; padding-left:1.1rem"></ul>
+      </div>
+
+      <div class="section">
+        <h2>Problemas</h2>
+        <div id="problemList"><span class="muted">carregando…</span></div>
+      </div>
+
+      <div class="section">
+        <h2>Minhas submissões</h2>
+        <div class="subfilter" id="subFilter"></div>
+        <div id="submissionsTable"><span class="muted small">—</span></div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="./contest.js"></script>
+</body>
+</html>

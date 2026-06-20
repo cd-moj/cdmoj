@@ -1,35 +1,40 @@
-#A Contest Driven Meta Online Judge
+# MOJ — Melhor Online Judge
 
-CD-MOJ is a meta online judge, where the main objective is to submit users
-codes to another online judge, in order to take advantage of the current
-infrastructure available.
+Sistema de correção automática de algoritmos (`moj.naquadah.com.br`). Este repositório está em
+**migração** para uma arquitetura **API-first** (nginx + backend bash + frontend estático modular),
+com placares multi-modo e um cluster de juiz distribuído. O plano completo está em
+[`docs/PLAN.md`](docs/PLAN.md).
 
-Our main goal is to create a simple submission system where teachers can set
-contests, or exercise lists, to their students and follow how students are
-evolving in an Algorithm class.
+## Layout
 
-Also we use a simple system to detect software plagiarism.
+```
+moj/
+├── server/        # BACKEND web (bash, atrás do nginx + fcgiwrap)
+│   ├── api/v1/    #   API versionada: router.sh + lib/ + handlers/
+│   ├── daemons/   #   daemons (submit assíncrono, inotify)
+│   ├── judge-gw/  #   gateway para o escalonador (julgador/corrige/enviar-*)
+│   ├── score/     #   geradores de placar por modo (updatescore-<modo>.sh)
+│   └── etc/       #   configs (nginx/, systemd/)
+├── web/           # FRONTEND estático (JS modular, sem build — nginx serve direto)
+│   ├── shared/    #   api.js, auth.js, i18n.js, ui.css, editor.js (CodeMirror) + assets/
+│   ├── index/     #   home
+│   ├── treino/    #   busca, problema (editor), stat do usuário
+│   └── contest/   #   login, score, allsubmissions, judge, statistics
+├── judge/         # CLUSTER DE JUIZ distribuído (master/escalonador + workers)
+├── mojinho-bot/   # Bot do Telegram (será integrado como cliente da API)
+├── mojtools/      # Engine de execução/sandbox (bubblewrap) — não mexer por ora
+├── contests/      # DADOS dos contests (fonte da verdade — inalterado na migração)
+├── docs/          # PLAN.md (plano aprovado) + documentação da API/placar
+└── old/           # ARQUIVO do sistema legado/referência (ver old/README.md)
+```
 
-Besides the idea of creating a simple system for professors, we aim to
-create an API to deploy an decentralized infrastructure to judge problems
-online.
+## Princípios da migração
 
-The idea is to create trustworthy peers to judge problems, in order to avoid
-outages of some judge sites. Besides, anyone could set it own instance of
-CD-MOJ and could benefit of this model and also to contribute with a judging
-machine.
+- **Não quebrar** os contests atuais: o sistema novo lê o mesmo `contests/<id>/` do antigo.
+- **Bash + arquivos** sempre que possível; mudar de linguagem só quando necessário.
+- **Tudo via API**: as interfaces consomem rotas `/api/v1/...` (sem CGI acoplado ao HTML).
+- Evolução **incremental**, página a página; o Apache antigo roda em paralelo até o fim.
 
-We look forward some students to create and set this distributed model of
-judging problems.
+## Status
 
-##Code
-
-CD-MOJ is entirely written in Bash script, server and html side. It is easy
-to maintain and easy to create plugins.
-
-If you would like to contribute to our platform, please feel free to send
-bug reports and pull requests.
-
-##Running Instance
-
-You can check a running instance of CD-MOJ at: http://moj.naquadah.com.br
+Em implementação. Fases e prioridades em [`docs/PLAN.md`](docs/PLAN.md) (a Fase 1 é a camada de API).

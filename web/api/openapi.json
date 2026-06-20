@@ -1,0 +1,2156 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MOJ API",
+    "version": "v1",
+    "description": "API REST do MOJ (Melhor Online Judge). Backend bash atrás de nginx+fcgiwrap. Auth via `Authorization: Bearer <token>`. Histórico e placar são TXT; o resto é JSON com envelope `{success:true,…}` ou `{success:false,error:{message,code}}`. Horários em EPOCH."
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Instância atual"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth"
+    },
+    {
+      "name": "index"
+    },
+    {
+      "name": "treino"
+    },
+    {
+      "name": "submission"
+    },
+    {
+      "name": "contest"
+    },
+    {
+      "name": "admin"
+    },
+    {
+      "name": "ops"
+    },
+    {
+      "name": "treino-admin"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "parameters": {
+      "contest": {
+        "name": "contest",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "id do contest (ex.: treino)"
+      }
+    }
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login → token",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{token, logged_in, username, name, contest}"
+          },
+          "401": {
+            "description": "credenciais inválidas"
+          }
+        }
+      }
+    },
+    "/auth/status": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Status da sessão",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{logged_in, login, name, is_admin, is_judge, is_staff}"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{logged_out:true}"
+          }
+        }
+      }
+    },
+    "/index/news": {
+      "get": {
+        "tags": [
+          "index"
+        ],
+        "summary": "Notícias",
+        "responses": {
+          "200": {
+            "description": "{news:[{id,title,date,summary,url}]}"
+          }
+        }
+      }
+    },
+    "/index/contests": {
+      "get": {
+        "tags": [
+          "index"
+        ],
+        "summary": "Contests (abertos/por vir/encerrados)",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{open,upcoming,closed:{items,page,pages}}"
+          }
+        }
+      }
+    },
+    "/index/open_training": {
+      "get": {
+        "tags": [
+          "index"
+        ],
+        "summary": "Destaques do treino (top10, recentes, semana)",
+        "responses": {
+          "200": {
+            "description": "{top_users,recent_solved,most_solved_week}"
+          }
+        }
+      }
+    },
+    "/treino/problems": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Lista de problemas",
+        "responses": {
+          "200": {
+            "description": "[{id,title,tags,solved_count,attempted_count}]"
+          }
+        }
+      }
+    },
+    "/treino/problem": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Problema (enunciado b64, time limits, tags)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id,title,statement_html_b64,time_limits,tags}"
+          },
+          "404": {
+            "description": "não encontrado"
+          }
+        }
+      }
+    },
+    "/treino/solvetry": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Resolvidos/tentados de um usuário",
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{solved:[ids],attempted:[ids]}"
+          }
+        }
+      }
+    },
+    "/treino/history": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Histórico do usuário no problema (TXT)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TXT: tempo:user:probid:lang:veredito:epoch:subid",
+            "content": {
+              "text/plain": {}
+            }
+          }
+        }
+      }
+    },
+    "/treino/history-full": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Histórico completo do usuário (TXT)",
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TXT",
+            "content": {
+              "text/plain": {}
+            }
+          }
+        }
+      }
+    },
+    "/treino/profile": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Perfil (próprio com Bearer; ?user=X = visão pública, respeita privacidade)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "ver perfil público de outro usuário"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "perfil"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Atualiza nome, universidade, editor favorito e/ou privacidade",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "university": {
+                    "type": "string"
+                  },
+                  "favorite_editor": {
+                    "type": "string"
+                  },
+                  "profile_public": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "perfil atualizado"
+          }
+        }
+      }
+    },
+    "/treino/profile/photo": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Foto de perfil (png 100x100)",
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "image/png",
+            "content": {
+              "image/png": {}
+            }
+          },
+          "404": {
+            "description": "sem foto / privado"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Envia foto (redimensiona p/ 100x100)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image_b64": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "image_b64"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{updated:true}"
+          }
+        }
+      }
+    },
+    "/treino/editors": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Ranking dos editores favoritos declarados",
+        "responses": {
+          "200": {
+            "description": "{editors:[{editor,count}], total}"
+          }
+        }
+      }
+    },
+    "/treino/problem-stats": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Estatísticas de um problema (cacheado)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{total_submissions,distinct_attempted,distinct_solved,acceptance_rate,verdicts,by_language:[{lang,submissions,accepted,solvers}],editors,solver_avatars,solvers_public_count}"
+          }
+        }
+      }
+    },
+    "/treino/admin/sessions": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Sessões ativas (login, IP, User-Agent)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{count,sessions:[{login,name,ip,user_agent,login_at}]}"
+          },
+          "403": {
+            "description": "não-admin"
+          }
+        }
+      }
+    },
+    "/treino/admin/access-log": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Log de acessos (filtra por dia)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "day",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "YYYY-MM-DD"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{day,entries:[{time,login,ip,user_agent}]}"
+          }
+        }
+      }
+    },
+    "/treino/admin/queue": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Submissões pendentes por lista + spool",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{total_pending,spool_queued,lists:[{contest,name,pending}]}"
+          }
+        }
+      }
+    },
+    "/treino/admin/judges": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Estado do juiz (via :27000)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{online,busy,master,configured_workers,configured_count}"
+          }
+        }
+      }
+    },
+    "/treino/admin/stats": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Números p/ gráficos (logins/dia, submissões/dia)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{users,active_sessions,logins_per_day,submissions_per_day}"
+          }
+        }
+      }
+    },
+    "/treino/admin/logout-user": {
+      "post": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Desloga um usuário (remove sessões)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  },
+                  "logins": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{logged_out,sessions_removed}"
+          }
+        }
+      }
+    },
+    "/treino/admin/lock-user": {
+      "post": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Trava acesso (troca senha por aleatória + desloga)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  },
+                  "logins": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{locked,sessions_removed}"
+          }
+        }
+      }
+    },
+    "/treino/admin/logout-ip": {
+      "post": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Desloga todas as sessões de um IP",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ip": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "ip"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{logged_out,ip,sessions_removed,users,users_count}"
+          }
+        }
+      }
+    },
+    "/treino/profile/password": {
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Troca a própria senha",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "old_password": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "old_password",
+                  "new_password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{updated:true}"
+          },
+          "403": {
+            "description": "senha atual incorreta"
+          }
+        }
+      }
+    },
+    "/treino/profile/username": {
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Troca o próprio username (máx. 2/ano + cascata)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "new_username": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "new_username"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{updated:true,new_username,username_changes_remaining}"
+          },
+          "403": {
+            "description": "limite anual atingido"
+          },
+          "409": {
+            "description": "em uso ou submissões pendentes"
+          }
+        }
+      }
+    },
+    "/submit": {
+      "post": {
+        "tags": [
+          "submission"
+        ],
+        "summary": "Submeter solução (assíncrono)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem_id": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "code_b64": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "problem_id",
+                  "code_b64"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{submission_id, status:\"queued\"}"
+          }
+        }
+      }
+    },
+    "/submission/source": {
+      "get": {
+        "tags": [
+          "submission"
+        ],
+        "summary": "Código-fonte de uma submissão",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "código (texto)",
+            "content": {
+              "text/plain": {}
+            }
+          }
+        }
+      }
+    },
+    "/submission/log": {
+      "get": {
+        "tags": [
+          "submission"
+        ],
+        "summary": "Log do julgamento",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "time",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "log (texto)",
+            "content": {
+              "text/plain": {}
+            }
+          }
+        }
+      }
+    },
+    "/contest/basic": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Info pública (nome, horários, login_start_time)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time}"
+          }
+        }
+      }
+    },
+    "/contest/userinfo": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Info do usuário logado",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{login,name,…}"
+          }
+        }
+      }
+    },
+    "/contest/navbuttons": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Botões de navegação por papel",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "[{label,url}]"
+          }
+        }
+      }
+    },
+    "/contest/problems": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Problemas da prova",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits}]}"
+          }
+        }
+      }
+    },
+    "/contest/news": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Notícias do contest (opcional)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/contest/resources": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Materiais do contest (opcional)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/contest/history": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Histórico do usuário (TXT)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TXT",
+            "content": {
+              "text/plain": {}
+            }
+          }
+        }
+      }
+    },
+    "/contest/balloons": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Cores de balão por problema",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "mapa letra→cor"
+          }
+        }
+      }
+    },
+    "/contest/regions": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Regiões p/ filtro do placar",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/contest/score": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Placar (TXT, 1ª linha = modo)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TXT",
+            "content": {
+              "text/plain": {}
+            }
+          }
+        }
+      }
+    },
+    "/contest/allsubmissions": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Todas as submissões (admin, TXT 9 campos)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TXT",
+            "content": {
+              "text/plain": {}
+            }
+          }
+        }
+      }
+    },
+    "/contest/final-verdicts": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Veredictos finais (judge)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/contest/set-verdict": {
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Definir veredicto final (judge)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "problem_id": {
+                    "type": "string"
+                  },
+                  "verdict": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/contest/rejudge": {
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Rejulgar (admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/admin/adduser": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Adicionar usuário",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "login": {
+                    "type": "string"
+                  },
+                  "fullname": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{login,password}"
+          }
+        }
+      }
+    },
+    "/admin/passwd": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Trocar senha",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "login": {
+                    "type": "string"
+                  },
+                  "newpass": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/admin/contest/extend": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Estender fim do contest",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "end_epoch": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/admin/synctreino": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Sincronizar treino",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/admin/rejudge": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Rejulgar (alias do bot)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "problem": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/ops/queue": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Tamanho da fila por contest",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/ops/judges": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Status das máquinas de juiz",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/ops/problemtl": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Time limits de um problema",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "problem",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/ops/updateproblemset": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Atualizar problemset nos juízes",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/index/status": {
+      "get": {
+        "tags": [
+          "index"
+        ],
+        "summary": "Health público (fila, máquinas, daemons)",
+        "responses": {
+          "200": {
+            "description": "{queue,judge,daemons} — cache 20s"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/permission": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "O usuário pode criar contest?",
+        "responses": {
+          "200": {
+            "description": "{can_create,is_admin,reason,solved_count,threshold,in_allow,in_deny,allowed_modes}"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/problems": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Busca no banco público de problemas",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems:[{id,title,tags}],total,bank_total}"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/create": {
+      "post": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Cria e publica o contest (no ar na hora)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "icpc",
+                      "obi",
+                      "treino",
+                      "heuristic",
+                      "outro"
+                    ]
+                  },
+                  "start": {
+                    "type": "integer"
+                  },
+                  "end": {
+                    "type": "integer"
+                  },
+                  "languages": {
+                    "type": "string"
+                  },
+                  "showcode": {
+                    "type": "boolean"
+                  },
+                  "problems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "allow_empty": {
+                    "type": "boolean"
+                  },
+                  "admin": {
+                    "type": "object",
+                    "properties": {
+                      "login": {
+                        "type": "string"
+                      },
+                      "password": {
+                        "type": "string"
+                      },
+                      "fullname": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "users_from": {
+                    "type": "string",
+                    "description": "id de contest cujos usuários são compartilhados (ex.: treino)"
+                  },
+                  "users": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "login": {
+                          "type": "string"
+                        },
+                        "password": {
+                          "type": "string"
+                        },
+                        "fullname": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "colors": {
+                    "type": "object",
+                    "description": "mapa letra->hex (sem #) + enableSonic?"
+                  },
+                  "regions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "teams_meta": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "regex": {
+                          "type": "string"
+                        },
+                        "country": {
+                          "type": "string"
+                        },
+                        "school": {
+                          "type": "string"
+                        },
+                        "school_full": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "end",
+                  "problems"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{contest_id,admin_login,admin_password,url,scoreboard_url}"
+          },
+          "403": {
+            "description": "sem permissão"
+          },
+          "409": {
+            "description": "id em uso/reservado"
+          },
+          "422": {
+            "description": "validação"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/template": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Baixa template JSON do contest",
+        "responses": {
+          "200": {
+            "description": "arquivo JSON (attachment)"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/import": {
+      "post": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Importa contest de um .tar.gz",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tar_b64": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tar_b64"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "criado"
+          },
+          "400": {
+            "description": "tar inválido"
+          }
+        }
+      }
+    },
+    "/treino/admin/contest-perms": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Lê permissões de criação de contest",
+        "responses": {
+          "200": {
+            "description": "{perms:{threshold,allow[],deny[]}}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Define permissões de criação de contest",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "threshold": {
+                    "type": "integer"
+                  },
+                  "allow": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "deny": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{saved,perms}"
+          }
+        }
+      }
+    },
+    "/treino/admin/contests": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Lista contests criados pela interface",
+        "responses": {
+          "200": {
+            "description": "{contests:[{id,name,owner,created_at,mode}],count}"
+          }
+        }
+      }
+    },
+    "/treino/admin/contest-remove": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Move um contest criado pela interface p/ lixeira",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contest"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{removed,contest}"
+          },
+          "403": {
+            "description": "não criado pela interface"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/tags": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Tags do banco com contagem",
+        "responses": {
+          "200": {
+            "description": "{tags:[{tag,count}],total}"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/genpass": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "N senhas legíveis",
+        "parameters": [
+          {
+            "name": "n",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{passwords[]}"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/draw": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Sorteia problemas por tag/dificuldade (reproduzível por seed)",
+        "parameters": [
+          {
+            "name": "tags",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "match",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "any",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "difficulty",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "any",
+                "easy",
+                "medium",
+                "hard",
+                "known"
+              ]
+            }
+          },
+          {
+            "name": "seed",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems[],candidates,drawn,seed}"
+          }
+        }
+      }
+    },
+    "/contest/teams-meta": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Regras regex país/escola p/ o placar (bandeiras locais)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{rules:[{regex,country,school,school_full}]}"
+          }
+        }
+      }
+    },
+    "/contest/admin/config": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Lê config do contest (cores/regiões/teams-meta/basic)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{name,mode,letters,colors,regions,teams_meta,basic}"
+          },
+          "403": {
+            "description": "não-admin do contest"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Grava config do contest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "colors": {
+                    "type": "object"
+                  },
+                  "regions": {
+                    "type": "array"
+                  },
+                  "teams_meta": {
+                    "type": "array"
+                  },
+                  "basic": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{saved:true}"
+          }
+        }
+      }
+    },
+    "/contest/admin/users": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Usuários do contest (sem senha)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{users:[{login,fullname,email,admin}],shared}"
+          }
+        }
+      }
+    },
+    "/contest/admin/user-add": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Adiciona/reseta usuário do contest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "fullname": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "login"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{user:{login,password,fullname,email}}"
+          }
+        }
+      }
+    },
+    "/contest/admin/user-remove": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Remove usuário do contest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "login"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{removed:true}"
+          },
+          "409": {
+            "description": "não pode remover a si mesmo"
+          }
+        }
+      }
+    }
+  }
+}

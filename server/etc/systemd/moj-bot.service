@@ -1,0 +1,18 @@
+[Unit]
+Description=MOJ Telegram bot (mojinho) — cliente da API (SAMPLE)
+Documentation=file:///home/ribas/moj/docs/PLAN.md
+After=network.target moj-fcgiwrap.service
+# Bot já migrado para CLIENTE DA API (Fase 6 do PLAN): mojinho-api.sh.
+# Token só de ./token ; credenciais admin em ./bot.conf (cp de bot.conf.sample).
+
+[Service]
+Type=simple
+WorkingDirectory=%h/moj/mojinho-bot
+# Token SÓ do arquivo ./token e config em ./bot.conf (nunca hardcoded no script).
+ExecStart=/bin/bash %h/moj/mojinho-bot/mojinho-api.sh
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

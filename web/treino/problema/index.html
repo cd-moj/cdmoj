@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Problema — Treino Livre — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/">Página Inicial</a>
+        <a href="/treino/">Treino Livre</a>
+        <a href="/docs/" target="_blank">Documentação</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="problem-head" class="section">
+      <h2 id="ptitle">carregando…</h2>
+      <div id="ptags" class="tags-blur"></div>
+      <div class="small" style="margin-top:.4rem">
+        <a href="#" id="toggleTags">mostrar/ocultar tags</a>
+      </div>
+      <div id="ptl" class="tl-block"></div>
+    </div>
+
+    <div class="problem-cols">
+      <div class="section statement-col">
+        <div id="statement" class="statement-content">…</div>
+      </div>
+      <div class="submit-col">
+        <div class="section" id="submitSection">
+          <h2>Enviar solução</h2>
+          <div id="submitBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Histórico de submissões</h2>
+      <div id="history"><span class="muted small">—</span></div>
+    </div>
+  </main>
+
+  <script type="module" src="./problema.js"></script>
+</body>
+</html>

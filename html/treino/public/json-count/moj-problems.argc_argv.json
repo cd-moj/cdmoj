@@ -1,9 +1,0 @@
-{
-  "id": "moj-problems.argc_argv",
-  "title": "Argumentos de linha de comando: `int main(int argc, char **argv)`",
-  "tags": [
-    "#argc,argv"
-  ],
-  "solved_count": 0,
-  "attempted_count": 0
-}

@@ -1,0 +1,109 @@
+// treino/treino.js — busca de problemas do Treino Livre (tudo local após 1 fetch).
+import { apiGet } from '/shared/api.js';
+import { status } from '/shared/auth.js';
+import { el, renderAuthArea } from '/shared/ui.js';
+import { renderCreateContestLink } from '/shared/create-contest-link.js';
+
+const CONTEST = 'treino';
+const PAGE = 50;
+let ALL = [], solved = new Set(), attempted = new Set(), page = 0, showTags = false;
+
+const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+function difficulty(p) {
+  const s = p.solved_count || 0, a = p.attempted_count || 0;
+  if (a === 0) return { label: 'novo', cls: '' };
+  const rate = s / a;
+  if (rate >= 0.9) return { label: 'muito fácil', cls: 'diff-easy' };
+  if (rate >= 0.7) return { label: 'fácil', cls: 'diff-easy' };
+  if (rate >= 0.5) return { label: 'médio', cls: 'diff-med' };
+  return { label: 'difícil', cls: 'diff-hard' };
+}
+
+function filtered() {
+  const q = norm(document.getElementById('q').value);
+  const tag = norm(document.getElementById('qtag').value).replace(/^#/, '');
+  const f = document.getElementById('filter').value;
+  return ALL.filter(p => {
+    if (q && !norm(p.title).includes(q)) return false;
+    if (tag && !(p.tags || []).some(t => norm(t).includes(tag))) return false;
+    if (f === 'solved' && !solved.has(p.id)) return false;
+    if (f === 'attempted' && !(attempted.has(p.id) && !solved.has(p.id))) return false;
+    return true;
+  });
+}
+
+function render() {
+  const rows = filtered();
+  document.getElementById('count').textContent = `${rows.length} problema(s)`;
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  if (page >= pages) page = 0;
+  const slice = rows.slice(page * PAGE, page * PAGE + PAGE);
+
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  const tbl = el('table', { class: 'moj' },
+    el('thead', {}, el('tr', {},
+      el('th', {}, 'Problema'),
+      ...(showTags ? [el('th', {}, 'Tags')] : []),
+      el('th', {}, 'Dificuldade (acertos)'),
+      el('th', {}, 'Status'))));
+  const tb = el('tbody');
+  slice.forEach(p => {
+    const d = difficulty(p);
+    const st = solved.has(p.id) ? '✓ resolvido' : (attempted.has(p.id) ? '… tentado' : '');
+    const cells = [
+      el('td', {}, el('a', { href: '/treino/problema/?id=' + encodeURIComponent(p.id) }, p.title || p.id)),
+    ];
+    if (showTags) cells.push(el('td', {}, (p.tags || []).map(t =>
+      el('a', { class: 'tag', href: '?searchtag=' + encodeURIComponent(String(t).replace(/^#/, '')) }, t))));
+    cells.push(el('td', {}, el('span', { class: 'diff ' + d.cls },
+      d.label + (p.attempted_count ? ` (${p.solved_count}/${p.attempted_count})` : ''))));
+    cells.push(el('td', { class: solved.has(p.id) ? 'v-ok' : '' }, st));
+    tb.append(el('tr', {}, ...cells));
+  });
+  tbl.append(tb); list.append(tbl);
+
+  const pager = document.getElementById('pager'); pager.innerHTML = '';
+  if (pages > 1) {
+    pager.append(el('button', { class: 'btn ghost', onclick: () => { if (page > 0) { page--; render(); } } }, '‹'));
+    pager.append(el('span', { class: 'small' }, ` página ${page + 1} / ${pages} `));
+    pager.append(el('button', { class: 'btn ghost', onclick: () => { if (page < pages - 1) { page++; render(); } } }, '›'));
+  }
+}
+
+async function loadSolve() {
+  const st = await status(CONTEST);
+  const fsel = document.getElementById('filter');
+  fsel.disabled = !st.logged_in;
+  if (!st.logged_in) return;
+  try {
+    const j = await apiGet('/treino/solvetry', { contest: CONTEST, auth: true });
+    solved = new Set(j.solved || []); attempted = new Set(j.attempted || []);
+  } catch {}
+}
+
+async function boot() {
+  const authArea = document.getElementById('authArea');
+  await renderAuthArea(authArea, CONTEST, async () => { await loadSolve(); render(); await renderCreateContestLink(authArea); });
+  renderCreateContestLink(authArea);
+  const sp = new URLSearchParams(location.search);
+  if (sp.get('searchtag')) document.getElementById('qtag').value = sp.get('searchtag');
+
+  try {
+    const j = await apiGet('/treino/problems', { contest: CONTEST });
+    ALL = Array.isArray(j) ? j : (j.problems || j.data || []);
+  } catch (e) {
+    document.getElementById('list').innerHTML = '<span class="error-box">Falha ao carregar problemas.</span>';
+    return;
+  }
+  await loadSolve();
+  ['q', 'qtag', 'filter'].forEach(id =>
+    document.getElementById(id).addEventListener('input', () => { page = 0; render(); }));
+  document.getElementById('toggleTags').addEventListener('click', () => {
+    showTags = !showTags;
+    document.getElementById('toggleTags').textContent = showTags ? 'Ocultar tags' : 'Mostrar tags';
+    render();
+  });
+  render();
+}
+boot();

@@ -1,0 +1,69 @@
+# MOJ — Deploy & teste (nginx + fcgiwrap + daemons)
+
+Tudo roda **user-space como `ribas`** (sem root), reaproveitando o `~/nginx-proxy/`.
+
+## Componentes
+
+| Componente | O que é | Como sobe |
+|---|---|---|
+| **nginx** (`~/nginx-proxy`) | serve `web/` estático + proxy `/api/v1` → fcgiwrap | `~/nginx-proxy/proxy.sh reload` |
+| **fcgiwrap** | roda o `router.sh` (API bash) num socket unix | `server/bin/start-fcgiwrap.sh` |
+| **judged** (daemon) | consome o spool, julga (mock/local/cluster), grava veredicto + placar | `server/daemons/judged.sh` |
+| **escalonador + workers** | cluster de juiz distribuído (opcional) | `judge/` + `server/etc/systemd` |
+| **mojinho-bot** | bot Telegram (cliente da API) | `mojinho-bot/mojinho-api.sh` |
+
+## Bring-up (dev/local)
+
+```bash
+cd /home/ribas/moj
+bash server/bin/setup.sh                 # cria run/, vendora fcgiwrap, copia notícias
+bash server/bin/start-fcgiwrap.sh &       # sobe o fcgiwrap em run/fcgiwrap.sock
+# moj.conf já está em ~/nginx-proxy/conf.d/ :
+~/nginx-proxy/proxy.sh test && ~/nginx-proxy/proxy.sh reload
+# daemon de julgamento (mock = não precisa do cluster nem de bubblewrap):
+JUDGE_BACKEND=mock bash server/daemons/judged.sh &     # ou --once para processar 1 e sair
+```
+
+Em produção, use os units systemd de `server/etc/systemd/` (`systemctl --user enable --now moj-fcgiwrap.socket moj-judged.service …`).
+
+## nginx — `~/nginx-proxy/conf.d/moj.conf`
+
+Server block para `moj.charge.naquadah.com.br` (coberto pelo cert wildcard `*.charge.naquadah.com.br`):
+- `root /home/ribas/moj/web` + `index index.html` → frontend estático.
+- `location /api/v1/` → `fastcgi_pass unix:/home/ribas/moj/run/fcgiwrap.sock`, com `SCRIPT_FILENAME=server/api/v1/router.sh` e `PATH_INFO` via `fastcgi_split_path_info`.
+- `location /docs/` → serve esta documentação.
+
+> **Nota:** o `fcgiwrap` vendorizado (`old/fcgiwrap/`) estava com um patch hardcoded do cdmoj antigo (ignorava `SCRIPT_FILENAME`). Foi restaurado ao padrão e recompilado em `server/bin/fcgiwrap`.
+
+## Como acessar / testar
+
+O proxy escuta em **8080 (HTTP)** e **8443 (HTTPS)**. Se o DNS de `moj.charge.naquadah.com.br` apontar para a máquina, acesse `https://moj.charge.naquadah.com.br:8443/`. Para testar local sem DNS, use o header Host:
+
+```bash
+H="Host: moj.charge.naquadah.com.br"; B=http://127.0.0.1:8080
+curl -s -H "$H" $B/api/v1/                         # {"success":true,"name":"MOJ API","version":"v1"}
+curl -s -H "$H" $B/api/v1/treino/problems | jq length   # 736
+```
+
+No navegador (com DNS ou um entry em /etc/hosts apontando o domínio p/ a máquina):
+- `/` — página inicial (notícias, contests, treino, top10).
+- `/treino/` — busca de problemas (fuzzy, tags, dificuldade).
+- `/treino/problema/?id=<id>` — enunciado + **editor CodeMirror** + upload + histórico.
+- `/contest/?c=<contestId>` — login/prova do contest; `/contest/score/?c=<contestId>` — placar.
+
+### Sandbox de teste do fluxo completo (sem poluir dados reais)
+
+Existe um contest descartável **`zzdemo`** (login `demo` / senha `demo`). Fluxo assíncrono ponta a ponta:
+
+```bash
+H="Host: moj.charge.naquadah.com.br"; B=http://127.0.0.1:8080
+TOK=$(curl -s -H "$H" -X POST -H 'Content-Type: application/json' \
+   --data '{"username":"demo","password":"demo"}' "$B/api/v1/auth/login?contest=zzdemo" | jq -r .token)
+curl -s -H "$H" -H "Authorization: Bearer $TOK" -X POST -H 'Content-Type: application/json' \
+   --data '{"problem_id":"0","filename":"sol.c","code_b64":"aW50IG1haW4oKXtyZXR1cm4gMDt9"}' \
+   "$B/api/v1/submit?contest=zzdemo"                       # -> {submission_id, status:"queued"}
+JUDGE_BACKEND=mock bash server/daemons/judged.sh --once    # mock-julga
+curl -s -H "$H" -H "Authorization: Bearer $TOK" "$B/api/v1/contest/history?contest=zzdemo"  # -> Accepted,100p
+```
+
+> Para ver o veredicto aparecer no navegador (treino ou contest), deixe `judged.sh` rodando. Com `JUDGE_BACKEND=mock` toda submissão vira `Accepted,100p` (bom p/ demo, mas grava no histórico do contest submetido — prefira `zzdemo`). `JUDGE_BACKEND=local` usa `mojtools` (bubblewrap) com pacotes de problema locais; `cluster` fala com o escalonador (`judge/`).

@@ -1,0 +1,22 @@
+# POST /auth/login?contest=<id>   body: {username, password}
+require_method POST
+contest="$(param contest)"
+[[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
+require_contest "$contest"
+
+body="$(read_body)"
+jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
+u="$(jq -r '.username // empty' <<<"$body")"
+p="$(jq -r '.password // empty' <<<"$body")"
+[[ -n "$u" && -n "$p" ]] || fail 400 "Missing credentials" "creds_missing"
+
+verify_password "$contest" "$u" "$p" || fail 401 "Wrong user or password" "bad_creds"
+
+name="$(user_fullname "$contest" "$u")"
+tok="$(create_session "$contest" "$u" "$name")"
+# log de acesso (tab-sep: epoch, login, ip, ua_b64)
+mkdir -p "$CONTESTSDIR/$contest/var"
+printf '%s\t%s\t%s\t%s\n' "$EPOCHSECONDS" "$u" "$(client_ip)" "$(printf '%s' "${HTTP_USER_AGENT:-}" | base64 -w0)" \
+  >> "$CONTESTSDIR/$contest/var/access.log" 2>/dev/null || true
+ok_json '{token:$t, logged_in:true, username:$u, name:$n, contest:$c}' \
+  --arg t "$tok" --arg u "$u" --arg n "$name" --arg c "$contest"

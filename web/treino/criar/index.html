@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Criar contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <style>
+    .field { margin:.55rem 0 }
+    .field label { display:block; font-weight:600; font-size:.9rem; margin-bottom:.2rem }
+    .field input, .field select, .field textarea { width:100%; box-sizing:border-box }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:.8rem }
+    .prob-row { display:grid; grid-template-columns:46px 1fr auto; gap:.5rem; align-items:start;
+      padding:.55rem; border:1px solid #e3e9f2; border-radius:9px; margin:.4rem 0; background:#fafcff }
+    .prob-row .letter { text-align:center; font-weight:800 }
+    .prob-row .pid { font-family:var(--mono,monospace); font-size:.78rem; color:#64748b; word-break:break-all }
+    .bank-results { border:1px solid #e3e9f2; border-radius:9px; max-height:230px; overflow:auto; margin-top:.4rem }
+    .bank-item { display:flex; justify-content:space-between; gap:.6rem; padding:.4rem .6rem; border-top:1px solid #eef2f8; align-items:center }
+    .bank-item:first-child { border-top:0 }
+    .bank-item .t { font-size:.9rem } .bank-item .i { font-family:var(--mono,monospace); font-size:.72rem; color:#94a3b8 }
+    .result-card { background:#e7f7ec; border:1px solid #b6e7c6; border-radius:12px; padding:1.1rem 1.2rem; margin-top:1rem }
+    .cred { font-family:var(--mono,monospace); background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:.15rem .4rem }
+    .tabs { display:flex; gap:.4rem; margin:.5rem 0 1rem }
+    .tabs button { border:1px solid #d7dee8; background:#fff; border-radius:8px; padding:.4rem .9rem; cursor:pointer; font-weight:600 }
+    .tabs button.active { background:#1e57c4; color:#fff; border-color:#1e57c4 }
+    .warn-box { background:#fff7e0; border:1px solid #f3df9e; color:#7a5c00; padding:.5rem .7rem; border-radius:8px; font-size:.88rem }
+    .tag-chip { display:inline-flex; align-items:center; gap:.2rem; background:#e8f0fe; color:#1850a9; border:1px solid #c5d9f5;
+      border-radius:999px; padding:.1rem .55rem; font-size:.82rem; font-weight:600 }
+    .tag-chip a { color:#1850a9; text-decoration:none }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+        <span class="slogan">Criar contest</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/">Início</a>
+        <a href="/treino/">Treino Livre</a>
+      </nav>
+      <span id="authArea" class="row" style="margin-left:.5rem"></span>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 style="margin:.2rem 0 1rem">➕ Criar contest</h1>
+    <div id="app"><p class="muted">carregando…</p></div>
+  </main>
+
+  <script type="module" src="/treino/criar/criar.js"></script>
+</body>
+</html>

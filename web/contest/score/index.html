@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Placar — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
+    /* placar */
+    table.score { width:100%; border-collapse:separate; border-spacing:0; background:#fff;
+      border-radius:10px; overflow:hidden; font-size:.92rem; }
+    table.score th, table.score td { padding:.45rem .6rem; text-align:center; border-bottom:1px solid var(--line);
+      font-variant-numeric:tabular-nums; white-space:nowrap; }
+    table.score th { background:var(--blue-soft); color:var(--blue-dark); font-weight:700; cursor:pointer; user-select:none;
+      position:sticky; top:0; z-index:1; }
+    table.score td.team { text-align:left; }
+    table.score tr:hover td { background:#f0f7ff; }
+    table.score .cl-place { font-weight:800; color:var(--blue-dark); }
+    .prob-wait-cell { background:#fdf1d0; color:var(--warn); font-weight:700; }
+    .score-flag { height:18px; vertical-align:middle; border-radius:3px; }
+    .balloon-svg { width:20px; height:23px; vertical-align:middle; }
+    /* animação de mudança de posição */
+    tr.placing-up td { animation:flash-up 1.1s ease; }
+    tr.placing-down td { animation:flash-down 1.1s ease; }
+    @keyframes flash-up { 0%{background:#d7f5dd;} 100%{background:transparent;} }
+    @keyframes flash-down { 0%{background:#fde0e4;} 100%{background:transparent;} }
+    .region-bar { margin-bottom:.8rem; }
+    .region-bar a { margin-right:.3rem; }
+    .region-bar a.active { font-weight:800; text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+
+  <main class="container">
+    <div class="section notice hidden" id="publicNotice">
+      Você está visualizando o placar em modo público (dados restritos ou atrasados).
+    </div>
+    <div class="section">
+      <div class="row" style="margin-bottom:.6rem">
+        <input id="scoreSearch" placeholder="🔍 Buscar time / universidade / login…" style="flex:1; min-width:240px">
+        <label class="small"><input type="checkbox" id="noAnim"> Desabilitar animação</label>
+      </div>
+      <div class="region-bar hidden" id="regionBar"></div>
+      <div class="region-bar hidden" id="metaFilterBar" style="gap:.5rem"></div>
+      <div id="scoreContainer"><span class="muted">carregando…</span></div>
+    </div>
+  </main>
+
+  <script type="module" src="./score.js"></script>
+</body>
+</html>

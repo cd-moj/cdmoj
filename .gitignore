@@ -1,0 +1,35 @@
+# === SEGREDOS — nunca versionar ===
+mojinho-bot/token
+# legado: token do Telegram hardcoded — versione só mojinho-api.sh
+mojinho-bot/mojinho.sh
+# config real do bot (versione só bot.conf.sample)
+mojinho-bot/*.conf
+secrets/
+*.pem
+*.key
+id_rsa*
+.env
+
+# === estado de runtime ===
+run/
+*.sock
+*.pid
+*.log
+
+# === dados: fonte da verdade, fora do versionamento (têm senhas/submissões) ===
+contests/
+
+# === legado e repositórios com identidade própria ===
+old/
+mojtools/
+judge/
+
+# === logs/estado do bot ===
+mojinho-bot/log-*.txt
+mojinho-bot/mojinho-offset
+
+# === diversos ===
+*.swp
+*~
+.DS_Store
+node_modules/

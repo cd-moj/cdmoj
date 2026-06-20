@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOJ — API (Swagger)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style> #swagger-ui { background:#fff; } .topbar.swagger-ui { display:none; } </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+        <span class="slogan">API v1</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/">Página Inicial</a>
+        <a href="/api/openapi.json">openapi.json</a>
+        <a href="/docs/" target="_blank">Docs</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="fallback" class="section hidden">
+      <h2>Explorador de API</h2>
+      <p class="notice">Não foi possível carregar o Swagger UI (CDN). A especificação completa está em
+        <a href="/api/openapi.json"><code>/api/openapi.json</code></a> e a referência em
+        <a href="/docs/API.md"><code>docs/API.md</code></a>. Para uso offline, vendorize
+        <code>swagger-ui-dist</code> em <code>web/api/vendor/</code>.</p>
+    </div>
+    <div id="swagger-ui"></div>
+  </main>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"
+          onerror="document.getElementById('fallback').classList.remove('hidden')"></script>
+  <script>
+    window.addEventListener('load', function () {
+      if (!window.SwaggerUIBundle) { document.getElementById('fallback').classList.remove('hidden'); return; }
+      window.ui = SwaggerUIBundle({
+        url: '/api/openapi.json',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        tryItOutEnabled: true,
+        defaultModelsExpandDepth: 0
+      });
+    });
+  </script>
+</body>
+</html>

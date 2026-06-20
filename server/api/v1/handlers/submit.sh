@@ -1,0 +1,43 @@
+# POST /submit?contest=<id>   body: {problem_id, filename, code_b64}   (Bearer)
+# Submit ASSÍNCRONO: enfileira no spool e retorna na hora (não bloqueia a CGI).
+# O daemon (server/daemons) consome o spool e atualiza o veredicto; o front faz
+# polling de /treino/history (ou /contest/history) até sair de "Not Answered Yet".
+require_method POST
+contest="$(param contest)"
+[[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
+require_contest "$contest"
+require_auth_contest "$contest"
+
+body="$(read_body)"
+jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
+problem="$(jq -r '.problem_id // empty' <<<"$body")"
+filename="$(jq -r '.filename // empty' <<<"$body")"
+codeb64="$(jq -r '.code_b64 // empty' <<<"$body")"
+[[ -n "$problem" && -n "$codeb64" ]] || fail 400 "Missing problem_id or code_b64" "submit_incomplete"
+valid_id "$problem" || fail 400 "Invalid problem id" "problem_invalid"
+[[ -n "$filename" ]] || filename="solution"
+
+# extensão -> tipo/linguagem (uppercase), como no MOJ
+ext="${filename##*.}"
+if [[ "$ext" == "$filename" || -z "$ext" ]]; then FILETYPE="TXT"
+else FILETYPE="$(printf '%s' "$ext" | tr '[:lower:]' '[:upper:]')"; fi
+
+AGORA="$EPOCHSECONDS"
+ID="$(printf '%s%s%s%s%s' "$contest" "$AGORA" "$SESSION_LOGIN" "$problem" "$RANDOM" | md5sum | cut -d' ' -f1)"
+
+mkdir -p "$SPOOLDIR"
+spoolname="$contest:$AGORA:$ID:$SESSION_LOGIN:submit:$problem:$FILETYPE"
+tmp="$SPOOLDIR/.in.$ID"
+jq -cn --arg c "$contest" --arg l "$SESSION_LOGIN" --arg p "$problem" \
+   --arg f "$filename" --arg b "$codeb64" --arg t "$FILETYPE" \
+   --argjson ts "$AGORA" --arg id "$ID" \
+   '{contest:$c, login:$l, problem_id:$p, filename:$f, code_b64:$b, lang:$t, time:$ts, id:$id}' > "$tmp"
+mv -f "$tmp" "$SPOOLDIR/$spoolname"   # atômico: só aparece pronto p/ o daemon
+
+# entrada provisória no histórico (7 campos) p/ o front mostrar "loading" no polling
+hist="$CONTESTSDIR/$contest/controle/history"
+mkdir -p "$CONTESTSDIR/$contest/controle"
+printf '%s:%s:%s:%s:Not Answered Yet:%s:%s\n' \
+  "$AGORA" "$SESSION_LOGIN" "$problem" "$FILETYPE" "$AGORA" "$ID" >> "$hist"
+
+ok_json '{submission_id:$id, status:"queued"}' --arg id "$ID"

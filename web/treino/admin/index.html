@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel administrativo — Treino Livre — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <style>
+    /* ---- abas ---- */
+    .tabs { display:flex; gap:.5rem; flex-wrap:wrap; margin:1.2rem 0 .2rem; }
+    .tabs .btn.ghost.active { background:linear-gradient(180deg,var(--blue),var(--blue-dark)); color:#fff;
+      border-color:transparent; box-shadow:0 2px 8px rgba(43,108,176,.28); }
+    .tab-panel[hidden] { display:none; }
+    /* ---- cartões de métricas (reusa o visual de stat) ---- */
+    .stat-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.7rem; margin:.2rem 0 1rem; }
+    .stat-card { background:#fafcff; border:1px solid var(--line); border-radius:12px; padding:.7rem .9rem; }
+    .stat-card .n { font-size:1.5rem; font-weight:800; color:var(--blue-dark); line-height:1.1; font-variant-numeric:tabular-nums; }
+    .stat-card .lbl { font-size:.78rem; color:var(--muted); margin-top:.15rem; }
+    .stat-card.hl { background:var(--blue-soft); border-color:#cfe0f6; }
+    .chart-title { text-align:center; font-weight:650; color:var(--ink); margin-bottom:.4rem; font-size:.95rem; }
+    .stat-grid { display:grid; grid-template-columns:1fr; gap:1.2rem; }
+    @media (min-width:760px){ .stat-grid.two { grid-template-columns:1fr 1fr; } }
+    .stat-grid > div { min-width:0; }
+    svg.chart { max-width:100%; height:auto; display:block; margin:auto; }
+    .chart-wrap { overflow-x:auto; }
+    /* ---- células com user-agent longo ---- */
+    td.ua { max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted);
+      font-size:.82rem; font-family:var(--mono); }
+    td.ip { font-family:var(--mono); font-size:.82rem; max-width:150px; word-break:break-all; white-space:normal; line-height:1.25; }
+    td.ip a { color:var(--blue-dark); border-bottom:1px dotted; }
+    .cell-user { display:flex; align-items:center; gap:.5rem; }
+    .cell-user .lg { font-family:var(--mono); font-size:.82rem; color:var(--muted); }
+    .row-actions { display:flex; gap:.4rem; flex-wrap:wrap; }
+    .row-actions .btn { padding:.3rem .7rem; font-size:.82rem; }
+    .btn.danger { background:linear-gradient(180deg,#e0436c,var(--err)); box-shadow:0 2px 8px rgba(190,18,65,.28); }
+    .btn.danger:hover { box-shadow:0 4px 14px rgba(190,18,65,.36); }
+    .access-restricted { text-align:center; font-size:1.2rem; color:var(--muted); padding:2.4rem 1rem; }
+    .judge-dot { font-weight:800; }
+    .specs { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.6rem; margin:.6rem 0; }
+    .spec { background:#fafcff; border:1px solid var(--line); border-radius:10px; padding:.5rem .8rem; }
+    .spec .k { font-size:.74rem; color:var(--muted); } .spec .v { font-weight:700; color:var(--blue-dark); font-variant-numeric:tabular-nums; }
+    .worker-list { display:flex; flex-direction:column; gap:.25rem; margin:.4rem 0; }
+    .worker { display:flex; align-items:center; gap:.5rem; background:#fafcff; border:1px solid var(--line);
+      border-radius:8px; padding:.35rem .7rem; font-family:var(--mono); font-size:.86rem; }
+    .toolbar { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin-bottom:.8rem; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/">Página Inicial</a>
+        <a href="/treino/">Treino Livre</a>
+        <a href="/docs/" target="_blank">Documentação</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 style="color:var(--blue-dark); margin:.4rem 0 0">🛡 Painel administrativo</h1>
+    <div id="content"><span class="muted">carregando…</span></div>
+  </main>
+
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

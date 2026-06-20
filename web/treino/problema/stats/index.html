@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estatísticas do problema — Treino Livre — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <style>
+    .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.8rem; }
+    .metric { background:#fafcff; border:1px solid var(--line); border-radius:12px; padding:.8rem 1rem; }
+    .metric .v { font-size:1.55rem; font-weight:800; color:var(--blue-dark); line-height:1.1; }
+    .metric .l { font-size:.8rem; color:var(--muted); margin-top:.15rem; }
+    .chart-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1rem; }
+    .chart-grid svg { width:100%; height:auto; }
+    .avatar-cloud { display:flex; flex-wrap:wrap; gap:.45rem; }
+    .avatar-cloud .avatar-mini { width:40px; height:40px; font-size:15px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/">Página Inicial</a>
+        <a href="/treino/">Treino Livre</a>
+        <a href="/docs/" target="_blank">Documentação</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <div id="content"><span class="muted">carregando…</span></div>
+  </main>
+  <script type="module" src="./stats.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+[Unit]
+Description=MOJ fcgiwrap socket (FastCGI unix socket p/ o nginx)
+
+[Socket]
+# Socket no runtime dir do usuário; o nginx faz fastcgi_pass unix:<este socket>.
+ListenStream=%t/moj-fcgiwrap.sock
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

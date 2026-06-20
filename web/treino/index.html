@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Treino Livre — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/">Página Inicial</a>
+        <a href="/docs/" target="_blank">Documentação</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h2>Treino Livre — Problemas</h2>
+      <div class="row">
+        <input id="q" placeholder="Buscar por título…" style="flex:1; min-width:220px">
+        <input id="qtag" placeholder="Filtrar por tag (ex: grafos)">
+        <select id="filter">
+          <option value="all">Todos</option>
+          <option value="solved">Resolvidos</option>
+          <option value="attempted">Tentados não resolvidos</option>
+        </select>
+        <button id="toggleTags" class="btn ghost">Mostrar tags</button>
+      </div>
+      <div id="count" class="small muted" style="margin-top:.5rem"></div>
+    </div>
+
+    <div class="section">
+      <div id="pager" class="row" style="margin-bottom:.5rem"></div>
+      <div id="list"><span class="muted">carregando…</span></div>
+    </div>
+  </main>
+
+  <script type="module" src="./treino.js"></script>
+</body>
+</html>

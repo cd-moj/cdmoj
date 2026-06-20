@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Todas as Submissões — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
+    .group-head { background:var(--blue-soft); color:var(--blue-dark); font-weight:700;
+      padding:.35rem .8rem; border-radius:8px; margin:1rem 0 .4rem; }
+    .tools { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-bottom:.6rem; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+
+  <main class="container">
+    <div class="section">
+      <h2>Todas as Submissões</h2>
+      <div class="tools">
+        <button class="btn ghost" data-group="all">Todas</button>
+        <button class="btn ghost" data-group="user">Por usuário</button>
+        <button class="btn ghost" data-group="problem">Por problema</button>
+        <input id="fUser" placeholder="🔍 usuário…" style="max-width:150px">
+        <input id="fProblem" placeholder="🔍 problema…" style="max-width:150px">
+        <input id="fVerdict" placeholder="🔍 veredicto…" style="max-width:150px">
+        <button class="btn secondary" id="markAll">Marcar todos</button>
+        <button class="btn" id="rejudgeBtn">Rejulgar selecionados</button>
+        <span class="submit-steps" id="rejudgeMsg"></span>
+      </div>
+      <div id="adminContainer"><span class="muted">carregando…</span></div>
+    </div>
+  </main>
+  <script type="module" src="./allsubmissions.js"></script>
+</body>
+</html>
