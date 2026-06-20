@@ -122,3 +122,24 @@ Permissão: usuários `.admin` sempre podem; demais por **lista do admin OU thre
 | `/treino/admin/contest-remove` | POST | admin | `{contest}` → move p/ lixeira (só os criados pela interface) |
 
 > Ações auditadas (em `treino/var/admin-audit.log`): `contest-create`, `contest-perms`, `contest-remove` — além de `news-*`, `logout-*`, `lock-user`.
+
+## Ambiente de contest (subdomínio + admin do contest)
+Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a API só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend redireciona o resto para `/contest/`. Login com gate opcional por substring de User-Agent (`LOGIN_UA_SUBSTRING`, só não-privilegiados). Papéis: `.admin`/`.judge`/`.staff`/`.mon`.
+
+| Rota | Método | Papel | I/O |
+|---|---|---|---|
+| `/contest/admin/sessions?contest=<c>` | GET | admin | sessões ativas + alerta de UA/IP diferentes |
+| `/contest/admin/access-log?contest=<c>&day=` | GET | admin | log de acessos (epoch/login/ip/UA) + alertas |
+| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/allow_late`, `login_ua_substring` |
+| `/contest/admin/problems?contest=<c>` | GET/POST | admin | `{action:add\|remove\|reorder\|rename,…}` (reescreve PROBS) |
+| `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema, por-linguagem, veredictos, linha do tempo |
+| `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas) |
+| `/contest/clarification-ask?contest=<c>` | POST | Bearer | `{problem?,question}` |
+| `/contest/clarification-answer?contest=<c>` | POST | admin/judge/mon | `{id,answer,public?}` |
+| `/contest/admin/news?contest=<c>` | POST | admin/judge/mon | `{action:add\|remove,…}` notícias do contest |
+| `/contest/admin/jplag-run?contest=<c>` | POST | admin | dispara o jplag (background) |
+| `/contest/admin/jplag-results?contest=<c>` | GET | admin | `{status, results:[{problem,lang,pairs:[{a,b,similarity}]}]}` |
+| `/contest/admin/jplag-match?contest=<c>&run=&i=` | GET | admin | HTML lado-a-lado da comparação |
+| `/contest/userinfo?contest=<c>` | GET | Bearer | + `show_editor/show_log/show_code/is_mon` |
+
+> Auditado em `contests/<c>/var/admin-audit.log`: `settings`, `problems-*`, `clarification-answer`, `news-*`, `jplag-run`. Telas: `/contest/{log,admin_tasks,statistics,clarification,jplag,allsubmissions,admin}/`.

@@ -2151,6 +2151,254 @@
           }
         }
       }
+    },
+    "/contest/admin/sessions": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Sessões ativas + alerta UA/IP",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{sessions,alerts}"
+          }
+        }
+      }
+    },
+    "/contest/admin/access-log": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Log de acessos do contest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{entries,alerts}"
+          }
+        }
+      }
+    },
+    "/contest/admin/settings": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Configurações do contest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "settings"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Atualiza configurações (auditado)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved,changed}"
+          }
+        }
+      }
+    },
+    "/contest/admin/problems": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Lista problemas",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "add|remove|reorder|rename problema",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems}"
+          }
+        }
+      }
+    },
+    "/contest/statistics": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Estatísticas agregadas (admin/judge/mon)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{totals,problems,languages,verdicts,timeline}"
+          }
+        }
+      }
+    },
+    "/contest/clarifications": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Clarifications (role-aware)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{clarifications,can_answer}"
+          }
+        }
+      }
+    },
+    "/contest/clarification-ask": {
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Perguntar",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{asked,id}"
+          }
+        }
+      }
+    },
+    "/contest/clarification-answer": {
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Responder (admin/judge/mon)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{answered}"
+          }
+        }
+      }
+    },
+    "/contest/admin/news": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Notícias do contest (admin/judge/mon)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{items}"
+          }
+        }
+      }
+    },
+    "/contest/admin/jplag-run": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Dispara jplag (background)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{started}"
+          }
+        }
+      }
+    },
+    "/contest/admin/jplag-results": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Status + pares de similaridade",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{status,results}"
+          }
+        }
+      }
+    },
+    "/contest/admin/jplag-match": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "HTML lado-a-lado",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/html"
+          }
+        }
+      }
     }
   }
 }
