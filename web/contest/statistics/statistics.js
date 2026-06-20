@@ -4,7 +4,7 @@
 import { apiGet } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
-import { barChart, pieChart } from '/lib/charts.js';
+import { barChart, pieChart, lineChart } from '/lib/charts.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -13,6 +13,23 @@ const enc = encodeURIComponent;
 let probMap = {};
 const shortOf = (pid) => probMap[pid] || pid;
 const pct = (x) => Math.round((x || 0) * 100) + '%';
+
+function expandSolves(dist) { const a = []; (dist || []).forEach((d) => { for (let i = 0; i < d.users; i++) a.push(d.solved); }); return a; }
+function quartiles(arr) {
+  if (!arr.length) return null;
+  const s = arr.slice().sort((a, b) => b - a), at = (p) => s[Math.min(s.length - 1, Math.floor(p * s.length))];
+  return { top25: at(0.25), median: at(0.5), bottom25: at(0.75), max: s[0], min: s[s.length - 1], n: s.length };
+}
+function highlights(s) {
+  const ps = s.problems || [], ls = s.languages || [], items = [];
+  const mostSolved = ps.slice().sort((a, b) => b.solved - a.solved)[0];
+  const hardest = ps.filter((p) => p.attempted > 0).slice().sort((a, b) => a.accept_rate - b.accept_rate)[0];
+  if (mostSolved) items.push('🏆 Mais resolvido: ' + shortOf(mostSolved.problem_id) + ' (' + mostSolved.solved + ' resolveram)');
+  if (hardest) items.push('🔥 Mais difícil: ' + shortOf(hardest.problem_id) + ' (' + pct(hardest.accept_rate) + ' de acerto)');
+  if (ls[0]) items.push('⌨ Linguagem mais usada: ' + ls[0].lang + ' (' + ls[0].submissions + ' submissões)');
+  if ((s.totals || {}).submissions) items.push('✅ Taxa global de aceitação: ' + pct((s.totals.accepted || 0) / s.totals.submissions));
+  return items.length ? el('div', { class: 'section' }, el('h2', {}, 'Destaques'), el('ul', { style: 'margin:.2rem 0 0 1.1rem' }, ...items.map((x) => el('li', {}, x)))) : el('div', {});
+}
 
 function totalsCards(t) {
   const card = (big, sub) => el('div', { class: 'stat-card' }, el('div', { class: 'big-num' }, String(big)), el('div', { class: 'big-sub' }, sub));
@@ -47,6 +64,7 @@ function langTable(ls) {
 function render(s) {
   app.innerHTML = '';
   app.append(totalsCards(s.totals || {}));
+  app.append(highlights(s));
 
   app.append(el('div', { class: 'section' }, el('h2', {}, 'Por problema'),
     problemsTable(s.problems || []),
@@ -67,8 +85,29 @@ function render(s) {
       el('div', { class: 'chart-title' }, 'Submissões ao longo do tempo (por 10 min)'),
       barChart(s.timeline.map((t) => ({ label: t.minute + 'm', value: t.submissions })), { rotateLabels: true }),
       el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, 'Aceitas ao longo do tempo'),
-      barChart(s.timeline.map((t) => ({ label: t.minute + 'm', value: t.accepted })), { rotateLabels: true })));
+      barChart(s.timeline.map((t) => ({ label: t.minute + 'm', value: t.accepted })), { rotateLabels: true }),
+      el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, 'Aceitas acumuladas'),
+      lineChart((() => { let c = 0; return s.timeline.map((t) => ({ label: t.minute + 'm', y: (c += t.accepted) })); })())));
   }
+
+  // distribuição de desempenho + quartis
+  const solves = expandSolves(s.problems_solved_dist);
+  const q = quartiles(solves);
+  const distSec = el('div', { class: 'section' }, el('h2', {}, 'Distribuição de desempenho'));
+  if (q) {
+    distSec.append(el('p', { class: 'muted small' }, q.n + ' participantes. Quartis por nº de problemas resolvidos:'),
+      el('div', { class: 'stat-cards' },
+        el('div', { class: 'stat-card' }, el('div', { class: 'big-num' }, '≥' + q.top25), el('div', { class: 'big-sub' }, 'top 25% resolveu')),
+        el('div', { class: 'stat-card' }, el('div', { class: 'big-num' }, String(q.median)), el('div', { class: 'big-sub' }, 'mediana (50%)')),
+        el('div', { class: 'stat-card' }, el('div', { class: 'big-num' }, '≥' + q.bottom25), el('div', { class: 'big-sub' }, '75% resolveu ao menos')),
+        el('div', { class: 'stat-card' }, el('div', { class: 'big-num' }, q.max + ' / ' + q.min), el('div', { class: 'big-sub' }, 'máx / mín resolvidos'))));
+  }
+  distSec.append(el('div', { class: 'two-col', style: 'margin-top:.6rem' },
+    el('div', {}, el('div', { class: 'chart-title' }, 'Participantes por nº de problemas resolvidos'),
+      barChart((s.problems_solved_dist || []).map((d) => ({ label: String(d.solved), value: d.users })))),
+    el('div', {}, el('div', { class: 'chart-title' }, 'Tentativas até resolver'),
+      barChart((s.attempts_dist || []).map((d) => ({ label: String(d.attempts), value: d.count }))))));
+  app.append(distSec);
 }
 
 async function boot() {

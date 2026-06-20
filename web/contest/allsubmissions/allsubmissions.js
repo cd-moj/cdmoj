@@ -100,8 +100,10 @@ function render() {
   });
   Object.keys(groups).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).forEach(k => {
     const label = groupBy === 'user' ? `Usuário: ${k}` : `Problema: ${k} ${fullOf(groups[k][0].problem_id)}`;
-    box.append(el('div', { class: 'group-head' }, label));
-    box.append(rowTable(groups[k]));
+    const gitems = groups[k];
+    const markG = el('a', { href: '#', class: 'small', style: 'margin-left:.7rem', onclick: (e) => { e.preventDefault(); gitems.forEach(s => selected.add(s.submission_id)); render(); } }, '☑ marcar grupo');
+    box.append(el('div', { class: 'group-head' }, label, markG));
+    box.append(rowTable(gitems));
   });
 }
 

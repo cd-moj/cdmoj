@@ -18,8 +18,10 @@ function relTime(epoch) {
 
 function contestCard(c, status) {
   const id = c.id || '';
-  const url = '/contest/?c=' + encodeURIComponent(id);
-  const score = '/contest/score/?c=' + encodeURIComponent(id);
+  // no site principal, abre o contest pelo subdomínio (ID.moj.<base>); senão cai no ?c=
+  const sub = /^moj\./i.test(location.hostname) ? (location.protocol + '//' + id + '.' + location.host) : '';
+  const url = sub ? (sub + '/') : ('/contest/?c=' + encodeURIComponent(id));
+  const score = sub ? (sub + '/contest/score/') : ('/contest/score/?c=' + encodeURIComponent(id));
   const start = c.start_time || c.start, end = c.end_time || c.end;
   const label = { open: '🟢 Aberto', upcoming: '🔵 Em breve', closed: '⚪ Encerrado' }[status];
   const when = status === 'open' ? 'termina ' + relTime(end)

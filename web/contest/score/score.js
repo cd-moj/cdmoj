@@ -19,6 +19,8 @@ let teamsMeta = [];      // regras regex -> país/escola
 let flagNames = {};      // code(lower) -> nome (p/ título da bandeira e rótulo do filtro)
 let activeCountry = '';
 let activeSchool = '';
+let anonMode = false;       // placar anônimo (agregado, sem desempenho individual)
+let forcedAnon = false;     // contest força o modo anônimo (não-admin não desliga)
 let activeRegionRegex = localStorage.getItem('moj_score_region_' + CONTEST) || null;
 let searchTerm = '';
 let noAnim = false;
@@ -151,11 +153,44 @@ function renderMetaFilters() {
   }
 }
 
+// ---- placar anônimo (agregado: distribuição + quartis, sem nomes) ------------
+function renderAnon(p) {
+  const box = document.getElementById('scoreContainer'); box.innerHTML = '';
+  if (!(p.mode === 'icpc' || p.mode === 'obi')) { box.innerHTML = `<span class="muted">${T('Modo anônimo é só p/ ICPC/OBI.', 'Anonymous mode is ICPC/OBI only.')}</span>`; return; }
+  const isSolved = p.mode === 'icpc' ? (v) => /^\d+\/\d+\/?$/.test(v || '') : (v) => { const n = parseInt(v, 10); return v !== '' && n > 0; };
+  const teams = p.teams || [];
+  const solves = teams.map((t) => p.probShorts.filter((sn) => isSolved(t.probs[sn])).length);
+  const n = solves.length, sorted = solves.slice().sort((a, b) => b - a);
+  const at = (q) => (n ? sorted[Math.min(n - 1, Math.floor(q * n))] : 0);
+  const dist = {}; solves.forEach((k) => { dist[k] = (dist[k] || 0) + 1; });
+  const probCounts = p.probShorts.map((sn) => ({ sn, c: teams.filter((t) => isSolved(t.probs[sn])).length }));
+  const card = (big, sub) => el('div', { style: 'flex:1;min-width:110px;background:#fff;border:1px solid #e3e9f2;border-radius:10px;padding:.7rem .9rem' },
+    el('div', { style: 'font-size:1.7rem;font-weight:800;line-height:1' }, String(big)), el('div', { style: 'color:#64748b;font-size:.82rem' }, sub));
+  const bar = (pc) => el('span', { style: 'display:inline-block;height:.7em;background:#1e57c4;border-radius:3px;min-width:2px;vertical-align:middle;width:' + pc + '%' });
+  box.append(el('div', { style: 'background:#eef3fb;border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;color:#334155' },
+    '🔒 ' + T('Placar anônimo — desempenho individual oculto.', 'Anonymous scoreboard — individual performance hidden.')));
+  box.append(el('div', { style: 'display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.4rem' },
+    card(n, T('participantes', 'participants')), card('≥' + at(0.25), T('top 25% resolveu', 'top 25% solved')),
+    card(at(0.5), T('mediana', 'median')), card('≥' + at(0.75), T('75% resolveu ≥', '75% solved ≥')), card(sorted[0] || 0, T('máximo', 'max'))));
+  const dtb = el('tbody');
+  Object.keys(dist).map(Number).sort((a, b) => a - b).forEach((k) => {
+    const pc = n ? Math.round(dist[k] / n * 100) : 0;
+    dtb.append(el('tr', {}, el('td', {}, k + ' ' + T('problema(s)', 'problem(s)')), el('td', {}, String(dist[k])), el('td', {}, bar(pc), ' ' + pc + '%')));
+  });
+  box.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('Distribuição (quantos resolveram quantos)', 'Distribution')),
+    el('table', { class: 'score' }, el('thead', {}, el('tr', {}, el('th', {}, T('Resolvidos', 'Solved')), el('th', {}, T('Participantes', 'Participants')), el('th', {}, '%'))), dtb));
+  const ptb = el('tbody');
+  probCounts.forEach((x) => { const pc = n ? Math.round(x.c / n * 100) : 0; ptb.append(el('tr', {}, el('td', {}, el('b', {}, x.sn)), el('td', {}, String(x.c)), el('td', {}, bar(pc), ' ' + pc + '%'))); });
+  box.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('Resolvedores por problema', 'Solvers per problem')),
+    el('table', { class: 'score' }, el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Resolveram', 'Solved')), el('th', {}, '%'))), ptb));
+}
+
 // ---- render principal --------------------------------------------------------
 let parsed = null;
 function reRender() {
   const box = document.getElementById('scoreContainer');
   if (!parsed) { box.innerHTML = `<span class="muted">${T('Placar indisponível.', 'Scoreboard unavailable.')}</span>`; return; }
+  if (anonMode) { renderAnon(parsed); return; }
   const opts = { searchTerm, regionFn: combinedFilterFn() };
   let table;
   if (parsed.mode === 'icpc') table = renderICPC(parsed, opts);
@@ -249,6 +284,16 @@ async function boot() {
   const searchInput = document.getElementById('scoreSearch');
   searchInput.addEventListener('input', () => { searchTerm = searchInput.value; reRender(); });
   document.getElementById('noAnim').addEventListener('change', (e) => { noAnim = e.target.checked; });
+
+  // modo anônimo: forçado pelo contest (não-admin não desliga) ou alternável localmente
+  forcedAnon = !!(basic && basic.score_anon);
+  anonMode = forcedAnon || localStorage.getItem('moj_score_anon_' + CONTEST) === '1';
+  if (!(forcedAnon && !st.is_admin)) {
+    const cb = el('input', { type: 'checkbox' }); cb.checked = anonMode;
+    cb.addEventListener('change', () => { anonMode = cb.checked; localStorage.setItem('moj_score_anon_' + CONTEST, cb.checked ? '1' : '0'); reRender(); });
+    document.getElementById('noAnim').parentNode.parentNode.append(
+      el('label', { class: 'small', style: 'margin-left:.6rem' }, cb, ' ' + T('Anônimo', 'Anonymous')));
+  }
 
   // ordenação por clique no cabeçalho (delegação)
   document.getElementById('scoreContainer').addEventListener('click', (e) => {

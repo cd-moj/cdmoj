@@ -10,10 +10,10 @@ source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""
+  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""
   load_contest_conf "$contest"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
-            show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua}' \
+            show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa}' \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
@@ -21,7 +21,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson sl "$([[ "$SHOWLOG" == 0 ]] && echo false || echo true)" \
     --argjson se "$([[ "$SHOWEDITOR" == 0 ]] && echo false || echo true)" \
     --argjson al "$([[ "$ALLOWLATEUSER" == y ]] && echo true || echo false)" \
-    --arg ua "$LOGIN_UA_SUBSTRING"
+    --arg ua "$LOGIN_UA_SUBSTRING" \
+    --argjson sa "$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)"
   exit 0
 fi
 
@@ -51,6 +52,7 @@ bset(){ # <jsonkey> <VAR> <on-value-p/-positivos>
 }
 bset show_code   SHOWCODE 1
 bset allow_late  ALLOWLATEUSER y
+bset score_anon  SCORE_ANON 1
 bset login_enabled LOGIN_ENABLED _
 bset show_log    SHOWLOG _
 bset show_editor SHOWEDITOR _

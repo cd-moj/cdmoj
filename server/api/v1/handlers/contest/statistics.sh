@@ -14,6 +14,7 @@ awk -F: '
 {
   mn=$1; user=$2; prob=$3; lang=$4; v=$5;
   tot++; isac=(v ~ /^Accepted/);
+  puk=prob SUBSEP user; if(!(puk in solvedAt)){ att[puk]=att[puk]+1; if(isac) solvedAt[puk]=att[puk] }
   vc=v; sub(/,.*/,"",vc); sub(/ *\(.*/,"",vc); gsub(/^ +| +$/,"",vc); if(vc=="")vc="?"; vcl[vc]++;
   psub[prob]++; lsub[lang]++; users[user]=1;
   if(!((prob SUBSEP user) in patt)){ patt[prob SUBSEP user]=1; pattn[prob]++; }
@@ -31,6 +32,11 @@ END{
   for(l in lsub) printf "L\t%s\t%d\t%d\t%d\n", l, lsub[l], lacc[l]+0, lsoln[l]+0;
   for(x in vcl) printf "V\t%s\t%d\n", x, vcl[x];
   for(i=0;i<=maxb;i++) if(tl[i]) printf "T\t%d\t%d\t%d\n", i*10, tl[i], tla[i]+0;
+  for(pu in solvedAt){ split(pu,aa,SUBSEP); usolv[aa[2]]++ }
+  for(u in users){ kk=usolv[u]+0; sdist[kk]++ }
+  for(kk in sdist) printf "D\t%d\t%d\n", kk, sdist[kk];
+  for(pu in solvedAt){ av=solvedAt[pu]; adist[av]++ }
+  for(av in adist) printf "A\t%d\t%d\n", av, adist[av];
   ns=0; for(p in solved) ns++; nu=0; for(u in users) nu++;
   printf "G\t%d\t%d\t%d\t%d\n", tot, acc+0, nu, ns;
 }' "$hist" | jq -R -s '
@@ -40,5 +46,7 @@ END{
       problems: ([ $r[] | select(.[0]=="P") | {problem_id:.[1], submissions:(.[2]|tonumber), attempted:(.[3]|tonumber), solved:(.[4]|tonumber), first_solver:.[5], first_minute:(.[6]|tonumber), accept_rate:(if (.[3]|tonumber)>0 then ((.[4]|tonumber)/(.[3]|tonumber)) else 0 end)} ] | sort_by(.problem_id)),
       languages: ([ $r[] | select(.[0]=="L") | {lang:.[1], submissions:(.[2]|tonumber), accepted:(.[3]|tonumber), solvers:(.[4]|tonumber)} ] | sort_by(-.submissions)),
       verdicts: ([ $r[] | select(.[0]=="V") | {verdict:.[1], count:(.[2]|tonumber)} ] | sort_by(-.count)),
-      timeline: ([ $r[] | select(.[0]=="T") | {minute:(.[1]|tonumber), submissions:(.[2]|tonumber), accepted:(.[3]|tonumber)} ] | sort_by(.minute)) }' \
+      timeline: ([ $r[] | select(.[0]=="T") | {minute:(.[1]|tonumber), submissions:(.[2]|tonumber), accepted:(.[3]|tonumber)} ] | sort_by(.minute)),
+      problems_solved_dist: ([ $r[] | select(.[0]=="D") | {solved:(.[1]|tonumber), users:(.[2]|tonumber)} ] | sort_by(.solved)),
+      attempts_dist: ([ $r[] | select(.[0]=="A") | {attempts:(.[1]|tonumber), count:(.[2]|tonumber)} ] | sort_by(.attempts)) }' \
   2>/dev/null || jq -cn '{success:true, totals:{submissions:0}, problems:[], languages:[], verdicts:[], timeline:[]}'
