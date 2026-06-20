@@ -4,7 +4,7 @@
 import { apiGet } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
-import { barChart, pieChart, lineChart } from '/lib/charts.js';
+import { barChart, lineChart, hBarChart } from '/lib/charts.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -106,12 +106,16 @@ function render(s) {
 
   app.append(balloonsSection(s.problems));
 
+  const totSubs = (s.totals || {}).submissions || 0;
   app.append(el('div', { class: 'section' }, el('h2', {}, 'Veredictos e linguagens'),
     el('div', { class: 'two-col' },
       el('div', {}, el('div', { class: 'chart-title' }, 'Distribuição de veredictos'),
-        pieChart((s.verdicts || []).map((v) => ({ label: v.verdict, value: v.count })))),
-      el('div', {}, el('div', { class: 'chart-title' }, 'Linguagens'), langTable(s.languages || []))),
-    el('h3', { style: 'margin:1rem 0 .3rem' }, 'Veredictos por problema'), verdictMatrix(s)));
+        hBarChart((s.verdicts || []).map((v) => ({ label: v.verdict, value: v.count })), { hideZero: true, total: totSubs }),
+        el('div', { class: 'small muted', style: 'text-align:center; margin-top:.35rem' }, 'cada barra = % das ' + totSubs + ' submissões')),
+      el('div', {}, el('div', { class: 'chart-title' }, 'Linguagens mais usadas'),
+        hBarChart((s.languages || []).map((l) => ({ label: l.lang, value: l.submissions })), { hideZero: true, total: totSubs }),
+        langTable(s.languages || []))),
+    el('h3', { style: 'margin:1.2rem 0 .3rem' }, 'Veredictos por problema'), verdictMatrix(s)));
 
   if ((s.timeline || []).length) {
     app.append(el('div', { class: 'section' }, el('h2', {}, 'Linha do tempo'),

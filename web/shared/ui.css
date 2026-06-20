@@ -229,3 +229,15 @@ table.moj tbody tr:last-child td { border-bottom:0; }
   .hero{ padding:1.6rem 1.2rem; }
   .hero h1{ font-size:1.6rem; }
 }
+
+/* gráficos (lib/charts.js): legenda da pizza + barras horizontais. Centralizado
+   aqui para que qualquer página que use charts.js renderize legível (antes só a
+   página de stat do treino definia .legend, e as demais saíam como texto corrido). */
+.legend{ display:flex; flex-wrap:wrap; gap:.35rem .9rem; justify-content:center; margin-top:.5rem; font-size:.85rem; color:var(--ink); }
+.legend .sw{ display:inline-block; width:.8em; height:.8em; border-radius:3px; margin-right:.3em; vertical-align:-.05em; }
+.hbars{ display:flex; flex-direction:column; gap:.32rem; margin:.4rem 0; }
+.hbar-row{ display:grid; grid-template-columns:minmax(64px,32%) 1fr auto; align-items:center; gap:.55rem; font-size:.86rem; }
+.hbar-label{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); }
+.hbar-track{ background:var(--blue-soft); border-radius:6px; height:.9rem; overflow:hidden; }
+.hbar-fill{ height:100%; border-radius:6px; min-width:2px; }
+.hbar-val{ font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; font-size:.82rem; }

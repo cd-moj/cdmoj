@@ -117,6 +117,40 @@ export function pieChart(data, opts = {}) {
   return wrap;
 }
 
+// ---- barras horizontais ------------------------------------------------------
+// Ideal p/ distribuições categóricas de RÓTULO LONGO (veredictos, linguagens):
+// cada categoria ocupa a sua própria linha — rótulo | barra proporcional | valor·%.
+// Muito mais legível que uma pizza + legenda quando há nomes grandes/muitas fatias.
+// data: [{label,value,color?}]; opts:{total, hideZero, maxRows}.
+export function hBarChart(data, opts = {}) {
+  let rows = (data || []).slice();
+  if (opts.hideZero) rows = rows.filter(d => (d.value || 0) > 0);
+  if (opts.maxRows && rows.length > opts.maxRows) rows = rows.slice(0, opts.maxRows);
+  const total = opts.total != null ? opts.total : (data || []).reduce((a, d) => a + (d.value || 0), 0);
+  const max = Math.max(1, ...rows.map(d => d.value || 0));
+  const wrap = document.createElement('div');
+  wrap.className = 'hbars';
+  if (!rows.length) {
+    const empty = document.createElement('div'); empty.className = 'muted small'; empty.textContent = '—';
+    wrap.append(empty); return wrap;
+  }
+  rows.forEach((d, i) => {
+    const color = d.color || colorAt(i);
+    const row = document.createElement('div'); row.className = 'hbar-row';
+    const lab = document.createElement('div'); lab.className = 'hbar-label'; lab.title = esc(d.label); lab.textContent = esc(d.label);
+    const track = document.createElement('div'); track.className = 'hbar-track';
+    const fill = document.createElement('div'); fill.className = 'hbar-fill';
+    fill.style.width = Math.max(1.5, ((d.value || 0) / max) * 100) + '%';
+    fill.style.background = color;
+    track.append(fill);
+    const val = document.createElement('div'); val.className = 'hbar-val';
+    val.textContent = String(d.value || 0) + (total > 0 ? '  ·  ' + Math.round(((d.value || 0) / total) * 100) + '%' : '');
+    row.append(lab, track, val);
+    wrap.append(row);
+  });
+  return wrap;
+}
+
 // ---- linha / área -----------------------------------------------------------
 // points: [{x:Date|number(epoch s)|string('YYYY-MM-DD'), y:number}] (ordenados por x),
 // ou [{label, value}] (eixo x categórico igualmente espaçado).
