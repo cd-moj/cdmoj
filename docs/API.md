@@ -130,7 +130,7 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 |---|---|---|---|
 | `/contest/admin/sessions?contest=<c>` | GET | admin | sessões ativas + alerta de UA/IP diferentes |
 | `/contest/admin/access-log?contest=<c>&day=` | GET | admin | log de acessos (epoch/login/ip/UA) + alertas |
-| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/allow_late`, `login_ua_substring` |
+| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/allow_late/score_anon`, `login_ua_substring` |
 | `/contest/admin/problems?contest=<c>` | GET/POST | admin | `{action:add\|remove\|reorder\|rename,…}` (reescreve PROBS) |
 | `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema, por-linguagem, veredictos, linha do tempo |
 | `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas) |
@@ -141,5 +141,10 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 | `/contest/admin/jplag-results?contest=<c>` | GET | admin | `{status, results:[{problem,lang,pairs:[{a,b,similarity}]}]}` |
 | `/contest/admin/jplag-match?contest=<c>&run=&i=` | GET | admin | HTML lado-a-lado da comparação |
 | `/contest/userinfo?contest=<c>` | GET | Bearer | + `show_editor/show_log/show_code/is_mon` |
+| `/contest/admin/logout-user?contest=<c>` | POST | admin | `{login}` → encerra sessões do usuário |
+| `/contest/admin/user-disable?contest=<c>` | POST | admin | `{login}` → bloqueia (senha `!…`) + desloga (reabilita via user-add) |
+| `/contest/admin/users-set-password?contest=<c>` | POST | admin | `{password,include_disabled?}` → senha única p/ todos os não-privilegiados (prova) |
+| `/contest/admin/logout-mismatch?contest=<c>` | POST | admin | desloga sessões cujo UA ≠ `LOGIN_UA_SUBSTRING` |
 
-> Auditado em `contests/<c>/var/admin-audit.log`: `settings`, `problems-*`, `clarification-answer`, `news-*`, `jplag-run`. Telas: `/contest/{log,admin_tasks,statistics,clarification,jplag,allsubmissions,admin}/`.
+> **Tela única** `/contest/admin/` (hub com sub-abas: Configurações, Problemas, Aparência, Usuários, Log & sessões); `/contest/{admin_tasks,log}/` redirecionam para ela. Placar: `score_anon` no conf → modo anônimo (agregado/quartis, sem nomes); home abre contests pelo subdomínio.
+> Auditado em `contests/<c>/var/admin-audit.log`: `settings`, `problems-*`, `clarification-answer`, `news-*`, `jplag-run`, `logout-user`, `user-disable`, `users-set-password`, `logout-mismatch`.

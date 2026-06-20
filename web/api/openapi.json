@@ -2399,6 +2399,135 @@
           }
         }
       }
+    },
+    "/contest/admin/logout-user": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Encerra sessões de um usuário",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "login"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{logged_out,sessions_removed}"
+          }
+        }
+      }
+    },
+    "/contest/admin/user-disable": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Desabilita (bloqueia) um usuário",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "login"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{disabled}"
+          }
+        }
+      }
+    },
+    "/contest/admin/users-set-password": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Senha única para todos os não-privilegiados",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  },
+                  "include_disabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{updated,count}"
+          }
+        }
+      }
+    },
+    "/contest/admin/logout-mismatch": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Desloga sessões com UA divergente",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{logged_out,sessions_removed}"
+          }
+        }
+      }
     }
   }
 }
