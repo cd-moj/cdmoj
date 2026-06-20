@@ -34,6 +34,7 @@ require_auth_contest() {  # require_auth_contest <contest>
 is_admin(){ [[ "$SESSION_LOGIN" == *.admin ]]; }
 is_judge(){ [[ "$SESSION_LOGIN" == *.judge || "$SESSION_LOGIN" == *.admin ]]; }
 is_staff(){ [[ "$SESSION_LOGIN" == *.staff ]]; }
+is_mon(){ [[ "$SESSION_LOGIN" == *.mon ]]; }
 require_admin(){ require_auth; is_admin || fail 403 "Admin only" "admin_required"; }
 require_judge(){ require_auth; is_judge || fail 403 "Judge only" "judge_required"; }
 

@@ -85,3 +85,14 @@ audit_log() {
   printf '%s\t%s\t%s\t%s\n' "$EPOCHSECONDS" "$who" "$1" "$det" \
     >> "$CONTESTSDIR/treino/var/admin-audit.log" 2>/dev/null || true
 }
+
+# audit_log_to <contest> <action> <details> — auditoria de um contest específico
+# (contests/<contest>/var/admin-audit.log). Usado pelas ações do admin do contest.
+audit_log_to() {
+  local c="$1" who="${SESSION_LOGIN:-?}" det="${3//$'\t'/ }"
+  det="${det//$'\n'/ }"
+  valid_id "$c" || return 0
+  mkdir -p "$CONTESTSDIR/$c/var" 2>/dev/null
+  printf '%s\t%s\t%s\t%s\n' "$EPOCHSECONDS" "$who" "$2" "$det" \
+    >> "$CONTESTSDIR/$c/var/admin-audit.log" 2>/dev/null || true
+}
