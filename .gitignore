@@ -10,19 +10,19 @@ secrets/
 id_rsa*
 .env
 
-# === estado de runtime ===
-run/
+# === estado de runtime (ancorado na raiz; não pegar dirs aninhados homônimos) ===
+/run/
 *.sock
 *.pid
 *.log
 
 # === dados: fonte da verdade, fora do versionamento (têm senhas/submissões) ===
-contests/
+/contests/
 
-# === legado e repositórios com identidade própria ===
-old/
-mojtools/
-judge/
+# === legado e repositórios com identidade própria (ancorados na raiz) ===
+/old/
+/mojtools/
+/judge/
 
 # === logs/estado do bot ===
 mojinho-bot/log-*.txt
