@@ -8,11 +8,18 @@
   <style>
     .contest-topbar-title { font-weight:800; font-size:1.25rem; }
     .quicknav a.active { text-decoration:underline; }
-    .stat-grid { display:flex; gap:1.2rem; flex-wrap:wrap; }
-    .stat-grid > div { flex:1; min-width:280px; }
-    .chart-title { text-align:center; font-weight:600; margin-bottom:.3rem; }
-    .legend { display:flex; flex-wrap:wrap; gap:.4rem .9rem; justify-content:center; margin-top:.5rem; font-size:.85rem; }
-    .legend .sw { display:inline-block; width:.8em; height:.8em; border-radius:3px; margin-right:.3em; vertical-align:-.05em; }
+    .stat-cards { display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem }
+    .stat-card { flex:1; min-width:150px; background:#fff; border:1px solid #e3e9f2; border-radius:12px; padding:1rem 1.1rem; box-shadow:0 2px 10px rgba(20,40,80,.05) }
+    .big-num { font-size:2rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums }
+    .big-sub { color:#64748b; font-size:.88rem; margin-top:.2rem }
+    .two-col { display:flex; gap:1.2rem; flex-wrap:wrap }
+    .two-col > div { flex:1; min-width:300px }
+    .chart-title { text-align:center; font-weight:600; margin-bottom:.3rem }
+    .chart-wrap { overflow-x:auto }
+    table.moj { width:100%; border-collapse:collapse; font-size:.9rem }
+    table.moj th, table.moj td { padding:.35rem .45rem; border-top:1px solid #eef2f8; text-align:left }
+    table.moj thead th { border-top:0; color:#64748b; font-size:.82rem }
+    table.moj td.n { text-align:right; font-variant-numeric:tabular-nums }
   </style>
 </head>
 <body>
@@ -29,23 +36,9 @@
     </div>
   </header>
   <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
-
   <main class="container">
-    <div class="section">
-      <h2>Estatísticas por problema</h2>
-      <div id="problemTable"><span class="muted">carregando…</span></div>
-      <div class="stat-grid" style="margin-top:1rem">
-        <div><div class="chart-title">Submissões por problema</div><div id="pieSubs"></div></div>
-        <div><div class="chart-title">Accepted por problema</div><div id="pieAcc"></div></div>
-      </div>
-    </div>
-    <div class="section">
-      <h2>Por linguagem</h2>
-      <div class="stat-grid">
-        <div><div class="chart-title">Submissões por linguagem</div><div id="pieLang"></div></div>
-        <div><div class="chart-title">Veredictos</div><div id="pieVerdict"></div></div>
-      </div>
-    </div>
+    <h1 style="margin:.2rem 0 1rem">📊 Estatísticas</h1>
+    <div id="app"><p class="muted">carregando…</p></div>
   </main>
   <script type="module" src="./statistics.js"></script>
 </body>
