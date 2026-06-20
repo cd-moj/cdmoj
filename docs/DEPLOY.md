@@ -35,6 +35,26 @@ Server block para `moj.charge.naquadah.com.br` (coberto pelo cert wildcard `*.ch
 
 > **Nota:** o `fcgiwrap` vendorizado (`old/fcgiwrap/`) estava com um patch hardcoded do cdmoj antigo (ignorava `SCRIPT_FILENAME`). Foi restaurado ao padrão e recompilado em `server/bin/fcgiwrap`.
 
+### Subdomínio de contest — `~/nginx-proxy/conf.d/moj-subdomains.conf`
+
+Cada contest é acessado por `<id>.moj.<base>` (ex.: `<id>.moj.charge.naquadah.com.br`). Um
+server block com `server_name` **regex** captura o id e o injeta no backend:
+
+```nginx
+server_name  ~^(?<contestid>[a-z0-9][a-z0-9._-]*)\.moj\.charge\.naquadah\.com\.br$;
+# ... mesmo root web/ + location /api/v1 do moj.conf, mais:
+fastcgi_param  CONTEST_HOST  $contestid;   # o router.sh impõe o isolamento
+```
+
+O `server_name` exato `moj.charge…` (em `moj.conf`) tem precedência para o site principal;
+o regex pega só `<algo>.moj.charge…`. Cópia versionada em `server/etc/nginx/moj-subdomains.conf`.
+Recarregar: `cd ~/nginx-proxy && ./proxy.sh test && ./proxy.sh reload`.
+
+> **Cert (HTTPS):** o wildcard atual é `*.charge.naquadah.com.br` (um nível) — cobre
+> `moj.charge…` mas **não** `<id>.moj.charge…` (dois níveis). Para HTTPS nos subdomínios,
+> reemita o cert incluindo `*.moj.naquadah.com.br` (produção) / `*.moj.charge.naquadah.com.br`
+> (teste). Em HTTP (8080) e via header `Host:` nos testes já funciona.
+
 ## Como acessar / testar
 
 O proxy escuta em **8080 (HTTP)** e **8443 (HTTPS)**. Se o DNS de `moj.charge.naquadah.com.br` apontar para a máquina, acesse `https://moj.charge.naquadah.com.br:8443/`. Para testar local sem DNS, use o header Host:

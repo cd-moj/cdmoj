@@ -1,14 +1,28 @@
 # docs/ — Documentação do MOJ
 
-- **[`PLAN.md`](PLAN.md)** — plano aprovado da reescrita (arquitetura, contratos de API, modos de
-  placar, fases e verificação). É a fonte da verdade da migração.
-- **Especificação das telas / API** — `../old/geracao-das-telas-do-moj.txt`: sessão de design com
-  181 prompts que define cada página (home, treino, problema, contest, score, admin, juiz) e o
-  formato exato de cada JSON/TXT retornado pela API. Base para `web/` e para os handlers de `server/`.
+Índice da documentação da versão **API-first** do MOJ. Para ler em HTML (com TOC e
+navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
 
-## A documentar aqui (conforme implementação)
-
-- `API.md` — referência das rotas `/api/v1/...` (entrada/saída, auth, exemplos `curl`).
-- `SCOREBOARD.md` — formato do TXT de placar e como adicionar um novo modo
+- **[OVERVIEW.md](OVERVIEW.md)** — **comece aqui.** Visão geral: arquitetura, estrutura
+  do repositório, camada de API, frontend e tudo o que existe (treino, criação de contest,
+  ambiente de contest, juiz/daemons).
+- **[FLOW.md](FLOW.md)** — fluxo de comunicação: como uma submissão viaja do browser ao
+  placar, o spool, o daemon `judged`, o gateway de juiz (mock/local/cluster), resultado por
+  push (`result-sink`), heartbeat de workers (`register`) e o cluster `:27000`.
+- **[API.md](API.md)** — referência das rotas `/api/v1/...` (entrada/saída, auth, papéis).
+  Versão de máquina: `../web/api/openapi.json` (servida em `/api/` na web).
+- **[SCOREBOARD.md](SCOREBOARD.md)** — formato do TXT de placar e como adicionar um modo
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
-- `DEPLOY.md` — nginx + fcgiwrap + units systemd (daemons, master/worker do juiz, bot).
+- **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemons, master/worker do
+  juiz, bot) e o subdomínio de contest.
+- **[PLAN.md](PLAN.md)** — plano original aprovado da reescrita (arquitetura, contratos,
+  modos de placar, fases). Referência histórica da migração.
+
+> Especificação de design original (telas/contratos): `../old/geracao-das-telas-do-moj.txt`
+> (181 prompts). Base histórica para `web/` e os handlers de `server/`.
+
+## Compilar em HTML
+
+```sh
+bash docs/build-html.sh     # -> docs/html/*.html + index.html  (usa pandoc)
+```

@@ -28,6 +28,9 @@ id_rsa*
 mojinho-bot/log-*.txt
 mojinho-bot/mojinho-offset
 
+# === docs HTML gerado (rode docs/build-html.sh) ===
+/docs/html/
+
 # === diversos ===
 *.swp
 *~

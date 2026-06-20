@@ -46,3 +46,22 @@ desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total   ← cabeç
 Geradores existentes (testados contra dados reais, batem com os placares legados):
 `updatescore-icpc.sh`, `updatescore-obi.sh`, `updatescore-treino.sh`, `updatescore-heuristic.sh`,
 `updatescore-outro.sh`.
+
+## Recursos do placar (web/contest/score/)
+
+- **Bandeiras locais (offline):** a coluna `flag` (código de país ISO-2 ou estado `BR-SP`)
+  vira um SVG servido pelo próprio MOJ em `/shared/flags/` (271 países + 27 estados) — nada de
+  CDN externo. Ver `web/shared/flags.js`.
+- **`teams-meta`** (`contests/<id>/teams-meta.json`, lido por `GET /contest/teams-meta`):
+  regras **regex no login → {country, school, school_full, logo?}**. O placar preenche
+  bandeira/universidade quando faltam na coluna e habilita **filtro por país/escola**. O logo
+  é um data-URL embutido (offline). Editável na criação e no admin do contest.
+- **Filtro por região** (`regions.json`, `GET /contest/regions`): árvore de regex hierárquica
+  testada contra o login.
+- **Modo anônimo** (`SCORE_ANON=1` no conf, ou toggle local): esconde o desempenho individual e
+  mostra agregado — participantes, **quartis** por nº de problemas resolvidos, distribuição e
+  resolvedores por problema. Forçado para não-admins quando `SCORE_ANON=1`.
+- **Cores dos balões** (`balloons.json`, `GET /contest/balloons`): mapa letra→cor (default ICPC
+  A–O). Campo `enableSonic` ativa o **modo secreto do Sonic** (GIFs locais em `/shared/assets/sonic/`).
+- **Estatísticas** ricas em `/contest/statistics/` (admin/judge/mon) e similaridade em
+  `/contest/jplag/`.
