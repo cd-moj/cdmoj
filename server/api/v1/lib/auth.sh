@@ -92,3 +92,19 @@ create_session() {
   printf '%s' "$uuid"
 }
 destroy_session(){ [[ -n "${1:-}" ]] && valid_id "$1" && rm -f "$SESSIONDIR/$1"; }
+
+# remove_contest_sessions <contest> [login] -> ecoa o nº de sessões removidas.
+# Sem <login>, remove todas do contest. Usado por deslogar/desabilitar usuário.
+remove_contest_sessions(){
+  local c="$1" want="${2:-}" n=0 f CONTEST LOGIN
+  set +o noglob; shopt -s nullglob
+  for f in "$SESSIONDIR"/*; do
+    [[ -f "$f" ]] || continue
+    CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
+    [[ "$CONTEST" == "$c" ]] || continue
+    [[ -z "$want" || "$LOGIN" == "$want" ]] || continue
+    rm -f "$f"; ((n++))
+  done
+  shopt -u nullglob
+  printf '%s' "$n"
+}
