@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>jplag — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
+    table.moj { width:100%; border-collapse:collapse; font-size:.92rem }
+    table.moj th, table.moj td { padding:.35rem .45rem; border-top:1px solid #eef2f8; text-align:left }
+    table.moj thead th { border-top:0; color:#64748b; font-size:.82rem }
+    table.moj td.n { text-align:right; font-variant-numeric:tabular-nums }
+    .sim-high { color:#b3261e; font-weight:800 }
+    .sim-mid { color:#9a6700; font-weight:700 }
+    .sim-low { color:#64748b }
+    .chart-wrap { overflow-x:auto }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.png" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+  <main class="container">
+    <h1 style="margin:.2rem 0 1rem">🔍 jplag — similaridade de soluções</h1>
+    <div id="app"><p class="muted">carregando…</p></div>
+  </main>
+  <script type="module" src="./jplag.js"></script>
+</body>
+</html>
