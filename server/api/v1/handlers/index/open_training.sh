@@ -11,7 +11,7 @@ HIST="$TREINO/controle/history"
 QDIR="$TREINO/var/questoes"
 
 if [[ ! -f "$HIST" ]]; then
-  jq -cn '{success:true, top_users:[], recent_solved:[], most_solved_week:[], search_problems_url:"/treino"}'
+  jq -cn '{success:true, top_users:[], recent_solved:[], most_solved_week:[], most_solved_prev_week:[], search_problems_url:"/treino"}'
   exit 0
 fi
 
@@ -44,6 +44,20 @@ while read -r total prob; do
 done <<< "$(awk -F: -v s="$LASTWEEK" '$6>=s && $5 ~ /Accepted/ {print $3}' "$HIST" \
             | sort | uniq -c | sort -rn | head -n5 | awk '{print $1, $2}')"
 
+# --- most_solved_prev_week: RESOLVEDORES distintos por problema na SEMANA PASSADA
+# (janela [domingo retrasado, último domingo) ). Cada usuário conta 1x por problema.
+PREVSTART=$(( LASTWEEK > 0 ? LASTWEEK - 604800 : 0 ))
+declare -a RP
+while read -r total prob; do
+  [[ -z "$prob" ]] && continue
+  RP+=( "$(jq -cn --arg pid "$prob" --arg title "$(_title "$prob")" \
+      --argjson n "$total" --arg url "/treino/problema/?id=${prob//\#/%23}" \
+      '{problem_id:$pid, problem_title:$title, solved_count:$n, url:$url}')" )
+done <<< "$(awk -F: -v ps="$PREVSTART" -v ws="$LASTWEEK" \
+            '$6>=ps && $6<ws && $5 ~ /Accepted/ { k=$3 SUBSEP $2; if(!(k in seen)){seen[k]=1; cnt[$3]++} }
+             END{ for(p in cnt) print cnt[p], p }' "$HIST" \
+            | sort -rn | head -n5)"
+
 # --- top_users: top10 por problemas distintos resolvidos -------------------
 declare -a U
 while read -r total user; do
@@ -62,5 +76,7 @@ jq -cn \
   --argjson top_users "$(jarr "${U[@]}")" \
   --argjson recent_solved "$(jarr "${V[@]}")" \
   --argjson most_solved_week "$(jarr "${R[@]}")" \
+  --argjson most_solved_prev_week "$(jarr "${RP[@]}")" \
   '{success:true, top_users:$top_users, recent_solved:$recent_solved,
-    most_solved_week:$most_solved_week, search_problems_url:"/treino"}'
+    most_solved_week:$most_solved_week, most_solved_prev_week:$most_solved_prev_week,
+    search_problems_url:"/treino"}'

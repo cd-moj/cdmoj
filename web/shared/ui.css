@@ -199,6 +199,24 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 .recent-row:hover { background:var(--blue-soft); text-decoration:none; }
 .recent-row .ttl { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .recent-row .who { font-size:.78rem; color:var(--muted); }
+/* grade de cards do treino (home): top10 / semana passada / recentes */
+.tcards { display:grid; grid-template-columns:repeat(auto-fit, minmax(255px,1fr)); gap:1rem; }
+/* "mais resolvidos na semana passada": ranking de problemas */
+.week-row { display:flex; align-items:center; gap:.6rem; padding:.42rem .5rem; border-radius:10px; color:inherit; }
+.week-row:hover { background:var(--blue-soft); text-decoration:none; }
+.wk-rank { flex:0 0 1.5rem; height:1.5rem; display:grid; place-items:center; border-radius:7px;
+  background:#fff3d6; color:#92560a; font-weight:800; font-size:.74rem; }
+.wk-ttl { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+/* feed "resolvidos recentemente": problema + quem resolveu + quando */
+.feed { display:flex; flex-direction:column; gap:.1rem; }
+.feed-item { display:flex; align-items:flex-start; gap:.55rem; padding:.45rem .5rem; border-radius:10px; color:inherit; }
+.feed-item:hover { background:var(--blue-soft); text-decoration:none; }
+.feed-ic { flex:0 0 auto; font-size:.92rem; line-height:1.45; }
+.feed-body { min-width:0; flex:1; display:flex; flex-direction:column; gap:.12rem; }
+.feed-ttl { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.feed-sub { display:flex; align-items:center; gap:.35rem; font-size:.78rem; color:var(--muted); }
+.feed-who { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.feed-time { margin-left:auto; padding-left:.4rem; white-space:nowrap; opacity:.85; }
 
 /* lista de contests (home): cartões com status */
 .contest-group { margin:.4rem 0 1.2rem; }

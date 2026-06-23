@@ -12,13 +12,19 @@ if [[ -f "$CACHE" ]] && [[ -z "$(find "$CACHE" -mmin +5 2>/dev/null)" ]]; then
 fi
 
 set +o noglob
-# base: id, title, tags de cada problema. Conta solved/attempted de var/json-count/<id>
-# se existir (formato tolerante: número simples = attempted, ou JSON {solved,attempted}).
-{
-  jq -s 'map({id, title, tags: (.tags // [])})' "$JD"/*.json 2>/dev/null \
-  | jq -c --arg cdir "$COUNTS" '
-      map(. + {solved_count:0, attempted_count:0})
-    '
-} | tee "$CACHE.tmp" >/dev/null
+# Contagens por problema vêm de var/json-count/<arquivo>.json (mesmo basename que
+# var/jsons/, ou seja, o id na forma '#'). O id INTERNO do json-count é pontilhado,
+# então casamos pelo NOME DO ARQUIVO (input_filename), não pelo campo .id.
+counts="$(jq -n '
+  reduce inputs as $x ({};
+    . + { (input_filename | sub(".*/";"") | sub("\\.json$";"")):
+          {solved_count: ($x.solved_count // 0), attempted_count: ($x.attempted_count // 0)} })
+' "$COUNTS"/*.json 2>/dev/null)"
+[[ -n "$counts" ]] || counts='{}'
+
+# base: id/title/tags de var/jsons + as contagens reais casadas por id ('#').
+jq -s --argjson c "$counts" '
+  map({id, title, tags: (.tags // [])} + ($c[.id] // {solved_count:0, attempted_count:0}))
+' "$JD"/*.json 2>/dev/null | tee "$CACHE.tmp" >/dev/null
 mv -f "$CACHE.tmp" "$CACHE" 2>/dev/null
 cat "$CACHE"

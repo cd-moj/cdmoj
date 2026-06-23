@@ -3,7 +3,7 @@ import { apiGet } from '/shared/api.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { editorLabel } from '/shared/editors.js';
 import { renderCreateContestLink } from '/shared/create-contest-link.js';
-import { contestCard } from '/shared/contest-card.js';
+import { contestCard, relTime } from '/shared/contest-card.js';
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 let openAll = [], upAll = [], closedAll = [], closedPage = 0, closedTotal = 0; const CPAGE = 12;
@@ -68,6 +68,7 @@ async function loadTraining() {
   let j; try { j = await apiGet('/index/open_training', {}); } catch { return; }
   const top = j.top_users || j.top10 || [];
   const recent = j.recent_solved || j.recent || [];
+  const weekPrev = j.most_solved_prev_week || [];
   const t10 = document.getElementById('top10'); t10.innerHTML = '';
   if (!top.length) t10.innerHTML = '<span class="muted small">sem dados ainda</span>';
   top.slice(0, 10).forEach((u, i) => {
@@ -80,14 +81,35 @@ async function loadTraining() {
       nameWrap,
       el('span', { class: 'rank-chip' }, (u.solved_count ?? u.solved ?? u.count ?? 0) + ' ✓')));
   });
+  // mais resolvidos na semana passada (ranking de problemas)
+  const wk = document.getElementById('weekprev');
+  if (wk) {
+    wk.innerHTML = '';
+    if (!weekPrev.length) wk.innerHTML = '<span class="muted small">sem resolvidos na semana passada</span>';
+    weekPrev.slice(0, 5).forEach((p, i) => {
+      const pid = p.problem_id || p.id || '';
+      wk.append(el('a', { class: 'week-row', href: p.url || ('/treino/problema/?id=' + encodeURIComponent(pid)) },
+        el('span', { class: 'wk-rank' }, String(i + 1)),
+        el('span', { class: 'wk-ttl' }, p.problem_title || p.title || pid),
+        el('span', { class: 'rank-chip' }, (p.solved_count ?? 0) + ' ✓')));
+    });
+  }
+
+  // resolvidos recentemente (feed: problema + quem resolveu + quando)
   const rc = document.getElementById('recent'); rc.innerHTML = '';
   if (!recent.length) rc.innerHTML = '<span class="muted small">sem dados ainda</span>';
   recent.slice(0, 8).forEach((r) => {
     const pid = r.problem_id || r.id || '';
+    const login = (r.user && (r.user.username || r.user.login)) || r.login || '';
     const who = (r.user && (r.user.name || r.user.username)) || r.login || '';
-    rc.append(el('a', { class: 'recent-row', href: '/treino/problema/?id=' + encodeURIComponent(pid) },
-      el('span', { class: 'ttl' }, r.problem_title || r.title || pid),
-      el('span', { class: 'who' }, who ? ('por ' + who) : '')));
+    const sub = el('span', { class: 'feed-sub' });
+    if (login) sub.append(avatarEl(login, who, 18));
+    sub.append(el('span', { class: 'feed-who' }, who || '—'));
+    if (r.solved_at) sub.append(el('span', { class: 'feed-time' }, relTime(r.solved_at)));
+    rc.append(el('a', { class: 'feed-item', href: r.url || ('/treino/problema/?id=' + encodeURIComponent(pid)) },
+      el('span', { class: 'feed-ic' }, '✅'),
+      el('span', { class: 'feed-body' },
+        el('span', { class: 'feed-ttl' }, r.problem_title || r.title || pid), sub)));
   });
 }
 

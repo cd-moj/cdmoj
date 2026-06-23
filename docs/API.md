@@ -17,12 +17,12 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 |---|---|
 | `/index/news` | `{news:[{id,title,date,summary,url}]}` |
 | `/index/contests?page=N` | `{open:[…],upcoming:[…],closed:{items:[…],page,per_page,total}}` (cada item `{id,title,start_time,end_time,problems_count,url,scoreboard_url}`). Encerrados paginados (20/pág); **`?all=1`** devolve todos (usado pela página de arquivo `/contests/`). |
-| `/index/open_training` | `{top_users:[{username,name,solved_count}],recent_solved:[…],most_solved_week:[…]}` |
+| `/index/open_training` | `{top_users:[{username,name,solved_count}],recent_solved:[{problem_id,problem_title,user,solved_at,url}],most_solved_week:[…],most_solved_prev_week:[{problem_id,problem_title,solved_count,url}]}` (`prev_week` = resolvedores distintos por problema na semana passada) |
 
 ## Treino
 | Rota | Auth | I/O |
 |---|---|---|
-| `/treino/problems` | — | array `[{id,title,tags,solved_count,attempted_count}]` (cache 5 min em `var/problems.json`) |
+| `/treino/problems` | — | array `[{id,title,tags,solved_count,attempted_count}]` (contagens de `var/json-count/<arquivo>` casadas por nome de arquivo; cache 5 min em `var/problems.json`) |
 | `/treino/problem?id=<id>` | — | `{id,title,statement_html_b64,time_limits,tags}` |
 | `/treino/solvetry?user=<u>` | opc | `{solved:[ids],attempted:[ids]}` |
 | `/treino/history?id=<id>` | Bearer | TXT 7 campos `tempo:user:probid:lang:verdito:epoch:subid` |
