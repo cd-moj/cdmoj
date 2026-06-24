@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MOJ — Melhor Online Judge">
-  <title>MOJ</title>
+  <title>MOJ — Melhor Online Judge</title>
   <defs>
     <linearGradient id="mojTile" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#3b82e8"/>
@@ -10,13 +10,17 @@
       <stop offset=".55" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <!-- tile (app-icon) com leve borda clara p/ separar do topbar escuro -->
+  <!-- tile (app-icon) com sheen + leve borda clara p/ separar do topbar escuro -->
   <rect x="5" y="5" width="54" height="54" rx="15" fill="url(#mojTile)" stroke="#ffffff" stroke-opacity=".25" stroke-width="1.5"/>
   <rect x="5" y="5" width="54" height="54" rx="15" fill="url(#mojSheen)"/>
-  <!-- veredicto Accepted: o coração de um juiz online -->
-  <path d="M18.5 34 l8.8 9 l18 -21" fill="none" stroke="#ffffff" stroke-width="6.4"
+  <!-- ✓ = veredicto Accepted (≈ SATisfiable). O braço longo sobe como a
+       trajetória de um plano; o ∧ (conjunção) fica insinuado no vértice do ✓. -->
+  <path d="M17 34 L26 43 L45 22" fill="none" stroke="#ffffff" stroke-width="6.2"
         stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- balãozinho de contest (ICPC) saindo do tile -->
-  <circle cx="49.5" cy="15" r="5.2" fill="#ffd23f" stroke="#ffffff" stroke-opacity=".6" stroke-width="1.2"/>
-  <path d="M49.5 20.2 q-1.6 2.2 0 4.2" fill="none" stroke="#ffd23f" stroke-width="1.4" stroke-linecap="round"/>
+  <!-- ⊤ (true/top) = o nó-meta do plano: "satisfez / meta atingida".
+       Aceno bem sutil a SAT + Planejamento Automatizado. -->
+  <g stroke="#ffd23f" stroke-width="3.2" stroke-linecap="round">
+    <line x1="39" y1="15" x2="51" y2="15"/>
+    <line x1="45" y1="15" x2="45" y2="22"/>
+  </g>
 </svg>
