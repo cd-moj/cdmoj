@@ -542,8 +542,8 @@ function makeContestsTab() {
     } catch (e) { saveBtn.disabled = false; permMsg.className = 'small error-box'; permMsg.textContent = e.message || 'falha'; }
   });
   const permBox = el('div', { class: 'section', style: 'background:#fafcff' },
-    el('h3', { style: 'margin:.1rem 0 .5rem' }, 'Quem pode criar contests'),
-    el('p', { class: 'muted small' }, 'Usuários .admin sempre podem. Além deles: a lista “liberados” OU quem atingir o limite de problemas resolvidos. A lista “bloqueados” impede até quem atingiria o limite.'),
+    el('h3', { style: 'margin:.1rem 0 .5rem' }, 'Quem pode criar contests e problemas'),
+    el('p', { class: 'muted small' }, 'Esta mesma permissão controla a criação de contests E a criação de problemas/coleções na Gestão de Problemas. Usuários .admin sempre podem. Além deles: a lista “liberados” OU quem atingir o limite de problemas resolvidos. A lista “bloqueados” impede até quem atingiria o limite.'),
     el('div', { class: 'field' }, el('label', {}, 'Liberar automaticamente quem resolveu ≥'), thr, el('span', { class: 'small muted' }, ' problemas (0 = desativado)')),
     el('div', { class: 'field' }, el('label', {}, '✅ Liberados (allow)'), allow),
     el('div', { class: 'field' }, el('label', {}, '⛔ Bloqueados (deny)'), deny),

@@ -102,28 +102,41 @@ repo_set_collabs(){  # <repo> <collabs-json>
 COLLECTIONS_REGISTRY="$CONTESTSDIR/treino/var/collections.json"
 collection_owner(){ [[ -f "$COLLECTIONS_REGISTRY" ]] && jq -r --arg n "$1" '.[$n].owner // empty' "$COLLECTIONS_REGISTRY" 2>/dev/null; }
 collection_members(){ local m; [[ -f "$COLLECTIONS_REGISTRY" ]] && m="$(jq -c --arg n "$1" '.[$n].members // []' "$COLLECTIONS_REGISTRY" 2>/dev/null)"; printf '%s' "${m:-[]}"; }
-collection_register(){  # <name> <owner> [members-csv] [title]
-  local n="$1" o="$2" m="${3:-}" t="${4:-}" cur tmp; cur="$(cat "$COLLECTIONS_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
+collection_admins(){ local a; [[ -f "$COLLECTIONS_REGISTRY" ]] && a="$(jq -c --arg n "$1" '.[$n].admins // []' "$COLLECTIONS_REGISTRY" 2>/dev/null)"; printf '%s' "${a:-[]}"; }
+# quem pode editar uma problema da coleção = membros ∪ admins (co-organizadores)
+collection_access(){ jq -cn --argjson m "$(collection_members "$1")" --argjson a "$(collection_admins "$1")" '($m+$a)|unique'; }
+# collection_can_manage <name> <login> — dono OU admin da coleção OU admin global do treino
+collection_can_manage(){
+  local n="$1" login="$2" o; o="$(collection_owner "$n")"; [[ -n "$o" ]] || return 1
+  [[ "$login" == "$o" ]] && return 0
+  { declare -F is_admin >/dev/null && is_admin; } && return 0
+  jq -e --arg u "$login" 'index($u)' >/dev/null 2>&1 <<<"$(collection_admins "$n")"
+}
+collection_register(){  # <name> <owner> [members-csv] [title] [admins-csv]
+  local n="$1" o="$2" m="${3:-}" t="${4:-}" a="${5:-}" cur tmp; cur="$(cat "$COLLECTIONS_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
   mkdir -p "$(dirname "$COLLECTIONS_REGISTRY")" 2>/dev/null; tmp="$COLLECTIONS_REGISTRY.tmp.$$"
-  ( umask 077; jq -n --argjson cur "$cur" --arg n "$n" --arg o "$o" --arg m "$m" --arg t "$t" --argjson now "$EPOCHSECONDS" '
+  ( umask 077; jq -n --argjson cur "$cur" --arg n "$n" --arg o "$o" --arg m "$m" --arg t "$t" --arg a "$a" --argjson now "$EPOCHSECONDS" '
       ($cur[$n] // {}) as $old
       | $cur + { ($n): ($old + { owner:($old.owner // $o),
                   title:(if $t=="" then ($old.title // $n) else $t end),
-                  members:(((($old.members // []) + ($m|split(",")|map(select(length>0)))) | unique)), at:$now }) }' ) >"$tmp" 2>/dev/null \
+                  members:((($old.members // []) + ($m|split(",")|map(select(length>0)))) | unique),
+                  admins:((($old.admins // []) + ($a|split(",")|map(select(length>0)))) | unique), at:$now }) }' ) >"$tmp" 2>/dev/null \
     && mv -f "$tmp" "$COLLECTIONS_REGISTRY"
 }
-collection_set_members(){  # <name> <members-json>
-  local n="$1" m="$2" cur tmp; cur="$(cat "$COLLECTIONS_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
+collection_set_field(){  # <name> <field> <json>  (members|admins)
+  local n="$1" k="$2" v="$3" cur tmp; cur="$(cat "$COLLECTIONS_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
   tmp="$COLLECTIONS_REGISTRY.tmp.$$"
-  ( umask 077; jq --arg n "$n" --argjson m "$m" 'if has($n) then .[$n].members=$m else . end' <<<"$cur" ) >"$tmp" 2>/dev/null && mv -f "$tmp" "$COLLECTIONS_REGISTRY"
+  ( umask 077; jq --arg n "$n" --arg k "$k" --argjson v "$v" 'if has($n) then .[$n][$k]=$v else . end' <<<"$cur" ) >"$tmp" 2>/dev/null && mv -f "$tmp" "$COLLECTIONS_REGISTRY"
 }
-# collection_grant_repo <name> <repo> <acting> — membros da coleção viram colaboradores do
-# repo (só se o acting for dono do repo ou admin). Espelha no registro/overlay. Best-effort.
+collection_set_members(){ collection_set_field "$1" members "$2"; }
+collection_set_admins(){  collection_set_field "$1" admins  "$2"; }
+# collection_grant_repo <name> <repo> <acting> — membros+admins da coleção viram colaboradores
+# do repo (só se o acting for dono do repo ou admin). Espelha no registro/overlay. Best-effort.
 collection_grant_repo(){
   local name="$1" repo="$2" acting="$3" owner m u; owner="$(repo_owner "$repo")"
   [[ -n "$owner" ]] || return 0
   { [[ "$acting" == "$owner" ]] || { declare -F is_admin >/dev/null && is_admin; }; } || return 0
-  m="$(collection_members "$name")"; [[ "$m" != "[]" ]] || return 0
+  m="$(collection_access "$name")"; [[ "$m" != "[]" ]] || return 0
   while IFS= read -r u; do [[ -n "$u" && "$u" != "$owner" ]] || continue
     declare -F gitea_ensure_user >/dev/null && gitea_ensure_user "$u" "$u" "$u@moj.local" \
       && gitea_set_collaborator "$owner" "$repo" "$u" write

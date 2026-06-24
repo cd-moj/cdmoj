@@ -11,6 +11,7 @@ let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], l
 let enunEd = null;
 let solEditors = { good: [], slow: [], wrong: [], pass: [] };
 let COLLS = [];
+let CAN_CREATE = false;
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -258,24 +259,32 @@ function renderCollChips() {
   names.forEach(n => { const on = cur.includes(n);
     box.append(el('span', { class: 'collchip' + (on ? ' on' : ''), onclick: () => { const c = currentColls(); on ? setColls(c.filter(x => x !== n)) : setColls([...c, n]); } }, (on ? '✓ ' : '') + n)); });
 }
+const collChip = (u, onx) => el('span', { class: 'pill mut', style: 'margin-right:.3rem' }, u,
+  el('a', { href: '#', style: 'margin-left:.3rem', onclick: async (e) => { e.preventDefault(); await onx(); } }, '×'));
 function renderCollManage() {
   const box = $('collManage'); if (!box) return; box.innerHTML = '';
   currentColls().forEach(n => {
-    const c = COLLS.find(x => x.name === n); if (!c || !c.mine) return;
-    const inp = el('input', { type: 'text', placeholder: 'add setter: login', style: 'max-width:14rem' }), list = el('span', { class: 'small' });
-    const renderM = (ms) => { list.innerHTML = ''; list.append('setters: ');
-      (ms || []).forEach(u => list.append(el('span', { class: 'pill mut', style: 'margin-right:.3rem' }, u,
-        el('a', { href: '#', style: 'margin-left:.3rem', onclick: async (e) => { e.preventDefault(); await collMembers(n, [], [u], renderM); } }, '×')))); };
-    renderM(c.members);
-    box.append(el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin:.3rem 0;flex-wrap:wrap' },
-      el('b', {}, '⚙ ' + n), inp,
-      el('button', { class: 'btn ghost', type: 'button', onclick: async () => { const u = inp.value.trim(); if (u) { await collMembers(n, [u], [], renderM); inp.value = ''; } } }, 'adicionar setter'), list));
+    const c = COLLS.find(x => x.name === n); if (!c || !c.can_manage) return;
+    const sList = el('span', { class: 'small' }), aList = el('span', { class: 'small' });
+    const sInp = el('input', { type: 'text', placeholder: 'login', style: 'max-width:12rem' });
+    const aInp = el('input', { type: 'text', placeholder: 'login', style: 'max-width:12rem' });
+    const draw = () => {
+      sList.innerHTML = ''; sList.append('setters: '); (c.members || []).forEach(u => sList.append(collChip(u, () => collUpdate(n, { remove: [u] }))));
+      aList.innerHTML = ''; aList.append('co-admins: '); (c.admins || []).forEach(u => aList.append(collChip(u, () => collUpdate(n, { admins_remove: [u] }))));
+    };
+    c._draw = draw; draw();
+    box.append(el('div', { style: 'border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.4rem .6rem;margin:.3rem 0' },
+      el('div', {}, el('b', {}, '⚙ ' + n), el('span', { class: 'small muted' }, c.mine ? '  (você é dono)' : '  (você é co-admin)')),
+      el('div', { class: 'row', style: 'gap:.4rem;align-items:center;margin:.2rem 0;flex-wrap:wrap' }, sInp,
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => { const u = sInp.value.trim(); if (u) { collUpdate(n, { add: [u] }); sInp.value = ''; } } }, '+ setter'), sList),
+      el('div', { class: 'row', style: 'gap:.4rem;align-items:center;margin:.2rem 0;flex-wrap:wrap' }, aInp,
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => { const u = aInp.value.trim(); if (u) { collUpdate(n, { admins_add: [u] }); aInp.value = ''; } } }, '+ co-admin'), aList)));
   });
 }
-async function collMembers(name, add, remove, cb) {
+async function collUpdate(name, patch) {
   try {
-    const j = await apiPost('/problems/collection-members', { name, add, remove }, { contest: CONTEST, auth: true });
-    const c = COLLS.find(x => x.name === name); if (c) c.members = j.members; if (cb) cb(j.members);
+    const j = await apiPost('/problems/collection-members', { name, ...patch }, { contest: CONTEST, auth: true });
+    const c = COLLS.find(x => x.name === name); if (c) { c.members = j.members; c.admins = j.admins; if (c._draw) c._draw(); }
     setMsg('coleção atualizada ✓', 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
@@ -346,6 +355,7 @@ async function boot() {
   if (!st.logged_in) { $('needauth').style.display = ''; return; }
   $('app').style.display = '';
   try { REPOS = (await apiGet('/problems/repos', { contest: CONTEST, auth: true })).repos || []; } catch { REPOS = []; }
+  try { CAN_CREATE = !!(await apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true })).can_create; } catch {}
 
   const p = qs();
   if (p.get('id')) { MODE = 'edit'; ID = p.get('id'); await loadSource(ID); }
@@ -374,7 +384,12 @@ async function boot() {
   $('confRaw').addEventListener('change', () => confToFields($('confRaw').value));
   $('newCollBtn').onclick = newColl;
   $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });
-  if (!EDITABLE) ['newCollBtn'].forEach(b => { if ($(b)) $(b).disabled = true; });
+  // criar pasta/coleção e criar problema novo: só p/ quem pode criar (regra de criar contest)
+  if (!CAN_CREATE) ['newdir', 'newCollBtn'].forEach(b => { if ($(b)) $(b).disabled = true; });
+  if (MODE === 'new' && !CAN_CREATE) {
+    showNote('⚠ Você não tem permissão para criar problemas. Peça a um administrador — é a mesma permissão de criar contests.');
+    if ($('save')) $('save').disabled = true;
+  } else if (!EDITABLE) { if ($('newCollBtn')) $('newCollBtn').disabled = true; }
   await loadColls();
 }
 boot();

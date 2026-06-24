@@ -35,7 +35,12 @@ src="$ex"; top="$(find "$ex" -maxdepth 1 -mindepth 1)"
 [[ "$(printf '%s\n' "$top" | grep -c .)" -eq 1 && -d "$top" ]] && src="$top"
 
 tmp="$(git_broker_open "$SESSION_LOGIN" "$owner" "$repo")" || fail 502 "Falha ao abrir o repositório" "git_open"
-wt="$tmp/wt"; mkdir -p "$wt/$prob"
+wt="$tmp/wt"
+if [[ ! -d "$wt/$prob" ]]; then   # problema NOVO via tar -> exige permissão de criação
+  source "$_DIR/lib/contest-create.sh"
+  cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar novos problemas (mesma regra de criar contest)" "create_forbidden"
+fi
+mkdir -p "$wt/$prob"
 rsync -a --delete --exclude='.git' "$src"/ "$wt/$prob"/ 2>/dev/null \
   || { rm -rf "$wt/$prob"; mkdir -p "$wt/$prob"; cp -a "$src"/. "$wt/$prob"/; }
 write_meta "$wt/$prob" "$owner" "$repo" "" "" ""

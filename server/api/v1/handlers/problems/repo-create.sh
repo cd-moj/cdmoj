@@ -4,7 +4,8 @@
 # repos legados nem com diretório de outro dono).
 require_method POST
 require_auth
-source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"
+source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"; source "$_DIR/lib/contest-create.sh"
+cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar (mesma regra de criar contest)" "create_forbidden"
 
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 repo="$(jq -r '.repo // empty' <<<"$body")"

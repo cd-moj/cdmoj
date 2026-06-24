@@ -85,8 +85,13 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/set-public` | POST `{id, public:bool}` | marca público no `.moj-meta.json` (+ enfileira validação se `true`) |
 | `/problems/set-collections` | POST `{id, collections:[...]}` | define coleções no `.moj-meta.json` |
 | `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (colaborador Gitea; só o dono gerencia) |
-| `/problems/collection-create` | POST `{name, members?, title?}` | cria uma **coleção** (competição/curso) com um **grupo de setters** |
-| `/problems/collection-members` | GET `?name` / POST `{name,add?,remove?}` | gerencia o grupo da coleção; ao mudar, propaga acesso aos repos com problema nela (só o dono) |
+| `/problems/collection-create` | POST `{name, members?, admins?, title?}` | cria uma **coleção** (competição/curso) com **setters** e co-**admins** (exige permissão de criação) |
+| `/problems/collection-members` | GET `?name` / POST `{name,add?,remove?,admins_add?,admins_remove?}` | dono **ou co-admin** gerencia setters E admins; propaga acesso aos repos com problema na coleção |
+
+> **Quem pode criar** (problemas/pastas/coleções) = mesma regra de criar contest
+> (`cc_can_create`: `.admin` ou allowlist ou ≥ N resolvidos, menos a denylist) — gerida em
+> `/treino/admin/contest-perms`. `create`/`repo-create`/`collection-create`/`upload`-novo exigem isso;
+> editar/compartilhar problema existente continua por colaborador (`gitea_can_write`).
 | `/problems/git-credential` | POST `{repo}` | credencial HTTPS efêmera p/ o **modo git** do CLI (`{url,username,token}`); só quem pode escrever; não persistir |
 | `/problems/webhook` | POST | **Gitea → MOJ** (sem Bearer; HMAC `X-Gitea-Signature`). Em cada push, enfileira `index` dos problemas alterados e registra o diretório. Webhook criado automático no `repo-create`/migração; URL em `MOJ_WEBHOOK_URL` |
 

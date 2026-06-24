@@ -200,7 +200,10 @@ async function boot() {
     document.getElementById('toolbar').style.display = 'none';
     return;
   }
-  document.getElementById('toolbar').append(
+  // o botão de criar só aparece p/ quem pode criar (mesma regra de criar contest)
+  let canCreate = false;
+  try { canCreate = !!(await apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true })).can_create; } catch {}
+  if (canCreate) document.getElementById('toolbar').append(
     el('a', { class: 'btn', href: '/problemas/editar.html?novo=1', style: 'margin-left:auto' }, '+ Novo problema'));
   document.querySelectorAll('#tabs button').forEach(b =>
     b.addEventListener('click', () => loadTab(b.dataset.tab)));
