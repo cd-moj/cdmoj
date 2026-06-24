@@ -13,6 +13,8 @@
 : "${REG_TTL:=30}"                          # s; heartbeat mais velho = worker morto
 : "${ASSIGN_TTL:=120}"                      # s; job reivindicado sem novo beat volta p/ fila
 : "${STARVE_SECS:=300}"                     # s; promove de banda após esse tempo
+: "${COLD_GRACE:=8}"                        # s; modelo cache: juiz que NÃO tem o problema
+                                            # só reivindica após isso (dá vez aos quentes)
 
 # bandas, prioridade ALTA -> BAIXA. 'rejulgar' entre privada e pública.
 SCHED_BANDS=(000-super 020-prova 040-lista-privada 060-rejulgar 080-lista-publica)
@@ -101,19 +103,25 @@ q_claim() {
   sched_init_dirs
   (
     flock 9 || exit 0
-    local band f prob need dest base
+    local band f prob need dest base ts
     for band in "${SCHED_BANDS[@]}"; do
       while IFS= read -r f; do
         [[ -f "$f" ]] || continue
         prob="$(jq -r '.problem_id // empty' "$f" 2>/dev/null)"
         need="$(jq -r '.need_capability // empty' "$f" 2>/dev/null)"
         [[ -n "$need" && "$need" != "$cap" ]] && continue
-        # tem-o-problema, tolerante a convenção de id (repo#prob vs repo/prob)
-        printf '%s' "$probs" | jq -e --arg p "$prob" '
-          . as $obj
-          | ([$p, ($p|gsub("#";"/")), ($p|gsub("/";"#"))] | unique) as $vs
-          | any($vs[]; in($obj))' >/dev/null 2>&1 || continue
         base="$(basename "$f")"
+        # modelo cache: QUALQUER juiz capaz pode julgar (baixa o pacote + calibra sob
+        # demanda). Preferência "quente": quem JÁ tem o problema (cache calibrado)
+        # reivindica na hora; quem não tem só pega após COLD_GRACE, dando vantagem aos
+        # juízes quentes. Tolerante à convenção de id (repo#prob vs repo/prob).
+        if ! printf '%s' "$probs" | jq -e --arg p "$prob" '
+              . as $obj
+              | ([$p, ($p|gsub("#";"/")), ($p|gsub("/";"#"))] | unique) as $vs
+              | any($vs[]; in($obj))' >/dev/null 2>&1; then
+          ts="${base%%_*}"
+          [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= COLD_GRACE )) && continue
+        fi
         mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null
         dest="$ASSIGNEDDIR/$host/$base"
         if mv "$f" "$dest" 2>/dev/null; then
@@ -188,11 +196,13 @@ q_reconcile() {
   done < <(find "$ASSIGNEDDIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
 }
 
-# --------------------------------------------------- atualização de repositórios
-# Problemas estão em NFS compartilhado: UM host roda o git pull e todos enxergam.
-# O pedido vira um marcador que o heartbeat entrega a UM worker livre (exclusivo).
+# --------------------------------------------------- pedidos de calibração/índice
+# Modelo cache: o servidor mantém o store dos pacotes e indexa; o juiz baixa o pacote
+# por problema, CALIBRA e reporta o TL. "update problems" = pedir calibração dos
+# problemas novos/alterados. O pedido vira um marcador entregue a UM worker livre.
 upd_request() {  # $1=repo $2=requested_by [$3=note] [$4=kind] [$5=target] -> ecoa o reqid
-  # kind ∈ {update,index,calibrate} (default update); target = problem_id p/ index/calibrate.
+  # kind ∈ {calibrate,index,update}; target = problem_id. calibrate = juiz roda o
+  # calibreitor no cache e reporta o TL (kind=index/update são legados: o servidor indexa).
   mkdir -p "$UPDATESDIR/pending" 2>/dev/null
   local reqid; reqid="$(printf '%s%s%s' "$1" "$EPOCHSECONDS" "$RANDOM" | md5sum | cut -c1-16)"
   local tmp="$UPDATESDIR/pending/.$reqid.tmp"

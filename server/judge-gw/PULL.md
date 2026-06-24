@@ -12,9 +12,13 @@ heartbeat (sem loop, sem porta de entrada nos juízes). Ver também `README.md`
 ```
  Juiz (agent, só curl de saída)            API (nginx+fcgiwrap, server/api/v1)
   POST /judge/register  ─────────────▶  handlers/judge/register.sh  ─▶ run/registry/<host>.json
+  GET  /judge/package-meta?id ───────▶  handlers/judge/package-meta.sh ─▶ {checksum} (afeta-TL)
+  GET  /judge/package?id ────────────▶  handlers/judge/package.sh   ─▶ .tar.gz + X-Moj-Checksum
+  ...cacheia em ~/.cache/moj/problems/<id>, CALIBRA na 1ª vez (calibreitor → tl.<host>)...
+  POST /judge/tl-report(id,checksum,tl)▶ handlers/judge/tl-report.sh ─▶ run/tl/<id>.json (por host)
   POST /judge/heartbeat(state,inv) ──▶  handlers/judge/heartbeat.sh = ESCALONADOR
         ◀── {assigned|null, update|null, reregister} ──  (claim atômico na fila por prioridade)
-  ...julga com mojtools (NFS, tl.<host>) em background, batendo "busy"...
+  ...julga com mojtools no CACHE local (tl.<host>) em background, batendo "busy"...
   POST /judge/result(verdict,tests,html_b64) ─▶ handlers/judge/result.sh ─▶ spool "result"
                                                                               │
   submit ─▶ spool ─▶ server/daemons/judged.sh (INTAKE) ─▶ enfileira na banda de prioridade
@@ -26,19 +30,46 @@ heartbeat (sem loop, sem porta de entrada nos juízes). Ver também `README.md`
 
 | arquivo | papel |
 |---|---|
-| `server/judge-gw/sched-lib.sh` | Biblioteca: registro `<host>.json`, fila por bandas, `q_claim` (claim atômico por flock+mv), `q_promote_starved`, `q_reconcile` (requeue de morto), `upd_*` (atualização de repo). |
-| `server/api/v1/lib/worker-auth.sh` | `require_worker`: Bearer `mojw_<token>` (compartilhado, NFS, 600). |
-| `server/api/v1/handlers/judge/register.sh` | Anuncia specs (CPU/mem/**GPU**) + inventário (problemas) → `registry/<host>.json`. |
+| `server/judge-gw/sched-lib.sh` | Biblioteca: registro `<host>.json`, fila por bandas, `q_claim` (claim atômico + **preferência quente/`COLD_GRACE`**), `q_promote_starved`, `q_reconcile`, `upd_*`/`cal_request` (pedidos de calibração). |
+| `server/api/v1/lib/tl-store.sh` | Store dos TLs reportados pelos juízes (`run/tl/<id>.json`, por host, por checksum); TL servível = **máx entre hosts**; `pkg_tl_checksum`, `index_problem_bg` (índice no servidor). |
+| `server/api/v1/lib/worker-auth.sh` | `require_worker`: Bearer `mojw_<token>` (compartilhado, 600). |
+| `server/api/v1/handlers/judge/register.sh` | Anuncia specs (CPU/mem/**GPU**) + inventário (problemas **em cache**) → `registry/<host>.json`. |
+| `server/api/v1/handlers/judge/package{,-meta}.sh` | Serve o pacote do problema (.tar.gz) + checksum p/ o juiz cachear. |
+| `server/api/v1/handlers/judge/tl-report.sh` | Recebe o TL calibrado pelo juiz → `run/tl/<id>.json`; re-indexa o `var/jsons`. |
 | `server/api/v1/handlers/judge/heartbeat.sh` | Pulso; se livre, reivindica 1 update OU 1 job e devolve. **É o escalonador.** |
 | `server/api/v1/handlers/judge/result.sh` | Recebe o veredicto do worker → spool "result" (judged finaliza). |
-| `server/api/v1/handlers/judge/update-report.sh` | Recebe o report de atualização → `registry.<host>.last_update`. |
+| `server/api/v1/handlers/judge/update-report.sh` | Recebe o report de calibração (ok/log) → `registry.<host>.last_update`. |
+| `server/api/v1/handlers/ops/problemtl.sh` | (admin) TL de um problema, do store (máx entre hosts) + por host. |
 | `server/api/v1/handlers/judge/list.sh` | (admin) Dump dos juízes: specs + inventário + `last_update`. |
-| `judge/agent/moj-agent.sh` + `inventory.sh` | O agente (pull). Roda 1 por capacidade. |
+| `mojtools/tl-checksum.sh` | Checksum (16 hex) dos arquivos que afetam o TL (conf+tests/input+sols/good). |
+| `judge/agent/moj-agent.sh` + `inventory.sh` | O agente (pull + **cache**). Roda 1 por capacidade. |
 | `server/etc/systemd/moj-agent@.service` | Unit do agente: `systemctl enable --now moj-agent@pos`. |
 
 `judged.sh` ganhou: `INTAKE_MODE`/`INTAKE_QUEUE_CONTESTS` (intake p/ fila), ingestão do
 comando `result` e do `synctreino`. `contest-create.sh` ganhou `CONTEST_PRIORITY`
-(separado do modo). `build-and-test.sh`/`calibreitor.sh` usam `tl.<host>` (NFS).
+(separado do modo). `build-and-test.sh`/`calibreitor.sh` rodam no **cache local** do juiz
+(`tl.<host>`), sem depender de NFS.
+
+## Modelo cache (pacotes por problema + TL reportado)
+
+O juiz **não clona repositório**. Ele baixa o **pacote de cada problema** (sob demanda,
+no 1º job ou num pedido de calibração) p/ um **cache local** (`~/.cache/moj/problems/<id>`)
+e guarda, junto, o **checksum** dos arquivos que afetam o TL (`conf`+`tests/input`+`sols/good`,
+via `mojtools/tl-checksum.sh`). Na 1ª vez (ou quando o checksum muda) ele **calibra**
+(`calibreitor.sh` → `tl.<host>`) e **reporta** o TL ao MOJ (`POST /judge/tl-report`). O MOJ
+guarda o TL **por host, por checksum** (`run/tl/<id>.json`) e serve o **máximo entre os hosts**
+no `var/jsons` (conservador). Ao **relançar**, o agente re-reporta os TLs do cache (sem
+recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos recalibram).
+
+- **NFS** vira opcional: só serve p/ "aproveitar o cache" — levantar um juiz é só conectar.
+- **Escalonamento**: `q_claim` prefere juízes **quentes** (já têm o problema em cache); quem
+  não tem só pega o job após `COLD_GRACE` (8 s) — aí baixa+calibra sob demanda. Qualquer juiz
+  capaz julga qualquer problema; nada de "validar inventário".
+- **"update problems"** (`/ops/updateproblemset`) não clona: enfileira **calibração** dos
+  problemas novos/alterados (checksum ≠ o do TL guardado). `{all:true}` recalibra tudo.
+- **Indexar** (`var/jsons`, HTML do enunciado) roda **no servidor** (`index_problem_bg`, via o
+  Makefile do repo no store) — `publish`/`webhook` chamam isso + pedem calibração. Só o
+  enunciado HTML precisa do repo; calibrar/julgar usam só o pacote no cache + o `mojtools`.
 
 ## Prioridade (bandas)
 
@@ -50,9 +81,12 @@ comando `result` e do `synctreino`. `contest-create.sh` ganhou `CONTEST_PRIORITY
 
 | var | default | papel |
 |---|---|---|
-| `RUNDIR` | `…/run` | estado: `registry/`, `queue/<banda>/`, `assigned/<host>/`, `results/`, `updates/` |
+| `RUNDIR` | `…/run` | estado: `registry/`, `queue/<banda>/`, `assigned/<host>/`, `results/`, `updates/`, **`tl/`** |
 | `REG_TTL` | `30` | s; heartbeat mais velho = worker morto |
 | `ASSIGN_TTL` | `120` | s; job reivindicado sem novo beat volta p/ fila |
+| `COLD_GRACE` | `8` | s; juiz que NÃO tem o problema em cache só reivindica após isso |
+| `JUDGE_CACHE` | `~/.cache/moj/problems` | (juiz) cache local de pacotes por problema |
+| `MOJ_PROBLEMS_DIR` | `…/moj-problems` | (servidor) store dos pacotes servidos aos juízes |
 | `INTAKE_MODE` | `legacy` | `queue` = intake vai p/ a fila (pull) globalmente |
 | `INTAKE_QUEUE_CONTESTS` | — | `"treino c2"` = habilita o pull só nesses contests (rollout) |
 | `WORKER_TOKEN_FILE` | `…/run/secrets/worker.token` (API) / `…/judge/etc/worker.token` (juiz) | token `mojw_…` |
@@ -64,7 +98,7 @@ comando `result` e do `synctreino`. `contest-create.sh` ganhou `CONTEST_PRIORITY
 TOK="mojw_$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
 # no host da API:
 install -Dm600 <(printf '%s' "$TOK") "$RUNDIR/secrets/worker.token"
-# espelhe no NFS p/ os juízes:
+# distribua p/ cada juiz (NFS ou cópia — o juiz só precisa do token + mojtools + cache):
 install -Dm600 <(printf '%s' "$TOK") /home/prof/judge/etc/worker.token
 ```
 

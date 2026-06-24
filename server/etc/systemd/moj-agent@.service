@@ -15,9 +15,9 @@ EnvironmentFile=-/home/prof/judge/etc/agent.env
 Environment=MOJ_API=http://localhost/api/v1
 Environment=CAPABILITY=%i
 Environment=WORKER_TOKEN_FILE=/home/prof/judge/etc/worker.token
-Environment=PROBLEMSDIR=/home/prof/judge/problems
 Environment=MOJTOOLS_DIR=/home/prof/mojtools
-Environment=UPDATE_SCRIPT=/home/prof/judge/update-problems.sh
+# modelo cache: baixa o pacote por problema p/ o cache local (sem clonar repo/NFS)
+Environment=JUDGE_CACHE=/home/prof/judge/cache/problems
 Environment=HEARTBEAT_SECS=3
 WorkingDirectory=/home/prof/judge/agent
 ExecStart=/bin/bash /home/prof/judge/agent/moj-agent.sh

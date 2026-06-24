@@ -3,7 +3,7 @@
 # (1 juiz pega no heartbeat) e mantém o registro de diretórios. Fecha o laço: editou/migrou,
 # o treino reindexa sozinho.
 require_method POST
-source "$_DIR/lib/problems.sh"; source "$_DIR/../../judge-gw/sched-lib.sh"
+source "$_DIR/lib/problems.sh"; source "$_DIR/../../judge-gw/sched-lib.sh"; source "$_DIR/lib/tl-store.sh"
 : "${GITEA_WEBHOOK_SECRET_FILE:=$RUNDIR/secrets/gitea-webhook.secret}"
 
 body="$(read_body)"
@@ -23,11 +23,16 @@ owner="$(jq -r '.repository.owner.login // .repository.owner.username // empty' 
 # garante o registro do diretório (dono do payload) p/ a UI/CLI
 [[ -n "$(repo_owner "$repo")" ]] || { [[ "$owner" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] && repo_register "$repo" "$owner" "$repo"; }
 
-# problemas alterados = 1º segmento dos paths tocados (ignora arquivos na raiz)
+# modelo cache: atualiza o store do SERVIDOR (o juiz não clona mais) — best-effort.
+[[ -d "$MOJ_PROBLEMS_DIR/$repo/.git" ]] && ( cd "$MOJ_PROBLEMS_DIR/$repo" && git pull --recurse-submodules ) >/dev/null 2>&1 || true
+
+# problemas alterados = 1º segmento dos paths tocados (ignora arquivos na raiz):
+# (re)indexa NO SERVIDOR (HTML/var-jsons) e pede CALIBRAÇÃO a um juiz (o checksum mudou).
 n=0
 while IFS= read -r prob; do
   [[ "$prob" =~ ^[a-z0-9][a-z0-9._-]{0,80}$ ]] || continue
-  idx_request "$repo" "$repo#$prob" "webhook" >/dev/null; n=$((n+1))
+  index_problem_bg "$repo#$prob" 1                      # portão estático + index (servidor)
+  cal_request "$repo" "$repo#$prob" "webhook" >/dev/null; n=$((n+1))
 done < <(jq -r '[.commits[]? | (.added[]?, .modified[]?, .removed[]?)] | map(select(contains("/")) | split("/")[0]) | unique[]' <<<"$body" 2>/dev/null)
 
 # força regen do índice de donos no próximo acesso
