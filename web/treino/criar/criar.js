@@ -219,22 +219,26 @@ function buildForm(perm) {
 
   // --- problemas ---
   const listBox = el('div', {});
-  const search = el('input', { placeholder: '🔎 Buscar no banco público (título ou id)…' });
+  const search = el('input', { placeholder: '🔎 Buscar problemas (públicos + os seus privados) — título ou id…' });
   const results = el('div', { class: 'bank-results', style: 'display:none' });
+  const accTag = (it) => it.private
+    ? el('span', { class: 'tag', style: 'margin-left:.4rem;background:#3d3417;color:#ffe08a' }, it.access === 'shared' ? 'compartilhado' : 'privado')
+    : '';
   const doSearch = debounce(async () => {
     const q = search.value.trim();
-    if (!q) { results.style.display = 'none'; results.innerHTML = ''; return; }
     try {
       const r = await apiGet('/treino/contest-create/problems?limit=30&q=' + encodeURIComponent(q), { contest: 'treino', auth: true });
-      results.innerHTML = '';
-      if (!r.problems || !r.problems.length) { results.style.display = 'block'; results.append(el('div', { class: 'bank-item' }, el('span', { class: 'muted small' }, 'nada encontrado'))); return; }
-      r.problems.forEach((it) => results.append(el('div', { class: 'bank-item' },
-        el('div', {}, el('div', { class: 't' }, it.title || it.id), el('div', { class: 'i' }, it.id)),
+      let items = r.problems || [];
+      if (!q) items = items.filter((it) => it.private);   // sem busca: mostra só os SEUS (privados/compartilhados)
+      results.innerHTML = ''; results.style.display = 'block';
+      if (!items.length) { results.append(el('div', { class: 'bank-item' }, el('span', { class: 'muted small' }, q ? 'nada encontrado' : 'você não tem problemas privados — digite para buscar no banco público'))); return; }
+      items.forEach((it) => results.append(el('div', { class: 'bank-item' },
+        el('div', {}, el('div', { class: 't' }, (it.title || it.id), accTag(it)), el('div', { class: 'i' }, it.id)),
         el('button', { class: 'btn ghost', onclick: () => addProblem({ kind: 'bank', bank_id: it.id, name: it.title || it.id }, listBox) }, '+ adicionar'))));
-      results.style.display = 'block';
     } catch (e) { results.style.display = 'block'; results.innerHTML = ''; results.append(el('div', { class: 'bank-item' }, el('span', { class: 'small error-box' }, e.message || 'erro'))); }
   }, 250);
   search.addEventListener('input', doSearch);
+  search.addEventListener('focus', doSearch);
   const bySrc = el('input', { value: 'cdmoj', style: 'width:90px' });
   const byPid = el('input', { placeholder: 'id do problema (ex.: secreto/foo)' });
   const byName = el('input', { placeholder: 'nome exibido' });
@@ -242,8 +246,8 @@ function buildForm(perm) {
   const probs = el('div', { class: 'section' },
     el('h2', {}, '2 · Problemas'),
     makeDrawPanel(listBox),
-    el('div', { class: 'field' }, el('label', {}, 'Buscar no banco'), search, results),
-    el('div', { class: 'field' }, el('label', {}, 'Adicionar por ID (não-públicos)'), el('div', { class: 'row' }, bySrc, byPid, byName, byAdd)),
+    el('div', { class: 'field' }, el('label', {}, 'Buscar problemas (públicos + seus privados)'), search, results),
+    el('div', { class: 'field' }, el('label', {}, 'Adicionar por ID (avançado)'), el('div', { class: 'row' }, bySrc, byPid, byName, byAdd)),
     el('h3', { style: 'margin:.8rem 0 .2rem' }, 'Problemas do contest'), listBox);
   renderProblems(listBox);
 

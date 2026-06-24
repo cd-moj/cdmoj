@@ -153,6 +153,18 @@ grant_problem_collections(){
     < <(owners_merged | jq -r --arg id "$id" 'first(.problems[]|select(.id==$id)).collections[]?' 2>/dev/null)
 }
 
+# problem_access <id> <login> -> mine|shared|public|denied|unknown
+# (denied = existe, é privado e o login não é dono/colaborador; unknown = fora do índice)
+problem_access(){
+  ensure_owners_index
+  owners_merged | jq -r --arg id "$1" --arg me "$2" '
+    (first(.problems[]|select(.id==$id))) as $p
+    | if $p==null then "unknown"
+      elif $p.owner==$me then "mine"
+      elif (($p.collaborators // [])|index($me)) then "shared"
+      elif $p.public then "public" else "denied" end' 2>/dev/null
+}
+
 # problem_owner <id> -> login dono (overlay authored -> índice -> registro de repos). Vazio se desconhecido.
 problem_owner(){
   local id="$1" repo="${1%%#*}" o

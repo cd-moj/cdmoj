@@ -136,10 +136,10 @@ cc_create(){
       { [[ "$stmt_file" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ -f "$enun/$stmt_file" ]]; } || { rm -rf "$stg"; fail 422 "enunciado não encontrado: $stmt_file" "stmt_file"; }
       html="$(cat "$enun/$stmt_file")"
     elif [[ -n "$bankid" ]]; then
-      bf="$CONTESTSDIR/treino/var/jsons/$bankid.json"
+      bf="$CONTESTSDIR/treino/var/jsons/$bankid.json"; [[ -f "$bf" ]] || bf="$CONTESTSDIR/treino/var/jsons-private/$bankid.json"
       [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
     else
-      bf="$CONTESTSDIR/treino/var/jsons/$skey.json"
+      bf="$CONTESTSDIR/treino/var/jsons/$skey.json"; [[ -f "$bf" ]] || bf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"
       [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
     fi
     [[ -n "$html" ]] && printf '%s' "$html" > "$stg/enunciados/$skey.html"
@@ -297,8 +297,8 @@ cc_build_probs(){
     html=""
     if [[ -n "$stmt_b64" ]]; then html="$(printf '%s' "$stmt_b64" | base64 -d 2>/dev/null)" || return 1
     elif [[ -n "$enun" && -n "$stmt_file" && -f "$enun/$stmt_file" ]]; then html="$(cat "$enun/$stmt_file")"
-    elif [[ -n "$bankid" ]]; then bf="$CONTESTSDIR/treino/var/jsons/$bankid.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
-    else bf="$CONTESTSDIR/treino/var/jsons/$skey.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"; fi
+    elif [[ -n "$bankid" ]]; then bf="$CONTESTSDIR/treino/var/jsons/$bankid.json"; [[ -f "$bf" ]] || bf="$CONTESTSDIR/treino/var/jsons-private/$bankid.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
+    else bf="$CONTESTSDIR/treino/var/jsons/$skey.json"; [[ -f "$bf" ]] || bf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"; fi
     [[ -n "$html" ]] && printf '%s' "$html" > "$tdir/enunciados/$skey.html"
     probs+=" $(printf '%q' "$src") $(printf '%q' "$pid") $(printf '%q' "$pname") $(printf '%q' "$letter") $(printf '%q' "$skey")"
     ((i++))
