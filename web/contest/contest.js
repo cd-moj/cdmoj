@@ -89,6 +89,23 @@ async function openLogAuthed(path) {
   } catch { alert(T('Falha ao abrir o log.', 'Failed to open log.')); }
 }
 
+// abre o report.html (auto-contido) do julgamento num iframe sandboxed: renderiza
+// HTML/CSS mas bloqueia JS (defesa em profundidade — o conteúdo já é escapado na origem).
+async function openReportAuthed(path) {
+  try {
+    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
+    const html = await r.text();
+    const w = window.open('', '_blank');
+    if (!w) { alert(T('Permita pop-ups para ver o report.', 'Allow pop-ups to view the report.')); return; }
+    w.document.title = 'Report'; w.document.body.style.margin = '0';
+    const ifr = w.document.createElement('iframe');
+    ifr.setAttribute('sandbox', '');
+    ifr.srcdoc = html;
+    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%';
+    w.document.body.append(ifr);
+  } catch { alert(T('Falha ao abrir o report.', 'Failed to open report.')); }
+}
+
 // ============================================================================
 // LOGIN FULL-SCREEN
 // ============================================================================
@@ -515,7 +532,7 @@ function renderSubmissions() {
     const vcell = el('td', {}, el('span', { class: 'verdict ' + vClass(s.verdict) },
       pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict));
     const logCell = canLog ? el('td', {},
-      el('a', { href: '#', onclick: (e) => { e.preventDefault(); openLogAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.subid)}&time=${encodeURIComponent(s.epoch)}`); } }, 'log')) : null;
+      el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.subid)}&time=${encodeURIComponent(s.epoch)}`); } }, 'log')) : null;
     tb.append(el('tr', {},
       el('td', {}, String(s.sinceStart)),
       el('td', {}, el('b', {}, shortNameOf(s.problem)), ' ', el('span', { class: 'small muted' }, fullNameOf(s.problem))),

@@ -86,6 +86,23 @@ async function downloadAuthed(path, filename) {
   document.body.append(a); a.click(); a.remove();
 }
 
+// abre o report.html (auto-contido) do julgamento num iframe sandboxed: renderiza
+// HTML/CSS mas bloqueia JS (defesa em profundidade — o conteúdo já é escapado na origem).
+async function openReportAuthed(path) {
+  try {
+    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
+    const html = await r.text();
+    const w = window.open('', '_blank');
+    if (!w) { alert('Permita pop-ups para ver o report.'); return; }
+    w.document.title = 'Report'; w.document.body.style.margin = '0';
+    const ifr = w.document.createElement('iframe');
+    ifr.setAttribute('sandbox', '');
+    ifr.srcdoc = html;
+    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%';
+    w.document.body.append(ifr);
+  } catch { alert('Falha ao abrir o report.'); }
+}
+
 async function openSubmissionInEditor(subid, time, langField) {
   let txt;
   try {
@@ -126,7 +143,7 @@ async function loadHistory() {
       ' · ',
       el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`, r.subid + '.' + ext); } }, 'cód'),
       ' · ',
-      el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/log?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`, r.subid + '.log'); } }, 'log'));
+      el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`); } }, 'log'));
     const vcell = el('td', {}, el('span', { class: 'verdict ' + verdictClass(r.verdict) },
       isPending(r.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + r.verdict) : r.verdict));
     tb.append(el('tr', {}, el('td', {}, fmtDate(r.epoch)), acts, el('td', {}, r.lang), vcell));

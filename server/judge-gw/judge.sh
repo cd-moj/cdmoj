@@ -99,8 +99,20 @@ judge_run_local() {
   # lowercase a linguagem como o cluster faz.
   local llang
   llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
-  verdict="$(bash "$bat" "$llang" "$src" "$pkg" y 2>/dev/null | tail -n1)"
+  local out batwork
+  out="$(bash "$bat" "$llang" "$src" "$pkg" y 2>/dev/null)"
   rc=$?
+  batwork="$(printf '%s\n' "$out" | head -n1)"   # 1ª linha do stdout = workdir
+  verdict="$(printf '%s\n' "$out" | tail -n1)"   # última linha = veredicto
+  # captura o report.html auto-contido gerado pelo build-and-test.sh, se a API
+  # pediu (JUDGE_REPORT_OUT). build-and-test.sh não limpa o próprio workdir.
+  if [[ -n "$batwork" && -d "$batwork" && -f "$batwork/run-trace.log" ]]; then
+    if [[ -n "${JUDGE_REPORT_OUT:-}" && -f "$batwork/report.html" ]]; then
+      mkdir -p "$(dirname "$JUDGE_REPORT_OUT")" 2>/dev/null
+      cp -f "$batwork/report.html" "$JUDGE_REPORT_OUT" 2>/dev/null
+    fi
+    rm -rf "$batwork"
+  fi
   rm -rf "$work"
   if [[ -z "$verdict" ]]; then
     judge_log "backend=local: build-and-test.sh não retornou veredicto (rc=$rc)"

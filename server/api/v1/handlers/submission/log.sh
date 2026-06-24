@@ -1,6 +1,7 @@
-# GET /submission/log?contest=<id>&id=<hash>[&time=<epoch>]   (Bearer) -> TXT
-# Log do julgamento, localizado pelo HASH (mojlog/*<hash>*). Se não houver log
-# (ex.: submissão mock), responde uma nota amigável. Visível se dono/admin/judge/SHOWCODE.
+# GET /submission/log?contest=<id>&id=<hash>[&time=<epoch>]   (Bearer) -> HTML
+# Report do julgamento (report.html auto-contido), localizado pelo HASH
+# (mojlog/*<hash>*). Se não houver report (ex.: submissão mock), responde uma nota
+# amigável. Visível se dono/admin/judge/SHOWCODE.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -31,5 +32,5 @@ fi
 
 logs=("$CONTESTSDIR/$contest/mojlog/"*"$sid"*)
 shopt -u nullglob
-emit_text
-if (( ${#logs[@]} > 0 )); then cat "${logs[0]}"; else printf 'Log indisponível para esta submissão.\n'; fi
+emit_html
+if (( ${#logs[@]} > 0 )); then cat "${logs[0]}"; else printf '<!doctype html><meta charset="utf-8"><p style="font:16px sans-serif;color:#64748b;padding:1rem">Report indisponível para esta submissão.</p>\n'; fi

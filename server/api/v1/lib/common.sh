@@ -24,6 +24,7 @@ respond() {  # respond <code> <reason> <content-type>
 }
 emit_json(){ respond "${1:-200}" "${2:-OK}" "application/json; charset=utf-8"; }
 emit_text(){ respond "${1:-200}" "${2:-OK}" "text/plain; charset=utf-8"; }
+emit_html(){ respond "${1:-200}" "${2:-OK}" "text/html; charset=utf-8"; }
 
 _reason() {
   case "$1" in
