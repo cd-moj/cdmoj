@@ -1,9 +1,18 @@
 // treino/problemas/problemas.js — gestão de problemas (Meus/Compartilhados/Públicos/Coleções).
 // Leitura via /problems/* (Bearer). Detalhe mostra validação + enunciado e dispara
 // Validar/Publicar e Calibrar (handlers já existentes). Git fica escondido (Gitea atrás).
-import { apiGet, apiPost, ApiError } from '/shared/api.js';
+import { apiGet, apiPost, ApiError, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
+
+async function downloadAuthed(path, filename) {
+  try {
+    const r = await fetch('/api/v1' + path, { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const b = await r.blob(), a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+  } catch (e) { alert('Falha ao baixar: ' + (e.message || e)); }
+}
 
 const CONTEST = 'treino';
 const PAGE = 50;
@@ -126,7 +135,8 @@ async function openDetail(id) {
     el('div', { class: 'row', style: 'gap:.4rem' },
       el('a', { class: 'btn ghost', href: '/problemas/editar.html?id=' + encodeURIComponent(id) }, 'Editar'),
       el('button', { class: 'btn', id: 'btnPub', onclick: () => doAction('publish', id) }, 'Validar & Publicar'),
-      el('button', { class: 'btn ghost', id: 'btnCal', onclick: () => doAction('request-calibration', id) }, 'Calibrar')));
+      el('button', { class: 'btn ghost', id: 'btnCal', onclick: () => doAction('request-calibration', id) }, 'Calibrar'),
+      el('button', { class: 'btn ghost', title: 'Baixar como pacote ICPC/Kattis', onclick: () => downloadAuthed('/problems/export?id=' + encodeURIComponent(id), id.split('#').pop() + '.icpc.tar.gz') }, '⬇ ICPC')));
 
   const v = j.validation;
   const vbox = el('div', { style: 'margin-top:.6rem' });

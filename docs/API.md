@@ -76,6 +76,7 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/preview` | POST `{enunciado_md, enunciado_format?, examples?}` | **pré-visualização** HTML — pandoc `-f md/org/tex --mathml -s` (preserva o formato), injeta exemplos → `{html_b64}` |
 | `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
 | `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um pacote (`.tar`/`.tar.gz`/`.tar.bz2`/`.tar.zst`/`.zip`) e **substitui tudo** (commit+push) — máquinas sem git / offline |
+| `/problems/export?id=<id>` | GET | baixa o problema como **pacote ICPC/Kattis** (2025-09) `.tar.gz` (problem.yaml+statement+data+submissions); inclui soluções → exige escrita/admin (`mojtools/kattis/export.sh`) |
 
 > `source`/`create`/`edit` cobrem o pacote inteiro: `enunciado_md`, `conf_text` (TL/ulimits/
 > STOPWHEN/…, ver `saad-problems/README.org`), `examples` (sample), `tests` (ocultos) e `sols`
