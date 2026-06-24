@@ -44,12 +44,99 @@ JUDGE_GW="$SERVER_DIR/judge-gw/judge.sh"
 # shellcheck source=/dev/null
 source "$JUDGE_GW"
 
+# escalonador in-daemon (fila por prioridade + registro de workers) + ingestão pull
+source "$SERVER_DIR/judge-gw/sched-lib.sh"
+: "${RESULTSDIR:=$RUNDIR/results}"
+# INTAKE_MODE=legacy|queue (global); INTAKE_QUEUE_CONTESTS="c1 c2" habilita por contest.
+: "${INTAKE_MODE:=legacy}"
+
 log() { echo "[judged $(date +%H:%M:%S)] $*" >&2; }
 
 mkdir -p "$SPOOLDIR" "$SPOOLDONEDIR" 2>/dev/null
 
 # valida id de contest antes de tocar contests/<id>/... (evita path traversal).
 valid_contest_id() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] && [[ "$1" != *..* ]]; }
+
+# queue_mode_for <contest> : 0 se o intake deste contest deve ir p/ a fila (pull).
+queue_mode_for() {
+  [[ "${INTAKE_MODE:-legacy}" == queue ]] && return 0
+  case " ${INTAKE_QUEUE_CONTESTS:-} " in *" $1 "*) return 0;; esac
+  return 1
+}
+
+# archive_source <contest> <id> <login> <problem> <lang> <code_b64>
+# Arquiva a fonte decodificada em submissions/<id>-<login>-<problem>.<lang>.
+archive_source() {
+  local contest="$1" id="$2" login="$3" problem="$4" lang="$5" code_b64="$6"
+  [[ -n "$code_b64" ]] || return 0
+  local cdir="$CONTESTSDIR/$contest" llang dest tmp
+  llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
+  mkdir -p "$cdir/submissions" 2>/dev/null
+  dest="$cdir/submissions/$id-$login-$problem.${llang:-txt}"; tmp="$dest.tmp.$$"
+  if printf '%s' "$code_b64" | base64 -d > "$tmp" 2>/dev/null; then mv -f "$tmp" "$dest"; else rm -f "$tmp"; fi
+}
+
+# intake_enqueue ... : enfileira a submissão na banda do CONTEST_PRIORITY (não bloqueia).
+intake_enqueue() {
+  local json="$1" contest="$2" id="$3" login="$4" problem="$5" lang="$6" filename="$7" code_b64="$8"
+  local prio="${CONTEST_PRIORITY:-lista-publica}"
+  archive_source "$contest" "$id" "$login" "$problem" "$lang" "$code_b64"
+  local job
+  job="$(jq -cn --arg id "$id" --arg c "$contest" --arg p "$problem" --arg login "$login" \
+    --arg lang "$lang" --arg f "${filename:-solution}" --arg b "$code_b64" \
+    --arg prio "$prio" --argjson now "$EPOCHSECONDS" \
+    '{id:$id, contest:$c, problem_id:$p, login:$login, lang:$lang, filename:$f,
+      code_b64:$b, priority:$prio, enqueued_at:$now}')"
+  q_enqueue "$id" "$prio" "$job"
+}
+
+# write_result_json ... : grava o results/<id>.json canônico (sem o b64, com ref do HTML).
+write_result_json() {
+  local contest="$1" id="$2" login="$3" problem="$4" json="$5"
+  local cdir="$CONTESTSDIR/$contest" out
+  mkdir -p "$cdir/results" "$RESULTSDIR" 2>/dev/null
+  out="$(jq -c --arg login "$login" --arg prob "$problem" --argjson now "$EPOCHSECONDS" '
+    del(.report_html_b64)
+    + { login:(.login // $login), problem_id:(.problem_id // $prob),
+        report_html:("mojlog/\(.id)-\($login)-\($prob).html"), finalized_at:$now }' \
+    <<<"$json" 2>/dev/null)"
+  [[ -n "$out" ]] || return 0
+  local tmp="$cdir/results/.$id.tmp"
+  printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cdir/results/$id.json"
+  cp -f "$cdir/results/$id.json" "$RESULTSDIR/$id.json" 2>/dev/null || true
+}
+
+# ingest_result <result-json> : finaliza um julgamento vindo do worker (modelo pull).
+# Único escritor do history. Herda tempo/login/prob/lang/epoch da linha provisória.
+ingest_result() {
+  local json="$1"
+  local id contest host verdict h_login h_prob h_lang tempo sub_epoch line hist
+  id="$(jq -r '.id // empty' <<<"$json")"
+  contest="$(jq -r '.contest // empty' <<<"$json")"
+  host="$(jq -r '.host // empty' <<<"$json")"
+  verdict="$(jq -r '.verdict // "Judge Error"' <<<"$json")"
+  valid_contest_id "$contest" || { log "result: contest inválido"; return 1; }
+  [[ -n "$id" ]] || { log "result: sem id"; return 1; }
+  local cdir="$CONTESTSDIR/$contest"; hist="$cdir/controle/history"
+  mkdir -p "$cdir/controle" "$cdir/data" "$cdir/mojlog" "$cdir/results" 2>/dev/null
+  line="$(grep ":$id\$" "$hist" 2>/dev/null | tail -n1)"
+  IFS=: read -r tempo h_login h_prob h_lang _ sub_epoch _ <<<"$line"
+  [[ -n "$h_login" ]] || h_login="$(jq -r '.login // ""' <<<"$json")"
+  [[ -n "$h_prob"  ]] || h_prob="$(jq -r '.problem_id // ""' <<<"$json")"
+  [[ -n "$h_lang"  ]] || h_lang="$(jq -r '(.lang // "")|ascii_upcase' <<<"$json")"
+  [[ -n "$sub_epoch" ]] || sub_epoch="$EPOCHSECONDS"
+  [[ -n "$tempo" ]] || tempo="$sub_epoch"
+  update_history "$hist" "$id" "$tempo:$h_login:$h_prob:$h_lang:$verdict:$sub_epoch:$id"
+  update_data "$cdir/data/$h_login" "$id" "$sub_epoch:$id:$h_prob:$verdict"
+  local html_b64; html_b64="$(jq -r '.report_html_b64 // empty' <<<"$json")"
+  [[ -n "$html_b64" ]] && printf '%s' "$html_b64" | base64 -d \
+    > "$cdir/mojlog/$id-$h_login-$h_prob.html" 2>/dev/null
+  write_result_json "$contest" "$id" "$h_login" "$h_prob" "$json"
+  [[ -n "$host" ]] && q_done "$host" "$id"
+  [[ -e "$SCORE_BUILD" ]] && bash "$SCORE_BUILD" "$contest" >/dev/null 2>&1
+  log "result ingerido id=$id contest=$contest verdict=$verdict"
+  return 0
+}
 
 # ---------------------------------------------------------------------------
 # process_spool_file <abs-path-do-arquivo-de-spool>
@@ -69,12 +156,29 @@ process_spool_file() {
   # comando ∈ {submit, rejulgar}. Lemos os dados de verdade do JSON (conteúdo).
   local comando; comando="$(cut -d: -f5 <<<"$base")"
 
+  # comando "synctreino": atualização dos problemas do treino (NFS) via update-request.
+  # O arquivo de spool é vazio; tratamos antes de tentar ler JSON.
+  if [[ "$comando" == synctreino ]]; then
+    local sycontest; sycontest="$(cut -d: -f1 <<<"$base")"
+    upd_request "${TREINO_REPO:-}" "${sycontest:-treino}" "synctreino" >/dev/null
+    mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
+    log "synctreino -> update-request (repo='${TREINO_REPO:-todos}')"
+    return 0
+  fi
+
   # JSON do conteúdo
   local json; json="$(cat "$f" 2>/dev/null)"
   if ! jq -e . >/dev/null 2>&1 <<<"$json"; then
     log "JSON inválido em $base — movendo p/ done (descartado)"
     mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
     return 1
+  fi
+
+  # ---- comando "result": ingestão do veredicto vindo do worker (modelo pull) ----
+  if [[ "$comando" == result ]]; then
+    ingest_result "$json"
+    mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
+    return 0
   fi
 
   local contest login problem filename code_b64 lang id
@@ -105,20 +209,33 @@ process_spool_file() {
   fi
 
   local cdir="$CONTESTSDIR/$contest"
-  mkdir -p "$cdir/controle" "$cdir/data" "$cdir/submissions" 2>/dev/null
+  mkdir -p "$cdir/controle" "$cdir/data" "$cdir/submissions" "$cdir/mojlog" 2>/dev/null
 
   log "julgando $base (contest=$contest login=$login prob=$problem lang=$lang id=$id cmd=${comando:-submit})"
 
   # ---- carrega CONTEST_END/CONTEST_TYPE/MOJCONTESTSERVERS p/ o backend cluster.
   # (source seguro: já validamos contest; o conf é confiável no deploy.)
-  local CONTEST_START="" CONTEST_END="" CONTEST_TYPE="" MOJCONTESTSERVERS=""
+  local CONTEST_START="" CONTEST_END="" CONTEST_TYPE="" MOJCONTESTSERVERS="" CONTEST_PRIORITY=""
   if [[ -r "$cdir/conf" ]]; then
     # shellcheck source=/dev/null
     source "$cdir/conf" 2>/dev/null || true
   fi
   export CONTEST_END CONTEST_TYPE MOJCONTESTSERVERS
 
+  # ---- INTAKE (modo fila): enfileira p/ o escalonador in-daemon (pull) ----------
+  # Em vez de julgar agora (bloqueante), enfileira na banda de prioridade; um worker
+  # puxa no heartbeat. O resultado volta depois pelo comando "result".
+  if [[ "$comando" == submit ]] && queue_mode_for "$contest"; then
+    intake_enqueue "$json" "$contest" "$id" "$login" "$problem" "$lang" "$filename" "$code_b64"
+    mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
+    log "enfileirado (queue, prio=${CONTEST_PRIORITY:-lista-publica}) $base"
+    return 0
+  fi
+
   # ---- (2) chama o juiz ----------------------------------------------------
+  # Diz ao gateway onde gravar o report.html auto-contido (servido pela API em
+  # mojlog/*<id>*). Backends que não produzem report ignoram esta variável.
+  export JUDGE_REPORT_OUT="$cdir/mojlog/$id-$login-$problem.html"
   local verdict
   verdict="$(judge_run "$contest" "$problem" "$lang" "$code_b64" "${filename:-solution}")"
   [[ -z "$verdict" ]] && verdict="Judge Error (empty verdict)"

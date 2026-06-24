@@ -11,6 +11,7 @@ _DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 source "$_DIR/lib/common.sh"
 source "$_DIR/lib/params.sh"
 source "$_DIR/lib/auth.sh"
+source "$_DIR/lib/worker-auth.sh"
 source "$_DIR/lib/profile.sh"
 
 HANDLERS="$_DIR/handlers"

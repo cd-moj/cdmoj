@@ -1,0 +1,223 @@
+#!/bin/bash
+# server/judge-gw/sched-lib.sh — biblioteca do escalonador in-daemon + registro de
+# workers. Sourced por server/api/v1/handlers/judge/* e por server/daemons/judged.sh.
+# Tudo é bash + arquivos: registro JSON por host, fila por bandas de prioridade,
+# claim atômico por flock+mv. Sem DB/broker. NÃO usa globs (a API roda com -o noglob).
+
+: "${RUNDIR:=/home/ribas/moj/run}"
+: "${REGISTRYDIR:=$RUNDIR/registry}"        # <host>.json por worker (vivo = last_seen recente)
+: "${QUEUEDIR:=$RUNDIR/queue}"              # bandas de prioridade
+: "${ASSIGNEDDIR:=$RUNDIR/assigned}"        # <host>/<ts>_<id>.json reivindicados
+: "${RESULTSDIR:=$RUNDIR/results}"          # results/<id>.json
+: "${UPDATESDIR:=$RUNDIR/updates}"          # pedidos de atualização de repositório
+: "${REG_TTL:=30}"                          # s; heartbeat mais velho = worker morto
+: "${ASSIGN_TTL:=120}"                      # s; job reivindicado sem novo beat volta p/ fila
+: "${STARVE_SECS:=300}"                     # s; promove de banda após esse tempo
+
+# bandas, prioridade ALTA -> BAIXA. 'rejulgar' entre privada e pública.
+SCHED_BANDS=(000-super 020-prova 040-lista-privada 060-rejulgar 080-lista-publica)
+
+sched_band_of() {  # $1 = CONTEST_PRIORITY -> nome da banda
+  case "$1" in
+    super)         echo 000-super;;
+    prova)         echo 020-prova;;
+    lista-privada) echo 040-lista-privada;;
+    rejulgar)      echo 060-rejulgar;;
+    *)             echo 080-lista-publica;;
+  esac
+}
+
+valid_hostname() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] && [[ "$1" != *..* ]]; }
+
+sched_init_dirs() {
+  mkdir -p "$REGISTRYDIR" "$ASSIGNEDDIR" "$RESULTSDIR" "$QUEUEDIR" 2>/dev/null
+  local b; for b in "${SCHED_BANDS[@]}"; do mkdir -p "$QUEUEDIR/$b" 2>/dev/null; done
+}
+
+# ----------------------------------------------------------- registro de workers
+# reg_write <host> <json-completo> : grava atômico $REGISTRYDIR/<host>.json
+reg_write() {
+  local host="$1" json="$2"
+  valid_hostname "$host" || return 1
+  mkdir -p "$REGISTRYDIR" 2>/dev/null
+  local tmp="$REGISTRYDIR/.$host.$$.tmp"
+  printf '%s' "$json" > "$tmp" && mv -f "$tmp" "$REGISTRYDIR/$host.json"
+}
+
+# reg_touch_state <host> <state> : atualiza state + last_seen, preservando o resto.
+# Retorna 1 se o host não está registrado.
+reg_touch_state() {
+  local host="$1" state="$2" f="$REGISTRYDIR/$host.json"
+  valid_hostname "$host" || return 1
+  [[ -f "$f" ]] || return 1
+  local tmp="$REGISTRYDIR/.$host.$$.tmp"
+  jq -c --arg s "$state" --argjson now "$EPOCHSECONDS" '.state=$s | .last_seen=$now' "$f" \
+    > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
+}
+
+# reg_set <host> <jq-filter> [jq-args...] : aplica um filtro jq ao registro do host.
+reg_set() {
+  local host="$1"; shift
+  local filter="$1"; shift
+  local f="$REGISTRYDIR/$host.json"
+  valid_hostname "$host" || return 1
+  [[ -f "$f" ]] || return 1
+  local tmp="$REGISTRYDIR/.$host.$$.tmp"
+  jq -c "$@" "$filter" "$f" > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
+}
+
+reg_get() { local f="$REGISTRYDIR/$1.json"; [[ -f "$f" ]] && cat "$f"; }
+
+# reg_live_hosts [state] [capability] : hosts vivos (last_seen >= now-REG_TTL), 1/linha.
+reg_live_hosts() {
+  local want_state="${1:-}" want_cap="${2:-}" now=$EPOCHSECONDS f
+  while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    jq -e --argjson now "$now" --argjson ttl "$REG_TTL" \
+       --arg st "$want_state" --arg cap "$want_cap" '
+       (.last_seen // 0) >= ($now - $ttl)
+       and ($st  == "" or .state      == $st)
+       and ($cap == "" or .capability == $cap)' "$f" >/dev/null 2>&1 \
+      && basename "$f" .json
+  done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
+}
+
+# ------------------------------------------------------------------- fila de jobs
+# q_enqueue <id> <priority> <job-json> : enfileira na banda da prioridade.
+q_enqueue() {
+  local id="$1" prio="$2" json="$3" band
+  band="$(sched_band_of "$prio")"
+  sched_init_dirs
+  local base="${EPOCHSECONDS}_${id}.json"
+  local tmp="$QUEUEDIR/$band/.${base}.tmp"
+  printf '%s' "$json" > "$tmp" && mv -f "$tmp" "$QUEUEDIR/$band/$base"
+}
+
+# q_claim <host> <capability> <problems-json> : reivindica 1 job que o worker pode
+# rodar (capacidade + tem-o-problema), atômico sob flock. Ecoa o job (ou nada).
+q_claim() {
+  local host="$1" cap="$2" probs="$3"
+  valid_hostname "$host" || return 1
+  sched_init_dirs
+  (
+    flock 9 || exit 0
+    local band f prob need dest base
+    for band in "${SCHED_BANDS[@]}"; do
+      while IFS= read -r f; do
+        [[ -f "$f" ]] || continue
+        prob="$(jq -r '.problem_id // empty' "$f" 2>/dev/null)"
+        need="$(jq -r '.need_capability // empty' "$f" 2>/dev/null)"
+        [[ -n "$need" && "$need" != "$cap" ]] && continue
+        # tem-o-problema, tolerante a convenção de id (repo#prob vs repo/prob)
+        printf '%s' "$probs" | jq -e --arg p "$prob" '
+          . as $obj
+          | ([$p, ($p|gsub("#";"/")), ($p|gsub("/";"#"))] | unique) as $vs
+          | any($vs[]; in($obj))' >/dev/null 2>&1 || continue
+        base="$(basename "$f")"
+        mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null
+        dest="$ASSIGNEDDIR/$host/$base"
+        if mv "$f" "$dest" 2>/dev/null; then
+          local tmp="$dest.tmp"
+          jq -c --arg h "$host" --argjson now "$EPOCHSECONDS" \
+             '. + {assigned_to:$h, assigned_at:$now}' "$dest" > "$tmp" 2>/dev/null \
+             && mv -f "$tmp" "$dest"
+          cat "$dest"
+          exit 0
+        fi
+      done < <(find "$QUEUEDIR/$band" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
+    done
+  ) 9>"$QUEUEDIR/.lock"
+}
+
+# q_done <host> <id> : remove o job reivindicado (chamado após ingerir o resultado).
+q_done() {
+  local host="$1" id="$2" f
+  while IFS= read -r f; do rm -f "$f"; done \
+    < <(find "$ASSIGNEDDIR/$host" -maxdepth 1 -name "*_$id.json" 2>/dev/null)
+}
+
+# q_promote_starved : promove jobs parados (>STARVE_SECS) p/ a banda anterior.
+# Throttle por stamp (roda no máx 1x/30s).
+q_promote_starved() {
+  sched_init_dirs
+  local stamp="$QUEUEDIR/.starve-stamp" now=$EPOCHSECONDS last=0
+  [[ -f "$stamp" ]] && last="$(<"$stamp")"
+  (( now - last < 30 )) && return 0
+  printf '%s' "$now" > "$stamp"
+  (
+    flock 9 || exit 0
+    local i band prev f base ts id
+    for (( i=${#SCHED_BANDS[@]}-1; i>0; i-- )); do
+      band="${SCHED_BANDS[i]}"; prev="${SCHED_BANDS[i-1]}"
+      while IFS= read -r f; do
+        [[ -f "$f" ]] || continue
+        base="$(basename "$f")"; ts="${base%%_*}"
+        [[ "$ts" =~ ^[0-9]+$ ]] || continue
+        (( now - ts > STARVE_SECS )) || continue
+        id="${base#*_}"
+        mv -f "$f" "$QUEUEDIR/$prev/${now}_${id}" 2>/dev/null
+      done < <(find "$QUEUEDIR/$band" -maxdepth 1 -name '*.json' 2>/dev/null)
+    done
+  ) 9>"$QUEUEDIR/.lock"
+}
+
+# q_reconcile : devolve à fila jobs reivindicados por workers mortos (host não vivo,
+# ou assigned_at velho demais). Idempotente — o result é guardado por id. Auto-throttle
+# (~15s) porque varre o registro; um worker morto espera no máx ASSIGN_TTL de qualquer jeito.
+q_reconcile() {
+  sched_init_dirs
+  local now=$EPOCHSECONDS stamp="$QUEUEDIR/.reconcile-stamp" last=0
+  [[ -f "$stamp" ]] && last="$(<"$stamp")"
+  (( now - last < 15 )) && return 0
+  printf '%s' "$now" > "$stamp"
+  local live; live=" $(reg_live_hosts | tr '\n' ' ') "   # set de vivos, 1 só varredura
+  local hostdir host f base id prio band aat
+  while IFS= read -r hostdir; do
+    [[ -d "$hostdir" ]] || continue
+    host="$(basename "$hostdir")"
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      base="$(basename "$f")"; id="${base#*_}"; id="${id%.json}"
+      aat="$(jq -r '.assigned_at // 0' "$f" 2>/dev/null)"
+      if [[ "$live" != *" $host "* ]] || (( now - aat > ASSIGN_TTL )); then
+        prio="$(jq -r '.priority // "lista-publica"' "$f" 2>/dev/null)"
+        band="$(sched_band_of "$prio")"
+        mv -f "$f" "$QUEUEDIR/$band/${now}_${id}.json" 2>/dev/null
+      fi
+    done < <(find "$hostdir" -maxdepth 1 -name '*.json' 2>/dev/null)
+  done < <(find "$ASSIGNEDDIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+}
+
+# --------------------------------------------------- atualização de repositórios
+# Problemas estão em NFS compartilhado: UM host roda o git pull e todos enxergam.
+# O pedido vira um marcador que o heartbeat entrega a UM worker livre (exclusivo).
+upd_request() {  # $1=repo $2=requested_by [$3=note] -> ecoa o reqid
+  mkdir -p "$UPDATESDIR/pending" 2>/dev/null
+  local reqid; reqid="$(printf '%s%s%s' "$1" "$EPOCHSECONDS" "$RANDOM" | md5sum | cut -c1-16)"
+  local tmp="$UPDATESDIR/pending/.$reqid.tmp"
+  jq -cn --arg id "$reqid" --arg r "$1" --arg by "${2:-?}" --arg n "${3:-}" \
+     --argjson now "$EPOCHSECONDS" \
+     '{reqid:$id, repo:$r, requested_by:$by, note:$n, requested_at:$now}' > "$tmp" \
+     && mv -f "$tmp" "$UPDATESDIR/pending/$reqid.json"
+  printf '%s' "$reqid"
+}
+
+# upd_claim <host> : reivindica 1 update pendente (atômico) e o ecoa, ou nada.
+upd_claim() {
+  local host="$1" f base dest
+  valid_hostname "$host" || return 1
+  mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress/$host" 2>/dev/null
+  (
+    flock 9 || exit 0
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      base="$(basename "$f")"; dest="$UPDATESDIR/inprogress/$host/$base"
+      if mv "$f" "$dest" 2>/dev/null; then cat "$dest"; exit 0; fi
+    done < <(find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
+  ) 9>"$UPDATESDIR/.lock"
+}
+
+upd_done() { rm -f "$UPDATESDIR/inprogress/$1/$2.json" 2>/dev/null; }   # $1=host $2=reqid
+
+# upd_pending_count : nº de updates pendentes (não reivindicados).
+upd_pending_count() { find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l; }

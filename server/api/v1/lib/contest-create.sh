@@ -58,13 +58,15 @@ cc_create(){
   local spec="$1" creator="$2" cname="$3" enun="${4:-}"
   jq -e . >/dev/null 2>&1 <<<"$spec" || fail 400 "Spec JSON inválido" "bad_spec"
 
-  local name mode start end langs showcode
+  local name mode start end langs showcode priority
   name="$(jq -r '.name // ""' <<<"$spec")"
   mode="$(jq -r '.mode // "icpc"' <<<"$spec")"
   start="$(jq -r '.start // empty' <<<"$spec")"
   end="$(jq -r '.end // empty' <<<"$spec")"
   langs="$(jq -r '.languages // ""' <<<"$spec")"
   showcode="$(jq -r 'if .showcode==true then 1 else 0 end' <<<"$spec")"
+  # prioridade no escalonador (SEPARADA do modo/CONTEST_TYPE): super>prova>lista-privada>lista-publica
+  priority="$(jq -r '.priority // "lista-publica"' <<<"$spec")"
 
   [[ -n "$name" ]] || fail 422 "Informe o nome do contest" "name_required"
   (( ${#name} <= 160 )) || fail 422 "Nome muito longo" "name_long"
@@ -72,6 +74,11 @@ cc_create(){
     icpc|obi|treino|heuristic) ;;
     outro|custom) [[ "$creator" == *.admin ]] || fail 403 "Modo '$mode' é exclusivo de admin" "mode_forbidden";;
     *) fail 422 "Modo inválido" "mode_invalid";;
+  esac
+  case "$priority" in
+    prova|lista-privada|lista-publica) ;;
+    super) [[ "$creator" == *.admin ]] || fail 403 "Prioridade 'super' é exclusiva de admin" "priority_forbidden";;
+    *) fail 422 "Prioridade inválida" "priority_invalid";;
   esac
   [[ -z "$start" || "$start" =~ ^[0-9]+$ ]] || fail 422 "Início (start) inválido" "start_invalid"
   [[ "$end" =~ ^[0-9]+$ ]] || fail 422 "Informe o fim (end) em epoch" "end_required"
@@ -192,6 +199,7 @@ cc_create(){
     printf 'CONTEST_ID=%q\n'    "$id"
     printf 'CONTEST_NAME=%q\n'  "$name"
     printf 'CONTEST_TYPE=%q\n'  "$mode"
+    printf 'CONTEST_PRIORITY=%q\n' "$priority"
     printf 'CONTEST_START=%q\n' "$start"
     printf 'CONTEST_END=%q\n'   "$end"
     printf '%s\n' "$probs"

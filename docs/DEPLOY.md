@@ -9,7 +9,7 @@ Tudo roda **user-space como `ribas`** (sem root), reaproveitando o `~/nginx-prox
 | **nginx** (`~/nginx-proxy`) | serve `web/` estático + proxy `/api/v1` → fcgiwrap | `~/nginx-proxy/proxy.sh reload` |
 | **fcgiwrap** | roda o `router.sh` (API bash) num socket unix | `server/bin/start-fcgiwrap.sh` |
 | **judged** (daemon) | consome o spool, julga (mock/local/cluster), grava veredicto + placar | `server/daemons/judged.sh` |
-| **escalonador + workers** | cluster de juiz distribuído (opcional) | `judge/` + `server/etc/systemd` |
+| **juiz (agente pull)** | máquinas de julgamento: registram capacidade + puxam jobs | repo **judge** separado — ver `judge/README.md` (bring-up por máquina) e `server/judge-gw/PULL.md` |
 | **mojinho-bot** | bot Telegram (cliente da API) | `mojinho-bot/mojinho-api.sh` |
 
 ## Bring-up (dev/local)
