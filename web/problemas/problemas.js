@@ -2,7 +2,7 @@
 // Leitura via /problems/* (Bearer). Detalhe mostra validação + enunciado e dispara
 // Validar/Publicar e Calibrar (handlers já existentes). Git fica escondido (Gitea atrás).
 import { apiGet, apiPost, ApiError, getToken } from '/shared/api.js';
-import { status } from '/shared/auth.js';
+import { status, fileToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 
 async function downloadAuthed(path, filename) {
@@ -12,6 +12,18 @@ async function downloadAuthed(path, filename) {
     const b = await r.blob(), a = document.createElement('a');
     a.href = URL.createObjectURL(b); a.download = filename; a.click(); URL.revokeObjectURL(a.href);
   } catch (e) { alert('Falha ao baixar: ' + (e.message || e)); }
+}
+async function doImport(file) {
+  if (!file) return;
+  let mine = [];
+  try { mine = ((await apiGet('/problems/repos', { contest: CONTEST, auth: true })).repos || []).filter(r => r.mine).map(r => r.repo); } catch {}
+  const repo = prompt('Importar para qual diretório (pasta)?' + (mine.length ? '\nSeus: ' + mine.join(', ') : '\n(crie um primeiro em “+ Novo problema”)'), mine[0] || '');
+  if (!repo) return;
+  try {
+    const tar_b64 = await fileToBase64(file);
+    const j = await apiPost('/problems/import', { repo: repo.trim(), tar_b64 }, { contest: CONTEST, auth: true });
+    location.href = '/problemas/editar.html?id=' + encodeURIComponent(j.id);
+  } catch (e) { alert('Falha ao importar: ' + (e instanceof ApiError ? e.message : (e.message || e))); }
 }
 
 const CONTEST = 'treino';
@@ -213,8 +225,13 @@ async function boot() {
   // o botão de criar só aparece p/ quem pode criar (mesma regra de criar contest)
   let canCreate = false;
   try { canCreate = !!(await apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true })).can_create; } catch {}
-  if (canCreate) document.getElementById('toolbar').append(
-    el('a', { class: 'btn', href: '/problemas/editar.html?novo=1', style: 'margin-left:auto' }, '+ Novo problema'));
+  if (canCreate) {
+    const impFile = el('input', { type: 'file', accept: '.tar,.gz,.tgz,.tar.gz,.bz2,.zst,.zip' }); impFile.hidden = true;
+    impFile.addEventListener('change', (e) => { doImport(e.target.files[0]); e.target.value = ''; });
+    document.getElementById('toolbar').append(
+      el('a', { class: 'btn', href: '/problemas/editar.html?novo=1', style: 'margin-left:auto' }, '+ Novo problema'),
+      el('label', { class: 'btn ghost', style: 'cursor:pointer', title: 'Importar um pacote ICPC/Kattis' }, '⬆ Importar ICPC', impFile));
+  }
   document.querySelectorAll('#tabs button').forEach(b =>
     b.addEventListener('click', () => loadTab(b.dataset.tab)));
   ['q', 'onlybroken'].forEach(id =>
