@@ -1,100 +1,211 @@
-// treino/problemas/editar.js — editor de problemas (autoria keyless; git escondido).
-// Cria/edita um problema num diretório (repo Gitea) do autor; salva via /problems/create|edit,
-// publica/calibra, e compartilha o diretório. Sem git, sem chave — só o login do MOJ.
-import { apiGet, apiPost, ApiError } from '/shared/api.js';
-import { status } from '/shared/auth.js';
-import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
+// problemas/editar.js — editor de problemas (autoria keyless; git escondido).
+// Enunciado (markdown+imagens), exemplos, testes ocultos, soluções good/slow/wrong/pass
+// (editor por arquivo com seletor de linguagem + upload), e baixar/enviar o pacote (.tar.gz).
+import { apiGet, apiPost, ApiError, getToken } from '/shared/api.js';
+import { status, fileToBase64 } from '/shared/auth.js';
+import { el, renderAuthArea } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
-let enunEd = null, solEd = null;
+let enunEd = null;
+let solEditors = { good: [], slow: [], wrong: [], pass: [] };
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
 const $ = (id) => document.getElementById(id);
 const setMsg = (t, cls) => { const m = $('msg'); m.textContent = t; m.className = 'small ' + (cls || ''); };
 const b64ToUtf8 = (b) => { try { return new TextDecoder().decode(Uint8Array.from(atob(b), c => c.charCodeAt(0))); } catch { return ''; } };
-const EXT2CM = { py: 'python', cpp: 'cpp', cc: 'cpp', cxx: 'cpp', c: 'cpp', h: 'cpp', hpp: 'cpp', java: 'java', rs: 'rust', go: 'go', js: 'javascript' };
-const cmFor = (fn) => EXT2CM[(String(fn).split('.').pop() || '').toLowerCase()] || null;
-async function mountEditors(enunDoc, solDoc, solFn) {
-  $('enunMount').innerHTML = ''; $('solMount').innerHTML = '';
-  enunEd = await createEditor($('enunMount'), { doc: enunDoc || '', cm: 'markdown', images: true });
-  solEd = await createEditor($('solMount'), { doc: solDoc || '', cm: cmFor(solFn || 'sol.py') });
-}
+const EXT2CM = { py: 'python', cpp: 'cpp', cc: 'cpp', cxx: 'cpp', c: 'cpp', h: 'cpp', hpp: 'cpp', java: 'java', rs: 'rust', go: 'go', js: 'javascript', md: 'markdown' };
+const cmFor = (fn) => EXT2CM[(String(fn).split('.').pop() || '').toLowerCase()] || '';
+const LANG_OPTS = [['', 'texto'], ['cpp', 'C/C++'], ['python', 'Python'], ['java', 'Java'], ['rust', 'Rust'], ['go', 'Go'], ['javascript', 'JavaScript'], ['markdown', 'Markdown']];
+const SOL_CATS = [['good', 'good — deve ser ACEITA'], ['wrong', 'wrong — deve FALHAR'], ['slow', 'slow — estoura o TEMPO'], ['pass', 'pass — aceitas (não calibram)'], ['upcoming', 'upcoming — em desenvolvimento']];
+const DEFNAME = { good: 'sol.cpp', wrong: 'wa.cpp', slow: 'slow.cpp', pass: 'alt.cpp', upcoming: 'wip.cpp' };
 
+// ---- conf (configurações do problema; ver saad-problems/README.org) -----------------------
+const confVal = (text, key) => { const e = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); const m = (text || '').match(new RegExp('^\\s*' + e + '\\s*=\\s*(.*)$', 'm')); return m ? m[1].trim().replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1') : null; };
+function confUpsert(text, key, value) {
+  const lines = (text || '').split('\n'), e = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), re = new RegExp('^\\s*' + e + '\\s*=');
+  const idx = lines.findIndex(l => re.test(l));
+  if (value === null || value === '') { if (idx >= 0) lines.splice(idx, 1); }
+  else { const v = /[\s+]/.test(value) ? `"${value}"` : value, line = key + '=' + v; if (idx >= 0) lines[idx] = line; else lines.push(line); }
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+const CF_TEXT = [['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS']];
+const CF_YN = [['cf_allowparallel', 'ALLOWPARALLELTEST'], ['cf_tlererun', 'TLERERUN'], ['cf_stopwa', 'STOPWHEN_WA'], ['cf_stoptle', 'STOPWHEN_TLE'], ['cf_stopre', 'STOPWHEN_RE']];
+const CF_FLAG = [['cf_allowtle', 'ALLOWTLEDURINGCALIBRATION']];   // y ou ausente
+function confToFields(text) {
+  CF_TEXT.forEach(([id, k]) => { $(id).value = confVal(text, k) || ''; });
+  CF_YN.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
+  CF_FLAG.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
+}
+function syncConfFromFields() {
+  let c = $('confRaw').value;
+  CF_TEXT.forEach(([id, k]) => { c = confUpsert(c, k, $(id).value.trim()); });
+  CF_YN.forEach(([id, k]) => { c = confUpsert(c, k, $(id).checked ? 'y' : 'n'); });
+  CF_FLAG.forEach(([id, k]) => { c = confUpsert(c, k, $(id).checked ? 'y' : null); });
+  $('confRaw').value = c;
+}
+const hiddenFile = (multiple) => { const i = el('input', { type: 'file' }); if (multiple) i.multiple = true; i.hidden = true; return i; };
+function langSelect(value) { const s = el('select', { class: 'small' }); LANG_OPTS.forEach(([id, l]) => s.append(el('option', { value: id }, l))); s.value = value || ''; return s; }
+const showNote = (html) => { const n = $('note'); n.style.display = ''; n.innerHTML = html; };
+
+// ---- exemplos (sample, aparecem no enunciado) --------------------------------------------
 function exampleRow(input = '', output = '') {
   const row = el('div', { class: 'ex' },
     el('div', { class: 'grid2' },
       el('div', {}, el('label', { class: 'small' }, 'entrada'), el('textarea', { class: 'exin' }, input)),
       el('div', {}, el('label', { class: 'small' }, 'saída'), el('textarea', { class: 'exout' }, output))),
-    el('button', { class: 'btn ghost', type: 'button', onclick: () => row.remove() }, 'remover exemplo'));
+    el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, 'remover exemplo'));
   return row;
 }
-function addExample(i = '', o = '') { $('examples').append(exampleRow(i, o)); }
-function collectExamples() {
-  return [...$('examples').querySelectorAll('.ex')].map(r => ({
-    input: r.querySelector('.exin').value, output: r.querySelector('.exout').value,
-  })).filter(e => e.input !== '' || e.output !== '');
+const addExample = (i = '', o = '') => { $('examples').append(exampleRow(i, o)); updatePkgInfo(); };
+const collectExamples = () => [...$('examples').querySelectorAll('.ex')].map(r => ({
+  input: r.querySelector('.exin').value, output: r.querySelector('.exout').value })).filter(e => e.input !== '' || e.output !== '');
+
+// ---- testes ocultos -----------------------------------------------------------------------
+function testRow(name = '', input = '', output = '') {
+  const nameI = el('input', { type: 'text', value: name, placeholder: 'nome', style: 'max-width:11rem' });
+  const inT = el('textarea', { class: 'tin' }, input), outT = el('textarea', { class: 'tout' }, output);
+  const li = hiddenFile(false), lo = hiddenFile(false);
+  li.addEventListener('change', async () => { if (li.files[0]) { inT.value = await li.files[0].text(); if (!nameI.value) nameI.value = li.files[0].name.replace(/\.[^.]*$/, ''); } });
+  lo.addEventListener('change', async () => { if (lo.files[0]) outT.value = await lo.files[0].text(); });
+  const row = el('div', { class: 'ex' },
+    el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'small' }, 'teste'), nameI,
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, 'remover')),
+    el('div', { class: 'grid2' },
+      el('div', {}, el('label', { class: 'small' }, 'entrada ', el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => li.click() }, '(carregar)')), inT),
+      el('div', {}, el('label', { class: 'small' }, 'saída ', el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => lo.click() }, '(carregar)')), outT)),
+    li, lo);
+  return row;
+}
+const renderTests = (tests) => { $('tests').innerHTML = ''; (tests || []).forEach(t => $('tests').append(testRow(t.name, t.input, t.output))); };
+const addTest = () => { $('tests').append(testRow()); updatePkgInfo(); };
+const collectTests = () => [...$('tests').querySelectorAll('.ex')].map(r => ({
+  name: r.querySelector('input[type=text]').value.trim(), input: r.querySelector('.tin').value, output: r.querySelector('.tout').value })).filter(t => t.input !== '' || t.output !== '');
+async function loadTestPairs(files) {
+  const map = {};
+  for (const f of files) {
+    const base = f.name.replace(/\.(in|out|txt|a|ans|sol)$/i, ''); const isOut = /\.(out|ans|a|sol)$/i.test(f.name);
+    map[base] = map[base] || { name: base }; map[base][isOut ? 'output' : 'input'] = await f.text();
+  }
+  Object.values(map).forEach(t => $('tests').append(testRow(t.name, t.input || '', t.output || ''))); updatePkgInfo();
 }
 
+// ---- soluções (good/slow/wrong/pass) ------------------------------------------------------
+async function renderSols(sols) {
+  sols = sols || {}; solEditors = { good: [], slow: [], wrong: [], pass: [] };
+  const wrap = $('solsWrap'); wrap.innerHTML = '';
+  for (const [cat, label] of SOL_CATS) {
+    const rows = el('div', { id: 'sol-' + cat });
+    const fi = hiddenFile(true); fi.addEventListener('change', () => loadSolFiles(cat, fi.files));
+    wrap.append(el('div', { class: 'solcat', style: 'margin-top:.6rem' },
+      el('div', { class: 'row', style: 'justify-content:space-between;align-items:center' }, el('b', {}, label),
+        el('div', { class: 'row', style: 'gap:.4rem' },
+          el('button', { class: 'btn ghost', type: 'button', onclick: () => addSol(cat, DEFNAME[cat], '') }, '+ arquivo'),
+          el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, '⬆ enviar'), fi)),
+      rows));
+    for (const s of (sols[cat] || [])) await addSol(cat, s.filename, s.code);
+  }
+  updatePkgInfo();
+}
+async function addSol(cat, fn, code) {
+  const fnInput = el('input', { type: 'text', value: fn || DEFNAME[cat], style: 'max-width:14rem' });
+  const langSel = langSelect(cmFor(fnInput.value)), mount = el('div', { class: 'editor-mount' });
+  const row = el('div', { style: 'margin:.4rem 0' },
+    el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'small' }, 'arquivo'), fnInput, langSel,
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = solEditors[cat].filter(x => x.row !== row); updatePkgInfo(); } }, 'remover')),
+    mount);
+  $('sol-' + cat).append(row);
+  let ed = await createEditor(mount, { doc: code || '', cm: langSel.value || null });
+  const remount = async () => { const c = ed.getValue(); mount.innerHTML = ''; ed = await createEditor(mount, { doc: c, cm: langSel.value || null }); };
+  langSel.addEventListener('change', remount);
+  fnInput.addEventListener('change', () => { langSel.value = cmFor(fnInput.value); remount(); });
+  solEditors[cat].push({ row, get: () => ({ filename: fnInput.value.trim(), code: ed.getValue() }) });
+  updatePkgInfo();
+}
+const loadSolFiles = async (cat, files) => { for (const f of files) await addSol(cat, f.name, await f.text()); };
+function collectSols() { const o = {}; for (const [cat] of SOL_CATS) o[cat] = solEditors[cat].map(x => x.get()).filter(s => s.filename); return o; }
+
+function updatePkgInfo() {
+  if (!$('pkgInfo')) return;
+  const ex = $('examples').querySelectorAll('.ex').length, ts = $('tests').querySelectorAll('.ex').length;
+  const sc = SOL_CATS.map(([c]) => `${c}:${solEditors[c].length}`).join(' · ');
+  $('pkgInfo').textContent = `${ex} exemplo(s) · ${ts} teste(s) oculto(s) · soluções ${sc}`;
+}
+
+// ---- montagem / coleta --------------------------------------------------------------------
 function fillRepoSelect() {
   const sel = $('repo'); sel.innerHTML = '';
   REPOS.forEach(r => sel.append(el('option', { value: r.repo }, r.repo + (r.mine ? '' : ' (compartilhado)'))));
   if (REPO && !REPOS.some(r => r.repo === REPO)) sel.append(el('option', { value: REPO }, REPO));
-  if (REPO) sel.value = REPO;
-  else REPO = sel.value || '';
+  if (REPO) sel.value = REPO; else REPO = sel.value || '';
 }
-
 async function renderForm(d) {
-  $('ptitle').value = d.title || '';
-  $('pauthor').value = d.author || '';
-  $('ptags').value = (d.tags || []).join(', ');
-  $('pcolls').value = (d.collections || []).join(', ');
-  $('examples').innerHTML = '';
-  (d.examples || []).forEach(e => addExample(e.input, e.output));
-  if (!(d.examples || []).length) addExample();
-  const good = (d.sols && d.sols.good && d.sols.good[0]) || {};
-  $('solname').value = good.filename || 'sol.py';
-  await mountEditors(d.enunciado_md || '', good.code || '', good.filename || 'sol.py');
+  $('ptitle').value = d.title || ''; $('pauthor').value = d.author || '';
+  $('ptags').value = (d.tags || []).join(', '); $('pcolls').value = (d.collections || []).join(', ');
+  $('enunMount').innerHTML = '';
+  enunEd = await createEditor($('enunMount'), { doc: d.enunciado_md || '', cm: 'markdown', images: true });
+  $('examples').innerHTML = ''; (d.examples || []).forEach(e => $('examples').append(exampleRow(e.input, e.output)));
+  if (!(d.examples || []).length) $('examples').append(exampleRow());
+  renderTests(d.tests || []);
+  await renderSols(d.sols || { good: [{ filename: 'sol.py', code: '' }] });
+  $('confRaw').value = d.conf_text || ''; confToFields($('confRaw').value);
   loadedPublic = !!d.public; $('ppublic').checked = loadedPublic;
-  if (d.format && d.format !== 'md')
-    showNote(`Enunciado em <b>${d.format}</b> — ao salvar, considere convertê-lo para o Markdown canônico.`);
+  if (d.format && d.format !== 'md') showNote(`Enunciado em <b>${d.format}</b> — ao salvar, considere convertê-lo para o Markdown canônico.`);
 }
+const collectFields = () => ({
+  title: $('ptitle').value.trim(), author: $('pauthor').value.trim(),
+  tags: splitList($('ptags').value), collections: splitList($('pcolls').value),
+  enunciado_md: enunEd ? enunEd.getValue() : '', examples: collectExamples(),
+  tests: collectTests(), sols: collectSols(), conf_text: $('confRaw').value,
+});
 
 async function preview() {
   const btn = $('preview'); btn.disabled = true; setMsg('Renderizando…');
   try {
-    const j = await apiPost('/problems/preview',
-      { enunciado_md: enunEd ? enunEd.getValue() : '', examples: collectExamples() }, { contest: CONTEST, auth: true });
-    $('previewFrame').srcdoc = b64ToUtf8(j.html_b64 || '');
-    $('previewModal').style.display = ''; setMsg('');
+    const j = await apiPost('/problems/preview', { enunciado_md: enunEd ? enunEd.getValue() : '', examples: collectExamples() }, { contest: CONTEST, auth: true });
+    $('previewFrame').srcdoc = b64ToUtf8(j.html_b64 || ''); $('previewModal').style.display = ''; setMsg('');
   } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao renderizar'), 'error'); }
   finally { btn.disabled = false; }
 }
-function showNote(html) { const n = $('note'); n.style.display = ''; n.innerHTML = html; }
 
-function collectFields() {
-  return {
-    title: $('ptitle').value.trim(),
-    author: $('pauthor').value.trim(),
-    tags: splitList($('ptags').value),
-    collections: splitList($('pcolls').value),
-    enunciado_md: enunEd ? enunEd.getValue() : '',
-    examples: collectExamples(),
-    good_sol: { filename: $('solname').value.trim() || 'sol.py', code: solEd ? solEd.getValue() : '' },
-  };
+// ---- pacote: baixar / enviar tar ----------------------------------------------------------
+async function download() {
+  if (!ID) { setMsg('Salve o problema antes de baixar.', 'error'); return; }
+  try {
+    const r = await fetch('/api/v1/problems/download?id=' + encodeURIComponent(ID), { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob(), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = ID.split('#').pop() + '.tar.gz'; a.click(); URL.revokeObjectURL(a.href);
+  } catch (e) { setMsg('Falha ao baixar: ' + e.message, 'error'); }
+}
+async function uploadTar(file) {
+  if (!file) return;
+  let body;
+  if (ID) body = { id: ID };
+  else {
+    const prob = $('prob').value.trim(); REPO = $('repo').value;
+    if (!REPO || !/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg('Para enviar um .tar novo, escolha o diretório e o nome do problema.', 'error'); return; }
+    body = { repo: REPO, prob };
+  }
+  setMsg('Enviando pacote…');
+  try {
+    body.tar_b64 = await fileToBase64(file);
+    const j = await apiPost('/problems/upload', body, { contest: CONTEST, auth: true });
+    ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
+    $('prob').disabled = true; $('title').textContent = 'Editar: ' + ID;
+    await loadSource(ID); setMsg('Pacote enviado e recarregado ✓', 'v-ok');
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha no upload') + (e.code ? ` (${e.code})` : ''), 'error'); }
 }
 
+// ---- compartilhamento ---------------------------------------------------------------------
 async function loadShare() {
-  const box = $('shareBox'), me = REPOS.find(r => r.repo === REPO);
-  const isOwner = me ? me.mine : (OWNER === '' );
+  const box = $('shareBox'), me = REPOS.find(r => r.repo === REPO), isOwner = me ? me.mine : (OWNER === '');
   box.style.display = isOwner ? '' : 'none';
   if (!isOwner || !REPO) return;
-  try {
-    const j = await apiGet('/problems/repo-collaborators?repo=' + encodeURIComponent(REPO), { contest: CONTEST, auth: true });
-    renderShareList(j.collaborators || []);
-  } catch { $('shareList').textContent = ''; }
+  try { renderShareList((await apiGet('/problems/repo-collaborators?repo=' + encodeURIComponent(REPO), { contest: CONTEST, auth: true })).collaborators || []); }
+  catch { $('shareList').textContent = ''; }
 }
 function renderShareList(list) {
   const box = $('shareList'); box.innerHTML = '';
@@ -104,15 +215,14 @@ function renderShareList(list) {
     el('a', { href: '#', style: 'margin-left:.3rem', onclick: async (e) => { e.preventDefault(); await share([], [u]); } }, '×'))));
 }
 async function share(add, remove) {
-  try {
-    const j = await apiPost('/problems/repo-collaborators', { repo: REPO, add, remove }, { contest: CONTEST, auth: true });
+  try { const j = await apiPost('/problems/repo-collaborators', { repo: REPO, add, remove }, { contest: CONTEST, auth: true });
     renderShareList(j.collaborators || []); setMsg('compartilhamento atualizado ✓', 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
+// ---- salvar / ações -----------------------------------------------------------------------
 async function save() {
-  const f = collectFields();
-  REPO = $('repo').value;
+  const f = collectFields(); REPO = $('repo').value;
   if (!REPO) { setMsg('Escolha ou crie um diretório.', 'error'); return; }
   $('save').disabled = true; setMsg('Salvando…');
   try {
@@ -122,29 +232,23 @@ async function save() {
       const j = await apiPost('/problems/create', { repo: REPO, prob, ...f }, { contest: CONTEST, auth: true });
       ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
       $('prob').disabled = true; $('title').textContent = 'Editar: ' + ID;
-    } else {
-      await apiPost('/problems/edit', { id: ID, ...f }, { contest: CONTEST, auth: true });
-    }
+    } else await apiPost('/problems/edit', { id: ID, ...f }, { contest: CONTEST, auth: true });
     if ($('ppublic').checked !== loadedPublic) {
-      const r = await apiPost('/problems/set-public', { id: ID, public: $('ppublic').checked }, { contest: CONTEST, auth: true });
+      await apiPost('/problems/set-public', { id: ID, public: $('ppublic').checked }, { contest: CONTEST, auth: true });
       loadedPublic = $('ppublic').checked;
       setMsg('Salvo ✓ ' + (loadedPublic ? '· publicação enfileirada (validação no juiz)' : '· despublicado'), 'v-ok');
     } else setMsg('Salvo ✓', 'v-ok');
-  } catch (e) {
-    setMsg((e instanceof ApiError ? e.message : 'Falha ao salvar') + (e.code ? ` (${e.code})` : ''), 'error');
-  } finally { $('save').disabled = false; }
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao salvar') + (e.code ? ` (${e.code})` : ''), 'error'); }
+  finally { $('save').disabled = false; }
 }
-
 async function act(action, label) {
   if (!ID) { setMsg('Salve o problema primeiro.', 'error'); return; }
   setMsg(label + '…');
   try { const j = await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true }); setMsg(label + ' enfileirado ✓ (reqid ' + (j.reqid || '').slice(0, 8) + ')', 'v-ok'); }
   catch (e) { setMsg(e.message, 'error'); }
 }
-
 async function newDir() {
-  const name = prompt('Nome da nova pasta (diretório) — minúsculas, sem espaço:');
-  if (!name) return;
+  const name = prompt('Nome da nova pasta (diretório) — minúsculas, sem espaço:'); if (!name) return;
   try {
     const j = await apiPost('/problems/repo-create', { repo: name.trim() }, { contest: CONTEST, auth: true });
     REPOS.push({ repo: j.repo, owner: j.owner, mine: true, collaborators: [], collections: j.collections || [] });
@@ -157,11 +261,10 @@ async function loadSource(id) {
   EDITABLE = j.editable; OWNER = j.owner || ''; REPO = id.split('#')[0];
   $('title').textContent = 'Editar: ' + id;
   $('prob').value = id.split('#').slice(1).join('#'); $('prob').disabled = true;
-  fillRepoSelect();
-  await renderForm(j);
+  fillRepoSelect(); await renderForm(j);
   if (!EDITABLE) {
-    showNote('⚠ ' + (j.note || 'Somente leitura.') + ' Os botões de salvar estão desativados.');
-    ['save', 'publish', 'calibrate', 'addex'].forEach(b => $(b).disabled = true);
+    showNote('⚠ ' + (j.note || 'Somente leitura.') + ' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).');
+    ['save', 'publish', 'calibrate', 'addex', 'addtest', 'uploadTar'].forEach(b => { if ($(b)) $(b).disabled = true; });
     $('shareBox').style.display = 'none';
   }
 }
@@ -176,25 +279,27 @@ async function boot() {
   const p = qs();
   if (p.get('id')) { MODE = 'edit'; ID = p.get('id'); await loadSource(ID); }
   else {
-    MODE = 'new'; REPO = p.get('repo') || '';
-    fillRepoSelect();
+    MODE = 'new'; REPO = p.get('repo') || ''; fillRepoSelect();
     await renderForm({ enunciado_md: '', author: st.name || st.login || '', tags: [], collections: [],
-      examples: [], sols: { good: [{ filename: 'sol.py', code: '' }] }, public: false });
+      examples: [], tests: [], sols: { good: [{ filename: 'sol.py', code: '' }] }, public: false,
+      conf_text: 'TLMOD[calibrafactor]=1.35\nULIMITS[-u]=10000\nALLOWPARALLELTEST=y\n' });
   }
   await loadShare();
 
   $('addex').onclick = () => addExample();
+  $('addtest').onclick = addTest;
+  $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
   $('save').onclick = save;
   $('publish').onclick = () => act('publish', 'Validar & Publicar');
   $('calibrate').onclick = () => act('request-calibration', 'Calibração');
   $('newdir').onclick = newDir;
   $('preview').onclick = preview;
   $('previewClose').onclick = () => { $('previewModal').style.display = 'none'; $('previewFrame').srcdoc = ''; };
+  $('download').onclick = download;
+  $('uploadTar').addEventListener('change', (e) => { uploadTar(e.target.files[0]); e.target.value = ''; });
   $('repo').onchange = async () => { REPO = $('repo').value; await loadShare(); };
   $('shareAdd').onclick = async () => { const u = $('shareLogin').value.trim(); if (u) { await share([u], []); $('shareLogin').value = ''; } };
-  $('solname').addEventListener('change', async () => {
-    if (!solEd) return; const code = solEd.getValue(); $('solMount').innerHTML = '';
-    solEd = await createEditor($('solMount'), { doc: code, cm: cmFor($('solname').value) });
-  });
+  [...CF_TEXT, ...CF_YN, ...CF_FLAG].forEach(([id]) => $(id).addEventListener('change', syncConfFromFields));
+  $('confRaw').addEventListener('change', () => confToFields($('confRaw').value));
 }
 boot();

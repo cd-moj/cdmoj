@@ -74,6 +74,12 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
 | `/problems/source?id=<id>` | GET | **source** editável `{editable,enunciado_md,author,tags,conf_text,public,collections,examples,tests,sols.good}` (Gitea=editável; legado=read-only) |
 | `/problems/preview` | POST `{enunciado_md, examples?}` | **pré-visualização** HTML do enunciado — mesmo pandoc do build (`-f markdown --mathml -s`, injeta exemplos) → `{html_b64}` |
+| `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
+| `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um `.tar(.gz)` e **substitui tudo** (commit+push) — máquinas sem git / trabalho offline |
+
+> `source`/`create`/`edit` cobrem o pacote inteiro: `enunciado_md`, `conf_text` (TL/ulimits/
+> STOPWHEN/…, ver `saad-problems/README.org`), `examples` (sample), `tests` (ocultos) e `sols`
+> por categoria `{good,wrong,slow,pass,upcoming}` (cada `[{filename,code}]`).
 | `/problems/create` | POST `{repo,prob,enunciado_md?,author?,tags?,examples?,good_sol?,title?,...}` | cria problema novo; commit+push; `{id,sha}` |
 | `/problems/edit` | POST `{id, ...campos}` | edita (só campos presentes); commit+push autorado |
 | `/problems/set-public` | POST `{id, public:bool}` | marca público no `.moj-meta.json` (+ enfileira validação se `true`) |

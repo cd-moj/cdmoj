@@ -127,12 +127,32 @@ apply_problem_fields(){  # <pkgdir> <body-json>
     done < <(jq -c '.examples[]?' <<<"$body")
   fi
   if jq -e 'has("tests")' >/dev/null 2>&1 <<<"$body"; then
+    # substitui os testes OCULTOS (mantém os sample*); remoções valem
+    local inp nm0
+    set +o noglob; shopt -s nullglob
+    for inp in "$pkg/tests/input"/*; do nm0="$(basename "$inp")"; [[ "$nm0" == sample* ]] && continue
+      rm -f "$inp" "$pkg/tests/output/$nm0"; done
+    shopt -u nullglob; set -o noglob
     local i=0 pair nm
     while IFS= read -r pair; do i=$((i+1)); nm="$(jq -r '.name // empty' <<<"$pair" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$nm" ]] || nm="$i"
+      [[ "$nm" == sample* ]] && nm="t$nm"   # nomes sample* são reservados aos exemplos
       jq -r '.input'  <<<"$pair" > "$pkg/tests/input/$nm"
       jq -r '.output' <<<"$pair" > "$pkg/tests/output/$nm"
     done < <(jq -c '.tests[]?' <<<"$body")
   fi
+  # soluções por categoria (substitui a categoria inteira quando presente)
+  if jq -e 'has("sols")' >/dev/null 2>&1 <<<"$body"; then
+    local cat s fn
+    for cat in good slow wrong pass upcoming; do
+      jq -e --arg c "$cat" '.sols | has($c)' >/dev/null 2>&1 <<<"$body" || continue
+      rm -rf "$pkg/sols/$cat"; mkdir -p "$pkg/sols/$cat"
+      while IFS= read -r s; do
+        fn="$(basename "$(jq -r '.filename // empty' <<<"$s")")"; [[ "$fn" =~ ^[A-Za-z0-9._-]+$ ]] || continue
+        jq -r '.code // ""' <<<"$s" > "$pkg/sols/$cat/$fn"
+      done < <(jq -c --arg c "$cat" '.sols[$c][]?' <<<"$body")
+    done
+  fi
+  # compat: good_sol único (CLI/legado) — adiciona a sols/good
   if jq -e 'has("good_sol")' >/dev/null 2>&1 <<<"$body"; then
     local fn; fn="$(basename "$(jq -r '.good_sol.filename // "sol.cpp"' <<<"$body")")"
     [[ "$fn" =~ ^[A-Za-z0-9._-]+$ ]] || fn="sol.cpp"
@@ -167,22 +187,29 @@ read_problem_source(){
   [[ -f "$pkg/conf" ]] && cat "$pkg/conf" > "$tc"
   local tags='[]'; [[ -f "$pkg/tags" ]] && tags="$(jq -R . "$pkg/tags" 2>/dev/null | jq -sc . 2>/dev/null)"; [[ -n "$tags" ]] || tags='[]'
   local meta='{}'; [[ -f "$pkg/.moj-meta.json" ]] && meta="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$meta" ]] || meta='{}'
-  local exs tss good='[' first=1 f
-  exs="$(_read_pairs "$pkg" sample)"; tss="$(_read_pairs "$pkg" hidden)"
-  set +o noglob; shopt -s nullglob
-  for f in "$pkg/sols/good"/*; do [[ -f "$f" ]] || continue
-    [[ $first -eq 1 ]] || good+=','; first=0
-    good+="$(jq -n --arg fn "$(basename "$f")" --rawfile code "$f" '{filename:$fn, code:$code}')"
-  done
-  shopt -u nullglob; set -o noglob
-  good+=']'
+  local exs tss; exs="$(_read_pairs "$pkg" sample)"; tss="$(_read_pairs "$pkg" hidden)"
+  local sg ss sw sp su
+  sg="$(_read_sols "$pkg" good)"; ss="$(_read_sols "$pkg" slow)"
+  sw="$(_read_sols "$pkg" wrong)"; sp="$(_read_sols "$pkg" pass)"; su="$(_read_sols "$pkg" upcoming)"
   jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" \
-        --argjson tags "$tags" --argjson meta "$meta" --argjson exs "$exs" \
-        --argjson tss "$tss" --argjson good "$good" --arg fmt "$fmt" '
+        --argjson tags "$tags" --argjson meta "$meta" --argjson exs "$exs" --argjson tss "$tss" \
+        --argjson sg "$sg" --argjson ss "$ss" --argjson sw "$sw" --argjson sp "$sp" --argjson su "$su" --arg fmt "$fmt" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
-      title:($meta.display_title // ""), examples:$exs, tests:$tss, sols:{good:$good} }'
+      title:($meta.display_title // ""), examples:$exs, tests:$tss,
+      sols:{good:$sg, slow:$ss, wrong:$sw, pass:$sp, upcoming:$su} }'
   rm -f "$te" "$ta" "$tc"
+}
+# _read_sols <pkgdir> <cat> -> JSON array [{filename,code}] de sols/<cat>/*
+_read_sols(){
+  local pkg="$1" cat="$2" out='[' first=1 f
+  set +o noglob; shopt -s nullglob
+  for f in "$pkg/sols/$cat"/*; do [[ -f "$f" ]] || continue
+    [[ $first -eq 1 ]] || out+=','; first=0
+    out+="$(jq -n --arg fn "$(basename "$f")" --rawfile code "$f" '{filename:$fn, code:$code}')"
+  done
+  shopt -u nullglob; set -o noglob
+  printf '%s]' "$out"
 }
 
 # write_meta <pkgdir> <owner> <repo> [public:true|false|""] [collections-json|""] [display_title]

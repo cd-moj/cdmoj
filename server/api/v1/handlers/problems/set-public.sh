@@ -19,6 +19,10 @@ tmp="$(git_broker_open "$SESSION_LOGIN" "$owner" "$repo")" || fail 502 "Falha ao
 trap 'rm -rf "$tmp"' EXIT
 wt="$tmp/wt"; [[ -d "$wt/$prob" ]] || fail 404 "Problema não existe" "prob_missing"
 write_meta "$wt/$prob" "$owner" "$repo" "$pub" "" ""
+# tornar público: tira o PUBLIC=no legado do conf (senão o gerador do treino ignora)
+if [[ "$pub" == "true" && -f "$wt/$prob/conf" ]]; then
+  sed -i -E '/^[[:space:]]*PUBLIC[[:space:]]*=[[:space:]]*no[[:space:]]*$/d' "$wt/$prob/conf" 2>/dev/null || true
+fi
 git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "set public=$pub ($prob)" >/dev/null \
   || fail 502 "Falha ao enviar (push)" "git_push"
 
