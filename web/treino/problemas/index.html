@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestão de Problemas — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .tabs{display:flex;gap:.25rem;flex-wrap:wrap;border-bottom:1px solid var(--border,#2a2a2a);margin:.5rem 0 1rem}
+    .tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:.5rem .9rem;cursor:pointer;color:inherit;font:inherit}
+    .tabs button.active{border-bottom-color:var(--accent,#5b8cff);font-weight:600}
+    .pill{display:inline-block;padding:.05rem .5rem;border-radius:999px;font-size:.78rem;line-height:1.4}
+    .pill.ok{background:#173d23;color:#7ee2a0} .pill.no{background:#3d1717;color:#ffb0b0}
+    .pill.warn{background:#3d3417;color:#ffe08a} .pill.mut{background:#22262e;color:#9fb0c8}
+    .colls{display:flex;flex-wrap:wrap;gap:.5rem}
+    .coll{border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.6rem .8rem;cursor:pointer;min-width:160px}
+    .coll:hover{border-color:var(--accent,#5b8cff)}
+    .coll b{display:block;font-size:1rem} .coll .small{opacity:.8}
+    #detail{margin-top:1rem}
+    #detail iframe{width:100%;height:60vh;border:1px solid var(--border,#2a2a2a);border-radius:.5rem;background:#fff}
+    .checks li{margin:.15rem 0} .checks .k{display:inline-block;min-width:13rem}
+    .muted2{opacity:.7}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/">Página Inicial</a>
+        <a href="/treino/">Treino</a>
+        <a href="/docs/" target="_blank">Documentação</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h2>Gestão de Problemas</h2>
+      <p class="small muted">Seus problemas, os compartilhados com você, os públicos (treino livre)
+        e as coleções (cursos / diretórios). O backend é o Gitea — você só usa seu login do MOJ.</p>
+      <div id="needauth" class="error-box" style="display:none">Entre com seu login do MOJ para gerir seus problemas.</div>
+      <div class="tabs" id="tabs">
+        <button data-tab="mine" class="active">Meus</button>
+        <button data-tab="shared">Compartilhados</button>
+        <button data-tab="public">Públicos</button>
+        <button data-tab="collections">Coleções</button>
+      </div>
+      <div class="row" id="toolbar">
+        <input id="q" placeholder="Filtrar por título, autor ou id…" style="flex:1; min-width:240px">
+        <label class="small row" style="gap:.3rem"><input type="checkbox" id="onlybroken"> só não-públicos</label>
+      </div>
+      <div id="count" class="small muted" style="margin-top:.5rem"></div>
+    </div>
+
+    <div class="section">
+      <div id="list"><span class="small muted">Carregando…</span></div>
+      <div id="pager" class="row" style="justify-content:center;margin-top:.75rem"></div>
+    </div>
+
+    <div class="section" id="detail" style="display:none"></div>
+  </main>
+
+  <script type="module" src="/treino/problemas/problemas.js"></script>
+</body>
+</html>

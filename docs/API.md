@@ -49,6 +49,24 @@ Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na ses
 | `/treino/admin/lock-user` | POST | `{login}` ou `{logins:[…]}` → **trava** (troca a senha por aleatória) + desloga |
 | `/treino/admin/logout-ip` | POST | `{ip}` → encerra todas as sessões daquele IP (IPv4/IPv6) |
 
+## Gestão de problemas (Bearer)
+Backend = **Gitea** (store git), mas o autor só usa o **login do MOJ** (sem chave/git — ver
+`docs/DEPLOY-GITEA.md`). Listagens leem o índice de donos `contests/treino/var/problem-owners.json`
+(gerado por `mojtools/gen-problem-owners.sh`; regen em background, TTL `PROBLEM_OWNERS_TTL_MIN`).
+Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casamento difuso pelo nome.
+
+| Rota | Método | I/O |
+|---|---|---|
+| `/problems/mine` | GET | `{problems:[{id,title,author,owner,collections,public,html,claimed}]}` — `claimed=true` se `owner==login`, senão "provável" (nome casa) |
+| `/problems/shared` | GET | problemas onde o login é **colaborador** (não dono) |
+| `/problems/public` | GET | problemas **públicos** (no treino livre) — visão de gestão (dono/autor) |
+| `/problems/collection?name=<c>` | GET | problemas da coleção (curso/diretório, ex.: `obi-problems`) |
+| `/problems/collections` | GET | `{collections:[{name,count,public}]}` — coleções com contagem total/pública |
+| `/problems/get?id=<id>` | GET | detalhe: índice + `validation` (relatório do portão) + `statement_html_b64`/`tags`/`time_limits` |
+| `/problems/validation?id=<id>` | GET | último relatório de validação `{checks:[{name,ok,detail}],html_built,render_warnings,ok}` |
+| `/problems/publish` | POST `{id}` | enfileira **validação + index** (1 juiz pega no heartbeat; portão: HTML compila + exemplos + `good` aceita) |
+| `/problems/request-calibration` | POST `{id}` | enfileira **calibração** (juiz roda `calibreitor.sh`, gera `tl.<host>`) |
+
 ## Submissão (assíncrona)
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
