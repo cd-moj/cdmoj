@@ -12,6 +12,7 @@ let enunEd = null;
 let solEditors = { good: [], slow: [], wrong: [], pass: [] };
 let COLLS = [];
 let CAN_CREATE = false;
+let FMT = 'md';                 // formato do enunciado (md|org|tex) — preservado no save
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -175,20 +176,21 @@ async function renderForm(d) {
   await renderSols(d.sols || { good: [{ filename: 'sol.py', code: '' }] });
   $('confRaw').value = d.conf_text || ''; confToFields($('confRaw').value);
   loadedPublic = !!d.public; $('ppublic').checked = loadedPublic;
+  FMT = (d.format === 'org' || d.format === 'tex') ? d.format : 'md';
   renderCollChips(); renderCollManage(); updatePkgInfo();
-  if (d.format && d.format !== 'md') showNote(`Enunciado em <b>${d.format}</b> — ao salvar, considere convertê-lo para o Markdown canônico.`);
+  if (FMT !== 'md') showNote(`Enunciado em <b>${FMT === 'org' ? 'Org-mode' : 'LaTeX'}</b> — preservado ao salvar; a pré-visualização renderiza nesse formato.`);
 }
 const collectFields = () => ({
   title: $('ptitle').value.trim(), author: $('pauthor').value.trim(),
   tags: splitList($('ptags').value), collections: splitList($('pcolls').value),
-  enunciado_md: enunEd ? enunEd.getValue() : '', examples: collectExamples(),
+  enunciado_md: enunEd ? enunEd.getValue() : '', enunciado_format: FMT, examples: collectExamples(),
   tests: collectTests(), sols: collectSols(), conf_text: $('confRaw').value,
 });
 
 async function preview() {
   const btn = $('preview'); btn.disabled = true; setMsg('Renderizando…');
   try {
-    const j = await apiPost('/problems/preview', { enunciado_md: enunEd ? enunEd.getValue() : '', examples: collectExamples() }, { contest: CONTEST, auth: true });
+    const j = await apiPost('/problems/preview', { enunciado_md: enunEd ? enunEd.getValue() : '', enunciado_format: FMT, examples: collectExamples() }, { contest: CONTEST, auth: true });
     $('previewFrame').srcdoc = b64ToUtf8(j.html_b64 || ''); $('previewModal').style.display = ''; setMsg('');
   } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao renderizar'), 'error'); }
   finally { btn.disabled = false; }

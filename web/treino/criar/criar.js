@@ -81,6 +81,9 @@ function renderProblems(listBox) {
     const name = el('input', { value: p.name || '', placeholder: 'Nome exibido' });
     name.addEventListener('input', () => { p.name = name.value; });
     const idtxt = p.bank_id ? ('banco: ' + p.bank_id) : ((p.source || 'cdmoj') + ' / ' + p.problem_id);
+    const genWarn = (p._private && !p._hasStmt)
+      ? el('div', { class: 'small', style: 'color:#b8860b;margin-top:.2rem' }, '⏳ enunciado em geração (aguardando juiz)')
+      : '';
     const stmtWrap = el('div', { style: 'margin-top:.35rem' });
     const stmtToggle = el('a', { class: 'small', href: '#', style: 'cursor:pointer' }, '✎ enunciado personalizado');
     stmtToggle.addEventListener('click', (e) => {
@@ -94,7 +97,7 @@ function renderProblems(listBox) {
     const dn = el('button', { class: 'btn ghost', onclick: () => { if (i < problems.length - 1) { [problems[i + 1], problems[i]] = [problems[i], problems[i + 1]]; renderProblems(listBox); } } }, '↓');
     const rm = el('button', { class: 'btn danger', onclick: () => { problems.splice(i, 1); renderProblems(listBox); } }, '✕');
     listBox.append(el('div', { class: 'prob-row' }, letter,
-      el('div', {}, name, el('div', { class: 'pid' }, idtxt), stmtToggle, stmtWrap),
+      el('div', {}, name, el('div', { class: 'pid' }, idtxt), genWarn, stmtToggle, stmtWrap),
       el('div', { class: 'row' }, up, dn, rm)));
   });
 }
@@ -234,7 +237,7 @@ function buildForm(perm) {
       if (!items.length) { results.append(el('div', { class: 'bank-item' }, el('span', { class: 'muted small' }, q ? 'nada encontrado' : 'você não tem problemas privados — digite para buscar no banco público'))); return; }
       items.forEach((it) => results.append(el('div', { class: 'bank-item' },
         el('div', {}, el('div', { class: 't' }, (it.title || it.id), accTag(it)), el('div', { class: 'i' }, it.id)),
-        el('button', { class: 'btn ghost', onclick: () => addProblem({ kind: 'bank', bank_id: it.id, name: it.title || it.id }, listBox) }, '+ adicionar'))));
+        el('button', { class: 'btn ghost', onclick: () => addProblem({ kind: 'bank', bank_id: it.id, name: it.title || it.id, _private: it.private, _hasStmt: it.has_statement }, listBox) }, '+ adicionar'))));
     } catch (e) { results.style.display = 'block'; results.innerHTML = ''; results.append(el('div', { class: 'bank-item' }, el('span', { class: 'small error-box' }, e.message || 'erro'))); }
   }, 250);
   search.addEventListener('input', doSearch);

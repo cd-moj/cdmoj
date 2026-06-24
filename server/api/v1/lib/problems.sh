@@ -180,7 +180,14 @@ problem_owner(){
 apply_problem_fields(){  # <pkgdir> <body-json>
   local pkg="$1" body="$2"
   mkdir -p "$pkg/docs" "$pkg/tests/input" "$pkg/tests/output" "$pkg/sols/good"
-  jq -e 'has("enunciado_md")' >/dev/null 2>&1 <<<"$body" && jq -r '.enunciado_md' <<<"$body" > "$pkg/docs/enunciado.md"
+  if jq -e 'has("enunciado_md")' >/dev/null 2>&1 <<<"$body"; then
+    # preserva o FORMATO do enunciado (md/org/tex): usa o explícito, senão o do arquivo existente, senão md
+    local efmt; efmt="$(jq -r '.enunciado_format // empty' <<<"$body")"
+    if [[ -z "$efmt" ]]; then for e in md org tex; do [[ -f "$pkg/docs/enunciado.$e" ]] && { efmt="$e"; break; }; done; fi
+    [[ "$efmt" =~ ^(md|org|tex)$ ]] || efmt=md
+    local e; for e in md org tex; do [[ "$e" != "$efmt" && -f "$pkg/docs/enunciado.$e" ]] && rm -f "$pkg/docs/enunciado.$e"; done
+    jq -r '.enunciado_md' <<<"$body" > "$pkg/docs/enunciado.$efmt"
+  fi
   jq -e 'has("author")'       >/dev/null 2>&1 <<<"$body" && jq -r '.author'       <<<"$body" > "$pkg/author"
   jq -e 'has("tags")'         >/dev/null 2>&1 <<<"$body" && jq -r '.tags[]?'       <<<"$body" > "$pkg/tags"
   jq -e 'has("conf_text")'    >/dev/null 2>&1 <<<"$body" && jq -r '.conf_text'     <<<"$body" > "$pkg/conf"

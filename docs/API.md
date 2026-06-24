@@ -73,7 +73,7 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/repos` | GET | diretórios do autor (dono/colaborador) `{repos:[{repo,owner,collaborators,collections,mine}]}` |
 | `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
 | `/problems/source?id=<id>` | GET | **source** editável `{editable,enunciado_md,author,tags,conf_text,public,collections,examples,tests,sols.good}` (Gitea=editável; legado=read-only) |
-| `/problems/preview` | POST `{enunciado_md, examples?}` | **pré-visualização** HTML do enunciado — mesmo pandoc do build (`-f markdown --mathml -s`, injeta exemplos) → `{html_b64}` |
+| `/problems/preview` | POST `{enunciado_md, enunciado_format?, examples?}` | **pré-visualização** HTML — pandoc `-f md/org/tex --mathml -s` (preserva o formato), injeta exemplos → `{html_b64}` |
 | `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
 | `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um pacote (`.tar`/`.tar.gz`/`.tar.bz2`/`.tar.zst`/`.zip`) e **substitui tudo** (commit+push) — máquinas sem git / offline |
 

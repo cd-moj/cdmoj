@@ -8,10 +8,12 @@ require_auth
 
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 md="$(jq -r '.enunciado_md // ""' <<<"$body")"
+fmt="$(jq -r '.enunciado_format // .format // "md"' <<<"$body")"
+case "$fmt" in org) pf=org;; tex) pf=latex;; *) pf=markdown;; esac
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-printf '%s' "$md" > "$tmp/e.md"
+printf '%s' "$md" > "$tmp/e.$fmt"
 
-html="$(pandoc -f markdown --mathml -s --embed-resources "$tmp/e.md" 2>/dev/null)"
+html="$(pandoc -f "$pf" --mathml -s --embed-resources "$tmp/e.$fmt" 2>/dev/null)"
 [[ -n "$html" ]] || html="$(printf '<!DOCTYPE html><html><head></head><body><pre>%s</pre></body></html>' \
   "$(printf '%s' "$md" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')")"
 
