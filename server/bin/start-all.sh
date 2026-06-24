@@ -8,6 +8,18 @@ cd "$ROOT"
 
 bash server/bin/setup.sh
 
+# Gitea (store git da gestão de problemas) — opcional; só sobe se o binário existir.
+GHOME="${GITEA_WORK_DIR:-run/gitea}"; GPORT="$( [ -f "$GHOME/.port" ] && cat "$GHOME/.port" || echo 3939 )"
+if [ -x "$GHOME/gitea" ]; then
+  if curl -fsS "http://127.0.0.1:$GPORT/api/v1/version" >/dev/null 2>&1; then
+    echo ">> gitea já rodando (:$GPORT)."
+  else
+    echo ">> iniciando gitea (:$GPORT)…"
+    nohup bash server/bin/start-gitea.sh >run/gitea.log 2>&1 &
+    for i in $(seq 1 30); do curl -fsS "http://127.0.0.1:$GPORT/api/v1/version" >/dev/null 2>&1 && break; sleep 0.3; done
+  fi
+fi
+
 if [ ! -S run/fcgiwrap.sock ]; then
   echo ">> iniciando fcgiwrap…"
   nohup bash server/bin/start-fcgiwrap.sh >run/fcgiwrap.log 2>&1 &
