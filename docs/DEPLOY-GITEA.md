@@ -164,6 +164,18 @@ incremental, reversível, um curso por vez).
 
 ---
 
+## 5.1 Webhook (push → reindex automático)
+
+Cada repo de problema recebe (automático, no `repo-create`/migração via `gitea_ensure_webhook`)
+um **webhook de push** apontando p/ `MOJ_WEBHOOK_URL` (default a URL pública do MOJ), autenticado
+por **HMAC** com `gitea-webhook.secret`. Em cada push, o MOJ (`/problems/webhook`) enfileira
+`index` dos problemas alterados → 1 juiz valida + reindexa. Requisitos:
+
+- **`MOJ_WEBHOOK_URL`** deve ser alcançável **pelo Gitea** (mesmo host: pode ser a URL pública,
+  ou um `http://127.0.0.1:<porta-nginx>/api/v1/problems/webhook` com o vhost certo via `Host`).
+- O segredo do webhook é o mesmo `run/secrets/gitea-webhook.secret` (modo 600).
+- Confira a entrega em *Settings → Webhooks → Recent Deliveries* do repo no Gitea.
+
 ## 6. Backup & restauração
 
 Estado vivo = **SQLite** + **repos** + **segredos**:

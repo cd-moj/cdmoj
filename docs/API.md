@@ -79,6 +79,7 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/set-collections` | POST `{id, collections:[...]}` | define coleções no `.moj-meta.json` |
 | `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (colaborador Gitea; só o dono gerencia) |
 | `/problems/git-credential` | POST `{repo}` | credencial HTTPS efêmera p/ o **modo git** do CLI (`{url,username,token}`); só quem pode escrever; não persistir |
+| `/problems/webhook` | POST | **Gitea → MOJ** (sem Bearer; HMAC `X-Gitea-Signature`). Em cada push, enfileira `index` dos problemas alterados e registra o diretório. Webhook criado automático no `repo-create`/migração; URL em `MOJ_WEBHOOK_URL` |
 
 O CLI **`moj`** (`web/moj`, servido em `GET /moj`; fonte em `moj-cli/`) usa essas rotas para
 autoria **sem git/sem chave**: `moj new/clone/push/publish/share`. `git-credential` é só p/ o modo

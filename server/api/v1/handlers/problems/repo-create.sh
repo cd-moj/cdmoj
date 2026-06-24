@@ -15,6 +15,7 @@ exist="$(repo_owner "$repo")"
 
 gitea_ensure_user "$SESSION_LOGIN" "$SESSION_NAME" "$SESSION_LOGIN@moj.local" || fail 502 "Falha ao provisionar usuário Gitea" "gitea_user"
 gitea_ensure_repo "$SESSION_LOGIN" "$repo" || fail 502 "Falha ao criar o repositório" "gitea_repo"
+gitea_ensure_webhook "$SESSION_LOGIN" "$repo" 2>/dev/null || true   # push -> reindex (best-effort)
 colls="$(jq -r '(.collections // []) | join(",")' <<<"$body")"
 repo_register "$repo" "$SESSION_LOGIN" "$colls"
 audit_log "repo-create" "repo=$repo owner=$SESSION_LOGIN"

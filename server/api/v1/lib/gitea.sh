@@ -86,6 +86,19 @@ gitea_set_collaborator(){
 }
 gitea_rm_collaborator(){ gitea_api DELETE "/repos/$1/$2/collaborators/$3" >/dev/null; [[ "$GITEA_HTTP" =~ ^2 ]]; }
 
+# gitea_ensure_webhook <owner> <repo> — cria (idempotente) o webhook push -> MOJ (HMAC).
+# Best-effort: requer MOJ_WEBHOOK_URL + o segredo; o Gitea precisa alcançar essa URL.
+gitea_ensure_webhook(){
+  local owner="$1" repo="$2" url secret have
+  url="${MOJ_WEBHOOK_URL:-}"; [[ -n "$url" ]] || return 0
+  secret="$(cat "${GITEA_WEBHOOK_SECRET_FILE:-$RUNDIR/secrets/gitea-webhook.secret}" 2>/dev/null)"; [[ -n "$secret" ]] || return 0
+  have="$(gitea_api GET "/repos/$owner/$repo/hooks" | jq -r --arg u "$url" '[.[]?|select(.config.url==$u)]|length' 2>/dev/null)"
+  [[ "${have:-0}" -gt 0 ]] && return 0
+  gitea_api POST "/repos/$owner/$repo/hooks" "$(jq -n --arg u "$url" --arg s "$secret" \
+    '{type:"gitea", active:true, events:["push"], config:{url:$u, content_type:"json", secret:$s}}')" >/dev/null
+  [[ "$GITEA_HTTP" =~ ^2 ]]
+}
+
 # gitea_can_write <owner> <repo> <login> — 0 se login pode escrever no repo (owner/collab/admin)
 gitea_can_write(){
   [[ "$1" == "$3" ]] && return 0
