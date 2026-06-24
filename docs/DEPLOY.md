@@ -29,7 +29,7 @@ Em produção, use os units systemd de `server/etc/systemd/` (`systemctl --user 
 ## nginx — `~/nginx-proxy/conf.d/moj.conf`
 
 Server block para `moj.charge.naquadah.com.br` (coberto pelo cert wildcard `*.charge.naquadah.com.br`):
-- `root /home/ribas/moj/web` + `index index.html` → frontend estático.
+- `root /home/ribas/moj/cdmoj/web` + `index index.html` → frontend estático.
 - `location /api/v1/` → `fastcgi_pass unix:/home/ribas/moj/run/fcgiwrap.sock`, com `SCRIPT_FILENAME=server/api/v1/router.sh` e `PATH_INFO` via `fastcgi_split_path_info`.
 - `location /docs/` → serve esta documentação.
 

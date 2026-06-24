@@ -10,8 +10,8 @@ _LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 : "${SESSIONDIR:=/home/ribas/moj/run/sessions}"
 : "${SPOOLDIR:=/home/ribas/moj/run/spool/submissions}"
-: "${NEWSDIR:=/home/ribas/moj/server/var/news}"
-: "${SCOREDIR:=/home/ribas/moj/server/score}"
+: "${NEWSDIR:=/home/ribas/moj/cdmoj/server/var/news}"
+: "${SCOREDIR:=/home/ribas/moj/cdmoj/server/score}"
 : "${DEFAULT_SCORE_MODE:=icpc}"
 export CONTESTSDIR SCOREDIR   # herdados por sub-processos (ex.: server/score/build.sh)
 

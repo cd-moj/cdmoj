@@ -1,6 +1,6 @@
 [Unit]
 Description=MOJ judge worker %i (job-receiveitor + root-daemon; capability por instância)
-Documentation=file:///home/ribas/moj/server/judge-gw/README.md
+Documentation=file:///home/ribas/moj/cdmoj/server/judge-gw/README.md
 After=network.target
 # SAMPLE / TEMPLATE. Instância = capability:port, ex.:
 #   systemctl --user start moj-worker@pos:41050.service

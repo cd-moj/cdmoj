@@ -1,6 +1,6 @@
 [Unit]
 Description=MOJ fcgiwrap (executa a API bash atrás do nginx via FastCGI)
-Documentation=file:///home/ribas/moj/docs/PLAN.md
+Documentation=file:///home/ribas/moj/cdmoj/docs/PLAN.md
 # Pareado com moj-fcgiwrap.socket (socket-activation). Pode rodar standalone
 # também: o ExecStart abre o próprio socket unix com -s.
 After=network.target
@@ -11,8 +11,8 @@ Type=simple
 #   -s <socket>   ex.: unix:/run/user/<uid>/moj-fcgiwrap.sock
 #   -c <n>        número de processos filhos (workers)
 # %t = runtime dir do usuário (XDG_RUNTIME_DIR, normalmente /run/user/<uid>).
-Environment=FCGIWRAP=%h/moj/old/fcgiwrap/fcgiwrap
-ExecStart=%h/moj/old/fcgiwrap/fcgiwrap -s unix:%t/moj-fcgiwrap.sock -c 8
+Environment=FCGIWRAP=%h/moj/cdmoj/old/fcgiwrap/fcgiwrap
+ExecStart=%h/moj/cdmoj/old/fcgiwrap/fcgiwrap -s unix:%t/moj-fcgiwrap.sock -c 8
 # A API descobre os caminhos por server/etc/common.conf; o nginx passa
 # SCRIPT_FILENAME apontando p/ server/api/v1/router.sh (ver etc/nginx/).
 Restart=on-failure

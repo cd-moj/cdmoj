@@ -2,8 +2,10 @@
 # Sobe o fcgiwrap (vendored, sem root) num socket unix user-space para o nginx
 # conversar com a API bash (router.sh). Rode em background ou via systemd.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"   # .../moj
-SOCK="${MOJ_FCGI_SOCK:-$ROOT/run/fcgiwrap.sock}"
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"   # .../cdmoj
+# RUNDIR (estado de runtime) fica FORA do repo e é configurável; default no workspace.
+: "${RUNDIR:=/home/ribas/moj/run}"
+SOCK="${MOJ_FCGI_SOCK:-$RUNDIR/fcgiwrap.sock}"
 FCGI="$ROOT/server/bin/fcgiwrap"; [ -x "$FCGI" ] || FCGI="$ROOT/old/fcgiwrap/fcgiwrap"
 mkdir -p "$(dirname "$SOCK")"
 rm -f "$SOCK"

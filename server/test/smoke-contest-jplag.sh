@@ -2,7 +2,7 @@
 # Item 7: jplag — runner (roda java no jar) + handlers (run/results/match).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
-JAR="/home/ribas/moj/old/moj-prod/moj/jplag/jplag-3.0.0-jar-with-dependencies.jar"
+JAR="/home/ribas/moj/cdmoj/old/moj-prod/moj/jplag/jplag-3.0.0-jar-with-dependencies.jar"
 command -v java >/dev/null 2>&1 || { echo "SKIP: sem java"; exit 0; }
 [[ -f "$JAR" ]] || { echo "SKIP: sem jar"; exit 0; }
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT

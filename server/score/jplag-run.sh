@@ -6,7 +6,7 @@
 set -u
 contest="${1:?uso: jplag-run.sh <contest>}"
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
-: "${JPLAG_JAR:=/home/ribas/moj/old/moj-prod/moj/jplag/jplag-3.0.0-jar-with-dependencies.jar}"
+: "${JPLAG_JAR:=/home/ribas/moj/cdmoj/old/moj-prod/moj/jplag/jplag-3.0.0-jar-with-dependencies.jar}"
 : "${JPLAG_MIN_TOKENS:=6}"
 cdir="$CONTESTSDIR/$contest"; jdir="$cdir/jplag"; mkdir -p "$jdir"
 

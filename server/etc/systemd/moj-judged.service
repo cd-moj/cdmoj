@@ -1,12 +1,12 @@
 [Unit]
 Description=MOJ async judging daemon (consome o spool de submissões via inotify)
-Documentation=file:///home/ribas/moj/docs/PLAN.md
+Documentation=file:///home/ribas/moj/cdmoj/docs/PLAN.md
 After=network.target
 
 [Service]
 Type=simple
 # Ajuste WorkingDirectory/MOJ_HOME por deploy.
-Environment=MOJ_HOME=%h/moj
+Environment=MOJ_HOME=%h/moj/cdmoj
 # Backend: mock (testes) | local (bubblewrap) | cluster (escalonador).
 Environment=JUDGE_BACKEND=mock
 # Override de caminhos, se quiser (senão usa server/etc/common.conf):
@@ -14,8 +14,8 @@ Environment=JUDGE_BACKEND=mock
 # Environment=RUNDIR=%h/moj/run
 # Environment=JUDGE_MASTER=localhost:27000
 # Environment=RESULT_SINK=localhost:28000
-WorkingDirectory=%h/moj/server/daemons
-ExecStart=/bin/bash %h/moj/server/daemons/judged.sh
+WorkingDirectory=%h/moj/cdmoj/server/daemons
+ExecStart=/bin/bash %h/moj/cdmoj/server/daemons/judged.sh
 Restart=on-failure
 RestartSec=2
 # Endurecimento básico (user service):

@@ -1,6 +1,6 @@
 [Unit]
 Description=MOJ judge master/escalonador (:27000 + escalonador por prioridade)
-Documentation=file:///home/ribas/moj/server/judge-gw/README.md
+Documentation=file:///home/ribas/moj/cdmoj/server/judge-gw/README.md
 After=network.target
 # SAMPLE: roda os scripts vivos do cluster em judge/sistema_escalonador/.
 # Hoje eles sobem via tmux/tcpserver (lancar-master.sh). Em ambientes SEM
