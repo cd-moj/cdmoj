@@ -28,6 +28,17 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
     if [[ -f "$src" ]]; then
       args+=( --arg "$T" "$(base64 -w0 < "$src" 2>/dev/null)" )
       filt+=", statement_${T}_b64:\$$T"
+    elif [[ "$T" == html ]]; then
+      # fallback: enunciado gerado DEPOIS (problema privado validado -> jsons-private).
+      # Aparece automaticamente assim que o juiz indexa; cacheia no contest na 1ª vez.
+      jf="$CONTESTSDIR/treino/var/jsons/$STATEMENT.json"; [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$STATEMENT.json"
+      hb="$([[ -f "$jf" ]] && jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null)"
+      if [[ -n "$hb" ]]; then
+        args+=( --arg html "$hb" ); filt+=", statement_html_b64:\$html"
+        ( mkdir -p "$ENUN"; base64 -d <<<"$hb" > "$ENUN/$STATEMENT.html" ) 2>/dev/null || true
+      else
+        filt+=", statement_html_b64:null"
+      fi
     else
       filt+=", statement_${T}_b64:null"
     fi

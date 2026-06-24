@@ -164,7 +164,7 @@ Permissão: usuários `.admin` sempre podem; demais por **lista do admin OU thre
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
 | `/treino/contest-create/permission` | GET | Bearer | `{can_create,is_admin,reason,solved_count,threshold,in_allow,in_deny,allowed_modes,login,name}` |
-| `/treino/contest-create/problems?q=&limit=` | GET | Bearer+criador | **autocomplete** dos problemas que o criador pode usar: públicos **+ os privados a que tem acesso** (dono/colaborador) `{problems:[{id,title,tags,access:mine\|shared\|public,private}],mine,shared,total}`. Privados primeiro; statement vem de `var/jsons-private/`. `/create` recusa problema privado sem acesso (`problem_denied`) |
+| `/treino/contest-create/problems?q=&limit=` | GET | Bearer+criador | **autocomplete** dos problemas que o criador pode usar: públicos **+ os privados a que tem acesso** (dono/colaborador) `{problems:[{id,title,tags,access:mine\|shared\|public,private}],mine,shared,total}`. Privados primeiro; statement vem de `var/jsons-private/`. `/create` recusa problema privado sem acesso (`problem_denied`) e **auto-valida** (enfileira `index`) os privados sem enunciado pronto — o contest mostra o enunciado assim que o juiz indexa (`contest/problems` faz fallback p/ `jsons-private` e cacheia) |
 | `/treino/contest-create/tags` | GET | Bearer+criador | tags do banco com contagem `{tags:[{tag,count}],total}` |
 | `/treino/contest-create/draw?tags=&count=&match=any\|all&difficulty=any\|easy\|medium\|hard\|known&seed=` | GET | Bearer+criador | sorteia problemas por tag/dificuldade, reproduzível por seed `{problems[],candidates,drawn,seed}` |
 | `/treino/contest-create/genpass?n=` | GET | Bearer+criador | N senhas legíveis (palavras-para-senha) `{passwords[]}` |
