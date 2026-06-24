@@ -44,6 +44,7 @@ mkdir -p "$wt/$prob"
 rsync -a --delete --exclude='.git' "$src"/ "$wt/$prob"/ 2>/dev/null \
   || { rm -rf "$wt/$prob"; mkdir -p "$wt/$prob"; cp -a "$src"/. "$wt/$prob"/; }
 write_meta "$wt/$prob" "$owner" "$repo" "" "" ""
+[[ -f "$wt/$prob/problem.yaml" ]] || bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$wt/$prob" "$repo#$prob" "$repo" >/dev/null 2>&1 || true
 
 sha="$(git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "upload do pacote: $prob")" \
   || fail 502 "Falha ao enviar (push)" "git_push"

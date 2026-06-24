@@ -20,6 +20,7 @@ apply_problem_fields "$wt/$prob" "$body"
 colls=""; jq -e 'has("collections")' >/dev/null 2>&1 <<<"$body" && colls="$(jq -c '.collections' <<<"$body")"
 title="$(jq -r '.title // empty' <<<"$body")"
 write_meta "$wt/$prob" "$owner" "$repo" "" "$colls" "$title"
+bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$wt/$prob" "$id" "$repo" >/dev/null 2>&1 || true  # Kattis-aware
 
 sha="$(git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "edita $prob")" \
   || fail 502 "Falha ao enviar (push)" "git_push"
