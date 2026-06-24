@@ -17,11 +17,19 @@ gitea_can_write "$owner" "$repo" "$SESSION_LOGIN" || fail 403 "Sem permissão de
 
 tarf="$(mktemp)"; ex=""; tmp=""
 trap 'rm -rf "$tarf" "$ex" "$tmp"' EXIT
-jq -r '.tar_b64 // ""' <<<"$body" | base64 -d > "$tarf" 2>/dev/null
-[[ -s "$tarf" ]] || fail 400 "Tar vazio/ inválido" "tar_empty"
-# segurança: rejeita caminho absoluto ou traversal
-tar -tf "$tarf" 2>/dev/null | grep -qE '(^/|(^|/)\.\.(/|$))' && fail 400 "Tar com caminho inseguro" "tar_unsafe"
-ex="$(mktemp -d)"; tar -xf "$tarf" -C "$ex" --no-same-owner 2>/dev/null || fail 400 "Tar inválido" "tar_bad"
+# aceita o campo .tar_b64 (qualquer formato) ou .archive_b64 (alias)
+jq -r '.tar_b64 // .archive_b64 // ""' <<<"$body" | base64 -d > "$tarf" 2>/dev/null
+[[ -s "$tarf" ]] || fail 400 "Arquivo vazio/ inválido" "tar_empty"
+ex="$(mktemp -d)"
+# zip (magic PK) -> unzip; senão tar -xf (auto-detecta gz/bz2/xz/zst/plain)
+if [[ "$(head -c2 "$tarf")" == "PK" ]]; then
+  command -v unzip >/dev/null || fail 501 "Sem unzip no servidor (envie .tar.gz)" "no_unzip"
+  unzip -Z1 "$tarf" 2>/dev/null | grep -qE '(^/|(^|/)\.\.(/|$))' && fail 400 "Zip com caminho inseguro" "zip_unsafe"
+  unzip -qq -o "$tarf" -d "$ex" 2>/dev/null || fail 400 "Zip inválido" "zip_bad"
+else
+  tar -tf "$tarf" 2>/dev/null | grep -qE '(^/|(^|/)\.\.(/|$))' && fail 400 "Arquivo com caminho inseguro" "tar_unsafe"
+  tar -xf "$tarf" -C "$ex" --no-same-owner 2>/dev/null || fail 400 "Arquivo inválido (formatos: tar/tar.gz/tar.bz2/tar.zst/zip)" "tar_bad"
+fi
 # raiz do pacote: 1 diretório de topo -> usa ele; senão a raiz extraída
 src="$ex"; top="$(find "$ex" -maxdepth 1 -mindepth 1)"
 [[ "$(printf '%s\n' "$top" | grep -c .)" -eq 1 && -d "$top" ]] && src="$top"

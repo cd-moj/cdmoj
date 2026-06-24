@@ -28,5 +28,6 @@ pub_now="$(jq -r 'if .public==true then "true" else "false" end' "$wt/$prob/.moj
 colls_now="$(jq -c '.collections // []' "$wt/$prob/.moj-meta.json" 2>/dev/null)"
 author_txt="$(cat "$wt/$prob/author" 2>/dev/null | head -1)"
 authored_upsert "$id" "$owner" "$repo" "$prob" "$title" "${pub_now:-false}" "${colls_now:-[]}" "$author_txt" "$(repo_collabs "$repo")"
+grant_problem_collections "$id" "$repo" "$SESSION_LOGIN"   # setters das coleções ganham acesso
 audit_log "problem-edit" "id=$id by=$SESSION_LOGIN"
 ok_json '{action:"edit", id:$id, sha:$s}' --arg id "$id" --arg s "${sha:0:12}"

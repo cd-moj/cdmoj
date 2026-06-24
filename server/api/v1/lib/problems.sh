@@ -98,6 +98,48 @@ repo_set_collabs(){  # <repo> <collabs-json>
   ( umask 077; jq --arg r "$r" --argjson cb "$cb" 'if has($r) then .[$r].collaborators=$cb else . end' <<<"$cur" ) \
     > "$tmp" 2>/dev/null && mv -f "$tmp" "$REPO_REGISTRY"
 }
+# ---- coleções (competição/curso) com grupo de setters -------------------------------------
+COLLECTIONS_REGISTRY="$CONTESTSDIR/treino/var/collections.json"
+collection_owner(){ [[ -f "$COLLECTIONS_REGISTRY" ]] && jq -r --arg n "$1" '.[$n].owner // empty' "$COLLECTIONS_REGISTRY" 2>/dev/null; }
+collection_members(){ local m; [[ -f "$COLLECTIONS_REGISTRY" ]] && m="$(jq -c --arg n "$1" '.[$n].members // []' "$COLLECTIONS_REGISTRY" 2>/dev/null)"; printf '%s' "${m:-[]}"; }
+collection_register(){  # <name> <owner> [members-csv] [title]
+  local n="$1" o="$2" m="${3:-}" t="${4:-}" cur tmp; cur="$(cat "$COLLECTIONS_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
+  mkdir -p "$(dirname "$COLLECTIONS_REGISTRY")" 2>/dev/null; tmp="$COLLECTIONS_REGISTRY.tmp.$$"
+  ( umask 077; jq -n --argjson cur "$cur" --arg n "$n" --arg o "$o" --arg m "$m" --arg t "$t" --argjson now "$EPOCHSECONDS" '
+      ($cur[$n] // {}) as $old
+      | $cur + { ($n): ($old + { owner:($old.owner // $o),
+                  title:(if $t=="" then ($old.title // $n) else $t end),
+                  members:(((($old.members // []) + ($m|split(",")|map(select(length>0)))) | unique)), at:$now }) }' ) >"$tmp" 2>/dev/null \
+    && mv -f "$tmp" "$COLLECTIONS_REGISTRY"
+}
+collection_set_members(){  # <name> <members-json>
+  local n="$1" m="$2" cur tmp; cur="$(cat "$COLLECTIONS_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
+  tmp="$COLLECTIONS_REGISTRY.tmp.$$"
+  ( umask 077; jq --arg n "$n" --argjson m "$m" 'if has($n) then .[$n].members=$m else . end' <<<"$cur" ) >"$tmp" 2>/dev/null && mv -f "$tmp" "$COLLECTIONS_REGISTRY"
+}
+# collection_grant_repo <name> <repo> <acting> — membros da coleção viram colaboradores do
+# repo (só se o acting for dono do repo ou admin). Espelha no registro/overlay. Best-effort.
+collection_grant_repo(){
+  local name="$1" repo="$2" acting="$3" owner m u; owner="$(repo_owner "$repo")"
+  [[ -n "$owner" ]] || return 0
+  { [[ "$acting" == "$owner" ]] || { declare -F is_admin >/dev/null && is_admin; }; } || return 0
+  m="$(collection_members "$name")"; [[ "$m" != "[]" ]] || return 0
+  while IFS= read -r u; do [[ -n "$u" && "$u" != "$owner" ]] || continue
+    declare -F gitea_ensure_user >/dev/null && gitea_ensure_user "$u" "$u" "$u@moj.local" \
+      && gitea_set_collaborator "$owner" "$repo" "$u" write
+  done < <(jq -r '.[]?' <<<"$m" 2>/dev/null)
+  local cur merged; cur="$(repo_collabs "$repo")"; cur="${cur:-[]}"
+  merged="$(jq -cn --argjson a "$cur" --argjson b "$m" '($a+$b)|unique')"
+  repo_set_collabs "$repo" "$merged"; authored_set_repo_collabs "$repo" "$merged"
+}
+# grant_problem_collections <id> <repo> <acting> — concede acesso aos membros de TODAS as
+# coleções do problema (chamado após create/edit/set-collections).
+grant_problem_collections(){
+  local id="$1" repo="$2" acting="$3" c
+  while IFS= read -r c; do [[ -n "$c" ]] && collection_grant_repo "$c" "$repo" "$acting"; done \
+    < <(owners_merged | jq -r --arg id "$id" 'first(.problems[]|select(.id==$id)).collections[]?' 2>/dev/null)
+}
+
 # problem_owner <id> -> login dono (overlay authored -> índice -> registro de repos). Vazio se desconhecido.
 problem_owner(){
   local id="$1" repo="${1%%#*}" o

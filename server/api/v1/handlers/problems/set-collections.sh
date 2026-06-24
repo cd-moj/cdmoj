@@ -20,5 +20,6 @@ write_meta "$wt/$prob" "$owner" "$repo" "" "$colls" ""
 git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "coleções de $prob" >/dev/null \
   || fail 502 "Falha ao enviar (push)" "git_push"
 authored_patch "$id" '.collections=$c' --argjson c "$colls"
+grant_problem_collections "$id" "$repo" "$SESSION_LOGIN"   # setters das coleções ganham acesso
 audit_log "set-collections" "id=$id"
 ok_json '{action:"set-collections", id:$id, collections:$c}' --arg id "$id" --argjson c "$colls"

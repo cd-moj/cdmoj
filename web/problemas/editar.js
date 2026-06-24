@@ -10,6 +10,7 @@ const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
 let enunEd = null;
 let solEditors = { good: [], slow: [], wrong: [], pass: [] };
+let COLLS = [];
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -68,7 +69,8 @@ function testRow(name = '', input = '', output = '') {
   const nameI = el('input', { type: 'text', value: name, placeholder: 'nome', style: 'max-width:11rem' });
   const inT = el('textarea', { class: 'tin' }, input), outT = el('textarea', { class: 'tout' }, output);
   const li = hiddenFile(false), lo = hiddenFile(false);
-  li.addEventListener('change', async () => { if (li.files[0]) { inT.value = await li.files[0].text(); if (!nameI.value) nameI.value = li.files[0].name.replace(/\.[^.]*$/, ''); } });
+  nameI.addEventListener('change', updatePkgInfo);
+  li.addEventListener('change', async () => { if (li.files[0]) { inT.value = await li.files[0].text(); if (!nameI.value) nameI.value = li.files[0].name.replace(/\.[^.]*$/, ''); updatePkgInfo(); } });
   lo.addEventListener('change', async () => { if (lo.files[0]) outT.value = await lo.files[0].text(); });
   const row = el('div', { class: 'ex' },
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'small' }, 'teste'), nameI,
@@ -120,18 +122,38 @@ async function addSol(cat, fn, code) {
   let ed = await createEditor(mount, { doc: code || '', cm: langSel.value || null });
   const remount = async () => { const c = ed.getValue(); mount.innerHTML = ''; ed = await createEditor(mount, { doc: c, cm: langSel.value || null }); };
   langSel.addEventListener('change', remount);
-  fnInput.addEventListener('change', () => { langSel.value = cmFor(fnInput.value); remount(); });
+  fnInput.addEventListener('change', () => { langSel.value = cmFor(fnInput.value); remount(); updatePkgInfo(); });
   solEditors[cat].push({ row, get: () => ({ filename: fnInput.value.trim(), code: ed.getValue() }) });
   updatePkgInfo();
 }
 const loadSolFiles = async (cat, files) => { for (const f of files) await addSol(cat, f.name, await f.text()); };
 function collectSols() { const o = {}; for (const [cat] of SOL_CATS) o[cat] = solEditors[cat].map(x => x.get()).filter(s => s.filename); return o; }
 
+// ---- árvore do pacote (clicável -> rola até a seção) --------------------------------------
+function flash(t) { if (!t) return; t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.classList.add('flash'); setTimeout(() => t.classList.remove('flash'), 1200); }
+const ul = (...kids) => el('ul', {}, ...kids.filter(Boolean));
+const leaf = (label, target, opener) => el('li', {}, el('a', { onclick: () => { if (opener) opener(); flash(target); } }, label));
+const dirNode = (label, ...kids) => el('li', {}, el('span', { class: 'dir' }, label), ul(...kids.filter(Boolean)));
+function buildTree() {
+  const exRows = [...$('examples').querySelectorAll('.ex')], tsRows = [...$('tests').querySelectorAll('.ex')];
+  const testKids = [];
+  if (exRows.length) testKids.push(dirNode('exemplos/', ...exRows.map((r, i) => leaf('sample' + (i + 1), r))));
+  if (tsRows.length) testKids.push(dirNode('ocultos/', ...tsRows.map(r => leaf((r.querySelector('input[type=text]').value || 'teste'), r))));
+  const solKids = SOL_CATS.map(([c]) => solEditors[c].length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || '(sem nome)', s.row))) : null).filter(Boolean);
+  const tree = ul(
+    dirNode('docs/', leaf('enunciado.md', $('enunMount'))),
+    leaf('conf', $('confRaw'), () => { const d = $('confRaw').closest('details'); if (d) d.open = true; }),
+    leaf('author', $('pauthor')), leaf('tags', $('ptags')),
+    testKids.length ? dirNode('tests/', ...testKids) : null,
+    solKids.length ? dirNode('sols/', ...solKids) : null);
+  return el('div', {}, el('div', { class: 'dir' }, ($('prob').value || 'problema') + '/'), tree);
+}
 function updatePkgInfo() {
   if (!$('pkgInfo')) return;
   const ex = $('examples').querySelectorAll('.ex').length, ts = $('tests').querySelectorAll('.ex').length;
   const sc = SOL_CATS.map(([c]) => `${c}:${solEditors[c].length}`).join(' · ');
   $('pkgInfo').textContent = `${ex} exemplo(s) · ${ts} teste(s) oculto(s) · soluções ${sc}`;
+  if ($('pkgTree')) { $('pkgTree').innerHTML = ''; $('pkgTree').append(buildTree()); }
 }
 
 // ---- montagem / coleta --------------------------------------------------------------------
@@ -152,6 +174,7 @@ async function renderForm(d) {
   await renderSols(d.sols || { good: [{ filename: 'sol.py', code: '' }] });
   $('confRaw').value = d.conf_text || ''; confToFields($('confRaw').value);
   loadedPublic = !!d.public; $('ppublic').checked = loadedPublic;
+  renderCollChips(); renderCollManage(); updatePkgInfo();
   if (d.format && d.format !== 'md') showNote(`Enunciado em <b>${d.format}</b> — ao salvar, considere convertê-lo para o Markdown canônico.`);
 }
 const collectFields = () => ({
@@ -217,6 +240,54 @@ function renderShareList(list) {
 async function share(add, remove) {
   try { const j = await apiPost('/problems/repo-collaborators', { repo: REPO, add, remove }, { contest: CONTEST, auth: true });
     renderShareList(j.collaborators || []); setMsg('compartilhamento atualizado ✓', 'v-ok');
+  } catch (e) { setMsg(e.message, 'error'); }
+}
+
+// ---- coleções & setters -------------------------------------------------------------------
+const currentColls = () => splitList($('pcolls').value);
+function setColls(list) { $('pcolls').value = [...new Set(list)].join(', '); renderCollChips(); renderCollManage(); }
+async function loadColls() {
+  try { COLLS = (await apiGet('/problems/collections', { contest: CONTEST, auth: true })).collections || []; } catch { COLLS = []; }
+  renderCollChips(); renderCollManage();
+}
+function renderCollChips() {
+  const box = $('myColls'); if (!box) return; box.innerHTML = '';
+  const cur = currentColls();
+  const names = [...new Set([...COLLS.filter(c => c.owner).map(c => c.name), ...cur])];
+  if (!names.length) { box.append(el('span', { class: 'small muted' }, 'sem coleções ainda — crie uma abaixo.')); return; }
+  names.forEach(n => { const on = cur.includes(n);
+    box.append(el('span', { class: 'collchip' + (on ? ' on' : ''), onclick: () => { const c = currentColls(); on ? setColls(c.filter(x => x !== n)) : setColls([...c, n]); } }, (on ? '✓ ' : '') + n)); });
+}
+function renderCollManage() {
+  const box = $('collManage'); if (!box) return; box.innerHTML = '';
+  currentColls().forEach(n => {
+    const c = COLLS.find(x => x.name === n); if (!c || !c.mine) return;
+    const inp = el('input', { type: 'text', placeholder: 'add setter: login', style: 'max-width:14rem' }), list = el('span', { class: 'small' });
+    const renderM = (ms) => { list.innerHTML = ''; list.append('setters: ');
+      (ms || []).forEach(u => list.append(el('span', { class: 'pill mut', style: 'margin-right:.3rem' }, u,
+        el('a', { href: '#', style: 'margin-left:.3rem', onclick: async (e) => { e.preventDefault(); await collMembers(n, [], [u], renderM); } }, '×')))); };
+    renderM(c.members);
+    box.append(el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin:.3rem 0;flex-wrap:wrap' },
+      el('b', {}, '⚙ ' + n), inp,
+      el('button', { class: 'btn ghost', type: 'button', onclick: async () => { const u = inp.value.trim(); if (u) { await collMembers(n, [u], [], renderM); inp.value = ''; } } }, 'adicionar setter'), list));
+  });
+}
+async function collMembers(name, add, remove, cb) {
+  try {
+    const j = await apiPost('/problems/collection-members', { name, add, remove }, { contest: CONTEST, auth: true });
+    const c = COLLS.find(x => x.name === name); if (c) c.members = j.members; if (cb) cb(j.members);
+    setMsg('coleção atualizada ✓', 'v-ok');
+  } catch (e) { setMsg(e.message, 'error'); }
+}
+async function newColl() {
+  const name = $('newCollName').value.trim();
+  if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(name)) { setMsg('Nome de coleção inválido (use [a-z0-9._-]).', 'error'); return; }
+  const members = splitList($('newCollMembers').value);
+  try {
+    const j = await apiPost('/problems/collection-create', { name, members }, { contest: CONTEST, auth: true });
+    COLLS.push({ name: j.name, owner: j.owner, members: j.members, mine: true, count: 0 });
+    setColls([...currentColls(), j.name]); $('newCollName').value = ''; $('newCollMembers').value = '';
+    setMsg('Coleção criada ✓ — salve o problema para os setters ganharem acesso.', 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
@@ -301,5 +372,9 @@ async function boot() {
   $('shareAdd').onclick = async () => { const u = $('shareLogin').value.trim(); if (u) { await share([u], []); $('shareLogin').value = ''; } };
   [...CF_TEXT, ...CF_YN, ...CF_FLAG].forEach(([id]) => $(id).addEventListener('change', syncConfFromFields));
   $('confRaw').addEventListener('change', () => confToFields($('confRaw').value));
+  $('newCollBtn').onclick = newColl;
+  $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });
+  if (!EDITABLE) ['newCollBtn'].forEach(b => { if ($(b)) $(b).disabled = true; });
+  await loadColls();
 }
 boot();

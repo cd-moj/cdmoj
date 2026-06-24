@@ -75,7 +75,7 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/source?id=<id>` | GET | **source** editável `{editable,enunciado_md,author,tags,conf_text,public,collections,examples,tests,sols.good}` (Gitea=editável; legado=read-only) |
 | `/problems/preview` | POST `{enunciado_md, examples?}` | **pré-visualização** HTML do enunciado — mesmo pandoc do build (`-f markdown --mathml -s`, injeta exemplos) → `{html_b64}` |
 | `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
-| `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um `.tar(.gz)` e **substitui tudo** (commit+push) — máquinas sem git / trabalho offline |
+| `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um pacote (`.tar`/`.tar.gz`/`.tar.bz2`/`.tar.zst`/`.zip`) e **substitui tudo** (commit+push) — máquinas sem git / offline |
 
 > `source`/`create`/`edit` cobrem o pacote inteiro: `enunciado_md`, `conf_text` (TL/ulimits/
 > STOPWHEN/…, ver `saad-problems/README.org`), `examples` (sample), `tests` (ocultos) e `sols`
@@ -85,6 +85,8 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/set-public` | POST `{id, public:bool}` | marca público no `.moj-meta.json` (+ enfileira validação se `true`) |
 | `/problems/set-collections` | POST `{id, collections:[...]}` | define coleções no `.moj-meta.json` |
 | `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (colaborador Gitea; só o dono gerencia) |
+| `/problems/collection-create` | POST `{name, members?, title?}` | cria uma **coleção** (competição/curso) com um **grupo de setters** |
+| `/problems/collection-members` | GET `?name` / POST `{name,add?,remove?}` | gerencia o grupo da coleção; ao mudar, propaga acesso aos repos com problema nela (só o dono) |
 | `/problems/git-credential` | POST `{repo}` | credencial HTTPS efêmera p/ o **modo git** do CLI (`{url,username,token}`); só quem pode escrever; não persistir |
 | `/problems/webhook` | POST | **Gitea → MOJ** (sem Bearer; HMAC `X-Gitea-Signature`). Em cada push, enfileira `index` dos problemas alterados e registra o diretório. Webhook criado automático no `repo-create`/migração; URL em `MOJ_WEBHOOK_URL` |
 

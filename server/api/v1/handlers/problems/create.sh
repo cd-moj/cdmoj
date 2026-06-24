@@ -31,6 +31,7 @@ sha="$(git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "novo prob
 # overlay p/ visibilidade imediata em "Meus" (antes do reindex no NFS)
 author_txt="$(cat "$wt/$prob/author" 2>/dev/null | head -1)"
 authored_upsert "$repo#$prob" "$owner" "$repo" "$prob" "$title" false "$colls" "$author_txt" "$(repo_collabs "$repo")"
+grant_problem_collections "$repo#$prob" "$repo" "$SESSION_LOGIN"   # setters das coleções ganham acesso
 audit_log "problem-create" "id=$repo#$prob owner=$owner"
 ok_json '{action:"create", id:$id, repo:$r, prob:$p, owner:$o, sha:$s}' \
   --arg id "$repo#$prob" --arg r "$repo" --arg p "$prob" --arg o "$owner" --arg s "${sha:0:12}"
