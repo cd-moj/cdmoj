@@ -18,9 +18,9 @@ function render(s) {
 
   // --- saúde geral ---
   const probs = []; let crit = false, warn = false;
-  if (!j.master_up) { probs.push('Escalonador de julgamento (:27000) fora do ar.'); crit = true; }
-  else if (!j.machines_online) { probs.push('Nenhuma máquina julgando no momento.'); crit = true; }
-  else if (j.machines_total > j.machines_online) { probs.push((j.machines_total - j.machines_online) + ' máquina(s) de julgamento offline.'); warn = true; }
+  if (s.alert && s.alert.no_judges) { probs.push('Há trabalho na fila e nenhum juiz online.'); crit = true; }
+  else if (!j.online) { probs.push('Nenhum juiz conectado no momento.'); warn = true; }
+  else if (j.total > j.online) { probs.push((j.total - j.online) + ' juiz(es) offline.'); warn = true; }
   if (!d.judged) { probs.push('Daemon de julgamento (judged) parado.'); warn = true; }
   if ((q.total_pending || 0) > 50) { probs.push('Fila grande: ' + q.total_pending + ' submissões pendentes.'); warn = true; }
   const level = crit ? 'down' : warn ? 'warn' : 'ok';
@@ -32,15 +32,14 @@ function render(s) {
 
   const grid = el('div', { class: 'stat-grid' });
 
-  // --- máquinas / escalonador ---
-  const jc = el('div', { class: 'stat-card' }, el('h3', {}, '🖥️ Máquinas de julgamento'),
-    el('div', { class: 'big-num' }, (j.machines_online || 0) + ' / ' + (j.machines_total || 0)),
-    el('div', { class: 'big-sub' }, 'máquinas julgando'),
-    el('div', { class: 'kv first' }, el('span', {}, 'Escalonador (:27000)'), ind(j.master_up, 'no ar', 'fora do ar')),
-    el('div', { class: 'kv' }, el('span', {}, 'Estado'),
-      el('span', { class: 'ind ' + (j.busy ? 'warn' : 'ok') }, j.busy ? 'ocupado' : 'livre')));
-  if (j.workers_registered) jc.append(el('div', { class: 'kv' },
-    el('span', {}, 'Workers registrados (push)'), el('span', {}, String(j.workers_registered))));
+  // --- juízes (modelo pull: registro + heartbeat) ---
+  const jc = el('div', { class: 'stat-card' }, el('h3', {}, '🖥️ Juízes (pull)'),
+    el('div', { class: 'big-num' }, (j.online || 0) + ' / ' + (j.total || 0)),
+    el('div', { class: 'big-sub' }, 'juízes online (heartbeat)'),
+    el('div', { class: 'kv first' }, el('span', {}, 'Ocupados agora'),
+      el('span', { class: 'ind ' + (j.busy ? 'warn' : 'ok') }, String(j.busy || 0))),
+    el('div', { class: 'kv' }, el('span', {}, 'CPUs disponíveis'), el('span', {}, String(j.cpus_online || 0))));
+  if (j.gpus_online) jc.append(el('div', { class: 'kv' }, el('span', {}, 'Juízes com GPU'), el('span', {}, String(j.gpus_online))));
   grid.append(jc);
 
   // --- fila ---

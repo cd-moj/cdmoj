@@ -341,8 +341,9 @@ function makeJudgesTab() {
     body.append(statusLine);
 
     // endereço do master
-    const masterAddr = (data.master_host || '?') + ':' + (data.master_port != null ? data.master_port : '?');
-    body.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' }, 'Master (escalonador): ' + masterAddr));
+    body.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' },
+      data.model === 'pull' ? 'Modelo: pull (registro + heartbeat)'
+        : ('Master (escalonador): ' + (data.master_host || '?') + ':' + (data.master_port != null ? data.master_port : '?'))));
 
     // specs do master que respondeu
     const m = data.master;
@@ -357,14 +358,14 @@ function makeJudgesTab() {
         specs.append(spec('memória', gb.toFixed(1) + ' GB'));
       }
       body.append(specs);
-    } else if (data.online) {
+    } else if (data.online && data.model !== 'pull') {
       body.append(el('div', { class: 'muted small' }, 'O master respondeu, mas não informou especificações.'));
     }
 
     // máquinas: se o master agregou (listmachines), mostra cada uma com estado+specs
     if (data.has_machine_list && (data.machines || []).length) {
       body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' },
-        `Máquinas — ${data.machines_online}/${data.machines_count} julgando agora`));
+        `Juízes — ${data.machines_online}/${data.machines_count} online`));
       const tb = el('tbody');
       data.machines.forEach(mc => {
         const rep = mc.report || {};

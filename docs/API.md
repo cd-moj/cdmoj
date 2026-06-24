@@ -73,6 +73,7 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/repos` | GET | diretórios do autor (dono/colaborador) `{repos:[{repo,owner,collaborators,collections,mine}]}` |
 | `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
 | `/problems/source?id=<id>` | GET | **source** editável `{editable,enunciado_md,author,tags,conf_text,public,collections,examples,tests,sols.good}` (Gitea=editável; legado=read-only) |
+| `/problems/preview` | POST `{enunciado_md, examples?}` | **pré-visualização** HTML do enunciado — mesmo pandoc do build (`-f markdown --mathml -s`, injeta exemplos) → `{html_b64}` |
 | `/problems/create` | POST `{repo,prob,enunciado_md?,author?,tags?,examples?,good_sol?,title?,...}` | cria problema novo; commit+push; `{id,sha}` |
 | `/problems/edit` | POST `{id, ...campos}` | edita (só campos presentes); commit+push autorado |
 | `/problems/set-public` | POST `{id, public:bool}` | marca público no `.moj-meta.json` (+ enfileira validação se `true`) |
