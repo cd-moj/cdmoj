@@ -36,3 +36,6 @@ mojinho-bot/mojinho-offset
 *~
 .DS_Store
 node_modules/
+
+# CLI de autoria servido na raiz web (origem: ../moj-cli/moj — copiado pelo setup.sh)
+/web/moj

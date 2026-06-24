@@ -78,6 +78,11 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/set-public` | POST `{id, public:bool}` | marca público no `.moj-meta.json` (+ enfileira validação se `true`) |
 | `/problems/set-collections` | POST `{id, collections:[...]}` | define coleções no `.moj-meta.json` |
 | `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (colaborador Gitea; só o dono gerencia) |
+| `/problems/git-credential` | POST `{repo}` | credencial HTTPS efêmera p/ o **modo git** do CLI (`{url,username,token}`); só quem pode escrever; não persistir |
+
+O CLI **`moj`** (`web/moj`, servido em `GET /moj`; fonte em `moj-cli/`) usa essas rotas para
+autoria **sem git/sem chave**: `moj new/clone/push/publish/share`. `git-credential` é só p/ o modo
+git avançado.
 
 > Permissão de escrita = dono **ou** colaborador no Gitea (`gitea_can_write`). Visibilidade imediata
 > via overlay `contests/treino/var/authored.json` (mesclado ao índice). Segredos só server-side

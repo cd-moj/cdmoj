@@ -16,6 +16,8 @@ find "$ROOT/server/bin" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
 find "$ROOT/server/daemons" "$ROOT/server/score" "$ROOT/server/judge-gw" -name '*.sh' \
      -exec chmod +x {} + 2>/dev/null || true
 cp -n "$ROOT/old/moj-prod/html/moj.naquadah.com.br/new/news/"*.json "$ROOT/server/var/news/" 2>/dev/null || true
+# serve o CLI de autoria (moj-cli/moj) a partir da raiz web: GET /moj
+[ -f "$ROOT/../moj-cli/moj" ] && cp -f "$ROOT/../moj-cli/moj" "$ROOT/web/moj" 2>/dev/null || true
 echo "MOJ setup ok: $ROOT"
 echo "  run dirs: $RUNDIR/{sessions,spool,results}"
 echo "  next: bash server/bin/start-fcgiwrap.sh &   (e recarregue o nginx-proxy)"
