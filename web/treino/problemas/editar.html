@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editar Problema — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+    .field{margin:.5rem 0} .field label{display:block;font-size:.85rem;opacity:.85;margin-bottom:.2rem}
+    .field input[type=text], .field textarea, .field select{width:100%;box-sizing:border-box}
+    textarea{font-family:ui-monospace,Menlo,Consolas,monospace;min-height:6rem}
+    textarea.big{min-height:16rem}
+    .ex{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.5rem;margin:.4rem 0}
+    .ex .grid2 textarea{min-height:4rem}
+    .pill{display:inline-block;padding:.05rem .5rem;border-radius:999px;font-size:.78rem}
+    .pill.ok{background:#173d23;color:#7ee2a0} .pill.no{background:#3d1717;color:#ffb0b0} .pill.mut{background:#22262e;color:#9fb0c8}
+    .bar2{position:sticky;bottom:0;background:var(--bg,#14171c);border-top:1px solid var(--border,#2a2a2a);padding:.6rem 0;display:flex;gap:.5rem;flex-wrap:wrap}
+    #msg{min-height:1.2rem}
+    .checks li{margin:.1rem 0}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/treino/problemas/">‹ Gestão de Problemas</a>
+        <a href="/docs/" target="_blank">Documentação</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="needauth" class="section" style="display:none">
+      <div class="error-box">Entre com seu login do MOJ para criar/editar problemas.</div>
+    </div>
+
+    <div id="app" style="display:none">
+      <div class="section">
+        <h2 id="title">Novo Problema</h2>
+        <div id="note" class="small" style="display:none"></div>
+        <div class="grid2">
+          <div class="field">
+            <label>Diretório (pasta)</label>
+            <div class="row">
+              <select id="repo" style="flex:1"></select>
+              <button id="newdir" class="btn ghost" type="button">+ nova pasta</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Nome do problema (slug — minúsculas, sem espaço)</label>
+            <input id="prob" type="text" placeholder="ex: soma-a-b">
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Título</label><input id="ptitle" type="text"></div>
+          <div class="field"><label>Autor(es)</label><input id="pauthor" type="text"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp"></div>
+          <div class="field"><label>Coleções (vírgula)</label><input id="pcolls" type="text" placeholder="obi-problems"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Enunciado (Markdown canônico)</h3>
+        <p class="small muted">Use <code>% Título</code>, descrição, <code>## Entrada</code>, <code>## Saída</code>,
+          <code>## Observações</code>. Os <b>exemplos</b> são injetados dos casos de teste abaixo — não os escreva aqui.</p>
+        <textarea id="enun" class="big" placeholder="% Título&#10;&#10;Descrição…&#10;&#10;## Entrada&#10;…&#10;&#10;## Saída&#10;…"></textarea>
+      </div>
+
+      <div class="section">
+        <h3>Exemplos (entrada / saída) — sempre visíveis no enunciado</h3>
+        <div id="examples"></div>
+        <button id="addex" class="btn ghost" type="button">+ adicionar exemplo</button>
+      </div>
+
+      <div class="section">
+        <h3>Solução de referência (deve ser aceita)</h3>
+        <div class="field"><label>Arquivo</label><input id="solname" type="text" value="sol.py" style="max-width:18rem"></div>
+        <div class="field"><label>Código</label><textarea id="solcode" class="big"></textarea></div>
+      </div>
+
+      <div class="section">
+        <h3>Publicação & compartilhamento</h3>
+        <label class="row" style="gap:.4rem"><input type="checkbox" id="ppublic"> tornar público (treino livre) ao salvar — valida no juiz</label>
+        <div id="shareBox" class="field" style="margin-top:.6rem">
+          <label>Compartilhar a pasta com (login do MOJ)</label>
+          <div class="row"><input id="shareLogin" type="text" placeholder="login" style="max-width:18rem">
+            <button id="shareAdd" class="btn ghost" type="button">adicionar</button></div>
+          <div id="shareList" class="small muted" style="margin-top:.3rem"></div>
+        </div>
+      </div>
+
+      <div class="section" id="valpanel" style="display:none"></div>
+
+      <div class="bar2">
+        <button id="save" class="btn">Salvar</button>
+        <button id="publish" class="btn ghost">Validar & Publicar</button>
+        <button id="calibrate" class="btn ghost">Calibrar</button>
+        <span class="spacer"></span>
+        <span id="msg" class="small"></span>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/treino/problemas/editar.js"></script>
+</body>
+</html>

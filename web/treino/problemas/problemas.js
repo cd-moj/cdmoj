@@ -60,7 +60,9 @@ function renderTable() {
     ];
     if (isMine) cells.push(el('td', {}, p.claimed ? pill('ok', 'meu') : pill('mut', 'provável')));
     cells.push(el('td', {}, ...stateBadges(p)));
-    cells.push(el('td', {}, el('button', { class: 'btn ghost', onclick: () => openDetail(p.id) }, 'Ver')));
+    cells.push(el('td', { class: 'row', style: 'gap:.3rem' },
+      el('button', { class: 'btn ghost', onclick: () => openDetail(p.id) }, 'Ver'),
+      el('a', { class: 'btn ghost', href: '/treino/problemas/editar.html?id=' + encodeURIComponent(p.id) }, 'Editar')));
     tb.append(el('tr', {}, ...cells));
   });
 
@@ -122,6 +124,7 @@ async function openDetail(id) {
       el('div', { class: 'row', style: 'gap:.4rem;margin-top:.3rem' }, ...stateBadges(j),
         ...(j.tags || []).map(t => el('span', { class: 'tag' }, t)))),
     el('div', { class: 'row', style: 'gap:.4rem' },
+      el('a', { class: 'btn ghost', href: '/treino/problemas/editar.html?id=' + encodeURIComponent(id) }, 'Editar'),
       el('button', { class: 'btn', id: 'btnPub', onclick: () => doAction('publish', id) }, 'Validar & Publicar'),
       el('button', { class: 'btn ghost', id: 'btnCal', onclick: () => doAction('request-calibration', id) }, 'Calibrar')));
 
@@ -197,6 +200,8 @@ async function boot() {
     document.getElementById('toolbar').style.display = 'none';
     return;
   }
+  document.getElementById('toolbar').append(
+    el('a', { class: 'btn', href: '/treino/problemas/editar.html?novo=1', style: 'margin-left:auto' }, '+ Novo problema'));
   document.querySelectorAll('#tabs button').forEach(b =>
     b.addEventListener('click', () => loadTab(b.dataset.tab)));
   ['q', 'onlybroken'].forEach(id =>

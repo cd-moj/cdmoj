@@ -67,6 +67,22 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/publish` | POST `{id}` | enfileira **validação + index** (1 juiz pega no heartbeat; portão: HTML compila + exemplos + `good` aceita) |
 | `/problems/request-calibration` | POST `{id}` | enfileira **calibração** (juiz roda `calibreitor.sh`, gera `tl.<host>`) |
 
+### Autoria (escrita keyless — git escondido, commit autorado pelo login via `git-broker.sh`)
+| Rota | Método | I/O |
+|---|---|---|
+| `/problems/repos` | GET | diretórios do autor (dono/colaborador) `{repos:[{repo,owner,collaborators,collections,mine}]}` |
+| `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
+| `/problems/source?id=<id>` | GET | **source** editável `{editable,enunciado_md,author,tags,conf_text,public,collections,examples,tests,sols.good}` (Gitea=editável; legado=read-only) |
+| `/problems/create` | POST `{repo,prob,enunciado_md?,author?,tags?,examples?,good_sol?,title?,...}` | cria problema novo; commit+push; `{id,sha}` |
+| `/problems/edit` | POST `{id, ...campos}` | edita (só campos presentes); commit+push autorado |
+| `/problems/set-public` | POST `{id, public:bool}` | marca público no `.moj-meta.json` (+ enfileira validação se `true`) |
+| `/problems/set-collections` | POST `{id, collections:[...]}` | define coleções no `.moj-meta.json` |
+| `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (colaborador Gitea; só o dono gerencia) |
+
+> Permissão de escrita = dono **ou** colaborador no Gitea (`gitea_can_write`). Visibilidade imediata
+> via overlay `contests/treino/var/authored.json` (mesclado ao índice). Segredos só server-side
+> (modo 600); nada de chave SSH/git para o autor.
+
 ## Submissão (assíncrona)
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
