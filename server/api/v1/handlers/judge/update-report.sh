@@ -20,6 +20,14 @@ mkdir -p "$UPDATESDIR/log" 2>/dev/null
 logf="$UPDATESDIR/log/$host-$EPOCHSECONDS.log"
 jq -r '.log_b64 // empty' <<<"$body" | base64 -d > "$logf" 2>/dev/null || : > "$logf"
 
+# report de index/calibrate: persiste o relatório de validação p/ a UI/CLI
+target="$(jq -r '.target // empty' <<<"$body")"
+if [[ -n "$target" ]] && valid_id "$target" && jq -e '.validation != null' >/dev/null 2>&1 <<<"$body"; then
+  : "${RUNDIR:=/home/ribas/moj/run}"; mkdir -p "$RUNDIR/validation" 2>/dev/null
+  vtmp="$RUNDIR/validation/.$target.tmp"
+  jq -c '.validation' <<<"$body" > "$vtmp" 2>/dev/null && mv -f "$vtmp" "$RUNDIR/validation/$target.json"
+fi
+
 # anexa last_update ao registro do host
 reg_set "$host" \
   '.last_update = {repo:$repo, ok:$ok, problems_count:$pc, at:$now, log:$log}' \

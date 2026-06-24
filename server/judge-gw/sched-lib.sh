@@ -191,16 +191,22 @@ q_reconcile() {
 # --------------------------------------------------- atualização de repositórios
 # Problemas estão em NFS compartilhado: UM host roda o git pull e todos enxergam.
 # O pedido vira um marcador que o heartbeat entrega a UM worker livre (exclusivo).
-upd_request() {  # $1=repo $2=requested_by [$3=note] -> ecoa o reqid
+upd_request() {  # $1=repo $2=requested_by [$3=note] [$4=kind] [$5=target] -> ecoa o reqid
+  # kind ∈ {update,index,calibrate} (default update); target = problem_id p/ index/calibrate.
   mkdir -p "$UPDATESDIR/pending" 2>/dev/null
   local reqid; reqid="$(printf '%s%s%s' "$1" "$EPOCHSECONDS" "$RANDOM" | md5sum | cut -c1-16)"
   local tmp="$UPDATESDIR/pending/.$reqid.tmp"
   jq -cn --arg id "$reqid" --arg r "$1" --arg by "${2:-?}" --arg n "${3:-}" \
-     --argjson now "$EPOCHSECONDS" \
-     '{reqid:$id, repo:$r, requested_by:$by, note:$n, requested_at:$now}' > "$tmp" \
+     --arg kind "${4:-update}" --arg target "${5:-}" --argjson now "$EPOCHSECONDS" \
+     '{reqid:$id, repo:$r, requested_by:$by, note:$n, kind:$kind, target:$target, requested_at:$now}' > "$tmp" \
      && mv -f "$tmp" "$UPDATESDIR/pending/$reqid.json"
   printf '%s' "$reqid"
 }
+
+# cal_request <repo> <problem_id> <by> : pede CALIBRAÇÃO (1 juiz roda calibreitor).
+cal_request() { upd_request "$1" "$3" "calibrate $2" calibrate "$2"; }
+# idx_request <repo> <problem_id> <by> : pede VALIDAÇÃO+INDEX (publish).
+idx_request() { upd_request "$1" "$3" "index $2" index "$2"; }
 
 # upd_claim <host> : reivindica 1 update pendente (atômico) e o ecoa, ou nada.
 upd_claim() {
