@@ -1,6 +1,7 @@
-# POST /problems/request-calibration   (Bearer)   body: {id}
-# Pede CALIBRAÇÃO: 1 juiz livre pega no heartbeat, roda mojtools/calibreitor.sh no
-# pacote (gera tl.<host>) e re-indexa. Reaproveita o mecanismo pull (kind=calibrate).
+# POST /problems/request-calibration   (Bearer)   body: {id, hosts?:[...]}
+# Pede CALIBRAÇÃO. Sem "hosts": 1 juiz livre pega no heartbeat (kind=calibrate). Com "hosts":
+# manda um comando DIRECIONADO a cada juiz escolhido (cada um recalibra full e reporta) — p/ ver
+# o comportamento em processadores diferentes. Roda mojtools/calibreitor.sh no pacote.
 require_method POST
 require_auth
 source "$_DIR/../../judge-gw/sched-lib.sh"
@@ -14,6 +15,19 @@ valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 
 repo="${id%%#*}"; [[ "$repo" == "$id" ]] && repo="${id%%/*}"
 ensure_repo_materialized "$repo" "$SESSION_LOGIN"        # espelha o Gitea -> MOJ_PROBLEMS_DIR antes de calibrar
-reqid="$(cal_request "$repo" "$id" "$SESSION_LOGIN")"
-audit_log "calibrate" "id=$id reqid=$reqid"
-ok_json '{action:"calibrate", id:$i, reqid:$r, status:"queued"}' --arg i "$id" --arg r "$reqid"
+
+hosts="$(jq -c '.hosts // []' <<<"$body" 2>/dev/null)"; [[ -n "$hosts" ]] || hosts='[]'
+if (( $(jq 'length' <<<"$hosts") > 0 )); then
+  sent='[]'
+  while IFS= read -r h; do
+    valid_hostname "$h" || continue
+    cid="$(cmd_request "$h" calibrate "$SESSION_LOGIN" "$id")"
+    [[ -n "$cid" ]] && sent="$(jq -c --arg h "$h" --arg c "$cid" '. + [{host:$h, cmdid:$c}]' <<<"$sent")"
+  done < <(jq -r '.[]' <<<"$hosts")
+  audit_log "calibrate" "id=$id targeted_hosts=$(jq 'length' <<<"$sent")"
+  ok_json '{action:"calibrate", id:$i, hosts:$h, status:"queued"}' --arg i "$id" --argjson h "$sent"
+else
+  reqid="$(cal_request "$repo" "$id" "$SESSION_LOGIN")"
+  audit_log "calibrate" "id=$id reqid=$reqid"
+  ok_json '{action:"calibrate", id:$i, reqid:$r, status:"queued"}' --arg i "$id" --arg r "$reqid"
+fi

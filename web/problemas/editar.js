@@ -17,7 +17,8 @@ let SCORE = { enabled: false, groups: [] };   // pontuação por grupos (espelho
 let VAL = { validated: 'na', calibrated: 'na' };   // estado p/ a barra de prontidão
 let LASTVAL = null, LASTINFO = null, LASTCALIB = null;   // últimos dados de validação/calibração
 let RUNNING = '';                                        // '', 'calibrate' ou 'publish' — em execução no juiz
-let calibTimer = null, calibBaseline = 0;                // polling do resultado (atualiza sozinho)
+let calibTimer = null, calibPrevMax = 0;                 // polling do resultado (atualiza sozinho)
+let JUDGES = [];                                          // juízes do registro (calibração direcionada)
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -395,20 +396,21 @@ async function loadValidation() {
   VAL.calibrated = RUNNING ? 'run' : (nHosts ? 'ok' : 'na');
   renderVal(); updateReady();
 }
-// dispara Calibrar/Validar e fica buscando o resultado sozinho (a calibração roda no juiz)
+// dispara Calibrar/Validar e fica buscando o resultado sozinho (a calibração roda no juiz).
+// "pronto" = algum juiz reportou DEPOIS do disparo (independe do relógio do cliente).
+const maxCalibAt = () => Math.max(0, ...(((LASTCALIB && LASTCALIB.hosts) || []).map(h => h.at || 0)));
 function startPolling() {
   if (calibTimer) { clearInterval(calibTimer); calibTimer = null; }
   let tries = 0;
   calibTimer = setInterval(async () => {
     tries++;
-    await loadValidation();
-    const n = ((LASTCALIB && LASTCALIB.hosts) || []).length;
-    const validated = LASTVAL && Array.isArray(LASTVAL.checks) && LASTVAL.checks.length;
-    const done = (n > calibBaseline) || (RUNNING === 'publish' && validated);
-    if (done || tries >= 20) {           // resultado chegou, ou ~80s -> para de buscar
-      clearInterval(calibTimer); calibTimer = null; RUNNING = '';
-      await loadValidation();
-      setMsg(done ? 'Calibração concluída ✓' : 'Ainda processando no juiz — recarregue em instantes se não aparecer.', done ? 'v-ok' : '');
+    await loadValidation();   // atualiza o painel ao vivo
+    const fresh = maxCalibAt() > calibPrevMax;
+    const validated = RUNNING === 'publish' && LASTVAL && Array.isArray(LASTVAL.checks) && LASTVAL.checks.length;
+    if (RUNNING && (fresh || validated)) { RUNNING = ''; updateReady(); renderVal(); setMsg('Resultado chegou ✓', 'v-ok'); }
+    if (tries >= 20) {        // ~80s: para de buscar (segue refrescando até lá p/ pegar todos os juízes)
+      clearInterval(calibTimer); calibTimer = null;
+      if (RUNNING) { RUNNING = ''; await loadValidation(); setMsg('Ainda processando — recarregue se faltar algum juiz.', ''); }
     }
   }, 4000);
 }
@@ -604,8 +606,41 @@ async function act(action, label) {
   try {
     await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true });
     RUNNING = (action === 'publish') ? 'publish' : 'calibrate';
-    calibBaseline = ((LASTCALIB && LASTCALIB.hosts) || []).length;
+    calibPrevMax = maxCalibAt();
     setMsg(label + ' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', 'v-ok');
+    showTab('pub'); renderVal(); updateReady(); startPolling();
+  } catch (e) { setMsg(e.message, 'error'); }
+}
+
+// ---- calibração direcionada (escolher os juízes; 1 por processador; todos) -----------------
+async function loadJudges() {
+  try { JUDGES = (await apiGet('/problems/judges', { contest: CONTEST, auth: true })).judges || []; } catch { JUDGES = []; }
+  renderJudges();
+}
+function renderJudges() {
+  const box = $('judgePick'); if (!box) return; box.innerHTML = '';
+  if (!JUDGES.length) { box.append(el('span', { class: 'small muted' }, 'nenhum juiz no registro.')); return; }
+  const byCpu = {}; JUDGES.forEach(j => { (byCpu[j.cpu || '?'] = byCpu[j.cpu || '?'] || []).push(j); });
+  Object.entries(byCpu).forEach(([cpu, js]) => {
+    const grp = el('div', { class: 'cpugrp' }, el('div', { class: 'small muted' }, '🖥 ' + (cpu || 'CPU desconhecida')));
+    js.forEach(j => {
+      const cb = el('input', { type: 'checkbox', value: j.host }); cb.checked = j.online; cb.disabled = !j.online;
+      grp.append(el('label', { class: 'jcheck' + (j.online ? '' : ' off'), style: 'margin-left:.6rem' }, cb, ' ' + j.host + (j.online ? '' : ' (offline)')));
+    });
+    box.append(grp);
+  });
+}
+const checkedHosts = () => [...$('judgePick').querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+const onePerCpu = () => Object.values(JUDGES.filter(j => j.online).reduce((a, j) => { a[j.cpu] = a[j.cpu] || j.host; return a; }, {}));
+async function calibrateHosts(hosts) {
+  if (!ID) { setMsg('Salve o problema primeiro.', 'error'); return; }
+  hosts = [...new Set((hosts || []).filter(Boolean))];
+  if (!hosts.length) { setMsg('Escolha ao menos um juiz online.', 'error'); return; }
+  setMsg('Calibrando em ' + hosts.length + ' juiz(es)…');
+  try {
+    await apiPost('/problems/request-calibration', { id: ID, hosts }, { contest: CONTEST, auth: true });
+    RUNNING = 'calibrate'; calibPrevMax = maxCalibAt();
+    setMsg('Calibração disparada em ' + hosts.length + ' juiz(es) — acompanhe abaixo.', 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
   } catch (e) { setMsg(e.message, 'error'); }
 }
@@ -656,6 +691,10 @@ function bindHandlers() {
   // pontuação por grupos
   $('scoreEnabled').addEventListener('change', () => { if ($('scoreEnabled').checked && !$('scoreGroups').children.length) addGroupRow(); syncScore(); });
   $('addGroup').onclick = () => { addGroupRow(); syncScore(); };
+  // calibração direcionada
+  $('calibSel').onclick = () => calibrateHosts(checkedHosts());
+  $('calibPerCpu').onclick = () => calibrateHosts(onePerCpu());
+  $('calibAll').onclick = () => calibrateHosts(JUDGES.filter(j => j.online).map(j => j.host));
 }
 
 async function boot() {
@@ -696,5 +735,6 @@ async function boot() {
 
   updateReady();
   loadValidation();         // best-effort: painel de validação/calibração + prontidão
+  loadJudges();             // lista de juízes p/ a calibração direcionada
 }
 boot();

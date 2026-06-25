@@ -255,14 +255,14 @@ upd_pending_count() { find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/d
 # Diferente de update/job (que QUALQUER juiz pega): comando é entregue a UM host específico
 # no heartbeat dele. Uso: gerência de cache (limpar) pelo admin.
 : "${CMDDIR:=$RUNDIR/commands}"
-cmd_request() {  # <host> <action> [by] -> ecoa o cmdid
-  local host="$1" action="$2" by="${3:-?}" cmdid tmp
+cmd_request() {  # <host> <action> [by] [problem-id] -> ecoa o cmdid
+  local host="$1" action="$2" by="${3:-?}" target="${4:-}" cmdid tmp
   valid_hostname "$host" || return 1
   mkdir -p "$CMDDIR/$host" 2>/dev/null
   cmdid="$(printf '%s%s%s' "$host" "$EPOCHSECONDS" "$RANDOM" | md5sum | cut -c1-12)"
   tmp="$CMDDIR/$host/.$cmdid.tmp"
-  jq -cn --arg id "$cmdid" --arg a "$action" --arg by "$by" --argjson now "$EPOCHSECONDS" \
-     '{cmdid:$id, action:$a, by:$by, at:$now}' > "$tmp" && mv -f "$tmp" "$CMDDIR/$host/$cmdid.json"
+  jq -cn --arg id "$cmdid" --arg a "$action" --arg by "$by" --arg t "$target" --argjson now "$EPOCHSECONDS" \
+     '{cmdid:$id, action:$a, by:$by, at:$now} + (if $t=="" then {} else {id:$t} end)' > "$tmp" && mv -f "$tmp" "$CMDDIR/$host/$cmdid.json"
   printf '%s' "$cmdid"
 }
 cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove), atômico.

@@ -42,6 +42,10 @@
     .running{display:flex;align-items:center;gap:.5rem;color:#ffd98a;margin:.3rem 0 .4rem;font-size:.9rem}
     .spin{width:.95rem;height:.95rem;border:2px solid #ffd98a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:moj-spin .8s linear infinite;flex:none}
     @keyframes moj-spin{to{transform:rotate(360deg)}}
+    /* calibração direcionada: juízes agrupados por CPU */
+    .cpugrp{margin:.35rem 0}
+    .jcheck{display:inline-flex;align-items:center;gap:.25rem;font-size:.85rem;margin-right:.4rem;white-space:nowrap}
+    .jcheck.off{opacity:.5}
     .linklike{color:var(--accent,#5b8cff);text-decoration:underline}
     details summary{cursor:pointer} #tests textarea{min-height:4rem}
     .pkgtree{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;line-height:1.6;margin:.4rem 0}
@@ -297,6 +301,19 @@
         </div>
 
         <div class="section" id="valpanel" style="display:none"></div>
+
+        <div class="section">
+          <h3>Calibração direcionada</h3>
+          <p class="small muted">Force a calibração num conjunto de juízes para ver o comportamento (tempo-limite e
+            reports) em <b>processadores diferentes</b>. Os marcados (online) recalibram em paralelo; o resultado
+            aparece acima, por juiz.</p>
+          <div id="judgePick"></div>
+          <div class="row" style="gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
+            <button id="calibSel" class="btn ghost" type="button" title="Calibrar nos juízes marcados">Calibrar selecionados</button>
+            <button id="calibPerCpu" class="btn ghost" type="button" title="Um juiz de cada modelo de processador">1 por processador</button>
+            <button id="calibAll" class="btn ghost" type="button" title="Todos os juízes online">Calibrar em todos</button>
+          </div>
+        </div>
 
         <div class="section">
           <h3>Pacote do problema</h3>
