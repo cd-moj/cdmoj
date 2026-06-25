@@ -371,16 +371,30 @@ function makeJudgesTab() {
         const rep = mc.report || {};
         const st = !mc.online ? '🔴 offline' : (mc.busy ? '🟡 ocupada' : '🟢 livre');
         const mem = rep.memory != null ? (num(rep.memory) / 1048576).toFixed(1) + ' GB' : '—';
+        const langs = mc.langs || [];
+        const cage = mc.cage_root ? '📦 rootfs' : '🖥 host';
+        const tl = mc.tl || {};
+        const tlLangs = tl.langs || [];
         tb.append(el('tr', {},
-          el('td', {}, '🖧 ' + (mc.host || '?') + ':' + (mc.port != null ? mc.port : '?')),
+          el('td', {}, '🖧 ' + (mc.host || '?')),
           el('td', {}, st),
-          el('td', {}, rep.hostname || '—'),
           el('td', { class: 'small' }, rep.cpu ? String(rep.cpu).trim() : '—'),
-          el('td', {}, mem)));
+          el('td', {}, mem),
+          // toolchains: raiz da jaula (host/rootfs) + as linguagens que a máquina roda
+          el('td', { class: 'small', title: mc.cage_root ? ('CAGE_ROOT=' + mc.cage_root) : 'raiz do sistema do host' },
+            el('div', {}, cage),
+            el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:22ch' },
+              langs.length ? langs.join(' ') : '—')),
+          // time limits: nº de problemas calibrados + as linguagens com TL medido aqui
+          el('td', { class: 'small' },
+            el('div', {}, (tl.calibrated || 0) + ' problema' + ((tl.calibrated === 1) ? '' : 's')),
+            el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:18ch' },
+              tlLangs.length ? ('TL: ' + tlLangs.join(' ')) : 'sem TL ainda'))));
       });
       body.append(el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
-        el('th', {}, 'Endereço'), el('th', {}, 'Estado'), el('th', {}, 'Hostname'),
-        el('th', {}, 'CPU'), el('th', {}, 'Memória'))), tb));
+        el('th', {}, 'Máquina'), el('th', {}, 'Estado'),
+        el('th', {}, 'CPU'), el('th', {}, 'Memória'),
+        el('th', {}, 'Toolchains'), el('th', {}, 'Time limits'))), tb));
     } else {
       const workers = data.configured_workers || [];
       body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' }, 'Máquinas configuradas'));

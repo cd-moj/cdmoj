@@ -97,7 +97,10 @@ async function openReportAuthed(path) {
     w.document.title = 'Report'; w.document.body.style.margin = '0';
     const ifr = w.document.createElement('iframe');
     ifr.setAttribute('sandbox', '');
-    ifr.srcdoc = html;
+    // blob URL (não srcdoc): srcdoc herda a base URL da página-pai, então âncoras internas
+    // (#test-fileN) viravam URL completa da página. Com blob, a iframe tem base própria e os
+    // links de "andar pela página pelos títulos" funcionam dentro do report.
+    ifr.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
     ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%';
     w.document.body.append(ifr);
   } catch { alert('Falha ao abrir o report.'); }

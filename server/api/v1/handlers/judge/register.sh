@@ -23,6 +23,7 @@ reg="$(jq -c --argjson now "$EPOCHSECONDS" '{
     problems:(.problems// {}),
     problems_count: ((.problems // {}) | length),
     langs:   (.langs   // []),
+    cage_root:(.cage_root // null),
     inv_hash:(.inv_hash// null),
     state:   "free",
     last_seen: $now,
