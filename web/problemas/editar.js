@@ -413,6 +413,16 @@ function startPolling() {
   }, 4000);
 }
 const tlLine = (tl) => Object.entries(tl || {}).filter(([k]) => k !== 'default').map(([k, v]) => `${k}: ${v}s`).join(' · ');
+// abre o report.html (rico) de uma solução, gerado na calibração daquele juiz, numa nova aba
+async function openCalibReport(host, name) {
+  try {
+    const r = await fetch('/api/v1/problems/calib-report?id=' + encodeURIComponent(ID) + '&host=' + encodeURIComponent(host) + '&name=' + encodeURIComponent(name),
+      { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const url = URL.createObjectURL(new Blob([await r.text()], { type: 'text/html' }));
+    window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { setMsg('Falha ao abrir o report: ' + e.message, 'error'); }
+}
 function renderVal() {
   const box = $('valpanel'); if (!box) return;
   box.innerHTML = '';
@@ -441,7 +451,12 @@ function renderVal() {
         el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || 'sem TL'),
         h.at ? el('span', { class: 'small muted' }, '· ' + fmtDate(h.at)) : null,
         el('span', { style: 'flex:1' }), toggle);
-      box.append(el('div', { class: 'judgecard' }, head, det));
+      const reps = el('div', { class: 'small', style: 'margin-top:.25rem' });
+      if ((h.reports || []).length) {
+        reps.append(el('span', { class: 'muted' }, 'report por solução: '));
+        h.reports.forEach(rn => reps.append(el('a', { href: '#', style: 'margin-right:.7rem;white-space:nowrap', onclick: (e) => { e.preventDefault(); openCalibReport(h.host, rn); } }, '📄 ' + rn)));
+      }
+      box.append(el('div', { class: 'judgecard' }, head, reps, det));
     });
   } else if (!RUNNING) box.append(el('p', { class: 'small muted' }, 'Ainda não calibrado — clique “Calibrar” na barra de baixo.'));
   // tempo-limite efetivamente usado na correção (máx entre juízes)

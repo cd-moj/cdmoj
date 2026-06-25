@@ -15,7 +15,7 @@ store="$(tl_store_get "$id")"; [[ -n "$store" ]] || store='{}'
 logs='{}'; d="$CALIB_DIR/$id"
 if [[ -d "$d" ]]; then
   logs="$(find "$d" -maxdepth 1 -name '*.json' -type f -exec cat {} + 2>/dev/null \
-    | jq -s -c 'map(select(.host) | {(.host): {at:.at, checksum:.checksum, log:.log}}) | add // {}')"
+    | jq -s -c 'map(select(.host) | {(.host): {at:.at, checksum:.checksum, log:.log, reports:(.reports // [])}}) | add // {}')"
   [[ -n "$logs" ]] || logs='{}'
 fi
 
@@ -27,4 +27,5 @@ jq -cn --argjson store "$store" --argjson logs "$logs" '
       hosts: [ $hosts[] as $n
                | { host:$n, tl:($h[$n].tl // {}),
                    at:($h[$n].at // $logs[$n].at // 0),
-                   log:($logs[$n].log // null) } ] }'
+                   log:($logs[$n].log // null),
+                   reports:($logs[$n].reports // []) } ] }'
