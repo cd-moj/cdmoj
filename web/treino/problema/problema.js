@@ -12,23 +12,40 @@ let pollTimer = null, editorApi = null, editorMount = null, langSel = null, curL
 
 const templateFor = (id) => langById(id).template;
 
-// CSS do editor em "tela cheia" (janela flutuante) — injetado uma vez.
+// CSS do editor em "tela cheia" (dialog no top layer — acima do header e da própria backdrop)
+// e do modo "só editor" (janela dedicada). Injetado uma vez.
 function injectEditorCss() {
   if (document.getElementById('editor-full-css')) return;
   const s = document.createElement('style'); s.id = 'editor-full-css';
   s.textContent = `
-    .editor-wrap.editor-full{position:fixed;inset:2.5vh 2.5vw;z-index:9999;margin:0;background:#fff;
-      border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 48px rgba(0,0,0,.35);
-      display:flex;flex-direction:column;gap:.5rem;padding:.7rem 1rem 1rem;overflow:hidden}
-    body.has-editor-full{overflow:hidden}
-    body.has-editor-full::before{content:'';position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:9998}
+    /* ---- Tela cheia via <dialog> (top layer: fica ACIMA de tudo, inclusive o header) ---- */
+    dialog.editor-dialog{border:0;padding:0;margin:auto;background:transparent;width:96vw;height:94vh;max-width:96vw;max-height:96vh;overflow:visible}
+    dialog.editor-dialog::backdrop{background:rgba(15,23,42,.5)}
+    .editor-wrap.editor-full{height:100%;margin:0;display:flex;flex-direction:column;gap:.5rem;
+      background:#fff;border-radius:10px;box-shadow:0 14px 50px rgba(0,0,0,.4);padding:.7rem 1rem 1rem;overflow:hidden}
     .editor-wrap.editor-full .editor-bar{flex-wrap:wrap;margin:0}
     .editor-wrap.editor-full .editor-box{flex:1;min-height:0;overflow:auto;margin:0}
     .editor-wrap.editor-full .editor-box .cm-editor,
     .editor-wrap.editor-full .editor-box .CodeMirror{height:100%}
-    .editor-wrap.editor-full>.btn{align-self:flex-start}`;
+    /* ---- Modo "só editor" (janela dedicada via ?editoronly=1) ---- */
+    body.editor-only header.topbar,
+    body.editor-only main.container > .section,
+    body.editor-only .statement-col{display:none}
+    body.editor-only .problem-cols{display:block;margin:0}
+    body.editor-only .submit-col{width:100%;max-width:none}
+    body.editor-only main.container{max-width:none;padding:.4rem;height:100vh}
+    body.editor-only #submitSection{height:calc(100vh - .8rem);display:flex;flex-direction:column;margin:0}
+    body.editor-only #submitSection>h2{display:none}
+    body.editor-only #submitBody,body.editor-only .editor-wrap{flex:1;display:flex;flex-direction:column;min-height:0}
+    body.editor-only .editor-box{flex:1;min-height:0;overflow:auto}
+    body.editor-only .editor-box .cm-editor,body.editor-only .editor-box .CodeMirror{height:100%}`;
   document.head.append(s);
 }
+
+// modo "só editor" (janela dedicada aberta pelo botão ⧉ Nova janela): esconde enunciado,
+// header e histórico — o editor + Enviar preenchem a janela inteira.
+const EDITOR_ONLY = new URLSearchParams(location.search).get('editoronly') === '1';
+if (EDITOR_ONLY) { injectEditorCss(); document.body.classList.add('editor-only'); }
 const isTemplateContent = (t) => LANGUAGES.some((l) => l.template.trim() === (t || '').trim());
 
 function b64utf8(b64) {
@@ -194,27 +211,38 @@ async function renderSubmit() {
     toggle.textContent = c ? '▸ Mostrar editor' : '▾ Ocultar editor';
   } }, '▾ Ocultar editor');
   injectEditorCss();
-  // ⛶ Tela cheia: o editor vira uma janela flutuante grande, com a linguagem + o botão
-  // Enviar à mão. ⧉ Nova janela: 2ª janela do browser p/ editar vendo o enunciado na 1ª.
-  const expandBtn = el('button', { class: 'btn ghost', type: 'button', title: 'Editor em tela cheia (Esc fecha)' }, '⛶ Tela cheia');
-  const popBtn = el('button', { class: 'btn ghost', type: 'button', title: 'Abrir em outra janela do browser',
-    onclick: () => window.open(location.href, '_blank', 'width=920,height=820') }, '⧉ Nova janela');
+  const refreshEd = () => { if (editorApi && typeof editorApi.refresh === 'function') editorApi.refresh(); };
+  const focusEd = () => { if (editorApi && typeof editorApi.focus === 'function') editorApi.focus(); };
+  // ⛶ Tela cheia (dialog no top layer — acima do header, com backdrop própria, acessível).
+  const expandBtn = el('button', { class: 'btn ghost', type: 'button', title: 'Editor em tela cheia' }, '⛶ Tela cheia');
+  // ⧉ Editor em nova janela: abre a MESMA página em modo "só editor" (?editoronly=1).
+  const popBtn = el('button', { class: 'btn ghost', type: 'button', title: 'Abrir só o editor numa nova janela',
+    onclick: () => { const u = new URL(location.href); u.searchParams.set('editoronly', '1'); window.open(u.toString(), '_blank', 'width=900,height=820'); } }, '⧉ Nova janela');
+  const closeFullBtn = el('button', { class: 'btn ghost', type: 'button', title: 'Sair da tela cheia (Esc)', onclick: () => exitFull() }, '✕ Fechar');
+  closeFullBtn.style.display = 'none';
   const wrap = el('div', { class: 'editor-wrap' },
     el('div', { class: 'editor-bar' },
       el('label', {}, 'Linguagem: '), langSel,
       el('span', { class: 'small muted' }, 'ou arquivo:'), fileInput,
-      el('span', { style: 'flex:1' }), expandBtn, popBtn, toggle),
+      el('span', { style: 'flex:1' }), expandBtn, popBtn, closeFullBtn, toggle),
     editorBox, steps, btn);
-  const setFull = (on) => {
-    wrap.classList.toggle('editor-full', on);
-    document.body.classList.toggle('has-editor-full', on);
-    expandBtn.textContent = on ? '✕ Sair' : '⛶ Tela cheia';
-    if (editorApi && typeof editorApi.refresh === 'function') editorApi.refresh();
-    if (on && editorApi && typeof editorApi.focus === 'function') editorApi.focus();
-  };
-  expandBtn.onclick = () => setFull(!wrap.classList.contains('editor-full'));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && wrap.classList.contains('editor-full')) setFull(false); });
+  // dialog dedicado p/ a tela cheia: o editor MOVE-se p/ dentro (top layer) e volta ao fechar.
+  const dlg = document.createElement('dialog'); dlg.className = 'editor-dialog'; document.body.append(dlg);
+  function enterFull() {
+    dlg.append(wrap); wrap.classList.add('editor-full');
+    expandBtn.style.display = 'none'; closeFullBtn.style.display = '';
+    if (!dlg.open) dlg.showModal();
+    refreshEd(); focusEd();
+  }
+  function exitFull() {
+    wrap.classList.remove('editor-full'); body.append(wrap);
+    expandBtn.style.display = ''; closeFullBtn.style.display = 'none';
+    if (dlg.open) dlg.close(); refreshEd();
+  }
+  expandBtn.onclick = enterFull;
+  dlg.addEventListener('cancel', (e) => { e.preventDefault(); exitFull(); });  // Esc fecha limpo
   body.append(wrap);
+  if (EDITOR_ONLY) { document.title = 'Editor — ' + document.title; expandBtn.style.display = 'none'; popBtn.style.display = 'none'; setTimeout(refreshEd, 50); }
 
   editorApi = await createEditor(editorMount, { doc: templateFor(curLangId), cm: langById(curLangId).cm });
   langSel.addEventListener('change', async () => {
