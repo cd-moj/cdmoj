@@ -5,6 +5,26 @@
 // (downscale via canvas), resolvendo a gestão de imagens de forma transparente.
 
 const CM = 'https://esm.sh/codemirror@6.0.1';
+const CMLANG = 'https://esm.sh/@codemirror/language@6.10.1';
+const LEGACY = 'https://esm.sh/@codemirror/legacy-modes@6.4.0/mode/';
+// modo "legacy" (StreamLanguage): linguagens sem pacote dedicado do CodeMirror 6.
+const legacy = (file, name) => Promise.all([import(CMLANG), import(LEGACY + file)])
+  .then(([L, m]) => L.StreamLanguage.define(m[name]));
+// realce mínimo de Prolog (não há modo pronto): comentários %, :-/?-, variáveis, átomos, strings.
+const PROLOG = {
+  startState: () => ({}),
+  token(stream) {
+    if (stream.eatSpace()) return null;
+    if (stream.match(/%.*/)) return 'comment';
+    if (stream.match(/\/\*/)) { stream.match(/[^*]*\*+([^/*][^*]*\*+)*\//) || stream.skipToEnd(); return 'comment'; }
+    if (stream.match(/:-|\?-|-->|\\\+|=\.\.|==|\\==|@[<>]=?|\bis\b/)) return 'operator';
+    if (stream.match(/"(?:[^"\\]|\\.)*"/) || stream.match(/'(?:[^'\\]|\\.)*'/)) return 'string';
+    if (stream.match(/\d+(\.\d+)?/)) return 'number';
+    if (stream.match(/[A-Z_][A-Za-z0-9_]*/)) return 'variable-2';   // variáveis
+    if (stream.match(/[a-z][A-Za-z0-9_]*/)) return 'atom';          // átomos / predicados
+    stream.next(); return null;
+  },
+};
 const LANG = {
   cpp:        () => import('https://esm.sh/@codemirror/lang-cpp@6.0.1').then(m => m.cpp()),
   python:     () => import('https://esm.sh/@codemirror/lang-python@6.1.6').then(m => m.python()),
@@ -13,6 +33,15 @@ const LANG = {
   go:         () => import('https://esm.sh/@codemirror/lang-go@6.0.1').then(m => m.go()),
   javascript: () => import('https://esm.sh/@codemirror/lang-javascript@6.2.2').then(m => m.javascript()),
   markdown:   () => import('https://esm.sh/@codemirror/lang-markdown@6.2.5').then(m => m.markdown()),
+  // linguagens aceitas sem pacote dedicado -> modos legacy (StreamLanguage):
+  csharp:     () => legacy('clike', 'csharp'),     // C#
+  haskell:    () => legacy('haskell', 'haskell'),  // Haskell
+  ocaml:      () => legacy('mllike', 'oCaml'),     // OCaml
+  pascal:     () => legacy('pascal', 'pascal'),    // Pascal
+  shell:      () => legacy('shell', 'shell'),      // sh / bash
+  apl:        () => legacy('apl', 'apl'),          // APL
+  gas:        () => legacy('gas', 'gas'),          // assembly (MIPS/spim, RISC-V/rars)
+  prolog:     () => import(CMLANG).then(L => L.StreamLanguage.define(PROLOG)),
 };
 
 // imagem -> markdown ![](data:...), com downscale se larga demais (mantém o .md leve)
@@ -47,9 +76,15 @@ function attachImages(dom, insert) {
 export async function createEditor(parent, { doc = '', cm = 'cpp', images = false } = {}) {
   try {
     const { EditorView, basicSetup } = await import(CM);
-    const exts = [basicSetup];
-    if (cm && LANG[cm]) { try { exts.push(await LANG[cm]()); } catch {} }
-    const view = new EditorView({ doc, extensions: exts, parent });
+    let langExt = null;
+    if (cm && LANG[cm]) { try { langExt = await LANG[cm](); } catch { langExt = null; } }
+    let view;
+    try {
+      view = new EditorView({ doc, extensions: langExt ? [basicSetup, langExt] : [basicSetup], parent });
+    } catch {
+      // extensão de linguagem incompatível -> CM puro (sem realce), sem cair p/ <textarea>
+      view = new EditorView({ doc, extensions: [basicSetup], parent });
+    }
     view.dom.classList.add('cm-mojeditor');
     const insert = (text) => { view.dispatch(view.state.replaceSelection(text)); view.focus(); };
     if (images) attachImages(view.dom, insert);

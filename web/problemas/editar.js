@@ -1,10 +1,10 @@
 // problemas/editar.js — editor de problemas (autoria keyless; git escondido).
 // Layout em ABAS (Enunciado · Testes & Pontuação · Soluções · Limites · Publicação) com uma
-// barra de PRONTIDÃO fixa (estilo "verify" do RBX). Suporta limite de memória (MEMLIMITMB) e
+// barra de PRONTIDÃO fixa (o que já está pronto e o que falta). Suporta limite de memória (MEMLIMITMB) e
 // PONTUAÇÃO POR GRUPOS (subtasks estilo OBI: cada grupo de testes tem um peso → tests/score).
 import { apiGet, apiPost, ApiError, getToken } from '/shared/api.js';
 import { status, fileToBase64 } from '/shared/auth.js';
-import { el, renderAuthArea } from '/shared/ui.js';
+import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 
 const CONTEST = 'treino';
@@ -21,18 +21,28 @@ const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean)
 const $ = (id) => document.getElementById(id);
 const setMsg = (t, cls) => { const m = $('msg'); m.textContent = t; m.className = 'small ' + (cls || ''); };
 const b64ToUtf8 = (b) => { try { return new TextDecoder().decode(Uint8Array.from(atob(b), c => c.charCodeAt(0))); } catch { return ''; } };
-const EXT2CM = { py: 'python', cpp: 'cpp', cc: 'cpp', cxx: 'cpp', c: 'cpp', h: 'cpp', hpp: 'cpp', java: 'java', rs: 'rust', go: 'go', js: 'javascript', md: 'markdown' };
+// extensão de arquivo -> modo de realce (cobre todas as linguagens aceitas pelo juiz)
+const EXT2CM = {
+  py: 'python', cpp: 'cpp', cc: 'cpp', cxx: 'cpp', c: 'cpp', h: 'cpp', hpp: 'cpp', java: 'java',
+  rs: 'rust', go: 'go', js: 'javascript', md: 'markdown', cs: 'csharp', hs: 'haskell',
+  ml: 'ocaml', mli: 'ocaml', pas: 'pascal', p: 'pascal', pp: 'pascal', sh: 'shell', bash: 'shell',
+  apl: 'apl', dyalog: 'apl', s: 'gas', asm: 'gas', pl: 'prolog', pro: 'prolog', swipl: 'prolog',
+};
 const cmFor = (fn) => EXT2CM[(String(fn).split('.').pop() || '').toLowerCase()] || '';
-const LANG_OPTS = [['', 'texto'], ['cpp', 'C/C++'], ['python', 'Python'], ['java', 'Java'], ['rust', 'Rust'], ['go', 'Go'], ['javascript', 'JavaScript'], ['markdown', 'Markdown']];
+// seletor de linguagem do editor de soluções — uma entrada por linguagem aceita
+const LANG_OPTS = [['', 'texto'], ['cpp', 'C / C++'], ['python', 'Python'], ['java', 'Java'],
+  ['csharp', 'C#'], ['go', 'Go'], ['rust', 'Rust'], ['haskell', 'Haskell'], ['ocaml', 'OCaml'],
+  ['pascal', 'Pascal'], ['prolog', 'Prolog'], ['shell', 'Shell / Bash'], ['apl', 'APL'],
+  ['gas', 'Assembly (MIPS / RISC-V)'], ['javascript', 'JavaScript'], ['markdown', 'Markdown']];
 const SOL_CATS = [['good', 'good — deve ser ACEITA'], ['wrong', 'wrong — deve FALHAR'], ['slow', 'slow — estoura o TEMPO'], ['pass', 'pass — aceitas (não calibram)'], ['upcoming', 'upcoming — em desenvolvimento']];
 const DEFNAME = { good: 'sol.cpp', wrong: 'wa.cpp', slow: 'slow.cpp', pass: 'alt.cpp', upcoming: 'wip.cpp' };
-// selo por veredito esperado (conceito outcome: do RBX)
+// selo com o resultado que cada categoria de solução deve obter no juiz
 const SOL_BADGE = {
-  good: ['sb-good', 'resultado esperado: Accepted'],
-  wrong: ['sb-wrong', 'resultado esperado: Wrong Answer / erro'],
-  slow: ['sb-slow', 'resultado esperado: Time Limit Exceeded'],
-  pass: ['sb-pass', 'aceitas — não entram na calibração'],
-  upcoming: ['sb-upcoming', 'em desenvolvimento — ignoradas'],
+  good: ['sb-good', 'devem ser aceitas (Accepted) — definem o tempo-limite do problema'],
+  wrong: ['sb-wrong', 'devem falhar (Wrong Answer ou erro de execução)'],
+  slow: ['sb-slow', 'devem estourar o tempo (Time Limit Exceeded)'],
+  pass: ['sb-pass', 'também são aceitas, mas não entram na calibração do tempo'],
+  upcoming: ['sb-upcoming', 'em desenvolvimento — o juiz não as executa'],
 };
 // DERIVADO de SOL_CATS p/ nunca dessincronizar (a causa do bug que travava a página)
 let solEditors = Object.fromEntries(SOL_CATS.map(([c]) => [c, []]));
@@ -88,7 +98,7 @@ function readyItems() {
     { tab: 'tests', label: 'Testes', s: nTs ? 'ok' : 'todo' },
     { tab: 'sols', label: 'Solução good', s: nGood ? 'ok' : 'todo' },
   ];
-  if (SCORE.enabled) items.push({ tab: 'tests', label: 'Pontuação 100', s: scoreSum() === 100 ? 'ok' : 'todo' });
+  if (SCORE.enabled) items.push({ tab: 'tests', label: 'Pontuação', s: (SCORE.groups.length && scoreSum() > 0) ? 'ok' : 'todo' });
   items.push({ tab: 'limits', label: 'Limites', s: limOK ? 'ok' : 'na' });
   items.push({ tab: 'pub', label: 'Validado', s: VAL.validated });
   items.push({ tab: 'pub', label: 'Calibrado', s: VAL.calibrated });
@@ -144,8 +154,9 @@ function syncScore() {
   SCORE.groups = collectGroups();
   $('scoreBox').style.display = SCORE.enabled ? '' : 'none';
   const tot = scoreSum();
-  const t = $('scoreTotal'); t.textContent = `total: ${tot}` + (tot === 100 ? ' ✓' : ' (idealmente 100)');
-  t.className = 'small gtotal ' + (tot === 100 ? 'ok' : 'no');
+  const t = $('scoreTotal');
+  t.textContent = tot > 0 ? `o problema vale ${tot} ponto(s) no total` : 'defina os pesos dos grupos';
+  t.className = 'small gtotal ' + (tot > 0 ? 'ok' : 'no');
   refreshTestGroupSelects(); updateReady(); updatePkgInfo();
 }
 function refreshTestGroupSelects() {
@@ -213,47 +224,75 @@ async function loadTestPairs(files) {
   refreshTestGroupSelects(); updatePkgInfo();
 }
 
-// ---- soluções (good/slow/wrong/pass/upcoming) ---------------------------------------------
+// ---- soluções: sub-abas por categoria + arquivos colapsáveis (editor criado sob demanda) --
+let solTab = SOL_CATS[0][0];
+function showSolCat(cat) {
+  solTab = cat;
+  document.querySelectorAll('.subtab').forEach(t => t.classList.toggle('on', t.dataset.cat === cat));
+  document.querySelectorAll('.solpanel').forEach(p => { p.hidden = (p.dataset.cat !== cat); });
+}
+function updateSolCounts() {
+  SOL_CATS.forEach(([cat]) => { const e = $('solcount-' + cat); if (e) { const n = (solEditors[cat] || []).length; e.textContent = n ? String(n) : ''; } });
+}
+async function toggleAllSols(cat, open) { for (const e of (solEditors[cat] || [])) await e.setOpen(open); }
 async function renderSols(sols) {
   sols = sols || {}; solEditors = Object.fromEntries(SOL_CATS.map(([c]) => [c, []]));
   const wrap = $('solsWrap'); wrap.innerHTML = '';
+  const nav = el('div', { class: 'subtabs' });
+  SOL_CATS.forEach(([cat]) => {
+    const [bcls] = SOL_BADGE[cat] || ['sb-pass', ''];
+    nav.append(el('button', { class: 'subtab', type: 'button', 'data-cat': cat, onclick: () => showSolCat(cat) },
+      el('span', { class: 'sol-badge ' + bcls }, cat), el('span', { class: 'subcount', id: 'solcount-' + cat })));
+  });
+  wrap.append(nav);
   for (const [cat] of SOL_CATS) {
+    const [, btxt] = SOL_BADGE[cat] || ['', ''];
     const rows = el('div', { id: 'sol-' + cat });
     const fi = hiddenFile(true); fi.addEventListener('change', () => loadSolFiles(cat, fi.files));
-    const [bcls, btxt] = SOL_BADGE[cat] || ['sb-pass', ''];
-    wrap.append(el('div', { class: 'solcat', style: 'margin-top:.8rem' },
-      el('div', { class: 'row', style: 'justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem' },
-        el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'sol-badge ' + bcls }, cat), el('span', { class: 'small muted' }, btxt)),
-        el('div', { class: 'row', style: 'gap:.4rem' },
-          el('button', { class: 'btn ghost', type: 'button', onclick: () => addSol(cat, DEFNAME[cat], '') }, '+ arquivo'),
-          el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, '⬆ enviar'), fi)),
+    wrap.append(el('div', { class: 'solpanel', 'data-cat': cat, hidden: true },
+      el('p', { class: 'small muted', style: 'margin:.2rem 0 .4rem' }, btxt),
+      el('div', { class: 'row', style: 'gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.3rem' },
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => addSol(cat, DEFNAME[cat], '', true) }, '+ arquivo'),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, '⬆ enviar'), fi,
+        el('span', { style: 'flex:1' }),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, true) }, 'abrir todos'),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, false) }, 'fechar todos')),
       rows));
-    for (const s of (sols[cat] || [])) await addSol(cat, s.filename, s.code);
+    for (const s of (sols[cat] || [])) await addSol(cat, s.filename, s.code, false);
   }
-  updatePkgInfo();
+  showSolCat(solTab); updateSolCounts(); updatePkgInfo();
 }
-async function addSol(cat, fn, code) {
+async function addSol(cat, fn, code, expand) {
   const fnInput = el('input', { type: 'text', value: fn || DEFNAME[cat], style: 'max-width:14rem' });
-  const langSel = langSelect(cmFor(fnInput.value)), mount = el('div', { class: 'editor-mount' });
-  const row = el('div', { style: 'margin:.4rem 0' },
-    el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'small' }, 'arquivo'), fnInput, langSel,
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = (solEditors[cat] || []).filter(x => x.row !== row); updatePkgInfo(); } }, 'remover')),
-    mount);
-  $('sol-' + cat).append(row);
-  let ed = await createEditor(mount, { doc: code || '', cm: langSel.value || null });
-  const remount = async () => { const c = ed.getValue(); mount.innerHTML = ''; ed = await createEditor(mount, { doc: c, cm: langSel.value || null }); };
+  const langSel = langSelect(cmFor(fnInput.value));
+  const mount = el('div', { class: 'editor-mount', style: 'display:none' });
+  const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: 'abrir/fechar editor' }, '▸');
+  const entry = { code: code || '', ed: null, row: null, fnInput, langSel, mount };
+  const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: langSel.value || null }); };
+  entry.setOpen = async (open) => { if (open) await ensureEd(); mount.style.display = open ? '' : 'none'; expandBtn.textContent = open ? '▾' : '▸'; };
+  entry.get = () => ({ filename: fnInput.value.trim(), code: entry.ed ? entry.ed.getValue() : entry.code });
+  expandBtn.onclick = () => entry.setOpen(mount.style.display === 'none');
+  const remount = async () => { if (!entry.ed) return; const c = entry.ed.getValue(); mount.innerHTML = ''; entry.ed = null; entry.code = c; if (mount.style.display !== 'none') await ensureEd(); };
   langSel.addEventListener('change', remount);
   fnInput.addEventListener('change', () => { langSel.value = cmFor(fnInput.value); remount(); updatePkgInfo(); });
-  (solEditors[cat] || (solEditors[cat] = [])).push({ row, get: () => ({ filename: fnInput.value.trim(), code: ed.getValue() }) });
-  updatePkgInfo();
+  const row = el('div', { class: 'solrow' },
+    el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' }, expandBtn, el('span', { class: 'small muted' }, 'arquivo'), fnInput, langSel,
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = (solEditors[cat] || []).filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, 'remover')),
+    mount);
+  entry.row = row;
+  $('sol-' + cat).append(row);
+  (solEditors[cat] || (solEditors[cat] = [])).push(entry);
+  if (expand) await entry.setOpen(true);
+  updateSolCounts(); updatePkgInfo();
 }
-const loadSolFiles = async (cat, files) => { for (const f of files) await addSol(cat, f.name, await f.text()); };
+const loadSolFiles = async (cat, files) => { for (const f of files) await addSol(cat, f.name, await f.text(), false); showSolCat(cat); };
 function collectSols() { const o = {}; for (const [cat] of SOL_CATS) o[cat] = (solEditors[cat] || []).map(x => x.get()).filter(s => s.filename); return o; }
 
 // ---- árvore do pacote (clicável -> troca de aba e rola até a seção) ------------------------
 function flash(t) {
   if (!t) return;
   const pane = t.closest('.tabpane'); if (pane) showTab(pane.dataset.pane);
+  const sp = t.closest('.solpanel'); if (sp) showSolCat(sp.dataset.cat);
   t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.classList.add('flash'); setTimeout(() => t.classList.remove('flash'), 1200);
 }
 const ul = (...kids) => el('ul', {}, ...kids.filter(Boolean));
@@ -333,28 +372,47 @@ async function preview() {
 
 // ---- validação & calibração (painel + prontidão, best-effort) -----------------------------
 async function loadValidation() {
-  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; renderVal(null, null); updateReady(); return; }
-  let val = null, info = null;
+  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; renderVal(null, null, null); updateReady(); return; }
+  let val = null, info = null, calib = null;
   try { val = await apiGet('/problems/validation?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
   try { info = await apiGet('/problems/get?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
-  VAL.validated = val ? (val.ok ? 'ok' : 'todo') : 'na';
-  const tls = info && (info.time_limits || info.tl);
-  VAL.calibrated = (tls && Object.keys(tls).length) ? 'ok' : 'na';
-  renderVal(val, info); updateReady();
+  try { calib = await apiGet('/problems/calib?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
+  VAL.validated = (val && Array.isArray(val.checks) && val.checks.length) ? (val.ok ? 'ok' : 'todo') : 'na';
+  VAL.calibrated = ((calib && calib.hosts) || []).length ? 'ok' : 'na';
+  renderVal(val, info, calib); updateReady();
 }
-function renderVal(val, info) {
+const tlLine = (tl) => Object.entries(tl || {}).filter(([k]) => k !== 'default').map(([k, v]) => `${k}: ${v}s`).join(' · ');
+function renderVal(val, info, calib) {
   const box = $('valpanel'); if (!box) return;
   box.innerHTML = '';
-  if (!val && !info) { box.style.display = 'none'; return; }
+  const hosts = (calib && calib.hosts) || [];
+  const checks = (val && Array.isArray(val.checks)) ? val.checks : [];
+  if (!ID || (!checks.length && !hosts.length)) { box.style.display = 'none'; return; }
   box.style.display = '';
   box.append(el('h3', {}, 'Validação & calibração'));
-  if (val && Array.isArray(val.checks) && val.checks.length) {
+  // resultado do quality gate (Validar & Publicar)
+  if (checks.length) {
     const list = el('ul', { class: 'checks' });
-    val.checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : 'falha'), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
+    checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : 'falha'), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
     box.append(list);
-  } else box.append(el('p', { class: 'small muted' }, 'Sem relatório de validação ainda — use “Validar & Publicar”.'));
-  const tls = info && (info.time_limits || info.tl);
-  if (tls && Object.keys(tls).length) box.append(el('div', { class: 'small' }, 'Tempo-limite calibrado: ' + Object.entries(tls).map(([k, v]) => `${k}=${v}s`).join(' · ')));
+  }
+  // por juiz: tempo-limite calibrado + quando + log (como cada solução se comportou)
+  if (hosts.length) {
+    box.append(el('div', { class: 'small muted', style: 'margin:.5rem 0 .2rem' }, `Calibrado em ${hosts.length} juiz(es) — abra "ver log" para o comportamento de cada solução:`));
+    hosts.forEach(h => {
+      const det = el('div', { style: 'display:none;margin-top:.3rem' });
+      det.append(h.log ? el('pre', { class: 'caliblog' }, h.log) : el('p', { class: 'small muted' }, 'sem log deste juiz ainda.'));
+      const toggle = el('a', { href: '#', class: 'small', onclick: (e) => { e.preventDefault(); det.style.display = det.style.display === 'none' ? '' : 'none'; } }, 'ver log');
+      const head = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
+        el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || 'sem TL'),
+        h.at ? el('span', { class: 'small muted' }, '· ' + fmtDate(h.at)) : null,
+        el('span', { style: 'flex:1' }), toggle);
+      box.append(el('div', { class: 'judgecard' }, head, det));
+    });
+  }
+  // tempo-limite efetivamente usado na correção (máx entre juízes)
+  const served = info && (info.time_limits || info.tl);
+  if (served && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, 'Tempo-limite usado na correção (máx entre juízes): ' + tlLine(served)));
 }
 
 // ---- pacote: baixar / enviar tar ----------------------------------------------------------
