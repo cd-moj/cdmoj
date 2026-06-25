@@ -220,6 +220,16 @@ apply_problem_fields(){  # <pkgdir> <body-json>
       jq -r '.input'  <<<"$pair" > "$pkg/tests/input/sample$i"
       jq -r '.output' <<<"$pair" > "$pkg/tests/output/sample$i"
     done < <(jq -c '.examples[]?' <<<"$body")
+    # explicação por exemplo (na ordem) -> docs/sample-notes.json; remove se todas vazias
+    local notes; notes="$(jq -c '[.examples[]? | (.explanation // "")]' <<<"$body")"
+    if [[ "$(jq -r 'map(select(.!=""))|length' <<<"$notes" 2>/dev/null)" -gt 0 ]]; then
+      printf '%s' "$notes" > "$pkg/docs/sample-notes.json"
+    else rm -f "$pkg/docs/sample-notes.json"; fi
+  fi
+  # ---- resolução/editorial (só p/ setters; docs/solucao.md; não vai p/ o aluno) -------------
+  if jq -e 'has("editorial_md")' >/dev/null 2>&1 <<<"$body"; then
+    local edmd; edmd="$(jq -r '.editorial_md // ""' <<<"$body")"
+    if [[ -n "$edmd" ]]; then printf '%s' "$edmd" > "$pkg/docs/solucao.md"; else rm -f "$pkg/docs/solucao.md"; fi
   fi
   # ---- pontuação por grupos (subtasks) ----------------------------------------
   # score = {enabled, groups:[{name,weight,glob}]}; cada teste pode trazer .group p/
@@ -338,18 +348,22 @@ read_problem_source(){
   local tags='[]'; [[ -f "$pkg/tags" ]] && tags="$(jq -R . "$pkg/tags" 2>/dev/null | jq -sc . 2>/dev/null)"; [[ -n "$tags" ]] || tags='[]'
   local meta='{}'; [[ -f "$pkg/.moj-meta.json" ]] && meta="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$meta" ]] || meta='{}'
   local exs tss score; exs="$(_read_pairs "$pkg" sample)"; tss="$(_read_pairs "$pkg" hidden)"; score="$(_read_score "$pkg")"
+  # explicação por exemplo (docs/sample-notes.json, na ordem) -> examples[].explanation
+  local notes='[]'; [[ -f "$pkg/docs/sample-notes.json" ]] && notes="$(cat "$pkg/docs/sample-notes.json" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$notes" || notes='[]'
+  local exs2; exs2="$(jq -c --argjson n "$notes" '[ to_entries[] | .value + {explanation: ($n[.key] // "")} ]' <<<"$exs" 2>/dev/null)"; [[ -n "$exs2" ]] && exs="$exs2"
+  local ted; ted="$(mktemp)"; [[ -f "$pkg/docs/solucao.md" ]] && cat "$pkg/docs/solucao.md" > "$ted"   # editorial (só setters)
   local sg ss sw sp su
   sg="$(_read_sols "$pkg" good)"; ss="$(_read_sols "$pkg" slow)"
   sw="$(_read_sols "$pkg" wrong)"; sp="$(_read_sols "$pkg" pass)"; su="$(_read_sols "$pkg" upcoming)"
-  jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" \
+  jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" --rawfile editorial "$ted" \
         --argjson tags "$tags" --argjson meta "$meta" --argjson exs "$exs" --argjson tss "$tss" \
         --argjson sg "$sg" --argjson ss "$ss" --argjson sw "$sw" --argjson sp "$sp" --argjson su "$su" \
         --argjson score "$score" --arg fmt "$fmt" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
       title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
-      sols:{good:$sg, slow:$ss, wrong:$sw, pass:$sp, upcoming:$su} }'
-  rm -f "$te" "$ta" "$tc"
+      editorial_md:$editorial, sols:{good:$sg, slow:$ss, wrong:$sw, pass:$sp, upcoming:$su} }'
+  rm -f "$te" "$ta" "$tc" "$ted"
 }
 # _read_sols <pkgdir> <cat> -> JSON array [{filename,code}] de sols/<cat>/*
 _read_sols(){

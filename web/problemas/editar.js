@@ -9,7 +9,10 @@ import { createEditor } from '/shared/editor.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
-let enunEd = null;
+let enunEd = null, editEd = null;                            // enunciado (modo single) + resolução/editorial
+let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modulares (lazy, modo "separado")
+let stmtMode = 'single';                                      // 'single' | 'modular'
+let PENDING_EDITORIAL = '';                                  // editorial carregado, aplicado quando a aba Resolução abre
 let COLLS = [];
 let CAN_CREATE = false;
 let FMT = 'md';                       // formato do enunciado (md|org|tex) — preservado no save
@@ -86,12 +89,77 @@ function setupTabs() {
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   document.querySelectorAll('.tabpane').forEach(p => { p.hidden = (p.dataset.pane !== name); });
+  if (name === 'resol') ensureEditorial();   // editor da resolução é carregado ao abrir a aba
+}
+
+// ---- enunciado: um editor só (padrão) ou seções separadas (opt-in) ------------------------
+// Template de problema NOVO: já vem com as seções esperadas pelo portão de validação.
+const STMT_TEMPLATE = '(descreva o problema)\n\n## Entrada\n\n(descreva a entrada)\n\n## Saída\n\n(descreva a saída)\n\n## Observações\n\n(restrições e limites)\n';
+const noAccent = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+// divide um enunciado em {descrição, entrada, saída, observações} por cabeçalhos `## ` reconhecidos
+function splitStatement(md) {
+  md = String(md || '').replace(/^\s*%[^\n]*\n?/, '');     // remove "% Título" legado
+  const sec = { descricao: [], entrada: [], saida: [], observacoes: [] };
+  let cur = 'descricao';
+  for (const line of md.split('\n')) {
+    const m = line.match(/^#{1,3}\s+(.+?)\s*$/);
+    if (m) {
+      const t = noAccent(m[1]).toLowerCase();
+      let k = null;
+      if (/^(entrada|input)\b/.test(t)) k = 'entrada';
+      else if (/^(saida|output)\b/.test(t)) k = 'saida';
+      else if (/^(observ|notas|restri|note|constraint)/.test(t)) k = 'observacoes';
+      if (k) { cur = k; continue; }    // cabeçalho reconhecido troca de seção (descarta a linha do '##')
+    }
+    sec[cur].push(line);               // '##' não reconhecido fica onde está (nada se perde)
+  }
+  const j = (a) => a.join('\n').replace(/^\n+|\n+$/g, '');
+  return { descricao: j(sec.descricao), entrada: j(sec.entrada), saida: j(sec.saida), observacoes: j(sec.observacoes) };
+}
+// recombina os 4 campos num enunciado canônico (omite seções vazias; SEM `% Título`)
+function combineStatement(s) {
+  const p = [];
+  if ((s.descricao || '').trim()) p.push(s.descricao.trim());
+  if ((s.entrada || '').trim()) p.push('## Entrada\n\n' + s.entrada.trim());
+  if ((s.saida || '').trim()) p.push('## Saída\n\n' + s.saida.trim());
+  if ((s.observacoes || '').trim()) p.push('## Observações\n\n' + s.observacoes.trim());
+  return p.length ? p.join('\n\n') + '\n' : '';
+}
+// enunciado atual conforme o modo — fonte única p/ save, preview e prontidão
+const currentStatement = () => stmtMode === 'modular'
+  ? combineStatement({ descricao: descEd ? descEd.getValue() : '', entrada: entEd ? entEd.getValue() : '',
+                       saida: saiEd ? saiEd.getValue() : '', observacoes: obsEd ? obsEd.getValue() : '' })
+  : (enunEd ? enunEd.getValue() : '');
+async function ensureModularEditors() {
+  if (!descEd) descEd = await createEditor($('descMount'), { doc: '', cm: 'markdown', images: true });
+  if (!entEd) entEd = await createEditor($('entMount'), { doc: '', cm: 'markdown' });
+  if (!saiEd) saiEd = await createEditor($('saiMount'), { doc: '', cm: 'markdown' });
+  if (!obsEd) obsEd = await createEditor($('obsMount'), { doc: '', cm: 'markdown' });
+  ['descMount', 'entMount', 'saiMount', 'obsMount'].forEach(id => $(id).addEventListener('input', updateReady));
+}
+async function toggleStmtMode() {
+  const btn = $('stmtToggle');
+  if (stmtMode === 'single') {
+    await ensureModularEditors();
+    const s = splitStatement(enunEd ? enunEd.getValue() : '');
+    descEd.setValue(s.descricao); entEd.setValue(s.entrada); saiEd.setValue(s.saida); obsEd.setValue(s.observacoes);
+    $('enunMount').style.display = 'none'; $('enunModular').style.display = '';
+    stmtMode = 'modular'; if (btn) btn.textContent = '⊟ Juntar num só';
+  } else {
+    if (enunEd) enunEd.setValue(currentStatement());   // ainda modo modular -> combina os 4
+    $('enunModular').style.display = 'none'; $('enunMount').style.display = '';
+    stmtMode = 'single'; if (btn) btn.textContent = '✂ Separar em seções';
+  }
+  updateReady();
+}
+async function ensureEditorial() {
+  if (!editEd) editEd = await createEditor($('editMount'), { doc: PENDING_EDITORIAL || '', cm: 'markdown', images: true });
 }
 
 // ---- barra de prontidão -------------------------------------------------------------------
 const scoreSum = () => SCORE.groups.reduce((s, g) => s + (g.weight || 0), 0);
 function readyItems() {
-  const hasEnun = !!(enunEd && enunEd.getValue().trim());
+  const hasEnun = !!currentStatement().trim();
   const nEx = $('examples').querySelectorAll('.ex').length;
   const nTs = $('tests').querySelectorAll('.ex').length;
   const nGood = (solEditors.good || []).length;
@@ -121,17 +189,20 @@ function updateReady() {
 }
 
 // ---- exemplos (sample, aparecem no enunciado) --------------------------------------------
-function exampleRow(input = '', output = '') {
+function exampleRow(input = '', output = '', explanation = '') {
   const row = el('div', { class: 'ex' },
     el('div', { class: 'grid2' },
       el('div', {}, el('label', { class: 'small' }, 'entrada'), el('textarea', { class: 'exin' }, input)),
       el('div', {}, el('label', { class: 'small' }, 'saída'), el('textarea', { class: 'exout' }, output))),
+    el('div', {}, el('label', { class: 'small' }, 'explicação (opcional, Markdown — aparece logo após o exemplo no enunciado)'),
+      el('textarea', { class: 'exexpl', oninput: updateReady }, explanation)),
     el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, 'remover exemplo'));
   return row;
 }
-const addExample = (i = '', o = '') => { $('examples').append(exampleRow(i, o)); updatePkgInfo(); };
+const addExample = (i = '', o = '', x = '') => { $('examples').append(exampleRow(i, o, x)); updatePkgInfo(); };
 const collectExamples = () => [...$('examples').querySelectorAll('.ex')].map(r => ({
-  input: r.querySelector('.exin').value, output: r.querySelector('.exout').value })).filter(e => e.input !== '' || e.output !== '');
+  input: r.querySelector('.exin').value, output: r.querySelector('.exout').value,
+  explanation: r.querySelector('.exexpl') ? r.querySelector('.exexpl').value : '' })).filter(e => e.input !== '' || e.output !== '');
 
 // ---- pontuação por grupos (subtasks) ------------------------------------------------------
 const groupKey = (s) => ((s || '').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'g');
@@ -309,8 +380,11 @@ function buildTree() {
   if (tsRows.length) testKids.push(dirNode('ocultos/', ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || 'teste'), r))));
   if (SCORE.enabled) testKids.push(leaf('score', $('scoreGroups'), () => showTab('tests')));
   const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || '(sem nome)', s.row))) : null).filter(Boolean);
+  const docsKids = [leaf('enunciado.md', stmtMode === 'modular' ? $('descMount') : $('enunMount'))];
+  if (exRows.some(r => r.querySelector('.exexpl') && r.querySelector('.exexpl').value.trim())) docsKids.push(leaf('sample-notes.json', $('examples'), () => showTab('tests')));
+  if (editEd ? editEd.getValue().trim() : (PENDING_EDITORIAL || '').trim()) docsKids.push(leaf('solucao.md', $('editMount'), () => showTab('resol')));
   const tree = ul(
-    dirNode('docs/', leaf('enunciado.md', $('enunMount'))),
+    dirNode('docs/', ...docsKids),
     leaf('conf', $('confRaw'), () => { const d = $('confRaw').closest('details'); if (d) d.open = true; }),
     leaf('author', $('pauthor')), leaf('tags', $('ptags')),
     testKids.length ? dirNode('tests/', ...testKids) : null,
@@ -345,9 +419,19 @@ function fillRepoSelect() {
 async function renderForm(d) {
   $('ptitle').value = d.title || ''; $('pauthor').value = d.author || '';
   $('ptags').value = (d.tags || []).join(', '); $('pcolls').value = (d.collections || []).join(', ');
+  // enunciado: volta sempre p/ o modo "um editor só"; problema NOVO já vem com o template de seções
+  stmtMode = 'single';
+  $('enunMount').style.display = ''; $('enunModular').style.display = 'none';
+  if ($('stmtToggle')) $('stmtToggle').textContent = '✂ Separar em seções';
+  ['descMount', 'entMount', 'saiMount', 'obsMount'].forEach(id => { $(id).innerHTML = ''; });
+  descEd = entEd = saiEd = obsEd = null;
+  const initMd = (d.enunciado_md && d.enunciado_md.trim()) ? d.enunciado_md : (MODE === 'new' ? STMT_TEMPLATE : '');
   $('enunMount').innerHTML = '';
-  enunEd = await createEditor($('enunMount'), { doc: d.enunciado_md || '', cm: 'markdown', images: true });
-  $('examples').innerHTML = ''; (d.examples || []).forEach(e => $('examples').append(exampleRow(e.input, e.output)));
+  enunEd = await createEditor($('enunMount'), { doc: initMd, cm: 'markdown', images: true });
+  // resolução (editorial): guarda; o editor é criado ao abrir a aba (e atualizado se já existir)
+  PENDING_EDITORIAL = d.editorial_md || '';
+  $('editMount').innerHTML = ''; editEd = null;
+  $('examples').innerHTML = ''; (d.examples || []).forEach(e => $('examples').append(exampleRow(e.input, e.output, e.explanation)));
   if (!(d.examples || []).length) $('examples').append(exampleRow());
   // pontuação (antes dos testes, p/ os seletores de grupo já terem opções)
   $('scoreGroups').innerHTML = '';
@@ -368,7 +452,8 @@ const collectFields = () => {
   return {
     title: $('ptitle').value.trim(), author: $('pauthor').value.trim(),
     tags: splitList($('ptags').value), collections: splitList($('pcolls').value),
-    enunciado_md: enunEd ? enunEd.getValue() : '', enunciado_format: FMT, examples: collectExamples(),
+    enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(),
+    editorial_md: editEd ? editEd.getValue() : PENDING_EDITORIAL,
     tests: collectTests(), sols: collectSols(), conf_text: $('confRaw').value,
     score: { enabled, groups: enabled ? collectGroups() : [] },
   };
@@ -377,7 +462,7 @@ const collectFields = () => {
 async function preview() {
   const btn = $('preview'); btn.disabled = true; setMsg('Renderizando…');
   try {
-    const j = await apiPost('/problems/preview', { enunciado_md: enunEd ? enunEd.getValue() : '', enunciado_format: FMT, examples: collectExamples() }, { contest: CONTEST, auth: true });
+    const j = await apiPost('/problems/preview', { enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(), title: $('ptitle').value.trim() }, { contest: CONTEST, auth: true });
     $('previewFrame').srcdoc = b64ToUtf8(j.html_b64 || ''); $('previewModal').style.display = ''; setMsg('');
   } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao renderizar'), 'error'); }
   finally { btn.disabled = false; }
@@ -687,6 +772,7 @@ function bindHandlers() {
   $('newCollBtn').onclick = newColl;
   $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });
   $('enunMount').addEventListener('input', updateReady);
+  $('stmtToggle').onclick = toggleStmtMode;
   $('ppublic').addEventListener('change', updateReady);
   // pontuação por grupos
   $('scoreEnabled').addEventListener('change', () => { if ($('scoreEnabled').checked && !$('scoreGroups').children.length) addGroupRow(); syncScore(); });
