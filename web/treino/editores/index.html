@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editores declarados — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .stat-cards { display:flex; gap:1rem; flex-wrap:wrap; margin:1rem 0; }
+    .stat-card { flex:1; min-width:150px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:1rem 1.1rem; box-shadow:var(--shadow-sm); }
+    .big-num { font-size:1.9rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+    .big-sub { color:var(--muted); font-size:.88rem; margin-top:.2rem; }
+    .chart-wrap { overflow-x:auto; }
+    svg.chart { max-width:100%; height:auto; display:block; margin:0 auto; }
+    table.moj td.n, table.moj th.n { text-align:right; font-variant-numeric:tabular-nums; }
+  </style>
+</head>
+<body>
+  <header class="topbar" id="siteHeader" data-active="treino"></header>
+  <main class="container">
+    <h1 style="margin:.2rem 0 .3rem">⌨ Editores declarados</h1>
+    <p class="muted" id="ed-sub">Estatísticas dos editores favoritos declarados pelos usuários do Treino Livre.</p>
+    <div id="app"><p class="muted small">carregando…</p></div>
+    <p class="small muted" style="margin-top:1.2rem">Declare o seu editor favorito em <a href="/treino/perfil/">⚙ perfil</a>.</p>
+  </main>
+  <script type="module" src="/shared/site-header.js"></script>
+  <script type="module" src="./editores.js"></script>
+</body>
+</html>

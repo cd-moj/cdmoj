@@ -37,4 +37,15 @@ ck "top = web com 2 aceitas" '[[ "$(jq -r ".most_used_editor_prev_week.top.edito
 ck "total = 3 (s4 desta semana fora)" '[[ "$(jq -r ".most_used_editor_prev_week.total" <<<"$BODY")" == 3 ]]'
 ck "ranking = vim,web" '[[ "$(jq -r ".most_used_editor_prev_week.ranking | map(.editor) | sort | join(\",\")" <<<"$BODY")" == "vim,web" ]]'
 
+echo "== /treino/editor-stats: editores DECLARADOS (perfis) =="
+printf '{"favorite_editor":"vscode"}' > "$T/var/profiles/alice.json"
+printf '{"favorite_editor":"vscode"}' > "$T/var/profiles/bob.json"
+printf '{"university":"X"}'           > "$T/var/profiles/carol.json"   # sem editor
+# ribas.json (favorite_editor=vim) já existe do setup
+rm -f "$T/var/editor-stats.cache.json"
+call /treino/editor-stats GET '' '' ''
+ck "declared=3 (vscode x2 + vim x1; carol sem editor fora)" '[[ "$(jq -r .declared <<<"$BODY")" == 3 ]]'
+ck "vscode no topo com 2" '[[ "$(jq -r ".ranking[0].editor" <<<"$BODY")" == vscode && "$(jq -r ".ranking[0].count" <<<"$BODY")" == 2 ]]'
+ck "ranking = vim,vscode (distintos)" '[[ "$(jq -r ".ranking | map(.editor) | sort | join(\",\")" <<<"$BODY")" == "vim,vscode" ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

@@ -120,7 +120,7 @@ async function loadTraining() {
     ew.innerHTML = '';
     const rk = ed.ranking || [];
     if (!rk.length || !ed.total) ew.innerHTML = '<span class="muted small">sem dados ainda</span>';
-    else rk.slice(0, 6).forEach((e, i) => {
+    else rk.slice(0, 3).forEach((e, i) => {
       const pct = ed.total ? Math.round((e.count / ed.total) * 100) : 0;
       ew.append(el('div', { class: 'week-row' + (i === 0 ? ' editor-top' : '') },
         el('span', { class: 'wk-rank' }, String(i + 1)),
