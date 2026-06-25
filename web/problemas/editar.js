@@ -15,6 +15,9 @@ let CAN_CREATE = false;
 let FMT = 'md';                       // formato do enunciado (md|org|tex) — preservado no save
 let SCORE = { enabled: false, groups: [] };   // pontuação por grupos (espelho do DOM)
 let VAL = { validated: 'na', calibrated: 'na' };   // estado p/ a barra de prontidão
+let LASTVAL = null, LASTINFO = null, LASTCALIB = null;   // últimos dados de validação/calibração
+let RUNNING = '';                                        // '', 'calibrate' ou 'publish' — em execução no juiz
+let calibTimer = null, calibBaseline = 0;                // polling do resultado (atualiza sozinho)
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -381,25 +384,47 @@ async function preview() {
 
 // ---- validação & calibração (painel + prontidão, best-effort) -----------------------------
 async function loadValidation() {
-  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; renderVal(null, null, null); updateReady(); return; }
+  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; LASTVAL = LASTINFO = LASTCALIB = null; renderVal(); updateReady(); return; }
   let val = null, info = null, calib = null;
   try { val = await apiGet('/problems/validation?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
   try { info = await apiGet('/problems/get?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
   try { calib = await apiGet('/problems/calib?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
-  VAL.validated = (val && Array.isArray(val.checks) && val.checks.length) ? (val.ok ? 'ok' : 'todo') : 'na';
-  VAL.calibrated = ((calib && calib.hosts) || []).length ? 'ok' : 'na';
-  renderVal(val, info, calib); updateReady();
+  LASTVAL = val; LASTINFO = info; LASTCALIB = calib;
+  const nHosts = ((calib && calib.hosts) || []).length;
+  VAL.validated = (RUNNING === 'publish') ? 'run' : ((val && Array.isArray(val.checks) && val.checks.length) ? (val.ok ? 'ok' : 'todo') : 'na');
+  VAL.calibrated = RUNNING ? 'run' : (nHosts ? 'ok' : 'na');
+  renderVal(); updateReady();
+}
+// dispara Calibrar/Validar e fica buscando o resultado sozinho (a calibração roda no juiz)
+function startPolling() {
+  if (calibTimer) { clearInterval(calibTimer); calibTimer = null; }
+  let tries = 0;
+  calibTimer = setInterval(async () => {
+    tries++;
+    await loadValidation();
+    const n = ((LASTCALIB && LASTCALIB.hosts) || []).length;
+    const validated = LASTVAL && Array.isArray(LASTVAL.checks) && LASTVAL.checks.length;
+    const done = (n > calibBaseline) || (RUNNING === 'publish' && validated);
+    if (done || tries >= 20) {           // resultado chegou, ou ~80s -> para de buscar
+      clearInterval(calibTimer); calibTimer = null; RUNNING = '';
+      await loadValidation();
+      setMsg(done ? 'Calibração concluída ✓' : 'Ainda processando no juiz — recarregue em instantes se não aparecer.', done ? 'v-ok' : '');
+    }
+  }, 4000);
 }
 const tlLine = (tl) => Object.entries(tl || {}).filter(([k]) => k !== 'default').map(([k, v]) => `${k}: ${v}s`).join(' · ');
-function renderVal(val, info, calib) {
+function renderVal() {
   const box = $('valpanel'); if (!box) return;
   box.innerHTML = '';
+  const val = LASTVAL, info = LASTINFO, calib = LASTCALIB;
   const hosts = (calib && calib.hosts) || [];
   const checks = (val && Array.isArray(val.checks)) ? val.checks : [];
-  if (!ID || (!checks.length && !hosts.length)) { box.style.display = 'none'; return; }
+  if (!ID || (!checks.length && !hosts.length && !RUNNING)) { box.style.display = 'none'; return; }
   box.style.display = '';
   box.append(el('h3', {}, 'Validação & calibração'));
-  // resultado do quality gate (Validar & Publicar)
+  if (RUNNING) box.append(el('div', { class: 'running' }, el('span', { class: 'spin' }),
+    el('span', {}, (RUNNING === 'publish' ? 'Validando e calibrando no juiz…' : 'Calibrando no juiz…') + ' a página atualiza sozinha quando terminar.')));
+  // resultado do quality gate (botão Validar)
   if (checks.length) {
     const list = el('ul', { class: 'checks' });
     checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : 'falha'), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
@@ -418,7 +443,7 @@ function renderVal(val, info, calib) {
         el('span', { style: 'flex:1' }), toggle);
       box.append(el('div', { class: 'judgecard' }, head, det));
     });
-  }
+  } else if (!RUNNING) box.append(el('p', { class: 'small muted' }, 'Ainda não calibrado — clique “Calibrar” na barra de baixo.'));
   // tempo-limite efetivamente usado na correção (máx entre juízes)
   const served = info && (info.time_limits || info.tl);
   if (served && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, 'Tempo-limite usado na correção (máx entre juízes): ' + tlLine(served)));
@@ -561,8 +586,13 @@ async function save() {
 async function act(action, label) {
   if (!ID) { setMsg('Salve o problema primeiro.', 'error'); return; }
   setMsg(label + '…');
-  try { const j = await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true }); setMsg(label + ' enfileirado ✓ (reqid ' + (j.reqid || '').slice(0, 8) + ')', 'v-ok'); }
-  catch (e) { setMsg(e.message, 'error'); }
+  try {
+    await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true });
+    RUNNING = (action === 'publish') ? 'publish' : 'calibrate';
+    calibBaseline = ((LASTCALIB && LASTCALIB.hosts) || []).length;
+    setMsg(label + ' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', 'v-ok');
+    showTab('pub'); renderVal(); updateReady(); startPolling();
+  } catch (e) { setMsg(e.message, 'error'); }
 }
 async function newDir() {
   const name = prompt('Nome da nova pasta (diretório) — minúsculas, sem espaço:'); if (!name) return;
@@ -593,7 +623,7 @@ function bindHandlers() {
   $('addtest').onclick = addTest;
   $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
   $('save').onclick = save;
-  $('publish').onclick = () => act('publish', 'Validar & Publicar');
+  $('publish').onclick = () => act('publish', 'Validar');
   $('calibrate').onclick = () => act('request-calibration', 'Calibração');
   $('newdir').onclick = newDir;
   $('preview').onclick = preview;

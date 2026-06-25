@@ -36,6 +36,12 @@
     .judgecard{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.4rem .6rem;margin:.3rem 0}
     .caliblog{max-height:26rem;overflow:auto;background:#0d1117;border:1px solid var(--border,#2a2a2a);border-radius:.4rem;
       padding:.5rem;font-size:.78rem;line-height:1.4;white-space:pre-wrap;word-break:break-word;margin:0}
+    /* indicador de "executando no juiz" (calibração/validação em andamento) */
+    .rdy.run .dot{background:#e0a64b;animation:moj-pulse 1s ease-in-out infinite}
+    @keyframes moj-pulse{0%,100%{opacity:1}50%{opacity:.25}}
+    .running{display:flex;align-items:center;gap:.5rem;color:#ffd98a;margin:.3rem 0 .4rem;font-size:.9rem}
+    .spin{width:.95rem;height:.95rem;border:2px solid #ffd98a;border-top-color:transparent;border-radius:50%;display:inline-block;animation:moj-spin .8s linear infinite;flex:none}
+    @keyframes moj-spin{to{transform:rotate(360deg)}}
     .linklike{color:var(--accent,#5b8cff);text-decoration:underline}
     details summary{cursor:pointer} #tests textarea{min-height:4rem}
     .pkgtree{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;line-height:1.6;margin:.4rem 0}
@@ -307,9 +313,9 @@
 
       <!-- barra de ações (fixa, visível em todas as abas) -->
       <div class="bar2">
-        <button id="save" class="btn">Salvar</button>
-        <button id="publish" class="btn ghost">Validar &amp; Publicar</button>
-        <button id="calibrate" class="btn ghost">Calibrar</button>
+        <button id="save" class="btn" title="Grava o problema no seu diretório (Gitea). Marque “tornar público” na aba Publicação para entrar no treino livre.">Salvar</button>
+        <button id="calibrate" class="btn ghost" title="Mede o tempo-limite: um juiz roda as soluções good e calcula o TL por linguagem. O resultado aparece em “Validação & calibração”.">Calibrar</button>
+        <button id="publish" class="btn ghost" title="Roda o quality gate (o enunciado compila? exemplos visíveis? testes pareados? a solução good é aceita?), gera o enunciado/índice e calibra — deixa o problema pronto. Tornar PÚBLICO no treino livre é a opção “tornar público” + Salvar.">Validar</button>
         <span class="spacer"></span>
         <span id="msg" class="small"></span>
       </div>
