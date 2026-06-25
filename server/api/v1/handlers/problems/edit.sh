@@ -24,6 +24,7 @@ bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$wt/$prob" "$id" "$repo" >/dev/null 2>&1
 
 sha="$(git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "edita $prob")" \
   || fail 502 "Falha ao enviar (push)" "git_push"
+ensure_repo_materialized "$repo" "$SESSION_LOGIN"   # espelha p/ indexador/juiz acharem o pacote
 # atualiza o overlay (mantém public; título/coleções/autor do que está no pacote)
 pub_now="$(jq -r 'if .public==true then "true" else "false" end' "$wt/$prob/.moj-meta.json" 2>/dev/null)"
 colls_now="$(jq -c '.collections // []' "$wt/$prob/.moj-meta.json" 2>/dev/null)"

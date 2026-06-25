@@ -82,6 +82,27 @@ prob_norm(){ printf '%s' "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | 
 # ---- autoria: registro de diretórios (repo Gitea) -> dono(login) --------------------------
 REPO_REGISTRY="$CONTESTSDIR/treino/var/problem-repos.json"
 repo_owner(){ [[ -f "$REPO_REGISTRY" ]] && jq -r --arg r "$1" '.[$r].owner // empty' "$REPO_REGISTRY" 2>/dev/null; }
+
+# ensure_repo_materialized <repo> [login] — espelha o repo Gitea em $MOJ_PROBLEMS_DIR/<repo>
+# (clona se faltar; senão fetch + reset --hard) para o INDEXADOR e os endpoints
+# /judge/package(-meta) acharem o pacote (pkg_path lê de MOJ_PROBLEMS_DIR). Repos LEGADOS
+# (sem dono no registro) já vivem lá -> nada a fazer. Best-effort (rc!=0 não derruba o caller).
+# Sem isso, um problema criado no Gitea fica invisível para os juízes ("pkg inexistente").
+ensure_repo_materialized(){
+  local repo="$1" login="${2:-}" owner dst tok
+  owner="$(repo_owner "$repo")"; [[ -n "$owner" ]] || return 0   # legado: já materializado
+  declare -F git_broker_clone >/dev/null || source "$MOJTOOLS_DIR/git-broker.sh" 2>/dev/null
+  declare -F git_broker_clone >/dev/null || return 1
+  [[ -n "$login" ]] || login="$owner"
+  dst="$MOJ_PROBLEMS_DIR/$repo"; tok="$(_gb_token "$login" 2>/dev/null)"; [[ -n "$tok" ]] || return 1
+  if [[ -d "$dst/.git" ]]; then
+    git_broker_run "$login" "$tok" "$dst" fetch -q origin 2>/dev/null \
+      && git_broker_run "$login" "$tok" "$dst" reset -q --hard '@{u}' 2>/dev/null
+  else
+    mkdir -p "$(dirname "$dst")" 2>/dev/null
+    git_broker_clone "$login" "$owner" "$repo" "$dst" 2>/dev/null
+  fi
+}
 repo_register(){  # <repo> <owner> [collections-csv]
   local r="$1" o="$2" c="${3:-}" cur tmp; cur="$(cat "$REPO_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
   mkdir -p "$(dirname "$REPO_REGISTRY")" 2>/dev/null; tmp="$REPO_REGISTRY.tmp.$$"

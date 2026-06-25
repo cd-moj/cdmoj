@@ -31,6 +31,7 @@ bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$wt/$prob" "$repo#$prob" "$repo" >/dev/n
 
 sha="$(git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "novo problema: $prob")" \
   || fail 502 "Falha ao enviar (push)" "git_push"
+ensure_repo_materialized "$repo" "$SESSION_LOGIN"   # espelha p/ indexador/juiz acharem o pacote
 # overlay p/ visibilidade imediata em "Meus" (antes do reindex no NFS)
 author_txt="$(cat "$wt/$prob/author" 2>/dev/null | head -1)"
 authored_upsert "$repo#$prob" "$owner" "$repo" "$prob" "$title" false "$colls" "$author_txt" "$(repo_collabs "$repo")"
