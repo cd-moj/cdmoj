@@ -198,6 +198,10 @@ problem_owner(){
 }
 
 # ---- autoria: materialização do pacote (escreve só os campos presentes no body) -----------
+# grava o conteúdo de stdin num arquivo com EXATAMENTE 1 \n final (vazio continua vazio).
+# Idempotente e auto-corretivo: sem isto, cada "Salvar" acumulava uma linha em branco nos
+# arquivos (jq -r encerra a saída com \n; o valor lido já trazia o \n do arquivo).
+_putfile(){ local f="$1" c; c="$(cat)"; if [[ -n "$c" ]]; then printf '%s\n' "$c" > "$f"; else : > "$f"; fi; }
 apply_problem_fields(){  # <pkgdir> <body-json>
   local pkg="$1" body="$2"
   mkdir -p "$pkg/docs" "$pkg/tests/input" "$pkg/tests/output" "$pkg/sols/good"
@@ -207,18 +211,18 @@ apply_problem_fields(){  # <pkgdir> <body-json>
     if [[ -z "$efmt" ]]; then for e in md org tex; do [[ -f "$pkg/docs/enunciado.$e" ]] && { efmt="$e"; break; }; done; fi
     [[ "$efmt" =~ ^(md|org|tex)$ ]] || efmt=md
     local e; for e in md org tex; do [[ "$e" != "$efmt" && -f "$pkg/docs/enunciado.$e" ]] && rm -f "$pkg/docs/enunciado.$e"; done
-    jq -r '.enunciado_md' <<<"$body" > "$pkg/docs/enunciado.$efmt"
+    jq -r '.enunciado_md' <<<"$body" | _putfile "$pkg/docs/enunciado.$efmt"
   fi
   jq -e 'has("author")'       >/dev/null 2>&1 <<<"$body" && jq -r '.author'       <<<"$body" > "$pkg/author"
   jq -e 'has("tags")'         >/dev/null 2>&1 <<<"$body" && jq -r '.tags[]?'       <<<"$body" > "$pkg/tags"
-  jq -e 'has("conf_text")'    >/dev/null 2>&1 <<<"$body" && jq -r '.conf_text'     <<<"$body" > "$pkg/conf"
+  jq -e 'has("conf_text")'    >/dev/null 2>&1 <<<"$body" && jq -r '.conf_text'     <<<"$body" | _putfile "$pkg/conf"
   if jq -e 'has("examples")' >/dev/null 2>&1 <<<"$body"; then
     find "$pkg/tests/input"  -name 'sample*' -delete 2>/dev/null
     find "$pkg/tests/output" -name 'sample*' -delete 2>/dev/null
     local i=0 pair
     while IFS= read -r pair; do i=$((i+1))
-      jq -r '.input'  <<<"$pair" > "$pkg/tests/input/sample$i"
-      jq -r '.output' <<<"$pair" > "$pkg/tests/output/sample$i"
+      jq -r '.input'  <<<"$pair" | _putfile "$pkg/tests/input/sample$i"
+      jq -r '.output' <<<"$pair" | _putfile "$pkg/tests/output/sample$i"
     done < <(jq -c '.examples[]?' <<<"$body")
     # explicação por exemplo (na ordem) -> docs/sample-notes.json; remove se todas vazias
     local notes; notes="$(jq -c '[.examples[]? | (.explanation // "")]' <<<"$body")"
@@ -265,8 +269,8 @@ apply_problem_fields(){  # <pkgdir> <body-json>
           else n=1; while cand="${gpre}$(printf '%02d' "$n")"; [[ -e "$pkg/tests/input/$cand" ]]; do n=$((n+1)); done; nm="$cand"; fi
         fi
       fi
-      jq -r '.input'  <<<"$pair" > "$pkg/tests/input/$nm"
-      jq -r '.output' <<<"$pair" > "$pkg/tests/output/$nm"
+      jq -r '.input'  <<<"$pair" | _putfile "$pkg/tests/input/$nm"
+      jq -r '.output' <<<"$pair" | _putfile "$pkg/tests/output/$nm"
     done < <(jq -c '.tests[]?' <<<"$body")
   fi
   # grava/remove tests/score conforme o modo (só quando o body traz o campo "score")
@@ -293,7 +297,7 @@ apply_problem_fields(){  # <pkgdir> <body-json>
       rm -rf "$pkg/sols/$cat"; mkdir -p "$pkg/sols/$cat"
       while IFS= read -r s; do
         fn="$(basename "$(jq -r '.filename // empty' <<<"$s")")"; [[ "$fn" =~ ^[A-Za-z0-9._-]+$ ]] || continue
-        jq -r '.code // ""' <<<"$s" > "$pkg/sols/$cat/$fn"
+        jq -r '.code // ""' <<<"$s" | _putfile "$pkg/sols/$cat/$fn"
       done < <(jq -c --arg c "$cat" '.sols[$c][]?' <<<"$body")
     done
   fi
@@ -301,7 +305,7 @@ apply_problem_fields(){  # <pkgdir> <body-json>
   if jq -e 'has("good_sol")' >/dev/null 2>&1 <<<"$body"; then
     local fn; fn="$(basename "$(jq -r '.good_sol.filename // "sol.cpp"' <<<"$body")")"
     [[ "$fn" =~ ^[A-Za-z0-9._-]+$ ]] || fn="sol.cpp"
-    jq -r '.good_sol.code // ""' <<<"$body" > "$pkg/sols/good/$fn"
+    jq -r '.good_sol.code // ""' <<<"$body" | _putfile "$pkg/sols/good/$fn"
   fi
 }
 # _read_pairs <pkgdir> <sample|hidden> -> JSON array [{name,input,output}]
