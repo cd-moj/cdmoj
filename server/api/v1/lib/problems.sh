@@ -200,6 +200,21 @@ apply_problem_fields(){  # <pkgdir> <body-json>
       jq -r '.output' <<<"$pair" > "$pkg/tests/output/sample$i"
     done < <(jq -c '.examples[]?' <<<"$body")
   fi
+  # ---- pontuação por grupos (subtasks) ----------------------------------------
+  # score = {enabled, groups:[{name,weight,glob}]}; cada teste pode trazer .group p/
+  # ser FIXADO num grupo (renomeado p/ <prefixo>NN); sem .group, mantém o nome (auto,
+  # casado pelo glob no juiz). Sem o campo "score" no body → comportamento legado.
+  local SCORE_ENABLED=0
+  declare -A GGLOB
+  if jq -e '.score.enabled == true' >/dev/null 2>&1 <<<"$body"; then
+    SCORE_ENABLED=1
+    local grp gn gg
+    while IFS= read -r grp; do
+      gn="$(jq -r '.name // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$gn" ]] || continue
+      gg="$(jq -r '.glob // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._*-')"; [[ -n "$gg" ]] || gg="${gn}_*"
+      GGLOB[$gn]="$gg"
+    done < <(jq -c '.score.groups[]?' <<<"$body")
+  fi
   if jq -e 'has("tests")' >/dev/null 2>&1 <<<"$body"; then
     # substitui os testes OCULTOS (mantém os sample*); remoções valem
     local inp nm0
@@ -207,12 +222,37 @@ apply_problem_fields(){  # <pkgdir> <body-json>
     for inp in "$pkg/tests/input"/*; do nm0="$(basename "$inp")"; [[ "$nm0" == sample* ]] && continue
       rm -f "$inp" "$pkg/tests/output/$nm0"; done
     shopt -u nullglob; set -o noglob
-    local i=0 pair nm
+    local i=0 pair nm tgrp gpre n cand
     while IFS= read -r pair; do i=$((i+1)); nm="$(jq -r '.name // empty' <<<"$pair" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$nm" ]] || nm="$i"
       [[ "$nm" == sample* ]] && nm="t$nm"   # nomes sample* são reservados aos exemplos
+      if (( SCORE_ENABLED )); then
+        tgrp="$(jq -r '.group // empty' <<<"$pair" | tr -cd 'A-Za-z0-9._-')"
+        if [[ -n "$tgrp" && -n "${GGLOB[$tgrp]:-}" ]]; then
+          gpre="${GGLOB[$tgrp]%\**}"                         # g2_* -> g2_
+          # FIXADO: mantém se já é <prefixo><dígitos> livre; senão pega o próximo <prefixo>NN livre
+          if [[ "$nm" == "$gpre"* && "${nm#$gpre}" =~ ^[0-9]+$ && ! -e "$pkg/tests/input/$nm" ]]; then :
+          else n=1; while cand="${gpre}$(printf '%02d' "$n")"; [[ -e "$pkg/tests/input/$cand" ]]; do n=$((n+1)); done; nm="$cand"; fi
+        fi
+      fi
       jq -r '.input'  <<<"$pair" > "$pkg/tests/input/$nm"
       jq -r '.output' <<<"$pair" > "$pkg/tests/output/$nm"
     done < <(jq -c '.tests[]?' <<<"$body")
+  fi
+  # grava/remove tests/score conforme o modo (só quando o body traz o campo "score")
+  if jq -e 'has("score")' >/dev/null 2>&1 <<<"$body"; then
+    if (( SCORE_ENABLED )); then
+      { compgen -G "$pkg/tests/input/sample*" >/dev/null 2>&1 && echo "sample* - 0 pontos"
+        local grp gn gg gw
+        while IFS= read -r grp; do
+          gn="$(jq -r '.name // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$gn" ]] || continue
+          gg="$(jq -r '.glob // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._*-')"; [[ -n "$gg" ]] || gg="${gn}_*"
+          gw="$(jq -r '.weight // 0' <<<"$grp" | tr -cd '0-9')"; gw=${gw:-0}
+          echo "$gg - $gw pontos"
+        done < <(jq -c '.score.groups[]?' <<<"$body")
+      } > "$pkg/tests/score"
+    else
+      rm -f "$pkg/tests/score"
+    fi
   fi
   # soluções por categoria (substitui a categoria inteira quando presente)
   if jq -e 'has("sols")' >/dev/null 2>&1 <<<"$body"; then
@@ -248,6 +288,21 @@ _read_pairs(){
   shopt -u nullglob; set -o noglob
   printf '%s]' "$out"
 }
+# _read_score <pkgdir> -> {enabled, groups:[{name,weight,glob}]} a partir de tests/score
+# (ignora a linha sample* dos exemplos). Ausente/vazio -> {enabled:false, groups:[]}.
+_read_score(){
+  local pkg="$1" sf="$pkg/tests/score"
+  [[ -f "$sf" ]] || { printf '{"enabled":false,"groups":[]}'; return; }
+  local groups='[]' g s glob w name
+  while IFS='-' read -r g s; do
+    glob="$(printf '%s' "$g" | tr -d '[:space:],')"
+    [[ -z "$glob" || "$glob" == sample* ]] && continue
+    w="$(printf '%s' "$s" | tr -cd '0-9')"; w=${w:-0}
+    name="${glob%\**}"; name="${name%_}"
+    groups="$(jq -c --arg n "$name" --argjson w "$w" --arg gl "$glob" '. + [{name:$n,weight:$w,glob:$gl}]' <<<"$groups")"
+  done < "$sf"
+  jq -cn --argjson g "$groups" '{enabled:true, groups:$g}'
+}
 # read_problem_source <pkgdir> -> JSON editável do pacote (enunciado/autor/tags/conf/exemplos/
 # testes/soluções good + public/collections/title do .moj-meta.json).
 read_problem_source(){
@@ -261,16 +316,17 @@ read_problem_source(){
   [[ -f "$pkg/conf" ]] && cat "$pkg/conf" > "$tc"
   local tags='[]'; [[ -f "$pkg/tags" ]] && tags="$(jq -R . "$pkg/tags" 2>/dev/null | jq -sc . 2>/dev/null)"; [[ -n "$tags" ]] || tags='[]'
   local meta='{}'; [[ -f "$pkg/.moj-meta.json" ]] && meta="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$meta" ]] || meta='{}'
-  local exs tss; exs="$(_read_pairs "$pkg" sample)"; tss="$(_read_pairs "$pkg" hidden)"
+  local exs tss score; exs="$(_read_pairs "$pkg" sample)"; tss="$(_read_pairs "$pkg" hidden)"; score="$(_read_score "$pkg")"
   local sg ss sw sp su
   sg="$(_read_sols "$pkg" good)"; ss="$(_read_sols "$pkg" slow)"
   sw="$(_read_sols "$pkg" wrong)"; sp="$(_read_sols "$pkg" pass)"; su="$(_read_sols "$pkg" upcoming)"
   jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" \
         --argjson tags "$tags" --argjson meta "$meta" --argjson exs "$exs" --argjson tss "$tss" \
-        --argjson sg "$sg" --argjson ss "$ss" --argjson sw "$sw" --argjson sp "$sp" --argjson su "$su" --arg fmt "$fmt" '
+        --argjson sg "$sg" --argjson ss "$ss" --argjson sw "$sw" --argjson sp "$sp" --argjson su "$su" \
+        --argjson score "$score" --arg fmt "$fmt" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
-      title:($meta.display_title // ""), examples:$exs, tests:$tss,
+      title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
       sols:{good:$sg, slow:$ss, wrong:$sw, pass:$sp, upcoming:$su} }'
   rm -f "$te" "$ta" "$tc"
 }

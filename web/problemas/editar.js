@@ -1,6 +1,7 @@
 // problemas/editar.js — editor de problemas (autoria keyless; git escondido).
-// Enunciado (markdown+imagens), exemplos, testes ocultos, soluções good/slow/wrong/pass
-// (editor por arquivo com seletor de linguagem + upload), e baixar/enviar o pacote (.tar.gz).
+// Layout em ABAS (Enunciado · Testes & Pontuação · Soluções · Limites · Publicação) com uma
+// barra de PRONTIDÃO fixa (estilo "verify" do RBX). Suporta limite de memória (MEMLIMITMB) e
+// PONTUAÇÃO POR GRUPOS (subtasks estilo OBI: cada grupo de testes tem um peso → tests/score).
 import { apiGet, apiPost, ApiError, getToken } from '/shared/api.js';
 import { status, fileToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea } from '/shared/ui.js';
@@ -9,10 +10,11 @@ import { createEditor } from '/shared/editor.js';
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
 let enunEd = null;
-let solEditors = { good: [], slow: [], wrong: [], pass: [] };
 let COLLS = [];
 let CAN_CREATE = false;
-let FMT = 'md';                 // formato do enunciado (md|org|tex) — preservado no save
+let FMT = 'md';                       // formato do enunciado (md|org|tex) — preservado no save
+let SCORE = { enabled: false, groups: [] };   // pontuação por grupos (espelho do DOM)
+let VAL = { validated: 'na', calibrated: 'na' };   // estado p/ a barra de prontidão
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -24,8 +26,18 @@ const cmFor = (fn) => EXT2CM[(String(fn).split('.').pop() || '').toLowerCase()] 
 const LANG_OPTS = [['', 'texto'], ['cpp', 'C/C++'], ['python', 'Python'], ['java', 'Java'], ['rust', 'Rust'], ['go', 'Go'], ['javascript', 'JavaScript'], ['markdown', 'Markdown']];
 const SOL_CATS = [['good', 'good — deve ser ACEITA'], ['wrong', 'wrong — deve FALHAR'], ['slow', 'slow — estoura o TEMPO'], ['pass', 'pass — aceitas (não calibram)'], ['upcoming', 'upcoming — em desenvolvimento']];
 const DEFNAME = { good: 'sol.cpp', wrong: 'wa.cpp', slow: 'slow.cpp', pass: 'alt.cpp', upcoming: 'wip.cpp' };
+// selo por veredito esperado (conceito outcome: do RBX)
+const SOL_BADGE = {
+  good: ['sb-good', 'resultado esperado: Accepted'],
+  wrong: ['sb-wrong', 'resultado esperado: Wrong Answer / erro'],
+  slow: ['sb-slow', 'resultado esperado: Time Limit Exceeded'],
+  pass: ['sb-pass', 'aceitas — não entram na calibração'],
+  upcoming: ['sb-upcoming', 'em desenvolvimento — ignoradas'],
+};
+// DERIVADO de SOL_CATS p/ nunca dessincronizar (a causa do bug que travava a página)
+let solEditors = Object.fromEntries(SOL_CATS.map(([c]) => [c, []]));
 
-// ---- conf (configurações do problema; ver saad-problems/README.org) -----------------------
+// ---- conf (configurações do problema) -----------------------------------------------------
 const confVal = (text, key) => { const e = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); const m = (text || '').match(new RegExp('^\\s*' + e + '\\s*=\\s*(.*)$', 'm')); return m ? m[1].trim().replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1') : null; };
 function confUpsert(text, key, value) {
   const lines = (text || '').split('\n'), e = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), re = new RegExp('^\\s*' + e + '\\s*=');
@@ -34,7 +46,7 @@ function confUpsert(text, key, value) {
   else { const v = /[\s+]/.test(value) ? `"${value}"` : value, line = key + '=' + v; if (idx >= 0) lines[idx] = line; else lines.push(line); }
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
-const CF_TEXT = [['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS']];
+const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS']];
 const CF_YN = [['cf_allowparallel', 'ALLOWPARALLELTEST'], ['cf_tlererun', 'TLERERUN'], ['cf_stopwa', 'STOPWHEN_WA'], ['cf_stoptle', 'STOPWHEN_TLE'], ['cf_stopre', 'STOPWHEN_RE']];
 const CF_FLAG = [['cf_allowtle', 'ALLOWTLEDURINGCALIBRATION']];   // y ou ausente
 function confToFields(text) {
@@ -53,6 +65,47 @@ const hiddenFile = (multiple) => { const i = el('input', { type: 'file' }); if (
 function langSelect(value) { const s = el('select', { class: 'small' }); LANG_OPTS.forEach(([id, l]) => s.append(el('option', { value: id }, l))); s.value = value || ''; return s; }
 const showNote = (html) => { const n = $('note'); n.style.display = ''; n.innerHTML = html; };
 
+// ---- abas ---------------------------------------------------------------------------------
+function setupTabs() {
+  $('tabnav').addEventListener('click', (e) => { const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab); });
+}
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  document.querySelectorAll('.tabpane').forEach(p => { p.hidden = (p.dataset.pane !== name); });
+}
+
+// ---- barra de prontidão -------------------------------------------------------------------
+const scoreSum = () => SCORE.groups.reduce((s, g) => s + (g.weight || 0), 0);
+function readyItems() {
+  const hasEnun = !!(enunEd && enunEd.getValue().trim());
+  const nEx = $('examples').querySelectorAll('.ex').length;
+  const nTs = $('tests').querySelectorAll('.ex').length;
+  const nGood = (solEditors.good || []).length;
+  const limOK = !!($('cf_memlimit').value.trim() || $('cf_calibrafactor').value.trim());
+  const items = [
+    { tab: 'enun', label: 'Enunciado', s: hasEnun ? 'ok' : 'todo' },
+    { tab: 'tests', label: 'Exemplos', s: nEx ? 'ok' : 'todo' },
+    { tab: 'tests', label: 'Testes', s: nTs ? 'ok' : 'todo' },
+    { tab: 'sols', label: 'Solução good', s: nGood ? 'ok' : 'todo' },
+  ];
+  if (SCORE.enabled) items.push({ tab: 'tests', label: 'Pontuação 100', s: scoreSum() === 100 ? 'ok' : 'todo' });
+  items.push({ tab: 'limits', label: 'Limites', s: limOK ? 'ok' : 'na' });
+  items.push({ tab: 'pub', label: 'Validado', s: VAL.validated });
+  items.push({ tab: 'pub', label: 'Calibrado', s: VAL.calibrated });
+  items.push({ tab: 'pub', label: 'Público', s: $('ppublic').checked ? 'ok' : 'na' });
+  return items;
+}
+function updateReady() {
+  const box = $('ready'); if (!box) return;
+  box.innerHTML = '';
+  readyItems().forEach(it => box.append(el('span', { class: 'rdy ' + it.s, title: 'ir para a aba', onclick: () => showTab(it.tab) },
+    el('span', { class: 'dot' }), el('span', {}, it.label))));
+  const nEx = $('examples').querySelectorAll('.ex').length, nTs = $('tests').querySelectorAll('.ex').length;
+  $('tabTestsMini').textContent = (nEx + nTs) ? `(${nEx}+${nTs})` : '';
+  const ns = SOL_CATS.reduce((a, [c]) => a + (solEditors[c] || []).length, 0);
+  $('tabSolsMini').textContent = ns ? `(${ns})` : '';
+}
+
 // ---- exemplos (sample, aparecem no enunciado) --------------------------------------------
 function exampleRow(input = '', output = '') {
   const row = el('div', { class: 'ex' },
@@ -66,45 +119,111 @@ const addExample = (i = '', o = '') => { $('examples').append(exampleRow(i, o));
 const collectExamples = () => [...$('examples').querySelectorAll('.ex')].map(r => ({
   input: r.querySelector('.exin').value, output: r.querySelector('.exout').value })).filter(e => e.input !== '' || e.output !== '');
 
+// ---- pontuação por grupos (subtasks) ------------------------------------------------------
+const groupKey = (s) => ((s || '').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'g');
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const globToRe = (g) => new RegExp('^' + g.split('*').map(escapeRe).join('.*') + '$');
+const matchGroups = (name) => SCORE.groups.filter(g => g.glob && globToRe(g.glob).test(name));
+
+function addGroupRow(g = { name: '', weight: '', glob: '' }) {
+  const nameI = el('input', { type: 'text', value: g.name || '', placeholder: 'ex: facil' });
+  const wI = el('input', { type: 'text', value: (g.weight ?? '') + '', placeholder: '0' });
+  const globI = el('input', { type: 'text', value: g.glob || '', placeholder: g.name ? groupKey(g.name) + '_*' : 'nome_*' });
+  const tr = el('tr', {},
+    el('td', {}, nameI), el('td', { class: 'w' }, wI), el('td', {}, globI),
+    el('td', { class: 'act' }, el('a', { href: '#', onclick: (e) => { e.preventDefault(); tr.remove(); syncScore(); } }, '✕')));
+  const onName = () => { globI.placeholder = (nameI.value.trim() ? groupKey(nameI.value) + '_*' : 'nome_*'); syncScore(); };
+  nameI.addEventListener('input', onName); wI.addEventListener('input', syncScore); globI.addEventListener('input', syncScore);
+  tr._get = () => ({ name: nameI.value.trim(), weight: parseInt(wI.value, 10) || 0, glob: globI.value.trim() || (nameI.value.trim() ? groupKey(nameI.value) + '_*' : '') });
+  $('scoreGroups').append(tr);
+  return tr;
+}
+const collectGroups = () => [...$('scoreGroups').querySelectorAll('tr')].map(tr => tr._get()).filter(g => g.name);
+function syncScore() {
+  SCORE.enabled = $('scoreEnabled').checked;
+  SCORE.groups = collectGroups();
+  $('scoreBox').style.display = SCORE.enabled ? '' : 'none';
+  const tot = scoreSum();
+  const t = $('scoreTotal'); t.textContent = `total: ${tot}` + (tot === 100 ? ' ✓' : ' (idealmente 100)');
+  t.className = 'small gtotal ' + (tot === 100 ? 'ok' : 'no');
+  refreshTestGroupSelects(); updateReady(); updatePkgInfo();
+}
+function refreshTestGroupSelects() {
+  const show = $('scoreEnabled').checked;
+  [...$('tests').querySelectorAll('.ex')].forEach(row => {
+    const gsel = row._gsel; if (!gsel) return;
+    const cur = gsel.value || row._wantGroup || ''; row._wantGroup = '';
+    gsel.innerHTML = '';
+    gsel.append(el('option', { value: '' }, 'auto (pelo padrão)'));
+    SCORE.groups.forEach(g => { if (g.name) gsel.append(el('option', { value: g.name }, g.name)); });
+    gsel.value = SCORE.groups.some(g => g.name === cur) ? cur : '';
+    if (row._gwrap) row._gwrap.style.display = show ? '' : 'none';
+    updateTestHint(row);
+  });
+}
+function updateTestHint(row) {
+  const ghint = row._ghint, gsel = row._gsel; if (!ghint) return;
+  if (!$('scoreEnabled').checked) { ghint.textContent = ''; return; }
+  if (gsel.value) { ghint.textContent = '(fixado)'; ghint.style.color = ''; return; }
+  const m = matchGroups((row._nameI ? row._nameI.value : '').trim());
+  if (m.length === 1) { ghint.textContent = '→ ' + m[0].name; ghint.style.color = '#7ee2a0'; }
+  else if (m.length === 0) { ghint.textContent = '⚠ sem grupo'; ghint.style.color = '#ffd98a'; }
+  else { ghint.textContent = '⚠ casa ' + m.length + ' grupos'; ghint.style.color = '#ffd98a'; }
+}
+
 // ---- testes ocultos -----------------------------------------------------------------------
-function testRow(name = '', input = '', output = '') {
+function testRow(name = '', input = '', output = '', group = '') {
   const nameI = el('input', { type: 'text', value: name, placeholder: 'nome', style: 'max-width:11rem' });
   const inT = el('textarea', { class: 'tin' }, input), outT = el('textarea', { class: 'tout' }, output);
   const li = hiddenFile(false), lo = hiddenFile(false);
-  nameI.addEventListener('change', updatePkgInfo);
-  li.addEventListener('change', async () => { if (li.files[0]) { inT.value = await li.files[0].text(); if (!nameI.value) nameI.value = li.files[0].name.replace(/\.[^.]*$/, ''); updatePkgInfo(); } });
-  lo.addEventListener('change', async () => { if (lo.files[0]) outT.value = await lo.files[0].text(); });
+  const gsel = el('select', { class: 'tgroup small' });
+  const ghint = el('span', { class: 'tghint small muted' });
+  const gwrap = el('span', { class: 'tgwrap row', style: 'gap:.3rem;align-items:center;display:none' },
+    el('span', { class: 'small muted' }, 'grupo:'), gsel, ghint);
   const row = el('div', { class: 'ex' },
-    el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'small' }, 'teste'), nameI,
+    el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
+      el('span', { class: 'small' }, 'teste'), nameI, gwrap,
       el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, 'remover')),
     el('div', { class: 'grid2' },
       el('div', {}, el('label', { class: 'small' }, 'entrada ', el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => li.click() }, '(carregar)')), inT),
       el('div', {}, el('label', { class: 'small' }, 'saída ', el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => lo.click() }, '(carregar)')), outT)),
     li, lo);
+  row._nameI = nameI; row._gsel = gsel; row._ghint = ghint; row._gwrap = gwrap; row._wantGroup = group;
+  nameI.addEventListener('change', () => { updatePkgInfo(); updateTestHint(row); });
+  nameI.addEventListener('input', () => updateTestHint(row));
+  gsel.addEventListener('change', () => { updateTestHint(row); updateReady(); });
+  li.addEventListener('change', async () => { if (li.files[0]) { inT.value = await li.files[0].text(); if (!nameI.value) nameI.value = li.files[0].name.replace(/\.[^.]*$/, ''); updatePkgInfo(); } });
+  lo.addEventListener('change', async () => { if (lo.files[0]) outT.value = await lo.files[0].text(); });
   return row;
 }
-const renderTests = (tests) => { $('tests').innerHTML = ''; (tests || []).forEach(t => $('tests').append(testRow(t.name, t.input, t.output))); };
-const addTest = () => { $('tests').append(testRow()); updatePkgInfo(); };
-const collectTests = () => [...$('tests').querySelectorAll('.ex')].map(r => ({
-  name: r.querySelector('input[type=text]').value.trim(), input: r.querySelector('.tin').value, output: r.querySelector('.tout').value })).filter(t => t.input !== '' || t.output !== '');
+const renderTests = (tests) => { $('tests').innerHTML = ''; (tests || []).forEach(t => $('tests').append(testRow(t.name, t.input, t.output, t.group || ''))); refreshTestGroupSelects(); };
+const addTest = () => { $('tests').append(testRow()); refreshTestGroupSelects(); updatePkgInfo(); };
+const collectTests = () => [...$('tests').querySelectorAll('.ex')].map(r => {
+  const o = { name: (r._nameI ? r._nameI.value : '').trim(), input: r.querySelector('.tin').value, output: r.querySelector('.tout').value };
+  if ($('scoreEnabled').checked && r._gsel && r._gsel.value) o.group = r._gsel.value;
+  return o;
+}).filter(t => t.input !== '' || t.output !== '');
 async function loadTestPairs(files) {
   const map = {};
   for (const f of files) {
     const base = f.name.replace(/\.(in|out|txt|a|ans|sol)$/i, ''); const isOut = /\.(out|ans|a|sol)$/i.test(f.name);
     map[base] = map[base] || { name: base }; map[base][isOut ? 'output' : 'input'] = await f.text();
   }
-  Object.values(map).forEach(t => $('tests').append(testRow(t.name, t.input || '', t.output || ''))); updatePkgInfo();
+  Object.values(map).forEach(t => $('tests').append(testRow(t.name, t.input || '', t.output || '')));
+  refreshTestGroupSelects(); updatePkgInfo();
 }
 
-// ---- soluções (good/slow/wrong/pass) ------------------------------------------------------
+// ---- soluções (good/slow/wrong/pass/upcoming) ---------------------------------------------
 async function renderSols(sols) {
-  sols = sols || {}; solEditors = { good: [], slow: [], wrong: [], pass: [] };
+  sols = sols || {}; solEditors = Object.fromEntries(SOL_CATS.map(([c]) => [c, []]));
   const wrap = $('solsWrap'); wrap.innerHTML = '';
-  for (const [cat, label] of SOL_CATS) {
+  for (const [cat] of SOL_CATS) {
     const rows = el('div', { id: 'sol-' + cat });
     const fi = hiddenFile(true); fi.addEventListener('change', () => loadSolFiles(cat, fi.files));
-    wrap.append(el('div', { class: 'solcat', style: 'margin-top:.6rem' },
-      el('div', { class: 'row', style: 'justify-content:space-between;align-items:center' }, el('b', {}, label),
+    const [bcls, btxt] = SOL_BADGE[cat] || ['sb-pass', ''];
+    wrap.append(el('div', { class: 'solcat', style: 'margin-top:.8rem' },
+      el('div', { class: 'row', style: 'justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.4rem' },
+        el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'sol-badge ' + bcls }, cat), el('span', { class: 'small muted' }, btxt)),
         el('div', { class: 'row', style: 'gap:.4rem' },
           el('button', { class: 'btn ghost', type: 'button', onclick: () => addSol(cat, DEFNAME[cat], '') }, '+ arquivo'),
           el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, '⬆ enviar'), fi)),
@@ -118,21 +237,25 @@ async function addSol(cat, fn, code) {
   const langSel = langSelect(cmFor(fnInput.value)), mount = el('div', { class: 'editor-mount' });
   const row = el('div', { style: 'margin:.4rem 0' },
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'small' }, 'arquivo'), fnInput, langSel,
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = solEditors[cat].filter(x => x.row !== row); updatePkgInfo(); } }, 'remover')),
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = (solEditors[cat] || []).filter(x => x.row !== row); updatePkgInfo(); } }, 'remover')),
     mount);
   $('sol-' + cat).append(row);
   let ed = await createEditor(mount, { doc: code || '', cm: langSel.value || null });
   const remount = async () => { const c = ed.getValue(); mount.innerHTML = ''; ed = await createEditor(mount, { doc: c, cm: langSel.value || null }); };
   langSel.addEventListener('change', remount);
   fnInput.addEventListener('change', () => { langSel.value = cmFor(fnInput.value); remount(); updatePkgInfo(); });
-  solEditors[cat].push({ row, get: () => ({ filename: fnInput.value.trim(), code: ed.getValue() }) });
+  (solEditors[cat] || (solEditors[cat] = [])).push({ row, get: () => ({ filename: fnInput.value.trim(), code: ed.getValue() }) });
   updatePkgInfo();
 }
 const loadSolFiles = async (cat, files) => { for (const f of files) await addSol(cat, f.name, await f.text()); };
-function collectSols() { const o = {}; for (const [cat] of SOL_CATS) o[cat] = solEditors[cat].map(x => x.get()).filter(s => s.filename); return o; }
+function collectSols() { const o = {}; for (const [cat] of SOL_CATS) o[cat] = (solEditors[cat] || []).map(x => x.get()).filter(s => s.filename); return o; }
 
-// ---- árvore do pacote (clicável -> rola até a seção) --------------------------------------
-function flash(t) { if (!t) return; t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.classList.add('flash'); setTimeout(() => t.classList.remove('flash'), 1200); }
+// ---- árvore do pacote (clicável -> troca de aba e rola até a seção) ------------------------
+function flash(t) {
+  if (!t) return;
+  const pane = t.closest('.tabpane'); if (pane) showTab(pane.dataset.pane);
+  t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.classList.add('flash'); setTimeout(() => t.classList.remove('flash'), 1200);
+}
 const ul = (...kids) => el('ul', {}, ...kids.filter(Boolean));
 const leaf = (label, target, opener) => el('li', {}, el('a', { onclick: () => { if (opener) opener(); flash(target); } }, label));
 const dirNode = (label, ...kids) => el('li', {}, el('span', { class: 'dir' }, label), ul(...kids.filter(Boolean)));
@@ -140,8 +263,9 @@ function buildTree() {
   const exRows = [...$('examples').querySelectorAll('.ex')], tsRows = [...$('tests').querySelectorAll('.ex')];
   const testKids = [];
   if (exRows.length) testKids.push(dirNode('exemplos/', ...exRows.map((r, i) => leaf('sample' + (i + 1), r))));
-  if (tsRows.length) testKids.push(dirNode('ocultos/', ...tsRows.map(r => leaf((r.querySelector('input[type=text]').value || 'teste'), r))));
-  const solKids = SOL_CATS.map(([c]) => solEditors[c].length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || '(sem nome)', s.row))) : null).filter(Boolean);
+  if (tsRows.length) testKids.push(dirNode('ocultos/', ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || 'teste'), r))));
+  if (SCORE.enabled) testKids.push(leaf('score', $('scoreGroups'), () => showTab('tests')));
+  const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || '(sem nome)', s.row))) : null).filter(Boolean);
   const tree = ul(
     dirNode('docs/', leaf('enunciado.md', $('enunMount'))),
     leaf('conf', $('confRaw'), () => { const d = $('confRaw').closest('details'); if (d) d.open = true; }),
@@ -153,9 +277,10 @@ function buildTree() {
 function updatePkgInfo() {
   if (!$('pkgInfo')) return;
   const ex = $('examples').querySelectorAll('.ex').length, ts = $('tests').querySelectorAll('.ex').length;
-  const sc = SOL_CATS.map(([c]) => `${c}:${solEditors[c].length}`).join(' · ');
-  $('pkgInfo').textContent = `${ex} exemplo(s) · ${ts} teste(s) oculto(s) · soluções ${sc}`;
+  const sc = SOL_CATS.map(([c]) => `${c}:${(solEditors[c] || []).length}`).join(' · ');
+  $('pkgInfo').textContent = `${ex} exemplo(s) · ${ts} teste(s) oculto(s) · soluções ${sc}` + (SCORE.enabled ? ` · pontuação: ${SCORE.groups.length} grupo(s)/${scoreSum()}p` : '');
   if ($('pkgTree')) { $('pkgTree').innerHTML = ''; $('pkgTree').append(buildTree()); }
+  updateReady();
 }
 
 // ---- montagem / coleta --------------------------------------------------------------------
@@ -172,20 +297,30 @@ async function renderForm(d) {
   enunEd = await createEditor($('enunMount'), { doc: d.enunciado_md || '', cm: 'markdown', images: true });
   $('examples').innerHTML = ''; (d.examples || []).forEach(e => $('examples').append(exampleRow(e.input, e.output)));
   if (!(d.examples || []).length) $('examples').append(exampleRow());
+  // pontuação (antes dos testes, p/ os seletores de grupo já terem opções)
+  $('scoreGroups').innerHTML = '';
+  const sc = d.score || { enabled: false, groups: [] };
+  (sc.groups || []).forEach(g => addGroupRow(g));
+  $('scoreEnabled').checked = !!sc.enabled;
   renderTests(d.tests || []);
   await renderSols(d.sols || { good: [{ filename: 'sol.py', code: '' }] });
   $('confRaw').value = d.conf_text || ''; confToFields($('confRaw').value);
   loadedPublic = !!d.public; $('ppublic').checked = loadedPublic;
   FMT = (d.format === 'org' || d.format === 'tex') ? d.format : 'md';
+  syncScore();
   renderCollChips(); renderCollManage(); updatePkgInfo();
   if (FMT !== 'md') showNote(`Enunciado em <b>${FMT === 'org' ? 'Org-mode' : 'LaTeX'}</b> — preservado ao salvar; a pré-visualização renderiza nesse formato.`);
 }
-const collectFields = () => ({
-  title: $('ptitle').value.trim(), author: $('pauthor').value.trim(),
-  tags: splitList($('ptags').value), collections: splitList($('pcolls').value),
-  enunciado_md: enunEd ? enunEd.getValue() : '', enunciado_format: FMT, examples: collectExamples(),
-  tests: collectTests(), sols: collectSols(), conf_text: $('confRaw').value,
-});
+const collectFields = () => {
+  const enabled = $('scoreEnabled').checked;
+  return {
+    title: $('ptitle').value.trim(), author: $('pauthor').value.trim(),
+    tags: splitList($('ptags').value), collections: splitList($('pcolls').value),
+    enunciado_md: enunEd ? enunEd.getValue() : '', enunciado_format: FMT, examples: collectExamples(),
+    tests: collectTests(), sols: collectSols(), conf_text: $('confRaw').value,
+    score: { enabled, groups: enabled ? collectGroups() : [] },
+  };
+};
 
 async function preview() {
   const btn = $('preview'); btn.disabled = true; setMsg('Renderizando…');
@@ -194,6 +329,32 @@ async function preview() {
     $('previewFrame').srcdoc = b64ToUtf8(j.html_b64 || ''); $('previewModal').style.display = ''; setMsg('');
   } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao renderizar'), 'error'); }
   finally { btn.disabled = false; }
+}
+
+// ---- validação & calibração (painel + prontidão, best-effort) -----------------------------
+async function loadValidation() {
+  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; renderVal(null, null); updateReady(); return; }
+  let val = null, info = null;
+  try { val = await apiGet('/problems/validation?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
+  try { info = await apiGet('/problems/get?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
+  VAL.validated = val ? (val.ok ? 'ok' : 'todo') : 'na';
+  const tls = info && (info.time_limits || info.tl);
+  VAL.calibrated = (tls && Object.keys(tls).length) ? 'ok' : 'na';
+  renderVal(val, info); updateReady();
+}
+function renderVal(val, info) {
+  const box = $('valpanel'); if (!box) return;
+  box.innerHTML = '';
+  if (!val && !info) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  box.append(el('h3', {}, 'Validação & calibração'));
+  if (val && Array.isArray(val.checks) && val.checks.length) {
+    const list = el('ul', { class: 'checks' });
+    val.checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : 'falha'), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
+    box.append(list);
+  } else box.append(el('p', { class: 'small muted' }, 'Sem relatório de validação ainda — use “Validar & Publicar”.'));
+  const tls = info && (info.time_limits || info.tl);
+  if (tls && Object.keys(tls).length) box.append(el('div', { class: 'small' }, 'Tempo-limite calibrado: ' + Object.entries(tls).map(([k, v]) => `${k}=${v}s`).join(' · ')));
 }
 
 // ---- pacote: baixar / enviar tar ----------------------------------------------------------
@@ -346,29 +507,14 @@ async function loadSource(id) {
   fillRepoSelect(); await renderForm(j);
   if (!EDITABLE) {
     showNote('⚠ ' + (j.note || 'Somente leitura.') + ' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).');
-    ['save', 'publish', 'calibrate', 'addex', 'addtest', 'uploadTar'].forEach(b => { if ($(b)) $(b).disabled = true; });
+    ['save', 'publish', 'calibrate', 'addex', 'addtest', 'uploadTar', 'scoreEnabled', 'addGroup'].forEach(b => { if ($(b)) $(b).disabled = true; });
     $('shareBox').style.display = 'none';
   }
 }
 
-async function boot() {
-  await renderAuthArea($('authArea'), CONTEST, () => location.reload());
-  const st = await status(CONTEST);
-  if (!st.logged_in) { $('needauth').style.display = ''; return; }
-  $('app').style.display = '';
-  try { REPOS = (await apiGet('/problems/repos', { contest: CONTEST, auth: true })).repos || []; } catch { REPOS = []; }
-  try { CAN_CREATE = !!(await apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true })).can_create; } catch {}
-
-  const p = qs();
-  if (p.get('id')) { MODE = 'edit'; ID = p.get('id'); await loadSource(ID); }
-  else {
-    MODE = 'new'; REPO = p.get('repo') || ''; fillRepoSelect();
-    await renderForm({ enunciado_md: '', author: st.name || st.login || '', tags: [], collections: [],
-      examples: [], tests: [], sols: { good: [{ filename: 'sol.py', code: '' }] }, public: false,
-      conf_text: 'TLMOD[calibrafactor]=1.35\nULIMITS[-u]=10000\nALLOWPARALLELTEST=y\n' });
-  }
-  await loadShare();
-
+// ---- ligação de eventos (SEMPRE antes do carregamento async; uma falha de load nunca
+//      desliga os botões — era a causa do "nenhum botão faz nada") ---------------------------
+function bindHandlers() {
   $('addex').onclick = () => addExample();
   $('addtest').onclick = addTest;
   $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
@@ -382,16 +528,54 @@ async function boot() {
   $('uploadTar').addEventListener('change', (e) => { uploadTar(e.target.files[0]); e.target.value = ''; });
   $('repo').onchange = async () => { REPO = $('repo').value; await loadShare(); };
   $('shareAdd').onclick = async () => { const u = $('shareLogin').value.trim(); if (u) { await share([u], []); $('shareLogin').value = ''; } };
-  [...CF_TEXT, ...CF_YN, ...CF_FLAG].forEach(([id]) => $(id).addEventListener('change', syncConfFromFields));
-  $('confRaw').addEventListener('change', () => confToFields($('confRaw').value));
+  [...CF_TEXT, ...CF_YN, ...CF_FLAG].forEach(([id]) => $(id).addEventListener('change', () => { syncConfFromFields(); updateReady(); }));
+  $('confRaw').addEventListener('change', () => { confToFields($('confRaw').value); updateReady(); });
   $('newCollBtn').onclick = newColl;
   $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });
+  $('enunMount').addEventListener('input', updateReady);
+  $('ppublic').addEventListener('change', updateReady);
+  // pontuação por grupos
+  $('scoreEnabled').addEventListener('change', () => { if ($('scoreEnabled').checked && !$('scoreGroups').children.length) addGroupRow(); syncScore(); });
+  $('addGroup').onclick = () => { addGroupRow(); syncScore(); };
+}
+
+async function boot() {
+  await renderAuthArea($('authArea'), CONTEST, () => location.reload());
+  const st = await status(CONTEST);
+  if (!st.logged_in) { $('needauth').style.display = ''; return; }
+  $('app').style.display = '';
+
+  bindHandlers();           // 1) liga TUDO antes de qualquer await de dados
+  setupTabs();
+  updateReady();
+
+  try { REPOS = (await apiGet('/problems/repos', { contest: CONTEST, auth: true })).repos || []; } catch { REPOS = []; }
+  try { CAN_CREATE = !!(await apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true })).can_create; } catch {}
+
+  const p = qs();
+  try {
+    if (p.get('id')) { MODE = 'edit'; ID = p.get('id'); await loadSource(ID); }
+    else {
+      MODE = 'new'; REPO = p.get('repo') || ''; fillRepoSelect();
+      await renderForm({ enunciado_md: '', author: st.name || st.login || '', tags: [], collections: [],
+        examples: [], tests: [], sols: { good: [{ filename: 'sol.py', code: '' }] }, public: false,
+        score: { enabled: false, groups: [] },
+        conf_text: 'TLMOD[calibrafactor]=1.35\nULIMITS[-u]=10000\nALLOWPARALLELTEST=y\n' });
+    }
+    await loadShare();
+    await loadColls();
+  } catch (e) {
+    setMsg('Falha ao carregar o problema: ' + (e instanceof ApiError ? e.message : (e && e.message || e)), 'error');
+  }
+
   // criar pasta/coleção e criar problema novo: só p/ quem pode criar (regra de criar contest)
   if (!CAN_CREATE) ['newdir', 'newCollBtn'].forEach(b => { if ($(b)) $(b).disabled = true; });
   if (MODE === 'new' && !CAN_CREATE) {
     showNote('⚠ Você não tem permissão para criar problemas. Peça a um administrador — é a mesma permissão de criar contests.');
     if ($('save')) $('save').disabled = true;
   } else if (!EDITABLE) { if ($('newCollBtn')) $('newCollBtn').disabled = true; }
-  await loadColls();
+
+  updateReady();
+  loadValidation();         // best-effort: painel de validação/calibração + prontidão
 }
 boot();

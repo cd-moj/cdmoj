@@ -36,9 +36,41 @@
     .ex .grid2 textarea{min-height:4rem}
     .pill{display:inline-block;padding:.05rem .5rem;border-radius:999px;font-size:.78rem}
     .pill.ok{background:#173d23;color:#7ee2a0} .pill.no{background:#3d1717;color:#ffb0b0} .pill.mut{background:#22262e;color:#9fb0c8}
-    .bar2{position:sticky;bottom:0;background:var(--bg,#14171c);border-top:1px solid var(--border,#2a2a2a);padding:.6rem 0;display:flex;gap:.5rem;flex-wrap:wrap}
     #msg{min-height:1.2rem}
     .checks li{margin:.1rem 0}
+
+    /* ---- barra de prontidão (estilo "verify" do RBX), fixa acima das abas ---- */
+    .readybar{position:sticky;top:0;z-index:20;background:var(--bg,#14171c);border-bottom:1px solid var(--border,#2a2a2a);
+      padding:.45rem .2rem;display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+    .rdy{display:inline-flex;gap:.35rem;align-items:center;font-size:.8rem;padding:.12rem .55rem;border-radius:999px;
+      border:1px solid var(--border,#2a2a2a);cursor:pointer;white-space:nowrap;background:var(--card,#1b1f26)}
+    .rdy .dot{width:.6rem;height:.6rem;border-radius:50%;background:#5a6473;flex:none}
+    .rdy.ok .dot{background:#3ad07a} .rdy.todo .dot{background:#e0a64b} .rdy.bad .dot{background:#e0564b}
+    .rdy.na{opacity:.45} .rdy:hover{border-color:var(--accent,#5b8cff)}
+
+    /* ---- abas ---- */
+    .tabs{display:flex;gap:.2rem;flex-wrap:wrap;border-bottom:1px solid var(--border,#2a2a2a);margin:.7rem 0 .2rem}
+    .tab{background:none;border:1px solid transparent;border-bottom:0;padding:.45rem .9rem;border-radius:.5rem .5rem 0 0;
+      cursor:pointer;color:var(--fg,#cdd6e4);font-size:.92rem;position:relative;top:1px}
+    .tab.on{background:var(--card,#1b1f26);border-color:var(--border,#2a2a2a);font-weight:600}
+    .tab .mini{font-size:.7rem;opacity:.7;margin-left:.25rem}
+    .tabpane[hidden]{display:none}
+
+    /* ---- pontuação por grupos ---- */
+    .scoregroups{width:100%;border-collapse:collapse;margin:.3rem 0}
+    .scoregroups th{text-align:left;font-size:.78rem;opacity:.75;font-weight:600;padding:.2rem .4rem}
+    .scoregroups td{padding:.15rem .4rem;vertical-align:middle}
+    .scoregroups input{width:100%;box-sizing:border-box}
+    .scoregroups td.w input{max-width:6rem} .scoregroups td.act{width:2rem;text-align:right}
+    .gtotal.ok{color:#7ee2a0} .gtotal.no{color:#ffd98a}
+    .tgroup{max-width:11rem}
+
+    /* ---- soluções: selo por veredito esperado (conceito outcome: do RBX) ---- */
+    .sol-badge{display:inline-block;padding:.05rem .55rem;border-radius:999px;font-size:.74rem;font-weight:700;letter-spacing:.02em}
+    .sb-good{background:#173d23;color:#7ee2a0} .sb-wrong{background:#3d1717;color:#ffb0b0}
+    .sb-slow{background:#3d3417;color:#ffd98a} .sb-pass{background:#22262e;color:#9fb0c8} .sb-upcoming{background:#1c2030;color:#8aa0d0}
+
+    .bar2{position:sticky;bottom:0;background:var(--bg,#14171c);border-top:1px solid var(--border,#2a2a2a);padding:.6rem 0;display:flex;gap:.5rem;flex-wrap:wrap;z-index:15}
   </style>
 </head>
 <body>
@@ -61,142 +93,206 @@
     </div>
 
     <div id="app" style="display:none">
-      <div class="section">
-        <h2 id="title">Novo Problema</h2>
-        <div id="note" class="small" style="display:none"></div>
-        <div class="grid2">
-          <div class="field">
-            <label>Diretório (pasta)</label>
-            <div class="row">
-              <select id="repo" style="flex:1"></select>
-              <button id="newdir" class="btn ghost" type="button">+ nova pasta</button>
+      <div class="row" style="justify-content:space-between;align-items:baseline">
+        <h2 id="title" style="margin:.2rem 0">Novo Problema</h2>
+        <span id="note" class="small" style="display:none"></span>
+      </div>
+
+      <!-- prontidão (visível em todas as abas): clique salta para a aba -->
+      <div id="ready" class="readybar"></div>
+
+      <!-- navegação por abas -->
+      <div id="tabnav" class="tabs">
+        <button class="tab on" type="button" data-tab="enun">Enunciado</button>
+        <button class="tab" type="button" data-tab="tests">Testes &amp; Pontuação <span class="mini" id="tabTestsMini"></span></button>
+        <button class="tab" type="button" data-tab="sols">Soluções <span class="mini" id="tabSolsMini"></span></button>
+        <button class="tab" type="button" data-tab="limits">Limites</button>
+        <button class="tab" type="button" data-tab="pub">Publicação &amp; Pacote</button>
+      </div>
+
+      <!-- ================= ABA: ENUNCIADO ================= -->
+      <section class="tabpane" data-pane="enun">
+        <div class="section">
+          <div class="grid2">
+            <div class="field">
+              <label>Diretório (pasta)</label>
+              <div class="row">
+                <select id="repo" style="flex:1"></select>
+                <button id="newdir" class="btn ghost" type="button">+ nova pasta</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Nome do problema (slug — minúsculas, sem espaço)</label>
+              <input id="prob" type="text" placeholder="ex: soma-a-b">
             </div>
           </div>
-          <div class="field">
-            <label>Nome do problema (slug — minúsculas, sem espaço)</label>
-            <input id="prob" type="text" placeholder="ex: soma-a-b">
+          <div class="grid2">
+            <div class="field"><label>Título</label><input id="ptitle" type="text"></div>
+            <div class="field"><label>Autor(es)</label><input id="pauthor" type="text"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp"></div>
+            <div class="field"><label>Coleções (vírgula)</label><input id="pcolls" type="text" placeholder="obi-problems"></div>
           </div>
         </div>
-        <div class="grid2">
-          <div class="field"><label>Título</label><input id="ptitle" type="text"></div>
-          <div class="field"><label>Autor(es)</label><input id="pauthor" type="text"></div>
-        </div>
-        <div class="grid2">
-          <div class="field"><label>Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp"></div>
-          <div class="field"><label>Coleções (vírgula)</label><input id="pcolls" type="text" placeholder="obi-problems"></div>
-        </div>
-      </div>
 
-      <div class="section">
-        <div class="row" style="justify-content:space-between;align-items:center">
-          <h3 style="margin:0">Enunciado (Markdown canônico)</h3>
-          <button id="preview" class="btn ghost" type="button">👁 Pré-visualizar</button>
+        <div class="section">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h3 style="margin:0">Enunciado (Markdown canônico)</h3>
+            <button id="preview" class="btn ghost" type="button">👁 Pré-visualizar</button>
+          </div>
+          <p class="small muted">Use <code>% Título</code>, descrição, <code>## Entrada</code>, <code>## Saída</code>,
+            <code>## Observações</code>. Os <b>exemplos</b> são injetados dos casos de teste — não os escreva aqui.
+            <b>Imagens</b>: cole ou arraste no editor — ficam embutidas no texto.</p>
+          <div id="enunMount" class="editor-mount"></div>
         </div>
-        <p class="small muted">Use <code>% Título</code>, descrição, <code>## Entrada</code>, <code>## Saída</code>,
-          <code>## Observações</code>. Os <b>exemplos</b> são injetados dos casos de teste abaixo — não os escreva aqui.
-          <b>Imagens</b>: cole ou arraste no editor — ficam embutidas no texto.</p>
-        <div id="enunMount" class="editor-mount"></div>
-      </div>
+      </section>
 
-      <div class="section">
-        <h3>Exemplos (entrada / saída) — sempre visíveis no enunciado</h3>
-        <div id="examples"></div>
-        <button id="addex" class="btn ghost" type="button">+ adicionar exemplo</button>
-      </div>
-
-      <div class="section">
-        <div class="row" style="justify-content:space-between;align-items:center">
-          <h3 style="margin:0">Testes ocultos (usados na correção)</h3>
-          <span class="small muted">não aparecem no enunciado</span>
+      <!-- ================= ABA: TESTES & PONTUAÇÃO ================= -->
+      <section class="tabpane" data-pane="tests" hidden>
+        <div class="section">
+          <h3>Exemplos (entrada / saída) — sempre visíveis no enunciado</h3>
+          <div id="examples"></div>
+          <button id="addex" class="btn ghost" type="button">+ adicionar exemplo</button>
         </div>
-        <div id="tests"></div>
-        <div class="row" style="gap:.5rem;margin-top:.4rem">
-          <button id="addtest" class="btn ghost" type="button">+ adicionar teste</button>
-          <label class="btn ghost" style="cursor:pointer">⬆ enviar pares (entrada/saída)
-            <input id="testpair" type="file" multiple hidden></label>
-          <span class="small muted">arquivos <code>*.in</code>/<code>*.out</code> (ou <code>.txt</code>) emparelham pelo nome</span>
-        </div>
-      </div>
 
-      <div class="section">
-        <h3>Soluções</h3>
-        <p class="small muted"><b>good</b> deve ser aceita · <b>wrong</b> deve falhar · <b>slow</b> estoura o tempo ·
-          <b>pass</b> alternativas aceitas. Edite no editor (com seletor de linguagem) ou envie arquivos.</p>
-        <div id="solsWrap"></div>
-      </div>
-
-      <div class="section">
-        <h3>Coleções &amp; setters (competição/curso)</h3>
-        <p class="small muted">Coloque o problema numa coleção e <b>compartilhe a coleção com os setters</b>:
-          eles ganham acesso a todos os problemas dela. As escolhidas entram no campo <b>Coleções</b> lá em cima.</p>
-        <div id="myColls" class="row" style="flex-wrap:wrap;gap:.4rem"></div>
-        <div class="row" style="gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
-          <input id="newCollName" type="text" placeholder="nova coleção (ex: regional2026)" style="max-width:16rem">
-          <input id="newCollMembers" type="text" placeholder="setters: login, login" style="flex:1;min-width:14rem">
-          <button id="newCollBtn" class="btn ghost" type="button">criar coleção</button>
+        <div class="section">
+          <label class="row" style="gap:.4rem;align-items:center">
+            <input type="checkbox" id="scoreEnabled"> <b>Pontuação por grupos (subtasks)</b>
+            <span class="small muted">cada grupo de testes vale um peso; tudo-ou-nada por grupo (estilo OBI)</span>
+          </label>
+          <div id="scoreBox" style="display:none;margin-top:.5rem">
+            <p class="small muted">Defina os <b>grupos</b> e seus <b>pesos</b> (somam 100). Cada teste oculto abaixo
+              escolhe seu grupo: <i>auto</i> casa pelo <b>padrão</b> do nome (ex.: <code>g2_*</code>), ou fixe um grupo
+              e a UI cuida do nome do arquivo.</p>
+            <table class="scoregroups">
+              <thead><tr><th>Grupo</th><th>Peso (pontos)</th><th>Padrão de nome (glob)</th><th></th></tr></thead>
+              <tbody id="scoreGroups"></tbody>
+            </table>
+            <div class="row" style="gap:.6rem;align-items:center">
+              <button id="addGroup" class="btn ghost" type="button">+ grupo</button>
+              <span id="scoreTotal" class="small"></span>
+            </div>
+          </div>
         </div>
-        <div id="collManage" style="margin-top:.5rem"></div>
-      </div>
 
-      <div class="section">
-        <h3>Pacote do problema</h3>
-        <div id="pkgInfo" class="small muted">—</div>
-        <div id="pkgTree" class="pkgtree"></div>
-        <div class="row" style="gap:.5rem;margin-top:.4rem">
-          <button id="download" class="btn ghost" type="button">⬇ Baixar .tar.gz</button>
-          <label class="btn ghost" style="cursor:pointer">⬆ Enviar pacote (substitui tudo)
-            <input id="uploadTar" type="file" accept=".tar,.gz,.tgz,.tar.gz,.bz2,.tbz2,.tar.bz2,.zst,.tar.zst,.zip,application/gzip,application/x-tar,application/zip" hidden></label>
-          <span class="small muted">.tar · .tar.gz · .tar.bz2 · .tar.zst · .zip</span>
+        <div class="section">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h3 style="margin:0">Testes ocultos (usados na correção)</h3>
+            <span class="small muted">não aparecem no enunciado</span>
+          </div>
+          <div id="tests"></div>
+          <div class="row" style="gap:.5rem;margin-top:.4rem">
+            <button id="addtest" class="btn ghost" type="button">+ adicionar teste</button>
+            <label class="btn ghost" style="cursor:pointer">⬆ enviar pares (entrada/saída)
+              <input id="testpair" type="file" multiple hidden></label>
+            <span class="small muted">arquivos <code>*.in</code>/<code>*.out</code> (ou <code>.txt</code>) emparelham pelo nome</span>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="section">
-        <h3>Configurações (conf) — tempo limite, ulimits e correção</h3>
-        <div class="grid2">
-          <div class="field"><label>TL: fator de calibração <code>TLMOD[calibrafactor]</code> (× pior tempo da good; ex.: 1.35 ou 1+1.35)</label>
-            <input id="cf_calibrafactor" type="text" placeholder="1.35"></div>
-          <div class="field"><label>Tempo máx. da good na calibração <code>CALIBRATIONTL</code> (s)</label>
-            <input id="cf_calibrationtl" type="text" placeholder="5"></div>
-          <div class="field"><label>Limite de processos <code>ULIMITS[-u]</code></label>
-            <input id="cf_ulimit_u" type="text" placeholder="10000"></div>
-          <div class="field"><label>Limite de tamanho de arquivo <code>ULIMITS[-f]</code></label>
-            <input id="cf_ulimit_f" type="text" placeholder="(opcional)"></div>
-          <div class="field"><label>Máx. de testes em paralelo <code>MAXPARALLELTESTS</code></label>
-            <input id="cf_maxparallel" type="text" placeholder="(opcional)"></div>
+      <!-- ================= ABA: SOLUÇÕES ================= -->
+      <section class="tabpane" data-pane="sols" hidden>
+        <div class="section">
+          <h3>Soluções</h3>
+          <p class="small muted">Cada categoria declara o <b>veredito esperado</b> (como o <code>outcome:</code> do RBX):
+            a calibração e a validação verificam que cada solução se comporta como o esperado.
+            Edite no editor (com seletor de linguagem) ou envie arquivos.</p>
+          <div id="solsWrap"></div>
         </div>
-        <div class="row" style="flex-wrap:wrap;gap:1rem;margin-top:.3rem">
-          <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_allowparallel"> testes em paralelo <span class="small muted">(ALLOWPARALLELTEST)</span></label>
-          <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_tlererun"> reexecutar TLE isolado <span class="small muted">(TLERERUN)</span></label>
-          <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_allowtle"> permitir TLE da good na calibração <span class="small muted">(ALLOWTLEDURINGCALIBRATION)</span></label>
-        </div>
-        <div class="row" style="flex-wrap:wrap;gap:1rem;margin-top:.2rem">
-          <span class="small muted">Parar quando (STOPWHEN):</span>
-          <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_stopwa"> WA</label>
-          <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_stoptle"> TLE</label>
-          <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_stopre"> RE</label>
-        </div>
-        <details style="margin-top:.5rem">
-          <summary class="small">Avançado — conf bruto (multiplicadores/drift por linguagem: <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…)</summary>
-          <textarea id="confRaw" class="big" style="min-height:9rem;margin-top:.4rem"></textarea>
-        </details>
-      </div>
+      </section>
 
-      <div class="section">
-        <h3>Publicação & compartilhamento</h3>
-        <label class="row" style="gap:.4rem"><input type="checkbox" id="ppublic"> tornar público (treino livre) ao salvar — valida no juiz</label>
-        <div id="shareBox" class="field" style="margin-top:.6rem">
-          <label>Compartilhar a pasta com (login do MOJ)</label>
-          <div class="row"><input id="shareLogin" type="text" placeholder="login" style="max-width:18rem">
-            <button id="shareAdd" class="btn ghost" type="button">adicionar</button></div>
-          <div id="shareList" class="small muted" style="margin-top:.3rem"></div>
+      <!-- ================= ABA: LIMITES ================= -->
+      <section class="tabpane" data-pane="limits" hidden>
+        <div class="section">
+          <h3>Limites &amp; correção (conf)</h3>
+
+          <h4 style="margin:.6rem 0 .2rem">Memória</h4>
+          <div class="grid2">
+            <div class="field"><label>Limite de memória <code>MEMLIMITMB</code> (MB) — RSS medido; estourar → <b>MLE</b></label>
+              <input id="cf_memlimit" type="text" placeholder="ex: 256 (vazio = sem limite explícito)"></div>
+            <div class="field"><label>Limite de tamanho de arquivo <code>ULIMITS[-f]</code></label>
+              <input id="cf_ulimit_f" type="text" placeholder="(opcional)"></div>
+          </div>
+
+          <h4 style="margin:.6rem 0 .2rem">Tempo</h4>
+          <div class="grid2">
+            <div class="field"><label>Fator de calibração <code>TLMOD[calibrafactor]</code> (× pior tempo da good; ex.: 1.35)</label>
+              <input id="cf_calibrafactor" type="text" placeholder="1.35"></div>
+            <div class="field"><label>Tempo máx. da good na calibração <code>CALIBRATIONTL</code> (s)</label>
+              <input id="cf_calibrationtl" type="text" placeholder="5"></div>
+          </div>
+
+          <h4 style="margin:.6rem 0 .2rem">Processos &amp; execução</h4>
+          <div class="grid2">
+            <div class="field"><label>Limite de processos <code>ULIMITS[-u]</code></label>
+              <input id="cf_ulimit_u" type="text" placeholder="10000"></div>
+            <div class="field"><label>Máx. de testes em paralelo <code>MAXPARALLELTESTS</code></label>
+              <input id="cf_maxparallel" type="text" placeholder="(opcional)"></div>
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:1rem;margin-top:.3rem">
+            <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_allowparallel"> testes em paralelo <span class="small muted">(ALLOWPARALLELTEST)</span></label>
+            <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_tlererun"> reexecutar TLE isolado <span class="small muted">(TLERERUN)</span></label>
+            <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_allowtle"> permitir TLE da good na calibração <span class="small muted">(ALLOWTLEDURINGCALIBRATION)</span></label>
+          </div>
+          <div class="row" style="flex-wrap:wrap;gap:1rem;margin-top:.2rem">
+            <span class="small muted">Parar quando (STOPWHEN):</span>
+            <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_stopwa"> WA</label>
+            <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_stoptle"> TLE</label>
+            <label class="row" style="gap:.3rem"><input type="checkbox" id="cf_stopre"> RE</label>
+          </div>
+          <details style="margin-top:.5rem">
+            <summary class="small">Avançado — conf bruto (multiplicadores/drift por linguagem: <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…)</summary>
+            <textarea id="confRaw" class="big" style="min-height:9rem;margin-top:.4rem"></textarea>
+          </details>
         </div>
-      </div>
+      </section>
 
-      <div class="section" id="valpanel" style="display:none"></div>
+      <!-- ================= ABA: PUBLICAÇÃO & PACOTE ================= -->
+      <section class="tabpane" data-pane="pub" hidden>
+        <div class="section">
+          <h3>Publicação &amp; compartilhamento</h3>
+          <label class="row" style="gap:.4rem"><input type="checkbox" id="ppublic"> tornar público (treino livre) ao salvar — valida no juiz</label>
+          <div id="shareBox" class="field" style="margin-top:.6rem">
+            <label>Compartilhar a pasta com (login do MOJ)</label>
+            <div class="row"><input id="shareLogin" type="text" placeholder="login" style="max-width:18rem">
+              <button id="shareAdd" class="btn ghost" type="button">adicionar</button></div>
+            <div id="shareList" class="small muted" style="margin-top:.3rem"></div>
+          </div>
+        </div>
 
+        <div class="section">
+          <h3>Coleções &amp; setters (competição/curso)</h3>
+          <p class="small muted">Coloque o problema numa coleção e <b>compartilhe a coleção com os setters</b>:
+            eles ganham acesso a todos os problemas dela. As escolhidas entram no campo <b>Coleções</b>.</p>
+          <div id="myColls" class="row" style="flex-wrap:wrap;gap:.4rem"></div>
+          <div class="row" style="gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
+            <input id="newCollName" type="text" placeholder="nova coleção (ex: regional2026)" style="max-width:16rem">
+            <input id="newCollMembers" type="text" placeholder="setters: login, login" style="flex:1;min-width:14rem">
+            <button id="newCollBtn" class="btn ghost" type="button">criar coleção</button>
+          </div>
+          <div id="collManage" style="margin-top:.5rem"></div>
+        </div>
+
+        <div class="section" id="valpanel" style="display:none"></div>
+
+        <div class="section">
+          <h3>Pacote do problema</h3>
+          <div id="pkgInfo" class="small muted">—</div>
+          <div id="pkgTree" class="pkgtree"></div>
+          <div class="row" style="gap:.5rem;margin-top:.4rem">
+            <button id="download" class="btn ghost" type="button">⬇ Baixar .tar.gz</button>
+            <label class="btn ghost" style="cursor:pointer">⬆ Enviar pacote (substitui tudo)
+              <input id="uploadTar" type="file" accept=".tar,.gz,.tgz,.tar.gz,.bz2,.tbz2,.tar.bz2,.zst,.tar.zst,.zip,application/gzip,application/x-tar,application/zip" hidden></label>
+            <span class="small muted">.tar · .tar.gz · .tar.bz2 · .tar.zst · .zip</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- barra de ações (fixa, visível em todas as abas) -->
       <div class="bar2">
         <button id="save" class="btn">Salvar</button>
-        <button id="publish" class="btn ghost">Validar & Publicar</button>
+        <button id="publish" class="btn ghost">Validar &amp; Publicar</button>
         <button id="calibrate" class="btn ghost">Calibrar</button>
         <span class="spacer"></span>
         <span id="msg" class="small"></span>
