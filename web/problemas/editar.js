@@ -22,6 +22,7 @@ let LASTVAL = null, LASTINFO = null, LASTCALIB = null;   // últimos dados de va
 let RUNNING = '';                                        // '', 'calibrate' ou 'publish' — em execução no juiz
 let calibTimer = null, calibPrevMax = 0;                 // polling do resultado (atualiza sozinho)
 let JUDGES = [];                                          // juízes do registro (calibração direcionada)
+const OPEN_LOGS = new Set();                              // hosts com "ver log" aberto (sobrevive ao re-render do polling)
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -510,11 +511,40 @@ async function openCalibReport(host, name) {
     window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (e) { setMsg('Falha ao abrir o report: ' + e.message, 'error'); }
 }
+// nome amigável das linguagens (as chaves de TL são códigos curtos do juiz: c, cpp, py, …)
+const TL_LANG_NAME = { c: 'C', cpp: 'C++', cc: 'C++', cxx: 'C++', py: 'Python', python: 'Python',
+  java: 'Java', pas: 'Pascal', pascal: 'Pascal', hs: 'Haskell', go: 'Go', rs: 'Rust', js: 'JavaScript',
+  cs: 'C#', ml: 'OCaml', sh: 'Shell', bash: 'Shell', apl: 'APL', pl: 'Prolog', prolog: 'Prolog',
+  asm: 'Assembly', gas: 'Assembly', default: 'default (demais)' };
+const tlLangName = (k) => TL_LANG_NAME[k] || k;
+const tlSecs = (v) => { if (v == null || v === '') return '—'; const n = +v; return (Number.isFinite(n) ? +n.toFixed(4) : v) + 's'; };
+// quadro-resumo: tempo-limite por linguagem em cada juiz; o "servido" (o que o aluno vê) em negrito
+function tlSummaryTable(hosts, served) {
+  const langs = [...new Set([...Object.keys(served || {}), ...hosts.flatMap(h => Object.keys(h.tl || {}))])];
+  if (!langs.length) return null;
+  langs.sort((a, b) => (a === 'default') - (b === 'default') || a.localeCompare(b));   // 'default' por último
+  const cpuOf = {}; JUDGES.forEach(j => { cpuOf[j.host] = j.cpu; });
+  const servedOf = (lang) => {
+    if (served && served[lang] != null) return served[lang];
+    const vals = hosts.map(h => +((h.tl || {})[lang])).filter(Number.isFinite);
+    return vals.length ? Math.max(...vals) : null;   // ainda não indexado: usa o máx entre juízes
+  };
+  const thead = el('tr', {}, el('th', {}, 'linguagem'), el('th', { class: 'served' }, 'servido (aluno)'),
+    ...hosts.map(h => el('th', {}, h.host, cpuOf[h.host] ? el('div', { class: 'cpu' }, cpuOf[h.host]) : null)));
+  const body = langs.map(lang => el('tr', {},
+    el('td', {}, tlLangName(lang)),
+    el('td', { class: 'served' }, el('b', {}, tlSecs(servedOf(lang)))),
+    ...hosts.map(h => el('td', {}, tlSecs((h.tl || {})[lang])))));
+  return el('div', { class: 'tlsummary-wrap' },
+    el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, 'Resumo por linguagem — em negrito o tempo-limite que o estudante vê no enunciado:'),
+    el('table', { class: 'tlsummary' }, el('thead', {}, thead), el('tbody', {}, ...body)));
+}
 function renderVal() {
   const box = $('valpanel'); if (!box) return;
   box.innerHTML = '';
   const val = LASTVAL, info = LASTINFO, calib = LASTCALIB;
   const hosts = (calib && calib.hosts) || [];
+  const served = (info && (info.time_limits || info.tl)) || {};   // o que o aluno vê (json servido)
   const checks = (val && Array.isArray(val.checks)) ? val.checks : [];
   if (!ID || (!checks.length && !hosts.length && !RUNNING)) { box.style.display = 'none'; return; }
   box.style.display = '';
@@ -529,11 +559,19 @@ function renderVal() {
   }
   // por juiz: tempo-limite calibrado + quando + log (como cada solução se comportou)
   if (hosts.length) {
+    const sum = tlSummaryTable(hosts, served);   // quadro-resumo por linguagem (antes dos cards de cada juiz)
+    if (sum) box.append(sum);
     box.append(el('div', { class: 'small muted', style: 'margin:.5rem 0 .2rem' }, `Calibrado em ${hosts.length} juiz(es) — abra "ver log" para o comportamento de cada solução:`));
     hosts.forEach(h => {
-      const det = el('div', { style: 'display:none;margin-top:.3rem' });
+      const isOpen = OPEN_LOGS.has(h.host);
+      const det = el('div', { style: 'margin-top:.3rem;display:' + (isOpen ? '' : 'none') });
       det.append(h.log ? el('pre', { class: 'caliblog' }, h.log) : el('p', { class: 'small muted' }, 'sem log deste juiz ainda.'));
-      const toggle = el('a', { href: '#', class: 'small', onclick: (e) => { e.preventDefault(); det.style.display = det.style.display === 'none' ? '' : 'none'; } }, 'ver log');
+      const toggle = el('a', { href: '#', class: 'small', onclick: (e) => {
+        e.preventDefault();
+        const open = !OPEN_LOGS.has(h.host);
+        if (open) OPEN_LOGS.add(h.host); else OPEN_LOGS.delete(h.host);
+        det.style.display = open ? '' : 'none'; toggle.textContent = open ? 'ocultar log' : 'ver log';
+      } }, isOpen ? 'ocultar log' : 'ver log');
       const head = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
         el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || 'sem TL'),
         h.at ? el('span', { class: 'small muted' }, '· ' + fmtDate(h.at)) : null,
@@ -546,9 +584,8 @@ function renderVal() {
       box.append(el('div', { class: 'judgecard' }, head, reps, det));
     });
   } else if (!RUNNING) box.append(el('p', { class: 'small muted' }, 'Ainda não calibrado — clique “Calibrar” na barra de baixo.'));
-  // tempo-limite efetivamente usado na correção (máx entre juízes)
-  const served = info && (info.time_limits || info.tl);
-  if (served && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, 'Tempo-limite usado na correção (máx entre juízes): ' + tlLine(served)));
+  // sem juízes calibrados mas com TL servido (legado): mostra o tempo-limite usado na correção
+  if (!hosts.length && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, 'Tempo-limite usado na correção: ' + tlLine(served)));
 }
 
 // ---- pacote: baixar / enviar tar ----------------------------------------------------------

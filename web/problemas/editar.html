@@ -36,6 +36,14 @@
 
     /* validação & calibração: cartão por juiz + log */
     .judgecard{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.4rem .6rem;margin:.3rem 0}
+    /* resumo de tempo-limite por linguagem (servido ao aluno em negrito/destaque) */
+    .tlsummary-wrap{overflow-x:auto;margin:.2rem 0 .6rem}
+    table.tlsummary{border-collapse:collapse;font-size:.85rem}
+    table.tlsummary th,table.tlsummary td{border:1px solid var(--border,#2a2a2a);padding:.18rem .55rem;text-align:center;white-space:nowrap}
+    table.tlsummary th{background:var(--card,#1b1f26);font-weight:600}
+    table.tlsummary th:first-child,table.tlsummary td:first-child{text-align:left}
+    table.tlsummary .served{background:rgba(90,160,255,.16)}
+    table.tlsummary th .cpu{font-weight:400;font-size:.7rem;opacity:.7;max-width:13rem;overflow:hidden;text-overflow:ellipsis}
     .caliblog{max-height:26rem;overflow:auto;background:#fff;color:#111;border:1px solid var(--border,#2a2a2a);border-radius:.4rem;
       padding:.5rem;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;margin:0}
     /* indicador de "executando no juiz" (calibração/validação em andamento) */
