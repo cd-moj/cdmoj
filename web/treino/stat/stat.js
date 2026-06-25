@@ -355,22 +355,17 @@ async function openLogAuthed(path) {
   } catch { alert('Falha ao abrir o log.'); }
 }
 
-// abre o report.html (auto-contido) do julgamento num iframe sandboxed: renderiza
-// HTML/CSS mas bloqueia JS (defesa em profundidade — o conteúdo já é escapado na origem).
+// abre o report.html (auto-contido, SEM JS — escapado na origem + CSP no <head>) numa NOVA
+// ABA via blob URL. Sem iframe sandboxed: o sandbox bloqueia a navegação por âncora
+// (#test-...). Como página de verdade, as âncoras internas funcionam nativamente.
 async function openReportAuthed(path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
     const html = await r.text();
-    const w = window.open('', '_blank');
-    if (!w) { alert('Permita pop-ups para ver o report.'); return; }
-    w.document.title = 'Report'; w.document.body.style.margin = '0';
-    const ifr = w.document.createElement('iframe');
-    ifr.setAttribute('sandbox', '');
-    // blob URL (não srcdoc): srcdoc herda a base URL da página-pai -> âncoras internas
-    // viravam URL completa. Com blob a iframe tem base própria e as âncoras funcionam.
-    ifr.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%';
-    w.document.body.append(ifr);
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    const w = window.open(url, '_blank');
+    if (!w) { alert('Permita pop-ups para ver o report.'); URL.revokeObjectURL(url); return; }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch { alert('Falha ao abrir o report.'); }
 }
 

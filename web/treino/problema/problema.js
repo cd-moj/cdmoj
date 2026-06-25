@@ -11,6 +11,24 @@ const ID = qs.get('id') || '';
 let pollTimer = null, editorApi = null, editorMount = null, langSel = null, curLangId = 'c', problemTL = {};
 
 const templateFor = (id) => langById(id).template;
+
+// CSS do editor em "tela cheia" (janela flutuante) — injetado uma vez.
+function injectEditorCss() {
+  if (document.getElementById('editor-full-css')) return;
+  const s = document.createElement('style'); s.id = 'editor-full-css';
+  s.textContent = `
+    .editor-wrap.editor-full{position:fixed;inset:2.5vh 2.5vw;z-index:9999;margin:0;background:#fff;
+      border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 48px rgba(0,0,0,.35);
+      display:flex;flex-direction:column;gap:.5rem;padding:.7rem 1rem 1rem;overflow:hidden}
+    body.has-editor-full{overflow:hidden}
+    body.has-editor-full::before{content:'';position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:9998}
+    .editor-wrap.editor-full .editor-bar{flex-wrap:wrap;margin:0}
+    .editor-wrap.editor-full .editor-box{flex:1;min-height:0;overflow:auto;margin:0}
+    .editor-wrap.editor-full .editor-box .cm-editor,
+    .editor-wrap.editor-full .editor-box .CodeMirror{height:100%}
+    .editor-wrap.editor-full>.btn{align-self:flex-start}`;
+  document.head.append(s);
+}
 const isTemplateContent = (t) => LANGUAGES.some((l) => l.template.trim() === (t || '').trim());
 
 function b64utf8(b64) {
@@ -86,23 +104,18 @@ async function downloadAuthed(path, filename) {
   document.body.append(a); a.click(); a.remove();
 }
 
-// abre o report.html (auto-contido) do julgamento num iframe sandboxed: renderiza
-// HTML/CSS mas bloqueia JS (defesa em profundidade — o conteúdo já é escapado na origem).
+// abre o report.html (auto-contido, SEM JS — conteúdo escapado na origem + CSP no <head>)
+// numa NOVA ABA via blob URL. Não usa iframe sandboxed: o sandbox bloqueia a navegação por
+// âncora (#test-...), por isso os links "não faziam nada". Como página de verdade, as âncoras
+// internas funcionam nativamente.
 async function openReportAuthed(path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
     const html = await r.text();
-    const w = window.open('', '_blank');
-    if (!w) { alert('Permita pop-ups para ver o report.'); return; }
-    w.document.title = 'Report'; w.document.body.style.margin = '0';
-    const ifr = w.document.createElement('iframe');
-    ifr.setAttribute('sandbox', '');
-    // blob URL (não srcdoc): srcdoc herda a base URL da página-pai, então âncoras internas
-    // (#test-fileN) viravam URL completa da página. Com blob, a iframe tem base própria e os
-    // links de "andar pela página pelos títulos" funcionam dentro do report.
-    ifr.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%';
-    w.document.body.append(ifr);
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    const w = window.open(url, '_blank');
+    if (!w) { alert('Permita pop-ups para ver o report.'); URL.revokeObjectURL(url); return; }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch { alert('Falha ao abrir o report.'); }
 }
 
@@ -180,13 +193,28 @@ async function renderSubmit() {
     const c = editorBox.classList.toggle('collapsed');
     toggle.textContent = c ? '▸ Mostrar editor' : '▾ Ocultar editor';
   } }, '▾ Ocultar editor');
-
-  body.append(
+  injectEditorCss();
+  // ⛶ Tela cheia: o editor vira uma janela flutuante grande, com a linguagem + o botão
+  // Enviar à mão. ⧉ Nova janela: 2ª janela do browser p/ editar vendo o enunciado na 1ª.
+  const expandBtn = el('button', { class: 'btn ghost', type: 'button', title: 'Editor em tela cheia (Esc fecha)' }, '⛶ Tela cheia');
+  const popBtn = el('button', { class: 'btn ghost', type: 'button', title: 'Abrir em outra janela do browser',
+    onclick: () => window.open(location.href, '_blank', 'width=920,height=820') }, '⧉ Nova janela');
+  const wrap = el('div', { class: 'editor-wrap' },
     el('div', { class: 'editor-bar' },
       el('label', {}, 'Linguagem: '), langSel,
       el('span', { class: 'small muted' }, 'ou arquivo:'), fileInput,
-      el('span', { style: 'flex:1' }), toggle),
+      el('span', { style: 'flex:1' }), expandBtn, popBtn, toggle),
     editorBox, steps, btn);
+  const setFull = (on) => {
+    wrap.classList.toggle('editor-full', on);
+    document.body.classList.toggle('has-editor-full', on);
+    expandBtn.textContent = on ? '✕ Sair' : '⛶ Tela cheia';
+    if (editorApi && typeof editorApi.refresh === 'function') editorApi.refresh();
+    if (on && editorApi && typeof editorApi.focus === 'function') editorApi.focus();
+  };
+  expandBtn.onclick = () => setFull(!wrap.classList.contains('editor-full'));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && wrap.classList.contains('editor-full')) setFull(false); });
+  body.append(wrap);
 
   editorApi = await createEditor(editorMount, { doc: templateFor(curLangId), cm: langById(curLangId).cm });
   langSel.addEventListener('change', async () => {

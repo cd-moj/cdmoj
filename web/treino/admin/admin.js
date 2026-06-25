@@ -375,6 +375,15 @@ function makeJudgesTab() {
         const cage = mc.cage_root ? '📦 rootfs' : '🖥 host';
         const tl = mc.tl || {};
         const tlLangs = tl.langs || [];
+        const cache = mc.cache || {};
+        const cacheMB = cache.bytes ? (num(cache.bytes) / 1048576).toFixed(0) + ' MB' : '0 MB';
+        const clearBtn = el('button', { class: 'btn ghost', type: 'button', title: 'Limpar o cache deste juiz (vai recalibrar sob demanda)', style: 'font-size:.82em;padding:.1rem .5rem;margin-top:.2rem' }, '🗑 Limpar');
+        clearBtn.onclick = async () => {
+          if (!confirm('Limpar o cache de ' + mc.host + '?\nEle vai re-baixar e recalibrar os problemas sob demanda.')) return;
+          clearBtn.disabled = true; clearBtn.textContent = '…';
+          try { await apiPost('/ops/judge-cache', { host: mc.host, action: 'clearcache' }, G()); setTimeout(load, 3000); }
+          catch (e) { alert('Falha ao limpar cache: ' + e); clearBtn.disabled = false; clearBtn.textContent = '🗑 Limpar'; }
+        };
         tb.append(el('tr', {},
           el('td', {}, '🖧 ' + (mc.host || '?')),
           el('td', {}, st),
@@ -389,12 +398,16 @@ function makeJudgesTab() {
           el('td', { class: 'small' },
             el('div', {}, (tl.calibrated || 0) + ' problema' + ((tl.calibrated === 1) ? '' : 's')),
             el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:18ch' },
-              tlLangs.length ? ('TL: ' + tlLangs.join(' ')) : 'sem TL ainda'))));
+              tlLangs.length ? ('TL: ' + tlLangs.join(' ')) : 'sem TL ainda')),
+          // cache local: nº de problemas em cache + tamanho + limpar
+          el('td', { class: 'small' },
+            el('div', {}, (cache.problems || 0) + ' probs · ' + cacheMB),
+            clearBtn)));
       });
       body.append(el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
         el('th', {}, 'Máquina'), el('th', {}, 'Estado'),
         el('th', {}, 'CPU'), el('th', {}, 'Memória'),
-        el('th', {}, 'Toolchains'), el('th', {}, 'Time limits'))), tb));
+        el('th', {}, 'Toolchains'), el('th', {}, 'Time limits'), el('th', {}, 'Cache'))), tb));
     } else {
       const workers = data.configured_workers || [];
       body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' }, 'Máquinas configuradas'));

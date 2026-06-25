@@ -25,6 +25,7 @@ while IFS= read -r rf; do
   ms+=("$(jq -c --argjson on "$on" --argjson bz "$bz" --argjson tl "$tlsum" '{
       host:.host, port:null, online:$on, busy:$bz, last_seen:(.last_seen//0),
       langs:(.langs // []), cage_root:(.cage_root // null),
+      cache:{problems:(.problems_count // ((.problems//{})|length)), bytes:(.cache_bytes // 0)},
       tl:($tl[.host] // {calibrated:0, langs:[]}),
       report:{hostname:.host, arch:.arch, cpu:((.cpu // "")|tostring), memory:.mem_kb,
               gpu:.gpu, problems:(.problems_count // 0)} }' <<<"$j" 2>/dev/null)")

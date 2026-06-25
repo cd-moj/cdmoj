@@ -33,10 +33,15 @@ reregister=false
 
 assigned=null
 update=null
+command=null
 if [[ "$state" == free ]]; then
-  # 1) atualização de repositório pendente tem precedência (rara; um host basta no NFS)
-  upd="$(upd_claim "$host")"
-  if [[ -n "$upd" ]] && jq -e . >/dev/null 2>&1 <<<"$upd"; then
+  # 0) comando por-host do admin (ex.: limpar cache) tem precedência — só quando LIVRE
+  #    (não limpa cache no meio de um job) e é exclusivo deste beat.
+  cmd="$(cmd_claim "$host" 2>/dev/null)"
+  if [[ -n "$cmd" ]] && jq -e . >/dev/null 2>&1 <<<"$cmd"; then
+    command="$cmd"
+  # 1) atualização/calibração pendente tem precedência sobre jobs
+  elif upd="$(upd_claim "$host")"; [[ -n "$upd" ]] && jq -e . >/dev/null 2>&1 <<<"$upd"; then
     update="$upd"
     reg_touch_state "$host" busy
   else
@@ -53,5 +58,5 @@ if [[ "$state" == free ]]; then
 fi
 
 emit_json 200 OK
-jq -cn --argjson a "$assigned" --argjson u "$update" --argjson rr "$reregister" \
-  '{success:true, assigned:$a, update:$u, reregister:$rr}'
+jq -cn --argjson a "$assigned" --argjson u "$update" --argjson rr "$reregister" --argjson cmd "$command" \
+  '{success:true, assigned:$a, update:$u, reregister:$rr, command:$cmd}'
