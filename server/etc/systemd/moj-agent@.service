@@ -18,6 +18,8 @@ Environment=WORKER_TOKEN_FILE=/home/prof/judge/etc/worker.token
 Environment=MOJTOOLS_DIR=/home/prof/mojtools
 # modelo cache: baixa o pacote por problema p/ o cache local (sem clonar repo/NFS)
 Environment=JUDGE_CACHE=/home/prof/judge/cache/problems
+# raiz da jaula: vazio = host (default). Aponte p/ um rootfs reprodutível (ver mojtools/SANDBOX.md).
+#Environment=CAGE_ROOT=/srv/moj-sysroot
 Environment=HEARTBEAT_SECS=3
 WorkingDirectory=/home/prof/judge/agent
 ExecStart=/bin/bash /home/prof/judge/agent/moj-agent.sh
