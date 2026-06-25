@@ -11,7 +11,7 @@ HIST="$TREINO/controle/history"
 QDIR="$TREINO/var/questoes"
 
 if [[ ! -f "$HIST" ]]; then
-  jq -cn '{success:true, top_users:[], recent_solved:[], most_solved_week:[], most_solved_prev_week:[], search_problems_url:"/treino"}'
+  jq -cn '{success:true, top_users:[], recent_solved:[], most_solved_week:[], most_solved_prev_week:[], most_used_editor_prev_week:{top:null,total:0,ranking:[]}, search_problems_url:"/treino"}'
   exit 0
 fi
 
@@ -58,6 +58,20 @@ done <<< "$(awk -F: -v ps="$PREVSTART" -v ws="$LASTWEEK" \
              END{ for(p in cnt) print cnt[p], p }' "$HIST" \
             | sort -rn | head -n5)"
 
+# --- most_used_editor_prev_week: editor mais usado nas submissões ACEITAS da semana
+# passada. var/editor-log = epoch:subid:login:editor; casa o subid com o aceito do
+# history (web -> "web"; arquivo -> editor declarado). Só tem dado a partir de agora.
+EDLOG="$TREINO/var/editor-log"
+EDITOR_RANK="$(
+  { [[ -s "$EDLOG" ]] && awk -F: -v ps="$PREVSTART" -v ws="$LASTWEEK" '
+      FNR==NR { ed[$2]=$4; next }                              # editor-log: subid -> editor
+      $6>=ps && $6<ws && $5 ~ /Accepted/ { sid=$7; if(sid in ed) cnt[ed[sid]]++ }
+      END { for(e in cnt) printf "%s\t%d\n", e, cnt[e] }' "$EDLOG" "$HIST" 2>/dev/null \
+      | sort -t$'\t' -k2,2rn; true; } \
+  | jq -R -s 'split("\n") | map(select(length>0) | split("\t") | {editor:.[0], count:(.[1]|tonumber)})'
+)"
+[[ -n "$EDITOR_RANK" ]] || EDITOR_RANK='[]'
+
 # --- top_users: top10 por problemas distintos resolvidos -------------------
 declare -a U
 while read -r total user; do
@@ -77,6 +91,8 @@ jq -cn \
   --argjson recent_solved "$(jarr "${V[@]}")" \
   --argjson most_solved_week "$(jarr "${R[@]}")" \
   --argjson most_solved_prev_week "$(jarr "${RP[@]}")" \
+  --argjson editor_rank "$EDITOR_RANK" \
   '{success:true, top_users:$top_users, recent_solved:$recent_solved,
     most_solved_week:$most_solved_week, most_solved_prev_week:$most_solved_prev_week,
+    most_used_editor_prev_week: ($editor_rank | {top:(.[0] // null), total:(map(.count)|add // 0), ranking:.}),
     search_problems_url:"/treino"}'

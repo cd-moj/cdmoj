@@ -17,7 +17,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 |---|---|
 | `/index/news` | `{news:[{id,title,date,summary,url}]}` |
 | `/index/contests?page=N` | `{open:[…],upcoming:[…],closed:{items:[…],page,per_page,total}}` (cada item `{id,title,start_time,end_time,problems_count,url,scoreboard_url}`). Encerrados paginados (20/pág); **`?all=1`** devolve todos (usado pela página de arquivo `/contests/`). |
-| `/index/open_training` | `{top_users:[{username,name,solved_count}],recent_solved:[{problem_id,problem_title,user,solved_at,url}],most_solved_week:[…],most_solved_prev_week:[{problem_id,problem_title,solved_count,url}]}` (`prev_week` = resolvedores distintos por problema na semana passada) |
+| `/index/open_training` | `{top_users:[…],recent_solved:[…],most_solved_week:[…],most_solved_prev_week:[{problem_id,problem_title,solved_count,url}],most_used_editor_prev_week:{top:{editor,count}\|null,total,ranking:[{editor,count}]}}` (`prev_week`=resolvedores distintos por problema; `editor`=mais usado nas aceitas da semana passada, `web` ou editor declarado) |
 
 ## Treino
 | Rota | Auth | I/O |
@@ -108,7 +108,7 @@ git avançado.
 ## Submissão (assíncrona)
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
-| `/submit?contest=<c>` | POST | Bearer | body `{problem_id,filename,code_b64}` → `{submission_id,status:"queued"}` (não bloqueia) |
+| `/submit?contest=<c>` | POST | Bearer | body `{problem_id,filename,code_b64,source?}` (`source`=`web`\|`file`) → `{submission_id,status:"queued"}` (não bloqueia). Registra o editor em `var/editor-log` p/ o card "editor da semana". |
 | `/submission/source?contest=<c>&id=<subid>` | GET | Bearer | código-fonte (texto) |
 | `/submission/log?contest=<c>&id=<subid>` | GET | Bearer | log do julgamento (texto) |
 

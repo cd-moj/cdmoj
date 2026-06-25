@@ -54,11 +54,29 @@ async function loadContests() {
 }
 
 async function loadNews() {
-  let j; try { j = await apiGet('/index/news', {}); } catch { document.getElementById('news').classList.add('hidden'); return; }
+  const fn = document.getElementById('featuredNews');
+  let j;
+  try { j = await apiGet('/index/news', {}); }
+  catch { document.getElementById('news').classList.add('hidden'); if (fn) fn.innerHTML = '<div class="muted small">sem notícias</div>'; return; }
   const items = j.items || j.news || [];
+  // destaque: a notícia mais recente, num card no topo (no lugar do hero gigante)
+  if (fn) {
+    fn.innerHTML = '';
+    if (!items.length) fn.innerHTML = '<div class="muted small">sem notícias no momento</div>';
+    else {
+      const n = items[0];
+      fn.append(
+        el('span', { class: 'fn-tag' }, '📰 Em destaque'),
+        el('a', { class: 'fn-title', href: n.url || '#' }, n.title || ''),
+        el('span', { class: 'fn-date small muted' }, fmtDate(n.date)),
+        el('div', { class: 'fn-sum' }, n.summary || ''));
+    }
+  }
+  // demais notícias na seção de baixo (sem repetir a destacada)
+  const rest = items.slice(1);
   const box = document.getElementById('newslist'); box.innerHTML = '';
-  if (!items.length) { box.innerHTML = '<span class="muted small">sem notícias</span>'; return; }
-  items.forEach(n => box.append(el('div', { style: 'margin:.5rem 0' },
+  if (!rest.length) { box.innerHTML = '<span class="muted small">sem outras notícias</span>'; return; }
+  rest.forEach(n => box.append(el('div', { style: 'margin:.5rem 0' },
     el('div', {}, el('a', { href: n.url || '#', style: 'font-weight:700' }, n.title || ''),
       ' ', el('span', { class: 'small muted' }, fmtDate(n.date))),
     el('div', { class: 'small' }, n.summary || ''))));
@@ -95,6 +113,22 @@ async function loadTraining() {
     });
   }
 
+  // editor mais usado na semana passada (web vs editor declarado), por % das aceitas
+  const ed = j.most_used_editor_prev_week || { ranking: [], total: 0, top: null };
+  const ew = document.getElementById('editorweek');
+  if (ew) {
+    ew.innerHTML = '';
+    const rk = ed.ranking || [];
+    if (!rk.length || !ed.total) ew.innerHTML = '<span class="muted small">sem dados ainda</span>';
+    else rk.slice(0, 6).forEach((e, i) => {
+      const pct = ed.total ? Math.round((e.count / ed.total) * 100) : 0;
+      ew.append(el('div', { class: 'week-row' + (i === 0 ? ' editor-top' : '') },
+        el('span', { class: 'wk-rank' }, String(i + 1)),
+        el('span', { class: 'wk-ttl' }, editorLabel(e.editor)),
+        el('span', { class: 'rank-chip' }, pct + '%')));
+    });
+  }
+
   // resolvidos recentemente (feed: problema + quem resolveu + quando)
   const rc = document.getElementById('recent'); rc.innerHTML = '';
   if (!recent.length) rc.innerHTML = '<span class="muted small">sem dados ainda</span>';
@@ -113,10 +147,20 @@ async function loadTraining() {
   });
 }
 
-// topbar: mesma sessão do treino livre (avatar/perfil/🛡 admin), inclusive na home
+// "Gestão de Problemas" (seção #problemas + CTA do hero) só p/ logado + can_create
+async function gateProblemManagement() {
+  let can = false;
+  try { can = !!(await apiGet('/treino/contest-create/permission', { contest: 'treino', auth: true })).can_create; }
+  catch { /* sem permissão / sem login */ }
+  document.querySelectorAll('#problemas, .gp-cta').forEach((n) => n.classList.toggle('hidden', !can));
+}
+
+// topbar: mesma sessão do treino livre (avatar/perfil/🛡 admin), inclusive na home.
+// O #authArea é criado pelo header compartilhado (site-header.js); aqui só preenchemos.
 const authMount = document.getElementById('authArea');
 const refreshAuth = () => renderAuthArea(authMount, 'treino', refreshAuth)
-  .then(() => renderCreateContestLink(authMount));
+  .then(() => renderCreateContestLink(authMount))
+  .then(() => gateProblemManagement());
 refreshAuth();
 
 loadContests(); loadNews(); loadTraining();

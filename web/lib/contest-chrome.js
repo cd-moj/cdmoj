@@ -1,8 +1,9 @@
 // lib/contest-chrome.js — cabeçalho comum das páginas internas do contest
 // (título, countdown até o fim, quicknav por papel, logout). Build-free.
 import { apiGet } from '/shared/api.js';
-import { logout } from '/shared/auth.js';
+import { logout, status } from '/shared/auth.js';
 import { el } from '/shared/ui.js';
+import { mountContestUserChip } from '/shared/contest-shell.js';
 
 function fmtLeft(sec) {
   if (sec < 0) sec = 0;
@@ -44,6 +45,9 @@ export async function mountChrome(contest, basic, { auth = true } = {}) {
     };
     tick();
   }
+
+  // chip do usuário do contest no topbar (consistência com o site principal)
+  try { mountContestUserChip(await status(contest)); } catch { /* sem chip */ }
 
   // nav
   const navEl = document.getElementById('contestNav');

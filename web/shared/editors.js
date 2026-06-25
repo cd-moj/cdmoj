@@ -17,4 +17,5 @@ export const EDITORS = [
   { id: 'geany', label: 'Geany' }, { id: 'kate', label: 'Kate' }, { id: 'gedit', label: 'gedit' },
   { id: 'other', label: 'Outro' },
 ];
-export const editorLabel = (id) => (EDITORS.find((e) => e.id === id) || {}).label || id || '—';
+export const editorLabel = (id) =>
+  id === 'web' ? 'Editor web (MOJ)' : ((EDITORS.find((e) => e.id === id) || {}).label || id || '—');

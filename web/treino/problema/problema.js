@@ -254,16 +254,18 @@ async function renderSubmit() {
   btn.addEventListener('click', async () => {
     btn.disabled = true; steps.textContent = 'Preparando…';
     try {
-      let filename, code_b64;
+      let filename, code_b64, source;
       if (fileInput.files && fileInput.files[0]) {
         filename = fileInput.files[0].name;
         code_b64 = await fileToBase64(fileInput.files[0]);
+        source = 'file';   // upload -> conta o editor declarado do usuário
       } else {
         filename = 'solution.' + curLangId;
         code_b64 = textToBase64(editorApi.getValue());
+        source = 'web';    // editor web do MOJ
       }
       steps.textContent = 'Enviando…';
-      await apiPost('/submit?contest=' + CONTEST, { problem_id: ID, filename, code_b64 }, { contest: CONTEST, auth: true });
+      await apiPost('/submit?contest=' + CONTEST, { problem_id: ID, filename, code_b64, source }, { contest: CONTEST, auth: true });
       steps.innerHTML = '<span class="v-ok" style="padding:.2rem .5rem;border-radius:6px">✓ Enviado! Acompanhe no histórico abaixo.</span>';
       await loadHistory();
     } catch (e) {

@@ -26,22 +26,24 @@
   </header>
 
   <main class="container">
-    <section class="hero">
-      <img src="/shared/assets/logo_moj.svg" alt="MOJ">
-      <div class="hero-text">
-        <h1>MOJ <small>· Melhor Online Judge</small></h1>
-        <p>Resolva problemas, participe de contests e acompanhe seu progresso. Centenas de
-           exercícios no Treino Livre, placares ao vivo e correção automática.</p>
-        <div class="cta">
-          <a class="btn" href="/treino/">Treino Livre →</a>
-          <a class="btn" href="/problemas/">Gestão de Problemas →</a>
-          <a class="btn ghost" href="/docs/" target="_blank">Documentação</a>
-          <a class="btn ghost" href="/api/">API</a>
+    <!-- topo: hero slim + notícia em destaque -->
+    <section class="home-top">
+      <div class="hero-slim">
+        <img src="/shared/assets/logo_moj.svg" alt="MOJ">
+        <div class="hero-slim-text">
+          <h1>MOJ <small>· Melhor Online Judge</small></h1>
+          <div class="cta">
+            <a class="btn" href="/treino/">Treino Livre →</a>
+            <a class="btn ghost gp-cta hidden" href="/problemas/">Gestão de Problemas →</a>
+            <a class="btn ghost" href="/docs/" target="_blank">Documentação</a>
+            <a class="btn ghost" href="/api/">API</a>
+          </div>
         </div>
       </div>
+      <aside class="featured-news" id="featuredNews"><div class="muted small">carregando notícias…</div></aside>
     </section>
 
-    <section id="problemas" class="section">
+    <section id="problemas" class="section hidden">
       <h2>🗂️ Gestão de Problemas</h2>
       <p class="muted">Crie, edite, compartilhe e publique problemas — <b>só com seu login do MOJ</b>,
         sem git e sem chave. <a href="/problemas/">Abrir a gestão de problemas →</a></p>
@@ -59,6 +61,8 @@
           <div id="top10" class="rank-list"><span class="muted small">carregando…</span></div></div>
         <div class="subcard"><h3>🔥 Mais resolvidos · semana passada</h3>
           <div id="weekprev" class="rank-list"><span class="muted small">carregando…</span></div></div>
+        <div class="subcard"><h3>⌨ Editor mais usado · semana passada</h3>
+          <div id="editorweek" class="rank-list"><span class="muted small">carregando…</span></div></div>
         <div class="subcard"><h3>✅ Resolvidos recentemente</h3>
           <div id="recent" class="feed"><span class="muted small">carregando…</span></div></div>
       </div>
@@ -88,6 +92,7 @@
     </section>
   </main>
 
+  <script type="module" src="/shared/site-header.js"></script>
   <script type="module" src="/index/home.js"></script>
 </body>
 </html>

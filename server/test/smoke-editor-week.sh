@@ -1,0 +1,40 @@
+#!/bin/bash
+# Item 2: submit grava o editor por submissão (web vs editor declarado) em var/editor-log;
+# /index/open_training agrega "most_used_editor_prev_week" na janela da semana passada
+# (só submissões ACEITAS, casadas por subid).
+set -u
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
+FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$SPOOL"' EXIT
+T="$FIX/treino"; mkdir -p "$T/controle" "$T/var/profiles"
+printf 'CONTEST_ID=treino\n' > "$T/conf"
+printf 'ribas:x:Ribas\nalice:x:Alice\n' > "$T/passwd"
+printf '{"favorite_editor":"vim"}' > "$T/var/profiles/ribas.json"
+printf 'CONTEST=treino\nLOGIN=ribas\nLOGINAT=1\n' > "$SESS/tok"
+
+call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-tok}" \
+    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" bash "$ROUTER" <<<"${3:-}" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:160}"; ((fail++)); fi; }
+
+echo "== submit grava editor-log (web / arquivo->declarado / heurística) =="
+call /submit POST '{"problem_id":"p1","filename":"solution.c","code_b64":"YWJj","source":"web"}' tok 'contest=treino'
+ck "submit 200" '[[ "$OUT" == *"Status: 200"* ]]'
+call /submit POST '{"problem_id":"p1","filename":"ac.c","code_b64":"YWJj","source":"file"}' tok 'contest=treino'
+call /submit POST '{"problem_id":"p1","filename":"solution.py","code_b64":"YWJj"}' tok 'contest=treino'
+ck "editor-log com 3 linhas" '[[ "$(wc -l < "$T/var/editor-log")" == 3 ]]'
+ck "editores = web,vim,web" '[[ "$(awk -F: "{print \$4}" "$T/var/editor-log" | paste -sd,)" == "web,vim,web" ]]'
+
+echo "== open_training: most_used_editor_prev_week =="
+LW=$(date -d 'last-sunday' +%s); PREV=$((LW-3*86400)); THIS=$((LW+3600))
+{ printf '10:alice:p#a:C:Accepted,100p:%s:s1\n' "$PREV"
+  printf '10:ribas:p#a:C:Accepted,100p:%s:s2\n' "$PREV"
+  printf '10:alice:p#b:PY:Accepted,100p:%s:s3\n' "$PREV"
+  printf '10:ribas:p#c:C:Accepted,100p:%s:s4\n' "$THIS"; } > "$T/controle/history"   # s4 = esta semana
+{ printf '%s:s1:alice:web\n' "$PREV"; printf '%s:s2:ribas:vim\n' "$PREV"
+  printf '%s:s3:alice:web\n' "$PREV"; printf '%s:s4:ribas:vscode\n' "$THIS"; } > "$T/var/editor-log"
+call /index/open_training GET '' '' ''
+ck "tem o campo most_used_editor_prev_week" '[[ "$(jq -r "has(\"most_used_editor_prev_week\")" <<<"$BODY")" == true ]]'
+ck "top = web com 2 aceitas" '[[ "$(jq -r ".most_used_editor_prev_week.top.editor" <<<"$BODY")" == web && "$(jq -r ".most_used_editor_prev_week.top.count" <<<"$BODY")" == 2 ]]'
+ck "total = 3 (s4 desta semana fora)" '[[ "$(jq -r ".most_used_editor_prev_week.total" <<<"$BODY")" == 3 ]]'
+ck "ranking = vim,web" '[[ "$(jq -r ".most_used_editor_prev_week.ranking | map(.editor) | sort | join(\",\")" <<<"$BODY")" == "vim,web" ]]'
+
+echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

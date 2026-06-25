@@ -2,7 +2,20 @@
 // As novas telas (log, tarefas, clarification, jplag) chamam initContestShell(contest).
 import { apiGet } from '/shared/api.js';
 import { status, logout } from '/shared/auth.js';
-import { el } from '/shared/ui.js';
+import { el, avatarEl } from '/shared/ui.js';
+
+// chip do usuário logado do contest no topbar (avatar + nome) — consistência com o
+// site principal. Inserido à esquerda do botão "Contest"/countdown; idempotente.
+export function mountContestUserChip(st) {
+  if (!st || !st.logged_in) return;
+  if (document.getElementById('contestUserChip')) return;
+  const anchor = document.getElementById('backBtn') || document.getElementById('contestCountdown');
+  if (!anchor || !anchor.parentNode) return;
+  anchor.parentNode.insertBefore(
+    el('span', { id: 'contestUserChip', class: 'user-chip small', style: 'margin-right:.3rem', title: st.login },
+      avatarEl(st.login, st.name, 22), el('span', {}, st.name || st.login)),
+    anchor);
+}
 
 // resolve o url do botão de nav -> caminho absoluto com ?c=. Botões já vêm em
 // caminhos completos (/contest/...); '/' e '/logout' são especiais.
@@ -43,6 +56,7 @@ export async function initContestShell(contest) {
   if (basic) startCountdown(basic);
   const st = await status(contest);
   const isAuth = !!st.logged_in;
+  mountContestUserChip(st);
   try {
     const nav = await apiGet('/contest/navbuttons?contest=' + encodeURIComponent(contest), { contest, auth: isAuth });
     renderNav(Array.isArray(nav) ? nav : (nav.buttons || []), contest);

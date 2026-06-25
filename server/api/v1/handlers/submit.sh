@@ -40,4 +40,17 @@ mkdir -p "$CONTESTSDIR/$contest/controle"
 printf '%s:%s:%s:%s:Not Answered Yet:%s:%s\n' \
   "$AGORA" "$SESSION_LOGIN" "$problem" "$FILETYPE" "$AGORA" "$ID" >> "$hist"
 
+# Registra o EDITOR usado (p/ o card "editor da semana" na home). Regra: editor web
+# -> "web"; arquivo -> editor declarado do usuário (favorite_editor). O front manda
+# {source:"web"|"file"}; sem isso, heurística pelo nome (o editor web usa solution.<ext>).
+src="$(jq -r '.source // empty' <<<"$body")"
+if [[ "$src" != "web" && "$src" != "file" ]]; then
+  [[ "$filename" == "solution" || "$filename" =~ ^solution\.[A-Za-z0-9]+$ ]] && src="web" || src="file"
+fi
+if [[ "$src" == "web" ]]; then editor="web"
+else FAVORITE_EDITOR=""; read_profile "$contest" "$SESSION_LOGIN" 2>/dev/null; editor="${FAVORITE_EDITOR:-outro}"; fi
+mkdir -p "$CONTESTSDIR/$contest/var"
+printf '%s:%s:%s:%s\n' "$AGORA" "$ID" "$SESSION_LOGIN" "$editor" \
+  >> "$CONTESTSDIR/$contest/var/editor-log" 2>/dev/null || true
+
 ok_json '{submission_id:$id, status:"queued"}' --arg id "$ID"
