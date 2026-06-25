@@ -15,6 +15,9 @@
 : "${STARVE_SECS:=300}"                     # s; promove de banda após esse tempo
 : "${COLD_GRACE:=8}"                        # s; modelo cache: juiz que NÃO tem o problema
                                             # só reivindica após isso (dá vez aos quentes)
+: "${LANG_GRACE:=90}"                       # s; route-by-language: juiz SEM o toolchain da
+                                            # linguagem do job só pega depois disso (fallback
+                                            # p/ não travar se nenhum juiz suporta a linguagem)
 
 # bandas, prioridade ALTA -> BAIXA. 'rejulgar' entre privada e pública.
 SCHED_BANDS=(000-super 020-prova 040-lista-privada 060-rejulgar 080-lista-publica)
@@ -98,12 +101,12 @@ q_enqueue() {
 # q_claim <host> <capability> <problems-json> : reivindica 1 job que o worker pode
 # rodar (capacidade + tem-o-problema), atômico sob flock. Ecoa o job (ou nada).
 q_claim() {
-  local host="$1" cap="$2" probs="$3"
+  local host="$1" cap="$2" probs="$3" langs="${4:-[]}"
   valid_hostname "$host" || return 1
   sched_init_dirs
   (
     flock 9 || exit 0
-    local band f prob need dest base ts
+    local band f prob need dest base ts joblang
     for band in "${SCHED_BANDS[@]}"; do
       while IFS= read -r f; do
         [[ -f "$f" ]] || continue
@@ -111,6 +114,16 @@ q_claim() {
         need="$(jq -r '.need_capability // empty' "$f" 2>/dev/null)"
         [[ -n "$need" && "$need" != "$cap" ]] && continue
         base="$(basename "$f")"
+        # route by language: só julga se o host TEM o toolchain da linguagem do job. Sem ele,
+        # espera LANG_GRACE (dá vez a quem tem); depois pega como fallback (juiz incapaz ->
+        # CE, mas a submissão não fica presa p/ sempre). langs vazio = filtro desligado.
+        if [[ -n "$langs" && "$langs" != "[]" ]]; then
+          joblang="$(jq -r '.lang // empty' "$f" 2>/dev/null | tr 'A-Z' 'a-z')"
+          if [[ -n "$joblang" ]] && ! printf '%s' "$langs" | jq -e --arg l "$joblang" 'index($l)' >/dev/null 2>&1; then
+            ts="${base%%_*}"
+            [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= LANG_GRACE )) && continue
+          fi
+        fi
         # modelo cache: QUALQUER juiz capaz pode julgar (baixa o pacote + calibra sob
         # demanda). Preferência "quente": quem JÁ tem o problema (cache calibrado)
         # reivindica na hora; quem não tem só pega após COLD_GRACE, dando vantagem aos

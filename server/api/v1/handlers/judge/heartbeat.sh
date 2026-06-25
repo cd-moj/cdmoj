@@ -43,7 +43,8 @@ if [[ "$state" == free ]]; then
     # 2) senão, reivindica 1 job da fila de prioridade
     cap="$(jq -r '.capability // "pos"' "$REGISTRYDIR/$host.json" 2>/dev/null)"
     probs="$(jq -c '.problems // {}' "$REGISTRYDIR/$host.json" 2>/dev/null)"
-    job="$(q_claim "$host" "$cap" "$probs")"
+    langs="$(jq -c '.langs // []' "$REGISTRYDIR/$host.json" 2>/dev/null)"
+    job="$(q_claim "$host" "$cap" "$probs" "$langs")"
     if [[ -n "$job" ]] && jq -e . >/dev/null 2>&1 <<<"$job"; then
       assigned="$job"
       reg_touch_state "$host" busy   # marca ocupado já (evita corrida no próximo beat)
