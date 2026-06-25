@@ -325,9 +325,18 @@ function updatePkgInfo() {
 // ---- montagem / coleta --------------------------------------------------------------------
 function fillRepoSelect() {
   const sel = $('repo'); sel.innerHTML = '';
+  if (!REPOS.length && !REPO) sel.append(el('option', { value: '' }, '— nenhuma pasta — clique "+ nova pasta"'));
   REPOS.forEach(r => sel.append(el('option', { value: r.repo }, r.repo + (r.mine ? '' : ' (compartilhado)'))));
   if (REPO && !REPOS.some(r => r.repo === REPO)) sel.append(el('option', { value: REPO }, REPO));
-  if (REPO) sel.value = REPO; else REPO = sel.value || '';
+  if (REPO) sel.value = REPO; else REPO = REPOS.length ? (sel.value || '') : '';
+  // dica: sem nenhuma pasta não dá p/ salvar — é preciso criar uma antes
+  const hint = $('repoHint');
+  if (hint) {
+    if (!REPOS.length && MODE === 'new') {
+      hint.style.display = ''; hint.className = 'small';
+      hint.innerHTML = 'Você ainda não tem nenhuma <b>pasta</b>. O problema é salvo <b>dentro de uma pasta</b> — clique <b>“+ nova pasta”</b> ali do lado para criar a primeira (ex.: uma por disciplina ou competição). Só depois o botão <b>Salvar</b> funciona.';
+    } else hint.style.display = 'none';
+  }
 }
 async function renderForm(d) {
   $('ptitle').value = d.title || ''; $('pauthor').value = d.author || '';
@@ -523,8 +532,15 @@ async function newColl() {
 
 // ---- salvar / ações -----------------------------------------------------------------------
 async function save() {
-  const f = collectFields(); REPO = $('repo').value;
-  if (!REPO) { setMsg('Escolha ou crie um diretório.', 'error'); return; }
+  REPO = $('repo').value;
+  if (!REPO) {
+    showTab('enun'); const fld = $('repo'); if (fld) flash(fld.closest('.field') || fld);
+    setMsg(REPOS.length ? 'Escolha um diretório (pasta) no topo da aba Enunciado.'
+                        : 'Crie um diretório primeiro: clique “+ nova pasta” (topo da aba Enunciado).', 'error');
+    return;
+  }
+  let f; try { f = collectFields(); }
+  catch (e) { setMsg('Erro ao preparar os dados do problema: ' + (e && e.message || e), 'error'); return; }
   $('save').disabled = true; setMsg('Salvando…');
   try {
     if (MODE === 'new') {
