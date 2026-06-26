@@ -224,11 +224,15 @@ apply_problem_fields(){  # <pkgdir> <body-json>
       jq -r '.input'  <<<"$pair" | _putfile "$pkg/tests/input/sample$i"
       jq -r '.output' <<<"$pair" | _putfile "$pkg/tests/output/sample$i"
     done < <(jq -c '.examples[]?' <<<"$body")
-    # explicação por exemplo (na ordem) -> docs/sample-notes.json; remove se todas vazias
-    local notes; notes="$(jq -c '[.examples[]? | (.explanation // "")]' <<<"$body")"
-    if [[ "$(jq -r 'map(select(.!=""))|length' <<<"$notes" 2>/dev/null)" -gt 0 ]]; then
-      printf '%s' "$notes" > "$pkg/docs/sample-notes.json"
-    else rm -f "$pkg/docs/sample-notes.json"; fi
+    # explicação por exemplo (na ordem) -> docs/sample-notes.json. Só mexe se o cliente for
+    # "ciente de explicação" (algum exemplo traz a chave .explanation). Assim, clientes que não
+    # enviam explicações (ex.: uma CLI antiga) NÃO apagam as notas já existentes.
+    if jq -e 'any(.examples[]?; has("explanation"))' >/dev/null 2>&1 <<<"$body"; then
+      local notes; notes="$(jq -c '[.examples[]? | (.explanation // "")]' <<<"$body")"
+      if [[ "$(jq -r 'map(select(.!=""))|length' <<<"$notes" 2>/dev/null)" -gt 0 ]]; then
+        printf '%s' "$notes" > "$pkg/docs/sample-notes.json"
+      else rm -f "$pkg/docs/sample-notes.json"; fi
+    fi
   fi
   # ---- resolução/editorial (só p/ setters; docs/solucao.md; não vai p/ o aluno) -------------
   if jq -e 'has("editorial_md")' >/dev/null 2>&1 <<<"$body"; then
