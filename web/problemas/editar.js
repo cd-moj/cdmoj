@@ -23,6 +23,8 @@ let RUNNING = '';                                        // '', 'calibrate' ou '
 let calibTimer = null, calibPrevMax = 0;                 // polling do resultado (atualiza sozinho)
 let JUDGES = [];                                          // juízes do registro (calibração direcionada)
 const OPEN_LOGS = new Set();                              // hosts com "ver log" aberto (sobrevive ao re-render do polling)
+let LAST_RENDER_SIG = '';                                 // assinatura do painel: só reconstrói quando MUDA (não a cada poll)
+const CALIB_SCROLL = {};                                  // scrollTop do log de cada juiz, p/ restaurar no re-render
 
 const qs = () => new URLSearchParams(location.search);
 const splitList = (s) => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -472,15 +474,15 @@ async function preview() {
 // ---- validação & calibração (painel + prontidão, best-effort) -----------------------------
 async function loadValidation() {
   if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; LASTVAL = LASTINFO = LASTCALIB = null; renderVal(); updateReady(); return; }
-  let val = null, info = null, calib = null;
-  try { val = await apiGet('/problems/validation?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
-  try { info = await apiGet('/problems/get?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
-  try { calib = await apiGet('/problems/calib?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true }); } catch {}
+  const g = (pfx) => apiGet(pfx + encodeURIComponent(ID), { contest: CONTEST, auth: true }).catch(() => null);
+  const [val, info, calib] = await Promise.all([     // 3 GETs em paralelo (antes era sequencial)
+    g('/problems/validation?id='), g('/problems/get?id='), g('/problems/calib?id='),
+  ]);
   LASTVAL = val; LASTINFO = info; LASTCALIB = calib;
   const nHosts = ((calib && calib.hosts) || []).length;
   VAL.validated = (RUNNING === 'publish') ? 'run' : ((val && Array.isArray(val.checks) && val.checks.length) ? (val.ok ? 'ok' : 'todo') : 'na');
   VAL.calibrated = RUNNING ? 'run' : (nHosts ? 'ok' : 'na');
-  renderVal(); updateReady();
+  maybeRenderVal(); updateReady();   // só reconstrói o painel se algo mudou (não a cada poll)
 }
 // dispara Calibrar/Validar e fica buscando o resultado sozinho (a calibração roda no juiz).
 // "pronto" = algum juiz reportou DEPOIS do disparo (independe do relógio do cliente).
@@ -539,8 +541,23 @@ function tlSummaryTable(hosts, served) {
     el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, 'Resumo por linguagem — em negrito o tempo-limite que o estudante vê no enunciado:'),
     el('table', { class: 'tlsummary' }, el('thead', {}, thead), el('tbody', {}, ...body)));
 }
+// assinatura do que o painel mostra: só reconstrói quando MUDA — senão o polling (a cada 4s)
+// destruía o DOM e o scroll do log "voltava pro topo" / o botão de fechar brigava com o re-render.
+function valRenderSig() {
+  const hosts = (LASTCALIB && LASTCALIB.hosts) || [];
+  const checks = (LASTVAL && LASTVAL.checks) || [];
+  const served = (LASTINFO && (LASTINFO.time_limits || LASTINFO.tl)) || {};
+  return JSON.stringify({
+    run: RUNNING,
+    checks: checks.map(c => `${c.name}:${c.ok}:${c.detail || ''}`),
+    hosts: hosts.map(h => `${h.host}|${h.at}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}`),
+    served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
+  });
+}
+function maybeRenderVal() { if (valRenderSig() !== LAST_RENDER_SIG) renderVal(); }   // re-render só quando algo muda
 function renderVal() {
   const box = $('valpanel'); if (!box) return;
+  box.querySelectorAll('.caliblog').forEach(p => { CALIB_SCROLL[p.dataset.host] = p.scrollTop; });   // preserva o scroll do log
   box.innerHTML = '';
   const val = LASTVAL, info = LASTINFO, calib = LASTCALIB;
   const hosts = (calib && calib.hosts) || [];
@@ -565,7 +582,7 @@ function renderVal() {
     hosts.forEach(h => {
       const isOpen = OPEN_LOGS.has(h.host);
       const det = el('div', { style: 'margin-top:.3rem;display:' + (isOpen ? '' : 'none') });
-      det.append(h.log ? el('pre', { class: 'caliblog' }, h.log) : el('p', { class: 'small muted' }, 'sem log deste juiz ainda.'));
+      det.append(h.log ? el('pre', { class: 'caliblog', 'data-host': h.host }, h.log) : el('p', { class: 'small muted' }, 'sem log deste juiz ainda.'));
       const toggle = el('a', { href: '#', class: 'small', onclick: (e) => {
         e.preventDefault();
         const open = !OPEN_LOGS.has(h.host);
@@ -586,6 +603,8 @@ function renderVal() {
   } else if (!RUNNING) box.append(el('p', { class: 'small muted' }, 'Ainda não calibrado — clique “Calibrar” na barra de baixo.'));
   // sem juízes calibrados mas com TL servido (legado): mostra o tempo-limite usado na correção
   if (!hosts.length && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, 'Tempo-limite usado na correção: ' + tlLine(served)));
+  box.querySelectorAll('.caliblog').forEach(p => { if (CALIB_SCROLL[p.dataset.host]) p.scrollTop = CALIB_SCROLL[p.dataset.host]; });   // restaura o scroll
+  LAST_RENDER_SIG = valRenderSig();
 }
 
 // ---- pacote: baixar / enviar tar ----------------------------------------------------------
@@ -775,8 +794,8 @@ async function newDir() {
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
-async function loadSource(id) {
-  const j = await apiGet('/problems/source?id=' + encodeURIComponent(id), { contest: CONTEST, auth: true });
+async function loadSource(id, j) {
+  if (!j) j = await apiGet('/problems/source?id=' + encodeURIComponent(id), { contest: CONTEST, auth: true });
   EDITABLE = j.editable; OWNER = j.owner || ''; REPO = id.split('#')[0];
   $('title').textContent = 'Editar: ' + id;
   $('prob').value = id.split('#').slice(1).join('#'); $('prob').disabled = true;
@@ -830,12 +849,16 @@ async function boot() {
   setupTabs();
   updateReady();
 
-  try { REPOS = (await apiGet('/problems/repos', { contest: CONTEST, auth: true })).repos || []; } catch { REPOS = []; }
-  try { CAN_CREATE = !!(await apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true })).can_create; } catch {}
-
-  const p = qs();
+  // dispara em PARALELO o que é independente (antes era uma cadeia de awaits — lenta pelo túnel):
+  // repos + permissão + a SOURCE do problema vão juntos; depois share + coleções idem.
+  const p = qs(), pid = p.get('id');
+  const pRepos = apiGet('/problems/repos', { contest: CONTEST, auth: true }).then(r => r.repos || []).catch(() => []);
+  const pPerm  = apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true }).then(r => !!r.can_create).catch(() => false);
+  const pSrc   = pid ? apiGet('/problems/source?id=' + encodeURIComponent(pid), { contest: CONTEST, auth: true }) : Promise.resolve(null);
   try {
-    if (p.get('id')) { MODE = 'edit'; ID = p.get('id'); await loadSource(ID); }
+    const [repos, src] = await Promise.all([pRepos, pSrc]);
+    REPOS = repos;
+    if (src) { MODE = 'edit'; ID = pid; await loadSource(ID, src); }
     else {
       MODE = 'new'; REPO = p.get('repo') || ''; fillRepoSelect();
       await renderForm({ enunciado_md: '', author: st.name || st.login || '', tags: [], collections: [],
@@ -843,11 +866,11 @@ async function boot() {
         score: { enabled: false, groups: [] },
         conf_text: 'TLMOD[calibrafactor]=1.35\nULIMITS[-u]=10000\nALLOWPARALLELTEST=y\n' });
     }
-    await loadShare();
-    await loadColls();
+    await Promise.all([loadShare(), loadColls()]);
   } catch (e) {
     setMsg('Falha ao carregar o problema: ' + (e instanceof ApiError ? e.message : (e && e.message || e)), 'error');
   }
+  CAN_CREATE = await pPerm;
 
   // criar pasta/coleção e criar problema novo: só p/ quem pode criar (regra de criar contest)
   if (!CAN_CREATE) ['newdir', 'newCollBtn'].forEach(b => { if ($(b)) $(b).disabled = true; });
