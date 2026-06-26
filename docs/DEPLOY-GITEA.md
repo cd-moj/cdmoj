@@ -22,7 +22,14 @@ Roda **user-space como `ribas`** (sem root), igual ao resto do MOJ.
 | Item | Caminho | Obs |
 |---|---|---|
 | binário | `run/gitea/gitea` (1.26.4, linux-amd64) | baixado à parte (não versionado) |
-| config | `run/gitea/custom/conf/app.ini` | porta **3939**, HTTP, SQLite, registro **desligado**, SSH **desligado** |
+| config | `run/gitea/custom/conf/app.ini` | porta **3939**, HTTP, SQLite, registro **desligado**, SSH **desligado**, **LFS ligado** (`LFS_START_SERVER=true` + `LFS_JWT_SECRET`) |
+
+> **LFS por padrão p/ os testes:** os arquivos de teste costumam ser grandes e incham o repo git.
+> `git-broker.sh` (`_gb_ensure_lfs`) instala os filtros do git-lfs e grava a regra `**/tests/**` no
+> `.gitattributes` de todo repo de problema — então cada `tests/` vira **ponteiro LFS** (objeto no LFS
+> do Gitea), e clones/backups ficam pequenos. Requer `LFS_START_SERVER=true` (acima) e `git-lfs` no host.
+> Repos existentes migram por problema no **próximo save** (o apply reescreve os testes). Para encolher
+> o **histórico** antigo, seria preciso `git lfs migrate import` (reescreve história — destrutivo).
 | dados | `run/gitea/data/gitea.db` (SQLite) + `run/gitea/repos/` | estado de runtime — **não versionado** |
 | porta | `run/gitea/.port` | lido pelos scripts/`lib/gitea.sh` |
 | admin | usuário `mojadmin` | criado via CLI |
@@ -75,7 +82,8 @@ DOMAIN = localhost
 ROOT_URL = http://localhost:3939/
 DISABLE_SSH = true
 START_SSH_SERVER = false
-LFS_START_SERVER = false
+LFS_START_SERVER = true
+LFS_JWT_SECRET = $(./gitea generate secret LFS_JWT_SECRET)
 OFFLINE_MODE = true
 [database]
 DB_TYPE = sqlite3
