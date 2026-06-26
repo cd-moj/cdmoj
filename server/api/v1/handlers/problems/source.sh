@@ -12,9 +12,11 @@ repo="${id%%#*}"; prob="${id##*#}"
 owner="$(problem_owner "$id")"
 
 if [[ -n "$owner" ]] && gitea_can_write "$owner" "$repo" "$SESSION_LOGIN"; then
-  tmp="$(git_broker_open "$SESSION_LOGIN" "$owner" "$repo")" || fail 502 "Falha ao abrir o repositório" "git_open"
-  trap 'rm -rf "$tmp"' EXIT
-  pkg="$tmp/wt/$prob"
+  # LÊ do espelho persistente ($MOJ_PROBLEMS_DIR/<repo>), que cada save mantém em dia. NÃO clona
+  # por leitura: o repo pode ter 1GB+ e o `git clone` num temp custava ~5s POR abertura do editor.
+  # Materializa só se o espelho ainda não existe (1ª vez); senão é leitura de arquivo pura.
+  pkg="$MOJ_PROBLEMS_DIR/$repo/$prob"
+  [[ -d "$MOJ_PROBLEMS_DIR/$repo/.git" ]] || ensure_repo_materialized "$repo" "$SESSION_LOGIN"
   [[ -d "$pkg" ]] || fail 404 "Problema não existe no diretório" "prob_missing"
   src="$(read_problem_source "$pkg")"
   emit_json 200 OK
