@@ -3,6 +3,11 @@
 Índice da documentação da versão **API-first** do MOJ. Para ler em HTML (com TOC e
 navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
 
+> **Mantenha em dia (doc atrasada = bug):** toda mudança de comportamento ou contrato
+> atualiza a doc no **mesmo commit** — rotas/campos em [API.md](API.md) **e** em
+> `../web/api/openapi.json` (os dois em sincronia); arquitetura/fluxo em
+> [OVERVIEW.md](OVERVIEW.md)/[FLOW.md](FLOW.md); regras de trabalho nos `CLAUDE.md`.
+
 - **[OVERVIEW.md](OVERVIEW.md)** — **comece aqui.** Visão geral: arquitetura, estrutura
   do repositório, camada de API, frontend e tudo o que existe (treino, criação de contest,
   ambiente de contest, juiz/daemons).

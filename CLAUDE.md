@@ -55,4 +55,7 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
 
 - Commits em PT, presente, prefixados pelo componente (ex.: `problemas: …`, `score/stats: …`). O rodapé
   leva **só** `Co-Authored-By:` — **nunca** uma linha `Claude-Session:` (ruído no histórico).
+- **Documentação junto com o código** (doc atrasada = bug): rota/campo novo → `docs/API.md` **e**
+  `web/api/openapi.json` (manter os dois em sincronia); arquitetura/fluxo → `docs/OVERVIEW.md`/`docs/FLOW.md`;
+  formato de pacote → `docs/API.md`. `bash docs/build-html.sh` p/ refazer o HTML.
 - **Não commitar**: `server/var/news/nova-interface.json` (mod local pré-existente).

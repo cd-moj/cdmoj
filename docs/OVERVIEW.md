@@ -12,6 +12,11 @@ de migração de dados; o Apache antigo podia rodar em paralelo).
 > (ex.: `problemas: …`). O rodapé leva **apenas** `Co-Authored-By:` — **nunca** uma linha
 > `Claude-Session:` (é ruído no histórico). Vale também p/ assistentes de IA.
 
+> **Documentação junto com o código (doc atrasada = bug):** ao mudar comportamento ou contrato,
+> atualize a doc no **mesmo commit** — rotas/campos em **[API.md](API.md)** _e_ em
+> `../web/api/openapi.json` (mantenha os dois em sincronia); arquitetura/fluxo aqui e em
+> **[FLOW.md](FLOW.md)**. `bash docs/build-html.sh` refaz o HTML.
+
 ## Estrutura
 
 ```
