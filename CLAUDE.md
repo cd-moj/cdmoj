@@ -53,5 +53,6 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
 
 ## Convenções
 
-- Commits em PT, presente, prefixados pelo componente (ex.: `problemas: …`, `score/stats: …`).
+- Commits em PT, presente, prefixados pelo componente (ex.: `problemas: …`, `score/stats: …`). O rodapé
+  leva **só** `Co-Authored-By:` — **nunca** uma linha `Claude-Session:` (ruído no histórico).
 - **Não commitar**: `server/var/news/nova-interface.json` (mod local pré-existente).

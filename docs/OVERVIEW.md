@@ -8,6 +8,10 @@ de migração de dados; o Apache antigo podia rodar em paralelo).
 > Fluxo de submissão/julgamento e como os daemons conversam: ver **[FLOW.md](FLOW.md)**.
 > Contrato de rotas: **[API.md](API.md)** (+ `web/api/openapi.json`). Placar: **[SCOREBOARD.md](SCOREBOARD.md)**. Deploy: **[DEPLOY.md](DEPLOY.md)**. Plano original: **[PLAN.md](PLAN.md)**.
 
+> **Convenção de commit:** mensagens em português, no presente, prefixadas pelo componente
+> (ex.: `problemas: …`). O rodapé leva **apenas** `Co-Authored-By:` — **nunca** uma linha
+> `Claude-Session:` (é ruído no histórico). Vale também p/ assistentes de IA.
+
 ## Estrutura
 
 ```
