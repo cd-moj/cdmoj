@@ -35,6 +35,10 @@
     },
     {
       "name": "treino-admin"
+    },
+    {
+      "name": "problems",
+      "description": "Gestão e autoria de problemas do treino. Escrita keyless (git escondido; commit autorado pelo login via git-broker.sh). source/create/edit cobrem o pacote canônico inteiro."
     }
   ],
   "components": {
@@ -53,6 +57,193 @@
           "type": "string"
         },
         "description": "id do contest (ex.: treino)"
+      }
+    },
+    "schemas": {
+      "ProblemExample": {
+        "type": "object",
+        "description": "Exemplo (sample) — sempre aparente no enunciado.",
+        "properties": {
+          "input": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string",
+            "description": "Markdown opcional; aparece logo após o exemplo no enunciado (gravado em docs/sample-notes.json, na ordem)."
+          }
+        },
+        "required": [
+          "input",
+          "output"
+        ]
+      },
+      "ProblemTest": {
+        "type": "object",
+        "description": "Teste oculto.",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "input": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string",
+            "description": "Grupo de pontuação (subtask), opcional."
+          }
+        },
+        "required": [
+          "input",
+          "output"
+        ]
+      },
+      "ProblemSol": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "code"
+        ]
+      },
+      "ProblemSols": {
+        "type": "object",
+        "description": "Soluções por categoria (cada lista de {filename,code}). good define o tempo-limite; wrong deve falhar; slow deve estourar o tempo.",
+        "properties": {
+          "good": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemSol"
+            }
+          },
+          "slow": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemSol"
+            }
+          },
+          "wrong": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemSol"
+            }
+          },
+          "pass": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemSol"
+            }
+          },
+          "upcoming": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemSol"
+            }
+          }
+        }
+      },
+      "ProblemScore": {
+        "type": "object",
+        "description": "Pontuação por grupos (subtasks). O valor do problema é a soma dos pesos (pode passar de 100).",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "weight": {
+                  "type": "number"
+                },
+                "glob": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ProblemFields": {
+        "type": "object",
+        "description": "Campos do pacote canônico — source/create/edit cobrem o todo. Em edit, só os campos presentes são gravados.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Título — vem do CAMPO (não de '% Título' no texto); o renderizador injeta o <h1>."
+          },
+          "enunciado_md": {
+            "type": "string"
+          },
+          "enunciado_format": {
+            "type": "string",
+            "enum": [
+              "md",
+              "org",
+              "tex"
+            ]
+          },
+          "author": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conf_text": {
+            "type": "string",
+            "description": "conf do pacote (TLMOD/ULIMITS/STOPWHEN/MEMLIMITMB/…)."
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemExample"
+            }
+          },
+          "tests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProblemTest"
+            }
+          },
+          "sols": {
+            "$ref": "#/components/schemas/ProblemSols"
+          },
+          "score": {
+            "$ref": "#/components/schemas/ProblemScore"
+          },
+          "editorial_md": {
+            "type": "string",
+            "description": "Resolução em markdown (docs/solucao.md). SÓ p/ setter — não vai ao aluno; opcional para liberar."
+          }
+        }
       }
     }
   },
@@ -2525,6 +2716,1197 @@
         "responses": {
           "200": {
             "description": "{logged_out,sessions_removed}"
+          }
+        }
+      }
+    },
+    "/problems/mine": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Meus problemas (dono/autor)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems:[{id,title,author,owner,collections,public,html,claimed}]}"
+          }
+        }
+      }
+    },
+    "/problems/shared": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Problemas onde sou colaborador (não dono)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems:[…]}"
+          }
+        }
+      }
+    },
+    "/problems/public": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Problemas públicos (visão de gestão dono/autor)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems:[…]}"
+          }
+        }
+      }
+    },
+    "/problems/collection": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Problemas de uma coleção (curso/diretório)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems:[…]}"
+          }
+        }
+      }
+    },
+    "/problems/collections": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Coleções com contagem total/pública",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{collections:[{name,count,public}]}"
+          }
+        }
+      }
+    },
+    "/problems/get": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Detalhe do problema (índice + validação)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "índice + validation (relatório do portão) + statement_html_b64/tags/time_limits"
+          },
+          "404": {
+            "description": "não encontrado"
+          }
+        }
+      }
+    },
+    "/problems/validation": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Último relatório de validação (portão de qualidade)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{checks:[{name,ok,detail}],html_built,render_warnings,ok} — checks incluem secao_entrada/secao_saida; render_warnings pode trazer 'exemplo-no-texto?'"
+          }
+        }
+      }
+    },
+    "/problems/calib": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Resumo de calibração por juiz (TL, log, reports)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id,checksum,hosts:[{host,tl,at,log,reports}]}"
+          }
+        }
+      }
+    },
+    "/problems/calib-report": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "report.html de uma solução naquele juiz (calibração)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "host",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/html do report da solução",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/problems/judges": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Juízes do registro (p/ calibração direcionada)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{judges:[{host,cpu,langs,online}]}"
+          }
+        }
+      }
+    },
+    "/problems/publish": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Enfileira validação + index (publicar)",
+        "description": "1 juiz pega no heartbeat. Portão (hard): HTML compila + seções `## Entrada`/`## Saída` + exemplos pareados + solução good aceita.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{reqid,...}"
+          }
+        }
+      }
+    },
+    "/problems/request-calibration": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Enfileira calibração (juiz roda calibreitor.sh, reporta TL)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "hosts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Calibração direcionada a juízes específicos (opcional)."
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{reqid,...}"
+          }
+        }
+      }
+    },
+    "/problems/repos": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Diretórios do autor (dono/colaborador)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{repos:[{repo,owner,collaborators,collections,mine}]}"
+          }
+        }
+      }
+    },
+    "/problems/repo-create": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Cria diretório (repo Gitea no namespace do login)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string"
+                  },
+                  "collections": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "repo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{repo,owner}"
+          }
+        }
+      }
+    },
+    "/problems/source": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Source editável do pacote inteiro",
+        "description": "Gitea = editável; legado = read-only. Inclui title, examples[].explanation, sols por categoria, score e editorial_md.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "source + {editable}",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemFields"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "editable": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/problems/preview": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Pré-visualização HTML do enunciado",
+        "description": "Usa o renderizador único (render-statement.sh) — idêntico ao HTML servido ao aluno. Injeta o título (h1) e os exemplos (cada um com explanation opcional).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enunciado_md": {
+                    "type": "string"
+                  },
+                  "enunciado_format": {
+                    "type": "string",
+                    "enum": [
+                      "md",
+                      "org",
+                      "tex"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "examples": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ProblemExample"
+                    }
+                  }
+                },
+                "required": [
+                  "enunciado_md"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{success:true, html_b64}"
+          }
+        }
+      }
+    },
+    "/problems/download": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Baixa o pacote .tar.gz (inclui soluções → exige escrita/admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "stream binário .tar.gz",
+            "content": {
+              "application/gzip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/problems/upload": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Sobe um pacote (.tar/.gz/.bz2/.zst/.zip) e substitui tudo",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "repo": {
+                    "type": "string"
+                  },
+                  "prob": {
+                    "type": "string"
+                  },
+                  "tar_b64": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tar_b64"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{id,sha}"
+          }
+        }
+      }
+    },
+    "/problems/export": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Exporta como pacote ICPC/Kattis (.tar.gz)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "stream binário .tar.gz (problem.yaml+statement+data+submissions)",
+            "content": {
+              "application/gzip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/problems/import": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Importa pacote ICPC/Kattis → problema MOJ julgável",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string"
+                  },
+                  "prob": {
+                    "type": "string"
+                  },
+                  "tar_b64": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "repo",
+                  "tar_b64"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{id,sha}"
+          }
+        }
+      }
+    },
+    "/problems/create": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Cria problema novo (commit+push)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ProblemFields"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "repo": {
+                        "type": "string"
+                      },
+                      "prob": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repo",
+                      "prob"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{id,sha}"
+          }
+        }
+      }
+    },
+    "/problems/edit": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Edita problema (só os campos presentes; commit+push autorado)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ProblemFields"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{id,sha}"
+          }
+        }
+      }
+    },
+    "/problems/set-public": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Marca público no .moj-meta.json (+ enfileira validação se true)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "public": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "public"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{id,public,reqid?}"
+          }
+        }
+      }
+    },
+    "/problems/set-collections": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Define coleções no .moj-meta.json",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "collections": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "collections"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{id,collections}"
+          }
+        }
+      }
+    },
+    "/problems/repo-collaborators": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Lista colaboradores do diretório",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "repo",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{repo,collaborators}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Compartilha o diretório (só o dono gerencia)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string"
+                  },
+                  "add": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "remove": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "repo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{repo,collaborators}"
+          }
+        }
+      }
+    },
+    "/problems/collection-create": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Cria coleção (competição/curso) com setters e co-admins",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "members": {
+                    "type": "string"
+                  },
+                  "admins": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{name,members,admins}"
+          }
+        }
+      }
+    },
+    "/problems/collection-members": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Setters/admins de uma coleção",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{name,members,admins}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Dono ou co-admin gerencia setters E admins",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "add": {
+                    "type": "string"
+                  },
+                  "remove": {
+                    "type": "string"
+                  },
+                  "admins_add": {
+                    "type": "string"
+                  },
+                  "admins_remove": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{name,members,admins}"
+          }
+        }
+      }
+    },
+    "/problems/git-credential": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Credencial HTTPS efêmera p/ o modo git do CLI",
+        "description": "Só quem pode escrever; não persistir.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "repo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{url,username,token}"
           }
         }
       }
