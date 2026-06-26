@@ -180,6 +180,30 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 .featured-news .fn-title:hover { color:var(--blue); }
 .featured-news .fn-sum { color:var(--muted); font-size:.92rem; margin-top:.15rem; }
 @media (max-width:760px){ .home-top { grid-template-columns:1fr; } }
+/* página de notícias: lista (cards) + detalhe (markdown renderizado) */
+.news-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(290px,1fr)); gap:1rem; }
+.news-card { display:flex; flex-direction:column; gap:.3rem; background:var(--card); border:1px solid var(--line);
+  border-radius:14px; padding:1.05rem 1.2rem; box-shadow:var(--shadow-sm); color:inherit; transition:.12s; }
+.news-card:hover { text-decoration:none; box-shadow:var(--shadow); transform:translateY(-2px); }
+.news-card-title { font-size:1.1rem; font-weight:800; color:var(--ink); line-height:1.25; }
+.news-card-sum { font-size:.92rem; }
+.news-card-more { color:var(--blue); font-weight:700; margin-top:.25rem; font-size:.85rem; }
+.news-body { font-size:1.02rem; line-height:1.7; max-width:760px; }
+.news-body h1,.news-body h2,.news-body h3,.news-body h4 { line-height:1.25; margin:1.5rem 0 .6rem; }
+.news-body h1 { font-size:1.55rem; } .news-body h2 { font-size:1.28rem; } .news-body h3 { font-size:1.1rem; }
+.news-body p { margin:.7rem 0; } .news-body ul,.news-body ol { margin:.7rem 0 .7rem 1.3rem; }
+.news-body a { color:var(--blue); }
+.news-body img { max-width:100%; height:auto; border-radius:8px; }
+.news-body pre { background:#f6f8fb; border:1px solid var(--line); border-radius:8px; padding:.8rem 1rem; overflow-x:auto; font-size:.9em; }
+.news-body code { background:#eef3fb; padding:.1em .35em; border-radius:4px; font-size:.9em; }
+.news-body pre code { background:none; padding:0; }
+.news-body blockquote { border-left:3px solid var(--blue-soft); margin:.8rem 0; padding:.2rem 1rem; color:var(--muted); }
+.news-body table { border-collapse:collapse; margin:1rem 0; } .news-body th,.news-body td { border:1px solid var(--line); padding:.4rem .6rem; }
+/* editor de markdown (admin de notícias): editor + preview lado a lado */
+.news-editor-split { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:start; }
+@media (max-width:820px){ .news-editor-split { grid-template-columns:1fr; } }
+.md-toolbar { display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:.35rem; }
+.md-toolbar .btn { font-weight:700; line-height:1; }
 
 /* problema: enunciado + envio lado a lado (telas largas) */
 .problem-cols { display:grid; grid-template-columns:1fr; gap:1.2rem; align-items:start; }

@@ -109,6 +109,10 @@ regen_locked() {
 # --- util -----------------------------------------------------------------
 urldecode() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
 read_body(){ cat -; }
+# render_markdown_html: markdown do stdin -> fragmento HTML no stdout (pandoc 3.x).
+# raw_html DESABILITADO (conteúdo público; impede <script> injetado); math via --mathml.
+# Usado pelas notícias/posts (detalhe e preview do editor).
+render_markdown_html() { pandoc -f markdown-raw_html -t html5 --mathml 2>/dev/null; }
 require_method() {  # require_method <METHOD>
   [[ "${REQUEST_METHOD:-GET}" == "$1" ]] || fail 405 "Use $1" "method_not_allowed"
 }

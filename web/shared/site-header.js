@@ -15,6 +15,7 @@ const NAV = [
   { key: 'home',     href: '/',          label: 'Início' },
   { key: 'treino',   href: '/treino/',   label: 'Treino Livre' },
   { key: 'contests', href: '/contests/', label: 'Contests' },
+  { key: 'noticias', href: '/noticias/', label: 'Notícias' },
   { key: 'status',   href: '/status/',   label: 'Status' },
   { key: 'docs',     href: '/docs/',     label: 'Documentação', target: '_blank' },
 ];
@@ -24,6 +25,7 @@ function activeFromPath() {
   if (p === '/' || p === '/index.html') return 'home';
   if (p.startsWith('/treino')) return 'treino';
   if (p.startsWith('/contests')) return 'contests';
+  if (p.startsWith('/noticias')) return 'noticias';
   if (p.startsWith('/status')) return 'status';
   if (p.startsWith('/problemas')) return 'problemas';
   return '';

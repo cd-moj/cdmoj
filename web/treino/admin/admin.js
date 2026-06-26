@@ -449,14 +449,45 @@ function makeNewsTab() {
   const body = el('div', {}, loading());
   panel.append(head, tools, formBox, body);
 
+  const b64ToText = (b64) => { try { return new TextDecoder().decode(Uint8Array.from(atob(b64 || ''), (c) => c.charCodeAt(0))); } catch { return ''; } };
+
   function openForm(news) {
     const editing = !!news;
     const title = el('input', { value: editing ? (news.title || '') : '', placeholder: 'Título', style: 'width:100%' });
-    const summary = el('input', { value: editing ? (news.summary || '') : '', placeholder: 'Resumo (1 linha)', style: 'width:100%' });
-    const url = el('input', { value: editing ? (news.url || '') : '', placeholder: 'URL da notícia completa (opcional)', style: 'width:100%' });
-    const bodyt = el('textarea', { rows: '4', placeholder: 'Texto completo (opcional)', style: 'width:100%' });
-    bodyt.value = editing ? (news.body || '') : '';
+    const summary = el('input', { value: editing ? (news.summary || '') : '', placeholder: 'Resumo (1 linha, aparece na lista)', style: 'width:100%' });
+    const url = el('input', { value: editing ? (news.url || '') : '', placeholder: 'URL externa — vazio = notícia local (texto completo no MOJ)', style: 'width:100%' });
     const dateI = el('input', { type: 'datetime-local', value: toLocalDT(editing ? news.date : nowEpoch()) });
+
+    // editor de markdown + preview ao vivo (mesmo renderizador do detalhe público)
+    const bodyt = el('textarea', { rows: '16', placeholder: 'Texto completo em Markdown…',
+      style: 'width:100%; font-family:var(--mono,monospace); font-size:.9rem; line-height:1.5' });
+    bodyt.value = editing ? (news.body || '') : '';
+    const preview = el('article', { class: 'news-body',
+      style: 'border:1px solid var(--line); border-radius:10px; padding:.7rem 1rem; background:#fff; min-height:8rem; overflow:auto' });
+    let pvTimer;
+    const schedulePreview = () => { clearTimeout(pvTimer); pvTimer = setTimeout(refreshPreview, 400); };
+    async function refreshPreview() {
+      try { const r = await apiPost('/treino/admin/news/preview', { body: bodyt.value }, G()); preview.innerHTML = b64ToText(r.html_b64) || '<span class="muted small">(vazio)</span>'; }
+      catch { preview.innerHTML = '<span class="muted small">(não foi possível pré-visualizar)</span>'; }
+    }
+    const wrapSel = (before, after) => {
+      const t = bodyt, s = t.selectionStart, e = t.selectionEnd, v = t.value;
+      t.value = v.slice(0, s) + before + v.slice(s, e) + (after || '') + v.slice(e);
+      t.focus(); t.selectionStart = s + before.length; t.selectionEnd = e + before.length;
+      schedulePreview();
+    };
+    const mdBtn = (label, tip, fn) => el('button', { class: 'btn ghost', type: 'button', title: tip, style: 'padding:.2rem .55rem', onclick: fn }, label);
+    const toolbar = el('div', { class: 'md-toolbar' },
+      mdBtn('B', 'negrito', () => wrapSel('**', '**')),
+      mdBtn('i', 'itálico', () => wrapSel('*', '*')),
+      mdBtn('H2', 'título', () => wrapSel('## ', '')),
+      mdBtn('• lista', 'lista', () => wrapSel('- ', '')),
+      mdBtn('< >', 'código', () => wrapSel('`', '`')),
+      mdBtn('🔗', 'link', () => wrapSel('[', '](https://)')),
+      mdBtn('“ ”', 'citação', () => wrapSel('> ', '')));
+    bodyt.addEventListener('input', schedulePreview);
+    refreshPreview();
+
     const msg = el('div', { class: 'small', style: 'margin-top:.4rem' });
     const saveBtn = el('button', { class: 'btn' }, editing ? 'Salvar alterações' : 'Publicar notícia');
     saveBtn.addEventListener('click', async () => {
@@ -469,15 +500,20 @@ function makeNewsTab() {
         formBox.innerHTML = ''; await load();
       } catch (e) { saveBtn.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
     });
+
     formBox.innerHTML = '';
     formBox.append(el('div', { class: 'section', style: 'background:#fafcff' },
       el('h3', { style: 'margin:.1rem 0 .6rem' }, editing ? 'Editar notícia' : 'Nova notícia'),
-      el('div', { class: 'field' }, el('label', {}, 'Título'), title),
+      el('div', { style: 'display:grid; grid-template-columns:2fr 1fr; gap:.8rem' },
+        el('div', { class: 'field' }, el('label', {}, 'Título'), title),
+        el('div', { class: 'field' }, el('label', {}, 'Data/hora'), dateI)),
       el('div', { class: 'field' }, el('label', {}, 'Resumo'), summary),
-      el('div', { class: 'field' }, el('label', {}, 'URL (opcional)'), url),
-      el('div', { class: 'field' }, el('label', {}, 'Texto completo (opcional)'), bodyt),
-      el('div', { class: 'field' }, el('label', {}, 'Data/hora'), dateI),
-      el('div', { class: 'row' }, saveBtn,
+      el('div', { class: 'field' }, el('label', {}, 'URL externa (opcional)'), url),
+      el('div', { class: 'field' }, el('label', {}, 'Texto completo (Markdown)'),
+        el('div', { class: 'news-editor-split' },
+          el('div', {}, toolbar, bodyt),
+          el('div', {}, el('div', { class: 'small muted', style: 'margin-bottom:.25rem' }, 'Pré-visualização'), preview))),
+      el('div', { class: 'row', style: 'margin-top:.6rem' }, saveBtn,
         el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, 'Cancelar')),
       msg));
   }

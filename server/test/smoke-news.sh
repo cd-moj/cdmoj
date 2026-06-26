@@ -34,6 +34,26 @@ ck "título mudou"      'grep -q "Editado" "$ND/$KEY.json"'
 call /treino/admin/news/update POST '{"key":"naoexiste","title":"x"}'
 ck "editar inexistente 404" '[[ "$OUT" == *"Status: 404"* ]]'
 
+echo "== público: lista (key/is_local) + detalhe (markdown) + preview =="
+call /treino/admin/news POST '{"title":"Post Local","summary":"resumo","url":"","body":"# Olá\n\n**negrito** e `code`"}'
+LKEY="$(jq -r .key <<<"$BODY")"
+call /treino/admin/news POST '{"title":"Externa","summary":"s","url":"https://x.com","body":""}'
+EKEY="$(jq -r .key <<<"$BODY")"
+call /index/news GET
+ck "lista pública: all_news_url=/noticias/ e is_local=true (local)" '[[ "$(jq -r .all_news_url <<<"$BODY")" == "/noticias/" && "$(jq -r ".news[]|select(.key==\"$LKEY\")|.is_local" <<<"$BODY")" == true ]]'
+ck "externa is_local=false" '[[ "$(jq -r ".news[]|select(.key==\"$EKEY\")|.is_local" <<<"$BODY")" == false ]]'
+ck "lista pública é leve (sem body)" '[[ "$(jq -r ".news[0]|has(\"body\")" <<<"$BODY")" == false ]]'
+call /index/news GET '' "id=$LKEY"
+ck "detalhe renderiza markdown (<h1> + <strong>)" '[[ "$(jq -r .news.body_html_b64 <<<"$BODY" | base64 -d)" == *"<h1"* && "$(jq -r .news.body_html_b64 <<<"$BODY" | base64 -d)" == *"<strong>negrito</strong>"* ]]'
+call /index/news GET '' 'id=../x'
+ck "detalhe id inválido -> 400" '[[ "$OUT" == *"Status: 400"* ]]'
+call /treino/admin/news/preview POST '{"body":"## Oi\n\n- x"}'
+ck "preview do admin renderiza (<h2>)" '[[ "$(jq -r .html_b64 <<<"$BODY" | base64 -d)" == *"<h2"* ]]'
+OUT="$(PATH_INFO=/treino/admin/news/preview REQUEST_METHOD=POST HTTP_AUTHORIZATION="Bearer reg" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" NEWSDIR="$ND" bash "$ROUTER" <<<'{"body":"x"}' 2>&1)"
+ck "preview sem admin -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
+call /treino/admin/news/delete POST "{\"key\":\"$LKEY\"}"
+call /treino/admin/news/delete POST "{\"key\":\"$EKEY\"}"
+
 echo "== deslogar e travar (gera auditoria) =="
 call /treino/admin/logout-user POST '{"login":"victim"}'
 call /treino/admin/lock-user   POST '{"login":"victim"}'

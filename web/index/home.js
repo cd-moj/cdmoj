@@ -53,12 +53,16 @@ async function loadContests() {
   renderContests();
 }
 
+// notícia LOCAL (sem url) abre o detalhe em /noticias/?id=<key>; externa aponta p/ fora
+function newsHref(n) { return (n.is_local || !n.url) ? ('/noticias/?id=' + encodeURIComponent(n.key || n.id || '')) : n.url; }
+function newsTarget(n) { return (n.is_local || !n.url) ? {} : { target: '_blank', rel: 'noopener' }; }
+
 async function loadNews() {
   const fn = document.getElementById('featuredNews');
   let j;
   try { j = await apiGet('/index/news', {}); }
   catch { document.getElementById('news').classList.add('hidden'); if (fn) fn.innerHTML = '<div class="muted small">sem notícias</div>'; return; }
-  const items = j.items || j.news || [];
+  const items = j.news || j.items || [];
   // destaque: a notícia mais recente, num card no topo (no lugar do hero gigante)
   if (fn) {
     fn.innerHTML = '';
@@ -67,19 +71,21 @@ async function loadNews() {
       const n = items[0];
       fn.append(
         el('span', { class: 'fn-tag' }, '📰 Em destaque'),
-        el('a', { class: 'fn-title', href: n.url || '#' }, n.title || ''),
+        el('a', { class: 'fn-title', href: newsHref(n), ...newsTarget(n) }, n.title || ''),
         el('span', { class: 'fn-date small muted' }, fmtDate(n.date)),
-        el('div', { class: 'fn-sum' }, n.summary || ''));
+        el('div', { class: 'fn-sum' }, n.summary || ''),
+        el('a', { class: 'small', href: '/noticias/', style: 'margin-top:.45rem; font-weight:600' }, 'ver todas as notícias →'));
     }
   }
   // demais notícias na seção de baixo (sem repetir a destacada)
   const rest = items.slice(1);
   const box = document.getElementById('newslist'); box.innerHTML = '';
-  if (!rest.length) { box.innerHTML = '<span class="muted small">sem outras notícias</span>'; return; }
+  if (!rest.length) { box.innerHTML = '<span class="muted small">sem outras notícias — <a href="/noticias/">ver todas</a></span>'; return; }
   rest.forEach(n => box.append(el('div', { style: 'margin:.5rem 0' },
-    el('div', {}, el('a', { href: n.url || '#', style: 'font-weight:700' }, n.title || ''),
+    el('div', {}, el('a', { href: newsHref(n), ...newsTarget(n), style: 'font-weight:700' }, n.title || ''),
       ' ', el('span', { class: 'small muted' }, fmtDate(n.date))),
     el('div', { class: 'small' }, n.summary || ''))));
+  box.append(el('div', { style: 'margin-top:.6rem' }, el('a', { class: 'small', href: '/noticias/', style: 'font-weight:600' }, 'ver todas as notícias →')));
 }
 
 async function loadTraining() {

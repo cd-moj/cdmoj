@@ -18,6 +18,8 @@ id_rsa*
 
 # === dados: fonte da verdade, fora do versionamento (têm senhas/submissões) ===
 /contests/
+# notícias/posts: conteúdo de runtime (criado/editado pelo admin), muda com frequência
+/server/var/news/
 
 # === legado e repositórios com identidade própria (ancorados na raiz) ===
 /old/
