@@ -22,9 +22,10 @@ if ! reg_touch_state "$host" "$state"; then
   exit 0
 fi
 
-# manutenção barata e auto-throttled (promove famintos, requeue de mortos)
+# manutenção barata e auto-throttled (promove famintos, requeue de jobs E calibrações de mortos)
 q_promote_starved
 q_reconcile
+upd_reconcile
 
 # inventário mudou? pede re-registro
 stored_hash="$(jq -r '.inv_hash // empty' "$REGISTRYDIR/$host.json" 2>/dev/null)"

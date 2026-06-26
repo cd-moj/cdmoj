@@ -12,6 +12,7 @@
 : "${UPDATESDIR:=$RUNDIR/updates}"          # pedidos de atualização de repositório
 : "${REG_TTL:=30}"                          # s; heartbeat mais velho = worker morto
 : "${ASSIGN_TTL:=120}"                      # s; job reivindicado sem novo beat volta p/ fila
+: "${UPD_TTL:=1800}"                         # s; calibração reivindicada e não terminada volta p/ pending
 : "${STARVE_SECS:=300}"                     # s; promove de banda após esse tempo
 : "${COLD_GRACE:=8}"                        # s; modelo cache: juiz que NÃO tem o problema
                                             # só reivindica após isso (dá vez aos quentes)
@@ -241,12 +242,44 @@ upd_claim() {
     while IFS= read -r f; do
       [[ -f "$f" ]] || continue
       base="$(basename "$f")"; dest="$UPDATESDIR/inprogress/$host/$base"
-      if mv "$f" "$dest" 2>/dev/null; then cat "$dest"; exit 0; fi
+      if mv "$f" "$dest" 2>/dev/null; then
+        local tmp="$dest.tmp"   # carimba claimed_at p/ o upd_reconcile detectar pedido preso
+        jq -c --argjson now "$EPOCHSECONDS" '. + {claimed_at:$now}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+        cat "$dest"; exit 0
+      fi
     done < <(find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
   ) 9>"$UPDATESDIR/.lock"
 }
 
 upd_done() { rm -f "$UPDATESDIR/inprogress/$1/$2.json" 2>/dev/null; }   # $1=host $2=reqid
+
+# upd_reconcile : devolve à fila (pending) calibrações que ficaram presas em inprogress —
+# host morreu (reiniciou no meio) ou passou de UPD_TTL sem terminar. Sem isto, uma calibração
+# interrompida trava p/ sempre e a fila seca ("calibração não é refeita"). Auto-throttle (~15s).
+upd_reconcile() {
+  mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress" 2>/dev/null
+  local now=$EPOCHSECONDS stamp="$UPDATESDIR/.reconcile-stamp" last=0
+  [[ -f "$stamp" ]] && last="$(<"$stamp")"
+  (( now - last < 15 )) && return 0
+  printf '%s' "$now" > "$stamp"
+  local live; live=" $(reg_live_hosts | tr '\n' ' ') "
+  (
+    flock 9 || exit 0
+    local hostdir host f base cat_at
+    while IFS= read -r hostdir; do
+      [[ -d "$hostdir" ]] || continue
+      host="$(basename "$hostdir")"
+      while IFS= read -r f; do
+        [[ -f "$f" ]] || continue
+        base="$(basename "$f")"
+        cat_at="$(jq -r '.claimed_at // .requested_at // 0' "$f" 2>/dev/null)"
+        if [[ "$live" != *" $host "* ]] || (( now - cat_at > UPD_TTL )); then
+          mv -f "$f" "$UPDATESDIR/pending/$base" 2>/dev/null
+        fi
+      done < <(find "$hostdir" -maxdepth 1 -name '*.json' 2>/dev/null)
+    done < <(find "$UPDATESDIR/inprogress" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+  ) 9>"$UPDATESDIR/.lock"
+}
 
 # upd_pending_count : nº de updates pendentes (não reivindicados).
 upd_pending_count() { find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l; }
