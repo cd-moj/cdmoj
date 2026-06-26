@@ -64,7 +64,7 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 | `/problems/collections` | GET | `{collections:[{name,count,public}]}` — coleções com contagem total/pública |
 | `/problems/get?id=<id>` | GET | detalhe: índice + `validation` (relatório do portão) + `statement_html_b64`/`tags`/`time_limits` |
 | `/problems/validation?id=<id>` | GET | último relatório de validação `{checks:[{name,ok,detail}],html_built,render_warnings,ok}` |
-| `/problems/publish` | POST `{id}` | enfileira **validação + index** (1 juiz pega no heartbeat; portão: HTML compila + exemplos + `good` aceita) |
+| `/problems/publish` | POST `{id}` | enfileira **validação + index** (1 juiz pega no heartbeat; portão: HTML compila + seções `## Entrada`/`## Saída` + exemplos + `good` aceita) |
 | `/problems/request-calibration` | POST `{id}` | enfileira **calibração** (juiz roda `calibreitor.sh`, gera `tl.<host>`) |
 
 ### Autoria (escrita keyless — git escondido, commit autorado pelo login via `git-broker.sh`)
@@ -72,16 +72,19 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 |---|---|---|
 | `/problems/repos` | GET | diretórios do autor (dono/colaborador) `{repos:[{repo,owner,collaborators,collections,mine}]}` |
 | `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
-| `/problems/source?id=<id>` | GET | **source** editável `{editable,enunciado_md,author,tags,conf_text,public,collections,examples,tests,sols.good}` (Gitea=editável; legado=read-only) |
-| `/problems/preview` | POST `{enunciado_md, enunciado_format?, examples?}` | **pré-visualização** HTML — pandoc `-f md/org/tex --mathml -s` (preserva o formato), injeta exemplos → `{html_b64}` |
+| `/problems/source?id=<id>` | GET | **source** editável `{editable,title,enunciado_md,enunciado_format,author,tags,conf_text,public,collections,examples,tests,sols{good,slow,wrong,pass,upcoming},score,editorial_md}` (Gitea=editável; legado=read-only). Cada `examples[i]` traz `explanation` (opcional); `editorial_md` = resolução só p/ setter |
+| `/problems/preview` | POST `{enunciado_md, enunciado_format?, examples?, title?}` | **pré-visualização** HTML (= o renderizador único `render-statement.sh`, idêntico ao servido) — injeta o **título** (h1) e os exemplos (cada um com `explanation` opcional) → `{html_b64}` |
 | `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
 | `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um pacote (`.tar`/`.tar.gz`/`.tar.bz2`/`.tar.zst`/`.zip`) e **substitui tudo** (commit+push) — máquinas sem git / offline |
 | `/problems/export?id=<id>` | GET | baixa o problema como **pacote ICPC/Kattis** (2025-09) `.tar.gz` (problem.yaml+statement+data+submissions); inclui soluções → exige escrita/admin (`mojtools/kattis/export.sh`) |
 | `/problems/import` | POST `{repo, prob?, tar_b64}` | **importa** um pacote ICPC/Kattis (`mojtools/kattis/import.sh`) → cria um problema MOJ julgável (checker custom via bridge); exige permissão de criação. Round-trip sem perda via `.kattis.json` |
 
-> `source`/`create`/`edit` cobrem o pacote inteiro: `enunciado_md`, `conf_text` (TL/ulimits/
-> STOPWHEN/…, ver `saad-problems/README.org`), `examples` (sample), `tests` (ocultos) e `sols`
-> por categoria `{good,wrong,slow,pass,upcoming}` (cada `[{filename,code}]`).
+> `source`/`create`/`edit` cobrem o pacote inteiro: `title` (vem do **campo**, não de `% Título`
+> no texto — o render injeta o h1), `enunciado_md`, `conf_text` (TL/ulimits/STOPWHEN/…, ver
+> `saad-problems/README.org`), `examples` (sample; cada um aceita `explanation` opcional →
+> `docs/sample-notes.json`, mostrada após o exemplo), `tests` (ocultos), `sols` por categoria
+> `{good,wrong,slow,pass,upcoming}` (cada `[{filename,code}]`), `score` (grupos de pontuação) e
+> `editorial_md` (resolução em markdown → `docs/solucao.md`, **só p/ setter**, não vai ao aluno).
 | `/problems/create` | POST `{repo,prob,enunciado_md?,author?,tags?,examples?,good_sol?,title?,...}` | cria problema novo; commit+push; `{id,sha}` |
 | `/problems/edit` | POST `{id, ...campos}` | edita (só campos presentes); commit+push autorado |
 | `/problems/set-public` | POST `{id, public:bool}` | marca público no `.moj-meta.json` (+ enfileira validação se `true`) |
