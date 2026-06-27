@@ -33,7 +33,9 @@ fi
 
 # MESMO renderizador usado p/ servir o enunciado ao aluno (render-statement.sh): o que você
 # pré-visualiza é exatamente o que é gerado no índice do treino (gen-problem-json.sh).
-out="$(bash "$MOJTOOLS_DIR/render-statement.sh" "$tmp/e.$fmt" "$fmt" "$exf" "$title")"
-
+bash "$MOJTOOLS_DIR/render-statement.sh" "$tmp/e.$fmt" "$fmt" "$exf" "$title" > "$tmp/out.html" 2>/dev/null
+[[ -s "$tmp/out.html" ]] || fail 500 "Falha ao renderizar o enunciado" "render_fail"
+# b64 em ARQUIVO -> --rawfile: statement grande (ex.: ~1.5MB) estourava o ARG_MAX no --arg -> preview vazio.
+base64 -w0 < "$tmp/out.html" | tr -d '\n' > "$tmp/h.b64"
 emit_json 200 OK
-jq -cn --arg h "$(printf '%s' "$out" | base64 -w0)" '{success:true, html_b64:$h}'
+jq -cn --rawfile h "$tmp/h.b64" '{success:true, html_b64:$h}'
