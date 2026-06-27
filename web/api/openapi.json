@@ -3562,6 +3562,58 @@
         }
       }
     },
+    "/problems/delete": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "REMOVE um problema (git rm + push) e do treino — destrutivo; confirm tem de repetir o id",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "confirm": {
+                    "type": "string",
+                    "description": "Confirmação por escrito: tem de ser EXATAMENTE igual a id."
+                  }
+                },
+                "required": [
+                  "id",
+                  "confirm"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{action:'delete', id}"
+          },
+          "400": {
+            "description": "confirm_mismatch (confirm != id) ou id inválido"
+          },
+          "403": {
+            "description": "sem permissão de escrita"
+          }
+        }
+      }
+    },
     "/problems/set-public": {
       "post": {
         "tags": [

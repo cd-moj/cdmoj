@@ -88,11 +88,12 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 > `editorial_md` (resolução em markdown → `docs/solucao.md`, **só p/ setter**, não vai ao aluno).
 | `/problems/create` | POST `{repo,prob,enunciado_md?,author?,tags?,examples?,good_sol?,title?,...}` | cria problema novo; commit+push; `{id,sha}` |
 | `/problems/edit` | POST `{id, ...campos}` | edita (só campos presentes); commit+push autorado |
+| `/problems/delete` | POST `{id, confirm}` | **REMOVE** o problema (git rm da subpasta + push) e do treino. **Destrutivo**: `confirm` tem de repetir EXATAMENTE o `id`. Dono/colaborador ou admin |
 | `/problems/set-public` | POST `{id, public:bool}` | marca público no `.moj-meta.json` (+ enfileira validação se `true`) |
 | `/problems/set-collections` | POST `{id, collections:[...]}` | define coleções no `.moj-meta.json` |
 | `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (colaborador Gitea; só o dono gerencia) |
 | `/problems/collection-create` | POST `{name, members?, admins?, title?}` | cria uma **coleção** (competição/curso) com **setters** e co-**admins** (exige permissão de criação) |
-| `/problems/collection-members` | GET `?name` / POST `{name,add?,remove?,admins_add?,admins_remove?}` | dono **ou co-admin** gerencia setters E admins; propaga acesso aos repos com problema na coleção |
+| `/problems/collection-members` | GET `?name` / POST `{name,add?,remove?,admins_add?,admins_remove?}` | resposta inclui `repo_course`. **Registrada**: dono/co-admin gerencia setters+admins; propaga acesso aos repos. **Repo-curso** (coleção = repo homônimo): setters = **colaboradores do repo** (add/remove = colaborador; sem co-admins) |
 
 > **Quem pode criar** (problemas/pastas/coleções) = mesma regra de criar contest
 > (`cc_can_create`: `.admin` ou allowlist ou ≥ N resolvidos, menos a denylist) — gerida em

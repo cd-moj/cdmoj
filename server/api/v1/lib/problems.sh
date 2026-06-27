@@ -75,6 +75,12 @@ authored_set_repo_collabs(){
       'with_entries(if .value.repo==$r then .value.collaborators=$cb else . end)' <<<"$cur" ) \
     > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
 }
+# authored_remove <id> — tira a entrada do overlay (problema removido -> some na hora das listas)
+authored_remove(){
+  local f="$AUTHORED_INDEX" cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
+  tmp="$f.tmp.$$"
+  ( umask 077; jq --arg id "$1" 'del(.[$id])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
+}
 
 # norm <txt> -> minúsculas, sem acento, só [a-z0-9 ] (espelha gen-problem-owners.sh)
 prob_norm(){ printf '%s' "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9 ' ' ' | tr -s ' '; }

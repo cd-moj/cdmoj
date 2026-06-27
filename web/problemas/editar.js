@@ -686,12 +686,17 @@ function renderCollManage() {
       aList.innerHTML = ''; aList.append('co-admins: '); (c.admins || []).forEach(u => aList.append(collChip(u, () => collUpdate(n, { admins_remove: [u] }))));
     };
     c._draw = draw; draw();
-    box.append(el('div', { style: 'border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.4rem .6rem;margin:.3rem 0' },
-      el('div', {}, el('b', {}, '⚙ ' + n), el('span', { class: 'small muted' }, c.mine ? '  (você é dono)' : '  (você é co-admin)')),
+    const header = el('div', {}, el('b', {}, '⚙ ' + n),
+      el('span', { class: 'small muted' }, c.mine ? '  (você é dono)' : '  (você gerencia)'));
+    if (c.repo_course) header.append(el('span', { class: 'small muted' }, '  · curso/diretório: setters = colaboradores do repo'));
+    const rows = [header,
       el('div', { class: 'row', style: 'gap:.4rem;align-items:center;margin:.2rem 0;flex-wrap:wrap' }, sInp,
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => { const u = sInp.value.trim(); if (u) { collUpdate(n, { add: [u] }); sInp.value = ''; } } }, '+ setter'), sList),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => { const u = sInp.value.trim(); if (u) { collUpdate(n, { add: [u] }); sInp.value = ''; } } }, '+ setter'), sList)];
+    // repo-curso não tem tier de co-admin (só dono + colaboradores); registrada sim
+    if (!c.repo_course) rows.push(
       el('div', { class: 'row', style: 'gap:.4rem;align-items:center;margin:.2rem 0;flex-wrap:wrap' }, aInp,
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => { const u = aInp.value.trim(); if (u) { collUpdate(n, { admins_add: [u] }); aInp.value = ''; } } }, '+ co-admin'), aList)));
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => { const u = aInp.value.trim(); if (u) { collUpdate(n, { admins_add: [u] }); aInp.value = ''; } } }, '+ co-admin'), aList));
+    box.append(el('div', { style: 'border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.4rem .6rem;margin:.3rem 0' }, ...rows));
   });
 }
 async function collUpdate(name, patch) {
@@ -794,12 +799,26 @@ async function newDir() {
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
+async function delProblem() {
+  if (MODE !== 'edit' || !ID) return;
+  const typed = prompt('Remover é IRREVERSÍVEL (apaga do Gitea e do treino). Digite o id para confirmar: ' + ID);
+  if (typed === null) return;
+  if (typed !== ID) { setMsg('Confirmação não bateu — nada foi removido.', 'error'); return; }
+  if ($('delprob')) $('delprob').disabled = true;
+  try {
+    await apiPost('/problems/delete', { id: ID, confirm: typed }, { contest: CONTEST, auth: true });
+    setMsg('Problema removido ✓', 'v-ok');
+    setTimeout(() => { location.href = './'; }, 800);
+  } catch (e) { setMsg(e.message, 'error'); if ($('delprob')) $('delprob').disabled = false; }
+}
+
 async function loadSource(id, j) {
   if (!j) j = await apiGet('/problems/source?id=' + encodeURIComponent(id), { contest: CONTEST, auth: true });
   EDITABLE = j.editable; OWNER = j.owner || ''; REPO = id.split('#')[0];
   $('title').textContent = 'Editar: ' + id;
   $('prob').value = id.split('#').slice(1).join('#'); $('prob').disabled = true;
   fillRepoSelect(); await renderForm(j);
+  if ($('delprob')) $('delprob').style.display = EDITABLE ? '' : 'none';   // remover só p/ quem pode editar
   if (!EDITABLE) {
     showNote('⚠ ' + (j.note || 'Somente leitura.') + ' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).');
     ['save', 'publish', 'calibrate', 'addex', 'addtest', 'uploadTar', 'scoreEnabled', 'addGroup'].forEach(b => { if ($(b)) $(b).disabled = true; });
@@ -814,6 +833,7 @@ function bindHandlers() {
   $('addtest').onclick = addTest;
   $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
   $('save').onclick = save;
+  if ($('delprob')) $('delprob').onclick = delProblem;
   $('publish').onclick = () => act('publish', 'Validar');
   $('calibrate').onclick = () => act('request-calibration', 'Calibração');
   $('newdir').onclick = newDir;
