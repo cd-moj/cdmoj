@@ -10,7 +10,7 @@ id="$(jq -r '.id // empty' <<<"$body")"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 repo="${id%%#*}"; prob="${id##*#}"
 [[ "$prob" != "$id" ]] || fail 400 "Id sem '#'" "id_invalid"
-owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || fail 404 "Problema não está no Gitea (migre antes)" "not_gitea"
+owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || fail 404 "Problema não está no Gitea" "not_gitea"
 gitea_can_write "$owner" "$repo" "$SESSION_LOGIN" || fail 403 "Sem permissão de escrita" "forbidden"
 
 tmp="$(git_broker_open "$SESSION_LOGIN" "$owner" "$repo")" || fail 502 "Falha ao abrir o repositório" "git_open"

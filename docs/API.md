@@ -53,7 +53,8 @@ Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na ses
 Backend = **Gitea** (store git), mas o autor só usa o **login do MOJ** (sem chave/git — ver
 `docs/DEPLOY-GITEA.md`). Listagens leem o índice de donos `contests/treino/var/problem-owners.json`
 (gerado por `mojtools/gen-problem-owners.sh`; regen em background, TTL `PROBLEM_OWNERS_TTL_MIN`).
-Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casamento difuso pelo nome.
+Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem dono (legado não-migrado)
+é **ignorado** no índice; `/mine` = `owner==login` (sem casamento difuso). Não há mais "legado".
 
 | Rota | Método | I/O |
 |---|---|---|
@@ -72,7 +73,7 @@ Pré-migração `owner` é `null` e `author` é texto livre — `/mine` faz casa
 |---|---|---|
 | `/problems/repos` | GET | diretórios do autor (dono/colaborador) `{repos:[{repo,owner,collaborators,collections,mine}]}` |
 | `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
-| `/problems/source?id=<id>` | GET | **source** editável `{editable,title,enunciado_md,enunciado_format,author,tags,conf_text,public,collections,examples,tests,sols{good,slow,wrong,pass,upcoming},score,editorial_md}` (Gitea=editável; legado=read-only). Cada `examples[i]` traz `explanation` (opcional); `editorial_md` = resolução só p/ setter |
+| `/problems/source?id=<id>` | GET | **source** editável `{editable,title,enunciado_md,enunciado_format,author,tags,conf_text,public,collections,examples,tests,sols{good,slow,wrong,pass,upcoming},score,editorial_md}` (dono+escrita=editável; sem escrita=read-only, **não** legado). Cada `examples[i]` traz `explanation` (opcional); `editorial_md` = resolução só p/ setter |
 | `/problems/preview` | POST `{enunciado_md, enunciado_format?, examples?, title?}` | **pré-visualização** HTML (= o renderizador único `render-statement.sh`, idêntico ao servido) — injeta o **título** (h1) e os exemplos (cada um com `explanation` opcional) → `{html_b64}` |
 | `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
 | `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um pacote (`.tar`/`.tar.gz`/`.tar.bz2`/`.tar.zst`/`.zip`) e **substitui tudo** (commit+push) — máquinas sem git / offline |

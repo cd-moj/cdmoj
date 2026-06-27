@@ -85,12 +85,12 @@ repo_owner(){ [[ -f "$REPO_REGISTRY" ]] && jq -r --arg r "$1" '.[$r].owner // em
 
 # ensure_repo_materialized <repo> [login] — espelha o repo Gitea em $MOJ_PROBLEMS_DIR/<repo>
 # (clona se faltar; senão fetch + reset --hard) para o INDEXADOR e os endpoints
-# /judge/package(-meta) acharem o pacote (pkg_path lê de MOJ_PROBLEMS_DIR). Repos LEGADOS
-# (sem dono no registro) já vivem lá -> nada a fazer. Best-effort (rc!=0 não derruba o caller).
+# /judge/package(-meta) acharem o pacote (pkg_path lê de MOJ_PROBLEMS_DIR). Repo sem dono no
+# registro = desconhecido (não-Gitea) -> nada a materializar. Best-effort (rc!=0 não derruba o caller).
 # Sem isso, um problema criado no Gitea fica invisível para os juízes ("pkg inexistente").
 ensure_repo_materialized(){
   local repo="$1" login="${2:-}" owner dst tok
-  owner="$(repo_owner "$repo")"; [[ -n "$owner" ]] || return 0   # legado: já materializado
+  owner="$(repo_owner "$repo")"; [[ -n "$owner" ]] || return 0   # repo não registrado (não-Gitea)
   declare -F git_broker_clone >/dev/null || source "$MOJTOOLS_DIR/git-broker.sh" 2>/dev/null
   declare -F git_broker_clone >/dev/null || return 1
   [[ -n "$login" ]] || login="$owner"
@@ -312,20 +312,21 @@ apply_problem_fields(){  # <pkgdir> <body-json>
     jq -r '.good_sol.code // ""' <<<"$body" | _putfile "$pkg/sols/good/$fn"
   fi
 }
-# _read_pairs <pkgdir> <sample|hidden> -> JSON array [{name,input,output}]
+# _read_pairs <pkgdir> <sample|hidden> <outfile> -> escreve NDJSON {name,input,output} (1/linha).
+# Via jq --rawfile (lê os testes de ARQUIVO); o chamador junta com --slurpfile. Sem conteúdo de
+# teste no argv (passar via --argjson estourava o ARG_MAX -> source vazio -> editor em branco).
 _read_pairs(){
-  local pkg="$1" which="$2" out='[' first=1 inp nm outp
+  local pkg="$1" which="$2" of="$3" inp nm outp
+  : > "$of"
   set +o noglob; shopt -s nullglob
   for inp in "$pkg/tests/input"/*; do
     [[ -f "$inp" ]] || continue; nm="$(basename "$inp")"
     if [[ "$which" == sample ]]; then [[ "$nm" == sample* ]] || continue
     else [[ "$nm" == sample* ]] && continue; fi
     outp="$pkg/tests/output/$nm"; [[ -f "$outp" ]] || outp=/dev/null
-    [[ $first -eq 1 ]] || out+=','; first=0
-    out+="$(jq -n --arg nm "$nm" --rawfile i "$inp" --rawfile o "$outp" '{name:$nm, input:$i, output:$o}')"
+    jq -nc --arg nm "$nm" --rawfile i "$inp" --rawfile o "$outp" '{name:$nm, input:$i, output:$o}' >> "$of"
   done
   shopt -u nullglob; set -o noglob
-  printf '%s]' "$out"
 }
 # _read_score <pkgdir> -> {enabled, groups:[{name,weight,glob}]} a partir de tests/score
 # (ignora a linha sample* dos exemplos). Ausente/vazio -> {enabled:false, groups:[]}.
@@ -349,40 +350,43 @@ read_problem_source(){
   for ef in docs/enunciado.md enunciado.md docs/enunciado.org docs/enunciado.tex; do
     [[ -f "$pkg/$ef" ]] && { enunf="$pkg/$ef"; [[ "$ef" == *.org ]] && fmt=org; [[ "$ef" == *.tex ]] && fmt=tex; break; }
   done
-  local te ta tc; te="$(mktemp)"; ta="$(mktemp)"; tc="$(mktemp)"
+  local te ta tc ted; te="$(mktemp)"; ta="$(mktemp)"; tc="$(mktemp)"; ted="$(mktemp)"
   [[ -n "$enunf" ]] && cat "$enunf" > "$te"
   [[ -f "$pkg/author" ]] && cat "$pkg/author" > "$ta"
   [[ -f "$pkg/conf" ]] && cat "$pkg/conf" > "$tc"
+  [[ -f "$pkg/docs/solucao.md" ]] && cat "$pkg/docs/solucao.md" > "$ted"   # editorial (só setters)
   local tags='[]'; [[ -f "$pkg/tags" ]] && tags="$(jq -R . "$pkg/tags" 2>/dev/null | jq -sc . 2>/dev/null)"; [[ -n "$tags" ]] || tags='[]'
   local meta='{}'; [[ -f "$pkg/.moj-meta.json" ]] && meta="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$meta" ]] || meta='{}'
-  local exs tss score; exs="$(_read_pairs "$pkg" sample)"; tss="$(_read_pairs "$pkg" hidden)"; score="$(_read_score "$pkg")"
+  local score; score="$(_read_score "$pkg")"
+  # exemplos/testes/soluções -> NDJSON em arquivos; entram no jq por --slurpfile (jq lê o arquivo).
+  # ANTES: --argjson tss "$tss" estourava o ARG_MAX em problema com muitos testes -> source VAZIO -> editor em branco.
+  local d; d="$(mktemp -d)"
+  _read_pairs "$pkg" sample "$d/exs"; _read_pairs "$pkg" hidden "$d/tss"
+  _read_sols "$pkg" good "$d/sg"; _read_sols "$pkg" slow "$d/ss"; _read_sols "$pkg" wrong "$d/sw"
+  _read_sols "$pkg" pass "$d/sp"; _read_sols "$pkg" upcoming "$d/su"
   # explicação por exemplo (docs/sample-notes.json, na ordem) -> examples[].explanation
   local notes='[]'; [[ -f "$pkg/docs/sample-notes.json" ]] && notes="$(cat "$pkg/docs/sample-notes.json" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$notes" || notes='[]'
-  local exs2; exs2="$(jq -c --argjson n "$notes" '[ to_entries[] | .value + {explanation: ($n[.key] // "")} ]' <<<"$exs" 2>/dev/null)"; [[ -n "$exs2" ]] && exs="$exs2"
-  local ted; ted="$(mktemp)"; [[ -f "$pkg/docs/solucao.md" ]] && cat "$pkg/docs/solucao.md" > "$ted"   # editorial (só setters)
-  local sg ss sw sp su
-  sg="$(_read_sols "$pkg" good)"; ss="$(_read_sols "$pkg" slow)"
-  sw="$(_read_sols "$pkg" wrong)"; sp="$(_read_sols "$pkg" pass)"; su="$(_read_sols "$pkg" upcoming)"
+  jq -cn --slurpfile all "$d/exs" --argjson n "$notes" \
+     '$all | to_entries[] | .value + {explanation: ($n[.key] // "")}' > "$d/exs2" 2>/dev/null && mv -f "$d/exs2" "$d/exs"
   jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" --rawfile editorial "$ted" \
-        --argjson tags "$tags" --argjson meta "$meta" --argjson exs "$exs" --argjson tss "$tss" \
-        --argjson sg "$sg" --argjson ss "$ss" --argjson sw "$sw" --argjson sp "$sp" --argjson su "$su" \
-        --argjson score "$score" --arg fmt "$fmt" '
+        --argjson tags "$tags" --argjson meta "$meta" --argjson score "$score" --arg fmt "$fmt" \
+        --slurpfile exs "$d/exs" --slurpfile tss "$d/tss" \
+        --slurpfile sg "$d/sg" --slurpfile ss "$d/ss" --slurpfile sw "$d/sw" --slurpfile sp "$d/sp" --slurpfile su "$d/su" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
       title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
       editorial_md:$editorial, sols:{good:$sg, slow:$ss, wrong:$sw, pass:$sp, upcoming:$su} }'
-  rm -f "$te" "$ta" "$tc" "$ted"
+  rm -rf "$d"; rm -f "$te" "$ta" "$tc" "$ted"
 }
-# _read_sols <pkgdir> <cat> -> JSON array [{filename,code}] de sols/<cat>/*
+# _read_sols <pkgdir> <cat> <outfile> -> escreve NDJSON {filename,code} (1/linha) de sols/<cat>/*
 _read_sols(){
-  local pkg="$1" cat="$2" out='[' first=1 f
+  local pkg="$1" cat="$2" of="$3" f
+  : > "$of"
   set +o noglob; shopt -s nullglob
   for f in "$pkg/sols/$cat"/*; do [[ -f "$f" ]] || continue
-    [[ $first -eq 1 ]] || out+=','; first=0
-    out+="$(jq -n --arg fn "$(basename "$f")" --rawfile code "$f" '{filename:$fn, code:$code}')"
+    jq -nc --arg fn "$(basename "$f")" --rawfile code "$f" '{filename:$fn, code:$code}' >> "$of"
   done
   shopt -u nullglob; set -o noglob
-  printf '%s]' "$out"
 }
 
 # write_meta <pkgdir> <owner> <repo> [public:true|false|""] [collections-json|""] [display_title]

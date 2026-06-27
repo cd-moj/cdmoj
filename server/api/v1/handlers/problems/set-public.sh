@@ -12,7 +12,7 @@ valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 pub="$(jq -r 'if .public==true then "true" elif .public==false then "false" else "" end' <<<"$body")"
 [[ -n "$pub" ]] || fail 400 "Missing public (bool)" "public_missing"
 repo="${id%%#*}"; prob="${id##*#}"
-owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || fail 404 "Problema não está no Gitea (migre antes)" "not_gitea"
+owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || fail 404 "Problema não está no Gitea" "not_gitea"
 gitea_can_write "$owner" "$repo" "$SESSION_LOGIN" || fail 403 "Sem permissão" "forbidden"
 
 tmp="$(git_broker_open "$SESSION_LOGIN" "$owner" "$repo")" || fail 502 "Falha ao abrir o repositório" "git_open"

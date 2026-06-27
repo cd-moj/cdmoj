@@ -10,7 +10,7 @@ valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 jq -e 'has("collections")' >/dev/null 2>&1 <<<"$body" || fail 400 "Missing collections" "collections_missing"
 colls="$(jq -c '.collections' <<<"$body")"
 repo="${id%%#*}"; prob="${id##*#}"
-owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || fail 404 "Problema não está no Gitea (migre antes)" "not_gitea"
+owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || fail 404 "Problema não está no Gitea" "not_gitea"
 gitea_can_write "$owner" "$repo" "$SESSION_LOGIN" || fail 403 "Sem permissão" "forbidden"
 
 tmp="$(git_broker_open "$SESSION_LOGIN" "$owner" "$repo")" || fail 502 "Falha ao abrir o repositório" "git_open"

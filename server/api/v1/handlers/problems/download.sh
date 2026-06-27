@@ -1,24 +1,19 @@
 # GET /problems/download?id=<id>   (Bearer) — baixa o pacote do problema (.tar.gz).
-# Inclui as SOLUÇÕES, então exige permissão de escrita (ou admin); legado só admin.
+# Inclui as SOLUÇÕES, então exige permissão de escrita (ou admin). Fonte = Gitea.
 require_method GET
 require_auth
-source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"; source "$MOJTOOLS_DIR/git-broker.sh"
+source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"
 
 id="$(param id)"; [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 repo="${id%%#*}"; prob="${id##*#}"; [[ "$prob" != "$id" ]] || fail 400 "Id sem '#'" "id_invalid"
 owner="$(problem_owner "$id")"
+[[ -n "$owner" ]] || fail 404 "Problema não está no Gitea" "not_gitea"
+gitea_can_write "$owner" "$repo" "$SESSION_LOGIN" || is_admin || fail 403 "Sem permissão (o pacote contém soluções)" "forbidden"
 
-pkg=""; tmp=""
-if [[ -n "$owner" ]] && gitea_can_write "$owner" "$repo" "$SESSION_LOGIN"; then
-  tmp="$(git_broker_open "$SESSION_LOGIN" "$owner" "$repo")" || fail 502 "Falha ao abrir o repositório" "git_open"
-  trap 'rm -rf "$tmp"' EXIT
-  pkg="$tmp/wt/$prob"
-elif is_admin; then
-  pkg="$MOJ_PROBLEMS_DIR/$repo/$prob"
-else
-  fail 403 "Sem permissão (o pacote contém soluções)" "forbidden"
-fi
+# Lê do espelho (mantido em dia a cada save); materializa na 1ª vez com o token do dono.
+pkg="$MOJ_PROBLEMS_DIR/$repo/$prob"
+[[ -d "$MOJ_PROBLEMS_DIR/$repo/.git" ]] || ensure_repo_materialized "$repo" "$owner"
 [[ -d "$pkg" ]] || fail 404 "Pacote não encontrado" "not_found"
 
 audit_log "download" "id=$id by=$SESSION_LOGIN"

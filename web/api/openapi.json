@@ -3182,7 +3182,7 @@
           "problems"
         ],
         "summary": "Source editável do pacote inteiro",
-        "description": "Gitea = editável; legado = read-only. Inclui title, examples[].explanation, sols por categoria, score e editorial_md.",
+        "description": "Fonte = Gitea. Dono/colaborador com escrita => editable:true; sem escrita => editable:false (somente leitura, NÃO legado). Inclui title, examples[].explanation, sols por categoria, score e editorial_md.",
         "security": [
           {
             "bearerAuth": []
