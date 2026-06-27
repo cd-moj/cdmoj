@@ -1,6 +1,7 @@
 # POST /problems/set-public   (Bearer)   body: {id, public:bool}
-# Marca/desmarca o problema como público (.moj-meta.json) e, ao tornar público, enfileira
-# validação+index (1 juiz pega no heartbeat; só entra no treino se o portão passar).
+# Marca/desmarca o problema como público (.moj-meta.json). Público => enfileira validação+index
+# (1 juiz pega no heartbeat; só entra no treino se o portão passar). Privado => sai do treino na
+# HORA. Atualiza o espelho p/ o editor refletir o estado certo. AÇÃO EXPLÍCITA (nunca junto do save).
 require_method POST
 require_auth
 source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"; source "$MOJTOOLS_DIR/git-broker.sh"
@@ -27,8 +28,14 @@ git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "set public=$pub 
   || fail 502 "Falha ao enviar (push)" "git_push"
 
 authored_patch "$id" '.public=($p=="true")' --arg p "$pub"
+ensure_repo_materialized "$repo" "$SESSION_LOGIN"   # espelho em dia -> o editor lê o public CERTO na hora
 reqid=""
-[[ "$pub" == "true" ]] && reqid="$(idx_request "$repo" "$id" "$SESSION_LOGIN")"
+if [[ "$pub" == "true" ]]; then
+  reqid="$(idx_request "$repo" "$id" "$SESSION_LOGIN")"   # valida no juiz; só então entra no treino
+else
+  # DESPUBLICAR: sai do treino livre NA HORA (índice servível + cache de 5min), não fica vazando
+  rm -f "$CONTESTSDIR/treino/var/jsons/$id.json" "$CONTESTSDIR/treino/var/problems.json" 2>/dev/null
+fi
 audit_log "set-public" "id=$id public=$pub reqid=$reqid"
 ok_json '{action:"set-public", id:$id, public:($p=="true"), reqid:$r}' \
   --arg id "$id" --arg p "$pub" --arg r "$reqid"

@@ -309,7 +309,11 @@
       <section class="tabpane" data-pane="pub" hidden>
         <div class="section">
           <h3>Publicação &amp; compartilhamento</h3>
-          <label class="row" style="gap:.4rem"><input type="checkbox" id="ppublic"> tornar público (treino livre) ao salvar — valida no juiz</label>
+          <div class="row" style="gap:.6rem;align-items:center;flex-wrap:wrap">
+            <span class="small">Visibilidade:</span><span id="pubState" class="pill mut">—</span>
+            <button id="pubToggle" class="btn ghost" type="button">tornar público</button>
+            <span class="small muted">público = entra no <b>treino livre</b> (visível a todos). Provas: deixe <b>privado</b> até a prova passar.</span>
+          </div>
           <div id="shareBox" class="field" style="margin-top:.6rem">
             <label>Compartilhar a pasta com (login do MOJ)</label>
             <div class="row"><input id="shareLogin" type="text" placeholder="login" style="max-width:18rem">

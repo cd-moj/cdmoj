@@ -177,7 +177,7 @@ function readyItems() {
   items.push({ tab: 'limits', label: 'Limites', s: limOK ? 'ok' : 'na' });
   items.push({ tab: 'pub', label: 'Validado', s: VAL.validated });
   items.push({ tab: 'pub', label: 'Calibrado', s: VAL.calibrated });
-  items.push({ tab: 'pub', label: 'Público', s: $('ppublic').checked ? 'ok' : 'na' });
+  items.push({ tab: 'pub', label: 'Público', s: loadedPublic ? 'ok' : 'na' });
   return items;
 }
 function updateReady() {
@@ -444,7 +444,7 @@ async function renderForm(d) {
   renderTests(d.tests || []);
   await renderSols(d.sols || { good: [{ filename: 'sol.py', code: '' }] });
   $('confRaw').value = d.conf_text || ''; confToFields($('confRaw').value);
-  loadedPublic = !!d.public; $('ppublic').checked = loadedPublic;
+  loadedPublic = !!d.public; renderPubState();
   FMT = (d.format === 'org' || d.format === 'tex') ? d.format : 'md';
   syncScore();
   renderCollChips(); renderCollManage(); updatePkgInfo();
@@ -720,6 +720,25 @@ async function newColl() {
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
+// ---- visibilidade (público) — AÇÃO EXPLÍCITA, separada do salvar -------------------------
+function renderPubState() {
+  const st = $('pubState'), btn = $('pubToggle'); if (!st || !btn) return;
+  if (loadedPublic) { st.textContent = '🌐 PÚBLICO (treino livre)'; st.style.color = '#1a7f37'; btn.textContent = 'tornar privado'; }
+  else { st.textContent = '🔒 privado (rascunho)'; st.style.color = ''; btn.textContent = 'tornar público'; }
+}
+async function togglePublic() {
+  if (MODE !== 'edit' || !ID) { setMsg('Salve o problema primeiro para poder publicar.', 'error'); return; }
+  const makePublic = !loadedPublic;
+  if (makePublic && !confirm('⚠ TORNAR PÚBLICO publica "' + ID + '" no TREINO LIVRE — fica visível a TODOS.\n\nProblemas de prova devem ficar PRIVADOS até a prova passar. Confirmar a publicação?')) return;
+  const btn = $('pubToggle'); btn.disabled = true;
+  try {
+    await apiPost('/problems/set-public', { id: ID, public: makePublic }, { contest: CONTEST, auth: true });
+    loadedPublic = makePublic; renderPubState(); updateReady();
+    setMsg(makePublic ? 'Publicado no treino livre ✓ (validação no juiz)' : 'Tornado privado ✓ (saiu do treino)', 'v-ok');
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao mudar a visibilidade'), 'error'); }
+  finally { btn.disabled = false; }
+}
+
 // ---- salvar / ações -----------------------------------------------------------------------
 async function save() {
   REPO = $('repo').value;
@@ -740,11 +759,7 @@ async function save() {
       ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
       $('prob').disabled = true; $('title').textContent = 'Editar: ' + ID;
     } else await apiPost('/problems/edit', { id: ID, ...f }, { contest: CONTEST, auth: true });
-    if ($('ppublic').checked !== loadedPublic) {
-      await apiPost('/problems/set-public', { id: ID, public: $('ppublic').checked }, { contest: CONTEST, auth: true });
-      loadedPublic = $('ppublic').checked;
-      setMsg('Salvo ✓ ' + (loadedPublic ? '· publicação enfileirada (validação no juiz)' : '· despublicado'), 'v-ok');
-    } else setMsg('Salvo ✓', 'v-ok');
+    setMsg('Salvo ✓', 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
   } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao salvar') + (e.code ? ` (${e.code})` : ''), 'error'); }
   finally { $('save').disabled = false; }
 }
@@ -823,7 +838,7 @@ async function loadSource(id, j) {
   if ($('delprob')) $('delprob').style.display = EDITABLE ? '' : 'none';   // remover só p/ quem pode editar
   if (!EDITABLE) {
     showNote('⚠ ' + (j.note || 'Somente leitura.') + ' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).');
-    ['save', 'publish', 'calibrate', 'addex', 'addtest', 'uploadTar', 'scoreEnabled', 'addGroup'].forEach(b => { if ($(b)) $(b).disabled = true; });
+    ['save', 'publish', 'calibrate', 'pubToggle', 'delprob', 'addex', 'addtest', 'uploadTar', 'scoreEnabled', 'addGroup'].forEach(b => { if ($(b)) $(b).disabled = true; });
     $('shareBox').style.display = 'none';
   }
 }
@@ -851,7 +866,7 @@ function bindHandlers() {
   $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });
   $('enunMount').addEventListener('input', updateReady);
   $('stmtToggle').onclick = toggleStmtMode;
-  $('ppublic').addEventListener('change', updateReady);
+  $('pubToggle').onclick = togglePublic;
   // pontuação por grupos
   $('scoreEnabled').addEventListener('change', () => { if ($('scoreEnabled').checked && !$('scoreGroups').children.length) addGroupRow(); syncScore(); });
   $('addGroup').onclick = () => { addGroupRow(); syncScore(); };
