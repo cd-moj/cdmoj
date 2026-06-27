@@ -466,7 +466,9 @@ async function preview() {
   const btn = $('preview'); btn.disabled = true; setMsg('Renderizando…');
   try {
     const j = await apiPost('/problems/preview', { enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(), title: $('ptitle').value.trim() }, { contest: CONTEST, auth: true });
-    $('previewFrame').srcdoc = b64ToUtf8(j.html_b64 || ''); $('previewModal').style.display = ''; setMsg('');
+    const html = b64ToUtf8(j.html_b64 || ''); const pb = $('previewBody');   // .statement-content (CSS unificado), não iframe
+    try { const d = new DOMParser().parseFromString(html, 'text/html'); pb.innerHTML = d.body ? d.body.innerHTML : html; } catch { pb.innerHTML = html; }
+    $('previewModal').style.display = ''; setMsg('');
   } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao renderizar'), 'error'); }
   finally { btn.disabled = false; }
 }
@@ -838,7 +840,7 @@ function bindHandlers() {
   $('calibrate').onclick = () => act('request-calibration', 'Calibração');
   $('newdir').onclick = newDir;
   $('preview').onclick = preview;
-  $('previewClose').onclick = () => { $('previewModal').style.display = 'none'; $('previewFrame').srcdoc = ''; };
+  $('previewClose').onclick = () => { $('previewModal').style.display = 'none'; $('previewBody').innerHTML = ''; };
   $('download').onclick = download;
   $('uploadTar').addEventListener('change', (e) => { uploadTar(e.target.files[0]); e.target.value = ''; });
   $('repo').onchange = async () => { REPO = $('repo').value; await loadShare(); };

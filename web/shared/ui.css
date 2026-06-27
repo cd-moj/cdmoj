@@ -143,6 +143,16 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 .statement-content pre code { background:none; color:inherit; padding:0; }
 .statement-content footer,.statement-content #footer { color:var(--muted); text-align:right; font-size:.95em; margin-top:2em; }
 .statement-content img { max-width:100%; border-radius:8px; }
+.statement-content h1.moj-title { color:var(--blue-dark); margin:.2rem 0 1rem; }
+.statement-content ul,.statement-content ol { padding-left:1.5em; }
+.statement-content blockquote { border-left:3px solid var(--border,#d0d7de); margin:.8em 0; padding:.1em .9em; color:var(--muted); }
+.statement-content table { border-collapse:collapse; margin:.7rem 0; }
+.statement-content th,.statement-content td { border:1px solid var(--border,#d0d7de); padding:.25rem .55rem; }
+/* exemplos (mesmo markup do render-statement.sh: .moj-exemplos / .moj-exemplo / .moj-exemplo-nota) */
+.statement-content .moj-exemplos h2 { margin-top:1.3rem; }
+.statement-content .moj-exemplo { border:1px solid var(--border,#d0d7de); border-radius:8px; padding:.2rem .85rem; margin:.7rem 0; }
+.statement-content .moj-exemplo h3,.statement-content .moj-exemplo h4 { margin:.5rem 0 .2rem; color:var(--blue-dark); }
+.statement-content .moj-exemplo-nota { margin:.1rem 0 .6rem; color:var(--muted); }
 
 /* utils */
 .muted { color:var(--muted); } .center { text-align:center; } .small { font-size:.85rem; }

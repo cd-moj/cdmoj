@@ -168,8 +168,11 @@ async function openDetail(id) {
   const stmt = el('div', { style: 'margin-top:.6rem' });
   if (j.statement_html_b64) {
     const html = b64ToUtf8(j.statement_html_b64);
-    stmt.append(el('h4', { style: 'margin:.4rem 0' }, 'Enunciado'),
-      el('iframe', { sandbox: '', srcdoc: html }));
+    // mesmo render dos demais lugares: extrai o body e injeta em .statement-content (CSS unificado
+    // do tema) — NÃO usa iframe (que mostrava o CSS embutido do pandoc, divergente)
+    const sc = el('div', { class: 'statement-content' });
+    try { const d = new DOMParser().parseFromString(html, 'text/html'); sc.innerHTML = d.body ? d.body.innerHTML : html; } catch { sc.innerHTML = html; }
+    stmt.append(el('h4', { style: 'margin:.4rem 0' }, 'Enunciado'), sc);
   } else {
     stmt.append(el('div', { class: 'small muted' }, 'Sem HTML publicado ainda (não está no treino).'));
   }
