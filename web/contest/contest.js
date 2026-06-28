@@ -345,6 +345,7 @@ function renderNotifyBanner() {
   if (!nU && !cU) { if (bar) bar.remove(); return; }
   if (!bar) { bar = el('div', { id: 'notifyBanner', class: 'notify-banner' }); mv.prepend(bar); }
   bar.innerHTML = '';
+  bar.className = 'notify-banner' + (cU > 0 ? ' urgent' : '');   // pisca enquanto houver clarification não lida
   const links = [];
   if (nU) links.push(el('a', { href: '#', onclick: (e) => { e.preventDefault(); markSeen('news'); const s = document.getElementById('newsSection'); if (s) { show('newsSection'); s.scrollIntoView({ behavior: 'smooth' }); } } },
     '📢 ' + nU + ' ' + T(nU > 1 ? 'novas notícias' : 'nova notícia', nU > 1 ? 'new posts' : 'new post')));
@@ -468,7 +469,10 @@ function toggleDetail(p, item, toggle, submitWrap) {
   if (!detail.dataset.rendered) {
     // time limits
     const tl = p.time_limits || {};
-    const keys = Object.keys(tl).sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
+    // mostra só as linguagens permitidas do problema (+ default), se houver whitelist
+    const allowed = (p.languages && p.languages.length) ? new Set(resolveLangs(p.languages).map((l) => l.id)) : null;
+    const keys = Object.keys(tl).filter((k) => k === 'default' || !allowed || allowed.has(k))
+      .sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
     if (keys.length) {
       detail.append(el('div', {},
         el('b', {}, T('Tempo-limite', 'Time Limits')),
@@ -537,7 +541,9 @@ function renderSubmitInline(p) {
 
   // ---- editor completo (montado sob demanda no detalhe) ----
   injectEditorCss();
-  const sel = el('select', {}, ...LANGS.map((l) => el('option', { value: l.id }, l.label)));
+  // linguagens deste problema: override por problema (p.languages) senão a whitelist do contest (LANGS)
+  const probLangs = (p.languages && p.languages.length) ? resolveLangs(p.languages) : LANGS;
+  const sel = el('select', {}, ...probLangs.map((l) => el('option', { value: l.id }, l.label)));
   const editorMount = el('div');
   const editorBox = el('div', { class: 'editor-box', style: 'height:520px' }, editorMount);   // ~26 linhas
   const edSteps = el('span', { class: 'submit-steps' });

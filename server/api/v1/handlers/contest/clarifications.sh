@@ -17,6 +17,7 @@ all="$( ((${#arr[@]})) && printf '%s\n' "${arr[@]}" | jq -cs 'sort_by(-.time)' |
 if [[ "$priv" == true ]]; then
   out="$all"
 else
-  out="$(jq -c --arg me "$SESSION_LOGIN" '[ .[] | select(.login==$me or (.public==true and ((.answer//"")|length)>0)) ]' <<<"$all")"
+  # usuários comuns NÃO veem quem respondeu (answered_by) — só a resposta.
+  out="$(jq -c --arg me "$SESSION_LOGIN" '[ .[] | select(.login==$me or (.public==true and ((.answer//"")|length)>0)) | del(.answered_by) ]' <<<"$all")"
 fi
 ok_json '{clarifications:$c, can_answer:$ca}' --argjson c "$out" --argjson ca "$priv"

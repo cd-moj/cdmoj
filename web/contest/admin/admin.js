@@ -2,6 +2,7 @@
 // Configurações, Problemas, Aparência/placar, Usuários, Log & sessões. Tudo auditado.
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
+import { LANGUAGES } from '/shared/languages.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 
@@ -16,6 +17,23 @@ const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + pa
 const field = (l, inp) => el('div', { class: 'field' }, el('label', {}, l), inp);
 const chk = (l, c) => el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, c, ' ' + l));
 const mkBool = (v) => { const c = el('input', { type: 'checkbox' }); c.checked = !!v; return c; };
+// download de dados p/ auditoria externa (CSV)
+function downloadText(filename, text, mime) {
+  const blob = new Blob([text], { type: (mime || 'text/plain') + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: filename }); document.body.append(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 0);
+}
+const csvCell = (v) => { const s = String(v == null ? '' : v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const toCsv = (rows) => rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+// seletor de linguagens (checkboxes a partir da lista canônica do MOJ); get() -> ids marcados
+function langPicker(selectedIds) {
+  const sel = new Set((selectedIds || []).map((x) => String(x).toLowerCase()));
+  const boxes = LANGUAGES.map((l) => { const c = mkBool(sel.has(l.id)); return { id: l.id, c }; });
+  const box = el('div', { class: 'lang-grid' }, ...boxes.map((b) => el('label', { class: 'lang-chip' }, b.c, ' ' + LANGUAGES.find((l) => l.id === b.id).label)));
+  return { el: box, get: () => boxes.filter((b) => b.c.checked).map((b) => b.id) };
+}
 
 // ============ Configurações ============
 function settingsTab() {
@@ -34,6 +52,7 @@ function settingsTab() {
       showEditor = mkBool(s.show_editor !== false), allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
       showTL = mkBool(s.show_tl !== false);
     const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
+    const langs = langPicker(s.languages || []);
     const msg = el('div', { class: 'small' });
     const save = el('button', { class: 'btn' }, 'Salvar configurações');
     save.addEventListener('click', async () => {
@@ -43,7 +62,7 @@ function settingsTab() {
         ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}), ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
         locale: locale.value, login_enabled: loginEnabled.checked, show_code: showCode.checked, show_log: showLog.checked,
         show_editor: showEditor.checked, allow_late: allowLate.checked, score_anon: scoreAnon.checked,
-        show_tl: showTL.checked, login_ua_substring: ua.value };
+        show_tl: showTL.checked, login_ua_substring: ua.value, languages: langs.get() };
       try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), p, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
     });
@@ -59,7 +78,10 @@ function settingsTab() {
       chk('Mostrar o tempo-limite dos problemas aos usuários', showTL),
       chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
       field('Gate de login por substring de UA (só não-privilegiados)', ua),
-      el('div', { class: 'row' }, save, msg));
+      el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
+      el('p', { class: 'muted small' }, 'Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)'),
+      langs.el,
+      el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
   }
   return { panel, load };
 }
@@ -96,6 +118,21 @@ function problemsTab() {
     });
     list.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
       el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Nome'), el('th', {}, 'Problema'), el('th', {}, 'Ações'))), tb)));
+    // linguagens POR problema (restringe um problema específico; vazio = herda do contest)
+    const plSel = el('select', {}, ...ps.map((p) => el('option', { value: p.letter }, p.letter + ' — ' + (p.name || p.problem_id))));
+    let picker = langPicker(ps[0].languages || []);
+    const pWrap = el('div', {}, picker.el);
+    const pMsg = el('div', { class: 'small' });
+    const sync = () => { const p = ps.find((x) => x.letter === plSel.value) || ps[0]; picker = langPicker(p.languages || []); pWrap.innerHTML = ''; pWrap.append(picker.el); };
+    plSel.addEventListener('change', sync);
+    const pSave = el('button', { class: 'btn', onclick: async () => {
+      pMsg.className = 'small'; pMsg.textContent = 'Salvando…';
+      try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), { action: 'langs', letter: plSel.value, languages: picker.get() }, G); pMsg.textContent = '✓ salvo'; loadList(); }
+      catch (e) { pMsg.className = 'small error-box'; pMsg.textContent = e.message || 'falha'; }
+    } }, 'Salvar linguagens do problema');
+    list.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens por problema'),
+      el('p', { class: 'muted small' }, 'Restringe as linguagens de UM problema. Nenhuma marcada = herda do contest.'),
+      el('div', { class: 'row' }, el('span', { class: 'small muted' }, 'Problema:'), plSel, pSave), pMsg, pWrap);
   }
   async function load() { panel.append(list, el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar'),
     el('div', { class: 'row' }, src, pid, nm, el('span', { class: 'small muted' }, 'ou'), bid, add), addMsg); await loadList(); }
@@ -218,15 +255,26 @@ function logTab() {
     }
     uaFilter.addEventListener('input', renderSessions);
     const mismatchBtn = el('button', { class: 'btn danger', onclick: async () => { if (!confirm('Deslogar todas as sessões cujo UA não bate o esperado?')) return; try { const r = await apiPost('/contest/admin/logout-mismatch?contest=' + enc(CONTEST), {}, G); alert(r.sessions_removed + ' sessão(ões) encerradas.'); loadSessions(); } catch (e) { alert(e.message || 'falha'); } } }, 'Deslogar UA divergente');
-    sBox.append(el('div', { class: 'row', style: 'margin:.3rem 0' }, uaFilter, el('button', { class: 'btn ghost', onclick: () => loadSessions() }, '↻'), mismatchBtn), sBody);
+    const dlSess = el('button', { class: 'btn ghost', title: 'Baixar sessões (CSV)', onclick: () => {
+      const rows = [['login', 'ip', 'user_agent', 'login_at', 'login_iso', 'multi_ip', 'multi_ua'],
+        ...SESS.map((s) => [s.login || '', s.ip || '', s.user_agent || '', s.login_at || '', new Date((s.login_at || 0) * 1000).toISOString(), !!s.multi_ip, !!s.multi_ua])];
+      downloadText('sessoes-' + CONTEST + '-' + stamp() + '.csv', toCsv(rows), 'text/csv');
+    } }, '⬇ CSV');
+    sBox.append(el('div', { class: 'row', style: 'margin:.3rem 0' }, uaFilter, el('button', { class: 'btn ghost', onclick: () => loadSessions() }, '↻'), mismatchBtn, dlSess), sBody);
 
     // log de acessos
     const aBox = el('div', { class: 'section' }, el('h2', {}, '📝 Log de acessos'));
     const dateInp = el('input', { type: 'date', value: todayStr() });
     const aBody = el('div', {});
+    let ACC = [];
+    const dlAcc = el('button', { class: 'btn ghost', title: 'Baixar acessos do dia (CSV)', onclick: () => {
+      const rows = [['epoch', 'datahora', 'login', 'ip', 'user_agent'],
+        ...ACC.map((x) => [x.time, new Date((x.time || 0) * 1000).toISOString(), x.login || '', x.ip || '', x.user_agent || ''])];
+      downloadText('acessos-' + CONTEST + '-' + (dateInp.value || stamp()) + '.csv', toCsv(rows), 'text/csv');
+    } }, '⬇ CSV');
     async function loadAccess() {
       aBody.innerHTML = ''; let r; try { r = await apiGet('/contest/admin/access-log?contest=' + enc(CONTEST) + '&day=' + enc(dateInp.value), G); } catch { aBody.append(el('div', { class: 'error-box' }, 'Falha.')); return; }
-      const e2 = r.entries || [];
+      const e2 = r.entries || []; ACC = e2;
       aBody.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, e2.length + ' acesso(s).'));
       if (!e2.length) { aBody.append(el('div', { class: 'muted' }, 'Sem acessos.')); return; }
       const tb = el('tbody');
@@ -234,7 +282,7 @@ function logTab() {
       aBody.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, el('thead', {}, el('tr', {}, el('th', {}, 'Data/Hora'), el('th', {}, 'Login'), el('th', {}, 'IP'), el('th', {}, 'Navegador (UA)'))), tb)));
     }
     dateInp.addEventListener('change', loadAccess);
-    aBox.append(el('div', { class: 'row', style: 'margin-bottom:.4rem' }, el('span', { class: 'small muted' }, 'Dia:'), dateInp, el('button', { class: 'btn ghost', onclick: () => loadAccess() }, '↻')), aBody);
+    aBox.append(el('div', { class: 'row', style: 'margin-bottom:.4rem' }, el('span', { class: 'small muted' }, 'Dia:'), dateInp, el('button', { class: 'btn ghost', onclick: () => loadAccess() }, '↻'), dlAcc), aBody);
 
     panel.append(sBox, aBox);
     await loadSessions(); await loadAccess();
@@ -244,6 +292,8 @@ function logTab() {
 
 // ============ Situação (dashboard ao vivo) ============
 const fmtS = (s) => { s = Math.max(0, Math.round(+s || 0)); if (s < 60) return s + 's'; const m = Math.floor(s / 60); return m + 'min' + (s % 60 ? ' ' + (s % 60) + 's' : ''); };
+const fmtClock = (e) => new Date((+e || 0) * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const vClass = (v) => /accepted/i.test(v || '') ? 'v-ok' : (/(not answered|queue|running)/i.test(v || '') ? '' : 'flag-anom');
 function dashTab() {
   const panel = el('div', { class: 'section' });
   let timer = null;
@@ -258,6 +308,8 @@ function dashTab() {
       ]);
     } catch (e) { panel.innerHTML = ''; panel.append(el('h2', {}, '📊 Situação'), el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
     const sub = d.submissions || {}, resp = sub.response || {}, j = d.judges || {};
+    const judges = j.list || [];
+    const offline = judges.filter((x) => !x.online).length;
     const online = sess ? (sess.sessions || []).length : '—', alerts = sess ? (sess.alerts || []) : [];
     panel.innerHTML = '';
     panel.append(el('h2', {}, '📊 Situação da prova'),
@@ -265,41 +317,95 @@ function dashTab() {
         card('Logados', online),
         card('Juízes online', (j.online || 0) + '/' + (j.total || 0), (j.total || 0) > 0 && (j.online || 0) === 0),
         card('Juízes ocupados', j.busy || 0),
-        card('Fila', (j.queue_depth || 0) + (j.assigned ? ' (+' + j.assigned + ')' : '')),
+        card('Fila', (j.queue_depth || 0) + (j.assigned ? ' (+' + j.assigned + ' em juiz)' : ''), (j.queue_depth || 0) > 5),
         card('Pendentes', sub.pending || 0, (sub.pending || 0) > 0),
         card('Maior espera', fmtS(sub.max_wait_s), (sub.max_wait_s || 0) > 60),
         card('Resposta média', fmtS(resp.avg_s)),
-        card('Resposta p95', fmtS(resp.p95_s))));
-    alerts.forEach((a) => panel.append(el('div', { class: 'alert' }, '⚠ ' + a.login + ' logado de '
-      + [a.multi_ip && 'IPs diferentes', a.multi_ua && 'máquinas/navegadores diferentes'].filter(Boolean).join(' e ') + '.')));
-    // pendentes
+        card('Resposta p95', fmtS(resp.p95_s), (resp.p95_s || 0) > 120)));
+
+    // ações sugeridas (palpáveis): só aparecem quando há algo a fazer
+    const actions = [];
+    if ((j.total || 0) === 0) actions.push('Nenhum juiz registrado — nada será julgado. Suba um agente de juiz.');
+    else if ((j.online || 0) === 0) actions.push('Todos os juízes estão OFFLINE — submissões não serão julgadas. Verifique os agentes.');
+    else if (offline > 0) actions.push(offline + ' juiz(es) offline — capacidade reduzida.');
+    if ((sub.pending || 0) > 0 && (j.online || 0) > 0 && (j.busy || 0) === 0 && (sub.max_wait_s || 0) > 60)
+      actions.push('Há pendências esperando >1min mas nenhum juiz ocupado — possível problema de fila/roteamento.');
+    if ((sub.max_wait_s || 0) > 180) actions.push('Submissão esperando ' + fmtS(sub.max_wait_s) + ' — investigar o juiz/linguagem.');
+    alerts.forEach((a) => actions.push(a.login + ' logado de ' + [a.multi_ip && 'IPs', a.multi_ua && 'máquinas/navegadores'].filter(Boolean).join(' e ') + ' diferentes (possível conta compartilhada).'));
+    if (actions.length) panel.append(el('div', { class: 'section', style: 'background:#fff7ec;border:1px solid #f3c08e' },
+      el('b', {}, '⚠ Atenção'), el('ul', { style: 'margin:.3rem 0 0; padding-left:1.2rem' }, ...actions.map((a) => el('li', {}, a)))));
+
+    // saúde dos juízes (por host)
+    panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '🖥️ Juízes (' + judges.length + ')'));
+    if (!judges.length) panel.append(el('div', { class: 'flag-anom' }, 'Nenhum juiz registrado.'));
+    else {
+      const tb = el('tbody');
+      judges.forEach((x) => tb.append(el('tr', {},
+        el('td', {}, el('span', { class: x.online ? '' : 'flag-anom' }, (x.online ? '🟢 ' : '🔴 ') + x.host)),
+        el('td', { class: 'small' }, x.state || '—'),
+        el('td', { class: 'small' + (x.online ? '' : ' flag-anom') }, x.online ? 'online' : ('offline há ' + fmtS(x.age_s))),
+        el('td', { class: 'small' }, String(x.problems_count || 0) + ' probs'),
+        el('td', { class: 'small ua' }, (x.langs || []).join(' ')))));
+      panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Juiz'), el('th', {}, 'Estado'), el('th', {}, 'Visto'), el('th', {}, 'Cache'), el('th', {}, 'Linguagens'))), tb)));
+    }
+
+    // pendentes (ação: quem está esperando, há quanto tempo)
     const pend = sub.pending_list || [];
     panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '⏳ Pendentes (' + pend.length + ')'));
     if (!pend.length) panel.append(el('div', { class: 'muted' }, 'Nenhuma submissão aguardando o juiz.'));
     else {
       const tb = el('tbody');
       pend.forEach((p) => tb.append(el('tr', {}, el('td', {}, p.login), el('td', {}, p.problem),
-        el('td', { class: 'small' }, fmtDate(p.submitted_at)),
-        el('td', { class: p.waiting_s > 60 ? 'flag-anom' : '' }, fmtS(p.waiting_s)))));
+        el('td', { class: 'small' }, fmtClock(p.submitted_at)),
+        el('td', { class: p.waiting_s > 120 ? 'flag-anom' : (p.waiting_s > 30 ? 'flag-warn' : '') }, fmtS(p.waiting_s)))));
       panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, 'Prob'), el('th', {}, 'Enviado'), el('th', {}, 'Esperando'))), tb)));
     }
-    // timeline (submissões × espera por minuto), destacando picos
+
+    // atividade por problema
+    const pp = (sub.per_problem || []).filter((x) => x.submits > 0);
+    if (pp.length) {
+      panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '📚 Por problema'));
+      const tb = el('tbody');
+      pp.forEach((x) => tb.append(el('tr', {}, el('td', {}, el('b', {}, x.problem)),
+        el('td', {}, String(x.submits)), el('td', { class: x.pending ? 'flag-anom' : '' }, String(x.pending)), el('td', {}, String(x.accepted)))));
+      panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Prob'), el('th', {}, 'Subs'), el('th', {}, 'Pend'), el('th', {}, 'AC'))), tb)));
+    }
+
+    // submissões recentes (feed palpável)
+    const recent = sub.recent || [];
+    if (recent.length) {
+      panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '🧾 Submissões recentes'));
+      const tb = el('tbody');
+      recent.forEach((x) => tb.append(el('tr', {}, el('td', { class: 'small' }, fmtClock(x.at)),
+        el('td', {}, x.login), el('td', {}, x.problem),
+        el('td', {}, el('span', { class: vClass(x.verdict) }, x.verdict || '—')),
+        el('td', { class: 'small' }, x.response_s != null ? fmtS(x.response_s) : (x.pending ? '⏳' : '—')))));
+      panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Hora'), el('th', {}, 'Login'), el('th', {}, 'Prob'), el('th', {}, 'Veredicto'), el('th', {}, 'Resposta'))), tb)));
+    }
+
+    // timeline (submissões/min + espera média), escala correta sobre as barras visíveis
     const tl = sub.timeline || [];
     if (tl.length) {
-      const maxS = Math.max(1, ...tl.map((b) => b.submits));
-      panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '📈 Submissões × espera (por minuto)'));
-      const rows = tl.slice(-30).map((b) => {
-        const peak = (b.avg_wait_s >= 60) && (b.submits >= Math.max(2, maxS * 0.5));
+      const maxS = Math.max(1, ...tl.map((b) => b.submits || 0));
+      const maxW = Math.max(1, ...tl.map((b) => b.avg_wait_s || 0));
+      panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '📈 Atividade (submissões/min e espera média)'));
+      const rows = tl.map((b) => {
+        const peak = (b.avg_wait_s || 0) >= Math.max(30, maxW * 0.7) && (b.submits || 0) >= Math.max(2, maxS * 0.5);
         return el('div', { class: 'spark-row' + (peak ? ' peak' : '') },
-          el('span', { class: 'spark-t small' }, new Date(b.t * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })),
-          el('span', { class: 'spark-bar', style: 'width:' + Math.round(100 * b.submits / maxS) + '%' }),
-          el('span', { class: 'small muted' }, b.submits + ' sub · espera ~' + fmtS(b.avg_wait_s)));
+          el('span', { class: 'spark-t small' }, fmtClock(b.t).slice(0, 5)),
+          el('span', { class: 'spark-bar', style: 'width:' + Math.round(100 * (b.submits || 0) / maxS) + '%' }),
+          el('span', { class: 'small muted' }, (b.submits || 0) + ' sub · espera ~' + fmtS(b.avg_wait_s) + (peak ? ' ⬅ pico' : '')));
       });
-      panel.append(el('div', { class: 'spark' }, ...rows));
+      panel.append(el('div', { class: 'spark' }, ...rows),
+        el('div', { class: 'small muted', style: 'margin-top:.2rem' }, 'Barra ∝ submissões no minuto (máx visível = ' + maxS + ').'));
     }
+
     panel.append(el('div', { class: 'small muted', style: 'margin-top:.6rem' },
-      'Janela: últimas ' + (d.window || 0) + ' submissões · atualizado ' + fmtDate(d.now) + ' · auto-refresh 12s'));
+      'Janela: últimas ' + (d.window || 0) + ' submissões · atualizado ' + fmtClock(d.now) + ' · auto-refresh 12s'));
   }
   async function load() {
     await refresh();
@@ -318,6 +424,12 @@ function auditTab() {
     const fAction = el('input', { type: 'search', placeholder: 'ação/veredicto…', style: 'width:170px' });
     const fSince = el('input', { type: 'date' });
     const body = el('div', {});
+    let lastEvents = [];
+    const dl = el('button', { class: 'btn ghost', title: 'Baixar (CSV) para auditoria externa', onclick: () => {
+      const rows = [['epoch', 'datahora', 'tipo', 'quem', 'acao', 'detalhes'],
+        ...lastEvents.map((x) => [x.time, new Date(x.time * 1000).toISOString(), x.kind, x.who || '', x.action || '', x.details || ''])];
+      downloadText('auditoria-' + CONTEST + '-' + stamp() + '.csv', toCsv(rows), 'text/csv');
+    } }, '⬇ CSV');
     async function run() {
       body.innerHTML = '';
       const qp = new URLSearchParams();
@@ -327,7 +439,7 @@ function auditTab() {
       let r;
       try { r = await apiGet('/contest/admin/audit-log?contest=' + enc(CONTEST) + (qp.toString() ? '&' + qp.toString() : ''), G); }
       catch (e) { body.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
-      const ev = r.events || [];
+      const ev = r.events || []; lastEvents = ev;
       body.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, ev.length + ' evento(s).'));
       if (!ev.length) { body.append(el('div', { class: 'muted' }, 'Nada encontrado.')); return; }
       const tb = el('tbody');
@@ -343,7 +455,7 @@ function auditTab() {
     [fUser, fAction, fSince].forEach((i) => i.addEventListener('change', run));
     panel.append(el('div', { class: 'row', style: 'margin-bottom:.4rem' },
       el('span', { class: 'small muted' }, 'Filtros:'), fUser, fAction, el('span', { class: 'small muted' }, 'desde'), fSince,
-      el('button', { class: 'btn ghost', onclick: run }, '↻')), body);
+      el('button', { class: 'btn ghost', onclick: run }, '↻'), dl), body);
     await run();
   }
   return { panel, load };

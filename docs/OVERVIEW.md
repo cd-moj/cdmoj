@@ -98,15 +98,20 @@ pelo `score/build.sh`), já que o pipeline assíncrono não escreve os `.d/<pidx
 `/contest/updates`) e vê o **tempo-limite** por linguagem no detalhe do problema (ocultável pelo
 admin). Telas internas:
 
-- **`/contest/admin/`** — hub com sub-abas: **Situação** (painel ao vivo: logados, alerta de
-  multi-sessão, juízes online/ocupados + fila, pendentes com tempo de espera, métricas avg/p95 e
-  timeline com picos — `/contest/admin/dashboard`, auto-refresh), **Configurações** (tempos, login
-  on/off, abertura, freeze, toggles editor/log/código/**tempo-limite**/anônimo, gate de UA),
+- **`/contest/admin/`** — hub com sub-abas: **Situação** (painel ao vivo e acionável: logados +
+  alerta de multi-sessão, **ações sugeridas**, **saúde por juiz** (online/offline/cache/linguagens),
+  fila, pendentes com tempo de espera, **submissões recentes**, **por problema**, métricas avg/p95
+  e timeline com picos — `/contest/admin/dashboard`, auto-refresh; downloads CSV em Auditoria/Log),
+  **Configurações** (tempos, login on/off, abertura, freeze, toggles editor/log/código/**tempo-limite**/anônimo,
+  gate de UA, **linguagens permitidas do contest**),
   **Problemas** (add/remover/reordenar/renomear), **Aparência** (cores/Sonic, países/escolas,
   regiões, básico), **Usuários** (add/reset/remover/**deslogar**/**desabilitar**/**troca de senha
   geral**), **Log & sessões** (sessões com **alerta de UA/IP diferente**, deslogar, filtro/deslogar
   por UA, log de acessos), **Auditoria** (feed cronológico unificado: ações de admin + logins +
-  submissões/rejulgar — `/contest/admin/audit-log`, filtrável). Criação **não sobrescreve** a conta
+  submissões/rejulgar — `/contest/admin/audit-log`, filtrável + download CSV). **Problemas** também
+  edita as **linguagens permitidas por problema** (`problem-langs.json`), que o editor do aluno e a
+  tabela de tempo-limite respeitam. **Rejulgar** (aba "todas submissões") agora reconstrói a fonte
+  arquivada e re-julga de fato (marca como pendente na Situação). Criação **não sobrescreve** a conta
   admin já existente (senha digitada respeitada; em modo compartilhado o `<login>.admin` existente é
   reutilizado).
 - **`/contest/allsubmissions/`** — todas as submissões (ver código/log, filtrar, marcar

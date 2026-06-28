@@ -10,11 +10,12 @@ source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""
+  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""
   load_contest_conf "$contest"
+  langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
-            show_tl:$stl}' \
+            show_tl:$stl, languages:$langs}' \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
@@ -24,7 +25,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson al "$([[ "$ALLOWLATEUSER" == y ]] && echo true || echo false)" \
     --arg ua "$LOGIN_UA_SUBSTRING" \
     --argjson sa "$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)" \
-    --argjson stl "$([[ "$SHOWTL" == 0 ]] && echo false || echo true)"
+    --argjson stl "$([[ "$SHOWTL" == 0 ]] && echo false || echo true)" \
+    --argjson langs "$langs_json"
   exit 0
 fi
 
@@ -64,6 +66,12 @@ if has login_ua_substring; then
   v="$(jq -r '.login_ua_substring' <<<"$body")"; v="${v//$'\n'/}"
   (( ${#v} <= 200 )) || fail 422 "substring muito longa" "ua_long"
   [[ -n "$v" ]] && setvar LOGIN_UA_SUBSTRING "$v" || delvar LOGIN_UA_SUBSTRING
+fi
+
+# whitelist de linguagens do contest (ids canônicos minúsculos, espaço-separados; vazio = todas)
+if has languages; then
+  lj="$(jq -r '(.languages // []) | map(ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$body")"
+  [[ -n "$lj" ]] && setvar LANGUAGES "$lj" || delvar LANGUAGES
 fi
 
 audit_log_to "$contest" settings "$( ((${#CH[@]})) && { IFS=,; echo "${CH[*]}"; } || echo nada )"

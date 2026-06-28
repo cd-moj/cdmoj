@@ -13,6 +13,10 @@ load_contest_conf "$contest"
 # tempo-limite por problema (do store run/tl/<id>.json), salvo se o conf ocultar (SHOWTL=0).
 source "$_DIR/lib/tl-store.sh"
 SHOW_TL=true; [[ "$SHOWTL" == 0 ]] && SHOW_TL=false
+# linguagens permitidas: override por problema (problem-langs.json) -> whitelist do contest
+# (LANGUAGES) -> [] (= todas). O front filtra o editor e a tabela de TL por essa lista.
+PLANGS='{}'; [[ -f "$CONTESTSDIR/$contest/problem-langs.json" ]] && PLANGS="$(jq -c . "$CONTESTSDIR/$contest/problem-langs.json" 2>/dev/null)"; [[ -n "$PLANGS" ]] || PLANGS='{}'
+CLANGS='[]'; [[ -n "$LANGUAGES" ]] && CLANGS="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
 
 set +o noglob
 ENUN="$CONTESTSDIR/$contest/enunciados"
@@ -60,7 +64,10 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   fi
   # tempo-limite por linguagem (máx entre juízes p/ a versão atual do pacote), salvo se oculto
   tl='{}'; [[ "$SHOW_TL" == true ]] && { tl="$(tl_store_served "$PROBLEMID" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'; }
-  args+=( --argjson tl "$tl" ); filt+=", time_limits:\$tl}"
+  # linguagens deste problema: override por problema, senão a whitelist do contest
+  plangs="$(jq -c --arg id "$PROBLEMID" '.[$id] // empty' <<<"$PLANGS" 2>/dev/null)"
+  [[ -n "$plangs" && "$plangs" != null ]] || plangs="$CLANGS"
+  args+=( --argjson tl "$tl" --argjson plangs "$plangs" ); filt+=", time_limits:\$tl, languages:\$plangs}"
 
   ITEMS+=( "$(jq -cn --arg id "$PROBLEMID" --arg short "$SHORTNAME" \
       --arg full "$FULLNAME" "${args[@]}" "$filt")" )

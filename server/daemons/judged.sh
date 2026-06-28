@@ -166,12 +166,37 @@ process_spool_file() {
     return 0
   fi
 
-  # JSON do conteúdo
-  local json; json="$(cat "$f" 2>/dev/null)"
-  if ! jq -e . >/dev/null 2>&1 <<<"$json"; then
-    log "JSON inválido em $base — movendo p/ done (descartado)"
-    mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
-    return 1
+  # comando "rejulgar": o arquivo de spool é VAZIO (só marcador). Reconstruímos a submissão
+  # original (metadados do history + fonte arquivada) e RE-JULGAMOS, atualizando a MESMA linha
+  # (match por :<id>). Sem isto o rejulgar não fazia NADA (JSON vazio -> descartado).
+  local json
+  if [[ "$comando" == rejulgar ]]; then
+    local rc rid; rc="$(cut -d: -f1 <<<"$base")"; rid="$(cut -d: -f3 <<<"$base")"
+    if ! valid_contest_id "$rc"; then log "rejulgar: contest inválido em $base"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
+    local rhist="$CONTESTSDIR/$rc/controle/history" rline
+    rline="$(grep ":$rid\$" "$rhist" 2>/dev/null | tail -n1)"
+    if [[ -z "$rline" ]]; then log "rejulgar: $rid não está no history de $rc"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
+    local r_tempo r_login r_prob r_lang r_sub
+    IFS=: read -r r_tempo r_login r_prob r_lang _ r_sub _ <<<"$rline"
+    local r_llang r_src r_b64=""
+    r_llang="$(printf '%s' "$r_lang" | tr '[:upper:]' '[:lower:]')"
+    r_src="$CONTESTSDIR/$rc/submissions/$rid-$r_login-$r_prob.${r_llang:-txt}"
+    [[ -f "$r_src" ]] && r_b64="$(base64 -w0 < "$r_src" 2>/dev/null)"
+    if [[ -z "$r_b64" ]]; then log "rejulgar: fonte ausente p/ $rid ($r_src)"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
+    # provisório "Not Answered Yet" -> aparece como PENDENTE na Situação enquanto re-julga
+    update_history "$rhist" "$rid" "$r_tempo:$r_login:$r_prob:$r_lang:Not Answered Yet:$r_sub:$rid"
+    json="$(jq -cn --arg c "$rc" --arg l "$r_login" --arg p "$r_prob" --arg lang "$r_lang" \
+      --arg b "$r_b64" --arg fn "solution.${r_llang:-txt}" --argjson t "${r_sub:-$EPOCHSECONDS}" --arg id "$rid" \
+      '{contest:$c, login:$l, problem_id:$p, filename:$fn, code_b64:$b, lang:$lang, time:$t, id:$id}')"
+    comando=submit   # daqui em diante: trata como submit (enfileira/julga + troca a linha :id)
+  else
+    # JSON do conteúdo (submit/result normais)
+    json="$(cat "$f" 2>/dev/null)"
+    if ! jq -e . >/dev/null 2>&1 <<<"$json"; then
+      log "JSON inválido em $base — movendo p/ done (descartado)"
+      mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
+      return 1
+    fi
   fi
 
   # ---- comando "result": ingestão do veredicto vindo do worker (modelo pull) ----

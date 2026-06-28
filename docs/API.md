@@ -123,7 +123,7 @@ git avançado.
 | `/contest/basic?contest=<c>` | — | `{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time,score_anon,languages[]}` (`languages` = whitelist do conf `LANGUAGES=`; `[]` = todas) |
 | `/contest/userinfo?contest=<c>` | Bearer | `{login,name, …team/país/univ/show_log opcionais}` |
 | `/contest/navbuttons?contest=<c>` | Bearer | botões por papel (`.admin`/`.judge`/`.staff`) |
-| `/contest/problems?contest=<c>` | Bearer | `{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits}]}` (`problem_id` = forma canônica `coleção#problema`, igual ao treino — é o que o juiz usa p/ achar o pacote; `time_limits` = `{lang:seg}` do store, `{}` se o conf ocultar via `SHOWTL=0`) |
+| `/contest/problems?contest=<c>` | Bearer | `{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits,languages}]}` (`problem_id` = forma canônica `coleção#problema`, igual ao treino — é o que o juiz usa p/ achar o pacote; `time_limits` = `{lang:seg}` do store, `{}` se o conf ocultar via `SHOWTL=0`; `languages` = ids permitidos do problema: override por problema → whitelist do contest → `[]` (=todas)) |
 | `/contest/news` · `/contest/resources` | Bearer | seções opcionais (vazias = ocultar) |
 | `/contest/updates?contest=<c>&news_since=&clar_since=` | Bearer | resumo leve p/ polling de notificações: `{news:{last,count,unread}, clar:{last,count,unread}}` (clar = respondidas visíveis ao usuário; `unread` = date/answered_at > since) |
 | `/contest/history?contest=<c>` | Bearer | TXT (submissões do usuário) |
@@ -149,7 +149,7 @@ git avançado.
 | `/contest/allsubmissions?contest=<c>` | GET | admin | TXT 9 campos |
 | `/contest/final-verdicts?contest=<c>` | GET | judge | lista de veredictos finais |
 | `/contest/set-verdict` | POST | judge | `{contest,problem_id,verdict,username}` |
-| `/contest/rejudge` | POST | admin | `{ids:[…]}` |
+| `/contest/rejudge` | POST | admin | `{ids:[…]}` — marca cada submissão como pendente e RE-JULGA (o daemon reconstrói a fonte arquivada + metadados do history) |
 | `/admin/adduser` | POST | admin | `{contest,login,fullname,email?,password?}` (gera senha) |
 | `/admin/passwd` | POST | admin | `{contest,login,newpass}` |
 | `/admin/contest/extend` | POST | admin | `{contest,end_epoch}` |
@@ -194,10 +194,10 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 | `/contest/admin/access-log?contest=<c>&day=` | GET | admin | log de acessos (epoch/login/ip/UA) + alertas |
 | `/contest/admin/audit-log?contest=<c>&since=&action=&user=&limit=` | GET | admin | **feed unificado** (ações de admin + logins + submissões/rejulgar) `{events:[{time,who,kind,action,details}],count}` |
 | `/contest/admin/dashboard?contest=<c>` | GET | admin | **situação ao vivo**: `{judges:{online,busy,total,queue_depth,assigned}, submissions:{total,pending,pending_list[],max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline[]}}` (janela = últimas N submissões) |
-| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/show_tl/allow_late/score_anon`, `login_ua_substring` |
-| `/contest/admin/problems?contest=<c>` | GET/POST | admin | `{action:add\|remove\|reorder\|rename,…}` (reescreve PROBS) |
+| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/show_tl/allow_late/score_anon`, `login_ua_substring`, `languages[]` (whitelist do contest, ids canônicos) |
+| `/contest/admin/problems?contest=<c>` | GET/POST | admin | GET inclui `languages` por problema; `{action:add\|remove\|reorder\|rename}` (reescreve PROBS) ou `{action:langs,letter,languages[]}` (whitelist por problema em `problem-langs.json`) |
 | `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema (letra/nome resolvidos do conf), por-linguagem, veredictos, linha do tempo. **Só usuários normais** (descarta `.admin/.judge/.staff/.mon`). Cache preguiçoso em `var/statistics.cache.json` (gerado por `server/score/stats-gen.sh`), invalidado por `history`/`conf`. |
-| `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas) |
+| `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas, **sem `answered_by`**) |
 | `/contest/clarification-ask?contest=<c>` | POST | Bearer | `{problem?,question}` |
 | `/contest/clarification-answer?contest=<c>` | POST | admin/judge/mon | `{id,answer,public?}` |
 | `/contest/admin/news?contest=<c>` | POST | admin/judge/mon | `{action:add\|remove,…}` notícias do contest |

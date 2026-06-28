@@ -33,6 +33,13 @@
       background:var(--blue-soft); color:var(--blue-dark); border:1px solid var(--blue);
       border-radius:10px; padding:.5rem .9rem; margin:.6rem .9rem 0; font-weight:600; }
     .notify-banner a { color:var(--blue-dark); text-decoration:underline; cursor:pointer; }
+    /* clarification é crítico: pisca p/ chamar atenção enquanto houver não lida */
+    .notify-banner.urgent { animation: notifyPulse 1.2s ease-in-out infinite; }
+    @keyframes notifyPulse {
+      0%,100% { background:var(--blue-soft); border-color:var(--blue); }
+      50%     { background:#ffe08a; border-color:var(--warn,#e11); box-shadow:0 0 0 3px rgba(225,17,17,.18); }
+    }
+    @media (prefers-reduced-motion: reduce) { .notify-banner.urgent { animation:none; background:#ffe08a; border-color:var(--warn,#e11); } }
     .nav-badge { display:inline-block; min-width:1.1rem; padding:0 .35rem; border-radius:999px;
       background:var(--warn,#e11); color:#fff; font-size:.72rem; font-weight:800; text-align:center; }
 
