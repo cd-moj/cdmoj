@@ -23,5 +23,6 @@ grep -v "^$login:" "$pw" 2>/dev/null > "$tmp"
 if [[ -n "$email" ]]; then printf '%s:%s:%s:%s\n' "$login" "$pass" "$full" "$email" >> "$tmp"
 else printf '%s:%s:%s\n' "$login" "$pass" "$full" >> "$tmp"; fi
 cat "$tmp" > "$pw" && rm -f "$tmp" || { rm -f "$tmp"; fail 500 "Falha ao gravar" "write_fail"; }
+audit_log_to "$contest" user-add "login=$login"
 ok_json '{saved:true, user:{login:$l, password:$p, fullname:$f, email:$e}}' \
   --arg l "$login" --arg p "$pass" --arg f "$full" --arg e "$email"

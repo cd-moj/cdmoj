@@ -15,4 +15,5 @@ grep -q "^$login:" "$pw" 2>/dev/null || fail 404 "Usuário não encontrado" "not
 tmp="$(mktemp "${pw}.XXXXXX")" || fail 500 "tmp" "tmp"
 grep -v "^$login:" "$pw" 2>/dev/null > "$tmp"
 cat "$tmp" > "$pw" && rm -f "$tmp" || { rm -f "$tmp"; fail 500 "Falha ao gravar" "write_fail"; }
+audit_log_to "$contest" user-remove "login=$login"
 ok_json '{removed:true, login:$l}' --arg l "$login"

@@ -4,13 +4,52 @@ import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
+import { LANGUAGES, langById } from '/shared/languages.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
-const LANGS = [ // [editorLang, label, ext]
-  ['c', 'C', 'c'], ['cpp', 'C++', 'cpp'], ['python', 'Python', 'py'],
-  ['java', 'Java', 'java'], ['rust', 'Rust', 'rs'], ['javascript', 'JavaScript', 'js'],
-];
+// modo "só editor" (janela dedicada aberta pelo botão ⧉ Nova janela) p/ UM problema.
+const EDITOR_ONLY = qs.get('editoronly') === '1';
+const ONLY_PROB = qs.get('prob') || '';
+
+// Linguagens: começa com TODAS as do MOJ (fonte única shared/languages.js) e é reduzida
+// à whitelist do contest (conf LANGUAGES=) depois que /contest/basic carrega (resolveLangs).
+let LANGS = LANGUAGES;
+// conf LANGUAGES= traz tokens estilo FILETYPE ("C CPP PY3 JAVA"); mapeia p/ ids canônicos.
+function normTok(t) {
+  const a = { python: 'py3', rust: 'rs', javascript: 'js', bash: 'sh', 'c++': 'cpp', cc: 'cpp', cxx: 'cpp' };
+  const k = (t || '').toLowerCase();
+  return a[k] || k;
+}
+function resolveLangs(tokens) {
+  if (!Array.isArray(tokens) || !tokens.length) return LANGUAGES;
+  const want = new Set(tokens.map(normTok));
+  const sel = LANGUAGES.filter((l) => want.has(l.id));
+  return sel.length ? sel : LANGUAGES;   // tokens exóticos (GREPE/MEPA/…) -> degrada p/ todas
+}
+
+// CSS do editor: tela cheia via <dialog> (top layer) + modo "só editor". Injetado uma vez.
+// (.editor-box/.editor-bar/.cm-mojeditor já vêm de shared/ui.css.)
+function injectEditorCss() {
+  if (document.getElementById('editor-full-css')) return;
+  const s = document.createElement('style'); s.id = 'editor-full-css';
+  s.textContent = `
+    dialog.editor-dialog{border:0;padding:0;margin:auto;background:transparent;width:96vw;height:94vh;max-width:96vw;max-height:96vh;overflow:visible}
+    dialog.editor-dialog::backdrop{background:rgba(15,23,42,.5)}
+    .editor-wrap{display:flex;flex-direction:column;gap:.3rem;margin:.4rem 0}
+    .editor-wrap.editor-full{height:100%;margin:0;background:#fff;border-radius:10px;
+      box-shadow:0 14px 50px rgba(0,0,0,.4);padding:.7rem 1rem 1rem;overflow:hidden}
+    .editor-wrap.editor-full .editor-box{flex:1;min-height:0;max-height:none;overflow:auto;margin:0}
+    .editor-wrap.editor-full .editor-box .cm-mojeditor,.editor-wrap.editor-full .editor-box .cm-editor{height:100%}
+    body.editor-only #loginView{display:none}
+    body.editor-only{margin:0;background:#fff}
+    body.editor-only #mainView>*:not(.editor-only-host){display:none}
+    body.editor-only .editor-only-host{height:100vh;display:flex;flex-direction:column;min-height:0;padding:.5rem;box-sizing:border-box}
+    body.editor-only .editor-wrap{flex:1;display:flex;flex-direction:column;min-height:0;margin:0}
+    body.editor-only .editor-box{flex:1;min-height:0;max-height:none;overflow:auto}
+    body.editor-only .editor-box .cm-mojeditor,body.editor-only .editor-box .cm-editor{height:100%}`;
+  document.head.append(s);
+}
 
 let LOCALE = 'pt';
 let basic = null;
@@ -37,6 +76,12 @@ function fmtLeft(sec) {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
   const p = (x) => String(x).padStart(2, '0');
   return h > 0 ? `${p(h)}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
+}
+// tempo-limite: segundos (string/num) -> "NNN ms" (<1s) ou "N.NNN s" (espelha o treino)
+function fmtTime(v) {
+  const n = parseFloat(v);
+  if (isNaN(n)) return String(v);
+  return n < 1 ? Math.round(n * 1000) + ' ms' : (Math.round(n * 1000) / 1000) + ' s';
 }
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
@@ -268,6 +313,59 @@ function renderResources(items) {
     el('a', { href: r.url || '#', target: '_blank' }, r.label || r.url || ''))));
 }
 
+// ---- notificações ao usuário: novidades (notícias) + clarifications respondidas ----------
+// Estado "visto" por usuário/contest em localStorage; aviso na tela + badge de não lidas.
+const nseenKey = (f) => `moj_${f}_seen_${CONTEST}`;
+const getSeen = (f) => parseInt(localStorage.getItem(nseenKey(f)) || '0', 10) || 0;
+const setSeen = (f, v) => localStorage.setItem(nseenKey(f), String(v || 0));
+let notifState = { news: { last: 0, unread: 0 }, clar: { last: 0, unread: 0 } };
+let notifyTimer = null;
+
+async function loadNotifications() {
+  try {
+    const u = await apiGet('/contest/updates?contest=' + encodeURIComponent(CONTEST)
+      + '&news_since=' + getSeen('news') + '&clar_since=' + getSeen('clar'),
+      { contest: CONTEST, auth: true });
+    notifState = { news: u.news || { last: 0, unread: 0 }, clar: u.clar || { last: 0, unread: 0 } };
+  } catch { /* silencioso: notificação é best-effort */ }
+  renderNotifyBanner();
+  renderClarBadge();
+}
+
+function markSeen(feat) {
+  setSeen(feat, (notifState[feat] && notifState[feat].last) || 0);
+  if (notifState[feat]) notifState[feat].unread = 0;
+  renderNotifyBanner(); renderClarBadge();
+}
+
+function renderNotifyBanner() {
+  const mv = document.getElementById('mainView');
+  let bar = document.getElementById('notifyBanner');
+  const nU = notifState.news.unread || 0, cU = notifState.clar.unread || 0;
+  if (!nU && !cU) { if (bar) bar.remove(); return; }
+  if (!bar) { bar = el('div', { id: 'notifyBanner', class: 'notify-banner' }); mv.prepend(bar); }
+  bar.innerHTML = '';
+  const links = [];
+  if (nU) links.push(el('a', { href: '#', onclick: (e) => { e.preventDefault(); markSeen('news'); const s = document.getElementById('newsSection'); if (s) { show('newsSection'); s.scrollIntoView({ behavior: 'smooth' }); } } },
+    '📢 ' + nU + ' ' + T(nU > 1 ? 'novas notícias' : 'nova notícia', nU > 1 ? 'new posts' : 'new post')));
+  if (cU) links.push(el('a', { href: '/contest/clarification/?c=' + encodeURIComponent(CONTEST), onclick: () => markSeen('clar') },
+    '💬 ' + cU + ' ' + T(cU > 1 ? 'clarifications respondidas' : 'clarification respondida', cU > 1 ? 'answered clarifications' : 'answered clarification')));
+  const sep = links.length > 1 ? [links[0], ' · ', links[1]] : links;
+  bar.append(el('span', {}, T('Novidades: ', 'Updates: ')), ...sep,
+    el('button', { class: 'btn ghost', type: 'button', style: 'margin-left:auto', title: T('Marcar tudo como visto', 'Mark all as seen'),
+      onclick: () => { markSeen('news'); markSeen('clar'); } }, '✕'));
+}
+
+function renderClarBadge() {
+  const cU = notifState.clar.unread || 0;
+  document.querySelectorAll('#contestNav a').forEach((a) => {
+    if (!(a.getAttribute('href') || '').includes('/contest/clarification')) return;
+    let b = a.querySelector('.nav-badge');
+    if (cU > 0) { if (!b) { b = el('span', { class: 'nav-badge' }); a.append(' ', b); } b.textContent = String(cU); }
+    else if (b) b.remove();
+  });
+}
+
 // problema accordion (porta de contest/contest/problems.js para shared/ui)
 function problemAccepted(p) {
   return submissions.some(s => s.problem === p.problem_id && /^accepted/i.test(s.verdict || ''));
@@ -370,13 +468,13 @@ function toggleDetail(p, item, toggle, submitWrap) {
   if (!detail.dataset.rendered) {
     // time limits
     const tl = p.time_limits || {};
-    if (Object.keys(tl).length) {
-      const keys = Object.keys(tl);
+    const keys = Object.keys(tl).sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
+    if (keys.length) {
       detail.append(el('div', {},
-        el('b', {}, 'Time Limits'),
+        el('b', {}, T('Tempo-limite', 'Time Limits')),
         el('table', { class: 'tl-table' },
           el('thead', {}, el('tr', {}, ...keys.map(k => el('th', {}, k)))),
-          el('tbody', {}, el('tr', {}, ...keys.map(k => el('td', {}, tl[k] + ' s')))))));
+          el('tbody', {}, el('tr', {}, ...keys.map(k => el('td', {}, fmtTime(tl[k]))))))));
     }
     // editor de código embutido (CodeMirror) — só se o admin do contest o habilitou
     const editorOn = !(userinfo && userinfo.show_editor === false);
@@ -406,54 +504,102 @@ function toggleDetail(p, item, toggle, submitWrap) {
   detail.classList.remove('hidden');
 }
 
-// form de submit por problema: upload + editor (no detalhe) + steps + disable enquanto envia
+// form de submit por problema: upload rápido (na linha) + editor completo no detalhe
+// (CodeMirror com tela cheia e "nova janela", espelhando o modo treino).
 function renderSubmitInline(p) {
-  const sel = el('select', {}, ...LANGS.map(([l, label]) => el('option', { value: l }, label)));
+  // envia ao juiz; problem_id já é a forma canônica 'coleção#problema' (vinda de /contest/problems)
+  async function doSubmit(payload, stepsEl, btnEl) {
+    btnEl.disabled = true; stepsEl.textContent = T('Enviando…', 'Sending…');
+    try {
+      await apiPost('/submit?contest=' + encodeURIComponent(CONTEST),
+        { problem_id: p.problem_id, ...payload }, { contest: CONTEST, auth: true });
+      stepsEl.textContent = T('✓ Enviado!', '✓ Sent!');
+      setTimeout(loadSubmissions, 1200);
+    } catch (ex) {
+      stepsEl.innerHTML = `<span class="error-box">${T('Erro: ', 'Error: ') + (ex && ex.message ? ex.message : T('falha ao enviar', 'failed to send'))}</span>`;
+    } finally { btnEl.disabled = false; }
+  }
+
+  // ---- linha sempre visível: upload rápido de arquivo ----
   const fileInput = el('input', { type: 'file', style: 'max-width:170px' });
   const steps = el('span', { class: 'submit-steps' });
   const btn = el('button', { class: 'btn', type: 'button' }, T('Enviar', 'Submit'));
   const row = el('span', { class: 'prob-submit' }, fileInput, btn, steps);
+  btn.addEventListener('click', async () => {
+    if (fileInput.files && fileInput.files[0]) {
+      const f = fileInput.files[0];
+      steps.textContent = T('Preparando…', 'Preparing…');
+      doSubmit({ filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, steps, btn);
+    } else {
+      steps.innerHTML = `<span class="muted small">${T('Escolha um arquivo ou escreva no editor (abra os detalhes ▼).', 'Choose a file or write in the editor (open details ▼).')}</span>`;
+    }
+  });
 
-  // bloco do editor (vai pro detalhe); criado sob demanda
+  // ---- editor completo (montado sob demanda no detalhe) ----
+  injectEditorCss();
+  const sel = el('select', {}, ...LANGS.map((l) => el('option', { value: l.id }, l.label)));
   const editorMount = el('div');
-  const editorBlock = el('div', {},
-    el('div', { class: 'row', style: 'margin:.5rem 0' },
-      el('label', { class: 'small' }, T('Linguagem: ', 'Language: ')), sel,
-      el('span', { class: 'small muted' }, T('  ou envie um arquivo acima.', '  or upload a file above.'))),
-    editorMount);
+  const editorBox = el('div', { class: 'editor-box', style: 'height:520px' }, editorMount);   // ~26 linhas
+  const edSteps = el('span', { class: 'submit-steps' });
+  const edBtn = el('button', { class: 'btn', type: 'button' }, T('Enviar solução', 'Submit solution'));
   let editor = null;
+  const refreshEd = () => { if (editor && typeof editor.refresh === 'function') editor.refresh(); };
+  const focusEd = () => { if (editor && typeof editor.focus === 'function') editor.focus(); };
+
+  // ⛶ Tela cheia (dialog no top layer) e ⧉ Nova janela (?editoronly=1&prob=<id>).
+  const expandBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Editor em tela cheia', 'Fullscreen editor') }, '⛶ ' + T('Tela cheia', 'Fullscreen'));
+  const popBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Abrir só o editor numa nova janela', 'Open only the editor in a new window'),
+    onclick: () => { const u = new URL(location.href); u.searchParams.set('editoronly', '1'); u.searchParams.set('prob', p.problem_id); window.open(u.toString(), '_blank', 'width=900,height=820'); } }, '⧉ ' + T('Nova janela', 'New window'));
+  const closeFullBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Sair da tela cheia (Esc)', 'Exit fullscreen (Esc)'), onclick: () => exitFull() }, '✕ ' + T('Fechar', 'Close'));
+  closeFullBtn.style.display = 'none';
+
+  const wrap = el('div', { class: 'editor-wrap' },
+    el('div', { class: 'editor-bar' },
+      el('label', { class: 'small' }, T('Linguagem: ', 'Language: ')), sel,
+      el('span', { style: 'flex:1' }), expandBtn, popBtn, closeFullBtn),
+    editorBox,
+    el('div', { class: 'row', style: 'margin-top:.3rem' }, edBtn, edSteps));
+  const editorBlock = wrap;
+
+  // dialog dedicado p/ tela cheia: o wrap MOVE-se p/ dentro (top layer) e volta ao fechar.
+  const dlg = document.createElement('dialog'); dlg.className = 'editor-dialog'; document.body.append(dlg);
+  let homeParent = null, homeNext = null;
+  function enterFull() {
+    homeParent = wrap.parentNode; homeNext = wrap.nextSibling;
+    dlg.append(wrap); wrap.classList.add('editor-full');
+    expandBtn.style.display = 'none'; closeFullBtn.style.display = '';
+    if (!dlg.open) dlg.showModal(); refreshEd(); focusEd();
+  }
+  function exitFull() {
+    wrap.classList.remove('editor-full');
+    if (homeParent) homeParent.insertBefore(wrap, homeNext);
+    expandBtn.style.display = ''; closeFullBtn.style.display = 'none';
+    if (dlg.open) dlg.close(); refreshEd();
+  }
+  expandBtn.onclick = enterFull;
+  dlg.addEventListener('cancel', (e) => { e.preventDefault(); exitFull(); });   // Esc fecha limpo
+  if (EDITOR_ONLY) { expandBtn.style.display = 'none'; popBtn.style.display = 'none'; }
+
   async function mountEditor() {
     if (editor) return;
-    editor = await createEditor(editorMount, { doc: '', language: sel.value });
+    editor = await createEditor(editorMount, { doc: '', cm: langById(sel.value).cm });
     sel.addEventListener('change', async () => {
       const cur = editor.getValue(); editorMount.innerHTML = '';
-      editor = await createEditor(editorMount, { doc: cur, language: sel.value });
+      editor = await createEditor(editorMount, { doc: cur, cm: langById(sel.value).cm });
     });
+    setTimeout(refreshEd, 50);
   }
-
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    steps.textContent = T('Preparando…', 'Preparing…');
-    try {
-      let filename, code_b64;
-      if (fileInput.files && fileInput.files[0]) {
-        filename = fileInput.files[0].name;
-        code_b64 = await fileToBase64(fileInput.files[0]);
-      } else {
-        const langDef = LANGS.find(x => x[0] === sel.value) || LANGS[0];
-        const txt = editor ? editor.getValue() : '';
-        if (!txt.trim()) { steps.innerHTML = `<span class="error-box">${T('Escreva código ou escolha um arquivo.', 'Write code or choose a file.')}</span>`; btn.disabled = false; return; }
-        filename = 'solution.' + langDef[2];
-        code_b64 = textToBase64(txt);
-      }
-      steps.textContent = T('Enviando…', 'Sending…');
-      await apiPost('/submit?contest=' + encodeURIComponent(CONTEST),
-        { problem_id: p.problem_id, filename, code_b64 }, { contest: CONTEST, auth: true });
-      steps.textContent = T('✓ Enviado!', '✓ Sent!');
-      setTimeout(loadSubmissions, 1200);
-    } catch (ex) {
-      steps.innerHTML = `<span class="error-box">${T('Erro: ', 'Error: ') + (ex && ex.message ? ex.message : T('falha ao enviar', 'failed to send'))}</span>`;
-    } finally { btn.disabled = false; }
+  edBtn.addEventListener('click', async () => {
+    if (fileInput.files && fileInput.files[0]) {
+      const f = fileInput.files[0];
+      edSteps.textContent = T('Preparando…', 'Preparing…');
+      doSubmit({ filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, edSteps, edBtn);
+      return;
+    }
+    const txt = editor ? editor.getValue() : '';
+    if (!txt.trim()) { edSteps.innerHTML = `<span class="error-box">${T('Escreva código ou escolha um arquivo.', 'Write code or choose a file.')}</span>`; return; }
+    edSteps.textContent = T('Preparando…', 'Preparing…');
+    doSubmit({ filename: 'solution.' + sel.value, code_b64: textToBase64(txt), source: 'web' }, edSteps, edBtn);
   });
 
   return { row, editorBlock, mountEditor };
@@ -596,6 +742,11 @@ async function bootMain() {
   renderProblems();
   renderSubFilter();
   await loadSubmissions();
+
+  // notificações (notícias + clarifications respondidas): poll leve a cada 30s
+  loadNotifications();
+  clearInterval(notifyTimer);
+  notifyTimer = setInterval(loadNotifications, 30000);
 }
 
 // ============================================================================
@@ -613,9 +764,37 @@ async function boot() {
     return;
   }
   LOCALE = basic.locale || 'pt';
+  LANGS = resolveLangs(basic.languages);   // whitelist do contest (conf LANGUAGES=); vazio = todas
 
   const st = await status(CONTEST);
-  if (st.logged_in) await bootMain();
+  if (st.logged_in) { if (EDITOR_ONLY) await bootEditorOnly(); else await bootMain(); }
   else bootLogin();
+}
+
+// janela "só editor" (?editoronly=1&prob=<id>): carrega o problema e mostra apenas o editor
+// preenchendo a janela. Reusa a sessão do contest (token compartilhado no localStorage).
+async function bootEditorOnly() {
+  injectEditorCss();
+  document.body.classList.add('editor-only');
+  show('mainView');
+  document.title = 'Editor — ' + (basic.contest_name || 'Contest');
+  let list = [];
+  try {
+    const j = await apiGet('/contest/problems?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true });
+    list = Array.isArray(j) ? j : (j.problems || []);
+  } catch { /* mostra erro abaixo */ }
+  const mv = document.getElementById('mainView');
+  const host = el('div', { class: 'editor-only-host' });
+  const p = list.find((x) => x.problem_id === ONLY_PROB) || list[0];
+  if (!p) {
+    host.append(el('div', { class: 'error-box' }, T('Problema não encontrado.', 'Problem not found.')));
+    mv.append(host); return;
+  }
+  host.append(el('div', { class: 'row', style: 'margin:.1rem 0 .3rem' },
+    el('b', {}, (p.short_name ? p.short_name + ' — ' : '') + (p.full_name || p.problem_id))));
+  const sw = renderSubmitInline(p);
+  host.append(sw.editorBlock);
+  mv.append(host);
+  sw.mountEditor();
 }
 boot();

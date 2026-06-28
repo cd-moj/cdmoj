@@ -28,6 +28,21 @@
     .tabbar button { border:1px solid #d7dee8; background:#fff; border-radius:8px; padding:.4rem .9rem; cursor:pointer; font-weight:600 }
     .tabbar button.active { background:#1e57c4; color:#fff; border-color:#1e57c4 }
     .row-actions { display:flex; gap:.3rem; flex-wrap:wrap }
+    /* painel de situação (dashboard) */
+    .dash-cards { display:flex; gap:.6rem; flex-wrap:wrap; margin:.4rem 0 .8rem }
+    .dash-card { background:#fff; border:1px solid #d7dee8; border-radius:10px; padding:.5rem .9rem; min-width:110px; text-align:center }
+    .dash-card.warn { border-color:#f3c08e; background:#fff7ec }
+    .dash-val { font-size:1.5rem; font-weight:800; color:#1e57c4 }
+    .dash-card.warn .dash-val { color:#b3261e }
+    .dash-lbl { font-size:.78rem; color:#64748b }
+    .spark { display:flex; flex-direction:column; gap:2px }
+    .spark-row { display:flex; align-items:center; gap:.5rem; padding:1px 3px }
+    .spark-row.peak { background:#fff1f0; border-radius:4px }
+    .spark-t { min-width:46px; color:#64748b }
+    .spark-bar { height:12px; background:#1e57c4; border-radius:3px; min-width:2px }
+    .spark-row.peak .spark-bar { background:#b3261e }
+    tr.audit-login td { color:#475569 }
+    tr.audit-admin td { background:#f6f9ff }
   </style>
 </head>
 <body>

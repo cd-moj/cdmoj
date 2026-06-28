@@ -18,4 +18,5 @@ id="$(printf '%s%s%s%s' "$contest" "$EPOCHSECONDS" "$SESSION_LOGIN" "$RANDOM" | 
 jq -cn --arg id "$id" --argjson t "$EPOCHSECONDS" --arg p "$problem" --arg l "$SESSION_LOGIN" --arg q "$question" \
   '{id:$id, time:$t, problem:$p, login:$l, question:$q, public:false, answer:"", answered_by:"", answered_at:0}' \
   > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json"
+audit_log_to "$contest" clarification-ask "by=$SESSION_LOGIN problem=$problem id=$id"
 ok_json '{asked:true, id:$id}' --arg id "$id"

@@ -115,6 +115,7 @@ cc_create(){
     pid="$(jq -r '.problem_id // ""' <<<"$p")"
     bankid="$(jq -r '.bank_id // ""' <<<"$p")"
     [[ -z "$pid" && -n "$bankid" ]] && pid="${bankid//#//}"
+    pid="${pid//\//#}"   # id canônico 'coleção#problema' (igual ao treino; '#' é o que o juiz exige)
     src="$(jq -r '.source // "cdmoj"' <<<"$p")"
     pname="$(jq -r '.name // ""' <<<"$p")"
     letter="$(jq -r '.letter // ""' <<<"$p")"
@@ -150,22 +151,45 @@ cc_create(){
 
   [[ -n "$cname" ]] || cname="$creator"
 
-  # --- admin do contest (SEMPRE criado; sufixo .admin garantido) ---
+  # --- admin do contest ---
+  # NÃO sobrescrever conta admin já existente:
+  #  [a] senha digitada (sa_pass)         -> usa exatamente essa (autoritativo);
+  #  [b][c] senha vazia + login já existe na fonte compartilhada (USERS_FROM)
+  #         -> REUSA a conta existente (login pelo fallback verify_password->USERS_FROM),
+  #            sem gravar admin local e sem gerar/trocar senha;
+  #  senha vazia + login inexistente     -> gera senha e grava (padrão).
   local sa_login sa_pass sa_name adminlogin adminpass adminname
+  local users_from shared="" admin_reused=false admin_local=true
   sa_login="$(jq -r '.admin.login // ""' <<<"$spec")"
   sa_pass="$(jq -r '.admin.password // ""' <<<"$spec")"
   sa_name="$(jq -r '.admin.fullname // ""' <<<"$spec")"
+  users_from="$(jq -r '.users_from // ""' <<<"$spec")"
   adminlogin="${sa_login:-$creator}"; [[ "$adminlogin" == *.admin ]] || adminlogin="${adminlogin}.admin"
   valid_id "$adminlogin" || { rm -rf "$stg"; fail 422 "login de admin inválido" "admin_login_invalid"; }
-  adminpass="${sa_pass:-$(cc_genpass)}"; adminname="${sa_name:-$cname}"
+  adminname="${sa_name:-$cname}"
+
+  # a conta admin já existe na fonte compartilhada? (login = 1º campo do passwd)
+  local shared_has_admin=false
+  if [[ -n "$users_from" && -f "$CONTESTSDIR/$users_from/passwd" ]] \
+     && cut -d: -f1 "$CONTESTSDIR/$users_from/passwd" 2>/dev/null | grep -qxF "$adminlogin"; then
+    shared_has_admin=true
+  fi
+  if [[ -n "$sa_pass" ]]; then
+    adminpass="$sa_pass"                         # [a] senha digitada -> autoritativa
+  elif [[ "$shared_has_admin" == true ]]; then
+    admin_reused=true; admin_local=false; adminpass=""   # [b][c] reusa, não grava local
+  else
+    adminpass="$(cc_genpass)"                     # padrão: gera
+  fi
   case "$adminpass$adminname" in *:*) rm -rf "$stg"; fail 422 "senha/nome do admin não podem conter ':'" "colon";; esac
 
   # --- usuários: compartilhados (USERS_FROM) ou específicos do contest ---
-  local users_from shared=""; users_from="$(jq -r '.users_from // ""' <<<"$spec")"
   : > "$stg/passwd"
-  printf '%s:%s:%s\n' "$adminlogin" "$adminpass" "$adminname" >> "$stg/passwd"
   declare -a CREDS
-  CREDS+=("$(jq -cn --arg l "$adminlogin" --arg p "$adminpass" --arg n "$adminname" '{login:$l,password:$p,fullname:$n,role:"admin"}')")
+  if [[ "$admin_local" == true ]]; then
+    printf '%s:%s:%s\n' "$adminlogin" "$adminpass" "$adminname" >> "$stg/passwd"
+    CREDS+=("$(jq -cn --arg l "$adminlogin" --arg p "$adminpass" --arg n "$adminname" '{login:$l,password:$p,fullname:$n,role:"admin"}')")
+  fi
   if [[ -n "$users_from" ]]; then
     { valid_id "$users_from" && [[ -f "$CONTESTSDIR/$users_from/passwd" ]]; } || { rm -rf "$stg"; fail 422 "users_from inválido" "users_from_invalid"; }
     shared="$users_from"
@@ -226,10 +250,13 @@ cc_create(){
 
   mv -T "$stg" "$CONTESTSDIR/$id" 2>/dev/null || { rm -rf "$stg"; fail 500 "Falha ao publicar o contest (id pode ter sido criado em paralelo)" "publish_fail"; }
 
-  local users_json; users_json="$( ((${#CREDS[@]})) && printf '%s\n' "${CREDS[@]}" | jq -cs '.' || echo '[]')"
+  # CREDS pode estar VAZIO (admin reutilizado em modo compartilhado): teste/expansão set -u safe.
+  local users_json='[]'
+  [[ -n "${CREDS[@]+x}" ]] && users_json="$(printf '%s\n' "${CREDS[@]}" | jq -cs '.')"
   CC_RESULT="$(jq -cn --arg id "$id" --arg al "$adminlogin" --arg pw "$adminpass" --argjson np "$np" \
-    --argjson users "$users_json" --arg shared "$shared" \
-    '{contest_id:$id, admin_login:$al, admin_password:$pw, problems:$np,
+    --argjson users "$users_json" --arg shared "$shared" --argjson reused "$admin_reused" \
+    '{contest_id:$id, admin_login:$al, admin_reused:$reused,
+      admin_password:(if $reused then null else $pw end), problems:$np,
       users_from:(if $shared=="" then null else $shared end),
       users:$users, users_count:($users|length),
       url:("/contest/?c="+$id), scoreboard_url:("/contest/score/?c="+$id)}')"
@@ -283,6 +310,7 @@ cc_build_probs(){
     [[ -n "$p" ]] || continue
     pid="$(jq -r '.problem_id // ""' <<<"$p")"; bankid="$(jq -r '.bank_id // ""' <<<"$p")"
     [[ -z "$pid" && -n "$bankid" ]] && pid="${bankid//#//}"
+    pid="${pid//\//#}"   # id canônico 'coleção#problema'
     src="$(jq -r '.source // "cdmoj"' <<<"$p")"; pname="$(jq -r '.name // ""' <<<"$p")"
     letter="$(jq -r '.letter // ""' <<<"$p")"; stmt_b64="$(jq -r '.statement_b64 // ""' <<<"$p")"
     stmt_file="$(jq -r '.statement_file // ""' <<<"$p")"

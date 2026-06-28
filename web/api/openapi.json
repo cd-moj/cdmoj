@@ -1111,7 +1111,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time}"
+            "description": "{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time,score_anon,languages[]} — languages = whitelist do conf LANGUAGES= ([] = todas)"
           }
         }
       }
@@ -1204,6 +1204,29 @@
         "responses": {
           "200": {
             "description": "ok"
+          }
+        }
+      }
+    },
+    "/contest/updates": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Resumo de novidades p/ polling (notícias + clarifications não lidas)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{news:{last,count,unread}, clar:{last,count,unread}}"
           }
         }
       }
@@ -2357,6 +2380,42 @@
         "responses": {
           "200": {
             "description": "{sessions,alerts}"
+          }
+        }
+      }
+    },
+    "/contest/admin/audit-log": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Feed unificado de auditoria (admin + logins + submissões)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{events:[{time,who,kind,action,details}],count} — filtros: since,action,user,limit"
+          }
+        }
+      }
+    },
+    "/contest/admin/dashboard": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Situação ao vivo: juízes, fila e métricas de submissão/espera",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{judges:{online,busy,total,queue_depth,assigned}, submissions:{total,pending,pending_list,max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline}}"
           }
         }
       }

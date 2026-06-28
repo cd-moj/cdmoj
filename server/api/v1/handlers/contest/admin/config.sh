@@ -49,4 +49,5 @@ if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
   bf="$(jq -r '.basic.freeze // empty' <<<"$body")"; [[ "$bf" =~ ^[0-9]+$ ]] && cc_set_conf_var "$contest" FREEZE_TIME "$bf"
   if [[ "$(jq -r '.basic.login_enabled' <<<"$body")" == "false" ]]; then cc_set_conf_var "$contest" LOGIN_ENABLED n; else cc_del_conf_var "$contest" LOGIN_ENABLED; fi
 fi
+audit_log_to "$contest" config "$(jq -cr 'keys|join(",")' <<<"$body" 2>/dev/null | head -c 200)"
 ok_json '{saved:true}'

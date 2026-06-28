@@ -42,8 +42,16 @@ sc_load "${1:-}"
       if [[ -f "$dataf" ]]; then
         # lines: epoch:hash:probid:verdict....   (verdict may contain commas)
         # keep this problem's attempts, pull the NNp token, take the max.
-        best=$(awk -F: -v P="$pidx" '
-          $3 == P {
+        best=$(awk -F: -v P="$pidx" -v PT="${SC_CANON[p]:-}" '
+          function probmatch(f3,   b1,b2) {
+            if (f3 == P) return 1               # offset numérico (legado)
+            if (PT == "") return 0
+            if (f3 == PT) return 1              # id canônico "coleção#problema" (pipeline novo)
+            b1=f3; sub(/.*[#\/]/,"",b1)         # nome simples (tolera barra/ponto legados)
+            b2=PT; sub(/.*[#\/]/,"",b2)
+            return (b1==b2)
+          }
+          probmatch($3) {
             v = $0
             if (match(v, /[0-9]+p/)) {
               n = substr(v, RSTART, RLENGTH-1) + 0

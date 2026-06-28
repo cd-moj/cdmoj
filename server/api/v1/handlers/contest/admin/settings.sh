@@ -10,10 +10,11 @@ source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""
+  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""
   load_contest_conf "$contest"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
-            show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa}' \
+            show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
+            show_tl:$stl}' \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
@@ -22,7 +23,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson se "$([[ "$SHOWEDITOR" == 0 ]] && echo false || echo true)" \
     --argjson al "$([[ "$ALLOWLATEUSER" == y ]] && echo true || echo false)" \
     --arg ua "$LOGIN_UA_SUBSTRING" \
-    --argjson sa "$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)"
+    --argjson sa "$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)" \
+    --argjson stl "$([[ "$SHOWTL" == 0 ]] && echo false || echo true)"
   exit 0
 fi
 
@@ -45,9 +47,9 @@ bset(){ # <jsonkey> <VAR> <on-value-p/-positivos>
   has "$1" || return 0
   local on; on="$(jq -r ".$1" <<<"$body")"
   if [[ "$on" == true ]]; then
-    case "$2" in LOGIN_ENABLED|SHOWLOG|SHOWEDITOR) delvar "$2";; *) setvar "$2" "$3";; esac
+    case "$2" in LOGIN_ENABLED|SHOWLOG|SHOWEDITOR|SHOWTL) delvar "$2";; *) setvar "$2" "$3";; esac
   else
-    case "$2" in LOGIN_ENABLED) setvar LOGIN_ENABLED n;; SHOWLOG) setvar SHOWLOG 0;; SHOWEDITOR) setvar SHOWEDITOR 0;; *) delvar "$2";; esac
+    case "$2" in LOGIN_ENABLED) setvar LOGIN_ENABLED n;; SHOWLOG) setvar SHOWLOG 0;; SHOWEDITOR) setvar SHOWEDITOR 0;; SHOWTL) setvar SHOWTL 0;; *) delvar "$2";; esac
   fi
 }
 bset show_code   SHOWCODE 1
@@ -56,6 +58,7 @@ bset score_anon  SCORE_ANON 1
 bset login_enabled LOGIN_ENABLED _
 bset show_log    SHOWLOG _
 bset show_editor SHOWEDITOR _
+bset show_tl     SHOWTL _
 
 if has login_ua_substring; then
   v="$(jq -r '.login_ua_substring' <<<"$body")"; v="${v//$'\n'/}"

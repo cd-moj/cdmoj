@@ -28,6 +28,14 @@
     .contest-topbar-title { font-weight:800; font-size:1.25rem; }
     .quicknav a.active { text-decoration:underline; }
 
+    /* banner de novidades (notícias/clarifications) + badge de não lidas na nav */
+    .notify-banner { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+      background:var(--blue-soft); color:var(--blue-dark); border:1px solid var(--blue);
+      border-radius:10px; padding:.5rem .9rem; margin:.6rem .9rem 0; font-weight:600; }
+    .notify-banner a { color:var(--blue-dark); text-decoration:underline; cursor:pointer; }
+    .nav-badge { display:inline-block; min-width:1.1rem; padding:0 .35rem; border-radius:999px;
+      background:var(--warn,#e11); color:#fff; font-size:.72rem; font-weight:800; text-align:center; }
+
     /* problemas (accordion) */
     .prob-item { border:1px solid var(--line); border-radius:10px; margin:.5rem 0; overflow:hidden; background:#fff; }
     .prob-item.accepted { border-color:#abf7c3; }

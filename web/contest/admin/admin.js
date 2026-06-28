@@ -31,7 +31,8 @@ function settingsTab() {
     const freeze = el('input', { type: 'datetime-local', value: s.freeze ? toLocalDT(s.freeze) : '' });
     const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English')); locale.value = s.locale || 'pt';
     const loginEnabled = mkBool(s.login_enabled !== false), showCode = mkBool(s.show_code), showLog = mkBool(s.show_log !== false),
-      showEditor = mkBool(s.show_editor !== false), allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon);
+      showEditor = mkBool(s.show_editor !== false), allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
+      showTL = mkBool(s.show_tl !== false);
     const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
     const msg = el('div', { class: 'small' });
     const save = el('button', { class: 'btn' }, 'Salvar configurações');
@@ -41,7 +42,8 @@ function settingsTab() {
         ...(start.value ? { start: dtToEpoch(start.value) } : {}), ...(end.value ? { end: dtToEpoch(end.value) } : {}),
         ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}), ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
         locale: locale.value, login_enabled: loginEnabled.checked, show_code: showCode.checked, show_log: showLog.checked,
-        show_editor: showEditor.checked, allow_late: allowLate.checked, score_anon: scoreAnon.checked, login_ua_substring: ua.value };
+        show_editor: showEditor.checked, allow_late: allowLate.checked, score_anon: scoreAnon.checked,
+        show_tl: showTL.checked, login_ua_substring: ua.value };
       try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), p, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
     });
@@ -54,6 +56,7 @@ function settingsTab() {
       chk('Mostrar o código das submissões (a todos)', showCode),
       chk('Usuário pode ver o log de julgamento', showLog),
       chk('Editor de código no browser disponível', showEditor),
+      chk('Mostrar o tempo-limite dos problemas aos usuários', showTL),
       chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
       field('Gate de login por substring de UA (só não-privilegiados)', ua),
       el('div', { class: 'row' }, save, msg));
@@ -239,13 +242,122 @@ function logTab() {
   return { panel, load };
 }
 
+// ============ Situação (dashboard ao vivo) ============
+const fmtS = (s) => { s = Math.max(0, Math.round(+s || 0)); if (s < 60) return s + 's'; const m = Math.floor(s / 60); return m + 'min' + (s % 60 ? ' ' + (s % 60) + 's' : ''); };
+function dashTab() {
+  const panel = el('div', { class: 'section' });
+  let timer = null;
+  const card = (label, val, warn) => el('div', { class: 'dash-card' + (warn ? ' warn' : '') },
+    el('div', { class: 'dash-val' }, String(val)), el('div', { class: 'dash-lbl' }, label));
+  async function refresh() {
+    let d, sess;
+    try {
+      [d, sess] = await Promise.all([
+        apiGet('/contest/admin/dashboard?contest=' + enc(CONTEST), G),
+        apiGet('/contest/admin/sessions?contest=' + enc(CONTEST), G).catch(() => null),
+      ]);
+    } catch (e) { panel.innerHTML = ''; panel.append(el('h2', {}, '📊 Situação'), el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
+    const sub = d.submissions || {}, resp = sub.response || {}, j = d.judges || {};
+    const online = sess ? (sess.sessions || []).length : '—', alerts = sess ? (sess.alerts || []) : [];
+    panel.innerHTML = '';
+    panel.append(el('h2', {}, '📊 Situação da prova'),
+      el('div', { class: 'dash-cards' },
+        card('Logados', online),
+        card('Juízes online', (j.online || 0) + '/' + (j.total || 0), (j.total || 0) > 0 && (j.online || 0) === 0),
+        card('Juízes ocupados', j.busy || 0),
+        card('Fila', (j.queue_depth || 0) + (j.assigned ? ' (+' + j.assigned + ')' : '')),
+        card('Pendentes', sub.pending || 0, (sub.pending || 0) > 0),
+        card('Maior espera', fmtS(sub.max_wait_s), (sub.max_wait_s || 0) > 60),
+        card('Resposta média', fmtS(resp.avg_s)),
+        card('Resposta p95', fmtS(resp.p95_s))));
+    alerts.forEach((a) => panel.append(el('div', { class: 'alert' }, '⚠ ' + a.login + ' logado de '
+      + [a.multi_ip && 'IPs diferentes', a.multi_ua && 'máquinas/navegadores diferentes'].filter(Boolean).join(' e ') + '.')));
+    // pendentes
+    const pend = sub.pending_list || [];
+    panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '⏳ Pendentes (' + pend.length + ')'));
+    if (!pend.length) panel.append(el('div', { class: 'muted' }, 'Nenhuma submissão aguardando o juiz.'));
+    else {
+      const tb = el('tbody');
+      pend.forEach((p) => tb.append(el('tr', {}, el('td', {}, p.login), el('td', {}, p.problem),
+        el('td', { class: 'small' }, fmtDate(p.submitted_at)),
+        el('td', { class: p.waiting_s > 60 ? 'flag-anom' : '' }, fmtS(p.waiting_s)))));
+      panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, 'Prob'), el('th', {}, 'Enviado'), el('th', {}, 'Esperando'))), tb)));
+    }
+    // timeline (submissões × espera por minuto), destacando picos
+    const tl = sub.timeline || [];
+    if (tl.length) {
+      const maxS = Math.max(1, ...tl.map((b) => b.submits));
+      panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '📈 Submissões × espera (por minuto)'));
+      const rows = tl.slice(-30).map((b) => {
+        const peak = (b.avg_wait_s >= 60) && (b.submits >= Math.max(2, maxS * 0.5));
+        return el('div', { class: 'spark-row' + (peak ? ' peak' : '') },
+          el('span', { class: 'spark-t small' }, new Date(b.t * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })),
+          el('span', { class: 'spark-bar', style: 'width:' + Math.round(100 * b.submits / maxS) + '%' }),
+          el('span', { class: 'small muted' }, b.submits + ' sub · espera ~' + fmtS(b.avg_wait_s)));
+      });
+      panel.append(el('div', { class: 'spark' }, ...rows));
+    }
+    panel.append(el('div', { class: 'small muted', style: 'margin-top:.6rem' },
+      'Janela: últimas ' + (d.window || 0) + ' submissões · atualizado ' + fmtDate(d.now) + ' · auto-refresh 12s'));
+  }
+  async function load() {
+    await refresh();
+    clearInterval(timer); timer = setInterval(() => { if (!panel.hidden) refresh(); }, 12000);
+  }
+  return { panel, load };
+}
+
+// ============ Auditoria (feed unificado) ============
+function auditTab() {
+  const panel = el('div', { class: 'section' });
+  const KIND = { admin: '🛠️ admin', login: '🔑 login', submit: '📤 submissão' };
+  async function load() {
+    panel.innerHTML = ''; panel.append(el('h2', {}, '🧾 Auditoria do contest'));
+    const fUser = el('input', { type: 'search', placeholder: 'usuário…', style: 'width:140px' });
+    const fAction = el('input', { type: 'search', placeholder: 'ação/veredicto…', style: 'width:170px' });
+    const fSince = el('input', { type: 'date' });
+    const body = el('div', {});
+    async function run() {
+      body.innerHTML = '';
+      const qp = new URLSearchParams();
+      if (fUser.value.trim()) qp.set('user', fUser.value.trim());
+      if (fAction.value.trim()) qp.set('action', fAction.value.trim());
+      if (fSince.value) { const e = Math.floor(new Date(fSince.value + 'T00:00:00').getTime() / 1000); if (e) qp.set('since', String(e)); }
+      let r;
+      try { r = await apiGet('/contest/admin/audit-log?contest=' + enc(CONTEST) + (qp.toString() ? '&' + qp.toString() : ''), G); }
+      catch (e) { body.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
+      const ev = r.events || [];
+      body.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, ev.length + ' evento(s).'));
+      if (!ev.length) { body.append(el('div', { class: 'muted' }, 'Nada encontrado.')); return; }
+      const tb = el('tbody');
+      ev.forEach((x) => tb.append(el('tr', { class: 'audit-' + x.kind },
+        el('td', { class: 'small' }, fmtDate(x.time)),
+        el('td', { class: 'small' }, KIND[x.kind] || x.kind),
+        el('td', {}, x.who || ''),
+        el('td', {}, x.action || ''),
+        el('td', { class: 'small', style: 'font-family:var(--mono)' }, x.details || ''))));
+      body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Quando'), el('th', {}, 'Tipo'), el('th', {}, 'Quem'), el('th', {}, 'Ação'), el('th', {}, 'Detalhes'))), tb)));
+    }
+    [fUser, fAction, fSince].forEach((i) => i.addEventListener('change', run));
+    panel.append(el('div', { class: 'row', style: 'margin-bottom:.4rem' },
+      el('span', { class: 'small muted' }, 'Filtros:'), fUser, fAction, el('span', { class: 'small muted' }, 'desde'), fSince,
+      el('button', { class: 'btn ghost', onclick: run }, '↻')), body);
+    await run();
+  }
+  return { panel, load };
+}
+
 // ============ framework de abas ============
 const TABS = [
+  { id: 'dash', label: '📊 Situação', make: dashTab },
   { id: 'settings', label: '⚙️ Configurações', make: settingsTab },
   { id: 'problems', label: '📚 Problemas', make: problemsTab },
   { id: 'appearance', label: '🎨 Aparência', make: appearanceTab },
   { id: 'users', label: '👥 Usuários', make: usersTab },
   { id: 'log', label: '📋 Log & sessões', make: logTab },
+  { id: 'audit', label: '🧾 Auditoria', make: auditTab },
 ];
 
 async function boot() {

@@ -8,8 +8,11 @@ contest="$(param contest)"
 require_contest "$contest"
 require_auth_contest "$contest"
 
-CONTEST_ID="$contest"; PROBS=(); LANGUAGES=""
+CONTEST_ID="$contest"; PROBS=(); LANGUAGES=""; SHOWTL=""
 load_contest_conf "$contest"
+# tempo-limite por problema (do store run/tl/<id>.json), salvo se o conf ocultar (SHOWTL=0).
+source "$_DIR/lib/tl-store.sh"
+SHOW_TL=true; [[ "$SHOWTL" == 0 ]] && SHOW_TL=false
 
 set +o noglob
 ENUN="$CONTESTSDIR/$contest/enunciados"
@@ -21,7 +24,11 @@ TMPD="$(mktemp -d 2>/dev/null)" || TMPD="${TMPDIR:-/tmp}/cprob.$$"; mkdir -p "$T
 trap 'rm -rf "$TMPD"' EXIT
 for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   FROM="${PROBS[$i]}"
-  PROBLEMID="${PROBS[$((i+1))]/\//.}"   # source 'a/b' -> id 'a.b'
+  # id canônico do pacote = 'coleção#problema' (igual ao treino: pkg_path/judge exigem '#').
+  # O statement_key (PROBS[i+4]) JÁ é a forma '#' nos contests novos; em contests legados
+  # ele é o nome simples (sem coleção), então caímos para converter a barra do problem_id.
+  PROBLEMID="${PROBS[$((i+4))]}"
+  [[ "$PROBLEMID" == *"#"* ]] || PROBLEMID="${PROBS[$((i+1))]//\//#}"
   FULLNAME="${PROBS[$((i+2))]}"
   SHORTNAME="${PROBS[$((i+3))]}"
   STATEMENT="${PROBS[$((i+4))]}"
@@ -51,7 +58,9 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   if [[ "$STATEMENT" == *http* ]]; then
     args+=( --arg url "$STATEMENT" ); filt+=", url:\$url"
   fi
-  filt+=", time_limits:{}}"
+  # tempo-limite por linguagem (máx entre juízes p/ a versão atual do pacote), salvo se oculto
+  tl='{}'; [[ "$SHOW_TL" == true ]] && { tl="$(tl_store_served "$PROBLEMID" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'; }
+  args+=( --argjson tl "$tl" ); filt+=", time_limits:\$tl}"
 
   ITEMS+=( "$(jq -cn --arg id "$PROBLEMID" --arg short "$SHORTNAME" \
       --arg full "$FULLNAME" "${args[@]}" "$filt")" )

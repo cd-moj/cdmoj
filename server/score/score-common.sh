@@ -16,6 +16,8 @@
 #                      used in data/<user>, controle/history and the .d files)
 #   SC_SHORT[]         short name of each problem (PROBS[idx+3])
 #   SC_FULL[]          full name of each problem (PROBS[idx+2])
+#   SC_CANON[]         canonical 'collection#problem' id of each problem (the form
+#                      the async pipeline writes to history/data; '#' = treino parity)
 #   SC_NPROB           number of problems
 #
 # The numeric probid is the index where a 5-tuple starts in PROBS, i.e. the
@@ -47,12 +49,18 @@ sc_load() {
   source "$CONTESTDIR/conf" || sc_die "could not source conf"
   : "${CONTEST_START:=0}"
 
-  SC_PIDX=(); SC_SHORT=(); SC_FULL=()
-  local i n=${#PROBS[@]}
+  SC_PIDX=(); SC_SHORT=(); SC_FULL=(); SC_CANON=()
+  local i n=${#PROBS[@]} canon
   for ((i=0; i<n; i+=5)); do
     SC_PIDX+=("$i")
     SC_FULL+=("${PROBS[i+2]:-}")
     SC_SHORT+=("${PROBS[i+3]:-$((i/5))}")
+    # SC_CANON = id canônico 'coleção#problema' (forma que o pipeline novo grava no
+    # history/data). O statement_key (PROBS[i+4]) já é '#' nos contests novos; em
+    # contests legados é o nome simples, então convertemos a barra do problem_id.
+    canon="${PROBS[i+4]:-}"
+    [[ "$canon" == *"#"* ]] || canon="${PROBS[i+1]//\//#}"
+    SC_CANON+=("$canon")
   done
   SC_NPROB=${#SC_PIDX[@]}
 }

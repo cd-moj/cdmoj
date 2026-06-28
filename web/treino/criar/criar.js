@@ -50,7 +50,9 @@ function showResult(res) {
     el('div', { class: 'warn-box', style: 'margin:.6rem 0' },
       '⚠ Guarde as credenciais abaixo — as senhas só são exibidas agora.'),
     el('p', {}, 'Admin do contest: ', el('span', { class: 'cred' }, res.admin_login),
-      ' · senha: ', el('span', { class: 'cred' }, res.admin_password)));
+      res.admin_reused
+        ? el('span', { class: 'small muted' }, ' · conta existente reutilizada — use sua senha atual do Treino Livre.')
+        : [' · senha: ', el('span', { class: 'cred' }, res.admin_password)]));
   if (res.users_from) card.append(el('p', { class: 'small muted' }, 'Usuários: compartilhados do "' + res.users_from + '" (login com a conta do Treino Livre).'));
   if (res.users && res.users.length > 1) {
     card.append(el('p', {}, res.users.length + ' contas criadas. ',

@@ -78,6 +78,14 @@ GEN="$HERE/updatescore-$MODE.sh"
 OUT="$CONTESTDIR/controle/placar.txt"
 mkdir -p "$CONTESTDIR/controle" || die "cannot create controle dir"
 
+# Pipeline novo (contests criados pela interface têm o marcador created-by): nada no
+# fluxo assíncrono escreve os controle/<login>.d/<pidx> que os geradores icpc/treino
+# leem, então materializamos a partir do history. Contests legados (sem created-by)
+# mantêm os .d escritos pelo juiz antigo — não tocamos neles.
+if [[ -f "$CONTESTDIR/created-by" ]]; then
+  bash "$HERE/dstate.sh" "$CONTEST" 2>/dev/null || true
+fi
+
 TMP="$(mktemp "$OUT.XXXXXX")" || die "cannot create temp file next to $OUT"
 trap 'rm -f "$TMP"' EXIT
 

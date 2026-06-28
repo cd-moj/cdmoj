@@ -120,11 +120,12 @@ git avançado.
 ## Contest
 | Rota | Auth | I/O |
 |---|---|---|
-| `/contest/basic?contest=<c>` | — | `{contest_id,contest_name,start_time,end_time,login_start_time,locale}` |
+| `/contest/basic?contest=<c>` | — | `{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time,score_anon,languages[]}` (`languages` = whitelist do conf `LANGUAGES=`; `[]` = todas) |
 | `/contest/userinfo?contest=<c>` | Bearer | `{login,name, …team/país/univ/show_log opcionais}` |
 | `/contest/navbuttons?contest=<c>` | Bearer | botões por papel (`.admin`/`.judge`/`.staff`) |
-| `/contest/problems?contest=<c>` | Bearer | `{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits}]}` |
+| `/contest/problems?contest=<c>` | Bearer | `{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits}]}` (`problem_id` = forma canônica `coleção#problema`, igual ao treino — é o que o juiz usa p/ achar o pacote; `time_limits` = `{lang:seg}` do store, `{}` se o conf ocultar via `SHOWTL=0`) |
 | `/contest/news` · `/contest/resources` | Bearer | seções opcionais (vazias = ocultar) |
+| `/contest/updates?contest=<c>&news_since=&clar_since=` | Bearer | resumo leve p/ polling de notificações: `{news:{last,count,unread}, clar:{last,count,unread}}` (clar = respondidas visíveis ao usuário; `unread` = date/answered_at > since) |
 | `/contest/history?contest=<c>` | Bearer | TXT (submissões do usuário) |
 | `/contest/balloons?contest=<c>` | Bearer | mapa letra/short→cor (default ICPC A–O) |
 | `/contest/regions?contest=<c>` | Bearer | regiões p/ filtro do placar |
@@ -175,7 +176,7 @@ Permissão: usuários `.admin` sempre podem; demais por **lista do admin OU thre
 | `/treino/contest-create/tags` | GET | Bearer+criador | tags do banco com contagem `{tags:[{tag,count}],total}` |
 | `/treino/contest-create/draw?tags=&count=&match=any\|all&difficulty=any\|easy\|medium\|hard\|known&seed=` | GET | Bearer+criador | sorteia problemas por tag/dificuldade, reproduzível por seed `{problems[],candidates,drawn,seed}` |
 | `/treino/contest-create/genpass?n=` | GET | Bearer+criador | N senhas legíveis (palavras-para-senha) `{passwords[]}` |
-| `/treino/contest-create/create` | POST | Bearer+criador | `{id?,name,mode,start?,end,languages?,showcode?,allow_empty?, admin:{login?,password?,fullname?}, (users_from? \| users:[{login,password?,fullname?,email?}]), problems:[…], colors?:{A:"RRGGBB",…,enableSonic?}, regions?:[…], teams_meta?:[{regex,country,school?,school_full?}]}` → `{contest_id,admin_login,admin_password,users[],users_from,url,scoreboard_url}` |
+| `/treino/contest-create/create` | POST | Bearer+criador | `{id?,name,mode,start?,end,languages?,showcode?,allow_empty?, admin:{login?,password?,fullname?}, (users_from? \| users:[{login,password?,fullname?,email?}]), problems:[…], colors?:{A:"RRGGBB",…,enableSonic?}, regions?:[…], teams_meta?:[{regex,country,school?,school_full?}]}` → `{contest_id,admin_login,admin_reused,admin_password,users[],users_from,url,scoreboard_url}` (admin **não** é sobrescrito: senha digitada é respeitada; em modo compartilhado, se o `<login>.admin` já existe na fonte `users_from` ele é **reutilizado** — `admin_reused:true`, `admin_password:null`) |
 | `/treino/contest-create/template` | GET | Bearer+criador | baixa template JSON do contest |
 | `/treino/contest-create/import` | POST | Bearer+criador | `{tar_b64}` (.tar.gz com `contest.json` + `enunciados/`) → cria |
 | `/treino/admin/contest-perms` | GET/POST | admin | lê/define `{threshold,allow[],deny[]}` |
@@ -191,7 +192,9 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 |---|---|---|---|
 | `/contest/admin/sessions?contest=<c>` | GET | admin | sessões ativas + alerta de UA/IP diferentes |
 | `/contest/admin/access-log?contest=<c>&day=` | GET | admin | log de acessos (epoch/login/ip/UA) + alertas |
-| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/allow_late/score_anon`, `login_ua_substring` |
+| `/contest/admin/audit-log?contest=<c>&since=&action=&user=&limit=` | GET | admin | **feed unificado** (ações de admin + logins + submissões/rejulgar) `{events:[{time,who,kind,action,details}],count}` |
+| `/contest/admin/dashboard?contest=<c>` | GET | admin | **situação ao vivo**: `{judges:{online,busy,total,queue_depth,assigned}, submissions:{total,pending,pending_list[],max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline[]}}` (janela = últimas N submissões) |
+| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/show_tl/allow_late/score_anon`, `login_ua_substring` |
 | `/contest/admin/problems?contest=<c>` | GET/POST | admin | `{action:add\|remove\|reorder\|rename,…}` (reescreve PROBS) |
 | `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema (letra/nome resolvidos do conf), por-linguagem, veredictos, linha do tempo. **Só usuários normais** (descarta `.admin/.judge/.staff/.mon`). Cache preguiçoso em `var/statistics.cache.json` (gerado por `server/score/stats-gen.sh`), invalidado por `history`/`conf`. |
 | `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas) |

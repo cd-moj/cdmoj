@@ -25,5 +25,6 @@ for subid in "${IDS[@]}"; do
   QUEUED+=("$subid")
 done
 
+audit_log_to "$contest" rejudge "count=${#QUEUED[@]} ids=$( (IFS=,; printf '%s' "${QUEUED[*]}") | head -c 200)"
 ok_json '{action:"rejudge", queued:$q, count:($q|length)}' \
   --argjson q "$(printf '%s\n' "${QUEUED[@]}" | jq -R . | jq -cs 'map(select(length>0))')"
