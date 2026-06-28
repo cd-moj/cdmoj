@@ -21,6 +21,7 @@ SC_PROG="updatescore-obi"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
 
 sc_load "${1:-}"
+FREEZE="${FREEZE_TIME:-0}"; [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0   # >= freeze: submissão escondida
 
 # --- header ----------------------------------------------------------------
 {
@@ -42,7 +43,7 @@ sc_load "${1:-}"
       if [[ -f "$dataf" ]]; then
         # lines: epoch:hash:probid:verdict....   (verdict may contain commas)
         # keep this problem's attempts, pull the NNp token, take the max.
-        best=$(awk -F: -v P="$pidx" -v PT="${SC_CANON[p]:-}" '
+        best=$(awk -F: -v P="$pidx" -v PT="${SC_CANON[p]:-}" -v FREEZE="$FREEZE" '
           function probmatch(f3,   b1,b2) {
             if (f3 == P) return 1               # offset numérico (legado)
             if (PT == "") return 0
@@ -51,7 +52,7 @@ sc_load "${1:-}"
             b2=PT; sub(/.*[#\/]/,"",b2)
             return (b1==b2)
           }
-          probmatch($3) {
+          probmatch($3) && (FREEZE+0<=0 || $1+0 < FREEZE+0) {
             v = $0
             if (match(v, /[0-9]+p/)) {
               n = substr(v, RSTART, RLENGTH-1) + 0

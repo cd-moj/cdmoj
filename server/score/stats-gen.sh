@@ -48,11 +48,15 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
 done
 if (( ${#pm_items[@]} )); then probmeta="$(printf '%s\n' "${pm_items[@]}" | jq -cs '.')"; else probmeta='[]'; fi
 
-awk -F: '
+START_VAL="${CONTEST_START:-0}"; [[ "$START_VAL" =~ ^[0-9]+$ ]] || START_VAL=0
+awk -F: -v START="$START_VAL" '
 {
   # estatísticas só de usuários normais: descarta privilegiados (.admin/.judge/.staff/.mon)
   if($2 ~ /\.(admin|judge|staff|mon)$/) next;
-  mn=$1; user=$2; prob=$3; lang=$4; v=$5;
+  # tempo RELATIVO ao início: usa o sub_epoch (penúltimo campo, sempre EPOCH absoluto) menos
+  # CONTEST_START. mn = minutos relativos; secs = segundos (p/ desempate do 1º a resolver).
+  secs=$(NF-1)-START; if(secs<0)secs=0; mn=int(secs/60);
+  user=$2; prob=$3; lang=$4; v=$5;
   tot++; isac=(v ~ /^Accepted/);
   puk=prob SUBSEP user; if(!(puk in solvedAt)){ att[puk]=att[puk]+1; if(isac) solvedAt[puk]=att[puk] }
   vc=v; sub(/,.*/,"",vc); sub(/ *\(.*/,"",vc); gsub(/^ +| +$/,"",vc); if(vc=="")vc="?"; vcl[vc]++; pv[prob SUBSEP vc]++;
@@ -62,13 +66,13 @@ awk -F: '
     acc++; lacc[lang]++; pacc[prob]++;
     if(!((prob SUBSEP user) in psol)){ psol[prob SUBSEP user]=1; psoln[prob]++; }
     if(!((lang SUBSEP user) in lsol)){ lsol[lang SUBSEP user]=1; lsoln[lang]++; }
-    if(!(prob in fmin) || (mn+0)<(fmin[prob]+0)){ fmin[prob]=mn+0; fuser[prob]=user; }
+    if(!(prob in fsec) || (secs+0)<(fsec[prob]+0)){ fsec[prob]=secs+0; fmin[prob]=mn+0; fuser[prob]=user; }
     solved[prob]=1;
   }
   b=int((mn+0)/10); if(b<0)b=0; if(b>20000)b=20000; tl[b]++; if(isac)tla[b]++; if(b>maxb)maxb=b;
 }
 END{
-  for(p in psub) printf "P\t%s\t%d\t%d\t%d\t%s\t%d\t%d\n", p, psub[p], pattn[p], psoln[p]+0, (p in fuser?fuser[p]:""), (p in fmin?fmin[p]:-1), pacc[p]+0;
+  for(p in psub) printf "P\t%s\t%d\t%d\t%d\t%s\t%d\t%d\t%d\n", p, psub[p], pattn[p], psoln[p]+0, (p in fuser?fuser[p]:""), (p in fmin?fmin[p]:-1), pacc[p]+0, (p in fsec?fsec[p]:-1);
   for(pu in pv){ split(pu,xx,SUBSEP); printf "PV\t%s\t%s\t%d\n", xx[1], xx[2], pv[pu] }
   for(l in lsub) printf "L\t%s\t%d\t%d\t%d\n", l, lsub[l], lacc[l]+0, lsoln[l]+0;
   for(x in vcl) printf "V\t%s\t%d\n", x, vcl[x];
@@ -84,7 +88,7 @@ END{
   [ split("\n")[] | select(length>0) | split("\t") ] as $r
   | { success:true,
       totals: ( ([ $r[] | select(.[0]=="G") ][0]) as $g | if $g then {submissions:($g[1]|tonumber), accepted:($g[2]|tonumber), users:($g[3]|tonumber), problems_solved:($g[4]|tonumber)} else {submissions:0,accepted:0,users:0,problems_solved:0} end),
-      problems: ([ $r[] | select(.[0]=="P") | (.[1]) as $pid | ($pm | map(select(.off==$pid or .raw==$pid or .dot==$pid or .hash==$pid)) | .[0]) as $m | {problem_id:$pid, short_name:($m.short // $pid), full_name:($m.full // ""), submissions:(.[2]|tonumber), attempted:(.[3]|tonumber), solved:(.[4]|tonumber), accepted_subs:(.[7]|tonumber? // 0), first_solver:.[5], first_minute:(.[6]|tonumber), accept_rate:(if (.[3]|tonumber)>0 then ((.[4]|tonumber)/(.[3]|tonumber)) else 0 end), avg_subs:(if (.[3]|tonumber)>0 then (((.[2]|tonumber)/(.[3]|tonumber)*100)|floor)/100 else 0 end)} ] | sort_by(.short_name)),
+      problems: ([ $r[] | select(.[0]=="P") | (.[1]) as $pid | ($pm | map(select(.off==$pid or .raw==$pid or .dot==$pid or .hash==$pid)) | .[0]) as $m | {problem_id:$pid, short_name:($m.short // $pid), full_name:($m.full // ""), submissions:(.[2]|tonumber), attempted:(.[3]|tonumber), solved:(.[4]|tonumber), accepted_subs:(.[7]|tonumber? // 0), first_solver:.[5], first_minute:(.[6]|tonumber), first_seconds:(.[8]|tonumber? // -1), accept_rate:(if (.[3]|tonumber)>0 then ((.[4]|tonumber)/(.[3]|tonumber)) else 0 end), avg_subs:(if (.[3]|tonumber)>0 then (((.[2]|tonumber)/(.[3]|tonumber)*100)|floor)/100 else 0 end)} ] | sort_by(.short_name)),
       languages: ([ $r[] | select(.[0]=="L") | {lang:.[1], submissions:(.[2]|tonumber), accepted:(.[3]|tonumber), solvers:(.[4]|tonumber)} ] | sort_by(-.submissions)),
       verdicts: ([ $r[] | select(.[0]=="V") | {verdict:.[1], count:(.[2]|tonumber)} ] | sort_by(-.count)),
       timeline: ([ $r[] | select(.[0]=="T") | {minute:(.[1]|tonumber), submissions:(.[2]|tonumber), accepted:(.[3]|tonumber)} ] | sort_by(.minute)),

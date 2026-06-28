@@ -49,7 +49,7 @@ function problemsTable(ps) {
     el('td', { class: 'n' }, String(p.solved)),
     el('td', { class: 'n' }, pct(p.accept_rate)),
     el('td', { class: 'n' }, p.avg_subs != null ? p.avg_subs.toFixed(1) : '—'),
-    el('td', {}, p.first_solver ? (p.first_solver + ' · ' + p.first_minute + 'min') : '—'))));
+    el('td', {}, p.first_solver ? (p.first_solver + ' · ' + p.first_minute + 'min' + (p.first_seconds >= 0 ? ' (' + p.first_seconds + 's)' : '')) : '—'))));
   return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
     el('thead', {}, el('tr', {}, el('th', {}, 'Problema'), el('th', {}, 'Subs'), el('th', {}, 'Aceitas'), el('th', {}, 'Tentaram'),
       el('th', {}, 'Resolveram'), el('th', {}, 'Taxa'), el('th', {}, 'Subs/pessoa'), el('th', {}, '1º a resolver'))), tb));
@@ -72,10 +72,12 @@ function verdictMatrix(s) {
 }
 
 function balloonsSection(ps) {
-  const solved = (ps || []).filter((p) => p.first_solver).slice().sort((a, b) => a.first_minute - b.first_minute);
+  const solved = (ps || []).filter((p) => p.first_solver).slice()
+    .sort((a, b) => (a.first_seconds >= 0 && b.first_seconds >= 0 ? a.first_seconds - b.first_seconds : a.first_minute - b.first_minute));
   if (!solved.length) return el('div', {});
   const ol = el('ol', { style: 'margin:.2rem 0 0 1.2rem' });
-  solved.forEach((p) => ol.append(el('li', {}, el('b', {}, shortOf(p.problem_id)), ' — ', p.first_solver, el('span', { class: 'small muted' }, ' aos ' + p.first_minute + ' min'))));
+  solved.forEach((p) => ol.append(el('li', {}, el('b', {}, shortOf(p.problem_id)), ' — ', p.first_solver,
+    el('span', { class: 'small muted' }, ' aos ' + p.first_minute + ' min' + (p.first_seconds >= 0 ? ' (' + p.first_seconds + 's)' : '')))));
   return el('div', { class: 'section' }, el('h2', {}, '🎈 Primeiras resoluções (balões)'), ol);
 }
 

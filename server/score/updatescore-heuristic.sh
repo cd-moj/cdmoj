@@ -21,6 +21,7 @@ SC_PROG="updatescore-heuristic"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
 
 sc_load "${1:-}"
+FREEZE="${FREEZE_TIME:-0}"; [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0   # >= freeze: submissão escondida
 
 # --- header ----------------------------------------------------------------
 {
@@ -41,7 +42,7 @@ sc_load "${1:-}"
       pidx="${SC_PIDX[p]}"
       ptxt="${PROBS[pidx+4]:-}"            # bare textual probid (treino-style data)
       # Emit "score<TAB>adjusted" for the best attempt, or empty if untried.
-      read -r best adj < <(awk -F: -v P="$pidx" -v PT="$ptxt" '
+      read -r best adj < <(awk -F: -v P="$pidx" -v PT="$ptxt" -v FREEZE="$FREEZE" '
         function probmatch(f3,   bare) {
           if (f3 == P) return 1
           if (PT != "") {
@@ -52,7 +53,7 @@ sc_load "${1:-}"
           }
           return 0
         }
-        probmatch($3) {
+        probmatch($3) && (FREEZE+0<=0 || $1+0 < FREEZE+0) {
           line = $0
           s = ""; a = ""
           if (match(line, /Score[ \t]+-?[0-9]+/)) {

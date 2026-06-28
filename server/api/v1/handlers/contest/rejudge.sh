@@ -49,7 +49,8 @@ for subid in "${IDS[@]}"; do
   QUEUED+=("$subid")
 done
 
-audit_log_to "$contest" rejudge "count=${#QUEUED[@]} skipped=${#SKIPPED[@]}$( ((${#SKIPPED[@]})) && printf ' [%s]' "$(IFS=,; echo "${SKIPPED[*]}")" | head -c 200)"
+qids="$( ((${#QUEUED[@]})) && { IFS=,; printf '%s' "${QUEUED[*]}"; } | head -c 300 )"
+audit_log_to "$contest" rejudge "ids=${qids:-} count=${#QUEUED[@]} skipped=${#SKIPPED[@]}$( ((${#SKIPPED[@]})) && printf ' [%s]' "$(IFS=,; echo "${SKIPPED[*]}")" | head -c 150)"
 ok_json '{action:"rejudge", queued:$q, count:($q|length), skipped:$s, skipped_count:($s|length)}' \
   --argjson q "$(printf '%s\n' ${QUEUED[@]+"${QUEUED[@]}"} | jq -R . | jq -cs 'map(select(length>0))')" \
   --argjson s "$(printf '%s\n' ${SKIPPED[@]+"${SKIPPED[@]}"} | jq -R . | jq -cs 'map(select(length>0))')"

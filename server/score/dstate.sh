@@ -14,15 +14,20 @@
 # Mapeia o problem_id textual -> offset (pidx) via SC_CANON (forma 'coleção#problema'),
 # tolerando também o numérico/barra/ponto de linhas legadas. NÃO reescreve history/data.
 #
-#   JAACERTOU  = tempo (campo 1 do history, já relativo ao início) do 1º Accepted, senão 0
+#   JAACERTOU  = tempo RELATIVO (segundos) do 1º Accepted = sub_epoch(campo 6) - CONTEST_START,
+#                senão 0. Usamos o campo 6 (sempre o epoch absoluto) e subtraímos o início —
+#                o campo 1 não é confiável (no caminho de fila/pull ele fica em epoch absoluto).
 #   TENTATIVAS = nº de tentativas que contam penalidade até (e incluindo) o 1º AC; se não
 #                resolvido, todas. Não conta pendentes, Compilation Error nem Judge Error.
-#   PENDING    = 1 se houver submissão ainda "Not Answered Yet".
+#   PENDING    = 1 se houver submissão "Not Answered Yet" OU congelada (>= FREEZE_TIME).
+#   FREEZE     = submissões com sub_epoch >= FREEZE_TIME não revelam o AC (placar congela).
 set -u
 SC_PROG="dstate"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
 
 sc_load "${1:-}"
+START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
+FREEZE="${FREEZE_TIME:-0}";  [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0
 
 HIST="$CONTESTDIR/controle/history"
 [[ -f "$HIST" ]] || exit 0
@@ -41,7 +46,7 @@ done > "$MAP"
 
 # Duas passadas sobre o history (truque FNR==NR): 1ª acha o epoch/tempo do 1º AC por
 # (login,pidx); 2ª conta tentativas até o AC (ou todas, se não resolvido) e pendências.
-awk -F: -v mapf="$MAP" '
+awk -F: -v mapf="$MAP" -v START="$START" -v FREEZE="$FREEZE" '
   BEGIN{ while ((getline line < mapf) > 0){ n=split(line,a,"\t"); if(n==2) M[a[1]]=a[2] } }
   function getv(   v,i){ v=$5; for(i=6;i<=NF-2;i++) v=v":"$i; return v }   # veredicto (sem epoch:subid)
   function counts(v){
@@ -51,11 +56,12 @@ awk -F: -v mapf="$MAP" '
     if (v ~ /^No_?Servers/)       return 0
     return 1
   }
-  FNR==NR {                                   # passada 1: 1º AC por chave
+  function frozen(ep){ return (FREEZE+0 > 0 && ep+0 >= FREEZE+0) }   # >= freeze: resultado escondido
+  FNR==NR {                                   # passada 1: 1º AC (antes do freeze) por chave
     prob=$3; if (!(prob in M)) next
-    key=$2 SUBSEP M[prob]; v=getv()
-    if (v ~ /Accepted/){ ep=$6+0
-      if (!(key in ACEP) || ep < ACEP[key]){ ACEP[key]=ep; ACTM[key]=$1 } }
+    key=$2 SUBSEP M[prob]; v=getv(); ep=$6+0
+    if (v ~ /Accepted/ && !frozen(ep)){
+      if (!(key in ACEP) || ep < ACEP[key]){ ACEP[key]=ep; rel=ep-(START+0); if(rel<0)rel=0; ACTM[key]=rel } }
     next
   }
   {                                           # passada 2: tentativas + pendências
@@ -63,6 +69,7 @@ awk -F: -v mapf="$MAP" '
     login=$2; pidx=M[prob]; key=login SUBSEP pidx; v=getv(); ep=$6+0
     LOGIN[key]=login; PIDX[key]=pidx; SEEN[key]=1
     if (v ~ /Not Answered Yet/) PEND[key]=1
+    if (frozen(ep)) PEND[key]=1                # congelado: aparece como pendente, AC escondido
     if (counts(v) && (!(key in ACEP) || ep <= ACEP[key])) ATT[key]++
   }
   END{
