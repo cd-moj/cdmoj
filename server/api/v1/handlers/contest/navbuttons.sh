@@ -38,8 +38,10 @@ elif is_mon; then
     {label:\"Todas Submissões\", url:\"/contest/allsubmissions/\"},
     {label:\"Estatísticas\",     url:\"/contest/statistics/\"}]"
 else
-  # usuário comum (não-privilegiado): página própria de backup de arquivos
-  buttons="$buttons + [{label:\"💾 Backup\", url:\"/contest/backup/\"}]"
+  # usuário comum (não-privilegiado): página de backup só se o admin não desabilitou (BACKUP!=0)
+  if [[ "$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${BACKUP:-}")" != 0 ]]; then
+    buttons="$buttons + [{label:\"💾 Backup\", url:\"/contest/backup/\"}]"
+  fi
 fi
 
 buttons="$buttons + [{label:\"Logout\", url:\"/logout\"}]"

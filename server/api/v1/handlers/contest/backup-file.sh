@@ -11,10 +11,14 @@ id="$(param id)"
 [[ "$id" =~ ^[A-Za-z0-9_]+$ ]] || fail 400 "id inválido" "id_invalid"
 who="$(param login)"
 if [[ -n "$who" ]]; then
+  # admin baixando de qualquer usuário: permitido mesmo com backup desabilitado (recuperação)
   is_admin || fail 403 "Apenas o admin baixa de outros usuários" "admin_required"
   valid_id "$who" || fail 400 "login inválido" "login_invalid"
 else
   who="$SESSION_LOGIN"
+  # download do PRÓPRIO usuário: rejeita se o admin desabilitou o backup
+  [[ "$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${BACKUP:-}")" == 0 ]] \
+    && fail 403 "Backup desabilitado pelo administrador do contest" "backup_disabled"
 fi
 bdir="$CONTESTSDIR/$contest/backups/$who"
 [[ -f "$bdir/$id" && -f "$bdir/$id.meta" ]] || fail 404 "Backup não encontrado" "notfound"

@@ -72,6 +72,16 @@ async function boot() {
       el('a', { class: 'btn', href: '/contest/?c=' + encodeURIComponent(CONTEST) }, 'Ir para o contest')));
     return;
   }
+  // sonda: se o admin desabilitou o backup, a API rejeita -> mostra aviso (sem formulário)
+  try { await apiGet('/contest/backup?contest=' + encodeURIComponent(CONTEST), G); }
+  catch (e) {
+    if (e && e.code === 'backup_disabled') {
+      app.innerHTML = '';
+      app.append(el('div', { class: 'section' }, el('h2', {}, '💾 Backup desabilitado'),
+        el('p', { class: 'muted' }, 'O administrador do contest desabilitou o backup de arquivos.')));
+      return;
+    }
+  }
   render();
 }
 boot();

@@ -8,6 +8,10 @@ contest="$(param contest)"
 require_contest "$contest"
 require_auth_contest "$contest"
 
+# backup desabilitado pelo admin (conf BACKUP=0) -> rejeita QUALQUER operação do usuário
+[[ "$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${BACKUP:-}")" == 0 ]] \
+  && fail 403 "Backup desabilitado pelo administrador do contest" "backup_disabled"
+
 login="$SESSION_LOGIN"
 valid_id "$login" || fail 400 "login inválido" "login_invalid"
 bdir="$CONTESTSDIR/$contest/backups/$login"

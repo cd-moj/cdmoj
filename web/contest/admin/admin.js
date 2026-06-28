@@ -59,7 +59,7 @@ function settingsTab() {
     const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English')); locale.value = s.locale || 'pt';
     const loginEnabled = mkBool(s.login_enabled !== false), showCode = mkBool(s.show_code), showLog = mkBool(s.show_log !== false),
       showEditor = mkBool(s.show_editor !== false), allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
-      showTL = mkBool(s.show_tl !== false);
+      showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false);
     const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
     const langs = langPicker(s.languages || []);
     const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge', style: 'width:100%' });
@@ -72,7 +72,7 @@ function settingsTab() {
         ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}), ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
         locale: locale.value, login_enabled: loginEnabled.checked, show_code: showCode.checked, show_log: showLog.checked,
         show_editor: showEditor.checked, allow_late: allowLate.checked, score_anon: scoreAnon.checked,
-        show_tl: showTL.checked, login_ua_substring: ua.value, languages: langs.get(),
+        show_tl: showTL.checked, allow_backup: allowBackup.checked, login_ua_substring: ua.value, languages: langs.get(),
         score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [] };
       try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), p, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
@@ -87,6 +87,7 @@ function settingsTab() {
       chk('Usuário pode ver o log de julgamento', showLog),
       chk('Editor de código no browser disponível', showEditor),
       chk('Mostrar o tempo-limite dos problemas aos usuários', showTL),
+      chk('Permitir backup de arquivos pelos usuários', allowBackup),
       chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
       field('Gate de login por substring de UA (só não-privilegiados)', ua),
       el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
