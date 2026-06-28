@@ -71,7 +71,43 @@ case "$action" in
     ok_json '{saved:true, problem_id:$id, languages:$v}' --arg id "$cid" --argjson v "$larr"
     exit 0
     ;;
-  *) fail 400 "action inválida (add|remove|reorder|rename|langs)" "action_invalid" ;;
+  statement)
+    # enunciado por problema: enviar HTML/PDF (base64), remover, ou "atualizar do banco"
+    # (limpa o cache enunciados/<skey>.html e re-indexa o pacote canônico).
+    L="$(jq -r '.letter // empty' <<<"$body")"
+    [[ -n "$L" ]] || fail 400 "Informe a letra" "letter_missing"
+    skey="$(jq -r --arg l "$L" '[.[]|select(.letter==$l)][0].statement_key // empty' <<<"$cur")"
+    [[ -n "$skey" ]] || fail 404 "Problema não encontrado" "notfound"
+    { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || fail 422 "chave de enunciado inválida" "skey_invalid"
+    cid="$(jq -r --arg l "$L" '[.[]|select(.letter==$l)][0] | (if ((.statement_key//"")|test("#")) then .statement_key else ((.problem_id//"")|gsub("/";"#")) end) // empty' <<<"$cur")"
+    edir="$CONTESTSDIR/$contest/enunciados"; mkdir -p "$edir"
+    did=""
+    hb="$(jq -r '.html_b64 // empty' <<<"$body")"
+    if [[ -n "$hb" ]]; then
+      printf '%s' "$hb" | base64 -d > "$edir/$skey.html.tmp" 2>/dev/null && mv -f "$edir/$skey.html.tmp" "$edir/$skey.html" \
+        || { rm -f "$edir/$skey.html.tmp"; fail 422 "HTML inválido (base64)" "html_b64"; }
+      did="html"
+    fi
+    pb="$(jq -r '.pdf_b64 // empty' <<<"$body")"
+    if [[ -n "$pb" ]]; then
+      printf '%s' "$pb" | base64 -d > "$edir/$skey.pdf.tmp" 2>/dev/null && mv -f "$edir/$skey.pdf.tmp" "$edir/$skey.pdf" \
+        || { rm -f "$edir/$skey.pdf.tmp"; fail 422 "PDF inválido (base64)" "pdf_b64"; }
+      did="$did pdf"
+    fi
+    [[ "$(jq -r '.remove_html // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey.html"; did="$did -html"; }
+    [[ "$(jq -r '.remove_pdf  // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey.pdf";  did="$did -pdf"; }
+    if [[ "$(jq -r '.refresh // false' <<<"$body")" == true && -n "$cid" ]]; then
+      rm -f "$edir/$skey.html"   # remove o cache -> /contest/problems volta a buscar/cachear do banco
+      source "$_DIR/../../judge-gw/sched-lib.sh" 2>/dev/null || true
+      declare -F idx_request >/dev/null && idx_request "${cid%%#*}" "$cid" "contest-stmt:$SESSION_LOGIN" >/dev/null 2>&1 || true
+      did="$did refresh"
+    fi
+    [[ -n "$did" ]] || fail 422 "Nada a fazer (envie html_b64/pdf_b64, remove_*, ou refresh)" "noop"
+    audit_log_to "$contest" problems-statement "letter=$L skey=$skey op=$did"
+    ok_json '{saved:true, statement_key:$k, did:$d}' --arg k "$skey" --arg d "$did"
+    exit 0
+    ;;
+  *) fail 400 "action inválida (add|remove|reorder|rename|langs|statement)" "action_invalid" ;;
 esac
 
 [[ -n "$new" ]] || fail 422 "Nada a fazer" "noop"

@@ -3,6 +3,7 @@
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { LANGUAGES } from '/shared/languages.js';
+import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 
@@ -86,13 +87,18 @@ function settingsTab() {
   return { panel, load };
 }
 
-// ============ Problemas ============
+// ============ Problemas (sanfona: cada problema configura linguagens + enunciado) ============
 function problemsTab() {
   const panel = el('div', { class: 'section' }, el('h2', {}, '📚 Problemas'));
   const list = el('div', {});
   const src = el('input', { value: 'cdmoj', style: 'width:90px' }), pid = el('input', { placeholder: 'problem_id' }),
     nm = el('input', { placeholder: 'nome' }), bid = el('input', { placeholder: 'ou bank_id (#)' }), addMsg = el('div', { class: 'small' });
   async function act(p) { try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), p, G); loadList(); } catch (e) { alert(e.message || 'falha'); } }
+  async function postProb(payload, msgEl, reload) {
+    if (msgEl) { msgEl.className = 'small'; msgEl.textContent = 'Salvando…'; }
+    try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), payload, G); if (msgEl) msgEl.textContent = '✓ salvo'; if (reload) loadList(); }
+    catch (e) { if (msgEl) { msgEl.className = 'small error-box'; msgEl.textContent = e.message || 'falha'; } else alert(e.message || 'falha'); }
+  }
   const add = el('button', { class: 'btn ghost', onclick: async () => {
     const prob = bid.value.trim() ? { bank_id: bid.value.trim(), name: nm.value.trim() || undefined } : { source: src.value.trim() || 'cdmoj', problem_id: pid.value.trim(), name: nm.value.trim() || undefined };
     if (!prob.bank_id && !prob.problem_id) { pid.focus(); return; }
@@ -100,42 +106,60 @@ function problemsTab() {
     try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), { action: 'add', problem: prob }, G); pid.value = nm.value = bid.value = ''; addMsg.textContent = ''; loadList(); }
     catch (e) { addMsg.className = 'small error-box'; addMsg.textContent = e.message || 'falha'; }
   } }, '+ adicionar');
+
+  function problemAccordion(p, i, ps, letters) {
+    const body = el('div', { class: 'acc-body hidden' });
+    const tog = el('span', { class: 'acc-tog' }, '▶');
+    const stop = (e) => e.stopPropagation();
+    const head = el('div', { class: 'acc-head' },
+      tog, el('b', {}, p.letter), ' ', el('span', {}, p.name || ''),
+      el('span', { class: 'small muted', style: 'font-family:var(--mono); margin-left:.4rem' }, (p.source || 'cdmoj') + '/' + p.problem_id),
+      el('span', { style: 'flex:1' }),
+      el('button', { class: 'btn ghost', title: 'subir', onclick: (e) => { stop(e); if (i > 0) { const o = letters.slice(); [o[i - 1], o[i]] = [o[i], o[i - 1]]; act({ action: 'reorder', order: o }); } } }, '↑'),
+      el('button', { class: 'btn ghost', title: 'descer', onclick: (e) => { stop(e); if (i < ps.length - 1) { const o = letters.slice(); [o[i + 1], o[i]] = [o[i], o[i + 1]]; act({ action: 'reorder', order: o }); } } }, '↓'),
+      el('button', { class: 'btn danger', title: 'remover', onclick: (e) => { stop(e); if (confirm('Remover ' + p.letter + '?')) act({ action: 'remove', letter: p.letter }); } }, '✕'));
+    head.addEventListener('click', () => { const hid = body.classList.toggle('hidden'); tog.textContent = hid ? '▶' : '▼'; });
+
+    // --- renomear ---
+    const nameInp = el('input', { value: p.name || '', style: 'max-width:280px' });
+    const rnMsg = el('div', { class: 'small' });
+    // --- linguagens (inline) ---
+    const picker = langPicker(p.languages || []);
+    const lMsg = el('div', { class: 'small' });
+    // --- enunciado: atualizar do banco / enviar HTML / enviar PDF ---
+    const sMsg = el('div', { class: 'small' });
+    const htmlIn = el('input', { type: 'file', accept: '.html,.htm,text/html', style: 'max-width:200px' });
+    const pdfIn = el('input', { type: 'file', accept: '.pdf,application/pdf', style: 'max-width:200px' });
+    const sendStmt = async (payload) => postProb({ action: 'statement', letter: p.letter, ...payload }, sMsg, false);
+
+    body.append(
+      el('div', { class: 'row', style: 'margin:.3rem 0' }, el('span', { class: 'small muted' }, 'Nome:'), nameInp,
+        el('button', { class: 'btn ghost', onclick: () => postProb({ action: 'rename', letter: p.letter, name: nameInp.value }, rnMsg, true) }, 'Renomear'), rnMsg),
+      el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, '💻 Linguagens (nenhuma marcada = herda do contest):'),
+        picker.el, el('div', { class: 'row' }, el('button', { class: 'btn', onclick: () => postProb({ action: 'langs', letter: p.letter, languages: picker.get() }, lMsg, false) }, 'Salvar linguagens'), lMsg)),
+      el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, '📄 Enunciado:'),
+        el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.4rem' },
+          el('button', { class: 'btn ghost', title: 'Re-buscar do banco de problemas (regenera o enunciado)', onclick: () => sendStmt({ refresh: true }).then(loadList) }, '↻ Atualizar do banco'),
+          el('span', { class: 'small muted' }, 'HTML:'), htmlIn,
+          el('button', { class: 'btn ghost', onclick: async () => { if (!htmlIn.files[0]) { sMsg.className = 'small error-box'; sMsg.textContent = 'Escolha um .html'; return; } sendStmt({ html_b64: await fileToBase64(htmlIn.files[0]) }); } }, 'Enviar HTML'),
+          el('span', { class: 'small muted' }, 'PDF:'), pdfIn,
+          el('button', { class: 'btn ghost', onclick: async () => { if (!pdfIn.files[0]) { sMsg.className = 'small error-box'; sMsg.textContent = 'Escolha um .pdf'; return; } sendStmt({ pdf_b64: await fileToBase64(pdfIn.files[0]) }); } }, 'Enviar PDF')), sMsg));
+    return el('div', { class: 'acc-item' }, head, body);
+  }
+
   async function loadList() {
     list.innerHTML = ''; let r;
     try { r = await apiGet('/contest/admin/problems?contest=' + enc(CONTEST), G); } catch { list.append(el('div', { class: 'error-box' }, 'Falha.')); return; }
     const ps = r.problems || [];
     if (!ps.length) { list.append(el('div', { class: 'muted' }, 'Sem problemas.')); return; }
-    const letters = ps.map((p) => p.letter), tb = el('tbody');
-    ps.forEach((p, i) => {
-      const nameInp = el('input', { value: p.name || '', style: 'width:100%' });
-      tb.append(el('tr', {}, el('td', {}, el('b', {}, p.letter)), el('td', {}, nameInp),
-        el('td', { class: 'small', style: 'font-family:var(--mono)' }, (p.source || 'cdmoj') + '/' + p.problem_id),
-        el('td', {}, el('div', { class: 'row-actions' },
-          el('button', { class: 'btn ghost', title: 'renomear', onclick: () => act({ action: 'rename', letter: p.letter, name: nameInp.value }) }, '✓'),
-          el('button', { class: 'btn ghost', onclick: () => { if (i > 0) { const o = letters.slice(); [o[i - 1], o[i]] = [o[i], o[i - 1]]; act({ action: 'reorder', order: o }); } } }, '↑'),
-          el('button', { class: 'btn ghost', onclick: () => { if (i < ps.length - 1) { const o = letters.slice(); [o[i + 1], o[i]] = [o[i], o[i + 1]]; act({ action: 'reorder', order: o }); } } }, '↓'),
-          el('button', { class: 'btn danger', onclick: () => { if (confirm('Remover ' + p.letter + '?')) act({ action: 'remove', letter: p.letter }); } }, '✕')))));
-    });
-    list.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Nome'), el('th', {}, 'Problema'), el('th', {}, 'Ações'))), tb)));
-    // linguagens POR problema (restringe um problema específico; vazio = herda do contest)
-    const plSel = el('select', {}, ...ps.map((p) => el('option', { value: p.letter }, p.letter + ' — ' + (p.name || p.problem_id))));
-    let picker = langPicker(ps[0].languages || []);
-    const pWrap = el('div', {}, picker.el);
-    const pMsg = el('div', { class: 'small' });
-    const sync = () => { const p = ps.find((x) => x.letter === plSel.value) || ps[0]; picker = langPicker(p.languages || []); pWrap.innerHTML = ''; pWrap.append(picker.el); };
-    plSel.addEventListener('change', sync);
-    const pSave = el('button', { class: 'btn', onclick: async () => {
-      pMsg.className = 'small'; pMsg.textContent = 'Salvando…';
-      try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), { action: 'langs', letter: plSel.value, languages: picker.get() }, G); pMsg.textContent = '✓ salvo'; loadList(); }
-      catch (e) { pMsg.className = 'small error-box'; pMsg.textContent = e.message || 'falha'; }
-    } }, 'Salvar linguagens do problema');
-    list.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens por problema'),
-      el('p', { class: 'muted small' }, 'Restringe as linguagens de UM problema. Nenhuma marcada = herda do contest.'),
-      el('div', { class: 'row' }, el('span', { class: 'small muted' }, 'Problema:'), plSel, pSave), pMsg, pWrap);
+    const letters = ps.map((p) => p.letter);
+    ps.forEach((p, i) => list.append(problemAccordion(p, i, ps, letters)));
   }
-  async function load() { panel.append(list, el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar'),
-    el('div', { class: 'row' }, src, pid, nm, el('span', { class: 'small muted' }, 'ou'), bid, add), addMsg); await loadList(); }
+  async function load() {
+    panel.append(list, el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar'),
+      el('div', { class: 'row' }, src, pid, nm, el('span', { class: 'small muted' }, 'ou'), bid, add), addMsg);
+    await loadList();
+  }
   return { panel, load };
 }
 

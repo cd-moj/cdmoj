@@ -124,7 +124,8 @@ git avançado.
 | `/contest/userinfo?contest=<c>` | Bearer | `{login,name, …team/país/univ/show_log opcionais}` |
 | `/contest/navbuttons?contest=<c>` | Bearer | botões por papel (`.admin`/`.judge`/`.staff`) |
 | `/contest/problems?contest=<c>` | Bearer | `{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits,languages}]}` (`problem_id` = forma canônica `coleção#problema`, igual ao treino — é o que o juiz usa p/ achar o pacote; `time_limits` = `{lang:seg}` do store, `{}` se o conf ocultar via `SHOWTL=0`; `languages` = ids permitidos do problema: override por problema → whitelist do contest → `[]` (=todas)) |
-| `/contest/news` · `/contest/resources` | Bearer | seções opcionais (vazias = ocultar) |
+| `/contest/news` · `/contest/resources` | Bearer | seções opcionais (vazias = ocultar). Notícia pode ter anexo `{file:{name,size}}` |
+| `/contest/news-file?contest=<c>&id=<news_id>` | GET | Bearer | baixa o **anexo** da notícia (octet-stream, Content-Disposition) |
 | `/contest/updates?contest=<c>&news_since=&clar_since=` | Bearer | resumo leve p/ polling de notificações: `{news:{last,count,unread}, clar:{last,count,unread}}` (clar = respondidas visíveis ao usuário; `unread` = date/answered_at > since) |
 | `/contest/history?contest=<c>` | Bearer | TXT (submissões do usuário) |
 | `/contest/balloons?contest=<c>` | Bearer | mapa letra/short→cor (default ICPC A–O) |
@@ -195,12 +196,12 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 | `/contest/admin/audit-log?contest=<c>&since=&action=&user=&limit=` | GET | admin | **feed unificado** (ações de admin + logins + submissões/rejulgar) `{events:[{time,who,kind,action,details}],count}` |
 | `/contest/admin/dashboard?contest=<c>` | GET | admin | **situação ao vivo**: `{judges:{online,busy,total,queue_depth,assigned}, submissions:{total,pending,pending_list[],max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline[]}}` (janela = últimas N submissões) |
 | `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/show_tl/allow_late/score_anon`, `login_ua_substring`, `languages[]` (whitelist do contest, ids canônicos) |
-| `/contest/admin/problems?contest=<c>` | GET/POST | admin | GET inclui `languages` por problema; `{action:add\|remove\|reorder\|rename}` (reescreve PROBS) ou `{action:langs,letter,languages[]}` (whitelist por problema em `problem-langs.json`) |
+| `/contest/admin/problems?contest=<c>` | GET/POST | admin | GET inclui `languages` por problema; `{action:add\|remove\|reorder\|rename}` (reescreve PROBS), `{action:langs,letter,languages[]}` (whitelist por problema em `problem-langs.json`) ou `{action:statement,letter, html_b64?\|pdf_b64?\|remove_html?\|remove_pdf?\|refresh?}` (enunciado por problema em `enunciados/<skey>.{html,pdf}`; `refresh` re-indexa do banco) |
 | `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema (`first_minute` **relativo** ao início + `first_seconds` p/ desempate), por-linguagem, veredictos, linha do tempo. Tempo = `sub_epoch - CONTEST_START` (não EPOCH). **Só usuários normais** (descarta `.admin/.judge/.staff/.mon`). Cache em `var/statistics.cache.json` (`server/score/stats-gen.sh`), invalidado por `history`/`conf`. |
 | `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas, **sem `answered_by`**) |
 | `/contest/clarification-ask?contest=<c>` | POST | Bearer | `{problem?,question}` |
 | `/contest/clarification-answer?contest=<c>` | POST | admin/judge/mon | `{id,answer,public?}` |
-| `/contest/admin/news?contest=<c>` | POST | admin/judge/mon | `{action:add\|remove,…}` notícias do contest |
+| `/contest/admin/news?contest=<c>` | POST | admin/judge/mon | `{action:add\|remove,…}` notícias do contest; `add` aceita anexo `{filename,file_b64}` (guardado em `news-files/<id>/`) |
 | `/contest/admin/jplag-run?contest=<c>` | POST | admin | dispara o jplag (background) |
 | `/contest/admin/jplag-results?contest=<c>` | GET | admin | `{status, results:[{problem,lang,pairs:[{a,b,similarity}]}]}` |
 | `/contest/admin/jplag-match?contest=<c>&run=&i=` | GET | admin | HTML lado-a-lado da comparação |

@@ -3,6 +3,7 @@
 // e publicam notícias do contest.
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
+import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
 
 const qs = new URLSearchParams(location.search);
@@ -70,11 +71,16 @@ function newsSection() {
   const list = el('div', {});
   const title = el('input', { placeholder: 'título' });
   const text = el('textarea', { rows: '2', placeholder: 'texto (opcional)', style: 'width:100%' });
+  const fileInput = el('input', { type: 'file', title: 'anexo opcional (aluno baixa)' });
   const add = el('button', { class: 'btn' }, 'Publicar notícia');
   add.addEventListener('click', async () => {
     if (!title.value.trim()) return; add.disabled = true;
-    try { await apiPost('/contest/admin/news?contest=' + enc(CONTEST), { action: 'add', title: title.value.trim(), text: text.value }, G); title.value = text.value = ''; add.disabled = false; loadNews(); }
-    catch (e) { add.disabled = false; alert(e.message || 'falha'); }
+    try {
+      const body = { action: 'add', title: title.value.trim(), text: text.value };
+      if (fileInput.files && fileInput.files[0]) { body.filename = fileInput.files[0].name; body.file_b64 = await fileToBase64(fileInput.files[0]); }
+      await apiPost('/contest/admin/news?contest=' + enc(CONTEST), body, G);
+      title.value = text.value = ''; fileInput.value = ''; add.disabled = false; loadNews();
+    } catch (e) { add.disabled = false; alert(e.message || 'falha'); }
   });
   async function loadNews() {
     list.innerHTML = ''; let r;
@@ -84,11 +90,13 @@ function newsSection() {
     items.forEach((n) => {
       const rm = el('button', { class: 'btn danger', onclick: async () => { if (!confirm('Remover esta notícia?')) return; await apiPost('/contest/admin/news?contest=' + enc(CONTEST), { action: 'remove', id: n.id }, G); loadNews(); } }, '✕');
       list.append(el('div', { class: 'row', style: 'justify-content:space-between; border-top:1px solid #eef2f8; padding:.3rem 0' },
-        el('div', {}, el('b', {}, n.title), ' ', el('span', { class: 'small muted' }, n.text || '')), rm));
+        el('div', {}, el('b', {}, n.title), ' ', el('span', { class: 'small muted' }, n.text || ''),
+          n.file ? el('span', { class: 'small', style: 'margin-left:.4rem' }, '📎 ' + n.file.name) : ''), rm));
     });
   }
   loadNews();
-  box.append(list, el('div', { class: 'field', style: 'margin-top:.6rem' }, el('label', {}, 'Nova notícia'), title, text), el('div', {}, add));
+  box.append(list, el('div', { class: 'field', style: 'margin-top:.6rem' }, el('label', {}, 'Nova notícia'), title, text,
+    el('div', { class: 'small muted', style: 'margin-top:.3rem' }, 'Anexo (opcional):'), fileInput), el('div', {}, add));
   return box;
 }
 

@@ -1231,6 +1231,29 @@
         }
       }
     },
+    "/contest/news-file": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Baixa o anexo de uma notícia",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "arquivo (octet-stream, Content-Disposition: attachment)"
+          }
+        }
+      }
+    },
     "/contest/resources": {
       "get": {
         "tags": [

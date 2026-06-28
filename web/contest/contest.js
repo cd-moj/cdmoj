@@ -301,6 +301,13 @@ function renderNews(items) {
       el('b', { style: 'color:var(--blue-dark)' }, n.title || ''),
       n.date ? el('span', { class: 'small muted' }, '  (' + fmtDate(n.date) + ')') : null,
       el('div', { class: 'small' }, n.text || n.summary || ''));
+    if (n.file && n.file.name) {
+      const kb = n.file.size ? ' (' + Math.max(1, Math.round(n.file.size / 1024)) + ' KB)' : '';
+      li.append(el('div', { class: 'small' }, el('a', { href: '#', onclick: (e) => {
+        e.preventDefault();
+        downloadAuthed('/contest/news-file?contest=' + encodeURIComponent(CONTEST) + '&id=' + encodeURIComponent(n.id), n.file.name);
+      } }, '📎 ' + n.file.name + kb)));
+    }
     ul.append(li);
   });
 }
