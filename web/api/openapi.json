@@ -1442,7 +1442,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Rejulgar (admin)",
+        "summary": "Rejulgar (admin): reconstrói a fonte arquivada + reinjeta como submit",
         "security": [
           {
             "bearerAuth": []
@@ -1470,7 +1470,7 @@
         },
         "responses": {
           "200": {
-            "description": "ok"
+            "description": "{action:rejudge, queued[], count, skipped[], skipped_count} (skipped = sem fonte/linha no history)"
           }
         }
       }

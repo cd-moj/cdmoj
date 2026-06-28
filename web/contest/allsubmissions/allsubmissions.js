@@ -130,7 +130,10 @@ async function doRejudge() {
   btn.disabled = true; msg.textContent = 'Enviando…';
   try {
     const r = await apiPost('/contest/rejudge?contest=' + encodeURIComponent(CONTEST), { ids }, { contest: CONTEST, auth: true });
-    msg.textContent = `✓ Enfileirado para rejulgamento (${(r && r.count) != null ? r.count : ids.length}).`;
+    const n = (r && r.count) != null ? r.count : ids.length;
+    const sk = (r && r.skipped_count) || 0;
+    msg.innerHTML = `✓ ${n} enviada(s) para rejulgamento`
+      + (sk ? ` <span class="error-box">— ${sk} pulada(s) (sem fonte arquivada): ${(r.skipped || []).join(', ')}</span>` : '.');
     selected.clear(); render();
   } catch (e) {
     msg.innerHTML = '<span class="error-box">Erro: ' + (e && e.message ? e.message : 'falha ao rejulgar') + '</span>';

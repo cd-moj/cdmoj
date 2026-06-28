@@ -1,6 +1,9 @@
 # POST /contest/rejudge?contest=<id>   (Bearer, admin)
-# body: {ids:[...]}  — para cada submission id, enfileira um arquivo de rejulgamento
-# em $SPOOLDIR: <contest>:<time>:<id>:<login>:rejulgar:<subid>
+# body: {ids:[...]}  — RE-JULGA cada submissão. Reconstrói a fonte ARQUIVADA
+# (contests/<c>/submissions/<id>-<login>-<problem>.<lang>) + metadados do history e
+# reinjeta no spool como uma SUBMISSÃO normal (mesmo id), marcando a linha como pendente.
+# Assim funciona com o daemon que JÁ está rodando (caminho de submit) — sem depender de
+# marcador vazio nem de reiniciar o daemon. Reporta as que foram puladas (sem fonte/linha).
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -14,17 +17,39 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 mapfile -t IDS < <(jq -r '(.ids // []) | (if type=="array" then .[] else . end) // empty' <<<"$body")
 (( ${#IDS[@]} > 0 )) || fail 400 "Missing ids" "ids_missing"
 
+cdir="$CONTESTSDIR/$contest"; hist="$cdir/controle/history"
 mkdir -p "$SPOOLDIR"
 AGORA="$EPOCHSECONDS"
-declare -a QUEUED
+declare -a QUEUED SKIPPED
 for subid in "${IDS[@]}"; do
   [[ -n "$subid" ]] || continue
   valid_id "$subid" || fail 400 "Invalid submission id: $subid" "id_invalid"
-  spoolname="$contest:$AGORA:$subid:$SESSION_LOGIN:rejulgar:$subid"
-  : > "$SPOOLDIR/$spoolname"
+  # metadados da submissão original: linha do history que termina em :<subid>
+  line="$(grep ":$subid\$" "$hist" 2>/dev/null | tail -n1)"
+  if [[ -z "$line" ]]; then SKIPPED+=("$subid:sem_history"); continue; fi
+  IFS=: read -r r_tempo r_login r_prob r_lang _ r_sub _ <<<"$line"
+  llang="$(printf '%s' "$r_lang" | tr '[:upper:]' '[:lower:]')"
+  src="$cdir/submissions/$subid-$r_login-$r_prob.${llang:-txt}"
+  if [[ ! -f "$src" ]]; then SKIPPED+=("$subid:sem_fonte"); continue; fi
+  codeb64="$(base64 -w0 < "$src" 2>/dev/null)"
+  if [[ -z "$codeb64" ]]; then SKIPPED+=("$subid:fonte_vazia"); continue; fi
+  # provisório: troca a linha (match por :subid) p/ "Not Answered Yet" — aparece na Situação
+  tmp="$hist.tmp.$$"
+  awk -v id=":$subid" -v repl="$r_tempo:$r_login:$r_prob:$r_lang:Not Answered Yet:$r_sub:$subid" '
+    index($0, id) == length($0) - length(id) + 1 { print repl; next } { print }' "$hist" > "$tmp" 2>/dev/null \
+    && mv -f "$tmp" "$hist" || rm -f "$tmp"
+  # injeta no spool como SUBMIT (mesmo id) — o daemon re-julga e troca a linha por :id
+  FILETYPE="$(printf '%s' "${r_lang:-TXT}" | tr '[:lower:]' '[:upper:]')"
+  spoolname="$contest:$AGORA:$subid:$r_login:submit:$r_prob:$FILETYPE"
+  innm="$SPOOLDIR/.in.$subid.$AGORA"
+  jq -cn --arg c "$contest" --arg l "$r_login" --arg p "$r_prob" --arg f "solution.${llang:-txt}" \
+     --arg b "$codeb64" --arg t "$FILETYPE" --argjson ts "${r_sub:-$AGORA}" --arg id "$subid" \
+     '{contest:$c, login:$l, problem_id:$p, filename:$f, code_b64:$b, lang:$t, time:$ts, id:$id}' > "$innm"
+  mv -f "$innm" "$SPOOLDIR/$spoolname"
   QUEUED+=("$subid")
 done
 
-audit_log_to "$contest" rejudge "count=${#QUEUED[@]} ids=$( (IFS=,; printf '%s' "${QUEUED[*]}") | head -c 200)"
-ok_json '{action:"rejudge", queued:$q, count:($q|length)}' \
-  --argjson q "$(printf '%s\n' "${QUEUED[@]}" | jq -R . | jq -cs 'map(select(length>0))')"
+audit_log_to "$contest" rejudge "count=${#QUEUED[@]} skipped=${#SKIPPED[@]}$( ((${#SKIPPED[@]})) && printf ' [%s]' "$(IFS=,; echo "${SKIPPED[*]}")" | head -c 200)"
+ok_json '{action:"rejudge", queued:$q, count:($q|length), skipped:$s, skipped_count:($s|length)}' \
+  --argjson q "$(printf '%s\n' ${QUEUED[@]+"${QUEUED[@]}"} | jq -R . | jq -cs 'map(select(length>0))')" \
+  --argjson s "$(printf '%s\n' ${SKIPPED[@]+"${SKIPPED[@]}"} | jq -R . | jq -cs 'map(select(length>0))')"

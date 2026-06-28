@@ -52,6 +52,17 @@ source "$SERVER_DIR/judge-gw/sched-lib.sh"
 
 log() { echo "[judged $(date +%H:%M:%S)] $*" >&2; }
 
+# clog <contest> <action> <details> : registra um evento do daemon NO LOG DO CONTEST
+# (mesmo arquivo/formato da auditoria do admin, com who="judged") p/ o admin do contest
+# enxergar problemas — descartes, erros de juiz, rejulgar que falhou. Sanitiza tab/newline.
+clog() {
+  local c="$1" action="$2" det="${3//$'\t'/ }"; det="${det//$'\n'/ }"
+  [[ "$c" =~ ^[A-Za-z0-9._-]+$ && "$c" != *..* ]] || return 0
+  mkdir -p "$CONTESTSDIR/$c/var" 2>/dev/null
+  printf '%s\t%s\t%s\t%s\n' "$EPOCHSECONDS" "judged" "$action" "$det" \
+    >> "$CONTESTSDIR/$c/var/admin-audit.log" 2>/dev/null || true
+}
+
 mkdir -p "$SPOOLDIR" "$SPOOLDONEDIR" 2>/dev/null
 
 # valida id de contest antes de tocar contests/<id>/... (evita path traversal).
@@ -175,14 +186,14 @@ process_spool_file() {
     if ! valid_contest_id "$rc"; then log "rejulgar: contest inválido em $base"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
     local rhist="$CONTESTSDIR/$rc/controle/history" rline
     rline="$(grep ":$rid\$" "$rhist" 2>/dev/null | tail -n1)"
-    if [[ -z "$rline" ]]; then log "rejulgar: $rid não está no history de $rc"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
+    if [[ -z "$rline" ]]; then log "rejulgar: $rid não está no history de $rc"; clog "$rc" rejulgar-falhou "id=$rid motivo=sem-history"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
     local r_tempo r_login r_prob r_lang r_sub
     IFS=: read -r r_tempo r_login r_prob r_lang _ r_sub _ <<<"$rline"
     local r_llang r_src r_b64=""
     r_llang="$(printf '%s' "$r_lang" | tr '[:upper:]' '[:lower:]')"
     r_src="$CONTESTSDIR/$rc/submissions/$rid-$r_login-$r_prob.${r_llang:-txt}"
     [[ -f "$r_src" ]] && r_b64="$(base64 -w0 < "$r_src" 2>/dev/null)"
-    if [[ -z "$r_b64" ]]; then log "rejulgar: fonte ausente p/ $rid ($r_src)"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
+    if [[ -z "$r_b64" ]]; then log "rejulgar: fonte ausente p/ $rid ($r_src)"; clog "$rc" rejulgar-falhou "id=$rid motivo=sem-fonte src=$r_src"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
     # provisório "Not Answered Yet" -> aparece como PENDENTE na Situação enquanto re-julga
     update_history "$rhist" "$rid" "$r_tempo:$r_login:$r_prob:$r_lang:Not Answered Yet:$r_sub:$rid"
     json="$(jq -cn --arg c "$rc" --arg l "$r_login" --arg p "$r_prob" --arg lang "$r_lang" \
@@ -193,7 +204,8 @@ process_spool_file() {
     # JSON do conteúdo (submit/result normais)
     json="$(cat "$f" 2>/dev/null)"
     if ! jq -e . >/dev/null 2>&1 <<<"$json"; then
-      log "JSON inválido em $base — movendo p/ done (descartado)"
+      log "JSON inválido/vazio em $base — descartado (cmd=$comando)"
+      clog "$(cut -d: -f1 <<<"$base")" spool-descartado "base=$base cmd=$comando motivo=json-invalido-ou-vazio"
       mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
       return 1
     fi
@@ -265,6 +277,11 @@ process_spool_file() {
   verdict="$(judge_run "$contest" "$problem" "$lang" "$code_b64" "${filename:-solution}")"
   [[ -z "$verdict" ]] && verdict="Judge Error (empty verdict)"
   log "veredicto p/ id=$id: $verdict"
+  # erros de juiz (pacote ausente, sandbox, sem servidor...) vão p/ o log DO CONTEST,
+  # p/ o admin identificar o problema na aba Auditoria.
+  case "$verdict" in
+    "Judge Error"*|"No_Servers"*) clog "$contest" judge-error "id=$id login=$login prob=$problem lang=$lang verdict=$verdict" ;;
+  esac
 
   # tempo (campo 1 do history): minutos/segundos desde o início do contest, como
   # no julgador legado. Sem CONTEST_START, usa o epoch (igual ao submit.sh).
