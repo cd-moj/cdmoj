@@ -35,7 +35,9 @@ case "$action" in
   delete)
     id="$(jq -r '.id // empty' <<<"$body")"
     [[ "$id" =~ ^[A-Za-z0-9_]+$ ]] || fail 400 "id inválido" "id_invalid"
+    dname="$(jq -r '.name // ""' "$bdir/$id.meta" 2>/dev/null)"   # nome ANTES de remover (auditoria)
     rm -f "$bdir/$id" "$bdir/$id.meta"
+    audit_log_to "$contest" backup-delete "login=$login id=$id name=$dname"
     ok_json '{deleted:true, id:$id}' --arg id "$id"
     ;;
   *)
@@ -49,6 +51,7 @@ case "$action" in
     sz="$(stat -c%s "$bdir/$id" 2>/dev/null || echo 0)"
     if (( ${sz:-0} > 10485760 )); then rm -f "$bdir/$id"; fail 413 "Arquivo muito grande (máx 10MB)" "too_large"; fi
     jq -cn --arg n "$safe" --argjson s "${sz:-0}" --argjson t "$EPOCHSECONDS" '{name:$n, size:$s, time:$t}' > "$bdir/$id.meta"
+    audit_log_to "$contest" backup-upload "login=$login id=$id name=$safe size=${sz:-0}"
     ok_json '{saved:true, id:$id, name:$n, size:$s, time:$t}' --arg id "$id" --arg n "$safe" --argjson s "${sz:-0}" --argjson t "$EPOCHSECONDS"
     ;;
 esac

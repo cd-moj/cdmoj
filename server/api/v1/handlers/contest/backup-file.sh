@@ -21,6 +21,9 @@ bdir="$CONTESTSDIR/$contest/backups/$who"
 name="$(jq -r '.name // "arquivo"' "$bdir/$id.meta" 2>/dev/null)"
 safe="$(basename "$name" | tr -cd 'A-Za-z0-9._ -')"; [[ -n "$safe" ]] || safe="arquivo"
 
+# auditoria: registra QUEM baixou o backup de QUEM (trilha de acesso)
+audit_log_to "$contest" backup-download "owner=$who id=$id name=$safe"
+
 printf 'Status: 200 OK\r\n'
 printf 'Content-Type: application/octet-stream\r\n'
 printf 'Content-Disposition: attachment; filename="%s"\r\n' "$safe"

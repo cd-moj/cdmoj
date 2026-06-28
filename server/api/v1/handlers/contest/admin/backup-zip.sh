@@ -29,6 +29,8 @@ done
 shopt -u nullglob
 (( i > 0 )) || fail 404 "Sem arquivos" "empty"
 
+audit_log_to "$contest" backup-zip "owner=$who count=$i"   # auditoria: admin baixou o zip do usuário
+
 fn="backups-$(printf '%s' "$who" | tr -cd 'A-Za-z0-9._-').zip"
 printf 'Status: 200 OK\r\n'
 printf 'Content-Type: application/zip\r\n'
