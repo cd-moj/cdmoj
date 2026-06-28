@@ -10,12 +10,13 @@ source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""
+  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""
   load_contest_conf "$contest"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
+  sfu_json='[]'; [[ -n "$SCORE_FULL_USERS" ]] && sfu_json="$(printf '%s\n' $SCORE_FULL_USERS | grep -v '^$' | jq -R . | jq -cs .)"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
-            show_tl:$stl, languages:$langs}' \
+            show_tl:$stl, languages:$langs, score_full_users:$sfu}' \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
@@ -26,7 +27,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --arg ua "$LOGIN_UA_SUBSTRING" \
     --argjson sa "$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)" \
     --argjson stl "$([[ "$SHOWTL" == 0 ]] && echo false || echo true)" \
-    --argjson langs "$langs_json"
+    --argjson langs "$langs_json" --argjson sfu "$sfu_json"
   exit 0
 fi
 
@@ -72,6 +73,12 @@ fi
 if has languages; then
   lj="$(jq -r '(.languages // []) | map(ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$body")"
   [[ -n "$lj" ]] && setvar LANGUAGES "$lj" || delvar LANGUAGES
+fi
+
+# logins que veem o placar COMPLETO (sem freeze) além de .admin/.judge (espaço-separados)
+if has score_full_users; then
+  su="$(jq -r '(.score_full_users // []) | map(select(test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$body")"
+  [[ -n "$su" ]] && setvar SCORE_FULL_USERS "$su" || delvar SCORE_FULL_USERS
 fi
 
 audit_log_to "$contest" settings "$( ((${#CH[@]})) && { IFS=,; echo "${CH[*]}"; } || echo nada )"

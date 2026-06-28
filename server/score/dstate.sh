@@ -28,6 +28,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
 sc_load "${1:-}"
 START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 FREEZE="${FREEZE_TIME:-0}";  [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0
+[[ "${MOJ_NOFREEZE:-}" == 1 ]] && FREEZE=0   # placar COMPLETO (privilegiados): ignora freeze
 
 HIST="$CONTESTDIR/controle/history"
 [[ -f "$HIST" ]] || exit 0

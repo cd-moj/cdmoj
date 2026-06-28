@@ -22,6 +22,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
 
 sc_load "${1:-}"
 FREEZE="${FREEZE_TIME:-0}"; [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0   # >= freeze: submissão escondida
+[[ "${MOJ_NOFREEZE:-}" == 1 ]] && FREEZE=0   # placar COMPLETO (privilegiados): ignora freeze
 
 # --- header ----------------------------------------------------------------
 {

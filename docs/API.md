@@ -142,7 +142,7 @@ git avançado.
 | `/contest/admin/user-remove?contest=<c>` | POST | `{login}` → remove (não pode remover a si mesmo) |
 
 > Reusa os editores de `web/shared/contest-config/` (os mesmos da criação). Bandeiras **locais/offline** em `/shared/flags/` (271 países + 27 estados); GIFs do Sonic em `/shared/assets/sonic/`. `USERS_FROM=<contest>` no conf faz o login cair no `passwd` compartilhado (ex.: treino), mantendo o `.admin` próprio.
-| `/contest/score?contest=<c>` | — | **TXT** (1ª linha = modo) — ver `SCOREBOARD.md`. Cache preguiçoso: (re)gera `placar.txt` se a fonte (`history`/`conf`) mudou ou se nunca foi montado (cobre contests importados). |
+| `/contest/score?contest=<c>` | (Bearer opcional) | **TXT** (1ª linha = modo) — ver `SCOREBOARD.md`. Cache preguiçoso: (re)gera `placar.txt` (público, **com freeze**) e `placar-full.txt` (completo, **sem freeze**) se `history`/`conf` mudou. **Privilegiados** (`.admin`/`.judge` + allowlist `SCORE_FULL_USERS`) com token recebem o completo; demais, o público. |
 
 ## Admin / Judge / Ops (Bearer + papel)
 | Rota | Método | Papel | Ação |
@@ -195,7 +195,7 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 | `/contest/admin/access-log?contest=<c>&day=` | GET | admin | log de acessos (epoch/login/ip/UA) + alertas |
 | `/contest/admin/audit-log?contest=<c>&since=&action=&user=&limit=` | GET | admin | **feed unificado** (ações de admin + logins + submissões/rejulgar) `{events:[{time,who,kind,action,details}],count}` |
 | `/contest/admin/dashboard?contest=<c>` | GET | admin | **situação ao vivo**: `{judges:{online,busy,total,queue_depth,assigned}, submissions:{total,pending,pending_list[],max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline[]}}` (janela = últimas N submissões) |
-| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, freeze, locale, toggles `show_code/show_log/show_editor/show_tl/allow_late/score_anon`, `login_ua_substring`, `languages[]` (whitelist do contest, ids canônicos) |
+| `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, **freeze**, locale, toggles `show_code/show_log/show_editor/show_tl/allow_late/score_anon`, `login_ua_substring`, `languages[]` (whitelist do contest), `score_full_users[]` (logins que veem o placar completo além de `.admin`/`.judge`) |
 | `/contest/admin/problems?contest=<c>` | GET/POST | admin | GET inclui `languages` por problema; `{action:add\|remove\|reorder\|rename}` (reescreve PROBS), `{action:langs,letter,languages[]}` (whitelist por problema em `problem-langs.json`) ou `{action:statement,letter, html_b64?\|pdf_b64?\|remove_html?\|remove_pdf?\|refresh?}` (enunciado por problema em `enunciados/<skey>.{html,pdf}`; `refresh` re-indexa do banco) |
 | `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema (`first_minute` **relativo** ao início + `first_seconds` p/ desempate), por-linguagem, veredictos, linha do tempo. Tempo = `sub_epoch - CONTEST_START` (não EPOCH). **Só usuários normais** (descarta `.admin/.judge/.staff/.mon`). Cache em `var/statistics.cache.json` (`server/score/stats-gen.sh`), invalidado por `history`/`conf`. |
 | `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas, **sem `answered_by`**) |

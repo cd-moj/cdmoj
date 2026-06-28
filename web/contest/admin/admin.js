@@ -54,6 +54,7 @@ function settingsTab() {
       showTL = mkBool(s.show_tl !== false);
     const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
     const langs = langPicker(s.languages || []);
+    const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge', style: 'width:100%' });
     const msg = el('div', { class: 'small' });
     const save = el('button', { class: 'btn' }, 'Salvar configurações');
     save.addEventListener('click', async () => {
@@ -63,7 +64,8 @@ function settingsTab() {
         ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}), ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
         locale: locale.value, login_enabled: loginEnabled.checked, show_code: showCode.checked, show_log: showLog.checked,
         show_editor: showEditor.checked, allow_late: allowLate.checked, score_anon: scoreAnon.checked,
-        show_tl: showTL.checked, login_ua_substring: ua.value, languages: langs.get() };
+        show_tl: showTL.checked, login_ua_substring: ua.value, languages: langs.get(),
+        score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [] };
       try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), p, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
     });
@@ -82,6 +84,9 @@ function settingsTab() {
       el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
       el('p', { class: 'muted small' }, 'Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)'),
       langs.el,
+      el('h3', { style: 'margin:1rem 0 .3rem' }, '👁️ Placar completo (sem freeze)'),
+      el('p', { class: 'muted small' }, 'Quem vê o placar real mesmo durante o freeze: .admin e .judge sempre; some outros logins aqui.'),
+      fullUsers,
       el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
   }
   return { panel, load };

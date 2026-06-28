@@ -74,31 +74,37 @@ esac
 GEN="$HERE/updatescore-$MODE.sh"
 [[ -f "$GEN" ]] || die "no generator for mode '$MODE' ($GEN)"
 
-# --- generate the board ---------------------------------------------------
+# --- generate the board(s) ------------------------------------------------
+# placar.txt = público (com freeze). placar-full.txt = COMPLETO (sem freeze), servido
+# aos privilegiados (.admin/.judge + allowlist do conf) — só gerado quando há FREEZE_TIME.
 OUT="$CONTESTDIR/controle/placar.txt"
+FULL="$CONTESTDIR/controle/placar-full.txt"
 mkdir -p "$CONTESTDIR/controle" || die "cannot create controle dir"
 
-# Pipeline novo (contests criados pela interface têm o marcador created-by): nada no
-# fluxo assíncrono escreve os controle/<login>.d/<pidx> que os geradores icpc/treino
-# leem, então materializamos a partir do history. Contests legados (sem created-by)
-# mantêm os .d escritos pelo juiz antigo — não tocamos neles.
-if [[ -f "$CONTESTDIR/created-by" ]]; then
-  bash "$HERE/dstate.sh" "$CONTEST" 2>/dev/null || true
+# FREEZE_TIME do conf (sem sourcear arrays): se >0, também geramos o placar completo.
+FREEZE_RAW="$(sed -n 's/^[[:space:]]*FREEZE_TIME=//p' "$CONF" | tail -1)"
+FREEZE_RAW="$(printf '%s' "$FREEZE_RAW" | tr -cd '0-9')"
+
+# gen_one <outfile> <nofreeze:0|1> — materializa os .d (contests novos; MOJ_NOFREEZE
+# controla o freeze) e roda o gerador, instalando atômico com checagem do modo.
+gen_one() {
+  local out="$1" nofreeze="$2" tmp first
+  if [[ -f "$CONTESTDIR/created-by" ]]; then
+    MOJ_NOFREEZE="$nofreeze" bash "$HERE/dstate.sh" "$CONTEST" 2>/dev/null || true
+  fi
+  tmp="$(mktemp "$out.XXXXXX")" || die "cannot create temp file next to $out"
+  if ! MOJ_NOFREEZE="$nofreeze" bash "$GEN" "$CONTEST" > "$tmp"; then rm -f "$tmp"; die "generator failed: $GEN $CONTEST"; fi
+  first="$(head -1 "$tmp")"
+  [[ "$first" == "$MODE" ]] || { rm -f "$tmp"; die "generator '$GEN' line 1 was '$first', expected '$MODE'"; }
+  mv "$tmp" "$out" || { rm -f "$tmp"; die "cannot install board to $out"; }
+}
+
+if [[ -n "$FREEZE_RAW" ]] && (( FREEZE_RAW > 0 )); then
+  gen_one "$FULL" 1     # completo (sem freeze) — gera primeiro
+  gen_one "$OUT"  0     # público (com freeze) — os .d terminam congelados
+else
+  rm -f "$FULL" 2>/dev/null   # sem freeze: completo == público
+  gen_one "$OUT" 0
 fi
-
-TMP="$(mktemp "$OUT.XXXXXX")" || die "cannot create temp file next to $OUT"
-trap 'rm -f "$TMP"' EXIT
-
-if ! bash "$GEN" "$CONTEST" > "$TMP"; then
-  die "generator failed: $GEN $CONTEST"
-fi
-
-# sanity: first line must be the bare mode
-FIRST="$(head -1 "$TMP")"
-[[ "$FIRST" == "$MODE" ]] || die "generator '$GEN' first line was '$FIRST', expected '$MODE'"
-
-# atomic install
-mv "$TMP" "$OUT" || die "cannot install board to $OUT"
-trap - EXIT
 
 echo "$OUT"
