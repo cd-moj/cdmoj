@@ -37,6 +37,9 @@ elif is_mon; then
   buttons="$buttons + [
     {label:\"Todas Submissões\", url:\"/contest/allsubmissions/\"},
     {label:\"Estatísticas\",     url:\"/contest/statistics/\"}]"
+else
+  # usuário comum (não-privilegiado): página própria de backup de arquivos
+  buttons="$buttons + [{label:\"💾 Backup\", url:\"/contest/backup/\"}]"
 fi
 
 buttons="$buttons + [{label:\"Logout\", url:\"/logout\"}]"

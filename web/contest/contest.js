@@ -320,45 +320,6 @@ function renderResources(items) {
     el('a', { href: r.url || '#', target: '_blank' }, r.label || r.url || ''))));
 }
 
-// ---- backup de arquivos (só usuários não-privilegiados): guardar versões de solução ----
-async function loadBackups() {
-  const box = document.getElementById('backupList');
-  let r;
-  try { r = await apiGet('/contest/backup?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); }
-  catch { box.innerHTML = ''; box.append(el('span', { class: 'error-box small' }, T('Falha ao listar.', 'Failed to list.'))); return; }
-  const items = r.backups || [];
-  box.innerHTML = '';
-  if (!items.length) { box.append(el('span', { class: 'muted small' }, T('Nenhum arquivo guardado ainda.', 'No files saved yet.'))); return; }
-  items.forEach((b) => {
-    const kb = b.size ? Math.max(1, Math.round(b.size / 1024)) + ' KB' : '';
-    box.append(el('div', { class: 'row', style: 'justify-content:space-between; border-top:1px solid var(--line); padding:.3rem 0' },
-      el('span', {}, el('b', {}, b.name), ' ', el('span', { class: 'small muted' }, (kb ? '· ' + kb + ' ' : '') + '· ' + fmtDate(b.time))),
-      el('span', {},
-        el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed('/contest/backup-file?contest=' + encodeURIComponent(CONTEST) + '&id=' + encodeURIComponent(b.id), b.name); } }, '⬇ ' + T('baixar', 'download')),
-        ' · ',
-        el('a', { href: '#', class: 'small', onclick: async (e) => { e.preventDefault(); if (!confirm(T('Remover ', 'Remove ') + '"' + b.name + '"?')) return; try { await apiPost('/contest/backup?contest=' + encodeURIComponent(CONTEST), { action: 'delete', id: b.id }, { contest: CONTEST, auth: true }); loadBackups(); } catch (ex) { alert(ex.message || 'falha'); } } }, '✕'))));
-  });
-}
-function renderBackup() {
-  const up = document.getElementById('backupUpload');
-  up.innerHTML = '';
-  const fileInput = el('input', { type: 'file' });
-  const msg = el('span', { class: 'submit-steps' });
-  const btn = el('button', { class: 'btn', type: 'button' }, T('Guardar arquivo', 'Save file'));
-  btn.addEventListener('click', async () => {
-    const f = fileInput.files && fileInput.files[0];
-    if (!f) { msg.innerHTML = `<span class="error-box small">${T('Escolha um arquivo.', 'Choose a file.')}</span>`; return; }
-    btn.disabled = true; msg.textContent = T('Enviando…', 'Sending…');
-    try {
-      await apiPost('/contest/backup?contest=' + encodeURIComponent(CONTEST), { filename: f.name, file_b64: await fileToBase64(f) }, { contest: CONTEST, auth: true });
-      msg.textContent = '✓'; fileInput.value = ''; loadBackups();
-    } catch (ex) { msg.innerHTML = `<span class="error-box small">${ex.message || 'falha'}</span>`; }
-    finally { btn.disabled = false; }
-  });
-  up.append(fileInput, btn, msg);
-  loadBackups();
-}
-
 // ---- notificações ao usuário: novidades (notícias) + clarifications respondidas ----------
 // Estado "visto" por usuário/contest em localStorage; aviso na tela + badge de não lidas.
 const nseenKey = (f) => `moj_${f}_seen_${CONTEST}`;
@@ -794,10 +755,6 @@ async function bootMain() {
   renderProblems();
   renderSubFilter();
   await loadSubmissions();
-
-  // backup de arquivos: só para usuários NÃO-privilegiados (.admin/.judge/.staff/.mon têm a visão de admin)
-  const privUser = !!(userinfo && (userinfo.is_admin || userinfo.is_judge || userinfo.is_staff || userinfo.is_mon));
-  if (!privUser) { show('backupSection'); renderBackup(); }
 
   // notificações (notícias + clarifications respondidas): poll leve a cada 30s
   loadNotifications();

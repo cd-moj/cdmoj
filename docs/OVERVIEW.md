@@ -86,13 +86,13 @@ por regex, regiões), e a opção de **criar vazio**. Template JSON + import de 
 
 ### Ambiente de contest (`<id>.moj.<base>`)
 Login (com gate opcional por substring de **User-Agent**), página principal (problemas +
-submissão + editor que o admin pode desligar; **backup de arquivos** p/ não-privilegiados
-guardarem versões de solução — `/contest/backup`, o admin vê/baixa todos por usuário, com zip),
-**placar** multi-modo (icpc/obi/treino/
+submissão + editor que o admin pode desligar), **placar** multi-modo (icpc/obi/treino/
 heurístico/outro) com bandeiras locais, filtro por país/escola, modo **anônimo** (agregado/
 quartis), **freeze** (esconde resultados após o horário; `build.sh` gera `placar.txt` público
 congelado e `placar-full.txt` completo — `.admin`/`.judge` + allowlist `SCORE_FULL_USERS` veem
-o completo), tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Os problemas usam o **id canônico `coleção#problema`** (igual ao
+o completo), tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Usuários comuns
+têm no menu uma página própria de **Backup de arquivos** (`/contest/backup/`) p/ guardar versões de
+solução (não polui a home); o admin vê/baixa todos na aba **Backups** (zip por usuário). Os problemas usam o **id canônico `coleção#problema`** (igual ao
 treino — é o que o juiz usa p/ achar o pacote); o editor é o **CodeMirror compartilhado**
 (`shared/editor.js`, com tela cheia e nova janela) e a seleção de linguagens é a lista inteira do
 MOJ (`shared/languages.js`), reduzida à whitelist do conf `LANGUAGES=` quando definida. O placar
