@@ -126,6 +126,8 @@ git avançado.
 | `/contest/problems?contest=<c>` | Bearer | `{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits,languages}]}` (`problem_id` = forma canônica `coleção#problema`, igual ao treino — é o que o juiz usa p/ achar o pacote; `time_limits` = `{lang:seg}` do store, `{}` se o conf ocultar via `SHOWTL=0`; `languages` = ids permitidos do problema: override por problema → whitelist do contest → `[]` (=todas)) |
 | `/contest/news` · `/contest/resources` | Bearer | seções opcionais (vazias = ocultar). Notícia pode ter anexo `{file:{name,size}}` |
 | `/contest/news-file?contest=<c>&id=<news_id>` | GET | Bearer | baixa o **anexo** da notícia (octet-stream, Content-Disposition) |
+| `/contest/backup?contest=<c>` | GET/POST | Bearer | **backup de arquivos do usuário** (versões de solução; não é submissão). GET = lista os próprios `{backups:[{id,name,size,time}]}`; POST `{filename,file_b64}` = guarda; POST `{action:remove,id}` = remove. Guardado em `backups/<login>/<id>`(+`.meta`), máx 10MB |
+| `/contest/backup-file?contest=<c>&id=<id>[&login=<l>]` | GET | Bearer | baixa um backup (próprio; com `login` só admin baixa de qualquer usuário) |
 | `/contest/updates?contest=<c>&news_since=&clar_since=` | Bearer | resumo leve p/ polling de notificações: `{news:{last,count,unread}, clar:{last,count,unread}}` (clar = respondidas visíveis ao usuário; `unread` = date/answered_at > since) |
 | `/contest/history?contest=<c>` | Bearer | TXT (submissões do usuário) |
 | `/contest/balloons?contest=<c>` | Bearer | mapa letra/short→cor (default ICPC A–O) |
@@ -202,6 +204,8 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 | `/contest/clarification-ask?contest=<c>` | POST | Bearer | `{problem?,question}` |
 | `/contest/clarification-answer?contest=<c>` | POST | admin/judge/mon | `{id,answer,public?}` |
 | `/contest/admin/news?contest=<c>` | POST | admin/judge/mon | `{action:add\|remove,…}` notícias do contest; `add` aceita anexo `{filename,file_b64}` (guardado em `news-files/<id>/`) |
+| `/contest/admin/backups?contest=<c>[&user=&q=]` | GET | admin | lista TODOS os backups (filtra por login/nome) `{backups:[{login,id,name,size,time}],users:[{login,count,bytes}]}` |
+| `/contest/admin/backup-zip?contest=<c>&login=<l>` | GET | admin | baixa um **zip** com todos os backups do usuário (nomes originais, prefixados por data) |
 | `/contest/admin/jplag-run?contest=<c>` | POST | admin | dispara o jplag (background) |
 | `/contest/admin/jplag-results?contest=<c>` | GET | admin | `{status, results:[{problem,lang,pairs:[{a,b,similarity}]}]}` |
 | `/contest/admin/jplag-match?contest=<c>&run=&i=` | GET | admin | HTML lado-a-lado da comparação |

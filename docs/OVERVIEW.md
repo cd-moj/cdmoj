@@ -86,7 +86,9 @@ por regex, regiões), e a opção de **criar vazio**. Template JSON + import de 
 
 ### Ambiente de contest (`<id>.moj.<base>`)
 Login (com gate opcional por substring de **User-Agent**), página principal (problemas +
-submissão + editor que o admin pode desligar), **placar** multi-modo (icpc/obi/treino/
+submissão + editor que o admin pode desligar; **backup de arquivos** p/ não-privilegiados
+guardarem versões de solução — `/contest/backup`, o admin vê/baixa todos por usuário, com zip),
+**placar** multi-modo (icpc/obi/treino/
 heurístico/outro) com bandeiras locais, filtro por país/escola, modo **anônimo** (agregado/
 quartis), **freeze** (esconde resultados após o horário; `build.sh` gera `placar.txt` público
 congelado e `placar-full.txt` completo — `.admin`/`.judge` + allowlist `SCORE_FULL_USERS` veem

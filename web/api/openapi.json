@@ -1231,6 +1231,49 @@
         }
       }
     },
+    "/contest/backup": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Lista os backups do próprio usuário",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{backups:[{id,name,size,time}]}" } }
+      },
+      "post": {
+        "tags": ["contest"],
+        "summary": "Guarda/remove um backup de arquivo (versão de solução)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{filename,file_b64} guarda; {action:remove,id} remove" } }
+      }
+    },
+    "/contest/backup-file": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Baixa um backup (próprio; login= só admin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "arquivo (octet-stream)" } }
+      }
+    },
+    "/contest/admin/backups": {
+      "get": {
+        "tags": ["contest-admin"],
+        "summary": "Lista todos os backups (filtros user/q) + resumo por usuário",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{backups:[{login,id,name,size,time}],users:[{login,count,bytes}]}" } }
+      }
+    },
+    "/contest/admin/backup-zip": {
+      "get": {
+        "tags": ["contest-admin"],
+        "summary": "Zip com todos os backups de um usuário",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "application/zip" } }
+      }
+    },
     "/contest/news-file": {
       "get": {
         "tags": [

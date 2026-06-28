@@ -1,6 +1,6 @@
 // contest/admin/admin.js — HUB de administração do contest (.admin) com sub-abas:
 // Configurações, Problemas, Aparência/placar, Usuários, Log & sessões. Tudo auditado.
-import { apiGet, apiPost } from '/shared/api.js';
+import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { LANGUAGES } from '/shared/languages.js';
 import { fileToBase64 } from '/shared/auth.js';
@@ -28,6 +28,14 @@ function downloadText(filename, text, mime) {
 const csvCell = (v) => { const s = String(v == null ? '' : v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const toCsv = (rows) => rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
 const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+// download autenticado (com Bearer) -> blob -> arquivo (p/ baixar backups/zip)
+async function downloadAuthed(path, filename) {
+  const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + (getToken(CONTEST) || '') } });
+  if (!r.ok) { alert('Falha no download (HTTP ' + r.status + ')'); return; }
+  const blob = await r.blob(); const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: filename }); document.body.append(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 0);
+}
 // seletor de linguagens (checkboxes a partir da lista canônica do MOJ); get() -> ids marcados
 function langPicker(selectedIds) {
   const sel = new Set((selectedIds || []).map((x) => String(x).toLowerCase()));
@@ -490,6 +498,50 @@ function auditTab() {
   return { panel, load };
 }
 
+// ============ Backups dos usuários ============
+function backupsTab() {
+  const panel = el('div', { class: 'section' });
+  async function load() {
+    panel.innerHTML = ''; panel.append(el('h2', {}, '💾 Backups dos usuários'));
+    const fUser = el('input', { type: 'search', placeholder: 'usuário…', style: 'width:140px' });
+    const fQ = el('input', { type: 'search', placeholder: 'nome do arquivo…', style: 'width:160px' });
+    const body = el('div', {});
+    async function run() {
+      body.innerHTML = '';
+      const qp = new URLSearchParams();
+      if (fUser.value.trim()) qp.set('user', fUser.value.trim());
+      if (fQ.value.trim()) qp.set('q', fQ.value.trim());
+      let r;
+      try { r = await apiGet('/contest/admin/backups?contest=' + enc(CONTEST) + (qp.toString() ? '&' + qp.toString() : ''), G); }
+      catch (e) { body.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
+      const users = r.users || [];
+      if (users.length) {
+        const ub = el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.5rem; margin:.3rem 0 .6rem' });
+        users.forEach((u) => ub.append(el('span', { class: 'dash-card', style: 'min-width:0; padding:.35rem .6rem' },
+          el('b', {}, u.login), ' ', el('span', { class: 'small muted' }, u.count + ' arq · ' + Math.max(1, Math.round((u.bytes || 0) / 1024)) + ' KB'), ' ',
+          el('a', { href: '#', class: 'small', title: 'Baixar zip com todos os arquivos deste usuário',
+            onclick: (e) => { e.preventDefault(); downloadAuthed('/contest/admin/backup-zip?contest=' + enc(CONTEST) + '&login=' + enc(u.login), 'backups-' + u.login + '.zip'); } }, '⬇ ZIP'))));
+        body.append(el('div', { style: 'margin-bottom:.3rem' }, el('b', {}, 'Por usuário: '), ub));
+      }
+      const items = r.backups || [];
+      body.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, items.length + ' arquivo(s).'));
+      if (!items.length) { body.append(el('div', { class: 'muted' }, 'Nada encontrado.')); return; }
+      const tb = el('tbody');
+      items.forEach((b) => tb.append(el('tr', {},
+        el('td', {}, b.login), el('td', {}, b.name),
+        el('td', { class: 'small' }, Math.max(1, Math.round((b.size || 0) / 1024)) + ' KB'),
+        el('td', { class: 'small' }, fmtDate(b.time)),
+        el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed('/contest/backup-file?contest=' + enc(CONTEST) + '&login=' + enc(b.login) + '&id=' + enc(b.id), b.name); } }, '⬇ baixar')))));
+      body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Usuário'), el('th', {}, 'Arquivo'), el('th', {}, 'Tam.'), el('th', {}, 'Enviado'), el('th', {}, ''))), tb)));
+    }
+    [fUser, fQ].forEach((i) => i.addEventListener('change', run));
+    panel.append(el('div', { class: 'row', style: 'margin-bottom:.4rem' }, el('span', { class: 'small muted' }, 'Filtros:'), fUser, fQ, el('button', { class: 'btn ghost', onclick: run }, '↻')), body);
+    await run();
+  }
+  return { panel, load };
+}
+
 // ============ framework de abas ============
 const TABS = [
   { id: 'dash', label: '📊 Situação', make: dashTab },
@@ -497,6 +549,7 @@ const TABS = [
   { id: 'problems', label: '📚 Problemas', make: problemsTab },
   { id: 'appearance', label: '🎨 Aparência', make: appearanceTab },
   { id: 'users', label: '👥 Usuários', make: usersTab },
+  { id: 'backups', label: '💾 Backups', make: backupsTab },
   { id: 'log', label: '📋 Log & sessões', make: logTab },
   { id: 'audit', label: '🧾 Auditoria', make: auditTab },
 ];
