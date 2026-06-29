@@ -32,11 +32,15 @@ require_auth_contest() {  # require_auth_contest <contest>
 
 # papéis por substring no username (convenção do MOJ)
 is_admin(){ [[ "$SESSION_LOGIN" == *.admin ]]; }
-is_judge(){ [[ "$SESSION_LOGIN" == *.judge || "$SESSION_LOGIN" == *.admin ]]; }
+# .cjudge (juiz-chefe) HERDA os poderes de juiz; .admin também é juiz.
+is_judge(){ [[ "$SESSION_LOGIN" == *.judge || "$SESSION_LOGIN" == *.cjudge || "$SESSION_LOGIN" == *.admin ]]; }
+is_chief(){ [[ "$SESSION_LOGIN" == *.cjudge ]]; }
+is_admin_or_chief(){ is_admin || is_chief; }
 is_staff(){ [[ "$SESSION_LOGIN" == *.staff ]]; }
 is_mon(){ [[ "$SESSION_LOGIN" == *.mon ]]; }
 require_admin(){ require_auth; is_admin || fail 403 "Admin only" "admin_required"; }
 require_judge(){ require_auth; is_judge || fail 403 "Judge only" "judge_required"; }
+require_chief(){ require_auth; is_chief || fail 403 "Chief judge only" "chief_required"; }
 
 # _users_source <contest> — fonte dos usuários: USERS_FROM do conf (ex.: treino) se válido,
 # senão o próprio contest. Lido com grep (NÃO faz source do conf no caminho de auth).

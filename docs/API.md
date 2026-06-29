@@ -9,7 +9,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
 | `/auth/login?contest=<c>` | POST | — | body `{username,password}` → `{token,logged_in,username,name,contest}` |
-| `/auth/status?contest=<c>` | GET | Bearer | `{logged_in,login,name,contest,is_admin,is_judge,is_staff}` |
+| `/auth/status?contest=<c>` | GET | Bearer | `{logged_in,login,name,contest,is_admin,is_judge,is_staff,is_chief}` (`.cjudge` = juiz-chefe → `is_judge:true,is_chief:true`) |
 | `/auth/logout` | POST | Bearer | `{logged_out:true}` |
 
 ## Index (home)
@@ -202,7 +202,7 @@ Permissão: usuários `.admin` sempre podem; demais por **lista do admin OU thre
 > Ações auditadas (em `treino/var/admin-audit.log`): `contest-create`, `contest-perms`, `contest-remove` — além de `news-*`, `logout-*`, `lock-user`.
 
 ## Ambiente de contest (subdomínio + admin do contest)
-Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a API só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend redireciona o resto para `/contest/`. Login com gate opcional por substring de User-Agent (`LOGIN_UA_SUBSTRING`, só não-privilegiados). Papéis: `.admin`/`.judge`/`.staff`/`.mon`.
+Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a API só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend redireciona o resto para `/contest/`. Login com gate opcional por substring de User-Agent (`LOGIN_UA_SUBSTRING`, só não-privilegiados). Papéis: `.admin`/`.judge`/`.cjudge` (juiz-chefe, herda juiz)/`.staff`/`.mon`.
 
 | Rota | Método | Papel | I/O |
 |---|---|---|---|
@@ -213,21 +213,23 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 | `/contest/admin/settings?contest=<c>` | GET/POST | admin | tempos, login on/off, abertura, **freeze**, locale, toggles `show_code/show_log/show_editor/show_tl/allow_late/score_anon/allow_backup/allow_print`, `login_ua_substring`, `languages[]` (whitelist do contest), `score_full_users[]` (logins que veem o placar completo além de `.admin`/`.judge`) |
 | `/contest/admin/problems?contest=<c>` | GET/POST | admin | GET inclui `languages` por problema; `{action:add\|remove\|reorder\|rename}` (reescreve PROBS), `{action:langs,letter,languages[]}` (whitelist por problema em `problem-langs.json`) ou `{action:statement,letter, html_b64?\|pdf_b64?\|remove_html?\|remove_pdf?\|refresh?}` (enunciado por problema em `enunciados/<skey>.{html,pdf}`; `refresh` re-indexa do banco) |
 | `/contest/statistics?contest=<c>` | GET | admin/judge/mon | totais, por-problema (`first_minute` **relativo** ao início + `first_seconds` p/ desempate), por-linguagem, veredictos, linha do tempo. Tempo = `sub_epoch - CONTEST_START` (não EPOCH). **Só usuários normais** (descarta `.admin/.judge/.staff/.mon`). Cache em `var/statistics.cache.json` (`server/score/stats-gen.sh`), invalidado por `history`/`conf`. |
-| `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas, **sem `answered_by`**) |
+| `/contest/clarifications?contest=<c>` | GET | Bearer | role-aware (admin/judge/mon = todas; demais = próprias + públicas, **sem `answered_by`**). **O asker (`.login`) NUNCA é exposto** — nem aos juízes (tratamento isonômico; recuperável só pelo admin via auditoria `clarification-ask`). Privilegiado recebe `answer_claim` (reserva) e `is_chief` |
 | `/contest/clarification-ask?contest=<c>` | POST | Bearer | `{problem?,question}` |
-| `/contest/clarification-answer?contest=<c>` | POST | admin/judge/mon | `{id,answer,public?}` |
-| `/contest/admin/news?contest=<c>` | POST | admin/judge/mon | `{action:add\|remove,…}` notícias do contest; `add` aceita anexo `{filename,file_b64}` (guardado em `news-files/<id>/`) |
+| `/contest/clarification-claim?contest=<c>` | POST | admin/judge/mon | `{id,action:claim\|release}` — **reserva p/ responder** (dois juízes não pegam a mesma; TTL 5 min, expira na leitura). Auditado (`clar-claim`/`clar-release`) |
+| `/contest/clarification-answer?contest=<c>` | POST | admin/judge/mon | `{id,answer,public?}` — sob `flock` + reserva; **já respondida só o juiz-chefe/admin edita** (`409 already_answered`); abertas exigem a reserva (`409 clar_claimed`). Auditado (`edited=`) |
+| `/contest/clarification-broadcast?contest=<c>` | POST | admin/judge/mon | **aviso oficial** `{problem?,question,answer}` — Q+A público já respondido, **autor oculto** (`login:""`, `broadcast:true`; UI mostra "Organização"). Auditado |
+| `/contest/admin/news?contest=<c>` | POST | admin/judge/mon (**`edit` só admin/chief**) | `{action:add\|remove\|edit,…}` notícias do contest; `add` aceita anexo `{filename,file_b64}` (em `news-files/<id>/`); `edit {id,title,text}` (notícia já enviada). Auditado (`news-add/remove/edit`) |
 | `/contest/admin/backups?contest=<c>[&user=&q=]` | GET | admin | lista TODOS os backups (filtra por login/nome) `{backups:[{login,id,name,size,time}],users:[{login,count,bytes}]}` |
 | `/contest/admin/backup-zip?contest=<c>&login=<l>` | GET | admin | baixa um **zip** com todos os backups do usuário (nomes originais, prefixados por data) |
 | `/contest/admin/staff-filters?contest=<c>` | GET/POST | admin | escopo dos usuários `.staff` por **regex** no login do aluno (sedes distribuídas). GET → `{staff:[{login,fullname,disabled}], filters:{login:[regex]}, regions:[{name,regex}]}` (regions p/ semear). POST `{filters:{login:[regex]}}` (chaves = `.staff` existentes; vazio = vê tudo) → grava `print-requests/staff-filters.json`. **Auditado** (`staff-filters`) |
 | `/contest/admin/jplag-run?contest=<c>` | POST | admin | dispara o jplag (background) |
 | `/contest/admin/jplag-results?contest=<c>` | GET | admin | `{status, results:[{problem,lang,pairs:[{a,b,similarity}]}]}` |
 | `/contest/admin/jplag-match?contest=<c>&run=&i=` | GET | admin | HTML lado-a-lado da comparação |
-| `/contest/userinfo?contest=<c>` | GET | Bearer | + `show_editor/show_log/show_code/is_mon` |
+| `/contest/userinfo?contest=<c>` | GET | Bearer | + `show_editor/show_log/show_code/is_mon/is_chief` |
 | `/contest/admin/logout-user?contest=<c>` | POST | admin | `{login}` → encerra sessões do usuário |
 | `/contest/admin/user-disable?contest=<c>` | POST | admin | `{login}` → bloqueia (senha `!…`) + desloga (reabilita via user-add) |
 | `/contest/admin/users-set-password?contest=<c>` | POST | admin | `{password,include_disabled?}` → senha única p/ todos os não-privilegiados (prova) |
 | `/contest/admin/logout-mismatch?contest=<c>` | POST | admin | desloga sessões cujo UA ≠ `LOGIN_UA_SUBSTRING` |
 
 > **Tela única** `/contest/admin/` (hub com sub-abas: Configurações, Problemas, Aparência, Usuários, Log & sessões); `/contest/{admin_tasks,log}/` redirecionam para ela. Placar: `score_anon` no conf → modo anônimo (agregado/quartis, sem nomes); home abre contests pelo subdomínio.
-> Auditado em `contests/<c>/var/admin-audit.log`: `settings`, `problems-*`, `clarification-answer`, `news-*`, `jplag-run`, `logout-user`, `user-disable`, `users-set-password`, `logout-mismatch`.
+> Auditado em `contests/<c>/var/admin-audit.log`: `settings`, `problems-*`, `clarification-answer`, `clar-claim`, `clar-release`, `clarification-broadcast`, `news-*`, `jplag-run`, `logout-user`, `user-disable`, `users-set-password`, `logout-mismatch`.

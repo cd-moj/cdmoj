@@ -31,9 +31,15 @@ if is_admin; then
     {label:\"Todas Submissões\", url:\"/contest/allsubmissions/\"},
     {label:\"Estatísticas\",     url:\"/contest/statistics/\"},
     {label:\"jplag\",            url:\"/contest/jplag/\"}]"
+elif is_chief; then
+  buttons="$buttons + [
+    {label:\"⚖️ Avaliar\",        url:\"/contest/judge/\"},
+    {label:\"👑 Juiz-chefe\",     url:\"/contest/chief/\"},
+    {label:\"Todas Submissões\",  url:\"/contest/allsubmissions/\"},
+    {label:\"Estatísticas\",      url:\"/contest/statistics/\"}]"
 elif is_judge; then
   buttons="$buttons + [
-    {label:\"Submissões Pendentes\", url:\"/contest/judge/\"},
+    {label:\"⚖️ Avaliar\",            url:\"/contest/judge/\"},
     {label:\"Todas Submissões\",     url:\"/contest/allsubmissions/\"},
     {label:\"Estatísticas\",         url:\"/contest/statistics/\"}]"
 elif is_mon; then

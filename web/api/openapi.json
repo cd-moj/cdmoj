@@ -2700,12 +2700,28 @@
         }
       }
     },
+    "/contest/clarification-claim": {
+      "post": {
+        "tags": ["contest"],
+        "summary": "Reservar uma clarification p/ responder (admin/judge/mon; TTL 5min)",
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{claimed_by,expires_at} — body {id,action:claim|release}; 409 clar_claimed/already_answered" } }
+      }
+    },
+    "/contest/clarification-broadcast": {
+      "post": {
+        "tags": ["contest"],
+        "summary": "Aviso oficial: Q+A público com autor oculto (admin/judge/mon)",
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{broadcast,id} — body {problem?,question,answer}" } }
+      }
+    },
     "/contest/clarification-answer": {
       "post": {
         "tags": [
           "contest"
         ],
-        "summary": "Responder (admin/judge/mon)",
+        "summary": "Responder (admin/judge/mon; já respondida só chief/admin edita)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

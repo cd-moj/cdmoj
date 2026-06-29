@@ -51,8 +51,8 @@ if (( ${#pm_items[@]} )); then probmeta="$(printf '%s\n' "${pm_items[@]}" | jq -
 START_VAL="${CONTEST_START:-0}"; [[ "$START_VAL" =~ ^[0-9]+$ ]] || START_VAL=0
 awk -F: -v START="$START_VAL" '
 {
-  # estatísticas só de usuários normais: descarta privilegiados (.admin/.judge/.staff/.mon)
-  if($2 ~ /\.(admin|judge|staff|mon)$/) next;
+  # estatísticas só de usuários normais: descarta privilegiados (.admin/.judge/.cjudge/.staff/.mon)
+  if($2 ~ /\.(admin|judge|cjudge|staff|mon)$/) next;
   # tempo RELATIVO ao início: usa o sub_epoch (penúltimo campo, sempre EPOCH absoluto) menos
   # CONTEST_START. mn = minutos relativos; secs = segundos (p/ desempate do 1º a resolver).
   secs=$(NF-1)-START; if(secs<0)secs=0; mn=int(secs/60);

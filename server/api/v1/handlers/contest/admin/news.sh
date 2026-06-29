@@ -1,5 +1,6 @@
-# POST /contest/admin/news?contest=<id>  (admin/judge/mon) {action:add|remove, ...}
+# POST /contest/admin/news?contest=<id>  (admin/judge/mon) {action:add|remove|edit, ...}
 # Gerencia as notícias públicas do contest (contests/<id>/news.json: [{id,title,text,date}]).
+# add/remove: admin/judge/mon. edit (notícia já enviada): só admin OU juiz-chefe (.cjudge).
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -40,7 +41,18 @@ case "$action" in
     [[ "$id" =~ ^[A-Za-z0-9]+$ ]] && rm -rf "$CONTESTSDIR/$contest/news-files/$id" 2>/dev/null   # limpa o anexo
     new="$(jq -cn --argjson cur "$cur" --arg id "$id" '[ $cur[] | select(.id != $id) ]')"
     ;;
-  *) fail 400 "action inválida (add|remove)" "action_invalid" ;;
+  edit)
+    # editar notícia JÁ enviada: poder do juiz-chefe (e do admin). Mantém id/date/anexo.
+    is_admin_or_chief || fail 403 "Apenas admin/juiz-chefe editam notícias" "news_edit_forbidden"
+    id="$(jq -r '.id // empty' <<<"$body")"
+    [[ -n "$id" ]] || fail 400 "Informe o id" "id_missing"
+    title="$(jq -r '.title // empty' <<<"$body")"; text="$(jq -r '.text // ""' <<<"$body")"
+    [[ -n "$title" ]] || fail 422 "Informe o título" "title_missing"
+    jq -e --arg id "$id" 'any(.[]; .id==$id)' <<<"$cur" >/dev/null 2>&1 || fail 404 "Notícia não encontrada" "notfound"
+    new="$(jq -cn --argjson cur "$cur" --arg id "$id" --arg t "$title" --arg x "$text" \
+      '[ $cur[] | if .id==$id then (.title=$t | .text=$x) else . end ]')"
+    ;;
+  *) fail 400 "action inválida (add|remove|edit)" "action_invalid" ;;
 esac
 printf '%s' "$new" > "$f.tmp" && mv -f "$f.tmp" "$f"
 audit_log_to "$contest" "news-$action" "$(jq -r '.title // .id // ""' <<<"$body" | head -c 120)"

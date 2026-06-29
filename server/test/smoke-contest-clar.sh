@@ -20,7 +20,8 @@ Q2="$(jq -r .id <<<"$BODY")"; ck "bob perguntou geral (Q2)" '[[ -n "$Q2" && "$Q2
 
 echo "== visibilidade inicial =="
 call /contest/clarifications GET '' alice 'contest=cl'
-ck "alice vê só a própria (1)" '[[ "$(jq -r ".clarifications|length" <<<"$BODY")" == 1 && "$(jq -r ".clarifications[0].login" <<<"$BODY")" == "alice" ]]'
+# asker é anonimizado p/ todos (sem .login); o próprio asker é marcado com .mine=true
+ck "alice vê só a própria (1)" '[[ "$(jq -r ".clarifications|length" <<<"$BODY")" == 1 && "$(jq -r ".clarifications[0].mine" <<<"$BODY")" == "true" && "$(jq -r ".clarifications[0]|has(\"login\")" <<<"$BODY")" == "false" ]]'
 ck "alice can_answer false"    '[[ "$(jq -r .can_answer <<<"$BODY")" == false ]]'
 call /contest/clarifications GET '' adm 'contest=cl'
 ck "admin vê todas (2) + can_answer" '[[ "$(jq -r ".clarifications|length" <<<"$BODY")" == 2 && "$(jq -r .can_answer <<<"$BODY")" == true ]]'
