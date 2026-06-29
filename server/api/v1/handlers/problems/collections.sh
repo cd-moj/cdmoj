@@ -9,7 +9,9 @@ rreg="$(cat "$REPO_REGISTRY" 2>/dev/null)"; [[ -n "$rreg" ]] || rreg='{}'
 gadm=false; is_admin && gadm=true
 emit_json 200 OK
 owners_merged | jq -c --argjson reg "$reg" --argjson rreg "$rreg" --arg me "$SESSION_LOGIN" --argjson gadm "$gadm" '
-  ( [ .problems[] | {c:.collections[], pub:.public} ] | group_by(.c)
+  ( [ .problems[]
+      | select(.public or .owner==$me or ((.collaborators // [])|index($me)|type=="number"))  # só conta o que o login PODE ver (não vaza nº de privados)
+      | {c:.collections[], pub:.public} ] | group_by(.c)
     | map({name:.[0].c, count:length, public:([.[]|select(.pub)]|length)}) ) as $fromp
   | ($fromp | map(.name)) as $names
   | ( $reg | to_entries | map(select((.key|IN($names[]))|not) | {name:.key, count:0, public:0}) ) as $empty

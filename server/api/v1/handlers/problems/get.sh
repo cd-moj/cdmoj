@@ -7,6 +7,7 @@ source "$_DIR/lib/problems.sh"
 id="$(param id)"
 [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
+require_problem_view "$id"   # privado só p/ dono/colaborador (corta na API; não revela a existência)
 base="$(owners_merged | jq -c --arg id "$id" 'first(.problems[]|select(.id==$id)) // empty' 2>/dev/null)"
 [[ -n "$base" ]] || base="$(jq -cn --arg id "$id" '{id:$id, unknown:true}')"
 

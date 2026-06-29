@@ -42,7 +42,11 @@ owners_merged(){
 owners_emit(){
   local prog="$1"; shift
   emit_json 200 OK
-  owners_merged | jq -c "$@" "$prog" 2>/dev/null || jq -cn '{success:true, problems:[]}'
+  # SEGURANÇA (a API garante o acesso, NÃO a interface): pré-filtra .problems p/ só o que o login
+  # PODE VER (público OU dono OU colaborador). Problema privado some das listagens — inclusive p/ .admin.
+  owners_merged \
+    | jq -c --arg _me "$SESSION_LOGIN" '.problems |= map(select(.public or .owner==$_me or ((.collaborators // [])|index($_me)|type=="number")))' \
+    | jq -c "$@" "$prog" 2>/dev/null || jq -cn '{success:true, problems:[]}'
 }
 
 # authored_upsert <id> <owner> <repo> <prob> <title> <public:true|false> <collections-json> <author> [collabs-json]
@@ -190,6 +194,22 @@ problem_access(){
       elif $p.owner==$me then "mine"
       elif (($p.collaborators // [])|index($me)) then "shared"
       elif $p.public then "public" else "denied" end' 2>/dev/null
+}
+# require_problem_edit <id> — CORTA NA API (404) se o login não for dono nem colaborador. Use nos
+# endpoints que devolvem source/pacote/soluções/calibração (conteúdo sensível). Checagem AO VIVO no
+# Gitea (gitea_can_write): owner OU colaborador. SEM atalho de .admin. 404 (não 403) p/ não revelar a
+# EXISTÊNCIA de um problema privado. A trava está AQUI na API, nunca só na interface.
+require_problem_edit(){
+  local id="$1" repo="${1%%#*}" owner
+  owner="$(problem_owner "$id")"
+  { [[ -n "$owner" ]] && declare -F gitea_can_write >/dev/null && gitea_can_write "$owner" "$repo" "$SESSION_LOGIN"; } \
+    || fail 404 "Problema não encontrado" "not_found"
+}
+# require_problem_view <id> — CORTA (404) se o problema é PRIVADO e o login não é dono/colaborador.
+# Público => qualquer um vê o detalhe/metadados (mas não o source/pacote -> require_problem_edit).
+require_problem_view(){
+  local acc; acc="$(problem_access "$1" "$SESSION_LOGIN")"
+  [[ "$acc" == mine || "$acc" == shared || "$acc" == public ]] || fail 404 "Problema não encontrado" "not_found"
 }
 
 # problem_owner <id> -> login dono (overlay authored -> índice -> registro de repos). Vazio se desconhecido.

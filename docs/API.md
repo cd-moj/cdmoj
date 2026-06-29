@@ -56,6 +56,14 @@ Backend = **Gitea** (store git), mas o autor só usa o **login do MOJ** (sem cha
 Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem dono (legado não-migrado)
 é **ignorado** no índice; `/mine` = `owner==login` (sem casamento difuso). Não há mais "legado".
 
+> **Controle de acesso — garantido na API, NUNCA só na interface.** Ver o **source/pacote/soluções/
+> calibração** de um problema é só p/ **dono ou colaborador** (`require_problem_edit`) — **sem atalho de
+> `.admin`**. Ver o **detalhe/statement** (`get`/`validation`) é dono/colaborador **ou** se o problema é
+> **público** (`require_problem_view`). Problema **PRIVADO não é nem LISTADO** p/ quem não é dono/colaborador
+> (as listagens pré-filtram em `owners_emit`), **inclusive p/ `.admin`** — provas em elaboração não podem
+> vazar. Não-autorizado recebe **404** (não revela a existência). Helpers centrais em `lib/problems.sh`;
+> `moj-cli`/curl batem na mesma API e não burlam.
+
 | Rota | Método | I/O |
 |---|---|---|
 | `/problems/mine` | GET | `{problems:[{id,title,author,owner,collections,public,html,claimed}]}` — `claimed=true` se `owner==login`, senão "provável" (nome casa) |
@@ -73,7 +81,7 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 |---|---|---|
 | `/problems/repos` | GET | diretórios do autor (dono/colaborador) `{repos:[{repo,owner,collaborators,collections,mine}]}` |
 | `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
-| `/problems/source?id=<id>` | GET | **source** editável `{editable,title,enunciado_md,enunciado_format,author,tags,conf_text,public,collections,examples,tests,sols{good,slow,wrong,pass,upcoming},score,editorial_md}` (dono+escrita=editável; sem escrita=read-only, **não** legado). Cada `examples[i]` traz `explanation` (opcional); `editorial_md` = resolução só p/ setter |
+| `/problems/source?id=<id>` | GET | **source** editável `{editable,title,enunciado_md,enunciado_format,author,tags,conf_text,public,collections,examples,tests,sols{good,slow,wrong,pass,upcoming},score,editorial_md}` **SÓ dono/colaborador** (`require_problem_edit`); não-autorizado recebe **404** (sem read-only, sem atalho de `.admin`). Cada `examples[i]` traz `explanation` (opcional); `editorial_md` = resolução só p/ setter |
 | `/problems/preview` | POST `{enunciado_md, enunciado_format?, examples?, title?}` | **pré-visualização** HTML (= o renderizador único `render-statement.sh`, idêntico ao servido) — injeta o **título** (h1) e os exemplos (cada um com `explanation` opcional) → `{html_b64}` |
 | `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
 | `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um pacote (`.tar`/`.tar.gz`/`.tar.bz2`/`.tar.zst`/`.zip`) e **substitui tudo** (commit+push) — máquinas sem git / offline |

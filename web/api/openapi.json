@@ -3380,8 +3380,8 @@
         "tags": [
           "problems"
         ],
-        "summary": "Source editável do pacote inteiro",
-        "description": "Fonte = Gitea. Dono/colaborador com escrita => editable:true; sem escrita => editable:false (somente leitura, NÃO legado). Inclui title, examples[].explanation, sols por categoria, score e editorial_md.",
+        "summary": "Source do pacote inteiro (só dono/colaborador)",
+        "description": "Source completo: enunciado + testes OCULTOS + SOLUÇÕES + editorial. Acesso garantido NA API: só dono/colaborador; não-autorizado recebe 404 (sem read-only, sem atalho de .admin). Inclui title, examples[].explanation, sols por categoria, score e editorial_md.",
         "security": [
           {
             "bearerAuth": []

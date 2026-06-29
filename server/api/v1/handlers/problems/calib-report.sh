@@ -4,10 +4,12 @@
 require_method GET
 require_auth
 source "$_DIR/../../judge-gw/sched-lib.sh"   # valid_hostname
+source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${CALIB_DIR:=$RUNDIR/calib}"
 
 id="$(param id)"; [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
+require_problem_edit "$id"   # report.html da solução -> só dono/colaborador (corta na API)
 host="$(param host)"; valid_hostname "$host" || fail 400 "Invalid host" "host_invalid"
 name="$(param name | tr -cd 'A-Za-z0-9._-')"; [[ -n "$name" ]] || fail 400 "Missing name" "name_missing"
 

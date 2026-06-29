@@ -20,8 +20,20 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
   `printf %q` (é *sourced*). Papéis por sufixo no login (`.admin/.judge/.staff/.mon`).
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
+- **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
+  conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
+  login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a
+  trava na UI é só conveniência; a garantia de verdade é sempre o handler. Prefira **404** a 403
+  quando revelar a existência já é vazamento.
 
 ## Problemas (gestão Gitea, keyless)
+
+- **Acesso a problema (helpers centrais em `lib/problems.sh`):** ver **source/pacote/soluções/
+  calibração** = só **dono ou colaborador** (`require_problem_edit`, checagem ao vivo no Gitea,
+  **sem atalho de `.admin`**); ver **detalhe/statement** (`get`/`validation`) = dono/colaborador
+  **ou** público (`require_problem_view`); **listagens** pré-filtram em `owners_emit` (problema
+  **privado some** p/ quem não é dono/colaborador, **inclusive `.admin`**). Não-autorizado: **404**.
+  Motivo: provas em elaboração não podem vazar. Testado como não-dono via `moj-cli` (não burlável).
 
 - `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta`) +
   `lib/git-broker.sh` (commit/push via token efêmero). Handlers em `handlers/problems/`.

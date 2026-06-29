@@ -4,12 +4,13 @@
 # se comportou em cada juiz.
 require_method GET
 require_auth
-source "$_DIR/lib/tl-store.sh"   # tl_store_get
+source "$_DIR/lib/tl-store.sh"; source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${CALIB_DIR:=$RUNDIR/calib}"
 
 id="$(param id)"
 [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
+require_problem_edit "$id"   # log de calibração revela comportamento das soluções -> só dono/colaborador
 
 store="$(tl_store_get "$id")"; [[ -n "$store" ]] || store='{}'
 logs='{}'; d="$CALIB_DIR/$id"

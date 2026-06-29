@@ -6,13 +6,14 @@ require_method POST
 require_auth
 source "$_DIR/../../judge-gw/sched-lib.sh"
 source "$_DIR/lib/tl-store.sh"
-source "$_DIR/lib/problems.sh"   # ensure_repo_materialized
+source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"   # require_problem_edit + ensure_repo_materialized
 
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 id="$(jq -r '.id // empty' <<<"$body")"
 [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
+require_problem_edit "$id"   # validar/calibrar é ação de autoria -> só dono/colaborador
 
 # repo = parte antes de '#' (ou '/')
 repo="${id%%#*}"; [[ "$repo" == "$id" ]] && repo="${id%%/*}"

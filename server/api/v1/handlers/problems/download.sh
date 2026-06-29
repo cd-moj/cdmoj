@@ -8,8 +8,8 @@ id="$(param id)"; [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 repo="${id%%#*}"; prob="${id##*#}"; [[ "$prob" != "$id" ]] || fail 400 "Id sem '#'" "id_invalid"
 owner="$(problem_owner "$id")"
-[[ -n "$owner" ]] || fail 404 "Problema não está no Gitea" "not_gitea"
-gitea_can_write "$owner" "$repo" "$SESSION_LOGIN" || is_admin || fail 403 "Sem permissão (o pacote contém soluções)" "forbidden"
+[[ -n "$owner" ]] || fail 404 "Problema não encontrado" "not_found"
+require_problem_edit "$id"   # pacote inclui SOLUÇÕES -> só dono/colaborador (SEM atalho de .admin)
 
 # Lê do espelho (mantido em dia a cada save); materializa na 1ª vez com o token do dono.
 pkg="$MOJ_PROBLEMS_DIR/$repo/$prob"
