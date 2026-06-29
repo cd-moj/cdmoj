@@ -457,7 +457,7 @@ function dashTab() {
 // ============ Auditoria (feed unificado) ============
 function auditTab() {
   const panel = el('div', { class: 'section' });
-  const KIND = { admin: '🛠️ admin', login: '🔑 login', submit: '📤 submissão' };
+  const KIND = { admin: '🛠️ admin', login: '🔑 login', submit: '📤 submissão', verdict: '⚖️ veredicto' };
   async function load() {
     panel.innerHTML = ''; panel.append(el('h2', {}, '🧾 Auditoria do contest'));
     const fUser = el('input', { type: 'search', placeholder: 'usuário…', style: 'width:140px' });

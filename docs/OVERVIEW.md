@@ -120,8 +120,10 @@ nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do
   regiões, básico), **Usuários** (add/reset/remover/**deslogar**/**desabilitar**/**troca de senha
   geral**), **Impressão** (escopo por **regex** de cada `.staff` — semeável das regiões —
   `/contest/admin/staff-filters`), **Log & sessões** (sessões com **alerta de UA/IP diferente**,
-  deslogar, filtro/deslogar por UA, log de acessos), **Auditoria** (feed cronológico unificado: ações de admin + logins +
-  submissões/rejulgar — `/contest/admin/audit-log`, filtrável + download CSV). **Problemas** também
+  deslogar, filtro/deslogar por UA, log de acessos), **Auditoria** (feed cronológico unificado no
+  **instante exato** de cada evento: ações de admin + logins + **submissões** (no sub_epoch) +
+  **veredictos** (no finalized_at, com o juiz) — cada submissão gera 2 entradas, submissão e
+  correção, p/ o trace completo; `/contest/admin/audit-log`, filtrável + download CSV). **Problemas** também
   edita as **linguagens permitidas por problema** (`problem-langs.json`), que o editor do aluno e a
   tabela de tempo-limite respeitam. **Rejulgar** (aba "todas submissões") agora reconstrói a fonte
   arquivada e re-julga de fato (marca como pendente na Situação). Criação **não sobrescreve** a conta
