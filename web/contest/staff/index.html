@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tarefas de impressão — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
+    .pr-badge { font-size:.8rem; padding:.05rem .4rem; border-radius:.5rem; border:1px solid var(--line); white-space:nowrap }
+    .pr-auto { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.2rem 0 .8rem;
+      padding:.5rem .7rem; border:1px solid var(--line); border-radius:.6rem }
+    .pr-auto.on { border-color:#0a7; background:rgba(0,170,119,.06) }
+    table.moj td .row { gap:.35rem; flex-wrap:wrap }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+  <main class="container">
+    <h1 style="margin:.2rem 0 .3rem">🖨️ Tarefas de impressão</h1>
+    <p class="muted small" style="margin:.1rem 0 1rem">Pegue uma tarefa, imprima o arquivo gerado (folha de rosto + documento) e entregue ao time; depois marque como <b>entregue</b>. Você só vê as tarefas da sua sede (filtro configurado pelo admin).</p>
+    <div id="app"><p class="muted">carregando…</p></div>
+  </main>
+  <script type="module" src="./staff.js"></script>
+</body>
+</html>

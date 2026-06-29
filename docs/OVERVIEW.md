@@ -92,7 +92,10 @@ quartis), **freeze** (esconde resultados após o horário; `build.sh` gera `plac
 congelado e `placar-full.txt` completo — `.admin`/`.judge` + allowlist `SCORE_FULL_USERS` veem
 o completo), tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Usuários comuns
 têm no menu uma página própria de **Backup de arquivos** (`/contest/backup/`) p/ guardar versões de
-solução (não polui a home); o admin vê/baixa todos na aba **Backups** (zip por usuário). Os problemas usam o **id canônico `coleção#problema`** (igual ao
+solução (não polui a home); o admin vê/baixa todos na aba **Backups** (zip por usuário). Quando há
+usuário **`.staff`** no contest, os alunos ganham também a página **Impressão** (`/contest/print/`):
+enviam um arquivo (PDF/imagem/texto/código) e acompanham o status (pendente→processada→entregue) —
+ver **Impressão (`.staff`)** abaixo. Os problemas usam o **id canônico `coleção#problema`** (igual ao
 treino — é o que o juiz usa p/ achar o pacote); o editor é o **CodeMirror compartilhado**
 (`shared/editor.js`, com tela cheia e nova janela) e a seleção de linguagens é a lista inteira do
 MOJ (`shared/languages.js`), reduzida à whitelist do conf `LANGUAGES=` quando definida. O placar
@@ -100,7 +103,12 @@ dos contests novos é **materializado a partir do `controle/history`** (`score/d
 pelo `score/build.sh`), já que o pipeline assíncrono não escreve os `.d/<pidx>`. O aluno recebe
 **aviso de novidades** (notícias + clarifications respondidas, com badge de não lidas — poll de
 `/contest/updates`) e vê o **tempo-limite** por linguagem no detalhe do problema (ocultável pelo
-admin). Telas internas:
+admin). **Acesso por fase+papel (forçado pela API, não só no front)**: `.admin`/`.judge` veem os
+problemas e **submetem a qualquer momento** (antes/durante/depois); o usuário normal **só vê os
+problemas após o início** (antes disso, ao logar, recebe uma **tela de contagem regressiva**) e
+**só submete durante a janela** (`/contest/problems` devolve `locked:"not_started"` e `/submit`
+recusa com `403` fora da janela — `contest_not_started`/`contest_ended`); `.staff` não vê problemas
+nem submete e `.mon` nunca submete. Telas internas:
 
 - **`/contest/admin/`** — hub com sub-abas: **Situação** (painel ao vivo e acionável: logados +
   alerta de multi-sessão, **ações sugeridas**, **saúde por juiz** (online/offline/cache/linguagens),
@@ -110,8 +118,9 @@ admin). Telas internas:
   gate de UA, **linguagens permitidas do contest**),
   **Problemas** (add/remover/reordenar/renomear), **Aparência** (cores/Sonic, países/escolas,
   regiões, básico), **Usuários** (add/reset/remover/**deslogar**/**desabilitar**/**troca de senha
-  geral**), **Log & sessões** (sessões com **alerta de UA/IP diferente**, deslogar, filtro/deslogar
-  por UA, log de acessos), **Auditoria** (feed cronológico unificado: ações de admin + logins +
+  geral**), **Impressão** (escopo por **regex** de cada `.staff` — semeável das regiões —
+  `/contest/admin/staff-filters`), **Log & sessões** (sessões com **alerta de UA/IP diferente**,
+  deslogar, filtro/deslogar por UA, log de acessos), **Auditoria** (feed cronológico unificado: ações de admin + logins +
   submissões/rejulgar — `/contest/admin/audit-log`, filtrável + download CSV). **Problemas** também
   edita as **linguagens permitidas por problema** (`problem-langs.json`), que o editor do aluno e a
   tabela de tempo-limite respeitam. **Rejulgar** (aba "todas submissões") agora reconstrói a fonte
@@ -126,6 +135,20 @@ admin). Telas internas:
   (pública/privada) e publicam **notícias do contest**.
 - **`/contest/judge/`** — veredicto final do juiz. **`/contest/jplag/`** — similaridade das
   soluções aceitas (roda o jar, mostra pares + comparação lado-a-lado).
+- **`/contest/staff/`** — **Impressão (`.staff`)**: o usuário `.staff` opera o balcão de impressão
+  de uma sede. Ao logar é **redirecionado** para cá (não acessa a home do contest).
+  **Não submete** (sem home de contest nem clarifications); vê o **placar** como
+  usuário normal (congela no freeze) e a **fila de tarefas** recebidas, filtrada pela sua lista de
+  **regex** (sedes distribuídas; lista vazia = vê tudo; o admin configura na aba **Impressão**).
+  Fluxo: **pegar** (claim, evita impressão dupla entre abas) → **imprimir** o PDF gerado pelo
+  servidor (`pr_build_pdf` em `lib/print.sh`: capa+documento normalizado em A4 via `paps`/`magick`/
+  `libreoffice`+`pdfunite`, build-once com cache) → **entregue**. A **folha de rosto** (raster, em
+  letras garrafais) traz nome do time + login, o **nº sequencial** (conferência), o **nº de páginas
+  do documento** (exceto a capa) e um campo **assinatura + hora**. Há **modo automático**: a aba
+  reserva, imprime (iframe + `window.print()`) e marca **processada** ao detectar a impressão
+  (`onafterprint`); para impressão sem o diálogo do SO, rode o navegador em **kiosk**. **Toda**
+  operação é auditada (`print-request`/`-claim`/`-served`/`-processed`/`-delivered`/`-download`,
+  `staff-filters`). O admin habilita/desabilita por conf `PRINT` (toggle `allow_print`).
 
 **Auditoria**: ações administrativas são logadas em `contests/<c>/var/admin-audit.log`
 (e `treino/var/admin-audit.log` no treino) — o contest fica auto-contido.

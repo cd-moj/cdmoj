@@ -126,12 +126,18 @@
         <ul id="resourcesList" style="margin:0; padding-left:1.1rem"></ul>
       </div>
 
-      <div class="section">
+      <div class="section hidden" id="prestartSection" style="text-align:center">
+        <h2 id="prestartTitle">A competição ainda não começou</h2>
+        <div id="prestartCountdown" style="font-size:3rem; font-weight:800; color:var(--warn); margin:1rem 0">—</div>
+        <p class="muted" id="prestartHint">Os problemas aparecem automaticamente quando a competição iniciar.</p>
+      </div>
+
+      <div class="section" id="problemsSection">
         <h2>Problemas</h2>
         <div id="problemList"><span class="muted">carregando…</span></div>
       </div>
 
-      <div class="section">
+      <div class="section" id="mySubsSection">
         <h2>Minhas submissões</h2>
         <div class="subfilter" id="subFilter"></div>
         <div id="submissionsTable"><span class="muted small">—</span></div>

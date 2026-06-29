@@ -8,6 +8,17 @@ contest="$(param contest)"
 require_contest "$contest"
 require_auth_contest "$contest"
 
+# Gate de submissão (forçado pela API): .admin/.judge sempre; .staff/.mon nunca;
+# usuário normal só DURANTE a janela do contest (nem antes do início, nem após o fim).
+source "$_LIBDIR/contest-gate.sh"
+if ! can_submit "$contest"; then
+  if is_staff;   then fail 403 "Usuário staff não submete soluções" "submit_forbidden"; fi
+  if is_mon;     then fail 403 "Monitor não submete soluções" "submit_forbidden"; fi
+  ph="$(contest_phase "$contest")"
+  [[ "$ph" == before ]] && fail 403 "A competição ainda não começou" "contest_not_started"
+  fail 403 "A competição já terminou" "contest_ended"
+fi
+
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 problem="$(jq -r '.problem_id // empty' <<<"$body")"

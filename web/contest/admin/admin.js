@@ -59,7 +59,8 @@ function settingsTab() {
     const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English')); locale.value = s.locale || 'pt';
     const loginEnabled = mkBool(s.login_enabled !== false), showCode = mkBool(s.show_code), showLog = mkBool(s.show_log !== false),
       showEditor = mkBool(s.show_editor !== false), allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
-      showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false);
+      showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
+      allowPrint = mkBool(s.allow_print !== false);
     const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
     const langs = langPicker(s.languages || []);
     const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge', style: 'width:100%' });
@@ -72,7 +73,7 @@ function settingsTab() {
         ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}), ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
         locale: locale.value, login_enabled: loginEnabled.checked, show_code: showCode.checked, show_log: showLog.checked,
         show_editor: showEditor.checked, allow_late: allowLate.checked, score_anon: scoreAnon.checked,
-        show_tl: showTL.checked, allow_backup: allowBackup.checked, login_ua_substring: ua.value, languages: langs.get(),
+        show_tl: showTL.checked, allow_backup: allowBackup.checked, allow_print: allowPrint.checked, login_ua_substring: ua.value, languages: langs.get(),
         score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [] };
       try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), p, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
@@ -88,6 +89,7 @@ function settingsTab() {
       chk('Editor de código no browser disponível', showEditor),
       chk('Mostrar o tempo-limite dos problemas aos usuários', showTL),
       chk('Permitir backup de arquivos pelos usuários', allowBackup),
+      chk('Permitir pedidos de impressão pelos usuários (.staff)', allowPrint),
       chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
       field('Gate de login por substring de UA (só não-privilegiados)', ua),
       el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
@@ -543,6 +545,52 @@ function backupsTab() {
   return { panel, load };
 }
 
+// ============ Impressão (.staff): escopo por regex ============
+function staffTab() {
+  const panel = el('div', { class: 'section' });
+  async function load() {
+    panel.innerHTML = ''; panel.append(el('h2', {}, '🖨️ Impressão (staff)'));
+    let r; try { r = await apiGet('/contest/admin/staff-filters?contest=' + enc(CONTEST), G); }
+    catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
+    const staff = r.staff || [], regions = r.regions || [], filters = r.filters || {};
+    panel.append(el('p', { class: 'muted small' }, 'Cada usuário .staff vê as tarefas de impressão dos alunos cujo login casa com uma das regex abaixo (uma por linha). Lista vazia = vê TODAS as tarefas. Os botões de região semeiam regex (uma sede por staff).'));
+    if (!staff.length) {
+      panel.append(el('div', { class: 'muted' }, 'Nenhum usuário .staff neste contest. Crie um login terminando em ',
+        el('b', {}, '.staff'), ' na aba ',
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); location.hash = '#users'; location.reload(); } }, 'Usuários'), '.'));
+      return;
+    }
+    const blocks = {};
+    staff.forEach((s) => {
+      const ta = el('textarea', { rows: '3', style: 'width:100%; font-family:monospace' });
+      ta.value = (filters[s.login] || []).join('\n');
+      blocks[s.login] = ta;
+      const chips = el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.3rem; margin:.3rem 0' });
+      regions.forEach((rg) => { if (!rg || !rg.regex) return;
+        chips.append(el('button', { class: 'btn ghost', style: 'padding:.1rem .45rem', type: 'button',
+          onclick: () => { const cur = ta.value.trim(); const lines = cur ? cur.split(/\n+/) : [];
+            if (!lines.includes(rg.regex)) { lines.push(rg.regex); ta.value = lines.join('\n'); } } },
+          '+ ' + (rg.name || rg.regex))); });
+      panel.append(el('div', { class: 'field', style: 'border-top:1px solid var(--line); padding-top:.5rem' },
+        el('label', {}, el('b', {}, s.login), (s.fullname ? el('span', { class: 'small muted' }, ' — ' + s.fullname) : ''),
+          (s.disabled ? el('span', { class: 'small', style: 'margin-left:.4rem; color:#a00' }, '(desabilitado)') : '')),
+        (regions.length ? el('div', { class: 'small muted' }, 'Semear região:') : ''), (regions.length ? chips : ''),
+        ta));
+    });
+    const msg = el('div', { class: 'small' });
+    const save = el('button', { class: 'btn' }, 'Salvar filtros');
+    save.addEventListener('click', async () => {
+      save.disabled = true; msg.className = 'small'; msg.textContent = 'Salvando…';
+      const f = {};
+      Object.keys(blocks).forEach((login) => { const lines = blocks[login].value.split(/\n+/).map((x) => x.trim()).filter(Boolean); if (lines.length) f[login] = lines; });
+      try { await apiPost('/contest/admin/staff-filters?contest=' + enc(CONTEST), { filters: f }, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
+      catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
+    });
+    panel.append(el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
+  }
+  return { panel, load };
+}
+
 // ============ framework de abas ============
 const TABS = [
   { id: 'dash', label: '📊 Situação', make: dashTab },
@@ -551,6 +599,7 @@ const TABS = [
   { id: 'appearance', label: '🎨 Aparência', make: appearanceTab },
   { id: 'users', label: '👥 Usuários', make: usersTab },
   { id: 'backups', label: '💾 Backups', make: backupsTab },
+  { id: 'staff', label: '🖨️ Impressão', make: staffTab },
   { id: 'log', label: '📋 Log & sessões', make: logTab },
   { id: 'audit', label: '🧾 Auditoria', make: auditTab },
 ];

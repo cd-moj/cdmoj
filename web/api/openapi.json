@@ -973,7 +973,7 @@
         "tags": [
           "submission"
         ],
-        "summary": "Submeter solução (assíncrono)",
+        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff/mon nunca (403 submit_forbidden); normal só durante a janela (403 contest_not_started / contest_ended)",
         "security": [
           {
             "bearerAuth": []
@@ -1167,7 +1167,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Problemas da prova",
+        "summary": "Problemas da prova. Gate: admin/judge veem sempre; staff nunca; normal só após o início (antes -> {problems:[], locked:'not_started'})",
         "security": [
           {
             "bearerAuth": []
@@ -1254,6 +1254,80 @@
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/contest" }],
         "responses": { "200": { "description": "arquivo (octet-stream)" } }
+      }
+    },
+    "/contest/print": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Lista os pedidos de impressão do próprio usuário (+ flags staff_exists/allow_print)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{requests:[{id,seq,filename,mime,size,time,status,pages}], staff_exists, allow_print}" } }
+      },
+      "post": {
+        "tags": ["contest"],
+        "summary": "Cria um pedido de impressão (gera nº sequencial)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": {
+          "200": { "description": "{id,seq,status:pending} — body {filename,file_b64}, máx 10MB" },
+          "403": { "description": "print_unavailable (sem staff) | print_disabled (PRINT=0)" }
+        }
+      }
+    },
+    "/contest/print-file": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Baixa o arquivo cru de um pedido (dono/admin/staff no escopo)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "arquivo (Content-Disposition)" } }
+      }
+    },
+    "/contest/staff/queue": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Fila de tarefas de impressão visíveis a este staff (escopo por regex)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{requests:[{id,seq,login,team,filename,status,pages,claimed_by,…}]}" } }
+      }
+    },
+    "/contest/staff/print-action": {
+      "post": {
+        "tags": ["contest"],
+        "summary": "Máquina de estado da tarefa: claim|processed|delivered",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": {
+          "200": { "description": "{updated:{id,seq,status,…}} — body {id,action,mode?}" },
+          "409": { "description": "already_claimed | not_pending | not_printed" }
+        }
+      }
+    },
+    "/contest/staff/print-pdf": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "PDF combinado (folha de rosto + documento A4), inline; build-once com cache",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "application/pdf" } }
+      }
+    },
+    "/contest/admin/staff-filters": {
+      "get": {
+        "tags": ["contest-admin"],
+        "summary": "Escopo (regex) de cada usuário .staff + lista de staff/regiões",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{staff:[{login,fullname,disabled}], filters:{login:[regex]}, regions:[{name,regex}]}" } }
+      },
+      "post": {
+        "tags": ["contest-admin"],
+        "summary": "Grava o escopo por staff (vazio = vê tudo)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{saved:true,filters} — body {filters:{login:[regex]}}" } }
       }
     },
     "/contest/admin/backups": {

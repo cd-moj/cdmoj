@@ -1,0 +1,25 @@
+# GET /contest/staff/queue?contest=<c>   (Bearer; .staff ou .admin)
+# Fila de tarefas de impressão visíveis a ESTE staff (escopo por regex). Admin vê tudo.
+# Ordena: pendentes primeiro, depois impressas, depois entregues; dentro, por nº seq.
+require_method GET
+contest="$(param contest)"
+[[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
+require_contest "$contest"
+require_auth_contest "$contest"
+{ is_staff || is_admin; } || fail 403 "Apenas staff" "staff_required"
+source "$_LIBDIR/print.sh"
+
+dir="$(pr_dir "$contest")"
+set +o noglob; shopt -s nullglob
+items=()
+for j in "$dir"/*.json; do
+  [[ -f "$j" ]] || continue
+  own="$(jq -r '.login // ""' "$j" 2>/dev/null)"
+  staff_can_see "$contest" "$SESSION_LOGIN" "$own" || continue
+  items+=("$(jq -c '{id,seq,login,fullname,team,filename,mime,size,time,status,pages,claimed_by,claimed_at,processed_by,processed_at,delivered_by,delivered_at}' "$j" 2>/dev/null)")
+done
+shopt -u nullglob
+out="$( ((${#items[@]})) && printf '%s\n' "${items[@]}" | jq -cs '
+  def rank: if .status=="pending" then 0 elif .status=="printed" then 1 else 2 end;
+  sort_by(rank, .seq)' || echo '[]')"
+ok_json '{requests:$r}' --argjson r "$out"

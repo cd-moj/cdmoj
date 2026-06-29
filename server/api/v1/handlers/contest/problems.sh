@@ -8,6 +8,16 @@ contest="$(param contest)"
 require_contest "$contest"
 require_auth_contest "$contest"
 
+# Gate de visibilidade (forçado pela API): .staff nunca vê enunciados; usuário normal só
+# DEPOIS do início (antes disso o front mostra a tela de contagem regressiva). .admin/.judge
+# veem sempre. Retorna lista vazia + `locked` p/ o front saber o motivo.
+source "$_LIBDIR/contest-gate.sh"
+if ! can_see_problems "$contest"; then
+  emit_json 200 OK
+  jq -cn --arg s "$(is_staff && echo staff || echo not_started)" '{success:true, problems:[], locked:$s}'
+  exit 0
+fi
+
 CONTEST_ID="$contest"; PROBS=(); LANGUAGES=""; SHOWTL=""
 load_contest_conf "$contest"
 # tempo-limite por problema (do store run/tl/<id>.json), salvo se o conf ocultar (SHOWTL=0).

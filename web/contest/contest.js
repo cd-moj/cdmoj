@@ -61,6 +61,7 @@ let subFilter = 'ALL';
 let sortField = 'epoch', sortAsc = false;
 let pollTimer = null;
 let loginCountdownTimer = null, loginPollTimer = null;
+let preStartTimer = null, preStartPoll = null;
 
 const T = (pt, en) => (LOCALE === 'en' ? en : pt);
 
@@ -744,7 +745,22 @@ async function bootMain() {
   apiGet('/contest/resources?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true })
     .then(j => renderResources(Array.isArray(j) ? j : (j.items || []))).catch(() => hide('resourcesSection'));
 
-  // problemas
+  // GATE pré-início: usuário NÃO privilegiado (não .admin/.judge) não vê problemas antes do
+  // início — tela de contagem regressiva (a API também recusa: /contest/problems devolve
+  // {locked:"not_started"} e /submit -> 403). .admin/.judge entram direto (sempre).
+  const privileged = !!(userinfo && (userinfo.is_admin || userinfo.is_judge));
+  const nowS = Math.floor(Date.now() / 1000);
+  if (!privileged && basic.start_time && nowS < basic.start_time) {
+    renderPreStart();
+    return;
+  }
+  await loadContestBody();
+}
+
+// carrega problemas + submissões + notificações (depois do início, ou já privilegiado)
+async function loadContestBody() {
+  clearTimeout(preStartTimer); clearInterval(preStartPoll);
+  hide('prestartSection'); show('problemsSection'); show('mySubsSection');
   try {
     const j = await apiGet('/contest/problems?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true });
     problems = Array.isArray(j) ? j : (j.problems || []);
@@ -760,6 +776,37 @@ async function bootMain() {
   loadNotifications();
   clearInterval(notifyTimer);
   notifyTimer = setInterval(loadNotifications, 30000);
+}
+
+// tela de contagem regressiva até o início (não-privilegiados). Ao zerar, carrega o corpo.
+// Repolla /contest/basic (admin pode adiar/antecipar o início).
+function renderPreStart() {
+  hide('problemsSection'); hide('mySubsSection'); show('prestartSection');
+  const title = document.getElementById('prestartTitle');
+  const cd = document.getElementById('prestartCountdown');
+  const hint = document.getElementById('prestartHint');
+  if (title) title.textContent = T('A competição ainda não começou', 'The contest has not started yet');
+  if (hint) hint.textContent = T('Os problemas aparecem automaticamente quando a competição iniciar.',
+    'Problems appear automatically when the contest starts.');
+  const tick = async () => {
+    clearTimeout(preStartTimer);
+    const left = (basic.start_time || 0) - Math.floor(Date.now() / 1000);
+    if (left > 0) {
+      cd.textContent = fmtLeft(left);
+      preStartTimer = setTimeout(tick, 1000);
+    } else {
+      // começou: revalida com a API (que agora libera) e carrega o corpo do contest
+      try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); } catch {}
+      if ((basic.start_time || 0) - Math.floor(Date.now() / 1000) > 0) { preStartTimer = setTimeout(tick, 1000); return; }
+      await loadContestBody();
+    }
+  };
+  tick();
+  // repoll de basic a cada 15s p/ refletir mudança do horário de início feita pelo admin
+  clearInterval(preStartPoll);
+  preStartPoll = setInterval(async () => {
+    try { const fresh = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); basic = fresh; } catch {}
+  }, 15000);
 }
 
 // ============================================================================
@@ -780,6 +827,11 @@ async function boot() {
   LANGS = resolveLangs(basic.languages);   // whitelist do contest (conf LANGUAGES=); vazio = todas
 
   const st = await status(CONTEST);
+  // .staff não participa do contest (não submete / não vê problemas): vai direto à sua área.
+  if (st.logged_in && st.is_staff && !st.is_admin) {
+    location.replace('/contest/staff/?c=' + encodeURIComponent(CONTEST));
+    return;
+  }
   if (st.logged_in) { if (EDITOR_ONLY) await bootEditorOnly(); else await bootMain(); }
   else bootLogin();
 }
