@@ -48,13 +48,14 @@ sz="$(stat -c%s "$dir/$id.src" 2>/dev/null || echo 0)"
 if (( ${sz:-0} > 10485760 )); then rm -f "$dir/$id.src"; fail 413 "Arquivo muito grande (máx 10MB)" "too_large"; fi
 mime="$(file -b --mime-type "$dir/$id.src" 2>/dev/null)"; [[ -n "$mime" ]] || mime="application/octet-stream"
 team="$(pr_resolve_team "$contest" "$login")"
+univ="$(pr_resolve_univ "$contest" "$login")"
 fullname="$(user_fullname "$contest" "$login")"; [[ -n "$fullname" ]] || fullname="$SESSION_NAME"
 seq="$(pr_next_seq "$contest")"
 
 jq -cn --arg id "$id" --argjson seq "$seq" --arg login "$login" --arg fn "$fullname" \
-  --arg team "$team" --arg file "$safe" --arg mime "$mime" --argjson size "${sz:-0}" \
+  --arg team "$team" --arg univ "$univ" --arg file "$safe" --arg mime "$mime" --argjson size "${sz:-0}" \
   --argjson time "$EPOCHSECONDS" '{
-    id:$id, seq:$seq, login:$login, fullname:$fn, team:$team, filename:$file, mime:$mime,
+    id:$id, seq:$seq, login:$login, fullname:$fn, team:$team, univ:$univ, filename:$file, mime:$mime,
     size:$size, time:$time, status:"pending", pages:0,
     claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0
   }' > "$dir/$id.json"

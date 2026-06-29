@@ -64,25 +64,42 @@ staff_can_see() {  # <c> <staff_login> <student_login>
   ' "$f" >/dev/null 2>&1
 }
 
-# --- resolução do nome do time (para a folha de rosto) --------------------
-# 1) controle/teams (login:flag:univshort:teamname:univfull) -> teamname
+# --- resolução do NOME do time/participante (folha de rosto) ---------------
+# Nunca devolve a sigla da universidade — essa vai em pr_resolve_univ. Ordem:
+# 1) controle/teams (login:flag:univshort:teamname:univfull) -> teamname (campo 4)
 # 2) passwd campo 7 (login:pass:fullname:email:flag:univshort:team:univfull)
-# 3) teams-meta.json: school_full/school da 1ª regra cujo regex casa o login
-# 4) fullname do passwd
+# 3) fullname do passwd (campo 3) — em treino individual, é o nome do participante
 pr_resolve_team() {  # <c> <login>
   local c="$1" login="$2" tn=""
   local d="$CONTESTSDIR/$c"
   [[ -f "$d/controle/teams" ]] && tn="$(awk -F: -v u="$login" '$1==u{print $4; exit}' "$d/controle/teams")"
   [[ -z "$tn" ]] && tn="$(awk -F: -v u="$login" '$1==u{print $7; exit}' "$d/passwd" 2>/dev/null)"
-  if [[ -z "$tn" && -f "$d/teams-meta.json" ]]; then
-    tn="$(jq -r --arg w "$login" '
+  [[ -z "$tn" ]] && tn="$(user_fullname "$c" "$login")"
+  printf '%s' "$tn"
+}
+
+# --- resolução da UNIVERSIDADE/escola (folha de rosto, secundária) ----------
+# Preferindo o nome completo; pode ser vazia. Ordem:
+# 1) controle/teams: univfull (campo 5) -> univshort (campo 3)
+# 2) passwd: univfull (campo 8) -> univshort (campo 6)
+# 3) teams-meta.json: school_full -> school (1ª regra cujo regex casa o login)
+pr_resolve_univ() {  # <c> <login>
+  local c="$1" login="$2" un=""
+  local d="$CONTESTSDIR/$c"
+  if [[ -f "$d/controle/teams" ]]; then
+    un="$(awk -F: -v u="$login" '$1==u{print $5; exit}' "$d/controle/teams")"
+    [[ -z "$un" ]] && un="$(awk -F: -v u="$login" '$1==u{print $3; exit}' "$d/controle/teams")"
+  fi
+  [[ -z "$un" ]] && un="$(awk -F: -v u="$login" '$1==u{print $8; exit}' "$d/passwd" 2>/dev/null)"
+  [[ -z "$un" ]] && un="$(awk -F: -v u="$login" '$1==u{print $6; exit}' "$d/passwd" 2>/dev/null)"
+  if [[ -z "$un" && -f "$d/teams-meta.json" ]]; then
+    un="$(jq -r --arg w "$login" '
       ((.rules // (if type=="array" then . else [] end))
        | map(. as $r | select(($r.regex // "") != "" and ($w | test($r.regex))))
        | (.[0].school_full // .[0].school // "")) // ""' "$d/teams-meta.json" 2>/dev/null)"
-    [[ "$tn" == null ]] && tn=""
+    [[ "$un" == null ]] && un=""
   fi
-  [[ -z "$tn" ]] && tn="$(user_fullname "$c" "$login")"
-  printf '%s' "$tn"
+  printf '%s' "$un"
 }
 
 # --- render interno: produz <id>.combined.pdf (chamado SOB flock) ---------
@@ -131,13 +148,14 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   # --- folha de rosto: blocos `caption:` auto-ajustáveis (letras garrafais que SEMPRE
   # cabem na página — caption escolhe o maior corpo que encaixa na caixa, quebrando linha
   # se o nome do time for longo). Fontes DejaVu (acentos garantidos). ---
-  local seq team login pagesline FB FR
+  local seq team univ login pagesline FB FR
   seq="$(jq -r '.seq // 0' "$meta" 2>/dev/null)"
   team="$(jq -r '.team // ""' "$meta" 2>/dev/null)"; [[ -n "$team" ]] || team="(sem nome de time)"
+  univ="$(jq -r '.univ // ""' "$meta" 2>/dev/null)"
   login="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
   # caption faz expansão de %; neutraliza e evita leitura de @arquivo (dados do passwd)
   cap_esc(){ local s="${1//%/%%}"; [[ "$s" == @* ]] && s=" $s"; printf '%s' "$s"; }
-  team="$(cap_esc "$team")"; login="$(cap_esc "$login")"
+  team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"
   if (( docok )); then pagesline="$pages página(s)  —  não conte esta folha de rosto"
   else pagesline="ATENÇÃO: não foi possível converter — imprima o anexo cru"; fi
   FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans-Bold$/{print $2; exit}')"
@@ -152,15 +170,16 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
     [[ -n "$7" ]] && cov+=( -weight "$7" )
     cov+=( -gravity "$8" "caption:$9" ')' -gravity northwest -geometry "+${3}+${4}" -composite )
   }
-  addcap 1080  52  80   90 '#555' "$FR" ''   center "EQUIPE  /  TEAM"
-  addcap 1080 250  80  150 black  "$FB" 700  center "$team"
-  addcap 1080  60  80  420 '#555' "$FR" ''   center "login"
-  addcap 1080 110  80  478 black  "$FB" 700  center "$login"
-  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,640 1160,640" -stroke none )
-  addcap 1080  60  80  680 '#555' "$FR" ''   center "TAREFA Nº  (confira com o sistema)"
-  addcap 1080 230  80  742 black  "$FB" 800  center "$seq"
-  addcap 1080  80  80 1000 black  "$FR" ''   center "$pagesline"
-  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1140 1160,1140" -stroke none )
+  addcap 1080  46  80   78 '#555' "$FR" ''   center "EQUIPE  /  TEAM"
+  addcap 1080 210  80  130 black  "$FB" 700  center "$team"
+  [[ -n "$univ" ]] && addcap 1080 64 80 352 '#333' "$FR" '' center "$univ"
+  addcap 1080  44  80  430 '#555' "$FR" ''   center "login"
+  addcap 1080 100  80  478 black  "$FB" 700  center "$login"
+  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,620 1160,620" -stroke none )
+  addcap 1080  56  80  664 '#555' "$FR" ''   center "TAREFA Nº  (confira com o sistema)"
+  addcap 1080 220  80  724 black  "$FB" 800  center "$seq"
+  addcap 1080  74  80  966 black  "$FR" ''   center "$pagesline"
+  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1080 1160,1080" -stroke none )
   addcap  600  46  80 1500 black  "$FR" ''   west   "Assinatura de quem entregou:"
   cov+=( -fill none -stroke black -strokewidth 2 -draw "line 80,1600 700,1600" -stroke none )
   addcap  320  46 760 1500 black  "$FR" ''   west   "Hora da entrega:"

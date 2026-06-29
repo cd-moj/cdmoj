@@ -34,29 +34,47 @@ async function pdfBlobUrl(id) {
   return URL.createObjectURL(await r.blob());
 }
 
-// imprime um blob num iframe oculto; resolve quando a impressão dispara (ou após timeout)
-function printBlob(url) {
+// AUTO: imprime um blob num iframe renderizado fora da tela (sem pop-up — o auto não tem
+// gesto do usuário). Em modo kiosk (--kiosk-printing) imprime sem diálogo. NÃO usa
+// visibility:hidden (o Firefox não imprime iframe escondido). Resolve no onafterprint/timeout.
+function printBlobIframe(url) {
   return new Promise((res) => {
-    const ifr = el('iframe', { style: 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;visibility:hidden' });
+    const ifr = el('iframe', { style: 'position:fixed;left:-10000px;top:0;width:800px;height:1100px;border:0' });
     let done = false;
-    const fin = () => { if (done) return; done = true; setTimeout(() => ifr.remove(), 1500); res(); };
-    ifr.onload = () => { try { const w = ifr.contentWindow; w.focus(); w.onafterprint = fin; w.print(); setTimeout(fin, 8000); } catch (_) { fin(); } };
+    const fin = () => { if (done) return; done = true; setTimeout(() => ifr.remove(), 2000); res(); };
+    ifr.onload = () => { setTimeout(() => { try { const w = ifr.contentWindow; w.focus(); w.onafterprint = fin; w.print(); setTimeout(fin, 8000); } catch (_) { fin(); } }, 600); };
     ifr.src = url; document.body.append(ifr);
   });
+}
+
+// MANUAL: abre o PDF numa nova aba e dispara o diálogo de impressão. A janela é aberta
+// SINCRONAMENTE dentro do clique (preserva o gesto -> não é bloqueada como pop-up); o blob
+// é carregado nela quando o fetch (com Bearer) termina. Em mobile (sem print()), o visor de
+// PDF abre e o usuário imprime/compartilha pelo menu. `doPrint` dispara window.print().
+function openPdfWindow(id, doPrint) {
+  const w = window.open('', '_blank');
+  if (!w) { alert('Permita pop-ups para abrir/imprimir o PDF desta sede.'); return null; }
+  try { w.document.write('<!doctype html><meta charset="utf-8"><title>Impressão</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Gerando o PDF…</body>'); } catch (_) {}
+  pdfBlobUrl(id).then((url) => {
+    w.location.href = url;
+    if (doPrint) { const tryPrint = () => { try { w.focus(); w.print(); } catch (_) {} }; setTimeout(tryPrint, 1500); }
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  }).catch((e) => { try { w.document.body.innerHTML = 'Falha ao gerar o PDF: ' + (e.message || 'erro'); } catch (_) {} });
+  return w;
 }
 
 async function action(id, act, extra) {
   return apiPost('/contest/staff/print-action?contest=' + enc(CONTEST), Object.assign({ id, action: act }, extra || {}), G);
 }
 
-// imprime uma tarefa (claim implícito) e marca processada. mode: 'auto' | 'manual'.
-async function printTask(t, mode) {
-  const url = await pdfBlobUrl(t.id);
-  try { await printBlob(url); } finally { URL.revokeObjectURL(url); }
-  await action(t.id, 'processed', { mode });
+// MANUAL (gesto do clique): abre+imprime numa nova aba e marca processada.
+function printTaskManual(t) {
+  const w = openPdfWindow(t.id, true);       // síncrono no gesto -> sem bloqueio de pop-up
+  if (!w) return Promise.resolve();          // pop-up bloqueado: não marca (use "Abrir PDF")
+  return action(t.id, 'processed', { mode: 'manual' });
 }
 
-// passo do modo automático: uma tarefa pendente por vez (reserva antes de imprimir)
+// passo do modo automático: uma tarefa pendente por vez (reserva antes de imprimir via iframe)
 async function autoTick() {
   if (!autoMode || busy) return;
   const t = queue.find((x) => x.status === 'pending' && !seen.has(x.id));
@@ -64,7 +82,9 @@ async function autoTick() {
   busy = true; seen.add(t.id);
   try {
     await action(t.id, 'claim');              // reserva (409 already_claimed => outra aba pegou)
-    await printTask(t, 'auto');
+    const url = await pdfBlobUrl(t.id);
+    try { await printBlobIframe(url); } finally { setTimeout(() => URL.revokeObjectURL(url), 10000); }
+    await action(t.id, 'processed', { mode: 'auto' });
   } catch (e) {
     if (!(e && e.code === 'already_claimed')) seen.delete(t.id);  // erro real: permite retry
   } finally {
@@ -80,8 +100,8 @@ function rowActions(t) {
   const mkBtn = (label, fn, cls) => { const b = el('button', { class: 'btn ' + (cls || 'ghost'), style: 'padding:.2rem .5rem' }, label);
     b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { alert(e.message || 'falha'); } finally { b.disabled = false; await loadQueue(); } }); return b; };
   if (t.status === 'pending') r.append(mkBtn('Pegar', () => action(t.id, 'claim')));
-  if (t.status !== 'delivered') r.append(mkBtn('🖨️ Imprimir', () => printTask(t, 'manual'), ''));
-  r.append(mkBtn('Abrir PDF', async () => { const u = await pdfBlobUrl(t.id); window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 60000); }));
+  if (t.status !== 'delivered') r.append(mkBtn('🖨️ Imprimir', () => printTaskManual(t), ''));
+  r.append(mkBtn('Abrir PDF', () => { openPdfWindow(t.id, false); }));
   if (t.status === 'printed') r.append(mkBtn('✅ Entregue', () => action(t.id, 'delivered'), ''));
   return r;
 }

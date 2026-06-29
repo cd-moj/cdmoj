@@ -113,7 +113,7 @@ git avançado.
 ## Submissão (assíncrona)
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
-| `/submit?contest=<c>` | POST | Bearer | body `{problem_id,filename,code_b64,source?}` (`source`=`web`\|`file`) → `{submission_id,status:"queued"}` (não bloqueia). Registra o editor em `var/editor-log` p/ o card "editor da semana". **Gate por fase+papel (forçado pela API)**: `.admin`/`.judge` submetem sempre; `.staff`/`.mon` **nunca** (`403 submit_forbidden`); usuário normal só **durante** a janela (`403 contest_not_started` antes do início, `403 contest_ended` após o fim). |
+| `/submit?contest=<c>` | POST | Bearer | body `{problem_id,filename,code_b64,source?}` (`source`=`web`\|`file`) → `{submission_id,status:"queued"}` (não bloqueia). Registra o editor em `var/editor-log` p/ o card "editor da semana". **Gate por fase+papel (forçado pela API)**: `.admin`/`.judge` submetem sempre; `.staff` **nunca** (`403 submit_forbidden`); usuário normal **e `.mon`** só **durante** a janela (`403 contest_not_started` antes do início, `403 contest_ended` após o fim) — o `.mon` submete mas fica **fora do placar**. |
 | `/submission/source?contest=<c>&id=<subid>` | GET | Bearer | código-fonte (texto) |
 | `/submission/log?contest=<c>&id=<subid>` | GET | Bearer | log do julgamento (texto) |
 
@@ -132,7 +132,7 @@ git avançado.
 | `/contest/print-file?contest=<c>&id=<id>` | GET | Bearer | baixa o arquivo **cru** de um pedido (dono sempre; admin sempre; `.staff` só dentro do seu escopo). **Auditado** (`print-download`) |
 | `/contest/staff/queue?contest=<c>` | GET | Bearer (`.staff`/admin) | fila de tarefas de impressão visíveis a este staff (escopo por regex; admin vê tudo) `{requests:[{id,seq,login,fullname,team,filename,mime,size,time,status,pages,claimed_by,…}]}` (pendentes primeiro) |
 | `/contest/staff/print-action?contest=<c>` | POST | Bearer (`.staff`/admin) | `{id,action:claim\|processed\|delivered,mode?}` — máquina de estado sob flock (`claim`: `pending`→reserva, `409 already_claimed`; `processed`→`printed`; `delivered`: exige `printed`). Escopo-checado (`403 out_of_scope`). **Auditado** (`print-claim`/`print-processed`/`print-delivered`) |
-| `/contest/staff/print-pdf?contest=<c>&id=<id>` | GET | Bearer (`.staff`/admin) | gera (build-once, cache) e serve **inline** o PDF combinado: **folha de rosto** (time, login, nº `seq`, nº de páginas do documento exceto a capa, campo assinatura+hora) + documento normalizado em A4. Escopo-checado. **Auditado** (`print-served`; `print-build-fail` no fallback) |
+| `/contest/staff/print-pdf?contest=<c>&id=<id>` | GET | Bearer (`.staff`/admin) | gera (build-once, cache) e serve **inline** o PDF combinado: **folha de rosto** (nome do time/participante + universidade, login, nº `seq`, nº de páginas do documento exceto a capa, campo assinatura+hora) + documento normalizado em A4 (**código com linhas numeradas**). Escopo-checado. **Auditado** (`print-served`; `print-build-fail` no fallback) |
 | `/contest/updates?contest=<c>&news_since=&clar_since=` | Bearer | resumo leve p/ polling de notificações: `{news:{last,count,unread}, clar:{last,count,unread}}` (clar = respondidas visíveis ao usuário; `unread` = date/answered_at > since) |
 | `/contest/history?contest=<c>` | Bearer | TXT (submissões do usuário) |
 | `/contest/balloons?contest=<c>` | Bearer | mapa letra/short→cor (default ICPC A–O) |

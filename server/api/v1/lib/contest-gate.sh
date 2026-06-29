@@ -5,7 +5,8 @@
 # Regra (forçada pela API; o frontend só espelha):
 #   .admin/.judge  -> veem problemas e SUBMETEM a qualquer momento (antes/durante/depois).
 #   .staff         -> NUNCA veem problemas nem submetem (operam só a impressão).
-#   .mon           -> veem o placar/submissões, mas NÃO submetem (observador).
+#   .mon           -> submetem só DURANTE a janela (como o normal), mas ficam FORA do placar
+#                     (sc_is_real_user já descarta *.mon das estatísticas/placar).
 #   usuário normal -> só vê os problemas DEPOIS do início; só submete DURANTE a janela.
 
 # contest_phase <contest> -> ecoa: before | running | ended  (compara EPOCH com START/END
@@ -31,6 +32,6 @@ can_see_problems() {
 # can_submit <contest> : 0 se o usuário logado pode submeter AGORA.
 can_submit() {
   is_judge && return 0                       # .admin/.judge: sempre
-  { is_staff || is_mon; } && return 1        # .staff/.mon: nunca
-  [[ "$(contest_phase "$1")" == running ]]   # normal: só durante a janela
+  is_staff && return 1                        # .staff: nunca
+  [[ "$(contest_phase "$1")" == running ]]   # normal/.mon: só durante a janela
 }

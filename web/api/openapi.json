@@ -973,7 +973,7 @@
         "tags": [
           "submission"
         ],
-        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff/mon nunca (403 submit_forbidden); normal só durante a janela (403 contest_not_started / contest_ended)",
+        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar)",
         "security": [
           {
             "bearerAuth": []
@@ -1308,7 +1308,7 @@
     "/contest/staff/print-pdf": {
       "get": {
         "tags": ["contest"],
-        "summary": "PDF combinado (folha de rosto + documento A4), inline; build-once com cache",
+        "summary": "PDF combinado (folha de rosto com time/universidade/login/nº/páginas/assinatura + documento A4, código numerado), inline; build-once com cache",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/contest" }],
         "responses": { "200": { "description": "application/pdf" } }

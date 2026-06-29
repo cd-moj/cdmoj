@@ -108,7 +108,7 @@ problemas e **submetem a qualquer momento** (antes/durante/depois); o usuário n
 problemas após o início** (antes disso, ao logar, recebe uma **tela de contagem regressiva**) e
 **só submete durante a janela** (`/contest/problems` devolve `locked:"not_started"` e `/submit`
 recusa com `403` fora da janela — `contest_not_started`/`contest_ended`); `.staff` não vê problemas
-nem submete e `.mon` nunca submete. Telas internas:
+nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do placar**. Telas internas:
 
 - **`/contest/admin/`** — hub com sub-abas: **Situação** (painel ao vivo e acionável: logados +
   alerta de multi-sessão, **ações sugeridas**, **saúde por juiz** (online/offline/cache/linguagens),
@@ -142,9 +142,10 @@ nem submete e `.mon` nunca submete. Telas internas:
   **regex** (sedes distribuídas; lista vazia = vê tudo; o admin configura na aba **Impressão**).
   Fluxo: **pegar** (claim, evita impressão dupla entre abas) → **imprimir** o PDF gerado pelo
   servidor (`pr_build_pdf` em `lib/print.sh`: capa+documento normalizado em A4 via `paps`/`magick`/
-  `libreoffice`+`pdfunite`, build-once com cache) → **entregue**. A **folha de rosto** (raster, em
-  letras garrafais) traz nome do time + login, o **nº sequencial** (conferência), o **nº de páginas
-  do documento** (exceto a capa) e um campo **assinatura + hora**. Há **modo automático**: a aba
+  `libreoffice`+`pdfunite`, build-once com cache; **código sai com linhas numeradas**) → **entregue**.
+  A **folha de rosto** (raster, letras garrafais via `caption:` auto-ajustável que sempre cabe) traz
+  o **nome do time/participante** (+ universidade) e o login, o **nº sequencial** (conferência), o
+  **nº de páginas do documento** (exceto a capa) e um campo **assinatura + hora**. Há **modo automático**: a aba
   reserva, imprime (iframe + `window.print()`) e marca **processada** ao detectar a impressão
   (`onafterprint`); para impressão sem o diálogo do SO, rode o navegador em **kiosk**. **Toda**
   operação é auditada (`print-request`/`-claim`/`-served`/`-processed`/`-delivered`/`-download`,
