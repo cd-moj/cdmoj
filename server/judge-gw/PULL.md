@@ -41,7 +41,7 @@ heartbeat (sem loop, sem porta de entrada nos juízes). Ver também `README.md`
 | `server/api/v1/handlers/judge/update-report.sh` | Recebe o report de calibração (ok/log) → `registry.<host>.last_update`. |
 | `server/api/v1/handlers/ops/problemtl.sh` | (admin) TL de um problema, do store (máx entre hosts) + por host. |
 | `server/api/v1/handlers/judge/list.sh` | (admin) Dump dos juízes: specs + inventário + `last_update`. |
-| `mojtools/tl-checksum.sh` | Checksum (16 hex) dos arquivos que afetam o TL (conf+tests/input+sols/good). |
+| `mojtools/tl-checksum.sh` | Checksum (16 hex) dos arquivos que afetam o TL/compilação (conf+tests/input+sols/good+scripts/*, este último com o bit +x). |
 | `judge/agent/moj-agent.sh` + `inventory.sh` | O agente (pull + **cache**). Roda 1 por capacidade. |
 | `server/etc/systemd/moj-agent@.service` | Unit do agente: `systemctl enable --now moj-agent@pos`. |
 
@@ -54,8 +54,9 @@ comando `result` e do `synctreino`. `contest-create.sh` ganhou `CONTEST_PRIORITY
 
 O juiz **não clona repositório**. Ele baixa o **pacote de cada problema** (sob demanda,
 no 1º job ou num pedido de calibração) p/ um **cache local** (`~/.cache/moj/problems/<id>`)
-e guarda, junto, o **checksum** dos arquivos que afetam o TL (`conf`+`tests/input`+`sols/good`,
-via `mojtools/tl-checksum.sh`). Na 1ª vez (ou quando o checksum muda) ele **calibra**
+e guarda, junto, o **checksum** dos arquivos que afetam o TL/compilação (`conf`+`tests/input`+
+`sols/good`+`scripts/*` da correção especial, este com o bit +x; via `mojtools/tl-checksum.sh`).
+Na 1ª vez (ou quando o checksum muda) ele **calibra**
 (`calibreitor.sh` → `tl.<host>`) e **reporta** o TL ao MOJ (`POST /judge/tl-report`). O MOJ
 guarda o TL **por host, por checksum** (`run/tl/<id>.json`) e serve o **máximo entre os hosts**
 no `var/jsons` (conservador). Ao **relançar**, o agente re-reporta os TLs do cache (sem
