@@ -32,7 +32,8 @@ async function openReportAuthed(path) {
   } catch { alert('Falha ao abrir o log.'); }
 }
 const logLink = (s) => el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${enc(CONTEST)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`); } }, '📄 log');
-const srcLink = (s) => el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${enc(CONTEST)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`, s.id + '.txt'); } }, '💻 código');
+const srcExt = (s) => ((s && s.lang) ? String(s.lang) : 'txt').toLowerCase();
+const srcLink = (s) => el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${enc(CONTEST)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`, s.id + '.' + srcExt(s)); } }, '💻 código');
 
 // ===================== MODO MANUAL (fila de revisão) =====================
 async function rvAct(path, body) { return apiPost('/contest/review/' + path + '?contest=' + enc(CONTEST), body, G); }
@@ -136,7 +137,7 @@ function renderLegacy() {
       el('td', {}, el('b', {}, shortOf(s.problem_id))),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, isPending(s.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
       el('td', {}, sel, ' ', btn, ' ', msg),
-      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink(s.id ? { id: s.id, sub_epoch: s.epoch } : s), srcLink(s.id ? { id: s.id, sub_epoch: s.epoch } : s)))));
+      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink({ id: s.id, sub_epoch: s.epoch }), srcLink({ id: s.id, sub_epoch: s.epoch, lang: s.lang })))));
   });
   box.append(el('table', { class: 'moj' }, head, tb));
 }
@@ -169,6 +170,11 @@ async function boot() {
     const rb = document.getElementById('refreshBtn'); if (rb) rb.addEventListener('click', loadReview);
     renderReview();
     clearTimeout(pollT); pollT = setTimeout(loadReview, 6000 + Math.random() * 3000);
+  } else if (!st.is_admin && !st.is_chief) {
+    // contest SEM veredicto manual: o juiz puro não tem fila de avaliação (veredictos automáticos)
+    document.getElementById('judgeContainer').innerHTML =
+      '<div class="notice">Este contest não usa <b>veredicto manual</b> — as correções são automáticas, não há fila para avaliar. ' +
+      '(O administrador pode ligar o modo manual em Configurações; a lista completa de submissões é do admin/juiz-chefe.)</div>';
   } else {
     const fv = await apiGet('/contest/final-verdicts?contest=' + enc(CONTEST), G).catch(() => null);
     finalVerdicts = fv ? (fv.verdicts || []) : [];

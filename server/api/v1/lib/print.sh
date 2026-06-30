@@ -256,15 +256,16 @@ pr_balloon_color() {
 pr_color_name() {
   local hex; hex="$(printf '%s' "$1" | tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F')"; hex="${hex:0:6}"
   [[ "${#hex}" -eq 6 ]] || { printf 'cor'; return; }
+  # nomes ICPC padrão (PT + inglês p/ o staff casar com o balão físico, geralmente rotulado em inglês)
   case "$hex" in
-    FFFFFF) printf 'branco'; return;;        000000) printf 'preto'; return;;
-    FF0000) printf 'vermelho'; return;;      800000) printf 'vinho'; return;;
-    FFFF00) printf 'amarelo'; return;;       008000) printf 'verde'; return;;
-    0000FF) printf 'azul'; return;;          000080) printf 'azul-marinho'; return;;
-    FF00FF) printf 'magenta'; return;;       800080) printf 'roxo'; return;;
-    00FF00) printf 'verde-limão'; return;;   00FFFF) printf 'ciano'; return;;
-    C0C0C0) printf 'prata'; return;;         FF8000) printf 'laranja'; return;;
-    A3794D) printf 'marrom'; return;;
+    FFFFFF) printf 'branco (white)'; return;;        000000) printf 'preto (black)'; return;;
+    FF0000) printf 'vermelho (red)'; return;;        800000) printf 'vinho (maroon)'; return;;
+    FFFF00) printf 'amarelo (yellow)'; return;;      008000) printf 'verde (green)'; return;;
+    0000FF) printf 'azul (blue)'; return;;           000080) printf 'azul-marinho (navy blue)'; return;;
+    FF00FF) printf 'rosa (pink)'; return;;           800080) printf 'roxo (purple)'; return;;
+    00FF00) printf 'verde-limão (lime green)'; return;;  00FFFF) printf 'azul-claro (light blue)'; return;;
+    C0C0C0) printf 'prata (silver)'; return;;        FF8000) printf 'laranja (orange)'; return;;
+    A3794D) printf 'marrom (brown)'; return;;
   esac
   local r=$((16#${hex:0:2})) g=$((16#${hex:2:2})) b=$((16#${hex:4:2}))
   local best='cor' bestd=999999999 h name hr hg hb d
@@ -282,10 +283,10 @@ FFFF00 amarelo
 008000 verde
 0000FF azul
 000080 azul-marinho
-FF00FF magenta
+FF00FF rosa
 800080 roxo
 00FF00 verde-limão
-00FFFF ciano
+00FFFF azul-claro
 C0C0C0 prata
 FF8000 laranja
 A3794D marrom

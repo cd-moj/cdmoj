@@ -186,8 +186,9 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
     daemon**; como lê o veredicto **final** do history, no **modo manual** o balão só nasce depois que
     os `.judge` decidem o `Accepted`. Só o `.staff` que **enxerga aquele time** (mesmo escopo regex)
     recebe. A **folha do balão** (1 página, `pr_build_balloon`, **sem `.src`**) traz time + universidade
-    + **login**, o **problema** (letra), a **cor** do balão **desenhada** + o **nome por extenso** (PT;
-    cor por `balloons.json`/default ICPC, com tabela hex→nome + cor mais próxima no custom), o **nº da
+    + **login**, o **problema** (letra), a **cor** do balão **desenhada** + o **nome por extenso**
+    (PT + inglês padrão ICPC, ex.: "rosa (pink)", "azul-claro (light blue)"; cor por `balloons.json`/
+    default ICPC A–O, com tabela hex→nome + cor mais próxima no custom), o **nº da
     tarefa** (`seq`) e **assinatura + hora**. Reusa o fluxo pegar→imprimir→entregar e é auditado
     (`balloon-task`/`-claim`/`-processed`/`-served`/`-delivered`). Balão **não** aparece p/ o aluno.
 

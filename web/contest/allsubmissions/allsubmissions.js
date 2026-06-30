@@ -95,7 +95,7 @@ function rowTable(items) {
       el('td', {},
         el('a', { href: '#', title: 'ver código', onclick: (e) => { e.preventDefault(); openLogAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, 'ver'),
         ' ',
-        el('a', { href: '#', title: 'baixar', class: 'small muted', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`, s.submission_id + '.txt'); } }, '⬇')),
+        el('a', { href: '#', title: 'baixar', class: 'small muted', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`, s.submission_id + '.' + (s.lang || 'txt').toLowerCase()); } }, '⬇')),
       el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, s.submission_id.slice(0, 8)))));
   });
   return el('table', { class: 'moj' }, head, tb);
@@ -144,7 +144,7 @@ async function loadSubs() {
   let txt;
   try { txt = await apiGetText('/contest/allsubmissions?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); }
   catch (e) {
-    document.getElementById('adminContainer').innerHTML = '<span class="error-box">Falha ao carregar (precisa ser admin).</span>';
+    document.getElementById('adminContainer').innerHTML = '<span class="error-box">Falha ao carregar (precisa ser admin ou juiz-chefe).</span>';
     return;
   }
   subs = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean)
@@ -160,7 +160,7 @@ async function boot() {
 
   const st = await status(CONTEST);
   if (!st.logged_in) { location.href = '/contest/?c=' + encodeURIComponent(CONTEST); return; }
-  if (!st.is_admin) { document.body.innerHTML = '<div class="container"><div class="notice">Acesso restrito a administradores.</div></div>'; return; }
+  if (!st.is_admin && !st.is_chief) { document.body.innerHTML = '<div class="container"><div class="notice">Acesso restrito a administradores e ao juiz-chefe.</div></div>'; return; }
 
   const ch = await mountChrome(CONTEST, basic, { auth: true });
   T = ch.T;
