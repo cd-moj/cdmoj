@@ -125,6 +125,7 @@ git avançado.
 | `/submit?contest=<c>` | POST | Bearer | body `{problem_id,filename,code_b64,source?}` (`source`=`web`\|`file`) → `{submission_id,status:"queued"}` (não bloqueia). Registra o editor em `var/editor-log` p/ o card "editor da semana". **Gate por fase+papel (forçado pela API)**: `.admin`/`.judge` submetem sempre; `.staff` **nunca** (`403 submit_forbidden`); usuário normal **e `.mon`** só **durante** a janela (`403 contest_not_started` antes do início, `403 contest_ended` após o fim) — o `.mon` submete mas fica **fora do placar**. |
 | `/submission/source?contest=<c>&id=<subid>` | GET | Bearer | código-fonte (texto) |
 | `/submission/log?contest=<c>&id=<subid>` | GET | Bearer | log do julgamento (texto) |
+| `/submission/summary?contest=<c>&ids=<csv>` | GET | Bearer | resumo ESTRUTURADO em lote (p/ a linha "resumo" do treino), de `results/<id>.json`: `{ "<id>":{verdict,verdict_canon,score,score_max,score_kind,correct,total} }`. **Mesmo gate do log** (dono/admin/juiz; respeita `SHOWLOG=0`); ids de terceiros são **omitidos** (não 403). `score_kind` ∈ `tests\|points`. Até 1000 ids; ausentes/antigos saem com campos `null` (degrada p/ o sufixo do veredicto) |
 
 ## Contest
 | Rota | Auth | I/O |
@@ -143,7 +144,7 @@ git avançado.
 | `/contest/staff/print-action?contest=<c>` | POST | Bearer (`.staff`/admin) | `{id,action:claim\|processed\|delivered,mode?}` — máquina de estado sob flock (vale p/ impressão e balão). Escopo-checado (`403 out_of_scope`). **Auditado** com prefixo do kind (`print-*` ou `balloon-claim`/`balloon-processed`/`balloon-delivered`) |
 | `/contest/staff/print-pdf?contest=<c>&id=<id>` | GET | Bearer (`.staff`/admin) | gera (build-once, cache) e serve **inline** o PDF. `kind=print` → **folha de rosto** (time/univ/login/seq/páginas/assinatura) + documento A4 (código numerado). `kind=balloon` → **folha do balão** (1 página, sem `.src`): time, universidade, **login**, **problema** (letra), **cor do balão** desenhada + **nome por extenso**, **nº da tarefa** (`seq`), assinatura+hora. Escopo-checado. **Auditado** (`print-served`/`balloon-served`) |
 | `/contest/updates?contest=<c>&news_since=&clar_since=` | Bearer | resumo leve p/ polling de notificações: `{news:{last,count,unread}, clar:{last,count,unread}}` (clar = respondidas visíveis ao usuário; `unread` = date/answered_at > since) |
-| `/contest/history?contest=<c>` | Bearer | TXT (submissões do usuário) |
+| `/contest/history?contest=<c>` | Bearer | TXT (submissões do usuário). Em placares **binários** (icpc/treino/ausente) o **sufixo de score** do veredicto (`,Np`) é **cortado** na resposta (o competidor não vê quão perto ficou); placares com pontos parciais (`obi`/`heurístico`/`outro`) **mantêm** o score. O history em disco não muda |
 | `/contest/balloons?contest=<c>` | Bearer | mapa letra/short→cor (default ICPC A–O) |
 | `/contest/regions?contest=<c>` | Bearer | regiões p/ filtro do placar |
 | `/contest/teams-meta?contest=<c>` | — | regras regex→{country,school,school_full} `{rules:[…]}` — placar resolve bandeira/escola e filtra por país/escola (bandeiras locais em `/shared/flags/`) |

@@ -32,6 +32,23 @@ export function isPending(v) {
   const s = (v || '').toLowerCase();
   return s.includes('not answered') || s.includes('queue') || s.includes('running');
 }
+// veredicto SEM o sufixo de score (",100p" / " (...)" / ". Pontos...") -> rótulo limpo p/ exibir.
+export function verdictShort(v) {
+  return (v || '').replace(/,.*$/, '').replace(/\s*\(.*$/, '').trim();
+}
+// score embutido no veredicto (o "<N>p") -> número, ou null se não houver. Fallback p/ o resumo.
+export function verdictScore(v) {
+  const m = /(-?\d+)p(?:\b|\.|$)/.exec(v || '');
+  return m ? parseInt(m[1], 10) : null;
+}
+// "resumo" amigável do julgamento (do /submission/summary): testes ou pontos. '' se sem dados.
+export function resumoText(s) {
+  if (!s) return '';
+  if (s.score_kind === 'points' && s.score != null) return `${s.score}/${s.score_max != null ? s.score_max : '?'} pontos`;
+  if (s.total != null && s.total > 0) return `Passou em ${s.correct != null ? s.correct : 0}/${s.total} testes` + (s.score != null ? ` (${s.score}%)` : '');
+  if (s.score != null) return `${s.score}%`;
+  return '';
+}
 export function fmtDate(epoch) {
   const d = new Date(Number(epoch) * 1000);
   return isNaN(d.getTime()) ? '-' : d.toLocaleString();

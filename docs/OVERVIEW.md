@@ -72,7 +72,8 @@ regiões, básico) — os mesmos na criação e no admin do contest.
 Home com notícias, contests (abertos/por vir/encerrados; abre cada um pelo **subdomínio**),
 top10 e destaques; página pública **`/status/`** (health: fila por lista, máquinas
 julgando, daemons). Treino livre: busca de problemas, página do problema com enunciado +
-**editor CodeMirror** + upload + histórico com polling, stats por usuário (gráficos,
+**editor CodeMirror** + upload + histórico com polling (cada submissão julgada mostra um **resumo**
+abaixo do veredicto — "Passou em X/Y testes (Z%)" ou pontos, via `/submission/summary`), stats por usuário (gráficos,
 editor favorito, foto, privacidade), **stats por problema** (cache, linguagens, editores,
 nuvem de avatares), e **painel admin do treino** (sessões/logs com UA+IP, busca/regex,
 bulk logout/lock, notícias, **auditoria**, fila, máquinas, **estatísticas** e **tempo de
@@ -159,7 +160,11 @@ sufixo (auth/score-common/stats-gen/login) p/ ficar fora do placar e isento da j
 **Veredicto manual** (opt-in por contest, `MANUAL_VERDICT`): quando ligado, o **daemon segura** o
 veredicto computado p/ revisão humana — grava `contests/<c>/review/<id>.json` e deixa o history
 provisório (o aluno segue vendo "julgando"); a exceção é a **matriz `auto-verdicts.json`**
-(problema × linguagem × veredicto, editável por admin/chief) que libera combinações automáticas.
+(problema × linguagem × veredicto, editável por admin/chief) que libera combinações automáticas. O
+casamento da matriz é pelo **veredicto canônico** (`verdict_canon`, **sem** o sufixo de score `,Np`
+que o juiz embute), e **erros de juiz** (`Judge Error`/`No_Servers`) **também são segurados** — o
+competidor vê só `Not Answered Yet` (nenhuma mensagem de erro vaza); o juiz vê o erro no painel e
+re-julga.
 Dois `.judge` **pegam** a submissão (máx 2, **1 ativa** por juiz, **TTL 5 min** com **+5**, ou
 **desistir**), veem **log + fonte + veredicto computado** (a tela **não recarrega** enquanto se avalia)
 e escolhem um veredicto de uma **lista configurável** (`final-verdicts.json`, `{label,verdict}`;

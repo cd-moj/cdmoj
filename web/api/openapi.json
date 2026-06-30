@@ -1120,6 +1120,20 @@
         }
       }
     },
+    "/submission/summary": {
+      "get": {
+        "tags": ["submission"],
+        "summary": "Resumo estruturado em lote (testes/pontos) p/ a linha de resumo do treino",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/contest" },
+          { "name": "ids", "in": "query", "required": true, "schema": { "type": "string" }, "description": "csv de submission ids (até 1000)" }
+        ],
+        "responses": {
+          "200": { "description": "{\"<id>\":{verdict,verdict_canon,score,score_max,score_kind,correct,total}} — mesmo gate do log; ids de terceiros omitidos" }
+        }
+      }
+    },
     "/contest/basic": {
       "get": {
         "tags": [

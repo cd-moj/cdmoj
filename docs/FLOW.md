@@ -72,6 +72,14 @@ reescrita atômica via `mv`), atualiza `data/<login>`, arquiva o fonte decodific
 dispara `server/score/build.sh <contest>` para recalcular o placar. Por fim move o
 arquivo para `run/spool/submissions-done/`.
 
+O resultado do juiz carrega, além do `verdict` de display (com o score embutido, ex.
+`Accepted,100p`), os campos **estruturados** `verdict_canon` (canônico **sem** score),
+`score/score_max/score_kind`, `correct/total_tests` — persistidos em `results/<id>.json` e
+servidos pelo `/submission/summary` (linha "resumo" do treino). No **modo veredicto manual**, o
+casamento da matriz de auto-veredicto usa o **`verdict_canon`** (não a string com score), e os
+**erros de juiz** (`Judge Error`/`No_Servers`) também são **segurados** p/ revisão — o competidor
+vê só `Not Answered Yet` até um veredicto sair.
+
 ## 3. Gateway de juiz — `server/judge-gw/judge.sh`
 
 Expõe `judge_run <contest> <problemid> <lang> <code_b64> <filename>` → ecoa o veredicto.

@@ -1,7 +1,7 @@
 // treino/problema/problema.js — página de um problema do Treino Livre.
 import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { fileToBase64, textToBase64, status } from '/shared/auth.js';
-import { el, verdictClass, isPending, fmtDate, renderAuthArea } from '/shared/ui.js';
+import { el, verdictClass, isPending, fmtDate, renderAuthArea, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, langById } from '/shared/languages.js';
 
@@ -168,6 +168,14 @@ async function loadHistory() {
   box.innerHTML = '';
   if (!rows.length) { box.innerHTML = '<span class="muted small">Nenhuma submissão ainda.</span>'; return; }
 
+  // resumo (testes/pontos) das submissões já julgadas — uma chamada em lote (best-effort)
+  let summ = {};
+  const doneIds = rows.filter((r) => !isPending(r.verdict)).map((r) => r.subid);
+  if (doneIds.length) {
+    try { summ = await apiGet('/submission/summary?contest=' + encodeURIComponent(CONTEST) + '&ids=' + doneIds.join(','), { contest: CONTEST, auth: true }) || {}; }
+    catch { summ = {}; }
+  }
+
   const tbl = el('table', { class: 'moj' },
     el('thead', {}, el('tr', {},
       el('th', {}, 'Data/Hora'), el('th', {}, 'Ações'), el('th', {}, 'Linguagem'), el('th', {}, 'Status'))));
@@ -182,8 +190,11 @@ async function loadHistory() {
       el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`, r.subid + '.' + ext); } }, 'cód'),
       ' · ',
       el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${CONTEST}&id=${r.subid}&time=${r.epoch}`); } }, 'log'));
-    const vcell = el('td', {}, el('span', { class: 'verdict ' + verdictClass(r.verdict) },
-      isPending(r.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + r.verdict) : r.verdict));
+    const rtxt = isPending(r.verdict) ? '' : resumoText(summ[r.subid]);
+    const vcell = el('td', {},
+      el('span', { class: 'verdict ' + verdictClass(r.verdict) },
+        isPending(r.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + r.verdict) : r.verdict),
+      rtxt ? el('div', { class: 'small muted', style: 'margin-top:.15rem' }, rtxt) : '');
     tb.append(el('tr', {}, el('td', {}, fmtDate(r.epoch)), acts, el('td', {}, r.lang), vcell));
   });
   tbl.append(tb); box.append(tbl);

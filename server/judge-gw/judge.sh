@@ -111,6 +111,18 @@ judge_run_local() {
       mkdir -p "$(dirname "$JUDGE_REPORT_OUT")" 2>/dev/null
       cp -f "$batwork/report.html" "$JUDGE_REPORT_OUT" 2>/dev/null
     fi
+    # sidecar com o veredicto ESTRUTURADO (do report.env), p/ o daemon montar results/<id>.json
+    # igual ao backend real (consistência dev=prod: canônico/score/correct/total p/ o resumo).
+    if [[ -n "${JUDGE_REPORT_OUT:-}" && -f "$batwork/report.env" ]]; then
+      ( VERDICT_CANON=""; SCORE=0; SCORE_MAX=100; SCORE_KIND=tests; CORRECT=0; TOTALTESTS=0
+        source "$batwork/report.env" 2>/dev/null
+        [[ "$SCORE" =~ ^-?[0-9]+$ ]] || SCORE=0; [[ "$SCORE_MAX" =~ ^[0-9]+$ ]] || SCORE_MAX=100
+        [[ "$CORRECT" =~ ^[0-9]+$ ]] || CORRECT=0; [[ "$TOTALTESTS" =~ ^[0-9]+$ ]] || TOTALTESTS=0
+        jq -n --arg vc "${VERDICT_CANON:-${verdict%%,*}}" --argjson sc "$SCORE" --argjson sm "$SCORE_MAX" \
+           --arg sk "${SCORE_KIND:-tests}" --argjson co "$CORRECT" --argjson to "$TOTALTESTS" \
+           '{verdict_canon:$vc, score:$sc, score_max:$sm, score_kind:$sk, correct:$co, total_tests:$to}' \
+           > "${JUDGE_REPORT_OUT%.html}.meta.json" 2>/dev/null )
+    fi
     rm -rf "$batwork"
   fi
   rm -rf "$work"

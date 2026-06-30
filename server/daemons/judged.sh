@@ -117,13 +117,16 @@ auto_allows() {
 # Condições: MANUAL_VERDICT=1 no conf, submissor NÃO-privilegiado, veredicto real (não erro de
 # juiz), e NÃO permitido pela matriz auto. Lê MANUAL_VERDICT via grep (ingest_result não dá source).
 should_hold() {
-  local contest="$1" login="$2" prob="$3" lang="$4" verdict="$5" mv
+  local contest="$1" login="$2" prob="$3" lang="$4" verdict="$5" vcanon="${6:-$5}" mv
   mv="$(grep -m1 '^MANUAL_VERDICT=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2-)"
   mv="${mv//\'/}"; mv="${mv//\"/}"
   [[ "$mv" == 1 ]] || return 1
   case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.mon) return 1;; esac
-  case "$verdict" in "Judge Error"*|"No_Servers"*|"Not Answered Yet"|"On queue"|"Running"|"") return 1;; esac
-  auto_allows "$contest" "$prob" "$lang" "$verdict" && return 1
+  # transientes não viram item de revisão. ERROS de juiz (Judge Error/No_Servers) AGORA são
+  # SEGURADOS no modo manual: não vazam p/ o competidor (ele vê só 'Not Answered Yet') — o juiz
+  # vê o erro no painel e re-julga. O auto-veredicto casa pelo CANÔNICO (sem o sufixo de score).
+  case "$verdict" in "Not Answered Yet"|"On queue"|"Running"|"") return 1;; esac
+  auto_allows "$contest" "$prob" "$lang" "$vcanon" && return 1
   return 0
 }
 
@@ -205,6 +208,8 @@ ingest_result() {
   contest="$(jq -r '.contest // empty' <<<"$json")"
   host="$(jq -r '.host // empty' <<<"$json")"
   verdict="$(jq -r '.verdict // "Judge Error"' <<<"$json")"
+  # canônico (sem score) p/ casar o auto-veredicto; fallback: tira o sufixo ,Np do verdict.
+  local vcanon; vcanon="$(jq -r '.verdict_canon // empty' <<<"$json")"; [[ -n "$vcanon" ]] || vcanon="${verdict%%,*}"
   valid_contest_id "$contest" || { log "result: contest inválido"; return 1; }
   [[ -n "$id" ]] || { log "result: sem id"; return 1; }
   local cdir="$CONTESTSDIR/$contest"; hist="$cdir/controle/history"
@@ -217,7 +222,7 @@ ingest_result() {
   [[ -n "$sub_epoch" ]] || sub_epoch="$EPOCHSECONDS"
   [[ -n "$tempo" ]] || tempo="$sub_epoch"
   # MODO VEREDICTO MANUAL: segura o veredicto computado p/ revisão de 2 juízes (não finaliza).
-  if should_hold "$contest" "$h_login" "$h_prob" "$h_lang" "$verdict"; then
+  if should_hold "$contest" "$h_login" "$h_prob" "$h_lang" "$verdict" "$vcanon"; then
     local hb; hb="$(jq -r '.report_html_b64 // empty' <<<"$json")"
     [[ -n "$hb" ]] && printf '%s' "$hb" | base64 -d > "$cdir/mojlog/$id-$h_login-$h_prob.html" 2>/dev/null
     write_review_item "$contest" "$id" "$h_login" "$h_prob" "$h_lang" "$sub_epoch" "$verdict"
@@ -390,7 +395,8 @@ process_spool_file() {
   fi
 
   # MODO VEREDICTO MANUAL (caminho inline/legacy): segura p/ revisão de 2 juízes.
-  if should_hold "$contest" "$login" "$problem" "$lang" "$verdict"; then
+  # Sem JSON de resultado aqui: o canônico sai do próprio veredicto (corta o sufixo ,Np).
+  if should_hold "$contest" "$login" "$problem" "$lang" "$verdict" "${verdict%%,*}"; then
     archive_source "$contest" "$id" "$login" "$problem" "$lang" "$code_b64"   # fonte p/ os juízes verem
     write_review_item "$contest" "$id" "$login" "$problem" "$lang" "$sub_epoch" "$verdict"
     mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
@@ -407,6 +413,18 @@ process_spool_file() {
   # ---- (4) registra/atualiza data/<login> ----------------------------------
   # Formato observado: <epoch>:<id>:<probid>:<verdict>  (1 linha por submissão).
   update_data "$cdir/data/$login" "$id" "$sub_epoch:$id:$problem:$verdict"
+
+  # ---- (4b) results/<id>.json do sidecar estruturado (dev = prod: alimenta o resumo) --------
+  local metaf="$cdir/mojlog/$id-$login-$problem.meta.json"
+  if [[ -f "$metaf" ]]; then
+    local rjson
+    rjson="$(jq -c --arg id "$id" --arg c "$contest" --arg p "$problem" --arg l "$login" \
+      --arg lang "$lang" --arg v "$verdict" \
+      '. + {id:$id, contest:$c, problem_id:$p, login:$l, lang:$lang, verdict:$v, host:"inline"}' \
+      "$metaf" 2>/dev/null)"
+    [[ -n "$rjson" ]] && write_result_json "$contest" "$id" "$login" "$problem" "$rjson"
+    rm -f "$metaf"
+  fi
 
   # ---- (5) arquiva a fonte decodificada ------------------------------------
   # contests/<contest>/submissions/<id>-<login>-<problemid>.<lang>

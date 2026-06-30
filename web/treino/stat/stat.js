@@ -7,7 +7,7 @@
 //   GET /treino/editors             (ranking do editor favorito)
 import { apiGet, apiGetText, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
-import { el, verdictClass, isPending, fmtDate, renderAuthArea } from '/shared/ui.js';
+import { el, verdictClass, isPending, fmtDate, renderAuthArea, resumoText } from '/shared/ui.js';
 import { editorLabel } from '/shared/editors.js';
 import { barChart, pieChart, lineChart, heatmap } from '/lib/charts.js';
 
@@ -17,6 +17,7 @@ const USER = qs.get('user') || '';
 
 let problemsById = {};
 let history = [];
+let subSumm = {};               // resumo (testes/pontos) por subid, do /submission/summary
 let sortKey = 'date', sortAsc = false;
 let canLog = false;            // só vê cód/log se for o dono e estiver logado
 let isOwner = false;
@@ -400,7 +401,9 @@ function renderHistory() {
       el('td', {}, el('a', { href: '/treino/problema/?id=' + encodeURIComponent(s.probid) }, titleOf(s.probid))),
       el('td', {}, s.lang),
       logTd,
-      el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict))));
+      (() => { const rtxt = pending ? '' : resumoText(subSumm[s.subid]);
+        return el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict),
+          rtxt ? el('div', { class: 'small muted', style: 'margin-top:.15rem' }, rtxt) : ''); })()));
   });
   box.append(el('table', { class: 'moj' }, head, tb));
 }
@@ -542,6 +545,16 @@ async function boot() {
     document.getElementById('dashboard').innerHTML =
       '<div class="section"><span class="muted">Ainda não há submissões para mostrar estatísticas.</span></div>';
     return;
+  }
+
+  // resumo (testes/pontos) das já julgadas — só p/ o dono; nas 300 mais recentes, em lotes de 100
+  // (URL curta) p/ não estourar limites de querystring nem o ARG_MAX a jusante.
+  if (isOwner) {
+    const done = history.filter(s => !isPending(s.verdict)).slice().sort((a, b) => b.epoch - a.epoch).slice(0, 300).map(s => s.subid);
+    for (let i = 0; i < done.length; i += 100) {
+      try { Object.assign(subSumm, await apiGet('/submission/summary?contest=' + encodeURIComponent(CONTEST) + '&ids=' + done.slice(i, i + 100).join(','), { contest: CONTEST, auth: true }) || {}); }
+      catch { /* best-effort */ }
+    }
   }
 
   const stats = computeStats();

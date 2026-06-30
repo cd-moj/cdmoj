@@ -27,9 +27,18 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
   conflitos, config de auto-veredicto) — **não** é admin pleno. Ao mexer em papel, lembre das
   **quatro** listas de sufixo independentes: `lib/auth.sh`, `score/score-common.sh`,
   `score/stats-gen.sh`, `handlers/auth/login.sh` (+ guard `treino/profile/username.sh`).
+- **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
+  `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
+  (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests`. Fonte única =
+  `report.env` do mojtools (os dois backends, juiz real e `judge-gw` dev, o repassam). O daemon
+  **casa o auto-veredicto pelo `verdict_canon`** (não pela string com score) e persiste os campos em
+  `results/<id>.json`, servidos por `/submission/summary` (linha "resumo" do treino). O competidor
+  vê o veredicto **limpo** em placares binários (icpc/treino) — `contest/history` corta o `,Np`;
+  OBI/heurístico mantêm o score.
 - **Veredicto manual** (`MANUAL_VERDICT`, opt-in): o **daemon** (`daemons/judged.sh`) SEGURA o
   veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) salvo o que
-  a matriz `auto-verdicts.json` (problema×lang×veredicto) libera; dois `.judge` decidem
+  a matriz `auto-verdicts.json` (problema×lang×veredicto, casada pelo **canônico**) libera; **erros
+  de juiz também são segurados** (o competidor só vê `Not Answered Yet`); dois `.judge` decidem
   (`handlers/contest/review/*` + `lib/review.sh`, flock + TTL), e o veredicto vai ao aluno pelo
   **escritor único** via o consumidor `setverdict` do daemon. O **voto é permanente e libera o juiz**
   (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo
