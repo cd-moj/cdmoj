@@ -5,6 +5,7 @@
   --accent:#6d5cff; --purple:#6d5cff; --ink:#19222e; --muted:#64748b; --line:#e6ebf3;
   --ok:#15803d; --ok-bg:#dcfce7; --err:#be1241; --err-bg:#ffe1e8;
   --warn:#9a6700; --warn-bg:#fdf3d3; --card:#ffffff; --radius:14px;
+  --page-max:1600px; /* teto da largura da página (container + barras); adapta abaixo, centraliza acima */
   --shadow:0 1px 2px rgba(20,40,80,.04), 0 6px 20px rgba(20,40,80,.06);
   --shadow-sm:0 1px 3px rgba(20,40,80,.07);
   --mono:"JetBrains Mono","Fira Mono","DejaVu Sans Mono",Consolas,monospace;
@@ -17,12 +18,12 @@ body { margin:0; color:var(--ink); line-height:1.6; font-size:16px;
   background:linear-gradient(180deg,#eef3fb 0%,var(--blue-bg) 240px,var(--blue-bg)) no-repeat; }
 a { color:var(--blue); text-decoration:none; } a:hover { color:var(--blue-dark); text-decoration:underline; }
 h1,h2,h3 { line-height:1.25; letter-spacing:-.01em; }
-.container { max-width:1120px; margin:0 auto; padding:1.4rem 1.2rem 3rem; }
+.container { max-width:var(--page-max); margin:0 auto; padding:1.4rem 1.2rem 3rem; }
 
 /* topbar */
 .topbar { background:linear-gradient(105deg,#163a6b 0%,var(--blue-dark) 45%,var(--blue) 100%);
   color:#fff; box-shadow:0 2px 16px rgba(20,40,80,.18); position:sticky; top:0; z-index:50; }
-.topbar .bar { max-width:1120px; margin:0 auto; padding:.7rem 1.2rem; display:flex;
+.topbar .bar { max-width:var(--page-max); margin:0 auto; padding:.7rem 1.2rem; display:flex;
   align-items:center; gap:1rem; flex-wrap:wrap; }
 .topbar .brand { display:flex; align-items:center; gap:.55rem; font-weight:800; font-size:1.2rem;
   letter-spacing:-.02em; color:#fff; }
@@ -41,7 +42,7 @@ h1,h2,h3 { line-height:1.25; letter-spacing:-.01em; }
 
 /* quicknav */
 .quicknav { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:52px; z-index:40; }
-.quicknav .bar { max-width:1120px; margin:0 auto; padding:.55rem 1.2rem; display:flex; gap:1.3rem; flex-wrap:wrap; }
+.quicknav .bar { max-width:var(--page-max); margin:0 auto; padding:.55rem 1.2rem; display:flex; gap:1.3rem; flex-wrap:wrap; }
 .quicknav a { color:var(--blue-dark); font-weight:600; font-size:.92rem; }
 
 /* sections / cards */
@@ -198,7 +199,7 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 .news-card-title { font-size:1.1rem; font-weight:800; color:var(--ink); line-height:1.25; }
 .news-card-sum { font-size:.92rem; }
 .news-card-more { color:var(--blue); font-weight:700; margin-top:.25rem; font-size:.85rem; }
-.news-body { font-size:1.02rem; line-height:1.7; max-width:760px; }
+.news-body { font-size:1.02rem; line-height:1.7; }
 .news-body h1,.news-body h2,.news-body h3,.news-body h4 { line-height:1.25; margin:1.5rem 0 .6rem; }
 .news-body h1 { font-size:1.55rem; } .news-body h2 { font-size:1.28rem; } .news-body h3 { font-size:1.1rem; }
 .news-body p { margin:.7rem 0; } .news-body ul,.news-body ol { margin:.7rem 0 .7rem 1.3rem; }
