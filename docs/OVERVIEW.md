@@ -75,7 +75,9 @@ julgando, daemons). Treino livre: busca de problemas, página do problema com en
 **editor CodeMirror** + upload + histórico com polling, stats por usuário (gráficos,
 editor favorito, foto, privacidade), **stats por problema** (cache, linguagens, editores,
 nuvem de avatares), e **painel admin do treino** (sessões/logs com UA+IP, busca/regex,
-bulk logout/lock, notícias, **auditoria**, fila, máquinas).
+bulk logout/lock, notícias, **auditoria**, fila, máquinas, **estatísticas** e **tempo de
+resposta** — espera submit→veredito, julgamento e fila, média por dia + mapas de calor por
+data e dia-da-semana × hora, p/ decisões de capacidade; `/treino/admin/response-stats`).
 
 ### Criação de contest (`/treino/criar/`)
 Permissão por **lista do admin OU threshold** de problemas resolvidos. Monta usuários

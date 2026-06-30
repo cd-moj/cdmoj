@@ -769,6 +769,28 @@
         }
       }
     },
+    "/treino/admin/response-stats": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Tempo de resposta do treino (espera/julgamento/fila; média/dia + mapa de calor)",
+        "description": "Cacheado (regenera quando history/results mudam). espera = finalized_at - sub_epoch; julgamento = duration_s; fila = espera - julgamento. Só conta submissões com finalized_at (cobertura no JSON). Horários em EPOCH/UTC.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{coverage:{history_total,with_finalized}, overall:{n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}, per_day:[{day,n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}], by_dow_hour:[{dow,hour,n,avg_wait_s}]}"
+          },
+          "403": {
+            "description": "não-admin (admin_required)"
+          }
+        }
+      }
+    },
     "/treino/admin/logout-user": {
       "post": {
         "tags": [

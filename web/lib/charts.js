@@ -227,7 +227,9 @@ export function lineChart(points, opts = {}) {
 }
 
 // ---- heatmap estilo GitHub (calendário de atividade diária) ------------------
-// countsByDate: { 'YYYY-MM-DD': n }. opts:{weeks(~26),cell,gap,color,end(Date),title}
+// countsByDate: { 'YYYY-MM-DD': n }. opts:{weeks(~26),cell,gap,color,end(Date),
+//   scaleMax (corta a escala de cor, ex.: no p95), fmt(v,date)->string (texto do tooltip;
+//   default "<v> submissões" — passe p/ exibir tempo, ex.: "média 12s")}.
 // Devolve um <div> com o SVG + legenda "menos … mais".
 export function heatmap(countsByDate, opts = {}) {
   const weeks = opts.weeks || 26;
@@ -246,9 +248,12 @@ export function heatmap(countsByDate, opts = {}) {
 
   let maxV = 1;
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) maxV = Math.max(maxV, counts[tag(d)] || 0);
+  // escala de cor: por padrão o máximo do período; opts.scaleMax permite cortar no p95 p/ não
+  // deixar um único outlier "lavar" o mapa (útil quando o valor é tempo médio, não contagem).
+  const scale = Math.max(1, opts.scaleMax || maxV);
 
   const cols = Math.ceil(((end - start) / 86400000 + 1) / 7);
-  const padTop = 16, padLeft = 26;
+  const padTop = 18, padLeft = 32;
   const W = padLeft + cols * (cell + gap) + 4;
   const H = padTop + 7 * (cell + gap) + 4;
   const svg = svgEl('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' });
@@ -256,7 +261,7 @@ export function heatmap(countsByDate, opts = {}) {
   // 4 níveis de intensidade
   const shade = (v) => {
     if (!v) return '#eef3fb';
-    const lvl = v >= maxV * 0.75 ? 0.95 : v >= maxV * 0.5 ? 0.72 : v >= maxV * 0.25 ? 0.5 : 0.3;
+    const lvl = v >= scale * 0.75 ? 0.95 : v >= scale * 0.5 ? 0.72 : v >= scale * 0.25 ? 0.5 : 0.3;
     return mix('#eef3fb', base, lvl);
   };
 
@@ -264,7 +269,7 @@ export function heatmap(countsByDate, opts = {}) {
   const DOW = ['', 'Seg', '', 'Qua', '', 'Sex', ''];
   DOW.forEach((lbl, r) => {
     if (!lbl) return;
-    const tx = svgEl('text', { x: 2, y: padTop + r * (cell + gap) + cell - 2, 'font-size': 8, fill: '#5b6b7d' });
+    const tx = svgEl('text', { x: 2, y: padTop + r * (cell + gap) + cell - 2, 'font-size': 10, fill: '#5b6b7d' });
     tx.textContent = lbl; svg.append(tx);
   });
 
@@ -275,7 +280,7 @@ export function heatmap(countsByDate, opts = {}) {
     // rótulo do mês na 1ª semana em que ele aparece
     if (cur.getMonth() !== lastMonth) {
       lastMonth = cur.getMonth();
-      const tx = svgEl('text', { x: padLeft + c * (cell + gap), y: padTop - 5, 'font-size': 8, fill: '#5b6b7d' });
+      const tx = svgEl('text', { x: padLeft + c * (cell + gap), y: padTop - 5, 'font-size': 10, fill: '#5b6b7d' });
       tx.textContent = MONTHS[lastMonth]; svg.append(tx);
     }
     for (let r = 0; r < 7; r++) {
@@ -284,9 +289,85 @@ export function heatmap(countsByDate, opts = {}) {
       const x = padLeft + c * (cell + gap), y = padTop + r * (cell + gap);
       const rect = svgEl('rect', { x, y, width: cell, height: cell, rx: 2, fill: shade(v) });
       const title = svgEl('title', {});
-      title.textContent = `${tag(cur)}: ${v} ${v === 1 ? 'submissão' : 'submissões'}`;
+      title.textContent = opts.fmt ? opts.fmt(v, tag(cur)) : `${tag(cur)}: ${v} ${v === 1 ? 'submissão' : 'submissões'}`;
       rect.append(title); svg.append(rect);
       cur.setDate(cur.getDate() + 1);
+    }
+  }
+  wrap.append(svg);
+
+  // legenda menos→mais
+  const legend = document.createElement('div');
+  legend.className = 'legend';
+  const lg = document.createElement('span');
+  lg.style.cssText = 'display:inline-flex;align-items:center;gap:.25rem';
+  lg.append(document.createTextNode('menos '));
+  [0, 0.3, 0.5, 0.72, 0.95].forEach(l => {
+    const s = document.createElement('span');
+    s.className = 'sw';
+    s.style.background = l === 0 ? '#eef3fb' : mix('#eef3fb', base, l);
+    lg.append(s);
+  });
+  lg.append(document.createTextNode(' mais'));
+  legend.append(lg);
+  wrap.append(legend);
+  return wrap;
+}
+
+// ---- heatmap em grade dia-da-semana × hora ----------------------------------
+// Matriz 7×24 (linhas = Dom..Sáb, colunas = horas 0–23) colorida por `value`. Ideal p/
+// ver QUANDO, na semana, algo piora (ex.: tempo médio de resposta) — decisão de capacidade.
+// cells: [{dow:0..6 (0=Dom), hour:0..23, value:number, n?:number}].
+// opts:{cell,gap,color,scaleMax, fmt(value)->string (default "média <value>s")}.
+// Devolve um <div> com o SVG + legenda "menos … mais".
+export function heatmapGrid(cells, opts = {}) {
+  const cell = opts.cell || 22, gap = opts.gap || 4;
+  const base = opts.color || '#c4314b';
+  const fmt = opts.fmt || ((v) => 'média ' + v + 's');
+  const DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const wrap = document.createElement('div');
+
+  // grade[dow][hour] = {value, n}
+  const grid = Array.from({ length: 7 }, () => new Array(24).fill(null));
+  let maxV = 1;
+  (cells || []).forEach((c) => {
+    const d = +c.dow, h = +c.hour;
+    if (d >= 0 && d < 7 && h >= 0 && h < 24) {
+      grid[d][h] = { value: +c.value || 0, n: +c.n || 0 };
+      maxV = Math.max(maxV, +c.value || 0);
+    }
+  });
+  const scale = Math.max(1, opts.scaleMax || maxV);
+  const shade = (v) => {
+    if (!v) return '#eef3fb';
+    const lvl = v >= scale * 0.75 ? 0.95 : v >= scale * 0.5 ? 0.72 : v >= scale * 0.25 ? 0.5 : 0.3;
+    return mix('#eef3fb', base, lvl);
+  };
+
+  const padTop = 20, padLeft = 40;
+  const W = padLeft + 24 * (cell + gap) + 2;
+  const H = padTop + 7 * (cell + gap) + 2;
+  const svg = svgEl('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' });
+
+  // rótulos de hora (0,3,6,…,21) no topo
+  for (let h = 0; h < 24; h++) {
+    if (h % 3 !== 0) continue;
+    const tx = svgEl('text', { x: padLeft + h * (cell + gap), y: padTop - 6, 'font-size': 11, fill: '#5b6b7d' });
+    tx.textContent = h + 'h'; svg.append(tx);
+  }
+  for (let d = 0; d < 7; d++) {
+    const ty = svgEl('text', { x: 2, y: padTop + d * (cell + gap) + cell - 5, 'font-size': 11, fill: '#5b6b7d' });
+    ty.textContent = DAYS[d]; svg.append(ty);
+    for (let h = 0; h < 24; h++) {
+      const g = grid[d][h];
+      const v = g ? g.value : 0;
+      const x = padLeft + h * (cell + gap), y = padTop + d * (cell + gap);
+      const rect = svgEl('rect', { x, y, width: cell, height: cell, rx: 2, fill: shade(v) });
+      const title = svgEl('title', {});
+      title.textContent = g
+        ? `${DAYS[d]} ${h}h · ${fmt(v)} · ${g.n} ${g.n === 1 ? 'sub' : 'subs'}`
+        : `${DAYS[d]} ${h}h · sem dados`;
+      rect.append(title); svg.append(rect);
     }
   }
   wrap.append(svg);

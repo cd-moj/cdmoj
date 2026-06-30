@@ -17,6 +17,9 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
   `fail <http> "<msg>" "<code>"`. Querystring: `param <nome>`. Helpers em `lib/common.sh`.
 - **Envelope**: `{success:true,…}` / `{success:false,error:{message,code}}`, sempre com o
   status HTTP correto. EPOCH para tempo.
+- **`jq` + ARG_MAX** (ver `../CLAUDE.md`): JSON grande (mapas com milhares de chaves, ex.: o
+  `id→sub_epoch` do history em `score/treino-response-gen.sh`) **não** vai por `--argjson` — estoura
+  `Argument list too long`. Use `--slurpfile <arquivo>` ou encadeie etapas com pipe.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
   `printf %q` (é *sourced*). Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.mon`).
   **`.cjudge`** = juiz-chefe: `is_judge` vale p/ ele (herda juiz) + `is_chief`/`is_admin_or_chief`

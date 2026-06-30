@@ -6,12 +6,13 @@
 //   GET  /treino/admin/queue       {total_pending, spool_queued, lists:[{contest,name,pending}]}
 //   GET  /treino/admin/judges      {online, busy, master, master_host, master_port, configured_workers, configured_count}
 //   GET  /treino/admin/stats       {users, active_sessions, logins_per_day:[{day,count}], submissions_per_day:[{day,count}]}
+//   GET  /treino/admin/response-stats {coverage:{history_total,with_finalized}, overall:{n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}, per_day:[{day,n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}], by_dow_hour:[{dow,hour,n,avg_wait_s}]}
 //   POST /treino/admin/logout-user {login} -> {logged_out, sessions_removed}
 //   POST /treino/admin/lock-user   {login} -> {locked, sessions_removed}
 import { apiGet, apiPost } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
-import { barChart } from '/lib/charts.js';
+import { barChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
 
 const CONTEST = 'treino';
 const G = (opts) => ({ contest: CONTEST, auth: true, ...opts });
@@ -28,6 +29,20 @@ function ddmm(daySec) {
   return pad2(d.getUTCDate()) + '/' + pad2(d.getUTCMonth() + 1);
 }
 const num = (v) => (v == null || isNaN(v) ? 0 : Number(v));
+
+// segundos -> duração compacta ("12s", "3min 20s", "1h 05min")
+function fmtDur(sec) {
+  sec = Math.round(num(sec));
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) { const m = Math.floor(sec / 60), s = sec % 60; return s ? `${m}min ${s}s` : `${m}min`; }
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  return m ? `${h}h ${pad2(m)}min` : `${h}h`;
+}
+// epoch (s) início-do-dia (UTC) -> 'YYYY-MM-DD' (UTC) — chave do calendário de calor
+function ymd(daySec) {
+  const d = new Date(num(daySec) * 1000);
+  return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate());
+}
 
 function errBox(message) {
   return el('div', { class: 'error-box', style: 'margin:.6rem 0' }, message);
@@ -263,6 +278,91 @@ function makeStatsTab() {
     body.append(grid);
   }
 
+  return { panel, load };
+}
+
+// ============================ aba: Tempo de resposta ============================
+// Tempo que o usuário espera (submit -> veredito), julgamento puro (duration_s) e fila
+// (espera - julgamento) no Treino Livre. Geral, média por dia e dois mapas de calor
+// (calendário por data + dia-da-semana × hora). Só conta submissões com veredito
+// registrado (finalized_at); a cobertura é exibida. Fonte: GET /treino/admin/response-stats.
+function makeResponseTab() {
+  const panel = el('div', { class: 'section' });
+  const head = el('h2', {}, '⏱ Tempo de resposta');
+  const tools = el('div', { class: 'toolbar' },
+    el('button', { class: 'btn ghost', onclick: () => load() }, '↻ Atualizar'));
+  const body = el('div', {}, loading());
+  panel.append(head, tools, body);
+
+  const card = (v, label, hl) => el('div', { class: 'stat-card' + (hl ? ' hl' : '') },
+    el('div', { class: 'n' }, String(v)), el('div', { class: 'lbl' }, label));
+
+  // caixa "gráfico de linha por dia" reutilizável
+  const lineBox = (title, days, key, color) => {
+    const box = el('div', {}, el('div', { class: 'chart-title' }, title));
+    if (days.length) {
+      const pts = days.map(d => ({ x: num(d.day), y: num(d[key]), label: ddmm(d.day) }));
+      box.append(el('div', { class: 'chart-wrap' }, lineChart(pts, { width: 460, height: 220, color, maxLabels: 7 })));
+    } else {
+      box.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, 'Sem dados.'));
+    }
+    return box;
+  };
+
+  async function load() {
+    body.innerHTML = ''; body.append(loading());
+    let data;
+    try { data = await apiGet('/treino/admin/response-stats', G()); }
+    catch (e) { body.innerHTML = ''; body.append(errBox('Falha ao carregar tempos de resposta: ' + (e.message || 'erro'))); return; }
+    body.innerHTML = '';
+
+    const ov = data.overall || {}, cov = data.coverage || {};
+    body.append(el('div', { class: 'muted small', style: 'margin:.1rem 0 .8rem' },
+      `Baseado em ${num(cov.with_finalized)} de ${num(cov.history_total)} submissões com tempo de veredito registrado (pipeline v2). Horários em UTC.`));
+
+    if (!num(ov.n)) {
+      body.append(el('div', { class: 'muted small center', style: 'padding:1.6rem' },
+        'Ainda não há submissões com tempo de resposta registrado. Os gráficos se preenchem conforme novas submissões forem julgadas.'));
+      return;
+    }
+
+    // cartões: espera (média/p50/p95/máx), julgamento e fila
+    body.append(el('div', { class: 'stat-cards' },
+      card(fmtDur(ov.avg_wait_s), 'espera média (submit→veredito)', true),
+      card(fmtDur(ov.p50_wait_s), 'espera mediana (p50)'),
+      card(fmtDur(ov.p95_wait_s), 'espera p95'),
+      card(fmtDur(ov.max_wait_s), 'espera máxima'),
+      card(fmtDur(ov.avg_judge_s), 'julgamento médio (execução)'),
+      card(fmtDur(ov.avg_queue_s), 'fila média (espera − julgamento)', true),
+      card(num(ov.n), 'submissões medidas')));
+
+    // séries por dia
+    const days = (data.per_day || []).slice().sort((a, b) => num(a.day) - num(b.day));
+    const grid1 = el('div', { class: 'stat-grid two' });
+    grid1.append(lineBox('Espera média por dia', days, 'avg_wait_s', '#216097'),
+                 lineBox('Espera p95 por dia', days, 'p95_wait_s', '#c4314b'));
+    const grid2 = el('div', { class: 'stat-grid two' });
+    grid2.append(lineBox('Julgamento médio por dia', days, 'avg_judge_s', '#1a7f37'),
+                 lineBox('Fila média por dia', days, 'avg_queue_s', '#a66a00'));
+    body.append(grid1, grid2);
+
+    // escala de cor dos mapas: corta no p95 p/ um dia/bucket outlier não lavar o resto
+    const scaleMax = num(ov.p95_wait_s) || num(ov.avg_wait_s) || 1;
+
+    // mapa de calor por data (espera média/dia)
+    const byDate = {};
+    days.forEach(d => { byDate[ymd(d.day)] = num(d.avg_wait_s); });
+    const calBox = el('div', {}, el('div', { class: 'chart-title' }, 'Mapa de calor — espera média por dia'));
+    calBox.append(el('div', { class: 'chart-wrap' },
+      heatmap(byDate, { weeks: 26, cell: 18, gap: 4, color: '#216097', scaleMax, fmt: (v, date) => `${date}: ${fmtDur(v)}` })));
+    body.append(calBox);
+
+    // mapa de calor dia-da-semana × hora (quando os juízes ficam lentos)
+    const gridBox = el('div', {}, el('div', { class: 'chart-title' }, 'Mapa de calor — espera média por dia da semana × hora (UTC)'));
+    gridBox.append(el('div', { class: 'chart-wrap' },
+      heatmapGrid(data.by_dow_hour || [], { color: '#c4314b', scaleMax, fmt: (v) => fmtDur(v) })));
+    body.append(gridBox);
+  }
   return { panel, load };
 }
 
@@ -663,6 +763,7 @@ function renderPanel(content) {
     { id: 'access', label: '📝 Acessos (log)', make: makeAccessLogTab },
     { id: 'audit', label: '🛡 Auditoria', make: makeAuditTab },
     { id: 'stats', label: '📊 Estatísticas', make: makeStatsTab },
+    { id: 'resp', label: '⏱ Tempo de resposta', make: makeResponseTab },
     { id: 'queue', label: '⏳ Fila de submissões', make: makeQueueTab },
     { id: 'judges', label: '🖥️ Máquinas de julgamento', make: makeJudgesTab },
   ];

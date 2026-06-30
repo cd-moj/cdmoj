@@ -45,6 +45,7 @@ Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na ses
 | `/treino/admin/queue` | GET | pendentes por lista `{total_pending,spool_queued,lists:[{contest,name,pending}]}` |
 | `/treino/admin/judges` | GET | estado do juiz via `:27000` `{online,busy,master,configured_workers,configured_count}` |
 | `/treino/admin/stats` | GET | `{users,active_sessions,logins_per_day,submissions_per_day}` |
+| `/treino/admin/response-stats` | GET | tempo de resposta (cacheado): espera (submit→veredito), julgamento (`duration_s`) e fila. `{coverage:{history_total,with_finalized}, overall:{n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}, per_day:[{day,n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}], by_dow_hour:[{dow,hour,n,avg_wait_s}]}`. Só conta submissões com `finalized_at`; tempos em **EPOCH/UTC** |
 | `/treino/admin/logout-user` | POST | `{login}` ou `{logins:[…]}` → remove as sessões (um ou vários) |
 | `/treino/admin/lock-user` | POST | `{login}` ou `{logins:[…]}` → **trava** (troca a senha por aleatória) + desloga |
 | `/treino/admin/logout-ip` | POST | `{ip}` → encerra todas as sessões daquele IP (IPv4/IPv6) |
