@@ -55,12 +55,17 @@
     .prob-right { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; }
     .prob-detail { padding:.2rem .9rem 1rem; border-top:1px solid var(--line); }
     .prob-submit { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
-    .tl-table { border-collapse:collapse; margin:.5rem 0; font-size:.9rem; }
-    .tl-table th, .tl-table td { border:1px solid var(--line); padding:.25rem .6rem; text-align:center; }
-    .tl-table th { background:var(--blue-soft); color:var(--blue-dark); }
     .balloon-svg { width:20px; height:23px; vertical-align:middle; }
-    .stmt-toggle { display:inline-block; cursor:pointer; color:var(--blue); font-weight:600; margin:.5rem 0; }
-    .stmt-toggle:hover { text-decoration:underline; }
+    /* problema no contest: enunciado | editor lado a lado, com modos de colapso */
+    .prob-cols { display:grid; grid-template-columns:1fr; gap:1.2rem; align-items:start; margin-top:.4rem; }
+    @media (min-width:992px){ .prob-cols { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); } }
+    .prob-cols.only-statement { grid-template-columns:1fr; }
+    .prob-cols.only-statement .prob-editor-col { display:none; }
+    .prob-cols.only-editor { grid-template-columns:1fr; }
+    .prob-cols.only-editor .prob-statement-col { display:none; }
+    .prob-viewmode { display:flex; gap:.3rem; flex-wrap:wrap; margin:.5rem 0; }
+    .prob-viewmode .btn { padding:.3rem .7rem; font-size:.85rem; }
+    .prob-viewmode .btn.active { background:var(--blue); color:#fff; }
     .subfilter { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.6rem; }
     .subfilter .tag { cursor:pointer; }
     .subfilter .tag.active { background:var(--blue); color:#fff; }

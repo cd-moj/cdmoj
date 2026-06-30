@@ -475,43 +475,63 @@ function toggleDetail(p, item, toggle, submitWrap) {
   if (opened) { detail.classList.add('hidden'); toggle.textContent = '▶'; return; }
   toggle.textContent = '▼';
   if (!detail.dataset.rendered) {
-    // time limits
+    // time limits — chips (nome da linguagem expandido, igual ao treino)
     const tl = p.time_limits || {};
     // mostra só as linguagens permitidas do problema (+ default), se houver whitelist
     const allowed = (p.languages && p.languages.length) ? new Set(resolveLangs(p.languages).map((l) => l.id)) : null;
     const keys = Object.keys(tl).filter((k) => k === 'default' || !allowed || allowed.has(k))
       .sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
     if (keys.length) {
-      detail.append(el('div', {},
-        el('b', {}, T('Tempo-limite', 'Time Limits')),
-        el('table', { class: 'tl-table' },
-          el('thead', {}, el('tr', {}, ...keys.map(k => el('th', {}, k)))),
-          el('tbody', {}, el('tr', {}, ...keys.map(k => el('td', {}, fmtTime(tl[k]))))))));
-    }
-    // editor de código embutido (CodeMirror) — só se o admin do contest o habilitou
-    const editorOn = !(userinfo && userinfo.show_editor === false);
-    if (editorOn) detail.append(submitWrap.editorBlock);
-    // enunciado inline (toggle)
-    if (p.statement_html_b64) {
-      const stmtToggle = el('span', { class: 'stmt-toggle' }, T('Mostrar enunciado', 'Show statement'));
-      const stmtDiv = el('div', { class: 'statement-content hidden' });
-      stmtToggle.addEventListener('click', () => {
-        const hidden = stmtDiv.classList.contains('hidden');
-        if (hidden && !stmtDiv.dataset.rendered) {
-          stmtDiv.innerHTML = (() => {
-            const html = b64utf8(p.statement_html_b64);
-            try { const d = new DOMParser().parseFromString(html, 'text/html'); return d.body ? d.body.innerHTML : html; }
-            catch { return html; }
-          })();
-          stmtDiv.dataset.rendered = '1';
-        }
-        stmtDiv.classList.toggle('hidden', !hidden);
-        stmtToggle.textContent = hidden ? T('Esconder enunciado', 'Hide statement') : T('Mostrar enunciado', 'Show statement');
+      const tlBlock = el('div', { class: 'tl-block' },
+        el('span', { class: 'tl-label' }, '⏱ ' + T('Tempo limite', 'Time limit')));
+      keys.forEach((k) => {
+        const label = k === 'default' ? T('padrão', 'default') : (langById(k).label || k);
+        tlBlock.append(el('span', { class: 'tl-chip' },
+          el('b', {}, label), el('span', { class: 'tl-time' }, fmtTime(tl[k]))));
       });
-      detail.append(stmtToggle, stmtDiv);
+      detail.append(tlBlock);
+    }
+    // enunciado | editor lado a lado — editor embutido só se o admin do contest o habilitou
+    const editorOn = !(userinfo && userinfo.show_editor === false);
+    // coluna do enunciado (decodifica o b64 só agora, na 1ª abertura)
+    let stmtCol = null;
+    if (p.statement_html_b64) {
+      const stmtDiv = el('div', { class: 'statement-content' });
+      stmtDiv.innerHTML = (() => {
+        const html = b64utf8(p.statement_html_b64);
+        try { const d = new DOMParser().parseFromString(html, 'text/html'); return d.body ? d.body.innerHTML : html; }
+        catch { return html; }
+      })();
+      stmtCol = el('div', { class: 'prob-statement-col' }, stmtDiv);
+    }
+    if (editorOn) {
+      const edCol = el('div', { class: 'prob-editor-col' }, submitWrap.editorBlock);
+      const cols = el('div', { class: 'prob-cols' }, ...(stmtCol ? [stmtCol] : []), edCol);
+      // seletor de 3 estados: lado a lado (padrão) | só enunciado | só editor
+      const vm = el('div', { class: 'prob-viewmode' });
+      const MODES = [['both', T('Lado a lado', 'Side by side')],
+        ['only-statement', T('Só enunciado', 'Statement only')],
+        ['only-editor', T('Só editor', 'Editor only')]];
+      const setMode = (m) => {
+        cols.classList.toggle('only-statement', m === 'only-statement');
+        cols.classList.toggle('only-editor', m === 'only-editor');
+        [...vm.children].forEach((b) => b.classList.toggle('active', b.dataset.m === m));
+        try { localStorage.setItem('moj-prob-viewmode', m); } catch { /* storage indisponível */ }
+        submitWrap.refreshEd && submitWrap.refreshEd();
+      };
+      MODES.forEach(([m, lbl]) => {
+        if (m !== 'only-editor' && !stmtCol) return;   // sem enunciado: só faz sentido "só editor"
+        const b = el('button', { class: 'btn ghost', type: 'button' }, lbl);
+        b.dataset.m = m; b.addEventListener('click', () => setMode(m)); vm.append(b);
+      });
+      detail.append(vm, cols);
+      submitWrap.mountEditor();
+      let saved = 'both'; try { saved = localStorage.getItem('moj-prob-viewmode') || 'both'; } catch { /* */ }
+      setMode(stmtCol ? saved : 'only-editor');
+    } else if (stmtCol) {
+      detail.append(stmtCol);   // editor desligado: enunciado em largura cheia
     }
     detail.dataset.rendered = '1';
-    if (editorOn) submitWrap.mountEditor();
   }
   detail.classList.remove('hidden');
 }
@@ -616,7 +636,7 @@ function renderSubmitInline(p) {
     doSubmit({ filename: 'solution.' + sel.value, code_b64: textToBase64(txt), source: 'web' }, edSteps, edBtn);
   });
 
-  return { row, editorBlock, mountEditor };
+  return { row, editorBlock, mountEditor, refreshEd };
 }
 
 // ---- submissões (tabela + filtro + ordenação + polling) --------------------
