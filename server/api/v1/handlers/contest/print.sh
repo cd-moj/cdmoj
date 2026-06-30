@@ -19,6 +19,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   for j in "$dir"/*.json; do
     [[ -f "$j" ]] || continue
     [[ "$(jq -r '.login // ""' "$j" 2>/dev/null)" == "$login" ]] || continue
+    [[ "$(jq -r '.kind // "print"' "$j" 2>/dev/null)" == "print" ]] || continue   # balão é tarefa do staff, não do aluno
     items+=("$(jq -c '{id,seq,filename,mime,size,time,status,pages,claimed_by,processed_at,delivered_at}' "$j" 2>/dev/null)")
   done
   shopt -u nullglob

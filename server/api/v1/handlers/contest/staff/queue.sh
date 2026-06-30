@@ -9,6 +9,9 @@ require_auth_contest "$contest"
 { is_staff || is_admin; } || fail 403 "Apenas staff" "staff_required"
 source "$_LIBDIR/print.sh"
 
+# gera (preguiçosamente) as tarefas de balão pendentes (1ª solução de cada time/problema)
+pr_reconcile_balloons "$contest"
+
 dir="$(pr_dir "$contest")"
 set +o noglob; shopt -s nullglob
 items=()
@@ -16,7 +19,7 @@ for j in "$dir"/*.json; do
   [[ -f "$j" ]] || continue
   own="$(jq -r '.login // ""' "$j" 2>/dev/null)"
   staff_can_see "$contest" "$SESSION_LOGIN" "$own" || continue
-  items+=("$(jq -c '{id,seq,login,fullname,team,filename,mime,size,time,status,pages,claimed_by,claimed_at,processed_by,processed_at,delivered_by,delivered_at}' "$j" 2>/dev/null)")
+  items+=("$(jq -c '{id,seq,login,fullname,team,univ,kind:(.kind//"print"),short,color_hex,color_name,filename,mime,size,time,status,pages,claimed_by,claimed_at,processed_by,processed_at,delivered_by,delivered_at}' "$j" 2>/dev/null)")
 done
 shopt -u nullglob
 out="$( ((${#items[@]})) && printf '%s\n' "${items[@]}" | jq -cs '

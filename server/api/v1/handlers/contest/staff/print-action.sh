@@ -33,6 +33,7 @@ exec 9>"$dir/$id.lock"; flock -w 10 9 || fail 409 "Ocupado, tente de novo" "lock
 cur="$(jq -r '.status // "pending"' "$meta")"
 seq="$(jq -r '.seq // 0' "$meta")"
 pages="$(jq -r '.pages // 0' "$meta")"
+kind="$(jq -r '.kind // "print"' "$meta")"   # print | balloon -> prefixo do evento de auditoria
 tmp="$dir/$id.json.tmp"
 
 case "$action" in
@@ -41,7 +42,7 @@ case "$action" in
     cb="$(jq -r '.claimed_by // ""' "$meta")"
     [[ -z "$cb" || "$cb" == "$me" ]] || fail 409 "Já reservada por $cb" "already_claimed"
     jq --arg by "$me" --argjson at "$EPOCHSECONDS" '.claimed_by=$by | .claimed_at=$at' "$meta" > "$tmp" && mv -f "$tmp" "$meta"
-    audit_log_to "$contest" print-claim "seq=$seq by=$me"
+    audit_log_to "$contest" "$kind-claim" "seq=$seq by=$me"
     ;;
   processed)
     if [[ "$cur" == delivered ]]; then :   # já entregue: no-op idempotente
@@ -50,13 +51,13 @@ case "$action" in
         .status="printed" | .processed_by=$by | .processed_at=$at | .print_mode=$md
         | (if (.claimed_by // "")=="" then .claimed_by=$by | .claimed_at=$at else . end)' \
         "$meta" > "$tmp" && mv -f "$tmp" "$meta"
-      audit_log_to "$contest" print-processed "seq=$seq by=$me modo=$mode paginas=$pages"
+      audit_log_to "$contest" "$kind-processed" "seq=$seq by=$me modo=$mode paginas=$pages"
     fi
     ;;
   delivered)
     [[ "$cur" == printed ]] || fail 409 "Imprima antes de entregar" "not_printed"
     jq --arg by "$me" --argjson at "$EPOCHSECONDS" '.status="delivered" | .delivered_by=$by | .delivered_at=$at' "$meta" > "$tmp" && mv -f "$tmp" "$meta"
-    audit_log_to "$contest" print-delivered "seq=$seq by=$me"
+    audit_log_to "$contest" "$kind-delivered" "seq=$seq by=$me"
     ;;
 esac
 

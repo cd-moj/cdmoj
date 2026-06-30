@@ -220,3 +220,176 @@ pr_build_pdf() {
   [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
   return 1
 }
+
+# ===== BALÃO (.staff): tarefa de entrega de balão no veredicto Accepted ======================
+
+# pr_short_of <c> <cid> : ecoa a letra/short do problema cujo id canônico é <cid> (history campo-3).
+pr_short_of() {
+  local c="$1" cid="$2"
+  ( PROBS=(); source "$CONTESTSDIR/$c/conf" 2>/dev/null
+    local i n=${#PROBS[@]} canon
+    for ((i=0; i<n; i+=5)); do
+      canon="${PROBS[i+4]:-}"; [[ "$canon" == *"#"* ]] || canon="${PROBS[i+1]//\//#}"
+      [[ "$canon" == "$cid" ]] && { printf '%s' "${PROBS[i+3]:-$((i/5))}"; exit 0; }
+    done )
+}
+
+# pr_balloon_color <c> <short> : ecoa "RRGGBB" (balloons.json vence; senão default ICPC A–O).
+pr_balloon_color() {
+  local c="$1" short="$2" col="" f="$CONTESTSDIR/$1/balloons.json"
+  { [[ -f "$f" ]] && jq -e . "$f" >/dev/null 2>&1; } && col="$(jq -r --arg k "$short" '.[$k] // empty' "$f" 2>/dev/null)"
+  if [[ -z "$col" ]]; then
+    case "$short" in
+      A) col=FFFFFF;; B) col=000000;; C) col=FF0000;; D) col=800000;; E) col=FFFF00;;
+      F) col=008000;; G) col=0000FF;; H) col=000080;; I) col=FF00FF;; J) col=800080;;
+      K) col=00FF00;; L) col=00FFFF;; M) col=C0C0C0;; N) col=FF8000;; O) col=A3794D;;
+      *) col=CCCCCC;;
+    esac
+  fi
+  col="$(printf '%s' "$col" | tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F')"; col="${col:0:6}"
+  [[ "${#col}" -eq 6 ]] || col=CCCCCC
+  printf '%s' "$col"
+}
+
+# pr_color_name <RRGGBB> : nome da cor por extenso em PT (tabela dos 15 defaults; fora dela, a cor
+# nomeada mais próxima por distância RGB, com o hex entre parênteses).
+pr_color_name() {
+  local hex; hex="$(printf '%s' "$1" | tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F')"; hex="${hex:0:6}"
+  [[ "${#hex}" -eq 6 ]] || { printf 'cor'; return; }
+  case "$hex" in
+    FFFFFF) printf 'branco'; return;;        000000) printf 'preto'; return;;
+    FF0000) printf 'vermelho'; return;;      800000) printf 'vinho'; return;;
+    FFFF00) printf 'amarelo'; return;;       008000) printf 'verde'; return;;
+    0000FF) printf 'azul'; return;;          000080) printf 'azul-marinho'; return;;
+    FF00FF) printf 'magenta'; return;;       800080) printf 'roxo'; return;;
+    00FF00) printf 'verde-limão'; return;;   00FFFF) printf 'ciano'; return;;
+    C0C0C0) printf 'prata'; return;;         FF8000) printf 'laranja'; return;;
+    A3794D) printf 'marrom'; return;;
+  esac
+  local r=$((16#${hex:0:2})) g=$((16#${hex:2:2})) b=$((16#${hex:4:2}))
+  local best='cor' bestd=999999999 h name hr hg hb d
+  while read -r h name; do
+    [[ -n "$h" ]] || continue
+    hr=$((16#${h:0:2})); hg=$((16#${h:2:2})); hb=$((16#${h:4:2}))
+    d=$(( (r-hr)*(r-hr) + (g-hg)*(g-hg) + (b-hb)*(b-hb) ))
+    (( d < bestd )) && { bestd=$d; best="$name"; }
+  done <<'NAMES'
+FFFFFF branco
+000000 preto
+FF0000 vermelho
+800000 vinho
+FFFF00 amarelo
+008000 verde
+0000FF azul
+000080 azul-marinho
+FF00FF magenta
+800080 roxo
+00FF00 verde-limão
+00FFFF ciano
+C0C0C0 prata
+FF8000 laranja
+A3794D marrom
+NAMES
+  printf '%s (#%s)' "$best" "$hex"
+}
+
+# _pr_render_balloon <c> <id> <meta> <cache> : folha A4 da entrega do balão (sob flock do chamador).
+_pr_render_balloon() {
+  local c="$1" id="$2" meta="$3" cache="$4"
+  local work; work="$(mktemp -d)" || return 1
+  trap 'rm -rf "$work"' RETURN
+  local seq team univ login short colorhex colorname FB FR
+  seq="$(jq -r '.seq // 0' "$meta")"
+  team="$(jq -r '.team // ""' "$meta")"; [[ -n "$team" ]] || team="(sem nome de time)"
+  univ="$(jq -r '.univ // ""' "$meta")"
+  login="$(jq -r '.login // ""' "$meta")"
+  short="$(jq -r '.short // "?"' "$meta")"
+  colorhex="$(jq -r '.color_hex // "CCCCCC"' "$meta")"
+  colorname="$(jq -r '.color_name // ""' "$meta")"; [[ -n "$colorname" ]] || colorname="$(pr_color_name "$colorhex")"
+  cap_esc(){ local s="${1//%/%%}"; [[ "$s" == @* ]] && s=" $s"; printf '%s' "$s"; }
+  team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"; colorname="$(cap_esc "$colorname")"; short="$(cap_esc "$short")"
+  FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans-Bold$/{print $2; exit}')"
+  [[ -n "$FB" ]] || FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: /{print $2; exit}')"
+  FR="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans$/{print $2; exit}')"; [[ -n "$FR" ]] || FR="$FB"
+
+  local -a cov=( magick -size 1240x1754 xc:white )
+  addcap(){ cov+=( '(' -size "${1}x${2}" -background white -fill "$5" ); [[ -n "$6" ]] && cov+=( -font "$6" ); [[ -n "$7" ]] && cov+=( -weight "$7" ); cov+=( -gravity "$8" "caption:$9" ')' -gravity northwest -geometry "+${3}+${4}" -composite ); }
+  addcap 1080  46  80   66 '#555' "$FR" ''   center "ENTREGA DE BALÃO  /  BALLOON"
+  addcap 1080 150  80  120 black  "$FB" 700  center "$team"
+  [[ -n "$univ" ]] && addcap 1080 54 80 280 '#333' "$FR" '' center "$univ"
+  addcap 1080  40  80  346 '#555' "$FR" ''   center "login"
+  addcap 1080  78  80  388 black  "$FB" 700  center "$login"
+  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,500 1160,500" -stroke none )
+  addcap 540  52  80  528 '#555' "$FR" ''   center "PROBLEMA"
+  addcap 540 200  80  590 black  "$FB" 800  center "$short"
+  addcap 540  52 620  528 '#555' "$FR" ''   center "COR DO BALÃO"
+  cov+=( -fill "#$colorhex" -stroke '#333' -strokewidth 2 )
+  cov+=( -draw "translate 890,690 ellipse 0,0 78,98 0,360" )
+  cov+=( -draw "translate 890,690 polygon -12,96 12,96 0,122" )
+  cov+=( -fill none -stroke none )
+  addcap 540  72 620  812 black  "$FB" 700  center "$colorname"
+  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,910 1160,910" -stroke none )
+  addcap 1080  54  80  956 '#555' "$FR" ''   center "TAREFA Nº  (confira com o sistema)"
+  addcap 1080 200  80 1016 black  "$FB" 800  center "$seq"
+  cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1300 1160,1300" -stroke none )
+  addcap  600  46  80 1500 black  "$FR" ''   west   "Assinatura de quem entregou:"
+  cov+=( -fill none -stroke black -strokewidth 2 -draw "line 80,1600 700,1600" -stroke none )
+  addcap  320  46 760 1500 black  "$FR" ''   west   "Hora da entrega:"
+  cov+=( -fill none -stroke black -strokewidth 2 -draw "line 760,1600 1160,1600" -stroke none )
+  cov+=( -units PixelsPerInch -density 150 "$work/balloon.pdf" )
+  "${cov[@]}" 2>/dev/null && [[ -s "$work/balloon.pdf" ]] || return 1
+  mv -f "$work/balloon.pdf" "$cache"
+  jq '.build_ok=true' "$meta" > "$work/m.json" 2>/dev/null && mv -f "$work/m.json" "$meta"
+  return 0
+}
+
+# pr_build_balloon <c> <id> : ecoa o combined.pdf da folha do balão (build-once; conteúdo imutável).
+pr_build_balloon() {
+  local c="$1" id="$2" dir meta cache
+  dir="$(pr_dir "$c")"; meta="$dir/$id.json"; cache="$dir/$id.combined.pdf"
+  [[ -f "$meta" ]] || return 1
+  [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
+  ( flock -w 30 9 || exit 1
+    [[ -f "$cache" ]] && exit 0
+    _pr_render_balloon "$c" "$id" "$meta" "$cache" || exit 1
+  ) 9>"$dir/$id.lock"
+  [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
+  return 1
+}
+
+# pr_reconcile_balloons <c> : gera (preguiçosamente) as tarefas de balão pendentes — 1 por (login,
+# problema) na 1ª solução. Idempotente (id determinístico), sob flock, gateado por mtime do history.
+# Lê o veredicto FINAL do history (campo-5 ~ Accepted) — vale p/ auto E manual. Auditado.
+pr_reconcile_balloons() {
+  local c="$1" dir hist stamp
+  staff_exists "$c" || return 0
+  dir="$(pr_dir "$c")"; hist="$CONTESTSDIR/$c/controle/history"
+  [[ -f "$hist" ]] || return 0
+  mkdir -p "$dir"; stamp="$dir/.balloon-stamp"
+  [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && return 0
+  ( flock -w 5 9 || exit 0
+    [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && exit 0
+    touch -r "$hist" "$stamp"                      # carimba a mtime do history ANTES de varrer
+    local _t login cid _lang verdict id short colorhex colorname team univ fullname seq
+    while IFS=: read -r _t login cid _lang verdict _rest; do
+      [[ -n "$login" && -n "$cid" ]] || continue
+      case "$verdict" in *Accepted*) ;; *) continue;; esac
+      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.mon) continue;; esac
+      id="bln$(printf '%s%s%s' "$c" "$login" "$cid" | md5sum | cut -c1-20)"
+      [[ -f "$dir/$id.json" ]] && continue
+      short="$(pr_short_of "$c" "$cid")"; [[ -n "$short" ]] || short="?"
+      colorhex="$(pr_balloon_color "$c" "$short")"; colorname="$(pr_color_name "$colorhex")"
+      team="$(pr_resolve_team "$c" "$login")"; univ="$(pr_resolve_univ "$c" "$login")"
+      fullname="$(user_fullname "$c" "$login")"; [[ -n "$fullname" ]] || fullname="$login"
+      seq="$(pr_next_seq "$c")"
+      jq -cn --arg id "$id" --argjson seq "$seq" --arg login "$login" --arg fn "$fullname" \
+        --arg team "$team" --arg univ "$univ" --arg prob "$cid" --arg short "$short" \
+        --arg ch "$colorhex" --arg cn "$colorname" --argjson time "$EPOCHSECONDS" \
+        '{id:$id, seq:$seq, kind:"balloon", login:$login, fullname:$fn, team:$team, univ:$univ,
+          problem:$prob, short:$short, color_hex:$ch, color_name:$cn, time:$time, status:"pending",
+          claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0}' \
+        > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json"
+      audit_log_to "$c" balloon-task "seq=$seq login=$login problema=$short cor=$colorname"
+    done < "$hist"
+  ) 9>"$dir/.balloon.lock"
+}

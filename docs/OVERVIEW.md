@@ -179,6 +179,17 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
   (`onafterprint`); para impressão sem o diálogo do SO, rode o navegador em **kiosk**. **Toda**
   operação é auditada (`print-request`/`-claim`/`-served`/`-processed`/`-delivered`/`-download`,
   `staff-filters`). O admin habilita/desabilita por conf `PRINT` (toggle `allow_print`).
+  - **Balões** 🎈: na **mesma fila** do `.staff`, o sistema gera automaticamente uma **tarefa de
+    balão** quando um time **resolve** um problema (veredicto `Accepted`) — **1 por (time, problema)**
+    na 1ª solução. Geração **preguiçosa** ao carregar a fila (`pr_reconcile_balloons` varre o
+    `controle/history`, dedup por id determinístico, gateado por mtime, sob flock) — **sem mexer no
+    daemon**; como lê o veredicto **final** do history, no **modo manual** o balão só nasce depois que
+    os `.judge` decidem o `Accepted`. Só o `.staff` que **enxerga aquele time** (mesmo escopo regex)
+    recebe. A **folha do balão** (1 página, `pr_build_balloon`, **sem `.src`**) traz time + universidade
+    + **login**, o **problema** (letra), a **cor** do balão **desenhada** + o **nome por extenso** (PT;
+    cor por `balloons.json`/default ICPC, com tabela hex→nome + cor mais próxima no custom), o **nº da
+    tarefa** (`seq`) e **assinatura + hora**. Reusa o fluxo pegar→imprimir→entregar e é auditado
+    (`balloon-task`/`-claim`/`-processed`/`-served`/`-delivered`). Balão **não** aparece p/ o aluno.
 
 **Auditoria**: ações administrativas são logadas em `contests/<c>/var/admin-audit.log`
 (e `treino/var/admin-audit.log` no treino) — o contest fica auto-contido.

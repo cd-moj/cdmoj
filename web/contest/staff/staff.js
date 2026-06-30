@@ -111,10 +111,16 @@ function renderRows() {
   if (!queue.length) { tbody.append(el('tr', {}, el('td', { colspan: '6', class: 'muted' }, 'Nenhuma tarefa.'))); return; }
   queue.forEach((t) => {
     const st = STATUS[t.status] || STATUS.pending;
+    const taskCell = t.kind === 'balloon'
+      ? el('td', {}, el('b', {}, '🎈 Balão · ' + (t.short || '?')),
+          el('div', { class: 'small' },
+            el('span', { style: 'display:inline-block;width:.8em;height:.8em;border:1px solid #999;border-radius:50%;vertical-align:middle;background:#' + (t.color_hex || 'cccccc') }),
+            ' ' + (t.color_name || '')))
+      : el('td', {}, t.filename, el('div', { class: 'small muted' }, (t.mime || '') + (t.size ? ' · ' + Math.max(1, Math.round(t.size / 1024)) + ' KB' : '')));
     tbody.append(el('tr', {},
       el('td', {}, el('b', {}, '#' + t.seq)),
-      el('td', {}, el('div', {}, t.team || t.fullname || t.login), el('div', { class: 'small muted' }, t.login)),
-      el('td', {}, t.filename, el('div', { class: 'small muted' }, (t.mime || '') + (t.size ? ' · ' + Math.max(1, Math.round(t.size / 1024)) + ' KB' : ''))),
+      el('td', {}, el('div', {}, t.team || t.fullname || t.login), el('div', { class: 'small muted' }, t.login + (t.univ ? ' · ' + t.univ : ''))),
+      taskCell,
       el('td', {}, el('span', { class: 'pr-badge', style: st.c }, st.t),
         (t.claimed_by ? el('div', { class: 'small muted' }, 'por ' + t.claimed_by) : '')),
       el('td', { class: 'small' }, (t.pages > 0 ? t.pages + ' pág.' : '—'), el('div', { class: 'small muted' }, fmtDate(t.time))),

@@ -1287,10 +1287,10 @@
     "/contest/staff/queue": {
       "get": {
         "tags": ["contest"],
-        "summary": "Fila de tarefas de impressão visíveis a este staff (escopo por regex)",
+        "summary": "Fila de tarefas do staff (impressão + balões; escopo por regex). Reconcilia balões pendentes (1ª-AC) ao carregar",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{requests:[{id,seq,login,team,filename,status,pages,claimed_by,…}]}" } }
+        "responses": { "200": { "description": "{requests:[{id,seq,kind,login,team,univ,short,color_hex,color_name,filename,status,…}]}" } }
       }
     },
     "/contest/staff/print-action": {
@@ -1308,7 +1308,7 @@
     "/contest/staff/print-pdf": {
       "get": {
         "tags": ["contest"],
-        "summary": "PDF combinado (folha de rosto com time/universidade/login/nº/páginas/assinatura + documento A4, código numerado), inline; build-once com cache",
+        "summary": "PDF inline (build-once): kind=print → folha de rosto + documento A4 (código numerado); kind=balloon → folha do balão (time/univ/login/problema/cor desenhada+nome/nº/assinatura)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/contest" }],
         "responses": { "200": { "description": "application/pdf" } }

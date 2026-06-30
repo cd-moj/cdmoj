@@ -13,16 +13,24 @@ id="$(param id)"
 [[ "$id" =~ ^[A-Za-z0-9_]+$ ]] || fail 400 "id inválido" "id_invalid"
 dir="$(pr_dir "$contest")"
 meta="$dir/$id.json"
-[[ -f "$meta" && -f "$dir/$id.src" ]] || fail 404 "Pedido não encontrado" "notfound"
+[[ -f "$meta" ]] || fail 404 "Tarefa não encontrada" "notfound"
+kind="$(jq -r '.kind // "print"' "$meta" 2>/dev/null)"
+# tarefa de impressão exige o arquivo cru; balão é gerado só a partir do meta (sem .src)
+[[ "$kind" == balloon || -f "$dir/$id.src" ]] || fail 404 "Tarefa não encontrada" "notfound"
 owner="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
 staff_can_see "$contest" "$SESSION_LOGIN" "$owner" || fail 403 "Tarefa fora do seu escopo" "out_of_scope"
 seq="$(jq -r '.seq // 0' "$meta" 2>/dev/null)"
 
-pdf="$(pr_build_pdf "$contest" "$id")" || fail 500 "Falha ao gerar PDF" "build_failed"
-pages="$(jq -r '.pages // 0' "$meta" 2>/dev/null)"
-[[ "$(jq -r '.build_ok // true' "$meta" 2>/dev/null)" == false ]] \
-  && audit_log_to "$contest" print-build-fail "seq=$seq id=$id mime=$(jq -r '.mime // ""' "$meta" 2>/dev/null)"
-audit_log_to "$contest" print-served "seq=$seq by=$SESSION_LOGIN paginas=$pages"
+if [[ "$kind" == balloon ]]; then
+  pdf="$(pr_build_balloon "$contest" "$id")" || fail 500 "Falha ao gerar a folha do balão" "build_failed"
+  audit_log_to "$contest" balloon-served "seq=$seq by=$SESSION_LOGIN problema=$(jq -r '.short // ""' "$meta" 2>/dev/null) cor=$(jq -r '.color_name // ""' "$meta" 2>/dev/null)"
+else
+  pdf="$(pr_build_pdf "$contest" "$id")" || fail 500 "Falha ao gerar PDF" "build_failed"
+  pages="$(jq -r '.pages // 0' "$meta" 2>/dev/null)"
+  [[ "$(jq -r '.build_ok // true' "$meta" 2>/dev/null)" == false ]] \
+    && audit_log_to "$contest" print-build-fail "seq=$seq id=$id mime=$(jq -r '.mime // ""' "$meta" 2>/dev/null)"
+  audit_log_to "$contest" print-served "seq=$seq by=$SESSION_LOGIN paginas=$pages"
+fi
 
 printf 'Status: 200 OK\r\n'
 printf 'Content-Type: application/pdf\r\n'
