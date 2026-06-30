@@ -10,13 +10,13 @@ source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""
+  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""
   load_contest_conf "$contest"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
   sfu_json='[]'; [[ -n "$SCORE_FULL_USERS" ]] && sfu_json="$(printf '%s\n' $SCORE_FULL_USERS | grep -v '^$' | jq -R . | jq -cs .)"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
-            show_tl:$stl, languages:$langs, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap}' \
+            show_tl:$stl, languages:$langs, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv}' \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
@@ -29,7 +29,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson stl "$([[ "$SHOWTL" == 0 ]] && echo false || echo true)" \
     --argjson langs "$langs_json" --argjson sfu "$sfu_json" \
     --argjson ab "$([[ "$BACKUP" == 0 ]] && echo false || echo true)" \
-    --argjson ap "$([[ "$PRINT" == 0 ]] && echo false || echo true)"
+    --argjson ap "$([[ "$PRINT" == 0 ]] && echo false || echo true)" \
+    --argjson mv "$([[ "$MANUAL_VERDICT" == 1 ]] && echo true || echo false)"
   exit 0
 fi
 
@@ -66,6 +67,7 @@ bset show_editor SHOWEDITOR _
 bset show_tl     SHOWTL _
 bset allow_backup BACKUP _
 bset allow_print PRINT _
+bset manual_verdict MANUAL_VERDICT 1
 
 if has login_ua_substring; then
   v="$(jq -r '.login_ua_substring' <<<"$body")"; v="${v//$'\n'/}"

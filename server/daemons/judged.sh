@@ -101,6 +101,85 @@ intake_enqueue() {
   q_enqueue "$id" "$prio" "$job"
 }
 
+# ===== Veredicto MANUAL (.judge): segura o veredicto computado p/ revisão de 2 juízes ======
+
+# auto_allows <contest> <cid> <lang> <verdict> : 0 se a matriz auto-verdicts.json permite que
+# este (problema, linguagem, veredicto) saia AUTOMÁTICO (lang minúsculo ou '*' = qualquer).
+auto_allows() {
+  local f="$CONTESTSDIR/$1/auto-verdicts.json"; [[ -f "$f" ]] || return 1
+  local lang_lc; lang_lc="$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')"
+  jq -e --arg p "$2" --arg pp "${2//\//#}" --arg l "$lang_lc" --arg v "$4" '
+    ((.[$p] // .[$pp] // {})) as $m
+    | (($m[$l] // []) + ($m["*"] // [])) | index($v)' "$f" >/dev/null 2>&1
+}
+
+# should_hold <contest> <login> <cid> <lang> <verdict> : 0 se deve SEGURAR p/ revisão manual.
+# Condições: MANUAL_VERDICT=1 no conf, submissor NÃO-privilegiado, veredicto real (não erro de
+# juiz), e NÃO permitido pela matriz auto. Lê MANUAL_VERDICT via grep (ingest_result não dá source).
+should_hold() {
+  local contest="$1" login="$2" prob="$3" lang="$4" verdict="$5" mv
+  mv="$(grep -m1 '^MANUAL_VERDICT=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2-)"
+  mv="${mv//\'/}"; mv="${mv//\"/}"
+  [[ "$mv" == 1 ]] || return 1
+  case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.mon) return 1;; esac
+  case "$verdict" in "Judge Error"*|"No_Servers"*|"Not Answered Yet"|"On queue"|"Running"|"") return 1;; esac
+  auto_allows "$contest" "$prob" "$lang" "$verdict" && return 1
+  return 0
+}
+
+# write_review_item <contest> <id> <login> <cid> <lang> <sub_epoch> <verdict> : cria/atualiza
+# contests/<c>/review/<id>.json (fila de revisão) e audita verdict-held.
+write_review_item() {
+  local contest="$1" id="$2" login="$3" prob="$4" lang="$5" sub_epoch="$6" verdict="$7"
+  local dir="$CONTESTSDIR/$contest/review"; mkdir -p "$dir"
+  jq -cn --arg id "$id" --arg c "$contest" --arg l "$login" --arg p "$prob" --arg lang "$lang" \
+    --argjson se "${sub_epoch:-0}" --arg v "$verdict" --argjson now "$EPOCHSECONDS" \
+    '{id:$id, contest:$c, login:$l, problem_id:$p, lang:$lang, sub_epoch:$se,
+      computed_verdict:$v, report_html:("mojlog/\($id)-\($l)-\($p).html"),
+      created_at:$now, status:"open", claimants:[], votes:[], conflict:false,
+      released_verdict:null, released_by:null, released_at:null}' \
+    > "$dir/.$id.tmp" && mv -f "$dir/.$id.tmp" "$dir/$id.json"
+  clog "$contest" verdict-held "id=$id login=$login prob=$prob lang=$lang verdict=$verdict"
+}
+
+# consume_setverdict <json> : aplica o veredicto manual decidido (2 juízes / chefe) à submissão.
+# Finaliza pelo MESMO escritor único (update_history) + write_result_json (p/ entrar no timeline
+# de auditoria) e marca review/<id>.json como released. Herda metadados da linha :id do history.
+consume_setverdict() {
+  local json="$1" contest verdict id username problem
+  contest="$(jq -r '.contest // empty' <<<"$json")"
+  verdict="$(jq -r '.verdict // empty' <<<"$json")"
+  id="$(jq -r '.id // empty' <<<"$json")"
+  username="$(jq -r '.username // empty' <<<"$json")"
+  problem="$(jq -r '.problem_id // empty' <<<"$json")"
+  valid_contest_id "$contest" || { log "setverdict: contest inválido"; return 1; }
+  [[ -n "$verdict" ]] || { log "setverdict: sem verdict"; return 1; }
+  local cdir="$CONTESTSDIR/$contest" line=""
+  local hist="$cdir/controle/history"
+  [[ -n "$id" ]] && line="$(grep ":$id\$" "$hist" 2>/dev/null | tail -n1)"
+  if [[ -z "$line" && -n "$username" && -n "$problem" ]]; then
+    line="$(awk -F: -v u="$username" -v p="$problem" '$2==u && $3==p' "$hist" 2>/dev/null | tail -n1)"
+  fi
+  [[ -n "$line" ]] || { log "setverdict: submissão não achada (id=$id user=$username prob=$problem)"; clog "$contest" verdict-set-falhou "id=$id user=$username prob=$problem motivo=sem-history"; return 1; }
+  local tempo h_login h_prob h_lang _v sub_epoch h_id
+  IFS=: read -r tempo h_login h_prob h_lang _v sub_epoch h_id <<<"$line"
+  [[ -n "$id" ]] || id="$h_id"
+  update_history "$hist" "$id" "$tempo:$h_login:$h_prob:$h_lang:$verdict:$sub_epoch:$id"
+  update_data "$cdir/data/$h_login" "$id" "$sub_epoch:$id:$h_prob:$verdict"
+  local rjson; rjson="$(jq -cn --arg id "$id" --arg c "$contest" --arg p "$h_prob" --arg l "$h_login" \
+    --arg lang "$h_lang" --arg v "$verdict" \
+    '{id:$id, contest:$c, problem_id:$p, login:$l, lang:$lang, verdict:$v, host:"manual"}')"
+  write_result_json "$contest" "$id" "$h_login" "$h_prob" "$rjson"
+  local rf="$cdir/review/$id.json"
+  if [[ -f "$rf" ]]; then
+    jq -c --arg v "$verdict" --argjson at "$EPOCHSECONDS" '.status="released" | .released_verdict=$v | .released_at=$at' "$rf" > "$rf.tmp" && mv -f "$rf.tmp" "$rf"
+  fi
+  [[ -e "$SCORE_BUILD" ]] && bash "$SCORE_BUILD" "$contest" >/dev/null 2>&1
+  clog "$contest" verdict-released "id=$id verdict=$verdict"
+  log "setverdict aplicado id=$id contest=$contest verdict=$verdict"
+  return 0
+}
+
 # write_result_json ... : grava o results/<id>.json canônico (sem o b64, com ref do HTML).
 write_result_json() {
   local contest="$1" id="$2" login="$3" problem="$4" json="$5"
@@ -137,6 +216,15 @@ ingest_result() {
   [[ -n "$h_lang"  ]] || h_lang="$(jq -r '(.lang // "")|ascii_upcase' <<<"$json")"
   [[ -n "$sub_epoch" ]] || sub_epoch="$EPOCHSECONDS"
   [[ -n "$tempo" ]] || tempo="$sub_epoch"
+  # MODO VEREDICTO MANUAL: segura o veredicto computado p/ revisão de 2 juízes (não finaliza).
+  if should_hold "$contest" "$h_login" "$h_prob" "$h_lang" "$verdict"; then
+    local hb; hb="$(jq -r '.report_html_b64 // empty' <<<"$json")"
+    [[ -n "$hb" ]] && printf '%s' "$hb" | base64 -d > "$cdir/mojlog/$id-$h_login-$h_prob.html" 2>/dev/null
+    write_review_item "$contest" "$id" "$h_login" "$h_prob" "$h_lang" "$sub_epoch" "$verdict"
+    [[ -n "$host" ]] && q_done "$host" "$id"
+    log "veredicto SEGURADO p/ revisão id=$id contest=$contest verdict=$verdict"
+    return 0
+  fi
   update_history "$hist" "$id" "$tempo:$h_login:$h_prob:$h_lang:$verdict:$sub_epoch:$id"
   update_data "$cdir/data/$h_login" "$id" "$sub_epoch:$id:$h_prob:$verdict"
   local html_b64; html_b64="$(jq -r '.report_html_b64 // empty' <<<"$json")"
@@ -218,6 +306,13 @@ process_spool_file() {
     return 0
   fi
 
+  # ---- comando "setverdict": aplica o veredicto manual decidido (2 juízes / juiz-chefe) ----
+  if [[ "$comando" == setverdict ]]; then
+    consume_setverdict "$json"
+    mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
+    return 0
+  fi
+
   local contest login problem filename code_b64 lang id
   contest="$(jq -r '.contest    // empty' <<<"$json")"
   login="$(  jq -r '.login      // empty' <<<"$json")"
@@ -292,6 +387,15 @@ process_spool_file() {
     tempo=$(( sub_epoch - CONTEST_START ))
   else
     tempo="$sub_epoch"
+  fi
+
+  # MODO VEREDICTO MANUAL (caminho inline/legacy): segura p/ revisão de 2 juízes.
+  if should_hold "$contest" "$login" "$problem" "$lang" "$verdict"; then
+    archive_source "$contest" "$id" "$login" "$problem" "$lang" "$code_b64"   # fonte p/ os juízes verem
+    write_review_item "$contest" "$id" "$login" "$problem" "$lang" "$sub_epoch" "$verdict"
+    mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
+    log "veredicto SEGURADO p/ revisão (inline) id=$id contest=$contest verdict=$verdict"
+    return 0
   fi
 
   # ---- (3) troca a linha provisória do history pela definitiva --------------

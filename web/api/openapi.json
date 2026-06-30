@@ -1515,25 +1515,70 @@
     },
     "/contest/final-verdicts": {
       "get": {
-        "tags": [
-          "contest"
-        ],
-        "summary": "Veredictos finais (judge)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/contest"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "ok"
-          }
-        }
+        "tags": ["contest"],
+        "summary": "Opções de veredicto manual (judge): {verdicts:[labels], options:[{label,verdict}]}",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "ok" } }
+      },
+      "post": {
+        "tags": ["contest"],
+        "summary": "Grava as opções de veredicto (admin/chief): {options:[{label,verdict}]}",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{saved,options}; 403 config_forbidden" } }
+      }
+    },
+    "/contest/auto-verdicts": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Matriz de veredicto automático problema×lang×veredicto (judge)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{matrix,problems,verdicts}" } }
+      },
+      "post": {
+        "tags": ["contest"],
+        "summary": "Grava a matriz auto (admin/chief): {matrix:{cid:{lang|*:[verdict]}}}",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{saved,matrix}; 403 config_forbidden" } }
+      }
+    },
+    "/contest/review/list": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Fila de revisão de veredicto manual (judge)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{manual,options,items,counts,my_active}" } }
+      }
+    },
+    "/contest/review/claim": {
+      "post": {
+        "tags": ["contest"],
+        "summary": "Pega/renova/larga avaliação (judge): {id,action:claim|extend|giveup}; máx 2, 1 ativa, TTL 5min",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{updated}; 409 already_evaluating|slots_full" } }
+      }
+    },
+    "/contest/review/vote": {
+      "post": {
+        "tags": ["contest"],
+        "summary": "Vota o veredicto (judge): {id,label}; 2 iguais liberam, 2 diferentes = conflito",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{status,released_verdict?}" } }
+      }
+    },
+    "/contest/review/resolve": {
+      "post": {
+        "tags": ["contest"],
+        "summary": "Juiz-chefe resolve conflito (admin/chief): {id,verdict}",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{status:released,released_verdict}; 403 chief_required" } }
       }
     },
     "/contest/set-verdict": {
