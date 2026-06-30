@@ -78,6 +78,11 @@ async function loadProblem() {
   document.title = (p.title || ID) + ' — MOJ';
   document.getElementById('ptitle').textContent = p.title || ID;
 
+  // autor: string do pacote exibida verbatim (pode ter vários, juntados por ', ' na origem)
+  const au = (p.author || '').trim();
+  const pa = document.getElementById('pauthor');
+  if (au) pa.textContent = (au.includes(', ') ? 'Autores: ' : 'Autor: ') + au;
+
   const tagsEl = document.getElementById('ptags');
   (p.tags || []).forEach((tg) => {
     const name = String(tg).replace(/^#/, '');

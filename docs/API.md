@@ -23,7 +23,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | Rota | Auth | I/O |
 |---|---|---|
 | `/treino/problems` | — | array `[{id,title,tags,solved_count,attempted_count}]` (contagens de `var/json-count/<arquivo>` casadas por nome de arquivo; cache 5 min em `var/problems.json`) |
-| `/treino/problem?id=<id>` | — | `{id,title,statement_html_b64,time_limits,tags}` |
+| `/treino/problem?id=<id>` | — | `{id,title,author,statement_html_b64,time_limits,tags}` (`author` = arquivo `author` do pacote, verbatim; vários autores juntados por `, `; vazio se ausente) |
 | `/treino/solvetry?user=<u>` | opc | `{solved:[ids],attempted:[ids]}` |
 | `/treino/history?id=<id>` | Bearer | TXT 7 campos `tempo:user:probid:lang:verdito:epoch:subid` |
 | `/treino/history-full?user=<u>` | opc | TXT 7 campos (todo o histórico) |

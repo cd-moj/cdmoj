@@ -402,7 +402,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Problema (enunciado b64, time limits, tags)",
+        "summary": "Problema (enunciado b64, autor, time limits, tags)",
         "parameters": [
           {
             "name": "id",
@@ -415,7 +415,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{id,title,statement_html_b64,time_limits,tags}"
+            "description": "{id,title,author,statement_html_b64,time_limits,tags} (author = arquivo 'author' do pacote, verbatim; vários juntados por ', '; vazio se ausente)"
           },
           "404": {
             "description": "não encontrado"

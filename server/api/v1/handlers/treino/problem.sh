@@ -1,5 +1,5 @@
 # GET /treino/problem?id=<problem-id>
-# Retorna o JSON do problema: {id, title, statement_html_b64, time_limits, tags}
+# Retorna o JSON do problema: {id, title, author, statement_html_b64, time_limits, tags}
 id="$(param id)"
 [[ -n "$id" ]] || fail 400 "Missing problem id" "id_missing"
 valid_id "$id" || fail 400 "Invalid problem id" "id_invalid"
