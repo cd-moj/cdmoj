@@ -18,7 +18,20 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
 - **Envelope**: `{success:true,…}` / `{success:false,error:{message,code}}`, sempre com o
   status HTTP correto. EPOCH para tempo.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
-  `printf %q` (é *sourced*). Papéis por sufixo no login (`.admin/.judge/.staff/.mon`).
+  `printf %q` (é *sourced*). Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.mon`).
+  **`.cjudge`** = juiz-chefe: `is_judge` vale p/ ele (herda juiz) + `is_chief`/`is_admin_or_chief`
+  p/ os extras escopados (editar notícias/respostas já dadas, Situação, Todas Submissões, resolver
+  conflitos, config de auto-veredicto) — **não** é admin pleno. Ao mexer em papel, lembre das
+  **quatro** listas de sufixo independentes: `lib/auth.sh`, `score/score-common.sh`,
+  `score/stats-gen.sh`, `handlers/auth/login.sh` (+ guard `treino/profile/username.sh`).
+- **Veredicto manual** (`MANUAL_VERDICT`, opt-in): o **daemon** (`daemons/judged.sh`) SEGURA o
+  veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) salvo o que
+  a matriz `auto-verdicts.json` (problema×lang×veredicto) libera; dois `.judge` decidem
+  (`handlers/contest/review/*` + `lib/review.sh`, flock + TTL), e o veredicto vai ao aluno pelo
+  **escritor único** via o consumidor `setverdict` do daemon. **Mexeu no `judged.sh` → reinicie o
+  daemon** (mantendo `INTAKE_MODE`/`JUDGE_BACKEND`); handlers/score são frescos por requisição.
+- Clarifications: o **asker é anônimo** p/ os juízes (handler corta `.login`); responder exige
+  **reserva** (`clarification-claim`). Sempre auditar (`audit_log_to`) toda ação de juiz/chefe.
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o

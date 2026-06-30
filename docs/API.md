@@ -169,6 +169,7 @@ git avançado.
 | `/contest/review/claim?contest=<c>` | POST | judge | `{id,action:claim\|extend\|giveup}` — máx 2 avaliadores, **1 ativa por juiz** (`409 already_evaluating`/`slots_full`), TTL 5 min (`extend`=+5). Auditado (`review-claim/extend/giveup`) |
 | `/contest/review/vote?contest=<c>` | POST | judge | `{id,label}` — registra o veredicto; **2 iguais → libera ao aluno** (enfileira `setverdict`, `review-agree`); **2 diferentes → `conflict`** (`review-conflict`) |
 | `/contest/review/resolve?contest=<c>` | POST | admin/chief | `{id,verdict}` — o juiz-chefe resolve o conflito; libera ao aluno. Auditado (`review-resolve`) |
+| `/contest/review/conflicts?contest=<c>` | GET | admin/chief | sumário dos conflitos `{conflicts:[{id,login,problem_id,computed_verdict,votes:[{by,label,verdict}]}], n, options}` (o front do chief dispara alerta vibrante quando `n` aumenta) |
 | `/contest/set-verdict` | POST | judge | `{contest,problem_id,verdict,username}` — override direto (modo legado/auto-resposta); agora **consumido pelo daemon** (`setverdict`) e finalizado pelo escritor único |
 | `/contest/rejudge` | POST | admin/chief | `{ids:[…]}` — marca cada submissão como pendente e RE-JULGA (o daemon reconstrói a fonte arquivada + metadados do history) |
 | `/admin/adduser` | POST | admin | `{contest,login,fullname,email?,password?}` (gera senha) |

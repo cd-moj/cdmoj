@@ -1581,6 +1581,15 @@
         "responses": { "200": { "description": "{status:released,released_verdict}; 403 chief_required" } }
       }
     },
+    "/contest/review/conflicts": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Sumário de conflitos de veredicto p/ o juiz-chefe (admin/chief)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{conflicts:[{id,login,problem_id,votes}], n, options}" } }
+      }
+    },
     "/contest/set-verdict": {
       "post": {
         "tags": [

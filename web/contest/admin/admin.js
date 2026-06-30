@@ -6,6 +6,7 @@ import { LANGUAGES } from '/shared/languages.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
+import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -60,7 +61,8 @@ function settingsTab() {
     const loginEnabled = mkBool(s.login_enabled !== false), showCode = mkBool(s.show_code), showLog = mkBool(s.show_log !== false),
       showEditor = mkBool(s.show_editor !== false), allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
       showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
-      allowPrint = mkBool(s.allow_print !== false);
+      allowPrint = mkBool(s.allow_print !== false),
+      manualVerdict = mkBool(s.manual_verdict === true);
     const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
     const langs = langPicker(s.languages || []);
     const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge', style: 'width:100%' });
@@ -73,7 +75,7 @@ function settingsTab() {
         ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}), ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
         locale: locale.value, login_enabled: loginEnabled.checked, show_code: showCode.checked, show_log: showLog.checked,
         show_editor: showEditor.checked, allow_late: allowLate.checked, score_anon: scoreAnon.checked,
-        show_tl: showTL.checked, allow_backup: allowBackup.checked, allow_print: allowPrint.checked, login_ua_substring: ua.value, languages: langs.get(),
+        show_tl: showTL.checked, allow_backup: allowBackup.checked, allow_print: allowPrint.checked, manual_verdict: manualVerdict.checked, login_ua_substring: ua.value, languages: langs.get(),
         score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [] };
       try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), p, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
@@ -90,6 +92,7 @@ function settingsTab() {
       chk('Mostrar o tempo-limite dos problemas aos usuários', showTL),
       chk('Permitir backup de arquivos pelos usuários', allowBackup),
       chk('Permitir pedidos de impressão pelos usuários (.staff)', allowPrint),
+      chk('Veredicto manual (2 juízes decidem; daemon segura o veredicto)', manualVerdict),
       chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
       field('Gate de login por substring de UA (só não-privilegiados)', ua),
       el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
@@ -363,6 +366,26 @@ function dashTab() {
         card('Resposta média', fmtS(resp.avg_s)),
         card('Resposta p95', fmtS(resp.p95_s), (resp.p95_s || 0) > 120)));
 
+    // ⚖️ avaliação manual de veredicto (só aparece quando há fila/conflito)
+    const rv = d.review || {};
+    if ((rv.pending_total || 0) > 0 || (rv.being_evaluated || 0) > 0 || (rv.conflicts || 0) > 0) {
+      const ev = rv.evaluators || [];
+      const rtb = el('tbody');
+      ev.forEach((e) => rtb.append(el('tr', {},
+        el('td', {}, (e.problem_id || '').split('#').pop()),
+        el('td', { class: 'small' }, e.computed_verdict || ''),
+        el('td', {}, e.conflict ? el('b', { style: 'color:#c00' }, 'conflito') : (e.status || '')),
+        el('td', { class: 'small' }, (e.claimants || []).map((c) => c.judge + ' (' + fmtS(c.elapsed_s) + ')').join(', ') || '—'))));
+      panel.append(el('div', { style: 'margin-top:.7rem' }, el('h3', {}, '⚖️ Avaliação manual'),
+        el('div', { class: 'dash-cards' },
+          card('Não avaliadas', rv.not_evaluated || 0, (rv.not_evaluated || 0) > 0),
+          card('Sendo avaliadas', rv.being_evaluated || 0),
+          card('Conflitos', rv.conflicts || 0, (rv.conflicts || 0) > 0)),
+        ev.length ? el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+          el('thead', {}, el('tr', {}, el('th', {}, 'Problema'), el('th', {}, 'Computado'), el('th', {}, 'Status'), el('th', {}, 'Avaliando (tempo)'))), rtb)) : el('p', { class: 'muted small' }, 'ninguém avaliando agora'),
+        (rv.conflicts || 0) > 0 ? el('p', { class: 'small' }, '⚠ Resolva conflitos no ', el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, 'painel do juiz-chefe'), '.') : ''));
+    }
+
     // ações sugeridas (palpáveis): só aparecem quando há algo a fazer
     const actions = [];
     if ((j.total || 0) === 0) actions.push('Nenhum juiz registrado — nada será julgado. Suba um agente de juiz.');
@@ -591,6 +614,19 @@ function staffTab() {
   return { panel, load };
 }
 
+// ============ Veredicto manual (opções + matriz auto) ============
+function verdictTab() {
+  const panel = el('div', { class: 'section' });
+  function load() {
+    panel.innerHTML = '';
+    panel.append(el('h2', {}, '⚖️ Veredicto manual'),
+      el('p', { class: 'muted small' }, 'Ligue o modo em Configurações. Os juízes avaliam em Avaliar; o juiz-chefe resolve conflitos no ',
+        el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, 'painel do juiz-chefe'), '.'),
+      makeVerdictOptionsEditor(CONTEST), makeAutoVerdictEditor(CONTEST));
+  }
+  return { panel, load };
+}
+
 // ============ framework de abas ============
 const TABS = [
   { id: 'dash', label: '📊 Situação', make: dashTab },
@@ -600,6 +636,7 @@ const TABS = [
   { id: 'users', label: '👥 Usuários', make: usersTab },
   { id: 'backups', label: '💾 Backups', make: backupsTab },
   { id: 'staff', label: '🖨️ Impressão', make: staffTab },
+  { id: 'verdict', label: '⚖️ Veredicto manual', make: verdictTab },
   { id: 'log', label: '📋 Log & sessões', make: logTab },
   { id: 'audit', label: '🧾 Auditoria', make: auditTab },
 ];

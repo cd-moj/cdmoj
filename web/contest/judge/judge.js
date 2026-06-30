@@ -1,7 +1,8 @@
-// contest/judge/judge.js — JUDGE: escolher veredicto final e enviar.
-// POST /contest/set-verdict body {problem_id, verdict, username}  (contrato verificado).
-// Feed de submissões: /contest/allsubmissions (9 campos) — disponível p/ admin;
-// juízes sem admin veem aviso amigável. Veredictos: /contest/final-verdicts {verdicts:[]}.
+// contest/judge/judge.js — JUDGE: avaliação de veredicto.
+// Dois modos: (1) MANUAL (contest com manual_verdict): fila de revisão /contest/review/* — pega
+// (máx 2, 1 ativa, 5 min + prorroga), vê log+fonte+veredicto computado, escolhe o veredicto;
+// 2 juízes no mesmo → vai ao aluno; diferentes → conflito (juiz-chefe resolve). (2) LEGADO:
+// /contest/allsubmissions + /contest/set-verdict (admin/chief).
 import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
@@ -9,143 +10,172 @@ import { mountChrome } from '/lib/contest-chrome.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
-let problems = [];
-let subs = [];
-let finalVerdicts = [];
+const enc = encodeURIComponent;
+const G = { contest: CONTEST, auth: true };
+let problems = [], subs = [], finalVerdicts = [];
+let REVIEW = false, rv = null, ME = '', OPTIONS = [], IS_CHIEF = false, pollT = null, tickT = null;
 
-function shortOf(pid) { const p = problems.find(x => x.problem_id === pid); return p ? (p.short_name || pid) : pid; }
-function fullOf(pid) { const p = problems.find(x => x.problem_id === pid); return p ? (p.full_name || '') : ''; }
-
-function parseLine(line) {
-  const v = line.split(':');
-  if (v.length < 7) return null;
-  return { sinceStart: v[0], username: v[1], problem_id: v[2], lang: v[3], verdict: v[4], epoch: v[5], submission_id: v[6], fullname: v[7] || '', univ: v[8] || '' };
-}
+const shortOf = (pid) => { const p = problems.find(x => x.problem_id === pid); return p ? (p.short_name || pid) : pid; };
 
 async function downloadAuthed(path, filename) {
-  try {
-    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    if (!r.ok) throw 0;
-    const a = el('a', { href: URL.createObjectURL(await r.blob()), download: filename }); document.body.append(a); a.click(); a.remove();
+  try { const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
+    if (!r.ok) throw 0; const a = el('a', { href: URL.createObjectURL(await r.blob()), download: filename }); document.body.append(a); a.click(); a.remove();
   } catch { alert('Falha ao baixar.'); }
 }
-async function openLogAuthed(path) {
-  try {
-    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    const w = window.open(); const pre = w.document.createElement('pre');
-    pre.style.cssText = 'font-family:monospace;white-space:pre-wrap;padding:1rem'; pre.textContent = await r.text();
-    w.document.body.append(pre); w.document.close();
+async function openReportAuthed(path) {
+  try { const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
+    const html = await r.text(); const w = window.open('', '_blank');
+    if (!w) { alert('Permita pop-ups para ver o log.'); return; }
+    w.document.title = 'Log'; w.document.body.style.margin = '0';
+    const ifr = w.document.createElement('iframe'); ifr.setAttribute('sandbox', ''); ifr.srcdoc = html;
+    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%'; w.document.body.append(ifr);
   } catch { alert('Falha ao abrir o log.'); }
 }
-// abre o report.html (auto-contido) do julgamento num iframe sandboxed (HTML/CSS sim, JS não).
-async function openReportAuthed(path) {
-  try {
-    const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    const html = await r.text();
-    const w = window.open('', '_blank');
-    if (!w) { alert('Permita pop-ups para ver o report.'); return; }
-    w.document.title = 'Report'; w.document.body.style.margin = '0';
-    const ifr = w.document.createElement('iframe');
-    ifr.setAttribute('sandbox', '');
-    ifr.srcdoc = html;
-    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%';
-    w.document.body.append(ifr);
-  } catch { alert('Falha ao abrir o report.'); }
-}
+const logLink = (s) => el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${enc(CONTEST)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`); } }, '📄 log');
+const srcLink = (s) => el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${enc(CONTEST)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`, s.id + '.txt'); } }, '💻 código');
 
-function filtered() {
-  const fu = document.getElementById('fUser').value.trim().toLowerCase();
-  const fp = document.getElementById('fProblem').value.trim().toLowerCase();
-  const onlyP = document.getElementById('onlyPending').checked;
-  return subs.filter(s => {
-    if (onlyP && !isPending(s.verdict)) return false;
-    if (fu && !(s.username || '').toLowerCase().includes(fu)) return false;
-    if (fp) { const sn = shortOf(s.problem_id).toLowerCase(); if (!sn.includes(fp) && !(s.problem_id || '').toLowerCase().includes(fp)) return false; }
-    return true;
-  });
-}
+// ===================== MODO MANUAL (fila de revisão) =====================
+async function rvAct(path, body) { return apiPost('/contest/review/' + path + '?contest=' + enc(CONTEST), body, G); }
 
-function render() {
-  const box = document.getElementById('judgeContainer');
-  box.innerHTML = '';
-  const list = filtered();
-  if (!list.length) { box.innerHTML = '<span class="muted">Nenhuma submissão.</span>'; return; }
+function renderReview() {
+  const box = document.getElementById('judgeContainer'); box.innerHTML = '';
+  const items = rv.items || [];
+  const c = rv.counts || {};
+  box.append(el('div', { class: 'row', style: 'gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem' },
+    el('span', { class: 'dash-card' }, el('b', {}, c.not_evaluated || 0), ' não avaliadas'),
+    el('span', { class: 'dash-card' }, el('b', {}, c.being_evaluated || 0), ' sendo avaliadas'),
+    el('span', { class: 'dash-card', style: (c.conflicts ? 'border-color:#c00' : '') }, el('b', {}, c.conflicts || 0), ' em conflito')));
 
+  // banner da minha avaliação ativa (contador + prorrogar + desistir)
+  if (rv.my_active) {
+    const it = items.find(x => x.id === rv.my_active);
+    const mine = it && (it.claimants || []).find(x => x.by === ME);
+    const left = mine ? Math.max(0, mine.expires_in_s | 0) : 0;
+    const cdEl = el('b', { id: 'rvCountdown' }, fmtLeft(left));
+    box.append(el('div', { class: 'section', style: 'border-left:4px solid #0a7; background:#f4fff9' },
+      el('div', {}, '⏳ Você está avaliando ', el('b', {}, shortOf(it ? it.problem_id : '')), ' — tempo: ', cdEl),
+      el('div', { class: 'row', style: 'margin-top:.4rem' },
+        el('button', { class: 'btn ghost', onclick: () => act('claim', rv.my_active, 'extend') }, '+5 min'),
+        el('button', { class: 'btn ghost', onclick: () => act('claim', rv.my_active, 'giveup') }, 'Desistir'))));
+    startTick(left);
+  }
+
+  if (!items.length) { box.append(el('div', { class: 'muted' }, 'Nenhuma submissão aguardando avaliação. 🎉')); return; }
   const head = el('thead', {}, el('tr', {},
-    el('th', {}, 'Quando'), el('th', {}, 'Usuário'), el('th', {}, 'Problema'),
-    el('th', {}, 'Veredicto inicial'), el('th', {}, 'Veredicto final'),
-    el('th', {}, 'Enviar'), el('th', {}, 'Arquivo'), el('th', {}, 'Log')));
+    el('th', {}, 'Problema'), el('th', {}, 'Veredicto computado'), el('th', {}, 'Status'),
+    el('th', {}, 'Avaliando'), el('th', {}, 'Ver'), el('th', {}, 'Meu veredicto')));
   const tb = el('tbody');
-
-  list.forEach(s => {
-    const sel = el('select', {}, el('option', { value: '' }, '-- escolha --'),
-      ...finalVerdicts.map(v => el('option', { value: v }, v)));
-    const btn = el('button', { class: 'btn', type: 'button', disabled: 'disabled' }, 'Enviar');
-    const msg = el('span', { class: 'submit-steps' });
-    sel.addEventListener('change', () => { btn.disabled = !sel.value; });
-    btn.addEventListener('click', async () => {
-      btn.disabled = true; msg.textContent = 'Enviando…';
-      try {
-        await apiPost('/contest/set-verdict?contest=' + encodeURIComponent(CONTEST),
-          { problem_id: s.problem_id, verdict: sel.value, username: s.username }, { contest: CONTEST, auth: true });
-        msg.textContent = '✓ Enviado!';
-      } catch (e) {
-        msg.innerHTML = '<span class="error-box">Erro: ' + (e && e.message ? e.message : 'falha') + '</span>';
-        btn.disabled = false;
-      }
-    });
-
-    const pending = isPending(s.verdict);
+  items.forEach((s) => {
+    const iAmClaimant = (s.claimants || []).some(x => x.by === ME);
+    const full = (s.claimants || []).length >= 2;
+    const canClaim = !rv.my_active && !full && s.status !== 'released';
+    const whoCell = (s.claimants || []).length
+      ? el('div', { class: 'small' }, (s.claimants).map(x => x.by + ' (' + (x.elapsed_s | 0) + 's)').join(', '))
+      : el('span', { class: 'small muted' }, '—');
+    // ação por linha
+    let actionCell;
+    if (iAmClaimant) {
+      const sel = el('select', {}, el('option', { value: '' }, '-- veredicto --'),
+        ...OPTIONS.map(o => el('option', { value: o.label, selected: s.my_vote === o.verdict ? 'selected' : null }, o.label)));
+      const vb = el('button', { class: 'btn', type: 'button' }, 'Votar');
+      vb.addEventListener('click', async () => { if (!sel.value) return; vb.disabled = true;
+        try { const r = await rvAct('vote', { id: s.id, label: sel.value }); flash(r.status); loadReview(); }
+        catch (e) { vb.disabled = false; alert(e.message || 'falha'); } });
+      actionCell = el('div', {}, sel, ' ', vb, s.my_vote ? el('div', { class: 'small muted' }, 'seu voto: ' + s.my_vote) : '');
+    } else if (canClaim) {
+      actionCell = el('button', { class: 'btn', onclick: () => act('claim', s.id, 'claim') }, 'Pegar p/ avaliar');
+    } else {
+      actionCell = el('span', { class: 'small muted' }, rv.my_active ? 'termine a sua ativa' : (full ? 'lotada (2)' : '—'));
+    }
+    const statusBadge = el('span', { class: 'verdict ' + (s.conflict ? 'flag-anom' : '') }, s.status + (s.conflict ? ' ⚠' : ''));
     tb.append(el('tr', {},
-      el('td', {}, el('span', { class: 'small' }, fmtDate(s.epoch))),
-      el('td', {}, s.username || '', s.fullname ? el('div', { class: 'small muted' }, s.fullname) : null),
-      el('td', {}, el('b', {}, shortOf(s.problem_id)), ' ', el('span', { class: 'small muted' }, fullOf(s.problem_id))),
-      el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
-      el('td', {}, sel),
-      el('td', {}, btn, ' ', msg),
-      el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`, s.submission_id + '.txt'); } }, 'cód')),
-      el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, s.submission_id.slice(0, 8)))));
+      el('td', {}, el('b', {}, shortOf(s.problem_id))),
+      el('td', {}, el('span', { class: 'small' }, s.computed_verdict || '?')),
+      el('td', {}, statusBadge),
+      el('td', {}, whoCell),
+      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink(s), srcLink(s))),
+      el('td', {}, actionCell)));
+  });
+  box.append(el('table', { class: 'moj' }, head, tb));
+  if (IS_CHIEF && (c.conflicts || 0) > 0) box.append(el('p', { class: 'small' },
+    '⚠ Há conflitos — resolva no ', el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, 'painel do juiz-chefe'), '.'));
+}
+
+function fmtLeft(s) { s = Math.max(0, s | 0); const m = Math.floor(s / 60), x = s % 60; return m + ':' + String(x).padStart(2, '0'); }
+function startTick(left) { clearInterval(tickT); let n = left; const e = () => document.getElementById('rvCountdown'); tickT = setInterval(() => { n--; const el2 = e(); if (!el2) { clearInterval(tickT); return; } el2.textContent = fmtLeft(n); if (n <= 0) { clearInterval(tickT); loadReview(); } }, 1000); }
+function flash(stt) { /* feedback leve do voto */ }
+async function act(path, id, action) { try { await rvAct(path, { id, action }); loadReview(); } catch (e) { alert(e.message || 'falha'); } }
+
+async function loadReview() {
+  try { rv = await apiGet('/contest/review/list?contest=' + enc(CONTEST), G); }
+  catch (e) { document.getElementById('judgeContainer').innerHTML = '<div class="error-box">Falha ao carregar a fila.</div>'; return; }
+  OPTIONS = rv.options || []; IS_CHIEF = !!rv.is_chief;
+  renderReview();
+  clearTimeout(pollT); pollT = setTimeout(loadReview, 6000 + Math.random() * 3000);
+}
+
+// ===================== MODO LEGADO (allsubmissions + set-verdict) =====================
+function parseLine(line) { const v = line.split(':'); if (v.length < 7) return null;
+  return { username: v[1], problem_id: v[2], lang: v[3], verdict: v[4], epoch: v[5], id: v[6], fullname: v[7] || '' }; }
+function renderLegacy() {
+  const box = document.getElementById('judgeContainer'); box.innerHTML = '';
+  const fu = (document.getElementById('fUser') || {}).value || '', fp = (document.getElementById('fProblem') || {}).value || '';
+  const onlyP = (document.getElementById('onlyPending') || {}).checked;
+  const list = subs.filter(s => (!onlyP || isPending(s.verdict)) && (!fu || (s.username || '').toLowerCase().includes(fu.toLowerCase())) && (!fp || shortOf(s.problem_id).toLowerCase().includes(fp.toLowerCase())));
+  if (!list.length) { box.innerHTML = '<span class="muted">Nenhuma submissão.</span>'; return; }
+  const head = el('thead', {}, el('tr', {}, el('th', {}, 'Quando'), el('th', {}, 'Usuário'), el('th', {}, 'Problema'), el('th', {}, 'Veredicto'), el('th', {}, 'Veredicto final'), el('th', {}, 'Ver')));
+  const tb = el('tbody');
+  list.forEach(s => {
+    const sel = el('select', {}, el('option', { value: '' }, '-- escolha --'), ...finalVerdicts.map(v => el('option', { value: v }, v)));
+    const btn = el('button', { class: 'btn', type: 'button', disabled: 'disabled' }, 'Enviar'); const msg = el('span', { class: 'submit-steps' });
+    sel.addEventListener('change', () => { btn.disabled = !sel.value; });
+    btn.addEventListener('click', async () => { btn.disabled = true; msg.textContent = 'Enviando…';
+      try { await apiPost('/contest/set-verdict?contest=' + enc(CONTEST), { problem_id: s.problem_id, verdict: sel.value, username: s.username }, G); msg.textContent = '✓ Enviado!'; }
+      catch (e) { msg.innerHTML = '<span class="error-box">Erro: ' + (e && e.message ? e.message : 'falha') + '</span>'; btn.disabled = false; } });
+    tb.append(el('tr', {}, el('td', {}, el('span', { class: 'small' }, fmtDate(s.epoch))), el('td', {}, s.username || ''),
+      el('td', {}, el('b', {}, shortOf(s.problem_id))),
+      el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, isPending(s.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
+      el('td', {}, sel, ' ', btn, ' ', msg),
+      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink(s.id ? { id: s.id, sub_epoch: s.epoch } : s), srcLink(s.id ? { id: s.id, sub_epoch: s.epoch } : s)))));
   });
   box.append(el('table', { class: 'moj' }, head, tb));
 }
-
-async function loadSubs() {
-  let txt;
-  try { txt = await apiGetText('/contest/allsubmissions?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); }
-  catch {
-    document.getElementById('judgeContainer').innerHTML =
-      '<div class="notice">Não foi possível obter a lista de submissões (o feed completo requer perfil de administrador). ' +
-      'O envio de veredicto final continua disponível por problema+usuário via API.</div>';
-    return;
-  }
-  subs = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean)
-    .sort((a, b) => Number(b.epoch) - Number(a.epoch));
-  render();
+async function loadLegacy() {
+  let txt; try { txt = await apiGetText('/contest/allsubmissions?contest=' + enc(CONTEST), G); }
+  catch { document.getElementById('judgeContainer').innerHTML = '<div class="notice">Feed completo requer perfil admin/juiz-chefe. (Contest sem veredicto manual.)</div>'; return; }
+  subs = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean).sort((a, b) => Number(b.epoch) - Number(a.epoch));
+  renderLegacy();
 }
 
 async function boot() {
   if (!CONTEST) { document.body.innerHTML = '<div class="container"><div class="error-box">Contest não informado (?c=).</div></div>'; return; }
   let basic;
-  try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); }
+  try { basic = await apiGet('/contest/basic?contest=' + enc(CONTEST), {}); }
   catch { document.body.innerHTML = '<div class="container"><div class="error-box">Contest não encontrado.</div></div>'; return; }
-
   const st = await status(CONTEST);
-  if (!st.logged_in) { location.href = '/contest/?c=' + encodeURIComponent(CONTEST); return; }
+  if (!st.logged_in) { location.href = '/contest/?c=' + enc(CONTEST); return; }
   if (!st.is_judge && !st.is_admin) { document.body.innerHTML = '<div class="container"><div class="notice">Acesso restrito a juízes.</div></div>'; return; }
-
+  ME = st.login || '';
   await mountChrome(CONTEST, basic, { auth: true });
+  problems = (await apiGet('/contest/problems?contest=' + enc(CONTEST), G).catch(() => null)) || [];
+  problems = Array.isArray(problems) ? problems : (problems.problems || []);
 
-  const [pj, fv] = await Promise.all([
-    apiGet('/contest/problems?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }).catch(() => null),
-    apiGet('/contest/final-verdicts?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }).catch(() => null),
-  ]);
-  problems = pj ? (Array.isArray(pj) ? pj : (pj.problems || [])) : [];
-  finalVerdicts = fv ? (Array.isArray(fv) ? fv : (fv.verdicts || [])) : [];
-
-  ['fUser', 'fProblem'].forEach(id => document.getElementById(id).addEventListener('input', render));
-  document.getElementById('onlyPending').addEventListener('change', render);
-  document.getElementById('refreshBtn').addEventListener('click', loadSubs);
-
-  await loadSubs();
+  // decide o modo pela fila de revisão (manual?) — funciona p/ juiz PURO (review/list é judge)
+  let probe = null;
+  try { probe = await apiGet('/contest/review/list?contest=' + enc(CONTEST), G); } catch { /* ignore */ }
+  if (probe && probe.manual) {
+    REVIEW = true; rv = probe; OPTIONS = rv.options || []; IS_CHIEF = !!rv.is_chief;
+    const fb = document.getElementById('judgeFilters'); if (fb) fb.style.display = 'none';
+    const rb = document.getElementById('refreshBtn'); if (rb) rb.addEventListener('click', loadReview);
+    renderReview();
+    clearTimeout(pollT); pollT = setTimeout(loadReview, 6000 + Math.random() * 3000);
+  } else {
+    const fv = await apiGet('/contest/final-verdicts?contest=' + enc(CONTEST), G).catch(() => null);
+    finalVerdicts = fv ? (fv.verdicts || []) : [];
+    ['fUser', 'fProblem'].forEach(id => { const e = document.getElementById(id); if (e) e.addEventListener('input', renderLegacy); });
+    const op = document.getElementById('onlyPending'); if (op) op.addEventListener('change', renderLegacy);
+    const rb = document.getElementById('refreshBtn'); if (rb) rb.addEventListener('click', loadLegacy);
+    await loadLegacy();
+  }
 }
 boot();

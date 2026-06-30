@@ -22,7 +22,7 @@ for f in "$dir"/*.json; do
   proj="$(jq -c --argjson now "$now" --arg me "$me" --argjson chief "$chief" "$(rv_expire_filter)
     | $(rv_recompute)
     | select((.status // \"open\") != \"released\")
-    | { id, login, problem_id, lang, computed_verdict, status, conflict, created_at,
+    | { id, login, problem_id, lang, computed_verdict, status, conflict, created_at, sub_epoch,
         claimants: [ (.claimants // [])[] | {by, elapsed_s:(\$now - (.at // 0)), expires_in_s:((.expires_at // 0) - \$now)} ],
         votes_n: ((.votes // [])|length),
         my_vote: (((.votes // [])[] | select(.by==\$me) | .verdict) // null),

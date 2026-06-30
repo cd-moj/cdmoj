@@ -6,7 +6,7 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-is_admin || fail 403 "Admin only" "admin_required"
+is_admin_or_chief || fail 403 "Admin/juiz-chefe only" "admin_required"
 
 emit_text
 hist="$CONTESTSDIR/$contest/controle/history"

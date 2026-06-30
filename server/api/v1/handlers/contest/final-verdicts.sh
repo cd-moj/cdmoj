@@ -17,7 +17,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   jq -cn --argjson raw "$raw" '
     ($raw | map(if type=="string" then {label:., verdict:.}
                 else {label:((.label // .verdict // "")|tostring), verdict:((.verdict // .label // "")|tostring)} end)) as $opt
-    | {success:true, verdicts:($opt|map(.label)), options:$opt}'
+    | {success:true, verdicts:($opt|map(.verdict)), options:$opt}'
   exit 0
 fi
 

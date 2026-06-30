@@ -6,8 +6,9 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-is_admin || fail 403 "Apenas o admin do contest" "admin_required"
+is_admin_or_chief || fail 403 "Apenas o admin ou o juiz-chefe" "admin_required"
 source "$_DIR/../../judge-gw/sched-lib.sh"
+source "$_LIBDIR/review.sh"
 
 now="$EPOCHSECONDS"
 cdir="$CONTESTSDIR/$contest"
@@ -76,9 +77,29 @@ metrics="$(printf '%s\n' "$rows" | jq -R -cs --argjson fin "$finmap" --argjson n
       per_problem:$perprob, recent:$recent, timeline:$timeline }')"
 [[ -n "$metrics" ]] || metrics='{}'
 
+# --- AVALIAÇÃO MANUAL: quantas não avaliadas / sendo avaliadas / em conflito + quem avalia ---
+revitems=()
+while IFS= read -r rf; do
+  [[ -n "$rf" ]] || continue
+  p="$(jq -c --argjson now "$now" "$(rv_expire_filter)
+    | $(rv_recompute)
+    | select((.status // \"open\") != \"released\")
+    | { id, problem_id, login, computed_verdict, status, conflict,
+        claimants:[ (.claimants // [])[] | {judge:.by, elapsed_s:(\$now - (.at // 0))} ],
+        votes_n:((.votes // [])|length) }" "$rf" 2>/dev/null)"
+  [[ -n "$p" && "$p" != null ]] && revitems+=("$p")
+done < <(find "$(rv_dir "$contest")" -maxdepth 1 -name '*.json' 2>/dev/null)
+allrev="$( ((${#revitems[@]})) && printf '%s\n' "${revitems[@]}" | jq -cs '.' || echo '[]')"
+review="$(jq -c '{
+  not_evaluated:   ([.[]|select((.claimants|length)==0)]|length),
+  being_evaluated: ([.[]|select((.claimants|length)>=1)]|length),
+  conflicts:       ([.[]|select(.conflict==true)]|length),
+  pending_total:   length,
+  evaluators:      [ .[] | select((.claimants|length)>=1 or .conflict==true) ] }' <<<"$allrev")"
+
 ok_json '{now:$now, window:$win,
           judges:{online:($j|map(select(.online))|length), busy:($j|map(select(.state=="busy"))|length),
                   total:($j|length), queue_depth:$qd, assigned:$asg, list:$j},
-          submissions:$m}' \
+          submissions:$m, review:$rev}' \
   --argjson now "$now" --argjson win "$WINDOW" --argjson j "$judges" \
-  --argjson qd "${queue_depth:-0}" --argjson asg "${assigned:-0}" --argjson m "$metrics"
+  --argjson qd "${queue_depth:-0}" --argjson asg "${assigned:-0}" --argjson m "$metrics" --argjson rev "$review"
