@@ -53,9 +53,12 @@ export function makeAutoVerdictEditor(contest) {
   function ruleRow(cid, lang, picks) {
     const langInp = el('input', { value: lang || '*', placeholder: 'linguagem (ou *)', style: 'width:120px' });
     const checks = VERDS.map(v => { const c = el('input', { type: 'checkbox' }); c.checked = (picks || []).includes(v); return { v, c }; });
+    // "todos": marca/desmarca todas as caixas de veredicto desta regra de uma vez
+    const all = el('button', { class: 'btn ghost', type: 'button', title: 'marcar/desmarcar todos os veredictos' }, 'todos');
+    all.addEventListener('click', () => { const every = checks.every(x => x.c.checked); checks.forEach(x => { x.c.checked = !every; }); });
     const rm = el('button', { class: 'btn ghost', type: 'button', onclick: () => row.remove() }, '✕');
     const row = el('div', { class: 'row', style: 'gap:.4rem; flex-wrap:wrap; margin:.2rem 0; border-top:1px dashed var(--line); padding-top:.3rem' },
-      langInp, ...checks.map(ck => el('label', { class: 'small' }, ck.c, ' ' + ck.v)), rm);
+      langInp, all, ...checks.map(ck => el('label', { class: 'small' }, ck.c, ' ' + ck.v)), rm);
     row._get = () => ({ lang: langInp.value.trim().toLowerCase(), verds: checks.filter(x => x.c.checked).map(x => x.v) });
     return row;
   }

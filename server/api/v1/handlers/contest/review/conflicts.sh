@@ -16,7 +16,7 @@ while IFS= read -r rf; do
   p="$(jq -c --argjson now "$now" "$(rv_expire_filter)
     | $(rv_recompute)
     | select(.conflict == true)
-    | { id, login, problem_id, lang, computed_verdict, created_at,
+    | { id, login, problem_id, lang, sub_epoch, computed_verdict, created_at,
         votes:[ (.votes // [])[] | {by, label, verdict} ] }" "$rf" 2>/dev/null)"
   [[ -n "$p" && "$p" != null ]] && items+=("$p")
 done < <(find "$(rv_dir "$contest")" -maxdepth 1 -name '*.json' 2>/dev/null)

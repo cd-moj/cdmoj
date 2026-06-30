@@ -4,6 +4,7 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { pokeChiefAlert } from '/shared/chief-alert.js';
+import { logLink, srcLink } from '/shared/submission-links.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 
 const qs = new URLSearchParams(location.search);
@@ -81,7 +82,9 @@ function conflitosTab() {
         catch (e) { btn.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; } });
       const votes = el('ul', { style: 'margin:.2rem 0 .3rem 1rem' }, ...(cf.votes || []).map(v => el('li', { class: 'small' }, el('b', {}, v.by), ' → ', v.label, ' (', v.verdict, ')')));
       panel.append(el('div', { class: 'field', style: 'border:1px solid #c0392b; border-radius:.5rem; padding:.5rem .7rem; margin:.4rem 0' },
-        el('div', {}, el('b', {}, (cf.problem_id || '').split('#').pop()), ' · computado: ', el('span', { class: 'small muted' }, cf.computed_verdict || '')),
+        el('div', {}, el('b', {}, (cf.problem_id || '').split('#').pop()), ' · ', el('span', { class: 'small muted' }, cf.login || ''),
+          ' · computado: ', el('span', { class: 'small muted' }, cf.computed_verdict || '')),
+        el('div', { class: 'row small', style: 'gap:.7rem; margin:.2rem 0' }, logLink(CONTEST, cf), srcLink(CONTEST, cf)),
         votes, el('div', { class: 'row' }, sel, btn, msg)));
     });
   }

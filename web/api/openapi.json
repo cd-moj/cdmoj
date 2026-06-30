@@ -1587,7 +1587,7 @@
         "summary": "Sumário de conflitos de veredicto p/ o juiz-chefe (admin/chief); n alimenta o alerta global",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{conflicts:[{id,login,problem_id,votes}], n, options}" } }
+        "responses": { "200": { "description": "{conflicts:[{id,login,problem_id,lang,sub_epoch,computed_verdict,votes}], n, options}" } }
       }
     },
     "/contest/review/stats": {

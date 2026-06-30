@@ -3,10 +3,11 @@
 // (máx 2, 1 ativa, 5 min + prorroga), vê log+fonte+veredicto computado, escolhe o veredicto;
 // 2 juízes no mesmo → vai ao aluno; diferentes → conflito (juiz-chefe resolve). (2) LEGADO:
 // /contest/allsubmissions + /contest/set-verdict (admin/chief).
-import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
+import { apiGet, apiGetText, apiPost } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
+import { logLink as _logLink, srcLink as _srcLink } from '/shared/submission-links.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -17,23 +18,9 @@ let REVIEW = false, rv = null, ME = '', OPTIONS = [], IS_CHIEF = false, pollT = 
 
 const shortOf = (pid) => { const p = problems.find(x => x.problem_id === pid); return p ? (p.short_name || pid) : pid; };
 
-async function downloadAuthed(path, filename) {
-  try { const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    if (!r.ok) throw 0; const a = el('a', { href: URL.createObjectURL(await r.blob()), download: filename }); document.body.append(a); a.click(); a.remove();
-  } catch { alert('Falha ao baixar.'); }
-}
-async function openReportAuthed(path) {
-  try { const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    const html = await r.text(); const w = window.open('', '_blank');
-    if (!w) { alert('Permita pop-ups para ver o log.'); return; }
-    w.document.title = 'Log'; w.document.body.style.margin = '0';
-    const ifr = w.document.createElement('iframe'); ifr.setAttribute('sandbox', ''); ifr.srcdoc = html;
-    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%'; w.document.body.append(ifr);
-  } catch { alert('Falha ao abrir o log.'); }
-}
-const logLink = (s) => el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${enc(CONTEST)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`); } }, '📄 log');
-const srcExt = (s) => ((s && s.lang) ? String(s.lang) : 'txt').toLowerCase();
-const srcLink = (s) => el('a', { href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${enc(CONTEST)}&id=${enc(s.id)}&time=${enc(s.sub_epoch || '')}`, s.id + '.' + srcExt(s)); } }, '💻 código');
+// log/código autenticados (com a extensão certa) — helpers compartilhados em submission-links.js
+const logLink = (s) => _logLink(CONTEST, s);
+const srcLink = (s) => _srcLink(CONTEST, s);
 
 // ===================== MODO MANUAL (fila de revisão) =====================
 async function rvAct(path, body) { return apiPost('/contest/review/' + path + '?contest=' + enc(CONTEST), body, G); }
