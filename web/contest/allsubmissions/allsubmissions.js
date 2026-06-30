@@ -98,7 +98,7 @@ function rowTable(items) {
         el('a', { href: '#', title: 'baixar', class: 'small muted', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`, s.submission_id + '.' + (s.lang || 'txt').toLowerCase()); } }, '⬇')),
       el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, s.submission_id.slice(0, 8)))));
   });
-  return el('table', { class: 'moj' }, head, tb);
+  return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb));
 }
 
 function render() {

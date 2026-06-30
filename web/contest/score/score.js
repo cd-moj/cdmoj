@@ -197,7 +197,7 @@ function reRender() {
   else if (parsed.mode === 'obi') table = renderOBI(parsed, opts);
   else table = renderGeneric(parsed, opts);
   box.innerHTML = '';
-  box.append(table);
+  box.append(el('div', { class: 'chart-wrap' }, table));
   animateMoves();
 }
 

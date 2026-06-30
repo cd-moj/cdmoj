@@ -84,6 +84,10 @@ table.moj thead th { background:#f3f7fd; color:var(--blue-dark); font-weight:700
 table.moj tbody tr:nth-child(even) td { background:#fafcff; }
 table.moj tbody tr:hover td { background:var(--blue-soft); }
 table.moj tbody tr:last-child td { border-bottom:0; }
+/* embrulho rolável p/ tabelas/gráficos largos (placar, todas-submissões, etc.):
+   rola na horizontal em vez de estourar o viewport. Definição global — algumas
+   páginas ainda a redefinem localmente (idêntica, inofensivo). */
+.chart-wrap { overflow-x:auto; }
 
 /* status colors (veredictos) — preenchem a célula */
 .verdict { display:block; padding:.32rem .6rem; border-radius:7px; font-weight:650; font-size:.88rem; }
