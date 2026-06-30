@@ -61,22 +61,21 @@ rv_emit_setverdict() {
 rv_expire_filter() {
   cat <<'JQ'
     .claimants = [ (.claimants // [])[] | select((.expires_at//0) > $now) ]
-    | (.claimants | map(.by)) as $act
-    | .votes = [ (.votes // [])[] | select(.by as $b | $act | index($b)) ]
 JQ
 }
 
-# rv_recompute : filtro jq que recalcula status/conflict a partir de claimants+votos (itens já
-# liberados não mudam). status ∈ open|claimed|voting|conflict (released é setado no voto/resolve).
+# rv_recompute : recalcula status/conflict a partir dos VOTOS (permanentes) + claimants ATIVOS.
+# Votar encerra a tarefa do juiz (sai dos claimants), mas o voto fica. 2 votos iguais -> agreed;
+# 2 diferentes -> conflict; 1 voto -> voting (aguarda o 2º juiz); senão claimed/open. (released fixo.)
 rv_recompute() {
   cat <<'JQ'
     if (.status // "open") == "released" then .
     else
       (.votes // []) as $v | ($v | map(.verdict) | unique) as $vv
-      | if ((.claimants // [])|length) == 0 then .status="open" | .conflict=false
-        elif ($v|length) < 2 then .status=(if ($v|length)==1 then "voting" else "claimed" end) | .conflict=false
-        elif ($vv|length) == 1 then .status="agreed" | .conflict=false
-        else .status="conflict" | .conflict=true end
+      | if ($v|length) >= 2 then (if ($vv|length)==1 then (.status="agreed" | .conflict=false) else (.status="conflict" | .conflict=true) end)
+        elif ($v|length) == 1 then (.status="voting" | .conflict=false)
+        elif ((.claimants // [])|length) >= 1 then (.status="claimed" | .conflict=false)
+        else (.status="open" | .conflict=false) end
     end
 JQ
 }

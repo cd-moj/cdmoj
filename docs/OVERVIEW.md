@@ -141,7 +141,10 @@ nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do
 - **`/contest/judge/`** — área de **avaliação**. **`/contest/jplag/`** — similaridade das
   soluções aceitas (roda o jar, mostra pares + comparação lado-a-lado).
 - **`/contest/chief/`** — **painel do juiz-chefe (`.cjudge`)** e do admin: **Situação** da
-  avaliação, **Conflitos** (com alerta vibrante) e a config do veredicto manual (opções + matriz).
+  avaliação (cartões + **quem avalia agora** + **desempenho por juiz**: nº de veredictos, tempo médio
+  claim→voto, concordâncias e conflitos, via `review/stats`), **Conflitos** e a config do veredicto
+  manual (opções + matriz). O **alerta de conflito** (banner + bip) é **global** (`shared/chief-alert.js`):
+  segue o chief/admin em **qualquer página** do contest, não só neste painel.
 
 ### Juiz `.judge`, juiz-chefe `.cjudge` & veredicto manual
 **Papéis** (sufixo no login; ver `lib/auth.sh`): `.judge` submete a qualquer hora (fora do
@@ -156,10 +159,11 @@ veredicto computado p/ revisão humana — grava `contests/<c>/review/<id>.json`
 provisório (o aluno segue vendo "julgando"); a exceção é a **matriz `auto-verdicts.json`**
 (problema × linguagem × veredicto, editável por admin/chief) que libera combinações automáticas.
 Dois `.judge` **pegam** a submissão (máx 2, **1 ativa** por juiz, **TTL 5 min** com **+5**, ou
-**desistir**), veem **log + fonte + veredicto computado** e escolhem um veredicto de uma **lista
-configurável** (`final-verdicts.json`, `{label,verdict}`; default = as 6: 1-YES…6-Contact staff).
-**Dois no mesmo → vai ao aluno**; **diferentes → conflito**, que **só o juiz-chefe resolve** (com
-alerta vibrante). A liberação enfileira `setverdict`, consumido pelo daemon e finalizado pelo
+**desistir**), veem **log + fonte + veredicto computado** (a tela **não recarrega** enquanto se avalia)
+e escolhem um veredicto de uma **lista configurável** (`final-verdicts.json`, `{label,verdict}`;
+default = as 6: 1-YES…6-Contact staff). O **voto é permanente e libera o juiz** na hora (ele já pode
+pegar outra submissão). **Dois no mesmo → vai ao aluno**; **diferentes → conflito**, que **só o
+juiz-chefe resolve** (avisado pelo **alerta global** de conflito em qualquer página). A liberação enfileira `setverdict`, consumido pelo daemon e finalizado pelo
 **escritor único** (`update_history` + `results/<id>.json`), então o veredicto manual entra no
 timeline de auditoria como qualquer outro. **TUDO** é auditado (`clar-*`, `news-edit`, `final-/
 auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `verdict-held/released`).

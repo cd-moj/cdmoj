@@ -26,6 +26,8 @@ snap="$(rv_snapshot "$f")"; [[ -n "$snap" ]] || fail 500 "Falha ao ler" "read_fa
 
 case "$action" in
   claim)
+    [[ "$(jq -r --arg me "$me" 'any((.votes//[])[]; .by==$me)' <<<"$snap")" == true ]] && fail 409 "Você já votou nesta submissão" "already_voted"
+    (( "$(jq '(.votes//[])|length' <<<"$snap")" < 2 )) || fail 409 "Submissão já avaliada (aguardando liberação/chief)" "already_evaluated"
     other="$(rv_active_claim_by "$contest" "$me")"
     [[ -z "$other" || "$other" == "$id" ]] || fail 409 "Você já avalia a submissão $other; termine antes" "already_evaluating"
     if [[ "$(jq -r --arg me "$me" 'any((.claimants//[])[]; .by==$me)' <<<"$snap")" != true ]]; then
@@ -40,7 +42,8 @@ case "$action" in
     audit_log_to "$contest" review-extend "id=$id by=$me"
     ;;
   giveup)
-    new="$(rv_apply "$f" '.claimants=[(.claimants//[])[]|select(.by!=$me)] | .votes=[(.votes//[])[]|select(.by!=$me)]' --arg me "$me")"
+    # desistir = larga o claim (sem votar); o voto, se já dado, é permanente (não se desfaz aqui)
+    new="$(rv_apply "$f" '.claimants=[(.claimants//[])[]|select(.by!=$me)]' --arg me "$me")"
     audit_log_to "$contest" review-giveup "id=$id by=$me"
     ;;
 esac

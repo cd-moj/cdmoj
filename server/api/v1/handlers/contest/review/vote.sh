@@ -1,6 +1,7 @@
 # POST /contest/review/vote?contest=<id>   (Bearer, judge)  {id, label}
-# Um avaliador registra o veredicto escolhido. Quando 2 avaliadores escolhem o MESMO veredicto,
-# ele é liberado ao aluno (enfileira setverdict). Veredictos diferentes -> conflito (chief resolve).
+# Um avaliador registra o veredicto escolhido. **Votar ENCERRA a tarefa do juiz** (ele sai dos
+# avaliadores e fica livre p/ pegar outra), mas o voto fica registrado. Quando 2 votos batem no
+# MESMO veredicto -> libera ao aluno (setverdict). Veredictos diferentes -> conflito (chief resolve).
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -24,10 +25,14 @@ me="$SESSION_LOGIN"; now="$EPOCHSECONDS"
 exec 9>"$(rv_lock "$contest")"; flock -w 10 9 || fail 409 "Ocupado, tente de novo" "locked"
 snap="$(rv_snapshot "$f")"; [[ -n "$snap" ]] || fail 500 "Falha ao ler" "read_fail"
 [[ "$(jq -r '.status' <<<"$snap")" == released ]] && fail 409 "Submissão já liberada" "released"
+jq -e --arg me "$me" 'any((.votes//[])[]; .by==$me)' <<<"$snap" >/dev/null \
+  && fail 409 "Você já votou nesta submissão" "already_voted"
 jq -e --arg me "$me" 'any((.claimants//[])[]; .by==$me)' <<<"$snap" >/dev/null \
   || fail 409 "Pegue a submissão antes de votar" "not_claiming"
 
-new="$(rv_apply "$f" '.votes = ([ (.votes//[])[] | select(.by != $me) ] + [{by:$me, at:$now, label:$label, verdict:$verdict}])' \
+# grava o voto (permanente) e LIBERA o juiz (sai dos avaliadores) -> ele pode pegar outra
+new="$(rv_apply "$f" '.votes = ((.votes//[]) + [{by:$me, at:$now, label:$label, verdict:$verdict}])
+  | .claimants = [ (.claimants//[])[] | select(.by != $me) ]' \
   --arg me "$me" --arg label "$label" --arg verdict "$verdict")"
 [[ -n "$new" ]] || fail 500 "Falha ao gravar" "write_fail"
 st="$(jq -r '.status' <<<"$new")"

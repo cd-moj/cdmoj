@@ -1,5 +1,6 @@
 // shared/auth.js — login/status/logout sobre a API.
 import { apiPost, apiGet, setToken, clearToken, getToken } from './api.js';
+import { startChiefAlert } from './chief-alert.js';
 
 export { getToken };
 
@@ -13,8 +14,12 @@ export async function login(contest, username, password) {
 export async function status(contest) {
   if (!getToken(contest)) return { logged_in: false };
   try {
-    return await apiGet('/auth/status?contest=' + encodeURIComponent(contest),
-                        { contest, auth: true });
+    const st = await apiGet('/auth/status?contest=' + encodeURIComponent(contest),
+                            { contest, auth: true });
+    // chokepoint de auth: liga o alerta global de conflito p/ chief/admin em QUALQUER página
+    // que consulta o status (best-effort, idempotente — não falha o status se algo der errado).
+    try { startChiefAlert(contest, st); } catch { /* alerta é opcional */ }
+    return st;
   } catch { return { logged_in: false }; }
 }
 

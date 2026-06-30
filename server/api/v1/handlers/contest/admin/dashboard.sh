@@ -91,11 +91,12 @@ while IFS= read -r rf; do
 done < <(find "$(rv_dir "$contest")" -maxdepth 1 -name '*.json' 2>/dev/null)
 allrev="$( ((${#revitems[@]})) && printf '%s\n' "${revitems[@]}" | jq -cs '.' || echo '[]')"
 review="$(jq -c '{
-  not_evaluated:   ([.[]|select((.claimants|length)==0)]|length),
+  not_evaluated:   ([.[]|select((.claimants|length)==0 and ((.votes_n//0)==0))]|length),
   being_evaluated: ([.[]|select((.claimants|length)>=1)]|length),
+  awaiting_second: ([.[]|select((.claimants|length)==0 and ((.votes_n//0)==1) and (.conflict!=true))]|length),
   conflicts:       ([.[]|select(.conflict==true)]|length),
   pending_total:   length,
-  evaluators:      [ .[] | select((.claimants|length)>=1 or .conflict==true) ] }' <<<"$allrev")"
+  evaluators:      [ .[] | select((.claimants|length)>=1 or (.votes_n//0)>=1 or .conflict==true) ] }' <<<"$allrev")"
 
 ok_json '{now:$now, window:$win,
           judges:{online:($j|map(select(.online))|length), busy:($j|map(select(.state=="busy"))|length),

@@ -13,9 +13,6 @@
     .tabbar button { border:1px solid #d7dee8; background:#fff; border-radius:8px; padding:.4rem .9rem; cursor:pointer; font-weight:600 }
     .tabbar button.active { background:#1e57c4; color:#fff; border-color:#1e57c4 }
     .dash-card { display:inline-block; border:1px solid var(--line); border-radius:.5rem; padding:.35rem .6rem; margin:.15rem }
-    #conflictBanner { display:none; background:#c0392b; color:#fff; padding:.6rem .9rem; border-radius:.5rem; font-weight:700; margin-bottom:.6rem }
-    #conflictBanner.show { display:block; animation:cflash 1s steps(2,jump-none) infinite }
-    @keyframes cflash { 0%{background:#c0392b} 50%{background:#e74c3c} 100%{background:#c0392b} }
   </style>
 </head>
 <body>
@@ -34,7 +31,6 @@
   <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
   <main class="container">
     <h1 style="margin:.2rem 0 .3rem">👑 Painel do juiz-chefe</h1>
-    <div id="conflictBanner"></div>
     <div id="app"><p class="muted">carregando…</p></div>
   </main>
   <script type="module" src="./chief.js"></script>

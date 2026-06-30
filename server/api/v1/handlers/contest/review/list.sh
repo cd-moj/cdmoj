@@ -33,9 +33,10 @@ shopt -u nullglob
 
 list="$( ((${#items[@]})) && printf '%s\n' "${items[@]}" | jq -cs 'sort_by(.created_at)' || echo '[]')"
 counts="$(jq -c '{
-  not_evaluated: ([.[]|select((.claimants|length)==0)]|length),
+  not_evaluated:   ([.[]|select((.claimants|length)==0 and ((.votes_n//0)==0))]|length),
   being_evaluated: ([.[]|select((.claimants|length)>=1)]|length),
-  conflicts: ([.[]|select(.conflict==true)]|length) }' <<<"$list")"
+  awaiting_second: ([.[]|select((.claimants|length)==0 and ((.votes_n//0)==1) and (.conflict!=true))]|length),
+  conflicts:       ([.[]|select(.conflict==true)]|length) }' <<<"$list")"
 my_active="$(rv_active_claim_by "$contest" "$me")"; [[ -n "$my_active" ]] || my_active=null
 [[ "$my_active" == null ]] || my_active="\"$my_active\""
 

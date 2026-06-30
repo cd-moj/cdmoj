@@ -38,61 +38,79 @@ const srcLink = (s) => el('a', { href: '#', onclick: (e) => { e.preventDefault()
 // ===================== MODO MANUAL (fila de revisão) =====================
 async function rvAct(path, body) { return apiPost('/contest/review/' + path + '?contest=' + enc(CONTEST), body, G); }
 
-function renderReview() {
-  const box = document.getElementById('judgeContainer'); box.innerHTML = '';
-  const items = rv.items || [];
-  const c = rv.counts || {};
-  box.append(el('div', { class: 'row', style: 'gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem' },
+function countsBar(c) {
+  return el('div', { class: 'row', style: 'gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem' },
     el('span', { class: 'dash-card' }, el('b', {}, c.not_evaluated || 0), ' não avaliadas'),
     el('span', { class: 'dash-card' }, el('b', {}, c.being_evaluated || 0), ' sendo avaliadas'),
-    el('span', { class: 'dash-card', style: (c.conflicts ? 'border-color:#c00' : '') }, el('b', {}, c.conflicts || 0), ' em conflito')));
+    el('span', { class: 'dash-card' }, el('b', {}, c.awaiting_second || 0), ' aguardando 2º voto'),
+    el('span', { class: 'dash-card', style: (c.conflicts ? 'border-color:#c00' : '') }, el('b', {}, c.conflicts || 0), ' em conflito'));
+}
 
-  // banner da minha avaliação ativa (contador + prorrogar + desistir)
+// PAINEL DE AVALIAÇÃO (estável): enquanto o juiz avalia, a página NÃO recarrega — só o contador
+// local roda. Mostra o veredicto computado em destaque + log/fonte + o select de voto.
+function evalPanel(it) {
+  const mine = (it.claimants || []).find(x => x.by === ME);
+  const left = mine ? Math.max(0, mine.expires_in_s | 0) : 0;
+  const cdEl = el('b', { id: 'rvCountdown' }, fmtLeft(left));
+  const sel = el('select', {}, el('option', { value: '' }, '-- escolha o veredicto --'),
+    ...OPTIONS.map(o => el('option', { value: o.label }, o.label)));
+  const vb = el('button', { class: 'btn', type: 'button' }, '✓ Votar e liberar');
+  const msg = el('span', { class: 'small' });
+  vb.addEventListener('click', async () => {
+    if (!sel.value) { msg.className = 'small error-box'; msg.textContent = 'Escolha um veredicto.'; return; }
+    vb.disabled = true; msg.className = 'small'; msg.textContent = 'Enviando…';
+    try { await rvAct('vote', { id: it.id, label: sel.value }); loadReview(); }   // reload → sai do painel
+    catch (e) { vb.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
+  });
+  startTick(left);
+  return el('div', { class: 'section', style: 'border:2px solid #0a7; background:#f4fff9' },
+    el('h2', {}, '⏳ Avaliando — Problema ', el('b', {}, shortOf(it.problem_id))),
+    el('div', { class: 'row', style: 'gap:1rem; flex-wrap:wrap; align-items:center; margin:.3rem 0' },
+      el('div', {}, el('span', { class: 'small muted' }, 'Veredicto computado (referência): '),
+        el('span', { class: 'verdict ' + verdictClass(it.computed_verdict), style: 'font-weight:700' }, it.computed_verdict || '?')),
+      logLink(it), srcLink(it)),
+    el('div', { class: 'row', style: 'gap:.5rem; align-items:center; margin:.5rem 0' },
+      el('label', { class: 'small' }, 'Seu veredicto: '), sel, vb, msg),
+    el('div', { class: 'row', style: 'margin-top:.4rem; align-items:center; gap:.5rem' },
+      el('span', { class: 'small muted' }, 'Tempo restante: '), cdEl,
+      el('button', { class: 'btn ghost', onclick: () => act('claim', it.id, 'extend') }, '+5 min'),
+      el('button', { class: 'btn ghost', onclick: () => act('claim', it.id, 'giveup') }, 'Desistir')),
+    el('p', { class: 'small muted', style: 'margin-top:.4rem' }, 'A página não recarrega enquanto você avalia. Ao votar, sua tarefa encerra e libera você para a próxima.'));
+}
+
+function renderReview() {
+  const box = document.getElementById('judgeContainer'); box.innerHTML = '';
+  const items = rv.items || [], c = rv.counts || {};
+  box.append(countsBar(c));
+
+  // se tenho uma avaliação ATIVA: mostra só o painel estável (sem fila, sem poll)
   if (rv.my_active) {
     const it = items.find(x => x.id === rv.my_active);
-    const mine = it && (it.claimants || []).find(x => x.by === ME);
-    const left = mine ? Math.max(0, mine.expires_in_s | 0) : 0;
-    const cdEl = el('b', { id: 'rvCountdown' }, fmtLeft(left));
-    box.append(el('div', { class: 'section', style: 'border-left:4px solid #0a7; background:#f4fff9' },
-      el('div', {}, '⏳ Você está avaliando ', el('b', {}, shortOf(it ? it.problem_id : '')), ' — tempo: ', cdEl),
-      el('div', { class: 'row', style: 'margin-top:.4rem' },
-        el('button', { class: 'btn ghost', onclick: () => act('claim', rv.my_active, 'extend') }, '+5 min'),
-        el('button', { class: 'btn ghost', onclick: () => act('claim', rv.my_active, 'giveup') }, 'Desistir'))));
-    startTick(left);
+    if (!it) { box.append(el('div', { class: 'muted' }, 'Sua avaliação ativa terminou — recarregando…')); return; }
+    box.append(evalPanel(it));
+    return;
   }
 
+  // sem avaliação ativa: a FILA (com botão pegar). Aqui não há select, então o poll não atrapalha.
   if (!items.length) { box.append(el('div', { class: 'muted' }, 'Nenhuma submissão aguardando avaliação. 🎉')); return; }
   const head = el('thead', {}, el('tr', {},
     el('th', {}, 'Problema'), el('th', {}, 'Veredicto computado'), el('th', {}, 'Status'),
-    el('th', {}, 'Avaliando'), el('th', {}, 'Ver'), el('th', {}, 'Meu veredicto')));
+    el('th', {}, 'Avaliando'), el('th', {}, 'Ver'), el('th', {}, 'Ação')));
   const tb = el('tbody');
   items.forEach((s) => {
-    const iAmClaimant = (s.claimants || []).some(x => x.by === ME);
     const full = (s.claimants || []).length >= 2;
-    const canClaim = !rv.my_active && !full && s.status !== 'released';
+    const voted = !!s.my_vote;
+    const canClaim = !full && !voted && (s.votes_n || 0) < 2 && s.status !== 'released';
     const whoCell = (s.claimants || []).length
       ? el('div', { class: 'small' }, (s.claimants).map(x => x.by + ' (' + (x.elapsed_s | 0) + 's)').join(', '))
-      : el('span', { class: 'small muted' }, '—');
-    // ação por linha
-    let actionCell;
-    if (iAmClaimant) {
-      const sel = el('select', {}, el('option', { value: '' }, '-- veredicto --'),
-        ...OPTIONS.map(o => el('option', { value: o.label, selected: s.my_vote === o.verdict ? 'selected' : null }, o.label)));
-      const vb = el('button', { class: 'btn', type: 'button' }, 'Votar');
-      vb.addEventListener('click', async () => { if (!sel.value) return; vb.disabled = true;
-        try { const r = await rvAct('vote', { id: s.id, label: sel.value }); flash(r.status); loadReview(); }
-        catch (e) { vb.disabled = false; alert(e.message || 'falha'); } });
-      actionCell = el('div', {}, sel, ' ', vb, s.my_vote ? el('div', { class: 'small muted' }, 'seu voto: ' + s.my_vote) : '');
-    } else if (canClaim) {
-      actionCell = el('button', { class: 'btn', onclick: () => act('claim', s.id, 'claim') }, 'Pegar p/ avaliar');
-    } else {
-      actionCell = el('span', { class: 'small muted' }, rv.my_active ? 'termine a sua ativa' : (full ? 'lotada (2)' : '—'));
-    }
-    const statusBadge = el('span', { class: 'verdict ' + (s.conflict ? 'flag-anom' : '') }, s.status + (s.conflict ? ' ⚠' : ''));
+      : el('span', { class: 'small muted' }, (s.votes_n ? '1º voto dado' : '—'));
+    const actionCell = canClaim
+      ? el('button', { class: 'btn', onclick: () => act('claim', s.id, 'claim') }, 'Pegar p/ avaliar')
+      : el('span', { class: 'small muted' }, voted ? 'você já votou' : (full ? 'lotada (2)' : (s.conflict ? 'conflito' : '—')));
     tb.append(el('tr', {},
       el('td', {}, el('b', {}, shortOf(s.problem_id))),
-      el('td', {}, el('span', { class: 'small' }, s.computed_verdict || '?')),
-      el('td', {}, statusBadge),
+      el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.computed_verdict) }, s.computed_verdict || '?')),
+      el('td', {}, el('span', { class: 'verdict ' + (s.conflict ? 'flag-anom' : '') }, s.status + (s.conflict ? ' ⚠' : ''))),
       el('td', {}, whoCell),
       el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink(s), srcLink(s))),
       el('td', {}, actionCell)));
@@ -104,7 +122,6 @@ function renderReview() {
 
 function fmtLeft(s) { s = Math.max(0, s | 0); const m = Math.floor(s / 60), x = s % 60; return m + ':' + String(x).padStart(2, '0'); }
 function startTick(left) { clearInterval(tickT); let n = left; const e = () => document.getElementById('rvCountdown'); tickT = setInterval(() => { n--; const el2 = e(); if (!el2) { clearInterval(tickT); return; } el2.textContent = fmtLeft(n); if (n <= 0) { clearInterval(tickT); loadReview(); } }, 1000); }
-function flash(stt) { /* feedback leve do voto */ }
 async function act(path, id, action) { try { await rvAct(path, { id, action }); loadReview(); } catch (e) { alert(e.message || 'falha'); } }
 
 async function loadReview() {
@@ -112,7 +129,10 @@ async function loadReview() {
   catch (e) { document.getElementById('judgeContainer').innerHTML = '<div class="error-box">Falha ao carregar a fila.</div>'; return; }
   OPTIONS = rv.options || []; IS_CHIEF = !!rv.is_chief;
   renderReview();
-  clearTimeout(pollT); pollT = setTimeout(loadReview, 6000 + Math.random() * 3000);
+  // enquanto o juiz tem uma avaliação ativa, NÃO recarrega (o contador local roda; ações
+  // como votar/desistir/+5min chamam loadReview; ao expirar, startTick chama loadReview).
+  clearTimeout(pollT);
+  if (!rv.my_active) pollT = setTimeout(loadReview, 6000 + Math.random() * 3000);
 }
 
 // ===================== MODO LEGADO (allsubmissions + set-verdict) =====================

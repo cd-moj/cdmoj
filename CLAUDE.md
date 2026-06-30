@@ -28,7 +28,10 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
   veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) salvo o que
   a matriz `auto-verdicts.json` (problema×lang×veredicto) libera; dois `.judge` decidem
   (`handlers/contest/review/*` + `lib/review.sh`, flock + TTL), e o veredicto vai ao aluno pelo
-  **escritor único** via o consumidor `setverdict` do daemon. **Mexeu no `judged.sh` → reinicie o
+  **escritor único** via o consumidor `setverdict` do daemon. O **voto é permanente e libera o juiz**
+  (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo
+  `auth.status` → segue o chief/admin em qualquer página); a aba **Situação** traz estatística por juiz
+  (`review/stats`, derivada do `admin-audit.log`). **Mexeu no `judged.sh` → reinicie o
   daemon** (mantendo `INTAKE_MODE`/`JUDGE_BACKEND`); handlers/score são frescos por requisição.
 - Clarifications: o **asker é anônimo** p/ os juízes (handler corta `.login`); responder exige
   **reserva** (`clarification-claim`). Sempre auditar (`audit_log_to`) toda ação de juiz/chefe.

@@ -1551,7 +1551,7 @@
         "summary": "Fila de revisão de veredicto manual (judge)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{manual,options,items,counts,my_active}" } }
+        "responses": { "200": { "description": "{manual,options,items,counts:{not_evaluated,being_evaluated,awaiting_second,conflicts},my_active}" } }
       }
     },
     "/contest/review/claim": {
@@ -1566,7 +1566,7 @@
     "/contest/review/vote": {
       "post": {
         "tags": ["contest"],
-        "summary": "Vota o veredicto (judge): {id,label}; 2 iguais liberam, 2 diferentes = conflito",
+        "summary": "Vota o veredicto (judge): {id,label}; voto permanente e libera o juiz (pega outra); 2 iguais liberam, 2 diferentes = conflito",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/contest" }],
         "responses": { "200": { "description": "{status,released_verdict?}" } }
@@ -1584,10 +1584,19 @@
     "/contest/review/conflicts": {
       "get": {
         "tags": ["contest"],
-        "summary": "Sumário de conflitos de veredicto p/ o juiz-chefe (admin/chief)",
+        "summary": "Sumário de conflitos de veredicto p/ o juiz-chefe (admin/chief); n alimenta o alerta global",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "$ref": "#/components/parameters/contest" }],
         "responses": { "200": { "description": "{conflicts:[{id,login,problem_id,votes}], n, options}" } }
+      }
+    },
+    "/contest/review/stats": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Estatística por .judge da avaliação manual (admin/chief): votos, tempo médio, concordâncias, conflitos",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "responses": { "200": { "description": "{judges:[{judge,votes,avg_response_s,timed,agreements,conflicts}], total:{votes,avg_response_s}}" } }
       }
     },
     "/contest/set-verdict": {

@@ -3,6 +3,7 @@
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
+import { pokeChiefAlert } from '/shared/chief-alert.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 
 const qs = new URLSearchParams(location.search);
@@ -11,42 +12,58 @@ const app = document.getElementById('app');
 const enc = encodeURIComponent;
 const G = { contest: CONTEST, auth: true };
 const fmtS = (s) => { s = Math.max(0, s | 0); const m = Math.floor(s / 60); return m ? m + 'm' + (s % 60) + 's' : s + 's'; };
-let confPoll = null, lastConflicts = 0, confOptions = [];
+let confPoll = null, confOptions = [];
 
-// ----- alerta vibrante (som + vibração + banner piscando) -----
-function vibrantAlert(n) {
-  const b = document.getElementById('conflictBanner');
-  if (b) { b.textContent = '⚠ ' + n + ' conflito(s) de veredicto aguardando o juiz-chefe!'; b.classList.add('show'); }
-  try { const A = window.AudioContext || window.webkitAudioContext; const a = new A(); const o = a.createOscillator(); const g = a.createGain();
-    o.connect(g); g.connect(a.destination); o.type = 'square'; o.frequency.value = 880; g.gain.value = 0.08; o.start();
-    setTimeout(() => { o.frequency.value = 660; }, 200); setTimeout(() => { o.stop(); a.close().catch(() => {}); }, 500); } catch { /* sem áudio */ }
-  try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch { /* sem vibração */ }
-}
-function clearAlert() { const b = document.getElementById('conflictBanner'); if (b) { b.classList.remove('show'); b.textContent = ''; } }
+// O alerta GLOBAL de conflito (banner flutuante + bip, visível em qualquer página) vive em
+// shared/chief-alert.js e é iniciado pelo initContestShell. Aqui só renderizamos a lista de
+// conflitos e "cutucamos" o alerta (pokeChiefAlert) após resolver, p/ sumir na hora.
 
 // ===================== abas =====================
 function situacaoTab() {
   const panel = el('div', { class: 'section' });
   async function load() {
     panel.innerHTML = ''; panel.append(el('h2', {}, '📊 Situação da avaliação'));
-    let d; try { d = await apiGet('/contest/admin/dashboard?contest=' + enc(CONTEST), G); }
+    let d, s;
+    try { [d, s] = await Promise.all([apiGet('/contest/admin/dashboard?contest=' + enc(CONTEST), G),
+      apiGet('/contest/review/stats?contest=' + enc(CONTEST), G).catch(() => null)]); }
     catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
     const r = d.review || {};
     panel.append(el('div', { class: 'row', style: 'flex-wrap:wrap; margin:.3rem 0' },
       el('span', { class: 'dash-card' }, el('b', {}, r.not_evaluated || 0), ' não avaliadas'),
       el('span', { class: 'dash-card' }, el('b', {}, r.being_evaluated || 0), ' sendo avaliadas'),
+      el('span', { class: 'dash-card' }, el('b', {}, r.awaiting_second || 0), ' aguardando 2º voto'),
       el('span', { class: 'dash-card', style: (r.conflicts ? 'border-color:#c00;color:#c00' : '') }, el('b', {}, r.conflicts || 0), ' em conflito'),
       el('span', { class: 'dash-card' }, el('b', {}, (d.judges || {}).online || 0), ' juízes online')));
+    // quem está avaliando agora
     const ev = r.evaluators || [];
-    if (!ev.length) { panel.append(el('p', { class: 'muted' }, 'Ninguém avaliando no momento.')); return; }
-    const tb = el('tbody');
-    ev.forEach(e => tb.append(el('tr', {},
-      el('td', {}, el('b', {}, (e.problem_id || '').split('#').pop())),
-      el('td', { class: 'small' }, e.computed_verdict || ''),
-      el('td', {}, e.conflict ? el('b', { style: 'color:#c00' }, 'conflito') : (e.status || '')),
-      el('td', { class: 'small' }, (e.claimants || []).map(c => c.judge + ' (' + fmtS(c.elapsed_s) + ')').join(', ') || '—'))));
-    panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, 'Problema'), el('th', {}, 'Computado'), el('th', {}, 'Status'), el('th', {}, 'Avaliando (tempo)'))), tb)));
+    panel.append(el('h3', {}, 'Em avaliação / conflito agora'));
+    if (!ev.length) { panel.append(el('p', { class: 'muted small' }, 'Ninguém avaliando no momento.')); }
+    else {
+      const tb = el('tbody');
+      ev.forEach(e => tb.append(el('tr', {},
+        el('td', {}, el('b', {}, (e.problem_id || '').split('#').pop())),
+        el('td', { class: 'small' }, e.computed_verdict || ''),
+        el('td', {}, e.conflict ? el('b', { style: 'color:#c00' }, 'conflito') : (e.status || '')),
+        el('td', { class: 'small' }, (e.claimants || []).map(c => c.judge + ' (' + fmtS(c.elapsed_s) + ')').join(', ') || (e.votes_n ? '1º voto dado' : '—')))));
+      panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Problema'), el('th', {}, 'Computado'), el('th', {}, 'Status'), el('th', {}, 'Avaliando (tempo)'))), tb)));
+    }
+    // desempenho por juiz (do log de auditoria)
+    const js = (s && s.judges) || [], tot = (s && s.total) || {};
+    panel.append(el('h3', { style: 'margin-top:.8rem' }, '📈 Desempenho por juiz'));
+    if (!js.length) { panel.append(el('p', { class: 'muted small' }, 'Sem veredictos manuais ainda.')); }
+    else {
+      const stb = el('tbody');
+      js.forEach(j => stb.append(el('tr', {},
+        el('td', {}, el('b', {}, j.judge)),
+        el('td', {}, j.votes),
+        el('td', { class: 'small' }, fmtS(j.avg_response_s) + (j.timed < j.votes ? ' · ' + j.timed + '/' + j.votes + ' medidos' : '')),
+        el('td', {}, j.agreements),
+        el('td', { style: (j.conflicts ? 'color:#c00' : '') }, j.conflicts))));
+      panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Juiz'), el('th', {}, 'Veredictos'), el('th', {}, 'Tempo médio (claim→voto)'), el('th', {}, 'Concordâncias'), el('th', {}, 'Conflitos'))), stb)),
+        el('p', { class: 'small muted' }, 'Total: ' + (tot.votes || 0) + ' veredicto(s) · tempo médio geral ' + fmtS(tot.avg_response_s || 0) + '.'));
+    }
   }
   return { panel, load, live: true };
 }
@@ -60,7 +77,7 @@ function conflitosTab() {
       const sel = el('select', {}, el('option', { value: '' }, '-- veredicto final --'), ...confOptions.map(o => el('option', { value: o.label }, o.label)));
       const btn = el('button', { class: 'btn' }, 'Resolver'); const msg = el('span', { class: 'small' });
       btn.addEventListener('click', async () => { if (!sel.value) return; btn.disabled = true; msg.textContent = 'Enviando…';
-        try { await apiPost('/contest/review/resolve?contest=' + enc(CONTEST), { id: cf.id, verdict: sel.value }, G); loadConflicts(); }
+        try { await apiPost('/contest/review/resolve?contest=' + enc(CONTEST), { id: cf.id, verdict: sel.value }, G); loadConflicts(); pokeChiefAlert(); }
         catch (e) { btn.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; } });
       const votes = el('ul', { style: 'margin:.2rem 0 .3rem 1rem' }, ...(cf.votes || []).map(v => el('li', { class: 'small' }, el('b', {}, v.by), ' → ', v.label, ' (', v.verdict, ')')));
       panel.append(el('div', { class: 'field', style: 'border:1px solid #c0392b; border-radius:.5rem; padding:.5rem .7rem; margin:.4rem 0' },
@@ -71,9 +88,6 @@ function conflitosTab() {
   async function loadConflicts() {
     let r; try { r = await apiGet('/contest/review/conflicts?contest=' + enc(CONTEST), G); } catch { return; }
     confOptions = r.options || confOptions;
-    const n = r.n || 0;
-    if (n > lastConflicts) vibrantAlert(n); else if (n === 0) clearAlert();
-    lastConflicts = n;
     render(r.conflicts || []);
   }
   function load() { loadConflicts(); clearTimeout(confPoll); const tick = () => { if (!panel.hidden) loadConflicts(); confPoll = setTimeout(tick, 6000 + Math.random() * 3000); }; confPoll = setTimeout(tick, 6000); }
@@ -105,12 +119,9 @@ async function boot() {
     history.replaceState(null, '', location.pathname + '?c=' + enc(CONTEST) + '#' + id);
   }
   TABS.forEach(t => { btn[t.id] = el('button', { onclick: () => show(t.id) }, t.label); tabbar.append(btn[t.id]); });
-  // sempre vigia conflitos em segundo plano (mesmo fora da aba) p/ o alerta vibrante
-  conflitosTab(); // primes confOptions; the real poller starts when the tab loads
+  // o banner global (shared/chief-alert.js) pede esta aba ao ser clicado, mesmo já estando aqui
+  window.addEventListener('moj:show-conflicts', () => show('conf'));
   const want = (location.hash || '').replace('#', '');
   show(TABS.some(t => t.id === want) ? want : 'sit');
-  // poller de conflitos global (alerta mesmo sem abrir a aba)
-  const gpoll = async () => { try { const r = await apiGet('/contest/review/conflicts?contest=' + enc(CONTEST), G); confOptions = r.options || confOptions; const n = r.n || 0; if (n > lastConflicts) vibrantAlert(n); else if (n === 0) clearAlert(); lastConflicts = n; } catch {} setTimeout(gpoll, 8000 + Math.random() * 4000); };
-  gpoll();
 }
 boot();
