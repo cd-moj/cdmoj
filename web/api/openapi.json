@@ -392,7 +392,7 @@
         "summary": "Lista de problemas",
         "responses": {
           "200": {
-            "description": "[{id,title,tags,solved_count,attempted_count}]"
+            "description": "[{id,title,tags,collections,solved_count,attempted_count}] (collections = .moj-meta.json do pacote; um problema pode estar em várias)"
           }
         }
       }
@@ -402,7 +402,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Problema (enunciado b64, autor, time limits, tags)",
+        "summary": "Problema (enunciado b64, autor, time limits, tags, coleções)",
         "parameters": [
           {
             "name": "id",
@@ -415,7 +415,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{id,title,author,statement_html_b64,time_limits,tags} (author = arquivo 'author' do pacote, verbatim; vários juntados por ', '; vazio se ausente)"
+            "description": "{id,title,author,statement_html_b64,time_limits,tags,collections} (author = arquivo 'author' do pacote, verbatim; vários juntados por ', '; vazio se ausente; collections = coleções do .moj-meta.json)"
           },
           "404": {
             "description": "não encontrado"
@@ -3530,6 +3530,14 @@
                       "properties": {
                         "editable": {
                           "type": "boolean"
+                        },
+                        "scripts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "readOnly": true,
+                          "description": "Caminhos relativos de scripts/ (correção especial) presentes no pacote — SÓ leitura/exibição (não escrito por create/edit). Ex.: [\"compare.sh\",\"c/compile.sh\"]."
                         }
                       }
                     }

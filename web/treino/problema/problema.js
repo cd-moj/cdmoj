@@ -83,6 +83,18 @@ async function loadProblem() {
   const pa = document.getElementById('pauthor');
   if (au) pa.textContent = (au.includes(', ') ? 'Autores: ' : 'Autor: ') + au;
 
+  // coleções (organização/curso — sempre visíveis, sem borrão)
+  const colsEl = document.getElementById('pcols');
+  colsEl.innerHTML = '';
+  const cols = p.collections || [];
+  if (cols.length) {
+    colsEl.append(el('span', { class: 'small muted' }, 'Coleções: '));
+    cols.forEach((c) => {
+      const name = String(c);
+      colsEl.append(el('a', { class: 'collection', href: '/treino/?searchcol=' + encodeURIComponent(name) }, name));
+    });
+  }
+
   const tagsEl = document.getElementById('ptags');
   (p.tags || []).forEach((tg) => {
     const name = String(tg).replace(/^#/, '');

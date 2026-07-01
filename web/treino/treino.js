@@ -21,10 +21,12 @@ function difficulty(p) {
 
 function filtered() {
   const q = norm(document.getElementById('q').value);
+  const col = norm(document.getElementById('qcol').value).replace(/^#/, '');
   const tag = norm(document.getElementById('qtag').value).replace(/^#/, '');
   const f = document.getElementById('filter').value;
   return ALL.filter(p => {
     if (q && !norm(p.title).includes(q)) return false;
+    if (col && !(p.collections || []).some(c => norm(c).includes(col))) return false;
     if (tag && !(p.tags || []).some(t => norm(t).includes(tag))) return false;
     if (f === 'solved' && !solved.has(p.id)) return false;
     if (f === 'attempted' && !(attempted.has(p.id) && !solved.has(p.id))) return false;
@@ -44,6 +46,7 @@ function render() {
   const tbl = el('table', { class: 'moj' },
     el('thead', {}, el('tr', {},
       el('th', {}, 'Problema'),
+      el('th', {}, 'Coleções'),
       ...(showTags ? [el('th', {}, 'Tags')] : []),
       el('th', {}, 'Dificuldade (acertos)'),
       el('th', {}, 'Status'))));
@@ -53,6 +56,8 @@ function render() {
     const st = solved.has(p.id) ? '✓ resolvido' : (attempted.has(p.id) ? '… tentado' : '');
     const cells = [
       el('td', {}, el('a', { href: '/treino/problema/?id=' + encodeURIComponent(p.id) }, p.title || p.id)),
+      el('td', {}, (p.collections || []).map(c =>
+        el('a', { class: 'collection', href: '?searchcol=' + encodeURIComponent(String(c)) }, c))),
     ];
     if (showTags) cells.push(el('td', {}, (p.tags || []).map(t =>
       el('a', { class: 'tag', href: '?searchtag=' + encodeURIComponent(String(t).replace(/^#/, '')) }, t))));
@@ -88,6 +93,7 @@ async function boot() {
   renderCreateContestLink(authArea);
   const sp = new URLSearchParams(location.search);
   if (sp.get('searchtag')) document.getElementById('qtag').value = sp.get('searchtag');
+  if (sp.get('searchcol')) document.getElementById('qcol').value = sp.get('searchcol');
 
   try {
     const j = await apiGet('/treino/problems', { contest: CONTEST });
@@ -97,7 +103,7 @@ async function boot() {
     return;
   }
   await loadSolve();
-  ['q', 'qtag', 'filter'].forEach(id =>
+  ['q', 'qcol', 'qtag', 'filter'].forEach(id =>
     document.getElementById(id).addEventListener('input', () => { page = 0; render(); }));
   document.getElementById('toggleTags').addEventListener('click', () => {
     showTags = !showTags;

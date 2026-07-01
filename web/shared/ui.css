@@ -103,6 +103,10 @@ table.moj tbody tr:last-child td { border-bottom:0; }
   padding:.15rem .65rem; font-size:.78rem; font-weight:600; margin:.12rem; transition:.12s; }
 .tag:hover { background:#d6e6fb; text-decoration:none; transform:translateY(-1px); }
 .tags-blur .tag { filter:blur(4px); } .tags-blur:hover .tag { filter:none; }
+/* coleções (curso/organização — cor distinta das tags; NUNCA borradas) */
+.collection { display:inline-block; background:#efeaff; color:#4a37c9; border-radius:999px;
+  padding:.15rem .65rem; font-size:.78rem; font-weight:600; margin:.12rem; transition:.12s; }
+.collection:hover { background:#e3dbff; text-decoration:none; transform:translateY(-1px); }
 .diff { font-weight:700; } .diff-easy{color:var(--ok);} .diff-med{color:var(--warn);} .diff-hard{color:var(--err);}
 
 /* balloons (ICPC) */

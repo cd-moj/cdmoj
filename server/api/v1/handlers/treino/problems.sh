@@ -1,5 +1,5 @@
 # GET /treino/problems
-# Lista todos os problemas do treino: [{id, title, tags, solved_count, attempted_count}]
+# Lista todos os problemas do treino: [{id, title, tags, collections, solved_count, attempted_count}]
 # Serve um cache (var/problems.json) se existir e estiver fresco; senão gera na hora.
 JD="$CONTESTSDIR/treino/var/jsons"
 CACHE="$CONTESTSDIR/treino/var/problems.json"
@@ -22,9 +22,9 @@ counts="$(jq -n '
 ' "$COUNTS"/*.json 2>/dev/null)"
 [[ -n "$counts" ]] || counts='{}'
 
-# base: id/title/tags de var/jsons + as contagens reais casadas por id ('#').
+# base: id/title/tags/collections de var/jsons + as contagens reais casadas por id ('#').
 jq -s --argjson c "$counts" '
-  map({id, title, tags: (.tags // [])} + ($c[.id] // {solved_count:0, attempted_count:0}))
+  map({id, title, tags: (.tags // []), collections: (.collections // [])} + ($c[.id] // {solved_count:0, attempted_count:0}))
 ' "$JD"/*.json 2>/dev/null | tee "$CACHE.tmp" >/dev/null
 mv -f "$CACHE.tmp" "$CACHE" 2>/dev/null
 cat "$CACHE"

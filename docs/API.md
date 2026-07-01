@@ -22,8 +22,8 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 ## Treino
 | Rota | Auth | I/O |
 |---|---|---|
-| `/treino/problems` | — | array `[{id,title,tags,solved_count,attempted_count}]` (contagens de `var/json-count/<arquivo>` casadas por nome de arquivo; cache 5 min em `var/problems.json`) |
-| `/treino/problem?id=<id>` | — | `{id,title,author,statement_html_b64,time_limits,tags}` (`author` = arquivo `author` do pacote, verbatim; vários autores juntados por `, `; vazio se ausente) |
+| `/treino/problems` | — | array `[{id,title,tags,collections,solved_count,attempted_count}]` (`collections` = `.moj-meta.json` do pacote, um problema pode estar em várias; contagens de `var/json-count/<arquivo>` casadas por nome de arquivo; cache 5 min em `var/problems.json`) |
+| `/treino/problem?id=<id>` | — | `{id,title,author,statement_html_b64,time_limits,tags,collections}` (`author` = arquivo `author` do pacote, verbatim; vários autores juntados por `, `; vazio se ausente; `collections` = coleções do `.moj-meta.json`) |
 | `/treino/solvetry?user=<u>` | opc | `{solved:[ids],attempted:[ids]}` |
 | `/treino/history?id=<id>` | Bearer | TXT 7 campos `tempo:user:probid:lang:verdito:epoch:subid` |
 | `/treino/history-full?user=<u>` | opc | TXT 7 campos (todo o histórico) |
@@ -82,7 +82,7 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 |---|---|---|
 | `/problems/repos` | GET | diretórios do autor (dono/colaborador) `{repos:[{repo,owner,collaborators,collections,mine}]}` |
 | `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
-| `/problems/source?id=<id>` | GET | **source** editável `{editable,title,enunciado_md,enunciado_format,author,tags,conf_text,public,collections,examples,tests,sols{good,slow,wrong,pass,upcoming},score,editorial_md}` **SÓ dono/colaborador** (`require_problem_edit`); não-autorizado recebe **404** (sem read-only, sem atalho de `.admin`). Cada `examples[i]` traz `explanation` (opcional); `editorial_md` = resolução só p/ setter |
+| `/problems/source?id=<id>` | GET | **source** editável `{editable,title,enunciado_md,enunciado_format,author,tags,conf_text,public,collections,examples,tests,sols{good,slow,wrong,pass,upcoming},score,editorial_md,scripts}` **SÓ dono/colaborador** (`require_problem_edit`); não-autorizado recebe **404** (sem read-only, sem atalho de `.admin`). Cada `examples[i]` traz `explanation` (opcional); `editorial_md` = resolução só p/ setter; `scripts` = caminhos relativos de `scripts/` (correção especial), **só leitura** (não escrito por create/edit; exibido na árvore do pacote) |
 | `/problems/preview` | POST `{enunciado_md, enunciado_format?, examples?, title?}` | **pré-visualização** HTML (= o renderizador único `render-statement.sh`, idêntico ao servido) — injeta o **título** (h1) e os exemplos (cada um com `explanation` opcional) → `{html_b64}` |
 | `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
 | `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um pacote (`.tar`/`.tar.gz`/`.tar.bz2`/`.tar.zst`/`.zip`) e **substitui tudo** (commit+push) — máquinas sem git / offline |
