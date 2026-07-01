@@ -74,8 +74,11 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
 - **Pacote canônico**: `docs/enunciado.{md,org,tex}`, `tests/input|output/` (exemplos = `sample*`,
   na ordem), `sols/{good,slow,wrong,pass,upcoming}/`, `conf`, `author`, `tags`, `tests/score`,
   `docs/sample-notes.json` (explicações de exemplo, na ordem), `docs/solucao.md` (editorial — só
-  setter, **não** vai ao aluno). Metadados em `.moj-meta.json` (`display_title`, `public`, …). O
-  **título de exibição** é o `.moj-meta.json` `display_title` (o `% Título` do enunciado é legado,
+  setter, **não** vai ao aluno). Metadados em `.moj-meta.json` (`display_title`, `public`, …).
+  **Correção especial** opcional em `scripts/` (checker `compare.sh`, `scripts/<lang>/compile.sh`, …;
+  ver `mojtools/docs/correcao-especial.md`): o editor web **não** a escreve, mas `read_problem_source`
+  a **lista** (campo `scripts`, só leitura) e a árvore do pacote a **exibe**.
+  O **título de exibição** é o `.moj-meta.json` `display_title` (o `% Título` do enunciado é legado,
   removido no render — o `<h1 class="moj-title">` vem do campo). **`write_meta` sempre popula
   `display_title`**: se o setter não mandar título e o meta ainda não tiver um, deriva do enunciado
   (`%`/`#+title`/`\section`) ou, em último caso, do slug — o editor nunca vem em branco e treino/gestão

@@ -370,7 +370,8 @@ _read_score(){
   jq -cn --argjson g "$groups" '{enabled:true, groups:$g}'
 }
 # read_problem_source <pkgdir> -> JSON editável do pacote (enunciado/autor/tags/conf/exemplos/
-# testes/soluções good + public/collections/title do .moj-meta.json).
+# testes/soluções good + public/collections/title do .moj-meta.json). Também lista scripts/ (correção
+# especial) como caminhos relativos no campo `scripts` — SÓ leitura (não escrito por apply_problem_fields).
 read_problem_source(){
   local pkg="$1" enunf="" fmt="md" ef
   for ef in docs/enunciado.md enunciado.md docs/enunciado.org docs/enunciado.tex; do
@@ -384,6 +385,9 @@ read_problem_source(){
   local tags='[]'; [[ -f "$pkg/tags" ]] && tags="$(jq -R . "$pkg/tags" 2>/dev/null | jq -sc . 2>/dev/null)"; [[ -n "$tags" ]] || tags='[]'
   local meta='{}'; [[ -f "$pkg/.moj-meta.json" ]] && meta="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$meta" ]] || meta='{}'
   local score; score="$(_read_score "$pkg")"
+  # scripts/ (correção especial: compare/compile por linguagem) -> caminhos relativos, SÓ p/ exibir na árvore do pacote
+  local tscr; tscr="$(mktemp)"
+  [[ -d "$pkg/scripts" ]] && ( cd "$pkg/scripts" && find . -type f -printf '%P\n' 2>/dev/null ) | LC_ALL=C sort > "$tscr"
   # exemplos/testes/soluções -> NDJSON em arquivos; entram no jq por --slurpfile (jq lê o arquivo).
   # ANTES: --argjson tss "$tss" estourava o ARG_MAX em problema com muitos testes -> source VAZIO -> editor em branco.
   local d; d="$(mktemp -d)"
@@ -395,14 +399,16 @@ read_problem_source(){
   jq -cn --slurpfile all "$d/exs" --argjson n "$notes" \
      '$all | to_entries[] | .value + {explanation: ($n[.key] // "")}' > "$d/exs2" 2>/dev/null && mv -f "$d/exs2" "$d/exs"
   jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" --rawfile editorial "$ted" \
+        --rawfile scr "$tscr" \
         --argjson tags "$tags" --argjson meta "$meta" --argjson score "$score" --arg fmt "$fmt" \
         --slurpfile exs "$d/exs" --slurpfile tss "$d/tss" \
         --slurpfile sg "$d/sg" --slurpfile ss "$d/ss" --slurpfile sw "$d/sw" --slurpfile sp "$d/sp" --slurpfile su "$d/su" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
       title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
+      scripts:($scr | split("\n") | map(select(. != ""))),
       editorial_md:$editorial, sols:{good:$sg, slow:$ss, wrong:$sw, pass:$sp, upcoming:$su} }'
-  rm -rf "$d"; rm -f "$te" "$ta" "$tc" "$ted"
+  rm -rf "$d"; rm -f "$te" "$ta" "$tc" "$ted" "$tscr"
 }
 # _read_sols <pkgdir> <cat> <outfile> -> escreve NDJSON {filename,code} (1/linha) de sols/<cat>/*
 _read_sols(){

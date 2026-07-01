@@ -13,6 +13,7 @@ let enunEd = null, editEd = null;                            // enunciado (modo 
 let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modulares (lazy, modo "separado")
 let stmtMode = 'single';                                      // 'single' | 'modular'
 let PENDING_EDITORIAL = '';                                  // editorial carregado, aplicado quando a aba Resolução abre
+let PKG_SCRIPTS = [];                                        // scripts/ (correção especial) do pacote — só p/ exibir na árvore
 let COLLS = [];
 let collFilter = { q: '', mine: false, manage: false, course: false };  // filtro dos chips de coleção
 let CAN_CREATE = false;
@@ -384,6 +385,21 @@ function buildTree() {
   if (tsRows.length) testKids.push(dirNode('ocultos/', ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || 'teste'), r))));
   if (SCORE.enabled) testKids.push(leaf('score', $('scoreGroups'), () => showTab('tests')));
   const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || '(sem nome)', s.row))) : null).filter(Boolean);
+  // scripts/ (correção especial) — só exibição (não editável no editor web); agrupa por subpasta de linguagem
+  let scrNode = null;
+  if (PKG_SCRIPTS.length) {
+    const byDir = {}, rootFiles = [];
+    for (const p of PKG_SCRIPTS) {
+      const i = p.indexOf('/');
+      if (i < 0) rootFiles.push(p);
+      else (byDir[p.slice(0, i)] || (byDir[p.slice(0, i)] = [])).push(p.slice(i + 1));
+    }
+    const scrKids = [
+      ...Object.keys(byDir).sort().map(dir => dirNode(dir + '/', ...byDir[dir].map(f => leaf(f)))),
+      ...rootFiles.map(f => leaf(f)),
+    ];
+    scrNode = dirNode('scripts/', ...scrKids);
+  }
   const docsKids = [leaf('enunciado.md', stmtMode === 'modular' ? $('descMount') : $('enunMount'))];
   if (exRows.some(r => r.querySelector('.exexpl') && r.querySelector('.exexpl').value.trim())) docsKids.push(leaf('sample-notes.json', $('examples'), () => showTab('tests')));
   if (editEd ? editEd.getValue().trim() : (PENDING_EDITORIAL || '').trim()) docsKids.push(leaf('solucao.md', $('editMount'), () => showTab('resol')));
@@ -392,7 +408,8 @@ function buildTree() {
     leaf('conf', $('confRaw'), () => { const d = $('confRaw').closest('details'); if (d) d.open = true; }),
     leaf('author', $('pauthor')), leaf('tags', $('ptags')),
     testKids.length ? dirNode('tests/', ...testKids) : null,
-    solKids.length ? dirNode('sols/', ...solKids) : null);
+    solKids.length ? dirNode('sols/', ...solKids) : null,
+    scrNode);
   return el('div', {}, el('div', { class: 'dir' }, ($('prob').value || 'problema') + '/'), tree);
 }
 function updatePkgInfo() {
@@ -434,6 +451,7 @@ async function renderForm(d) {
   enunEd = await createEditor($('enunMount'), { doc: initMd, cm: 'markdown', images: true });
   // resolução (editorial): guarda; o editor é criado ao abrir a aba (e atualizado se já existir)
   PENDING_EDITORIAL = d.editorial_md || '';
+  PKG_SCRIPTS = d.scripts || [];
   $('editMount').innerHTML = ''; editEd = null;
   $('examples').innerHTML = ''; (d.examples || []).forEach(e => $('examples').append(exampleRow(e.input, e.output, e.explanation)));
   if (!(d.examples || []).length) $('examples').append(exampleRow());
