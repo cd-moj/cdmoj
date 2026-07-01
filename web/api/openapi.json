@@ -173,7 +173,8 @@
                   "type": "number"
                 },
                 "glob": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Padrão glob dos testes do grupo. Pode ser uma LISTA de padrões separados por \", \" (ex.: \"g2_*, g3_*\") — todos casam o mesmo peso."
                 }
               }
             }

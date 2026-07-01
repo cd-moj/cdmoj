@@ -93,7 +93,9 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 > no texto — o render injeta o h1), `enunciado_md`, `conf_text` (TL/ulimits/STOPWHEN/…, ver
 > `saad-problems/README.org`), `examples` (sample; cada um aceita `explanation` opcional →
 > `docs/sample-notes.json`, mostrada após o exemplo), `tests` (ocultos), `sols` por categoria
-> `{good,wrong,slow,pass,upcoming}` (cada `[{filename,code}]`), `score` (grupos de pontuação) e
+> `{good,wrong,slow,pass,upcoming}` (cada `[{filename,code}]`), `score` (grupos de pontuação;
+> cada grupo tem `{name,weight,glob}` e o `glob` pode ser uma **lista `", "`-separada** de padrões,
+> ex.: `g2_*, g3_*`) e
 > `editorial_md` (resolução em markdown → `docs/solucao.md`, **só p/ setter**, não vai ao aluno).
 | `/problems/create` | POST `{repo,prob,enunciado_md?,author?,tags?,examples?,good_sol?,title?,...}` | cria problema novo; commit+push; `{id,sha}` |
 | `/problems/edit` | POST `{id, ...campos}` | edita (só campos presentes); commit+push autorado |

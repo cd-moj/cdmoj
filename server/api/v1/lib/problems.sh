@@ -276,7 +276,7 @@ apply_problem_fields(){  # <pkgdir> <body-json>
     local grp gn gg
     while IFS= read -r grp; do
       gn="$(jq -r '.name // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$gn" ]] || continue
-      gg="$(jq -r '.glob // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._*-')"; [[ -n "$gg" ]] || gg="${gn}_*"
+      gg="$(_norm_globs "$(jq -r '.glob // empty' <<<"$grp")")"; gg="${gg%%,*}"; [[ -n "$gg" ]] || gg="${gn}_*"  # só o 1º glob (prefixo p/ renomear teste fixado)
       GGLOB[$gn]="$gg"
     done < <(jq -c '.score.groups[]?' <<<"$body")
   fi
@@ -310,7 +310,7 @@ apply_problem_fields(){  # <pkgdir> <body-json>
         local grp gn gg gw
         while IFS= read -r grp; do
           gn="$(jq -r '.name // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$gn" ]] || continue
-          gg="$(jq -r '.glob // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._*-')"; [[ -n "$gg" ]] || gg="${gn}_*"
+          gg="$(_norm_globs "$(jq -r '.glob // empty' <<<"$grp")")"; [[ -n "$gg" ]] || gg="${gn}_*"  # preserva a lista multi-glob (", "-separada)
           gw="$(jq -r '.weight // 0' <<<"$grp" | tr -cd '0-9')"; gw=${gw:-0}
           echo "$gg - $gw pontos"
         done < <(jq -c '.score.groups[]?' <<<"$body")
@@ -354,17 +354,29 @@ _read_pairs(){
   done
   shopt -u nullglob; set -o noglob
 }
+# _norm_globs <raw> -> globs saneados, separados por ", " (um grupo pode ter VÁRIOS globs).
+# Vírgula -> espaço; read NUNCA faz glob de path (seguro mesmo sem noglob); rejunta com ", "
+# (o separador que o juiz, mojtools/score-summary.sh, tolera — o espaço é obrigatório p/ o
+# word-split de lá). Entrada vazia/sem token válido -> "".
+_norm_globs(){
+  local raw="${1//,/ }" out="" tok; local IFS=$' \t\n'; local -a _ng
+  raw="$(printf '%s' "$raw" | tr -cd 'A-Za-z0-9._* -')"   # mantém espaço; solta o resto
+  read -ra _ng <<<"$raw"
+  for tok in "${_ng[@]}"; do out="${out:+$out, }$tok"; done
+  printf '%s' "$out"
+}
 # _read_score <pkgdir> -> {enabled, groups:[{name,weight,glob}]} a partir de tests/score
 # (ignora a linha sample* dos exemplos). Ausente/vazio -> {enabled:false, groups:[]}.
+# glob preserva a lista multi-glob (", "-separada); name deriva do PRIMEIRO glob.
 _read_score(){
-  local pkg="$1" sf="$pkg/tests/score"
+  local pkg="$1" sf="$1/tests/score"   # $1 (não $pkg): num mesmo `local`, o RHS não enxerga o LHS anterior
   [[ -f "$sf" ]] || { printf '{"enabled":false,"groups":[]}'; return; }
-  local groups='[]' g s glob w name
+  local groups='[]' g s glob w name first
   while IFS='-' read -r g s; do
-    glob="$(printf '%s' "$g" | tr -d '[:space:],')"
+    glob="$(_norm_globs "$g")"
     [[ -z "$glob" || "$glob" == sample* ]] && continue
     w="$(printf '%s' "$s" | tr -cd '0-9')"; w=${w:-0}
-    name="${glob%\**}"; name="${name%_}"
+    first="${glob%%,*}"; name="${first%\**}"; name="${name%_}"
     groups="$(jq -c --arg n "$name" --argjson w "$w" --arg gl "$glob" '. + [{name:$n,weight:$w,glob:$gl}]' <<<"$groups")"
   done < "$sf"
   jq -cn --argjson g "$groups" '{enabled:true, groups:$g}'

@@ -213,7 +213,9 @@ const collectExamples = () => [...$('examples').querySelectorAll('.ex')].map(r =
 const groupKey = (s) => ((s || '').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'g');
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const globToRe = (g) => new RegExp('^' + g.split('*').map(escapeRe).join('.*') + '$');
-const matchGroups = (name) => SCORE.groups.filter(g => g.glob && globToRe(g.glob).test(name));
+// um grupo pode ter VÁRIOS globs separados por vírgula (ex.: "a_*, b_*"); casa se QUALQUER um bate
+const splitGlobs = (g) => (g || '').split(',').map(s => s.trim()).filter(Boolean);
+const matchGroups = (name) => SCORE.groups.filter(g => splitGlobs(g.glob).some(gl => globToRe(gl).test(name)));
 
 function addGroupRow(g = { name: '', weight: '', glob: '' }) {
   const nameI = el('input', { type: 'text', value: g.name || '', placeholder: 'ex: facil' });
