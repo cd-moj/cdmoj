@@ -415,10 +415,31 @@ _read_sols(){
   shopt -u nullglob; set -o noglob
 }
 
+# _derive_title <pkgdir> -> título do enunciado (%/#+title/\section) ou, em último caso, o nome do
+# problema (slug). NUNCA vazio. Mesmo idioma de extração do mojtools/gen-problem-json.sh.
+_derive_title(){
+  local pkg="$1" t=""
+  if [[ -f "$pkg/docs/enunciado.md" ]]; then
+    t="$(grep -m1 '^%' "$pkg/docs/enunciado.md" 2>/dev/null | sed 's/^%[[:space:]]*//')"
+  elif [[ -f "$pkg/docs/enunciado.org" ]]; then
+    t="$(grep -m1 -i '^#+title:' "$pkg/docs/enunciado.org" 2>/dev/null | sed 's/^#+[Tt][Ii][Tt][Ll][Ee]:[[:space:]]*//')"
+  elif [[ -f "$pkg/docs/enunciado.tex" ]]; then
+    t="$(grep -m1 -E '\\(section|title)\{' "$pkg/docs/enunciado.tex" 2>/dev/null | sed -E 's/.*\\(section|title)\{([^}]*)\}.*/\2/')"
+  fi
+  [[ -n "$t" ]] || t="$(basename "$pkg")"
+  printf '%s' "$t"
+}
+
 # write_meta <pkgdir> <owner> <repo> [public:true|false|""] [collections-json|""] [display_title]
+# BLINDAGEM: display_title nunca fica ausente — se não veio título E o meta ainda não tem um,
+# deriva do enunciado/slug (_derive_title). Assim o editor nunca vem em branco e as 3 telas (editor,
+# treino, gestão) ficam consistentes. Meta que já tem título não muda (o merge $cur+{} preserva).
 write_meta(){
   local pkg="$1" owner="$2" repo="$3" pub="${4:-}" colls="${5:-}" title="${6:-}" cur='{}'
   [[ -f "$pkg/.moj-meta.json" ]] && cur="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
+  if [[ -z "$title" && -z "$(jq -r '.display_title // empty' <<<"$cur" 2>/dev/null)" ]]; then
+    title="$(_derive_title "$pkg")"
+  fi
   jq -n --argjson cur "$cur" --arg o "$owner" --arg r "$repo" --arg pub "$pub" \
         --argjson colls "${colls:-null}" --arg title "$title" '
     $cur + {owner:$o, gitea:{owner:$o, repo:$r}}

@@ -74,7 +74,12 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
 - **Pacote canônico**: `docs/enunciado.{md,org,tex}`, `tests/input|output/` (exemplos = `sample*`,
   na ordem), `sols/{good,slow,wrong,pass,upcoming}/`, `conf`, `author`, `tags`, `tests/score`,
   `docs/sample-notes.json` (explicações de exemplo, na ordem), `docs/solucao.md` (editorial — só
-  setter, **não** vai ao aluno). Metadados em `.moj-meta.json` (`display_title`, `public`, …).
+  setter, **não** vai ao aluno). Metadados em `.moj-meta.json` (`display_title`, `public`, …). O
+  **título de exibição** é o `.moj-meta.json` `display_title` (o `% Título` do enunciado é legado,
+  removido no render — o `<h1 class="moj-title">` vem do campo). **`write_meta` sempre popula
+  `display_title`**: se o setter não mandar título e o meta ainda não tiver um, deriva do enunciado
+  (`%`/`#+title`/`\section`) ou, em último caso, do slug — o editor nunca vem em branco e treino/gestão
+  não caem no slug. (Problemas migrados sem esse campo mostravam o id/vazio.)
 - **Gravação idempotente**: ao escrever arquivos do pacote use `_putfile` (exatamente 1 `\n` final).
   `jq -r` sempre encerra com `\n`; sem normalizar, cada "Salvar" inchava os arquivos.
 - **Renderizar enunciado**: chame `mojtools/render-statement.sh` (via `$MOJTOOLS_DIR`) — é o
