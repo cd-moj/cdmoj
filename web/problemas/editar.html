@@ -67,6 +67,8 @@
     .flash{outline:2px solid var(--accent,#5b8cff);outline-offset:2px;border-radius:4px;transition:outline .2s}
     .collchip{cursor:pointer;border:1px solid var(--border,#2a2a2a);border-radius:999px;padding:.1rem .6rem;font-size:.82rem}
     .collchip:hover{border-color:var(--accent,#5b8cff)} .collchip.on{background:#173d23;color:#7ee2a0}
+    .filttog{cursor:pointer;border:1px solid var(--border,#2a2a2a);border-radius:999px;padding:.1rem .6rem;font-size:.82rem;background:transparent;color:inherit}
+    .filttog:hover{border-color:var(--accent,#5b8cff)} .filttog.on{background:var(--accent,#5b8cff);color:#fff;border-color:var(--accent,#5b8cff)}
     .ex{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.5rem;margin:.4rem 0}
     .ex .grid2 textarea{min-height:4rem}
     .ex .exexpl{width:100%;box-sizing:border-box;min-height:2.6rem;margin-top:.2rem}
@@ -326,6 +328,12 @@
           <h3>Coleções &amp; setters (competição/curso)</h3>
           <p class="small muted">Coloque o problema numa coleção e <b>compartilhe a coleção com os setters</b>:
             eles ganham acesso a todos os problemas dela. As escolhidas entram no campo <b>Coleções</b>.</p>
+          <div class="row" style="gap:.4rem;align-items:center;flex-wrap:wrap;margin-bottom:.4rem">
+            <input id="collFilter" type="text" placeholder="🔎 filtrar coleção (nome, título, dono)…" style="max-width:18rem">
+            <button id="collFilterMine"   class="filttog" type="button" title="Só coleções que você criou">minhas</button>
+            <button id="collFilterManage" class="filttog" type="button" title="Só as que você gerencia">gerencio</button>
+            <button id="collFilterCourse" class="filttog" type="button" title="Só cursos/diretórios (repos)">cursos</button>
+          </div>
           <div id="myColls" class="row" style="flex-wrap:wrap;gap:.4rem"></div>
           <div class="row" style="gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
             <input id="newCollName" type="text" placeholder="nova coleção (ex: regional2026)" style="max-width:16rem">

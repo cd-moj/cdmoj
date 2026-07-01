@@ -14,6 +14,7 @@ let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modula
 let stmtMode = 'single';                                      // 'single' | 'modular'
 let PENDING_EDITORIAL = '';                                  // editorial carregado, aplicado quando a aba Resolução abre
 let COLLS = [];
+let collFilter = { q: '', mine: false, manage: false, course: false };  // filtro dos chips de coleção
 let CAN_CREATE = false;
 let FMT = 'md';                       // formato do enunciado (md|org|tex) — preservado no save
 let SCORE = { enabled: false, groups: [] };   // pontuação por grupos (espelho do DOM)
@@ -669,8 +670,26 @@ async function loadColls() {
 function renderCollChips() {
   const box = $('myColls'); if (!box) return; box.innerHTML = '';
   const cur = currentColls();
-  const names = [...new Set([...COLLS.filter(c => c.owner).map(c => c.name), ...cur])];
-  if (!names.length) { box.append(el('span', { class: 'small muted' }, 'sem coleções ainda — crie uma abaixo.')); return; }
+  let names = [...new Set([...COLLS.filter(c => c.owner).map(c => c.name), ...cur])];
+  const q = noAccent(collFilter.q).toLowerCase().trim();
+  const active = q || collFilter.mine || collFilter.manage || collFilter.course;
+  if (active) {
+    names = names.filter(n => {
+      if (cur.includes(n)) return true;                 // selecionada: sempre visível
+      const c = COLLS.find(x => x.name === n);
+      if (collFilter.mine   && !(c && c.mine))        return false;
+      if (collFilter.manage && !(c && c.can_manage))  return false;
+      if (collFilter.course && !(c && c.repo_course)) return false;
+      if (!q) return true;
+      const hay = noAccent(n + ' ' + ((c && c.title) || '') + ' ' + ((c && c.owner) || '')).toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  if (!names.length) {
+    box.append(el('span', { class: 'small muted' },
+      active ? 'nenhuma coleção corresponde ao filtro.' : 'sem coleções ainda — crie uma abaixo.'));
+    return;
+  }
   names.forEach(n => { const on = cur.includes(n);
     box.append(el('span', { class: 'collchip' + (on ? ' on' : ''), onclick: () => { const c = currentColls(); on ? setColls(c.filter(x => x !== n)) : setColls([...c, n]); } }, (on ? '✓ ' : '') + n)); });
 }
@@ -864,6 +883,11 @@ function bindHandlers() {
   $('confRaw').addEventListener('change', () => { confToFields($('confRaw').value); updateReady(); });
   $('newCollBtn').onclick = newColl;
   $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });
+  $('collFilter').addEventListener('input', () => { collFilter.q = $('collFilter').value; renderCollChips(); });
+  const bindTog = (id, key) => $(id).addEventListener('click', () => {
+    collFilter[key] = !collFilter[key]; $(id).classList.toggle('on', collFilter[key]); renderCollChips();
+  });
+  bindTog('collFilterMine', 'mine'); bindTog('collFilterManage', 'manage'); bindTog('collFilterCourse', 'course');
   $('enunMount').addEventListener('input', updateReady);
   $('stmtToggle').onclick = toggleStmtMode;
   $('pubToggle').onclick = togglePublic;
