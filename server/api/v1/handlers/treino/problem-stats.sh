@@ -17,11 +17,11 @@ if [[ -f "$CACHE" ]] && [[ -z "$(find "$CACHE" -mmin +"${PROBLEM_STATS_TTL_MIN:-
 fi
 
 set +o noglob
-HIST="$T/controle/history"; PASSWD="$T/passwd"
+PASSWD="$T/passwd"
 title="$(jq -r '.title // ""' "$T/var/jsons/$id.json" 2>/dev/null)"
 
-# linhas do problema (campo 3 == id). Pode ser vazio.
-plines="$(awk -F: -v p="$id" '$3==p' "$HIST" 2>/dev/null)"
+# linhas do problema (campo 3 == id). Pode ser vazio. emit_history_stream unifica store-v2/legado.
+plines="$(emit_history_stream treino | awk -F: -v p="$id" '$3==p' 2>/dev/null)"
 
 core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]//""), lang:(.[3]//"?"), verdict:(.[4]//"")}' \
   | jq -s '

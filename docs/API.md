@@ -35,6 +35,20 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | `/treino/editors` | — | ranking dos editores favoritos declarados `{editors:[{editor,count}],total}` |
 | `/treino/problem-stats?id=<p>` | — | estatísticas do problema (métricas, veredictos, por-linguagem c/ solvers distintos, editores, avatares públicos) — **cacheado** (TTL `PROBLEM_STATS_TTL_MIN`) |
 
+## Treino — cadastro & vínculo Telegram (overlay do treino)
+Cadastro **web-first** verificado pelo Telegram (1 Telegram = 1 conta; anti-duplicata). Os endpoints
+`verify`/`telegram`/`recover-password` são autenticados pelo **token do bot** (`Authorization: Bearer
+mojb_…`, `require_bot`, segredo em `run/secrets/bot.token`) — o bot **não** loga como `.admin`.
+
+| Rota | Auth | I/O |
+|---|---|---|
+| `/treino/signup/start` | público (POST) | `{login?,fullname,university?}` → `{nonce, deep_link, expires_at}`. Valida o login (bloqueia sufixo de papel) e cria um nonce (TTL 15 min). **Não cria conta.** |
+| `/treino/signup/status?nonce=` | público (GET) | `{status: pending\|created\|already_linked\|linked\|expired, login?}` — **nunca** devolve a senha |
+| `/treino/signup/verify` | **bot** (POST) | `{nonce,telegram_id,telegram_username?,first_name?,last_name?}` → consome o nonce (uso único), anti-duplicata, cria+vincula (`created`) ou vincula conta logada (`linked`); devolve `{status,login,password?}` (senha só p/ DM) |
+| `/treino/signup/telegram` | **bot** (POST) | bot-first (`/participar`): `{telegram_id,…}` → cria+vincula ancorado no `telegram_id` (idempotente) ou `already_linked` |
+| `/treino/recover-password` | **bot** (POST) | `{telegram_id}` → resolve o login pelo vínculo, gera nova senha → `{status:ok\|not_linked,login?,password?}` |
+| `/treino/telegram/link-start` | Bearer | conta logada gera nonce `purpose:link` p/ vincular o próprio Telegram (ex.: `.admin` receber alertas) → `{nonce,deep_link,expires_at}` |
+
 ## Treino — painel admin (`.admin`, Bearer)
 Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na sessão e em `var/access.log`.
 
@@ -186,8 +200,11 @@ git avançado.
 | `/ops/judges` | GET | admin | status das máquinas de juiz |
 | `/ops/problemtl?problem=<p>` | GET | admin | time limits do problema |
 | `/ops/updateproblemset` | POST | admin | `{repo}` |
+| `/ops/alerts` | GET | **bot** | avalia incidentes (juiz offline+fila, fila grande, daemon caído) com histerese/cooldown e **drena o outbox**: `{items:[{id,text,chats:[<chat_id>…]}]}`. O bot só entrega (+ grupo). Estado em `run/alerts/`; sem cron (o poll do bot é o relógio) |
 
-> As rotas `admin/*` e `ops/*` são consumidas também pelo **mojinho-bot** (cliente da API).
+> As rotas `admin/*` e `ops/*` (exceto `ops/alerts`, que usa **bot-token**) são consumidas pelo painel
+> admin e pelo **moj-cli**. O **mojinho-bot** hoje é transporte fino: usa só `treino/signup/*`,
+> `treino/recover-password` e `ops/alerts` (todos **bot-token** `mojb_…`), + `/index/status` (público).
 
 ## Status do sistema (público)
 | Rota | Método | Auth | I/O |

@@ -46,9 +46,56 @@ source "$JUDGE_GW"
 
 # escalonador in-daemon (fila por prioridade + registro de workers) + ingestão pull
 source "$SERVER_DIR/judge-gw/sched-lib.sh"
+# store por-usuário (store_v2, user_dir, user_history_*, metrics_*) — write-path universal
+source "$SERVER_DIR/api/v1/lib/users.sh"
 : "${RESULTSDIR:=$RUNDIR/results}"
 # INTAKE_MODE=legacy|queue (global); INTAKE_QUEUE_CONTESTS="c1 c2" habilita por contest.
 : "${INTAKE_MODE:=legacy}"
+
+# ---- helpers de write-path (ramo store-v2 x legado) -----------------------
+# report_out_path <c> <login> <problem> <id> : caminho absoluto do report .html.
+report_out_path() {
+  if store_v2 "$1"; then printf '%s/mojlog/%s.html' "$(user_dir "$1" "$2")" "$4"
+  else printf '%s/%s/mojlog/%s-%s-%s.html' "$CONTESTSDIR" "$1" "$4" "$2" "$3"; fi
+}
+# report_html_rel <c> <login> <problem> <id> : caminho relativo gravado no result/review json.
+report_html_rel() {
+  if store_v2 "$1"; then printf 'mojlog/%s.html' "$4"
+  else printf 'mojlog/%s-%s-%s.html' "$4" "$2" "$3"; fi
+}
+# record_verdict <c> <login> <tempo> <problem> <lang> <verdict> <sub_epoch> <id> : finaliza no history.
+record_verdict() {
+  local c="$1" login="$2" tempo="$3" prob="$4" lang="$5" verdict="$6" se="$7" id="$8"
+  if store_v2 "$c"; then
+    user_history_replace "$c" "$login" "$id" "$tempo:$prob:$lang:$verdict:$se:$id"
+    metrics_recompute "$c" "$login"
+  else
+    update_history "$CONTESTSDIR/$c/controle/history" "$id" "$tempo:$login:$prob:$lang:$verdict:$se:$id"
+    update_data "$CONTESTSDIR/$c/data/$login" "$id" "$se:$id:$prob:$verdict"
+  fi
+}
+# record_provisional <c> <login> <tempo> <problem> <lang> <sub_epoch> <id> : marca "Not Answered Yet".
+record_provisional() {
+  local c="$1" login="$2" tempo="$3" prob="$4" lang="$5" se="$6" id="$7"
+  if store_v2 "$c"; then
+    user_history_replace "$c" "$login" "$id" "$tempo:$prob:$lang:Not Answered Yet:$se:$id"
+  else
+    update_history "$CONTESTSDIR/$c/controle/history" "$id" "$tempo:$login:$prob:$lang:Not Answered Yet:$se:$id"
+  fi
+}
+# hist_line_by_id <c> <login> <id> : ecoa a linha de history da submissão (normalizada p/ 7 campos
+# <tempo>:<login>:<prob>:<lang>:<verdict>:<sub_epoch>:<id>, com login preenchido), ou vazio.
+hist_line_by_id() {
+  local c="$1" login="$2" id="$3"
+  if store_v2 "$c"; then
+    local hf; hf="$(user_hist_file "$c" "$login")"
+    awk -F: -v id="$id" -v u="$login" '$NF==id{
+      v=$4; for(i=5;i<=NF-2;i++) v=v":"$i;
+      print $1":"u":"$2":"$3":"v":"$(NF-1)":"$NF; exit}' "$hf" 2>/dev/null
+  else
+    grep ":$id\$" "$CONTESTSDIR/$c/controle/history" 2>/dev/null | tail -n1
+  fi
+}
 
 log() { echo "[judged $(date +%H:%M:%S)] $*" >&2; }
 
@@ -82,8 +129,13 @@ archive_source() {
   [[ -n "$code_b64" ]] || return 0
   local cdir="$CONTESTSDIR/$contest" llang dest tmp
   llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
-  mkdir -p "$cdir/submissions" 2>/dev/null
-  dest="$cdir/submissions/$id-$login-$problem.${llang:-txt}"; tmp="$dest.tmp.$$"
+  if store_v2 "$contest"; then
+    dest="$(user_dir "$contest" "$login")/submissions/$id.${llang:-txt}"
+  else
+    dest="$cdir/submissions/$id-$login-$problem.${llang:-txt}"
+  fi
+  mkdir -p "$(dirname "$dest")" 2>/dev/null
+  tmp="$dest.tmp.$$"
   if printf '%s' "$code_b64" | base64 -d > "$tmp" 2>/dev/null; then mv -f "$tmp" "$dest"; else rm -f "$tmp"; fi
 }
 
@@ -135,10 +187,11 @@ should_hold() {
 write_review_item() {
   local contest="$1" id="$2" login="$3" prob="$4" lang="$5" sub_epoch="$6" verdict="$7"
   local dir="$CONTESTSDIR/$contest/review"; mkdir -p "$dir"
+  local rel; rel="$(report_html_rel "$contest" "$login" "$prob" "$id")"
   jq -cn --arg id "$id" --arg c "$contest" --arg l "$login" --arg p "$prob" --arg lang "$lang" \
-    --argjson se "${sub_epoch:-0}" --arg v "$verdict" --argjson now "$EPOCHSECONDS" \
+    --argjson se "${sub_epoch:-0}" --arg v "$verdict" --arg rel "$rel" --argjson now "$EPOCHSECONDS" \
     '{id:$id, contest:$c, login:$l, problem_id:$p, lang:$lang, sub_epoch:$se,
-      computed_verdict:$v, report_html:("mojlog/\($id)-\($l)-\($p).html"),
+      computed_verdict:$v, report_html:$rel,
       created_at:$now, status:"open", claimants:[], votes:[], conflict:false,
       released_verdict:null, released_by:null, released_at:null}' \
     > "$dir/.$id.tmp" && mv -f "$dir/.$id.tmp" "$dir/$id.json"
@@ -159,16 +212,23 @@ consume_setverdict() {
   [[ -n "$verdict" ]] || { log "setverdict: sem verdict"; return 1; }
   local cdir="$CONTESTSDIR/$contest" line=""
   local hist="$cdir/controle/history"
-  [[ -n "$id" ]] && line="$(grep ":$id\$" "$hist" 2>/dev/null | tail -n1)"
-  if [[ -z "$line" && -n "$username" && -n "$problem" ]]; then
-    line="$(awk -F: -v u="$username" -v p="$problem" '$2==u && $3==p' "$hist" 2>/dev/null | tail -n1)"
+  if store_v2 "$contest"; then
+    [[ -n "$username" ]] && line="$(hist_line_by_id "$contest" "$username" "$id")"
+    if [[ -z "$line" && -n "$id" && -f "$cdir/review/$id.json" ]]; then
+      local rl; rl="$(jq -r '.login // empty' "$cdir/review/$id.json" 2>/dev/null)"
+      [[ -n "$rl" ]] && line="$(hist_line_by_id "$contest" "$rl" "$id")"
+    fi
+  else
+    [[ -n "$id" ]] && line="$(grep ":$id\$" "$hist" 2>/dev/null | tail -n1)"
+    if [[ -z "$line" && -n "$username" && -n "$problem" ]]; then
+      line="$(awk -F: -v u="$username" -v p="$problem" '$2==u && $3==p' "$hist" 2>/dev/null | tail -n1)"
+    fi
   fi
   [[ -n "$line" ]] || { log "setverdict: submissão não achada (id=$id user=$username prob=$problem)"; clog "$contest" verdict-set-falhou "id=$id user=$username prob=$problem motivo=sem-history"; return 1; }
   local tempo h_login h_prob h_lang _v sub_epoch h_id
   IFS=: read -r tempo h_login h_prob h_lang _v sub_epoch h_id <<<"$line"
   [[ -n "$id" ]] || id="$h_id"
-  update_history "$hist" "$id" "$tempo:$h_login:$h_prob:$h_lang:$verdict:$sub_epoch:$id"
-  update_data "$cdir/data/$h_login" "$id" "$sub_epoch:$id:$h_prob:$verdict"
+  record_verdict "$contest" "$h_login" "$tempo" "$h_prob" "$h_lang" "$verdict" "$sub_epoch" "$id"
   local rjson; rjson="$(jq -cn --arg id "$id" --arg c "$contest" --arg p "$h_prob" --arg l "$h_login" \
     --arg lang "$h_lang" --arg v "$verdict" \
     '{id:$id, contest:$c, problem_id:$p, login:$l, lang:$lang, verdict:$v, host:"manual"}')"
@@ -186,17 +246,20 @@ consume_setverdict() {
 # write_result_json ... : grava o results/<id>.json canônico (sem o b64, com ref do HTML).
 write_result_json() {
   local contest="$1" id="$2" login="$3" problem="$4" json="$5"
-  local cdir="$CONTESTSDIR/$contest" out
-  mkdir -p "$cdir/results" "$RESULTSDIR" 2>/dev/null
-  out="$(jq -c --arg login "$login" --arg prob "$problem" --argjson now "$EPOCHSECONDS" '
+  local out rel resdir
+  rel="$(report_html_rel "$contest" "$login" "$problem" "$id")"
+  if store_v2 "$contest"; then resdir="$(user_dir "$contest" "$login")/results"
+  else resdir="$CONTESTSDIR/$contest/results"; fi
+  mkdir -p "$resdir" "$RESULTSDIR" 2>/dev/null
+  out="$(jq -c --arg login "$login" --arg prob "$problem" --arg rel "$rel" --argjson now "$EPOCHSECONDS" '
     del(.report_html_b64)
     + { login:(.login // $login), problem_id:(.problem_id // $prob),
-        report_html:("mojlog/\(.id)-\($login)-\($prob).html"), finalized_at:$now }' \
+        report_html:$rel, finalized_at:$now }' \
     <<<"$json" 2>/dev/null)"
   [[ -n "$out" ]] || return 0
-  local tmp="$cdir/results/.$id.tmp"
-  printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$cdir/results/$id.json"
-  cp -f "$cdir/results/$id.json" "$RESULTSDIR/$id.json" 2>/dev/null || true
+  local tmp="$resdir/.$id.tmp"
+  printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$resdir/$id.json"
+  cp -f "$resdir/$id.json" "$RESULTSDIR/$id.json" 2>/dev/null || true
 }
 
 # ingest_result <result-json> : finaliza um julgamento vindo do worker (modelo pull).
@@ -213,28 +276,30 @@ ingest_result() {
   valid_contest_id "$contest" || { log "result: contest inválido"; return 1; }
   [[ -n "$id" ]] || { log "result: sem id"; return 1; }
   local cdir="$CONTESTSDIR/$contest"; hist="$cdir/controle/history"
-  mkdir -p "$cdir/controle" "$cdir/data" "$cdir/mojlog" "$cdir/results" 2>/dev/null
-  line="$(grep ":$id\$" "$hist" 2>/dev/null | tail -n1)"
+  local j_login; j_login="$(jq -r '.login // ""' <<<"$json")"
+  if store_v2 "$contest"; then mkdir -p "$cdir/results" 2>/dev/null
+  else mkdir -p "$cdir/controle" "$cdir/data" "$cdir/mojlog" "$cdir/results" 2>/dev/null; fi
+  line="$(hist_line_by_id "$contest" "$j_login" "$id")"
   IFS=: read -r tempo h_login h_prob h_lang _ sub_epoch _ <<<"$line"
-  [[ -n "$h_login" ]] || h_login="$(jq -r '.login // ""' <<<"$json")"
+  [[ -n "$h_login" ]] || h_login="$j_login"
   [[ -n "$h_prob"  ]] || h_prob="$(jq -r '.problem_id // ""' <<<"$json")"
   [[ -n "$h_lang"  ]] || h_lang="$(jq -r '(.lang // "")|ascii_upcase' <<<"$json")"
   [[ -n "$sub_epoch" ]] || sub_epoch="$EPOCHSECONDS"
   [[ -n "$tempo" ]] || tempo="$sub_epoch"
   # MODO VEREDICTO MANUAL: segura o veredicto computado p/ revisão de 2 juízes (não finaliza).
   if should_hold "$contest" "$h_login" "$h_prob" "$h_lang" "$verdict" "$vcanon"; then
-    local hb; hb="$(jq -r '.report_html_b64 // empty' <<<"$json")"
-    [[ -n "$hb" ]] && printf '%s' "$hb" | base64 -d > "$cdir/mojlog/$id-$h_login-$h_prob.html" 2>/dev/null
+    local hb hout; hb="$(jq -r '.report_html_b64 // empty' <<<"$json")"
+    hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; mkdir -p "$(dirname "$hout")" 2>/dev/null
+    [[ -n "$hb" ]] && printf '%s' "$hb" | base64 -d > "$hout" 2>/dev/null
     write_review_item "$contest" "$id" "$h_login" "$h_prob" "$h_lang" "$sub_epoch" "$verdict"
     [[ -n "$host" ]] && q_done "$host" "$id"
     log "veredicto SEGURADO p/ revisão id=$id contest=$contest verdict=$verdict"
     return 0
   fi
-  update_history "$hist" "$id" "$tempo:$h_login:$h_prob:$h_lang:$verdict:$sub_epoch:$id"
-  update_data "$cdir/data/$h_login" "$id" "$sub_epoch:$id:$h_prob:$verdict"
-  local html_b64; html_b64="$(jq -r '.report_html_b64 // empty' <<<"$json")"
-  [[ -n "$html_b64" ]] && printf '%s' "$html_b64" | base64 -d \
-    > "$cdir/mojlog/$id-$h_login-$h_prob.html" 2>/dev/null
+  record_verdict "$contest" "$h_login" "$tempo" "$h_prob" "$h_lang" "$verdict" "$sub_epoch" "$id"
+  local html_b64 hout; html_b64="$(jq -r '.report_html_b64 // empty' <<<"$json")"
+  hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; mkdir -p "$(dirname "$hout")" 2>/dev/null
+  [[ -n "$html_b64" ]] && printf '%s' "$html_b64" | base64 -d > "$hout" 2>/dev/null
   write_result_json "$contest" "$id" "$h_login" "$h_prob" "$json"
   [[ -n "$host" ]] && q_done "$host" "$id"
   [[ -e "$SCORE_BUILD" ]] && bash "$SCORE_BUILD" "$contest" >/dev/null 2>&1
@@ -275,20 +340,20 @@ process_spool_file() {
   # (match por :<id>). Sem isto o rejulgar não fazia NADA (JSON vazio -> descartado).
   local json
   if [[ "$comando" == rejulgar ]]; then
-    local rc rid; rc="$(cut -d: -f1 <<<"$base")"; rid="$(cut -d: -f3 <<<"$base")"
+    local rc rid rlogin; rc="$(cut -d: -f1 <<<"$base")"; rid="$(cut -d: -f3 <<<"$base")"; rlogin="$(cut -d: -f4 <<<"$base")"
     if ! valid_contest_id "$rc"; then log "rejulgar: contest inválido em $base"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
-    local rhist="$CONTESTSDIR/$rc/controle/history" rline
-    rline="$(grep ":$rid\$" "$rhist" 2>/dev/null | tail -n1)"
+    local rline; rline="$(hist_line_by_id "$rc" "$rlogin" "$rid")"
     if [[ -z "$rline" ]]; then log "rejulgar: $rid não está no history de $rc"; clog "$rc" rejulgar-falhou "id=$rid motivo=sem-history"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
     local r_tempo r_login r_prob r_lang r_sub
     IFS=: read -r r_tempo r_login r_prob r_lang _ r_sub _ <<<"$rline"
     local r_llang r_src r_b64=""
     r_llang="$(printf '%s' "$r_lang" | tr '[:upper:]' '[:lower:]')"
-    r_src="$CONTESTSDIR/$rc/submissions/$rid-$r_login-$r_prob.${r_llang:-txt}"
+    if store_v2 "$rc"; then r_src="$(user_dir "$rc" "$r_login")/submissions/$rid.${r_llang:-txt}"
+    else r_src="$CONTESTSDIR/$rc/submissions/$rid-$r_login-$r_prob.${r_llang:-txt}"; fi
     [[ -f "$r_src" ]] && r_b64="$(base64 -w0 < "$r_src" 2>/dev/null)"
     if [[ -z "$r_b64" ]]; then log "rejulgar: fonte ausente p/ $rid ($r_src)"; clog "$rc" rejulgar-falhou "id=$rid motivo=sem-fonte src=$r_src"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
     # provisório "Not Answered Yet" -> aparece como PENDENTE na Situação enquanto re-julga
-    update_history "$rhist" "$rid" "$r_tempo:$r_login:$r_prob:$r_lang:Not Answered Yet:$r_sub:$rid"
+    record_provisional "$rc" "$r_login" "$r_tempo" "$r_prob" "$r_lang" "$r_sub" "$rid"
     json="$(jq -cn --arg c "$rc" --arg l "$r_login" --arg p "$r_prob" --arg lang "$r_lang" \
       --arg b "$r_b64" --arg fn "solution.${r_llang:-txt}" --argjson t "${r_sub:-$EPOCHSECONDS}" --arg id "$rid" \
       '{contest:$c, login:$l, problem_id:$p, filename:$fn, code_b64:$b, lang:$lang, time:$t, id:$id}')"
@@ -346,7 +411,8 @@ process_spool_file() {
   fi
 
   local cdir="$CONTESTSDIR/$contest"
-  mkdir -p "$cdir/controle" "$cdir/data" "$cdir/submissions" "$cdir/mojlog" 2>/dev/null
+  if store_v2 "$contest"; then mkdir -p "$(user_dir "$contest" "$login")/submissions" "$(user_dir "$contest" "$login")/mojlog" "$(user_dir "$contest" "$login")/results" 2>/dev/null
+  else mkdir -p "$cdir/controle" "$cdir/data" "$cdir/submissions" "$cdir/mojlog" 2>/dev/null; fi
 
   log "julgando $base (contest=$contest login=$login prob=$problem lang=$lang id=$id cmd=${comando:-submit})"
 
@@ -372,7 +438,8 @@ process_spool_file() {
   # ---- (2) chama o juiz ----------------------------------------------------
   # Diz ao gateway onde gravar o report.html auto-contido (servido pela API em
   # mojlog/*<id>*). Backends que não produzem report ignoram esta variável.
-  export JUDGE_REPORT_OUT="$cdir/mojlog/$id-$login-$problem.html"
+  export JUDGE_REPORT_OUT="$(report_out_path "$contest" "$login" "$problem" "$id")"
+  mkdir -p "$(dirname "$JUDGE_REPORT_OUT")" 2>/dev/null
   local verdict
   verdict="$(judge_run "$contest" "$problem" "$lang" "$code_b64" "${filename:-solution}")"
   [[ -z "$verdict" ]] && verdict="Judge Error (empty verdict)"
@@ -404,15 +471,9 @@ process_spool_file() {
     return 0
   fi
 
-  # ---- (3) troca a linha provisória do history pela definitiva --------------
-  # Match SEGURO pelo sufixo ":<id>" (o id é md5 — único). Reescrita atômica.
-  # Formato (7 campos): <tempo>:<login>:<probid>:<lang>:<verdict>:<epoch>:<id>
-  update_history "$cdir/controle/history" "$id" \
-    "$tempo:$login:$problem:$lang:$verdict:$sub_epoch:$id"
-
-  # ---- (4) registra/atualiza data/<login> ----------------------------------
-  # Formato observado: <epoch>:<id>:<probid>:<verdict>  (1 linha por submissão).
-  update_data "$cdir/data/$login" "$id" "$sub_epoch:$id:$problem:$verdict"
+  # ---- (3) finaliza no history (troca a provisória :<id> pela definitiva) ----
+  # store-v2: users/<login>/history (login implícito) + metrics.json; legado: controle/history + data/<login>.
+  record_verdict "$contest" "$login" "$tempo" "$problem" "$lang" "$verdict" "$sub_epoch" "$id"
 
   # ---- (4b) results/<id>.json do sidecar estruturado (dev = prod: alimenta o resumo) --------
   local metaf="$cdir/mojlog/$id-$login-$problem.meta.json"
@@ -426,20 +487,8 @@ process_spool_file() {
     rm -f "$metaf"
   fi
 
-  # ---- (5) arquiva a fonte decodificada ------------------------------------
-  # contests/<contest>/submissions/<id>-<login>-<problemid>.<lang>
-  local llang dest
-  llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
-  dest="$cdir/submissions/$id-$login-$problem.${llang:-txt}"
-  if [[ -n "$code_b64" ]]; then
-    local tmpsrc="$dest.tmp.$$"
-    if printf '%s' "$code_b64" | base64 -d > "$tmpsrc" 2>/dev/null; then
-      mv -f "$tmpsrc" "$dest"
-    else
-      rm -f "$tmpsrc"
-      log "não consegui decodificar a fonte de $id (base64 inválido)"
-    fi
-  fi
+  # ---- (5) arquiva a fonte decodificada (ramo store-v2 x legado em archive_source) ----
+  archive_source "$contest" "$id" "$login" "$problem" "$lang" "$code_b64"
 
   # ---- (6) recalcula placar, se o builder existir --------------------------
   if [[ -x "$SCORE_BUILD" || -r "$SCORE_BUILD" ]]; then

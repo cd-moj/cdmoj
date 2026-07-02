@@ -5,14 +5,13 @@ if [[ -z "$user" ]]; then load_session && user="$SESSION_LOGIN"; fi
 [[ -n "$user" ]] || fail 400 "Missing user" "user_missing"
 valid_id "$user" || fail 400 "Invalid user" "user_invalid"
 
-hist="$CONTESTSDIR/treino/controle/history"
 emit_json 200 OK
-[[ -f "$hist" ]] || { jq -cn '{success:true, solved:[], attempted:[]}'; exit 0; }
-
-awk -F: -v u="$user" '
-  $2==u { if ($5 ~ /^Accepted/) s[$3]=1; else a[$3]=1 }
+# store-v2: users/<user>/history; legado: controle/history — emit_user_history unifica (7 campos).
+emit_user_history treino "$user" \
+| awk -F: '
+  { if ($5 ~ /^Accepted/) s[$3]=1; else a[$3]=1 }
   END { for (k in s) print "S\t" k; for (k in a) if (!(k in s)) print "A\t" k }
-' "$hist" \
+' \
 | jq -R -s -c '
     split("\n") | map(select(length>0))
     | reduce .[] as $l ({solved:[], attempted:[]};

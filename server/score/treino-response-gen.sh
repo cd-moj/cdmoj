@@ -24,10 +24,13 @@ case "$C" in *[!A-Za-z0-9._@#+-]* | "" | *..* ) echo "treino-response-gen: inval
 
 hist="$CONTESTSDIR/$C/controle/history"
 resdir="$CONTESTSDIR/$C/results"
+# store-v2: history no formato global (temp) + results espalhados por users/<login>/results/.
+_SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$_SDIR/../api/v1/lib/users.sh"
+_HT=""; if store_v2 "$C"; then _HT="$(mktemp)"; emit_history_stream "$C" > "$_HT"; hist="$_HT"; fi
 mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "treino-response-gen: mktemp falhou" >&2; exit 1; }
 MAPTMP="$(mktemp "$OUT.map.XXXXXX")" || { echo "treino-response-gen: mktemp falhou" >&2; exit 1; }
-trap 'rm -f "$TMP" "$MAPTMP"' EXIT
+trap 'rm -f "$TMP" "$MAPTMP" "${_HT:-}"' EXIT
 
 empty='{"success":true,"coverage":{"history_total":0,"with_finalized":0},"overall":{"n":0,"avg_wait_s":0,"p50_wait_s":0,"p95_wait_s":0,"max_wait_s":0,"avg_judge_s":0,"avg_queue_s":0},"per_day":[],"by_dow_hour":[]}'
 
@@ -48,9 +51,10 @@ if [[ -f "$hist" ]]; then
   [[ -s "$MAPTMP" ]] || printf '{}\n' > "$MAPTMP"
 fi
 
-# coleta os results/<id>.json (cada um já traz id, finalized_at, duration_s)
+# coleta os results/<id>.json (cada um já traz id, finalized_at, duration_s).
+# store-v2: espalhados em users/<login>/results/; legado: results/ do contest.
 set +o noglob; shopt -s nullglob
-files=( "$resdir"/*.json )
+if store_v2 "$C"; then files=( "$(users_dir "$C")"/*/results/*.json ); else files=( "$resdir"/*.json ); fi
 shopt -u nullglob
 
 if (( ${#files[@]} == 0 )); then

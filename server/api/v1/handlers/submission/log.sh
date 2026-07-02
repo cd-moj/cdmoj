@@ -13,11 +13,8 @@ sid="$(param id)"
   || fail 400 "Invalid submission id" "id_invalid"
 
 set +o noglob; shopt -s nullglob
-sfiles=("$CONTESTSDIR/$contest/submissions/"*"$sid"*)
-owner=""
-if (( ${#sfiles[@]} > 0 )); then
-  base="${sfiles[0]##*/}"; after="${base#*"$sid"-}"; owner="${after%%-*}"
-fi
+resolve_submission "$contest" "$sid"     # store-v2 ou legado
+owner="$SUB_OWNER"
 SHOWCODE=0; SHOWLOG=""
 load_contest_conf "$contest"
 # juiz/admin sempre veem; dono vê salvo se o admin escondeu o log (SHOWLOG=0).
@@ -30,7 +27,6 @@ if ! is_judge; then
   fi
 fi
 
-logs=("$CONTESTSDIR/$contest/mojlog/"*"$sid"*)
 shopt -u nullglob
 emit_html
-if (( ${#logs[@]} > 0 )); then cat "${logs[0]}"; else printf '<!doctype html><meta charset="utf-8"><p style="font:16px sans-serif;color:#64748b;padding:1rem">Report indisponível para esta submissão.</p>\n'; fi
+if [[ -n "$SUB_LOG" && -f "$SUB_LOG" ]]; then cat "$SUB_LOG"; else printf '<!doctype html><meta charset="utf-8"><p style="font:16px sans-serif;color:#64748b;padding:1rem">Report indisponível para esta submissão.</p>\n'; fi

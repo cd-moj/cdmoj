@@ -7,8 +7,6 @@ require_contest "$contest"
 require_auth_contest "$contest"
 
 emit_text
-hist="$CONTESTSDIR/$contest/controle/history"
-[[ -f "$hist" ]] || exit 0
 
 # Modo do placar (mesmo seletor do score/build.sh: CONTEST_TYPE/SCORE_MODE). Em placares com
 # pontos PARCIAIS (obi/heurístico/outro) o competidor PODE ver o score; em binários (icpc/treino/
@@ -19,7 +17,8 @@ rawtype="${rawtype%\"}"; rawtype="${rawtype#\"}"; rawtype="${rawtype%\'}"; rawty
 rawtype="$(printf '%s' "$rawtype" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 case "$rawtype" in obi|heuristic|flia|outro|custom) strip=0 ;; *) strip=1 ;; esac
 
-awk -F: -v u="$SESSION_LOGIN" -v strip="$strip" 'BEGIN{OFS=":"} $2==u {
+# store-v2 (users/<login>/history) ou legado (controle/history), unificado em 7 campos.
+emit_user_history "$contest" "$SESSION_LOGIN" | awk -F: -v strip="$strip" 'BEGIN{OFS=":"} {
   if (strip+0==1) { v=$5; sub(/,.*/, "", v); $5=v }   # corta o sufixo de score do veredicto
   print
-}' "$hist"
+}'

@@ -5,6 +5,6 @@ id="$(param id)"
 [[ -n "$id" ]] || fail 400 "Missing problem id" "id_missing"
 valid_id "$id" || fail 400 "Invalid problem id" "id_invalid"
 emit_text
-hist="$CONTESTSDIR/treino/controle/history"
-[[ -f "$hist" ]] || exit 0
-awk -F: -v u="$SESSION_LOGIN" -v p="$id" '$2==u && $3==p' "$hist"
+# store-v2: users/<login>/history (login implícito); legado: controle/history. emit_user_history
+# devolve as duas no MESMO formato de 7 campos (com login), então o filtro por problema não muda.
+emit_user_history treino "$SESSION_LOGIN" | awk -F: -v p="$id" '$3==p'

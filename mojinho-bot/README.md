@@ -1,142 +1,61 @@
-# mojinho-bot — bot do Telegram do MOJ (cliente da API)
+# mojinho-bot — bot do Telegram do MOJ (transporte fino da API)
 
-Este diretório tem **dois** bots:
+`mojinho-api.sh` é um **cliente fino** da API v1: a API é dona de toda a lógica, estado e
+política; o bot só recebe updates do Telegram, repassa comandos à API e entrega mensagens/DMs
+e o **outbox de alertas**. (O `mojinho.sh` legado — que escrevia no spool e falava `nc` com os
+juízes, com token e GODS embutidos — está **gitignorado** e não é mais usado.)
 
-| arquivo | papel |
-|---|---|
-| `mojinho.sh` | bot **original** (referência). Acopla ao MOJ pelo **spool** (escreve arquivos de comando) e fala `nc` direto com os juízes. **Não é mais usado**; mantido como referência histórica. |
-| `mojinho-api.sh` | bot **novo**. É um **cliente fino da API REST v1** do MOJ: cada ação administrativa vira uma chamada HTTP (`curl` + header `Host`). Sem spool, sem `nc`. É o que roda em produção. |
+## O modelo (o que mudou)
 
-## O que mudou (API client vs spool/nc)
-
-- **Sem escrita no spool / sem `nc`.** Antes o bot criava arquivos em
-  `~moj/work/submissions/...` e abria sockets para os juízes. Agora ele
-  **chama a API** (`POST/GET http://127.0.0.1:8080/api/v1/...`) com o header
-  `Host: moj.charge.naquadah.com.br` (o nginx roteia por Host).
-- **Token do Telegram só do arquivo.** O token **não** está mais hardcoded no
-  script; é lido **exclusivamente** de `./token`.
-- **Config externa.** Endpoint da API, host, base pública (links), credenciais
-  de admin e a lista de GODS vêm de `./bot.conf` (veja `bot.conf.sample`).
-- **Autenticação por sessão.** O bot obtém um **token de admin** logando uma vez
-  (`POST /auth/login?contest=<contest>` com um usuário `*.admin`), cacheia esse
-  token e o reusa como `Authorization: Bearer ...`. Em `401`, faz **re-login**
-  automático e repete a chamada.
-- **JSON com `jq`.** O bot novo usa `jq` (o original usava `jshon`, que não está
-  instalado neste host). A API também é toda `jq`.
-- **Continuam locais (sem API):** `/cantar` (sorteia um `musica.*`), `/amigod`,
-  `/help`. Os **logs de auditoria** (`log-getcode.txt`, `log-getlog.txt`,
-  `log-cantar.txt`) também continuam locais.
+- **Sem `.admin`, sem GODS.** O bot autentica na API com um **token dedicado** `mojb_…`
+  (`Authorization: Bearer mojb_…`, verificado por `require_bot`), guardado em
+  `run/secrets/bot.token`. Não loga mais como usuário `.admin`.
+- **Identidade Telegram = 1 conta.** Toda ação é ancorada no `telegram_id` (imutável): cadastrar,
+  vincular e recuperar senha. Trocar de @username não cria conta nova.
+- **Senha só por DM.** A API gera a senha e o bot a entrega no privado (posse do Telegram = prova).
+- **Alertas.** A API decide o quê/quando alertar (juiz offline+fila, fila grande, daemon caído,
+  com histerese/cooldown); o bot só drena `GET /ops/alerts` a cada volta do loop e envia.
 
 ## Configuração
 
-### 1. Token do Telegram — `./token`
+1. **Token do Telegram** — só no arquivo `./token` (gitignorado). Uma linha `NNNN:AAAA…`.
+2. **`./bot.conf`** — copie de `bot.conf.sample` (`chmod 600`, não comite). Define `MOJ_API`,
+   `MOJ_HOST`, `MOJ_WEB`, `MOJ_CONTEST`, `BOT_TOKEN_FILE` (ou `BOT_TOKEN`), `ALERT_GROUP_CHAT`,
+   `ALERT_POLL_SECS`.
+3. **Token do bot p/ a API** — gere `run/secrets/bot.token`:
+   ```
+   printf 'mojb_%s' "$(head -c24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c32)" \
+     > run/secrets/bot.token && chmod 600 run/secrets/bot.token
+   ```
+4. **`TELEGRAM_BOT_USERNAME`** (em `server/etc/common.conf`) = @username do bot, usado pela API
+   p/ montar o deep-link do cadastro (`t.me/<bot>?start=<nonce>`). Produção: `mojinho_bot`.
 
-O bot lê o token **apenas** deste arquivo. O parser pega a primeira linha que
-casa com o formato de token (`<digitos>:<resto>`), então linhas de lixo/comentário
-são ignoradas. Proteja o arquivo:
+## Comandos → endpoint
 
-```bash
-chmod 600 token
-```
+| Comando | Endpoint (bot-token, salvo `/status`) | O quê |
+|---|---|---|
+| `/start <nonce>` | `POST /treino/signup/verify` | confirma cadastro/vínculo iniciado na página (deep-link) |
+| `/start` (sem nonce) | — | boas-vindas + link do cadastro |
+| `/participar` | `POST /treino/signup/telegram` | cria+vincula a conta no treino (bot-first, idempotente) |
+| `/trocarsenha` | `POST /treino/recover-password` | recupera a senha pelo vínculo Telegram |
+| `/status` | `GET /index/status` (público) | saúde do MOJ (juízes/fila) |
+| `/help`, `/cantar` | — | locais |
 
-### 2. `./bot.conf` (a partir do sample)
+Comandos administrativos antigos (`rejulgar*`, `onqueue`, `listjudges`, `problemtl`,
+`updateproblemset`, `alteravigencia`, `synctreino`, `getcode`, `getlog`) **saíram do bot** — use o
+painel admin da web ou o `moj-cli`. O bot ficou restrito ao que é ancorado no Telegram do usuário.
 
-```bash
-cp bot.conf.sample bot.conf
-chmod 600 bot.conf       # contém a senha do admin
-$EDITOR bot.conf
-```
+## Loop de alertas
 
-Variáveis (defaults entre parênteses; o `bot.conf` sobrescreve):
+O loop faz long-poll curto de `getUpdates` (`timeout=ALERT_POLL_SECS`) e, a cada volta, chama
+`deliver_alerts` → `GET /ops/alerts` → envia cada `item.text` para `item.chats` (DMs dos `.admin`
+vinculados) **+** `ALERT_GROUP_CHAT`. Os `.admin` recebem DM só depois de vincularem o Telegram via
+**Perfil → vincular Telegram** (deep-link de `POST /treino/telegram/link-start`).
 
-| variável | descrição |
-|---|---|
-| `MOJ_API` (`http://127.0.0.1:8080/api/v1`) | base da API REST (o bot roda no servidor) |
-| `MOJ_HOST` (`moj.charge.naquadah.com.br`) | header `Host:` enviado à API (o nginx roteia por Host) |
-| `MOJ_WEB` (`https://moj.charge.naquadah.com.br`) | base pública usada **só** nos links das respostas |
-| `MOJ_ADMIN_CONTEST` (`treino`) | contest do usuário `*.admin` usado no login |
-| `MOJ_ADMIN_USER` | login do admin do bot (**precisa terminar em `.admin`**) |
-| `MOJ_ADMIN_PASS` | senha desse admin |
-| `GODS[<username>]=true` | usuários do Telegram autorizados aos comandos administrativos |
+## Rodar
 
-> **Credenciais de admin do bot:** crie um usuário `*.admin` no `passwd` do
-> contest `MOJ_ADMIN_CONTEST` (ex.: `bot.admin`). A API trata `login == *.admin`
-> como admin (ver `is_admin` em `server/api/v1/lib/auth.sh`). Esse é o usuário
-> cujas credenciais vão em `MOJ_ADMIN_USER`/`MOJ_ADMIN_PASS`. Mantenha-as **só**
-> no `bot.conf` (modo `600`), nunca no `.sample` nem no script.
-
-## Como rodar
-
-### Direto (debug)
-
-```bash
-cd ~/moj/mojinho-bot
-bash mojinho-api.sh
-```
-
-### Como serviço (systemd, sem root)
-
-A unit **`moj-bot.service`** está em `server/etc/systemd/` (é um *sample* —
-ajuste o `ExecStart` para `mojinho-api.sh`). Instalação no nível do usuário
-(`systemctl --user`), conforme `server/etc/systemd/README.md`:
-
-```bash
-mkdir -p ~/.config/systemd/user
-ln -sf ~/moj/server/etc/systemd/moj-bot.service ~/.config/systemd/user/
-# garanta que o ExecStart aponte para mojinho-api.sh:
-#   ExecStart=/bin/bash %h/moj/mojinho-bot/mojinho-api.sh
-systemctl --user daemon-reload
-systemctl --user enable --now moj-bot.service
-journalctl --user -u moj-bot -f
-```
-
-> Para o serviço subir no boot sem sessão interativa:
-> `sudo loginctl enable-linger "$USER"` (única coisa que pede root; opcional).
-
-## Mapa comando → endpoint da API
-
-| comando do Telegram | método + endpoint | corpo / query | observações |
-|---|---|---|---|
-| `/participar CONTEST [SIGLA]` | `POST /admin/adduser` | `{contest,login,fullname,email}` | `login` = username do Telegram; `email` carrega o `chat_id`. Responde login + **senha gerada** + URL. `409` → "já participa"; `404` → contest inválido. |
-| `/trocarsenha CONTEST` | `POST /admin/passwd` | `{contest,login,newpass}` | gera nova senha (`palavras-para-senha` + número) e troca. Só em chat privado. |
-| `/alteravigenciacontest CONTEST EPOCH` | `POST /admin/contest/extend` | `{contest,end_epoch}` | estende a vigência. **GOD**. |
-| `/synctreino` | `POST /admin/synctreino` | — | enfileira a sincronização do treino livre. **GOD**. |
-| `/rejulgarsubmissao CONTEST ID [ID2 …]` | `POST /admin/rejudge` | `{contest,ids:[…]}` | IDs no formato `TIME:HASH`. **GOD**. |
-| `/rejulgarcontestproblem CONTEST PROBLEM` | `POST /admin/rejudge` | `{contest,problem}` | rejulga um problema inteiro. **GOD**. |
-| `/getcode CONTEST TIME:HASH` | `GET /submission/source` | `?contest=&time=&id=` | separa `TIME:HASH` em `time` (epoch) + `id` (32-hex); envia o fonte como **documento**. |
-| `/getlog CONTEST TIME:HASH` | `GET /submission/log` | `?contest=&time=&id=` | idem; envia o log (gzip) como **documento**. |
-| `/onqueue` | `GET /ops/queue` | — | total + por-contest. **GOD**. |
-| `/listjudgesmachine` | `GET /ops/judges` | — | status/specs das máquinas (best-effort). **GOD**. |
-| `/problemtl PROBLEM [PROBLEM2 …]` | `GET /ops/problemtl` | `?problem=<p>` | time limits do problema nos juízes. **GOD**. |
-| `/updateproblemset REPO` | `POST /ops/updateproblemset` | `{repo}` | pede aos juízes para atualizar o problemset. **GOD**. |
-
-### Comandos **locais** (sem API)
-
-| comando | o que faz |
-|---|---|
-| `/cantar` | sorteia um `musica.*` e canta; registra em `log-cantar.txt` |
-| `/amigod` | responde se o usuário é GOD |
-| `/help` | lista os comandos (e os de GOD, se aplicável) |
-
-### Autenticação (resumo do fluxo)
-
-1. `moj_token()` garante um token: se não houver, chama `moj_login()`.
-2. `moj_login()` faz `POST /auth/login?contest=$MOJ_ADMIN_CONTEST` com
-   `{username:$MOJ_ADMIN_USER, password:$MOJ_ADMIN_PASS}` e guarda `.token`.
-3. `api()` chama a API com `Host: $MOJ_HOST` + `Authorization: Bearer <token>`.
-   Em `401`, refaz o login **uma vez** e repete.
-
-## Diferenças de formato (atenção ao migrar comandos)
-
-- **`getcode`/`getlog` agora exigem o CONTEST** e separam o hash antigo
-  (`TIME:HASH`) em `time` + `id` (a API recebe os dois separados).
-- **`rejulgarsubmissao`/`rejulgarcontestproblem` agora exigem o CONTEST**
-  (a API enfileira por contest).
-- Respostas da API seguem o envelope `{"success":true, …}` (ok) ou
-  `{"success":false,"error":{"message","code"}}` (erro); o status HTTP vem no
-  header `Status:` (o bot lê via `curl -w 'HTTP %{http_code}'`).
+Direto (debug): `bash mojinho-api.sh`. Serviço: `server/etc/systemd/moj-bot.service`
+(`ExecStart=/bin/bash %h/moj/cdmoj/mojinho-bot/mojinho-api.sh`), `systemctl --user restart moj-bot`.
 
 ## Dependências
-
-`bash`, `curl`, `jq`. (O bot original também usava `jshon`, que **não** está
-instalado neste host — por isso o bot novo é todo `jq`.)
+`bash`, `curl`, `jq`.

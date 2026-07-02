@@ -1,0 +1,252 @@
+# lib/users.sh — store de contas POR-USUÁRIO (contests/<c>/users/<login>/).
+#
+# Fonte da verdade da conta = users/<login>/account.json. O contests/<c>/passwd é
+# DERIVADO (regen_passwd) para compat com verify_password/USERS_FROM/sc_users. As
+# submissões do usuário ficam em users/<login>/history (login IMPLÍCITO = nome do dir;
+# rename de conta é só um `mv` do diretório). Métricas cacheadas em metrics.json.
+#
+# Convenções do MOJ: bash + jq, EPOCH, escrita atômica tmp+mv, JSON nunca é *sourced*
+# (só lido por jq → sem printf %q aqui). common.sh liga `set -o noglob`: qualquer glob
+# roda em subshell com `set +o noglob; shopt -s nullglob`.
+#
+# Formato da linha do history por-usuário (login removido; verdict pode conter ':'):
+#   <tempo>:<probid>:<lang>:<verdict>:<sub_epoch>:<subid>
+# Campos seguros: 1=tempo,2=probid,3=lang ; 4..(NF-2)=verdict ; NF-1=sub_epoch ; NF=subid.
+
+# --- paths ----------------------------------------------------------------
+users_dir(){    printf '%s/%s/users'                 "$CONTESTSDIR" "$1"; }        # <c>
+user_dir(){     printf '%s/%s/users/%s'              "$CONTESTSDIR" "$1" "$2"; }   # <c> <login>
+account_file(){ printf '%s/%s/users/%s/account.json' "$CONTESTSDIR" "$1" "$2"; }
+user_hist_file(){ printf '%s/%s/users/%s/history'    "$CONTESTSDIR" "$1" "$2"; }
+metrics_file(){ printf '%s/%s/users/%s/metrics.json' "$CONTESTSDIR" "$1" "$2"; }
+
+user_exists(){ [[ -f "$(account_file "$1" "$2")" ]]; }
+
+# store_v2 <contest> -> 0 se o contest já usa o store por-usuário (flag USER_STORE=v2 no conf).
+# Flag explícito (não a mera existência de users/) para não ligar no meio da migração.
+store_v2(){
+  local v; v="$(grep -m1 '^USER_STORE=' "$CONTESTSDIR/$1/conf" 2>/dev/null | cut -d= -f2-)"
+  v="${v//\'/}"; v="${v//\"/}"; [[ "$v" == v2 ]]
+}
+
+# _atomic_write <destfile>  (conteúdo no stdin) — grava atômico (tmp no mesmo dir + mv).
+_atomic_write(){
+  local f="$1" tmp; tmp="$(mktemp "$f.XXXXXX")" || return 1
+  cat > "$tmp" && mv -f "$tmp" "$f"
+}
+
+# --- account.json ---------------------------------------------------------
+# account_field <c> <login> <jq-path>  -> valor (vazio se ausente). Ex.: account_field t u '.password'
+account_field(){ jq -r "$3 // empty" "$(account_file "$1" "$2")" 2>/dev/null; }
+
+# account_merge <c> <login> <jq-filter> [jq-args...] — merge atômico no account.json.
+account_merge(){
+  local c="$1" u="$2" filter="$3"; shift 3
+  local f; f="$(account_file "$c" "$u")"
+  [[ -f "$f" ]] || return 1
+  local tmp; tmp="$(mktemp "$f.XXXXXX")" || return 1
+  jq -c "$@" "$filter" "$f" > "$tmp" && mv -f "$tmp" "$f"
+}
+
+# --- passwd derivado ------------------------------------------------------
+# regen_passwd <c> — reescreve contests/<c>/passwd a partir de todos os account.json,
+# em ordem determinística (sort), sob flock. Formato: login:senha:nome[:email].
+regen_passwd(){
+  local c="$1"
+  local pw="$CONTESTSDIR/$c/passwd" lock="$CONTESTSDIR/$c/.passwd.lock" d
+  d="$(users_dir "$c")"
+  [[ -d "$d" ]] || return 0
+  (
+    flock -w 20 9 || exit 0
+    local tmp; tmp="$(mktemp "$pw.XXXXXX")" || exit 1
+    set +o noglob; shopt -s nullglob
+    local af
+    for af in "$d"/*/account.json; do
+      jq -r 'select(.login != null and .login != "")
+             | .login+":"+.password+":"+.fullname
+               + (if ((.email//"")=="") then "" else ":"+.email end)' "$af" 2>/dev/null
+    done | LC_ALL=C sort > "$tmp"
+    mv -f "$tmp" "$pw"
+  ) 9>"$lock"
+}
+
+# --- criação / senha ------------------------------------------------------
+# user_create <c> <login> <fullname> <password> [email] -> 0 ok | 2 já existe
+# NÃO valida sufixo de papel (isso é responsabilidade do handler/signup).
+user_create(){
+  local c="$1" u="$2" name="$3" pw="$4" email="${5:-}"
+  local d; d="$(user_dir "$c" "$u")"
+  [[ -f "$d/account.json" ]] && return 2
+  mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || return 1
+  jq -cn --arg l "$u" --arg p "$pw" --arg n "$name" --arg e "$email" --argjson t "$EPOCHSECONDS" \
+     '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}' \
+     > "$d/account.json" || return 1
+  : > "$d/history"
+  regen_passwd "$c"
+}
+
+# user_genpass — senha legível: palavra do dicionário + 4 dígitos (igual cc_genpass).
+user_genpass(){
+  local wl="${PASSWORD_WORDLIST:-/home/ribas/moj/cdmoj/mojinho-bot/palavras-para-senha}" w=""
+  [[ -f "$wl" ]] && w="$(shuf -n1 "$wl" 2>/dev/null | tr -cd 'a-z0-9')"
+  [[ -n "$w" ]] || w="$(head -c8 /dev/urandom | base64 | tr -dc 'a-z0-9' | head -c6)"
+  printf '%s%04d' "$w" "$(( RANDOM % 10000 ))"
+}
+
+user_password(){ account_field "$1" "$2" '.password'; }
+user_fullname_of(){ account_field "$1" "$2" '.fullname'; }
+user_status(){ account_field "$1" "$2" '.status'; }
+
+# user_set_password <c> <login> <pw>
+user_set_password(){
+  account_merge "$1" "$2" '.password=$p|.updated_at=$t' --arg p "$3" --argjson t "$EPOCHSECONDS" \
+    && regen_passwd "$1"
+}
+# user_set_status <c> <login> <active|locked>  (usado por lock/disable; senha preservada)
+user_set_status(){
+  account_merge "$1" "$2" '.status=$s|.updated_at=$t' --arg s "$3" --argjson t "$EPOCHSECONDS"
+}
+
+# --- history por-usuário --------------------------------------------------
+# user_history_append <c> <login> <line>   (provisória e novas)
+user_history_append(){ printf '%s\n' "$3" >> "$(user_hist_file "$1" "$2")"; }
+
+# user_history_replace <c> <login> <subid> <line> — troca a linha cujo ÚLTIMO campo é
+# <subid> (reescrita atômica). Se não existir, acrescenta. Espelha update_history do daemon.
+user_history_replace(){
+  local c="$1" u="$2" id="$3" f; f="$(user_hist_file "$c" "$u")"
+  [[ -f "$f" ]] || : > "$f"
+  local tmp; tmp="$(mktemp "$f.XXXXXX")" || return 1
+  _RL="$4" awk -F: -v id="$id" '
+    {if ($NF==id){print ENVIRON["_RL"]; seen=1} else print}
+    END{if(!seen) print ENVIRON["_RL"]}' "$f" > "$tmp" && mv -f "$tmp" "$f"
+}
+
+# --- métricas -------------------------------------------------------------
+# metrics_recompute <c> <login> — reconstrói metrics.json do history local (O(history_u)).
+# Sem ARG_MAX (jq lê o arquivo direto). verdict reconstruído por .[3:-2]|join(":").
+metrics_recompute(){
+  local c="$1" u="$2" hf mf; hf="$(user_hist_file "$c" "$u")"; mf="$(metrics_file "$c" "$u")"
+  [[ -f "$hf" ]] || { echo '{}' > "$mf"; return 0; }
+  jq -R -s '
+    split("\n") | map(select(length>0)) | map(split(":"))
+    | map({probid:.[1], lang:.[2], subid:.[-1],
+           sub_epoch:(.[-2]|tonumber?),
+           verdict:(.[3:-2]|join(":")),
+           ac:((.[3:-2]|join(":"))|startswith("Accepted"))})
+    | { submissions: length,
+        accepted: (map(select(.ac))|length),
+        solved:   (map(select(.ac)|.probid)|unique),
+        attempted:(map(.probid)|unique),
+        by_lang:    (reduce .[] as $s ({}; .[$s.lang] = ((.[$s.lang]//0)+1))),
+        by_verdict: (reduce .[] as $s ({}; (($s.verdict|split(",")[0])) as $k | .[$k]=((.[$k]//0)+1))),
+        by_problem: (reduce .[] as $s ({};
+                       .[$s.probid].attempts = ((.[$s.probid].attempts//0)+1)
+                       | (if $s.ac then
+                            .[$s.probid].solved = true
+                            | .[$s.probid].first_ac_epoch =
+                                ([.[$s.probid].first_ac_epoch, $s.sub_epoch]|map(select(.!=null))|min)
+                          else . end))),
+        last_submission_at: ((map(.sub_epoch)|map(select(.!=null))|max) // 0) }
+  ' "$hf" > "$mf.tmp" 2>/dev/null && mv -f "$mf.tmp" "$mf"
+}
+
+# metrics_solved_count <c> <login> — nº de problemas distintos resolvidos (O(1) via cache).
+metrics_solved_count(){
+  local mf; mf="$(metrics_file "$1" "$2")"
+  [[ -f "$mf" ]] && jq -r '(.solved // [])|length' "$mf" 2>/dev/null || echo 0
+}
+
+# --- rename = mv do diretório --------------------------------------------
+# user_rename <c> <old> <new> -> 0 ok | 1 sem origem | 2 destino existe
+# (O caller — handler de username — cuida do limite 2/ano, uname_changes, sessão e,
+#  no treino, dos índices Telegram. Aqui: mv + login + regen_passwd.)
+user_rename(){
+  local c="$1" old="$2" new="$3"
+  local od nd; od="$(user_dir "$c" "$old")"; nd="$(user_dir "$c" "$new")"
+  [[ -d "$od" ]] || return 1
+  [[ -e "$nd" ]] && return 2
+  mv "$od" "$nd" || return 1
+  account_merge "$c" "$new" '.login=$l|.updated_at=$t' --arg l "$new" --argjson t "$EPOCHSECONDS"
+  regen_passwd "$c"
+}
+
+# --- compat de leitura: emite o history no FORMATO GLOBAL de 7 campos --------
+# tempo:login:probid:lang:verdict:sub_epoch:subid  — insere o login (2º campo) que o
+# store por-usuário mantém implícito. Fonte única p/ os leitores/agregadores: eles
+# mantêm a lógica awk e só trocam a entrada (arquivo → estes helpers).
+
+# emit_user_history <c> <login> — só desse usuário (O(1) no store-v2).
+emit_user_history(){
+  local c="$1" u="$2"
+  if store_v2 "$c"; then
+    local hf; hf="$(user_hist_file "$c" "$u")"; [[ -f "$hf" ]] || return 0
+    awk -v u="$u" 'NF{ i=index($0,":"); print substr($0,1,i-1)":"u":"substr($0,i+1) }' "$hf"
+  else
+    awk -F: -v u="$u" '$2==u' "$CONTESTSDIR/$c/controle/history" 2>/dev/null
+  fi
+}
+
+# emit_history_stream <c> — history inteiro do contest (fan-out sobre users/* no store-v2).
+emit_history_stream(){
+  local c="$1"
+  if store_v2 "$c"; then
+    local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || return 0
+    ( set +o noglob; shopt -s nullglob
+      local hf login
+      for hf in "$d"/*/history; do
+        login="${hf%/history}"; login="${login##*/}"
+        awk -v u="$login" 'NF{ i=index($0,":"); print substr($0,1,i-1)":"u":"substr($0,i+1) }' "$hf"
+      done )
+  else
+    cat "$CONTESTSDIR/$c/controle/history" 2>/dev/null
+  fi
+}
+
+# count_pending <c> — nº de submissões pendentes (veredicto provisório) sem varrer o history
+# global no store-v2: usa metrics? não — pendências não estão em metrics. Fan-out por grep.
+count_pending(){
+  local c="$1"
+  if store_v2 "$c"; then
+    local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || { echo 0; return; }
+    ( set +o noglob; shopt -s nullglob
+      local n=0 hf
+      for hf in "$d"/*/history; do
+        n=$(( n + $(grep -cE ':(Not Answered Yet|On queue|on queue|Running|running):' "$hf" 2>/dev/null) ))
+      done; echo "$n" )
+  else
+    local h="$CONTESTSDIR/$c/controle/history"
+    [[ -f "$h" ]] && grep -cE ':(Not Answered Yet|On queue|on queue|Running|running):' "$h" 2>/dev/null || echo 0
+  fi
+}
+
+# resolve_submission <c> <sid> — popula SUB_OWNER, SUB_SRC, SUB_LOG, SUB_RESULT (vazios se
+# ausentes), resolvendo por id. Store-v2: users/<owner>/{submissions,mojlog,results}/<sid>.* ;
+# legado: submissions/*<sid>* (owner do nome), mojlog/*<sid>*, results/<sid>.json.
+# PRÉ-REQUISITO: o caller já fez `set +o noglob; shopt -s nullglob` (padrão dos handlers).
+resolve_submission(){
+  local c="$1" sid="$2" d f b after any
+  SUB_OWNER=""; SUB_SRC=""; SUB_LOG=""; SUB_RESULT=""
+  if store_v2 "$c"; then
+    d="$(users_dir "$c")"
+    for f in "$d"/*/submissions/"$sid".*;   do SUB_SRC="$f"; break; done
+    for f in "$d"/*/mojlog/"$sid".html "$d"/*/mojlog/"$sid"; do SUB_LOG="$f"; break; done
+    for f in "$d"/*/results/"$sid".json;    do SUB_RESULT="$f"; break; done
+    any="${SUB_SRC:-${SUB_RESULT:-$SUB_LOG}}"
+    if [[ -n "$any" ]]; then any="${any%/submissions/*}"; any="${any%/mojlog/*}"; any="${any%/results/*}"; SUB_OWNER="${any##*/}"; fi
+  else
+    for f in "$CONTESTSDIR/$c/submissions/"*"$sid"*; do SUB_SRC="$f"; b="${f##*/}"; after="${b#*"$sid"-}"; SUB_OWNER="${after%%-*}"; break; done
+    for f in "$CONTESTSDIR/$c/mojlog/"*"$sid"*; do SUB_LOG="$f"; break; done
+    [[ -f "$CONTESTSDIR/$c/results/$sid.json" ]] && SUB_RESULT="$CONTESTSDIR/$c/results/$sid.json"
+  fi
+}
+
+# --- listagem -------------------------------------------------------------
+# list_users <c> — ecoa os logins (um por linha).
+list_users(){
+  local d; d="$(users_dir "$1")"
+  [[ -d "$d" ]] || return 0
+  ( set +o noglob; shopt -s nullglob
+    local p
+    for p in "$d"/*/account.json; do p="${p%/account.json}"; printf '%s\n' "${p##*/}"; done )
+}

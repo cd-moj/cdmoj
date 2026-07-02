@@ -15,6 +15,4 @@ if (( !isowner && !isadm )) && ! profile_is_public treino "$user"; then
 fi
 
 emit_text
-hist="$CONTESTSDIR/treino/controle/history"
-[[ -f "$hist" ]] || exit 0
-awk -F: -v u="$user" '$2==u' "$hist"
+emit_user_history treino "$user"   # store-v2 (users/<user>/history) ou legado (controle/history)

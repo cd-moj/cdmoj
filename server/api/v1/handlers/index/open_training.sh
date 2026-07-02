@@ -10,6 +10,11 @@ TREINO="$CONTESTSDIR/treino"
 HIST="$TREINO/controle/history"
 QDIR="$TREINO/var/questoes"
 
+# store-v2: materializa o history no formato global (7 campos) num temp — toda a lógica abaixo
+# (grep/awk sobre $HIST) fica idêntica. Legado: usa controle/history direto.
+_HT=""
+if store_v2 treino; then _HT="$(mktemp)"; trap '[[ -n "$_HT" ]] && rm -f "$_HT"' EXIT; emit_history_stream treino > "$_HT"; HIST="$_HT"; fi
+
 if [[ ! -f "$HIST" ]]; then
   jq -cn '{success:true, top_users:[], recent_solved:[], most_solved_week:[], most_solved_prev_week:[], most_used_editor_prev_week:{top:null,total:0,ranking:[]}, search_problems_url:"/treino"}'
   exit 0

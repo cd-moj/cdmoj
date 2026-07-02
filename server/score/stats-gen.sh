@@ -20,9 +20,12 @@ case "$C" in *[!A-Za-z0-9._@#+-]* | "" | *..* ) echo "stats-gen: invalid contest
 
 hist="$CONTESTSDIR/$C/controle/history"
 conf="$CONTESTSDIR/$C/conf"
+# store-v2: materializa o history no formato global (7 campos) num temp — awk abaixo inalterado.
+_SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$_SDIR/../api/v1/lib/users.sh"
+_HT=""; if store_v2 "$C"; then _HT="$(mktemp)"; emit_history_stream "$C" > "$_HT"; hist="$_HT"; fi
 mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "stats-gen: mktemp falhou" >&2; exit 1; }
-trap 'rm -f "$TMP"' EXIT
+trap 'rm -f "$TMP" "${_HT:-}"' EXIT
 
 empty='{"success":true,"totals":{"submissions":0,"accepted":0,"users":0,"problems_solved":0},"problems":[],"languages":[],"verdicts":[],"timeline":[],"problems_solved_dist":[],"attempts_dist":[],"verdict_by_problem":[]}'
 if [[ ! -f "$hist" ]]; then

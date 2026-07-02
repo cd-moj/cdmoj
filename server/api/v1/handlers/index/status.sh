@@ -17,10 +17,10 @@ fi
 # --- fila por lista (controle/history) + spool ---
 set +o noglob; shopt -s nullglob
 declare -a LISTS; total=0
-for h in "$CONTESTSDIR"/*/controle/history; do
-  [[ -f "$h" ]] || continue
-  cdir="${h%/controle/history}"; cid="${cdir##*/}"
-  n="$(grep -cE ':(Not Answered Yet|On queue|on queue|Running|running):' "$h" 2>/dev/null)"; n="${n:-0}"
+for cdir in "$CONTESTSDIR"/*/; do
+  cdir="${cdir%/}"; cid="${cdir##*/}"
+  [[ -f "$cdir/conf" ]] || continue
+  n="$(count_pending "$cid")"; n="${n:-0}"
   if (( n > 0 )); then
     cname="$( . "$cdir/conf" 2>/dev/null; printf '%s' "${CONTEST_NAME:-$cid}" )"
     LISTS+=("$(jq -cn --arg c "$cid" --arg nm "$cname" --argjson n "$n" '{contest:$c,name:$nm,pending:$n}')")

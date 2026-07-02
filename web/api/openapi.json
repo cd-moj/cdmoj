@@ -1123,15 +1123,33 @@
     },
     "/submission/summary": {
       "get": {
-        "tags": ["submission"],
+        "tags": [
+          "submission"
+        ],
         "summary": "Resumo estruturado em lote (testes/pontos) p/ a linha de resumo do treino",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "$ref": "#/components/parameters/contest" },
-          { "name": "ids", "in": "query", "required": true, "schema": { "type": "string" }, "description": "csv de submission ids (até 1000)" }
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "csv de submission ids (até 1000)"
+          }
         ],
         "responses": {
-          "200": { "description": "{\"<id>\":{verdict,verdict_canon,score,score_max,score_kind,correct,total}} — mesmo gate do log; ids de terceiros omitidos" }
+          "200": {
+            "description": "{\"<id>\":{verdict,verdict_canon,score,score_max,score_kind,correct,total}} — mesmo gate do log; ids de terceiros omitidos"
+          }
         }
       }
     },
@@ -1270,119 +1288,301 @@
     },
     "/contest/backup": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Lista os backups do próprio usuário",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{backups:[{id,name,size,time}]}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{backups:[{id,name,size,time}]}"
+          }
+        }
       },
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Guarda/remove um backup de arquivo (versão de solução)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{filename,file_b64} guarda; {action:remove,id} remove" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{filename,file_b64} guarda; {action:remove,id} remove"
+          }
+        }
       }
     },
     "/contest/backup-file": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Baixa um backup (próprio; login= só admin)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "arquivo (octet-stream)" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "arquivo (octet-stream)"
+          }
+        }
       }
     },
     "/contest/print": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Lista os pedidos de impressão do próprio usuário (+ flags staff_exists/allow_print)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{requests:[{id,seq,filename,mime,size,time,status,pages}], staff_exists, allow_print}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{requests:[{id,seq,filename,mime,size,time,status,pages}], staff_exists, allow_print}"
+          }
+        }
       },
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Cria um pedido de impressão (gera nº sequencial)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
         "responses": {
-          "200": { "description": "{id,seq,status:pending} — body {filename,file_b64}, máx 10MB" },
-          "403": { "description": "print_unavailable (sem staff) | print_disabled (PRINT=0)" }
+          "200": {
+            "description": "{id,seq,status:pending} — body {filename,file_b64}, máx 10MB"
+          },
+          "403": {
+            "description": "print_unavailable (sem staff) | print_disabled (PRINT=0)"
+          }
         }
       }
     },
     "/contest/print-file": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Baixa o arquivo cru de um pedido (dono/admin/staff no escopo)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "arquivo (Content-Disposition)" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "arquivo (Content-Disposition)"
+          }
+        }
       }
     },
     "/contest/staff/queue": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Fila de tarefas do staff (impressão + balões; escopo por regex). Reconcilia balões pendentes (1ª-AC) ao carregar",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{requests:[{id,seq,kind,login,team,univ,short,color_hex,color_name,filename,status,…}]}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{requests:[{id,seq,kind,login,team,univ,short,color_hex,color_name,filename,status,…}]}"
+          }
+        }
       }
     },
     "/contest/staff/print-action": {
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Máquina de estado da tarefa: claim|processed|delivered",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
         "responses": {
-          "200": { "description": "{updated:{id,seq,status,…}} — body {id,action,mode?}" },
-          "409": { "description": "already_claimed | not_pending | not_printed" }
+          "200": {
+            "description": "{updated:{id,seq,status,…}} — body {id,action,mode?}"
+          },
+          "409": {
+            "description": "already_claimed | not_pending | not_printed"
+          }
         }
       }
     },
     "/contest/staff/print-pdf": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "PDF inline (build-once): kind=print → folha de rosto + documento A4 (código numerado); kind=balloon → folha do balão (time/univ/login/problema/cor desenhada+nome/nº/assinatura)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "application/pdf" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "application/pdf"
+          }
+        }
       }
     },
     "/contest/admin/staff-filters": {
       "get": {
-        "tags": ["contest-admin"],
+        "tags": [
+          "contest-admin"
+        ],
         "summary": "Escopo (regex) de cada usuário .staff + lista de staff/regiões",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{staff:[{login,fullname,disabled}], filters:{login:[regex]}, regions:[{name,regex}]}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{staff:[{login,fullname,disabled}], filters:{login:[regex]}, regions:[{name,regex}]}"
+          }
+        }
       },
       "post": {
-        "tags": ["contest-admin"],
+        "tags": [
+          "contest-admin"
+        ],
         "summary": "Grava o escopo por staff (vazio = vê tudo)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{saved:true,filters} — body {filters:{login:[regex]}}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved:true,filters} — body {filters:{login:[regex]}}"
+          }
+        }
       }
     },
     "/contest/admin/backups": {
       "get": {
-        "tags": ["contest-admin"],
+        "tags": [
+          "contest-admin"
+        ],
         "summary": "Lista todos os backups (filtros user/q) + resumo por usuário",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{backups:[{login,id,name,size,time}],users:[{login,count,bytes}]}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{backups:[{login,id,name,size,time}],users:[{login,count,bytes}]}"
+          }
+        }
       }
     },
     "/contest/admin/backup-zip": {
       "get": {
-        "tags": ["contest-admin"],
+        "tags": [
+          "contest-admin"
+        ],
         "summary": "Zip com todos os backups de um usuário",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "application/zip" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "application/zip"
+          }
+        }
       }
     },
     "/contest/news-file": {
@@ -1552,88 +1752,228 @@
     },
     "/contest/final-verdicts": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Opções de veredicto manual (judge): {verdicts:[labels], options:[{label,verdict}]}",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "ok" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
       },
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Grava as opções de veredicto (admin/chief): {options:[{label,verdict}]}",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{saved,options}; 403 config_forbidden" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved,options}; 403 config_forbidden"
+          }
+        }
       }
     },
     "/contest/auto-verdicts": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Matriz de veredicto automático problema×lang×veredicto (judge)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{matrix,problems,verdicts}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{matrix,problems,verdicts}"
+          }
+        }
       },
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Grava a matriz auto (admin/chief): {matrix:{cid:{lang|*:[verdict]}}}",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{saved,matrix}; 403 config_forbidden" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved,matrix}; 403 config_forbidden"
+          }
+        }
       }
     },
     "/contest/review/list": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Fila de revisão de veredicto manual (judge)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{manual,options,items,counts:{not_evaluated,being_evaluated,awaiting_second,conflicts},my_active}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{manual,options,items,counts:{not_evaluated,being_evaluated,awaiting_second,conflicts},my_active}"
+          }
+        }
       }
     },
     "/contest/review/claim": {
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Pega/renova/larga avaliação (judge): {id,action:claim|extend|giveup}; máx 2, 1 ativa, TTL 5min",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{updated}; 409 already_evaluating|slots_full" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{updated}; 409 already_evaluating|slots_full"
+          }
+        }
       }
     },
     "/contest/review/vote": {
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Vota o veredicto (judge): {id,label}; voto permanente e libera o juiz (pega outra); 2 iguais liberam, 2 diferentes = conflito",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{status,released_verdict?}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{status,released_verdict?}"
+          }
+        }
       }
     },
     "/contest/review/resolve": {
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Juiz-chefe resolve conflito (admin/chief): {id,verdict}",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{status:released,released_verdict}; 403 chief_required" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{status:released,released_verdict}; 403 chief_required"
+          }
+        }
       }
     },
     "/contest/review/conflicts": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Sumário de conflitos de veredicto p/ o juiz-chefe (admin/chief); n alimenta o alerta global",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{conflicts:[{id,login,problem_id,lang,sub_epoch,computed_verdict,votes}], n, options}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{conflicts:[{id,login,problem_id,lang,sub_epoch,computed_verdict,votes}], n, options}"
+          }
+        }
       }
     },
     "/contest/review/stats": {
       "get": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Estatística por .judge da avaliação manual (admin/chief): votos, tempo médio, concordâncias, conflitos",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{judges:[{judge,votes,avg_response_s,timed,agreements,conflicts}], total:{votes,avg_response_s}}" } }
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{judges:[{judge,votes,avg_response_s,timed,agreements,conflicts}], total:{votes,avg_response_s}}"
+          }
+        }
       }
     },
     "/contest/set-verdict": {
@@ -2802,18 +3142,38 @@
     },
     "/contest/clarification-claim": {
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Reservar uma clarification p/ responder (admin/judge/mon; TTL 5min)",
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{claimed_by,expires_at} — body {id,action:claim|release}; 409 clar_claimed/already_answered" } }
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{claimed_by,expires_at} — body {id,action:claim|release}; 409 clar_claimed/already_answered"
+          }
+        }
       }
     },
     "/contest/clarification-broadcast": {
       "post": {
-        "tags": ["contest"],
+        "tags": [
+          "contest"
+        ],
         "summary": "Aviso oficial: Q+A público com autor oculto (admin/judge/mon)",
-        "parameters": [{ "$ref": "#/components/parameters/contest" }],
-        "responses": { "200": { "description": "{broadcast,id} — body {problem?,question,answer}" } }
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{broadcast,id} — body {problem?,question,answer}"
+          }
+        }
       }
     },
     "/contest/clarification-answer": {
@@ -4282,6 +4642,119 @@
         "responses": {
           "200": {
             "description": "{url,username,token}"
+          }
+        }
+      }
+    },
+    "/treino/signup/start": {
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Inicia cadastro web-first (gera nonce+deep-link)",
+        "responses": {
+          "200": {
+            "description": "{nonce,deep_link,expires_at}"
+          },
+          "409": {
+            "description": "login_taken"
+          }
+        }
+      }
+    },
+    "/treino/signup/status": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Polling do cadastro (pending|created|already_linked|linked|expired)",
+        "parameters": [
+          {
+            "name": "nonce",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{status,login?} (sem senha)"
+          }
+        }
+      }
+    },
+    "/treino/signup/verify": {
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Bot: consome nonce, cria+vincula/linka (bot-token)",
+        "responses": {
+          "200": {
+            "description": "{status,login,password?}"
+          },
+          "401": {
+            "description": "bot_unauth"
+          },
+          "410": {
+            "description": "nonce_expired"
+          }
+        }
+      }
+    },
+    "/treino/signup/telegram": {
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Bot: /participar — cria+vincula por telegram_id (bot-token)",
+        "responses": {
+          "200": {
+            "description": "{status,login,password?}"
+          }
+        }
+      }
+    },
+    "/treino/recover-password": {
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Bot: recupera senha pelo vínculo Telegram (bot-token)",
+        "responses": {
+          "200": {
+            "description": "{status:ok|not_linked,login?,password?}"
+          }
+        }
+      }
+    },
+    "/treino/telegram/link-start": {
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Conta logada gera nonce p/ vincular o próprio Telegram",
+        "responses": {
+          "200": {
+            "description": "{nonce,deep_link,expires_at}"
+          }
+        }
+      }
+    },
+    "/ops/alerts": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Bot: avalia incidentes + drena outbox de alertas (bot-token)",
+        "responses": {
+          "200": {
+            "description": "{items:[{id,text,chats:[chat_id]}]}"
+          },
+          "401": {
+            "description": "bot_unauth"
           }
         }
       }

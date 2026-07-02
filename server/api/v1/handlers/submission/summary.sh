@@ -27,13 +27,12 @@ for sid in "${IDS[@]}"; do
   sid="${sid//[[:space:]]/}"
   [[ "$sid" =~ ^[0-9a-f]{32}$ || "$sid" =~ ^[0-9a-f-]{36}$ ]] || continue
   (( n++ >= 1000 )) && break
-  rf="$cdir/results/$sid.json"
-  [[ -f "$rf" ]] || continue
+  resolve_submission "$contest" "$sid"   # store-v2 ou legado
+  rf="$SUB_RESULT"
+  [[ -n "$rf" && -f "$rf" ]] || continue
   if [[ "$isjudge" == 0 ]]; then
     (( hidden )) && continue
-    sfiles=("$cdir/submissions/"*"$sid"*); owner=""
-    (( ${#sfiles[@]} > 0 )) && { base="${sfiles[0]##*/}"; after="${base#*"$sid"-}"; owner="${after%%-*}"; }
-    [[ "$owner" == "$SESSION_LOGIN" || "${SHOWCODE:-0}" == 1 ]] || continue
+    [[ "$SUB_OWNER" == "$SESSION_LOGIN" || "${SHOWCODE:-0}" == 1 ]] || continue
   fi
   # extrai só os campos do resumo; tolera ausência (submissões antigas) -> null
   jq -c --arg id "$sid" '{ id:$id,

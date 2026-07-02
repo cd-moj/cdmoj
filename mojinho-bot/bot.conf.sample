@@ -1,48 +1,30 @@
-# bot.conf.sample — configuração do mojinho-api.sh (CLIENTE DA API MOJ).
+# bot.conf.sample — configuração do mojinho-api.sh (TRANSPORTE FINO da API MOJ).
 #
 # COMO USAR:
 #   cp bot.conf.sample bot.conf
-#   # edite bot.conf com as credenciais de admin reais (NÃO comite bot.conf)
-#   chmod 600 bot.conf
+#   chmod 600 bot.conf     # NÃO comite bot.conf
 #
-# Este arquivo é "sourced" pelo bot (sintaxe bash). NÃO coloque segredos no
-# .sample — apenas valores de exemplo/placeholder.
-#
-# O TOKEN DO TELEGRAM **não** fica aqui: ele vem só do arquivo ./token.
+# "sourced" pelo bot (sintaxe bash). NÃO coloque segredos no .sample.
+# O TOKEN DO TELEGRAM não fica aqui: vem só do arquivo ./token.
+# O bot NÃO loga mais como .admin e NÃO tem lista GODS — ele autentica na API com um
+# token DEDICADO (mojb_…) e toda a política/estado vive na API.
 
 # --- Endpoint da API REST -------------------------------------------------
-# Base da API v1. O bot roda no servidor e fala com a API local; o nginx roteia
-# por Host, então MOJ_HOST precisa bater com o server_name do vhost da API.
 MOJ_API="http://127.0.0.1:8080/api/v1"
-MOJ_HOST="moj.charge.naquadah.com.br"
+MOJ_HOST="moj.charge.naquadah.com.br"       # precisa bater com o server_name do vhost da API
+MOJ_WEB="https://moj.charge.naquadah.com.br"  # base pública p/ os links de acesso nas respostas
+MOJ_CONTEST="treino"
 
-# Base pública (https) usada só para montar os LINKS de acesso nas respostas
-# (ex.: "Acesse: $MOJ_WEB/new/treino/"). Pode diferir do MOJ_HOST interno.
-MOJ_WEB="https://moj.charge.naquadah.com.br"
+# --- Token do bot p/ a API (Bearer mojb_…) --------------------------------
+# Segredo compartilhado bot<->API (require_bot). Gere com:
+#   printf 'mojb_%s' "$(head -c24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c32)" \
+#     > /home/ribas/moj/run/secrets/bot.token && chmod 600 /home/ribas/moj/run/secrets/bot.token
+# O bot lê deste arquivo por padrão; ou defina BOT_TOKEN direto aqui.
+BOT_TOKEN_FILE="/home/ribas/moj/run/secrets/bot.token"
+# BOT_TOKEN="mojb_..."
 
-# --- Credenciais de admin que o bot usa para obter o token ----------------
-# O bot loga via POST /auth/login?contest=$MOJ_ADMIN_CONTEST com estas credenciais
-# e usa o token (Bearer) em todas as chamadas administrativas.
-# O login DEVE terminar em ".admin" (convenção de papéis da API) e existir no
-# passwd do contest indicado (CONTESTSDIR/$MOJ_ADMIN_CONTEST/passwd).
-MOJ_ADMIN_CONTEST="treino"
-MOJ_ADMIN_USER="bot.admin"
-MOJ_ADMIN_PASS="TROQUE_ESTA_SENHA"
-
-# --- Lista de GODS (admins do Telegram) -----------------------------------
-# Usuários do Telegram autorizados a rodar os comandos administrativos do bot.
-# Chave = username do Telegram (sem @); valor = true.
-GODS[brunoribas]=true
-GODS[lucasgcaldas]=true
-GODS[johngardenghi]=true
-GODS[alvesfonseca]=true
-GODS[rhr00]=true
-GODS[danielsundfeld]=true
-GODS[ryshim]=true
-GODS[DanielSaad]=true
-GODS[edsomjr]=true
-GODS[fwcruzz]=true
-GODS[brunomont]=true
-GODS[rsalesc]=true
-GODS[lucas250300]=true
-GODS[j3r3mias]=true
+# --- Alertas de incidente (a API decide o quê/quando; o bot só entrega) ----
+# Chat de grupo (opcional) que recebe TODOS os alertas por broadcast, além das DMs
+# aos .admin do treino com Telegram vinculado. Use o chat_id numérico do grupo.
+ALERT_GROUP_CHAT=""       # ex.: -348168530
+ALERT_POLL_SECS=25        # cadência do poll de alertas (= timeout do getUpdates)

@@ -80,6 +80,18 @@ bulk logout/lock, notícias, **auditoria**, fila, máquinas, **estatísticas** e
 resposta** — espera submit→veredito, julgamento e fila, média por dia + mapas de calor por
 data e dia-da-semana × hora, p/ decisões de capacidade; `/treino/admin/response-stats`).
 
+### Store por-usuário, cadastro por Telegram e alertas
+Contests com `USER_STORE=v2` guardam **um diretório por conta** (`contests/<c>/users/<login>/`:
+`account.json` + `history`/`metrics.json`/submissões/logs/results próprios; o `passwd` e o history
+global viram derivados/eliminados). Ganhos: **trocar de username = `mv` do diretório** e a maioria
+dos scripts de conta/julgamento só muda o caminho (`lib/users.sh`, `store_v2`, `emit_history_stream`).
+Migração: `server/bin/store-migrate.sh <c>` (dry-run; `--apply`). O **treino** ganha um overlay de
+**Telegram** (`lib/telegram.sh`): cadastro **web-first** (`/treino/cadastro/`) confirmado por deep-link
+no bot, **1 Telegram = 1 conta** (anti-duplicata), recuperação de senha pelo vínculo, e senha entregue
+**só por DM**. O **mojinho-bot** virou transporte fino (bot-token `mojb_`, sem `.admin`/GODS) e entrega
+**alertas** de incidente que a **API** decide (`lib/alerts.sh` + `GET /ops/alerts`: juiz offline+fila,
+fila grande, daemon caído, com histerese/cooldown) aos `.admin` com Telegram vinculado + grupo.
+
 ### Criação de contest (`/treino/criar/`)
 Permissão por **lista do admin OU threshold** de problemas resolvidos. Monta usuários
 (**compartilhados do treino** ou **próprios**, com colagem fluida + senhas legíveis +

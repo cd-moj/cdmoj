@@ -13,13 +13,10 @@ sid="$(param id)"
   || fail 400 "Invalid submission id" "id_invalid"
 
 set +o noglob; shopt -s nullglob
-files=("$CONTESTSDIR/$contest/submissions/"*"$sid"*)
+resolve_submission "$contest" "$sid"     # store-v2 (users/<owner>/...) ou legado (flat)
 shopt -u nullglob
-(( ${#files[@]} > 0 )) || fail 404 "Submission source not found" "source_notfound"
-src="${files[0]}"
-
-# dono: tudo depois de "<hash>-" é "<login>-<prob>.<ext>"
-base="${src##*/}"; after="${base#*"$sid"-}"; owner="${after%%-*}"
+[[ -n "$SUB_SRC" && -f "$SUB_SRC" ]] || fail 404 "Submission source not found" "source_notfound"
+src="$SUB_SRC"; owner="$SUB_OWNER"
 
 SHOWCODE=0
 load_contest_conf "$contest"

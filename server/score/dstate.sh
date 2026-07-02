@@ -23,7 +23,9 @@
 #   FREEZE     = submissões com sub_epoch >= FREEZE_TIME não revelam o AC (placar congela).
 set -u
 SC_PROG="dstate"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
+_SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$_SDIR/score-common.sh"
+source "$_SDIR/../api/v1/lib/users.sh"   # store_v2 / emit_history_stream
 
 sc_load "${1:-}"
 START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
@@ -31,12 +33,14 @@ FREEZE="${FREEZE_TIME:-0}";  [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0
 [[ "${MOJ_NOFREEZE:-}" == 1 ]] && FREEZE=0   # placar COMPLETO (privilegiados): ignora freeze
 
 HIST="$CONTESTDIR/controle/history"
+_HT=""
+if store_v2 "$CONTEST"; then _HT="$(mktemp)"; emit_history_stream "$CONTEST" > "$_HT"; HIST="$_HT"; fi
 [[ -f "$HIST" ]] || exit 0
 
 # tabela "key<TAB>pidx" -> awk (robusto a ids com qualquer caractere). Para cada problema
 # emitimos a forma canônica '#' e as legadas (offset numérico, barra, ponto).
 MAP="$(mktemp 2>/dev/null)" || exit 1
-trap 'rm -f "$MAP"' EXIT
+trap 'rm -f "$MAP" "${_HT:-}"' EXIT
 for ((p=0; p<SC_NPROB; p++)); do
   pidx="${SC_PIDX[p]}"; canon="${SC_CANON[p]}"
   printf '%s\t%s\n' "$canon"          "$pidx"   # canônico 'coleção#problema'

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Criar conta — Treino Livre MOJ</title>
+  <link rel="stylesheet" href="/shared/style.css">
+  <style>
+    .card{max-width:34rem;margin:2rem auto;padding:1.5rem;border:1px solid var(--border,#e2e8f0);border-radius:.75rem}
+    .card h1{margin-top:0;font-size:1.4rem}
+    .card label{display:block;margin:.75rem 0 .25rem;font-weight:600}
+    .card input{width:100%;padding:.55rem;border:1px solid var(--border,#cbd5e1);border-radius:.5rem;font-size:1rem}
+    .card .hint{color:#64748b;font-size:.85rem;margin:.25rem 0 0}
+    .btn{margin-top:1rem;padding:.6rem 1rem;border:0;border-radius:.5rem;background:#2563eb;color:#fff;font-size:1rem;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:default}
+    .tg{display:inline-block;margin-top:1rem;padding:.6rem 1rem;border-radius:.5rem;background:#0088cc;color:#fff;text-decoration:none;font-weight:600}
+    .msg{margin-top:1rem;padding:.75rem;border-radius:.5rem}
+    .msg.ok{background:#dcfce7;color:#166534}.msg.err{background:#fee2e2;color:#991b1b}.msg.info{background:#e0f2fe;color:#075985}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Criar conta no Treino Livre</h1>
+    <p class="hint">O cadastro é confirmado pelo Telegram (evita contas repetidas). Você precisa de uma conta no Telegram.</p>
+
+    <form id="form">
+      <label for="fullname">Nome completo</label>
+      <input id="fullname" required autocomplete="name" placeholder="Seu nome">
+      <label for="login">Login desejado <span class="hint">(opcional — deixamos o seu @ do Telegram se vazio)</span></label>
+      <input id="login" autocomplete="username" placeholder="ex.: joaosilva" pattern="[A-Za-z0-9._-]{2,32}">
+      <label for="university">Universidade <span class="hint">(opcional)</span></label>
+      <input id="university" placeholder="ex.: UnB">
+      <button class="btn" id="submit" type="submit">Continuar no Telegram →</button>
+    </form>
+
+    <div id="step2" class="hidden">
+      <div class="msg info">Falta 1 passo: abra o Telegram e confirme para receber seu login e senha por mensagem privada do bot.</div>
+      <a id="deeplink" class="tg" target="_blank" rel="noopener">Abrir o mojinho no Telegram</a>
+      <p class="hint" id="polling">Aguardando a confirmação no Telegram…</p>
+    </div>
+
+    <div id="result" class="hidden"></div>
+  </div>
+
+  <script type="module" src="./cadastro.js"></script>
+</body>
+</html>

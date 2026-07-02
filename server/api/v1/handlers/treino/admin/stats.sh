@@ -20,8 +20,8 @@ loginsday="$(awk -F'\t' -v c=$cut '$1>=c{a[int($1/86400)]++} END{for(k in a) pri
   "$T/var/access.log" 2>/dev/null | sort -n \
   | jq -R -cs 'split("\n")|map(select(length>0)|split("\t")|{day:(.[0]|tonumber), count:(.[1]|tonumber)})')"
 [[ -z "$loginsday" ]] && loginsday='[]'
-subsday="$(awk -F: -v c=$cut '{ts=$6+0; if(ts<1) ts=$1+0; if(ts>=c) a[int(ts/86400)]++} END{for(k in a) print (k*86400)"\t"a[k]}' \
-  "$T/controle/history" 2>/dev/null | sort -n \
+subsday="$(emit_history_stream treino | awk -F: -v c=$cut '{ts=$6+0; if(ts<1) ts=$1+0; if(ts>=c) a[int(ts/86400)]++} END{for(k in a) print (k*86400)"\t"a[k]}' \
+  | sort -n \
   | jq -R -cs 'split("\n")|map(select(length>0)|split("\t")|{day:(.[0]|tonumber), count:(.[1]|tonumber)})')"
 [[ -z "$subsday" ]] && subsday='[]'
 

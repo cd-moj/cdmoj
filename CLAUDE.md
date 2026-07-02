@@ -27,6 +27,25 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
   conflitos, config de auto-veredicto) — **não** é admin pleno. Ao mexer em papel, lembre das
   **quatro** listas de sufixo independentes: `lib/auth.sh`, `score/score-common.sh`,
   `score/stats-gen.sh`, `handlers/auth/login.sh` (+ guard `treino/profile/username.sh`).
+  Auto-cadastro **nunca** cria papel por sufixo: use `is_reserved_role_login` (`lib/auth.sh`) —
+  já aplicado no signup; o `/admin/adduser` (admin autenticado) **continua** podendo criar
+  `.judge`/`.staff` de um contest (legítimo).
+- **Store por-usuário (`USER_STORE=v2`, `lib/users.sh`)**: contests migrados guardam cada conta em
+  `contests/<c>/users/<login>/` (`account.json` autoritativo; `passwd` DERIVADO por `regen_passwd`;
+  `history` próprio de 6 campos `tempo:probid:lang:verdict:sub_epoch:subid`, login implícito;
+  `metrics.json`; `submissions/<subid>.<ext>`, `mojlog/<subid>.html`, `results/<subid>.json` — **sem
+  login no nome**). **Rename de conta = `mv` do diretório** (`user_rename` + telegram index). O
+  `controle/history` global some; leitores usam `emit_user_history`/`emit_history_stream`
+  (formato global de 7 campos) e os scripts de placar materializam o stream num temp. `store_v2 <c>`
+  ramifica write-path (`judged.sh`/`submit.sh`) e leitura. **Migração**: `server/bin/store-migrate.sh
+  <c>` (dry-run por padrão; `--apply` seta `USER_STORE=v2`). Competições não-migradas seguem no legado.
+- **Telegram (overlay só do treino) + alertas**: `lib/telegram.sh` (índice `var/telegram/{by-tgid,by-login}`,
+  nonce em `run/telegram/`), cadastro web-first (`handlers/treino/signup/*` + página `web/treino/cadastro/`),
+  recuperação por vínculo, `link-start`. O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
+  autentica com **bot-token** `mojb_…` (`lib/bot-auth.sh` `require_bot`, `run/secrets/bot.token`) — não
+  loga como `.admin`, sem GODS. **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
+  histerese/cooldown e enfileira no outbox `run/alerts/`; o bot drena e entrega a `.admin` vinculados
+  + grupo). Senha nova **só por DM** (nunca na web).
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests`. Fonte única =
