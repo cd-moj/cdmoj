@@ -13,7 +13,9 @@ fi
 
 set +o noglob
 total_users=0
-[[ -f "$PASSWD" ]] && total_users="$(grep -cve '^[[:space:]]*$' "$PASSWD" 2>/dev/null || echo 0)"
+# grep -c imprime e sai 1 sem match — capturar direto (sem `|| echo`) e sanear a dígitos.
+[[ -f "$PASSWD" ]] && total_users="$(grep -cve '^[[:space:]]*$' "$PASSWD" 2>/dev/null)"
+total_users="${total_users//[^0-9]/}"; total_users="${total_users:-0}"
 
 # editor declarado de cada perfil -> contagem por editor (desc).
 ranking="$(

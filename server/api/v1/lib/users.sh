@@ -206,17 +206,20 @@ emit_history_stream(){
 # count_pending <c> — nº de submissões pendentes (veredicto provisório) sem varrer o history
 # global no store-v2: usa metrics? não — pendências não estão em metrics. Fan-out por grep.
 count_pending(){
-  local c="$1"
+  local c="$1" re=':(Not Answered Yet|On queue|on queue|Running|running):' n=0 g
+  # ATENÇÃO: `grep -c` IMPRIME "0" E SAI 1 quando não há match. NUNCA usar
+  # `grep -c … || echo 0` (retorna "0\n0" → estoura (( )) e inunda o stderr → trava o worker
+  # fcgiwrap). Capturar direto (o exit 1 é inofensivo dentro de $()) e sanear a dígitos.
   if store_v2 "$c"; then
     local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || { echo 0; return; }
     ( set +o noglob; shopt -s nullglob
-      local n=0 hf
-      for hf in "$d"/*/history; do
-        n=$(( n + $(grep -cE ':(Not Answered Yet|On queue|on queue|Running|running):' "$hf" 2>/dev/null) ))
-      done; echo "$n" )
+      local m=0 hf; for hf in "$d"/*/history; do
+        g="$(grep -cE "$re" "$hf" 2>/dev/null)"; m=$(( m + ${g//[^0-9]/} + 0 ))
+      done; echo "$m" )
   else
     local h="$CONTESTSDIR/$c/controle/history"
-    [[ -f "$h" ]] && grep -cE ':(Not Answered Yet|On queue|on queue|Running|running):' "$h" 2>/dev/null || echo 0
+    [[ -f "$h" ]] && g="$(grep -cE "$re" "$h" 2>/dev/null)"
+    echo "$(( ${g//[^0-9]/} + 0 ))"
   fi
 }
 

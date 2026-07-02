@@ -131,6 +131,15 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
 - **Documentação junto com o código** (doc atrasada = bug): rota/campo novo → `docs/API.md` **e**
   `web/api/openapi.json` (manter os dois em sincronia); arquitetura/fluxo → `docs/OVERVIEW.md`/`docs/FLOW.md`.
   `bash docs/build-html.sh` p/ refazer o HTML.
+- **API mudou ⇒ ressincronizar `web/` E `moj-cli/` no MESMO commit** (não só a doc). Os dois são
+  clientes do contrato da API. Antes de fechar, VERIFIQUE de fato: a home carrega, o login funciona,
+  `moj login`/`moj whoami` funcionam contra a base real. Regressão de API costuma se manifestar como
+  "web não carrega / não loga / 502" — investigue o servidor, não só o cliente.
+- **Armadilha `grep -c` (causou outage 502):** `grep -c` IMPRIME a contagem (`0`) **e SAI com código
+  1** quando não há match. NUNCA escreva `grep -c … || echo 0` (retorna `"0\n0"` → estoura `(( … ))`
+  e **inunda o stderr**; sob fcgiwrap o pipe de stderr enche, a escrita bloqueia e o **worker trava** →
+  502 em toda a API). Capture direto (`n="$(grep -c … 2>/dev/null)"`, o exit 1 é inofensivo em `$()`) e
+  saneie a dígitos (`n="${n//[^0-9]/}"; n="${n:-0}"`) antes de qualquer aritmética.
 - **Formato do pacote de problema = doc obrigatória.** QUALQUER mudança no pacote (arquivos, campos,
   `.moj-meta.json`, `conf`, layout de `tests/`/`sols/`, de onde vem o **título**, seções obrigatórias
   do enunciado) exige atualizar **no mesmo commit** TODAS as fontes que o descrevem — e elas vivem em

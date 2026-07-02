@@ -7,7 +7,7 @@ declare -a LISTS; total=0
 for cdir in "$CONTESTSDIR"/*/; do
   cdir="${cdir%/}"; cid="${cdir##*/}"
   [[ -f "$cdir/conf" ]] || continue
-  n="$(count_pending "$cid")"; n="${n:-0}"
+  n="$(count_pending "$cid")"; n="${n//[^0-9]/}"; n="${n:-0}"
   if (( n > 0 )); then
     cname="$( . "$cdir/conf" 2>/dev/null; printf '%s' "${CONTEST_NAME:-$cid}" )"
     LISTS+=("$(jq -cn --arg c "$cid" --arg nm "$cname" --argjson n "$n" '{contest:$c, name:$nm, pending:$n}')")
