@@ -10,6 +10,13 @@ printf 'boss.admin:p:Boss\nregular:s:Regular\n' > "$T/passwd"
 printf '{"threshold":0,"allow":["regular"],"deny":[]}' > "$T/var/contest-perms.json"
 printf 'CONTEST=treino\nLOGIN=regular\nUSERFULLNAME=Regular\nLOGINAT=1\n' > "$SESS/reg"
 printf '%s' '{"id":"bankprob","title":"Banco","tags":["#x"],"statement_html_b64":"PGgxPm9pPC9oMT4="}' > "$T/var/jsons/bankprob.json"
+# índice de owners (fresco => ensure_owners_index não regenera): público + privados p/ o gate do add
+printf '%s' '{"problems":[
+ {"id":"bankprob","owner":"someone","collaborators":[],"public":true},
+ {"id":"priv#mine","owner":"regular","collaborators":[],"public":false},
+ {"id":"priv#collab","owner":"eve","collaborators":["regular"],"public":false},
+ {"id":"priv#other","owner":"eve","collaborators":[],"public":false}
+]}' > "$T/var/problem-owners.json"
 : > "$T/controle/history"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-reg}" \
@@ -54,6 +61,19 @@ call /contest/admin/user-remove POST '{"login":"u9"}' cadm 'contest=ac-c'
 ck "removeu u9"         '[[ "$(jq -r .removed <<<"$BODY")" == "true" ]] && ! grep -q "^u9:" "$FIX/ac-c/passwd"'
 call /contest/admin/user-remove POST '{"login":"boss.admin"}' cadm 'contest=ac-c'
 ck "não remove a si mesmo 409" '[[ "$OUT" == *"Status: 409"* ]]'
+
+echo "== problemas: add com gate de privado =="
+call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"bankprob","name":"Pub"}}' cadm 'contest=ac-c'
+ck "add público 200"            '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]]'
+call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"priv#mine","name":"Meu"}}' cadm 'contest=ac-c'
+ck "privado do dono do contest 200" '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]]'
+call /contest/admin/problems POST '{"action":"add","problem":{"problem_id":"priv/collab","name":"Colab"}}' cadm 'contest=ac-c'
+ck "privado com dono colaborador 200" '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]]'
+call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"priv#other","name":"Alheio"}}' cadm 'contest=ac-c'
+ck "privado alheio 404"         '[[ "$OUT" == *"Status: 404"* ]]'
+rm -f "$FIX/ac-c/owner"
+call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"priv#mine","name":"Meu2"}}' cadm 'contest=ac-c'
+ck "contest sem owner: privado 404" '[[ "$OUT" == *"Status: 404"* ]]'
 
 echo "== proteções de acesso =="
 call /contest/admin/config GET '' cuser 'contest=ac-c'

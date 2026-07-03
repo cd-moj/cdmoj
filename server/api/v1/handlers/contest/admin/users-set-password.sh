@@ -1,7 +1,8 @@
 # POST /contest/admin/users-set-password?contest=<id>  (admin) {password, include_disabled?}
 # Troca a senha de TODOS os usuários não-privilegiados para uma senha única (uso clássico
-# em prova: após todos logarem, troca-se a senha de todos por uma secreta). Pula .admin/
-# .judge/.staff/.mon. Por padrão pula desabilitados (senha '!...'); include_disabled inclui.
+# em prova: após todos logarem, troca-se a senha de todos por uma secreta). Pula contas
+# privilegiadas (lista de is_reserved_role_login, replicada na regex do awk — inclui .cjudge).
+# Por padrão pula desabilitados (senha '!...'); include_disabled inclui.
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -18,7 +19,7 @@ case "$password" in *:*) fail 422 "Senha não pode conter ':'" "colon";; esac
 
 pw="$CONTESTSDIR/$contest/passwd"; [[ -f "$pw" ]] || fail 404 "Contest sem passwd" "no_passwd"
 out="$(NEWP="$password" INC="$inc" awk -F: 'BEGIN{OFS=":"}
-  { priv = ($1 ~ /\.(admin|judge|staff|mon)$/); dis = (substr($2,1,1)=="!");
+  { priv = ($1 ~ /\.(admin|judge|cjudge|staff|mon)$/); dis = (substr($2,1,1)=="!");
     if(!priv && (ENVIRON["INC"]=="1" || !dis)){ $2=ENVIRON["NEWP"]; c++ }
     lines = lines $0 "\n" }
   END { printf "%d\n", c+0; printf "%s", lines }' "$pw")"

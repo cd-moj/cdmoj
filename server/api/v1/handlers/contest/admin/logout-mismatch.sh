@@ -18,7 +18,7 @@ for f in "$SESSIONDIR"/*; do
   [[ -f "$f" ]] || continue
   CONTEST=""; LOGIN=""; UA_B64=""; source "$f" 2>/dev/null
   [[ "$CONTEST" == "$contest" ]] || continue
-  case "$LOGIN" in *.admin|*.judge|*.staff|*.mon) continue;; esac
+  is_reserved_role_login "$LOGIN" && continue
   ua="$(printf '%s' "$UA_B64" | base64 -d 2>/dev/null)"
   [[ "$ua" == *"$sub"* ]] && continue
   rm -f "$f"; ((removed++))

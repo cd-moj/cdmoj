@@ -39,8 +39,11 @@ is_admin_or_chief(){ is_admin || is_chief; }
 is_staff(){ [[ "$SESSION_LOGIN" == *.staff ]]; }
 is_mon(){ [[ "$SESSION_LOGIN" == *.mon ]]; }
 # is_reserved_role_login <login> — 0 se o login termina num SUFIXO DE PAPEL reservado. Helper
-# central p/ o auto-cadastro NUNCA criar papel por sufixo (signup web/bot). NÃO trava o /admin/adduser
-# (admin autenticado cria .judge/.staff de um contest legitimamente). Mantém a lista em UM lugar.
+# central p/ (a) o auto-cadastro NUNCA criar papel por sufixo (signup web/bot) e (b) os handlers
+# de admin de contest NÃO tratarem conta privilegiada como aluno (disable/troca de senha em massa/
+# logout em massa). NÃO trava o /admin/adduser (admin autenticado cria .judge/.staff de um contest
+# legitimamente). Mantém a lista em UM lugar (awk não enxerga a função — ao replicar em regex,
+# lembre do .cjudge: \.(admin|judge|cjudge|staff|mon)$).
 is_reserved_role_login(){ case "$1" in *.admin|*.judge|*.cjudge|*.staff|*.mon) return 0;; *) return 1;; esac; }
 require_admin(){ require_auth; is_admin || fail 403 "Admin only" "admin_required"; }
 require_judge(){ require_auth; is_judge || fail 403 "Judge only" "judge_required"; }

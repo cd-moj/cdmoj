@@ -13,7 +13,7 @@ login="$(jq -r '.login // empty' <<<"$body")"
 [[ -n "$login" ]] || fail 400 "Informe o login" "missing"
 valid_id "$login" || fail 422 "login inválido" "login_invalid"
 [[ "$login" == "$SESSION_LOGIN" ]] && fail 409 "Você não pode desabilitar a si mesmo" "self"
-case "$login" in *.admin|*.judge|*.staff|*.mon) fail 403 "Não desabilite contas privilegiadas" "privileged";; esac
+is_reserved_role_login "$login" && fail 403 "Não desabilite contas privilegiadas" "privileged"
 grep -q "^$login:" "$CONTESTSDIR/$contest/passwd" 2>/dev/null || fail 404 "Usuário não encontrado" "notfound"
 
 newpw="!$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)"
