@@ -39,6 +39,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (formato global de 7 campos) e os scripts de placar materializam o stream num temp. `store_v2 <c>`
   ramifica write-path (`judged.sh`/`submit.sh`) e leitura. **Migração**: `server/bin/store-migrate.sh
   <c>` (dry-run por padrão; `--apply` seta `USER_STORE=v2`). Competições não-migradas seguem no legado.
+  Os handlers de usuário do admin do contest (`user-add`/`user-disable`/`user-remove`/
+  `users-set-password`) também ramificam `store_v2` (account.json + `regen_passwd`; remover = `mv`
+  p/ `.removed-users/`) — código novo que toque `passwd` deve fazer o mesmo.
 - **Telegram (overlay só do treino) + alertas**: `lib/telegram.sh` (índice `var/telegram/{by-tgid,by-login}`,
   nonce em `run/telegram/`), cadastro web-first (`handlers/treino/signup/*` + página `web/treino/cadastro/`),
   recuperação por vínculo, `link-start`. O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:

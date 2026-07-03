@@ -69,6 +69,28 @@ ck "link-start devolve nonce" '[[ -n "$LN" && "$LN" != null ]]'
 call "Bearer $BOT" /treino/signup/verify POST "" "{\"nonce\":\"$LN\",\"telegram_id\":111}"
 ck "link do mesmo tg -> already_linked" '[[ "$(jq -r .status <<<"$BODY")" == already_linked ]]'
 
+echo "== admin do contest v2 (user-add/disable/set-password/remove) =="
+printf 'CONTEST=treino\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/tok-adm"
+call "Bearer tok-adm" /contest/admin/user-add POST "contest=treino" '{"login":"maria","password":"s3nh4","fullname":"Maria"}'
+ck "user-add cria no store"      '[[ -f "$T/users/maria/account.json" ]]'
+ck "passwd derivado tem maria"   'grep -q "^maria:s3nh4:Maria" "$T/passwd"'
+call "Bearer tok-adm" /contest/admin/user-add POST "contest=treino" '{"login":"maria","password":"nova1","fullname":"Maria N"}'
+ck "reset atualiza account.json" '[[ "$(jq -r .password "$T/users/maria/account.json")" == nova1 ]]'
+ck "passwd derivado atualizado"  'grep -q "^maria:nova1:" "$T/passwd"'
+call "Bearer tok-adm" /contest/admin/user-disable POST "contest=treino" '{"login":"maria"}'
+ck "disable marca ! no account"  '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
+ck "passwd derivado com !"       'grep -q "^maria:!" "$T/passwd"'
+call "Bearer tok-adm" /contest/admin/users-set-password POST "contest=treino" '{"password":"prova1"}'
+ck "set-password troca joao (pula desabilitada)" '[[ "$(jq -r .password "$T/users/joao/account.json")" == prova1 && "$(jq -r .count <<<"$BODY")" == 1 ]]'
+ck "maria continua desabilitada" '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
+call "Bearer tok-adm" /contest/admin/users-set-password POST "contest=treino" '{"password":"prova2","include_disabled":true}'
+ck "include_disabled reabilita maria (count 2)" '[[ "$(jq -r .password "$T/users/maria/account.json")" == prova2 && "$(jq -r .count <<<"$BODY")" == 2 ]]'
+call "Bearer tok-adm" /contest/admin/user-remove POST "contest=treino" '{"login":"maria"}'
+ck "remove move o diretório"     '[[ ! -d "$T/users/maria" ]] && ls "$T/.removed-users" 2>/dev/null | grep -q "^maria-"'
+ck "passwd derivado sem maria"   '! grep -q "^maria:" "$T/passwd"'
+call "Bearer tok-adm" /contest/admin/user-remove POST "contest=treino" '{"login":"maria"}'
+ck "remove de inexistente 404"   '[[ "$OUT" == *"Status: 404"* ]]'
+
 echo
 echo "RESULT: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
