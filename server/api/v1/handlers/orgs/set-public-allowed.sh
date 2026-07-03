@@ -4,7 +4,7 @@
 # da org — a cascata entra no rework de set-public (Fase 4); por ora, vira só a flag.
 require_method POST
 require_auth
-source "$_DIR/lib/orgs.sh"
+source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 name="$(jq -r '.name // empty' <<<"$body")"
 [[ -n "$name" ]] || fail 400 "Missing name" "name_missing"
@@ -18,6 +18,24 @@ case "$rc" in
   3) fail 409 "Org implícita é sempre privada (não permite público)" "implicit_private" ;;
   *) fail 500 "Falha ao gravar a trava" "write_failed" ;;
 esac
-# TODO Fase 4: se pa==false, despublicar em cascata os problemas públicos desta org (tira do treino).
-audit_log "org-public-allowed" "name=$name public_allowed=$pa by=$SESSION_LOGIN"
-ok_json '{action:"org-set-public-allowed", name:$n, public_allowed:$pa}' --arg n "$name" --argjson pa "$pa"
+# CASCATA anti-vazamento: rebaixar p/ privada DESPUBLICA os problemas públicos da org (tira do treino
+# na hora). Sem isso, a trava só valeria p/ publicações futuras — e prova já pública continuaria vazando.
+unpub=0
+if [[ "$pa" == "false" ]]; then
+  # varre os DIRETÓRIOS da org (robusto, independe do índice; find por causa do -o noglob da API)
+  while IFS= read -r pdir; do
+    [[ -d "$pdir" && -f "$pdir/.moj-meta.json" ]] || continue
+    jq -e '.public==true' >/dev/null 2>&1 < "$pdir/.moj-meta.json" || continue
+    prob="$(basename "$pdir")"; pid="$name#$prob"
+    powner="$(problem_owner "$pid")"; [[ -n "$powner" ]] || powner="$SESSION_LOGIN"
+    write_meta "$pdir" "$powner" "$name" false "" ""
+    problem_commit "$pdir" "$SESSION_LOGIN" "org privada: despublica $prob" >/dev/null
+    authored_patch "$pid" '.public=false'
+    rm -f "$CONTESTSDIR/treino/var/jsons/$pid.json" 2>/dev/null
+    unpub=$((unpub+1))
+  done < <(find "$MOJ_PROBLEMS_DIR/$name" -maxdepth 1 -mindepth 1 -type d ! -name '.git' 2>/dev/null)
+  [[ "$unpub" -gt 0 ]] && rm -f "$CONTESTSDIR/treino/var/problems.json" 2>/dev/null
+fi
+audit_log "org-public-allowed" "name=$name public_allowed=$pa unpublished=$unpub by=$SESSION_LOGIN"
+ok_json '{action:"org-set-public-allowed", name:$n, public_allowed:$pa, unpublished:$u}' \
+  --arg n "$name" --argjson pa "$pa" --argjson u "$unpub"

@@ -4577,6 +4577,15 @@
         }
       }
     },
+    "/problems/move": {
+      "post": {
+        "tags": ["problems"],
+        "summary": "Move um problema de rascunho p/ outra org (muda o id; bloqueia se público/em uso)",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["id", "to_org"], "properties": {"id": {"type": "string"}, "to_org": {"type": "string"}}}}}},
+        "responses": {"200": {"description": "{id, from}"}, "403": {"description": "não é membro das orgs"}, "409": {"description": "público/em uso, ou nome colide no destino"}}
+      }
+    },
     "/orgs/list": {
       "get": {
         "tags": ["orgs"],

@@ -120,7 +120,8 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 | `/problems/edit` | POST `{id, ...campos}` | edita (só campos presentes); commit+push autorado |
 | `/problems/delete` | POST `{id, confirm}` | **REMOVE** o problema (git rm da subpasta + push) e do treino. **Destrutivo**: `confirm` tem de repetir EXATAMENTE o `id`. Dono/colaborador ou admin |
 | `/problems/set-public` | POST `{id, public:bool}` | público **on** => **valida + calibra** (`index_problem_bg` no servidor + `cal_request` a um juiz; só entra no treino se o portão passar) e grava `public` no `.moj-meta.json`; **off** => sai do treino na hora. (Antes o `idx_request` legado era no-op → problema saía público sem validar.) |
-| `/problems/set-collections` | POST `{id, collections:[...]}` | define coleções no `.moj-meta.json` |
+| `/problems/set-collections` | POST `{id, collections:[...]}` | define coleções (tags) no `.moj-meta.json` |
+| `/problems/move` | POST `{id, to_org}` | move um problema de **rascunho** p/ outra org (muda o id `<org>#<prob>`); **bloqueia se público/em uso** (senão órfãoria o histórico); exige ser membro das DUAS orgs |
 | `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (colaborador Gitea; só o dono gerencia) |
 | `/problems/collection-create` | POST `{name, members?, admins?, title?}` | cria uma **coleção** (competição/curso) com **setters** e co-**admins** (exige permissão de criação) |
 | `/problems/collection-members` | GET `?name` / POST `{name,add?,remove?,admins_add?,admins_remove?}` | resposta inclui `repo_course`. **Registrada**: dono/co-admin gerencia setters+admins; propaga acesso aos repos. **Repo-curso** (coleção = repo homônimo): setters = **colaboradores do repo** (add/remove = colaborador; sem co-admins) |
@@ -147,7 +148,7 @@ quem é **membro** escreve em qualquer problema da org; a org tem uma **trava de
 | `/orgs/get` | GET `?name` | detalhe de 1 org; só membro/admin ou `.admin` global, senão **404** (não vaza existência) |
 | `/orgs/create` | POST `{name,members?,admins?,title?,public_allowed?}` | cria org; o criador vira membro+admin (exige `cc_can_create`, a regra de criar contest) |
 | `/orgs/members` | GET `?name` / POST `{name,add?,remove?,admins_add?,admins_remove?}` | só admin da org (ou `.admin`) gerencia; criador blindado; org implícita não tem gestão |
-| `/orgs/set-public-allowed` | POST `{name,public_allowed:bool}` | liga/desliga a trava (só admin da org; implícita ⇒ **409**). Desligar despublica em cascata os públicos da org (Fase 4) |
+| `/orgs/set-public-allowed` | POST `{name,public_allowed:bool}` | liga/desliga a trava (só admin da org; implícita ⇒ **409**). **Desligar DESPUBLICA em cascata** os problemas públicos da org (tira do treino) — resposta traz `unpublished` |
 
 O CLI **`moj`** (`web/moj`, servido em `GET /moj`; fonte em `moj-cli/`) usa essas rotas para
 autoria **sem git/sem chave**: `moj new/clone/push/publish/share`. `git-credential` é só p/ o modo
