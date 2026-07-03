@@ -9,14 +9,14 @@ OWNERS_INDEX="$CONTESTSDIR/treino/var/problem-owners.json"
 ensure_owners_index(){
   local f="$OWNERS_INDEX"
   if [[ ! -f "$f" ]]; then
-    MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" \
+    MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" RUNDIR="${RUNDIR:-/home/ribas/moj/run}" \
       bash "$MOJTOOLS_DIR/gen-problem-owners.sh" >/dev/null 2>&1
     return
   fi
   if [[ -n "$(find "$f" -mmin "+$PROBLEM_OWNERS_TTL_MIN" 2>/dev/null)" ]]; then
     local lock="$f.lock"
     if mkdir "$lock" 2>/dev/null; then
-      ( MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" \
+      ( MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" RUNDIR="${RUNDIR:-/home/ribas/moj/run}" \
         setsid bash -c 'bash "$1" >/dev/null 2>&1; rmdir "$2" 2>/dev/null' \
           _ "$MOJTOOLS_DIR/gen-problem-owners.sh" "$lock" & ) 2>/dev/null
     fi
@@ -29,24 +29,49 @@ AUTHORED_INDEX="$CONTESTSDIR/treino/var/authored.json"   # overlay de problemas 
 # (Gitea recém-autorado vence por id). Dá visibilidade IMEDIATA ao que foi criado/editado.
 owners_merged(){
   ensure_owners_index
+  # o overlay authored dá visibilidade IMEDIATA ao recém-criado/editado, mas NÃO pode APAGAR os campos
+  # que só o índice calcula (tl_checksum, public_at) — por isso é MESCLADO sobre a entrada do índice
+  # (base + overlay, overlay vence campo-a-campo) em vez de substituí-la. Sem isso, todo problema no
+  # overlay perdia tl_checksum/public_at (staleness e heatmap de entrada sub-reportados).
   jq -s '
     (.[0] // {problems:[]}) as $base
     | ((.[1] // {}) | [to_entries[].value]) as $ov
+    | (($base.problems // []) | map({key:.id, value:.}) | from_entries) as $bmap
     | ($ov | map(.id)) as $ids
-    | { problems: (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not))) + $ov }
+    | { problems: (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not)))
+                  + ($ov | map(($bmap[.id] // {}) + .)) }
   ' "$OWNERS_INDEX" <(cat "$AUTHORED_INDEX" 2>/dev/null || echo '{}') 2>/dev/null
 }
 
-# owners_emit <jq-program> [jq-args...] — emite {success,...} aplicando o programa sobre o
-# objeto mesclado (com .problems). Use $login/$name já passados via --arg pelos handlers.
+# owners_visible — {problems:[...]} PRÉ-FILTRADO ao que $SESSION_LOGIN PODE VER (público OU dono OU
+# colaborador). É A FRONTEIRA DE SEGURANÇA da gestão (a API garante o acesso, NÃO a interface):
+# problema privado some das listagens — inclusive p/ .admin. Reusada por owners_emit E
+# /problems/status; ter UMA definição só evita divergência do filtro (que é o ponto crítico).
+owners_visible(){
+  owners_merged \
+    | jq -c --arg _me "$SESSION_LOGIN" '.problems |= map(select(.public or .owner==$_me or ((.collaborators // [])|index($_me)|type=="number")))'
+}
+# owners_emit <jq-program> [jq-args...] — emite {success,...} aplicando o programa sobre o objeto JÁ
+# FILTRADO (com .problems só visíveis). Use $login/$name já passados via --arg pelos handlers.
 owners_emit(){
   local prog="$1"; shift
   emit_json 200 OK
-  # SEGURANÇA (a API garante o acesso, NÃO a interface): pré-filtra .problems p/ só o que o login
-  # PODE VER (público OU dono OU colaborador). Problema privado some das listagens — inclusive p/ .admin.
-  owners_merged \
-    | jq -c --arg _me "$SESSION_LOGIN" '.problems |= map(select(.public or .owner==$_me or ((.collaborators // [])|index($_me)|type=="number")))' \
-    | jq -c "$@" "$prog" 2>/dev/null || jq -cn '{success:true, problems:[]}'
+  owners_visible | jq -c "$@" "$prog" 2>/dev/null || jq -cn '{success:true, problems:[]}'
+}
+
+# calibrating_set -> ["<id>",...] em calibração AGORA. Uma varredura só das TRÊS filas de calibração:
+# run/updates/{pending,inprogress} (kind=="calibrate"; pending mistura kind=="index", por isso o
+# filtro) + run/commands/<host> (action=="calibrate", recalibração direcionada). Conjunto pequeno ->
+# o chamador junta com INDEX(.) p/ testar pertinência em O(1). Sem evento de conclusão: "done" é
+# inferido pelo run/tl/<id>.json mais novo (best-effort; pode piscar no meio do voo).
+calibrating_set(){
+  local _ud="${UPDATESDIR:-${RUNDIR:-/home/ribas/moj/run}/updates}"
+  local _cd="${CMDDIR:-${RUNDIR:-/home/ribas/moj/run}/commands}"
+  { find "$_ud/pending" "$_ud/inprogress" -name '*.json' -exec cat {} + 2>/dev/null \
+      | jq -r 'select(.kind=="calibrate") | .target // empty'
+    find "$_cd" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null \
+      | jq -r 'select(.action=="calibrate") | .id // empty'
+  } 2>/dev/null | LC_ALL=C sort -u | jq -Rc '[inputs|select(length>0)]' 2>/dev/null || echo '[]'
 }
 
 # authored_upsert <id> <owner> <repo> <prob> <title> <public:true|false> <collections-json> <author> [collabs-json]
@@ -459,10 +484,12 @@ write_meta(){
     title="$(_derive_title "$pkg")"
   fi
   jq -n --argjson cur "$cur" --arg o "$owner" --arg r "$repo" --arg pub "$pub" \
-        --argjson colls "${colls:-null}" --arg title "$title" '
+        --argjson colls "${colls:-null}" --arg title "$title" --argjson now "$EPOCHSECONDS" '
     $cur + {owner:$o, gitea:{owner:$o, repo:$r}}
     + (if $pub=="" then {} elif $pub=="true" then {public:true} else {public:false} end)
     + (if $colls==null then {} else {collections:$colls} end)
     + (if $title=="" then {} else {display_title:$title} end)
+    # carimba a 1ª publicação (permanece ao despublicar); alimenta o heatmap "entrada de públicos"
+    + (if $pub=="true" and (($cur.public_at // null)==null) then {public_at:$now} else {} end)
   ' > "$pkg/.moj-meta.json"
 }

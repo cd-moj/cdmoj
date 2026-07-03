@@ -3,16 +3,17 @@
 // máquinas de julgamento. Consome a API admin (Bearer + .admin) — não-admin → 403.
 //   GET  /treino/admin/sessions    {count, sessions:[{login,name,ip,user_agent,login_at}]}
 //   GET  /treino/admin/access-log?day=YYYY-MM-DD  {day, entries:[{time,login,ip,user_agent}]}
-//   GET  /treino/admin/queue       {total_pending, spool_queued, lists:[{contest,name,pending}]}
-//   GET  /treino/admin/judges      {online, busy, master, master_host, master_port, configured_workers, configured_count}
-//   GET  /treino/admin/stats       {users, active_sessions, logins_per_day:[{day,count}], submissions_per_day:[{day,count}]}
-//   GET  /treino/admin/response-stats {coverage:{history_total,with_finalized}, overall:{n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}, per_day:[{day,n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}], by_dow_hour:[{dow,hour,n,avg_wait_s}]}
+//   GET  /treino/admin/queue       {total_pending, spool_queued, calib_pending, calib_inflight, calib_targeted, lists:[{contest,name,pending}]}
+//   GET  /treino/admin/judges      {online, busy, machines:[{host,online,busy,tl,cache,current:{kind,problem_id,...}|null,queued_calibrate}], ...}
+//   GET  /treino/admin/stats       {users, active_sessions, problems:{total,public,private}, by_author:[{author,total,public,private}], problems_public_by_day:[{day,count}], logins_per_day:[{day,count}], submissions_per_day:[{day,count}]}
+//   GET  /treino/admin/response-stats {coverage, overall, per_day, by_dow_hour, subs_per_day:[{day,count}], subs_by_dow_hour:[{dow,hour,n}]}
+//   GET  /treino/admin/calib-activity {calib_per_day:[{day,count}], calib_by_dow_hour:[{dow,hour,n}], total}
 //   POST /treino/admin/logout-user {login} -> {logged_out, sessions_removed}
 //   POST /treino/admin/lock-user   {login} -> {locked, sessions_removed}
 import { apiGet, apiPost } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
-import { barChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
+import { barChart, hBarChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
 
 const CONTEST = 'treino';
 const G = (opts) => ({ contest: CONTEST, auth: true, ...opts });
@@ -227,187 +228,228 @@ function makeAccessLogTab() {
 }
 
 // ============================ aba: Estatísticas ============================
+// Página com TOC + seções: visão geral, problemas por autor, entrada de públicos (mapa de calor),
+// atividade (logins/submissões por dia). Fonte: GET /treino/admin/stats.
+const card = (v, label, hl) => el('div', { class: 'stat-card' + (hl ? ' hl' : '') },
+  el('div', { class: 'n' }, String(v)), el('div', { class: 'lbl' }, label));
+// caixa de gráfico de barras por dia (reusada por Estatísticas e Fila>Volume)
+function dayBarBox(title, arr, color) {
+  const box = el('div', {}, el('div', { class: 'chart-title' }, title));
+  if (arr && arr.length) {
+    box.append(el('div', { class: 'chart-wrap' },
+      barChart(arr.map(d => ({ label: ddmm(d.day), value: num(d.count) })),
+        { width: 460, height: 240, color, rotateLabels: true, maxLabels: 15 })));
+  } else box.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, 'Sem dados.'));
+  return box;
+}
+// seção com âncora + link no índice (TOC). Devolve {node, link}.
+function tocSection(id, title, toc, body) {
+  const node = el('div', { id, style: 'scroll-margin-top:.5rem;margin-top:1.1rem' },
+    el('h3', { style: 'margin:.2rem 0 .6rem;border-bottom:1px solid var(--line,#e3e8f2);padding-bottom:.2rem' }, title));
+  toc.append(el('a', { href: '#' + id, style: 'font-size:.9rem;text-decoration:none',
+    onclick: (e) => { e.preventDefault(); document.getElementById(id).scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, title));
+  body.append(node);
+  return node;
+}
+
 function makeStatsTab() {
   const panel = el('div', { class: 'section' });
   const head = el('h2', {}, '📊 Estatísticas');
   const tools = el('div', { class: 'toolbar' },
     el('button', { class: 'btn ghost', onclick: () => load() }, '↻ Atualizar'));
+  const toc = el('div', { style: 'display:flex;gap:1rem;flex-wrap:wrap;margin:.2rem 0 .4rem;padding:.4rem .7rem;background:var(--card-bg,#f5f7fb);border-radius:.5rem' });
   const body = el('div', {}, loading());
-  panel.append(head, tools, body);
-
-  function card(n, label, hl) {
-    return el('div', { class: 'stat-card' + (hl ? ' hl' : '') },
-      el('div', { class: 'n' }, String(n)), el('div', { class: 'lbl' }, label));
-  }
+  panel.append(head, tools, toc, body);
 
   async function load() {
-    body.innerHTML = ''; body.append(loading());
+    body.innerHTML = ''; body.append(loading()); toc.innerHTML = '';
     let data;
     try { data = await apiGet('/treino/admin/stats', G()); }
     catch (e) { body.innerHTML = ''; body.append(errBox('Falha ao carregar estatísticas: ' + (e.message || 'erro'))); return; }
     body.innerHTML = '';
+    const p = data.problems || {};
 
-    body.append(el('div', { class: 'stat-cards' },
+    // (a) Visão geral
+    tocSection('st-geral', 'Visão geral', toc, body).append(el('div', { class: 'stat-cards' },
       card(num(data.users), 'usuários totais', true),
-      card(num(data.active_sessions), 'sessões ativas', true)));
+      card(num(data.active_sessions), 'sessões ativas', true),
+      card(num(p.total), 'problemas (total)', true),
+      card(num(p.public), 'públicos'),
+      card(num(p.private), 'privados')));
 
+    // (b) Problemas por autor
+    const s2 = tocSection('st-autor', 'Problemas por autor', toc, body);
+    const authors = (data.by_author || []).filter(a => num(a.total) > 0);
+    if (authors.length) {
+      s2.append(el('div', { class: 'chart-wrap' },
+        hBarChart(authors.slice(0, 15).map(a => ({ label: a.author || '—', value: num(a.total) })),
+          { total: num(p.total), maxRows: 15 })));
+      const tb = el('tbody');
+      authors.forEach(a => tb.append(el('tr', {},
+        el('td', {}, a.author || '—'),
+        el('td', {}, el('b', {}, String(num(a.total)))),
+        el('td', { class: 'small' }, String(num(a.public)) + ' públicos'),
+        el('td', { class: 'small muted' }, String(num(a.private)) + ' privados'))));
+      s2.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Autor'), el('th', {}, 'Total'), el('th', {}, 'Públicos'), el('th', {}, 'Privados'))), tb)));
+    } else s2.append(el('div', { class: 'muted small' }, 'Sem dados de autoria.'));
+
+    // (c) Entrada de problemas públicos (mapa de calor)
+    const s3 = tocSection('st-entrada', 'Entrada de problemas públicos', toc, body);
+    const byDate = {}; (data.problems_public_by_day || []).forEach(d => { byDate[ymd(d.day)] = num(d.count); });
+    if (Object.keys(byDate).length) {
+      s3.append(el('div', { class: 'muted small', style: 'margin:.1rem 0 .5rem;line-height:1.45' },
+        'Quando cada problema virou público. ⚠ Ressalva: problemas migrados não têm data real de publicação — a maioria aparece concentrada na janela da migração (meados de 2026). Datas de problemas publicados a partir de agora são exatas.'));
+      s3.append(el('div', { class: 'chart-wrap' },
+        heatmap(byDate, { weeks: 30, cell: 13, color: '#1a7f37', fmt: (v, date) => `${date}: ${v} problema${v === 1 ? '' : 's'} público${v === 1 ? '' : 's'}` })));
+    } else s3.append(el('div', { class: 'muted small' }, 'Sem datas de entrada ainda.'));
+
+    // (d) Atividade
+    const s4 = tocSection('st-atividade', 'Atividade', toc, body);
     const logins = (data.logins_per_day || []).slice().sort((a, b) => num(a.day) - num(b.day));
     const subs = (data.submissions_per_day || []).slice().sort((a, b) => num(a.day) - num(b.day));
-
     const grid = el('div', { class: 'stat-grid two' });
-
-    const loginsBox = el('div', {}, el('div', { class: 'chart-title' }, 'Logins por dia'));
-    if (logins.length) {
-      loginsBox.append(el('div', { class: 'chart-wrap' },
-        barChart(logins.map(d => ({ label: ddmm(d.day), value: num(d.count) })),
-          { width: 460, height: 240, color: '#216097', rotateLabels: true, maxLabels: 15 })));
-    } else {
-      loginsBox.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, 'Sem dados.'));
-    }
-
-    const subsBox = el('div', {}, el('div', { class: 'chart-title' }, 'Submissões por dia'));
-    if (subs.length) {
-      subsBox.append(el('div', { class: 'chart-wrap' },
-        barChart(subs.map(d => ({ label: ddmm(d.day), value: num(d.count) })),
-          { width: 460, height: 240, color: '#1a7f37', rotateLabels: true, maxLabels: 15 })));
-    } else {
-      subsBox.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, 'Sem dados.'));
-    }
-
-    grid.append(loginsBox, subsBox);
-    body.append(grid);
+    grid.append(dayBarBox('Logins por dia', logins, '#216097'), dayBarBox('Submissões por dia', subs, '#1a7f37'));
+    s4.append(grid);
   }
 
   return { panel, load };
 }
 
-// ============================ aba: Tempo de resposta ============================
-// Tempo que o usuário espera (submit -> veredito), julgamento puro (duration_s) e fila
-// (espera - julgamento) no Treino Livre. Geral, média por dia e dois mapas de calor
-// (calendário por data + dia-da-semana × hora). Só conta submissões com veredito
-// registrado (finalized_at); a cobertura é exibida. Fonte: GET /treino/admin/response-stats.
-function makeResponseTab() {
-  const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, '⏱ Tempo de resposta');
-  const tools = el('div', { class: 'toolbar' },
-    el('button', { class: 'btn ghost', onclick: () => load() }, '↻ Atualizar'));
-  const body = el('div', {}, loading());
-  panel.append(head, tools, body);
-
-  const card = (v, label, hl) => el('div', { class: 'stat-card' + (hl ? ' hl' : '') },
-    el('div', { class: 'n' }, String(v)), el('div', { class: 'lbl' }, label));
-
-  // caixa "gráfico de linha por dia" reutilizável
-  const lineBox = (title, days, key, color) => {
-    const box = el('div', {}, el('div', { class: 'chart-title' }, title));
-    if (days.length) {
-      const pts = days.map(d => ({ x: num(d.day), y: num(d[key]), label: ddmm(d.day) }));
-      box.append(el('div', { class: 'chart-wrap' }, lineChart(pts, { width: 460, height: 220, color, maxLabels: 7 })));
-    } else {
-      box.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, 'Sem dados.'));
-    }
-    return box;
+// ---- render do TEMPO DE RESPOSTA (movido da antiga aba; agora seção da Fila) ----
+// espera (submit->veredito), julgamento (duration_s), fila; geral + por dia + 2 mapas de calor.
+// Só submissões com finalized_at (cobertura exibida). Fonte: GET /treino/admin/response-stats.
+function renderResponseInto(box, data) {
+  const ov = data.overall || {}, cov = data.coverage || {};
+  box.append(el('div', { class: 'muted small', style: 'margin:.1rem 0 .8rem' },
+    `Baseado em ${num(cov.with_finalized)} de ${num(cov.history_total)} submissões com tempo de veredito registrado (pipeline v2). Horários em UTC.`));
+  if (!num(ov.n)) {
+    box.append(el('div', { class: 'muted small center', style: 'padding:1.2rem' },
+      'Ainda não há submissões com tempo de resposta registrado (preenche conforme novas submissões forem julgadas).'));
+    return;
+  }
+  box.append(el('div', { class: 'stat-cards' },
+    card(fmtDur(ov.avg_wait_s), 'espera média (submit→veredito)', true),
+    card(fmtDur(ov.p50_wait_s), 'espera mediana (p50)'),
+    card(fmtDur(ov.p95_wait_s), 'espera p95'),
+    card(fmtDur(ov.max_wait_s), 'espera máxima'),
+    card(fmtDur(ov.avg_judge_s), 'julgamento médio (execução)'),
+    card(fmtDur(ov.avg_queue_s), 'fila média (espera − julgamento)', true),
+    card(num(ov.n), 'submissões medidas')));
+  const days = (data.per_day || []).slice().sort((a, b) => num(a.day) - num(b.day));
+  const lineBox = (title, key, color) => {
+    const b = el('div', {}, el('div', { class: 'chart-title' }, title));
+    if (days.length) b.append(el('div', { class: 'chart-wrap' }, lineChart(days.map(d => ({ x: num(d.day), y: num(d[key]), label: ddmm(d.day) })), { width: 460, height: 220, color, maxLabels: 7 })));
+    else b.append(el('div', { class: 'muted small center', style: 'padding:1rem' }, 'Sem dados.'));
+    return b;
   };
-
-  async function load() {
-    body.innerHTML = ''; body.append(loading());
-    let data;
-    try { data = await apiGet('/treino/admin/response-stats', G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox('Falha ao carregar tempos de resposta: ' + (e.message || 'erro'))); return; }
-    body.innerHTML = '';
-
-    const ov = data.overall || {}, cov = data.coverage || {};
-    body.append(el('div', { class: 'muted small', style: 'margin:.1rem 0 .8rem' },
-      `Baseado em ${num(cov.with_finalized)} de ${num(cov.history_total)} submissões com tempo de veredito registrado (pipeline v2). Horários em UTC.`));
-
-    if (!num(ov.n)) {
-      body.append(el('div', { class: 'muted small center', style: 'padding:1.6rem' },
-        'Ainda não há submissões com tempo de resposta registrado. Os gráficos se preenchem conforme novas submissões forem julgadas.'));
-      return;
-    }
-
-    // cartões: espera (média/p50/p95/máx), julgamento e fila
-    body.append(el('div', { class: 'stat-cards' },
-      card(fmtDur(ov.avg_wait_s), 'espera média (submit→veredito)', true),
-      card(fmtDur(ov.p50_wait_s), 'espera mediana (p50)'),
-      card(fmtDur(ov.p95_wait_s), 'espera p95'),
-      card(fmtDur(ov.max_wait_s), 'espera máxima'),
-      card(fmtDur(ov.avg_judge_s), 'julgamento médio (execução)'),
-      card(fmtDur(ov.avg_queue_s), 'fila média (espera − julgamento)', true),
-      card(num(ov.n), 'submissões medidas')));
-
-    // séries por dia
-    const days = (data.per_day || []).slice().sort((a, b) => num(a.day) - num(b.day));
-    const grid1 = el('div', { class: 'stat-grid two' });
-    grid1.append(lineBox('Espera média por dia', days, 'avg_wait_s', '#216097'),
-                 lineBox('Espera p95 por dia', days, 'p95_wait_s', '#c4314b'));
-    const grid2 = el('div', { class: 'stat-grid two' });
-    grid2.append(lineBox('Julgamento médio por dia', days, 'avg_judge_s', '#1a7f37'),
-                 lineBox('Fila média por dia', days, 'avg_queue_s', '#a66a00'));
-    body.append(grid1, grid2);
-
-    // escala de cor dos mapas: corta no p95 p/ um dia/bucket outlier não lavar o resto
-    const scaleMax = num(ov.p95_wait_s) || num(ov.avg_wait_s) || 1;
-
-    // mapa de calor por data (espera média/dia)
-    const byDate = {};
-    days.forEach(d => { byDate[ymd(d.day)] = num(d.avg_wait_s); });
-    const calBox = el('div', {}, el('div', { class: 'chart-title' }, 'Mapa de calor — espera média por dia'));
-    calBox.append(el('div', { class: 'chart-wrap' },
-      heatmap(byDate, { weeks: 26, cell: 18, gap: 4, color: '#216097', scaleMax, fmt: (v, date) => `${date}: ${fmtDur(v)}` })));
-    body.append(calBox);
-
-    // mapa de calor dia-da-semana × hora (quando os juízes ficam lentos)
-    const gridBox = el('div', {}, el('div', { class: 'chart-title' }, 'Mapa de calor — espera média por dia da semana × hora (UTC)'));
-    gridBox.append(el('div', { class: 'chart-wrap' },
-      heatmapGrid(data.by_dow_hour || [], { color: '#c4314b', scaleMax, fmt: (v) => fmtDur(v) })));
-    body.append(gridBox);
-  }
-  return { panel, load };
+  const g1 = el('div', { class: 'stat-grid two' });
+  g1.append(lineBox('Espera média por dia', 'avg_wait_s', '#216097'), lineBox('Espera p95 por dia', 'p95_wait_s', '#c4314b'));
+  const g2 = el('div', { class: 'stat-grid two' });
+  g2.append(lineBox('Julgamento médio por dia', 'avg_judge_s', '#1a7f37'), lineBox('Fila média por dia', 'avg_queue_s', '#a66a00'));
+  box.append(g1, g2);
+  const scaleMax = num(ov.p95_wait_s) || num(ov.avg_wait_s) || 1;   // corta no p95 p/ 1 outlier não lavar o mapa
+  const byDate = {}; days.forEach(d => { byDate[ymd(d.day)] = num(d.avg_wait_s); });
+  box.append(el('div', {}, el('div', { class: 'chart-title' }, 'Mapa de calor — espera média por dia'),
+    el('div', { class: 'chart-wrap' }, heatmap(byDate, { weeks: 26, cell: 18, gap: 4, color: '#216097', scaleMax, fmt: (v, date) => `${date}: ${fmtDur(v)}` }))));
+  // heatmapGrid lê c.value (cor/escala); as células trazem a magnitude em avg_wait_s -> mapeia.
+  const waitCells = (data.by_dow_hour || []).map(c => ({ dow: num(c.dow), hour: num(c.hour), value: num(c.avg_wait_s), n: num(c.n) }));
+  box.append(el('div', {}, el('div', { class: 'chart-title' }, 'Mapa de calor — espera média por dia da semana × hora (UTC)'),
+    el('div', { class: 'chart-wrap' }, heatmapGrid(waitCells, { color: '#c4314b', scaleMax, fmt: (v) => fmtDur(v) }))));
 }
 
-// ============================ aba: Fila de submissões ============================
+// ---- render do VOLUME (submissões + calibrações) — mapas de calor calendário + dow×hora ----
+function renderVolumeInto(box, resp, calib) {
+  const calMap = (arr) => { const m = {}; (arr || []).forEach(d => { m[ymd(d.day)] = num(d.count); }); return m; };
+  const dhCells = (arr) => (arr || []).map(c => ({ dow: num(c.dow), hour: num(c.hour), value: num(c.n), n: num(c.n) }));
+  const calHeat = (m, color, unit) => Object.keys(m).length
+    ? heatmap(m, { weeks: 40, cell: 13, color, fmt: (v, date) => `${date}: ${v} ${unit}${v === 1 ? '' : 's'}` })
+    : el('div', { class: 'muted small' }, 'Sem dados.');
+  const gridHeat = (cells, color, unit) => cells.length
+    ? heatmapGrid(cells, { color, fmt: (v) => v + ' ' + unit + (v === 1 ? '' : 's') })
+    : el('div', { class: 'muted small' }, 'Sem dados.');
+
+  box.append(el('div', { class: 'chart-title' }, 'Submissões por dia'),
+    el('div', { class: 'chart-wrap' }, calHeat(calMap(resp.subs_per_day), '#1a7f37', 'submissão')));
+  box.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, 'Submissões por dia da semana × hora (UTC)'),
+    el('div', { class: 'chart-wrap' }, gridHeat(dhCells(resp.subs_by_dow_hour), '#1a7f37', 'sub')));
+
+  box.append(el('div', { class: 'muted small', style: 'margin:.9rem 0 .3rem;line-height:1.4' },
+    'Calibrações (do log de eventos dos juízes; run/ pode rotacionar → cobertura histórica parcial).'));
+  box.append(el('div', { class: 'chart-title' }, 'Calibrações por dia'),
+    el('div', { class: 'chart-wrap' }, calHeat(calMap(calib.calib_per_day), '#7a5ada', 'calibração')));
+  box.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, 'Calibrações por dia da semana × hora (UTC)'),
+    el('div', { class: 'chart-wrap' }, gridHeat(dhCells(calib.calib_by_dow_hour), '#7a5ada', 'calib')));
+}
+
+// ============================ aba: Fila & tempo de resposta ============================
+// Seções (TOC): Agora (contadores + o que cada máquina roda: calibração vs submissão), Tempo de
+// resposta (movido da antiga aba) e Volume (mapas de calor de submissões e calibrações).
 function makeQueueTab() {
   const panel = el('div', { class: 'section' });
-  const head = el('h2', {}, '⏳ Fila de submissões');
+  const head = el('h2', {}, '⏳ Fila & tempo de resposta');
   const tools = el('div', { class: 'toolbar' },
     el('button', { class: 'btn ghost', onclick: () => load() }, '↻ Atualizar'));
+  const toc = el('div', { style: 'display:flex;gap:1rem;flex-wrap:wrap;margin:.2rem 0 .4rem;padding:.4rem .7rem;background:var(--card-bg,#f5f7fb);border-radius:.5rem' });
   const body = el('div', {}, loading());
-  panel.append(head, tools, body);
-
-  function card(n, label, hl) {
-    return el('div', { class: 'stat-card' + (hl ? ' hl' : '') },
-      el('div', { class: 'n' }, String(n)), el('div', { class: 'lbl' }, label));
-  }
+  panel.append(head, tools, toc, body);
 
   async function load() {
-    body.innerHTML = ''; body.append(loading());
-    let data;
-    try { data = await apiGet('/treino/admin/queue', G()); }
-    catch (e) { body.innerHTML = ''; body.append(errBox('Falha ao carregar a fila: ' + (e.message || 'erro'))); return; }
+    body.innerHTML = ''; body.append(loading()); toc.innerHTML = '';
+    let q, judges, resp, calib;
+    try {
+      [q, judges, resp, calib] = await Promise.all([
+        apiGet('/treino/admin/queue', G()),
+        apiGet('/treino/admin/judges', G()).catch(() => ({ machines: [] })),
+        apiGet('/treino/admin/response-stats', G()).catch(() => ({})),
+        apiGet('/treino/admin/calib-activity', G()).catch(() => ({})),
+      ]);
+    } catch (e) { body.innerHTML = ''; body.append(errBox('Falha ao carregar a fila: ' + (e.message || 'erro'))); return; }
     body.innerHTML = '';
 
-    body.append(el('div', { class: 'stat-cards' },
-      card(num(data.total_pending), 'total pendente', true),
-      card(num(data.spool_queued), 'na fila (spool)')));
-
-    const lists = data.lists || [];
-    if (!lists.length) {
-      body.append(el('div', { class: 'muted' }, 'Nenhuma submissão pendente.'));
-      return;
+    // (a) Agora — contadores + o que cada máquina roda
+    const s1 = tocSection('q-agora', 'Agora', toc, body);
+    s1.append(el('div', { class: 'stat-cards' },
+      card(num(q.total_pending), 'submissões pendentes', true),
+      card(num(q.spool_queued), 'na fila (spool)'),
+      card(num(q.calib_pending), 'calibrações na fila'),
+      card(num(q.calib_inflight) + num(q.calib_targeted), 'calibrando agora')));
+    const machines = judges.machines || [];
+    if (machines.length) {
+      const mtb = el('tbody');
+      machines.forEach(m => {
+        const cur = m.current || null;
+        let job;
+        if (!cur || !cur.kind) job = el('span', { class: 'muted small' }, m.online ? (m.busy ? 'ocupada' : 'livre') : 'offline');
+        else if (cur.kind === 'submission') job = el('span', {}, '📥 submissão · ', el('b', {}, cur.problem_id || '?'), cur.login ? el('span', { class: 'small muted' }, ' · ' + cur.login) : '');
+        else if (cur.kind === 'calibrate') job = el('span', {}, '⚙ calibração · ', el('b', {}, cur.problem_id || '?'));
+        else if (cur.kind === 'index') job = el('span', {}, '🗂 indexação · ', el('b', {}, cur.problem_id || '?'));
+        else job = el('span', { class: 'muted small' }, 'ocupada (calibração direcionada)');
+        const qc = num(m.queued_calibrate);
+        mtb.append(el('tr', {},
+          el('td', {}, '🖧 ' + (m.host || '?')),
+          el('td', {}, m.online ? (m.busy ? '🟡 ocupada' : '🟢 livre') : '🔴 offline'),
+          el('td', {}, job),
+          el('td', { class: 'small muted' }, qc ? (qc + ' na fila') : '—')));
+      });
+      s1.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Máquina'), el('th', {}, 'Estado'), el('th', {}, 'Rodando agora'), el('th', {}, 'Calib. direcionada'))), mtb)));
     }
-    const tb = el('tbody');
-    lists.forEach(l => {
-      tb.append(el('tr', {},
+    const lists = q.lists || [];
+    if (lists.length) {
+      const tb = el('tbody');
+      lists.forEach(l => tb.append(el('tr', {},
         el('td', {}, l.name || l.contest || '—'),
         el('td', { class: 'small', style: 'font-family:var(--mono)' }, l.contest || '—'),
-        el('td', {}, el('b', { style: 'color:var(--warn)' }, String(num(l.pending))))));
-    });
-    const table = el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {},
-        el('th', {}, 'Lista'), el('th', {}, 'Contest'), el('th', {}, 'Pendentes'))),
-      tb);
-    body.append(el('div', { class: 'chart-wrap' }, table));
+        el('td', {}, el('b', { style: 'color:var(--warn)' }, String(num(l.pending)))))));
+      s1.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, 'Pendentes por lista'));
+      s1.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Lista'), el('th', {}, 'Contest'), el('th', {}, 'Pendentes'))), tb)));
+    }
+
+    // (b) Tempo de resposta   (c) Volume
+    renderResponseInto(tocSection('q-resposta', 'Tempo de resposta', toc, body), resp);
+    renderVolumeInto(tocSection('q-volume', 'Volume de submissões e calibrações', toc, body), resp, calib);
   }
 
   return { panel, load };
@@ -763,8 +805,7 @@ function renderPanel(content) {
     { id: 'access', label: '📝 Acessos (log)', make: makeAccessLogTab },
     { id: 'audit', label: '🛡 Auditoria', make: makeAuditTab },
     { id: 'stats', label: '📊 Estatísticas', make: makeStatsTab },
-    { id: 'resp', label: '⏱ Tempo de resposta', make: makeResponseTab },
-    { id: 'queue', label: '⏳ Fila de submissões', make: makeQueueTab },
+    { id: 'queue', label: '⏳ Fila & tempo de resposta', make: makeQueueTab },
     { id: 'judges', label: '🖥️ Máquinas de julgamento', make: makeJudgesTab },
   ];
 

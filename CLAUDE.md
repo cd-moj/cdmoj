@@ -88,6 +88,35 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
   **privado some** p/ quem não é dono/colaborador, **inclusive `.admin`**). Não-autorizado: **404**.
   Motivo: provas em elaboração não podem vazar. Testado como não-dono via `moj-cli` (não burlável).
 
+- **Painel de status (`GET /problems/status`, aba "Painel" da gestão):** agrega, dos problemas de que
+  o login é **dono ou colaborador**, validação/calibração/time-limits + estados **"calibrando"**
+  (varredura única de `run/updates`+`run/commands` por `kind/action==calibrate` — `calibrating_set`) e
+  **"precisa recalibrar"** (checksum calibrado em `run/tl/<id>.json` ≠ `tl_checksum` **carimbado no
+  índice** por `mojtools/gen-problem-owners.sh`). A FRONTEIRA de acesso é **`owners_visible`** (extraído
+  de `owners_emit` — UMA definição do filtro público∪dono∪colaborador; o handler ainda estreita a
+  dono/colaborador). **Sem hash de pacote por request**: staleness é a comparação de dois checksums já
+  materializados (o do índice regenera em background, ≤30 min de atraso — o gerador tem cache por
+  commit do repo p/ não re-hashear pacote sem mudança; `/problems/tl` dá o valor exato ao vivo p/ 1
+  problema). No `.admin`: **fila de calibração** explícita (`/treino/admin/queue`:
+  `calib_pending`/`calib_inflight`/`calib_targeted`, `kind=calibrate` separado de `index`, contadores
+  em `sched-lib.sh`) e **contagem de problemas** total/públicos/privados na aba Estatística
+  (`/treino/admin/stats`, **só números** — privados contados, nunca listados).
+
+- **Análise dos meus problemas (`GET /problems/my-stats`, aba "Análise"):** panorama de submissões
+  dos problemas do login (dono/colaborador) agregado em **TODA a plataforma** (treino + as ~174
+  turmas): tentativas/acertos/erros/linguagens/usuários/nº de contests/mais popular. Cálculo pesado
+  em `server/score/problem-panorama-gen.sh` → cache `contests/treino/var/problem-panorama.json`
+  (regen em BACKGROUND quando velho, padrão do índice). **Reconciliação de namespace** (o ponto
+  delicado): o history usa `problemas-apc#`/`moj-problems#`/OFFSET legado; o índice usa
+  `apc#`/`obi-problems#`/`monitores#` — a ponte é o campo `collections` (aliases derivados por REPO,
+  não por problema); legado resolve o offset pela conf (`sc_load`/`{off,raw,dot,hash}`). O handler
+  filtra o cache ao dono (`owners_visible`) — **só agregados, sem logins, sem nomes de contests** (só
+  `contests_count`; não vaza prova privada). **`public_at`**: `write_meta` carimba a 1ª publicação no
+  `.moj-meta.json`; `gen-problem-owners.sh` o leva ao índice (+ seed `public-at-seed.json` do
+  `server/bin/backfill-public-at.sh` p/ o histórico) → mapa de calor de entrada de públicos. **Nota:**
+  `owners_merged` MESCLA o overlay `authored` sobre a entrada do índice (não substitui) p/ não apagar
+  `tl_checksum`/`public_at` — sem isso, problemas no overlay perdiam esses campos.
+
 - `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta`) +
   `lib/git-broker.sh` (commit/push via token efêmero). Handlers em `handlers/problems/`.
 - **Pacote canônico**: `docs/enunciado.{md,org,tex}`, `tests/input|output/` (exemplos = `sample*`,

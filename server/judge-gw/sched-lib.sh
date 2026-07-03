@@ -284,6 +284,17 @@ upd_reconcile() {
 # upd_pending_count : nº de updates pendentes (não reivindicados).
 upd_pending_count() { find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l; }
 
+# upd_pending_kind_count <kind> / upd_inprogress_kind_count <kind> — contagem FILTRADA por kind.
+# pending mistura kind=="calibrate" e kind=="index"; separar é essencial p/ o contador EXPLÍCITO de
+# calibração na fila do .admin. jq -s em stdin vazio -> [] -> length 0. Saneia a dígitos (lição do
+# outage do grep -c: nunca deixar não-dígito escapar p/ aritmética).
+upd_pending_kind_count() { local n
+  n="$(find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+       | jq -s --arg k "$1" '[.[]|select(.kind==$k)]|length' 2>/dev/null)"; n="${n//[^0-9]/}"; printf '%s' "${n:-0}"; }
+upd_inprogress_kind_count() { local n
+  n="$(find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null \
+       | jq -s --arg k "$1" '[.[]|select(.kind==$k)]|length' 2>/dev/null)"; n="${n//[^0-9]/}"; printf '%s' "${n:-0}"; }
+
 # --------------------------------------------------- comandos POR-HOST (cache, etc.)
 # Diferente de update/job (que QUALQUER juiz pega): comando é entregue a UM host específico
 # no heartbeat dele. Uso: gerência de cache (limpar) pelo admin.
@@ -312,3 +323,8 @@ cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove),
   ) 9>"$CMDDIR/$host/.lock"
 }
 cmd_pending_count() { find "$CMDDIR/$1" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l; }
+# cmd_action_count <action> — comandos direcionados de TODOS os hosts com esse action (ex.: calibrate,
+# recalibração fixada num CPU). Saneia a dígitos como acima.
+cmd_action_count() { local n
+  n="$(find "$CMDDIR" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null \
+       | jq -s --arg a "$1" '[.[]|select(.action==$a)]|length' 2>/dev/null)"; n="${n//[^0-9]/}"; printf '%s' "${n:-0}"; }

@@ -76,9 +76,25 @@ julgando, daemons). Treino livre: busca de problemas, página do problema com en
 abaixo do veredicto — "Passou em X/Y testes (Z%)" ou pontos, via `/submission/summary`), stats por usuário (gráficos,
 editor favorito, foto, privacidade), **stats por problema** (cache, linguagens, editores,
 nuvem de avatares), e **painel admin do treino** (sessões/logs com UA+IP, busca/regex,
-bulk logout/lock, notícias, **auditoria**, fila, máquinas, **estatísticas** e **tempo de
-resposta** — espera submit→veredito, julgamento e fila, média por dia + mapas de calor por
-data e dia-da-semana × hora, p/ decisões de capacidade; `/treino/admin/response-stats`).
+bulk logout/lock, notícias, **auditoria**, máquinas, e — em abas com **índice/TOC** — **Fila &
+tempo de resposta** (contadores de submissão + calibração, **o que cada máquina roda agora**
+(calibração vs submissão), tempo de veredito e **mapas de calor de volume** de submissões e
+calibrações) e **Estatísticas** (usuários, sessões, **problemas: total/públicos/privados**, quebra
+**por autor**, **mapa de calor de entrada de públicos** e atividade diária). Fontes:
+`/treino/admin/{queue,judges,response-stats,calib-activity,stats}`.
+
+### Gestão de problemas (Gitea, keyless) & painel de status
+Autoria/edição em `/problemas/` (backend Gitea; só o login do MOJ). A aba **Painel**
+(`GET /problems/status`) dá a visão agregada dos problemas de que o login é **dono ou colaborador**:
+quantos/quais **calibrando**, **validados**, **calibrados**, **precisam recalibrar** (time-limit
+desatualizado após mudança no pacote) e **com erro**, mais a **planilha de time-limits**. O acesso é
+cortado na API (`owners_visible`): problema privado de terceiro **não** aparece. Staleness vem do
+checksum do pacote **carimbado no índice de donos** (barato; ≤30 min de atraso); `/problems/tl`
+recomputa na hora p/ 1 problema. A aba **Análise** (`GET /problems/my-stats`) dá o **panorama de
+submissões** dos seus problemas agregado em **toda a plataforma** (treino + as turmas): tentativas,
+acertos, erros mais comuns, linguagens, nº de contests e o **mais popular** — cache precomputado que
+reconcilia o namespace do history (`problemas-apc#…`) com o índice de donos (`apc#…`) via `collections`;
+só agregados (sem logins, sem nomes de contests) — não vaza prova privada.
 
 ### Store por-usuário, cadastro por Telegram e alertas
 Contests com `USER_STORE=v2` guardam **um diretório por conta** (`contests/<c>/users/<login>/`:

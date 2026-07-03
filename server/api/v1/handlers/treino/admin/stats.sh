@@ -25,5 +25,23 @@ subsday="$(emit_history_stream treino | awk -F: -v c=$cut '{ts=$6+0; if(ts<1) ts
   | jq -R -cs 'split("\n")|map(select(length>0)|split("\t")|{day:(.[0]|tonumber), count:(.[1]|tonumber)})')"
 [[ -z "$subsday" ]] && subsday='[]'
 
-ok_json '{users:$u, active_sessions:$s, logins_per_day:$lpd, submissions_per_day:$spd}' \
-  --argjson u "$users" --argjson s "$sess" --argjson lpd "$loginsday" --argjson spd "$subsday"
+# problemas da plataforma (admin, SÓ números — nunca a lista). owners_merged é NÃO filtrado, então
+# conta privados/por-autor/entrada também, sem revelar QUAIS (contar != listar; provas não vazam).
+# public_by_day: [{day(epoch início-do-dia UTC),count}] como logins/submissões — o front bucketa p/ o mapa.
+source "$_DIR/lib/problems.sh"
+pdata="$(owners_merged | jq -c '
+  .problems as $ps
+  | { total:($ps|length), public:($ps|map(select(.public))|length), private:($ps|map(select(.public|not))|length),
+      by_author: ($ps | group_by(.author_norm // "")
+        | map({author:(.[0].author // "—"), author_norm:(.[0].author_norm // ""),
+               total:length, public:(map(select(.public))|length), private:(map(select(.public|not))|length)})
+        | sort_by(-.total)),
+      public_by_day: ($ps | map(select(.public and (.public_at!=null)) | ((.public_at/86400)|floor)*86400)
+        | group_by(.) | map({day:.[0], count:length}) | sort_by(.day)) }' 2>/dev/null)"
+[[ -n "$pdata" ]] || pdata='{"total":0,"public":0,"private":0,"by_author":[],"public_by_day":[]}'
+
+ok_json '{users:$u, active_sessions:$s,
+          problems:{total:$pd.total, public:$pd.public, private:$pd.private},
+          by_author:$pd.by_author, problems_public_by_day:$pd.public_by_day,
+          logins_per_day:$lpd, submissions_per_day:$spd}' \
+  --argjson u "$users" --argjson s "$sess" --argjson pd "$pdata" --argjson lpd "$loginsday" --argjson spd "$subsday"

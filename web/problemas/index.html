@@ -13,6 +13,12 @@
     .pill{display:inline-block;padding:.05rem .5rem;border-radius:999px;font-size:.78rem;line-height:1.4}
     .pill.ok{background:#173d23;color:#7ee2a0} .pill.no{background:#3d1717;color:#ffb0b0}
     .pill.warn{background:#3d3417;color:#ffe08a} .pill.mut{background:#22262e;color:#9fb0c8}
+    .scards{display:flex;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 1rem}
+    .scard{border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.5rem .85rem;min-width:110px}
+    .scard.hl{border-color:var(--accent,#5b8cff)}
+    .scard .n{font-size:1.5rem;font-weight:700;line-height:1.1}
+    .scard .l{font-size:.78rem;opacity:.75}
+    th.sortable{cursor:pointer;user-select:none} th.sortable:hover{color:var(--accent,#5b8cff)}
     .colls{display:flex;flex-wrap:wrap;gap:.5rem}
     .coll{border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.6rem .8rem;cursor:pointer;min-width:160px}
     .coll:hover{border-color:var(--accent,#5b8cff)}
@@ -45,14 +51,17 @@
         e as coleções (cursos / diretórios). O backend é o Gitea — você só usa seu login do MOJ.</p>
       <div id="needauth" class="error-box" style="display:none">Entre com seu login do MOJ para gerir seus problemas.</div>
       <div class="tabs" id="tabs">
-        <button data-tab="mine" class="active">Meus</button>
+        <button data-tab="painel" class="active">Painel</button>
+        <button data-tab="analise">Análise</button>
+        <button data-tab="mine">Meus</button>
         <button data-tab="shared">Compartilhados</button>
         <button data-tab="public">Públicos</button>
         <button data-tab="collections">Coleções</button>
       </div>
       <div class="row" id="toolbar">
         <input id="q" placeholder="Filtrar por título, autor ou id…" style="flex:1; min-width:240px">
-        <label class="small row" style="gap:.3rem"><input type="checkbox" id="onlybroken"> só não-públicos</label>
+        <label id="brokenLabel" class="small row" style="gap:.3rem"><input type="checkbox" id="onlybroken"> <span id="brokenLabelText">só não-públicos</span></label>
+        <button id="btnRefreshPanel" class="btn ghost" style="display:none">↻ Atualizar</button>
       </div>
       <div id="count" class="small muted" style="margin-top:.5rem"></div>
     </div>

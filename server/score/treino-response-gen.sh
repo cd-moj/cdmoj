@@ -30,9 +30,9 @@ _HT=""; if store_v2 "$C"; then _HT="$(mktemp)"; emit_history_stream "$C" > "$_HT
 mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "treino-response-gen: mktemp falhou" >&2; exit 1; }
 MAPTMP="$(mktemp "$OUT.map.XXXXXX")" || { echo "treino-response-gen: mktemp falhou" >&2; exit 1; }
-trap 'rm -f "$TMP" "$MAPTMP" "${_HT:-}"' EXIT
+trap 'rm -f "$TMP" "$MAPTMP" "${VOLTMP:-}" "${_HT:-}"' EXIT
 
-empty='{"success":true,"coverage":{"history_total":0,"with_finalized":0},"overall":{"n":0,"avg_wait_s":0,"p50_wait_s":0,"p95_wait_s":0,"max_wait_s":0,"avg_judge_s":0,"avg_queue_s":0},"per_day":[],"by_dow_hour":[]}'
+empty='{"success":true,"coverage":{"history_total":0,"with_finalized":0},"overall":{"n":0,"avg_wait_s":0,"p50_wait_s":0,"p95_wait_s":0,"max_wait_s":0,"avg_judge_s":0,"avg_queue_s":0},"per_day":[],"by_dow_hour":[],"subs_per_day":[],"subs_by_dow_hour":[]}'
 
 history_total=0
 [[ -f "$hist" ]] && history_total="$(wc -l < "$hist" 2>/dev/null | tr -d '[:space:]')"
@@ -51,6 +51,22 @@ if [[ -f "$hist" ]]; then
   [[ -s "$MAPTMP" ]] || printf '{}\n' > "$MAPTMP"
 fi
 
+# VOLUME de submissões (TODAS as linhas do history, não só as finalizadas): por dia (UTC) e por
+# dia-da-semana × hora — alimenta os mapas de calor de volume da aba Fila. sub_epoch = penúltimo
+# campo (defensivo a ':' no veredito), mesmas fórmulas epday/dow/hour do bloco de resposta.
+VOLTMP="$(mktemp "$OUT.vol.XXXXXX")" || { echo "treino-response-gen: mktemp falhou" >&2; exit 1; }
+printf '{"subs_per_day":[],"subs_by_dow_hour":[]}\n' > "$VOLTMP"
+if [[ -f "$hist" ]]; then
+  awk -F: '{ if(NF<6) next; s=$(NF-1)+0; if(s<1) next; ed=int(s/86400); d[ed*86400]++;
+             k=((((ed%7)+4)%7)*100)+int((s%86400)/3600); h[k]++ }
+    END { for(x in d) print "D\t"x"\t"d[x]; for(x in h) print "H\t"int(x/100)"\t"(x%100)"\t"h[x] }' "$hist" 2>/dev/null \
+    | jq -R -cs 'split("\n")|map(select(length>0)|split("\t")) as $rows
+        | { subs_per_day: ($rows|map(select(.[0]=="D")|{day:(.[1]|tonumber), count:(.[2]|tonumber)})|sort_by(.day)),
+            subs_by_dow_hour: ($rows|map(select(.[0]=="H")|{dow:(.[1]|tonumber), hour:(.[2]|tonumber), n:(.[3]|tonumber)})|sort_by(.dow*100+.hour)) }' \
+    > "$VOLTMP" 2>/dev/null
+  [[ -s "$VOLTMP" ]] || printf '{"subs_per_day":[],"subs_by_dow_hour":[]}\n' > "$VOLTMP"
+fi
+
 # coleta os results/<id>.json (cada um já traz id, finalized_at, duration_s).
 # store-v2: espalhados em users/<login>/results/; legado: results/ do contest.
 set +o noglob; shopt -s nullglob
@@ -58,10 +74,10 @@ if store_v2 "$C"; then files=( "$(users_dir "$C")"/*/results/*.json ); else file
 shopt -u nullglob
 
 if (( ${#files[@]} == 0 )); then
-  jq -cn --argjson ht "$history_total" '{success:true, coverage:{history_total:$ht, with_finalized:0},
+  jq -cn --argjson ht "$history_total" --slurpfile volf "$VOLTMP" '{success:true, coverage:{history_total:$ht, with_finalized:0},
     overall:{n:0,avg_wait_s:0,p50_wait_s:0,p95_wait_s:0,max_wait_s:0,avg_judge_s:0,avg_queue_s:0},
-    per_day:[], by_dow_hour:[]}' > "$TMP"
-  mv "$TMP" "$OUT"; exit 0   # o trap EXIT limpa o MAPTMP (e o TMP já movido)
+    per_day:[], by_dow_hour:[]} + ($volf[0] // {subs_per_day:[],subs_by_dow_hour:[]})' > "$TMP"
+  mv "$TMP" "$OUT"; exit 0   # o trap EXIT limpa MAPTMP/VOLTMP (e o TMP já movido)
 fi
 
 # 1ª etapa: registros {sub,wait,judge,queue,day,dow,hour} (só finalized_at>0 + sub_epoch conhecido);
@@ -83,7 +99,7 @@ jq -cs --slurpfile mapf "$MAPTMP" '
           dow:((($epday % 7) + 4) % 7),
           hour:((($sub % 86400)/3600)|floor) } ]' \
   "${files[@]}" 2>/dev/null \
-| jq -c --argjson ht "$history_total" '
+| jq -c --argjson ht "$history_total" --slurpfile volf "$VOLTMP" '
     def pct(a; p): (a|length) as $n | if $n==0 then 0 else (a|sort)[((($n-1)*p)|floor)] end;
     def avg(a):    (a|length) as $n | if $n==0 then 0 else ((a|add)/$n|floor) end;
     . as $r
@@ -104,7 +120,8 @@ jq -cs --slurpfile mapf "$MAPTMP" '
           | sort_by(.day) ),
         by_dow_hour: ( $r | group_by(.dow*100 + .hour) | map(
             { dow:.[0].dow, hour:.[0].hour, n:length, avg_wait_s:avg(map(.wait)) } )
-          | sort_by(.dow*100 + .hour) ) }' \
+          | sort_by(.dow*100 + .hour) ) }
+    + ($volf[0] // {subs_per_day:[],subs_by_dow_hour:[]})' \
   > "$TMP" 2>/dev/null || printf '%s\n' "$empty" > "$TMP"
 
 mv "$TMP" "$OUT"   # o trap EXIT limpa o MAPTMP (e o TMP já movido)

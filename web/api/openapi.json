@@ -721,7 +721,7 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Submissões pendentes por lista + spool",
+        "summary": "Submissões pendentes por lista + spool + fila de calibração",
         "security": [
           {
             "bearerAuth": []
@@ -729,7 +729,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{total_pending,spool_queued,lists:[{contest,name,pending}]}"
+            "description": "{total_pending,spool_queued,calib_pending,calib_inflight,calib_targeted,lists:[{contest,name,pending}]} — calib_* = fila de calibração (kind=calibrate, separada de index; calib_targeted = recalibrações direcionadas por host)"
           }
         }
       }
@@ -739,7 +739,7 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Estado do juiz (via :27000)",
+        "summary": "Máquinas de juiz (modelo pull) + o que cada uma roda agora",
         "security": [
           {
             "bearerAuth": []
@@ -747,7 +747,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{online,busy,master,configured_workers,configured_count}"
+            "description": "{online,busy,machines:[{host,online,busy,langs,cage_root,cache,tl,current,queued_calibrate,report}]} — current = job em execução {kind:submission|calibrate|index|unknown_busy, problem_id, ...} ou null; queued_calibrate = calibrações direcionadas na fila do host"
           }
         }
       }
@@ -757,7 +757,7 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Números p/ gráficos (logins/dia, submissões/dia)",
+        "summary": "Números p/ gráficos + contagem/entrada de problemas + por autor",
         "security": [
           {
             "bearerAuth": []
@@ -765,7 +765,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{users,active_sessions,logins_per_day,submissions_per_day}"
+            "description": "{users,active_sessions,problems:{total,public,private},by_author:[{author,owner,total,public,private}],problems_public_by_day:[{day,count}],logins_per_day,submissions_per_day} — contagens da plataforma (privados contados, NÃO listados); public_by_day = entrada de públicos (data aproximada)"
           }
         }
       }
@@ -775,8 +775,8 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Tempo de resposta do treino (espera/julgamento/fila; média/dia + mapa de calor)",
-        "description": "Cacheado (regenera quando history/results mudam). espera = finalized_at - sub_epoch; julgamento = duration_s; fila = espera - julgamento. Só conta submissões com finalized_at (cobertura no JSON). Horários em EPOCH/UTC.",
+        "summary": "Tempo de resposta + volume de submissões (média/dia + mapas de calor)",
+        "description": "Cacheado (regenera quando history/results mudam). Tempo (espera/julgamento/fila) só de submissões com finalized_at; VOLUME (subs_per_day/subs_by_dow_hour) conta TODAS as linhas do history. EPOCH/UTC.",
         "security": [
           {
             "bearerAuth": []
@@ -784,7 +784,29 @@
         ],
         "responses": {
           "200": {
-            "description": "{coverage:{history_total,with_finalized}, overall:{n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}, per_day:[{day,n,avg_wait_s,p50_wait_s,p95_wait_s,max_wait_s,avg_judge_s,avg_queue_s}], by_dow_hour:[{dow,hour,n,avg_wait_s}]}"
+            "description": "{coverage, overall, per_day, by_dow_hour, subs_per_day:[{day,count}], subs_by_dow_hour:[{dow,hour,n}]}"
+          },
+          "403": {
+            "description": "não-admin (admin_required)"
+          }
+        }
+      }
+    },
+    "/treino/admin/calib-activity": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Volume de calibrações no tempo (por dia + dia-da-semana × hora)",
+        "description": "Cacheado (regenera quando o log run/updates/log muda). Conta os eventos 'cacheado+calibrado' do log append-only. run/ NÃO é versionado e pode rotacionar -> cobertura histórica parcial.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{calib_per_day:[{day,count}], calib_by_dow_hour:[{dow,hour,n}], total}"
           },
           "403": {
             "description": "não-admin (admin_required)"
@@ -3579,6 +3601,89 @@
         "responses": {
           "200": {
             "description": "{checks:[{name,ok,detail}],html_built,render_warnings,ok} — checks incluem secao_entrada/secao_saida; render_warnings pode trazer 'exemplo-no-texto?'"
+          }
+        }
+      }
+    },
+    "/problems/status": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Painel de status dos problemas do login (dono + colaborador)",
+        "description": "Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{total,counts:{validated,validation_error,unvalidated,calibrated,uncalibrated,being_calibrated,needs_recalibration,errors},calibrating_ids,attention_ids,problems:[{id,title,owner,author,public,collaborators,validated,calibrated,being_calibrated,stale,needs_recalibration,error,error_reasons,time_limits,updated_at,validated_at}]}"
+          }
+        }
+      }
+    },
+    "/problems/tl": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Time limits AO VIVO + staleness exata de 1 problema",
+        "description": "Recomputa o checksum do pacote agora (1 problema) e devolve o TL servível + stale/needs_recalibration exatos. Acesso: dono/colaborador OU público (require_problem_view; 404 senão). Versão não-admin do /ops/problemtl.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problem,checksum,time_limits,calibrated_checksum,hosts,updated_at,calibrated,stale,needs_recalibration}"
+          },
+          "404": {
+            "description": "privado e o login não é dono/colaborador (not_found)"
+          }
+        }
+      }
+    },
+    "/problems/my-stats": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Análise dos problemas do login, agregada em toda a plataforma",
+        "description": "Panorama (cache precomputado) dos problemas que o login é dono/colaborador, somando submissões de TODOS os contests (treino + turmas). Reconcilia o namespace do history (problemas-apc# etc.) com o índice de donos via `collections`. FRONTEIRA: só os problemas do login. PRIVACIDADE: só agregados — sem logins, sem nomes de contests (só contests_count).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{totals:{owned,with_activity,attempts,accepts,solvers}, overall_verdicts:[{verdict,count}], overall_languages:[{lang,submissions,accepted}], most_popular:{id,title,attempts}, problems:[{id,title,attempts,accepts,wrong,acceptance_rate,distinct_users,solvers,contests_count,verdicts,languages,first,last}]}"
           }
         }
       }

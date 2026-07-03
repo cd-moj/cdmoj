@@ -5,6 +5,7 @@ require_auth_contest treino
 is_admin || fail 403 "Apenas administradores do treino" "admin_required"
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${REGISTRYDIR:=$RUNDIR/registry}"; : "${REG_TTL:=30}"
 : "${TL_STORE_DIR:=$RUNDIR/tl}"
+: "${ASSIGNEDDIR:=$RUNDIR/assigned}"; : "${UPDATESDIR:=$RUNDIR/updates}"; : "${CMDDIR:=$RUNDIR/commands}"
 now="$EPOCHSECONDS"
 
 set +o noglob
@@ -22,11 +23,36 @@ while IFS= read -r rf; do
   ls="$(jq -r '.last_seen // 0' <<<"$j" 2>/dev/null)"; [[ "$ls" =~ ^[0-9]+$ ]] || ls=0
   on=false; (( ls >= now - REG_TTL )) && { on=true; ((online_count++)); }
   bz=false; [[ "$(jq -r '.state // "free"' <<<"$j" 2>/dev/null)" == busy ]] && { bz=true; [[ "$on" == true ]] && busy_any=true; }
-  ms+=("$(jq -c --argjson on "$on" --argjson bz "$bz" --argjson tl "$tlsum" '{
+  host="$(jq -r '.host // empty' <<<"$j")"
+  # o que a máquina roda AGORA: submissão (run/assigned) tem precedência; senão calibração/index
+  # (run/updates/inprogress, ramifica .kind); senão, se busy sem marcador = calibração DIRECIONADA já
+  # reivindicada (cmd_claim apaga o arquivo -> não dá p/ nomear o problema). queued_calibrate = alvos
+  # direcionados AINDA na fila do host.
+  # "current" só faz sentido p/ máquina ONLINE (marcador de claim de worker morto é reconciliado, mas
+  # pode ficar órfão até o TTL — não pintar job fantasma numa máquina offline).
+  cur='null'
+  if [[ "$on" == true ]]; then
+    af="$(find "$ASSIGNEDDIR/$host" -maxdepth 1 -name '*.json' 2>/dev/null | head -1)"
+    if [[ -n "$af" ]]; then
+      cur="$(jq -c '{kind:"submission", problem_id:(.problem_id//.id//""), login:(.login//""), contest:(.contest//""), lang:(.lang//""), since:(.assigned_at//null)}' "$af" 2>/dev/null)"
+    else
+      upf="$(find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' 2>/dev/null | head -1)"
+      if [[ -n "$upf" ]]; then
+        cur="$(jq -c '{kind:(.kind//"update"), problem_id:(.target//""), by:(.requested_by//""), since:(.claimed_at//null)}' "$upf" 2>/dev/null)"
+      elif [[ "$bz" == true ]]; then
+        cur='{"kind":"unknown_busy"}'
+      fi
+    fi
+    jq -e . >/dev/null 2>&1 <<<"$cur" || cur='null'
+  fi
+  # calibrações DIRECIONADAS na fila do host — só action=="calibrate" (a pasta também tem clearcache).
+  qcal="$(find "$CMDDIR/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null | jq -s '[.[]|select(.action=="calibrate")]|length' 2>/dev/null)"; qcal="${qcal//[^0-9]/}"; qcal="${qcal:-0}"
+  ms+=("$(jq -c --argjson on "$on" --argjson bz "$bz" --argjson tl "$tlsum" --argjson cur "$cur" --argjson qcal "$qcal" '{
       host:.host, port:null, online:$on, busy:$bz, last_seen:(.last_seen//0),
       langs:(.langs // []), cage_root:(.cage_root // null),
       cache:{problems:(.problems_count // ((.problems//{})|length)), bytes:(.cache_bytes // 0)},
       tl:($tl[.host] // {calibrated:0, langs:[]}),
+      current:$cur, queued_calibrate:$qcal,
       report:{hostname:.host, arch:.arch, cpu:((.cpu // "")|tostring), memory:.mem_kb,
               gpu:.gpu, problems:(.problems_count // 0)} }' <<<"$j" 2>/dev/null)")
 done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
