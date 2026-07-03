@@ -256,7 +256,14 @@ Permissão: usuários `.admin` sempre podem; demais por **lista do admin OU thre
 | `/treino/admin/contests` | GET | admin | contests criados pela interface |
 | `/treino/admin/contest-remove` | POST | admin | `{contest}` → move p/ lixeira (só os criados pela interface) |
 
-> Ações auditadas (em `treino/var/admin-audit.log`): `contest-create`, `contest-perms`, `contest-remove` — além de `news-*`, `logout-*`, `lock-user`.
+> Ações auditadas (em `treino/var/admin-audit.log`): `contest-create`, `contest-template`, `contest-export`, `contest-perms`, `contest-remove` — além de `news-*`, `logout-*`, `lock-user`.
+
+O CLI **`moj-contest`** (`web/moj-contest`, servido em `GET /moj-contest`; fonte em `moj-cli/`;
+`moj contest …` delega a ele) cobre estas rotas e as de `/contest/admin/*`: criação (spec/
+template), templates nomeados, export/duplicate, settings, problemas (com **sorteio por
+coleção**), usuários, sessões, auditoria e remoção. Sessões: criação/reuso = token do **treino**
+(`moj login`); administração = token **daquele contest** (`moj-contest login <cid>`, conta
+`*.admin` do contest) — o corte de acesso é sempre o do servidor.
 
 ## Ambiente de contest (subdomínio + admin do contest)
 Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a API só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend redireciona o resto para `/contest/`. Login com gate opcional por substring de User-Agent (`LOGIN_UA_SUBSTRING`, só não-privilegiados). Papéis: `.admin`/`.judge`/`.cjudge` (juiz-chefe, herda juiz)/`.staff`/`.mon`.
