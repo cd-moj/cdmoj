@@ -2777,6 +2777,195 @@
         }
       }
     },
+    "/treino/contest-create/templates": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Templates nomeados do criador (?name= => 1; senão lista)",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{templates:[{name,created_at,updated_at,mode,duration,has_problems}]} ou {template:{name,spec}}"
+          },
+          "404": {
+            "description": "template não encontrado"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "save|delete|rename template (save: template{} do formulário OU from_contest; spec relativizado + whitelist — nunca guarda usuários/senhas/id)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "save",
+                      "delete",
+                      "rename"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "template": {
+                    "type": "object"
+                  },
+                  "from_contest": {
+                    "type": "string",
+                    "description": "salvar a partir de contest existente (só dono/admin; senão 404)"
+                  },
+                  "include_problems": {
+                    "type": "boolean"
+                  },
+                  "new_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "op",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{saved|deleted|renamed:true}"
+          },
+          "404": {
+            "description": "template/from_contest não encontrado (não vaza existência)"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/export": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Exporta o spec JSON de um contest (round-trip com o create; nunca exporta passwd/users/senhas)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "full_statements",
+            "in": "query",
+            "description": "1 = embute todos os enunciados; default embute só o material exclusivo do contest",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "attachment <id>-spec.json"
+          },
+          "404": {
+            "description": "contest inexistente, sem created-by, ou o login não é dono/admin"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/duplicate": {
+      "post": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Cria contest novo a partir de existente (conf+problemas+visual; usuários/submissões nunca; datas relativas preservadas)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "start": {
+                    "type": "integer"
+                  },
+                  "end": {
+                    "type": "integer"
+                  },
+                  "admin": {
+                    "type": "object"
+                  },
+                  "users": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "users_from": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "from"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "mesmo retorno do create"
+          },
+          "404": {
+            "description": "from inexistente/sem acesso (dono ou admin)"
+          }
+        }
+      }
+    },
+    "/treino/contest-create/mine": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Contests criados pelo login (owner + created-by)",
+        "responses": {
+          "200": {
+            "description": "{contests:[{id,name,mode,created_at,start,end,problems_count}],total}"
+          }
+        }
+      }
+    },
     "/treino/contest-create/collections": {
       "get": {
         "tags": [

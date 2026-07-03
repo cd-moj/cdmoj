@@ -451,6 +451,120 @@ cc_probs_json(){
   ) | jq -cs '.'
 }
 
+# --- templates nomeados de contest (por criador) -----------------------------
+# Um arquivo por login: contests/treino/var/contest-templates/<login>.json
+#   {templates:{"<nome>":{created_at,updated_at,spec:{...}}}}
+# O spec é RELATIVO (duration/login_lead/freeze_before_end; sem datas absolutas) e passa por
+# WHITELIST no save (nunca guarda usuários/senhas/id — cliente hostil não contrabandeia campo).
+CC_TPL_MAX_PER_USER=20
+CC_TPL_MAX_SPEC_BYTES=65536
+cc_tpl_file(){ printf '%s/treino/var/contest-templates/%s.json' "$CONTESTSDIR" "$1"; }
+cc_tpl_valid_name(){ local n="$1"; [[ -n "$n" ]] || return 1; [[ "$n" =~ [[:cntrl:]] ]] && return 1; (( ${#n} <= 80 )); }
+cc_tpl_read(){ local f; f="$(cc_tpl_file "$1")"; local c; c="$(cat "$f" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$c" || c='{"templates":{}}'; printf '%s' "$c"; }
+
+# cc_tpl_relativize — stdin: spec ABSOLUTO (formato do create/export); stdout: spec de TEMPLATE
+# (whitelist + datas viram deltas). Problemas entram só se $keep_problems=="1" (sem enunciado
+# embutido — template guarda referências, não conteúdo).
+cc_tpl_relativize(){
+  local keep_problems="${1:-0}"
+  jq -c --arg kp "$keep_problems" '
+    def pick($keys): with_entries(select(.key as $k | $keys | index($k)));
+    (.start|tonumber? // 0) as $st | (.end|tonumber? // 0) as $en
+    | (.login_start|tonumber? // 0) as $ls | (.freeze|tonumber? // 0) as $fz
+    | pick(["mode","priority","languages","showcode","show_log","show_editor","show_tl",
+            "allow_backup","allow_print","score_anon","manual_verdict","allow_late",
+            "login_ua_substring","score_full_users","locale","login_enabled",
+            "colors","regions","teams_meta"])
+    + (if $st > 0 and $en > $st then {duration:($en-$st)} else {} end)
+    + (if $ls > 0 and $st > $ls then {login_lead:($st-$ls)} else {} end)
+    + (if $fz > 0 and $en > $fz then {freeze_before_end:($en-$fz)} else {} end)
+    + (if $kp == "1" then {problems:((.problems // []) | map(del(.statement_b64,.statement_pdf_b64,.statement_file,.statement_pdf_file)))} else {} end)'
+}
+
+# cc_export_spec <cid> <statements:auto|all|none> — ecoa o SPEC JSON (formato aceito pelo
+# cc_create) de um contest existente. NUNCA emite credenciais/usuários (passwd, users[], senha
+# de admin) nem dados de prova (submissões/history/logs). users_from entra (é referência a
+# fonte compartilhada, não credencial). Enunciados de enunciados/<skey>.{html,pdf}:
+#   auto = embute só os SEM json público no banco (material exclusivo do contest, que se
+#          perderia); all = embute todos (contest auto-contido); none = nenhum (o duplicate
+#          usa none + statement_file, copiando por arquivo). b64 via --rawfile (ARG_MAX).
+cc_export_spec(){
+  local cid="$1" stmts="${2:-auto}" cdir="$CONTESTSDIR/$1"
+  [[ -f "$cdir/conf" ]] || return 1
+  local confjson
+  confjson="$(
+    CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_PRIORITY=""; CONTEST_START=""; CONTEST_END=""
+    LANGUAGES=""; SHOWCODE=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
+    FREEZE_TIME=""; ALLOWLATEUSER=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
+    BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""
+    . "$cdir/conf" 2>/dev/null
+    jq -cn \
+      --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
+      --arg start "$CONTEST_START" --arg end "$CONTEST_END" --arg langs "$LANGUAGES" \
+      --arg showcode "$SHOWCODE" --arg users_from "$USERS_FROM" --arg locale "$LOCALE" \
+      --arg lstart "$LOGIN_START_TIME" --arg lenabled "$LOGIN_ENABLED" --arg freeze "$FREEZE_TIME" \
+      --arg late "$ALLOWLATEUSER" --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
+      --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
+      --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" '
+      {name:$name, mode:(if $mode=="" then "icpc" else $mode end)}
+      + (if $prio != "" then {priority:$prio} else {} end)
+      + (if ($start|tonumber?) then {start:($start|tonumber)} else {} end)
+      + (if ($end|tonumber?) then {end:($end|tonumber)} else {} end)
+      + (if $langs != "" then {languages:($langs|split(" ")|map(select(length>0)))} else {} end)
+      + {showcode:($showcode=="1")}
+      + (if $users_from != "" then {users_from:$users_from} else {} end)
+      + (if $locale != "" then {locale:$locale} else {} end)
+      + (if (($lstart|tonumber?) // 0) > 0 then {login_start:($lstart|tonumber)} else {} end)
+      + (if $lenabled == "n" then {login_enabled:false} else {} end)
+      + (if (($freeze|tonumber?) // 0) > 0 then {freeze:($freeze|tonumber)} else {} end)
+      + (if $late == "y" then {allow_late:true} else {} end)
+      + (if $showlog == "0" then {show_log:false} else {} end)
+      + (if $showeditor == "0" then {show_editor:false} else {} end)
+      + (if $showtl == "0" then {show_tl:false} else {} end)
+      + (if $anon == "1" then {score_anon:true} else {} end)
+      + (if $backup == "0" then {allow_backup:false} else {} end)
+      + (if $prnt == "0" then {allow_print:false} else {} end)
+      + (if $manual == "1" then {manual_verdict:true} else {} end)
+      + (if $ua != "" then {login_ua_substring:$ua} else {} end)
+      + (if $sfu != "" then {score_full_users:($sfu|split(" ")|map(select(length>0)))} else {} end)'
+  )"
+  [[ -n "$confjson" ]] || return 1
+
+  local plf='{}'
+  [[ -f "$cdir/problem-langs.json" ]] && plf="$(jq -c . "$cdir/problem-langs.json" 2>/dev/null)"
+  jq -e . >/dev/null 2>&1 <<<"$plf" || plf='{}'
+
+  local tmpd; tmpd="$(mktemp -d)" || return 1
+  : > "$tmpd/probs.jsonl"
+  local pj skey emb_html="" emb_pdf=""
+  while IFS= read -r pj; do
+    [[ -n "$pj" ]] || continue
+    skey="$(jq -r '.statement_key // empty' <<<"$pj")"
+    jq -cn --argjson p "$pj" --argjson pl "$plf" '
+      ($p.statement_key // "") as $sk
+      | (if ($sk|test("#")) then $sk else (($p.problem_id // "")|gsub("/";"#")) end) as $cid
+      | {source:($p.source // "cdmoj"), problem_id:$p.problem_id, name:$p.name, letter:$p.letter}
+      + (if (($pl[$cid] // [])|length) > 0 then {languages:$pl[$cid]} else {} end)' > "$tmpd/base.json"
+    emb_html=""; emb_pdf=""
+    if [[ "$stmts" != none && -n "$skey" ]]; then
+      if [[ -f "$cdir/enunciados/$skey.html" ]] && { [[ "$stmts" == all ]] || [[ ! -f "$CONTESTSDIR/treino/var/jsons/$skey.json" ]]; }; then
+        base64 -w0 "$cdir/enunciados/$skey.html" > "$tmpd/h.b64" 2>/dev/null && emb_html=1
+      fi
+      if [[ -f "$cdir/enunciados/$skey.pdf" ]] && { [[ "$stmts" == all ]] || [[ ! -f "$CONTESTSDIR/treino/var/jsons/$skey.json" ]]; }; then
+        base64 -w0 "$cdir/enunciados/$skey.pdf" > "$tmpd/p.b64" 2>/dev/null && emb_pdf=1
+      fi
+    fi
+    local args=( -c ) filt='.'
+    [[ -n "$emb_html" ]] && { args+=( --rawfile h "$tmpd/h.b64" ); filt+=' | .statement_b64=($h|rtrimstr("\n"))'; }
+    [[ -n "$emb_pdf" ]] && { args+=( --rawfile pp "$tmpd/p.b64" ); filt+=' | .statement_pdf_b64=($pp|rtrimstr("\n"))'; }
+    jq "${args[@]}" "$filt" "$tmpd/base.json" >> "$tmpd/probs.jsonl"
+  done < <(cc_probs_json "$cid" | jq -c '.[]')
+  jq -cs --argjson conf "$confjson" --arg id "$cid" '{id:$id} + $conf + {problems:.}' "$tmpd/probs.jsonl"
+  local rc=$?
+  rm -rf "$tmpd"
+  return $rc
+}
+
 # lista contests criados pela interface (têm marcador created-by)
 cc_list_created(){
   set +o noglob; shopt -s nullglob
