@@ -64,7 +64,9 @@ pt/en), o editor **CodeMirror 6** (via esm.sh, com fallback textarea), os gráfi
 build-free (`/lib/charts.js`), e os **assets offline**: bandeiras locais (`shared/flags/`,
 271 países + 27 estados do BR) e GIFs do Sonic (`shared/assets/sonic/`). Editores de
 configuração de contest reaproveitáveis em `shared/contest-config/` (cores, países/escolas,
-regiões, básico) — os mesmos na criação e no admin do contest.
+regiões, básico, **settings/toggles** (`settings-editor.js`), **seletor de linguagens**
+(`lang-picker.js`) e o **painel de busca+sorteio do banco** por coleção/tag/dificuldade
+(`bank-panel.js`)) — os mesmos na criação e no admin do contest.
 
 ## O que existe (funcional)
 

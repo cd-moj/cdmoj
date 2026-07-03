@@ -2,10 +2,9 @@
 // Configurações, Problemas, Aparência/placar, Usuários, Log & sessões. Tudo auditado.
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
-import { LANGUAGES } from '/shared/languages.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
-import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
+import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, makeSettingsEditor, makeLangPicker, makeBankPanel } from '/shared/contest-config/index.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 
 const qs = new URLSearchParams(location.search);
@@ -37,71 +36,22 @@ async function downloadAuthed(path, filename) {
   const a = el('a', { href: url, download: filename }); document.body.append(a); a.click();
   setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 0);
 }
-// seletor de linguagens (checkboxes a partir da lista canônica do MOJ); get() -> ids marcados
-function langPicker(selectedIds) {
-  const sel = new Set((selectedIds || []).map((x) => String(x).toLowerCase()));
-  const boxes = LANGUAGES.map((l) => { const c = mkBool(sel.has(l.id)); return { id: l.id, c }; });
-  const box = el('div', { class: 'lang-grid' }, ...boxes.map((b) => el('label', { class: 'lang-chip' }, b.c, ' ' + LANGUAGES.find((l) => l.id === b.id).label)));
-  return { el: box, get: () => boxes.filter((b) => b.c.checked).map((b) => b.id) };
-}
-
-// ============ Configurações ============
+// ============ Configurações (editor compartilhado — o mesmo do wizard de criação) ============
 function settingsTab() {
   const panel = el('div', { class: 'section' });
   async function load() {
     panel.innerHTML = ''; panel.append(el('h2', {}, '⚙️ Configurações'));
     let s; try { s = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G); }
     catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
-    const name = el('input', { value: s.name || '' });
-    const start = el('input', { type: 'datetime-local', value: s.start ? toLocalDT(s.start) : '' });
-    const end = el('input', { type: 'datetime-local', value: s.end ? toLocalDT(s.end) : '' });
-    const loginStart = el('input', { type: 'datetime-local', value: s.login_start ? toLocalDT(s.login_start) : '' });
-    const freeze = el('input', { type: 'datetime-local', value: s.freeze ? toLocalDT(s.freeze) : '' });
-    const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English')); locale.value = s.locale || 'pt';
-    const loginEnabled = mkBool(s.login_enabled !== false), showCode = mkBool(s.show_code), showLog = mkBool(s.show_log !== false),
-      showEditor = mkBool(s.show_editor !== false), allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
-      showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
-      allowPrint = mkBool(s.allow_print !== false),
-      manualVerdict = mkBool(s.manual_verdict === true);
-    const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
-    const langs = langPicker(s.languages || []);
-    const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge', style: 'width:100%' });
+    const ed = makeSettingsEditor({ value: s, mode: 'admin' });
     const msg = el('div', { class: 'small' });
     const save = el('button', { class: 'btn' }, 'Salvar configurações');
     save.addEventListener('click', async () => {
       save.disabled = true; msg.className = 'small'; msg.textContent = 'Salvando…';
-      const p = { name: name.value.trim() || undefined,
-        ...(start.value ? { start: dtToEpoch(start.value) } : {}), ...(end.value ? { end: dtToEpoch(end.value) } : {}),
-        ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}), ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
-        locale: locale.value, login_enabled: loginEnabled.checked, show_code: showCode.checked, show_log: showLog.checked,
-        show_editor: showEditor.checked, allow_late: allowLate.checked, score_anon: scoreAnon.checked,
-        show_tl: showTL.checked, allow_backup: allowBackup.checked, allow_print: allowPrint.checked, manual_verdict: manualVerdict.checked, login_ua_substring: ua.value, languages: langs.get(),
-        score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [] };
-      try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), p, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
+      try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), ed.getValue(), G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
     });
-    panel.append(field('Nome', name),
-      el('div', { class: 'grid2' }, field('Início', start), field('Fim', end)),
-      el('div', { class: 'grid2' }, field('Abertura do login (tela de espera)', loginStart), field('Freeze do placar', freeze)),
-      field('Idioma', locale),
-      chk('Login habilitado', loginEnabled),
-      chk('Permitir auto-cadastro de novos usuários (late users)', allowLate),
-      chk('Mostrar o código das submissões (a todos)', showCode),
-      chk('Usuário pode ver o log de julgamento', showLog),
-      chk('Editor de código no browser disponível', showEditor),
-      chk('Mostrar o tempo-limite dos problemas aos usuários', showTL),
-      chk('Permitir backup de arquivos pelos usuários', allowBackup),
-      chk('Permitir pedidos de impressão pelos usuários (.staff)', allowPrint),
-      chk('Veredicto manual (2 juízes decidem; daemon segura o veredicto)', manualVerdict),
-      chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
-      field('Gate de login por substring de UA (só não-privilegiados)', ua),
-      el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
-      el('p', { class: 'muted small' }, 'Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)'),
-      langs.el,
-      el('h3', { style: 'margin:1rem 0 .3rem' }, '👁️ Placar completo (sem freeze)'),
-      el('p', { class: 'muted small' }, 'Quem vê o placar real mesmo durante o freeze: .admin e .judge sempre; some outros logins aqui.'),
-      fullUsers,
-      el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
+    panel.append(ed.el, el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
   }
   return { panel, load };
 }
@@ -123,7 +73,11 @@ function problemsTab() {
     if (!prob.bank_id && !prob.problem_id) { pid.focus(); return; }
     addMsg.className = 'small'; addMsg.textContent = '…';
     try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), { action: 'add', problem: prob }, G); pid.value = nm.value = bid.value = ''; addMsg.textContent = ''; loadList(); }
-    catch (e) { addMsg.className = 'small error-box'; addMsg.textContent = e.message || 'falha'; }
+    catch (e) {
+      addMsg.className = 'small error-box';
+      addMsg.textContent = (e.message || 'falha')
+        + (/não encontrado/i.test(e.message || '') ? ' — problema privado só entra se o DONO do contest for dono/colaborador dele.' : '');
+    }
   } }, '+ adicionar');
 
   function problemAccordion(p, i, ps, letters) {
@@ -143,7 +97,7 @@ function problemsTab() {
     const nameInp = el('input', { value: p.name || '', style: 'max-width:280px' });
     const rnMsg = el('div', { class: 'small' });
     // --- linguagens (inline) ---
-    const picker = langPicker(p.languages || []);
+    const picker = makeLangPicker(p.languages || []);
     const lMsg = el('div', { class: 'small' });
     // --- enunciado: atualizar do banco / enviar HTML / enviar PDF ---
     const sMsg = el('div', { class: 'small' });
@@ -174,8 +128,24 @@ function problemsTab() {
     const letters = ps.map((p) => p.letter);
     ps.forEach((p, i) => list.append(problemAccordion(p, i, ps, letters)));
   }
+  // painel compartilhado de busca+sorteio (banco PÚBLICO; privado só pelo add por id)
+  const bankApi = {
+    meta: () => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&meta=1', G),
+    draw: (p) => apiGet('/contest/admin/draw?contest=' + enc(CONTEST) + '&' + new URLSearchParams(p).toString(), G),
+    search: (q) => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&limit=30&q=' + enc(q), G),
+  };
+  const bank = makeBankPanel({
+    api: bankApi,
+    onAdd: (it) => act({ action: 'add', problem: { bank_id: it.id, name: it.title || it.id } }),
+    searchLabel: 'Buscar no banco público',
+    searchPlaceholder: '🔎 Buscar problemas públicos — título ou id…',
+    emptyHint: 'digite para buscar no banco público (privado seu: use o add por id abaixo)',
+  });
+
   async function load() {
-    panel.append(list, el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar'),
+    panel.append(list,
+      el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar do banco'), bank.el,
+      el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar por ID (privados seus entram aqui)'),
       el('div', { class: 'row' }, src, pid, nm, el('span', { class: 'small muted' }, 'ou'), bid, add), addMsg);
     await loadList();
   }
