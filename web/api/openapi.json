@@ -4577,6 +4577,45 @@
         }
       }
     },
+    "/orgs/list": {
+      "get": {
+        "tags": ["orgs"],
+        "summary": "Orgs de que o login é membro (inclui a implícita)",
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{orgs:[{name,title,members,admins,public_allowed,implicit,count,public,mine,can_manage}]}"}}
+      }
+    },
+    "/orgs/get": {
+      "get": {
+        "tags": ["orgs"],
+        "summary": "Detalhe de 1 org (404 se não-membro)",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"name": "name", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "{name,title,members,admins,public_allowed,implicit,mine,can_manage}"}, "404": {"description": "não-membro ou inexistente"}}
+      }
+    },
+    "/orgs/create": {
+      "post": {
+        "tags": ["orgs"],
+        "summary": "Cria org (criador vira membro+admin; exige cc_can_create)",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "members": {"type": "array", "items": {"type": "string"}}, "admins": {"type": "array", "items": {"type": "string"}}, "title": {"type": "string"}, "public_allowed": {"type": "boolean"}}}}}},
+        "responses": {"200": {"description": "org criada"}, "403": {"description": "sem permissão de criação"}}
+      }
+    },
+    "/orgs/members": {
+      "get": {"tags": ["orgs"], "summary": "Membros/admins da org", "security": [{"bearerAuth": []}], "parameters": [{"name": "name", "in": "query", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "{name,members,admins,mine,can_manage,implicit}"}}},
+      "post": {"tags": ["orgs"], "summary": "Gerencia membros/admins (só admin da org)", "security": [{"bearerAuth": []}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "add": {"type": "array", "items": {"type": "string"}}, "remove": {"type": "array", "items": {"type": "string"}}, "admins_add": {"type": "array", "items": {"type": "string"}}, "admins_remove": {"type": "array", "items": {"type": "string"}}}}}}}, "responses": {"200": {"description": "idem"}, "403": {"description": "não é admin da org"}}}
+    },
+    "/orgs/set-public-allowed": {
+      "post": {
+        "tags": ["orgs"],
+        "summary": "Liga/desliga a trava de público (só admin; implícita 409)",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name", "public_allowed"], "properties": {"name": {"type": "string"}, "public_allowed": {"type": "boolean"}}}}}},
+        "responses": {"200": {"description": "flag alterada"}, "403": {"description": "não é admin da org"}, "409": {"description": "org implícita é sempre privada"}}
+      }
+    },
     "/problems/collection-create": {
       "post": {
         "tags": [

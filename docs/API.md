@@ -132,6 +132,23 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 | `/problems/git-credential` | POST `{repo}` | credencial HTTPS efêmera p/ o **modo git** do CLI (`{url,username,token}`); só quem pode escrever; não persistir |
 | `/problems/webhook` | POST | **Gitea → MOJ** (sem Bearer; HMAC `X-Gitea-Signature`). Em cada push, enfileira `index` dos problemas alterados e registra o diretório. Webhook criado automático no `repo-create`/migração; URL em `MOJ_WEBHOOK_URL` |
 
+### Orgs (novo modelo MOJ-nativo, em construção — Fase 1)
+
+Migração em curso: o storage vai de "repo Gitea agrega N problemas" para **repo git local por problema**
+(`MOJ_PROBLEMS_DIR/<org>/<prob>`), e o acesso passa a ser por **ORG** (o `<org>` do id `<org>#<prob>`):
+quem é **membro** escreve em qualquer problema da org; a org tem uma **trava de público**
+(`public_allowed`, privada por PADRÃO → problemas nunca ficam públicos: anti-vazamento de prova), e só
+**admin** da org a muda. Cada usuário tem uma org **implícita** `<login>` (sempre privada). Registro:
+`contests/treino/var/orgs.json` (`lib/orgs.sh`).
+
+| Rota | Método | Descrição |
+|---|---|---|
+| `/orgs/list` | GET | orgs de que o login é membro (inclui a **implícita**, criada aqui): `{orgs:[{name,title,members,admins,public_allowed,implicit,count,public,mine,can_manage}]}`. Não lista org alheia |
+| `/orgs/get` | GET `?name` | detalhe de 1 org; só membro/admin ou `.admin` global, senão **404** (não vaza existência) |
+| `/orgs/create` | POST `{name,members?,admins?,title?,public_allowed?}` | cria org; o criador vira membro+admin (exige `cc_can_create`, a regra de criar contest) |
+| `/orgs/members` | GET `?name` / POST `{name,add?,remove?,admins_add?,admins_remove?}` | só admin da org (ou `.admin`) gerencia; criador blindado; org implícita não tem gestão |
+| `/orgs/set-public-allowed` | POST `{name,public_allowed:bool}` | liga/desliga a trava (só admin da org; implícita ⇒ **409**). Desligar despublica em cascata os públicos da org (Fase 4) |
+
 O CLI **`moj`** (`web/moj`, servido em `GET /moj`; fonte em `moj-cli/`) usa essas rotas para
 autoria **sem git/sem chave**: `moj new/clone/push/publish/share`. `git-credential` é só p/ o modo
 git avançado.
