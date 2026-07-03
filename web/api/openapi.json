@@ -4630,15 +4630,10 @@
         "tags": [
           "problems"
         ],
-        "summary": "Cria coleção (competição/curso) com setters e co-admins",
+        "summary": "Cria coleção (TAG curada; nome é texto livre, pode ter espaços)",
         "security": [
           {
             "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/contest"
           }
         ],
         "requestBody": {
@@ -4649,15 +4644,6 @@
                 "type": "object",
                 "properties": {
                   "name": {
-                    "type": "string"
-                  },
-                  "members": {
-                    "type": "string"
-                  },
-                  "admins": {
-                    "type": "string"
-                  },
-                  "title": {
                     "type": "string"
                   }
                 },
@@ -4670,54 +4656,23 @@
         },
         "responses": {
           "200": {
-            "description": "{name,members,admins}"
+            "description": "{name,owner}"
+          },
+          "403": {
+            "description": "sem permissão de criação"
           }
         }
       }
     },
-    "/problems/collection-members": {
-      "get": {
-        "tags": [
-          "problems"
-        ],
-        "summary": "Setters/admins de uma coleção",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/contest"
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "{name,members,admins}"
-          }
-        }
-      },
+    "/problems/collection-rename": {
       "post": {
         "tags": [
           "problems"
         ],
-        "summary": "Dono ou co-admin gerencia setters E admins",
+        "summary": "Renomeia a coleção (registro + a tag em todos os problemas; só dono/admin)",
         "security": [
           {
             "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/contest"
           }
         ],
         "requestBody": {
@@ -4730,16 +4685,47 @@
                   "name": {
                     "type": "string"
                   },
-                  "add": {
+                  "to": {
                     "type": "string"
-                  },
-                  "remove": {
-                    "type": "string"
-                  },
-                  "admins_add": {
-                    "type": "string"
-                  },
-                  "admins_remove": {
+                  }
+                },
+                "required": [
+                  "name",
+                  "to"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{name,from,retagged}"
+          },
+          "403": {
+            "description": "não é dono da coleção"
+          }
+        }
+      }
+    },
+    "/problems/collection-delete": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Exclui a coleção (tira a tag de todos + remove do registro; só dono/admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
                     "type": "string"
                   }
                 },
@@ -4752,7 +4738,10 @@
         },
         "responses": {
           "200": {
-            "description": "{name,members,admins}"
+            "description": "{name,untagged}"
+          },
+          "403": {
+            "description": "não é dono da coleção"
           }
         }
       }

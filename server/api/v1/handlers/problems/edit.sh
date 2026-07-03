@@ -17,6 +17,12 @@ owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
 
 apply_problem_fields "$pdir" "$body"
 colls=""; jq -e 'has("collections")' >/dev/null 2>&1 <<<"$body" && colls="$(jq -c '.collections' <<<"$body")"
+# CURADA: coleção marcada tem de EXISTIR no registro (mesma trava do set-collections).
+if [[ -n "$colls" ]]; then
+  while IFS= read -r cn; do [[ -n "$cn" ]] || continue
+    coll_exists "$cn" || fail 400 "Coleção '$cn' não existe — crie antes (aba Coleções / moj collection create)" "coll_unknown"
+  done < <(jq -r '.[]?' <<<"$colls")
+fi
 title="$(jq -r '.title // empty' <<<"$body")"
 write_meta "$pdir" "$owner" "$org" "" "$colls" "$title"
 bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true  # Kattis-aware

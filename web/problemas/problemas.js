@@ -29,7 +29,7 @@ async function doImport(file) {
 
 const CONTEST = 'treino';
 const PAGE = 50;
-let TAB = 'painel', ROWS = [], COLLS = [], page = 0, loggedIn = false;
+let TAB = 'painel', ROWS = [], COLLS = [], ORGS = [], page = 0, loggedIn = false;
 let PANEL = null, PANEL_SORT = { key: 'sev', dir: -1 };
 let ANALYSIS = null, ANA_SORT = { key: 'attempts', dir: -1 };
 
@@ -118,37 +118,96 @@ function renderTable() {
   }
 }
 
+// ── COLEÇÕES = tags de agrupamento (m:n, curadas). Ortogonais à ORG. ─────────────────────────
 function renderCollections() {
   document.getElementById('count').textContent = `${COLLS.length} coleção(ões)`;
   document.getElementById('pager').innerHTML = '';
+  const list = document.getElementById('list'); list.innerHTML = '';
+  list.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' },
+    'Coleções são rótulos de agrupamento — um problema pode estar em VÁRIAS (diferente de ORG, que controla acesso).'));
+  const nc = el('input', { placeholder: 'nova coleção (pode ter espaços)', style: 'padding:.35rem;min-width:16rem' });
+  list.append(el('div', { class: 'row', style: 'gap:.4rem;margin-bottom:.7rem' },
+    nc, el('button', { class: 'btn', onclick: () => createColl(nc.value.trim(), nc) }, '+ Coleção')));
   const wrap = el('div', { class: 'colls' });
   COLLS.forEach(c => {
     const allPub = c.public === c.count;
-    // trava anti-vazamento da org: só quem pode gerenciar alterna; a implícita é sempre privada
-    const paChip = c.implicit ? pill('mut', 'privada (própria)')
-      : c.can_manage
-        ? el('button', { class: 'pill ' + (c.public_allowed ? 'ok' : 'no'), style: 'cursor:pointer;border:none',
-            title: 'Trava de público: só orgs que permitem podem ter problemas públicos (clique p/ alternar)',
-            onclick: (ev) => { ev.stopPropagation(); toggleOrgPublic(c); } }, c.public_allowed ? 'permite público' : 'privada 🔒')
-        : pill(c.public_allowed ? 'ok' : 'no', c.public_allowed ? 'permite público' : 'privada 🔒');
-    wrap.append(el('div', { class: 'coll', onclick: () => openCollection(c.name) },
+    const card = el('div', { class: 'coll', onclick: () => openCollection(c.name) },
       el('b', {}, c.name),
-      el('span', { class: 'small' }, `${c.count} problemas · `),
-      c.public === 0 ? pill('no', '0 públicos') : (allPub ? pill('ok', 'todos públicos') : pill('warn', `${c.public}/${c.count} públicos`)),
-      ' ', paChip));
+      el('span', { class: 'small' }, `  ${c.count} problemas · `),
+      c.public === 0 ? pill('no', '0 públicos') : (allPub ? pill('ok', 'todos públicos') : pill('warn', `${c.public}/${c.count} públicos`)));
+    if (c.can_manage) card.append(
+      el('button', { class: 'btn ghost', style: 'margin-left:.5rem;padding:.1rem .4rem', onclick: (ev) => { ev.stopPropagation(); renameColl(c); } }, 'renomear'),
+      el('button', { class: 'btn ghost', style: 'margin-left:.3rem;padding:.1rem .4rem', onclick: (ev) => { ev.stopPropagation(); deleteColl(c); } }, 'excluir'));
+    wrap.append(card);
   });
-  const list = document.getElementById('list'); list.innerHTML = ''; list.append(wrap);
+  list.append(wrap);
+}
+async function createColl(name, inp) {
+  if (!name) return;
+  try { await apiPost('/problems/collection-create', { name }, { contest: CONTEST, auth: true }); if (inp) inp.value = ''; loadTab('collections'); }
+  catch (e) { alert(e.message); }
+}
+async function renameColl(c) {
+  const to = (prompt(`Renomear a coleção “${c.name}” para:`, c.name) || '').trim();
+  if (!to || to === c.name) return;
+  try { const j = await apiPost('/problems/collection-rename', { name: c.name, to }, { contest: CONTEST, auth: true }); alert(`Renomeada — ${j.retagged} problema(s) re-taggeado(s).`); loadTab('collections'); }
+  catch (e) { alert(e.message); }
+}
+async function deleteColl(c) {
+  if (!confirm(`Excluir a coleção “${c.name}”? Ela sai de ${c.count} problema(s) (a tag é removida deles).`)) return;
+  try { const j = await apiPost('/problems/collection-delete', { name: c.name }, { contest: CONTEST, auth: true }); alert(`Excluída — ${j.untagged} problema(s) destaggeado(s).`); loadTab('collections'); }
+  catch (e) { alert(e.message); }
 }
 
-// alterna a trava de público da org (só admin da org). Desligar DESPUBLICA em cascata os públicos.
-async function toggleOrgPublic(c) {
-  const off = c.public_allowed;
-  if (off && c.public > 0 && !confirm(`Tornar “${c.name}” PRIVADA vai DESPUBLICAR ${c.public} problema(s) (saem do treino livre). Continuar?`)) return;
+// ── ORGS = acesso (membros que editam + trava de público). Uma org por problema (prefixo do id). ──
+async function loadOrgs() {
+  const list = document.getElementById('list');
+  try { const j = await apiGet('/orgs/list', { contest: CONTEST, auth: true }); ORGS = j.orgs || []; renderOrgs(); }
+  catch (e) { list.innerHTML = `<span class="error-box">${e instanceof ApiError ? e.message : 'Falha ao carregar'}</span>`; }
+}
+function renderOrgs() {
+  document.getElementById('count').textContent = `${ORGS.length} org(s)`;
+  document.getElementById('pager').innerHTML = '';
+  const list = document.getElementById('list'); list.innerHTML = '';
+  list.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' },
+    'ORG = quem pode editar (membros) + o prefixo do id. Privada por padrão: problemas só ficam públicos se a org permitir.'));
+  const wrap = el('div', { class: 'colls' });
+  ORGS.forEach(o => {
+    const paChip = o.implicit ? pill('mut', 'privada (própria)')
+      : o.can_manage
+        ? el('button', { class: 'pill ' + (o.public_allowed ? 'ok' : 'no'), style: 'cursor:pointer;border:none',
+            title: 'Trava de público (clique p/ alternar)', onclick: () => toggleOrgPublic(o) }, o.public_allowed ? 'permite público' : 'privada 🔒')
+        : pill(o.public_allowed ? 'ok' : 'no', o.public_allowed ? 'permite público' : 'privada 🔒');
+    const card = el('div', { class: 'coll', style: 'cursor:default;display:block' },
+      el('div', {}, el('b', {}, o.name), o.implicit ? el('span', { class: 'small muted2' }, ' (sua org)') : '',
+        el('span', { class: 'small' }, `  ${o.count} problemas · `), paChip),
+      el('div', { class: 'small', style: 'margin-top:.3rem' }, 'membros: ', (o.members || []).join(', ') || '—'));
+    if (o.can_manage && !o.implicit) {
+      const inp = el('input', { placeholder: 'login', style: 'padding:.3rem;width:9rem' });
+      card.append(el('div', { class: 'row', style: 'gap:.3rem;margin-top:.4rem' },
+        inp,
+        el('button', { class: 'btn ghost', style: 'padding:.1rem .5rem', onclick: () => orgMember(o, inp.value.trim(), true, inp) }, '+ membro'),
+        el('button', { class: 'btn ghost', style: 'padding:.1rem .5rem', onclick: () => orgMember(o, inp.value.trim(), false, inp) }, '− membro')));
+    }
+    wrap.append(card);
+  });
+  list.append(wrap);
+}
+async function orgMember(o, login, add, inp) {
+  if (!login) return;
   try {
-    const j = await apiPost('/orgs/set-public-allowed', { name: c.name, public_allowed: !c.public_allowed }, { contest: CONTEST, auth: true });
-    c.public_allowed = j.public_allowed;
-    if (off && j.unpublished) c.public = Math.max(0, c.public - j.unpublished);
-    renderCollections();
+    const j = await apiPost('/orgs/members', add ? { name: o.name, add: [login] } : { name: o.name, remove: [login] }, { contest: CONTEST, auth: true });
+    o.members = j.members; if (inp) inp.value = ''; renderOrgs();
+  } catch (e) { alert(e.message); }
+}
+async function toggleOrgPublic(o) {
+  const off = o.public_allowed;
+  if (off && o.public > 0 && !confirm(`Tornar “${o.name}” PRIVADA vai DESPUBLICAR ${o.public} problema(s) (saem do treino livre). Continuar?`)) return;
+  try {
+    const j = await apiPost('/orgs/set-public-allowed', { name: o.name, public_allowed: !o.public_allowed }, { contest: CONTEST, auth: true });
+    o.public_allowed = j.public_allowed;
+    if (off && j.unpublished) o.public = Math.max(0, o.public - j.unpublished);
+    renderOrgs();
   } catch (e) { alert(e.message); }
 }
 
@@ -391,12 +450,13 @@ async function loadTab(tab) {
   TAB = tab; page = 0; setActiveTab(tab);
   document.getElementById('detail').style.display = 'none';
   const list = document.getElementById('list'); list.innerHTML = '<span class="small muted">Carregando…</span>';
-  document.getElementById('toolbar').style.display = (tab === 'collections') ? 'none' : '';
+  document.getElementById('toolbar').style.display = (tab === 'collections' || tab === 'orgs') ? 'none' : '';
   document.getElementById('brokenLabelText').textContent = (tab === 'painel') ? 'só com atenção' : 'só não-públicos';
   document.getElementById('brokenLabel').style.display = (tab === 'analise') ? 'none' : '';
   document.getElementById('btnRefreshPanel').style.display = (tab === 'painel' || tab === 'analise') ? '' : 'none';
   if (tab === 'painel') { loadPanel(); return; }
   if (tab === 'analise') { loadAnalysis(); return; }
+  if (tab === 'orgs') { loadOrgs(); return; }
   try {
     if (tab === 'collections') {
       const j = await apiGet('/problems/collections', { contest: CONTEST, auth: true });

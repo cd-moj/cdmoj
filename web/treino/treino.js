@@ -34,6 +34,22 @@ function filtered() {
   });
 }
 
+// índice de coleções (client-side): rótulos distintos entre os problemas públicos, clicáveis p/ filtrar.
+function renderCollIndex() {
+  const box = document.getElementById('collIndex'); if (!box) return;
+  const counts = new Map();
+  ALL.forEach(p => (p.collections || []).forEach(c => counts.set(c, (counts.get(c) || 0) + 1)));
+  const cur = (document.getElementById('qcol').value || '').trim();
+  const names = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'pt'));
+  box.innerHTML = '';
+  if (!names.length) { box.append(el('span', { class: 'muted' }, 'sem coleções.')); return; }
+  names.forEach(n => box.append(el('a', {
+    class: 'collection' + (cur === n ? ' on' : ''), href: '?searchcol=' + encodeURIComponent(n),
+    style: 'margin:0 .4rem 0 0',
+    onclick: (e) => { e.preventDefault(); document.getElementById('qcol').value = n; page = 0;
+      history.replaceState(null, '', '?searchcol=' + encodeURIComponent(n)); render(); renderCollIndex(); }
+  }, `${n} (${counts.get(n)})`)));
+}
 function render() {
   const rows = filtered();
   document.getElementById('count').textContent = `${rows.length} problema(s)`;
@@ -110,6 +126,7 @@ async function boot() {
     document.getElementById('toggleTags').textContent = showTags ? 'Ocultar tags' : 'Mostrar tags';
     render();
   });
+  renderCollIndex();
   render();
 }
 boot();

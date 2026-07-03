@@ -715,47 +715,21 @@ function renderCollChips() {
 }
 const collChip = (u, onx) => el('span', { class: 'pill mut', style: 'margin-right:.3rem' }, u,
   el('a', { href: '#', style: 'margin-left:.3rem', onclick: async (e) => { e.preventDefault(); await onx(); } }, '×'));
+// Coleções são só TAGS de agrupamento (m:n). A gestão de ACESSO (membros da org + trava de público)
+// NÃO é aqui — fica na aba "Orgs" da gestão de problemas. Este painel só marca o problema em coleções.
 function renderCollManage() {
   const box = $('collManage'); if (!box) return; box.innerHTML = '';
-  currentColls().forEach(n => {
-    const c = COLLS.find(x => x.name === n); if (!c || !c.can_manage) return;
-    const sList = el('span', { class: 'small' }), aList = el('span', { class: 'small' });
-    const sInp = el('input', { type: 'text', placeholder: 'login', style: 'max-width:12rem' });
-    const aInp = el('input', { type: 'text', placeholder: 'login', style: 'max-width:12rem' });
-    const draw = () => {
-      sList.innerHTML = ''; sList.append('setters: '); (c.members || []).forEach(u => sList.append(collChip(u, () => collUpdate(n, { remove: [u] }))));
-      aList.innerHTML = ''; aList.append('co-admins: '); (c.admins || []).forEach(u => aList.append(collChip(u, () => collUpdate(n, { admins_remove: [u] }))));
-    };
-    c._draw = draw; draw();
-    const header = el('div', {}, el('b', {}, '⚙ ' + n),
-      el('span', { class: 'small muted' }, c.mine ? '  (você é dono)' : '  (você gerencia)'));
-    if (c.repo_course) header.append(el('span', { class: 'small muted' }, '  · curso/diretório: setters = colaboradores do repo'));
-    const rows = [header,
-      el('div', { class: 'row', style: 'gap:.4rem;align-items:center;margin:.2rem 0;flex-wrap:wrap' }, sInp,
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => { const u = sInp.value.trim(); if (u) { collUpdate(n, { add: [u] }); sInp.value = ''; } } }, '+ setter'), sList)];
-    // repo-curso não tem tier de co-admin (só dono + colaboradores); registrada sim
-    if (!c.repo_course) rows.push(
-      el('div', { class: 'row', style: 'gap:.4rem;align-items:center;margin:.2rem 0;flex-wrap:wrap' }, aInp,
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => { const u = aInp.value.trim(); if (u) { collUpdate(n, { admins_add: [u] }); aInp.value = ''; } } }, '+ co-admin'), aList));
-    box.append(el('div', { style: 'border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.4rem .6rem;margin:.3rem 0' }, ...rows));
-  });
-}
-async function collUpdate(name, patch) {
-  try {
-    const j = await apiPost('/problems/collection-members', { name, ...patch }, { contest: CONTEST, auth: true });
-    const c = COLLS.find(x => x.name === name); if (c) { c.members = j.members; c.admins = j.admins; if (c._draw) c._draw(); }
-    setMsg('coleção atualizada ✓', 'v-ok');
-  } catch (e) { setMsg(e.message, 'error'); }
+  box.append(el('span', { class: 'small muted' },
+    'Coleções são rótulos de agrupamento (um problema pode estar em várias). Quem pode EDITAR o problema é a sua ORG — gerencie membros e a trava de público na aba “Orgs”.'));
 }
 async function newColl() {
   const name = $('newCollName').value.trim();
-  if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(name)) { setMsg('Nome de coleção inválido (use [a-z0-9._-]).', 'error'); return; }
-  const members = splitList($('newCollMembers').value);
+  if (!name || name.length > 80) { setMsg('Nome de coleção inválido (1–80 caracteres; pode ter espaços).', 'error'); return; }
   try {
-    const j = await apiPost('/problems/collection-create', { name, members }, { contest: CONTEST, auth: true });
-    COLLS.push({ name: j.name, owner: j.owner, members: j.members, mine: true, count: 0 });
-    setColls([...currentColls(), j.name]); $('newCollName').value = ''; $('newCollMembers').value = '';
-    setMsg('Coleção criada ✓ — salve o problema para os setters ganharem acesso.', 'v-ok');
+    const j = await apiPost('/problems/collection-create', { name }, { contest: CONTEST, auth: true });
+    COLLS.push({ name: j.name, owner: j.owner, mine: true, can_manage: true, count: 0 });
+    setColls([...currentColls(), j.name]); $('newCollName').value = '';
+    setMsg('Coleção criada ✓ — marque o problema nela e salve.', 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 

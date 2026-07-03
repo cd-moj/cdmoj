@@ -47,8 +47,9 @@
   <main class="container">
     <div class="section">
       <h2>Gestão de Problemas</h2>
-      <p class="small muted">Seus problemas, os compartilhados com você, os públicos (treino livre)
-        e as coleções (cursos / diretórios). O backend é o Gitea — você só usa seu login do MOJ.</p>
+      <p class="small muted">Seus problemas, os compartilhados, os públicos (treino livre), as
+        <b>coleções</b> (rótulos de agrupamento — várias por problema) e as <b>orgs</b> (quem edita +
+        trava de público — uma por problema, o prefixo do id). Você só usa seu login do MOJ.</p>
       <div id="needauth" class="error-box" style="display:none">Entre com seu login do MOJ para gerir seus problemas.</div>
       <div class="tabs" id="tabs">
         <button data-tab="painel" class="active">Painel</button>
@@ -57,6 +58,7 @@
         <button data-tab="shared">Compartilhados</button>
         <button data-tab="public">Públicos</button>
         <button data-tab="collections">Coleções</button>
+        <button data-tab="orgs">Orgs</button>
       </div>
       <div class="row" id="toolbar">
         <input id="q" placeholder="Filtrar por título, autor ou id…" style="flex:1; min-width:240px">

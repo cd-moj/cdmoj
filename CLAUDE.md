@@ -89,6 +89,13 @@ indexa inline; sem mirror/push/token/LFS/webhook. O `<org>` do id `<org>#<prob>`
 públicos: anti-vazamento de prova; rebaixar a org despublica em cascata). Cada usuário tem a org
 implícita `<login>` (sempre privada). Migração/cut-over: `server/bin/migrate-to-orgs.sh`.
 
+**ORG ≠ COLEÇÃO** (ortogonais): a **ORG** é acesso (1 por problema, o prefixo do id). A **COLEÇÃO** é
+um **rótulo de agrupamento** (`.moj-meta.json collections[]`, **VÁRIAS por problema**, cross-org) — só
+navegação/curadoria, sem acesso. Registro CURADO em `collections.json` (`lib/problems.sh` `coll_*`:
+`{name:{owner,created_by,at}}`, nome é TEXTO LIVRE, pode ter espaços); marcar exige que a coleção
+exista (`set-collections`/`edit` validam). `/problems/collection*` = coleção-tag; `/orgs/*` = acesso.
+O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `server/bin/seed-collections.sh`.
+
 - **Acesso a problema (helpers centrais em `lib/problems.sh`):** ver **source/pacote/soluções/
   calibração** = só **membro da ORG** (`require_problem_edit` → `org_is_member`,
   **sem atalho de `.admin`**); ver **detalhe/statement** (`get`/`validation`) = membro da org
