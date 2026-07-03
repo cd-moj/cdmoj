@@ -6,7 +6,7 @@ host web. Os juízes **não** precisam deste repo. Workspace multi-repo: ver `..
 
 **Leia primeiro `docs/OVERVIEW.md`** (arquitetura, API, frontend, o que existe) e
 `docs/FLOW.md` (o caminho de uma submissão). Rotas: `docs/API.md` + `web/api/openapi.json`.
-Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/build-html.sh`.
+Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 
 ## Backend (`server/api/v1/`)
 
@@ -79,11 +79,19 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
   trava na UI é só conveniência; a garantia de verdade é sempre o handler. Prefira **404** a 403
   quando revelar a existência já é vazamento.
 
-## Problemas (gestão Gitea, keyless)
+## Problemas (gestão MOJ-nativa por ORG, keyless — sem Gitea)
+
+**Storage MOJ-nativo (sem Gitea):** cada problema é um **repo git LOCAL** em
+`MOJ_PROBLEMS_DIR/<org>/<prob>` — o servidor commita direto (`problem_commit`, flock por-problema) e
+indexa inline; sem mirror/push/token/LFS/webhook. O `<org>` do id `<org>#<prob>` é uma **ORG**
+(`lib/orgs.sh`, `contests/treino/var/orgs.json`): **membros** escrevem em qualquer problema dela;
+**admins** gerem membros + a trava **`public_allowed`** (privada por PADRÃO ⇒ problemas nunca ficam
+públicos: anti-vazamento de prova; rebaixar a org despublica em cascata). Cada usuário tem a org
+implícita `<login>` (sempre privada). Migração/cut-over: `server/bin/migrate-to-orgs.sh`.
 
 - **Acesso a problema (helpers centrais em `lib/problems.sh`):** ver **source/pacote/soluções/
-  calibração** = só **dono ou colaborador** (`require_problem_edit`, checagem ao vivo no Gitea,
-  **sem atalho de `.admin`**); ver **detalhe/statement** (`get`/`validation`) = dono/colaborador
+  calibração** = só **membro da ORG** (`require_problem_edit` → `org_is_member`,
+  **sem atalho de `.admin`**); ver **detalhe/statement** (`get`/`validation`) = membro da org
   **ou** público (`require_problem_view`); **listagens** pré-filtram em `owners_emit` (problema
   **privado some** p/ quem não é dono/colaborador, **inclusive `.admin`**). Não-autorizado: **404**.
   Motivo: provas em elaboração não podem vazar. Testado como não-dono via `moj-cli` (não burlável).
@@ -117,8 +125,9 @@ Deploy: `docs/DEPLOY.md` (+ `docs/DEPLOY-GITEA.md`). Docs em HTML: `bash docs/bu
   `owners_merged` MESCLA o overlay `authored` sobre a entrada do índice (não substitui) p/ não apagar
   `tl_checksum`/`public_at` — sem isso, problemas no overlay perdiam esses campos.
 
-- `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta`) +
-  `lib/git-broker.sh` (commit/push via token efêmero). Handlers em `handlers/problems/`.
+- `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta` / `problem_commit`
+  = commit git LOCAL por problema, sem Gitea) + `lib/orgs.sh` (acesso por org). Handlers em
+  `handlers/problems/` (+ `handlers/orgs/`).
 - **Pacote canônico**: `docs/enunciado.{md,org,tex}`, `tests/input|output/` (exemplos = `sample*`,
   na ordem), `sols/{good,slow,wrong,pass,upcoming}/`, `conf`, `author`, `tags`, `tests/score`,
   `docs/sample-notes.json` (explicações de exemplo, na ordem), `docs/solucao.md` (editorial — só

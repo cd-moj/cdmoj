@@ -4757,48 +4757,6 @@
         }
       }
     },
-    "/problems/git-credential": {
-      "post": {
-        "tags": [
-          "problems"
-        ],
-        "summary": "Credencial HTTPS efêmera p/ o modo git do CLI",
-        "description": "Só quem pode escrever; não persistir.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/contest"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "repo": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "repo"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "{url,username,token}"
-          }
-        }
-      }
-    },
     "/treino/signup/start": {
       "post": {
         "tags": [

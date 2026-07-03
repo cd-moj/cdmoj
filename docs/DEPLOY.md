@@ -11,7 +11,11 @@ Tudo roda **user-space como `ribas`** (sem root), reaproveitando o `~/nginx-prox
 | **judged** (daemon) | consome o spool, julga (mock/local/cluster), grava veredicto + placar | `server/daemons/judged.sh` |
 | **juiz (agente pull)** | máquinas de julgamento: registram capacidade + puxam jobs | repo **judge** separado — ver `judge/README.md` (bring-up por máquina) e `server/judge-gw/PULL.md` |
 | **mojinho-bot** | bot Telegram (cliente da API) | `mojinho-bot/mojinho-api.sh` |
-| **Gitea** | store git da gestão de problemas (backend; autores não acessam direto) | `server/bin/start-gitea.sh` — ver **[DEPLOY-GITEA.md](DEPLOY-GITEA.md)** |
+
+> **Storage de problemas (MOJ-nativo, sem Gitea):** cada problema é um repo git LOCAL em
+> `MOJ_PROBLEMS_DIR/<org>/<prob>` — o servidor commita direto e indexa inline; acesso por ORG
+> (`contests/treino/var/orgs.json`). Não há mais serviço Gitea/LFS/webhook. Cut-over histórico:
+> `server/bin/migrate-to-orgs.sh`.
 
 ## Bring-up (dev/local)
 

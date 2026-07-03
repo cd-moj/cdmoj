@@ -130,8 +130,6 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 > (`cc_can_create`: `.admin` ou allowlist ou ≥ N resolvidos, menos a denylist) — gerida em
 > `/treino/admin/contest-perms`. `create`/`repo-create`/`collection-create`/`upload`-novo exigem isso;
 > editar/compartilhar problema existente continua por colaborador (`gitea_can_write`).
-| `/problems/git-credential` | POST `{repo}` | credencial HTTPS efêmera p/ o **modo git** do CLI (`{url,username,token}`); só quem pode escrever; não persistir |
-| `/problems/webhook` | POST | **Gitea → MOJ** (sem Bearer; HMAC `X-Gitea-Signature`). Em cada push, enfileira `index` dos problemas alterados e registra o diretório. Webhook criado automático no `repo-create`/migração; URL em `MOJ_WEBHOOK_URL` |
 
 ### Orgs (novo modelo MOJ-nativo, em construção — Fase 1)
 
@@ -151,12 +149,12 @@ quem é **membro** escreve em qualquer problema da org; a org tem uma **trava de
 | `/orgs/set-public-allowed` | POST `{name,public_allowed:bool}` | liga/desliga a trava (só admin da org; implícita ⇒ **409**). **Desligar DESPUBLICA em cascata** os problemas públicos da org (tira do treino) — resposta traz `unpublished` |
 
 O CLI **`moj`** (`web/moj`, servido em `GET /moj`; fonte em `moj-cli/`) usa essas rotas para
-autoria **sem git/sem chave**: `moj new/clone/push/publish/share`. `git-credential` é só p/ o modo
-git avançado.
+autoria **sem git/sem chave**: `moj new/clone/push/publish/share/org/mv`. Storage MOJ-nativo: o
+servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<prob>`), sem Gitea.
 
-> Permissão de escrita = dono **ou** colaborador no Gitea (`gitea_can_write`). Visibilidade imediata
-> via overlay `contests/treino/var/authored.json` (mesclado ao índice). Segredos só server-side
-> (modo 600); nada de chave SSH/git para o autor.
+> Permissão de escrita = **membro da ORG** do problema (`org_is_member`; sem atalho de `.admin`).
+> Visibilidade imediata via overlay `contests/treino/var/authored.json` (mesclado ao índice). Público
+> só se a org permitir (`public_allowed`) — camada anti-vazamento de prova.
 
 ## Submissão (assíncrona)
 | Rota | Método | Auth | I/O |
