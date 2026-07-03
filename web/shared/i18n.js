@@ -11,6 +11,7 @@ const STR = {
     statement: 'Enunciado', show: 'mostrar', hide: 'esconder',
     history: 'Histórico de submissões', status: 'Status', language: 'Linguagem',
     datetime: 'Data/Hora', file: 'Arquivo', wrong_login: 'Usuário ou senha incorretos',
+    create_account: 'Criar conta',
   },
   en: {
     login: 'Log in', logout: 'Log out', user: 'User', password: 'Password',
@@ -23,6 +24,7 @@ const STR = {
     statement: 'Statement', show: 'show', hide: 'hide',
     history: 'Submission history', status: 'Status', language: 'Language',
     datetime: 'Date/Time', file: 'File', wrong_login: 'Wrong user or password',
+    create_account: 'Create account',
   },
 };
 let LANG = localStorage.getItem('moj_lang') || (navigator.language || 'pt').slice(0, 2);

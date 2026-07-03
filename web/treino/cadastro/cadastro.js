@@ -3,9 +3,14 @@
 // GET /treino/signup/status?nonce=… até created|already_linked|linked|expired.
 // A SENHA nunca chega aqui: é entregue por DM do bot (posse do Telegram = prova).
 import { apiPost, apiGet } from '/shared/api.js';
+import { renderAuthArea } from '/shared/ui.js';
 
 const $ = (id) => document.getElementById(id);
 let pollTimer = null;
+
+// preenche o #authArea do topbar compartilhado (login/chip do usuário), como as demais páginas
+const authMount = $('authArea');
+if (authMount) renderAuthArea(authMount, 'treino', () => location.reload());
 
 function showResult(cls, html) {
   const r = $('result');

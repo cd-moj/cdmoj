@@ -109,6 +109,14 @@ export async function renderAuthArea(mount, contest, onChange) {
     catch (e) { msg.textContent = ' ' + (e.message || t('wrong_login')); msg.className = 'small error-box'; }
   };
   p.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
-  mount.append(u, p, el('button', { class: 'btn', onclick: go }, t('login')), msg);
+  const kids = [u, p, el('button', { class: 'btn', onclick: go }, t('login')), msg];
+  // cadastro self-service existe só no treino (backend em handlers/treino/signup/*)
+  if (contest === 'treino') {
+    kids.push(el('a', {
+      class: 'small', href: '/treino/cadastro/',
+      title: 'Criar uma conta no Treino Livre', style: 'font-weight:700',
+    }, t('create_account')));
+  }
+  mount.append(...kids);
   return st;
 }
