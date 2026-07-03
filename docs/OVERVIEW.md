@@ -115,12 +115,19 @@ no bot, **1 Telegram = 1 conta** (anti-duplicata), recuperação de senha pelo v
 **alertas** de incidente que a **API** decide (`lib/alerts.sh` + `GET /ops/alerts`: juiz offline+fila,
 fila grande, daemon caído, com histerese/cooldown) aos `.admin` com Telegram vinculado + grupo.
 
-### Criação de contest (`/treino/criar/`)
-Permissão por **lista do admin OU threshold** de problemas resolvidos. Monta usuários
-(**compartilhados do treino** ou **próprios**, com colagem fluida + senhas legíveis +
-download de credenciais), **admin do contest obrigatório**, problemas do banco / por ID /
-sorteio **semiautomático por tag e dificuldade**, configs visuais (cores/Sonic, países/escolas
-por regex, regiões), e a opção de **criar vazio**. Template JSON + import de `.tar.gz`.
+### Criação de contest (`/treino/criar/`) — wizard multi-etapa
+Permissão por **lista do admin OU threshold** de problemas resolvidos. **Wizard em 8 passos**
+(shell `criar.js` + `steps/*.js`; um objeto `draft` único — ir-e-voltar não perde nada):
+**0 Começar** (em branco / **template salvo** / **duplicar contest meu** / importar `.tar.gz` /
+baixar template JSON / salvar template de contest existente), **1 Dados** (nome/id/modo/datas),
+**2 Problemas** (painel compartilhado de busca+sorteio por **coleção**/tag/dificuldade, add por
+ID, enunciado custom HTML **e PDF** por problema), **3 Usuários** (compartilhados do treino ou
+próprios, com colagem fluida + senhas legíveis + CSV), **4 Admin** (obrigatório), **5 Opções**
+(o MESMO `settings-editor` da aba Configurações do admin — paridade total, + **prioridade** de
+julgamento), **6 Visual** (cores/Sonic, países/escolas, regiões), **7 Revisão** (resumo +
+validações + **Criar/Criar vazio** + **salvar como template**). Templates nomeados ficam no
+servidor por criador (`/treino/contest-create/templates`); duplicar/exportar usam
+`/treino/contest-create/{mine,export,duplicate}` (só dono/admin — 404 p/ terceiros).
 
 ### Ambiente de contest (`<id>.moj.<base>`)
 Login (com gate opcional por substring de **User-Agent**), página principal (problemas +
