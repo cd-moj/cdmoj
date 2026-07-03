@@ -60,6 +60,18 @@ Recarregar: `cd ~/nginx-proxy && ./proxy.sh test && ./proxy.sh reload`.
 > reemita o cert incluindo `*.moj.naquadah.com.br` (produção) / `*.moj.charge.naquadah.com.br`
 > (teste). Em HTTP (8080) e via header `Host:` nos testes já funciona.
 
+## CLIs servidas (`/moj` e `/moj-contest`)
+
+`web/moj` e `web/moj-contest` são **artefatos de distribuição** (1 arquivo, com a lib comum
+embutida) gerados de `moj-cli/` — **nunca** copie o script do repo direto (ele sourceia
+`lib/core.sh` e quebraria fora do repo). Ao mudar o `moj-cli`, regenere e instale:
+
+```bash
+bash /home/ribas/moj/moj-cli/mkdist.sh
+install -m755 /home/ribas/moj/moj-cli/dist/moj /home/ribas/moj/moj-cli/dist/moj-contest \
+  /home/ribas/moj/cdmoj/web/
+```
+
 ## Como acessar / testar
 
 O proxy escuta em **8080 (HTTP)** e **8443 (HTTPS)**. Se o DNS de `moj.charge.naquadah.com.br` apontar para a máquina, acesse `https://moj.charge.naquadah.com.br:8443/`. Para testar local sem DNS, use o header Host:
