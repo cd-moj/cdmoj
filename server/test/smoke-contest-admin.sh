@@ -10,6 +10,9 @@ printf 'boss.admin:p:Boss\nregular:s:Regular\n' > "$T/passwd"
 printf '{"threshold":0,"allow":["regular"],"deny":[]}' > "$T/var/contest-perms.json"
 printf 'CONTEST=treino\nLOGIN=regular\nUSERFULLNAME=Regular\nLOGINAT=1\n' > "$SESS/reg"
 printf '%s' '{"id":"bankprob","title":"Banco","tags":["#x"],"statement_html_b64":"PGgxPm9pPC9oMT4="}' > "$T/var/jsons/bankprob.json"
+printf '%s' '{"id":"apc#vet","title":"Vetores","tags":["#vetor"],"collections":["Prova 1"]}' > "$T/var/jsons/apc#vet.json"
+mkdir -p "$T/var/jsons-private"
+printf '%s' '{"id":"secret#x","title":"Prova Secreta","tags":[]}' > "$T/var/jsons-private/secret#x.json"
 # índice de owners (fresco => ensure_owners_index não regenera): público + privados p/ o gate do add
 printf '%s' '{"problems":[
  {"id":"bankprob","owner":"someone","collaborators":[],"public":true},
@@ -74,6 +77,39 @@ ck "privado alheio 404"         '[[ "$OUT" == *"Status: 404"* ]]'
 rm -f "$FIX/ac-c/owner"
 call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"priv#mine","name":"Meu2"}}' cadm 'contest=ac-c'
 ck "contest sem owner: privado 404" '[[ "$OUT" == *"Status: 404"* ]]'
+
+echo "== banco/sorteio no admin do contest =="
+call /contest/admin/bank GET '' cadm 'contest=ac-c&q=vetores'
+ck "bank acha por título"       '[[ "$(jq -r ".problems[0].id" <<<"$BODY")" == "apc#vet" ]]'
+call /contest/admin/bank GET '' cadm 'contest=ac-c&collection=Prova%201'
+ck "bank filtra por coleção"    '[[ "$(jq -r .total <<<"$BODY")" == 1 && "$(jq -r ".problems[0].id" <<<"$BODY")" == "apc#vet" ]]'
+call /contest/admin/bank GET '' cadm 'contest=ac-c'
+ck "privado NÃO aparece no bank" '[[ "$(jq -r "[.problems[].id]|index(\"secret#x\")" <<<"$BODY")" == null ]]'
+call /contest/admin/bank GET '' cadm 'contest=ac-c&meta=1'
+ck "meta=1: tags e coleções"    '[[ "$(jq -r ".collections[0].collection" <<<"$BODY")" == "Prova 1" && "$(jq -r ".tags|length" <<<"$BODY")" -ge 2 ]]'
+call /contest/admin/bank GET '' cuser 'contest=ac-c'
+ck "bank de aluno 403"          '[[ "$OUT" == *"Status: 403"* ]]'
+call /contest/admin/draw GET '' cadm 'contest=ac-c&collections=%5B%22Prova%201%22%5D&count=5&seed=3'
+ck "draw por coleção no admin"  '[[ "$(jq -r .candidates <<<"$BODY")" == 1 && "$(jq -r ".problems[0].id" <<<"$BODY")" == "apc#vet" ]]'
+call /contest/admin/draw GET '' cadm 'contest=ac-c&count=2&seed=42'
+D1="$(jq -rc '[.problems[].id]' <<<"$BODY")"
+call /contest/admin/draw GET '' cadm 'contest=ac-c&count=2&seed=42'
+ck "draw reproduzível por seed" '[[ "$(jq -rc "[.problems[].id]" <<<"$BODY")" == "$D1" ]]'
+call /contest/admin/draw GET '' cuser 'contest=ac-c&count=2'
+ck "draw de aluno 403"          '[[ "$OUT" == *"Status: 403"* ]]'
+
+echo "== letras além de Z (AA, AB, …) =="
+for i in $(seq 1 25); do
+  call /contest/admin/problems POST "{\"action\":\"add\",\"problem\":{\"bank_id\":\"bankprob\",\"name\":\"P$i\"}}" cadm 'contest=ac-c' >/dev/null
+done
+call /contest/admin/problems GET '' cadm 'contest=ac-c'
+NPROB="$(jq -r '.problems|length' <<<"$BODY")"
+ck "30 problemas"               '[[ "$NPROB" == 30 ]]'
+ck "27º recebe letra AA"        '[[ "$(jq -r ".problems[26].letter" <<<"$BODY")" == "AA" ]]'
+ORD="$(jq -c '[.problems[].letter]|reverse' <<<"$BODY")"
+call /contest/admin/problems POST "{\"action\":\"reorder\",\"order\":$ORD}" cadm 'contest=ac-c'
+ck "reorder >26 sem letra inválida" '[[ "$(jq -r "[.problems[].letter]|join(\",\")" <<<"$BODY")" == *"Z,AA,AB,AC,AD"* ]]'
+ck "reorder inverteu (último virou A)" '[[ "$(jq -r ".problems[0].name" <<<"$BODY")" == "P25" ]]'
 
 echo "== proteções de acesso =="
 call /contest/admin/config GET '' cuser 'contest=ac-c'

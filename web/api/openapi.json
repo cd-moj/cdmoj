@@ -3356,6 +3356,127 @@
         }
       }
     },
+    "/contest/admin/bank": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Busca no banco público do treino (só públicos; ?meta=1 devolve tags+coleções agregadas)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "meta",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                1
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems:[{id,title,tags,collections}],total} ou {tags,collections}"
+          }
+        }
+      }
+    },
+    "/contest/admin/draw": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Sorteio no banco público (contrato do /treino/contest-create/draw: tag+coleção+dificuldade em AND, seed reproduzível)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collections",
+            "in": "query",
+            "description": "array JSON url-encoded de nomes de coleção",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "match",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "any",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "difficulty",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "any",
+                "easy",
+                "medium",
+                "hard",
+                "known"
+              ]
+            }
+          },
+          {
+            "name": "seed",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{problems[],candidates,drawn,seed,collections}"
+          }
+        }
+      }
+    },
     "/contest/admin/problems": {
       "get": {
         "tags": [

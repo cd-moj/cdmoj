@@ -138,7 +138,7 @@ cc_create(){
   : > "$stg/controle/history"
 
   local probs="PROBS=(" i=0
-  local letterauto=( {A..Z} )
+  local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
   local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
   local pdf_b64 pdf_file larr plangs='{}'
   while IFS= read -r p; do
@@ -399,7 +399,8 @@ cc_del_conf_var(){
 # Retorna 1 em validação inválida.
 cc_build_probs(){
   local tdir="$1" spec="$2" enun="${3:-}" probs="PROBS=(" i=0
-  local letterauto=( {A..Z} ) p pid src pname letter bankid stmt_b64 stmt_file skey bf html
+  local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
+  local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
   mkdir -p "$tdir/enunciados"
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue

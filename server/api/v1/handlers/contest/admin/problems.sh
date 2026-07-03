@@ -65,9 +65,11 @@ case "$action" in
     ;;
   reorder)
     order="$(jq -c '.order // []' <<<"$body")"
+    # letra pela posição: A..Z, depois AA,AB,… ([65+key]|implode puro virava lixo com >26)
     new="$(jq -cn --argjson cur "$cur" --argjson order "$order" '
+      def letter($i): if $i < 26 then ([65+$i]|implode) else ([65+(($i/26|floor)-1), 65+($i%26)]|implode) end;
       ($cur | map({(.letter): .}) | add) as $by
-      | [ $order | to_entries[] | . as $e | ($by[$e.value] // empty) | (.letter = ([65 + $e.key] | implode)) ]')"
+      | [ $order | to_entries[] | . as $e | ($by[$e.value] // empty) | (.letter = letter($e.key)) ]')"
     ;;
   langs)
     # linguagens permitidas POR problema (ids canônicos minúsculos). Chaveado pelo id
