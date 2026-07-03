@@ -3624,7 +3624,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{total,counts:{validated,validation_error,unvalidated,calibrated,uncalibrated,being_calibrated,needs_recalibration,errors},calibrating_ids,attention_ids,problems:[{id,title,owner,author,public,collaborators,validated,calibrated,being_calibrated,stale,needs_recalibration,error,error_reasons,time_limits,updated_at,validated_at}]}"
+            "description": "{total,counts:{validated,validation_error,unvalidated,calibrated,uncalibrated,being_calibrated,needs_recalibration,good_sol_no_tl,public_unvalidated,needs_review,errors},calibrating_ids,attention_ids,problems:[{id,title,owner,author,public,collaborators,validated,calibrated,being_calibrated,stale,needs_recalibration,good_sol_no_tl,good_sol_missing_langs,public_unvalidated,error,needs_review,review_reasons,time_limits,updated_at,validated_at}]} — good_sol_no_tl = solução good sem TL (linguagem que falhou em todos os juízes); needs_review = precisa revisão"
           }
         }
       }
@@ -3714,7 +3714,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{id,checksum,hosts:[{host,tl,at,log,reports}]}"
+            "description": "{id,checksum,good_langs,missing_langs,hosts:[{host,tl,missing,at,log,reports}]} — missing_langs = linguagem good sem TL em NENHUM host (solução good falhou em todas as máquinas); hosts[].missing = faltantes naquele juiz"
           }
         }
       }
@@ -4407,7 +4407,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Marca público no .moj-meta.json (+ enfileira validação se true)",
+        "summary": "Público on => valida + calibra (index_problem_bg + cal_request) e grava o flag; off => sai do treino",
         "security": [
           {
             "bearerAuth": []

@@ -20,13 +20,28 @@ if [[ -d "$d" ]]; then
   [[ -n "$logs" ]] || logs='{}'
 fi
 
+# linguagens das soluções good (extensão) — p/ apontar as que NÃO calibraram (falharam). O -o noglob
+# da API vale aqui -> uso find, não glob.
+pkg="$(pkg_path "$id")"; goodlangs='[]'
+if [[ -n "$pkg" && -d "$pkg/sols/good" ]]; then
+  goodlangs="$(find "$pkg/sols/good" -maxdepth 1 -type f 2>/dev/null \
+    | while IFS= read -r gf; do e="${gf##*.}"; [[ "$e" != "$gf" ]] && echo "$e"; done \
+    | LC_ALL=C sort -u | jq -Rsc 'split("\n")|map(select(length>0))')"
+  [[ -n "$goodlangs" ]] || goodlangs='[]'
+fi
+
 emit_json 200 OK
-jq -cn --argjson store "$store" --argjson logs "$logs" '
+jq -cn --argjson store "$store" --argjson logs "$logs" --argjson gl "$goodlangs" '
   ($store.hosts // {}) as $h
   | (($h|keys) + ($logs|keys) | unique) as $hosts
+  | ([ $h[]?.tl // {} | keys[] | select(.!="default") ] | unique) as $served   # calibrado em >=1 host
   | { success:true, id:($store.id // ""), checksum:($store.checksum // ""),
+      good_langs:$gl,
+      missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host
       hosts: [ $hosts[] as $n
-               | { host:$n, tl:($h[$n].tl // {}),
+               | ($h[$n].tl // {}) as $htl
+               | { host:$n, tl:$htl,
+                   missing:[ $gl[] | select(. as $g | ($htl|has($g)|not)) ],   # sem TL NESTE host
                    at:($h[$n].at // $logs[$n].at // 0),
                    log:($logs[$n].log // null),
                    reports:($logs[$n].reports // []) } ] }'

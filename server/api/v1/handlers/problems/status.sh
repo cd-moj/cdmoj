@@ -20,6 +20,10 @@ ids="$(mktemp)"; jq -r '.problems[].id' <<<"$vis" 2>/dev/null > "$ids"
 
 # 2) SENDO CALIBRADO AGORA (uma varredura das filas -> conjunto pequeno).
 calib="$(calibrating_set)"
+# linguagens que ALGUM juiz suporta (registry .langs) — p/ NÃO marcar "falha" uma solução good cuja
+# linguagem juiz nenhum roda (ex.: apl = limitação de plataforma/deploy, não defeito do problema).
+sup="$(find "${REGISTRYDIR:-$RUNDIR/registry}" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null | jq -sc '[.[]|.langs//[]|.[]]|unique' 2>/dev/null)"
+[[ -n "$sup" ]] || sup='[]'
 
 # 3) MAPA DE TL (só dos ids VISÍVEIS; nunca lê run/tl de terceiros). checksum calibrado + TL servível
 #    (máx entre hosts por linguagem, direto do store) + updated_at. Um jq só (bulk-slurp).
@@ -43,7 +47,7 @@ while IFS= read -r id; do f="$RUNDIR/validation/$id.json"; [[ -f "$f" ]] && cat 
 # 5) JOIN + AGREGADOS. JSON grande (vis) via stdin; mapas via --slurpfile; conjunto calib via
 #    --argjson (é pequeno) — nada de JSON grande no argv (ARG_MAX).
 emit_json 200 OK
-jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" '
+jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" --argjson SUP "$sup" '
   ($TL[0] // {}) as $tl | ($VAL[0] // {}) as $val
   | ($CAL | map({(.):true}) | add // {}) as $calset
   | [ .problems[]
@@ -53,6 +57,14 @@ jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" '
       | (if $v==null then "none" elif ($v.ok==true) then "ok" else "error" end) as $vstate
       | ($t.calibrated // false) as $cal
       | (($t.checksum // "") != "" and (.tl_checksum // "") != "" and ($t.checksum != .tl_checksum)) as $stale
+      # linguagens good SEM TL servido = solução good que não calibrou (o TL servido é a UNIÃO entre
+      # hosts, então ausente = falhou em TODOS os juízes). Só vale p/ calibração ATUAL (senão é "stale").
+      | ([ (.good_langs // [])[] | select(. as $g | ($SUP|index($g)) and (($t.tl // {})|has($g)|not)) ]) as $miss
+      | ($cal and ($stale|not) and ($miss|length>0)) as $gsnotl
+      | (($vstate=="error") or $gsbad) as $err
+      | (.public and ($cal|not)) as $pubuncal            # público mas SEM calibração (sem TL p/ o aluno)
+      | (.public and ($vstate=="none")) as $pubunval     # público mas SEM relatório de validação
+      | ($err or $gsnotl or $pubuncal or $pubunval) as $review
       | { id:$id, title:(.title // .prob // $id), owner:.owner, author:.author, public:.public,
           collaborators:(.collaborators // []),
           validated:$vstate,
@@ -60,7 +72,16 @@ jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" '
           being_calibrated:(($calset[$id]) // false),
           stale:$stale,
           needs_recalibration:($cal and $stale),
-          error:(($vstate=="error") or $gsbad),
+          good_sol_no_tl:$gsnotl,
+          good_sol_missing_langs:$miss,
+          public_unvalidated:$pubunval,
+          error:$err,
+          needs_review:$review,
+          review_reasons:([ (if $vstate=="error" then "validation_failed" else empty end),
+                            (if $gsbad then "good_sol_rejected" else empty end),
+                            (if $gsnotl then ("good_sol_no_tl:" + ($miss|join(","))) else empty end),
+                            (if $pubuncal then "public_uncalibrated" else empty end),
+                            (if $pubunval then "public_unvalidated" else empty end) ]),
           error_reasons:([ (if $vstate=="error" then "validation_failed" else empty end),
                            (if $gsbad then "good_sol_rejected" else empty end) ]),
           time_limits:($t.tl // {}), updated_at:($t.at // null),
@@ -75,9 +96,12 @@ jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" '
         uncalibrated:       ([$rows[]|select(.calibrated|not)]|length),
         being_calibrated:   ([$rows[]|select(.being_calibrated)]|length),
         needs_recalibration:([$rows[]|select(.needs_recalibration)]|length),
+        good_sol_no_tl:     ([$rows[]|select(.good_sol_no_tl)]|length),
+        public_unvalidated: ([$rows[]|select(.public_unvalidated)]|length),
+        needs_review:       ([$rows[]|select(.needs_review)]|length),
         errors:             ([$rows[]|select(.error)]|length) },
       calibrating_ids:[$rows[]|select(.being_calibrated)|.id],
-      attention_ids:  [$rows[]|select(.error or .needs_recalibration)|.id],
+      attention_ids:  [$rows[]|select(.needs_review or .needs_recalibration)|.id],
       problems:$rows }' <<<"$vis" 2>/dev/null \
   || jq -cn '{success:true, total:0, counts:{}, calibrating_ids:[], attention_ids:[], problems:[]}'
 

@@ -1,11 +1,11 @@
 # POST /problems/set-public   (Bearer)   body: {id, public:bool}
-# Marca/desmarca o problema como público (.moj-meta.json). Público => enfileira validação+index
-# (1 juiz pega no heartbeat; só entra no treino se o portão passar). Privado => sai do treino na
-# HORA. Atualiza o espelho p/ o editor refletir o estado certo. AÇÃO EXPLÍCITA (nunca junto do save).
+# Marca/desmarca o problema como público (.moj-meta.json). Público => VALIDA (portão + índice, no
+# servidor; só entra no treino se passar) E CALIBRA (juiz roda as good, reporta TL). Privado => sai do
+# treino na HORA. Atualiza o espelho p/ o editor refletir o estado certo. AÇÃO EXPLÍCITA (nunca no save).
 require_method POST
 require_auth
 source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"; source "$MOJTOOLS_DIR/git-broker.sh"
-source "$_DIR/../../judge-gw/sched-lib.sh"
+source "$_DIR/../../judge-gw/sched-lib.sh"; source "$_DIR/lib/tl-store.sh"   # cal_request + index_problem_bg
 
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 id="$(jq -r '.id // empty' <<<"$body")"
@@ -31,7 +31,11 @@ authored_patch "$id" '.public=($p=="true")' --arg p "$pub"
 ensure_repo_materialized "$repo" "$SESSION_LOGIN"   # espelho em dia -> o editor lê o public CERTO na hora
 reqid=""
 if [[ "$pub" == "true" ]]; then
-  reqid="$(idx_request "$repo" "$id" "$SESSION_LOGIN")"   # valida no juiz; só então entra no treino
+  # TORNAR PÚBLICO = fluxo completo, sem pular etapas: VALIDA (portão + índice, no servidor) E pede
+  # CALIBRAÇÃO a um juiz (garante time-limit p/ os alunos). Antes o idx_request legado era no-op (só
+  # empilhava marcador kind=index) -> problema saía público SEM validar (bug do moj-cli publish).
+  index_problem_bg "$id" 1
+  reqid="$(cal_request "$repo" "$id" "$SESSION_LOGIN")"
 else
   # DESPUBLICAR: sai do treino livre NA HORA (índice servível + cache de 5min), não fica vazando
   rm -f "$CONTESTSDIR/treino/var/jsons/$id.json" "$CONTESTSDIR/treino/var/problems.json" 2>/dev/null

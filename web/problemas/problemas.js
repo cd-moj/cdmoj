@@ -40,9 +40,18 @@ const pill = (cls, txt) => el('span', { class: 'pill ' + cls }, txt);
 // ---- painel de status (aba "Painel") ----
 const scard = (n, l, hl) => el('div', { class: 'scard' + (hl ? ' hl' : '') }, el('div', { class: 'n' }, String(n)), el('div', { class: 'l' }, l));
 const fmtTL = (tl) => { const e = Object.entries(tl || {}).filter(([k]) => k !== 'default'); return e.length ? e.map(([k, v]) => `${k} ${(+v).toFixed(3)}s`).join(' · ') : '—'; };
-const sevOf = (p) => p.error ? 3 : p.needs_recalibration ? 2 : p.being_calibrated ? 1 : 0;
+const sevOf = (p) => p.needs_review ? 3 : p.needs_recalibration ? 2 : p.being_calibrated ? 1 : 0;
 const valChip = (p) => p.validated === 'ok' ? pill('ok', 'validado') : p.validated === 'error' ? pill('no', 'reprovado') : pill('mut', 'não validado');
 const calibChip = (p) => p.being_calibrated ? pill('warn', 'calibrando…') : p.needs_recalibration ? pill('warn', 'precisa recalibrar') : p.calibrated ? pill('ok', 'calibrado') : pill('mut', 'sem calibração');
+// chip "precisa revisão": solução good sem TL (falhou em todas as máquinas), público não validado/calibrado
+const reviewChip = (p) => {
+  if (!p.needs_review) return '';
+  const rs = p.review_reasons || [];
+  const label = rs.some(r => r.startsWith('good_sol_no_tl')) ? ('good sem TL: ' + (p.good_sol_missing_langs || []).join(','))
+    : rs.includes('public_unvalidated') ? 'público não validado'
+    : rs.includes('public_uncalibrated') ? 'público sem calibração' : 'revisar';
+  return el('span', { class: 'pill no', style: 'margin-left:.35rem', title: rs.join(', ') }, label);
+};
 
 function stateBadges(p) {
   const out = [];
@@ -223,7 +232,7 @@ function panelRows() {
   const q = norm(document.getElementById('q').value);
   const attn = document.getElementById('onlybroken').checked;
   const rows = (PANEL?.problems || []).filter(p => {
-    if (attn && !(p.error || p.needs_recalibration)) return false;
+    if (attn && !(p.needs_review || p.needs_recalibration)) return false;
     if (q) { const hay = norm((p.title || '') + ' ' + (p.author || '') + ' ' + (p.id || '')); if (!hay.includes(q)) return false; }
     return true;
   });
@@ -255,7 +264,8 @@ function renderPanel() {
     scard(c.validated || 0, 'validados'),
     scard(c.calibrated || 0, 'calibrados'),
     scard(c.needs_recalibration || 0, 'precisa recalibrar', (c.needs_recalibration || 0) > 0),
-    scard(c.errors || 0, 'com erro', (c.errors || 0) > 0));
+    scard(c.good_sol_no_tl || 0, 'good sem TL', (c.good_sol_no_tl || 0) > 0),
+    scard(c.needs_review || 0, 'precisa revisar', (c.needs_review || 0) > 0));
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   if (page >= pages) page = 0;
@@ -271,7 +281,7 @@ function renderPanel() {
       el('div', { class: 'small muted2' }, p.id)),
     el('td', { class: 'small' }, p.author || '—'),
     el('td', {}, valChip(p)),
-    el('td', {}, calibChip(p), ...(p.error && (p.error_reasons || []).length ? [el('span', { class: 'small muted2', style: 'margin-left:.35rem' }, p.error_reasons.join(', '))] : [])),
+    el('td', {}, calibChip(p), reviewChip(p)),
     el('td', { class: 'small', style: 'font-family:var(--mono,monospace)' }, fmtTL(p.time_limits)),
     el('td', { class: 'small muted2' }, p.updated_at ? fmtDate(p.updated_at) : '—'))));
 
