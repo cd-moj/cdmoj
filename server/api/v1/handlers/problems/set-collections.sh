@@ -20,6 +20,11 @@ while IFS= read -r cn; do [[ -n "$cn" ]] || continue
 done < <(jq -r '.[]?' <<<"$colls")
 write_meta "$pdir" "$owner" "$org" "" "$colls" ""
 problem_commit "$pdir" "$SESSION_LOGIN" "coleções de $prob" >/dev/null
-authored_patch "$id" '.collections=$c' --argjson c "$colls"
+authored_patch "$id" '.collections=$c' --argjson c "$colls"   # overlay: visibilidade imediata p/ o setter
+# público: RE-SERVE o json do treino p/ o ALUNO ver a tag nova (o served json carrega collections).
+if jq -e '.public==true' >/dev/null 2>&1 < "$pdir/.moj-meta.json"; then
+  declare -F index_problem_bg >/dev/null || source "$_DIR/lib/tl-store.sh" 2>/dev/null
+  declare -F index_problem_bg >/dev/null && index_problem_bg "$id" 1
+fi
 audit_log "set-collections" "id=$id"
 ok_json '{action:"set-collections", id:$id, collections:$c}' --arg id "$id" --argjson c "$colls"
