@@ -74,6 +74,8 @@ call /contest/admin/problems POST '{"action":"add","problem":{"problem_id":"priv
 ck "privado com dono colaborador 200" '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]]'
 call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"priv#other","name":"Alheio"}}' cadm 'contest=ac-c'
 ck "privado alheio 404"         '[[ "$OUT" == *"Status: 404"* ]]'
+call /contest/admin/problems POST '{"action":"add","problem":{"source":"forjado","problem_id":"priv/other","name":"Bypass"}}' cadm 'contest=ac-c'
+ck "source forjado não pula o gate (404)" '[[ "$OUT" == *"Status: 404"* ]]'
 rm -f "$FIX/ac-c/owner"
 call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"priv#mine","name":"Meu2"}}' cadm 'contest=ac-c'
 ck "contest sem owner: privado 404" '[[ "$OUT" == *"Status: 404"* ]]'

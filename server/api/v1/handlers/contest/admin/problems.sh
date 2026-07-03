@@ -32,21 +32,20 @@ case "$action" in
     # problema PRIVADO só entra se o DONO do contest (arquivo owner, escrito na criação) é
     # dono/colaborador dele — mesmo guard do create.sh, com o dono do contest como sujeito
     # (o login .admin do contest é um nome arbitrário; usá-lo daria acesso por homonímia).
-    # Contest legado sem owner => só público. Problema fora do índice passa (como no create:
-    # privados SEMPRE constam do índice de owners). Negado: 404 p/ não vazar a existência.
-    src="$(jq -r '.source // "cdmoj"' <<<"$prob")"
-    if [[ "$src" == cdmoj ]]; then
-      cid_can="$(jq -r '(.bank_id // .problem_id // "")' <<<"$prob")"; cid_can="${cid_can//\//#}"
-      cowner="$(head -1 "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
-      source "$_LIBDIR/problems.sh"
-      verdict="$(owners_merged | jq -r --arg id "$cid_can" --arg o "$cowner" '
-        ([.problems[]? | select(.id==$id)] | first) as $p
-        | if $p == null then "unknown"
-          elif ($p.public == true) then "ok"
-          elif ($o != "" and ($p.owner == $o or ((($p.collaborators // [])|index($o)) != null))) then "ok"
-          else "deny" end' 2>/dev/null)"
-      [[ "$verdict" == deny ]] && fail 404 "Problema não encontrado" "notfound"
-    fi
+    # Vale p/ QUALQUER .source (como no create): a resolução de enunciado usa só a skey, então
+    # um source forjado pularia o gate e ainda serviria jsons-private. Contest legado sem
+    # owner => só público. Problema fora do índice passa (privados SEMPRE constam do índice
+    # de owners). Negado: 404 p/ não vazar a existência.
+    cid_can="$(jq -r '(.bank_id // .problem_id // "")' <<<"$prob")"; cid_can="${cid_can//\//#}"
+    cowner="$(head -1 "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
+    source "$_LIBDIR/problems.sh"
+    verdict="$(owners_merged | jq -r --arg id "$cid_can" --arg o "$cowner" '
+      ([.problems[]? | select(.id==$id)] | first) as $p
+      | if $p == null then "unknown"
+        elif ($p.public == true) then "ok"
+        elif ($o != "" and ($p.owner == $o or ((($p.collaborators // [])|index($o)) != null))) then "ok"
+        else "deny" end' 2>/dev/null)"
+    [[ "$verdict" == deny ]] && fail 404 "Problema não encontrado" "notfound"
     new="$(jq -cn --argjson cur "$cur" --argjson p "$prob" '$cur + [$p]')"
     ;;
   remove)
