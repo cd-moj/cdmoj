@@ -112,6 +112,28 @@ ck "collections inválido = sem filtro" '[[ "$(jq -r .candidates <<<"$BODY")" ==
 call /treino/contest-create/draw GET '' reg 'tags=%23x&count=10&seed=7'
 ck "draw só por tag segue ok"  '[[ "$(jq -r .candidates <<<"$BODY")" == 1 && "$(jq -r ".problems[0].id" <<<"$BODY")" == "bankprob" ]]'
 
+echo "== paridade do spec: toggles/priority/langs/pdf =="
+PDF64="$(printf '%%PDF-fake' | base64 -w0)"
+SPEC2="{\"id\":\"tog-c\",\"name\":\"Toggles\",\"mode\":\"icpc\",\"priority\":\"prova\",\"end\":$FUT,\"languages\":[\"C\",\"CPP\",\"bad lang!\"],\"show_log\":false,\"show_editor\":false,\"show_tl\":false,\"allow_backup\":false,\"allow_print\":false,\"score_anon\":true,\"manual_verdict\":true,\"allow_late\":true,\"login_ua_substring\":\"MOJBOX\",\"score_full_users\":[\"prof\",\"bad user\"],\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\",\"letter\":\"A\",\"languages\":[\"C\",\"PY3\"],\"statement_pdf_b64\":\"$PDF64\"}]}"
+call /treino/contest-create/create POST "$SPEC2" reg
+ck "criou tog-c"            '[[ "$(jq -r .contest_id <<<"$BODY")" == "tog-c" ]]'
+CF="$FIX/tog-c/conf"
+ck "conf: toggles não-default" 'grep -q "^SHOWLOG=0" "$CF" && grep -q "^SHOWEDITOR=0" "$CF" && grep -q "^SHOWTL=0" "$CF" && grep -q "^BACKUP=0" "$CF" && grep -q "^PRINT=0" "$CF"'
+ck "conf: score_anon/manual/late" 'grep -q "^SCORE_ANON=1" "$CF" && grep -q "^MANUAL_VERDICT=1" "$CF" && grep -q "^ALLOWLATEUSER=y" "$CF"'
+ck "conf: ua + score_full_users filtrado" '[[ "$( . "$CF"; echo "$LOGIN_UA_SUBSTRING/$SCORE_FULL_USERS" )" == "MOJBOX/prof" ]]'
+ck "conf: priority prova"   'grep -q "^CONTEST_PRIORITY=prova" "$CF"'
+ck "languages array canônico (filtra inválida)" '[[ "$( . "$CF"; echo "$LANGUAGES" )" == "c cpp" ]]'
+ck "problem-langs.json por problema" '[[ "$(jq -rc ".[\"bankprob\"]" "$FIX/tog-c/problem-langs.json")" == "[\"c\",\"py3\"]" ]]'
+ck "enunciado PDF gravado"  '[[ -f "$FIX/tog-c/enunciados/bankprob.pdf" ]]'
+printf 'CONTEST=tog-c\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/togadm"
+call /contest/admin/settings GET '' togadm 'contest=tog-c'
+ck "round-trip settings: toggles"  '[[ "$(jq -r ".show_log" <<<"$BODY")" == false && "$(jq -r ".score_anon" <<<"$BODY")" == true && "$(jq -r ".manual_verdict" <<<"$BODY")" == true ]]'
+ck "round-trip settings: langs/ua" '[[ "$(jq -rc ".languages" <<<"$BODY")" == "[\"c\",\"cpp\"]" && "$(jq -r ".login_ua_substring" <<<"$BODY")" == "MOJBOX" ]]'
+call /treino/contest-create/create POST "{\"name\":\"Sup\",\"mode\":\"icpc\",\"priority\":\"super\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
+ck "priority super só admin 403" '[[ "$OUT" == *"Status: 403"* ]]'
+call /treino/contest-create/create POST "{\"id\":\"nolate\",\"name\":\"NoLate\",\"mode\":\"treino\",\"allow_late\":false,\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
+ck "treino com allow_late:false NÃO liga ALLOWLATEUSER" '! grep -q "^ALLOWLATEUSER" "$FIX/nolate/conf"'
+
 echo "== import de tar.gz =="
 TD="$(mktemp -d)"; mkdir -p "$TD/enunciados"; printf '<p>imp</p>' > "$TD/enunciados/imp.html"
 printf '%s' "{\"id\":\"imp-contest\",\"name\":\"Imp\",\"mode\":\"treino\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\",\"letter\":\"A\",\"statement_file\":\"imp.html\"}]}" > "$TD/contest.json"

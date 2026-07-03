@@ -52,6 +52,28 @@ cc_can_create(){
   CC_REASON="precisa de autorização do admin ou de resolver mais problemas"; return 1
 }
 
+# cc_settings_conf_lines <spec_json> — ecoa as linhas VAR=%q dos toggles/opções do settings
+# (paridade com /contest/admin/settings) p/ o conf de um contest NOVO. Semântica: grava só o
+# NÃO-default (default = ausência da var) — diferente do bset do settings.sh, que é PATCH por
+# chave presente. Validação dura (ua_long) fica no cc_create, ANTES do staging.
+cc_settings_conf_lines(){
+  local spec="$1" v
+  # NUNCA usar `.campo // empty` p/ booleano: o // do jq engole `false` (ausente vira "null")
+  v="$(jq -r '.show_log' <<<"$spec")";       [[ "$v" == false ]] && printf 'SHOWLOG=%q\n' 0
+  v="$(jq -r '.show_editor' <<<"$spec")";    [[ "$v" == false ]] && printf 'SHOWEDITOR=%q\n' 0
+  v="$(jq -r '.show_tl' <<<"$spec")";        [[ "$v" == false ]] && printf 'SHOWTL=%q\n' 0
+  v="$(jq -r '.allow_backup' <<<"$spec")";   [[ "$v" == false ]] && printf 'BACKUP=%q\n' 0
+  v="$(jq -r '.allow_print' <<<"$spec")";    [[ "$v" == false ]] && printf 'PRINT=%q\n' 0
+  v="$(jq -r '.score_anon' <<<"$spec")";     [[ "$v" == true ]] && printf 'SCORE_ANON=%q\n' 1
+  v="$(jq -r '.manual_verdict' <<<"$spec")"; [[ "$v" == true ]] && printf 'MANUAL_VERDICT=%q\n' 1
+  v="$(jq -r '.allow_late' <<<"$spec")";     [[ "$v" == true ]] && printf 'ALLOWLATEUSER=%q\n' y
+  v="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; v="${v//$'\n'/}"
+  [[ -n "$v" ]] && printf 'LOGIN_UA_SUBSTRING=%q\n' "$v"
+  v="$(jq -r '(.score_full_users // []) | map(select(type=="string" and test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"
+  [[ -n "$v" ]] && printf 'SCORE_FULL_USERS=%q\n' "$v"
+  return 0
+}
+
 # cc_create <spec_json> <creator_login> <creator_name> [enun_src_dir]
 # Valida tudo, monta em staging e publica com mv atômico. Sucesso -> popula CC_RESULT (JSON).
 # Em erro chama fail (DEVE ser chamada direto no handler, nunca dentro de $(...)).
@@ -64,7 +86,12 @@ cc_create(){
   mode="$(jq -r '.mode // "icpc"' <<<"$spec")"
   start="$(jq -r '.start // empty' <<<"$spec")"
   end="$(jq -r '.end // empty' <<<"$spec")"
-  langs="$(jq -r '.languages // ""' <<<"$spec")"
+  # languages: array (ids canônicos, normaliza como o settings.sh) OU string legada
+  if jq -e '(.languages|type)=="array"' >/dev/null 2>&1 <<<"$spec"; then
+    langs="$(jq -r '(.languages // []) | map(select(type=="string") | ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$spec")"
+  else
+    langs="$(jq -r '.languages // ""' <<<"$spec")"
+  fi
   showcode="$(jq -r 'if .showcode==true then 1 else 0 end' <<<"$spec")"
   # prioridade no escalonador (SEPARADA do modo/CONTEST_TYPE): super>prova>lista-privada>lista-publica
   priority="$(jq -r '.priority // "lista-publica"' <<<"$spec")"
@@ -87,6 +114,8 @@ cc_create(){
   (( end > start )) || fail 422 "O fim deve ser depois do início" "end_before_start"
   (( end > EPOCHSECONDS )) || fail 422 "O fim deve estar no futuro" "end_in_past"
   [[ -z "$langs" || "$langs" =~ ^[A-Za-z0-9\ +._-]+$ ]] || fail 422 "Lista de linguagens inválida" "langs_invalid"
+  local ua_sub; ua_sub="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; ua_sub="${ua_sub//$'\n'/}"
+  (( ${#ua_sub} <= 200 )) || fail 422 "login_ua_substring muito longa" "ua_long"
 
   local id; id="$(jq -r '.id // ""' <<<"$spec")"
   if [[ -z "$id" ]]; then
@@ -111,6 +140,7 @@ cc_create(){
   local probs="PROBS=(" i=0
   local letterauto=( {A..Z} )
   local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
+  local pdf_b64 pdf_file larr plangs='{}'
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue
     pid="$(jq -r '.problem_id // ""' <<<"$p")"
@@ -122,6 +152,8 @@ cc_create(){
     letter="$(jq -r '.letter // ""' <<<"$p")"
     stmt_b64="$(jq -r '.statement_b64 // ""' <<<"$p")"
     stmt_file="$(jq -r '.statement_file // ""' <<<"$p")"
+    pdf_b64="$(jq -r '.statement_pdf_b64 // ""' <<<"$p")"
+    pdf_file="$(jq -r '.statement_pdf_file // ""' <<<"$p")"
     [[ -z "$pname" ]] && pname="$pid"
     [[ -n "$pid" ]] || { rm -rf "$stg"; fail 422 "Problema sem id" "prob_no_id"; }
     { [[ "$pid" =~ ^[A-Za-z0-9._/#@+-]+$ ]] && [[ "$pid" != *..* ]]; } || { rm -rf "$stg"; fail 422 "id de problema inválido: $pid" "prob_id_invalid"; }
@@ -145,10 +177,23 @@ cc_create(){
       [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
     fi
     [[ -n "$html" ]] && printf '%s' "$html" > "$stg/enunciados/$skey.html"
+    # PDF opcional do enunciado (espelha o admin: enunciados/<skey>.pdf)
+    if [[ -n "$pdf_b64" ]]; then
+      printf '%s' "$pdf_b64" | base64 -d > "$stg/enunciados/$skey.pdf" 2>/dev/null \
+        || { rm -rf "$stg"; fail 422 "statement_pdf_b64 inválido" "stmt_pdf_b64"; }
+    elif [[ -n "$enun" && -n "$pdf_file" ]]; then
+      { [[ "$pdf_file" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ -f "$enun/$pdf_file" ]]; } \
+        || { rm -rf "$stg"; fail 422 "PDF não encontrado: $pdf_file" "stmt_pdf_file"; }
+      cp "$enun/$pdf_file" "$stg/enunciados/$skey.pdf"
+    fi
+    # linguagens POR problema (mesmo formato/normalização do admin problem-langs.json)
+    larr="$(jq -c '(.languages // []) | map(select(type=="string") | ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique' <<<"$p" 2>/dev/null)"
+    [[ -n "$larr" && "$larr" != "[]" ]] && plangs="$(jq -c --arg id "$skey" --argjson v "$larr" '.[$id]=$v' <<<"$plangs")"
     probs+=" $(printf '%q' "$src") $(printf '%q' "$pid") $(printf '%q' "$pname") $(printf '%q' "$letter") $(printf '%q' "$skey")"
     ((i++))
   done < <(jq -c '.problems[]?' <<<"$spec")
   probs+=" )"
+  [[ "$plangs" != "{}" ]] && printf '%s' "$plangs" > "$stg/problem-langs.json"
 
   [[ -n "$cname" ]] || cname="$creator"
 
@@ -235,7 +280,9 @@ cc_create(){
     [[ "$b_lstart" =~ ^[0-9]+$ ]] && printf 'LOGIN_START_TIME=%q\n' "$b_lstart"
     [[ "$b_lenabled" == n ]] && printf 'LOGIN_ENABLED=%q\n' "n"
     [[ "$b_freeze" =~ ^[0-9]+$ ]] && printf 'FREEZE_TIME=%q\n' "$b_freeze"
-    [[ "$mode" == treino ]] && printf 'ALLOWLATEUSER=y\n'
+    cc_settings_conf_lines "$spec"
+    # allow_late explícito no spec vence o automático de mode=treino (false => sem a var)
+    [[ "$mode" == treino && "$(jq -r '.allow_late' <<<"$spec")" == null ]] && printf 'ALLOWLATEUSER=y\n'
   } > "$stg/conf"
   printf '%s\n' "$creator" > "$stg/owner"
   printf '%s\t%s\t%s\n' "$creator" "$EPOCHSECONDS" "$mode" > "$stg/created-by"

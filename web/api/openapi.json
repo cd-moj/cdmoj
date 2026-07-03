@@ -2438,16 +2438,88 @@
                   "end": {
                     "type": "integer"
                   },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "prova",
+                      "lista-privada",
+                      "lista-publica",
+                      "super"
+                    ],
+                    "description": "prioridade no escalonador ('super' só admin do treino)"
+                  },
                   "languages": {
-                    "type": "string"
+                    "description": "array de ids canônicos (normalizado como o settings) ou string legada",
+                    "oneOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
                   },
                   "showcode": {
                     "type": "boolean"
                   },
+                  "show_log": {
+                    "type": "boolean"
+                  },
+                  "show_editor": {
+                    "type": "boolean"
+                  },
+                  "show_tl": {
+                    "type": "boolean"
+                  },
+                  "allow_backup": {
+                    "type": "boolean"
+                  },
+                  "allow_print": {
+                    "type": "boolean"
+                  },
+                  "score_anon": {
+                    "type": "boolean"
+                  },
+                  "manual_verdict": {
+                    "type": "boolean"
+                  },
+                  "allow_late": {
+                    "type": "boolean"
+                  },
+                  "login_ua_substring": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "score_full_users": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "locale": {
+                    "type": "string",
+                    "enum": [
+                      "pt",
+                      "en"
+                    ]
+                  },
+                  "login_start": {
+                    "type": "integer"
+                  },
+                  "login_enabled": {
+                    "type": "boolean"
+                  },
+                  "freeze": {
+                    "type": "integer"
+                  },
                   "problems": {
                     "type": "array",
                     "items": {
-                      "type": "object"
+                      "type": "object",
+                      "description": "bank_id OU source+problem_id; name/letter; statement_b64/statement_file, statement_pdf_b64/statement_pdf_file; languages[] por problema (vira problem-langs.json)"
                     }
                   },
                   "allow_empty": {
