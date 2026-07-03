@@ -149,6 +149,7 @@ quem é **membro** escreve em qualquer problema da org; a org tem uma **trava de
 | `/orgs/create` | POST `{name,members?,admins?,title?,public_allowed?}` | cria org; o criador vira membro+admin (exige `cc_can_create`, a regra de criar contest) |
 | `/orgs/members` | GET `?name` / POST `{name,add?,remove?,admins_add?,admins_remove?}` | só admin da org (ou `.admin`) gerencia; criador blindado; org implícita não tem gestão |
 | `/orgs/set-public-allowed` | POST `{name,public_allowed:bool}` | liga/desliga a trava (só admin da org; implícita ⇒ **409**). **Desligar DESPUBLICA em cascata** os problemas públicos da org (tira do treino) — resposta traz `unpublished` |
+| `/orgs/delete` | POST `{name}` | remove uma org **VAZIA** (sem problemas — conferido em disco); só admin da org (ou `.admin`); org **implícita** ⇒ **409** `implicit_org`; org com problema ⇒ **409** `org_not_empty` |
 
 O CLI **`moj`** (`web/moj`, servido em `GET /moj`; fonte em `moj-cli/`) usa essas rotas para
 autoria **sem git/sem chave**: `moj new/clone/push/publish/share/org/mv`. Storage MOJ-nativo: o

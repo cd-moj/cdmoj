@@ -86,8 +86,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 indexa inline; sem mirror/push/token/LFS/webhook. O `<org>` do id `<org>#<prob>` é uma **ORG**
 (`lib/orgs.sh`, `contests/treino/var/orgs.json`): **membros** escrevem em qualquer problema dela;
 **admins** gerem membros + a trava **`public_allowed`** (privada por PADRÃO ⇒ problemas nunca ficam
-públicos: anti-vazamento de prova; rebaixar a org despublica em cascata). Cada usuário tem a org
-implícita `<login>` (sempre privada). Migração/cut-over: `server/bin/migrate-to-orgs.sh`.
+públicos: anti-vazamento de prova; rebaixar a org despublica em cascata) + **removem a org VAZIA**
+(`/orgs/delete`: só admin, org **implícita** e org com problema ⇒ **409**; vazio conferido em disco).
+Cada usuário tem a org implícita `<login>` (sempre privada). Migração/cut-over:
+`server/bin/migrate-to-orgs.sh`. **Mover** um problema de rascunho entre orgs: `/problems/move`
+(muda o id; recusa público/em uso; membro das DUAS orgs) — na web (editor + lista) e no `moj mv`.
 
 **ORG ≠ COLEÇÃO** (ortogonais): a **ORG** é acesso (1 por problema, o prefixo do id). A **COLEÇÃO** é
 um **rótulo de agrupamento** (`.moj-meta.json collections[]`, **VÁRIAS por problema**, cross-org) — só

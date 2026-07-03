@@ -29,7 +29,7 @@ async function doImport(file) {
 
 const CONTEST = 'treino';
 const PAGE = 50;
-let TAB = 'painel', ROWS = [], COLLS = [], ORGS = [], page = 0, loggedIn = false;
+let TAB = 'painel', ROWS = [], COLLS = [], ORGS = [], page = 0, loggedIn = false, CAN_CREATE = false;
 let PANEL = null, PANEL_SORT = { key: 'sev', dir: -1 };
 let ANALYSIS = null, ANA_SORT = { key: 'attempts', dir: -1 };
 
@@ -102,7 +102,8 @@ function renderTable() {
     cells.push(el('td', {}, ...stateBadges(p)));
     cells.push(el('td', { class: 'row', style: 'gap:.3rem' },
       el('button', { class: 'btn ghost', onclick: () => openDetail(p.id) }, 'Ver'),
-      el('a', { class: 'btn ghost', href: '/problemas/editar.html?id=' + encodeURIComponent(p.id) }, 'Editar')));
+      el('a', { class: 'btn ghost', href: '/problemas/editar.html?id=' + encodeURIComponent(p.id) }, 'Editar'),
+      (isMine && !p.public) ? el('button', { class: 'btn ghost', title: 'Mover para outra org (só rascunho)', onclick: () => moveProblem(p) }, 'Mover') : null));
     tb.append(el('tr', {}, ...cells));
   });
 
@@ -116,6 +117,22 @@ function renderTable() {
     pager.append(el('span', { class: 'small' }, ` página ${page + 1} / ${pages} `));
     pager.append(el('button', { class: 'btn ghost', onclick: () => { if (page < pages - 1) { page++; renderTable(); } } }, '›'));
   }
+}
+
+// mover um RASCUNHO p/ outra org (muda o id). Alvo = uma das MINHAS orgs (via /problems/repos).
+async function moveProblem(p) {
+  const cur = String(p.id).split('#')[0];
+  let orgs = [];
+  try { orgs = ((await apiGet('/problems/repos', { contest: CONTEST, auth: true })).repos || []).map(r => r.repo); }
+  catch (e) { alert('Falha ao listar suas orgs: ' + (e instanceof ApiError ? e.message : (e.message || e))); return; }
+  const targets = orgs.filter(n => n !== cur);
+  if (!targets.length) { alert('Você não tem outra org para onde mover. Crie uma na aba Orgs.'); return; }
+  const to = (prompt(`Mover “${p.id}” para qual org?\nSuas orgs: ${targets.join(', ')}`, targets[0]) || '').trim();
+  if (!to || to === cur) return;
+  try {
+    const j = await apiPost('/problems/move', { id: p.id, to_org: to }, { contest: CONTEST, auth: true });
+    alert(`Movido: ${j.from} → ${j.id}`); loadTab(TAB);
+  } catch (e) { alert((e instanceof ApiError ? e.message : 'Falha ao mover') + (e.code ? ` (${e.code})` : '')); }
 }
 
 // ── COLEÇÕES = tags de agrupamento (m:n, curadas). Ortogonais à ORG. ─────────────────────────
@@ -171,6 +188,11 @@ function renderOrgs() {
   const list = document.getElementById('list'); list.innerHTML = '';
   list.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' },
     'ORG = quem pode editar (membros) + o prefixo do id. Privada por padrão: problemas só ficam públicos se a org permitir.'));
+  if (CAN_CREATE) {
+    const no = el('input', { placeholder: 'nova org (minúsculas, sem espaço)', style: 'padding:.35rem;min-width:16rem' });
+    list.append(el('div', { class: 'row', style: 'gap:.4rem;margin-bottom:.7rem' },
+      no, el('button', { class: 'btn', onclick: () => createOrg(no.value.trim(), no) }, '+ Org')));
+  }
   const wrap = el('div', { class: 'colls' });
   ORGS.forEach(o => {
     const paChip = o.implicit ? pill('mut', 'privada (própria)')
@@ -184,14 +206,33 @@ function renderOrgs() {
       el('div', { class: 'small', style: 'margin-top:.3rem' }, 'membros: ', (o.members || []).join(', ') || '—'));
     if (o.can_manage && !o.implicit) {
       const inp = el('input', { placeholder: 'login', style: 'padding:.3rem;width:9rem' });
-      card.append(el('div', { class: 'row', style: 'gap:.3rem;margin-top:.4rem' },
+      const empty = o.count === 0;
+      card.append(el('div', { class: 'row', style: 'gap:.3rem;margin-top:.4rem;flex-wrap:wrap;align-items:center' },
         inp,
         el('button', { class: 'btn ghost', style: 'padding:.1rem .5rem', onclick: () => orgMember(o, inp.value.trim(), true, inp) }, '+ membro'),
-        el('button', { class: 'btn ghost', style: 'padding:.1rem .5rem', onclick: () => orgMember(o, inp.value.trim(), false, inp) }, '− membro')));
+        el('button', { class: 'btn ghost', style: 'padding:.1rem .5rem', onclick: () => orgMember(o, inp.value.trim(), false, inp) }, '− membro'),
+        el('span', { style: 'flex:1' }),
+        el('button', {
+          class: 'btn ghost', style: 'padding:.1rem .5rem;color:#e66;border-color:#a44',
+          disabled: empty ? null : '',
+          title: empty ? 'Remover esta org vazia' : 'Esvazie a org (mova/exclua os problemas) antes de removê-la',
+          onclick: empty ? () => deleteOrg(o) : null,
+        }, 'excluir')));
     }
     wrap.append(card);
   });
   list.append(wrap);
+}
+async function createOrg(name, inp) {
+  if (!name) return;
+  if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(name)) { alert('Nome de org inválido: minúsculas/números/._- (sem espaço), 2–64 caracteres.'); return; }
+  try { await apiPost('/orgs/create', { name }, { contest: CONTEST, auth: true }); if (inp) inp.value = ''; loadTab('orgs'); }
+  catch (e) { alert(e.message); }
+}
+async function deleteOrg(o) {
+  if (!confirm(`Remover a org “${o.name}”? Ela precisa estar VAZIA (sem problemas). Ação irreversível.`)) return;
+  try { await apiPost('/orgs/delete', { name: o.name }, { contest: CONTEST, auth: true }); loadTab('orgs'); }
+  catch (e) { alert(e.message); }
 }
 async function orgMember(o, login, add, inp) {
   if (!login) return;
@@ -481,9 +522,8 @@ async function boot() {
     return;
   }
   // o botão de criar só aparece p/ quem pode criar (mesma regra de criar contest)
-  let canCreate = false;
-  try { canCreate = !!(await apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true })).can_create; } catch {}
-  if (canCreate) {
+  try { CAN_CREATE = !!(await apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true })).can_create; } catch {}
+  if (CAN_CREATE) {
     const impFile = el('input', { type: 'file', accept: '.tar,.gz,.tgz,.tar.gz,.bz2,.zst,.zip' }); impFile.hidden = true;
     impFile.addEventListener('change', (e) => { doImport(e.target.files[0]); e.target.value = ''; });
     document.getElementById('toolbar').append(

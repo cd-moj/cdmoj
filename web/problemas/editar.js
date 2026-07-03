@@ -757,6 +757,9 @@ function renderPubState() {
       ph.innerHTML = '🔒 A org <b>' + REPO + '</b> é <b>privada</b> — não é possível tornar público até um admin liberar o público da org em Gestão de Problemas › Orgs.';
     } else ph.style.display = 'none';
   }
+  // "Mover para outra org" só faz sentido em problema salvo e RASCUNHO (mover mudaria o id de um público em uso)
+  const mv = $('moveorg');
+  if (mv) mv.style.display = (MODE === 'edit' && ID && !loadedPublic) ? '' : 'none';
 }
 async function togglePublic() {
   if (MODE !== 'edit' || !ID) { setMsg('Salve o problema primeiro para poder publicar.', 'error'); return; }
@@ -848,6 +851,22 @@ async function newDir() {
     REPO = j.repo; fillRepoSelect(); renderPubState(); await loadShare(); setMsg('Org criada ✓', 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
+// mover um RASCUNHO p/ outra org (muda o id) — alvo entre as MINHAS orgs (REPOS). Público não move.
+async function moveProblem() {
+  if (MODE !== 'edit' || !ID) { setMsg('Salve o problema primeiro para poder mover.', 'error'); return; }
+  if (loadedPublic) { setMsg('Problema público está em uso — torne privado antes de mover.', 'error'); return; }
+  const cur = ID.split('#')[0];
+  const targets = REPOS.map(r => r.repo).filter(n => n !== cur);
+  if (!targets.length) { setMsg('Você não tem outra org para onde mover. Crie uma primeiro.', 'error'); return; }
+  const to = (prompt(`Mover “${ID}” para qual org?\nSuas orgs: ${targets.join(', ')}`, targets[0]) || '').trim();
+  if (!to || to === cur) return;
+  setMsg('Movendo…');
+  try {
+    const j = await apiPost('/problems/move', { id: ID, to_org: to }, { contest: CONTEST, auth: true });
+    setMsg('Movido ✓ — recarregando…', 'v-ok');
+    location.href = 'editar.html?id=' + encodeURIComponent(j.id);
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao mover') + (e.code ? ` (${e.code})` : ''), 'error'); }
+}
 
 async function delProblem() {
   if (MODE !== 'edit' || !ID) return;
@@ -871,7 +890,7 @@ async function loadSource(id, j) {
   if ($('delprob')) $('delprob').style.display = EDITABLE ? '' : 'none';   // remover só p/ quem pode editar
   if (!EDITABLE) {
     showNote('⚠ ' + (j.note || 'Somente leitura.') + ' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).');
-    ['save', 'publish', 'calibrate', 'pubToggle', 'delprob', 'addex', 'addtest', 'uploadTar', 'scoreEnabled', 'addGroup'].forEach(b => { if ($(b)) $(b).disabled = true; });
+    ['save', 'publish', 'calibrate', 'pubToggle', 'delprob', 'moveorg', 'addex', 'addtest', 'uploadTar', 'scoreEnabled', 'addGroup'].forEach(b => { if ($(b)) $(b).disabled = true; });
     $('shareBox').style.display = 'none';
   }
 }
@@ -887,6 +906,7 @@ function bindHandlers() {
   $('publish').onclick = () => act('publish', 'Validar');
   $('calibrate').onclick = () => act('request-calibration', 'Calibração');
   $('newdir').onclick = newDir;
+  if ($('moveorg')) $('moveorg').onclick = moveProblem;
   $('preview').onclick = preview;
   $('previewClose').onclick = () => { $('previewModal').style.display = 'none'; $('previewBody').innerHTML = ''; };
   $('download').onclick = download;

@@ -4625,6 +4625,15 @@
         "responses": {"200": {"description": "flag alterada"}, "403": {"description": "não é admin da org"}, "409": {"description": "org implícita é sempre privada"}}
       }
     },
+    "/orgs/delete": {
+      "post": {
+        "tags": ["orgs"],
+        "summary": "Remove uma org VAZIA (só admin; implícita/não-vazia 409)",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}}}}},
+        "responses": {"200": {"description": "{action:org-delete, name}"}, "403": {"description": "não é admin da org"}, "404": {"description": "org não encontrada"}, "409": {"description": "org implícita (implicit_org) ou com problemas (org_not_empty)"}}
+      }
+    },
     "/problems/collection-create": {
       "post": {
         "tags": [

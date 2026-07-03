@@ -76,3 +76,7 @@ org_set_public_allowed(){
   ( umask 077; jq --arg n "$n" --argjson v "$v" '.[$n].public_allowed=$v' <<<"$cur" ) \
     > "$tmp" 2>/dev/null && mv -f "$tmp" "$ORGS_REGISTRY"
 }
+# org_delete <org> — remove a org do registro (espelha coll_delete). O HANDLER garante que está
+# VAZIA e que não é a implícita; aqui é só o del atômico.
+org_delete(){ local n="$1" cur tmp; cur="$(_orgs_read)"; tmp="$ORGS_REGISTRY.tmp.$$"
+  ( umask 077; jq --arg n "$n" 'del(.[$n])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$ORGS_REGISTRY"; }
