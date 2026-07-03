@@ -1,41 +1,39 @@
 # POST /problems/create   (Bearer)
-# body: {repo, prob, enunciado_md?, author?, tags?, conf_text?, examples?, tests?, good_sol?, title?}
-# Cria um problema NOVO num diretório (repo Gitea) do autor. Commit autorado pelo login,
-# push keyless via broker. Não publica — o autor depois clica Validar&Publicar.
+# body: {repo(=org), prob, enunciado_md?, author?, tags?, conf_text?, examples?, tests?, good_sol?, title?, collections?}
+# Cria um problema NOVO numa ORG de que o login é MEMBRO (ou na sua org implícita <login>). Storage =
+# repo git LOCAL por problema em MOJ_PROBLEMS_DIR/<org>/<prob>; commit autorado pelo login (sem Gitea).
+# Não publica — o autor depois clica Validar&Publicar (e a org precisa permitir público).
 require_method POST
 require_auth
-source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"; source "$MOJTOOLS_DIR/git-broker.sh"
-source "$_DIR/lib/contest-create.sh"
+source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"; source "$_DIR/lib/contest-create.sh"
 cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar problemas (mesma regra de criar contest)" "create_forbidden"
 
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
-repo="$(jq -r '.repo // empty' <<<"$body")"
+org="$(jq -r '.repo // .org // empty' <<<"$body")"
 prob="$(jq -r '.prob // empty' <<<"$body")"
-[[ "$repo" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]] || fail 400 "Diretório inválido" "repo_invalid"
+[[ "$org" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$ ]] || fail 400 "Org inválida" "org_invalid"
 [[ "$prob" =~ ^[a-z0-9][a-z0-9._-]{1,80}$ ]] || fail 400 "Nome de problema inválido (use [a-z0-9._-])" "prob_invalid"
-owner="$(repo_owner "$repo")"; [[ -n "$owner" ]] || fail 404 "Diretório não existe (crie com repo-create)" "repo_missing"
-gitea_can_write "$owner" "$repo" "$SESSION_LOGIN" || fail 403 "Sem permissão de escrita nesse diretório" "forbidden"
+# org implícita <login> é criada sob demanda; orgs compartilhadas precisam existir + ser membro
+[[ "$org" == "$SESSION_LOGIN" ]] && ensure_implicit_org "$SESSION_LOGIN"
+org_exists "$org" || fail 404 "Org não existe (crie com /orgs/create)" "org_missing"
+org_is_member "$org" "$SESSION_LOGIN" || fail 403 "Você não é membro dessa org" "forbidden"
 
-tmp="$(git_broker_open "$SESSION_LOGIN" "$owner" "$repo")" || fail 502 "Falha ao abrir o repositório" "git_open"
-trap 'rm -rf "$tmp"' EXIT
-wt="$tmp/wt"
-[[ -e "$wt/$prob" ]] && fail 409 "Problema já existe nesse diretório" "prob_exists"
-mkdir -p "$wt/$prob"
-[[ -f "$wt/$prob/conf" ]] || printf 'ULIMITS[-u]=10000\nALLOWPARALLELTEST=y\n' > "$wt/$prob/conf"
-apply_problem_fields "$wt/$prob" "$body"
-[[ -s "$wt/$prob/author" ]] || printf '%s\n' "$SESSION_NAME" > "$wt/$prob/author"
-colls="$(jq -c --arg r "$repo" '(.collections // [$r])' <<<"$body")"
+id="$org#$prob"
+pdir="$MOJ_PROBLEMS_DIR/$org/$prob"
+[[ -e "$pdir" ]] && fail 409 "Problema já existe nessa org" "prob_exists"
+mkdir -p "$pdir"
+[[ -f "$pdir/conf" ]] || printf 'ULIMITS[-u]=10000\nALLOWPARALLELTEST=y\n' > "$pdir/conf"
+apply_problem_fields "$pdir" "$body"
+[[ -s "$pdir/author" ]] || printf '%s\n' "$SESSION_NAME" > "$pdir/author"
+colls="$(jq -c --arg r "$org" '(.collections // [$r])' <<<"$body")"
 title="$(jq -r '.title // empty' <<<"$body")"
-write_meta "$wt/$prob" "$owner" "$repo" false "$colls" "$title"
-bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$wt/$prob" "$repo#$prob" "$repo" >/dev/null 2>&1 || true  # Kattis-aware
+write_meta "$pdir" "$SESSION_LOGIN" "$org" false "$colls" "$title"
+bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true  # Kattis-aware
 
-sha="$(git_broker_commit_push "$SESSION_LOGIN" "$owner" "$repo" "$wt" "novo problema: $prob")" \
-  || fail 502 "Falha ao enviar (push)" "git_push"
-ensure_repo_materialized "$repo" "$SESSION_LOGIN"   # espelha p/ indexador/juiz acharem o pacote
-# overlay p/ visibilidade imediata em "Meus" (antes do reindex no NFS)
-author_txt="$(cat "$wt/$prob/author" 2>/dev/null | head -1)"
-authored_upsert "$repo#$prob" "$owner" "$repo" "$prob" "$title" false "$colls" "$author_txt" "$(repo_collabs "$repo")"
-grant_problem_collections "$repo#$prob" "$repo" "$SESSION_LOGIN"   # setters das coleções ganham acesso
-audit_log "problem-create" "id=$repo#$prob owner=$owner"
+sha="$(problem_commit "$pdir" "$SESSION_LOGIN" "novo problema: $prob")"
+# overlay p/ visibilidade imediata em "Meus" (antes do reindex)
+author_txt="$(cat "$pdir/author" 2>/dev/null | head -1)"
+authored_upsert "$id" "$SESSION_LOGIN" "$org" "$prob" "$title" false "$colls" "$author_txt" '[]'
+audit_log "problem-create" "id=$id org=$org owner=$SESSION_LOGIN"
 ok_json '{action:"create", id:$id, repo:$r, prob:$p, owner:$o, sha:$s}' \
-  --arg id "$repo#$prob" --arg r "$repo" --arg p "$prob" --arg o "$owner" --arg s "${sha:0:12}"
+  --arg id "$id" --arg r "$org" --arg p "$prob" --arg o "$SESSION_LOGIN" --arg s "${sha:0:12}"

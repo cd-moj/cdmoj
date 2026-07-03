@@ -4,7 +4,7 @@
 require_method GET
 require_auth
 source "$_DIR/../../judge-gw/sched-lib.sh"   # valid_hostname
-source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"
+source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${CALIB_DIR:=$RUNDIR/calib}"
 
 id="$(param id)"; [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"

@@ -2,7 +2,7 @@
 # Inclui as SOLUÇÕES, então exige permissão de escrita (ou admin). Fonte = Gitea.
 require_method GET
 require_auth
-source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"
+source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
 
 id="$(param id)"; [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
@@ -11,9 +11,7 @@ owner="$(problem_owner "$id")"
 [[ -n "$owner" ]] || fail 404 "Problema não encontrado" "not_found"
 require_problem_edit "$id"   # pacote inclui SOLUÇÕES -> só dono/colaborador (SEM atalho de .admin)
 
-# Lê do espelho (mantido em dia a cada save); materializa na 1ª vez com o token do dono.
-pkg="$MOJ_PROBLEMS_DIR/$repo/$prob"
-[[ -d "$MOJ_PROBLEMS_DIR/$repo/.git" ]] || ensure_repo_materialized "$repo" "$owner"
+pkg="$MOJ_PROBLEMS_DIR/$repo/$prob"   # canônico LOCAL (repo git por problema)
 [[ -d "$pkg" ]] || fail 404 "Pacote não encontrado" "not_found"
 
 audit_log "download" "id=$id by=$SESSION_LOGIN"

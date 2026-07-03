@@ -118,25 +118,34 @@ prob_norm(){ printf '%s' "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | 
 REPO_REGISTRY="$CONTESTSDIR/treino/var/problem-repos.json"
 repo_owner(){ [[ -f "$REPO_REGISTRY" ]] && jq -r --arg r "$1" '.[$r].owner // empty' "$REPO_REGISTRY" 2>/dev/null; }
 
-# ensure_repo_materialized <repo> [login] — espelha o repo Gitea em $MOJ_PROBLEMS_DIR/<repo>
-# (clona se faltar; senão fetch + reset --hard) para o INDEXADOR e os endpoints
-# /judge/package(-meta) acharem o pacote (pkg_path lê de MOJ_PROBLEMS_DIR). Repo sem dono no
-# registro = desconhecido (não-Gitea) -> nada a materializar. Best-effort (rc!=0 não derruba o caller).
-# Sem isso, um problema criado no Gitea fica invisível para os juízes ("pkg inexistente").
-ensure_repo_materialized(){
-  local repo="$1" login="${2:-}" owner dst tok
-  owner="$(repo_owner "$repo")"; [[ -n "$owner" ]] || return 0   # repo não registrado (não-Gitea)
-  declare -F git_broker_clone >/dev/null || source "$MOJTOOLS_DIR/git-broker.sh" 2>/dev/null
-  declare -F git_broker_clone >/dev/null || return 1
-  [[ -n "$login" ]] || login="$owner"
-  dst="$MOJ_PROBLEMS_DIR/$repo"; tok="$(_gb_token "$login" 2>/dev/null)"; [[ -n "$tok" ]] || return 1
-  if [[ -d "$dst/.git" ]]; then
-    git_broker_run "$login" "$tok" "$dst" fetch -q origin 2>/dev/null \
-      && git_broker_run "$login" "$tok" "$dst" reset -q --hard '@{u}' 2>/dev/null
-  else
-    mkdir -p "$(dirname "$dst")" 2>/dev/null
-    git_broker_clone "$login" "$owner" "$repo" "$dst" 2>/dev/null
-  fi
+# ---- storage MOJ-nativo: repo git LOCAL por problema (sem Gitea) --------------------------
+# O canônico É a árvore de trabalho em $MOJ_PROBLEMS_DIR/<org>/<prob> (pkg_path lê dela direto). O
+# servidor commita local p/ auditoria; NÃO há mirror, push, remote nem token. ensure_repo_materialized
+# vira no-op (o pacote já está no lugar) — mantida só p/ não quebrar chamadas remanescentes.
+ensure_repo_materialized(){ return 0; }
+
+# _need_orgs — garante lib/orgs.sh carregada (acesso por org). Idempotente.
+_need_orgs(){ declare -F org_is_member >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/orgs.sh" 2>/dev/null; }
+
+# problem_commit <pkgdir> <login> <msg> -> HEAD sha. git init idempotente + add -A + commit autorado
+# pelo login. flock POR-PROBLEMA (dois saves no mesmo problema não corrompem a árvore/índice git).
+problem_commit(){
+  local pkg="$1" login="${2:-moj}" msg="${3:-update}" em="${2:-moj}@moj.local" lk
+  [[ -d "$pkg" ]] || return 1
+  mkdir -p "${RUNDIR:-/home/ribas/moj/run}/locks" 2>/dev/null
+  lk="${RUNDIR:-/home/ribas/moj/run}/locks/$(printf '%s' "$pkg" | md5sum 2>/dev/null | cut -c1-24).lock"
+  (
+    flock 9 2>/dev/null
+    cd "$pkg" || exit 1
+    if [[ ! -d .git ]]; then
+      git -c init.defaultBranch=master init -q 2>/dev/null
+      printf 'tl\ntl.*\n' >> .git/info/exclude 2>/dev/null   # artefatos de calibração não entram no git
+    fi
+    git add -A 2>/dev/null
+    GIT_AUTHOR_NAME="$login" GIT_AUTHOR_EMAIL="$em" GIT_COMMITTER_NAME="$login" GIT_COMMITTER_EMAIL="$em" \
+      git commit -q -m "$msg" 2>/dev/null || true   # "nada a commitar" não é erro
+    git rev-parse HEAD 2>/dev/null
+  ) 9>"$lk"
 }
 repo_register(){  # <repo> <owner> [collections-csv]
   local r="$1" o="$2" c="${3:-}" cur tmp; cur="$(cat "$REPO_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
@@ -201,34 +210,32 @@ collection_grant_repo(){
   merged="$(jq -cn --argjson a "$cur" --argjson b "$m" '($a+$b)|unique')"
   repo_set_collabs "$repo" "$merged"; authored_set_repo_collabs "$repo" "$merged"
 }
-# grant_problem_collections <id> <repo> <acting> — concede acesso aos membros de TODAS as
-# coleções do problema (chamado após create/edit/set-collections).
-grant_problem_collections(){
-  local id="$1" repo="$2" acting="$3" c
-  while IFS= read -r c; do [[ -n "$c" ]] && collection_grant_repo "$c" "$repo" "$acting"; done \
-    < <(owners_merged | jq -r --arg id "$id" 'first(.problems[]|select(.id==$id)).collections[]?' 2>/dev/null)
-}
+# grant_problem_collections — NO-OP no modelo por ORG: acesso = ser MEMBRO da org (sem propagação de
+# colaborador por problema). Mantida só p/ não quebrar chamadas remanescentes até a limpeza final.
+grant_problem_collections(){ return 0; }
 
 # problem_access <id> <login> -> mine|shared|public|denied|unknown
 # (denied = existe, é privado e o login não é dono/colaborador; unknown = fora do índice)
 problem_access(){
+  local id="$1" me="$2" org="${1%%#*}" p owner pub
   ensure_owners_index
-  owners_merged | jq -r --arg id "$1" --arg me "$2" '
-    (first(.problems[]|select(.id==$id))) as $p
-    | if $p==null then "unknown"
-      elif $p.owner==$me then "mine"
-      elif (($p.collaborators // [])|index($me)) then "shared"
-      elif $p.public then "public" else "denied" end' 2>/dev/null
+  p="$(owners_merged | jq -c --arg id "$id" 'first(.problems[]|select(.id==$id)) // empty' 2>/dev/null)"
+  [[ -n "$p" ]] || { printf 'unknown'; return; }
+  owner="$(jq -r '.owner // empty' <<<"$p")"; pub="$(jq -r 'if .public then 1 else 0 end' <<<"$p")"
+  [[ "$owner" == "$me" ]] && { printf 'mine'; return; }
+  _need_orgs
+  org_is_member "$org" "$me" && { printf 'shared'; return; }
+  [[ "$pub" == 1 ]] && { printf 'public'; return; }
+  printf 'denied'
 }
-# require_problem_edit <id> — CORTA NA API (404) se o login não for dono nem colaborador. Use nos
-# endpoints que devolvem source/pacote/soluções/calibração (conteúdo sensível). Checagem AO VIVO no
-# Gitea (gitea_can_write): owner OU colaborador. SEM atalho de .admin. 404 (não 403) p/ não revelar a
-# EXISTÊNCIA de um problema privado. A trava está AQUI na API, nunca só na interface.
+# require_problem_edit <id> — CORTA NA API (404) se o login não for MEMBRO da ORG do problema. Use nos
+# endpoints que devolvem source/pacote/soluções/calibração (conteúdo sensível). Acesso = membro da org
+# (org_is_member; membros+admins). SEM atalho de .admin. 404 (não 403) p/ não revelar a EXISTÊNCIA de um
+# problema privado. A trava está AQUI na API, nunca só na interface.
 require_problem_edit(){
-  local id="$1" repo="${1%%#*}" owner
-  owner="$(problem_owner "$id")"
-  { [[ -n "$owner" ]] && declare -F gitea_can_write >/dev/null && gitea_can_write "$owner" "$repo" "$SESSION_LOGIN"; } \
-    || fail 404 "Problema não encontrado" "not_found"
+  local id="$1" org="${1%%#*}"
+  _need_orgs
+  org_is_member "$org" "$SESSION_LOGIN" || fail 404 "Problema não encontrado" "not_found"
 }
 # require_problem_view <id> — CORTA (404) se o problema é PRIVADO e o login não é dono/colaborador.
 # Público => qualquer um vê o detalhe/metadados (mas não o source/pacote -> require_problem_edit).
@@ -239,13 +246,14 @@ require_problem_view(){
 
 # problem_owner <id> -> login dono (overlay authored -> índice -> registro de repos). Vazio se desconhecido.
 problem_owner(){
-  local id="$1" repo="${1%%#*}" o
+  local id="$1" o pk
   o="$(jq -r --arg id "$id" '.[$id].owner // empty' "$AUTHORED_INDEX" 2>/dev/null)"
   [[ -n "$o" ]] && { printf '%s' "$o"; return; }
   ensure_owners_index
   o="$(jq -r --arg id "$id" 'first(.problems[]|select(.id==$id)).owner // empty' "$OWNERS_INDEX" 2>/dev/null)"
   [[ -n "$o" ]] && { printf '%s' "$o"; return; }
-  repo_owner "$repo"
+  declare -F pkg_path >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
+  pk="$(pkg_path "$id" 2>/dev/null)"; [[ -n "$pk" && -f "$pk/.moj-meta.json" ]] && jq -r '.owner // empty' "$pk/.moj-meta.json" 2>/dev/null
 }
 
 # ---- autoria: materialização do pacote (escreve só os campos presentes no body) -----------

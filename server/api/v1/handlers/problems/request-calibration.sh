@@ -5,7 +5,7 @@
 require_method POST
 require_auth
 source "$_DIR/../../judge-gw/sched-lib.sh"
-source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"   # require_problem_edit + ensure_repo_materialized
+source "$_DIR/lib/problems.sh"   # require_problem_edit (acesso por org)
 
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
@@ -14,8 +14,7 @@ id="$(jq -r '.id // empty' <<<"$body")"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 require_problem_edit "$id"   # calibrar é ação de autoria -> só dono/colaborador
 
-repo="${id%%#*}"; [[ "$repo" == "$id" ]] && repo="${id%%/*}"
-ensure_repo_materialized "$repo" "$SESSION_LOGIN"        # espelha o Gitea -> MOJ_PROBLEMS_DIR antes de calibrar
+repo="${id%%#*}"; [[ "$repo" == "$id" ]] && repo="${id%%/*}"   # org; pacote já está local
 
 hosts="$(jq -c '.hosts // []' <<<"$body" 2>/dev/null)"; [[ -n "$hosts" ]] || hosts='[]'
 if (( $(jq 'length' <<<"$hosts") > 0 )); then

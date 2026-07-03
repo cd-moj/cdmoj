@@ -3,7 +3,7 @@
 # ACESSO (garantido AQUI na API, nunca só na interface): conteúdo sensível => SÓ dono ou colaborador.
 require_method GET
 require_auth
-source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"; source "$MOJTOOLS_DIR/git-broker.sh"
+source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
 
 id="$(param id)"; [[ -n "$id" ]] || fail 400 "Missing id" "id_missing"
 valid_id "$id" || fail 400 "Invalid id" "id_invalid"
@@ -15,9 +15,8 @@ owner="$(problem_owner "$id")"
 # (nem revela que existe). SEM atalho de .admin. Burlar pela interface não adianta: a trava está aqui.
 require_problem_edit "$id"
 
-# Materializa o espelho na 1ª vez com o token do DONO; depois é leitura de arquivo pura.
+# O canônico é a árvore LOCAL do problema (repo git por problema); leitura de arquivo pura.
 pkg="$MOJ_PROBLEMS_DIR/$repo/$prob"
-[[ -d "$MOJ_PROBLEMS_DIR/$repo/.git" ]] || ensure_repo_materialized "$repo" "$owner"
 [[ -d "$pkg" ]] || fail 404 "Problema não encontrado" "not_found"
 # O source pode ser GRANDE (todos os testes): vai p/ ARQUIVO e entra no jq por --slurpfile (ARG_MAX).
 srcf="$(mktemp)"

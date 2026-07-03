@@ -4,7 +4,7 @@
 # se comportou em cada juiz.
 require_method GET
 require_auth
-source "$_DIR/lib/tl-store.sh"; source "$_DIR/lib/gitea.sh"; source "$_DIR/lib/problems.sh"
+source "$_DIR/lib/tl-store.sh"; source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${CALIB_DIR:=$RUNDIR/calib}"
 
 id="$(param id)"
