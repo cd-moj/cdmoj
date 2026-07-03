@@ -83,8 +83,9 @@ calibrações) e **Estatísticas** (usuários, sessões, **problemas: total/púb
 **por autor**, **mapa de calor de entrada de públicos** e atividade diária). Fontes:
 `/treino/admin/{queue,judges,response-stats,calib-activity,stats}`.
 
-### Gestão de problemas (Gitea, keyless) & painel de status
-Autoria/edição em `/problemas/` (backend Gitea; só o login do MOJ). A aba **Painel**
+### Gestão de problemas (MOJ-nativo por org, keyless) & painel de status
+Autoria/edição em `/problemas/` (storage: repo git LOCAL por problema em `<org>/<prob>`, sem Gitea;
+acesso por **ORG** — membros escrevem, a trava `public_allowed` barra vazamento; só o login do MOJ). A aba **Painel**
 (`GET /problems/status`) dá a visão agregada dos problemas de que o login é **dono ou colaborador**:
 quantos/quais **calibrando**, **validados**, **calibrados**, **precisam recalibrar** (time-limit
 desatualizado após mudança no pacote) e **com erro**, mais a **planilha de time-limits**. O acesso é
