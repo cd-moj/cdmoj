@@ -124,12 +124,32 @@ function renderCollections() {
   const wrap = el('div', { class: 'colls' });
   COLLS.forEach(c => {
     const allPub = c.public === c.count;
+    // trava anti-vazamento da org: só quem pode gerenciar alterna; a implícita é sempre privada
+    const paChip = c.implicit ? pill('mut', 'privada (própria)')
+      : c.can_manage
+        ? el('button', { class: 'pill ' + (c.public_allowed ? 'ok' : 'no'), style: 'cursor:pointer;border:none',
+            title: 'Trava de público: só orgs que permitem podem ter problemas públicos (clique p/ alternar)',
+            onclick: (ev) => { ev.stopPropagation(); toggleOrgPublic(c); } }, c.public_allowed ? 'permite público' : 'privada 🔒')
+        : pill(c.public_allowed ? 'ok' : 'no', c.public_allowed ? 'permite público' : 'privada 🔒');
     wrap.append(el('div', { class: 'coll', onclick: () => openCollection(c.name) },
       el('b', {}, c.name),
       el('span', { class: 'small' }, `${c.count} problemas · `),
-      c.public === 0 ? pill('no', '0 públicos') : (allPub ? pill('ok', 'todos públicos') : pill('warn', `${c.public}/${c.count} públicos`))));
+      c.public === 0 ? pill('no', '0 públicos') : (allPub ? pill('ok', 'todos públicos') : pill('warn', `${c.public}/${c.count} públicos`)),
+      ' ', paChip));
   });
   const list = document.getElementById('list'); list.innerHTML = ''; list.append(wrap);
+}
+
+// alterna a trava de público da org (só admin da org). Desligar DESPUBLICA em cascata os públicos.
+async function toggleOrgPublic(c) {
+  const off = c.public_allowed;
+  if (off && c.public > 0 && !confirm(`Tornar “${c.name}” PRIVADA vai DESPUBLICAR ${c.public} problema(s) (saem do treino livre). Continuar?`)) return;
+  try {
+    const j = await apiPost('/orgs/set-public-allowed', { name: c.name, public_allowed: !c.public_allowed }, { contest: CONTEST, auth: true });
+    c.public_allowed = j.public_allowed;
+    if (off && j.unpublished) c.public = Math.max(0, c.public - j.unpublished);
+    renderCollections();
+  } catch (e) { alert(e.message); }
 }
 
 async function openCollection(name) {
