@@ -424,20 +424,30 @@ function updatePkgInfo() {
 }
 
 // ---- montagem / coleta --------------------------------------------------------------------
+const selectedOrg = () => REPOS.find(r => r.repo === REPO) || null;
+const orgIsPrivate = () => { const o = selectedOrg(); return !!(o && o.public_allowed === false); };
+// dica sob o seletor de org: sem nenhuma org não dá p/ salvar; org privada não deixa publicar
+function updateRepoHint() {
+  const hint = $('repoHint'); if (!hint) return;
+  if (!REPOS.length && MODE === 'new') {
+    hint.style.display = ''; hint.className = 'small'; hint.style.color = '#ffd98a';
+    hint.innerHTML = 'Você ainda não tem nenhuma <b>org</b>. O problema é salvo <b>dentro de uma org</b> — clique <b>“+ nova org”</b> ali do lado para criar a primeira (ex.: uma por disciplina ou competição). Só depois o botão <b>Salvar</b> funciona.';
+  } else if (orgIsPrivate()) {
+    hint.style.display = ''; hint.className = 'small'; hint.style.color = '#ffd98a';
+    hint.innerHTML = '🔒 A org <b>' + REPO + '</b> é <b>privada</b> — problemas nela não podem ficar públicos (anti-vazamento de prova). Um admin da org libera em Gestão de Problemas › Orgs.';
+  } else hint.style.display = 'none';
+}
 function fillRepoSelect() {
   const sel = $('repo'); sel.innerHTML = '';
-  if (!REPOS.length && !REPO) sel.append(el('option', { value: '' }, '— nenhuma pasta — clique "+ nova pasta"'));
+  if (!REPOS.length && !REPO) sel.append(el('option', { value: '' }, '— nenhuma org — clique "+ nova org"'));
   REPOS.forEach(r => sel.append(el('option', { value: r.repo }, r.repo + (r.mine ? '' : ' (compartilhado)'))));
   if (REPO && !REPOS.some(r => r.repo === REPO)) sel.append(el('option', { value: REPO }, REPO));
   if (REPO) sel.value = REPO; else REPO = REPOS.length ? (sel.value || '') : '';
-  // dica: sem nenhuma pasta não dá p/ salvar — é preciso criar uma antes
-  const hint = $('repoHint');
-  if (hint) {
-    if (!REPOS.length && MODE === 'new') {
-      hint.style.display = ''; hint.className = 'small';
-      hint.innerHTML = 'Você ainda não tem nenhuma <b>pasta</b>. O problema é salvo <b>dentro de uma pasta</b> — clique <b>“+ nova pasta”</b> ali do lado para criar a primeira (ex.: uma por disciplina ou competição). Só depois o botão <b>Salvar</b> funciona.';
-    } else hint.style.display = 'none';
-  }
+  // a org é o prefixo do id: imutável na edição (selo fixo). Só no modo "novo" dá p/ escolher/criar.
+  const editing = MODE === 'edit';
+  sel.disabled = editing;
+  if ($('newdir')) $('newdir').style.display = editing ? 'none' : '';
+  updateRepoHint();
 }
 async function renderForm(d) {
   $('ptitle').value = d.title || ''; $('pauthor').value = d.author || '';
@@ -670,7 +680,7 @@ async function loadShare() {
 function renderShareList(list) {
   const box = $('shareList'); box.innerHTML = '';
   if (!list.length) { box.textContent = 'ninguém ainda.'; return; }
-  box.append('compartilhado com: ');
+  box.append('membros: ');
   list.forEach(u => box.append(el('span', { class: 'pill mut', style: 'margin-right:.3rem' }, u,
     el('a', { href: '#', style: 'margin-left:.3rem', onclick: async (e) => { e.preventDefault(); await share([], [u]); } }, '×'))));
 }
@@ -720,7 +730,8 @@ const collChip = (u, onx) => el('span', { class: 'pill mut', style: 'margin-righ
 function renderCollManage() {
   const box = $('collManage'); if (!box) return; box.innerHTML = '';
   box.append(el('span', { class: 'small muted' },
-    'Coleções são rótulos de agrupamento (um problema pode estar em várias). Quem pode EDITAR o problema é a sua ORG — gerencie membros e a trava de público na aba “Orgs”.'));
+    'Coleções são rótulos de agrupamento (um problema pode estar em várias) e não dão acesso. Quem pode EDITAR o problema é a sua ORG — gerencie membros e a trava de público em '),
+    el('a', { href: '/problemas/#orgs' }, 'Gestão de Problemas › Orgs'), el('span', { class: 'small muted' }, '.'));
 }
 async function newColl() {
   const name = $('newCollName').value.trim();
@@ -738,6 +749,14 @@ function renderPubState() {
   const st = $('pubState'), btn = $('pubToggle'); if (!st || !btn) return;
   if (loadedPublic) { st.textContent = '🌐 PÚBLICO (treino livre)'; st.style.color = '#1a7f37'; btn.textContent = 'tornar privado'; }
   else { st.textContent = '🔒 privado (rascunho)'; st.style.color = ''; btn.textContent = 'tornar público'; }
+  // trava de público da ORG: se a org é privada, não dá p/ publicar (set-public devolve 403)
+  const ph = $('pubOrgHint');
+  if (ph) {
+    if (!loadedPublic && orgIsPrivate()) {
+      ph.style.display = '';
+      ph.innerHTML = '🔒 A org <b>' + REPO + '</b> é <b>privada</b> — não é possível tornar público até um admin liberar o público da org em Gestão de Problemas › Orgs.';
+    } else ph.style.display = 'none';
+  }
 }
 async function togglePublic() {
   if (MODE !== 'edit' || !ID) { setMsg('Salve o problema primeiro para poder publicar.', 'error'); return; }
@@ -757,8 +776,8 @@ async function save() {
   REPO = $('repo').value;
   if (!REPO) {
     showTab('enun'); const fld = $('repo'); if (fld) flash(fld.closest('.field') || fld);
-    setMsg(REPOS.length ? 'Escolha um diretório (pasta) no topo da aba Enunciado.'
-                        : 'Crie um diretório primeiro: clique “+ nova pasta” (topo da aba Enunciado).', 'error');
+    setMsg(REPOS.length ? 'Escolha uma org no topo da aba Enunciado.'
+                        : 'Crie uma org primeiro: clique “+ nova org” (topo da aba Enunciado).', 'error');
     return;
   }
   let f; try { f = collectFields(); }
@@ -771,6 +790,7 @@ async function save() {
       const j = await apiPost('/problems/create', { repo: REPO, prob, ...f }, { contest: CONTEST, auth: true });
       ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
       $('prob').disabled = true; $('title').textContent = 'Editar: ' + ID;
+      fillRepoSelect();   // criado: a org vira selo fixo (parte do id) e "+ nova org" some
     } else await apiPost('/problems/edit', { id: ID, ...f }, { contest: CONTEST, auth: true });
     setMsg('Salvo ✓', 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
   } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao salvar') + (e.code ? ` (${e.code})` : ''), 'error'); }
@@ -821,17 +841,17 @@ async function calibrateHosts(hosts) {
   } catch (e) { setMsg(e.message, 'error'); }
 }
 async function newDir() {
-  const name = prompt('Nome da nova pasta (diretório) — minúsculas, sem espaço:'); if (!name) return;
+  const name = prompt('Nome da nova org — minúsculas, sem espaço:'); if (!name) return;
   try {
     const j = await apiPost('/problems/repo-create', { repo: name.trim() }, { contest: CONTEST, auth: true });
-    REPOS.push({ repo: j.repo, owner: j.owner, mine: true, collaborators: [], collections: j.collections || [] });
-    REPO = j.repo; fillRepoSelect(); await loadShare(); setMsg('Pasta criada ✓', 'v-ok');
+    REPOS.push({ repo: j.repo, owner: j.owner, mine: true, collaborators: [], collections: j.collections || [], public_allowed: j.public_allowed === true });
+    REPO = j.repo; fillRepoSelect(); renderPubState(); await loadShare(); setMsg('Org criada ✓', 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
 async function delProblem() {
   if (MODE !== 'edit' || !ID) return;
-  const typed = prompt('Remover é IRREVERSÍVEL (apaga do Gitea e do treino). Digite o id para confirmar: ' + ID);
+  const typed = prompt('Remover é IRREVERSÍVEL (apaga do treino e do repositório do problema). Digite o id para confirmar: ' + ID);
   if (typed === null) return;
   if (typed !== ID) { setMsg('Confirmação não bateu — nada foi removido.', 'error'); return; }
   if ($('delprob')) $('delprob').disabled = true;
@@ -871,7 +891,7 @@ function bindHandlers() {
   $('previewClose').onclick = () => { $('previewModal').style.display = 'none'; $('previewBody').innerHTML = ''; };
   $('download').onclick = download;
   $('uploadTar').addEventListener('change', (e) => { uploadTar(e.target.files[0]); e.target.value = ''; });
-  $('repo').onchange = async () => { REPO = $('repo').value; await loadShare(); };
+  $('repo').onchange = async () => { REPO = $('repo').value; updateRepoHint(); renderPubState(); await loadShare(); };
   $('shareAdd').onclick = async () => { const u = $('shareLogin').value.trim(); if (u) { await share([u], []); $('shareLogin').value = ''; } };
   [...CF_TEXT, ...CF_YN, ...CF_FLAG].forEach(([id]) => $(id).addEventListener('change', () => { syncConfFromFields(); updateReady(); }));
   $('confRaw').addEventListener('change', () => { confToFields($('confRaw').value); updateReady(); });
@@ -927,7 +947,7 @@ async function boot() {
   }
   CAN_CREATE = await pPerm;
 
-  // criar pasta/coleção e criar problema novo: só p/ quem pode criar (regra de criar contest)
+  // criar org/coleção e criar problema novo: só p/ quem pode criar (regra de criar contest)
   if (!CAN_CREATE) ['newdir', 'newCollBtn'].forEach(b => { if ($(b)) $(b).disabled = true; });
   if (MODE === 'new' && !CAN_CREATE) {
     showNote('⚠ Você não tem permissão para criar problemas. Peça a um administrador — é a mesma permissão de criar contests.');

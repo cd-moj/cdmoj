@@ -152,12 +152,13 @@
       <!-- ================= ABA: ENUNCIADO ================= -->
       <section class="tabpane" data-pane="enun">
         <div class="section">
+          <h3 style="margin:0 0 .5rem">Identificação</h3>
           <div class="grid2">
             <div class="field">
-              <label>Diretório (pasta) — onde o problema fica salvo</label>
+              <label>Org — onde o problema fica salvo</label>
               <div class="row">
                 <select id="repo" style="flex:1"></select>
-                <button id="newdir" class="btn ghost" type="button">+ nova pasta</button>
+                <button id="newdir" class="btn ghost" type="button">+ nova org</button>
               </div>
               <div id="repoHint" class="small" style="display:none;margin-top:.3rem;color:#ffd98a"></div>
             </div>
@@ -170,10 +171,7 @@
             <div class="field"><label>Título</label><input id="ptitle" type="text"></div>
             <div class="field"><label>Autor(es)</label><input id="pauthor" type="text"></div>
           </div>
-          <div class="grid2">
-            <div class="field"><label>Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp"></div>
-            <div class="field"><label>Coleções (vírgula)</label><input id="pcolls" type="text" placeholder="obi-problems"></div>
-          </div>
+          <div class="field"><label>Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp"></div>
         </div>
 
         <div class="section">
@@ -309,26 +307,29 @@
 
       <!-- ================= ABA: PUBLICAÇÃO & PACOTE ================= -->
       <section class="tabpane" data-pane="pub" hidden>
+        <!-- 1) Publicação (ciclo de vida: validar/calibrar → tornar público) -->
         <div class="section">
-          <h3>Publicação &amp; compartilhamento</h3>
+          <h3>Publicação</h3>
           <div class="row" style="gap:.6rem;align-items:center;flex-wrap:wrap">
             <span class="small">Visibilidade:</span><span id="pubState" class="pill mut">—</span>
             <button id="pubToggle" class="btn ghost" type="button">tornar público</button>
             <span class="small muted">público = entra no <b>treino livre</b> (visível a todos). Provas: deixe <b>privado</b> até a prova passar.</span>
           </div>
-          <div id="shareBox" class="field" style="margin-top:.6rem">
-            <label>Compartilhar a pasta com (login do MOJ)</label>
-            <div class="row"><input id="shareLogin" type="text" placeholder="login" style="max-width:18rem">
-              <button id="shareAdd" class="btn ghost" type="button">adicionar</button></div>
-            <div id="shareList" class="small muted" style="margin-top:.3rem"></div>
-          </div>
+          <div id="pubOrgHint" class="small" style="display:none;margin-top:.4rem;color:#ffd98a"></div>
         </div>
 
+        <div class="section" id="valpanel" style="display:none"></div>
+
+        <!-- 2) Coleções (agrupamento — rótulos m:n; NÃO dão acesso) -->
         <div class="section">
-          <h3>Coleções &amp; setters (competição/curso)</h3>
-          <p class="small muted">Coloque o problema numa coleção e <b>compartilhe a coleção com os setters</b>:
-            eles ganham acesso a todos os problemas dela. As escolhidas entram no campo <b>Coleções</b>.</p>
-          <div class="row" style="gap:.4rem;align-items:center;flex-wrap:wrap;margin-bottom:.4rem">
+          <h3>Coleções (agrupamento)</h3>
+          <p class="small muted">Rótulos de agrupamento — um problema pode estar em <b>várias</b>; <b>não</b> dão
+            acesso (acesso é da <b>ORG</b>). O aluno navega por coleção no treino livre.</p>
+          <div class="field">
+            <label>Coleções deste problema (vírgula)</label>
+            <input id="pcolls" type="text" placeholder="ex: OBI 2024, maratona-2026">
+          </div>
+          <div class="row" style="gap:.4rem;align-items:center;flex-wrap:wrap;margin:.2rem 0 .4rem">
             <input id="collFilter" type="text" placeholder="🔎 filtrar coleção (nome, título, dono)…" style="max-width:18rem">
             <button id="collFilterMine"   class="filttog" type="button" title="Só coleções que você criou">minhas</button>
             <button id="collFilterManage" class="filttog" type="button" title="Só as que você gerencia">gerencio</button>
@@ -336,30 +337,37 @@
           </div>
           <div id="myColls" class="row" style="flex-wrap:wrap;gap:.4rem"></div>
           <div class="row" style="gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
-            <input id="newCollName" type="text" placeholder="nova coleção (ex: regional2026)" style="max-width:16rem">
-            <input id="newCollMembers" type="text" placeholder="setters: login, login" style="flex:1;min-width:14rem">
+            <input id="newCollName" type="text" placeholder="nova coleção (pode ter espaços, ex: OBI 2024)" style="flex:1;min-width:16rem">
             <button id="newCollBtn" class="btn ghost" type="button">criar coleção</button>
           </div>
           <div id="collManage" style="margin-top:.5rem"></div>
         </div>
 
-        <div class="section" id="valpanel" style="display:none"></div>
+        <!-- 3) Membros da org (acesso de edição — quem faz parte da org edita todos os seus problemas) -->
+        <div class="section" id="shareBox">
+          <h3>Membros da org</h3>
+          <label class="small muted">Adicionar membro (login do MOJ) — passa a editar <b>todos</b> os problemas da org</label>
+          <div class="row" style="margin-top:.3rem"><input id="shareLogin" type="text" placeholder="login" style="max-width:18rem">
+            <button id="shareAdd" class="btn ghost" type="button">adicionar</button></div>
+          <div id="shareList" class="small muted" style="margin-top:.3rem"></div>
+        </div>
 
+        <!-- 4) Avançado: calibração direcionada + pacote bruto -->
         <div class="section">
-          <h3>Calibração direcionada</h3>
+          <h3>Avançado</h3>
+
+          <h4 style="margin:.6rem 0 .2rem">Calibração direcionada</h4>
           <p class="small muted">Force a calibração num conjunto de juízes para ver o comportamento (tempo-limite e
             reports) em <b>processadores diferentes</b>. Os marcados (online) recalibram em paralelo; o resultado
-            aparece acima, por juiz.</p>
+            aparece em <b>Validação &amp; calibração</b>, por juiz.</p>
           <div id="judgePick"></div>
           <div class="row" style="gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
             <button id="calibSel" class="btn ghost" type="button" title="Calibrar nos juízes marcados">Calibrar selecionados</button>
             <button id="calibPerCpu" class="btn ghost" type="button" title="Um juiz de cada modelo de processador">1 por processador</button>
             <button id="calibAll" class="btn ghost" type="button" title="Todos os juízes online">Calibrar em todos</button>
           </div>
-        </div>
 
-        <div class="section">
-          <h3>Pacote do problema</h3>
+          <h4 style="margin:1rem 0 .2rem">Pacote do problema</h4>
           <div id="pkgInfo" class="small muted">—</div>
           <div id="pkgTree" class="pkgtree"></div>
           <div class="row" style="gap:.5rem;margin-top:.4rem">
@@ -373,11 +381,11 @@
 
       <!-- barra de ações (fixa, visível em todas as abas) -->
       <div class="bar2">
-        <button id="save" class="btn" title="Grava o problema no seu diretório (Gitea). Marque “tornar público” na aba Publicação para entrar no treino livre.">Salvar</button>
+        <button id="save" class="btn" title="Grava o problema na org escolhida. Marque “tornar público” na aba Publicação para entrar no treino livre.">Salvar</button>
         <button id="calibrate" class="btn ghost" title="Mede o tempo-limite: um juiz roda as soluções good e calcula o TL por linguagem. O resultado aparece em “Validação & calibração”.">Calibrar</button>
         <button id="publish" class="btn ghost" title="Roda o quality gate (o enunciado compila? exemplos visíveis? testes pareados? a solução good é aceita?), gera o enunciado/índice e calibra — deixa o problema pronto. Tornar PÚBLICO no treino livre é a opção “tornar público” + Salvar.">Validar</button>
         <span class="spacer"></span>
-        <button id="delprob" class="btn ghost" type="button" style="display:none;color:#e66;border-color:#a44" title="Remove o problema do Gitea e do treino (irreversível; pede o id para confirmar).">🗑 Remover problema</button>
+        <button id="delprob" class="btn ghost" type="button" style="display:none;color:#e66;border-color:#a44" title="Remove o problema do treino e do repositório do problema (irreversível; pede o id para confirmar).">🗑 Remover problema</button>
         <span id="msg" class="small"></span>
       </div>
     </div>
