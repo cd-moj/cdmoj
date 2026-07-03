@@ -2705,6 +2705,19 @@
         }
       }
     },
+    "/treino/contest-create/collections": {
+      "get": {
+        "tags": [
+          "contest-create"
+        ],
+        "summary": "Coleções do banco público com contagem (escopo do wizard; ≠ /problems/collections)",
+        "responses": {
+          "200": {
+            "description": "{collections:[{collection,count}],total}"
+          }
+        }
+      }
+    },
     "/treino/contest-create/genpass": {
       "get": {
         "tags": [
@@ -2732,11 +2745,19 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Sorteia problemas por tag/dificuldade (reproduzível por seed)",
+        "summary": "Sorteia problemas por tag, coleção e dificuldade (filtros em AND; reproduzível por seed)",
         "parameters": [
           {
             "name": "tags",
             "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collections",
+            "in": "query",
+            "description": "array JSON url-encoded de nomes de coleção (casa exato; inválido/ausente = sem filtro)",
             "schema": {
               "type": "string"
             }

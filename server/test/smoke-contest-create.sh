@@ -16,8 +16,17 @@ printf 'CONTEST=treino\nLOGIN=banned\nUSERFULLNAME=Ban Ned\nLOGINAT=1\n' > "$SES
 # histórico: solver resolveu 2 problemas distintos
 { printf '1:solver:prob/a:C:Accepted,100p:1:h1\n'; printf '2:solver:prob/b:C:Accepted,100p:2:h2\n'
   printf '3:solver:prob/a:C:Wrong Answer:3:h3\n'; } > "$T/controle/history"
-# banco: um problema com enunciado
+# banco: um problema com enunciado + dois com coleções (sorteio; sem var/problems.json => exercita o fallback FRIO)
 printf '%s' '{"id":"bankprob","title":"Banco Prob","tags":["#x"],"statement_html_b64":"PGgxPm9pPC9oMT4="}' > "$T/var/jsons/bankprob.json"
+printf '%s' '{"id":"apc#vet","title":"Vetores","tags":["#vetor"],"collections":["Prova 1","problemas-apc"]}' > "$T/var/jsons/apc#vet.json"
+printf '%s' '{"id":"apc#mat","title":"Matrizes","tags":["#matriz"],"collections":["problemas-apc"]}' > "$T/var/jsons/apc#mat.json"
+# índice de owners FRESCO na fixture — sem ele, ensure_owners_index regenerava do banco REAL
+# da máquina (gen-problem-owners.sh) e o autocomplete respondia com problemas de verdade.
+printf '%s' '{"problems":[
+ {"id":"bankprob","title":"Banco Prob","owner":"someone","collaborators":[],"public":true},
+ {"id":"apc#vet","title":"Vetores","owner":"someone","collaborators":[],"public":true},
+ {"id":"apc#mat","title":"Matrizes","owner":"someone","collaborators":[],"public":true}
+]}' > "$T/var/problem-owners.json"
 
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 )); PAST=$(( NOW - 100 ))
 call(){ # <path> <method> <body> <token> <query>
@@ -84,6 +93,24 @@ ck "template baixa JSON"    '[[ "$OUT" == *"Content-Disposition"* ]] && jq -e .p
 echo "== busca no banco =="
 call /treino/contest-create/problems GET '' reg 'q=banco'
 ck "acha bankprob"          '[[ "$(jq -r ".problems[0].id" <<<"$BODY")" == "bankprob" ]]'
+
+echo "== coleções + sorteio por coleção =="
+call /treino/contest-create/collections GET '' reg
+ck "lista coleções com contagem" '[[ "$(jq -r ".collections[]|select(.collection==\"problemas-apc\").count" <<<"$BODY")" == 2 ]]'
+ck "coleção com espaço presente" '[[ "$(jq -r ".collections[]|select(.collection==\"Prova 1\").count" <<<"$BODY")" == 1 ]]'
+call /treino/contest-create/collections GET '' nob
+ck "collections exige criador 403" '[[ "$OUT" == *"Status: 403"* ]]'
+call /treino/contest-create/draw GET '' reg 'collections=%5B%22problemas-apc%22%5D&count=10&seed=7'
+ck "draw por coleção: 2 candidatos" '[[ "$(jq -r .candidates <<<"$BODY")" == 2 && "$(jq -r .drawn <<<"$BODY")" == 2 ]]'
+ck "draw ecoa collections"  '[[ "$(jq -rc .collections <<<"$BODY")" == "[\"problemas-apc\"]" ]]'
+call /treino/contest-create/draw GET '' reg 'collections=%5B%22Prova%201%22%5D&count=10&seed=7'
+ck "coleção com espaço: só apc#vet" '[[ "$(jq -r .candidates <<<"$BODY")" == 1 && "$(jq -r ".problems[0].id" <<<"$BODY")" == "apc#vet" ]]'
+call /treino/contest-create/draw GET '' reg 'collections=%5B%22problemas-apc%22%5D&tags=%23matriz&count=10&seed=7'
+ck "coleção E tag combinadas (AND)" '[[ "$(jq -r .candidates <<<"$BODY")" == 1 && "$(jq -r ".problems[0].id" <<<"$BODY")" == "apc#mat" ]]'
+call /treino/contest-create/draw GET '' reg 'collections=notjson&count=10&seed=7'
+ck "collections inválido = sem filtro" '[[ "$(jq -r .candidates <<<"$BODY")" == 3 ]]'
+call /treino/contest-create/draw GET '' reg 'tags=%23x&count=10&seed=7'
+ck "draw só por tag segue ok"  '[[ "$(jq -r .candidates <<<"$BODY")" == 1 && "$(jq -r ".problems[0].id" <<<"$BODY")" == "bankprob" ]]'
 
 echo "== import de tar.gz =="
 TD="$(mktemp -d)"; mkdir -p "$TD/enunciados"; printf '<p>imp</p>' > "$TD/enunciados/imp.html"

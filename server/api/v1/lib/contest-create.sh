@@ -286,6 +286,49 @@ cc_problem_metrics_file(){
   printf '%s' "$f"
 }
 
+# cc_bank_json — banco PÚBLICO do treino p/ busca/sorteio: o cache var/problems.json (gerado
+# pelo /treino/problems; já traz id/title/tags/collections) ou, a frio, projeção direta de
+# var/jsons/*.json — INCLUINDO collections (sem isso o sorteio por coleção falha a frio).
+cc_bank_json(){
+  local cache="$CONTESTSDIR/treino/var/problems.json" data=""
+  if [[ -f "$cache" ]]; then cat "$cache"; return; fi
+  set +o noglob
+  data="$(jq -s 'map({id, title, tags:(.tags//[]), collections:(.collections//[])})' \
+    "$CONTESTSDIR"/treino/var/jsons/*.json 2>/dev/null)"
+  set -o noglob
+  printf '%s' "${data:-[]}"
+}
+
+# cc_bank_filter <tags_csv> <match:any|all> <diff> [collections_json_array] — filtra o banco
+# (stdin = array do cc_bank_json) por tag E coleção (grupos em AND; dentro do grupo, tags casam
+# por match, coleções por "qualquer uma") e por dificuldade (buckets de acceptance do
+# problem-metrics). Coleção casa EXATO (nome curado, texto livre — nada de normalizar).
+# Emite [{id,title,tags,collections,solvers,total,acceptance,bucket}].
+cc_bank_filter(){
+  local tags="$1" match="$2" diff="$3" colls="${4:-[]}" MET
+  jq -e 'type=="array" and all(.[]; type=="string")' >/dev/null 2>&1 <<<"$colls" || colls='[]'
+  MET="$(cc_problem_metrics_file)"
+  jq -c --slurpfile m "$MET" --arg tags "$tags" --arg match "$match" --arg diff "$diff" --argjson colls "$colls" '
+    ($tags|split(",")|map(ascii_downcase|gsub("^\\s+|\\s+$";""))|map(select(length>0))) as $T
+    | ($m[0] // {}) as $M
+    | [ .[]
+        | (.tags // []) as $pt
+        | ($pt|map(ascii_downcase)) as $ptl
+        | (if ($T|length)==0 then true
+           elif $match=="all" then ($T|all(. as $t|$ptl|index($t)))
+           else ($T|any(. as $t|$ptl|index($t))) end) as $tagok
+        | (.collections // []) as $pc
+        | (if ($colls|length)==0 then true
+           else ($colls | any(. as $c | ($pc|index($c)) != null)) end) as $collok
+        | select($tagok and $collok)
+        | ($M[.id] // {total:0,accepted:0,solvers:0,acceptance:0}) as $mm
+        | (if $mm.total==0 then "unknown" elif $mm.acceptance>=0.5 then "easy" elif $mm.acceptance>=0.2 then "medium" else "hard" end) as $bucket
+        | select($diff=="any" or $diff==$bucket or ($diff=="known" and $bucket!="unknown"))
+        | {id, title, tags:$pt, collections:$pc, solvers:$mm.solvers, total:$mm.total,
+           acceptance:(($mm.acceptance*1000|floor)/1000), bucket:$bucket}
+      ]' 2>/dev/null
+}
+
 # cc_set_conf_var <contest> <VAR> <value> — define/atualiza uma var no conf (escapada com %q),
 # preservando as demais linhas. cc_del_conf_var remove a var.
 cc_set_conf_var(){

@@ -27,6 +27,7 @@ const problems = [];          // {kind, source?, problem_id?, bank_id?, name, _l
 let userMode = 'own';         // 'own' | 'shared'
 let contestUsers = [];        // [{login,password,fullname,email}]
 let allTags = [];             // [{tag,count}]
+let allCollections = [];      // [{collection,count}]
 
 // ---------- gate / denied / result ----------
 function showDenied(p) {
@@ -159,6 +160,16 @@ function makeDrawPanel(listBox) {
   tagInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput.value); } });
   tagInput.addEventListener('input', () => { if (allTags.some((t) => t.tag === tagInput.value)) addTag(tagInput.value); });
 
+  // coleções (curadas; casam exato — datalist do banco público)
+  const selectedCols = [];
+  const colChips = el('div', { class: 'row', style: 'margin:.3rem 0' });
+  const cdl = el('datalist', { id: 'colsDL' }); allCollections.forEach((c) => cdl.append(el('option', { value: c.collection }, c.collection + ' (' + c.count + ')')));
+  const colInput = el('input', { list: 'colsDL', placeholder: 'coleção (ex.: problemas-apc)…', style: 'min-width:220px' });
+  const renderColChips = () => { colChips.innerHTML = ''; selectedCols.forEach((cn, i) => colChips.append(el('span', { class: 'tag-chip' }, cn, el('a', { href: '#', onclick: (e) => { e.preventDefault(); selectedCols.splice(i, 1); renderColChips(); } }, ' ✕')))); };
+  const addCol = (cn) => { cn = (cn || '').trim(); if (cn && !selectedCols.includes(cn)) { selectedCols.push(cn); renderColChips(); } colInput.value = ''; };
+  colInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCol(colInput.value); } });
+  colInput.addEventListener('input', () => { if (allCollections.some((c) => c.collection === colInput.value)) addCol(colInput.value); });
+
   const count = el('input', { type: 'number', min: '1', max: '100', value: '6', style: 'width:70px' });
   const match = el('select', {}, el('option', { value: 'any' }, 'qualquer tag'), el('option', { value: 'all' }, 'todas as tags'));
   const diff = el('select', {}, ...Object.keys(DIFF_LABEL).map((k) => el('option', { value: k }, DIFF_LABEL[k])));
@@ -167,6 +178,7 @@ function makeDrawPanel(listBox) {
   let lastSeed = null;
   async function doDraw(reshuffle) {
     const qs = new URLSearchParams({ tags: selected.join(','), count: count.value || '6', match: match.value, difficulty: diff.value });
+    if (selectedCols.length) qs.set('collections', JSON.stringify(selectedCols));
     if (reshuffle) {} else if (lastSeed != null) qs.set('seed', lastSeed);
     out.innerHTML = 'sorteando…';
     try {
@@ -189,7 +201,8 @@ function makeDrawPanel(listBox) {
   drawBtn.addEventListener('click', () => { lastSeed = null; doDraw(true); });
   renderChips();
   return el('div', { class: 'section', style: 'background:#fbfdff' },
-    el('h3', { style: 'margin:.1rem 0 .4rem' }, '🎲 Sortear por tag / dificuldade'),
+    el('h3', { style: 'margin:.1rem 0 .4rem' }, '🎲 Sortear por coleção / tag / dificuldade'),
+    el('div', { class: 'field' }, el('label', {}, 'Coleções'), colInput, cdl, colChips),
     el('div', { class: 'field' }, el('label', {}, 'Tags'), tagInput, dl, chips),
     el('div', { class: 'row' }, el('span', { class: 'small' }, 'quantos:'), count,
       el('span', { class: 'small' }, 'casar:'), match, el('span', { class: 'small' }, 'dificuldade:'), diff, drawBtn),
@@ -383,6 +396,7 @@ async function gate() {
   catch { showDenied(null); return; }
   if (!p || !p.can_create) { showDenied(p); return; }
   try { const t = await apiGet('/treino/contest-create/tags', { contest: 'treino', auth: true }); allTags = t.tags || []; } catch { allTags = []; }
+  try { const c = await apiGet('/treino/contest-create/collections', { contest: 'treino', auth: true }); allCollections = c.collections || []; } catch { allCollections = []; }
   buildForm(p);
 }
 
