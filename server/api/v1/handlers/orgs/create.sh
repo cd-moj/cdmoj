@@ -4,7 +4,7 @@
 # A org implícita <login> (sempre privada) é criada sob demanda em /orgs/list — não por aqui.
 require_method POST
 require_auth
-source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/contest-create.sh"
+source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/contest-create.sh"; source "$_DIR/lib/problems.sh"
 cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar org (igual a criar contest)" "create_forbidden"
 
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
@@ -17,6 +17,7 @@ admins_csv="$(jq -r '(.admins // []) | map(select(test("^[A-Za-z0-9][A-Za-z0-9._
 pa="$(jq -r 'if .public_allowed==true then "true" else "false" end' <<<"$body")"
 
 org_register "$name" "$SESSION_LOGIN" "$members_csv" "$admins_csv" "$title" "$pa"
+coll_register "$name" "$SESSION_LOGIN"   # coleção homônima (agrupamento default do id) fica válida
 audit_log "org-create" "name=$name by=$SESSION_LOGIN public_allowed=$pa"
 ok_json '{action:"org-create", name:$n, title:($t|if .=="" then $n else . end),
           members:$m, admins:$a, public_allowed:$pa, implicit:false, mine:true, can_manage:true}' \

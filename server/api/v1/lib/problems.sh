@@ -96,14 +96,6 @@ authored_patch(){
   ( umask 077; jq "$@" --arg _id "$id" "if has(\$_id) then .[\$_id] |= ($expr) else . end" <<<"$cur" ) \
     > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
 }
-# authored_set_repo_collabs <repo> <collabs-json> — propaga colaboradores a todas as entradas do repo
-authored_set_repo_collabs(){
-  local f="$AUTHORED_INDEX" cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
-  tmp="$f.tmp.$$"
-  ( umask 077; jq --arg r "$1" --argjson cb "$2" \
-      'with_entries(if .value.repo==$r then .value.collaborators=$cb else . end)' <<<"$cur" ) \
-    > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
-}
 # authored_remove <id> — tira a entrada do overlay (problema removido -> some na hora das listas)
 authored_remove(){
   local f="$AUTHORED_INDEX" cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
@@ -113,10 +105,6 @@ authored_remove(){
 
 # norm <txt> -> minúsculas, sem acento, só [a-z0-9 ] (espelha gen-problem-owners.sh)
 prob_norm(){ printf '%s' "$1" | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9 ' ' ' | tr -s ' '; }
-
-# ---- autoria: registro de diretórios (repo Gitea) -> dono(login) --------------------------
-REPO_REGISTRY="$CONTESTSDIR/treino/var/problem-repos.json"
-repo_owner(){ [[ -f "$REPO_REGISTRY" ]] && jq -r --arg r "$1" '.[$r].owner // empty' "$REPO_REGISTRY" 2>/dev/null; }
 
 # ---- storage MOJ-nativo: repo git LOCAL por problema (sem Gitea) --------------------------
 # O canônico É a árvore de trabalho em $MOJ_PROBLEMS_DIR/<org>/<prob> (pkg_path lê dela direto). O
@@ -147,25 +135,56 @@ problem_commit(){
     git rev-parse HEAD 2>/dev/null
   ) 9>"$lk"
 }
-repo_register(){  # <repo> <owner> [collections-csv]
-  local r="$1" o="$2" c="${3:-}" cur tmp; cur="$(cat "$REPO_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
-  mkdir -p "$(dirname "$REPO_REGISTRY")" 2>/dev/null; tmp="$REPO_REGISTRY.tmp.$$"
-  ( umask 077; jq -n --argjson cur "$cur" --arg r "$r" --arg o "$o" --arg c "$c" --argjson now "$EPOCHSECONDS" '
-      ($cur[$r] // {}) as $old
-      | $cur + { ($r): ($old + {owner:$o, collections:($c|split(",")|map(select(length>0))), at:$now,
-                                collaborators:($old.collaborators // []) }) }' ) > "$tmp" 2>/dev/null \
-    && mv -f "$tmp" "$REPO_REGISTRY"
+# ---- COLEÇÕES = TAG de agrupamento (m:n) com REGISTRO CURADO -------------------------------
+# Coleção é ORTOGONAL à ORG: um problema está em 1 org (acesso, prefixo do id) mas em VÁRIAS coleções
+# (rótulos em .moj-meta.json collections[]). O nome é TEXTO LIVRE (pode ter espaços/acentos — é só
+# rótulo, NUNCA vira id/caminho/arquivo). SEM members/admins (acesso é da ORG); só o DONO da coleção
+# (ou .admin) renomeia/exclui. "Curada": marcar um problema numa coleção exige que ela EXISTA aqui.
+COLL_REGISTRY="$CONTESTSDIR/treino/var/collections.json"
+_coll_read(){ local c; c="$(cat "$COLL_REGISTRY" 2>/dev/null)"; [[ -n "$c" ]] || c='{}'; printf '%s' "$c"; }
+coll_exists(){ [[ -f "$COLL_REGISTRY" ]] && jq -e --arg n "$1" 'has($n)' >/dev/null 2>&1 < "$COLL_REGISTRY"; }
+coll_owner(){ [[ -f "$COLL_REGISTRY" ]] && jq -r --arg n "$1" '.[$n].owner // empty' "$COLL_REGISTRY" 2>/dev/null; }
+coll_all(){ _coll_read | jq -c 'keys'; }
+# coll_valid_name <name> -> 0 se nome válido (texto livre: 1..80 chars, sem caractere de controle)
+coll_valid_name(){ local n="$1"; [[ -n "$n" ]] || return 1; [[ "$n" =~ [[:cntrl:]] ]] && return 1; (( ${#n} <= 80 )); }
+# coll_can_manage <name> <login> — dono da coleção OU admin global
+coll_can_manage(){ { declare -F is_admin >/dev/null && is_admin; } && return 0; [[ "$(coll_owner "$1")" == "$2" ]]; }
+# coll_register <name> <owner> — cria (idempotente; preserva dono/at de quem já existe).
+coll_register(){
+  local n="$1" o="$2" cur tmp; cur="$(_coll_read)"; mkdir -p "$(dirname "$COLL_REGISTRY")" 2>/dev/null; tmp="$COLL_REGISTRY.tmp.$$"
+  ( umask 077; jq --arg n "$n" --arg o "$o" --argjson now "$EPOCHSECONDS" '
+      .[$n] = ((.[$n] // {}) + {owner:((.[$n].owner) // $o), created_by:((.[$n].created_by) // $o), at:((.[$n].at) // $now)})' <<<"$cur" ) \
+    > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY"
 }
-repo_collabs(){ [[ -f "$REPO_REGISTRY" ]] && jq -c --arg r "$1" '.[$r].collaborators // []' "$REPO_REGISTRY" 2>/dev/null; }
-repo_set_collabs(){  # <repo> <collabs-json>
-  local r="$1" cb="$2" cur tmp; cur="$(cat "$REPO_REGISTRY" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
-  tmp="$REPO_REGISTRY.tmp.$$"
-  ( umask 077; jq --arg r "$r" --argjson cb "$cb" 'if has($r) then .[$r].collaborators=$cb else . end' <<<"$cur" ) \
-    > "$tmp" 2>/dev/null && mv -f "$tmp" "$REPO_REGISTRY"
+coll_delete(){ local n="$1" cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
+  ( umask 077; jq --arg n "$n" 'del(.[$n])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY"; }
+# coll_rename <old> <new> — renomeia no registro (o bulk nos metas dos problemas fica no handler).
+coll_rename(){ local o="$1" n="$2" cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
+  ( umask 077; jq --arg o "$o" --arg n "$n" 'if has($o) and ($o!=$n) then .[$n]=(.[$o]) | del(.[$o]) else . end' <<<"$cur" ) \
+    > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY"; }
+# coll_bulk_retag <old> <new|""> <login> -> nº de problemas afetados. Renomeia (new!="") ou REMOVE
+# (new=="") a tag <old> no .moj-meta.json de TODOS os problemas que a têm (+ commit local + overlay +
+# re-index dos que estão públicos, p/ o json servido refletir a tag nova). Usado por rename/delete.
+coll_bulk_retag(){
+  local old="$1" new="$2" login="${3:-moj}" n=0 pdir meta newc org prob id owner ispub
+  declare -F index_problem_bg >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
+  while IFS= read -r pdir; do
+    meta="$pdir/.moj-meta.json"; [[ -f "$meta" ]] || continue
+    jq -e --arg o "$old" '((.collections // [])|index($o)) != null' >/dev/null 2>&1 < "$meta" || continue
+    if [[ -n "$new" ]]; then newc="$(jq -c --arg o "$old" --arg nn "$new" '(.collections//[])|map(if .==$o then $nn else . end)|unique' "$meta")"
+    else newc="$(jq -c --arg o "$old" '(.collections//[])|map(select(.!=$o))' "$meta")"; fi
+    prob="$(basename "$pdir")"; org="$(basename "$(dirname "$pdir")")"; id="$org#$prob"
+    owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$login"
+    ispub="$(jq -r 'if .public==true then 1 else 0 end' "$meta" 2>/dev/null)"
+    write_meta "$pdir" "$owner" "$org" "" "$newc" ""
+    problem_commit "$pdir" "$login" "coleção: $old -> ${new:-(removida)}" >/dev/null
+    authored_patch "$id" '.collections=$c' --argjson c "$newc"
+    [[ "$ispub" == 1 ]] && declare -F index_problem_bg >/dev/null && index_problem_bg "$id" 1
+    n=$((n+1))
+  done < <(find "$MOJ_PROBLEMS_DIR" -mindepth 2 -maxdepth 2 -type d ! -name '.git' 2>/dev/null)
+  printf '%s' "$n"
 }
-# (Coleções/repos como MOTOR DE ACESSO foram substituídos pelas ORGS — ver lib/orgs.sh. O campo
-#  .moj-meta.json collections continua existindo como TAG de exibição, sem propagar colaborador.)
-# grant_problem_collections — NO-OP no modelo por ORG (acesso = ser MEMBRO da org).
+# grant_problem_collections — NO-OP (acesso é por ORG; coleção é só tag, não propaga colaborador).
 grant_problem_collections(){ return 0; }
 
 # problem_access <id> <login> -> mine|shared|public|denied|unknown

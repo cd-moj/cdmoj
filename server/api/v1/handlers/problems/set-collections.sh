@@ -14,6 +14,10 @@ org="${id%%#*}"; prob="${id##*#}"
 require_problem_edit "$id"
 pdir="$MOJ_PROBLEMS_DIR/$org/$prob"; [[ -d "$pdir" ]] || fail 404 "Problema não existe" "prob_missing"
 owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
+# CURADA: toda coleção marcada tem de EXISTIR no registro (senão vira tag solta).
+while IFS= read -r cn; do [[ -n "$cn" ]] || continue
+  coll_exists "$cn" || fail 400 "Coleção '$cn' não existe — crie antes (aba Coleções / moj collection create)" "coll_unknown"
+done < <(jq -r '.[]?' <<<"$colls")
 write_meta "$pdir" "$owner" "$org" "" "$colls" ""
 problem_commit "$pdir" "$SESSION_LOGIN" "coleções de $prob" >/dev/null
 authored_patch "$id" '.collections=$c' --argjson c "$colls"

@@ -26,6 +26,7 @@ mkdir -p "$pdir"
 apply_problem_fields "$pdir" "$body"
 [[ -s "$pdir/author" ]] || printf '%s\n' "$SESSION_NAME" > "$pdir/author"
 colls="$(jq -c --arg r "$org" '(.collections // [$r])' <<<"$body")"
+coll_register "$org" "$SESSION_LOGIN"   # a coleção homônima da org (agrupamento default) fica válida
 title="$(jq -r '.title // empty' <<<"$body")"
 write_meta "$pdir" "$SESSION_LOGIN" "$org" false "$colls" "$title"
 bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true  # Kattis-aware
