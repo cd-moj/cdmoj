@@ -110,7 +110,12 @@ username = `mv` do diretório** e a maioria dos scripts de conta/julgamento só 
 (`lib/users.sh`, `emit_history_stream`). Os handlers de usuário do **admin do contest**
 (`user-add`/`user-disable`/`user-remove`/`users-set-password`) escrevem no `account.json` (fonte
 da verdade); remover = `mv` do diretório p/ `.removed-users/` (submissões preservadas).
-Migração: `server/bin/store-migrate.sh <c>` (dry-run; `--apply`). O **treino** ganha um overlay de
+Migração de contest pré-reforma (arquivado em `contests-legado/`): `server/bin/store-migrate.sh
+<c> [--apply] [--from <dir>]` — dry-run por padrão; canonicaliza probids (offset/`a.b` →
+`org#prob`), leva team/perfil ao account.json, roteia os flat files, gera metrics, move os
+resíduos p/ `.legacy-store/` e só publica em `contests/` após verificação (contas, spot-check
+de senhas, soma do history, metrics, placar). `server/bin/store-cleanup.sh <c>` limpa resíduos
+de contest já migrado. O **treino** ganha um overlay de
 **Telegram** (`lib/telegram.sh`): cadastro **web-first** (`/treino/cadastro/`) confirmado por deep-link
 no bot, **1 Telegram = 1 conta** (anti-duplicata), recuperação de senha pelo vínculo, e senha entregue
 **só por DM**. O **mojinho-bot** virou transporte fino (bot-token `mojb_`, sem `.admin`/GODS) e entrega
