@@ -5,7 +5,7 @@ contest="$(param contest)"
 require_contest "$contest"
 
 CONTEST_ID="$contest"; CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0
-LOGIN_START_TIME=""; LOCALE=""; LOGIN_ENABLED=""; FREEZE_TIME=""; SCORE_ANON=""; LANGUAGES=""
+LOGIN_START_TIME=""; LOCALE=""; LOGIN_ENABLED=""; FREEZE_TIME=""; SCORE_ANON=""; LANGUAGES=""; SECRET=""
 load_contest_conf "$contest"
 
 [[ -n "$LOGIN_START_TIME" ]] || LOGIN_START_TIME="$CONTEST_START"
@@ -16,11 +16,14 @@ sa="$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)"
 langs_json='[]'
 [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
 
+# `secret`: contest SUPER SECRETO (fora das listagens; placar/visual exigem login). O basic
+# em si continua público — a tela de login/countdown precisa do nome p/ quem tem o link.
 ok_json '{contest_id:$id, contest_name:$name, start_time:$start, end_time:$end,
           login_start_time:$lst, locale:$loc, login_enabled:$le, freeze_time:$fz, score_anon:$sa,
-          languages:$langs}' \
+          languages:$langs, secret:$sec}' \
   --arg id "$CONTEST_ID" --arg name "$CONTEST_NAME" \
   --argjson start "${CONTEST_START:-0}" --argjson end "${CONTEST_END:-0}" \
   --argjson lst "${LOGIN_START_TIME:-0}" --arg loc "$LOCALE" \
   --argjson le "$le" --argjson fz "${FREEZE_TIME:-0}" --argjson sa "$sa" \
-  --argjson langs "$langs_json"
+  --argjson langs "$langs_json" \
+  --argjson sec "$([[ "$SECRET" == 1 ]] && echo true || echo false)"

@@ -67,6 +67,7 @@ cc_settings_conf_lines(){
   v="$(jq -r '.score_anon' <<<"$spec")";     [[ "$v" == true ]] && printf 'SCORE_ANON=%q\n' 1
   v="$(jq -r '.manual_verdict' <<<"$spec")"; [[ "$v" == true ]] && printf 'MANUAL_VERDICT=%q\n' 1
   v="$(jq -r '.allow_late' <<<"$spec")";     [[ "$v" == true ]] && printf 'ALLOWLATEUSER=%q\n' y
+  v="$(jq -r '.secret' <<<"$spec")";         [[ "$v" == true ]] && printf 'SECRET=%q\n' 1
   v="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; v="${v//$'\n'/}"
   [[ -n "$v" ]] && printf 'LOGIN_UA_SUBSTRING=%q\n' "$v"
   v="$(jq -r '(.score_full_users // []) | map(select(type=="string" and test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"
@@ -473,7 +474,7 @@ cc_tpl_relativize(){
     (.start|tonumber? // 0) as $st | (.end|tonumber? // 0) as $en
     | (.login_start|tonumber? // 0) as $ls | (.freeze|tonumber? // 0) as $fz
     | pick(["mode","priority","languages","showcode","show_log","show_editor","show_tl",
-            "allow_backup","allow_print","score_anon","manual_verdict","allow_late",
+            "allow_backup","allow_print","score_anon","manual_verdict","allow_late","secret",
             "login_ua_substring","score_full_users","locale","login_enabled",
             "colors","regions","teams_meta"])
     + (if $st > 0 and $en > $st then {duration:($en-$st)} else {} end)
@@ -497,7 +498,7 @@ cc_export_spec(){
     CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_PRIORITY=""; CONTEST_START=""; CONTEST_END=""
     LANGUAGES=""; SHOWCODE=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
     FREEZE_TIME=""; ALLOWLATEUSER=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
-    BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""
+    BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
     . "$cdir/conf" 2>/dev/null
     jq -cn \
       --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
@@ -506,7 +507,8 @@ cc_export_spec(){
       --arg lstart "$LOGIN_START_TIME" --arg lenabled "$LOGIN_ENABLED" --arg freeze "$FREEZE_TIME" \
       --arg late "$ALLOWLATEUSER" --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
-      --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" '
+      --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
+      --arg secret "$SECRET" '
       {name:$name, mode:(if $mode=="" then "icpc" else $mode end)}
       + (if $prio != "" then {priority:$prio} else {} end)
       + (if ($start|tonumber?) then {start:($start|tonumber)} else {} end)
@@ -526,6 +528,7 @@ cc_export_spec(){
       + (if $backup == "0" then {allow_backup:false} else {} end)
       + (if $prnt == "0" then {allow_print:false} else {} end)
       + (if $manual == "1" then {manual_verdict:true} else {} end)
+      + (if $secret == "1" then {secret:true} else {} end)
       + (if $ua != "" then {login_ua_substring:$ua} else {} end)
       + (if $sfu != "" then {score_full_users:($sfu|split(" ")|map(select(length>0)))} else {} end)'
   )"

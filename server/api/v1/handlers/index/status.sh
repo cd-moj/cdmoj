@@ -22,9 +22,11 @@ for cdir in "$CONTESTSDIR"/*/; do
   [[ -f "$cdir/conf" ]] || continue
   n="$(count_pending "$cid")"; n="${n//[^0-9]/}"; n="${n:-0}"
   if (( n > 0 )); then
+    ((total+=n))
+    # contest SUPER SECRETO: conta no total mas NÃO expõe id/nome na página pública
+    contest_is_secret "$cid" && continue
     cname="$( . "$cdir/conf" 2>/dev/null; printf '%s' "${CONTEST_NAME:-$cid}" )"
     LISTS+=("$(jq -cn --arg c "$cid" --arg nm "$cname" --argjson n "$n" '{contest:$c,name:$nm,pending:$n}')")
-    ((total+=n))
   fi
 done
 shopt -u nullglob

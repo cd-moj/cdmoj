@@ -4,6 +4,7 @@
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
+require_not_secret_or_auth "$contest"   # contest secreto: visual do placar exige sessão do contest
 
 emit_json 200 OK
 f="$CONTESTSDIR/$contest/regions.json"

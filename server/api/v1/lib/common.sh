@@ -63,6 +63,19 @@ require_contest() {  # require_contest <id>
 }
 # carrega o conf do contest em variáveis (CONTEST_NAME, CONTEST_TYPE, PROBS, ...)
 load_contest_conf() { source "$CONTESTSDIR/$1/conf"; }
+# contest SUPER SECRETO (conf SECRET=1): fora das listagens públicas (home/arquivo/status);
+# placar e visual (balloons/regions/teams-meta) exigem sessão DO contest. Lido com grep
+# (sem source no caminho quente — padrão do _users_source).
+contest_is_secret() {
+  local v; v="$(grep -m1 '^SECRET=' "$CONTESTSDIR/$1/conf" 2>/dev/null | cut -d= -f2-)"
+  v="${v//\'/}"; v="${v//\"/}"; [[ "$v" == 1 ]]
+}
+# gate dos endpoints públicos quando o contest é secreto: exige sessão válida DAQUELE contest.
+require_not_secret_or_auth() {  # <contest>
+  contest_is_secret "$1" || return 0
+  load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$1" ]] && return 0
+  fail 401 "Contest privado — faça login para ver" "secret_login_required"
+}
 score_mode_of() {  # ecoa o modo de placar do contest (default DEFAULT_SCORE_MODE)
   local t; t="$(. "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${CONTEST_TYPE:-}")"
   case "$t" in

@@ -1742,6 +1742,9 @@
             "content": {
               "text/plain": {}
             }
+          },
+          "401": {
+            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }
@@ -2488,6 +2491,10 @@
                   },
                   "allow_late": {
                     "type": "boolean"
+                  },
+                  "secret": {
+                    "type": "boolean",
+                    "description": "SUPER SECRETO: fora das listagens públicas; placar/visual exigem login no contest"
                   },
                   "login_ua_substring": {
                     "type": "string",

@@ -30,6 +30,8 @@ cat <<'JSON'
   "allow_print": true,
   "score_anon": false,
   "manual_verdict": false,
+  "secret": false,
+  "_secret": "SUPER SECRETO: fora das listagens publicas (home/arquivo/status) e o placar/visual exigem login no contest. A tela de login continua funcionando p/ quem tem o link",
   "allow_late": false,
   "_allow_late": "auto-cadastro de atrasados; mode=treino liga sozinho se voce nao mandar o campo",
   "login_ua_substring": "",

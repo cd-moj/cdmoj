@@ -4,6 +4,9 @@
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
+# contest SUPER SECRETO: o placar deixa de ser público — exige sessão DO contest
+# (gate ANTES do regen preguiçoso: anônimo não gasta rebuild)
+require_not_secret_or_auth "$contest"
 
 f="$CONTESTSDIR/$contest/controle/placar.txt"
 # Cache preguiçoso: (re)gera o placar se a fonte (history/conf) mudou ou se ele

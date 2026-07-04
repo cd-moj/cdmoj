@@ -21,8 +21,9 @@ LINES="$(
     [[ "$id" == treino ]] && continue
     [[ -f "$c/conf" ]] || continue
     (
-      CONTEST_START=""; CONTEST_END=""; CONTEST_NAME=""; PROBS=()
+      CONTEST_START=""; CONTEST_END=""; CONTEST_NAME=""; SECRET=""; PROBS=()
       source "$c/conf" 2>/dev/null
+      [[ "$SECRET" == 1 ]] && exit 0   # SUPER SECRETO: fora de abertos/por vir/encerrados
       [[ -n "$CONTEST_START" && -n "$CONTEST_END" ]] || exit 0
       if   (( CONTEST_END   <= NOW )); then st=e
       elif (( CONTEST_START >  NOW )); then st=u
