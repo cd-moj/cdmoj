@@ -18,10 +18,13 @@ printf '%s' '{"problems":[
  {"id":"bankprob","title":"Banco","owner":"someone","collaborators":[],"public":true},
  {"id":"priv#mine","title":"Prova Secreta Minha","owner":"regular","collaborators":[],"public":false},
  {"id":"priv#collab","title":"Colab Prob","owner":"eve","collaborators":["regular"],"public":false},
- {"id":"priv#other","title":"Alheia","owner":"eve","collaborators":[],"public":false}
+ {"id":"priv#other","title":"Alheia","owner":"eve","collaborators":[],"public":false},
+ {"id":"priv#dup","title":"Despublicado","owner":"regular","collaborators":[],"public":false}
 ]}' > "$T/var/problem-owners.json"
 mkdir -p "$T/var/jsons-private"
 printf '%s' '{"id":"priv#mine","title":"Prova Secreta Minha","statement_html_b64":"PHA+czwvcD4="}' > "$T/var/jsons-private/priv#mine.json"
+# despublicado RECÉM: índice (fresco) diz privado do regular, mas o cache público ainda o lista
+printf '%s' '{"id":"priv#dup","title":"Despublicado","tags":[]}' > "$T/var/jsons/priv#dup.json"
 : > "$T/controle/history"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-reg}" \
@@ -76,6 +79,8 @@ ck "priv#other NÃO aparece"     '[[ "$(jq -r "[.problems[].id]|index(\"priv#oth
 ck "has_statement: mine sim, collab não" '[[ "$(jq -r ".problems[]|select(.id==\"priv#mine\")|.has_statement" <<<"$BODY")" == true && "$(jq -r ".problems[]|select(.id==\"priv#collab\")|.has_statement" <<<"$BODY")" == false ]]'
 call /contest/admin/bank GET '' cadm 'contest=ac-c&q=secreta'
 ck "busca acha privado por título" '[[ "$(jq -r ".problems[0].id" <<<"$BODY")" == "priv#mine" && "$(jq -r .mine <<<"$BODY")" == 1 ]]'
+call /contest/admin/bank GET '' cadm 'contest=ac-c&q=despublicado'
+ck "despublicado no cache não duplica (índice vence)" '[[ "$(jq -r .total <<<"$BODY")" == 1 && "$(jq -r ".problems[0].access" <<<"$BODY")" == mine ]]'
 
 echo "== problemas: add com gate de privado =="
 call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"bankprob","name":"Pub"}}' cadm 'contest=ac-c'

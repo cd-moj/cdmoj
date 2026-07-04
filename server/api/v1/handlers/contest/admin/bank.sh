@@ -53,7 +53,10 @@ out="$(jq -cn --arg q "$q" --arg col "$col" --arg own "$cowner" --argjson n "$li
         | select($acc != null)
         | {id, title:(.title // .id), tags:[], collections:(.collections // []),
            access:$acc, private:true, has_statement:($H[.id]==true)} ] end) as $PRIV
-  | ($PRIV + $P)
+  | ($PRIV | map(.id)) as $pids
+  # despublicado recém: o índice (fresco) diz privado, mas o cache público (TTL) ainda lista —
+  # o índice vence, senão o mesmo problema aparecia duas vezes
+  | ($PRIV + ($P | map(select(.id as $i | ($pids | index($i)) | not))))
   | (if $col != "" then map(select(.collections|index($col))) else . end)
   | (if ($q|length) > 0 then map(select(((.id + " " + (.title // ""))|ascii_downcase)|contains($q|ascii_downcase))) else . end)
   | {problems:(.[0:$n]), total:length,
