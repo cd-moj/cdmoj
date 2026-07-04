@@ -166,8 +166,15 @@ function appearanceTab() {
   return { panel, load };
 }
 
-// ============ Usuários ============
+// ============ Usuários & sessões (usuários + sessões/acessos + backups) ============
 function usersTab() {
+  const users = usersSection(), log = logSection(), backups = backupsSection();
+  const panel = el('div', {}, users.panel, log.panel, backups.panel);
+  async function load() { await Promise.all([users.load(), log.load(), backups.load()]); }
+  return { panel, load };
+}
+
+function usersSection() {
   const panel = el('div', { class: 'section' }, el('h2', {}, '👥 Usuários'));
   const list = el('div', {});
   async function call(path, body) { return apiPost('/contest/admin/' + path + '?contest=' + enc(CONTEST), body, G); }
@@ -220,8 +227,8 @@ function usersTab() {
   return { panel, load };
 }
 
-// ============ Log & sessões ============
-function logTab() {
+// ============ sessões + log de acessos (seção de "Usuários & sessões") ============
+function logSection() {
   const panel = el('div', {});
   async function load() {
     panel.innerHTML = '';
@@ -492,8 +499,8 @@ function auditTab() {
   return { panel, load };
 }
 
-// ============ Backups dos usuários ============
-function backupsTab() {
+// ============ backups dos usuários (seção de "Usuários & sessões") ============
+function backupsSection() {
   const panel = el('div', { class: 'section' });
   async function load() {
     panel.innerHTML = ''; panel.append(el('h2', {}, '💾 Backups dos usuários'));
@@ -555,11 +562,9 @@ const TABS = [
   { id: 'settings', label: '⚙️ Configurações', make: settingsTab },
   { id: 'problems', label: '📚 Problemas', make: problemsTab },
   { id: 'appearance', label: '🎨 Aparência', make: appearanceTab },
-  { id: 'users', label: '👥 Usuários', make: usersTab },
-  { id: 'backups', label: '💾 Backups', make: backupsTab },
+  { id: 'users', label: '👥 Usuários & sessões', make: usersTab },
   { id: 'tasks', label: '🖨️ Tarefas do staff', make: () => makeTasksTab(CONTEST) },
   { id: 'verdict', label: '⚖️ Veredicto manual', make: verdictTab },
-  { id: 'log', label: '📋 Log & sessões', make: logTab },
   { id: 'audit', label: '🧾 Auditoria', make: auditTab },
 ];
 
@@ -583,7 +588,7 @@ async function boot() {
   }
   TABS.forEach((t) => { btn[t.id] = el('button', { onclick: () => show(t.id) }, t.label); tabbar.append(btn[t.id]); });
   // aliases de abas antigas (links salvos não quebram)
-  const ALIAS = { staff: 'tasks' };
+  const ALIAS = { staff: 'tasks', log: 'users', backups: 'users' };
   let want = (location.hash || '').replace('#', '');
   want = ALIAS[want] || want;
   show(TABS.some((t) => t.id === want) ? want : 'settings');
