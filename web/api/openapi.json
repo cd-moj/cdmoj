@@ -3361,7 +3361,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Busca no banco público do treino (só públicos; ?meta=1 devolve tags+coleções agregadas)",
+        "summary": "Busca p/ adicionar problemas: banco público + privados do DONO do contest (mesmo sujeito do gate de add; privados primeiro). ?meta=1 devolve tags+coleções do banco público",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3400,7 +3400,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems:[{id,title,tags,collections}],total} ou {tags,collections}"
+            "description": "{problems:[{id,title,tags,collections,access,private,has_statement}],total,mine,shared} ou {tags,collections}"
           }
         }
       }

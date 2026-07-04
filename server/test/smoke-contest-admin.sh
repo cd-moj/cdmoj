@@ -15,11 +15,13 @@ mkdir -p "$T/var/jsons-private"
 printf '%s' '{"id":"secret#x","title":"Prova Secreta","tags":[]}' > "$T/var/jsons-private/secret#x.json"
 # índice de owners (fresco => ensure_owners_index não regenera): público + privados p/ o gate do add
 printf '%s' '{"problems":[
- {"id":"bankprob","owner":"someone","collaborators":[],"public":true},
- {"id":"priv#mine","owner":"regular","collaborators":[],"public":false},
- {"id":"priv#collab","owner":"eve","collaborators":["regular"],"public":false},
- {"id":"priv#other","owner":"eve","collaborators":[],"public":false}
+ {"id":"bankprob","title":"Banco","owner":"someone","collaborators":[],"public":true},
+ {"id":"priv#mine","title":"Prova Secreta Minha","owner":"regular","collaborators":[],"public":false},
+ {"id":"priv#collab","title":"Colab Prob","owner":"eve","collaborators":["regular"],"public":false},
+ {"id":"priv#other","title":"Alheia","owner":"eve","collaborators":[],"public":false}
 ]}' > "$T/var/problem-owners.json"
+mkdir -p "$T/var/jsons-private"
+printf '%s' '{"id":"priv#mine","title":"Prova Secreta Minha","statement_html_b64":"PHA+czwvcD4="}' > "$T/var/jsons-private/priv#mine.json"
 : > "$T/controle/history"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-reg}" \
@@ -65,6 +67,16 @@ ck "removeu u9"         '[[ "$(jq -r .removed <<<"$BODY")" == "true" ]] && ! gre
 call /contest/admin/user-remove POST '{"login":"boss.admin"}' cadm 'contest=ac-c'
 ck "não remove a si mesmo 409" '[[ "$OUT" == *"Status: 409"* ]]'
 
+echo "== bank: busca unificada (privados do dono do contest) =="
+call /contest/admin/bank GET '' cadm 'contest=ac-c'
+ck "privados do dono vêm primeiro" '[[ "$(jq -r ".problems[0].private" <<<"$BODY")" == true ]]'
+ck "priv#mine com título e access:mine" '[[ "$(jq -r ".problems[]|select(.id==\"priv#mine\")|.title" <<<"$BODY")" == "Prova Secreta Minha" && "$(jq -r ".problems[]|select(.id==\"priv#mine\")|.access" <<<"$BODY")" == mine ]]'
+ck "priv#collab access:shared"  '[[ "$(jq -r ".problems[]|select(.id==\"priv#collab\")|.access" <<<"$BODY")" == shared ]]'
+ck "priv#other NÃO aparece"     '[[ "$(jq -r "[.problems[].id]|index(\"priv#other\")" <<<"$BODY")" == null ]]'
+ck "has_statement: mine sim, collab não" '[[ "$(jq -r ".problems[]|select(.id==\"priv#mine\")|.has_statement" <<<"$BODY")" == true && "$(jq -r ".problems[]|select(.id==\"priv#collab\")|.has_statement" <<<"$BODY")" == false ]]'
+call /contest/admin/bank GET '' cadm 'contest=ac-c&q=secreta'
+ck "busca acha privado por título" '[[ "$(jq -r ".problems[0].id" <<<"$BODY")" == "priv#mine" && "$(jq -r .mine <<<"$BODY")" == 1 ]]'
+
 echo "== problemas: add com gate de privado =="
 call /contest/admin/problems POST '{"action":"add","problem":{"bank_id":"bankprob","name":"Pub"}}' cadm 'contest=ac-c'
 ck "add público 200"            '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]]'
@@ -87,6 +99,7 @@ call /contest/admin/bank GET '' cadm 'contest=ac-c&collection=Prova%201'
 ck "bank filtra por coleção"    '[[ "$(jq -r .total <<<"$BODY")" == 1 && "$(jq -r ".problems[0].id" <<<"$BODY")" == "apc#vet" ]]'
 call /contest/admin/bank GET '' cadm 'contest=ac-c'
 ck "privado NÃO aparece no bank" '[[ "$(jq -r "[.problems[].id]|index(\"secret#x\")" <<<"$BODY")" == null ]]'
+ck "sem owner: busca não lista privados" '[[ "$(jq -r "[.problems[]|select(.private)]|length" <<<"$BODY")" == 0 ]]'
 call /contest/admin/bank GET '' cadm 'contest=ac-c&meta=1'
 ck "meta=1: tags e coleções"    '[[ "$(jq -r ".collections[0].collection" <<<"$BODY")" == "Prova 1" && "$(jq -r ".tags|length" <<<"$BODY")" -ge 2 ]]'
 call /contest/admin/bank GET '' cuser 'contest=ac-c'
