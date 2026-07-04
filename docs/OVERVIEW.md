@@ -134,7 +134,7 @@ Login (com gate opcional por substring de **User-Agent**), página principal (pr
 submissão + editor que o admin pode desligar), **placar** multi-modo (icpc/obi/treino/
 heurístico/outro) com bandeiras locais, filtro por país/escola, modo **anônimo** (agregado/
 quartis), **freeze** (esconde resultados após o horário; `build.sh` gera `placar.txt` público
-congelado e `placar-full.txt` completo — `.admin`/`.judge` + allowlist `SCORE_FULL_USERS` veem
+congelado e `placar-full.txt` completo — `.admin`/`.judge`/`.cjudge` + allowlist `SCORE_FULL_USERS` veem
 o completo), tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Usuários comuns
 têm no menu uma página própria de **Backup de arquivos** (`/contest/backup/`) p/ guardar versões de
 solução (não polui a home); o admin vê/baixa todos na aba **Backups** (zip por usuário). Quando há

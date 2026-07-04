@@ -36,7 +36,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     allowPrint = mkBool(s.allow_print !== false), manualVerdict = mkBool(s.manual_verdict === true);
   const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
   const langs = makeLangPicker(s.languages || []);
-  const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge', style: 'width:100%' });
+  const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge/.cjudge', style: 'width:100%' });
 
   const box = el('div', {});
   if (!isCreate) {
@@ -61,7 +61,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     el('p', { class: 'muted small' }, 'Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)'),
     langs.el,
     el('h3', { style: 'margin:1rem 0 .3rem' }, '👁️ Placar completo (sem freeze)'),
-    el('p', { class: 'muted small' }, 'Quem vê o placar real mesmo durante o freeze: .admin e .judge sempre; some outros logins aqui.'),
+    el('p', { class: 'muted small' }, 'Quem vê o placar real mesmo durante o freeze: .admin, .judge e .cjudge (juiz-chefe) sempre; some outros logins aqui.'),
     fullUsers);
 
   function getValue() {
