@@ -5,7 +5,10 @@ ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; ND="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$ND"' EXIT
 T="$FIX/treino"; mkdir -p "$T/var"
 printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
-printf 'boss.admin:p:Boss Admin\nvictim:s:Victim\nregular:s:Regular\n' > "$T/passwd"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+fx_user "$T" boss.admin p "Boss Admin"
+fx_user "$T" victim s "Victim"
+fx_user "$T" regular s "Regular"
 printf 'CONTEST=treino\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=treino\nLOGIN=victim\nLOGINAT=1\nIP=1.1.1.1\n' > "$SESS/vic"
 printf 'CONTEST=treino\nLOGIN=regular\nLOGINAT=1\n' > "$SESS/reg"

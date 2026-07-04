@@ -5,14 +5,15 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
-T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/controle"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
-printf 'boss.admin:p:Boss\nregular:s:Regular\n' > "$T/passwd"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+T="$FIX/treino"; mkdir -p "$T/var/jsons"
+printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
+fx_user "$T" boss.admin p "Boss"
+fx_user "$T" regular s "Regular"
 printf '{"threshold":0,"allow":["regular"],"deny":[]}' > "$T/var/contest-perms.json"
 printf 'CONTEST=treino\nLOGIN=regular\nUSERFULLNAME=Regular\nLOGINAT=1\n' > "$SESS/reg"
 printf '%s' '{"id":"bankprob","title":"Banco","tags":[],"statement_html_b64":"PGgxPm9pPC9oMT4="}' > "$T/var/jsons/bankprob.json"
 printf '%s' '{"problems":[{"id":"bankprob","title":"Banco","owner":"x","collaborators":[],"public":true}]}' > "$T/var/problem-owners.json"
-: > "$T/controle/history"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"
@@ -35,8 +36,9 @@ echo "== listagens públicas =="
 call /index/contests GET '' '' ''
 ck "home não lista o secreto"   '[[ "$(jq -r "[.open[].id, .upcoming[].id, .closed.items[].id]|index(\"sec-c\")" <<<"$BODY")" == null ]]'
 ck "home lista o visível"       '[[ "$(jq -r "[.open[].id]|index(\"vis-c\")" <<<"$BODY")" != null ]]'
-printf '0:aluno1:bankprob:C:Not Answered Yet:0:s1\n' > "$FIX/sec-c/controle/history"
-printf '0:aluno2:bankprob:C:Not Answered Yet:0:s2\n' > "$FIX/vis-c/controle/history"
+mkdir -p "$FIX/sec-c/users/aluno1" "$FIX/vis-c/users/aluno2"
+printf '0:bankprob:C:Not Answered Yet:0:s1\n' > "$FIX/sec-c/users/aluno1/history"
+printf '0:bankprob:C:Not Answered Yet:0:s2\n' > "$FIX/vis-c/users/aluno2/history"
 call /index/status GET '' '' ''
 ck "status não expõe o secreto" '[[ "$(jq -r "[.queue.lists[].contest]|index(\"sec-c\")" <<<"$BODY")" == null ]]'
 ck "status lista o visível"     '[[ "$(jq -r "[.queue.lists[].contest]|index(\"vis-c\")" <<<"$BODY")" != null ]]'

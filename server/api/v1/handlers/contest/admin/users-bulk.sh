@@ -5,7 +5,7 @@
 # on_existing=update troca senha/nome/email de conta existente, MAS conta PRIVILEGIADA
 # existente (is_reserved_role_login) NUNCA é tocada (skipped: privileged — não resetar
 # admin/juízes em massa); CRIAR privilegiada nova é permitido (staff em lote, como o user-add).
-# Legado: passwd reescrito UMA vez; store v2: account.json por conta + UM regen_passwd no fim.
+# Legado: passwd reescrito UMA vez; store v2: um account.json por conta.
 # Resposta: {created:[{login,password,fullname,email}], updated:[…],
 #            skipped:[{login,reason:exists|privileged|invalid|duplicate}], counts}.
 require_method POST
@@ -70,8 +70,7 @@ while IFS= read -r u; do
   else
     [[ -z "$pass" ]] && pass="$(cc_genpass)"
     if (( V2 )); then
-      # criação SEM regen por conta (user_create regenera a cada chamada — O(n²) num lote);
-      # mesmo shape do user_create em lib/users.sh; regen_passwd UMA vez no fim.
+      # criação inline (mesmo shape do user_create em lib/users.sh)
       d="$(user_dir "$contest" "$login")"
       mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || { skipj "$login" invalid; continue; }
       jq -cn --arg l "$login" --arg p "$pass" --arg n "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
@@ -87,7 +86,7 @@ while IFS= read -r u; do
 done < <(jq -c '(.users // [])[]' <<<"$body")
 
 if (( V2 )); then
-  regen_passwd "$contest"
+  :   # account.json é a fonte — nada global a regenerar
 else
   # merge numa passada: substitui as linhas com update e anexa as criadas (ordem do lote)
   tmp="$(mktemp "${pwfile}.XXXXXX")" || { rm -rf "$tmpd"; fail 500 "tmp" "tmp"; }

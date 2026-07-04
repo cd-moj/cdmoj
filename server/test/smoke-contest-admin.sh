@@ -4,9 +4,11 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
-T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/controle"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
-printf 'boss.admin:p:Boss\nregular:s:Regular\n' > "$T/passwd"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+T="$FIX/treino"; mkdir -p "$T/var/jsons"
+printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
+fx_user "$T" boss.admin p "Boss"
+fx_user "$T" regular s "Regular"
 printf '{"threshold":0,"allow":["regular"],"deny":[]}' > "$T/var/contest-perms.json"
 printf 'CONTEST=treino\nLOGIN=regular\nUSERFULLNAME=Regular\nLOGINAT=1\n' > "$SESS/reg"
 printf '%s' '{"id":"bankprob","title":"Banco","tags":["#x"],"statement_html_b64":"PGgxPm9pPC9oMT4="}' > "$T/var/jsons/bankprob.json"
@@ -25,7 +27,6 @@ mkdir -p "$T/var/jsons-private"
 printf '%s' '{"id":"priv#mine","title":"Prova Secreta Minha","statement_html_b64":"PHA+czwvcD4="}' > "$T/var/jsons-private/priv#mine.json"
 # despublicado RECÉM: índice (fresco) diz privado do regular, mas o cache público ainda o lista
 printf '%s' '{"id":"priv#dup","title":"Despublicado","tags":[]}' > "$T/var/jsons/priv#dup.json"
-: > "$T/controle/history"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-reg}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"
@@ -62,11 +63,11 @@ call /contest/admin/users GET '' cadm 'contest=ac-c'
 ck "lista tem boss.admin" '[[ "$(jq -r ".users[]|select(.login==\"boss.admin\")|.admin" <<<"$BODY")" == "true" ]]'
 call /contest/admin/user-add POST '{"login":"u9","fullname":"U Nine"}' cadm 'contest=ac-c'
 ck "add u9 + senha gerada" '[[ "$(jq -r .user.login <<<"$BODY")" == "u9" && -n "$(jq -r .user.password <<<"$BODY")" ]]'
-ck "passwd tem u9"      'grep -q "^u9:" "$FIX/ac-c/passwd"'
+ck "store tem u9"       '[[ -f "$FIX/ac-c/users/u9/account.json" ]]'
 call /contest/admin/user-add POST '{"login":"u9","password":"reset123","fullname":"U Nine"}' cadm 'contest=ac-c'
-ck "reset senha u9"     'grep -q "^u9:reset123:" "$FIX/ac-c/passwd"'
+ck "reset senha u9"     '[[ "$(jq -r .password "$FIX/ac-c/users/u9/account.json")" == "reset123" ]]'
 call /contest/admin/user-remove POST '{"login":"u9"}' cadm 'contest=ac-c'
-ck "removeu u9"         '[[ "$(jq -r .removed <<<"$BODY")" == "true" ]] && ! grep -q "^u9:" "$FIX/ac-c/passwd"'
+ck "removeu u9"         '[[ "$(jq -r .removed <<<"$BODY")" == "true" && ! -e "$FIX/ac-c/users/u9" ]]'
 call /contest/admin/user-remove POST '{"login":"boss.admin"}' cadm 'contest=ac-c'
 ck "não remove a si mesmo 409" '[[ "$OUT" == *"Status: 409"* ]]'
 

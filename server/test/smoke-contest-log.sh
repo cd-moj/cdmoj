@@ -3,9 +3,11 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/lc"; mkdir -p "$C/var"
-printf 'CONTEST_ID=lc\nCONTEST_TYPE=icpc\nLOGIN_UA_SUBSTRING=MOJBOX\n' > "$C/conf"
-printf 'lc.admin:p:Admin\nalice:a:Alice\n' > "$C/passwd"
+printf 'CONTEST_ID=lc\nCONTEST_TYPE=icpc\nLOGIN_UA_SUBSTRING=MOJBOX\nUSER_STORE=v2\n' > "$C/conf"
+fx_user "$C" lc.admin p "Admin"
+fx_user "$C" alice a "Alice"
 b64(){ printf '%s' "$1" | base64 -w0; }
 # sessões: alice de 2 IPs/UAs (anomalia) + admin
 printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\nIP=%q\nUA_B64=%q\n' lc alice Alice 100 1.1.1.1 "$(b64 Browser1)" > "$SESS/s1"

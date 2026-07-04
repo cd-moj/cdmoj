@@ -15,7 +15,6 @@ if store_v2 "$contest"; then
   user_exists "$contest" "$login" || fail 404 "Usuário não encontrado" "notfound"
   trash="$CONTESTSDIR/$contest/.removed-users"; mkdir -p "$trash"
   mv "$(user_dir "$contest" "$login")" "$trash/$login-$EPOCHSECONDS" || fail 500 "Falha ao remover" "write_fail"
-  regen_passwd "$contest"
 else
   pw="$CONTESTSDIR/$contest/passwd"
   grep -q "^$login:" "$pw" 2>/dev/null || fail 404 "Usuário não encontrado" "notfound"

@@ -55,24 +55,31 @@ _users_source() {
   local c="$1" line src
   line="$(grep -m1 '^USERS_FROM=' "$CONTESTSDIR/$c/conf" 2>/dev/null)"
   src="${line#USERS_FROM=}"; src="${src%\'}"; src="${src#\'}"; src="${src%\"}"; src="${src#\"}"
-  if [[ -n "$src" ]] && valid_id "$src" && [[ "$src" != "$c" ]] && [[ -f "$CONTESTSDIR/$src/passwd" ]]; then
+  if [[ -n "$src" ]] && valid_id "$src" && [[ "$src" != "$c" ]] && [[ -d "$CONTESTSDIR/$src/users" ]]; then
     printf '%s' "$src"
   else printf '%s' "$c"; fi
 }
 
-# verify_password <contest> <login> <pass> — confere o passwd do PRÓPRIO contest (admin +
-# usuários específicos) e, se houver USERS_FROM, cai para o passwd compartilhado (ex.: treino).
+# verify_password <contest> <login> <pass> — confere o users/<login>/account.json do PRÓPRIO
+# contest (O(1)) e, se houver USERS_FROM, cai para a fonte compartilhada (ex.: treino).
+# valid_id no login ANTES de montar caminho (input do usuário — sem traversal). Senha com
+# prefixo '!' = conta desativada (o literal nunca casa com o que o usuário digita).
 verify_password() {
-  cut -d: -f1,2 "$CONTESTSDIR/$1/passwd" 2>/dev/null | grep -qxF -- "$2:$3" && return 0
+  valid_id "$2" || return 1
+  local p
+  p="$(jq -r '.password // empty' "$CONTESTSDIR/$1/users/$2/account.json" 2>/dev/null)"
+  [[ -n "$p" && "$p" == "$3" ]] && return 0
   local src; src="$(_users_source "$1")"
   [[ "$src" != "$1" ]] || return 1
-  cut -d: -f1,2 "$CONTESTSDIR/$src/passwd" 2>/dev/null | grep -qxF -- "$2:$3"
+  p="$(jq -r '.password // empty' "$CONTESTSDIR/$src/users/$2/account.json" 2>/dev/null)"
+  [[ -n "$p" && "$p" == "$3" ]]
 }
-user_fullname() {  # <contest> <login> — passwd próprio primeiro, depois USERS_FROM
-  local n; n="$(awk -F: -v u="$2" '$1==u{print $3; exit}' "$CONTESTSDIR/$1/passwd" 2>/dev/null)"
+user_fullname() {  # <contest> <login> — account.json próprio primeiro, depois USERS_FROM
+  valid_id "$2" || return 1
+  local n; n="$(jq -r '.fullname // empty' "$CONTESTSDIR/$1/users/$2/account.json" 2>/dev/null)"
   [[ -n "$n" ]] && { printf '%s' "$n"; return; }
   local src; src="$(_users_source "$1")"
-  [[ "$src" != "$1" ]] && awk -F: -v u="$2" '$1==u{print $3; exit}' "$CONTESTSDIR/$src/passwd" 2>/dev/null
+  [[ "$src" != "$1" ]] && jq -r '.fullname // empty' "$CONTESTSDIR/$src/users/$2/account.json" 2>/dev/null
 }
 
 # IP do cliente: 1º hop de X-Forwarded-For, senão X-Real-IP/REMOTE_ADDR.

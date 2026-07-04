@@ -41,13 +41,12 @@ _alert_daemon_up(){ pgrep -f 'server/daemons/judged.sh' >/dev/null 2>&1 && echo 
 # --- destinos: .admin do treino com Telegram vinculado --------------------
 # alerts_admin_chats -> ecoa chat_ids (um por linha) dos .admin com by-login/<login>.
 alerts_admin_chats(){
-  local pw="$CONTESTSDIR/treino/passwd" login cid
-  [[ -f "$pw" ]] || return 0
-  while IFS=: read -r login _; do
+  local login cid
+  while IFS= read -r login; do
     [[ "$login" == *.admin ]] || continue
     cid="$(tg_id_of_login treino "$login" 2>/dev/null)"
     [[ -n "$cid" ]] && printf '%s\n' "$cid"
-  done < "$pw" | sort -u
+  done < <(list_users treino) | sort -u
 }
 
 # --- máquina de estados por condição --------------------------------------

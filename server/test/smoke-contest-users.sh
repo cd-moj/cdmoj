@@ -4,16 +4,19 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
-T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/controle"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
-printf 'boss.admin:p:Boss\nregular:s:Regular User\n' > "$T/passwd"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+T="$FIX/treino"; mkdir -p "$T/var/jsons"
+printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
+fx_user "$T" boss.admin p "Boss"
+fx_user "$T" regular s "Regular User"
 printf '{"threshold":0,"allow":["regular"],"deny":[]}' > "$T/var/contest-perms.json"
 printf 'CONTEST=treino\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=treino\nLOGIN=regular\nUSERFULLNAME=Regular User\nLOGINAT=1\n' > "$SESS/reg"
 printf '%s' '{"id":"bankprob","title":"Banco Prob","tags":["#x","#easy"],"statement_html_b64":"PGgxPm9pPC9oMT4="}' > "$T/var/jsons/bankprob.json"
 printf '%s' '{"id":"p2","title":"Problema Dois","tags":["#x"]}' > "$T/var/jsons/p2.json"
 printf '%s' '{"id":"p3","title":"Problema Tres","tags":["#y"]}' > "$T/var/jsons/p3.json"
-{ printf '1:regular:bankprob:C:Accepted,100p:1:h1\n'; printf '2:boss.admin:bankprob:C:Accepted,100p:2:h2\n'; printf '3:regular:p2:C:Wrong Answer:3:h3\n'; } > "$T/controle/history"
+{ printf '1:bankprob:C:Accepted,100p:1:h1\n'; printf '3:p2:C:Wrong Answer:3:h3\n'; } > "$T/users/regular/history"
+printf '2:bankprob:C:Accepted,100p:2:h2\n' > "$T/users/boss.admin/history"
 
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-reg}" \
@@ -48,8 +51,8 @@ ck "criou own-c"        '[[ "$(jq -r .contest_id <<<"$BODY")" == "own-c" ]]'
 ck "admin = chief.admin" '[[ "$(jq -r .admin_login <<<"$BODY")" == "chief.admin" ]]'
 ck "3 credenciais"      '[[ "$(jq -r .users_count <<<"$BODY")" == 3 ]]'
 ck "u1 ganhou senha"    '[[ -n "$(jq -r ".users[]|select(.login==\"u1\")|.password" <<<"$BODY")" ]]'
-ck "passwd: chief.admin:sek123" 'grep -q "^chief.admin:sek123:Chief" "$FIX/own-c/passwd"'
-ck "passwd: u2 com email" 'grep -q "^u2:p2pass:User Two:u2@x.com" "$FIX/own-c/passwd"'
+ck "store: chief.admin:sek123" '[[ "$(jq -r .password "$FIX/own-c/users/chief.admin/account.json")" == "sek123" ]]'
+ck "store: u2 com email" '[[ "$(jq -r .email "$FIX/own-c/users/u2/account.json")" == "u2@x.com" && "$(jq -r .password "$FIX/own-c/users/u2/account.json")" == "p2pass" ]]'
 
 echo "== criar compartilhado (USERS_FROM=treino) + login fallback =="
 SPEC2="{\"id\":\"shared-c\",\"name\":\"Shared\",\"mode\":\"icpc\",\"end\":$FUT,\"users_from\":\"treino\",\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"P1\",\"letter\":\"A\"}]}"
@@ -58,7 +61,7 @@ ADMPW="$(jq -r .admin_password <<<"$BODY")"
 ck "criou shared-c"     '[[ "$(jq -r .contest_id <<<"$BODY")" == "shared-c" ]]'
 ck "users_from=treino"  '[[ "$(jq -r .users_from <<<"$BODY")" == "treino" ]]'
 ck "conf tem USERS_FROM" 'grep -q "^USERS_FROM=treino" "$FIX/shared-c/conf"'
-ck "passwd só tem o admin (1 linha)" '[[ "$(wc -l < "$FIX/shared-c/passwd")" == 1 ]]'
+ck "store só tem o admin (1 conta)" '[[ "$(ls "$FIX/shared-c/users" | wc -l)" == 1 ]]'
 login shared-c regular s
 ck "login fallback (treino) ok" '[[ "$(jq -r .logged_in <<<"$LBODY")" == "true" ]]'
 login shared-c regular.admin "$ADMPW"
@@ -71,7 +74,7 @@ SPEC3="{\"id\":\"empty-c\",\"name\":\"Empty\",\"mode\":\"icpc\",\"end\":$FUT,\"a
 call /treino/contest-create/create POST "$SPEC3" reg
 ck "criou vazio"        '[[ "$(jq -r .contest_id <<<"$BODY")" == "empty-c" ]]'
 ck "0 problemas"        '[[ "$(jq -r .problems <<<"$BODY")" == 0 && "$( . "$FIX/empty-c/conf"; echo ${#PROBS[@]} )" == 0 ]]'
-ck "tem admin no passwd" 'grep -q "^regular.admin:" "$FIX/empty-c/passwd"'
+ck "tem admin no store" '[[ -f "$FIX/empty-c/users/regular.admin/account.json" ]]'
 call /treino/contest-create/create POST "{\"name\":\"NoProb\",\"mode\":\"icpc\",\"end\":$FUT}" reg
 ck "sem problema e sem allow_empty 422" '[[ "$OUT" == *"Status: 422"* ]]'
 

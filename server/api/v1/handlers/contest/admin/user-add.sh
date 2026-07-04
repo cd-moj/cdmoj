@@ -19,12 +19,11 @@ valid_id "$login" || fail 422 "login inválido" "login_invalid"
 case "$pass$full$email" in *:*) fail 422 "senha/nome/email não podem conter ':'" "colon";; esac
 
 if store_v2 "$contest"; then
-  # store por-usuário: account.json é a fonte; o passwd derivado sai do regen_passwd
+  # store por-usuário: account.json é a fonte (auth/placar leem direto dele)
   if user_exists "$contest" "$login"; then
     account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t' \
       --arg p "$pass" --arg f "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
       || fail 500 "Falha ao gravar" "write_fail"
-    regen_passwd "$contest"
   else
     user_create "$contest" "$login" "$full" "$pass" "$email" || fail 500 "Falha ao criar" "write_fail"
   fi

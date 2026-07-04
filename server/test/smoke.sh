@@ -7,11 +7,13 @@ ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"   # .../server
 ROUTER="$ROOT/api/v1/router.sh"
 REALCONTESTS="${REALCONTESTS:-/home/ribas/moj/contests}"
 
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"
 trap 'rm -rf "$FIX" "$SESS"' EXIT
-mkdir -p "$FIX/smoke/controle"
-printf 'CONTEST_ID=smoke\nCONTEST_NAME="Smoke"\nCONTEST_TYPE=icpc\n' > "$FIX/smoke/conf"
-printf 'alice:secret:Alice Tester\nbob.admin:pw:Bob Admin\n' > "$FIX/smoke/passwd"
+mkdir -p "$FIX/smoke/var"
+printf 'CONTEST_ID=smoke\nCONTEST_NAME="Smoke"\nCONTEST_TYPE=icpc\nUSER_STORE=v2\n' > "$FIX/smoke/conf"
+fx_user "$FIX/smoke" alice secret "Alice Tester"
+fx_user "$FIX/smoke" bob.admin pw "Bob Admin"
 
 pass=0; fail=0
 check(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1"; echo "      out: $OUT" | head -c 400; echo; ((fail++)); fi; }
@@ -58,7 +60,7 @@ call "/submit" POST "contest=smoke" "$TOKEN" '{"problem_id":"smoke-p1","filename
 SID="$(printf '%s' "$BODY" | jq -r '.submission_id // empty')"
 check "submit returns submission_id+queued" '[[ -n "$SID" && "$BODY" == *\"status\":\"queued\"* ]]'
 check "spool file created" '[[ -n "$(ls "$FIX"/spool/smoke:*:submit:smoke-p1:C 2>/dev/null)" ]]'
-check "history got Not Answered Yet" 'grep -q "Not Answered Yet" "$FIX/smoke/controle/history"'
+check "history got Not Answered Yet" 'grep -q "Not Answered Yet" "$FIX/smoke/users/alice/history"'
 
 echo ""
 echo "RESULT: $pass passed, $fail failed"

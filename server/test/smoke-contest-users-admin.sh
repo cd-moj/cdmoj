@@ -3,9 +3,15 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/uc"; mkdir -p "$C/var"
-printf 'CONTEST_ID=uc\nCONTEST_TYPE=icpc\nLOGIN_UA_SUBSTRING=MOJBOX\n' > "$C/conf"
-printf 'uc.admin:p:Admin\nalice:a:Alice\nbob:b:Bob\ncarol:c:Carol\njx.judge:p:Judge\ncj.cjudge:p:Chief\n' > "$C/passwd"
+printf 'CONTEST_ID=uc\nCONTEST_TYPE=icpc\nLOGIN_UA_SUBSTRING=MOJBOX\nUSER_STORE=v2\n' > "$C/conf"
+fx_user "$C" uc.admin p "Admin"
+fx_user "$C" alice a "Alice"
+fx_user "$C" bob b "Bob"
+fx_user "$C" carol c "Carol"
+fx_user "$C" jx.judge p "Judge"
+fx_user "$C" cj.cjudge p "Chief"
 b64(){ printf '%s' "$1" | base64 -w0; }
 mkses(){ printf 'CONTEST=uc\nLOGIN=%q\nUSERFULLNAME=x\nLOGINAT=1\nIP=1.1.1.1\nUA_B64=%q\n' "$2" "$(b64 "$3")" > "$SESS/$1"; }
 printf 'CONTEST=uc\nLOGIN=uc.admin\nLOGINAT=1\n' > "$SESS/adm"
@@ -23,7 +29,7 @@ ck "removeu 2 sessões da alice" '[[ "$(jq -r .sessions_removed <<<"$BODY")" == 
 echo "== desabilitar =="
 call /contest/admin/user-disable POST '{"login":"bob"}' adm 'contest=uc'
 ck "bob desabilitado"        '[[ "$(jq -r .disabled <<<"$BODY")" == "true" ]]'
-ck "passwd bob começa com !" 'grep -q "^bob:!" "$C/passwd"'
+ck "passwd bob começa com !" '[[ "$(jq -r .password "$C/users/bob/account.json")" == \!* ]]'
 call /contest/admin/user-disable POST '{"login":"jx.judge"}' adm 'contest=uc'
 ck "não desabilita privilegiado 403" '[[ "$OUT" == *"Status: 403"* ]]'
 call /contest/admin/user-disable POST '{"login":"cj.cjudge"}' adm 'contest=uc'
@@ -34,13 +40,13 @@ ck "users: bob disabled=true"  '[[ "$(jq -r ".users[]|select(.login==\"bob\")|.d
 echo "== troca de senha geral =="
 call /contest/admin/users-set-password POST '{"password":"prova2026"}' adm 'contest=uc'
 ck "trocou 2 (alice,carol; pula priv/disabled)" '[[ "$(jq -r .count <<<"$BODY")" == 2 ]]'
-ck "alice:prova2026"         'grep -q "^alice:prova2026:" "$C/passwd"'
-ck "bob continua desabilitado" 'grep -q "^bob:!" "$C/passwd"'
-ck "admin intacto"           'grep -q "^uc.admin:p:" "$C/passwd"'
-ck ".cjudge intacto"         'grep -q "^cj.cjudge:p:" "$C/passwd"'
+ck "alice:prova2026"         '[[ "$(jq -r .password "$C/users/alice/account.json")" == "prova2026" ]]'
+ck "bob continua desabilitado" '[[ "$(jq -r .password "$C/users/bob/account.json")" == \!* ]]'
+ck "admin intacto"           '[[ "$(jq -r .password "$C/users/uc.admin/account.json")" == "p" ]]'
+ck ".cjudge intacto"         '[[ "$(jq -r .password "$C/users/cj.cjudge/account.json")" == "p" ]]'
 call /contest/admin/users-set-password POST '{"password":"secreta","include_disabled":true}' adm 'contest=uc'
 ck "com include_disabled troca 3" '[[ "$(jq -r .count <<<"$BODY")" == 3 ]]'
-ck "bob reabilitado (secreta)" 'grep -q "^bob:secreta:" "$C/passwd"'
+ck "bob reabilitado (secreta)" '[[ "$(jq -r .password "$C/users/bob/account.json")" == "secreta" ]]'
 
 echo "== deslogar UA divergente =="
 mkses a3 alice "Moz MOJBOX ok"   # alice com UA bom
@@ -55,13 +61,13 @@ call /contest/admin/users-bulk POST '{"users":[{"login":"nova1","fullname":"Nova
 ck "criou 2 (nova1,nova2)"     '[[ "$(jq -r .counts.created <<<"$BODY")" == 2 ]]'
 ck "nova1 com senha gerada"    '[[ -n "$(jq -r ".created[]|select(.login==\"nova1\").password" <<<"$BODY")" ]]'
 ck "nova2 mantém senha dada"   '[[ "$(jq -r ".created[]|select(.login==\"nova2\").password" <<<"$BODY")" == "pw2" ]]'
-ck "passwd tem nova1 e nova2"  'grep -q "^nova1:" "$C/passwd" && grep -q "^nova2:pw2:Nova Dois:n2@x.com" "$C/passwd"'
+ck "passwd tem nova1 e nova2"  '[[ -f "$C/users/nova1/account.json" && "$(jq -r .password "$C/users/nova2/account.json")" == "pw2" && "$(jq -r .email "$C/users/nova2/account.json")" == "n2@x.com" ]]'
 ck "skip: alice existe"        '[[ "$(jq -r ".skipped[]|select(.login==\"alice\").reason" <<<"$BODY")" == exists ]]'
 ck "skip: login inválido"      '[[ "$(jq -r ".skipped[]|select(.login==\"inv@lido!\").reason" <<<"$BODY")" == invalid ]]'
 ck "skip: duplicado no lote"   '[[ "$(jq -r "[.skipped[]|select(.reason==\"duplicate\")]|length" <<<"$BODY")" == 1 ]]'
 call /contest/admin/users-bulk POST '{"on_existing":"update","users":[{"login":"alice","password":"alnova","fullname":"Alice Nova"},{"login":"jx.judge","password":"hack"}]}' adm 'contest=uc'
-ck "update troca a alice"      '[[ "$(jq -r .counts.updated <<<"$BODY")" == 1 ]] && grep -q "^alice:alnova:Alice Nova" "$C/passwd"'
-ck "update NÃO toca privilegiado" '[[ "$(jq -r ".skipped[]|select(.login==\"jx.judge\").reason" <<<"$BODY")" == privileged ]] && grep -q "^jx.judge:p:" "$C/passwd"'
+ck "update troca a alice"      '[[ "$(jq -r .counts.updated <<<"$BODY")" == 1 ]] && [[ "$(jq -r .password "$C/users/alice/account.json")" == "alnova" && "$(jq -r .fullname "$C/users/alice/account.json")" == "Alice Nova" ]]'
+ck "update NÃO toca privilegiado" '[[ "$(jq -r ".skipped[]|select(.login==\"jx.judge\").reason" <<<"$BODY")" == privileged ]] && [[ "$(jq -r .password "$C/users/jx.judge/account.json")" == "p" ]]'
 call /contest/admin/users GET '' adm 'contest=uc'
 ck "lista reflete nova1"       '[[ "$(jq -r ".users[]|select(.login==\"nova1\")|.login" <<<"$BODY")" == nova1 ]]'
 call /contest/admin/users-bulk POST '{"users":[{"login":"x1"}]}' dave 'contest=uc'

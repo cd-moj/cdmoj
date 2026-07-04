@@ -5,10 +5,12 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$SPOOL"' EXIT
-T="$FIX/treino"; mkdir -p "$T/controle" "$T/var/profiles"
-printf 'CONTEST_ID=treino\n' > "$T/conf"
-printf 'ribas:x:Ribas\nalice:x:Alice\n' > "$T/passwd"
-printf '{"favorite_editor":"vim"}' > "$T/var/profiles/ribas.json"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+T="$FIX/treino"; mkdir -p "$T/var"
+printf 'CONTEST_ID=treino\nUSER_STORE=v2\n' > "$T/conf"
+fx_user "$T" ribas x "Ribas"
+fx_user "$T" alice x "Alice"
+jq '.favorite_editor="vim"' "$T/users/ribas/account.json" > "$T/users/ribas/account.json.n" && mv "$T/users/ribas/account.json.n" "$T/users/ribas/account.json"
 printf 'CONTEST=treino\nLOGIN=ribas\nLOGINAT=1\n' > "$SESS/tok"
 
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-tok}" \
@@ -25,10 +27,10 @@ ck "editores = web,vim,web" '[[ "$(awk -F: "{print \$4}" "$T/var/editor-log" | p
 
 echo "== open_training: most_used_editor_prev_week =="
 LW=$(date -d 'last-sunday' +%s); PREV=$((LW-3*86400)); THIS=$((LW+3600))
-{ printf '10:alice:p#a:C:Accepted,100p:%s:s1\n' "$PREV"
-  printf '10:ribas:p#a:C:Accepted,100p:%s:s2\n' "$PREV"
-  printf '10:alice:p#b:PY:Accepted,100p:%s:s3\n' "$PREV"
-  printf '10:ribas:p#c:C:Accepted,100p:%s:s4\n' "$THIS"; } > "$T/controle/history"   # s4 = esta semana
+{ printf '10:p#a:C:Accepted,100p:%s:s1\n' "$PREV"
+  printf '10:p#b:PY:Accepted,100p:%s:s3\n' "$PREV"; } > "$T/users/alice/history"
+{ printf '10:p#a:C:Accepted,100p:%s:s2\n' "$PREV"
+  printf '10:p#c:C:Accepted,100p:%s:s4\n' "$THIS"; } >> "$T/users/ribas/history"   # s4 = esta semana
 { printf '%s:s1:alice:web\n' "$PREV"; printf '%s:s2:ribas:vim\n' "$PREV"
   printf '%s:s3:alice:web\n' "$PREV"; printf '%s:s4:ribas:vscode\n' "$THIS"; } > "$T/var/editor-log"
 call /index/open_training GET '' '' ''
@@ -38,10 +40,10 @@ ck "total = 3 (s4 desta semana fora)" '[[ "$(jq -r ".most_used_editor_prev_week.
 ck "ranking = vim,web" '[[ "$(jq -r ".most_used_editor_prev_week.ranking | map(.editor) | sort | join(\",\")" <<<"$BODY")" == "vim,web" ]]'
 
 echo "== /treino/editor-stats: editores DECLARADOS (perfis) =="
-printf '{"favorite_editor":"vscode"}' > "$T/var/profiles/alice.json"
-printf '{"favorite_editor":"vscode"}' > "$T/var/profiles/bob.json"
-printf '{"university":"X"}'           > "$T/var/profiles/carol.json"   # sem editor
-# ribas.json (favorite_editor=vim) já existe do setup
+jq '.favorite_editor="vscode"' "$T/users/alice/account.json" > "$T/users/alice/account.json.n" && mv "$T/users/alice/account.json.n" "$T/users/alice/account.json"
+fx_user "$T" bob x "Bob"; jq '.favorite_editor="vscode"' "$T/users/bob/account.json" > "$T/users/bob/account.json.n" && mv "$T/users/bob/account.json.n" "$T/users/bob/account.json"
+fx_user "$T" carol x "Carol"; jq '.university="X"' "$T/users/carol/account.json" > "$T/users/carol/account.json.n" && mv "$T/users/carol/account.json.n" "$T/users/carol/account.json"   # sem editor
+# account do ribas (favorite_editor=vim) já existe do setup
 rm -f "$T/var/editor-stats.cache.json"
 call /treino/editor-stats GET '' '' ''
 ck "declared=3 (vscode x2 + vim x1; carol sem editor fora)" '[[ "$(jq -r .declared <<<"$BODY")" == 3 ]]'

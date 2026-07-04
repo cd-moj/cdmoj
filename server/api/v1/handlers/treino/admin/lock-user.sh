@@ -11,9 +11,9 @@ for t in "${targets[@]}"; do valid_id "$t" || fail 400 "Login inválido" "login_
 
 declare -A LOCKED
 for t in "${targets[@]}"; do
-  cut -d: -f1 "$CONTESTSDIR/treino/passwd" 2>/dev/null | grep -qxF -- "$t" || continue
+  user_exists treino "$t" || continue
   newpass="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 18)"
-  [[ -n "$newpass" ]] && update_passwd_field treino "$t" 2 "$newpass" && LOCKED["$t"]=1
+  [[ -n "$newpass" ]] && user_set_password treino "$t" "$newpass" && LOCKED["$t"]=1
 done
 (( ${#LOCKED[@]} )) || fail 404 "Nenhum usuário válido para travar" "user_notfound"
 

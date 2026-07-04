@@ -34,7 +34,7 @@ ck "verify devolve senha"       '[[ "$(jq -r ".password|type" <<<"$BODY")" == st
 ck "account.json criado"        '[[ -f "$T/users/joao/account.json" ]]'
 ck "university persistida"      '[[ "$(jq -r .university "$T/users/joao/account.json")" == UnB ]]'
 ck "by-tgid/111 -> joao"        '[[ "$(jq -r .login "$T/var/telegram/by-tgid/111.json")" == joao ]]'
-ck "passwd derivado tem joao"   'grep -q "^joao:" "$T/passwd"'
+ck "account.json de joao criado"   '[[ -f "$T/users/joao/account.json" ]]'
 call "" /treino/signup/status GET "nonce=$NONCE" ""
 ck "status created, SEM senha"  '[[ "$(jq -r .status <<<"$BODY")" == created && "$(jq -r ".password" <<<"$BODY")" == null ]]'
 
@@ -73,13 +73,13 @@ echo "== admin do contest v2 (user-add/disable/set-password/remove) =="
 printf 'CONTEST=treino\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/tok-adm"
 call "Bearer tok-adm" /contest/admin/user-add POST "contest=treino" '{"login":"maria","password":"s3nh4","fullname":"Maria"}'
 ck "user-add cria no store"      '[[ -f "$T/users/maria/account.json" ]]'
-ck "passwd derivado tem maria"   'grep -q "^maria:s3nh4:Maria" "$T/passwd"'
+ck "account de maria (senha)"   '[[ "$(jq -r .password "$T/users/maria/account.json")" == "s3nh4" ]]'
 call "Bearer tok-adm" /contest/admin/user-add POST "contest=treino" '{"login":"maria","password":"nova1","fullname":"Maria N"}'
 ck "reset atualiza account.json" '[[ "$(jq -r .password "$T/users/maria/account.json")" == nova1 ]]'
-ck "passwd derivado atualizado"  'grep -q "^maria:nova1:" "$T/passwd"'
+ck "account atualizado (senha)"  '[[ "$(jq -r .password "$T/users/maria/account.json")" == "nova1" ]]'
 call "Bearer tok-adm" /contest/admin/user-disable POST "contest=treino" '{"login":"maria"}'
 ck "disable marca ! no account"  '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
-ck "passwd derivado com !"       'grep -q "^maria:!" "$T/passwd"'
+ck "account com senha !"        '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
 call "Bearer tok-adm" /contest/admin/users-set-password POST "contest=treino" '{"password":"prova1"}'
 ck "set-password troca joao (pula desabilitada)" '[[ "$(jq -r .password "$T/users/joao/account.json")" == prova1 && "$(jq -r .count <<<"$BODY")" == 1 ]]'
 ck "maria continua desabilitada" '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
@@ -87,7 +87,7 @@ call "Bearer tok-adm" /contest/admin/users-set-password POST "contest=treino" '{
 ck "include_disabled reabilita maria (count 2)" '[[ "$(jq -r .password "$T/users/maria/account.json")" == prova2 && "$(jq -r .count <<<"$BODY")" == 2 ]]'
 call "Bearer tok-adm" /contest/admin/user-remove POST "contest=treino" '{"login":"maria"}'
 ck "remove move o diretório"     '[[ ! -d "$T/users/maria" ]] && ls "$T/.removed-users" 2>/dev/null | grep -q "^maria-"'
-ck "passwd derivado sem maria"   '! grep -q "^maria:" "$T/passwd"'
+ck "conta de maria movida p/ .removed-users" '[[ ! -e "$T/users/maria" ]]'
 call "Bearer tok-adm" /contest/admin/user-remove POST "contest=treino" '{"login":"maria"}'
 ck "remove de inexistente 404"   '[[ "$OUT" == *"Status: 404"* ]]'
 
@@ -95,11 +95,11 @@ echo "== carga em lote no store v2 =="
 call "Bearer tok-adm" /contest/admin/users-bulk POST "contest=treino" '{"users":[{"login":"lote1","fullname":"Lote Um"},{"login":"lote2","password":"pw2","fullname":"Lote Dois"},{"login":"joao","fullname":"Colide"}]}'
 ck "bulk cria 2 no store"        '[[ "$(jq -r .counts.created <<<"$BODY")" == 2 && -f "$T/users/lote1/account.json" && -f "$T/users/lote2/account.json" ]]'
 ck "account.json é a fonte"      '[[ "$(jq -r .password "$T/users/lote2/account.json")" == pw2 ]]'
-ck "passwd derivado tem os novos" 'grep -q "^lote1:" "$T/passwd" && grep -q "^lote2:pw2:Lote Dois" "$T/passwd"'
+ck "accounts do lote criados" '[[ -f "$T/users/lote1/account.json" && "$(jq -r .password "$T/users/lote2/account.json")" == "pw2" ]]'
 ck "joao (existe) pulado"        '[[ "$(jq -r ".skipped[]|select(.login==\"joao\").reason" <<<"$BODY")" == exists ]]'
 call "Bearer tok-adm" /contest/admin/users-bulk POST "contest=treino" '{"on_existing":"update","users":[{"login":"lote1","password":"nova","fullname":"Lote Um V2"}]}'
 ck "bulk update no account.json"  '[[ "$(jq -r .password "$T/users/lote1/account.json")" == nova && "$(jq -r .fullname "$T/users/lote1/account.json")" == "Lote Um V2" ]]'
-ck "passwd derivado atualizado"   'grep -q "^lote1:nova:Lote Um V2" "$T/passwd"'
+ck "account do lote atualizado" '[[ "$(jq -r .password "$T/users/lote1/account.json")" == "nova" && "$(jq -r .fullname "$T/users/lote1/account.json")" == "Lote Um V2" ]]'
 
 echo
 echo "RESULT: $pass passed, $fail failed"

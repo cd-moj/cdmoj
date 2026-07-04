@@ -18,7 +18,7 @@ inc="$(jq -r 'if .include_disabled==true then "1" else "0" end' <<<"$body")"
 case "$password" in *:*) fail 422 "Senha não pode conter ':'" "colon";; esac
 
 if store_v2 "$contest"; then
-  # v2: troca no account.json de cada não-privilegiado; UM regen_passwd no fim (não por conta)
+  # v2: troca no account.json de cada não-privilegiado (auth lê direto do account.json)
   count=0
   while IFS= read -r u; do
     [[ -n "$u" ]] || continue
@@ -28,7 +28,6 @@ if store_v2 "$contest"; then
     account_merge "$contest" "$u" '.password=$p|.updated_at=$t' \
       --arg p "$password" --argjson t "$EPOCHSECONDS" && count=$((count+1))
   done < <(list_users "$contest")
-  regen_passwd "$contest"
 else
   pw="$CONTESTSDIR/$contest/passwd"; [[ -f "$pw" ]] || fail 404 "Contest sem passwd" "no_passwd"
   out="$(NEWP="$password" INC="$inc" awk -F: 'BEGIN{OFS=":"}

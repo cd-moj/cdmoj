@@ -30,25 +30,27 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Auto-cadastro **nunca** cria papel por sufixo: use `is_reserved_role_login` (`lib/auth.sh`) —
   já aplicado no signup; o `/admin/adduser` (admin autenticado) **continua** podendo criar
   `.judge`/`.staff` de um contest (legítimo).
-- **Store por-usuário (`USER_STORE=v2`, `lib/users.sh`)**: contests migrados guardam cada conta em
-  `contests/<c>/users/<login>/` (`account.json` autoritativo; `passwd` DERIVADO por `regen_passwd`;
-  `history` próprio de 6 campos `tempo:probid:lang:verdict:sub_epoch:subid`, login implícito;
-  `metrics.json`; `submissions/<subid>.<ext>`, `mojlog/<subid>.html`, `results/<subid>.json` — **sem
-  login no nome**). **Rename de conta = `mv` do diretório** (`user_rename` + telegram index). O
-  `controle/history` global some; leitores usam `emit_user_history`/`emit_history_stream`
-  (formato global de 7 campos). **O placar NÃO varre history**: `metrics_recompute` grava em
+- **Store por-usuário (`lib/users.sh`)**: cada conta vive em `contests/<c>/users/<login>/`
+  (`account.json` autoritativo — inclui perfil `university`/`favorite_editor`/`public`/
+  `uname_changes` e time `.team{name,univ_short,univ_full,flag}`; `history` próprio de 6 campos
+  `tempo:probid:lang:verdict:sub_epoch:subid`, login implícito; `metrics.json`;
+  `submissions/<subid>.<ext>`, `mojlog/<subid>.html`, `results/<subid>.json`, `photo.png` — **sem
+  login no nome**). **NÃO existe `passwd`**: auth (`verify_password`), placar (`sc_users`),
+  perfis e listagens leem os `account.json` direto (agregações SEMPRE por `find|xargs jq` —
+  ARG_MAX); `USERS_FROM=<src>` cai p/ o `users/` do contest-fonte (participante compartilhado tem
+  dir local sem `account.json`). **Rename de conta = `mv` do diretório** (`user_rename` +
+  telegram index). Leitores agregados usam `emit_user_history`/`emit_history_stream` (formato
+  global de 7 campos). **O placar NÃO varre history**: `metrics_recompute` grava em
   `metrics.json` tudo que os geradores precisam por problema (`counted` até o 1º AC,
   `first_ac_epoch`, `pending`, `best_score` NNp, `heur`, visão **`frozen`** pré-`FREEZE_TIME`) e
   `score/build.sh` + `sc_cells` (score-common.sh) leem `users/*/metrics.json` numa passada —
   placar em **`var/placar{,-full,-custom}.txt`** (não mais `controle/`). Staleness dos caches
-  preguiçosos (`contest/score`/`statistics`/`response-stats`) = **`var/.score-dirty`** (tocado por
-  `user_history_append/replace`) + `conf`; `var/.metrics-stamp` dispara recompute em massa no
-  `build.sh` quando o `conf` muda (ex.: `FREEZE_TIME` editado). `store_v2 <c>`
-  ramifica write-path (`judged.sh`/`submit.sh`) e leitura. **Migração**: `server/bin/store-migrate.sh
-  <c>` (dry-run por padrão; `--apply` seta `USER_STORE=v2`). Competições não-migradas seguem no legado.
-  Os handlers de usuário do admin do contest (`user-add`/`user-disable`/`user-remove`/
-  `users-set-password`) também ramificam `store_v2` (account.json + `regen_passwd`; remover = `mv`
-  p/ `.removed-users/`) — código novo que toque `passwd` deve fazer o mesmo.
+  preguiçosos (`contest/score`/`statistics`/`response-stats`/balões) = **`var/.score-dirty`**
+  (tocado por `user_history_append/replace`) + `conf`; `var/.metrics-stamp` dispara recompute em
+  massa no `build.sh` quando o `conf` muda (ex.: `FREEZE_TIME` editado). **Migração** de contest
+  legado (arquivado em `contests-legado/`): `server/bin/store-migrate.sh <c>` (dry-run por padrão).
+  Handlers de usuário do admin (`user-add`/`user-disable`/`user-remove`/`users-set-password`)
+  escrevem no account.json; remover = `mv` p/ `.removed-users/`.
 - **Telegram (overlay só do treino) + alertas**: `lib/telegram.sh` (índice `var/telegram/{by-tgid,by-login}`,
   nonce em `run/telegram/`), cadastro web-first (`handlers/treino/signup/*` + página `web/treino/cadastro/`),
   recuperação por vínculo, `link-start`. O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:

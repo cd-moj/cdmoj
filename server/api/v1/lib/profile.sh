@@ -1,18 +1,26 @@
 # lib/profile.sh — helpers de perfil self-service (treino).
-# Perfil extra em contests/<c>/var/profiles/<login>.json (JSON, lido via jq, sem `source`):
-#   {university, favorite_editor, public(bool), uname_changes:[epochs]}
-# Foto (100x100 png) em contests/<c>/var/profiles/<login>.png
+# O perfil vive DENTRO do account.json do usuário (users/<login>/account.json):
+#   {university, favorite_editor, public(bool), uname_changes:[epochs], ...}
+# Leitura cai para o contest-fonte (USERS_FROM) quando não há conta local.
+# Foto (100x100 png) em users/<login>/photo.png.
 : "${UNAME_CHANGE_LIMIT:=2}"
 
-profile_file(){ printf '%s/%s/var/profiles/%s.json' "$CONTESTSDIR" "$1" "$2"; }
-photo_file(){   printf '%s/%s/var/profiles/%s.png'  "$CONTESTSDIR" "$1" "$2"; }
+photo_file(){ printf '%s/%s/users/%s/photo.png' "$CONTESTSDIR" "$1" "$2"; }
 
+# _profile_account <c> <login> -> ecoa o caminho do account.json (local, senão USERS_FROM)
+_profile_account(){
+  local f; f="$(account_file "$1" "$2")"
+  if [[ ! -f "$f" ]]; then
+    local src; src="$(_users_source "$1")"
+    [[ "$src" != "$1" ]] && f="$(account_file "$src" "$2")"
+  fi
+  printf '%s' "$f"
+}
+
+# DEPRECATED (só os ramos legados pré-store-v2 ainda chamam; somem no corte final).
 passwd_field(){ # <contest> <login> <n>
   awk -F: -v u="$2" -v n="$3" '$1==u{print $n; exit}' "$CONTESTSDIR/$1/passwd" 2>/dev/null
 }
-
-# update_passwd_field <contest> <login> <n> <value>  (valor não pode conter ':')
-# valor via ENVIRON p/ não sofrer processamento de escapes do awk.
 update_passwd_field(){
   local pw="$CONTESTSDIR/$1/passwd" tmp
   tmp="$(mktemp "${pw}.XXXXXX")" || return 1
@@ -23,7 +31,7 @@ update_passwd_field(){
 # read_profile <c> <login> -> UNIVERSITY, FAVORITE_EDITOR, PROFILE_PUBLIC, UNAME_CHANGES
 read_profile(){
   UNIVERSITY=""; FAVORITE_EDITOR=""; PROFILE_PUBLIC="true"; UNAME_CHANGES=""
-  local f; f="$(profile_file "$1" "$2")"
+  local f; f="$(_profile_account "$1" "$2")"
   [[ -f "$f" ]] || return 0
   UNIVERSITY="$(jq -r '.university // ""' "$f" 2>/dev/null)"
   FAVORITE_EDITOR="$(jq -r '.favorite_editor // ""' "$f" 2>/dev/null)"
@@ -31,18 +39,16 @@ read_profile(){
   UNAME_CHANGES="$(jq -r '(.uname_changes // []) | map(tostring) | join(" ")' "$f" 2>/dev/null)"
 }
 
-profile_json(){ local f; f="$(profile_file "$1" "$2")"; [[ -f "$f" ]] && cat "$f" || echo '{}'; }
-
-# set_profile_field <c> <login> <key> <json-value>  (merge atômico)
+# set_profile_field <c> <login> <key> <json-value>  (merge atômico no account.json)
 set_profile_field(){
-  local dir f; dir="$CONTESTSDIR/$1/var/profiles"; mkdir -p "$dir"; f="$dir/$2.json"
-  jq --arg k "$3" --argjson v "$4" '.[$k]=$v' <<<"$(profile_json "$1" "$2")" > "$f.tmp" && mv "$f.tmp" "$f"
+  account_merge "$1" "$2" '.[$k]=$v | .updated_at=$t' \
+    --arg k "$3" --argjson v "$4" --argjson t "$EPOCHSECONDS"
 }
 set_profile_str(){ set_profile_field "$1" "$2" "$3" "$(jq -n --arg s "$4" '$s')"; }
 
 # profile_is_public <c> <login> -> 0 (público) se public != false (default público)
 profile_is_public(){
-  local f; f="$(profile_file "$1" "$2")"; [[ -f "$f" ]] || return 0
+  local f; f="$(_profile_account "$1" "$2")"; [[ -f "$f" ]] || return 0
   [[ "$(jq -r 'if .public==false then "n" else "y" end' "$f" 2>/dev/null)" != "n" ]]
 }
 

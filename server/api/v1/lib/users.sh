@@ -1,7 +1,7 @@
 # lib/users.sh — store de contas POR-USUÁRIO (contests/<c>/users/<login>/).
 #
-# Fonte da verdade da conta = users/<login>/account.json. O contests/<c>/passwd é
-# DERIVADO (regen_passwd) para compat com verify_password/USERS_FROM/sc_users. As
+# Fonte da verdade da conta = users/<login>/account.json — auth (verify_password),
+# placar (sc_users) e perfis leem DIRETO daqui; não existe mais passwd derivado. As
 # submissões do usuário ficam em users/<login>/history (login IMPLÍCITO = nome do dir;
 # rename de conta é só um `mv` do diretório). Métricas cacheadas em metrics.json.
 #
@@ -48,28 +48,6 @@ account_merge(){
   jq -c "$@" "$filter" "$f" > "$tmp" && mv -f "$tmp" "$f"
 }
 
-# --- passwd derivado ------------------------------------------------------
-# regen_passwd <c> — reescreve contests/<c>/passwd a partir de todos os account.json,
-# em ordem determinística (sort), sob flock. Formato: login:senha:nome[:email].
-regen_passwd(){
-  local c="$1"
-  local pw="$CONTESTSDIR/$c/passwd" lock="$CONTESTSDIR/$c/.passwd.lock" d
-  d="$(users_dir "$c")"
-  [[ -d "$d" ]] || return 0
-  (
-    flock -w 20 9 || exit 0
-    local tmp; tmp="$(mktemp "$pw.XXXXXX")" || exit 1
-    set +o noglob; shopt -s nullglob
-    local af
-    for af in "$d"/*/account.json; do
-      jq -r 'select(.login != null and .login != "")
-             | .login+":"+.password+":"+.fullname
-               + (if ((.email//"")=="") then "" else ":"+.email end)' "$af" 2>/dev/null
-    done | LC_ALL=C sort > "$tmp"
-    mv -f "$tmp" "$pw"
-  ) 9>"$lock"
-}
-
 # --- criação / senha ------------------------------------------------------
 # user_create <c> <login> <fullname> <password> [email] -> 0 ok | 2 já existe
 # NÃO valida sufixo de papel (isso é responsabilidade do handler/signup).
@@ -82,7 +60,6 @@ user_create(){
      '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}' \
      > "$d/account.json" || return 1
   : > "$d/history"
-  regen_passwd "$c"
 }
 
 # user_genpass — senha legível: palavra do dicionário + 4 dígitos (igual cc_genpass).
@@ -99,8 +76,7 @@ user_status(){ account_field "$1" "$2" '.status'; }
 
 # user_set_password <c> <login> <pw>
 user_set_password(){
-  account_merge "$1" "$2" '.password=$p|.updated_at=$t' --arg p "$3" --argjson t "$EPOCHSECONDS" \
-    && regen_passwd "$1"
+  account_merge "$1" "$2" '.password=$p|.updated_at=$t' --arg p "$3" --argjson t "$EPOCHSECONDS"
 }
 # user_set_status <c> <login> <active|locked>  (usado por lock/disable; senha preservada)
 user_set_status(){
@@ -226,7 +202,7 @@ metrics_solved_count(){
 # --- rename = mv do diretório --------------------------------------------
 # user_rename <c> <old> <new> -> 0 ok | 1 sem origem | 2 destino existe
 # (O caller — handler de username — cuida do limite 2/ano, uname_changes, sessão e,
-#  no treino, dos índices Telegram. Aqui: mv + login + regen_passwd.)
+#  no treino, dos índices Telegram. Aqui: mv + login no account.json.)
 user_rename(){
   local c="$1" old="$2" new="$3"
   local od nd; od="$(user_dir "$c" "$old")"; nd="$(user_dir "$c" "$new")"
@@ -234,7 +210,6 @@ user_rename(){
   [[ -e "$nd" ]] && return 2
   mv "$od" "$nd" || return 1
   account_merge "$c" "$new" '.login=$l|.updated_at=$t' --arg l "$new" --argjson t "$EPOCHSECONDS"
-  regen_passwd "$c"
 }
 
 # --- compat de leitura: emite o history no FORMATO GLOBAL de 7 campos --------

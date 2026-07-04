@@ -100,14 +100,16 @@ reconcilia o namespace do history (`problemas-apc#…`) com o índice de donos (
 só agregados (sem logins, sem nomes de contests) — não vaza prova privada.
 
 ### Store por-usuário, cadastro por Telegram e alertas
-Contests com `USER_STORE=v2` guardam **um diretório por conta** (`contests/<c>/users/<login>/`:
-`account.json` + `history`/`metrics.json`/submissões/logs/results próprios; o `passwd` e o history
-global viram derivados/eliminados). Ganhos: **trocar de username = `mv` do diretório** e a maioria
-dos scripts de conta/julgamento só muda o caminho (`lib/users.sh`, `store_v2`, `emit_history_stream`).
-Os handlers de usuário do **admin do contest** (`user-add`/`user-disable`/`user-remove`/
-`users-set-password`) ramificam `store_v2`: em contest v2 escrevem no `account.json` (fonte da
-verdade) e regeneram o `passwd` derivado; remover = `mv` do diretório p/ `.removed-users/`
-(submissões preservadas).
+Todo contest guarda **um diretório por conta** (`contests/<c>/users/<login>/`: `account.json` +
+`history`/`metrics.json`/submissões/logs/results/`photo.png` próprios). **Não existe `passwd`**:
+auth (`verify_password`), placar (`sc_users`), perfis e listagens leem os `account.json` direto
+(`USERS_FROM=<src>` cai para o `users/` do contest-fonte — participantes compartilhados têm dir
+local sem `account.json`). Perfil (universidade/editor/privacidade) e metadados de time
+(`.team{name,univ_short,univ_full,flag}`) vivem no próprio `account.json`. Ganhos: **trocar de
+username = `mv` do diretório** e a maioria dos scripts de conta/julgamento só muda o caminho
+(`lib/users.sh`, `emit_history_stream`). Os handlers de usuário do **admin do contest**
+(`user-add`/`user-disable`/`user-remove`/`users-set-password`) escrevem no `account.json` (fonte
+da verdade); remover = `mv` do diretório p/ `.removed-users/` (submissões preservadas).
 Migração: `server/bin/store-migrate.sh <c>` (dry-run; `--apply`). O **treino** ganha um overlay de
 **Telegram** (`lib/telegram.sh`): cadastro **web-first** (`/treino/cadastro/`) confirmado por deep-link
 no bot, **1 Telegram = 1 conta** (anti-duplicata), recuperação de senha pelo vínculo, e senha entregue

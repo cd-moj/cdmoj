@@ -189,13 +189,13 @@ acall(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="$3" \
 
 acall "/admin/adduser" POST "" "$TOKEN" '{"contest":"'"$CONTEST"'","login":"smoketest.user","fullname":"Smoke Test User","email":"x@y.z"}'
 check "adduser 200 + returns password" '[[ "$OUT" == *"Status: 200"* ]] && (printf "%s" "$BODY" | jq -e ".password|length>0" >/dev/null)'
-check "adduser appended to passwd" 'grep -q "^smoketest.user:" "$TMPC/$CONTEST/passwd"'
+check "adduser criou account.json" '[[ -f "$TMPC/$CONTEST/users/smoketest.user/account.json" ]]'
 acall "/admin/adduser" POST "" "$TOKEN" '{"contest":"'"$CONTEST"'","login":"smoketest.user","fullname":"Dup"}'
 check "adduser duplicate -> 409" '[[ "$OUT" == *"Status: 409"* ]]'
 acall "/admin/passwd" POST "" "$TOKEN" '{"contest":"'"$CONTEST"'","login":"smoketest.user","newpass":"NEWPW123"}'
 check "passwd 200" '[[ "$OUT" == *"Status: 200"* ]]'
-check "passwd replaced field 2" 'grep -q "^smoketest.user:NEWPW123:" "$TMPC/$CONTEST/passwd"'
-check "passwd preserved fullname" 'grep -q "^smoketest.user:NEWPW123:Smoke Test User:" "$TMPC/$CONTEST/passwd"'
+check "senha trocada no account.json" '[[ "$(jq -r .password "$TMPC/$CONTEST/users/smoketest.user/account.json")" == "NEWPW123" ]]'
+check "fullname preservado" '[[ "$(jq -r .fullname "$TMPC/$CONTEST/users/smoketest.user/account.json")" == "Smoke Test User" ]]'
 
 echo "== admin/contest/extend (POST admin) =="
 acall "/admin/contest/extend" POST "" "$TOKEN" '{"contest":"'"$CONTEST"'","end_epoch":1999999999}'

@@ -4,18 +4,25 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
-T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/controle"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
-printf 'boss.admin:p:Boss\nregular:s:Regular User\nnobody:s:No Body\nsolver:s:Sol Ver\nbanned:s:Ban Ned\n' > "$T/passwd"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+T="$FIX/treino"; mkdir -p "$T/var/jsons"
+printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
+for u in boss.admin:Boss regular:"Regular User" nobody:"No Body" solver:"Sol Ver" banned:"Ban Ned"; do :; done
+fx_user "$T" boss.admin p "Boss"
+fx_user "$T" regular s "Regular User"
+fx_user "$T" nobody s "No Body"
+fx_user "$T" solver s "Sol Ver"
+fx_user "$T" banned s "Ban Ned"
 # sessões
 printf 'CONTEST=treino\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=treino\nLOGIN=regular\nUSERFULLNAME=Regular User\nLOGINAT=1\n' > "$SESS/reg"
 printf 'CONTEST=treino\nLOGIN=nobody\nUSERFULLNAME=No Body\nLOGINAT=1\n' > "$SESS/nob"
 printf 'CONTEST=treino\nLOGIN=solver\nUSERFULLNAME=Sol Ver\nLOGINAT=1\n' > "$SESS/sol"
 printf 'CONTEST=treino\nLOGIN=banned\nUSERFULLNAME=Ban Ned\nLOGINAT=1\n' > "$SESS/ban"
-# histórico: solver resolveu 2 problemas distintos
-{ printf '1:solver:prob/a:C:Accepted,100p:1:h1\n'; printf '2:solver:prob/b:C:Accepted,100p:2:h2\n'
-  printf '3:solver:prob/a:C:Wrong Answer:3:h3\n'; } > "$T/controle/history"
+# histórico: solver resolveu 2 problemas distintos (metrics é o que cc_solved_count lê)
+{ printf '1:prob/a:C:Accepted,100p:1:h1\n'; printf '2:prob/b:C:Accepted,100p:2:h2\n'
+  printf '3:prob/a:C:Wrong Answer:3:h3\n'; } > "$T/users/solver/history"
+( source "$ROOT/api/v1/lib/users.sh"; CONTESTSDIR="$FIX" metrics_recompute treino solver )
 # banco: um problema com enunciado + dois com coleções (sorteio; sem var/problems.json => exercita o fallback FRIO)
 printf '%s' '{"id":"bankprob","title":"Banco Prob","tags":["#x"],"statement_html_b64":"PGgxPm9pPC9oMT4="}' > "$T/var/jsons/bankprob.json"
 printf '%s' '{"id":"apc#vet","title":"Vetores","tags":["#vetor"],"collections":["Prova 1","problemas-apc"]}' > "$T/var/jsons/apc#vet.json"
@@ -67,7 +74,7 @@ ck "devolveu senha admin"   '[[ -n "$(jq -r .admin_password <<<"$BODY")" && "$(j
 ck "dir criado"             '[[ -d "$FIX/test-create" && -f "$FIX/test-create/conf" ]]'
 ck "owner=regular"          '[[ "$(cat "$FIX/test-create/owner")" == regular ]]'
 ck "created-by presente"    '[[ -f "$FIX/test-create/created-by" ]]'
-ck "passwd tem regular.admin" 'grep -q "^regular.admin:" "$FIX/test-create/passwd"'
+ck "store tem regular.admin" '[[ -f "$FIX/test-create/users/regular.admin/account.json" ]]'
 ck "conf: tipo icpc, 3 probs" '[[ "$( . "$FIX/test-create/conf"; echo "$CONTEST_TYPE ${#PROBS[@]}" )" == "icpc 15" ]]'
 ck "enunciado do banco"     '[[ -f "$FIX/test-create/enunciados/bankprob.html" ]]'
 ck "enunciado custom (x#custom)" '[[ -f "$FIX/test-create/enunciados/x#custom.html" ]]'

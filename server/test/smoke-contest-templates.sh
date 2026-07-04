@@ -3,16 +3,18 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
-T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/controle"
-printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
-printf 'boss.admin:p:Boss\nregular:s:Regular\neve:s:Eve\n' > "$T/passwd"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+T="$FIX/treino"; mkdir -p "$T/var/jsons"
+printf 'CONTEST_ID=treino\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
+fx_user "$T" boss.admin p "Boss"
+fx_user "$T" regular s "Regular"
+fx_user "$T" eve s "Eve"
 printf '{"threshold":0,"allow":["regular","eve"],"deny":[]}' > "$T/var/contest-perms.json"
 printf 'CONTEST=treino\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=treino\nLOGIN=regular\nUSERFULLNAME=Regular\nLOGINAT=1\n' > "$SESS/reg"
 printf 'CONTEST=treino\nLOGIN=eve\nUSERFULLNAME=Eve\nLOGINAT=1\n' > "$SESS/eve"
 printf '%s' '{"id":"bankprob","title":"Banco Prob","tags":["#x"],"statement_html_b64":"PGgxPm9pPC9oMT4="}' > "$T/var/jsons/bankprob.json"
 printf '%s' '{"problems":[{"id":"bankprob","title":"Banco Prob","owner":"someone","collaborators":[],"public":true}]}' > "$T/var/problem-owners.json"
-: > "$T/controle/history"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-reg}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"
@@ -84,7 +86,7 @@ echo "== duplicate =="
 call /treino/contest-create/duplicate POST '{"from":"orig-c","id":"dup-c"}' reg
 ck "duplicou"               '[[ "$(jq -r .contest_id <<<"$BODY")" == "dup-c" ]]'
 ck "nome default Cópia de"  '[[ "$( . "$FIX/dup-c/conf"; echo "$CONTEST_NAME" )" == "Cópia de Original" ]]'
-ck "sem usuários copiados (só admin)" '[[ "$(grep -c . "$FIX/dup-c/passwd")" == 1 ]] && grep -q "^regular.admin:" "$FIX/dup-c/passwd"'
+ck "sem usuários copiados (só admin)" '[[ "$(ls "$FIX/dup-c/users" | wc -l)" == 1 && -f "$FIX/dup-c/users/regular.admin/account.json" ]]'
 ck "duração preservada (10800)" '[[ "$( . "$FIX/dup-c/conf"; echo $((CONTEST_END - CONTEST_START)) )" == 10800 ]]'
 ck "freeze relativo preservado" '[[ "$( . "$FIX/dup-c/conf"; echo $((CONTEST_END - FREEZE_TIME)) )" == 3600 ]]'
 ck "enunciado custom copiado por arquivo" '[[ -f "$FIX/dup-c/enunciados/x#custom.html" ]]'

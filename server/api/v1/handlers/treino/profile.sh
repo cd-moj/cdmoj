@@ -13,8 +13,7 @@ quser="$(param user)"
 # ---- visão pública de OUTRO usuário ----
 if [[ "$REQUEST_METHOD" == GET && -n "$quser" ]]; then
   valid_id "$quser" || fail 400 "Invalid user" "user_invalid"
-  cut -d: -f1 "$CONTESTSDIR/treino/passwd" 2>/dev/null | grep -qxF -- "$quser" \
-    || fail 404 "Usuário não encontrado" "user_notfound"
+  user_exists treino "$quser" || fail 404 "Usuário não encontrado" "user_notfound"
   isowner=0; isadm=0
   if load_session && [[ "$SESSION_CONTEST" == treino ]]; then
     [[ "$SESSION_LOGIN" == "$quser" ]] && isowner=1
@@ -24,7 +23,7 @@ if [[ "$REQUEST_METHOD" == GET && -n "$quser" ]]; then
   if [[ "$PROFILE_PUBLIC" == "false" && "$isowner" == 0 && "$isadm" == 0 ]]; then
     ok_json '{login:$l, is_public:false}' --arg l "$quser"; exit 0
   fi
-  qname="$(passwd_field treino "$quser" 3)"
+  qname="$(user_fullname_of treino "$quser")"
   haspic="$([[ -f "$(photo_file treino "$quser")" ]] && echo true || echo false)"
   ok_json '{login:$l, name:$n, university:$u, favorite_editor:$fe, has_photo:$hp, is_public:true}' \
     --arg l "$quser" --arg n "$qname" --arg u "$UNIVERSITY" --arg fe "$FAVORITE_EDITOR" --argjson hp "$haspic"
@@ -35,7 +34,7 @@ fi
 require_auth_contest treino
 login="$SESSION_LOGIN"
 read_profile treino "$login"
-name="$(passwd_field treino "$login" 3)"
+name="$(user_fullname_of treino "$login")"
 
 if [[ "$REQUEST_METHOD" == POST ]]; then
   body="$(read_body)"
@@ -44,7 +43,8 @@ if [[ "$REQUEST_METHOD" == POST ]]; then
     newname="$(jq -r '.name' <<<"$body")"
     [[ -z "$newname" || "$newname" == *:* ]] && fail 400 "Nome inválido (não pode ser vazio nem conter ':')" "name_invalid"
     (( ${#newname} <= 80 )) || fail 400 "Nome muito longo" "name_long"
-    update_passwd_field treino "$login" 3 "$newname" || fail 500 "Falha ao salvar o nome" "save_fail"
+    account_merge treino "$login" '.fullname=$n|.updated_at=$t' \
+      --arg n "$newname" --argjson t "$EPOCHSECONDS" || fail 500 "Falha ao salvar o nome" "save_fail"
     name="$newname"
   fi
   if jq -e 'has("university")' >/dev/null 2>&1 <<<"$body"; then

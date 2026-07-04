@@ -17,7 +17,6 @@ if [[ -f "$CACHE" ]] && [[ -z "$(find "$CACHE" -mmin +"${PROBLEM_STATS_TTL_MIN:-
 fi
 
 set +o noglob
-PASSWD="$T/passwd"
 title="$(jq -r '.title // ""' "$T/var/jsons/$id.json" 2>/dev/null)"
 
 # linhas do problema (campo 3 == id). Pode ser vazio. emit_history_stream unifica store-v2/legado.
@@ -58,7 +57,7 @@ core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]
 declare -A EDC; declare -a AV; pubcount=0
 while IFS= read -r u; do
   [[ -z "$u" ]] && continue
-  pf="$T/var/profiles/$u.json"; fe=""; pub=1
+  pf="$T/users/$u/account.json"; fe=""; pub=1
   if [[ -f "$pf" ]]; then
     fe="$(jq -r '.favorite_editor // ""' "$pf" 2>/dev/null)"
     [[ "$(jq -r 'if .public==false then "n" else "y" end' "$pf" 2>/dev/null)" == "n" ]] && pub=0
@@ -67,8 +66,8 @@ while IFS= read -r u; do
   if (( pub )); then
     ((pubcount++))
     if (( ${#AV[@]} < 200 )); then
-      nm="$(awk -F: -v x="$u" '$1==x{print $3; exit}' "$PASSWD")"
-      hp="$([[ -f "$T/var/profiles/$u.png" ]] && echo true || echo false)"
+      nm="$(jq -r '.fullname // ""' "$pf" 2>/dev/null)"
+      hp="$([[ -f "$T/users/$u/photo.png" ]] && echo true || echo false)"
       AV+=("$(jq -cn --arg l "$u" --arg n "$nm" --argjson hp "$hp" '{login:$l, name:$n, has_photo:$hp}')")
     fi
   fi

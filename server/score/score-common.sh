@@ -105,38 +105,46 @@ sc_is_real_user() {
 
 # sc_users  -> prints, one per line: "login<TAB>fullname<TAB>team<TAB>univshort<TAB>univfull<TAB>flag"
 #
-# Source order:
-#   1. controle/teams  (optional), lines: login:flag:univ short:team name:univ full
-#   2. passwd extra fields after fullname:  login:pass:fullname:email:flag:univshort:team:univfull
-#      (only used when controle/teams has no entry)
-# Missing optional fields are left empty. Only "real" users are emitted.
+# Source: users/*/account.json (batch find|xargs jq — no ARG_MAX, no per-user fork).
+# Team metadata lives in account.json .team {name, univ_short, univ_full, flag} (optional;
+# falls back to fullname). USERS_FROM: shared participants have a LOCAL user dir (history,
+# created on first submit) without a local account.json — their identity comes from the
+# source contest's account.json. Only "real" users are emitted (sc_is_real_user).
 sc_users() {
-  local teamsfile="$CONTESTDIR/controle/teams"
-  declare -A TF_FLAG TF_US TF_TN TF_UF TF_HAS
-  if [[ -f "$teamsfile" ]]; then
-    local L lu lflag lus ltn luf
-    while IFS=: read -r lu lflag lus ltn luf _; do
-      [[ -z "$lu" || "$lu" == \#* ]] && continue
-      TF_HAS["$lu"]=1
-      TF_FLAG["$lu"]="$lflag"; TF_US["$lu"]="$lus"
-      TF_TN["$lu"]="$ltn";     TF_UF["$lu"]="$luf"
-    done < "$teamsfile"
-  fi
+  local d="$CONTESTDIR/users"
+  [[ -d "$d" ]] || return 0
+  # USERS_FROM (lido por sed — o conf roda command substitution, nunca source aqui)
+  local src srcdir=""
+  src="$(sed -n 's/^[[:space:]]*USERS_FROM=//p' "$CONTESTDIR/conf" 2>/dev/null | tail -1)"
+  src="${src//\'/}"; src="${src//\"/}"
+  [[ -n "$src" ]] && sc_valid_id "$src" && [[ -d "$CONTESTSDIR/$src/users" ]] \
+    && srcdir="$CONTESTSDIR/$src/users"
 
-  local login pass full email f5 f6 f7 f8
-  while IFS=: read -r login pass full email f5 f6 f7 f8; do
-    sc_is_real_user "$login" || continue
-    local flag="" us="" tn="" uf=""
-    if [[ -n "${TF_HAS[$login]:-}" ]]; then
-      flag="${TF_FLAG[$login]}"; us="${TF_US[$login]}"
-      tn="${TF_TN[$login]}";     uf="${TF_UF[$login]}"
-    else
-      # optional passwd extras: flag, univ short, team name, univ full
-      flag="$f5"; us="$f6"; tn="$f7"; uf="$f8"
+  local ACCT_JQ='[.login//"", .fullname//"", (.team.name // .fullname // ""),
+                  (.team.univ_short//""), (.team.univ_full//""), (.team.flag//"")] | @tsv'
+  {
+    # contas locais em uma passada
+    find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+      | xargs -0 -r jq -r "$ACCT_JQ"
+    # participantes compartilhados: dir local sem account.json -> identidade da fonte
+    if [[ -n "$srcdir" ]]; then
+      ( set +o noglob 2>/dev/null; shopt -s nullglob
+        local ud login
+        for ud in "$d"/*/; do
+          login="${ud%/}"; login="${login##*/}"
+          [[ -f "$ud/account.json" ]] && continue
+          [[ -f "$srcdir/$login/account.json" ]] || continue
+          jq -r "$ACCT_JQ" "$srcdir/$login/account.json" 2>/dev/null
+        done )
     fi
-    [[ -z "$tn" ]] && tn="$full"
-    # strip any stray ':' that would break the field layout
-    full="${full//:/ }"; tn="${tn//:/ }"; us="${us//:/ }"; uf="${uf//:/ }"; flag="${flag//:/}"
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$login" "$full" "$tn" "$us" "$uf" "$flag"
-  done < "$CONTESTDIR/passwd"
+  } | {
+    local login full tn us uf flag
+    while IFS=$'\t' read -r login full tn us uf flag; do
+      sc_is_real_user "$login" || continue
+      [[ -z "$tn" ]] && tn="$full"
+      # strip any stray ':' that would break the field layout
+      full="${full//:/ }"; tn="${tn//:/ }"; us="${us//:/ }"; uf="${uf//:/ }"; flag="${flag//:/}"
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$login" "$full" "$tn" "$us" "$uf" "$flag"
+    done
+  }
 }

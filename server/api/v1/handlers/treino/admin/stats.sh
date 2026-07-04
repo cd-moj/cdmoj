@@ -2,7 +2,7 @@
 require_auth_contest treino
 is_admin || fail 403 "Apenas administradores do treino" "admin_required"
 T="$CONTESTSDIR/treino"
-users="$(wc -l < "$T/passwd" 2>/dev/null || echo 0)"; users="${users//[!0-9]/}"; users="${users:-0}"
+users="$(list_users treino | wc -l)"; users="${users//[!0-9]/}"; users="${users:-0}"
 
 # sessões ativas do treino
 sess=0

@@ -12,5 +12,5 @@ verify_password treino "$login" "$old" || fail 403 "Senha atual incorreta" "bad_
 [[ "$new" == *:* ]] && fail 400 "A senha não pode conter ':'" "pass_colon"
 (( ${#new} >= 4 )) || fail 400 "Senha muito curta (mínimo 4 caracteres)" "pass_short"
 
-update_passwd_field treino "$login" 2 "$new" || fail 500 "Falha ao salvar a senha" "save_fail"
+user_set_password treino "$login" "$new" || fail 500 "Falha ao salvar a senha" "save_fail"
 ok_json '{updated:true}'

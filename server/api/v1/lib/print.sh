@@ -14,15 +14,24 @@
 # --- localização / flags --------------------------------------------------
 pr_dir() { printf '%s' "$CONTESTSDIR/$1/print-requests"; }
 
-# existe ao menos um usuário .staff habilitado (passwd próprio + fonte compartilhada)?
+# _pr_staff_accounts <usersdir> — TSV "login\tfullname\tdisabled" dos .staff do dir.
+_pr_staff_accounts() {
+  local d="$1" af
+  ( set +o noglob 2>/dev/null; shopt -s nullglob
+    for af in "$d"/*.staff/account.json; do
+      jq -r '[.login//"", .fullname//"",
+              (if ((.password//"")|startswith("!")) then "true" else "false" end)] | @tsv' \
+        "$af" 2>/dev/null
+    done )
+}
+
+# existe ao menos um usuário .staff habilitado (store próprio + fonte compartilhada)?
 staff_exists() {
-  local c="$1" f s
-  for f in "$CONTESTSDIR/$c/passwd"; do
-    [[ -f "$f" ]] && awk -F: '($1 ~ /\.staff$/)&&(substr($2,1,1)!="!"){found=1} END{exit found?0:1}' "$f" && return 0
-  done
+  local c="$1" s
+  _pr_staff_accounts "$CONTESTSDIR/$c/users" | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}' && return 0
   s="$(_users_source "$c")"
-  [[ "$s" != "$c" && -f "$CONTESTSDIR/$s/passwd" ]] \
-    && awk -F: '($1 ~ /\.staff$/)&&(substr($2,1,1)!="!"){found=1} END{exit found?0:1}' "$CONTESTSDIR/$s/passwd" && return 0
+  [[ "$s" != "$c" ]] \
+    && _pr_staff_accounts "$CONTESTSDIR/$s/users" | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}' && return 0
   return 1
 }
 
@@ -34,10 +43,9 @@ print_enabled() {
 # logins .staff (únicos), um por linha: "login\tfullname\tdisabled(true|false)"
 pr_staff_logins() {
   local c="$1" s
-  { cat "$CONTESTSDIR/$c/passwd" 2>/dev/null
-    s="$(_users_source "$c")"; [[ "$s" != "$c" ]] && cat "$CONTESTSDIR/$s/passwd" 2>/dev/null
-  } | awk -F: '$1 ~ /\.staff$/ { if (seen[$1]++) next;
-        dis=(substr($2,1,1)=="!")?"true":"false"; printf "%s\t%s\t%s\n",$1,$3,dis }'
+  { _pr_staff_accounts "$CONTESTSDIR/$c/users"
+    s="$(_users_source "$c")"; [[ "$s" != "$c" ]] && _pr_staff_accounts "$CONTESTSDIR/$s/users"
+  } | awk -F'\t' '!seen[$1]++'
 }
 
 # --- contador sequencial (monotônico, sob flock) --------------------------
@@ -64,34 +72,36 @@ staff_can_see() {  # <c> <staff_login> <student_login>
   ' "$f" >/dev/null 2>&1
 }
 
+# _pr_acct <c> <login> <jq-path> — campo do account.json (local, senão USERS_FROM).
+_pr_acct() {
+  local c="$1" login="$2" v
+  v="$(jq -r "$3 // empty" "$CONTESTSDIR/$c/users/$login/account.json" 2>/dev/null)"
+  if [[ -z "$v" ]]; then
+    local s; s="$(_users_source "$c")"
+    [[ "$s" != "$c" ]] && v="$(jq -r "$3 // empty" "$CONTESTSDIR/$s/users/$login/account.json" 2>/dev/null)"
+  fi
+  printf '%s' "$v"
+}
+
 # --- resolução do NOME do time/participante (folha de rosto) ---------------
 # Nunca devolve a sigla da universidade — essa vai em pr_resolve_univ. Ordem:
-# 1) controle/teams (login:flag:univshort:teamname:univfull) -> teamname (campo 4)
-# 2) passwd campo 7 (login:pass:fullname:email:flag:univshort:team:univfull)
-# 3) fullname do passwd (campo 3) — em treino individual, é o nome do participante
+# 1) account.json .team.name  2) fullname — em treino individual, é o participante
 pr_resolve_team() {  # <c> <login>
   local c="$1" login="$2" tn=""
-  local d="$CONTESTSDIR/$c"
-  [[ -f "$d/controle/teams" ]] && tn="$(awk -F: -v u="$login" '$1==u{print $4; exit}' "$d/controle/teams")"
-  [[ -z "$tn" ]] && tn="$(awk -F: -v u="$login" '$1==u{print $7; exit}' "$d/passwd" 2>/dev/null)"
+  tn="$(_pr_acct "$c" "$login" '.team.name')"
   [[ -z "$tn" ]] && tn="$(user_fullname "$c" "$login")"
   printf '%s' "$tn"
 }
 
 # --- resolução da UNIVERSIDADE/escola (folha de rosto, secundária) ----------
 # Preferindo o nome completo; pode ser vazia. Ordem:
-# 1) controle/teams: univfull (campo 5) -> univshort (campo 3)
-# 2) passwd: univfull (campo 8) -> univshort (campo 6)
-# 3) teams-meta.json: school_full -> school (1ª regra cujo regex casa o login)
+# 1) account.json: .team.univ_full -> .team.univ_short
+# 2) teams-meta.json: school_full -> school (1ª regra cujo regex casa o login)
 pr_resolve_univ() {  # <c> <login>
   local c="$1" login="$2" un=""
   local d="$CONTESTSDIR/$c"
-  if [[ -f "$d/controle/teams" ]]; then
-    un="$(awk -F: -v u="$login" '$1==u{print $5; exit}' "$d/controle/teams")"
-    [[ -z "$un" ]] && un="$(awk -F: -v u="$login" '$1==u{print $3; exit}' "$d/controle/teams")"
-  fi
-  [[ -z "$un" ]] && un="$(awk -F: -v u="$login" '$1==u{print $8; exit}' "$d/passwd" 2>/dev/null)"
-  [[ -z "$un" ]] && un="$(awk -F: -v u="$login" '$1==u{print $6; exit}' "$d/passwd" 2>/dev/null)"
+  un="$(_pr_acct "$c" "$login" '.team.univ_full')"
+  [[ -z "$un" ]] && un="$(_pr_acct "$c" "$login" '.team.univ_short')"
   if [[ -z "$un" && -f "$d/teams-meta.json" ]]; then
     un="$(jq -r --arg w "$login" '
       ((.rules // (if type=="array" then . else [] end))
@@ -359,18 +369,19 @@ pr_build_balloon() {
 }
 
 # pr_reconcile_balloons <c> : gera (preguiçosamente) as tarefas de balão pendentes — 1 por (login,
-# problema) na 1ª solução. Idempotente (id determinístico), sob flock, gateado por mtime do history.
-# Lê o veredicto FINAL do history (campo-5 ~ Accepted) — vale p/ auto E manual. Auditado.
+# problema) na 1ª solução. Idempotente (id determinístico), sob flock, gateado pelo mtime de
+# var/.score-dirty (tocado a cada escrita de history — substitui o extinto controle/history).
+# Lê o veredicto FINAL do stream (campo-5 ~ Accepted) — vale p/ auto E manual. Auditado.
 pr_reconcile_balloons() {
   local c="$1" dir hist stamp
   staff_exists "$c" || return 0
-  dir="$(pr_dir "$c")"; hist="$CONTESTSDIR/$c/controle/history"
-  [[ -f "$hist" ]] || return 0
+  dir="$(pr_dir "$c")"; hist="$CONTESTSDIR/$c/var/.score-dirty"
+  [[ -e "$hist" ]] || return 0                     # sem submissão desde o cut-over: nada a fazer
   mkdir -p "$dir"; stamp="$dir/.balloon-stamp"
   [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && return 0
   ( flock -w 5 9 || exit 0
     [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && exit 0
-    touch -r "$hist" "$stamp"                      # carimba a mtime do history ANTES de varrer
+    touch -r "$hist" "$stamp"                      # carimba o mtime do marcador ANTES de varrer
     local _t login cid _lang verdict id short colorhex colorname team univ fullname seq
     while IFS=: read -r _t login cid _lang verdict _rest; do
       [[ -n "$login" && -n "$cid" ]] || continue
@@ -391,6 +402,6 @@ pr_reconcile_balloons() {
           claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0}' \
         > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json"
       audit_log_to "$c" balloon-task "seq=$seq login=$login problema=$short cor=$colorname"
-    done < "$hist"
+    done < <(emit_history_stream "$c")
   ) 9>"$dir/.balloon.lock"
 }

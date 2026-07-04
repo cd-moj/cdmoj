@@ -135,8 +135,7 @@ cc_create(){
 
   local stg="$CONTESTSDIR/.staging-$id-$$-$RANDOM"
   rm -rf "$stg"
-  mkdir -p "$stg"/{controle,data,enunciados,submissions,log,mojlog,var} || fail 500 "Falha ao preparar diretório" "mkdir_fail"
-  : > "$stg/controle/history"
+  mkdir -p "$stg"/{users,enunciados,var} || fail 500 "Falha ao preparar diretório" "mkdir_fail"
 
   local probs="PROBS=(" i=0
   local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
@@ -215,10 +214,9 @@ cc_create(){
   valid_id "$adminlogin" || { rm -rf "$stg"; fail 422 "login de admin inválido" "admin_login_invalid"; }
   adminname="${sa_name:-$cname}"
 
-  # a conta admin já existe na fonte compartilhada? (login = 1º campo do passwd)
+  # a conta admin já existe na fonte compartilhada? (users/<login>/account.json)
   local shared_has_admin=false
-  if [[ -n "$users_from" && -f "$CONTESTSDIR/$users_from/passwd" ]] \
-     && cut -d: -f1 "$CONTESTSDIR/$users_from/passwd" 2>/dev/null | grep -qxF "$adminlogin"; then
+  if [[ -n "$users_from" && -f "$CONTESTSDIR/$users_from/users/$adminlogin/account.json" ]]; then
     shared_has_admin=true
   fi
   if [[ -n "$sa_pass" ]]; then
@@ -231,14 +229,23 @@ cc_create(){
   case "$adminpass$adminname" in *:*) rm -rf "$stg"; fail 422 "senha/nome do admin não podem conter ':'" "colon";; esac
 
   # --- usuários: compartilhados (USERS_FROM) ou específicos do contest ---
-  : > "$stg/passwd"
+  # _cc_stage_user <stg> <login> <pass> <fullname> [email] — conta no store (users/<login>/)
+  _cc_stage_user(){
+    local d="$1/users/$2"
+    mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || return 1
+    jq -cn --arg l "$2" --arg p "$3" --arg n "$4" --arg e "${5:-}" --argjson t "$EPOCHSECONDS" \
+      '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}' \
+      > "$d/account.json" || return 1
+    : > "$d/history"
+  }
   declare -a CREDS
   if [[ "$admin_local" == true ]]; then
-    printf '%s:%s:%s\n' "$adminlogin" "$adminpass" "$adminname" >> "$stg/passwd"
+    _cc_stage_user "$stg" "$adminlogin" "$adminpass" "$adminname" \
+      || { rm -rf "$stg"; fail 500 "Falha ao criar a conta do admin" "mkdir_fail"; }
     CREDS+=("$(jq -cn --arg l "$adminlogin" --arg p "$adminpass" --arg n "$adminname" '{login:$l,password:$p,fullname:$n,role:"admin"}')")
   fi
   if [[ -n "$users_from" ]]; then
-    { valid_id "$users_from" && [[ -f "$CONTESTSDIR/$users_from/passwd" ]]; } || { rm -rf "$stg"; fail 422 "users_from inválido" "users_from_invalid"; }
+    { valid_id "$users_from" && [[ -d "$CONTESTSDIR/$users_from/users" ]]; } || { rm -rf "$stg"; fail 422 "users_from inválido" "users_from_invalid"; }
     shared="$users_from"
   else
     local nu; nu="$(jq '(.users // []) | length' <<<"$spec")"
@@ -253,8 +260,8 @@ cc_create(){
       [[ "$ul" == "$adminlogin" ]] && continue
       [[ -z "$up" ]] && up="$(cc_genpass)"; [[ -z "$un" ]] && un="$ul"
       case "$up$un$ue" in *:*) rm -rf "$stg"; fail 422 "campos de usuário não podem conter ':'" "user_colon";; esac
-      if [[ -n "$ue" ]]; then printf '%s:%s:%s:%s\n' "$ul" "$up" "$un" "$ue" >> "$stg/passwd"
-      else printf '%s:%s:%s\n' "$ul" "$up" "$un" >> "$stg/passwd"; fi
+      _cc_stage_user "$stg" "$ul" "$up" "$un" "$ue" \
+        || { rm -rf "$stg"; fail 500 "Falha ao criar usuário" "mkdir_fail"; }
       CREDS+=("$(jq -cn --arg l "$ul" --arg p "$up" --arg n "$un" '{login:$l,password:$p,fullname:$n,role:"user"}')")
     done < <(jq -c '(.users // [])[]' <<<"$spec")
   fi
@@ -270,6 +277,7 @@ cc_create(){
     printf 'CONTEST_ID=%q\n'    "$id"
     printf 'CONTEST_NAME=%q\n'  "$name"
     printf 'CONTEST_TYPE=%q\n'  "$mode"
+    printf 'USER_STORE=v2\n'
     printf 'CONTEST_PRIORITY=%q\n' "$priority"
     printf 'CONTEST_START=%q\n' "$start"
     printf 'CONTEST_END=%q\n'   "$end"

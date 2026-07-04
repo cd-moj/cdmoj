@@ -16,7 +16,7 @@ valid_id "$login" || fail 422 "login inválido" "login_invalid"
 is_reserved_role_login "$login" && fail 403 "Não desabilite contas privilegiadas" "privileged"
 newpw="!$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)"
 if store_v2 "$contest"; then
-  # v2: senha '!…' no account.json (passwd derivado herda a marca; user-add reabilita)
+  # v2: senha '!…' no account.json (o literal nunca casa no login; user-add reabilita)
   user_exists "$contest" "$login" || fail 404 "Usuário não encontrado" "notfound"
   user_set_password "$contest" "$login" "$newpw" || fail 500 "Falha ao gravar" "write_fail"
 else

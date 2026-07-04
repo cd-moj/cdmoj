@@ -30,7 +30,7 @@ _title(){ # título do problema (probid usa '#'); fallback = o próprio id
 declare -a V
 while IFS=: read -r relat user prob lang resp epoch md5; do
   [[ -z "$user" ]] && continue
-  name="$(awk -F: -v u="$user" '$1==u{print $3; exit}' "$TREINO/passwd")"
+  name="$(user_fullname_of treino "$user")"
   V+=( "$(jq -cn --arg pid "$prob" --arg title "$(_title "$prob")" \
       --arg user "$user" --arg name "$name" --argjson at "${epoch:-0}" \
       --arg url "/treino/problema/?id=${prob//\#/%23}" \
@@ -81,7 +81,7 @@ EDITOR_RANK="$(
 declare -a U
 while read -r total user; do
   [[ -z "$user" ]] && continue
-  name="$(awk -F: -v u="$user" '$1==u{print $3; exit}' "$TREINO/passwd")"
+  name="$(user_fullname_of treino "$user")"
   read_profile treino "$user"
   U+=( "$(jq -cn --arg user "$user" --arg name "$name" --arg fe "$FAVORITE_EDITOR" --argjson n "$total" \
       '{username:$user, name:$name, favorite_editor:$fe, solved_count:$n}')" )

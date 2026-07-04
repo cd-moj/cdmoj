@@ -28,8 +28,8 @@ img="$(jq -r '.image_b64 // empty' <<<"$body")"
 img="${img#data:*;base64,}"                         # tolera data-url
 (( ${#img} <= 5500000 )) || fail 413 "Imagem muito grande (máx ~4MB)" "img_large"
 
-mkdir -p "$CONTESTSDIR/treino/var/profiles"
 out="$(photo_file treino "$login")"
+mkdir -p "$(dirname "$out")"
 tmp="$(mktemp)"
 printf '%s' "$img" | base64 -d > "$tmp" 2>/dev/null || { rm -f "$tmp"; fail 400 "Base64 inválido" "img_b64"; }
 # redimensiona+recorta centralizado p/ 100x100 png, remove metadados

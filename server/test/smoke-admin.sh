@@ -3,10 +3,12 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
-T="$FIX/treino"; mkdir -p "$T/controle" "$T/var"
-printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino Livre"\nCONTEST_TYPE=lista-publica\n' > "$T/conf"
-printf 'alice:secret:Alice A\nboss.admin:bosspw:Boss Admin\n' > "$T/passwd"
-printf '100:alice:p#x:C:Not Answered Yet:100:s1\n200:alice:p#x:C:Accepted,100p:200:s2\n' > "$T/controle/history"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+T="$FIX/treino"; mkdir -p "$T/var"
+printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino Livre"\nCONTEST_TYPE=lista-publica\nUSER_STORE=v2\n' > "$T/conf"
+fx_user "$T" alice secret "Alice A"
+fx_user "$T" boss.admin bosspw "Boss Admin"
+printf '100:p#x:C:Not Answered Yet:100:s1\n200:p#x:C:Accepted,100p:200:s2\n' > "$T/users/alice/history"
 
 # call <path> <method> <query> <token> <body> [ua] [xff]
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="$3" \
