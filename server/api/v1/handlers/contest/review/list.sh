@@ -1,6 +1,7 @@
 # GET /contest/review/list?contest=<id>   (Bearer, judge)
 # Fila de revisão de veredicto manual + minha avaliação ativa + contadores. Votos dos outros
-# juízes ficam OCULTOS p/ não-chief (evita anchoring); o juiz-chefe vê tudo.
+# juízes ficam OCULTOS p/ o JUIZ COMUM (evita anchoring); juiz-chefe E admin veem tudo (o
+# mesmo par que resolve/override — conflicts/resolve/stats já são is_admin_or_chief).
 require_method GET
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -10,7 +11,7 @@ is_judge || fail 403 "Judge only" "judge_required"
 source "$_LIBDIR/review.sh"
 
 me="$SESSION_LOGIN"; now="$EPOCHSECONDS"
-chief="$(is_chief && echo true || echo false)"
+chief="$(is_admin_or_chief && echo true || echo false)"
 manual="$([[ "$(grep -m1 '^MANUAL_VERDICT=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2- | tr -d "\"'")" == 1 ]] && echo true || echo false)"
 options="$(rv_options "$contest")"
 dir="$(rv_dir "$contest")"

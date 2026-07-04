@@ -1865,7 +1865,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Fila de revisão de veredicto manual (judge)",
+        "summary": "Fila de revisão de veredicto manual (judge; votos detalhados só p/ admin/chief — anti-anchoring)",
         "security": [
           {
             "bearerAuth": []
