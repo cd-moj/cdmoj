@@ -26,12 +26,12 @@ juiz distribuído, **resultado por push** (em vez do polling duplo do sistema an
       1. lê o JSON {contest,login,problem_id,code_b64,lang,...}
       2. verdict = judge_run(...)   ──────────────▶  server/judge-gw/judge.sh
       3. troca a linha "Not Answered Yet :<id>" pelo veredicto real (mv atômico)
-      4. atualiza contests/<c>/data/<login>
-      5. arquiva o fonte em contests/<c>/submissions/<id>-<login>-<prob>.<ext>
-      6. roda server/score/build.sh <c>  ──▶  reescreve controle/placar.txt
+      4. recomputa users/<login>/metrics.json (fonte do placar)
+      5. arquiva o fonte em users/<login>/submissions/<id>.<ext>
+      6. roda server/score/build.sh <c>  ──▶  reescreve var/placar.txt
       7. move o arquivo de spool p/ run/spool/submissions-done/
                                                               │
-   Placar:  GET /api/v1/contest/score  ◀── lê controle/placar.txt (1ª linha = modo)
+   Placar:  GET /api/v1/contest/score  ◀── lê var/placar.txt (1ª linha = modo)
 ```
 
 O ponto-chave: **a CGI nunca bloqueia**. `submit.sh` enfileira e retorna na hora; o
@@ -67,10 +67,10 @@ mostra como "julgando" enquanto faz polling.
 
 Serviço systemd **`moj-judged`**. Observa o spool com `inotifywait -m -e create -e moved_to`
 (fallback: poll de 1s). Para cada arquivo: lê o JSON, chama `judge_run`, e aplica o
-veredicto reescrevendo **só a linha com sufixo `:<id>`** no `history` (casamento seguro,
-reescrita atômica via `mv`), atualiza `data/<login>`, arquiva o fonte decodificado, e
-dispara `server/score/build.sh <contest>` para recalcular o placar. Por fim move o
-arquivo para `run/spool/submissions-done/`.
+veredicto reescrevendo **só a linha com sufixo `:<id>`** no `history` do usuário (casamento
+seguro, reescrita atômica via `mv`), recomputa `users/<login>/metrics.json`, arquiva o fonte
+decodificado, e dispara `server/score/build.sh <contest>` para recalcular o placar. Por fim
+move o arquivo para `run/spool/submissions-done/`.
 
 O resultado do juiz carrega, além do `verdict` de display (com o score embutido, ex.
 `Accepted,100p`), os campos **estruturados** `verdict_canon` (canônico **sem** score),
@@ -160,8 +160,9 @@ A API fala com o master pelo gateway `handlers/ops/*` e `handlers/treino/admin/j
 ## 7. Placar — `server/score/build.sh`
 
 Chamado pelo `judged.sh` após cada veredicto. Lê `contests/<c>/conf` (`CONTEST_TYPE`),
-recalcula e grava `contests/<c>/controle/placar.txt` — **1ª linha = modo**
-(`icpc`/`obi`/`treino`/`heuristic`/`outro`), as demais já ordenadas (ver `SCOREBOARD.md`).
+gera o placar a partir de `users/*/metrics.json` (uma passada; ver `SCOREBOARD.md`) e grava
+`contests/<c>/var/placar.txt` — **1ª linha = modo**
+(`icpc`/`obi`/`treino`/`heuristic`/`outro`), as demais já ordenadas.
 O front (`web/contest/score/`) busca `GET /contest/score`, despacha pelo modo e renderiza
 (com bandeiras locais de `/shared/flags/`, regras `teams-meta`, modo anônimo, etc.).
 

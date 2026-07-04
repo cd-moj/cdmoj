@@ -5,7 +5,7 @@
 # Escape hatch for fully custom boards. Prints ONE TXT to stdout whose first
 # line is the bare mode "outro".
 #
-#   - If contests/<id>/controle/placar-custom.txt exists, it is emitted as the
+#   - If contests/<id>/var/placar-custom.txt exists, it is emitted as the
 #     board (it already carries the "outro" mode line + arbitrary columns). If,
 #     for whatever reason, its first line is not "outro", an "outro" line is
 #     prepended so the dispatcher's contract still holds.
@@ -19,7 +19,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
 
 sc_load "${1:-}"
 
-CUSTOM="$CONTESTDIR/controle/placar-custom.txt"
+CUSTOM="$CONTESTDIR/var/placar-custom.txt"
 
 if [[ -f "$CUSTOM" ]]; then
   first="$(head -1 "$CUSTOM")"

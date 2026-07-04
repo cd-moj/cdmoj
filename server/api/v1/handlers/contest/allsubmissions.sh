@@ -1,6 +1,7 @@
 # GET /contest/allsubmissions?contest=<id>   (Bearer, admin) -> TXT
-# TODAS as submissões do contest, do controle/history, com 9 campos por linha:
+# TODAS as submissões do contest, com 9 campos por linha:
 #   tempo:username:problemid:lang:verdict:epoch:subid:fullname:univ
+# Fonte: emit_history_stream (store-v2 fan-out em users/*/history; legado controle/history).
 # (fullname/univ vêm do passwd; univ = vazio se não houver coluna específica.)
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -9,12 +10,10 @@ require_auth_contest "$contest"
 is_admin_or_chief || fail 403 "Admin/juiz-chefe only" "admin_required"
 
 emit_text
-hist="$CONTESTSDIR/$contest/controle/history"
 passwd="$CONTESTSDIR/$contest/passwd"
-[[ -f "$hist" ]] || exit 0
 
 # Mapa login -> fullname a partir do passwd (campo 3). univ não modelado -> "".
-awk -F: -v pw="$passwd" '
+emit_history_stream "$contest" | awk -F: -v pw="$passwd" '
   BEGIN {
     while ((getline line < pw) > 0) {
       n = split(line, a, ":")
@@ -25,4 +24,4 @@ awk -F: -v pw="$passwd" '
     full = (($2 in name) ? name[$2] : "")
     print $0 ":" full ":"
   }
-' "$hist"
+'

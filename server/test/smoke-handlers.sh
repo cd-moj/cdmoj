@@ -1,27 +1,59 @@
 #!/bin/bash
-# Smoke test dos handlers de index/contest/submission/admin/ops contra dados REAIS
-# (somente leitura, exceto SPOOLDIR e SESSIONDIR temporários). Invoca router.sh
-# simulando o ambiente CGI, como server/test/smoke.sh.
+# Smoke test dos handlers de index/contest/submission/admin/ops contra um FIXTURE
+# store-v2 auto-contido (contest "handson" + treino mínimo). Antes rodava contra a
+# base real; os contests legados foram arquivados em contests-legado/. Invoca
+# router.sh simulando o ambiente CGI, como server/test/smoke.sh.
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"   # .../server
 ROUTER="$ROOT/api/v1/router.sh"
-REALCONTESTS="${REALCONTESTS:-/home/ribas/moj/contests}"
-CONTEST="${CONTEST:-bcr-eda2-2025_1-redencao}"
 
-SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"; NEWS="$(mktemp -d)"
-trap 'rm -rf "$SESS" "$SPOOL" "$NEWS"' EXIT
+FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"; NEWS="$(mktemp -d)"
+trap 'rm -rf "$FIX" "$SESS" "$SPOOL" "$NEWS"' EXIT
 
-# Descobre um admin real do passwd do contest p/ forjar a sessão.
-ADMIN="$(cut -d: -f1 "$REALCONTESTS/$CONTEST/passwd" | grep -m1 '\.admin$')"
-[[ -z "$ADMIN" ]] && ADMIN="ribas.admin"
-ANAME="$(awk -F: -v u="$ADMIN" '$1==u{print $3; exit}' "$REALCONTESTS/$CONTEST/passwd")"
+CONTEST=handson
+ADMIN=hands.admin
+SID="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"   # 32 hex, como um md5
 
-# Forja um token de sessão (mesmo formato de create_session em lib/auth.sh).
+C="$FIX/$CONTEST"
+mkdir -p "$C/users/$ADMIN/submissions" "$C/users/$ADMIN/mojlog" "$C/users/$ADMIN/results" \
+         "$C/users/alice/submissions" "$C/users/alice/mojlog" "$C/users/alice/results" \
+         "$C/var" "$C/enunciados"
+{ printf 'CONTEST_ID=%s\nCONTEST_NAME="Hands On"\nCONTEST_TYPE=icpc\n' "$CONTEST"
+  printf 'CONTEST_START=1000\nCONTEST_END=2000\nUSER_STORE=v2\n'
+  printf "PROBS=(f0 col/pa 'Prob A' A 'col#pa' f1 col/pb 'Prob B' B 'col#pb' f2 col/pc 'Prob C' C 'col#pc' f3 col/pd 'Prob D' D 'col#pd')\n"
+} > "$C/conf"
+for k in pa pb pc pd; do printf '<h1>col#%s</h1>' "$k" > "$C/enunciados/col#$k.html"; done
+mkacct(){ jq -n --arg l "$1" --arg p "$2" --arg n "$3" \
+  '{login:$l,password:$p,fullname:$n,email:"",created_at:0,updated_at:0,status:"active",uname_changes:[]}'; }
+mkacct "$ADMIN" adm "Admin Handson" > "$C/users/$ADMIN/account.json"
+mkacct alice a "Alice Silva"        > "$C/users/alice/account.json"
+printf '%s:adm:Admin Handson\nalice:a:Alice Silva\n' "$ADMIN" > "$C/passwd"
+: > "$C/users/$ADMIN/history"
+printf '5:col#pa:C:Accepted,100p:1718000000:%s\n' "$SID" > "$C/users/alice/history"
+printf 'int main(){return 0;}\n' > "$C/users/alice/submissions/$SID.c"
+printf '<html>report</html>\n'   > "$C/users/alice/mojlog/$SID.html"
+
+# treino mínimo p/ /index/open_training
+T="$FIX/treino"; mkdir -p "$T/users/alice" "$T/var"
+{ printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\n'
+  printf 'CONTEST_START=1000\nCONTEST_END=9999999999\nUSER_STORE=v2\n'; } > "$T/conf"
+mkacct alice a "Alice Silva" > "$T/users/alice/account.json"
+printf 'alice:a:Alice Silva\n' > "$T/passwd"
+printf '1718000000:col#pa:C:Accepted,100p:1718000000:t1\n' > "$T/users/alice/history"
+
+# Forja tokens de sessão (mesmo formato de create_session em lib/auth.sh).
 TOKEN="11111111-2222-3333-4444-555555555555"
 cat > "$SESS/$TOKEN" <<EOF
 CONTEST="$CONTEST"
 LOGIN="$ADMIN"
-USERFULLNAME="$ANAME"
+USERFULLNAME="Admin Handson"
+LOGINAT=$EPOCHSECONDS
+EOF
+NTOK="99999999-8888-7777-6666-555555555555"
+cat > "$SESS/$NTOK" <<EOF
+CONTEST="$CONTEST"
+LOGIN="alice"
+USERFULLNAME="Alice Silva"
 LOGINAT=$EPOCHSECONDS
 EOF
 
@@ -29,7 +61,7 @@ pass=0; fail=0
 check(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1"; echo "      out: ${OUT:0:500}"; ((fail++)); fi; }
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="$3" \
   HTTP_AUTHORIZATION="${4:+Bearer $4}" \
-  CONTESTSDIR="$REALCONTESTS" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" \
   bash "$ROUTER" <<<"${5:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 
@@ -45,10 +77,10 @@ echo "== index/contests =="
 call "/index/contests" GET "page=1" ""
 check "contests 200 + valid JSON" 'okstatus && jvalid'
 check "contests has open/upcoming/closed" '[[ "$BODY" == *\"open\":* && "$BODY" == *\"closed\":* ]]'
-check "redencao classified as closed" 'printf "%s" "$BODY" | jq -e ".closed.items + .open + .upcoming | map(.id) | index(\"$CONTEST\")" >/dev/null'
+check "handson classified as closed" 'printf "%s" "$BODY" | jq -e ".closed.items + .open + .upcoming | map(.id) | index(\"$CONTEST\")" >/dev/null'
 check "closed has pagination" 'printf "%s" "$BODY" | jq -e ".closed.total >= 1 and .closed.page==1" >/dev/null'
 
-echo "== index/open_training (treino real) =="
+echo "== index/open_training (treino fixture) =="
 call "/index/open_training" GET "" ""
 check "open_training 200 + valid JSON" 'okstatus && jvalid'
 check "top_users present" 'printf "%s" "$BODY" | jq -e ".top_users|type==\"array\"" >/dev/null'
@@ -91,8 +123,9 @@ check "contest/resources empty items" 'okstatus && [[ "$BODY" == *\"items\":\[\]
 echo "== contest/history (Bearer, TXT) =="
 call "/contest/history" GET "contest=$CONTEST" "$TOKEN"
 check "history 200 (TXT)" 'okstatus'
-# admin 'bruno.admin' has entries; our forged admin may differ -> just check it's only own lines
 check "history lines only for logged user (or empty)" '[[ -z "$BODY" ]] || ! printf "%s" "$BODY" | awk -F: -v u="$ADMIN" "\$2!=u{exit 1}"'
+call "/contest/history" GET "contest=$CONTEST" "$NTOK"
+check "history alice has her AC line" 'okstatus && [[ "$BODY" == *"$SID"* ]]'
 
 echo "== contest/balloons =="
 call "/contest/balloons" GET "contest=$CONTEST" ""
@@ -103,57 +136,51 @@ echo "== contest/regions (empty default) =="
 call "/contest/regions" GET "contest=$CONTEST" ""
 check "regions 200 empty" 'okstatus && [[ "$BODY" == *\"regions\":\[\]* ]]'
 
-echo "== contest/score (TXT, mode line) =="
+echo "== contest/score (TXT, mode line, gerado de users/*/metrics.json) =="
 call "/contest/score" GET "contest=$CONTEST" ""
 check "score 200 (TXT)" 'okstatus'
 check "score first line is a known mode" '[[ "$(printf "%s" "$BODY" | head -1)" =~ ^(icpc|obi|treino|heuristic|outro|custom)$ ]]'
+check "score has alice row (metrics-driven)" '[[ "$BODY" == *alice* ]]'
+check "placar gerado em var/placar.txt" '[[ -s "$FIX/$CONTEST/var/placar.txt" ]]'
 
 echo "== contest/allsubmissions (Bearer, admin, TXT 9 fields) =="
 call "/contest/allsubmissions" GET "contest=$CONTEST" "$TOKEN"
 check "allsubmissions 200 (TXT)" 'okstatus'
-check "allsubmissions has >=9 colon-fields" '[[ -z "$BODY" ]] || [[ "$(printf "%s" "$BODY" | head -1 | awk -F: "{print NF}")" -ge 9 ]]'
+check "allsubmissions has >=9 colon-fields" '[[ -n "$BODY" ]] && [[ "$(printf "%s" "$BODY" | head -1 | awk -F: "{print NF}")" -ge 9 ]]'
+check "allsubmissions resolve fullname do passwd" '[[ "$BODY" == *"Alice Silva"* ]]'
 
 echo "== contest/final-verdicts (Bearer, judge) =="
 call "/contest/final-verdicts" GET "contest=$CONTEST" "$TOKEN"
 check "final-verdicts 200 + Accepted in list" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e ".verdicts|index(\"Accepted\")" >/dev/null)'
 
 echo "== contest/set-verdict (POST judge) =="
-call "/contest/set-verdict" POST "contest=$CONTEST" "$TOKEN" '{"problem_id":"A","verdict":"Accepted","username":"a221007902"}'
+call "/contest/set-verdict" POST "contest=$CONTEST" "$TOKEN" '{"problem_id":"A","verdict":"Accepted","username":"alice"}'
 check "set-verdict queued" 'okstatus && [[ "$BODY" == *\"status\":\"queued\"* ]]'
 check "set-verdict spool file created" '[[ -n "$(ls "$SPOOL"/$CONTEST:*:setverdict:A 2>/dev/null)" ]]'
 
-echo "== contest/rejudge (POST admin) =="
-call "/contest/rejudge" POST "contest=$CONTEST" "$TOKEN" '{"ids":["9a58663c59ca04970c7104195090bf33"]}'
+echo "== contest/rejudge (POST admin, store-v2) =="
+call "/contest/rejudge" POST "contest=$CONTEST" "$TOKEN" '{"ids":["'"$SID"'"]}'
 check "rejudge count==1" 'okstatus && (printf "%s" "$BODY" | jq -e ".count==1" >/dev/null)'
-check "rejudge spool file created" '[[ -n "$(ls "$SPOOL"/$CONTEST:*:rejulgar:* 2>/dev/null)" ]]'
+check "rejudge spool file created" '[[ -n "$(ls "$SPOOL"/$CONTEST:*:rejulgar:* "$SPOOL"/$CONTEST:*:submit:* 2>/dev/null)" ]]'
+check "rejudge marcou history provisório" 'grep -q "Not Answered Yet" "$C/users/alice/history"'
+# restaura o veredicto p/ os checks seguintes
+printf '5:col#pa:C:Accepted,100p:1718000000:%s\n' "$SID" > "$C/users/alice/history"
 
 echo "== submission/source (Bearer) =="
-# pick a real submission: time:hash from filename of bruno.admin (owner) -> but our admin differs.
-SUBFILE="$(ls "$REALCONTESTS/$CONTEST/submissions/" | grep -v accepted | head -1)"
-STIME="${SUBFILE%%:*}"; rest="${SUBFILE#*:}"; SHASH="${rest%%-*}"
-call "/submission/source" GET "contest=$CONTEST&time=$STIME&id=$SHASH" "$TOKEN"
-# admin is judge -> allowed
-check "source 200 returns code" 'okstatus && [[ "$BODY" == *include* || -n "$BODY" ]]'
-call "/submission/source" GET "contest=$CONTEST&time=$STIME&id=deadbeef" "$TOKEN"
+call "/submission/source" GET "contest=$CONTEST&time=1718000000&id=$SID" "$TOKEN"
+check "source 200 returns code" 'okstatus && [[ "$BODY" == *"int main"* ]]'
+call "/submission/source" GET "contest=$CONTEST&time=1718000000&id=deadbeef" "$TOKEN"
 check "source bad id -> 400" '[[ "$OUT" == *"Status: 400"* ]]'
 
 echo "== submission/log (Bearer) =="
-LOGF="$(ls "$REALCONTESTS/$CONTEST/mojlog/" | head -1)"
-LTIME="${LOGF%%:*}"; LHASH="${LOGF#*:}"
-call "/submission/log" GET "contest=$CONTEST&time=$LTIME&id=$LHASH" "$TOKEN"
-check "log 200 returns routing line" 'okstatus && [[ "$BODY" == *27000* || -n "$BODY" ]]'
+call "/submission/log" GET "contest=$CONTEST&time=1718000000&id=$SID" "$TOKEN"
+check "log 200 returns report" 'okstatus && [[ "$BODY" == *report* ]]'
 
 echo "== admin/adduser + passwd (POST admin) — uses temp contest copy =="
 TMPC="$(mktemp -d)"
-cp -r "$REALCONTESTS/$CONTEST" "$TMPC/$CONTEST"
-# forge session against this temp contestsdir copy
+cp -r "$C" "$TMPC/$CONTEST"
 SESS2="$(mktemp -d)"
-cat > "$SESS2/$TOKEN" <<EOF
-CONTEST="$CONTEST"
-LOGIN="$ADMIN"
-USERFULLNAME="$ANAME"
-LOGINAT=$EPOCHSECONDS
-EOF
+cp "$SESS/$TOKEN" "$SESS2/$TOKEN"
 acall(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="$3" \
   HTTP_AUTHORIZATION="${4:+Bearer $4}" \
   CONTESTSDIR="$TMPC" SESSIONDIR="$SESS2" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" \
@@ -197,25 +224,20 @@ call "/ops/problemtl" GET "problem=grafo-chp" "$TOKEN"
 check "problemtl 200 + time_limits field" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e "has(\"time_limits\")" >/dev/null)'
 
 echo "== ops/updateproblemset (admin, best-effort) =="
-call "/ops/updateproblemset" POST "" "$TOKEN" '{"repo":"moj-problems"}'
-check "updateproblemset 200 + success" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e ".success==true" >/dev/null)'
+# usa uma ORG real do store de problemas (pós-migração p/ orgs não existe mais "moj-problems")
+REPO="$(ls "${MOJ_PROBLEMS_DIR:-/home/ribas/moj/moj-problems}" 2>/dev/null | head -1)"
+if [[ -n "$REPO" ]]; then
+  call "/ops/updateproblemset" POST "" "$TOKEN" '{"repo":"'"$REPO"'"}'
+  check "updateproblemset 200 + success" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e ".success==true" >/dev/null)'
+else
+  echo "  skip: store de problemas vazio"
+fi
 
 echo "== authz negatives =="
-# non-admin user for admin-only endpoints
-NONADMIN="$(cut -d: -f1 "$REALCONTESTS/$CONTEST/passwd" | grep -vm1 '\.\(admin\|judge\|staff\)$')"
-[[ -n "$NONADMIN" ]] && {
-  NTOK="99999999-8888-7777-6666-555555555555"
-  cat > "$SESS/$NTOK" <<EOF
-CONTEST="$CONTEST"
-LOGIN="$NONADMIN"
-USERFULLNAME="x"
-LOGINAT=$EPOCHSECONDS
-EOF
-  call "/contest/allsubmissions" GET "contest=$CONTEST" "$NTOK"
-  check "non-admin allsubmissions -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
-  call "/ops/queue" GET "" "$NTOK"
-  check "non-admin ops/queue -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
-}
+call "/contest/allsubmissions" GET "contest=$CONTEST" "$NTOK"
+check "non-admin allsubmissions -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
+call "/ops/queue" GET "" "$NTOK"
+check "non-admin ops/queue -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 
 echo ""
 echo "RESULT: $pass passed, $fail failed"

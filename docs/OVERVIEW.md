@@ -35,7 +35,7 @@ moj/
     index/ contests/ status/ treino/ contest/  (home, arquivo de encerrados, status público, treino, contest)
   judge/           cluster (master :27000 + workers pos/gpu/cm/hu) + mojtools (sandbox bubblewrap)
   mojinho-bot/     bot do Telegram (vira cliente da API)
-  contests/<id>/   DADOS (conf, passwd, controle/history+placar.txt, data/, submissions/, mojlog/, var/, …) — fonte da verdade
+  contests/<id>/   DADOS (conf, users/<login>/ (account.json+history+metrics+submissions), var/placar.txt, …) — fonte da verdade
   run/             estado de runtime (sessions/, spool/, results/, registry/, sockets)  [não versionado]
   docs/            esta documentação
 ```
@@ -149,8 +149,8 @@ ver **Impressão (`.staff`)** abaixo. Os problemas usam o **id canônico `coleç
 treino — é o que o juiz usa p/ achar o pacote); o editor é o **CodeMirror compartilhado**
 (`shared/editor.js`, com tela cheia e nova janela) e a seleção de linguagens é a lista inteira do
 MOJ (`shared/languages.js`), reduzida à whitelist do conf `LANGUAGES=` quando definida. O placar
-dos contests novos é **materializado a partir do `controle/history`** (`score/dstate.sh`, chamado
-pelo `score/build.sh`), já que o pipeline assíncrono não escreve os `.d/<pidx>`. O aluno recebe
+é **gerado de `users/*/metrics.json`** (mantidos incrementais pelo daemon; `score/build.sh` +
+`sc_cells` — ver `SCOREBOARD.md`), sem varrer history. O aluno recebe
 **aviso de novidades** (notícias + clarifications respondidas, com badge de não lidas — poll de
 `/contest/updates`) e vê o **tempo-limite** por linguagem no detalhe do problema (ocultável pelo
 admin). **Acesso por fase+papel (forçado pela API, não só no front)**: `.admin`/`.judge` veem os

@@ -65,6 +65,32 @@ sc_load() {
   SC_NPROB=${#SC_PIDX[@]}
 }
 
+# sc_cells — emits one TSV row per (user, problem) from users/*/metrics.json in a
+# single pass (find|xargs jq, login from input_filename — no ARG_MAX, no per-user fork).
+# Columns:
+#   login  probid  solved(0|1)  first_ac_epoch  counted  pending(0|1)  best_score(-|N)  heur_score(-|N)  heur_adj(F)
+# View: MOJ_NOFREEZE=1 (or metrics without .frozen) = full; otherwise the frozen one.
+# This is the ONLY scoreboard data source (replaces the old .d state files and data/).
+sc_cells() {
+  local d="$CONTESTDIR/users"
+  [[ -d "$d" ]] || return 0
+  find "$d" -mindepth 2 -maxdepth 2 -name metrics.json -print0 2>/dev/null \
+  | xargs -0 -r jq -r --arg nofreeze "${MOJ_NOFREEZE:-0}" '
+      (input_filename | split("/") | .[-2]) as $login
+      | (.by_problem // {}) | to_entries[]
+      | (if ($nofreeze == "1") or (.value.frozen == null) then .value
+         else (.value + .value.frozen) end) as $v
+      | [$login, .key,
+         (if $v.solved then 1 else 0 end),
+         ($v.first_ac_epoch // 0),
+         ($v.counted // 0),
+         (if $v.pending then 1 else 0 end),
+         ($v.best_score // "-"),
+         ($v.heur.score // "-"),
+         ($v.heur.adjusted // 0)]
+      | @tsv'
+}
+
 # sc_is_real_user <login>  -> 0 if it's a contestant row we should score.
 # Skips passwd comments, admin/judge/staff/mon roles and the literal "admin".
 sc_is_real_user() {

@@ -3,13 +3,13 @@
 # de calor dia-da-semana × hora. Só conta submissões com finalized_at (único timestamp de
 # veredito persistido); a cobertura (history_total vs with_finalized) vai no JSON.
 # O cálculo vive em server/score/treino-response-gen.sh; aqui só servimos o cache, regenerando
-# PREGUIÇOSAMENTE quando controle/history ou results/ mudam — espelha /contest/statistics.
+# PREGUIÇOSAMENTE quando var/.score-dirty muda — espelha /contest/statistics.
 require_auth_contest treino
 is_admin || fail 403 "Apenas administradores do treino" "admin_required"
 
 cache="$CONTESTSDIR/treino/var/response-stats.cache.json"
 regen_locked "$CONTESTSDIR/treino/var/.response-stats.lock" \
-  "$cache" "$CONTESTSDIR/treino/controle/history" "$CONTESTSDIR/treino/results" \
+  "$cache" "$CONTESTSDIR/treino/var/.score-dirty" "$CONTESTSDIR/treino/conf" \
   -- bash "$SCOREDIR/treino-response-gen.sh" treino "$cache"
 
 emit_json 200 OK

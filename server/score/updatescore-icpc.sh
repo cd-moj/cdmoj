@@ -16,8 +16,7 @@
 # Penalty = sum over solved problems of (tries-1)*PENALTYCOST + accepted-minute.
 # Total column = number of solved problems.
 #
-# Ported from old/moj-prod/moj/scripts/updatescore.sh and
-# old/cdmoj/server/scripts/updatedotscore.sh (PENALTYCOST=20).
+# Data source: users/*/metrics.json via sc_cells (frozen view unless MOJ_NOFREEZE=1).
 set -u
 SC_PROG="updatescore-icpc"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
@@ -25,6 +24,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
 PENALTYCOST=20
 
 sc_load "${1:-}"
+START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 
 # --- header ----------------------------------------------------------------
 {
@@ -34,6 +34,12 @@ sc_load "${1:-}"
   printf ':Total\n'
 }
 
+# --- cells from metrics (one pass over users/*/metrics.json) ----------------
+declare -A CSOL CFAC CCNT CPEND
+while IFS=$'\t' read -r l pr s fac cnt pend _rest; do
+  CSOL["$l|$pr"]=$s; CFAC["$l|$pr"]=$fac; CCNT["$l|$pr"]=$cnt; CPEND["$l|$pr"]=$pend
+done < <(sc_cells)
+
 # --- rows ------------------------------------------------------------------
 # Build each row prefixed with "solved:penalty" sort keys, sort, then strip.
 {
@@ -42,23 +48,18 @@ sc_load "${1:-}"
     penalty=0
     cells=""
     for ((p=0; p<SC_NPROB; p++)); do
-      pidx="${SC_PIDX[p]}"
-      JAACERTOU=0; TENTATIVAS=0; PENDING=0
-      statef="$CONTESTDIR/controle/$login.d/$pidx"
-      if [[ -f "$statef" ]]; then
-        # shellcheck disable=SC1090
-        source "$statef" 2>/dev/null
-      fi
-      : "${JAACERTOU:=0}"; : "${TENTATIVAS:=0}"; : "${PENDING:=0}"
-      if (( TENTATIVAS == 0 && PENDING == 0 )); then
+      key="$login|${SC_CANON[p]}"
+      sol="${CSOL[$key]:-0}"; fac="${CFAC[$key]:-0}"
+      tent="${CCNT[$key]:-0}"; pend="${CPEND[$key]:-0}"
+      if (( tent == 0 && pend == 0 )); then
         cells+=":"                       # untried -> empty cell
-      elif (( JAACERTOU > 0 )); then
-        min=$(( JAACERTOU / 60 ))
+      elif (( sol == 1 )); then
+        min=$(( (fac - START) / 60 )); (( min < 0 )) && min=0
         (( solved++ ))
-        (( penalty += (TENTATIVAS-1)*PENALTYCOST + min ))
-        cells+=":${TENTATIVAS}/${min}"   # solved
+        (( penalty += (tent-1)*PENALTYCOST + min ))
+        cells+=":${tent}/${min}"         # solved
       else
-        cells+=":${TENTATIVAS}/-"        # tried, unsolved
+        cells+=":${tent}/-"              # tried, unsolved
       fi
     done
     # sort keys + the visible row

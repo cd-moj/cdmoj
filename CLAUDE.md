@@ -36,7 +36,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `metrics.json`; `submissions/<subid>.<ext>`, `mojlog/<subid>.html`, `results/<subid>.json` — **sem
   login no nome**). **Rename de conta = `mv` do diretório** (`user_rename` + telegram index). O
   `controle/history` global some; leitores usam `emit_user_history`/`emit_history_stream`
-  (formato global de 7 campos) e os scripts de placar materializam o stream num temp. `store_v2 <c>`
+  (formato global de 7 campos). **O placar NÃO varre history**: `metrics_recompute` grava em
+  `metrics.json` tudo que os geradores precisam por problema (`counted` até o 1º AC,
+  `first_ac_epoch`, `pending`, `best_score` NNp, `heur`, visão **`frozen`** pré-`FREEZE_TIME`) e
+  `score/build.sh` + `sc_cells` (score-common.sh) leem `users/*/metrics.json` numa passada —
+  placar em **`var/placar{,-full,-custom}.txt`** (não mais `controle/`). Staleness dos caches
+  preguiçosos (`contest/score`/`statistics`/`response-stats`) = **`var/.score-dirty`** (tocado por
+  `user_history_append/replace`) + `conf`; `var/.metrics-stamp` dispara recompute em massa no
+  `build.sh` quando o `conf` muda (ex.: `FREEZE_TIME` editado). `store_v2 <c>`
   ramifica write-path (`judged.sh`/`submit.sh`) e leitura. **Migração**: `server/bin/store-migrate.sh
   <c>` (dry-run por padrão; `--apply` seta `USER_STORE=v2`). Competições não-migradas seguem no legado.
   Os handlers de usuário do admin do contest (`user-add`/`user-disable`/`user-remove`/

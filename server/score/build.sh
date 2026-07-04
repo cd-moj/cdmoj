@@ -10,7 +10,7 @@
 # calls the matching updatescore-<mode>.sh <contest> (which prints ONE TXT
 # whose first line is the bare mode), and installs the result atomically as
 #
-#   contests/<contest>/controle/placar.txt
+#   contests/<contest>/var/placar.txt
 #
 # Prints the path of the generated board.
 #
@@ -77,21 +77,32 @@ GEN="$HERE/updatescore-$MODE.sh"
 # --- generate the board(s) ------------------------------------------------
 # placar.txt = público (com freeze). placar-full.txt = COMPLETO (sem freeze), servido
 # aos privilegiados (.admin/.judge + allowlist do conf) — só gerado quando há FREEZE_TIME.
-OUT="$CONTESTDIR/controle/placar.txt"
-FULL="$CONTESTDIR/controle/placar-full.txt"
-mkdir -p "$CONTESTDIR/controle" || die "cannot create controle dir"
+OUT="$CONTESTDIR/var/placar.txt"
+FULL="$CONTESTDIR/var/placar-full.txt"
+mkdir -p "$CONTESTDIR/var" || die "cannot create var dir"
 
 # FREEZE_TIME do conf (sem sourcear arrays): se >0, também geramos o placar completo.
 FREEZE_RAW="$(sed -n 's/^[[:space:]]*FREEZE_TIME=//p' "$CONF" | tail -1)"
 FREEZE_RAW="$(printf '%s' "$FREEZE_RAW" | tr -cd '0-9')"
 
-# gen_one <outfile> <nofreeze:0|1> — materializa os .d (contests novos; MOJ_NOFREEZE
-# controla o freeze) e roda o gerador, instalando atômico com checagem do modo.
+# --- metrics freshness ------------------------------------------------------
+# Os geradores leem users/*/metrics.json (mantidos incrementais pelo daemon). Se o CONF
+# mudou depois do último recompute em massa (ex.: FREEZE_TIME editado — a visão frozen
+# vive DENTRO do metrics), recomputa todo mundo uma vez e carimba var/.metrics-stamp.
+# Também cobre o 1º build de um contest importado/backfill (stamp ausente).
+source "$HERE/../api/v1/lib/users.sh"
+STAMP="$CONTESTDIR/var/.metrics-stamp"
+if [[ ! -f "$STAMP" || "$CONF" -nt "$STAMP" ]]; then
+  while IFS= read -r _u; do
+    [[ -n "$_u" ]] && metrics_recompute "$CONTEST" "$_u"
+  done < <(list_users "$CONTEST")
+  touch "$STAMP"
+fi
+
+# gen_one <outfile> <nofreeze:0|1> — roda o gerador (MOJ_NOFREEZE controla a visão
+# frozen×completa dos metrics), instalando atômico com checagem do modo.
 gen_one() {
   local out="$1" nofreeze="$2" tmp first
-  if [[ -f "$CONTESTDIR/created-by" ]]; then
-    MOJ_NOFREEZE="$nofreeze" bash "$HERE/dstate.sh" "$CONTEST" 2>/dev/null || true
-  fi
   tmp="$(mktemp "$out.XXXXXX")" || die "cannot create temp file next to $out"
   if ! MOJ_NOFREEZE="$nofreeze" bash "$GEN" "$CONTEST" > "$tmp"; then rm -f "$tmp"; die "generator failed: $GEN $CONTEST"; fi
   first="$(head -1 "$tmp")"
@@ -101,7 +112,7 @@ gen_one() {
 
 if [[ -n "$FREEZE_RAW" ]] && (( FREEZE_RAW > 0 )); then
   gen_one "$FULL" 1     # completo (sem freeze) — gera primeiro
-  gen_one "$OUT"  0     # público (com freeze) — os .d terminam congelados
+  gen_one "$OUT"  0     # público (com freeze)
 else
   rm -f "$FULL" 2>/dev/null   # sem freeze: completo == público
   gen_one "$OUT" 0

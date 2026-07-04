@@ -10,11 +10,10 @@
 #
 # Per user:
 #   solved   = number of problems with an accepted submission
-#   attempts = total submissions across all problems
+#   attempts = total counting attempts across all problems (up to the 1st AC)
 # Total column is the solved count (the JS sorts/uses Total).
 #
-# Reads the per-problem .d state files the judge maintains
-# (JAACERTOU>0 => solved; TENTATIVAS => attempts), same source as ICPC.
+# Data source: users/*/metrics.json via sc_cells (frozen view unless MOJ_NOFREEZE=1).
 set -u
 SC_PROG="updatescore-treino"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
@@ -25,22 +24,21 @@ sc_load "${1:-}"
 printf 'treino\n'
 printf 'asc:username:team name:solved:attempts\n'
 
+# --- cells from metrics (one pass over users/*/metrics.json) ----------------
+declare -A CSOL CCNT
+while IFS=$'\t' read -r l pr s _fac cnt _rest; do
+  CSOL["$l|$pr"]=$s; CCNT["$l|$pr"]=$cnt
+done < <(sc_cells)
+
 # --- rows ------------------------------------------------------------------
 {
   while IFS=$'\t' read -r login full team us uf flag; do
     solved=0
     attempts=0
     for ((p=0; p<SC_NPROB; p++)); do
-      pidx="${SC_PIDX[p]}"
-      JAACERTOU=0; TENTATIVAS=0; PENDING=0
-      statef="$CONTESTDIR/controle/$login.d/$pidx"
-      if [[ -f "$statef" ]]; then
-        # shellcheck disable=SC1090
-        source "$statef" 2>/dev/null
-      fi
-      : "${JAACERTOU:=0}"; : "${TENTATIVAS:=0}"
-      (( attempts += TENTATIVAS ))
-      (( JAACERTOU > 0 )) && (( solved++ ))
+      key="$login|${SC_CANON[p]}"
+      (( attempts += ${CCNT[$key]:-0} ))
+      [[ "${CSOL[$key]:-0}" == 1 ]] && (( solved++ ))
     done
     # sort keys: solved desc, attempts asc (fewer attempts ranks higher on tie)
     printf '%d\t%d\t%s:%s:%d:%d\n' \

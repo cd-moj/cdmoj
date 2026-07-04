@@ -79,6 +79,7 @@ record_provisional() {
   local c="$1" login="$2" tempo="$3" prob="$4" lang="$5" se="$6" id="$7"
   if store_v2 "$c"; then
     user_history_replace "$c" "$login" "$id" "$tempo:$prob:$lang:Not Answered Yet:$se:$id"
+    metrics_recompute "$c" "$login"   # placar lê só metrics: PENDING precisa aparecer já
   else
     update_history "$CONTESTSDIR/$c/controle/history" "$id" "$tempo:$login:$prob:$lang:Not Answered Yet:$se:$id"
   fi

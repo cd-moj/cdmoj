@@ -5,14 +5,18 @@ set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$SPOOL"' EXIT
 
-# --- contest com history mas SEM placar (caso do bcr-eda2-2025_1-extra) ---
-C="$FIX/lazy"; mkdir -p "$C/controle"
+# --- contest (store v2) com history mas SEM placar ---
+C="$FIX/lazy"; mkdir -p "$C/users/alice" "$C/users/bob" "$C/var"
 { printf 'CONTEST_ID=lazy\nCONTEST_TYPE=icpc\nCONTEST_NAME=Lazy\nCONTEST_START=1000\nCONTEST_END=2000\n'
+  printf 'USER_STORE=v2\n'
   printf "PROBS=(f0 p/um Um A k0 f1 p/dois Dois B k1)\n"; } > "$C/conf"
 printf 'lazy.admin:p:Admin\nalice:a:Alice\nbob:b:Bob\n' > "$C/passwd"
-{ printf '5:alice:0:C:Accepted,100p:1718000000:h1\n'
-  printf '3:bob:0:CPP:Wrong Answer:1718000010:h2\n'
-  printf '2:bob:5:PY:Accepted,100p:1718000020:h3\n'; } > "$C/controle/history"
+for u in alice bob; do
+  jq -n --arg l "$u" '{login:$l,password:"x",fullname:$l,email:"",created_at:0,updated_at:0,status:"active",uname_changes:[]}' > "$C/users/$u/account.json"
+done
+printf '5:p#um:C:Accepted,100p:1718000000:h1\n' > "$C/users/alice/history"
+{ printf '3:p#um:CPP:Wrong Answer:1718000010:h2\n'
+  printf '2:p#dois:PY:Accepted,100p:1718000020:h3\n'; } > "$C/users/bob/history"
 printf 'CONTEST=lazy\nLOGIN=lazy.admin\nLOGINAT=1\n' > "$SESS/adm"
 
 # 22 contests encerrados extras p/ provar a paginação/arquivo (>20)
@@ -26,7 +30,7 @@ pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo 
 mt(){ stat -c %Y "$1" 2>/dev/null || echo 0; }
 
 echo "== placar: geração preguiçosa =="
-placar="$C/controle/placar.txt"
+placar="$C/var/placar.txt"
 ck "placar não existe antes" '[[ ! -f "$placar" ]]'
 call /contest/score GET '' '' 'contest=lazy'
 ck "score 200" '[[ "$OUT" == *"Status: 200"* ]]'
@@ -37,8 +41,8 @@ ck "tem ao menos uma linha de equipe (alice)" '[[ "$BODY" == *alice* ]]'
 echo "== placar: cache estável e invalidação =="
 T1="$(mt "$placar")"; sleep 1; call /contest/score GET '' '' 'contest=lazy'; T2="$(mt "$placar")"
 ck "2ª chamada NÃO regerou (cache)" '[[ "$T1" == "$T2" ]]'
-sleep 1; touch "$C/controle/history"; call /contest/score GET '' '' 'contest=lazy'; T3="$(mt "$placar")"
-ck "history mudou -> placar regerado" '[[ "$T3" != "$T2" ]]'
+sleep 1; touch "$C/var/.score-dirty"; call /contest/score GET '' '' 'contest=lazy'; T3="$(mt "$placar")"
+ck "history mudou (.score-dirty) -> placar regerado" '[[ "$T3" != "$T2" ]]'
 
 echo "== estatísticas: cache preguiçoso =="
 cache="$C/var/statistics.cache.json"
@@ -49,8 +53,8 @@ ck "cache de stats criado" '[[ -s "$cache" ]]'
 ck "stats: users=2 (privilegiado fora), problema A letra=A" '[[ "$(jq -r .totals.users <<<"$BODY")" == 2 && "$(jq -r ".problems[0].short_name" <<<"$BODY")" == A ]]'
 S1="$(mt "$cache")"; sleep 1; call /contest/statistics GET '' adm 'contest=lazy'; S2="$(mt "$cache")"
 ck "2ª chamada serviu do cache" '[[ "$S1" == "$S2" ]]'
-sleep 1; touch "$C/controle/history"; call /contest/statistics GET '' adm 'contest=lazy'; S3="$(mt "$cache")"
-ck "history mudou -> cache regerado" '[[ "$S3" != "$S2" ]]'
+sleep 1; touch "$C/var/.score-dirty"; call /contest/statistics GET '' adm 'contest=lazy'; S3="$(mt "$cache")"
+ck "history mudou (.score-dirty) -> cache regerado" '[[ "$S3" != "$S2" ]]'
 
 echo "== arquivo de encerrados: /index/contests?all=1 =="
 call /index/contests GET '' '' ''

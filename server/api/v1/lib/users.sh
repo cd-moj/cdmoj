@@ -108,8 +108,18 @@ user_set_status(){
 }
 
 # --- history por-usuário --------------------------------------------------
+# _score_dirty <c> — marca o placar/estatística como desatualizados (var/.score-dirty é a
+# fonte de staleness do regen_locked; substitui a comparação com o extinto controle/history).
+_score_dirty(){
+  mkdir -p "$CONTESTSDIR/$1/var" 2>/dev/null
+  touch "$CONTESTSDIR/$1/var/.score-dirty" 2>/dev/null || true
+}
+
 # user_history_append <c> <login> <line>   (provisória e novas)
-user_history_append(){ printf '%s\n' "$3" >> "$(user_hist_file "$1" "$2")"; }
+user_history_append(){
+  printf '%s\n' "$3" >> "$(user_hist_file "$1" "$2")"
+  _score_dirty "$1"
+}
 
 # user_history_replace <c> <login> <subid> <line> — troca a linha cujo ÚLTIMO campo é
 # <subid> (reescrita atômica). Se não existir, acrescenta. Espelha update_history do daemon.
@@ -120,34 +130,90 @@ user_history_replace(){
   _RL="$4" awk -F: -v id="$id" '
     {if ($NF==id){print ENVIRON["_RL"]; seen=1} else print}
     END{if(!seen) print ENVIRON["_RL"]}' "$f" > "$tmp" && mv -f "$tmp" "$f"
+  _score_dirty "$c"
 }
 
 # --- métricas -------------------------------------------------------------
-# metrics_recompute <c> <login> — reconstrói metrics.json do history local (O(history_u)).
-# Sem ARG_MAX (jq lê o arquivo direto). verdict reconstruído por .[3:-2]|join(":").
+# metrics_recompute <c> <login> — reconstrói metrics.json (shape v2) do history local.
+# O(history_u); jq lê o arquivo direto (sem ARG_MAX). Além dos agregados, grava por
+# problema TUDO que os geradores de placar (score/updatescore-*.sh) precisam — a
+# semântica espelha o antigo score/dstate.sh e o parse de updatescore-obi/heuristic:
+#   counted    = tentativas que CONTAM (≠ provisória/Compilation Error/Judge Error/
+#                No_Servers) até (e incluindo) o 1º AC; todas, se não resolvido.
+#   pending    = existe linha provisória (Not Answered Yet/On queue/Running).
+#   best_score = maior NNp dos veredictos (Accepted sem NNp ⇒ 100; tentativa
+#                não-provisória sem NNp ⇒ 0; nunca tentou ⇒ null)  [obi].
+#   heur       = melhor par (Score N, desempate Score Ajustado F) ou null  [heuristic].
+#   frozen     = a MESMA visão restrita a sub_epoch < FREEZE_TIME (só quando o conf tem
+#                FREEZE_TIME>0): AC pós-freeze fica escondido (pending, hidden++);
+#                tentativas pós-freeze CONTAM no counted de problema não resolvido.
+# FREEZE_TIME é lido do conf por sed (o conf roda command substitution — nunca source
+# dentro da lib). CONTEST_START não entra: o gerador converte epoch→minutos via sc_load.
 metrics_recompute(){
-  local c="$1" u="$2" hf mf; hf="$(user_hist_file "$c" "$u")"; mf="$(metrics_file "$c" "$u")"
+  local c="$1" u="$2" hf mf fz
+  hf="$(user_hist_file "$c" "$u")"; mf="$(metrics_file "$c" "$u")"
   [[ -f "$hf" ]] || { echo '{}' > "$mf"; return 0; }
-  jq -R -s '
+  fz="$(sed -n 's/^[[:space:]]*FREEZE_TIME=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null | tail -1 | tr -cd '0-9')"
+  fz="${fz:-0}"
+  jq -R -s --argjson freeze "${fz:-0}" --argjson now "$EPOCHSECONDS" '
+    def vw($g; $fac; $real):
+      ($g|map(select(.counts))) as $cnt
+      | {solved: ($fac != null),
+         first_ac_epoch: $fac,
+         counted: (if $fac != null then ($cnt|map(select(.sub_epoch <= $fac))|length)
+                   else ($cnt|length) end),
+         best_score: (if ($real|length)==0 then null else ($real|map(.pts)|max) end),
+         heur: (($real|map(select(.hs != null))) as $h
+                | if ($h|length)==0 then null
+                  else ($h|max_by([.hs,.ha])|{score:.hs, adjusted:.ha}) end)};
     split("\n") | map(select(length>0)) | map(split(":"))
     | map({probid:.[1], lang:.[2], subid:.[-1],
-           sub_epoch:(.[-2]|tonumber?),
-           verdict:(.[3:-2]|join(":")),
-           ac:((.[3:-2]|join(":"))|startswith("Accepted"))})
-    | { submissions: length,
+           sub_epoch:((.[-2]|tonumber?) // 0),
+           verdict:(.[3:-2]|join(":"))})
+    | map(. + {prov: (.verdict|test("Not Answered Yet|On queue|Running"; "i")),
+               ac:   (.verdict|startswith("Accepted"))})
+    | map(. + {counts: ((.prov or (.verdict|startswith("Compilation Error"))
+                              or (.verdict|startswith("Judge Error"))
+                              or (.verdict|test("^No_?Servers"))) | not),
+               pts: (if .prov then null
+                     elif (.verdict|test("[0-9]+p")) then
+                       (.verdict|capture("(?<n>[0-9]+)p").n|tonumber)
+                     elif .ac then 100 else 0 end),
+               hs:  (if .prov then null
+                     elif (.verdict|test("Score[ \t]+-?[0-9]+")) then
+                       (.verdict|capture("Score[ \t]+(?<n>-?[0-9]+)").n|tonumber)
+                     elif .ac then 0 else null end),
+               ha:  (if (.prov|not) and (.verdict|test("Score Ajustado[ \t]+-?[0-9]+(\\.[0-9]+)?")) then
+                       (.verdict|capture("Score Ajustado[ \t]+(?<n>-?[0-9]+(\\.[0-9]+)?)").n|tonumber)
+                     else 0 end)})
+    | { version: 2,
+        computed_at: $now,
+        freeze_time: $freeze,
+        submissions: length,
         accepted: (map(select(.ac))|length),
         solved:   (map(select(.ac)|.probid)|unique),
         attempted:(map(.probid)|unique),
         by_lang:    (reduce .[] as $s ({}; .[$s.lang] = ((.[$s.lang]//0)+1))),
         by_verdict: (reduce .[] as $s ({}; (($s.verdict|split(",")[0])) as $k | .[$k]=((.[$k]//0)+1))),
-        by_problem: (reduce .[] as $s ({};
-                       .[$s.probid].attempts = ((.[$s.probid].attempts//0)+1)
-                       | (if $s.ac then
-                            .[$s.probid].solved = true
-                            | .[$s.probid].first_ac_epoch =
-                                ([.[$s.probid].first_ac_epoch, $s.sub_epoch]|map(select(.!=null))|min)
-                          else . end))),
-        last_submission_at: ((map(.sub_epoch)|map(select(.!=null))|max) // 0) }
+        by_problem: (group_by(.probid) | map(
+            . as $g
+            | ($g|map(select(.ac))|map(.sub_epoch)|min) as $fac
+            | {key: $g[0].probid,
+               value: (vw($g; $fac; $g|map(select(.prov|not)))
+                 + {attempts: ($g|length),
+                    counted_all: ($g|map(select(.counts))|length),
+                    pending: (($g|map(select(.prov))|length) > 0),
+                    last_sub_epoch: (($g|map(.sub_epoch)|max) // 0)}
+                 + (if $freeze > 0 then
+                      {frozen: (
+                         ($g|map(select(.ac and .sub_epoch < $freeze))|map(.sub_epoch)|min) as $ffac
+                         | ($g|map(select(.sub_epoch >= $freeze))|length) as $hidden
+                         | vw($g; $ffac; $g|map(select((.prov|not) and .sub_epoch < $freeze)))
+                           + {pending: ((($g|map(select(.prov))|length) > 0) or ($hidden > 0)),
+                              hidden: $hidden})}
+                    else {} end))}
+          ) | from_entries),
+        last_submission_at: ((map(.sub_epoch)|max) // 0) }
   ' "$hf" > "$mf.tmp" 2>/dev/null && mv -f "$mf.tmp" "$mf"
 }
 

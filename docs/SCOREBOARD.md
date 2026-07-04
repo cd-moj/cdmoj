@@ -7,13 +7,22 @@ Princípio: **adicionar um modo = 1 gerador (`server/score/updatescore-<modo>.sh
 
 1. O `conf` do contest define `CONTEST_TYPE` (`icpc` | `obi` | `treino` | `heuristic` | `outro`;
    `lista-publica`/`lista-privada` → `treino`; ausente → `icpc`).
-2. `server/score/build.sh <contest>` despacha para `updatescore-<modo>.sh` e grava
-   `contests/<contest>/controle/placar.txt` (atômico). É chamado pelo daemon após cada veredicto.
-3. A rota `GET /api/v1/contest/score?contest=<c>` serve esse TXT cru — com **cache preguiçoso**:
-   se o `placar.txt` está velho (`history`/`conf` mais novos) ou nunca foi gerado, a rota
-   chama `build.sh` na hora (sob `flock`, sem estampida) e então serve. Assim contests
-   importados/legados (cujo daemon nunca rodou) deixam de ficar com placar vazio.
-4. O front (`web/contest/score/`) lê a **1ª linha = modo** e despacha para o renderizador.
+2. **A fonte de dados dos geradores é `users/<login>/metrics.json`** (mantido incremental
+   pelo daemon a cada veredicto via `metrics_recompute`): cada metrics carrega, por problema,
+   `counted` (tentativas até o 1º AC), `first_ac_epoch`, `pending`, `best_score` (NNp),
+   `heur` (Score/Score Ajustado) e a visão **`frozen`** (pré-`FREEZE_TIME`). Os geradores
+   leem tudo numa passada só (`sc_cells` em `score-common.sh`: `find users -name
+   metrics.json | xargs jq`) — rebuild O(usuários), sem varrer history.
+3. `server/score/build.sh <contest>` recomputa os metrics em massa se o `conf` mudou desde
+   o último build (`var/.metrics-stamp` — cobre edição de `FREEZE_TIME` e o 1º build de um
+   contest importado), despacha para `updatescore-<modo>.sh` e grava
+   `contests/<contest>/var/placar.txt` (atômico; `var/placar-full.txt` = sem freeze, p/
+   privilegiados). É chamado pelo daemon após cada veredicto.
+4. A rota `GET /api/v1/contest/score?contest=<c>` serve esse TXT cru — com **cache preguiçoso**:
+   se o `placar.txt` está velho (`var/.score-dirty` — tocado a cada escrita de history — ou
+   `conf` mais novos) ou nunca foi gerado, a rota chama `build.sh` na hora (sob `flock`, sem
+   estampida) e então serve. Assim contests importados deixam de ficar com placar vazio.
+5. O front (`web/contest/score/`) lê a **1ª linha = modo** e despacha para o renderizador.
 
 ## Formato do TXT
 

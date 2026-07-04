@@ -50,6 +50,8 @@ if store_v2 "$contest"; then
   mkdir -p "$(user_dir "$contest" "$SESSION_LOGIN")" 2>/dev/null
   user_history_append "$contest" "$SESSION_LOGIN" \
     "$AGORA:$problem:$FILETYPE:Not Answered Yet:$AGORA:$ID"
+  # metrics carregam o PENDING que o placar (gerado só de metrics) mostra na hora
+  metrics_recompute "$contest" "$SESSION_LOGIN"
 else
   hist="$CONTESTSDIR/$contest/controle/history"
   mkdir -p "$CONTESTSDIR/$contest/controle"

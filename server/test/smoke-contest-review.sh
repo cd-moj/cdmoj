@@ -61,8 +61,8 @@ call /contest/review/list GET '' adm 'contest=rv'
 ck "released some da fila"        '[[ "$(jq -r ".items|length" <<<"$BODY")" == 0 ]]'
 
 echo "== placar completo (sem freeze) p/ .cjudge =="
-printf 'icpc\nCONGELADO\n' > "$C/controle/placar.txt"
-printf 'icpc\nCOMPLETO\n' > "$C/controle/placar-full.txt"
+printf 'icpc\nCONGELADO\n' > "$C/var/placar.txt"
+printf 'icpc\nCOMPLETO\n' > "$C/var/placar-full.txt"
 call /contest/score GET '' cj 'contest=rv'
 ck ".cjudge vê o placar COMPLETO" '[[ "$OUT" == *COMPLETO* ]]'
 call /contest/score GET '' alu 'contest=rv'
