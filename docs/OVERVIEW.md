@@ -174,7 +174,11 @@ nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do
   completa de **impressão + balões** de `/contest/staff/queue` com filtros/idade/CSV, o admin
   pode abrir o PDF e marcar processada/entregue, **desempenho por staff** e o **escopo por regex**
   de cada `.staff` — semeável das regiões — `/contest/admin/staff-filters`);
-  **Veredicto manual**; **Auditoria** (feed cronológico unificado no **instante exato** de cada
+  **Tarefas do judge** (`shared/review-board.js` — o MESMO board da Situação do chief: cards da
+  correção manual, a **fila completa** com filtros/idade/quem pegou/**votos** (o `review/list` só
+  manda os votos p/ admin/chefe — anti-anchoring p/ o juiz comum), ação **Decidir/Resolver** =
+  `review/resolve`, o override auditado que libera o veredicto ao aluno na hora, desempenho por
+  juiz e a config de opções/matriz no fim); **Auditoria** (feed cronológico unificado no **instante exato** de cada
   evento: ações de admin + logins + **submissões** (no sub_epoch) + **veredictos** (no
   finalized_at, com o juiz) — cada submissão gera 2 entradas, submissão e correção, p/ o trace
   completo; `/contest/admin/audit-log`, filtrável + download CSV). **Problemas** também
@@ -195,10 +199,11 @@ nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do
 - **`/contest/judge/`** — área de **avaliação**. **`/contest/jplag/`** — similaridade das
   soluções aceitas (roda o jar, mostra pares + comparação lado-a-lado).
 - **`/contest/chief/`** — **painel do juiz-chefe (`.cjudge`)** e do admin: **Situação** da
-  avaliação (cartões + **quem avalia agora** + **desempenho por juiz**: nº de veredictos, tempo médio
-  claim→voto, concordâncias e conflitos, via `review/stats`), **Conflitos** e a config do veredicto
-  manual (opções + matriz). O **alerta de conflito** (banner + bip) é **global** (`shared/chief-alert.js`):
-  segue o chief/admin em **qualquer página** do contest, não só neste painel.
+  avaliação usa o **mesmo board** da aba "Tarefas do judge" do admin (`shared/review-board.js`:
+  cards, fila completa com idade/quem pegou/votos, ação Decidir/Resolver e desempenho por juiz,
+  via `review/{list,stats,resolve}`), **Conflitos** e a config do veredicto manual (opções +
+  matriz). O **alerta de conflito** (banner + bip) é **global** (`shared/chief-alert.js`): segue o
+  chief/admin em **qualquer página** do contest e abre a fila já filtrada em conflitos.
 
 ### Juiz `.judge`, juiz-chefe `.cjudge` & veredicto manual
 **Papéis** (sufixo no login; ver `lib/auth.sh`): `.judge` submete a qualquer hora (fora do
