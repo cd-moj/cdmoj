@@ -33,7 +33,8 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     showLog = mkBool(s.show_log !== false), showEditor = mkBool(s.show_editor !== false),
     allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
     showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
-    allowPrint = mkBool(s.allow_print !== false), manualVerdict = mkBool(s.manual_verdict === true);
+    allowPrint = mkBool(s.allow_print !== false), manualVerdict = mkBool(s.manual_verdict === true),
+    secret = mkBool(s.secret === true);
   const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
   const langs = makeLangPicker(s.languages || []);
   const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge/.cjudge', style: 'width:100%' });
@@ -56,6 +57,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     chk('Permitir pedidos de impressão pelos usuários (.staff)', allowPrint),
     chk('Veredicto manual (2 juízes decidem; daemon segura o veredicto)', manualVerdict),
     chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
+    chk('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', secret),
     field('Gate de login por substring de UA (só não-privilegiados)', ua),
     el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
     el('p', { class: 'muted small' }, 'Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)'),
@@ -77,7 +79,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       show_code: showCode.checked, show_log: showLog.checked, show_editor: showEditor.checked,
       allow_late: allowLate.checked, score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
-      manual_verdict: manualVerdict.checked, login_ua_substring: ua.value,
+      manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,
       languages: langs.get(),
       score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [],
     };

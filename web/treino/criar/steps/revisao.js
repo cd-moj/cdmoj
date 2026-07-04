@@ -15,6 +15,7 @@ export function makeStepRevisao(ctx) {
     ? 'compartilhados de "' + (d.usersFrom || 'treino') + '"'
     : (spec.users || []).length + ' conta(s) própria(s)';
   const optsBits = [];
+  if (spec.secret) optsBits.push('🕵️ SUPER SECRETO (não listado; placar exige login)');
   if (spec.priority && spec.priority !== 'lista-publica') optsBits.push('prioridade ' + spec.priority);
   if ((spec.languages || []).length) optsBits.push('linguagens: ' + spec.languages.join(' '));
   if (spec.score_anon) optsBits.push('placar anônimo');

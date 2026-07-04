@@ -89,6 +89,8 @@ function showResult(res) {
       res.admin_reused
         ? el('span', { class: 'small muted' }, ' · conta existente reutilizada — use sua senha atual do Treino Livre.')
         : [' · senha: ', el('span', { class: 'cred' }, res.admin_password)]));
+  if (res._secret) card.append(el('div', { class: 'warn-box', style: 'margin:.4rem 0' },
+    '🕵️ SUPER SECRETO: o contest NÃO aparece na home/arquivo/status e o placar exige login — distribua o link ', el('b', {}, res.url), ' aos participantes.'));
   if (res.users_from) card.append(el('p', { class: 'small muted' }, 'Usuários: compartilhados do "' + res.users_from + '" (login com a conta do Treino Livre).'));
   if (res.users && res.users.length > 1) {
     card.append(el('p', {}, res.users.length + ' contas criadas. ',
@@ -177,6 +179,7 @@ async function boot() {
       show_log: o.show_log !== false, show_editor: o.show_editor !== false, show_tl: o.show_tl !== false,
       allow_backup: o.allow_backup !== false, allow_print: o.allow_print !== false,
       score_anon: !!o.score_anon, manual_verdict: !!o.manual_verdict,
+      ...(o.secret ? { secret: true } : {}),
       ...(o.allow_late !== undefined ? { allow_late: !!o.allow_late } : {}),
       ...(o.login_ua_substring ? { login_ua_substring: o.login_ua_substring } : {}),
       ...((o.score_full_users || []).length ? { score_full_users: o.score_full_users } : {}),
@@ -244,7 +247,12 @@ async function boot() {
     if (!(d.admin.login || '').trim()) { msg.className = 'small error-box'; msg.textContent = 'Defina o login do admin (passo 4).'; return; }
     if (!allowEmpty && !d.problems.length) { msg.className = 'small error-box'; msg.textContent = 'Adicione problemas (passo 2), ou use "Criar vazio".'; return; }
     msg.className = 'small'; msg.textContent = 'Criando…';
-    try { showResult(await ctx.api.post('/treino/contest-create/create', buildSpec(allowEmpty))); }
+    try {
+      const spec = buildSpec(allowEmpty);
+      const res = await ctx.api.post('/treino/contest-create/create', spec);
+      res._secret = !!spec.secret;
+      showResult(res);
+    }
     catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || 'falha ao criar'; }
   }
 

@@ -225,7 +225,17 @@ async function pollScore() {
   clearTimeout(refreshTimer);
   let txt = '';
   try { txt = await apiGetText('/contest/score?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }); }
-  catch { document.getElementById('scoreContainer').innerHTML = `<span class="error-box">${T('Falha ao carregar o placar.', 'Failed to load scoreboard.')}</span>`; return; }
+  catch {
+    const box = document.getElementById('scoreContainer');
+    if (basic && basic.secret && !isAuth) {
+      // contest SUPER SECRETO: o placar exige sessão do contest — convite ao login, sem erro cru
+      box.innerHTML = `<div class="section" style="text-align:center"><h2>🔒 ${T('Contest privado', 'Private contest')}</h2>
+        <p class="muted">${T('Entre no contest para ver o placar.', 'Log in to the contest to view the scoreboard.')}</p>
+        <p><a class="btn" href="/contest/?c=${encodeURIComponent(CONTEST)}">${T('Entrar →', 'Log in →')}</a></p></div>`;
+      return;
+    }
+    box.innerHTML = `<span class="error-box">${T('Falha ao carregar o placar.', 'Failed to load scoreboard.')}</span>`; return;
+  }
 
   const lines = txt.replace(/\r/g, '').split('\n');
   const mode = (lines[0] || '').trim().toLowerCase();

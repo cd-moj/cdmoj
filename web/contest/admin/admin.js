@@ -49,8 +49,15 @@ function settingsTab() {
     const msg = el('div', { class: 'small' });
     const save = el('button', { class: 'btn' }, 'Salvar configurações');
     save.addEventListener('click', async () => {
+      const v = ed.getValue();
+      // DESMARCAR o super secreto exige digitar o id (o contest volta a ser listado e o
+      // placar vira público — não pode acontecer sem querer)
+      if (s.secret === true && v.secret === false) {
+        const typed = prompt('O contest deixará de ser SUPER SECRETO: voltará a ser listado na home/arquivo/status e o placar ficará PÚBLICO.\n\nPara confirmar, digite o id do contest (' + CONTEST + '):');
+        if (typed !== CONTEST) { msg.className = 'small error-box'; msg.textContent = 'desmarcação cancelada (id não confere) — nada foi salvo.'; return; }
+      }
       save.disabled = true; msg.className = 'small'; msg.textContent = 'Salvando…';
-      try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), ed.getValue(), G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
+      try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), v, G); s.secret = v.secret; msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
     });
     panel.append(ed.el, el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
