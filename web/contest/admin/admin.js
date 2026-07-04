@@ -8,6 +8,7 @@ import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, 
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 import { makeTasksTab } from './tasks.js';
 import { makeReviewBoard } from '/shared/review-board.js';
+import { parseUsers, downloadCsv } from '/shared/users-batch.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -194,27 +195,59 @@ function usersTab() {
 function usersSection() {
   const panel = el('div', { class: 'section' }, el('h2', {}, '👥 Usuários'));
   const list = el('div', {});
+  let USERS = [];
+  const PRIV = /\.(admin|judge|cjudge|staff|mon)$/;
   async function call(path, body) { return apiPost('/contest/admin/' + path + '?contest=' + enc(CONTEST), body, G); }
-  async function loadList() {
-    list.innerHTML = ''; let r;
-    try { r = await apiGet('/contest/admin/users?contest=' + enc(CONTEST), G); } catch { list.append(el('div', { class: 'error-box' }, 'Falha.')); return; }
-    if (r.shared) list.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' }, 'Usuários compartilhados de "' + r.shared + '" — só o admin é próprio deste contest.'));
-    const tb = el('tbody');
-    (r.users || []).forEach((u) => {
-      const acts = el('div', { class: 'row-actions' });
-      acts.append(el('button', { class: 'btn ghost', title: 'encerrar sessões', onclick: async () => { try { await call('logout-user', { login: u.login }); } catch (e) { alert(e.message); } } }, 'deslogar'));
-      if (!u.admin && !u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { if (!confirm('Desabilitar ' + u.login + '?')) return; try { await call('user-disable', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, 'desabilitar'));
-      acts.append(el('button', { class: 'btn danger', onclick: async () => { if (!confirm('Remover ' + u.login + '?')) return; try { await call('user-remove', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, 'remover'));
-      tb.append(el('tr', {},
-        el('td', {}, u.login, u.admin ? el('span', { class: 'small muted' }, ' (admin)') : '', u.disabled ? el('span', { class: 'flag-anom small' }, ' (desabilitado)') : ''),
-        el('td', {}, u.fullname || ''), el('td', { class: 'small' }, u.email || ''), el('td', {}, acts)));
+
+  // filtros (sobrevivem ao re-render da lista) — essenciais em contest com 1000+ usuários
+  const fQ = el('input', { type: 'search', placeholder: 'login / nome / email…', style: 'min-width:200px' });
+  const fSel = el('select', {}, el('option', { value: '' }, 'todos'),
+    el('option', { value: 'active' }, 'ativos'), el('option', { value: 'disabled' }, 'desabilitados'),
+    el('option', { value: 'priv' }, 'privilegiados'));
+  let showAll = false;
+  fQ.addEventListener('input', () => { showAll = false; renderList(); });
+  fSel.addEventListener('change', () => { showAll = false; renderList(); });
+
+  function userRow(u) {
+    const acts = el('div', { class: 'row-actions' });
+    acts.append(el('button', { class: 'btn ghost', title: 'encerrar sessões', onclick: async () => { try { await call('logout-user', { login: u.login }); } catch (e) { alert(e.message); } } }, 'deslogar'));
+    if (!u.admin && !u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { if (!confirm('Desabilitar ' + u.login + '?')) return; try { await call('user-disable', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, 'desabilitar'));
+    acts.append(el('button', { class: 'btn danger', onclick: async () => { if (!confirm('Remover ' + u.login + '?')) return; try { await call('user-remove', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, 'remover'));
+    return el('tr', {},
+      el('td', {}, u.login, u.admin ? el('span', { class: 'small muted' }, ' (admin)') : '', u.disabled ? el('span', { class: 'flag-anom small' }, ' (desabilitado)') : ''),
+      el('td', {}, u.fullname || ''), el('td', { class: 'small' }, u.email || ''), el('td', {}, acts));
+  }
+  function renderList() {
+    list.innerHTML = '';
+    const q = fQ.value.trim().toLowerCase(), sel = fSel.value;
+    const items = USERS.filter((u) => {
+      if (sel === 'active' && u.disabled) return false;
+      if (sel === 'disabled' && !u.disabled) return false;
+      if (sel === 'priv' && !(u.admin || PRIV.test(u.login || ''))) return false;
+      return !q || [u.login, u.fullname, u.email].some((x) => (x || '').toLowerCase().includes(q));
     });
+    list.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, items.length + ' de ' + USERS.length + ' usuário(s).'));
+    if (!items.length) { list.append(el('div', { class: 'muted' }, 'Nenhum com esses filtros.')); return; }
+    const CAP = 300, shown = showAll ? items : items.slice(0, CAP);
+    const tb = el('tbody'); shown.forEach((u) => tb.append(userRow(u)));
     list.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
       el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, 'Nome'), el('th', {}, 'Email'), el('th', {}, 'Ações'))), tb)));
+    if (!showAll && items.length > CAP) list.append(el('div', { style: 'margin:.4rem 0' },
+      el('button', { class: 'btn ghost', onclick: () => { showAll = true; renderList(); } }, 'mostrar todos (' + items.length + ')'),
+      el('span', { class: 'small muted' }, ' — exibindo os ' + CAP + ' primeiros')));
   }
+  async function loadList() {
+    let r;
+    try { r = await apiGet('/contest/admin/users?contest=' + enc(CONTEST), G); } catch { list.innerHTML = ''; list.append(el('div', { class: 'error-box' }, 'Falha.')); return; }
+    panel.querySelectorAll('.shared-note').forEach((n) => n.remove());
+    if (r.shared) panel.insertBefore(el('div', { class: 'small muted shared-note', style: 'margin-bottom:.4rem' }, 'Usuários compartilhados de "' + r.shared + '" — só o admin é próprio deste contest.'), list);
+    USERS = r.users || []; renderList();
+  }
+
   async function load() {
-    panel.append(list);
-    // add/reset
+    panel.append(el('div', { class: 'row', style: 'margin:.3rem 0' }, el('span', { class: 'small muted' }, 'Filtrar:'), fQ, fSel,
+      el('button', { class: 'btn ghost', onclick: () => loadList() }, '↻')), list);
+    // add/reset (individual)
     const li = el('input', { placeholder: 'login' }), pw = el('input', { placeholder: 'senha (gerada se vazio)' }),
       fn = el('input', { placeholder: 'nome' }), em = el('input', { placeholder: 'email (opcional)' }), amsg = el('div', { class: 'small' });
     const add = el('button', { class: 'btn', onclick: async () => {
@@ -236,11 +269,49 @@ function usersSection() {
     } }, 'Trocar senha de todos');
     panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar / resetar senha'),
       el('div', { class: 'row' }, li, pw, fn, em, add), amsg,
+      makeBatchUsers(),
       el('h3', { style: 'margin:1rem 0 .3rem' }, '🔑 Troca de senha geral (prova)'),
       el('p', { class: 'muted small' }, 'Define uma senha única para todos os não-privilegiados (após os alunos logarem).'),
       el('div', { class: 'row' }, bpw, el('label', { class: 'small' }, binc, ' incluir desabilitados'), bulk), bmsg);
     await loadList();
   }
+
+  // ---- carga em lote (mesma colagem/arquivo da criação; a qualquer momento) ----
+  function makeBatchUsers() {
+    let staged = [];   // [{login,password,fullname,email}] da prévia
+    const ta = el('textarea', { rows: '5', placeholder: 'Cole aqui (ou envie um arquivo). Formatos por linha:\n  login:senha:nome:email\n  login,nome,email\n  Nome Completo   (login e senha gerados)', style: 'width:100%' });
+    const fileInp = el('input', { type: 'file', accept: '.txt,.csv,text/plain,text/csv', style: 'display:none' });
+    fileInp.addEventListener('change', () => { const f = fileInp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { ta.value = ta.value ? (ta.value.replace(/\s*$/, '') + '\n' + rd.result) : rd.result; }; rd.readAsText(f); fileInp.value = ''; });
+    const onExisting = el('select', {}, el('option', { value: 'skip' }, 'pular os que já existem'), el('option', { value: 'update' }, 'atualizar senha dos existentes'));
+    const prev = el('div', {}); const msg = el('div', { class: 'small' });
+    const renderPrev = () => { prev.innerHTML = ''; if (!staged.length) return;
+      prev.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, staged.length + ' linha(s) prontas (senhas em branco são geradas no servidor).')); };
+    const proc = el('button', { class: 'btn ghost', onclick: () => { staged = parseUsers(ta.value); msg.textContent = ''; renderPrev(); } }, 'Processar');
+    const send = el('button', { class: 'btn', onclick: async () => {
+      if (!staged.length) { staged = parseUsers(ta.value); renderPrev(); }
+      const users = staged.filter((u) => u.login || u.fullname).map((u) => ({ login: u.login || undefined, password: u.password || undefined, fullname: u.fullname || undefined, email: u.email || undefined }));
+      if (!users.length) { msg.className = 'small error-box'; msg.textContent = 'Nada para enviar.'; return; }
+      send.disabled = true; msg.className = 'small'; msg.textContent = 'Enviando ' + users.length + '…';
+      try {
+        const r = await call('users-bulk', { users, on_existing: onExisting.value });
+        const c = r.counts || {};
+        msg.className = 'small'; msg.innerHTML = '';
+        msg.append('✓ ' + (c.created || 0) + ' criado(s), ' + (c.updated || 0) + ' atualizado(s), ' + (c.skipped || 0) + ' pulado(s). ');
+        const creds = (r.created || []).concat(r.updated || []);
+        if (creds.length) msg.append(el('button', { class: 'btn ghost', onclick: () => downloadCsv(CONTEST + '-credenciais.csv', creds) }, '⬇ baixar credenciais (CSV)'));
+        send.disabled = false; staged = []; ta.value = ''; renderPrev(); loadList();
+      } catch (e) { send.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
+    } }, 'Enviar lote');
+    return el('div', {},
+      el('h3', { style: 'margin:1rem 0 .3rem' }, '📥 Usuários em lote'),
+      el('p', { class: 'muted small' }, 'Suba competidores a qualquer momento (ex.: contest criado só com contas administrativas). Colar ou enviar arquivo .txt/.csv.'),
+      ta,
+      el('div', { class: 'row', style: 'margin:.4rem 0' },
+        el('button', { class: 'btn ghost', onclick: () => fileInp.click() }, '📎 Enviar arquivo'), fileInp,
+        proc, el('span', { class: 'small muted' }, 'existentes:'), onExisting, send),
+      prev, msg);
+  }
+
   return { panel, load };
 }
 

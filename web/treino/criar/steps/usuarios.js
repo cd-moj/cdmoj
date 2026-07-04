@@ -1,27 +1,7 @@
 // steps/usuarios.js — passo 3: usuários próprios (colar lista, tabela editável, gerar senhas,
 // CSV) ou compartilhados do Treino Livre.
 import { el } from '/shared/ui.js';
-import { downloadCsv } from '../criar.js';
-
-const slug = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '').slice(0, 24);
-
-function parseUsers(text) {
-  const out = [];
-  text.split(/\r?\n/).forEach((raw) => {
-    const line = raw.trim(); if (!line) return;
-    if (line.includes(':')) { const p = line.split(':'); out.push({ login: (p[0] || '').trim(), password: (p[1] || '').trim(), fullname: (p[2] || '').trim(), email: (p[3] || '').trim() }); }
-    else if (line.includes('\t') || line.includes(',')) { const p = line.split(/[\t,]/).map((s) => s.trim()); out.push({ login: p[0] || '', password: '', fullname: p[1] || '', email: p[2] || '' }); }
-    else out.push({ login: '', password: '', fullname: line, email: '' });
-  });
-  const seen = new Set(out.map((u) => u.login).filter(Boolean));
-  out.forEach((u) => {
-    if (u.login) return;
-    let base = slug(u.fullname) || 'user', cand = base, k = 1;
-    while (seen.has(cand)) cand = base + (++k);
-    seen.add(cand); u.login = cand;
-  });
-  return out;
-}
+import { parseUsers, downloadCsv } from '/shared/users-batch.js';
 
 export function makeStepUsuarios(ctx) {
   const d = ctx.draft;

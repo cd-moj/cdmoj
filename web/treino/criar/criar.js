@@ -7,6 +7,7 @@
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el, renderAuthArea } from '/shared/ui.js';
 import { renderCreateContestLink } from '/shared/create-contest-link.js';
+import { downloadCsv } from '/shared/users-batch.js';
 import { makeStepInicio } from './steps/inicio.js';
 import { makeStepDados } from './steps/dados.js';
 import { makeStepProblemas } from './steps/problemas.js';
@@ -70,13 +71,6 @@ function showDenied(p) {
     el('a', { class: 'btn ghost', href: '/treino/' }, '← Voltar ao treino')));
 }
 
-export function downloadCsv(filename, users) {
-  const head = 'login,senha,nome,email';
-  const esc = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
-  const rows = users.map((u) => [u.login, u.password, u.fullname, u.email].map(esc).join(','));
-  const blob = new Blob([head + '\n' + rows.join('\n')], { type: 'text/csv' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); URL.revokeObjectURL(a.href);
-}
 
 function showResult(res) {
   app.innerHTML = '';
