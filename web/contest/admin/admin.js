@@ -6,6 +6,7 @@ import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, makeSettingsEditor, makeLangPicker, makeBankPanel } from '/shared/contest-config/index.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
+import { makeTasksTab } from './tasks.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -299,17 +300,26 @@ function dashTab() {
   const card = (label, val, warn) => el('div', { class: 'dash-card' + (warn ? ' warn' : '') },
     el('div', { class: 'dash-val' }, String(val)), el('div', { class: 'dash-lbl' }, label));
   async function refresh() {
-    let d, sess;
+    let d, sess, tq;
     try {
-      [d, sess] = await Promise.all([
+      [d, sess, tq] = await Promise.all([
         apiGet('/contest/admin/dashboard?contest=' + enc(CONTEST), G),
         apiGet('/contest/admin/sessions?contest=' + enc(CONTEST), G).catch(() => null),
+        apiGet('/contest/staff/queue?contest=' + enc(CONTEST), G).catch(() => null),
       ]);
     } catch (e) { panel.innerHTML = ''; panel.append(el('h2', {}, '📊 Situação'), el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
     const sub = d.submissions || {}, resp = sub.response || {}, j = d.judges || {};
     const judges = j.list || [];
     const offline = judges.filter((x) => !x.online).length;
     const online = sess ? (sess.sessions || []).length : '—', alerts = sess ? (sess.alerts || []) : [];
+    // tarefas do staff (impressão+balões): só quando existem
+    const tasks = (tq && tq.requests) || [];
+    const tPend = tasks.filter((t) => t.status === 'pending');
+    const tOld = tPend.length ? Math.max(...tPend.map((t) => Math.floor(Date.now() / 1000) - (t.time || 0))) : 0;
+    const taskCards = tasks.length ? [
+      card('🖨️ impressões pend.', tPend.filter((t) => t.kind !== 'balloon').length, tOld > 600),
+      card('🎈 balões pend.', tPend.filter((t) => t.kind === 'balloon').length, tOld > 600),
+    ] : [];
     panel.innerHTML = '';
     panel.append(el('h2', {}, '📊 Situação da prova'),
       el('div', { class: 'dash-cards' },
@@ -320,7 +330,8 @@ function dashTab() {
         card('Pendentes', sub.pending || 0, (sub.pending || 0) > 0),
         card('Maior espera', fmtS(sub.max_wait_s), (sub.max_wait_s || 0) > 60),
         card('Resposta média', fmtS(resp.avg_s)),
-        card('Resposta p95', fmtS(resp.p95_s), (resp.p95_s || 0) > 120)));
+        card('Resposta p95', fmtS(resp.p95_s), (resp.p95_s || 0) > 120),
+        ...taskCards));
 
     // ⚖️ avaliação manual de veredicto (só aparece quando há fila/conflito)
     const rv = d.review || {};
@@ -350,6 +361,7 @@ function dashTab() {
     if ((sub.pending || 0) > 0 && (j.online || 0) > 0 && (j.busy || 0) === 0 && (sub.max_wait_s || 0) > 60)
       actions.push('Há pendências esperando >1min mas nenhum juiz ocupado — possível problema de fila/roteamento.');
     if ((sub.max_wait_s || 0) > 180) actions.push('Submissão esperando ' + fmtS(sub.max_wait_s) + ' — investigar o juiz/linguagem.');
+    if (tOld > 600) actions.push('Tarefa de impressão/balão pendente há ' + fmtS(tOld) + ' — veja a aba Tarefas do staff (você pode agir por lá).');
     alerts.forEach((a) => actions.push(a.login + ' logado de ' + [a.multi_ip && 'IPs', a.multi_ua && 'máquinas/navegadores'].filter(Boolean).join(' e ') + ' diferentes (possível conta compartilhada).'));
     if (actions.length) panel.append(el('div', { class: 'section', style: 'background:#fff7ec;border:1px solid #f3c08e' },
       el('b', {}, '⚠ Atenção'), el('ul', { style: 'margin:.3rem 0 0; padding-left:1.2rem' }, ...actions.map((a) => el('li', {}, a)))));
@@ -524,52 +536,6 @@ function backupsTab() {
   return { panel, load };
 }
 
-// ============ Impressão (.staff): escopo por regex ============
-function staffTab() {
-  const panel = el('div', { class: 'section' });
-  async function load() {
-    panel.innerHTML = ''; panel.append(el('h2', {}, '🖨️ Impressão (staff)'));
-    let r; try { r = await apiGet('/contest/admin/staff-filters?contest=' + enc(CONTEST), G); }
-    catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
-    const staff = r.staff || [], regions = r.regions || [], filters = r.filters || {};
-    panel.append(el('p', { class: 'muted small' }, 'Cada usuário .staff vê as tarefas de impressão dos alunos cujo login casa com uma das regex abaixo (uma por linha). Lista vazia = vê TODAS as tarefas. Os botões de região semeiam regex (uma sede por staff).'));
-    if (!staff.length) {
-      panel.append(el('div', { class: 'muted' }, 'Nenhum usuário .staff neste contest. Crie um login terminando em ',
-        el('b', {}, '.staff'), ' na aba ',
-        el('a', { href: '#', onclick: (e) => { e.preventDefault(); location.hash = '#users'; location.reload(); } }, 'Usuários'), '.'));
-      return;
-    }
-    const blocks = {};
-    staff.forEach((s) => {
-      const ta = el('textarea', { rows: '3', style: 'width:100%; font-family:monospace' });
-      ta.value = (filters[s.login] || []).join('\n');
-      blocks[s.login] = ta;
-      const chips = el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.3rem; margin:.3rem 0' });
-      regions.forEach((rg) => { if (!rg || !rg.regex) return;
-        chips.append(el('button', { class: 'btn ghost', style: 'padding:.1rem .45rem', type: 'button',
-          onclick: () => { const cur = ta.value.trim(); const lines = cur ? cur.split(/\n+/) : [];
-            if (!lines.includes(rg.regex)) { lines.push(rg.regex); ta.value = lines.join('\n'); } } },
-          '+ ' + (rg.name || rg.regex))); });
-      panel.append(el('div', { class: 'field', style: 'border-top:1px solid var(--line); padding-top:.5rem' },
-        el('label', {}, el('b', {}, s.login), (s.fullname ? el('span', { class: 'small muted' }, ' — ' + s.fullname) : ''),
-          (s.disabled ? el('span', { class: 'small', style: 'margin-left:.4rem; color:#a00' }, '(desabilitado)') : '')),
-        (regions.length ? el('div', { class: 'small muted' }, 'Semear região:') : ''), (regions.length ? chips : ''),
-        ta));
-    });
-    const msg = el('div', { class: 'small' });
-    const save = el('button', { class: 'btn' }, 'Salvar filtros');
-    save.addEventListener('click', async () => {
-      save.disabled = true; msg.className = 'small'; msg.textContent = 'Salvando…';
-      const f = {};
-      Object.keys(blocks).forEach((login) => { const lines = blocks[login].value.split(/\n+/).map((x) => x.trim()).filter(Boolean); if (lines.length) f[login] = lines; });
-      try { await apiPost('/contest/admin/staff-filters?contest=' + enc(CONTEST), { filters: f }, G); msg.className = 'small'; msg.textContent = '✓ salvo'; save.disabled = false; }
-      catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
-    });
-    panel.append(el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
-  }
-  return { panel, load };
-}
-
 // ============ Veredicto manual (opções + matriz auto) ============
 function verdictTab() {
   const panel = el('div', { class: 'section' });
@@ -591,7 +557,7 @@ const TABS = [
   { id: 'appearance', label: '🎨 Aparência', make: appearanceTab },
   { id: 'users', label: '👥 Usuários', make: usersTab },
   { id: 'backups', label: '💾 Backups', make: backupsTab },
-  { id: 'staff', label: '🖨️ Impressão', make: staffTab },
+  { id: 'tasks', label: '🖨️ Tarefas do staff', make: () => makeTasksTab(CONTEST) },
   { id: 'verdict', label: '⚖️ Veredicto manual', make: verdictTab },
   { id: 'log', label: '📋 Log & sessões', make: logTab },
   { id: 'audit', label: '🧾 Auditoria', make: auditTab },
@@ -616,7 +582,10 @@ async function boot() {
     history.replaceState(null, '', location.pathname + '?c=' + enc(CONTEST) + '#' + id);
   }
   TABS.forEach((t) => { btn[t.id] = el('button', { onclick: () => show(t.id) }, t.label); tabbar.append(btn[t.id]); });
-  const want = (location.hash || '').replace('#', '');
+  // aliases de abas antigas (links salvos não quebram)
+  const ALIAS = { staff: 'tasks' };
+  let want = (location.hash || '').replace('#', '');
+  want = ALIAS[want] || want;
   show(TABS.some((t) => t.id === want) ? want : 'settings');
 }
 boot();
