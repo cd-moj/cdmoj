@@ -135,7 +135,12 @@ submissão + editor que o admin pode desligar), **placar** multi-modo (icpc/obi/
 heurístico/outro) com bandeiras locais, filtro por país/escola, modo **anônimo** (agregado/
 quartis), **freeze** (esconde resultados após o horário; `build.sh` gera `placar.txt` público
 congelado e `placar-full.txt` completo — `.admin`/`.judge`/`.cjudge` + allowlist `SCORE_FULL_USERS` veem
-o completo), tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Usuários comuns
+o completo), tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Contest **🕵️ SUPER
+SECRETO** (conf `SECRET=1`, marcável na criação e no admin): **fora** das listagens públicas (home,
+arquivo `/contests/`, `/status/`) e o **placar deixa de ser público** — `score`/`balloons`/`regions`/
+`teams-meta` exigem sessão **daquele** contest (401 `secret_login_required`). A **tela de login/
+countdown continua funcionando** p/ quem tem o link (`/contest/basic` segue público). Desmarcar exige
+digitar o id. Usuários comuns
 têm no menu uma página própria de **Backup de arquivos** (`/contest/backup/`) p/ guardar versões de
 solução (não polui a home); o admin vê/baixa todos na aba **Backups** (zip por usuário). Quando há
 usuário **`.staff`** no contest, os alunos ganham também a página **Impressão** (`/contest/print/`):
@@ -161,13 +166,17 @@ nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do
   **saúde por juiz** (online/offline/cache/linguagens), fila, pendentes com tempo de espera,
   **submissões recentes**, **por problema**, métricas avg/p95, timeline com picos e **cards de
   tarefas do staff** (impressões/balões pendentes) — `/contest/admin/dashboard`, auto-refresh);
-  **Configurações** (tempos, login on/off, abertura, freeze, toggles editor/log/código/**tempo-limite**/anônimo,
-  gate de UA, **linguagens permitidas do contest** — o MESMO `settings-editor` do wizard);
+  **Configurações** (tempos, login on/off, abertura, freeze, toggles editor/log/código/**tempo-limite**/anônimo/
+  **🕵️ SUPER SECRETO**, gate de UA, **linguagens permitidas do contest** — o MESMO `settings-editor` do wizard;
+  desmarcar o secreto exige **digitar o id**);
   **Problemas** (busca no banco **público + os privados do dono do contest** com badges, sorteio
   por coleção/tag/dificuldade, add/remover/reordenar/renomear — **sem** "add por id");
   **Aparência** (cores/Sonic, **países/escolas com preview de matches + import/export JSON +
   template dos sem match**, regiões, básico);
-  **Usuários & sessões** (add/reset/remover/**deslogar**/**desabilitar**/**troca de senha geral**
+  **Usuários & sessões** (add/reset/remover/**deslogar**/**desabilitar**/**troca de senha geral**,
+  **filtros** (busca + ativos/desabilitados/privilegiados, teto de 300 p/ contest 1000+) e
+  **carga em lote** (colar/arquivo → `POST /contest/admin/users-bulk`, skip/update, CSV das
+  credenciais — subir competidores depois de criar o contest só com contas administrativas)
   + sessões com **alerta de UA/IP diferente**, deslogar por UA, log de acessos + **backups** dos
   usuários);
   **Tarefas do staff** (`web/contest/admin/tasks.js` — panorama e AÇÃO: resumo em cards, a fila
