@@ -4,7 +4,6 @@
 # o /treino/signup/verify (chamado pelo bot, com a identidade Telegram). Anti-enumeração: só
 # reporta "em uso" quando o login foi explicitamente escolhido.
 require_method POST
-store_v2 treino || fail 503 "Cadastro indisponível (store não migrado)" "store_not_v2"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 login="$(jq -r '.login // empty' <<<"$body")"

@@ -13,7 +13,7 @@
 set -u
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 _SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$_SDIR/../api/v1/lib/users.sh" 2>/dev/null   # emit_history_stream / store_v2
+source "$_SDIR/../api/v1/lib/users.sh" 2>/dev/null   # emit_history_stream
 
 OUT="${1:-}"; [[ -n "$OUT" ]] || { echo "uso: problem-panorama-gen.sh <outfile>" >&2; exit 1; }
 IDX="$CONTESTSDIR/treino/var/problem-owners.json"
@@ -65,24 +65,10 @@ set +o noglob; shopt -s nullglob
 for cdir in "$CONTESTSDIR"/*/; do
   cdir="${cdir%/}"; c="${cdir##*/}"
   [[ -f "$cdir/conf" ]] || continue
-  if store_v2 "$c"; then
-    # store-v2 (treino & afins): campo-3 já é o id canônico -> resolve pelo ALIAS; sem dono, mantém.
-    _HT="$(mktemp)"; emit_history_stream "$c" > "$_HT" 2>/dev/null
-    awk -F: -v KEEP=1 -v CID="$c" -v MAPF="$ALIAS" "$norm_awk" "$ALIAS" "$_HT" 2>/dev/null >> "$NORM"
-    rm -f "$_HT"; _HT=""
-  else
-    hist="$cdir/controle/history"; [[ -f "$hist" ]] || continue
-    # legado: campo-3 = OFFSET no PROBS -> CMAP({off,raw,dot,hash}->owner-ou-canon) da conf.
-    ( PROBS=(); source "$cdir/conf" 2>/dev/null
-      for ((i=0; i<${#PROBS[@]}; i+=5)); do
-        praw="${PROBS[i+1]:-}"; [[ -n "$praw" ]] || continue
-        canon="${PROBS[i+4]:-}"; [[ "$canon" == *"#"* ]] || canon="${praw//\//#}"
-        owner="${ALIASMAP[$canon]:-$canon}"
-        Ci="${canon%%#*}"; Pp="${canon#*#}"
-        printf '%s\t%s\n%s\t%s\n%s\t%s\n%s\t%s\n' "$i" "$owner" "$canon" "$owner" "$Ci/$Pp" "$owner" "$Ci.$Pp" "$owner"
-      done ) > "$CMAP" 2>/dev/null
-    awk -F: -v KEEP=0 -v CID="$c" -v MAPF="$CMAP" "$norm_awk" "$CMAP" "$hist" 2>/dev/null >> "$NORM"
-  fi
+  # campo-3 já é o id canônico -> resolve pelo ALIAS; sem dono, mantém.
+  _HT="$(mktemp)"; emit_history_stream "$c" > "$_HT" 2>/dev/null
+  awk -F: -v KEEP=1 -v CID="$c" -v MAPF="$ALIAS" "$norm_awk" "$ALIAS" "$_HT" 2>/dev/null >> "$NORM"
+  rm -f "$_HT"; _HT=""
 done
 shopt -u nullglob
 

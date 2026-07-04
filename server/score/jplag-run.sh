@@ -19,8 +19,8 @@ jext(){ case "$1" in cpp) echo cpp;; java) echo java;; python3) echo py;; csharp
 
 status true "iniciando…"
 _SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$_SDIR/../api/v1/lib/users.sh"
-hist="$cdir/controle/history"
-_HT=""; if store_v2 "$contest"; then _HT="$(mktemp)"; emit_history_stream "$contest" > "$_HT"; hist="$_HT"; trap 'rm -f "$_HT"' EXIT; fi
+hist="$(mktemp)"; trap 'rm -f "$hist"' EXIT
+emit_history_stream "$contest" > "$hist"
 [[ -f "$JPLAG_JAR" ]] || { status false "jar do jplag não encontrado"; exit 0; }
 [[ -f "$hist" ]] || { status false "sem histórico"; exit 0; }
 
@@ -46,7 +46,7 @@ for pj in "${PJS[@]}"; do
   for key in "${!LATEST[@]}"; do
     [[ "${key%|*}" == "$pj" ]] || continue
     user="${key##*|}"; sid="${LATEST[$key]#*$'\t'}"
-    if store_v2 "$contest"; then src=("$(user_dir "$contest" "$user")/submissions/$sid".*); else src=("$cdir/submissions/"*"$sid"*); fi
+    src=("$(user_dir "$contest" "$user")/submissions/$sid".*)
     [[ -f "${src[0]:-}" ]] || continue
     safe="$(printf '%s' "$user" | tr -c 'A-Za-z0-9._-' '_')"
     cp "${src[0]}" "$rundir/sub/$safe.$ext" 2>/dev/null && ((nsub++))

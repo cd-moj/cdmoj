@@ -10,17 +10,9 @@ login="$(jq -r '.login // empty' <<<"$body")"
 [[ -n "$login" ]] || fail 400 "Informe o login" "missing"
 valid_id "$login" || fail 422 "login inválido" "login_invalid"
 [[ "$login" == "$SESSION_LOGIN" ]] && fail 409 "Você não pode remover a si mesmo" "self_remove"
-if store_v2 "$contest"; then
-  # v2: conta = diretório; remover = mover p/ .removed-users (submissões preservadas)
-  user_exists "$contest" "$login" || fail 404 "Usuário não encontrado" "notfound"
-  trash="$CONTESTSDIR/$contest/.removed-users"; mkdir -p "$trash"
-  mv "$(user_dir "$contest" "$login")" "$trash/$login-$EPOCHSECONDS" || fail 500 "Falha ao remover" "write_fail"
-else
-  pw="$CONTESTSDIR/$contest/passwd"
-  grep -q "^$login:" "$pw" 2>/dev/null || fail 404 "Usuário não encontrado" "notfound"
-  tmp="$(mktemp "${pw}.XXXXXX")" || fail 500 "tmp" "tmp"
-  grep -v "^$login:" "$pw" 2>/dev/null > "$tmp"
-  cat "$tmp" > "$pw" && rm -f "$tmp" || { rm -f "$tmp"; fail 500 "Falha ao gravar" "write_fail"; }
-fi
+# conta = diretório; remover = mover p/ .removed-users (submissões preservadas)
+user_exists "$contest" "$login" || fail 404 "Usuário não encontrado" "notfound"
+trash="$CONTESTSDIR/$contest/.removed-users"; mkdir -p "$trash"
+mv "$(user_dir "$contest" "$login")" "$trash/$login-$EPOCHSECONDS" || fail 500 "Falha ao remover" "write_fail"
 audit_log_to "$contest" user-remove "login=$login"
 ok_json '{removed:true, login:$l}' --arg l "$login"

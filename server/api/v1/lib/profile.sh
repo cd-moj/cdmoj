@@ -17,17 +17,6 @@ _profile_account(){
   printf '%s' "$f"
 }
 
-# DEPRECATED (só os ramos legados pré-store-v2 ainda chamam; somem no corte final).
-passwd_field(){ # <contest> <login> <n>
-  awk -F: -v u="$2" -v n="$3" '$1==u{print $n; exit}' "$CONTESTSDIR/$1/passwd" 2>/dev/null
-}
-update_passwd_field(){
-  local pw="$CONTESTSDIR/$1/passwd" tmp
-  tmp="$(mktemp "${pw}.XXXXXX")" || return 1
-  _PV="$4" awk -F: -v u="$2" -v n="$3" 'BEGIN{OFS=":"} $1==u{$n=ENVIRON["_PV"]} {print}' "$pw" > "$tmp" \
-    && cat "$tmp" > "$pw" && rm -f "$tmp"
-}
-
 # read_profile <c> <login> -> UNIVERSITY, FAVORITE_EDITOR, PROFILE_PUBLIC, UNAME_CHANGES
 read_profile(){
   UNIVERSITY=""; FAVORITE_EDITOR=""; PROFILE_PUBLIC="true"; UNAME_CHANGES=""

@@ -15,7 +15,6 @@ if [[ -z "$login" ]]; then
   ok_json '{status:"not_linked"}'
   exit 0
 fi
-store_v2 treino || fail 503 "Indisponível (store não migrado)" "store_not_v2"
 pw="$(user_genpass)"
 user_set_password treino "$login" "$pw" || fail 500 "Falha ao trocar a senha" "passwd_fail"
 ok_json '{status:"ok", login:$l, password:$p}' --arg l "$login" --arg p "$pw"

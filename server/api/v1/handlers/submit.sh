@@ -44,20 +44,13 @@ jq -cn --arg c "$contest" --arg l "$SESSION_LOGIN" --arg p "$problem" \
    '{contest:$c, login:$l, problem_id:$p, filename:$f, code_b64:$b, lang:$t, time:$ts, id:$id}' > "$tmp"
 mv -f "$tmp" "$SPOOLDIR/$spoolname"   # atômico: só aparece pronto p/ o daemon
 
-# entrada provisória no histórico p/ o front mostrar "loading" no polling.
-# store-v2: users/<login>/history (login implícito, linha de 6 campos); legado: controle/history (7).
-if store_v2 "$contest"; then
-  mkdir -p "$(user_dir "$contest" "$SESSION_LOGIN")" 2>/dev/null
-  user_history_append "$contest" "$SESSION_LOGIN" \
-    "$AGORA:$problem:$FILETYPE:Not Answered Yet:$AGORA:$ID"
-  # metrics carregam o PENDING que o placar (gerado só de metrics) mostra na hora
-  metrics_recompute "$contest" "$SESSION_LOGIN"
-else
-  hist="$CONTESTSDIR/$contest/controle/history"
-  mkdir -p "$CONTESTSDIR/$contest/controle"
-  printf '%s:%s:%s:%s:Not Answered Yet:%s:%s\n' \
-    "$AGORA" "$SESSION_LOGIN" "$problem" "$FILETYPE" "$AGORA" "$ID" >> "$hist"
-fi
+# entrada provisória no histórico p/ o front mostrar "loading" no polling
+# (users/<login>/history: login implícito, linha de 6 campos).
+mkdir -p "$(user_dir "$contest" "$SESSION_LOGIN")" 2>/dev/null
+user_history_append "$contest" "$SESSION_LOGIN" \
+  "$AGORA:$problem:$FILETYPE:Not Answered Yet:$AGORA:$ID"
+# metrics carregam o PENDING que o placar (gerado só de metrics) mostra na hora
+metrics_recompute "$contest" "$SESSION_LOGIN"
 
 # Registra o EDITOR usado (p/ o card "editor da semana" na home). Regra: editor web
 # -> "web"; arquivo -> editor declarado do usuário (favorite_editor). O front manda

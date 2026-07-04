@@ -2,7 +2,7 @@
 #
 # stats-gen.sh <contest> <outfile>
 #
-# Gera o JSON de estatísticas agregadas do contest a partir de controle/history
+# Gera o JSON de estatísticas agregadas do contest a partir do stream de history
 # (7 campos: min:user:prob:lang:verdict:epoch:subid) e do conf (PROBS, p/ resolver
 # letra/nome dos problemas), gravando o resultado ATÔMICO em <outfile>.
 #
@@ -18,11 +18,10 @@ C="${1:-}"; OUT="${2:-}"
 [[ -n "$C" && -n "$OUT" ]] || { echo "uso: stats-gen.sh <contest> <outfile>" >&2; exit 1; }
 case "$C" in *[!A-Za-z0-9._@#+-]* | "" | *..* ) echo "stats-gen: invalid contest id" >&2; exit 1;; esac
 
-hist="$CONTESTSDIR/$C/controle/history"
 conf="$CONTESTSDIR/$C/conf"
-# store-v2: materializa o history no formato global (7 campos) num temp — awk abaixo inalterado.
+# materializa o history no formato global (7 campos) num temp — awk abaixo inalterado.
 _SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$_SDIR/../api/v1/lib/users.sh"
-_HT=""; if store_v2 "$C"; then _HT="$(mktemp)"; emit_history_stream "$C" > "$_HT"; hist="$_HT"; fi
+_HT="$(mktemp)"; emit_history_stream "$C" > "$_HT"; hist="$_HT"
 mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "stats-gen: mktemp falhou" >&2; exit 1; }
 trap 'rm -f "$TMP" "${_HT:-}"' EXIT

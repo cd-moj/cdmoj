@@ -15,4 +15,4 @@ if (( !isowner && !isadm )) && ! profile_is_public treino "$user"; then
 fi
 
 emit_text
-emit_user_history treino "$user"   # store-v2 (users/<user>/history) ou legado (controle/history)
+emit_user_history treino "$user"   # users/<user>/history (7 campos normalizados)

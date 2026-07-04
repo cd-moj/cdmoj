@@ -14,7 +14,7 @@ if [[ -f "$CACHE" ]]; then
   if [[ "$ca" =~ ^[0-9]+$ ]] && (( now - ca < 20 )); then cat "$CACHE"; exit 0; fi
 fi
 
-# --- fila por lista (controle/history) + spool ---
+# --- fila por lista (users/*/history via count_pending) + spool ---
 set +o noglob; shopt -s nullglob
 declare -a LISTS; total=0
 for cdir in "$CONTESTSDIR"/*/; do

@@ -3,7 +3,7 @@
 # treino-response-gen.sh <contest> <outfile>
 #
 # Gera o JSON de TEMPO DE RESPOSTA do treino (ou de qualquer contest) a partir de:
-#   - controle/history (7 campos: tempo:user:prob:lang:verdict:sub_epoch:subid) -> mapa subid->sub_epoch
+#   - stream do history (7 campos: tempo:user:prob:lang:verdict:sub_epoch:subid) -> mapa subid->sub_epoch
 #   - results/<id>.json (um por submissão julgada pelo pipeline v2) -> finalized_at, duration_s
 #
 # Métricas (só submissões com finalized_at — único timestamp de veredito persistido):
@@ -22,11 +22,9 @@ C="${1:-}"; OUT="${2:-}"
 [[ -n "$C" && -n "$OUT" ]] || { echo "uso: treino-response-gen.sh <contest> <outfile>" >&2; exit 1; }
 case "$C" in *[!A-Za-z0-9._@#+-]* | "" | *..* ) echo "treino-response-gen: invalid contest id" >&2; exit 1;; esac
 
-hist="$CONTESTSDIR/$C/controle/history"
-resdir="$CONTESTSDIR/$C/results"
-# store-v2: history no formato global (temp) + results espalhados por users/<login>/results/.
+# history no formato global (temp) + results espalhados por users/<login>/results/.
 _SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$_SDIR/../api/v1/lib/users.sh"
-_HT=""; if store_v2 "$C"; then _HT="$(mktemp)"; emit_history_stream "$C" > "$_HT"; hist="$_HT"; fi
+_HT="$(mktemp)"; emit_history_stream "$C" > "$_HT"; hist="$_HT"
 mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "treino-response-gen: mktemp falhou" >&2; exit 1; }
 MAPTMP="$(mktemp "$OUT.map.XXXXXX")" || { echo "treino-response-gen: mktemp falhou" >&2; exit 1; }
@@ -67,10 +65,10 @@ if [[ -f "$hist" ]]; then
   [[ -s "$VOLTMP" ]] || printf '{"subs_per_day":[],"subs_by_dow_hour":[]}\n' > "$VOLTMP"
 fi
 
-# coleta os results/<id>.json (cada um já traz id, finalized_at, duration_s).
-# store-v2: espalhados em users/<login>/results/; legado: results/ do contest.
+# coleta os results/<id>.json (cada um já traz id, finalized_at, duration_s),
+# espalhados em users/<login>/results/.
 set +o noglob; shopt -s nullglob
-if store_v2 "$C"; then files=( "$(users_dir "$C")"/*/results/*.json ); else files=( "$resdir"/*.json ); fi
+files=( "$(users_dir "$C")"/*/results/*.json )
 shopt -u nullglob
 
 if (( ${#files[@]} == 0 )); then

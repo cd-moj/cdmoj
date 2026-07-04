@@ -42,7 +42,6 @@ if [[ "$purpose" == link ]]; then
 fi
 
 # ----- purpose=signup: cria a conta -----
-store_v2 treino || fail 503 "Cadastro indisponível (store não migrado)" "store_not_v2"
 login="$(jq -r '.login // empty' <<<"$pj")"
 fullname="$(jq -r '.fullname // empty' <<<"$pj")"
 [[ -n "$fullname" ]] || { fullname="$(printf '%s %s' "$first" "$last")"; fullname="${fullname#"${fullname%%[![:space:]]*}"}"; fullname="${fullname%"${fullname##*[![:space:]]}"}"; }

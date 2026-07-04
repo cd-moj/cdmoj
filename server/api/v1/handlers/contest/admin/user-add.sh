@@ -18,21 +18,13 @@ valid_id "$login" || fail 422 "login inválido" "login_invalid"
 [[ -z "$full" ]] && full="$login"
 case "$pass$full$email" in *:*) fail 422 "senha/nome/email não podem conter ':'" "colon";; esac
 
-if store_v2 "$contest"; then
-  # store por-usuário: account.json é a fonte (auth/placar leem direto dele)
-  if user_exists "$contest" "$login"; then
-    account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t' \
-      --arg p "$pass" --arg f "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
-      || fail 500 "Falha ao gravar" "write_fail"
-  else
-    user_create "$contest" "$login" "$full" "$pass" "$email" || fail 500 "Falha ao criar" "write_fail"
-  fi
+# account.json é a fonte (auth/placar leem direto dele)
+if user_exists "$contest" "$login"; then
+  account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t' \
+    --arg p "$pass" --arg f "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
+    || fail 500 "Falha ao gravar" "write_fail"
 else
-  pw="$CONTESTSDIR/$contest/passwd"; tmp="$(mktemp "${pw}.XXXXXX")" || fail 500 "tmp" "tmp"
-  grep -v "^$login:" "$pw" 2>/dev/null > "$tmp"
-  if [[ -n "$email" ]]; then printf '%s:%s:%s:%s\n' "$login" "$pass" "$full" "$email" >> "$tmp"
-  else printf '%s:%s:%s\n' "$login" "$pass" "$full" >> "$tmp"; fi
-  cat "$tmp" > "$pw" && rm -f "$tmp" || { rm -f "$tmp"; fail 500 "Falha ao gravar" "write_fail"; }
+  user_create "$contest" "$login" "$full" "$pass" "$email" || fail 500 "Falha ao criar" "write_fail"
 fi
 audit_log_to "$contest" user-add "login=$login"
 ok_json '{saved:true, user:{login:$l, password:$p, fullname:$f, email:$e}}' \

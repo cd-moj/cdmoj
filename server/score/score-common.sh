@@ -12,8 +12,7 @@
 #   CONTESTDIR         $CONTESTSDIR/$CONTEST
 #   CONTEST_START      epoch (0 if unset in conf)
 #   PROBS              the flat 5-tuple array from the conf
-#   SC_PIDX[]          flat-array start index of each problem (== numeric probid
-#                      used in data/<user>, controle/history and the .d files)
+#   SC_PIDX[]          flat-array start index of each problem
 #   SC_SHORT[]         short name of each problem (PROBS[idx+3])
 #   SC_FULL[]          full name of each problem (PROBS[idx+2])
 #   SC_CANON[]         canonical 'collection#problem' id of each problem (the form

@@ -5,7 +5,8 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
-T="$FIX/treino"; mkdir -p "$T/controle" "$T/var/jsons" "$T/var/json-count"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+T="$FIX/treino"; mkdir -p "$T/var/jsons" "$T/var/json-count"
 
 # jsons: id na forma '#'. json-count: MESMO arquivo, mas id pontilhado de propósito
 # (prova que o merge casa por basename, não pelo campo .id).
@@ -17,12 +18,14 @@ printf '{"id":"moj-problems.px","solved_count":5,"attempted_count":9}' > "$T/var
 # history: semana passada (PREV) x esta semana (THIS), datas relativas a hoje
 LW=$(date -d 'last-sunday' +%s 2>/dev/null || echo 0)
 PREV=$((LW - 3*86400)); THIS=$((LW + 3600))
-{ printf '100:alice:moj-problems#px:C:Accepted,100p:%s:h1\n' "$PREV"
-  printf '100:alice:moj-problems#px:C:Accepted,100p (Ignored):%s:h1b\n' "$PREV"  # mesmo user/prob -> conta 1x
-  printf '100:bob:moj-problems#px:C:Accepted,100p:%s:h2\n' "$PREV"
-  printf '100:alice:moj-problems#py:C:Accepted,100p:%s:h3\n' "$PREV"
-  printf '100:carol:moj-problems#pz:C:Accepted,100p:%s:h4\n' "$THIS"; } > "$T/controle/history"
-printf 'alice:x:Alice\nbob:x:Bob\ncarol:x:Carol\n' > "$T/passwd"
+fx_user "$T" alice x "Alice"
+fx_user "$T" bob x "Bob"
+fx_user "$T" carol x "Carol"
+{ printf '100:moj-problems#px:C:Accepted,100p:%s:h1\n' "$PREV"
+  printf '100:moj-problems#px:C:Accepted,100p (Ignored):%s:h1b\n' "$PREV"  # mesmo user/prob -> conta 1x
+  printf '100:moj-problems#py:C:Accepted,100p:%s:h3\n' "$PREV"; } > "$T/users/alice/history"
+printf '100:moj-problems#px:C:Accepted,100p:%s:h2\n' "$PREV" > "$T/users/bob/history"
+printf '100:moj-problems#pz:C:Accepted,100p:%s:h4\n' "$THIS" > "$T/users/carol/history"
 
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD=GET QUERY_STRING="${2:-}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }

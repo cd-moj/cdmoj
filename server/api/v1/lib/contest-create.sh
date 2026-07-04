@@ -17,13 +17,8 @@ cc_perms_json(){
   fi
 }
 
-# nº de problemas distintos resolvidos por um usuário no treino livre
-cc_solved_count(){
-  if command -v store_v2 >/dev/null 2>&1 && store_v2 treino; then metrics_solved_count treino "$1"; return; fi
-  local h="$CONTESTSDIR/treino/controle/history"
-  [[ -f "$h" ]] || { echo 0; return; }
-  awk -F: -v u="$1" '$2==u && $5 ~ /^Accepted/ {s[$3]=1} END{print length(s)+0}' "$h" 2>/dev/null || echo 0
-}
+# nº de problemas distintos resolvidos por um usuário no treino livre (O(1) via metrics)
+cc_solved_count(){ metrics_solved_count treino "$1"; }
 
 # cc_genpass — senha legível: uma palavra de palavras-para-senha + 4 dígitos (ex.: tartaruga7823).
 cc_genpass(){
@@ -277,7 +272,6 @@ cc_create(){
     printf 'CONTEST_ID=%q\n'    "$id"
     printf 'CONTEST_NAME=%q\n'  "$name"
     printf 'CONTEST_TYPE=%q\n'  "$mode"
-    printf 'USER_STORE=v2\n'
     printf 'CONTEST_PRIORITY=%q\n' "$priority"
     printf 'CONTEST_START=%q\n' "$start"
     printf 'CONTEST_END=%q\n'   "$end"
@@ -322,14 +316,10 @@ cc_create(){
 # cc_problem_metrics_file — caminho de um cache {id:{total,accepted,solvers,acceptance}} por
 # problema, derivado do history do treino (TTL 30min). Usado pelo sorteio por dificuldade.
 cc_problem_metrics_file(){
-  local f="$CONTESTSDIR/treino/var/problem-metrics.json" h="$CONTESTSDIR/treino/controle/history"
+  local f="$CONTESTSDIR/treino/var/problem-metrics.json"
   if [[ ! -s "$f" || -n "$(find "$f" -mmin +30 2>/dev/null)" ]]; then
     mkdir -p "$CONTESTSDIR/treino/var"
-    local have=0
-    if command -v store_v2 >/dev/null 2>&1 && store_v2 treino; then have=2
-    elif [[ -f "$h" ]]; then have=1; fi
-    if (( have )); then
-      { (( have==2 )) && emit_history_stream treino || cat "$h"; } \
+    emit_history_stream treino \
       | awk -F: '{tot[$3]++; if($5 ~ /^Accepted/){acc[$3]++; sol[$3 SUBSEP $2]=1}}
                END{for(k in sol){split(k,a,SUBSEP); ns[a[1]]++}
                    for(p in tot) printf "%s\t%d\t%d\t%d\n", p, tot[p], acc[p]+0, ns[p]+0}' \
@@ -337,7 +327,6 @@ cc_problem_metrics_file(){
                   |{key:.[0], value:{total:(.[1]|tonumber), accepted:(.[2]|tonumber), solvers:(.[3]|tonumber),
                      acceptance:(if (.[1]|tonumber)>0 then ((.[2]|tonumber)/(.[1]|tonumber)) else 0 end)}})
                   |from_entries' > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f" || echo '{}' > "$f"
-    else echo '{}' > "$f"; fi
   fi
   printf '%s' "$f"
 }

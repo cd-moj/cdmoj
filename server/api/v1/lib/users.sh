@@ -22,13 +22,6 @@ metrics_file(){ printf '%s/%s/users/%s/metrics.json' "$CONTESTSDIR" "$1" "$2"; }
 
 user_exists(){ [[ -f "$(account_file "$1" "$2")" ]]; }
 
-# store_v2 <contest> -> 0 se o contest já usa o store por-usuário (flag USER_STORE=v2 no conf).
-# Flag explícito (não a mera existência de users/) para não ligar no meio da migração.
-store_v2(){
-  local v; v="$(grep -m1 '^USER_STORE=' "$CONTESTSDIR/$1/conf" 2>/dev/null | cut -d= -f2-)"
-  v="${v//\'/}"; v="${v//\"/}"; [[ "$v" == v2 ]]
-}
-
 # _atomic_write <destfile>  (conteúdo no stdin) — grava atômico (tmp no mesmo dir + mv).
 _atomic_write(){
   local f="$1" tmp; tmp="$(mktemp "$f.XXXXXX")" || return 1
@@ -217,72 +210,50 @@ user_rename(){
 # store por-usuário mantém implícito. Fonte única p/ os leitores/agregadores: eles
 # mantêm a lógica awk e só trocam a entrada (arquivo → estes helpers).
 
-# emit_user_history <c> <login> — só desse usuário (O(1) no store-v2).
+# emit_user_history <c> <login> — só desse usuário (O(history do usuário)).
 emit_user_history(){
   local c="$1" u="$2"
-  if store_v2 "$c"; then
-    local hf; hf="$(user_hist_file "$c" "$u")"; [[ -f "$hf" ]] || return 0
-    awk -v u="$u" 'NF{ i=index($0,":"); print substr($0,1,i-1)":"u":"substr($0,i+1) }' "$hf"
-  else
-    awk -F: -v u="$u" '$2==u' "$CONTESTSDIR/$c/controle/history" 2>/dev/null
-  fi
+  local hf; hf="$(user_hist_file "$c" "$u")"; [[ -f "$hf" ]] || return 0
+  awk -v u="$u" 'NF{ i=index($0,":"); print substr($0,1,i-1)":"u":"substr($0,i+1) }' "$hf"
 }
 
-# emit_history_stream <c> — history inteiro do contest (fan-out sobre users/* no store-v2).
+# emit_history_stream <c> — history inteiro do contest (fan-out sobre users/*).
 emit_history_stream(){
   local c="$1"
-  if store_v2 "$c"; then
-    local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || return 0
-    ( set +o noglob; shopt -s nullglob
-      local hf login
-      for hf in "$d"/*/history; do
-        login="${hf%/history}"; login="${login##*/}"
-        awk -v u="$login" 'NF{ i=index($0,":"); print substr($0,1,i-1)":"u":"substr($0,i+1) }' "$hf"
-      done )
-  else
-    cat "$CONTESTSDIR/$c/controle/history" 2>/dev/null
-  fi
+  local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || return 0
+  ( set +o noglob; shopt -s nullglob
+    local hf login
+    for hf in "$d"/*/history; do
+      login="${hf%/history}"; login="${login##*/}"
+      awk -v u="$login" 'NF{ i=index($0,":"); print substr($0,1,i-1)":"u":"substr($0,i+1) }' "$hf"
+    done )
 }
 
-# count_pending <c> — nº de submissões pendentes (veredicto provisório) sem varrer o history
-# global no store-v2: usa metrics? não — pendências não estão em metrics. Fan-out por grep.
+# count_pending <c> — nº de submissões pendentes (veredicto provisório). Fan-out por grep.
 count_pending(){
-  local c="$1" re=':(Not Answered Yet|On queue|on queue|Running|running):' n=0 g
+  local c="$1" re=':(Not Answered Yet|On queue|on queue|Running|running):' g
   # ATENÇÃO: `grep -c` IMPRIME "0" E SAI 1 quando não há match. NUNCA usar
   # `grep -c … || echo 0` (retorna "0\n0" → estoura (( )) e inunda o stderr → trava o worker
   # fcgiwrap). Capturar direto (o exit 1 é inofensivo dentro de $()) e sanear a dígitos.
-  if store_v2 "$c"; then
-    local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || { echo 0; return; }
-    ( set +o noglob; shopt -s nullglob
-      local m=0 hf; for hf in "$d"/*/history; do
-        g="$(grep -cE "$re" "$hf" 2>/dev/null)"; m=$(( m + ${g//[^0-9]/} + 0 ))
-      done; echo "$m" )
-  else
-    local h="$CONTESTSDIR/$c/controle/history"
-    [[ -f "$h" ]] && g="$(grep -cE "$re" "$h" 2>/dev/null)"
-    echo "$(( ${g//[^0-9]/} + 0 ))"
-  fi
+  local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || { echo 0; return; }
+  ( set +o noglob; shopt -s nullglob
+    local m=0 hf; for hf in "$d"/*/history; do
+      g="$(grep -cE "$re" "$hf" 2>/dev/null)"; m=$(( m + ${g//[^0-9]/} + 0 ))
+    done; echo "$m" )
 }
 
 # resolve_submission <c> <sid> — popula SUB_OWNER, SUB_SRC, SUB_LOG, SUB_RESULT (vazios se
-# ausentes), resolvendo por id. Store-v2: users/<owner>/{submissions,mojlog,results}/<sid>.* ;
-# legado: submissions/*<sid>* (owner do nome), mojlog/*<sid>*, results/<sid>.json.
+# ausentes), resolvendo por id em users/<owner>/{submissions,mojlog,results}/<sid>.*.
 # PRÉ-REQUISITO: o caller já fez `set +o noglob; shopt -s nullglob` (padrão dos handlers).
 resolve_submission(){
-  local c="$1" sid="$2" d f b after any
+  local c="$1" sid="$2" d f any
   SUB_OWNER=""; SUB_SRC=""; SUB_LOG=""; SUB_RESULT=""
-  if store_v2 "$c"; then
-    d="$(users_dir "$c")"
-    for f in "$d"/*/submissions/"$sid".*;   do SUB_SRC="$f"; break; done
-    for f in "$d"/*/mojlog/"$sid".html "$d"/*/mojlog/"$sid"; do SUB_LOG="$f"; break; done
-    for f in "$d"/*/results/"$sid".json;    do SUB_RESULT="$f"; break; done
-    any="${SUB_SRC:-${SUB_RESULT:-$SUB_LOG}}"
-    if [[ -n "$any" ]]; then any="${any%/submissions/*}"; any="${any%/mojlog/*}"; any="${any%/results/*}"; SUB_OWNER="${any##*/}"; fi
-  else
-    for f in "$CONTESTSDIR/$c/submissions/"*"$sid"*; do SUB_SRC="$f"; b="${f##*/}"; after="${b#*"$sid"-}"; SUB_OWNER="${after%%-*}"; break; done
-    for f in "$CONTESTSDIR/$c/mojlog/"*"$sid"*; do SUB_LOG="$f"; break; done
-    [[ -f "$CONTESTSDIR/$c/results/$sid.json" ]] && SUB_RESULT="$CONTESTSDIR/$c/results/$sid.json"
-  fi
+  d="$(users_dir "$c")"
+  for f in "$d"/*/submissions/"$sid".*;   do SUB_SRC="$f"; break; done
+  for f in "$d"/*/mojlog/"$sid".html "$d"/*/mojlog/"$sid"; do SUB_LOG="$f"; break; done
+  for f in "$d"/*/results/"$sid".json;    do SUB_RESULT="$f"; break; done
+  any="${SUB_SRC:-${SUB_RESULT:-$SUB_LOG}}"
+  if [[ -n "$any" ]]; then any="${any%/submissions/*}"; any="${any%/mojlog/*}"; any="${any%/results/*}"; SUB_OWNER="${any##*/}"; fi
 }
 
 # --- listagem -------------------------------------------------------------

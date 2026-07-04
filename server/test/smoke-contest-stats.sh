@@ -3,21 +3,27 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
-C="$FIX/st"; mkdir -p "$C/controle"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+C="$FIX/st"; mkdir -p "$C/var"
 # conf com PROBS reais (5-tuplas): offset 0->Q, 5->R, 10->S; o history grava ou o
 # OFFSET-base (legado: 0,5,10) ou o id-fonte pontilhado (mon/soma -> mon.soma).
 { printf 'CONTEST_ID=st\nCONTEST_TYPE=icpc\n'
   printf "PROBS=(f0 mon/quadrados 'Quadrados Magicos' Q k0 f1 mon/retas 'Retas e Pontos' R k1 f2 mon/soma Somatorio S k2)\n"; } > "$C/conf"
-printf 'st.admin:p:Admin\nalice:a:Alice\n' > "$C/passwd"
+fx_user "$C" st.admin p "Admin"
+fx_user "$C" alice a "Alice"
+fx_user "$C" bob b "Bob"
+fx_user "$C" carol c "Carol"
+fx_user "$C" zz.judge p "Judge"
+fx_user "$C" zz.staff p "Staff"
 printf 'CONTEST=st\nLOGIN=st.admin\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=st\nLOGIN=alice\nLOGINAT=1\n' > "$SESS/usr"
-{ printf '5:alice:0:C:Accepted,100p:1718000000:h1\n'          # Q (offset)
-  printf '3:bob:0:CPP:Wrong Answer:1718000010:h2\n'           # Q (offset)
-  printf '8:bob:0:CPP:Accepted,100p:1718000020:h3\n'          # Q (offset)
-  printf '9:carol:5:C:Accepted,100p:1718000040:h5\n'          # R (offset)
-  printf '2:alice:mon.soma:PY:Accepted,100p:1718000030:h6\n'  # S (id-fonte pontilhado)
-  printf '1:zz.judge:0:C:Accepted,100p:1718000050:h7\n'       # privilegiado -> descartado
-  printf '4:zz.staff:5:C:Accepted,100p:1718000060:h8\n'; } > "$C/controle/history"  # privilegiado
+{ printf '5:0:C:Accepted,100p:1718000000:h1\n'                 # Q (offset)
+  printf '2:mon.soma:PY:Accepted,100p:1718000030:h6\n'; } > "$C/users/alice/history"  # S (pontilhado)
+{ printf '3:0:CPP:Wrong Answer:1718000010:h2\n'                # Q (offset)
+  printf '8:0:CPP:Accepted,100p:1718000020:h3\n'; } > "$C/users/bob/history"
+printf '9:5:C:Accepted,100p:1718000040:h5\n' > "$C/users/carol/history"      # R (offset)
+printf '1:0:C:Accepted,100p:1718000050:h7\n' > "$C/users/zz.judge/history"   # privilegiado -> descartado
+printf '4:5:C:Accepted,100p:1718000060:h8\n' > "$C/users/zz.staff/history"   # privilegiado
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-adm}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:200}"; ((fail++)); fi; }

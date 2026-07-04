@@ -56,12 +56,15 @@ setverdict: <c>:<ts>:<id>:<login>:setverdict:<problemid>
 Conteúdo (submit): `{contest,login,problem_id,filename,code_b64,lang,time,id}`.
 A escrita é **atômica** (`.in.<id>` → `mv`), então o daemon só vê o arquivo pronto.
 
-Logo após enfileirar, `submit.sh` anexa ao `contests/<c>/controle/history` uma linha
-provisória terminada em `:<id>` com veredicto `Not Answered Yet` — é o que o front
+Logo após enfileirar, `submit.sh` anexa ao `contests/<c>/users/<login>/history` uma linha
+provisória terminada em `:<id>` com veredicto `Not Answered Yet` (e recomputa o
+`metrics.json` do usuário, p/ o PENDING aparecer no placar) — é o que o front
 mostra como "julgando" enquanto faz polling.
 
-**Formato do history (7 campos):** `tempo:login:problemid:lang:verdict:epoch:subid`
-(em contest `tempo` = minutos desde o início; em treino = epoch).
+**Formato do history por-usuário (6 campos, login implícito no diretório):**
+`tempo:problemid:lang:verdict:epoch:subid`. Os leitores agregados usam
+`emit_user_history`/`emit_history_stream` (lib/users.sh), que reinjetam o login e
+entregam o formato global de 7 campos `tempo:login:problemid:lang:verdict:epoch:subid`.
 
 ## 2. Daemon de julgamento — `server/daemons/judged.sh`
 
