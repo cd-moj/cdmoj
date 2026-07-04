@@ -60,26 +60,12 @@ function settingsTab() {
 function problemsTab() {
   const panel = el('div', { class: 'section' }, el('h2', {}, '📚 Problemas'));
   const list = el('div', {});
-  const src = el('input', { value: 'cdmoj', style: 'width:90px' }), pid = el('input', { placeholder: 'problem_id' }),
-    nm = el('input', { placeholder: 'nome' }), bid = el('input', { placeholder: 'ou bank_id (#)' }), addMsg = el('div', { class: 'small' });
   async function act(p) { try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), p, G); loadList(); } catch (e) { alert(e.message || 'falha'); } }
   async function postProb(payload, msgEl, reload) {
     if (msgEl) { msgEl.className = 'small'; msgEl.textContent = 'Salvando…'; }
     try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), payload, G); if (msgEl) msgEl.textContent = '✓ salvo'; if (reload) loadList(); }
     catch (e) { if (msgEl) { msgEl.className = 'small error-box'; msgEl.textContent = e.message || 'falha'; } else alert(e.message || 'falha'); }
   }
-  const add = el('button', { class: 'btn ghost', onclick: async () => {
-    const prob = bid.value.trim() ? { bank_id: bid.value.trim(), name: nm.value.trim() || undefined } : { source: src.value.trim() || 'cdmoj', problem_id: pid.value.trim(), name: nm.value.trim() || undefined };
-    if (!prob.bank_id && !prob.problem_id) { pid.focus(); return; }
-    addMsg.className = 'small'; addMsg.textContent = '…';
-    try { await apiPost('/contest/admin/problems?contest=' + enc(CONTEST), { action: 'add', problem: prob }, G); pid.value = nm.value = bid.value = ''; addMsg.textContent = ''; loadList(); }
-    catch (e) {
-      addMsg.className = 'small error-box';
-      addMsg.textContent = (e.message || 'falha')
-        + (/não encontrado/i.test(e.message || '') ? ' — problema privado só entra se o DONO do contest for dono/colaborador dele.' : '');
-    }
-  } }, '+ adicionar');
-
   function problemAccordion(p, i, ps, letters) {
     const body = el('div', { class: 'acc-body hidden' });
     const tog = el('span', { class: 'acc-tog' }, '▶');
@@ -128,7 +114,8 @@ function problemsTab() {
     const letters = ps.map((p) => p.letter);
     ps.forEach((p, i) => list.append(problemAccordion(p, i, ps, letters)));
   }
-  // painel compartilhado de busca+sorteio (banco PÚBLICO; privado só pelo add por id)
+  // painel compartilhado de busca+sorteio: busca = públicos + PRIVADOS do dono do contest
+  // (mesmo sujeito do gate de add — a busca lista exatamente o que pode entrar)
   const bankApi = {
     meta: () => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&meta=1', G),
     draw: (p) => apiGet('/contest/admin/draw?contest=' + enc(CONTEST) + '&' + new URLSearchParams(p).toString(), G),
@@ -137,16 +124,15 @@ function problemsTab() {
   const bank = makeBankPanel({
     api: bankApi,
     onAdd: (it) => act({ action: 'add', problem: { bank_id: it.id, name: it.title || it.id } }),
-    searchLabel: 'Buscar no banco público',
-    searchPlaceholder: '🔎 Buscar problemas públicos — título ou id…',
-    emptyHint: 'digite para buscar no banco público (privado seu: use o add por id abaixo)',
+    searchLabel: 'Buscar problemas (públicos + os privados do dono do contest)',
+    searchPlaceholder: '🔎 Buscar problemas (públicos + privados do dono) — título ou id…',
+    noQueryFilter: (items) => items.filter((it) => it.private),
+    emptyHint: 'o dono do contest não tem problemas privados — digite para buscar no banco público',
   });
 
   async function load() {
     panel.append(list,
-      el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar do banco'), bank.el,
-      el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar por ID (privados seus entram aqui)'),
-      el('div', { class: 'row' }, src, pid, nm, el('span', { class: 'small muted' }, 'ou'), bid, add), addMsg);
+      el('h3', { style: 'margin:1rem 0 .3rem' }, 'Adicionar do banco'), bank.el);
     await loadList();
   }
   return { panel, load };

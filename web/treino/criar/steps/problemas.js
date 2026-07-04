@@ -66,20 +66,10 @@ export function makeStepProblemas(ctx) {
     emptyHint: 'você não tem problemas privados — digite para buscar no banco público',
   });
 
-  const bySrc = el('input', { value: 'cdmoj', style: 'width:90px' });
-  const byPid = el('input', { placeholder: 'id do problema (ex.: secreto/foo)' });
-  const byName = el('input', { placeholder: 'nome exibido' });
-  const byAdd = el('button', { class: 'btn ghost', onclick: () => {
-    const pid = byPid.value.trim(); if (!pid) { byPid.focus(); return; }
-    addProblem({ kind: 'id', source: bySrc.value.trim() || 'cdmoj', problem_id: pid, name: byName.value.trim() || pid });
-    byPid.value = ''; byName.value = '';
-  } }, '+ por ID');
-
   renderList();
   const root = el('div', { class: 'section' },
     el('h2', {}, '2 · Problemas'),
     bank.el,
-    el('div', { class: 'field' }, el('label', {}, 'Adicionar por ID (avançado)'), el('div', { class: 'row' }, bySrc, byPid, byName, byAdd)),
     el('h3', { style: 'margin:.8rem 0 .2rem' }, 'Problemas do contest'), listBox);
   return { el: root };
 }
