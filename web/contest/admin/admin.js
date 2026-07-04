@@ -7,6 +7,7 @@ import { initContestShell } from '/shared/contest-shell.js';
 import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, makeSettingsEditor, makeLangPicker, makeBankPanel } from '/shared/contest-config/index.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 import { makeTasksTab } from './tasks.js';
+import { makeReviewBoard } from '/shared/review-board.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -552,15 +553,25 @@ function backupsSection() {
   return { panel, load };
 }
 
-// ============ Veredicto manual (opções + matriz auto) ============
+// ============ Tarefas do judge (fila da correção manual + config) ============
 function verdictTab() {
   const panel = el('div', { class: 'section' });
-  function load() {
+  const board = makeReviewBoard({ contest: CONTEST });
+  let timer = null;
+  async function load() {
     panel.innerHTML = '';
-    panel.append(el('h2', {}, '⚖️ Veredicto manual'),
-      el('p', { class: 'muted small' }, 'Ligue o modo em Configurações. Os juízes avaliam em Avaliar; o juiz-chefe resolve conflitos no ',
+    panel.append(el('h2', {}, '⚖️ Tarefas do judge'),
+      el('p', { class: 'muted small' },
+        'Fila da correção manual: quem pegou, votos e idade de cada submissão segurada. ',
+        '"Decidir/Resolver" libera o veredicto AO ALUNO na hora (override auditado); o fluxo normal de 2 votos fica na ',
+        el('a', { href: '/contest/judge/?c=' + enc(CONTEST) }, 'área de avaliação'),
+        '. O modo liga/desliga em Configurações; o juiz-chefe tem a mesma fila no ',
         el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, 'painel do juiz-chefe'), '.'),
+      board.el,
+      el('h3', { style: 'margin:1.2rem 0 .3rem' }, '⚙️ Configuração do veredicto manual'),
       makeVerdictOptionsEditor(CONTEST), makeAutoVerdictEditor(CONTEST));
+    await board.load();
+    clearInterval(timer); timer = setInterval(() => { if (!panel.hidden) board.load(); }, 12000);
   }
   return { panel, load };
 }
@@ -573,7 +584,7 @@ const TABS = [
   { id: 'appearance', label: '🎨 Aparência', make: appearanceTab },
   { id: 'users', label: '👥 Usuários & sessões', make: usersTab },
   { id: 'tasks', label: '🖨️ Tarefas do staff', make: () => makeTasksTab(CONTEST) },
-  { id: 'verdict', label: '⚖️ Veredicto manual', make: verdictTab },
+  { id: 'verdict', label: '⚖️ Tarefas do judge', make: verdictTab },
   { id: 'audit', label: '🧾 Auditoria', make: auditTab },
 ];
 

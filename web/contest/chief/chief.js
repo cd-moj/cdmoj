@@ -6,13 +6,13 @@ import { initContestShell } from '/shared/contest-shell.js';
 import { pokeChiefAlert } from '/shared/chief-alert.js';
 import { logLink, srcLink } from '/shared/submission-links.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
+import { makeReviewBoard } from '/shared/review-board.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const enc = encodeURIComponent;
 const G = { contest: CONTEST, auth: true };
-const fmtS = (s) => { s = Math.max(0, s | 0); const m = Math.floor(s / 60); return m ? m + 'm' + (s % 60) + 's' : s + 's'; };
 let confPoll = null, confOptions = [];
 
 // O alerta GLOBAL de conflito (banner flutuante + bip, visível em qualquer página) vive em
@@ -20,51 +20,15 @@ let confPoll = null, confOptions = [];
 // conflitos e "cutucamos" o alerta (pokeChiefAlert) após resolver, p/ sumir na hora.
 
 // ===================== abas =====================
+// Situação = o MESMO board de fila do admin ("Tarefas do judge"): cards, fila completa com
+// idade/quem pegou/votos e ação Decidir/Resolver, e desempenho por juiz — tudo combinando.
 function situacaoTab() {
   const panel = el('div', { class: 'section' });
+  const board = makeReviewBoard({ contest: CONTEST });
+  let mounted = false;
   async function load() {
-    panel.innerHTML = ''; panel.append(el('h2', {}, '📊 Situação da avaliação'));
-    let d, s;
-    try { [d, s] = await Promise.all([apiGet('/contest/admin/dashboard?contest=' + enc(CONTEST), G),
-      apiGet('/contest/review/stats?contest=' + enc(CONTEST), G).catch(() => null)]); }
-    catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
-    const r = d.review || {};
-    panel.append(el('div', { class: 'row', style: 'flex-wrap:wrap; margin:.3rem 0' },
-      el('span', { class: 'dash-card' }, el('b', {}, r.not_evaluated || 0), ' não avaliadas'),
-      el('span', { class: 'dash-card' }, el('b', {}, r.being_evaluated || 0), ' sendo avaliadas'),
-      el('span', { class: 'dash-card' }, el('b', {}, r.awaiting_second || 0), ' aguardando 2º voto'),
-      el('span', { class: 'dash-card', style: (r.conflicts ? 'border-color:#c00;color:#c00' : '') }, el('b', {}, r.conflicts || 0), ' em conflito'),
-      el('span', { class: 'dash-card' }, el('b', {}, (d.judges || {}).online || 0), ' juízes online')));
-    // quem está avaliando agora
-    const ev = r.evaluators || [];
-    panel.append(el('h3', {}, 'Em avaliação / conflito agora'));
-    if (!ev.length) { panel.append(el('p', { class: 'muted small' }, 'Ninguém avaliando no momento.')); }
-    else {
-      const tb = el('tbody');
-      ev.forEach(e => tb.append(el('tr', {},
-        el('td', {}, el('b', {}, (e.problem_id || '').split('#').pop())),
-        el('td', { class: 'small' }, e.computed_verdict || ''),
-        el('td', {}, e.conflict ? el('b', { style: 'color:#c00' }, 'conflito') : (e.status || '')),
-        el('td', { class: 'small' }, (e.claimants || []).map(c => c.judge + ' (' + fmtS(c.elapsed_s) + ')').join(', ') || (e.votes_n ? '1º voto dado' : '—')))));
-      panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'Problema'), el('th', {}, 'Computado'), el('th', {}, 'Status'), el('th', {}, 'Avaliando (tempo)'))), tb)));
-    }
-    // desempenho por juiz (do log de auditoria)
-    const js = (s && s.judges) || [], tot = (s && s.total) || {};
-    panel.append(el('h3', { style: 'margin-top:.8rem' }, '📈 Desempenho por juiz'));
-    if (!js.length) { panel.append(el('p', { class: 'muted small' }, 'Sem veredictos manuais ainda.')); }
-    else {
-      const stb = el('tbody');
-      js.forEach(j => stb.append(el('tr', {},
-        el('td', {}, el('b', {}, j.judge)),
-        el('td', {}, j.votes),
-        el('td', { class: 'small' }, fmtS(j.avg_response_s) + (j.timed < j.votes ? ' · ' + j.timed + '/' + j.votes + ' medidos' : '')),
-        el('td', {}, j.agreements),
-        el('td', { style: (j.conflicts ? 'color:#c00' : '') }, j.conflicts))));
-      panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'Juiz'), el('th', {}, 'Veredictos'), el('th', {}, 'Tempo médio (claim→voto)'), el('th', {}, 'Concordâncias'), el('th', {}, 'Conflitos'))), stb)),
-        el('p', { class: 'small muted' }, 'Total: ' + (tot.votes || 0) + ' veredicto(s) · tempo médio geral ' + fmtS(tot.avg_response_s || 0) + '.'));
-    }
+    if (!mounted) { panel.innerHTML = ''; panel.append(el('h2', {}, '📊 Situação da avaliação'), board.el); mounted = true; }
+    await board.load();
   }
   return { panel, load, live: true };
 }
