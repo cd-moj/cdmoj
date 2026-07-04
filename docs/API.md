@@ -196,6 +196,7 @@ servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<pr
 | `/contest/admin/config?contest=<c>` | POST | `{colors?,regions?,teams_meta?,basic?}` → grava `balloons.json`/`regions.json`/`teams-meta.json` + vars `basic` no conf (vazio = reseta) |
 | `/contest/admin/users?contest=<c>` | GET | `{users:[{login,fullname,email,admin}],shared}` (sem senha) |
 | `/contest/admin/user-add?contest=<c>` | POST | `{login,password?,fullname?,email?}` → adiciona/reseta, devolve a credencial |
+| `/contest/admin/users-bulk?contest=<c>` | POST | **carga em lote** `{users:[{login,password?,fullname?,email?}], on_existing?:skip\|update}` (default `skip`; ≤5000; senha vazia = gerada). `update` troca senha/nome/email de existentes **exceto conta privilegiada** (`.admin/.judge/.cjudge/.staff/.mon` — nunca resetada em massa; skip `privileged`); criar privilegiada nova é permitido. `passwd` reescrito 1× (v2: `account.json` + 1 `regen_passwd`). → `{created:[{login,password,fullname,email}],updated:[…],skipped:[{login,reason:exists\|privileged\|invalid\|duplicate}],counts}`. Auditado `users-bulk` |
 | `/contest/admin/user-remove?contest=<c>` | POST | `{login}` → remove (não pode remover a si mesmo) |
 
 > Reusa os editores de `web/shared/contest-config/` (os mesmos da criação). Bandeiras **locais/offline** em `/shared/flags/` (271 países + 27 estados); GIFs do Sonic em `/shared/assets/sonic/`. `USERS_FROM=<contest>` no conf faz o login cair no `passwd` compartilhado (ex.: treino), mantendo o `.admin` próprio.

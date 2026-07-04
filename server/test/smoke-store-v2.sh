@@ -91,6 +91,16 @@ ck "passwd derivado sem maria"   '! grep -q "^maria:" "$T/passwd"'
 call "Bearer tok-adm" /contest/admin/user-remove POST "contest=treino" '{"login":"maria"}'
 ck "remove de inexistente 404"   '[[ "$OUT" == *"Status: 404"* ]]'
 
+echo "== carga em lote no store v2 =="
+call "Bearer tok-adm" /contest/admin/users-bulk POST "contest=treino" '{"users":[{"login":"lote1","fullname":"Lote Um"},{"login":"lote2","password":"pw2","fullname":"Lote Dois"},{"login":"joao","fullname":"Colide"}]}'
+ck "bulk cria 2 no store"        '[[ "$(jq -r .counts.created <<<"$BODY")" == 2 && -f "$T/users/lote1/account.json" && -f "$T/users/lote2/account.json" ]]'
+ck "account.json é a fonte"      '[[ "$(jq -r .password "$T/users/lote2/account.json")" == pw2 ]]'
+ck "passwd derivado tem os novos" 'grep -q "^lote1:" "$T/passwd" && grep -q "^lote2:pw2:Lote Dois" "$T/passwd"'
+ck "joao (existe) pulado"        '[[ "$(jq -r ".skipped[]|select(.login==\"joao\").reason" <<<"$BODY")" == exists ]]'
+call "Bearer tok-adm" /contest/admin/users-bulk POST "contest=treino" '{"on_existing":"update","users":[{"login":"lote1","password":"nova","fullname":"Lote Um V2"}]}'
+ck "bulk update no account.json"  '[[ "$(jq -r .password "$T/users/lote1/account.json")" == nova && "$(jq -r .fullname "$T/users/lote1/account.json")" == "Lote Um V2" ]]'
+ck "passwd derivado atualizado"   'grep -q "^lote1:nova:Lote Um V2" "$T/passwd"'
+
 echo
 echo "RESULT: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

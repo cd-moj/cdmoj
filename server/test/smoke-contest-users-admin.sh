@@ -50,6 +50,23 @@ ck "sessão da alice (UA bom) ficou" '[[ -f "$SESS/a3" ]]'
 ck "sessão da carol (UA ruim) saiu" '[[ ! -f "$SESS/c1" ]]'
 ck "sessão do .cjudge (privilegiado) ficou" '[[ -f "$SESS/cj1" ]]'
 
+echo "== carga em lote (users-bulk, legado) =="
+call /contest/admin/users-bulk POST '{"users":[{"login":"nova1","fullname":"Nova Um"},{"login":"nova2","password":"pw2","fullname":"Nova Dois","email":"n2@x.com"},{"login":"alice","fullname":"Alice X"},{"login":"jx.judge","fullname":"Hack"},{"login":"inv@lido!","fullname":"X"},{"login":"nova1","fullname":"dup"}]}' adm 'contest=uc'
+ck "criou 2 (nova1,nova2)"     '[[ "$(jq -r .counts.created <<<"$BODY")" == 2 ]]'
+ck "nova1 com senha gerada"    '[[ -n "$(jq -r ".created[]|select(.login==\"nova1\").password" <<<"$BODY")" ]]'
+ck "nova2 mantém senha dada"   '[[ "$(jq -r ".created[]|select(.login==\"nova2\").password" <<<"$BODY")" == "pw2" ]]'
+ck "passwd tem nova1 e nova2"  'grep -q "^nova1:" "$C/passwd" && grep -q "^nova2:pw2:Nova Dois:n2@x.com" "$C/passwd"'
+ck "skip: alice existe"        '[[ "$(jq -r ".skipped[]|select(.login==\"alice\").reason" <<<"$BODY")" == exists ]]'
+ck "skip: login inválido"      '[[ "$(jq -r ".skipped[]|select(.login==\"inv@lido!\").reason" <<<"$BODY")" == invalid ]]'
+ck "skip: duplicado no lote"   '[[ "$(jq -r "[.skipped[]|select(.reason==\"duplicate\")]|length" <<<"$BODY")" == 1 ]]'
+call /contest/admin/users-bulk POST '{"on_existing":"update","users":[{"login":"alice","password":"alnova","fullname":"Alice Nova"},{"login":"jx.judge","password":"hack"}]}' adm 'contest=uc'
+ck "update troca a alice"      '[[ "$(jq -r .counts.updated <<<"$BODY")" == 1 ]] && grep -q "^alice:alnova:Alice Nova" "$C/passwd"'
+ck "update NÃO toca privilegiado" '[[ "$(jq -r ".skipped[]|select(.login==\"jx.judge\").reason" <<<"$BODY")" == privileged ]] && grep -q "^jx.judge:p:" "$C/passwd"'
+call /contest/admin/users GET '' adm 'contest=uc'
+ck "lista reflete nova1"       '[[ "$(jq -r ".users[]|select(.login==\"nova1\")|.login" <<<"$BODY")" == nova1 ]]'
+call /contest/admin/users-bulk POST '{"users":[{"login":"x1"}]}' dave 'contest=uc'
+ck "não-admin no bulk 403"     '[[ "$OUT" == *"Status: 403"* ]]'
+
 echo "== proteção =="
 call /contest/admin/logout-user POST '{"login":"bob"}' dave 'contest=uc'
 ck "não-admin 403"           '[[ "$OUT" == *"Status: 403"* ]]'

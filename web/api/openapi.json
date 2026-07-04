@@ -3218,6 +3218,69 @@
         }
       }
     },
+    "/contest/admin/users-bulk": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "users": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "login": {
+                          "type": "string"
+                        },
+                        "password": {
+                          "type": "string"
+                        },
+                        "fullname": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "login"
+                      ]
+                    }
+                  },
+                  "on_existing": {
+                    "type": "string",
+                    "enum": [
+                      "skip",
+                      "update"
+                    ]
+                  }
+                },
+                "required": [
+                  "users"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{created[],updated[],skipped:[{login,reason}],counts}"
+          }
+        }
+      }
+    },
     "/contest/admin/user-remove": {
       "post": {
         "tags": [
