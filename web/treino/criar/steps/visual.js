@@ -12,7 +12,9 @@ export function makeStepVisual(ctx) {
   const teamsMount = el('div', {}, el('p', { class: 'muted small' }, 'carregando seletor de bandeiras…'));
   if (ctx.editors.teams) { teamsMount.innerHTML = ''; teamsMount.append(ctx.editors.teams.el); }
   else {
-    makeTeamsEditor({ initial: d.visual.teams_meta || [] })
+    // preview de matches contra os usuários já preenchidos no passo 3 (compartilhado: sem lista)
+    const logins = d.userMode === 'own' ? (d.users || []).map((u) => u.login).filter(Boolean) : [];
+    makeTeamsEditor({ initial: d.visual.teams_meta || [], logins })
       .then((edt) => { ctx.editors.teams = edt; teamsMount.innerHTML = ''; teamsMount.append(edt.el); })
       .catch(() => { teamsMount.innerHTML = ''; teamsMount.append(el('p', { class: 'small error-box' }, 'falha ao carregar bandeiras')); });
   }

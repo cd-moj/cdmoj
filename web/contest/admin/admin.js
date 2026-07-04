@@ -144,11 +144,20 @@ function appearanceTab() {
   const panel = el('div', { class: 'section' });
   async function load() {
     panel.innerHTML = ''; panel.append(el('h2', {}, '🎨 Aparência e placar'));
-    let cfg; try { cfg = await apiGet('/contest/admin/config?contest=' + enc(CONTEST), G); } catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
+    let cfg, ur;
+    try {
+      [cfg, ur] = await Promise.all([
+        apiGet('/contest/admin/config?contest=' + enc(CONTEST), G),
+        apiGet('/contest/admin/users?contest=' + enc(CONTEST), G).catch(() => null),
+      ]);
+    } catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
+    // logins p/ o preview de matches (só quem entra no placar — sem contas privilegiadas)
+    const logins = ((ur && ur.users) || []).map((u) => u.login)
+      .filter((l) => !/\.(admin|judge|cjudge|staff|mon)$/.test(l || ''));
     const colorsEd = makeColorsEditor({ letters: cfg.letters || [], initial: cfg.colors || {} });
     const regionsEd = makeRegionsEditor({ initial: cfg.regions || [] });
     const basicEd = makeBasicEditor({ initial: cfg.basic || {} });
-    const teamsEd = await makeTeamsEditor({ initial: cfg.teams_meta || [] });
+    const teamsEd = await makeTeamsEditor({ initial: cfg.teams_meta || [], logins });
     const msg = el('div', { class: 'small', style: 'margin:.5rem 0' });
     const save = el('button', { class: 'btn' }, 'Salvar aparência');
     save.addEventListener('click', async () => {
