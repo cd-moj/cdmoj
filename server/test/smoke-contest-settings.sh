@@ -38,7 +38,7 @@ call /contest/admin/problems POST '{"action":"add","problem":{"source":"cdmoj","
 ck "add -> 3 problemas"   '[[ "$(jq -r ".problems|length" <<<"$BODY")" == 3 ]]'
 ck "conf PROBS tem 15"    '[[ "$( . "$C/conf"; echo ${#PROBS[@]} )" == 15 ]]'
 call /contest/admin/problems POST '{"action":"reorder","order":["C","A","B"]}' adm 'contest=sc'
-ck "reorder: 1º agora p/c, letra A" '[[ "$(jq -r ".problems[0].problem_id" <<<"$BODY")" == "p/c" && "$(jq -r ".problems[0].letter" <<<"$BODY")" == "A" ]]'
+ck "reorder: 1º agora p#c, letra A" '[[ "$(jq -r ".problems[0].problem_id" <<<"$BODY")" == "p#c" && "$(jq -r ".problems[0].letter" <<<"$BODY")" == "A" ]]'
 call /contest/admin/problems POST '{"action":"rename","letter":"A","name":"Renomeado"}' adm 'contest=sc'
 ck "rename name"          '[[ "$(jq -r ".problems[0].name" <<<"$BODY")" == "Renomeado" ]]'
 call /contest/admin/problems POST '{"action":"remove","letter":"C"}' adm 'contest=sc'
