@@ -57,7 +57,7 @@ printf 'CONTEST="treino"\nLOGIN="joao"\nUSERFULLNAME="João S"\nLOGINAT=1\n' > "
 # injeta history do joao no store
 hj="$T/users/joao/history"; printf '10:col#p1:C:Accepted,100p:10:s1\n20:col#p2:PY:Wrong Answer,0p:20:s2\n' >> "$hj"
 call "Bearer tok-joao" /treino/history-full GET "user=joao" ""
-ck "history-full 7 campos c/ login" '[[ "$(printf "%s" "$BODY" | head -1)" == "10:joao:col#p1:C:Accepted,100p:10:s1" ]]'
+ck "history-full 7 campos c/ login (verdict canônico)" '[[ "$(printf "%s" "$BODY" | head -1)" == "10:joao:col#p1:C:Accepted:10:s1" ]]'
 call "Bearer tok-joao" /treino/solvetry GET "" ""
 ck "solvetry solved=[col#p1]" '[[ "$(jq -rc ".solved" <<<"$BODY")" == "[\"col#p1\"]" ]]'
 

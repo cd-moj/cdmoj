@@ -2,7 +2,7 @@
 // principal (logado). Lê ?c=<contestId> da URL. Reusa shared/* e a API v1 real.
 import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.js';
-import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
+import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, langById } from '/shared/languages.js';
 
@@ -57,6 +57,7 @@ let problems = [];
 let balloons = {};
 let userinfo = null;
 let submissions = [];
+let subSumm = {};   // subid -> resumo do /submission/summary (redigido por modo no servidor)
 let subFilter = 'ALL';
 let sortField = 'epoch', sortAsc = false;
 let pollTimer = null;
@@ -709,8 +710,12 @@ function renderSubmissions() {
     const fileLink = el('a', {
       href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.subid)}&time=${encodeURIComponent(s.epoch)}`, s.subid + '.' + (s.lang || 'txt').toLowerCase()); },
     }, T('cód', 'src'));
+    // detalhe sob o veredicto canônico (pontos/grupos/heurístico): o servidor redige por
+    // modo — em contest binário (icpc) o summary vem null e a linha simplesmente não existe.
+    const rtxt = pending ? '' : resumoText(subSumm[s.subid]);
     const vcell = el('td', {}, el('span', { class: 'verdict ' + vClass(s.verdict) },
-      pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict));
+      pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict),
+      rtxt ? el('div', { class: 'small muted', style: 'margin-top:.15rem' }, rtxt) : '');
     const logCell = canLog ? el('td', {},
       el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.subid)}&time=${encodeURIComponent(s.epoch)}`); } }, 'log')) : null;
     tb.append(el('tr', {},
@@ -730,6 +735,13 @@ async function loadSubmissions() {
   try { txt = await apiGetText('/contest/history?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); }
   catch { return; }
   submissions = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseHistLine).filter(Boolean);
+  // resumo (pontos/grupos/heurístico) das já julgadas — em lotes de 100 (URL curta), best-effort;
+  // o servidor redige por modo (icpc devolve tudo null e nada é mostrado).
+  const done = submissions.filter(s => !isPending(s.verdict)).map(s => s.subid).filter(id => !(id in subSumm));
+  for (let i = 0; i < done.length; i += 100) {
+    try { Object.assign(subSumm, await apiGet('/submission/summary?contest=' + encodeURIComponent(CONTEST) + '&ids=' + done.slice(i, i + 100).join(','), { contest: CONTEST, auth: true }) || {}); }
+    catch { /* best-effort */ }
+  }
   renderSubFilter();
   renderSubmissions();
   retintProblems(); // re-tinge problemas que viraram accepted (sem reconstruir a lista)

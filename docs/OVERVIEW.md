@@ -74,8 +74,10 @@ regiões, básico, **settings/toggles** (`settings-editor.js`), **seletor de lin
 Home com notícias, contests (abertos/por vir/encerrados; abre cada um pelo **subdomínio**),
 top10 e destaques; página pública **`/status/`** (health: fila por lista, máquinas
 julgando, daemons). Treino livre: busca de problemas, página do problema com enunciado +
-**editor CodeMirror** + upload + histórico com polling (cada submissão julgada mostra um **resumo**
-abaixo do veredicto — "Passou em X/Y testes (Z%)" ou pontos, via `/submission/summary`), stats por usuário (gráficos,
+**editor CodeMirror** + upload + histórico com polling (o veredicto exibido é **sempre o
+canônico**; cada submissão julgada mostra um **resumo** abaixo — "Passou em X/Y testes (Z%)",
+pontos + grupos, ou Score heurístico — via `/submission/summary`, redigido por modo em
+contests: `lib/verdict.sh`), stats por usuário (gráficos,
 editor favorito, foto, privacidade), **stats por problema** (cache, linguagens, editores,
 nuvem de avatares), e **painel admin do treino** (sessões/logs com UA+IP, busca/regex,
 bulk logout/lock, notícias, **auditoria**, máquinas, e — em abas com **índice/TOC** — **Fila &

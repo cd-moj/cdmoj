@@ -77,8 +77,12 @@ move o arquivo para `run/spool/submissions-done/`.
 
 O resultado do juiz carrega, além do `verdict` de display (com o score embutido, ex.
 `Accepted,100p`), os campos **estruturados** `verdict_canon` (canônico **sem** score),
-`score/score_max/score_kind`, `correct/total_tests` — persistidos em `results/<id>.json` e
-servidos pelo `/submission/summary` (linha "resumo" do treino). No **modo veredicto manual**, o
+`score/score_max/score_kind`, `correct/total_tests` e **`groups`** (subtarefas
+`[{earned,max},…]`, quando o problema pontua por grupos) — persistidos em `results/<id>.json`
+e servidos pelo `/submission/summary`. **Ao competidor o veredicto servido é SEMPRE o
+canônico** (todos os modos; `lib/verdict.sh` canoniza os endpoints de history na leitura — o
+history em disco não muda) e o summary é **redigido por modo**: treino/lista = tudo;
+obi/heurístico/outro = score/grupos/heur; icpc/ausente = só o canônico. No **modo veredicto manual**, o
 casamento da matriz de auto-veredicto usa o **`verdict_canon`** (não a string com score), e os
 **erros de juiz** (`Judge Error`/`No_Servers`) também são **segurados** p/ revisão — o competidor
 vê só `Not Answered Yet` até um veredicto sair.

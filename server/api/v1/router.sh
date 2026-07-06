@@ -15,6 +15,7 @@ source "$_DIR/lib/worker-auth.sh"
 source "$_DIR/lib/bot-auth.sh"
 source "$_DIR/lib/profile.sh"
 source "$_DIR/lib/users.sh"
+source "$_DIR/lib/verdict.sh"
 source "$_DIR/lib/telegram.sh"
 source "$_DIR/lib/alerts.sh"
 

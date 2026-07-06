@@ -19,7 +19,7 @@ heartbeat (sem loop, sem porta de entrada nos juízes). Ver também `README.md`
   POST /judge/heartbeat(state,inv) ──▶  handlers/judge/heartbeat.sh = ESCALONADOR
         ◀── {assigned|null, update|null, reregister} ──  (claim atômico na fila por prioridade)
   ...julga com mojtools no CACHE local (tl.<host>) em background, batendo "busy"...
-  POST /judge/result(verdict,tests,html_b64) ─▶ handlers/judge/result.sh ─▶ spool "result"
+  POST /judge/result(verdict,verdict_canon,score*,groups?,tests,html_b64) ─▶ handlers/judge/result.sh ─▶ spool "result"
                                                                               │
   submit ─▶ spool ─▶ server/daemons/judged.sh (INTAKE) ─▶ enfileira na banda de prioridade
                      judged.sh (INGESTION do "result") ─▶ history/data/placar (inalterado)

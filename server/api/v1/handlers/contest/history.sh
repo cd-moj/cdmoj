@@ -8,17 +8,11 @@ require_auth_contest "$contest"
 
 emit_text
 
-# Modo do placar (mesmo seletor do score/build.sh: CONTEST_TYPE/SCORE_MODE). Em placares com
-# pontos PARCIAIS (obi/heurístico/outro) o competidor PODE ver o score; em binários (icpc/treino/
-# ausente) escondemos o sufixo ,Np do veredicto (anti-leak: não revela quão perto ficou). A trava
-# é no servidor — o competidor nem recebe o score. O history em disco NÃO muda.
-rawtype="$(sed -n 's/^[[:space:]]*CONTEST_TYPE=//p; s/^[[:space:]]*SCORE_MODE=//p' "$CONTESTSDIR/$contest/conf" 2>/dev/null | tail -1)"
-rawtype="${rawtype%\"}"; rawtype="${rawtype#\"}"; rawtype="${rawtype%\'}"; rawtype="${rawtype#\'}"
-rawtype="$(printf '%s' "$rawtype" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-case "$rawtype" in obi|heuristic|flia|outro|custom) strip=0 ;; *) strip=1 ;; esac
-
-# store-v2 (users/<login>/history) ou legado (controle/history), unificado em 7 campos.
-emit_user_history "$contest" "$SESSION_LOGIN" | awk -F: -v strip="$strip" 'BEGIN{OFS=":"} {
-  if (strip+0==1) { v=$5; sub(/,.*/, "", v); $5=v }   # corta o sufixo de score do veredicto
-  print
-}'
+# O competidor recebe o veredicto CANÔNICO em TODOS os modos (lib/verdict.sh; anti-leak:
+# a string de display com score/grupos fica no disco). O DETALHE por modo (score/grupos/
+# heurístico) sai pelo /submission/summary, redigido por verdict_detail_level.
+# store-v2 (users/<login>/history) ou legado (controle/history), unificado em 7 campos;
+# o verdict (campos 5..NF-2, pode conter ':') é remontado antes de canonizar.
+emit_user_history "$contest" "$SESSION_LOGIN" | awk -F: "$VERDICT_CANON_AWK"'
+{ v = $5; for (i = 6; i <= NF-2; i++) v = v ":" $i
+  print $1 ":" $2 ":" $3 ":" $4 ":" canon(v) ":" $(NF-1) ":" $NF }'

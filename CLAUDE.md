@@ -60,12 +60,18 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   + grupo). Senha nova **só por DM** (nunca na web).
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
-  (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests`. Fonte única =
-  `report.env` do mojtools (os dois backends, juiz real e `judge-gw` dev, o repassam). O daemon
-  **casa o auto-veredicto pelo `verdict_canon`** (não pela string com score) e persiste os campos em
-  `results/<id>.json`, servidos por `/submission/summary` (linha "resumo" do treino). O competidor
-  vê o veredicto **limpo** em placares binários (icpc/treino) — `contest/history` corta o `,Np`;
-  OBI/heurístico mantêm o score.
+  (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +
+  **`groups`** (subtarefas: `[{earned,max},…]` na ordem do `tests/score`, quando o problema
+  pontua por grupos; ausente = sem grupos). Fonte única = `report.env` do mojtools (os dois
+  backends, juiz real e `judge-gw` dev, o repassam). O daemon **casa o auto-veredicto pelo
+  `verdict_canon`** (não pela string com score) e persiste os campos em `results/<id>.json`,
+  servidos por `/submission/summary`. **Política de exibição (fonte única `lib/verdict.sh`)**:
+  o competidor recebe **SEMPRE o veredicto canônico** nos endpoints de history (todos os
+  modos; pendentes/strings desconhecidas intactos, ` (Ignored)` preservado) e o **detalhe**
+  sai só pelo summary, **redigido por modo** (`verdict_detail_level`): treino/lista = tudo
+  (resumo de testes); obi/heurístico/outro = score/grupos/heur sem correct/total; icpc/
+  ausente = só o canônico (nem o dono vê score). Juiz/admin seguem vendo a string crua
+  (allsubmissions/review).
 - **Veredicto manual** (`MANUAL_VERDICT`, opt-in): o **daemon** (`daemons/judged.sh`) SEGURA o
   veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) salvo o que
   a matriz `auto-verdicts.json` (problema×lang×veredicto, casada pelo **canônico**) libera; **erros

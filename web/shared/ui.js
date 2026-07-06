@@ -23,7 +23,7 @@ export function verdictClass(v) {
   const s = (v || '').toLowerCase();
   if (s.startsWith('accepted')) return 'v-ok';
   if (s.startsWith('wrong') || s.includes('runtime')) return 'v-err';
-  if (s.startsWith('time limit')) return 'v-warn';
+  if (s.startsWith('time limit') || s.startsWith('memory')) return 'v-warn';
   if (s.startsWith('compilation') || s.startsWith('language')) return 'v-err';
   if (isPending(v)) return 'v-pending';
   return '';
@@ -41,10 +41,25 @@ export function verdictScore(v) {
   const m = /(-?\d+)p(?:\b|\.|$)/.exec(v || '');
   return m ? parseInt(m[1], 10) : null;
 }
-// "resumo" amigável do julgamento (do /submission/summary): testes ou pontos. '' se sem dados.
+// detalhe por grupo (subtarefas): "Grupo 1: 30/30 · Grupo 2: 0/20 · Grupo 3: —/40".
+// earned null = grupo não executado; max null (results legados) = mostra só o ganho.
+export function groupsText(groups) {
+  if (!Array.isArray(groups) || !groups.length) return '';
+  return groups.map((g, i) => {
+    const e = g.earned == null ? '—' : String(g.earned);
+    return `Grupo ${i + 1}: ${g.max != null ? e + '/' + g.max : e}`;
+  }).join(' · ');
+}
+// "resumo" amigável do julgamento (do /submission/summary): heurístico, pontos+grupos ou
+// testes — renderiza o que a API der (a redação por modo é do servidor). '' se sem dados.
 export function resumoText(s) {
   if (!s) return '';
-  if (s.score_kind === 'points' && s.score != null) return `${s.score}/${s.score_max != null ? s.score_max : '?'} pontos`;
+  if (s.heur_score != null) return `Score ${s.heur_score}` + (s.heur_adjusted != null ? ` · ajustado ${s.heur_adjusted}` : '');
+  if (s.score_kind === 'points' || (Array.isArray(s.groups) && s.groups.length)) {
+    const pts = s.score != null ? `${s.score}${s.score_max != null ? '/' + s.score_max : ''} pontos` : '';
+    const g = groupsText(s.groups);
+    return pts && g ? `${pts} · ${g}` : (pts || g);
+  }
   if (s.total != null && s.total > 0) return `Passou em ${s.correct != null ? s.correct : 0}/${s.total} testes` + (s.score != null ? ` (${s.score}%)` : '');
   if (s.score != null) return `${s.score}%`;
   return '';

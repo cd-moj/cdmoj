@@ -469,7 +469,7 @@
         ],
         "responses": {
           "200": {
-            "description": "TXT: tempo:user:probid:lang:veredito:epoch:subid",
+            "description": "TXT: tempo:user:probid:lang:veredito:epoch:subid — veredito SEMPRE canônico (Accepted/Wrong Answer/…; pendentes e strings desconhecidas intactos); o detalhe (testes/pontos/grupos) vem do /submission/summary",
             "content": {
               "text/plain": {}
             }
@@ -494,7 +494,7 @@
         ],
         "responses": {
           "200": {
-            "description": "TXT",
+            "description": "TXT (7 campos) — veredito SEMPRE canônico; visitante do perfil público vê só o rótulo (o resumo do /submission/summary é só do dono)",
             "content": {
               "text/plain": {}
             }
@@ -1148,7 +1148,7 @@
         "tags": [
           "submission"
         ],
-        "summary": "Resumo estruturado em lote (testes/pontos) p/ a linha de resumo do treino",
+        "summary": "Resumo estruturado em lote (detalhe sob o veredicto canônico), REDIGIDO pelo modo do contest",
         "security": [
           {
             "bearerAuth": []
@@ -1170,7 +1170,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{\"<id>\":{verdict,verdict_canon,score,score_max,score_kind,correct,total}} — mesmo gate do log; ids de terceiros omitidos"
+            "description": "{\"<id>\":{verdict,verdict_canon,score,score_max,score_kind,correct,total,groups,heur_score?,heur_adjusted?}} — redigido por modo (lib/verdict.sh): full (treino/lista)=tudo; score (obi/heurístico/outro)=canônico+score/groups/heur sem correct/total; none (icpc/ausente)=só o canônico (nos níveis redigidos verdict=canônico; juiz/admin sempre full com verdict cru). groups=[{earned,max},…] na ordem do tests/score (earned null = grupo não executado; results antigos: canon derivado da string, groups da cauda 'Pontos | … |' com max:null). Mesmo gate do log; ids de terceiros omitidos"
           }
         }
       }
@@ -1671,7 +1671,7 @@
         ],
         "responses": {
           "200": {
-            "description": "TXT",
+            "description": "TXT: tempo:user:probid:lang:veredito:epoch:subid — veredito (campo 5) SEMPRE canônico em TODOS os modos (a string com score/grupos fica no disco; o detalhe por modo vem do /submission/summary redigido). Pendentes/strings desconhecidas intactos; sufixo ' (Ignored)' preservado",
             "content": {
               "text/plain": {}
             }
