@@ -7,8 +7,9 @@ import { initContestShell } from '/shared/contest-shell.js';
 import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, makeSettingsEditor, makeLangPicker, makeBankPanel, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 import { makeTasksTab } from './tasks.js';
+import { makeTeamsTab } from './teams-tab.js';
 import { makeReviewBoard } from '/shared/review-board.js';
-import { parseUsers, downloadCsv } from '/shared/users-batch.js';
+import { parseUsers, parseRichCsv, downloadCsv } from '/shared/users-batch.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -328,18 +329,28 @@ function usersSection() {
 
   // ---- carga em lote (mesma colagem/arquivo da criação; a qualquer momento) ----
   function makeBatchUsers() {
-    let staged = [];   // [{login,password,fullname,email}] da prévia
-    const ta = el('textarea', { rows: '5', placeholder: 'Cole aqui (ou envie um arquivo). Formatos por linha:\n  login:senha:nome:email\n  login,nome,email\n  Nome Completo   (login e senha gerados)', style: 'width:100%' });
+    let staged = [];       // [{login,password,fullname,email, team_name?,country?,region?,…}] da prévia
+    let richMode = false;  // true = veio de CSV com cabeçalho (campos de time inclusos)
+    const ta = el('textarea', { rows: '5', placeholder: 'Cole aqui (ou envie um arquivo). Formatos por linha:\n  login:senha:nome:email\n  login,nome,email\n  Nome Completo   (login e senha gerados)\nOu CSV COM CABEÇALHO (ordem livre; carga única de time+país+sede):\n  login,senha,nome,time,pais,sede,univ,univ_nome', style: 'width:100%' });
     const fileInp = el('input', { type: 'file', accept: '.txt,.csv,text/plain,text/csv', style: 'display:none' });
     fileInp.addEventListener('change', () => { const f = fileInp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { ta.value = ta.value ? (ta.value.replace(/\s*$/, '') + '\n' + rd.result) : rd.result; }; rd.readAsText(f); fileInp.value = ''; });
     const onExisting = el('select', {}, el('option', { value: 'skip' }, 'pular os que já existem'), el('option', { value: 'update' }, 'atualizar senha dos existentes'));
     const prev = el('div', {}); const msg = el('div', { class: 'small' });
+    const parse = (txt) => { const rich = parseRichCsv(txt); richMode = !!rich; return rich || parseUsers(txt); };
     const renderPrev = () => { prev.innerHTML = ''; if (!staged.length) return;
-      prev.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' }, staged.length + ' linha(s) prontas (senhas em branco são geradas no servidor).')); };
-    const proc = el('button', { class: 'btn ghost', onclick: () => { staged = parseUsers(ta.value); msg.textContent = ''; renderPrev(); } }, 'Processar');
+      prev.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' },
+        staged.length + ' linha(s) prontas (senhas em branco são geradas no servidor).' +
+        (richMode ? ' Cabeçalho detectado — os campos de time/país/sede vão junto.' : ''))); };
+    const proc = el('button', { class: 'btn ghost', onclick: () => { staged = parse(ta.value); msg.textContent = ''; renderPrev(); } }, 'Processar');
     const send = el('button', { class: 'btn', onclick: async () => {
-      if (!staged.length) { staged = parseUsers(ta.value); renderPrev(); }
-      const users = staged.filter((u) => u.login || u.fullname).map((u) => ({ login: u.login || undefined, password: u.password || undefined, fullname: u.fullname || undefined, email: u.email || undefined }));
+      if (!staged.length) { staged = parse(ta.value); renderPrev(); }
+      const users = staged.filter((u) => u.login || u.fullname).map((u) => ({
+        login: u.login || undefined, password: u.password || undefined,
+        fullname: u.fullname || undefined, email: u.email || undefined,
+        team_name: u.team_name || undefined, country: u.country || undefined,
+        region: u.region || undefined, univ_short: u.univ_short || undefined,
+        univ_full: u.univ_full || undefined,
+      }));
       if (!users.length) { msg.className = 'small error-box'; msg.textContent = 'Nada para enviar.'; return; }
       send.disabled = true; msg.className = 'small'; msg.textContent = 'Enviando ' + users.length + '…';
       try {
@@ -737,6 +748,7 @@ const TABS = [
   { id: 'preflight', label: '✅ Pré-prova', make: preflightTab },
   { id: 'settings', label: '⚙️ Configurações', make: settingsTab },
   { id: 'problems', label: '📚 Problemas', make: problemsTab },
+  { id: 'teams', label: '👥 Times', make: () => makeTeamsTab(CONTEST) },
   { id: 'appearance', label: '🎨 Aparência', make: appearanceTab },
   { id: 'users', label: '👥 Usuários & sessões', make: usersTab },
   { id: 'tasks', label: '🖨️ Tarefas do staff', make: () => makeTasksTab(CONTEST) },

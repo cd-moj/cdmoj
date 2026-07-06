@@ -244,12 +244,16 @@ cc_create(){
   case "$adminpass$adminname" in *:*) rm -rf "$stg"; fail 422 "senha/nome do admin não podem conter ':'" "colon";; esac
 
   # --- usuários: compartilhados (USERS_FROM) ou específicos do contest ---
-  # _cc_stage_user <stg> <login> <pass> <fullname> [email] — conta no store (users/<login>/)
+  # _cc_stage_user <stg> <login> <pass> <fullname> [email] [team-json] — conta no store
+  # (users/<login>/). team-json = objeto `.team` já saneado (team_fields_json); '{}' = sem time.
   _cc_stage_user(){
-    local d="$1/users/$2"
+    local d="$1/users/$2" tm="${6:-}"
+    [[ -n "$tm" ]] || tm='{}'
     mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || return 1
     jq -cn --arg l "$2" --arg p "$3" --arg n "$4" --arg e "${5:-}" --argjson t "$EPOCHSECONDS" \
-      '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}' \
+      --argjson tm "$tm" \
+      '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}
+       + (if ($tm|length) > 0 then {team:$tm} else {} end)' \
       > "$d/account.json" || return 1
     : > "$d/history"
   }
@@ -275,7 +279,7 @@ cc_create(){
       [[ "$ul" == "$adminlogin" ]] && continue
       [[ -z "$up" ]] && up="$(cc_genpass)"; [[ -z "$un" ]] && un="$ul"
       case "$up$un$ue" in *:*) rm -rf "$stg"; fail 422 "campos de usuário não podem conter ':'" "user_colon";; esac
-      _cc_stage_user "$stg" "$ul" "$up" "$un" "$ue" \
+      _cc_stage_user "$stg" "$ul" "$up" "$un" "$ue" "$(team_fields_json "$u")" \
         || { rm -rf "$stg"; fail 500 "Falha ao criar usuário" "mkdir_fail"; }
       CREDS+=("$(jq -cn --arg l "$ul" --arg p "$up" --arg n "$un" '{login:$l,password:$p,fullname:$n,role:"user"}')")
     done < <(jq -c '(.users // [])[]' <<<"$spec")

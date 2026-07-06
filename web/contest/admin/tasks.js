@@ -30,7 +30,19 @@ export function makeTasksTab(CONTEST) {
   const panel = el('div', {});
   let timer = null;
   let QUEUE = [];        // fila completa (admin)
-  let SF = null;         // {staff:[{login,...}], regions:[], filters:{login:[regex]}}
+  let SF = null;         // {staff:[{login,...}], regions:[], filters:{login:[entradas]}}
+  let TEAMS = {};        // login -> {region,...} (/contest/teams — p/ o token region:<nome>)
+
+  // uma entrada de escopo casa com o aluno? "region:<nome>" = igualdade com a sede do time
+  // (via /contest/teams); outra coisa = regex no login (mesma semântica do staff_can_see).
+  function scopeMatch(entry, login) {
+    if (entry.startsWith('region:')) {
+      const want = entry.slice(7).trim().toLowerCase();
+      return want !== '' && ((TEAMS[login] || {}).region || '').toLowerCase() === want;
+    }
+    const re = safeRe(entry);
+    return re ? re.test(login || '') : false;
+  }
 
   // abre o PDF combinado numa nova aba (Bearer via blob — padrão do staff.js)
   function openPdf(id) {
@@ -139,9 +151,10 @@ export function makeTasksTab(CONTEST) {
       const done = QUEUE.filter((t) => t.processed_by === s.login).length;
       const deliv = QUEUE.filter((t) => t.delivered_by === s.login);
       const avg = deliv.length ? Math.round(deliv.reduce((a, t) => a + Math.max(0, (t.delivered_at || 0) - (t.time || 0)), 0) / deliv.length) : 0;
-      // backlog no ESCOPO desse staff (mesma semântica de staff_can_see: lista vazia = tudo)
-      const res = ((SF.filters || {})[s.login] || []).map(safeRe).filter(Boolean);
-      const backlog = QUEUE.filter((t) => t.status === 'pending' && (!res.length || res.some((re) => re.test(t.login || '')))).length;
+      // backlog no ESCOPO desse staff (mesma semântica de staff_can_see: lista vazia = tudo;
+      // entrada region:<nome> casa com a sede do time, o resto é regex no login)
+      const scope = ((SF.filters || {})[s.login] || []).filter(Boolean);
+      const backlog = QUEUE.filter((t) => t.status === 'pending' && (!scope.length || scope.some((en) => scopeMatch(en, t.login || '')))).length;
       tb.append(el('tr', {},
         el('td', {}, s.login, s.disabled ? el('span', { class: 'flag-anom small' }, ' (desabilitado)') : ''),
         el('td', {}, String(backlog)), el('td', {}, String(done)), el('td', {}, String(deliv.length)),
@@ -163,17 +176,21 @@ export function makeTasksTab(CONTEST) {
         el('b', {}, '.staff'), ' na aba Usuários — impressão e balões passam por ele.'));
       return;
     }
-    cfgBox.append(el('p', { class: 'muted small' }, 'Cada .staff vê as tarefas dos alunos cujo login casa com uma das regex (uma por linha). Lista vazia = vê TODAS. Os botões de região semeiam regex (uma sede por staff).'));
+    cfgBox.append(el('p', { class: 'muted small' }, 'Cada .staff vê as tarefas dos alunos que casam com uma das entradas (uma por linha): ',
+      el('code', {}, 'region:<nome>'), ' casa com a sede do time (aba Times), qualquer outra é regex no login. Lista vazia = vê TODAS. Os botões de região semeiam ', el('code', {}, 'region:<nome>'), '.'));
     const blocks = {};
     staff.forEach((s) => {
       const ta = el('textarea', { rows: '3', style: 'width:100%; font-family:monospace' });
       ta.value = (filters[s.login] || []).join('\n');
       blocks[s.login] = ta;
       const chips = el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.3rem; margin:.3rem 0' });
-      regions.forEach((rg) => { if (!rg || !rg.regex) return;
+      regions.forEach((rg) => { if (!rg || (!rg.name && !rg.regex)) return;
+        // com nome, semeia o token region:<nome> (legível, casa com a sede do time);
+        // região sem nome cai no regex clássico
+        const entry = rg.name ? ('region:' + rg.name) : rg.regex;
         chips.append(el('button', { class: 'btn ghost', style: 'padding:.1rem .45rem', type: 'button',
           onclick: () => { const cur = ta.value.trim(); const lines = cur ? cur.split(/\n+/) : [];
-            if (!lines.includes(rg.regex)) { lines.push(rg.regex); ta.value = lines.join('\n'); } } },
+            if (!lines.includes(entry)) { lines.push(entry); ta.value = lines.join('\n'); } } },
           '+ ' + (rg.name || rg.regex))); });
       cfgBox.append(el('div', { class: 'field', style: 'border-top:1px solid var(--line); padding-top:.5rem' },
         el('label', {}, el('b', {}, s.login), (s.fullname ? el('span', { class: 'small muted' }, ' — ' + s.fullname) : ''),
@@ -196,10 +213,13 @@ export function makeTasksTab(CONTEST) {
   async function refresh() {
     let q, sf;
     try {
-      [q, sf] = await Promise.all([
+      let tm;
+      [q, sf, tm] = await Promise.all([
         apiGet('/contest/staff/queue?contest=' + enc(CONTEST), G),
         apiGet('/contest/admin/staff-filters?contest=' + enc(CONTEST), G).catch(() => null),
+        apiGet('/contest/teams?contest=' + enc(CONTEST), G).catch(() => null),
       ]);
+      if (tm && tm.teams) TEAMS = tm.teams;
     } catch (e) {
       listBox.innerHTML = ''; listBox.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro')));
       return;

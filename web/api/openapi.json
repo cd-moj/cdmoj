@@ -1590,7 +1590,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Grava o escopo por staff (vazio = vê tudo)",
+        "summary": "Grava o escopo por staff (entradas region:<nome> — igualdade com a sede do time — ou regex no login; vazio = vê tudo)",
         "security": [
           {
             "bearerAuth": []
@@ -3219,7 +3219,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Regras regex país/escola p/ o placar (bandeiras locais)",
+        "summary": "Regras regex país/escola p/ o placar (bandeiras locais; fallback — o por-usuário /contest/teams vence)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3228,6 +3228,128 @@
         "responses": {
           "200": {
             "description": "{rules:[{regex,country,school,school_full}]}"
+          }
+        }
+      }
+    },
+    "/contest/teams": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Diretório de TIMES por-usuário p/ o placar (do .team do account.json + assets; secreto exige sessão)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{teams:{<login>:{team?,univ_short?,univ_full?,flag?,region?,has_logo,has_photo}}} — precedência: isto > teams-meta > vazio"
+          }
+        }
+      }
+    },
+    "/contest/team-photo": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Foto do time (PNG, lado máx 1000; 📷 clicável no placar; secreto exige sessão)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "image/png (404 sem foto)"
+          }
+        }
+      }
+    },
+    "/contest/team-logo": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Brasão do time (PNG, máx 128; célula do time no placar — vence o logo do teams-meta; secreto exige sessão)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "image/png (404 sem brasão)"
+          }
+        }
+      }
+    },
+    "/contest/admin/teams": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Times por-usuário: set{login:{team_name?,univ_short?,univ_full?,country?,region?}} ('' apaga) ou action:materialize (aplica teams-meta/regions aos campos VAZIOS); USERS_FROM → 409",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved,skipped[]} | {materialized,filled}"
+          },
+          "409": {
+            "description": "shared_users (contest com usuários compartilhados)"
+          }
+        }
+      }
+    },
+    "/contest/admin/team-assets": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Foto/brasão do time: {kind:photo|logo, filename:'<login>.<ext>', file_b64} (1 por POST; login case-insensitive) ou {action:delete,kind,login}; máx 8MB; USERS_FROM → 409",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved:true,login,kind} | {deleted:true}"
+          },
+          "404": {
+            "description": "nenhum usuário casa com o nome do arquivo"
           }
         }
       }
@@ -3315,7 +3437,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Adiciona/reseta usuário do contest",
+        "summary": "Adiciona/reseta usuário do contest (team_name/univ_short/univ_full/country/region opcionais mesclam no .team)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3339,6 +3461,21 @@
                   },
                   "email": {
                     "type": "string"
+                  },
+                  "team_name": {
+                    "type": "string"
+                  },
+                  "univ_short": {
+                    "type": "string"
+                  },
+                  "univ_full": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -3360,7 +3497,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada)",
+        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada; team_name/univ_short/univ_full/country/region opcionais gravam o .team — carga única de credenciais+time)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3388,6 +3525,21 @@
                           "type": "string"
                         },
                         "email": {
+                          "type": "string"
+                        },
+                        "team_name": {
+                          "type": "string"
+                        },
+                        "univ_short": {
+                          "type": "string"
+                        },
+                        "univ_full": {
+                          "type": "string"
+                        },
+                        "country": {
+                          "type": "string"
+                        },
+                        "region": {
                           "type": "string"
                         }
                       },

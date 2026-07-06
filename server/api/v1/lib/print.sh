@@ -59,16 +59,26 @@ pr_next_seq() {
 }
 
 # --- escopo: este staff pode ver as tarefas deste aluno? ------------------
-# admin vê tudo; lista de regex vazia/ausente = vê tudo; senão casa por regex (i).
+# admin vê tudo; lista vazia/ausente = vê tudo; senão cada entrada é:
+#   "region:<nome>" — casa com o `.team.region` do account.json do aluno (igualdade,
+#                     case-insensitive) — o jeito "por sede" sem regex;
+#   qualquer outra   — regex testada no LOGIN do aluno (comportamento clássico).
 staff_can_see() {  # <c> <staff_login> <student_login>
-  local c="$1" staff="$2" who="$3" f
+  local c="$1" staff="$2" who="$3" f reg
   is_admin && return 0
   f="$(pr_dir "$c")/staff-filters.json"
   [[ -f "$f" ]] || return 0
-  jq -e --arg w "$who" --arg s "$staff" '
+  reg="$(_pr_acct "$c" "$who" '.team.region')"
+  jq -e --arg w "$who" --arg s "$staff" --arg reg "$reg" '
     ($w|ascii_downcase) as $wl
+    | ($reg|ascii_downcase) as $rg
     | (.[$s] // [])
-    | if length==0 then true else any(.[]; . as $r | ($wl|test($r;"i"))) end
+    | if length==0 then true
+      else any(.[]; . as $r
+        | if ($r|startswith("region:"))
+          then ($rg != "" and (($r[7:] | ascii_downcase | gsub("^ +| +$"; "")) == $rg))
+          else (try ($wl|test($r;"i")) catch false) end)
+      end
   ' "$f" >/dev/null 2>&1
 }
 

@@ -16,12 +16,18 @@ let basic = null;
 let isAuth = false;
 let regions = [];
 let teamsMeta = [];      // regras regex -> país/escola
+let teamsDir = {};       // /contest/teams: login -> {team,univ_short,univ_full,flag,region,has_logo,has_photo}
 let flagNames = {};      // code(lower) -> nome (p/ título da bandeira e rótulo do filtro)
 let activeCountry = '';
 let activeSchool = '';
 let anonMode = false;       // placar anônimo (agregado, sem desempenho individual)
 let forcedAnon = false;     // contest força o modo anônimo (não-admin não desliga)
-let activeRegionRegex = localStorage.getItem('moj_score_region_' + CONTEST) || null;
+// região ativa: {name?, regex?} — casa por NOME (== sede do time, /contest/teams) OU regex
+// no login. Persistida como JSON; valor legado (string crua) é tratado como regex.
+let activeRegion = (() => {
+  const v = localStorage.getItem('moj_score_region_' + CONTEST); if (!v) return null;
+  try { const o = JSON.parse(v); return (o && (o.name || o.regex)) ? o : null; } catch { return { regex: v }; }
+})();
 let searchTerm = '';
 let noAnim = false;
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
@@ -68,15 +74,22 @@ function startCountdown() {
 }
 
 // ---- regiões -----------------------------------------------------------------
-function regionFilterFn() {
-  if (!activeRegionRegex) return null;
-  let re;
-  try { re = new RegExp(activeRegionRegex, 'i'); } catch { return null; }
-  return (t) => re.test(t.username || '');
+// t casa com a região ativa? Por NOME (t._region, vindo do /contest/teams, == sede
+// explícita do time) OU pelo regex no login (clássico) — qualquer um serve.
+function regionMatch(t) {
+  if (!activeRegion) return true;
+  if (activeRegion.regex) { const re = safeRe(activeRegion.regex); if (re && re.test(t.username || '')) return true; }
+  if (activeRegion.name && (t._region || '') &&
+      String(t._region).toLowerCase() === String(activeRegion.name).toLowerCase()) return true;
+  return false;
 }
-function setRegion(regex) {
-  activeRegionRegex = regex || null;
-  if (activeRegionRegex) localStorage.setItem('moj_score_region_' + CONTEST, activeRegionRegex);
+function regionFilterFn() {
+  if (!activeRegion) return null;
+  return (t) => regionMatch(t);
+}
+function setRegion(r) {
+  activeRegion = (r && (r.name || r.regex)) ? { name: r.name || '', regex: r.regex || '' } : null;
+  if (activeRegion) localStorage.setItem('moj_score_region_' + CONTEST, JSON.stringify(activeRegion));
   else localStorage.removeItem('moj_score_region_' + CONTEST);
   renderRegionBar();
   reRender();
@@ -87,10 +100,12 @@ function renderRegionBar() {
   bar.classList.remove('hidden');
   bar.innerHTML = '';
   bar.append(el('span', { class: 'small muted' }, T('Filtrar região: ', 'Filter region: ')));
-  bar.append(el('a', { href: '#', class: !activeRegionRegex ? 'active' : '', onclick: (e) => { e.preventDefault(); setRegion(null); } }, T('Todas', 'All')));
+  bar.append(el('a', { href: '#', class: !activeRegion ? 'active' : '', onclick: (e) => { e.preventDefault(); setRegion(null); } }, T('Todas', 'All')));
+  const isActive = (r) => !!activeRegion &&
+    ((r.name || '') === (activeRegion.name || '') && (r.regex || '') === (activeRegion.regex || ''));
   const walk = (list) => {
     list.forEach(r => {
-      if (r.regex) bar.append(el('a', { href: '#', class: r.regex === activeRegionRegex ? 'active' : '', onclick: (e) => { e.preventDefault(); setRegion(r.regex); } }, r.name || r.regex));
+      if (r.regex || r.name) bar.append(el('a', { href: '#', class: isActive(r) ? 'active' : '', onclick: (e) => { e.preventDefault(); setRegion(r); } }, r.name || r.regex));
       if (Array.isArray(r.subregions) && r.subregions.length) walk(r.subregions);
     });
   };
@@ -99,6 +114,33 @@ function renderRegionBar() {
 
 // ---- país / escola (teams-meta) ---------------------------------------------
 function safeRe(rx) { try { return new RegExp(rx, 'i'); } catch { return null; } }
+// EXPLÍCITO primeiro (/contest/teams — o `.team` por-usuário + assets): preenche o que o
+// TXT não trouxe, marca a sede (t._region, filtro por nome), aponta o BRASÃO p/ a rota
+// team-logo e cria o link 📷 da FOTO. O teams-meta (regex) roda depois, só nos vazios.
+function applyTeamsDir(p) {
+  if (!p || !(p.mode === 'icpc' || p.mode === 'obi')) return;
+  let anyFlag = false;
+  p.teams.forEach(t => {
+    const d = teamsDir[t.username || ''];
+    if (!d) return;
+    if (d.flag) {
+      if (!t.flag) { t.flag = d.flag; anyFlag = true; }
+      t._country = d.flag;
+      t.flagTitle = flagNames[String(d.flag).toLowerCase()] || d.flag;
+    }
+    if (d.univ_short && !t.univShort) t.univShort = d.univ_short;
+    if (d.univ_full && !t.univFull) t.univFull = d.univ_full;
+    if (d.region) t._region = d.region;
+    t._school = t._school || t.univShort || '';
+    if (d.has_logo && !t.schoolLogo) {
+      t.schoolLogo = '/api/v1/contest/team-logo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
+    }
+    if (d.has_photo) {
+      t.photoUrl = '/api/v1/contest/team-photo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
+    }
+  });
+  if (anyFlag && p.mode === 'obi') p.hasFlag = true;
+}
 function applyTeamsMeta(p) {
   if (!p || !(p.mode === 'icpc' || p.mode === 'obi') || !teamsMeta.length) return;
   let anyFlag = false;
@@ -115,16 +157,15 @@ function applyTeamsMeta(p) {
     }
     if (rule.school && !t.univShort) t.univShort = rule.school;
     if (rule.school_full && !t.univFull) t.univFull = rule.school_full;
-    if (rule.logo) t.schoolLogo = rule.logo;
+    if (rule.logo && !t.schoolLogo) t.schoolLogo = rule.logo;   // brasão por-time (teamsDir) vence
     t._school = rule.school || t.univShort || '';
   });
   if (anyFlag && p.mode === 'obi') p.hasFlag = true;
 }
 function combinedFilterFn() {
-  const re = activeRegionRegex ? safeRe(activeRegionRegex) : null;
-  if (!re && !activeCountry && !activeSchool) return null;
+  if (!activeRegion && !activeCountry && !activeSchool) return null;
   return (t) => {
-    if (re && !re.test(t.username || '')) return false;
+    if (!regionMatch(t)) return false;
     if (activeCountry && t._country !== undefined && t._country !== activeCountry) return false;
     if (activeSchool && t._school !== undefined && t._school !== activeSchool) return false;
     return true;
@@ -253,7 +294,7 @@ async function pollScore() {
     // treino / heuristic / outro / qualquer outro -> genérico
     parsed = parseGeneric(dataLines, mode || 'outro');
   }
-  if (parsed) { if (!parsed.balloons) parsed.balloons = BALLOONS; applyTeamsMeta(parsed); renderMetaFilters(); reRender(); }
+  if (parsed) { if (!parsed.balloons) parsed.balloons = BALLOONS; applyTeamsDir(parsed); applyTeamsMeta(parsed); renderMetaFilters(); reRender(); }
 
   refreshTimer = setTimeout(pollScore, 30000 + Math.random() * 30000); // 30–60s
 }
@@ -274,18 +315,20 @@ async function boot() {
   isAuth = !!st.logged_in;
   document.getElementById('publicNotice').classList.toggle('hidden', isAuth);
 
-  // nav + balões + regiões (auth quando possível; tolerante a falha)
-  const [nav, bc, rg, tm, mani] = await Promise.all([
+  // nav + balões + regiões + times (auth quando possível; tolerante a falha)
+  const [nav, bc, rg, tm, td, mani] = await Promise.all([
     apiGet('/contest/navbuttons?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     apiGet('/contest/balloons?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     apiGet('/contest/regions?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     apiGet('/contest/teams-meta?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
+    apiGet('/contest/teams?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     flagManifest().catch(() => ({ countries: [], br_states: [] })),
   ]);
   if (nav) { const buttons = Array.isArray(nav) ? nav : (nav.buttons || []); if (buttons.length) renderNav(buttons); }
   BALLOONS = bc ? (bc.balloons || bc) : {};
   regions = rg ? (Array.isArray(rg) ? rg : (rg.regions || [])) : [];
   teamsMeta = tm ? (tm.rules || (Array.isArray(tm) ? tm : [])) : [];
+  teamsDir = (td && td.teams) || {};
   (mani.countries || []).forEach(c => { flagNames[c.code] = c.name; });
   (mani.br_states || []).forEach(s => { flagNames['br-' + s.code] = s.name; });
   renderRegionBar();

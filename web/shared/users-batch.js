@@ -25,6 +25,51 @@ export function parseUsers(text) {
   return out;
 }
 
+// --- CSV COM CABEÇALHO (carga enriquecida de TIMES) ------------------------------------
+// parseRichCsv(text) -> [{login, password?, fullname?, email?, team_name?, country?,
+//                         region?, univ_short?, univ_full?}]  |  null (sem cabeçalho)
+// A 1ª linha não-vazia precisa ter a coluna `login` + ao menos outra conhecida; a ordem é
+// livre e os nomes aceitam aliases PT/EN (ex.: senha, nome, time, pais, sede, univ,
+// univ_nome). Valores com vírgula vão entre aspas ("Univ de Brasília, Campus Darcy").
+// Sem cabeçalho, o chamador cai no parseUsers clássico — formatos antigos intactos.
+const HEADER_ALIASES = {
+  login: 'login', usuario: 'login', username: 'login',
+  senha: 'password', password: 'password',
+  nome: 'fullname', fullname: 'fullname', name: 'fullname',
+  email: 'email', 'e-mail': 'email',
+  time: 'team_name', team: 'team_name', team_name: 'team_name', equipe: 'team_name',
+  pais: 'country', país: 'country', country: 'country', bandeira: 'country', flag: 'country',
+  sede: 'region', regiao: 'region', região: 'region', region: 'region', site: 'region',
+  univ: 'univ_short', univ_curta: 'univ_short', sigla: 'univ_short', school: 'univ_short', univ_short: 'univ_short',
+  univ_nome: 'univ_full', univ_completa: 'univ_full', universidade: 'univ_full', school_full: 'univ_full', univ_full: 'univ_full',
+};
+function splitCsvLine(line, sep) {
+  const out = []; let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === sep) { out.push(cur); cur = ''; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out.map((s) => s.trim());
+}
+export function parseRichCsv(text) {
+  const lines = (text || '').split(/\r?\n/).filter((l) => l.trim());
+  if (!lines.length) return null;
+  const head = lines[0];
+  const sep = head.includes('\t') ? '\t' : head.includes(';') ? ';' : ',';
+  const cols = splitCsvLine(head, sep).map((h) => HEADER_ALIASES[h.toLowerCase().trim()] || null);
+  const known = cols.filter(Boolean);
+  if (!cols.includes('login') || known.length < 2) return null;   // não é cabeçalho
+  return lines.slice(1).map((line) => {
+    const vals = splitCsvLine(line, sep), u = {};
+    cols.forEach((k, i) => { if (k && vals[i]) u[k] = vals[i]; });
+    return u;
+  }).filter((u) => u.login);
+}
+
 // downloadCsv(filename, users) — baixa login,senha,nome,email (senhas só aparecem aqui).
 export function downloadCsv(filename, users) {
   const head = 'login,senha,nome,email';

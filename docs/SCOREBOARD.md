@@ -73,12 +73,19 @@ Geradores existentes (testados contra dados reais, batem com os placares legados
 - **Bandeiras locais (offline):** a coluna `flag` (código de país ISO-2 ou estado `BR-SP`)
   vira um SVG servido pelo próprio MOJ em `/shared/flags/` (271 países + 27 estados) — nada de
   CDN externo. Ver `web/shared/flags.js`.
+- **`/contest/teams` (por-usuário, PRECEDE o teams-meta)**: diretório dos times a partir do
+  `.team{name,univ_short,univ_full,flag,region}` do account.json (aba 👥 Times do admin) +
+  `has_logo`/`has_photo`. O placar mescla **explícito primeiro**: bandeira/univ que faltarem no
+  TXT, a **sede** (`t._region`, filtro por nome), o **brasão** (`/contest/team-logo`, vence o
+  logo por regra) e o link 📷 da **foto** (`/contest/team-photo`, abre em nova aba).
 - **`teams-meta`** (`contests/<id>/teams-meta.json`, lido por `GET /contest/teams-meta`):
-  regras **regex no login → {country, school, school_full, logo?}**. O placar preenche
-  bandeira/universidade quando faltam na coluna e habilita **filtro por país/escola**. O logo
-  é um data-URL embutido (offline). Editável na criação e no admin do contest.
-- **Filtro por região** (`regions.json`, `GET /contest/regions`): árvore de regex hierárquica
-  testada contra o login.
+  regras **regex no login → {country, school, school_full, logo?}**. **Fallback**: o placar
+  preenche bandeira/universidade/logo só no que o por-usuário e a coluna não trouxeram, e
+  habilita **filtro por país/escola**. O logo é um data-URL embutido (offline). Editável na
+  criação e no admin do contest.
+- **Filtro por região** (`regions.json`, `GET /contest/regions`): árvore hierárquica; cada
+  entrada casa por **nome** (igualdade com a sede `.team.region` do time) **ou** pelo `regex`
+  no login (clássico).
 - **Modo anônimo** (`SCORE_ANON=1` no conf, ou toggle local): esconde o desempenho individual e
   mostra agregado — participantes, **quartis** por nº de problemas resolvidos, distribuição e
   resolvedores por problema. Forçado para não-admins quando `SCORE_ANON=1`.

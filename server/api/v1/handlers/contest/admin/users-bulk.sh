@@ -1,7 +1,11 @@
 # POST /contest/admin/users-bulk?contest=<id>  (admin DO contest)
 # Carga de usuários em LOTE (contests grandes: subir competidores DEPOIS da criação):
-#   {users:[{login,password?,fullname?,email?}], on_existing?: "skip"|"update"}  (default skip)
-# Regras: ≤5000; login valid_id; senha vazia = gerada (cc_genpass); campos sem ':'.
+#   {users:[{login,password?,fullname?,email?,
+#            team_name?,univ_short?,univ_full?,country?,region?}], on_existing?: "skip"|"update"}
+# Os campos de TIME (opcionais) vão p/ o `.team{name,univ_short,univ_full,flag,region}` do
+# account.json — carga ÚNICA de credenciais+país+sede+universidade (team_fields_json saneia;
+# update mescla só os presentes). Regras: ≤5000; login valid_id; senha vazia = gerada
+# (cc_genpass); senha/nome/email sem ':'.
 # on_existing=update troca senha/nome/email de conta existente, MAS conta PRIVILEGIADA
 # existente (is_reserved_role_login) NUNCA é tocada (skipped: privileged — não resetar
 # admin/juízes em massa); CRIAR privilegiada nova é permitido (staff em lote, como o user-add).
@@ -46,21 +50,26 @@ while IFS= read -r u; do
   [[ -n "${SEEN[$login]:-}" ]] && { skipj "$login" duplicate; continue; }
   SEEN["$login"]=1
   [[ -z "$full" ]] && full="$login"
+  teamj="$(team_fields_json "$u")"   # campos de time saneados (só os não-vazios; '{}' = nada)
 
   if [[ -n "${EXIST[$login]:-}" ]]; then
     [[ "$onex" == skip ]] && { skipj "$login" exists; continue; }
     is_reserved_role_login "$login" && { skipj "$login" privileged; continue; }
     [[ -z "$pass" ]] && pass="$(cc_genpass)"
-    account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t' \
-      --arg p "$pass" --arg f "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" || { skipj "$login" invalid; continue; }
+    account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t
+        | .team = ((.team // {}) + $tm) | if (.team|length)==0 then del(.team) else . end' \
+      --arg p "$pass" --arg f "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
+      --argjson tm "$teamj" || { skipj "$login" invalid; continue; }
     credj "$login" "$pass" "$full" "$email" >> "$tmpd/updated.jsonl"
   else
     [[ -z "$pass" ]] && pass="$(cc_genpass)"
-    # criação inline (mesmo shape do user_create em lib/users.sh)
+    # criação inline (mesmo shape do user_create em lib/users.sh, + .team quando veio)
     d="$(user_dir "$contest" "$login")"
     mkdir -p "$d/submissions" "$d/mojlog" "$d/results" || { skipj "$login" invalid; continue; }
     jq -cn --arg l "$login" --arg p "$pass" --arg n "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
-      '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}' \
+      --argjson tm "$teamj" \
+      '{login:$l,password:$p,fullname:$n,email:$e,created_at:$t,updated_at:$t,status:"active",uname_changes:[]}
+       + (if ($tm|length) > 0 then {team:$tm} else {} end)' \
       > "$d/account.json" || { skipj "$login" invalid; continue; }
     : > "$d/history"
     credj "$login" "$pass" "$full" "$email" >> "$tmpd/created.jsonl"

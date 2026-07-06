@@ -1,5 +1,7 @@
-# POST /contest/admin/user-add?contest=<id>  (admin DO contest) {login,password?,fullname?,email?}
+# POST /contest/admin/user-add?contest=<id>  (admin DO contest)
+#   {login,password?,fullname?,email?, team_name?,univ_short?,univ_full?,country?,region?}
 # Adiciona OU atualiza (reset de senha) um usuário do contest. Devolve a credencial.
+# Os campos de TIME (opcionais) mesclam no `.team` do account.json (team_fields_json).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -19,6 +21,7 @@ valid_id "$login" || fail 422 "login inválido" "login_invalid"
 case "$pass$full$email" in *:*) fail 422 "senha/nome/email não podem conter ':'" "colon";; esac
 
 # account.json é a fonte (auth/placar leem direto dele)
+teamj="$(team_fields_json "$body")"
 if user_exists "$contest" "$login"; then
   account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t' \
     --arg p "$pass" --arg f "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
@@ -26,6 +29,7 @@ if user_exists "$contest" "$login"; then
 else
   user_create "$contest" "$login" "$full" "$pass" "$email" || fail 500 "Falha ao criar" "write_fail"
 fi
+account_team_merge "$contest" "$login" "$teamj" || fail 500 "Falha ao gravar time" "write_fail"
 audit_log_to "$contest" user-add "login=$login"
 ok_json '{saved:true, user:{login:$l, password:$p, fullname:$f, email:$e}}' \
   --arg l "$login" --arg p "$pass" --arg f "$full" --arg e "$email"

@@ -68,7 +68,10 @@ export function renderOBI(parsed, opts) {
     const safeLogo = /^(data:image\/|\/|https?:)/.test(t.schoolLogo || '') ? String(t.schoolLogo).replace(/"/g, '') : '';
     const logo = safeLogo ? `<img src="${safeLogo}" alt="" style="height:16px;vertical-align:middle;margin-right:4px;border-radius:2px" onerror="this.remove()"> ` : '';
     const label = (parsed.hasUnivShort && t.univShort ? `[${escHtml(t.univShort)}] ` : '') + escHtml(t.teamName || t.username);
-    tr.append(el('td', { class: 'team', title: (parsed.hasUnivFull && t.univFull) || '', html: logo + label }));
+    const teamTd = el('td', { class: 'team', title: (parsed.hasUnivFull && t.univFull) || '', html: logo + label });
+    // foto do time (photo.png subida pelo admin): link clicável, abre em nova aba
+    if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: 'Foto do time', style: 'text-decoration:none' }, '📷'));
+    tr.append(teamTd);
     parsed.probShorts.forEach(sn => {
       const v = t.probs[sn] || '';
       const n = parseInt(v, 10);

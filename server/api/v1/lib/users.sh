@@ -45,6 +45,27 @@ account_merge(){
   jq -c "$@" "$filter" "$f" > "$tmp" && mv -f "$tmp" "$f"
 }
 
+# team_fields_json <user-json> — extrai do JSON de entrada os campos de TIME
+# (team_name->name, univ_short, univ_full, country->flag, region) e ecoa o objeto
+# `.team` só com os NÃO-vazios ('{}' se nada veio). Saneia ':'/tab/newline (quebrariam
+# os TSVs derivados: sc_users/badges). Writers: users-bulk, user-add, contest-create
+# users[] e admin/teams — a LEITURA já existia (placar, badges, print).
+team_fields_json() {
+  jq -c '{name:(.team_name // ""), univ_short:(.univ_short // ""),
+          univ_full:(.univ_full // ""), flag:(.country // ""), region:(.region // "")}
+         | with_entries(.value |= (tostring | gsub("[:\t\n\r]"; " ") | gsub("^ +| +$"; "")))
+         | with_entries(select(.value != ""))' <<<"${1:-null}" 2>/dev/null || echo '{}'
+}
+
+# account_team_merge <c> <login> <team-json> — mescla campos no `.team` do account.json
+# (só os presentes no objeto; não apaga os demais). '{}' = no-op (rc 0).
+account_team_merge(){
+  local c="$1" u="$2" teamj="$3"
+  [[ -n "$teamj" && "$teamj" != '{}' ]] || return 0
+  account_merge "$c" "$u" '.team = ((.team // {}) + $tm) | .updated_at=$t' \
+    --argjson tm "$teamj" --argjson t "$EPOCHSECONDS"
+}
+
 # --- criação / senha ------------------------------------------------------
 # user_create <c> <login> <fullname> <password> [email] -> 0 ok | 2 já existe
 # NÃO valida sufixo de papel (isso é responsabilidade do handler/signup).

@@ -1,6 +1,8 @@
 # GET/POST /contest/admin/staff-filters?contest=<c>   (admin DO contest)
-# Escopo de cada usuário .staff por lista de regex no login do aluno (sedes distribuídas).
-# Lista vazia/ausente = o staff vê TODAS as tarefas. Semear a partir de regions.json.
+# Escopo de cada usuário .staff (sedes distribuídas): lista de entradas onde cada uma é
+# "region:<nome>" (casa com o .team.region do aluno — o jeito por-sede sem regex) OU uma
+# regex no login do aluno (clássico). Lista vazia/ausente = o staff vê TODAS as tarefas.
+# Semear a partir de regions.json (a UI insere region:<nome>).
 # Persiste em contests/<c>/print-requests/staff-filters.json. Auditado (staff-filters).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"

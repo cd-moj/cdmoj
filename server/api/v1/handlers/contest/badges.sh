@@ -73,6 +73,7 @@ _badges_accounts() {  # <usersdir> <prio>
         {login:(.login//""), fullname:(.fullname//""),
          team:(.team.name//""),
          univ:((.team.univ_full // .team.univ_short) // ""),
+         region:(.team.region//""),
          password:((.password//"")|ltrimstr("!")),
          disabled:((.password//"")|startswith("!")),
          prio:$prio}'
@@ -88,24 +89,31 @@ src="$(_users_source "$contest")"
   | ($tm[0] | (.rules // (if type=="array" then . else [] end))) as $teams
   | map(select(.login != "")) | group_by(.login) | map(min_by(.prio)) | map(del(.prio))
   | (if $dis == "1" then . else map(select(.disabled | not)) end)
-  # alunos: sem contas de papel; recorte = filtro do staff em vista (vazio/ausente = tudo)
+  # alunos: sem contas de papel. Região EXPLÍCITA (.team.region do account) vence; senão
+  # derivada de regions.json (regex no login). O recorte do staff (vazio/ausente = tudo)
+  # entende "region:<nome>" (igualdade com a região do aluno) além de regex no login.
   | ( map(select(.login | test("\\.(admin|judge|cjudge|staff|mon)$") | not))
+      | map(. + {region: (if (.region // "") != "" then .region
+                          else ((.login as $l
+                            | first($regions[] | (.regex//"") as $rr | select($rr != ""
+                                and (try ($l|test($rr)) catch false)) | .name)) // null) end)})
       | ($filters[$view] // []) as $scope
       | (if ($view == "") or (($scope|length) == 0) then .
-         else map(select(.login as $l
-                | any($scope[]; . as $r | (try ($l | ascii_downcase | test($r;"i")) catch false)))) end)
-      | map(. + {region: ((.login as $l
-            | first($regions[] | (.regex//"") as $rr | select($rr != ""
-                and (try ($l|test($rr)) catch false)) | .name)) // null)})
+         else map(select(. as $u
+                | any($scope[]; . as $r
+                    | if ($r|startswith("region:"))
+                      then ((($u.region // "")|ascii_downcase) == ($r[7:] | ascii_downcase | gsub("^ +| +$"; "")))
+                      else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end))) end)
     ) as $students
-  # .staff: a própria conta no arquivo de uma sede; todas na lista completa,
-  # com a região derivada do filtro (igualdade com o regex da região — é assim
-  # que a UI de tarefas semeia os filtros a partir de regions.json)
+  # .staff: a própria conta no arquivo de uma sede; todas na lista completa. Região do
+  # staff: 1º token region:<nome> do filtro dele; senão a derivação clássica (igualdade
+  # do regex do filtro com o regex de uma região — semeadura antiga).
   | ( map(select(.login | endswith(".staff")))
       | (if $view != "" then map(select(.login == $view)) else . end)
       | map(. + {region: ((($filters[.login] // []) as $fl
-            | first($regions[] | (.regex//"") as $rr | select($rr != ""
-                and (($fl | index($rr)) != null)) | .name)) // null)})
+            | (first($fl[] | select(startswith("region:")) | .[7:] | gsub("^ +| +$"; ""))
+               // first($regions[] | (.regex//"") as $rr | select($rr != ""
+                    and (($fl | index($rr)) != null)) | .name))) // null)})
     ) as $staffacc
   | ($students + $staffacc)
   | map(. + {name: (if .team != "" then .team else .fullname end),

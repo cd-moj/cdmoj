@@ -52,7 +52,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   massa no `build.sh` quando o `conf` muda (ex.: `FREEZE_TIME` editado). **Migração** de contest
   legado (arquivado em `contests-legado/`): `server/bin/store-migrate.sh <c>` (dry-run por padrão).
   Handlers de usuário do admin (`user-add`/`user-disable`/`user-remove`/`users-set-password`)
-  escrevem no account.json; remover = `mv` p/ `.removed-users/`.
+  escrevem no account.json; remover = `mv` p/ `.removed-users/`. **`.team` agora tem WRITERS
+  na API** (antes só o store-migrate): `users-bulk`/`user-add`/`contest-create users[]` aceitam
+  `team_name/univ_short/univ_full/country/region` (helper `team_fields_json` +
+  `account_team_merge` em lib/users.sh — saneiam `:`/tab/newline) e `/contest/admin/teams`
+  (aba 👥 Times) faz set por-usuário (`""` apaga) + **materialize** (regex→campos vazios).
+  `.team.region` = SEDE (texto; casa com o `name` de regions.json): o placar filtra por nome,
+  os badges preferem-na à derivação regex e o `staff_can_see` aceita entradas
+  **`region:<nome>`** no staff-filters. Assets por-time: `users/<login>/{photo,logo}.png`
+  (upload admin `/contest/admin/team-assets`, servidos por `/contest/team-{photo,logo}` com o
+  gate do placar; `/contest/teams` = diretório que o placar mescla ANTES do teams-meta).
 - **Telegram (overlay só do treino) + alertas**: `lib/telegram.sh` (índice `var/telegram/{by-tgid,by-login}`,
   nonce em `run/telegram/`), cadastro web-first (`handlers/treino/signup/*` + página `web/treino/cadastro/`),
   recuperação por vínculo, `link-start`. O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
