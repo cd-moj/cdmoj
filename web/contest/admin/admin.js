@@ -46,7 +46,7 @@ function settingsTab() {
     panel.innerHTML = ''; panel.append(el('h2', {}, '⚙️ Configurações'));
     let s; try { s = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G); }
     catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
-    const ed = makeSettingsEditor({ value: s, mode: 'admin' });
+    const ed = makeSettingsEditor({ value: s, mode: 'admin', contestMode: s.mode });
     const msg = el('div', { class: 'small' });
     const save = el('button', { class: 'btn' }, 'Salvar configurações');
     save.addEventListener('click', async () => {

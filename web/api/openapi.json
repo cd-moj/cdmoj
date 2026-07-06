@@ -2506,6 +2506,19 @@
                       "type": "string"
                     }
                   },
+                  "penalty_minutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "placar ICPC: minutos por tentativa que conta antes do AC (default 20)"
+                  },
+                  "penalty_verdicts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["wa", "tle", "mle", "rte", "ce"]
+                    },
+                    "description": "placar ICPC: verdicts que contam penalidade (default wa/tle/mle/rte; Judge Error e pendentes nunca contam; [] = nenhum penaliza)"
+                  },
                   "locale": {
                     "type": "string",
                     "enum": [
@@ -3397,7 +3410,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest",
+        "summary": "Configurações do contest (inclui mode read-only e a penalidade ICPC: penalty_minutes, penalty_verdicts)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3413,7 +3426,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Atualiza configurações (auditado)",
+        "summary": "Atualiza configurações (auditado; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

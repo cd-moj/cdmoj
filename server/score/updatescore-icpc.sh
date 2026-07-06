@@ -14,6 +14,8 @@
 #   tries/-         tried but unsolved
 #
 # Penalty = sum over solved problems of (tries-1)*PENALTYCOST + accepted-minute.
+# PENALTYCOST comes from the conf (PENALTY_MINUTES, default 20); which verdicts count a
+# try is decided at metrics time (PENALTY_VERDICTS -> metrics.json `counted`).
 # Total column = number of solved problems.
 #
 # Data source: users/*/metrics.json via sc_cells (frozen view unless MOJ_NOFREEZE=1).
@@ -21,9 +23,10 @@ set -u
 SC_PROG="updatescore-icpc"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/score-common.sh"
 
-PENALTYCOST=20
-
+PENALTY_MINUTES=""
 sc_load "${1:-}"
+PENALTYCOST="${PENALTY_MINUTES:-20}"
+[[ "$PENALTYCOST" =~ ^[0-9]+$ ]] || PENALTYCOST=20
 START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 
 # --- header ----------------------------------------------------------------

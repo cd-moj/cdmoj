@@ -3,6 +3,7 @@
 # usuários .admin sempre podem. Problemas vêm do banco do treino (var/jsons), por ID
 # (não-públicos), e/ou com enunciado custom. O conf é SOURCED -> tudo escrito com printf %q.
 : "${DEFAULT_SCORE_MODE:=icpc}"
+source "${BASH_SOURCE[0]%/*}/verdict.sh"   # penalty_codes_* (validação/normalização)
 
 cc_perms_file(){ printf '%s/treino/var/contest-perms.json' "$CONTESTSDIR"; }
 
@@ -67,6 +68,13 @@ cc_settings_conf_lines(){
   [[ -n "$v" ]] && printf 'LOGIN_UA_SUBSTRING=%q\n' "$v"
   v="$(jq -r '(.score_full_users // []) | map(select(type=="string" and test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"
   [[ -n "$v" ]] && printf 'SCORE_FULL_USERS=%q\n' "$v"
+  # penalidade ICPC: grava só o não-default (validação dura fica no cc_create, antes do staging)
+  v="$(jq -r '.penalty_minutes // empty' <<<"$spec")"
+  [[ "$v" =~ ^[0-9]+$ ]] && (( v != 20 )) && printf 'PENALTY_MINUTES=%q\n' "$v"
+  if jq -e '(.penalty_verdicts|type)=="array"' >/dev/null 2>&1 <<<"$spec"; then
+    v="$(penalty_codes_normalize "$(jq -c '.penalty_verdicts' <<<"$spec")")"
+    [[ "$v" != "$PENALTY_CODES_DEFAULT" ]] && printf 'PENALTY_VERDICTS=%q\n' "$v"
+  fi
   return 0
 }
 
@@ -112,6 +120,15 @@ cc_create(){
   [[ -z "$langs" || "$langs" =~ ^[A-Za-z0-9\ +._-]+$ ]] || fail 422 "Lista de linguagens inválida" "langs_invalid"
   local ua_sub; ua_sub="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; ua_sub="${ua_sub//$'\n'/}"
   (( ${#ua_sub} <= 200 )) || fail 422 "login_ua_substring muito longa" "ua_long"
+  # penalidade do placar ICPC (opcional; só válida em conjunto — a gravação fica no conf_lines)
+  local pmin; pmin="$(jq -r '.penalty_minutes // empty' <<<"$spec")"
+  if [[ -n "$pmin" ]]; then
+    { [[ "$pmin" =~ ^[0-9]+$ ]] && (( pmin <= 100000 )); } || fail 422 "penalty_minutes inválido" "penalty_minutes_invalid"
+  fi
+  if jq -e 'has("penalty_verdicts")' >/dev/null 2>&1 <<<"$spec"; then
+    penalty_codes_normalize "$(jq -c '.penalty_verdicts' <<<"$spec")" >/dev/null \
+      || fail 422 "penalty_verdicts inválido (use wa/tle/mle/rte/ce)" "penalty_verdicts_invalid"
+  fi
 
   local id; id="$(jq -r '.id // ""' <<<"$spec")"
   if [[ -z "$id" ]]; then
@@ -473,6 +490,7 @@ cc_tpl_relativize(){
     | pick(["mode","priority","languages","showcode","show_log","show_editor","show_tl",
             "allow_backup","allow_print","score_anon","manual_verdict","allow_late","secret",
             "login_ua_substring","score_full_users","locale","login_enabled",
+            "penalty_minutes","penalty_verdicts",
             "colors","regions","teams_meta"])
     + (if $st > 0 and $en > $st then {duration:($en-$st)} else {} end)
     + (if $ls > 0 and $st > $ls then {login_lead:($st-$ls)} else {} end)
@@ -496,6 +514,7 @@ cc_export_spec(){
     LANGUAGES=""; SHOWCODE=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
     FREEZE_TIME=""; ALLOWLATEUSER=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
+    PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"
     . "$cdir/conf" 2>/dev/null
     jq -cn \
       --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
@@ -505,7 +524,7 @@ cc_export_spec(){
       --arg late "$ALLOWLATEUSER" --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
       --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
-      --arg secret "$SECRET" '
+      --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" '
       {name:$name, mode:(if $mode=="" then "icpc" else $mode end)}
       + (if $prio != "" then {priority:$prio} else {} end)
       + (if ($start|tonumber?) then {start:($start|tonumber)} else {} end)
@@ -527,7 +546,9 @@ cc_export_spec(){
       + (if $manual == "1" then {manual_verdict:true} else {} end)
       + (if $secret == "1" then {secret:true} else {} end)
       + (if $ua != "" then {login_ua_substring:$ua} else {} end)
-      + (if $sfu != "" then {score_full_users:($sfu|split(" ")|map(select(length>0)))} else {} end)'
+      + (if $sfu != "" then {score_full_users:($sfu|split(" ")|map(select(length>0)))} else {} end)
+      + (if (($pmin|tonumber?) // 20) != 20 then {penalty_minutes:($pmin|tonumber)} else {} end)
+      + (if $pvd != "__unset" then {penalty_verdicts:($pvd|split(" ")|map(select(length>0)))} else {} end)'
   )"
   [[ -n "$confjson" ]] || return 1
 

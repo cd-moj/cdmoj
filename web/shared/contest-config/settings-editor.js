@@ -16,7 +16,15 @@ const PRIORITY_LABEL = {
   prova: 'Prova (julga antes das listas)', super: 'Super (admin; fura toda fila)',
 };
 
-export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false } = {}) {
+const PENALTY_OPTS = [
+  ['wa', 'Wrong Answer'], ['tle', 'Time Limit Exceeded'], ['mle', 'Memory Limit Exceeded'],
+  ['rte', 'Runtime Error'], ['ce', 'Compilation Error'],
+];
+const PENALTY_DEFAULT = ['wa', 'tle', 'mle', 'rte'];
+
+// contestMode: modo do placar ('icpc'|'obi'|…) — a seção de penalidade só existe no icpc.
+// O wizard permite voltar e trocar o modo: use setContestMode() no remount.
+export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false, contestMode = '' } = {}) {
   const s = value || {};
   const isCreate = mode === 'create';
   const name = el('input', { value: s.name || '' });
@@ -36,8 +44,21 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     allowPrint = mkBool(s.allow_print !== false), manualVerdict = mkBool(s.manual_verdict === true),
     secret = mkBool(s.secret === true);
   const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
+  const penMin = el('input', { type: 'number', min: '0', step: '1', style: 'max-width:100px',
+    value: String(Number.isInteger(s.penalty_minutes) ? s.penalty_minutes : 20) });
+  const pvSel = new Set(Array.isArray(s.penalty_verdicts) ? s.penalty_verdicts : PENALTY_DEFAULT);
+  const penChecks = PENALTY_OPTS.map(([code, label]) => ({ code, box: mkBool(pvSel.has(code)), label }));
   const langs = makeLangPicker(s.languages || []);
   const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge/.cjudge', style: 'width:100%' });
+
+  let cmode = contestMode;
+  const penaltySec = el('div', {},
+    el('h3', { style: 'margin:1rem 0 .3rem' }, '⏱ Penalidade (placar ICPC)'),
+    field('Minutos somados por tentativa não aceita antes do Accepted', penMin),
+    el('p', { class: 'muted small' }, 'Verdicts que contam penalidade (Judge Error e submissões pendentes nunca contam):'),
+    ...penChecks.map((p) => chk(p.label, p.box)));
+  const syncPen = () => { penaltySec.style.display = cmode === 'icpc' ? '' : 'none'; };
+  syncPen();
 
   const box = el('div', {});
   if (!isCreate) {
@@ -59,6 +80,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
     chk('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', secret),
     field('Gate de login por substring de UA (só não-privilegiados)', ua),
+    penaltySec,
     el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
     el('p', { class: 'muted small' }, 'Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)'),
     langs.el,
@@ -82,7 +104,11 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,
       languages: langs.get(),
       score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [],
+      ...(cmode === 'icpc' ? {
+        penalty_minutes: penMin.value.trim() === '' ? 20 : Math.max(0, parseInt(penMin.value, 10) || 0),
+        penalty_verdicts: penChecks.filter((p) => p.box.checked).map((p) => p.code),
+      } : {}),
     };
   }
-  return { el: box, getValue };
+  return { el: box, getValue, setContestMode: (m) => { cmode = m; syncPen(); } };
 }

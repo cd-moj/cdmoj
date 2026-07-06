@@ -9,7 +9,8 @@ Princípio: **adicionar um modo = 1 gerador (`server/score/updatescore-<modo>.sh
    `lista-publica`/`lista-privada` → `treino`; ausente → `icpc`).
 2. **A fonte de dados dos geradores é `users/<login>/metrics.json`** (mantido incremental
    pelo daemon a cada veredicto via `metrics_recompute`): cada metrics carrega, por problema,
-   `counted` (tentativas até o 1º AC), `first_ac_epoch`, `pending`, `best_score` (NNp),
+   `counted` (tentativas até o 1º AC — quais verdicts contam obedece o `PENALTY_VERDICTS`
+   do conf; ver modo `icpc` abaixo), `first_ac_epoch`, `pending`, `best_score` (NNp),
    `heur` (Score/Score Ajustado) e a visão **`frozen`** (pré-`FREEZE_TIME`). Os geradores
    leem tudo numa passada só (`sc_cells` em `score-common.sh`: `find users -name
    metrics.json | xargs jq`) — rebuild O(usuários), sem varrer history.
@@ -41,7 +42,15 @@ desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total   ← cabeç
 ### Células por modo
 | Modo | Célula de problema | Ordenação | Cor |
 |---|---|---|---|
-| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/-`=tentou | acertos↓, depois penalidade↑ (penalidade=(tent−1)·20+minuto) | pinta com a cor do balão |
+| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/-`=tentou | acertos↓, depois penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) | pinta com a cor do balão |
+
+**Penalidade configurável (modo `icpc`)** — duas vars de conf, editáveis pelo
+`/contest/admin/settings` (mudar em prova recomputa o placar no próximo GET):
+- `PENALTY_MINUTES` (default 20): minutos somados por tentativa que conta antes do AC.
+- `PENALTY_VERDICTS` (códigos `wa tle mle rte ce`; default `wa tle mle rte`): quais verdicts
+  entram no `counted` do metrics. **Judge Error/No_Servers e provisórios nunca contam**;
+  strings legadas fora do vocabulário canônico continuam contando (comportamento histórico).
+  Lista vazia (`PENALTY_VERDICTS=''`) = nenhum verdict penaliza (só o minuto do AC).
 | `obi` | pontos (0–100) | Total↓ | — |
 | `treino` | resolvidos / tentativas | resolvidos↓ | — |
 | `heuristic` | melhor Score | Score↓ (Score Ajustado como desempate) | — |

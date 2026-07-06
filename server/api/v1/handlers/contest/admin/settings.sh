@@ -11,13 +11,20 @@ source "$_LIBDIR/contest-create.sh"
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""
   FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""
+  PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"
   load_contest_conf "$contest"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
   sfu_json='[]'; [[ -n "$SCORE_FULL_USERS" ]] && sfu_json="$(printf '%s\n' $SCORE_FULL_USERS | grep -v '^$' | jq -R . | jq -cs .)"
+  # penalidade ICPC: default (var ausente) = 20 min / PENALTY_CODES_DEFAULT; '' = lista vazia
+  [[ "$PENALTY_MINUTES" =~ ^[0-9]+$ ]] || PENALTY_MINUTES=20
+  [[ "$PENALTY_VERDICTS" == "__unset" ]] && PENALTY_VERDICTS="$PENALTY_CODES_DEFAULT"
+  pvd_json="$(jq -cn --arg pv "$PENALTY_VERDICTS" '$pv|split(" ")|map(select(length>0))')"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
-            secret:$sec}' \
+            secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd}' \
+    --arg mode "$(contest_score_mode "$contest")" \
+    --argjson pm "$PENALTY_MINUTES" --argjson pvd "$pvd_json" \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
@@ -88,6 +95,19 @@ fi
 if has score_full_users; then
   su="$(jq -r '(.score_full_users // []) | map(select(test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$body")"
   [[ -n "$su" ]] && setvar SCORE_FULL_USERS "$su" || delvar SCORE_FULL_USERS
+fi
+
+# penalidade do placar ICPC (default = var ausente; editar em prova recomputa o placar
+# no próximo GET — conf mais novo que var/.metrics-stamp dispara o recompute em massa)
+if has penalty_minutes; then
+  v="$(jq -r '.penalty_minutes' <<<"$body")"
+  { [[ "$v" =~ ^[0-9]+$ ]] && (( v <= 100000 )); } || fail 422 "penalty_minutes inválido" "penalty_minutes_invalid"
+  if (( v == 20 )); then delvar PENALTY_MINUTES; else setvar PENALTY_MINUTES "$v"; fi
+fi
+if has penalty_verdicts; then
+  pv="$(penalty_codes_normalize "$(jq -c '.penalty_verdicts' <<<"$body")")" \
+    || fail 422 "penalty_verdicts inválido (use wa/tle/mle/rte/ce)" "penalty_verdicts_invalid"
+  if [[ "$pv" == "$PENALTY_CODES_DEFAULT" ]]; then delvar PENALTY_VERDICTS; else setvar PENALTY_VERDICTS "$pv"; fi
 fi
 
 audit_log_to "$contest" settings "$( ((${#CH[@]})) && { IFS=,; echo "${CH[*]}"; } || echo nada )"

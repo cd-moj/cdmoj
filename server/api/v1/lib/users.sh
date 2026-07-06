@@ -13,6 +13,10 @@
 #   <tempo>:<probid>:<lang>:<verdict>:<sub_epoch>:<subid>
 # Campos seguros: 1=tempo,2=probid,3=lang ; 4..(NF-2)=verdict ; NF-1=sub_epoch ; NF=subid.
 
+# metrics_recompute precisa do vocabulário de penalidade + VERDICT_CANON_JQ; o router já
+# sourceia verdict.sh, mas build.sh/judged.sh/store-migrate.sh sourceiam só esta lib.
+source "${BASH_SOURCE[0]%/*}/verdict.sh"
+
 # --- paths ----------------------------------------------------------------
 users_dir(){    printf '%s/%s/users'                 "$CONTESTSDIR" "$1"; }        # <c>
 user_dir(){     printf '%s/%s/users/%s'              "$CONTESTSDIR" "$1" "$2"; }   # <c> <login>
@@ -107,8 +111,11 @@ user_history_replace(){
 # O(history_u); jq lê o arquivo direto (sem ARG_MAX). Além dos agregados, grava por
 # problema TUDO que os geradores de placar (score/updatescore-*.sh) precisam — a
 # semântica espelha o antigo score/dstate.sh e o parse de updatescore-obi/heuristic:
-#   counted    = tentativas que CONTAM (≠ provisória/Compilation Error/Judge Error/
-#                No_Servers) até (e incluindo) o 1º AC; todas, se não resolvido.
+#   counted    = tentativas que CONTAM até (e incluindo) o 1º AC; todas, se não resolvido.
+#                Quais verdicts contam é configurável pelo conf `PENALTY_VERDICTS` (códigos
+#                de PENALTY_CODES_ALL; ausente = PENALTY_CODES_DEFAULT, i.e. Compilation
+#                Error fora). Provisórias/Judge Error/No_Servers NUNCA contam. Strings
+#                legadas fora do vocabulário canônico continuam contando (como sempre).
 #   pending    = existe linha provisória (Not Answered Yet/On queue/Running).
 #   best_score = maior NNp dos veredictos (Accepted sem NNp ⇒ 100; tentativa
 #                não-provisória sem NNp ⇒ 0; nunca tentou ⇒ null)  [obi].
@@ -124,7 +131,22 @@ metrics_recompute(){
   [[ -f "$hf" ]] || { echo '{}' > "$mf"; return 0; }
   fz="$(sed -n 's/^[[:space:]]*FREEZE_TIME=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null | tail -1 | tr -cd '0-9')"
   fz="${fz:-0}"
-  jq -R -s --argjson freeze "${fz:-0}" --argjson now "$EPOCHSECONDS" '
+  # PENALTY_VERDICTS: presença da linha ≠ default (lista vazia = nada penaliza); o valor foi
+  # gravado com %q (espaço vira `\ `, vazio vira `''`) — tr limpa para códigos espaço-separados.
+  local pvline pv deny code
+  pvline="$(grep -m1 '^PENALTY_VERDICTS=' "$CONTESTSDIR/$c/conf" 2>/dev/null)"
+  if [[ -n "$pvline" ]]; then
+    pv="$(printf '%s' "${pvline#PENALTY_VERDICTS=}" | tr -cd 'a-z ')"
+  else
+    pv="$PENALTY_CODES_DEFAULT"
+  fi
+  deny=""
+  for code in $PENALTY_CODES_ALL; do
+    [[ " $pv " == *" $code "* ]] || deny+="${deny:+$'\t'}$(penalty_code_canon "$code")"
+  done
+  jq -R -s --argjson freeze "${fz:-0}" --argjson now "$EPOCHSECONDS" --arg denyraw "$deny" '
+    '"$VERDICT_CANON_JQ"'
+    ($denyraw|split("\t")|map(select(length>0))) as $deny |
     def vw($g; $fac; $real):
       ($g|map(select(.counts))) as $cnt
       | {solved: ($fac != null),
@@ -141,9 +163,13 @@ metrics_recompute(){
            verdict:(.[3:-2]|join(":"))})
     | map(. + {prov: (.verdict|test("Not Answered Yet|On queue|Running"; "i")),
                ac:   (.verdict|startswith("Accepted"))})
-    | map(. + {counts: ((.prov or (.verdict|startswith("Compilation Error"))
-                              or (.verdict|startswith("Judge Error"))
-                              or (.verdict|test("^No_?Servers"))) | not),
+    | map(. + {counts: ((.prov
+                or (.verdict|startswith("Judge Error"))
+                or (.verdict|test("^No_?Servers"))
+                or ((($deny|index("Compilation Error")) != null)
+                    and (.verdict|startswith("Compilation Error")))
+                or ((.verdict | sub(" \\(Ignored\\)$"; "") | vcanon) as $cv
+                    | ($deny|index($cv)) != null)) | not),
                pts: (if .prov then null
                      elif (.verdict|test("[0-9]+p")) then
                        (.verdict|capture("(?<n>[0-9]+)p").n|tonumber)

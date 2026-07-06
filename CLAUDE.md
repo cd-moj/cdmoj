@@ -41,8 +41,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   dir local sem `account.json`). **Rename de conta = `mv` do diretório** (`user_rename` +
   telegram index). Leitores agregados usam `emit_user_history`/`emit_history_stream` (formato
   global de 7 campos). **O placar NÃO varre history**: `metrics_recompute` grava em
-  `metrics.json` tudo que os geradores precisam por problema (`counted` até o 1º AC,
-  `first_ac_epoch`, `pending`, `best_score` NNp, `heur`, visão **`frozen`** pré-`FREEZE_TIME`) e
+  `metrics.json` tudo que os geradores precisam por problema (`counted` até o 1º AC — quais
+  verdicts contam obedece o `PENALTY_VERDICTS` do conf e o peso é o `PENALTY_MINUTES` do
+  gerador icpc, defaults = comportamento clássico, ver `docs/SCOREBOARD.md`;
+  `first_ac_epoch`; `pending`; `best_score` NNp; `heur`; visão **`frozen`** pré-`FREEZE_TIME`) e
   `score/build.sh` + `sc_cells` (score-common.sh) leem `users/*/metrics.json` numa passada —
   placar em **`var/placar{,-full,-custom}.txt`** (não mais `controle/`). Staleness dos caches
   preguiçosos (`contest/score`/`statistics`/`response-stats`/balões) = **`var/.score-dirty`**

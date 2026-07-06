@@ -64,6 +64,32 @@ VERDICT_CANON_AWK='function canon(v,  orig, ign, head) {
 }'
 
 # Uso (jq): jq "$VERDICT_CANON_JQ ..programa que chama vcanon.."
+# --- penalidade ICPC configurável (conf: PENALTY_MINUTES / PENALTY_VERDICTS) ---------------
+# Universo FIXO de códigos que podem (ou não) contar penalidade no placar ICPC; Judge Error/
+# No_Servers e estados provisórios NUNCA penalizam (falha do sistema, não do competidor).
+# Default (var ausente no conf) = wa tle mle rte — Compilation Error fora, como sempre foi.
+PENALTY_CODES_ALL="wa tle mle rte ce"
+PENALTY_CODES_DEFAULT="wa tle mle rte"
+
+# penalty_code_canon <código> -> rótulo canônico do verdict
+penalty_code_canon() { case "$1" in
+  wa)  echo "Wrong Answer" ;;
+  tle) echo "Time Limit Exceeded" ;;
+  mle) echo "Memory Limit Exceeded" ;;
+  rte) echo "Runtime Error" ;;
+  ce)  echo "Compilation Error" ;;
+esac; }
+
+# penalty_codes_normalize <json-array> -> códigos válidos na ordem canônica (espaço-separados,
+# dedup); vazio se a lista for []; rc!=0 se não for array de códigos conhecidos.
+penalty_codes_normalize() {
+  jq -r --arg all "$PENALTY_CODES_ALL" '
+    . as $in
+    | if (type=="array" and all(.[]?; . as $c | ($c|type)=="string" and ((($all|split(" "))|index($c)) != null)))
+      then (($all|split(" ")) | map(select(. as $c | ($in|index($c)) != null)) | join(" "))
+      else error("bad_codes") end' <<<"$1" 2>/dev/null
+}
+
 VERDICT_CANON_JQ='def vcanon:
   if . == null then null else
   . as $orig
