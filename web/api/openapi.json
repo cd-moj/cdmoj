@@ -1517,6 +1517,53 @@
         }
       }
     },
+    "/contest/badges": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Credenciais p/ etiquetas imprimíveis (SENHA EM CLARO; auditado badges-view). Admin: tudo ou o arquivo de uma sede via staff=<login>; .staff: só o próprio recorte (staff-filters) + a própria conta. include_disabled=1 inclui contas desativadas",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{users:[{login,name,fullname,password,disabled,region,univ}], staff:[…só admin], regions, staff_password, contest_name, start_epoch}"
+          },
+          "403": {
+            "description": "staff_required | staff_scope"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Só admin: liga/desliga a variante com senha p/ o .staff (body {staff_password:bool}; desligada, o GET do staff vem sem o campo password). Auditado (badges-config)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved:true, staff_password:bool}"
+          }
+        }
+      }
+    },
     "/contest/admin/staff-filters": {
       "get": {
         "tags": [

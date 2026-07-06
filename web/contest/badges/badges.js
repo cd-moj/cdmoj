@@ -1,0 +1,256 @@
+// contest/badges/badges.js — etiquetas imprimíveis de credenciais (admin + .staff).
+// Admin vê a lista completa (ou o "arquivo" de cada sede via seletor de staff); o .staff
+// vê só o próprio recorte — quem corta é a API (/contest/badges), inclusive a variante
+// com senha (flag staff_password: desligada, a senha nem chega ao cliente do staff).
+// A folha é HTML em mm (posicionamento absoluto), casada com os gabaritos Pimaco A4;
+// imprimir = window.print() com margens "Nenhuma" e escala 100%. Credenciais NUNCA são
+// gravadas no cliente — só o estado dos controles vai ao localStorage.
+import { apiGet, apiPost } from '/shared/api.js';
+import { el } from '/shared/ui.js';
+import { initContestShell } from '/shared/contest-shell.js';
+
+const qs = new URLSearchParams(location.search);
+const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
+const app = document.getElementById('app');
+const sheets = document.getElementById('sheets');
+const G = { contest: CONTEST, auth: true };
+const enc = encodeURIComponent;
+const CFGKEY = 'moj_badges_' + CONTEST;
+
+// Gabaritos Pimaco A4 (linha A43xx, compatível Avery L71xx) + o crachá do MOJ 2025.
+// Dimensões NOMINAIS (mm) — confira na embalagem; os campos editáveis são a fonte da
+// verdade do render (o preset só os preenche). ph/pv = passo (etiqueta + espaçamento).
+const PRESETS = [
+  { id: 'a4365',   label: 'Pimaco A4365 · 99,1×67,7 · 8/folha (grande)',   w: 99.1, h: 67.7, cols: 2, rows: 4, mt: 13.1, ml: 4.65, ph: 101.6, pv: 67.7 },
+  { id: 'moj2025', label: 'Crachá MOJ 2025 · 88,9×50,8 · 10/folha',        w: 88.9, h: 50.8, cols: 2, rows: 5, mt: 21.5, ml: 16.1, ph: 88.9,  pv: 50.8 },
+  { id: 'a4361',   label: 'Pimaco A4361 · 63,5×46,6 · 18/folha',           w: 63.5, h: 46.6, cols: 3, rows: 6, mt: 8.7,  ml: 7.25, ph: 66.0,  pv: 46.6 },
+  { id: 'a4363',   label: 'Pimaco A4363 · 99,1×38,1 · 14/folha (média)',   w: 99.1, h: 38.1, cols: 2, rows: 7, mt: 15.1, ml: 4.65, ph: 101.6, pv: 38.1 },
+  { id: 'a4362',   label: 'Pimaco A4362 · 99,1×33,9 · 16/folha (média)',   w: 99.1, h: 33.9, cols: 2, rows: 8, mt: 12.9, ml: 4.65, ph: 101.6, pv: 33.9 },
+  { id: 'a4360',   label: 'Pimaco A4360 · 63,5×38,1 · 21/folha (pequena)', w: 63.5, h: 38.1, cols: 3, rows: 7, mt: 15.1, ml: 7.25, ph: 66.0,  pv: 38.1 },
+  { id: 'custom',  label: 'Dimensões personalizadas' },
+];
+const DIMKEYS = ['w', 'h', 'cols', 'rows', 'mt', 'ml', 'ph', 'pv'];
+
+// estado dos controles (persistido; NUNCA guarda credenciais)
+const S = Object.assign({
+  preset: 'a4365',
+  dims: { w: 99.1, h: 67.7, cols: 2, rows: 4, mt: 13.1, ml: 4.65, ph: 101.6, pv: 67.7 },
+  showPass: true,
+  fEvent: true, fRegion: true, fUniv: true,     // conteúdo extra da etiqueta
+  outline: false, skip: 0, regionFilter: '', staffView: '', incDisabled: false,
+}, JSON.parse(localStorage.getItem(CFGKEY) || 'null') || {});
+const save = () => localStorage.setItem(CFGKEY, JSON.stringify(S));
+
+let DATA = null;         // última resposta da API
+let IS_ADMIN = false;
+let afterLoad = () => {}; // repopula selects (definido em render())
+const statusBar = el('span', { class: 'small muted' });
+
+async function load() {
+  let q = '/contest/badges?contest=' + enc(CONTEST);
+  if (IS_ADMIN && S.staffView) q += '&staff=' + enc(S.staffView);
+  if (S.incDisabled) q += '&include_disabled=1';
+  statusBar.textContent = 'carregando…';
+  try { DATA = await apiGet(q, G); }
+  catch (e) { DATA = null; sheets.innerHTML = ''; statusBar.textContent = 'Falha ao listar: ' + (e.message || 'erro'); return; }
+  afterLoad();
+  renderSheets();
+}
+
+// staff sem senha liberada (flag do admin): a API já omite o campo password
+const passAllowed = () => IS_ADMIN || !DATA || DATA.staff_password !== false;
+
+// reduz a fonte do elemento até o conteúdo caber (nomes/instituições longos)
+function fitText(elm, box, minPx) {
+  let size = parseFloat(getComputedStyle(elm).fontSize);
+  while (size > minPx && (box.scrollHeight > box.clientHeight + 1 || elm.scrollWidth > elm.clientWidth + 1)) {
+    size -= 0.5; elm.style.fontSize = size + 'px';
+  }
+}
+
+function labelNode(u, d) {
+  const mm = (v) => v.toFixed(2) + 'mm';
+  const isStaff = /\.staff$/.test(u.login || '');
+  const inner = el('div', { class: 'lbl-inner' });
+  // tamanhos proporcionais à altura da etiqueta (auto-reduzidos depois, se estourar)
+  const nameSz = Math.max(3.2, Math.min(5.4, d.h * 0.105));
+  const credSz = Math.max(2.8, Math.min(4.6, d.h * 0.082));
+  inner.append(el('div', { class: 'name', style: 'font-size:' + mm(nameSz) }, u.name || u.login));
+  if (S.fUniv && u.univ) inner.append(el('div', { class: 'univ', style: 'font-size:' + mm(Math.max(2.4, nameSz * 0.55)) }, u.univ));
+  inner.append(el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.login));
+  if (S.showPass && passAllowed()) inner.append(el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.password || ''));
+  const tag = (S.fRegion && u.region ? u.region : '') + (isStaff ? (S.fRegion && u.region ? ' · ' : '') + 'staff' : '');
+  if (tag) inner.append(el('div', { class: 'tag' }, tag));
+  if (S.fEvent) {
+    const dt = DATA.start_epoch > 0 ? new Date(DATA.start_epoch * 1000).toLocaleDateString('pt-BR') : '';
+    inner.append(el('div', { class: 'foot' }, (DATA.contest_name || CONTEST) + (dt ? ' · ' + dt : '')));
+  }
+  return el('div', { class: 'lbl' }, inner);
+}
+
+function renderSheets() {
+  sheets.innerHTML = '';
+  document.body.classList.toggle('outline', !!S.outline);
+  if (!DATA) return;
+  let users = DATA.users || [];
+  if (S.regionFilter) users = users.filter((u) => (u.region || '(sem região)') === S.regionFilter);
+  const d = S.dims, cols = Math.max(1, d.cols | 0), rows = Math.max(1, d.rows | 0);
+  const perPage = cols * rows;
+  const skip = Math.min(Math.max(0, S.skip | 0), perPage - 1);
+  statusBar.textContent = users.length + ' etiqueta(s)' +
+    (DATA.staff_view ? ' · arquivo de ' + DATA.staff_view : '') +
+    ' · ' + Math.ceil((users.length + skip) / perPage) + ' folha(s) de ' + perPage +
+    (S.showPass && passAllowed() ? ' · COM senha' : ' · sem senha');
+  if (!users.length) {
+    sheets.append(el('p', { class: 'muted small no-print', style: 'text-align:center' }, 'Nenhum usuário para etiquetar.'));
+    return;
+  }
+  const fits = [];
+  users.forEach((u, i) => {
+    const pos = i + skip, slot = pos % perPage;
+    if (i === 0 || slot === 0) sheets.append(el('div', { class: 'sheet' }));   // nova folha
+    const sheet = sheets.lastChild;
+    const lbl = labelNode(u, d);
+    lbl.style.left = (d.ml + (slot % cols) * d.ph) + 'mm';
+    lbl.style.top = (d.mt + Math.floor(slot / cols) * d.pv) + 'mm';
+    lbl.style.width = d.w + 'mm';
+    lbl.style.height = d.h + 'mm';
+    sheet.append(lbl);
+    fits.push(lbl);
+  });
+  // fit com tudo no DOM (mede tamanhos reais)
+  fits.forEach((lbl) => {
+    const inner = lbl.firstChild;
+    fitText(inner.querySelector('.name'), inner, 8);
+    const uv = inner.querySelector('.univ'); if (uv) fitText(uv, inner, 7);
+  });
+}
+
+function render() {
+  app.innerHTML = '';
+  const mkChk = (label, key, refetch) => {
+    const c = el('input', { type: 'checkbox' }); c.checked = !!S[key];
+    c.addEventListener('change', () => { S[key] = c.checked; save(); refetch ? load() : renderSheets(); });
+    return el('label', {}, c, ' ' + label);
+  };
+
+  // variante com/sem senha (staff sem permissão do admin só vê "sem senha")
+  const passSel = el('select', {},
+    el('option', { value: '1' }, '🔑 com senha'),
+    el('option', { value: '' }, 'sem senha'));
+  passSel.value = S.showPass ? '1' : '';
+  passSel.addEventListener('change', () => { S.showPass = passSel.value === '1'; save(); renderSheets(); });
+
+  // preset Pimaco → preenche as dimensões editáveis (fonte da verdade do render)
+  const presetSel = el('select', {}, PRESETS.map((p) => el('option', { value: p.id }, p.label)));
+  presetSel.value = PRESETS.some((p) => p.id === S.preset) ? S.preset : 'custom';
+  const dimInputs = {};
+  const numField = (label, key, step) => {
+    const i = el('input', { type: 'number', step: step || '0.05', min: '0', value: S.dims[key] });
+    dimInputs[key] = i;
+    i.addEventListener('change', () => {
+      S.dims[key] = parseFloat(i.value) || 0;
+      S.preset = 'custom'; presetSel.value = 'custom';
+      save(); renderSheets();
+    });
+    return el('label', {}, label + ' ', i);
+  };
+  const dimBox = el('div', { class: 'dim-grid' },
+    numField('largura', 'w'), numField('altura', 'h'),
+    numField('colunas', 'cols', '1'), numField('linhas', 'rows', '1'),
+    numField('marg. sup.', 'mt'), numField('marg. esq.', 'ml'),
+    numField('passo horiz.', 'ph'), numField('passo vert.', 'pv'));
+  presetSel.addEventListener('change', () => {
+    S.preset = presetSel.value;
+    const p = PRESETS.find((x) => x.id === S.preset);
+    if (p && p.id !== 'custom') {
+      DIMKEYS.forEach((k) => { S.dims[k] = p[k]; dimInputs[k].value = p[k]; });
+    }
+    save(); renderSheets();
+  });
+
+  // filtros: região (client-side) e, p/ admin, o "arquivo" de cada staff (refaz o fetch)
+  const regionSel = el('select', {}, el('option', { value: '' }, 'todas as regiões'));
+  regionSel.addEventListener('change', () => { S.regionFilter = regionSel.value; save(); renderSheets(); });
+  const staffSel = el('select', {}, el('option', { value: '' }, 'lista completa'));
+  staffSel.addEventListener('change', () => { S.staffView = staffSel.value; save(); load(); });
+
+  const skipIn = el('input', { type: 'number', min: '0', step: '1', value: S.skip | 0, title: 'etiquetas já usadas na 1ª folha' });
+  skipIn.addEventListener('change', () => { S.skip = Math.max(0, skipIn.value | 0); save(); renderSheets(); });
+
+  // admin: liga/desliga a variante com senha p/ o .staff (persistido na API, corte na API)
+  let spBox = '';
+  if (IS_ADMIN) {
+    const spChk = el('input', { type: 'checkbox' });
+    spChk.addEventListener('change', async () => {
+      spChk.disabled = true;
+      try {
+        const r = await apiPost('/contest/badges?contest=' + enc(CONTEST), { staff_password: spChk.checked }, G);
+        if (DATA) DATA.staff_password = r.staff_password;
+      } catch (e) { alert(e.message || 'falha'); spChk.checked = !spChk.checked; }
+      spChk.disabled = false;
+    });
+    spBox = el('label', { title: 'desligado, o staff só gera etiquetas SEM senha (a API omite o campo)' }, spChk, ' staff gera com senha');
+    afterLoad = () => { spChk.checked = DATA ? DATA.staff_password !== false : true; fillSelects(); };
+  } else {
+    afterLoad = () => {
+      fillSelects();
+      // sem permissão: trava a variante em "sem senha"
+      passSel.querySelector('option[value="1"]').disabled = !passAllowed();
+      if (!passAllowed()) { passSel.value = ''; S.showPass = false; save(); }
+    };
+  }
+
+  function fillSelects() {
+    if (!DATA) return;
+    const regs = [...new Set((DATA.users || []).map((u) => u.region || '(sem região)'))];
+    regionSel.innerHTML = ''; regionSel.append(el('option', { value: '' }, 'todas as regiões'));
+    regs.forEach((r) => regionSel.append(el('option', { value: r }, r)));
+    if (!regs.includes(S.regionFilter)) S.regionFilter = '';
+    regionSel.value = S.regionFilter;
+    if (IS_ADMIN) {
+      staffSel.innerHTML = ''; staffSel.append(el('option', { value: '' }, 'lista completa'));
+      (DATA.staff || []).forEach((s) => staffSel.append(
+        el('option', { value: s.login }, 'arquivo de ' + s.login + (s.fullname ? ' — ' + s.fullname : ''))));
+      if (!(DATA.staff || []).some((s) => s.login === S.staffView)) S.staffView = '';
+      staffSel.value = S.staffView;
+    }
+  }
+
+  app.append(el('div', { class: 'section controls' },
+    el('div', { class: 'row' },
+      el('label', {}, 'Variante ', passSel),
+      mkChk('contest + data', 'fEvent'), mkChk('sede/região', 'fRegion'), mkChk('instituição', 'fUniv'),
+      mkChk('contorno (calibrar)', 'outline'), spBox),
+    el('div', { class: 'row', style: 'margin-top:.5rem' },
+      el('label', {}, 'Etiqueta ', presetSel), dimBox),
+    el('div', { class: 'row', style: 'margin-top:.5rem' },
+      IS_ADMIN ? el('label', {}, 'Arquivo ', staffSel) : '',
+      el('label', {}, 'Região ', regionSel),
+      IS_ADMIN ? mkChk('incluir desabilitados', 'incDisabled', true) : '',
+      el('label', {}, 'pular ', skipIn, ' etiqueta(s)'),
+      el('div', { class: 'spacer' }), statusBar,
+      el('button', { class: 'btn', onclick: () => window.print() }, '🖨️ Imprimir'))));
+  load();
+}
+
+async function boot() {
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">Contest não informado.</div>'; return; }
+  const { st } = await initContestShell(CONTEST);
+  if (!st || !st.logged_in) {
+    app.innerHTML = '';
+    app.append(el('div', { class: 'section' }, el('h2', {}, '🔒 Entre no contest'),
+      el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, 'Ir para o contest')));
+    return;
+  }
+  if (!st.is_staff && !st.is_admin) {
+    app.innerHTML = '';
+    app.append(el('div', { class: 'section' }, el('h2', {}, '🔒 Acesso restrito'),
+      el('p', { class: 'muted' }, 'Etiquetas de credenciais são do admin e da equipe de sede (.staff).')));
+    return;
+  }
+  IS_ADMIN = !!st.is_admin;
+  if (!IS_ADMIN) S.staffView = '';
+  render();
+}
+boot();

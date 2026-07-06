@@ -92,6 +92,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   veredicto **final** do `controle/history` (vale auto+manual), dedup por id determinístico, **sem
   mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
+- **Etiquetas de credenciais** (`/contest/badges` + página `web/contest/badges/`, gabaritos Pimaco
+  A4): é o **único** endpoint que devolve `.password` numa releitura — gate admin/`.staff`, escopo
+  do staff via `staff-filters.json` (+ a própria conta), contas `.admin/.judge/.cjudge/.mon` nunca
+  entram, e o admin pode desligar a variante com senha p/ o staff (POST `{staff_password:false}` →
+  `print-requests/badges.json`; o GET do staff vem **sem o campo**). Sempre auditado
+  (`badges-view`/`badges-config`).
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o

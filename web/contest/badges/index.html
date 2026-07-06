@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Etiquetas de credenciais — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .controls .row { align-items:center; flex-wrap:wrap; gap:.5rem .9rem; }
+    .controls label { white-space:nowrap; font-weight:400; }
+    .controls input[type=number] { width:4.6rem; }
+    .dim-grid { display:flex; flex-wrap:wrap; gap:.3rem .8rem; align-items:center; }
+    .dim-grid label { font-size:.85rem; color:var(--muted, #666); }
+
+    /* folha A4 física: dimensões em mm; etiquetas posicionadas em absoluto */
+    #sheets { margin:1rem auto; }
+    .sheet { width:210mm; height:297mm; position:relative; overflow:hidden;
+             background:#fff; color:#000; margin:0 auto 8mm;
+             box-shadow:0 0 6px rgba(0,0,0,.3);
+             page-break-after:always; break-after:page; }
+    .lbl { position:absolute; overflow:hidden; box-sizing:border-box; }
+    .lbl-inner { position:relative; width:100%; height:100%; box-sizing:border-box;
+                 padding:2mm 2.5mm; display:flex; flex-direction:column;
+                 align-items:center; justify-content:center; text-align:center; gap:.4mm; }
+    .lbl .name  { font-weight:700; line-height:1.12; }
+    .lbl .univ  { color:#333; line-height:1.1; }
+    .lbl .cred  { font-family:"Fira Code","DejaVu Sans Mono",ui-monospace,Menlo,Consolas,monospace;
+                  font-weight:600; letter-spacing:.02em; white-space:nowrap; }
+    .lbl .tag   { position:absolute; top:1mm; right:2mm; font-size:2.6mm; color:#333; }
+    .lbl .foot  { position:absolute; bottom:1mm; left:2mm; right:2mm;
+                  font-size:2.4mm; color:#444; font-style:italic;
+                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    body.outline .lbl { outline:.3mm dashed #b9b9b9; outline-offset:-.15mm; }
+
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+      header, nav, main.container, .no-print { display:none !important; }
+      body { margin:0; padding:0; background:#fff; }
+      #sheets { margin:0; }
+      .sheet { margin:0; box-shadow:none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+  <main class="container">
+    <h1 style="margin:.2rem 0 .3rem">🏷️ Etiquetas de credenciais</h1>
+    <p class="muted small" style="margin:.1rem 0 1rem">Gere folhas de etiquetas adesivas (padrão Pimaco A4) com nome, login e senha para colar na mesa ou no caderno de prova. Na impressão do navegador use <b>margens: Nenhuma</b>, <b>escala: 100%</b> e desligue cabeçalho/rodapé.</p>
+    <div id="app"><p class="muted">carregando…</p></div>
+  </main>
+  <div id="sheets"></div>
+  <script type="module" src="./badges.js"></script>
+</body>
+</html>

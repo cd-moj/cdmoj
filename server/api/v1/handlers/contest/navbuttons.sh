@@ -15,6 +15,7 @@ if is_staff; then
   jq -cn '{success:true, buttons:[
     {label:"Score", url:"/contest/score/"},
     {label:"🖨️ Impressão", url:"/contest/staff/"},
+    {label:"🏷️ Etiquetas", url:"/contest/badges/"},
     {label:"Logout", url:"/logout"}
   ]}'
   exit 0

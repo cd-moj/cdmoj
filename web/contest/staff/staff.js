@@ -160,6 +160,7 @@ function render() {
   app.append(
     el('div', { class: 'section' }, autoBox,
       el('div', { class: 'row', style: 'margin:.2rem 0' }, statusBar, el('div', { class: 'spacer' }),
+        el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, '🏷️ Etiquetas'),
         el('button', { class: 'btn ghost', onclick: loadQueue }, '↻ atualizar')),
       el('div', { class: 'chart-wrap' }, table)));
   loadQueue(); schedulePoll();

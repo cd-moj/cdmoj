@@ -193,7 +193,9 @@ function usersTab() {
 }
 
 function usersSection() {
-  const panel = el('div', { class: 'section' }, el('h2', {}, '👥 Usuários'));
+  const panel = el('div', { class: 'section' }, el('h2', {}, '👥 Usuários ',
+    el('a', { class: 'btn ghost', style: 'font-size:.85rem; font-weight:400', target: '_blank',
+      href: '/contest/badges/?c=' + enc(CONTEST) }, '🏷️ Etiquetas de credenciais')));
   const list = el('div', {});
   let USERS = [];
   const PRIV = /\.(admin|judge|cjudge|staff|mon)$/;
