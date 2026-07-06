@@ -191,6 +191,7 @@ e grava os pares de similaridade em `contests/<c>/jplag/`.
 | `moj-master.service` | escalonador `:27000` (no host do master) |
 | `moj-worker@.service` | worker parametrizado (`@pos1` etc., no host do worker) |
 | `moj-bot.service` | mojinho-bot (cliente da API) |
+| `moj-contest-backup@.service`/`.timer` | snapshot rotacionado do contest `%i` a cada 5 min durante a prova (`server/bin/contest-backup.sh`: tar de `contests/<c>/` + spool pendente; ligar o timer no dia) |
 
 ## Resumo do "porquê"
 

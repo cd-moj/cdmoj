@@ -5,15 +5,16 @@ contest="$(param contest)"
 require_contest "$contest"
 require_auth_contest "$contest"
 
-# Toggles do conf: SHOWLOG/SHOWEDITOR default LIGADOS (só "0" desliga); SHOWCODE default desligado.
-SHOWCODE=0; SHOWLOG=""; SHOWEDITOR=""
+# Toggles do conf: SHOWEDITOR default LIGADO (só "0" desliga); SHOWCODE default desligado;
+# SHOWLOG efetivo via showlog_effective (lib/verdict.sh — em modo icpc, ausente = oculto).
+SHOWCODE=0; SHOWEDITOR=""
 load_contest_conf "$contest"
 
 # fullname canônico do passwd (cai p/ SESSION_NAME se vazio)
 NAME="$(user_fullname "$contest" "$SESSION_LOGIN")"
 [[ -n "$NAME" ]] || NAME="$SESSION_NAME"
 
-show_log=true;    [[ "$SHOWLOG" == 0 ]] && show_log=false
+show_log=true;    [[ "$(showlog_effective "$contest")" == 0 ]] && show_log=false
 show_editor=true; [[ "$SHOWEDITOR" == 0 ]] && show_editor=false
 show_code=false;  [[ "${SHOWCODE:-0}" == 1 ]] && show_code=true
 

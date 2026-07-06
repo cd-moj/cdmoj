@@ -73,7 +73,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   sai só pelo summary, **redigido por modo** (`verdict_detail_level`): treino/lista = tudo
   (resumo de testes); obi/heurístico/outro = score/grupos/heur sem correct/total; icpc/
   ausente = só o canônico (nem o dono vê score). Juiz/admin seguem vendo a string crua
-  (allsubmissions/review).
+  (allsubmissions/review). **SHOWLOG efetivo (`showlog_effective`, mesma lib)**: o `report.html`
+  expõe input+diff de TODOS os testes, então o gate do log/summary usa o valor EFETIVO —
+  `SHOWLOG` explícito no conf manda; **ausente = OCULTO em modo icpc** (anti-vazamento de prova)
+  e visível nos demais modos. Religar em icpc = o settings POST grava `SHOWLOG=1` explícito.
 - **Veredicto manual** (`MANUAL_VERDICT`, opt-in): o **daemon** (`daemons/judged.sh`) SEGURA o
   veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) salvo o que
   a matriz `auto-verdicts.json` (problema×lang×veredicto, casada pelo **canônico**) libera; **erros

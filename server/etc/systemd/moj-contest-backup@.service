@@ -1,0 +1,12 @@
+[Unit]
+Description=MOJ: snapshot do contest %i (plano de desastre durante a prova)
+Documentation=file:///home/ribas/moj/cdmoj/server/bin/contest-backup.sh
+
+[Service]
+Type=oneshot
+# Ajuste por deploy: destino IDEALMENTE em outro disco/máquina.
+Environment=MOJ_BACKUP_DEST=/var/backups/moj
+# Environment=CONTESTSDIR=%h/moj/contests
+# Environment=RUNDIR=%h/moj/run
+ExecStart=/bin/bash %h/moj/cdmoj/server/bin/contest-backup.sh %i
+NoNewPrivileges=true

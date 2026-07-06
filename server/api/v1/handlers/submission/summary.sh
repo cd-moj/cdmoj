@@ -5,7 +5,8 @@
 # REDIGIDO pelo modo do contest (lib/verdict.sh, verdict_detail_level): full (treino) = tudo;
 # score (obi/heurístico/outro) = canônico + score/grupos/heur SEM correct/total; none (icpc) =
 # só o canônico — anti-leak, nem o dono recebe score. Juiz/admin: sempre full com verdict cru.
-# Mesmo gate do log: o dono vê o seu (salvo SHOWLOG=0); ids de terceiros são apenas OMITIDOS
+# Mesmo gate do log: o dono vê o seu (salvo SHOWLOG efetivo 0 — em icpc, ausente = oculto);
+# ids de terceiros são apenas OMITIDOS
 # (não 403 — pede-se em lote). Fallbacks p/ results antigos: verdict_canon derivado da string;
 # groups derivado da cauda legada "Pontos | 30 | 0 |" (sem max).
 contest="$(param contest)"
@@ -16,11 +17,12 @@ require_auth_contest "$contest"
 idsraw="$(param ids)"
 [[ -n "$idsraw" ]] || fail 400 "Missing ids" "ids_missing"
 
-SHOWCODE=0; SHOWLOG=""
+SHOWCODE=0
 load_contest_conf "$contest"
 isjudge=0; is_judge && isjudge=1
-# SHOWLOG=0 esconde o detalhe do julgamento do não-juiz; o resumo (nº de testes) segue essa trava.
-hidden=0; [[ "$isjudge" == 0 && "$SHOWLOG" == 0 ]] && hidden=1
+# SHOWLOG efetivo (showlog_effective, lib/verdict.sh — em icpc, ausente = oculto) esconde o
+# detalhe do julgamento do não-juiz; o resumo (nº de testes) segue essa trava.
+hidden=0; [[ "$isjudge" == 0 && "$(showlog_effective "$contest")" == 0 ]] && hidden=1
 # nível de detalhe pelo modo do contest (lib/verdict.sh); juiz/admin veem tudo
 lvl="$(verdict_detail_level "$(contest_score_mode "$contest")")"
 [[ "$isjudge" == 1 ]] && lvl=full

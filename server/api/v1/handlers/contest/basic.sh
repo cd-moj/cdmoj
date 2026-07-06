@@ -1,5 +1,7 @@
 # GET /contest/basic?contest=<id>   (PÚBLICO)
 # Info básica p/ tela de login/countdown: nome, id, início, fim, login_start_time, locale.
+# Com sessão DESTE contest no Bearer (opcional), o end_time devolvido é o fim EFETIVO do
+# login (prorrogação por sede/grupo via time-overrides.json) — o countdown mostra o certo.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -7,6 +9,11 @@ require_contest "$contest"
 CONTEST_ID="$contest"; CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0
 LOGIN_START_TIME=""; LOCALE=""; LOGIN_ENABLED=""; FREEZE_TIME=""; SCORE_ANON=""; LANGUAGES=""; SECRET=""
 load_contest_conf "$contest"
+
+source "$_LIBDIR/contest-gate.sh"
+if load_session && [[ "$SESSION_CONTEST" == "$contest" ]]; then
+  CONTEST_END="$(contest_end_effective "$contest" "$SESSION_LOGIN")"
+fi
 
 [[ -n "$LOGIN_START_TIME" ]] || LOGIN_START_TIME="$CONTEST_START"
 [[ -n "$LOCALE" ]] || LOCALE="pt"

@@ -1,15 +1,14 @@
 // shared/editor.js — editor de código/texto embutido.
-// Usa CodeMirror 6 via ESM (sem build). Se a rede/CDN falhar, cai para <textarea>
+// Usa CodeMirror 6 VENDORIZADO (bundle ESM local em shared/vendor/codemirror/ — nada de
+// CDN: contest roda em LAN isolada). Se o bundle falhar, cai para <textarea>
 // automaticamente. `cm` é o modo de realce (ver shared/languages.js; 'markdown' p/ enunciados).
 // Opção `images:true` habilita colar/arrastar imagem -> embute no texto como ![](data:...)
 // (downscale via canvas), resolvendo a gestão de imagens de forma transparente.
 
-const CM = 'https://esm.sh/codemirror@6.0.1';
-const CMLANG = 'https://esm.sh/@codemirror/language@6.10.1';
-const LEGACY = 'https://esm.sh/@codemirror/legacy-modes@6.4.0/mode/';
+const CM = '/shared/vendor/codemirror/cm-bundle.js';
 // modo "legacy" (StreamLanguage): linguagens sem pacote dedicado do CodeMirror 6.
-const legacy = (file, name) => Promise.all([import(CMLANG), import(LEGACY + file)])
-  .then(([L, m]) => L.StreamLanguage.define(m[name]));
+// O bundle re-exporta os modos pelo NOME do export original (csharp, haskell, oCaml, …).
+const legacy = (name) => import(CM).then(m => m.StreamLanguage.define(m[name]));
 // realce mínimo de Prolog (não há modo pronto): comentários %, :-/?-, variáveis, átomos, strings.
 const PROLOG = {
   startState: () => ({}),
@@ -26,22 +25,23 @@ const PROLOG = {
   },
 };
 const LANG = {
-  cpp:        () => import('https://esm.sh/@codemirror/lang-cpp@6.0.1').then(m => m.cpp()),
-  python:     () => import('https://esm.sh/@codemirror/lang-python@6.1.6').then(m => m.python()),
-  java:       () => import('https://esm.sh/@codemirror/lang-java@6.0.1').then(m => m.java()),
-  rust:       () => import('https://esm.sh/@codemirror/lang-rust@6.0.1').then(m => m.rust()),
-  go:         () => import('https://esm.sh/@codemirror/lang-go@6.0.1').then(m => m.go()),
-  javascript: () => import('https://esm.sh/@codemirror/lang-javascript@6.2.2').then(m => m.javascript()),
-  markdown:   () => import('https://esm.sh/@codemirror/lang-markdown@6.2.5').then(m => m.markdown()),
+  cpp:        () => import(CM).then(m => m.cpp()),
+  python:     () => import(CM).then(m => m.python()),
+  java:       () => import(CM).then(m => m.java()),
+  rust:       () => import(CM).then(m => m.rust()),
+  go:         () => import(CM).then(m => m.go()),
+  javascript: () => import(CM).then(m => m.javascript()),
+  markdown:   () => import(CM).then(m => m.markdown()),
   // linguagens aceitas sem pacote dedicado -> modos legacy (StreamLanguage):
-  csharp:     () => legacy('clike', 'csharp'),     // C#
-  haskell:    () => legacy('haskell', 'haskell'),  // Haskell
-  ocaml:      () => legacy('mllike', 'oCaml'),     // OCaml
-  pascal:     () => legacy('pascal', 'pascal'),    // Pascal
-  shell:      () => legacy('shell', 'shell'),      // sh / bash
-  apl:        () => legacy('apl', 'apl'),          // APL
-  gas:        () => legacy('gas', 'gas'),          // assembly (MIPS/spim, RISC-V/rars)
-  prolog:     () => import(CMLANG).then(L => L.StreamLanguage.define(PROLOG)),
+  csharp:     () => legacy('csharp'),   // C#
+  kotlin:     () => legacy('kotlin'),   // Kotlin (modo clike legacy)
+  haskell:    () => legacy('haskell'),  // Haskell
+  ocaml:      () => legacy('oCaml'),    // OCaml
+  pascal:     () => legacy('pascal'),   // Pascal
+  shell:      () => legacy('shell'),    // sh / bash
+  apl:        () => legacy('apl'),      // APL
+  gas:        () => legacy('gas'),      // assembly (MIPS/spim, RISC-V/rars)
+  prolog:     () => import(CM).then(m => m.StreamLanguage.define(PROLOG)),
 };
 
 // imagem -> markdown ![](data:...), com downscale se larga demais (mantém o .md leve)

@@ -15,14 +15,15 @@ sid="$(param id)"
 set +o noglob; shopt -s nullglob
 resolve_submission "$contest" "$sid"     # store-v2 ou legado
 owner="$SUB_OWNER"
-SHOWCODE=0; SHOWLOG=""
+SHOWCODE=0
 load_contest_conf "$contest"
-# juiz/admin sempre veem; dono vê salvo se o admin escondeu o log (SHOWLOG=0).
+# juiz/admin sempre veem; dono vê conforme o SHOWLOG efetivo (showlog_effective em
+# lib/verdict.sh: explícito manda; ausente = oculto em modo icpc — o report expõe os testes).
 if ! is_judge; then
   if [[ -n "$owner" && "$owner" != "$SESSION_LOGIN" && "${SHOWCODE:-0}" != 1 ]]; then
     shopt -u nullglob; fail 403 "Log not visible" "log_forbidden"
   fi
-  if [[ "$SHOWLOG" == 0 ]]; then
+  if [[ "$(showlog_effective "$contest")" == 0 ]]; then
     shopt -u nullglob; fail 403 "Log oculto pelo admin do contest" "log_hidden"
   fi
 fi

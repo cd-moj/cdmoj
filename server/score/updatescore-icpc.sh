@@ -11,6 +11,8 @@
 # Per team / per problem the cell is:
 #   ""              untried
 #   tries/minutes   solved (minutes from CONTEST_START; painted by balloon color)
+#   tries/minutes*  solved FIRST-TO-SOLVE (menor first_ac_epoch do problema ENTRE os
+#                   times do placar, na MESMA visão frozen/full — o front destaca com ★)
 #   tries/-         tried but unsolved
 #
 # Penalty = sum over solved problems of (tries-1)*PENALTYCOST + accepted-minute.
@@ -43,10 +45,28 @@ while IFS=$'\t' read -r l pr s fac cnt pend _rest; do
   CSOL["$l|$pr"]=$s; CFAC["$l|$pr"]=$fac; CCNT["$l|$pr"]=$cnt; CPEND["$l|$pr"]=$pend
 done < <(sc_cells)
 
+# --- first to solve ----------------------------------------------------------
+# Menor first_ac_epoch por problema SÓ entre os times do placar (sc_users já exclui
+# .admin/.judge/.cjudge/.mon — um juiz que resolve antes não rouba o FTS). Mesma visão
+# do resto do placar (frozen/full), então o freeze não vaza FTS de AC escondido.
+mapfile -t SC_ROWS < <(sc_users)
+declare -A FTSMIN
+for row in "${SC_ROWS[@]}"; do
+  IFS=$'\t' read -r login _rest <<<"$row"
+  for ((p=0; p<SC_NPROB; p++)); do
+    key="$login|${SC_CANON[p]}"
+    [[ "${CSOL[$key]:-0}" == 1 ]] || continue
+    fac="${CFAC[$key]:-}"; [[ "$fac" =~ ^[0-9]+$ ]] || continue
+    cur="${FTSMIN[${SC_CANON[p]}]:-}"
+    if [[ -z "$cur" ]] || (( fac < cur )); then FTSMIN[${SC_CANON[p]}]=$fac; fi
+  done
+done
+
 # --- rows ------------------------------------------------------------------
 # Build each row prefixed with "solved:penalty" sort keys, sort, then strip.
 {
-  while IFS=$'\t' read -r login full team us uf flag; do
+  for row in "${SC_ROWS[@]}"; do
+    IFS=$'\t' read -r login full team us uf flag <<<"$row"
     solved=0
     penalty=0
     cells=""
@@ -60,7 +80,9 @@ done < <(sc_cells)
         min=$(( (fac - START) / 60 )); (( min < 0 )) && min=0
         (( solved++ ))
         (( penalty += (tent-1)*PENALTYCOST + min ))
-        cells+=":${tent}/${min}"         # solved
+        fts=""
+        [[ -n "${FTSMIN[${SC_CANON[p]}]:-}" ]] && (( fac == FTSMIN[${SC_CANON[p]}] )) && fts="*"
+        cells+=":${tent}/${min}${fts}"   # solved (* = first to solve)
       else
         cells+=":${tent}/-"              # tried, unsolved
       fi
@@ -69,5 +91,5 @@ done < <(sc_cells)
     printf '%d\t%d\t%s:%s:%s:%s:%s%s:%d\n' \
       "$solved" "$penalty" \
       "$flag" "$login" "$us" "$team" "$uf" "$cells" "$solved"
-  done < <(sc_users)
+  done
 } | sort -t $'\t' -k1,1nr -k2,2n | cut -f3-

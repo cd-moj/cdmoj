@@ -8,6 +8,7 @@ export const LANGUAGES = [
   { id: 'py',    label: 'Python',       cm: 'python',     template: 'def main():\n    pass\n\nmain()\n' },
   { id: 'py2',   label: 'Python 2',     cm: 'python',     template: '# -*- coding: utf-8 -*-\n\ndef main():\n    pass\n\nmain()\n' },
   { id: 'java',  label: 'Java',         cm: 'java',       template: 'import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        \n    }\n}\n' },
+  { id: 'kt',    label: 'Kotlin',       cm: 'kotlin',     template: 'import java.io.BufferedReader\nimport java.io.InputStreamReader\n\nfun main() {\n    val br = BufferedReader(InputStreamReader(System.`in`))\n    \n}\n' },
   { id: 'rs',    label: 'Rust',         cm: 'rust',       template: 'use std::io::*;\n\nfn main() {\n    \n}\n' },
   { id: 'go',    label: 'Go',           cm: 'go',         template: 'package main\n\nimport (\n    "bufio"\n    "fmt"\n    "os"\n)\n\nfunc main() {\n    r := bufio.NewReader(os.Stdin)\n    _ = r; _ = fmt.Sprint\n}\n' },
   { id: 'js',    label: 'JavaScript',   cm: 'javascript', template: 'const data = require("fs").readFileSync(0, "utf8");\nconst lines = data.split("\\n");\n\n' },
@@ -28,6 +29,6 @@ export function langByExt(ext) {
   const direct = LANGUAGES.find((l) => l.id === e);
   if (direct) return direct;
   const alias = { cc: 'cpp', cxx: 'cpp', 'c++': 'cpp', hpp: 'cpp', h: 'c',
-                  python: 'py3', rb: 'py3', kt: 'java', rs: 'rs', bash: 'sh', s: 'spim' };
+                  python: 'py3', rb: 'py3', kts: 'kt', rs: 'rs', bash: 'sh', s: 'spim' };
   return langById(alias[e] || 'c');
 }

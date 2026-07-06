@@ -60,7 +60,8 @@ moj/
 
 Vanilla ES modules, **sem build**, servido estático. `shared/` concentra o cliente de API
 (fetch + Bearer + envelope), auth/token (localStorage), `ui.js` (`el()`, avatares, i18n
-pt/en), o editor **CodeMirror 6** (via esm.sh, com fallback textarea), os gráficos SVG
+pt/en), o editor **CodeMirror 6** (bundle **vendorizado** em `shared/vendor/codemirror/` —
+sem CDN, contest roda em LAN isolada; fallback textarea), os gráficos SVG
 build-free (`/lib/charts.js`), e os **assets offline**: bandeiras locais (`shared/flags/`,
 271 países + 27 estados do BR) e GIFs do Sonic (`shared/assets/sonic/`). Editores de
 configuração de contest reaproveitáveis em `shared/contest-config/` (cores, países/escolas,
@@ -144,7 +145,10 @@ submissão + editor que o admin pode desligar), **placar** multi-modo (icpc/obi/
 heurístico/outro) com bandeiras locais, filtro por país/escola, modo **anônimo** (agregado/
 quartis), **freeze** (esconde resultados após o horário; `build.sh` gera `placar.txt` público
 congelado e `placar-full.txt` completo — `.admin`/`.judge`/`.cjudge` + allowlist `SCORE_FULL_USERS` veem
-o completo), tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Contest **🕵️ SUPER
+o completo) com **cerimônia de revelação nativa** (`/contest/score/reveal.html`, estilo ICPC resolver:
+delta frozen→full revelado de baixo p/ cima, passo/auto, botão "descongelar tudo" = settings `freeze:0`;
+o placar aceita `&view=public` p/ o privilegiado obter a visão congelada; link na aba Situação do admin),
+tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Contest **🕵️ SUPER
 SECRETO** (conf `SECRET=1`, marcável na criação e no admin): **fora** das listagens públicas (home,
 arquivo `/contests/`, `/status/`) e o **placar deixa de ser público** — `score`/`balloons`/`regions`/
 `teams-meta` exigem sessão **daquele** contest (401 `secret_login_required`). A **tela de login/
@@ -167,10 +171,18 @@ problemas e **submetem a qualquer momento** (antes/durante/depois); o usuário n
 problemas após o início** (antes disso, ao logar, recebe uma **tela de contagem regressiva**) e
 **só submete durante a janela** (`/contest/problems` devolve `locked:"not_started"` e `/submit`
 recusa com `403` fora da janela — `contest_not_started`/`contest_ended`); `.staff` não vê problemas
-nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do placar**. Telas internas:
+nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do placar**. A janela
+tem **prorrogação por sede/grupo** (`time-overrides.json`, regras regex no login — 1ª que casa
+**estende** o fim SÓ daquele grupo, ex.: queda de energia numa sede; `contest_end_effective` em
+`lib/contest-gate.sh` vale no `/submit` e no countdown do `/contest/basic` autenticado; editável
+na aba Configurações do admin e por `moj-contest extend --group`, auditado). Telas internas:
 
-- **`/contest/admin/`** — hub com **8 sub-abas** (abas antigas viram alias: `#staff`→Tarefas,
+- **`/contest/admin/`** — hub com **9 sub-abas** (abas antigas viram alias: `#staff`→Tarefas,
   `#log`/`#backups`→Usuários & sessões):
+  **✅ Pré-prova** (checklist verde/amarelo/vermelho de véspera: janela, SHOWLOG oculto (anti-
+  vazamento em icpc), freeze, juízes online, toolchain das linguagens permitidas, TL calibrado
+  por problema + cache nos juízes, staff de impressão, contas, spool travado —
+  `/contest/admin/preflight`);
   **Situação** (painel ao vivo e acionável: logados + alerta de multi-sessão, **ações sugeridas**,
   **saúde por juiz** (online/offline/cache/linguagens), fila, pendentes com tempo de espera,
   **submissões recentes**, **por problema**, métricas avg/p95, timeline com picos e **cards de

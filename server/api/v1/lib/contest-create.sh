@@ -55,6 +55,9 @@ cc_can_create(){
 cc_settings_conf_lines(){
   local spec="$1" v
   # NUNCA usar `.campo // empty` p/ booleano: o // do jq engole `false` (ausente vira "null")
+  # SHOWLOG: grava só o false explícito; ausente = default por modo (showlog_effective em
+  # lib/verdict.sh — icpc = oculto). O wizard manda true por default, então NÃO gravar o true
+  # aqui é o que mantém contest icpc novo protegido (religar = settings POST, SHOWLOG=1).
   v="$(jq -r '.show_log' <<<"$spec")";       [[ "$v" == false ]] && printf 'SHOWLOG=%q\n' 0
   v="$(jq -r '.show_editor' <<<"$spec")";    [[ "$v" == false ]] && printf 'SHOWEDITOR=%q\n' 0
   v="$(jq -r '.show_tl' <<<"$spec")";        [[ "$v" == false ]] && printf 'SHOWTL=%q\n' 0

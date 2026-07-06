@@ -1,0 +1,11 @@
+[Unit]
+Description=MOJ: snapshot do contest %i a cada 5 min (ligar no dia da prova)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+# systemctl --user enable --now moj-contest-backup@<contest>.timer   (antes da prova)
+# systemctl --user disable --now moj-contest-backup@<contest>.timer  (depois)
+
+[Install]
+WantedBy=timers.target

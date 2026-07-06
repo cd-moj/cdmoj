@@ -60,6 +60,19 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const syncPen = () => { penaltySec.style.display = cmode === 'icpc' ? '' : 'none'; };
   syncPen();
 
+  // Em modo icpc o log é OCULTO por padrão (showlog_effective no servidor): o report de
+  // julgamento expõe a entrada e o diff de TODOS os casos de teste — religar vaza a prova.
+  const showLogHint = el('p', { class: 'muted small', style: 'display:none;margin:.1rem 0 .4rem;color:#b45309' },
+    '⚠️ Prova ICPC: o log de julgamento fica oculto por padrão — o report expõe a entrada e o ',
+    'diff de TODOS os casos de teste. Marcar esta opção entrega os testes ao competidor.');
+  let showLogTouched = false;
+  const syncShowLog = () => {
+    if (!showLogTouched && isCreate && cmode === 'icpc') showLog.checked = false;
+    showLogHint.style.display = cmode === 'icpc' ? '' : 'none';
+  };
+  showLog.addEventListener('change', () => { showLogTouched = true; syncShowLog(); });
+  syncShowLog();
+
   const box = el('div', {});
   if (!isCreate) {
     box.append(field('Nome', name),
@@ -72,6 +85,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     chk('Permitir auto-cadastro de novos usuários (late users)', allowLate),
     chk('Mostrar o código das submissões (a todos)', showCode),
     chk('Usuário pode ver o log de julgamento', showLog),
+    showLogHint,
     chk('Editor de código no browser disponível', showEditor),
     chk('Mostrar o tempo-limite dos problemas aos usuários', showTL),
     chk('Permitir backup de arquivos pelos usuários', allowBackup),
@@ -110,5 +124,5 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       } : {}),
     };
   }
-  return { el: box, getValue, setContestMode: (m) => { cmode = m; syncPen(); } };
+  return { el: box, getValue, setContestMode: (m) => { cmode = m; syncPen(); syncShowLog(); } };
 }

@@ -157,7 +157,7 @@ function renderMetaFilters() {
 function renderAnon(p) {
   const box = document.getElementById('scoreContainer'); box.innerHTML = '';
   if (!(p.mode === 'icpc' || p.mode === 'obi')) { box.innerHTML = `<span class="muted">${T('Modo anônimo é só p/ ICPC/OBI.', 'Anonymous mode is ICPC/OBI only.')}</span>`; return; }
-  const isSolved = p.mode === 'icpc' ? (v) => /^\d+\/\d+\/?$/.test(v || '') : (v) => { const n = parseInt(v, 10); return v !== '' && n > 0; };
+  const isSolved = p.mode === 'icpc' ? (v) => /^\d+\/\d+\/?\*?$/.test(v || '') : (v) => { const n = parseInt(v, 10); return v !== '' && n > 0; };
   const teams = p.teams || [];
   const solves = teams.map((t) => p.probShorts.filter((sn) => isSolved(t.probs[sn])).length);
   const n = solves.length, sorted = solves.slice().sort((a, b) => b - a);

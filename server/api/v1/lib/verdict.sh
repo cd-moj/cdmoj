@@ -38,6 +38,21 @@ verdict_detail_level() {
   esac
 }
 
+# showlog_effective <contest> -> 0|1 — SHOWLOG efetivo p/ os leitores do report/log
+# (submission/log, submission/summary, contest/userinfo, admin/settings GET).
+# SHOWLOG explícito no conf manda (0 = oculto; qualquer outro valor = visível). AUSENTE,
+# o default depende do modo: icpc (inclui ausente/desconhecido) = OCULTO — o report.html
+# expõe input+diff de TODOS os testes (não só samples), então em prova ICPC ele não pode
+# vazar ao competidor (mesma razão do nível "none" acima); demais modos = visível (clássico).
+# Religar em contest icpc = gravar SHOWLOG=1 explícito (o settings POST faz isso).
+showlog_effective() {
+  local raw
+  raw="$(sed -n 's/^[[:space:]]*SHOWLOG=//p' "$CONTESTSDIR/$1/conf" 2>/dev/null | tail -1)"
+  raw="${raw%\"}"; raw="${raw#\"}"; raw="${raw%\'}"; raw="${raw#\'}"
+  if [[ -n "$raw" ]]; then [[ "$raw" == 0 ]] && echo 0 || echo 1; return 0; fi
+  [[ "$(contest_score_mode "$1")" == icpc ]] && echo 0 || echo 1
+}
+
 # Canonização da string de display -> rótulo canônico. DUAS implementações que DEVEM
 # ficar EM SINCRONIA (awk p/ os streams TXT de history; jq p/ o /submission/summary):
 #   - pendentes ("Not Answered Yet"/"On queue"/"Running") passam INTACTOS;

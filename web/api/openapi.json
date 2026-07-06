@@ -1107,7 +1107,7 @@
         "tags": [
           "submission"
         ],
-        "summary": "Log do julgamento",
+        "summary": "Log do julgamento (report.html; expõe input+diff de todos os testes — dono vê conforme o SHOWLOG efetivo: explícito manda, ausente = oculto em modo icpc)",
         "security": [
           {
             "bearerAuth": []
@@ -1608,6 +1608,73 @@
         }
       }
     },
+    "/contest/admin/preflight": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Checklist pré-prova (janela, SHOWLOG, freeze, juízes online, toolchains, TL calibrado, staff, contas, spool)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{checks:[{id,level:ok|warn|fail,label,detail}], summary:{ok,warn,fail}}"
+          }
+        }
+      }
+    },
+    "/contest/admin/time-overrides": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Prorrogação de vigência por sede/grupo: regras [{regex,end,reason?}] no login (1ª que casa estende o fim SÓ daquele grupo)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{rules:[{regex,end,reason}], contest_end, regions} — aplicado no /submit e no countdown (contest_end_effective)"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Substitui as regras de prorrogação (valida regex/end; só estende, nunca encurta; auditado)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved:true,rules} — body {rules:[{regex,end,reason?}]}"
+          }
+        }
+      }
+    },
     "/contest/admin/backups": {
       "get": {
         "tags": [
@@ -1777,10 +1844,20 @@
         "tags": [
           "contest"
         ],
-        "summary": "Placar (TXT, 1ª linha = modo)",
+        "summary": "Placar (TXT, 1ª linha = modo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["public"]
+            },
+            "description": "public = visão pública/congelada mesmo com sessão privilegiada"
           }
         ],
         "responses": {
@@ -3457,7 +3534,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui mode read-only e a penalidade ICPC: penalty_minutes, penalty_verdicts)",
+        "summary": "Configurações do contest (inclui mode read-only e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3473,7 +3550,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Atualiza configurações (auditado; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar)",
+        "summary": "Atualiza configurações (auditado; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

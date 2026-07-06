@@ -42,7 +42,7 @@ desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total   ← cabeç
 ### Células por modo
 | Modo | Célula de problema | Ordenação | Cor |
 |---|---|---|---|
-| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/-`=tentou | acertos↓, depois penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) | pinta com a cor do balão |
+| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/minuto*`=**first to solve** (★ + contorno; menor `first_ac_epoch` do problema entre os times do placar, na mesma visão frozen/full) · `tentativas/-`=tentou | acertos↓, depois penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) | pinta com a cor do balão |
 
 **Penalidade configurável (modo `icpc`)** — duas vars de conf, editáveis pelo
 `/contest/admin/settings` (mudar em prova recomputa o placar no próximo GET):

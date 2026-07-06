@@ -4,7 +4,7 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
-import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, makeSettingsEditor, makeLangPicker, makeBankPanel } from '/shared/contest-config/index.js';
+import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, makeSettingsEditor, makeLangPicker, makeBankPanel, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 import { makeTasksTab } from './tasks.js';
 import { makeReviewBoard } from '/shared/review-board.js';
@@ -62,8 +62,56 @@ function settingsTab() {
       catch (e) { save.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
     });
     panel.append(ed.el, el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
+    panel.append(await timeOverridesPanel());
   }
   return { panel, load };
+}
+
+// --- Prorrogação de vigência por sede/grupo (/contest/admin/time-overrides) ---------------
+// Regras [{regex, end, reason}] contra o login: a 1ª que casa ESTENDE o fim do contest só
+// p/ aquele grupo (caso de uso: queda de energia numa sede -> minutos extras só p/ ela).
+async function timeOverridesPanel() {
+  const box = el('div', { style: 'margin-top:1.2rem;border-top:1px solid #e3e9f2;padding-top:.8rem' },
+    el('h3', {}, '⏱ Prorrogação por sede/grupo'),
+    el('p', { class: 'muted small' },
+      'Regras regex no login: a primeira que casar define o novo fim SÓ para aquele grupo ',
+      '(só estende — nunca encurta; a penalidade segue contada do início normal). ',
+      'Ex.: queda de energia numa sede.'));
+  let data; try { data = await apiGet('/contest/admin/time-overrides?contest=' + enc(CONTEST), G); }
+  catch (e) { box.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return box; }
+  const rules = Array.isArray(data.rules) ? data.rules.slice() : [];
+  const list = el('div', {});
+  const msg = el('div', { class: 'small' });
+  const render = () => {
+    list.innerHTML = '';
+    rules.forEach((r, i) => {
+      const rx = el('input', { value: r.regex || '', placeholder: '^sede1-', style: 'width:11rem;font-family:var(--mono)' });
+      const en = el('input', { type: 'datetime-local', value: r.end ? toLocalDT(r.end) : '' });
+      const rs = el('input', { value: r.reason || '', placeholder: 'motivo (ex.: queda de energia)', style: 'flex:1;min-width:12rem' });
+      rx.addEventListener('input', () => { r.regex = rx.value; });
+      en.addEventListener('input', () => { r.end = dtToEpoch(en.value); });
+      rs.addEventListener('input', () => { r.reason = rs.value; });
+      list.append(el('div', { class: 'row', style: 'gap:.4rem;margin:.25rem 0;flex-wrap:wrap' }, rx, en, rs,
+        el('button', { class: 'btn danger ghost', title: 'remover', onclick: () => { rules.splice(i, 1); render(); } }, '✕')));
+    });
+    if (!rules.length) list.append(el('div', { class: 'muted small' }, 'Nenhuma regra ativa (todos seguem o fim normal).'));
+  };
+  render();
+  const add = el('button', { class: 'btn ghost', onclick: () => {
+    rules.push({ regex: '', end: (data.contest_end || 0) + 900, reason: '' }); render();
+  } }, '+ adicionar regra (+15 min sobre o fim)');
+  const save = el('button', { class: 'btn' }, 'Salvar prorrogações');
+  save.addEventListener('click', async () => {
+    save.disabled = true; msg.className = 'small'; msg.textContent = 'Salvando…';
+    try {
+      const r = await apiPost('/contest/admin/time-overrides?contest=' + enc(CONTEST), { rules }, G);
+      rules.length = 0; rules.push(...(r.rules || [])); render();
+      msg.textContent = '✓ salvo (' + rules.length + ' regra' + (rules.length === 1 ? '' : 's') + ')';
+    } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
+    save.disabled = false;
+  });
+  box.append(list, el('div', { class: 'row', style: 'margin-top:.5rem;gap:.5rem' }, add, save, msg));
+  return box;
 }
 
 // ============ Problemas (sanfona: cada problema configura linguagens + enunciado) ============
@@ -418,7 +466,10 @@ function dashTab() {
       card('🎈 balões pend.', tPend.filter((t) => t.kind === 'balloon').length, tOld > 600),
     ] : [];
     panel.innerHTML = '';
-    panel.append(el('h2', {}, '📊 Situação da prova'),
+    panel.append(el('h2', {}, '📊 Situação da prova',
+        el('a', { href: '/contest/score/reveal.html?c=' + enc(CONTEST), target: '_blank',
+                  class: 'btn ghost', style: 'margin-left:.7rem;font-size:.85rem' },
+          '🏆 Cerimônia de revelação')),
       el('div', { class: 'dash-cards' },
         card('Logados', online),
         card('Juízes online', (j.online || 0) + '/' + (j.total || 0), (j.total || 0) > 0 && (j.online || 0) === 0),
@@ -656,9 +707,34 @@ function verdictTab() {
   return { panel, load };
 }
 
+// ============ Pré-prova (checklist verde/amarelo/vermelho — /contest/admin/preflight) ============
+function preflightTab() {
+  const panel = el('div', { class: 'section' });
+  const ICON = { ok: '🟢', warn: '🟡', fail: '🔴' };
+  async function load() {
+    panel.innerHTML = ''; panel.append(el('h2', {}, '✅ Pré-prova'));
+    let d; try { d = await apiGet('/contest/admin/preflight?contest=' + enc(CONTEST), G); }
+    catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
+    const s = d.summary || {};
+    panel.append(el('p', { class: s.fail ? 'error-box' : 'muted' },
+      s.fail ? `🔴 ${s.fail} item(ns) BLOQUEIAM a prova — resolva antes de começar.`
+        : s.warn ? `🟡 ${s.warn} aviso(s); nada bloqueia.` : '🟢 Tudo pronto.'));
+    const ul = el('div', {});
+    (d.checks || []).forEach((c) => ul.append(
+      el('div', { style: 'display:flex;gap:.5rem;align-items:baseline;padding:.3rem 0;border-bottom:1px solid #eef2f7' },
+        el('span', {}, ICON[c.level] || '•'),
+        el('b', { style: 'min-width:16rem' }, c.label),
+        el('span', { class: 'muted small' }, c.detail || ''))));
+    panel.append(ul, el('div', { class: 'row', style: 'margin-top:.6rem' },
+      el('button', { class: 'btn', onclick: load }, '↻ Rodar de novo')));
+  }
+  return { panel, load };
+}
+
 // ============ framework de abas ============
 const TABS = [
   { id: 'dash', label: '📊 Situação', make: dashTab },
+  { id: 'preflight', label: '✅ Pré-prova', make: preflightTab },
   { id: 'settings', label: '⚙️ Configurações', make: settingsTab },
   { id: 'problems', label: '📚 Problemas', make: problemsTab },
   { id: 'appearance', label: '🎨 Aparência', make: appearanceTab },

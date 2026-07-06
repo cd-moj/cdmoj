@@ -1,6 +1,7 @@
 // contest/score/score-icpc.js — renderizador ICPC.
 // Header (após remover marcadores desc/asc): flag:username:univ short:team name:univ full:<SHORTS...>:Total
-// Células: ""=untried · tries/minutes=solved (cor do balão) · tries/-=tried-unsolved.
+// Células: ""=untried · tries/minutes=solved (cor do balão) · tries/minutes*=FIRST TO SOLVE
+// (★ + contorno) · tries/-=tried-unsolved.
 import { el } from '/shared/ui.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
@@ -54,8 +55,8 @@ export function parseICPC(lines, balloons) {
   return { mode: 'icpc', probShorts, teams, balloons };
 }
 
-function cellSolved(v) { return /^\d+\/\d+\/?$/.test(v); }   // tries/minutes
-function cellWait(v) { return /^\d+\/-/.test(v); }           // tries/-
+function cellSolved(v) { return /^\d+\/\d+\/?\*?$/.test(v); }  // tries/minutes[*]
+function cellWait(v) { return /^\d+\/-/.test(v); }             // tries/-
 
 export function renderICPC(parsed, opts) {
   const { searchTerm = '', regionFn = null } = opts || {};
@@ -93,10 +94,13 @@ export function renderICPC(parsed, opts) {
     parsed.probShorts.forEach(sn => {
       const v = t.probs[sn] || '';
       if (cellSolved(v)) {
+        const fts = v.endsWith('*');                       // first to solve
+        const shown = fts ? v.slice(0, -1) : v;
         const color = balloonColorHex(parsed.balloons, sn);
-        const td = el('td', {}, v);
+        const td = el('td', {}, (fts ? '★ ' : '') + shown);
         if (color) { td.style.background = color; td.style.color = balloonIsDark(color) ? '#fff' : '#222'; td.style.fontWeight = '700'; }
         else { td.style.background = '#e2ffe9'; td.style.color = '#222'; td.style.fontWeight = '700'; }
+        if (fts) { td.title = 'First to solve'; td.style.boxShadow = 'inset 0 0 0 2px currentColor'; }
         tr.append(td);
       } else if (cellWait(v)) {
         tr.append(el('td', { class: 'prob-wait-cell' }, v));

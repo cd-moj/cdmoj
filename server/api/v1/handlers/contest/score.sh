@@ -19,8 +19,11 @@ regen_locked "$CONTESTSDIR/$contest/var/.placar.lock" \
 # Privilegiados veem o placar COMPLETO (sem freeze): .admin/.judge SEMPRE + os logins na
 # allowlist do conf (SCORE_FULL_USERS, espaço-separados, configurável pelo .admin). Auth é
 # OPCIONAL aqui (placar é público): só checamos se houver token válido deste contest.
+# `view=public` força a visão PÚBLICA (congelada) mesmo p/ privilegiado — a cerimônia de
+# reveal precisa das DUAS visões (frozen + full) p/ computar o delta.
 ff="$CONTESTSDIR/$contest/var/placar-full.txt"
-if [[ -f "$ff" ]] && load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]]; then
+if [[ "$(param view)" != public ]] \
+   && [[ -f "$ff" ]] && load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]]; then
   priv=0; is_judge && priv=1
   if [[ "$priv" == 0 ]]; then
     allow="$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${SCORE_FULL_USERS:-}")"
