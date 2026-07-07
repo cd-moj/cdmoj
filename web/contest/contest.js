@@ -479,18 +479,26 @@ function toggleDetail(p, item, toggle, submitWrap) {
   if (!detail.dataset.rendered) {
     // time limits — chips (nome da linguagem expandido, igual ao treino)
     const tl = p.time_limits || {};
-    // mostra só as linguagens permitidas do problema (+ default), se houver whitelist
-    const allowed = (p.languages && p.languages.length) ? new Set(resolveLangs(p.languages).map((l) => l.id)) : null;
-    const keys = Object.keys(tl).filter((k) => k === 'default' || !allowed || allowed.has(k))
-      .sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)));
-    if (keys.length) {
+    // com whitelist (do problema ou do contest): UM chip POR linguagem permitida — o TL
+    // medido dela, senão o `default` — e SEM o chip "padrão" (a lista é fechada, não há
+    // "demais linguagens"). resolveLangs degrada p/ TODAS com tokens exóticos: nesse caso
+    // trata como sem restrição (chips medidos + "padrão" cobrindo as não calibradas).
+    const rl = resolveLangs(p.languages || []);
+    const restricted = Array.isArray(p.languages) && p.languages.length > 0 && rl !== LANGUAGES;
+    let chips;   // [{label, time}]
+    if (restricted) {
+      chips = rl.map((l) => ({ label: l.label, time: tl[l.id] != null ? tl[l.id] : tl.default }))
+        .filter((c) => c.time != null);
+    } else {
+      chips = Object.keys(tl)
+        .sort((a, b) => (a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b)))
+        .map((k) => ({ label: k === 'default' ? T('padrão', 'default') : (langById(k).label || k), time: tl[k] }));
+    }
+    if (chips.length) {
       const tlBlock = el('div', { class: 'tl-block' },
         el('span', { class: 'tl-label' }, '⏱ ' + T('Tempo limite', 'Time limit')));
-      keys.forEach((k) => {
-        const label = k === 'default' ? T('padrão', 'default') : (langById(k).label || k);
-        tlBlock.append(el('span', { class: 'tl-chip' },
-          el('b', {}, label), el('span', { class: 'tl-time' }, fmtTime(tl[k]))));
-      });
+      chips.forEach((c) => tlBlock.append(el('span', { class: 'tl-chip' },
+        el('b', {}, c.label), el('span', { class: 'tl-time' }, fmtTime(c.time)))));
       detail.append(tlBlock);
     }
     // enunciado | editor lado a lado — editor embutido só se o admin do contest o habilitou
