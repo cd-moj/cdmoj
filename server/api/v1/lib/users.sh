@@ -278,6 +278,30 @@ emit_history_stream(){
     done )
 }
 
+# emit_history_sorted <c> [n] — como emit_history_stream, mas ordenado por sub_epoch
+# (campo NF-1); com <n>>0, só as ÚLTIMAS n (as mais recentes). O veredicto pode conter
+# `:`, então o sub_epoch não é coluna fixa p/ `sort -t:` — prefixa a chave via awk.
+emit_history_sorted(){
+  local c="$1" n="${2:-0}"
+  emit_history_stream "$c" \
+    | awk -F: 'NF>=6{ print $(NF-1) "\t" $0 }' \
+    | sort -n -k1,1 \
+    | { if (( n > 0 )); then tail -n "$n"; else cat; fi } \
+    | cut -f2-
+}
+
+# results_map_file <c> <out> [<jq-filtro-do-valor>] — materializa em <out> um mapa
+# {subid: <valor>} varrendo users/*/results/*.json (find|xargs em lote). Valor default =
+# (.finalized_at//0). Consumir com --slurpfile (NUNCA --argjson: milhares de chaves).
+results_map_file(){
+  local c="$1" out="$2" vf="${3:-(.finalized_at//0)}"
+  local d; d="$(users_dir "$c")"
+  { [[ -d "$d" ]] && find "$d" -mindepth 3 -maxdepth 3 -path '*/results/*.json' -print0 2>/dev/null \
+      | xargs -0 -r jq -c "select(.id) | {key:(.id|tostring), value:${vf}}" 2>/dev/null
+  } | jq -cs 'from_entries' > "$out" 2>/dev/null
+  [[ -s "$out" ]] || printf '{}\n' > "$out"
+}
+
 # count_pending <c> — nº de submissões pendentes (veredicto provisório). Fan-out por grep.
 count_pending(){
   local c="$1" re=':(Not Answered Yet|On queue|on queue|Running|running):' g

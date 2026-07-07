@@ -12,8 +12,6 @@ source "$_LIBDIR/review.sh"
 
 now="$EPOCHSECONDS"
 cdir="$CONTESTSDIR/$contest"
-hist="$cdir/controle/history"
-resdir="$cdir/results"
 WINDOW=500
 
 # --- juízes: estado POR HOST (saúde do cluster) + contagens + fila ---
@@ -28,27 +26,22 @@ queue_depth="$(find "$QUEUEDIR" -mindepth 2 -maxdepth 2 -name '*.json' 2>/dev/nu
 assigned="$(find "$ASSIGNEDDIR" -mindepth 2 -maxdepth 2 -name '*.json' 2>/dev/null | wc -l | tr -d '[:space:]')"
 
 # --- submissões recentes (TSV: id login problem pending sub_epoch verdict) ---
-rows=""
-[[ -f "$hist" ]] && rows="$(tail -n "$WINDOW" "$hist" 2>/dev/null | awk -F: '
+# Fonte: store por-usuário (emit_history_sorted, formato global de 7 campos) — o
+# controle/history global é do modelo legado e não existe nos contests v2.
+rows="$(emit_history_sorted "$contest" "$WINDOW" | awk -F: '
   NF>=6 {
     pending = ($0 ~ /:(Not Answered Yet|On queue|on queue|Running|running):/) ? 1 : 0
     v=$5; for(i=6;i<=NF-2;i++) v=v":"$i
     printf "%s\t%s\t%s\t%s\t%s\t%s\n", $(NF), $2, $3, pending, $(NF-1), v
   }')"
 
-# finalized_at das submissões já julgadas (uma varredura dos results da janela)
-declare -a RF
-if [[ -n "$rows" ]]; then
-  while IFS=$'\t' read -r id login problem pending sub verdict; do
-    [[ "$pending" == 0 && -f "$resdir/$id.json" ]] && RF+=("$resdir/$id.json")
-  done <<< "$rows"
-fi
-finmap='{}'
-((${#RF[@]})) && finmap="$(jq -s 'map(select(.id) | {key:.id, value:(.finalized_at//0)}) | from_entries' "${RF[@]}" 2>/dev/null)"
-[[ -n "$finmap" ]] || finmap='{}'
+# finalized_at por subid (users/*/results/*.json) — em ARQUIVO p/ --slurpfile (ARG_MAX)
+FINMAP="$(mktemp)"; trap 'rm -f "$FINMAP"' EXIT
+results_map_file "$contest" "$FINMAP"
 
-metrics="$(printf '%s\n' "$rows" | jq -R -cs --argjson fin "$finmap" --argjson now "$now" '
-  [ split("\n")[] | select(length>0) | split("\t")
+metrics="$(printf '%s\n' "$rows" | jq -R -cs --slurpfile finf "$FINMAP" --argjson now "$now" '
+  ($finf[0] // {}) as $fin
+  | [ split("\n")[] | select(length>0) | split("\t")
     | { id:.[0], login:.[1], problem:.[2], pending:(.[3]=="1"), sub:(.[4]|tonumber? // 0), verdict:.[5] } ] as $subs
   | ($subs | map(select(.pending))) as $pend
   | ($subs | map(select(.pending|not) | . + {response:(($fin[.id] // 0) - .sub)}) | map(select(.response > 0))) as $done
