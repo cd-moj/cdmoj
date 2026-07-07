@@ -479,7 +479,16 @@ function dashTab() {
     panel.append(el('h2', {}, '📊 Situação da prova',
         el('a', { href: '/contest/score/reveal.html?c=' + enc(CONTEST), target: '_blank',
                   class: 'btn ghost', style: 'margin-left:.7rem;font-size:.85rem' },
-          '🏆 Cerimônia de revelação')),
+          '🏆 Cerimônia de revelação'),
+        // relatório final estático (tar.gz navegável offline: placar aberto, runs,
+        // clarifications, estatísticas, tarefas do staff, infra) — GET admin/report
+        el('button', { class: 'btn ghost', style: 'margin-left:.5rem;font-size:.85rem',
+          onclick: async (ev) => {
+            const b = ev.currentTarget, old = b.textContent;
+            b.disabled = true; b.textContent = '⏳ gerando…';
+            try { await downloadAuthed('/contest/admin/report?contest=' + enc(CONTEST), 'relatorio-' + CONTEST + '.tar.gz'); }
+            finally { b.disabled = false; b.textContent = old; }
+          } }, '📦 Relatório estático')),
       el('div', { class: 'dash-cards' },
         card('Logados', online),
         card('Juízes online', (j.online || 0) + '/' + (j.total || 0), (j.total || 0) > 0 && (j.online || 0) === 0),

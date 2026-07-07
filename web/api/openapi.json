@@ -1721,6 +1721,32 @@
         }
       }
     },
+    "/contest/admin/report": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Relatório estático da prova (tar.gz navegável offline: placar aberto, runs, enunciados, clarifications anônimas, estatísticas, tarefas do staff, infra)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "application/gzip (relatorio-<c>-<data>.tar.gz)"
+          },
+          "429": {
+            "description": "busy — já existe uma geração em andamento"
+          }
+        }
+      }
+    },
     "/contest/news-file": {
       "get": {
         "tags": [
