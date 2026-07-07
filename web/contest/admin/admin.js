@@ -331,7 +331,7 @@ function usersSection() {
   function makeBatchUsers() {
     let staged = [];       // [{login,password,fullname,email, team_name?,country?,region?,…}] da prévia
     let richMode = false;  // true = veio de CSV com cabeçalho (campos de time inclusos)
-    const ta = el('textarea', { rows: '5', placeholder: 'Cole aqui (ou envie um arquivo). Formatos por linha:\n  login:senha:nome:email\n  login,nome,email\n  Nome Completo   (login e senha gerados)\nOu CSV COM CABEÇALHO (ordem livre; carga única de time+país+sede):\n  login,senha,nome,time,pais,sede,univ,univ_nome', style: 'width:100%' });
+    const ta = el('textarea', { rows: '5', placeholder: 'Cole aqui (ou envie um arquivo). Formatos por linha:\n  login:senha:nome:email\n  login,nome,email\n  Nome Completo   (login e senha gerados)\nOu CSV COM CABEÇALHO (ordem livre; nome = nome do time; carga única c/ país+sede):\n  login,senha,nome,pais,sede,univ,univ_nome', style: 'width:100%' });
     const fileInp = el('input', { type: 'file', accept: '.txt,.csv,text/plain,text/csv', style: 'display:none' });
     fileInp.addEventListener('change', () => { const f = fileInp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { ta.value = ta.value ? (ta.value.replace(/\s*$/, '') + '\n' + rd.result) : rd.result; }; rd.readAsText(f); fileInp.value = ''; });
     const onExisting = el('select', {}, el('option', { value: 'skip' }, 'pular os que já existem'), el('option', { value: 'update' }, 'atualizar senha dos existentes'));
@@ -347,9 +347,8 @@ function usersSection() {
       const users = staged.filter((u) => u.login || u.fullname).map((u) => ({
         login: u.login || undefined, password: u.password || undefined,
         fullname: u.fullname || undefined, email: u.email || undefined,
-        team_name: u.team_name || undefined, country: u.country || undefined,
-        region: u.region || undefined, univ_short: u.univ_short || undefined,
-        univ_full: u.univ_full || undefined,
+        country: u.country || undefined, region: u.region || undefined,
+        univ_short: u.univ_short || undefined, univ_full: u.univ_full || undefined,
       }));
       if (!users.length) { msg.className = 'small error-box'; msg.textContent = 'Nada para enviar.'; return; }
       send.disabled = true; msg.className = 'small'; msg.textContent = 'Enviando ' + users.length + '…';

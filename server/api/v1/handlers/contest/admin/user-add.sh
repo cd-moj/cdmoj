@@ -1,7 +1,8 @@
 # POST /contest/admin/user-add?contest=<id>  (admin DO contest)
-#   {login,password?,fullname?,email?, team_name?,univ_short?,univ_full?,country?,region?}
+#   {login,password?,fullname?,email?, univ_short?,univ_full?,country?,region?}
 # Adiciona OU atualiza (reset de senha) um usuário do contest. Devolve a credencial.
-# Os campos de TIME (opcionais) mesclam no `.team` do account.json (team_fields_json).
+# `fullname` é o nome do time (campo ÚNICO de nome); os campos de TIME (opcionais)
+# mesclam no `.team` do account.json (team_fields_json).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"

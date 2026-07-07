@@ -179,13 +179,15 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
 
 - **`/contest/admin/`** — hub com **10 sub-abas** (abas antigas viram alias: `#staff`→Tarefas,
   `#log`/`#backups`→Usuários & sessões):
-  **👥 Times** (gerência POR-USUÁRIO da identidade dos times — o `.team` do account.json que
-  placar/crachás/impressão leem: time, país, **sede**, universidade, **brasão** (`logo.png`,
-  máx 128) e **foto** (`photo.png`, máx 1000, 📷 clicável no placar); carga única via **CSV com
-  cabeçalho** (`login,time,pais,sede,univ,univ_nome`, ordem livre — o MESMO formato serve na
-  carga em lote de credenciais), **fotos/brasões em LOTE** (arquivos `<login>.<ext>`, 1 POST por
-  arquivo) e o botão **"Materializar matches"** que aplica as regras regex (teams-meta/regiões)
-  aos campos vazios de uma vez — `/contest/{teams,team-photo,team-logo}` +
+  **👥 Times** (gerência POR-USUÁRIO da identidade dos times — **o NOME é campo único:
+  `fullname` = nome do time**, pois usuário de contest É o time; + país, **sede**,
+  universidade (`.team` do account.json, que placar/crachás/impressão leem), **brasão**
+  (`logo.png`, máx 128) e **foto** (`photo.png`, máx 1000, 📷 clicável no placar); carga única
+  via **CSV com cabeçalho** (`login,nome,pais,sede,univ,univ_nome`, ordem livre; `time`/
+  `equipe` = aliases de `nome` — o MESMO formato serve na carga em lote de credenciais),
+  **fotos/brasões em LOTE** (arquivos `<login>.<ext>`, 1 POST por arquivo) e o botão
+  **"Materializar matches"** que aplica as regras regex (teams-meta/regiões) aos campos
+  vazios de uma vez — `/contest/{teams,team-photo,team-logo}` +
   `/contest/admin/{teams,team-assets}`; contest com `users_from` fica só no overlay regex);
   **✅ Pré-prova** (checklist verde/amarelo/vermelho de véspera: janela, SHOWLOG oculto (anti-
   vazamento em icpc), freeze, juízes online, toolchain das linguagens permitidas, TL calibrado

@@ -46,13 +46,15 @@ account_merge(){
 }
 
 # team_fields_json <user-json> — extrai do JSON de entrada os campos de TIME
-# (team_name->name, univ_short, univ_full, country->flag, region) e ecoa o objeto
-# `.team` só com os NÃO-vazios ('{}' se nada veio). Saneia ':'/tab/newline (quebrariam
-# os TSVs derivados: sc_users/badges). Writers: users-bulk, user-add, contest-create
-# users[] e admin/teams — a LEITURA já existia (placar, badges, print).
+# (univ_short, univ_full, country->flag, region) e ecoa o objeto `.team` só com os
+# NÃO-vazios ('{}' se nada veio). Saneia ':'/tab/newline (quebrariam os TSVs derivados:
+# sc_users/badges). O NOME do time é o próprio `.fullname` (campo ÚNICO — usuário de
+# contest É o time); `.team.name` é só legado da migração (leitores fazem
+# `.team.name // .fullname`). Writers: users-bulk, user-add, contest-create users[] e
+# admin/teams — a LEITURA já existia (placar, badges, print).
 team_fields_json() {
-  jq -c '{name:(.team_name // ""), univ_short:(.univ_short // ""),
-          univ_full:(.univ_full // ""), flag:(.country // ""), region:(.region // "")}
+  jq -c '{univ_short:(.univ_short // ""), univ_full:(.univ_full // ""),
+          flag:(.country // ""), region:(.region // "")}
          | with_entries(.value |= (tostring | gsub("[:\t\n\r]"; " ") | gsub("^ +| +$"; "")))
          | with_entries(select(.value != ""))' <<<"${1:-null}" 2>/dev/null || echo '{}'
 }

@@ -3245,7 +3245,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{teams:{<login>:{team?,univ_short?,univ_full?,flag?,region?,has_logo,has_photo}}} — precedência: isto > teams-meta > vazio"
+            "description": "{teams:{<login>:{univ_short?,univ_full?,flag?,region?,has_logo,has_photo}}} — o NOME vem do TXT do placar (fullname); precedência: isto > teams-meta > vazio"
           }
         }
       }
@@ -3307,7 +3307,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Times por-usuário: set{login:{team_name?,univ_short?,univ_full?,country?,region?}} ('' apaga) ou action:materialize (aplica teams-meta/regions aos campos VAZIOS); USERS_FROM → 409",
+        "summary": "Times por-usuário: set{login:{fullname?,univ_short?,univ_full?,country?,region?}} (fullname = nome do time, campo único; '' apaga os de .team) ou action:materialize (aplica teams-meta/regions aos campos VAZIOS); USERS_FROM → 409",
         "security": [
           {
             "bearerAuth": []
@@ -3437,7 +3437,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Adiciona/reseta usuário do contest (team_name/univ_short/univ_full/country/region opcionais mesclam no .team)",
+        "summary": "Adiciona/reseta usuário do contest (fullname = nome do time; univ_short/univ_full/country/region opcionais mesclam no .team)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3460,9 +3460,6 @@
                     "type": "string"
                   },
                   "email": {
-                    "type": "string"
-                  },
-                  "team_name": {
                     "type": "string"
                   },
                   "univ_short": {
@@ -3497,7 +3494,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada; team_name/univ_short/univ_full/country/region opcionais gravam o .team — carga única de credenciais+time)",
+        "summary": "Carga de usuários em lote (skip|update; conta privilegiada existente nunca é resetada; fullname = nome do time; univ_short/univ_full/country/region opcionais gravam o .team — carga única de credenciais+time)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3525,9 +3522,6 @@
                           "type": "string"
                         },
                         "email": {
-                          "type": "string"
-                        },
-                        "team_name": {
                           "type": "string"
                         },
                         "univ_short": {

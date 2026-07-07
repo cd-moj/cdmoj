@@ -1,8 +1,9 @@
 #!/bin/bash
-# TIMES por-usuário (carga única enriquecida): users-bulk com team_name/country/region/univ*
-# grava o `.team` do account.json (que o placar TXT reflete); /contest/teams serve o
-# diretório p/ o placar; admin/teams set+materialize; team-assets (foto/brasão) + rotas
-# team-photo/team-logo (gate do placar: SECRETO exige sessão); staff-filters com
+# TIMES por-usuário (carga única enriquecida): o NOME é campo ÚNICO (fullname = nome do
+# time); users-bulk com country/region/univ* grava o `.team` do account.json (que o placar
+# TXT reflete — coluna team = fullname via fallback); /contest/teams serve o diretório p/
+# o placar; admin/teams set (fullname + campos) + materialize; team-assets (foto/brasão) +
+# rotas team-photo/team-logo (gate do placar: SECRETO exige sessão); staff-filters com
 # region:<nome> -> staff_can_see; badges preferem .team.region; users_from -> 409.
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
@@ -29,22 +30,23 @@ call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${4:-}" \
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${OUT:0:220}"; ((fail++)); fi; }
 
-echo "== users-bulk com campos de time (carga única) =="
+echo "== users-bulk com campos de time (carga única; nome = fullname, campo ÚNICO) =="
 call /contest/admin/users-bulk POST t-adm 'contest=tm' '{"users":[
-  {"login":"alfa","password":"x","fullname":"Time Alfa","team_name":"ALFA","country":"BR-DF","region":"Norte","univ_short":"UnB","univ_full":"Universidade de Brasília"},
-  {"login":"beta","password":"y","fullname":"Time Beta","team_name":"BETA","country":"BR-SP","region":"Sul"},
+  {"login":"alfa","password":"x","fullname":"Time Alfa","country":"BR-DF","region":"Norte","univ_short":"UnB","univ_full":"Universidade de Brasília"},
+  {"login":"beta","password":"y","fullname":"Time Beta","country":"BR-SP","region":"Sul"},
   {"login":"mat-gama","password":"z","fullname":"Time Gama"}]}'
 ck "3 criados"                 '[[ "$(jq -r .counts.created <<<"$BODY")" == 3 ]]'
-ck ".team gravado (alfa)"      '[[ "$(jq -r .team.flag "$C/users/alfa/account.json")" == "BR-DF" && "$(jq -r .team.region "$C/users/alfa/account.json")" == "Norte" && "$(jq -r .team.name "$C/users/alfa/account.json")" == "ALFA" ]]'
+ck ".team gravado (alfa), SEM name" '[[ "$(jq -r .team.flag "$C/users/alfa/account.json")" == "BR-DF" && "$(jq -r .team.region "$C/users/alfa/account.json")" == "Norte" && "$(jq -r '"'"'.team|has("name")'"'"' "$C/users/alfa/account.json")" == "false" ]]'
 ck "sem team quando não veio (gama)" '[[ "$(jq -r '"'"'has("team")'"'"' "$C/users/mat-gama/account.json")" == "false" ]]'
-# update mescla só o presente (não apaga o resto)
+# update mescla só o presente (não apaga o resto; linha parcial NÃO clobbera o nome)
 call /contest/admin/users-bulk POST t-adm 'contest=tm' '{"users":[{"login":"alfa","region":"Sul"}],"on_existing":"update"}'
 ck "update mescla região"      '[[ "$(jq -r .team.region "$C/users/alfa/account.json")" == "Sul" && "$(jq -r .team.flag "$C/users/alfa/account.json")" == "BR-DF" ]]'
-call /contest/admin/users-bulk POST t-adm 'contest=tm' '{"users":[{"login":"alfa","region":"Norte"}],"on_existing":"update"}' # volta
+ck "update parcial preserva o nome" '[[ "$(jq -r .fullname "$C/users/alfa/account.json")" == "Time Alfa" ]]'
+call /contest/admin/teams POST t-adm 'contest=tm' '{"set":{"alfa":{"region":"Norte"}}}'   # volta pela ferramenta certa
 
-echo "== placar TXT reflete flag/univ do .team =="
+echo "== placar TXT reflete flag/univ do .team e o NOME (fullname) na coluna team =="
 bash "$ROOT/score/build.sh" tm >/dev/null 2>&1
-ck "linha da alfa tem BR-DF:UnB:ALFA" 'grep -q "^BR-DF:alfa:UnB:ALFA:Universidade de Brasília:" "$C/var/placar.txt"'
+ck "linha da alfa: BR-DF:UnB:Time Alfa" 'grep -q "^BR-DF:alfa:UnB:Time Alfa:Universidade de Brasília:" "$C/var/placar.txt"'
 
 echo "== GET /contest/teams (diretório p/ o placar) =="
 call /contest/teams GET '' 'contest=tm'
@@ -52,10 +54,12 @@ ck "público, com alfa"         '[[ "$(jq -r .teams.alfa.flag <<<"$BODY")" == "B
 ck "privilegiados fora"        '[[ "$(jq -r '"'"'.teams | has("tm.admin")'"'"' <<<"$BODY")" == "false" ]]'
 ck "sem foto ainda"            '[[ "$(jq -r .teams.alfa.has_photo <<<"$BODY")" == "false" ]]'
 
-echo "== admin/teams set + materialize =="
-call /contest/admin/teams POST t-adm 'contest=tm' '{"set":{"beta":{"univ_short":"USP","team_name":""},"naoexiste":{"region":"X"}}}'
+echo "== admin/teams set (fullname = nome único) + materialize =="
+call /contest/admin/teams POST t-adm 'contest=tm' '{"set":{"beta":{"fullname":"Beta Renomeado","univ_short":"USP"},"naoexiste":{"region":"X"}}}'
 ck "set salva 1, pula 1"       '[[ "$(jq -r .saved <<<"$BODY")" == 1 && "$(jq -r .skipped[0] <<<"$BODY")" == "naoexiste" ]]'
-ck "univ setada, name apagado" '[[ "$(jq -r .team.univ_short "$C/users/beta/account.json")" == "USP" && "$(jq -r '"'"'.team|has("name")'"'"' "$C/users/beta/account.json")" == "false" ]]'
+ck "fullname trocado + univ setada" '[[ "$(jq -r .fullname "$C/users/beta/account.json")" == "Beta Renomeado" && "$(jq -r .team.univ_short "$C/users/beta/account.json")" == "USP" ]]'
+call /contest/admin/teams POST t-adm 'contest=tm' '{"set":{"beta":{"fullname":"","univ_short":"USP2"}}}'
+ck "fullname vazio é ignorado (nome não fica em branco)" '[[ "$(jq -r .fullname "$C/users/beta/account.json")" == "Beta Renomeado" && "$(jq -r .team.univ_short "$C/users/beta/account.json")" == "USP2" ]]'
 call /contest/admin/teams POST t-adm 'contest=tm' '{"action":"materialize"}'
 ck "materialize preenche gama (teams-meta ^mat-)" '[[ "$(jq -r .filled[\"mat-gama\"].flag <<<"$BODY")" == "AR" && "$(jq -r .team.univ_short "$C/users/mat-gama/account.json")" == "UBA" ]]'
 ck "materialize não sobrescreve alfa" '[[ "$(jq -r .team.flag "$C/users/alfa/account.json")" == "BR-DF" ]]'

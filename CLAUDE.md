@@ -54,9 +54,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Handlers de usuário do admin (`user-add`/`user-disable`/`user-remove`/`users-set-password`)
   escrevem no account.json; remover = `mv` p/ `.removed-users/`. **`.team` agora tem WRITERS
   na API** (antes só o store-migrate): `users-bulk`/`user-add`/`contest-create users[]` aceitam
-  `team_name/univ_short/univ_full/country/region` (helper `team_fields_json` +
-  `account_team_merge` em lib/users.sh — saneiam `:`/tab/newline) e `/contest/admin/teams`
-  (aba 👥 Times) faz set por-usuário (`""` apaga) + **materialize** (regex→campos vazios).
+  `univ_short/univ_full/country/region` (helper `team_fields_json` + `account_team_merge` em
+  lib/users.sh — saneiam `:`/tab/newline) e `/contest/admin/teams` (aba 👥 Times) faz set
+  por-usuário de `fullname` + esses campos (`""` apaga os de `.team`) + **materialize**
+  (regex→campos vazios). **O NOME é campo ÚNICO: `fullname` = nome do time** (usuário de
+  contest É o time); `.team.name` existe só como LEGADO da migração — os leitores fazem
+  `.team.name // .fullname` e a API nunca o escreve.
   `.team.region` = SEDE (texto; casa com o `name` de regions.json): o placar filtra por nome,
   os badges preferem-na à derivação regex e o `staff_can_see` aceita entradas
   **`region:<nome>`** no staff-filters. Assets por-time: `users/<login>/{photo,logo}.png`

@@ -74,8 +74,9 @@ Geradores existentes (testados contra dados reais, batem com os placares legados
   vira um SVG servido pelo próprio MOJ em `/shared/flags/` (271 países + 27 estados) — nada de
   CDN externo. Ver `web/shared/flags.js`.
 - **`/contest/teams` (por-usuário, PRECEDE o teams-meta)**: diretório dos times a partir do
-  `.team{name,univ_short,univ_full,flag,region}` do account.json (aba 👥 Times do admin) +
-  `has_logo`/`has_photo`. O placar mescla **explícito primeiro**: bandeira/univ que faltarem no
+  `.team{univ_short,univ_full,flag,region}` do account.json (aba 👥 Times do admin) +
+  `has_logo`/`has_photo`. O **nome do time é o `fullname`** (campo único; a coluna `team name`
+  do TXT sai de `.team.name // .fullname` — `.team.name` é só legado da migração). O placar mescla **explícito primeiro**: bandeira/univ que faltarem no
   TXT, a **sede** (`t._region`, filtro por nome), o **brasão** (`/contest/team-logo`, vence o
   logo por regra) e o link 📷 da **foto** (`/contest/team-photo`, abre em nova aba).
 - **`teams-meta`** (`contests/<id>/teams-meta.json`, lido por `GET /contest/teams-meta`):

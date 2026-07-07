@@ -1,9 +1,10 @@
 # POST /contest/admin/teams?contest=<id>   (admin DO contest)
-# Edição POR-USUÁRIO dos metadados de TIME (a fonte da verdade que o placar/badges/print
-# leem do account.json `.team`). Duas operações:
-#   {set:{<login>:{team_name?,univ_short?,univ_full?,country?,region?}, …}}
-#     — mescla os campos PRESENTES em cada login (valor vazio "" APAGA o campo; ausente
-#       não toca). Login inexistente vira skipped.
+# Edição POR-USUÁRIO da identidade do TIME (o placar/badges/print leem do account.json).
+# O NOME é campo ÚNICO: `fullname` (usuário de contest É o time). Duas operações:
+#   {set:{<login>:{fullname?,univ_short?,univ_full?,country?,region?}, …}}
+#     — `fullname` mescla em `.fullname` (vazio = ignorado; nome não fica em branco);
+#       os demais mesclam no `.team` (valor vazio "" APAGA o campo; ausente não toca).
+#       Login inexistente vira skipped.
 #   {action:"materialize"}
 #     — o "match de 1 clique": aplica teams-meta.json (regex→country/school/school_full) e
 #       regions.json (regex→name) aos usuários SEM o campo correspondente, gravando
@@ -70,20 +71,25 @@ saved=0; declare -a SKIPPED=()
 while IFS= read -r login; do
   fields="$(jq -c --arg l "$login" '.[$l]' <<<"$setj")"
   { valid_id "$login" && user_exists "$contest" "$login"; } || { SKIPPED+=("$login"); continue; }
-  # campos PRESENTES entram (saneados); "" apaga; ausentes não tocam
-  tm="$(jq -c '{name:(if has("team_name") then .team_name else null end),
-                univ_short:(if has("univ_short") then .univ_short else null end),
+  # nome (fullname) saneado; vazio = não mexe (o time não fica sem nome)
+  full="$(jq -r '.fullname // ""' <<<"$fields")"
+  full="${full//[$'\t\n\r']/ }"; full="${full//:/ }"
+  full="$(printf '%s' "$full" | sed 's/^ *//; s/ *$//')"
+  # campos de time PRESENTES entram (saneados); "" apaga; ausentes não tocam
+  tm="$(jq -c '{univ_short:(if has("univ_short") then .univ_short else null end),
                 univ_full:(if has("univ_full") then .univ_full else null end),
                 flag:(if has("country") then .country else null end),
                 region:(if has("region") then .region else null end)}
                | with_entries(select(.value != null))
                | with_entries(.value |= (tostring | gsub("[:\t\n\r]"; " ") | gsub("^ +| +$"; "")))' \
         <<<"$fields" 2>/dev/null)"
-  [[ -n "$tm" && "$tm" != '{}' ]] || { SKIPPED+=("$login"); continue; }
+  [[ -n "$tm" ]] || tm='{}'
+  [[ "$tm" != '{}' || -n "$full" ]] || { SKIPPED+=("$login"); continue; }
   account_merge "$contest" "$login" \
-    '.team = (((.team // {}) + $tm) | with_entries(select(.value != "")))
+    '(if $fn != "" then .fullname = $fn else . end)
+     | .team = (((.team // {}) + $tm) | with_entries(select(.value != "")))
      | if (.team|length)==0 then del(.team) else . end | .updated_at=$t' \
-    --argjson tm "$tm" --argjson t "$EPOCHSECONDS" || { SKIPPED+=("$login"); continue; }
+    --arg fn "$full" --argjson tm "$tm" --argjson t "$EPOCHSECONDS" || { SKIPPED+=("$login"); continue; }
   (( saved++ ))
 done < <(jq -r 'keys[]' <<<"$setj")
 

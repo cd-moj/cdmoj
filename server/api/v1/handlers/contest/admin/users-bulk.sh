@@ -1,8 +1,9 @@
 # POST /contest/admin/users-bulk?contest=<id>  (admin DO contest)
 # Carga de usuários em LOTE (contests grandes: subir competidores DEPOIS da criação):
 #   {users:[{login,password?,fullname?,email?,
-#            team_name?,univ_short?,univ_full?,country?,region?}], on_existing?: "skip"|"update"}
-# Os campos de TIME (opcionais) vão p/ o `.team{name,univ_short,univ_full,flag,region}` do
+#            univ_short?,univ_full?,country?,region?}], on_existing?: "skip"|"update"}
+# O NOME é campo ÚNICO: `fullname` é o nome do time (usuário de contest É o time). Os
+# campos de TIME (opcionais) vão p/ o `.team{univ_short,univ_full,flag,region}` do
 # account.json — carga ÚNICA de credenciais+país+sede+universidade (team_fields_json saneia;
 # update mescla só os presentes). Regras: ≤5000; login valid_id; senha vazia = gerada
 # (cc_genpass); senha/nome/email sem ':'.
@@ -56,11 +57,17 @@ while IFS= read -r u; do
     [[ "$onex" == skip ]] && { skipj "$login" exists; continue; }
     is_reserved_role_login "$login" && { skipj "$login" privileged; continue; }
     [[ -z "$pass" ]] && pass="$(cc_genpass)"
-    account_merge "$contest" "$login" '.password=$p|.fullname=$f|.email=$e|.updated_at=$t
+    # nome/email só sobrescrevem se VIERAM na linha (linha parcial de enriquecimento —
+    # ex.: login+sede — não pode clobberar o nome do time p/ o login); a senha segue a
+    # semântica documentada do update (vazia = regenerada).
+    fin="$(jq -r '.fullname // ""' <<<"$u")"; ein="$(jq -r '.email // ""' <<<"$u")"
+    account_merge "$contest" "$login" '.password=$p | .updated_at=$t
+        | (if $f != "" then .fullname=$f else . end)
+        | (if $e != "" then .email=$e else . end)
         | .team = ((.team // {}) + $tm) | if (.team|length)==0 then del(.team) else . end' \
-      --arg p "$pass" --arg f "$full" --arg e "$email" --argjson t "$EPOCHSECONDS" \
+      --arg p "$pass" --arg f "$fin" --arg e "$ein" --argjson t "$EPOCHSECONDS" \
       --argjson tm "$teamj" || { skipj "$login" invalid; continue; }
-    credj "$login" "$pass" "$full" "$email" >> "$tmpd/updated.jsonl"
+    credj "$login" "$pass" "$(account_field "$contest" "$login" '.fullname')" "$email" >> "$tmpd/updated.jsonl"
   else
     [[ -z "$pass" ]] && pass="$(cc_genpass)"
     # criação inline (mesmo shape do user_create em lib/users.sh, + .team quando veio)

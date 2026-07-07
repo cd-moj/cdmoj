@@ -1,9 +1,10 @@
-// contest/admin/teams-tab.js — aba "👥 Times": gerência POR-USUÁRIO dos metadados de time
-// (a fonte da verdade `.team` do account.json, que placar/badges/impressão leem): time,
-// país (bandeira), sede/região, universidade, BRASÃO (logo.png) e FOTO (photo.png, com
-// link clicável no placar). Carga única via CSV com cabeçalho (parseRichCsv), fotos/brasões
-// em LOTE (arquivos <login>.<ext>, enviados 1-a-1 com progresso), e o botão "Materializar
-// matches" que aplica as regras regex (teams-meta/regions) aos campos vazios de uma vez.
+// contest/admin/teams-tab.js — aba "👥 Times": gerência POR-USUÁRIO da identidade do time.
+// O NOME é campo ÚNICO (`fullname` — usuário de contest É o time); aqui também vivem país
+// (bandeira), sede/região, universidade (`.team` do account.json, que placar/badges/
+// impressão leem), BRASÃO (logo.png) e FOTO (photo.png, com link clicável no placar).
+// Carga única via CSV com cabeçalho (parseRichCsv), fotos/brasões em LOTE (arquivos
+// <login>.<ext>, enviados 1-a-1 com progresso), e o botão "Materializar matches" que
+// aplica as regras regex (teams-meta/regions) aos campos vazios de uma vez.
 // Contest com usuários compartilhados (users_from): a aba desabilita (sem overlay local).
 import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
@@ -13,7 +14,7 @@ import { parseRichCsv } from '/shared/users-batch.js';
 
 const enc = encodeURIComponent;
 const PRIV_RE = /\.(admin|judge|cjudge|staff|mon)$/;
-const FIELDS = ['team_name', 'country', 'region', 'univ_short', 'univ_full'];
+const FIELDS = ['fullname', 'country', 'region', 'univ_short', 'univ_full'];
 
 export function makeTeamsTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };
@@ -91,8 +92,8 @@ export function makeTeamsTab(CONTEST) {
     const photoDel = () => postAsset({ action: 'delete', kind: 'photo', login: r.login }).then(() => { r.has_photo = false; syncPhoto(); }).catch(() => {});
 
     return el('tr', {},
-      el('td', { class: 'small', style: 'font-family:var(--mono)', title: r.fullname || '' }, r.login),
-      el('td', {}, mk('team_name', 'nome do time', 'width:10rem')),
+      el('td', { class: 'small', style: 'font-family:var(--mono)' }, r.login),
+      el('td', {}, mk('fullname', 'nome do time', 'width:11rem')),
       el('td', {}, country, ' ', flagBox),
       el('td', {}, region),
       el('td', {}, mk('univ_short', 'UnB', 'width:5rem')),
@@ -131,9 +132,9 @@ export function makeTeamsTab(CONTEST) {
       .filter((u) => !u.admin && !PRIV_RE.test(u.login))
       .map((u) => {
         const t = teams[u.login] || {};
-        const vals = { team_name: t.team || '', country: t.flag || '', region: t.region || '',
+        const vals = { fullname: u.fullname || '', country: t.flag || '', region: t.region || '',
                        univ_short: t.univ_short || '', univ_full: t.univ_full || '' };
-        return { login: u.login, fullname: u.fullname, vals, orig: { ...vals },
+        return { login: u.login, vals, orig: { ...vals },
                  has_logo: !!t.has_logo, has_photo: !!t.has_photo, els: {} };
       });
 
@@ -147,7 +148,7 @@ export function makeTeamsTab(CONTEST) {
     const tb = el('tbody');
     ROWS.forEach((r) => tb.append(rowEl(r)));
     const table = el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, 'Time'), el('th', {}, 'País'),
+      el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, 'Nome (time)'), el('th', {}, 'País'),
         el('th', {}, 'Sede'), el('th', {}, 'Univ'), el('th', {}, 'Universidade'),
         el('th', {}, 'Brasão'), el('th', {}, 'Foto'))), tb));
 
@@ -202,9 +203,9 @@ export function makeTeamsTab(CONTEST) {
       rd.readAsText(f);
     });
     const csvExp = el('button', { class: 'btn ghost', onclick: () => {
-      const head = 'login,time,pais,sede,univ,univ_nome';
+      const head = 'login,nome,pais,sede,univ,univ_nome';
       const esc = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
-      const rows = ROWS.map((r) => [r.login, r.vals.team_name, r.vals.country, r.vals.region, r.vals.univ_short, r.vals.univ_full].map(esc).join(','));
+      const rows = ROWS.map((r) => [r.login, r.vals.fullname, r.vals.country, r.vals.region, r.vals.univ_short, r.vals.univ_full].map(esc).join(','));
       const blob = new Blob([head + '\n' + rows.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = CONTEST + '-times.csv'; a.click(); URL.revokeObjectURL(a.href);
     } }, '⬇ Exportar CSV');
@@ -217,7 +218,8 @@ export function makeTeamsTab(CONTEST) {
 
     panel.append(
       el('p', { class: 'muted small' },
-        'Cada linha é a identidade do time no account.json (o placar, os crachás e a impressão leem daqui; ',
+        'O NOME é um só: é o nome do time (ou do aluno — usuário de contest É o time). ',
+        'Cada linha é a identidade no account.json (placar, crachás e impressão leem daqui; ',
         'o que faltar continua sendo completado pelas regras regex da aba Aparência). ',
         'Fotos/brasões em lote: cada arquivo se chama <login>.<ext>.'),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem' },
