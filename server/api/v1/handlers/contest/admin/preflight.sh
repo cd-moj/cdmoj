@@ -102,9 +102,10 @@ else
 fi
 
 # com pool de contest, a cobertura de linguagem conta SÓ os juízes do pool (são eles que julgam)
+# (bind de .host ANTES do filtro: arg de função jq avalia contra o INPUT dela — $p aqui)
 judges_eff="$judges"
 [[ -n "${CONTEST_JUDGES:-}" ]] && judges_eff="$(jq -c --arg p " $CONTEST_JUDGES " \
-  'map(select($p | contains(" "+.host+" ")))' <<<"$judges")"
+  'map(select(.host as $h | ($p | contains(" "+$h+" "))))' <<<"$judges")"
 
 langs_lc="$(printf '%s' "${LANGUAGES:-}" | tr '[:upper:]' '[:lower:]')"
 if [[ -n "$langs_lc" ]]; then
@@ -140,7 +141,7 @@ for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
     jq -e --arg p "$ppool" '(.hosts // {}) | keys | any(. as $h | ($p|split(" ")|index($h)))' \
       "$(tl_store_file "$id")" >/dev/null 2>&1 || { noTL+=" $id"; continue; }
     jq -e --arg id "$id" --arg p " $ppool " \
-      'any(.[]; ($p | contains(" "+.host+" ")) and (.problems | has($id)))' \
+      'any(.[]; .host as $h | ($p | contains(" "+$h+" ")) and (.problems | has($id)))' \
       >/dev/null 2>&1 <<<"$judges" || noCache+=" $id"
   else
     if [[ ! -s "$(tl_store_file "$id")" ]]; then noTL+=" $id"; continue; fi
