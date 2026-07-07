@@ -9,11 +9,12 @@ is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
-  # inclui as linguagens permitidas por problema (problem-langs.json, chaveado pelo id canônico)
+  # inclui linguagens e pool de juízes por problema (problem-{langs,judges}.json, id canônico)
   plf="$CONTESTSDIR/$contest/problem-langs.json"; pl='{}'; [[ -f "$plf" ]] && pl="$(jq -c . "$plf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$pl" || pl='{}'
-  out="$(jq -c --argjson pl "$pl" '[ .[] | . as $p
+  pjf="$CONTESTSDIR/$contest/problem-judges.json"; pj='{}'; [[ -f "$pjf" ]] && pj="$(jq -c . "$pjf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$pj" || pj='{}'
+  out="$(jq -c --argjson pl "$pl" --argjson pj "$pj" '[ .[] | . as $p
           | ((if (($p.statement_key // "")|test("#")) then $p.statement_key else (($p.problem_id // "")|gsub("/";"#")) end)) as $cid
-          | $p + {languages: ($pl[$cid] // [])} ]' <<<"$(cc_probs_json "$contest")")"
+          | $p + {languages: ($pl[$cid] // []), judges: ($pj[$cid] // [])} ]' <<<"$(cc_probs_json "$contest")")"
   ok_json '{problems:$p}' --argjson p "$out"
   exit 0
 fi
@@ -90,6 +91,27 @@ case "$action" in
     ok_json '{saved:true, problem_id:$id, languages:$v}' --arg id "$cid" --argjson v "$larr"
     exit 0
     ;;
+  judges)
+    # pool de juízes POR problema (hostnames do registro). Chaveado pelo id canônico
+    # 'coleção#problema' (estável a reordenações). Vazio = herda o pool do contest.
+    L="$(jq -r '.letter // empty' <<<"$body")"
+    [[ -n "$L" ]] || fail 400 "Informe a letra" "letter_missing"
+    cid="$(jq -r --arg l "$L" '[.[]|select(.letter==$l)][0]
+            | (if ((.statement_key // "")|test("#")) then .statement_key else ((.problem_id // "")|gsub("/";"#")) end) // empty' <<<"$cur")"
+    [[ -n "$cid" ]] || fail 404 "Problema não encontrado" "notfound"
+    jarr="$(jq -c '(.judges // []) | map(select(type=="string") | select(test("^[A-Za-z0-9._-]+$"))) | unique' <<<"$body")"
+    [[ "$jarr" == *..* ]] && fail 422 "hostname inválido" "judges_invalid"
+    pjf="$CONTESTSDIR/$contest/problem-judges.json"
+    base='{}'; [[ -f "$pjf" ]] && base="$(cat "$pjf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$base" || base='{}'
+    if [[ "$(jq 'length' <<<"$jarr")" -gt 0 ]]; then
+      printf '%s' "$base" | jq -c --arg id "$cid" --argjson v "$jarr" '.[$id]=$v' > "$pjf.tmp" && mv -f "$pjf.tmp" "$pjf"
+    else
+      printf '%s' "$base" | jq -c --arg id "$cid" 'del(.[$id])' > "$pjf.tmp" && mv -f "$pjf.tmp" "$pjf"
+    fi
+    audit_log_to "$contest" problems-judges "letter=$L id=$cid judges=$(jq -r 'join(",")' <<<"$jarr")"
+    ok_json '{saved:true, problem_id:$id, judges:$v}' --arg id "$cid" --argjson v "$jarr"
+    exit 0
+    ;;
   statement)
     # enunciado por problema: enviar HTML/PDF (base64), remover, ou "atualizar do banco"
     # (limpa o cache enunciados/<skey>.html e re-indexa o pacote canônico).
@@ -126,7 +148,7 @@ case "$action" in
     ok_json '{saved:true, statement_key:$k, did:$d}' --arg k "$skey" --arg d "$did"
     exit 0
     ;;
-  *) fail 400 "action inválida (add|remove|reorder|rename|langs|statement)" "action_invalid" ;;
+  *) fail 400 "action inválida (add|remove|reorder|rename|langs|judges|statement)" "action_invalid" ;;
 esac
 
 [[ -n "$new" ]] || fail 422 "Nada a fazer" "noop"

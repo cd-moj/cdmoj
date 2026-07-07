@@ -23,7 +23,7 @@ add(){ # add <id> <level> <label> <detail>
 
 # conf num subshell-safe: só os campos que precisamos
 CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; FREEZE_TIME=""; LANGUAGES=""
-SHOWCODE=0; PRINT=""; MANUAL_VERDICT=""; PROBS=()
+SHOWCODE=0; PRINT=""; MANUAL_VERDICT=""; PROBS=(); CONTEST_JUDGES=""
 load_contest_conf "$contest"
 mode="$(contest_score_mode "$contest")"
 
@@ -72,37 +72,89 @@ else
   add judges fail "NENHUM juiz online" "sem juiz, nada é corrigido — verifique moj-agent nas máquinas"
 fi
 
+# --- pool de juízes (contest + overrides por problema) ----------------------------
+# ESTRITO: job de contest/problema com pool só sai p/ host do pool — pool offline = fila presa.
+pjm='{}'; [[ -f "$cdir/problem-judges.json" ]] && pjm="$(jq -c . "$cdir/problem-judges.json" 2>/dev/null)"
+jq -e . >/dev/null 2>&1 <<<"$pjm" || pjm='{}'
+pool_all="$(jq -r --arg c "${CONTEST_JUDGES:-}" \
+  '([$c|split(" ")[]|select(length>0)] + [.[]?[]?]) | unique | join(" ")' <<<"$pjm" 2>/dev/null)"
+if [[ -z "$pool_all" ]]; then
+  add pool ok "Sem pool de juízes fixo" "qualquer juiz online pode julgar (Configurações → Máquinas de juiz)"
+else
+  offline=""
+  for h in $pool_all; do
+    jq -e --arg h "$h" 'any(.[]; .host == $h)' >/dev/null 2>&1 <<<"$judges" || offline+=" $h"
+  done
+  c_live=1
+  if [[ -n "${CONTEST_JUDGES:-}" ]]; then
+    c_live=0
+    for h in $CONTEST_JUDGES; do
+      jq -e --arg h "$h" 'any(.[]; .host == $h)' >/dev/null 2>&1 <<<"$judges" && { c_live=1; break; }
+    done
+  fi
+  if (( c_live == 0 )); then
+    add pool fail "Pool de juízes OFFLINE" "nenhum host do pool ($CONTEST_JUDGES) está online — submissões ficarão NA FILA até um voltar"
+  elif [[ -n "$offline" ]]; then
+    add pool warn "Pool com juízes offline/não registrados" "sem heartbeat:$offline (typo no nome? agente parado?)"
+  else
+    add pool ok "Pool de juízes online" "correção fixada em: $pool_all"
+  fi
+fi
+
+# com pool de contest, a cobertura de linguagem conta SÓ os juízes do pool (são eles que julgam)
+judges_eff="$judges"
+[[ -n "${CONTEST_JUDGES:-}" ]] && judges_eff="$(jq -c --arg p " $CONTEST_JUDGES " \
+  'map(select($p | contains(" "+.host+" ")))' <<<"$judges")"
+
 langs_lc="$(printf '%s' "${LANGUAGES:-}" | tr '[:upper:]' '[:lower:]')"
 if [[ -n "$langs_lc" ]]; then
   missing=""
   for l in $langs_lc; do
-    jq -e --arg l "$l" 'any(.[]; .langs | index($l))' >/dev/null 2>&1 <<<"$judges" || missing+=" $l"
+    jq -e --arg l "$l" 'any(.[]; .langs | index($l))' >/dev/null 2>&1 <<<"$judges_eff" || missing+=" $l"
   done
   if [[ -z "$missing" ]]; then
-    add langs ok "Toolchain das linguagens" "todas as permitidas ($langs_lc) têm juiz online"
+    add langs ok "Toolchain das linguagens" "todas as permitidas ($langs_lc) têm juiz online$([[ -n "${CONTEST_JUDGES:-}" ]] && echo ' no pool')"
   else
-    add langs fail "Linguagem sem juiz" "sem toolchain online p/:$missing"
+    add langs fail "Linguagem sem juiz" "sem toolchain online$([[ -n "${CONTEST_JUDGES:-}" ]] && echo ' no pool') p/:$missing"
   fi
 else
   add langs warn "Linguagens sem whitelist" "todas as linguagens do MOJ ficam liberadas (Configurações → Linguagens)"
 fi
 
-# --- problemas: TL calibrado + cache nos juízes online ---------------------------
-noTL=""; noCache=""; nprob=0
+# --- problemas: TL calibrado + cache nos juízes online (do pool EFETIVO, se houver) ----
+noTL=""; noCache=""; noPool=""; nprob=0
 for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
   id="${PROBS[i+4]}"; (( nprob++ ))
-  if [[ ! -s "$(tl_store_file "$id")" ]]; then noTL+=" $id"; continue; fi
-  jq -e --arg id "$id" 'any(.[]; .problems | has($id))' >/dev/null 2>&1 <<<"$judges" || noCache+=" $id"
+  # pool efetivo do problema: override (problem-judges.json) -> pool do contest -> todos
+  ppool="$(jq -r --arg id "$id" '(.[$id] // []) | join(" ")' <<<"$pjm" 2>/dev/null)"
+  [[ -n "$ppool" ]] || ppool="${CONTEST_JUDGES:-}"
+  if [[ -n "$ppool" ]]; then
+    live=0
+    for h in $ppool; do
+      jq -e --arg h "$h" 'any(.[]; .host == $h)' >/dev/null 2>&1 <<<"$judges" && { live=1; break; }
+    done
+    (( live == 0 )) && noPool+=" $id"
+    # calibrado = algum host DO POOL reportou TL p/ o problema
+    jq -e --arg p "$ppool" '(.hosts // {}) | keys | any(. as $h | ($p|split(" ")|index($h)))' \
+      "$(tl_store_file "$id")" >/dev/null 2>&1 || { noTL+=" $id"; continue; }
+    jq -e --arg id "$id" --arg p " $ppool " \
+      'any(.[]; ($p | contains(" "+.host+" ")) and (.problems | has($id)))' \
+      >/dev/null 2>&1 <<<"$judges" || noCache+=" $id"
+  else
+    if [[ ! -s "$(tl_store_file "$id")" ]]; then noTL+=" $id"; continue; fi
+    jq -e --arg id "$id" 'any(.[]; .problems | has($id))' >/dev/null 2>&1 <<<"$judges" || noCache+=" $id"
+  fi
 done
 if (( nprob == 0 )); then
   add problems fail "Sem problemas" "o contest não tem problemas no conf"
 elif [[ -n "$noTL" ]]; then
-  add problems fail "Problema sem TL calibrado" "sem calibração:$noTL — dispare /ops/updateproblemset e aguarde os juízes"
+  add problems fail "Problema sem TL calibrado$([[ -n "$pool_all" ]] && echo ' no pool')" "sem calibração:$noTL — dispare /ops/updateproblemset e aguarde os juízes"
 elif [[ -n "$noCache" ]]; then
   add problems warn "Problema fora do cache dos juízes online" "será baixado+calibrado na 1ª submissão (lento):$noCache"
 else
   add problems ok "Problemas calibrados" "$nprob problema(s) com TL reportado e em cache"
 fi
+[[ -n "$noPool" ]] && add pool_problems fail "Problema com pool de juízes offline" "nenhum juiz do pool destes problemas está online (fila presa):$noPool"
 
 # --- staff de impressão -----------------------------------------------------------
 staff_n="$(find "$cdir/users" -maxdepth 1 -type d -name '*.staff' 2>/dev/null | wc -l | tr -d '[:space:]')"

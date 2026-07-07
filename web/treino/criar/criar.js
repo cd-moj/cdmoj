@@ -162,6 +162,7 @@ async function boot() {
         ...(p._stmt ? { statement_b64: b64utf8(p._stmt) } : (p._stmt_b64 ? { statement_b64: p._stmt_b64 } : {})),
         ...(p._stmt_pdf_b64 ? { statement_pdf_b64: p._stmt_pdf_b64 } : {}),
         ...((p.languages || []).length ? { languages: p.languages } : {}),
+        ...((p.judges || []).length ? { judges: p.judges } : {}),
       })),
       ...(Object.keys(colors).length ? { colors } : {}),
       ...(regionsV.length ? { regions: regionsV } : {}),
@@ -177,6 +178,7 @@ async function boot() {
       ...(o.allow_late !== undefined ? { allow_late: !!o.allow_late } : {}),
       ...(o.login_ua_substring ? { login_ua_substring: o.login_ua_substring } : {}),
       ...((o.score_full_users || []).length ? { score_full_users: o.score_full_users } : {}),
+      ...((o.judges || []).length ? { judges: o.judges } : {}),
       ...(o.penalty_minutes !== undefined ? { penalty_minutes: o.penalty_minutes } : {}),
       ...(o.penalty_verdicts !== undefined ? { penalty_verdicts: o.penalty_verdicts } : {}),
     };
@@ -192,7 +194,7 @@ async function boot() {
     const o = { ...d.opts };
     ['priority', 'locale', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
       'allow_print', 'score_anon', 'manual_verdict', 'allow_late', 'login_ua_substring',
-      'score_full_users', 'languages', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
+      'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
     if (spec.showcode !== undefined) o.show_code = spec.showcode;
     if (spec.show_code !== undefined) o.show_code = spec.show_code;
     if (spec.login_lead) o.login_start = st - spec.login_lead;
@@ -215,7 +217,7 @@ async function boot() {
     const o = { ...newDraft(perm).opts };
     ['priority', 'locale', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
       'allow_print', 'score_anon', 'manual_verdict', 'allow_late', 'login_ua_substring',
-      'score_full_users', 'languages', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
+      'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
     if (spec.showcode !== undefined) o.show_code = spec.showcode;
     if (spec.login_start && spec.start && spec.start > spec.login_start) o.login_start = st - (spec.start - spec.login_start);
     if (spec.freeze && spec.end && spec.end > spec.freeze) o.freeze = d.end - (spec.end - spec.freeze);
@@ -234,6 +236,7 @@ async function boot() {
       ...(p.statement_b64 ? { _stmt_b64: p.statement_b64 } : {}),
       ...(p.statement_pdf_b64 ? { _stmt_pdf_b64: p.statement_pdf_b64 } : {}),
       ...((p.languages || []).length ? { languages: p.languages } : {}),
+      ...((p.judges || []).length ? { judges: p.judges } : {}),
     };
   }
 

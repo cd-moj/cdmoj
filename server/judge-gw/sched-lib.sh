@@ -19,6 +19,10 @@
 : "${LANG_GRACE:=90}"                       # s; route-by-language: juiz SEM o toolchain da
                                             # linguagem do job só pega depois disso (fallback
                                             # p/ não travar se nenhum juiz suporta a linguagem)
+: "${POOL_GRACE:=0}"                        # s; pool de juízes do contest/problema: 0 = ESTRITO
+                                            # (job com allowed_hosts espera um host do pool —
+                                            # consistência de hardware); >0 = qualquer juiz
+                                            # pega após esse tempo (fallback)
 
 # bandas, prioridade ALTA -> BAIXA. 'rejulgar' entre privada e pública.
 SCHED_BANDS=(000-super 020-prova 040-lista-privada 060-rejulgar 080-lista-publica)
@@ -115,6 +119,15 @@ q_claim() {
         need="$(jq -r '.need_capability // empty' "$f" 2>/dev/null)"
         [[ -n "$need" && "$need" != "$cap" ]] && continue
         base="$(basename "$f")"
+        # pool de juízes (allowed_hosts, resolvido no enqueue: problema -> contest): job só
+        # sai p/ host listado. ESTRITO por default (POOL_GRACE=0) — pool offline segura a
+        # fila de propósito (consistência de hardware); POOL_GRACE>0 libera como fallback.
+        if jq -e --arg h "$host" '((.allowed_hosts // [])|length) > 0
+              and (((.allowed_hosts // [])|index($h))|not)' "$f" >/dev/null 2>&1; then
+          ts="${base%%_*}"
+          { (( POOL_GRACE > 0 )) && [[ "$ts" =~ ^[0-9]+$ ]] \
+              && (( EPOCHSECONDS - ts > POOL_GRACE )); } || continue
+        fi
         # route by language: só julga se o host TEM o toolchain da linguagem do job. Sem ele,
         # espera LANG_GRACE (dá vez a quem tem); depois pega como fallback (juiz incapaz ->
         # CE, mas a submissão não fica presa p/ sempre). langs vazio = filtro desligado.

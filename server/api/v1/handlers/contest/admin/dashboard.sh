@@ -22,6 +22,11 @@ judges="$( { find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null | sort |
          problems_count:(.problems_count // ((.problems//{})|length)), langs:(.langs // []) }' "$jf" 2>/dev/null
     done; } | jq -cs 'sort_by(.host)')"
 [[ -n "$judges" ]] || judges='[]'
+# pool de juízes do contest (CONTEST_JUDGES; [] = sem pool) — o front marca os hosts e
+# alerta "pool offline" (modelo estrito: submissão espera um host do pool voltar).
+CONTEST_JUDGES=""
+load_contest_conf "$contest"
+pool_json='[]'; [[ -n "$CONTEST_JUDGES" ]] && pool_json="$(printf '%s\n' $CONTEST_JUDGES | grep -v '^$' | jq -R . | jq -cs .)"
 queue_depth="$(find "$QUEUEDIR" -mindepth 2 -maxdepth 2 -name '*.json' 2>/dev/null | wc -l | tr -d '[:space:]')"
 assigned="$(find "$ASSIGNEDDIR" -mindepth 2 -maxdepth 2 -name '*.json' 2>/dev/null | wc -l | tr -d '[:space:]')"
 
@@ -93,7 +98,7 @@ review="$(jq -c '{
 
 ok_json '{now:$now, window:$win,
           judges:{online:($j|map(select(.online))|length), busy:($j|map(select(.state=="busy"))|length),
-                  total:($j|length), queue_depth:$qd, assigned:$asg, list:$j},
+                  total:($j|length), queue_depth:$qd, assigned:$asg, pool:$pool, list:$j},
           submissions:$m, review:$rev}' \
-  --argjson now "$now" --argjson win "$WINDOW" --argjson j "$judges" \
+  --argjson now "$now" --argjson win "$WINDOW" --argjson j "$judges" --argjson pool "$pool_json" \
   --argjson qd "${queue_depth:-0}" --argjson asg "${assigned:-0}" --argjson m "$metrics" --argjson rev "$review"

@@ -66,6 +66,12 @@ recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos
 - **Escalonamento**: `q_claim` prefere juízes **quentes** (já têm o problema em cache); quem
   não tem só pega o job após `COLD_GRACE` (8 s) — aí baixa+calibra sob demanda. Qualquer juiz
   capaz julga qualquer problema; nada de "validar inventário".
+- **Pool de juízes** (consistência de hardware): o contest pode fixar as máquinas que corrigem
+  (`CONTEST_JUDGES` no conf; override por problema em `problem-judges.json`). O daemon resolve o
+  pool EFETIVO no enqueue e grava **`allowed_hosts`** no job; `q_claim` só entrega a host listado.
+  **ESTRITO por default** (`POOL_GRACE=0`): pool offline = job espera na fila (o preflight e o
+  dashboard do contest avisam); `POOL_GRACE>0` libera p/ qualquer juiz após esse tempo. Com pool,
+  o TL servido em `/contest/problems` = máx **só entre os hosts do pool efetivo**.
 - **"update problems"** (`/ops/updateproblemset`) não clona: enfileira **calibração** dos
   problemas novos/alterados (checksum ≠ o do TL guardado). `{all:true}` recalibra tudo.
 - **Indexar** (`var/jsons`, HTML do enunciado) roda **no servidor** (`index_problem_bg`, via o
@@ -86,6 +92,7 @@ recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos
 | `REG_TTL` | `30` | s; heartbeat mais velho = worker morto |
 | `ASSIGN_TTL` | `120` | s; job reivindicado sem novo beat volta p/ fila |
 | `COLD_GRACE` | `8` | s; juiz que NÃO tem o problema em cache só reivindica após isso |
+| `POOL_GRACE` | `0` | s; job com `allowed_hosts` (pool): `0` = ESTRITO (só o pool julga; offline = fila espera), `>0` = qualquer juiz após esse tempo |
 | `JUDGE_CACHE` | `~/.cache/moj/problems` | (juiz) cache local de pacotes por problema |
 | `MOJ_PROBLEMS_DIR` | `…/moj-problems` | (servidor) store dos pacotes servidos aos juízes |
 | `INTAKE_MODE` | `legacy` | `queue` = intake vai p/ a fila (pull) globalmente |

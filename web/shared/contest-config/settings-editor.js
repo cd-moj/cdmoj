@@ -6,6 +6,7 @@
 // Sem botão de salvar próprio — quem monta decide o que fazer com getValue().
 import { el } from '/shared/ui.js';
 import { makeLangPicker } from './lang-picker.js';
+import { makeJudgePicker } from './judge-picker.js';
 import { toLocalDT, dtToEpoch } from './util.js';
 
 const field = (l, inp) => el('div', { class: 'field' }, el('label', {}, l), inp);
@@ -24,7 +25,8 @@ const PENALTY_DEFAULT = ['wa', 'tle', 'mle', 'rte'];
 
 // contestMode: modo do placar ('icpc'|'obi'|…) — a seção de penalidade só existe no icpc.
 // O wizard permite voltar e trocar o modo: use setContestMode() no remount.
-export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false, contestMode = '' } = {}) {
+// apiCtx: contexto {contest, auth} p/ o judge-picker buscar o registro de juízes.
+export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false, contestMode = '', apiCtx = null } = {}) {
   const s = value || {};
   const isCreate = mode === 'create';
   const name = el('input', { value: s.name || '' });
@@ -49,6 +51,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const pvSel = new Set(Array.isArray(s.penalty_verdicts) ? s.penalty_verdicts : PENALTY_DEFAULT);
   const penChecks = PENALTY_OPTS.map(([code, label]) => ({ code, box: mkBool(pvSel.has(code)), label }));
   const langs = makeLangPicker(s.languages || []);
+  const judges = makeJudgePicker(s.judges || [], apiCtx || {});
   const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge/.cjudge', style: 'width:100%' });
 
   let cmode = contestMode;
@@ -98,6 +101,12 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
     el('p', { class: 'muted small' }, 'Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)'),
     langs.el,
+    el('h3', { style: 'margin:1rem 0 .3rem' }, '🖥️ Máquinas de juiz (pool)'),
+    el('p', { class: 'muted small' },
+      'Nenhuma marcada = qualquer juiz online julga. Marcar FIXA a correção nessas máquinas — ',
+      'consistência de hardware: o tempo-limite exibido passa a ser só delas e, se todas caírem, ',
+      'as submissões ESPERAM na fila (o pré-prova e a Situação avisam). (Pode ser refinado por problema na aba Problemas.)'),
+    judges.el,
     el('h3', { style: 'margin:1rem 0 .3rem' }, '👁️ Placar completo (sem freeze)'),
     el('p', { class: 'muted small' }, 'Quem vê o placar real mesmo durante o freeze: .admin, .judge e .cjudge (juiz-chefe) sempre; some outros logins aqui.'),
     fullUsers);
@@ -117,6 +126,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
       manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,
       languages: langs.get(),
+      judges: judges.get(),
       score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [],
       ...(cmode === 'icpc' ? {
         penalty_minutes: penMin.value.trim() === '' ? 20 : Math.max(0, parseInt(penMin.value, 10) || 0),

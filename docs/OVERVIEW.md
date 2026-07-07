@@ -229,7 +229,9 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   finalized_at, com o juiz) — cada submissão gera 2 entradas, submissão e correção, p/ o trace
   completo; `/contest/admin/audit-log`, filtrável + download CSV). **Problemas** também
   edita as **linguagens permitidas por problema** (`problem-langs.json`), que o editor do aluno e a
-  tabela de tempo-limite respeitam. **Rejulgar** (aba "todas submissões") agora reconstrói a fonte
+  tabela de tempo-limite respeitam, e o **pool de juízes por problema** (`problem-judges.json` —
+  herda o `CONTEST_JUDGES` do conf quando vazio; o escalonador é ESTRITO: só o pool julga, e o TL
+  exibido é só dos hosts do pool efetivo). **Rejulgar** (aba "todas submissões") agora reconstrói a fonte
   arquivada e re-julga de fato (marca como pendente na Situação). Criação **não sobrescreve** a conta
   admin já existente (senha digitada respeitada; em modo compartilhado o `<login>.admin` existente é
   reutilizado).

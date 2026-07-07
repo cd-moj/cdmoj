@@ -4,7 +4,7 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
-import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, makeSettingsEditor, makeLangPicker, makeBankPanel, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
+import { makeColorsEditor, makeTeamsEditor, makeRegionsEditor, makeBasicEditor, makeSettingsEditor, makeLangPicker, makeJudgePicker, makeBankPanel, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 import { makeTasksTab } from './tasks.js';
 import { makeTeamsTab } from './teams-tab.js';
@@ -47,7 +47,7 @@ function settingsTab() {
     panel.innerHTML = ''; panel.append(el('h2', {}, '⚙️ Configurações'));
     let s; try { s = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G); }
     catch (e) { panel.append(el('div', { class: 'error-box' }, 'Falha: ' + (e.message || 'erro'))); return; }
-    const ed = makeSettingsEditor({ value: s, mode: 'admin', contestMode: s.mode });
+    const ed = makeSettingsEditor({ value: s, mode: 'admin', contestMode: s.mode, apiCtx: G });
     const msg = el('div', { class: 'small' });
     const save = el('button', { class: 'btn' }, 'Salvar configurações');
     save.addEventListener('click', async () => {
@@ -144,6 +144,9 @@ function problemsTab() {
     // --- linguagens (inline) ---
     const picker = makeLangPicker(p.languages || []);
     const lMsg = el('div', { class: 'small' });
+    // --- pool de juízes (inline) ---
+    const jPicker = makeJudgePicker(p.judges || [], G);
+    const jMsg = el('div', { class: 'small' });
     // --- enunciado: atualizar do banco / enviar HTML / enviar PDF ---
     const sMsg = el('div', { class: 'small' });
     const htmlIn = el('input', { type: 'file', accept: '.html,.htm,text/html', style: 'max-width:200px' });
@@ -155,6 +158,8 @@ function problemsTab() {
         el('button', { class: 'btn ghost', onclick: () => postProb({ action: 'rename', letter: p.letter, name: nameInp.value }, rnMsg, true) }, 'Renomear'), rnMsg),
       el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, '💻 Linguagens (nenhuma marcada = herda do contest):'),
         picker.el, el('div', { class: 'row' }, el('button', { class: 'btn', onclick: () => postProb({ action: 'langs', letter: p.letter, languages: picker.get() }, lMsg, false) }, 'Salvar linguagens'), lMsg)),
+      el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, '🖥️ Máquinas de juiz deste problema (nenhuma marcada = herda o pool do contest):'),
+        jPicker.el, el('div', { class: 'row' }, el('button', { class: 'btn', onclick: () => postProb({ action: 'judges', letter: p.letter, judges: jPicker.get() }, jMsg, false) }, 'Salvar máquinas'), jMsg)),
       el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, '📄 Enunciado:'),
         el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.4rem' },
           el('button', { class: 'btn ghost', title: 'Re-buscar do banco de problemas (regenera o enunciado)', onclick: () => sendStmt({ refresh: true }).then(loadList) }, '↻ Atualizar do banco'),
@@ -466,6 +471,9 @@ function dashTab() {
     const sub = d.submissions || {}, resp = sub.response || {}, j = d.judges || {};
     const judges = j.list || [];
     const offline = judges.filter((x) => !x.online).length;
+    // pool de juízes do contest (CONTEST_JUDGES; modelo ESTRITO — pool offline segura a fila)
+    const pool = Array.isArray(j.pool) ? j.pool : [];
+    const poolOnline = pool.filter((h) => judges.some((x) => x.host === h && x.online)).length;
     const online = sess ? (sess.sessions || []).length : '—', alerts = sess ? (sess.alerts || []) : [];
     // tarefas do staff (impressão+balões): só quando existem
     const tasks = (tq && tq.requests) || [];
@@ -525,6 +533,10 @@ function dashTab() {
     if ((j.total || 0) === 0) actions.push('Nenhum juiz registrado — nada será julgado. Suba um agente de juiz.');
     else if ((j.online || 0) === 0) actions.push('Todos os juízes estão OFFLINE — submissões não serão julgadas. Verifique os agentes.');
     else if (offline > 0) actions.push(offline + ' juiz(es) offline — capacidade reduzida.');
+    if (pool.length && poolOnline === 0)
+      actions.push('Pool de juízes definido (' + pool.join(', ') + ') mas NENHUM host do pool está online — as submissões ficarão NA FILA até um voltar.');
+    else if (pool.length && poolOnline < pool.length)
+      actions.push('Pool de juízes com host offline (' + pool.filter((h) => !judges.some((x) => x.host === h && x.online)).join(', ') + ') — capacidade do pool reduzida.');
     if ((sub.pending || 0) > 0 && (j.online || 0) > 0 && (j.busy || 0) === 0 && (sub.max_wait_s || 0) > 60)
       actions.push('Há pendências esperando >1min mas nenhum juiz ocupado — possível problema de fila/roteamento.');
     if ((sub.max_wait_s || 0) > 180) actions.push('Submissão esperando ' + fmtS(sub.max_wait_s) + ' — investigar o juiz/linguagem.');
@@ -533,13 +545,15 @@ function dashTab() {
     if (actions.length) panel.append(el('div', { class: 'section', style: 'background:#fff7ec;border:1px solid #f3c08e' },
       el('b', {}, '⚠ Atenção'), el('ul', { style: 'margin:.3rem 0 0; padding-left:1.2rem' }, ...actions.map((a) => el('li', {}, a)))));
 
-    // saúde dos juízes (por host)
-    panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '🖥️ Juízes (' + judges.length + ')'));
+    // saúde dos juízes (por host); ⭐ = host do pool do contest
+    panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, '🖥️ Juízes (' + judges.length + ')' +
+      (pool.length ? ' — pool: ' + pool.join(', ') : '')));
     if (!judges.length) panel.append(el('div', { class: 'flag-anom' }, 'Nenhum juiz registrado.'));
     else {
       const tb = el('tbody');
       judges.forEach((x) => tb.append(el('tr', {},
-        el('td', {}, el('span', { class: x.online ? '' : 'flag-anom' }, (x.online ? '🟢 ' : '🔴 ') + x.host)),
+        el('td', {}, el('span', { class: x.online ? '' : 'flag-anom', title: pool.includes(x.host) ? 'no pool do contest' : '' },
+          (pool.includes(x.host) ? '⭐ ' : '') + (x.online ? '🟢 ' : '🔴 ') + x.host)),
         el('td', { class: 'small' }, x.state || '—'),
         el('td', { class: 'small' + (x.online ? '' : ' flag-anom') }, x.online ? 'online' : ('offline há ' + fmtS(x.age_s))),
         el('td', { class: 'small' }, String(x.problems_count || 0) + ' probs'),

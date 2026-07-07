@@ -18,7 +18,7 @@ if ! can_see_problems "$contest"; then
   exit 0
 fi
 
-CONTEST_ID="$contest"; PROBS=(); LANGUAGES=""; SHOWTL=""
+CONTEST_ID="$contest"; PROBS=(); LANGUAGES=""; SHOWTL=""; CONTEST_JUDGES=""
 load_contest_conf "$contest"
 # tempo-limite por problema (do store run/tl/<id>.json), salvo se o conf ocultar (SHOWTL=0).
 source "$_DIR/lib/tl-store.sh"
@@ -27,6 +27,9 @@ SHOW_TL=true; [[ "$SHOWTL" == 0 ]] && SHOW_TL=false
 # (LANGUAGES) -> [] (= todas). O front filtra o editor e a tabela de TL por essa lista.
 PLANGS='{}'; [[ -f "$CONTESTSDIR/$contest/problem-langs.json" ]] && PLANGS="$(jq -c . "$CONTESTSDIR/$contest/problem-langs.json" 2>/dev/null)"; [[ -n "$PLANGS" ]] || PLANGS='{}'
 CLANGS='[]'; [[ -n "$LANGUAGES" ]] && CLANGS="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
+# pool de juízes: override por problema (problem-judges.json) -> pool do contest
+# (CONTEST_JUDGES) -> "" (= todos). O TL servido é o MÁX só entre os hosts do pool efetivo.
+PJUDGES='{}'; [[ -f "$CONTESTSDIR/$contest/problem-judges.json" ]] && PJUDGES="$(jq -c . "$CONTESTSDIR/$contest/problem-judges.json" 2>/dev/null)"; [[ -n "$PJUDGES" ]] || PJUDGES='{}'
 
 set +o noglob
 ENUN="$CONTESTSDIR/$contest/enunciados"
@@ -72,8 +75,11 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   if [[ "$STATEMENT" == *http* ]]; then
     args+=( --arg url "$STATEMENT" ); filt+=", url:\$url"
   fi
-  # tempo-limite por linguagem (máx entre juízes p/ a versão atual do pacote), salvo se oculto
-  tl='{}'; [[ "$SHOW_TL" == true ]] && { tl="$(tl_store_served "$PROBLEMID" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'; }
+  # tempo-limite por linguagem (máx entre os juízes do POOL EFETIVO — override do problema
+  # senão o do contest, senão todos — p/ a versão atual do pacote), salvo se oculto
+  pj="$(jq -r --arg id "$PROBLEMID" '(.[$id] // []) | join(" ")' <<<"$PJUDGES" 2>/dev/null)"
+  [[ -n "$pj" ]] || pj="$CONTEST_JUDGES"
+  tl='{}'; [[ "$SHOW_TL" == true ]] && { tl="$(tl_store_served "$PROBLEMID" "$pj" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'; }
   # linguagens deste problema: override por problema, senão a whitelist do contest
   plangs="$(jq -c --arg id "$PROBLEMID" '.[$id] // empty' <<<"$PLANGS" 2>/dev/null)"
   [[ -n "$plangs" && "$plangs" != null ]] || plangs="$CLANGS"

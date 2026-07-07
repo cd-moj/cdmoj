@@ -52,8 +52,24 @@ tl_store_served_for(){
          | with_entries(.value |= tostring)
     end' "$f" 2>/dev/null || echo '{}'
 }
-# tl_store_served <id> -> time_limits p/ a versão ATUAL do pacote no store do servidor.
-tl_store_served(){ tl_store_served_for "$1" "$(pkg_tl_checksum "$(pkg_path "$1")")"; }
+# tl_store_served_hosts <id> <checksum> "<h1 h2 …>" -> como tl_store_served_for, mas o MÁX
+# é só entre os HOSTS LISTADOS (pool de juízes do contest/problema). Host do pool sem
+# calibração é ignorado; nenhum calibrado -> {}. hosts vazio = todos (delega).
+tl_store_served_hosts(){
+  local id="$1" cks="$2" hosts="$3" f; f="$(tl_store_file "$id")"
+  [[ -n "$hosts" ]] || { tl_store_served_for "$id" "$cks"; return; }
+  [[ -f "$f" && -n "$cks" ]] || { echo '{}'; return; }
+  jq -c --arg cks "$cks" --arg hs "$hosts" '
+    ($hs|split(" ")|map(select(length>0))) as $want
+    | if (.checksum // "") != $cks then {}
+      else [ (.hosts // {}) | to_entries[] | select(.key as $h | $want|index($h)) | .value.tl // {} ]
+           | reduce (.[]|to_entries[]) as $e ({}; .[$e.key]=([(.[$e.key]//0),($e.value|tonumber? // 0)]|max))
+           | with_entries(.value |= tostring)
+      end' "$f" 2>/dev/null || echo '{}'
+}
+# tl_store_served <id> [hosts] -> time_limits p/ a versão ATUAL do pacote no store do
+# servidor; 2º arg opcional restringe ao pool ("h1 h2 …").
+tl_store_served(){ tl_store_served_hosts "$1" "$(pkg_tl_checksum "$(pkg_path "$1")")" "${2:-}"; }
 # tl_store_get <id> -> store bruto (ou {})
 tl_store_get(){ cat "$(tl_store_file "$1")" 2>/dev/null || echo '{}'; }
 

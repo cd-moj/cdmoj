@@ -7,7 +7,7 @@ import { makeSettingsEditor } from '/shared/contest-config/index.js';
 
 export function makeStepOpcoes(ctx) {
   if (!ctx.editors.settings) {
-    ctx.editors.settings = makeSettingsEditor({ value: ctx.draft.opts, mode: 'create', isAdmin: !!ctx.perm.is_admin, contestMode: ctx.draft.mode });
+    ctx.editors.settings = makeSettingsEditor({ value: ctx.draft.opts, mode: 'create', isAdmin: !!ctx.perm.is_admin, contestMode: ctx.draft.mode, apiCtx: { contest: 'treino', auth: true } });
   }
   // o usuário pode voltar ao passo Dados e trocar o modo — ressincroniza a seção de penalidade
   ctx.editors.settings.setContestMode?.(ctx.draft.mode);

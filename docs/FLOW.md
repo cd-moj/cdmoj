@@ -75,6 +75,13 @@ seguro, reescrita atômica via `mv`), recomputa `users/<login>/metrics.json`, ar
 decodificado, e dispara `server/score/build.sh <contest>` para recalcular o placar. Por fim
 move o arquivo para `run/spool/submissions-done/`.
 
+No modo **fila/pull** (`INTAKE_MODE=queue`, ver `server/judge-gw/PULL.md`), em vez de julgar
+na hora o daemon **enfileira** um job JSON `{id,contest,problem_id,login,lang,filename,
+code_b64,priority,enqueued_at,allowed_hosts?}` na banda do `CONTEST_PRIORITY`; um juiz o
+reivindica no heartbeat. `allowed_hosts` é o **pool de juízes** efetivo (override do problema
+em `problem-judges.json` → `CONTEST_JUDGES` do conf; ausente = qualquer juiz) — o claim é
+**estrito**: com o pool offline o job espera na fila (preflight/dashboard avisam).
+
 O resultado do juiz carrega, além do `verdict` de display (com o score embutido, ex.
 `Accepted,100p`), os campos **estruturados** `verdict_canon` (canônico **sem** score),
 `score/score_max/score_kind`, `correct/total_tests` e **`groups`** (subtarefas

@@ -71,6 +71,9 @@ cc_settings_conf_lines(){
   [[ -n "$v" ]] && printf 'LOGIN_UA_SUBSTRING=%q\n' "$v"
   v="$(jq -r '(.score_full_users // []) | map(select(type=="string" and test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"
   [[ -n "$v" ]] && printf 'SCORE_FULL_USERS=%q\n' "$v"
+  # pool de juízes do contest (hostnames do registro; mesmo formato/normalização do settings)
+  v="$(jq -r '(.judges // []) | map(select(type=="string" and test("^[A-Za-z0-9._-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"
+  [[ -n "$v" && "$v" != *..* ]] && printf 'CONTEST_JUDGES=%q\n' "$v"
   # penalidade ICPC: grava só o não-default (validação dura fica no cc_create, antes do staging)
   v="$(jq -r '.penalty_minutes // empty' <<<"$spec")"
   [[ "$v" =~ ^[0-9]+$ ]] && (( v != 20 )) && printf 'PENALTY_MINUTES=%q\n' "$v"
@@ -155,7 +158,7 @@ cc_create(){
   local probs="PROBS=(" i=0
   local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
   local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
-  local pdf_b64 pdf_file larr plangs='{}'
+  local pdf_b64 pdf_file larr plangs='{}' jarr pjudges='{}'
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue
     pid="$(jq -r '.problem_id // ""' <<<"$p")"
@@ -204,11 +207,15 @@ cc_create(){
     # linguagens POR problema (mesmo formato/normalização do admin problem-langs.json)
     larr="$(jq -c '(.languages // []) | map(select(type=="string") | ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique' <<<"$p" 2>/dev/null)"
     [[ -n "$larr" && "$larr" != "[]" ]] && plangs="$(jq -c --arg id "$skey" --argjson v "$larr" '.[$id]=$v' <<<"$plangs")"
+    # pool de juízes POR problema (mesmo formato/normalização do admin problem-judges.json)
+    jarr="$(jq -c '(.judges // []) | map(select(type=="string") | select(test("^[A-Za-z0-9._-]+$"))) | unique' <<<"$p" 2>/dev/null)"
+    [[ -n "$jarr" && "$jarr" != "[]" && "$jarr" != *..* ]] && pjudges="$(jq -c --arg id "$skey" --argjson v "$jarr" '.[$id]=$v' <<<"$pjudges")"
     probs+=" $(printf '%q' "$src") $(printf '%q' "$pid") $(printf '%q' "$pname") $(printf '%q' "$letter") $(printf '%q' "$skey")"
     ((i++))
   done < <(jq -c '.problems[]?' <<<"$spec")
   probs+=" )"
   [[ "$plangs" != "{}" ]] && printf '%s' "$plangs" > "$stg/problem-langs.json"
+  [[ "$pjudges" != "{}" ]] && printf '%s' "$pjudges" > "$stg/problem-judges.json"
 
   [[ -n "$cname" ]] || cname="$creator"
 
@@ -521,7 +528,7 @@ cc_export_spec(){
     LANGUAGES=""; SHOWCODE=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
     FREEZE_TIME=""; ALLOWLATEUSER=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
-    PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"
+    PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""
     . "$cdir/conf" 2>/dev/null
     jq -cn \
       --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
@@ -531,7 +538,8 @@ cc_export_spec(){
       --arg late "$ALLOWLATEUSER" --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
       --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
-      --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" '
+      --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" \
+      --arg jdg "$CONTEST_JUDGES" '
       {name:$name, mode:(if $mode=="" then "icpc" else $mode end)}
       + (if $prio != "" then {priority:$prio} else {} end)
       + (if ($start|tonumber?) then {start:($start|tonumber)} else {} end)
@@ -555,13 +563,17 @@ cc_export_spec(){
       + (if $ua != "" then {login_ua_substring:$ua} else {} end)
       + (if $sfu != "" then {score_full_users:($sfu|split(" ")|map(select(length>0)))} else {} end)
       + (if (($pmin|tonumber?) // 20) != 20 then {penalty_minutes:($pmin|tonumber)} else {} end)
-      + (if $pvd != "__unset" then {penalty_verdicts:($pvd|split(" ")|map(select(length>0)))} else {} end)'
+      + (if $pvd != "__unset" then {penalty_verdicts:($pvd|split(" ")|map(select(length>0)))} else {} end)
+      + (if $jdg != "" then {judges:($jdg|split(" ")|map(select(length>0)))} else {} end)'
   )"
   [[ -n "$confjson" ]] || return 1
 
   local plf='{}'
   [[ -f "$cdir/problem-langs.json" ]] && plf="$(jq -c . "$cdir/problem-langs.json" 2>/dev/null)"
   jq -e . >/dev/null 2>&1 <<<"$plf" || plf='{}'
+  local pjm='{}'
+  [[ -f "$cdir/problem-judges.json" ]] && pjm="$(jq -c . "$cdir/problem-judges.json" 2>/dev/null)"
+  jq -e . >/dev/null 2>&1 <<<"$pjm" || pjm='{}'
 
   local tmpd; tmpd="$(mktemp -d)" || return 1
   : > "$tmpd/probs.jsonl"
@@ -569,11 +581,12 @@ cc_export_spec(){
   while IFS= read -r pj; do
     [[ -n "$pj" ]] || continue
     skey="$(jq -r '.statement_key // empty' <<<"$pj")"
-    jq -cn --argjson p "$pj" --argjson pl "$plf" '
+    jq -cn --argjson p "$pj" --argjson pl "$plf" --argjson pjm "$pjm" '
       ($p.statement_key // "") as $sk
       | (if ($sk|test("#")) then $sk else (($p.problem_id // "")|gsub("/";"#")) end) as $cid
       | {source:($p.source // "cdmoj"), problem_id:$p.problem_id, name:$p.name, letter:$p.letter}
-      + (if (($pl[$cid] // [])|length) > 0 then {languages:$pl[$cid]} else {} end)' > "$tmpd/base.json"
+      + (if (($pl[$cid] // [])|length) > 0 then {languages:$pl[$cid]} else {} end)
+      + (if (($pjm[$cid] // [])|length) > 0 then {judges:$pjm[$cid]} else {} end)' > "$tmpd/base.json"
     emb_html=""; emb_pdf=""
     if [[ "$stmts" != none && -n "$skey" ]]; then
       if [[ -f "$cdir/enunciados/$skey.html" ]] && { [[ "$stmts" == all ]] || [[ ! -f "$CONTESTSDIR/treino/var/jsons/$skey.json" ]]; }; then

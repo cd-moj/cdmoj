@@ -125,12 +125,27 @@ intake_enqueue() {
   local json="$1" contest="$2" id="$3" login="$4" problem="$5" lang="$6" filename="$7" code_b64="$8"
   local prio="${CONTEST_PRIORITY:-lista-publica}"
   archive_source "$contest" "$id" "$login" "$problem" "$lang" "$code_b64"
+  # pool de juízes EFETIVO (override do problema -> pool do contest -> todas): vira
+  # allowed_hosts no job; o q_claim só entrega a host listado (estrito por default).
+  # CONTEST_JUDGES vem do conf sourced pelo chamador; tolerante a id 'repo#prob'/'repo/prob'.
+  local ah='[]' pjf="$CONTESTSDIR/$contest/problem-judges.json"
+  if [[ -f "$pjf" ]]; then
+    ah="$(jq -c --arg p "$problem" '
+      . as $m | ([$p, ($p|gsub("#";"/")), ($p|gsub("/";"#"))] | unique) as $vs
+      | ([ $vs[] | $m[.] // empty ] | .[0]) // []' "$pjf" 2>/dev/null)"
+    [[ -n "$ah" ]] || ah='[]'
+  fi
+  if [[ "$ah" == '[]' && -n "${CONTEST_JUDGES:-}" ]]; then
+    ah="$(printf '%s\n' $CONTEST_JUDGES | grep -v '^$' | jq -R . | jq -cs .)"
+    [[ -n "$ah" ]] || ah='[]'
+  fi
   local job
   job="$(jq -cn --arg id "$id" --arg c "$contest" --arg p "$problem" --arg login "$login" \
     --arg lang "$lang" --arg f "${filename:-solution}" --arg b "$code_b64" \
-    --arg prio "$prio" --argjson now "$EPOCHSECONDS" \
+    --arg prio "$prio" --argjson now "$EPOCHSECONDS" --argjson ah "$ah" \
     '{id:$id, contest:$c, problem_id:$p, login:$login, lang:$lang, filename:$f,
-      code_b64:$b, priority:$prio, enqueued_at:$now}')"
+      code_b64:$b, priority:$prio, enqueued_at:$now}
+     + (if ($ah|length) > 0 then {allowed_hosts:$ah} else {} end)')"
   q_enqueue "$id" "$prio" "$job"
 }
 
@@ -386,7 +401,7 @@ process_spool_file() {
 
   # ---- carrega CONTEST_END/CONTEST_TYPE/MOJCONTESTSERVERS p/ o backend cluster.
   # (source seguro: já validamos contest; o conf é confiável no deploy.)
-  local CONTEST_START="" CONTEST_END="" CONTEST_TYPE="" MOJCONTESTSERVERS="" CONTEST_PRIORITY=""
+  local CONTEST_START="" CONTEST_END="" CONTEST_TYPE="" MOJCONTESTSERVERS="" CONTEST_PRIORITY="" CONTEST_JUDGES=""
   if [[ -r "$cdir/conf" ]]; then
     # shellcheck source=/dev/null
     source "$cdir/conf" 2>/dev/null || true

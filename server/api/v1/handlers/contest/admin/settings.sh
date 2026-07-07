@@ -10,10 +10,11 @@ source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""
+  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""
   PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"
   load_contest_conf "$contest"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
+  jdg_json='[]'; [[ -n "$CONTEST_JUDGES" ]] && jdg_json="$(printf '%s\n' $CONTEST_JUDGES | grep -v '^$' | jq -R . | jq -cs .)"
   sfu_json='[]'; [[ -n "$SCORE_FULL_USERS" ]] && sfu_json="$(printf '%s\n' $SCORE_FULL_USERS | grep -v '^$' | jq -R . | jq -cs .)"
   # penalidade ICPC: default (var ausente) = 20 min / PENALTY_CODES_DEFAULT; '' = lista vazia
   [[ "$PENALTY_MINUTES" =~ ^[0-9]+$ ]] || PENALTY_MINUTES=20
@@ -21,7 +22,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   pvd_json="$(jq -cn --arg pv "$PENALTY_VERDICTS" '$pv|split(" ")|map(select(length>0))')"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
-            show_tl:$stl, languages:$langs, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
+            show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd}' \
     --arg mode "$(contest_score_mode "$contest")" \
     --argjson pm "$PENALTY_MINUTES" --argjson pvd "$pvd_json" \
@@ -35,7 +36,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --arg ua "$LOGIN_UA_SUBSTRING" \
     --argjson sa "$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)" \
     --argjson stl "$([[ "$SHOWTL" == 0 ]] && echo false || echo true)" \
-    --argjson langs "$langs_json" --argjson sfu "$sfu_json" \
+    --argjson langs "$langs_json" --argjson jdg "$jdg_json" --argjson sfu "$sfu_json" \
     --argjson ab "$([[ "$BACKUP" == 0 ]] && echo false || echo true)" \
     --argjson ap "$([[ "$PRINT" == 0 ]] && echo false || echo true)" \
     --argjson mv "$([[ "$MANUAL_VERDICT" == 1 ]] && echo true || echo false)" \
@@ -91,6 +92,14 @@ fi
 if has languages; then
   lj="$(jq -r '(.languages // []) | map(ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$body")"
   [[ -n "$lj" ]] && setvar LANGUAGES "$lj" || delvar LANGUAGES
+fi
+
+# pool de juízes do contest (hostnames do registro, espaço-separados; vazio = todas as
+# máquinas). Consumido pelo daemon (allowed_hosts do job) e pelo TL de /contest/problems.
+if has judges; then
+  jv="$(jq -r '(.judges // []) | map(select(type=="string") | select(test("^[A-Za-z0-9._-]+$"))) | unique | join(" ")' <<<"$body")"
+  [[ "$jv" == *..* ]] && fail 422 "hostname inválido" "judges_invalid"
+  [[ -n "$jv" ]] && setvar CONTEST_JUDGES "$jv" || delvar CONTEST_JUDGES
 fi
 
 # logins que veem o placar COMPLETO (sem freeze) além de .admin/.judge (espaço-separados)

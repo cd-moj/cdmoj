@@ -1257,7 +1257,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits}]}"
+            "description": "{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits,languages}]} (time_limits = MAX entre juízes; com pool de juízes definido — problem-judges.json -> CONTEST_JUDGES — só entre os hosts do pool efetivo)"
           }
         }
       }
@@ -1592,7 +1592,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Checklist pré-prova (janela, SHOWLOG, freeze, juízes online, toolchains, TL calibrado, staff, contas, spool)",
+        "summary": "Checklist pré-prova (janela, SHOWLOG, freeze, juízes online, pool de juízes — estrito: fail se o pool do contest está todo offline; pool_problems p/ overrides por problema — toolchains e TL calibrado no pool efetivo, staff, contas, spool)",
         "security": [
           {
             "bearerAuth": []
@@ -2603,6 +2603,13 @@
                         "type": "string"
                       }
                     ]
+                  },
+                  "judges": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "pool de juízes do contest (hostnames do registro; vazio = qualquer juiz online) — vira CONTEST_JUDGES; escalonador ESTRITO"
                   },
                   "showcode": {
                     "type": "boolean"
@@ -3667,7 +3674,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{judges:{online,busy,total,queue_depth,assigned}, submissions:{total,pending,pending_list,max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline}}"
+            "description": "{judges:{online,busy,total,queue_depth,assigned,pool,list}, submissions:{total,pending,pending_list,max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline}} (pool = hostnames de CONTEST_JUDGES; [] = sem pool)"
           }
         }
       }
@@ -3695,7 +3702,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui mode read-only e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false)",
+        "summary": "Configurações do contest (inclui mode read-only, judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3711,7 +3718,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Atualiza configurações (auditado; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
+        "summary": "Atualiza configurações (auditado; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3850,7 +3857,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Lista problemas",
+        "summary": "Lista problemas (inclui languages e judges por problema)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3866,7 +3873,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "add|remove|reorder|rename problema (add de privado: só se o dono do contest é dono/colaborador — senão 404)",
+        "summary": "add|remove|reorder|rename|langs|judges|statement (langs -> problem-langs.json; judges -> problem-judges.json, pool por problema, vazio herda o do contest; add de privado: só se o dono do contest é dono/colaborador — senão 404)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
