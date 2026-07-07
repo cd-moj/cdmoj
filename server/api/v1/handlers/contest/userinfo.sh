@@ -18,12 +18,13 @@ show_log=true;    [[ "$(showlog_effective "$contest")" == 0 ]] && show_log=false
 show_editor=true; [[ "$SHOWEDITOR" == 0 ]] && show_editor=false
 show_code=false;  [[ "${SHOWCODE:-0}" == 1 ]] && show_code=true
 
-ok_json '{login:$l, name:$n, contest:$c, is_admin:$a, is_judge:$j, is_staff:$s, is_mon:$m, is_chief:$ch,
+ok_json '{login:$l, name:$n, contest:$c, is_admin:$a, is_judge:$j, is_staff:$s, is_cstaff:$cs, is_mon:$m, is_chief:$ch,
           show_log:$sl, show_code:$sc, show_editor:$se}' \
   --arg l "$SESSION_LOGIN" --arg n "$NAME" --arg c "$contest" \
   --argjson a "$(is_admin && echo true || echo false)" \
   --argjson j "$(is_judge && echo true || echo false)" \
   --argjson s "$(is_staff && echo true || echo false)" \
+  --argjson cs "$(is_cstaff && echo true || echo false)" \
   --argjson m "$(is_mon && echo true || echo false)" \
   --argjson ch "$(is_chief && echo true || echo false)" \
   --argjson sl "$show_log" --argjson sc "$show_code" --argjson se "$show_editor"

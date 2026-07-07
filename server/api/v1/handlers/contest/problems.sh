@@ -14,7 +14,7 @@ require_auth_contest "$contest"
 source "$_LIBDIR/contest-gate.sh"
 if ! can_see_problems "$contest"; then
   emit_json 200 OK
-  jq -cn --arg s "$(is_staff && echo staff || echo not_started)" '{success:true, problems:[], locked:$s}'
+  jq -cn --arg s "$( { is_staff || is_cstaff; } && echo staff || echo not_started)" '{success:true, problems:[], locked:$s}'
   exit 0
 fi
 

@@ -21,15 +21,22 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `id→sub_epoch` do history em `score/treino-response-gen.sh`) **não** vai por `--argjson` — estoura
   `Argument list too long`. Use `--slurpfile <arquivo>` ou encadeie etapas com pipe.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
-  `printf %q` (é *sourced*). Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.mon`).
+  `printf %q` (é *sourced*). Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.cstaff/.mon`).
   **`.cjudge`** = juiz-chefe: `is_judge` vale p/ ele (herda juiz) + `is_chief`/`is_admin_or_chief`
   p/ os extras escopados (editar notícias/respostas já dadas, Situação, Todas Submissões, resolver
-  conflitos, config de auto-veredicto) — **não** é admin pleno. Ao mexer em papel, lembre das
-  **quatro** listas de sufixo independentes: `lib/auth.sh`, `score/score-common.sh`,
-  `score/stats-gen.sh`, `handlers/auth/login.sh` (+ guard `treino/profile/username.sh`).
+  conflitos, config de auto-veredicto) — **não** é admin pleno. **`.cstaff`** = chefe de staff de
+  uma sede (`is_cstaff`, **não** herda `is_staff`): VÊ mas não AGE — etiquetas de credenciais com
+  senha (o `.staff` perdeu), fila do staff em leitura (ações/PDF 403), placar congelado como
+  usuário comum (admin libera o full via `SCORE_FULL_USERS`) e a **cerimônia de revelação POR
+  SEDE** (`/contest/score` `&scope=mine`, full só pós `contest_over_for_all`); escopo pelo mesmo
+  `staff-filters.json`. Ao mexer em papel, lembre das **quatro** listas de sufixo canônicas —
+  `lib/auth.sh`, `score/score-common.sh`, `score/stats-gen.sh`, `handlers/auth/login.sh` (+ guard
+  `treino/profile/username.sh`) — **e das réplicas** em `handlers/contest/teams.sh`,
+  `handlers/contest/admin/teams.sh`, `lib/telegram.sh`, `daemons/judged.sh` (`should_hold`),
+  `lib/print.sh` (`pr_reconcile_balloons`) e `handlers/contest/badges.sh` (regex jq).
   Auto-cadastro **nunca** cria papel por sufixo: use `is_reserved_role_login` (`lib/auth.sh`) —
   já aplicado no signup; o `/admin/adduser` (admin autenticado) **continua** podendo criar
-  `.judge`/`.staff` de um contest (legítimo).
+  `.judge`/`.staff`/`.cstaff` de um contest (legítimo).
 - **Store por-usuário (`lib/users.sh`)**: cada conta vive em `contests/<c>/users/<login>/`
   (`account.json` autoritativo — inclui perfil `university`/`favorite_editor`/`public`/
   `uname_changes` e time `.team{name,univ_short,univ_full,flag}`; `history` próprio de 6 campos
@@ -108,11 +115,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
 - **Etiquetas de credenciais** (`/contest/badges` + página `web/contest/badges/`, gabaritos Pimaco
-  A4): é o **único** endpoint que devolve `.password` numa releitura — gate admin/`.staff`, escopo
-  do staff via `staff-filters.json` (+ a própria conta), contas `.admin/.judge/.cjudge/.mon` nunca
-  entram, e o admin pode desligar a variante com senha p/ o staff (POST `{staff_password:false}` →
-  `print-requests/badges.json`; o GET do staff vem **sem o campo**). Sempre auditado
-  (`badges-view`/`badges-config`).
+  A4): é o **único** endpoint que devolve `.password` numa releitura — gate **admin/`.cstaff`**
+  (o `.staff` recebe **403 `cstaff_required`**), GET-only, senha **sempre** presente (o antigo
+  toggle `{staff_password}` foi extinto; `print-requests/badges.json` é arquivo morto). Escopo do
+  `.cstaff` via `staff-filters.json` (+ a própria conta e as `.staff`/`.cstaff` do MESMO escopo —
+  o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
+  `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado
+  (`badges-view`).
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o

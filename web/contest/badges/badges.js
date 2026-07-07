@@ -1,11 +1,12 @@
-// contest/badges/badges.js — etiquetas imprimíveis de credenciais (admin + .staff).
-// Admin vê a lista completa (ou o "arquivo" de cada sede via seletor de staff); o .staff
-// vê só o próprio recorte — quem corta é a API (/contest/badges), inclusive a variante
-// com senha (flag staff_password: desligada, a senha nem chega ao cliente do staff).
+// contest/badges/badges.js — etiquetas imprimíveis de credenciais (admin + .cstaff).
+// Admin vê a lista completa (ou o "arquivo" de cada sede via seletor de .cstaff); o
+// .cstaff (chefe de sede) vê só o próprio recorte — quem corta é a API (/contest/badges).
+// O .staff NÃO tem acesso (403 na API). A senha vem SEMPRE p/ quem pode ver a página; a
+// variante "sem senha" é só escolha local de impressão.
 // A folha é HTML em mm (posicionamento absoluto), casada com os gabaritos Pimaco A4;
 // imprimir = window.print() com margens "Nenhuma" e escala 100%. Credenciais NUNCA são
 // gravadas no cliente — só o estado dos controles vai ao localStorage.
-import { apiGet, apiPost } from '/shared/api.js';
+import { apiGet } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
 
@@ -57,9 +58,6 @@ async function load() {
   renderSheets();
 }
 
-// staff sem senha liberada (flag do admin): a API já omite o campo password
-const passAllowed = () => IS_ADMIN || !DATA || DATA.staff_password !== false;
-
 // reduz a fonte do elemento até o conteúdo caber (nomes/instituições longos)
 function fitText(elm, box, minPx) {
   let size = parseFloat(getComputedStyle(elm).fontSize);
@@ -70,7 +68,8 @@ function fitText(elm, box, minPx) {
 
 function labelNode(u, d) {
   const mm = (v) => v.toFixed(2) + 'mm';
-  const isStaff = /\.staff$/.test(u.login || '');
+  const role = /\.cstaff$/.test(u.login || '') ? 'chefe de sede'
+    : (/\.staff$/.test(u.login || '') ? 'staff' : '');
   const inner = el('div', { class: 'lbl-inner' });
   // tamanhos proporcionais à altura da etiqueta (auto-reduzidos depois, se estourar)
   const nameSz = Math.max(3.2, Math.min(5.4, d.h * 0.105));
@@ -78,8 +77,8 @@ function labelNode(u, d) {
   inner.append(el('div', { class: 'name', style: 'font-size:' + mm(nameSz) }, u.name || u.login));
   if (S.fUniv && u.univ) inner.append(el('div', { class: 'univ', style: 'font-size:' + mm(Math.max(2.4, nameSz * 0.55)) }, u.univ));
   inner.append(el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.login));
-  if (S.showPass && passAllowed()) inner.append(el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.password || ''));
-  const tag = (S.fRegion && u.region ? u.region : '') + (isStaff ? (S.fRegion && u.region ? ' · ' : '') + 'staff' : '');
+  if (S.showPass) inner.append(el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.password || ''));
+  const tag = (S.fRegion && u.region ? u.region : '') + (role ? (S.fRegion && u.region ? ' · ' : '') + role : '');
   if (tag) inner.append(el('div', { class: 'tag' }, tag));
   if (S.fEvent) {
     const dt = DATA.start_epoch > 0 ? new Date(DATA.start_epoch * 1000).toLocaleDateString('pt-BR') : '';
@@ -100,7 +99,7 @@ function renderSheets() {
   statusBar.textContent = users.length + ' etiqueta(s)' +
     (DATA.staff_view ? ' · arquivo de ' + DATA.staff_view : '') +
     ' · ' + Math.ceil((users.length + skip) / perPage) + ' folha(s) de ' + perPage +
-    (S.showPass && passAllowed() ? ' · COM senha' : ' · sem senha');
+    (S.showPass ? ' · COM senha' : ' · sem senha');
   if (!users.length) {
     sheets.append(el('p', { class: 'muted small no-print', style: 'text-align:center' }, 'Nenhum usuário para etiquetar.'));
     return;
@@ -134,7 +133,7 @@ function render() {
     return el('label', {}, c, ' ' + label);
   };
 
-  // variante com/sem senha (staff sem permissão do admin só vê "sem senha")
+  // variante com/sem senha (escolha LOCAL de impressão — a credencial já veio da API)
   const passSel = el('select', {},
     el('option', { value: '1' }, '🔑 com senha'),
     el('option', { value: '' }, 'sem senha'));
@@ -178,28 +177,7 @@ function render() {
   const skipIn = el('input', { type: 'number', min: '0', step: '1', value: S.skip | 0, title: 'etiquetas já usadas na 1ª folha' });
   skipIn.addEventListener('change', () => { S.skip = Math.max(0, skipIn.value | 0); save(); renderSheets(); });
 
-  // admin: liga/desliga a variante com senha p/ o .staff (persistido na API, corte na API)
-  let spBox = '';
-  if (IS_ADMIN) {
-    const spChk = el('input', { type: 'checkbox' });
-    spChk.addEventListener('change', async () => {
-      spChk.disabled = true;
-      try {
-        const r = await apiPost('/contest/badges?contest=' + enc(CONTEST), { staff_password: spChk.checked }, G);
-        if (DATA) DATA.staff_password = r.staff_password;
-      } catch (e) { alert(e.message || 'falha'); spChk.checked = !spChk.checked; }
-      spChk.disabled = false;
-    });
-    spBox = el('label', { title: 'desligado, o staff só gera etiquetas SEM senha (a API omite o campo)' }, spChk, ' staff gera com senha');
-    afterLoad = () => { spChk.checked = DATA ? DATA.staff_password !== false : true; fillSelects(); };
-  } else {
-    afterLoad = () => {
-      fillSelects();
-      // sem permissão: trava a variante em "sem senha"
-      passSel.querySelector('option[value="1"]').disabled = !passAllowed();
-      if (!passAllowed()) { passSel.value = ''; S.showPass = false; save(); }
-    };
-  }
+  afterLoad = fillSelects;
 
   function fillSelects() {
     if (!DATA) return;
@@ -221,7 +199,7 @@ function render() {
     el('div', { class: 'row' },
       el('label', {}, 'Variante ', passSel),
       mkChk('contest + data', 'fEvent'), mkChk('sede/região', 'fRegion'), mkChk('instituição', 'fUniv'),
-      mkChk('contorno (calibrar)', 'outline'), spBox),
+      mkChk('contorno (calibrar)', 'outline')),
     el('div', { class: 'row', style: 'margin-top:.5rem' },
       el('label', {}, 'Etiqueta ', presetSel), dimBox),
     el('div', { class: 'row', style: 'margin-top:.5rem' },
@@ -243,10 +221,10 @@ async function boot() {
       el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, 'Ir para o contest')));
     return;
   }
-  if (!st.is_staff && !st.is_admin) {
+  if (!st.is_cstaff && !st.is_admin) {
     app.innerHTML = '';
     app.append(el('div', { class: 'section' }, el('h2', {}, '🔒 Acesso restrito'),
-      el('p', { class: 'muted' }, 'Etiquetas de credenciais são do admin e da equipe de sede (.staff).')));
+      el('p', { class: 'muted' }, 'Etiquetas de credenciais são do admin e do chefe de sede (.cstaff).')));
     return;
   }
   IS_ADMIN = !!st.is_admin;

@@ -1,7 +1,9 @@
 # GET/POST /contest/admin/staff-filters?contest=<c>   (admin DO contest)
-# Escopo de cada usuário .staff (sedes distribuídas): lista de entradas onde cada uma é
-# "region:<nome>" (casa com o .team.region do aluno — o jeito por-sede sem regex) OU uma
-# regex no login do aluno (clássico). Lista vazia/ausente = o staff vê TODAS as tarefas.
+# Escopo de cada usuário .staff e .cstaff (sedes distribuídas): lista de entradas onde
+# cada uma é "region:<nome>" (casa com o .team.region do aluno — o jeito por-sede sem
+# regex) OU uma regex no login do aluno (clássico). Lista vazia/ausente = vê TUDO.
+# O escopo do .staff governa a fila/ações; o do .cstaff governa a fila (leitura), as
+# ETIQUETAS de credenciais e a CERIMÔNIA de revelação da sede — configure-o sempre.
 # Semear a partir de regions.json (a UI insere region:<nome>).
 # Persiste em contests/<c>/print-requests/staff-filters.json. Auditado (staff-filters).
 contest="$(param contest)"
@@ -31,7 +33,7 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 filters="$(jq -c '.filters // {}' <<<"$body")"
 jq -e 'type=="object"' >/dev/null 2>&1 <<<"$filters" || fail 422 "filters inválido" "filters_invalid"
 
-# logins .staff válidos (só esses podem ser chaves); valores = regex não-vazias (caps).
+# logins .staff/.cstaff válidos (só esses podem ser chaves); valores = regex não-vazias (caps).
 valid_staff="$(pr_staff_logins "$contest" | jq -R -s 'split("\n") | map(select(length>0) | split("\t")[0])')"
 clean="$(jq -c --argjson valid "$valid_staff" '
   to_entries

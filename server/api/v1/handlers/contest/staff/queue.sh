@@ -1,12 +1,14 @@
-# GET /contest/staff/queue?contest=<c>   (Bearer; .staff ou .admin)
-# Fila de tarefas de impressão visíveis a ESTE staff (escopo por regex). Admin vê tudo.
+# GET /contest/staff/queue?contest=<c>   (Bearer; .staff, .cstaff ou .admin)
+# Fila de tarefas de impressão visíveis a ESTE staff (escopo por staff-filters). Admin vê
+# tudo. O .cstaff (chefe de sede) SÓ LÊ a fila do escopo dele — as ações (print-action) e
+# o PDF (print-pdf/print-file) continuam vedados a ele (403 lá).
 # Ordena: pendentes primeiro, depois impressas, depois entregues; dentro, por nº seq.
 require_method GET
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_staff || is_admin; } || fail 403 "Apenas staff" "staff_required"
+{ is_staff || is_cstaff || is_admin; } || fail 403 "Apenas staff" "staff_required"
 source "$_LIBDIR/print.sh"
 
 # gera (preguiçosamente) as tarefas de balão pendentes (1ª solução de cada time/problema)

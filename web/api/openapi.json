@@ -314,7 +314,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{logged_in, login, name, is_admin, is_judge, is_staff}"
+            "description": "{logged_in, login, name, is_admin, is_judge, is_staff, is_cstaff, is_chief} (.cstaff = chefe de sede, não herda is_staff)"
           }
         }
       }
@@ -1221,7 +1221,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Botões de navegação por papel",
+        "summary": "Botões de navegação por papel (.admin/.judge/.staff/.cstaff/.mon; .cstaff ganha Etiquetas e — pós-fim p/ todas as sedes — Revelação; .staff sem Etiquetas)",
         "security": [
           {
             "bearerAuth": []
@@ -1427,7 +1427,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Baixa o arquivo cru de um pedido (dono/admin/staff no escopo)",
+        "summary": "Baixa o arquivo cru de um pedido (dono/admin/staff no escopo; .cstaff não — 403)",
         "security": [
           {
             "bearerAuth": []
@@ -1450,7 +1450,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Fila de tarefas do staff (impressão + balões; escopo por regex). Reconcilia balões pendentes (1ª-AC) ao carregar",
+        "summary": "Fila de tarefas do staff (impressão + balões; escopo por staff-filters; .cstaff SÓ LÊ — ações/PDF 403). Reconcilia balões pendentes (1ª-AC) ao carregar",
         "security": [
           {
             "bearerAuth": []
@@ -1473,7 +1473,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Máquina de estado da tarefa: claim|processed|delivered",
+        "summary": "Máquina de estado da tarefa: claim|processed|delivered (.staff/admin; .cstaff não — 403)",
         "security": [
           {
             "bearerAuth": []
@@ -1499,7 +1499,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "PDF inline (build-once): kind=print → folha de rosto + documento A4 (código numerado); kind=balloon → folha do balão (time/univ/login/problema/cor desenhada+nome/nº/assinatura)",
+        "summary": "PDF inline (build-once): kind=print → folha de rosto + documento A4 (código numerado); kind=balloon → folha do balão (time/univ/login/problema/cor desenhada+nome/nº/assinatura). .staff/admin; .cstaff não — 403",
         "security": [
           {
             "bearerAuth": []
@@ -1522,7 +1522,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Credenciais p/ etiquetas imprimíveis (SENHA EM CLARO; auditado badges-view). Admin: tudo ou o arquivo de uma sede via staff=<login>; .staff: só o próprio recorte (staff-filters) + a própria conta. include_disabled=1 inclui contas desativadas",
+        "summary": "Credenciais p/ etiquetas imprimíveis (SENHA EM CLARO, sempre presente; auditado badges-view). Admin/.cstaff apenas — .staff recebe 403 cstaff_required. Admin: tudo ou o arquivo de uma sede via staff=<login .cstaff>; .cstaff: só o próprio recorte (staff-filters) + a própria conta e as .staff/.cstaff do mesmo escopo. include_disabled=1 inclui contas desativadas",
         "security": [
           {
             "bearerAuth": []
@@ -1535,31 +1535,10 @@
         ],
         "responses": {
           "200": {
-            "description": "{users:[{login,name,fullname,password,disabled,region,univ}], staff:[…só admin], regions, staff_password, contest_name, start_epoch}"
+            "description": "{users:[{login,name,fullname,password,disabled,region,univ}], staff:[…só admin, logins .cstaff], regions, contest_name, start_epoch}"
           },
           "403": {
-            "description": "staff_required | staff_scope"
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "contest"
-        ],
-        "summary": "Só admin: liga/desliga a variante com senha p/ o .staff (body {staff_password:bool}; desligada, o GET do staff vem sem o campo password). Auditado (badges-config)",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/contest"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "{saved:true, staff_password:bool}"
+            "description": "cstaff_required | staff_scope"
           }
         }
       }
@@ -1569,7 +1548,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Escopo (regex) de cada usuário .staff + lista de staff/regiões",
+        "summary": "Escopo de cada usuário .staff/.cstaff (no .cstaff vale p/ fila-leitura, etiquetas e cerimônia) + lista de staff/regiões",
         "security": [
           {
             "bearerAuth": []
@@ -1590,7 +1569,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Grava o escopo por staff (entradas region:<nome> — igualdade com a sede do time — ou regex no login; vazio = vê tudo)",
+        "summary": "Grava o escopo por staff/cstaff (entradas region:<nome> — igualdade com a sede do time — ou regex no login; vazio = vê tudo)",
         "security": [
           {
             "bearerAuth": []
@@ -1870,7 +1849,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Placar (TXT, 1ª linha = modo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação)",
+        "summary": "Placar (TXT, 1ª linha = modo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação); scope=mine (só .cstaff) recorta à sede",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -1884,6 +1863,16 @@
               "enum": ["public"]
             },
             "description": "public = visão pública/congelada mesmo com sessão privilegiada"
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["mine"]
+            },
+            "description": "mine (honrado só p/ .cstaff) = recorta o placar servido (frozen e full) aos usuários do escopo dele (staff-filters); fora da allowlist SCORE_FULL_USERS, o full só sai quando o contest terminou p/ TODAS as sedes (fim do conf + maior end de time-overrides.json) — cerimônia por sede"
           }
         ],
         "responses": {

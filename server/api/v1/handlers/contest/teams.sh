@@ -13,7 +13,7 @@ require_not_secret_or_auth "$contest"
 cdir="$CONTESTSDIR/$contest"
 teams="$( { find "$cdir/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | while IFS= read -r d; do
     login="${d##*/}"
-    case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.mon|.removed-users) continue;; esac
+    case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|.removed-users) continue;; esac
     hp=false; [[ -s "$d/photo.png" ]] && hp=true
     hl=false; [[ -s "$d/logo.png" ]] && hl=true
     if [[ -f "$d/account.json" ]]; then

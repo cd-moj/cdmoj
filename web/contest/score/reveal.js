@@ -3,9 +3,13 @@
 // delta por célula e revela de baixo para cima — espaço/→ avança um passo (a célula pendente
 // mais à esquerda do time do cursor); quando o time sobe, a linha anima e o cursor fica na
 // mesma posição (outro time caiu nela). "Descongelar tudo" publica o placar completo
-// (settings freeze=0). Só faz sentido em modo icpc com FREEZE_TIME configurado.
+// (settings freeze=0; só admin). Só faz sentido em modo icpc com FREEZE_TIME configurado.
+// .cstaff (chefe de sede): as mesmas duas chamadas levam &scope=mine — a API recorta as
+// DUAS visões aos usuários da sede dele (staff-filters) e só libera o full depois que o
+// contest termina para TODAS as sedes; a cerimônia local revela só a sede.
 import { el } from '/shared/ui.js';
 import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
+import { status } from '/shared/auth.js';
 import { parseICPC } from './score-icpc.js';
 import { balloonColorHex, balloonIsDark } from './score-colors.js';
 import { flagEl } from '/shared/flags.js';
@@ -122,12 +126,16 @@ async function unfreezeAll() {
 
 async function main() {
   if (!CONTEST) { app.textContent = 'Faltou ?c=<contest>'; return; }
-  if (!getToken(CONTEST)) { app.textContent = 'Faça login no contest primeiro (admin/juiz).'; return; }
+  if (!getToken(CONTEST)) { app.textContent = 'Faça login no contest primeiro (admin/juiz/chefe de sede).'; return; }
+  let st = {};
+  try { st = await status(CONTEST) || {}; } catch { st = {}; }
+  const CSTAFF = !!(st.logged_in && st.is_cstaff && !st.is_judge && !st.is_admin);
+  const scopeQ = CSTAFF ? '&scope=mine' : '';
   let frozenTxt, fullTxt;
   try {
     [frozenTxt, fullTxt] = await Promise.all([
-      apiGetText('/contest/score?contest=' + enc(CONTEST) + '&view=public', G),
-      apiGetText('/contest/score?contest=' + enc(CONTEST), G),
+      apiGetText('/contest/score?contest=' + enc(CONTEST) + '&view=public' + scopeQ, G),
+      apiGetText('/contest/score?contest=' + enc(CONTEST) + scopeQ, G),
     ]);
   } catch (e) { app.textContent = 'Falha ao carregar o placar: ' + (e.message || 'erro'); return; }
   const fl = frozenTxt.split('\n'), ul = fullTxt.split('\n');
@@ -135,7 +143,9 @@ async function main() {
     app.textContent = 'A cerimônia é só para contests em modo icpc.'; return;
   }
   try { balloons = await apiGet('/contest/balloons?contest=' + enc(CONTEST), G); } catch { balloons = {}; }
-  try { const s = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G); if (Number.isInteger(s.penalty_minutes)) PEN = s.penalty_minutes; } catch { /* .judge sem settings: PEN=20 */ }
+  if (!CSTAFF) {
+    try { const s = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G); if (Number.isInteger(s.penalty_minutes)) PEN = s.penalty_minutes; } catch { /* .judge sem settings: PEN=20 */ }
+  }
   const frozen = parseICPC(fl.slice(1), balloons), full = parseICPC(ul.slice(1), balloons);
   if (!frozen || !full) { app.textContent = 'Placar vazio.'; return; }
   probShorts = full.probShorts;
@@ -154,6 +164,18 @@ async function main() {
   teams.forEach(recompute);
   const totalPend = teams.reduce((n, t) => n + pendingCells(t).length, 0);
 
+  // cstaff antes do fim-para-todos: a API serviu frozen nas duas chamadas (0 pendências).
+  // Conveniência de UX — a garantia é o gate do /contest/score.
+  if (CSTAFF && totalPend === 0) {
+    try {
+      const b = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);
+      if ((b.end_time || 0) > Math.floor(Date.now() / 1000)) {
+        app.textContent = 'A revelação da sua sede abre quando o contest termina para todas as sedes.';
+        return;
+      }
+    } catch { /* segue: 0 pendências com contest encerrado é cerimônia vazia legítima */ }
+  }
+
   app.innerHTML = '';
   const stepBtn = el('button', { class: 'btn', onclick: () => step() }, '⏭ Passo (espaço)');
   const autoBtn = el('button', { class: 'btn ghost' }, '▶ Auto');
@@ -162,11 +184,14 @@ async function main() {
     autoBtn.textContent = '⏸ Pausar';
     timer = setInterval(() => { if (!step()) { clearInterval(timer); timer = null; autoBtn.textContent = '▶ Auto'; } }, 1400);
   });
-  const unfreezeBtn = el('button', { class: 'btn danger ghost', onclick: unfreezeAll }, '🔓 Descongelar tudo (público)');
+  // descongelar é POST admin-only — o botão só aparece p/ admin (juiz/cstaff não podem)
+  const unfreezeBtn = st.is_admin
+    ? el('button', { class: 'btn danger ghost', onclick: unfreezeAll }, '🔓 Descongelar tudo (público)') : '';
   app.append(
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap' },
       stepBtn, autoBtn, unfreezeBtn,
-      el('span', { class: 'muted small' }, totalPend + ' célula(s) pendente(s)')),
+      el('span', { class: 'muted small' }, totalPend + ' célula(s) pendente(s)'
+        + (CSTAFF ? ' · recorte da sede de ' + (st.login || '') : ''))),
     el('div', { id: 'status', class: 'small', style: 'margin-bottom:.5rem;font-weight:600' }),
     el('div', { id: 'board' }));
   document.addEventListener('keydown', (e) => {

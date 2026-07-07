@@ -49,7 +49,9 @@ moj/
   Histórico e placar são **TXT** cru (eficiência + é o que o front parseia).
 - **Auth** `Authorization: Bearer <token>` → sessões em `run/sessions/` (modo 700), gravadas
   com `printf %q` (o arquivo é *sourced*; nada de injeção). Papéis por sufixo no login:
-  `.admin` / `.judge` / `.staff` / `.mon`.
+  `.admin` / `.judge` / `.cjudge` / `.staff` / `.cstaff` / `.mon` (`.cstaff` = **chefe de
+  sede**: vê etiquetas de credenciais, fila do staff em leitura e a cerimônia da sede —
+  não herda `.staff`).
 - **Isolamento por subdomínio**: em `<id>.moj.<base>` o nginx injeta `CONTEST_HOST`; o
   `router.sh` só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend
   redireciona o resto para `/contest/` (`shared/contest-guard.js`).
@@ -146,8 +148,12 @@ heurístico/outro) com bandeiras locais, filtro por país/escola, modo **anônim
 quartis), **freeze** (esconde resultados após o horário; `build.sh` gera `placar.txt` público
 congelado e `placar-full.txt` completo — `.admin`/`.judge`/`.cjudge` + allowlist `SCORE_FULL_USERS` veem
 o completo) com **cerimônia de revelação nativa** (`/contest/score/reveal.html`, estilo ICPC resolver:
-delta frozen→full revelado de baixo p/ cima, passo/auto, botão "descongelar tudo" = settings `freeze:0`;
-o placar aceita `&view=public` p/ o privilegiado obter a visão congelada; link na aba Situação do admin),
+delta frozen→full revelado de baixo p/ cima, passo/auto, botão "descongelar tudo" = settings `freeze:0`,
+só admin; o placar aceita `&view=public` p/ o privilegiado obter a visão congelada; link na aba Situação
+do admin). O **`.cstaff`** conduz a **cerimônia POR SEDE**: a mesma página com `&scope=mine` — a API
+recorta frozen+full aos usuários do escopo dele (staff-filters) e só libera o full quando o contest
+terminou p/ **todas** as sedes (`contest_over_for_all`: fim do conf + o maior `end` de
+`time-overrides.json`; admin pode antecipar via allowlist `SCORE_FULL_USERS`),
 tempo de solução **relativo ao início** (não EPOCH), e nav por papel. Contest **🕵️ SUPER
 SECRETO** (conf `SECRET=1`, marcável na criação e no admin): **fora** das listagens públicas (home,
 arquivo `/contests/`, `/status/`) e o **placar deixa de ser público** — `score`/`balloons`/`regions`/
@@ -170,8 +176,8 @@ admin). **Acesso por fase+papel (forçado pela API, não só no front)**: `.admi
 problemas e **submetem a qualquer momento** (antes/durante/depois); o usuário normal **só vê os
 problemas após o início** (antes disso, ao logar, recebe uma **tela de contagem regressiva**) e
 **só submete durante a janela** (`/contest/problems` devolve `locked:"not_started"` e `/submit`
-recusa com `403` fora da janela — `contest_not_started`/`contest_ended`); `.staff` não vê problemas
-nem submete; `.mon` submete **só na janela** (como o normal) mas fica **fora do placar**. A janela
+recusa com `403` fora da janela — `contest_not_started`/`contest_ended`); `.staff`/`.cstaff` não veem
+problemas nem submetem; `.mon` submete **só na janela** (como o normal) mas fica **fora do placar**. A janela
 tem **prorrogação por sede/grupo** (`time-overrides.json`, regras regex no login — 1ª que casa
 **estende** o fim SÓ daquele grupo, ex.: queda de energia numa sede; `contest_end_effective` em
 `lib/contest-gate.sh` vale no `/submit` e no countdown do `/contest/basic` autenticado; editável
@@ -298,6 +304,15 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
     default ICPC A–O, com tabela hex→nome + cor mais próxima no custom), o **nº da
     tarefa** (`seq`) e **assinatura + hora**. Reusa o fluxo pegar→imprimir→entregar e é auditado
     (`balloon-task`/`-claim`/`-processed`/`-served`/`-delivered`). Balão **não** aparece p/ o aluno.
+  - **Chefe de sede (`.cstaff`)**: papel de supervisão da sede. Usa a **mesma página** da fila em
+    modo **somente leitura** (acompanha o escopo dele; sem pegar/imprimir/entregar — a API corta
+    `print-action`/`print-pdf`/`print-file` com 403) e é o **único papel além do admin** que vê as
+    **🏷️ Etiquetas de credenciais** (`/contest/badges`, senha **sempre** presente — o `.staff`
+    perdeu o acesso e o antigo toggle `staff_password` foi extinto). Vê o placar **congelado** como
+    usuário normal (admin libera o completo via `SCORE_FULL_USERS`) e, pós-fim p/ todas as sedes,
+    abre a **cerimônia de revelação da sede** (navbutton 🏆). O escopo (mesmo `staff-filters.json`,
+    entradas `region:<nome>`/regex) governa fila, etiquetas e cerimônia — **configure-o sempre**
+    (vazio = vê tudo, inclusive todas as senhas).
 
 **Auditoria**: ações administrativas são logadas em `contests/<c>/var/admin-audit.log`
 (e `treino/var/admin-audit.log` no treino) — o contest fica auto-contido.

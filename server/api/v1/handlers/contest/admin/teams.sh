@@ -36,7 +36,7 @@ if [[ "$(jq -r '.action // empty' <<<"$body")" == materialize ]]; then
   filled='{}'; nfill=0
   while IFS= read -r d; do
     login="${d##*/}"
-    case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.mon|.removed-users) continue;; esac
+    case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|.removed-users) continue;; esac
     [[ -f "$d/account.json" ]] || continue
     # jq: BINDA .regex antes do test ($l|test(.regex) leria .regex de $l — armadilha de
     # contexto de args); try/catch protege de regex inválida. 1ª regra/região que casa vence.

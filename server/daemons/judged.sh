@@ -154,7 +154,7 @@ should_hold() {
   mv="$(grep -m1 '^MANUAL_VERDICT=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2-)"
   mv="${mv//\'/}"; mv="${mv//\"/}"
   [[ "$mv" == 1 ]] || return 1
-  case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.mon) return 1;; esac
+  case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) return 1;; esac
   # transientes não viram item de revisão. ERROS de juiz (Judge Error/No_Servers) AGORA são
   # SEGURADOS no modo manual: não vazam p/ o competidor (ele vê só 'Not Answered Yet') — o juiz
   # vê o erro no painel e re-julga. O auto-veredicto casa pelo CANÔNICO (sem o sufixo de score).

@@ -17,24 +17,39 @@ regen_locked "$CONTESTSDIR/$contest/var/.placar.lock" \
   -- bash "$SCOREDIR/build.sh" "$contest"
 
 # Privilegiados veem o placar COMPLETO (sem freeze): .admin/.judge SEMPRE + os logins na
-# allowlist do conf (SCORE_FULL_USERS, espaço-separados, configurável pelo .admin). Auth é
-# OPCIONAL aqui (placar é público): só checamos se houver token válido deste contest.
+# allowlist do conf (SCORE_FULL_USERS, espaço-separados, configurável pelo .admin — vale
+# também p/ liberar um .cstaff). Auth é OPCIONAL aqui (placar é público): só checamos se
+# houver token válido deste contest.
 # `view=public` força a visão PÚBLICA (congelada) mesmo p/ privilegiado — a cerimônia de
 # reveal precisa das DUAS visões (frozen + full) p/ computar o delta.
+# `scope=mine` (honrado SÓ p/ .cstaff): recorta o placar servido (frozen E full) aos
+# usuários que o cstaff enxerga (staff-filters) — é a cerimônia POR SEDE. Fora da
+# allowlist, o cstaff só recebe o full quando o contest terminou PARA TODOS
+# (contest_over_for_all: fim base + a prorrogação mais tardia de time-overrides.json).
 ff="$CONTESTSDIR/$contest/var/placar-full.txt"
-if [[ "$(param view)" != public ]] \
-   && [[ -f "$ff" ]] && load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]]; then
+sess=0
+load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && sess=1
+if [[ "$(param view)" != public && -f "$ff" && "$sess" == 1 ]]; then
   priv=0; is_judge && priv=1
   if [[ "$priv" == 0 ]]; then
     allow="$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${SCORE_FULL_USERS:-}")"
     case " $allow " in *" $SESSION_LOGIN "*) priv=1;; esac
+  fi
+  if [[ "$priv" == 0 && "$(param scope)" == mine ]] && is_cstaff; then
+    source "$_LIBDIR/contest-gate.sh"
+    contest_over_for_all "$contest" && priv=1
   fi
   [[ "$priv" == 1 ]] && f="$ff"
 fi
 
 emit_text
 if [[ -f "$f" ]]; then
-  cat "$f"
+  if [[ "$sess" == 1 && "$(param scope)" == mine ]] && is_cstaff; then
+    source "$_LIBDIR/print.sh"
+    pr_filter_board "$contest" "$SESSION_LOGIN" < "$f"
+  else
+    cat "$f"
+  fi
 else
   # placar ainda não gerado (contest sem history): front renderiza vazio pelo modo.
   score_mode_of "$contest"; printf '\n'

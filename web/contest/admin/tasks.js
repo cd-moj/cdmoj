@@ -169,15 +169,18 @@ export function makeTasksTab(CONTEST) {
   // --- config de escopo por regex (antiga aba "Impressão") ---
   function renderConfig() {
     cfgBox.innerHTML = '';
-    cfgBox.append(el('h3', { style: 'margin:1.2rem 0 .3rem' }, '⚙️ Escopo dos staffs (regex no login do aluno)'));
+    cfgBox.append(el('h3', { style: 'margin:1.2rem 0 .3rem' }, '⚙️ Escopo dos staffs/chefes de sede'));
     const staff = (SF && SF.staff) || [], regions = (SF && SF.regions) || [], filters = (SF && SF.filters) || {};
     if (!staff.length) {
-      cfgBox.append(el('div', { class: 'muted' }, 'Nenhum usuário .staff neste contest. Crie um login terminando em ',
-        el('b', {}, '.staff'), ' na aba Usuários — impressão e balões passam por ele.'));
+      cfgBox.append(el('div', { class: 'muted' }, 'Nenhum usuário .staff/.cstaff neste contest. Crie um login terminando em ',
+        el('b', {}, '.staff'), ' (fila de impressão/balões) ou ', el('b', {}, '.cstaff'),
+        ' (chefe de sede: etiquetas com senha, fila em leitura, cerimônia da sede) na aba Usuários.'));
       return;
     }
-    cfgBox.append(el('p', { class: 'muted small' }, 'Cada .staff vê as tarefas dos alunos que casam com uma das entradas (uma por linha): ',
-      el('code', {}, 'region:<nome>'), ' casa com a sede do time (aba Times), qualquer outra é regex no login. Lista vazia = vê TODAS. Os botões de região semeiam ', el('code', {}, 'region:<nome>'), '.'));
+    cfgBox.append(el('p', { class: 'muted small' }, 'Cada login vê os alunos que casam com uma das entradas (uma por linha): ',
+      el('code', {}, 'region:<nome>'), ' casa com a sede do time (aba Times), qualquer outra é regex no login. Lista vazia = vê TODOS. ',
+      'No .staff o escopo governa a fila/ações; no .cstaff governa a fila (leitura), as ETIQUETAS de credenciais e a CERIMÔNIA de revelação da sede — configure-o sempre. Os botões de região semeiam ',
+      el('code', {}, 'region:<nome>'), '.'));
     const blocks = {};
     staff.forEach((s) => {
       const ta = el('textarea', { rows: '3', style: 'width:100%; font-family:monospace' });

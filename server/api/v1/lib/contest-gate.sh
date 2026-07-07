@@ -4,7 +4,8 @@
 #
 # Regra (forçada pela API; o frontend só espelha):
 #   .admin/.judge  -> veem problemas e SUBMETEM a qualquer momento (antes/durante/depois).
-#   .staff         -> NUNCA veem problemas nem submetem (operam só a impressão).
+#   .staff/.cstaff -> NUNCA veem problemas nem submetem (staff opera a impressão;
+#                     cstaff = chefe de sede, só observa/credencia).
 #   .mon           -> submetem só DURANTE a janela (como o normal), mas ficam FORA do placar
 #                     (sc_is_real_user já descarta *.mon das estatísticas/placar).
 #   usuário normal -> só vê os problemas DEPOIS do início; só submete DURANTE a janela.
@@ -36,6 +37,30 @@ contest_end_effective() {
   printf '%s' "$CONTEST_END"
 }
 
+# contest_end_all <contest> -> fim p/ TODO MUNDO (epoch; 0 = sem fim definido): CONTEST_END
+# do conf estendido pelo MAIOR `end` válido de time-overrides.json. É o gate da CERIMÔNIA
+# de revelação por sede (.cstaff): sede prorrogada segura a revelação de todas até a
+# prorrogação acabar. Conservador de propósito: uma regra cujo regex não casa ninguém
+# ainda estende o fim-para-todos (preferível a vazar resultado com gente competindo).
+# Espelha contest_end_effective: o override só ESTENDE, e só quando há fim no conf.
+contest_end_all() {
+  local CONTEST_START=0 CONTEST_END=0 mx f="$CONTESTSDIR/$1/time-overrides.json"
+  source "$CONTESTSDIR/$1/conf" 2>/dev/null
+  [[ "$CONTEST_END" =~ ^[0-9]+$ ]] || CONTEST_END=0
+  if [[ -s "$f" ]] && (( CONTEST_END > 0 )); then
+    mx="$(jq -r '[.[]? | select((.regex//"") != "" and (.end|type=="number")) | .end] | max // empty' "$f" 2>/dev/null)"
+    [[ "$mx" =~ ^[0-9]+$ ]] && (( mx > CONTEST_END )) && CONTEST_END=$mx
+  fi
+  printf '%s' "$CONTEST_END"
+}
+
+# contest_over_for_all <contest> : 0 se o contest TERMINOU para todas as sedes/grupos.
+# Sem fim definido (CONTEST_END=0) nunca termina — cerimônia indisponível.
+contest_over_for_all() {
+  local e; e="$(contest_end_all "$1")"
+  [[ "$e" =~ ^[0-9]+$ ]] && (( e > 0 && EPOCHSECONDS > e ))
+}
+
 # contest_phase <contest> -> ecoa: before | running | ended  (compara EPOCH com START e o
 # fim EFETIVO do login da sessão — prorrogação por sede vale aqui, e portanto no /submit;
 # START/END==0 = sem limite naquele extremo). Roda em subshell ao ser capturado, então o
@@ -52,14 +77,14 @@ contest_phase() {
 
 # can_see_problems <contest> : 0 se o usuário logado pode ver os enunciados AGORA.
 can_see_problems() {
-  is_judge && return 0           # .admin/.judge: sempre
-  is_staff && return 1           # .staff: nunca
+  is_judge && return 0                       # .admin/.judge: sempre
+  { is_staff || is_cstaff; } && return 1     # .staff/.cstaff: nunca
   [[ "$(contest_phase "$1")" != before ]]   # demais: só após o início
 }
 
 # can_submit <contest> : 0 se o usuário logado pode submeter AGORA.
 can_submit() {
   is_judge && return 0                       # .admin/.judge: sempre
-  is_staff && return 1                        # .staff: nunca
+  { is_staff || is_cstaff; } && return 1     # .staff/.cstaff: nunca
   [[ "$(contest_phase "$1")" == running ]]   # normal/.mon: só durante a janela
 }

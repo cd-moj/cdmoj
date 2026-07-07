@@ -289,7 +289,8 @@ function renderUser() {
     el('div', { style: 'font-size:1.2rem; font-weight:800; color:var(--blue-dark)' },
       userinfo.name || userinfo.login),
     el('div', { class: 'small muted' }, 'Login: ', el('b', {}, userinfo.login),
-      userinfo.is_admin ? '  · admin' : (userinfo.is_judge ? '  · judge' : (userinfo.is_staff ? '  · staff' : ''))),
+      userinfo.is_admin ? '  · admin' : (userinfo.is_judge ? '  · judge'
+        : (userinfo.is_staff ? '  · staff' : (userinfo.is_cstaff ? '  · chefe de sede' : '')))),
   );
 }
 
@@ -859,8 +860,9 @@ async function boot() {
   LANGS = resolveLangs(basic.languages);   // whitelist do contest (conf LANGUAGES=); vazio = todas
 
   const st = await status(CONTEST);
-  // .staff não participa do contest (não submete / não vê problemas): vai direto à sua área.
-  if (st.logged_in && st.is_staff && !st.is_admin) {
+  // .staff/.cstaff não participam do contest (não submetem / não veem problemas): vão
+  // direto à área da fila (o .cstaff a vê em modo somente leitura).
+  if (st.logged_in && (st.is_staff || st.is_cstaff) && !st.is_admin) {
     location.replace('/contest/staff/?c=' + encodeURIComponent(CONTEST));
     return;
   }

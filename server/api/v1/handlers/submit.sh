@@ -12,7 +12,7 @@ require_auth_contest "$contest"
 # e .mon só DURANTE a janela (o .mon submete, mas fica fora do placar). Antes/depois: recusa.
 source "$_LIBDIR/contest-gate.sh"
 if ! can_submit "$contest"; then
-  is_staff && fail 403 "Usuário staff não submete soluções" "submit_forbidden"
+  { is_staff || is_cstaff; } && fail 403 "Usuário staff não submete soluções" "submit_forbidden"
   ph="$(contest_phase "$contest")"
   [[ "$ph" == before ]] && fail 403 "A competição ainda não começou" "contest_not_started"
   fail 403 "A competição já terminou" "contest_ended"

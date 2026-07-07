@@ -2,6 +2,8 @@
 // Fluxo: pegar (claim) → imprimir o PDF gerado (capa+doc) → marcar entregue.
 // Modo automático: deixe a aba aberta; cada tarefa nova é reservada, impressa e marcada
 // como "processada" assim que a impressão dispara (onafterprint / timeout).
+// O .cstaff (chefe de sede) entra em modo SOMENTE LEITURA: acompanha a fila do escopo
+// dele sem ações nem automático — a API corta print-action/print-pdf p/ ele (403).
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
@@ -25,6 +27,8 @@ let autoMode = false;      // modo automático
 let busy = false;          // processando uma tarefa (evita diálogos sobrepostos)
 const seen = new Set();    // ids já auto-processados nesta sessão (não reimprimir)
 let pollT = null;
+let RO = false;            // .cstaff puro: fila somente leitura (sem ações/automático)
+let CAN_BADGES = false;    // link de etiquetas: só .cstaff/admin
 
 // busca o PDF combinado (com Bearer) como blob -> URL temporária (sem token na URL)
 async function pdfBlobUrl(id) {
@@ -76,7 +80,7 @@ function printTaskManual(t) {
 
 // passo do modo automático: uma tarefa pendente por vez (reserva antes de imprimir via iframe)
 async function autoTick() {
-  if (!autoMode || busy) return;
+  if (RO || !autoMode || busy) return;
   const t = queue.find((x) => x.status === 'pending' && !seen.has(x.id));
   if (!t) return;
   busy = true; seen.add(t.id);
@@ -96,6 +100,7 @@ const statusBar = el('div', { class: 'small muted' });
 const tbody = el('tbody', {});
 
 function rowActions(t) {
+  if (RO) return el('span', { class: 'small muted' }, '—');   // .cstaff só acompanha
   const r = el('div', { class: 'row' });
   const mkBtn = (label, fn, cls) => { const b = el('button', { class: 'btn ' + (cls || 'ghost'), style: 'padding:.2rem .5rem' }, label);
     b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { alert(e.message || 'falha'); } finally { b.disabled = false; await loadQueue(); } }); return b; };
@@ -134,7 +139,8 @@ async function loadQueue() {
   catch (e) { statusBar.textContent = 'Falha ao listar: ' + (e.message || 'erro'); return; }
   queue = r.requests || [];
   const np = queue.filter((x) => x.status === 'pending').length;
-  statusBar.textContent = queue.length + ' tarefa(s) · ' + np + ' pendente(s)' + (autoMode ? ' · modo automático LIGADO' : '');
+  statusBar.textContent = queue.length + ' tarefa(s) · ' + np + ' pendente(s)' +
+    (RO ? ' · somente leitura' : (autoMode ? ' · modo automático LIGADO' : ''));
   renderRows();
   autoTick();   // dispara o automático se houver pendente
 }
@@ -158,9 +164,9 @@ function render() {
     el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Time / login'), el('th', {}, 'Arquivo'), el('th', {}, 'Status'), el('th', {}, 'Págs / hora'), el('th', {}, 'Ações'))),
     tbody);
   app.append(
-    el('div', { class: 'section' }, autoBox,
+    el('div', { class: 'section' }, RO ? '' : autoBox,
       el('div', { class: 'row', style: 'margin:.2rem 0' }, statusBar, el('div', { class: 'spacer' }),
-        el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, '🏷️ Etiquetas'),
+        CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, '🏷️ Etiquetas') : '',
         el('button', { class: 'btn ghost', onclick: loadQueue }, '↻ atualizar')),
       el('div', { class: 'chart-wrap' }, table)));
   loadQueue(); schedulePoll();
@@ -175,13 +181,15 @@ async function boot() {
       el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, 'Ir para o contest')));
     return;
   }
-  if (!st.is_staff && !st.is_admin) {
+  if (!st.is_staff && !st.is_cstaff && !st.is_admin) {
     app.innerHTML = '';
     app.append(el('div', { class: 'section' }, el('h2', {}, '🔒 Acesso restrito'),
-      el('p', { class: 'muted' }, 'Esta área é da equipe de impressão (.staff).')));
+      el('p', { class: 'muted' }, 'Esta área é da equipe de impressão (.staff/.cstaff).')));
     return;
   }
-  autoMode = localStorage.getItem(AUTOKEY) === '1';
+  RO = !!st.is_cstaff && !st.is_staff && !st.is_admin;
+  CAN_BADGES = !!(st.is_cstaff || st.is_admin);
+  autoMode = !RO && localStorage.getItem(AUTOKEY) === '1';
   render();
 }
 boot();

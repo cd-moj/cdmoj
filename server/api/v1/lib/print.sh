@@ -1,7 +1,7 @@
 # lib/print.sh — pedidos de impressão (.staff) do modo contest.
 # Sourced pelos handlers contest/print*, contest/staff/* e contest/admin/staff-filters.sh
-# (o router já carregou common.sh/auth.sh, então valid_id/is_admin/is_staff/audit_log_to/
-# user_fullname/_users_source estão disponíveis).
+# (o router já carregou common.sh/auth.sh, então valid_id/is_admin/is_staff/is_cstaff/
+# audit_log_to/user_fullname/_users_source estão disponíveis).
 #
 # Modelo de dados em contests/<c>/print-requests/:
 #   .seq/.seqlock        contador monotônico + flock
@@ -9,16 +9,19 @@
 #   <id>.src             arquivo cru enviado pelo aluno
 #   <id>.combined.pdf    cache: folha de rosto + documento normalizado
 #   <id>.lock            flock de build + transições de estado
-#   staff-filters.json   { "<staff_login>": [regex,...] }  (vazio/ausente = vê tudo)
+#   staff-filters.json   { "<login .staff|.cstaff>": ["region:<nome>"|regex,...] }
+#                        (vazio/ausente = vê tudo; escopa fila, etiquetas e cerimônia)
 
 # --- localização / flags --------------------------------------------------
 pr_dir() { printf '%s' "$CONTESTSDIR/$1/print-requests"; }
 
-# _pr_staff_accounts <usersdir> — TSV "login\tfullname\tdisabled" dos .staff do dir.
-_pr_staff_accounts() {
-  local d="$1" af
+# _pr_role_accounts <usersdir> <glob> — TSV "login\tfullname\tdisabled" das contas de papel
+# do dir cujo login casa o glob (*.staff | *.cstaff). Subshell: nullglob + noglob off (o
+# common.sh liga noglob) p/ o glob expandir; $pat fica sem aspas de propósito.
+_pr_role_accounts() {
+  local d="$1" pat="$2" af
   ( set +o noglob 2>/dev/null; shopt -s nullglob
-    for af in "$d"/*.staff/account.json; do
+    for af in "$d"/$pat/account.json; do
       jq -r '[.login//"", .fullname//"",
               (if ((.password//"")|startswith("!")) then "true" else "false" end)] | @tsv' \
         "$af" 2>/dev/null
@@ -26,12 +29,13 @@ _pr_staff_accounts() {
 }
 
 # existe ao menos um usuário .staff habilitado (store próprio + fonte compartilhada)?
+# SÓ *.staff conta: .cstaff não opera a fila — sem staff de verdade não há impressão p/ aluno.
 staff_exists() {
   local c="$1" s
-  _pr_staff_accounts "$CONTESTSDIR/$c/users" | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}' && return 0
+  _pr_role_accounts "$CONTESTSDIR/$c/users" '*.staff' | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}' && return 0
   s="$(_users_source "$c")"
   [[ "$s" != "$c" ]] \
-    && _pr_staff_accounts "$CONTESTSDIR/$s/users" | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}' && return 0
+    && _pr_role_accounts "$CONTESTSDIR/$s/users" '*.staff' | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}' && return 0
   return 1
 }
 
@@ -40,11 +44,23 @@ print_enabled() {
   [[ "$( . "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${PRINT:-}")" != 0 ]]
 }
 
-# logins .staff (únicos), um por linha: "login\tfullname\tdisabled(true|false)"
+# logins .staff ∪ .cstaff (únicos), um por linha: "login\tfullname\tdisabled(true|false)".
+# É a lista de CHAVES válidas do staff-filters — o admin escopa os dois papéis por aqui.
 pr_staff_logins() {
   local c="$1" s
-  { _pr_staff_accounts "$CONTESTSDIR/$c/users"
-    s="$(_users_source "$c")"; [[ "$s" != "$c" ]] && _pr_staff_accounts "$CONTESTSDIR/$s/users"
+  { _pr_role_accounts "$CONTESTSDIR/$c/users" '*.staff'
+    _pr_role_accounts "$CONTESTSDIR/$c/users" '*.cstaff'
+    s="$(_users_source "$c")"
+    [[ "$s" != "$c" ]] && { _pr_role_accounts "$CONTESTSDIR/$s/users" '*.staff'
+                            _pr_role_accounts "$CONTESTSDIR/$s/users" '*.cstaff'; }
+  } | awk -F'\t' '!seen[$1]++'
+}
+
+# logins .cstaff (únicos) — alimenta o seletor "arquivo de uma sede" das etiquetas.
+pr_cstaff_logins() {
+  local c="$1" s
+  { _pr_role_accounts "$CONTESTSDIR/$c/users" '*.cstaff'
+    s="$(_users_source "$c")"; [[ "$s" != "$c" ]] && _pr_role_accounts "$CONTESTSDIR/$s/users" '*.cstaff'
   } | awk -F'\t' '!seen[$1]++'
 }
 
@@ -58,8 +74,9 @@ pr_next_seq() {
   ) 9>"$dir/.seqlock"
 }
 
-# --- escopo: este staff pode ver as tarefas deste aluno? ------------------
-# admin vê tudo; lista vazia/ausente = vê tudo; senão cada entrada é:
+# --- escopo: este staff/cstaff pode ver as tarefas deste aluno? ------------
+# Keyed pelo LOGIN (vale igual p/ .staff e .cstaff). admin vê tudo; lista vazia/ausente
+# = vê tudo; senão cada entrada é:
 #   "region:<nome>" — casa com o `.team.region` do account.json do aluno (igualdade,
 #                     case-insensitive) — o jeito "por sede" sem regex;
 #   qualquer outra   — regex testada no LOGIN do aluno (comportamento clássico).
@@ -80,6 +97,57 @@ staff_can_see() {  # <c> <staff_login> <student_login>
           else (try ($wl|test($r;"i")) catch false) end)
       end
   ' "$f" >/dev/null 2>&1
+}
+
+# staff_visible_logins <c> <login> — ecoa (1/linha) os logins de aluno que <login> enxerga,
+# pela MESMA semântica de staff_can_see, materializada numa ÚNICA passada (contas por
+# find|xargs jq — sem N execuções de jq nem --argjson gigante; filtros por --slurpfile).
+# rc=1 = sem filtro p/ este login (escopo vazio/ausente = vê tudo — o chamador NÃO filtra).
+staff_visible_logins() {
+  local c="$1" who="$2" f n src
+  f="$(pr_dir "$c")/staff-filters.json"
+  { [[ -f "$f" ]] && jq -e . "$f" >/dev/null 2>&1; } || return 1
+  n="$(jq -r --arg s "$who" '(.[$s] // []) | length' "$f" 2>/dev/null)"
+  n="${n//[^0-9]/}"; [[ -n "$n" && "$n" -gt 0 ]] || return 1
+  src="$(_users_source "$c")"
+  { find "$CONTESTSDIR/$c/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+      | xargs -0 -r jq -c '{login:(.login//""), region:(.team.region//""), prio:0}' 2>/dev/null
+    if [[ "$src" != "$c" ]]; then
+      find "$CONTESTSDIR/$src/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+        | xargs -0 -r jq -c '{login:(.login//""), region:(.team.region//""), prio:1}' 2>/dev/null
+    fi
+    true
+  } | jq -rs --slurpfile ff "$f" --arg s "$who" '
+      ($ff[0][$s] // []) as $scope
+      | map(select(.login != "")) | group_by(.login) | map(min_by(.prio))
+      | map(select(. as $u | any($scope[]; . as $r
+          | if ($r|startswith("region:"))
+            then (($u.region // "") != ""
+                  and ((($u.region)|ascii_downcase) == ($r[7:] | ascii_downcase | gsub("^ +| +$"; ""))))
+            else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end)))
+      | .[].login' 2>/dev/null
+}
+
+# pr_filter_board <c> <login> — filtra um placar TXT (stdin→stdout) às linhas cujo username
+# é visível a <login> (staff_visible_logins). Linha 1 (modo) e linha 2 (header) passam
+# INTACTAS. A coluna username dos DADOS é derivada do header descontando as colunas-marcador
+# de ordenação iniciais (desc/asc), que as linhas de dados NÃO têm (header icpc =
+# desc:asc:flag:username:… ; dado = flag:login:…). Header sem "username" = não filtra.
+pr_filter_board() {
+  local c="$1" who="$2" vis
+  vis="$(mktemp)" || { cat; return 0; }
+  if ! staff_visible_logins "$c" "$who" > "$vis"; then
+    rm -f "$vis"; cat; return 0
+  fi
+  awk -F: -v VF="$vis" '
+    NR==1 { print; next }
+    NR==2 { print
+            m=0; while (m<NF && (tolower($(m+1))=="desc" || tolower($(m+1))=="asc")) m++
+            ucol=0; for (i=m+1; i<=NF; i++) if (tolower($i)=="username") { ucol=i-m; break }
+            while ((getline l < VF) > 0) if (l != "") V[l]=1
+            close(VF); next }
+    { u=$ucol; if (ucol==0 || (u in V)) print }'
+  rm -f "$vis"
 }
 
 # _pr_acct <c> <login> <jq-path> — campo do account.json (local, senão USERS_FROM).
@@ -396,7 +464,7 @@ pr_reconcile_balloons() {
     while IFS=: read -r _t login cid _lang verdict _rest; do
       [[ -n "$login" && -n "$cid" ]] || continue
       case "$verdict" in *Accepted*) ;; *) continue;; esac
-      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.mon) continue;; esac
+      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) continue;; esac
       id="bln$(printf '%s%s%s' "$c" "$login" "$cid" | md5sum | cut -c1-20)"
       [[ -f "$dir/$id.json" ]] && continue
       short="$(pr_short_of "$c" "$cid")"; [[ -n "$short" ]] || short="?"

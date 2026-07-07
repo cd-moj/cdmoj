@@ -91,13 +91,13 @@ sc_cells() {
 }
 
 # sc_is_real_user <login>  -> 0 if it's a contestant row we should score.
-# Skips passwd comments, admin/judge/staff/mon roles and the literal "admin".
+# Skips passwd comments, admin/judge/staff/cstaff/mon roles and the literal "admin".
 sc_is_real_user() {
   local u="$1"
   [[ -z "$u" ]] && return 1
   [[ "$u" == \#* ]] && return 1
   case "$u" in
-    *.admin|*.judge|*.cjudge|*.staff|*.mon|admin) return 1 ;;
+    *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|admin) return 1 ;;
   esac
   return 0
 }

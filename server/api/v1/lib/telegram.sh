@@ -134,5 +134,5 @@ tg_unique_login(){
 # central de lib/auth.sh; fallback local se sourced isolado).
 tg_reserved_login(){
   if declare -F is_reserved_role_login >/dev/null 2>&1; then is_reserved_role_login "$1"
-  else case "$1" in *.admin|*.judge|*.cjudge|*.staff|*.mon) return 0;; *) return 1;; esac; fi
+  else case "$1" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) return 0;; *) return 1;; esac; fi
 }

@@ -10,7 +10,7 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 new="$(jq -r '.new_username // empty' <<<"$body")"
 [[ -n "$new" ]] || fail 400 "Informe o novo nome de usuário" "missing"
 [[ "$new" =~ ^[A-Za-z0-9._-]{2,32}$ ]] || fail 400 "Nome de usuário inválido (2–32 caracteres: letras, números, . _ -)" "uname_invalid"
-case "$new" in *.admin|*.judge|*.cjudge|*.staff|*.mon) fail 400 "Sufixo reservado não permitido" "uname_reserved";; esac
+case "$new" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) fail 400 "Sufixo reservado não permitido" "uname_reserved";; esac
 [[ "$new" == "$old" ]] && fail 400 "É o mesmo nome de usuário atual" "uname_same"
 
 T="$CONTESTSDIR/treino"

@@ -13,14 +13,14 @@ p="$(jq -r '.password // empty' <<<"$body")"
 verify_password "$contest" "$u" "$p" || fail 401 "Wrong user or password" "bad_creds"
 
 # Gate por substring de USERAGENT (configurável por contest). Lido com grep (sem
-# sourcing do conf no caminho de auth). Papéis privilegiados (.admin/.judge/.cjudge/.staff/.mon)
+# sourcing do conf no caminho de auth). Papéis privilegiados (.admin/.judge/.cjudge/.staff/.cstaff/.mon)
 # ficam isentos — para conseguirem entrar e configurar. Racional: o browser da máquina
 # de prova manda um UA único; só quem tem aquele UA loga.
 _ua_sub="$(grep -m1 '^LOGIN_UA_SUBSTRING=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2-)"
 _ua_sub="${_ua_sub%\'}"; _ua_sub="${_ua_sub#\'}"; _ua_sub="${_ua_sub%\"}"; _ua_sub="${_ua_sub#\"}"
 if [[ -n "$_ua_sub" ]]; then
   case "$u" in
-    *.admin|*.judge|*.cjudge|*.staff|*.mon) ;;   # privilegiados isentos
+    *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) ;;   # privilegiados isentos
     *) [[ "${HTTP_USER_AGENT:-}" == *"$_ua_sub"* ]] \
          || fail 403 "Login bloqueado: este navegador/máquina não está autorizado para o contest" "ua_gate" ;;
   esac

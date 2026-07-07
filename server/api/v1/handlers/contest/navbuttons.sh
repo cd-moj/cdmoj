@@ -9,13 +9,29 @@ source "$_LIBDIR/print.sh"
 
 emit_json 200 OK
 
+# .cstaff (chefe de sede): NÃO submete. Vê o placar (congelado, como usuário normal), a
+# fila de impressão em modo leitura e as ETIQUETAS de credenciais da sede. O botão da
+# cerimônia (🏆) só aparece quando o contest terminou p/ TODAS as sedes — mesmo gate que
+# libera o placar full na API (a UI é só conveniência).
+if is_cstaff; then
+  source "$_LIBDIR/contest-gate.sh"
+  btns='[{label:"Score", url:"/contest/score/"},
+         {label:"🖨️ Impressão", url:"/contest/staff/"},
+         {label:"🏷️ Etiquetas", url:"/contest/badges/"}]'
+  if contest_over_for_all "$contest"; then
+    btns="$btns + [{label:\"🏆 Revelação\", url:\"/contest/score/reveal.html\"}]"
+  fi
+  jq -cn "{success:true, buttons:($btns + [{label:\"Logout\", url:\"/logout\"}])}"
+  exit 0
+fi
+
 # .staff: NÃO submete (sem Contest/Clarification). Vê o placar (congela no freeze, como
-# usuário normal) e a área de tarefas de impressão recebidas.
+# usuário normal) e a área de tarefas de impressão recebidas. Etiquetas de credenciais
+# são do .cstaff/admin — o .staff não as vê.
 if is_staff; then
   jq -cn '{success:true, buttons:[
     {label:"Score", url:"/contest/score/"},
     {label:"🖨️ Impressão", url:"/contest/staff/"},
-    {label:"🏷️ Etiquetas", url:"/contest/badges/"},
     {label:"Logout", url:"/logout"}
   ]}'
   exit 0
