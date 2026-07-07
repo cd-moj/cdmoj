@@ -33,7 +33,7 @@ heartbeat (sem loop, sem porta de entrada nos juízes). Ver também `README.md`
 | `server/judge-gw/sched-lib.sh` | Biblioteca: registro `<host>.json`, fila por bandas, `q_claim` (claim atômico + **preferência quente/`COLD_GRACE`**), `q_promote_starved`, `q_reconcile`, `upd_*`/`cal_request` (pedidos de calibração). |
 | `server/api/v1/lib/tl-store.sh` | Store dos TLs reportados pelos juízes (`run/tl/<id>.json`, por host, por checksum); TL servível = **máx entre hosts**; `pkg_tl_checksum`, `index_problem_bg` (índice no servidor). |
 | `server/api/v1/lib/worker-auth.sh` | `require_worker`: Bearer `mojw_<token>` (compartilhado, 600). |
-| `server/api/v1/handlers/judge/register.sh` | Anuncia specs (CPU/mem/**GPU**) + inventário (problemas **em cache**) → `registry/<host>.json`. |
+| `server/api/v1/handlers/judge/register.sh` | Anuncia specs (CPU/mem/**GPU**) + inventário (problemas **em cache**) → `registry/<host>.json`. GPU só entra com **compute comprovado** (vendor nvidia/amd, do `nvidia-smi`/`rocm-smi`; lspci/erro de driver são descartados) e `capability=gpu` sem GPU real rebaixa p/ `pos`. |
 | `server/api/v1/handlers/judge/package{,-meta}.sh` | Serve o pacote do problema (.tar.gz) + checksum p/ o juiz cachear. |
 | `server/api/v1/handlers/judge/tl-report.sh` | Recebe o TL calibrado pelo juiz → `run/tl/<id>.json`; re-indexa o `var/jsons`. |
 | `server/api/v1/handlers/judge/heartbeat.sh` | Pulso; se livre, reivindica 1 update OU 1 job e devolve. **É o escalonador.** |

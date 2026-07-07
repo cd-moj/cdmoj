@@ -526,10 +526,14 @@ function makeJudgesTab() {
           try { await apiPost('/ops/judge-cache', { host: mc.host, action: 'clearcache' }, G()); setTimeout(load, 3000); }
           catch (e) { alert('Falha ao limpar cache: ' + e); clearBtn.disabled = false; clearBtn.textContent = '🗑 Limpar'; }
         };
+        // GPU: o registro só traz .gpu com COMPUTE comprovado (nvidia-smi/rocm-smi)
+        const gpu = rep.gpu && rep.gpu.names ? rep.gpu.names : '';
         tb.append(el('tr', {},
           el('td', {}, '🖧 ' + (mc.host || '?')),
           el('td', {}, st),
-          el('td', { class: 'small' }, rep.cpu ? String(rep.cpu).trim() : '—'),
+          el('td', { class: 'small' },
+            el('div', {}, rep.cpu ? String(rep.cpu).trim() : '—'),
+            gpu ? el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:26ch', title: 'GPU de compute (' + (rep.gpu.vendor || '') + ')' }, '🎮 ' + gpu) : ''),
           el('td', {}, mem),
           // toolchains: raiz da jaula (host/rootfs) + as linguagens que a máquina roda
           el('td', { class: 'small', title: mc.cage_root ? ('CAGE_ROOT=' + mc.cage_root) : 'raiz do sistema do host' },

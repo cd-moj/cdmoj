@@ -42,8 +42,16 @@ while IFS= read -r rf; do
   (( ls >= now - REG_TTL )) || continue
   ((jonline++))
   [[ "$(jq -r '.state // ""' "$rf" 2>/dev/null)" == busy ]] && ((jbusy++))
-  c="$(jq -r '.cpu // 0' "$rf" 2>/dev/null)"; [[ "$c" =~ ^[0-9]+$ ]] && ((cpus+=c))
-  [[ "$(jq -r 'if (.gpu // null)==null or .gpu=="" then "n" else "y" end' "$rf" 2>/dev/null)" == y ]] && ((gpus++))
+  # nº de núcleos vem de .ncpu (o .cpu é o NOME do modelo; o register descartava o ncpu
+  # do agente e esta soma vivia em 0 — corrigido junto com o gpu estrito)
+  c="$(jq -r '.ncpu // 0' "$rf" 2>/dev/null)"; [[ "$c" =~ ^[0-9]+$ ]] && ((cpus+=c))
+  # GPU só conta com COMPUTE comprovado (vendor nvidia/amd, do nvidia-smi/rocm-smi) —
+  # registro de agente antigo pode ter lspci (vendor "other") ou a MENSAGEM DE ERRO do
+  # nvidia-smi como names (driver quebrado); nenhum dos dois é GPU de compute.
+  [[ "$(jq -r 'if ((.gpu.vendor // "") | IN("nvidia","amd"))
+                  and ((.gpu.names // "") != "")
+                  and ((.gpu.names // "") | test("failed|error|couldn.t communicate"; "i") | not)
+               then "y" else "n" end' "$rf" 2>/dev/null)" == y ]] && ((gpus++))
 done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
 
 # --- daemons (liveness local) ---

@@ -2498,7 +2498,7 @@
         "summary": "Health público (fila, máquinas, daemons)",
         "responses": {
           "200": {
-            "description": "{queue,judge,daemons} — cache 20s"
+            "description": "{queue,judge:{online,total,busy,healthy,cpus_online,gpus_online},alert,daemons} — cache 20s; gpus_online = só GPU de compute comprovada (nvidia-smi/rocm-smi)"
           }
         }
       }

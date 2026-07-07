@@ -13,13 +13,22 @@ host="$(jq -r '.host // empty' <<<"$body")"
 valid_hostname "$host" || fail 400 "Invalid host" "host_invalid"
 
 # normaliza o registro: campos conhecidos + state=free + carimbos de tempo.
-reg="$(jq -c --argjson now "$EPOCHSECONDS" '{
+# gpu SÓ vale com compute comprovado (vendor nvidia/amd, do nvidia-smi/rocm-smi do agente);
+# agente antigo mandava lspci (vendor "other") ou a MENSAGEM DE ERRO do nvidia-smi — descarta.
+# E capability=gpu sem gpu real rebaixa p/ pos (need_capability=gpu nunca cai em host cego).
+reg="$(jq -c --argjson now "$EPOCHSECONDS" '
+  (if ((.gpu.vendor // "") | IN("nvidia","amd")) and ((.gpu.names // "") != "")
+      and ((.gpu.names // "") | test("failed|error|couldn.t communicate"; "i") | not)
+   then .gpu else null end) as $gpu
+  | {
     host,
-    capability: (.capability // "pos"),
+    capability: (if (.capability // "pos") == "gpu" and $gpu == null then "pos"
+                 else (.capability // "pos") end),
     arch:    (.arch    // null),
     cpu:     (.cpu     // null),
+    ncpu:    (.ncpu    // null),
     mem_kb:  (.mem_kb  // null),
-    gpu:     (.gpu     // null),
+    gpu:     $gpu,
     problems:(.problems// {}),
     problems_count: ((.problems // {}) | length),
     langs:   (.langs   // []),
