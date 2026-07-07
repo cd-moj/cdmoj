@@ -4,9 +4,7 @@
 export const LANGUAGES = [
   { id: 'c',     label: 'C',            cm: 'cpp',        template: '#include <stdio.h>\n\nint main(void) {\n    \n    return 0;\n}\n' },
   { id: 'cpp',   label: 'C++',          cm: 'cpp',        template: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n' },
-  { id: 'py3',   label: 'Python 3',     cm: 'python',     template: 'import sys\ninput = sys.stdin.readline\n\ndef main():\n    pass\n\nif __name__ == "__main__":\n    main()\n' },
-  { id: 'py',    label: 'Python',       cm: 'python',     template: 'def main():\n    pass\n\nmain()\n' },
-  { id: 'py2',   label: 'Python 2',     cm: 'python',     template: '# -*- coding: utf-8 -*-\n\ndef main():\n    pass\n\nmain()\n' },
+  { id: 'py',    label: 'Python',       cm: 'python',     template: 'import sys\ninput = sys.stdin.readline\n\ndef main():\n    pass\n\nif __name__ == "__main__":\n    main()\n' },
   { id: 'java',  label: 'Java',         cm: 'java',       template: 'import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        \n    }\n}\n' },
   { id: 'kt',    label: 'Kotlin',       cm: 'kotlin',     template: 'import java.io.BufferedReader\nimport java.io.InputStreamReader\n\nfun main() {\n    val br = BufferedReader(InputStreamReader(System.`in`))\n    \n}\n' },
   { id: 'rs',    label: 'Rust',         cm: 'rust',       template: 'use std::io::*;\n\nfn main() {\n    \n}\n' },
@@ -29,6 +27,6 @@ export function langByExt(ext) {
   const direct = LANGUAGES.find((l) => l.id === e);
   if (direct) return direct;
   const alias = { cc: 'cpp', cxx: 'cpp', 'c++': 'cpp', hpp: 'cpp', h: 'c',
-                  python: 'py3', rb: 'py3', kts: 'kt', rs: 'rs', bash: 'sh', s: 'spim' };
+                  py3: 'py', py2: 'py', python: 'py', rb: 'py', kts: 'kt', rs: 'rs', bash: 'sh', s: 'spim' };
   return langById(alias[e] || 'c');
 }

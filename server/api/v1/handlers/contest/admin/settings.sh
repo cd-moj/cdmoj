@@ -90,7 +90,9 @@ fi
 
 # whitelist de linguagens do contest (ids canônicos minúsculos, espaço-separados; vazio = todas)
 if has languages; then
-  lj="$(jq -r '(.languages // []) | map(ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$body")"
+  lj="$(jq -r '(.languages // []) | map(ascii_downcase
+        | (if .=="py3" or .=="py2" then "py" else . end)
+        | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$body")"
   [[ -n "$lj" ]] && setvar LANGUAGES "$lj" || delvar LANGUAGES
 fi
 

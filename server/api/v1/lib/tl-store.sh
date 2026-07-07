@@ -25,6 +25,8 @@ pkg_tl_checksum(){ [[ -d "$1" ]] && bash "$MOJTOOLS_DIR/tl-checksum.sh" "$1" 2>/
 
 # tl_store_record <host> <id> <checksum> <tl-json> : funde o TL do host (atômico).
 # Se o checksum difere do guardado, ZERA os hosts (versão nova do problema).
+# Chaves py3/py2 são LEGADAS (python unificado em 'py'): normaliza na gravação —
+# cobre agente com mojtools antigo ainda reportando py3.
 tl_store_record(){
   local host="$1" id="$2" cks="$3" tl="$4" f cur tmp
   [[ -n "$host" && -n "$id" && -n "$cks" ]] || return 1
@@ -33,22 +35,29 @@ tl_store_record(){
   cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
   ( umask 077; jq -n --argjson cur "$cur" --arg id "$id" --arg h "$host" \
       --arg cks "$cks" --argjson tl "$tl" --argjson now "$EPOCHSECONDS" '
-      ($cur.checksum // "") as $old
+      ($tl | reduce to_entries[] as $e ({};
+         ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+         | .[$k] = (if has($k) and ((.[$k]|tonumber? // 0) >= ($e.value|tonumber? // 0))
+                    then .[$k] else $e.value end))) as $ntl
+      | ($cur.checksum // "") as $old
       | (if $old==$cks then ($cur.hosts // {}) else {} end) as $hosts
       | {id:$id, checksum:$cks, updated_at:$now,
-         hosts: ($hosts + {($h): {tl:$tl, at:$now}})}
+         hosts: ($hosts + {($h): {tl:$ntl, at:$now}})}
     ' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
 }
 
 # tl_store_served_for <id> <checksum> -> time_limits (MÁX entre hosts) p/ ESSE checksum;
 # {} se não houver TL p/ a versão (descartado por mudança ou ainda não calibrado).
+# Chaves py3/py2 legadas (stores calibrados antes da unificação) fundem em 'py' por MAX.
 tl_store_served_for(){
   local id="$1" cks="$2" f; f="$(tl_store_file "$id")"
   [[ -f "$f" && -n "$cks" ]] || { echo '{}'; return; }
   jq -c --arg cks "$cks" '
     if (.checksum // "") != $cks or ((.hosts // {})|length)==0 then {}
     else [ .hosts[].tl // {} ]
-         | reduce (.[]|to_entries[]) as $e ({}; .[$e.key]=([(.[$e.key]//0),($e.value|tonumber? // 0)]|max))
+         | reduce (.[]|to_entries[]) as $e ({};
+             ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+             | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max))
          | with_entries(.value |= tostring)
     end' "$f" 2>/dev/null || echo '{}'
 }
@@ -63,7 +72,9 @@ tl_store_served_hosts(){
     ($hs|split(" ")|map(select(length>0))) as $want
     | if (.checksum // "") != $cks then {}
       else [ (.hosts // {}) | to_entries[] | select(.key as $h | $want|index($h)) | .value.tl // {} ]
-           | reduce (.[]|to_entries[]) as $e ({}; .[$e.key]=([(.[$e.key]//0),($e.value|tonumber? // 0)]|max))
+           | reduce (.[]|to_entries[]) as $e ({};
+               ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+               | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max))
            | with_entries(.value |= tostring)
       end' "$f" 2>/dev/null || echo '{}'
 }

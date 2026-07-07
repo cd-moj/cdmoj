@@ -98,7 +98,9 @@ cc_create(){
   end="$(jq -r '.end // empty' <<<"$spec")"
   # languages: array (ids canônicos, normaliza como o settings.sh) OU string legada
   if jq -e '(.languages|type)=="array"' >/dev/null 2>&1 <<<"$spec"; then
-    langs="$(jq -r '(.languages // []) | map(select(type=="string") | ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$spec")"
+    langs="$(jq -r '(.languages // []) | map(select(type=="string") | ascii_downcase
+      | (if .=="py3" or .=="py2" then "py" else . end)
+      | select(test("^[a-z0-9_+.-]+$"))) | unique | join(" ")' <<<"$spec")"
   else
     langs="$(jq -r '.languages // ""' <<<"$spec")"
   fi
@@ -205,7 +207,9 @@ cc_create(){
       cp "$enun/$pdf_file" "$stg/enunciados/$skey.pdf"
     fi
     # linguagens POR problema (mesmo formato/normalização do admin problem-langs.json)
-    larr="$(jq -c '(.languages // []) | map(select(type=="string") | ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique' <<<"$p" 2>/dev/null)"
+    larr="$(jq -c '(.languages // []) | map(select(type=="string") | ascii_downcase
+      | (if .=="py3" or .=="py2" then "py" else . end)
+      | select(test("^[a-z0-9_+.-]+$"))) | unique' <<<"$p" 2>/dev/null)"
     [[ -n "$larr" && "$larr" != "[]" ]] && plangs="$(jq -c --arg id "$skey" --argjson v "$larr" '.[$id]=$v' <<<"$plangs")"
     # pool de juízes POR problema (mesmo formato/normalização do admin problem-judges.json)
     jarr="$(jq -c '(.judges // []) | map(select(type=="string") | select(test("^[A-Za-z0-9._-]+$"))) | unique' <<<"$p" 2>/dev/null)"

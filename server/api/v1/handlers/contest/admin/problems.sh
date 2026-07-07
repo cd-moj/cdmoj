@@ -79,7 +79,9 @@ case "$action" in
     cid="$(jq -r --arg l "$L" '[.[]|select(.letter==$l)][0]
             | (if ((.statement_key // "")|test("#")) then .statement_key else ((.problem_id // "")|gsub("/";"#")) end) // empty' <<<"$cur")"
     [[ -n "$cid" ]] || fail 404 "Problema não encontrado" "notfound"
-    larr="$(jq -c '(.languages // []) | map(ascii_downcase | select(test("^[a-z0-9_+.-]+$"))) | unique' <<<"$body")"
+    larr="$(jq -c '(.languages // []) | map(ascii_downcase
+            | (if .=="py3" or .=="py2" then "py" else . end)
+            | select(test("^[a-z0-9_+.-]+$"))) | unique' <<<"$body")"
     plf="$CONTESTSDIR/$contest/problem-langs.json"
     base='{}'; [[ -f "$plf" ]] && base="$(cat "$plf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$base" || base='{}'
     if [[ "$(jq 'length' <<<"$larr")" -gt 0 ]]; then

@@ -31,9 +31,9 @@ core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]
               elif (startswith("Compilation") or startswith("Language")) then "Compilation Error"
               else "Outro" end;
       # canonicaliza a linguagem: minúsculas + sem espaços, e funde variantes
-      # equivalentes (CPP/C++/CC/CXX/HPP -> cpp, H -> c) para não duplicar linha.
+      # equivalentes (CPP/C++/CC/CXX/HPP -> cpp, H -> c, PY3/PY2 legado -> py).
       def canon: (ascii_upcase | gsub("\\s";"")) as $u
-        | ({"C++":"cpp","CC":"cpp","CXX":"cpp","HPP":"cpp","H":"c"}[$u]) // ($u | ascii_downcase);
+        | ({"C++":"cpp","CC":"cpp","CXX":"cpp","HPP":"cpp","H":"c","PY3":"py","PY2":"py"}[$u]) // ($u | ascii_downcase);
       (map(.lang |= canon)) as $s
       | ($s|length) as $total
       | ($s|map(.user)|unique) as $att

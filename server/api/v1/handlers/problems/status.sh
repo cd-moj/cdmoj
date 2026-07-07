@@ -33,7 +33,9 @@ while IFS= read -r id; do f="$(tl_store_file "$id")"; [[ -f "$f" ]] && cat "$f";
        calibrated:(((.hosts // {})|length)>0),
        at:(.updated_at // null), checksum:(.checksum // ""),
        tl:([.hosts[].tl // {}]
-           | reduce (.[]|to_entries[]) as $e ({}; .[$e.key]=([(.[$e.key]//0),($e.value|tonumber? // 0)]|max))
+           | reduce (.[]|to_entries[]) as $e ({};
+               ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+               | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max))
            | with_entries(.value|=tostring)) }}) | from_entries' > "$tlmap" 2>/dev/null
 [[ -s "$tlmap" ]] || echo '{}' > "$tlmap"
 
@@ -59,7 +61,8 @@ jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" -
       | (($t.checksum // "") != "" and (.tl_checksum // "") != "" and ($t.checksum != .tl_checksum)) as $stale
       # linguagens good SEM TL servido = solução good que não calibrou (o TL servido é a UNIÃO entre
       # hosts, então ausente = falhou em TODOS os juízes). Só vale p/ calibração ATUAL (senão é "stale").
-      | ([ (.good_langs // [])[] | select(. as $g | ($SUP|index($g)) and (($t.tl // {})|has($g)|not)) ]) as $miss
+      | ([ (.good_langs // [])[] | (if .=="py3" or .=="py2" then "py" else . end)
+           | select(. as $g | ($SUP|index($g)) and (($t.tl // {})|has($g)|not)) ] | unique) as $miss
       | ($cal and ($stale|not) and ($miss|length>0)) as $gsnotl
       | (($vstate=="error") or $gsbad) as $err
       | (.public and ($cal|not)) as $pubuncal            # público mas SEM calibração (sem TL p/ o aluno)

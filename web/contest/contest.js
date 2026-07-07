@@ -17,7 +17,7 @@ const ONLY_PROB = qs.get('prob') || '';
 let LANGS = LANGUAGES;
 // conf LANGUAGES= traz tokens estilo FILETYPE ("C CPP PY3 JAVA"); mapeia p/ ids canônicos.
 function normTok(t) {
-  const a = { python: 'py3', rust: 'rs', javascript: 'js', bash: 'sh', 'c++': 'cpp', cc: 'cpp', cxx: 'cpp' };
+  const a = { python: 'py', py3: 'py', py2: 'py', rust: 'rs', javascript: 'js', bash: 'sh', 'c++': 'cpp', cc: 'cpp', cxx: 'cpp' };
   const k = (t || '').toLowerCase();
   return a[k] || k;
 }

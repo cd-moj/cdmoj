@@ -109,6 +109,8 @@ judges_eff="$judges"
 langs_lc="$(printf '%s' "${LANGUAGES:-}" | tr '[:upper:]' '[:lower:]')"
 if [[ -n "$langs_lc" ]]; then
   missing=""
+  # confs antigos podem ter py3/py2 na whitelist; os juízes anunciam 'py' (python unificado)
+  langs_lc="$(printf '%s\n' $langs_lc | sed 's/^py[23]$/py/' | sort -u | paste -sd' ' -)"
   for l in $langs_lc; do
     jq -e --arg l "$l" 'any(.[]; .langs | index($l))' >/dev/null 2>&1 <<<"$judges_eff" || missing+=" $l"
   done

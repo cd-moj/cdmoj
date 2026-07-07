@@ -131,7 +131,7 @@ ck "conf: ua + score_full_users filtrado" '[[ "$( . "$CF"; echo "$LOGIN_UA_SUBST
 ck "conf: priority prova"   'grep -q "^CONTEST_PRIORITY=prova" "$CF"'
 ck "conf: penalidade não-default (10 / wa ce)" '[[ "$( . "$CF"; echo "$PENALTY_MINUTES/$PENALTY_VERDICTS" )" == "10/wa ce" ]]'
 ck "languages array canônico (filtra inválida)" '[[ "$( . "$CF"; echo "$LANGUAGES" )" == "c cpp" ]]'
-ck "problem-langs.json por problema" '[[ "$(jq -rc ".[\"bankprob\"]" "$FIX/tog-c/problem-langs.json")" == "[\"c\",\"py3\"]" ]]'
+ck "problem-langs.json por problema (PY3 legado -> py)" '[[ "$(jq -rc ".[\"bankprob\"]" "$FIX/tog-c/problem-langs.json")" == "[\"c\",\"py\"]" ]]'
 ck "enunciado PDF gravado"  '[[ -f "$FIX/tog-c/enunciados/bankprob.pdf" ]]'
 printf 'CONTEST=tog-c\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/togadm"
 call /contest/admin/settings GET '' togadm 'contest=tog-c'

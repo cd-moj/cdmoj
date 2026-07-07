@@ -19,7 +19,7 @@ cat <<'JSON'
   "_priority": "prioridade no escalonador de julgamento: prova | lista-privada | lista-publica ('super' e exclusivo de admin do treino)",
   "start": 0,
   "end": 0,
-  "languages": ["c", "cpp", "py3"],
+  "languages": ["c", "cpp", "py"],
   "_languages": "whitelist de linguagens do contest (ids canonicos minusculos; [] ou omitido = todas). String legada tipo \"C CPP\" tambem e aceita",
   "showcode": false,
   "_toggles": "os campos abaixo espelham /contest/admin/settings; so mande o que quer MUDAR do default",

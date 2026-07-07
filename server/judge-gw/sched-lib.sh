@@ -133,6 +133,8 @@ q_claim() {
         # CE, mas a submissão não fica presa p/ sempre). langs vazio = filtro desligado.
         if [[ -n "$langs" && "$langs" != "[]" ]]; then
           joblang="$(jq -r '.lang // empty' "$f" 2>/dev/null | tr 'A-Z' 'a-z')"
+          # python unificado: rejulgamento de .py2/.py3 legado casa com o 'py' dos juízes
+          case "$joblang" in py2|py3) joblang=py;; esac
           if [[ -n "$joblang" ]] && ! printf '%s' "$langs" | jq -e --arg l "$joblang" 'index($l)' >/dev/null 2>&1; then
             ts="${base%%_*}"
             [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= LANG_GRACE )) && continue

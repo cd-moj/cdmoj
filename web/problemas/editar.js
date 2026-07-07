@@ -548,6 +548,7 @@ async function openCalibReport(host, name) {
 }
 // nome amigável das linguagens (as chaves de TL são códigos curtos do juiz: c, cpp, py, …)
 const TL_LANG_NAME = { c: 'C', cpp: 'C++', cc: 'C++', cxx: 'C++', py: 'Python', python: 'Python',
+  py3: 'Python 3 (legado)', py2: 'Python 2 (legado)',
   java: 'Java', pas: 'Pascal', pascal: 'Pascal', hs: 'Haskell', go: 'Go', rs: 'Rust', js: 'JavaScript',
   cs: 'C#', ml: 'OCaml', sh: 'Shell', bash: 'Shell', apl: 'APL', pl: 'Prolog', prolog: 'Prolog',
   asm: 'Assembly', gas: 'Assembly', default: 'default (demais)' };
