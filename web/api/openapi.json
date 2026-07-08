@@ -2504,7 +2504,8 @@
           "200": {
             "description": "{queue,judge:{online,total,busy,healthy,cpus_online,gpus_online},alert,daemons} — cache 20s; gpus_online = só GPU de compute comprovada (nvidia-smi/rocm-smi)"
           }
-        }
+        },
+        "description": "judge.slots = capacidade total em SLOTS (multi-slot); judge.busy = slots ocupados."
       }
     },
     "/treino/contest-create/permission": {
@@ -5987,6 +5988,86 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/ops/judge-config": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Config fina por juiz (multi-slot): particionamento/reserve/disabled",
+        "description": "Admin. Config DESEJADA por host (contests/treino/var/judges-config.json); o heartbeat entrega ao agente quando muda e ele aplica após drenar os jobs. ?host= filtra.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{success, configs:{<host>:{partition,reserve,disabled,updated_at,by}}}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Define a config de um juiz",
+        "description": "Body {host, partition?: off|numa|cpus:<X>, reserve?: int, disabled?: bool}. partition particiona a máquina em SLOTS de cpus disjuntas (o agente corrige N problemas ao mesmo tempo, cada job pinado no seu cpuset); reserve tira as N primeiras cpus dos slots; disabled drena e para de receber trabalho.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{success, action, host, config}"
+          }
+        }
+      }
+    },
+    "/ops/judge-results": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Relatório de correções por juiz (últimas N + agregado por host)",
+        "description": "Admin. Varre run/results (cada correção carrega o host que julgou). ?host= filtra; ?limit= (<=500, default 50).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "host",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{success, results:[{id,host,verdict,login,problem_id,lang,duration_s,finalized_at,contest,score}], by_host:{<h>:{total,accepted,judge_errors,avg_duration,last_at}}}"
           }
         }
       }

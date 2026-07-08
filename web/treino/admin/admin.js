@@ -508,10 +508,39 @@ function makeJudgesTab() {
     if (data.has_machine_list && (data.machines || []).length) {
       body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' },
         `Juízes — ${data.machines_online}/${data.machines_count} online`));
+      // célula de SLOTS: partição vigente (do agente) + form da config desejada (o agente
+      // drena os jobs em andamento e aplica; 'moj judges config' faz o mesmo pela CLI)
+      const slotsCell = (mc) => {
+        const cfg = mc.config || {};
+        const cur = mc.partition || 'off';
+        const wrap = el('div', {});
+        wrap.append(el('div', {}, `${(mc.slots && mc.slots.total) || 1} slot(s) · ${cur}`
+          + (cfg.partition && cfg.partition !== cur ? ` → ${cfg.partition} (aplicando…)` : '')
+          + (cfg.disabled ? ' · ⛔ desabilitado' : '')));
+        const sel = el('select', { class: 'small', style: 'max-width:8rem' });
+        ['off', 'numa', 'cpus:4', 'cpus:8', 'cpus:16'].forEach(v => sel.append(el('option', { value: v }, v)));
+        sel.value = ['off', 'numa', 'cpus:4', 'cpus:8', 'cpus:16'].includes(cfg.partition || cur) ? (cfg.partition || cur) : 'off';
+        const res = el('input', { type: 'text', value: String(cfg.reserve || 0), title: 'cpus reservadas p/ o SO (fora dos slots)', style: 'width:3rem' });
+        const dis = el('input', { type: 'checkbox', title: 'desabilitar (drena e para de receber trabalho)' }); dis.checked = !!cfg.disabled;
+        const btn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, 'Aplicar');
+        btn.onclick = async () => {
+          btn.disabled = true; btn.textContent = '…';
+          try {
+            await apiPost('/ops/judge-config', { host: mc.host, partition: sel.value, reserve: parseInt(res.value, 10) || 0, disabled: dis.checked }, G());
+            setTimeout(load, 2500);
+          } catch (e) { alert('Falha na config: ' + e); btn.disabled = false; btn.textContent = 'Aplicar'; }
+        };
+        wrap.append(el('div', { class: 'row', style: 'gap:.25rem;align-items:center;flex-wrap:wrap;margin-top:.2rem' },
+          sel, res, el('label', { class: 'row', style: 'gap:.15rem' }, dis, el('span', { class: 'muted', style: 'font-size:.8em' }, 'off')), btn));
+        return wrap;
+      };
       const tb = el('tbody');
       data.machines.forEach(mc => {
         const rep = mc.report || {};
-        const st = !mc.online ? '🔴 offline' : (mc.busy ? '🟡 ocupada' : '🟢 livre');
+        const slots = mc.slots || {};
+        const nTot = num(slots.total) || 1, nFree = (slots.free == null) ? (mc.busy ? 0 : nTot) : num(slots.free);
+        const st = !mc.online ? '🔴 offline'
+          : (nFree === 0 ? '🟡 ocupada' : (nFree < nTot ? `🟡 ${nTot - nFree}/${nTot} slots` : '🟢 livre'));
         const mem = rep.memory != null ? (num(rep.memory) / 1048576).toFixed(1) + ' GB' : '—';
         const langs = mc.langs || [];
         const cage = mc.cage_root ? '📦 rootfs' : '🖥 host';
@@ -548,12 +577,15 @@ function makeJudgesTab() {
           // cache local: nº de problemas em cache + tamanho + limpar
           el('td', { class: 'small' },
             el('div', {}, (cache.problems || 0) + ' probs · ' + cacheMB),
-            clearBtn)));
+            clearBtn),
+          // SLOTS (particionamento): config fina por juiz — o agente aplica após drenar
+          el('td', { class: 'small' }, slotsCell(mc))));
       });
       body.append(el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
         el('th', {}, 'Máquina'), el('th', {}, 'Estado'),
         el('th', {}, 'CPU'), el('th', {}, 'Memória'),
-        el('th', {}, 'Toolchains'), el('th', {}, 'Time limits'), el('th', {}, 'Cache'))), tb));
+        el('th', {}, 'Toolchains'), el('th', {}, 'Time limits'), el('th', {}, 'Cache'),
+        el('th', { title: 'Particionamento em slots (a máquina corrige N problemas ao mesmo tempo, cada job pinado no seu conjunto de cpus)' }, 'Slots'))), tb));
     } else {
       const workers = data.configured_workers || [];
       body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' }, 'Máquinas configuradas'));

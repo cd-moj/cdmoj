@@ -16,9 +16,11 @@ heartbeat (sem loop, sem porta de entrada nos juízes). Ver também `README.md`
   GET  /judge/package?id ────────────▶  handlers/judge/package.sh   ─▶ .tar.gz + X-Moj-Checksum
   ...cacheia em ~/.cache/moj/problems/<id>, CALIBRA na 1ª vez (calibreitor → tl.<host>)...
   POST /judge/tl-report(id,checksum,tl)▶ handlers/judge/tl-report.sh ─▶ run/tl/<id>.json (por host)
-  POST /judge/heartbeat(state,inv) ──▶  handlers/judge/heartbeat.sh = ESCALONADOR
-        ◀── {assigned|null, update|null, reregister} ──  (claim atômico na fila por prioridade)
-  ...julga com mojtools no CACHE local (tl.<host>) em background, batendo "busy"...
+  POST /judge/heartbeat(state,inv,free_slots,total_slots,cfg_hash) ─▶ heartbeat.sh = ESCALONADOR
+        ◀── {assigned:[…]|null, update|null, command|null, reregister, config?} ──
+        (claim atômico; LOTE de até free_slots jobs; config por juiz quando o cfg_hash difere)
+  ...julga com mojtools no CACHE local (tl.<host>): N SLOTS em paralelo, cada job PINADO
+     no cpuset do slot (partition off|numa|cpus:X + reserve — ver judges-config)...
   POST /judge/result(verdict,verdict_canon,score*,groups?,tests,html_b64) ─▶ handlers/judge/result.sh ─▶ spool "result"
                                                                               │
   submit ─▶ spool ─▶ server/daemons/judged.sh (INTAKE) ─▶ enfileira na banda de prioridade
@@ -36,7 +38,7 @@ heartbeat (sem loop, sem porta de entrada nos juízes). Ver também `README.md`
 | `server/api/v1/handlers/judge/register.sh` | Anuncia specs (CPU/mem/**GPU**) + inventário (problemas **em cache**) → `registry/<host>.json`. GPU só entra com **compute comprovado** (vendor nvidia/amd, do `nvidia-smi`/`rocm-smi`; lspci/erro de driver são descartados) e `capability=gpu` sem GPU real rebaixa p/ `pos`. |
 | `server/api/v1/handlers/judge/package{,-meta}.sh` | Serve o pacote do problema (.tar.gz) + checksum p/ o juiz cachear. |
 | `server/api/v1/handlers/judge/tl-report.sh` | Recebe o TL calibrado pelo juiz → `run/tl/<id>.json`; re-indexa o `var/jsons`. |
-| `server/api/v1/handlers/judge/heartbeat.sh` | Pulso; se livre, reivindica 1 update OU 1 job e devolve. **É o escalonador.** |
+| `server/api/v1/handlers/judge/heartbeat.sh` | Pulso; reivindica 1 command OU 1 update OU um LOTE de até `free_slots` jobs (multi-slot) e devolve; entrega a CONFIG por juiz quando muda (`cfg_hash`). **É o escalonador.** |
 | `server/api/v1/handlers/judge/result.sh` | Recebe o veredicto do worker → spool "result" (judged finaliza). |
 | `server/api/v1/handlers/judge/update-report.sh` | Recebe o report de calibração (ok/log) → `registry.<host>.last_update`. |
 | `server/api/v1/handlers/ops/problemtl.sh` | (admin) TL de um problema, do store (máx entre hosts) + por host. |
@@ -62,6 +64,11 @@ guarda o TL **por host, por checksum** (`run/tl/<id>.json`) e serve o **máximo 
 no `var/jsons` (conservador). Ao **relançar**, o agente re-reporta os TLs do cache (sem
 recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos recalibram).
 
+- **GC do cache no juiz** (lado agente): pacote sem uso há `AGENT_CACHE_MAX_DAYS` (14) vira
+  **stub** — o `pkg/` pesado sai, `tl.<host>`+meta ficam (o registro segue anunciando o
+  problema e o boot re-reporta o TL); no próximo uso com o MESMO checksum o agente re-baixa e
+  **restaura o TL sem recalibrar**. Teto opcional `AGENT_CACHE_MAX_MB` (LRU). O custo escondido
+  de um stub p/ o escalonador é só 1 re-download.
 - **NFS** vira opcional: só serve p/ "aproveitar o cache" — levantar um juiz é só conectar.
 - **Escalonamento**: `q_claim` prefere juízes **quentes** (já têm o problema em cache); quem
   não tem só pega o job após `COLD_GRACE` (8 s) — aí baixa+calibra sob demanda. Qualquer juiz
@@ -77,6 +84,26 @@ recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos
 - **Indexar** (`var/jsons`, HTML do enunciado) roda **no servidor** (`index_problem_bg`, via o
   Makefile do repo no store) — `publish`/`webhook` chamam isso + pedem calibração. Só o
   enunciado HTML precisa do repo; calibrar/julgar usam só o pacote no cache + o `mojtools`.
+
+## Multi-slot (particionamento) + config por juiz
+
+O agente pode PARTICIONAR a máquina em **slots de cpus disjuntas** e corrigir **N problemas ao
+mesmo tempo**, cada job (e cada calibração) pinado no cpuset do seu slot (`taskset` no subshell;
+herda p/ bwrap/compilador/solução; o `nproc` da fatia limita o paralelismo interno de testes).
+Modos: `off` (1 slot, máquina toda — default), `numa` (1 slot por NUMA node), `cpus:<X>` (fatias
+de X cpus); `reserve` tira as N primeiras cpus dos slots (SO/agente); `disabled` drena e para.
+
+- **Config por juiz** = `contests/treino/var/judges-config.json` (estado DESEJADO do admin;
+  NUNCA no registry — o register o sobrescreve). Editada por `POST /ops/judge-config`
+  (`moj judges config <host> …` na CLI, ou a aba 🖥️ Máquinas). O heartbeat compara o
+  `cfg_hash` do agente com o vigente e entrega `config` quando difere; o agente **drena**
+  (espera os jobs em andamento) e aplica.
+- **Heartbeat multi-slot**: agente manda `free_slots`/`total_slots`; o handler entrega um
+  **lote `assigned:[…]`** de até `free_slots` jobs (agente ANTIGO sem `free_slots` recebe o
+  escalar de sempre). O registro guarda `free_slots`/`total_slots` p/ os painéis
+  (`/index/status` `judge.busy` = Σ slots ocupados, `judge.slots` = Σ slots).
+- **Relatório por juiz**: `GET /ops/judge-results?host=&limit=` — últimas correções (de
+  `run/results/`, que carrega o `.host`) + agregado por host. CLI: `moj judges results`.
 
 ## Prioridade (bandas)
 

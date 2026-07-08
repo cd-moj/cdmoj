@@ -35,13 +35,20 @@ spool=0; [[ -d "$SPOOLDIR" ]] && spool="$(find "$SPOOLDIR" -maxdepth 1 -type f !
 
 # --- juízes (modelo PULL): online = heartbeat fresco; ocupado = state busy ---
 : "${REGISTRYDIR:=$RUNDIR/registry}"; : "${QUEUEDIR:=$RUNDIR/queue}"; : "${REG_TTL:=30}"
-jonline=0; jbusy=0; jtotal=0; cpus=0; gpus=0
+jonline=0; jbusy=0; jtotal=0; jslots=0; cpus=0; gpus=0
 while IFS= read -r rf; do
   ((jtotal++))
   ls="$(jq -r '.last_seen // 0' "$rf" 2>/dev/null)"; [[ "$ls" =~ ^[0-9]+$ ]] || ls=0
   (( ls >= now - REG_TTL )) || continue
   ((jonline++))
-  [[ "$(jq -r '.state // ""' "$rf" 2>/dev/null)" == busy ]] && ((jbusy++))
+  # ocupação em SLOTS (juiz multi-slot): busy = Σ(total-free); slots = Σ total.
+  # Agente antigo (sem slots no registro): state busy = 1 slot ocupado de 1.
+  read -r _f _t < <(jq -r '"\(.free_slots // "-") \(.total_slots // "-")"' "$rf" 2>/dev/null)
+  if [[ "$_f" =~ ^[0-9]+$ && "$_t" =~ ^[0-9]+$ ]]; then
+    ((jslots+=_t)); ((jbusy += _t - _f))
+  else
+    ((jslots++)); [[ "$(jq -r '.state // ""' "$rf" 2>/dev/null)" == busy ]] && ((jbusy++))
+  fi
   # nº de núcleos vem de .ncpu (o .cpu é o NOME do modelo; o register descartava o ncpu
   # do agente e esta soma vivia em 0 — corrigido junto com o gpu estrito)
   c="$(jq -r '.ncpu // 0' "$rf" 2>/dev/null)"; [[ "$c" =~ ^[0-9]+$ ]] && ((cpus+=c))
@@ -66,12 +73,13 @@ out="$(jq -cn \
   --argjson total "$total" --argjson spool "${spool:-0}" --argjson lists "$lists" \
   --argjson bq "${band_queue:-0}" \
   --argjson on "${jonline:-0}" --argjson jt "${jtotal:-0}" --argjson busy "${jbusy:-0}" \
+  --argjson slots "${jslots:-0}" \
   --argjson cpus "${cpus:-0}" --argjson gpus "${gpus:-0}" \
   --argjson dj "$dj" --argjson dr "$dr" \
   --argjson alert "$judges_alert" \
   '{success:true, time:$t,
     queue:{total_pending:$total, spool_queued:$spool, band_queued:$bq, lists:$lists},
-    judge:{online:$on, total:$jt, busy:$busy, healthy:($on>0),
+    judge:{online:$on, total:$jt, busy:$busy, slots:$slots, healthy:($on>0),
            cpus_online:$cpus, gpus_online:$gpus},
     alert:{no_judges:$alert},
     daemons:{judged:$dj, result_sink:$dr}}')"

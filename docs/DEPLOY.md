@@ -69,7 +69,7 @@ embutida) gerados de `moj-cli/` — **nunca** copie o script do repo direto (ele
 ```bash
 bash /home/ribas/moj/moj-cli/mkdist.sh
 install -m755 /home/ribas/moj/moj-cli/dist/moj /home/ribas/moj/moj-cli/dist/moj-contest \
-  /home/ribas/moj/cdmoj/web/
+  /home/ribas/moj/moj-cli/dist/moj-judges /home/ribas/moj/cdmoj/web/
 ```
 
 ## Como acessar / testar
