@@ -131,7 +131,8 @@ problem_commit(){
     fi
     git add -A 2>/dev/null
     GIT_AUTHOR_NAME="$login" GIT_AUTHOR_EMAIL="$em" GIT_COMMITTER_NAME="$login" GIT_COMMITTER_EMAIL="$em" \
-      git commit -q -m "$msg" 2>/dev/null || true   # "nada a commitar" não é erro
+      git commit -q -m "$msg" >/dev/null 2>&1 || true   # "nada a commitar" não é erro (e o
+      # "On branch …" que o -q ainda imprime no STDOUT poluía o sha capturado pelo chamador)
     git rev-parse HEAD 2>/dev/null
   ) 9>"$lk"
 }
@@ -343,6 +344,45 @@ apply_problem_fields(){  # <pkgdir> <body-json>
     [[ "$fn" =~ ^[A-Za-z0-9._-]+$ ]] || fn="sol.cpp"
     jq -r '.good_sol.code // ""' <<<"$body" | _putfile "$pkg/sols/good/$fn"
   fi
+  # ---- scripts/ (correção especial) — ROUND-TRIP COMPLETO -----------------------------
+  # Quando o body traz scripts_files, SUBSTITUI scripts/ inteiro (remoção local vale no push).
+  # Item: {path, content_b64, exec} (arquivo; base64 p/ suportar binário — grava DIRETO,
+  # sem _putfile: não normalizar newline de binário) ou {path, symlink:alvo} (os drivers
+  # interativos usam symlink de diretório scripts/<lang> -> c). Paths validados: sem '..',
+  # sem '/' inicial, profundidade <=2, confinado a scripts/. Campo ausente = não toca
+  # (cliente antigo não apaga scripts de ninguém).
+  if jq -e 'has("scripts_files")' >/dev/null 2>&1 <<<"$body"; then
+    rm -rf "$pkg/scripts"
+    local sf sp st sb64; sb64="$(mktemp)"
+    while IFS= read -r sf; do
+      sp="$(jq -r '.path // empty' <<<"$sf")"
+      [[ "$sp" =~ ^[A-Za-z0-9._+-]+(/[A-Za-z0-9._+-]+)?$ ]] || continue
+      case "$sp" in *..*) continue;; esac
+      mkdir -p "$pkg/scripts/$(dirname "$sp")"
+      st="$(jq -r '.symlink // empty' <<<"$sf")"
+      if [[ -n "$st" ]]; then
+        [[ "$st" =~ ^[A-Za-z0-9._/-]+$ ]] || continue
+        # o alvo RESOLVIDO tem que ficar dentro de scripts/ (tolera ../c/x de subdir)
+        local srp; srp="$(realpath -m "$pkg/scripts/$(dirname "$sp")/$st" 2>/dev/null)"
+        [[ "$srp" == "$(realpath -m "$pkg/scripts")" || "$srp" == "$(realpath -m "$pkg/scripts")"/* ]] || continue
+        ln -sfn "$st" "$pkg/scripts/$sp"
+      else
+        jq -r '.content_b64 // ""' <<<"$sf" > "$sb64"
+        base64 -d < "$sb64" > "$pkg/scripts/$sp" 2>/dev/null || : > "$pkg/scripts/$sp"
+        [[ "$(jq -r '.exec // false' <<<"$sf")" == true ]] && chmod +x "$pkg/scripts/$sp"
+      fi
+    done < <(jq -c '.scripts_files[]?' <<<"$body")
+    rm -f "$sb64"
+    # sem itens válidos => scripts/ removido de propósito (round-trip de remoção)
+    [[ -d "$pkg/scripts" ]] && find "$pkg/scripts" -type d -empty -delete 2>/dev/null
+  fi
+  # tests/score VERBATIM (round-trip byte-fiel da CLI; o campo estruturado `score` do editor
+  # web continua valendo — se os dois vierem, score_text vence por rodar depois)
+  if jq -e 'has("score_text")' >/dev/null 2>&1 <<<"$body"; then
+    local sct; sct="$(jq -r '.score_text // ""' <<<"$body")"
+    if [[ -n "$sct" ]]; then printf '%s' "$sct" | _putfile "$pkg/tests/score"
+    else rm -f "$pkg/tests/score"; fi
+  fi
 }
 # _read_pairs <pkgdir> <sample|hidden> <outfile> -> escreve NDJSON {name,input,output} (1/linha).
 # Via jq --rawfile (lê os testes de ARQUIVO); o chamador junta com --slurpfile. Sem conteúdo de
@@ -388,8 +428,10 @@ _read_score(){
   jq -cn --argjson g "$groups" '{enabled:true, groups:$g}'
 }
 # read_problem_source <pkgdir> -> JSON editável do pacote (enunciado/autor/tags/conf/exemplos/
-# testes/soluções good + public/collections/title do .moj-meta.json). Também lista scripts/ (correção
-# especial) como caminhos relativos no campo `scripts` — SÓ leitura (não escrito por apply_problem_fields).
+# testes/soluções good + public/collections/title do .moj-meta.json). scripts/ sai em DOIS campos:
+# `scripts` (só caminhos, p/ a árvore do editor web) e `scripts_files` (CONTEÚDO em base64 +
+# symlinks — round-trip do moj push/clone via apply_problem_fields). tests/score sai cru em
+# `score_text` (além do estruturado `score` do editor web).
 read_problem_source(){
   local pkg="$1" enunf="" fmt="md" ef
   for ef in docs/enunciado.md enunciado.md docs/enunciado.org docs/enunciado.tex; do
@@ -403,30 +445,57 @@ read_problem_source(){
   local tags='[]'; [[ -f "$pkg/tags" ]] && tags="$(jq -R . "$pkg/tags" 2>/dev/null | jq -sc . 2>/dev/null)"; [[ -n "$tags" ]] || tags='[]'
   local meta='{}'; [[ -f "$pkg/.moj-meta.json" ]] && meta="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$meta" ]] || meta='{}'
   local score; score="$(_read_score "$pkg")"
-  # scripts/ (correção especial: compare/compile por linguagem) -> caminhos relativos, SÓ p/ exibir na árvore do pacote
+  # scripts/ (correção especial: compare/compile por linguagem) -> caminhos relativos p/ a
+  # árvore do editor web (campo `scripts`); o CONTEÚDO vai em `scripts_files` (round-trip)
   local tscr; tscr="$(mktemp)"
   [[ -d "$pkg/scripts" ]] && ( cd "$pkg/scripts" && find . -type f -printf '%P\n' 2>/dev/null ) | LC_ALL=C sort > "$tscr"
+  # tests/score cru (round-trip byte-fiel do moj push/clone)
+  local tsct; tsct="$(mktemp)"
+  [[ -f "$pkg/tests/score" ]] && cat "$pkg/tests/score" > "$tsct"
   # exemplos/testes/soluções -> NDJSON em arquivos; entram no jq por --slurpfile (jq lê o arquivo).
   # ANTES: --argjson tss "$tss" estourava o ARG_MAX em problema com muitos testes -> source VAZIO -> editor em branco.
   local d; d="$(mktemp -d)"
   _read_pairs "$pkg" sample "$d/exs"; _read_pairs "$pkg" hidden "$d/tss"
   _read_sols "$pkg" good "$d/sg"; _read_sols "$pkg" slow "$d/ss"; _read_sols "$pkg" wrong "$d/sw"
   _read_sols "$pkg" pass "$d/sp"; _read_sols "$pkg" upcoming "$d/su"
+  _read_scripts "$pkg" "$d/scf"
   # explicação por exemplo (docs/sample-notes.json, na ordem) -> examples[].explanation
   local notes='[]'; [[ -f "$pkg/docs/sample-notes.json" ]] && notes="$(cat "$pkg/docs/sample-notes.json" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$notes" || notes='[]'
   jq -cn --slurpfile all "$d/exs" --argjson n "$notes" \
      '$all | to_entries[] | .value + {explanation: ($n[.key] // "")}' > "$d/exs2" 2>/dev/null && mv -f "$d/exs2" "$d/exs"
   jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" --rawfile editorial "$ted" \
-        --rawfile scr "$tscr" \
+        --rawfile scr "$tscr" --rawfile scoretxt "$tsct" \
         --argjson tags "$tags" --argjson meta "$meta" --argjson score "$score" --arg fmt "$fmt" \
-        --slurpfile exs "$d/exs" --slurpfile tss "$d/tss" \
+        --slurpfile exs "$d/exs" --slurpfile tss "$d/tss" --slurpfile scf "$d/scf" \
         --slurpfile sg "$d/sg" --slurpfile ss "$d/ss" --slurpfile sw "$d/sw" --slurpfile sp "$d/sp" --slurpfile su "$d/su" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
       title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
+      score_text:$scoretxt,
       scripts:($scr | split("\n") | map(select(. != ""))),
+      scripts_files:$scf,
       editorial_md:$editorial, sols:{good:$sg, slow:$ss, wrong:$sw, pass:$sp, upcoming:$su} }'
-  rm -rf "$d"; rm -f "$te" "$ta" "$tc" "$ted" "$tscr"
+  rm -rf "$d"; rm -f "$te" "$ta" "$tc" "$ted" "$tscr" "$tsct"
+}
+# _read_scripts <pkgdir> <outfile> -> NDJSON de scripts/ (round-trip): arquivo =
+# {path, content_b64, exec}; symlink (arquivo OU diretório — drivers interativos) =
+# {path, symlink:alvo}. Conteúdo em base64 via arquivo (--rawfile; binário legado suportado).
+_read_scripts(){
+  local pkg="$1" of="$2" f rel x tb
+  : > "$of"
+  [[ -d "$pkg/scripts" ]] || return 0
+  tb="$(mktemp)"
+  while IFS= read -r f; do
+    rel="${f#"$pkg"/scripts/}"
+    if [[ -L "$f" ]]; then
+      jq -nc --arg p "$rel" --arg t "$(readlink "$f")" '{path:$p, symlink:$t}' >> "$of"
+    elif [[ -f "$f" ]]; then
+      base64 -w0 < "$f" > "$tb" 2>/dev/null || continue
+      x=false; [[ -x "$f" ]] && x=true
+      jq -nc --arg p "$rel" --argjson x "$x" --rawfile c "$tb" '{path:$p, content_b64:$c, exec:$x}' >> "$of"
+    fi
+  done < <(find "$pkg/scripts" \( -type f -o -type l \) 2>/dev/null | LC_ALL=C sort)
+  rm -f "$tb"
 }
 # _read_sols <pkgdir> <cat> <outfile> -> escreve NDJSON {filename,code} (1/linha) de sols/<cat>/*
 _read_sols(){

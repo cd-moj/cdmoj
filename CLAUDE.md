@@ -193,8 +193,12 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `docs/sample-notes.json` (explicações de exemplo, na ordem), `docs/solucao.md` (editorial — só
   setter, **não** vai ao aluno). Metadados em `.moj-meta.json` (`display_title`, `public`, …).
   **Correção especial** opcional em `scripts/` (checker `compare.sh`, `scripts/<lang>/compile.sh`, …;
-  ver `mojtools/docs/correcao-especial.md`): o editor web **não** a escreve, mas `read_problem_source`
-  a **lista** (campo `scripts`, só leitura) e a árvore do pacote a **exibe**.
+  ver `mojtools/docs/correcao-especial.md`): o editor web **não** a escreve (só exibe a árvore via
+  o campo `scripts`, caminhos), mas o **round-trip da CLI é completo**: `read_problem_source` emite
+  **`scripts_files`** (`[{path,content_b64,exec}|{path,symlink}]` — binário e symlink suportados) e
+  **`score_text`** (`tests/score` cru), e `apply_problem_fields` os grava (scripts_files presente =
+  SUBSTITUI `scripts/` inteiro; paths validados, confinados; +x preservado). Mexer em `scripts/`
+  muda o tl-checksum ⇒ recalibração.
   O **título de exibição** é o `.moj-meta.json` `display_title` (o `% Título` do enunciado é legado,
   removido no render — o `<h1 class="moj-title">` vem do campo). **`write_meta` sempre popula
   `display_title`**: se o setter não mandar título e o meta ainda não tiver um, deriva do enunciado

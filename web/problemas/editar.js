@@ -13,7 +13,7 @@ let enunEd = null, editEd = null;                            // enunciado (modo 
 let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modulares (lazy, modo "separado")
 let stmtMode = 'single';                                      // 'single' | 'modular'
 let PENDING_EDITORIAL = '';                                  // editorial carregado, aplicado quando a aba Resolução abre
-let PKG_SCRIPTS = [];                                        // scripts/ (correção especial) do pacote — só p/ exibir na árvore
+let PKG_SCRIPTS = [];  // scripts/ (correção especial) — o editor só EXIBE a árvore (campo `scripts`); o round-trip de conteúdo é da CLI (`scripts_files`)
 let COLLS = [];
 let collFilter = { q: '', mine: false, manage: false, course: false };  // filtro dos chips de coleção
 let CAN_CREATE = false;
