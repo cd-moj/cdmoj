@@ -267,10 +267,15 @@
 
           <h4 style="margin:.6rem 0 .2rem">Memória</h4>
           <div class="grid2">
-            <div class="field"><label>Limite de memória <code>MEMLIMITMB</code> (MB) — RSS medido; estourar → <b>MLE</b></label>
+            <div class="field"><label>Limite de memória <code>MEMLIMITMB</code> (MB) — RSS medido; estourar → <b>MLE</b>. A JVM (java/kotlin) dimensiona o heap (<code>-Xmx</code>) por este valor</label>
               <input id="cf_memlimit" type="text" placeholder="ex: 256 (vazio = sem limite explícito)"></div>
+            <div class="field"><label>Stack <code>STACKLIMITMB</code> (MB) — vale p/ TODAS as linguagens (a JVM espelha em <code>-Xss</code>)</label>
+              <input id="cf_stack" type="text" placeholder="128 (padrão)"></div>
+          </div>
+          <div class="grid2">
             <div class="field"><label>Limite de tamanho de arquivo <code>ULIMITS[-f]</code></label>
               <input id="cf_ulimit_f" type="text" placeholder="(opcional)"></div>
+            <div></div>
           </div>
 
           <h4 style="margin:.6rem 0 .2rem">Tempo</h4>
@@ -303,6 +308,25 @@
             <summary class="small">Avançado — conf bruto (multiplicadores/drift por linguagem: <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…)</summary>
             <textarea id="confRaw" class="big" style="min-height:9rem;margin-top:.4rem"></textarea>
           </details>
+        </div>
+
+        <div class="section">
+          <h3>Correção especial (<code>scripts/</code>)</h3>
+          <p class="small muted" style="margin:.2rem 0 .4rem">
+            Sobrepõe a correção padrão: <code>compare.sh</code> (comparador), <code>&lt;lang&gt;/compile.sh</code>
+            e <code>&lt;lang&gt;/run.sh</code> por linguagem, checker testlib, problema interativo…
+            Mexer aqui muda o checksum do pacote ⇒ o juiz <b>recalibra</b>.
+          </p>
+          <div class="row" style="gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">
+            <span class="small muted">Template:</span>
+            <select id="scrTplSel" class="small"><option value="">(escolha…)</option></select>
+            <button class="btn ghost" type="button" id="scrTplApply">Aplicar template</button>
+            <span style="flex:1"></span>
+            <button class="btn ghost" type="button" id="scrAdd">+ arquivo</button>
+            <button class="btn ghost" type="button" id="scrUpload">⬆ enviar arquivo</button>
+          </div>
+          <div id="scrTplHint" class="small" style="display:none;margin:.2rem 0 .4rem;padding:.4rem .6rem;background:#fff7ec;border:1px solid #f3c08e;border-radius:6px"></div>
+          <div id="scrRows"></div>
         </div>
       </section>
 

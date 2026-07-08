@@ -3,7 +3,7 @@
 // barra de PRONTIDÃO fixa (o que já está pronto e o que falta). Suporta limite de memória (MEMLIMITMB) e
 // PONTUAÇÃO POR GRUPOS (subtasks estilo OBI: cada grupo de testes tem um peso → tests/score).
 import { apiGet, apiPost, ApiError, getToken } from '/shared/api.js';
-import { status, fileToBase64 } from '/shared/auth.js';
+import { status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 
@@ -13,7 +13,8 @@ let enunEd = null, editEd = null;                            // enunciado (modo 
 let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modulares (lazy, modo "separado")
 let stmtMode = 'single';                                      // 'single' | 'modular'
 let PENDING_EDITORIAL = '';                                  // editorial carregado, aplicado quando a aba Resolução abre
-let PKG_SCRIPTS = [];  // scripts/ (correção especial) — o editor só EXIBE a árvore (campo `scripts`); o round-trip de conteúdo é da CLI (`scripts_files`)
+let scrEntries = [];   // scripts/ (correção especial) — EDITÁVEL na aba Limites via `scripts_files` (round-trip completo: conteúdo/exec/symlink; binário preservado)
+let SCR_TEMPLATES = null;   // cache de GET /problems/script-templates (carrega 1x)
 let COLLS = [];
 let collFilter = { q: '', mine: false, manage: false, course: false };  // filtro dos chips de coleção
 let CAN_CREATE = false;
@@ -68,7 +69,7 @@ function confUpsert(text, key, value) {
   else { const v = /[\s+]/.test(value) ? `"${value}"` : value, line = key + '=' + v; if (idx >= 0) lines[idx] = line; else lines.push(line); }
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
-const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS']];
+const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS']];
 const CF_YN = [['cf_allowparallel', 'ALLOWPARALLELTEST'], ['cf_tlererun', 'TLERERUN'], ['cf_stopwa', 'STOPWHEN_WA'], ['cf_stoptle', 'STOPWHEN_TLE'], ['cf_stopre', 'STOPWHEN_RE']];
 const CF_FLAG = [['cf_allowtle', 'ALLOWTLEDURINGCALIBRATION']];   // y ou ausente
 function confToFields(text) {
@@ -370,6 +371,73 @@ async function addSol(cat, fn, code, expand) {
 const loadSolFiles = async (cat, files) => { for (const f of files) await addSol(cat, f.name, await f.text(), false); showSolCat(cat); };
 function collectSols() { const o = {}; for (const [cat] of SOL_CATS) o[cat] = (solEditors[cat] || []).map(x => x.get()).filter(s => s.filename); return o; }
 
+// ---- correção especial (scripts/) — lista editável + templates ------------------------------
+// Cada entrada espelha um item de `scripts_files`: {path,content_b64,exec} ou {path,symlink}.
+// Texto ganha editor CodeMirror (lazy); binário (b64 que não é UTF-8) fica preservado sem editor.
+const b64ToUtf8Strict = (b) => { try { return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(b || ''), c => c.charCodeAt(0))); } catch { return null; } };
+function addScript(f, expand) {
+  const isLink = !!f.symlink;
+  const text = isLink ? null : b64ToUtf8Strict(f.content_b64 || '');
+  const isBin = !isLink && text === null;
+  const pathInput = el('input', { type: 'text', value: f.path || '', placeholder: 'ex: compare.sh · c/compile.sh', style: 'max-width:16rem' });
+  const entry = { pathInput, symlink: f.symlink || null, b64: f.content_b64 || '', code: text || '', isBin, ed: null };
+  let row;
+  if (isLink) {
+    row = el('div', { class: 'solrow' }, el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
+      el('span', { class: 'small muted' }, '🔗'), pathInput, el('span', { class: 'small muted' }, '→ ' + f.symlink),
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updatePkgInfo(); } }, 'remover')));
+  } else {
+    const execCb = el('input', { type: 'checkbox' }); execCb.checked = !!f.exec;
+    entry.execCb = execCb;
+    const mount = el('div', { class: 'editor-mount', style: 'display:none' });
+    const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: 'abrir/fechar editor' }, '▸');
+    const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: cmFor(pathInput.value) || 'shell' }); };
+    entry.setOpen = async (open) => { if (open) await ensureEd(); mount.style.display = open ? '' : 'none'; expandBtn.textContent = open ? '▾' : '▸'; };
+    expandBtn.onclick = () => entry.setOpen(mount.style.display === 'none');
+    if (isBin) { expandBtn.disabled = true; expandBtn.title = 'binário — preservado como está'; }
+    row = el('div', { class: 'solrow' }, el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
+      expandBtn, el('span', { class: 'small muted' }, 'arquivo'), pathInput,
+      isBin ? el('span', { class: 'small muted' }, `(binário, ${Math.round((entry.b64.length * 3) / 4)} bytes)`) : '',
+      el('label', { class: 'row small', style: 'gap:.3rem' }, execCb, 'executável'),
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updatePkgInfo(); } }, 'remover')),
+      mount);
+    if (expand) entry.setOpen(true);
+  }
+  entry.row = row;
+  entry.get = () => {
+    const p = pathInput.value.trim(); if (!p) return null;
+    if (entry.symlink) return { path: p, symlink: entry.symlink };
+    if (entry.isBin) return { path: p, content_b64: entry.b64, exec: entry.execCb.checked };
+    return { path: p, content_b64: textToBase64(entry.ed ? entry.ed.getValue() : entry.code), exec: entry.execCb.checked };
+  };
+  pathInput.addEventListener('change', updatePkgInfo);
+  $('scrRows').append(row);
+  scrEntries.push(entry);
+  updatePkgInfo();
+}
+function renderScripts(files) { scrEntries = []; $('scrRows').innerHTML = ''; (files || []).forEach(f => addScript(f, false)); }
+const collectScripts = () => scrEntries.map(e => e.get()).filter(Boolean);
+async function loadScriptTemplates() {
+  if (SCR_TEMPLATES) return SCR_TEMPLATES;
+  try {
+    const j = await apiGet('/problems/script-templates', { contest: CONTEST, auth: true });
+    SCR_TEMPLATES = j.templates || [];
+  } catch { SCR_TEMPLATES = []; }
+  const sel = $('scrTplSel');
+  SCR_TEMPLATES.forEach(t => sel.append(el('option', { value: t.key }, t.name)));
+  return SCR_TEMPLATES;
+}
+async function applyScriptTemplate() {
+  const key = $('scrTplSel').value; if (!key) return;
+  const t = (SCR_TEMPLATES || []).find(x => x.key === key); if (!t) return;
+  if (scrEntries.length && !confirm(`Aplicar o template "${t.name}" SUBSTITUI os ${scrEntries.length} arquivo(s) atuais de scripts/. Continuar?`)) return;
+  renderScripts(t.files || []);
+  const hint = $('scrTplHint');
+  hint.style.display = '';
+  hint.textContent = (t.description ? t.description + ' ' : '') + (t.conf_hints ? '💡 ' + t.conf_hints : '');
+  setMsg('Template aplicado — revise os arquivos (o exemplo é um ponto de partida) e salve.', '');
+}
+
 // ---- árvore do pacote (clicável -> troca de aba e rola até a seção) ------------------------
 function flash(t) {
   if (!t) return;
@@ -387,18 +455,19 @@ function buildTree() {
   if (tsRows.length) testKids.push(dirNode('ocultos/', ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || 'teste'), r))));
   if (SCORE.enabled) testKids.push(leaf('score', $('scoreGroups'), () => showTab('tests')));
   const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || '(sem nome)', s.row))) : null).filter(Boolean);
-  // scripts/ (correção especial) — só exibição (não editável no editor web); agrupa por subpasta de linguagem
+  // scripts/ (correção especial) — editável na aba Limites; agrupa por subpasta de linguagem
   let scrNode = null;
-  if (PKG_SCRIPTS.length) {
+  const scrItems = scrEntries.map(e => ({ p: e.pathInput.value.trim(), row: e.row })).filter(x => x.p);
+  if (scrItems.length) {
     const byDir = {}, rootFiles = [];
-    for (const p of PKG_SCRIPTS) {
-      const i = p.indexOf('/');
-      if (i < 0) rootFiles.push(p);
-      else (byDir[p.slice(0, i)] || (byDir[p.slice(0, i)] = [])).push(p.slice(i + 1));
+    for (const it of scrItems) {
+      const i = it.p.indexOf('/');
+      if (i < 0) rootFiles.push({ ...it, label: it.p });
+      else (byDir[it.p.slice(0, i)] || (byDir[it.p.slice(0, i)] = [])).push({ ...it, label: it.p.slice(i + 1) });
     }
     const scrKids = [
-      ...Object.keys(byDir).sort().map(dir => dirNode(dir + '/', ...byDir[dir].map(f => leaf(f)))),
-      ...rootFiles.map(f => leaf(f)),
+      ...Object.keys(byDir).sort().map(dir => dirNode(dir + '/', ...byDir[dir].map(it => leaf(it.label, it.row)))),
+      ...rootFiles.map(it => leaf(it.label, it.row)),
     ];
     scrNode = dirNode('scripts/', ...scrKids);
   }
@@ -463,7 +532,7 @@ async function renderForm(d) {
   enunEd = await createEditor($('enunMount'), { doc: initMd, cm: 'markdown', images: true });
   // resolução (editorial): guarda; o editor é criado ao abrir a aba (e atualizado se já existir)
   PENDING_EDITORIAL = d.editorial_md || '';
-  PKG_SCRIPTS = d.scripts || [];
+  renderScripts(d.scripts_files || []);
   $('editMount').innerHTML = ''; editEd = null;
   $('examples').innerHTML = ''; (d.examples || []).forEach(e => $('examples').append(exampleRow(e.input, e.output, e.explanation)));
   if (!(d.examples || []).length) $('examples').append(exampleRow());
@@ -490,6 +559,7 @@ const collectFields = () => {
     editorial_md: editEd ? editEd.getValue() : PENDING_EDITORIAL,
     tests: collectTests(), sols: collectSols(), conf_text: $('confRaw').value,
     score: { enabled, groups: enabled ? collectGroups() : [] },
+    scripts_files: collectScripts(),   // correção especial — substitui scripts/ inteiro (round-trip)
   };
 };
 
@@ -933,6 +1003,13 @@ function bindHandlers() {
   $('calibSel').onclick = () => calibrateHosts(checkedHosts());
   $('calibPerCpu').onclick = () => calibrateHosts(onePerCpu());
   $('calibAll').onclick = () => calibrateHosts(JUDGES.filter(j => j.online).map(j => j.host));
+  // correção especial (scripts/)
+  $('scrAdd').onclick = () => addScript({ path: '', content_b64: '', exec: true }, true);
+  const scrFi = hiddenFile(true);
+  scrFi.addEventListener('change', async () => { for (const f of scrFi.files) addScript({ path: f.name, content_b64: await fileToBase64(f), exec: /\.(sh|py|pl)$/.test(f.name) }, false); scrFi.value = ''; });
+  $('scrUpload').onclick = () => scrFi.click(); $('scrUpload').after(scrFi);
+  $('scrTplSel').addEventListener('focus', loadScriptTemplates, { once: true });
+  $('scrTplApply').onclick = applyScriptTemplate;
 }
 
 async function boot() {

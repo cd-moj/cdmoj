@@ -1860,7 +1860,9 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["public"]
+              "enum": [
+                "public"
+              ]
             },
             "description": "public = visão pública/congelada mesmo com sessão privilegiada"
           },
@@ -1870,7 +1872,9 @@
             "required": false,
             "schema": {
               "type": "string",
-              "enum": ["mine"]
+              "enum": [
+                "mine"
+              ]
             },
             "description": "mine (honrado só p/ .cstaff) = recorta o placar servido (frozen e full) aos usuários do escopo dele (staff-filters); fora da allowlist SCORE_FULL_USERS, o full só sai quando o contest terminou p/ TODAS as sedes (fim do conf + maior end de time-overrides.json) — cerimônia por sede"
           }
@@ -2661,7 +2665,13 @@
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "enum": ["wa", "tle", "mle", "rte", "ce"]
+                      "enum": [
+                        "wa",
+                        "tle",
+                        "mle",
+                        "rte",
+                        "ce"
+                      ]
                     },
                     "description": "placar ICPC: verdicts que contam penalidade (default wa/tle/mle/rte; Judge Error e pendentes nunca contam; [] = nenhum penaliza)"
                   },
@@ -5360,59 +5370,334 @@
     },
     "/problems/move": {
       "post": {
-        "tags": ["problems"],
+        "tags": [
+          "problems"
+        ],
         "summary": "Move um problema de rascunho p/ outra org (muda o id; bloqueia se público/em uso)",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["id", "to_org"], "properties": {"id": {"type": "string"}, "to_org": {"type": "string"}}}}}},
-        "responses": {"200": {"description": "{id, from}"}, "403": {"description": "não é membro das orgs"}, "409": {"description": "público/em uso, ou nome colide no destino"}}
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "to_org"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "to_org": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{id, from}"
+          },
+          "403": {
+            "description": "não é membro das orgs"
+          },
+          "409": {
+            "description": "público/em uso, ou nome colide no destino"
+          }
+        }
       }
     },
     "/orgs/list": {
       "get": {
-        "tags": ["orgs"],
+        "tags": [
+          "orgs"
+        ],
         "summary": "Orgs de que o login é membro (inclui a implícita)",
-        "security": [{"bearerAuth": []}],
-        "responses": {"200": {"description": "{orgs:[{name,title,members,admins,public_allowed,implicit,count,public,mine,can_manage}]}"}}
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{orgs:[{name,title,members,admins,public_allowed,implicit,count,public,mine,can_manage}]}"
+          }
+        }
       }
     },
     "/orgs/get": {
       "get": {
-        "tags": ["orgs"],
+        "tags": [
+          "orgs"
+        ],
         "summary": "Detalhe de 1 org (404 se não-membro)",
-        "security": [{"bearerAuth": []}],
-        "parameters": [{"name": "name", "in": "query", "required": true, "schema": {"type": "string"}}],
-        "responses": {"200": {"description": "{name,title,members,admins,public_allowed,implicit,mine,can_manage}"}, "404": {"description": "não-membro ou inexistente"}}
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{name,title,members,admins,public_allowed,implicit,mine,can_manage}"
+          },
+          "404": {
+            "description": "não-membro ou inexistente"
+          }
+        }
       }
     },
     "/orgs/create": {
       "post": {
-        "tags": ["orgs"],
+        "tags": [
+          "orgs"
+        ],
         "summary": "Cria org (criador vira membro+admin; exige cc_can_create)",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "members": {"type": "array", "items": {"type": "string"}}, "admins": {"type": "array", "items": {"type": "string"}}, "title": {"type": "string"}, "public_allowed": {"type": "boolean"}}}}}},
-        "responses": {"200": {"description": "org criada"}, "403": {"description": "sem permissão de criação"}}
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "admins": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "public_allowed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "org criada"
+          },
+          "403": {
+            "description": "sem permissão de criação"
+          }
+        }
       }
     },
     "/orgs/members": {
-      "get": {"tags": ["orgs"], "summary": "Membros/admins da org", "security": [{"bearerAuth": []}], "parameters": [{"name": "name", "in": "query", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "{name,members,admins,mine,can_manage,implicit}"}}},
-      "post": {"tags": ["orgs"], "summary": "Gerencia membros/admins (só admin da org)", "security": [{"bearerAuth": []}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "add": {"type": "array", "items": {"type": "string"}}, "remove": {"type": "array", "items": {"type": "string"}}, "admins_add": {"type": "array", "items": {"type": "string"}}, "admins_remove": {"type": "array", "items": {"type": "string"}}}}}}}, "responses": {"200": {"description": "idem"}, "403": {"description": "não é admin da org"}}}
+      "get": {
+        "tags": [
+          "orgs"
+        ],
+        "summary": "Membros/admins da org",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{name,members,admins,mine,can_manage,implicit}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "orgs"
+        ],
+        "summary": "Gerencia membros/admins (só admin da org)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "add": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "remove": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "admins_add": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "admins_remove": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "idem"
+          },
+          "403": {
+            "description": "não é admin da org"
+          }
+        }
+      }
     },
     "/orgs/set-public-allowed": {
       "post": {
-        "tags": ["orgs"],
+        "tags": [
+          "orgs"
+        ],
         "summary": "Liga/desliga a trava de público (só admin; implícita 409)",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name", "public_allowed"], "properties": {"name": {"type": "string"}, "public_allowed": {"type": "boolean"}}}}}},
-        "responses": {"200": {"description": "flag alterada"}, "403": {"description": "não é admin da org"}, "409": {"description": "org implícita é sempre privada"}}
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "public_allowed"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "public_allowed": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "flag alterada"
+          },
+          "403": {
+            "description": "não é admin da org"
+          },
+          "409": {
+            "description": "org implícita é sempre privada"
+          }
+        }
       }
     },
     "/orgs/delete": {
       "post": {
-        "tags": ["orgs"],
+        "tags": [
+          "orgs"
+        ],
         "summary": "Remove uma org VAZIA (só admin; implícita/não-vazia 409)",
-        "security": [{"bearerAuth": []}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}}}}},
-        "responses": {"200": {"description": "{action:org-delete, name}"}, "403": {"description": "não é admin da org"}, "404": {"description": "org não encontrada"}, "409": {"description": "org implícita (implicit_org) ou com problemas (org_not_empty)"}}
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{action:org-delete, name}"
+          },
+          "403": {
+            "description": "não é admin da org"
+          },
+          "404": {
+            "description": "org não encontrada"
+          },
+          "409": {
+            "description": "org implícita (implicit_org) ou com problemas (org_not_empty)"
+          }
+        }
       }
     },
     "/problems/collection-create": {
@@ -5645,6 +5930,63 @@
           },
           "401": {
             "description": "bot_unauth"
+          }
+        }
+      }
+    },
+    "/problems/script-templates": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Templates de corretor especial (scripts/) p/ o editor web",
+        "description": "Lê mojtools/script-templates/<key>/ (criar template = criar uma pasta lá). files[] tem o MESMO shape do campo scripts_files de source/edit: {path,content_b64,exec} ou {path,symlink}. Symlink externo (canônicos do mojtools) vem resolvido como conteúdo; interno (ex.: cpp -> c) vem como symlink. Iniciais: checker-testlib, interativo, interativo-rank, compare-float, ban-funcoes-c.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "templates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "conf_hints": {
+                            "type": "string"
+                          },
+                          "files": {
+                            "type": "array",
+                            "items": {
+                              "type": "object"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
