@@ -197,9 +197,10 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   (`[{path,content_b64,exec}|{path,symlink}]` — binário e symlink suportados) + **`score_text`**
   (`tests/score` cru) — `read_problem_source` emite, `apply_problem_fields` grava (scripts_files
   presente = SUBSTITUI `scripts/` inteiro; paths validados, confinados; +x preservado). O **editor
-  web gere `scripts/`** na aba Limites (lista editável + seletor de **templates** via
-  `GET /problems/script-templates`, que lê `mojtools/script-templates/` — criar template = criar
-  uma pasta lá) e envia `scripts_files` no save; a CLI (`moj push/clone`) faz o mesmo round-trip.
+  web gere `scripts/`** na sub-aba **"⚙ correção"** da aba **Soluções & Correção** (lista editável
+  + seletor de **templates** via `GET /problems/script-templates`, que lê
+  `mojtools/script-templates/` — criar template = criar uma pasta lá) e envia `scripts_files` no
+  save; a CLI (`moj push/clone`) faz o mesmo round-trip.
   Mexer em `scripts/` muda o tl-checksum ⇒ recalibração.
   O **título de exibição** é o `.moj-meta.json` `display_title` (o `% Título` do enunciado é legado,
   removido no render — o `<h1 class="moj-title">` vem do campo). **`write_meta` sempre popula

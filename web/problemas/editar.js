@@ -13,7 +13,7 @@ let enunEd = null, editEd = null;                            // enunciado (modo 
 let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modulares (lazy, modo "separado")
 let stmtMode = 'single';                                      // 'single' | 'modular'
 let PENDING_EDITORIAL = '';                                  // editorial carregado, aplicado quando a aba Resolução abre
-let scrEntries = [];   // scripts/ (correção especial) — EDITÁVEL na aba Limites via `scripts_files` (round-trip completo: conteúdo/exec/symlink; binário preservado)
+let scrEntries = [];   // scripts/ (correção especial) — EDITÁVEL na sub-aba "⚙ correção" (Soluções & Correção) via `scripts_files` (round-trip completo: conteúdo/exec/symlink; binário preservado)
 let SCR_TEMPLATES = null;   // cache de GET /problems/script-templates (carrega 1x)
 let COLLS = [];
 let collFilter = { q: '', mine: false, manage: false, course: false };  // filtro dos chips de coleção
@@ -316,6 +316,7 @@ function showSolCat(cat) {
 }
 function updateSolCounts() {
   SOL_CATS.forEach(([cat]) => { const e = $('solcount-' + cat); if (e) { const n = (solEditors[cat] || []).length; e.textContent = n ? String(n) : ''; } });
+  const s = $('solcount-scr'); if (s) s.textContent = scrEntries.length ? String(scrEntries.length) : '';
 }
 async function toggleAllSols(cat, open) { for (const e of (solEditors[cat] || [])) await e.setOpen(open); }
 async function renderSols(sols) {
@@ -327,6 +328,11 @@ async function renderSols(sols) {
     nav.append(el('button', { class: 'subtab', type: 'button', 'data-cat': cat, onclick: () => showSolCat(cat) },
       el('span', { class: 'sol-badge ' + bcls }, cat), el('span', { class: 'subcount', id: 'solcount-' + cat })));
   });
+  // sub-aba do MODO DE CORREÇÃO (correção especial, scripts/): mesmo mecanismo das categorias —
+  // o painel (#scrPanel, data-cat="scr") vive FORA do wrap p/ sobreviver ao re-render
+  nav.append(el('span', { class: 'subsep' }, '·'),
+    el('button', { class: 'subtab', type: 'button', 'data-cat': 'scr', title: 'modo de correção: checker, comparador, interativo… (scripts/ do pacote)', onclick: () => showSolCat('scr') },
+      el('span', { class: 'sol-badge sb-scr' }, '⚙ correção'), el('span', { class: 'subcount', id: 'solcount-scr' })));
   wrap.append(nav);
   for (const [cat] of SOL_CATS) {
     const [, btxt] = SOL_BADGE[cat] || ['', ''];
@@ -385,7 +391,7 @@ function addScript(f, expand) {
   if (isLink) {
     row = el('div', { class: 'solrow' }, el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
       el('span', { class: 'small muted' }, '🔗'), pathInput, el('span', { class: 'small muted' }, '→ ' + f.symlink),
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updatePkgInfo(); } }, 'remover')));
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, 'remover')));
   } else {
     const execCb = el('input', { type: 'checkbox' }); execCb.checked = !!f.exec;
     entry.execCb = execCb;
@@ -399,7 +405,7 @@ function addScript(f, expand) {
       expandBtn, el('span', { class: 'small muted' }, 'arquivo'), pathInput,
       isBin ? el('span', { class: 'small muted' }, `(binário, ${Math.round((entry.b64.length * 3) / 4)} bytes)`) : '',
       el('label', { class: 'row small', style: 'gap:.3rem' }, execCb, 'executável'),
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updatePkgInfo(); } }, 'remover')),
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, 'remover')),
       mount);
     if (expand) entry.setOpen(true);
   }
@@ -413,9 +419,9 @@ function addScript(f, expand) {
   pathInput.addEventListener('change', updatePkgInfo);
   $('scrRows').append(row);
   scrEntries.push(entry);
-  updatePkgInfo();
+  updateSolCounts(); updatePkgInfo();
 }
-function renderScripts(files) { scrEntries = []; $('scrRows').innerHTML = ''; (files || []).forEach(f => addScript(f, false)); }
+function renderScripts(files) { scrEntries = []; $('scrRows').innerHTML = ''; (files || []).forEach(f => addScript(f, false)); updateSolCounts(); }
 const collectScripts = () => scrEntries.map(e => e.get()).filter(Boolean);
 async function loadScriptTemplates() {
   if (SCR_TEMPLATES) return SCR_TEMPLATES;
@@ -455,7 +461,7 @@ function buildTree() {
   if (tsRows.length) testKids.push(dirNode('ocultos/', ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || 'teste'), r))));
   if (SCORE.enabled) testKids.push(leaf('score', $('scoreGroups'), () => showTab('tests')));
   const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || '(sem nome)', s.row))) : null).filter(Boolean);
-  // scripts/ (correção especial) — editável na aba Limites; agrupa por subpasta de linguagem
+  // scripts/ (correção especial) — editável na sub-aba ⚙ de Soluções & Correção; agrupa por subpasta
   let scrNode = null;
   const scrItems = scrEntries.map(e => ({ p: e.pathInput.value.trim(), row: e.row })).filter(x => x.p);
   if (scrItems.length) {
