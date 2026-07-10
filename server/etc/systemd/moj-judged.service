@@ -7,13 +7,13 @@ After=network.target
 Type=simple
 # Ajuste WorkingDirectory/MOJ_HOME por deploy.
 Environment=MOJ_HOME=%h/moj/cdmoj
-# Backend: mock (testes) | local (bubblewrap) | cluster (escalonador).
-Environment=JUDGE_BACKEND=mock
+# Produção = PULL: o daemon enfileira e os juízes (moj-agent@) puxam o job.
+Environment=INTAKE_MODE=queue
+Environment=JUDGE_BACKEND=queue
+# Dev/legado (intake inline, sem juízes): INTAKE_MODE=legacy + JUDGE_BACKEND=mock|local.
 # Override de caminhos, se quiser (senão usa server/etc/common.conf):
 # Environment=CONTESTSDIR=%h/moj/contests
 # Environment=RUNDIR=%h/moj/run
-# Environment=JUDGE_MASTER=localhost:27000
-# Environment=RESULT_SINK=localhost:28000
 WorkingDirectory=%h/moj/cdmoj/server/daemons
 ExecStart=/bin/bash %h/moj/cdmoj/server/daemons/judged.sh
 Restart=on-failure
