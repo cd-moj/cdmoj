@@ -1,5 +1,5 @@
 # POST /problems/edit   (Bearer)   body: {id, enunciado_md?, author?, tags?, conf_text?,
-#                                          examples?, tests?, good_sol?, title?, collections?}
+#                                          examples?, tests?, good_sol?, title?, collections?, languages?}
 # Edita um problema existente (repo git LOCAL da org). Commit autorado pelo login (sem Gitea).
 require_method POST
 require_auth
@@ -24,7 +24,10 @@ if [[ -n "$colls" ]]; then
   done < <(jq -r '.[]?' <<<"$colls")
 fi
 title="$(jq -r '.title // empty' <<<"$body")"
-write_meta "$pdir" "$owner" "$org" "" "$colls" "$title"
+# languages: restrição de submissão por-problema ([]/ausente = todas). has() distingue "não
+# mandou" (não mexe) de "mandou []" (limpa) — mesmo padrão do collections acima.
+langs=""; jq -e 'has("languages")' >/dev/null 2>&1 <<<"$body" && langs="$(jq -c '(.languages // [])' <<<"$body")"
+write_meta "$pdir" "$owner" "$org" "" "$colls" "$title" "$langs"
 bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true  # Kattis-aware
 
 sha="$(problem_commit "$pdir" "$SESSION_LOGIN" "edita $prob")"

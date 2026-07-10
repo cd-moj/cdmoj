@@ -1,5 +1,5 @@
 # POST /problems/create   (Bearer)
-# body: {repo(=org), prob, enunciado_md?, author?, tags?, conf_text?, examples?, tests?, good_sol?, title?, collections?}
+# body: {repo(=org), prob, enunciado_md?, author?, tags?, conf_text?, examples?, tests?, good_sol?, title?, collections?, languages?}
 # Cria um problema NOVO numa ORG de que o login é MEMBRO (ou na sua org implícita <login>). Storage =
 # repo git LOCAL por problema em MOJ_PROBLEMS_DIR/<org>/<prob>; commit autorado pelo login (sem Gitea).
 # Não publica — o autor depois clica Validar&Publicar (e a org precisa permitir público).
@@ -28,7 +28,9 @@ apply_problem_fields "$pdir" "$body"
 colls="$(jq -c --arg r "$org" '(.collections // [$r])' <<<"$body")"
 coll_register "$org" "$SESSION_LOGIN"   # a coleção homônima da org (agrupamento default) fica válida
 title="$(jq -r '.title // empty' <<<"$body")"
-write_meta "$pdir" "$SESSION_LOGIN" "$org" false "$colls" "$title"
+# languages: restrição de submissão por-problema ([]/ausente = todas)
+langs=""; jq -e 'has("languages")' >/dev/null 2>&1 <<<"$body" && langs="$(jq -c '(.languages // [])' <<<"$body")"
+write_meta "$pdir" "$SESSION_LOGIN" "$org" false "$colls" "$title" "$langs"
 bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true  # Kattis-aware
 
 sha="$(problem_commit "$pdir" "$SESSION_LOGIN" "novo problema: $prob")"

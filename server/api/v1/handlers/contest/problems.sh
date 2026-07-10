@@ -80,9 +80,20 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   pj="$(jq -r --arg id "$PROBLEMID" '(.[$id] // []) | join(" ")' <<<"$PJUDGES" 2>/dev/null)"
   [[ -n "$pj" ]] || pj="$CONTEST_JUDGES"
   tl='{}'; [[ "$SHOW_TL" == true ]] && { tl="$(tl_store_served "$PROBLEMID" "$pj" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'; }
-  # linguagens deste problema: override por problema, senão a whitelist do contest
+  # linguagens deste problema (cadeia mais-específico-vence): override por-problema-no-contest
+  # (problem-langs.json) -> whitelist do contest (LANGUAGES) -> default do PRÓPRIO pacote
+  # (jsons/<id>.json .languages, novo último elo — pega o "só-pddl" de um problema sem que o
+  # contest precise configurar nada) -> [] (= todas). Não-regressivo: só o 3º elo é novo, e ele
+  # só entra quando NEM override NEM whitelist existem (antes daria [] direto).
   plangs="$(jq -c --arg id "$PROBLEMID" '.[$id] // empty' <<<"$PLANGS" 2>/dev/null)"
-  [[ -n "$plangs" && "$plangs" != null ]] || plangs="$CLANGS"
+  if [[ -z "$plangs" || "$plangs" == null ]]; then
+    if [[ -n "$CLANGS" && "$CLANGS" != "[]" ]]; then
+      plangs="$CLANGS"
+    else
+      pjf="$CONTESTSDIR/treino/var/jsons/$PROBLEMID.json"; [[ -f "$pjf" ]] || pjf="$CONTESTSDIR/treino/var/jsons-private/$PROBLEMID.json"
+      plangs="$(jq -c '.languages // []' "$pjf" 2>/dev/null)"; [[ -n "$plangs" ]] || plangs='[]'
+    fi
+  fi
   args+=( --argjson tl "$tl" --argjson plangs "$plangs" ); filt+=", time_limits:\$tl, languages:\$plangs}"
 
   ITEMS+=( "$(jq -cn --arg id "$PROBLEMID" --arg short "$SHORTNAME" \

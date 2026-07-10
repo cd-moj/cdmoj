@@ -19,6 +19,7 @@ export const LANGUAGES = [
   { id: 'apl',   label: 'APL',          cm: null,         template: '' },
   { id: 'spim',  label: 'MIPS (spim)',  cm: null,         template: '.data\n\n.text\n.globl main\nmain:\n    \n' },
   { id: 'riscv', label: 'RISC-V',       cm: null,         template: '.text\n.globl main\nmain:\n    \n' },
+  { id: 'pddl',  label: 'PDDL',         cm: null,         template: '' },
 ];
 export const langById = (id) => LANGUAGES.find((l) => l.id === id) || LANGUAGES[0];
 // extensão de arquivo -> id de linguagem do MOJ

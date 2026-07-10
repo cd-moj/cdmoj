@@ -470,6 +470,7 @@ read_problem_source(){
         --slurpfile sg "$d/sg" --slurpfile ss "$d/ss" --slurpfile sw "$d/sw" --slurpfile sp "$d/sp" --slurpfile su "$d/su" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
+      languages:($meta.languages // []),
       title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
       score_text:$scoretxt,
       scripts:($scr | split("\n") | map(select(. != ""))),
@@ -523,21 +524,30 @@ _derive_title(){
   printf '%s' "$t"
 }
 
-# write_meta <pkgdir> <owner> <repo> [public:true|false|""] [collections-json|""] [display_title]
+# write_meta <pkgdir> <owner> <repo> [public:true|false|""] [collections-json|""] [display_title] [languages-json|""]
 # BLINDAGEM: display_title nunca fica ausente — se não veio título E o meta ainda não tem um,
 # deriva do enunciado/slug (_derive_title). Assim o editor nunca vem em branco e as 3 telas (editor,
 # treino, gestão) ficam consistentes. Meta que já tem título não muda (o merge $cur+{} preserva).
+# languages: restrição de linguagem de submissão POR-PROBLEMA (ids canônicos minúsculos; []/ausente
+# = todas). "" (ou omitido) = não mexe (preserva o que já houver); [] = limpa (volta a irrestrito).
+# Normalização espelha a whitelist de contest (contest/admin/settings.sh): sem lista de ids
+# hardcoded (não duplicar a lista JS em bash — forward-compat), só saneamento de forma.
 write_meta(){
-  local pkg="$1" owner="$2" repo="$3" pub="${4:-}" colls="${5:-}" title="${6:-}" cur='{}'
+  local pkg="$1" owner="$2" repo="$3" pub="${4:-}" colls="${5:-}" title="${6:-}" langs="${7:-}" cur='{}'
   [[ -f "$pkg/.moj-meta.json" ]] && cur="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
   if [[ -z "$title" && -z "$(jq -r '.display_title // empty' <<<"$cur" 2>/dev/null)" ]]; then
     title="$(_derive_title "$pkg")"
   fi
   jq -n --argjson cur "$cur" --arg o "$owner" --arg r "$repo" --arg pub "$pub" \
-        --argjson colls "${colls:-null}" --arg title "$title" --argjson now "$EPOCHSECONDS" '
+        --argjson colls "${colls:-null}" --arg title "$title" --argjson langs "${langs:-null}" \
+        --argjson now "$EPOCHSECONDS" '
     $cur + {owner:$o, gitea:{owner:$o, repo:$r}}
     + (if $pub=="" then {} elif $pub=="true" then {public:true} else {public:false} end)
     + (if $colls==null then {} else {collections:$colls} end)
+    + (if $langs==null then {} else
+        {languages: ($langs | map(ascii_downcase
+              | (if .=="py3" or .=="py2" then "py" else . end)
+              | select(test("^[a-z0-9_+.-]+$"))) | unique)} end)
     + (if $title=="" then {} else {display_title:$title} end)
     # carimba a 1ª publicação (permanece ao despublicar); alimenta o heatmap "entrada de públicos"
     + (if $pub=="true" and (($cur.public_at // null)==null) then {public_at:$now} else {} end)

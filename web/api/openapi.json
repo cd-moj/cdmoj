@@ -222,6 +222,13 @@
               "type": "string"
             }
           },
+          "languages": {
+            "type": "array",
+            "description": "Ids de linguagem de submissão permitidos deste problema ([]/ausente = todas). Em edit: ausente = não toca; [] = limpa (volta a todas).",
+            "items": {
+              "type": "string"
+            }
+          },
           "examples": {
             "type": "array",
             "items": {
@@ -416,7 +423,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{id,title,author,statement_html_b64,time_limits,tags,collections} (author = arquivo 'author' do pacote, verbatim; vários juntados por ', '; vazio se ausente; collections = coleções do .moj-meta.json)"
+            "description": "{id,title,author,statement_html_b64,time_limits,tags,collections,languages} (author = arquivo 'author' do pacote, verbatim; vários juntados por ', '; vazio se ausente; collections = coleções do .moj-meta.json; languages = ids de linguagem de submissão permitidos, [] = todas — o front do treino filtra o dropdown)"
           },
           "404": {
             "description": "não encontrado"
@@ -1257,7 +1264,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits,languages}]} (time_limits = MAX entre juízes; com pool de juízes definido — problem-judges.json -> CONTEST_JUDGES — só entre os hosts do pool efetivo)"
+            "description": "{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits,languages}]} (time_limits = MAX entre juízes; com pool de juízes definido — problem-judges.json -> CONTEST_JUDGES — só entre os hosts do pool efetivo. languages = ids permitidos: override por-problema-no-contest -> whitelist do contest -> default do próprio pacote (.moj-meta.json) -> [] (todas))"
           }
         }
       }
@@ -4754,7 +4761,7 @@
           "problems"
         ],
         "summary": "Source do pacote inteiro (só dono/colaborador)",
-        "description": "Source completo: enunciado + testes OCULTOS + SOLUÇÕES + editorial. Acesso garantido NA API: só dono/colaborador; não-autorizado recebe 404 (sem read-only, sem atalho de .admin). Inclui title, examples[].explanation, sols por categoria, score, score_text (tests/score cru), editorial_md, scripts (caminhos, árvore do editor) e scripts_files (round-trip da correção especial: [{path,content_b64,exec}|{path,symlink}]).",
+        "description": "Source completo: enunciado + testes OCULTOS + SOLUÇÕES + editorial. Acesso garantido NA API: só dono/colaborador; não-autorizado recebe 404 (sem read-only, sem atalho de .admin). Inclui title, collections, languages (ids de submissão permitidos, [] = todas), examples[].explanation, sols por categoria, score, score_text (tests/score cru), editorial_md, scripts (caminhos, árvore do editor) e scripts_files (round-trip da correção especial: [{path,content_b64,exec}|{path,symlink}]).",
         "security": [
           {
             "bearerAuth": []
@@ -5099,7 +5106,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Edita problema (só os campos presentes; commit+push autorado). Aceita scripts_files (SUBSTITUI scripts/ inteiro: paths validados sem '..', exec vira +x, symlink confinado a scripts/; ausente = não toca) e score_text (tests/score verbatim; '' remove)",
+        "summary": "Edita problema (só os campos presentes; commit+push autorado). Aceita languages (ids de submissão permitidos; ausente = não toca, [] = todas), scripts_files (SUBSTITUI scripts/ inteiro: paths validados sem '..', exec vira +x, symlink confinado a scripts/; ausente = não toca) e score_text (tests/score verbatim; '' remove)",
         "security": [
           {
             "bearerAuth": []

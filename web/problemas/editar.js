@@ -6,9 +6,11 @@ import { apiGet, apiPost, ApiError, getToken } from '/shared/api.js';
 import { status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
+import { makeLangPicker } from '/shared/contest-config/lang-picker.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
+let langPicker = null;                                       // restrição de linguagem de submissão por-problema
 let enunEd = null, editEd = null;                            // enunciado (modo single) + resolução/editorial
 let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modulares (lazy, modo "separado")
 let stmtMode = 'single';                                      // 'single' | 'modular'
@@ -527,6 +529,10 @@ function fillRepoSelect() {
 async function renderForm(d) {
   $('ptitle').value = d.title || ''; $('pauthor').value = d.author || '';
   $('ptags').value = (d.tags || []).join(', '); $('pcolls').value = (d.collections || []).join(', ');
+  // linguagens permitidas ([] = todas): checkbox-grid reusado do config de contest (mostra pddl
+  // automaticamente pois itera LANGUAGES). Picker vazio no save = [] = irrestrito.
+  langPicker = makeLangPicker(d.languages || []);
+  $('plangs').innerHTML = ''; $('plangs').append(langPicker.el);
   // enunciado: volta sempre p/ o modo "um editor só"; problema NOVO já vem com o template de seções
   stmtMode = 'single';
   $('enunMount').style.display = ''; $('enunModular').style.display = 'none';
@@ -561,6 +567,7 @@ const collectFields = () => {
   return {
     title: $('ptitle').value.trim(), author: $('pauthor').value.trim(),
     tags: splitList($('ptags').value), collections: splitList($('pcolls').value),
+    languages: langPicker ? langPicker.get() : [],
     enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(),
     editorial_md: editEd ? editEd.getValue() : PENDING_EDITORIAL,
     tests: collectTests(), sols: collectSols(), conf_text: $('confRaw').value,

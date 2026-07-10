@@ -8,7 +8,7 @@ import { LANGUAGES, langById } from '/shared/languages.js';
 const CONTEST = 'treino';
 const qs = new URLSearchParams(location.search);
 const ID = qs.get('id') || '';
-let pollTimer = null, editorApi = null, editorMount = null, langSel = null, curLangId = 'c', problemTL = {};
+let pollTimer = null, editorApi = null, editorMount = null, langSel = null, curLangId = 'c', problemTL = {}, problemLangs = [];
 
 const templateFor = (id) => langById(id).template;
 
@@ -110,6 +110,8 @@ async function loadProblem() {
 
   const tl = p.time_limits || {};
   problemTL = tl;
+  // linguagens permitidas deste problema ([]/ausente = todas — filtra o dropdown de submissão)
+  problemLangs = Array.isArray(p.languages) ? p.languages : [];
   const ptl = document.getElementById('ptl'); ptl.innerHTML = '';
   const tEntries = Object.entries(tl)
     .sort((a, b) => (a[0] === 'default' ? -1 : b[0] === 'default' ? 1 : a[0].localeCompare(b[0])));
@@ -224,7 +226,13 @@ async function renderSubmit() {
     body.append(el('p', { class: 'notice' }, 'Você precisa estar logado para enviar. Use o login no topo da página.'));
     return;
   }
-  langSel = el('select', {}, ...LANGUAGES.map((l) => {
+  // filtra pela restrição do problema (só ids conhecidos); lista vazia OU sem interseção = todas
+  // (nunca deixa o dropdown vazio — espelha resolveLangs do contest). Repara curLangId ANTES de
+  // criar o editor (mais abaixo) p/ um problema só-pddl já abrir no template certo.
+  const allowed = LANGUAGES.filter((l) => problemLangs.includes(l.id));
+  const langList = (problemLangs.length && allowed.length) ? allowed : LANGUAGES;
+  if (!langList.some((l) => l.id === curLangId)) curLangId = langList[0].id;
+  langSel = el('select', {}, ...langList.map((l) => {
     const tlv = problemTL[l.id] ?? problemTL.default;
     return el('option', { value: l.id }, l.label + (tlv != null ? ' — ' + fmtTime(tlv) : ''));
   }));
