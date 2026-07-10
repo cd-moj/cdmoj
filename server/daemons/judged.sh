@@ -514,25 +514,27 @@ drain_spool() {
 }
 
 # loop principal: inotify (push) com fallback p/ polling.
+# IMPORTANTE: o padrão é DRENA-então-ESPERA-UM-evento (inotifywait sem -m, com -t de
+# re-drain). Todo giro drena TODO o spool no topo; então o inotifywait espera UM evento
+# ou o timeout de re-drain e sai — e o loop re-drena. Assim um evento perdido (ex.: escritor
+# num OUTRO container/namespace, ou race entre sair e re-armar) NÃO trava o julgamento: no
+# pior caso o re-drain o pega em WATCH_REDRAIN_SECS. (O `-m` contínuo antigo bloqueava p/
+# sempre se um evento não chegasse — sem rede de segurança.)
 watch_loop() {
+  local f rc
   if command -v inotifywait >/dev/null 2>&1; then
-    log "watch: inotifywait em $SPOOLDIR (push)"
-    # primeiro drena o que já estava lá (eventos perdidos antes do watch).
-    local f
-    while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
-    # então reage a novos arquivos.
-    inotifywait -m -q -e create -e moved_to --format '%f' "$SPOOLDIR" | \
-    while read -r name; do
-      case "$name" in .*|*.tmp|.in.*) continue ;; esac
-      process_spool_file "$SPOOLDIR/$name"
+    log "watch: inotifywait em $SPOOLDIR (re-arma por evento; re-drena a cada ${WATCH_REDRAIN_SECS:-30}s)"
+    while true; do
+      while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
+      inotifywait -q -e create -e moved_to -t "${WATCH_REDRAIN_SECS:-30}" "$SPOOLDIR" >/dev/null 2>&1
+      rc=$?
+      # rc 0=evento, 2=timeout (re-drena no topo). Erro real (1/outros): evita busy-loop.
+      (( rc == 0 || rc == 2 )) || sleep 1
     done
   else
     log "watch: inotifywait AUSENTE — fallback p/ polling (1s)"
     while true; do
-      local f
-      while f="$(next_spool_file)"; do
-        process_spool_file "$f" || break
-      done
+      while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
       sleep 1
     done
   fi

@@ -1,0 +1,42 @@
+#!/bin/bash
+# moj-entrypoint — despacha o papel do container (api | judged | bot | shell).
+# Estado vem por volume em $RUNDIR/$CONTESTSDIR/... (ver quadlets). Idempotente.
+set -euo pipefail
+
+: "${MOJ_HOME:=/opt/moj/cdmoj}"
+: "${RUNDIR:=/data/run}"
+: "${CONTESTSDIR:=/data/contests}"
+: "${MOJ_PROBLEMS_DIR:=/data/moj-problems}"
+: "${NEWSDIR:=/data/news}"
+: "${FCGI_SOCK:=$RUNDIR/fcgiwrap.sock}"
+: "${FCGI_WORKERS:=8}"
+
+# dirs de runtime (nos volumes). sessions = 700 (tokens).
+mkdir -p "$RUNDIR/sessions" "$RUNDIR/spool/submissions" "$RUNDIR/spool/submissions-done" \
+         "$RUNDIR/results" "$RUNDIR/registry" "$RUNDIR/queue" "$RUNDIR/assigned" \
+         "$RUNDIR/secrets" "$CONTESTSDIR" "$MOJ_PROBLEMS_DIR" "$NEWSDIR" 2>/dev/null || true
+chmod 700 "$RUNDIR/sessions" "$RUNDIR/secrets" 2>/dev/null || true
+
+role="${1:-api}"
+case "$role" in
+  api)
+    # fcgiwrap roda o router.sh via nginx (que fica FORA da imagem e faz fastcgi_pass
+    # p/ $FCGI_SOCK, montado por volume). Remove socket órfão antes de abrir.
+    rm -f "$FCGI_SOCK" 2>/dev/null || true
+    FCGI="$(command -v fcgiwrap || echo "$MOJ_HOME/server/bin/fcgiwrap")"
+    exec "$FCGI" -c "$FCGI_WORKERS" -s "unix:$FCGI_SOCK"
+    ;;
+  judged)
+    exec /bin/bash "$MOJ_HOME/server/daemons/judged.sh"
+    ;;
+  bot)
+    exec /bin/bash "$MOJ_HOME/mojinho-bot/mojinho-api.sh"
+    ;;
+  shell)
+    exec /bin/bash
+    ;;
+  *)
+    echo "moj-entrypoint: papel desconhecido: $role (use api|judged|bot|shell)" >&2
+    exit 2
+    ;;
+esac

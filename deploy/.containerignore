@@ -1,0 +1,42 @@
+# Contexto de build = raiz do workspace. Só cdmoj/ + mojtools/ entram; NADA de dados,
+# runtime ou SEGREDOS. (Regra `podman build --ignorefile`.)
+
+# --- dados e runtime (nunca na imagem) ---
+contests/
+contests-legado/
+moj-problems/
+moj-problems-backup/
+run/
+.migracao/
+*.tar
+*.tgz
+
+# --- segredos (última linha de defesa; também não estão em cdmoj/web/mojtools) ---
+**/secrets/
+cdmoj/mojinho-bot/token
+cdmoj/mojinho-bot/*.conf
+cdmoj/mojinho-bot/mojinho.sh
+*.pem
+*.key
+id_rsa*
+.env
+
+# --- repos que não entram na imagem do servidor ---
+moj-cli/
+judge/
+
+# --- git e lixo ---
+**/.git
+**/.gitignore
+**/node_modules/
+*.swp
+*~
+.DS_Store
+
+# --- artefatos de dist gerados (a imagem não os serve; o setup local sim) ---
+cdmoj/web/moj
+cdmoj/web/moj-contest
+cdmoj/web/moj-judges
+
+# --- docs HTML gerado + o próprio dir deploy não precisa recursar ---
+cdmoj/docs/html/

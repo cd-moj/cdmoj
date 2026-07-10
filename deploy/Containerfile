@@ -1,0 +1,90 @@
+# cdmoj/deploy/Containerfile — imagem da plataforma MOJ (API bash + daemon de julgamento).
+#
+# CONTEXTO DE BUILD = a RAIZ do workspace (/home/ribas/moj): a imagem precisa de cdmoj/ E
+# de mojtools/ (o servidor shella out p/ render-statement/validate/gen-*). Construa com:
+#   podman build --ignorefile cdmoj/deploy/.containerignore -f cdmoj/deploy/Containerfile \
+#     -t localhost/moj-server:prod  .
+# (o `.` é a raiz do workspace). Ver o Makefile (alvo `image`).
+#
+# Roda como container-ROOT (SEM linha USER): rootless podman mapeia uid 0 -> o usuário do host
+# (ribas) por default, então os arquivos escritos nos volumes (contests/, moj-problems/, run/)
+# ficam com o dono certo. NÃO defina USER nem use --userns=keep-id (quebraria esse mapeamento).
+
+# ---------- stage jplag: baixa o jar da detecção de plágio (CLI 3.0.0) ----------
+ARG JPLAG_VER=3.0.0
+FROM debian:trixie-slim AS jplag
+ARG JPLAG_VER
+ARG WITH_JPLAG=1
+RUN set -eux; \
+    if [ "$WITH_JPLAG" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends curl ca-certificates; \
+      mkdir -p /opt/moj/jplag; \
+      curl -fsSL -o /opt/moj/jplag/jplag-${JPLAG_VER}-jar-with-dependencies.jar \
+        "https://github.com/jplag/JPlag/releases/download/v${JPLAG_VER}/jplag-${JPLAG_VER}-jar-with-dependencies.jar"; \
+    else mkdir -p /opt/moj/jplag; fi
+
+# ---------------------------- stage final -----------------------------------
+FROM debian:trixie-slim
+ARG JPLAG_VER=3.0.0
+ARG WITH_OFFICE=1
+ARG WITH_JPLAG=1
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Núcleo (bash+jq+git+coreutils+...) + CGI (fcgiwrap da distro, não o ELF vendado) + conteúdo
+# (pandoc) + daemon (inotify-tools, socat) + mídia/impressão (imagemagick/ghostscript/poppler/
+# qpdf/paps). LibreOffice e a JRE do jplag entram por --build-arg (default 1 = imagem completa).
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      bash jq git gawk sed grep findutils coreutils util-linux tar gzip zip unzip \
+      curl ca-certificates \
+      fcgiwrap \
+      pandoc \
+      inotify-tools socat \
+      imagemagick ghostscript poppler-utils qpdf paps fonts-dejavu-core; \
+    if [ "$WITH_OFFICE" = "1" ]; then \
+      apt-get install -y --no-install-recommends libreoffice-core libreoffice-writer libreoffice-calc; \
+    fi; \
+    if [ "$WITH_JPLAG" = "1" ]; then \
+      apt-get install -y --no-install-recommends default-jre-headless; \
+    fi; \
+    apt-get clean; rm -rf /var/lib/apt/lists/*
+
+# git: os repos de problema chegam por bind-mount; desliga a checagem de "dubious ownership"
+# (independe do uid/userns). problem_commit já define GIT_AUTHOR/COMMITTER, sem ~/.gitconfig.
+RUN git config --system --add safe.directory '*'
+
+# Código (montado read-only em produção; ver Makefile `dev` p/ bind-mount ao vivo).
+COPY cdmoj/server /opt/moj/cdmoj/server
+COPY cdmoj/web    /opt/moj/cdmoj/web
+COPY cdmoj/docs   /opt/moj/cdmoj/docs
+COPY mojtools     /opt/moj/mojtools
+COPY --from=jplag /opt/moj/jplag /opt/moj/jplag
+COPY cdmoj/deploy/moj-entrypoint /opt/moj/bin/moj-entrypoint
+RUN chmod +x /opt/moj/bin/moj-entrypoint \
+      /opt/moj/cdmoj/server/api/v1/router.sh 2>/dev/null || true
+
+# Asserções de build (falham ALTO se algo essencial faltou/renomeou).
+RUN set -eux; \
+    command -v convert; convert -version >/dev/null; \
+    command -v magick || ln -s "$(command -v convert)" /usr/local/bin/magick; \
+    pandoc --version | head -1; \
+    command -v fcgiwrap; \
+    bash -n /opt/moj/cdmoj/server/api/v1/router.sh
+
+# Caminhos: todos os defaults do server são `: "${VAR:=…}"` ⇒ o ENV vence (zero edição de código).
+# Estado (contests/run/moj-problems/news) vem por VOLUME em /data (ver quadlets).
+ENV MOJ_HOME=/opt/moj/cdmoj \
+    MOJTOOLS_DIR=/opt/moj/mojtools \
+    CONTESTSDIR=/data/contests \
+    RUNDIR=/data/run \
+    MOJ_PROBLEMS_DIR=/data/moj-problems \
+    NEWSDIR=/data/news \
+    JPLAG_JAR=/opt/moj/jplag/jplag-${JPLAG_VER}-jar-with-dependencies.jar \
+    INTAKE_MODE=queue \
+    JUDGE_BACKEND=queue
+
+WORKDIR /opt/moj/cdmoj
+# papéis: api (fcgiwrap+router) | judged (daemon) | bot | shell
+ENTRYPOINT ["/opt/moj/bin/moj-entrypoint"]
+CMD ["api"]

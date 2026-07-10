@@ -17,6 +17,30 @@ Tudo roda **user-space como `ribas`** (sem root), reaproveitando o `~/nginx-prox
 > (`contests/treino/var/orgs.json`). Não há serviço externo/LFS/webhook. Cut-over histórico:
 > `server/bin/migrate-to-orgs.sh`.
 
+## Deploy com imagem podman (produção)
+
+A plataforma empacota numa imagem OCI (`deploy/Containerfile`, base `debian:trixie-slim`) com
+**todas** as dependências dentro. O **nginx do host segue FORA da imagem** (serve `web/`/`docs/`
+e faz `fastcgi_pass` ao socket); a imagem é a **API** (fcgiwrap + `router.sh`) + o **daemon**.
+Dois containers da mesma imagem (papéis `api` e `judged`) sobem por **quadlets** rootless.
+
+```bash
+cd cdmoj
+make image            # localhost/moj-server:<data> + tag :prod  (WITH_OFFICE/WITH_JPLAG=1)
+make install-units    # quadlets -> ~/.config/containers/systemd/ ; daemon-reload
+systemctl --user start moj-api moj-judged
+# aponte o nginx do host: fastcgi_pass unix:/home/ribas/moj/run/fcgiwrap.sock (= /data/run no container)
+make smoke
+```
+
+- **Volumes (`:z`, SHARED):** `run/`, `contests/`, `moj-problems/`, `server/var/news` → `/data/…`.
+  Estado e segredos NUNCA entram na imagem (ver `deploy/.containerignore`). Rootless: container-root
+  ↔ o usuário do host (não defina `USER` nem `--userns=keep-id`).
+- **Atualizar:** `make deploy` (build local) ou `make deploy FROM=registry` (pull de
+  `ghcr.io/cd-moj/moj-server`); ambos re-tagueiam `:prod` e reiniciam. Rollback: `make rollback PREV=<tag>`.
+- **SELinux:** se o host prod estiver *enforcing*, os `:z` bastam; opcionalmente fixe o rótulo com
+  `semanage fcontext -a -t container_file_t '/home/ribas/moj/(run|contests|moj-problems)(/.*)?' && restorecon -R`.
+
 ## Bring-up (dev/local)
 
 ```bash
