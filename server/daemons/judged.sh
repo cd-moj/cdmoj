@@ -399,14 +399,14 @@ process_spool_file() {
 
   log "julgando $base (contest=$contest login=$login prob=$problem lang=$lang id=$id cmd=${comando:-submit})"
 
-  # ---- carrega CONTEST_END/CONTEST_TYPE/MOJCONTESTSERVERS p/ o backend cluster.
-  # (source seguro: já validamos contest; o conf é confiável no deploy.)
+  # ---- carrega do conf: CONTEST_START (tempo), CONTEST_PRIORITY/CONTEST_JUDGES (fila pull).
+  # (source seguro: já validamos contest; o conf é confiável no deploy.) As vars CONTEST_END/
+  # CONTEST_TYPE/MOJCONTESTSERVERS ficam declaradas local só p/ o source não vazá-las global.
   local CONTEST_START="" CONTEST_END="" CONTEST_TYPE="" MOJCONTESTSERVERS="" CONTEST_PRIORITY="" CONTEST_JUDGES=""
   if [[ -r "$cdir/conf" ]]; then
     # shellcheck source=/dev/null
     source "$cdir/conf" 2>/dev/null || true
   fi
-  export CONTEST_END CONTEST_TYPE MOJCONTESTSERVERS
 
   # ---- INTAKE (modo fila): enfileira p/ o escalonador in-daemon (pull) ----------
   # Em vez de julgar agora (bloqueante), enfileira na banda de prioridade; um worker

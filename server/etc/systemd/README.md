@@ -9,12 +9,13 @@ specifiers do systemd: `%h` (home do usuário) e `%t` (runtime dir,
 
 | unit | papel | estado |
 |---|---|---|
-| `moj-judged.service` | daemon assíncrono de julgamento (consome o spool) | **pronto** |
-| `moj-result-sink.service` | recebe veredictos por PUSH do cluster | **pronto** |
+| `moj-judged.service` | daemon assíncrono de julgamento (consome o spool, enfileira p/ o pull) | **pronto** |
 | `moj-fcgiwrap.service` + `.socket` | API bash atrás do nginx (FastCGI, socket unix) | pronto (usa o fcgiwrap vendado) |
-| `moj-master.service` | master/escalonador do juiz (`:27000`) | **sample** (roda os scripts vivos do cluster) |
-| `moj-worker@.service` | worker do juiz; instância = `cap:port` | **sample/template** |
 | `moj-bot.service` | bot Telegram como cliente da API | **sample** (script pode não existir ainda) |
+
+> Os juízes são **pull** (repo `judge/`, unit `moj-agent@<cap>.service`): registram capacidade e
+> puxam job no heartbeat — não há master/worker/result-sink no lado servidor. O cluster síncrono
+> legado (`:27000` + push) foi removido.
 
 ## Instalar (usuário comum)
 
@@ -26,7 +27,7 @@ ln -sf ~/moj/server/etc/systemd/*.socket  ~/.config/systemd/user/
 systemctl --user daemon-reload
 ```
 
-### Daemon de julgamento (mock, p/ validar o pipeline sem cluster)
+### Daemon de julgamento
 
 ```bash
 systemctl --user enable --now moj-judged.service
@@ -34,15 +35,16 @@ systemctl --user status moj-judged.service
 journalctl --user -u moj-judged -f
 ```
 
-Trocar o backend depois (`local`/`cluster`) editando `Environment=JUDGE_BACKEND=`
-na unit (ou com um drop-in):
+Em **produção** o daemon roda em modo **pull** (`INTAKE_MODE=queue JUDGE_BACKEND=queue`): ele
+**enfileira** cada submissão numa banda de prioridade e os juízes (`moj-agent@`) puxam o job no
+heartbeat. Para validar o pipeline localmente sem juízes, use o backend síncrono `mock` (ou `local`,
+que precisa de bwrap) com `INTAKE_MODE=legacy`:
 
 ```bash
 systemctl --user edit moj-judged.service     # cria override.conf
 #   [Service]
-#   Environment=JUDGE_BACKEND=cluster
-#   Environment=JUDGE_MASTER=localhost:27000
-#   Environment=RESULT_SINK=localhost:28000
+#   Environment=INTAKE_MODE=legacy
+#   Environment=JUDGE_BACKEND=mock
 systemctl --user restart moj-judged.service
 ```
 
@@ -57,24 +59,11 @@ O `fcgiwrap` vendado (`old/fcgiwrap/fcgiwrap`) aceita `-s unix:<sock> -c <n>`;
 a unit já passa `-s unix:%t/moj-fcgiwrap.sock -c 8`. Para standalone (sem
 socket-activation) basta `enable --now moj-fcgiwrap.service`.
 
-### Sink de resultado (push do cluster)
+### Juízes (pull)
 
-```bash
-systemctl --user enable --now moj-result-sink.service   # escuta :28000
-```
-
-### Master e workers (sample — cluster)
-
-```bash
-systemctl --user start moj-master.service
-# workers por instância "capability:porta":
-systemctl --user start 'moj-worker@pos:41050.service'
-systemctl --user start 'moj-worker@gpu:42000.service'
-```
-
-> As units de master/worker rodam os scripts VIVOS de `judge/` e são **samples**:
-> ajuste o listener (`tcpserver` vs `socat`/`ncat`) ao que existir no host e veja
-> `../../judge-gw/README.md` p/ a migração incremental (push + registro).
+Os juízes rodam nas máquinas de julgamento pelo unit `moj-agent@<cap>.service` (repo `judge/`,
+não este). Eles se registram no `run/registry/` e puxam job no heartbeat — o servidor não abre
+conexão de entrada p/ eles. Ver `judge/README.md` e `../../judge-gw/PULL.md`.
 
 ## Rodar serviços de usuário sem sessão ativa (lingering)
 

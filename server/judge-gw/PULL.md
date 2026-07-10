@@ -146,13 +146,13 @@ install -Dm600 <(printf '%s' "$TOK") /home/prof/judge/etc/worker.token
 4. Sobe agents nos demais juízes (1 por capacidade). Acompanhe em `/judge/list` e `/index/status`.
 5. Vira o default: `INTAKE_MODE=queue`.
 
-## Aposentadoria do legado (após validar)
+## Aposentadoria do legado (CONCLUÍDA)
 
-Pode parar/desabilitar (são arquivos de runtime no `judge/`, fora do git):
-`judge/sistema_escalonador/*` (escalonador, job-receiveitor-master, lancar-master),
-`judge/judge/root-daemon*.sh`, `judge/judge/job-receiveitor*.sh`, `judge/judge/lancar-*.sh`,
-`moj-master.service`. **Mantém** como rede de segurança: o backend `cluster` de
-`judge.sh` + `result-sink.sh` (e o registro). Rollback: `INTAKE_MODE=legacy` + parar os agents.
+O cluster síncrono foi **removido**: o backend `cluster` de `judge.sh`, o `result-sink.sh`,
+os helpers de registro por `nc` e os units `moj-master`/`moj-worker`/`moj-result-sink` já não
+existem. Os scripts de runtime do `judge/` legado (`sistema_escalonador/*`, `root-daemon*.sh`,
+`job-receiveitor*.sh`, `lancar-*.sh`) ficam fora do git e podem ser apagados nas máquinas.
+Fallback de emergência sem juízes: `INTAKE_MODE=legacy` + `JUDGE_BACKEND=mock|local`.
 
 ## O que NÃO mudou
 

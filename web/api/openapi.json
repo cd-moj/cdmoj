@@ -2424,24 +2424,6 @@
         }
       }
     },
-    "/ops/judges": {
-      "get": {
-        "tags": [
-          "ops"
-        ],
-        "summary": "Status das máquinas de juiz",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "ok"
-          }
-        }
-      }
-    },
     "/ops/problemtl": {
       "get": {
         "tags": [

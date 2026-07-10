@@ -496,7 +496,7 @@ function makeJudgesTab() {
       if (m.arch != null) specs.append(spec('arquitetura', String(m.arch)));
       if (m.cpu != null) specs.append(spec('CPU', String(m.cpu)));
       if (m.memory != null) {
-        const gb = num(m.memory) / 1048576;   // reportmachine devolve kB (/proc/meminfo)
+        const gb = num(m.memory) / 1048576;   // inventário do juiz devolve kB (/proc/meminfo)
         specs.append(spec('memória', gb.toFixed(1) + ' GB'));
       }
       body.append(specs);

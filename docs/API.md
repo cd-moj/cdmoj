@@ -230,7 +230,6 @@ servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<pr
 | `/admin/synctreino` | POST | admin | sincroniza treino |
 | `/admin/rejudge` | POST | admin | `{ids:[…]}` ou `{contest,problem}` |
 | `/ops/queue` | GET | admin | tamanho da fila por contest |
-| `/ops/judges` | GET | admin | status das máquinas de juiz |
 | `/ops/problemtl?problem=<p>` | GET | admin | time limits do problema |
 | `/ops/updateproblemset` | POST | admin | `{repo}` |
 | `/ops/alerts` | GET | **bot** | avalia incidentes (juiz offline+fila, fila grande, daemon caído) com histerese/cooldown e **drena o outbox**: `{items:[{id,text,chats:[<chat_id>…]}]}`. O bot só entrega (+ grupo). Estado em `run/alerts/`; sem cron (o poll do bot é o relógio) |

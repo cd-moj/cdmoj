@@ -8,7 +8,7 @@ Tudo roda **user-space como `ribas`** (sem root), reaproveitando o `~/nginx-prox
 |---|---|---|
 | **nginx** (`~/nginx-proxy`) | serve `web/` estático + proxy `/api/v1` → fcgiwrap | `~/nginx-proxy/proxy.sh reload` |
 | **fcgiwrap** | roda o `router.sh` (API bash) num socket unix | `server/bin/start-fcgiwrap.sh` |
-| **judged** (daemon) | consome o spool, julga (mock/local/cluster), grava veredicto + placar | `server/daemons/judged.sh` |
+| **judged** (daemon) | consome o spool e **enfileira** p/ o pull (dev: julga inline mock/local), grava veredicto + placar | `server/daemons/judged.sh` |
 | **juiz (agente pull)** | máquinas de julgamento: registram capacidade + puxam jobs | repo **judge** separado — ver `judge/README.md` (bring-up por máquina) e `server/judge-gw/PULL.md` |
 | **mojinho-bot** | bot Telegram (cliente da API) | `mojinho-bot/mojinho-api.sh` |
 
@@ -25,7 +25,7 @@ bash server/bin/setup.sh                 # cria run/, vendora fcgiwrap, copia no
 bash server/bin/start-fcgiwrap.sh &       # sobe o fcgiwrap em run/fcgiwrap.sock
 # moj.conf já está em ~/nginx-proxy/conf.d/ :
 ~/nginx-proxy/proxy.sh test && ~/nginx-proxy/proxy.sh reload
-# daemon de julgamento (mock = não precisa do cluster nem de bubblewrap):
+# daemon de julgamento (mock = não precisa de juiz nem de bubblewrap):
 JUDGE_BACKEND=mock bash server/daemons/judged.sh &     # ou --once para processar 1 e sair
 ```
 
@@ -103,4 +103,4 @@ JUDGE_BACKEND=mock bash server/daemons/judged.sh --once    # mock-julga
 curl -s -H "$H" -H "Authorization: Bearer $TOK" "$B/api/v1/contest/history?contest=zzdemo"  # -> Accepted,100p
 ```
 
-> Para ver o veredicto aparecer no navegador (treino ou contest), deixe `judged.sh` rodando. Com `JUDGE_BACKEND=mock` toda submissão vira `Accepted,100p` (bom p/ demo, mas grava no histórico do contest submetido — prefira `zzdemo`). `JUDGE_BACKEND=local` usa `mojtools` (bubblewrap) com pacotes de problema locais; `cluster` fala com o escalonador (`judge/`).
+> Para ver o veredicto aparecer no navegador (treino ou contest), deixe `judged.sh` rodando. Com `JUDGE_BACKEND=mock` toda submissão vira `Accepted,100p` (bom p/ demo, mas grava no histórico do contest submetido — prefira `zzdemo`). `JUDGE_BACKEND=local` usa `mojtools` (bubblewrap) com pacotes de problema locais. Em produção o daemon roda `INTAKE_MODE=queue JUDGE_BACKEND=queue` (pull): enfileira e os juízes (`judge/`) puxam o job.

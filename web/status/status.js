@@ -60,8 +60,7 @@ function render(s) {
   // --- daemons ---
   grid.append(el('div', { class: 'stat-card' }, el('h3', {}, '⚙️ Daemons & serviços'),
     el('div', { class: 'kv first' }, el('span', {}, 'API web'), el('span', { class: 'ind ok' }, '✓ no ar')),
-    el('div', { class: 'kv' }, el('span', {}, 'judged (julgamento)'), ind(d.judged, 'rodando', 'parado')),
-    el('div', { class: 'kv' }, el('span', {}, 'result-sink (resultados)'), ind(d.result_sink, 'rodando', 'parado'))));
+    el('div', { class: 'kv' }, el('span', {}, 'judged (julgamento)'), ind(d.judged, 'rodando', 'parado'))));
 
   app.append(grid);
   const when = s.time ? new Date(s.time * 1000).toLocaleTimeString('pt-BR') : '—';

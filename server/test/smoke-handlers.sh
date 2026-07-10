@@ -215,10 +215,6 @@ echo "== ops/queue (admin) =="
 call "/ops/queue" GET "" "$TOKEN"
 check "queue 200 + valid JSON + total>=1" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e ".total>=1 and (.by_contest|type==\"object\")" >/dev/null)'
 
-echo "== ops/judges (admin, best-effort) =="
-call "/ops/judges" GET "" "$TOKEN"
-check "judges 200 + judges field" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e "has(\"judges\")" >/dev/null)'
-
 echo "== ops/problemtl (admin, best-effort) =="
 call "/ops/problemtl" GET "problem=grafo-chp" "$TOKEN"
 check "problemtl 200 + time_limits field" 'okstatus && jvalid && (printf "%s" "$BODY" | jq -e "has(\"time_limits\")" >/dev/null)'

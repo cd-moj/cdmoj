@@ -1,9 +1,9 @@
-# MOJ — Fluxo de comunicação (API, daemons e cluster de juiz)
+# MOJ — Fluxo de comunicação (API, daemons e juízes pull)
 
 Como uma submissão viaja do browser até virar veredicto no placar, e como as
 peças conversam entre si. Tudo é **bash + arquivos** (sem DB, sem broker); a
-comunicação assíncrona usa **spool de arquivos + `inotifywait`** e, no caminho do
-juiz distribuído, **resultado por push** (em vez do polling duplo do sistema antigo).
+comunicação assíncrona usa **spool de arquivos + `inotifywait`** e, no julgamento,
+o modelo **pull** (os juízes puxam o job no heartbeat — sem master, sem push de entrada).
 
 ## Visão geral
 
@@ -94,82 +94,63 @@ casamento da matriz de auto-veredicto usa o **`verdict_canon`** (não a string c
 **erros de juiz** (`Judge Error`/`No_Servers`) também são **segurados** p/ revisão — o competidor
 vê só `Not Answered Yet` até um veredicto sair.
 
-## 3. Gateway de juiz — `server/judge-gw/judge.sh`
+## 3. Gateway de juiz — `server/judge-gw/judge.sh` (dev/legado)
 
 Expõe `judge_run <contest> <problemid> <lang> <code_b64> <filename>` → ecoa o veredicto.
-Três backends, escolhidos por `$JUDGE_BACKEND`:
+**Não é usado no modo pull de produção** (lá o daemon enfileira antes de chamar `judge_run`
+— ver §2 e `PULL.md`). Fica p/ dev e p/ o intake legado (`INTAKE_MODE=legacy`), com dois
+backends por `$JUDGE_BACKEND`:
 
-- **`mock`** (default em dev) — heurística local, sem juiz; bom para testar a malha.
+- **`mock`** (default em dev) — heurística local, sem juiz; bom para testar a malha assíncrona.
 - **`local`** — compila/roda na própria máquina via `mojtools` (bubblewrap sandbox).
-- **`cluster`** — manda o job ao **escalonador** (master) e recebe o veredicto.
 
-### Backend cluster (o caminho de produção)
+O backend síncrono `cluster` (master `:27000` + push via `result-sink`) foi **removido** — o
+modelo pull o substituiu.
 
-```
-judge.sh (cluster)                    master :27000 (judge/sistema_escalonador)
-──────────────────                    ─────────────────────────────────────────
-  printf '{"cmd":"run",…}\n' | nc host 27000   ─────▶  enfileira por prioridade
-       ◀── {"jobid":"…"}                                 (diretórios 000-super … 080-…)
-                                                          despacha p/ um worker livre
-  espera o RESULTADO POR PUSH:                            (match por capacidade)
-    run/results/<jobid>  aparece  ◀───────────────  worker termina → PUSH do veredicto
-       (inotifywait; sem polling)                         p/ o result-sink (:28000)
-  fallback: se não houver push em alguns s,
-    poll limitado de {"cmd":"getresult",…}
-```
+## 4. Julgamento pull — os juízes puxam o job
 
-Variáveis: `JUDGE_MASTER` (default `localhost:27000`), `JUDGE_PUSH_WAIT` (24h),
-`JUDGE_POLL_MAX` (limite do fallback de poll).
-
-## 4. Resultado por push — `server/judge-gw/result-sink.sh`
-
-Serviço systemd **`moj-result-sink`** (porta `RESULT_SINK_PORT`, default **28000**).
-Inverte o **double-poll** do sistema antigo (web→master→worker em loop de 0.5s por até
-24h): quando o worker termina, ele (ou o master) faz **um** POST do veredicto:
+Em produção (`INTAKE_MODE=queue JUDGE_BACKEND=queue`) o julgamento é **pull**, e o lado
+servidor é a biblioteca `server/judge-gw/sched-lib.sh` + os handlers `handlers/judge/*`. Não
+há master, worker nem porta de entrada p/ os juízes:
 
 ```
-{"cmd":"result","jobid":"<id>","verdict":"Accepted,100p"}   →  grava run/results/<jobid>
+daemon enfileira ─▶ run/queue/<banda>/<id>.json        (bandas 000-super … 080-…)
+juiz (repo judge/, agente moj-agent@)
+   POST /judge/heartbeat  ─▶ reivindica um job (claim atômico flock+mv → run/assigned/<host>/)
+   GET  /judge/package     ─▶ baixa o pacote sob demanda p/ o cache local (calibra na 1ª vez)
+   ...julga (mojtools/build-and-test.sh, sandbox bwrap)...
+   POST /judge/result      ─▶ sched-lib grava run/results/<id>.json (o daemon consome via consumer)
+   POST /judge/tl-report   ─▶ reporta o TL calibrado (run/tl/<id>.json)
 ```
 
-O backend cluster do `judge.sh` está esperando esse arquivo via `inotifywait` e acorda
-na hora — **zero polling no caminho feliz**. Transporte: `socat` (primário) / `ncat -k`
-/ `nc -l` (fallbacks). Sem broker, sem DB.
+`allowed_hosts` (pool de juízes do problema/contest) é respeitado no claim: com o pool
+offline o job **espera na fila** (o preflight/dashboard avisam). Protocolo completo em
+`server/judge-gw/PULL.md`.
 
-## 5. Registro + heartbeat de worker — `server/judge-gw/register.sh`
+## 5. Registro + heartbeat — `sched-lib.sh` + `handlers/judge/*`
 
-Substitui a lista `MOJPORTS` hardcoded e o **poll-storm de `islocked`**. Cada worker se
-anuncia ao subir e manda heartbeat de estado num registro em arquivo:
-
-```
-run/registry/workers   (uma linha por worker, atômico via flock)
-  host:port:capability:state:epoch       ex.: pos1:41050:pos:free:1718800000
-  state ∈ {free,busy};  linhas com epoch < agora-REG_TTL (30s) = mortas
-```
+Cada juiz se registra (`POST /judge/register`) e manda heartbeat (`POST /judge/heartbeat`),
+gravando um registro JSON por host:
 
 ```
-worker:        register.sh up   pos1 41050 pos
-               register.sh beat pos1 41050 pos free|busy   # heartbeat
-               register.sh down pos1 41050
-escalonador:   mapfile -t LIVRES < <(register.sh list free)        # free-set vivo
-               mapfile -t GPUS   < <(register.sh list free gpu)    # por capacidade
+run/registry/<host>.json     (cpu, langs, slots, last_seen; vivo = last_seen recente)
+  last_seen < agora-REG_TTL (30s) = juiz morto (sai do free-set)
 ```
 
-A afinidade `contest_servers` vira **match por capacidade** (pos/gpu/cm/hu). É aditivo:
-os scripts vivos passam a *chamar* o `register.sh`, sem reescrita.
+O escalonador in-daemon (`sched-lib.sh`) casa job×juiz por **capacidade** e por
+`allowed_hosts`, com claim atômico (`flock`+`mv` p/ `run/assigned/`); job reivindicado sem
+novo beat em `ASSIGN_TTL` (120s) volta p/ a fila.
 
-## 6. Cluster de juiz — `judge/` (máquinas separadas)
+## 6. Juízes — `judge/` (máquinas separadas, modelo pull)
 
-- **master / escalonador** (`judge/sistema_escalonador`, porta `:27000` via `tcpserver`):
-  fila por **diretórios de prioridade** (`000-super` → `080-lista-publica` + `intermed`),
-  atribuição gulosa a workers livres por capacidade. Comandos: `run`, `getresult`,
-  `islocked`, `reportmachine`, **`listmachines`** (agrega specs/estado de todos os workers,
-  usado pela página de status e pelo painel admin).
-- **workers** (`pos`/`gpu`/`cm`/`hu`, portas `:41000-44000`): rodam `mojtools/build-and-test.sh`
-  sob `flock`, no sandbox **bubblewrap** (`mojtools/cage-run.sh` + `lang/<lang>/{compile,run}.sh`).
+Uma máquina de juiz clona só `judge/` + `mojtools/` (não o `cdmoj`) e sobe o agente
+`moj-agent@<cap>` (`pos`/`gpu`/`cm`/`hu`). O agente: registra a capacidade, puxa job no
+heartbeat, baixa o pacote sob demanda p/ um **cache local**, calibra na 1ª vez e **reporta o
+TL**, e roda a solução em sandbox **bubblewrap** (`mojtools/cage-run.sh` +
+`lang/<lang>/{compile,run}.sh`, tipicamente sobre um rootfs `moj-sysroot`). Ver `judge/README.md`.
 
-A API fala com o master pelo gateway `handlers/ops/*` e `handlers/treino/admin/judges.sh`
-(`listmachines`/`reportmachine`/`islocked` via `nc`), e a página pública `/status/`
-(`handlers/index/status.sh`) agrega fila + máquinas + liveness dos daemons.
+A API expõe o estado dos juízes por `handlers/treino/admin/judges.sh` (painel admin, `model:"pull"`)
+e a página pública `/status/` (`handlers/index/status.sh`) agrega fila + juízes + liveness do daemon.
 
 ## 7. Placar — `server/score/build.sh`
 
@@ -193,17 +174,15 @@ e grava os pares de similaridade em `contests/<c>/jplag/`.
 | Unit | Papel |
 |---|---|
 | `moj-fcgiwrap.socket`/`.service` | socket + fcgiwrap que roda o `router.sh` (a API) |
-| `moj-judged.service` | daemon que consome o spool e julga |
-| `moj-result-sink.service` | recebe o resultado por push do cluster |
-| `moj-master.service` | escalonador `:27000` (no host do master) |
-| `moj-worker@.service` | worker parametrizado (`@pos1` etc., no host do worker) |
+| `moj-judged.service` | daemon que consome o spool e enfileira p/ o pull |
+| `moj-agent@.service` | agente do juiz (repo `judge/`, nas máquinas de julgamento; `@pos`/`@gpu`/…) |
 | `moj-bot.service` | mojinho-bot (cliente da API) |
 | `moj-contest-backup@.service`/`.timer` | snapshot rotacionado do contest `%i` a cada 5 min durante a prova (`server/bin/contest-backup.sh`: tar de `contests/<c>/` + spool pendente; ligar o timer no dia) |
 
 ## Resumo do "porquê"
 
 - **Não bloquear a CGI**: submit enfileira e retorna; o front faz polling de HTTP.
-- **Push > poll**: o veredicto volta por um POST único ao `result-sink`, eliminando o
-  loop de 0.5s/24h do sistema antigo.
-- **Registry > MOJPORTS fixo**: workers se anunciam com capacidade e heartbeat.
+- **Pull > cluster push**: o juiz puxa o job no heartbeat e reporta por HTTP; sem master,
+  sem porta de entrada p/ os juízes, sem o double-poll do sistema antigo.
+- **Registry vivo**: cada juiz se anuncia com capacidade + heartbeat (`run/registry/<host>.json`).
 - **Arquivos > broker**: spool + `inotifywait` + `flock`, fiel ao bash-nativo do MOJ.

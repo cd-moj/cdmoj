@@ -27,13 +27,13 @@ moj/
       lib/         common.sh (resposta/JSON/validação/audit), params.sh, auth.sh, profile.sh, contest-create.sh
       handlers/    auth/ index/ treino/ contest/ submission/ admin/ ops/  (1 arquivo por rota)
     daemons/       judged.sh (consumidor do spool, inotify)
-    judge-gw/      judge.sh (judge_run: mock/local/cluster) + result-sink.sh (push) + register.sh (heartbeat)
+    judge-gw/      sched-lib.sh (escalonador pull: registro+fila+claim) + judge.sh (mock/local, dev) + PULL.md
     score/         build.sh (recalcula placar), stats-gen.sh (gera o cache de estatísticas), jplag-run.sh
     etc/           common.conf, nginx/, systemd/
   web/             frontend vanilla (ES modules, sem build), servido estático
     shared/        api.js auth.js ui.js editor.js charts(/lib) flags.js sonic.js contest-host/guard/shell.js contest-config/
     index/ contests/ status/ treino/ contest/  (home, arquivo de encerrados, status público, treino, contest)
-  judge/           cluster (master :27000 + workers pos/gpu/cm/hu) + mojtools (sandbox bubblewrap)
+  judge/           agente pull (moj-agent@pos/gpu/cm/hu, puxa job no heartbeat) + mojtools (sandbox bubblewrap)
   mojinho-bot/     bot do Telegram (vira cliente da API)
   contests/<id>/   DADOS (conf, users/<login>/ (account.json+history+metrics+submissions), var/placar.txt, …) — fonte da verdade
   run/             estado de runtime (sessions/, spool/, results/, registry/, sockets)  [não versionado]
@@ -320,10 +320,11 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
 (e `treino/var/admin-audit.log` no treino) — o contest fica auto-contido.
 
 ### Juiz & daemons
-Submissão **assíncrona** (spool + `inotify`), `judged.sh`, gateway `judge-gw/` com backends
-mock/local/cluster, **resultado por push** (`result-sink`) e **registro/heartbeat** de
-workers (`register.sh`) substituindo o polling duplo e a lista fixa de portas — detalhes em
-**[FLOW.md](FLOW.md)**.
+Submissão **assíncrona** (spool + `inotify`), `judged.sh`, e julgamento **pull**: o daemon
+enfileira por prioridade (`judge-gw/sched-lib.sh`) e os juízes (`moj-agent@`) puxam o job no
+heartbeat, baixam o pacote sob demanda, calibram e reportam veredicto/TL por HTTP — sem master,
+sem push de entrada. Backends `mock`/`local` do `judge.sh` ficam só p/ dev/legado. Detalhes em
+**[FLOW.md](FLOW.md)** e `judge-gw/PULL.md`.
 
 ## Testes
 

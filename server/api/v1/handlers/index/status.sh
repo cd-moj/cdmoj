@@ -63,7 +63,6 @@ done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
 
 # --- daemons (liveness local) ---
 dj=false; pgrep -f 'server/daemons/judged.sh' >/dev/null 2>&1 && dj=true
-dr=false; pgrep -f 'judge-gw/result-sink.sh' >/dev/null 2>&1 && dr=true
 # fila do modelo pull (bandas) + alerta: trabalho pendente e NENHUM juiz online
 band_queue=0; [[ -d "$QUEUEDIR" ]] && band_queue="$(find "$QUEUEDIR" -mindepth 2 -name '*.json' 2>/dev/null | wc -l)"
 judges_alert=false; (( jonline == 0 )) && (( band_queue + total > 0 )) && judges_alert=true
@@ -75,14 +74,14 @@ out="$(jq -cn \
   --argjson on "${jonline:-0}" --argjson jt "${jtotal:-0}" --argjson busy "${jbusy:-0}" \
   --argjson slots "${jslots:-0}" \
   --argjson cpus "${cpus:-0}" --argjson gpus "${gpus:-0}" \
-  --argjson dj "$dj" --argjson dr "$dr" \
+  --argjson dj "$dj" \
   --argjson alert "$judges_alert" \
   '{success:true, time:$t,
     queue:{total_pending:$total, spool_queued:$spool, band_queued:$bq, lists:$lists},
     judge:{online:$on, total:$jt, busy:$busy, slots:$slots, healthy:($on>0),
            cpus_online:$cpus, gpus_online:$gpus},
     alert:{no_judges:$alert},
-    daemons:{judged:$dj, result_sink:$dr}}')"
+    daemons:{judged:$dj}}')"
 mkdir -p "$RUNDIR" 2>/dev/null
 printf '%s' "$out" > "$CACHE.tmp" 2>/dev/null && mv -f "$CACHE.tmp" "$CACHE" 2>/dev/null
 printf '%s' "$out"
