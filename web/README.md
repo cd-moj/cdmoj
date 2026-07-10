@@ -31,5 +31,5 @@ web/
 CodeMirror 6 via ESM (sem build). O submit envia base64 do conteúdo do editor **ou** de um arquivo
 enviado (upload mantido) + nome/extensão, para `POST /api/v1/submit`.
 
-Referência de UX e contratos: [`../docs/PLAN.md`](../docs/PLAN.md) e a spec de design em
-`../old/geracao-das-telas-do-moj.txt`.
+Referência de UX e contratos: [`../docs/OVERVIEW.md`](../docs/OVERVIEW.md),
+[`../docs/API.md`](../docs/API.md) e `../web/api/openapi.json`.

@@ -42,3 +42,4 @@ node_modules/
 # CLIs servidas na raiz web (origem: ../moj-cli via mkdist.sh — instaladas pelo setup.sh)
 /web/moj
 /web/moj-contest
+/web/moj-judges

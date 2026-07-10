@@ -5,22 +5,24 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"   # .../cdmoj
 # RUNDIR (estado de runtime) fica FORA do repo e é configurável; default no workspace.
 : "${RUNDIR:=/home/ribas/moj/run}"
+: "${NEWSDIR:=$ROOT/server/var/news}"
 mkdir -p "$RUNDIR/sessions" "$RUNDIR/spool/submissions" \
-         "$RUNDIR/spool/submissions-done" "$RUNDIR/results" "$ROOT/server/var/news"
+         "$RUNDIR/spool/submissions-done" "$RUNDIR/results" "$NEWSDIR"
 chmod 700 "$RUNDIR/sessions"
-if [ ! -x "$ROOT/server/bin/fcgiwrap" ]; then
-  cp "$ROOT/old/fcgiwrap/fcgiwrap" "$ROOT/server/bin/fcgiwrap" && chmod +x "$ROOT/server/bin/fcgiwrap"
+# fcgiwrap: o binário vem versionado em server/bin/fcgiwrap (ou instalado pela distro/imagem).
+if [ ! -x "$ROOT/server/bin/fcgiwrap" ] && ! command -v fcgiwrap >/dev/null 2>&1; then
+  echo "AVISO: fcgiwrap ausente (nem server/bin/fcgiwrap nem no PATH) — instale-o antes de subir a API." >&2
 fi
 chmod +x "$ROOT/server/api/v1/router.sh" 2>/dev/null || true
 find "$ROOT/server/bin" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
 find "$ROOT/server/daemons" "$ROOT/server/score" "$ROOT/server/judge-gw" -name '*.sh' \
      -exec chmod +x {} + 2>/dev/null || true
-cp -n "$ROOT/old/moj-prod/html/moj.naquadah.com.br/new/news/"*.json "$ROOT/server/var/news/" 2>/dev/null || true
-# serve as CLIs (GET /moj e /moj-contest): SEMPRE os artefatos AUTO-CONTIDOS do mkdist
+# (notícias são conteúdo de runtime, criado pelo admin; NEWSDIR fica fora da árvore de código.)
+# serve as CLIs (GET /moj, /moj-contest, /moj-judges): SEMPRE os artefatos AUTO-CONTIDOS do mkdist
 # (os scripts do repo sourceiam lib/core.sh e quebrariam baixados isolados por curl)
 if [ -f "$ROOT/../moj-cli/mkdist.sh" ]; then
   bash "$ROOT/../moj-cli/mkdist.sh" >/dev/null 2>&1 || true
-  for cli in moj moj-contest; do
+  for cli in moj moj-contest moj-judges; do
     [ -f "$ROOT/../moj-cli/dist/$cli" ] && install -m755 "$ROOT/../moj-cli/dist/$cli" "$ROOT/web/$cli" 2>/dev/null || true
   done
 fi

@@ -7,12 +7,13 @@ After=network.target
 
 [Service]
 Type=simple
-# fcgiwrap vendado em old/fcgiwrap/fcgiwrap; suporta:
+# fcgiwrap vendado em server/bin/fcgiwrap (ou instalado pela distro/imagem); suporta:
 #   -s <socket>   ex.: unix:/run/user/<uid>/moj-fcgiwrap.sock
 #   -c <n>        número de processos filhos (workers)
 # %t = runtime dir do usuário (XDG_RUNTIME_DIR, normalmente /run/user/<uid>).
-Environment=FCGIWRAP=%h/moj/cdmoj/old/fcgiwrap/fcgiwrap
-ExecStart=%h/moj/cdmoj/old/fcgiwrap/fcgiwrap -s unix:%t/moj-fcgiwrap.sock -c 8
+# NOTA: o nginx precisa apontar o fastcgi_pass p/ ESTE socket (%t/moj-fcgiwrap.sock).
+Environment=FCGIWRAP=%h/moj/cdmoj/server/bin/fcgiwrap
+ExecStart=%h/moj/cdmoj/server/bin/fcgiwrap -s unix:%t/moj-fcgiwrap.sock -c 8
 # A API descobre os caminhos por server/etc/common.conf; o nginx passa
 # SCRIPT_FILENAME apontando p/ server/api/v1/router.sh (ver etc/nginx/).
 Restart=on-failure

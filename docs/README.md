@@ -23,8 +23,8 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
 - **[PLAN.md](PLAN.md)** — plano original aprovado da reescrita (arquitetura, contratos,
   modos de placar, fases). Referência histórica da migração.
 
-> Especificação de design original (telas/contratos): `../old/geracao-das-telas-do-moj.txt`
-> (181 prompts). Base histórica para `web/` e os handlers de `server/`.
+> A especificação de design original (telas/contratos) foi a base histórica para `web/` e os
+> handlers de `server/`; hoje o contrato vivo é `docs/API.md` + `web/api/openapi.json`.
 
 ## Compilar em HTML
 

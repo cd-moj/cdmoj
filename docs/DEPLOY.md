@@ -38,7 +38,7 @@ Server block para `moj.charge.naquadah.com.br` (coberto pelo cert wildcard `*.ch
 - `location /api/v1/` → `fastcgi_pass unix:/home/ribas/moj/run/fcgiwrap.sock`, com `SCRIPT_FILENAME=server/api/v1/router.sh` e `PATH_INFO` via `fastcgi_split_path_info`.
 - `location /docs/` → serve esta documentação.
 
-> **Nota:** o `fcgiwrap` vendorizado (`old/fcgiwrap/`) estava com um patch hardcoded do cdmoj antigo (ignorava `SCRIPT_FILENAME`). Foi restaurado ao padrão e recompilado em `server/bin/fcgiwrap`.
+> **Nota:** o `fcgiwrap` vendorizado (`server/bin/fcgiwrap`) é o binário padrão (aceita `SCRIPT_FILENAME`). Na imagem podman usa-se o pacote `fcgiwrap` da distro.
 
 ### Subdomínio de contest — `~/nginx-proxy/conf.d/moj-subdomains.conf`
 

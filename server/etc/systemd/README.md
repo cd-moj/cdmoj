@@ -1,9 +1,8 @@
 # server/etc/systemd/ — units do MOJ (usuário, sem root)
 
 Units **user-level** (`systemctl --user`) para rodar os daemons/serviços do MOJ
-sem privilégios de root. Reaproveitam o padrão do `old/fcgiwrap/systemd/` e usam
-specifiers do systemd: `%h` (home do usuário) e `%t` (runtime dir,
-`$XDG_RUNTIME_DIR`, normalmente `/run/user/<uid>`).
+sem privilégios de root. Usam specifiers do systemd: `%h` (home do usuário) e
+`%t` (runtime dir, `$XDG_RUNTIME_DIR`, normalmente `/run/user/<uid>`).
 
 ## Units
 
@@ -55,8 +54,9 @@ systemctl --user enable --now moj-fcgiwrap.socket   # socket-activation
 # o nginx faz:  fastcgi_pass unix:/run/user/<uid>/moj-fcgiwrap.sock;
 ```
 
-O `fcgiwrap` vendado (`old/fcgiwrap/fcgiwrap`) aceita `-s unix:<sock> -c <n>`;
-a unit já passa `-s unix:%t/moj-fcgiwrap.sock -c 8`. Para standalone (sem
+O `fcgiwrap` vendado (`server/bin/fcgiwrap`, ou o da distro/imagem) aceita
+`-s unix:<sock> -c <n>`; a unit já passa `-s unix:%t/moj-fcgiwrap.sock -c 8`
+(o nginx deve apontar o `fastcgi_pass` p/ o mesmo socket). Para standalone (sem
 socket-activation) basta `enable --now moj-fcgiwrap.service`.
 
 ### Juízes (pull)

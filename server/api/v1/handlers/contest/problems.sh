@@ -1,8 +1,7 @@
 # GET /contest/problems?contest=<id>   (Bearer)
 # Lista de problemas da prova a partir de PROBS (5-tuplas) + enunciados/<key>.{html,pdf}.
 # [{short_name, full_name, problem_id, statement_html_b64, statement_pdf_b64, time_limits, show}]
-# Espelha old/cdmoj/server/scripts/create-problemsjson.sh (base64 dos enunciados),
-# mas SEM escrever no dir do contest (codifica inline).
+# Codifica os enunciados em base64 inline (SEM escrever no dir do contest).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
