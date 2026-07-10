@@ -1,5 +1,5 @@
 # GET /problems/export?id=<id>   (Bearer) — baixa o problema como pacote ICPC/Kattis (.tar.gz).
-# Inclui as soluções, então exige permissão de escrita (ou admin). Fonte = Gitea.
+# Inclui as soluções, então exige permissão de escrita (ou admin). Fonte = repo git local.
 require_method GET
 require_auth
 source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"

@@ -2,7 +2,7 @@
 # backfill-public-at.sh — semeia contests/treino/var/public-at-seed.json = {id: epoch} com uma data
 # APROXIMADA de "entrada" p/ os problemas PÚBLICOS que ainda NÃO têm public_at no .moj-meta.json.
 # Fonte por problema: .moj-meta.json .migrated_at, senão o 1º commit (git --diff-filter=A --reverse)
-# do subdir do pacote. Idempotente (re-rodar re-semeia). NÃO commita no Gitea — o dado é aproximado
+# do subdir do pacote. Idempotente (re-rodar re-semeia). NÃO commita no repo do problema — o dado é aproximado
 # (a migração de jun/jul-2026 concentra ~86% das datas num pico artificial) e mora só no seed lateral,
 # que o mojtools/gen-problem-owners.sh usa como fallback de public_at (o meta, quando existe, ganha).
 #   uso: MOJ_PROBLEMS_DIR=… CONTESTSDIR=… bash backfill-public-at.sh

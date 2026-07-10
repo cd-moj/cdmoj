@@ -2,7 +2,7 @@
 # Uma org agrupa problemas (o <org> do id <org>#<prob>). MEMBROS escrevem em QUALQUER problema dela;
 # ADMINS gerem membros/admins e a trava public_allowed (privada por PADRÃO -> os problemas nunca
 # ficam públicos: camada anti-vazamento de prova). Cada usuário tem uma org IMPLÍCITA <login>
-# (sempre privada). Substitui o motor de permissão do Gitea (lib/gitea.sh) e as coleções-curso.
+# (sempre privada). É o motor de permissão de acesso a problema + as coleções-curso.
 # Registro atômico (temp+mv, umask 077), espelhando o padrão de collection_* em lib/problems.sh.
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 ORGS_REGISTRY="$CONTESTSDIR/treino/var/orgs.json"

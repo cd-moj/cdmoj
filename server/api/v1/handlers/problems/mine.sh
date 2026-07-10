@@ -1,5 +1,5 @@
 # GET /problems/mine   (Bearer)
-# Problemas do autor logado: owner==login. Gitea é a fonte; sem casamento difuso de "legado".
+# Problemas do autor logado: owner==login. O índice é a fonte; sem casamento difuso de "legado".
 require_method GET
 require_auth
 source "$_DIR/lib/problems.sh"

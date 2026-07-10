@@ -68,10 +68,11 @@ Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na ses
 | `/treino/admin/logout-ip` | POST | `{ip}` → encerra todas as sessões daquele IP (IPv4/IPv6) |
 
 ## Gestão de problemas (Bearer)
-Backend = **Gitea** (store git), mas o autor só usa o **login do MOJ** (sem chave/git — ver
-`docs/DEPLOY-GITEA.md`). Listagens leem o índice de donos `contests/treino/var/problem-owners.json`
-(gerado por `mojtools/gen-problem-owners.sh`; regen em background, TTL `PROBLEM_OWNERS_TTL_MIN`).
-Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem dono (legado não-migrado)
+Backend = **repo git LOCAL por problema** (`MOJ_PROBLEMS_DIR/<org>/<prob>`, o servidor commita direto
+via `problem_commit`; sem serviço externo), mas o autor só usa o **login do MOJ** (sem chave/git).
+Listagens leem o índice de donos `contests/treino/var/problem-owners.json` (gerado por
+`mojtools/gen-problem-owners.sh`; regen em background, TTL `PROBLEM_OWNERS_TTL_MIN`). O índice é a
+**fonte única**: todo problema tem `owner` (login). Problema sem dono (legado não-migrado)
 é **ignorado** no índice; `/mine` = `owner==login` (sem casamento difuso). Não há mais "legado".
 
 > **Controle de acesso — garantido na API, NUNCA só na interface.** Ver o **source/pacote/soluções/
@@ -99,11 +100,11 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 | `/problems/publish` | POST `{id}` | enfileira **validação + index** (1 juiz pega no heartbeat; portão: HTML compila + seções `## Entrada`/`## Saída` + exemplos + `good` aceita) |
 | `/problems/request-calibration` | POST `{id}` | enfileira **calibração** (juiz roda `calibreitor.sh`, gera `tl.<host>`) |
 
-### Autoria (escrita keyless — git escondido, commit autorado pelo login via `git-broker.sh`)
+### Autoria (escrita keyless — git escondido, commit autorado pelo login via `problem_commit`)
 | Rota | Método | I/O |
 |---|---|---|
 | `/problems/repos` | GET | diretórios do autor (dono/colaborador) `{repos:[{repo,owner,collaborators,collections,mine}]}` |
-| `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (repo Gitea no namespace do login; provisiona usuário lazy) |
+| `/problems/repo-create` | POST `{repo, collections?}` | cria o **diretório** (org no namespace do login; provisiona a org implícita lazy) |
 | `/problems/source?id=<id>` | GET | **source** editável `{editable,title,enunciado_md,enunciado_format,author,tags,conf_text,public,collections,languages,examples,tests,sols{good,slow,wrong,pass,upcoming},score,score_text,editorial_md,scripts,scripts_files}` **SÓ dono/colaborador** (`require_problem_edit`); não-autorizado recebe **404** (sem read-only, sem atalho de `.admin`). Cada `examples[i]` traz `explanation` (opcional); `editorial_md` = resolução só p/ setter; `scripts` = caminhos relativos de `scripts/` (árvore do editor web); **`scripts_files`** = ROUND-TRIP da correção especial — `[{path,content_b64,exec} \| {path,symlink}]` (base64 suporta binário; symlink cobre os drivers interativos `scripts/<lang> -> c`); **`score_text`** = `tests/score` cru (round-trip byte-fiel do moj push/clone); **`languages`** = ids de linguagem de submissão permitidos (`.moj-meta.json`, `[]` = todas) |
 | `/problems/preview` | POST `{enunciado_md, enunciado_format?, examples?, title?}` | **pré-visualização** HTML (= o renderizador único `render-statement.sh`, idêntico ao servido) — injeta o **título** (h1) e os exemplos (cada um com `explanation` opcional) → `{html_b64}` |
 | `/problems/download?id=<id>` | GET | baixa o **pacote** `.tar.gz` (inclui soluções → exige escrita/admin); stream binário |
@@ -126,7 +127,7 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 | `/problems/set-public` | POST `{id, public:bool}` | público **on** => **valida + calibra** (`index_problem_bg` no servidor + `cal_request` a um juiz; só entra no treino se o portão passar) e grava `public` no `.moj-meta.json`; **off** => sai do treino na hora. (Antes o `idx_request` legado era no-op → problema saía público sem validar.) |
 | `/problems/set-collections` | POST `{id, collections:[...]}` | define as coleções (tags) do problema no `.moj-meta.json`; **valida contra o registro** (curada: a coleção tem de existir) |
 | `/problems/move` | POST `{id, to_org}` | move um problema de **rascunho** p/ outra org (muda o id `<org>#<prob>`); **bloqueia se público/em uso** (senão órfãoria o histórico); exige ser membro das DUAS orgs |
-| `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (colaborador Gitea; só o dono gerencia) |
+| `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (membro da org; só o dono gerencia) |
 | `/problems/collection-create` | POST `{name}` | cria uma **coleção** (TAG) no registro curado. Nome é **TEXTO LIVRE** (pode ter espaços/acentos — é só rótulo). Exige permissão de criação; criador = dono. (NÃO é org: acesso é por org) |
 | `/problems/collection-rename` | POST `{name, to}` | renomeia a coleção (registro + a tag em TODOS os problemas; só dono ou `.admin`) |
 | `/problems/collection-delete` | POST `{name}` | exclui a coleção (tira a tag de todos os problemas + remove do registro; só dono ou `.admin`) |
@@ -134,12 +135,12 @@ Gitea é a **fonte única**: todo problema tem `owner` (login). Problema sem don
 > **Quem pode criar** (problemas/pastas/coleções) = mesma regra de criar contest
 > (`cc_can_create`: `.admin` ou allowlist ou ≥ N resolvidos, menos a denylist) — gerida em
 > `/treino/admin/contest-perms`. `create`/`repo-create`/`collection-create`/`upload`-novo exigem isso;
-> editar/compartilhar problema existente continua por colaborador (`gitea_can_write`).
+> editar/compartilhar problema existente continua por colaborador (`org_is_member`).
 
-### Orgs (novo modelo MOJ-nativo, em construção — Fase 1)
+### Orgs (modelo MOJ-nativo)
 
-Migração em curso: o storage vai de "repo Gitea agrega N problemas" para **repo git local por problema**
-(`MOJ_PROBLEMS_DIR/<org>/<prob>`), e o acesso passa a ser por **ORG** (o `<org>` do id `<org>#<prob>`):
+Storage = **repo git local por problema** (`MOJ_PROBLEMS_DIR/<org>/<prob>`), e o acesso é por **ORG**
+(o `<org>` do id `<org>#<prob>`):
 quem é **membro** escreve em qualquer problema da org; a org tem uma **trava de público**
 (`public_allowed`, privada por PADRÃO → problemas nunca ficam públicos: anti-vazamento de prova), e só
 **admin** da org a muda. Cada usuário tem uma org **implícita** `<login>` (sempre privada). Registro:
@@ -156,7 +157,7 @@ quem é **membro** escreve em qualquer problema da org; a org tem uma **trava de
 
 O CLI **`moj`** (`web/moj`, servido em `GET /moj`; fonte em `moj-cli/`) usa essas rotas para
 autoria **sem git/sem chave**: `moj new/clone/push/publish/share/org/mv`. Storage MOJ-nativo: o
-servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<prob>`), sem Gitea.
+servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<prob>`).
 
 > Permissão de escrita = **membro da ORG** do problema (`org_is_member`; sem atalho de `.admin`).
 > Visibilidade imediata via overlay `contests/treino/var/authored.json` (mesclado ao índice). Público

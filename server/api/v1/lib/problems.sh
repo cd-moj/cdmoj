@@ -23,10 +23,10 @@ ensure_owners_index(){
   fi
 }
 
-AUTHORED_INDEX="$CONTESTSDIR/treino/var/authored.json"   # overlay de problemas recém-criados no Gitea
+AUTHORED_INDEX="$CONTESTSDIR/treino/var/authored.json"   # overlay de problemas recém-criados
 
-# owners_merged — emite {problems:[...]} mesclando o índice gerado (NFS) + o overlay authored
-# (Gitea recém-autorado vence por id). Dá visibilidade IMEDIATA ao que foi criado/editado.
+# owners_merged — emite {problems:[...]} mesclando o índice gerado + o overlay authored
+# (recém-autorado vence por id). Dá visibilidade IMEDIATA ao que foi criado/editado.
 owners_merged(){
   ensure_owners_index
   # o overlay authored dá visibilidade IMEDIATA ao recém-criado/editado, mas NÃO pode APAGAR os campos
@@ -541,7 +541,7 @@ write_meta(){
   jq -n --argjson cur "$cur" --arg o "$owner" --arg r "$repo" --arg pub "$pub" \
         --argjson colls "${colls:-null}" --arg title "$title" --argjson langs "${langs:-null}" \
         --argjson now "$EPOCHSECONDS" '
-    $cur + {owner:$o, gitea:{owner:$o, repo:$r}}
+    $cur + {owner:$o}
     + (if $pub=="" then {} elif $pub=="true" then {public:true} else {public:false} end)
     + (if $colls==null then {} else {collections:$colls} end)
     + (if $langs==null then {} else

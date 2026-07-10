@@ -91,7 +91,7 @@ calibrações) e **Estatísticas** (usuários, sessões, **problemas: total/púb
 `/treino/admin/{queue,judges,response-stats,calib-activity,stats}`.
 
 ### Gestão de problemas (MOJ-nativo por org, keyless) & painel de status
-Autoria/edição em `/problemas/` (storage: repo git LOCAL por problema em `<org>/<prob>`, sem Gitea;
+Autoria/edição em `/problemas/` (storage: repo git LOCAL por problema em `<org>/<prob>`;
 acesso por **ORG** — membros escrevem, a trava `public_allowed` barra vazamento; só o login do MOJ). A aba **Painel**
 (`GET /problems/status`) dá a visão agregada dos problemas de que o login é **dono ou colaborador**:
 quantos/quais **calibrando**, **validados**, **calibrados**, **precisam recalibrar** (time-limit

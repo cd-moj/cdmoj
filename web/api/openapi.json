@@ -4713,7 +4713,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Cria diretório (repo Gitea no namespace do login)",
+        "summary": "Cria diretório (org no namespace do login)",
         "security": [
           {
             "bearerAuth": []

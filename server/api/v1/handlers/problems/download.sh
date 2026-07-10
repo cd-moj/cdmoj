@@ -1,5 +1,5 @@
 # GET /problems/download?id=<id>   (Bearer) — baixa o pacote do problema (.tar.gz).
-# Inclui as SOLUÇÕES, então exige permissão de escrita (ou admin). Fonte = Gitea.
+# Inclui as SOLUÇÕES, então exige permissão de escrita (ou admin). Fonte = repo git local.
 require_method GET
 require_auth
 source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"

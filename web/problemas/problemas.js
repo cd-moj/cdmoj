@@ -1,6 +1,6 @@
 // treino/problemas/problemas.js — gestão de problemas (Meus/Compartilhados/Públicos/Coleções).
 // Leitura via /problems/* (Bearer). Detalhe mostra validação + enunciado e dispara
-// Validar/Publicar e Calibrar (handlers já existentes). Git fica escondido (Gitea atrás).
+// Validar/Publicar e Calibrar (handlers já existentes). Git fica escondido (repo local por problema).
 import { apiGet, apiPost, ApiError, getToken } from '/shared/api.js';
 import { status, fileToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';

@@ -8,7 +8,7 @@ cd "$ROOT"
 
 bash server/bin/setup.sh
 
-# (Storage de problemas é MOJ-nativo: repo git LOCAL por problema, sem serviço Gitea.)
+# (Storage de problemas é MOJ-nativo: repo git LOCAL por problema, sem serviço externo.)
 
 if [ ! -S run/fcgiwrap.sock ]; then
   echo ">> iniciando fcgiwrap…"
