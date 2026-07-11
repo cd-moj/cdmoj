@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Printing — Contest — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -30,10 +30,11 @@
   </header>
   <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
   <main class="container">
-    <h1 style="margin:.2rem 0 .3rem">🖨️ Impressão</h1>
-    <p class="muted small" style="margin:.1rem 0 1rem">Peça a impressão de um arquivo (PDF, imagem, texto ou código-fonte). A equipe de impressão da sua sede vai imprimir e <b>entregar em mãos</b>. Acompanhe o status do seu pedido aqui.</p>
-    <div id="app"><p class="muted">carregando…</p></div>
+    <h1 style="margin:.2rem 0 .3rem" data-en="🖨️ Printing">🖨️ Impressão</h1>
+    <p class="muted small" style="margin:.1rem 0 1rem" data-en-html="Request a file to be printed (PDF, image, text or source code). Your site's printing team will print it and <b>hand it to you</b>. Track your request's status here.">Peça a impressão de um arquivo (PDF, imagem, texto ou código-fonte). A equipe de impressão da sua sede vai imprimir e <b>entregar em mãos</b>. Acompanhe o status do seu pedido aqui.</p>
+    <div id="app"><p class="muted" data-en="Loading…">carregando…</p></div>
   </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="./print.js"></script>
 </body>
 </html>

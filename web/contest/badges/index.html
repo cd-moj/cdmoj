@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Credential badges — Contest — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -58,11 +58,12 @@
   </header>
   <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
   <main class="container">
-    <h1 style="margin:.2rem 0 .3rem">🏷️ Etiquetas de credenciais</h1>
-    <p class="muted small" style="margin:.1rem 0 1rem">Gere folhas de etiquetas adesivas (padrão Pimaco A4) com nome, login e senha para colar na mesa ou no caderno de prova. Na impressão do navegador use <b>margens: Nenhuma</b>, <b>escala: 100%</b> e desligue cabeçalho/rodapé.</p>
-    <div id="app"><p class="muted">carregando…</p></div>
+    <h1 style="margin:.2rem 0 .3rem" data-en="🏷️ Credential badges">🏷️ Etiquetas de credenciais</h1>
+    <p class="muted small" style="margin:.1rem 0 1rem" data-en-html="Generate sheets of adhesive labels (Pimaco A4 standard) with name, login and password to stick on the desk or exam booklet. In the browser print dialog use <b>margins: None</b>, <b>scale: 100%</b> and turn off header/footer.">Gere folhas de etiquetas adesivas (padrão Pimaco A4) com nome, login e senha para colar na mesa ou no caderno de prova. Na impressão do navegador use <b>margens: Nenhuma</b>, <b>escala: 100%</b> e desligue cabeçalho/rodapé.</p>
+    <div id="app"><p class="muted" data-en="Loading…">carregando…</p></div>
   </main>
   <div id="sheets"></div>
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="./badges.js"></script>
 </body>
 </html>

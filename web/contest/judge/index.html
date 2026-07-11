@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Judging — Contest — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,16 +29,17 @@
 
   <main class="container">
     <div class="section">
-      <h2>Submissões Pendentes de Julgamento</h2>
+      <h2 data-en="Submissions Pending Judgment">Submissões Pendentes de Julgamento</h2>
       <div class="tools">
-        <input id="fUser" placeholder="🔍 usuário…" style="max-width:160px">
-        <input id="fProblem" placeholder="🔍 problema…" style="max-width:160px">
-        <label class="small"><input type="checkbox" id="onlyPending" checked> Só pendentes</label>
-        <button class="btn ghost" id="refreshBtn">Atualizar</button>
+        <input id="fUser" placeholder="🔍 usuário…" data-en-ph="🔍 user…" style="max-width:160px">
+        <input id="fProblem" placeholder="🔍 problema…" data-en-ph="🔍 problem…" style="max-width:160px">
+        <label class="small"><input type="checkbox" id="onlyPending" checked> <span data-en="Pending only">Só pendentes</span></label>
+        <button class="btn ghost" id="refreshBtn" data-en="Refresh">Atualizar</button>
       </div>
-      <div id="judgeContainer"><span class="muted">carregando…</span></div>
+      <div id="judgeContainer"><span class="muted" data-en="Loading…">carregando…</span></div>
     </div>
   </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="./judge.js"></script>
 </body>
 </html>

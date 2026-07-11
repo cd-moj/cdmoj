@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Scoreboard — Contest — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -49,20 +49,21 @@
   <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
 
   <main class="container">
-    <div class="section notice hidden" id="publicNotice">
+    <div class="section notice hidden" id="publicNotice" data-en="You are viewing the scoreboard in public mode (restricted or delayed data).">
       Você está visualizando o placar em modo público (dados restritos ou atrasados).
     </div>
     <div class="section">
       <div class="row" style="margin-bottom:.6rem">
-        <input id="scoreSearch" placeholder="🔍 Buscar time / universidade / login…" style="flex:1; min-width:240px">
-        <label class="small"><input type="checkbox" id="noAnim"> Desabilitar animação</label>
+        <input id="scoreSearch" placeholder="🔍 Buscar time / universidade / login…" data-en-ph="🔍 Search team / university / login…" style="flex:1; min-width:240px">
+        <label class="small"><input type="checkbox" id="noAnim"> <span data-en="Disable animation">Desabilitar animação</span></label>
       </div>
       <div class="region-bar hidden" id="regionBar"></div>
       <div class="region-bar hidden" id="metaFilterBar" style="gap:.5rem"></div>
-      <div id="scoreContainer"><span class="muted">carregando…</span></div>
+      <div id="scoreContainer"><span class="muted" data-en="Loading…">carregando…</span></div>
     </div>
   </main>
 
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="./score.js"></script>
 </body>
 </html>

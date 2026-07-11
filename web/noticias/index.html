@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="News — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,9 +10,10 @@
 <body>
   <header class="topbar" id="siteHeader" data-active="noticias"></header>
   <main class="container">
-    <h1 id="page-title" style="margin:.2rem 0 1rem">📰 Notícias</h1>
-    <div id="app"><p class="muted small">carregando…</p></div>
+    <h1 id="page-title" style="margin:.2rem 0 1rem" data-en="📰 News">📰 Notícias</h1>
+    <div id="app"><p class="muted small" data-en="loading…">carregando…</p></div>
   </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="/shared/site-header.js"></script>
   <script type="module" src="./noticias.js"></script>
 </body>

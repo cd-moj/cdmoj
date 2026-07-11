@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Problem Management — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -46,36 +46,37 @@
 
   <main class="container">
     <div class="section">
-      <h2>Gestão de Problemas</h2>
-      <p class="small muted">Seus problemas, os compartilhados, os públicos (treino livre), as
-        <b>coleções</b> (rótulos de agrupamento — várias por problema) e as <b>orgs</b> (quem edita +
-        trava de público — uma por problema, o prefixo do id). Você só usa seu login do MOJ.</p>
-      <div id="needauth" class="error-box" style="display:none">Entre com seu login do MOJ para gerir seus problemas.</div>
+      <h2 data-en="Problem Management">Gestão de Problemas</h2>
+      <p class="small muted"><span data-en="Your problems, shared ones, public ones (free training), the ">Seus problemas, os compartilhados, os públicos (treino livre), as
+        </span><b data-en="collections">coleções</b><span data-en=" (grouping labels — several per problem) and the "> (rótulos de agrupamento — várias por problema) e as </span><b>orgs</b><span data-en=" (who edits + public lock — one per problem, the id prefix). You only use your MOJ login."> (quem edita +
+        trava de público — uma por problema, o prefixo do id). Você só usa seu login do MOJ.</span></p>
+      <div id="needauth" class="error-box" style="display:none" data-en="Sign in with your MOJ login to manage your problems.">Entre com seu login do MOJ para gerir seus problemas.</div>
       <div class="tabs" id="tabs">
-        <button data-tab="painel" class="active">Painel</button>
-        <button data-tab="analise">Análise</button>
-        <button data-tab="mine">Meus</button>
-        <button data-tab="shared">Compartilhados</button>
-        <button data-tab="public">Públicos</button>
-        <button data-tab="collections">Coleções</button>
+        <button data-tab="painel" class="active" data-en="Dashboard">Painel</button>
+        <button data-tab="analise" data-en="Analysis">Análise</button>
+        <button data-tab="mine" data-en="Mine">Meus</button>
+        <button data-tab="shared" data-en="Shared">Compartilhados</button>
+        <button data-tab="public" data-en="Public">Públicos</button>
+        <button data-tab="collections" data-en="Collections">Coleções</button>
         <button data-tab="orgs">Orgs</button>
       </div>
       <div class="row" id="toolbar">
-        <input id="q" placeholder="Filtrar por título, autor ou id…" style="flex:1; min-width:240px">
-        <label id="brokenLabel" class="small row" style="gap:.3rem"><input type="checkbox" id="onlybroken"> <span id="brokenLabelText">só não-públicos</span></label>
-        <button id="btnRefreshPanel" class="btn ghost" style="display:none">↻ Atualizar</button>
+        <input id="q" placeholder="Filtrar por título, autor ou id…" data-en-ph="Filter by title, author or id…" style="flex:1; min-width:240px">
+        <label id="brokenLabel" class="small row" style="gap:.3rem"><input type="checkbox" id="onlybroken"> <span id="brokenLabelText" data-en="non-public only">só não-públicos</span></label>
+        <button id="btnRefreshPanel" class="btn ghost" style="display:none" data-en="↻ Refresh">↻ Atualizar</button>
       </div>
       <div id="count" class="small muted" style="margin-top:.5rem"></div>
     </div>
 
     <div class="section">
-      <div id="list"><span class="small muted">Carregando…</span></div>
+      <div id="list"><span class="small muted" data-en="Loading…">Carregando…</span></div>
       <div id="pager" class="row" style="justify-content:center;margin-top:.75rem"></div>
     </div>
 
     <div class="section" id="detail" style="display:none"></div>
   </main>
 
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="/shared/site-header.js"></script>
   <script type="module" src="/problemas/problemas.js"></script>
 </body>

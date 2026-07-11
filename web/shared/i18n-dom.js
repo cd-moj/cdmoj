@@ -24,3 +24,6 @@ export function i18nDOM(root = document) {
 
 // auto-init: o DOM já está parseado quando um módulo deferred roda.
 i18nDOM();
+// reaplica quando o idioma muda em runtime (ex.: página de contest chama setLang(LOCALE)
+// depois de carregar /contest/basic) — assim o texto estático segue o idioma do contest.
+document.addEventListener('moj:lang', () => i18nDOM());

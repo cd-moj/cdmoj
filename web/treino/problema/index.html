@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Problem — Free Training — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,12 +24,12 @@
 
   <main class="container">
     <div id="problem-head" class="section">
-      <h2 id="ptitle">carregando…</h2>
+      <h2 id="ptitle" data-en="loading…">carregando…</h2>
       <div id="pauthor" class="small muted"></div>
       <div id="pcols"></div>
       <div id="ptags" class="tags-blur"></div>
       <div class="small" style="margin-top:.4rem">
-        <a href="#" id="toggleTags">mostrar/ocultar tags</a>
+        <a href="#" id="toggleTags" data-en="show/hide tags">mostrar/ocultar tags</a>
       </div>
       <div id="ptl" class="tl-block"></div>
     </div>
@@ -40,18 +40,19 @@
       </div>
       <div class="submit-col">
         <div class="section" id="submitSection">
-          <h2>Enviar solução</h2>
+          <h2 data-en="Submit solution">Enviar solução</h2>
           <div id="submitBody"></div>
         </div>
       </div>
     </div>
 
     <div class="section">
-      <h2>Histórico de submissões</h2>
+      <h2 data-en="Submission history">Histórico de submissões</h2>
       <div id="history"><span class="muted small">—</span></div>
     </div>
   </main>
 
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="/shared/site-header.js"></script>
   <script type="module" src="./problema.js"></script>
 </body>

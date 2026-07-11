@@ -25,6 +25,8 @@ export function setLang(l, { persist = false } = {}) {
   LANG = l;
   if (persist) { try { localStorage.setItem(STORE_KEY, l); } catch (_) {} }
   applyHtmlLang();
+  // avisa quem traduz HTML estático (i18n-dom.js) p/ reaplicar quando o contest impõe o LOCALE
+  try { document.dispatchEvent(new CustomEvent('moj:lang', { detail: LANG })); } catch (_) {}
 }
 
 function applyHtmlLang() {

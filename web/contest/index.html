@@ -86,18 +86,18 @@
         <span class="badge-beta">BETA</span>
       </div>
       <div class="field">
-        <label id="loginUserLbl" for="loginUser">Usuário</label>
+        <label id="loginUserLbl" for="loginUser" data-en="Username">Usuário</label>
         <input id="loginUser" name="username" autocomplete="username" required>
       </div>
       <div class="field">
-        <label id="loginPassLbl" for="loginPass">Senha</label>
+        <label id="loginPassLbl" for="loginPass" data-en="Password">Senha</label>
         <input id="loginPass" type="password" name="password" autocomplete="current-password" required>
       </div>
-      <button class="btn" type="submit" id="loginBtn">Entrar</button>
+      <button class="btn" type="submit" id="loginBtn" data-en="Log in">Entrar</button>
       <div id="loginError" class="error-box small hidden" style="margin-top:.6rem"></div>
     </form>
     <div class="small muted" style="margin-top:1.4rem">
-      <a href="/">Página Inicial</a> · <a href="/docs/" target="_blank">Documentação</a>
+      <a href="/" data-en="Home">Página Inicial</a> · <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
     </div>
   </div>
 
@@ -122,34 +122,35 @@
       <div class="section" id="userSection"></div>
 
       <div class="section hidden" id="newsSection">
-        <h2 id="newsTitle">Informações &amp; Notícias</h2>
+        <h2 id="newsTitle" data-en="Information &amp; News">Informações &amp; Notícias</h2>
         <ul id="newsList" style="margin:0; padding-left:1.1rem"></ul>
       </div>
 
       <div class="section hidden" id="resourcesSection">
-        <h2>Arquivos &amp; Recursos</h2>
+        <h2 data-en="Files &amp; Resources">Arquivos &amp; Recursos</h2>
         <ul id="resourcesList" style="margin:0; padding-left:1.1rem"></ul>
       </div>
 
       <div class="section hidden" id="prestartSection" style="text-align:center">
-        <h2 id="prestartTitle">A competição ainda não começou</h2>
+        <h2 id="prestartTitle" data-en="The contest hasn't started yet">A competição ainda não começou</h2>
         <div id="prestartCountdown" style="font-size:3rem; font-weight:800; color:var(--warn); margin:1rem 0">—</div>
-        <p class="muted" id="prestartHint">Os problemas aparecem automaticamente quando a competição iniciar.</p>
+        <p class="muted" id="prestartHint" data-en="Problems appear automatically when the contest starts.">Os problemas aparecem automaticamente quando a competição iniciar.</p>
       </div>
 
       <div class="section" id="problemsSection">
-        <h2>Problemas</h2>
-        <div id="problemList"><span class="muted">carregando…</span></div>
+        <h2 data-en="Problems">Problemas</h2>
+        <div id="problemList"><span class="muted" data-en="Loading…">carregando…</span></div>
       </div>
 
       <div class="section" id="mySubsSection">
-        <h2>Minhas submissões</h2>
+        <h2 data-en="My submissions">Minhas submissões</h2>
         <div class="subfilter" id="subFilter"></div>
         <div id="submissionsTable"><span class="muted small">—</span></div>
       </div>
     </main>
   </div>
 
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="./contest.js"></script>
 </body>
 </html>

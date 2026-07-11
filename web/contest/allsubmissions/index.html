@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="All submissions — Contest — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -31,21 +31,22 @@
 
   <main class="container">
     <div class="section">
-      <h2>Todas as Submissões</h2>
+      <h2 data-en="All submissions">Todas as Submissões</h2>
       <div class="tools">
-        <button class="btn ghost" data-group="all">Todas</button>
-        <button class="btn ghost" data-group="user">Por usuário</button>
-        <button class="btn ghost" data-group="problem">Por problema</button>
-        <input id="fUser" placeholder="🔍 usuário…" style="max-width:150px">
-        <input id="fProblem" placeholder="🔍 problema…" style="max-width:150px">
-        <input id="fVerdict" placeholder="🔍 veredicto…" style="max-width:150px">
-        <button class="btn secondary" id="markAll">Marcar todos</button>
-        <button class="btn" id="rejudgeBtn">Rejulgar selecionados</button>
+        <button class="btn ghost" data-group="all" data-en="All">Todas</button>
+        <button class="btn ghost" data-group="user" data-en="By user">Por usuário</button>
+        <button class="btn ghost" data-group="problem" data-en="By problem">Por problema</button>
+        <input id="fUser" placeholder="🔍 usuário…" data-en-ph="🔍 user…" style="max-width:150px">
+        <input id="fProblem" placeholder="🔍 problema…" data-en-ph="🔍 problem…" style="max-width:150px">
+        <input id="fVerdict" placeholder="🔍 veredicto…" data-en-ph="🔍 verdict…" style="max-width:150px">
+        <button class="btn secondary" id="markAll" data-en="Mark all">Marcar todos</button>
+        <button class="btn" id="rejudgeBtn" data-en="Rejudge selected">Rejulgar selecionados</button>
         <span class="submit-steps" id="rejudgeMsg"></span>
       </div>
-      <div id="adminContainer"><span class="muted">carregando…</span></div>
+      <div id="adminContainer"><span class="muted" data-en="Loading…">carregando…</span></div>
     </div>
   </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="./allsubmissions.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Edit Problem — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -134,8 +134,8 @@
         <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
       <div class="spacer"></div>
       <nav class="navlinks">
-        <a href="/problemas/">‹ Gestão de Problemas</a>
-        <a href="/docs/" target="_blank">Documentação</a>
+        <a href="/problemas/" data-en="‹ Problem Management">‹ Gestão de Problemas</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
         <span id="authArea" class="row"></span>
       </nav>
     </div>
@@ -143,12 +143,12 @@
 
   <main class="container">
     <div id="needauth" class="section" style="display:none">
-      <div class="error-box">Entre com seu login do MOJ para criar/editar problemas.</div>
+      <div class="error-box" data-en="Sign in with your MOJ login to create/edit problems.">Entre com seu login do MOJ para criar/editar problemas.</div>
     </div>
 
     <div id="app" style="display:none">
       <div class="row" style="justify-content:space-between;align-items:baseline">
-        <h2 id="title" style="margin:.2rem 0">Novo Problema</h2>
+        <h2 id="title" style="margin:.2rem 0" data-en="New Problem">Novo Problema</h2>
         <span id="note" class="small" style="display:none"></span>
       </div>
 
@@ -157,57 +157,57 @@
 
       <!-- navegação por abas -->
       <div id="tabnav" class="tabs">
-        <button class="tab on" type="button" data-tab="enun">Enunciado</button>
-        <button class="tab" type="button" data-tab="tests">Testes &amp; Pontuação <span class="mini" id="tabTestsMini"></span></button>
-        <button class="tab" type="button" data-tab="sols">Soluções &amp; Correção <span class="mini" id="tabSolsMini"></span></button>
-        <button class="tab" type="button" data-tab="resol">Resolução</button>
-        <button class="tab" type="button" data-tab="limits">Limites</button>
-        <button class="tab" type="button" data-tab="pub">Publicação &amp; Pacote</button>
+        <button class="tab on" type="button" data-tab="enun" data-en="Statement">Enunciado</button>
+        <button class="tab" type="button" data-tab="tests"><span data-en="Tests &amp; Scoring">Testes &amp; Pontuação</span> <span class="mini" id="tabTestsMini"></span></button>
+        <button class="tab" type="button" data-tab="sols"><span data-en="Solutions &amp; Grading">Soluções &amp; Correção</span> <span class="mini" id="tabSolsMini"></span></button>
+        <button class="tab" type="button" data-tab="resol" data-en="Editorial">Resolução</button>
+        <button class="tab" type="button" data-tab="limits" data-en="Limits">Limites</button>
+        <button class="tab" type="button" data-tab="pub" data-en="Publishing &amp; Package">Publicação &amp; Pacote</button>
       </div>
 
       <!-- ================= ABA: ENUNCIADO ================= -->
       <section class="tabpane" data-pane="enun">
         <div class="section">
-          <h3 style="margin:0 0 .5rem">Identificação</h3>
+          <h3 style="margin:0 0 .5rem" data-en="Identification">Identificação</h3>
           <div class="grid2">
             <div class="field">
-              <label>Org — onde o problema fica salvo</label>
+              <label data-en="Org — where the problem is saved">Org — onde o problema fica salvo</label>
               <div class="row">
                 <select id="repo" style="flex:1"></select>
-                <button id="newdir" class="btn ghost" type="button">+ nova org</button>
-                <button id="moveorg" class="btn ghost" type="button" style="display:none" title="Mover este rascunho para outra org de que você faz parte (muda o id)">Mover…</button>
+                <button id="newdir" class="btn ghost" type="button" data-en="+ new org">+ nova org</button>
+                <button id="moveorg" class="btn ghost" type="button" style="display:none" title="Mover este rascunho para outra org de que você faz parte (muda o id)" data-en-title="Move this draft to another org you belong to (changes the id)" data-en="Move…">Mover…</button>
               </div>
               <div id="repoHint" class="small" style="display:none;margin-top:.3rem;color:#ffd98a"></div>
             </div>
             <div class="field">
-              <label>Nome do problema (slug — minúsculas, sem espaço)</label>
-              <input id="prob" type="text" placeholder="ex: soma-a-b">
+              <label data-en="Problem name (slug — lowercase, no spaces)">Nome do problema (slug — minúsculas, sem espaço)</label>
+              <input id="prob" type="text" placeholder="ex: soma-a-b" data-en-ph="e.g. soma-a-b">
             </div>
           </div>
           <div class="grid2">
-            <div class="field"><label>Título</label><input id="ptitle" type="text"></div>
-            <div class="field"><label>Autor(es)</label><input id="pauthor" type="text"></div>
+            <div class="field"><label data-en="Title">Título</label><input id="ptitle" type="text"></div>
+            <div class="field"><label data-en="Author(s)">Autor(es)</label><input id="pauthor" type="text"></div>
           </div>
-          <div class="field"><label>Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp"></div>
+          <div class="field"><label data-en="Tags (comma)">Tags (vírgula)</label><input id="ptags" type="text" placeholder="grafos, dp" data-en-ph="graphs, dp"></div>
         </div>
 
         <div class="section">
           <div class="row" style="justify-content:space-between;align-items:center">
-            <h3 style="margin:0">Enunciado (Markdown)</h3>
+            <h3 style="margin:0" data-en="Statement (Markdown)">Enunciado (Markdown)</h3>
             <div class="row" style="gap:.4rem">
-              <button id="stmtToggle" class="btn ghost" type="button" title="Editar Descrição/Entrada/Saída/Observações em campos separados (ou voltar a um só)">✂ Separar em seções</button>
-              <button id="preview" class="btn ghost" type="button">👁 Pré-visualizar</button>
+              <button id="stmtToggle" class="btn ghost" type="button" title="Editar Descrição/Entrada/Saída/Observações em campos separados (ou voltar a um só)" data-en-title="Edit Description/Input/Output/Notes in separate fields (or back to one)">✂ Separar em seções</button>
+              <button id="preview" class="btn ghost" type="button" data-en="👁 Preview">👁 Pré-visualizar</button>
             </div>
           </div>
-          <p class="small muted">Descrição do problema + <code>## Entrada</code>, <code>## Saída</code>,
-            <code>## Observações</code>. O <b>título</b> vem do campo lá em cima (não escreva no texto). Os
-            <b>exemplos</b> vêm da lista abaixo (não os escreva aqui). <b>Imagens</b>: cole ou arraste no editor.</p>
+          <p class="small muted"><span data-en="Problem description +">Descrição do problema +</span> <code>## Entrada</code>, <code>## Saída</code>,
+            <code>## Observações</code><span data-en=". The">. O</span> <b data-en="title">título</b> <span data-en="comes from the field above (do not write it in the text). The">vem do campo lá em cima (não escreva no texto). Os</span>
+            <b data-en="examples">exemplos</b> <span data-en="come from the list below (do not write them here).">vêm da lista abaixo (não os escreva aqui).</span> <b data-en="Images">Imagens</b><span data-en=": paste or drag into the editor.">: cole ou arraste no editor.</span></p>
           <div id="enunMount" class="editor-mount"></div>
           <div id="enunModular" style="display:none">
-            <div class="field"><label>Descrição</label><div id="descMount" class="editor-mount"></div></div>
-            <div class="field"><label>Entrada (vira <code>## Entrada</code>)</label><div id="entMount" class="editor-mount sec"></div></div>
-            <div class="field"><label>Saída (vira <code>## Saída</code>)</label><div id="saiMount" class="editor-mount sec"></div></div>
-            <div class="field"><label>Observações (vira <code>## Observações</code>) — opcional</label><div id="obsMount" class="editor-mount sec"></div></div>
+            <div class="field"><label data-en="Description">Descrição</label><div id="descMount" class="editor-mount"></div></div>
+            <div class="field"><label><span data-en="Input (becomes">Entrada (vira</span> <code>## Entrada</code>)</label><div id="entMount" class="editor-mount sec"></div></div>
+            <div class="field"><label><span data-en="Output (becomes">Saída (vira</span> <code>## Saída</code>)</label><div id="saiMount" class="editor-mount sec"></div></div>
+            <div class="field"><label><span data-en="Notes (becomes">Observações (vira</span> <code>## Observações</code><span data-en=") — optional">) — opcional</span></label><div id="obsMount" class="editor-mount sec"></div></div>
           </div>
         </div>
       </section>
@@ -215,26 +215,26 @@
       <!-- ================= ABA: TESTES & PONTUAÇÃO ================= -->
       <section class="tabpane" data-pane="tests" hidden>
         <div class="section">
-          <h3>Exemplos (entrada / saída) — sempre visíveis no enunciado</h3>
+          <h3 data-en="Samples (input / output) — always visible in the statement">Exemplos (entrada / saída) — sempre visíveis no enunciado</h3>
           <div id="examples"></div>
-          <button id="addex" class="btn ghost" type="button">+ adicionar exemplo</button>
+          <button id="addex" class="btn ghost" type="button" data-en="+ add sample">+ adicionar exemplo</button>
         </div>
 
         <div class="section">
           <label class="row" style="gap:.4rem;align-items:center">
-            <input type="checkbox" id="scoreEnabled"> <b>Pontuação por grupos (subtasks)</b>
-            <span class="small muted">cada grupo de testes vale um peso; tudo-ou-nada por grupo (estilo OBI)</span>
+            <input type="checkbox" id="scoreEnabled"> <b data-en="Group scoring (subtasks)">Pontuação por grupos (subtasks)</b>
+            <span class="small muted" data-en="each test group has a weight; all-or-nothing per group (OBI style)">cada grupo de testes vale um peso; tudo-ou-nada por grupo (estilo OBI)</span>
           </label>
           <div id="scoreBox" style="display:none;margin-top:.5rem">
-            <p class="small muted">Defina os <b>grupos</b> e seus <b>pesos</b>. A soma é o <b>valor total do problema</b>
-              (pode ser 100, mais ou menos — você escolhe). Cada teste oculto abaixo escolhe seu grupo:
-              <i>auto</i> casa pelo <b>padrão</b> do nome (ex.: <code>g2_*</code>), ou fixe um grupo e a UI cuida do nome do arquivo.</p>
+            <p class="small muted"><span data-en="Define the">Defina os</span> <b data-en="groups">grupos</b> <span data-en="and their">e seus</span> <b data-en="weights">pesos</b><span data-en=". The sum is the">. A soma é o</span> <b data-en="problem's total value">valor total do problema</b>
+              <span data-en="(can be 100, more or less — you choose). Each hidden test below picks its group:">(pode ser 100, mais ou menos — você escolhe). Cada teste oculto abaixo escolhe seu grupo:</span>
+              <i>auto</i> <span data-en="matches by the">casa pelo</span> <b data-en="pattern">padrão</b> <span data-en="of the name (e.g.">do nome (ex.:</span> <code>g2_*</code><span data-en="), or pin a group and the UI handles the file name.">), ou fixe um grupo e a UI cuida do nome do arquivo.</span></p>
             <table class="scoregroups">
-              <thead><tr><th>Grupo</th><th>Peso (pontos)</th><th>Padrão de nome (glob)</th><th></th></tr></thead>
+              <thead><tr><th data-en="Group">Grupo</th><th data-en="Weight (points)">Peso (pontos)</th><th data-en="Name pattern (glob)">Padrão de nome (glob)</th><th></th></tr></thead>
               <tbody id="scoreGroups"></tbody>
             </table>
             <div class="row" style="gap:.6rem;align-items:center">
-              <button id="addGroup" class="btn ghost" type="button">+ grupo</button>
+              <button id="addGroup" class="btn ghost" type="button" data-en="+ group">+ grupo</button>
               <span id="scoreTotal" class="small"></span>
             </div>
           </div>
@@ -242,15 +242,15 @@
 
         <div class="section">
           <div class="row" style="justify-content:space-between;align-items:center">
-            <h3 style="margin:0">Testes ocultos (usados na correção)</h3>
-            <span class="small muted">não aparecem no enunciado</span>
+            <h3 style="margin:0" data-en="Hidden tests (used in grading)">Testes ocultos (usados na correção)</h3>
+            <span class="small muted" data-en="not shown in the statement">não aparecem no enunciado</span>
           </div>
           <div id="tests"></div>
           <div class="row" style="gap:.5rem;margin-top:.4rem">
-            <button id="addtest" class="btn ghost" type="button">+ adicionar teste</button>
-            <label class="btn ghost" style="cursor:pointer">⬆ enviar pares (entrada/saída)
+            <button id="addtest" class="btn ghost" type="button" data-en="+ add test">+ adicionar teste</button>
+            <label class="btn ghost" style="cursor:pointer"><span data-en="⬆ upload pairs (input/output)">⬆ enviar pares (entrada/saída)</span>
               <input id="testpair" type="file" multiple hidden></label>
-            <span class="small muted">arquivos <code>*.in</code>/<code>*.out</code> (ou <code>.txt</code>) emparelham pelo nome</span>
+            <span class="small muted"><span data-en="files">arquivos</span> <code>*.in</code>/<code>*.out</code> <span data-en="(or">(ou</span> <code>.txt</code><span data-en=") pair up by name">) emparelham pelo nome</span></span>
           </div>
         </div>
       </section>
@@ -258,29 +258,29 @@
       <!-- ================= ABA: SOLUÇÕES & CORREÇÃO ================= -->
       <section class="tabpane" data-pane="sols" hidden>
         <div class="section">
-          <h3>Soluções &amp; Correção</h3>
-          <p class="small muted">Cada categoria define o <b>resultado que a solução deve obter</b> no juiz.
+          <h3 data-en="Solutions &amp; Grading">Soluções &amp; Correção</h3>
+          <p class="small muted"><span data-en="Each category defines the">Cada categoria define o</span> <b data-en="result the solution must obtain">resultado que a solução deve obter</b> <span data-en="on the judge. Calibration and validation run these solutions and check that each behaves as expected — this ensures your tests are strong. Edit in the editor (with a language selector) or upload files. In the sub-tab">no juiz.
             A calibração e a validação rodam essas soluções e conferem se cada uma se comporta como o esperado
             — assim você garante que os testes estão fortes. Edite no editor (com seletor de linguagem) ou envie arquivos.
-            Na sub-aba <b>⚙ correção</b> você muda o <b>modo de correção</b> (checker, comparador, interativo…).</p>
+            Na sub-aba</span> <b data-en="⚙ grading">⚙ correção</b> <span data-en="you change the">você muda o</span> <b data-en="grading mode">modo de correção</b> <span data-en="(checker, comparator, interactive…).">(checker, comparador, interativo…).</span></p>
           <div id="solsWrap"></div>
           <!-- painel da CORREÇÃO ESPECIAL: vive FORA do #solsWrap (o renderSols o reconstrói e
                destruiria os editores); é um .solpanel data-cat="scr" — a subtab ⚙ e o flash da
                árvore do pacote o abrem pelo mesmo mecanismo das categorias de solução. -->
           <div id="scrPanel" class="solpanel" data-cat="scr" hidden>
             <p class="small muted" style="margin:.2rem 0 .4rem">
-              <b>Correção especial</b> (<code>scripts/</code> do pacote) — sobrepõe a correção padrão:
-              <code>compare.sh</code> (comparador), <code>&lt;lang&gt;/compile.sh</code> e
-              <code>&lt;lang&gt;/run.sh</code> por linguagem, checker testlib, problema interativo…
-              Comece por um <b>template</b> e ajuste. Mexer aqui muda o checksum do pacote ⇒ o juiz <b>recalibra</b>.
+              <b data-en="Special grading">Correção especial</b> (<code>scripts/</code> <span data-en="from the package) — overrides the default grading:">do pacote) — sobrepõe a correção padrão:</span>
+              <code>compare.sh</code> <span data-en="(comparator),">(comparador),</span> <code>&lt;lang&gt;/compile.sh</code> <span data-en="and">e</span>
+              <code>&lt;lang&gt;/run.sh</code> <span data-en="per language, testlib checker, interactive problem… Start from a">por linguagem, checker testlib, problema interativo…
+              Comece por um</span> <b>template</b> <span data-en="and adjust. Changing this alters the package checksum ⇒ the judge">e ajuste. Mexer aqui muda o checksum do pacote ⇒ o juiz</span> <b data-en="recalibrates">recalibra</b>.
             </p>
             <div class="row" style="gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">
-              <span class="small muted">Template:</span>
-              <select id="scrTplSel" class="small"><option value="">(escolha…)</option></select>
-              <button class="btn ghost" type="button" id="scrTplApply">Aplicar template</button>
+              <span class="small muted" data-en="Template:">Template:</span>
+              <select id="scrTplSel" class="small"><option value="" data-en="(choose…)">(escolha…)</option></select>
+              <button class="btn ghost" type="button" id="scrTplApply" data-en="Apply template">Aplicar template</button>
               <span style="flex:1"></span>
-              <button class="btn ghost" type="button" id="scrAdd">+ arquivo</button>
-              <button class="btn ghost" type="button" id="scrUpload">⬆ enviar arquivo</button>
+              <button class="btn ghost" type="button" id="scrAdd" data-en="+ file">+ arquivo</button>
+              <button class="btn ghost" type="button" id="scrUpload" data-en="⬆ upload file">⬆ enviar arquivo</button>
             </div>
             <div id="scrTplHint" class="small" style="display:none;margin:.2rem 0 .4rem;padding:.4rem .6rem;background:#fff7ec;border:1px solid #f3c08e;border-radius:6px"></div>
             <div id="scrRows"></div>
@@ -291,9 +291,9 @@
       <!-- ================= ABA: RESOLUÇÃO (editorial — só setters) ================= -->
       <section class="tabpane" data-pane="resol" hidden>
         <div class="section">
-          <h3>Resolução (editorial)</h3>
-          <p class="small muted">Explicação da resolução do problema, em Markdown. <b>Só para setters</b> — não
-            aparece no enunciado do aluno. <b>Opcional</b>: não é exigida para liberar o problema.</p>
+          <h3 data-en="Editorial">Resolução (editorial)</h3>
+          <p class="small muted"><span data-en="Explanation of the problem's solution, in Markdown.">Explicação da resolução do problema, em Markdown.</span> <b data-en="Setters only">Só para setters</b> <span data-en="— does not appear in the student's statement.">— não
+            aparece no enunciado do aluno.</span> <b data-en="Optional">Opcional</b><span data-en=": not required to release the problem.">: não é exigida para liberar o problema.</span></p>
           <div id="editMount" class="editor-mount"></div>
         </div>
       </section>
@@ -301,65 +301,65 @@
       <!-- ================= ABA: LIMITES ================= -->
       <section class="tabpane" data-pane="limits" hidden>
         <div class="section">
-          <h3>Limites (conf)</h3>
-          <p class="small muted" style="margin:.2rem 0 .6rem">O <b>tempo-limite</b> é calibrado pelo juiz a partir
-            das soluções <b>good</b> — aqui você ajusta a calibração, memória/stack e o comportamento da execução.</p>
+          <h3 data-en="Limits (conf)">Limites (conf)</h3>
+          <p class="small muted" style="margin:.2rem 0 .6rem"><span data-en="The">O</span> <b data-en="time limit">tempo-limite</b> <span data-en="is calibrated by the judge from the">é calibrado pelo juiz a partir
+            das soluções</span> <b>good</b> <span data-en="— here you adjust calibration, memory/stack, and execution behavior.">— aqui você ajusta a calibração, memória/stack e o comportamento da execução.</span></p>
 
           <div class="lcard">
-            <h4>⏱ Tempo</h4>
+            <h4 data-en="⏱ Time">⏱ Tempo</h4>
             <div class="limits-grid">
-              <div class="lfield"><label>Fator de calibração <code>TLMOD[calibrafactor]</code></label>
+              <div class="lfield"><label><span data-en="Calibration factor">Fator de calibração</span> <code>TLMOD[calibrafactor]</code></label>
                 <span class="lrow"><input id="cf_calibrafactor" type="text" placeholder="1.35"><span class="unit">×</span></span>
-                <span class="small muted">TL = fator × pior tempo das soluções good</span></div>
-              <div class="lfield"><label>Teto da good na calibração <code>CALIBRATIONTL</code></label>
+                <span class="small muted" data-en="TL = factor × worst time of the good solutions">TL = fator × pior tempo das soluções good</span></div>
+              <div class="lfield"><label><span data-en="good ceiling in calibration">Teto da good na calibração</span> <code>CALIBRATIONTL</code></label>
                 <span class="lrow"><input id="cf_calibrationtl" type="text" placeholder="5"><span class="unit">s</span></span>
-                <span class="small muted">good acima disso reprova a calibração</span></div>
+                <span class="small muted" data-en="good above this fails calibration">good acima disso reprova a calibração</span></div>
             </div>
           </div>
 
           <div class="lcard">
-            <h4>🧠 Memória &amp; stack</h4>
+            <h4 data-en="🧠 Memory &amp; stack">🧠 Memória &amp; stack</h4>
             <div class="limits-grid">
-              <div class="lfield"><label>Memória <code>MEMLIMITMB</code></label>
-                <span class="lrow"><input id="cf_memlimit" type="text" placeholder="sem limite"><span class="unit">MB</span></span>
-                <span class="small muted">RSS medido; estourar → <b>MLE</b>. A JVM dimensiona o heap (<code>-Xmx</code>) por este valor</span></div>
+              <div class="lfield"><label><span data-en="Memory">Memória</span> <code>MEMLIMITMB</code></label>
+                <span class="lrow"><input id="cf_memlimit" type="text" placeholder="sem limite" data-en-ph="no limit"><span class="unit">MB</span></span>
+                <span class="small muted"><span data-en="measured RSS; exceeding →">RSS medido; estourar →</span> <b>MLE</b><span data-en=". The JVM sizes the heap (">. A JVM dimensiona o heap (</span><code>-Xmx</code><span data-en=") by this value">) por este valor</span></span></div>
               <div class="lfield"><label>Stack <code>STACKLIMITMB</code></label>
-                <span class="lrow"><input id="cf_stack" type="text" placeholder="128 (padrão)"><span class="unit">MB</span></span>
-                <span class="small muted">vale p/ todas as linguagens (a JVM espelha em <code>-Xss</code>)</span></div>
-              <div class="lfield"><label>Tamanho de arquivo <code>ULIMITS[-f]</code></label>
-                <span class="lrow"><input id="cf_ulimit_f" type="text" placeholder="(opcional)"><span class="unit">KB</span></span>
-                <span class="small muted">teto de escrita da solução (saída gigante = corte)</span></div>
+                <span class="lrow"><input id="cf_stack" type="text" placeholder="128 (padrão)" data-en-ph="128 (default)"><span class="unit">MB</span></span>
+                <span class="small muted"><span data-en="applies to all languages (the JVM mirrors it in">vale p/ todas as linguagens (a JVM espelha em</span> <code>-Xss</code>)</span></div>
+              <div class="lfield"><label><span data-en="File size">Tamanho de arquivo</span> <code>ULIMITS[-f]</code></label>
+                <span class="lrow"><input id="cf_ulimit_f" type="text" placeholder="(opcional)" data-en-ph="(optional)"><span class="unit">KB</span></span>
+                <span class="small muted" data-en="solution write ceiling (huge output = cut)">teto de escrita da solução (saída gigante = corte)</span></div>
             </div>
           </div>
 
           <div class="lcard">
-            <h4>⚙ Execução</h4>
+            <h4 data-en="⚙ Execution">⚙ Execução</h4>
             <div class="limits-grid">
-              <div class="lfield"><label>Processos <code>ULIMITS[-u]</code></label>
+              <div class="lfield"><label><span data-en="Processes">Processos</span> <code>ULIMITS[-u]</code></label>
                 <span class="lrow"><input id="cf_ulimit_u" type="text" placeholder="10000"><span class="unit">proc</span></span>
-                <span class="small muted">suba p/ problemas interativos (árbitro + jogador)</span></div>
-              <div class="lfield"><label>Testes em paralelo <code>MAXPARALLELTESTS</code></label>
-                <span class="lrow"><input id="cf_maxparallel" type="text" placeholder="(auto)"><span class="unit">máx</span></span>
-                <span class="small muted">teto do paralelismo de testes no juiz</span></div>
+                <span class="small muted" data-en="raise for interactive problems (referee + player)">suba p/ problemas interativos (árbitro + jogador)</span></div>
+              <div class="lfield"><label><span data-en="Parallel tests">Testes em paralelo</span> <code>MAXPARALLELTESTS</code></label>
+                <span class="lrow"><input id="cf_maxparallel" type="text" placeholder="(auto)"><span class="unit" data-en="max">máx</span></span>
+                <span class="small muted" data-en="ceiling on test parallelism at the judge">teto do paralelismo de testes no juiz</span></div>
             </div>
             <div class="ltoggles">
-              <label><input type="checkbox" id="cf_allowparallel"> rodar testes em paralelo <code>ALLOWPARALLELTEST</code></label>
-              <label><input type="checkbox" id="cf_tlererun"> reexecutar TLE isolado <code>TLERERUN</code></label>
-              <label><input type="checkbox" id="cf_allowtle"> aceitar TLE da good na calibração <code>ALLOWTLEDURINGCALIBRATION</code></label>
+              <label><input type="checkbox" id="cf_allowparallel"> <span data-en="run tests in parallel">rodar testes em paralelo</span> <code>ALLOWPARALLELTEST</code></label>
+              <label><input type="checkbox" id="cf_tlererun"> <span data-en="re-run isolated TLE">reexecutar TLE isolado</span> <code>TLERERUN</code></label>
+              <label><input type="checkbox" id="cf_allowtle"> <span data-en="accept good's TLE during calibration">aceitar TLE da good na calibração</span> <code>ALLOWTLEDURINGCALIBRATION</code></label>
             </div>
           </div>
 
           <div class="lcard">
-            <h4>🛑 Parar no primeiro erro <span class="small muted" style="font-weight:normal">(STOPWHEN — testes seguintes não rodam)</span></h4>
+            <h4><span data-en="🛑 Stop at first error">🛑 Parar no primeiro erro</span> <span class="small muted" style="font-weight:normal" data-en="(STOPWHEN — following tests don't run)">(STOPWHEN — testes seguintes não rodam)</span></h4>
             <div class="ltoggles">
-              <label><input type="checkbox" id="cf_stopwa"> parar no primeiro <b>WA</b></label>
-              <label><input type="checkbox" id="cf_stoptle"> parar no primeiro <b>TLE</b></label>
-              <label><input type="checkbox" id="cf_stopre"> parar no primeiro <b>RE</b></label>
+              <label><input type="checkbox" id="cf_stopwa"> <span data-en="stop at first">parar no primeiro</span> <b>WA</b></label>
+              <label><input type="checkbox" id="cf_stoptle"> <span data-en="stop at first">parar no primeiro</span> <b>TLE</b></label>
+              <label><input type="checkbox" id="cf_stopre"> <span data-en="stop at first">parar no primeiro</span> <b>RE</b></label>
             </div>
           </div>
 
           <details class="lcard" style="margin-top:.6rem">
-            <summary class="small">🔧 Avançado — conf bruto (multiplicadores/drift por linguagem: <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…)</summary>
+            <summary class="small"><span data-en="🔧 Advanced — raw conf (multipliers/drift per language:">🔧 Avançado — conf bruto (multiplicadores/drift por linguagem:</span> <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…)</summary>
             <textarea id="confRaw" class="big" style="min-height:9rem;margin-top:.4rem"></textarea>
           </details>
         </div>
@@ -369,11 +369,11 @@
       <section class="tabpane" data-pane="pub" hidden>
         <!-- 1) Publicação (ciclo de vida: validar/calibrar → tornar público) -->
         <div class="section">
-          <h3>Publicação</h3>
+          <h3 data-en="Publishing">Publicação</h3>
           <div class="row" style="gap:.6rem;align-items:center;flex-wrap:wrap">
-            <span class="small">Visibilidade:</span><span id="pubState" class="pill mut">—</span>
+            <span class="small" data-en="Visibility:">Visibilidade:</span><span id="pubState" class="pill mut">—</span>
             <button id="pubToggle" class="btn ghost" type="button">tornar público</button>
-            <span class="small muted">público = entra no <b>treino livre</b> (visível a todos). Provas: deixe <b>privado</b> até a prova passar.</span>
+            <span class="small muted"><span data-en="public = enters the">público = entra no</span> <b data-en="free practice">treino livre</b> <span data-en="(visible to all). Exams: keep it">(visível a todos). Provas: deixe</span> <b data-en="private">privado</b> <span data-en="until the exam is over.">até a prova passar.</span></span>
           </div>
           <div id="pubOrgHint" class="small" style="display:none;margin-top:.4rem;color:#ffd98a"></div>
         </div>
@@ -382,66 +382,66 @@
 
         <!-- 2) Coleções (agrupamento — rótulos m:n; NÃO dão acesso) -->
         <div class="section">
-          <h3>Coleções (agrupamento)</h3>
-          <p class="small muted">Rótulos de agrupamento — um problema pode estar em <b>várias</b>; <b>não</b> dão
-            acesso (acesso é da <b>ORG</b>). O aluno navega por coleção no treino livre.</p>
+          <h3 data-en="Collections (grouping)">Coleções (agrupamento)</h3>
+          <p class="small muted"><span data-en="Grouping labels — a problem can be in">Rótulos de agrupamento — um problema pode estar em</span> <b data-en="several">várias</b>; <b data-en="do not">não</b> <span data-en="grant access (access comes from the">dão
+            acesso (acesso é da</span> <b>ORG</b><span data-en="). Students browse by collection in free practice.">). O aluno navega por coleção no treino livre.</span></p>
           <div class="field">
-            <label>Coleções deste problema (vírgula)</label>
-            <input id="pcolls" type="text" placeholder="ex: OBI 2024, maratona-2026">
+            <label data-en="This problem's collections (comma)">Coleções deste problema (vírgula)</label>
+            <input id="pcolls" type="text" placeholder="ex: OBI 2024, maratona-2026" data-en-ph="e.g. OBI 2024, maratona-2026">
           </div>
           <div class="row" style="gap:.4rem;align-items:center;flex-wrap:wrap;margin:.2rem 0 .4rem">
-            <input id="collFilter" type="text" placeholder="🔎 filtrar coleção (nome, título, dono)…" style="max-width:18rem">
-            <button id="collFilterMine"   class="filttog" type="button" title="Só coleções que você criou">minhas</button>
-            <button id="collFilterManage" class="filttog" type="button" title="Só as que você gerencia">gerencio</button>
-            <button id="collFilterCourse" class="filttog" type="button" title="Só cursos/diretórios (repos)">cursos</button>
+            <input id="collFilter" type="text" placeholder="🔎 filtrar coleção (nome, título, dono)…" data-en-ph="🔎 filter collection (name, title, owner)…" style="max-width:18rem">
+            <button id="collFilterMine"   class="filttog" type="button" title="Só coleções que você criou" data-en-title="Only collections you created" data-en="mine">minhas</button>
+            <button id="collFilterManage" class="filttog" type="button" title="Só as que você gerencia" data-en-title="Only those you manage" data-en="I manage">gerencio</button>
+            <button id="collFilterCourse" class="filttog" type="button" title="Só cursos/diretórios (repos)" data-en-title="Only courses/directories (repos)" data-en="courses">cursos</button>
           </div>
           <div id="myColls" class="row" style="flex-wrap:wrap;gap:.4rem"></div>
           <div class="row" style="gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
-            <input id="newCollName" type="text" placeholder="nova coleção (pode ter espaços, ex: OBI 2024)" style="flex:1;min-width:16rem">
-            <button id="newCollBtn" class="btn ghost" type="button">criar coleção</button>
+            <input id="newCollName" type="text" placeholder="nova coleção (pode ter espaços, ex: OBI 2024)" data-en-ph="new collection (can have spaces, e.g. OBI 2024)" style="flex:1;min-width:16rem">
+            <button id="newCollBtn" class="btn ghost" type="button" data-en="create collection">criar coleção</button>
           </div>
           <div id="collManage" style="margin-top:.5rem"></div>
         </div>
 
         <!-- 2b) Linguagens de submissão (restrição por-problema; nenhuma marcada = todas) -->
         <div class="section">
-          <h3>Linguagens de submissão</h3>
-          <p class="small muted">Marque as linguagens que o aluno pode usar neste problema.
-            <b>Nenhuma marcada = todas</b> as linguagens permitidas (comportamento padrão). Use isto
-            p/ problemas que só aceitam uma linguagem específica (ex.: <b>PDDL</b>).</p>
+          <h3 data-en="Submission languages">Linguagens de submissão</h3>
+          <p class="small muted"><span data-en="Check the languages the student may use in this problem.">Marque as linguagens que o aluno pode usar neste problema.</span>
+            <b data-en="None checked = all">Nenhuma marcada = todas</b> <span data-en="allowed languages (default behavior). Use this for problems that only accept one specific language (e.g.">as linguagens permitidas (comportamento padrão). Use isto
+            p/ problemas que só aceitam uma linguagem específica (ex.:</span> <b>PDDL</b>).</p>
           <div id="plangs"></div>
         </div>
 
         <!-- 3) Membros da org (acesso de edição — quem faz parte da org edita todos os seus problemas) -->
         <div class="section" id="shareBox">
-          <h3>Membros da org</h3>
-          <label class="small muted">Adicionar membro (login do MOJ) — passa a editar <b>todos</b> os problemas da org</label>
+          <h3 data-en="Org members">Membros da org</h3>
+          <label class="small muted"><span data-en="Add member (MOJ login) — will edit">Adicionar membro (login do MOJ) — passa a editar</span> <b data-en="all">todos</b> <span data-en="of the org's problems">os problemas da org</span></label>
           <div class="row" style="margin-top:.3rem"><input id="shareLogin" type="text" placeholder="login" style="max-width:18rem">
-            <button id="shareAdd" class="btn ghost" type="button">adicionar</button></div>
+            <button id="shareAdd" class="btn ghost" type="button" data-en="add">adicionar</button></div>
           <div id="shareList" class="small muted" style="margin-top:.3rem"></div>
         </div>
 
         <!-- 4) Avançado: calibração direcionada + pacote bruto -->
         <div class="section">
-          <h3>Avançado</h3>
+          <h3 data-en="Advanced">Avançado</h3>
 
-          <h4 style="margin:.6rem 0 .2rem">Calibração direcionada</h4>
-          <p class="small muted">Force a calibração num conjunto de juízes para ver o comportamento (tempo-limite e
-            reports) em <b>processadores diferentes</b>. Os marcados (online) recalibram em paralelo; o resultado
-            aparece em <b>Validação &amp; calibração</b>, por juiz.</p>
+          <h4 style="margin:.6rem 0 .2rem" data-en="Targeted calibration">Calibração direcionada</h4>
+          <p class="small muted"><span data-en="Force calibration on a set of judges to see the behavior (time limit and reports) on">Force a calibração num conjunto de juízes para ver o comportamento (tempo-limite e
+            reports) em</span> <b data-en="different processors">processadores diferentes</b><span data-en=". The checked (online) ones recalibrate in parallel; the result appears in">. Os marcados (online) recalibram em paralelo; o resultado
+            aparece em</span> <b data-en="Validation &amp; calibration">Validação &amp; calibração</b><span data-en=", per judge.">, por juiz.</span></p>
           <div id="judgePick"></div>
           <div class="row" style="gap:.5rem;flex-wrap:wrap;margin-top:.5rem">
-            <button id="calibSel" class="btn ghost" type="button" title="Calibrar nos juízes marcados">Calibrar selecionados</button>
-            <button id="calibPerCpu" class="btn ghost" type="button" title="Um juiz de cada modelo de processador">1 por processador</button>
-            <button id="calibAll" class="btn ghost" type="button" title="Todos os juízes online">Calibrar em todos</button>
+            <button id="calibSel" class="btn ghost" type="button" title="Calibrar nos juízes marcados" data-en-title="Calibrate on the checked judges" data-en="Calibrate selected">Calibrar selecionados</button>
+            <button id="calibPerCpu" class="btn ghost" type="button" title="Um juiz de cada modelo de processador" data-en-title="One judge of each processor model" data-en="1 per processor">1 por processador</button>
+            <button id="calibAll" class="btn ghost" type="button" title="Todos os juízes online" data-en-title="All online judges" data-en="Calibrate on all">Calibrar em todos</button>
           </div>
 
-          <h4 style="margin:1rem 0 .2rem">Pacote do problema</h4>
+          <h4 style="margin:1rem 0 .2rem" data-en="Problem package">Pacote do problema</h4>
           <div id="pkgInfo" class="small muted">—</div>
           <div id="pkgTree" class="pkgtree"></div>
           <div class="row" style="gap:.5rem;margin-top:.4rem">
-            <button id="download" class="btn ghost" type="button">⬇ Baixar .tar.gz</button>
-            <label class="btn ghost" style="cursor:pointer">⬆ Enviar pacote (substitui tudo)
+            <button id="download" class="btn ghost" type="button" data-en="⬇ Download .tar.gz">⬇ Baixar .tar.gz</button>
+            <label class="btn ghost" style="cursor:pointer"><span data-en="⬆ Upload package (replaces everything)">⬆ Enviar pacote (substitui tudo)</span>
               <input id="uploadTar" type="file" accept=".tar,.gz,.tgz,.tar.gz,.bz2,.tbz2,.tar.bz2,.zst,.tar.zst,.zip,application/gzip,application/x-tar,application/zip" hidden></label>
             <span class="small muted">.tar · .tar.gz · .tar.bz2 · .tar.zst · .zip</span>
           </div>
@@ -450,11 +450,11 @@
 
       <!-- barra de ações (fixa, visível em todas as abas) -->
       <div class="bar2">
-        <button id="save" class="btn" title="Grava o problema na org escolhida. Marque “tornar público” na aba Publicação para entrar no treino livre.">Salvar</button>
-        <button id="calibrate" class="btn ghost" title="Mede o tempo-limite: um juiz roda as soluções good e calcula o TL por linguagem. O resultado aparece em “Validação & calibração”.">Calibrar</button>
-        <button id="publish" class="btn ghost" title="Roda o quality gate (o enunciado compila? exemplos visíveis? testes pareados? a solução good é aceita?), gera o enunciado/índice e calibra — deixa o problema pronto. Tornar PÚBLICO no treino livre é a opção “tornar público” + Salvar.">Validar</button>
+        <button id="save" class="btn" title="Grava o problema na org escolhida. Marque “tornar público” na aba Publicação para entrar no treino livre." data-en-title="Saves the problem to the chosen org. Check “make public” in the Publishing tab to enter free practice." data-en="Save">Salvar</button>
+        <button id="calibrate" class="btn ghost" title="Mede o tempo-limite: um juiz roda as soluções good e calcula o TL por linguagem. O resultado aparece em “Validação & calibração”." data-en-title="Measures the time limit: a judge runs the good solutions and computes the TL per language. The result appears in “Validation & calibration”." data-en="Calibrate">Calibrar</button>
+        <button id="publish" class="btn ghost" title="Roda o quality gate (o enunciado compila? exemplos visíveis? testes pareados? a solução good é aceita?), gera o enunciado/índice e calibra — deixa o problema pronto. Tornar PÚBLICO no treino livre é a opção “tornar público” + Salvar." data-en-title="Runs the quality gate (does the statement compile? samples visible? tests paired? is the good solution accepted?), generates the statement/index and calibrates — makes the problem ready. Making it PUBLIC in free practice is the “make public” option + Save." data-en="Validate">Validar</button>
         <span class="spacer"></span>
-        <button id="delprob" class="btn ghost" type="button" style="display:none;color:#e66;border-color:#a44" title="Remove o problema do treino e do repositório do problema (irreversível; pede o id para confirmar).">🗑 Remover problema</button>
+        <button id="delprob" class="btn ghost" type="button" style="display:none;color:#e66;border-color:#a44" title="Remove o problema do treino e do repositório do problema (irreversível; pede o id para confirmar)." data-en-title="Removes the problem from practice and from the problem repository (irreversible; asks for the id to confirm)." data-en="🗑 Remove problem">🗑 Remover problema</button>
         <span id="msg" class="small"></span>
       </div>
     </div>
@@ -462,11 +462,12 @@
 
   <div id="previewModal" class="modal" style="display:none">
     <div class="box">
-      <header><b>Pré-visualização do enunciado</b><button id="previewClose" class="btn ghost" type="button">fechar ✕</button></header>
+      <header><b data-en="Statement preview">Pré-visualização do enunciado</b><button id="previewClose" class="btn ghost" type="button" data-en="close ✕">fechar ✕</button></header>
       <div id="previewBody" class="statement-content" style="overflow:auto;max-height:72vh;padding:.4rem .2rem"></div>
     </div>
   </div>
 
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="/shared/site-header.js"></script>
   <script type="module" src="/problemas/editar.js"></script>
 </body>

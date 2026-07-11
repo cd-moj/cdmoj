@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Sign up — Free Training MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,28 +23,29 @@
 <body>
   <header class="topbar"></header>
   <div class="card">
-    <h1>Criar conta no Treino Livre</h1>
-    <p class="hint">O cadastro é confirmado pelo Telegram (evita contas repetidas). Você precisa de uma conta no Telegram.</p>
+    <h1 data-en="Create a Free Training account">Criar conta no Treino Livre</h1>
+    <p class="hint" data-en="Sign-up is confirmed via Telegram (prevents duplicate accounts). You need a Telegram account.">O cadastro é confirmado pelo Telegram (evita contas repetidas). Você precisa de uma conta no Telegram.</p>
 
     <form id="form">
-      <label for="fullname">Nome completo</label>
-      <input id="fullname" required autocomplete="name" placeholder="Seu nome">
-      <label for="login">Login desejado <span class="hint">(opcional — deixamos o seu @ do Telegram se vazio)</span></label>
-      <input id="login" autocomplete="username" placeholder="ex.: joaosilva" pattern="[A-Za-z0-9._-]{2,32}">
-      <label for="university">Universidade <span class="hint">(opcional)</span></label>
-      <input id="university" placeholder="ex.: UnB">
-      <button class="btn" id="submit" type="submit">Continuar no Telegram →</button>
+      <label for="fullname" data-en="Full name">Nome completo</label>
+      <input id="fullname" required autocomplete="name" placeholder="Seu nome" data-en-ph="Your name">
+      <label for="login"><span data-en="Desired login ">Login desejado </span><span class="hint" data-en="(optional — we keep your Telegram @ if empty)">(opcional — deixamos o seu @ do Telegram se vazio)</span></label>
+      <input id="login" autocomplete="username" placeholder="ex.: joaosilva" data-en-ph="e.g. joaosilva" pattern="[A-Za-z0-9._-]{2,32}">
+      <label for="university"><span data-en="University ">Universidade </span><span class="hint" data-en="(optional)">(opcional)</span></label>
+      <input id="university" placeholder="ex.: UnB" data-en-ph="e.g. UnB">
+      <button class="btn" id="submit" type="submit" data-en="Continue on Telegram →">Continuar no Telegram →</button>
     </form>
 
     <div id="step2" class="hidden">
-      <div class="msg info">Falta 1 passo: abra o Telegram e confirme para receber seu login e senha por mensagem privada do bot.</div>
-      <a id="deeplink" class="tg" target="_blank" rel="noopener">Abrir o mojinho no Telegram</a>
-      <p class="hint" id="polling">Aguardando a confirmação no Telegram…</p>
+      <div class="msg info" data-en="One step left: open Telegram and confirm to receive your login and password via the bot's private message.">Falta 1 passo: abra o Telegram e confirme para receber seu login e senha por mensagem privada do bot.</div>
+      <a id="deeplink" class="tg" target="_blank" rel="noopener" data-en="Open mojinho on Telegram">Abrir o mojinho no Telegram</a>
+      <p class="hint" id="polling" data-en="Waiting for Telegram confirmation…">Aguardando a confirmação no Telegram…</p>
     </div>
 
     <div id="result" class="hidden"></div>
   </div>
 
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="./cadastro.js"></script>
 </body>
 </html>

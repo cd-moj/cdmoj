@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" data-en-doctitle="Free Training — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,31 +24,32 @@
 
   <main class="container">
     <div class="section">
-      <h2>Treino Livre — Problemas</h2>
+      <h2 data-en="Free Training — Problems">Treino Livre — Problemas</h2>
       <div class="row">
-        <input id="q" placeholder="Buscar por título…" style="flex:1; min-width:220px">
-        <input id="qcol" placeholder="Filtrar por coleção (ex: obi2024)">
-        <input id="qtag" placeholder="Filtrar por tag (ex: grafos)">
+        <input id="q" placeholder="Buscar por título…" data-en-ph="Search by title…" style="flex:1; min-width:220px">
+        <input id="qcol" placeholder="Filtrar por coleção (ex: obi2024)" data-en-ph="Filter by collection (e.g. obi2024)">
+        <input id="qtag" placeholder="Filtrar por tag (ex: grafos)" data-en-ph="Filter by tag (e.g. graphs)">
         <select id="filter">
-          <option value="all">Todos</option>
-          <option value="solved">Resolvidos</option>
-          <option value="attempted">Tentados não resolvidos</option>
+          <option value="all" data-en="All">Todos</option>
+          <option value="solved" data-en="Solved">Resolvidos</option>
+          <option value="attempted" data-en="Attempted, unsolved">Tentados não resolvidos</option>
         </select>
-        <button id="toggleTags" class="btn ghost">Mostrar tags</button>
+        <button id="toggleTags" class="btn ghost" data-en="Show tags">Mostrar tags</button>
       </div>
       <div id="count" class="small muted" style="margin-top:.5rem"></div>
       <details id="collIndexWrap" style="margin-top:.5rem">
-        <summary class="small" style="cursor:pointer">Navegar por coleção ▾</summary>
+        <summary class="small" style="cursor:pointer" data-en="Browse by collection ▾">Navegar por coleção ▾</summary>
         <div id="collIndex" class="small" style="margin-top:.4rem;line-height:2"></div>
       </details>
     </div>
 
     <div class="section">
       <div id="pager" class="row" style="margin-bottom:.5rem"></div>
-      <div id="list"><span class="muted">carregando…</span></div>
+      <div id="list"><span class="muted" data-en="loading…">carregando…</span></div>
     </div>
   </main>
 
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="/shared/site-header.js"></script>
   <script type="module" src="./treino.js"></script>
 </body>

@@ -33,68 +33,69 @@
         <div class="hero-slim-text">
           <h1>MOJ <small>· Melhor Online Judge</small></h1>
           <div class="cta">
-            <a class="btn" href="/treino/">Treino Livre →</a>
-            <a class="btn ghost gp-cta hidden" href="/problemas/">Gestão de Problemas →</a>
-            <a class="btn ghost" href="/docs/" target="_blank">Documentação</a>
+            <a class="btn" href="/treino/" data-en="Free Training →">Treino Livre →</a>
+            <a class="btn ghost gp-cta hidden" href="/problemas/" data-en="Problem Management →">Gestão de Problemas →</a>
+            <a class="btn ghost" href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
             <a class="btn ghost" href="/api/">API</a>
           </div>
         </div>
       </div>
-      <aside class="featured-news" id="featuredNews"><div class="muted small">carregando notícias…</div></aside>
+      <aside class="featured-news" id="featuredNews"><div class="muted small" data-en="loading news…">carregando notícias…</div></aside>
     </section>
 
     <section id="problemas" class="section hidden">
-      <h2>🗂️ Gestão de Problemas</h2>
-      <p class="muted">Crie, edite, compartilhe e publique problemas — <b>só com seu login do MOJ</b>,
-        sem git e sem chave. <a href="/problemas/">Abrir a gestão de problemas →</a></p>
+      <h2 data-en="🗂️ Problem Management">🗂️ Gestão de Problemas</h2>
+      <p class="muted"><span data-en="Create, edit, share and publish problems — ">Crie, edite, compartilhe e publique problemas — </span><b data-en="only with your MOJ login">só com seu login do MOJ</b><span data-en=", no git and no key. ">,
+        sem git e sem chave. </span><a href="/problemas/" data-en="Open problem management →">Abrir a gestão de problemas →</a></p>
       <div class="cta">
-        <a class="btn ghost" href="/problemas/">Meus problemas · diretórios · coleções</a>
-        <a class="btn ghost" href="/problemas/editar.html?novo=1">+ Novo problema</a>
+        <a class="btn ghost" href="/problemas/" data-en="My problems · directories · collections">Meus problemas · diretórios · coleções</a>
+        <a class="btn ghost" href="/problemas/editar.html?novo=1" data-en="+ New problem">+ Novo problema</a>
       </div>
     </section>
 
     <section id="treino" class="section">
-      <h2>🏋️ Treino Livre</h2>
-      <p class="muted">Pratique com centenas de problemas. <a href="/treino/">Procurar problemas →</a></p>
+      <h2 data-en="🏋️ Free Training">🏋️ Treino Livre</h2>
+      <p class="muted"><span data-en="Practice with hundreds of problems. ">Pratique com centenas de problemas. </span><a href="/treino/" data-en="Search problems →">Procurar problemas →</a></p>
       <div class="tcards">
-        <div class="subcard"><h3>🏆 Top 10 — quem mais resolve</h3>
-          <div id="top10" class="rank-list"><span class="muted small">carregando…</span></div></div>
+        <div class="subcard"><h3 data-en="🏆 Top 10 — who solves the most">🏆 Top 10 — quem mais resolve</h3>
+          <div id="top10" class="rank-list"><span class="muted small" data-en="loading…">carregando…</span></div></div>
         <div class="tcol">
-          <div class="subcard"><h3>🔥 Mais resolvidos · semana passada</h3>
-            <div id="weekprev" class="rank-list"><span class="muted small">carregando…</span></div></div>
-          <div class="subcard subcard-sm"><h3>⌨ Editores · semana passada</h3>
-            <div id="editorweek" class="rank-list"><span class="muted small">carregando…</span></div>
-            <a class="card-foot-link" href="/treino/editores/">📊 Estatísticas de editores →</a></div>
+          <div class="subcard"><h3 data-en="🔥 Most solved · last week">🔥 Mais resolvidos · semana passada</h3>
+            <div id="weekprev" class="rank-list"><span class="muted small" data-en="loading…">carregando…</span></div></div>
+          <div class="subcard subcard-sm"><h3 data-en="⌨ Editors · last week">⌨ Editores · semana passada</h3>
+            <div id="editorweek" class="rank-list"><span class="muted small" data-en="loading…">carregando…</span></div>
+            <a class="card-foot-link" href="/treino/editores/" data-en="📊 Editor statistics →">📊 Estatísticas de editores →</a></div>
         </div>
-        <div class="subcard"><h3>✅ Resolvidos recentemente</h3>
-          <div id="recent" class="feed"><span class="muted small">carregando…</span></div></div>
+        <div class="subcard"><h3 data-en="✅ Recently solved">✅ Resolvidos recentemente</h3>
+          <div id="recent" class="feed"><span class="muted small" data-en="loading…">carregando…</span></div></div>
       </div>
     </section>
 
     <section id="contests" class="section">
       <h2>🏆 Contests</h2>
-      <input id="cfilter" placeholder="🔎 Filtrar contests por nome…" style="width:100%; margin-bottom:.9rem">
+      <input id="cfilter" placeholder="🔎 Filtrar contests por nome…" data-en-ph="🔎 Filter contests by name…" style="width:100%; margin-bottom:.9rem">
       <div class="contest-group">
-        <div class="gh"><span>Abertos agora</span><span class="count" id="n-open">0</span></div>
+        <div class="gh"><span data-en="Open now">Abertos agora</span><span class="count" id="n-open">0</span></div>
         <div id="c-open"></div>
       </div>
       <div class="contest-group">
-        <div class="gh"><span>Por vir</span><span class="count" id="n-upcoming">0</span></div>
+        <div class="gh"><span data-en="Upcoming">Por vir</span><span class="count" id="n-upcoming">0</span></div>
         <div id="c-upcoming"></div>
       </div>
       <div class="contest-group">
-        <div class="gh"><span>Encerrados</span><span class="count" id="n-closed">0</span></div>
+        <div class="gh"><span data-en="Ended">Encerrados</span><span class="count" id="n-closed">0</span></div>
         <div id="c-closed"></div>
         <div id="c-pager" class="row" style="margin-top:.7rem"></div>
       </div>
     </section>
 
     <section id="news" class="section">
-      <h2>📰 Notícias</h2>
+      <h2 data-en="📰 News">📰 Notícias</h2>
       <div id="newslist">—</div>
     </section>
   </main>
 
+  <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="/shared/site-header.js"></script>
   <script type="module" src="/index/home.js"></script>
 </body>
