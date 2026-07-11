@@ -1,13 +1,17 @@
 # GET /index/open_training
 # Do history do treino (users/*/history) monta:
 #   top_users (top10 por nº de problemas resolvidos, Accepted distinto por problema),
-#   recent_solved (últimos 5 Accepted), most_solved_week (mais resolvidos desde domingo).
-# -> {success:true, top_users, recent_solved, most_solved_week, search_problems_url}
+#   recent_solved (últimos 5 Accepted), most_solved_week (mais resolvidos desde domingo),
+#   most_solved_prev_week (resolvedores distintos por problema na semana passada) e
+#   most_used_editor_prev_week (editor mais usado nas aceitas da semana passada).
+# -> {success:true, top_users, recent_solved, most_solved_week, most_solved_prev_week,
+#     most_used_editor_prev_week, search_problems_url}
 emit_json 200 OK
 set +o noglob
 
 TREINO="$CONTESTSDIR/treino"
-QDIR="$TREINO/var/questoes"
+JDIR="$TREINO/var/jsons"        # índice VIVO (gen-problem-json.sh, título = display_title)
+QDIR="$TREINO/var/questoes"     # índice legado (fallback histórico)
 
 # materializa o history no formato global (7 campos) num temp — toda a lógica abaixo
 # (grep/awk sobre $HIST) opera no stream fanned-out de users/*/history.
@@ -19,8 +23,10 @@ if [[ ! -s "$HIST" ]]; then
   exit 0
 fi
 
-_title(){ # título do problema (probid usa '#'); fallback = o próprio id
-  local p="$1"
+_title(){ # título do problema (probid usa '#'); índice vivo -> legado -> o próprio id
+  local p="$1" ttl
+  ttl="$(jq -r '.title // empty' "$JDIR/$p.json" 2>/dev/null)"
+  [[ -n "$ttl" ]] && { printf '%s' "$ttl"; return; }
   [[ -f "$QDIR/$p/title" ]] && { cat "$QDIR/$p/title"; return; }
   printf '%s' "${p/\#/.}"
 }
