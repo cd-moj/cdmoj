@@ -40,6 +40,33 @@ h1,h2,h3 { line-height:1.25; letter-spacing:-.01em; }
 .contest-title { font-weight:800; font-size:1.05rem; }
 .countdown { font-variant-numeric:tabular-nums; font-weight:700; }
 
+/* seletor de idioma (sutil, não botões) */
+.lang-toggle { display:inline-flex; align-items:center; gap:.1rem; }
+.lang-toggle .lang-opt { background:none; border:0; cursor:pointer; color:#eaf2ff; opacity:.5;
+  font-size:.8rem; font-weight:600; line-height:1; padding:.15rem .3rem; border-radius:6px;
+  transition:opacity .12s, background .12s; }
+.lang-toggle .lang-opt:hover { opacity:.85; background:rgba(255,255,255,.08); }
+.lang-toggle .lang-opt.active { opacity:1; color:#fff; font-weight:800;
+  text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:2px; }
+
+/* menu do usuário (avatar ▾ -> dropdown) */
+.user-menu { position:relative; display:inline-flex; }
+.user-menu-btn { display:inline-flex; align-items:center; gap:.45rem; background:none; border:0;
+  color:#fff; font-size:.95rem; font-weight:600; cursor:pointer; padding:.25rem .4rem;
+  border-radius:10px; transition:background .12s; }
+.user-menu-btn:hover { background:rgba(255,255,255,.14); }
+.user-menu-btn .caret { font-size:.7rem; opacity:.8; transition:transform .12s; }
+.user-menu-btn[aria-expanded="true"] .caret { transform:rotate(180deg); }
+.menu-panel { position:absolute; right:0; top:calc(100% + .4rem); min-width:12.5rem;
+  background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:12px;
+  box-shadow:var(--shadow); z-index:60; padding:.3rem; display:none; }
+.menu-panel.open { display:block; }
+.menu-panel .menu-item { display:flex; align-items:center; gap:.5rem; width:100%; box-sizing:border-box;
+  text-align:left; background:none; border:0; color:var(--ink); opacity:1; font-size:.9rem;
+  font-weight:500; padding:.5rem .6rem; border-radius:8px; cursor:pointer; text-decoration:none; }
+.menu-panel .menu-item:hover { background:var(--blue-soft); color:var(--ink); text-decoration:none; opacity:1; }
+.menu-panel .menu-sep { height:1px; background:var(--line); margin:.3rem .25rem; }
+
 /* quicknav */
 .quicknav { background:#fff; border-bottom:1px solid var(--line); position:sticky; top:52px; z-index:40; }
 .quicknav .bar { max-width:var(--page-max); margin:0 auto; padding:.55rem 1.2rem; display:flex; gap:1.3rem; flex-wrap:wrap; }

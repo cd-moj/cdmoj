@@ -7,7 +7,6 @@
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el, renderAuthArea } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
-import { renderCreateContestLink } from '/shared/create-contest-link.js';
 import { downloadCsv } from '/shared/users-batch.js';
 import { makeStepInicio } from './steps/inicio.js';
 import { makeStepDados } from './steps/dados.js';
@@ -20,7 +19,7 @@ import { makeStepRevisao } from './steps/revisao.js';
 
 const app = document.getElementById('app');
 const authMount = document.getElementById('authArea');
-const refreshAuth = () => renderAuthArea(authMount, 'treino', refreshAuth).then(() => renderCreateContestLink(authMount));
+const refreshAuth = () => renderAuthArea(authMount, 'treino', refreshAuth);
 
 export const MODE_LABEL = {
   icpc: T('ICPC (tempo + penalidade)', 'ICPC (time + penalty)'), obi: T('OBI (pontos parciais)', 'OBI (partial points)'),

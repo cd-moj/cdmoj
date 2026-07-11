@@ -4,7 +4,6 @@ import { apiGet } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
 import { el, renderAuthArea } from '/shared/ui.js';
 import { contestCard } from '/shared/contest-card.js';
-import { renderCreateContestLink } from '/shared/create-contest-link.js';
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 let all = [], page = 0; const PER = 24;
@@ -30,7 +29,7 @@ function render() {
 async function boot() {
   // topbar consistente com a home (avatar/perfil/🛡 admin + criar contest)
   const am = document.getElementById('authArea');
-  const refresh = () => renderAuthArea(am, 'treino', refresh).then(() => renderCreateContestLink(am));
+  const refresh = () => renderAuthArea(am, 'treino', refresh);
   refresh();
 
   let j;

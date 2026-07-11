@@ -2,7 +2,6 @@
 import { apiGet } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, renderAuthArea } from '/shared/ui.js';
-import { renderCreateContestLink } from '/shared/create-contest-link.js';
 import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
@@ -106,8 +105,7 @@ async function loadSolve() {
 
 async function boot() {
   const authArea = document.getElementById('authArea');
-  await renderAuthArea(authArea, CONTEST, async () => { await loadSolve(); render(); await renderCreateContestLink(authArea); });
-  renderCreateContestLink(authArea);
+  await renderAuthArea(authArea, CONTEST, async () => { await loadSolve(); render(); });
   const sp = new URLSearchParams(location.search);
   if (sp.get('searchtag')) document.getElementById('qtag').value = sp.get('searchtag');
   if (sp.get('searchcol')) document.getElementById('qcol').value = sp.get('searchcol');

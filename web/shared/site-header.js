@@ -1,15 +1,14 @@
 // shared/site-header.js — header ÚNICO do site principal (DRY).
 // Substitui o conteúdo do <header class="topbar"> da página pelo MESMO topbar em todo
-// lugar: brand + nav canônico (+ "Gestão de Problemas" só p/ quem pode criar/gerir) +
-// um placeholder #authArea que a própria página preenche (renderAuthArea), preservando
-// o onChange de cada página. Corrige a raiz da inconsistência (nav/brand/posição variavam).
+// lugar: brand + nav canônico (só os links UNIVERSAIS) + seletor de idioma sutil + um
+// placeholder #authArea que a página preenche (renderAuthArea monta o menu do usuário —
+// perfil/admin/gestão de problemas/criar contest/sair). Corrige a inconsistência do topbar.
 //
 // Uso: basta incluir, ANTES do <script> da página (módulos são deferred e rodam em ordem,
 // então este cria #authArea antes do script da página):
 //   <script type="module" src="/shared/site-header.js"></script>
 // NÃO incluir nas páginas de contest (elas têm um topbar próprio).
 import { el } from '/shared/ui.js';
-import { apiGet } from '/shared/api.js';
 import { T, getLang, setLang } from '/shared/i18n.js';
 
 const NAV = [
@@ -24,10 +23,10 @@ const NAV = [
 // seletor pt/en (só aparece no header do site principal — nunca dentro de contest, que fixa
 // o idioma pelo LOCALE). Escolha do usuário: persiste e vale em todo o site.
 function mkLangToggle() {
-  const wrap = el('span', { class: 'lang-toggle row', style: 'gap:.15rem', title: T('Idioma da interface', 'Interface language') });
+  const wrap = el('span', { class: 'lang-toggle', title: T('Idioma da interface', 'Interface language') });
   ['pt', 'en'].forEach((l) => {
     wrap.append(el('button', {
-      class: 'btn ghost small' + (l === getLang() ? ' active' : ''),
+      class: 'lang-opt' + (l === getLang() ? ' active' : ''),
       'aria-pressed': l === getLang() ? 'true' : 'false',
       onclick: () => { if (l !== getLang()) { setLang(l, { persist: true }); location.reload(); } },
     }, l.toUpperCase()));
@@ -81,17 +80,6 @@ export function mountSiteHeader(opts = {}) {
   // placeholder: a página preenche (chip do usuário / login), como hoje
   bar.append(el('span', { id: 'authArea', class: 'row', style: 'margin-left:.5rem' }));
   host.append(bar);
-
-  // "Gestão de Problemas" só aparece para logado + can_create (mesma permissão de
-  // "criar contest"). Inserido após o load da permissão, antes do "Status".
-  apiGet('/treino/contest-create/permission', { contest: 'treino', auth: true })
-    .then((p) => {
-      if (!p || !p.can_create) return;
-      const a = mkLink({ key: 'problemas', href: '/problemas/', pt: 'Gestão de Problemas', en: 'Problem Management' });
-      const statusLink = [...nav.children].find((c) => c.getAttribute('href') === '/status/');
-      nav.insertBefore(a, statusLink || null);
-    })
-    .catch(() => {});
 
   return { host, nav, active };
 }

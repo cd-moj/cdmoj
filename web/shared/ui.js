@@ -1,6 +1,7 @@
 // shared/ui.js — helpers de DOM, formatação e área de autenticação (compartilhados).
 import { t, T } from './i18n.js';
 import { status, login, logout, getToken } from './auth.js';
+import { apiGet } from './api.js';
 
 export function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
@@ -97,22 +98,62 @@ export function avatarEl(login, name, size = 26, hasPhoto) {
   return span;
 }
 
-// área de autenticação no topbar: mostra usuário+logout, ou um botão que abre login.
-// onChange() é chamado após login/logout para a página recarregar seu estado.
+// dropdown mínimo: liga um <button> gatilho a um painel — abre/fecha no clique, fecha em
+// clique-fora e Esc. Não há componente de menu no projeto; este é o primeiro (reusável).
+// Registra os listeners de documento só enquanto aberto (não empilha em re-render).
+export function attachDropdown(trigger, panel, wrap) {
+  const onDoc = (e) => { if (!wrap.contains(e.target)) close(); };
+  const onKey = (e) => { if (e.key === 'Escape') { close(); trigger.focus(); } };
+  function close() {
+    if (!panel.classList.contains('open')) return;
+    panel.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', onDoc);
+    document.removeEventListener('keydown', onKey);
+  }
+  function open() {
+    panel.classList.add('open');
+    trigger.setAttribute('aria-expanded', 'true');
+    document.addEventListener('click', onDoc);
+    document.addEventListener('keydown', onKey);
+  }
+  trigger.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.contains('open') ? close() : open(); });
+  return { open, close };
+}
+
+// área de autenticação no topbar: menu do usuário (avatar ▾) com perfil/admin/gestão/criar/sair,
+// ou o login inline. onChange() é chamado após login/logout p/ a página recarregar seu estado.
 export async function renderAuthArea(mount, contest, onChange) {
   mount.innerHTML = '';
   const st = await status(contest);
+  const doLogout = async () => { await logout(contest); onChange && onChange(); };
   if (st.logged_in) {
-    // no treino, o handle leva à página de estatísticas do próprio usuário
-    const who = (contest === 'treino' && st.login)
-      ? el('a', { class: 'user-chip', href: '/treino/stat/?user=' + encodeURIComponent(st.login), title: T('Minhas estatísticas', 'My statistics') },
-           avatarEl(st.login, st.name, 26), el('span', {}, st.name || st.login))
-      : el('span', { class: 'small' }, st.name || st.login);
-    const items = [who];
-    if (contest === 'treino') items.push(el('a', { class: 'small', href: '/treino/perfil/', title: T('Editar perfil', 'Edit profile') }, '⚙ ' + T('perfil', 'profile')));
-    if (contest === 'treino' && st.is_admin) items.push(el('a', { class: 'small', href: '/treino/admin/', title: T('Painel administrativo', 'Admin panel') }, '🛡 admin'));
-    items.push(el('button', { class: 'btn ghost', onclick: async () => { await logout(contest); onChange && onChange(); } }, t('logout')));
-    mount.append(...items);
+    // fora do site principal (contexto de contest genérico): só nome + sair, sem menu
+    if (contest !== 'treino') {
+      mount.append(el('span', { class: 'small' }, st.name || st.login),
+        el('button', { class: 'btn ghost', onclick: doLogout }, t('logout')));
+      return st;
+    }
+    // UMA chamada de permissão decide Gestão de Problemas E Criar contest
+    let canCreate = false;
+    try { const perm = await apiGet('/treino/contest-create/permission', { contest: 'treino', auth: true }); canCreate = !!(perm && perm.can_create); }
+    catch { /* sem permissão de criação */ }
+
+    const wrap = el('span', { class: 'user-menu' });
+    const trigger = el('button', { class: 'user-menu-btn', 'aria-haspopup': 'true', 'aria-expanded': 'false', title: st.login || '' },
+      avatarEl(st.login, st.name, 26), el('span', {}, st.name || st.login), el('span', { class: 'caret' }, '▾'));
+    const panel = el('div', { class: 'menu-panel', role: 'menu' });
+    wrap.append(trigger, panel);
+    const dd = attachDropdown(trigger, panel, wrap);
+    const item = (href, label) => el('a', { class: 'menu-item', role: 'menuitem', href }, label);
+    if (st.login) panel.append(item('/treino/stat/?user=' + encodeURIComponent(st.login), '📊 ' + T('Minhas estatísticas', 'My statistics')));
+    if (canCreate) panel.append(item('/problemas/', '🗂 ' + T('Gestão de Problemas', 'Problem Management')));
+    panel.append(item('/treino/perfil/', '⚙ ' + T('Perfil', 'Profile')));
+    if (st.is_admin) panel.append(item('/treino/admin/', '🛡 ' + T('Admin', 'Admin')));
+    if (canCreate) panel.append(item('/treino/criar/', '➕ ' + T('Criar contest', 'Create contest')));
+    panel.append(el('div', { class: 'menu-sep' }));
+    panel.append(el('button', { class: 'menu-item', role: 'menuitem', onclick: () => { dd.close(); doLogout(); } }, t('logout')));
+    mount.append(wrap);
     return st;
   }
   const u = el('input', { placeholder: t('user'), autocomplete: 'username' });

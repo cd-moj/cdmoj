@@ -2,12 +2,10 @@
 import { apiGet } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
 import { el, renderAuthArea } from '/shared/ui.js';
-import { renderCreateContestLink } from '/shared/create-contest-link.js';
 
 const app = document.getElementById('app');
 const authMount = document.getElementById('authArea');
-const refreshAuth = () => renderAuthArea(authMount, 'treino', refreshAuth)
-  .then(() => renderCreateContestLink(authMount));
+const refreshAuth = () => renderAuthArea(authMount, 'treino', refreshAuth);
 
 function ind(ok, okText, downText) {
   return el('span', { class: 'ind ' + (ok ? 'ok' : 'down') }, ok ? ('✓ ' + okText) : ('✗ ' + downText));

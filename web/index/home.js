@@ -3,7 +3,6 @@ import { apiGet } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { editorLabel } from '/shared/editors.js';
-import { renderCreateContestLink } from '/shared/create-contest-link.js';
 import { contestCard, relTime } from '/shared/contest-card.js';
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -166,7 +165,6 @@ async function gateProblemManagement() {
 // O #authArea é criado pelo header compartilhado (site-header.js); aqui só preenchemos.
 const authMount = document.getElementById('authArea');
 const refreshAuth = () => renderAuthArea(authMount, 'treino', refreshAuth)
-  .then(() => renderCreateContestLink(authMount))
   .then(() => gateProblemManagement());
 refreshAuth();
 
