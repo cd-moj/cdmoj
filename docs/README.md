@@ -20,6 +20,8 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
 - **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemons, master/worker do
   juiz, bot) e o subdomínio de contest.
+- **[ADMIN.md](ADMIN.md)** — manual do administrador: instalação **do zero** num servidor limpo
+  (podman/bare-metal), segredos e o **bootstrap do `treino` + primeira conta `.admin`**.
 - **[PLAN.md](PLAN.md)** — plano original aprovado da reescrita (arquitetura, contratos,
   modos de placar, fases). Referência histórica da migração.
 
