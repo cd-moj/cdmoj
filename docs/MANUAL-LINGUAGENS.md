@@ -72,6 +72,7 @@ A linguagem padrão é **C**. A coluna `id` é a extensão que vale no envio.
 | `hs` | Haskell | Compilador GHC. |
 | `ml` | OCaml | Compilador ocaml. |
 | `pas` | Pascal | Free Pascal (fpc). |
+| `pl` | Prolog | SWI-Prolog. Defina um predicado `main`. Veja o aviso na seção 4. |
 | `cs` | C# | Mono. Sem trava de nome de arquivo. |
 | `sh` | Shell | bash. |
 | `apl` | APL | Dyalog. |
@@ -89,34 +90,32 @@ as exigem.
 
 ## 4. Avisos importantes
 
-### 4.1. Java pelo editor: cuidado com `public class`
+### 4.1. Java: nome do arquivo e classe `public`
 
 Quando você digita Java **no editor**, o envio vira `solution.java`, e o juiz
-compila o arquivo com o nome que chegou (`solution.java`). Em Java, uma classe
-`public` **precisa** ter o mesmo nome do arquivo. Então:
+compila o arquivo com esse nome. Em Java, uma classe `public` **precisa** ter o
+mesmo nome do arquivo. Por isso o modelo padrão do editor já vem com a classe
+**sem `public`** (`class Main { ... }`): assim ele funciona direto, tanto no
+editor quanto por upload.
 
-- `public class Main { ... }` **falha** pelo editor (dá Compilation Error), porque
-  o arquivo se chama `solution.java`, e não `Main.java`.
+Fique atento só se você mesmo escrever uma classe `public`:
 
-O que fazer:
-
-- **No editor:** use a classe **sem `public`**, por exemplo `class Main { ... }`,
-  ou renomeie para `public class solution`.
+- **No editor:** uma `public class Main` daria Compilation Error, porque o arquivo
+  é `solution.java`, e não `Main.java`. Deixe a classe **sem `public`**
+  (`class Main { ... }`), ou renomeie para `public class solution`.
 - **Enviando por arquivo:** nomeie o arquivo igual à classe pública. Por exemplo,
-  `Main.java` com `public class Main` (é exatamente o exemplo real da seção 5).
+  `Main.java` com `public class Main` (é o exemplo real da seção 5).
 
 > Kotlin (`kt`), C# (`cs`), Go (`go`) e Rust (`rs`) **não** têm essa trava de nome
 > de arquivo. Só o Java exige o casamento entre o nome do arquivo e o nome da
 > classe pública.
 
-### 4.2. `.pl` roda como Prolog, não Perl
+### 4.2. `.pl` é Prolog
 
-> **Atenção:** na interface, a linguagem `.pl` aparece rotulada como "Perl" e vem
-> com um modelo de Perl, mas o juiz de verdade executa **SWI-Prolog**
-> (`prolog -g main`), e as soluções aceitas são em **Prolog**. Enquanto esse rótulo
-> não for alinhado, trate `.pl` como **Prolog**: defina um predicado `main` (veja o
-> exemplo em Prolog na seção 5). Um código Perl enviado como `.pl` **não** será
-> executado como Perl.
+> **Atenção:** a extensão `.pl` também é usada por Perl, mas no MOJ a linguagem
+> `.pl` é **Prolog**: o juiz executa **SWI-Prolog** (`prolog -g main`). Defina um
+> predicado `main` (veja o exemplo em Prolog na seção 5). Um código escrito em Perl
+> e enviado como `.pl` **não** será executado como Perl.
 
 ## 5. Exemplos por linguagem
 
