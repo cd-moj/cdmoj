@@ -9,6 +9,7 @@
 import { apiGet } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
+import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -22,13 +23,13 @@ const CFGKEY = 'moj_badges_' + CONTEST;
 // Dimensões NOMINAIS (mm) — confira na embalagem; os campos editáveis são a fonte da
 // verdade do render (o preset só os preenche). ph/pv = passo (etiqueta + espaçamento).
 const PRESETS = [
-  { id: 'a4365',   label: 'Pimaco A4365 · 99,1×67,7 · 8/folha (grande)',   w: 99.1, h: 67.7, cols: 2, rows: 4, mt: 13.1, ml: 4.65, ph: 101.6, pv: 67.7 },
-  { id: 'moj2025', label: 'Crachá MOJ 2025 · 88,9×50,8 · 10/folha',        w: 88.9, h: 50.8, cols: 2, rows: 5, mt: 21.5, ml: 16.1, ph: 88.9,  pv: 50.8 },
-  { id: 'a4361',   label: 'Pimaco A4361 · 63,5×46,6 · 18/folha',           w: 63.5, h: 46.6, cols: 3, rows: 6, mt: 8.7,  ml: 7.25, ph: 66.0,  pv: 46.6 },
-  { id: 'a4363',   label: 'Pimaco A4363 · 99,1×38,1 · 14/folha (média)',   w: 99.1, h: 38.1, cols: 2, rows: 7, mt: 15.1, ml: 4.65, ph: 101.6, pv: 38.1 },
-  { id: 'a4362',   label: 'Pimaco A4362 · 99,1×33,9 · 16/folha (média)',   w: 99.1, h: 33.9, cols: 2, rows: 8, mt: 12.9, ml: 4.65, ph: 101.6, pv: 33.9 },
-  { id: 'a4360',   label: 'Pimaco A4360 · 63,5×38,1 · 21/folha (pequena)', w: 63.5, h: 38.1, cols: 3, rows: 7, mt: 15.1, ml: 7.25, ph: 66.0,  pv: 38.1 },
-  { id: 'custom',  label: 'Dimensões personalizadas' },
+  { id: 'a4365',   label: T('Pimaco A4365 · 99,1×67,7 · 8/folha (grande)', 'Pimaco A4365 · 99.1×67.7 · 8/sheet (large)'),   w: 99.1, h: 67.7, cols: 2, rows: 4, mt: 13.1, ml: 4.65, ph: 101.6, pv: 67.7 },
+  { id: 'moj2025', label: T('Crachá MOJ 2025 · 88,9×50,8 · 10/folha', 'MOJ 2025 badge · 88.9×50.8 · 10/sheet'),        w: 88.9, h: 50.8, cols: 2, rows: 5, mt: 21.5, ml: 16.1, ph: 88.9,  pv: 50.8 },
+  { id: 'a4361',   label: T('Pimaco A4361 · 63,5×46,6 · 18/folha', 'Pimaco A4361 · 63.5×46.6 · 18/sheet'),           w: 63.5, h: 46.6, cols: 3, rows: 6, mt: 8.7,  ml: 7.25, ph: 66.0,  pv: 46.6 },
+  { id: 'a4363',   label: T('Pimaco A4363 · 99,1×38,1 · 14/folha (média)', 'Pimaco A4363 · 99.1×38.1 · 14/sheet (medium)'),   w: 99.1, h: 38.1, cols: 2, rows: 7, mt: 15.1, ml: 4.65, ph: 101.6, pv: 38.1 },
+  { id: 'a4362',   label: T('Pimaco A4362 · 99,1×33,9 · 16/folha (média)', 'Pimaco A4362 · 99.1×33.9 · 16/sheet (medium)'),   w: 99.1, h: 33.9, cols: 2, rows: 8, mt: 12.9, ml: 4.65, ph: 101.6, pv: 33.9 },
+  { id: 'a4360',   label: T('Pimaco A4360 · 63,5×38,1 · 21/folha (pequena)', 'Pimaco A4360 · 63.5×38.1 · 21/sheet (small)'), w: 63.5, h: 38.1, cols: 3, rows: 7, mt: 15.1, ml: 7.25, ph: 66.0,  pv: 38.1 },
+  { id: 'custom',  label: T('Dimensões personalizadas', 'Custom dimensions') },
 ];
 const DIMKEYS = ['w', 'h', 'cols', 'rows', 'mt', 'ml', 'ph', 'pv'];
 
@@ -51,9 +52,9 @@ async function load() {
   let q = '/contest/badges?contest=' + enc(CONTEST);
   if (IS_ADMIN && S.staffView) q += '&staff=' + enc(S.staffView);
   if (S.incDisabled) q += '&include_disabled=1';
-  statusBar.textContent = 'carregando…';
+  statusBar.textContent = T('carregando…', 'loading…');
   try { DATA = await apiGet(q, G); }
-  catch (e) { DATA = null; sheets.innerHTML = ''; statusBar.textContent = 'Falha ao listar: ' + (e.message || 'erro'); return; }
+  catch (e) { DATA = null; sheets.innerHTML = ''; statusBar.textContent = T('Falha ao listar: ', 'Failed to list: ') + (e.message || T('erro', 'error')); return; }
   afterLoad();
   renderSheets();
 }
@@ -68,7 +69,7 @@ function fitText(elm, box, minPx) {
 
 function labelNode(u, d) {
   const mm = (v) => v.toFixed(2) + 'mm';
-  const role = /\.cstaff$/.test(u.login || '') ? 'chefe de sede'
+  const role = /\.cstaff$/.test(u.login || '') ? T('chefe de sede', 'site chief')
     : (/\.staff$/.test(u.login || '') ? 'staff' : '');
   const inner = el('div', { class: 'lbl-inner' });
   // tamanhos proporcionais à altura da etiqueta (auto-reduzidos depois, se estourar)
@@ -92,16 +93,16 @@ function renderSheets() {
   document.body.classList.toggle('outline', !!S.outline);
   if (!DATA) return;
   let users = DATA.users || [];
-  if (S.regionFilter) users = users.filter((u) => (u.region || '(sem região)') === S.regionFilter);
+  if (S.regionFilter) users = users.filter((u) => (u.region || T('(sem região)', '(no region)')) === S.regionFilter);
   const d = S.dims, cols = Math.max(1, d.cols | 0), rows = Math.max(1, d.rows | 0);
   const perPage = cols * rows;
   const skip = Math.min(Math.max(0, S.skip | 0), perPage - 1);
-  statusBar.textContent = users.length + ' etiqueta(s)' +
-    (DATA.staff_view ? ' · arquivo de ' + DATA.staff_view : '') +
-    ' · ' + Math.ceil((users.length + skip) / perPage) + ' folha(s) de ' + perPage +
-    (S.showPass ? ' · COM senha' : ' · sem senha');
+  statusBar.textContent = users.length + T(' etiqueta(s)', ' badge(s)') +
+    (DATA.staff_view ? T(' · arquivo de ', ' · file of ') + DATA.staff_view : '') +
+    ' · ' + Math.ceil((users.length + skip) / perPage) + T(' folha(s) de ', ' sheet(s) of ') + perPage +
+    (S.showPass ? T(' · COM senha', ' · WITH password') : T(' · sem senha', ' · without password'));
   if (!users.length) {
-    sheets.append(el('p', { class: 'muted small no-print', style: 'text-align:center' }, 'Nenhum usuário para etiquetar.'));
+    sheets.append(el('p', { class: 'muted small no-print', style: 'text-align:center' }, T('Nenhum usuário para etiquetar.', 'No users to print badges for.')));
     return;
   }
   const fits = [];
@@ -135,8 +136,8 @@ function render() {
 
   // variante com/sem senha (escolha LOCAL de impressão — a credencial já veio da API)
   const passSel = el('select', {},
-    el('option', { value: '1' }, '🔑 com senha'),
-    el('option', { value: '' }, 'sem senha'));
+    el('option', { value: '1' }, T('🔑 com senha', '🔑 with password')),
+    el('option', { value: '' }, T('sem senha', 'without password')));
   passSel.value = S.showPass ? '1' : '';
   passSel.addEventListener('change', () => { S.showPass = passSel.value === '1'; save(); renderSheets(); });
 
@@ -155,10 +156,10 @@ function render() {
     return el('label', {}, label + ' ', i);
   };
   const dimBox = el('div', { class: 'dim-grid' },
-    numField('largura', 'w'), numField('altura', 'h'),
-    numField('colunas', 'cols', '1'), numField('linhas', 'rows', '1'),
-    numField('marg. sup.', 'mt'), numField('marg. esq.', 'ml'),
-    numField('passo horiz.', 'ph'), numField('passo vert.', 'pv'));
+    numField(T('largura', 'width'), 'w'), numField(T('altura', 'height'), 'h'),
+    numField(T('colunas', 'columns'), 'cols', '1'), numField(T('linhas', 'rows'), 'rows', '1'),
+    numField(T('marg. sup.', 'top margin'), 'mt'), numField(T('marg. esq.', 'left margin'), 'ml'),
+    numField(T('passo horiz.', 'horiz. pitch'), 'ph'), numField(T('passo vert.', 'vert. pitch'), 'pv'));
   presetSel.addEventListener('change', () => {
     S.preset = presetSel.value;
     const p = PRESETS.find((x) => x.id === S.preset);
@@ -169,27 +170,27 @@ function render() {
   });
 
   // filtros: região (client-side) e, p/ admin, o "arquivo" de cada staff (refaz o fetch)
-  const regionSel = el('select', {}, el('option', { value: '' }, 'todas as regiões'));
+  const regionSel = el('select', {}, el('option', { value: '' }, T('todas as regiões', 'all regions')));
   regionSel.addEventListener('change', () => { S.regionFilter = regionSel.value; save(); renderSheets(); });
-  const staffSel = el('select', {}, el('option', { value: '' }, 'lista completa'));
+  const staffSel = el('select', {}, el('option', { value: '' }, T('lista completa', 'full list')));
   staffSel.addEventListener('change', () => { S.staffView = staffSel.value; save(); load(); });
 
-  const skipIn = el('input', { type: 'number', min: '0', step: '1', value: S.skip | 0, title: 'etiquetas já usadas na 1ª folha' });
+  const skipIn = el('input', { type: 'number', min: '0', step: '1', value: S.skip | 0, title: T('etiquetas já usadas na 1ª folha', 'badges already used on the 1st sheet') });
   skipIn.addEventListener('change', () => { S.skip = Math.max(0, skipIn.value | 0); save(); renderSheets(); });
 
   afterLoad = fillSelects;
 
   function fillSelects() {
     if (!DATA) return;
-    const regs = [...new Set((DATA.users || []).map((u) => u.region || '(sem região)'))];
-    regionSel.innerHTML = ''; regionSel.append(el('option', { value: '' }, 'todas as regiões'));
+    const regs = [...new Set((DATA.users || []).map((u) => u.region || T('(sem região)', '(no region)')))];
+    regionSel.innerHTML = ''; regionSel.append(el('option', { value: '' }, T('todas as regiões', 'all regions')));
     regs.forEach((r) => regionSel.append(el('option', { value: r }, r)));
     if (!regs.includes(S.regionFilter)) S.regionFilter = '';
     regionSel.value = S.regionFilter;
     if (IS_ADMIN) {
-      staffSel.innerHTML = ''; staffSel.append(el('option', { value: '' }, 'lista completa'));
+      staffSel.innerHTML = ''; staffSel.append(el('option', { value: '' }, T('lista completa', 'full list')));
       (DATA.staff || []).forEach((s) => staffSel.append(
-        el('option', { value: s.login }, 'arquivo de ' + s.login + (s.fullname ? ' — ' + s.fullname : ''))));
+        el('option', { value: s.login }, T('arquivo de ', 'file of ') + s.login + (s.fullname ? ' — ' + s.fullname : ''))));
       if (!(DATA.staff || []).some((s) => s.login === S.staffView)) S.staffView = '';
       staffSel.value = S.staffView;
     }
@@ -197,34 +198,34 @@ function render() {
 
   app.append(el('div', { class: 'section controls' },
     el('div', { class: 'row' },
-      el('label', {}, 'Variante ', passSel),
-      mkChk('contest + data', 'fEvent'), mkChk('sede/região', 'fRegion'), mkChk('instituição', 'fUniv'),
-      mkChk('contorno (calibrar)', 'outline')),
+      el('label', {}, T('Variante ', 'Variant '), passSel),
+      mkChk(T('contest + data', 'contest + date'), 'fEvent'), mkChk(T('sede/região', 'site/region'), 'fRegion'), mkChk(T('instituição', 'institution'), 'fUniv'),
+      mkChk(T('contorno (calibrar)', 'outline (calibrate)'), 'outline')),
     el('div', { class: 'row', style: 'margin-top:.5rem' },
-      el('label', {}, 'Etiqueta ', presetSel), dimBox),
+      el('label', {}, T('Etiqueta ', 'Label '), presetSel), dimBox),
     el('div', { class: 'row', style: 'margin-top:.5rem' },
-      IS_ADMIN ? el('label', {}, 'Arquivo ', staffSel) : '',
-      el('label', {}, 'Região ', regionSel),
-      IS_ADMIN ? mkChk('incluir desabilitados', 'incDisabled', true) : '',
-      el('label', {}, 'pular ', skipIn, ' etiqueta(s)'),
+      IS_ADMIN ? el('label', {}, T('Arquivo ', 'File '), staffSel) : '',
+      el('label', {}, T('Região ', 'Region '), regionSel),
+      IS_ADMIN ? mkChk(T('incluir desabilitados', 'include disabled'), 'incDisabled', true) : '',
+      el('label', {}, T('pular ', 'skip '), skipIn, T(' etiqueta(s)', ' badge(s)')),
       el('div', { class: 'spacer' }), statusBar,
-      el('button', { class: 'btn', onclick: () => window.print() }, '🖨️ Imprimir'))));
+      el('button', { class: 'btn', onclick: () => window.print() }, T('🖨️ Imprimir', '🖨️ Print')))));
   load();
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">Contest não informado.</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, '🔒 Entre no contest'),
-      el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, 'Ir para o contest')));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest')),
+      el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, T('Ir para o contest', 'Go to the contest'))));
     return;
   }
   if (!st.is_cstaff && !st.is_admin) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, '🔒 Acesso restrito'),
-      el('p', { class: 'muted' }, 'Etiquetas de credenciais são do admin e do chefe de sede (.cstaff).')));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access')),
+      el('p', { class: 'muted' }, T('Etiquetas de credenciais são do admin e do chefe de sede (.cstaff).', 'Credential badges are for admins and the site chief (.cstaff).'))));
     return;
   }
   IS_ADMIN = !!st.is_admin;

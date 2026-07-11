@@ -4,6 +4,7 @@ import { apiGet } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { editorLabel } from '/shared/editors.js';
 import { hBarChart } from '/lib/charts.js';
+import { T } from '/shared/i18n.js';
 
 const app = document.getElementById('app');
 
@@ -14,26 +15,27 @@ function statCard(big, sub) {
 async function boot() {
   let s;
   try { s = await apiGet('/treino/editor-stats', {}); }
-  catch { app.innerHTML = '<div class="error-box">Não foi possível carregar as estatísticas.</div>'; return; }
+  catch { app.innerHTML = `<div class="error-box">${T('Não foi possível carregar as estatísticas.', 'Could not load statistics.')}</div>`; return; }
   const ranking = (s.ranking || []).filter((r) => r.count > 0);
   const declared = s.declared || 0, total = s.total_users || 0;
   document.getElementById('ed-sub').textContent = declared
-    ? `${declared} de ${total} usuários declararam um editor favorito (${total ? Math.round((declared / total) * 100) : 0}%).`
-    : 'Ninguém declarou um editor favorito ainda.';
+    ? T(`${declared} de ${total} usuários declararam um editor favorito (${total ? Math.round((declared / total) * 100) : 0}%).`,
+        `${declared} of ${total} users declared a favorite editor (${total ? Math.round((declared / total) * 100) : 0}%).`)
+    : T('Ninguém declarou um editor favorito ainda.', 'No one has declared a favorite editor yet.');
   app.innerHTML = '';
   if (!ranking.length) {
-    app.innerHTML = 'Nenhum editor declarado ainda — seja o primeiro no seu <a href="/treino/perfil/">perfil</a>.';
+    app.innerHTML = T('Nenhum editor declarado ainda — seja o primeiro no seu <a href="/treino/perfil/">perfil</a>.', 'No editor declared yet — be the first on your <a href="/treino/perfil/">profile</a>.');
     app.className = 'muted'; return;
   }
 
   const top = ranking[0];
   app.append(el('div', { class: 'stat-cards' },
-    statCard(declared, 'declararam'),
-    statCard(ranking.length, ranking.length === 1 ? 'editor distinto' : 'editores distintos'),
-    statCard(editorLabel(top.editor), 'mais popular')));
+    statCard(declared, T('declararam', 'declared')),
+    statCard(ranking.length, ranking.length === 1 ? T('editor distinto', 'distinct editor') : T('editores distintos', 'distinct editors')),
+    statCard(editorLabel(top.editor), T('mais popular', 'most popular'))));
 
   // distribuição (barras horizontais — boas p/ nomes de editor longos)
-  app.append(el('div', { class: 'section' }, el('h2', {}, 'Distribuição'),
+  app.append(el('div', { class: 'section' }, el('h2', {}, T('Distribuição', 'Distribution')),
     hBarChart(ranking.map((r) => ({ label: editorLabel(r.editor), value: r.count })), { hideZero: true, total: declared })));
 
   // ranking detalhado
@@ -43,9 +45,9 @@ async function boot() {
     el('td', {}, editorLabel(r.editor)),
     el('td', { class: 'n' }, String(r.count)),
     el('td', { class: 'n' }, (declared ? Math.round((r.count / declared) * 100) : 0) + '%'))));
-  app.append(el('div', { class: 'section' }, el('h2', {}, 'Ranking'),
+  app.append(el('div', { class: 'section' }, el('h2', {}, T('Ranking', 'Ranking')),
     el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', { class: 'n' }, '#'), el('th', {}, 'Editor'), el('th', { class: 'n' }, 'Usuários'), el('th', { class: 'n' }, '%'))),
+      el('thead', {}, el('tr', {}, el('th', { class: 'n' }, '#'), el('th', {}, T('Editor', 'Editor')), el('th', { class: 'n' }, T('Usuários', 'Users')), el('th', { class: 'n' }, '%'))),
       tb))));
 }
 

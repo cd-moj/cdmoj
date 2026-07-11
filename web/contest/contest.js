@@ -5,6 +5,7 @@ import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.
 import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById } from '/shared/languages.js';
+import { T, setLang, getLang } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -51,7 +52,6 @@ function injectEditorCss() {
   document.head.append(s);
 }
 
-let LOCALE = 'pt';
 let basic = null;
 let problems = [];
 let balloons = {};
@@ -63,8 +63,6 @@ let sortField = 'epoch', sortAsc = false;
 let pollTimer = null;
 let loginCountdownTimer = null, loginPollTimer = null;
 let preStartTimer = null, preStartPoll = null;
-
-const T = (pt, en) => (LOCALE === 'en' ? en : pt);
 
 // ---- helpers ---------------------------------------------------------------
 function b64utf8(b64) {
@@ -192,7 +190,7 @@ function scheduleLoginPoll() {
   loginPollTimer = setTimeout(async () => {
     try {
       const fresh = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {});
-      basic = fresh; LOCALE = basic.locale || 'pt';
+      basic = fresh; if (basic.locale) setLang(basic.locale, { persist: false });
       renderLoginStatic();
       updateLoginCountdown();
     } catch {}
@@ -290,7 +288,7 @@ function renderUser() {
       userinfo.name || userinfo.login),
     el('div', { class: 'small muted' }, 'Login: ', el('b', {}, userinfo.login),
       userinfo.is_admin ? '  · admin' : (userinfo.is_judge ? '  · judge'
-        : (userinfo.is_staff ? '  · staff' : (userinfo.is_cstaff ? '  · chefe de sede' : '')))),
+        : (userinfo.is_staff ? '  · staff' : (userinfo.is_cstaff ? '  · ' + T('chefe de sede', 'site chief') : '')))),
   );
 }
 
@@ -390,7 +388,7 @@ function openStatementNewTab(p) {
     if (doc.body && doc.body.innerHTML.trim()) body = doc.body.innerHTML;
   } catch {}
   // reusa o CSS compartilhado para o enunciado
-  const full = `<!DOCTYPE html><html lang="${LOCALE === 'en' ? 'en' : 'pt-br'}"><head>
+  const full = `<!DOCTYPE html><html lang="${getLang() === 'en' ? 'en' : 'pt-br'}"><head>
     <meta charset="utf-8"><title>${(p.short_name || '') + ' — ' + (p.full_name || '')}</title>
     <link rel="stylesheet" href="/shared/ui.css">
     <style>body{padding:1.4rem;max-width:900px;margin:auto}</style></head>
@@ -861,16 +859,16 @@ function renderPreStart() {
 // ============================================================================
 async function boot() {
   if (!CONTEST) {
-    document.body.innerHTML = '<div class="container"><div class="error-box">Contest não informado (use ?c=&lt;id&gt;).</div></div>';
+    document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não informado (use ?c=&lt;id&gt;).', 'No contest specified (use ?c=&lt;id&gt;).') + '</div></div>';
     return;
   }
   try {
     basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {});
   } catch (e) {
-    document.body.innerHTML = '<div class="container"><div class="error-box">Contest não encontrado.</div></div>';
+    document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.') + '</div></div>';
     return;
   }
-  LOCALE = basic.locale || 'pt';
+  if (basic.locale) setLang(basic.locale, { persist: false });
   LANGS = resolveLangs(basic.languages);   // whitelist do contest (conf LANGUAGES=); vazio = todas
 
   const st = await status(CONTEST);

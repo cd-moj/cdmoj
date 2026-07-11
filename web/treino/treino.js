@@ -3,6 +3,7 @@ import { apiGet } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, renderAuthArea } from '/shared/ui.js';
 import { renderCreateContestLink } from '/shared/create-contest-link.js';
+import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
 const PAGE = 50;
@@ -11,12 +12,12 @@ let ALL = [], solved = new Set(), attempted = new Set(), page = 0, showTags = fa
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 function difficulty(p) {
   const s = p.solved_count || 0, a = p.attempted_count || 0;
-  if (a === 0) return { label: 'novo', cls: '' };
+  if (a === 0) return { label: T('novo', 'new'), cls: '' };
   const rate = s / a;
-  if (rate >= 0.9) return { label: 'muito fácil', cls: 'diff-easy' };
-  if (rate >= 0.7) return { label: 'fácil', cls: 'diff-easy' };
-  if (rate >= 0.5) return { label: 'médio', cls: 'diff-med' };
-  return { label: 'difícil', cls: 'diff-hard' };
+  if (rate >= 0.9) return { label: T('muito fácil', 'very easy'), cls: 'diff-easy' };
+  if (rate >= 0.7) return { label: T('fácil', 'easy'), cls: 'diff-easy' };
+  if (rate >= 0.5) return { label: T('médio', 'medium'), cls: 'diff-med' };
+  return { label: T('difícil', 'hard'), cls: 'diff-hard' };
 }
 
 function filtered() {
@@ -42,7 +43,7 @@ function renderCollIndex() {
   const cur = (document.getElementById('qcol').value || '').trim();
   const names = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'pt'));
   box.innerHTML = '';
-  if (!names.length) { box.append(el('span', { class: 'muted' }, 'sem coleções.')); return; }
+  if (!names.length) { box.append(el('span', { class: 'muted' }, T('sem coleções.', 'no collections.'))); return; }
   names.forEach(n => box.append(el('a', {
     class: 'collection' + (cur === n ? ' on' : ''), href: '?searchcol=' + encodeURIComponent(n),
     style: 'margin:0 .4rem 0 0',
@@ -52,7 +53,7 @@ function renderCollIndex() {
 }
 function render() {
   const rows = filtered();
-  document.getElementById('count').textContent = `${rows.length} problema(s)`;
+  document.getElementById('count').textContent = `${rows.length} ${T('problema(s)', 'problem(s)')}`;
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   if (page >= pages) page = 0;
   const slice = rows.slice(page * PAGE, page * PAGE + PAGE);
@@ -61,15 +62,15 @@ function render() {
   list.innerHTML = '';
   const tbl = el('table', { class: 'moj' },
     el('thead', {}, el('tr', {},
-      el('th', {}, 'Problema'),
-      el('th', {}, 'Coleções'),
-      ...(showTags ? [el('th', {}, 'Tags')] : []),
-      el('th', {}, 'Dificuldade (acertos)'),
-      el('th', {}, 'Status'))));
+      el('th', {}, T('Problema', 'Problem')),
+      el('th', {}, T('Coleções', 'Collections')),
+      ...(showTags ? [el('th', {}, T('Tags', 'Tags'))] : []),
+      el('th', {}, T('Dificuldade (acertos)', 'Difficulty (solves)')),
+      el('th', {}, T('Status', 'Status')))));
   const tb = el('tbody');
   slice.forEach(p => {
     const d = difficulty(p);
-    const st = solved.has(p.id) ? '✓ resolvido' : (attempted.has(p.id) ? '… tentado' : '');
+    const st = solved.has(p.id) ? T('✓ resolvido', '✓ solved') : (attempted.has(p.id) ? T('… tentado', '… attempted') : '');
     const cells = [
       el('td', {}, el('a', { href: '/treino/problema/?id=' + encodeURIComponent(p.id) }, p.title || p.id)),
       el('td', {}, (p.collections || []).map(c =>
@@ -87,7 +88,7 @@ function render() {
   const pager = document.getElementById('pager'); pager.innerHTML = '';
   if (pages > 1) {
     pager.append(el('button', { class: 'btn ghost', onclick: () => { if (page > 0) { page--; render(); } } }, '‹'));
-    pager.append(el('span', { class: 'small' }, ` página ${page + 1} / ${pages} `));
+    pager.append(el('span', { class: 'small' }, ` ${T('página', 'page')} ${page + 1} / ${pages} `));
     pager.append(el('button', { class: 'btn ghost', onclick: () => { if (page < pages - 1) { page++; render(); } } }, '›'));
   }
 }
@@ -115,7 +116,7 @@ async function boot() {
     const j = await apiGet('/treino/problems', { contest: CONTEST });
     ALL = Array.isArray(j) ? j : (j.problems || j.data || []);
   } catch (e) {
-    document.getElementById('list').innerHTML = '<span class="error-box">Falha ao carregar problemas.</span>';
+    document.getElementById('list').innerHTML = `<span class="error-box">${T('Falha ao carregar problemas.', 'Failed to load problems.')}</span>`;
     return;
   }
   await loadSolve();
@@ -123,7 +124,7 @@ async function boot() {
     document.getElementById(id).addEventListener('input', () => { page = 0; render(); }));
   document.getElementById('toggleTags').addEventListener('click', () => {
     showTags = !showTags;
-    document.getElementById('toggleTags').textContent = showTags ? 'Ocultar tags' : 'Mostrar tags';
+    document.getElementById('toggleTags').textContent = showTags ? T('Ocultar tags', 'Hide tags') : T('Mostrar tags', 'Show tags');
     render();
   });
   renderCollIndex();

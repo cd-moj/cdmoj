@@ -8,10 +8,10 @@ import { flagManifest } from '/shared/flags.js';
 import { parseICPC, renderICPC } from './score-icpc.js';
 import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
+import { T, setLang, getLang } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
-let LOCALE = 'pt';
 let basic = null;
 let isAuth = false;
 let regions = [];
@@ -33,7 +33,6 @@ let noAnim = false;
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
 let refreshTimer = null;
 
-const T = (pt, en) => (LOCALE === 'en' ? en : pt);
 function fmtLeft(sec) {
   if (sec < 0) sec = 0;
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
@@ -302,10 +301,10 @@ async function pollScore() {
 // ---- boot --------------------------------------------------------------------
 let BALLOONS = {};
 async function boot() {
-  if (!CONTEST) { document.body.innerHTML = '<div class="container"><div class="error-box">Contest não informado (use ?c=&lt;id&gt;).</div></div>'; return; }
+  if (!CONTEST) { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não informado (use ?c=&lt;id&gt;).', 'No contest specified (use ?c=&lt;id&gt;).') + '</div></div>'; return; }
   try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); }
-  catch { document.body.innerHTML = '<div class="container"><div class="error-box">Contest não encontrado.</div></div>'; return; }
-  LOCALE = basic.locale || 'pt';
+  catch { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.') + '</div></div>'; return; }
+  if (basic.locale) setLang(basic.locale, { persist: false });
   document.title = T('Placar — ', 'Scoreboard — ') + (basic.contest_name || 'Contest') + ' — MOJ';
   document.getElementById('contestTitle').textContent = basic.contest_name || 'Contest';
   document.getElementById('backBtn').href = '/contest/?c=' + encodeURIComponent(CONTEST);

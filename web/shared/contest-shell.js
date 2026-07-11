@@ -3,6 +3,7 @@
 import { apiGet } from '/shared/api.js';
 import { status, logout } from '/shared/auth.js';
 import { el, avatarEl } from '/shared/ui.js';
+import { T, setLang } from '/shared/i18n.js';
 
 // chip do usuário logado do contest no topbar (avatar + nome) — consistência com o
 // site principal. Inserido à esquerda do botão "Contest"/countdown; idempotente.
@@ -28,7 +29,6 @@ export function navHref(url, contest) {
 
 function startCountdown(basic) {
   const eln = document.getElementById('contestCountdown'); if (!eln) return;
-  const T = (pt, en) => (basic.locale === 'en' ? en : pt);
   const fmt = (s) => { if (s < 0) s = 0; const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60, p = (n) => String(n).padStart(2, '0'); return h > 0 ? `${p(h)}:${p(m)}:${p(x)}` : `${p(m)}:${p(x)}`; };
   const tick = () => { const left = (basic.end_time || 0) - Math.floor(Date.now() / 1000); if (left > 0) { eln.textContent = T('Termina em: ', 'Ends in: ') + fmt(left); setTimeout(tick, 1000); } else eln.textContent = T('Competição encerrada', 'Contest ended'); };
   tick();
@@ -49,6 +49,7 @@ function renderNav(buttons, contest) {
 export async function initContestShell(contest) {
   let basic = null;
   try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(contest), {}); } catch { /* segue */ }
+  if (basic && basic.locale) setLang(basic.locale, { persist: false });  // LOCALE do contest impõe o idioma
   const titleEl = document.getElementById('contestTitle');
   if (titleEl) titleEl.textContent = (basic && basic.contest_name) || 'Contest';
   document.title = ((basic && basic.contest_name) || 'Contest') + ' — MOJ';

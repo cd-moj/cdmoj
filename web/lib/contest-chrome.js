@@ -4,6 +4,7 @@ import { apiGet } from '/shared/api.js';
 import { logout, status } from '/shared/auth.js';
 import { el } from '/shared/ui.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
+import { T, setLang } from '/shared/i18n.js';
 
 function fmtLeft(sec) {
   if (sec < 0) sec = 0;
@@ -28,7 +29,7 @@ function navHref(contest, url) {
 // Retorna {locale}.
 export async function mountChrome(contest, basic, { auth = true } = {}) {
   const locale = basic.locale || 'pt';
-  const T = (pt, en) => (locale === 'en' ? en : pt);
+  if (basic.locale) setLang(basic.locale, { persist: false });  // LOCALE explícito impõe o idioma do contest
   document.title = (basic.contest_name || 'Contest') + ' — MOJ';
   const titleEl = document.getElementById('contestTitle');
   if (titleEl) titleEl.textContent = basic.contest_name || 'Contest';

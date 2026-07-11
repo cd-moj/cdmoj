@@ -8,6 +8,7 @@ import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
 import { logLink as _logLink, srcLink as _srcLink } from '/shared/submission-links.js';
+import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -27,10 +28,10 @@ async function rvAct(path, body) { return apiPost('/contest/review/' + path + '?
 
 function countsBar(c) {
   return el('div', { class: 'row', style: 'gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem' },
-    el('span', { class: 'dash-card' }, el('b', {}, c.not_evaluated || 0), ' não avaliadas'),
-    el('span', { class: 'dash-card' }, el('b', {}, c.being_evaluated || 0), ' sendo avaliadas'),
-    el('span', { class: 'dash-card' }, el('b', {}, c.awaiting_second || 0), ' aguardando 2º voto'),
-    el('span', { class: 'dash-card', style: (c.conflicts ? 'border-color:#c00' : '') }, el('b', {}, c.conflicts || 0), ' em conflito'));
+    el('span', { class: 'dash-card' }, el('b', {}, c.not_evaluated || 0), T(' não avaliadas', ' not evaluated')),
+    el('span', { class: 'dash-card' }, el('b', {}, c.being_evaluated || 0), T(' sendo avaliadas', ' being evaluated')),
+    el('span', { class: 'dash-card' }, el('b', {}, c.awaiting_second || 0), T(' aguardando 2º voto', ' awaiting 2nd vote')),
+    el('span', { class: 'dash-card', style: (c.conflicts ? 'border-color:#c00' : '') }, el('b', {}, c.conflicts || 0), T(' em conflito', ' in conflict')));
 }
 
 // PAINEL DE AVALIAÇÃO (estável): enquanto o juiz avalia, a página NÃO recarrega — só o contador
@@ -39,30 +40,30 @@ function evalPanel(it) {
   const mine = (it.claimants || []).find(x => x.by === ME);
   const left = mine ? Math.max(0, mine.expires_in_s | 0) : 0;
   const cdEl = el('b', { id: 'rvCountdown' }, fmtLeft(left));
-  const sel = el('select', {}, el('option', { value: '' }, '-- escolha o veredicto --'),
+  const sel = el('select', {}, el('option', { value: '' }, T('-- escolha o veredicto --', '-- choose the verdict --')),
     ...OPTIONS.map(o => el('option', { value: o.label }, o.label)));
-  const vb = el('button', { class: 'btn', type: 'button' }, '✓ Votar e liberar');
+  const vb = el('button', { class: 'btn', type: 'button' }, T('✓ Votar e liberar', '✓ Vote and release'));
   const msg = el('span', { class: 'small' });
   vb.addEventListener('click', async () => {
-    if (!sel.value) { msg.className = 'small error-box'; msg.textContent = 'Escolha um veredicto.'; return; }
-    vb.disabled = true; msg.className = 'small'; msg.textContent = 'Enviando…';
+    if (!sel.value) { msg.className = 'small error-box'; msg.textContent = T('Escolha um veredicto.', 'Choose a verdict.'); return; }
+    vb.disabled = true; msg.className = 'small'; msg.textContent = T('Enviando…', 'Sending…');
     try { await rvAct('vote', { id: it.id, label: sel.value }); loadReview(); }   // reload → sai do painel
-    catch (e) { vb.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || 'falha'; }
+    catch (e) { vb.disabled = false; msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
   });
   startTick(left);
   return el('div', { class: 'section', style: 'border:2px solid #0a7; background:#f4fff9' },
-    el('h2', {}, '⏳ Avaliando — Problema ', el('b', {}, shortOf(it.problem_id))),
+    el('h2', {}, T('⏳ Avaliando — Problema ', '⏳ Evaluating — Problem '), el('b', {}, shortOf(it.problem_id))),
     el('div', { class: 'row', style: 'gap:1rem; flex-wrap:wrap; align-items:center; margin:.3rem 0' },
-      el('div', {}, el('span', { class: 'small muted' }, 'Veredicto computado (referência): '),
+      el('div', {}, el('span', { class: 'small muted' }, T('Veredicto computado (referência): ', 'Computed verdict (reference): ')),
         el('span', { class: 'verdict ' + verdictClass(it.computed_verdict), style: 'font-weight:700' }, it.computed_verdict || '?')),
       logLink(it), srcLink(it)),
     el('div', { class: 'row', style: 'gap:.5rem; align-items:center; margin:.5rem 0' },
-      el('label', { class: 'small' }, 'Seu veredicto: '), sel, vb, msg),
+      el('label', { class: 'small' }, T('Seu veredicto: ', 'Your verdict: ')), sel, vb, msg),
     el('div', { class: 'row', style: 'margin-top:.4rem; align-items:center; gap:.5rem' },
-      el('span', { class: 'small muted' }, 'Tempo restante: '), cdEl,
+      el('span', { class: 'small muted' }, T('Tempo restante: ', 'Time left: ')), cdEl,
       el('button', { class: 'btn ghost', onclick: () => act('claim', it.id, 'extend') }, '+5 min'),
-      el('button', { class: 'btn ghost', onclick: () => act('claim', it.id, 'giveup') }, 'Desistir')),
-    el('p', { class: 'small muted', style: 'margin-top:.4rem' }, 'A página não recarrega enquanto você avalia. Ao votar, sua tarefa encerra e libera você para a próxima.'));
+      el('button', { class: 'btn ghost', onclick: () => act('claim', it.id, 'giveup') }, T('Desistir', 'Give up'))),
+    el('p', { class: 'small muted', style: 'margin-top:.4rem' }, T('A página não recarrega enquanto você avalia. Ao votar, sua tarefa encerra e libera você para a próxima.', 'The page does not reload while you evaluate. When you vote, your task ends and releases you for the next one.')));
 }
 
 function renderReview() {
@@ -73,16 +74,16 @@ function renderReview() {
   // se tenho uma avaliação ATIVA: mostra só o painel estável (sem fila, sem poll)
   if (rv.my_active) {
     const it = items.find(x => x.id === rv.my_active);
-    if (!it) { box.append(el('div', { class: 'muted' }, 'Sua avaliação ativa terminou — recarregando…')); return; }
+    if (!it) { box.append(el('div', { class: 'muted' }, T('Sua avaliação ativa terminou — recarregando…', 'Your active evaluation ended — reloading…'))); return; }
     box.append(evalPanel(it));
     return;
   }
 
   // sem avaliação ativa: a FILA (com botão pegar). Aqui não há select, então o poll não atrapalha.
-  if (!items.length) { box.append(el('div', { class: 'muted' }, 'Nenhuma submissão aguardando avaliação. 🎉')); return; }
+  if (!items.length) { box.append(el('div', { class: 'muted' }, T('Nenhuma submissão aguardando avaliação. 🎉', 'No submissions awaiting evaluation. 🎉'))); return; }
   const head = el('thead', {}, el('tr', {},
-    el('th', {}, 'Problema'), el('th', {}, 'Veredicto computado'), el('th', {}, 'Status'),
-    el('th', {}, 'Avaliando'), el('th', {}, 'Ver'), el('th', {}, 'Ação')));
+    el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Veredicto computado', 'Computed verdict')), el('th', {}, T('Status', 'Status')),
+    el('th', {}, T('Avaliando', 'Evaluating')), el('th', {}, T('Ver', 'View')), el('th', {}, T('Ação', 'Action'))));
   const tb = el('tbody');
   items.forEach((s) => {
     const full = (s.claimants || []).length >= 2;
@@ -90,10 +91,10 @@ function renderReview() {
     const canClaim = !full && !voted && (s.votes_n || 0) < 2 && s.status !== 'released';
     const whoCell = (s.claimants || []).length
       ? el('div', { class: 'small' }, (s.claimants).map(x => x.by + ' (' + (x.elapsed_s | 0) + 's)').join(', '))
-      : el('span', { class: 'small muted' }, (s.votes_n ? '1º voto dado' : '—'));
+      : el('span', { class: 'small muted' }, (s.votes_n ? T('1º voto dado', '1st vote cast') : '—'));
     const actionCell = canClaim
-      ? el('button', { class: 'btn', onclick: () => act('claim', s.id, 'claim') }, 'Pegar p/ avaliar')
-      : el('span', { class: 'small muted' }, voted ? 'você já votou' : (full ? 'lotada (2)' : (s.conflict ? 'conflito' : '—')));
+      ? el('button', { class: 'btn', onclick: () => act('claim', s.id, 'claim') }, T('Pegar p/ avaliar', 'Claim to evaluate'))
+      : el('span', { class: 'small muted' }, voted ? T('você já votou', 'you already voted') : (full ? T('lotada (2)', 'full (2)') : (s.conflict ? T('conflito', 'conflict') : '—')));
     tb.append(el('tr', {},
       el('td', {}, el('b', {}, shortOf(s.problem_id))),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.computed_verdict) }, s.computed_verdict || '?')),
@@ -104,16 +105,16 @@ function renderReview() {
   });
   box.append(el('table', { class: 'moj' }, head, tb));
   if (IS_CHIEF && (c.conflicts || 0) > 0) box.append(el('p', { class: 'small' },
-    '⚠ Há conflitos — resolva no ', el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, 'painel do juiz-chefe'), '.'));
+    T('⚠ Há conflitos — resolva no ', '⚠ There are conflicts — resolve in the '), el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, T('painel do juiz-chefe', 'chief judge panel')), '.'));
 }
 
 function fmtLeft(s) { s = Math.max(0, s | 0); const m = Math.floor(s / 60), x = s % 60; return m + ':' + String(x).padStart(2, '0'); }
 function startTick(left) { clearInterval(tickT); let n = left; const e = () => document.getElementById('rvCountdown'); tickT = setInterval(() => { n--; const el2 = e(); if (!el2) { clearInterval(tickT); return; } el2.textContent = fmtLeft(n); if (n <= 0) { clearInterval(tickT); loadReview(); } }, 1000); }
-async function act(path, id, action) { try { await rvAct(path, { id, action }); loadReview(); } catch (e) { alert(e.message || 'falha'); } }
+async function act(path, id, action) { try { await rvAct(path, { id, action }); loadReview(); } catch (e) { alert(e.message || T('falha', 'failed')); } }
 
 async function loadReview() {
   try { rv = await apiGet('/contest/review/list?contest=' + enc(CONTEST), G); }
-  catch (e) { document.getElementById('judgeContainer').innerHTML = '<div class="error-box">Falha ao carregar a fila.</div>'; return; }
+  catch (e) { document.getElementById('judgeContainer').innerHTML = '<div class="error-box">' + T('Falha ao carregar a fila.', 'Failed to load the queue.') + '</div>'; return; }
   OPTIONS = rv.options || []; IS_CHIEF = !!rv.is_chief;
   renderReview();
   // enquanto o juiz tem uma avaliação ativa, NÃO recarrega (o contador local roda; ações
@@ -130,16 +131,16 @@ function renderLegacy() {
   const fu = (document.getElementById('fUser') || {}).value || '', fp = (document.getElementById('fProblem') || {}).value || '';
   const onlyP = (document.getElementById('onlyPending') || {}).checked;
   const list = subs.filter(s => (!onlyP || isPending(s.verdict)) && (!fu || (s.username || '').toLowerCase().includes(fu.toLowerCase())) && (!fp || shortOf(s.problem_id).toLowerCase().includes(fp.toLowerCase())));
-  if (!list.length) { box.innerHTML = '<span class="muted">Nenhuma submissão.</span>'; return; }
-  const head = el('thead', {}, el('tr', {}, el('th', {}, 'Quando'), el('th', {}, 'Usuário'), el('th', {}, 'Problema'), el('th', {}, 'Veredicto'), el('th', {}, 'Veredicto final'), el('th', {}, 'Ver')));
+  if (!list.length) { box.innerHTML = '<span class="muted">' + T('Nenhuma submissão.', 'No submissions.') + '</span>'; return; }
+  const head = el('thead', {}, el('tr', {}, el('th', {}, T('Quando', 'When')), el('th', {}, T('Usuário', 'User')), el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Veredicto', 'Verdict')), el('th', {}, T('Veredicto final', 'Final verdict')), el('th', {}, T('Ver', 'View'))));
   const tb = el('tbody');
   list.forEach(s => {
-    const sel = el('select', {}, el('option', { value: '' }, '-- escolha --'), ...finalVerdicts.map(v => el('option', { value: v }, v)));
-    const btn = el('button', { class: 'btn', type: 'button', disabled: 'disabled' }, 'Enviar'); const msg = el('span', { class: 'submit-steps' });
+    const sel = el('select', {}, el('option', { value: '' }, T('-- escolha --', '-- choose --')), ...finalVerdicts.map(v => el('option', { value: v }, v)));
+    const btn = el('button', { class: 'btn', type: 'button', disabled: 'disabled' }, T('Enviar', 'Submit')); const msg = el('span', { class: 'submit-steps' });
     sel.addEventListener('change', () => { btn.disabled = !sel.value; });
-    btn.addEventListener('click', async () => { btn.disabled = true; msg.textContent = 'Enviando…';
-      try { await apiPost('/contest/set-verdict?contest=' + enc(CONTEST), { problem_id: s.problem_id, verdict: sel.value, username: s.username }, G); msg.textContent = '✓ Enviado!'; }
-      catch (e) { msg.innerHTML = '<span class="error-box">Erro: ' + (e && e.message ? e.message : 'falha') + '</span>'; btn.disabled = false; } });
+    btn.addEventListener('click', async () => { btn.disabled = true; msg.textContent = T('Enviando…', 'Sending…');
+      try { await apiPost('/contest/set-verdict?contest=' + enc(CONTEST), { problem_id: s.problem_id, verdict: sel.value, username: s.username }, G); msg.textContent = T('✓ Enviado!', '✓ Sent!'); }
+      catch (e) { msg.innerHTML = '<span class="error-box">' + T('Erro: ', 'Error: ') + (e && e.message ? e.message : T('falha', 'failed')) + '</span>'; btn.disabled = false; } });
     tb.append(el('tr', {}, el('td', {}, el('span', { class: 'small' }, fmtDate(s.epoch))), el('td', {}, s.username || ''),
       el('td', {}, el('b', {}, shortOf(s.problem_id))),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, isPending(s.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
@@ -150,19 +151,19 @@ function renderLegacy() {
 }
 async function loadLegacy() {
   let txt; try { txt = await apiGetText('/contest/allsubmissions?contest=' + enc(CONTEST), G); }
-  catch { document.getElementById('judgeContainer').innerHTML = '<div class="notice">Feed completo requer perfil admin/juiz-chefe. (Contest sem veredicto manual.)</div>'; return; }
+  catch { document.getElementById('judgeContainer').innerHTML = '<div class="notice">' + T('Feed completo requer perfil admin/juiz-chefe. (Contest sem veredicto manual.)', 'Full feed requires admin/chief-judge role. (Contest without manual verdict.)') + '</div>'; return; }
   subs = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean).sort((a, b) => Number(b.epoch) - Number(a.epoch));
   renderLegacy();
 }
 
 async function boot() {
-  if (!CONTEST) { document.body.innerHTML = '<div class="container"><div class="error-box">Contest não informado (?c=).</div></div>'; return; }
+  if (!CONTEST) { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não informado (?c=).', 'Contest not specified (?c=).') + '</div></div>'; return; }
   let basic;
   try { basic = await apiGet('/contest/basic?contest=' + enc(CONTEST), {}); }
-  catch { document.body.innerHTML = '<div class="container"><div class="error-box">Contest não encontrado.</div></div>'; return; }
+  catch { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.') + '</div></div>'; return; }
   const st = await status(CONTEST);
   if (!st.logged_in) { location.href = '/contest/?c=' + enc(CONTEST); return; }
-  if (!st.is_judge && !st.is_admin) { document.body.innerHTML = '<div class="container"><div class="notice">Acesso restrito a juízes.</div></div>'; return; }
+  if (!st.is_judge && !st.is_admin) { document.body.innerHTML = '<div class="container"><div class="notice">' + T('Acesso restrito a juízes.', 'Access restricted to judges.') + '</div></div>'; return; }
   ME = st.login || '';
   await mountChrome(CONTEST, basic, { auth: true });
   problems = (await apiGet('/contest/problems?contest=' + enc(CONTEST), G).catch(() => null)) || [];
@@ -180,8 +181,8 @@ async function boot() {
   } else if (!st.is_admin && !st.is_chief) {
     // contest SEM veredicto manual: o juiz puro não tem fila de avaliação (veredictos automáticos)
     document.getElementById('judgeContainer').innerHTML =
-      '<div class="notice">Este contest não usa <b>veredicto manual</b> — as correções são automáticas, não há fila para avaliar. ' +
-      '(O administrador pode ligar o modo manual em Configurações; a lista completa de submissões é do admin/juiz-chefe.)</div>';
+      '<div class="notice">' + T('Este contest não usa <b>veredicto manual</b> — as correções são automáticas, não há fila para avaliar. (O administrador pode ligar o modo manual em Configurações; a lista completa de submissões é do admin/juiz-chefe.)',
+        'This contest does not use <b>manual verdict</b> — corrections are automatic, there is no queue to evaluate. (The administrator can turn on manual mode in Settings; the full submission list is for admin/chief-judge.)') + '</div>';
   } else {
     const fv = await apiGet('/contest/final-verdicts?contest=' + enc(CONTEST), G).catch(() => null);
     finalVerdicts = fv ? (fv.verdicts || []) : [];

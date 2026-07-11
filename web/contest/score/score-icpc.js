@@ -3,6 +3,7 @@
 // Células: ""=untried · tries/minutes=solved (cor do balão) · tries/minutes*=FIRST TO SOLVE
 // (★ + contorno) · tries/-=tried-unsolved.
 import { el } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
 import { balloonColorHex, balloonIsDark, balloonSVG } from './score-colors.js';
@@ -66,8 +67,8 @@ export function renderICPC(parsed, opts) {
   const table = el('table', { class: 'score' });
   const headRow = el('tr', {},
     el('th', {}, '#'),
-    el('th', {}, 'Bandeira'),
-    el('th', {}, 'Equipe'));
+    el('th', {}, T('Bandeira', 'Flag')),
+    el('th', {}, T('Equipe', 'Team')));
   const sonic = sonicEnabled(parsed.balloons);
   parsed.probShorts.forEach(pb => {
     const cc = balloonColorHex(parsed.balloons, pb);
@@ -91,7 +92,7 @@ export function renderICPC(parsed, opts) {
     const label = (t.univShort ? `[${escapeHtml(t.univShort)}] ` : '') + escapeHtml(t.teamName || t.username);
     const teamTd = el('td', { class: 'team', title: t.univFull || t.univShort || '', html: logo + label });
     // foto do time (photo.png subida pelo admin): link clicável, abre em nova aba
-    if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: 'Foto do time', style: 'text-decoration:none' }, '📷'));
+    if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
     tr.append(teamTd);
     // problemas
     parsed.probShorts.forEach(sn => {

@@ -3,6 +3,7 @@
 // A instância fica cacheada em ctx.editors.settings: navegar não perde o que foi mexido,
 // e o buildSpec lê getValue() dela.
 import { el } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 import { makeSettingsEditor } from '/shared/contest-config/index.js';
 
 export function makeStepOpcoes(ctx) {
@@ -12,7 +13,7 @@ export function makeStepOpcoes(ctx) {
   // o usuário pode voltar ao passo Dados e trocar o modo — ressincroniza a seção de penalidade
   ctx.editors.settings.setContestMode?.(ctx.draft.mode);
   const root = el('div', { class: 'section' },
-    el('h2', {}, '5 · Opções ', el('span', { class: 'small muted' }, '(as mesmas da aba Configurações do admin)')),
+    el('h2', {}, T('5 · Opções ', '5 · Options '), el('span', { class: 'small muted' }, T('(as mesmas da aba Configurações do admin)', "(same as the admin's Settings tab)"))),
     ctx.editors.settings.el);
   return { el: root };
 }

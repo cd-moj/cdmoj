@@ -9,8 +9,9 @@
 // opts: searchLabel/searchPlaceholder, noQueryFilter(items) (wizard: só os privados do usuário),
 //       emptyHint (texto quando a busca sem query não tem nada).
 import { el } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 
-const DIFF_LABEL = { any: 'qualquer', easy: 'fáceis (≥50% AC)', medium: 'médios (20–50%)', hard: 'difíceis (<20%)', known: 'com histórico' };
+const DIFF_LABEL = () => ({ any: T('qualquer', 'any'), easy: T('fáceis (≥50% AC)', 'easy (≥50% AC)'), medium: T('médios (20–50%)', 'medium (20–50%)'), hard: T('difíceis (<20%)', 'hard (<20%)'), known: T('com histórico', 'with history') });
 const debounce = (fn, ms) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; };
 let uid = 0;
 
@@ -36,59 +37,60 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
     return { input, dl, chips, selected, setOptions };
   }
   const colC = chipsInput({
-    dlId: 'bpColsDL' + idsuf, placeholder: 'coleção (ex.: problemas-apc)…',
+    dlId: 'bpColsDL' + idsuf, placeholder: T('coleção (ex.: problemas-apc)…', 'collection (e.g. problemas-apc)…'),
     options: () => allCollections.map((c) => ({ value: c.collection, count: c.count })),
     optionLabel: (o) => o.value + ' (' + o.count + ')',
   });
   const tagC = chipsInput({
-    dlId: 'bpTagsDL' + idsuf, placeholder: 'tag (ex.: #lista-encadeada)…',
+    dlId: 'bpTagsDL' + idsuf, placeholder: T('tag (ex.: #lista-encadeada)…', 'tag (e.g. #lista-encadeada)…'),
     options: () => allTags.map((t) => ({ value: t.tag, count: t.count })),
     optionLabel: (o) => o.value + ' (' + o.count + ')',
   });
 
   const count = el('input', { type: 'number', min: '1', max: '100', value: '6', style: 'width:70px' });
-  const match = el('select', {}, el('option', { value: 'any' }, 'qualquer tag'), el('option', { value: 'all' }, 'todas as tags'));
-  const diff = el('select', {}, ...Object.keys(DIFF_LABEL).map((k) => el('option', { value: k }, DIFF_LABEL[k])));
+  const match = el('select', {}, el('option', { value: 'any' }, T('qualquer tag', 'any tag')), el('option', { value: 'all' }, T('todas as tags', 'all tags')));
+  const DL = DIFF_LABEL();
+  const diff = el('select', {}, ...Object.keys(DL).map((k) => el('option', { value: k }, DL[k])));
   const out = el('div', {});
-  const drawBtn = el('button', { class: 'btn' }, '🎲 Sortear');
+  const drawBtn = el('button', { class: 'btn' }, T('🎲 Sortear', '🎲 Draw'));
   let lastSeed = null;
 
   const itemRow = (p, extraInfo) => el('div', { class: 'bank-item' },
     el('div', {}, el('div', { class: 't' }, (p.title || p.id), accBadge(p)), el('div', { class: 'i' }, extraInfo || p.id)),
-    el('button', { class: 'btn ghost', onclick: () => onAdd(p) }, '+ adicionar'));
+    el('button', { class: 'btn ghost', onclick: () => onAdd(p) }, T('+ adicionar', '+ add')));
   const accBadge = (it) => it.private
-    ? el('span', { class: 'tag', style: 'margin-left:.4rem;background:#3d3417;color:#ffe08a' }, it.access === 'shared' ? 'compartilhado' : 'privado')
+    ? el('span', { class: 'tag', style: 'margin-left:.4rem;background:#3d3417;color:#ffe08a' }, it.access === 'shared' ? T('compartilhado', 'shared') : T('privado', 'private'))
     : '';
 
   async function doDraw(reshuffle) {
     const p = { tags: tagC.selected.join(','), count: count.value || '6', match: match.value, difficulty: diff.value };
     if (colC.selected.length) p.collections = JSON.stringify(colC.selected);
     if (!reshuffle && lastSeed != null) p.seed = lastSeed;
-    out.innerHTML = 'sorteando…';
+    out.innerHTML = T('sorteando…', 'drawing…');
     try {
       const r = await api.draw(p);
       lastSeed = r.seed;
       out.innerHTML = '';
       if (!r.problems || !r.problems.length) {
-        out.append(el('p', { class: 'muted small' }, 'Nenhum problema encontrado (' + r.candidates + ' candidatos). Ajuste coleções/tags/dificuldade.'));
+        out.append(el('p', { class: 'muted small' }, T('Nenhum problema encontrado (', 'No problem found (') + r.candidates + T(' candidatos). Ajuste coleções/tags/dificuldade.', ' candidates). Adjust collections/tags/difficulty.')));
         return;
       }
       out.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' },
-        'Sorteados ' + r.drawn + ' de ' + r.candidates + ' candidatos (seed ' + r.seed + '). ',
-        el('a', { href: '#', onclick: (e) => { e.preventDefault(); doDraw(true); } }, '↻ sortear de novo'), ' · ',
-        el('a', { href: '#', onclick: (e) => { e.preventDefault(); r.problems.forEach((p2) => onAdd(p2)); } }, '+ adicionar todos')));
+        T('Sorteados ', 'Drawn ') + r.drawn + T(' de ', ' of ') + r.candidates + T(' candidatos (seed ', ' candidates (seed ') + r.seed + '). ',
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); doDraw(true); } }, T('↻ sortear de novo', '↻ draw again')), ' · ',
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); r.problems.forEach((p2) => onAdd(p2)); } }, T('+ adicionar todos', '+ add all'))));
       r.problems.forEach((p2) => {
         const info = p2.id + ' · ' + p2.bucket
-          + (p2.total ? (' · ' + Math.round(p2.acceptance * 100) + '% AC · ' + p2.solvers + ' resolveram') : ' · sem histórico')
+          + (p2.total ? (' · ' + Math.round(p2.acceptance * 100) + '% AC · ' + p2.solvers + T(' resolveram', ' solved')) : T(' · sem histórico', ' · no history'))
           + ((p2.collections || []).length ? (' · 📁 ' + p2.collections.join(', ')) : '');
         out.append(itemRow(p2, info));
       });
-    } catch (e) { out.innerHTML = ''; out.append(el('div', { class: 'small error-box' }, e.message || 'erro')); }
+    } catch (e) { out.innerHTML = ''; out.append(el('div', { class: 'small error-box' }, e.message || T('erro', 'error'))); }
   }
   drawBtn.addEventListener('click', () => { lastSeed = null; doDraw(true); });
 
   // --- busca ---
-  const search = el('input', { placeholder: searchPlaceholder || '🔎 Buscar problemas — título ou id…' });
+  const search = el('input', { placeholder: searchPlaceholder || T('🔎 Buscar problemas — título ou id…', '🔎 Search problems — title or id…') });
   const results = el('div', { class: 'bank-results', style: 'display:none' });
   const doSearch = debounce(async () => {
     const q = search.value.trim();
@@ -99,13 +101,13 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
       results.innerHTML = ''; results.style.display = 'block';
       if (!items.length) {
         results.append(el('div', { class: 'bank-item' }, el('span', { class: 'muted small' },
-          q ? 'nada encontrado' : (emptyHint || 'digite para buscar no banco'))));
+          q ? T('nada encontrado', 'nothing found') : (emptyHint || T('digite para buscar no banco', 'type to search the bank')))));
         return;
       }
       items.forEach((it) => results.append(itemRow(it)));
     } catch (e) {
       results.style.display = 'block'; results.innerHTML = '';
-      results.append(el('div', { class: 'bank-item' }, el('span', { class: 'small error-box' }, e.message || 'erro')));
+      results.append(el('div', { class: 'bank-item' }, el('span', { class: 'small error-box' }, e.message || T('erro', 'error'))));
     }
   }, 250);
   search.addEventListener('input', doSearch);
@@ -123,12 +125,12 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
 
   const root = el('div', {},
     el('div', { class: 'section', style: 'background:#fbfdff' },
-      el('h3', { style: 'margin:.1rem 0 .4rem' }, '🎲 Sortear por coleção / tag / dificuldade'),
-      el('div', { class: 'field' }, el('label', {}, 'Coleções'), colC.input, colC.dl, colC.chips),
+      el('h3', { style: 'margin:.1rem 0 .4rem' }, T('🎲 Sortear por coleção / tag / dificuldade', '🎲 Draw by collection / tag / difficulty')),
+      el('div', { class: 'field' }, el('label', {}, T('Coleções', 'Collections')), colC.input, colC.dl, colC.chips),
       el('div', { class: 'field' }, el('label', {}, 'Tags'), tagC.input, tagC.dl, tagC.chips),
-      el('div', { class: 'row' }, el('span', { class: 'small' }, 'quantos:'), count,
-        el('span', { class: 'small' }, 'casar:'), match, el('span', { class: 'small' }, 'dificuldade:'), diff, drawBtn),
+      el('div', { class: 'row' }, el('span', { class: 'small' }, T('quantos:', 'how many:')), count,
+        el('span', { class: 'small' }, T('casar:', 'match:')), match, el('span', { class: 'small' }, T('dificuldade:', 'difficulty:')), diff, drawBtn),
       out),
-    el('div', { class: 'field' }, el('label', {}, searchLabel || 'Buscar problemas'), search, results));
+    el('div', { class: 'field' }, el('label', {}, searchLabel || T('Buscar problemas', 'Search problems')), search, results));
   return { el: root };
 }

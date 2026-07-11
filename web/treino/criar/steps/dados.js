@@ -1,15 +1,16 @@
 // steps/dados.js — passo 1: nome, id, modo e datas. (Prioridade fica no passo Opções,
 // junto dos demais campos do settings-editor.)
 import { el } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 import { toLocalDT, dtToEpoch } from '/shared/contest-config/util.js';
 import { MODE_LABEL } from '../criar.js';
 
 export function makeStepDados(ctx) {
   const d = ctx.draft;
   const modes = (ctx.perm.allowed_modes && ctx.perm.allowed_modes.length) ? ctx.perm.allowed_modes : ['icpc', 'obi', 'treino', 'heuristic'];
-  const name = el('input', { placeholder: 'Ex.: Maratona de Treino 2026', value: d.name || '' });
+  const name = el('input', { placeholder: T('Ex.: Maratona de Treino 2026', 'E.g.: Training Marathon 2026'), value: d.name || '' });
   name.addEventListener('input', () => { d.name = name.value; });
-  const cid = el('input', { placeholder: '(gerado do nome se vazio) — a-z 0-9 . _ -', value: d.id || '' });
+  const cid = el('input', { placeholder: T('(gerado do nome se vazio) — a-z 0-9 . _ -', '(generated from the name if empty) — a-z 0-9 . _ -'), value: d.id || '' });
   cid.addEventListener('input', () => { d.id = cid.value; });
   const mode = el('select', {}, ...modes.map((m) => el('option', { value: m }, MODE_LABEL[m] || m)));
   if (modes.includes(d.mode)) mode.value = d.mode;
@@ -25,14 +26,14 @@ export function makeStepDados(ctx) {
   end.addEventListener('input', () => { const e = dtToEpoch(end.value); if (e) d.end = e; });
 
   const root = el('div', { class: 'section' },
-    el('h2', {}, '1 · Dados do contest'),
-    el('div', { class: 'field' }, el('label', {}, 'Nome'), name),
+    el('h2', {}, T('1 · Dados do contest', '1 · Contest details')),
+    el('div', { class: 'field' }, el('label', {}, T('Nome', 'Name')), name),
     el('div', { class: 'grid2' },
-      el('div', { class: 'field' }, el('label', {}, 'ID (opcional)'), cid),
-      el('div', { class: 'field' }, el('label', {}, 'Modo / placar'), mode)),
+      el('div', { class: 'field' }, el('label', {}, T('ID (opcional)', 'ID (optional)')), cid),
+      el('div', { class: 'field' }, el('label', {}, T('Modo / placar', 'Mode / scoreboard')), mode)),
     el('div', { class: 'grid2' },
-      el('div', { class: 'field' }, el('label', {}, 'Início'), start),
-      el('div', { class: 'field' }, el('label', {}, 'Fim'), end)),
-    el('p', { class: 'muted small' }, 'Linguagens, prioridade de julgamento e demais opções ficam no passo 5 · Opções.'));
+      el('div', { class: 'field' }, el('label', {}, T('Início', 'Start')), start),
+      el('div', { class: 'field' }, el('label', {}, T('Fim', 'End')), end)),
+    el('p', { class: 'muted small' }, T('Linguagens, prioridade de julgamento e demais opções ficam no passo 5 · Opções.', 'Languages, judging priority and other options are in step 5 · Options.')));
   return { el: root };
 }

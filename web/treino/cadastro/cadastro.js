@@ -4,6 +4,7 @@
 // A SENHA nunca chega aqui: é entregue por DM do bot (posse do Telegram = prova).
 import { apiPost, apiGet } from '/shared/api.js';
 import { renderAuthArea } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 
 const $ = (id) => document.getElementById(id);
 let pollTimer = null;
@@ -28,14 +29,15 @@ async function poll(nonce) {
   clearInterval(pollTimer); pollTimer = null;
   $('step2').classList.add('hidden');
   if (st === 'created') {
-    showResult('ok', `Conta criada! Seu login é <b>${j.login}</b>. Enviamos a senha por mensagem privada no Telegram. ` +
-      `<br><a href="/treino/">Ir para o login →</a>`);
+    showResult('ok', T(`Conta criada! Seu login é <b>${j.login}</b>. Enviamos a senha por mensagem privada no Telegram. <br><a href="/treino/">Ir para o login →</a>`,
+      `Account created! Your login is <b>${j.login}</b>. We sent your password via private message on Telegram. <br><a href="/treino/">Go to login →</a>`));
   } else if (st === 'linked') {
-    showResult('ok', `Telegram vinculado à conta <b>${j.login}</b>.`);
+    showResult('ok', T(`Telegram vinculado à conta <b>${j.login}</b>.`, `Telegram linked to account <b>${j.login}</b>.`));
   } else if (st === 'already_linked') {
-    showResult('info', `Você já tem uma conta: <b>${j.login}</b>. Se esqueceu a senha, envie <code>/trocarsenha</code> ao bot no Telegram.`);
+    showResult('info', T(`Você já tem uma conta: <b>${j.login}</b>. Se esqueceu a senha, envie <code>/trocarsenha</code> ao bot no Telegram.`,
+      `You already have an account: <b>${j.login}</b>. If you forgot your password, send <code>/trocarsenha</code> to the bot on Telegram.`));
   } else { // expired / desconhecido
-    showResult('err', 'O link de confirmação expirou. Recarregue a página e tente de novo.');
+    showResult('err', T('O link de confirmação expirou. Recarregue a página e tente de novo.', 'The confirmation link expired. Reload the page and try again.'));
   }
 }
 
@@ -58,11 +60,11 @@ $('form').addEventListener('submit', async (e) => {
   } catch (err) {
     $('submit').disabled = false;
     const code = err.code || '';
-    const msg = code === 'login_taken' ? 'Esse login já está em uso — escolha outro.'
-      : code === 'login_reserved' ? 'Esse login não é permitido.'
-      : code === 'login_invalid' ? 'Login inválido (2–32 caracteres: letras, números, . _ -).'
-      : code === 'store_not_v2' ? 'O cadastro está temporariamente indisponível.'
-      : (err.message || 'Falha ao iniciar o cadastro.');
+    const msg = code === 'login_taken' ? T('Esse login já está em uso — escolha outro.', 'This login is already taken — choose another.')
+      : code === 'login_reserved' ? T('Esse login não é permitido.', 'This login is not allowed.')
+      : code === 'login_invalid' ? T('Login inválido (2–32 caracteres: letras, números, . _ -).', 'Invalid login (2–32 characters: letters, numbers, . _ -).')
+      : code === 'store_not_v2' ? T('O cadastro está temporariamente indisponível.', 'Sign up is temporarily unavailable.')
+      : (err.message || T('Falha ao iniciar o cadastro.', 'Failed to start sign up.'));
     showResult('err', msg);
   }
 });

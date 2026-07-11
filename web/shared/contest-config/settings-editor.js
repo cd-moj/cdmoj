@@ -5,6 +5,7 @@
 // e acrescenta a PRIORIDADE de julgamento ('super' só aparece p/ admin do treino).
 // Sem botão de salvar próprio — quem monta decide o que fazer com getValue().
 import { el } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 import { makeLangPicker } from './lang-picker.js';
 import { makeJudgePicker } from './judge-picker.js';
 import { toLocalDT, dtToEpoch } from './util.js';
@@ -12,10 +13,10 @@ import { toLocalDT, dtToEpoch } from './util.js';
 const field = (l, inp) => el('div', { class: 'field' }, el('label', {}, l), inp);
 const chk = (l, c) => el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, c, ' ' + l));
 const mkBool = (v) => { const c = el('input', { type: 'checkbox' }); c.checked = !!v; return c; };
-const PRIORITY_LABEL = {
-  'lista-publica': 'Lista pública (padrão)', 'lista-privada': 'Lista privada',
-  prova: 'Prova (julga antes das listas)', super: 'Super (admin; fura toda fila)',
-};
+const PRIORITY_LABEL = () => ({
+  'lista-publica': T('Lista pública (padrão)', 'Public list (default)'), 'lista-privada': T('Lista privada', 'Private list'),
+  prova: T('Prova (julga antes das listas)', 'Contest (judged before lists)'), super: T('Super (admin; fura toda fila)', 'Super (admin; jumps the whole queue)'),
+});
 
 const PENALTY_OPTS = [
   ['wa', 'Wrong Answer'], ['tle', 'Time Limit Exceeded'], ['mle', 'Memory Limit Exceeded'],
@@ -37,7 +38,8 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'));
   locale.value = s.locale || 'pt';
   const prios = ['lista-publica', 'lista-privada', 'prova', ...(isAdmin ? ['super'] : [])];
-  const priority = el('select', {}, ...prios.map((p) => el('option', { value: p }, PRIORITY_LABEL[p] || p)));
+  const PL = PRIORITY_LABEL();
+  const priority = el('select', {}, ...prios.map((p) => el('option', { value: p }, PL[p] || p)));
   priority.value = prios.includes(s.priority) ? s.priority : 'lista-publica';
   const loginEnabled = mkBool(s.login_enabled !== false), showCode = mkBool(s.show_code ?? s.showcode),
     showLog = mkBool(s.show_log !== false), showEditor = mkBool(s.show_editor !== false),
@@ -45,20 +47,20 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
     allowPrint = mkBool(s.allow_print !== false), manualVerdict = mkBool(s.manual_verdict === true),
     secret = mkBool(s.secret === true);
-  const ua = el('input', { value: s.login_ua_substring || '', placeholder: 'substring do UA (vazio = sem gate)' });
+  const ua = el('input', { value: s.login_ua_substring || '', placeholder: T('substring do UA (vazio = sem gate)', 'UA substring (empty = no gate)') });
   const penMin = el('input', { type: 'number', min: '0', step: '1', style: 'max-width:100px',
     value: String(Number.isInteger(s.penalty_minutes) ? s.penalty_minutes : 20) });
   const pvSel = new Set(Array.isArray(s.penalty_verdicts) ? s.penalty_verdicts : PENALTY_DEFAULT);
   const penChecks = PENALTY_OPTS.map(([code, label]) => ({ code, box: mkBool(pvSel.has(code)), label }));
   const langs = makeLangPicker(s.languages || []);
   const judges = makeJudgePicker(s.judges || [], apiCtx || {});
-  const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: 'logins (espaço) — além de .admin/.judge/.cjudge', style: 'width:100%' });
+  const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: T('logins (espaço) — além de .admin/.judge/.cjudge', 'logins (space) — besides .admin/.judge/.cjudge'), style: 'width:100%' });
 
   let cmode = contestMode;
   const penaltySec = el('div', {},
-    el('h3', { style: 'margin:1rem 0 .3rem' }, '⏱ Penalidade (placar ICPC)'),
-    field('Minutos somados por tentativa não aceita antes do Accepted', penMin),
-    el('p', { class: 'muted small' }, 'Verdicts que contam penalidade (Judge Error e submissões pendentes nunca contam):'),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('⏱ Penalidade (placar ICPC)', '⏱ Penalty (ICPC scoreboard)')),
+    field(T('Minutos somados por tentativa não aceita antes do Accepted', 'Minutes added per non-accepted attempt before the Accepted'), penMin),
+    el('p', { class: 'muted small' }, T('Verdicts que contam penalidade (Judge Error e submissões pendentes nunca contam):', 'Verdicts that count as penalty (Judge Error and pending submissions never count):')),
     ...penChecks.map((p) => chk(p.label, p.box)));
   const syncPen = () => { penaltySec.style.display = cmode === 'icpc' ? '' : 'none'; };
   syncPen();
@@ -66,8 +68,8 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   // Em modo icpc o log é OCULTO por padrão (showlog_effective no servidor): o report de
   // julgamento expõe a entrada e o diff de TODOS os casos de teste — religar vaza a prova.
   const showLogHint = el('p', { class: 'muted small', style: 'display:none;margin:.1rem 0 .4rem;color:#b45309' },
-    '⚠️ Prova ICPC: o log de julgamento fica oculto por padrão — o report expõe a entrada e o ',
-    'diff de TODOS os casos de teste. Marcar esta opção entrega os testes ao competidor.');
+    T('⚠️ Prova ICPC: o log de julgamento fica oculto por padrão — o report expõe a entrada e o ', '⚠️ ICPC contest: the judging log is hidden by default — the report exposes the input and the '),
+    T('diff de TODOS os casos de teste. Marcar esta opção entrega os testes ao competidor.', 'diff of ALL test cases. Checking this option hands the tests to the competitor.'));
   let showLogTouched = false;
   const syncShowLog = () => {
     if (!showLogTouched && isCreate && cmode === 'icpc') showLog.checked = false;
@@ -78,37 +80,37 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
 
   const box = el('div', {});
   if (!isCreate) {
-    box.append(field('Nome', name),
-      el('div', { class: 'grid2' }, field('Início', start), field('Fim', end)));
+    box.append(field(T('Nome', 'Name'), name),
+      el('div', { class: 'grid2' }, field(T('Início', 'Start'), start), field(T('Fim', 'End'), end)));
   }
   box.append(
-    el('div', { class: 'grid2' }, field('Abertura do login (tela de espera)', loginStart), field('Freeze do placar', freeze)),
-    isCreate ? el('div', { class: 'grid2' }, field('Idioma', locale), field('Prioridade no julgamento', priority)) : field('Idioma', locale),
-    chk('Login habilitado', loginEnabled),
-    chk('Permitir auto-cadastro de novos usuários (late users)', allowLate),
-    chk('Mostrar o código das submissões (a todos)', showCode),
-    chk('Usuário pode ver o log de julgamento', showLog),
+    el('div', { class: 'grid2' }, field(T('Abertura do login (tela de espera)', 'Login opening (waiting screen)'), loginStart), field(T('Freeze do placar', 'Scoreboard freeze'), freeze)),
+    isCreate ? el('div', { class: 'grid2' }, field(T('Idioma', 'Language'), locale), field(T('Prioridade no julgamento', 'Judging priority'), priority)) : field(T('Idioma', 'Language'), locale),
+    chk(T('Login habilitado', 'Login enabled'), loginEnabled),
+    chk(T('Permitir auto-cadastro de novos usuários (late users)', 'Allow self-registration of new users (late users)'), allowLate),
+    chk(T('Mostrar o código das submissões (a todos)', "Show submissions' code (to everyone)"), showCode),
+    chk(T('Usuário pode ver o log de julgamento', 'User can see the judging log'), showLog),
     showLogHint,
-    chk('Editor de código no browser disponível', showEditor),
-    chk('Mostrar o tempo-limite dos problemas aos usuários', showTL),
-    chk('Permitir backup de arquivos pelos usuários', allowBackup),
-    chk('Permitir pedidos de impressão pelos usuários (.staff)', allowPrint),
-    chk('Veredicto manual (2 juízes decidem; daemon segura o veredicto)', manualVerdict),
-    chk('Placar anônimo (esconde desempenho individual)', scoreAnon),
-    chk('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', secret),
-    field('Gate de login por substring de UA (só não-privilegiados)', ua),
+    chk(T('Editor de código no browser disponível', 'In-browser code editor available'), showEditor),
+    chk(T('Mostrar o tempo-limite dos problemas aos usuários', "Show problems' time limit to users"), showTL),
+    chk(T('Permitir backup de arquivos pelos usuários', 'Allow file backup by users'), allowBackup),
+    chk(T('Permitir pedidos de impressão pelos usuários (.staff)', 'Allow print requests by users (.staff)'), allowPrint),
+    chk(T('Veredicto manual (2 juízes decidem; daemon segura o veredicto)', 'Manual verdict (2 judges decide; daemon holds the verdict)'), manualVerdict),
+    chk(T('Placar anônimo (esconde desempenho individual)', 'Anonymous scoreboard (hides individual performance)'), scoreAnon),
+    chk(T('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', '🕵️ SUPER SECRET — off the home/archive/status; scoreboard and view require login (the login screen still works for whoever has the link)'), secret),
+    field(T('Gate de login por substring de UA (só não-privilegiados)', 'Login gate by UA substring (only non-privileged)'), ua),
     penaltySec,
-    el('h3', { style: 'margin:1rem 0 .3rem' }, '💻 Linguagens permitidas no contest'),
-    el('p', { class: 'muted small' }, 'Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)'),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('💻 Linguagens permitidas no contest', '💻 Languages allowed in the contest')),
+    el('p', { class: 'muted small' }, T('Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)', 'Check the allowed ones. None checked = all. (Can be refined per problem in the Problems tab.)')),
     langs.el,
-    el('h3', { style: 'margin:1rem 0 .3rem' }, '🖥️ Máquinas de juiz (pool)'),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🖥️ Máquinas de juiz (pool)', '🖥️ Judge machines (pool)')),
     el('p', { class: 'muted small' },
-      'Nenhuma marcada = qualquer juiz online julga. Marcar FIXA a correção nessas máquinas — ',
-      'consistência de hardware: o tempo-limite exibido passa a ser só delas e, se todas caírem, ',
-      'as submissões ESPERAM na fila (o pré-prova e a Situação avisam). (Pode ser refinado por problema na aba Problemas.)'),
+      T('Nenhuma marcada = qualquer juiz online julga. Marcar FIXA a correção nessas máquinas — ', 'None checked = any online judge judges. Checking PINS judging to those machines — '),
+      T('consistência de hardware: o tempo-limite exibido passa a ser só delas e, se todas caírem, ', 'hardware consistency: the displayed time limit becomes theirs only and, if all go down, '),
+      T('as submissões ESPERAM na fila (o pré-prova e a Situação avisam). (Pode ser refinado por problema na aba Problemas.)', 'submissions WAIT in the queue (the pre-contest check and the Situation warn). (Can be refined per problem in the Problems tab.)')),
     judges.el,
-    el('h3', { style: 'margin:1rem 0 .3rem' }, '👁️ Placar completo (sem freeze)'),
-    el('p', { class: 'muted small' }, 'Quem vê o placar real mesmo durante o freeze: .admin, .judge e .cjudge (juiz-chefe) sempre; some outros logins aqui.'),
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('👁️ Placar completo (sem freeze)', '👁️ Full scoreboard (no freeze)')),
+    el('p', { class: 'muted small' }, T('Quem vê o placar real mesmo durante o freeze: .admin, .judge e .cjudge (juiz-chefe) sempre; some outros logins aqui.', 'Who sees the real scoreboard even during freeze: .admin, .judge and .cjudge (chief judge) always; add other logins here.')),
     fullUsers);
 
   function getValue() {

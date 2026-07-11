@@ -1,6 +1,7 @@
 // shared/contest-config/colors.js — editor de cores dos balões + modo Sonic.
 // Reaproveitável (criação e admin do contest). Grava no formato do balloons.json.
 import { el } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 
 const PALETTE = { A: 'FFFFFF', B: '000000', C: 'FF0000', D: '800000', E: 'FFFF00', F: '008000',
   G: '0000FF', H: '000080', I: 'FF00FF', J: '800080', K: '00FF00', L: '00FFFF', M: 'C0C0C0', N: 'FF8000', O: 'A3794D' };
@@ -16,7 +17,7 @@ export function makeColorsEditor(opts = {}) {
   const rows = el('div', {});
   function rebuild() {
     rows.innerHTML = '';
-    if (!letters.length) { rows.append(el('p', { class: 'muted small' }, 'Sem problemas ainda — adicione problemas e clique “sincronizar”.')); return; }
+    if (!letters.length) { rows.append(el('p', { class: 'muted small' }, T('Sem problemas ainda — adicione problemas e clique “sincronizar”.', 'No problems yet — add problems and click “sync”.'))); return; }
     letters.forEach((L) => {
       const hex = state[L] || norm(initial[L]) || PALETTE[L] || 'CCCCCC';
       state[L] = hex;
@@ -31,7 +32,7 @@ export function makeColorsEditor(opts = {}) {
   rebuild();
 
   const panel = el('div', {},
-    el('label', { style: 'font-weight:400;display:block;margin-bottom:.4rem' }, sonic, ' 🦔 Modo secreto do Sonic (balões viram GIFs)'),
+    el('label', { style: 'font-weight:400;display:block;margin-bottom:.4rem' }, sonic, T(' 🦔 Modo secreto do Sonic (balões viram GIFs)', ' 🦔 Sonic secret mode (balloons become GIFs)')),
     rows);
   return {
     el: panel,

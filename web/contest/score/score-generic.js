@@ -2,6 +2,7 @@
 // Colunas livres: usa os nomes REAIS do cabeçalho (após remover marcadores desc/asc).
 // Se houver coluna "flag", mostra bandeira. Adiciona uma coluna "#" de posição.
 import { el } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 
 export function parseGeneric(lines, mode) {
@@ -36,7 +37,7 @@ export function renderGeneric(parsed, opts) {
   const table = el('table', { class: 'score' });
   const headRow = el('tr', {}, el('th', {}, '#'));
   parsed.header.forEach((h, i) => {
-    if (i === parsed.iFlag) { headRow.append(el('th', {}, 'Bandeira')); return; }
+    if (i === parsed.iFlag) { headRow.append(el('th', {}, T('Bandeira', 'Flag'))); return; }
     headRow.append(el('th', {}, h));
   });
   table.append(el('thead', {}, headRow));

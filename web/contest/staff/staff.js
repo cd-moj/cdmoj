@@ -7,6 +7,7 @@
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
+import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -17,9 +18,9 @@ const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString('pt-BR');
 const AUTOKEY = 'moj_autoprint_' + CONTEST;
 
 const STATUS = {
-  pending:   { t: '🕓 pendente',   c: '' },
-  printed:   { t: '🖨️ processada', c: 'color:#0a7' },
-  delivered: { t: '✅ entregue',    c: 'color:#0a7; font-weight:600' },
+  pending:   { t: T('🕓 pendente', '🕓 pending'),     c: '' },
+  printed:   { t: T('🖨️ processada', '🖨️ processed'), c: 'color:#0a7' },
+  delivered: { t: T('✅ entregue', '✅ delivered'),    c: 'color:#0a7; font-weight:600' },
 };
 
 let queue = [];            // último estado da fila
@@ -57,13 +58,13 @@ function printBlobIframe(url) {
 // PDF abre e o usuário imprime/compartilha pelo menu. `doPrint` dispara window.print().
 function openPdfWindow(id, doPrint) {
   const w = window.open('', '_blank');
-  if (!w) { alert('Permita pop-ups para abrir/imprimir o PDF desta sede.'); return null; }
-  try { w.document.write('<!doctype html><meta charset="utf-8"><title>Impressão</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Gerando o PDF…</body>'); } catch (_) {}
+  if (!w) { alert(T('Permita pop-ups para abrir/imprimir o PDF desta sede.', 'Allow pop-ups to open/print this site\'s PDF.')); return null; }
+  try { w.document.write(T('<!doctype html><meta charset="utf-8"><title>Impressão</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Gerando o PDF…</body>', '<!doctype html><meta charset="utf-8"><title>Printing</title><body style="margin:0;font:16px sans-serif;padding:1.2rem">Generating the PDF…</body>')); } catch (_) {}
   pdfBlobUrl(id).then((url) => {
     w.location.href = url;
     if (doPrint) { const tryPrint = () => { try { w.focus(); w.print(); } catch (_) {} }; setTimeout(tryPrint, 1500); }
     setTimeout(() => URL.revokeObjectURL(url), 120000);
-  }).catch((e) => { try { w.document.body.innerHTML = 'Falha ao gerar o PDF: ' + (e.message || 'erro'); } catch (_) {} });
+  }).catch((e) => { try { w.document.body.innerHTML = T('Falha ao gerar o PDF: ', 'Failed to generate the PDF: ') + (e.message || T('erro', 'error')); } catch (_) {} });
   return w;
 }
 
@@ -103,21 +104,21 @@ function rowActions(t) {
   if (RO) return el('span', { class: 'small muted' }, '—');   // .cstaff só acompanha
   const r = el('div', { class: 'row' });
   const mkBtn = (label, fn, cls) => { const b = el('button', { class: 'btn ' + (cls || 'ghost'), style: 'padding:.2rem .5rem' }, label);
-    b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { alert(e.message || 'falha'); } finally { b.disabled = false; await loadQueue(); } }); return b; };
-  if (t.status === 'pending') r.append(mkBtn('Pegar', () => action(t.id, 'claim')));
-  if (t.status !== 'delivered') r.append(mkBtn('🖨️ Imprimir', () => printTaskManual(t), ''));
-  r.append(mkBtn('Abrir PDF', () => { openPdfWindow(t.id, false); }));
-  if (t.status === 'printed') r.append(mkBtn('✅ Entregue', () => action(t.id, 'delivered'), ''));
+    b.addEventListener('click', async () => { b.disabled = true; try { await fn(); } catch (e) { alert(e.message || T('falha', 'failed')); } finally { b.disabled = false; await loadQueue(); } }); return b; };
+  if (t.status === 'pending') r.append(mkBtn(T('Pegar', 'Claim'), () => action(t.id, 'claim')));
+  if (t.status !== 'delivered') r.append(mkBtn(T('🖨️ Imprimir', '🖨️ Print'), () => printTaskManual(t), ''));
+  r.append(mkBtn(T('Abrir PDF', 'Open PDF'), () => { openPdfWindow(t.id, false); }));
+  if (t.status === 'printed') r.append(mkBtn(T('✅ Entregue', '✅ Delivered'), () => action(t.id, 'delivered'), ''));
   return r;
 }
 
 function renderRows() {
   tbody.innerHTML = '';
-  if (!queue.length) { tbody.append(el('tr', {}, el('td', { colspan: '6', class: 'muted' }, 'Nenhuma tarefa.'))); return; }
+  if (!queue.length) { tbody.append(el('tr', {}, el('td', { colspan: '6', class: 'muted' }, T('Nenhuma tarefa.', 'No tasks.')))); return; }
   queue.forEach((t) => {
     const st = STATUS[t.status] || STATUS.pending;
     const taskCell = t.kind === 'balloon'
-      ? el('td', {}, el('b', {}, '🎈 Balão · ' + (t.short || '?')),
+      ? el('td', {}, el('b', {}, T('🎈 Balão · ', '🎈 Balloon · ') + (t.short || '?')),
           el('div', { class: 'small' },
             el('span', { style: 'display:inline-block;width:.8em;height:.8em;border:1px solid #999;border-radius:50%;vertical-align:middle;background:#' + (t.color_hex || 'cccccc') }),
             ' ' + (t.color_name || '')))
@@ -127,8 +128,8 @@ function renderRows() {
       el('td', {}, el('div', {}, t.team || t.fullname || t.login), el('div', { class: 'small muted' }, t.login + (t.univ ? ' · ' + t.univ : ''))),
       taskCell,
       el('td', {}, el('span', { class: 'pr-badge', style: st.c }, st.t),
-        (t.claimed_by ? el('div', { class: 'small muted' }, 'por ' + t.claimed_by) : '')),
-      el('td', { class: 'small' }, (t.pages > 0 ? t.pages + ' pág.' : '—'), el('div', { class: 'small muted' }, fmtDate(t.time))),
+        (t.claimed_by ? el('div', { class: 'small muted' }, T('por ', 'by ') + t.claimed_by) : '')),
+      el('td', { class: 'small' }, (t.pages > 0 ? t.pages + T(' pág.', ' pg') : '—'), el('div', { class: 'small muted' }, fmtDate(t.time))),
       el('td', {}, rowActions(t))));
   });
 }
@@ -136,11 +137,11 @@ function renderRows() {
 async function loadQueue() {
   let r;
   try { r = await apiGet('/contest/staff/queue?contest=' + enc(CONTEST), G); }
-  catch (e) { statusBar.textContent = 'Falha ao listar: ' + (e.message || 'erro'); return; }
+  catch (e) { statusBar.textContent = T('Falha ao listar: ', 'Failed to list: ') + (e.message || T('erro', 'error')); return; }
   queue = r.requests || [];
   const np = queue.filter((x) => x.status === 'pending').length;
-  statusBar.textContent = queue.length + ' tarefa(s) · ' + np + ' pendente(s)' +
-    (RO ? ' · somente leitura' : (autoMode ? ' · modo automático LIGADO' : ''));
+  statusBar.textContent = queue.length + T(' tarefa(s) · ', ' task(s) · ') + np + T(' pendente(s)', ' pending') +
+    (RO ? T(' · somente leitura', ' · read-only') : (autoMode ? T(' · modo automático LIGADO', ' · auto mode ON') : ''));
   renderRows();
   autoTick();   // dispara o automático se houver pendente
 }
@@ -158,33 +159,33 @@ function render() {
     autoMode = cb.checked; localStorage.setItem(AUTOKEY, autoMode ? '1' : '0');
     autoBox.className = 'pr-auto' + (autoMode ? ' on' : ''); loadQueue();
   });
-  autoBox.append(cb, el('span', {}, el('b', {}, ' Modo impressão automática'),
-    el('span', { class: 'small muted' }, ' — imprime cada tarefa nova e marca como processada. Para impressão sem o diálogo do sistema, use o navegador em modo kiosk (--kiosk-printing).')));
+  autoBox.append(cb, el('span', {}, el('b', {}, T(' Modo impressão automática', ' Automatic printing mode')),
+    el('span', { class: 'small muted' }, T(' — imprime cada tarefa nova e marca como processada. Para impressão sem o diálogo do sistema, use o navegador em modo kiosk (--kiosk-printing).', ' — prints each new task and marks it processed. To print without the system dialog, run the browser in kiosk mode (--kiosk-printing).'))));
   const table = el('table', { class: 'moj' },
-    el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Time / login'), el('th', {}, 'Arquivo'), el('th', {}, 'Status'), el('th', {}, 'Págs / hora'), el('th', {}, 'Ações'))),
+    el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, T('Time / login', 'Team / login')), el('th', {}, T('Arquivo', 'File')), el('th', {}, 'Status'), el('th', {}, T('Págs / hora', 'Pages / time')), el('th', {}, T('Ações', 'Actions')))),
     tbody);
   app.append(
     el('div', { class: 'section' }, RO ? '' : autoBox,
       el('div', { class: 'row', style: 'margin:.2rem 0' }, statusBar, el('div', { class: 'spacer' }),
-        CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, '🏷️ Etiquetas') : '',
-        el('button', { class: 'btn ghost', onclick: loadQueue }, '↻ atualizar')),
+        CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas', '🏷️ Badges')) : '',
+        el('button', { class: 'btn ghost', onclick: loadQueue }, T('↻ atualizar', '↻ refresh'))),
       el('div', { class: 'chart-wrap' }, table)));
   loadQueue(); schedulePoll();
 }
 
 async function boot() {
-  if (!CONTEST) { app.innerHTML = '<div class="error-box">Contest não informado.</div>'; return; }
+  if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, '🔒 Entre no contest'),
-      el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, 'Ir para o contest')));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest')),
+      el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, T('Ir para o contest', 'Go to the contest'))));
     return;
   }
   if (!st.is_staff && !st.is_cstaff && !st.is_admin) {
     app.innerHTML = '';
-    app.append(el('div', { class: 'section' }, el('h2', {}, '🔒 Acesso restrito'),
-      el('p', { class: 'muted' }, 'Esta área é da equipe de impressão (.staff/.cstaff).')));
+    app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access')),
+      el('p', { class: 'muted' }, T('Esta área é da equipe de impressão (.staff/.cstaff).', 'This area is for the printing team (.staff/.cstaff).'))));
     return;
   }
   RO = !!st.is_cstaff && !st.is_staff && !st.is_admin;

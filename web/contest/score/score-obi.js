@@ -1,6 +1,7 @@
 // contest/score/score-obi.js — renderizador OBI (células = pontos).
 // Header (após remover marcadores): [flag:]username[:univ short]:team name:<SHORTS...>:Total
 import { el } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
 import { filterTeams } from './score-icpc.js';
@@ -49,8 +50,8 @@ export function renderOBI(parsed, opts) {
 
   const table = el('table', { class: 'score' });
   const headRow = el('tr', {}, el('th', {}, '#'));
-  if (parsed.hasFlag) headRow.append(el('th', {}, 'Bandeira'));
-  headRow.append(el('th', {}, 'Equipe'));
+  if (parsed.hasFlag) headRow.append(el('th', {}, T('Bandeira', 'Flag')));
+  headRow.append(el('th', {}, T('Equipe', 'Team')));
   const sonic = sonicEnabled(parsed.balloons);
   parsed.probShorts.forEach(pb => headRow.append(sonic ? el('th', { html: sonicImgHTML(pb) + ' ' + escHtml(pb) }) : el('th', {}, pb)));
   headRow.append(el('th', {}, 'Total'));
@@ -70,7 +71,7 @@ export function renderOBI(parsed, opts) {
     const label = (parsed.hasUnivShort && t.univShort ? `[${escHtml(t.univShort)}] ` : '') + escHtml(t.teamName || t.username);
     const teamTd = el('td', { class: 'team', title: (parsed.hasUnivFull && t.univFull) || '', html: logo + label });
     // foto do time (photo.png subida pelo admin): link clicável, abre em nova aba
-    if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: 'Foto do time', style: 'text-decoration:none' }, '📷'));
+    if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
     tr.append(teamTd);
     parsed.probShorts.forEach(sn => {
       const v = t.probs[sn] || '';

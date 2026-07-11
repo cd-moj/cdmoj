@@ -1,5 +1,6 @@
 // shared/editors.js — editores/IDEs para o "editor favorito" do perfil.
 // Os ids DEVEM casar com _valid_editor() em handlers/treino/profile.sh.
+import { T } from '/shared/i18n.js';
 export const EDITORS = [
   { id: 'vscode', label: 'VS Code' }, { id: 'cursor', label: 'Cursor' },
   { id: 'vim', label: 'Vim' }, { id: 'neovim', label: 'Neovim (nvim)' },
@@ -15,7 +16,7 @@ export const EDITORS = [
   { id: 'visualstudio', label: 'Visual Studio' }, { id: 'eclipse', label: 'Eclipse' },
   { id: 'xcode', label: 'Xcode' }, { id: 'codeblocks', label: 'Code::Blocks' },
   { id: 'geany', label: 'Geany' }, { id: 'kate', label: 'Kate' }, { id: 'gedit', label: 'gedit' },
-  { id: 'other', label: 'Outro' },
+  { id: 'other', label: T('Outro', 'Other') },
 ];
 export const editorLabel = (id) =>
-  id === 'web' ? 'Editor web (MOJ)' : ((EDITORS.find((e) => e.id === id) || {}).label || id || '—');
+  id === 'web' ? T('Editor web (MOJ)', 'MOJ web editor') : ((EDITORS.find((e) => e.id === id) || {}).label || id || '—');

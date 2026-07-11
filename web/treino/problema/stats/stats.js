@@ -4,13 +4,14 @@ import { el, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { barChart, pieChart } from '/lib/charts.js';
 import { langById } from '/shared/languages.js';
 import { editorLabel } from '/shared/editors.js';
+import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
 const ID = new URLSearchParams(location.search).get('id') || '';
 const langLabel = (l) => (langById(String(l || '').toLowerCase()) || {}).label || l || '?';
 const pct = (x) => Math.round((x || 0) * 100) + '%';
 const isKnownLang = (l) => l && langById(String(l).toLowerCase());
-const langDisplay = (l) => (l === 'outro' ? 'Outros (ext. não reconhecidas)' : langLabel(l));
+const langDisplay = (l) => (l === 'outro' ? T('Outros (ext. não reconhecidas)', 'Others (unrecognized ext.)') : langLabel(l));
 // junta tokens de linguagem não reconhecidos (olamundo, txt, exe, …) num único "Outros"
 function cleanLangs(byLang) {
   const out = []; let other = null;
@@ -42,44 +43,44 @@ function verdictColor(v) {
 async function boot() {
   await renderAuthArea(document.getElementById('authArea'), CONTEST, () => {});
   const content = document.getElementById('content');
-  if (!ID) { content.innerHTML = '<div class="notice">Faltou informar ?id=&lt;problema&gt;.</div>'; return; }
+  if (!ID) { content.innerHTML = `<div class="notice">${T('Faltou informar ?id=&lt;problema&gt;.', 'Missing ?id=&lt;problem&gt;.')}</div>`; return; }
 
   let s;
   try { s = await apiGet('/treino/problem-stats?id=' + encodeURIComponent(ID), { contest: CONTEST }); }
-  catch { content.innerHTML = '<div class="error-box">Falha ao carregar as estatísticas.</div>'; return; }
+  catch { content.innerHTML = `<div class="error-box">${T('Falha ao carregar as estatísticas.', 'Failed to load statistics.')}</div>`; return; }
   content.innerHTML = '';
 
   content.append(el('div', { class: 'section' },
     el('h1', { style: 'margin:0;color:var(--blue-dark)' }, '📊 ', s.title || ID),
-    el('p', { class: 'small muted', style: 'margin:.3rem 0 0' }, 'Problema do Treino Livre · ',
-      el('a', { href: '/treino/problema/?id=' + encodeURIComponent(ID) }, 'abrir o problema →'))));
+    el('p', { class: 'small muted', style: 'margin:.3rem 0 0' }, T('Problema do Treino Livre · ', 'Free Training problem · '),
+      el('a', { href: '/treino/problema/?id=' + encodeURIComponent(ID) }, T('abrir o problema →', 'open the problem →')))));
 
   if (!s.total_submissions) {
-    content.append(el('div', { class: 'section muted' }, 'Ainda não há submissões para este problema.'));
+    content.append(el('div', { class: 'section muted' }, T('Ainda não há submissões para este problema.', 'No submissions for this problem yet.')));
     return;
   }
 
   // --- resumo ---
   const ar = s.acceptance_rate || 0;
-  const diff = ar >= 0.9 ? 'muito fácil' : ar >= 0.7 ? 'fácil' : ar >= 0.5 ? 'médio' : 'difícil';
+  const diff = ar >= 0.9 ? T('muito fácil', 'very easy') : ar >= 0.7 ? T('fácil', 'easy') : ar >= 0.5 ? T('médio', 'medium') : T('difícil', 'hard');
   content.append(el('div', { class: 'section' },
-    el('h2', {}, 'Resumo'),
+    el('h2', {}, T('Resumo', 'Summary')),
     el('div', { class: 'metrics' },
-      metric(s.total_submissions, 'submissões'),
-      metric(s.distinct_attempted, 'tentaram'),
-      metric(s.distinct_solved, 'resolveram'),
-      metric(pct(ar), 'taxa de acerto'),
-      metric((s.avg_submissions_per_user || 0).toFixed(1), 'subs / usuário'),
-      metric(diff, 'dificuldade'))));
+      metric(s.total_submissions, T('submissões', 'submissions')),
+      metric(s.distinct_attempted, T('tentaram', 'attempted')),
+      metric(s.distinct_solved, T('resolveram', 'solved')),
+      metric(pct(ar), T('taxa de acerto', 'acceptance rate')),
+      metric((s.avg_submissions_per_user || 0).toFixed(1), T('subs / usuário', 'subs / user')),
+      metric(diff, T('dificuldade', 'difficulty')))));
 
   // --- distribuições ---
   const vData = (s.verdicts || []).map((v) => ({ label: v.verdict, value: v.count, color: verdictColor(v.verdict) }));
   const bl = cleanLangs(s.by_language);
   const slData = bl.filter((l) => l.solvers > 0).map((l) => ({ label: langDisplay(l.lang), value: l.solvers }));
-  content.append(el('div', { class: 'section' }, el('h2', {}, 'Distribuições'),
+  content.append(el('div', { class: 'section' }, el('h2', {}, T('Distribuições', 'Distributions')),
     el('div', { class: 'chart-grid' },
-      chartCard('Veredictos', pieChart(vData, { size: 240, donut: 0.55 })),
-      chartCard('Resolvedores distintos por linguagem',
+      chartCard(T('Veredictos', 'Verdicts'), pieChart(vData, { size: 240, donut: 0.55 })),
+      chartCard(T('Resolvedores distintos por linguagem', 'Distinct solvers by language'),
         barChart(slData, { width: 460, height: 240, color: '#216097', rotateLabels: true })))));
 
   // --- tabela por linguagem ---
@@ -90,17 +91,17 @@ async function boot() {
     el('td', {}, String(l.accepted)),
     el('td', {}, l.submissions ? pct(l.accepted / l.submissions) : '-'),
     el('td', {}, String(l.solvers)))));
-  content.append(el('div', { class: 'section' }, el('h2', {}, 'Por linguagem'),
-    el('p', { class: 'small muted', style: 'margin:0 0 .5rem' }, '"Resolveram" = usuários distintos que acertaram com aquela linguagem.'),
+  content.append(el('div', { class: 'section' }, el('h2', {}, T('Por linguagem', 'By language')),
+    el('p', { class: 'small muted', style: 'margin:0 0 .5rem' }, T('"Resolveram" = usuários distintos que acertaram com aquela linguagem.', '"Solved" = distinct users who got it accepted with that language.')),
     el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
-      el('th', {}, 'Linguagem'), el('th', {}, 'Submissões'), el('th', {}, 'Aceitas'),
-      el('th', {}, 'Taxa'), el('th', {}, 'Resolveram'))), tb)));
+      el('th', {}, T('Linguagem', 'Language')), el('th', {}, T('Submissões', 'Submissions')), el('th', {}, T('Aceitas', 'Accepted')),
+      el('th', {}, T('Taxa', 'Rate')), el('th', {}, T('Resolveram', 'Solved')))), tb)));
 
   // --- editores declarados pelos solvers ---
   if ((s.editors || []).length) {
     const eData = s.editors.map((e) => ({ label: editorLabel(e.editor), value: e.count }));
-    content.append(el('div', { class: 'section' }, el('h2', {}, '⌨ Editores de quem resolveu'),
-      el('div', { class: 'chart-grid' }, chartCard('Editores declarados', pieChart(eData, { size: 240 })))));
+    content.append(el('div', { class: 'section' }, el('h2', {}, T('⌨ Editores de quem resolveu', '⌨ Editors of those who solved')),
+      el('div', { class: 'chart-grid' }, chartCard(T('Editores declarados', 'Declared editors'), pieChart(eData, { size: 240 })))));
   }
 
   // --- nuvem de avatares (solvers públicos) ---
@@ -112,9 +113,9 @@ async function boot() {
     const total = s.solvers_public_count || avs.length;
     const more = total - avs.length;
     content.append(el('div', { class: 'section' },
-      el('h2', {}, '👥 Quem resolveu ', el('span', { class: 'small muted' }, `(${total} com perfil público)`)),
+      el('h2', {}, T('👥 Quem resolveu ', '👥 Who solved '), el('span', { class: 'small muted' }, T(`(${total} com perfil público)`, `(${total} with public profile)`))),
       cloud,
-      more > 0 ? el('p', { class: 'small muted', style: 'margin-top:.5rem' }, `+${more} outros`) : null));
+      more > 0 ? el('p', { class: 'small muted', style: 'margin-top:.5rem' }, T(`+${more} outros`, `+${more} others`)) : null));
   }
 }
 boot();
