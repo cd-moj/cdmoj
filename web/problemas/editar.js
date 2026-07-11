@@ -7,6 +7,7 @@ import { status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 import { makeLangPicker } from '/shared/contest-config/lang-picker.js';
+import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
@@ -45,19 +46,19 @@ const EXT2CM = {
 };
 const cmFor = (fn) => EXT2CM[(String(fn).split('.').pop() || '').toLowerCase()] || '';
 // seletor de linguagem do editor de soluções — uma entrada por linguagem aceita
-const LANG_OPTS = [['', 'texto'], ['cpp', 'C / C++'], ['python', 'Python'], ['java', 'Java'],
+const LANG_OPTS = [['', T('texto', 'text')], ['cpp', 'C / C++'], ['python', 'Python'], ['java', 'Java'],
   ['csharp', 'C#'], ['go', 'Go'], ['rust', 'Rust'], ['haskell', 'Haskell'], ['ocaml', 'OCaml'],
   ['pascal', 'Pascal'], ['prolog', 'Prolog'], ['shell', 'Shell / Bash'], ['apl', 'APL'],
   ['gas', 'Assembly (MIPS / RISC-V)'], ['javascript', 'JavaScript'], ['markdown', 'Markdown']];
-const SOL_CATS = [['good', 'good — deve ser ACEITA'], ['wrong', 'wrong — deve FALHAR'], ['slow', 'slow — estoura o TEMPO'], ['pass', 'pass — aceitas (não calibram)'], ['upcoming', 'upcoming — em desenvolvimento']];
+const SOL_CATS = [['good', T('good — deve ser ACEITA', 'good — must be ACCEPTED')], ['wrong', T('wrong — deve FALHAR', 'wrong — must FAIL')], ['slow', T('slow — estoura o TEMPO', 'slow — exceeds the TIME')], ['pass', T('pass — aceitas (não calibram)', 'pass — accepted (do not calibrate)')], ['upcoming', T('upcoming — em desenvolvimento', 'upcoming — in development')]];
 const DEFNAME = { good: 'sol.cpp', wrong: 'wa.cpp', slow: 'slow.cpp', pass: 'alt.cpp', upcoming: 'wip.cpp' };
 // selo com o resultado que cada categoria de solução deve obter no juiz
 const SOL_BADGE = {
-  good: ['sb-good', 'devem ser aceitas (Accepted) — definem o tempo-limite do problema'],
-  wrong: ['sb-wrong', 'devem falhar (Wrong Answer ou erro de execução)'],
-  slow: ['sb-slow', 'devem estourar o tempo (Time Limit Exceeded)'],
-  pass: ['sb-pass', 'também são aceitas, mas não entram na calibração do tempo'],
-  upcoming: ['sb-upcoming', 'em desenvolvimento — o juiz não as executa'],
+  good: ['sb-good', T('devem ser aceitas (Accepted) — definem o tempo-limite do problema', 'must be accepted (Accepted) — they define the problem time limit')],
+  wrong: ['sb-wrong', T('devem falhar (Wrong Answer ou erro de execução)', 'must fail (Wrong Answer or runtime error)')],
+  slow: ['sb-slow', T('devem estourar o tempo (Time Limit Exceeded)', 'must exceed the time (Time Limit Exceeded)')],
+  pass: ['sb-pass', T('também são aceitas, mas não entram na calibração do tempo', 'also accepted, but do not enter time calibration')],
+  upcoming: ['sb-upcoming', T('em desenvolvimento — o juiz não as executa', 'in development — the judge does not run them')],
 };
 // DERIVADO de SOL_CATS p/ nunca dessincronizar (a causa do bug que travava a página)
 let solEditors = Object.fromEntries(SOL_CATS.map(([c]) => [c, []]));
@@ -152,11 +153,11 @@ async function toggleStmtMode() {
     const s = splitStatement(enunEd ? enunEd.getValue() : '');
     descEd.setValue(s.descricao); entEd.setValue(s.entrada); saiEd.setValue(s.saida); obsEd.setValue(s.observacoes);
     $('enunMount').style.display = 'none'; $('enunModular').style.display = '';
-    stmtMode = 'modular'; if (btn) btn.textContent = '⊟ Juntar num só';
+    stmtMode = 'modular'; if (btn) btn.textContent = T('⊟ Juntar num só', '⊟ Merge into one');
   } else {
     if (enunEd) enunEd.setValue(currentStatement());   // ainda modo modular -> combina os 4
     $('enunModular').style.display = 'none'; $('enunMount').style.display = '';
-    stmtMode = 'single'; if (btn) btn.textContent = '✂ Separar em seções';
+    stmtMode = 'single'; if (btn) btn.textContent = T('✂ Separar em seções', '✂ Split into sections');
   }
   updateReady();
 }
@@ -173,22 +174,22 @@ function readyItems() {
   const nGood = (solEditors.good || []).length;
   const limOK = !!($('cf_memlimit').value.trim() || $('cf_calibrafactor').value.trim());
   const items = [
-    { tab: 'enun', label: 'Enunciado', s: hasEnun ? 'ok' : 'todo' },
-    { tab: 'tests', label: 'Exemplos', s: nEx ? 'ok' : 'todo' },
-    { tab: 'tests', label: 'Testes', s: nTs ? 'ok' : 'todo' },
-    { tab: 'sols', label: 'Solução good', s: nGood ? 'ok' : 'todo' },
+    { tab: 'enun', label: T('Enunciado', 'Statement'), s: hasEnun ? 'ok' : 'todo' },
+    { tab: 'tests', label: T('Exemplos', 'Samples'), s: nEx ? 'ok' : 'todo' },
+    { tab: 'tests', label: T('Testes', 'Tests'), s: nTs ? 'ok' : 'todo' },
+    { tab: 'sols', label: T('Solução good', 'good solution'), s: nGood ? 'ok' : 'todo' },
   ];
-  if (SCORE.enabled) items.push({ tab: 'tests', label: 'Pontuação', s: (SCORE.groups.length && scoreSum() > 0) ? 'ok' : 'todo' });
-  items.push({ tab: 'limits', label: 'Limites', s: limOK ? 'ok' : 'na' });
-  items.push({ tab: 'pub', label: 'Validado', s: VAL.validated });
-  items.push({ tab: 'pub', label: 'Calibrado', s: VAL.calibrated });
-  items.push({ tab: 'pub', label: 'Público', s: loadedPublic ? 'ok' : 'na' });
+  if (SCORE.enabled) items.push({ tab: 'tests', label: T('Pontuação', 'Scoring'), s: (SCORE.groups.length && scoreSum() > 0) ? 'ok' : 'todo' });
+  items.push({ tab: 'limits', label: T('Limites', 'Limits'), s: limOK ? 'ok' : 'na' });
+  items.push({ tab: 'pub', label: T('Validado', 'Validated'), s: VAL.validated });
+  items.push({ tab: 'pub', label: T('Calibrado', 'Calibrated'), s: VAL.calibrated });
+  items.push({ tab: 'pub', label: T('Público', 'Public'), s: loadedPublic ? 'ok' : 'na' });
   return items;
 }
 function updateReady() {
   const box = $('ready'); if (!box) return;
   box.innerHTML = '';
-  readyItems().forEach(it => box.append(el('span', { class: 'rdy ' + it.s, title: 'ir para a aba', onclick: () => showTab(it.tab) },
+  readyItems().forEach(it => box.append(el('span', { class: 'rdy ' + it.s, title: T('ir para a aba', 'go to the tab'), onclick: () => showTab(it.tab) },
     el('span', { class: 'dot' }), el('span', {}, it.label))));
   const nEx = $('examples').querySelectorAll('.ex').length, nTs = $('tests').querySelectorAll('.ex').length;
   $('tabTestsMini').textContent = (nEx + nTs) ? `(${nEx}+${nTs})` : '';
@@ -200,11 +201,11 @@ function updateReady() {
 function exampleRow(input = '', output = '', explanation = '') {
   const row = el('div', { class: 'ex' },
     el('div', { class: 'grid2' },
-      el('div', {}, el('label', { class: 'small' }, 'entrada'), el('textarea', { class: 'exin' }, input)),
-      el('div', {}, el('label', { class: 'small' }, 'saída'), el('textarea', { class: 'exout' }, output))),
-    el('div', {}, el('label', { class: 'small' }, 'explicação (opcional, Markdown — aparece logo após o exemplo no enunciado)'),
+      el('div', {}, el('label', { class: 'small' }, T('entrada', 'input')), el('textarea', { class: 'exin' }, input)),
+      el('div', {}, el('label', { class: 'small' }, T('saída', 'output')), el('textarea', { class: 'exout' }, output))),
+    el('div', {}, el('label', { class: 'small' }, T('explicação (opcional, Markdown — aparece logo após o exemplo no enunciado)', 'explanation (optional, Markdown — appears right after the sample in the statement)')),
       el('textarea', { class: 'exexpl', oninput: updateReady }, explanation)),
-    el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, 'remover exemplo'));
+    el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, T('remover exemplo', 'remove sample')));
   return row;
 }
 const addExample = (i = '', o = '', x = '') => { $('examples').append(exampleRow(i, o, x)); updatePkgInfo(); };
@@ -221,13 +222,13 @@ const splitGlobs = (g) => (g || '').split(',').map(s => s.trim()).filter(Boolean
 const matchGroups = (name) => SCORE.groups.filter(g => splitGlobs(g.glob).some(gl => globToRe(gl).test(name)));
 
 function addGroupRow(g = { name: '', weight: '', glob: '' }) {
-  const nameI = el('input', { type: 'text', value: g.name || '', placeholder: 'ex: facil' });
+  const nameI = el('input', { type: 'text', value: g.name || '', placeholder: T('ex: facil', 'e.g. easy') });
   const wI = el('input', { type: 'text', value: (g.weight ?? '') + '', placeholder: '0' });
-  const globI = el('input', { type: 'text', value: g.glob || '', placeholder: g.name ? groupKey(g.name) + '_*' : 'nome_*' });
+  const globI = el('input', { type: 'text', value: g.glob || '', placeholder: g.name ? groupKey(g.name) + '_*' : T('nome_*', 'name_*') });
   const tr = el('tr', {},
     el('td', {}, nameI), el('td', { class: 'w' }, wI), el('td', {}, globI),
     el('td', { class: 'act' }, el('a', { href: '#', onclick: (e) => { e.preventDefault(); tr.remove(); syncScore(); } }, '✕')));
-  const onName = () => { globI.placeholder = (nameI.value.trim() ? groupKey(nameI.value) + '_*' : 'nome_*'); syncScore(); };
+  const onName = () => { globI.placeholder = (nameI.value.trim() ? groupKey(nameI.value) + '_*' : T('nome_*', 'name_*')); syncScore(); };
   nameI.addEventListener('input', onName); wI.addEventListener('input', syncScore); globI.addEventListener('input', syncScore);
   tr._get = () => ({ name: nameI.value.trim(), weight: parseInt(wI.value, 10) || 0, glob: globI.value.trim() || (nameI.value.trim() ? groupKey(nameI.value) + '_*' : '') });
   $('scoreGroups').append(tr);
@@ -240,7 +241,7 @@ function syncScore() {
   $('scoreBox').style.display = SCORE.enabled ? '' : 'none';
   const tot = scoreSum();
   const t = $('scoreTotal');
-  t.textContent = tot > 0 ? `o problema vale ${tot} ponto(s) no total` : 'defina os pesos dos grupos';
+  t.textContent = tot > 0 ? `${T('o problema vale', 'the problem is worth')} ${tot} ${T('ponto(s) no total', 'point(s) in total')}` : T('defina os pesos dos grupos', 'set the group weights');
   t.className = 'small gtotal ' + (tot > 0 ? 'ok' : 'no');
   refreshTestGroupSelects(); updateReady(); updatePkgInfo();
 }
@@ -250,7 +251,7 @@ function refreshTestGroupSelects() {
     const gsel = row._gsel; if (!gsel) return;
     const cur = gsel.value || row._wantGroup || ''; row._wantGroup = '';
     gsel.innerHTML = '';
-    gsel.append(el('option', { value: '' }, 'auto (pelo padrão)'));
+    gsel.append(el('option', { value: '' }, T('auto (pelo padrão)', 'auto (by pattern)')));
     SCORE.groups.forEach(g => { if (g.name) gsel.append(el('option', { value: g.name }, g.name)); });
     gsel.value = SCORE.groups.some(g => g.name === cur) ? cur : '';
     if (row._gwrap) row._gwrap.style.display = show ? '' : 'none';
@@ -260,29 +261,29 @@ function refreshTestGroupSelects() {
 function updateTestHint(row) {
   const ghint = row._ghint, gsel = row._gsel; if (!ghint) return;
   if (!$('scoreEnabled').checked) { ghint.textContent = ''; return; }
-  if (gsel.value) { ghint.textContent = '(fixado)'; ghint.style.color = ''; return; }
+  if (gsel.value) { ghint.textContent = T('(fixado)', '(fixed)'); ghint.style.color = ''; return; }
   const m = matchGroups((row._nameI ? row._nameI.value : '').trim());
   if (m.length === 1) { ghint.textContent = '→ ' + m[0].name; ghint.style.color = '#7ee2a0'; }
-  else if (m.length === 0) { ghint.textContent = '⚠ sem grupo'; ghint.style.color = '#ffd98a'; }
-  else { ghint.textContent = '⚠ casa ' + m.length + ' grupos'; ghint.style.color = '#ffd98a'; }
+  else if (m.length === 0) { ghint.textContent = T('⚠ sem grupo', '⚠ no group'); ghint.style.color = '#ffd98a'; }
+  else { ghint.textContent = T('⚠ casa ', '⚠ matches ') + m.length + T(' grupos', ' groups'); ghint.style.color = '#ffd98a'; }
 }
 
 // ---- testes ocultos -----------------------------------------------------------------------
 function testRow(name = '', input = '', output = '', group = '') {
-  const nameI = el('input', { type: 'text', value: name, placeholder: 'nome', style: 'max-width:11rem' });
+  const nameI = el('input', { type: 'text', value: name, placeholder: T('nome', 'name'), style: 'max-width:11rem' });
   const inT = el('textarea', { class: 'tin' }, input), outT = el('textarea', { class: 'tout' }, output);
   const li = hiddenFile(false), lo = hiddenFile(false);
   const gsel = el('select', { class: 'tgroup small' });
   const ghint = el('span', { class: 'tghint small muted' });
   const gwrap = el('span', { class: 'tgwrap row', style: 'gap:.3rem;align-items:center;display:none' },
-    el('span', { class: 'small muted' }, 'grupo:'), gsel, ghint);
+    el('span', { class: 'small muted' }, T('grupo:', 'group:')), gsel, ghint);
   const row = el('div', { class: 'ex' },
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-      el('span', { class: 'small' }, 'teste'), nameI, gwrap,
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, 'remover')),
+      el('span', { class: 'small' }, T('teste', 'test')), nameI, gwrap,
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, T('remover', 'remove'))),
     el('div', { class: 'grid2' },
-      el('div', {}, el('label', { class: 'small' }, 'entrada ', el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => li.click() }, '(carregar)')), inT),
-      el('div', {}, el('label', { class: 'small' }, 'saída ', el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => lo.click() }, '(carregar)')), outT)),
+      el('div', {}, el('label', { class: 'small' }, T('entrada ', 'input '), el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => li.click() }, T('(carregar)', '(load)'))), inT),
+      el('div', {}, el('label', { class: 'small' }, T('saída ', 'output '), el('span', { class: 'linklike', style: 'cursor:pointer', onclick: () => lo.click() }, T('(carregar)', '(load)'))), outT)),
     li, lo);
   row._nameI = nameI; row._gsel = gsel; row._ghint = ghint; row._gwrap = gwrap; row._wantGroup = group;
   nameI.addEventListener('change', () => { updatePkgInfo(); updateTestHint(row); });
@@ -333,8 +334,8 @@ async function renderSols(sols) {
   // sub-aba do MODO DE CORREÇÃO (correção especial, scripts/): mesmo mecanismo das categorias —
   // o painel (#scrPanel, data-cat="scr") vive FORA do wrap p/ sobreviver ao re-render
   nav.append(el('span', { class: 'subsep' }, '·'),
-    el('button', { class: 'subtab', type: 'button', 'data-cat': 'scr', title: 'modo de correção: checker, comparador, interativo… (scripts/ do pacote)', onclick: () => showSolCat('scr') },
-      el('span', { class: 'sol-badge sb-scr' }, '⚙ correção'), el('span', { class: 'subcount', id: 'solcount-scr' })));
+    el('button', { class: 'subtab', type: 'button', 'data-cat': 'scr', title: T('modo de correção: checker, comparador, interativo… (scripts/ do pacote)', 'grading mode: checker, comparator, interactive… (package scripts/)'), onclick: () => showSolCat('scr') },
+      el('span', { class: 'sol-badge sb-scr' }, T('⚙ correção', '⚙ grading')), el('span', { class: 'subcount', id: 'solcount-scr' })));
   wrap.append(nav);
   for (const [cat] of SOL_CATS) {
     const [, btxt] = SOL_BADGE[cat] || ['', ''];
@@ -343,11 +344,11 @@ async function renderSols(sols) {
     wrap.append(el('div', { class: 'solpanel', 'data-cat': cat, hidden: true },
       el('p', { class: 'small muted', style: 'margin:.2rem 0 .4rem' }, btxt),
       el('div', { class: 'row', style: 'gap:.4rem;flex-wrap:wrap;align-items:center;margin-bottom:.3rem' },
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => addSol(cat, DEFNAME[cat], '', true) }, '+ arquivo'),
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, '⬆ enviar'), fi,
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => addSol(cat, DEFNAME[cat], '', true) }, T('+ arquivo', '+ file')),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, T('⬆ enviar', '⬆ upload')), fi,
         el('span', { style: 'flex:1' }),
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, true) }, 'abrir todos'),
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, false) }, 'fechar todos')),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, true) }, T('abrir todos', 'open all')),
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => toggleAllSols(cat, false) }, T('fechar todos', 'close all'))),
       rows));
     for (const s of (sols[cat] || [])) await addSol(cat, s.filename, s.code, false);
   }
@@ -357,7 +358,7 @@ async function addSol(cat, fn, code, expand) {
   const fnInput = el('input', { type: 'text', value: fn || DEFNAME[cat], style: 'max-width:14rem' });
   const langSel = langSelect(cmFor(fnInput.value));
   const mount = el('div', { class: 'editor-mount', style: 'display:none' });
-  const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: 'abrir/fechar editor' }, '▸');
+  const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: T('abrir/fechar editor', 'open/close editor') }, '▸');
   const entry = { code: code || '', ed: null, row: null, fnInput, langSel, mount };
   const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: langSel.value || null }); };
   entry.setOpen = async (open) => { if (open) await ensureEd(); mount.style.display = open ? '' : 'none'; expandBtn.textContent = open ? '▾' : '▸'; };
@@ -367,8 +368,8 @@ async function addSol(cat, fn, code, expand) {
   langSel.addEventListener('change', remount);
   fnInput.addEventListener('change', () => { langSel.value = cmFor(fnInput.value); remount(); updatePkgInfo(); });
   const row = el('div', { class: 'solrow' },
-    el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' }, expandBtn, el('span', { class: 'small muted' }, 'arquivo'), fnInput, langSel,
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = (solEditors[cat] || []).filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, 'remover')),
+    el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' }, expandBtn, el('span', { class: 'small muted' }, T('arquivo', 'file')), fnInput, langSel,
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = (solEditors[cat] || []).filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove'))),
     mount);
   entry.row = row;
   $('sol-' + cat).append(row);
@@ -387,27 +388,27 @@ function addScript(f, expand) {
   const isLink = !!f.symlink;
   const text = isLink ? null : b64ToUtf8Strict(f.content_b64 || '');
   const isBin = !isLink && text === null;
-  const pathInput = el('input', { type: 'text', value: f.path || '', placeholder: 'ex: compare.sh · c/compile.sh', style: 'max-width:16rem' });
+  const pathInput = el('input', { type: 'text', value: f.path || '', placeholder: T('ex: compare.sh · c/compile.sh', 'e.g. compare.sh · c/compile.sh'), style: 'max-width:16rem' });
   const entry = { pathInput, symlink: f.symlink || null, b64: f.content_b64 || '', code: text || '', isBin, ed: null };
   let row;
   if (isLink) {
     row = el('div', { class: 'solrow' }, el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
       el('span', { class: 'small muted' }, '🔗'), pathInput, el('span', { class: 'small muted' }, '→ ' + f.symlink),
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, 'remover')));
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove'))));
   } else {
     const execCb = el('input', { type: 'checkbox' }); execCb.checked = !!f.exec;
     entry.execCb = execCb;
     const mount = el('div', { class: 'editor-mount', style: 'display:none' });
-    const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: 'abrir/fechar editor' }, '▸');
+    const expandBtn = el('button', { class: 'btn ghost small', type: 'button', title: T('abrir/fechar editor', 'open/close editor') }, '▸');
     const ensureEd = async () => { if (!entry.ed) entry.ed = await createEditor(mount, { doc: entry.code, cm: cmFor(pathInput.value) || 'shell' }); };
     entry.setOpen = async (open) => { if (open) await ensureEd(); mount.style.display = open ? '' : 'none'; expandBtn.textContent = open ? '▾' : '▸'; };
     expandBtn.onclick = () => entry.setOpen(mount.style.display === 'none');
-    if (isBin) { expandBtn.disabled = true; expandBtn.title = 'binário — preservado como está'; }
+    if (isBin) { expandBtn.disabled = true; expandBtn.title = T('binário — preservado como está', 'binary — preserved as is'); }
     row = el('div', { class: 'solrow' }, el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-      expandBtn, el('span', { class: 'small muted' }, 'arquivo'), pathInput,
-      isBin ? el('span', { class: 'small muted' }, `(binário, ${Math.round((entry.b64.length * 3) / 4)} bytes)`) : '',
-      el('label', { class: 'row small', style: 'gap:.3rem' }, execCb, 'executável'),
-      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, 'remover')),
+      expandBtn, el('span', { class: 'small muted' }, T('arquivo', 'file')), pathInput,
+      isBin ? el('span', { class: 'small muted' }, `${T('(binário, ', '(binary, ')}${Math.round((entry.b64.length * 3) / 4)} bytes)`) : '',
+      el('label', { class: 'row small', style: 'gap:.3rem' }, execCb, T('executável', 'executable')),
+      el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); scrEntries = scrEntries.filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove'))),
       mount);
     if (expand) entry.setOpen(true);
   }
@@ -438,12 +439,12 @@ async function loadScriptTemplates() {
 async function applyScriptTemplate() {
   const key = $('scrTplSel').value; if (!key) return;
   const t = (SCR_TEMPLATES || []).find(x => x.key === key); if (!t) return;
-  if (scrEntries.length && !confirm(`Aplicar o template "${t.name}" SUBSTITUI os ${scrEntries.length} arquivo(s) atuais de scripts/. Continuar?`)) return;
+  if (scrEntries.length && !confirm(`${T('Aplicar o template "', 'Applying the template "')}${t.name}${T('" SUBSTITUI os ', '" REPLACES the ')}${scrEntries.length}${T(' arquivo(s) atuais de scripts/. Continuar?', ' current scripts/ file(s). Continue?')}`)) return;
   renderScripts(t.files || []);
   const hint = $('scrTplHint');
   hint.style.display = '';
   hint.textContent = (t.description ? t.description + ' ' : '') + (t.conf_hints ? '💡 ' + t.conf_hints : '');
-  setMsg('Template aplicado — revise os arquivos (o exemplo é um ponto de partida) e salve.', '');
+  setMsg(T('Template aplicado — revise os arquivos (o exemplo é um ponto de partida) e salve.', 'Template applied — review the files (the example is a starting point) and save.'), '');
 }
 
 // ---- árvore do pacote (clicável -> troca de aba e rola até a seção) ------------------------
@@ -459,10 +460,10 @@ const dirNode = (label, ...kids) => el('li', {}, el('span', { class: 'dir' }, la
 function buildTree() {
   const exRows = [...$('examples').querySelectorAll('.ex')], tsRows = [...$('tests').querySelectorAll('.ex')];
   const testKids = [];
-  if (exRows.length) testKids.push(dirNode('exemplos/', ...exRows.map((r, i) => leaf('sample' + (i + 1), r))));
-  if (tsRows.length) testKids.push(dirNode('ocultos/', ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || 'teste'), r))));
+  if (exRows.length) testKids.push(dirNode(T('exemplos/', 'samples/'), ...exRows.map((r, i) => leaf('sample' + (i + 1), r))));
+  if (tsRows.length) testKids.push(dirNode(T('ocultos/', 'hidden/'), ...tsRows.map(r => leaf(((r._nameI ? r._nameI.value : '') || T('teste', 'test')), r))));
   if (SCORE.enabled) testKids.push(leaf('score', $('scoreGroups'), () => showTab('tests')));
-  const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || '(sem nome)', s.row))) : null).filter(Boolean);
+  const solKids = SOL_CATS.map(([c]) => (solEditors[c] || []).length ? dirNode(c + '/', ...solEditors[c].map(s => leaf(s.get().filename || T('(sem nome)', '(no name)'), s.row))) : null).filter(Boolean);
   // scripts/ (correção especial) — editável na sub-aba ⚙ de Soluções & Correção; agrupa por subpasta
   let scrNode = null;
   const scrItems = scrEntries.map(e => ({ p: e.pathInput.value.trim(), row: e.row })).filter(x => x.p);
@@ -489,13 +490,13 @@ function buildTree() {
     testKids.length ? dirNode('tests/', ...testKids) : null,
     solKids.length ? dirNode('sols/', ...solKids) : null,
     scrNode);
-  return el('div', {}, el('div', { class: 'dir' }, ($('prob').value || 'problema') + '/'), tree);
+  return el('div', {}, el('div', { class: 'dir' }, ($('prob').value || T('problema', 'problem')) + '/'), tree);
 }
 function updatePkgInfo() {
   if (!$('pkgInfo')) return;
   const ex = $('examples').querySelectorAll('.ex').length, ts = $('tests').querySelectorAll('.ex').length;
   const sc = SOL_CATS.map(([c]) => `${c}:${(solEditors[c] || []).length}`).join(' · ');
-  $('pkgInfo').textContent = `${ex} exemplo(s) · ${ts} teste(s) oculto(s) · soluções ${sc}` + (SCORE.enabled ? ` · pontuação: ${SCORE.groups.length} grupo(s)/${scoreSum()}p` : '');
+  $('pkgInfo').textContent = `${ex} ${T('exemplo(s)', 'sample(s)')} · ${ts} ${T('teste(s) oculto(s)', 'hidden test(s)')} · ${T('soluções', 'solutions')} ${sc}` + (SCORE.enabled ? ` · ${T('pontuação:', 'scoring:')} ${SCORE.groups.length} ${T('grupo(s)', 'group(s)')}/${scoreSum()}p` : '');
   if ($('pkgTree')) { $('pkgTree').innerHTML = ''; $('pkgTree').append(buildTree()); }
   updateReady();
 }
@@ -508,16 +509,16 @@ function updateRepoHint() {
   const hint = $('repoHint'); if (!hint) return;
   if (!REPOS.length && MODE === 'new') {
     hint.style.display = ''; hint.className = 'small'; hint.style.color = '#ffd98a';
-    hint.innerHTML = 'Você ainda não tem nenhuma <b>org</b>. O problema é salvo <b>dentro de uma org</b> — clique <b>“+ nova org”</b> ali do lado para criar a primeira (ex.: uma por disciplina ou competição). Só depois o botão <b>Salvar</b> funciona.';
+    hint.innerHTML = T('Você ainda não tem nenhuma <b>org</b>. O problema é salvo <b>dentro de uma org</b> — clique <b>“+ nova org”</b> ali do lado para criar a primeira (ex.: uma por disciplina ou competição). Só depois o botão <b>Salvar</b> funciona.', 'You have no <b>org</b> yet. The problem is saved <b>inside an org</b> — click <b>“+ new org”</b> on the side to create the first one (e.g. one per course or competition). Only then does the <b>Save</b> button work.');
   } else if (orgIsPrivate()) {
     hint.style.display = ''; hint.className = 'small'; hint.style.color = '#ffd98a';
-    hint.innerHTML = '🔒 A org <b>' + REPO + '</b> é <b>privada</b> — problemas nela não podem ficar públicos (anti-vazamento de prova). Um admin da org libera em Gestão de Problemas › Orgs.';
+    hint.innerHTML = T('🔒 A org <b>', '🔒 The org <b>') + REPO + T('</b> é <b>privada</b> — problemas nela não podem ficar públicos (anti-vazamento de prova). Um admin da org libera em Gestão de Problemas › Orgs.', '</b> is <b>private</b> — problems in it cannot become public (exam anti-leak). An org admin unlocks it in Problem Management › Orgs.');
   } else hint.style.display = 'none';
 }
 function fillRepoSelect() {
   const sel = $('repo'); sel.innerHTML = '';
-  if (!REPOS.length && !REPO) sel.append(el('option', { value: '' }, '— nenhuma org — clique "+ nova org"'));
-  REPOS.forEach(r => sel.append(el('option', { value: r.repo }, r.repo + (r.mine ? '' : ' (compartilhado)'))));
+  if (!REPOS.length && !REPO) sel.append(el('option', { value: '' }, T('— nenhuma org — clique "+ nova org"', '— no org — click "+ new org"')));
+  REPOS.forEach(r => sel.append(el('option', { value: r.repo }, r.repo + (r.mine ? '' : T(' (compartilhado)', ' (shared)')))));
   if (REPO && !REPOS.some(r => r.repo === REPO)) sel.append(el('option', { value: REPO }, REPO));
   if (REPO) sel.value = REPO; else REPO = REPOS.length ? (sel.value || '') : '';
   // a org é o prefixo do id: imutável na edição (selo fixo). Só no modo "novo" dá p/ escolher/criar.
@@ -536,7 +537,7 @@ async function renderForm(d) {
   // enunciado: volta sempre p/ o modo "um editor só"; problema NOVO já vem com o template de seções
   stmtMode = 'single';
   $('enunMount').style.display = ''; $('enunModular').style.display = 'none';
-  if ($('stmtToggle')) $('stmtToggle').textContent = '✂ Separar em seções';
+  if ($('stmtToggle')) $('stmtToggle').textContent = T('✂ Separar em seções', '✂ Split into sections');
   ['descMount', 'entMount', 'saiMount', 'obsMount'].forEach(id => { $(id).innerHTML = ''; });
   descEd = entEd = saiEd = obsEd = null;
   const initMd = (d.enunciado_md && d.enunciado_md.trim()) ? d.enunciado_md : (MODE === 'new' ? STMT_TEMPLATE : '');
@@ -560,7 +561,7 @@ async function renderForm(d) {
   FMT = (d.format === 'org' || d.format === 'tex') ? d.format : 'md';
   syncScore();
   renderCollChips(); renderCollManage(); updatePkgInfo();
-  if (FMT !== 'md') showNote(`Enunciado em <b>${FMT === 'org' ? 'Org-mode' : 'LaTeX'}</b> — preservado ao salvar; a pré-visualização renderiza nesse formato.`);
+  if (FMT !== 'md') showNote(`${T('Enunciado em <b>', 'Statement in <b>')}${FMT === 'org' ? 'Org-mode' : 'LaTeX'}${T('</b> — preservado ao salvar; a pré-visualização renderiza nesse formato.', '</b> — preserved on save; the preview renders in this format.')}`);
 }
 const collectFields = () => {
   const enabled = $('scoreEnabled').checked;
@@ -577,13 +578,13 @@ const collectFields = () => {
 };
 
 async function preview() {
-  const btn = $('preview'); btn.disabled = true; setMsg('Renderizando…');
+  const btn = $('preview'); btn.disabled = true; setMsg(T('Renderizando…', 'Rendering…'));
   try {
     const j = await apiPost('/problems/preview', { enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(), title: $('ptitle').value.trim() }, { contest: CONTEST, auth: true });
     const html = b64ToUtf8(j.html_b64 || ''); const pb = $('previewBody');   // .statement-content (CSS unificado), não iframe
     try { const d = new DOMParser().parseFromString(html, 'text/html'); pb.innerHTML = d.body ? d.body.innerHTML : html; } catch { pb.innerHTML = html; }
     $('previewModal').style.display = ''; setMsg('');
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao renderizar'), 'error'); }
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao renderizar', 'Failed to render')), 'error'); }
   finally { btn.disabled = false; }
 }
 
@@ -611,10 +612,10 @@ function startPolling() {
     await loadValidation();   // atualiza o painel ao vivo
     const fresh = maxCalibAt() > calibPrevMax;
     const validated = RUNNING === 'publish' && LASTVAL && Array.isArray(LASTVAL.checks) && LASTVAL.checks.length;
-    if (RUNNING && (fresh || validated)) { RUNNING = ''; updateReady(); renderVal(); setMsg('Resultado chegou ✓', 'v-ok'); }
+    if (RUNNING && (fresh || validated)) { RUNNING = ''; updateReady(); renderVal(); setMsg(T('Resultado chegou ✓', 'Result arrived ✓'), 'v-ok'); }
     if (tries >= 20) {        // ~80s: para de buscar (segue refrescando até lá p/ pegar todos os juízes)
       clearInterval(calibTimer); calibTimer = null;
-      if (RUNNING) { RUNNING = ''; await loadValidation(); setMsg('Ainda processando — recarregue se faltar algum juiz.', ''); }
+      if (RUNNING) { RUNNING = ''; await loadValidation(); setMsg(T('Ainda processando — recarregue se faltar algum juiz.', 'Still processing — reload if some judge is missing.'), ''); }
     }
   }, 4000);
 }
@@ -627,14 +628,14 @@ async function openCalibReport(host, name) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const url = URL.createObjectURL(new Blob([await r.text()], { type: 'text/html' }));
     window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000);
-  } catch (e) { setMsg('Falha ao abrir o report: ' + e.message, 'error'); }
+  } catch (e) { setMsg(T('Falha ao abrir o report: ', 'Failed to open the report: ') + e.message, 'error'); }
 }
 // nome amigável das linguagens (as chaves de TL são códigos curtos do juiz: c, cpp, py, …)
 const TL_LANG_NAME = { c: 'C', cpp: 'C++', cc: 'C++', cxx: 'C++', py: 'Python', python: 'Python',
-  py3: 'Python 3 (legado)', py2: 'Python 2 (legado)',
+  py3: T('Python 3 (legado)', 'Python 3 (legacy)'), py2: T('Python 2 (legado)', 'Python 2 (legacy)'),
   java: 'Java', pas: 'Pascal', pascal: 'Pascal', hs: 'Haskell', go: 'Go', rs: 'Rust', js: 'JavaScript',
   cs: 'C#', ml: 'OCaml', sh: 'Shell', bash: 'Shell', apl: 'APL', pl: 'Prolog', prolog: 'Prolog',
-  asm: 'Assembly', gas: 'Assembly', default: 'default (demais)' };
+  asm: 'Assembly', gas: 'Assembly', default: T('default (demais)', 'default (others)') };
 const tlLangName = (k) => TL_LANG_NAME[k] || k;
 const tlSecs = (v) => { if (v == null || v === '') return '—'; const n = +v; return (Number.isFinite(n) ? +n.toFixed(4) : v) + 's'; };
 // quadro-resumo: tempo-limite por linguagem em cada juiz; o "servido" (o que o aluno vê) em negrito
@@ -648,14 +649,14 @@ function tlSummaryTable(hosts, served) {
     const vals = hosts.map(h => +((h.tl || {})[lang])).filter(Number.isFinite);
     return vals.length ? Math.max(...vals) : null;   // ainda não indexado: usa o máx entre juízes
   };
-  const thead = el('tr', {}, el('th', {}, 'linguagem'), el('th', { class: 'served' }, 'servido (aluno)'),
+  const thead = el('tr', {}, el('th', {}, T('linguagem', 'language')), el('th', { class: 'served' }, T('servido (aluno)', 'served (student)')),
     ...hosts.map(h => el('th', {}, h.host, cpuOf[h.host] ? el('div', { class: 'cpu' }, cpuOf[h.host]) : null)));
   const body = langs.map(lang => el('tr', {},
     el('td', {}, tlLangName(lang)),
     el('td', { class: 'served' }, el('b', {}, tlSecs(servedOf(lang)))),
     ...hosts.map(h => el('td', {}, tlSecs((h.tl || {})[lang])))));
   return el('div', { class: 'tlsummary-wrap' },
-    el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, 'Resumo por linguagem — em negrito o tempo-limite que o estudante vê no enunciado:'),
+    el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, T('Resumo por linguagem — em negrito o tempo-limite que o estudante vê no enunciado:', 'Summary per language — in bold the time limit the student sees in the statement:')),
     el('table', { class: 'tlsummary' }, el('thead', {}, thead), el('tbody', {}, ...body)));
 }
 // assinatura do que o painel mostra: só reconstrói quando MUDA — senão o polling (a cada 4s)
@@ -682,57 +683,57 @@ function renderVal() {
   const checks = (val && Array.isArray(val.checks)) ? val.checks : [];
   if (!ID || (!checks.length && !hosts.length && !RUNNING)) { box.style.display = 'none'; return; }
   box.style.display = '';
-  box.append(el('h3', {}, 'Validação & calibração'));
+  box.append(el('h3', {}, T('Validação & calibração', 'Validation & calibration')));
   if (RUNNING) box.append(el('div', { class: 'running' }, el('span', { class: 'spin' }),
-    el('span', {}, (RUNNING === 'publish' ? 'Validando e calibrando no juiz…' : 'Calibrando no juiz…') + ' a página atualiza sozinha quando terminar.')));
+    el('span', {}, (RUNNING === 'publish' ? T('Validando e calibrando no juiz…', 'Validating and calibrating on the judge…') : T('Calibrando no juiz…', 'Calibrating on the judge…')) + T(' a página atualiza sozinha quando terminar.', ' the page updates itself when done.'))));
   // resultado do quality gate (botão Validar)
   if (checks.length) {
     const list = el('ul', { class: 'checks' });
-    checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : 'falha'), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
+    checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : T('falha', 'fail')), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
     box.append(list);
   }
   // por juiz: tempo-limite calibrado + quando + log (como cada solução se comportou)
   if (hosts.length) {
     const sum = tlSummaryTable(hosts, served);   // quadro-resumo por linguagem (antes dos cards de cada juiz)
     if (sum) box.append(sum);
-    box.append(el('div', { class: 'small muted', style: 'margin:.5rem 0 .2rem' }, `Calibrado em ${hosts.length} juiz(es) — abra "ver log" para o comportamento de cada solução:`));
+    box.append(el('div', { class: 'small muted', style: 'margin:.5rem 0 .2rem' }, `${T('Calibrado em ', 'Calibrated on ')}${hosts.length} ${T('juiz(es) — abra "ver log" para o comportamento de cada solução:', 'judge(s) — open "view log" to see each solution behavior:')}`));
     hosts.forEach(h => {
       const isOpen = OPEN_LOGS.has(h.host);
       const det = el('div', { style: 'margin-top:.3rem;display:' + (isOpen ? '' : 'none') });
-      det.append(h.log ? el('pre', { class: 'caliblog', 'data-host': h.host }, h.log) : el('p', { class: 'small muted' }, 'sem log deste juiz ainda.'));
+      det.append(h.log ? el('pre', { class: 'caliblog', 'data-host': h.host }, h.log) : el('p', { class: 'small muted' }, T('sem log deste juiz ainda.', 'no log from this judge yet.')));
       const toggle = el('a', { href: '#', class: 'small', onclick: (e) => {
         e.preventDefault();
         const open = !OPEN_LOGS.has(h.host);
         if (open) OPEN_LOGS.add(h.host); else OPEN_LOGS.delete(h.host);
-        det.style.display = open ? '' : 'none'; toggle.textContent = open ? 'ocultar log' : 'ver log';
-      } }, isOpen ? 'ocultar log' : 'ver log');
+        det.style.display = open ? '' : 'none'; toggle.textContent = open ? T('ocultar log', 'hide log') : T('ver log', 'view log');
+      } }, isOpen ? T('ocultar log', 'hide log') : T('ver log', 'view log'));
       const head = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
-        el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || 'sem TL'),
+        el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || T('sem TL', 'no TL')),
         h.at ? el('span', { class: 'small muted' }, '· ' + fmtDate(h.at)) : null,
         el('span', { style: 'flex:1' }), toggle);
       const reps = el('div', { class: 'small', style: 'margin-top:.25rem' });
       if ((h.reports || []).length) {
-        reps.append(el('span', { class: 'muted' }, 'report por solução: '));
+        reps.append(el('span', { class: 'muted' }, T('report por solução: ', 'report per solution: ')));
         h.reports.forEach(rn => reps.append(el('a', { href: '#', style: 'margin-right:.7rem;white-space:nowrap', onclick: (e) => { e.preventDefault(); openCalibReport(h.host, rn); } }, '📄 ' + rn)));
       }
       box.append(el('div', { class: 'judgecard' }, head, reps, det));
     });
-  } else if (!RUNNING) box.append(el('p', { class: 'small muted' }, 'Ainda não calibrado — clique “Calibrar” na barra de baixo.'));
+  } else if (!RUNNING) box.append(el('p', { class: 'small muted' }, T('Ainda não calibrado — clique “Calibrar” na barra de baixo.', 'Not calibrated yet — click “Calibrate” on the bottom bar.')));
   // sem juízes calibrados mas com TL servido (legado): mostra o tempo-limite usado na correção
-  if (!hosts.length && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, 'Tempo-limite usado na correção: ' + tlLine(served)));
+  if (!hosts.length && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, T('Tempo-limite usado na correção: ', 'Time limit used for grading: ') + tlLine(served)));
   box.querySelectorAll('.caliblog').forEach(p => { if (CALIB_SCROLL[p.dataset.host]) p.scrollTop = CALIB_SCROLL[p.dataset.host]; });   // restaura o scroll
   LAST_RENDER_SIG = valRenderSig();
 }
 
 // ---- pacote: baixar / enviar tar ----------------------------------------------------------
 async function download() {
-  if (!ID) { setMsg('Salve o problema antes de baixar.', 'error'); return; }
+  if (!ID) { setMsg(T('Salve o problema antes de baixar.', 'Save the problem before downloading.'), 'error'); return; }
   try {
     const r = await fetch('/api/v1/problems/download?id=' + encodeURIComponent(ID), { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const blob = await r.blob(), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = ID.split('#').pop() + '.tar.gz'; a.click(); URL.revokeObjectURL(a.href);
-  } catch (e) { setMsg('Falha ao baixar: ' + e.message, 'error'); }
+  } catch (e) { setMsg(T('Falha ao baixar: ', 'Failed to download: ') + e.message, 'error'); }
 }
 async function uploadTar(file) {
   if (!file) return;
@@ -740,17 +741,17 @@ async function uploadTar(file) {
   if (ID) body = { id: ID };
   else {
     const prob = $('prob').value.trim(); REPO = $('repo').value;
-    if (!REPO || !/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg('Para enviar um .tar novo, escolha o diretório e o nome do problema.', 'error'); return; }
+    if (!REPO || !/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg(T('Para enviar um .tar novo, escolha o diretório e o nome do problema.', 'To upload a new .tar, choose the directory and the problem name.'), 'error'); return; }
     body = { repo: REPO, prob };
   }
-  setMsg('Enviando pacote…');
+  setMsg(T('Enviando pacote…', 'Uploading package…'));
   try {
     body.tar_b64 = await fileToBase64(file);
     const j = await apiPost('/problems/upload', body, { contest: CONTEST, auth: true });
     ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
-    $('prob').disabled = true; $('title').textContent = 'Editar: ' + ID;
-    await loadSource(ID); setMsg('Pacote enviado e recarregado ✓', 'v-ok');
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha no upload') + (e.code ? ` (${e.code})` : ''), 'error'); }
+    $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
+    await loadSource(ID); setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓'), 'v-ok');
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha no upload', 'Upload failed')) + (e.code ? ` (${e.code})` : ''), 'error'); }
 }
 
 // ---- compartilhamento ---------------------------------------------------------------------
@@ -763,14 +764,14 @@ async function loadShare() {
 }
 function renderShareList(list) {
   const box = $('shareList'); box.innerHTML = '';
-  if (!list.length) { box.textContent = 'ninguém ainda.'; return; }
-  box.append('membros: ');
+  if (!list.length) { box.textContent = T('ninguém ainda.', 'nobody yet.'); return; }
+  box.append(T('membros: ', 'members: '));
   list.forEach(u => box.append(el('span', { class: 'pill mut', style: 'margin-right:.3rem' }, u,
     el('a', { href: '#', style: 'margin-left:.3rem', onclick: async (e) => { e.preventDefault(); await share([], [u]); } }, '×'))));
 }
 async function share(add, remove) {
   try { const j = await apiPost('/problems/repo-collaborators', { repo: REPO, add, remove }, { contest: CONTEST, auth: true });
-    renderShareList(j.collaborators || []); setMsg('compartilhamento atualizado ✓', 'v-ok');
+    renderShareList(j.collaborators || []); setMsg(T('compartilhamento atualizado ✓', 'sharing updated ✓'), 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
@@ -801,7 +802,7 @@ function renderCollChips() {
   }
   if (!names.length) {
     box.append(el('span', { class: 'small muted' },
-      active ? 'nenhuma coleção corresponde ao filtro.' : 'sem coleções ainda — crie uma abaixo.'));
+      active ? T('nenhuma coleção corresponde ao filtro.', 'no collection matches the filter.') : T('sem coleções ainda — crie uma abaixo.', 'no collections yet — create one below.')));
     return;
   }
   names.forEach(n => { const on = cur.includes(n);
@@ -814,31 +815,31 @@ const collChip = (u, onx) => el('span', { class: 'pill mut', style: 'margin-righ
 function renderCollManage() {
   const box = $('collManage'); if (!box) return; box.innerHTML = '';
   box.append(el('span', { class: 'small muted' },
-    'Coleções são rótulos de agrupamento (um problema pode estar em várias) e não dão acesso. Quem pode EDITAR o problema é a sua ORG — gerencie membros e a trava de público em '),
-    el('a', { href: '/problemas/#orgs' }, 'Gestão de Problemas › Orgs'), el('span', { class: 'small muted' }, '.'));
+    T('Coleções são rótulos de agrupamento (um problema pode estar em várias) e não dão acesso. Quem pode EDITAR o problema é a sua ORG — gerencie membros e a trava de público em ', 'Collections are grouping labels (a problem can be in several) and grant no access. Who can EDIT the problem is your ORG — manage members and the public lock in ')),
+    el('a', { href: '/problemas/#orgs' }, T('Gestão de Problemas › Orgs', 'Problem Management › Orgs')), el('span', { class: 'small muted' }, '.'));
 }
 async function newColl() {
   const name = $('newCollName').value.trim();
-  if (!name || name.length > 80) { setMsg('Nome de coleção inválido (1–80 caracteres; pode ter espaços).', 'error'); return; }
+  if (!name || name.length > 80) { setMsg(T('Nome de coleção inválido (1–80 caracteres; pode ter espaços).', 'Invalid collection name (1–80 characters; spaces allowed).'), 'error'); return; }
   try {
     const j = await apiPost('/problems/collection-create', { name }, { contest: CONTEST, auth: true });
     COLLS.push({ name: j.name, owner: j.owner, mine: true, can_manage: true, count: 0 });
     setColls([...currentColls(), j.name]); $('newCollName').value = '';
-    setMsg('Coleção criada ✓ — marque o problema nela e salve.', 'v-ok');
+    setMsg(T('Coleção criada ✓ — marque o problema nela e salve.', 'Collection created ✓ — tag the problem with it and save.'), 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 
 // ---- visibilidade (público) — AÇÃO EXPLÍCITA, separada do salvar -------------------------
 function renderPubState() {
   const st = $('pubState'), btn = $('pubToggle'); if (!st || !btn) return;
-  if (loadedPublic) { st.textContent = '🌐 PÚBLICO (treino livre)'; st.style.color = '#1a7f37'; btn.textContent = 'tornar privado'; }
-  else { st.textContent = '🔒 privado (rascunho)'; st.style.color = ''; btn.textContent = 'tornar público'; }
+  if (loadedPublic) { st.textContent = T('🌐 PÚBLICO (treino livre)', '🌐 PUBLIC (free training)'); st.style.color = '#1a7f37'; btn.textContent = T('tornar privado', 'make private'); }
+  else { st.textContent = T('🔒 privado (rascunho)', '🔒 private (draft)'); st.style.color = ''; btn.textContent = T('tornar público', 'make public'); }
   // trava de público da ORG: se a org é privada, não dá p/ publicar (set-public devolve 403)
   const ph = $('pubOrgHint');
   if (ph) {
     if (!loadedPublic && orgIsPrivate()) {
       ph.style.display = '';
-      ph.innerHTML = '🔒 A org <b>' + REPO + '</b> é <b>privada</b> — não é possível tornar público até um admin liberar o público da org em Gestão de Problemas › Orgs.';
+      ph.innerHTML = T('🔒 A org <b>', '🔒 The org <b>') + REPO + T('</b> é <b>privada</b> — não é possível tornar público até um admin liberar o público da org em Gestão de Problemas › Orgs.', '</b> is <b>private</b> — cannot become public until an admin unlocks the org public in Problem Management › Orgs.');
     } else ph.style.display = 'none';
   }
   // "Mover para outra org" só faz sentido em problema salvo e RASCUNHO (mover mudaria o id de um público em uso)
@@ -846,15 +847,15 @@ function renderPubState() {
   if (mv) mv.style.display = (MODE === 'edit' && ID && !loadedPublic) ? '' : 'none';
 }
 async function togglePublic() {
-  if (MODE !== 'edit' || !ID) { setMsg('Salve o problema primeiro para poder publicar.', 'error'); return; }
+  if (MODE !== 'edit' || !ID) { setMsg(T('Salve o problema primeiro para poder publicar.', 'Save the problem first to be able to publish.'), 'error'); return; }
   const makePublic = !loadedPublic;
-  if (makePublic && !confirm('⚠ TORNAR PÚBLICO publica "' + ID + '" no TREINO LIVRE — fica visível a TODOS.\n\nProblemas de prova devem ficar PRIVADOS até a prova passar. Confirmar a publicação?')) return;
+  if (makePublic && !confirm(T('⚠ TORNAR PÚBLICO publica "', '⚠ MAKING PUBLIC publishes "') + ID + T('" no TREINO LIVRE — fica visível a TODOS.\n\nProblemas de prova devem ficar PRIVADOS até a prova passar. Confirmar a publicação?', '" in FREE TRAINING — visible to EVERYONE.\n\nExam problems must stay PRIVATE until the exam is over. Confirm publication?'))) return;
   const btn = $('pubToggle'); btn.disabled = true;
   try {
     await apiPost('/problems/set-public', { id: ID, public: makePublic }, { contest: CONTEST, auth: true });
     loadedPublic = makePublic; renderPubState(); updateReady();
-    setMsg(makePublic ? 'Publicado no treino livre ✓ (validação no juiz)' : 'Tornado privado ✓ (saiu do treino)', 'v-ok');
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao mudar a visibilidade'), 'error'); }
+    setMsg(makePublic ? T('Publicado no treino livre ✓ (validação no juiz)', 'Published to free training ✓ (validation on the judge)') : T('Tornado privado ✓ (saiu do treino)', 'Made private ✓ (removed from training)'), 'v-ok');
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao mudar a visibilidade', 'Failed to change visibility')), 'error'); }
   finally { btn.disabled = false; }
 }
 
@@ -863,34 +864,34 @@ async function save() {
   REPO = $('repo').value;
   if (!REPO) {
     showTab('enun'); const fld = $('repo'); if (fld) flash(fld.closest('.field') || fld);
-    setMsg(REPOS.length ? 'Escolha uma org no topo da aba Enunciado.'
-                        : 'Crie uma org primeiro: clique “+ nova org” (topo da aba Enunciado).', 'error');
+    setMsg(REPOS.length ? T('Escolha uma org no topo da aba Enunciado.', 'Choose an org at the top of the Statement tab.')
+                        : T('Crie uma org primeiro: clique “+ nova org” (topo da aba Enunciado).', 'Create an org first: click “+ new org” (top of the Statement tab).'), 'error');
     return;
   }
   let f; try { f = collectFields(); }
-  catch (e) { setMsg('Erro ao preparar os dados do problema: ' + (e && e.message || e), 'error'); return; }
-  $('save').disabled = true; setMsg('Salvando…');
+  catch (e) { setMsg(T('Erro ao preparar os dados do problema: ', 'Error preparing the problem data: ') + (e && e.message || e), 'error'); return; }
+  $('save').disabled = true; setMsg(T('Salvando…', 'Saving…'));
   try {
     if (MODE === 'new') {
       const prob = $('prob').value.trim();
-      if (!/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg('Nome de problema inválido (use [a-z0-9._-]).', 'error'); $('save').disabled = false; return; }
+      if (!/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg(T('Nome de problema inválido (use [a-z0-9._-]).', 'Invalid problem name (use [a-z0-9._-]).'), 'error'); $('save').disabled = false; return; }
       const j = await apiPost('/problems/create', { repo: REPO, prob, ...f }, { contest: CONTEST, auth: true });
       ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
-      $('prob').disabled = true; $('title').textContent = 'Editar: ' + ID;
+      $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
       fillRepoSelect();   // criado: a org vira selo fixo (parte do id) e "+ nova org" some
     } else await apiPost('/problems/edit', { id: ID, ...f }, { contest: CONTEST, auth: true });
-    setMsg('Salvo ✓', 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao salvar') + (e.code ? ` (${e.code})` : ''), 'error'); }
+    setMsg(T('Salvo ✓', 'Saved ✓'), 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save')) + (e.code ? ` (${e.code})` : ''), 'error'); }
   finally { $('save').disabled = false; }
 }
 async function act(action, label) {
-  if (!ID) { setMsg('Salve o problema primeiro.', 'error'); return; }
+  if (!ID) { setMsg(T('Salve o problema primeiro.', 'Save the problem first.'), 'error'); return; }
   setMsg(label + '…');
   try {
     await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true });
     RUNNING = (action === 'publish') ? 'publish' : 'calibrate';
     calibPrevMax = maxCalibAt();
-    setMsg(label + ' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', 'v-ok');
+    setMsg(label + T(' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', ' started ✓ — see progress in “Validation & calibration” (Publication tab).'), 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
   } catch (e) { setMsg(e.message, 'error'); }
 }
@@ -902,10 +903,10 @@ async function loadJudges() {
 }
 function renderJudges() {
   const box = $('judgePick'); if (!box) return; box.innerHTML = '';
-  if (!JUDGES.length) { box.append(el('span', { class: 'small muted' }, 'nenhum juiz no registro.')); return; }
+  if (!JUDGES.length) { box.append(el('span', { class: 'small muted' }, T('nenhum juiz no registro.', 'no judge in the registry.'))); return; }
   const byCpu = {}; JUDGES.forEach(j => { (byCpu[j.cpu || '?'] = byCpu[j.cpu || '?'] || []).push(j); });
   Object.entries(byCpu).forEach(([cpu, js]) => {
-    const grp = el('div', { class: 'cpugrp' }, el('div', { class: 'small muted' }, '🖥 ' + (cpu || 'CPU desconhecida')));
+    const grp = el('div', { class: 'cpugrp' }, el('div', { class: 'small muted' }, '🖥 ' + (cpu || T('CPU desconhecida', 'unknown CPU'))));
     js.forEach(j => {
       const cb = el('input', { type: 'checkbox', value: j.host }); cb.checked = j.online; cb.disabled = !j.online;
       grp.append(el('label', { class: 'jcheck' + (j.online ? '' : ' off'), style: 'margin-left:.6rem' }, cb, ' ' + j.host + (j.online ? '' : ' (offline)')));
@@ -916,51 +917,51 @@ function renderJudges() {
 const checkedHosts = () => [...$('judgePick').querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
 const onePerCpu = () => Object.values(JUDGES.filter(j => j.online).reduce((a, j) => { a[j.cpu] = a[j.cpu] || j.host; return a; }, {}));
 async function calibrateHosts(hosts) {
-  if (!ID) { setMsg('Salve o problema primeiro.', 'error'); return; }
+  if (!ID) { setMsg(T('Salve o problema primeiro.', 'Save the problem first.'), 'error'); return; }
   hosts = [...new Set((hosts || []).filter(Boolean))];
-  if (!hosts.length) { setMsg('Escolha ao menos um juiz online.', 'error'); return; }
-  setMsg('Calibrando em ' + hosts.length + ' juiz(es)…');
+  if (!hosts.length) { setMsg(T('Escolha ao menos um juiz online.', 'Choose at least one online judge.'), 'error'); return; }
+  setMsg(T('Calibrando em ', 'Calibrating on ') + hosts.length + T(' juiz(es)…', ' judge(s)…'));
   try {
     await apiPost('/problems/request-calibration', { id: ID, hosts }, { contest: CONTEST, auth: true });
     RUNNING = 'calibrate'; calibPrevMax = maxCalibAt();
-    setMsg('Calibração disparada em ' + hosts.length + ' juiz(es) — acompanhe abaixo.', 'v-ok');
+    setMsg(T('Calibração disparada em ', 'Calibration triggered on ') + hosts.length + T(' juiz(es) — acompanhe abaixo.', ' judge(s) — follow below.'), 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
   } catch (e) { setMsg(e.message, 'error'); }
 }
 async function newDir() {
-  const name = prompt('Nome da nova org — minúsculas, sem espaço:'); if (!name) return;
+  const name = prompt(T('Nome da nova org — minúsculas, sem espaço:', 'New org name — lowercase, no spaces:')); if (!name) return;
   try {
     const j = await apiPost('/problems/repo-create', { repo: name.trim() }, { contest: CONTEST, auth: true });
     REPOS.push({ repo: j.repo, owner: j.owner, mine: true, collaborators: [], collections: j.collections || [], public_allowed: j.public_allowed === true });
-    REPO = j.repo; fillRepoSelect(); renderPubState(); await loadShare(); setMsg('Org criada ✓', 'v-ok');
+    REPO = j.repo; fillRepoSelect(); renderPubState(); await loadShare(); setMsg(T('Org criada ✓', 'Org created ✓'), 'v-ok');
   } catch (e) { setMsg(e.message, 'error'); }
 }
 // mover um RASCUNHO p/ outra org (muda o id) — alvo entre as MINHAS orgs (REPOS). Público não move.
 async function moveProblem() {
-  if (MODE !== 'edit' || !ID) { setMsg('Salve o problema primeiro para poder mover.', 'error'); return; }
-  if (loadedPublic) { setMsg('Problema público está em uso — torne privado antes de mover.', 'error'); return; }
+  if (MODE !== 'edit' || !ID) { setMsg(T('Salve o problema primeiro para poder mover.', 'Save the problem first to be able to move.'), 'error'); return; }
+  if (loadedPublic) { setMsg(T('Problema público está em uso — torne privado antes de mover.', 'Public problem is in use — make it private before moving.'), 'error'); return; }
   const cur = ID.split('#')[0];
   const targets = REPOS.map(r => r.repo).filter(n => n !== cur);
-  if (!targets.length) { setMsg('Você não tem outra org para onde mover. Crie uma primeiro.', 'error'); return; }
-  const to = (prompt(`Mover “${ID}” para qual org?\nSuas orgs: ${targets.join(', ')}`, targets[0]) || '').trim();
+  if (!targets.length) { setMsg(T('Você não tem outra org para onde mover. Crie uma primeiro.', 'You have no other org to move to. Create one first.'), 'error'); return; }
+  const to = (prompt(`${T('Mover “', 'Move “')}${ID}${T('” para qual org?', '” to which org?')}\n${T('Suas orgs: ', 'Your orgs: ')}${targets.join(', ')}`, targets[0]) || '').trim();
   if (!to || to === cur) return;
-  setMsg('Movendo…');
+  setMsg(T('Movendo…', 'Moving…'));
   try {
     const j = await apiPost('/problems/move', { id: ID, to_org: to }, { contest: CONTEST, auth: true });
-    setMsg('Movido ✓ — recarregando…', 'v-ok');
+    setMsg(T('Movido ✓ — recarregando…', 'Moved ✓ — reloading…'), 'v-ok');
     location.href = 'editar.html?id=' + encodeURIComponent(j.id);
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : 'Falha ao mover') + (e.code ? ` (${e.code})` : ''), 'error'); }
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao mover', 'Failed to move')) + (e.code ? ` (${e.code})` : ''), 'error'); }
 }
 
 async function delProblem() {
   if (MODE !== 'edit' || !ID) return;
-  const typed = prompt('Remover é IRREVERSÍVEL (apaga do treino e do repositório do problema). Digite o id para confirmar: ' + ID);
+  const typed = prompt(T('Remover é IRREVERSÍVEL (apaga do treino e do repositório do problema). Digite o id para confirmar: ', 'Removing is IRREVERSIBLE (deletes from training and from the problem repository). Type the id to confirm: ') + ID);
   if (typed === null) return;
-  if (typed !== ID) { setMsg('Confirmação não bateu — nada foi removido.', 'error'); return; }
+  if (typed !== ID) { setMsg(T('Confirmação não bateu — nada foi removido.', 'Confirmation did not match — nothing was removed.'), 'error'); return; }
   if ($('delprob')) $('delprob').disabled = true;
   try {
     await apiPost('/problems/delete', { id: ID, confirm: typed }, { contest: CONTEST, auth: true });
-    setMsg('Problema removido ✓', 'v-ok');
+    setMsg(T('Problema removido ✓', 'Problem removed ✓'), 'v-ok');
     setTimeout(() => { location.href = './'; }, 800);
   } catch (e) { setMsg(e.message, 'error'); if ($('delprob')) $('delprob').disabled = false; }
 }
@@ -968,12 +969,12 @@ async function delProblem() {
 async function loadSource(id, j) {
   if (!j) j = await apiGet('/problems/source?id=' + encodeURIComponent(id), { contest: CONTEST, auth: true });
   EDITABLE = j.editable; OWNER = j.owner || ''; REPO = id.split('#')[0];
-  $('title').textContent = 'Editar: ' + id;
+  $('title').textContent = T('Editar: ', 'Edit: ') + id;
   $('prob').value = id.split('#').slice(1).join('#'); $('prob').disabled = true;
   fillRepoSelect(); await renderForm(j);
   if ($('delprob')) $('delprob').style.display = EDITABLE ? '' : 'none';   // remover só p/ quem pode editar
   if (!EDITABLE) {
-    showNote('⚠ ' + (j.note || 'Somente leitura.') + ' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).');
+    showNote('⚠ ' + (j.note || T('Somente leitura.', 'Read only.')) + T(' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).', ' The save buttons are disabled (but you can download the package).'));
     ['save', 'publish', 'calibrate', 'pubToggle', 'delprob', 'moveorg', 'addex', 'addtest', 'uploadTar', 'scoreEnabled', 'addGroup'].forEach(b => { if ($(b)) $(b).disabled = true; });
     $('shareBox').style.display = 'none';
   }
@@ -987,8 +988,8 @@ function bindHandlers() {
   $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
   $('save').onclick = save;
   if ($('delprob')) $('delprob').onclick = delProblem;
-  $('publish').onclick = () => act('publish', 'Validar');
-  $('calibrate').onclick = () => act('request-calibration', 'Calibração');
+  $('publish').onclick = () => act('publish', T('Validar', 'Validate'));
+  $('calibrate').onclick = () => act('request-calibration', T('Calibração', 'Calibration'));
   $('newdir').onclick = newDir;
   if ($('moveorg')) $('moveorg').onclick = moveProblem;
   $('preview').onclick = preview;
@@ -1054,14 +1055,14 @@ async function boot() {
     }
     await Promise.all([loadShare(), loadColls()]);
   } catch (e) {
-    setMsg('Falha ao carregar o problema: ' + (e instanceof ApiError ? e.message : (e && e.message || e)), 'error');
+    setMsg(T('Falha ao carregar o problema: ', 'Failed to load the problem: ') + (e instanceof ApiError ? e.message : (e && e.message || e)), 'error');
   }
   CAN_CREATE = await pPerm;
 
   // criar org/coleção e criar problema novo: só p/ quem pode criar (regra de criar contest)
   if (!CAN_CREATE) ['newdir', 'newCollBtn'].forEach(b => { if ($(b)) $(b).disabled = true; });
   if (MODE === 'new' && !CAN_CREATE) {
-    showNote('⚠ Você não tem permissão para criar problemas. Peça a um administrador — é a mesma permissão de criar contests.');
+    showNote(T('⚠ Você não tem permissão para criar problemas. Peça a um administrador — é a mesma permissão de criar contests.', '⚠ You do not have permission to create problems. Ask an administrator — it is the same permission as creating contests.'));
     if ($('save')) $('save').disabled = true;
   } else if (!EDITABLE) { if ($('newCollBtn')) $('newCollBtn').disabled = true; }
 

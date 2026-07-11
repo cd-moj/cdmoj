@@ -3,6 +3,7 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { status, fileToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { EDITORS } from '/shared/editors.js';
+import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
 const msgBox = () => el('div', { class: 'small', style: 'margin-top:.5rem' });
@@ -24,7 +25,7 @@ function initialsOf(name, login) {
 const AVA = 'width:84px;height:84px;border-radius:50%;flex:0 0 auto;object-fit:cover;box-shadow:0 2px 10px rgba(20,40,80,.18);border:3px solid #fff;background:#fff';
 function avatarNode(p) {
   if (p.has_photo) {
-    return el('img', { alt: 'sua foto', style: AVA,
+    return el('img', { alt: T('sua foto', 'your photo'), style: AVA,
       src: '/api/v1/treino/profile/photo?user=' + encodeURIComponent(p.login) + '&t=' + Date.now() });
   }
   return el('div', { style: AVA + ';display:grid;place-items:center;color:#fff;font-weight:800;font-size:2rem;background:' + colorFromName(p.login) },
@@ -37,27 +38,27 @@ function render(p) {
 
   // --- Dados: nome + universidade + editor favorito ---
   const nameI = el('input', { value: p.name || '', style: 'width:100%' });
-  const univI = el('input', { value: p.university || '', placeholder: 'Ex.: Universidade de Brasília', style: 'width:100%' });
+  const univI = el('input', { value: p.university || '', placeholder: T('Ex.: Universidade de Brasília', 'e.g., University of Brasília'), style: 'width:100%' });
   const edSel = el('select', { style: 'width:100%' },
-    el('option', { value: '' }, '— não informar —'),
+    el('option', { value: '' }, T('— não informar —', '— not specified —')),
     ...EDITORS.map((e) => el('option', { value: e.id }, e.label)));
   edSel.value = p.favorite_editor || '';
   const dm = msgBox();
   content.append(el('div', { class: 'section' },
-    el('h2', {}, '👤 Dados'),
-    el('div', { class: 'field' }, el('label', {}, 'Nome completo'), nameI),
-    el('div', { class: 'field' }, el('label', {}, 'Universidade que representa / estuda'), univI),
-    el('div', { class: 'field' }, el('label', {}, 'Editor / IDE favorito'), edSel,
-      el('span', { class: 'small muted' }, 'Aparece no seu perfil público e entra no ranking de editores.')),
+    el('h2', {}, T('👤 Dados', '👤 Details')),
+    el('div', { class: 'field' }, el('label', {}, T('Nome completo', 'Full name')), nameI),
+    el('div', { class: 'field' }, el('label', {}, T('Universidade que representa / estuda', 'University you represent / study at')), univI),
+    el('div', { class: 'field' }, el('label', {}, T('Editor / IDE favorito', 'Favorite editor / IDE')), edSel,
+      el('span', { class: 'small muted' }, T('Aparece no seu perfil público e entra no ranking de editores.', 'Shows on your public profile and counts in the editors ranking.'))),
     el('button', { class: 'btn', onclick: async () => {
-      dm.className = 'small'; dm.textContent = 'Salvando…';
+      dm.className = 'small'; dm.textContent = T('Salvando…', 'Saving…');
       try {
         await apiPost('/treino/profile',
           { name: nameI.value.trim(), university: univI.value.trim(), favorite_editor: edSel.value },
           { contest: CONTEST, auth: true });
-        ok(dm, '✓ Dados salvos'); refreshTop();
-      } catch (e) { err(dm, e.message || 'falha ao salvar'); }
-    } }, 'Salvar dados'), dm));
+        ok(dm, T('✓ Dados salvos', '✓ Details saved')); refreshTop();
+      } catch (e) { err(dm, e.message || T('falha ao salvar', 'failed to save')); }
+    } }, T('Salvar dados', 'Save details')), dm));
 
   // --- Senha ---
   const oldI = el('input', { type: 'password', autocomplete: 'current-password' });
@@ -65,18 +66,18 @@ function render(p) {
   const n2 = el('input', { type: 'password', autocomplete: 'new-password' });
   const pm = msgBox();
   content.append(el('div', { class: 'section' },
-    el('h2', {}, '🔑 Senha'),
-    el('div', { class: 'field' }, el('label', {}, 'Senha atual'), oldI),
-    el('div', { class: 'field' }, el('label', {}, 'Nova senha'), n1),
-    el('div', { class: 'field' }, el('label', {}, 'Confirmar nova senha'), n2),
+    el('h2', {}, T('🔑 Senha', '🔑 Password')),
+    el('div', { class: 'field' }, el('label', {}, T('Senha atual', 'Current password')), oldI),
+    el('div', { class: 'field' }, el('label', {}, T('Nova senha', 'New password')), n1),
+    el('div', { class: 'field' }, el('label', {}, T('Confirmar nova senha', 'Confirm new password')), n2),
     el('button', { class: 'btn', onclick: async () => {
-      if (n1.value !== n2.value) { err(pm, 'As senhas não conferem'); return; }
-      pm.className = 'small'; pm.textContent = 'Salvando…';
+      if (n1.value !== n2.value) { err(pm, T('As senhas não conferem', 'Passwords do not match')); return; }
+      pm.className = 'small'; pm.textContent = T('Salvando…', 'Saving…');
       try {
         await apiPost('/treino/profile/password', { old_password: oldI.value, new_password: n1.value }, { contest: CONTEST, auth: true });
-        ok(pm, '✓ Senha alterada'); oldI.value = n1.value = n2.value = '';
-      } catch (e) { err(pm, e.message || 'falha'); }
-    } }, 'Trocar senha'), pm));
+        ok(pm, T('✓ Senha alterada', '✓ Password changed')); oldI.value = n1.value = n2.value = '';
+      } catch (e) { err(pm, e.message || T('falha', 'failed')); }
+    } }, T('Trocar senha', 'Change password')), pm));
 
   // --- Privacidade: perfil público / privado ---
   const isPublic = p.profile_public !== false;
@@ -84,19 +85,19 @@ function render(p) {
   const privChk = el('input', { type: 'checkbox', id: 'privChk' });
   privChk.checked = isPublic;
   privChk.addEventListener('change', async () => {
-    privChk.disabled = true; privM.className = 'small'; privM.textContent = 'Salvando…';
+    privChk.disabled = true; privM.className = 'small'; privM.textContent = T('Salvando…', 'Saving…');
     try {
       await apiPost('/treino/profile', { profile_public: privChk.checked }, { contest: CONTEST, auth: true });
-      ok(privM, privChk.checked ? '✓ Perfil público' : '✓ Perfil privado');
-    } catch (e) { privChk.checked = !privChk.checked; err(privM, e.message || 'falha ao salvar'); }
+      ok(privM, privChk.checked ? T('✓ Perfil público', '✓ Profile public') : T('✓ Perfil privado', '✓ Profile private'));
+    } catch (e) { privChk.checked = !privChk.checked; err(privM, e.message || T('falha ao salvar', 'failed to save')); }
     finally { privChk.disabled = false; }
   });
   content.append(el('div', { class: 'section' },
-    el('h2', {}, '🔒 Privacidade'),
+    el('h2', {}, T('🔒 Privacidade', '🔒 Privacy')),
     el('label', { class: 'row', for: 'privChk', style: 'gap:.5rem; cursor:pointer; font-weight:600' },
-      privChk, 'Perfil público'),
+      privChk, T('Perfil público', 'Public profile')),
     el('p', { class: 'small muted', style: 'margin:.4rem 0 0' },
-      'Se desmarcado, suas estatísticas e histórico ficam visíveis só para você.'),
+      T('Se desmarcado, suas estatísticas e histórico ficam visíveis só para você.', 'If unchecked, your statistics and history are visible only to you.')),
     privM));
 
   // --- Foto de perfil ---
@@ -106,69 +107,69 @@ function render(p) {
   fileI.addEventListener('change', async () => {
     const f = fileI.files && fileI.files[0];
     if (!f) return;
-    photoM.className = 'small'; photoM.textContent = 'Enviando…';
+    photoM.className = 'small'; photoM.textContent = T('Enviando…', 'Uploading…');
     try {
       const image_b64 = await fileToBase64(f);
       await apiPost('/treino/profile/photo', { image_b64 }, { contest: CONTEST, auth: true });
       // recarrega o avatar com novo cachebust
       p.has_photo = true;
       avatarBox.innerHTML = ''; avatarBox.append(avatarNode(p));
-      ok(photoM, '✓ Foto atualizada'); refreshTop();
-    } catch (e) { err(photoM, e.message || 'falha ao enviar a foto'); }
+      ok(photoM, T('✓ Foto atualizada', '✓ Photo updated')); refreshTop();
+    } catch (e) { err(photoM, e.message || T('falha ao enviar a foto', 'failed to upload the photo')); }
     finally { fileI.value = ''; }
   });
   content.append(el('div', { class: 'section' },
-    el('h2', {}, '🖼️ Foto de perfil'),
+    el('h2', {}, T('🖼️ Foto de perfil', '🖼️ Profile photo')),
     el('div', { class: 'row', style: 'gap:1.2rem; align-items:center' },
       avatarBox,
       el('div', {},
         el('div', { class: 'field', style: 'margin:0' },
-          el('label', {}, 'Enviar nova foto'), fileI),
+          el('label', {}, T('Enviar nova foto', 'Upload new photo')), fileI),
         el('p', { class: 'small muted', style: 'margin:.4rem 0 0' },
-          'A imagem será recortada/redimensionada para 100×100 pixels.'))),
+          T('A imagem será recortada/redimensionada para 100×100 pixels.', 'The image will be cropped/resized to 100×100 pixels.')))),
     photoM));
 
   // --- Nome de usuário (handle) — limite explícito ---
   const used = p.username_changes_used || 0, limit = p.username_changes_limit || 2, rem = p.username_changes_remaining || 0;
   const canChange = rem > 0;
   const next = p.username_next_available ? fmtDate(p.username_next_available) : null;
-  const uI = el('input', { placeholder: 'novo_nome_de_usuario', disabled: !canChange });
+  const uI = el('input', { placeholder: T('novo_nome_de_usuario', 'new_username'), disabled: !canChange });
   const um = msgBox();
   const note = el('div', { class: canChange ? 'notice' : 'error-box', style: 'margin-bottom:.7rem' },
     canChange
-      ? `⚠️ Você pode trocar o nome de usuário no máximo ${limit} vezes por ano. Você já usou ${used} de ${limit} — restam ${rem}. Escolha com cuidado.`
-      : `🚫 Limite de ${limit} trocas por ano atingido (usou ${used}/${limit}).` + (next ? ` Próxima troca disponível em ${next}.` : ''));
+      ? T(`⚠️ Você pode trocar o nome de usuário no máximo ${limit} vezes por ano. Você já usou ${used} de ${limit} — restam ${rem}. Escolha com cuidado.`, `⚠️ You can change your username at most ${limit} times per year. You have used ${used} of ${limit} — ${rem} left. Choose carefully.`)
+      : T(`🚫 Limite de ${limit} trocas por ano atingido (usou ${used}/${limit}).`, `🚫 Yearly limit of ${limit} changes reached (used ${used}/${limit}).`) + (next ? T(` Próxima troca disponível em ${next}.`, ` Next change available on ${next}.`) : ''));
   content.append(el('div', { class: 'section' },
-    el('h2', {}, '🏷️ Nome de usuário (handle)'),
-    el('p', { class: 'small muted' }, 'Seu login atual é ', el('b', {}, p.login),
-      '. Trocar o handle atualiza todo o seu histórico do Treino Livre (submissões, estatísticas, etc.).'),
+    el('h2', {}, T('🏷️ Nome de usuário (handle)', '🏷️ Username (handle)')),
+    el('p', { class: 'small muted' }, T('Seu login atual é ', 'Your current login is '), el('b', {}, p.login),
+      T('. Trocar o handle atualiza todo o seu histórico do Treino Livre (submissões, estatísticas, etc.).', '. Changing the handle updates all your Free Training history (submissions, statistics, etc.).')),
     note,
-    el('div', { class: 'field' }, el('label', {}, 'Novo nome de usuário'), uI),
+    el('div', { class: 'field' }, el('label', {}, T('Novo nome de usuário', 'New username')), uI),
     el('button', { class: 'btn', disabled: !canChange, onclick: async () => {
       const nv = uI.value.trim();
-      if (!nv) { err(um, 'Informe o novo nome de usuário'); return; }
-      if (!confirm(`Trocar seu nome de usuário para "${nv}"?\nIsso conta como 1 das ${limit} trocas anuais e não dá para desfazer.`)) return;
-      um.className = 'small'; um.textContent = 'Trocando…';
+      if (!nv) { err(um, T('Informe o novo nome de usuário', 'Enter the new username')); return; }
+      if (!confirm(T(`Trocar seu nome de usuário para "${nv}"?\nIsso conta como 1 das ${limit} trocas anuais e não dá para desfazer.`, `Change your username to "${nv}"?\nThis counts as 1 of ${limit} yearly changes and cannot be undone.`))) return;
+      um.className = 'small'; um.textContent = T('Trocando…', 'Changing…');
       try {
         const r = await apiPost('/treino/profile/username', { new_username: nv }, { contest: CONTEST, auth: true });
-        ok(um, `✓ Agora você é "${r.new_username}". Restam ${r.username_changes_remaining} troca(s) neste ano.`);
+        ok(um, T(`✓ Agora você é "${r.new_username}". Restam ${r.username_changes_remaining} troca(s) neste ano.`, `✓ You are now "${r.new_username}". ${r.username_changes_remaining} change(s) left this year.`));
         refreshTop(); setTimeout(load, 1000);
-      } catch (e) { err(um, e.message || 'falha'); }
-    } }, 'Trocar nome de usuário'), um));
+      } catch (e) { err(um, e.message || T('falha', 'failed')); }
+    } }, T('Trocar nome de usuário', 'Change username')), um));
 }
 
 async function load() {
   const content = document.getElementById('content');
   const st = await status(CONTEST);
   if (!st.logged_in) {
-    content.innerHTML = '<div class="notice" style="margin-top:1rem">Entre (no topo da página) para ver e editar seu perfil.</div>';
+    content.innerHTML = '<div class="notice" style="margin-top:1rem">' + T('Entre (no topo da página) para ver e editar seu perfil.', 'Log in (at the top of the page) to view and edit your profile.') + '</div>';
     return;
   }
   try {
     const p = await apiGet('/treino/profile', { contest: CONTEST, auth: true });
     render(p);
   } catch (e) {
-    content.innerHTML = '<div class="error-box" style="margin-top:1rem">Falha ao carregar o perfil: ' + (e.message || '') + '</div>';
+    content.innerHTML = '<div class="error-box" style="margin-top:1rem">' + T('Falha ao carregar o perfil: ', 'Failed to load the profile: ') + (e.message || '') + '</div>';
   }
 }
 

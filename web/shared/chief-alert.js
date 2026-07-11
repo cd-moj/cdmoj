@@ -3,6 +3,7 @@
 // vibração quando o nº de conflitos sobe; clicar leva ao painel de Conflitos do juiz-chefe.
 // Build-free, idempotente, auto-contido (injeta o próprio CSS e o próprio elemento).
 import { apiGet } from '/shared/api.js';
+import { T } from '/shared/i18n.js';
 
 let _started = false;   // garante um único poller por página
 let _poke = null;       // força uma reavaliação imediata (ex.: logo após resolver um conflito)
@@ -58,7 +59,7 @@ export function startChiefAlert(contest, st) {
   };
   const show = (n) => {
     const b = banner();
-    b.textContent = '⚠ ' + n + ' conflito(s) de veredicto aguardando o juiz-chefe — clique para resolver';
+    b.textContent = '⚠ ' + n + T(' conflito(s) de veredicto aguardando o juiz-chefe — clique para resolver', ' verdict conflict(s) awaiting the chief judge — click to resolve');
     b.classList.add('show'); b.onclick = goConflicts;
   };
   const hide = () => { const b = document.getElementById('mojChiefAlert'); if (b) { b.classList.remove('show'); b.textContent = ''; } };

@@ -1,6 +1,7 @@
 // shared/users-batch.js — utilidades de LOTE de usuários, compartilhadas entre a criação de
 // contest (web/treino/criar) e a aba Usuários & sessões do admin. Módulo sem side effects
 // (o admin não pode importar de criar.js, que é módulo de página).
+import { T } from '/shared/i18n.js';
 
 // parseUsers(text) -> [{login,password,fullname,email}] — aceita, por linha:
 //   login:senha:nome:email   |   login,nome,email (ou TAB)   |   Nome Completo (login/senha gerados)
@@ -73,7 +74,7 @@ export function parseRichCsv(text) {
 
 // downloadCsv(filename, users) — baixa login,senha,nome,email (senhas só aparecem aqui).
 export function downloadCsv(filename, users) {
-  const head = 'login,senha,nome,email';
+  const head = T('login,senha,nome,email', 'login,password,name,email');
   const esc = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
   const rows = (users || []).map((u) => [u.login, u.password, u.fullname, u.email].map(esc).join(','));
   const blob = new Blob([head + '\n' + rows.join('\n')], { type: 'text/csv' });

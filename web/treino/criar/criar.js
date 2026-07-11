@@ -6,6 +6,7 @@
 // template/duplicar reseta o cache (ctx.resetEditors) p/ recriá-los do draft novo.
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el, renderAuthArea } from '/shared/ui.js';
+import { T } from '/shared/i18n.js';
 import { renderCreateContestLink } from '/shared/create-contest-link.js';
 import { downloadCsv } from '/shared/users-batch.js';
 import { makeStepInicio } from './steps/inicio.js';
@@ -22,28 +23,28 @@ const authMount = document.getElementById('authArea');
 const refreshAuth = () => renderAuthArea(authMount, 'treino', refreshAuth).then(() => renderCreateContestLink(authMount));
 
 export const MODE_LABEL = {
-  icpc: 'ICPC (tempo + penalidade)', obi: 'OBI (pontos parciais)',
-  treino: 'Treino (lista, sem penalidade)', heuristic: 'Heurístico / custom', outro: 'Outro (custom)',
+  icpc: T('ICPC (tempo + penalidade)', 'ICPC (time + penalty)'), obi: T('OBI (pontos parciais)', 'OBI (partial points)'),
+  treino: T('Treino (lista, sem penalidade)', 'Training (list, no penalty)'), heuristic: T('Heurístico / custom', 'Heuristic / custom'), outro: T('Outro (custom)', 'Other (custom)'),
 };
 const nowEpoch = () => Math.floor(Date.now() / 1000);
 const nextFullHour = () => { const e = nowEpoch(); return e - (e % 3600) + 3600; };
 const b64utf8 = (s) => btoa(unescape(encodeURIComponent(s)));
 
 const STEPS = [
-  { id: 'inicio', label: '0 · Começar', make: makeStepInicio },
-  { id: 'dados', label: '1 · Dados', make: makeStepDados },
-  { id: 'problemas', label: '2 · Problemas', make: makeStepProblemas },
-  { id: 'usuarios', label: '3 · Usuários', make: makeStepUsuarios },
-  { id: 'admin', label: '4 · Admin', make: makeStepAdmin },
-  { id: 'opcoes', label: '5 · Opções', make: makeStepOpcoes },
-  { id: 'visual', label: '6 · Visual', make: makeStepVisual },
-  { id: 'revisao', label: '7 · Revisão', make: makeStepRevisao },
+  { id: 'inicio', label: T('0 · Começar', '0 · Start'), make: makeStepInicio },
+  { id: 'dados', label: T('1 · Dados', '1 · Details'), make: makeStepDados },
+  { id: 'problemas', label: T('2 · Problemas', '2 · Problems'), make: makeStepProblemas },
+  { id: 'usuarios', label: T('3 · Usuários', '3 · Users'), make: makeStepUsuarios },
+  { id: 'admin', label: T('4 · Admin', '4 · Admin'), make: makeStepAdmin },
+  { id: 'opcoes', label: T('5 · Opções', '5 · Options'), make: makeStepOpcoes },
+  { id: 'visual', label: T('6 · Visual', '6 · Appearance'), make: makeStepVisual },
+  { id: 'revisao', label: T('7 · Revisão', '7 · Review'), make: makeStepRevisao },
 ];
 
 function newDraft(perm) {
   const me = perm.login || '';
   return {
-    origem: 'em branco',
+    origem: T('em branco', 'blank'),
     name: '', id: '', mode: 'icpc',
     start: nowEpoch(), end: nowEpoch() + 3 * 3600,
     // problems: {kind:'bank'|'id', bank_id?|source+problem_id, name, _letter?, _stmt? (texto),
@@ -61,40 +62,40 @@ function newDraft(perm) {
 function showDenied(p) {
   app.innerHTML = '';
   app.append(el('div', { class: 'section' },
-    el('h2', {}, '🔒 Sem permissão para criar contests'),
-    el('p', { class: 'muted' }, 'Motivo: ' + ((p && p.reason) || 'não autenticado') + '.'),
+    el('h2', {}, T('🔒 Sem permissão para criar contests', '🔒 No permission to create contests')),
+    el('p', { class: 'muted' }, T('Motivo: ', 'Reason: ') + ((p && p.reason) || T('não autenticado', 'not authenticated')) + '.'),
     p ? el('p', { class: 'small muted' },
-      'Você resolveu ' + (p.solved_count || 0) + ' problemas' +
-      (p.threshold > 0 ? (' — o limite automático para liberar é ' + p.threshold) : '') +
-      '. Um administrador pode liberar seu acesso na lista de criadores.')
-      : el('p', {}, 'Faça login no Treino Livre primeiro.'),
-    el('a', { class: 'btn ghost', href: '/treino/' }, '← Voltar ao treino')));
+      T('Você resolveu ', 'You solved ') + (p.solved_count || 0) + T(' problemas', ' problems') +
+      (p.threshold > 0 ? (T(' — o limite automático para liberar é ', ' — the automatic threshold to unlock is ') + p.threshold) : '') +
+      T('. Um administrador pode liberar seu acesso na lista de criadores.', '. An administrator can grant your access in the creators list.'))
+      : el('p', {}, T('Faça login no Treino Livre primeiro.', 'Log in to Free Training first.')),
+    el('a', { class: 'btn ghost', href: '/treino/' }, T('← Voltar ao treino', '← Back to training'))));
 }
 
 
 function showResult(res) {
   app.innerHTML = '';
   const card = el('div', { class: 'result-card' },
-    el('h2', { style: 'margin:.1rem 0 .6rem' }, '✅ Contest criado e no ar!'),
-    el('p', {}, 'O contest ', el('b', {}, res.contest_id), ' (', String(res.problems), ' problemas) foi publicado.'),
+    el('h2', { style: 'margin:.1rem 0 .6rem' }, T('✅ Contest criado e no ar!', '✅ Contest created and live!')),
+    el('p', {}, T('O contest ', 'The contest '), el('b', {}, res.contest_id), ' (', String(res.problems), T(' problemas) foi publicado.', ' problems) was published.')),
     el('div', { class: 'warn-box', style: 'margin:.6rem 0' },
-      '⚠ Guarde as credenciais abaixo — as senhas só são exibidas agora.'),
-    el('p', {}, 'Admin do contest: ', el('span', { class: 'cred' }, res.admin_login),
+      T('⚠ Guarde as credenciais abaixo — as senhas só são exibidas agora.', '⚠ Save the credentials below — passwords are only shown now.')),
+    el('p', {}, T('Admin do contest: ', 'Contest admin: '), el('span', { class: 'cred' }, res.admin_login),
       res.admin_reused
-        ? el('span', { class: 'small muted' }, ' · conta existente reutilizada — use sua senha atual do Treino Livre.')
-        : [' · senha: ', el('span', { class: 'cred' }, res.admin_password)]));
+        ? el('span', { class: 'small muted' }, T(' · conta existente reutilizada — use sua senha atual do Treino Livre.', ' · existing account reused — use your current Free Training password.'))
+        : [T(' · senha: ', ' · password: '), el('span', { class: 'cred' }, res.admin_password)]));
   if (res._secret) card.append(el('div', { class: 'warn-box', style: 'margin:.4rem 0' },
-    '🕵️ SUPER SECRETO: o contest NÃO aparece na home/arquivo/status e o placar exige login — distribua o link ', el('b', {}, res.url), ' aos participantes.'));
-  if (res.users_from) card.append(el('p', { class: 'small muted' }, 'Usuários: compartilhados do "' + res.users_from + '" (login com a conta do Treino Livre).'));
+    T('🕵️ SUPER SECRETO: o contest NÃO aparece na home/arquivo/status e o placar exige login — distribua o link ', '🕵️ SUPER SECRET: the contest does NOT appear on home/archive/status and the scoreboard requires login — share the link '), el('b', {}, res.url), T(' aos participantes.', ' with participants.')));
+  if (res.users_from) card.append(el('p', { class: 'small muted' }, T('Usuários: compartilhados do "', 'Users: shared from "') + res.users_from + T('" (login com a conta do Treino Livre).', '" (log in with your Free Training account).')));
   if (res.users && res.users.length > 1) {
-    card.append(el('p', {}, res.users.length + ' contas criadas. ',
-      el('button', { class: 'btn ghost', onclick: () => downloadCsv(res.contest_id + '-credenciais.csv', res.users) }, '⬇ baixar credenciais (CSV)')));
+    card.append(el('p', {}, res.users.length + T(' contas criadas. ', ' accounts created. '),
+      el('button', { class: 'btn ghost', onclick: () => downloadCsv(res.contest_id + '-credenciais.csv', res.users) }, T('⬇ baixar credenciais (CSV)', '⬇ download credentials (CSV)'))));
   }
   card.append(el('div', { class: 'row', style: 'margin-top:.7rem' },
-    el('a', { class: 'btn', href: res.url }, 'Abrir contest →'),
-    el('a', { class: 'btn ghost', href: '/contest/admin/?c=' + encodeURIComponent(res.contest_id) }, '⚙️ Admin do contest'),
-    el('a', { class: 'btn ghost', href: res.scoreboard_url }, 'Placar'),
-    el('a', { class: 'btn ghost', href: '/treino/criar/' }, 'Criar outro')));
+    el('a', { class: 'btn', href: res.url }, T('Abrir contest →', 'Open contest →')),
+    el('a', { class: 'btn ghost', href: '/contest/admin/?c=' + encodeURIComponent(res.contest_id) }, T('⚙️ Admin do contest', '⚙️ Contest admin')),
+    el('a', { class: 'btn ghost', href: res.scoreboard_url }, T('Placar', 'Scoreboard')),
+    el('a', { class: 'btn ghost', href: '/treino/criar/' }, T('Criar outro', 'Create another'))));
   app.append(card);
 }
 
@@ -242,17 +243,17 @@ async function boot() {
 
   async function submit(allowEmpty, msg) {
     const d = ctx.draft;
-    if (!(d.name || '').trim()) { msg.className = 'small error-box'; msg.textContent = 'Informe o nome (passo 1).'; return; }
-    if (!(d.admin.login || '').trim()) { msg.className = 'small error-box'; msg.textContent = 'Defina o login do admin (passo 4).'; return; }
-    if (!allowEmpty && !d.problems.length) { msg.className = 'small error-box'; msg.textContent = 'Adicione problemas (passo 2), ou use "Criar vazio".'; return; }
-    msg.className = 'small'; msg.textContent = 'Criando…';
+    if (!(d.name || '').trim()) { msg.className = 'small error-box'; msg.textContent = T('Informe o nome (passo 1).', 'Enter the name (step 1).'); return; }
+    if (!(d.admin.login || '').trim()) { msg.className = 'small error-box'; msg.textContent = T('Defina o login do admin (passo 4).', 'Set the admin login (step 4).'); return; }
+    if (!allowEmpty && !d.problems.length) { msg.className = 'small error-box'; msg.textContent = T('Adicione problemas (passo 2), ou use "Criar vazio".', 'Add problems (step 2), or use "Create empty".'); return; }
+    msg.className = 'small'; msg.textContent = T('Criando…', 'Creating…');
     try {
       const spec = buildSpec(allowEmpty);
       const res = await ctx.api.post('/treino/contest-create/create', spec);
       res._secret = !!spec.secret;
       showResult(res);
     }
-    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || 'falha ao criar'; }
+    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha ao criar', 'failed to create'); }
   }
 
   // navegação
@@ -268,9 +269,9 @@ async function boot() {
     const step = STEPS[i].make(ctx);
     wrap.append(step.el);
     wrap.append(el('div', { class: 'wiz-nav' },
-      i > 0 ? el('button', { class: 'btn ghost', onclick: () => goto(i - 1) }, '← Voltar') : '',
-      i < STEPS.length - 1 ? el('button', { class: 'btn', onclick: () => goto(i + 1) }, 'Continuar →') : '',
-      el('span', { class: 'small muted', style: 'margin-left:auto' }, 'origem: ' + ctx.draft.origem)));
+      i > 0 ? el('button', { class: 'btn ghost', onclick: () => goto(i - 1) }, T('← Voltar', '← Back')) : '',
+      i < STEPS.length - 1 ? el('button', { class: 'btn', onclick: () => goto(i + 1) }, T('Continuar →', 'Continue →')) : '',
+      el('span', { class: 'small muted', style: 'margin-left:auto' }, T('origem: ', 'source: ') + ctx.draft.origem)));
     window.scrollTo({ top: 0 });
   }
   ctx.goto = goto;
