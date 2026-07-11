@@ -1,5 +1,5 @@
 // shared/ui.js — helpers de DOM, formatação e área de autenticação (compartilhados).
-import { t } from './i18n.js';
+import { t, T } from './i18n.js';
 import { status, login, logout, getToken } from './auth.js';
 
 export function el(tag, attrs = {}, ...kids) {
@@ -47,20 +47,20 @@ export function groupsText(groups) {
   if (!Array.isArray(groups) || !groups.length) return '';
   return groups.map((g, i) => {
     const e = g.earned == null ? '—' : String(g.earned);
-    return `Grupo ${i + 1}: ${g.max != null ? e + '/' + g.max : e}`;
+    return `${T('Grupo', 'Group')} ${i + 1}: ${g.max != null ? e + '/' + g.max : e}`;
   }).join(' · ');
 }
 // "resumo" amigável do julgamento (do /submission/summary): heurístico, pontos+grupos ou
 // testes — renderiza o que a API der (a redação por modo é do servidor). '' se sem dados.
 export function resumoText(s) {
   if (!s) return '';
-  if (s.heur_score != null) return `Score ${s.heur_score}` + (s.heur_adjusted != null ? ` · ajustado ${s.heur_adjusted}` : '');
+  if (s.heur_score != null) return `Score ${s.heur_score}` + (s.heur_adjusted != null ? ` · ${T('ajustado', 'adjusted')} ${s.heur_adjusted}` : '');
   if (s.score_kind === 'points' || (Array.isArray(s.groups) && s.groups.length)) {
-    const pts = s.score != null ? `${s.score}${s.score_max != null ? '/' + s.score_max : ''} pontos` : '';
+    const pts = s.score != null ? `${s.score}${s.score_max != null ? '/' + s.score_max : ''} ${T('pontos', 'points')}` : '';
     const g = groupsText(s.groups);
     return pts && g ? `${pts} · ${g}` : (pts || g);
   }
-  if (s.total != null && s.total > 0) return `Passou em ${s.correct != null ? s.correct : 0}/${s.total} testes` + (s.score != null ? ` (${s.score}%)` : '');
+  if (s.total != null && s.total > 0) return `${T('Passou em', 'Passed')} ${s.correct != null ? s.correct : 0}/${s.total} ${T('testes', 'tests')}` + (s.score != null ? ` (${s.score}%)` : '');
   if (s.score != null) return `${s.score}%`;
   return '';
 }
@@ -105,12 +105,12 @@ export async function renderAuthArea(mount, contest, onChange) {
   if (st.logged_in) {
     // no treino, o handle leva à página de estatísticas do próprio usuário
     const who = (contest === 'treino' && st.login)
-      ? el('a', { class: 'user-chip', href: '/treino/stat/?user=' + encodeURIComponent(st.login), title: 'Minhas estatísticas' },
+      ? el('a', { class: 'user-chip', href: '/treino/stat/?user=' + encodeURIComponent(st.login), title: T('Minhas estatísticas', 'My statistics') },
            avatarEl(st.login, st.name, 26), el('span', {}, st.name || st.login))
       : el('span', { class: 'small' }, st.name || st.login);
     const items = [who];
-    if (contest === 'treino') items.push(el('a', { class: 'small', href: '/treino/perfil/', title: 'Editar perfil' }, '⚙ perfil'));
-    if (contest === 'treino' && st.is_admin) items.push(el('a', { class: 'small', href: '/treino/admin/', title: 'Painel administrativo' }, '🛡 admin'));
+    if (contest === 'treino') items.push(el('a', { class: 'small', href: '/treino/perfil/', title: T('Editar perfil', 'Edit profile') }, '⚙ ' + T('perfil', 'profile')));
+    if (contest === 'treino' && st.is_admin) items.push(el('a', { class: 'small', href: '/treino/admin/', title: T('Painel administrativo', 'Admin panel') }, '🛡 admin'));
     items.push(el('button', { class: 'btn ghost', onclick: async () => { await logout(contest); onChange && onChange(); } }, t('logout')));
     mount.append(...items);
     return st;
@@ -129,7 +129,7 @@ export async function renderAuthArea(mount, contest, onChange) {
   if (contest === 'treino') {
     kids.push(el('a', {
       class: 'small', href: '/treino/cadastro/',
-      title: 'Criar uma conta no Treino Livre', style: 'font-weight:700',
+      title: T('Criar uma conta no Treino Livre', 'Create a Free Training account'), style: 'font-weight:700',
     }, t('create_account')));
   }
   mount.append(...kids);

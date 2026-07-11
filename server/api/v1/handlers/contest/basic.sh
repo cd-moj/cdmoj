@@ -16,7 +16,8 @@ if load_session && [[ "$SESSION_CONTEST" == "$contest" ]]; then
 fi
 
 [[ -n "$LOGIN_START_TIME" ]] || LOGIN_START_TIME="$CONTEST_START"
-[[ -n "$LOCALE" ]] || LOCALE="pt"
+# locale CRU: "" quando não setado (o front cai no seletor/idioma do browser); "pt"/"en"
+# explícitos IMPÕEM o idioma da interface do contest (competidor estrangeiro não se perde).
 le="$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)"
 sa="$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)"
 # whitelist de linguagens do contest (conf LANGUAGES="C CPP PY3 …"); vazio => [] => front mostra todas.

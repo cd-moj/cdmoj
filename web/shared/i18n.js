@@ -1,4 +1,41 @@
-// shared/i18n.js — internacionalização mínima pt/en.
+// shared/i18n.js — internacionalização pt/en UNIFICADA (mecanismo único da web).
+//
+// `T(pt, en)` é o jeito canônico de escrever QUALQUER string de exibição no JS
+// (o par HTML é o atributo `data-en` + shared/i18n-dom.js). Um só `LANG` de módulo
+// governa tudo. Precedência de idioma:
+//   1. LOCALE do contest (explícito, em página de contest) — via setLang(loc) sem persist;
+//   2. escolha manual do usuário (seletor pt/en no header) — localStorage 'moj_lang';
+//   3. idioma do browser (navigator.language): não-português => inglês.
+// Regra do projeto: TODA tela/string nova nasce nos DOIS idiomas (PT-only = bug).
+
+const STORE_KEY = 'moj_lang';
+const browserLang = () =>
+  (navigator.language || 'pt').toLowerCase().startsWith('pt') ? 'pt' : 'en';
+
+let LANG = localStorage.getItem(STORE_KEY) || browserLang();
+if (LANG !== 'pt' && LANG !== 'en') LANG = 'pt';
+applyHtmlLang();
+
+export function getLang() { return LANG; }
+
+// setLang(l, {persist}) — persist:true = escolha do usuário (grava e vale em todo o site);
+// persist:false (default) = idioma imposto pelo contest, EFÊMERO (não vaza p/ páginas públicas).
+export function setLang(l, { persist = false } = {}) {
+  if (l !== 'pt' && l !== 'en') return;
+  LANG = l;
+  if (persist) { try { localStorage.setItem(STORE_KEY, l); } catch (_) {} }
+  applyHtmlLang();
+}
+
+function applyHtmlLang() {
+  try { document.documentElement.lang = LANG === 'en' ? 'en' : 'pt-br'; } catch (_) {}
+}
+
+// T(pt, en) — O mecanismo. `en` ausente cai no `pt` (nunca renderiza vazio).
+export function T(pt, en) { return LANG === 'en' ? (en == null ? pt : en) : pt; }
+
+// --- compat: dicionário keyed `t(key)`, agora reescrito sobre T (mesmo LANG). ----------
+// Usado só pelo widget de auth (ui.js). Novos textos usam T('pt','en') direto.
 const STR = {
   pt: {
     login: 'Entrar', logout: 'Sair', user: 'Usuário', password: 'Senha',
@@ -27,8 +64,4 @@ const STR = {
     create_account: 'Create account',
   },
 };
-let LANG = localStorage.getItem('moj_lang') || (navigator.language || 'pt').slice(0, 2);
-if (!STR[LANG]) LANG = 'pt';
-export function t(k) { return (STR[LANG] && STR[LANG][k]) || STR.pt[k] || k; }
-export function setLang(l) { if (STR[l]) { LANG = l; localStorage.setItem('moj_lang', l); } }
-export function getLang() { return LANG; }
+export function t(k) { return T(STR.pt[k] || k, STR.en[k] || STR.pt[k] || k); }

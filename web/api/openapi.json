@@ -1195,7 +1195,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time,score_anon,languages[]} — languages = whitelist do conf LANGUAGES= ([] = todas)"
+            "description": "{contest_id,contest_name,start_time,end_time,login_start_time,locale,login_enabled,freeze_time,score_anon,languages[],secret} — languages = whitelist do conf LANGUAGES= ([] = todas); locale = pt|en explícito (IMPÕE o idioma da UI do contest) ou \"\" quando não setado (o front cai no seletor/idioma do browser)"
           }
         }
       }

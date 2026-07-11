@@ -10,15 +10,30 @@
 // NÃO incluir nas páginas de contest (elas têm um topbar próprio).
 import { el } from '/shared/ui.js';
 import { apiGet } from '/shared/api.js';
+import { T, getLang, setLang } from '/shared/i18n.js';
 
 const NAV = [
-  { key: 'home',     href: '/',          label: 'Início' },
-  { key: 'treino',   href: '/treino/',   label: 'Treino Livre' },
-  { key: 'contests', href: '/contests/', label: 'Contests' },
-  { key: 'noticias', href: '/noticias/', label: 'Notícias' },
-  { key: 'status',   href: '/status/',   label: 'Status' },
-  { key: 'docs',     href: '/docs/',     label: 'Documentação', target: '_blank' },
+  { key: 'home',     href: '/',          pt: 'Início',       en: 'Home' },
+  { key: 'treino',   href: '/treino/',   pt: 'Treino Livre', en: 'Free Training' },
+  { key: 'contests', href: '/contests/', pt: 'Contests',     en: 'Contests' },
+  { key: 'noticias', href: '/noticias/', pt: 'Notícias',     en: 'News' },
+  { key: 'status',   href: '/status/',   pt: 'Status',       en: 'Status' },
+  { key: 'docs',     href: '/docs/',     pt: 'Documentação', en: 'Documentation', target: '_blank' },
 ];
+
+// seletor pt/en (só aparece no header do site principal — nunca dentro de contest, que fixa
+// o idioma pelo LOCALE). Escolha do usuário: persiste e vale em todo o site.
+function mkLangToggle() {
+  const wrap = el('span', { class: 'lang-toggle row', style: 'gap:.15rem', title: T('Idioma da interface', 'Interface language') });
+  ['pt', 'en'].forEach((l) => {
+    wrap.append(el('button', {
+      class: 'btn ghost small' + (l === getLang() ? ' active' : ''),
+      'aria-pressed': l === getLang() ? 'true' : 'false',
+      onclick: () => { if (l !== getLang()) { setLang(l, { persist: true }); location.reload(); } },
+    }, l.toUpperCase()));
+  });
+  return wrap;
+}
 
 function activeFromPath() {
   const p = location.pathname;
@@ -43,7 +58,7 @@ export function mountSiteHeader(opts = {}) {
   brand.append(
     el('img', { src: '/shared/assets/logo_moj.svg', alt: 'MOJ' }),
     document.createTextNode(' MOJ '),
-    el('span', { class: 'slogan' }, 'Melhor Online Judge'),
+    el('span', { class: 'slogan' }, T('Melhor Online Judge', 'Best Online Judge')),
     document.createTextNode(' '),
     el('span', { class: 'badge-beta' }, 'BETA'),
   );
@@ -53,12 +68,15 @@ export function mountSiteHeader(opts = {}) {
   const mkLink = (n) => {
     const attrs = { href: n.href };
     if (n.target) attrs.target = n.target;
-    const a = el('a', attrs, n.label);
+    const a = el('a', attrs, T(n.pt, n.en));
     if (n.key === active) a.classList.add('active');
     return a;
   };
   NAV.forEach((n) => nav.append(mkLink(n)));
   bar.append(nav);
+
+  // seletor de idioma, entre o nav e a área de auth
+  bar.append(mkLangToggle());
 
   // placeholder: a página preenche (chip do usuário / login), como hoje
   bar.append(el('span', { id: 'authArea', class: 'row', style: 'margin-left:.5rem' }));
@@ -69,7 +87,7 @@ export function mountSiteHeader(opts = {}) {
   apiGet('/treino/contest-create/permission', { contest: 'treino', auth: true })
     .then((p) => {
       if (!p || !p.can_create) return;
-      const a = mkLink({ key: 'problemas', href: '/problemas/', label: 'Gestão de Problemas' });
+      const a = mkLink({ key: 'problemas', href: '/problemas/', pt: 'Gestão de Problemas', en: 'Problem Management' });
       const statusLink = [...nav.children].find((c) => c.getAttribute('href') === '/status/');
       nav.insertBefore(a, statusLink || null);
     })

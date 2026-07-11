@@ -224,10 +224,22 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
 ## Frontend (`web/`)
 
 - Vanilla **ES modules, sem build**, servido estático. `shared/` = cliente de API (`api.js`),
-  auth/token (`auth.js`), `ui.js` (`el()`, i18n pt/en), editor CodeMirror 6 (`editor.js`, com
+  auth/token (`auth.js`), `ui.js` (`el()`, helpers de DOM), editor CodeMirror 6 (`editor.js`, com
   fallback textarea), gráficos SVG, bandeiras/assets offline.
 - Editar e recarregar vale na hora (sem bundler). Validar: `node --check web/**/<arquivo>.js`.
 - Editor de problema: `web/problemas/editar.{html,js}` (abas; chama `/problems/*`).
+- **i18n pt/en (mecanismo ÚNICO, `shared/i18n.js`)**: `T('texto pt','text en')` é o jeito
+  canônico de escrever QUALQUER string de exibição no JS; o par do HTML estático é o atributo
+  **`data-en`** (+ `data-en-ph`/`-title`/`-html`/`<html data-en-doctitle>`), traduzido por
+  `shared/i18n-dom.js` (inclua o `<script>` na página). Um só `LANG` de módulo governa tudo, com
+  **precedência**: **LOCALE do contest** (explícito, via `setLang(loc)` sem persist nas páginas de
+  contest — `basic.locale` de `/contest/basic`) **> seletor pt/en do usuário** (header do site,
+  `setLang(l,{persist:true})`, localStorage `moj_lang`) **> idioma do browser** (`navigator.language`
+  não-pt ⇒ en). O seletor vive só no `site-header.js` (páginas públicas); dentro do contest o
+  `LOCALE` fixa o idioma. **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
+  volta), enunciados, **títulos de problema/nomes de contest/time**, corpo de notícias, tags.
+- **Toda tela/string nova NASCE nos DOIS idiomas** (`T('pt','en')` no JS, `data-en` no HTML) — deixar
+  só em PT é **bug**, igual doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`.
 
 ## Testar / rodar
 
