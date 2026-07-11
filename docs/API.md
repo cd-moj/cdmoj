@@ -241,7 +241,7 @@ servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<pr
 ## Status do sistema (público)
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
-| `/index/status` | GET | — | health: `{queue:{total_pending,spool_queued,band_queued,lists[]}, judge:{online,total,busy,healthy,cpus_online,gpus_online}, alert:{no_judges}, daemons:{judged,result_sink}}` (cache 20s) — base da página `/status/`. `gpus_online` conta SÓ juízes com **GPU de compute comprovada** (registro com vendor nvidia/amd, vindo de `nvidia-smi`/`rocm-smi`; adaptador de display/lspci não conta) |
+| `/index/status` | GET | — | health: `{queue:{total_pending,spool_queued,band_queued,lists[]}, judge:{online,total,busy,healthy,cpus_online,gpus_online}, alert:{no_judges}, daemons:{judged}}` (cache 20s) — base da página `/status/`. `gpus_online` conta SÓ juízes com **GPU de compute comprovada** (registro com vendor nvidia/amd, vindo de `nvidia-smi`/`rocm-smi`; adaptador de display/lspci não conta) |
 
 ## Criação de contest (treino)
 Permissão: usuários `.admin` sempre podem; demais por **lista do admin OU threshold** de problemas resolvidos no treino (com denylist). O contest entra **no ar imediatamente**. Problemas vêm do banco público (`bank_id`), por ID (`source`+`problem_id`, p/ não-públicos) e/ou com enunciado custom — manualmente ou **sorteados por tag/dificuldade**. Usuários: **compartilhados do treino** (`users_from=treino`; login pela conta do treino, via fallback de `verify_password`) ou **próprios** (`users[]`, senhas geradas se em branco). O **admin do contest é sempre criado** (sufixo `.admin` garantido). Pode-se **criar vazio** (`allow_empty`) e configurar depois.

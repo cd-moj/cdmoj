@@ -11,15 +11,15 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
 - **[OVERVIEW.md](OVERVIEW.md)** — **comece aqui.** Visão geral: arquitetura, estrutura
   do repositório, camada de API, frontend e tudo o que existe (treino, criação de contest,
   ambiente de contest, juiz/daemons).
-- **[FLOW.md](FLOW.md)** — fluxo de comunicação: como uma submissão viaja do browser ao
-  placar, o spool, o daemon `judged`, o gateway de juiz (mock/local/cluster), resultado por
-  push (`result-sink`), heartbeat de workers (`register`) e o cluster `:27000`.
+- **[FLOW.md](FLOW.md)** — fluxo de comunicação: como uma submissão viaja do browser ao placar —
+  spool, daemon `judged`, a fila/claim **pull** (`sched-lib.sh`), os juízes puxando por heartbeat
+  e o placar.
 - **[API.md](API.md)** — referência das rotas `/api/v1/...` (entrada/saída, auth, papéis).
   Versão de máquina: `../web/api/openapi.json` (servida em `/api/` na web).
 - **[SCOREBOARD.md](SCOREBOARD.md)** — formato do TXT de placar e como adicionar um modo
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
-- **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemons, master/worker do
-  juiz, bot) e o subdomínio de contest.
+- **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemon `judged`, bot) + juízes
+  **pull** e o subdomínio de contest.
 - **[ADMIN.md](ADMIN.md)** — manual do administrador: instalação **do zero** num servidor limpo
   (podman/bare-metal), segredos e o **bootstrap do `treino` + primeira conta `.admin`**.
 - **[PLAN.md](PLAN.md)** — plano original aprovado da reescrita (arquitetura, contratos,

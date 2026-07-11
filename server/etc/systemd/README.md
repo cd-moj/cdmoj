@@ -13,8 +13,8 @@ sem privilégios de root. Usam specifiers do systemd: `%h` (home do usuário) e
 | `moj-bot.service` | bot Telegram como cliente da API | **sample** (script pode não existir ainda) |
 
 > Os juízes são **pull** (repo `judge/`, unit `moj-agent@<cap>.service`): registram capacidade e
-> puxam job no heartbeat — não há master/worker/result-sink no lado servidor. O cluster síncrono
-> legado (`:27000` + push) foi removido.
+> puxam job no heartbeat. O modelo síncrono antigo foi removido — nada de julgamento fica
+> escutando no lado servidor.
 
 ## Instalar (usuário comum)
 

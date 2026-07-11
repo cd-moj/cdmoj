@@ -30,13 +30,11 @@ o servidor precisa de **`cdmoj/`** (este) + **`mojtools/`** (render/validate/ind
 ## 1. Pré-requisitos (servidor limpo)
 
 - **SO Linux** com **podman rootless** (caminho recomendado) ou toolchain bare-metal.
-- **Pacotes do host** (não há *doctor* no lado servidor — a lista canônica é o
-  `deploy/Containerfile`): `bash jq git gawk sed grep findutils coreutils util-linux tar gzip zip
-  unzip curl ca-certificates` · `fcgiwrap` (bare-metal usa o ELF vendorizado em `server/bin/fcgiwrap`)
-  · `pandoc` (render de enunciado) · `inotify-tools` `socat` (o daemon cai p/ *polling* sem o
-  `inotifywait`) · `imagemagick` `ghostscript` `poppler-utils` `qpdf` `paps` `fonts-dejavu-core`
-  (etiquetas/balões/PDF). Opcionais: `libreoffice-core/writer/calc` e `default-jre-headless` (jplag).
-  No caminho podman **tudo isso já vai dentro da imagem** — o host só precisa de `podman` + `nginx`.
+- **Pacotes do host** — no **podman já vão dentro da imagem** (o host só precisa de `podman` +
+  `nginx`). Só no bare-metal você instala à mão: núcleo (`bash jq git coreutils util-linux curl`),
+  `fcgiwrap` (ou o ELF vendorizado em `server/bin/fcgiwrap`), `pandoc`, `inotify-tools` e a stack de
+  mídia (`imagemagick ghostscript poppler-utils qpdf paps`); opcionais LibreOffice/JRE. **Lista
+  canônica: `deploy/Containerfile`** (não há *doctor* no lado servidor).
 - **Repos** sob um root (ex.: `/home/ribas/moj`):
   ```bash
   git clone <cdjudge-cdmoj>   /home/ribas/moj/cdmoj
@@ -72,21 +70,9 @@ systemctl --user start moj-api moj-judged
 loginctl enable-linger "$USER"          # sobrevive ao logout
 ```
 
-**nginx do host** (fora da imagem): aponte `fastcgi_pass` ao socket exposto pelo volume `run/`,
-`root` no `web/`, `SCRIPT_FILENAME` no `router.sh`, e um alias `/docs/`. Os blocos prontos e o
-subdomínio de contest estão em **[`DEPLOY.md`](DEPLOY.md)** (§ *nginx*). O essencial:
-
-```nginx
-root /home/ribas/moj/cdmoj/web;  index index.html;
-location /api/v1/ {
-  fastcgi_pass unix:/home/ribas/moj/run/fcgiwrap.sock;   # = /data/run/fcgiwrap.sock no container
-  fastcgi_split_path_info ^(/api/v1)(/.*)$;
-  fastcgi_param SCRIPT_FILENAME /home/ribas/moj/cdmoj/server/api/v1/router.sh;
-  fastcgi_param PATH_INFO $fastcgi_path_info;            # + REQUEST_METHOD, QUERY_STRING, HTTP_AUTHORIZATION…
-  include fastcgi_params;
-}
-location /docs/ { alias /home/ribas/moj/cdmoj/docs/; }
-```
+**nginx do host** (fora da imagem): aponte o `fastcgi_pass` ao socket `run/fcgiwrap.sock`, com
+`root` no `web/`, `SCRIPT_FILENAME` no `server/api/v1/router.sh` e um alias `/docs/`. Os **blocos
+prontos** (site principal + subdomínio de contest) estão em **[`DEPLOY.md`](DEPLOY.md)** (§ *nginx*).
 
 Agora faça o **bootstrap do treino + admin (§5)** e valide com `make smoke` (§8).
 

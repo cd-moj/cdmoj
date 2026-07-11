@@ -2,8 +2,7 @@
 
 O **MOJ** (Melhor/Meta Online Judge, `moj.naquadah.com.br`) é um juiz online escrito
 em **bash**. Este repositório é a **v2 API-first**: nginx + backend bash (fcgiwrap) +
-frontend estático modular, lendo o **mesmo `contests/<id>/`** do sistema legado (nada
-de migração de dados; o Apache antigo podia rodar em paralelo).
+frontend estático modular, lendo o **mesmo `contests/<id>/`** de sempre (sem migração de dados).
 
 > Fluxo de submissão/julgamento e como os daemons conversam: ver **[FLOW.md](FLOW.md)**.
 > Contrato de rotas: **[API.md](API.md)** (+ `web/api/openapi.json`). Placar: **[SCOREBOARD.md](SCOREBOARD.md)**. Deploy: **[DEPLOY.md](DEPLOY.md)**. Plano original: **[PLAN.md](PLAN.md)**.

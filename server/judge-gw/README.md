@@ -27,8 +27,7 @@ broker/DB.
 JUDGE_BACKEND=mock  bash judge.sh treino p1 C "$(printf 'int main(){}'|base64 -w0)" sol.c
 ```
 
-> O backend síncrono `cluster` (master `:27000` + push via `result-sink.sh`) e os helpers de
-> registro por `nc` foram **removidos** — o modelo pull os substituiu (ver `PULL.md`).
+> O modelo síncrono antigo foi **removido** — hoje o julgamento é 100% pull (ver `PULL.md`).
 
 ## Handlers do pull (o que os juízes chamam)
 

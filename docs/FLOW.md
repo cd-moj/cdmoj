@@ -104,9 +104,6 @@ backends por `$JUDGE_BACKEND`:
 - **`mock`** (default em dev) — heurística local, sem juiz; bom para testar a malha assíncrona.
 - **`local`** — compila/roda na própria máquina via `mojtools` (bubblewrap sandbox).
 
-O backend síncrono `cluster` (master `:27000` + push via `result-sink`) foi **removido** — o
-modelo pull o substituiu.
-
 ## 4. Julgamento pull — os juízes puxam o job
 
 Em produção (`INTAKE_MODE=queue JUDGE_BACKEND=queue`) o julgamento é **pull**, e o lado
@@ -182,7 +179,7 @@ e grava os pares de similaridade em `contests/<c>/jplag/`.
 ## Resumo do "porquê"
 
 - **Não bloquear a CGI**: submit enfileira e retorna; o front faz polling de HTTP.
-- **Pull > cluster push**: o juiz puxa o job no heartbeat e reporta por HTTP; sem master,
-  sem porta de entrada p/ os juízes, sem o double-poll do sistema antigo.
+- **Julgamento pull**: o juiz puxa o job no heartbeat e reporta por HTTP; sem porta de entrada
+  p/ os juízes (o servidor nunca conecta no juiz).
 - **Registry vivo**: cada juiz se anuncia com capacidade + heartbeat (`run/registry/<host>.json`).
 - **Arquivos > broker**: spool + `inotifywait` + `flock`, fiel ao bash-nativo do MOJ.

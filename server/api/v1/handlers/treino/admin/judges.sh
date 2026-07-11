@@ -1,6 +1,6 @@
 # GET /treino/admin/judges  (.admin) -> juízes do modelo PULL (registro + heartbeat).
 # Lê $REGISTRYDIR/<host>.json (capacidade + state + last_seen) — fonte da verdade atual,
-# sem o master legado :27000. Mantém a forma {machines:[...]} esperada pelo painel.
+# modelo pull, sem master legado. Mantém a forma {machines:[...]} esperada pelo painel.
 require_auth_contest treino
 is_admin || fail 403 "Apenas administradores do treino" "admin_required"
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${REGISTRYDIR:=$RUNDIR/registry}"; : "${REG_TTL:=30}"

@@ -1,5 +1,11 @@
 # MOJ — Mega atualização do sistema WEB (API-first + nginx + UI nova)
 
+> ⚠️ **Documento HISTÓRICO (SUPERSEDED).** É o plano ORIGINAL da reescrita — descreve, no
+> presente, a arquitetura **antiga** de julgamento (cluster síncrono `:27000`, master/worker,
+> `nc`, `sistema_escalonador`). Isso foi **substituído pelo modelo pull**; a referência viva é
+> [`FLOW.md`](FLOW.md), [`OVERVIEW.md`](OVERVIEW.md) e `server/judge-gw/PULL.md`. Mantido só como
+> registro da migração.
+
 ## Context
 
 O MOJ (Maratona/Meta Online Judge, `moj.naquadah.com.br`) hoje roda como **Apache + CGI em bash**: a CGI recebe o POST, escreve um arquivo num diretório de spool e **fica travada** (`while [[ -e $arquivo ]]; do sleep 1`) até um **daemon que faz polling de 3s** (`ls | wc -l`) consumir o arquivo. O `julgador.sh` despacha para o juiz local (JSON-over-TCP via `nc` para `localhost:40000`, que roda `mojtools`/bubblewrap) ou juízes externos (spoj/uri), grava o resultado de volta como arquivo e recalcula o placar. O frontend é HTML com CSS+JS **embutido e duplicado**; a interface `/new` (treino livre) já é parcialmente API mas está "porca" (header `{"Bearer":...}` fora do padrão, sessões no `/tmp` legível por todos, `lista.json` estático, **sem editor de código**, só upload).

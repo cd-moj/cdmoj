@@ -15,7 +15,7 @@
 #
 # Em produção o julgamento é PULL (INTAKE_MODE=queue): o daemon enfileira e os juízes
 # puxam o job no heartbeat — judge_run NÃO é chamado (ver server/judge-gw/PULL.md).
-# O backend síncrono "cluster" (master :27000 + push via result-sink) foi removido.
+# O modelo síncrono legado foi removido — hoje o julgamento é pull (ver PULL.md).
 #
 # Tudo é file-based e aditivo: NÃO altera api/** nem mojtools/**. Pode ser tanto
 # "sourced" (expõe judge_run) quanto executado como CLI para testes manuais:
@@ -83,7 +83,7 @@ judge_run_local() {
     return 0
   fi
   # build-and-test.sh imprime na ÚLTIMA linha o veredicto final (ex. "Accepted,100p").
-  # lowercase a linguagem como o cluster faz.
+  # lowercase a linguagem, por consistência.
   local llang
   llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
   local out batwork

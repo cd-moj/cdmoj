@@ -1,11 +1,8 @@
 # Controle de juízes API-first (modelo PULL)
 
-Substitui o cluster legado (`judge/sistema_escalonador/` + `root-daemon*` +
-`job-receiveitor*` com `MOJPORTS` fixo e poll-storm de `islocked`) por um modelo
-**API-first, pull-based**: as máquinas se conectam à API, anunciam capacidade +
-inventário e **puxam jobs no heartbeat**. O escalonador é o próprio handler de
-heartbeat (sem loop, sem porta de entrada nos juízes). Ver também `README.md`
-(plano incremental antigo, que mantinha o escalonador) — este doc é o destino final.
+Modelo **API-first, pull-based**: as máquinas se conectam à API, anunciam capacidade +
+inventário e **puxam jobs no heartbeat**. O escalonador é o próprio handler de heartbeat
+(sem loop, sem porta de entrada nos juízes) — substituiu o modelo síncrono antigo.
 
 ## Fluxo
 
@@ -82,7 +79,7 @@ recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos
 - **"update problems"** (`/ops/updateproblemset`) não clona: enfileira **calibração** dos
   problemas novos/alterados (checksum ≠ o do TL guardado). `{all:true}` recalibra tudo.
 - **Indexar** (`var/jsons`, HTML do enunciado) roda **no servidor** (`index_problem_bg`, via o
-  Makefile do repo no store) — `publish`/`webhook` chamam isso + pedem calibração. Só o
+  Makefile do repo no store) — o `publish` chama isso + pede calibração. Só o
   enunciado HTML precisa do repo; calibrar/julgar usam só o pacote no cache + o `mojtools`.
 
 ## Multi-slot (particionamento) + config por juiz
@@ -137,7 +134,7 @@ install -Dm600 <(printf '%s' "$TOK") "$RUNDIR/secrets/worker.token"
 install -Dm600 <(printf '%s' "$TOK") /home/prof/judge/etc/worker.token
 ```
 
-## Rollout (cluster vivo o tempo todo)
+## Rollout do pull (zero-downtime)
 
 1. Sobe a API + `moj-judged` normalmente (já roda). Gera o token (acima).
 2. Sobe `moj-agent@<cap>` em UM juiz (shadow): aparece em `GET /judge/list`.
@@ -146,13 +143,10 @@ install -Dm600 <(printf '%s' "$TOK") /home/prof/judge/etc/worker.token
 4. Sobe agents nos demais juízes (1 por capacidade). Acompanhe em `/judge/list` e `/index/status`.
 5. Vira o default: `INTAKE_MODE=queue`.
 
-## Aposentadoria do legado (CONCLUÍDA)
+## Legado (aposentado)
 
-O cluster síncrono foi **removido**: o backend `cluster` de `judge.sh`, o `result-sink.sh`,
-os helpers de registro por `nc` e os units `moj-master`/`moj-worker`/`moj-result-sink` já não
-existem. Os scripts de runtime do `judge/` legado (`sistema_escalonador/*`, `root-daemon*.sh`,
-`job-receiveitor*.sh`, `lancar-*.sh`) ficam fora do git e podem ser apagados nas máquinas.
-Fallback de emergência sem juízes: `INTAKE_MODE=legacy` + `JUDGE_BACKEND=mock|local`.
+O modelo síncrono antigo foi **removido** — hoje o julgamento é 100% pull. Fallback de
+emergência sem juízes: `INTAKE_MODE=legacy` + `JUDGE_BACKEND=mock|local`.
 
 ## O que NÃO mudou
 

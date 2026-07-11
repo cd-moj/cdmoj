@@ -1,6 +1,6 @@
 #!/bin/bash
 # Sobe o MOJ local (dev): setup + fcgiwrap + reload nginx + daemon de julgamento.
-# Uso: bash server/bin/start-all.sh [mock|local|cluster]   (default: mock)
+# Uso: bash server/bin/start-all.sh [mock|local]   (default: mock)
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"
 BACKEND="${1:-mock}"
