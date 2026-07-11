@@ -28,6 +28,16 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
 > A especificação de design original (telas/contratos) foi a base histórica para `web/` e os
 > handlers de `server/`; hoje o contrato vivo é `docs/API.md` + `web/api/openapi.json`.
 
+## Manuais de usuário
+
+Voltados ao usuário final, em português simples e sem travessão:
+
+- **[MANUAL-TREINO.md](MANUAL-TREINO.md)**: o aluno no Treino Livre (cadastro por Telegram, busca, enviar solução, perfil, estatísticas).
+- **[MANUAL-CONTEST.md](MANUAL-CONTEST.md)**: o competidor num contest (entrar, enviar, placar, clarifications, impressão, backup).
+- **[MANUAL-LINGUAGENS.md](MANUAL-LINGUAGENS.md)**: como enviar em cada linguagem e como funciona a entrada/saída, com exemplos reais.
+- **[MANUAL-STAFF.md](MANUAL-STAFF.md)**: a equipe de sala (`.staff` e `.cstaff`): fila de impressão, balões, etiquetas, revelação por sede.
+- **[MANUAL-JUIZ.md](MANUAL-JUIZ.md)**: os juízes (`.judge` e `.cjudge`): fila de avaliação, votos, conflitos, painel do chefe.
+
 ## Compilar em HTML
 
 ```sh

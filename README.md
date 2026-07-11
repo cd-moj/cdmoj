@@ -8,7 +8,8 @@ repo — eles rodam o `judge/` + `mojtools/` e puxam job pela API (modelo pull).
 > Comece por **[`docs/OVERVIEW.md`](docs/OVERVIEW.md)** (arquitetura) e
 > **[`docs/FLOW.md`](docs/FLOW.md)** (o caminho de uma submissão). Rotas:
 > [`docs/API.md`](docs/API.md) + `web/api/openapi.json`. Deploy: [`docs/DEPLOY.md`](docs/DEPLOY.md);
-> instalação do zero: [`docs/ADMIN.md`](docs/ADMIN.md).
+> instalação do zero: [`docs/ADMIN.md`](docs/ADMIN.md). Manuais de usuário (treino, competidor,
+> linguagens, staff, juiz): [`docs/`](docs/) (arquivos `MANUAL-*.md`).
 
 ## Onde vive (workspace multi-repo)
 
