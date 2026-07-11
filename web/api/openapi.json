@@ -224,7 +224,7 @@
           },
           "languages": {
             "type": "array",
-            "description": "Ids de linguagem de submissão permitidos deste problema ([]/ausente = todas). Em edit: ausente = não toca; [] = limpa (volta a todas).",
+            "description": "Ids de linguagem de submissão permitidos deste problema ([]/ausente = todas as PADRÃO). Linguagens exóticas/opt-in (pddl/grepe/sas/l/lpp/downward, e ids custom futuros) só aparecem no dropdown quando DECLARADAS aqui. Em edit: ausente = não toca; [] = limpa.",
             "items": {
               "type": "string"
             }
@@ -423,7 +423,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{id,title,author,statement_html_b64,time_limits,tags,collections,languages} (author = arquivo 'author' do pacote, verbatim; vários juntados por ', '; vazio se ausente; collections = coleções do .moj-meta.json; languages = ids de linguagem de submissão permitidos, [] = todas — o front do treino filtra o dropdown)"
+            "description": "{id,title,author,statement_html_b64,time_limits,tags,collections,languages} (author = arquivo 'author' do pacote, verbatim; vários juntados por ', '; vazio se ausente; collections = coleções do .moj-meta.json; languages = ids de linguagem de submissão permitidos, [] = todas as PADRÃO — o front filtra o dropdown; exóticas/opt-in (pddl/grepe/sas/l/lpp/downward) só aparecem quando o problema as declara)"
           },
           "404": {
             "description": "não encontrado"

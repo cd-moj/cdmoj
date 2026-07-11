@@ -193,10 +193,14 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `docs/sample-notes.json` (explicações de exemplo, na ordem), `docs/solucao.md` (editorial — só
   setter, **não** vai ao aluno). Metadados em `.moj-meta.json` (`display_title`, `public`,
   `collections`, `languages`, …). **`languages`** = ids de linguagem de submissão permitidos
-  (`[]`/ausente = todas); o `gen-problem-json.sh` o serve no índice do treino, o dropdown do
-  treino filtra por ele, e ele é o último elo da cadeia de fallback de linguagem do contest
+  (`[]`/ausente = todas as PADRÃO); o `gen-problem-json.sh` o serve no índice do treino, o dropdown
+  do treino filtra por ele, e ele é o último elo da cadeia de fallback de linguagem do contest
   (`handlers/contest/problems.sh`: override-no-contest → whitelist do contest → default do
-  pacote → todas). Habilita, p.ex., um problema "só-PDDL".
+  pacote → todas). **Linguagens EXÓTICAS/custom** (`pddl`, `grepe` do curso de compiladores,
+  `sas`/`l`/`lpp`/`downward`, …) são **opt-in** em `web/shared/languages.js` (flag `optIn`): NÃO
+  aparecem no dropdown por padrão — só quando o problema as **declara** em `languages`. Um id
+  exótico não-registrado aparece com o próprio id como label (fallback do `langById`). Habilita,
+  p.ex., um problema "só-PDDL" ou "só-grepe".
   **Correção especial** opcional em `scripts/` (checker `compare.sh`, `scripts/<lang>/compile.sh`, …;
   ver `mojtools/docs/correcao-especial.md`): round-trip completo via **`scripts_files`**
   (`[{path,content_b64,exec}|{path,symlink}]` — binário e symlink suportados) + **`score_text`**

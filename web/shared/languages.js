@@ -1,6 +1,9 @@
 // shared/languages.js — linguagens aceitas pelo MOJ (espelha mojtools/lang/*).
 // id == extensão enviada (FILETYPE = id em maiúsculas, casa com o dir do juiz).
 // cm = modo do CodeMirror (null = sem realce, mas funciona como template).
+// optIn: true = linguagem EXÓTICA/custom (PDDL, grepe do curso de compiladores, …). NÃO aparece
+// no dropdown de submissão por padrão — SÓ quando o problema a declara no seu campo `languages`.
+// As normais (sem optIn) formam DEFAULT_SUBMIT_LANGUAGES, oferecidas p/ todo problema irrestrito.
 export const LANGUAGES = [
   { id: 'c',     label: 'C',            cm: 'cpp',        template: '#include <stdio.h>\n\nint main(void) {\n    \n    return 0;\n}\n' },
   { id: 'cpp',   label: 'C++',          cm: 'cpp',        template: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n' },
@@ -19,9 +22,21 @@ export const LANGUAGES = [
   { id: 'apl',   label: 'APL',          cm: null,         template: '' },
   { id: 'spim',  label: 'MIPS (spim)',  cm: null,         template: '.data\n\n.text\n.globl main\nmain:\n    \n' },
   { id: 'riscv', label: 'RISC-V',       cm: null,         template: '.text\n.globl main\nmain:\n    \n' },
-  { id: 'pddl',  label: 'PDDL',         cm: null,         template: '' },
+  // ---- exóticas / custom (opt-in: só no dropdown quando o problema declara) ----
+  { id: 'pddl',     label: 'PDDL',                    cm: null, template: '', optIn: true },
+  { id: 'grepe',    label: 'grepe (regex)',           cm: null, template: '', optIn: true },
+  { id: 'sas',      label: 'SAS',                     cm: null, template: '', optIn: true },
+  { id: 'l',        label: 'Lex (.l)',                cm: null, template: '', optIn: true },
+  { id: 'lpp',      label: 'LPP (.lpp)',              cm: null, template: '', optIn: true },
+  { id: 'downward', label: 'Fast Downward (.downward)', cm: null, template: '', optIn: true },
 ];
-export const langById = (id) => LANGUAGES.find((l) => l.id === id) || LANGUAGES[0];
+// linguagens mostradas por PADRÃO (problema sem restrição). Exclui as exóticas opt-in.
+export const DEFAULT_SUBMIT_LANGUAGES = LANGUAGES.filter((l) => !l.optIn);
+// langById: entrada da linguagem por id. Fallback GENÉRICO p/ id exótico não-registrado
+// (linguagem custom futura declarada no `languages` de um problema): aparece com o próprio id
+// como label, sem realce/template — sem precisar de código novo. Só cai no LANGUAGES[0] p/ id vazio.
+export const langById = (id) =>
+  LANGUAGES.find((l) => l.id === id) || (id ? { id, label: id, cm: null, template: '' } : LANGUAGES[0]);
 // extensão de arquivo -> id de linguagem do MOJ
 export function langByExt(ext) {
   const e = (ext || '').toLowerCase();

@@ -3,7 +3,7 @@ import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { fileToBase64, textToBase64, status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, renderAuthArea, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
-import { LANGUAGES, langById } from '/shared/languages.js';
+import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById } from '/shared/languages.js';
 
 const CONTEST = 'treino';
 const qs = new URLSearchParams(location.search);
@@ -226,11 +226,11 @@ async function renderSubmit() {
     body.append(el('p', { class: 'notice' }, 'Você precisa estar logado para enviar. Use o login no topo da página.'));
     return;
   }
-  // filtra pela restrição do problema (só ids conhecidos); lista vazia OU sem interseção = todas
-  // (nunca deixa o dropdown vazio — espelha resolveLangs do contest). Repara curLangId ANTES de
-  // criar o editor (mais abaixo) p/ um problema só-pddl já abrir no template certo.
-  const allowed = LANGUAGES.filter((l) => problemLangs.includes(l.id));
-  const langList = (problemLangs.length && allowed.length) ? allowed : LANGUAGES;
+  // linguagens ofertadas: problema DECLARA -> exatamente esses ids (via langById, que sintetiza
+  // exótica/custom não-registrada); vazio -> as normais (DEFAULT_SUBMIT_LANGUAGES, sem as exóticas
+  // opt-in como pddl/grepe). Repara curLangId ANTES de criar o editor p/ um problema só-pddl (ou
+  // só-grepe) já abrir no template certo.
+  const langList = problemLangs.length ? problemLangs.map(langById) : DEFAULT_SUBMIT_LANGUAGES;
   if (!langList.some((l) => l.id === curLangId)) curLangId = langList[0].id;
   langSel = el('select', {}, ...langList.map((l) => {
     const tlv = problemTL[l.id] ?? problemTL.default;

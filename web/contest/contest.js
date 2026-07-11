@@ -4,7 +4,7 @@ import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
-import { LANGUAGES, langById } from '/shared/languages.js';
+import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById } from '/shared/languages.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -579,8 +579,14 @@ function renderSubmitInline(p) {
 
   // ---- editor completo (montado sob demanda no detalhe) ----
   injectEditorCss();
-  // linguagens deste problema: override por problema (p.languages) senão a whitelist do contest (LANGS)
-  const probLangs = (p.languages && p.languages.length) ? resolveLangs(p.languages) : LANGS;
+  // linguagens deste problema: p.languages já vem RESOLVIDO pelo servidor (override do problema
+  // -> whitelist do contest -> default do pacote -> []). Declarado -> exatamente esses ids (via
+  // langById, que sintetiza exótica/custom não-registrada). Vazio -> sem restrição: as normais
+  // (DEFAULT_SUBMIT_LANGUAGES, sem as exóticas opt-in) quando não há whitelist do contest, senão a
+  // whitelist (LANGS). LANGS === LANGUAGES <=> resolveLangs não achou whitelist (= todas).
+  const probLangs = (p.languages && p.languages.length)
+    ? p.languages.map(langById)
+    : (LANGS === LANGUAGES ? DEFAULT_SUBMIT_LANGUAGES : LANGS);
   const sel = el('select', {}, ...probLangs.map((l) => el('option', { value: l.id }, l.label)));
   const editorMount = el('div');
   const editorBox = el('div', { class: 'editor-box', style: 'height:520px' }, editorMount);   // ~26 linhas
