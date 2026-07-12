@@ -17,7 +17,8 @@ export const LANGUAGES = [
   { id: 'ml',    label: 'OCaml',        cm: null,         template: 'let () =\n  ()\n' },
   { id: 'pas',   label: 'Pascal',       cm: null,         template: 'program Main;\nbegin\nend.\n' },
   { id: 'pl',    label: 'Prolog',       cm: null,         template: 'main :-\n    read_line_to_string(user_input, Linha),\n    % resolva aqui e escreva o resultado com writeln/1\n    writeln(Linha).\n' },
-  { id: 'cs',    label: 'C#',           cm: null,         template: 'using System;\n\nclass Main {\n    static void Main() {\n        \n    }\n}\n' },
+  // C#: a classe NÃO pode se chamar Main (erro CS0542: o método Main colide com o nome da classe).
+  { id: 'cs',    label: 'C#',           cm: null,         template: 'using System;\n\nclass Program {\n    static void Main() {\n        \n    }\n}\n' },
   { id: 'sh',    label: 'Shell (bash)', cm: null,         template: '#!/bin/bash\n\n' },
   { id: 'apl',   label: 'APL',          cm: null,         template: '' },
   { id: 'spim',  label: 'MIPS (spim)',  cm: null,         template: '.data\n\n.text\n.globl main\nmain:\n    \n' },
