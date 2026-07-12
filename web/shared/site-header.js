@@ -17,7 +17,9 @@ const NAV = [
   { key: 'contests', href: '/contests/', pt: 'Contests',     en: 'Contests' },
   { key: 'noticias', href: '/noticias/', pt: 'Notícias',     en: 'News' },
   { key: 'status',   href: '/status/',   pt: 'Status',       en: 'Status' },
-  { key: 'docs',     href: '/docs/',     pt: 'Documentação', en: 'Documentation', target: '_blank' },
+  // Ajuda do ALUNO (como enviar: E/S, extensões, templates). A doc TÉCNICA (API/OVERVIEW/DEPLOY)
+  // segue em /docs/ e no repo — só não é anunciada aqui: /docs/ serve .md CRU (o browser baixa).
+  { key: 'ajuda',    href: '/treino/ajuda/', pt: 'Ajuda',    en: 'Help' },
 ];
 
 // seletor pt/en (só aparece no header do site principal — nunca dentro de contest, que fixa
@@ -37,6 +39,7 @@ function mkLangToggle() {
 function activeFromPath() {
   const p = location.pathname;
   if (p === '/' || p === '/index.html') return 'home';
+  if (p.startsWith('/treino/ajuda')) return 'ajuda';   // antes de /treino, senão acenderia "Treino Livre"
   if (p.startsWith('/treino')) return 'treino';
   if (p.startsWith('/contests')) return 'contests';
   if (p.startsWith('/noticias')) return 'noticias';

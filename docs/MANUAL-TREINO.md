@@ -210,8 +210,9 @@ Abaixo do veredicto, vem uma **linha de resumo**, por exemplo:
 Passou em 3/5 testes
 ```
 
-Os detalhes de cada linguagem e de como funciona a entrada e a saída dos dados ficam no
-manual `MANUAL-LINGUAGENS.md`.
+Os detalhes de cada linguagem e de como funciona a entrada e a saída dos dados ficam na página
+**Ajuda** do site (`/treino/ajuda/`), que também tem o código inicial de cada linguagem. O link
+"📖 Como enviar" aparece ao lado do seletor de linguagem, na hora do envio.
 
 ---
 
@@ -277,7 +278,7 @@ Dica: quer aparecer nesse ranking? **Declare o seu editor** na seção **Dados**
 ## 10. Para saber mais
 
 - Para os detalhes de **como enviar em cada linguagem** e de como funciona a **entrada e
-  a saída** dos dados, veja `MANUAL-LINGUAGENS.md`.
+  a saída** dos dados, veja a página **Ajuda** (`/treino/ajuda/`).
 - Para **competir num contest** (com prazo e placar), veja `MANUAL-CONTEST.md`.
 
 Bons treinos, e bom código.

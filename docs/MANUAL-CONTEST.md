@@ -2,7 +2,7 @@
 
 Este manual é para você que vai participar de uma maratona ou prova no MOJ (o juiz online). Aqui você aprende a entrar no contest, enviar suas soluções, ler o placar, tirar dúvidas (clarifications), pedir impressão e usar o backup.
 
-Se você só quer saber como enviar em cada linguagem e como funciona a entrada e a saída dos programas, veja o `MANUAL-LINGUAGENS.md`.
+Se você só quer saber como enviar em cada linguagem e como funciona a entrada e a saída dos programas, veja a página **Ajuda** do MOJ (`/treino/ajuda/`, o link "Ajuda" do menu do site principal). O modelo de entrada e saída e as extensões valem igual dentro de um contest.
 
 ## 1. Entrar no contest
 
@@ -140,4 +140,4 @@ O backup aparece a menos que a organização o desligue.
 
 ## Para saber mais
 
-Como enviar em cada linguagem e como funciona a entrada e a saída dos programas estão no `MANUAL-LINGUAGENS.md`.
+Como enviar em cada linguagem e como funciona a entrada e a saída dos programas estão na página **Ajuda** (`/treino/ajuda/`, no site principal).

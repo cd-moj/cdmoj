@@ -257,10 +257,17 @@ async function renderSubmit() {
     onclick: () => { const u = new URL(location.href); u.searchParams.set('editoronly', '1'); window.open(u.toString(), '_blank', 'width=900,height=820'); } }, T('⧉ Nova janela', '⧉ New window'));
   const closeFullBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Sair da tela cheia (Esc)', 'Exit full screen (Esc)'), onclick: () => exitFull() }, T('✕ Fechar', '✕ Close'));
   closeFullBtn.style.display = 'none';
+  // ajuda no PONTO DE USO: é aqui que o aluno escolhe a linguagem e descobre que não sabe como
+  // ler a entrada. Nova aba p/ não perder o código já digitado.
+  const helpLink = el('a', { class: 'small', href: '/treino/ajuda/', target: '_blank', rel: 'noopener',
+    title: T('Entrada e saída, extensões e o código inicial de cada linguagem',
+             'Input and output, extensions and the starter code for each language') },
+    T('📖 Como enviar', '📖 How to submit'));
   const wrap = el('div', { class: 'editor-wrap' },
     el('div', { class: 'editor-bar' },
       el('label', {}, T('Linguagem: ', 'Language: ')), langSel,
       el('span', { class: 'small muted' }, T('ou arquivo:', 'or file:')), fileInput,
+      helpLink,
       el('span', { style: 'flex:1' }), expandBtn, popBtn, closeFullBtn, toggle),
     editorBox, steps, btn);
   // dialog dedicado p/ a tela cheia: o editor MOVE-se p/ dentro (top layer) e volta ao fechar.

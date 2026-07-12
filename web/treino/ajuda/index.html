@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="How to submit — MOJ">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Como enviar uma solução — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .ajuda h2 { margin-top:2rem; }
+    .ajuda p, .ajuda li { max-width:70ch; }
+    .io-demo { display:flex; gap:1rem; flex-wrap:wrap; margin:.8rem 0; }
+    .io-demo > div { flex:1; min-width:130px; }
+    .io-demo h4 { margin:0 0 .3rem; font-size:.85rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+    pre.code { background:#0f172a; color:#e2e8f0; border-radius:8px; padding:.75rem .9rem; overflow-x:auto;
+               font-size:.85rem; line-height:1.5; margin:0; }
+    pre.io { background:var(--bg-soft,#f1f5f9); color:inherit; border:1px solid var(--line); border-radius:8px;
+             padding:.6rem .8rem; margin:0; font-size:.9rem; }
+    .code-head { display:flex; align-items:center; gap:.6rem; margin:1rem 0 .35rem; }
+    .code-head h4 { margin:0; font-size:.92rem; }
+    .code-head .btn { padding:.2rem .6rem; font-size:.78rem; }
+    table.moj td code { white-space:nowrap; }
+    .lang-pick { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin:.6rem 0 0; }
+    .toc { margin:.4rem 0 0; padding-left:1.1rem; }
+    .toc li { margin:.15rem 0; }
+  </style>
+</head>
+<body>
+  <header class="topbar" id="siteHeader" data-active="ajuda"></header>
+  <main class="container ajuda">
+    <h1 style="margin:.2rem 0 .3rem" data-en="📖 How to submit a solution">📖 Como enviar uma solução</h1>
+    <p class="muted" data-en="Everything you need before sending your first solution: how input and output work, which languages exist, and the code skeleton for each one.">
+      Tudo o que você precisa antes de enviar a sua primeira solução: como funcionam a entrada e a saída, quais linguagens existem, e o esqueleto de código de cada uma.</p>
+
+    <ul class="toc small">
+      <li><a href="#es" data-en="Input and output (the most important part)">Entrada e saída (o mais importante)</a></li>
+      <li><a href="#extensao" data-en="The extension is the language">A extensão é a linguagem</a></li>
+      <li><a href="#tabela" data-en="Language table">Tabela de linguagens</a></li>
+      <li><a href="#templates" data-en="Code template for each language">Template de código de cada linguagem</a></li>
+      <li><a href="#avisos" data-en="Warnings worth reading">Avisos que valem a leitura</a></li>
+    </ul>
+
+    <h2 id="es" data-en="1. Input and output (the most important part)">1. Entrada e saída (o mais importante)</h2>
+    <p data-en-html="In the MOJ, every problem reads from <b>standard input</b> (stdin) and writes to <b>standard output</b> (stdout), just like in programming contests. <b>Your program never opens a file.</b> It reads what arrives, computes, and prints the answer.">
+      No MOJ, todo problema lê da <b>entrada padrão</b> (stdin) e escreve na <b>saída padrão</b> (stdout), como em maratona de programação. <b>O seu programa nunca abre arquivo.</b> Ele lê o que chega, calcula e imprime a resposta.</p>
+    <p data-en="On your machine, it is as if you typed the input and saw the answer appear on the screen. The judge does the same thing, automatically: it feeds an input to your program and compares, line by line, what you printed against the expected output.">
+      Na sua máquina, é como se você digitasse a entrada e visse a resposta aparecer na tela. O juiz faz o mesmo, automaticamente: alimenta o seu programa com uma entrada e compara, linha a linha, o que você imprimiu com a saída esperada.</p>
+    <p data-en-html="The examples shown in the problem statement are exactly these pairs. Every code sample on this page solves the same little problem: <b>read N, read M, print 2*M - N</b>.">
+      Os exemplos que aparecem no enunciado são exatamente esses pares. Todos os códigos desta página resolvem o mesmo probleminha: <b>leia N, leia M, imprima 2*M - N</b>.</p>
+
+    <div class="io-demo">
+      <div>
+        <h4 data-en="Input">Entrada</h4>
+        <pre class="io">13
+16</pre>
+      </div>
+      <div>
+        <h4 data-en="Output">Saída</h4>
+        <pre class="io">19</pre>
+      </div>
+      <div style="flex:2">
+        <h4 data-en="Why">Por quê</h4>
+        <p class="small muted" style="margin:0" data-en-html="N = 13 and M = 16, so the answer is 2*16 - 13 = 19. Notice that the program does three things: it reads from stdin, it computes, it prints to stdout.">
+          N = 13 e M = 16, então a resposta é 2*16 - 13 = 19. Repare que o programa faz três coisas: lê do stdin, calcula, imprime no stdout.</p>
+      </div>
+    </div>
+
+    <h2 id="extensao" data-en="2. The extension is the language">2. A extensão é a linguagem</h2>
+    <p data-en="There are two ways to send a solution, and each one decides the language differently:">
+      Há duas formas de enviar uma solução, e cada uma decide a linguagem de um jeito:</p>
+    <ol>
+      <!-- o &lt; do EN vai ESCAPADO DUAS VEZES: o parser decodifica o atributo uma vez, e o que sobra
+           (&lt;extension&gt;) é o que o innerHTML precisa receber p/ mostrar <extension> como TEXTO.
+           Com um escape só, o innerHTML via <extension> como tag e a apagava. -->
+      <li data-en-html="<b>Typing in the editor.</b> You write the code on screen and pick the language in the dropdown. When you submit, your code becomes a file called <code>solution.&amp;lt;extension&amp;gt;</code>, and <b>the dropdown decides</b> the language.">
+        <b>Digitando no editor.</b> Você escreve o código na tela e escolhe a linguagem no menu. Ao enviar, o seu código vira um arquivo chamado <code>solution.&lt;extensão&gt;</code>, e <b>o menu decide</b> a linguagem.</li>
+      <li data-en-html="<b>Sending a file.</b> You attach a file you already have (say <code>sol.cpp</code>). In this case <b>the file extension decides</b> the language, and the dropdown is ignored.">
+        <b>Enviando um arquivo.</b> Você anexa um arquivo pronto (por exemplo <code>sol.cpp</code>). Nesse caso <b>a extensão do arquivo decide</b> a linguagem, e o menu é ignorado.</li>
+    </ol>
+    <p class="notice" data-en-html="In short: the <b>extension is the id</b> of the language. File ends in <code>.cpp</code>, the judge uses C++. Ends in <code>.py</code>, it uses Python. The <code>id</code> column of the table below is exactly that extension.">
+      Resumindo: a <b>extensão é o id</b> da linguagem. Terminou em <code>.cpp</code>, o juiz usa C++. Terminou em <code>.py</code>, usa Python. A coluna <code>id</code> da tabela abaixo é exatamente essa extensão.</p>
+
+    <h2 id="tabela" data-en="3. Language table">3. Tabela de linguagens</h2>
+    <p class="small muted" data-en-html="The default language is <b>C</b>. This table is generated from the same list the submission dropdown uses, so it is never out of date.">
+      A linguagem padrão é <b>C</b>. Esta tabela é gerada da mesma lista que o menu de submissão usa, então ela nunca fica desatualizada.</p>
+    <div id="langTable"></div>
+    <p class="small muted" id="exoticNote"></p>
+
+    <h2 id="templates" data-en="4. Code template for each language">4. Template de código de cada linguagem</h2>
+    <p data-en-html="Pick a language to see two things: the <b>skeleton the editor gives you</b> (exactly what appears when you choose that language) and a <b>complete solution</b> to the little problem above, which shows the reading and the printing working.">
+      Escolha uma linguagem para ver duas coisas: o <b>esqueleto que o editor te dá</b> (exatamente o que aparece quando você escolhe aquela linguagem) e uma <b>solução completa</b> do probleminha acima, mostrando a leitura e a impressão funcionando.</p>
+    <div id="tpl"></div>
+
+    <h2 id="avisos" data-en="5. Warnings worth reading">5. Avisos que valem a leitura</h2>
+
+    <h3 data-en-html="Java: the <code>public</code> class trap">Java: a armadilha da classe <code>public</code></h3>
+    <p data-en-html="When you type Java <b>in the editor</b>, your submission becomes <code>solution.java</code>. In Java, a <code>public</code> class must have the same name as the file. That is why the editor skeleton comes with the class <b>without</b> <code>public</code> (<code>class Main { … }</code>): it works both in the editor and by file upload.">
+      Quando você digita Java <b>no editor</b>, o envio vira <code>solution.java</code>. Em Java, uma classe <code>public</code> precisa ter o mesmo nome do arquivo. Por isso o esqueleto do editor vem com a classe <b>sem</b> <code>public</code> (<code>class Main { … }</code>): assim funciona tanto no editor quanto por upload de arquivo.</p>
+    <p data-en-html="If you write <code>public class Main</code> in the editor, you get a Compilation Error, because the file is <code>solution.java</code> and not <code>Main.java</code>. Kotlin, C#, Go and Rust have no such filename rule. Only Java does.">
+      Se você escrever <code>public class Main</code> no editor, o resultado é Compilation Error, porque o arquivo é <code>solution.java</code> e não <code>Main.java</code>. Kotlin, C#, Go e Rust não têm essa regra de nome de arquivo. Só o Java tem.</p>
+
+    <h3 data-en-html="<code>.pl</code> is Prolog, not Perl"><code>.pl</code> é Prolog, e não Perl</h3>
+    <p data-en-html="The <code>.pl</code> extension is also used by Perl, but in the MOJ <code>pl</code> is <b>Prolog</b> (SWI-Prolog). Define a <code>main</code> predicate. Perl code sent as <code>.pl</code> will not run as Perl.">
+      A extensão <code>.pl</code> também é usada por Perl, mas no MOJ <code>pl</code> é <b>Prolog</b> (SWI-Prolog). Defina um predicado <code>main</code>. Código Perl enviado como <code>.pl</code> não vai rodar como Perl.</p>
+
+    <h3 data-en="Python is pypy3">Python é pypy3</h3>
+    <p data-en-html="Python runs on <b>pypy3</b>, not on CPython. It is much faster for the kind of loop that shows up in problems. One consequence: a syntax error becomes <b>Compilation Error</b>, not Runtime Error.">
+      Python roda em <b>pypy3</b>, não no CPython. Ele é bem mais rápido para o tipo de laço que aparece em problema. Uma consequência: erro de sintaxe vira <b>Compilation Error</b>, e não Runtime Error.</p>
+
+    <h3 data-en="Memory and stack">Memória e pilha</h3>
+    <p data-en-html="Every language runs with a <b>128 MB stack</b>, so deep recursion is usually fine. On the JVM (Java, Kotlin) the problem's memory limit is applied as <code>-Xmx</code>.">
+      Todas as linguagens rodam com <b>pilha de 128 MB</b>, então recursão profunda em geral passa. Na JVM (Java, Kotlin) o limite de memória do problema é aplicado como <code>-Xmx</code>.</p>
+
+    <p class="small muted" style="margin-top:2rem">
+      <span data-en="Next: browse the ">A seguir: navegue pelos </span><a href="/treino/" data-en="Free Training problems">problemas do Treino Livre</a><span data-en=" and submit your first solution."> e envie a sua primeira solução.</span>
+    </p>
+  </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="/shared/site-header.js"></script>
+  <script type="module" src="./ajuda.js"></script>
+</body>
+</html>
