@@ -4,7 +4,9 @@ Este manual virou uma **página do próprio MOJ**:
 
 > ### 📖 [`/treino/ajuda/`](/treino/ajuda/)
 > No site: **Ajuda**, no menu do topo. E também no link **"📖 Como enviar"**, ao lado do seletor de
-> linguagem, na hora de enviar a solução.
+> linguagem, na hora de enviar a solução. **Vale dentro de um contest também**: é a única página fora
+> de `/contest/` que o `contest-guard` deixa abrir no subdomínio da prova (lá ela veste o topbar do
+> contest e obedece o LOCALE dele), porque o competidor precisa dela na LAN isolada.
 
 A página ensina o mesmo que este arquivo ensinava, e é onde o conteúdo passa a viver:
 

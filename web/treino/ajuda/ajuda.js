@@ -5,6 +5,7 @@
 // languages.js aparece aqui sozinha: não há lista duplicada p/ envelhecer.
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { contestHost } from '/shared/contest-host.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById } from '/shared/languages.js';
 import { EXEMPLOS } from './exemplos.js';
 
@@ -102,5 +103,25 @@ function renderTemplates() {
   pinta();
 }
 
+// Cabeçalho: site x contest. Esta página é a ÚNICA fora de /contest/ que o contest-guard deixa
+// abrir num subdomínio de prova (o competidor precisa dela). Lá dentro ela veste o topbar do
+// contest e obedece o LOCALE da prova — e por isso o header é resolvido ANTES do render: o T()
+// lê o idioma na hora em que a tabela e os blocos de código são construídos.
+async function mountHeader() {
+  const cid = contestHost();
+  if (!cid) {
+    document.getElementById('contestHeader').remove();
+    document.getElementById('contestNavWrap').remove();
+    await import('/shared/site-header.js');   // auto-monta no #siteHeader
+    return;
+  }
+  document.getElementById('siteHeader').remove();
+  document.getElementById('contestHeader').classList.remove('hidden');
+  document.getElementById('contestNavWrap').classList.remove('hidden');
+  const { initContestShell } = await import('/shared/contest-shell.js');
+  try { await initContestShell(cid); } catch { /* sem nav/countdown: a instrução é o que importa */ }
+}
+
+await mountHeader();
 renderTabela();
 renderTemplates();

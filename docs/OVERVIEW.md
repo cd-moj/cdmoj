@@ -55,7 +55,11 @@ moj/
   não herda `.staff`).
 - **Isolamento por subdomínio**: em `<id>.moj.<base>` o nginx injeta `CONTEST_HOST`; o
   `router.sh` só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend
-  redireciona o resto para `/contest/` (`shared/contest-guard.js`).
+  redireciona o resto para `/contest/` (`shared/contest-guard.js`). **Única exceção**:
+  **`/treino/ajuda/`** (o "como enviar": E/S, extensões, template por linguagem) — página ESTÁTICA de
+  instrução, sem dado de treino/problema/contest, liberada porque o competidor precisa dela na LAN
+  isolada; lá dentro ela veste o topbar do contest e obedece o LOCALE dele. Página nova só entra
+  nessa lista se não falar com a API do treino.
 - **jq para todo JSON**; `contests/<c>/conf` é *sourced* — por isso a criação de contest
   escreve tudo com `printf %q`.
 

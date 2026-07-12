@@ -601,9 +601,15 @@ function renderSubmitInline(p) {
   const closeFullBtn = el('button', { class: 'btn ghost', type: 'button', title: T('Sair da tela cheia (Esc)', 'Exit fullscreen (Esc)'), onclick: () => exitFull() }, '✕ ' + T('Fechar', 'Close'));
   closeFullBtn.style.display = 'none';
 
+  // ajuda no PONTO DE USO, igual ao treino. O contest-guard abre uma exceção p/ /treino/ajuda/
+  // (página estática de instrução), senão o competidor ficaria sem saber como se lê a entrada.
+  const helpLink = el('a', { class: 'small', href: '/treino/ajuda/', target: '_blank', rel: 'noopener',
+    title: T('Entrada e saída, extensões e o código inicial de cada linguagem',
+             'Input and output, extensions and the starter code for each language') },
+    T('📖 Como enviar', '📖 How to submit'));
   const wrap = el('div', { class: 'editor-wrap' },
     el('div', { class: 'editor-bar' },
-      el('label', { class: 'small' }, T('Linguagem: ', 'Language: ')), sel,
+      el('label', { class: 'small' }, T('Linguagem: ', 'Language: ')), sel, helpLink,
       el('span', { style: 'flex:1' }), expandBtn, popBtn, closeFullBtn),
     editorBox,
     el('div', { class: 'row', style: 'margin-top:.3rem' }, edBtn, edSteps));
