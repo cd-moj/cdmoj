@@ -68,6 +68,11 @@ Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na ses
 | `/treino/admin/logout-ip` | POST | `{ip}` → encerra todas as sessões daquele IP (IPv4/IPv6) |
 
 ## Gestão de problemas (Bearer)
+
+> **O FORMATO do pacote (arquivos, `.moj-meta.json`, `.moj-id`), o que são ORGs e COLEÇÕES e o ciclo
+> validar → calibrar → publicar estão em [PACOTE.md](PACOTE.md)** (fonte única). Aqui ficam só as
+> **rotas**. Roteiro de montar um pacote: `mojtools/README.md`.
+
 Backend = **repo git LOCAL por problema** (`MOJ_PROBLEMS_DIR/<org>/<prob>`, o servidor commita direto
 via `problem_commit`; sem serviço externo), mas o autor só usa o **login do MOJ** (sem chave/git).
 Listagens leem o índice de donos `contests/treino/var/problem-owners.json` (gerado por
@@ -138,6 +143,9 @@ Listagens leem o índice de donos `contests/treino/var/problem-owners.json` (ger
 > editar/compartilhar problema existente continua por colaborador (`org_is_member`).
 
 ### Orgs (modelo MOJ-nativo)
+
+> Conceito completo (ORG = acesso, COLEÇÃO = agrupamento, e por que são ortogonais):
+> **[PACOTE.md](PACOTE.md)**.
 
 Storage = **repo git local por problema** (`MOJ_PROBLEMS_DIR/<org>/<prob>`), e o acesso é por **ORG**
 (o `<org>` do id `<org>#<prob>`):

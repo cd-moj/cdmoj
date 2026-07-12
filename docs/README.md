@@ -16,6 +16,10 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
   e o placar.
 - **[API.md](API.md)** — referência das rotas `/api/v1/...` (entrada/saída, auth, papéis).
   Versão de máquina: `../web/api/openapi.json` (servida em `/api/` na web).
+- **[PACOTE.md](PACOTE.md)** — **fonte única do formato do pacote de problema**: o que é cada arquivo
+  (enunciado, `tests/`, `sols/`, `scripts/`, `conf`), os metadados (`.moj-meta.json` e `.moj-id`), o
+  que são **orgs** (acesso) e **coleções** (agrupamento), e o ciclo validar → calibrar → publicar.
+  O roteiro prático de montar um pacote fica no `README.md` do **mojtools**.
 - **[SCOREBOARD.md](SCOREBOARD.md)** — formato do TXT de placar e como adicionar um modo
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
 - **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemon `judged`, bot) + juízes

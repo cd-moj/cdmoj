@@ -188,11 +188,11 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
 - `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta` / `problem_commit`
   = commit git LOCAL por problema, sem Gitea) + `lib/orgs.sh` (acesso por org). Handlers em
   `handlers/problems/` (+ `handlers/orgs/`).
-- **Pacote canônico**: `docs/enunciado.{md,org,tex}`, `tests/input|output/` (exemplos = `sample*`,
-  na ordem), `sols/{good,slow,wrong,pass,upcoming}/`, `conf`, `author`, `tags`, `tests/score`,
-  `docs/sample-notes.json` (explicações de exemplo, na ordem), `docs/solucao.md` (editorial — só
-  setter, **não** vai ao aluno). Metadados em `.moj-meta.json` (`display_title`, `public`,
-  `collections`, `languages`, …). **`languages`** = ids de linguagem de submissão permitidos
+- **Pacote canônico**: o formato é descrito, por inteiro e num lugar só, em **`docs/PACOTE.md`**
+  (arquivos do pacote, `.moj-meta.json`, `.moj-id`, ORG, COLEÇÃO, ciclo validar→calibrar→publicar).
+  **Mudou o pacote? Atualize o `docs/PACOTE.md` no MESMO commit** — é a fonte única, e os outros
+  repos (`mojtools`, `moj-cli`) apontam p/ ele. Abaixo só o que é consequência NO CÓDIGO do cdmoj:
+  **`languages`** = ids de linguagem de submissão permitidos
   (`[]`/ausente = todas as PADRÃO); o `gen-problem-json.sh` o serve no índice do treino, o dropdown
   do treino filtra por ele, e ele é o último elo da cadeia de fallback de linguagem do contest
   (`handlers/contest/problems.sh`: override-no-contest → whitelist do contest → default do
@@ -266,10 +266,11 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   e **inunda o stderr**; sob fcgiwrap o pipe de stderr enche, a escrita bloqueia e o **worker trava** →
   502 em toda a API). Capture direto (`n="$(grep -c … 2>/dev/null)"`, o exit 1 é inofensivo em `$()`) e
   saneie a dígitos (`n="${n//[^0-9]/}"; n="${n:-0}"`) antes de qualquer aritmética.
-- **Formato do pacote de problema = doc obrigatória.** QUALQUER mudança no pacote (arquivos, campos,
-  `.moj-meta.json`, `conf`, layout de `tests/`/`sols/`, de onde vem o **título**, seções obrigatórias
-  do enunciado) exige atualizar **no mesmo commit** TODAS as fontes que o descrevem — e elas vivem em
-  **repos diferentes**: `docs/API.md` (bloco `source`/`create`/`edit`), a seção **Pacote canônico**
-  deste `CLAUDE.md`, `moj-cli/README.md` ("Pacote do problema") e `mojtools/CLAUDE.md` (render/gen-json).
-  Divergência entre elas foi o que gerou o bug do título vazio; mantê-las em sincronia é parte da mudança.
+- **Formato do pacote de problema = doc obrigatória, e a FONTE ÚNICA é `docs/PACOTE.md`.** QUALQUER
+  mudança no pacote (arquivos, campos, `.moj-meta.json`, `conf`, layout de `tests/`/`sols/`, de onde
+  vem o **título**, seções obrigatórias do enunciado) atualiza o **`docs/PACOTE.md` no MESMO commit**.
+  Se a mudança for de **rota/contrato**, `docs/API.md` + `web/api/openapi.json` também (as rotas ficam
+  lá; o formato, não). Os demais repos (`mojtools/README.md`, `moj-cli/README.md`, os `CLAUDE.md`)
+  **apontam** p/ o `PACOTE.md` e não redescrevem o formato — não recrie a divergência de 4 cópias que
+  gerou o bug do título vazio.
 - **Não commitar**: `server/var/news/nova-interface.json` (mod local pré-existente).

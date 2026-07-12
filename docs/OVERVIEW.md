@@ -5,7 +5,9 @@ em **bash**. Este repositório é a **v2 API-first**: nginx + backend bash (fcgi
 frontend estático modular, lendo o **mesmo `contests/<id>/`** de sempre (sem migração de dados).
 
 > Fluxo de submissão/julgamento e como os daemons conversam: ver **[FLOW.md](FLOW.md)**.
-> Contrato de rotas: **[API.md](API.md)** (+ `web/api/openapi.json`). Placar: **[SCOREBOARD.md](SCOREBOARD.md)**. Deploy: **[DEPLOY.md](DEPLOY.md)**. Plano original: **[PLAN.md](PLAN.md)**.
+> Contrato de rotas: **[API.md](API.md)** (+ `web/api/openapi.json`). Formato do pacote de problema
+> (orgs, coleções, metadados): **[PACOTE.md](PACOTE.md)**. Placar: **[SCOREBOARD.md](SCOREBOARD.md)**.
+> Deploy: **[DEPLOY.md](DEPLOY.md)**. Plano original: **[PLAN.md](PLAN.md)**.
 
 > **Convenção de commit:** mensagens em português, no presente, prefixadas pelo componente
 > (ex.: `problemas: …`). O rodapé leva **apenas** `Co-Authored-By:` — **nunca** uma linha
@@ -90,6 +92,9 @@ calibrações) e **Estatísticas** (usuários, sessões, **problemas: total/púb
 `/treino/admin/{queue,judges,response-stats,calib-activity,stats}`.
 
 ### Gestão de problemas (MOJ-nativo por org, keyless) & painel de status
+> **Formato do pacote, `.moj-meta.json`, orgs e coleções: ver [PACOTE.md](PACOTE.md)** (fonte única).
+> Roteiro de montar um pacote e o que faz cada script: `mojtools/README.md`.
+
 Autoria/edição em `/problemas/` (storage: repo git LOCAL por problema em `<org>/<prob>`;
 acesso por **ORG** — membros escrevem, a trava `public_allowed` barra vazamento; só o login do MOJ). A aba **Painel**
 (`GET /problems/status`) dá a visão agregada dos problemas de que o login é **dono ou colaborador**:
