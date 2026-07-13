@@ -45,8 +45,8 @@ check:
 # (200 com corpo vazio, silencioso) já derrubou toda a listagem de problemas — ver server/test/.
 check-jq:
 	@podman image exists $(IMAGE):$(PROD) || { echo "sem $(IMAGE):$(PROD) — rode 'make image'"; exit 1; }
-	podman run --rm -v $(CURDIR):/src:ro,z -w /src $(IMAGE):$(PROD) \
-	  bash server/test/jq-portability.sh server
+	podman run --rm --entrypoint bash -v $(CURDIR):/src:ro,z -w /src $(IMAGE):$(PROD) \
+	  server/test/jq-portability.sh server
 
 ## image — constrói a imagem (contexto = raiz do workspace) e re-tagueia :prod
 image:
