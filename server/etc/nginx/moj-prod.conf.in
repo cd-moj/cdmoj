@@ -1,0 +1,48 @@
+# MOJ — vhost de PRODUÇÃO (nginx do SISTEMA, root, 80/443, com TLS).
+# TEMPLATE: gerado em /etc/nginx/conf.d/moj.conf por `server/bin/install-nginx.sh --cert <nome>`.
+# Sem certificado ainda? o installer usa o moj-prod-http.conf.in (HTTP-only) — ver DEPLOY.md.
+# O modelo DEV (nginx user-space, como o próprio usuário, em 8080/8443) é outro:
+# moj-subdomains.conf + ~/nginx-proxy/. Não misture os dois.
+#
+# UM server block serve o site principal E os subdomínios de contest: o `map` abaixo extrai o
+# <id> de <id>.<host> e o passa em CONTEST_HOST (vazio no site principal). O router.sh impõe
+# o isolamento — o nginx só transporta o id.
+#
+# PERMISSÕES (a pegadinha que dá 502): os workers do nginx (@NGINX_USER@) precisam
+#   (a) atravessar @WORKROOT@ e ler cdmoj/web  → `usermod -aG @OWNER@ @NGINX_USER@`;
+#   (b) conectar no socket unix do fcgiwrap, que nasce 0770 do dono (umask 007 no entrypoint).
+# O install-nginx.sh cuida de (a); (b) vem de deploy/moj-entrypoint. Ver docs/DEPLOY.md.
+
+map $host $moj_contest_host {
+    default  "";
+    @SUBDOMAIN_MAP@
+}
+
+# --- :80 — desafio ACME (http-01) + redirect p/ HTTPS ------------------------------
+server {
+    listen      80;
+    listen      [::]:80;
+    server_name @SERVER_NAMES@ @SERVER_NAMES_RE@;
+
+    location /.well-known/acme-challenge/ { root /var/www/html; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+# --- :443 — o MOJ ------------------------------------------------------------------
+server {
+    listen      443 ssl;
+    listen      [::]:443 ssl;
+    http2       on;
+    server_name @SERVER_NAMES@ @SERVER_NAMES_RE@;
+
+    ssl_certificate     /etc/letsencrypt/live/@CERTNAME@/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/@CERTNAME@/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:MOJSSL:10m;
+    ssl_session_timeout 1d;
+
+    access_log /var/log/nginx/moj.access.log;
+    error_log  /var/log/nginx/moj.error.log warn;
+
+    include @SNIPPET@;
+}

@@ -1,0 +1,23 @@
+# MOJ — vhost de PRODUÇÃO **sem TLS** (bootstrap: nginx no ar ANTES de existir certificado,
+# e para o desafio http-01 do certbot, se você não usar DNS-01).
+# TEMPLATE: gerado em /etc/nginx/conf.d/moj.conf por `server/bin/install-nginx.sh` SEM --cert.
+# Depois de emitir o cert (server/bin/cert-setup.sh), rode o installer de novo COM --cert:
+# ele troca este bloco pelo moj-prod.conf.in (TLS + redirect 80→443).
+
+map $host $moj_contest_host {
+    default  "";
+    @SUBDOMAIN_MAP@
+}
+
+server {
+    listen      80;
+    listen      [::]:80;
+    server_name @SERVER_NAMES@ @SERVER_NAMES_RE@;
+
+    location /.well-known/acme-challenge/ { root /var/www/html; }
+
+    access_log /var/log/nginx/moj.access.log;
+    error_log  /var/log/nginx/moj.error.log warn;
+
+    include @SNIPPET@;
+}
