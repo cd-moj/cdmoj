@@ -29,10 +29,13 @@ server {
 }
 
 # --- :443 — o MOJ ------------------------------------------------------------------
+# A diretiva `http2 on;` só existe no nginx >= 1.25.1 (o Ubuntu 24.04 traz o 1.24, que só entende
+# `listen … ssl http2`). O install-nginx.sh detecta a versão e escreve a forma certa aqui embaixo —
+# usar a errada é [emerg] "unknown directive" e o nginx não recarrega.
 server {
-    listen      443 ssl;
-    listen      [::]:443 ssl;
-    http2       on;
+    listen      443 ssl@HTTP2_LISTEN@;
+    listen      [::]:443 ssl@HTTP2_LISTEN@;
+@HTTP2_ON@
     server_name @SERVER_NAMES@ @SERVER_NAMES_RE@;
 
     ssl_certificate     /etc/letsencrypt/live/@CERTNAME@/fullchain.pem;

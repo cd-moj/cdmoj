@@ -64,6 +64,15 @@ if [ "$BARE" = 1 ]; then ROUTER="$WORKROOT/cdmoj/server/api/v1/router.sh"; fi
 : "${NGINX_USER:=$(awk '$1=="user"{sub(/;.*/,"",$2); print $2; exit}' /etc/nginx/nginx.conf 2>/dev/null)}"
 : "${NGINX_USER:=www-data}"
 
+# http2: a diretiva `http2 on;` só existe a partir do nginx 1.25.1 (o Ubuntu 24.04 traz o 1.24,
+# que só entende `listen … ssl http2`). Escolhe a forma pela versão — usar a errada é [emerg].
+NGXVER="$(nginx -v 2>&1 | sed -n 's|.*nginx/\([0-9][0-9.]*\).*|\1|p')"
+if [ -n "$NGXVER" ] && [ "$(printf '%s\n1.25.1\n' "$NGXVER" | sort -V | head -1)" = "1.25.1" ]; then
+  HTTP2_LISTEN=""; HTTP2_ON="    http2       on;"
+else
+  HTTP2_LISTEN=" http2"; HTTP2_ON=""
+fi
+
 # server_name: nomes exatos + regex dos subdomínios de contest (<id>.<host>), derivada dos nomes.
 alt=""
 for n in $NAMES; do alt="${alt:+$alt|}$(printf '%s' "$n" | sed 's/\./\\./g')"; done
@@ -84,7 +93,8 @@ render() {  # render <template> — substitui os @PLACEHOLDERS@ (sem sed: os val
   c="${c//@SNIPPET@/$SNIPPET}";                 c="${c//@CERTNAME@/$CERTNAME}"
   c="${c//@SERVER_NAMES@/$SERVER_NAMES}";       c="${c//@SERVER_NAMES_RE@/$SERVER_NAMES_RE}"
   c="${c//@SUBDOMAIN_MAP@/$SUBDOMAIN_MAP}";     c="${c//@NGINX_USER@/$NGINX_USER}"
-  c="${c//@OWNER@/$OWNER}"
+  c="${c//@OWNER@/$OWNER}";                     c="${c//@HTTP2_LISTEN@/$HTTP2_LISTEN}"
+  c="${c//@HTTP2_ON@/$HTTP2_ON}"
   printf '%s\n' "$c"
 }
 
@@ -117,16 +127,28 @@ elif [ -f /etc/nginx/sites-enabled/default ]; then
 fi
 
 mkdir -p "$CONF_DIR" "$SNIPPET_DIR" /var/www/html
-render "$TPLDIR/moj-app.conf.in" > "$SNIPPET.tmp" && mv "$SNIPPET.tmp" "$SNIPPET"
-render "$TPL" > "$CONF_DIR/moj.conf.tmp" && mv "$CONF_DIR/moj.conf.tmp" "$CONF_DIR/moj.conf"
+# Guarda o que existia: se o `nginx -t` reprovar, VOLTA. Senão fica um conf quebrado em disco e o
+# próximo reload (o do hook de renovação do certificado, p.ex.) derruba o site sem ninguém ver.
+BK="$(mktemp -d)"; trap 'rm -rf "$BK"' EXIT
+for f in "$SNIPPET" "$CONF_DIR/moj.conf"; do
+  [ -f "$f" ] && cp -a "$f" "$BK/$(basename "$f")"
+done
+render "$TPLDIR/moj-app.conf.in" > "$SNIPPET"
+render "$TPL" > "$CONF_DIR/moj.conf"
 chmod 644 "$SNIPPET" "$CONF_DIR/moj.conf"
-echo ">> gerados: $SNIPPET  e  $CONF_DIR/moj.conf"
 
 # nginx mascarado (ex.: máquina que rodava só o proxy user-space) não sobe nunca — destrave.
 if [ "$(systemctl is-enabled nginx 2>/dev/null)" = masked ]; then
   systemctl unmask nginx; echo ">> nginx estava MASKED — desmascarei"
 fi
-nginx -t
+if ! nginx -t; then
+  echo ">> nginx -t REPROVOU — revertendo os arquivos gerados" >&2
+  for f in "$SNIPPET" "$CONF_DIR/moj.conf"; do
+    if [ -f "$BK/$(basename "$f")" ]; then cp -a "$BK/$(basename "$f")" "$f"; else rm -f "$f"; fi
+  done
+  exit 1
+fi
+echo ">> gerados: $SNIPPET  e  $CONF_DIR/moj.conf"
 if ! systemctl is-active --quiet nginx; then
   systemctl enable --now nginx; echo ">> nginx iniciado (e habilitado no boot)"
 elif [ "${NEED_RESTART:-0}" = 1 ]; then
