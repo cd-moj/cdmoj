@@ -304,8 +304,9 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
   `staff-filters`). O admin habilita/desabilita por conf `PRINT` (toggle `allow_print`).
   - **Balões** 🎈: na **mesma fila** do `.staff`, o sistema gera automaticamente uma **tarefa de
     balão** quando um time **resolve** um problema (veredicto `Accepted`) — **1 por (time, problema)**
-    na 1ª solução. Geração **preguiçosa** ao carregar a fila (`pr_reconcile_balloons` varre o
-    `controle/history`, dedup por id determinístico, gateado por mtime, sob flock) — **sem mexer no
+    na 1ª solução. Geração **preguiçosa** ao carregar a fila (`pr_reconcile_balloons` varre o history
+    do **store por-usuário** — `emit_history_stream` sobre `users/<login>/history` —, dedup por id
+    determinístico, gateado pelo mtime de `var/.score-dirty`, sob flock) — **sem mexer no
     daemon**; como lê o veredicto **final** do history, no **modo manual** o balão só nasce depois que
     os `.judge` decidem o `Accepted`. Só o `.staff` que **enxerga aquele time** (mesmo escopo regex)
     recebe. A **folha do balão** (1 página, `pr_build_balloon`, **sem `.src`**) traz time + universidade

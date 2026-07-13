@@ -111,8 +111,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Balão** (`.staff`): tarefa **automática** na 1ª solução (`Accepted`) de cada (time, problema),
   na MESMA fila do `.staff` (campo `kind:"balloon"` no `print-requests/<id>.json`, sem `.src`). Gerada
   **preguiçosamente** por `pr_reconcile_balloons` (em `lib/print.sh`) ao carregar `staff/queue` — lê o
-  veredicto **final** do `controle/history` (vale auto+manual), dedup por id determinístico, **sem
-  mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
+  veredicto **final** do history do **store por-usuário** (`emit_history_stream` sobre
+  `users/<login>/history`; vale auto+manual), dedup por id determinístico, gateado pelo mtime de
+  **`var/.score-dirty`**, **sem mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
 - **Etiquetas de credenciais** (`/contest/badges` + página `web/contest/badges/`, gabaritos Pimaco
   A4): é o **único** endpoint que devolve `.password` numa releitura — gate **admin/`.cstaff`**
