@@ -23,8 +23,12 @@ counts="$(jq -n '
 [[ -n "$counts" ]] || counts='{}'
 
 # base: id/title/tags/collections de var/jsons + as contagens reais casadas por id ('#').
+# O `select(.public != false)` é a 3ª camada anti-vazamento: esta lista é ANÔNIMA, e um bug do
+# gerador já pôs problema privado (prova em elaboração) aqui dentro. `!= false` deixa passar json
+# legado sem o campo e barra só o explicitamente privado. Ver mojtools/gen-problem-json.sh.
 jq -s --argjson c "$counts" '
-  map({id, title, tags: (.tags // []), collections: (.collections // [])} + ($c[.id] // {solved_count:0, attempted_count:0}))
+  map(select(.public != false)
+      | {id, title, tags: (.tags // []), collections: (.collections // [])} + ($c[.id] // {solved_count:0, attempted_count:0}))
 ' "$JD"/*.json 2>/dev/null | tee "$CACHE.tmp" >/dev/null
 mv -f "$CACHE.tmp" "$CACHE" 2>/dev/null
 cat "$CACHE"

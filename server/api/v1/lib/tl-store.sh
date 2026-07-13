@@ -89,8 +89,31 @@ tl_store_get(){ cat "$(tl_store_file "$1")" 2>/dev/null || echo '{}'; }
 # juiz (kind=index). validate=1 roda o portão estático antes (best-effort).
 index_problem_bg(){
   local id="$1" validate="${2:-0}" pkg; pkg="$(pkg_path "$id")"; [[ -n "$pkg" ]] || return 1
+  # TRAVA DA ORG NO INDEXADOR (2ª camada anti-vazamento de prova). O `public` do .moj-meta.json só é
+  # escrito pelo /problems/set-public, que checa `org_public_allowed`. Mas QUALQUER reindexação
+  # (tl-report de calibração, /problems/validate, set-collections…) chega aqui, e antes ela publicava
+  # sem consultar a trava: bastava um meta errado (import legado, org rebaixada, bug) p/ a prova ir
+  # parar na lista pública. Agora: org que NEGA público => o gerador nunca gera índice público.
+  #
+  # CUIDADO — a trava é fail-closed, mas só p/ org REGISTRADA. Org desconhecida (problema legado, de
+  # antes das orgs) NÃO força privado: senão um orgs.json ausente/incompleto (perda, migração pela
+  # metade) DESPUBLICARIA a base inteira, em silêncio, um problema por tl-report. Nesse caso quem
+  # decide é a camada 1 (o `public:true` do meta, que só o set-public escreve).
+  local force_priv=0 org="${id%%#*}" orgs="$CONTESTSDIR/treino/var/orgs.json"
+  if [[ -f "$orgs" ]] && jq -e --arg n "$org" 'has($n) and (.[$n].public_allowed != true)' \
+        "$orgs" >/dev/null 2>&1; then
+    force_priv=1
+    # Anomalia: o pacote se diz PÚBLICO numa org que não permite. Não deveria acontecer (o
+    # set-public é o único setter e checa a trava) — se acontecer, é meta vindo de fora
+    # (upload/import) ou org rebaixada sem cascata. Fica no audit.
+    if jq -e '.public == true' "$pkg/.moj-meta.json" >/dev/null 2>&1 \
+       && declare -F audit_log >/dev/null 2>&1; then
+      audit_log "index-org-lock" "id=$id: meta diz public:true mas a org '$org' não permite — índice mantido PRIVADO"
+    fi
+  fi
   ( setsid env MOJ_TL_STORE="$TL_STORE_DIR" RUNDIR="$RUNDIR" CONTESTSDIR="$CONTESTSDIR" \
        MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" MOJTOOLS_DIR="$MOJTOOLS_DIR" \
+       MOJ_FORCE_PRIVATE="$force_priv" \
        bash -c '
          pkg="$1"; id="$2"; val="$3"
          if [[ "$val" == 1 ]]; then

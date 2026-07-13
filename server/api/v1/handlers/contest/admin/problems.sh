@@ -141,8 +141,10 @@ case "$action" in
     [[ "$(jq -r '.remove_pdf  // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey.pdf";  did="$did -pdf"; }
     if [[ "$(jq -r '.refresh // false' <<<"$body")" == true && -n "$cid" ]]; then
       rm -f "$edir/$skey.html"   # remove o cache -> /contest/problems volta a buscar/cachear do banco
-      source "$_DIR/../../judge-gw/sched-lib.sh" 2>/dev/null || true
-      declare -F idx_request >/dev/null && idx_request "${cid%%#*}" "$cid" "contest-stmt:$SESSION_LOGIN" >/dev/null 2>&1 || true
+      # reindexa NO SERVIDOR (o antigo idx_request enfileirava kind=index p/ o juiz, que responde
+      # "legado, nada a fazer" — era no-op e o "refresh" não refrescava nada).
+      source "$_DIR/lib/tl-store.sh" 2>/dev/null || true
+      declare -F index_problem_bg >/dev/null && index_problem_bg "$cid" 1 >/dev/null 2>&1 || true
       did="$did refresh"
     fi
     [[ -n "$did" ]] || fail 422 "Nada a fazer (envie html_b64/pdf_b64, remove_*, ou refresh)" "noop"

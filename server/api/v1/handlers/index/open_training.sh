@@ -31,10 +31,17 @@ _title(){ # título do problema (probid usa '#'); índice vivo -> legado -> o pr
   printf '%s' "${p/\#/.}"
 }
 
+# ESTA PÁGINA É ANÔNIMA (home). Um problema PRIVADO (prova em elaboração) que o próprio autor
+# resolveu no treino apareceria nos feeds abaixo — vazando id, título e link. `_private` esconde
+# só o que o sistema SABE ser privado (tem json em jsons-private/ e NÃO em jsons/); problema
+# legado (só no índice antigo, sem json nenhum) continua aparecendo como sempre.
+_private(){ [[ ! -f "$JDIR/$1.json" && -f "$TREINO/var/jsons-private/$1.json" ]]; }
+
 # --- recent_solved: últimos 5 Accepted (mais recentes primeiro) -----------
 declare -a V
 while IFS=: read -r relat user prob lang resp epoch md5; do
   [[ -z "$user" ]] && continue
+  _private "$prob" && continue
   name="$(user_fullname_of treino "$user")"
   V+=( "$(jq -cn --arg pid "$prob" --arg title "$(_title "$prob")" \
       --arg user "$user" --arg name "$name" --argjson at "${epoch:-0}" \
@@ -48,6 +55,7 @@ LASTWEEK="$(date --date='last-sunday' +%s 2>/dev/null || echo 0)"
 declare -a R
 while read -r total prob; do
   [[ -z "$prob" ]] && continue
+  _private "$prob" && continue
   R+=( "$(jq -cn --arg pid "$prob" --arg title "$(_title "$prob")" \
       --argjson n "$total" --arg url "/treino/problema/?id=${prob//\#/%23}" \
       '{problem_id:$pid, problem_title:$title, solved_count:$n, url:$url}')" )
@@ -60,6 +68,7 @@ PREVSTART=$(( LASTWEEK > 0 ? LASTWEEK - 604800 : 0 ))
 declare -a RP
 while read -r total prob; do
   [[ -z "$prob" ]] && continue
+  _private "$prob" && continue
   RP+=( "$(jq -cn --arg pid "$prob" --arg title "$(_title "$prob")" \
       --argjson n "$total" --arg url "/treino/problema/?id=${prob//\#/%23}" \
       '{problem_id:$pid, problem_title:$title, solved_count:$n, url:$url}')" )

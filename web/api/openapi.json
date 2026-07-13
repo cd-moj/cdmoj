@@ -4577,13 +4577,13 @@
         }
       }
     },
-    "/problems/publish": {
+    "/problems/validate": {
       "post": {
         "tags": [
           "problems"
         ],
-        "summary": "Enfileira validação + index (publicar)",
-        "description": "1 juiz pega no heartbeat. Portão (hard): HTML compila + seções `## Entrada`/`## Saída` + exemplos pareados + solução good aceita.",
+        "summary": "Portão de qualidade: valida + indexa + pede calibração (NÃO publica)",
+        "description": "Roda o validador estático (HTML compila + seções `## Entrada`/`## Saída` + exemplos pareados) + gera o índice, e pede calibração a um juiz (roda as `good`, reporta o TL). **NÃO altera o flag `public`**: problema privado continua privado — publicar é `/problems/set-public`, que é quem checa a trava `public_allowed` da ORG. Relatório em `/problems/validation`.",
         "security": [
           {
             "bearerAuth": []
@@ -4617,6 +4617,49 @@
             "description": "{reqid,...}"
           }
         }
+      }
+    },
+    "/problems/publish": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "DEPRECADO: alias de /problems/validate",
+        "description": "Alias deprecado de `/problems/validate` (o nome fazia parecer que validar publicava).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{reqid,...}"
+          }
+        },
+        "deprecated": true
       }
     },
     "/problems/request-calibration": {

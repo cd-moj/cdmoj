@@ -267,6 +267,14 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   clientes do contrato da API. Antes de fechar, VERIFIQUE de fato: a home carrega, o login funciona,
   `moj login`/`moj whoami` funcionam contra a base real. Regressão de API costuma se manifestar como
   "web não carrega / não loga / 502" — investigue o servidor, não só o cliente.
+- **Armadilha `//` do jq com BOOLEANO (vazou prova em elaboração p/ a internet):** o `//` trata
+  **`false` como vazio**, igual a `null` — `false // "x"` devolve `"x"`. Então
+  `jq -r '.public // "unset"'` **nunca** devolve `"false"`, e a checagem que dependia disso virou
+  código morto: **todo problema privado ia parar na lista pública anônima do treino** (com
+  enunciado). Para testar bool use **`jq -e '.campo == true'`** (ou `== false`). `// false` como
+  *default* é seguro (o fallback é o próprio valor falsy) — o veneno é `//` com um sentinela.
+  O portão da lista pública tem teste: `server/test/smoke-public-index.sh`; a rede de segurança é
+  `server/bin/audit-public-index.sh`.
 - **Armadilha `jq 1.7` (imagem) × `jq 1.8` (dev) — causou outage silencioso da listagem inteira:**
   no **jq 1.7** (Debian, o da imagem de produção) o **valor de um campo de objeto NÃO aceita operador
   binário solto** — `{a: X + Y}`, `{a: .x // 0}`, `{a: .x == 1}`, `{a: .x and .y}` são **erro de

@@ -38,10 +38,18 @@ if [[ ! -d "$pdir" ]]; then   # problema NOVO via tar -> exige permissão de cri
   cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar novos problemas (mesma regra de criar contest)" "create_forbidden"
 fi
 mkdir -p "$pdir"
+# ANTI-VAZAMENTO: o `.moj-meta.json` VEM DENTRO DO TAR DO USUÁRIO (o /problems/download o inclui, e o
+# rsync abaixo sobrescreve o do servidor). O flag `public` NÃO pode vir de lá — se viesse, bastava
+# baixar um problema público, adaptá-lo p/ uma prova numa org privada e dar `moj upload`: o meta diria
+# public:true e a PRÓXIMA indexação (um tl-report de calibração basta) publicaria a prova, sem passar
+# pelo /problems/set-public, que é o único lugar que checa a trava da org. Guarda o valor ATUAL do
+# servidor (problema novo nasce PRIVADO) e reimpõe depois do rsync.
+pub_srv=false
+[[ -f "$pdir/.moj-meta.json" ]] && jq -e '.public == true' "$pdir/.moj-meta.json" >/dev/null 2>&1 && pub_srv=true
 # preserva o .git do problema (histórico local): rsync --delete com --exclude='.git' NÃO o apaga
 rsync -a --delete --exclude='.git' "$src"/ "$pdir"/ 2>/dev/null || cp -a "$src"/. "$pdir"/
 owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
-write_meta "$pdir" "$owner" "$org" "" "" ""
+write_meta "$pdir" "$owner" "$org" "$pub_srv" "" ""     # public EXPLÍCITO: o do servidor, não o do tar
 [[ -f "$pdir/problem.yaml" ]] || bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true
 
 sha="$(problem_commit "$pdir" "$SESSION_LOGIN" "upload do pacote: $prob")"
