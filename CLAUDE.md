@@ -267,6 +267,15 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   clientes do contrato da API. Antes de fechar, VERIFIQUE de fato: a home carrega, o login funciona,
   `moj login`/`moj whoami` funcionam contra a base real. Regressão de API costuma se manifestar como
   "web não carrega / não loga / 502" — investigue o servidor, não só o cliente.
+- **Armadilha `jq 1.7` (imagem) × `jq 1.8` (dev) — causou outage silencioso da listagem inteira:**
+  no **jq 1.7** (Debian, o da imagem de produção) o **valor de um campo de objeto NÃO aceita operador
+  binário solto** — `{a: X + Y}`, `{a: .x // 0}`, `{a: .x == 1}`, `{a: .x and .y}` são **erro de
+  sintaxe**. O **jq 1.8** (dev) aceita. Escreva SEMPRE com parênteses: `{a: (X + Y)}`. O sintoma em
+  produção é cruel: o `2>/dev/null` engole o erro, o jq seguinte recebe stdin vazio, **sai 0 sem
+  imprimir nada**, o `|| fallback` não dispara e o cliente recebe **200 com CORPO VAZIO**
+  ("Resposta inválida do servidor" na web; `moj ls` mudo). Guard: **`make check-jq`**
+  (`server/test/jq-portability.sh` compila os ~900 programas jq com o jq da imagem).
+  Corolário: função que alimenta um `| jq` **nunca** pode devolver vazio (ver `owners_merged`).
 - **Armadilha `grep -c` (causou outage 502):** `grep -c` IMPRIME a contagem (`0`) **e SAI com código
   1** quando não há match. NUNCA escreva `grep -c … || echo 0` (retorna `"0\n0"` → estoura `(( … ))`
   e **inunda o stderr**; sob fcgiwrap o pipe de stderr enche, a escrita bloqueia e o **worker trava** →

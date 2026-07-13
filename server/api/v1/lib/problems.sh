@@ -33,14 +33,24 @@ owners_merged(){
   # que só o índice calcula (tl_checksum, public_at) — por isso é MESCLADO sobre a entrada do índice
   # (base + overlay, overlay vence campo-a-campo) em vez de substituí-la. Sem isso, todo problema no
   # overlay perdia tl_checksum/public_at (staleness e heatmap de entrada sub-reportados).
-  jq -s '
+  #
+  # ATENÇÃO ao `( … + … )`: valor de campo de objeto NÃO aceita operador binário solto no **jq 1.7**
+  # (o da imagem de produção). O jq 1.8 (dev) aceita — então isto compilava aqui e explodia lá:
+  # `{problems: A + B}` virava erro de sintaxe, o `2>/dev/null` engolia, e TODA listagem (problemas,
+  # orgs, coleções) devolvia 200 com CORPO VAZIO ("Resposta inválida do servidor"). Ver CLAUDE.md.
+  local out
+  out="$(jq -s '
     (.[0] // {problems:[]}) as $base
     | ((.[1] // {}) | [to_entries[].value]) as $ov
     | (($base.problems // []) | map({key:.id, value:.}) | from_entries) as $bmap
     | ($ov | map(.id)) as $ids
-    | { problems: (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not)))
-                  + ($ov | map(($bmap[.id] // {}) + .)) }
-  ' "$OWNERS_INDEX" <(cat "$AUTHORED_INDEX" 2>/dev/null || echo '{}') 2>/dev/null
+    | { problems: ( (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not)))
+                    + ($ov | map(($bmap[.id] // {}) + .)) ) }
+  ' "$OWNERS_INDEX" <(cat "$AUTHORED_INDEX" 2>/dev/null || echo '{}') 2>/dev/null)"
+  # NUNCA devolver vazio: quem consome faz `owners_merged | jq …` e um stdin vazio faz o jq sair 0
+  # SEM imprimir nada — o `|| fallback` do handler não dispara e o cliente recebe corpo vazio.
+  [[ -n "$out" ]] || out='{"problems":[]}'
+  printf '%s' "$out"
 }
 
 # owners_visible — {problems:[...]} PRÉ-FILTRADO ao que $SESSION_LOGIN PODE VER (público OU dono OU

@@ -22,7 +22,7 @@ UNITDIR    ?= $(HOME)/.config/containers/systemd
 HOST_HDR   ?= moj.charge.naquadah.com.br
 BASE       ?= http://127.0.0.1:8080
 
-.PHONY: help check image pull push install-units deploy restart restart-judged \
+.PHONY: help check check-jq image pull push install-units deploy restart restart-judged \
         rollback status smoke logs shell dev
 
 help:
@@ -39,6 +39,14 @@ check:
 	    < <(find web -name '*.js' -not -path 'web/shared/vendor/*' -print0); \
 	  rm -rf "$$t"; [ $$rc -eq 0 ] && echo "   ESM ok"; exit $$rc; \
 	else echo "   (node ausente — pulei ESM)"; fi
+
+## check-jq — compila TODO programa jq com o jq da IMAGEM (1.7), que é mais ESTRITO que o do dev (1.8)
+# O 1.8 aceita `{a: X + Y}`; o 1.7 exige `{a: (X + Y)}`. Escrever no dev e só quebrar em produção
+# (200 com corpo vazio, silencioso) já derrubou toda a listagem de problemas — ver server/test/.
+check-jq:
+	@podman image exists $(IMAGE):$(PROD) || { echo "sem $(IMAGE):$(PROD) — rode 'make image'"; exit 1; }
+	podman run --rm -v $(CURDIR):/src:ro,z -w /src $(IMAGE):$(PROD) \
+	  bash server/test/jq-portability.sh server
 
 ## image — constrói a imagem (contexto = raiz do workspace) e re-tagueia :prod
 image:
