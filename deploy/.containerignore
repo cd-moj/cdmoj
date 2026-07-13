@@ -16,6 +16,8 @@ run/
 cdmoj/mojinho-bot/token
 cdmoj/mojinho-bot/*.conf
 cdmoj/mojinho-bot/mojinho.sh
+cdmoj/mojinho-bot/log-*.txt
+cdmoj/mojinho-bot/mojinho-offset
 *.pem
 *.key
 id_rsa*

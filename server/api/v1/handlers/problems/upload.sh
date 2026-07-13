@@ -27,7 +27,18 @@ if [[ "$(head -c2 "$tarf")" == "PK" ]]; then
   unzip -qq -o "$tarf" -d "$ex" 2>/dev/null || fail 400 "Zip inválido" "zip_bad"
 else
   tar -tf "$tarf" 2>/dev/null | grep -qE '(^/|(^|/)\.\.(/|$))' && fail 400 "Arquivo com caminho inseguro" "tar_unsafe"
-  tar -xf "$tarf" -C "$ex" --no-same-owner 2>/dev/null || fail 400 "Arquivo inválido (tar/tar.gz/tar.bz2/tar.zst/zip)" "tar_bad"
+  # cada compressão precisa do descompressor externo (o `tar` só delega). Sem ele, um tar VÁLIDO
+  # dava "Arquivo inválido" — erro mentiroso. A imagem embarca gzip/bzip2/zstd/xz; se algum sumir,
+  # o erro passa a dizer QUAL falta (como o caminho do zip já fazia).
+  case "$(od -An -tx1 -N4 "$tarf" 2>/dev/null | tr -d ' \n')" in
+    1f8b*)    need=gzip;;  425a68*)   need=bzip2;;
+    28b52ffd) need=zstd;;  fd377a58*) need=xz;;
+    *)        need="";;
+  esac
+  [[ -z "$need" ]] || command -v "$need" >/dev/null 2>&1 \
+    || fail 501 "Sem $need no servidor (envie .tar.gz)" "no_$need"
+  tar -xf "$tarf" -C "$ex" --no-same-owner 2>/dev/null \
+    || fail 400 "Arquivo inválido (tar/tar.gz/tar.bz2/tar.xz/tar.zst/zip)" "tar_bad"
 fi
 # raiz do pacote: 1 diretório de topo -> usa ele; senão a raiz extraída
 src="$ex"; top="$(find "$ex" -maxdepth 1 -mindepth 1)"
@@ -46,8 +57,20 @@ mkdir -p "$pdir"
 # servidor (problema novo nasce PRIVADO) e reimpõe depois do rsync.
 pub_srv=false
 [[ -f "$pdir/.moj-meta.json" ]] && jq -e '.public == true' "$pdir/.moj-meta.json" >/dev/null 2>&1 && pub_srv=true
-# preserva o .git do problema (histórico local): rsync --delete com --exclude='.git' NÃO o apaga
-rsync -a --delete --exclude='.git' "$src"/ "$pdir"/ 2>/dev/null || cp -a "$src"/. "$pdir"/
+# O pacote do servidor vira EXATAMENTE o que o autor enviou: o que ele apagou tem de sumir daqui
+# (--delete), e o .git (repo local do problema, onde o problem_commit escreve) tem de sobreviver.
+# O fallback antigo era `|| cp -a`, que faz nem uma coisa nem outra — e como o rsync não estava na
+# imagem, TODO upload em produção caía nele, calado: teste/solução apagada continuava valendo, e um
+# tar com .git dentro sobrescrevia o histórico do servidor. Agora o caminho sem rsync FAZ a mesma
+# coisa (com tar, que sempre existe), e erro de rsync não é mais engolido.
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --delete --exclude='.git' "$src"/ "$pdir"/ \
+    || fail 500 "Falha ao gravar o pacote (rsync)" "pkg_write_failed"
+else
+  find "$pdir" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} + 2>/dev/null    # o --delete
+  ( cd "$src" && tar -cf - --exclude=.git . ) | ( cd "$pdir" && tar -xf - ) \
+    || fail 500 "Falha ao gravar o pacote (tar)" "pkg_write_failed"
+fi
 owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
 write_meta "$pdir" "$owner" "$org" "$pub_srv" "" ""     # public EXPLÍCITO: o do servidor, não o do tar
 [[ -f "$pdir/problem.yaml" ]] || bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true

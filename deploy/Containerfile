@@ -33,10 +33,25 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Núcleo (bash+jq+git+coreutils+...) + CGI (fcgiwrap da distro, não o ELF vendado) + conteúdo
 # (pandoc) + daemon (inotify-tools, socat) + mídia/impressão (imagemagick/ghostscript/poppler/
 # qpdf/paps). LibreOffice e a JRE do jplag entram por --build-arg (default 1 = imagem completa).
+#
+# NÃO PODE PODAR desta lista sem ler o porquê — os que faltavam quebravam produção EM SILÊNCIO:
+#   rsync   handlers/problems/upload.sh: `rsync -a --delete --exclude=.git`. Sem ele o upload perdia
+#           o --delete: arquivo APAGADO pelo autor continuava no pacote (teste/solução velha valendo).
+#   file    lib/print.sh `_pr_render` decide o conversor pelo MIME. Sem `file`, o mime vem vazio e
+#           PDF/imagem caem no ramo de TEXTO -> a impressão do staff sai lixo (em dia de prova).
+#           Também é o que pega checker ELF commitado no mojtools/validate-problem.sh.
+#   bzip2   `tar -xf` do /problems/upload precisa do descompressor externo p/ cada formato que a
+#   zstd    própria rota ANUNCIA (.tar.bz2/.tar.zst) — sem ele, tar válido virava "Arquivo inválido".
+#   xz-utils  idem p/ .tar.xz.
+#   python3 mojtools/kattis/: o `have_py` exige python3 **e o módulo yaml**. Sem eles o sidecar
+#   python3-yaml  (chamado por create/edit/upload com `|| true`) some CALADO — problem.yaml e
+#           .kattis.json nunca eram gerados — e o import/export ICPC morre (422/500).
+# As asserções de build lá embaixo conferem todos: podar um pacote quebra o BUILD, não a produção.
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
       bash jq git gawk sed grep findutils coreutils util-linux tar gzip zip unzip \
+      rsync file bzip2 zstd xz-utils python3 python3-yaml \
       curl ca-certificates \
       fcgiwrap \
       pandoc \
@@ -58,18 +73,29 @@ RUN git config --system --add safe.directory '*'
 COPY cdmoj/server /opt/moj/cdmoj/server
 COPY cdmoj/web    /opt/moj/cdmoj/web
 COPY cdmoj/docs   /opt/moj/cdmoj/docs
+# O papel `bot` do entrypoint roda $MOJ_HOME/mojinho-bot/mojinho-api.sh — que NUNCA era copiado
+# (o .containerignore já excluía os segredos dele, sinal de que o COPY era p/ estar aqui). Segredos
+# e estado (token, *.conf, mojinho.sh legado, logs) ficam de fora; token/config vêm por volume/env.
+COPY cdmoj/mojinho-bot /opt/moj/cdmoj/mojinho-bot
 COPY mojtools     /opt/moj/mojtools
 COPY --from=jplag /opt/moj/jplag /opt/moj/jplag
 COPY cdmoj/deploy/moj-entrypoint /opt/moj/bin/moj-entrypoint
 RUN chmod +x /opt/moj/bin/moj-entrypoint \
       /opt/moj/cdmoj/server/api/v1/router.sh 2>/dev/null || true
 
-# Asserções de build (falham ALTO se algo essencial faltou/renomeou).
+# Asserções de build (falham ALTO se algo essencial faltou/renomeou). Todo binário que o servidor
+# chama e cujo sumiço degrada EM SILÊNCIO entra aqui — é o que transforma "quebrou em produção" em
+# "quebrou o build".
 RUN set -eux; \
     command -v convert; convert -version >/dev/null; \
     command -v magick || ln -s "$(command -v convert)" /usr/local/bin/magick; \
     pandoc --version | head -1; \
     command -v fcgiwrap; \
+    for b in rsync file bzip2 zstd xz unzip zip tar gzip jq git curl inotifywait socat \
+             gs pdfinfo qpdf paps python3; do command -v "$b" >/dev/null || { echo "FALTA: $b" >&2; exit 1; }; done; \
+    file --version | head -1; \
+    python3 -c 'import yaml' ; \
+    magick -size 10x10 xc:white /tmp/_x.pdf && [ -s /tmp/_x.pdf ] && rm -f /tmp/_x.pdf; \
     bash -n /opt/moj/cdmoj/server/api/v1/router.sh
 
 # Caminhos: todos os defaults do server são `: "${VAR:=…}"` ⇒ o ENV vence (zero edição de código).
