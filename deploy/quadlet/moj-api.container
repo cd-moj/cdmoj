@@ -1,7 +1,10 @@
 # moj-api.container — API MOJ (fcgiwrap + router.sh) como container rootless.
-# Instale em ~/.config/containers/systemd/ e `systemctl --user daemon-reload`.
+# TEMPLATE: `@WORKROOT@` é a raiz do workspace (o dir que contém cdmoj/ mojtools/ run/ …) e é
+# substituída por `make install-units` ao instalar em ~/.config/containers/systemd/.
+# NÃO copie este arquivo à mão (o systemd não expande `@WORKROOT@` — o container falharia
+# apontando p/ um caminho inexistente).
 # O nginx do HOST (fora da imagem) serve web/ e faz fastcgi_pass ao socket unix em
-#   /home/ribas/moj/run/fcgiwrap.sock  (= /data/run/fcgiwrap.sock dentro do container).
+#   @WORKROOT@/run/fcgiwrap.sock  (= /data/run/fcgiwrap.sock dentro do container).
 [Unit]
 Description=MOJ API (fcgiwrap + router.sh)
 After=network-online.target
@@ -13,10 +16,10 @@ AutoUpdate=local
 Exec=api
 # Estado por volume, rótulo SELinux :z (SHARED — o nginx do host e o moj-judged mantêm acesso).
 # NÃO usar :Z (privado) nem User=/UserNS=keep-id (quebraria o dono dos arquivos nos volumes).
-Volume=/home/ribas/moj/run:/data/run:z
-Volume=/home/ribas/moj/contests:/data/contests:z
-Volume=/home/ribas/moj/moj-problems:/data/moj-problems:z
-Volume=/home/ribas/moj/cdmoj/server/var/news:/data/news:z
+Volume=@WORKROOT@/run:/data/run:z
+Volume=@WORKROOT@/contests:/data/contests:z
+Volume=@WORKROOT@/moj-problems:/data/moj-problems:z
+Volume=@WORKROOT@/cdmoj/server/var/news:/data/news:z
 Environment=INTAKE_MODE=queue
 
 [Service]

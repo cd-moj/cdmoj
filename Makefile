@@ -1,11 +1,13 @@
 # cdmoj/Makefile — build/deploy da imagem podman do MOJ.
 #
 #   make image                # constrói localhost/moj-server:$(TAG) e re-tagueia :prod
+#   make install-units        # quadlets -> ~/.config/containers/systemd/ (raiz = WORKROOT)
 #   make deploy               # git pull + image (ou pull) + restart + smoke
 #   make deploy FROM=registry # idem, mas puxa a imagem do registry em vez de buildar
 #   make rollback PREV=<tag>  # volta :prod p/ uma tag anterior e reinicia
 #
 # A imagem é a API + o daemon; o nginx do host serve web/ e faz fastcgi_pass ao socket.
+# WORKROOT = raiz do workspace (o dir que contém cdmoj/ mojtools/ contests/ run/); default `..`.
 # Ver deploy/Containerfile, deploy/quadlet/, docs/DEPLOY.md.
 
 SHELL      := /bin/bash
@@ -24,7 +26,7 @@ BASE       ?= http://127.0.0.1:8080
         rollback status smoke logs shell dev
 
 help:
-	@sed -n '1,12p' Makefile
+	@sed -n '1,11p' Makefile
 
 ## check — bash -n em todo .sh do server + node --check nos ESM (via .mjs, senão passa falso)
 check:
@@ -57,13 +59,19 @@ push:
 	podman tag $(IMAGE):$(TAG) $(REGISTRY):$(TAG)
 	podman push $(REGISTRY):$(TAG)
 
-## install-units — instala os quadlets e recarrega o systemd do usuário
+## install-units — instala os quadlets (com a raiz do workspace substituída) e recarrega o systemd
+# Os quadlets são TEMPLATES: `@WORKROOT@` -> caminho absoluto de $(WORKROOT). Instalar por cópia
+# crua (install/cp) deixaria o `@WORKROOT@` literal e o container não subiria.
 install-units:
-	mkdir -p $(UNITDIR)
-	install -m644 deploy/quadlet/moj-api.container    $(UNITDIR)/
-	install -m644 deploy/quadlet/moj-judged.container $(UNITDIR)/
+	@mkdir -p $(UNITDIR)
+	@root="$$(cd $(WORKROOT) && pwd)"; \
+	for q in moj-api moj-judged; do \
+	  sed "s|@WORKROOT@|$$root|g" deploy/quadlet/$$q.container > $(UNITDIR)/$$q.container; \
+	  chmod 644 $(UNITDIR)/$$q.container; \
+	done; \
+	echo ">> quadlets instalados em $(UNITDIR) (workspace = $$root)"
 	systemctl --user daemon-reload
-	@echo ">> quadlets instalados. Suba: systemctl --user start moj-api moj-judged"
+	@echo ">> Suba: systemctl --user enable --now moj-api moj-judged  (+ sudo loginctl enable-linger \$$USER)"
 
 ## deploy — atualiza tudo. FROM=registry puxa em vez de buildar.
 deploy:

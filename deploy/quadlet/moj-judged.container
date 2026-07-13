@@ -1,6 +1,7 @@
 # moj-judged.container — daemon de julgamento (consome o spool, enfileira p/ o pull).
 # Container SEPARADO do moj-api p/ restart independente (CLAUDE.md: "mexeu no judged -> reinicie").
 # Compartilha os MESMOS volumes :z (o judged observa run/spool que a API escreve).
+# TEMPLATE: `@WORKROOT@` (raiz do workspace) é substituída por `make install-units` — ver moj-api.container.
 [Unit]
 Description=MOJ judging daemon (queue/pull)
 After=network-online.target
@@ -9,10 +10,10 @@ After=network-online.target
 Image=localhost/moj-server:prod
 AutoUpdate=local
 Exec=judged
-Volume=/home/ribas/moj/run:/data/run:z
-Volume=/home/ribas/moj/contests:/data/contests:z
-Volume=/home/ribas/moj/moj-problems:/data/moj-problems:z
-Volume=/home/ribas/moj/cdmoj/server/var/news:/data/news:z
+Volume=@WORKROOT@/run:/data/run:z
+Volume=@WORKROOT@/contests:/data/contests:z
+Volume=@WORKROOT@/moj-problems:/data/moj-problems:z
+Volume=@WORKROOT@/cdmoj/server/var/news:/data/news:z
 Environment=INTAKE_MODE=queue
 Environment=JUDGE_BACKEND=queue
 
