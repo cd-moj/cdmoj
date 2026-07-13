@@ -36,7 +36,7 @@ _alert_work_pending(){   # submissões esperando: spool bruto + bandas da fila p
   [[ -d "$QUEUEDIR" ]] && bq="$(find "$QUEUEDIR" -mindepth 2 -name '*.json' 2>/dev/null | wc -l)"
   echo $(( sp + bq ))
 }
-_alert_daemon_up(){ pgrep -f 'server/daemons/judged.sh' >/dev/null 2>&1 && echo 1 || echo 0; }
+_alert_daemon_up(){ daemon_judged_alive && echo 1 || echo 0; }   # lib/common.sh (pgrep OU heartbeat)
 
 # --- destinos: .admin do treino com Telegram vinculado --------------------
 # alerts_admin_chats -> ecoa chat_ids (um por linha) dos .admin com by-login/<login>.

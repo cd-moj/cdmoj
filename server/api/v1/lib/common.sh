@@ -15,6 +15,22 @@ _LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${DEFAULT_SCORE_MODE:=icpc}"
 export CONTESTSDIR SCOREDIR   # herdados por sub-processos (ex.: server/score/build.sh)
 
+# --- liveness do daemon de julgamento -------------------------------------
+# O `pgrep` só enxerga o judged quando ele roda no MESMO namespace de PID que a API. No deploy
+# recomendado (imagem podman) são DOIS containers — moj-api e moj-judged — e a API JAMAIS veria
+# o processo: o painel o daria por morto e os alertas gritariam "daemon parado" p/ sempre.
+# Por isso o daemon bate um heartbeat em $RUNDIR/judged.alive (que está no volume compartilhado)
+# e aqui aceitamos os dois sinais. Fonte única: usada por /index/status e por lib/alerts.sh.
+: "${RUNDIR:=/home/ribas/moj/run}"
+: "${JUDGED_ALIVE_FILE:=$RUNDIR/judged.alive}"
+: "${JUDGED_ALIVE_TTL:=120}"          # s; o daemon re-drena (e bate) a cada WATCH_REDRAIN_SECS=30
+daemon_judged_alive() {
+  pgrep -f 'server/daemons/judged.sh' >/dev/null 2>&1 && return 0
+  local m; m="$(stat -c %Y "$JUDGED_ALIVE_FILE" 2>/dev/null)"
+  [[ -n "$m" ]] || return 1
+  (( EPOCHSECONDS - m <= JUDGED_ALIVE_TTL ))
+}
+
 # --- resposta (CGI) -------------------------------------------------------
 # CGI: emitimos "Status:" (fcgiwrap/nginx traduzem p/ status HTTP) + Content-Type.
 respond() {  # respond <code> <reason> <content-type>

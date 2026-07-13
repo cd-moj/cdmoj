@@ -520,11 +520,20 @@ drain_spool() {
 # num OUTRO container/namespace, ou race entre sair e re-armar) NÃO trava o julgamento: no
 # pior caso o re-drain o pega em WATCH_REDRAIN_SECS. (O `-m` contínuo antigo bloqueava p/
 # sempre se um evento não chegasse — sem rede de segurança.)
+# heartbeat: a API precisa saber que o daemon está vivo, mas o `pgrep` dela NÃO enxerga este
+# processo quando ela roda em OUTRO container (PID namespace separado — que é justamente o
+# deploy recomendado: moj-api + moj-judged). Batemos num arquivo do $RUNDIR (volume
+# compartilhado) a cada giro do laço; quem lê é o daemon_judged_alive() do lib/common.sh.
+: "${JUDGED_ALIVE_FILE:=$RUNDIR/judged.alive}"
+beat(){ : > "$JUDGED_ALIVE_FILE" 2>/dev/null || true; }
+
 watch_loop() {
   local f rc
+  beat
   if command -v inotifywait >/dev/null 2>&1; then
     log "watch: inotifywait em $SPOOLDIR (re-arma por evento; re-drena a cada ${WATCH_REDRAIN_SECS:-30}s)"
     while true; do
+      beat
       while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
       inotifywait -q -e create -e moved_to -t "${WATCH_REDRAIN_SECS:-30}" "$SPOOLDIR" >/dev/null 2>&1
       rc=$?
@@ -534,6 +543,7 @@ watch_loop() {
   else
     log "watch: inotifywait AUSENTE — fallback p/ polling (1s)"
     while true; do
+      beat
       while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
       sleep 1
     done

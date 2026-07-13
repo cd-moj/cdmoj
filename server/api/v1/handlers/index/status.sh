@@ -61,8 +61,8 @@ while IFS= read -r rf; do
                then "y" else "n" end' "$rf" 2>/dev/null)" == y ]] && ((gpus++))
 done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
 
-# --- daemons (liveness local) ---
-dj=false; pgrep -f 'server/daemons/judged.sh' >/dev/null 2>&1 && dj=true
+# --- daemons (liveness: processo local OU heartbeat, se estiver em outro container) ---
+dj=false; daemon_judged_alive && dj=true
 # fila do modelo pull (bandas) + alerta: trabalho pendente e NENHUM juiz online
 band_queue=0; [[ -d "$QUEUEDIR" ]] && band_queue="$(find "$QUEUEDIR" -mindepth 2 -name '*.json' 2>/dev/null | wc -l)"
 judges_alert=false; (( jonline == 0 )) && (( band_queue + total > 0 )) && judges_alert=true
