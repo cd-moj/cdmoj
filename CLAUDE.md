@@ -106,6 +106,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `auth.status` → segue o chief/admin em qualquer página); a aba **Situação** traz estatística por juiz
   (`review/stats`, derivada do `admin-audit.log`). **Mexeu no `judged.sh` → reinicie o
   daemon** (mantendo `INTAKE_MODE`/`JUDGE_BACKEND`); handlers/score são frescos por requisição.
+- **Liveness do daemon = `daemon_judged_alive()` (`lib/common.sh`), NUNCA `pgrep` direto.** Em
+  produção a API (`moj-api`) e o daemon (`moj-judged`) são containers **separados**: o `pgrep` da API
+  jamais vê o processo. O daemon bate um heartbeat em `run/judged.alive` (volume compartilhado) e o
+  helper aceita processo local **ou** heartbeat fresco (TTL 120s). Voltar ao `pgrep` = painel dizendo
+  "daemon caído" com ele vivo + alertas de `lib/alerts.sh` disparando p/ sempre.
 - Clarifications: o **asker é anônimo** p/ os juízes (handler corta `.login`); responder exige
   **reserva** (`clarification-claim`). Sempre auditar (`audit_log_to`) toda ação de juiz/chefe.
 - **Balão** (`.staff`): tarefa **automática** na 1ª solução (`Accepted`) de cada (time, problema),
