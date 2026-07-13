@@ -49,12 +49,15 @@ if [[ ! -d "$pdir" ]]; then   # problema NOVO via tar -> exige permissão de cri
   cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar novos problemas (mesma regra de criar contest)" "create_forbidden"
 fi
 mkdir -p "$pdir"
-# ANTI-VAZAMENTO: o `.moj-meta.json` VEM DENTRO DO TAR DO USUÁRIO (o /problems/download o inclui, e o
-# rsync abaixo sobrescreve o do servidor). O flag `public` NÃO pode vir de lá — se viesse, bastava
-# baixar um problema público, adaptá-lo p/ uma prova numa org privada e dar `moj upload`: o meta diria
-# public:true e a PRÓXIMA indexação (um tl-report de calibração basta) publicaria a prova, sem passar
-# pelo /problems/set-public, que é o único lugar que checa a trava da org. Guarda o valor ATUAL do
-# servidor (problema novo nasce PRIVADO) e reimpõe depois do rsync.
+# O `.moj-meta.json` é ARQUIVO DO SERVIDOR — o cliente não manda nem apaga:
+#  - o `public` só o /problems/set-public escreve (é o único que checa a trava da org). Se viesse do
+#    tar, bastava baixar um problema público, adaptá-lo p/ uma prova numa org privada e dar `moj
+#    upload`: a próxima indexação (um tl-report de calibração basta) publicaria a prova.
+#  - `collections`, `display_title` e `public_at` idem — cada um tem sua rota.
+# O tar do `moj upload` NEM TEM o meta (o cliente guarda `.moj-id`), então sem o --exclude o
+# `--delete` do rsync APAGARIA o meta do servidor a cada upload (título/coleções/public_at perdidos;
+# o `public` sobrevive pelo pub_srv abaixo). Excluir dos DOIS lados resolve: o do tar é ignorado, o
+# do servidor fica.
 pub_srv=false
 [[ -f "$pdir/.moj-meta.json" ]] && jq -e '.public == true' "$pdir/.moj-meta.json" >/dev/null 2>&1 && pub_srv=true
 # O pacote do servidor vira EXATAMENTE o que o autor enviou: o que ele apagou tem de sumir daqui
@@ -64,11 +67,11 @@ pub_srv=false
 # tar com .git dentro sobrescrevia o histórico do servidor. Agora o caminho sem rsync FAZ a mesma
 # coisa (com tar, que sempre existe), e erro de rsync não é mais engolido.
 if command -v rsync >/dev/null 2>&1; then
-  rsync -a --delete --exclude='.git' "$src"/ "$pdir"/ \
+  rsync -a --delete --exclude='.git' --exclude='.moj-meta.json' "$src"/ "$pdir"/ \
     || fail 500 "Falha ao gravar o pacote (rsync)" "pkg_write_failed"
 else
-  find "$pdir" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} + 2>/dev/null    # o --delete
-  ( cd "$src" && tar -cf - --exclude=.git . ) | ( cd "$pdir" && tar -xf - ) \
+  find "$pdir" -mindepth 1 -maxdepth 1 ! -name .git ! -name .moj-meta.json -exec rm -rf {} + 2>/dev/null
+  ( cd "$src" && tar -cf - --exclude=.git --exclude=.moj-meta.json . ) | ( cd "$pdir" && tar -xf - ) \
     || fail 500 "Falha ao gravar o pacote (tar)" "pkg_write_failed"
 fi
 owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
