@@ -5,7 +5,10 @@
 # só preencher a seção de correção especial e salvar. Criar template novo = criar uma pasta
 # no mojtools (sem código). Regra de symlink do template: alvo DENTRO de files/ vira entrada
 # {path,symlink} (drivers interativos scripts/<lang> -> c); alvo FORA (canônicos do mojtools,
-# ex.: compare.sh -> testlib/checker-bridge.sh) tem o CONTEÚDO resolvido (fonte única).
+# ex.: compare.sh -> testlib/compare-stub.sh) tem o CONTEÚDO resolvido (fonte única).
+# ATENÇÃO: o `exec` sai do bit +x DO ALVO do symlink — um stub do mojtools sem +x faria todo
+# problema criado pelo editor nascer com compare.sh não-executável => UE em todos os testes.
+# (O `make check` do mojtools confere esses bits no índice do git.)
 require_method GET
 require_auth
 

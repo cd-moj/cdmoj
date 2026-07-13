@@ -137,8 +137,14 @@ problem_commit(){
     cd "$pkg" || exit 1
     if [[ ! -d .git ]]; then
       git -c init.defaultBranch=master init -q 2>/dev/null
-      printf 'tl\ntl.*\n' >> .git/info/exclude 2>/dev/null   # artefatos de calibração não entram no git
     fi
+    # Artefatos GERADOS não entram no git: o TL da calibração e os caches de compilação do
+    # checker testlib (.checker-cache) e do árbitro interativo (.arbitro-cache) — são ELFs de
+    # vários MB que um `git add -A` commitaria dentro do pacote. Idempotente de propósito: repo
+    # criado antes destas linhas também as ganha (antes, o exclude só era escrito no `git init`).
+    for _ex in 'tl' 'tl.*' '.checker-cache/' '.arbitro-cache/'; do
+      grep -qxF "$_ex" .git/info/exclude 2>/dev/null || printf '%s\n' "$_ex" >> .git/info/exclude 2>/dev/null
+    done
     git add -A 2>/dev/null
     GIT_AUTHOR_NAME="$login" GIT_AUTHOR_EMAIL="$em" GIT_COMMITTER_NAME="$login" GIT_COMMITTER_EMAIL="$em" \
       git commit -q -m "$msg" >/dev/null 2>&1 || true   # "nada a commitar" não é erro (e o

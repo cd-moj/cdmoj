@@ -217,6 +217,12 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `mojtools/script-templates/` — criar template = criar uma pasta lá) e envia `scripts_files` no
   save; a CLI (`moj push/clone`) faz o mesmo round-trip.
   Mexer em `scripts/` muda o tl-checksum ⇒ recalibração.
+  **Driver canônico no pacote = STUB, nunca cópia** (ver `mojtools/CLAUDE.md`): o que roda no
+  **host** (`compare.sh`, `<lang>/prep.sh`, `summary.sh`) vai como um stub de ~10 linhas que chama o
+  do mojtools; só o que entra na **jaula** (`<lang>/{run,compile}.sh`) é cópia. Cada pacote com a sua
+  cópia da bridge do checker fez um bug de `bwrap` nascer replicado em 198 pacotes (e **UE em todo
+  teste** de quem a usasse). No `script-templates.sh`, o `exec` sai do bit **+x do ALVO** do symlink —
+  stub sem +x = todo problema criado pelo editor nasce quebrado.
   O **título de exibição** é o `.moj-meta.json` `display_title` (o `% Título` do enunciado é legado,
   removido no render — o `<h1 class="moj-title">` vem do campo). **`write_meta` sempre popula
   `display_title`**: se o setter não mandar título e o meta ainda não tiver um, deriva do enunciado

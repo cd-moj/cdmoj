@@ -218,19 +218,32 @@ Opcional. É como o problema **customiza** a compilação, a execução ou a com
 `build-and-test.sh` procura os arquivos do problema **antes** dos padrões de `mojtools/lang/<lang>/`,
 então qualquer coisa que você ponha aqui vence o comportamento normal.
 
-Os dois usos de longe mais comuns:
+Os usos mais comuns:
 
 | Arquivo | Uso | Quantos no acervo |
 |---|---|---|
 | `scripts/<lang>/compile.sh` | **submissão de função**: o aluno entrega só a função, e este script injeta o `main` que lê a entrada, chama a função e imprime o resultado | 201 |
 | `scripts/compare.sh` | **checker**: a resposta não é única (tolerância de ponto flutuante, várias respostas válidas), então o problema traz o próprio comparador | 18 |
+| `scripts/checker.cpp` | o **fonte** do checker quando ele é [testlib](https://github.com/MikeMirzayanov/testlib) (padrão Polygon/Maratona). Vem junto de um `compare.sh` de 10 linhas — o **stub** — instalado por `mojtools/testlib/install-checker.sh`. **O `testlib.h` NÃO vai no pacote** (é vendorado no mojtools) e o binário do checker **nunca** é commitado (a *bridge* do mojtools o compila no juiz, sob demanda, e cacheia FORA de `scripts/`). |
+| `scripts/arbitro.{cpp,py,sh}` + `scripts/c/{prep,run}.sh` | **problema interativo** (`mojtools/interactive/install-interactive.sh`) | — |
 
 O contrato do comparador: recebe `$1` = saída do aluno, `$2` = saída esperada, `$3` = entrada, e
 responde pelo código de saída (`4` = aceito, `5` = aceito com erro de formatação, `6` = resposta
 errada, qualquer outro = erro de juiz).
 
-Todo `.sh` em `scripts/` precisa do bit de execução (`chmod +x`), senão o sandbox recusa executá-lo e
-tudo vira Compilation Error.
+**Stub, não cópia.** O que roda **no host do juiz** — `scripts/compare.sh`, `scripts/<lang>/prep.sh`,
+`scripts/summary.sh` — vai no pacote como um **stub** que chama o driver canônico do mojtools; só o
+que **entra na jaula** (`scripts/<lang>/run.sh`, `compile.sh`) é cópia de verdade. É o que permite
+consertar um bug do driver **em um lugar só**: quando cada pacote levava a sua cópia da *bridge* do
+checker, um bug nela nasceu replicado em 198 pacotes (e derrubava **todos** os testes de quem o
+usasse). Um problema pode, claro, trocar o stub pelo seu próprio comparador (é o caso dos 18 do
+acervo, todos escritos à mão).
+
+Todo `.sh` em `scripts/` precisa do bit de execução (`chmod +x`) — e o bit **viaja** (o `moj
+push`/`clone` e o `upload` preservam). Sem ele o juiz recebe *Permission denied* ao executar o
+script: `compare.sh`/`prep.sh` rodam **no host** (fora da jaula) e viram **erro de juiz (UE) em todos
+os testes**; `run.sh`/`compile.sh` são montados na jaula e viram Compilation Error. O
+`validate-problem.sh` reprova o pacote (`scripts_exec`) antes que isso aconteça.
 
 **Mexer em `scripts/` obriga a recalibrar** (seção 10).
 
