@@ -77,8 +77,12 @@ Suba os dois containers (mesma imagem, papéis `api` e `judged`, reinício indep
 
 ```bash
 sudo loginctl enable-linger moj          # PRIMEIRO: sem linger o systemctl --user não sobe nada
-systemctl --user enable --now moj-api moj-judged
+systemctl --user start moj-api moj-judged
 ```
+
+> **Não use `systemctl --user enable`** nessas units: quem as cria é o **gerador do quadlet** (são
+> *generated*, e o `enable` recusa). O `[Install] WantedBy=default.target` do `.container` já as põe
+> no `default.target` — com o **linger**, sobem no boot. `start`/`restart`/`status` funcionam normal.
 
 **nginx do host** (fora da imagem) + **TLS** — dois scripts versionados, ambos idempotentes:
 
@@ -272,8 +276,9 @@ curl -s -H "$H" $B/api/v1/            # {"success":true,"name":"MOJ API","versio
 - [ ] **HTTPS**: `openssl s_client -connect <host>:443 -servername <host> </dev/null | openssl x509
       -noout -ext subjectAltName` lista os nomes esperados (incl. o wildcard) e `certbot renew
       --dry-run` passa.
-- [ ] **Sobrevive a reboot**: `loginctl show-user <svc> -p Linger` = `yes` e
-      `systemctl --user is-enabled moj-api moj-judged` = `enabled`.
+- [ ] **Sobrevive a reboot**: `loginctl show-user <svc> -p Linger` = `yes` e as units aparecem em
+      `systemctl --user list-dependencies default.target | grep moj` (o `is-enabled` diz
+      `generated` — é o esperado num quadlet, não é erro).
 - [ ] **Socket 0770**: `ls -l <raiz>/run/fcgiwrap.sock` → `srwxrwx---` e o usuário do nginx está no
       grupo do dono (`id -nG www-data`). Se estiver `srwxr-xr-x`, o 502 volta.
 - [ ] Fluxo ponta a ponta: use o contest descartável **`zzdemo`** (login `demo`/`demo`) do

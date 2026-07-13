@@ -37,7 +37,7 @@ cd <raiz-do-workspace>/cdmoj
 make image            # localhost/moj-server:<data> + tag :prod  (WITH_OFFICE/WITH_JPLAG=1)
 make install-units    # quadlets -> ~/.config/containers/systemd/ (substitui @WORKROOT@); daemon-reload
 sudo loginctl enable-linger "$USER"          # SEM isto os serviços --user não sobem nem sobrevivem
-systemctl --user enable --now moj-api moj-judged
+systemctl --user start moj-api moj-judged    # (NÃO é `enable`: unit de quadlet é gerada)
 sudo bash server/bin/install-nginx.sh --workroot <raiz> --names "<host>"   # nginx do host (abaixo)
 make smoke
 ```
@@ -50,6 +50,9 @@ make smoke
   `~/.config/containers/systemd/` deixa o placeholder literal e o container não sobe.
 - **`loginctl enable-linger`:** sem ele não há sessão/bus do usuário — `systemctl --user` falha e
   nada sobe no boot. É o passo que mais trava instalação nova.
+- **`systemctl --user enable moj-api` NÃO funciona** (`Unit … is transient or generated`): quem cria
+  a unit é o **gerador do quadlet**, e o `[Install] WantedBy=default.target` do `.container` já a
+  coloca no `default.target` — com o linger ligado, ela sobe no boot. Use só `start`/`restart`/`status`.
 - **O `SCRIPT_FILENAME` do nginx é o caminho DENTRO da imagem**
   (`/opt/moj/cdmoj/server/api/v1/router.sh`): quem executa o script é o fcgiwrap, que roda no
   container. Apontar p/ o caminho do host = "script não encontrado" (o `install-nginx.sh` já usa o

@@ -71,7 +71,9 @@ install-units:
 	done; \
 	echo ">> quadlets instalados em $(UNITDIR) (workspace = $$root)"
 	systemctl --user daemon-reload
-	@echo ">> Suba: systemctl --user enable --now moj-api moj-judged  (+ sudo loginctl enable-linger \$$USER)"
+	@echo ">> Suba: systemctl --user start moj-api moj-judged   (+ sudo loginctl enable-linger \$$USER)"
+	@echo "   (quadlet gera as units: 'systemctl enable' não se aplica — o [Install] do .container"
+	@echo "    já as põe no default.target, e o linger é quem as sobe no boot.)"
 
 ## deploy — atualiza tudo. FROM=registry puxa em vez de buildar.
 deploy:
