@@ -44,7 +44,7 @@ extract() {
   }' "$1"
 }
 
-bad=0; total=0
+bad=0; noise=0; total=0
 while IFS= read -r -d '' f; do
   while IFS= read -r -d $'\x01' prog; do
     [[ -n "${prog// }" ]] || continue
@@ -54,14 +54,22 @@ while IFS= read -r -d '' f; do
     while read -r v; do [[ -n "$v" ]] && args+=(--arg "$v" x); done < <(
       grep -oE '\$[a-zA-Z_][a-zA-Z0-9_]*' <<<"$prog" | sed 's/^\$//' | grep -vxE 'ENV|__loc__' | sort -u)
     err="$(echo null | jq "${args[@]}" "$prog" 2>&1 >/dev/null)"
-    if grep -q "syntax error" <<<"$err"; then
+    grep -q "syntax error" <<<"$err" || continue
+    # A incompatibilidade 1.7 x 1.8 é UMA: valor de campo de objeto com operador binário solto —
+    # e ela sempre reclama "expecting '}'". Qualquer outro erro de sintaxe é o EXTRATOR daqui que
+    # pegou lixo (jq com programa sem aspas dentro de string do shell, programa montado por
+    # concatenação, etc.) — vira AVISO, não falha, senão o guard fica inútil de tão barulhento.
+    if grep -q "expecting '}'" <<<"$err"; then
       bad=$((bad+1))
       echo "FAIL $f"
       grep -oE "unexpected [^,]*" <<<"$err" | head -1 | sed 's/^/     /'
       printf '     %s…\n' "$(tr '\n' ' ' <<<"$prog" | cut -c1-90)"
+    else
+      noise=$((noise+1))
+      [[ -n "${VERBOSE:-}" ]] && echo "  (não-extraível: $f)"
     fi
   done < <(extract "$f")
 done < <(find "$DIR" -name '*.sh' -print0 | sort -z)
 
-echo "jq $(jq --version): $total programas, $bad com erro de sintaxe"
+echo "jq $(jq --version): $total programas · $bad INCOMPATÍVEL(EIS) · $noise não-extraível(eis) (VERBOSE=1 p/ ver)"
 [[ $bad -eq 0 ]]
