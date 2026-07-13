@@ -10,6 +10,11 @@ set -euo pipefail
 : "${NEWSDIR:=/data/news}"
 : "${FCGI_SOCK:=$RUNDIR/fcgiwrap.sock}"
 : "${FCGI_WORKERS:=8}"
+# O socket unix nasce com 0777&~umask. Com o default (022) sai 0755 = sem `w` p/ grupo/outros:
+# um nginx que rode como OUTRO usuário (www-data, do nginx do sistema) leva EACCES no connect()
+# e a API vira 502. 007 => 0770 (dono + GRUPO) e basta pôr o usuário do nginx no grupo do dono
+# (`usermod -aG <dono> www-data`; o nginx faz initgroups()). Ver docs/DEPLOY.md.
+: "${FCGI_UMASK:=007}"
 
 # dirs de runtime (nos volumes). sessions = 700 (tokens).
 mkdir -p "$RUNDIR/sessions" "$RUNDIR/spool/submissions" "$RUNDIR/spool/submissions-done" \
@@ -24,6 +29,7 @@ case "$role" in
     # p/ $FCGI_SOCK, montado por volume). Remove socket órfão antes de abrir.
     rm -f "$FCGI_SOCK" 2>/dev/null || true
     FCGI="$(command -v fcgiwrap || echo "$MOJ_HOME/server/bin/fcgiwrap")"
+    umask "$FCGI_UMASK"          # socket 0770 (dono+grupo) — ver comentário acima
     exec "$FCGI" -c "$FCGI_WORKERS" -s "unix:$FCGI_SOCK"
     ;;
   judged)
