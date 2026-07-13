@@ -3648,7 +3648,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Feed unificado de auditoria (admin + logins + submissões)",
+        "summary": "Feed unificado de auditoria (admin + logins + submissões + veredictos)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
