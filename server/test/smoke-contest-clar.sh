@@ -3,9 +3,14 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/cl"; mkdir -p "$C/var"
 printf 'CONTEST_ID=cl\nCONTEST_TYPE=icpc\n' > "$C/conf"
-printf 'cl.admin:p:Admin\njdg.judge:p:Judge\nm.mon:p:Mon\nalice:a:Alice\nbob:b:Bob\n' > "$C/passwd"
+fx_user "$C" cl.admin  p Admin
+fx_user "$C" jdg.judge p Judge
+fx_user "$C" m.mon     p Mon
+fx_user "$C" alice     a Alice
+fx_user "$C" bob       b Bob
 for s in "adm cl.admin" "jdg jdg.judge" "mon m.mon" "alice alice" "bob bob"; do
   set -- $s; printf 'CONTEST=cl\nLOGIN=%s\nLOGINAT=1\n' "$2" > "$SESS/$1"; done
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-adm}" \

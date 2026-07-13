@@ -5,10 +5,15 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$SPOOL"' EXIT
-C="$FIX/rv"; mkdir -p "$C/review" "$C/var" "$C/controle"
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+C="$FIX/rv"; mkdir -p "$C/review" "$C/var"
 NOW="$(date +%s)"; OLD=$(( NOW - 1200 ))
 printf 'CONTEST_ID=rv\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nMANUAL_VERDICT=1\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
-printf 'rv.admin:p:Admin\nj1.judge:p:Juiz Um\nj2.judge:p:Juiz Dois\ncj.cjudge:p:Chefe\naluno1:a:Aluno\n' > "$C/passwd"
+fx_user "$C" rv.admin  p Admin
+fx_user "$C" j1.judge  p "Juiz Um"
+fx_user "$C" j2.judge  p "Juiz Dois"
+fx_user "$C" cj.cjudge p Chefe
+fx_user "$C" aluno1    a Aluno
 mkrev(){ printf '%s' "{\"id\":\"$1\",\"login\":\"aluno1\",\"problem_id\":\"apc#p1\",\"lang\":\"C\",\"computed_verdict\":\"Wrong Answer\",\"status\":\"open\",\"conflict\":false,\"created_at\":$OLD,\"sub_epoch\":$OLD,\"claimants\":[],\"votes\":[]}" > "$C/review/$1.json"; }
 mkrev r1; mkrev r2
 for s in adm:rv.admin j1:j1.judge j2:j2.judge cj:cj.cjudge alu:aluno1; do

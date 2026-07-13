@@ -3,11 +3,13 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 C="$FIX/sc"; mkdir -p "$C/var" "$C/enunciados" "$FIX/treino/var/jsons"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 { printf 'CONTEST_ID=sc\nCONTEST_TYPE=icpc\nCONTEST_NAME=Antigo\nCONTEST_START=%s\nCONTEST_END=%s\n' 1 "$FUT"
   printf "PROBS=( cdmoj p/a 'Prob A' A 'p#a' cdmoj p/b 'Prob B' B 'p#b' )\n"; } > "$C/conf"
-printf 'sc.admin:p:Admin\nalice:a:Alice\n' > "$C/passwd"
+fx_user "$C" sc.admin p Admin
+fx_user "$C" alice    a Alice
 printf 'CONTEST=sc\nLOGIN=sc.admin\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=sc\nLOGIN=alice\nLOGINAT=1\n' > "$SESS/usr"
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-adm}" \

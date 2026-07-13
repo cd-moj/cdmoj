@@ -14,31 +14,27 @@ CONTEST=handson
 ADMIN=hands.admin
 SID="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"   # 32 hex, como um md5
 
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+
 C="$FIX/$CONTEST"
-mkdir -p "$C/users/$ADMIN/submissions" "$C/users/$ADMIN/mojlog" "$C/users/$ADMIN/results" \
-         "$C/users/alice/submissions" "$C/users/alice/mojlog" "$C/users/alice/results" \
-         "$C/var" "$C/enunciados"
+mkdir -p "$C/var" "$C/enunciados"
 { printf 'CONTEST_ID=%s\nCONTEST_NAME="Hands On"\nCONTEST_TYPE=icpc\n' "$CONTEST"
   printf 'CONTEST_START=1000\nCONTEST_END=2000\nUSER_STORE=v2\n'
   printf "PROBS=(f0 col/pa 'Prob A' A 'col#pa' f1 col/pb 'Prob B' B 'col#pb' f2 col/pc 'Prob C' C 'col#pc' f3 col/pd 'Prob D' D 'col#pd')\n"
 } > "$C/conf"
 for k in pa pb pc pd; do printf '<h1>col#%s</h1>' "$k" > "$C/enunciados/col#$k.html"; done
-mkacct(){ jq -n --arg l "$1" --arg p "$2" --arg n "$3" \
-  '{login:$l,password:$p,fullname:$n,email:"",created_at:0,updated_at:0,status:"active",uname_changes:[]}'; }
-mkacct "$ADMIN" adm "Admin Handson" > "$C/users/$ADMIN/account.json"
-mkacct alice a "Alice Silva"        > "$C/users/alice/account.json"
-printf '%s:adm:Admin Handson\nalice:a:Alice Silva\n' "$ADMIN" > "$C/passwd"
-: > "$C/users/$ADMIN/history"
+# fx_user cria users/<login>/{account.json,history,submissions,mojlog,results}
+fx_user "$C" "$ADMIN" adm "Admin Handson"
+fx_user "$C" alice    a   "Alice Silva"
 printf '5:col#pa:C:Accepted,100p:1718000000:%s\n' "$SID" > "$C/users/alice/history"
 printf 'int main(){return 0;}\n' > "$C/users/alice/submissions/$SID.c"
 printf '<html>report</html>\n'   > "$C/users/alice/mojlog/$SID.html"
 
 # treino mínimo p/ /index/open_training
-T="$FIX/treino"; mkdir -p "$T/users/alice" "$T/var"
+T="$FIX/treino"; mkdir -p "$T/var"
 { printf 'CONTEST_ID=treino\nCONTEST_NAME="Treino"\nCONTEST_TYPE=lista-publica\n'
   printf 'CONTEST_START=1000\nCONTEST_END=9999999999\nUSER_STORE=v2\n'; } > "$T/conf"
-mkacct alice a "Alice Silva" > "$T/users/alice/account.json"
-printf 'alice:a:Alice Silva\n' > "$T/passwd"
+fx_user "$T" alice a "Alice Silva"
 printf '1718000000:col#pa:C:Accepted,100p:1718000000:t1\n' > "$T/users/alice/history"
 
 # Forja tokens de sessão (mesmo formato de create_session em lib/auth.sh).
@@ -147,7 +143,7 @@ echo "== contest/allsubmissions (Bearer, admin, TXT 9 fields) =="
 call "/contest/allsubmissions" GET "contest=$CONTEST" "$TOKEN"
 check "allsubmissions 200 (TXT)" 'okstatus'
 check "allsubmissions has >=9 colon-fields" '[[ -n "$BODY" ]] && [[ "$(printf "%s" "$BODY" | head -1 | awk -F: "{print NF}")" -ge 9 ]]'
-check "allsubmissions resolve fullname do passwd" '[[ "$BODY" == *"Alice Silva"* ]]'
+check "allsubmissions resolve fullname do account.json" '[[ "$BODY" == *"Alice Silva"* ]]'
 
 echo "== contest/final-verdicts (Bearer, judge) =="
 call "/contest/final-verdicts" GET "contest=$CONTEST" "$TOKEN"

@@ -4,16 +4,16 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$SPOOL"' EXIT
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 
-# --- contest (store v2) com history mas SEM placar ---
-C="$FIX/lazy"; mkdir -p "$C/users/alice" "$C/users/bob" "$C/var"
+# --- contest (store por-usuário) com history mas SEM placar ---
+C="$FIX/lazy"; mkdir -p "$C/var"
 { printf 'CONTEST_ID=lazy\nCONTEST_TYPE=icpc\nCONTEST_NAME=Lazy\nCONTEST_START=1000\nCONTEST_END=2000\n'
   printf 'USER_STORE=v2\n'
   printf "PROBS=(f0 p/um Um A k0 f1 p/dois Dois B k1)\n"; } > "$C/conf"
-printf 'lazy.admin:p:Admin\nalice:a:Alice\nbob:b:Bob\n' > "$C/passwd"
-for u in alice bob; do
-  jq -n --arg l "$u" '{login:$l,password:"x",fullname:$l,email:"",created_at:0,updated_at:0,status:"active",uname_changes:[]}' > "$C/users/$u/account.json"
-done
+fx_user "$C" lazy.admin p Admin
+fx_user "$C" alice a          # sem nome => fullname = login (o placar espera "alice")
+fx_user "$C" bob   b
 printf '5:p#um:C:Accepted,100p:1718000000:h1\n' > "$C/users/alice/history"
 { printf '3:p#um:CPP:Wrong Answer:1718000010:h2\n'
   printf '2:p#dois:PY:Accepted,100p:1718000020:h3\n'; } > "$C/users/bob/history"
