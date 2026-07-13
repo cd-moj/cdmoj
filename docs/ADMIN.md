@@ -30,8 +30,13 @@ o servidor precisa de **`cdmoj/`** (este) + **`mojtools/`** (render/validate/ind
 ## 1. Pré-requisitos (servidor limpo)
 
 - **SO Linux** com **podman rootless** (caminho recomendado) ou toolchain bare-metal.
+- **Um usuário de serviço** (ex.: `moj`) dono do workspace, dos dados e dos containers. Ele precisa
+  de **subuid/subgid** (`/etc/sub{u,g}id` — o `adduser` já cria) e de **linger**
+  (`sudo loginctl enable-linger moj`): sem linger não há sessão de usuário e o `systemctl --user`
+  simplesmente não sobe nada.
 - **Pacotes do host** — no **podman já vão dentro da imagem** (o host só precisa de `podman` +
-  `nginx`). Só no bare-metal você instala à mão: núcleo (`bash jq git coreutils util-linux curl`),
+  `nginx` + `certbot` e, para wildcard, o plugin de DNS: `python3-certbot-dns-digitalocean`). Só no
+  bare-metal você instala à mão: núcleo (`bash jq git coreutils util-linux curl`),
   `fcgiwrap` (ou o ELF vendorizado em `server/bin/fcgiwrap`), `pandoc`, `inotify-tools` e a stack de
   mídia (`imagemagick ghostscript poppler-utils qpdf paps`); opcionais LibreOffice/JRE. **Lista
   canônica: `deploy/Containerfile`** (não há *doctor* no lado servidor).
@@ -47,32 +52,46 @@ o servidor precisa de **`cdmoj/`** (este) + **`mojtools/`** (render/validate/ind
 
 ## 2. Caminho A — instalação com podman (recomendado)
 
+Tudo como o **usuário de serviço** (`moj`), com o workspace já clonado (`<raiz>/{cdmoj,mojtools}`):
+
 ```bash
-cd /home/ribas/moj/cdmoj
+cd <raiz>/cdmoj
 make check            # opcional: bash -n + node --check (só sintaxe)
 make image            # localhost/moj-server:<data> + tag :prod (contexto = raiz do workspace)
-make install-units    # quadlets -> ~/.config/containers/systemd/ ; daemon-reload
+make install-units    # quadlets -> ~/.config/containers/systemd/ (substitui @WORKROOT@); daemon-reload
 ```
 
+> Os quadlets são **templates**: o `install-units` troca `@WORKROOT@` pela raiz real (`$(WORKROOT)`,
+> default `..`). Instalar por cópia crua deixa o placeholder literal e o container não sobe.
+
 Antes de subir, **crie os segredos** (a imagem cria `run/secrets/`, mas o token é sempre manual —
-ver §7):
+ver §4):
 
 ```bash
-mkdir -p /home/ribas/moj/run/secrets && chmod 700 /home/ribas/moj/run/secrets
+mkdir -p <raiz>/run/secrets && chmod 700 <raiz>/run/secrets
 TOK="mojw_$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
-install -Dm600 <(printf '%s' "$TOK") /home/ribas/moj/run/secrets/worker.token
+install -Dm600 <(printf '%s' "$TOK") <raiz>/run/secrets/worker.token
 ```
 
 Suba os dois containers (mesma imagem, papéis `api` e `judged`, reinício independente):
 
 ```bash
-systemctl --user start moj-api moj-judged
-loginctl enable-linger "$USER"          # sobrevive ao logout
+sudo loginctl enable-linger moj          # PRIMEIRO: sem linger o systemctl --user não sobe nada
+systemctl --user enable --now moj-api moj-judged
 ```
 
-**nginx do host** (fora da imagem): aponte o `fastcgi_pass` ao socket `run/fcgiwrap.sock`, com
-`root` no `web/`, `SCRIPT_FILENAME` no `server/api/v1/router.sh` e um alias `/docs/`. Os **blocos
-prontos** (site principal + subdomínio de contest) estão em **[`DEPLOY.md`](DEPLOY.md)** (§ *nginx*).
+**nginx do host** (fora da imagem) + **TLS** — dois scripts versionados, ambos idempotentes:
+
+```bash
+sudo bash server/bin/install-nginx.sh --workroot <raiz> --names "<host>"          # 1) HTTP-only
+sudo bash server/bin/cert-setup.sh --email <você@dom> --credentials <dns.ini> \
+     --cert-name <host> -d <host> -d '*.<host>'                                    # 2) cert + renovação
+sudo bash server/bin/install-nginx.sh --workroot <raiz> --names "<host>" --cert <host>   # 3) + TLS
+```
+
+O `install-nginx.sh` também põe o `www-data` no **grupo do dono** — sem isso o nginx não lê o `web/`
+nem conecta no socket (**502**). Detalhes (socket 0770, subdomínio de contest, renovação):
+**[`DEPLOY.md`](DEPLOY.md)**.
 
 Agora faça o **bootstrap do treino + admin (§5)** e valide com `make smoke` (§8).
 
@@ -159,10 +178,20 @@ sufixo e grava a **senha em texto puro** — é exatamente o gancho de bootstrap
 **usuário do servidor**:
 
 ```bash
-export CONTESTSDIR=/home/ribas/moj/contests
-source /home/ribas/moj/cdmoj/server/api/v1/lib/users.sh
+export CONTESTSDIR=<raiz>/contests
+source <raiz>/cdmoj/server/api/v1/lib/users.sh
 user_create treino ribas.admin "Bruno Ribas" "TROQUE-esta-senha"
 ```
+
+> **No caminho podman, rode isso DENTRO do container** — o host pode nem ter `jq`, e o container já
+> tem o ambiente certo (`CONTESTSDIR=/data/contests`). O dono dos arquivos sai correto: rootless
+> mapeia container-root → o usuário do host.
+>
+> ```bash
+> podman exec systemd-moj-api bash -c '
+>   source /opt/moj/cdmoj/server/api/v1/lib/users.sh
+>   user_create treino ribas.admin "Bruno Ribas" "TROQUE-esta-senha"'
+> ```
 
 - O login **tem** que terminar em `.admin` (ex.: `ribas.admin`). A senha **não** pode ser vazia
   nem conter `:` (dois-pontos quebram os TSVs derivados).
@@ -226,16 +255,27 @@ O `--token` recebe o **mesmo** `worker.token` gerado no §2/§4. O rootfs da jau
 - **Reiniciar só o julgamento:** `make restart-judged`. **Regra:** ao editar `server/daemons/judged.sh`
   reinicie o daemon **preservando** `INTAKE_MODE=queue JUDGE_BACKEND=queue`.
 - **Backups:** `server/bin/contest-backup.sh` (e o timer `moj-contest-backup@.timer`).
+- **Certificado:** renova **sozinho** (`certbot.timer`, 2×/dia) e o hook de deploy recarrega o nginx.
+  Conferir: `certbot certificates` · `certbot renew --dry-run`. Para **acrescentar nomes** (ex.: o
+  domínio novo, no cutover), rode o `cert-setup.sh` de novo com os `-d` novos (ele usa `--expand`) e
+  depois o `install-nginx.sh` com o `--names` novo.
 
 ## 8. Checklist de verificação
 
 ```bash
-H="Host: <seu-host>"; B=http://127.0.0.1:8080
+H="Host: <seu-host>"; B=http://127.0.0.1        # (dev user-space: :8080)
 curl -s -H "$H" $B/api/v1/            # {"success":true,"name":"MOJ API","version":"v1"}
 ```
 
 - [ ] `/api/v1/` responde o envelope acima; a **home** (`/`) carrega no navegador.
 - [ ] **Login `.admin`** funciona (o `curl` do §5.3 devolve um `token`) e a web `/treino/` loga.
+- [ ] **HTTPS**: `openssl s_client -connect <host>:443 -servername <host> </dev/null | openssl x509
+      -noout -ext subjectAltName` lista os nomes esperados (incl. o wildcard) e `certbot renew
+      --dry-run` passa.
+- [ ] **Sobrevive a reboot**: `loginctl show-user <svc> -p Linger` = `yes` e
+      `systemctl --user is-enabled moj-api moj-judged` = `enabled`.
+- [ ] **Socket 0770**: `ls -l <raiz>/run/fcgiwrap.sock` → `srwxrwx---` e o usuário do nginx está no
+      grupo do dono (`id -nG www-data`). Se estiver `srwxr-xr-x`, o 502 volta.
 - [ ] Fluxo ponta a ponta: use o contest descartável **`zzdemo`** (login `demo`/`demo`) do
       [`DEPLOY.md`](DEPLOY.md) (§ *Sandbox*) — submeter → `judged` → `history` = `Accepted,100p`
       (ou `make smoke`).

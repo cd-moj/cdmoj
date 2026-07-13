@@ -1,6 +1,14 @@
 # MOJ — Deploy & teste (nginx + fcgiwrap + daemons)
 
-Tudo roda **user-space como `ribas`** (sem root), reaproveitando o `~/nginx-proxy/`.
+São **duas formas**, e elas diferem **só no nginx** (o resto — imagem, quadlets, socket, dados — é igual):
+
+| | **Produção** (máquina dedicada) | **Dev** (máquina de quem programa) |
+|---|---|---|
+| nginx | do **sistema** (root), **80/443**, TLS — `server/bin/install-nginx.sh` | **user-space**, como o próprio usuário, **8080/8443** — `~/nginx-proxy/` |
+| API + judged | containers rootless (quadlets) da imagem podman | idem, ou os scripts à mão |
+| dono dos dados | um usuário de serviço (ex.: `moj`) | o seu usuário (`ribas`) |
+
+**Instalação do zero, passo a passo (inclui o bootstrap do `treino` + 1º `.admin`): [`ADMIN.md`](ADMIN.md).**
 
 ## Componentes
 
@@ -25,21 +33,80 @@ e faz `fastcgi_pass` ao socket); a imagem é a **API** (fcgiwrap + `router.sh`) 
 Dois containers da mesma imagem (papéis `api` e `judged`) sobem por **quadlets** rootless.
 
 ```bash
-cd cdmoj
+cd <raiz-do-workspace>/cdmoj
 make image            # localhost/moj-server:<data> + tag :prod  (WITH_OFFICE/WITH_JPLAG=1)
-make install-units    # quadlets -> ~/.config/containers/systemd/ ; daemon-reload
-systemctl --user start moj-api moj-judged
-# aponte o nginx do host: fastcgi_pass unix:/home/ribas/moj/run/fcgiwrap.sock (= /data/run no container)
+make install-units    # quadlets -> ~/.config/containers/systemd/ (substitui @WORKROOT@); daemon-reload
+sudo loginctl enable-linger "$USER"          # SEM isto os serviços --user não sobem nem sobrevivem
+systemctl --user enable --now moj-api moj-judged
+sudo bash server/bin/install-nginx.sh --workroot <raiz> --names "<host>"   # nginx do host (abaixo)
 make smoke
 ```
 
 - **Volumes (`:z`, SHARED):** `run/`, `contests/`, `moj-problems/`, `server/var/news` → `/data/…`.
   Estado e segredos NUNCA entram na imagem (ver `deploy/.containerignore`). Rootless: container-root
   ↔ o usuário do host (não defina `USER` nem `--userns=keep-id`).
+- **Raiz do workspace:** os quadlets são **templates** (`@WORKROOT@`) e o `make install-units`
+  substitui pelo caminho absoluto de `$(WORKROOT)` (default `..`). Copiar o arquivo cru p/
+  `~/.config/containers/systemd/` deixa o placeholder literal e o container não sobe.
+- **`loginctl enable-linger`:** sem ele não há sessão/bus do usuário — `systemctl --user` falha e
+  nada sobe no boot. É o passo que mais trava instalação nova.
+- **O `SCRIPT_FILENAME` do nginx é o caminho DENTRO da imagem**
+  (`/opt/moj/cdmoj/server/api/v1/router.sh`): quem executa o script é o fcgiwrap, que roda no
+  container. Apontar p/ o caminho do host = "script não encontrado" (o `install-nginx.sh` já usa o
+  certo; bare-metal usa `--bare-metal`).
+- **Socket:** `run/fcgiwrap.sock` nasce **0770 do dono** (umask 007 no `moj-entrypoint`) — quem for
+  falar com ele (o nginx) precisa estar no **grupo do dono**.
 - **Atualizar:** `make deploy` (build local) ou `make deploy FROM=registry` (pull de
   `ghcr.io/cd-moj/moj-server`); ambos re-tagueiam `:prod` e reiniciam. Rollback: `make rollback PREV=<tag>`.
 - **SELinux:** se o host prod estiver *enforcing*, os `:z` bastam; opcionalmente fixe o rótulo com
-  `semanage fcontext -a -t container_file_t '/home/ribas/moj/(run|contests|moj-problems)(/.*)?' && restorecon -R`.
+  `semanage fcontext -a -t container_file_t '<raiz>/(run|contests|moj-problems)(/.*)?' && restorecon -R`.
+  (Ubuntu usa AppArmor: os `:z` viram no-op, sem problema.)
+
+## nginx do sistema (produção: root, 80/443)
+
+Na máquina dedicada o nginx é o **do sistema**: serve `web/` estático e passa `/api/v1` ao socket do
+fcgiwrap. Um script versionado monta tudo (idempotente):
+
+```bash
+# 1ª passada: HTTP-only — sobe e valida a API antes de existir certificado
+sudo bash server/bin/install-nginx.sh --workroot /home/moj/moj --names "moj.naquadah.com.br"
+# depois de emitir o cert (abaixo): mesma linha + --cert  => 80→443 + TLS
+sudo bash server/bin/install-nginx.sh --workroot /home/moj/moj --names "moj.naquadah.com.br" \
+     --cert moj.naquadah.com.br
+```
+
+Ele gera `/etc/nginx/snippets/moj-app.conf` + `/etc/nginx/conf.d/moj.conf` a partir dos templates
+`server/etc/nginx/moj-app.conf.in` e `moj-prod{,-http}.conf.in`, e resolve as **duas armadilhas** que
+o dev não tem (lá o nginx roda como o **mesmo** usuário do MOJ):
+
+1. **Permissão.** Os workers (`www-data`) precisam (a) **atravessar** a raiz do workspace e ler
+   `cdmoj/web/`, e (b) **conectar** no socket unix. O socket nasce **0770 do dono**, então o script
+   põe o `www-data` no **grupo do dono** (`usermod -aG moj www-data`; o nginx chama `initgroups()`,
+   e por isso é preciso **restart**, não só reload). Sem isso: 403 no estático e **EACCES no socket
+   → 502 em toda a API**.
+2. **`default_server` da distro.** O `sites-enabled/default` captura o `:80`; o script o desabilita.
+
+**Subdomínio de contest sem duplicar server block:** um `map $host $moj_contest_host` extrai o `<id>`
+de `<id>.<host>` e o injeta em `CONTEST_HOST`; no site principal ele vem **vazio**, e o `router.sh`
+trata vazio como ausente — então **um** server block serve os dois. O isolamento continua sendo da
+API (o nginx só transporta o id).
+
+## TLS e renovação (Let's Encrypt)
+
+```bash
+sudo bash server/bin/cert-setup.sh --email <você@dominio> --credentials ~/digitalocean.ini \
+     --cert-name moj.naquadah.com.br -d moj.naquadah.com.br -d '*.moj.naquadah.com.br'
+```
+
+- **DNS-01 por padrão** (plugin `dns-digitalocean`): é o único desafio que emite **wildcard**, e
+  wildcard é o que os subdomínios de contest exigem. Ele também **não precisa** que o DNS já aponte
+  p/ a máquina (só cria um TXT `_acme-challenge` temporário) — dá p/ emitir o certificado do domínio
+  final **antes do cutover**. `--webroot` troca p/ http-01 (aí **sem** wildcard).
+- **A renovação é automática e NÃO é deste script:** quem renova é o `certbot.timer` do systemd
+  (2×/dia, já habilitado pelo pacote). O script garante o que falta p/ ela funcionar sozinha: a
+  credencial de DNS em `/etc/letsencrypt/` (600) e o **hook de deploy**
+  `/etc/letsencrypt/renewal-hooks/deploy/10-reload-nginx.sh` (o nginx só passa a servir o cert novo
+  depois de um `reload`). Confira com `certbot renew --dry-run` e `certbot certificates`.
 
 ## Bring-up (dev/local)
 
@@ -53,9 +120,15 @@ bash server/bin/start-fcgiwrap.sh &       # sobe o fcgiwrap em run/fcgiwrap.sock
 JUDGE_BACKEND=mock bash server/daemons/judged.sh &     # ou --once para processar 1 e sair
 ```
 
-Em produção, use os units systemd de `server/etc/systemd/` (`systemctl --user enable --now moj-fcgiwrap.socket moj-judged.service …`).
+Em **produção** o caminho é a imagem podman + quadlets (acima). Os units de `server/etc/systemd/` são
+a alternativa **bare-metal** — atenção: o `moj-fcgiwrap.socket` abre o socket em `%t`
+(`/run/user/<uid>/`), então o `fastcgi_pass` do nginx tem de apontar p/ **esse** caminho (ou use o
+`start-fcgiwrap.sh`, que abre em `run/fcgiwrap.sock`, o que os vhosts assumem).
 
-## nginx — `~/nginx-proxy/conf.d/moj.conf`
+## nginx user-space (dev) — `~/nginx-proxy/conf.d/moj.conf`
+
+> Este é o modelo **de dev** (nginx como o próprio usuário, em 8080/8443, porque usuário sem
+> privilégio não abre porta <1024). Em **produção** use o nginx do sistema (seção acima).
 
 Server block para `moj.charge.naquadah.com.br` (coberto pelo cert wildcard `*.charge.naquadah.com.br`):
 - `root /home/ribas/moj/cdmoj/web` + `index index.html` → frontend estático.
@@ -79,10 +152,10 @@ O `server_name` exato `moj.charge…` (em `moj.conf`) tem precedência para o si
 o regex pega só `<algo>.moj.charge…`. Cópia versionada em `server/etc/nginx/moj-subdomains.conf`.
 Recarregar: `cd ~/nginx-proxy && ./proxy.sh test && ./proxy.sh reload`.
 
-> **Cert (HTTPS):** o wildcard atual é `*.charge.naquadah.com.br` (um nível) — cobre
-> `moj.charge…` mas **não** `<id>.moj.charge…` (dois níveis). Para HTTPS nos subdomínios,
-> reemita o cert incluindo `*.moj.naquadah.com.br` (produção) / `*.moj.charge.naquadah.com.br`
-> (teste). Em HTTP (8080) e via header `Host:` nos testes já funciona.
+> **Cert (HTTPS):** um wildcard cobre **um nível** só — `*.charge.naquadah.com.br` serve
+> `moj.charge…` mas **não** `<id>.moj.charge…` (dois níveis). Para HTTPS nos subdomínios de contest o
+> cert precisa incluir `*.<host-do-site>` (ex.: `*.moj.naquadah.com.br`) — é o que o
+> `server/bin/cert-setup.sh` emite (DNS-01). Em HTTP e via header `Host:` nos testes já funciona sem cert.
 
 ## CLIs servidas (`/moj` e `/moj-contest`)
 
