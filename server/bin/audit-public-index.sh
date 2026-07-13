@@ -16,9 +16,13 @@
 # segurança: rode depois de migração/importação e periodicamente (cron).
 set -uo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"   # .../cdmoj
+# Defaults RELATIVOS ao checkout (o workspace é o pai do cdmoj) — assim o script funciona em
+# qualquer deploy sem env. Definidos ANTES do common.conf, cujos `:=` não sobrescrevem (senão
+# cairíamos nos caminhos do dev, /home/ribas/moj/…, e a auditoria "não veria" índice nenhum).
+WS="$(cd "$ROOT/.." && pwd)"
+: "${CONTESTSDIR:=$WS/contests}"
+: "${MOJ_PROBLEMS_DIR:=$WS/moj-problems}"
 [[ -f "$ROOT/server/etc/common.conf" ]] && source "$ROOT/server/etc/common.conf"
-: "${CONTESTSDIR:=/home/ribas/moj/contests}"
-: "${MOJ_PROBLEMS_DIR:=/home/ribas/moj/moj-problems}"
 
 FIX=0; QUIET=0
 for a in "$@"; do case "$a" in
