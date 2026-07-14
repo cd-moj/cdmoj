@@ -9,7 +9,11 @@
 
 root   @WORKROOT@/cdmoj/web;
 index  index.html;
-client_max_body_size  200m;
+# Teto do CORPO da requisição. Quem manda no número é o `moj push`: ele serializa o pacote inteiro num
+# JSON e os testes vão como STRING CRUA (não base64), então o corpo ≈ tamanho do pacote + ~10% de
+# escape. Pacote de 500 MB ⇒ corpo de ~550 MB. (O `moj upload` manda tar.gz+base64 — 5-10× menor —, e
+# para pacote gigante continua sendo o caminho mais barato.) Estourar isto é 413.
+client_max_body_size  1000m;
 
 # --- API: router.sh (bash) via fcgiwrap, num socket unix ---------------------------
 location /api/v1/ {
