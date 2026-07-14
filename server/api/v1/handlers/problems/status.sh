@@ -12,14 +12,21 @@ source "$_DIR/../../judge-gw/sched-lib.sh"
 
 # 1) FRONTEIRA DE SEGURANÇA (owners_visible) + estreitamento a dono/colaborador (tira público-só:
 #    só REMOVE do conjunto já filtrado, nunca alarga).
-vis="$(owners_visible | jq -c --arg me "$SESSION_LOGIN" \
-   '.problems |= map(select(.owner==$me or ((.collaborators // [])|index($me)|type=="number")))' 2>/dev/null)"
-[[ -n "$vis" ]] || vis='{"problems":[]}'
+# Índice quebrado NÃO pode virar "board vazio": era indistinguível de "você não tem problema
+# nenhum" (o `moj board` e a aba Painel mostravam zero, com 200, calados).
+vis="$(owners_visible)" \
+  || fail 503 "Índice de problemas indisponível (a regeração falhou) — tente de novo em instantes" "index_unavailable"
+vis="$(jq -c --arg me "$SESSION_LOGIN" \
+   '.problems |= map(select(.owner==$me or ((.collaborators // [])|index($me)|type=="number")))' <<<"$vis" 2>/dev/null)"
+[[ -n "$vis" ]] || fail 503 "Falha ao filtrar o índice de problemas" "index_unavailable"
 
 ids="$(mktemp)"; jq -r '.problems[].id' <<<"$vis" 2>/dev/null > "$ids"
 
 # 2) SENDO CALIBRADO AGORA (uma varredura das filas -> conjunto pequeno).
-calib="$(calibrating_set)"
+# A guarda de vazio é OBRIGATÓRIA (o $sup abaixo já tinha; este não): um `--argjson CAL ""` mata o jq
+# grande lá embaixo, o `|| fallback` devolve {total:0, problems:[]} e o board fica MUDO com 200. Era
+# exatamente isto que acontecia sempre que NINGUÉM estava calibrando (ou seja: quase sempre).
+calib="$(calibrating_set)"; [[ -n "$calib" ]] || calib='[]'
 # linguagens que ALGUM juiz suporta (registry .langs) — p/ NÃO marcar "falha" uma solução good cuja
 # linguagem juiz nenhum roda (ex.: apl = limitação de plataforma/deploy, não defeito do problema).
 sup="$(find "${REGISTRYDIR:-$RUNDIR/registry}" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null | jq -sc '[.[]|.langs//[]|.[]]|unique' 2>/dev/null)"
@@ -48,8 +55,10 @@ while IFS= read -r id; do f="$RUNDIR/validation/$id.json"; [[ -f "$f" ]] && cat 
 
 # 5) JOIN + AGREGADOS. JSON grande (vis) via stdin; mapas via --slurpfile; conjunto calib via
 #    --argjson (é pequeno) — nada de JSON grande no argv (ARG_MAX).
-emit_json 200 OK
-jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" --argjson SUP "$sup" '
+# O CORPO É MONTADO ANTES DO CABEÇALHO: com o `emit_json 200` já enviado, o único destino de um jq
+# quebrado era um board VAZIO (o antigo `|| jq -cn '{total:0,…}'`) — silencioso e indistinguível de
+# "você não tem problema nenhum". Agora falha vira 500 COM a mensagem do jq.
+out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" --argjson SUP "$sup" '
   ($TL[0] // {}) as $tl | ($VAL[0] // {}) as $val
   | ($CAL | map({(.):true}) | add // {}) as $calset
   | [ .problems[]
@@ -105,7 +114,10 @@ jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" -
         errors:             ([$rows[]|select(.error)]|length) },
       calibrating_ids:[$rows[]|select(.being_calibrated)|.id],
       attention_ids:  [$rows[]|select(.needs_review or .needs_recalibration)|.id],
-      problems:$rows }' <<<"$vis" 2>/dev/null \
-  || jq -cn '{success:true, total:0, counts:{}, calibrating_ids:[], attention_ids:[], problems:[]}'
+      problems:$rows }' <<<"$vis" 2>&1)" \
+  || fail 500 "Falha ao montar o painel: $(printf '%s' "$out" | head -c 200)" "status_failed"
+[[ -n "$out" ]] || fail 500 "Painel vazio (o jq não produziu saída)" "status_failed"
+emit_json 200 OK
+printf '%s' "$out"
 
 rm -f "$ids" "$tlmap" "$valmap"

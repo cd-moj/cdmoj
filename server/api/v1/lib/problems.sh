@@ -5,22 +5,32 @@
 : "${PROBLEM_OWNERS_TTL_MIN:=30}"
 OWNERS_INDEX="$CONTESTSDIR/treino/var/problem-owners.json"
 
-# ensure_owners_index — garante que o índice exista; se velho, dispara regen em background.
+# ensure_owners_index — garante que o índice exista e seja VÁLIDO; se velho, regen em background.
+# Devolve 0 só se o índice está USÁVEL. Quem chama NÃO pode transformar "índice quebrado" em
+# "lista vazia" (foi assim que board/Painel/ls/coleções ficaram vazios, com 200, calados).
 ensure_owners_index(){
-  local f="$OWNERS_INDEX"
-  if [[ ! -f "$f" ]]; then
+  local f="$OWNERS_INDEX" lock="$OWNERS_INDEX.lock"
+  # 0 BYTE ou JSON quebrado contam como AUSENTE. Antes o teste era `[[ ! -f ]]`: um arquivo de 0
+  # byte era "presente" e NUNCA regenerava a frio — e o owners_merged o virava em lista vazia.
+  if [[ ! -s "$f" ]] || ! jq -e . "$f" >/dev/null 2>&1; then
     MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" RUNDIR="${RUNDIR:-/home/ribas/moj/run}" \
       bash "$MOJTOOLS_DIR/gen-problem-owners.sh" >/dev/null 2>&1
+    # confere DE VERDADE: o exit code do gerador era descartado, então uma falha dele (MOJTOOLS_DIR
+    # errado, var/ não gravável, morto pelo timeout) ficava invisível p/ sempre.
+    [[ -s "$f" ]] && jq -e . "$f" >/dev/null 2>&1
     return
   fi
   if [[ -n "$(find "$f" -mmin "+$PROBLEM_OWNERS_TTL_MIN" 2>/dev/null)" ]]; then
-    local lock="$f.lock"
+    # lock COM EXPIRAÇÃO: o `mkdir` vazava se o processo morresse no meio (container reiniciado,
+    # kill do worker) e aí o índice não regenerava NUNCA mais.
+    [[ -n "$(find "$lock" -maxdepth 0 -mmin +20 2>/dev/null)" ]] && rmdir "$lock" 2>/dev/null
     if mkdir "$lock" 2>/dev/null; then
       ( MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" RUNDIR="${RUNDIR:-/home/ribas/moj/run}" \
         setsid bash -c 'bash "$1" >/dev/null 2>&1; rmdir "$2" 2>/dev/null' \
           _ "$MOJTOOLS_DIR/gen-problem-owners.sh" "$lock" & ) 2>/dev/null
     fi
   fi
+  return 0
 }
 
 AUTHORED_INDEX="$CONTESTSDIR/treino/var/authored.json"   # overlay de problemas recém-criados
@@ -28,7 +38,7 @@ AUTHORED_INDEX="$CONTESTSDIR/treino/var/authored.json"   # overlay de problemas 
 # owners_merged — emite {problems:[...]} mesclando o índice gerado + o overlay authored
 # (recém-autorado vence por id). Dá visibilidade IMEDIATA ao que foi criado/editado.
 owners_merged(){
-  ensure_owners_index
+  ensure_owners_index || return 1     # índice inutilizável: ERRA — não finge lista vazia
   # o overlay authored dá visibilidade IMEDIATA ao recém-criado/editado, mas NÃO pode APAGAR os campos
   # que só o índice calcula (tl_checksum, public_at) — por isso é MESCLADO sobre a entrada do índice
   # (base + overlay, overlay vence campo-a-campo) em vez de substituí-la. Sem isso, todo problema no
@@ -38,18 +48,26 @@ owners_merged(){
   # (o da imagem de produção). O jq 1.8 (dev) aceita — então isto compilava aqui e explodia lá:
   # `{problems: A + B}` virava erro de sintaxe, o `2>/dev/null` engolia, e TODA listagem (problemas,
   # orgs, coleções) devolvia 200 com CORPO VAZIO ("Resposta inválida do servidor"). Ver CLAUDE.md.
-  local out
-  out="$(jq -s '
-    (.[0] // {problems:[]}) as $base
-    | ((.[1] // {}) | [to_entries[].value]) as $ov
+  #
+  # E ATENÇÃO ao DESLOCAMENTO DE ENTRADA (foi o que esvaziou board/Painel/ls/coleções, calado):
+  # com `jq -s A B`, se A NÃO EXISTE (ou tem 0 byte) o jq só reclama no stderr (engolido pelo
+  # 2>/dev/null), NÃO aborta, e as entradas ANDAM UMA CASA — `.[0]` vira o OVERLAY. O programa então
+  # imprime um `{"problems":[]}` PERFEITAMENTE VÁLIDO, a guarda `[[ -n "$out" ]]` não dispara, e o
+  # cliente recebe 200 com lista vazia (e o overlay é engolido junto). Por isso: (1) o índice é
+  # VALIDADO antes (ensure_owners_index), (2) os dois arquivos entram por --slurpfile — que ERRA se o
+  # arquivo não abre, em vez de deslocar — e (3) vazio aqui é ERRO (return 1), nunca lista vazia.
+  local ovf="$AUTHORED_INDEX" out
+  # overlay corrompido não pode derrubar a listagem INTEIRA (ele é só "visibilidade imediata")
+  jq -e . "$ovf" >/dev/null 2>&1 || ovf=/dev/null
+  out="$(jq -n --slurpfile idx "$OWNERS_INDEX" --slurpfile ov "$ovf" '
+    ($idx[0] // {problems:[]}) as $base
+    | ((($ov[0]) // {}) | [to_entries[].value]) as $ovl
     | (($base.problems // []) | map({key:.id, value:.}) | from_entries) as $bmap
-    | ($ov | map(.id)) as $ids
+    | ($ovl | map(.id)) as $ids
     | { problems: ( (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not)))
-                    + ($ov | map(($bmap[.id] // {}) + .)) ) }
-  ' "$OWNERS_INDEX" <(cat "$AUTHORED_INDEX" 2>/dev/null || echo '{}') 2>/dev/null)"
-  # NUNCA devolver vazio: quem consome faz `owners_merged | jq …` e um stdin vazio faz o jq sair 0
-  # SEM imprimir nada — o `|| fallback` do handler não dispara e o cliente recebe corpo vazio.
-  [[ -n "$out" ]] || out='{"problems":[]}'
+                    + ($ovl | map(($bmap[.id] // {}) + .)) ) }
+  ' 2>/dev/null)" || return 1
+  [[ -n "$out" ]] || return 1
   printf '%s' "$out"
 }
 
@@ -57,16 +75,23 @@ owners_merged(){
 # colaborador). É A FRONTEIRA DE SEGURANÇA da gestão (a API garante o acesso, NÃO a interface):
 # problema privado some das listagens — inclusive p/ .admin. Reusada por owners_emit E
 # /problems/status; ter UMA definição só evita divergência do filtro (que é o ponto crítico).
+# Propaga a FALHA do índice (rc!=0 e stdout vazio) em vez de virar lista vazia — quem chama tem de
+# responder 503, nunca "você não tem problema nenhum".
 owners_visible(){
-  owners_merged \
-    | jq -c --arg _me "$SESSION_LOGIN" '.problems |= map(select(.public or .owner==$_me or ((.collaborators // [])|index($_me)|type=="number")))'
+  local m; m="$(owners_merged)" || return 1
+  jq -c --arg _me "$SESSION_LOGIN" '.problems |= map(select(.public or .owner==$_me or ((.collaborators // [])|index($_me)|type=="number")))' <<<"$m" 2>/dev/null
 }
 # owners_emit <jq-program> [jq-args...] — emite {success,...} aplicando o programa sobre o objeto JÁ
 # FILTRADO (com .problems só visíveis). Use $login/$name já passados via --arg pelos handlers.
 owners_emit(){
   local prog="$1"; shift
+  # o conjunto visível é calculado ANTES do cabeçalho: com o `emit_json 200` já enviado não dá mais
+  # p/ dizer 503, e a listagem quebrada virava "200 + lista vazia" (o cliente entende "não tenho
+  # problema nenhum" — indistinguível de estar tudo bem).
+  local vis; vis="$(owners_visible)" \
+    || fail 503 "Índice de problemas indisponível (a regeração falhou) — tente de novo em instantes" "index_unavailable"
   emit_json 200 OK
-  owners_visible | jq -c "$@" "$prog" 2>/dev/null || jq -cn '{success:true, problems:[]}'
+  jq -c "$@" "$prog" <<<"$vis" 2>/dev/null || jq -cn '{success:true, problems:[]}'
 }
 
 # calibrating_set -> ["<id>",...] em calibração AGORA. Uma varredura só das TRÊS filas de calibração:
@@ -74,6 +99,13 @@ owners_emit(){
 # filtro) + run/commands/<host> (action=="calibrate", recalibração direcionada). Conjunto pequeno ->
 # o chamador junta com INDEX(.) p/ testar pertinência em O(1). Sem evento de conclusão: "done" é
 # inferido pelo run/tl/<id>.json mais novo (best-effort; pode piscar no meio do voo).
+# O `-n` do último jq NÃO é firula — é o conserto do BOARD VAZIO. Sem ele (`jq -R` lendo stdin), com
+# as filas VAZIAS — o estado NORMAL: ninguém calibrando — o jq não recebe entrada nenhuma, o programa
+# não roda, ele **não imprime nada e SAI 0**. O `|| echo '[]'` não dispara (não houve erro!), a função
+# devolve "" e o /problems/status faz `--argjson CAL ""` => "invalid JSON text passed to --argjson" =>
+# o jq grande morre => cai no fallback `{total:0, problems:[]}` => `moj board` e a aba Painel MUDOS,
+# com HTTP 200. Com `-n`, o programa roda uma vez, `inputs` lê o que houver (nada) e sai `[]`.
+# É a mesma família do `grep -c` (imprime 0 e sai 1) — ver CLAUDE.md.
 calibrating_set(){
   local _ud="${UPDATESDIR:-${RUNDIR:-/home/ribas/moj/run}/updates}"
   local _cd="${CMDDIR:-${RUNDIR:-/home/ribas/moj/run}/commands}"
@@ -81,36 +113,53 @@ calibrating_set(){
       | jq -r 'select(.kind=="calibrate") | .target // empty'
     find "$_cd" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null \
       | jq -r 'select(.action=="calibrate") | .id // empty'
-  } 2>/dev/null | LC_ALL=C sort -u | jq -Rc '[inputs|select(length>0)]' 2>/dev/null || echo '[]'
+  } 2>/dev/null | LC_ALL=C sort -u | jq -Rc -n '[inputs|select(length>0)]' 2>/dev/null || echo '[]'
 }
+
+# _idx_lock <arquivo> — abre o fd 9 travado (flock) p/ o read-modify-write de um índice JSON.
+# SEM ISTO, dois pushes/saves simultâneos liam o MESMO estado, reconstruíam e gravavam: o último
+# vencia e a entrada do outro SUMIA da listagem. Pior: quando o `cat` devolvia vazio (janela do
+# `mv`, disco cheio), o `cur` virava '{}' e o upsert seguinte APAGAVA O OVERLAY INTEIRO. Mesmo
+# padrão do problem_commit (que já trava a árvore git — a trava estava no objeto errado).
+_idx_lock(){ local f="$1"; mkdir -p "$(dirname "$f")" 2>/dev/null; printf '%s' "$f.lock"; }
 
 # authored_upsert <id> <owner> <repo> <prob> <title> <public:true|false> <collections-json> <author> [collabs-json]
 authored_upsert(){
-  local f="$AUTHORED_INDEX" cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
-  mkdir -p "$(dirname "$f")" 2>/dev/null; tmp="$f.tmp.$$"
-  ( umask 077; jq -n --argjson cur "$cur" --arg id "$1" --arg o "$2" --arg r "$3" --arg p "$4" \
-      --arg t "$5" --arg pub "$6" --argjson colls "${7:-[]}" --arg au "$8" --argjson cb "${9:-[]}" '
-      ($cur[$id] // {}) as $old
-      | $cur + { ($id): ($old + {
-          id:$id, owner:$o, repo:$r, prob:$p,
-          title:(if $t=="" then ($old.title // $p) else $t end),
-          author:$au, author_norm:($au|ascii_downcase),
-          collaborators:$cb, collections:$colls, public:($pub=="true"), html:false }) }
-    ' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
+  local f="$AUTHORED_INDEX" lk; lk="$(_idx_lock "$f")"
+  ( flock 9 2>/dev/null
+    local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
+    jq -e . >/dev/null 2>&1 <<<"$cur" || cur='{}'          # overlay ilegível: recomeça (não propaga lixo)
+    tmp="$f.tmp.$$"
+    ( umask 077; jq -n --argjson cur "$cur" --arg id "$1" --arg o "$2" --arg r "$3" --arg p "$4" \
+        --arg t "$5" --arg pub "$6" --argjson colls "${7:-[]}" --arg au "$8" --argjson cb "${9:-[]}" '
+        ($cur[$id] // {}) as $old
+        | $cur + { ($id): ($old + {
+            id:$id, owner:$o, repo:$r, prob:$p,
+            title:(if $t=="" then ($old.title // $p) else $t end),
+            author:$au, author_norm:($au|ascii_downcase),
+            collaborators:$cb, collections:$colls, public:($pub=="true"), html:false }) }
+      ' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || rm -f "$tmp"
+  ) 9>"$lk"
 }
 # authored_patch <id> <jq-expr-sobre-a-entrada> [jq-args...] — patch parcial de 1 entrada
 authored_patch(){
   local id="$1" expr="$2"; shift 2
-  local f="$AUTHORED_INDEX" cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
-  tmp="$f.tmp.$$"
-  ( umask 077; jq "$@" --arg _id "$id" "if has(\$_id) then .[\$_id] |= ($expr) else . end" <<<"$cur" ) \
-    > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
+  local f="$AUTHORED_INDEX" lk; lk="$(_idx_lock "$f")"
+  ( flock 9 2>/dev/null
+    local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || exit 0
+    tmp="$f.tmp.$$"
+    ( umask 077; jq "$@" --arg _id "$id" "if has(\$_id) then .[\$_id] |= ($expr) else . end" <<<"$cur" ) \
+      > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || rm -f "$tmp"
+  ) 9>"$lk"
 }
 # authored_remove <id> — tira a entrada do overlay (problema removido -> some na hora das listas)
 authored_remove(){
-  local f="$AUTHORED_INDEX" cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || return 0
-  tmp="$f.tmp.$$"
-  ( umask 077; jq --arg id "$1" 'del(.[$id])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
+  local f="$AUTHORED_INDEX" lk; lk="$(_idx_lock "$f")"
+  ( flock 9 2>/dev/null
+    local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || exit 0
+    tmp="$f.tmp.$$"
+    ( umask 077; jq --arg id "$1" 'del(.[$id])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || rm -f "$tmp"
+  ) 9>"$lk"
 }
 
 # norm <txt> -> minúsculas, sem acento, só [a-z0-9 ] (espelha gen-problem-owners.sh)
@@ -167,18 +216,29 @@ coll_valid_name(){ local n="$1"; [[ -n "$n" ]] || return 1; [[ "$n" =~ [[:cntrl:
 # coll_can_manage <name> <login> — dono da coleção OU admin global
 coll_can_manage(){ { declare -F is_admin >/dev/null && is_admin; } && return 0; [[ "$(coll_owner "$1")" == "$2" ]]; }
 # coll_register <name> <owner> — cria (idempotente; preserva dono/at de quem já existe).
+# Os três abaixo são read-modify-write do MESMO arquivo -> flock (senão duas criações simultâneas
+# perdem uma; ver _idx_lock).
 coll_register(){
-  local n="$1" o="$2" cur tmp; cur="$(_coll_read)"; mkdir -p "$(dirname "$COLL_REGISTRY")" 2>/dev/null; tmp="$COLL_REGISTRY.tmp.$$"
-  ( umask 077; jq --arg n "$n" --arg o "$o" --argjson now "$EPOCHSECONDS" '
-      .[$n] = ((.[$n] // {}) + {owner:((.[$n].owner) // $o), created_by:((.[$n].created_by) // $o), at:((.[$n].at) // $now)})' <<<"$cur" ) \
-    > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY"
+  local n="$1" o="$2" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
+  ( flock 9 2>/dev/null
+    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
+    ( umask 077; jq --arg n "$n" --arg o "$o" --argjson now "$EPOCHSECONDS" '
+        .[$n] = ((.[$n] // {}) + {owner:((.[$n].owner) // $o), created_by:((.[$n].created_by) // $o), at:((.[$n].at) // $now)})' <<<"$cur" ) \
+      > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY" || rm -f "$tmp"
+  ) 9>"$lk"
 }
-coll_delete(){ local n="$1" cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
-  ( umask 077; jq --arg n "$n" 'del(.[$n])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY"; }
+coll_delete(){ local n="$1" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
+  ( flock 9 2>/dev/null
+    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
+    ( umask 077; jq --arg n "$n" 'del(.[$n])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY" || rm -f "$tmp"
+  ) 9>"$lk"; }
 # coll_rename <old> <new> — renomeia no registro (o bulk nos metas dos problemas fica no handler).
-coll_rename(){ local o="$1" n="$2" cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
-  ( umask 077; jq --arg o "$o" --arg n "$n" 'if has($o) and ($o!=$n) then .[$n]=(.[$o]) | del(.[$o]) else . end' <<<"$cur" ) \
-    > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY"; }
+coll_rename(){ local o="$1" n="$2" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
+  ( flock 9 2>/dev/null
+    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
+    ( umask 077; jq --arg o "$o" --arg n "$n" 'if has($o) and ($o!=$n) then .[$n]=(.[$o]) | del(.[$o]) else . end' <<<"$cur" ) \
+      > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY" || rm -f "$tmp"
+  ) 9>"$lk"; }
 # coll_bulk_retag <old> <new|""> <login> -> nº de problemas afetados. Renomeia (new!="") ou REMOVE
 # (new=="") a tag <old> no .moj-meta.json de TODOS os problemas que a têm (+ commit local + overlay +
 # re-index dos que estão públicos, p/ o json servido refletir a tag nova). Usado por rename/delete.
@@ -250,71 +310,169 @@ problem_owner(){
 # grava o conteúdo de stdin num arquivo com EXATAMENTE 1 \n final (vazio continua vazio).
 # Idempotente e auto-corretivo: sem isto, cada "Salvar" acumulava uma linha em branco nos
 # arquivos (jq -r encerra a saída com \n; o valor lido já trazia o \n do arquivo).
+# O caminho quente (apply_problem_fields) NÃO o usa mais — normaliza no próprio jq (`nl1`), com o
+# mesmo resultado byte-a-byte e sem um fork por arquivo. Fica p/ quem grava 1 arquivo avulso.
 _putfile(){ local f="$1" c; c="$(cat)"; if [[ -n "$c" ]]; then printf '%s\n' "$c" > "$f"; else : > "$f"; fi; }
-apply_problem_fields(){  # <pkgdir> <body-json>
-  local pkg="$1" body="$2"
+
+# _pkg_canon_modes <pkgdir> — MODO CANÔNICO do pacote: 644 (arquivo), 755 (dir e arquivo com +x).
+# INDEPENDENTE do umask do processo. O fcgiwrap roda com `umask 007` (p/ o socket unix nascer 0770,
+# senão o nginx do sistema toma EACCES), e sem isto TODO arquivo gravado pela API saía 660 enquanto
+# o MESMO pacote vindo de tar/rsync saía 644. Como o tl-checksum inclui o MODO de scripts/*, o mesmo
+# conteúdo gerava checksum diferente conforme o caminho (push × upload) => recalibração espúria e
+# conferência "checksum local == servidor" falhando à toa. Preserva o +x de quem já o tem (é
+# load-bearing: o juiz executa scripts/compare.sh e <lang>/{compile,run}.sh direto).
+_pkg_canon_modes(){
+  local pkg="$1"
+  [[ -d "$pkg" ]] || return 0
+  find "$pkg" -name .git -prune -o -type d -exec chmod 755 {} + 2>/dev/null
+  find "$pkg" -name .git -prune -o -type f ! -perm -u+x -exec chmod 644 {} + 2>/dev/null
+  find "$pkg" -name .git -prune -o -type f   -perm -u+x -exec chmod 755 {} + 2>/dev/null
+  return 0
+}
+
+# apply_problem_fields <pkgdir> <body-json-FILE> — materializa no pacote os campos presentes no body.
+#
+# O corpo vem em ARQUIVO, não em variável (read_body_file): um pacote de 84 MB vira ~100 MB de JSON, e
+# a versão antiga fazia 36 `<<<"$body"` (cada um REGRAVA os 100 MB num temp e o jq RE-PARSEIA tudo:
+# ~50s de CPU + 3,6 GB de I/O) e lia os testes de um PIPE — e o `read` do bash sobre pipe faz 1 syscall
+# POR BYTE (medido: 1,74 MB/s => ~55s só nisso). Resultado: 504 do nginx aos 120s COM O PACOTE PELA
+# METADE (os testes antigos já apagados, o meta ainda não gravado).
+# Agora: 1 passada de jq p/ as sondas+escalares, 1 passada por coleção (testes/exemplos/soluções/
+# scripts) em stream NUL (--raw-output0) gravado em ARQUIVO, e o laço lê DO ARQUIVO (fd seekable ⇒ o
+# bash lê em bloco). Zero fork por teste. A normalização de \n final (o que o _putfile fazia) é feita
+# pelo jq (`nl1`), byte-idêntica.
+apply_problem_fields(){  # <pkgdir> <body-json-FILE>
+  local pkg="$1" bodyf="$2" _bodytmp="" _t _um _man
+  # compat: chamador que ainda passe o JSON como STRING (nenhum no repo; a função é pública)
+  [[ -f "$bodyf" ]] || { _bodytmp="$(mktemp)"; printf '%s' "$bodyf" > "$_bodytmp"; bodyf="$_bodytmp"; }
+  _t="$(mktemp -d)"
+  _um="$(umask)"; umask 022        # arquivo NOVO nasce 644 (o do fcgiwrap é 007); ver _pkg_canon_modes
+
   mkdir -p "$pkg/docs" "$pkg/tests/input" "$pkg/tests/output" "$pkg/sols/good"
-  if jq -e 'has("enunciado_md")' >/dev/null 2>&1 <<<"$body"; then
-    # preserva o FORMATO do enunciado (md/org/tex): usa o explícito, senão o do arquivo existente, senão md
-    local efmt; efmt="$(jq -r '.enunciado_format // empty' <<<"$body")"
-    if [[ -z "$efmt" ]]; then for e in md org tex; do [[ -f "$pkg/docs/enunciado.$e" ]] && { efmt="$e"; break; }; done; fi
-    [[ "$efmt" =~ ^(md|org|tex)$ ]] || efmt=md
-    local e; for e in md org tex; do [[ "$e" != "$efmt" && -f "$pkg/docs/enunciado.$e" ]] && rm -f "$pkg/docs/enunciado.$e"; done
-    jq -r '.enunciado_md' <<<"$body" | _putfile "$pkg/docs/enunciado.$efmt"
+
+  # prelúdio jq: normaliza p/ EXATAMENTE 1 \n final (idêntico ao _putfile) e p/ ZERO \n (editorial)
+  local JQNL='def rtrim: until((endswith("\n")|not); rtrimstr("\n"));
+              def nl1: if .=="" then "" else (rtrim + "\n") end;'
+
+  # ---------- 1 passada: TODAS as sondas + os escalares curtos (antes: ~36 re-parses) ----------
+  local HAS_ENUN=0 HAS_AUTHOR=0 HAS_TAGS=0 HAS_CONF=0 HAS_EXAMPLES=0 HAS_NOTES=0 HAS_TESTS=0 \
+        HAS_SCORE=0 SCORE_ENABLED=0 HAS_SOLS=0 HAS_GOODSOL=0 HAS_SCRIPTS=0 HAS_SCORETXT=0 \
+        HAS_EDITORIAL=0 EFMT='' GOODSOL_FN='' SOLS_CATS=''
+  _man="$(jq -r '
+      def b(x): (if x then "1" else "0" end);
+      "HAS_ENUN=\(b(has("enunciado_md")))",
+      "HAS_AUTHOR=\(b(has("author")))",
+      "HAS_TAGS=\(b(has("tags")))",
+      "HAS_CONF=\(b(has("conf_text")))",
+      "HAS_EXAMPLES=\(b(has("examples")))",
+      "HAS_NOTES=\(b(any(.examples[]?; has("explanation"))))",
+      "HAS_TESTS=\(b(has("tests")))",
+      "HAS_SCORE=\(b(has("score")))",
+      "SCORE_ENABLED=\(b(.score.enabled == true))",
+      "HAS_SOLS=\(b(has("sols")))",
+      "HAS_GOODSOL=\(b(has("good_sol")))",
+      "HAS_SCRIPTS=\(b(has("scripts_files")))",
+      "HAS_SCORETXT=\(b(has("score_text")))",
+      "HAS_EDITORIAL=\(b(has("editorial_md")))",
+      "EFMT=\((.enunciado_format // "") | @sh)",
+      "GOODSOL_FN=\((.good_sol.filename // "sol.cpp") | @sh)",
+      "SOLS_CATS=\(((.sols // {}) | keys | join(" ")) | @sh)"
+    ' < "$bodyf" 2>/dev/null)"
+  # jq mudo aqui = corpo ilegível: ABORTA (não dá p/ "aplicar metade" calado)
+  if [[ -z "$_man" ]]; then umask "$_um"; rm -rf "$_t" "$_bodytmp"; return 1; fi
+  eval "$_man"
+
+  # ---------- escalares (1 passada, stream NUL) ----------
+  jq --raw-output0 "$JQNL"'
+      (.enunciado_md // "" | nl1),
+      (.author       // "" | nl1),
+      ((.tags // []) | join("\n") | nl1),
+      (.conf_text    // "" | nl1),
+      (.editorial_md // "" | rtrim),
+      (.score_text   // "" | nl1),
+      ((.examples // []) | map(.explanation // "") | tojson),
+      (.good_sol.code // "" | nl1)
+    ' < "$bodyf" > "$_t/scalars.nul" 2>/dev/null
+  local S_ENUN='' S_AUTHOR='' S_TAGS='' S_CONF='' S_EDIT='' S_SCORETXT='' S_NOTES='' S_GOODSOL=''
+  { IFS= read -r -d '' S_ENUN; IFS= read -r -d '' S_AUTHOR; IFS= read -r -d '' S_TAGS
+    IFS= read -r -d '' S_CONF; IFS= read -r -d '' S_EDIT;   IFS= read -r -d '' S_SCORETXT
+    IFS= read -r -d '' S_NOTES; IFS= read -r -d '' S_GOODSOL; } < "$_t/scalars.nul" 2>/dev/null
+
+  # ---------- enunciado (preserva o FORMATO: md/org/tex) ----------
+  if (( HAS_ENUN )); then
+    local e
+    if [[ -z "$EFMT" ]]; then for e in md org tex; do [[ -f "$pkg/docs/enunciado.$e" ]] && { EFMT="$e"; break; }; done; fi
+    [[ "$EFMT" =~ ^(md|org|tex)$ ]] || EFMT=md
+    for e in md org tex; do [[ "$e" != "$EFMT" && -f "$pkg/docs/enunciado.$e" ]] && rm -f "$pkg/docs/enunciado.$e"; done
+    printf '%s' "$S_ENUN" > "$pkg/docs/enunciado.$EFMT"
   fi
-  jq -e 'has("author")'       >/dev/null 2>&1 <<<"$body" && jq -r '.author'       <<<"$body" > "$pkg/author"
-  jq -e 'has("tags")'         >/dev/null 2>&1 <<<"$body" && jq -r '.tags[]?'       <<<"$body" > "$pkg/tags"
-  jq -e 'has("conf_text")'    >/dev/null 2>&1 <<<"$body" && jq -r '.conf_text'     <<<"$body" | _putfile "$pkg/conf"
-  if jq -e 'has("examples")' >/dev/null 2>&1 <<<"$body"; then
+  # author/tags/conf: o nl1 torna a gravação IDEMPOTENTE. O author era o único que ia direto do
+  # `jq -r` p/ o arquivo (sem _putfile): como o `jq -r` já encerra com \n, um valor que JÁ trouxesse
+  # o \n final (a CLI manda sem, mas nada garantia) engordava o arquivo a cada save.
+  (( HAS_AUTHOR )) && printf '%s' "$S_AUTHOR" > "$pkg/author"
+  (( HAS_TAGS ))   && printf '%s' "$S_TAGS"   > "$pkg/tags"
+  (( HAS_CONF ))   && printf '%s' "$S_CONF"   > "$pkg/conf"
+
+  # ---------- exemplos ----------
+  if (( HAS_EXAMPLES )); then
     find "$pkg/tests/input"  -name 'sample*' -delete 2>/dev/null
     find "$pkg/tests/output" -name 'sample*' -delete 2>/dev/null
-    local i=0 pair
-    while IFS= read -r pair; do i=$((i+1))
-      jq -r '.input'  <<<"$pair" | _putfile "$pkg/tests/input/sample$i"
-      jq -r '.output' <<<"$pair" | _putfile "$pkg/tests/output/sample$i"
-    done < <(jq -c '.examples[]?' <<<"$body")
-    # explicação por exemplo (na ordem) -> docs/sample-notes.json. Só mexe se o cliente for
-    # "ciente de explicação" (algum exemplo traz a chave .explanation). Assim, clientes que não
-    # enviam explicações (ex.: uma CLI antiga) NÃO apagam as notas já existentes.
-    if jq -e 'any(.examples[]?; has("explanation"))' >/dev/null 2>&1 <<<"$body"; then
-      local notes; notes="$(jq -c '[.examples[]? | (.explanation // "")]' <<<"$body")"
-      if [[ "$(jq -r 'map(select(.!=""))|length' <<<"$notes" 2>/dev/null)" -gt 0 ]]; then
-        printf '%s' "$notes" > "$pkg/docs/sample-notes.json"
+    jq --raw-output0 "$JQNL"'.examples[]? | (.input // "" | nl1), (.output // "" | nl1)' \
+      < "$bodyf" > "$_t/ex.nul" 2>/dev/null
+    local i=0 inp='' outp=''
+    while IFS= read -r -d '' inp && IFS= read -r -d '' outp; do
+      i=$((i+1))
+      printf '%s' "$inp"  > "$pkg/tests/input/sample$i"
+      printf '%s' "$outp" > "$pkg/tests/output/sample$i"
+    done < "$_t/ex.nul"
+    # explicação por exemplo -> docs/sample-notes.json. Só mexe se o cliente for "ciente de
+    # explicação" (algum exemplo traz a chave); cliente antigo não apaga as notas de ninguém.
+    if (( HAS_NOTES )); then
+      if [[ "$(jq -r 'map(select(.!=""))|length' <<<"$S_NOTES" 2>/dev/null)" -gt 0 ]]; then
+        printf '%s' "$S_NOTES" > "$pkg/docs/sample-notes.json"
       else rm -f "$pkg/docs/sample-notes.json"; fi
     fi
   fi
+
   # ---- resolução/editorial (só p/ setters; docs/solucao.md; não vai p/ o aluno) -------------
-  if jq -e 'has("editorial_md")' >/dev/null 2>&1 <<<"$body"; then
-    local edmd; edmd="$(jq -r '.editorial_md // ""' <<<"$body")"
-    if [[ -n "$edmd" ]]; then printf '%s' "$edmd" > "$pkg/docs/solucao.md"; else rm -f "$pkg/docs/solucao.md"; fi
+  if (( HAS_EDITORIAL )); then
+    if [[ -n "$S_EDIT" ]]; then printf '%s' "$S_EDIT" > "$pkg/docs/solucao.md"; else rm -f "$pkg/docs/solucao.md"; fi
   fi
+
   # ---- pontuação por grupos (subtasks) ----------------------------------------
-  # score = {enabled, groups:[{name,weight,glob}]}; cada teste pode trazer .group p/
-  # ser FIXADO num grupo (renomeado p/ <prefixo>NN); sem .group, mantém o nome (auto,
-  # casado pelo glob no juiz). Sem o campo "score" no body → comportamento legado.
-  local SCORE_ENABLED=0
-  declare -A GGLOB
-  if jq -e '.score.enabled == true' >/dev/null 2>&1 <<<"$body"; then
-    SCORE_ENABLED=1
-    local grp gn gg
-    while IFS= read -r grp; do
-      gn="$(jq -r '.name // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$gn" ]] || continue
-      gg="$(_norm_globs "$(jq -r '.glob // empty' <<<"$grp")")"; gg="${gg%%,*}"; [[ -n "$gg" ]] || gg="${gn}_*"  # só o 1º glob (prefixo p/ renomear teste fixado)
-      GGLOB[$gn]="$gg"
-    done < <(jq -c '.score.groups[]?' <<<"$body")
+  # score = {enabled, groups:[{name,weight,glob}]}; cada teste pode trazer .group p/ ser FIXADO num
+  # grupo (renomeado p/ <prefixo>NN); sem .group, mantém o nome (auto, casado pelo glob no juiz).
+  # Sem o campo "score" no body → comportamento legado.
+  local -A GGLOB=()
+  if (( SCORE_ENABLED || HAS_SCORE )); then
+    jq --raw-output0 '.score.groups[]? | (.name // ""), (.glob // ""), ((.weight // 0) | tostring)' \
+      < "$bodyf" > "$_t/groups.nul" 2>/dev/null
   fi
-  if jq -e 'has("tests")' >/dev/null 2>&1 <<<"$body"; then
-    # substitui os testes OCULTOS (mantém os sample*); remoções valem
-    local inp nm0
+  if (( SCORE_ENABLED )); then
+    local gn='' gg='' gw=''
+    while IFS= read -r -d '' gn && IFS= read -r -d '' gg && IFS= read -r -d '' gw; do
+      gn="${gn//[^A-Za-z0-9._-]/}"; [[ -n "$gn" ]] || continue
+      gg="$(_norm_globs "$gg")"; gg="${gg%%,*}"; [[ -n "$gg" ]] || gg="${gn}_*"   # só o 1º glob (prefixo)
+      GGLOB[$gn]="$gg"
+    done < "$_t/groups.nul"
+  fi
+
+  # ---------- testes OCULTOS (substitui; mantém os sample*) ----------
+  if (( HAS_TESTS )); then
+    local inp0 nm0
     set +o noglob; shopt -s nullglob
-    for inp in "$pkg/tests/input"/*; do nm0="$(basename "$inp")"; [[ "$nm0" == sample* ]] && continue
-      rm -f "$inp" "$pkg/tests/output/$nm0"; done
+    for inp0 in "$pkg/tests/input"/*; do nm0="${inp0##*/}"; [[ "$nm0" == sample* ]] && continue
+      rm -f "$inp0" "$pkg/tests/output/$nm0"; done
     shopt -u nullglob; set -o noglob
-    local i=0 pair nm tgrp gpre n cand
-    while IFS= read -r pair; do i=$((i+1)); nm="$(jq -r '.name // empty' <<<"$pair" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$nm" ]] || nm="$i"
+    jq --raw-output0 "$JQNL"'.tests[]? | (.name // ""), (.group // ""), (.input // "" | nl1), (.output // "" | nl1)' \
+      < "$bodyf" > "$_t/tests.nul" 2>/dev/null
+    local i=0 nm='' tgrp='' gpre n cand
+    while IFS= read -r -d '' nm && IFS= read -r -d '' tgrp && IFS= read -r -d '' inp && IFS= read -r -d '' outp; do
+      i=$((i+1))
+      nm="${nm//[^A-Za-z0-9._-]/}"; [[ -n "$nm" ]] || nm="$i"
       [[ "$nm" == sample* ]] && nm="t$nm"   # nomes sample* são reservados aos exemplos
       if (( SCORE_ENABLED )); then
-        tgrp="$(jq -r '.group // empty' <<<"$pair" | tr -cd 'A-Za-z0-9._-')"
+        tgrp="${tgrp//[^A-Za-z0-9._-]/}"
         if [[ -n "$tgrp" && -n "${GGLOB[$tgrp]:-}" ]]; then
           gpre="${GGLOB[$tgrp]%\**}"                         # g2_* -> g2_
           # FIXADO: mantém se já é <prefixo><dígitos> livre; senão pega o próximo <prefixo>NN livre
@@ -322,83 +480,95 @@ apply_problem_fields(){  # <pkgdir> <body-json>
           else n=1; while cand="${gpre}$(printf '%02d' "$n")"; [[ -e "$pkg/tests/input/$cand" ]]; do n=$((n+1)); done; nm="$cand"; fi
         fi
       fi
-      jq -r '.input'  <<<"$pair" | _putfile "$pkg/tests/input/$nm"
-      jq -r '.output' <<<"$pair" | _putfile "$pkg/tests/output/$nm"
-    done < <(jq -c '.tests[]?' <<<"$body")
+      printf '%s' "$inp"  > "$pkg/tests/input/$nm"
+      printf '%s' "$outp" > "$pkg/tests/output/$nm"
+    done < "$_t/tests.nul"
   fi
+
   # grava/remove tests/score conforme o modo (só quando o body traz o campo "score")
-  if jq -e 'has("score")' >/dev/null 2>&1 <<<"$body"; then
+  if (( HAS_SCORE )); then
     if (( SCORE_ENABLED )); then
       { compgen -G "$pkg/tests/input/sample*" >/dev/null 2>&1 && echo "sample* - 0 pontos"
-        local grp gn gg gw
-        while IFS= read -r grp; do
-          gn="$(jq -r '.name // empty' <<<"$grp" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$gn" ]] || continue
-          gg="$(_norm_globs "$(jq -r '.glob // empty' <<<"$grp")")"; [[ -n "$gg" ]] || gg="${gn}_*"  # preserva a lista multi-glob (", "-separada)
-          gw="$(jq -r '.weight // 0' <<<"$grp" | tr -cd '0-9')"; gw=${gw:-0}
-          echo "$gg - $gw pontos"
-        done < <(jq -c '.score.groups[]?' <<<"$body")
+        local gn2='' gg2='' gw2=''
+        while IFS= read -r -d '' gn2 && IFS= read -r -d '' gg2 && IFS= read -r -d '' gw2; do
+          gn2="${gn2//[^A-Za-z0-9._-]/}"; [[ -n "$gn2" ]] || continue
+          gg2="$(_norm_globs "$gg2")"; [[ -n "$gg2" ]] || gg2="${gn2}_*"   # preserva a lista multi-glob
+          gw2="${gw2//[^0-9]/}"; gw2="${gw2:-0}"
+          echo "$gg2 - $gw2 pontos"
+        done < "$_t/groups.nul"
       } > "$pkg/tests/score"
     else
       rm -f "$pkg/tests/score"
     fi
   fi
-  # soluções por categoria (substitui a categoria inteira quando presente)
-  if jq -e 'has("sols")' >/dev/null 2>&1 <<<"$body"; then
-    local cat s fn
-    for cat in good slow wrong pass upcoming; do
-      jq -e --arg c "$cat" '.sols | has($c)' >/dev/null 2>&1 <<<"$body" || continue
+
+  # ---------- soluções por categoria (substitui a categoria inteira quando presente) ----------
+  if (( HAS_SOLS )); then
+    local cat
+    for cat in $SOLS_CATS; do
+      [[ "$cat" =~ ^(good|slow|wrong|pass|upcoming)$ ]] || continue
       rm -rf "$pkg/sols/$cat"; mkdir -p "$pkg/sols/$cat"
-      while IFS= read -r s; do
-        fn="$(basename "$(jq -r '.filename // empty' <<<"$s")")"; [[ "$fn" =~ ^[A-Za-z0-9._-]+$ ]] || continue
-        jq -r '.code // ""' <<<"$s" | _putfile "$pkg/sols/$cat/$fn"
-      done < <(jq -c --arg c "$cat" '.sols[$c][]?' <<<"$body")
     done
+    jq --raw-output0 "$JQNL"'(.sols // {}) | to_entries[] | .key as $c | ((.value // [])[] | $c, (.filename // ""), (.code // "" | nl1))' \
+      < "$bodyf" > "$_t/sols.nul" 2>/dev/null
+    local sc='' sfn='' scode=''
+    while IFS= read -r -d '' sc && IFS= read -r -d '' sfn && IFS= read -r -d '' scode; do
+      [[ "$sc" =~ ^(good|slow|wrong|pass|upcoming)$ ]] || continue
+      sfn="${sfn##*/}"                                    # basename, sem fork
+      [[ "$sfn" =~ ^[A-Za-z0-9._-]+$ ]] || continue
+      printf '%s' "$scode" > "$pkg/sols/$sc/$sfn"
+    done < "$_t/sols.nul"
   fi
   # compat: good_sol único (CLI/legado) — adiciona a sols/good
-  if jq -e 'has("good_sol")' >/dev/null 2>&1 <<<"$body"; then
-    local fn; fn="$(basename "$(jq -r '.good_sol.filename // "sol.cpp"' <<<"$body")")"
-    [[ "$fn" =~ ^[A-Za-z0-9._-]+$ ]] || fn="sol.cpp"
-    jq -r '.good_sol.code // ""' <<<"$body" | _putfile "$pkg/sols/good/$fn"
+  if (( HAS_GOODSOL )); then
+    local gfn="${GOODSOL_FN##*/}"
+    [[ "$gfn" =~ ^[A-Za-z0-9._-]+$ ]] || gfn="sol.cpp"
+    printf '%s' "$S_GOODSOL" > "$pkg/sols/good/$gfn"
   fi
+
   # ---- scripts/ (correção especial) — ROUND-TRIP COMPLETO -----------------------------
   # Quando o body traz scripts_files, SUBSTITUI scripts/ inteiro (remoção local vale no push).
-  # Item: {path, content_b64, exec} (arquivo; base64 p/ suportar binário — grava DIRETO,
-  # sem _putfile: não normalizar newline de binário) ou {path, symlink:alvo} (os drivers
-  # interativos usam symlink de diretório scripts/<lang> -> c). Paths validados: sem '..',
-  # sem '/' inicial, profundidade <=2, confinado a scripts/. Campo ausente = não toca
-  # (cliente antigo não apaga scripts de ninguém).
-  if jq -e 'has("scripts_files")' >/dev/null 2>&1 <<<"$body"; then
+  # Item: {path, content_b64, exec} (arquivo; base64 p/ suportar binário — grava DIRETO, sem
+  # normalizar newline) ou {path, symlink:alvo} (os drivers interativos usam symlink de diretório
+  # scripts/<lang> -> c). Paths validados: sem '..', sem '/' inicial, profundidade <=2, confinado a
+  # scripts/. Campo ausente = não toca (cliente antigo não apaga scripts de ninguém).
+  if (( HAS_SCRIPTS )); then
     rm -rf "$pkg/scripts"
-    local sf sp st sb64; sb64="$(mktemp)"
-    while IFS= read -r sf; do
-      sp="$(jq -r '.path // empty' <<<"$sf")"
+    jq --raw-output0 '.scripts_files[]? | (.path // ""), (.symlink // ""), (if .exec then "1" else "0" end), (.content_b64 // "")' \
+      < "$bodyf" > "$_t/scripts.nul" 2>/dev/null
+    local sp='' st='' sx='' sb='' sdir srp sroot
+    sroot="$(realpath -m "$pkg/scripts" 2>/dev/null)"
+    while IFS= read -r -d '' sp && IFS= read -r -d '' st && IFS= read -r -d '' sx && IFS= read -r -d '' sb; do
       [[ "$sp" =~ ^[A-Za-z0-9._+-]+(/[A-Za-z0-9._+-]+)?$ ]] || continue
       case "$sp" in *..*) continue;; esac
-      mkdir -p "$pkg/scripts/$(dirname "$sp")"
-      st="$(jq -r '.symlink // empty' <<<"$sf")"
+      sdir="${sp%/*}"; [[ "$sdir" == "$sp" ]] && sdir=""
+      mkdir -p "$pkg/scripts${sdir:+/$sdir}"
       if [[ -n "$st" ]]; then
         [[ "$st" =~ ^[A-Za-z0-9._/-]+$ ]] || continue
         # o alvo RESOLVIDO tem que ficar dentro de scripts/ (tolera ../c/x de subdir)
-        local srp; srp="$(realpath -m "$pkg/scripts/$(dirname "$sp")/$st" 2>/dev/null)"
-        [[ "$srp" == "$(realpath -m "$pkg/scripts")" || "$srp" == "$(realpath -m "$pkg/scripts")"/* ]] || continue
+        srp="$(realpath -m "$pkg/scripts${sdir:+/$sdir}/$st" 2>/dev/null)"
+        [[ "$srp" == "$sroot" || "$srp" == "$sroot"/* ]] || continue
         ln -sfn "$st" "$pkg/scripts/$sp"
       else
-        jq -r '.content_b64 // ""' <<<"$sf" > "$sb64"
-        base64 -d < "$sb64" > "$pkg/scripts/$sp" 2>/dev/null || : > "$pkg/scripts/$sp"
-        [[ "$(jq -r '.exec // false' <<<"$sf")" == true ]] && chmod +x "$pkg/scripts/$sp"
+        printf '%s' "$sb" | base64 -d > "$pkg/scripts/$sp" 2>/dev/null || : > "$pkg/scripts/$sp"
+        [[ "$sx" == 1 ]] && chmod +x "$pkg/scripts/$sp"
       fi
-    done < <(jq -c '.scripts_files[]?' <<<"$body")
-    rm -f "$sb64"
+    done < "$_t/scripts.nul"
     # sem itens válidos => scripts/ removido de propósito (round-trip de remoção)
     [[ -d "$pkg/scripts" ]] && find "$pkg/scripts" -type d -empty -delete 2>/dev/null
   fi
-  # tests/score VERBATIM (round-trip byte-fiel da CLI; o campo estruturado `score` do editor
-  # web continua valendo — se os dois vierem, score_text vence por rodar depois)
-  if jq -e 'has("score_text")' >/dev/null 2>&1 <<<"$body"; then
-    local sct; sct="$(jq -r '.score_text // ""' <<<"$body")"
-    if [[ -n "$sct" ]]; then printf '%s' "$sct" | _putfile "$pkg/tests/score"
+
+  # tests/score VERBATIM (round-trip byte-fiel da CLI; o campo estruturado `score` do editor web
+  # continua valendo — se os dois vierem, score_text vence por rodar depois)
+  if (( HAS_SCORETXT )); then
+    if [[ -n "$S_SCORETXT" ]]; then printf '%s' "$S_SCORETXT" > "$pkg/tests/score"
     else rm -f "$pkg/tests/score"; fi
   fi
+
+  _pkg_canon_modes "$pkg"          # 644/755 SEMPRE — não o umask 007 do fcgiwrap (ver acima)
+  umask "$_um"
+  rm -rf "$_t" "$_bodytmp"
+  return 0
 }
 # _read_pairs <pkgdir> <sample|hidden> <outfile> -> escreve NDJSON {name,input,output} (1/linha).
 # Via jq --rawfile (lê os testes de ARQUIVO); o chamador junta com --slurpfile. Sem conteúdo de
@@ -568,4 +738,5 @@ write_meta(){
     # carimba a 1ª publicação (permanece ao despublicar); alimenta o heatmap "entrada de públicos"
     + (if $pub=="true" and (($cur.public_at // null)==null) then {public_at:$now} else {} end)
   ' > "$pkg/.moj-meta.json"
+  chmod 644 "$pkg/.moj-meta.json" 2>/dev/null   # modo canônico (o fcgiwrap roda umask 007 -> 660)
 }

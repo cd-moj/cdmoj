@@ -31,7 +31,11 @@ location /api/v1/ {
     # Contest isolado quando o acesso vem por <id>.<host> — o $moj_contest_host vem do `map`
     # do conf.d/moj.conf e é VAZIO no site principal (o router.sh trata vazio como ausente).
     fastcgi_param  CONTEST_HOST      $moj_contest_host;
-    fastcgi_read_timeout 120s;
+    # Rede de segurança, NÃO o conserto: um POST grande (pacote de problema) tem de terminar em
+    # segundos (o handler não re-parseia mais o corpo N vezes). Se o nginx desiste, o processo do
+    # handler NÃO morre junto — ele segue gravando, e o cliente fica sem saber se aplicou. Por isso
+    # a folga: preferimos a resposta certa a um 504 com efeito indeterminado.
+    fastcgi_read_timeout 300s;
 }
 
 # --- documentação (markdown cru) ---------------------------------------------------

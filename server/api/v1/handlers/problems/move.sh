@@ -23,7 +23,10 @@ src="$MOJ_PROBLEMS_DIR/$from_org/$prob"; dst="$MOJ_PROBLEMS_DIR/$to_org/$prob"
 [[ -d "$src" ]] || fail 404 "Problema não existe" "prob_missing"
 [[ -e "$dst" ]] && fail 409 "Já existe um problema com esse nome na org destino" "prob_exists"
 # rascunho = privado; público está EM USO (alunos resolvem) -> não move (mudaria o id -> órfão)
-ispub="$(owners_merged | jq -r --arg id "$id" 'first(.problems[]|select(.id==$id)).public // false' 2>/dev/null)"
+# owners_merged FORA do pipe: se o índice está quebrado ele erra — e um `$(… | jq)` engoliria isso
+# como "não é público" (FAIL-OPEN: deixaria mover um problema em uso).
+_om="$(owners_merged)" || fail 503 "Índice de problemas indisponível — tente de novo em instantes" "index_unavailable"
+ispub="$(jq -r --arg id "$id" 'first(.problems[]|select(.id==$id)).public // false' <<<"$_om" 2>/dev/null)"
 [[ "$ispub" == "true" ]] && fail 409 "Problema público está em uso — despublique (ou duplique) em vez de mover" "is_public"
 
 mkdir -p "$(dirname "$dst")"

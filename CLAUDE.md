@@ -290,6 +290,37 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   ("Resposta inválida do servidor" na web; `moj ls` mudo). Guard: **`make check-jq`**
   (`server/test/jq-portability.sh` compila os ~900 programas jq com o jq da imagem).
   Corolário: função que alimenta um `| jq` **nunca** pode devolver vazio (ver `owners_merged`).
+- **Armadilha `jq -R`/`jq -s` com ENTRADA VAZIA — o board e o Painel ficavam MUDOS (200 + lista
+  vazia):** um `jq` que lê do stdin e **não recebe entrada nenhuma** não roda o programa: **não
+  imprime nada e SAI 0**. Então `… | jq -Rc '[inputs|…]' || echo '[]'` **não** cai no `|| ` (não houve
+  erro!) e devolve **string vazia**. Era o `calibrating_set`: com as filas vazias — o estado NORMAL —
+  ele voltava `""`, o `/problems/status` fazia `--argjson CAL ""` (*"invalid JSON text passed to
+  --argjson"*), o jq grande morria e o handler caía num fallback `{total:0, problems:[]}`. Conserto:
+  **`jq -n`** (roda o programa uma vez mesmo sem entrada) **e** guarda de vazio no chamador
+  (`[[ -n "$x" ]] || x='[]'`) antes de todo `--argjson`. Mesma família do `grep -c` abaixo.
+- **MONTE O CORPO ANTES DO CABEÇALHO.** Quem faz `emit_json 200 OK` e só depois roda o `jq` que gera
+  o corpo **não tem mais como dizer 4xx/5xx** — o único destino de uma falha vira "200 com lista
+  vazia", que o cliente lê como *"você não tem nada"*. Calcule em variável/arquivo, cheque o rc, e
+  **só então** emita (ver `handlers/problems/status.sh` e `owners_emit`).
+- **Armadilha `jq -s A B` com A AUSENTE — DESLOCA as entradas:** se `A` não existe (ou tem 0 byte), o
+  jq só reclama no stderr (engolido pelo `2>/dev/null`), **não aborta**, e `.[0]` passa a ser **B**. O
+  programa devolve um `{"problems":[]}` **válido** e a guarda `[[ -n "$out" ]]` não dispara. Use
+  **`--slurpfile`** (erra se o arquivo não abre) e valide o arquivo antes. Guard:
+  `server/test/smoke-owners-index.sh`.
+- **Modo de arquivo do PACOTE é canônico (644/755), NUNCA o umask do processo.** O fcgiwrap roda com
+  `umask 007` (p/ o socket unix nascer 0770), então tudo que a API gravava saía **660** enquanto o
+  mesmo pacote vindo de `moj upload` (tar+rsync) saía **644** — e como o `tl-checksum` inclui o
+  **modo** de `scripts/*`, o MESMO conteúdo dava checksum diferente conforme o caminho (⇒ recalibração
+  espúria). Toda escrita de pacote passa por **`_pkg_canon_modes`** (`lib/problems.sh`); pacote antigo
+  se conserta com `server/bin/normalize-pkg-modes.sh --apply`.
+- **Corpo GRANDE (pacote de problema) vai em ARQUIVO, nunca em variável:** use **`read_body_file`** e
+  `jq … < "$f"`. Cada `jq … <<<"$body"` é um here-string: o bash **regrava o corpo inteiro** num temp
+  e o jq **re-parseia tudo**. O `/problems/edit` fazia isso **36 vezes** (~50 s de CPU e 3,6 GB de
+  I/O num pacote de 84 MB) e lia os testes de um **pipe** — e o `read` do bash sobre pipe faz **1
+  syscall por byte** (1,74 MB/s medido). Resultado: 504 do nginx aos 120 s **com o pacote pela
+  metade**. Padrão certo: 1 passada de jq p/ um manifesto (`@sh` + `eval`), streams **NUL**
+  (`--raw-output0`) gravados em ARQUIVO e `while IFS= read -r -d ''` lendo **do arquivo** (fd seekable
+  ⇒ o bash lê em bloco). Medido: 244 s ⇒ 9,7 s num pacote de 140 MB.
 - **Armadilha `grep -c` (causou outage 502):** `grep -c` IMPRIME a contagem (`0`) **e SAI com código
   1** quando não há match. NUNCA escreva `grep -c … || echo 0` (retorna `"0\n0"` → estoura `(( … ))`
   e **inunda o stderr**; sob fcgiwrap o pipe de stderr enche, a escrita bloqueia e o **worker trava** →

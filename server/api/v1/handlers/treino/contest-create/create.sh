@@ -10,11 +10,14 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 source "$_LIBDIR/problems.sh"
 pids="$(jq -c '[.problems[]? | (.bank_id // .problem_id // "") | gsub("/";"#") | select(.!="")]' <<<"$body")"
 if [[ "$pids" != "[]" ]]; then
-  denied="$(owners_merged | jq -r --argjson pids "$pids" --arg me "$SESSION_LOGIN" '
+  # owners_merged FORA do pipe: índice quebrado tem de virar 503. Dentro do `$(… | jq)` a falha
+  # virava lista vazia => "nada negado" (FAIL-OPEN: problema PRIVADO de terceiro entrava no contest).
+  _om="$(owners_merged)" || fail 503 "Índice de problemas indisponível — tente de novo em instantes" "index_unavailable"
+  denied="$(jq -r --argjson pids "$pids" --arg me "$SESSION_LOGIN" '
     (.problems | map({key:.id, value:.}) | from_entries) as $by
     | [ $pids[] | . as $id | ($by[$id]) as $p
         | select($p != null and $p.owner != $me and ((($p.collaborators // [])|index($me))|not) and ($p.public|not)) | $id ]
-    | unique | join(", ")' 2>/dev/null)"
+    | unique | join(", ")' <<<"$_om" 2>/dev/null)"
   [[ -n "$denied" ]] && fail 403 "Sem acesso a problema(s) privado(s): $denied" "problem_denied"
 fi
 

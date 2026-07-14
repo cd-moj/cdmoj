@@ -14,6 +14,12 @@ set -euo pipefail
 # um nginx que rode como OUTRO usuário (www-data, do nginx do sistema) leva EACCES no connect()
 # e a API vira 502. 007 => 0770 (dono + GRUPO) e basta pôr o usuário do nginx no grupo do dono
 # (`usermod -aG <dono> www-data`; o nginx faz initgroups()). Ver docs/DEPLOY.md.
+#
+# ATENÇÃO: este umask vale p/ o SOCKET — e, como o fcgiwrap o passa adiante, p/ tudo que os handlers
+# gravam. NÃO é ele quem define o modo do PACOTE: todo arquivo de pacote é normalizado p/ 644/755
+# por `_pkg_canon_modes` (lib/problems.sh), nos DOIS caminhos (push e upload). Foi preciso porque o
+# `tl-checksum` inclui o MODO de scripts/*: com 660 pelo push e 644 pelo upload, o MESMO conteúdo
+# gerava checksum diferente => recalibração espúria.
 : "${FCGI_UMASK:=007}"
 
 # dirs de runtime (nos volumes). sessions = 700 (tokens).

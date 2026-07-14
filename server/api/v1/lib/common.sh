@@ -138,6 +138,13 @@ regen_locked() {
 # --- util -----------------------------------------------------------------
 urldecode() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
 read_body(){ cat -; }
+# read_body_file — grava o corpo num ARQUIVO temporário e ecoa o CAMINHO. Obrigatório nos POSTs
+# GRANDES (o pacote de um problema chega a 100+ MB de JSON). Com o corpo numa VARIÁVEL, cada
+# `jq … <<<"$body"` é um here-string: o bash REGRAVA os 100 MB num temp e o jq RE-PARSEIA tudo —
+# o handler de push fazia isso 36 vezes (~50s de CPU + 3,6 GB de I/O) e estourava o
+# fastcgi_read_timeout, deixando o pacote META-APLICADO. Com o corpo em arquivo, todo jq lê o
+# arquivo direto (`jq … < "$f"`) e dá p/ passar por --slurpfile. Quem chama remove o arquivo.
+read_body_file(){ local f; f="$(mktemp)"; cat - > "$f"; printf '%s' "$f"; }
 # render_markdown_html: markdown do stdin -> fragmento HTML no stdout (pandoc 3.x).
 # raw_html DESABILITADO (conteúdo público; impede <script> injetado); math via --mathml.
 # Usado pelas notícias/posts (detalhe e preview do editor).

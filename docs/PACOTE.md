@@ -245,6 +245,11 @@ script: `compare.sh`/`prep.sh` rodam **no host** (fora da jaula) e viram **erro 
 os testes**; `run.sh`/`compile.sh` são montados na jaula e viram Compilation Error. O
 `validate-problem.sh` reprova o pacote (`scripts_exec`) antes que isso aconteça.
 
+**Modo dos arquivos: 644 (ou 755 com `+x`), sempre.** O servidor normaliza em toda escrita, pelos dois
+caminhos (`moj push` e `moj upload`) — não é o umask do processo que decide. Isso importa porque o
+`tl-checksum` inclui o **modo** de `scripts/*`: se o mesmo conteúdo entrar com modo diferente conforme
+o caminho, o juiz vê "pacote mudou" e **recalibra à toa**.
+
 **Mexer em `scripts/` obriga a recalibrar** (seção 10).
 
 O guia completo (submissão de função, proibir funções da biblioteca, checker com testlib, problema
@@ -329,6 +334,14 @@ pacote e é commitado junto com ele.
 
 Quem escreve é o **servidor**, sempre (função `write_meta`, em `server/api/v1/lib/problems.sh`). Nem
 o autor nem a CLI editam este arquivo à mão: eles mandam os campos pela API, e o servidor grava.
+
+**No `moj upload` (o pacote sobe num tar), o servidor separa os campos em dois grupos:**
+
+- **conteúdo** — `display_title` e `collections`: **vêm do `.moj-meta.json` do tar** (é o pacote que
+  sabe como o problema se chama). Ausentes ⇒ o servidor **preserva** o que já tinha.
+- **acesso** — `public`, `public_at` e `owner`: **nunca** vêm do tar; só as rotas próprias os mudam
+  (`/problems/set-public` etc.). Se viessem, bastava baixar um problema público, adaptá-lo para uma
+  prova numa org privada e dar `moj upload` — a próxima indexação publicaria a prova.
 
 Exemplo real (`moj-problems/apc/seno/.moj-meta.json`):
 

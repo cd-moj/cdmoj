@@ -75,7 +75,27 @@ else
     || fail 500 "Falha ao gravar o pacote (tar)" "pkg_write_failed"
 fi
 owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
-write_meta "$pdir" "$owner" "$org" "$pub_srv" "" ""     # public EXPLÍCITO: o do servidor, não o do tar
+
+# TÍTULO e COLEÇÕES vêm do PACOTE (o `.moj-meta.json` do tar): são campos de CONTEÚDO. Só
+# `public`/`public_at`/`owner` são de ACESSO e continuam IGNORADOS do tar (é o furo que o --exclude
+# fecha). Sem isto, todo problema NOVO subido por upload entrava com o título = NOME DA PASTA e sem
+# coleção: o write_meta só PRESERVA o que o servidor já tem, e problema novo não tem nada — e o
+# .moj-meta.json do tar, que traz o título certo, tinha acabado de ser descartado pelo --exclude.
+tar_title=""; tar_colls=""
+if [[ -f "$src/.moj-meta.json" ]] && jq -e . "$src/.moj-meta.json" >/dev/null 2>&1; then
+  tar_title="$(jq -r '.display_title // empty' "$src/.moj-meta.json" 2>/dev/null)"
+  tar_colls="$(jq -c '[.collections[]? | select(type=="string")]' "$src/.moj-meta.json" 2>/dev/null)"
+  [[ "$tar_colls" == "[]" ]] && tar_colls=""      # sem coleção no tar => não mexe nas do servidor
+fi
+coll_register "$org" "$SESSION_LOGIN"             # a coleção homônima da org é sempre válida (= create)
+# CURADA: coleção marcada tem de EXISTIR no registro (mesma trava do /problems/edit)
+if [[ -n "$tar_colls" ]]; then
+  while IFS= read -r cn; do [[ -n "$cn" ]] || continue
+    coll_exists "$cn" || fail 400 "Coleção '$cn' não existe — crie antes (moj collection create)" "coll_unknown"
+  done < <(jq -r '.[]?' <<<"$tar_colls")
+fi
+write_meta "$pdir" "$owner" "$org" "$pub_srv" "$tar_colls" "$tar_title"   # public: o do SERVIDOR
+_pkg_canon_modes "$pdir"   # 644/755 — o mesmo modo do caminho do push (o tl-checksum inclui o modo)
 [[ -f "$pdir/problem.yaml" ]] || bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true
 
 sha="$(problem_commit "$pdir" "$SESSION_LOGIN" "upload do pacote: $prob")"
