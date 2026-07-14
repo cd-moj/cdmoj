@@ -14,11 +14,12 @@ Image=localhost/moj-server:prod
 # `podman auto-update` reinicia quando a imagem :prod local muda (build ou pull re-tagueado).
 AutoUpdate=local
 Exec=api
-# INIT (tini como PID 1): sem ele o fcgiwrap vira o PID 1 do container e passa a ADOTAR os órfãos
-# de todo handler (bash + jq + git); a contabilidade do `prefork` dele se perde e o processo-PAI
-# entra em BUSY LOOP de wait4 — medido: 32.683 chamadas/s, 100% de um core, desde o boot, sem
-# tráfego nenhum. O tini reapa os órfãos e o fcgiwrap só espera pelos filhos DELE.
-Init=yes
+# INIT (tini como PID 1 — a chave do quadlet é RunInit, NÃO `Init`: com o nome errado o gerador
+# rejeita o arquivo e a unit simplesmente NÃO EXISTE): sem init, o fcgiwrap vira o PID 1 do container
+# e passa a ADOTAR os órfãos de todo handler (bash + jq + git); a contabilidade do `prefork` dele se
+# perde e o processo-PAI entra em BUSY LOOP de wait4 — medido: 32.683 chamadas/s, 100% de um core,
+# desde o boot, sem tráfego nenhum. O tini reapa os órfãos e o fcgiwrap só espera pelos filhos DELE.
+RunInit=yes
 # Estado por volume, rótulo SELinux :z (SHARED — o nginx do host e o moj-judged mantêm acesso).
 # NÃO usar :Z (privado) nem User=/UserNS=keep-id (quebraria o dono dos arquivos nos volumes).
 Volume=@WORKROOT@/run:/data/run:z
