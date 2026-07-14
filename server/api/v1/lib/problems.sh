@@ -179,6 +179,10 @@ _need_orgs(){ declare -F org_is_member >/dev/null || source "$(dirname "${BASH_S
 problem_commit(){
   local pkg="$1" login="${2:-moj}" msg="${3:-update}" em="${2:-moj}@moj.local" lk
   [[ -d "$pkg" ]] || return 1
+  # Modo canônico AQUI, no último passo de TODA escrita: o apply_problem_fields já normaliza, mas
+  # quem grava DEPOIS dele (write_meta, o sidecar do Kattis: problem.yaml/.kattis.json) pegava o
+  # `umask 007` do fcgiwrap e saía 660. Aqui nada escapa — o que vai p/ o commit está em 644/755.
+  _pkg_canon_modes "$pkg"
   mkdir -p "${RUNDIR:-/home/ribas/moj/run}/locks" 2>/dev/null
   lk="${RUNDIR:-/home/ribas/moj/run}/locks/$(printf '%s' "$pkg" | md5sum 2>/dev/null | cut -c1-24).lock"
   (
