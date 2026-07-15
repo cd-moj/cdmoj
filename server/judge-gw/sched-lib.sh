@@ -316,14 +316,27 @@ cal_request() {
 idx_request() { upd_request "$1" "$3" "index $2" index "$2"; }
 
 # upd_claim <host> : reivindica 1 update pendente (atômico) e o ecoa, ou nada.
+# SERIALIZAÇÃO POR PROBLEMA: calibrate cujo target JÁ está em execução (em QUALQUER host)
+# fica esperando em pending — nunca dois slots/hosts calibrando o MESMO problema ao mesmo
+# tempo (duplicata pendente só sai depois, e o agente a resolve num skip se o pedido for
+# mais velho que a calibração concluída). O loop segue p/ o próximo pendente (outro problema
+# não é bloqueado).
 upd_claim() {
-  local host="$1" f base dest
+  local host="$1" f base dest t busy
   valid_hostname "$host" || return 1
   mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress/$host" 2>/dev/null
   (
     flock 9 || exit 0
     while IFS= read -r f; do
       [[ -f "$f" ]] || continue
+      if jq -e '.kind=="calibrate"' "$f" >/dev/null 2>&1; then
+        t="$(jq -r '.target // ""' "$f" 2>/dev/null)"
+        if [[ -n "$t" ]]; then
+          busy="$(find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null \
+                  | jq -r --arg t "$t" 'select(.kind=="calibrate" and .target==$t) | .reqid' 2>/dev/null | head -n1)"
+          [[ -n "$busy" ]] && continue   # já calibrando em algum lugar: espera a vez
+        fi
+      fi
       base="$(basename "$f")"; dest="$UPDATESDIR/inprogress/$host/$base"
       if mv "$f" "$dest" 2>/dev/null; then
         local tmp="$dest.tmp"   # carimba claimed_at p/ o upd_reconcile detectar pedido preso

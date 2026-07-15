@@ -149,11 +149,14 @@ os agentes mortos a fila simplesmente pausa (nada expira errado).
 ## Invariantes anti-wedge (incidente 2026-07-15)
 
 1. **Calibração é idempotente** (`cal_request` dedup, seção acima) — re-disparar não multiplica.
-2. **Um problema calibra 1× por máquina e todos os slots usam o MESMO `tl.<host>`**: o agente
-   serializa por-problema (flock) e dedupa INCLUSIVE calibração full concorrente (pula se uma
-   full do mesmo checksum completou enquanto esperava o lock). O `tl.<host>`/`tl` do pacote são
-   substituídos ATOMICAMENTE pelo calibreitor (leitor nunca vê placeholder/tabela rasgada) e a
-   tabela de trabalho da calibração é privada (`MOJ_TLFILE`).
+2. **Um problema calibra 1× por vez, plataforma inteira**: o `upd_claim` NÃO entrega calibração
+   cujo target já está em execução em QUALQUER host (a duplicata espera em pending — nunca dois
+   slots "calibrando o mesmo problema" na UI); no agente, o flock por-problema serializa e o
+   full DEDUPA por checksum+época — pula se uma full do MESMO checksum completou enquanto
+   esperava o lock OU se o PEDIDO é mais velho que ela (`requested_at <= calibrated_at`;
+   checksum NOVO sempre recalibra — pedido novo deliberado também). O `tl.<host>`/`tl` do
+   pacote são substituídos ATOMICAMENTE pelo calibreitor (leitor nunca vê placeholder/tabela
+   rasgada) e a tabela de trabalho da calibração é privada (`MOJ_TLFILE`).
 3. **Nenhum job roda sem teto**: wall-clock dinâmico + SIGKILL do process group no agente.
 4. **Recuperação sem SSH**: `/ops/judge-reset` (kill|restart, furando o gate de ocupado) +
    `/ops/calib-cancel` (purga pendentes). `disable` continua sendo só drenagem (não é recovery).
