@@ -418,18 +418,36 @@ function makeQueueTab() {
     const machines = judges.machines || [];
     if (machines.length) {
       const mtb = el('tbody');
+      // idade do job (since = assigned_at/claimed_at, EPOCH) — job preso fica óbvio sem conta manual
+      const fmtAge = (since) => {
+        if (!since) return '';
+        const s = Math.max(0, Math.floor(Date.now() / 1000 - since));
+        const mm = Math.floor(s / 60);
+        return mm >= 1 ? T(' · há ' + mm + 'm', ' · for ' + mm + 'm') : T(' · há ' + s + 's', ' · for ' + s + 's');
+      };
       machines.forEach(m => {
-        const cur = m.current || null;
+        // TODOS os segmentos/slots (current_jobs) — m.current é só o 1º (compat) e escondia o resto
+        const jobs = Array.isArray(m.current_jobs) && m.current_jobs.length ? m.current_jobs : (m.current && m.current.kind ? [m.current] : []);
+        const jobLine = (cur) => {
+          if (!cur || !cur.kind) return null;
+          const age = el('span', { class: 'small muted' }, fmtAge(cur.since));
+          if (cur.kind === 'submission') return el('div', {}, T('📥 submissão · ', '📥 submission · '), el('b', {}, cur.problem_id || '?'), cur.login ? el('span', { class: 'small muted' }, ' · ' + cur.login) : '', age);
+          if (cur.kind === 'calibrate') return el('div', {}, T('⚙ calibração · ', '⚙ calibration · '), el('b', {}, cur.problem_id || '?'), age);
+          if (cur.kind === 'index') return el('div', {}, T('🗂 indexação · ', '🗂 indexing · '), el('b', {}, cur.problem_id || '?'), age);
+          if (cur.kind === 'draining') return el('div', { class: 'muted small' }, T('⏸ drenando (config nova a aplicar)', '⏸ draining (new config pending)'));
+          if (cur.kind === 'disabled') return el('div', { class: 'muted small' }, T('⏸ desabilitada pelo admin', '⏸ disabled by admin'));
+          if (cur.kind === 'unknown_busy') return el('div', { class: 'muted small' }, T('⚠ ocupada sem job atribuído — use `moj judges reset`', '⚠ busy with no attributed job — use `moj judges reset`'));
+          return el('div', { class: 'muted small' }, T('ocupada (calibração direcionada)', 'busy (targeted calibration)'));
+        };
         let job;
-        if (!cur || !cur.kind) job = el('span', { class: 'muted small' }, m.online ? (m.busy ? T('ocupada', 'busy') : T('livre', 'free')) : 'offline');
-        else if (cur.kind === 'submission') job = el('span', {}, T('📥 submissão · ', '📥 submission · '), el('b', {}, cur.problem_id || '?'), cur.login ? el('span', { class: 'small muted' }, ' · ' + cur.login) : '');
-        else if (cur.kind === 'calibrate') job = el('span', {}, T('⚙ calibração · ', '⚙ calibration · '), el('b', {}, cur.problem_id || '?'));
-        else if (cur.kind === 'index') job = el('span', {}, T('🗂 indexação · ', '🗂 indexing · '), el('b', {}, cur.problem_id || '?'));
-        else job = el('span', { class: 'muted small' }, T('ocupada (calibração direcionada)', 'busy (targeted calibration)'));
+        if (!jobs.length) job = el('span', { class: 'muted small' }, m.online ? (m.busy ? T('ocupada', 'busy') : T('livre', 'free')) : 'offline');
+        else { job = el('div', {}); jobs.forEach(c => { const l = jobLine(c); if (l) job.append(l); }); }
         const qc = num(m.queued_calibrate);
+        const slotsInfo = (m.slots && m.slots.total > 1 && m.slots.free != null)
+          ? el('div', { class: 'small muted' }, (m.slots.total - m.slots.free) + '/' + m.slots.total + ' slots') : '';
         mtb.append(el('tr', {},
           el('td', {}, '🖧 ' + (m.host || '?')),
-          el('td', {}, m.online ? (m.busy ? T('🟡 ocupada', '🟡 busy') : T('🟢 livre', '🟢 free')) : '🔴 offline'),
+          el('td', {}, m.online ? (m.busy ? T('🟡 ocupada', '🟡 busy') : T('🟢 livre', '🟢 free')) : '🔴 offline', slotsInfo),
           el('td', {}, job),
           el('td', { class: 'small muted' }, qc ? (qc + T(' na fila', ' in queue')) : '—')));
       });
@@ -541,7 +559,9 @@ function makeJudgesTab() {
         const slots = mc.slots || {};
         const nTot = num(slots.total) || 1, nFree = (slots.free == null) ? (mc.busy ? 0 : nTot) : num(slots.free);
         const st = !mc.online ? '🔴 offline'
-          : (nFree === 0 ? T('🟡 ocupada', '🟡 busy') : (nFree < nTot ? `🟡 ${nTot - nFree}/${nTot} slots` : T('🟢 livre', '🟢 free')));
+          : (mc.status === 'draining' ? T('⏸ drenando', '⏸ draining')
+            : (mc.status === 'disabled' ? T('⏸ desabilitada', '⏸ disabled')
+              : (nFree === 0 ? T('🟡 ocupada', '🟡 busy') : (nFree < nTot ? `🟡 ${nTot - nFree}/${nTot} slots` : T('🟢 livre', '🟢 free')))));
         const mem = rep.memory != null ? (num(rep.memory) / 1048576).toFixed(1) + ' GB' : '—';
         const langs = mc.langs || [];
         const cage = mc.cage_root ? '📦 rootfs' : '🖥 host';
@@ -575,9 +595,10 @@ function makeJudgesTab() {
             el('div', {}, (tl.calibrated || 0) + ' ' + ((tl.calibrated === 1) ? T('problema', 'problem') : T('problemas', 'problems'))),
             el('div', { class: 'muted', style: 'font-size:.82em;word-break:break-word;max-width:18ch' },
               tlLangs.length ? ('TL: ' + tlLangs.join(' ')) : T('sem TL ainda', 'no TL yet'))),
-          // cache local: nº de problemas em cache + tamanho + limpar
-          el('td', { class: 'small' },
-            el('div', {}, (cache.problems || 0) + ' probs · ' + cacheMB),
+          // cache local: nº de problemas em cache + tamanho EM DISCO (não é RAM! — a leitura
+          // errada disso custou caro no diagnóstico do incidente 2026-07-15) + limpar
+          el('td', { class: 'small', title: T('Cache de pacotes de problema EM DISCO do juiz (não é uso de RAM)', 'Judge\'s problem-package cache ON DISK (not RAM usage)') },
+            el('div', {}, T('disco: ', 'disk: ') + (cache.problems || 0) + ' probs · ' + cacheMB),
             clearBtn),
           // SLOTS (particionamento): config fina por juiz — o agente aplica após drenar
           el('td', { class: 'small' }, slotsCell(mc))));

@@ -2,10 +2,14 @@
 # Pulso do worker: atualiza last_seen+state e, se o worker tem SLOT livre, reivindica
 # trabalho da fila (por prioridade + capacidade + tem-o-problema) e devolve. É o
 # ESCALONADOR: a atribuição acontece aqui, sem loop nem poll-storm.
-# body: {host, state:"free"|"busy", inv_hash, free_slots?, total_slots?, cfg_hash?}
-#   (agente antigo não manda slots: free_slots = state==free ? 1 : 0)
+# body: {host, state:"free"|"busy", inv_hash, free_slots?, total_slots?, cfg_hash?,
+#        status?:"ok"|"draining"|"disabled"}
+#   (agente antigo não manda slots: free_slots = state==free ? 1 : 0; status distingue
+#    "drenando/desabilitado" de "rodando job" — fim do unknown_busy indecifrável)
 # resp: {success, assigned:[<job>…]|<job>|null, update, command, reregister,
 #        config?:{partition,reserve,disabled,cfg_hash}}
+#   command URGENTE (action kill|restart, de /ops/judge-reset) é entregue MESMO com o juiz
+#   ocupado/desabilitado — canal de recuperação sem SSH.
 #   assigned é ARRAY (lote de até free_slots jobs); p/ agente ANTIGO também aceita o
 #   1º como escalar (o agente novo trata os dois). config só vem quando o cfg_hash do
 #   agente difere do vigente (config por juiz de contests/treino/var/judges-config.json,
@@ -26,17 +30,24 @@ free_slots="$(jq -r '.free_slots // empty' <<<"$body")"
 [[ "$free_slots" =~ ^[0-9]+$ ]] || { batch=false; free_slots=0; [[ "$state" == free ]] && free_slots=1; }
 total_slots="$(jq -r '.total_slots // 1' <<<"$body")"; [[ "$total_slots" =~ ^[0-9]+$ ]] || total_slots=1
 agent_cfg_hash="$(jq -r '.cfg_hash // ""' <<<"$body")"
+agent_status="$(jq -r '.status // ""' <<<"$body")"
+[[ "$agent_status" =~ ^(ok|draining|disabled)$ ]] || agent_status=""
 
 # worker desconhecido (registro expirou) -> pede re-registro
 if ! reg_touch_state "$host" "$state"; then
   ok_json '{assigned:null, reregister:true}'
   exit 0
 fi
+# status honesto do agente novo (UI/CLI mostram "drenando" em vez de unknown_busy)
+[[ -n "$agent_status" ]] && reg_set "$host" '.status=$s' --arg s "$agent_status" 2>/dev/null || true
 
 # manutenção barata e auto-throttled (promove famintos, requeue de jobs E calibrações de mortos)
 q_promote_starved
 q_reconcile
 upd_reconcile
+# agente NOVO (manda status) vivo: re-carimba as calibrações em execução dele — calibração longa
+# LEGÍTIMA (> UPD_TTL) não é re-enfileirada em duplicidade; o TTL vira proteção só de host morto.
+[[ -n "$agent_status" ]] && upd_touch_host "$host"
 
 # inventário mudou? pede re-registro
 stored_hash="$(jq -r '.inv_hash // empty' "$REGISTRYDIR/$host.json" 2>/dev/null)"
@@ -45,27 +56,24 @@ reregister=false
 
 # CONFIG por juiz (estado desejado do admin): entrega quando o hash do agente difere.
 # Sem entrada p/ o host, o default é {partition:off,reserve:0,disabled:false} com hash "".
+# Fonte única do objeto/hash: judges_config_for (o register entrega o MESMO no boot).
 config=null
-JCONF="${JUDGES_CONFIG_FILE:-$CONTESTSDIR/treino/var/judges-config.json}"
-entry="$(jq -c --arg h "$host" '.[$h] // empty' "$JCONF" 2>/dev/null)"
-if [[ -n "$entry" ]]; then
-  srv_hash="$(printf '%s' "$entry" | md5sum | cut -c1-16)"
-else
-  srv_hash=""
-fi
-disabled=false
-if [[ "$agent_cfg_hash" != "$srv_hash" ]]; then
-  config="$(jq -cn --argjson e "${entry:-null}" --arg hh "$srv_hash" \
-    '{partition:($e.partition // "off"), reserve:($e.reserve // 0),
-      disabled:($e.disabled // false), cfg_hash:$hh}')"
-fi
-[[ -n "$entry" ]] && disabled="$(jq -r '.disabled // false' <<<"$entry" 2>/dev/null)"
+cfgj="$(judges_config_for "$host")"
+srv_hash="$(jq -r '.cfg_hash // ""' <<<"$cfgj")"
+disabled="$(jq -r '.disabled // false' <<<"$cfgj")"
+[[ "$agent_cfg_hash" != "$srv_hash" ]] && config="$cfgj"
 
 assigned=null
 update=null
 command=null
 claimed=0
-if [[ "$disabled" != true ]] && (( free_slots > 0 )); then
+# comando URGENTE (kill/restart) FURA o gate de ocupado/desabilitado: um juiz wedgado com os
+# slots presos nunca teria free_slots>0 — e era exatamente ele que precisava receber o reset.
+ucmd="$(cmd_claim_urgent "$host" 2>/dev/null)"
+if [[ -n "$ucmd" ]] && jq -e . >/dev/null 2>&1 <<<"$ucmd"; then
+  command="$ucmd"
+fi
+if [[ "$command" == null && "$disabled" != true ]] && (( free_slots > 0 )); then
   # 0) comando por-host do admin (ex.: limpar cache) tem precedência e é exclusivo do beat
   cmd="$(cmd_claim "$host" 2>/dev/null)"
   if [[ -n "$cmd" ]] && jq -e . >/dev/null 2>&1 <<<"$cmd"; then

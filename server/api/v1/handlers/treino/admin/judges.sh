@@ -33,6 +33,7 @@ while IFS= read -r rf; do
   # pode ficar órfão até o TTL — não pintar job fantasma numa máquina offline).
   # multi-slot: TODOS os jobs correntes (assigned/<host>/* + updates in-progress), não só o 1º
   cur='null'; curs='[]'
+  ast="$(jq -r '.status // ""' <<<"$j" 2>/dev/null)"   # status honesto do agente novo (ok|draining|disabled)
   if [[ "$on" == true ]]; then
     curs="$(find "$ASSIGNEDDIR/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
       | jq -sc 'map({kind:"submission", problem_id:(.problem_id//.id//""), login:(.login//""), contest:(.contest//""), lang:(.lang//""), since:(.assigned_at//null)})' 2>/dev/null)"
@@ -40,7 +41,15 @@ while IFS= read -r rf; do
     upf="$(find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
       | jq -sc 'map({kind:(.kind//"update"), problem_id:(.target//""), by:(.requested_by//""), since:(.claimed_at//null)})' 2>/dev/null)"
     [[ -n "$upf" && "$upf" != '[]' ]] && curs="$(jq -c --argjson u "$upf" '. + $u' <<<"$curs" 2>/dev/null)"
-    if [[ "$curs" == '[]' && "$bz" == true ]]; then curs='[{"kind":"unknown_busy"}]'; fi
+    if [[ "$curs" == '[]' && "$bz" == true ]]; then
+      # busy sem job atribuído: agente novo DIZ o porquê (draining/disabled); sem status
+      # (agente antigo) continua o unknown_busy de sempre (dica: moj judges reset)
+      case "$ast" in
+        draining) curs='[{"kind":"draining"}]' ;;
+        disabled) curs='[{"kind":"disabled"}]' ;;
+        *)        curs='[{"kind":"unknown_busy"}]' ;;
+      esac
+    fi
     jq -e 'type=="array"' >/dev/null 2>&1 <<<"$curs" || curs='[]'
     cur="$(jq -c '.[0] // null' <<<"$curs" 2>/dev/null)"   # compat: 1º job no campo antigo
   fi
@@ -48,8 +57,9 @@ while IFS= read -r rf; do
   qcal="$(find "$CMDDIR/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null | jq -s '[.[]|select(.action=="calibrate")]|length' 2>/dev/null)"; qcal="${qcal//[^0-9]/}"; qcal="${qcal:-0}"
   jcfg="$(jq -c --arg h "$host" '.[$h] // null' "$JCONF" 2>/dev/null)"; [[ -n "$jcfg" ]] || jcfg='null'
   ms+=("$(jq -c --argjson on "$on" --argjson bz "$bz" --argjson tl "$tlsum" --argjson cur "$cur" \
-          --argjson curs "$curs" --argjson qcal "$qcal" --argjson jcfg "$jcfg" '{
+          --argjson curs "$curs" --argjson qcal "$qcal" --argjson jcfg "$jcfg" --arg ast "$ast" '{
       host:.host, port:null, online:$on, busy:$bz, last_seen:(.last_seen//0),
+      status:(if $ast=="" then null else $ast end),
       langs:(.langs // []), cage_root:(.cage_root // null),
       cache:{problems:(.problems_count // ((.problems//{})|length)), bytes:(.cache_bytes // 0)},
       tl:($tl[.host] // {calibrated:0, langs:[]}),

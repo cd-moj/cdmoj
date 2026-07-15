@@ -5,6 +5,7 @@
 # claim atômico por flock+mv. Sem DB/broker. NÃO usa globs (a API roda com -o noglob).
 
 : "${RUNDIR:=/home/ribas/moj/run}"
+: "${CONTESTSDIR:=/home/ribas/moj/contests}"
 : "${REGISTRYDIR:=$RUNDIR/registry}"        # <host>.json por worker (vivo = last_seen recente)
 : "${QUEUEDIR:=$RUNDIR/queue}"              # bandas de prioridade
 : "${ASSIGNEDDIR:=$RUNDIR/assigned}"        # <host>/<ts>_<id>.json reivindicados
@@ -77,6 +78,47 @@ reg_set() {
 }
 
 reg_get() { local f="$REGISTRYDIR/$1.json"; [[ -f "$f" ]] && cat "$f"; }
+
+# judges_config_for <host> : ecoa a config VIGENTE do juiz {partition,reserve,disabled,cfg_hash}
+# (de judges-config.json; sem entrada => defaults com hash ""). Fonte única p/ heartbeat E
+# register — os dois entregam exatamente o mesmo objeto/hash.
+judges_config_for() {
+  local host="$1" jconf entry srv_hash
+  jconf="${JUDGES_CONFIG_FILE:-$CONTESTSDIR/treino/var/judges-config.json}"
+  entry="$(jq -c --arg h "$host" '.[$h] // empty' "$jconf" 2>/dev/null)"
+  if [[ -n "$entry" ]]; then srv_hash="$(printf '%s' "$entry" | md5sum | cut -c1-16)"; else srv_hash=""; fi
+  jq -cn --argjson e "${entry:-null}" --arg hh "$srv_hash" \
+    '{partition:($e.partition // "off"), reserve:($e.reserve // 0),
+      disabled:($e.disabled // false), cfg_hash:$hh}'
+}
+
+# sched_requeue_host <host> : devolve à fila TUDO que estava atribuído ao host — jobs
+# (assigned/<host>/ -> banda de origem) e calibrações (updates/inprogress/<host>/ -> pending).
+# Usado pelo register boot:true: um agente que REINICIOU devolve o trabalho em voo NA HORA
+# (os processos morreram no restart), sem esperar ASSIGN_TTL/UPD_TTL — restart não perde fila.
+sched_requeue_host() {
+  local host="$1" f base id prio band now=$EPOCHSECONDS
+  valid_hostname "$host" || return 1
+  sched_init_dirs; mkdir -p "$UPDATESDIR/pending" 2>/dev/null
+  (
+    flock 9 || exit 0
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      base="$(basename "$f")"; id="${base#*_}"; id="${id%.json}"
+      prio="$(jq -r '.priority // "lista-publica"' "$f" 2>/dev/null)"
+      band="$(sched_band_of "$prio")"
+      mv -f "$f" "$QUEUEDIR/$band/${now}_${id}.json" 2>/dev/null
+    done < <(find "$ASSIGNEDDIR/$host" -maxdepth 1 -name '*.json' 2>/dev/null)
+  ) 9>"$QUEUEDIR/.lock"
+  (
+    flock 9 || exit 0
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      mv -f "$f" "$UPDATESDIR/pending/$(basename "$f")" 2>/dev/null
+    done < <(find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' 2>/dev/null)
+  ) 9>"$UPDATESDIR/.lock"
+  return 0
+}
 
 # reg_live_hosts [state] [capability] : hosts vivos (last_seen >= now-REG_TTL), 1/linha.
 reg_live_hosts() {
@@ -294,6 +336,21 @@ upd_claim() {
 
 upd_done() { rm -f "$UPDATESDIR/inprogress/$1/$2.json" 2>/dev/null; }   # $1=host $2=reqid
 
+# upd_touch_host <host> : re-carimba claimed_at das calibrações em execução deste host.
+# Chamado a cada heartbeat de agente NOVO (que manda `status` e tem teto dinâmico + kill):
+# enquanto o juiz está VIVO, uma calibração longa LEGÍTIMA (que pode passar de UPD_TTL) não é
+# re-enfileirada — o UPD_TTL vira proteção só contra host morto/agente antigo. (Agente novo
+# nunca deixa claim órfão: o boot re-enfileira e o teto mata+reporta job preso.)
+upd_touch_host() {
+  local host="$1" f tmp
+  [[ -d "$UPDATESDIR/inprogress/$host" ]] || return 0
+  while IFS= read -r f; do
+    tmp="$f.tmp"
+    jq -c --argjson now "$EPOCHSECONDS" '.claimed_at=$now' "$f" > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
+  done < <(find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' 2>/dev/null)
+  return 0
+}
+
 # upd_reconcile : devolve à fila (pending) calibrações que ficaram presas em inprogress —
 # host morreu (reiniciou no meio) ou passou de UPD_TTL sem terminar. Sem isto, uma calibração
 # interrompida trava p/ sempre e a fila seca ("calibração não é refeita"). Auto-throttle (~15s).
@@ -349,6 +406,22 @@ cmd_request() {  # <host> <action> [by] [problem-id] -> ecoa o cmdid
   jq -cn --arg id "$cmdid" --arg a "$action" --arg by "$by" --arg t "$target" --argjson now "$EPOCHSECONDS" \
      '{cmdid:$id, action:$a, by:$by, at:$now} + (if $t=="" then {} else {id:$t} end)' > "$tmp" && mv -f "$tmp" "$CMDDIR/$host/$cmdid.json"
   printf '%s' "$cmdid"
+}
+cmd_claim_urgent() {  # <host> : reivindica 1 comando URGENTE (kill|restart), deixando os demais.
+  # Entregue MESMO com o juiz ocupado/desabilitado — é o canal de recuperação sem SSH
+  # (`moj judges reset/restart`) que faltou no incidente 2026-07-15.
+  local host="$1" f a
+  valid_hostname "$host" || return 1
+  [[ -d "$CMDDIR/$host" ]] || return 0
+  (
+    flock 9 || exit 0
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      a="$(jq -r '.action // ""' "$f" 2>/dev/null)"
+      [[ "$a" == kill || "$a" == restart ]] || continue
+      cat "$f"; rm -f "$f"; exit 0
+    done < <(find "$CMDDIR/$host" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
+  ) 9>"$CMDDIR/$host/.lock"
 }
 cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove), atômico.
   local host="$1" f

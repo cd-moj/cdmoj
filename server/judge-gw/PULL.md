@@ -8,17 +8,24 @@ inventário e **puxam jobs no heartbeat**. O escalonador é o próprio handler d
 
 ```
  Juiz (agent, só curl de saída)            API (nginx+fcgiwrap, server/api/v1)
-  POST /judge/register  ─────────────▶  handlers/judge/register.sh  ─▶ run/registry/<host>.json
+  POST /judge/register(…, boot?) ────▶  handlers/judge/register.sh  ─▶ run/registry/<host>.json
+        ◀── {registered, config:{partition,reserve,disabled,cfg_hash}} ──
+        (boot:true = restart do agente ⇒ o servidor RE-ENFILEIRA o que estava atribuído ao
+         host — jobs e calibrações; e o agente adota a config ANTES do 1º heartbeat)
   GET  /judge/package-meta?id ───────▶  handlers/judge/package-meta.sh ─▶ {checksum} (afeta-TL)
   GET  /judge/package?id ────────────▶  handlers/judge/package.sh   ─▶ .tar.gz + X-Moj-Checksum
   ...cacheia em ~/.cache/moj/problems/<id>, CALIBRA na 1ª vez (calibreitor → tl.<host>)...
   POST /judge/tl-report(id,checksum,tl)▶ handlers/judge/tl-report.sh ─▶ run/tl/<id>.json (por host)
-  POST /judge/heartbeat(state,inv,free_slots,total_slots,cfg_hash) ─▶ heartbeat.sh = ESCALONADOR
+  POST /judge/heartbeat(state,inv,free_slots,total_slots,cfg_hash,status) ─▶ heartbeat.sh = ESCALONADOR
         ◀── {assigned:[…]|null, update|null, command|null, reregister, config?} ──
-        (claim atômico; LOTE de até free_slots jobs; config por juiz quando o cfg_hash difere)
+        (claim atômico; LOTE de até free_slots jobs; config por juiz quando o cfg_hash difere;
+         status ∈ ok|draining|disabled = auto-relato honesto; comando URGENTE kill|restart é
+         entregue MESMO ocupado — recuperação sem SSH, /ops/judge-reset)
   ...julga com mojtools no CACHE local (tl.<host>): N SLOTS em paralelo, cada job PINADO
-     no cpuset do slot (partition off|numa|cpus:X + reserve — ver judges-config)...
+     no cpuset do slot (partition off|numa|cpus:X + reserve — ver judges-config), cada um em
+     PROCESS GROUP próprio sob TETO de wall-clock DINÂMICO (TL×testes×margem) com kill...
   POST /judge/result(verdict,verdict_canon,score*,groups?,tests,html_b64) ─▶ handlers/judge/result.sh ─▶ spool "result"
+  POST /judge/update-report(reqid,ok,log_b64) ─▶ update-report.sh ─▶ upd_done (fecha a calibração)
                                                                               │
   submit ─▶ spool ─▶ server/daemons/judged.sh (INTAKE) ─▶ enfileira na banda de prioridade
                      judged.sh (INGESTION do "result") ─▶ history/data/placar (inalterado)
@@ -116,6 +123,59 @@ de X cpus); `reserve` tira as N primeiras cpus dos slots (SO/agente); `disabled`
 `CONTEST_PRIORITY` (escolhido na criação) → banda: `super`(admin) > `prova` >
 `lista-privada` > `rejulgar` > `lista-publica`. Job parado >5 min sobe de banda
 (`q_promote_starved`). PROVA fica alta automaticamente.
+
+## Ciclo de vida, TTLs e quem reconcilia o quê
+
+Toda a fila é **arquivo** sob `run/` (volume compartilhado dos quadlets) — nada vive em memória
+no servidor. Estados de um JOB (submissão): `spool/` → `queue/<banda>/` (q_enqueue) →
+`assigned/<host>/` (q_claim, carimbo `assigned_at`) → resultado no spool (`/judge/result` +
+`q_done`) → `results/<id>.json`. De uma CALIBRAÇÃO: `updates/pending/` (`cal_request`,
+**idempotente**) → `updates/inprogress/<host>/` (upd_claim, carimbo `claimed_at`) → fechada por
+`/judge/update-report` (`upd_done`). Comandos por-host: `commands/<host>/` (`cmd_request`;
+urgentes kill|restart furam o gate de ocupado via `cmd_claim_urgent`).
+
+| mecanismo | quando devolve à fila | roda onde |
+|---|---|---|
+| `q_reconcile` | host fora de `reg_live_hosts` (sem beat há `REG_TTL`=30s) OU `assigned_at` > `ASSIGN_TTL`=120s | a cada heartbeat (throttle ~15s) |
+| `upd_reconcile` | host morto OU `claimed_at` > `UPD_TTL`=1800s | a cada heartbeat (throttle ~15s) |
+| `upd_touch_host` | (o oposto) re-carimba `claimed_at` das calibrações do host a cada beat de agente NOVO — calibração longa LEGÍTIMA não é re-enfileirada; o `UPD_TTL` vira proteção só de host morto/agente antigo | a cada heartbeat |
+| register `boot:true` | **na hora**: restart do agente devolve TUDO que estava atribuído ao host (`sched_requeue_host`) | no register de boot |
+| teto dinâmico do agente | o agente MATA o grupo de processos de um job/calibração presos (cap = TL×testes×margem) e reporta judge-error/calib-fail — o servidor fecha na hora (`q_done`/`upd_done`) | no juiz |
+
+Corolário: nada se perde num restart (de qualquer peça) — no pior caso um job re-executa
+(idempotente por id em `results/`). E os reconciles só rodam DENTRO de um heartbeat: com TODOS
+os agentes mortos a fila simplesmente pausa (nada expira errado).
+
+## Invariantes anti-wedge (incidente 2026-07-15)
+
+1. **Calibração é idempotente** (`cal_request` dedup, seção acima) — re-disparar não multiplica.
+2. **Um problema calibra 1× por máquina e todos os slots usam o MESMO `tl.<host>`**: o agente
+   serializa por-problema (flock) e dedupa INCLUSIVE calibração full concorrente (pula se uma
+   full do mesmo checksum completou enquanto esperava o lock). O `tl.<host>`/`tl` do pacote são
+   substituídos ATOMICAMENTE pelo calibreitor (leitor nunca vê placeholder/tabela rasgada) e a
+   tabela de trabalho da calibração é privada (`MOJ_TLFILE`).
+3. **Nenhum job roda sem teto**: wall-clock dinâmico + SIGKILL do process group no agente.
+4. **Recuperação sem SSH**: `/ops/judge-reset` (kill|restart, furando o gate de ocupado) +
+   `/ops/calib-cancel` (purga pendentes). `disable` continua sendo só drenagem (não é recovery).
+5. **Config por juiz nunca diverge no restart**: precedência servidor (register) > estado
+   persistido do agente (`agent-state.json`) > `agent.env`; `make config` preserva o env.
+6. **Escrita compartilhada entre slots**: só o cache por-problema (por design, com flock e
+   escrita atômica) e os caches de checker/árbitro (flock próprio). Scratch de job = TMPDIR
+   exclusivo por slot; `/tmp` da jaula = tmpfs privado por bwrap.
+
+## Reiniciar SEM PERDER FILA (receita)
+
+- **Servidor** (API `moj-api`, daemon `moj-judged`): `systemctl restart` em **qualquer ordem** —
+  `spool/`, `queue/`, `assigned/`, `updates/`, `commands/`, `results/`, `tl/` são arquivos no
+  volume `run/` compartilhado; o judged drena o spool ao subir. Dev (este checkout): reiniciar o
+  `judged` com `INTAKE_MODE=queue JUDGE_BACKEND=cluster` (regra do workspace).
+- **Juiz**: `moj judges restart <host>` (sem SSH) ou, na máquina, `make restart`
+  (systemd user unit se ativa, senão `run-agent.sh`, que mata a SESSÃO inteira — sem órfãos).
+  Jobs em voo morrem limpos e voltam à fila NA HORA via register `boot:true`; a config de
+  partição volta como estava. Rede de segurança p/ queda abrupta: `q_reconcile` (120s) /
+  `upd_reconcile` (1800s).
+- **Tudo de uma vez**: pode — cada peça recupera sozinha pelos mecanismos acima; a única
+  consequência de derrubar todos os agentes é a fila pausar até o primeiro heartbeat voltar.
 
 ## Variáveis
 

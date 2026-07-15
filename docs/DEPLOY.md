@@ -61,6 +61,11 @@ make smoke
   falar com ele (o nginx) precisa estar no **grupo do dono**.
 - **Atualizar:** `make deploy` (build local) ou `make deploy FROM=registry` (pull de
   `ghcr.io/cd-moj/moj-server`); ambos re-tagueiam `:prod` e reiniciam. Rollback: `make rollback PREV=<tag>`.
+- **Reiniciar SEM PERDER FILA:** a fila inteira é arquivo no volume `run/` compartilhado —
+  `systemctl --user restart moj-api moj-judged` em qualquer ordem não perde nada; juízes
+  reiniciam por `moj judges restart <host>` (sem SSH) ou `make restart` no juiz, e o trabalho
+  em voo re-enfileira na hora (register `boot:true`). Receita completa e TTLs:
+  `server/judge-gw/PULL.md` §"Reiniciar SEM PERDER FILA".
 - **SELinux:** se o host prod estiver *enforcing*, os `:z` bastam; opcionalmente fixe o rótulo com
   `semanage fcontext -a -t container_file_t '<raiz>/(run|contests|moj-problems)(/.*)?' && restorecon -R`.
   (Ubuntu usa AppArmor: os `:z` viram no-op, sem problema.)

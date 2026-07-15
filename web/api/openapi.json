@@ -754,7 +754,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{online,busy,machines:[{host,online,busy,langs,cage_root,cache,tl,current,queued_calibrate,report}]} — current = job em execução {kind:submission|calibrate|index|unknown_busy, problem_id, ...} ou null; queued_calibrate = calibrações direcionadas na fila do host"
+            "description": "{online,busy,machines:[{host,online,busy,status,langs,cage_root,cache,tl,current,current_jobs,queued_calibrate,slots,partition,topology,config,report}]} — current_jobs = TODOS os jobs em execução (um por slot ocupado, {kind:submission|calibrate|index|draining|disabled|unknown_busy, problem_id, since:epoch-do-claim, ...}); current = o 1º (compat); status = auto-relato do agente (ok|draining|disabled, null=agente antigo); slots:{free,total}; cache = pacotes EM DISCO (não RAM); queued_calibrate = calibrações direcionadas na fila do host"
           }
         }
       }
@@ -6065,6 +6065,44 @@
         "responses": {
           "200": {
             "description": "{success, action, host, config}"
+          }
+        }
+      }
+    },
+    "/ops/judge-reset": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "RECUPERAÇÃO de um juiz sem SSH: kill (mata os jobs presos) ou restart (kill + agente se re-executa)",
+        "description": "Admin. Body {host, action?: kill|restart} (default kill). O comando é entregue no PRÓXIMO heartbeat MESMO com o juiz ocupado/desabilitado: o agente SIGKILL-a o grupo de processos de cada slot (job inteiro: build-and-test+bwrap+solução), reporta judge-error/calib-fail ao servidor (nada espera TTL) e reconcilia a config pendente. restart: idem e o agente se re-executa — o register boot:true re-enfileira o que estava atribuído (nenhum item de fila se perde). CLI: moj judges reset/restart.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{success, action:kill|restart, host, cmdid, status:queued}"
+          }
+        }
+      }
+    },
+    "/ops/calib-cancel": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Cancela calibrações de um problema na fila (pendentes + direcionadas não entregues)",
+        "description": "Admin. Body {id, inprogress?: false}. Remove da fila as calibrações PENDENTES do problema e os comandos direcionados ainda não entregues. Por padrão NÃO toca as em execução (contadas em inflight — para matá-las use /ops/judge-reset); {inprogress:true} remove também os claims de updates/inprogress. CLI: moj judges cancel <id> [--inprogress].",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{success, action, id, removed_pending, removed_targeted, removed_inprogress, inflight}"
           }
         }
       }
