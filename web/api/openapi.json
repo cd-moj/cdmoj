@@ -4667,7 +4667,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Enfileira calibração (juiz roda calibreitor.sh, reporta TL)",
+        "summary": "Enfileira calibração (juiz roda calibreitor.sh, reporta TL). IDEMPOTENTE: pedido repetido devolve o reqid existente com status already_queued",
         "security": [
           {
             "bearerAuth": []
@@ -4705,7 +4705,7 @@
         },
         "responses": {
           "200": {
-            "description": "{reqid,...}"
+            "description": "{action,id, status:queued|already_queued, reqid} (sem hosts) ou {action,id,status,hosts:[{host,cmdid,status:queued|already_queued}]} (direcionada)"
           }
         }
       }
@@ -5231,7 +5231,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Público on => valida + calibra (index_problem_bg + cal_request) e grava o flag; off => sai do treino",
+        "summary": "Público on => valida + calibra SÓ SE o pacote mudou (tl-checksum != calibrado servido) e grava o flag; off => sai do treino",
         "security": [
           {
             "bearerAuth": []
@@ -5266,7 +5266,7 @@
         },
         "responses": {
           "200": {
-            "description": "{id,public,reqid?}"
+            "description": "{id,public,reqid?, calibration:queued|up_to_date|\"\"} — up_to_date = TL vigente já é desta versão do pacote (nada enfileirado)"
           }
         }
       }

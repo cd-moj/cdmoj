@@ -28,15 +28,24 @@ if [[ "$pub" == "true" && -f "$pdir/conf" ]]; then
 fi
 problem_commit "$pdir" "$SESSION_LOGIN" "set public=$pub ($prob)" >/dev/null
 authored_patch "$id" '.public=($p=="true")' --arg p "$pub"
-reqid=""
+reqid=""; calib=""
 if [[ "$pub" == "true" ]]; then
-  # público => fluxo completo: VALIDA (portão + índice) + CALIBRA (juiz roda as good, reporta TL)
+  # público => fluxo completo: VALIDA (portão + índice) + CALIBRA (juiz roda as good, reporta TL).
+  # A calibração SÓ entra na fila se o pacote MUDOU desde a última calibrada (tl-checksum atual
+  # != checksum do store servido) — publicar em massa sem mudança não enfileira recalibração
+  # redundante (lição do incidente 2026-07-15). cal_request ainda dedupa por dentro.
   index_problem_bg "$id" 1
-  reqid="$(cal_request "$org" "$id" "$SESSION_LOGIN")"
+  cur_cks="$(pkg_tl_checksum "$pdir")"
+  if [[ -n "$cur_cks" ]] && tl_store_get "$id" | jq -e --arg c "$cur_cks" \
+       '((.checksum // "") == $c) and (((.hosts // {})|length) > 0)' >/dev/null 2>&1; then
+    calib="up_to_date"   # TL vigente já é DESTA versão do pacote em >=1 juiz
+  else
+    reqid="$(cal_request "$org" "$id" "$SESSION_LOGIN")"; calib="queued"
+  fi
 else
   # DESPUBLICAR: sai do treino livre NA HORA (índice servível + cache de 5min), não fica vazando
   rm -f "$CONTESTSDIR/treino/var/jsons/$id.json" "$CONTESTSDIR/treino/var/problems.json" 2>/dev/null
 fi
-audit_log "set-public" "id=$id public=$pub reqid=$reqid"
-ok_json '{action:"set-public", id:$id, public:($p=="true"), reqid:$r}' \
-  --arg id "$id" --arg p "$pub" --arg r "$reqid"
+audit_log "set-public" "id=$id public=$pub reqid=$reqid calibration=$calib"
+ok_json '{action:"set-public", id:$id, public:($p=="true"), reqid:$r, calibration:$cal}' \
+  --arg id "$id" --arg p "$pub" --arg r "$reqid" --arg cal "$calib"

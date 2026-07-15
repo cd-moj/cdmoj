@@ -244,8 +244,32 @@ upd_request() {  # $1=repo $2=requested_by [$3=note] [$4=kind] [$5=target] -> ec
   printf '%s' "$reqid"
 }
 
+# upd_find_calibrate <problem_id> : ecoa o reqid de uma calibração JÁ pendente ou em execução
+# p/ esse problema (ou nada). Base do dedup do cal_request. Conteúdo via stdin (find -exec cat),
+# nunca por argv — ARG_MAX-safe com qualquer tamanho de fila.
+upd_find_calibrate() {
+  local r
+  r="$( { find "$UPDATESDIR/pending"    -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null
+          find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null; } \
+        | jq -r --arg t "$1" 'select(.kind=="calibrate" and .target==$t) | .reqid' 2>/dev/null \
+        | head -n1)"
+  printf '%s' "$r"
+}
+
 # cal_request <repo> <problem_id> <by> : pede CALIBRAÇÃO (1 juiz roda calibreitor).
-cal_request() { upd_request "$1" "$3" "calibrate $2" calibrate "$2"; }
+# IDEMPOTENTE (lição do incidente 2026-07-15): se já existe calibração pendente/em execução p/ o
+# MESMO problema, devolve o reqid EXISTENTE em vez de criar outro job — re-disparar "Calibrar"
+# (ou publicar em massa) nunca multiplica jobs nem entope os slots dos juízes. Checagem+criação
+# sob o MESMO lock do upd_claim p/ não haver janela entre dois pedidos simultâneos.
+cal_request() {
+  mkdir -p "$UPDATESDIR/pending" 2>/dev/null
+  (
+    flock 9 || exit 1
+    local ex; ex="$(upd_find_calibrate "$2")"
+    if [[ -n "$ex" ]]; then printf '%s' "$ex"
+    else upd_request "$1" "$3" "calibrate $2" calibrate "$2"; fi
+  ) 9>"$UPDATESDIR/.lock"
+}
 # idx_request <repo> <problem_id> <by> : pede VALIDAÇÃO+INDEX (publish).
 idx_request() { upd_request "$1" "$3" "index $2" index "$2"; }
 
@@ -338,6 +362,16 @@ cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove),
       cat "$f"; rm -f "$f"; exit 0
     done < <(find "$CMDDIR/$host" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
   ) 9>"$CMDDIR/$host/.lock"
+}
+# cmd_find_calibrate <host> <problem_id> : ecoa o cmdid de um calibrate direcionado AINDA NÃO
+# entregue a esse host p/ o problema (dedup do caminho targeted; comando entregue some do dir,
+# então "em execução" não é visível aqui — o dedup do agente cobre esse resto).
+cmd_find_calibrate() {
+  local r
+  r="$(find "$CMDDIR/$1" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+       | jq -r --arg t "$2" 'select(.action=="calibrate" and .id==$t) | .cmdid' 2>/dev/null \
+       | head -n1)"
+  printf '%s' "$r"
 }
 cmd_pending_count() { find "$CMDDIR/$1" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l; }
 # cmd_action_count <action> — comandos direcionados de TODOS os hosts com esse action (ex.: calibrate,

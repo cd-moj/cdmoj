@@ -78,6 +78,15 @@ recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos
   o TL servido em `/contest/problems` = máx **só entre os hosts do pool efetivo**.
 - **"update problems"** (`/ops/updateproblemset`) não clona: enfileira **calibração** dos
   problemas novos/alterados (checksum ≠ o do TL guardado). `{all:true}` recalibra tudo.
+- **Calibração é IDEMPOTENTE** (lição do incidente 2026-07-15, quando 4 pedidos duplicados
+  entupiram os 6 slots do juiz): `cal_request` é o choke-point único — se já existe calibração
+  **pendente ou em execução** p/ o mesmo problema (`upd_find_calibrate`, sob o lock do
+  `upd_claim`), devolve o `reqid` existente e NÃO cria outro job. Re-disparar `moj calibrate`,
+  re-validar ou publicar em massa nunca multiplica jobs. O caminho direcionado
+  (`request-calibration` com `hosts`) dedupa os comandos ainda não entregues por host
+  (`cmd_find_calibrate`). E o **publish** (`/problems/set-public`) só enfileira calibração se o
+  `tl-checksum` atual difere do checksum calibrado servido (`run/tl/<id>.json`) — publicar sem
+  mudança de pacote responde `calibration:"up_to_date"` e não toca a fila.
 - **Indexar** (`var/jsons`, HTML do enunciado) roda **no servidor** (`index_problem_bg`, via o
   Makefile do repo no store) — o `publish` chama isso + pede calibração. Só o
   enunciado HTML precisa do repo; calibrar/julgar usam só o pacote no cache + o `mojtools`.

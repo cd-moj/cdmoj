@@ -18,16 +18,24 @@ repo="${id%%#*}"; [[ "$repo" == "$id" ]] && repo="${id%%/*}"   # org; pacote já
 
 hosts="$(jq -c '.hosts // []' <<<"$body" 2>/dev/null)"; [[ -n "$hosts" ]] || hosts='[]'
 if (( $(jq 'length' <<<"$hosts") > 0 )); then
+  # DEDUP direcionado: calibrate ainda não entregue ao host p/ o mesmo id não é duplicado
   sent='[]'
   while IFS= read -r h; do
     valid_hostname "$h" || continue
-    cid="$(cmd_request "$h" calibrate "$SESSION_LOGIN" "$id")"
-    [[ -n "$cid" ]] && sent="$(jq -c --arg h "$h" --arg c "$cid" '. + [{host:$h, cmdid:$c}]' <<<"$sent")"
+    st="queued"
+    cid="$(cmd_find_calibrate "$h" "$id")"
+    if [[ -n "$cid" ]]; then st="already_queued"
+    else cid="$(cmd_request "$h" calibrate "$SESSION_LOGIN" "$id")"; fi
+    [[ -n "$cid" ]] && sent="$(jq -c --arg h "$h" --arg c "$cid" --arg s "$st" \
+                               '. + [{host:$h, cmdid:$c, status:$s}]' <<<"$sent")"
   done < <(jq -r '.[]' <<<"$hosts")
   audit_log "calibrate" "id=$id targeted_hosts=$(jq 'length' <<<"$sent")"
   ok_json '{action:"calibrate", id:$i, hosts:$h, status:"queued"}' --arg i "$id" --argjson h "$sent"
 else
+  # DEDUP global: já há calibração pendente/em execução p/ o id => devolve o reqid existente
+  # (cal_request também dedupa por dentro — aqui só distinguimos o status p/ o cliente avisar)
+  st="queued"; [[ -n "$(upd_find_calibrate "$id")" ]] && st="already_queued"
   reqid="$(cal_request "$repo" "$id" "$SESSION_LOGIN")"
-  audit_log "calibrate" "id=$id reqid=$reqid"
-  ok_json '{action:"calibrate", id:$i, reqid:$r, status:"queued"}' --arg i "$id" --arg r "$reqid"
+  audit_log "calibrate" "id=$id reqid=$reqid status=$st"
+  ok_json '{action:"calibrate", id:$i, reqid:$r, status:$s}' --arg i "$id" --arg r "$reqid" --arg s "$st"
 fi
