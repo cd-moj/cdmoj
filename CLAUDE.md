@@ -172,7 +172,13 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   ainda estreita a dono/colaborador/membro-da-org). **Sem hash de pacote por request**: staleness é a comparação de dois checksums já
   materializados (o do índice regenera em background, ≤30 min de atraso — o gerador tem cache por
   commit do repo p/ não re-hashear pacote sem mudança; `/problems/tl` dá o valor exato ao vivo p/ 1
-  problema). No `.admin`: **fila de calibração** explícita (`/treino/admin/queue`:
+  problema — e, quando precisa recalibrar, o **PORQUÊ**: `reason` + `changes`/`changed_files` = os
+  commits desde a calibração que tocaram os caminhos do tl-checksum, via git log do repo do problema).
+  **Recalibrar em LOTE**: `POST /problems/recalibrate-stale` (mesma fronteira do status; cada item
+  via `cal_request`, idempotente + serializado por-problema no claim — lote é seguro); na web é o
+  botão "⚙ Recalibrar todos (N)" do Painel, na CLI `moj calibrate --all-stale`. Os **cards
+  quantitativos do Painel são clicáveis** (filtram a lista à categoria; de novo = limpa) e o detalhe
+  mostra a seção do motivo com link p/ a aba 🕘 Histórico do editor. No `.admin`: **fila de calibração** explícita (`/treino/admin/queue`:
   `calib_pending`/`calib_inflight`/`calib_targeted`, `kind=calibrate` separado de `index`, contadores
   em `sched-lib.sh`) e **contagem de problemas** total/públicos/privados na aba Estatística
   (`/treino/admin/stats`, **só números** — privados contados, nunca listados).

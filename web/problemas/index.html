@@ -16,6 +16,9 @@
     .scards{display:flex;gap:.6rem;flex-wrap:wrap;margin:.2rem 0 1rem}
     .scard{border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.5rem .85rem;min-width:110px}
     .scard.hl{border-color:var(--accent,#5b8cff)}
+    .scard.clickable{cursor:pointer}
+    .scard.clickable:hover{border-color:var(--accent,#5b8cff);background:color-mix(in srgb, var(--accent,#5b8cff) 8%, transparent)}
+    .scard.on{outline:2px solid var(--accent,#5b8cff)}
     .scard .n{font-size:1.5rem;font-weight:700;line-height:1.1}
     .scard .l{font-size:.78rem;opacity:.75}
     th.sortable{cursor:pointer;user-select:none} th.sortable:hover{color:var(--accent,#5b8cff)}

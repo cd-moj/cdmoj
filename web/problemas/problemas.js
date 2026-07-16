@@ -39,11 +39,37 @@ const b64ToUtf8 = (b) => { try { return new TextDecoder().decode(Uint8Array.from
 const pill = (cls, txt) => el('span', { class: 'pill ' + cls }, txt);
 
 // ---- painel de status (aba "Painel") ----
-const scard = (n, l, hl) => el('div', { class: 'scard' + (hl ? ' hl' : '') }, el('div', { class: 'n' }, String(n)), el('div', { class: 'l' }, l));
+// filtro por categoria (clicar num card): chave -> predicado sobre a linha do painel
+let PANEL_FILTER = null;
+const PANEL_PREDS = {
+  being_calibrated: (p) => p.being_calibrated,
+  validated: (p) => p.validated === 'ok',
+  calibrated: (p) => p.calibrated,
+  needs_recalibration: (p) => p.needs_recalibration,
+  good_sol_no_tl: (p) => p.good_sol_no_tl,
+  needs_review: (p) => p.needs_review,
+};
+const scard = (n, l, hl, fkey) => {
+  const a = { class: 'scard' + (hl ? ' hl' : '') + (fkey ? ' clickable' : '') + (fkey && PANEL_FILTER === fkey ? ' on' : '') };
+  if (fkey) {
+    a.title = T('Clique para ver só estes', 'Click to show only these');
+    a.onclick = () => { PANEL_FILTER = (PANEL_FILTER === fkey) ? null : fkey; page = 0; renderPanel(); };
+  }
+  return el('div', a, el('div', { class: 'n' }, String(n)), el('div', { class: 'l' }, l));
+};
 const fmtTL = (tl) => { const e = Object.entries(tl || {}).filter(([k]) => k !== 'default'); return e.length ? e.map(([k, v]) => `${k} ${(+v).toFixed(3)}s`).join(' · ') : '—'; };
 const sevOf = (p) => p.needs_review ? 3 : p.needs_recalibration ? 2 : p.being_calibrated ? 1 : 0;
 const valChip = (p) => p.validated === 'ok' ? pill('ok', T('validado', 'validated')) : p.validated === 'error' ? pill('no', T('reprovado', 'rejected')) : pill('mut', T('não validado', 'not validated'));
-const calibChip = (p) => p.being_calibrated ? pill('warn', T('calibrando…', 'calibrating…')) : p.needs_recalibration ? pill('warn', T('precisa recalibrar', 'needs recalibration')) : p.calibrated ? pill('ok', T('calibrado', 'calibrated')) : pill('mut', T('sem calibração', 'no calibration'));
+const calibChip = (p) => {
+  if (p.being_calibrated) return pill('warn', T('calibrando…', 'calibrating…'));
+  if (p.needs_recalibration) {
+    const c = pill('warn', T('precisa recalibrar', 'needs recalibration'));
+    c.title = T('O pacote mudou desde a calibração (conf/testes/soluções-good/scripts). Clique no problema para ver quais commits.',
+      'The package changed since calibration (conf/tests/good-solutions/scripts). Click the problem to see which commits.');
+    return c;
+  }
+  return p.calibrated ? pill('ok', T('calibrado', 'calibrated')) : pill('mut', T('sem calibração', 'no calibration'));
+};
 // chip "precisa revisão": solução good sem TL (falhou em todas as máquinas), público não validado/calibrado
 const reviewChip = (p) => {
   if (!p.needs_review) return '';
@@ -317,7 +343,47 @@ async function openDetail(id) {
     stmt.append(el('div', { class: 'small muted' }, T('Sem HTML publicado ainda (não está no treino).', 'No HTML published yet (not in training).')));
   }
 
-  d.innerHTML = ''; d.append(head, vbox, stmt);
+  // ⚙ calibração: estado vivo + o PORQUÊ de precisar recalibrar (commits desde a calibração
+  // que tocaram conf/tests/input/sols/good/scripts — o que o tl-checksum cobre)
+  const calbox = el('div', { style: 'margin-top:.6rem' });
+  calbox.append(el('span', { class: 'small muted' }, T('Verificando calibração…', 'Checking calibration…')));
+  (async () => {
+    try {
+      const t = await apiGet('/problems/tl?id=' + encodeURIComponent(id), { contest: CONTEST, auth: true });
+      calbox.innerHTML = '';
+      if (t.needs_recalibration) {
+        calbox.append(el('h4', { style: 'margin:.4rem 0' }, T('⚠ Precisa recalibrar', '⚠ Needs recalibration')));
+        calbox.append(el('div', { class: 'small' },
+          T('O pacote mudou desde a calibração', 'The package changed since calibration'),
+          t.calibrated_at ? T(' de ', ' of ') + fmtDate(t.calibrated_at) : '',
+          ' — checksum ', el('code', {}, (t.calibrated_checksum || '').slice(0, 8)), ' → ',
+          el('code', {}, (t.checksum || '').slice(0, 8)), '. ',
+          T('Mudanças em conf/testes/soluções-good/scripts invalidam o TL medido.',
+            'Changes to conf/tests/good-solutions/scripts invalidate the measured TL.')));
+        const chs = t.changes || [];
+        if (chs.length) {
+          const ul = el('ul', { class: 'checks' });
+          chs.forEach(ch => ul.append(el('li', {},
+            el('code', { class: 'small' }, (ch.sha || '').slice(0, 7)), ' ',
+            el('b', {}, ch.subject || '—'), ' ',
+            el('span', { class: 'small muted2' }, (ch.author || '?') + (ch.at ? ' · ' + fmtDate(ch.at) : '')))));
+          calbox.append(el('div', { class: 'small', style: 'margin-top:.3rem' },
+            T('Commits desde a calibração que afetam o TL:', 'Commits since calibration affecting the TL:')), ul);
+        }
+        if ((t.changed_files || []).length) calbox.append(el('div', { class: 'small muted2' },
+          T('Arquivos: ', 'Files: ') + t.changed_files.join(', ')));
+        calbox.append(el('div', { class: 'small', style: 'margin-top:.3rem' },
+          el('a', { href: '/problemas/editar.html?id=' + encodeURIComponent(id) + '#hist' },
+            T('ver histórico completo no editor →', 'see full history in the editor →'))));
+      } else if (t.calibrated) {
+        calbox.append(el('div', { class: 'small muted2' },
+          pill('ok', T('calibração em dia', 'calibration up to date')),
+          t.calibrated_at ? ' · ' + fmtDate(t.calibrated_at) : ''));
+      }
+    } catch { calbox.innerHTML = ''; }
+  })();
+
+  d.innerHTML = ''; d.append(head, vbox, calbox, stmt);
 }
 
 async function doAction(action, id) {
@@ -352,7 +418,9 @@ async function loadPanel() {
 function panelRows() {
   const q = norm(document.getElementById('q').value);
   const attn = document.getElementById('onlybroken').checked;
+  const fpred = PANEL_FILTER ? PANEL_PREDS[PANEL_FILTER] : null;
   const rows = (PANEL?.problems || []).filter(p => {
+    if (fpred && !fpred(p)) return false;
     if (attn && !(p.needs_review || p.needs_recalibration)) return false;
     if (q) { const hay = norm((p.title || '') + ' ' + (p.author || '') + ' ' + (p.id || '')); if (!hay.includes(q)) return false; }
     return true;
@@ -381,12 +449,35 @@ function renderPanel() {
   document.getElementById('count').textContent = `${PANEL.total} ${T('acessível(is)', 'accessible')} · ${rows.length} ${T('exibido(s)', 'shown')}`;
   const cards = el('div', { class: 'scards' },
     scard(PANEL.total, T('acessíveis', 'accessible')),
-    scard(c.being_calibrated || 0, T('calibrando', 'calibrating')),
-    scard(c.validated || 0, T('validados', 'validated')),
-    scard(c.calibrated || 0, T('calibrados', 'calibrated')),
-    scard(c.needs_recalibration || 0, T('precisa recalibrar', 'needs recalibration'), (c.needs_recalibration || 0) > 0),
-    scard(c.good_sol_no_tl || 0, T('good sem TL', 'good without TL'), (c.good_sol_no_tl || 0) > 0),
-    scard(c.needs_review || 0, T('precisa revisar', 'needs review'), (c.needs_review || 0) > 0));
+    scard(c.being_calibrated || 0, T('calibrando', 'calibrating'), false, 'being_calibrated'),
+    scard(c.validated || 0, T('validados', 'validated'), false, 'validated'),
+    scard(c.calibrated || 0, T('calibrados', 'calibrated'), false, 'calibrated'),
+    scard(c.needs_recalibration || 0, T('precisa recalibrar', 'needs recalibration'), (c.needs_recalibration || 0) > 0, 'needs_recalibration'),
+    scard(c.good_sol_no_tl || 0, T('good sem TL', 'good without TL'), (c.good_sol_no_tl || 0) > 0, 'good_sol_no_tl'),
+    scard(c.needs_review || 0, T('precisa revisar', 'needs review'), (c.needs_review || 0) > 0, 'needs_review'));
+  // 🕘 lote: recalibrar tudo que precisa (dedup/serialização do servidor tornam o lote seguro)
+  const nStale = (c.needs_recalibration || 0);
+  if (nStale > 0) {
+    const btn = el('button', { class: 'btn', type: 'button', style: 'align-self:center' },
+      T('⚙ Recalibrar todos (', '⚙ Recalibrate all (') + nStale + ')');
+    btn.onclick = async () => {
+      if (!confirm(T(nStale + ' calibração(ões) entrarão na fila dos juízes (pedidos duplicados são deduplicados; um problema por vez por juiz). Continuar?',
+        nStale + ' calibration(s) will be queued to the judges (duplicates are deduped; one problem at a time per judge). Continue?'))) return;
+      btn.disabled = true; btn.textContent = T('Enviando…', 'Submitting…');
+      try {
+        const ids = (PANEL.problems || []).filter(p => p.needs_recalibration).map(p => p.id);
+        const j = await apiPost('/problems/recalibrate-stale', { ids }, { contest: CONTEST, auth: true });
+        btn.textContent = T('Enfileiradas: ', 'Queued: ') + (j.count || 0) + ' ✓';
+        setTimeout(loadPanel, 2500);
+      } catch (e) {
+        alert(T('Falha ao enfileirar: ', 'Failed to queue: ') + (e instanceof ApiError ? e.message : e));
+        btn.disabled = false; btn.textContent = T('⚙ Recalibrar todos (', '⚙ Recalibrate all (') + nStale + ')';
+      }
+    };
+    cards.append(btn);
+  }
+  if (PANEL_FILTER) cards.append(el('span', { class: 'small muted', style: 'align-self:center' },
+    T('filtro ativo — clique no card de novo para limpar', 'filter active — click the card again to clear')));
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   if (page >= pages) page = 0;

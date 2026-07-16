@@ -1124,6 +1124,7 @@ async function boot() {
 
   bindHandlers();           // 1) liga TUDO antes de qualquer await de dados
   setupTabs();
+  if (location.hash === '#hist') showTab('hist');   // link direto p/ a aba Histórico (painel)
   updateReady();
 
   // dispara em PARALELO o que é independente (antes era uma cadeia de awaits — lenta pelo túnel):

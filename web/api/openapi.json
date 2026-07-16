@@ -4415,8 +4415,8 @@
         "tags": [
           "problems"
         ],
-        "summary": "Time limits AO VIVO + staleness exata de 1 problema",
-        "description": "Recomputa o checksum do pacote agora (1 problema) e devolve o TL servível + stale/needs_recalibration exatos. Acesso: dono/colaborador OU público (require_problem_view; 404 senão). Versão não-admin do /ops/problemtl.",
+        "summary": "Time limits AO VIVO + staleness exata de 1 problema (com o PORQUÊ da recalibração)",
+        "description": "Recomputa o checksum do pacote agora (1 problema) e devolve o TL servível + stale/needs_recalibration exatos. Quando needs_recalibration, explica o motivo: reason (checksum velho→novo), changes = commits desde a calibração que tocaram os caminhos cobertos pelo tl-checksum (conf, tests/input, sols/good, scripts; [{sha,at,author,subject}], ≤20) e changed_files (≤30). Acesso: dono/colaborador OU público (require_problem_view; 404 senão). Versão não-admin do /ops/problemtl.",
         "security": [
           {
             "bearerAuth": []
@@ -4437,10 +4437,53 @@
         ],
         "responses": {
           "200": {
-            "description": "{problem,checksum,time_limits,calibrated_checksum,hosts,updated_at,calibrated,stale,needs_recalibration}"
+            "description": "{problem,checksum,time_limits,calibrated_checksum,hosts,updated_at,calibrated_at,calibrated,stale,needs_recalibration} + quando needs_recalibration: {reason,changes,changed_files}"
           },
           "404": {
             "description": "privado e o login não é dono/colaborador (not_found)"
+          }
+        }
+      }
+    },
+    "/problems/recalibrate-stale": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Recalibra em LOTE tudo que \"precisa recalibrar\" no painel do login",
+        "description": "Recomputa a lista \"calibrado E checksum divergente\" com a MESMA fronteira do /problems/status (owners_visible, estreitado a dono/colaborador/membro-da-org) e enfileira cada uma via cal_request (idempotente + serializado por-problema no claim do juiz — lote é seguro por construção). Corpo opcional {ids:[...]} restringe ao subconjunto, sempre INTERSECTADO com o conjunto autorizado — ids de fora são ignorados, nunca enfileirados. Web: botão \"⚙ Recalibrar todos (N)\" no Painel; CLI: moj calibrate --all-stale.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "subconjunto opcional; intersectado com os stale autorizados do login"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{action:\"recalibrate-stale\", count, queued:[{id,reqid}]}"
           }
         }
       }
