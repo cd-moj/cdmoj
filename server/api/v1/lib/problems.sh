@@ -40,9 +40,12 @@ AUTHORED_INDEX="$CONTESTSDIR/treino/var/authored.json"   # overlay de problemas 
 owners_merged(){
   ensure_owners_index || return 1     # índice inutilizável: ERRA — não finge lista vazia
   # o overlay authored dá visibilidade IMEDIATA ao recém-criado/editado, mas NÃO pode APAGAR os campos
-  # que só o índice calcula (tl_checksum, public_at) — por isso é MESCLADO sobre a entrada do índice
-  # (base + overlay, overlay vence campo-a-campo) em vez de substituí-la. Sem isso, todo problema no
-  # overlay perdia tl_checksum/public_at (staleness e heatmap de entrada sub-reportados).
+  # que só o índice calcula (tl_checksum, public_at — protegidos por o overlay não os escrever — e
+  # `html`, DELETADO do overlay na mescla: o upsert antigo gravava html:false fixo e, como o overlay
+  # nunca é podado, 343 problemas públicos ficaram com "sem HTML" eterno no painel) — por isso é
+  # MESCLADO sobre a entrada do índice (base + overlay, overlay vence campo-a-campo) em vez de
+  # substituí-la. Sem isso, todo problema no overlay perdia tl_checksum/public_at (staleness e
+  # heatmap de entrada sub-reportados).
   #
   # ATENÇÃO ao `( … + … )`: valor de campo de objeto NÃO aceita operador binário solto no **jq 1.7**
   # (o da imagem de produção). O jq 1.8 (dev) aceita — então isto compilava aqui e explodia lá:
@@ -65,7 +68,7 @@ owners_merged(){
     | (($base.problems // []) | map({key:.id, value:.}) | from_entries) as $bmap
     | ($ovl | map(.id)) as $ids
     | { problems: ( (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not)))
-                    + ($ovl | map(($bmap[.id] // {}) + .)) ) }
+                    + ($ovl | map(($bmap[.id] // {}) + (. | del(.html)))) ) }
   ' 2>/dev/null)" || return 1
   [[ -n "$out" ]] || return 1
   printf '%s' "$out"
@@ -162,7 +165,7 @@ authored_upsert(){
             id:$id, owner:$o, repo:$r, prob:$p,
             title:(if $t=="" then ($old.title // $p) else $t end),
             author:$au, author_norm:($au|ascii_downcase),
-            collaborators:$cb, collections:$colls, public:($pub=="true"), html:false }) }
+            collaborators:$cb, collections:$colls, public:($pub=="true") }) }
       ' ) > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$f" || rm -f "$tmp"
   ) 9>"$lk"
 }

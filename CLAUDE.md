@@ -190,7 +190,9 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `.moj-meta.json`; `gen-problem-owners.sh` o leva ao índice (+ seed `public-at-seed.json` do
   `server/bin/backfill-public-at.sh` p/ o histórico) → mapa de calor de entrada de públicos. **Nota:**
   `owners_merged` MESCLA o overlay `authored` sobre a entrada do índice (não substitui) p/ não apagar
-  `tl_checksum`/`public_at` — sem isso, problemas no overlay perdiam esses campos.
+  os campos que SÓ o índice calcula: `tl_checksum`/`public_at` (o overlay não os escreve) e **`html`
+  (deletado do overlay na mescla)** — o upsert antigo gravava `html:false` fixo e, como o overlay
+  nunca é podado, problemas públicos ficavam com "sem HTML" eterno no painel.
 
 - `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta` / `problem_commit`
   = commit git LOCAL por problema, sem Gitea) + `lib/orgs.sh` (acesso por org). Handlers em
