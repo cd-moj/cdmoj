@@ -99,6 +99,7 @@ function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   document.querySelectorAll('.tabpane').forEach(p => { p.hidden = (p.dataset.pane !== name); });
   if (name === 'resol') ensureEditorial();   // editor da resolução é carregado ao abrir a aba
+  if (name === 'hist') loadHistory();        // histórico git é carregado ao abrir a aba
 }
 
 // ---- enunciado: um editor só (padrão) ou seções separadas (opt-in) ------------------------
@@ -735,6 +736,94 @@ async function download() {
     a.href = URL.createObjectURL(blob); a.download = ID.split('#').pop() + '.tar.gz'; a.click(); URL.revokeObjectURL(a.href);
   } catch (e) { setMsg(T('Falha ao baixar: ', 'Failed to download: ') + e.message, 'error'); }
 }
+
+// ---- 🕘 histórico git (log, diff -p, baixar versão, restaurar) ----------------------------
+let HIST_LOADED = false;
+function b64utf8(b64) { return new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0))); }
+function diffPre(text) {
+  // coloração leve do patch: +verde, -vermelho, @@/headers em destaque — textContent sempre (seguro)
+  const pre = el('pre', { class: 'caliblog' });
+  for (const ln of text.split('\n')) {
+    let color = '';
+    if (ln.startsWith('+') && !ln.startsWith('+++')) color = 'color:#2e7d32';
+    else if (ln.startsWith('-') && !ln.startsWith('---')) color = 'color:#c62828';
+    else if (ln.startsWith('@@') || ln.startsWith('diff ') || ln.startsWith('commit ')) color = 'font-weight:bold';
+    pre.append(el('span', color ? { style: color } : {}, ln + '\n'));
+  }
+  return pre;
+}
+async function downloadAt(sha) {
+  try {
+    const r = await fetch('/api/v1/problems/download?id=' + encodeURIComponent(ID) + '&sha=' + sha,
+      { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob(), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = ID.split('#').pop() + '-' + sha.slice(0, 7) + '.tar.gz';
+    a.click(); URL.revokeObjectURL(a.href);
+  } catch (e) { setMsg(T('Falha ao baixar a versão: ', 'Failed to download version: ') + e.message, 'error'); }
+}
+async function restoreAt(sha) {
+  const ok = confirm(T('Restaurar a versão ' + sha.slice(0, 7) + '?\nIsso cria um commit NOVO por cima (a história não é reescrita). O flag de público e as coleções atuais são preservados.',
+    'Restore version ' + sha.slice(0, 7) + '?\nThis creates a NEW commit on top (history is not rewritten). Current public flag and collections are preserved.'));
+  if (!ok) return;
+  try {
+    const j = await apiPost('/problems/restore', { id: ID, sha, confirm: sha }, { contest: CONTEST, auth: true });
+    setMsg(T('Versão restaurada ✓ (novo commit ', 'Version restored ✓ (new commit ') + (j.sha || '') + ')', 'ok');
+    await loadSource(ID);
+    await loadHistory(true);
+  } catch (e) { setMsg(T('Falha ao restaurar: ', 'Failed to restore: ') + (e instanceof ApiError ? e.message : e), 'error'); }
+}
+async function loadHistory(force) {
+  const box = $('histList'); if (!box) return;
+  if (HIST_LOADED && !force) return;
+  if (!ID) { box.innerHTML = ''; box.append(el('span', { class: 'muted' }, T('Salve o problema para ter histórico.', 'Save the problem to have history.'))); return; }
+  box.innerHTML = ''; box.append(el('span', { class: 'muted' }, T('Carregando…', 'Loading…')));
+  try {
+    const j = await apiGet('/problems/history?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true });
+    HIST_LOADED = true;
+    box.innerHTML = '';
+    const commits = j.commits || [];
+    if (!commits.length) { box.append(el('span', { class: 'muted' }, T('Sem commits ainda.', 'No commits yet.'))); return; }
+    commits.forEach((c, i) => {
+      const stats = (c.files ? c.files + 'a ' : '') + (c.insertions ? '+' + c.insertions + ' ' : '') + (c.deletions ? '−' + c.deletions : '');
+      const diffBox = el('div', {});
+      let diffOpen = false, diffLoaded = false;
+      const btnDiff = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Ver diff', 'View diff'));
+      btnDiff.onclick = async () => {
+        diffOpen = !diffOpen;
+        if (diffOpen && !diffLoaded) {
+          diffBox.append(el('span', { class: 'muted small' }, T('Carregando diff…', 'Loading diff…')));
+          try {
+            const d = await apiGet('/problems/history?id=' + encodeURIComponent(ID) + '&sha=' + c.sha, { contest: CONTEST, auth: true });
+            diffBox.innerHTML = '';
+            diffBox.append(diffPre(b64utf8(d.diff_b64 || '')));
+            if (d.truncated) diffBox.append(el('div', { class: 'small muted' }, T('(diff truncado em 400 KB)', '(diff truncated at 400 KB)')));
+            diffLoaded = true;
+          } catch (e) { diffBox.innerHTML = ''; diffBox.append(el('span', { class: 'muted' }, T('Falha ao carregar o diff: ', 'Failed to load diff: ') + e.message)); }
+        }
+        diffBox.hidden = !diffOpen;
+        btnDiff.textContent = diffOpen ? T('Fechar diff', 'Close diff') : T('Ver diff', 'View diff');
+      };
+      const btnDl = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Baixar .tar.gz', 'Download .tar.gz'));
+      btnDl.onclick = () => downloadAt(c.sha);
+      const row = el('div', { style: 'border-top:1px solid var(--line,#ddd);padding:.45rem 0' },
+        el('div', {},
+          el('code', { class: 'small' }, c.sha.slice(0, 7)), ' ',
+          el('b', {}, c.subject || '—'), ' ',
+          el('span', { class: 'small muted' }, (c.author || '?') + ' · ' + (c.at ? fmtDate(c.at) : '') + (stats ? ' · ' + stats : ''))),
+        el('div', { style: 'margin:.25rem 0;display:flex;gap:.4rem;flex-wrap:wrap' },
+          btnDiff, btnDl,
+          i === 0 ? el('span', { class: 'small muted', style: 'align-self:center' }, T('(versão atual)', '(current version)'))
+                  : (() => { const b = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Restaurar…', 'Restore…')); b.onclick = () => restoreAt(c.sha); return b; })()),
+        diffBox);
+      diffBox.hidden = true;
+      box.append(row);
+    });
+  } catch (e) {
+    box.innerHTML = '';
+    box.append(el('span', { class: 'muted' }, T('Falha ao carregar o histórico: ', 'Failed to load history: ') + (e instanceof ApiError ? e.message : e)));
+  }
+}
 async function uploadTar(file) {
   if (!file) return;
   let body;
@@ -750,7 +839,7 @@ async function uploadTar(file) {
     const j = await apiPost('/problems/upload', body, { contest: CONTEST, auth: true });
     ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
     $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
-    await loadSource(ID); setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓'), 'v-ok');
+    await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓'), 'v-ok');
   } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha no upload', 'Upload failed')) + (e.code ? ` (${e.code})` : ''), 'error'); }
 }
 
@@ -880,6 +969,7 @@ async function save() {
       $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
       fillRepoSelect();   // criado: a org vira selo fixo (parte do id) e "+ nova org" some
     } else await apiPost('/problems/edit', { id: ID, ...f }, { contest: CONTEST, auth: true });
+    HIST_LOADED = false;   // salvar = commit novo; a aba Histórico recarrega na próxima abertura
     setMsg(T('Salvo ✓', 'Saved ✓'), 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
   } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save')) + (e.code ? ` (${e.code})` : ''), 'error'); }
   finally { $('save').disabled = false; }

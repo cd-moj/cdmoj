@@ -196,6 +196,11 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `ensure_owners_index` com throttle por mtime): entrada já refletida no índice sem divergência nos
   campos de setter sai; divergente/não-indexada fica até o índice alcançar.
 
+- **Histórico git por problema** (`/problems/history` lista/diff, `/problems/download?sha=` versão
+  antiga via `git archive`, `/problems/restore` = **commit NOVO por cima** — história nunca é
+  reescrita e o `.moj-meta.json` é PRESERVADO no restore, senão um meta antigo republicaria prova
+  privada). Gate de SOURCE (membro da org). Web: aba 🕘 Histórico do editor; CLI: `moj log`/`moj
+  restore`/`moj download --sha`.
 - `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta` / `problem_commit`
   = commit git LOCAL por problema, sem Gitea) + `lib/orgs.sh` (acesso por org). Handlers em
   `handlers/problems/` (+ `handlers/orgs/`).

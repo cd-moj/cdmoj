@@ -163,6 +163,7 @@
         <button class="tab" type="button" data-tab="resol" data-en="Editorial">Resolução</button>
         <button class="tab" type="button" data-tab="limits" data-en="Limits">Limites</button>
         <button class="tab" type="button" data-tab="pub" data-en="Publishing &amp; Package">Publicação &amp; Pacote</button>
+        <button class="tab" type="button" data-tab="hist" data-en="🕘 History">🕘 Histórico</button>
       </div>
 
       <!-- ================= ABA: ENUNCIADO ================= -->
@@ -446,6 +447,13 @@
             <span class="small muted">.tar · .tar.gz · .tar.bz2 · .tar.zst · .zip</span>
           </div>
         </div>
+      </section>
+
+      <!-- 🕘 Histórico git do problema (cada save/upload é um commit autorado) -->
+      <section class="tabpane" data-pane="hist" hidden>
+        <div class="section-head" data-en="Version history (git)">Histórico de versões (git)</div>
+        <p class="small muted" data-en="Every save/upload is a commit. Restoring creates a NEW commit on top (history is never rewritten); public flag and collections are preserved.">Todo salvar/enviar é um commit. Restaurar cria um commit NOVO por cima (a história nunca é reescrita); o flag de público e as coleções são preservados.</p>
+        <div id="histList"><span class="muted" data-en="Loading…">Carregando…</span></div>
       </section>
 
       <!-- barra de ações (fixa, visível em todas as abas) -->

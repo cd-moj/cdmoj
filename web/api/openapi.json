@@ -4903,7 +4903,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Baixa o pacote .tar.gz (inclui soluções → exige escrita/admin)",
+        "summary": "Baixa o pacote .tar.gz (inclui soluções → membro da org); com sha, a versão daquele commit (git archive)",
         "security": [
           {
             "bearerAuth": []
@@ -4917,6 +4917,14 @@
             "name": "id",
             "in": "query",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sha",
+            "in": "query",
+            "description": "commit (hex 7-40) — baixa a versão histórica; ausente = worktree atual",
             "schema": {
               "type": "string"
             }
@@ -5170,6 +5178,71 @@
         "responses": {
           "200": {
             "description": "{id,sha}"
+          }
+        }
+      }
+    },
+    "/problems/history": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Histórico git do problema (membro da org); com sha, o git show -p do commit",
+        "description": "Cada save/upload é um commit autorado pelo login. Sem sha: lista {sha,at,author,subject,files,insertions,deletions} (limit<=200, default 50). Com sha (hex 7-40): {sha,at,author,subject,truncated,diff_b64} — diff limitado a 400 KB. Expõe soluções/testes => gate de source (membro da org; 404 senão).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sha",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id,commits:[...]} ou {sha,at,author,subject,truncated,diff_b64}"
+          }
+        }
+      }
+    },
+    "/problems/restore": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Restaura o problema ao estado de um commit antigo como um COMMIT NOVO",
+        "description": "Body {id, sha, confirm} — confirm repete o sha. A história nunca é reescrita (dá p/ des-restaurar). O .moj-meta.json (público/coleções/owner) é PRESERVADO — meta antigo não republicaria prova privada. Sem revalidação/recalibração automática (o painel acusa 'precisa recalibrar' pelo checksum). Membro da org.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{action:restore, id, from:<sha>, sha:<novo commit>}"
           }
         }
       }
