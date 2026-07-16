@@ -17,8 +17,8 @@ ensure_owners_index(){
       bash "$MOJTOOLS_DIR/gen-problem-owners.sh" >/dev/null 2>&1
     # confere DE VERDADE: o exit code do gerador era descartado, então uma falha dele (MOJTOOLS_DIR
     # errado, var/ não gravável, morto pelo timeout) ficava invisível p/ sempre.
-    [[ -s "$f" ]] && jq -e . "$f" >/dev/null 2>&1
-    return
+    if [[ -s "$f" ]] && jq -e . "$f" >/dev/null 2>&1; then authored_prune; return 0; fi
+    return 1
   fi
   if [[ -n "$(find "$f" -mmin "+$PROBLEM_OWNERS_TTL_MIN" 2>/dev/null)" ]]; then
     # lock COM EXPIRAÇÃO: o `mkdir` vazava se o processo morresse no meio (container reiniciado,
@@ -30,6 +30,8 @@ ensure_owners_index(){
           _ "$MOJTOOLS_DIR/gen-problem-owners.sh" "$lock" & ) 2>/dev/null
     fi
   fi
+  # poda oportunista do overlay (barata: mtime curto-circuita quando não há regen nova)
+  authored_prune
   return 0
 }
 
@@ -41,8 +43,8 @@ owners_merged(){
   ensure_owners_index || return 1     # índice inutilizável: ERRA — não finge lista vazia
   # o overlay authored dá visibilidade IMEDIATA ao recém-criado/editado, mas NÃO pode APAGAR os campos
   # que só o índice calcula (tl_checksum, public_at — protegidos por o overlay não os escrever — e
-  # `html`, DELETADO do overlay na mescla: o upsert antigo gravava html:false fixo e, como o overlay
-  # nunca é podado, 343 problemas públicos ficaram com "sem HTML" eterno no painel) — por isso é
+  # `html`, DELETADO do overlay na mescla: o upsert antigo gravava html:false fixo e, antes da poda
+  # do authored_prune, 343 problemas públicos ficaram com "sem HTML" eterno no painel) — por isso é
   # MESCLADO sobre a entrada do índice (base + overlay, overlay vence campo-a-campo) em vez de
   # substituí-la. Sem isso, todo problema no overlay perdia tl_checksum/public_at (staleness e
   # heatmap de entrada sub-reportados).
@@ -180,6 +182,36 @@ authored_patch(){
       > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || rm -f "$tmp"
   ) 9>"$lk"
 }
+# authored_prune — PODA do overlay: remove as entradas JÁ refletidas no índice de donos SEM
+# divergência nos campos de setter (owner/title/public/collections/collaborators). O overlay é
+# só a ponte de visibilidade imediata até o índice alcançar; sem poda ele crescia p/ sempre
+# (chegou a 344 entradas/131KiB — estourou o --argjson do upsert e eternizou um html:false
+# envenenado). Auto-throttle por MTIME: só roda quando o índice é MAIS NOVO que o overlay (a
+# própria poda/um upsert rejuvenesce o overlay ⇒ no máx. 1 poda por regeneração do índice).
+# Entrada DIVERGENTE (edit mais novo que o índice) e NÃO-indexada FICAM — podam num passo futuro.
+authored_prune(){
+  local f="$AUTHORED_INDEX" lk
+  [[ -s "$f" && -s "$OWNERS_INDEX" ]] || return 0
+  [[ "$OWNERS_INDEX" -nt "$f" ]] || return 0
+  lk="$(_idx_lock "$f")"
+  ( flock 9 2>/dev/null
+    [[ "$OWNERS_INDEX" -nt "$f" ]] || exit 0          # rechecagem sob o lock
+    local tmp="$f.tmp.$$"
+    # overlay por STDIN (ARG_MAX) + índice por --slurpfile; {} de saída é válido (tudo podado)
+    jq -c --slurpfile idx "$OWNERS_INDEX" '
+      ((($idx[0].problems) // []) | map({key:.id, value:.}) | from_entries) as $by
+      | with_entries( .value as $v | ($by[$v.id] // null) as $p
+          | select( ($p == null)
+              or (($v.owner // "") != ($p.owner // ""))
+              or (($v.title // "") != ($p.title // ""))
+              or (($v.public // false) != ($p.public // false))
+              or ((($v.collections // [])|sort) != (($p.collections // [])|sort))
+              or ((($v.collaborators // [])|sort) != (($p.collaborators // [])|sort)) ) )
+      ' < "$f" > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$f" || rm -f "$tmp"
+  ) 9>"$lk"
+  return 0
+}
+
 # authored_remove <id> — tira a entrada do overlay (problema removido -> some na hora das listas)
 authored_remove(){
   local f="$AUTHORED_INDEX" lk; lk="$(_idx_lock "$f")"

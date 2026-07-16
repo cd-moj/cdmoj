@@ -191,8 +191,10 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `server/bin/backfill-public-at.sh` p/ o histórico) → mapa de calor de entrada de públicos. **Nota:**
   `owners_merged` MESCLA o overlay `authored` sobre a entrada do índice (não substitui) p/ não apagar
   os campos que SÓ o índice calcula: `tl_checksum`/`public_at` (o overlay não os escreve) e **`html`
-  (deletado do overlay na mescla)** — o upsert antigo gravava `html:false` fixo e, como o overlay
-  nunca é podado, problemas públicos ficavam com "sem HTML" eterno no painel.
+  (deletado do overlay na mescla)** — o upsert antigo gravava `html:false` fixo e problemas públicos
+  ficavam com "sem HTML" eterno no painel. O overlay é **PODADO** (`authored_prune`, chamado pelo
+  `ensure_owners_index` com throttle por mtime): entrada já refletida no índice sem divergência nos
+  campos de setter sai; divergente/não-indexada fica até o índice alcançar.
 
 - `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta` / `problem_commit`
   = commit git LOCAL por problema, sem Gitea) + `lib/orgs.sh` (acesso por org). Handlers em
