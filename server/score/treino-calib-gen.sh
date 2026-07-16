@@ -5,13 +5,15 @@
 # /treino/admin/calib-activity o cacheia (regen_locked). Dia/dow/hora vêm do EPOCH do nome do log
 # (tudo UTC, consistente com os heatmaps de submissão; cada log é uma rodada curta do agente).
 # Ressalva: run/ NÃO é versionado e pode rotacionar -> cobertura histórica parcial.
-set -u
+set -u -o pipefail
 : "${RUNDIR:=/home/ribas/moj/run}"
 LOGDIR="$RUNDIR/updates/log"
 OUT="${1:-}"; [[ -n "$OUT" ]] || { echo "uso: treino-calib-gen.sh <outfile>" >&2; exit 1; }
 mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "treino-calib-gen: mktemp falhou" >&2; exit 1; }
 trap 'rm -f "$TMP"' EXIT
+# diagnóstico persistente (o regen_locked engole stdout/stderr/rc)
+ERR="$(dirname "$OUT")/.calib-activity.err"; : > "$ERR" 2>/dev/null || ERR=/dev/null
 empty='{"success":true,"calib_per_day":[],"calib_by_dow_hour":[],"total":0}'
 
 if [[ ! -d "$LOGDIR" ]]; then printf '%s\n' "$empty" > "$TMP"; mv "$TMP" "$OUT"; exit 0; fi
@@ -26,13 +28,15 @@ find "$LOGDIR" -maxdepth 1 -name '*.log' -print0 2>/dev/null \
                ep=f+0; ed=int(ep/86400); day=ed*86400; dow=((ed%7)+4)%7; hh=int((ep%86400)/3600) }
       /cacheado\+calibrado/ { cnt[day]++; hcnt[dow*100+hh]++ }
       END { for (d in cnt) print "D\t" d "\t" cnt[d];
-            for (k in hcnt) print "H\t" int(k/100) "\t" (k%100) "\t" hcnt[k] }' 2>/dev/null \
+            for (k in hcnt) print "H\t" int(k/100) "\t" (k%100) "\t" hcnt[k] }' 2>>"$ERR" \
   | jq -R -cs 'split("\n")|map(select(length>0)|split("\t")) as $rows
       | ($rows|map(select(.[0]=="D")|{day:(.[1]|tonumber), n:(.[2]|tonumber)})
           | group_by(.day)|map({day:.[0].day, count:(map(.n)|add)})|sort_by(.day)) as $pd
       | ($rows|map(select(.[0]=="H")|{dow:(.[1]|tonumber), hour:(.[2]|tonumber), n:(.[3]|tonumber)})
           | group_by(.dow*100+.hour)|map({dow:.[0].dow, hour:.[0].hour, n:(map(.n)|add)})|sort_by(.dow*100+.hour)) as $dh
       | {success:true, calib_per_day:$pd, calib_by_dow_hour:$dh, total:(([$pd[].count]|add) // 0)}' \
-  > "$TMP" 2>/dev/null || printf '%s\n' "$empty" > "$TMP"
+  > "$TMP" 2>>"$ERR" || printf '%s\n' "$empty" > "$TMP"
 [[ -s "$TMP" ]] || printf '%s\n' "$empty" > "$TMP"
-mv "$TMP" "$OUT"
+# instala só saída VÁLIDA (cache quebrado nunca vai p/ o ar); falhou => cache anterior + .err
+if jq -e . "$TMP" >/dev/null 2>&1; then mv "$TMP" "$OUT"
+else echo "treino-calib-gen: saída inválida — cache anterior mantido ($(date -u +%FT%TZ))" >> "$ERR"; exit 1; fi

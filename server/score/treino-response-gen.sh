@@ -15,12 +15,18 @@
 # É o "build" das estatísticas de resposta — análogo a server/score/stats-gen.sh. O handler
 # /treino/admin/response-stats o usa como cache preguiçoso (lib/common.sh: regen_locked).
 # O bloco de percentis espelha handlers/contest/admin/dashboard.sh.
-set -u
+# pipefail é LOAD-BEARING: sem ele, o estágio 1 morto (ARG_MAX/JSON corrompido) deixava o
+# estágio 2 (jq -c, leitor de stream) com stdin vazio — que imprime NADA e sai 0 — o
+# `|| fallback` não disparava e um cache de 0 BYTE ia p/ o ar (200 com corpo vazio no painel).
+set -u -o pipefail
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 
 C="${1:-}"; OUT="${2:-}"
 [[ -n "$C" && -n "$OUT" ]] || { echo "uso: treino-response-gen.sh <contest> <outfile>" >&2; exit 1; }
 case "$C" in *[!A-Za-z0-9._@#+-]* | "" | *..* ) echo "treino-response-gen: invalid contest id" >&2; exit 1;; esac
+# diagnóstico persistente: o regen_locked engole stdout/stderr/rc — sem isto, falha de geração
+# era 100% invisível (foi assim que o SCOREDIR quebrado passou despercebido em produção)
+ERR="$(dirname "$OUT")/.response-stats.err"; : > "$ERR" 2>/dev/null || ERR=/dev/null
 
 # history no formato global (temp) + results espalhados por users/<login>/results/.
 _SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$_SDIR/../api/v1/lib/users.sh"
@@ -42,10 +48,10 @@ history_total="${history_total:-0}"
 # tem dezenas de milhares de linhas: passar o mapa por --argjson estoura ARG_MAX -> --slurpfile.
 printf '{}\n' > "$MAPTMP"
 if [[ -f "$hist" ]]; then
-  awk -F: 'NF>=6 && $(NF)!="" {print $(NF)"\t"$(NF-1)}' "$hist" 2>/dev/null \
+  awk -F: 'NF>=6 && $(NF)!="" {print $(NF)"\t"$(NF-1)}' "$hist" 2>>"$ERR" \
     | jq -R -cs 'split("\n")|map(select(length>0)|split("\t"))
                  |map({key:.[0], value:(.[1]|tonumber? // 0)})|from_entries' \
-    > "$MAPTMP" 2>/dev/null
+    > "$MAPTMP" 2>>"$ERR" || true
   [[ -s "$MAPTMP" ]] || printf '{}\n' > "$MAPTMP"
 fi
 
@@ -57,31 +63,25 @@ printf '{"subs_per_day":[],"subs_by_dow_hour":[]}\n' > "$VOLTMP"
 if [[ -f "$hist" ]]; then
   awk -F: '{ if(NF<6) next; s=$(NF-1)+0; if(s<1) next; ed=int(s/86400); d[ed*86400]++;
              k=((((ed%7)+4)%7)*100)+int((s%86400)/3600); h[k]++ }
-    END { for(x in d) print "D\t"x"\t"d[x]; for(x in h) print "H\t"int(x/100)"\t"(x%100)"\t"h[x] }' "$hist" 2>/dev/null \
+    END { for(x in d) print "D\t"x"\t"d[x]; for(x in h) print "H\t"int(x/100)"\t"(x%100)"\t"h[x] }' "$hist" 2>>"$ERR" \
     | jq -R -cs 'split("\n")|map(select(length>0)|split("\t")) as $rows
         | { subs_per_day: ($rows|map(select(.[0]=="D")|{day:(.[1]|tonumber), count:(.[2]|tonumber)})|sort_by(.day)),
             subs_by_dow_hour: ($rows|map(select(.[0]=="H")|{dow:(.[1]|tonumber), hour:(.[2]|tonumber), n:(.[3]|tonumber)})|sort_by(.dow*100+.hour)) }' \
-    > "$VOLTMP" 2>/dev/null
+    > "$VOLTMP" 2>>"$ERR" || true
   [[ -s "$VOLTMP" ]] || printf '{"subs_per_day":[],"subs_by_dow_hour":[]}\n' > "$VOLTMP"
 fi
 
-# coleta os results/<id>.json (cada um já traz id, finalized_at, duration_s),
-# espalhados em users/<login>/results/.
-set +o noglob; shopt -s nullglob
-files=( "$(users_dir "$C")"/*/results/*.json )
-shopt -u nullglob
-
-if (( ${#files[@]} == 0 )); then
-  jq -cn --argjson ht "$history_total" --slurpfile volf "$VOLTMP" '{success:true, coverage:{history_total:$ht, with_finalized:0},
-    overall:{n:0,avg_wait_s:0,p50_wait_s:0,p95_wait_s:0,max_wait_s:0,avg_judge_s:0,avg_queue_s:0},
-    per_day:[], by_dow_hour:[]} + ($volf[0] // {subs_per_day:[],subs_by_dow_hour:[]})' > "$TMP"
-  mv "$TMP" "$OUT"; exit 0   # o trap EXIT limpa MAPTMP/VOLTMP (e o TMP já movido)
-fi
+# coleta os results/<id>.json (cada um já traz id, finalized_at, duration_s), espalhados em
+# users/<login>/results/. Por find|xargs -0, NUNCA por argv/glob: com dezenas de milhares de
+# results o glob estourava ARG_MAX ("Argument list too long" engolido) — mesmo padrão do
+# dashboard.sh/results_map_file. Cada lote do xargs emite um ARRAY; o `add` re-funde. Um JSON
+# corrompido derruba só o SEU lote (fica no .err). Zero arquivos => [] (o pipeline único cobre).
 
 # 1ª etapa: registros {sub,wait,judge,queue,day,dow,hour} (só finalized_at>0 + sub_epoch conhecido);
 # 2ª etapa: agregação (geral/por dia/dia×hora). PIPE entre as etapas -> nada grande por argv.
 # O bloco de percentis espelha handlers/contest/admin/dashboard.sh.
-jq -cs --slurpfile mapf "$MAPTMP" '
+find "$(users_dir "$C")" -mindepth 3 -maxdepth 3 -path '*/results/*.json' -print0 2>/dev/null \
+| { xargs -0 -r -n 500 jq -cs --slurpfile mapf "$MAPTMP" '
   ($mapf[0] // {}) as $submap
   | [ .[]
       | select(.id and ((.finalized_at//0) > 0))
@@ -95,8 +95,8 @@ jq -cs --slurpfile mapf "$MAPTMP" '
           queue:(if $wait > $judge then ($wait - $judge) else 0 end),
           day:($epday*86400),
           dow:((($epday % 7) + 4) % 7),
-          hour:((($sub % 86400)/3600)|floor) } ]' \
-  "${files[@]}" 2>/dev/null \
+          hour:((($sub % 86400)/3600)|floor) } ]' 2>>"$ERR" || true; } \
+| jq -cs 'add // []' 2>>"$ERR" \
 | jq -c --argjson ht "$history_total" --slurpfile volf "$VOLTMP" '
     def pct(a; p): (a|length) as $n | if $n==0 then 0 else (a|sort)[((($n-1)*p)|floor)] end;
     def avg(a):    (a|length) as $n | if $n==0 then 0 else ((a|add)/$n|floor) end;
@@ -120,6 +120,13 @@ jq -cs --slurpfile mapf "$MAPTMP" '
             { dow:.[0].dow, hour:.[0].hour, n:length, avg_wait_s:avg(map(.wait)) } )
           | sort_by(.dow*100 + .hour) ) }
     + ($volf[0] // {subs_per_day:[],subs_by_dow_hour:[]})' \
-  > "$TMP" 2>/dev/null || printf '%s\n' "$empty" > "$TMP"
+  > "$TMP" 2>>"$ERR" || printf '%s\n' "$empty" > "$TMP"
 
-mv "$TMP" "$OUT"   # o trap EXIT limpa o MAPTMP (e o TMP já movido)
+# INSTALA só saída VÁLIDA e NÃO-VAZIA: cache de 0 byte/quebrado nunca vai p/ o ar (o handler
+# faria `cat` dele = 200 com corpo vazio). Falhou? mantém o cache anterior e o .err explica.
+if [[ -s "$TMP" ]] && jq -e . "$TMP" >/dev/null 2>&1; then
+  mv "$TMP" "$OUT"   # o trap EXIT limpa o MAPTMP (e o TMP já movido)
+else
+  echo "treino-response-gen: saída inválida/vazia — cache anterior mantido ($(date -u +%FT%TZ))" >> "$ERR"
+  exit 1
+fi

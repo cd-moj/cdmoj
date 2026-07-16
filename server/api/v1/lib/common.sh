@@ -10,8 +10,13 @@ _LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
 : "${SESSIONDIR:=/home/ribas/moj/run/sessions}"
 : "${SPOOLDIR:=/home/ribas/moj/run/spool/submissions}"
-: "${NEWSDIR:=/home/ribas/moj/cdmoj/server/var/news}"
-: "${SCOREDIR:=/home/ribas/moj/cdmoj/server/score}"
+# defaults DERIVADOS do próprio checkout (_LIBDIR = server/api/v1/lib), nunca caminho de dev
+# hardcoded: na imagem de produção (/opt/moj/cdmoj) o caminho de dev NÃO EXISTE e o SCOREDIR
+# quebrado fazia TODO regen_locked executar script inexistente, mudo (rc engolido) — os caches
+# de response-stats/calib-activity/statistics/panorama nunca nasciam e os painéis serviam o
+# fallback zerado p/ sempre. Env (imagem/quadlet) continua vencendo o default.
+: "${NEWSDIR:=$_LIBDIR/../../../var/news}"
+: "${SCOREDIR:=$_LIBDIR/../../../score}"
 : "${DEFAULT_SCORE_MODE:=icpc}"
 export CONTESTSDIR SCOREDIR   # herdados por sub-processos (ex.: server/score/build.sh)
 

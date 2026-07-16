@@ -102,6 +102,7 @@ RUN set -eux; \
 # Estado (contests/run/moj-problems/news) vem por VOLUME em /data (ver quadlets).
 ENV MOJ_HOME=/opt/moj/cdmoj \
     MOJTOOLS_DIR=/opt/moj/mojtools \
+    SCOREDIR=/opt/moj/cdmoj/server/score \
     CONTESTSDIR=/data/contests \
     RUNDIR=/data/run \
     MOJ_PROBLEMS_DIR=/data/moj-problems \
