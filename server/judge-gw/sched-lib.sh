@@ -349,19 +349,18 @@ upd_claim() {
 
 upd_done() { rm -f "$UPDATESDIR/inprogress/$1/$2.json" 2>/dev/null; }   # $1=host $2=reqid
 
-# upd_touch_host <host> : re-carimba touched_at das calibrações em execução deste host.
+# upd_touch_host <host> : re-carimba o MTIME das calibrações em execução deste host.
 # Chamado a cada heartbeat de agente NOVO (que manda `status` e tem teto dinâmico + kill):
 # enquanto o juiz está VIVO, uma calibração longa LEGÍTIMA (que pode passar de UPD_TTL) não é
-# re-enfileirada — o UPD_TTL vira proteção só contra host morto/agente antigo. (Agente novo
-# nunca deixa claim órfão: o boot re-enfileira e o teto mata+reporta job preso.)
-# NÃO toca o claimed_at: ele é a IDADE REAL do job na UI/CLI ("há Xm") — o TTL lê touched_at.
+# re-enfileirada — o UPD_TTL vira proteção só contra host morto/agente antigo.
+# `touch -c` (NUNCA cria): a versão anterior reescrevia o JSON (jq > tmp && mv) e RESSUSCITAVA
+# o arquivo quando o upd_done o removia entre a leitura e o mv — nascia um claim FANTASMA que,
+# re-tocado a cada beat, nunca expirava e (com a serialização por-target) bloqueava calibrações
+# futuras do problema. O claimed_at do JSON fica intacto (idade real na UI); o TTL lê o mtime.
 upd_touch_host() {
-  local host="$1" f tmp
+  local host="$1"
   [[ -d "$UPDATESDIR/inprogress/$host" ]] || return 0
-  while IFS= read -r f; do
-    tmp="$f.tmp"
-    jq -c --argjson now "$EPOCHSECONDS" '.touched_at=$now' "$f" > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
-  done < <(find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' 2>/dev/null)
+  find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' -exec touch -c {} + 2>/dev/null
   return 0
 }
 
@@ -384,9 +383,11 @@ upd_reconcile() {
       while IFS= read -r f; do
         [[ -f "$f" ]] || continue
         base="$(basename "$f")"
-        # TTL sobre o carimbo mais RECENTE: touched_at (heartbeat de agente novo) mantém viva
-        # a calibração longa legítima; claimed_at fica intocado (é a idade real na UI)
-        cat_at="$(jq -r '.touched_at // .claimed_at // .requested_at // 0' "$f" 2>/dev/null)"
+        # TTL sobre o carimbo mais RECENTE: o MTIME (touch -c do heartbeat de agente novo)
+        # mantém viva a calibração longa legítima; no claim o mtime ≈ claimed_at (agente
+        # antigo nunca é tocado => expira como sempre). claimed_at do JSON = idade real na UI.
+        cat_at="$(stat -c %Y "$f" 2>/dev/null)"
+        [[ "$cat_at" =~ ^[0-9]+$ ]] || cat_at="$(jq -r '.claimed_at // .requested_at // 0' "$f" 2>/dev/null)"
         if [[ "$live" != *" $host "* ]] || (( now - cat_at > UPD_TTL )); then
           mv -f "$f" "$UPDATESDIR/pending/$base" 2>/dev/null
         fi
