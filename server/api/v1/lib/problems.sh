@@ -159,15 +159,22 @@ authored_upsert(){
     # 2>/dev/null engolia e o upsert virava NO-OP silencioso — todo problema novo (upload E
     # editor) nascia INVISÍVEL p/ o próprio autor (404 em validation/get) até o índice de
     # donos alcançar. Ver ../CLAUDE.md (ARG_MAX) e a lição jq-argmax-128k.
+    # normalizações ESPELHANDO o gerador do índice (divergência aqui = entrada que nunca poda e
+    # que VENCE a mescla com o valor pior): título sem \r/\t/\n (metas CRLF da migração serviam
+    # "Título\r" nas listagens) e collections vazio = [org] (a convenção "o repo é a coleção-curso"
+    # do gen-problem-owners — o [] literal atropelava a coleção-default do índice).
     ( umask 077; printf '%s' "$cur" | jq --arg id "$1" --arg o "$2" --arg r "$3" --arg p "$4" \
         --arg t "$5" --arg pub "$6" --argjson colls "${7:-[]}" --arg au "$8" --argjson cb "${9:-[]}" '
         . as $cur
         | ($cur[$id] // {}) as $old
+        | ($t | gsub("[\r\n\t]"; "")) as $tc
         | $cur + { ($id): ($old + {
             id:$id, owner:$o, repo:$r, prob:$p,
-            title:(if $t=="" then ($old.title // $p) else $t end),
-            author:$au, author_norm:($au|ascii_downcase),
-            collaborators:$cb, collections:$colls, public:($pub=="true") }) }
+            title:(if $tc=="" then ($old.title // $p) else $tc end),
+            author:($au | gsub("[\r\n\t]"; "")), author_norm:(($au | gsub("[\r\n\t]"; ""))|ascii_downcase),
+            collaborators:$cb,
+            collections:(if ($colls|length)==0 then [$r] else $colls end),
+            public:($pub=="true") }) }
       ' ) > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$f" || rm -f "$tmp"
   ) 9>"$lk"
 }
