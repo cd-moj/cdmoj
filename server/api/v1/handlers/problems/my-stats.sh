@@ -37,7 +37,9 @@ if [[ ! -f "$PANO" ]]; then
 else
   # ids do login (dono/colaborador) + títulos, junto com o panorama (via --slurpfile; ARG_MAX-safe).
   owners_visible \
-    | jq -c --arg me "$SESSION_LOGIN" '.problems | map(select(.owner==$me or ((.collaborators // [])|index($me)|type=="number")) | {id, title})' \
+    | jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" \
+        '.problems | map(select(.owner==$me or ((.collaborators // [])|index($me)|type=="number")
+            or (((.repo // (.id|split("#")[0])) as $r | $orgs|index($r))|type=="number")) | {id, title})' \
     | jq -c --slurpfile pano "$PANO" '
         . as $owned
         | ($pano[0].problems // {}) as $P

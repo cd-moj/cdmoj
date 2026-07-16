@@ -39,6 +39,7 @@ set -o noglob
 [[ -s "$tmpd/have.json" ]] || echo '{}' > "$tmpd/have.json"
 
 out="$(jq -cn --arg q "$q" --arg col "$col" --arg own "$cowner" --argjson n "$limit" \
+  --argjson oorgs "$(orgs_json_for "$cowner")" \
   --slurpfile bank "$tmpd/bank.json" --slurpfile idx "$tmpd/owners.json" --slurpfile have "$tmpd/have.json" '
   ($bank[0] // []) as $pub
   | ($idx[0].problems // []) as $probs
@@ -49,7 +50,9 @@ out="$(jq -cn --arg q "$q" --arg col "$col" --arg own "$cowner" --argjson n "$li
       [ $probs[]
         | select((.public // false) | not)
         | (if .owner == $own then "mine"
-           elif ((.collaborators // [])|index($own)) != null then "shared" else null end) as $acc
+           elif ((.collaborators // [])|index($own)) != null then "shared"
+           elif (((.repo // (.id|split("#")[0])) as $r | $oorgs|index($r))|type=="number") then "shared"
+           else null end) as $acc
         | select($acc != null)
         | {id, title:(.title // .id), tags:[], collections:(.collections // []),
            access:$acc, private:true, has_statement:($H[.id]==true)} ] end) as $PRIV

@@ -4226,7 +4226,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Problemas onde sou colaborador (não dono)",
+        "summary": "Problemas compartilhados comigo: tudo que posso editar e não é meu — membro da org OU colaborador (não dono)",
         "security": [
           {
             "bearerAuth": []
@@ -4391,7 +4391,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Painel de status dos problemas do login (dono + colaborador)",
+        "summary": "Painel de status dos problemas do login (dono + colaborador + membro da org)",
         "description": "Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo.",
         "security": [
           {

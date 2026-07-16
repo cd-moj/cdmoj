@@ -101,7 +101,7 @@ calibrações) e **Estatísticas** (usuários, sessões, **problemas: total/púb
 
 Autoria/edição em `/problemas/` (storage: repo git LOCAL por problema em `<org>/<prob>`;
 acesso por **ORG** — membros escrevem, a trava `public_allowed` barra vazamento; só o login do MOJ). A aba **Painel**
-(`GET /problems/status`) dá a visão agregada dos problemas de que o login é **dono ou colaborador**:
+(`GET /problems/status`) dá a visão agregada dos problemas de que o login é **dono, colaborador ou membro da org**:
 quantos/quais **calibrando**, **validados**, **calibrados**, **precisam recalibrar** (time-limit
 desatualizado após mudança no pacote) e **com erro**, mais a **planilha de time-limits**. O acesso é
 cortado na API (`owners_visible`): problema privado de terceiro **não** aparece. Staleness vem do

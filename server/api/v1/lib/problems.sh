@@ -71,15 +71,33 @@ owners_merged(){
   printf '%s' "$out"
 }
 
+# orgs_json_for <login> — array JSON das orgs do login (membro OU admin; inclui a implícita).
+# '[]' se nada/falha. É o termo de ORG dos filtros de visibilidade (pequeno: --argjson ok).
+# my_orgs_json = atalho p/ o login da sessão.
+orgs_json_for(){
+  _need_orgs
+  local o; o="$(org_list_for "$1" 2>/dev/null)"
+  jq -e 'type=="array"' >/dev/null 2>&1 <<<"$o" || o='[]'
+  printf '%s' "$o"
+}
+my_orgs_json(){ orgs_json_for "$SESSION_LOGIN"; }
+
 # owners_visible — {problems:[...]} PRÉ-FILTRADO ao que $SESSION_LOGIN PODE VER (público OU dono OU
-# colaborador). É A FRONTEIRA DE SEGURANÇA da gestão (a API garante o acesso, NÃO a interface):
-# problema privado some das listagens — inclusive p/ .admin. Reusada por owners_emit E
-# /problems/status; ter UMA definição só evita divergência do filtro (que é o ponto crítico).
+# colaborador OU **MEMBRO DA ORG** — membro vê TODOS os problemas da org, inclusive privados;
+# decisão do Ribas 2026-07-16, casando a visibilidade com o gate de edição, que sempre foi
+# org_is_member). É A FRONTEIRA DE SEGURANÇA da gestão (a API garante o acesso, NÃO a interface):
+# problema privado some das listagens p/ NÃO-membros — inclusive p/ .admin. Reusada por
+# owners_emit E /problems/status; ter UMA definição só evita divergência do filtro (ponto crítico).
 # Propaga a FALHA do índice (rc!=0 e stdout vazio) em vez de virar lista vazia — quem chama tem de
 # responder 503, nunca "você não tem problema nenhum".
 owners_visible(){
   local m; m="$(owners_merged)" || return 1
-  jq -c --arg _me "$SESSION_LOGIN" '.problems |= map(select(.public or .owner==$_me or ((.collaborators // [])|index($_me)|type=="number")))' <<<"$m" 2>/dev/null
+  local _orgs; _orgs="$(my_orgs_json)"
+  jq -c --arg _me "$SESSION_LOGIN" --argjson _orgs "$_orgs" \
+    '.problems |= map(select(.public or .owner==$_me
+       or ((.collaborators // [])|index($_me)|type=="number")
+       or (((.repo // (.id|split("#")[0])) as $r | $_orgs|index($r))|type=="number")))' \
+    <<<"$m" 2>/dev/null
 }
 # owners_emit <jq-program> [jq-args...] — emite {success,...} aplicando o programa sobre o objeto JÁ
 # FILTRADO (com .problems só visíveis). Use $login/$name já passados via --arg pelos handlers.

@@ -16,8 +16,10 @@ source "$_DIR/../../judge-gw/sched-lib.sh"
 # nenhum" (o `moj board` e a aba Painel mostravam zero, com 200, calados).
 vis="$(owners_visible)" \
   || fail 503 "Índice de problemas indisponível (a regeração falhou) — tente de novo em instantes" "index_unavailable"
-vis="$(jq -c --arg me "$SESSION_LOGIN" \
-   '.problems |= map(select(.owner==$me or ((.collaborators // [])|index($me)|type=="number")))' <<<"$vis" 2>/dev/null)"
+# estreita ao que o login OPERA (tira os só-públicos): dono, colaborador ou MEMBRO da org
+vis="$(jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" \
+   '.problems |= map(select(.owner==$me or ((.collaborators // [])|index($me)|type=="number")
+       or (((.repo // (.id|split("#")[0])) as $r | $orgs|index($r))|type=="number")))' <<<"$vis" 2>/dev/null)"
 [[ -n "$vis" ]] || fail 503 "Falha ao filtrar o índice de problemas" "index_unavailable"
 
 ids="$(mktemp)"; jq -r '.problems[].id' <<<"$vis" 2>/dev/null > "$ids"

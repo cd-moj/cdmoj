@@ -10,7 +10,8 @@ reg="$(cat "$ORGS_REGISTRY" 2>/dev/null)"; [[ -n "$reg" ]] || reg='{}'
 gadm=false; is_admin && gadm=true
 emit_json 200 OK
 owners_merged | jq -c --argjson reg "$reg" --argjson mine "$mine" --arg me "$SESSION_LOGIN" --argjson gadm "$gadm" '
-  ( [ .problems[] | select(.public or .owner==$me or ((.collaborators // [])|index($me)|type=="number"))
+  ( [ .problems[] | select(.public or .owner==$me or ((.collaborators // [])|index($me)|type=="number")
+        or (((.repo // (.id|split("#")[0])) as $r | $mine|index($r))|type=="number"))
       | {org:(.id|split("#")[0]), pub:.public} ] | group_by(.org)
     | map({key:.[0].org, value:{count:length, public:([.[]|select(.pub)]|length)}}) | from_entries ) as $cnt
   | { success:true,

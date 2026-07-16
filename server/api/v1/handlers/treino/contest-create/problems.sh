@@ -1,6 +1,7 @@
 # GET /treino/contest-create/problems?q=&limit=  (auth treino, pode criar)
 # Busca os problemas que o usuário PODE USAR num contest: públicos (banco do treino) + os
-# PRIVADOS a que ele tem acesso (dono ou colaborador). Autocomplete do seletor de problemas.
+# PRIVADOS a que ele tem acesso (dono, colaborador ou MEMBRO da org — membro opera todos os
+# problemas da org, inclusive privados). Autocomplete do seletor de problemas.
 require_method GET
 require_auth_contest treino
 source "$_LIBDIR/contest-create.sh"
@@ -18,10 +19,12 @@ set -o noglob
 [[ -n "$have" ]] || have='{}'
 
 emit_json 200 OK
-owners_merged | jq -c --arg me "$SESSION_LOGIN" --arg q "$q" --argjson n "$limit" --argjson have "$have" '
+owners_merged | jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" \
+    --arg q "$q" --argjson n "$limit" --argjson have "$have" '
   [ .problems[]
     | ( if .owner==$me then "mine"
         elif ((.collaborators // [])|index($me)) then "shared"
+        elif (((.repo // (.id|split("#")[0])) as $r | $orgs|index($r))|type=="number") then "shared"
         elif .public then "public" else null end ) as $acc
     | select($acc != null)
     | { id, title, tags:(.tags // []), access:$acc, private:(.public|not), has_statement:($have[.id]==true) } ]

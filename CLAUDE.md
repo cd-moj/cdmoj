@@ -158,17 +158,18 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
 - **Acesso a problema (helpers centrais em `lib/problems.sh`):** ver **source/pacote/soluções/
   calibração** = só **membro da ORG** (`require_problem_edit` → `org_is_member`,
   **sem atalho de `.admin`**); ver **detalhe/statement** (`get`/`validation`) = membro da org
-  **ou** público (`require_problem_view`); **listagens** pré-filtram em `owners_emit` (problema
-  **privado some** p/ quem não é dono/colaborador, **inclusive `.admin`**). Não-autorizado: **404**.
+  **ou** público (`require_problem_view`); **listagens** pré-filtram em `owners_emit` — **membro da
+  org VÊ TODOS os problemas dela, inclusive privados** (2026-07-16); problema **privado some** p/
+  quem não é membro da org nem colaborador, **inclusive `.admin`**. Não-autorizado: **404**.
   Motivo: provas em elaboração não podem vazar. Testado como não-dono via `moj-cli` (não burlável).
 
 - **Painel de status (`GET /problems/status`, aba "Painel" da gestão):** agrega, dos problemas de que
-  o login é **dono ou colaborador**, validação/calibração/time-limits + estados **"calibrando"**
+  o login é **dono, colaborador ou membro da org**, validação/calibração/time-limits + estados **"calibrando"**
   (varredura única de `run/updates`+`run/commands` por `kind/action==calibrate` — `calibrating_set`) e
   **"precisa recalibrar"** (checksum calibrado em `run/tl/<id>.json` ≠ `tl_checksum` **carimbado no
   índice** por `mojtools/gen-problem-owners.sh`). A FRONTEIRA de acesso é **`owners_visible`** (extraído
-  de `owners_emit` — UMA definição do filtro público∪dono∪colaborador; o handler ainda estreita a
-  dono/colaborador). **Sem hash de pacote por request**: staleness é a comparação de dois checksums já
+  de `owners_emit` — UMA definição do filtro público∪dono∪colaborador∪membro-da-org; o handler
+  ainda estreita a dono/colaborador/membro-da-org). **Sem hash de pacote por request**: staleness é a comparação de dois checksums já
   materializados (o do índice regenera em background, ≤30 min de atraso — o gerador tem cache por
   commit do repo p/ não re-hashear pacote sem mudança; `/problems/tl` dá o valor exato ao vivo p/ 1
   problema). No `.admin`: **fila de calibração** explícita (`/treino/admin/queue`:
@@ -177,7 +178,7 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   (`/treino/admin/stats`, **só números** — privados contados, nunca listados).
 
 - **Análise dos meus problemas (`GET /problems/my-stats`, aba "Análise"):** panorama de submissões
-  dos problemas do login (dono/colaborador) agregado em **TODA a plataforma** (treino + as ~174
+  dos problemas do login (dono/colaborador/membro da org) agregado em **TODA a plataforma** (treino + as ~174
   turmas): tentativas/acertos/erros/linguagens/usuários/nº de contests/mais popular. Cálculo pesado
   em `server/score/problem-panorama-gen.sh` → cache `contests/treino/var/problem-panorama.json`
   (regen em BACKGROUND quando velho, padrão do índice). **Reconciliação de namespace** (o ponto

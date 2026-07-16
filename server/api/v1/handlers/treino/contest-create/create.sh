@@ -6,17 +6,20 @@ cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar contest" "
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 
-# guarda: problemas PRIVADOS só entram se o criador tem acesso (dono/colaborador)
+# guarda: problemas PRIVADOS só entram se o criador tem acesso (dono, colaborador ou MEMBRO da org)
 source "$_LIBDIR/problems.sh"
 pids="$(jq -c '[.problems[]? | (.bank_id // .problem_id // "") | gsub("/";"#") | select(.!="")]' <<<"$body")"
 if [[ "$pids" != "[]" ]]; then
   # owners_merged FORA do pipe: índice quebrado tem de virar 503. Dentro do `$(… | jq)` a falha
   # virava lista vazia => "nada negado" (FAIL-OPEN: problema PRIVADO de terceiro entrava no contest).
   _om="$(owners_merged)" || fail 503 "Índice de problemas indisponível — tente de novo em instantes" "index_unavailable"
-  denied="$(jq -r --argjson pids "$pids" --arg me "$SESSION_LOGIN" '
+  denied="$(jq -r --argjson pids "$pids" --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" '
     (.problems | map({key:.id, value:.}) | from_entries) as $by
     | [ $pids[] | . as $id | ($by[$id]) as $p
-        | select($p != null and $p.owner != $me and ((($p.collaborators // [])|index($me))|not) and ($p.public|not)) | $id ]
+        | select($p != null and $p.owner != $me
+                 and ((($p.collaborators // [])|index($me))|not)
+                 and (((($p.repo // ($id|split("#")[0])) as $r | $orgs|index($r))|type=="number")|not)
+                 and ($p.public|not)) | $id ]
     | unique | join(", ")' <<<"$_om" 2>/dev/null)"
   [[ -n "$denied" ]] && fail 403 "Sem acesso a problema(s) privado(s): $denied" "problem_denied"
 fi
