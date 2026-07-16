@@ -35,26 +35,29 @@ org_list_for(){ _orgs_read | jq -c --arg u "$1" '[to_entries[]|select(((.value.m
 org_register(){
   local n="$1" cr="$2" m="${3:-}" a="${4:-}" t="${5:-}" pa="${6:-false}" cur tmp
   cur="$(_orgs_read)"; mkdir -p "$(dirname "$ORGS_REGISTRY")" 2>/dev/null; tmp="$ORGS_REGISTRY.tmp.$$"
-  ( umask 077; jq -n --argjson cur "$cur" --arg n "$n" --arg cr "$cr" --arg m "$m" --arg a "$a" \
+  # registro por STDIN, não --argjson (128 KiB/argumento): orgs.json cresce com os usuários
+  # (toda conta ganha org implícita) — mesmo no-op silencioso do overlay authored (2026-07-16)
+  ( umask 077; printf '%s' "$cur" | jq --arg n "$n" --arg cr "$cr" --arg m "$m" --arg a "$a" \
       --arg t "$t" --arg pa "$pa" --argjson now "$EPOCHSECONDS" '
-      ($cur[$n] // {}) as $old
+      . as $cur
+      | ($cur[$n] // {}) as $old
       | $cur + { ($n): ($old + {
           created_by:($old.created_by // $cr),
           title:(if $t=="" then ($old.title // $n) else $t end),
           members:((($old.members // []) + [$cr] + ($m|split(",")|map(select(length>0)))) | unique),
           admins: ((($old.admins  // []) + [$cr] + ($a|split(",")|map(select(length>0)))) | unique),
           public_allowed:(if $pa=="true" then true else ($old.public_allowed // false) end),
-          at:$now }) }' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$ORGS_REGISTRY"
+          at:$now }) }' ) > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$ORGS_REGISTRY" || rm -f "$tmp"
 }
 # ensure_implicit_org <login> — org privada do usuário (só ele; nunca libera público). Idempotente.
 ensure_implicit_org(){
   local u="$1"; [[ "$u" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || return 1
   org_exists "$u" && return 0
   local cur tmp; cur="$(_orgs_read)"; mkdir -p "$(dirname "$ORGS_REGISTRY")" 2>/dev/null; tmp="$ORGS_REGISTRY.tmp.$$"
-  ( umask 077; jq -n --argjson cur "$cur" --arg u "$u" --argjson now "$EPOCHSECONDS" '
-      $cur + { ($u): { created_by:$u, title:$u, members:[$u], admins:[$u],
-                       public_allowed:false, implicit:true, at:$now } }' ) \
-    > "$tmp" 2>/dev/null && mv -f "$tmp" "$ORGS_REGISTRY"
+  ( umask 077; printf '%s' "$cur" | jq --arg u "$u" --argjson now "$EPOCHSECONDS" '
+      . + { ($u): { created_by:$u, title:$u, members:[$u], admins:[$u],
+                    public_allowed:false, implicit:true, at:$now } }' ) \
+    > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$ORGS_REGISTRY"
 }
 _org_set_field(){  # <org> <field> <json>  (members|admins)
   local n="$1" k="$2" v="$3" cur tmp; cur="$(_orgs_read)"

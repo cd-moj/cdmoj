@@ -130,15 +130,22 @@ authored_upsert(){
     local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
     jq -e . >/dev/null 2>&1 <<<"$cur" || cur='{}'          # overlay ilegível: recomeça (não propaga lixo)
     tmp="$f.tmp.$$"
-    ( umask 077; jq -n --argjson cur "$cur" --arg id "$1" --arg o "$2" --arg r "$3" --arg p "$4" \
+    # o overlay entra por STDIN, nunca por --argjson: o teto do kernel é 128 KiB POR ARGUMENTO
+    # e o overlay CRESCE (1 entrada por problema criado/subido). Quando passou de 128 KiB
+    # (migrações em massa de 2026-07), o execve do jq falhava "Argument list too long", o
+    # 2>/dev/null engolia e o upsert virava NO-OP silencioso — todo problema novo (upload E
+    # editor) nascia INVISÍVEL p/ o próprio autor (404 em validation/get) até o índice de
+    # donos alcançar. Ver ../CLAUDE.md (ARG_MAX) e a lição jq-argmax-128k.
+    ( umask 077; printf '%s' "$cur" | jq --arg id "$1" --arg o "$2" --arg r "$3" --arg p "$4" \
         --arg t "$5" --arg pub "$6" --argjson colls "${7:-[]}" --arg au "$8" --argjson cb "${9:-[]}" '
-        ($cur[$id] // {}) as $old
+        . as $cur
+        | ($cur[$id] // {}) as $old
         | $cur + { ($id): ($old + {
             id:$id, owner:$o, repo:$r, prob:$p,
             title:(if $t=="" then ($old.title // $p) else $t end),
             author:$au, author_norm:($au|ascii_downcase),
             collaborators:$cb, collections:$colls, public:($pub=="true"), html:false }) }
-      ' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || rm -f "$tmp"
+      ' ) > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$f" || rm -f "$tmp"
   ) 9>"$lk"
 }
 # authored_patch <id> <jq-expr-sobre-a-entrada> [jq-args...] — patch parcial de 1 entrada
@@ -274,7 +281,20 @@ problem_access(){
   local id="$1" me="$2" org="${1%%#*}" p owner pub
   ensure_owners_index
   p="$(owners_merged | jq -c --arg id "$id" 'first(.problems[]|select(.id==$id)) // empty' 2>/dev/null)"
-  [[ -n "$p" ]] || { printf 'unknown'; return; }
+  if [[ -z "$p" ]]; then
+    # FALLBACK DE DISCO: índice/overlay atrasado ou quebrado NUNCA nega acesso a MEMBRO da org
+    # (verdade de acesso = pacote em disco + orgs.json, não um cache lazy). Sem isto, o overlay
+    # >128KiB (upsert no-op silencioso) fez todo problema recém-subido dar 404 p/ o PRÓPRIO
+    # autor. Anti-leak intacto: não-membro segue 'unknown' (404) e público continua exigindo o
+    # índice — este fallback só devolve 'shared', nunca 'public'.
+    declare -F pkg_path >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
+    local pk; pk="$(pkg_path "$id" 2>/dev/null)"
+    if [[ -n "$pk" && -d "$pk" ]]; then
+      _need_orgs
+      org_is_member "$org" "$me" && { printf 'shared'; return; }
+    fi
+    printf 'unknown'; return
+  fi
   owner="$(jq -r '.owner // empty' <<<"$p")"; pub="$(jq -r 'if .public then 1 else 0 end' <<<"$p")"
   [[ "$owner" == "$me" ]] && { printf 'mine'; return; }
   _need_orgs
