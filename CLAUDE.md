@@ -174,8 +174,9 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   índice** por `mojtools/gen-problem-owners.sh`). A FRONTEIRA de acesso é **`owners_visible`** (extraído
   de `owners_emit` — UMA definição do filtro público∪dono∪colaborador∪membro-da-org; o handler
   ainda estreita a dono/colaborador/membro-da-org). **Sem hash de pacote por request**: staleness é a comparação de dois checksums já
-  materializados (o do índice regenera em background, ≤30 min de atraso — o gerador tem cache por
-  commit do repo p/ não re-hashear pacote sem mudança; `/problems/tl` dá o valor exato ao vivo p/ 1
+  materializados (o do índice regenera em background, ≤30 min de atraso — o gerador tem cache
+  assinado por commit do repo + metadata dos arquivos (statsig; só o commit não pega mudança fora
+  do git, ex.: normalize de modes) p/ não re-hashear pacote sem mudança; `/problems/tl` dá o valor exato ao vivo p/ 1
   problema — e, quando precisa recalibrar, o **PORQUÊ**: `reason` + `changes`/`changed_files` = os
   commits desde a calibração que tocaram os caminhos do tl-checksum, via git log do repo do problema).
   **Recalibrar em LOTE**: `POST /problems/recalibrate-stale` (mesma fronteira do status; cada item
