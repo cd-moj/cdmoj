@@ -185,8 +185,9 @@ metrics_recompute(){
            sub_epoch:((.[-2]|tonumber?) // 0),
            verdict:(.[3:-2]|join(":"))})
     | map(. + {prov: (.verdict|test("Not Answered Yet|On queue|Running"; "i")),
-               ac:   (.verdict|startswith("Accepted"))})
+               ac:   (.verdict|startswith("Accepted") and (test(" \\(Ignored\\)$")|not))})
     | map(. + {counts: ((.prov
+                or (.verdict|test(" \\(Ignored\\)$"))
                 or (.verdict|startswith("Judge Error"))
                 or (.verdict|test("^No_?Servers"))
                 or ((($deny|index("Compilation Error")) != null)

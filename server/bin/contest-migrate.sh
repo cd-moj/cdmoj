@@ -39,13 +39,14 @@ log(){ echo "  $*" >&2; }
 CMD="${1:-}"; shift || true
 [[ -n "$CMD" ]] || die "uso: $0 {stage|verify|install|audit} ..."
 
-FROM=""; MAP=""; STAGE=""; CDIR=""
+FROM=""; MAP=""; STAGE=""; CDIR=""; OWNER=""
 while (( $# )); do
   case "$1" in
     --from)        FROM="${2:-}"; shift 2 ;;
     --map)         MAP="${2:-}"; shift 2 ;;
     --stage)       STAGE="${2:-}"; shift 2 ;;
     --contest-dir) CDIR="${2:-}"; shift 2 ;;
+    --owner)       OWNER="${2:-}"; shift 2 ;;
     *) die "opção desconhecida: $1" ;;
   esac
 done
@@ -116,7 +117,11 @@ do_stage(){
     < <(awk -F'\t' '$1=="P"{print}' "$TMPD/conf.tsv")
 
   # --- OFF2ID: offset -> id do newmoj (a MESMA tabela p/ conf e history) ---------------
-  # SEMPRE derivar de [i+1] (barra->hash); NUNCA de [i+4] (é PDF). Órfão mantém repo#slug.
+  # SEMPRE derivar de [i+1] (barra->hash); NUNCA de [i+4] (é PDF/token). O mapa (PMAP) resolve
+  # os 3 casos de [i+1]: barra cdmoj (`repo#slug`), slug-nu cdmoj (`olamundo`→`moj-problems#…`),
+  # e external (source spoj-*, `JPNEU`→órfão). Órfão (ausente ou '-' no mapa) mantém o id legado.
+  # O source [i] é PRESERVADO no PROBS novo (spoj-br fica spoj-br) — o sc_load ignora [i] e nada
+  # re-julga; manter é mais fiel que forçar cdmoj.
   declare -A OFF2ID
   local i reposlug newid norphan=0
   : > "$TMPD/off2id.tsv"; : > "$TMPD/probs_new.tsv"; : > "$TMPD/pdfcopy.tsv"
@@ -126,12 +131,12 @@ do_stage(){
     if [[ -z "$newid" || "$newid" == "-" ]]; then newid="$reposlug"; norphan=$((norphan+1)); fi
     OFF2ID["$i"]="$newid"
     printf '%s\t%s\n' "$i" "$newid" >> "$TMPD/off2id.tsv"
-    # tupla do PROBS novo: cdmoj <newid> <nome> <letra> <newid(skey)>
-    printf '%s\t%s\t%s\t%s\n' "cdmoj" "$newid" "${P[$((i+2))]}" "${P[$((i+3))]}" >> "$TMPD/probs_new.tsv"
-    # PDF: enunciados/<contest>/<PROBS[i+4]> -> enunciados/<newid>.pdf
+    # tupla do PROBS novo: <source> <newid> <nome> <rótulo> <newid(skey)>
+    printf '%s\t%s\t%s\t%s\n' "${P[$i]}" "$newid" "${P[$((i+2))]}" "${P[$((i+3))]}" >> "$TMPD/probs_new.tsv"
+    # enunciado: PROBS[i+4] é o statement_key legado (pode faltar a extensão) -> <newid>.<ext>
     printf '%s\t%s\n' "${P[$((i+4))]}" "$newid" >> "$TMPD/pdfcopy.tsv"
   done
-  log "problemas: $((NP/5)) ($norphan órfão(s) mantendo repo#slug)"
+  log "problemas: $((NP/5)) ($norphan órfão(s) mantendo id legado)"
 
   local ROOT="$STAGE/$CIDLC"
   mkdir -p "$ROOT/users" "$ROOT/enunciados" "$ROOT/var"
@@ -155,15 +160,27 @@ do_stage(){
     while IFS=$'\t' read -r a b c d; do printf ' %q %q %q %q %q' "$a" "$b" "$c" "$d" "$b"; done < "$TMPD/probs_new.tsv"
     printf ' )\n'
   } > "$ROOT/conf"
-  printf '%s\n' "lucasboaventura" > "$ROOT/owner"
+  printf '%s\n' "${OWNER:-lucasboaventura}" > "$ROOT/owner"
 
-  # --- PDFs das provas ------------------------------------------------------------------
-  local srcpdf newid npdf=0 nopdf=0
-  while IFS=$'\t' read -r srcpdf newid; do
-    local f="$FROM/enunciados/$CID/$srcpdf"
-    if [[ -f "$f" ]]; then cp -p "$f" "$ROOT/enunciados/$newid.pdf"; npdf=$((npdf+1)); else nopdf=$((nopdf+1)); echo "  sem PDF-fonte: $srcpdf" >&2; fi
+  # --- enunciados (o statement_key legado varia) ----------------------------------------
+  # [i+4] pode ser: <slug>.pdf, <slug> sem extensão (arquivo é <slug>.pdf/.html/.txt), token hex,
+  # ou `site`/`sitepdf` (SPOJ antigo, SEM arquivo local). O newmoj serve enunciados/<skey>.{pdf,html}.
+  # Tenta o nome como está, depois +.pdf/.html/.txt; copia preservando a extensão. `site*` e ausência
+  # são esperados (39 contests puro-SPOJ não têm enunciado local) — não são falha.
+  local srckey newid npdf=0 nomiss=0 src ext cand
+  while IFS=$'\t' read -r srckey newid; do
+    [[ "$srckey" == site || "$srckey" == sitepdf || -z "$srckey" ]] && { nomiss=$((nomiss+1)); continue; }
+    src=""; ext=""
+    for cand in "$srckey" "$srckey.pdf" "$srckey.html" "$srckey.txt"; do
+      [[ -f "$FROM/enunciados/$CID/$cand" ]] && { src="$FROM/enunciados/$CID/$cand"; ext="${cand##*.}"; break; }
+    done
+    if [[ -n "$src" ]]; then
+      [[ "$ext" == "$srckey" || -z "$ext" ]] && ext=pdf     # sem extensão detectável -> assume pdf
+      [[ "$ext" == txt ]] && ext=html                        # o newmoj serve html/pdf, não txt
+      cp -p "$src" "$ROOT/enunciados/$newid.$ext"; npdf=$((npdf+1))
+    else nomiss=$((nomiss+1)); fi
   done < "$TMPD/pdfcopy.tsv"
-  log "PDFs: $npdf copiados, $nopdf sem fonte"
+  log "enunciados: $npdf copiados, $nomiss sem arquivo local (site/SPOJ antigo)"
 
   # --- history -> por usuário (probid via OFF2ID, tempo:=f6, 6 campos, dedup) -----------
   log "particionando o history..."
