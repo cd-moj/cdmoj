@@ -18,6 +18,14 @@ map $host $moj_contest_host {
     @SUBDOMAIN_MAP@
 }
 
+# id de problema LEGADO (pontilhado, "org.slug") -> canônico URL-encoded ("org%23slug").
+# Usado pelo redirect de /new/treino/problem/ (moj-app.conf.in). Só o PRIMEIRO ponto vira
+# %23 (o slug pode ter pontos); %23 = '#' — literal no return viraria fragment.
+map $arg_id $moj_legacy_probid {
+    default "";
+    "~^(?<lorg>[^.]+)\.(?<lslug>.+)$" "$lorg%23$lslug";
+}
+
 # --- :80 — desafio ACME (http-01) + redirect p/ HTTPS ------------------------------
 server {
     listen      80;

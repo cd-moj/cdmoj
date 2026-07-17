@@ -9,6 +9,12 @@ map $host $moj_contest_host {
     @SUBDOMAIN_MAP@
 }
 
+# id de problema LEGADO (pontilhado) -> canônico URL-encoded (ver moj-prod.conf.in)
+map $arg_id $moj_legacy_probid {
+    default "";
+    "~^(?<lorg>[^.]+)\.(?<lslug>.+)$" "$lorg%23$lslug";
+}
+
 server {
     listen      80;
     listen      [::]:80;

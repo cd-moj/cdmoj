@@ -9,6 +9,20 @@
 
 root   @WORKROOT@/cdmoj/web;
 index  index.html;
+
+# --- redirects de URLs do MOJ ANTIGO (links por aí em e-mails/favoritos/planilhas) --------
+# /cgi-bin/index.sh era a home do CGI; /new/ era o prefixo da interface nova no site velho.
+location = /cgi-bin/index.sh { return 301 /; }
+location = /new  { return 301 /; }
+location = /new/ { return 301 /; }
+# problema legado: /new/treino/problem/?id=<org>.<slug> -> /treino/problema/?id=<org>%23<slug>
+# (o map $moj_legacy_probid converte o 1º ponto em %23; id já canônico passa direto)
+location /new/treino/problem/ {
+    if ($moj_legacy_probid != "") { return 301 /treino/problema/?id=$moj_legacy_probid; }
+    return 301 /treino/problema/?id=$arg_id;
+}
+# demais caminhos /new/<x> -> /<x> (a interface nova É a raiz agora)
+location /new/ { rewrite ^/new/(.*)$ /$1 permanent; }
 # Teto do CORPO da requisição. Quem manda no número é o `moj push`: ele serializa o pacote inteiro num
 # JSON e os testes vão como STRING CRUA (não base64), então o corpo ≈ tamanho do pacote + ~10% de
 # escape. Pacote de 500 MB ⇒ corpo de ~550 MB. (O `moj upload` manda tar.gz+base64 — 5-10× menor —, e
