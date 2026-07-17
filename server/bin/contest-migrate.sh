@@ -52,6 +52,10 @@ while (( $# )); do
 done
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Garante um CWD acessível: rodado via `su moj -c ...` o CWD pode ser /root (inacessível ao
+# usuário), e aí `find` sai 1 ("Failed to restore initial working directory") — com pipefail+
+# set -e isso abortava o verify. Os caminhos são todos absolutos, então mudar de CWD é seguro.
+cd "$HERE" 2>/dev/null || cd / 2>/dev/null || true
 
 # lê CONTEST_ID/START/END/NAME/LANGUAGES/PROBS de um conf legado, num SUBSHELL isolado (o
 # conf é sourced e PROBS tem nomes com espaço/aspas). Ecoa como TSV chave<TAB>valor + as
@@ -223,6 +227,29 @@ do_stage(){
   done < "$FROM/passwd"
   log "contas: $nacc criadas${nbad:+, $nbad inválidas puladas}"
 
+  # Conta placeholder p/ dir de usuário que veio do HISTORY mas não tem conta no passwd
+  # (inconsistência legada: login no history ausente do passwd — ex. `hugo.admin`, um monitor
+  # que submeteu; ou `rodolpho.teza` no history vs `rodolpho_teza` no passwd, `.`≠`_`). Sem
+  # isto o dir fica sem account.json e `list_users`/placar o ignoram (submissão sumiria). Senha
+  # DESATIVADA (prefixo `!` — nunca casa no login); preserva a submissão no registro.
+  local ghost gl ngh=0
+  while IFS= read -r ghost; do
+    gl="$(basename "$ghost")"
+    [[ -f "$ROOT/users/$gl/account.json" ]] && continue
+    first=0; last=0
+    if [[ -s "$ROOT/users/$gl/history" ]]; then
+      first="$(head -1 "$ROOT/users/$gl/history" | cut -d: -f5)"
+      last="$(tail -1 "$ROOT/users/$gl/history" | cut -d: -f5)"
+    fi
+    ( umask 077
+      jq -cn --arg l "$gl" --argjson c "${first:-0}" --argjson u "${last:-0}" \
+        '{login:$l, password:"!", fullname:$l, email:"", created_at:$c, updated_at:$u,
+          status:"active", uname_changes:[]}' > "$ROOT/users/$gl/account.json" )
+    echo "  conta placeholder (login no history, ausente do passwd): $gl" >&2
+    ngh=$((ngh+1))
+  done < <(find "$ROOT/users" -mindepth 1 -maxdepth 1 -type d)
+  (( ngh )) && log "placeholders: $ngh (login no history sem conta no passwd; senha desativada)"
+
   # --- submissions (roteia por f6:subid contra o history) -------------------------------
   log "roteando submissions..."
   awk -F: '{ n=NF; print $(n-1)":"$n "\t" $2 }' "$FROM/controle/history" | LC_ALL=C sort -u > "$TMPD/route.tsv"
@@ -288,17 +315,23 @@ do_verify(){
   ck "submissions copiadas" "$got" "$want"
   got="$(find "$ROOT/users" -path '*/submissions/*' -type f -printf '%f\n' 2>/dev/null | sed 's/\.[^.]*$//' | LC_ALL=C sort | uniq -d | wc -l)"
   ck "subid duplicado no staging" "$got" "0"
-  # (f) contas = logins válidos únicos do passwd
-  want="$(awk -F: 'NF>=3 && $1!="" && $1 ~ /^[A-Za-z0-9._@#+-]+$/ && $1 !~ /\.\./ {print $1}' "$FROM/passwd" | LC_ALL=C sort -u | wc -l)"
-  got="$(find "$ROOT/users" -name account.json 2>/dev/null | wc -l)"
-  ck "contas (account.json)" "$got" "$want"
+  # (f) TODO login válido do passwd tem account.json (cobertura; o total de contas pode ser
+  # MAIOR que o passwd por causa dos placeholders de ghost — por isso não é igualdade de contagem)
+  local nmiss=0 pl
+  while IFS= read -r pl; do [[ -f "$ROOT/users/$pl/account.json" ]] || nmiss=$((nmiss+1)); done \
+    < <(awk -F: 'NF>=3 && $1!="" && $1 ~ /^[A-Za-z0-9._@#+-]+$/ && $1 !~ /\.\./ {print $1}' "$FROM/passwd" | LC_ALL=C sort -u)
+  ck "logins do passwd sem conta" "$nmiss" "0"
   # (g) todo dir de usuário tem account.json (senão list_users ignora)
   got=0; local d
   for d in "$ROOT"/users/*/; do [[ -f "$d/account.json" ]] || { echo "  sem account.json: $(basename "$d")"; got=$((got+1)); }; done
   ck "dir sem account.json" "$got" "0"
-  # (h) sem submissão órfã (sem rota)
+  # (h) arquivos de submissão SEM linha no history = leftovers legados (o aluno submeteu, o
+  # history NÃO registrou; conferido: o subid não existe no history sob nenhum f6). O history
+  # é a fonte da verdade — esses arquivos não são referenciados por ninguém, então são
+  # ignorados (não copiados). INFORMATIVO, não falha: o check (e) já garante que TODA submissão
+  # DO HISTORY tem arquivo. Falhar aqui barraria contests sãos por lixo de log antigo.
   got=0; [[ -f "$ROOT/orphan-submissions.txt" ]] && got="$(wc -l < "$ROOT/orphan-submissions.txt")"
-  ck "submissions sem rota" "$got" "0"
+  (( got > 0 )) && echo "  info  $got arquivo(s) de submissão sem linha no history (leftover legado, ignorados)"
 
   echo >&2
   (( rc == 0 )) && echo "VERIFICAÇÃO OK — pode instalar" >&2 || echo "VERIFICAÇÃO FALHOU" >&2
