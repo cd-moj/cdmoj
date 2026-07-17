@@ -24,16 +24,17 @@ set +o noglob
 mkdir -p "$META" 2>/dev/null
 # auto-cura dos sidecars: json sem sidecar (ou mais novo que ele) => deriva agora. Cobre o
 # backfill pós-deploy e qualquer escritor fora dos handlers. Custo: 1 stat por arquivo.
+# (${var##*/} e não $(basename): 2×891 forks de subshell custavam ~3s do request de regen)
 for j in "$JD"/*.json; do
   [[ -f "$j" ]] || continue
-  m="$META/$(basename "$j")"
+  m="$META/${j##*/}"
   [[ -f "$m" && ! "$j" -nt "$m" ]] && continue
   jq -c '{id, title, public, tags:(.tags // []), collections:(.collections // [])}' "$j" \
     > "$m.tmp" 2>/dev/null && mv -f "$m.tmp" "$m" || rm -f "$m.tmp"
 done
 # sidecar órfão (json saiu por fora): não pode ressuscitar problema na lista
 for m in "$META"/*.json; do
-  [[ -f "$m" && ! -f "$JD/$(basename "$m")" ]] && rm -f "$m"
+  [[ -f "$m" && ! -f "$JD/${m##*/}" ]] && rm -f "$m"
 done
 
 # Contagens por problema vêm de var/json-count/<arquivo>.json (mesmo basename que
