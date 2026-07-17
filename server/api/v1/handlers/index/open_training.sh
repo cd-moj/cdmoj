@@ -50,17 +50,23 @@ _title(){ # título do problema (probid usa '#'); índice vivo -> legado -> o pr
 _private(){ [[ ! -f "$JDIR/$1.json" && -f "$TREINO/var/jsons-private/$1.json" ]]; }
 
 # --- recent_solved: últimos 5 Accepted (mais recentes primeiro) -----------
+# ORDENAR POR sub_epoch (campo 6) é OBRIGATÓRIO: o stream fanned-out vem agrupado POR
+# USUÁRIO (ordem do find), não por tempo — `tail -n5` cru mostrava ACs de meses atrás
+# (usuários migrados no fim da varredura) e engolia os mais novos. Folga de 60 linhas
+# antes do filtro de privados (AC em problema privado não pode deslocar os públicos).
 declare -a V
 while IFS=: read -r relat user prob lang resp epoch md5; do
   [[ -z "$user" ]] && continue
+  (( ${#V[@]} >= 5 )) && break
   _private "$prob" && continue
+  [[ "$epoch" =~ ^[0-9]+$ ]] || epoch=0
   name="$(user_fullname_of treino "$user")"
   V+=( "$(jq -cn --arg pid "$prob" --arg title "$(_title "$prob")" \
       --arg user "$user" --arg name "$name" --argjson at "${epoch:-0}" \
       --arg url "/treino/problema/?id=${prob//\#/%23}" \
       '{problem_id:$pid, problem_title:$title,
         user:{username:$user, name:$name}, solved_at:$at, url:$url}')" )
-done <<< "$(grep -F 'Accepted' "$HIST" | tail -n5 | tac)"
+done <<< "$(grep -F 'Accepted' "$HIST" | sort -t: -k6,6n | tail -n 60 | tac)"
 
 # --- most_solved_week: por problema, submissões desde o último domingo -----
 LASTWEEK="$(date --date='last-sunday' +%s 2>/dev/null || echo 0)"
