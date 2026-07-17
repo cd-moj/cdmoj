@@ -27,9 +27,9 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | `/treino/solvetry?user=<u>` | opc | `{solved:[ids],attempted:[ids]}` |
 | `/treino/history?id=<id>` | Bearer | TXT 7 campos `tempo:user:probid:lang:verdito:epoch:subid`. Veredicto **SEMPRE canônico** (`lib/verdict.sh`; pendentes/strings desconhecidas intactos) — o detalhe (testes/pontos/grupos) vem do `/submission/summary` |
 | `/treino/history-full?user=<u>` | opc | TXT 7 campos (todo o histórico). Veredicto **canônico** (idem acima) — visitante do perfil público vê só o rótulo, sem resumo (summary é só do dono) |
-| `/treino/profile` | Bearer | GET: perfil + cota de username · POST `{name?,university?}` |
+| `/treino/profile` | Bearer | GET: perfil + cota de username + **`telegram:{linked,username,linked_at}`** (vínculo do próprio login; sem o telegram_id) · POST `{name?,university?}` |
 | `/treino/profile/password` | Bearer | POST `{old_password,new_password}` |
-| `/treino/profile/username` | Bearer | POST `{new_username}` — **máx. 2/ano**, cascata nos arquivos de controle |
+| `/treino/profile/username` | Bearer | POST `{new_username}` — **máx. 2/ano**, cascata nos arquivos de controle. **Sufixo de papel é PRESERVADO**: sufixo(novo)==sufixo(atual) — `.admin` troca p/ `outro.admin` (400 `uname_role_suffix` se tentar derrubar o sufixo; `uname_reserved` se usuário comum tentar assumir um) |
 | `/treino/profile?user=<u>` | opc | GET visão pública (respeita privacidade); POST aceita também `favorite_editor`, `profile_public` |
 | `/treino/profile/photo?user=<u>` | opc/Bearer | GET serve png 100×100 · POST `{image_b64}` (redimensiona) |
 | `/treino/editors` | — | ranking dos editores favoritos declarados `{editors:[{editor,count}],total}` |
@@ -47,7 +47,8 @@ mojb_…`, `require_bot`, segredo em `run/secrets/bot.token`) — o bot **não**
 | `/treino/signup/verify` | **bot** (POST) | `{nonce,telegram_id,telegram_username?,first_name?,last_name?}` → consome o nonce (uso único), anti-duplicata, cria+vincula (`created`) ou vincula conta logada (`linked`); devolve `{status,login,password?}` (senha só p/ DM) |
 | `/treino/signup/telegram` | **bot** (POST) | bot-first (`/participar`): `{telegram_id,…}` → cria+vincula ancorado no `telegram_id` (idempotente) ou `already_linked` |
 | `/treino/recover-password` | **bot** (POST) | `{telegram_id}` → resolve o login pelo vínculo, gera nova senha → `{status:ok\|not_linked,login?,password?}` |
-| `/treino/telegram/link-start` | Bearer | conta logada gera nonce `purpose:link` p/ vincular o próprio Telegram (ex.: `.admin` receber alertas) → `{nonce,deep_link,expires_at}` |
+| `/treino/telegram/link-start` | Bearer | conta logada gera nonce `purpose:link` p/ vincular o próprio Telegram (ex.: `.admin` receber alertas) → `{nonce,deep_link,expires_at}`. UI: seção **📨 Telegram** do perfil |
+| `/treino/telegram/unlink` | Bearer | POST `{}` — desvincula o Telegram do PRÓPRIO login (404 `not_linked` se não houver vínculo); `.admin` desvinculado deixa de receber alertas |
 
 ## Treino — painel admin (`.admin`, Bearer)
 Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na sessão e em `var/access.log`.

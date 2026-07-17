@@ -1,6 +1,10 @@
 # POST /treino/profile/username  {new_username}  -> troca o próprio username (handle).
 # Limite: UNAME_CHANGE_LIMIT (2) por ano. Atualiza TODOS os arquivos de controle do
 # treino em cascata, sob lock, para manter tudo consistente.
+# SUFIXO DE PAPEL É PRESERVADO: o papel (.admin/.judge/…) vem do sufixo do login, então a
+# troca exige sufixo(novo) == sufixo(atual) — usuário comum não assume papel (escalação) e
+# conta de papel não derruba o próprio sufixo por acidente (auto-rebaixamento). Um .admin
+# troca ribas.admin -> bcribas.admin, nunca -> bcribas nem -> bcribas.judge.
 require_method POST
 require_auth_contest treino
 old="$SESSION_LOGIN"
@@ -10,7 +14,15 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 new="$(jq -r '.new_username // empty' <<<"$body")"
 [[ -n "$new" ]] || fail 400 "Informe o novo nome de usuário" "missing"
 [[ "$new" =~ ^[A-Za-z0-9._-]{2,32}$ ]] || fail 400 "Nome de usuário inválido (2–32 caracteres: letras, números, . _ -)" "uname_invalid"
-case "$new" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) fail 400 "Sufixo reservado não permitido" "uname_reserved";; esac
+# réplica da lista canônica de sufixos de papel (ver lib/auth.sh is_reserved_role_login)
+_role_suffix(){ case "$1" in
+  *.admin) echo admin;; *.cjudge) echo cjudge;; *.judge) echo judge;;
+  *.cstaff) echo cstaff;; *.staff) echo staff;; *.mon) echo mon;; *) echo "";; esac; }
+oldsuf="$(_role_suffix "$old")"; newsuf="$(_role_suffix "$new")"
+if [[ "$newsuf" != "$oldsuf" ]]; then
+  if [[ -n "$newsuf" ]]; then fail 400 "Sufixo reservado não permitido" "uname_reserved"
+  else fail 400 "Conta de papel troca o handle preservando o sufixo: escolha um nome terminado em .$oldsuf" "uname_role_suffix"; fi
+fi
 [[ "$new" == "$old" ]] && fail 400 "É o mesmo nome de usuário atual" "uname_same"
 
 T="$CONTESTSDIR/treino"

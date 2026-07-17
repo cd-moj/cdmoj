@@ -68,11 +68,20 @@ remaining=$(( UNAME_CHANGE_LIMIT - used )); (( remaining < 0 )) && remaining=0
 nextav="$(uname_next_available "$UNAME_CHANGES")"
 haspic="$([[ -f "$(photo_file treino "$login")" ]] && echo true || echo false)"
 
+# vínculo Telegram do próprio login (sem expor o telegram_id — só estado/username/quando)
+tgjson='{"linked":false,"username":null,"linked_at":null}'
+tgid="$(tg_id_of_login treino "$login" 2>/dev/null)"
+if [[ -n "$tgid" ]]; then
+  tgjson="$(jq -c '{linked:true, username:(.username // null), linked_at:(.linked_at // null)}' \
+            "$(tg_dir treino)/by-tgid/$tgid.json" 2>/dev/null)"
+  [[ -n "$tgjson" ]] || tgjson='{"linked":true,"username":null,"linked_at":null}'
+fi
+
 ok_json '{login:$l, name:$n, university:$u, favorite_editor:$fe, profile_public:$pub, has_photo:$hp,
           username_changes_used:$used, username_changes_limit:$lim,
-          username_changes_remaining:$rem, username_next_available:$next}' \
+          username_changes_remaining:$rem, username_next_available:$next, telegram:$tg}' \
   --arg l "$login" --arg n "$name" --arg u "$UNIVERSITY" --arg fe "$FAVORITE_EDITOR" \
   --argjson pub "$([[ "$PROFILE_PUBLIC" == false ]] && echo false || echo true)" \
   --argjson hp "$haspic" \
   --argjson used "$used" --argjson lim "$UNAME_CHANGE_LIMIT" \
-  --argjson rem "$remaining" --argjson next "${nextav:-0}"
+  --argjson rem "$remaining" --argjson next "${nextav:-0}" --argjson tg "$tgjson"

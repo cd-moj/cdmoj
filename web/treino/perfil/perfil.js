@@ -32,7 +32,7 @@ function avatarNode(p) {
     initialsOf(p.name, p.login));
 }
 
-function render(p) {
+function render(p, st) {
   const content = document.getElementById('content');
   content.innerHTML = '';
 
@@ -78,6 +78,58 @@ function render(p) {
         ok(pm, T('✓ Senha alterada', '✓ Password changed')); oldI.value = n1.value = n2.value = '';
       } catch (e) { err(pm, e.message || T('falha', 'failed')); }
     } }, T('Trocar senha', 'Change password')), pm));
+
+  // --- Telegram: vínculo com o bot (senha por DM; .admin recebe alertas do sistema) ---
+  const tg = p.telegram || { linked: false };
+  const tgM = msgBox();
+  const tgBody = el('div', {});
+  const adminNote = (st && st.is_admin)
+    ? el('p', { class: 'notice', style: 'margin:.4rem 0' },
+        T('Contas .admin vinculadas recebem os ALERTAS do sistema (juízes offline, fila crescendo, daemon parado) por DM do bot.',
+          '.admin accounts that are linked receive system ALERTS (judges offline, growing queue, stopped daemon) via bot DM.'))
+    : null;
+  if (tg.linked) {
+    tgBody.append(
+      el('p', { style: 'margin:.2rem 0' }, '✅ ',
+        T('Telegram vinculado', 'Telegram linked'),
+        tg.username ? el('b', {}, ' @' + tg.username) : '',
+        tg.linked_at ? el('span', { class: 'small muted' }, ' · ' + T('desde ', 'since ') + fmtDate(tg.linked_at)) : ''),
+      adminNote || '',
+      el('button', { class: 'btn ghost', onclick: async () => {
+        if (!confirm(T('Desvincular o Telegram desta conta? Você deixa de receber senha/alertas por DM.',
+                       'Unlink Telegram from this account? You will stop receiving passwords/alerts via DM.'))) return;
+        tgM.className = 'small'; tgM.textContent = T('Desvinculando…', 'Unlinking…');
+        try { await apiPost('/treino/telegram/unlink', {}, { contest: CONTEST, auth: true }); ok(tgM, T('✓ Desvinculado', '✓ Unlinked')); setTimeout(load, 800); }
+        catch (e) { err(tgM, e.message || T('falha', 'failed')); }
+      } }, T('Desvincular', 'Unlink')));
+  } else {
+    const linkBtn = el('button', { class: 'btn' }, T('🔗 Vincular Telegram', '🔗 Link Telegram'));
+    linkBtn.onclick = async () => {
+      linkBtn.disabled = true; tgM.className = 'small'; tgM.textContent = T('Gerando link…', 'Generating link…');
+      try {
+        const r = await apiPost('/treino/telegram/link-start', {}, { contest: CONTEST, auth: true });
+        tgM.textContent = '';
+        const until = r.expires_at ? new Date(r.expires_at * 1000).toLocaleTimeString() : '';
+        tgBody.innerHTML = '';
+        tgBody.append(
+          el('p', { style: 'margin:.2rem 0' }, T('1. Abra o bot e toque em ', '1. Open the bot and tap '), el('b', {}, 'INICIAR / START'), ':'),
+          el('a', { class: 'btn', href: r.deep_link, target: '_blank', rel: 'noopener' }, T('Abrir @', 'Open @') + (r.deep_link.match(/t\.me\/([^?]+)/) || [,'mojinho_bot'])[1] + T(' no Telegram', ' on Telegram')),
+          el('p', { class: 'small muted', style: 'margin:.4rem 0' },
+            T('O link confirma sozinho o vínculo desta conta', 'The link confirms this account\'s binding by itself'),
+            until ? T(' e vale até ', ' and is valid until ') + until : '', '.'),
+          el('button', { class: 'btn ghost', onclick: () => load() }, T('já confirmei no Telegram ↻', 'I confirmed on Telegram ↻')));
+      } catch (e) { linkBtn.disabled = false; err(tgM, e.message || T('falha', 'failed')); }
+    };
+    tgBody.append(
+      el('p', { class: 'small muted', style: 'margin:.2rem 0' },
+        T('Vincule seu Telegram para recuperar a senha por DM (e provar que a conta é sua).',
+          'Link your Telegram to recover your password via DM (and prove the account is yours).')),
+      adminNote || '',
+      linkBtn);
+  }
+  content.append(el('div', { class: 'section' },
+    el('h2', {}, T('📨 Telegram', '📨 Telegram')),
+    tgBody, tgM));
 
   // --- Privacidade: perfil público / privado ---
   const isPublic = p.profile_public !== false;
@@ -143,6 +195,12 @@ function render(p) {
     el('h2', {}, T('🏷️ Nome de usuário (handle)', '🏷️ Username (handle)')),
     el('p', { class: 'small muted' }, T('Seu login atual é ', 'Your current login is '), el('b', {}, p.login),
       T('. Trocar o handle atualiza todo o seu histórico do Treino Livre (submissões, estatísticas, etc.).', '. Changing the handle updates all your Free Training history (submissions, statistics, etc.).')),
+    (() => {
+      const m = /\.(admin|cjudge|judge|cstaff|staff|mon)$/.exec(p.login);
+      return m ? el('p', { class: 'small notice', style: 'margin:.3rem 0' },
+        T('Sua conta tem papel pelo sufixo ', 'Your account carries its role in the suffix '), el('b', {}, '.' + m[1]),
+        T(': a troca precisa MANTER o sufixo (ex.: novo_nome.', ': the change must KEEP the suffix (e.g., new_name.'), m[1] + ').') : '';
+    })(),
     note,
     el('div', { class: 'field' }, el('label', {}, T('Novo nome de usuário', 'New username')), uI),
     el('button', { class: 'btn', disabled: !canChange, onclick: async () => {
@@ -167,7 +225,7 @@ async function load() {
   }
   try {
     const p = await apiGet('/treino/profile', { contest: CONTEST, auth: true });
-    render(p);
+    render(p, st);
   } catch (e) {
     content.innerHTML = '<div class="error-box" style="margin-top:1rem">' + T('Falha ao carregar o perfil: ', 'Failed to load the profile: ') + (e.message || '') + '</div>';
   }

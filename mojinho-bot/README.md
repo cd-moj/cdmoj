@@ -49,8 +49,9 @@ painel admin da web ou o `moj-cli`. O bot ficou restrito ao que é ancorado no T
 
 O loop faz long-poll curto de `getUpdates` (`timeout=ALERT_POLL_SECS`) e, a cada volta, chama
 `deliver_alerts` → `GET /ops/alerts` → envia cada `item.text` para `item.chats` (DMs dos `.admin`
-vinculados) **+** `ALERT_GROUP_CHAT`. Os `.admin` recebem DM só depois de vincularem o Telegram via
-**Perfil → vincular Telegram** (deep-link de `POST /treino/telegram/link-start`).
+vinculados) **+** `ALERT_GROUP_CHAT`. Os `.admin` recebem DM só depois de vincularem o Telegram na
+seção **📨 Telegram** do perfil (`/treino/perfil/` → botão "🔗 Vincular Telegram", deep-link de
+`POST /treino/telegram/link-start`; desfazer = `POST /treino/telegram/unlink`).
 
 ## Rodar
 

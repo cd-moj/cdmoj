@@ -532,7 +532,7 @@
         ],
         "responses": {
           "200": {
-            "description": "perfil"
+            "description": "perfil próprio: dados + cota de username + telegram:{linked,username,linked_at} (vínculo do login, sem o telegram_id); ?user=X: visão pública"
           }
         }
       },
@@ -983,7 +983,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Troca o próprio username (máx. 2/ano + cascata)",
+        "summary": "Troca o próprio username (máx. 2/ano + cascata; sufixo de papel é PRESERVADO — sufixo(novo)==sufixo(atual): .admin troca p/ outro.admin, uname_role_suffix se derrubar o sufixo, uname_reserved se assumir um)",
         "security": [
           {
             "bearerAuth": []
@@ -6059,10 +6059,31 @@
         "tags": [
           "treino"
         ],
-        "summary": "Conta logada gera nonce p/ vincular o próprio Telegram",
+        "summary": "Conta logada gera nonce p/ vincular o próprio Telegram (UI: seção Telegram do perfil)",
         "responses": {
           "200": {
             "description": "{nonce,deep_link,expires_at}"
+          }
+        }
+      }
+    },
+    "/treino/telegram/unlink": {
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Desvincula o Telegram do PRÓPRIO login (contraparte do link-start)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{unlinked:true}"
+          },
+          "404": {
+            "description": "nenhum Telegram vinculado (not_linked)"
           }
         }
       }

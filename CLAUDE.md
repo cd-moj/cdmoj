@@ -74,7 +74,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   gate do placar; `/contest/teams` = diretório que o placar mescla ANTES do teams-meta).
 - **Telegram (overlay só do treino) + alertas**: `lib/telegram.sh` (índice `var/telegram/{by-tgid,by-login}`,
   nonce em `run/telegram/`), cadastro web-first (`handlers/treino/signup/*` + página `web/treino/cadastro/`),
-  recuperação por vínculo, `link-start`. O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
+  recuperação por vínculo, `link-start`/`unlink` (a UI é a seção **📨 Telegram** do perfil —
+  `web/treino/perfil/`; o `GET /treino/profile` expõe `telegram:{linked,username,linked_at}`).
+  **Troca de handle preserva o sufixo de papel** (`profile/username.sh`: sufixo(novo)==sufixo(atual);
+  `.admin` troca p/ `outro.admin`, nunca derruba nem assume papel). O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
   autentica com **bot-token** `mojb_…` (`lib/bot-auth.sh` `require_bot`, `run/secrets/bot.token`) — não
   loga como `.admin`, sem GODS. Em produção roda **ENJAULADO** (`mojinho-bot/run-caged.sh`: bwrap
   sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
