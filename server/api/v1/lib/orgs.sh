@@ -49,6 +49,25 @@ org_register(){
           public_allowed:(if $pa=="true" then true else ($old.public_allowed // false) end),
           at:$now }) }' ) > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$ORGS_REGISTRY" || rm -f "$tmp"
 }
+# orgs_rename_login <old> <new> — cascata do RENAME DE CONTA nas orgs: troca o login em
+# members/admins de todas as orgs em que ele aparece. O NOME da org NÃO muda (é o prefixo dos
+# ids dos problemas, imutável) — a org implícita antiga vira org comum (implicit:false; o dono
+# renomeado segue membro/admin; vazia, passa a ser deletável) e a implícita do login novo nasce
+# on-demand. Sem isso o rename deixava a conta órfã de TODAS as orgs (perda de acesso, 2026-07-17).
+orgs_rename_login(){
+  local old="$1" new="$2" cur tmp
+  [[ -f "$ORGS_REGISTRY" ]] || return 0
+  cur="$(_orgs_read)"; tmp="$ORGS_REGISTRY.tmp.$$"
+  ( umask 077; printf '%s' "$cur" | jq --arg o "$old" --arg n "$new" '
+      map_values(
+        if ((((.members // []) + (.admins // [])) | index($o)) != null) then
+          .members = (((.members // []) | map(if . == $o then $n else . end)) | unique)
+        | .admins  = (((.admins  // []) | map(if . == $o then $n else . end)) | unique)
+        else . end)
+      | (if has($o) then (.[$o].implicit) = false else . end)' ) \
+    > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && jq -e . "$tmp" >/dev/null 2>&1 \
+    && mv -f "$tmp" "$ORGS_REGISTRY" || { rm -f "$tmp"; return 1; }
+}
 # ensure_implicit_org <login> — org privada do usuário (só ele; nunca libera público). Idempotente.
 ensure_implicit_org(){
   local u="$1"; [[ "$u" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || return 1

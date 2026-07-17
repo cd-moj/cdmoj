@@ -55,6 +55,10 @@ user_rename treino "$old" "$new" || fail 500 "Falha ao renomear a conta" "save_f
 account_merge treino "$new" '.uname_changes = ((.uname_changes // []) + [$t])' --argjson t "$EPOCHSECONDS"
 # (o índice Telegram — by-login/by-tgid — é ajustado em tg_rename)
 command -v tg_rename >/dev/null 2>&1 && tg_rename treino "$old" "$new" 2>/dev/null || true
+# ACESSO segue o rename: troca o login em members/admins de TODAS as orgs (sem isso a conta
+# renomeada ficava órfã de todas — inclusive da implícita — e perdia acesso aos problemas)
+source "$_DIR/lib/orgs.sh"
+orgs_rename_login "$old" "$new" || true
 
 # mantém a sessão atual logada como o novo username (comum aos dois ramos)
 if [[ -n "$SESSION_TOKEN" && -f "$SESSIONDIR/$SESSION_TOKEN" ]]; then

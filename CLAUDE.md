@@ -77,7 +77,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   recuperação por vínculo, `link-start`/`unlink` (a UI é a seção **📨 Telegram** do perfil —
   `web/treino/perfil/`; o `GET /treino/profile` expõe `telegram:{linked,username,linked_at}`).
   **Troca de handle preserva o sufixo de papel** (`profile/username.sh`: sufixo(novo)==sufixo(atual);
-  `.admin` troca p/ `outro.admin`, nunca derruba nem assume papel). O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
+  `.admin` troca p/ `outro.admin`, nunca derruba nem assume papel) **e as ORGs seguem o rename**
+  (`orgs_rename_login` em lib/orgs.sh — sem isso a conta renomeada ficava órfã de TODAS as orgs;
+  o nome da org e o `owner` histórico dos problemas não mudam: acesso vem da membership). O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
   autentica com **bot-token** `mojb_…` (`lib/bot-auth.sh` `require_bot`, `run/secrets/bot.token`) — não
   loga como `.admin`, sem GODS. Em produção roda **ENJAULADO** (`mojinho-bot/run-caged.sh`: bwrap
   sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
