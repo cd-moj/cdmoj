@@ -46,7 +46,7 @@ export LC_ALL=C
 
 die(){ echo "treino-map-gen: $*" >&2; exit 1; }
 
-LEGACY=""; OWNERS=""; STATEMENTS=""; OUT=""; EVID=""; DECISIONS=""
+LEGACY=""; OWNERS=""; STATEMENTS=""; OUT=""; EVID=""; DECISIONS=""; IDS=""
 while (( $# )); do
   case "$1" in
     --legacy)     LEGACY="${2:-}"; shift 2 ;;
@@ -55,13 +55,22 @@ while (( $# )); do
     --out)        OUT="${2:-}"; shift 2 ;;
     --evidence)   EVID="${2:-}"; shift 2 ;;
     --decisions)  DECISIONS="${2:-}"; shift 2 ;;
+    --ids)        IDS="${2:-}"; shift 2 ;;
     -h|--help)    sed -n '2,40p' "$0"; exit 0 ;;
     *) die "opção desconhecida: $1" ;;
   esac
 done
-[[ -n "$LEGACY" && -n "$OWNERS" && -n "$OUT" && -n "$STATEMENTS" ]] \
-  || die "uso: $0 --legacy <dir> --owners <json> --statements <dir> --out <tsv> [--evidence <dir>]"
-[[ -f "$LEGACY/controle/history" ]] || die "sem $LEGACY/controle/history"
+# --ids <arquivo>: mapear uma LISTA de <repo>#<slug> (um por linha) em vez de derivar do
+# history — para contests cujo probid é offset (as provas), que resolvem o offset ANTES e
+# só passam a lista de ids aqui. Sem --ids, o modo original (deriva do history do treino).
+[[ -n "$OWNERS" && -n "$OUT" && -n "$STATEMENTS" ]] \
+  || die "uso: $0 (--legacy <dir> | --ids <arquivo>) --owners <json> --statements <dir> --out <tsv> [--evidence <dir>] [--decisions <tsv>]"
+if [[ -n "$IDS" ]]; then
+  [[ -f "$IDS" ]] || die "sem $IDS"
+else
+  [[ -n "$LEGACY" ]] || die "faltou --legacy (ou --ids)"
+  [[ -f "$LEGACY/controle/history" ]] || die "sem $LEGACY/controle/history"
+fi
 [[ -f "$OWNERS" ]]                  || die "sem $OWNERS"
 [[ -d "$STATEMENTS" ]]              || die "sem $STATEMENTS"
 
@@ -150,9 +159,16 @@ probe(){ # <legacy_id> <prod_id> -> MATCH|DIFERE|SEM-TEXTO
 
 # --- 1) ids legados distintos + contagens ------------------------------------------------
 # history legado: f1:login:probid:LANG:verdict:f6:subid  (verdict pode ter ',', nunca ':')
-awk -F: '{ n[$3]++; k=$3 SUBSEP $2; if(!(k in seen)){seen[k]=1; u[$3]++} }
-         END{ for(p in n) printf "%s\t%d\t%d\n", p, n[p], u[p] }' \
-  "$LEGACY/controle/history" | sort > "$TMP/legacy.tsv"
+if [[ -n "$IDS" ]]; then
+  # lista de <repo>#<slug> (um por linha); subs/users = 0 (não vêm de um history)
+  grep -v '^[[:space:]]*$' "$IDS" | grep -v '^#' | sort -u \
+    | awk '{ printf "%s\t0\t0\n", $1 }' > "$TMP/legacy.tsv"
+else
+  # history legado: f1:login:probid:LANG:verdict:f6:subid  (verdict pode ter ',', nunca ':')
+  awk -F: '{ n[$3]++; k=$3 SUBSEP $2; if(!(k in seen)){seen[k]=1; u[$3]++} }
+           END{ for(p in n) printf "%s\t%d\t%d\n", p, n[p], u[p] }' \
+    "$LEGACY/controle/history" | sort > "$TMP/legacy.tsv"
+fi
 echo "ids legados distintos: $(wc -l < "$TMP/legacy.tsv")" >&2
 
 # --- 2) índices do prod ------------------------------------------------------------------
