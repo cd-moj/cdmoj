@@ -313,24 +313,44 @@ coll_rename(){ local o="$1" n="$2" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
 # coll_bulk_retag <old> <new|""> <login> -> nº de problemas afetados. Renomeia (new!="") ou REMOVE
 # (new=="") a tag <old> no .moj-meta.json de TODOS os problemas que a têm (+ commit local + overlay +
 # re-index dos que estão públicos, p/ o json servido refletir a tag nova). Usado por rename/delete.
+# RETOMÁVEL por construção (processa só metas que AINDA têm a tag velha) e feito p/ rodar em
+# BACKGROUND: N problemas = N commits + N reindexações — síncrono num request estourava o
+# timeout do nginx e o loop morria no meio (rename da obi, 2026-07-17: 30 metas órfãos).
+# A reindexação dos públicos é SEQUENCIAL (index_problem_now) — N setsids paralelos de
+# gen-problem-json eram uma tempestade de pandoc.
 coll_bulk_retag(){
   local old="$1" new="$2" login="${3:-moj}" n=0 pdir meta newc org prob id owner ispub
-  declare -F index_problem_bg >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
+  declare -F index_problem_now >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
   while IFS= read -r pdir; do
     meta="$pdir/.moj-meta.json"; [[ -f "$meta" ]] || continue
     jq -e --arg o "$old" '((.collections // [])|index($o)) != null' >/dev/null 2>&1 < "$meta" || continue
     if [[ -n "$new" ]]; then newc="$(jq -c --arg o "$old" --arg nn "$new" '(.collections//[])|map(if .==$o then $nn else . end)|unique' "$meta")"
     else newc="$(jq -c --arg o "$old" '(.collections//[])|map(select(.!=$o))' "$meta")"; fi
-    prob="$(basename "$pdir")"; org="$(basename "$(dirname "$pdir")")"; id="$org#$prob"
+    prob="${pdir##*/}"; org="${pdir%/*}"; org="${org##*/}"; id="$org#$prob"
     owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$login"
     ispub="$(jq -r 'if .public==true then 1 else 0 end' "$meta" 2>/dev/null)"
     write_meta "$pdir" "$owner" "$org" "" "$newc" ""
     problem_commit "$pdir" "$login" "coleção: $old -> ${new:-(removida)}" >/dev/null
     authored_patch "$id" '.collections=$c' --argjson c "$newc"
-    [[ "$ispub" == 1 ]] && declare -F index_problem_bg >/dev/null && index_problem_bg "$id" 1
+    [[ "$ispub" == 1 ]] && declare -F index_problem_now >/dev/null && index_problem_now "$id" 1
     n=$((n+1))
   done < <(find "$MOJ_PROBLEMS_DIR" -mindepth 2 -maxdepth 2 -type d ! -name '.git' 2>/dev/null)
   printf '%s' "$n"
+}
+# coll_bulk_retag_bg <old> <new|""> <login> [delete] — o bulk acima DESTACADO em background
+# (o request responde na hora; o retag é retomável). 4º arg "delete" = remove a coleção do
+# REGISTRO só NO FIM do bulk (delete que morre no meio continua existindo ⇒ repetir retoma).
+coll_bulk_retag_bg(){
+  local old="$1" new="$2" login="${3:-moj}" after="${4:-}" lib
+  lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  ( setsid env RUNDIR="$RUNDIR" CONTESTSDIR="$CONTESTSDIR" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
+      MOJTOOLS_DIR="$MOJTOOLS_DIR" \
+      bash -c 'source "$1/common.sh" 2>/dev/null; source "$1/problems.sh" && source "$1/tl-store.sh"
+               n="$(coll_bulk_retag "$2" "$3" "$4")"
+               [[ "$5" == delete ]] && coll_delete "$2"
+               declare -F audit_log >/dev/null 2>&1 \
+                 && audit_log "collection-retag-done" "from=$2 to=${3:-(removida)} n=$n by=$4"' \
+      _ "$lib" "$old" "$new" "$login" "$after" >/dev/null 2>&1 & ) 2>/dev/null
 }
 # grant_problem_collections — NO-OP (acesso é por ORG; coleção é só tag, não propaga colaborador).
 grant_problem_collections(){ return 0; }

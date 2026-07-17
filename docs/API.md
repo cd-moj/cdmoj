@@ -143,8 +143,8 @@ Listagens leem o índice de donos `contests/treino/var/problem-owners.json` (ger
 | `/problems/move` | POST `{id, to_org}` | move um problema de **rascunho** p/ outra org (muda o id `<org>#<prob>`); **bloqueia se público/em uso** (senão órfãoria o histórico); exige ser membro das DUAS orgs |
 | `/problems/repo-collaborators` | GET `?repo` / POST `{repo,add?,remove?}` | **compartilha** o diretório (membro da org; só o dono gerencia) |
 | `/problems/collection-create` | POST `{name}` | cria uma **coleção** (TAG) no registro curado. Nome é **TEXTO LIVRE** (pode ter espaços/acentos — é só rótulo). Exige permissão de criação; criador = dono. (NÃO é org: acesso é por org) |
-| `/problems/collection-rename` | POST `{name, to}` | renomeia a coleção (registro + a tag em TODOS os problemas; só dono ou `.admin`) |
-| `/problems/collection-delete` | POST `{name}` | exclui a coleção (tira a tag de todos os problemas + remove do registro; só dono ou `.admin`) |
+| `/problems/collection-rename` | POST `{name, to}` | renomeia a coleção: registro NA HORA + re-tag dos N problemas em **BACKGROUND** (`retag:"background"`; síncrono estourava o timeout do nginx). **RETOMADA**: `name` inexistente + `to` existente = bulk anterior morreu ⇒ repete só o retag (`resumed:true`). Só dono ou `.admin` |
+| `/problems/collection-delete` | POST `{name}` | exclui a coleção: untag dos N problemas em **BACKGROUND** e o registro só sai NO FIM (`untag:"background"`; morreu no meio ⇒ a coleção ainda existe, repetir o delete RETOMA). Só dono ou `.admin` |
 
 > **Quem pode criar** (problemas/pastas/coleções) = mesma regra de criar contest
 > (`cc_can_create`: `.admin` ou allowlist ou ≥ N resolvidos, menos a denylist) — gerida em

@@ -194,12 +194,12 @@ async function createColl(name, inp) {
 async function renameColl(c) {
   const to = (prompt(`${T('Renomear a coleção “', 'Rename the collection “')}${c.name}${T('” para:', '” to:')}`, c.name) || '').trim();
   if (!to || to === c.name) return;
-  try { const j = await apiPost('/problems/collection-rename', { name: c.name, to }, { contest: CONTEST, auth: true }); alert(`${T('Renomeada —', 'Renamed —')} ${j.retagged} ${T('problema(s) re-taggeado(s).', 'problem(s) re-tagged.')}`); loadTab('collections'); }
+  try { const j = await apiPost('/problems/collection-rename', { name: c.name, to }, { contest: CONTEST, auth: true }); alert(T('Renomeada — o re-tag dos problemas roda em segundo plano (alguns minutos em coleções grandes).', 'Renamed — problems are re-tagged in the background (a few minutes for large collections).')); loadTab('collections'); }
   catch (e) { alert(e.message); }
 }
 async function deleteColl(c) {
   if (!confirm(`${T('Excluir a coleção “', 'Delete the collection “')}${c.name}${T('”? Ela sai de ', '”? It leaves ')}${c.count}${T(' problema(s) (a tag é removida deles).', ' problem(s) (the tag is removed from them).')}`)) return;
-  try { const j = await apiPost('/problems/collection-delete', { name: c.name }, { contest: CONTEST, auth: true }); alert(`${T('Excluída —', 'Deleted —')} ${j.untagged} ${T('problema(s) destaggeado(s).', 'problem(s) untagged.')}`); loadTab('collections'); }
+  try { const j = await apiPost('/problems/collection-delete', { name: c.name }, { contest: CONTEST, auth: true }); alert(T('Excluída — o untag dos problemas roda em segundo plano (a coleção some do registro ao final).', 'Deleted — problems are untagged in the background (the collection leaves the registry when done).')); loadTab('collections'); }
   catch (e) { alert(e.message); }
 }
 

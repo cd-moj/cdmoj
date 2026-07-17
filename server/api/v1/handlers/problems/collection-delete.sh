@@ -1,6 +1,8 @@
 # POST /problems/collection-delete   (Bearer)   body: {name}
-# Exclui uma COLEÇÃO: tira a tag de TODOS os problemas que a têm (bulk untag + re-index dos públicos) e
-# remove do registro. Só o DONO da coleção ou admin global.
+# Exclui uma COLEÇÃO: o untag dos N problemas (bulk + commit + re-index dos públicos) roda em
+# BACKGROUND (síncrono estourava o timeout do nginx com N grande) e o REGISTRO só sai NO FIM do
+# bulk — se morrer no meio, a coleção ainda existe e repetir o delete RETOMA (o untag processa
+# só metas que ainda têm a tag). Só o DONO da coleção ou admin global.
 require_method POST
 require_auth
 source "$_DIR/lib/problems.sh"
@@ -9,7 +11,6 @@ name="$(jq -r '.name // empty' <<<"$body")"
 [[ -n "$name" ]] || fail 400 "Missing name" "name_missing"
 coll_exists "$name" || fail 404 "Coleção não existe" "not_found"
 coll_can_manage "$name" "$SESSION_LOGIN" || fail 403 "Só o dono da coleção (ou admin) exclui" "forbidden"
-n="$(coll_bulk_retag "$name" "" "$SESSION_LOGIN")"
-coll_delete "$name"
-audit_log "collection-delete" "name=$name n=$n by=$SESSION_LOGIN"
-ok_json '{action:"collection-delete", name:$n, untagged:$c}' --arg n "$name" --argjson c "${n:-0}"
+coll_bulk_retag_bg "$name" "" "$SESSION_LOGIN" delete
+audit_log "collection-delete" "name=$name by=$SESSION_LOGIN (untag+remoção em background)"
+ok_json '{action:"collection-delete", name:$n, untag:"background"}' --arg n "$name"

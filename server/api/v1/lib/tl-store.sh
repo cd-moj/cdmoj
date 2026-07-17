@@ -145,56 +145,68 @@ tl_store_served(){ tl_store_served_hosts "$1" "$(pkg_tl_checksum "$(pkg_path "$1
 # tl_store_get <id> -> store bruto (ou {})
 tl_store_get(){ cat "$(tl_store_file "$1")" 2>/dev/null || echo '{}'; }
 
-# index_problem_bg <id> [validate=0|1] — (re)gera o var/jsons NO SERVIDOR, em background
-# (HTML via Makefile do repo + time_limits do store). Substitui o índice que rodava no
-# juiz (kind=index). validate=1 roda o portão estático antes (best-effort).
-index_problem_bg(){
-  local id="$1" validate="${2:-0}" pkg; pkg="$(pkg_path "$id")"; [[ -n "$pkg" ]] || return 1
-  # TRAVA DA ORG NO INDEXADOR (2ª camada anti-vazamento de prova). O `public` do .moj-meta.json só é
-  # escrito pelo /problems/set-public, que checa `org_public_allowed`. Mas QUALQUER reindexação
-  # (tl-report de calibração, /problems/validate, set-collections…) chega aqui, e antes ela publicava
-  # sem consultar a trava: bastava um meta errado (import legado, org rebaixada, bug) p/ a prova ir
-  # parar na lista pública. Agora: org que NEGA público => o gerador nunca gera índice público.
-  #
-  # CUIDADO — a trava é fail-closed, mas só p/ org REGISTRADA. Org desconhecida (problema legado, de
-  # antes das orgs) NÃO força privado: senão um orgs.json ausente/incompleto (perda, migração pela
-  # metade) DESPUBLICARIA a base inteira, em silêncio, um problema por tl-report. Nesse caso quem
-  # decide é a camada 1 (o `public:true` do meta, que só o set-public escreve).
-  local force_priv=0 org="${id%%#*}" orgs="$CONTESTSDIR/treino/var/orgs.json"
+# _index_force_priv <id> <pkg> -> ecoa 0|1.
+# TRAVA DA ORG NO INDEXADOR (2ª camada anti-vazamento de prova). O `public` do .moj-meta.json só é
+# escrito pelo /problems/set-public, que checa `org_public_allowed`. Mas QUALQUER reindexação
+# (tl-report de calibração, /problems/validate, set-collections…) chega aqui, e antes ela publicava
+# sem consultar a trava: bastava um meta errado (import legado, org rebaixada, bug) p/ a prova ir
+# parar na lista pública. Org que NEGA público => o gerador nunca gera índice público.
+#
+# CUIDADO — a trava é fail-closed, mas só p/ org REGISTRADA. Org desconhecida (problema legado, de
+# antes das orgs) NÃO força privado: senão um orgs.json ausente/incompleto (perda, migração pela
+# metade) DESPUBLICARIA a base inteira, em silêncio, um problema por tl-report. Nesse caso quem
+# decide é a camada 1 (o `public:true` do meta, que só o set-public escreve).
+_index_force_priv(){
+  local id="$1" pkg="$2" org="${1%%#*}" orgs="$CONTESTSDIR/treino/var/orgs.json"
   if [[ -f "$orgs" ]] && jq -e --arg n "$org" 'has($n) and (.[$n].public_allowed != true)' \
         "$orgs" >/dev/null 2>&1; then
-    force_priv=1
-    # Anomalia: o pacote se diz PÚBLICO numa org que não permite. Não deveria acontecer (o
-    # set-public é o único setter e checa a trava) — se acontecer, é meta vindo de fora
-    # (upload/import) ou org rebaixada sem cascata. Fica no audit.
+    # Anomalia: pacote se diz PÚBLICO numa org que não permite (meta de fora / org rebaixada
+    # sem cascata). Vai ao audit quando disponível (no bg standalone, silencioso).
     if jq -e '.public == true' "$pkg/.moj-meta.json" >/dev/null 2>&1 \
        && declare -F audit_log >/dev/null 2>&1; then
       audit_log "index-org-lock" "id=$id: meta diz public:true mas a org '$org' não permite — índice mantido PRIVADO"
     fi
+    echo 1
+  else echo 0; fi
+}
+
+# index_problem_now <id> [validate=0|1] — (re)gera o var/jsons SÍNCRONO no servidor +
+# SIDECAR de metadados (a lista /treino/problems agrega só isto — nunca o statement) +
+# stamp de invalidação por evento. validate=1 roda o portão estático antes (indexa só se
+# passar). Use direto em BULK SEQUENCIAL (ex.: coll_bulk_retag: N setsids paralelos de
+# gen-problem-json eram uma tempestade de pandoc); p/ 1 problema num request, index_problem_bg.
+index_problem_now(){
+  local id="$1" validate="${2:-0}" pkg fp
+  pkg="$(pkg_path "$id")"; [[ -n "$pkg" ]] || return 1
+  fp="$(_index_force_priv "$id" "$pkg")"
+  if [[ "$validate" == 1 ]]; then
+    MOJ_TL_STORE="$TL_STORE_DIR" MOJ_FORCE_PRIVATE="$fp" RUNDIR="$RUNDIR" \
+    CONTESTSDIR="$CONTESTSDIR" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
+      bash "$MOJTOOLS_DIR/validate-problem.sh" "$pkg" "$id" >/dev/null 2>&1
+  else
+    MOJ_TL_STORE="$TL_STORE_DIR" MOJ_FORCE_PRIVATE="$fp" RUNDIR="$RUNDIR" \
+    CONTESTSDIR="$CONTESTSDIR" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
+      bash "$MOJTOOLS_DIR/gen-problem-json.sh" "$pkg" "$id" >/dev/null 2>&1
   fi
-  ( setsid env MOJ_TL_STORE="$TL_STORE_DIR" RUNDIR="$RUNDIR" CONTESTSDIR="$CONTESTSDIR" \
+  local jd="$CONTESTSDIR/treino/var/jsons/$id.json"
+  local md="$CONTESTSDIR/treino/var/jsons-meta/$id.json"
+  if [[ -f "$jd" ]]; then
+    mkdir -p "${md%/*}" 2>/dev/null
+    jq -c '{id, title, public, tags:(.tags // []), collections:(.collections // [])}' \
+      "$jd" > "$md.tmp" 2>/dev/null && mv -f "$md.tmp" "$md" || rm -f "$md.tmp"
+  else
+    rm -f "$md" 2>/dev/null   # o gerador decidiu privado/inválido: sai da lista junto
+  fi
+  treino_list_dirty
+}
+
+# index_problem_bg <id> [validate=0|1] — index_problem_now DESTACADO em background (setsid;
+# o filho re-source-a esta lib — os defaults `: "${VAR:=…}"` aceitam o env injetado).
+index_problem_bg(){
+  local id="$1" validate="${2:-0}" lib
+  lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  ( setsid env RUNDIR="$RUNDIR" TL_STORE_DIR="$TL_STORE_DIR" CONTESTSDIR="$CONTESTSDIR" \
        MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" MOJTOOLS_DIR="$MOJTOOLS_DIR" \
-       MOJ_FORCE_PRIVATE="$force_priv" \
-       bash -c '
-         pkg="$1"; id="$2"; val="$3"
-         if [[ "$val" == 1 ]]; then
-           # portão estático + index (validate-problem indexa SÓ se passar)
-           bash "$MOJTOOLS_DIR/validate-problem.sh" "$pkg" "$id" >/dev/null 2>&1
-         else
-           # só re-indexa (ex.: time_limits atualizado após um tl-report)
-           bash "$MOJTOOLS_DIR/gen-problem-json.sh" "$pkg" "$id" >/dev/null 2>&1
-         fi
-         # SIDECAR de metadados p/ a lista (/treino/problems agrega só isto — nunca mais
-         # slurpa o statement_html_b64 dos 400+ jsons) + stamp de invalidação POR EVENTO.
-         jd="$CONTESTSDIR/treino/var/jsons/$id.json"
-         md="$CONTESTSDIR/treino/var/jsons-meta/$id.json"
-         if [[ -f "$jd" ]]; then
-           mkdir -p "${md%/*}" 2>/dev/null
-           jq -c "{id, title, public, tags:(.tags // []), collections:(.collections // [])}" \
-             "$jd" > "$md.tmp" 2>/dev/null && mv -f "$md.tmp" "$md" || rm -f "$md.tmp"
-         else
-           rm -f "$md" 2>/dev/null   # o gerador decidiu privado/inválido: sai da lista junto
-         fi
-         touch "$CONTESTSDIR/treino/var/.treino-list-dirty" 2>/dev/null
-       ' _ "$pkg" "$id" "$validate" >/dev/null 2>&1 & ) 2>/dev/null
+       bash -c 'source "$1/tl-store.sh" && index_problem_now "$2" "$3"' \
+       _ "$lib" "$id" "$validate" >/dev/null 2>&1 & ) 2>/dev/null
 }
