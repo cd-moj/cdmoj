@@ -6,11 +6,13 @@ import { apiGet } from './api.js';
 export function el(tag, attrs = {}, ...kids) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
-    if (v == null) continue;
+    // booleano = atributo booleano HTML: false OMITE (setAttribute('disabled', false)
+    // deixaria o atributo PRESENTE = desabilitado!), true põe o atributo vazio.
+    if (v == null || v === false) continue;
     if (k === 'class') e.className = v;
     else if (k === 'html') e.innerHTML = v;
     else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
-    else e.setAttribute(k, v);
+    else e.setAttribute(k, v === true ? '' : v);
   }
   for (const kid of kids.flat()) {
     if (kid == null) continue;
