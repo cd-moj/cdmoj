@@ -58,6 +58,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (tocado por `user_history_append/replace`) + `conf`; `var/.metrics-stamp` dispara recompute em
   massa no `build.sh` quando o `conf` muda (ex.: `FREEZE_TIME` editado). **Migração** de contest
   legado (arquivado em `contests-legado/`): `server/bin/store-migrate.sh <c>` (dry-run por padrão).
+  **Do MOJ ANTIGO** (`contests-backup/`) é OUTRO caminho: `treino-map-gen.sh` (mapa auditável
+  `<repo>#<slug>`→`<org>#<prob>`; `?` = não auditado e o migrador RECUSA) + `treino-migrate.sh
+  {stage|verify|install|audit}`, que **funde** em contest vivo (o store-migrate aborta se o destino
+  existe e faz `mv -T`). Regras que valem p/ os outros 1478: **`tempo` := `sub_epoch`** (o campo 1
+  do history legado é lixo em 617 linhas); rota de submissão pela chave `sub_epoch:subid` contra o
+  **history** (o nome do arquivo mente: 145 têm probid numérico); sem extensão ⇒ grave `<subid>.txt`
+  (`resolve_submission` globa `<sid>.*`); e **título igual NÃO prova mesmo problema** — confira o
+  enunciado (a agulha tem de sair da ESTÓRIA: "Entrada/Saída" é clichê e casa problema alheio).
   Handlers de usuário do admin (`user-add`/`user-disable`/`user-remove`/`users-set-password`)
   escrevem no account.json; remover = `mv` p/ `.removed-users/`. **`.team` agora tem WRITERS
   na API** (antes só o store-migrate): `users-bulk`/`user-add`/`contest-create users[]` aceitam

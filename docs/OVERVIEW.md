@@ -128,7 +128,16 @@ Migração de contest pré-reforma (arquivado em `contests-legado/`): `server/bi
 `org#prob`), leva team/perfil ao account.json, roteia os flat files, gera metrics, move os
 resíduos p/ `.legacy-store/` e só publica em `contests/` após verificação (contas, spot-check
 de senhas, soma do history, metrics, placar). `server/bin/store-cleanup.sh <c>` limpa resíduos
-de contest já migrado. O **treino** ganha um overlay de
+de contest já migrado.
+Migração vinda do **MOJ ANTIGO** (backup em `contests-backup/`, probid já em `<repo>#<slug>`) é
+outro caminho — o `store-migrate.sh` **não serve** porque aborta se o destino existe e faz `mv -T`
+do contest: `server/bin/treino-map-gen.sh` decide `<repo legado>#<slug>` → `<org>#<prob>` (alias
+repo/collections, casefold, slug, título e, por último, o TEXTO do enunciado) e emite um TSV
+**auditável**; `server/bin/treino-migrate.sh {stage|verify|install|audit}` consome o TSV (recusa
+qualquer linha `?`) e **funde** num contest vivo — conta nova entra por `mv` do diretório, conta
+que já existe só ganha history (dedup por subid) e submissões, senha do prod prevalece, telegram
+via `tg_link`. `stage`/`verify` não tocam o destino; `audit` confere o instalado contra o legado.
+O **treino** ganha um overlay de
 **Telegram** (`lib/telegram.sh`): cadastro **web-first** (`/treino/cadastro/`) confirmado por deep-link
 no bot, **1 Telegram = 1 conta** (anti-duplicata), recuperação de senha pelo vínculo, e senha entregue
 **só por DM**. O **mojinho-bot** virou transporte fino (bot-token `mojb_`, sem `.admin`/GODS) e entrega
