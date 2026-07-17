@@ -71,7 +71,10 @@ fora). A rede é compartilhada (Telegram + API no loopback). Unshares: tudo MENO
    - `bot.conf` (600) — copie de `bot.conf.sample`; em produção use
      `MOJ_API=http://127.0.0.1/api/v1` + `MOJ_HOST`/`MOJ_WEB` do vhost real e **`BOT_TOKEN=mojb_…`
      direto** (o mesmo valor de `run/secrets/bot.token`) — assim a jaula não monta nada de `run/`;
-   - `mojinho-offset` — criado sozinho se faltar.
+   - `mojinho-offset` — criado sozinho se faltar;
+   - `hosts` (opcional) — substitui o `/etc/hosts` da jaula; ponha
+     `127.0.0.1 <vhost-da-api>` p/ a API resolver ao loopback com TLS válido
+     (hairpin NAT do host costuma não voltar — foi o caso do newmoj).
 2. **Host Ubuntu ≥ 24.04**: `apt install bubblewrap` e libere userns **só p/ o bwrap** com o
    perfil AppArmor (mesma receita da máquina de juiz, `judge/README.md`):
    ```

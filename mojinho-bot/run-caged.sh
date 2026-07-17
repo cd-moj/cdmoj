@@ -56,9 +56,14 @@ ARGS=(
 for d in /bin /sbin /lib /lib64; do [[ -e "$d" ]] && ARGS+=(--ro-bind "$d" "$d"); done
 # /etc mínimo por ALLOWLIST: DNS + TLS + nss (o bind segue o symlink do resolv.conf
 # até o arquivo real do systemd-resolved; o stub 127.0.0.53 responde — rede é a do host)
-for f in resolv.conf hosts nsswitch.conf ld.so.cache gai.conf localtime passwd group; do
+for f in resolv.conf nsswitch.conf ld.so.cache gai.conf localtime passwd group; do
   [[ -e "/etc/$f" ]] && ARGS+=(--ro-bind "/etc/$f" "/etc/$f")
 done
+# /etc/hosts: um `hosts` no dir vivo SUBSTITUI o do sistema na jaula — uso típico:
+# apontar o vhost público da API p/ 127.0.0.1 (TLS continua válido pelo SNI, e o
+# hairpin NAT do host — que costuma não voltar — deixa de importar)
+if [[ -f "$LIVE/hosts" ]]; then ARGS+=(--ro-bind "$LIVE/hosts" /etc/hosts)
+elif [[ -e /etc/hosts ]]; then ARGS+=(--ro-bind /etc/hosts /etc/hosts); fi
 for d in /etc/ssl /etc/ca-certificates /etc/pki; do
   [[ -d "$d" ]] && ARGS+=(--ro-bind "$d" "$d")
 done
