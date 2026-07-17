@@ -18,7 +18,7 @@ São **duas formas**, e elas diferem **só no nginx** (o resto — imagem, quadl
 | **fcgiwrap** | roda o `router.sh` (API bash) num socket unix | `server/bin/start-fcgiwrap.sh` |
 | **judged** (daemon) | consome o spool e **enfileira** p/ o pull (dev: julga inline mock/local), grava veredicto + placar | `server/daemons/judged.sh` |
 | **juiz (agente pull)** | máquinas de julgamento: registram capacidade + puxam jobs | repo **judge** separado — ver `judge/README.md` (bring-up por máquina) e `server/judge-gw/PULL.md` |
-| **mojinho-bot** | bot Telegram (cliente da API) | `mojinho-bot/mojinho-api.sh` |
+| **mojinho-bot** | bot Telegram (cliente da API) | **produção: `mojinho-bot/run-caged.sh`** — jaula bwrap sem acesso a workspace/contests/run/moj-problems (segredos no dir vivo `~/mojinho-live`); unit user `server/etc/systemd/moj-bot.service`. Debug: `mojinho-bot/mojinho-api.sh` direto. Ver `mojinho-bot/README.md` |
 
 > **Storage de problemas (MOJ-nativo):** cada problema é um repo git LOCAL em
 > `MOJ_PROBLEMS_DIR/<org>/<prob>` — o servidor commita direto e indexa inline; acesso por ORG

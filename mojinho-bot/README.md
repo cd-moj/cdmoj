@@ -54,8 +54,39 @@ vinculados) **+** `ALERT_GROUP_CHAT`. Os `.admin` recebem DM só depois de vincu
 
 ## Rodar
 
-Direto (debug): `bash mojinho-api.sh`. Serviço: `server/etc/systemd/moj-bot.service`
-(`ExecStart=/bin/bash %h/moj/cdmoj/mojinho-bot/mojinho-api.sh`), `systemctl --user restart moj-bot`.
+Direto (debug): `bash mojinho-api.sh`. **Produção: enjaulado** (abaixo) via
+`server/etc/systemd/moj-bot.service` (`ExecStart=/bin/bash %h/moj/cdmoj/mojinho-bot/run-caged.sh`),
+`systemctl --user restart moj-bot`.
+
+## Rodando enjaulado (produção — `run-caged.sh`)
+
+`run-caged.sh` lança o bot numa jaula **bwrap** de mount-namespace mínimo: o bot NÃO enxerga
+`/home`, o workspace, `contests/`, `run/` nem `moj-problems/` — só `/usr` (+`/bin` etc. RO), um
+`/etc` mínimo (DNS+TLS), `/proc`, `/dev`, `/tmp` efêmero e `/bot` (tmpfs) com o código RO e os
+segredos RO. O único arquivo gravável é o `mojinho-offset` (estado do `getUpdates`, persistido
+fora). A rede é compartilhada (Telegram + API no loopback). Unshares: tudo MENOS `net`.
+
+1. **Dir vivo** (default `$HOME/mojinho-live`, 700 — fora do checkout; override `MOJINHO_LIVE`):
+   - `token` (600) — o token do Telegram (uma linha `NNNN:AAAA…`);
+   - `bot.conf` (600) — copie de `bot.conf.sample`; em produção use
+     `MOJ_API=http://127.0.0.1/api/v1` + `MOJ_HOST`/`MOJ_WEB` do vhost real e **`BOT_TOKEN=mojb_…`
+     direto** (o mesmo valor de `run/secrets/bot.token`) — assim a jaula não monta nada de `run/`;
+   - `mojinho-offset` — criado sozinho se faltar.
+2. **Host Ubuntu ≥ 24.04**: `apt install bubblewrap` e libere userns **só p/ o bwrap** com o
+   perfil AppArmor (mesma receita da máquina de juiz, `judge/README.md`):
+   ```
+   # /etc/apparmor.d/bwrap
+   abi <abi/4.0>,
+   include <tunables/global>
+   profile bwrap /usr/bin/bwrap flags=(unconfined) {
+     userns,
+     include if exists <local/bwrap>
+   }
+   ```
+   `apparmor_parser -r /etc/apparmor.d/bwrap`. O script valida tudo isso e aborta com
+   mensagem clara (inclusive se o `bwrap` for o `fbwrap` no-op do firejail).
+3. `bash run-caged.sh` (ou pela unit systemd). Nenhum segredo passa por argv/env do host
+   (`--clearenv`; token só via arquivo montado RO).
 
 ## Dependências
-`bash`, `curl`, `jq`.
+`bash`, `curl`, `jq` (+ `bubblewrap` p/ a jaula).

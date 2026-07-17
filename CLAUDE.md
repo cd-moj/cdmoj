@@ -76,7 +76,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   nonce em `run/telegram/`), cadastro web-first (`handlers/treino/signup/*` + página `web/treino/cadastro/`),
   recuperação por vínculo, `link-start`. O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
   autentica com **bot-token** `mojb_…` (`lib/bot-auth.sh` `require_bot`, `run/secrets/bot.token`) — não
-  loga como `.admin`, sem GODS. **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
+  loga como `.admin`, sem GODS. Em produção roda **ENJAULADO** (`mojinho-bot/run-caged.sh`: bwrap
+  sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
   histerese/cooldown e enfileira no outbox `run/alerts/`; o bot drena e entrega a `.admin` vinculados
   + grupo). Senha nova **só por DM** (nunca na web).
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
