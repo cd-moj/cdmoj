@@ -303,17 +303,29 @@ results_map_file(){
   [[ -s "$out" ]] || printf '{}\n' > "$out"
 }
 
-# count_pending <c> — nº de submissões pendentes (veredicto provisório). Fan-out por grep.
+# count_pending <c> — nº de submissões pendentes (veredicto provisório). Fan-out por grep,
+# CACHEADO POR EVENTO em var/.pending-count (gate = mtime de var/.score-dirty, tocado a cada
+# append/replace de history — exatamente quando "pendente" muda). Sem o cache, o
+# /index/status varria 446 contests × users/*/history = ~14k greps POR REQUEST e ficou
+# minutos pendurado após a migração do MOJ antigo (contests migrados dormentes agora contam
+# UMA vez e nunca mais).
 count_pending(){
   local c="$1" re=':(Not Answered Yet|On queue|on queue|Running|running):' g
+  local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || { echo 0; return; }
+  local cache="$CONTESTSDIR/$c/var/.pending-count" dirty="$CONTESTSDIR/$c/var/.score-dirty"
+  if [[ -f "$cache" && ! "$dirty" -nt "$cache" ]]; then
+    g="$(cat "$cache" 2>/dev/null)"; g="${g//[^0-9]/}"; echo "${g:-0}"; return
+  fi
   # ATENÇÃO: `grep -c` IMPRIME "0" E SAI 1 quando não há match. NUNCA usar
   # `grep -c … || echo 0` (retorna "0\n0" → estoura (( )) e inunda o stderr → trava o worker
   # fcgiwrap). Capturar direto (o exit 1 é inofensivo dentro de $()) e sanear a dígitos.
-  local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || { echo 0; return; }
-  ( set +o noglob; shopt -s nullglob
-    local m=0 hf; for hf in "$d"/*/history; do
-      g="$(grep -cE "$re" "$hf" 2>/dev/null)"; m=$(( m + ${g//[^0-9]/} + 0 ))
-    done; echo "$m" )
+  local m; m="$( set +o noglob; shopt -s nullglob
+    local n=0 hf; for hf in "$d"/*/history; do
+      g="$(grep -cE "$re" "$hf" 2>/dev/null)"; n=$(( n + ${g//[^0-9]/} + 0 ))
+    done; echo "$n" )"
+  mkdir -p "$CONTESTSDIR/$c/var" 2>/dev/null
+  printf '%s\n' "$m" > "$cache.tmp.$$" 2>/dev/null && mv -f "$cache.tmp.$$" "$cache" 2>/dev/null
+  echo "$m"
 }
 
 # resolve_submission <c> <sid> — popula SUB_OWNER, SUB_SRC, SUB_LOG, SUB_RESULT (vazios se
