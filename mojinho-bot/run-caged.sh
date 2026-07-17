@@ -64,7 +64,9 @@ done
 # hairpin NAT do host — que costuma não voltar — deixa de importar)
 if [[ -f "$LIVE/hosts" ]]; then ARGS+=(--ro-bind "$LIVE/hosts" /etc/hosts)
 elif [[ -e /etc/hosts ]]; then ARGS+=(--ro-bind /etc/hosts /etc/hosts); fi
-for d in /etc/ssl /etc/ca-certificates /etc/pki; do
+# /etc/alternatives: awk/editor/etc são SYMLINKS via alternatives no Debian/Ubuntu —
+# sem este bind o awk some na jaula (api_status quebrava e alertas eram descartados)
+for d in /etc/ssl /etc/ca-certificates /etc/pki /etc/alternatives; do
   [[ -d "$d" ]] && ARGS+=(--ro-bind "$d" "$d")
 done
 [[ -d /etc/ssl/private ]] && ARGS+=(--tmpfs /etc/ssl/private)   # chaves NUNCA na jaula
