@@ -26,6 +26,10 @@
     .coll{border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.6rem .8rem;cursor:pointer;min-width:160px}
     .coll:hover{border-color:var(--accent,#5b8cff)}
     .coll b{display:block;font-size:1rem} .coll .small{opacity:.8}
+    .chip{display:inline-flex;align-items:center;gap:.3rem;border:1px solid var(--border,#2a2a2a);border-radius:999px;padding:.1rem .6rem;font-size:.82rem;margin:.12rem}
+    .chip .x{cursor:pointer;opacity:.55;font-weight:700} .chip .x:hover{opacity:1;color:#e66}
+    tr.orgrow{cursor:pointer} tr.orgrow:hover td{background:color-mix(in srgb, var(--accent,#5b8cff) 7%, transparent)}
+    tr.orgdetail>td{background:color-mix(in srgb, var(--accent,#5b8cff) 5%, transparent);border-left:3px solid var(--accent,#5b8cff);padding:.6rem .8rem}
     #detail{margin-top:1rem}
     #detail iframe{width:100%;height:60vh;border:1px solid var(--border,#2a2a2a);border-radius:.5rem;background:#fff}
     .checks li{margin:.15rem 0} .checks .k{display:inline-block;min-width:13rem}
@@ -61,7 +65,7 @@
         <button data-tab="shared" data-en="Shared">Compartilhados</button>
         <button data-tab="public" data-en="Public">Públicos</button>
         <button data-tab="collections" data-en="Collections">Coleções</button>
-        <button data-tab="orgs">Orgs</button>
+        <button data-tab="orgs" data-en="Orgs">Orgs</button>
       </div>
       <div class="row" id="toolbar">
         <input id="q" placeholder="Filtrar por título, autor ou id…" data-en-ph="Filter by title, author or id…" style="flex:1; min-width:240px">

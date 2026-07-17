@@ -163,28 +163,69 @@ async function moveProblem(p) {
 }
 
 // ── COLEÇÕES = tags de agrupamento (m:n, curadas). Ortogonais à ORG. ─────────────────────────
+// 129+ coleções: tabela ORDENÁVEL + busca (#q) + filtro "minhas" — cards não escalavam.
+let COLL_SORT = { key: 'count', dir: -1 }, COLL_MINE = false;
+function setCollSort(key) {
+  COLL_SORT = { key, dir: COLL_SORT.key === key ? -COLL_SORT.dir : (key === 'count' || key === 'public' ? -1 : 1) };
+  renderCollections();
+}
+function collRows() {
+  const q = norm(document.getElementById('q').value.trim());
+  let rows = COLLS.slice();
+  if (COLL_MINE) rows = rows.filter(c => c.mine);
+  if (q) rows = rows.filter(c => norm(c.name + ' ' + (c.owner || '')).includes(q));
+  const k = COLL_SORT.key, d = COLL_SORT.dir;
+  rows.sort((a, b) => {
+    const va = a[k], vb = b[k];
+    if (typeof va === 'number' || typeof vb === 'number') return ((va || 0) - (vb || 0)) * d;
+    return String(va || '').localeCompare(String(vb || '')) * d;
+  });
+  return rows;
+}
 function renderCollections() {
-  document.getElementById('count').textContent = `${COLLS.length} ${T('coleção(ões)', 'collection(s)')}`;
+  const rows = collRows();
+  document.getElementById('count').textContent =
+    `${T('mostrando', 'showing')} ${rows.length} ${T('de', 'of')} ${COLLS.length} ${T('coleção(ões)', 'collection(s)')}`;
   document.getElementById('pager').innerHTML = '';
   const list = document.getElementById('list'); list.innerHTML = '';
   list.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' },
-    T('Coleções são rótulos de agrupamento — um problema pode estar em VÁRIAS (diferente de ORG, que controla acesso).', 'Collections are grouping labels — a problem can be in SEVERAL (unlike ORG, which controls access).')));
+    T('Coleções são rótulos de agrupamento — um problema pode estar em VÁRIAS (diferente de ORG, que controla acesso). Clique no nome para ver os problemas.', 'Collections are grouping labels — a problem can be in SEVERAL (unlike ORG, which controls access). Click a name to see its problems.')));
   const nc = el('input', { placeholder: T('nova coleção (pode ter espaços)', 'new collection (spaces allowed)'), style: 'padding:.35rem;min-width:16rem' });
-  list.append(el('div', { class: 'row', style: 'gap:.4rem;margin-bottom:.7rem' },
-    nc, el('button', { class: 'btn', onclick: () => createColl(nc.value.trim(), nc) }, T('+ Coleção', '+ Collection'))));
-  const wrap = el('div', { class: 'colls' });
-  COLLS.forEach(c => {
+  const mineBtn = el('button', { class: 'pill ' + (COLL_MINE ? 'ok' : 'mut'), style: 'cursor:pointer;border:none',
+    onclick: () => { COLL_MINE = !COLL_MINE; renderCollections(); } }, T('só minhas', 'mine only'));
+  list.append(el('div', { class: 'row', style: 'gap:.4rem;margin-bottom:.7rem;align-items:center' },
+    nc, el('button', { class: 'btn', onclick: () => createColl(nc.value.trim(), nc) }, T('+ Coleção', '+ Collection')),
+    el('span', { style: 'flex:1' }), mineBtn));
+
+  const arrow = (k) => COLL_SORT.key === k ? (COLL_SORT.dir > 0 ? ' ▲' : ' ▼') : '';
+  const th = (label, k) => k
+    ? el('th', { class: 'sortable', onclick: () => setCollSort(k) }, label + arrow(k))
+    : el('th', {}, label);
+  const table = el('table', { class: 'moj', style: 'width:100%' });
+  table.append(el('thead', {}, el('tr', {},
+    th(T('Coleção', 'Collection'), 'name'), th(T('Dono', 'Owner'), 'owner'),
+    th(T('Problemas', 'Problems'), 'count'), th(T('Públicos', 'Public'), 'public'),
+    el('th', {}, T('Ações', 'Actions')))));
+  const tb = el('tbody');
+  rows.forEach(c => {
     const allPub = c.public === c.count;
-    const card = el('div', { class: 'coll', onclick: () => openCollection(c.name) },
-      el('b', {}, c.name),
-      el('span', { class: 'small' }, `  ${c.count} ${T('problemas', 'problems')} · `),
-      c.public === 0 ? pill('no', T('0 públicos', '0 public')) : (allPub ? pill('ok', T('todos públicos', 'all public')) : pill('warn', `${c.public}/${c.count} ${T('públicos', 'public')}`)));
-    if (c.can_manage) card.append(
-      el('button', { class: 'btn ghost', style: 'margin-left:.5rem;padding:.1rem .4rem', onclick: (ev) => { ev.stopPropagation(); renameColl(c); } }, T('renomear', 'rename')),
-      el('button', { class: 'btn ghost', style: 'margin-left:.3rem;padding:.1rem .4rem', onclick: (ev) => { ev.stopPropagation(); deleteColl(c); } }, T('excluir', 'delete')));
-    wrap.append(card);
+    const pubPill = c.public === 0 ? pill('no', T('0 públicos', '0 public'))
+      : (allPub ? pill('ok', T('todos', 'all')) : pill('warn', `${c.public}/${c.count}`));
+    const acts = el('td', {});
+    if (c.can_manage) acts.append(
+      el('button', { class: 'btn ghost', style: 'padding:.05rem .4rem', title: T('Renomear', 'Rename'),
+        onclick: (ev) => { ev.stopPropagation(); renameColl(c); } }, '✏'),
+      el('button', { class: 'btn ghost', style: 'padding:.05rem .4rem;margin-left:.25rem', title: T('Excluir', 'Delete'),
+        onclick: (ev) => { ev.stopPropagation(); deleteColl(c); } }, '🗑'));
+    tb.append(el('tr', { style: 'cursor:pointer', onclick: () => openCollection(c.name) },
+      el('td', {}, el('b', {}, c.name), c.mine ? el('span', { class: 'small muted2' }, ' · ' + T('sua', 'yours')) : ''),
+      el('td', { class: 'small muted2' }, c.owner || '—'),
+      el('td', {}, String(c.count)),
+      el('td', {}, pubPill),
+      acts));
   });
-  list.append(wrap);
+  table.append(tb);
+  list.append(el('div', { style: 'overflow-x:auto' }, table));
 }
 async function createColl(name, inp) {
   if (!name) return;
@@ -209,46 +250,84 @@ async function loadOrgs() {
   try { const j = await apiGet('/orgs/list', { contest: CONTEST, auth: true }); ORGS = j.orgs || []; renderOrgs(); }
   catch (e) { list.innerHTML = `<span class="error-box">${e instanceof ApiError ? e.message : T('Falha ao carregar', 'Failed to load')}</span>`; }
 }
+// mestre-detalhe: linha compacta por org (membros = só CONTAGEM; a lista de logins vive no
+// detalhe expandido como chips removíveis — era o que esticava os cards). Uma aberta por vez.
+let ORG_OPEN = null;
 function renderOrgs() {
-  document.getElementById('count').textContent = `${ORGS.length} org(s)`;
+  const q = norm(document.getElementById('q').value.trim());
+  const rows = q ? ORGS.filter(o => norm(o.name + ' ' + (o.title || '') + ' ' + (o.members || []).join(' ')).includes(q)) : ORGS;
+  document.getElementById('count').textContent =
+    `${T('mostrando', 'showing')} ${rows.length} ${T('de', 'of')} ${ORGS.length} org(s)`;
   document.getElementById('pager').innerHTML = '';
   const list = document.getElementById('list'); list.innerHTML = '';
   list.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' },
-    T('ORG = quem pode editar (membros) + o prefixo do id. Privada por padrão: problemas só ficam públicos se a org permitir.', 'ORG = who can edit (members) + the id prefix. Private by default: problems only become public if the org allows it.')));
+    T('ORG = quem pode editar (membros) + o prefixo do id. Privada por padrão: problemas só ficam públicos se a org permitir. Clique numa linha para gerir. A busca acha org por NOME ou por MEMBRO.', 'ORG = who can edit (members) + the id prefix. Private by default: problems only become public if the org allows it. Click a row to manage. Search finds orgs by NAME or by MEMBER.')));
   if (CAN_CREATE) {
     const no = el('input', { placeholder: T('nova org (minúsculas, sem espaço)', 'new org (lowercase, no spaces)'), style: 'padding:.35rem;min-width:16rem' });
     list.append(el('div', { class: 'row', style: 'gap:.4rem;margin-bottom:.7rem' },
       no, el('button', { class: 'btn', onclick: () => createOrg(no.value.trim(), no) }, '+ Org')));
   }
-  const wrap = el('div', { class: 'colls' });
-  ORGS.forEach(o => {
+  const table = el('table', { class: 'moj', style: 'width:100%' });
+  table.append(el('thead', {}, el('tr', {},
+    el('th', {}, 'Org'), el('th', {}, T('Trava', 'Lock')),
+    el('th', {}, T('Problemas', 'Problems')), el('th', {}, T('Membros', 'Members')), el('th', {}, ''))));
+  const tb = el('tbody');
+  rows.forEach(o => {
+    const open = ORG_OPEN === o.name;
     const paChip = o.implicit ? pill('mut', T('privada (própria)', 'private (own)'))
       : o.can_manage
         ? el('button', { class: 'pill ' + (o.public_allowed ? 'ok' : 'no'), style: 'cursor:pointer;border:none',
-            title: T('Trava de público (clique p/ alternar)', 'Public lock (click to toggle)'), onclick: () => toggleOrgPublic(o) }, o.public_allowed ? T('permite público', 'allows public') : T('privada 🔒', 'private 🔒'))
+            title: T('Trava de público (clique p/ alternar)', 'Public lock (click to toggle)'),
+            onclick: (ev) => { ev.stopPropagation(); toggleOrgPublic(o); } },
+            o.public_allowed ? T('permite público', 'allows public') : T('privada 🔒', 'private 🔒'))
         : pill(o.public_allowed ? 'ok' : 'no', o.public_allowed ? T('permite público', 'allows public') : T('privada 🔒', 'private 🔒'));
-    const card = el('div', { class: 'coll', style: 'cursor:default;display:block' },
-      el('div', {}, el('b', {}, o.name), o.implicit ? el('span', { class: 'small muted2' }, T(' (sua org)', ' (your org)')) : '',
-        el('span', { class: 'small' }, `  ${o.count} ${T('problemas', 'problems')} · `), paChip),
-      el('div', { class: 'small', style: 'margin-top:.3rem' }, T('membros: ', 'members: '), (o.members || []).join(', ') || '—'));
-    if (o.can_manage && !o.implicit) {
-      const inp = el('input', { placeholder: 'login', style: 'padding:.3rem;width:9rem' });
-      const empty = o.count === 0;
-      card.append(el('div', { class: 'row', style: 'gap:.3rem;margin-top:.4rem;flex-wrap:wrap;align-items:center' },
-        inp,
-        el('button', { class: 'btn ghost', style: 'padding:.1rem .5rem', onclick: () => orgMember(o, inp.value.trim(), true, inp) }, T('+ membro', '+ member')),
-        el('button', { class: 'btn ghost', style: 'padding:.1rem .5rem', onclick: () => orgMember(o, inp.value.trim(), false, inp) }, T('− membro', '− member')),
-        el('span', { style: 'flex:1' }),
-        el('button', {
-          class: 'btn ghost', style: 'padding:.1rem .5rem;color:#e66;border-color:#a44',
-          disabled: empty ? null : '',
-          title: empty ? T('Remover esta org vazia', 'Remove this empty org') : T('Esvazie a org (mova/exclua os problemas) antes de removê-la', 'Empty the org (move/delete the problems) before removing it'),
-          onclick: empty ? () => deleteOrg(o) : null,
-        }, T('excluir', 'delete'))));
+    tb.append(el('tr', { class: 'orgrow', onclick: () => { ORG_OPEN = open ? null : o.name; renderOrgs(); } },
+      el('td', {}, el('b', {}, o.name),
+        o.implicit ? el('span', { class: 'small muted2' }, T(' (sua org)', ' (your org)')) : '',
+        (o.title && o.title !== o.name) ? el('div', { class: 'small muted2' }, o.title) : '',
+        o.can_manage && !o.implicit ? el('span', { class: 'small muted2' }, ' · ' + T('você administra', 'you manage')) : ''),
+      el('td', {}, paChip),
+      el('td', {}, `${o.count}`, o.public ? el('span', { class: 'small muted2' }, ` · ${o.public} ${T('públicos', 'public')}`) : ''),
+      el('td', {}, `${(o.members || []).length} ${T('membro(s)', 'member(s)')}`),
+      el('td', { style: 'width:1.5rem;text-align:center' }, open ? '▾' : '▸')));
+    if (open) {
+      const box = el('div', {});
+      // membros como CHIPS: ⭐ = admin da org; ✕ = remover (só quem administra, org não-implícita)
+      const chips = el('div', { style: 'margin:.2rem 0 .4rem' });
+      const admins = o.admins || [];
+      (o.members || []).forEach(m => {
+        const ch = el('span', { class: 'chip', title: admins.includes(m) ? T('admin da org', 'org admin') : '' },
+          (admins.includes(m) ? '⭐ ' : '') + m);
+        if (o.can_manage && !o.implicit) ch.append(el('span', { class: 'x', title: T('Remover da org', 'Remove from org'),
+          onclick: (ev) => { ev.stopPropagation();
+            if (confirm(`${T('Remover ', 'Remove ')}${m}${T(' da org ', ' from org ')}${o.name}?`)) orgMember(o, m, false, null); } }, '✕'));
+        chips.append(ch);
+      });
+      if (!(o.members || []).length) chips.append(el('span', { class: 'small muted2' }, '—'));
+      box.append(chips);
+      if (o.can_manage && !o.implicit) {
+        const inp = el('input', { placeholder: T('login do novo membro', 'new member login'), style: 'padding:.3rem;width:13rem' });
+        inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') orgMember(o, inp.value.trim(), true, inp); });
+        const empty = o.count === 0;
+        box.append(el('div', { class: 'row', style: 'gap:.3rem;flex-wrap:wrap;align-items:center' },
+          inp,
+          el('button', { class: 'btn ghost', style: 'padding:.1rem .5rem', onclick: () => orgMember(o, inp.value.trim(), true, inp) }, T('+ membro', '+ member')),
+          el('span', { style: 'flex:1' }),
+          el('button', {
+            class: 'btn ghost', style: 'padding:.1rem .5rem;color:#e66;border-color:#a44',
+            disabled: !empty,
+            title: empty ? T('Remover esta org vazia', 'Remove this empty org') : T('Esvazie a org (mova/exclua os problemas) antes de removê-la', 'Empty the org (move/delete the problems) before removing it'),
+            onclick: empty ? () => deleteOrg(o) : null,
+          }, T('excluir org', 'delete org'))));
+      } else if (o.implicit) {
+        box.append(el('div', { class: 'small muted2' },
+          T('Sua org pessoal: sempre privada, só sua — problemas em elaboração vivem aqui.', 'Your personal org: always private, yours only — draft problems live here.')));
+      }
+      tb.append(el('tr', { class: 'orgdetail' }, el('td', { colspan: '5' }, box)));
     }
-    wrap.append(card);
   });
-  list.append(wrap);
+  table.append(tb);
+  list.append(el('div', { style: 'overflow-x:auto' }, table));
 }
 async function createOrg(name, inp) {
   if (!name) return;
@@ -583,9 +662,10 @@ async function loadTab(tab) {
   TAB = tab; page = 0; setActiveTab(tab);
   document.getElementById('detail').style.display = 'none';
   const list = document.getElementById('list'); list.innerHTML = `<span class="small muted">${T('Carregando…', 'Loading…')}</span>`;
-  document.getElementById('toolbar').style.display = (tab === 'collections' || tab === 'orgs') ? 'none' : '';
+  // a busca #q vale TAMBÉM em coleções (129+) e orgs; só o checkbox não se aplica lá
+  document.getElementById('toolbar').style.display = '';
   document.getElementById('brokenLabelText').textContent = (tab === 'painel') ? T('só com atenção', 'needs attention only') : T('só não-públicos', 'non-public only');
-  document.getElementById('brokenLabel').style.display = (tab === 'analise') ? 'none' : '';
+  document.getElementById('brokenLabel').style.display = (tab === 'analise' || tab === 'collections' || tab === 'orgs') ? 'none' : '';
   document.getElementById('btnRefreshPanel').style.display = (tab === 'painel' || tab === 'analise') ? '' : 'none';
   if (tab === 'painel') { loadPanel(); return; }
   if (tab === 'analise') { loadAnalysis(); return; }
@@ -625,7 +705,10 @@ async function boot() {
   document.querySelectorAll('#tabs button').forEach(b =>
     b.addEventListener('click', () => loadTab(b.dataset.tab)));
   ['q', 'onlybroken'].forEach(id =>
-    document.getElementById(id).addEventListener('input', () => { page = 0; if (TAB === 'painel') renderPanel(); else if (TAB === 'analise') renderAnalysis(); else renderTable(); }));
+    document.getElementById(id).addEventListener('input', () => { page = 0;
+      if (TAB === 'painel') renderPanel(); else if (TAB === 'analise') renderAnalysis();
+      else if (TAB === 'collections') renderCollections(); else if (TAB === 'orgs') renderOrgs();
+      else renderTable(); }));
   document.getElementById('btnRefreshPanel').addEventListener('click', () => { if (TAB === 'analise') loadAnalysis(); else loadPanel(); });
   loadTab('painel');
 }
