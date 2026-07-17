@@ -96,7 +96,7 @@ set_text_html() { SUBMITJSON="$(jq -cn --arg t "$1" '{text:$t, parse_mode:"HTML"
 start() {
   local nonce="$1"
   if [[ -z "$nonce" ]]; then
-    set_text_html "Olá! Para criar sua conta no Treino Livre, comece pela página: $MOJ_WEB/new/treino/cadastro/"$'\n'"Ou envie <b>/participar</b> aqui mesmo."
+    set_text_html "Olá! Para criar sua conta no Treino Livre, comece pela página: $MOJ_WEB/treino/cadastro/"$'\n'"Ou envie <b>/participar</b> aqui mesmo."
     return
   fi
   (( REPLYTO < 0 )) && { set_text "O cadastro não pode ser feito em um grupo. Me chame no privado."; return; }
@@ -127,7 +127,7 @@ _signup_reply() {
   pass="$(jq -r '.password // empty' <<<"$resp" 2>/dev/null)"
   case "$status" in
     created)
-      set_text_html "Bem-vindo(a) ao Treino Livre!"$'\n'"login: <b>$login</b>"$'\n'"senha: <b>$pass</b>"$'\n'"Acesse: $MOJ_WEB/new/treino/"$'\n\n'"Iniciante? Comece pela tag <b>#.comeceaqui</b>." ;;
+      set_text_html "Bem-vindo(a) ao Treino Livre!"$'\n'"login: <b>$login</b>"$'\n'"senha: <b>$pass</b>"$'\n'"Acesse: $MOJ_WEB/treino/"$'\n\n'"Iniciante? Comece por aqui: $MOJ_WEB/treino/?searchtag=.comeceaqui" ;;
     linked)
       set_text_html "Telegram vinculado à sua conta <b>$login</b>. Você agora pode receber avisos por aqui." ;;
     already_linked)
@@ -150,9 +150,9 @@ trocarsenha() {
   login="$(jq -r '.login // empty' <<<"$resp" 2>/dev/null)"
   pass="$(jq -r '.password // empty' <<<"$resp" 2>/dev/null)"
   if [[ "$status" == ok ]]; then
-    set_text_html "Nova senha para <i>$MOJ_CONTEST</i>:"$'\n'"login: <b>$login</b>"$'\n'"senha: <b>$pass</b>"$'\n'"Acesse: $MOJ_WEB/new/treino/"
+    set_text_html "Nova senha para <i>$MOJ_CONTEST</i>:"$'\n'"login: <b>$login</b>"$'\n'"senha: <b>$pass</b>"$'\n'"Acesse: $MOJ_WEB/treino/"
   elif [[ "$status" == not_linked ]]; then
-    set_text_html "Você ainda não tem conta vinculada a este Telegram. Crie em: $MOJ_WEB/new/treino/cadastro/ ou envie /participar."
+    set_text_html "Você ainda não tem conta vinculada a este Telegram. Crie em: $MOJ_WEB/treino/cadastro/ ou envie /participar."
   else
     set_text "Não consegui trocar a senha: $(err_msg "$resp")"
   fi

@@ -29,20 +29,22 @@ Princípio: **adicionar um modo = 1 gerador (`server/score/updatescore-<modo>.sh
 
 ```
 icpc                                                  ← linha 1: o modo (bare)
-desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total   ← cabeçalho
-1:1:BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:2/40:1/55::3/68::15
+desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total:Penalty:LastAC   ← cabeçalho
+BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:2/40:1/55::3/68::4:213:68
 ```
 
 - Campos separados por `:`. **O placar já vem ordenado** — o front só renderiza na ordem.
 - O cabeçalho pode começar com colunas-marcador `desc`/`asc` (campos de ordenação já aplicados):
   **o renderizador deve descartar TODAS as colunas iniciais cujo valor seja `desc` ou `asc`.**
 - Colunas: `flag` (ISO), `username`, `univ short`, `team name`, `univ full` (as de univ são opcionais),
-  uma coluna por problema (na ordem dos short names), `Total`.
+  uma coluna por problema (na ordem dos short names), `Total`; no modo `icpc` também
+  **`Penalty`** (soma das penalidades, coluna VISÍVEL) e **`LastAC`** (minuto de prova do
+  último problema resolvido — coluna de SISTEMA: a UI usa p/ detectar empate exato, não exibe).
 
 ### Células por modo
 | Modo | Célula de problema | Ordenação | Cor |
 |---|---|---|---|
-| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/minuto*`=**first to solve** (★ + contorno; menor `first_ac_epoch` do problema entre os times do placar, na mesma visão frozen/full) · `tentativas/-`=tentou | acertos↓, depois penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) | pinta com a cor do balão |
+| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/minuto*`=**first to solve** (★ + contorno; menor `first_ac_epoch` do problema entre os times do placar, na mesma visão frozen/full) · `tentativas/-`=tentou | **1º** acertos↓ · **2º** penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) · **3º** minuto do ÚLTIMO problema resolvido↑ (`LastAC`) | pinta com a cor do balão |
 
 **Penalidade configurável (modo `icpc`)** — duas vars de conf, editáveis pelo
 `/contest/admin/settings` (mudar em prova recomputa o placar no próximo GET):

@@ -532,7 +532,7 @@
         ],
         "responses": {
           "200": {
-            "description": "perfil próprio: dados + cota de username + telegram:{linked,username,linked_at} (vínculo do login, sem o telegram_id); ?user=X: visão pública"
+            "description": "perfil próprio: dados + cota de username + telegram:{linked,username,linked_at,changes_used,changes_limit,changes_remaining,next_available} (vínculo do login, sem o telegram_id; changes_limit null = .admin, livre); ?user=X: visão pública"
           }
         }
       },
@@ -6072,7 +6072,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Desvincula o Telegram do PRÓPRIO login (contraparte do link-start)",
+        "summary": "Desvincula o Telegram do PRÓPRIO login (cota anti conta-descartável: TELEGRAM_CHANGE_LIMIT (1)/ano p/ usuário comum — 403 telegram_limit; .admin livre)",
         "security": [
           {
             "bearerAuth": []

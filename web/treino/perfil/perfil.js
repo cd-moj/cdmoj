@@ -89,15 +89,24 @@ function render(p, st) {
           '.admin accounts that are linked receive system ALERTS (judges offline, growing queue, stopped daemon) via bot DM.'))
     : null;
   if (tg.linked) {
+    // cota de desvínculo: usuário comum tem TELEGRAM_CHANGE_LIMIT (1)/ano; .admin livre
+    // (changes_limit null). O vínculo é a identidade da conta — anti conta-descartável.
+    const free = tg.changes_limit == null;
+    const canUnlink = free || (tg.changes_remaining || 0) > 0;
+    const nextStr = tg.next_available ? fmtDate(tg.next_available) : '';
     tgBody.append(
       el('p', { style: 'margin:.2rem 0' }, '✅ ',
         T('Telegram vinculado', 'Telegram linked'),
         tg.username ? el('b', {}, ' @' + tg.username) : '',
         tg.linked_at ? el('span', { class: 'small muted' }, ' · ' + T('desde ', 'since ') + fmtDate(tg.linked_at)) : ''),
       adminNote || '',
-      el('button', { class: 'btn ghost', onclick: async () => {
-        if (!confirm(T('Desvincular o Telegram desta conta? Você deixa de receber senha/alertas por DM.',
-                       'Unlink Telegram from this account? You will stop receiving passwords/alerts via DM.'))) return;
+      free ? '' : el('p', { class: 'small muted', style: 'margin:.2rem 0' },
+        T(`O Telegram vinculado é a identidade da sua conta: no máximo ${tg.changes_limit} troca por ano.`,
+          `Your linked Telegram is your account identity: at most ${tg.changes_limit} change per year.`),
+        !canUnlink && nextStr ? ' ' + T(`Próxima troca disponível em ${nextStr}.`, `Next change available on ${nextStr}.`) : ''),
+      el('button', { class: 'btn ghost', disabled: !canUnlink, onclick: async () => {
+        if (!confirm(T('Desvincular o Telegram desta conta? Você deixa de receber senha/alertas por DM' + (free ? '' : ' e esta é sua troca do ano') + '.',
+                       'Unlink Telegram from this account? You will stop receiving passwords/alerts via DM' + (free ? '' : ' and this uses your yearly change') + '.'))) return;
         tgM.className = 'small'; tgM.textContent = T('Desvinculando…', 'Unlinking…');
         try { await apiPost('/treino/telegram/unlink', {}, { contest: CONTEST, auth: true }); ok(tgM, T('✓ Desvinculado', '✓ Unlinked')); setTimeout(load, 800); }
         catch (e) { err(tgM, e.message || T('falha', 'failed')); }

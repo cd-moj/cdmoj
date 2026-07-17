@@ -5,8 +5,12 @@
 # ICPC scoreboard generator. Prints ONE TXT to stdout:
 #
 #   icpc
-#   desc:asc:flag:username:univ short:team name:univ full:A:B:...:Total
-#   <rows, already sorted: solved desc, then penalty asc>
+#   desc:asc:flag:username:univ short:team name:univ full:A:B:...:Total:Penalty:LastAC
+#   <rows, already sorted: solved desc, penalty asc, last-AC-minute asc>
+#
+# Total = resolvidos; Penalty = SOMA das penalidades (visível no placar); LastAC = minuto de
+# prova do ÚLTIMO problema resolvido — coluna de SISTEMA (a UI usa p/ empate exato, não exibe).
+# Classificação: 1º resolvidos (desc), 2º penalidade (asc), 3º último AC (asc).
 #
 # Per team / per problem the cell is:
 #   ""              untried
@@ -36,7 +40,7 @@ START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
   printf 'icpc\n'
   printf 'desc:asc:flag:username:univ short:team name:univ full'
   for ((p=0; p<SC_NPROB; p++)); do printf ':%s' "${SC_SHORT[p]}"; done
-  printf ':Total\n'
+  printf ':Total:Penalty:LastAC\n'
 }
 
 # --- cells from metrics (one pass over users/*/metrics.json) ----------------
@@ -63,12 +67,15 @@ for row in "${SC_ROWS[@]}"; do
 done
 
 # --- rows ------------------------------------------------------------------
-# Build each row prefixed with "solved:penalty" sort keys, sort, then strip.
+# Cada linha sai prefixada com as CHAVES de ordenação "solved \t penalty \t lastmin",
+# ordena (resolvidos desc, penalidade asc, último-AC asc) e descarta as chaves — mas
+# penalty e lastmin agora TAMBÉM vão no corpo visível (colunas Penalty/LastAC).
 {
   for row in "${SC_ROWS[@]}"; do
     IFS=$'\t' read -r login full team us uf flag <<<"$row"
     solved=0
     penalty=0
+    lastmin=0        # minuto de prova do ÚLTIMO problema resolvido (3º desempate)
     cells=""
     for ((p=0; p<SC_NPROB; p++)); do
       key="$login|${SC_CANON[p]}"
@@ -80,6 +87,7 @@ done
         min=$(( (fac - START) / 60 )); (( min < 0 )) && min=0
         (( solved++ ))
         (( penalty += (tent-1)*PENALTYCOST + min ))
+        (( min > lastmin )) && lastmin=$min
         fts=""
         [[ -n "${FTSMIN[${SC_CANON[p]}]:-}" ]] && (( fac == FTSMIN[${SC_CANON[p]}] )) && fts="*"
         cells+=":${tent}/${min}${fts}"   # solved (* = first to solve)
@@ -87,9 +95,9 @@ done
         cells+=":${tent}/-"              # tried, unsolved
       fi
     done
-    # sort keys + the visible row
-    printf '%d\t%d\t%s:%s:%s:%s:%s%s:%d\n' \
-      "$solved" "$penalty" \
-      "$flag" "$login" "$us" "$team" "$uf" "$cells" "$solved"
+    # chaves de ordenação + a linha visível (com Penalty e LastAC no corpo)
+    printf '%d\t%d\t%d\t%s:%s:%s:%s:%s%s:%d:%d:%d\n' \
+      "$solved" "$penalty" "$lastmin" \
+      "$flag" "$login" "$us" "$team" "$uf" "$cells" "$solved" "$penalty" "$lastmin"
   done
-} | sort -t $'\t' -k1,1nr -k2,2n | cut -f3-
+} | sort -t $'\t' -k1,1nr -k2,2n -k3,3n | cut -f4-

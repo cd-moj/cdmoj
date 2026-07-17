@@ -44,13 +44,17 @@ export function verdictScore(v) {
   const m = /(-?\d+)p(?:\b|\.|$)/.exec(v || '');
   return m ? parseInt(m[1], 10) : null;
 }
-// detalhe por grupo (subtarefas): "Grupo 1: 30/30 · Grupo 2: 0/20 · Grupo 3: —/40".
-// earned null = grupo não executado; max null (results legados) = mostra só o ganho.
+// detalhe por grupo (subtarefas), EXPLÍCITO sobre quem pontuou (modo obi):
+// "✓ Grupo 1 (30/30) · ✗ Grupo 2 (0/20) · Grupo 3: não executado".
+// earned>0 = pontuou (✓) · earned==0 = rodou e não pontuou (✗) · earned null = não executado.
+// max null (results legados) = mostra só o ganho.
 export function groupsText(groups) {
   if (!Array.isArray(groups) || !groups.length) return '';
   return groups.map((g, i) => {
-    const e = g.earned == null ? '—' : String(g.earned);
-    return `${T('Grupo', 'Group')} ${i + 1}: ${g.max != null ? e + '/' + g.max : e}`;
+    const n = `${T('Grupo', 'Group')} ${i + 1}`;
+    if (g.earned == null) return `${n}: ${T('não executado', 'not run')}`;
+    const val = g.max != null ? `${g.earned}/${g.max}` : String(g.earned);
+    return `${g.earned > 0 ? '✓' : '✗'} ${n} (${val})`;
   }).join(' · ');
 }
 // "resumo" amigável do julgamento (do /submission/summary): heurístico, pontos+grupos ou

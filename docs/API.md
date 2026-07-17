@@ -48,7 +48,7 @@ mojb_…`, `require_bot`, segredo em `run/secrets/bot.token`) — o bot **não**
 | `/treino/signup/telegram` | **bot** (POST) | bot-first (`/participar`): `{telegram_id,…}` → cria+vincula ancorado no `telegram_id` (idempotente) ou `already_linked` |
 | `/treino/recover-password` | **bot** (POST) | `{telegram_id}` → resolve o login pelo vínculo, gera nova senha → `{status:ok\|not_linked,login?,password?}` |
 | `/treino/telegram/link-start` | Bearer | conta logada gera nonce `purpose:link` p/ vincular o próprio Telegram (ex.: `.admin` receber alertas) → `{nonce,deep_link,expires_at}`. UI: seção **📨 Telegram** do perfil |
-| `/treino/telegram/unlink` | Bearer | POST `{}` — desvincula o Telegram do PRÓPRIO login (404 `not_linked` se não houver vínculo); `.admin` desvinculado deixa de receber alertas |
+| `/treino/telegram/unlink` | Bearer | POST `{}` — desvincula o Telegram do PRÓPRIO login (404 `not_linked` sem vínculo). **Cota anti conta-descartável**: usuário comum desvincula no máx **`TELEGRAM_CHANGE_LIMIT` (1)/ano** (403 `telegram_limit` com a data da próxima; histórico em account.json `telegram_changes`); **`.admin` é livre**. Trocar de Telegram exige desvincular ⇒ a cota cobre a troca. A cota sai no `GET /treino/profile` (`telegram.changes_used/limit/remaining/next_available`; `limit:null` = livre) |
 
 ## Treino — painel admin (`.admin`, Bearer)
 Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na sessão e em `var/access.log`.

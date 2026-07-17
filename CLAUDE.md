@@ -83,7 +83,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Telegram (overlay só do treino) + alertas**: `lib/telegram.sh` (índice `var/telegram/{by-tgid,by-login}`,
   nonce em `run/telegram/`), cadastro web-first (`handlers/treino/signup/*` + página `web/treino/cadastro/`),
   recuperação por vínculo, `link-start`/`unlink` (a UI é a seção **📨 Telegram** do perfil —
-  `web/treino/perfil/`; o `GET /treino/profile` expõe `telegram:{linked,username,linked_at}`).
+  `web/treino/perfil/`; o `GET /treino/profile` expõe `telegram:{linked,username,linked_at,
+  changes_*}`). **Desvincular tem COTA anti conta-descartável**: usuário comum =
+  `TELEGRAM_CHANGE_LIMIT` (1)/ano (histórico `telegram_changes` no account.json, 403
+  `telegram_limit`); `.admin` livre — o vínculo é a identidade/prova de posse da conta.
   **Troca de handle preserva o sufixo de papel** (`profile/username.sh`: sufixo(novo)==sufixo(atual);
   `.admin` troca p/ `outro.admin`, nunca derruba nem assume papel) **e as ORGs seguem o rename**
   (`orgs_rename_login` em lib/orgs.sh — sem isso a conta renomeada ficava órfã de TODAS as orgs;
@@ -310,6 +313,12 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   execução das soluções para a calibração no juiz — não é bug.
 
 ## Convenções
+
+- **PRODUÇÃO SÓ RECEBE CÓDIGO VIA GIT**: no servidor e nos juízes, `cdmoj`/`mojtools`/`judge`/
+  `moj-cli` mudam SÓ por `git pull` (deploy = pull + `make deploy` + restart). Nunca editar
+  código direto na máquina — mod local bloqueia o próximo pull e não tem histórico. Estado
+  local legítimo = APENAS config/segredo de runtime (`bot.conf`, `agent.env`, `run/secrets/`,
+  `~moj/mojinho-live/`). Vale p/ humanos e agentes.
 
 - Commits em PT, presente, prefixados pelo componente (ex.: `problemas: …`, `score/stats: …`). O rodapé
   leva **só** `Co-Authored-By:` — **nunca** uma linha `Claude-Session:` (ruído no histórico).

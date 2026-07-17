@@ -69,6 +69,7 @@ nextav="$(uname_next_available "$UNAME_CHANGES")"
 haspic="$([[ -f "$(photo_file treino "$login")" ]] && echo true || echo false)"
 
 # vínculo Telegram do próprio login (sem expor o telegram_id — só estado/username/quando)
+# + a COTA de desvínculo (1/ano p/ usuário comum; .admin livre) p/ a UI avisar/desabilitar
 tgjson='{"linked":false,"username":null,"linked_at":null}'
 tgid="$(tg_id_of_login treino "$login" 2>/dev/null)"
 if [[ -n "$tgid" ]]; then
@@ -76,6 +77,18 @@ if [[ -n "$tgid" ]]; then
             "$(tg_dir treino)/by-tgid/$tgid.json" 2>/dev/null)"
   [[ -n "$tgjson" ]] || tgjson='{"linked":true,"username":null,"linked_at":null}'
 fi
+if is_admin; then
+  tgq='{"changes_limit":null,"changes_used":0,"changes_remaining":null,"next_available":0}'  # livre
+else
+  tgch="$(account_field treino "$login" '(.telegram_changes // []) | map(tostring) | join(" ")')"
+  tgused="$(uname_changes_recent "$tgch")"
+  tgrem=$(( TELEGRAM_CHANGE_LIMIT - tgused )); (( tgrem < 0 )) && tgrem=0
+  tgnext="$(uname_next_available "$tgch")"
+  tgq="$(jq -cn --argjson u "$tgused" --argjson l "$TELEGRAM_CHANGE_LIMIT" \
+         --argjson r "$tgrem" --argjson n "${tgnext:-0}" \
+         '{changes_limit:$l, changes_used:$u, changes_remaining:$r, next_available:$n}')"
+fi
+tgjson="$(jq -cn --argjson a "$tgjson" --argjson b "$tgq" '$a + $b')"
 
 ok_json '{login:$l, name:$n, university:$u, favorite_editor:$fe, profile_public:$pub, has_photo:$hp,
           username_changes_used:$used, username_changes_limit:$lim,

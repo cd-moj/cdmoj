@@ -1,14 +1,18 @@
 // contest/score/score-icpc.js — renderizador ICPC.
-// Header (após remover marcadores desc/asc): flag:username:univ short:team name:univ full:<SHORTS...>:Total
+// Header (após remover marcadores desc/asc):
+//   flag:username:univ short:team name:univ full:<SHORTS...>:Total:Penalty:LastAC
 // Células: ""=untried · tries/minutes=solved (cor do balão) · tries/minutes*=FIRST TO SOLVE
 // (★ + contorno) · tries/-=tried-unsolved.
+// Total=resolvidos; Penalty=soma das penalidades (coluna visível); LastAC=minuto do último
+// AC — coluna de SISTEMA: entra só no EMPATE (total+penalty+lastac iguais), não renderiza.
+// TXT antigo sem as colunas novas continua parseando (índices ausentes viram '').
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
 import { balloonColorHex, balloonIsDark, balloonSVG } from './score-colors.js';
 
-const SYS = ['flag', 'username', 'univ short', 'team name', 'univ full', 'total'];
+const SYS = ['flag', 'username', 'univ short', 'team name', 'univ full', 'total', 'penalty', 'lastac'];
 
 // parse: recebe linhas (já split por \n, sem a 1ª linha do modo) e o mapa de balões.
 export function parseICPC(lines, balloons) {
@@ -21,7 +25,8 @@ export function parseICPC(lines, balloons) {
 
   const idx = (name) => header.findIndex(h => h.trim().toLowerCase() === name);
   const iFlag = idx('flag'), iUser = idx('username'), iUnivS = idx('univ short'),
-        iTeam = idx('team name'), iUnivF = idx('univ full'), iTotal = idx('total');
+        iTeam = idx('team name'), iUnivF = idx('univ full'), iTotal = idx('total'),
+        iPen = idx('penalty'), iLast = idx('lastac');
 
   // problemas = colunas que não são do sistema, até "total"
   const probEnd = iTotal >= 0 ? iTotal : header.length;
@@ -40,17 +45,21 @@ export function parseICPC(lines, balloons) {
       teamName: iTeam >= 0 ? (v[iTeam] || '') : '',
       univFull: iUnivF >= 0 ? (v[iUnivF] || '') : '',
       total: iTotal >= 0 ? (v[iTotal] || '') : '',
+      penalty: iPen >= 0 ? (v[iPen] || '') : '',
+      lastac: iLast >= 0 ? (v[iLast] || '') : '',
       probs: {},
     };
     probIdx.forEach((ci, k) => { t.probs[probShorts[k]] = v[ci] || ''; });
     return t;
   });
 
-  // colocações com empates (placar já vem ORDENADO; só numera)
-  let place = 1;
+  // colocações com empates (placar já vem ORDENADO; só numera). Empate REAL = os três
+  // critérios iguais: resolvidos + penalidade + minuto do último AC.
   teams.forEach((t, i) => {
-    if (i > 0 && teams[i - 1].total === t.total) t.place = teams[i - 1].place;
-    else t.place = i + 1;
+    if (i > 0 && teams[i - 1].total === t.total
+        && teams[i - 1].penalty === t.penalty && teams[i - 1].lastac === t.lastac) {
+      t.place = teams[i - 1].place;
+    } else t.place = i + 1;
   });
 
   return { mode: 'icpc', probShorts, teams, balloons };
@@ -76,6 +85,7 @@ export function renderICPC(parsed, opts) {
     headRow.append(el('th', { html: icon + escapeHtml(pb) }));
   });
   headRow.append(el('th', {}, 'Total'));
+  headRow.append(el('th', { title: T('Soma das penalidades (min)', 'Penalty sum (min)') }, T('Penal.', 'Penalty')));
   table.append(el('thead', {}, headRow));
 
   const tb = el('tbody');
@@ -113,6 +123,7 @@ export function renderICPC(parsed, opts) {
       }
     });
     tr.append(el('td', {}, t.total));
+    tr.append(el('td', {}, t.penalty));
     tb.append(tr);
   });
   table.append(tb);
