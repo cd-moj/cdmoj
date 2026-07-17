@@ -35,6 +35,10 @@ export LC_ALL=C
 
 die(){ echo "contest-migrate: $*" >&2; exit 1; }
 log(){ echo "  $*" >&2; }
+# concatena os history de todos os users de <contest-dir>. `find -exec` tolera ZERO arquivos
+# (contest vazio: contas sem history) — o glob `users/*/history` falharia (cat de literal) e,
+# com pipefail+set -e, abortaria o verify.
+_cathist(){ find "$1/users" -name history -exec cat {} + 2>/dev/null; }
 
 CMD="${1:-}"; shift || true
 [[ -n "$CMD" ]] || die "uso: $0 {stage|verify|install|audit} ..."
@@ -52,18 +56,26 @@ while (( $# )); do
 done
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve os args de caminho para ABSOLUTO enquanto o CWD ainda é o do chamador (o `cd` abaixo
+# mudaria a base de um caminho relativo).
+_abs(){ [[ -z "$1" || "$1" == /* ]] && { printf '%s' "$1"; return; }; printf '%s/%s' "$PWD" "$1"; }
+FROM="$(_abs "$FROM")"; MAP="$(_abs "$MAP")"; STAGE="$(_abs "$STAGE")"; CDIR="$(_abs "$CDIR")"
 # Garante um CWD acessível: rodado via `su moj -c ...` o CWD pode ser /root (inacessível ao
 # usuário), e aí `find` sai 1 ("Failed to restore initial working directory") — com pipefail+
-# set -e isso abortava o verify. Os caminhos são todos absolutos, então mudar de CWD é seguro.
+# set -e isso abortava o verify. Já resolvemos os caminhos p/ absoluto, então mudar de CWD é seguro.
 cd "$HERE" 2>/dev/null || cd / 2>/dev/null || true
 
 # lê CONTEST_ID/START/END/NAME/LANGUAGES/PROBS de um conf legado, num SUBSHELL isolado (o
 # conf é sourced e PROBS tem nomes com espaço/aspas). Ecoa como TSV chave<TAB>valor + as
 # tuplas do PROBS numeradas, p/ o chamador ler sem sourcear no seu próprio ambiente.
 _read_conf(){ # <conf>
-  ( CONTEST_ID=""; CONTEST_NAME=""; CONTEST_START=""; CONTEST_END=""; LANGUAGES=""; PROBS=()
+  ( set +eu +o pipefail   # o conf LEGADO é dado não-confiável. O subshell isola.
+    CONTEST_ID=""; CONTEST_NAME=""; CONTEST_START=""; CONTEST_END=""; LANGUAGES=""; PROBS=()
+    # Sourceia com todo `$` ESCAPADO: títulos têm `$k$` (LaTeX) que senão o bash expande (some,
+    # e sob `set -u` aborta) — assim `$k$` fica LITERAL, preservando o título. De quebra, bloqueia
+    # command substitution (`$(...)`) de um conf legado não-confiável.
     # shellcheck disable=SC1090
-    source "$1" 2>/dev/null
+    source <(sed 's/\$/\\$/g' "$1") 2>/dev/null
     printf 'ID\t%s\n'    "$CONTEST_ID"
     printf 'NAME\t%s\n'  "$CONTEST_NAME"
     printf 'START\t%s\n' "$CONTEST_START"
@@ -81,8 +93,11 @@ do_stage(){
   [[ -n "$FROM" && -n "$MAP" && -n "$STAGE" ]] || die "stage: faltam --from/--map/--stage"
   [[ -f "$FROM/conf" ]]              || die "sem $FROM/conf"
   [[ -f "$FROM/passwd" ]]            || die "sem $FROM/passwd"
-  [[ -f "$FROM/controle/history" ]]  || die "sem $FROM/controle/history"
-  [[ -d "$FROM/submissions" ]]       || die "sem $FROM/submissions"
+  [[ -d "$FROM/submissions" ]]       || log "AVISO: sem submissions/ (contest sem submissões)"
+  # history pode FALTAR (contest montado, nunca usado — 0 submissões). Trata como vazio (/dev/null):
+  # o passwd cria as contas, a partição/roteamento não produzem nada, e o placar sai vazio.
+  local HIST="$FROM/controle/history"
+  [[ -f "$HIST" ]] || { HIST=/dev/null; log "AVISO: sem controle/history — contest sem submissões"; }
   [[ -e "$STAGE" ]] && die "staging $STAGE já existe — apague antes (é descartável)"
 
   local nq
@@ -188,7 +203,7 @@ do_stage(){
 
   # --- history -> por usuário (probid via OFF2ID, tempo:=f6, 6 campos, dedup) -----------
   log "particionando o history..."
-  LC_ALL=C sort -t: -k2,2 -s "$FROM/controle/history" \
+  LC_ALL=C sort -t: -k2,2 -s "$HIST" \
   | awk -F: -v root="$ROOT" -v mapf="$TMPD/off2id.tsv" '
       BEGIN{ while((getline l < mapf)>0){ i=index(l,"\t"); O[substr(l,1,i-1)]=substr(l,i+1) } }
       { n=NF; key=$(n-1)":"$n; if(key in seen){dup++; next} seen[key]=1;
@@ -201,7 +216,7 @@ do_stage(){
       END{ if(cur!="") close(out); if(dup) printf("dedup: %d\n",dup)>"/dev/stderr"; if(unm) printf("probid sem OFF2ID: %d\n",unm)>"/dev/stderr" }'
   local h
   while IFS= read -r h; do LC_ALL=C sort -t: -k5,5n -s "$h" -o "$h"; done < <(find "$ROOT/users" -name history)
-  log "history: $(cat "$ROOT"/users/*/history 2>/dev/null | wc -l) linhas em $(find "$ROOT/users" -name history | wc -l) usuários"
+  log "history: $(_cathist "$ROOT" | wc -l) linhas em $(find "$ROOT/users" -name history | wc -l) usuários"
 
   # --- contas (account.json) ------------------------------------------------------------
   log "gerando account.json..."
@@ -252,7 +267,7 @@ do_stage(){
 
   # --- submissions (roteia por f6:subid contra o history) -------------------------------
   log "roteando submissions..."
-  awk -F: '{ n=NF; print $(n-1)":"$n "\t" $2 }' "$FROM/controle/history" | LC_ALL=C sort -u > "$TMPD/route.tsv"
+  awk -F: '{ n=NF; print $(n-1)":"$n "\t" $2 }' "$HIST" | LC_ALL=C sort -u > "$TMPD/route.tsv"
   declare -A ROUTE
   local key lg
   while IFS=$'\t' read -r key lg; do ROUTE["$key"]="$lg"; done < "$TMPD/route.tsv"
@@ -273,7 +288,7 @@ do_stage(){
 
   { echo "# manifesto (contest-migrate stage)"; echo "contest=$CIDLC"; echo "contest_orig=$CID"; echo "from=$FROM"
     echo "problemas=$((NP/5))"; echo "orfaos=$norphan"
-    echo "history=$(cat "$ROOT"/users/*/history 2>/dev/null | wc -l)"; echo "contas=$nacc"
+    echo "history=$(_cathist "$ROOT" | wc -l)"; echo "contas=$nacc"
     echo "submissions=$nfile"; echo "pdfs=$npdf"
   } > "$ROOT/MANIFEST"
   log "staging pronto: $ROOT"
@@ -292,21 +307,22 @@ do_verify(){
   ck(){ if [[ "$2" == "$3" ]]; then echo "  ok   $1: $2"; else echo "  FALHA $1: esperado '$3', veio '$2'"; rc=1; fi }
 
   echo "=== verificação do staging ($CID) ===" >&2
-  local want got
+  local want got HIST="$FROM/controle/history"
+  [[ -f "$HIST" ]] || HIST=/dev/null
   # (a) history = subids únicos do legado (dedup por f6:subid)
-  want="$(awk -F: '{print $(NF-1)":"$NF}' "$FROM/controle/history" | LC_ALL=C sort -u | wc -l)"
-  got="$(cat "$ROOT"/users/*/history 2>/dev/null | wc -l)"
+  want="$(awk -F: '{print $(NF-1)":"$NF}' "$HIST" | LC_ALL=C sort -u | wc -l)"
+  got="$(_cathist "$ROOT" | wc -l)"
   ck "history (subids unicos do legado)" "$got" "$want"
   # (b) NF=6
-  got="$(cat "$ROOT"/users/*/history 2>/dev/null | awk -F: 'NF!=6' | wc -l)"; ck "history NF!=6" "$got" "0"
+  got="$(_cathist "$ROOT" | awk -F: 'NF!=6' | wc -l)"; ck "history NF!=6" "$got" "0"
   # (c) tempo == sub_epoch
-  got="$(cat "$ROOT"/users/*/history 2>/dev/null | awk -F: '$1!=$5' | wc -l)"; ck "tempo != sub_epoch" "$got" "0"
+  got="$(_cathist "$ROOT" | awk -F: '$1!=$5' | wc -l)"; ck "tempo != sub_epoch" "$got" "0"
   # (d) TODO probid do history está no SC_CANON do conf novo (senão a célula some do placar)
   # SC_CANON = derivação do sc_load a partir do PROBS do conf novo
   ( PROBS=(); source "$ROOT/conf" 2>/dev/null
     for ((i=0;i<${#PROBS[@]};i+=5)); do c="${PROBS[i+4]:-}"; [[ "$c" == *"#"* ]] || c="${PROBS[i+1]//\//#}"; echo "$c"; done ) \
     | LC_ALL=C sort -u > "$STAGE/.sc_canon.$$"
-  cat "$ROOT"/users/*/history 2>/dev/null | awk -F: '{print $2}' | LC_ALL=C sort -u > "$STAGE/.hprobs.$$"
+  _cathist "$ROOT" | awk -F: '{print $2}' | LC_ALL=C sort -u > "$STAGE/.hprobs.$$"
   got="$(comm -23 "$STAGE/.hprobs.$$" "$STAGE/.sc_canon.$$" | wc -l)"
   ck "probid do history fora do SC_CANON" "$got" "0"
   rm -f "$STAGE/.sc_canon.$$" "$STAGE/.hprobs.$$"
@@ -374,13 +390,14 @@ do_audit(){
   local rc=0
   ck(){ if [[ "$2" == "$3" ]]; then echo "  ok   $1: $2"; else echo "  FALHA $1: esperado '$3', veio '$2'"; rc=1; fi }
   echo "=== auditoria do contest instalado ($(basename "$CDIR")) ===" >&2
-  local want got
-  want="$(awk -F: '{print $NF}' "$FROM/controle/history" | LC_ALL=C sort -u | wc -l)"
-  got="$(cat "$CDIR"/users/*/history 2>/dev/null | awk -F: '{print $NF}' | LC_ALL=C sort -u \
-        | comm -12 - <(awk -F: '{print $NF}' "$FROM/controle/history" | LC_ALL=C sort -u) | wc -l)"
+  local want got HIST="$FROM/controle/history"
+  [[ -f "$HIST" ]] || HIST=/dev/null
+  want="$(awk -F: '{print $NF}' "$HIST" | LC_ALL=C sort -u | wc -l)"
+  got="$(_cathist "$CDIR" | awk -F: '{print $NF}' | LC_ALL=C sort -u \
+        | comm -12 - <(awk -F: '{print $NF}' "$HIST" | LC_ALL=C sort -u) | wc -l)"
   ck "subids do legado presentes" "$got" "$want"
-  got="$(cat "$CDIR"/users/*/history 2>/dev/null | awk -F: 'NF!=6' | wc -l)"; ck "history NF!=6" "$got" "0"
-  got="$(cat "$CDIR"/users/*/history 2>/dev/null | awk -F: '{print $NF}' | LC_ALL=C sort | uniq -d | wc -l)"; ck "subid duplicado" "$got" "0"
+  got="$(_cathist "$CDIR" | awk -F: 'NF!=6' | wc -l)"; ck "history NF!=6" "$got" "0"
+  got="$(_cathist "$CDIR" | awk -F: '{print $NF}' | LC_ALL=C sort | uniq -d | wc -l)"; ck "subid duplicado" "$got" "0"
   local d n=0; for d in "$CDIR"/users/*/; do [[ -f "$d/account.json" ]] || n=$((n+1)); done
   ck "conta sem account.json" "$n" "0"
   [[ -f "$CDIR/var/placar.txt" ]] && ck "placar existe (linha 1 = modo)" "$(head -1 "$CDIR/var/placar.txt")" "icpc"
