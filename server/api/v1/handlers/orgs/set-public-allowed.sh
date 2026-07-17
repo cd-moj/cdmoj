@@ -5,6 +5,7 @@
 require_method POST
 require_auth
 source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
+source "$_DIR/lib/tl-store.sh"   # unindex_problem (lista do treino invalida por evento)
 body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 name="$(jq -r '.name // empty' <<<"$body")"
 [[ -n "$name" ]] || fail 400 "Missing name" "name_missing"
@@ -31,7 +32,7 @@ if [[ "$pa" == "false" ]]; then
     write_meta "$pdir" "$powner" "$name" false "" ""
     problem_commit "$pdir" "$SESSION_LOGIN" "org privada: despublica $prob" >/dev/null
     authored_patch "$pid" '.public=false'
-    rm -f "$CONTESTSDIR/treino/var/jsons/$pid.json" 2>/dev/null
+    unindex_problem "$pid"
     unpub=$((unpub+1))
   done < <(find "$MOJ_PROBLEMS_DIR/$name" -maxdepth 1 -mindepth 1 -type d ! -name '.git' 2>/dev/null)
   [[ "$unpub" -gt 0 ]] && rm -f "$CONTESTSDIR/treino/var/problems.json" 2>/dev/null

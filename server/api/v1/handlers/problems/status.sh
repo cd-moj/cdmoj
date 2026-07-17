@@ -22,8 +22,6 @@ vis="$(jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" \
        or (((.repo // (.id|split("#")[0])) as $r | $orgs|index($r))|type=="number")))' <<<"$vis" 2>/dev/null)"
 [[ -n "$vis" ]] || fail 503 "Falha ao filtrar o índice de problemas" "index_unavailable"
 
-ids="$(mktemp)"; jq -r '.problems[].id' <<<"$vis" 2>/dev/null > "$ids"
-
 # 2) SENDO CALIBRADO AGORA (uma varredura das filas -> conjunto pequeno).
 # A guarda de vazio é OBRIGATÓRIA (o $sup abaixo já tinha; este não): um `--argjson CAL ""` mata o jq
 # grande lá embaixo, o `|| fallback` devolve {total:0, problems:[]} e o board fica MUDO com 200. Era
@@ -34,26 +32,13 @@ calib="$(calibrating_set)"; [[ -n "$calib" ]] || calib='[]'
 sup="$(find "${REGISTRYDIR:-$RUNDIR/registry}" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null | jq -sc '[.[]|.langs//[]|.[]]|unique' 2>/dev/null)"
 [[ -n "$sup" ]] || sup='[]'
 
-# 3) MAPA DE TL (só dos ids VISÍVEIS; nunca lê run/tl de terceiros). checksum calibrado + TL servível
-#    (máx entre hosts por linguagem, direto do store) + updated_at. Um jq só (bulk-slurp).
-tlmap="$(mktemp)"
-while IFS= read -r id; do f="$(tl_store_file "$id")"; [[ -f "$f" ]] && cat "$f"; done < "$ids" \
-  | jq -sc 'map({key:.id, value:{
-       calibrated:(((.hosts // {})|length)>0),
-       at:(.updated_at // null), checksum:(.checksum // ""),
-       tl:([.hosts[].tl // {}]
-           | reduce (.[]|to_entries[]) as $e ({};
-               ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
-               | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max))
-           | with_entries(.value|=tostring)) }}) | from_entries' > "$tlmap" 2>/dev/null
-[[ -s "$tlmap" ]] || echo '{}' > "$tlmap"
-
-# 4) MAPA DE VALIDAÇÃO (idem; o arquivo já traz .id).
-valmap="$(mktemp)"
-while IFS= read -r id; do f="$RUNDIR/validation/$id.json"; [[ -f "$f" ]] && cat "$f"; done < "$ids" \
-  | jq -sc 'map({key:.id, value:{ok:.ok, checks:(.checks // []), at:(.at // null),
-       render_warnings:(.render_warnings // "")}}) | from_entries' > "$valmap" 2>/dev/null
-[[ -s "$valmap" ]] || echo '{}' > "$valmap"
+# 3+4) SUMÁRIOS agregados de TL e validação (run/{tl,validation}-summary.json) — mantidos
+# POR EVENTO pelos escritores (tl_store_record / judge/update-report); rebuild só a frio.
+# Antes eram ~2·N forks de `cat` POR REQUEST (4s p/ ~900 visíveis). Os sumários têm TODOS os
+# ids da plataforma, mas são arquivos INTERNOS: o jq abaixo só projeta linhas dos ids de $vis
+# (a fronteira segue owners_visible; nada de terceiro sai na resposta).
+tl_summary_ensure; val_summary_ensure
+tlmap="$TL_SUMMARY"; valmap="$VAL_SUMMARY"
 
 # 5) JOIN + AGREGADOS. JSON grande (vis) via stdin; mapas via --slurpfile; conjunto calib via
 #    --argjson (é pequeno) — nada de JSON grande no argv (ARG_MAX).
@@ -121,5 +106,3 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$c
 [[ -n "$out" ]] || fail 500 "Painel vazio (o jq não produziu saída)" "status_failed"
 emit_json 200 OK
 printf '%s' "$out"
-
-rm -f "$ids" "$tlmap" "$valmap"

@@ -14,6 +14,66 @@
 
 tl_store_file(){ printf '%s/%s.json' "$TL_STORE_DIR" "$1"; }   # id tem '#', não tem '/': seguro
 
+# ============ SUMÁRIOS AGREGADOS (mantidos POR EVENTO, não por TTL) ==================
+# O Painel (/problems/status) precisava de run/tl/<id>.json + run/validation/<id>.json de
+# TODOS os ids visíveis — eram ~2·N forks de `cat` POR REQUEST (4s p/ um admin com ~900).
+# Agora cada ESCRITOR (tl_store_record; judge/update-report) mantém um mapa agregado
+# id→entrada em run/{tl,validation}-summary.json (upsert de 1 chave sob flock; rebuild só
+# a frio). Chave órfã (problema deletado) é inócua: os leitores só consultam ids do índice
+# visível. Os sumários são arquivos INTERNOS de run/ (nunca servidos crus).
+TL_SUMMARY="$RUNDIR/tl-summary.json"
+VAL_SUMMARY="$RUNDIR/validation-summary.json"
+VAL_STORE_DIR="$RUNDIR/validation"
+# projeções (as MESMAS do antigo tlmap/valmap do status.sh — a resposta não muda)
+_TL_SUM_PROG='{
+   calibrated:(((.hosts // {})|length)>0),
+   at:(.updated_at // null), checksum:(.checksum // ""),
+   tl:([.hosts[].tl // {}]
+       | reduce (.[]|to_entries[]) as $e ({};
+           ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+           | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max))
+       | with_entries(.value|=tostring)) }'
+_VAL_SUM_PROG='{ok:.ok, checks:(.checks // []), at:(.at // null),
+   render_warnings:(.render_warnings // "")}'
+
+_summary_rebuild(){  # <dir> <prog> <out> — chamar SOB o flock do chamador; tmp+mv atômico
+  local dir="$1" prog="$2" out="$3" tmp="$3.tmp.$$"
+  find "$dir" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+    | jq -sc "map(select(.id != null) | {key:.id, value:$prog}) | from_entries" > "$tmp" 2>/dev/null
+  [[ -s "$tmp" ]] || echo '{}' > "$tmp"
+  jq -e . "$tmp" >/dev/null 2>&1 && mv -f "$tmp" "$out" || rm -f "$tmp"
+}
+_summary_upsert(){   # <id> <src-file> <prog> <out> — funde 1 chave (entrada pequena; mapa via arquivo)
+  local id="$1" src="$2" prog="$3" out="$4"
+  ( flock 9
+    if [[ ! -s "$out" ]]; then _summary_rebuild "$(dirname "$src")" "$prog" "$out"; exit 0; fi
+    local entry tmp="$out.tmp.$$"
+    entry="$(jq -c "$prog" "$src" 2>/dev/null)"; [[ -n "$entry" ]] || entry='null'
+    jq -c --arg id "$id" --argjson e "$entry" '.[$id] = $e' "$out" > "$tmp" 2>/dev/null \
+      && [[ -s "$tmp" ]] && mv -f "$tmp" "$out" || rm -f "$tmp"
+  ) 9>>"$out.lock"
+}
+_summary_ensure(){   # <dir> <prog> <out> — leitor: rebuild a frio (1×), depois só stat
+  [[ -s "$3" ]] && return 0
+  ( flock 9; [[ -s "$3" ]] || _summary_rebuild "$1" "$2" "$3" ) 9>>"$3.lock"
+}
+tl_summary_upsert(){  _summary_upsert "$1" "$(tl_store_file "$1")" "$_TL_SUM_PROG" "$TL_SUMMARY"; }
+tl_summary_ensure(){  _summary_ensure "$TL_STORE_DIR" "$_TL_SUM_PROG" "$TL_SUMMARY"; }
+val_summary_upsert(){ _summary_upsert "$1" "$VAL_STORE_DIR/$1.json" "$_VAL_SUM_PROG" "$VAL_SUMMARY"; }
+val_summary_ensure(){ _summary_ensure "$VAL_STORE_DIR" "$_VAL_SUM_PROG" "$VAL_SUMMARY"; }
+
+# ===== invalidação POR EVENTO da lista do treino (/treino/problems) ==================
+# TODO ponto que cria/remove um json servível de var/jsons TOCA o stamp — o cache
+# var/problems.json passa a invalidar ao EVENTO (problema entra/sai), não por relógio.
+treino_list_dirty(){ mkdir -p "$CONTESTSDIR/treino/var" 2>/dev/null
+  touch "$CONTESTSDIR/treino/var/.treino-list-dirty" 2>/dev/null; }
+# unindex_problem <id> — tira da lista servível do treino (json + sidecar de metadados) e invalida
+unindex_problem(){
+  rm -f "$CONTESTSDIR/treino/var/jsons/$1.json" \
+        "$CONTESTSDIR/treino/var/jsons-meta/$1.json" 2>/dev/null
+  treino_list_dirty
+}
+
 # pkg_path <id> -> diretório do pacote no store do servidor (ou vazio).
 pkg_path(){
   local id="$1" p="$MOJ_PROBLEMS_DIR/${1%%#*}/${1##*#}"
@@ -43,7 +103,8 @@ tl_store_record(){
       | (if $old==$cks then ($cur.hosts // {}) else {} end) as $hosts
       | {id:$id, checksum:$cks, updated_at:$now,
          hosts: ($hosts + {($h): {tl:$ntl, at:$now}})}
-    ' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
+    ' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || return 1
+  tl_summary_upsert "$id"   # sumário do Painel segue o evento (nunca TTL)
 }
 
 # tl_store_served_for <id> <checksum> -> time_limits (MÁX entre hosts) p/ ESSE checksum;
@@ -123,5 +184,17 @@ index_problem_bg(){
            # só re-indexa (ex.: time_limits atualizado após um tl-report)
            bash "$MOJTOOLS_DIR/gen-problem-json.sh" "$pkg" "$id" >/dev/null 2>&1
          fi
+         # SIDECAR de metadados p/ a lista (/treino/problems agrega só isto — nunca mais
+         # slurpa o statement_html_b64 dos 400+ jsons) + stamp de invalidação POR EVENTO.
+         jd="$CONTESTSDIR/treino/var/jsons/$id.json"
+         md="$CONTESTSDIR/treino/var/jsons-meta/$id.json"
+         if [[ -f "$jd" ]]; then
+           mkdir -p "${md%/*}" 2>/dev/null
+           jq -c "{id, title, public, tags:(.tags // []), collections:(.collections // [])}" \
+             "$jd" > "$md.tmp" 2>/dev/null && mv -f "$md.tmp" "$md" || rm -f "$md.tmp"
+         else
+           rm -f "$md" 2>/dev/null   # o gerador decidiu privado/inválido: sai da lista junto
+         fi
+         touch "$CONTESTSDIR/treino/var/.treino-list-dirty" 2>/dev/null
        ' _ "$pkg" "$id" "$validate" >/dev/null 2>&1 & ) 2>/dev/null
 }

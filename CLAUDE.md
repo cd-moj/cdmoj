@@ -169,6 +169,16 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   quem não é membro da org nem colaborador, **inclusive `.admin`**. Não-autorizado: **404**.
   Motivo: provas em elaboração não podem vazar. Testado como não-dono via `moj-cli` (não burlável).
 
+- **Caches de problemas invalidam POR EVENTO, não por TTL** (2026-07-17): a lista do treino
+  (`/treino/problems` → `var/problems.json`) é invalidada pelo stamp **`var/.treino-list-dirty`**
+  — TODO ponto que cria/remove json servível TOCA o stamp (`index_problem_bg` pós-gen;
+  `unindex_problem` em set-public/delete/move/rebaixamento de org; helpers em `lib/tl-store.sh`)
+  — e regenera agregando os **sidecars `var/jsons-meta/<id>.json`** (metadados minúsculos,
+  derivados do json servível no indexador; nunca slurpar `statement_html_b64` p/ listar). O
+  Painel usa os **sumários `run/{tl,validation}-summary.json`** mantidos por upsert nos
+  escritores (`tl_store_record`, `judge/update-report.sh`); rebuild só a frio
+  (`tl_summary_ensure`/`val_summary_ensure`). Escritor novo de json servível/TL/validação ⇒
+  OBRIGATÓRIO tocar stamp/upsert (senão a lista/painel congela até o TTL de segurança de 60 min).
 - **Painel de status (`GET /problems/status`, aba "Painel" da gestão):** agrega, dos problemas de que
   o login é **dono, colaborador ou membro da org**, validação/calibração/time-limits + estados **"calibrando"**
   (varredura única de `run/updates`+`run/commands` por `kind/action==calibrate` — `calibrating_set`) e

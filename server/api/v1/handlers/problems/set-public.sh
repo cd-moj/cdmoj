@@ -43,8 +43,9 @@ if [[ "$pub" == "true" ]]; then
     reqid="$(cal_request "$org" "$id" "$SESSION_LOGIN")"; calib="queued"
   fi
 else
-  # DESPUBLICAR: sai do treino livre NA HORA (índice servível + cache de 5min), não fica vazando
-  rm -f "$CONTESTSDIR/treino/var/jsons/$id.json" "$CONTESTSDIR/treino/var/problems.json" 2>/dev/null
+  # DESPUBLICAR: sai do treino livre NA HORA (json servível + sidecar + stamp da lista)
+  unindex_problem "$id"
+  rm -f "$CONTESTSDIR/treino/var/problems.json" 2>/dev/null
 fi
 audit_log "set-public" "id=$id public=$pub reqid=$reqid calibration=$calib"
 ok_json '{action:"set-public", id:$id, public:($p=="true"), reqid:$r, calibration:$cal}' \

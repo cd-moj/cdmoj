@@ -5,6 +5,7 @@
 require_method POST
 require_worker
 source "$_DIR/../../judge-gw/sched-lib.sh"
+source "$_DIR/lib/tl-store.sh"   # val_summary_upsert (sumário do Painel segue o evento)
 
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
@@ -25,7 +26,8 @@ target="$(jq -r '.target // empty' <<<"$body")"
 if [[ -n "$target" ]] && valid_id "$target" && jq -e '.validation != null' >/dev/null 2>&1 <<<"$body"; then
   : "${RUNDIR:=/home/ribas/moj/run}"; mkdir -p "$RUNDIR/validation" 2>/dev/null
   vtmp="$RUNDIR/validation/.$target.tmp"
-  jq -c '.validation' <<<"$body" > "$vtmp" 2>/dev/null && mv -f "$vtmp" "$RUNDIR/validation/$target.json"
+  jq -c '.validation' <<<"$body" > "$vtmp" 2>/dev/null && mv -f "$vtmp" "$RUNDIR/validation/$target.json" \
+    && val_summary_upsert "$target"
 fi
 
 # anexa last_update ao registro do host

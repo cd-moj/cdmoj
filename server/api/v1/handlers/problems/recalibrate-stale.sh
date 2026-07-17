@@ -21,15 +21,12 @@ vis="$(jq -c --arg me "$SESSION_LOGIN" --argjson orgs "$(my_orgs_json)" \
        or (((.repo // (.id|split("#")[0])) as $r | $orgs|index($r))|type=="number")))' <<<"$vis" 2>/dev/null)"
 [[ -n "$vis" ]] || fail 503 "Falha ao filtrar o índice" "index_unavailable"
 
-ids="$(mktemp)"; tlmap="$(mktemp)"; stale="$(mktemp)"
-trap 'rm -f "$ids" "$tlmap" "$stale"' EXIT
-jq -r '.problems[].id' <<<"$vis" 2>/dev/null > "$ids"
+stale="$(mktemp)"
+trap 'rm -f "$stale"' EXIT
 
-# checksums calibrados (só dos ids visíveis; nunca lê run/tl de terceiros) — espelho do status.sh
-while IFS= read -r pid; do f="$(tl_store_file "$pid")"; [[ -f "$f" ]] && cat "$f"; done < "$ids" \
-  | jq -sc 'map({key:.id, value:{calibrated:(((.hosts // {})|length)>0), checksum:(.checksum // "")}})
-            | from_entries' > "$tlmap" 2>/dev/null
-[[ -s "$tlmap" ]] || echo '{}' > "$tlmap"
+# checksums calibrados: o SUMÁRIO mantido por evento (mesma fonte do status.sh; interno de run/)
+tl_summary_ensure
+tlmap="$TL_SUMMARY"
 
 # stale = calibrado E índice tem tl_checksum E difere do calibrado; com `ids`, intersecta
 jq -r --slurpfile tm "$tlmap" --argjson want "$want" '
