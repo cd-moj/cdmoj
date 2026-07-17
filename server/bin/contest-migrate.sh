@@ -280,7 +280,11 @@ do_stage(){
   local nfile=0 nskip=0 base ext dst sid
   while IFS= read -r base; do
     # âncora: <epoch>:<subid>-  (o marcador `accepted` e não-submissões não casam -> pulam)
-    [[ "$base" =~ ^([0-9]+):([0-9a-f]{32}|[0-9a-f-]{36})- ]] || { nskip=$((nskip+1)); continue; }
+    # subid = 32 hex OU UUID 8-4-4-4-12. O UUID precisa ser EXATO: um `[0-9a-f-]{36}` frouxo
+    # engolia `<32hex>-fac` (login `fac-ta…`/`fac-tadupla…` começa com 3 hex + `-`) porque o ERE
+    # POSIX é leftmost-LONGEST e preferia o alt de 36 → a chave saía `…643-fac`, não casava o
+    # history e roteava 0 submissões (o verify barrava, sem instalar lixo).
+    [[ "$base" =~ ^([0-9]+):([0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})- ]] || { nskip=$((nskip+1)); continue; }
     key="${BASH_REMATCH[1]}:${BASH_REMATCH[2]}"
     sid="${BASH_REMATCH[2]}"
     lg="${ROUTE[$key]:-}"
