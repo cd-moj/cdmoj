@@ -70,7 +70,7 @@ cd "$HERE" 2>/dev/null || cd / 2>/dev/null || true
 # tuplas do PROBS numeradas, p/ o chamador ler sem sourcear no seu próprio ambiente.
 _read_conf(){ # <conf>
   ( set +eu +o pipefail   # o conf LEGADO é dado não-confiável. O subshell isola.
-    CONTEST_ID=""; CONTEST_NAME=""; CONTEST_START=""; CONTEST_END=""; LANGUAGES=""; PROBS=()
+    CONTEST_ID=""; CONTEST_NAME=""; CONTEST_START=""; CONTEST_END=""; LANGUAGES=""; SCORETYPE=""; PROBS=()
     # Sourceia com todo `$` ESCAPADO: títulos têm `$k$` (LaTeX) que senão o bash expande (some,
     # e sob `set -u` aborta) — assim `$k$` fica LITERAL, preservando o título. De quebra, bloqueia
     # command substitution (`$(...)`) de um conf legado não-confiável.
@@ -81,6 +81,7 @@ _read_conf(){ # <conf>
     printf 'START\t%s\n' "$CONTEST_START"
     printf 'END\t%s\n'   "$CONTEST_END"
     printf 'LANG\t%s\n'  "$LANGUAGES"
+    printf 'SCORETYPE\t%s\n' "$SCORETYPE"
     printf 'NP\t%s\n'    "${#PROBS[@]}"
     local i
     for ((i=0; i<${#PROBS[@]}; i++)); do printf 'P\t%s\t%s\n' "$i" "${PROBS[i]}"; done )
@@ -113,13 +114,18 @@ do_stage(){
   # --- conf legado -> variáveis + PROBS
   local TMPD; TMPD="$(mktemp -d)"; trap 'rm -rf "$TMPD"' RETURN
   _read_conf "$FROM/conf" > "$TMPD/conf.tsv"
-  local CID CIDLC CNAME CSTART CEND CLANG NP
+  local CID CIDLC CNAME CSTART CEND CLANG CSTYPE CTYPE NP
   CID="$(awk -F'\t' '$1=="ID"{print $2}' "$TMPD/conf.tsv")"
   CNAME="$(awk -F'\t' '$1=="NAME"{print $2}' "$TMPD/conf.tsv")"
   CSTART="$(awk -F'\t' '$1=="START"{print $2}' "$TMPD/conf.tsv")"
   CEND="$(awk -F'\t' '$1=="END"{print $2}' "$TMPD/conf.tsv")"
   CLANG="$(awk -F'\t' '$1=="LANG"{print $2}' "$TMPD/conf.tsv")"
   NP="$(awk -F'\t' '$1=="NP"{print $2}' "$TMPD/conf.tsv")"
+  # CONTEST_TYPE do newmoj a partir do SCORETYPE legado: OBI (placar por pontos, com créditos
+  # parciais) -> obi; qualquer outro valor / ausente -> icpc (prova/lista/absent do MOJ antigo
+  # eram todos ICPC-renderizados). O build.sh mapeia CONTEST_TYPE=obi -> updatescore-obi.sh.
+  CSTYPE="$(awk -F'\t' '$1=="SCORETYPE"{print $2}' "$TMPD/conf.tsv" | tr '[:upper:]' '[:lower:]')"
+  CTYPE=icpc; [[ "$CSTYPE" == obi ]] && CTYPE=obi
   [[ -n "$CID" ]] || die "conf sem CONTEST_ID"
   (( NP % 5 == 0 )) || die "PROBS com tamanho $NP (não múltiplo de 5)"
   # O id do CONTEST no newmoj precisa ser MINÚSCULO: o contest é servido em <id>.<host> e o
@@ -155,7 +161,7 @@ do_stage(){
     # enunciado: PROBS[i+4] é o statement_key legado (pode faltar a extensão) -> <newid>.<ext>
     printf '%s\t%s\n' "${P[$((i+4))]}" "$newid" >> "$TMPD/pdfcopy.tsv"
   done
-  log "problemas: $((NP/5)) ($norphan órfão(s) mantendo id legado)"
+  log "problemas: $((NP/5)) ($norphan órfão(s) mantendo id legado); placar=$CTYPE (SCORETYPE legado='${CSTYPE:-<ausente>}')"
 
   local ROOT="$STAGE/$CIDLC"
   mkdir -p "$ROOT/users" "$ROOT/enunciados" "$ROOT/var"
@@ -164,7 +170,7 @@ do_stage(){
   {
     printf 'CONTEST_ID=%q\n'       "$CIDLC"
     printf 'CONTEST_NAME=%q\n'     "$CNAME"
-    printf 'CONTEST_TYPE=icpc\n'
+    printf 'CONTEST_TYPE=%s\n'     "$CTYPE"
     printf 'CONTEST_PRIORITY=prova\n'
     printf 'CONTEST_START=%q\n'    "$CSTART"
     printf 'CONTEST_END=%q\n'      "$CEND"
