@@ -141,11 +141,26 @@ do_stage(){
   # Decisão do Ribas: telegram vai p/ var/telegram, email vai p/ .email. NUNCA os dois no
   # .email (foi o que contaminou 826 contas na migração do dev).
   log "gerando account.json..."
-  local nnew=0 nmerge=0 ntg=0
+  local nnew=0 nmerge=0 ntg=0 nbad=0 ndup=0
   local login pass name f4 target email first last
+  declare -A WROTE
   while IFS=: read -r login pass name f4 _; do
     [[ -z "$login" ]] && continue
+    # valid_login do store-migrate.sh:59 == o charset do valid_id da API (common.sh) — é o
+    # mesmo que o verify_password usa ANTES de montar o caminho. Sem esta trava, 7 passwd do
+    # backup (com linhas de conf coladas, tipo LANGUAGES="C") viravam CONTA.
+    if [[ ! "$login" =~ ^[A-Za-z0-9._@#+-]+$ || "$login" == *".."* || "$login" == -* ]]; then
+      echo "  login invalido, pulado: [$login]" >&2; nbad=$((nbad+1)); continue
+    fi
     target="${AMAP[$login]:-$login}"
+
+    # Dois logins legados p/ o MESMO alvo INEXISTENTE no prod: sem isto o 2º sobrescrevia o
+    # account.json do 1º e a senha virava a de quem viesse por último na ordem do passwd.
+    # (No treino não deu: os 7 alvos já existiam ⇒ caíram no merge. É armadilha p/ os outros.)
+    if [[ -z "${INPROD[$target]:-}" && -n "${WROTE[$target]:-}" ]]; then
+      echo "  '$login' e '${WROTE[$target]}' apontam p/ '$target' (inexistente no prod): mantendo o 1º" >&2
+      ndup=$((ndup+1)); continue
+    fi
 
     # telegram: só campo4 numérico
     if [[ "$f4" =~ ^[0-9]+$ ]]; then
@@ -169,9 +184,24 @@ do_stage(){
              --argjson c "${first:-0}" --argjson u "${last:-0}" \
         '{login:$l, password:$p, fullname:$n, email:$e, created_at:$c, updated_at:$u,
           status:"active", uname_changes:[]}' > "$STAGE/users/$target/account.json" )
+    WROTE["$target"]="$login"
     nnew=$((nnew+1))
   done < "$FROM/passwd"
   log "contas: $nnew novas, $nmerge fundidas em conta existente, $ntg telegram"
+  (( nbad ))  && log "AVISO: $nbad login(s) invalido(s) pulado(s)"
+  (( ndup ))  && log "AVISO: $ndup login(s) colidindo no mesmo alvo (1o venceu)"
+
+  # Diretório de usuário SEM account.json é fantasma: `list_users` (users.sh) só enxerga quem
+  # tem account.json, então metrics/placar ignorariam essas submissões — mas o `cat users/*/
+  # history` do verify as contaria, fechando a soma e mascarando a perda. Acontece quando o
+  # history cita login que não está no passwd (20 contests do backup têm isso).
+  local nghost=0 g
+  while IFS= read -r g; do
+    [[ -f "$STAGE/users/$g/account.json" || -n "${INPROD[$g]:-}" ]] && continue
+    echo "  FANTASMA (history sem conta no passwd): $g" >&2
+    nghost=$((nghost+1))
+  done < <(ls -1 "$STAGE/users" 2>/dev/null)
+  (( nghost )) && log "AVISO: $nghost diretorio(s) sem account.json — o verify vai barrar"
 
   # --- 3) submissions -------------------------------------------------------------------
   # Roteia pela chave f6:subid contra o history (o nome do arquivo NÃO é confiável: 145 têm
@@ -284,6 +314,21 @@ do_verify(){
   got=0; [[ -f "$STAGE/orphan-submissions.txt" ]] && got="$(wc -l < "$STAGE/orphan-submissions.txt")"
   ck "submissions sem rota" "$got" "0"
 
+  # (l) nenhum dir de usuário FANTASMA (sem account.json e sem conta no prod). `list_users` só
+  #     vê quem tem account.json ⇒ metrics/placar perderiam essas submissões em silêncio,
+  #     enquanto o check (a) — que usa o glob — fecharia a soma e diria OK.
+  local nghost=0 g
+  while IFS= read -r g; do
+    [[ -f "$STAGE/users/$g/account.json" || -d "$CDIR/users/$g" ]] && continue
+    echo "  FALHA: dir sem account.json: $g"; nghost=$((nghost+1))
+  done < <(ls -1 "$STAGE/users" 2>/dev/null)
+  ck "dir de usuario sem account.json" "$nghost" "0"
+
+  # (m) todo login do staging passa o valid_id da API (senão o verify_password nem chega ao
+  #     account.json e a conta fica inacessível)
+  got="$(ls -1 "$STAGE/users" 2>/dev/null | awk '!/^[A-Za-z0-9._@#+-]+$/ || /\.\./' | wc -l)"
+  ck "login invalido p/ a API" "$got" "0"
+
   echo >&2
   (( rc == 0 )) && echo "VERIFICAÇÃO OK — pode instalar" >&2 || echo "VERIFICAÇÃO FALHOU — NÃO instale" >&2
   return $rc
@@ -308,14 +353,19 @@ do_install(){
       # Dedup por subid (último campo): sem isto, rodar o install duas vezes DUPLICA o
       # history da conta em silêncio (o ribas.admin ia de 36 p/ 63 linhas).
       if [[ -f "$STAGE/users/$u/history" ]]; then
-        local tmp; tmp="$(mktemp)"
+        local tmp cur_h; tmp="$(mktemp)"
+        # Conta viva pode NÃO ter history (quem nunca submeteu): 377 das 936 do treino não têm.
+        # awk num arquivo inexistente é erro FATAL (exit 2) e, sob `set -e`, abortaria o
+        # install NO MEIO do laço — metade dos usuários já movidos, telegram e stamps por
+        # fazer. /dev/null dá o mesmo resultado (nenhum subid conhecido) sem morrer.
+        cur_h="$CDIR/users/$u/history"; [[ -f "$cur_h" ]] || cur_h=/dev/null
         # NÃO use NR==FNR aqui: o history do prod é VAZIO em 6 dos 7 alvos de merge, e com o
         # 1º arquivo sem registros o NR==FNR continua verdadeiro no 2º — o awk engoliria o
         # history inteiro como chave "seen" e não sairia NADA (some em silêncio: 86 linhas).
         # FILENAME é a comparação que não depende de o 1º arquivo ter conteúdo.
-        awk -F: -v cur="$CDIR/users/$u/history" \
+        awk -F: -v cur="$cur_h" \
             'FILENAME==cur { seen[$NF]=1; next } !($NF in seen)' \
-            "$CDIR/users/$u/history" "$STAGE/users/$u/history" > "$tmp"
+            "$cur_h" "$STAGE/users/$u/history" > "$tmp"
         cat "$tmp" >> "$CDIR/users/$u/history"
         rm -f "$tmp"
         LC_ALL=C sort -t: -k5,5n -s -o "$CDIR/users/$u/history" "$CDIR/users/$u/history"
@@ -344,12 +394,21 @@ do_install(){
   if [[ -f "$STAGE/telegram/pairs.tsv" ]]; then
     while IFS=$'\t' read -r tgid lg; do
       [[ -z "$tgid" || -z "$lg" ]] && continue
-      # `|| true`: tg_login_of_id sai 1 quando o tgid NÃO está vinculado (o caso normal aqui)
-      # — as libs da API não rodam sob `set -e`, este script roda.
+      # `|| true`: tg_login_of_id/tg_id_of_login saem 1 quando não há vínculo (o caso normal
+      # aqui) — as libs da API não rodam sob `set -e`, este script roda.
       cur="$(tg_login_of_id "$CONTEST" "$tgid" || true)"
       if [[ "$cur" == "$lg" ]]; then nskip=$((nskip+1)); continue; fi
       if [[ -n "$cur" ]]; then
         echo "  CONFLITO: tgid $tgid já é de '$cur', não de '$lg' — pulado" >&2; nconf=$((nconf+1)); continue
+      fi
+      # O tg_link só recusa tgid de OUTRO login; o by-login/<login> ele reescreve SEMPRE. Se a
+      # conta já tem um telegram VIVO (cadastro web-first no newmoj) e o passwd legado traz um
+      # tgid antigo, o vínculo bom seria trocado pelo velho — e a recuperação de senha passaria
+      # a mandar a senha por DM p/ o dono do tgid ANTIGO. Vínculo vivo manda.
+      local curtg; curtg="$(tg_id_of_login "$CONTEST" "$lg" || true)"
+      if [[ -n "$curtg" && "$curtg" != "$tgid" ]]; then
+        echo "  CONFLITO: '$lg' já tem o telegram $curtg (vivo); o legado dizia $tgid — preservado o vivo" >&2
+        nconf=$((nconf+1)); continue
       fi
       tg_link "$CONTEST" "$tgid" "$lg" "" "passwd-migration" && ntg=$((ntg+1)) || true
     done < "$STAGE/telegram/pairs.tsv"
@@ -413,9 +472,19 @@ do_audit(){
       if [[ -z "${AM[$login]:-}" ]]; then
         [[ "$(jq -r '.password' "$CDIR/users/$target/account.json" 2>/dev/null)" == "$pass" ]] || nbad=$((nbad+1))
       fi
+      # NÃO dá p/ auditar "a senha do prod prevaleceu" comparando com a legada: o Ribas REUSOU
+      # a senha legada ao criar os `.admin` (edsonalves.admin == matemagica123 == a do passwd
+      # legado), então "iguais" não prova sobrescrita — provaria um falso positivo em 2 das 9.
+      # Quem garante a invariante é o `verify (g)`, que é exato: o staging não pode conter
+      # account.json p/ conta que já existe no destino.
     done < "$FROM/passwd"
     ck "contas do legado ausentes no prod" "$nmiss" "0"
     ck "senhas que nao batem" "$nbad" "0"
+
+    # todo dir de usuário tem account.json (senão list_users o ignora e o placar perde as subs)
+    local nghost=0 d
+    for d in "$CDIR"/users/*/; do [[ -f "$d/account.json" ]] || { echo "  FALHA: sem account.json: $(basename "$d")"; nghost=$((nghost+1)); }; done
+    ck "conta sem account.json" "$nghost" "0"
   fi
 
   echo >&2
