@@ -2,7 +2,10 @@
 # Estatísticas de submissão de UM problema do treino: métricas gerais, distribuição de
 # veredictos, por-linguagem (submissões/aceitos/solvers distintos), editores declarados
 # pelos solvers, e a lista de avatares de solvers com perfil público.
-# Resultado é CACHEADO em var/problem-stats/<id>.json (TTL PROBLEM_STATS_TTL_MIN).
+# Cache var/problem-stats/<id>.json invalidado POR EVENTO: var/.score-dirty (toda submissão
+# julgada o toca) mais novo que o cache = há dado novo; sem submissão nova, o cache vale p/
+# SEMPRE (dado idêntico). Piso de 2 min segura o custo sob rajada de submissões; flock
+# serializa a regeneração (sem stampede num problema popular).
 id="$(param id)"
 [[ -n "$id" ]] || fail 400 "Missing problem id" "id_missing"
 valid_id "$id" || fail 400 "Invalid problem id" "id_invalid"
@@ -10,11 +13,14 @@ T="$CONTESTSDIR/treino"
 [[ -f "$T/var/jsons/$id.json" ]] || fail 404 "Problem not found" "problem_notfound"
 
 CACHE="$T/var/problem-stats/$id.json"
-# cache no servidor (TTL), mas no navegador sempre revalida (evita resposta velha)
-printf 'Status: 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nCache-Control: no-cache, must-revalidate\r\n\r\n'
-if [[ -f "$CACHE" ]] && [[ -z "$(find "$CACHE" -mmin +"${PROBLEM_STATS_TTL_MIN:-10}" 2>/dev/null)" ]]; then
-  cat "$CACHE"; exit 0
-fi
+DIRTY="$T/var/.score-dirty"
+_pshdr(){ printf 'Status: 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nCache-Control: no-cache, must-revalidate\r\n\r\n'; }
+_psfresh(){ [[ -f "$CACHE" ]] && { [[ ! "$DIRTY" -nt "$CACHE" ]] \
+            || [[ -z "$(find "$CACHE" -mmin +2 2>/dev/null)" ]]; }; }
+if _psfresh; then _pshdr; cat "$CACHE"; exit 0; fi
+mkdir -p "$T/var/problem-stats"
+exec 8>>"$CACHE.lock"; flock 8
+if _psfresh; then _pshdr; cat "$CACHE"; exit 0; fi   # outro request regenerou na espera
 
 set +o noglob
 title="$(jq -r '.title // ""' "$T/var/jsons/$id.json" 2>/dev/null)"
@@ -77,7 +83,6 @@ edjson="$(for k in "${!EDC[@]}"; do jq -cn --arg e "$k" --argjson c "${EDC[$k]}"
 [[ -z "$edjson" ]] && edjson='[]'
 avjson="$( ((${#AV[@]})) && printf '%s\n' "${AV[@]}" | jq -cs '.' || echo '[]')"
 
-mkdir -p "$T/var/problem-stats"
 jq -n --arg id "$id" --arg title "$title" --argjson core "$core" \
    --argjson editors "$edjson" --argjson avatars "$avjson" --argjson pub "$pubcount" \
   '{success:true, problem_id:$id, title:$title}
@@ -85,4 +90,5 @@ jq -n --arg id "$id" --arg title "$title" --argjson core "$core" \
    + {editors:$editors, solvers_public_count:$pub, solver_avatars:$avatars,
       generated_at: '"$EPOCHSECONDS"'}' > "$CACHE.tmp" 2>/dev/null \
   && mv -f "$CACHE.tmp" "$CACHE"
-cat "$CACHE"
+[[ -f "$CACHE" ]] || fail 500 "Falha ao montar as estatísticas" "stats_failed"
+_pshdr; cat "$CACHE"

@@ -17,12 +17,12 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 |---|---|
 | `/index/news` | `{news:[{id,title,date,summary,url}]}` |
 | `/index/contests?page=N` | `{open:[…],upcoming:[…],closed:{items:[…],page,per_page,total}}` (cada item `{id,title,start_time,end_time,problems_count,url,scoreboard_url}`). Encerrados paginados (20/pág); **`?all=1`** devolve todos (usado pela página de arquivo `/contests/`). Contest **SUPER SECRETO** (conf `SECRET=1`) **não aparece** em nenhuma das três listas (nem no `/index/status`, que também omite o nome na fila por lista). |
-| `/index/open_training` | `{top_users:[…],recent_solved:[…],most_solved_week:[…],most_solved_prev_week:[{problem_id,problem_title,solved_count,url}],most_used_editor_prev_week:{top:{editor,count}\|null,total,ranking:[{editor,count}]}}` (`prev_week`=resolvedores distintos por problema; `editor`=mais usado nas aceitas da semana passada, `web` ou editor declarado) |
+| `/index/open_training` | `{top_users:[…],recent_solved:[…],most_solved_week:[…],most_solved_prev_week:[{problem_id,problem_title,solved_count,url}],most_used_editor_prev_week:{top:{editor,count}\|null,total,ranking:[{editor,count}]}}` (`prev_week`=resolvedores distintos por problema; `editor`=mais usado nas aceitas da semana passada, `web` ou editor declarado). Cache `var/open-training.json` **por EVENTO** (`.score-dirty` OU `.treino-list-dirty` mais novos = regenera; despublicado some da home; piso 5 min sob rajada; flock) |
 
 ## Treino
 | Rota | Auth | I/O |
 |---|---|---|
-| `/treino/problems` | — | array `[{id,title,tags,collections,solved_count,attempted_count}]` (`collections` = `.moj-meta.json` do pacote, um problema pode estar em várias; contagens de `var/json-count/<arquivo>` casadas por nome de arquivo). Cache `var/problems.json` **invalidado POR EVENTO** (stamp `var/.treino-list-dirty`, tocado por todo ponto que cria/remove json servível — publicar/validar/despublicar/deletar/mover/rebaixar org; TTL de 60 min só como rede de segurança); a regeneração agrega os **sidecars `var/jsons-meta/`** (nunca os enunciados) sob flock — sem stampede |
+| `/treino/problems` | — | array `[{id,title,tags,collections,solved_count,attempted_count}]` (`collections` = `.moj-meta.json` do pacote, um problema pode estar em várias). **Contagens do STORE NOVO**: agregação de `users/*/metrics.json` (`.solved`/`.attempted`, 1 usuário = 1 por problema), sobreposta à base legada `var/json-count/` quando existir. Cache `var/problems.json` **invalidado POR EVENTO** (gerador `server/score/treino-list-gen.sh`): composição da lista = stamp `var/.treino-list-dirty` (foreground sob flock); contagens = `var/.score-dirty` + piso de 10 min (refresh em BACKGROUND, serve o stale); TTL de 60 min só rede de segurança |
 | `/treino/problem?id=<id>` | — | `{id,title,author,statement_html_b64,time_limits,tags,collections,languages}` (`author` = arquivo `author` do pacote, verbatim; vários autores juntados por `, `; vazio se ausente; `collections` = coleções do `.moj-meta.json`; `languages` = ids de linguagem de submissão permitidos deste problema, `[]` = todas as PADRÃO — o front filtra o dropdown por essa lista; linguagens EXÓTICAS/opt-in (`pddl`/`grepe`/`sas`/`l`/`lpp`/`downward`) só aparecem quando o problema as DECLARA aqui) |
 | `/treino/solvetry?user=<u>` | opc | `{solved:[ids],attempted:[ids]}` |
 | `/treino/history?id=<id>` | Bearer | TXT 7 campos `tempo:user:probid:lang:verdito:epoch:subid`. Veredicto **SEMPRE canônico** (`lib/verdict.sh`; pendentes/strings desconhecidas intactos) — o detalhe (testes/pontos/grupos) vem do `/submission/summary` |
@@ -33,7 +33,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | `/treino/profile?user=<u>` | opc | GET visão pública (respeita privacidade); POST aceita também `favorite_editor`, `profile_public` |
 | `/treino/profile/photo?user=<u>` | opc/Bearer | GET serve png 100×100 · POST `{image_b64}` (redimensiona) |
 | `/treino/editors` | — | ranking dos editores favoritos declarados `{editors:[{editor,count}],total}` |
-| `/treino/problem-stats?id=<p>` | — | estatísticas do problema (métricas, veredictos, por-linguagem c/ solvers distintos, editores, avatares públicos) — **cacheado** (TTL `PROBLEM_STATS_TTL_MIN`) |
+| `/treino/problem-stats?id=<p>` | — | estatísticas do problema (métricas, veredictos, por-linguagem c/ solvers distintos, editores, avatares públicos) — cache **por EVENTO** (`.score-dirty` mais novo = regenera; sem submissão nova vale p/ sempre; piso 2 min sob rajada; flock) |
 
 ## Treino — cadastro & vínculo Telegram (overlay do treino)
 Cadastro **web-first** verificado pelo Telegram (1 Telegram = 1 conta; anti-duplicata). Os endpoints

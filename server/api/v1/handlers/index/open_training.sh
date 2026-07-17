@@ -6,12 +6,23 @@
 #   most_used_editor_prev_week (editor mais usado nas aceitas da semana passada).
 # -> {success:true, top_users, recent_solved, most_solved_week, most_solved_prev_week,
 #     most_used_editor_prev_week, search_problems_url}
-emit_json 200 OK
+# Cache var/open-training.json invalidado POR EVENTO: var/.score-dirty (submissão julgada =
+# feeds podem mudar) e var/.treino-list-dirty (problema despublicado tem que SUMIR dos feeds
+# da home — privacidade). Piso de 5 min sob rajada; sem evento, o cache vale p/ sempre.
 set +o noglob
 
 TREINO="$CONTESTSDIR/treino"
 JDIR="$TREINO/var/jsons"        # índice VIVO (gen-problem-json.sh, título = display_title)
 QDIR="$TREINO/var/questoes"     # índice legado (fallback histórico)
+CACHE="$TREINO/var/open-training.json"
+DIRTY="$TREINO/var/.score-dirty"; LSTAMP="$TREINO/var/.treino-list-dirty"
+
+_otfresh(){ [[ -f "$CACHE" ]] \
+  && { { [[ ! "$DIRTY" -nt "$CACHE" ]] && [[ ! "$LSTAMP" -nt "$CACHE" ]]; } \
+       || [[ -z "$(find "$CACHE" -mmin +5 2>/dev/null)" ]]; }; }
+if _otfresh; then emit_json 200 OK; cat "$CACHE"; exit 0; fi
+exec 8>>"$CACHE.lock"; flock 8
+if _otfresh; then emit_json 200 OK; cat "$CACHE"; exit 0; fi   # regenerado na espera
 
 # materializa o history no formato global (7 campos) num temp — toda a lógica abaixo
 # (grep/awk sobre $HIST) opera no stream fanned-out de users/*/history.
@@ -19,8 +30,9 @@ HIST="$(mktemp)"; trap '[[ -n "$HIST" ]] && rm -f "$HIST"' EXIT
 emit_history_stream treino > "$HIST"
 
 if [[ ! -s "$HIST" ]]; then
-  jq -cn '{success:true, top_users:[], recent_solved:[], most_solved_week:[], most_solved_prev_week:[], most_used_editor_prev_week:{top:null,total:0,ranking:[]}, search_problems_url:"/treino"}'
-  exit 0
+  out='{"success":true,"top_users":[],"recent_solved":[],"most_solved_week":[],"most_solved_prev_week":[],"most_used_editor_prev_week":{"top":null,"total":0,"ranking":[]},"search_problems_url":"/treino"}'
+  printf '%s' "$out" > "$CACHE.tmp.$$" && mv -f "$CACHE.tmp.$$" "$CACHE"
+  emit_json 200 OK; printf '%s' "$out"; exit 0
 fi
 
 _title(){ # título do problema (probid usa '#'); índice vivo -> legado -> o próprio id
@@ -105,7 +117,7 @@ done <<< "$(awk -F: '$5 ~ /Accepted/ {print $2 ":" $3}' "$HIST" \
 
 jarr(){ if (( $# == 0 )); then printf '[]'; else printf '%s\n' "$@" | jq -cs .; fi; }
 
-jq -cn \
+out="$(jq -cn \
   --argjson top_users "$(jarr "${U[@]}")" \
   --argjson recent_solved "$(jarr "${V[@]}")" \
   --argjson most_solved_week "$(jarr "${R[@]}")" \
@@ -114,4 +126,8 @@ jq -cn \
   '{success:true, top_users:$top_users, recent_solved:$recent_solved,
     most_solved_week:$most_solved_week, most_solved_prev_week:$most_solved_prev_week,
     most_used_editor_prev_week: ($editor_rank | {top:(.[0] // null), total:(map(.count)|add // 0), ranking:.}),
-    search_problems_url:"/treino"}'
+    search_problems_url:"/treino"}')"
+[[ -n "$out" ]] || fail 500 "Falha ao montar a home do treino" "open_training_failed"
+printf '%s' "$out" > "$CACHE.tmp.$$" && mv -f "$CACHE.tmp.$$" "$CACHE"
+emit_json 200 OK
+printf '%s' "$out"

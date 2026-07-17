@@ -179,6 +179,12 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   escritores (`tl_store_record`, `judge/update-report.sh`); rebuild só a frio
   (`tl_summary_ensure`/`val_summary_ensure`). Escritor novo de json servível/TL/validação ⇒
   OBRIGATÓRIO tocar stamp/upsert (senão a lista/painel congela até o TTL de segurança de 60 min).
+  **Contagens da lista vêm do STORE NOVO** (`server/score/treino-list-gen.sh` agrega
+  `users/*/metrics.json` `.solved`/`.attempted`, sobrepondo a base legada `var/json-count/`),
+  com refresh LAZY em background via `.score-dirty` + piso 10 min. Mesmo padrão por-evento em
+  `/treino/problem-stats` (`.score-dirty`, piso 2 min) e `/index/open_training` (`.score-dirty`
+  OU `.treino-list-dirty` — despublicado some da home; piso 5 min). `solvetry` fica por-request
+  (lê 1 history; 0,09s).
 - **Painel de status (`GET /problems/status`, aba "Painel" da gestão):** agrega, dos problemas de que
   o login é **dono, colaborador ou membro da org**, validação/calibração/time-limits + estados **"calibrando"**
   (varredura única de `run/updates`+`run/commands` por `kind/action==calibrate` — `calibrating_set`) e
