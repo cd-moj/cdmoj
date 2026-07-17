@@ -43,27 +43,45 @@ ALERT_POLL_SECS=25                              # cadência do poll de alertas (
 [[ -n "$BOT_TOKEN" ]] || echo "AVISO: token do bot (mojb_) ausente — chamadas autenticadas vão falhar." >&2
 
 # --- cliente da API (Bearer mojb_; sem sessão, sem re-login) ----------------
+# TOKEN FORA DO PS: URL e headers vão por arquivo de config do curl (-K em fd de
+# process substitution) e corpos JSON por arquivo temporário — nada de segredo
+# (mojb_, token do Telegram, senhas em DM) aparece no argv de /proc.
 # api <METHOD> <path> [curl-args...] -> corpo + última linha "HTTP <code>".
 api() {
   local method="$1" path="$2"; shift 2
-  curl -s -m 60 -w $'\nHTTP %{http_code}' -X "$method" \
-    -H "Host: $MOJ_HOST" -H "Authorization: Bearer $BOT_TOKEN" \
-    "$@" "$MOJ_API$path"
+  curl -s -m 60 -w $'\nHTTP %{http_code}' -X "$method" "$@" \
+    -K <(printf 'header = "Host: %s"\nheader = "Authorization: Bearer %s"\nurl = "%s%s"\n' \
+         "$MOJ_HOST" "$BOT_TOKEN" "$MOJ_API" "$path")
+}
+api_json() {  # api() com corpo JSON fora do argv (via arquivo)
+  local method="$1" path="$2" body="$3" bf rc
+  bf="$(mktemp)"; printf '%s' "$body" > "$bf"
+  api "$method" "$path" -H 'Content-Type: application/json' -d @"$bf"; rc=$?
+  rm -f "$bf"; return $rc
 }
 api_status() { tail -n1 <<<"$1" | awk '{print $2}'; }
 api_body()   { sed '$d' <<<"$1"; }
 err_msg() { local m; m="$(jq -r '.error.message // empty' <<<"$1" 2>/dev/null)"; [[ -n "$m" ]] && printf '%s' "$m" || printf '%s' "$1"; }
 
 # --- helpers de envio do Telegram ------------------------------------------
+# A URL do Telegram EMBUTE o token do bot ⇒ nunca em argv: sempre via -K <(…).
+# O corpo também sai do argv (mensagem de DM carrega SENHA) — vai por arquivo.
+tg_api() {  # tg_api <método-tg> <json> [timeout] -> resposta no stdout
+  local path="$1" body="$2" tmo="${3:-40}" bf rc
+  bf="$(mktemp)"; printf '%s' "$body" > "$bf"
+  curl -s -m "$tmo" -X POST -H 'Content-Type: application/json' -d @"$bf" \
+    -K <(printf 'url = "%s/%s"\n' "$API_TG" "$path"); rc=$?
+  rm -f "$bf"; return $rc
+}
 tg_send() {  # tg_send <chat_id> <json-msg-sem-chat_id>
   local chat="$1" msg="$2"
   msg="$(jq -c --argjson id "$chat" '. + {chat_id:$id, disable_notification:true}' <<<"$msg")"
-  curl -s -X POST -H 'Content-Type: application/json' -d "$msg" "$API_TG/sendMessage" >/dev/null
+  tg_api sendMessage "$msg" >/dev/null
 }
 tg_send_document() {  # <chat_id> <file> [caption]
   local chat="$1" file="$2" caption="$3"
-  if [[ -n "$caption" ]]; then curl -s -F chat_id="$chat" -F caption="$caption" -F document=@"$file" "$API_TG/sendDocument" >/dev/null
-  else curl -s -F chat_id="$chat" -F document=@"$file" "$API_TG/sendDocument" >/dev/null; fi
+  if [[ -n "$caption" ]]; then curl -s -F chat_id="$chat" -F caption="$caption" -F document=@"$file" -K <(printf 'url = "%s/sendDocument"\n' "$API_TG") >/dev/null
+  else curl -s -F chat_id="$chat" -F document=@"$file" -K <(printf 'url = "%s/sendDocument"\n' "$API_TG") >/dev/null; fi
 }
 set_text()      { SUBMITJSON="$(jq -cn --arg t "$1" '{text:$t}')"; }
 set_text_md()   { SUBMITJSON="$(jq -cn --arg t "$1" '{text:$t, parse_mode:"Markdown"}')"; }
@@ -85,7 +103,7 @@ start() {
   local body resp st
   body="$(jq -cn --arg n "$nonce" --argjson id "$FROM_ID" --arg u "$USERNAME" --arg f "$FIRST" --arg l "$LAST" \
             '{nonce:$n, telegram_id:$id, telegram_username:$u, first_name:$f, last_name:$l}')"
-  resp="$(api POST /treino/signup/verify -H 'Content-Type: application/json' -d "$body")"
+  resp="$(api_json POST /treino/signup/verify "$body")"
   st="$(api_status "$resp")"; resp="$(api_body "$resp")"
   _signup_reply "$st" "$resp"
 }
@@ -96,7 +114,7 @@ participar() {
   local body resp st
   body="$(jq -cn --argjson id "$FROM_ID" --arg u "$USERNAME" --arg f "$FIRST" --arg l "$LAST" \
             '{telegram_id:$id, telegram_username:$u, first_name:$f, last_name:$l}')"
-  resp="$(api POST /treino/signup/telegram -H 'Content-Type: application/json' -d "$body")"
+  resp="$(api_json POST /treino/signup/telegram "$body")"
   st="$(api_status "$resp")"; resp="$(api_body "$resp")"
   _signup_reply "$st" "$resp"
 }
@@ -126,7 +144,7 @@ trocarsenha() {
   (( REPLYTO < 0 )) && { set_text "O comando *trocarsenha* não pode ser usado em grupo. Me chame no privado."; return; }
   local body resp st status login pass
   body="$(jq -cn --argjson id "$FROM_ID" '{telegram_id:$id}')"
-  resp="$(api POST /treino/recover-password -H 'Content-Type: application/json' -d "$body")"
+  resp="$(api_json POST /treino/recover-password "$body")"
   st="$(api_status "$resp")"; resp="$(api_body "$resp")"
   status="$(jq -r '.status // empty' <<<"$resp" 2>/dev/null)"
   login="$(jq -r '.login // empty' <<<"$resp" 2>/dev/null)"
@@ -218,9 +236,9 @@ process_update() {
 # LOOP PRINCIPAL — getUpdates (long-poll curto) + entrega de alertas a cada volta.
 # ===========================================================================
 while true; do
-  JSON="$(curl -m $(( ALERT_POLL_SECS + 10 )) -s -X POST -H 'Content-Type: application/json' \
-            -d "{\"offset\": $OFFSET, \"limit\": 20, \"allowed_updates\": [\"message\"], \"timeout\": $ALERT_POLL_SECS}" \
-            "$API_TG/getUpdates")"
+  JSON="$(tg_api getUpdates \
+            "{\"offset\": $OFFSET, \"limit\": 20, \"allowed_updates\": [\"message\"], \"timeout\": $ALERT_POLL_SECS}" \
+            $(( ALERT_POLL_SECS + 10 )))"
   nupd="$(jq -r '(.result // []) | length' <<<"$JSON" 2>/dev/null)"; [[ "$nupd" =~ ^[0-9]+$ ]] || nupd=0
   for (( k=0; k<nupd; k++ )); do
     UPD="$(jq -c ".result[$k].message // empty" <<<"$JSON" 2>/dev/null)"
