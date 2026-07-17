@@ -61,6 +61,9 @@ if [[ "$REQUEST_METHOD" == POST ]]; then
     pub="$(jq -r 'if .profile_public then "true" else "false" end' <<<"$body")"
     set_profile_field treino "$login" public "$pub"; PROFILE_PUBLIC="$pub"
   fi
+  # nome/editor/privacidade aparecem na home (top10, ranking de editores, avatares) e no
+  # placar — invalida os caches preguiçosos (gate .score-dirty)
+  _score_dirty treino
 fi
 
 used="$(uname_changes_recent "$UNAME_CHANGES")"

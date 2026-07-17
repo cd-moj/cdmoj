@@ -253,6 +253,9 @@ user_rename(){
   [[ -e "$nd" ]] && return 2
   mv "$od" "$nd" || return 1
   account_merge "$c" "$new" '.login=$l|.updated_at=$t' --arg l "$new" --argjson t "$EPOCHSECONDS"
+  # o handle aparece em placar/home/estatísticas — os caches preguiçosos (gate .score-dirty)
+  # precisam regenerar, senão servem o login VELHO p/ sempre (top10 da home ficou stale)
+  _score_dirty "$c"
 }
 
 # --- compat de leitura: emite o history no FORMATO GLOBAL de 7 campos --------

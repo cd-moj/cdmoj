@@ -54,8 +54,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `first_ac_epoch`; `pending`; `best_score` NNp; `heur`; visão **`frozen`** pré-`FREEZE_TIME`) e
   `score/build.sh` + `sc_cells` (score-common.sh) leem `users/*/metrics.json` numa passada —
   placar em **`var/placar{,-full,-custom}.txt`** (não mais `controle/`). Staleness dos caches
-  preguiçosos (`contest/score`/`statistics`/`response-stats`/balões) = **`var/.score-dirty`**
-  (tocado por `user_history_append/replace`) + `conf`; `var/.metrics-stamp` dispara recompute em
+  preguiçosos (`contest/score`/`statistics`/`response-stats`/balões/home) = **`var/.score-dirty`**
+  (tocado por `user_history_append/replace` **e por toda mutação user-visível de conta**:
+  `user_rename`, perfil e foto — senão a home/placar serviam handle/nome velhos p/ sempre) + `conf`; `var/.metrics-stamp` dispara recompute em
   massa no `build.sh` quando o `conf` muda (ex.: `FREEZE_TIME` editado). **Migração** de contest
   legado (arquivado em `contests-legado/`): `server/bin/store-migrate.sh <c>` (dry-run por padrão).
   **Do MOJ ANTIGO** (`contests-backup/`) é OUTRO caminho: `treino-map-gen.sh` (mapa auditável

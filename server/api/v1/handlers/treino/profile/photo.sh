@@ -38,4 +38,5 @@ if convert "$tmp" -auto-orient -strip -thumbnail '100x100^' -gravity center -ext
 else
   rm -f "$tmp" "$out.tmp"; fail 400 "Não foi possível processar a imagem" "img_bad"
 fi
+_score_dirty treino   # avatares aparecem na home/estatísticas — invalida os caches preguiçosos
 ok_json '{updated:true}'
