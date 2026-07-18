@@ -57,6 +57,7 @@
         <a href="#ciclo" data-en="1. The life cycle">1. O ciclo de vida</a>
         <a href="#cli" data-en="2. The CLI in 60 seconds">2. A CLI em 60 segundos</a>
         <a href="#passo" data-en="3. Step by step">3. Passo a passo</a>
+        <a href="#checker" data-en="&nbsp;&nbsp;· special judging" style="padding-left:.8rem">&nbsp;&nbsp;· correção especial</a>
         <a href="#receitas" data-en="4. Professor recipes">4. Receitas de professor</a>
         <a href="#comandos" data-en="5. Quick commands">5. Comandos rápidos</a>
         <a href="#dicas" data-en="6. Tips &amp; pitfalls">6. Dicas &amp; armadilhas</a>
@@ -79,6 +80,10 @@
 moj login     # o MESMO login desta página — sem git, sem chave SSH</pre>
         <p data-en="Requirements: bash, curl, jq. One self-contained file (the common lib comes embedded). Whoever runs contests or the judge fleet also has /moj-contest and /moj-judges at the same address.">Requisitos: <code>bash</code>, <code>curl</code>, <code>jq</code>. Um arquivo só, auto-contido (a lib comum vem embutida). Quem gere contests ou o parque de juízes também tem <code>/moj-contest</code> e <code>/moj-judges</code> no mesmo endereço.</p>
         <p data-en="Two ways of working, mix at will: moj edit opens an interactive menu with every field (statement, examples, solutions, conf, publish) — and the local-files way: the package is a directory, you edit with your tools and moj push sends it.">Dois jeitos de trabalhar, misture à vontade: <code>moj edit</code> abre um menu interativo com todos os campos (enunciado, exemplos, soluções, conf, publicar) — e o jeito arquivos-locais: o pacote é um diretório, você edita com as suas ferramentas e <code>moj push</code> envia.</p>
+        <div class="warn" data-en="When you DO need the mojtools checkout: exactly three commands run judging machinery on YOUR machine — moj test --run (local judging; also needs Linux with real bubblewrap), moj checker and moj interactive (install the special-judging drivers). For those:">Quando o <b>mojtools</b> local é necessário: exatamente TRÊS comandos rodam maquinário de julgamento na SUA máquina — <code>moj test --run</code> (julgamento local; também exige Linux com bubblewrap real), <code>moj checker</code> e <code>moj interactive</code> (instalam os drivers de correção especial). Para esses:
+        <pre>git clone https://github.com/cd-moj/mojtools ~/mojtools
+export MOJTOOLS_DIR=~/mojtools     # no seu .bashrc</pre>
+        <span data-en="EVERYTHING ELSE in the CLI needs only bash, curl and jq.">TODO O RESTO da CLI só precisa de bash, curl e jq.</span></div>
 
         <h2 id="passo" data-en="3. Step by step: from zero to published">3. Passo a passo: do zero ao publicado</h2>
 
@@ -99,6 +104,24 @@ cd fibonacci &amp;&amp; ls
         <div class="warn" data-en="NEVER paste examples inside the text. The renderer injects them automatically from the sample files (next step) — pasted examples go stale and diverge.">NUNCA cole exemplos no texto. O renderizador os injeta sozinho a partir dos arquivos de sample (próximo passo) — exemplo colado envelhece e diverge.</div>
         <div class="tip" data-en="moj preview renders EXACTLY the HTML the student will see (same renderer as the site). Keep it open while writing."><code>moj preview</code> renderiza EXATAMENTE o HTML que o aluno verá (mesmo renderizador do site). Deixe aberto enquanto escreve.</div>
 
+        <h3 data-en="Images in the statement">Imagens no enunciado</h3>
+        <p data-en="Drop the figure NEXT TO the enunciado.md (the package's docs/ directory) and reference it with a relative path — the renderer embeds it in base64 (pandoc --embed-resources), so the HTML served to the student is self-contained:">Jogue a figura AO LADO do <code>enunciado.md</code> (o <code>docs/</code> do pacote) e referencie por caminho relativo — o renderizador a embute em base64 (<code>pandoc --embed-resources</code>), então o HTML servido ao aluno é auto-contido:</p>
+        <pre>cp ~/screenshots/grafo.png docs/
+# no enunciado.md:
+![O grafo do exemplo 1](grafo.png)</pre>
+        <p class="small muted" data-en="moj preview shows the image embedded; moj push carries it (full round-trip). Any format a browser renders (png/jpg/svg) works."><code>moj preview</code> mostra a imagem embutida; <code>moj push</code> a carrega (round-trip completo). Qualquer formato que o navegador renderiza (png/jpg/svg) funciona.</p>
+        <div class="tip" data-en="Editor macro to copy an image into place and insert the markdown in one stroke — vim (put in .vimrc) and emacs (init.el):">Macro de editor p/ copiar a imagem p/ o lugar e inserir o markdown num golpe — vim (no <code>.vimrc</code>) e emacs (<code>init.el</code>):</div>
+        <pre>" vim — :MojImg ~/screenshots/grafo.png  (copia p/ o dir do arquivo atual e insere a linha)
+command! -nargs=1 -complete=file MojImg
+  \ execute '!cp' shellescape(&lt;q-args&gt;) shellescape(expand('%:p:h')) |
+  \ execute 'normal! o![](' . fnamemodify(&lt;q-args&gt;, ':t') . ')'</pre>
+        <pre>;; emacs — M-x moj-img  (idem: copia p/ o dir do buffer e insere ![](arquivo))
+(defun moj-img (file)
+  (interactive "fImagem: ")
+  (let ((dest (expand-file-name (file-name-nondirectory file) default-directory)))
+    (copy-file file dest t)
+    (insert (format "![](%s)" (file-name-nondirectory file)))))</pre>
+
         <h3 data-en="Step 3 — visible examples (samples)">Passo 3 — exemplos visíveis (samples)</h3>
         <pre>printf '5\n1 2 3 4 5\n' &gt; tests/input/sample1
 # a saída de CADA teste você vai gerar com a sua solução no passo 5</pre>
@@ -109,7 +132,20 @@ cd fibonacci &amp;&amp; ls
         <p data-en="This is where the grade is decided. Cover: the smallest valid case, the LARGEST case (constraint limits — this is what times out the O(n²) solution), overflow-inducing values, ties/duplicates, and degenerate shapes. A generator script beats hand-written files:">É aqui que a nota se decide. Cubra: o menor caso válido, o MAIOR caso (limites das restrições — é ele que derruba o O(n²)), valores que estouram int, empates/duplicatas e formatos degenerados. Um gerador vale mais que arquivos à mão:</p>
         <pre>for i in $(seq 1 8); do python3 gen.py $i &gt; tests/input/t$i; done</pre>
         <div class="warn" data-en="Generate every tests/output/* WITH your good solution (step 5) — never by hand. A hand-typed output with a stray space fails everyone.">Gere TODO <code>tests/output/*</code> COM a sua solução good (passo 5) — nunca à mão. Uma saída digitada com espaço sobrando reprova a turma inteira.</div>
-        <div class="tip" data-en="Partial credit, OBI-style: a tests/score file assigns weights per test glob (samples usually weight 0). The verdict then reports which point groups the student earned.">Nota parcial, estilo OBI: o arquivo <code>tests/score</code> dá pesos por glob de teste (samples costumam pesar 0). O veredicto então mostra ao aluno quais grupos de pontos ele ganhou.</div>
+        <h3 data-en="Partial credit, OBI-style: tests/score step by step">Nota parcial estilo OBI: <code>tests/score</code> passo a passo</h3>
+        <ol>
+          <li data-en="Name the hidden tests BY GROUP — the glob is what ties them together:">Nomeie os testes ocultos POR GRUPO — é o glob que os amarra:
+            <pre>tests/input/g1_pequeno1  g1_pequeno2   # casos N ≤ 100
+tests/input/g2_medio1    g2_medio2     # N ≤ 10^4
+tests/input/g3_grande1   g3_grande2    # N ≤ 10^6</pre></li>
+          <li data-en="One line per group in tests/score: globs, then “ - ”, then the weight. The separator BETWEEN globs is comma+space (&quot;, &quot;) — the parser requires it on both sides (API and judge):">Uma linha por grupo no <code>tests/score</code>: globs, depois <code> - </code>, depois o peso. O separador ENTRE globs é vírgula+espaço (<code>", "</code>) — o parser exige, dos dois lados (API e juiz):
+            <pre>sample* - 0 pontos
+g1_* - 20 pontos
+g2_* - 30 pontos
+g3_* - 50 pontos</pre></li>
+          <li data-en="Rules: a group is ALL-OR-NOTHING (one failing test zeroes it); the problem's value is the SUM of weights (no need to total 100); samples enter with weight 0 so they show in the report without counting.">Regras: grupo é <b>tudo-ou-nada</b> (um teste falhou = grupo vale 0); o valor do problema é a <b>SOMA</b> dos pesos (não precisa dar 100); os samples entram com peso 0 p/ aparecerem no relatório sem valer nota.</li>
+          <li data-en="What the student sees under the verdict: “✓ Grupo 2 (30/30) · ✗ Grupo 3 (0/50)” — explicit per-group feedback, plus the ICPC-style scoreboard is replaced by points in OBI-mode contests.">O que o aluno vê embaixo do veredicto: <code>✓ Grupo 2 (30/30) · ✗ Grupo 3 (0/50)</code> — feedback explícito por grupo; em contest modo OBI o placar também vira pontos.</li>
+        </ol>
 
         <h3 data-en="Step 5 — reference solutions (sols/)">Passo 5 — soluções de referência (<code>sols/</code>)</h3>
         <p data-en="The file extension defines the language (sol.c, sol.cpp, sol.py, Main.java…). Each subdirectory has a JOB in the quality check:">A extensão define a linguagem (<code>sol.c</code>, <code>sol.cpp</code>, <code>sol.py</code>, <code>Main.java</code>…). Cada subdiretório tem um PAPEL na conferência:</p>
@@ -132,6 +168,19 @@ for f in tests/input/*; do /tmp/sol &lt; "$f" &gt; "tests/output/$(basename "$f"
           <li><code>languages</code> — <span data-en="restrict which languages can be submitted (empty = all standard).">restringe as linguagens de submissão (vazio = todas as padrão).</span></li>
         </ul>
         <div class="tip" data-en="Heavy input in Python? Give it room: raise MEMLIMITMB and the slack — or provide a Python good and let the per-language calibration do the fairness for you.">Entrada pesada em Python? Dê espaço: suba <code>MEMLIMITMB</code> e a folga — ou forneça uma good em Python e deixe a calibração por linguagem fazer a justiça por você.</div>
+
+        <h3 id="checker" data-en="Optional — special judging (custom checker / interactive)">Opcional — correção especial (checker próprio / interativo)</h3>
+        <p data-en="When the plain diff is not enough: multiple valid answers (any topological order, any max path), numeric tolerance, or interactive problems. Two ways:">Quando o diff puro não basta: várias respostas válidas (qualquer ordem topológica, qualquer caminho máximo), tolerância numérica, ou problemas interativos. Dois caminhos:</p>
+        <p><b data-en="A) testlib (recommended)">A) testlib (recomendado)</b> — <span data-en="write a standard testlib.h checker.cpp and install the normalized driver:">escreva um <code>checker.cpp</code> testlib padrão e instale o driver normalizado:</span></p>
+        <pre>moj checker ./fibonacci checker.cpp      # instala scripts/ (stub canônico + seu checker)
+moj interactive ./meu-jogo arbitro.cpp   # idem p/ problema INTERATIVO (árbitro via FIFOs)</pre>
+        <p><b data-en="B) by hand">B) na mão</b> — <span data-en="a scripts/compare.sh with this CONTRACT:">um <code>scripts/compare.sh</code> com este CONTRATO:</span></p>
+        <pre>#!/bin/bash
+# $1 = saída do ALUNO   $2 = saída ESPERADA   $3 = ENTRADA do teste
+# exit 4 = Accepted · 5 = Accepted (Presentation Error) · 6 = Wrong Answer
+awk -v a="$1" -v b="$2" 'BEGIN{ ... }' &amp;&amp; exit 4 || exit 6</pre>
+        <div class="warn" data-en="chmod +x is MANDATORY on every scripts/*.sh (the sandbox execs them directly — without the bit, EVERYTHING becomes Compilation Error). And changing scripts/ changes the tl-checksum: the Dashboard will ask for recalibration — that's correct, accept it."><code>chmod +x</code> é OBRIGATÓRIO em todo <code>scripts/*.sh</code> (a jaula os executa direto — sem o bit, TUDO vira Compilation Error). E mexer em <code>scripts/</code> muda o tl-checksum: o Painel vai pedir recalibração — está certo, aceite.</div>
+        <p class="small muted" data-en="Guides: checker-testlib.md, correcao-especial.md and problema-interativo.md in the mojtools docs (also covers function-only submissions and banned-function checks).">Guias: <code>checker-testlib.md</code>, <code>correcao-especial.md</code> e <code>problema-interativo.md</code> nas docs do mojtools (cobrem também submissão-de-função e banimento de função).</p>
 
         <h3 data-en="Step 7 — test locally, then send">Passo 7 — teste local, depois envie</h3>
         <pre>moj preview      # o HTML do aluno no navegador
