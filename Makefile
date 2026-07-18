@@ -22,7 +22,7 @@ UNITDIR    ?= $(HOME)/.config/containers/systemd
 HOST_HDR   ?= moj.charge.naquadah.com.br
 BASE       ?= http://127.0.0.1:8080
 
-.PHONY: help check check-jq image pull push install-units deploy restart restart-judged \
+.PHONY: help check check-jq cli-dist image pull push install-units deploy restart restart-judged \
         rollback status smoke logs shell dev
 
 help:
@@ -49,7 +49,21 @@ check-jq:
 	  server/test/jq-portability.sh server
 
 ## image — constrói a imagem (contexto = raiz do workspace) e re-tagueia :prod
-image:
+# regenera os artefatos de distribuição das CLIs (1 arquivo, lib embutida) a partir do
+# checkout irmão ../moj-cli e sincroniza web/moj{,-contest,-judges}. O elo era MANUAL e
+# dessincronizava (o /moj-contest servido ficou velho); agora todo deploy embarca CLIs
+# frescas. Sem ../moj-cli (checkout avulso do cdmoj): avisa e segue.
+cli-dist:
+	@if [ -d ../moj-cli ]; then \
+	  ( cd ../moj-cli && bash mkdist.sh >/dev/null ) || { echo "cli-dist: mkdist FALHOU" >&2; exit 1; }; \
+	  for f in moj moj-contest moj-judges; do \
+	    if ! cmp -s ../moj-cli/dist/$$f web/$$f 2>/dev/null; then \
+	      cp ../moj-cli/dist/$$f web/$$f && echo "cli-dist: web/$$f ATUALIZADO"; \
+	    fi; \
+	  done; \
+	else echo "cli-dist: ../moj-cli ausente — web/moj* mantidos como estão" >&2; fi
+
+image: cli-dist
 	podman build --ignorefile deploy/.containerignore -f deploy/Containerfile \
 	  --build-arg WITH_OFFICE=$(WITH_OFFICE) --build-arg WITH_JPLAG=$(WITH_JPLAG) \
 	  --label org.opencontainers.image.revision=$$(git rev-parse --short HEAD) \

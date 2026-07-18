@@ -165,11 +165,13 @@ Recarregar: `cd ~/nginx-proxy && ./proxy.sh test && ./proxy.sh reload`.
 > cert precisa incluir `*.<host-do-site>` (ex.: `*.moj.naquadah.com.br`) — é o que o
 > `server/bin/cert-setup.sh` emite (DNS-01). Em HTTP e via header `Host:` nos testes já funciona sem cert.
 
-## CLIs servidas (`/moj` e `/moj-contest`)
+## CLIs servidas (`/moj`, `/moj-contest` e `/moj-judges`)
 
-`web/moj` e `web/moj-contest` são **artefatos de distribuição** (1 arquivo, com a lib comum
-embutida) gerados de `moj-cli/` — **nunca** copie o script do repo direto (ele sourceia
-`lib/core.sh` e quebraria fora do repo). Ao mudar o `moj-cli`, regenere e instale:
+`web/moj*` são **artefatos de distribuição** (1 arquivo, com a lib comum embutida) gerados
+de `moj-cli/` — **nunca** copie o script do repo direto (ele sourceia `lib/core.sh` e
+quebraria fora do repo). **A sincronização é AUTOMÁTICA no deploy**: `make image`/`make
+deploy` roda o alvo `cli-dist`, que regenera via `../moj-cli/mkdist.sh` e copia p/ `web/`
+o que divergir (sem `../moj-cli` no checkout, avisa e segue). Para regenerar na mão (dev):
 
 ```bash
 bash /home/ribas/moj/moj-cli/mkdist.sh
