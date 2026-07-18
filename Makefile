@@ -110,11 +110,14 @@ endif
 	$(MAKE) smoke
 
 ## restart / restart-judged — reinício independente
+# systemctl --user precisa do bus da sessão; sob `sudo -u moj make deploy` ele não existe
+# no ambiente e TODO deploy morria em "Failed to connect to bus" (restart virava passo
+# manual). Exportar XDG_RUNTIME_DIR do próprio uid resolve nos dois mundos.
 restart:
-	systemctl --user restart moj-api moj-judged
+	XDG_RUNTIME_DIR=$${XDG_RUNTIME_DIR:-/run/user/$$(id -u)} systemctl --user restart moj-api moj-judged
 	@echo ">> reiniciados moj-api + moj-judged"
 restart-judged:
-	systemctl --user restart moj-judged
+	XDG_RUNTIME_DIR=$${XDG_RUNTIME_DIR:-/run/user/$$(id -u)} systemctl --user restart moj-judged
 
 ## rollback — volta :prod p/ uma tag anterior e reinicia (PREV=<tag> obrigatório)
 rollback:
