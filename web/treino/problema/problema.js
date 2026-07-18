@@ -73,7 +73,9 @@ async function swapEditor(content, langId) {
 async function loadProblem() {
   if (!ID) { document.getElementById('ptitle').textContent = T('Problema não informado', 'No problem specified'); return; }
   let p;
-  try { p = await apiGet('/treino/problem?id=' + encodeURIComponent(ID), { contest: CONTEST }); }
+  // manda o Bearer quando existe: a rota segue pública, mas o log de atividade
+  // (problem-view) registra QUEM abriu em vez de "anon"
+  try { p = await apiGet('/treino/problem?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: !!getToken(CONTEST) }); }
   catch { document.getElementById('ptitle').textContent = T('Problema não encontrado', 'Problem not found'); return; }
 
   document.title = (p.title || ID) + ' — MOJ';

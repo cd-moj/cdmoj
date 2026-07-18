@@ -674,6 +674,82 @@
         }
       }
     },
+    "/treino/admin/activity-log": {
+      "get": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Feed COMPLETO de atividade do treino (login/submit/verdict/read/admin; calib opt-in) com filtros e format=csv (range inteiro p/ análise)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "kinds",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "csv de tipos (login,submit,verdict,read,admin,calib); vazio = tudo menos calib"
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{count, events:[{time,who,kind,action,details,ip}]} ou text/csv (attachment)"
+          },
+          "403": {
+            "description": "não é admin"
+          }
+        }
+      }
+    },
     "/treino/admin/sessions": {
       "get": {
         "tags": [

@@ -24,6 +24,7 @@ if [[ "$owner" != "$SESSION_LOGIN" ]] && ! is_judge && [[ "${SHOWCODE:-0}" != 1 
   fail 403 "Source not visible" "source_forbidden"
 fi
 
+activity_log source-download "c=$contest sid=$sid owner=${owner:-?}"
 emit_text
 # Defensivo: algumas submissões legadas foram arquivadas como o JSON da submissão
 # ({problem_id,filename,code_b64,...}) em vez do fonte. Se for esse o caso, decodifica.

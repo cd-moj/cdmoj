@@ -129,6 +129,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   jamais vê o processo. O daemon bate um heartbeat em `run/judged.alive` (volume compartilhado) e o
   helper aceita processo local **ou** heartbeat fresco (TTL 120s). Voltar ao `pgrep` = painel dizendo
   "daemon caído" com ele vivo + alertas de `lib/alerts.sh` disparando p/ sempre.
+- **Log de ATIVIDADE do treino** (`activity_log` em lib/common.sh): eventos de LEITURA
+  (`problem-view`/`log-view`/`source-download`) em `var/activity-YYYY-MM.log` (TSV com ip;
+  rotação MENSAL pelo nome; separado do admin-audit, que é dominado por tl-report). O feed
+  `GET /treino/admin/activity-log` (aba 📜 Atividade) unifica 6 fontes + `format=csv`.
+  **Evento novo de leitura ⇒ instrumente com `activity_log`** (login/submit/verdict já são
+  deriváveis de access.log/history/results — não duplique).
 - Clarifications: o **asker é anônimo** p/ os juízes (handler corta `.login`); responder exige
   **reserva** (`clarification-claim`). Sempre auditar (`audit_log_to`) toda ação de juiz/chefe.
 - **Balão** (`.staff`): tarefa **automática** na 1ª solução (`Accepted`) de cada (time, problema),

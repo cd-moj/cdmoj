@@ -10,5 +10,9 @@ f="$CONTESTSDIR/treino/var/jsons/$id.json"
 # elaboração p/ a internet — então quem serve também confere. `!= false` (e não `== true`) de
 # propósito: json legado sem o campo passa; só o explicitamente privado é barrado.
 jq -e '.public != false' "$f" >/dev/null 2>&1 || fail 404 "Problem not found" "problem_notfound"
+# atividade: quem abriu qual problema (a rota segue ANÔNIMA — load_session é soft: com
+# Bearer válido loga o login, sem ele loga "anon"; o front manda o token quando existe)
+load_session 2>/dev/null || true
+activity_log problem-view "id=$id"
 emit_json 200 OK
 jq -c '{success:true} + .' "$f"

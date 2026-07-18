@@ -10,7 +10,7 @@
 //   GET  /treino/admin/calib-activity {calib_per_day:[{day,count}], calib_by_dow_hour:[{dow,hour,n}], total}
 //   POST /treino/admin/logout-user {login} -> {logged_out, sessions_removed}
 //   POST /treino/admin/lock-user   {login} -> {locked, sessions_removed}
-import { apiGet, apiPost } from '/shared/api.js';
+import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { barChart, hBarChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
@@ -747,6 +747,87 @@ function makeNewsTab() {
   return { panel, load };
 }
 
+// ==================== aba: Atividade (feed unificado + CSV) ====================
+// TUDO que aconteceu no treino, no instante exato: login, submissão, veredicto do juiz,
+// LEITURAS (problema aberto, log visto, código baixado), ações de admin — e o ruído de
+// máquina (tl-report/calib-report) opcional. Fonte: /treino/admin/activity-log.
+function makeActivityTab() {
+  const panel = el('div', { class: 'section' });
+  const KIND = {
+    login: '🔑 login', submit: T('📤 submissão', '📤 submission'),
+    verdict: T('⚖️ veredicto', '⚖️ verdict'), read: T('👁 leitura', '👁 read'),
+    admin: '🛠️ admin', calib: T('🖥 máquina', '🖥 machine'),
+  };
+  const RACT = {
+    'problem-view': T('abriu problema', 'opened problem'),
+    'log-view': T('viu log', 'viewed log'),
+    'source-download': T('baixou código', 'downloaded code'),
+  };
+  async function load() {
+    panel.innerHTML = '';
+    panel.append(el('h2', {}, T('📜 Atividade do treino', '📜 Training activity')));
+    const fUser = el('input', { type: 'search', placeholder: T('usuário…', 'user…'), style: 'width:130px' });
+    const fAction = el('input', { type: 'search', placeholder: T('ação/veredicto…', 'action/verdict…'), style: 'width:160px' });
+    const fKind = el('select', {},
+      el('option', { value: '' }, T('tudo (sem máquina)', 'all (no machine)')),
+      ...Object.entries(KIND).map(([k, l]) => el('option', { value: k }, l)));
+    const fSince = el('input', { type: 'date' });
+    const fUntil = el('input', { type: 'date' });
+    const body = el('div', {});
+    const qs = () => {
+      const qp = new URLSearchParams();
+      if (fUser.value.trim()) qp.set('user', fUser.value.trim());
+      if (fAction.value.trim()) qp.set('action', fAction.value.trim());
+      if (fKind.value) qp.set('kinds', fKind.value);
+      if (fSince.value) { const e = Math.floor(new Date(fSince.value + 'T00:00:00').getTime() / 1000); if (e) qp.set('since', String(e)); }
+      if (fUntil.value) { const e = Math.floor(new Date(fUntil.value + 'T23:59:59').getTime() / 1000); if (e) qp.set('until', String(e)); }
+      return qp;
+    };
+    // CSV pelo SERVIDOR (format=csv): o range INTEIRO filtrado, não só os 500 da tela
+    const dl = el('button', { class: 'btn ghost', title: T('Baixar o range filtrado inteiro em CSV', 'Download the whole filtered range as CSV'), onclick: async () => {
+      const qp = qs(); qp.set('format', 'csv');
+      try {
+        const r = await fetch('/api/v1/treino/admin/activity-log?' + qp.toString(),
+          { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const blob = await r.blob(), a = el('a', { href: URL.createObjectURL(blob), download: 'atividade-treino.csv' });
+        document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 0);
+      } catch (e) { alert(T('Falha ao baixar CSV: ', 'Failed to download CSV: ') + (e.message || e)); }
+    } }, '⬇ CSV');
+    async function run() {
+      body.innerHTML = ''; body.append(loading());
+      let r;
+      try { r = await apiGet('/treino/admin/activity-log?' + qs().toString(), G()); }
+      catch (e) { body.innerHTML = ''; body.append(errBox(T('Falha: ', 'Failed: ') + (e.message || T('erro', 'error')))); return; }
+      const ev = r.events || [];
+      body.innerHTML = '';
+      body.append(el('div', { class: 'small muted', style: 'margin:.3rem 0' },
+        ev.length + T(' evento(s) na tela (o CSV baixa o range inteiro).', ' event(s) on screen (CSV downloads the whole range).')));
+      if (!ev.length) { body.append(el('div', { class: 'muted' }, T('Nada encontrado.', 'Nothing found.'))); return; }
+      const tb = el('tbody');
+      ev.forEach((x) => tb.append(el('tr', {},
+        el('td', { class: 'small' }, fmtDate(x.time)),
+        el('td', { class: 'small' }, KIND[x.kind] || x.kind),
+        el('td', { style: 'font-family:var(--mono);font-size:.85rem' }, x.who || ''),
+        el('td', {}, RACT[x.action] || x.action || ''),
+        el('td', { class: 'small', style: 'font-family:var(--mono);word-break:break-all' },
+          (x.details || '') + (x.ip ? ' · ' + x.ip : '')))));
+      body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {},
+          el('th', {}, T('Quando', 'When')), el('th', {}, T('Tipo', 'Type')), el('th', {}, T('Quem', 'Who')),
+          el('th', {}, T('Ação', 'Action')), el('th', {}, T('Detalhes', 'Details')))), tb)));
+    }
+    [fUser, fAction, fKind, fSince, fUntil].forEach((i) => i.addEventListener('change', run));
+    panel.append(el('div', { class: 'row', style: 'margin-bottom:.4rem;flex-wrap:wrap;gap:.3rem' },
+      el('span', { class: 'small muted' }, T('Filtros:', 'Filters:')), fKind, fUser, fAction,
+      el('span', { class: 'small muted' }, T('de', 'from')), fSince,
+      el('span', { class: 'small muted' }, T('até', 'to')), fUntil,
+      el('button', { class: 'btn ghost', onclick: run }, '↻'), dl), body);
+    await run();
+  }
+  return { panel, load };
+}
+
 // ============================ aba: Auditoria ============================
 function makeAuditTab() {
   const panel = el('div', { class: 'section' });
@@ -861,7 +942,7 @@ function renderPanel(content) {
     { id: 'news', label: T('📰 Notícias', '📰 News'), make: makeNewsTab },
     { id: 'contests', label: '🏆 Contests', make: makeContestsTab },
     { id: 'access', label: T('📝 Acessos (log)', '📝 Access (log)'), make: makeAccessLogTab },
-    { id: 'audit', label: T('🛡 Auditoria', '🛡 Audit'), make: makeAuditTab },
+    { id: 'activity', label: T('📜 Atividade', '📜 Activity'), make: makeActivityTab },
     { id: 'stats', label: T('📊 Estatísticas', '📊 Statistics'), make: makeStatsTab },
     { id: 'queue', label: T('⏳ Fila & tempo de resposta', '⏳ Queue & response time'), make: makeQueueTab },
     { id: 'judges', label: T('🖥️ Máquinas de julgamento', '🖥️ Judging machines'), make: makeJudgesTab },

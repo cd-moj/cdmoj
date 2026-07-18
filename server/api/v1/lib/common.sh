@@ -168,6 +168,22 @@ audit_log() {
     >> "$CONTESTSDIR/treino/var/admin-audit.log" 2>/dev/null || true
 }
 
+# activity_log <event> <details> — LOG DE ATIVIDADE do treino: eventos de LEITURA
+# (problem-view, log-view, source-download) que escalam com page-view. SEPARADO do
+# admin-audit (dominado por report de máquina) e ROTACIONADO POR MÊS no próprio nome
+# (var/activity-YYYY-MM.log). TSV: epoch \t login("anon" sem sessão) \t event \t details \t ip.
+# Consumido pelo feed /treino/admin/activity-log (kind=read). Evento novo de leitura na
+# plataforma ⇒ instrumente com ESTE helper.
+activity_log() {
+  local who="${SESSION_LOGIN:-anon}" det="${2//$'\t'/ }" ym ip="-"
+  det="${det//$'\n'/ }"
+  printf -v ym '%(%Y-%m)T' "$EPOCHSECONDS"
+  declare -F client_ip >/dev/null 2>&1 && ip="$(client_ip)"
+  mkdir -p "$CONTESTSDIR/treino/var" 2>/dev/null
+  printf '%s\t%s\t%s\t%s\t%s\n' "$EPOCHSECONDS" "$who" "$1" "$det" "${ip:--}" \
+    >> "$CONTESTSDIR/treino/var/activity-$ym.log" 2>/dev/null || true
+}
+
 # audit_log_to <contest> <action> <details> — auditoria de um contest específico
 # (contests/<contest>/var/admin-audit.log). Usado pelas ações do admin do contest.
 audit_log_to() {

@@ -29,5 +29,6 @@ if ! is_judge; then
 fi
 
 shopt -u nullglob
+activity_log log-view "c=$contest sid=$sid owner=${owner:-?}"
 emit_html
 if [[ -n "$SUB_LOG" && -f "$SUB_LOG" ]]; then cat "$SUB_LOG"; else printf '<!doctype html><meta charset="utf-8"><p style="font:16px sans-serif;color:#64748b;padding:1rem">Report indisponível para esta submissão.</p>\n'; fi
