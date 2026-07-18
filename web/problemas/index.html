@@ -30,6 +30,9 @@
     .chip .x{cursor:pointer;opacity:.55;font-weight:700} .chip .x:hover{opacity:1;color:#e66}
     tr.orgrow{cursor:pointer} tr.orgrow:hover td{background:color-mix(in srgb, var(--accent,#5b8cff) 7%, transparent)}
     tr.orgdetail>td{background:color-mix(in srgb, var(--accent,#5b8cff) 5%, transparent);border-left:3px solid var(--accent,#5b8cff);padding:.6rem .8rem}
+    .tut{max-width:52rem} .tut h3{margin:1.2rem 0 .4rem} .tut ol{padding-left:1.4rem} .tut li{margin:.35rem 0}
+    .tut pre{background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.6rem .8rem;overflow-x:auto;font-size:.86rem;line-height:1.5}
+    .tut .duo{display:grid;grid-template-columns:1fr 1fr;gap:1rem} @media(max-width:900px){.tut .duo{grid-template-columns:1fr}}
     #detail{margin-top:1rem}
     #detail iframe{width:100%;height:60vh;border:1px solid var(--border,#2a2a2a);border-radius:.5rem;background:#fff}
     .checks li{margin:.15rem 0} .checks .k{display:inline-block;min-width:13rem}
@@ -59,6 +62,7 @@
         trava de público — uma por problema, o prefixo do id). Você só usa seu login do MOJ.</span></p>
       <div id="needauth" class="error-box" style="display:none" data-en="Sign in with your MOJ login to manage your problems.">Entre com seu login do MOJ para gerir seus problemas.</div>
       <div class="tabs" id="tabs">
+        <button data-tab="tutorial" data-en="🚀 Start here">🚀 Comece aqui</button>
         <button data-tab="painel" class="active" data-en="Dashboard">Painel</button>
         <button data-tab="analise" data-en="Analysis">Análise</button>
         <button data-tab="mine" data-en="Mine">Meus</button>

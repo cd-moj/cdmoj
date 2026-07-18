@@ -22,7 +22,7 @@ UNITDIR    ?= $(HOME)/.config/containers/systemd
 HOST_HDR   ?= moj.charge.naquadah.com.br
 BASE       ?= http://127.0.0.1:8080
 
-.PHONY: help check check-jq cli-dist image pull push install-units deploy restart restart-judged \
+.PHONY: help check check-jq cli-dist docs-html image pull push install-units deploy restart restart-judged \
         rollback status smoke logs shell dev
 
 help:
@@ -63,7 +63,14 @@ cli-dist:
 	  done; \
 	else echo "cli-dist: ../moj-cli ausente — web/moj* mantidos como estão" >&2; fi
 
-image: cli-dist
+# docs/html é artefato por-checkout (gitignorado) — o /docs serve DELE. Sem pandoc no host,
+# avisa e segue (o autoindex do nginx é o fallback).
+docs-html:
+	@if command -v pandoc >/dev/null 2>&1; then \
+	  bash docs/build-html.sh >/dev/null && echo "docs-html: docs/html regenerado"; \
+	else echo "docs-html: pandoc ausente no host — /docs pode ficar sem HTML" >&2; fi
+
+image: cli-dist docs-html
 	podman build --ignorefile deploy/.containerignore -f deploy/Containerfile \
 	  --build-arg WITH_OFFICE=$(WITH_OFFICE) --build-arg WITH_JPLAG=$(WITH_JPLAG) \
 	  --label org.opencontainers.image.revision=$$(git rev-parse --short HEAD) \

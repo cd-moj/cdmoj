@@ -57,7 +57,11 @@ location /api/v1/ {
 }
 
 # --- documentação (markdown cru) ---------------------------------------------------
-location /docs/ { alias @WORKROOT@/cdmoj/docs/; autoindex on; }
+# docs RENDERIZADAS (docs/html/ = artefato do build-html.sh, com index/nav/css) — o alias
+# antigo p/ docs/ cru servia .md com autoindex e 404 em /docs/API.html. autoindex fica como
+# fallback p/ checkout sem build. /docs sem barra redireciona (dava 404 seco).
+location = /docs { return 301 /docs/; }
+location /docs/ { alias @WORKROOT@/cdmoj/docs/html/; autoindex on; }
 
 # --- frontend estático (ESM, sem build) --------------------------------------------
 location / { try_files $uri $uri/ =404; }

@@ -162,6 +162,80 @@ async function moveProblem(p) {
   } catch (e) { alert((e instanceof ApiError ? e.message : T('Falha ao mover', 'Failed to move')) + (e.code ? ` (${e.code})` : '')); }
 }
 
+// ── TUTORIAL: a moj CLI + passo a passo de criar um problema (estático, sem API) ─────────────
+function renderTutorial() {
+  document.getElementById('count').textContent = '';
+  document.getElementById('pager').innerHTML = '';
+  const list = document.getElementById('list'); list.innerHTML = '';
+  const O = location.origin;
+  const pre = (txt) => el('pre', {}, txt);
+  const box = el('div', { class: 'tut' });
+
+  box.append(
+    el('h3', {}, T('📟 A moj CLI — autoria sem git, sem chave', '📟 The moj CLI — authoring without git or keys')),
+    el('p', { class: 'small' },
+      T('Tudo que esta página faz, a CLI também faz — do terminal, com o MESMO login do MOJ. Ideal p/ trabalhar com seus arquivos locais e testar antes de enviar.',
+        'Everything this page does, the CLI does too — from the terminal, with the SAME MOJ login. Ideal for working on local files and testing before sending.')),
+    pre(`curl -fsSL ${O}/moj -o ~/.local/bin/moj && chmod +x ~/.local/bin/moj\nmoj login`),
+    el('p', { class: 'small muted' },
+      T('Requisitos: bash, curl e jq. Quem gere contests/juízes também tem ', 'Requirements: bash, curl and jq. Contest/judge operators also have '),
+      el('code', {}, `${O}/moj-contest`), ' ', T('e', 'and'), ' ', el('code', {}, `${O}/moj-judges`), '.'),
+
+    el('h3', {}, T('🧩 Anatomia de um problema', '🧩 Anatomy of a problem')),
+    el('p', { class: 'small' },
+      T('Um problema é um pacote de arquivos simples:', 'A problem is a simple file package:')),
+    el('ul', { class: 'small' },
+      el('li', {}, el('code', {}, 'enunciado.md'), ' — ', T('markdown com as seções obrigatórias ', 'markdown with the required sections '), el('code', {}, '## Entrada'), ' ', T('e', 'and'), ' ', el('code', {}, '## Saída'), T('; os EXEMPLOS não vão no texto — vêm dos arquivos de teste.', '; EXAMPLES do not go in the text — they come from the test files.')),
+      el('li', {}, el('code', {}, 'tests/input/sample1'), ' + ', el('code', {}, 'tests/output/sample1'), ' — ', T('exemplos visíveis (pareados); os demais ', 'visible examples (paired); the other '), el('code', {}, 'tests/input|output/*'), ' ', T('são os testes ocultos.', 'are the hidden tests.')),
+      el('li', {}, el('code', {}, 'sols/good/sol.c'), ' — ', T('sua solução CORRETA (pode ter várias, em várias linguagens). É ela que o juiz roda p/ CALIBRAR o time limit por máquina.', 'your CORRECT solution (several allowed, in several languages). The judge runs it to CALIBRATE the per-machine time limit.')),
+      el('li', {}, el('code', {}, 'conf'), ' — ', T('limites e opções (memória, fator de folga, etc.).', 'limits and options (memory, slack factor, etc.).'))),
+    el('p', { class: 'small muted' },
+      T('Formato completo: ', 'Full format: '), el('a', { href: '/docs/PACOTE.html', target: '_blank' }, '/docs/PACOTE.html')),
+
+    el('h3', {}, T('👣 Passo a passo: criar e publicar', '👣 Step by step: create and publish')));
+
+  const web = el('div', {},
+    el('b', {}, T('Pela página (editor web)', 'On this page (web editor)')),
+    el('ol', { class: 'small' },
+      el('li', {}, T('Clique em ', 'Click '), el('a', { href: '/problemas/editar.html?novo=1' }, T('+ Novo problema', '+ New problem')), T(' (canto superior).', ' (top corner).')),
+      el('li', {}, T('Preencha título/autor e escreva o enunciado (aba Enunciado) com ## Entrada e ## Saída.', 'Fill in title/author and write the statement (Statement tab) with ## Entrada and ## Saída.')),
+      el('li', {}, T('Adicione exemplos e testes ocultos (aba Testes) — cada input casa com um output.', 'Add examples and hidden tests (Tests tab) — each input pairs with an output.')),
+      el('li', {}, T('Envie ao menos 1 solução good (aba Soluções & Correção).', 'Upload at least 1 good solution (Solutions & Judging tab).')),
+      el('li', {}, T('Use Pré-visualizar (é EXATAMENTE o HTML que o aluno verá) e Salvar.', 'Use Preview (EXACTLY the HTML students will see) and Save.')),
+      el('li', {}, T('Valide (portão de qualidade + calibração no juiz) e acompanhe no Painel.', 'Validate (quality gate + judge calibration) and follow it on the Dashboard.')),
+      el('li', {}, T('Publique — a ORG do problema precisa permitir público (aba Orgs).', 'Publish — the problem’s ORG must allow public (Orgs tab).'))));
+
+  const cli = el('div', {},
+    el('b', {}, T('Pela CLI (arquivos locais)', 'With the CLI (local files)')),
+    pre(`moj new minha-org meu-problema   ${T('# scaffold completo em ./meu-problema', '# full scaffold in ./meu-problema')}
+cd meu-problema
+$EDITOR enunciado.md              ${T('# ## Entrada / ## Saída', '# ## Entrada / ## Saída')}
+$EDITOR tests/input/sample1 tests/output/sample1
+$EDITOR sols/good/sol.c
+moj preview                       ${T('# o HTML do aluno, no navegador', '# the student HTML, in your browser')}
+moj test                          ${T('# pré-voo local (--run julga de verdade c/ bwrap)', '# local preflight (--run really judges w/ bwrap)')}
+moj push                          ${T('# envia (cria/atualiza no servidor)', '# send (creates/updates on the server)')}
+moj validate minha-org#meu-problema   ${T('# portão + calibração — CONTINUA privado', '# gate + calibration — STAYS private')}
+moj check minha-org#meu-problema      ${T('# QA: validação, TL por juiz', '# QA: validation, per-judge TL')}
+moj publish minha-org#meu-problema    ${T('# público no treino (org precisa permitir)', '# public in training (org must allow)')}`),
+    el('p', { class: 'small muted' },
+      T('Preguiça de decorar arquivos? ', 'Don’t want to memorize files? '), el('code', {}, 'moj edit ./meu-problema'),
+      T(' abre um menu interativo com TODOS os campos (enunciado, exemplos, soluções, conf, publicar).',
+        ' opens an interactive menu with ALL the fields (statement, examples, solutions, conf, publish).')));
+
+  box.append(el('div', { class: 'duo' }, web, cli),
+    el('h3', {}, T('🔁 O ciclo de vida', '🔁 The life cycle')),
+    el('p', { class: 'small' },
+      T('Todo problema passa por: VALIDAR (o portão confere enunciado, testes pareados e soluções) → CALIBRAR (o juiz roda suas soluções good e mede o time limit POR máquina e POR linguagem) → PUBLICAR (entra no treino livre; exige a trava da org aberta). O Painel mostra em que fase cada um está — e avisa quando um pacote mudou e precisa recalibrar.',
+        'Every problem goes through: VALIDATE (the gate checks statement, paired tests and solutions) → CALIBRATE (the judge runs your good solutions and measures the time limit PER machine and PER language) → PUBLISH (enters free training; requires the org’s public lock open). The Dashboard shows each one’s phase — and warns when a package changed and needs recalibration.')),
+    el('p', { class: 'small muted' },
+      T('Referências: ', 'References: '),
+      el('a', { href: '/docs/', target: '_blank' }, T('documentação completa', 'full documentation')), ' · ',
+      el('a', { href: '/docs/PACOTE.html', target: '_blank' }, T('formato do pacote', 'package format')), ' · ',
+      el('a', { href: '/docs/API.html', target: '_blank' }, 'API')));
+  list.append(box);
+}
+
 // ── COLEÇÕES = tags de agrupamento (m:n, curadas). Ortogonais à ORG. ─────────────────────────
 // 129+ coleções: tabela ORDENÁVEL + busca (#q) + filtro "minhas" — cards não escalavam.
 let COLL_SORT = { key: 'count', dir: -1 }, COLL_MINE = false;
@@ -667,6 +741,7 @@ async function loadTab(tab) {
   document.getElementById('brokenLabelText').textContent = (tab === 'painel') ? T('só com atenção', 'needs attention only') : T('só não-públicos', 'non-public only');
   document.getElementById('brokenLabel').style.display = (tab === 'analise' || tab === 'collections' || tab === 'orgs') ? 'none' : '';
   document.getElementById('btnRefreshPanel').style.display = (tab === 'painel' || tab === 'analise') ? '' : 'none';
+  if (tab === 'tutorial') { document.getElementById('toolbar').style.display = 'none'; renderTutorial(); return; }
   if (tab === 'painel') { loadPanel(); return; }
   if (tab === 'analise') { loadAnalysis(); return; }
   if (tab === 'orgs') { loadOrgs(); return; }

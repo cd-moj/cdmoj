@@ -165,6 +165,13 @@ Recarregar: `cd ~/nginx-proxy && ./proxy.sh test && ./proxy.sh reload`.
 > cert precisa incluir `*.<host-do-site>` (ex.: `*.moj.naquadah.com.br`) — é o que o
 > `server/bin/cert-setup.sh` emite (DNS-01). Em HTTP e via header `Host:` nos testes já funciona sem cert.
 
+## Documentação servida (`/docs/`)
+
+O `/docs/` serve o **HTML renderizado** de `docs/html/` (artefato por-checkout, gitignorado —
+`bash docs/build-html.sh`, precisa de pandoc no host). O `make image`/`deploy` regenera via o
+alvo `docs-html` (sem pandoc: avisa e segue; o autoindex do nginx é o fallback). `/docs` sem
+barra redireciona.
+
 ## CLIs servidas (`/moj`, `/moj-contest` e `/moj-judges`)
 
 `web/moj*` são **artefatos de distribuição** (1 arquivo, com a lib comum embutida) gerados
