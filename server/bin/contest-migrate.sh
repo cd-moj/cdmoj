@@ -29,6 +29,11 @@
 #     ignorar) + subdir accepted/. Roteia por f6:subid contra o history. Sem-ext -> <subid>.txt.
 #   - passwd login:senha:nome:campo4; campo4 = EMAIL (@) -> .email; SEM telegram. Roles
 #     .admin/.mon preservados. owner = lucasboaventura.
+#   - veredicto PROVISÓRIO preso (Not Answered Yet/On queue/Running: o juiz do legado nunca
+#     respondeu — 1 caso em 108k no lote ds) vira "<veredicto> (Ignored)" na instalação:
+#     terminal, nunca conta (score/metrics já tratam o sufixo) e NÃO polui o /status como
+#     pendência eterna (count_pending casaria a string crua p/ sempre — contest morto não
+#     tem quem julgue).
 
 set -euo pipefail
 export LC_ALL=C
@@ -215,11 +220,15 @@ do_stage(){
       { n=NF; key=$(n-1)":"$n; if(key in seen){dup++; next} seen[key]=1;
         login=$2; prob=$3; if(prob in O) prob=O[prob]; else unm++;
         v=$5; for(i=6;i<=n-2;i++) v=v":"$i;
+        # provisório preso do legado -> terminal (ver cabeçalho): senão vira pendência
+        # eterna no /status (count_pending) sem juiz que a resolva
+        if(v ~ /^(Not Answered Yet|[Oo]n queue|[Rr]unning)$/){ v=v" (Ignored)"; nprov++ }
         if(login!=cur){ if(cur!="") close(out); cur=login;
                         system("mkdir -p \"" root "/users/" login "\""); out=root"/users/"login"/history" }
         # tempo := f6 (campo n-1); 6 campos tempo:probid:lang:verdict:sub_epoch:subid
         print $(n-1)":"prob":"$4":"v":"$(n-1)":"$n >> out }
-      END{ if(cur!="") close(out); if(dup) printf("dedup: %d\n",dup)>"/dev/stderr"; if(unm) printf("probid sem OFF2ID: %d\n",unm)>"/dev/stderr" }'
+      END{ if(cur!="") close(out); if(dup) printf("dedup: %d\n",dup)>"/dev/stderr"; if(unm) printf("probid sem OFF2ID: %d\n",unm)>"/dev/stderr";
+           if(nprov) printf("veredicto provisorio do legado -> (Ignored): %d\n",nprov)>"/dev/stderr" }'
   local h
   while IFS= read -r h; do LC_ALL=C sort -t: -k5,5n -s "$h" -o "$h"; done < <(find "$ROOT/users" -name history)
   log "history: $(_cathist "$ROOT" | wc -l) linhas em $(find "$ROOT/users" -name history | wc -l) usuários"
