@@ -184,7 +184,13 @@ o que divergir (sem `../moj-cli` no checkout, avisa e segue). Para regenerar na 
 bash /home/ribas/moj/moj-cli/mkdist.sh
 install -m755 /home/ribas/moj/moj-cli/dist/moj /home/ribas/moj/moj-cli/dist/moj-contest \
   /home/ribas/moj/moj-cli/dist/moj-judges /home/ribas/moj/cdmoj/web/
+install -m644 /home/ribas/moj/moj-cli/dist/moj.build /home/ribas/moj/cdmoj/web/
 ```
+
+O `mkdist.sh` **carimba o build** (`MOJ_CLI_BUILD=<git-short>-<data>`) dentro de cada artefato e
+gera `dist/moj.build` (1 linha com o mesmo carimbo), servido como **`/moj.build`** — é com ele
+que `moj version`/`moj doctor` detectam CLI desatualizada e `moj update` se atualiza. O
+`cli-dist` copia os 4 arquivos.
 
 ## Como acessar / testar
 
