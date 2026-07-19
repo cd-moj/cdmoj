@@ -192,8 +192,14 @@ Regras:
 - O separador entre globs é **vírgula e espaço** (`", "`). Isso não é estética: é o que o parser
   espera dos dois lados (API e juiz).
 - Os exemplos costumam entrar com peso 0, para que apareçam no relatório sem valer nota.
+- Linha começando com `#` é **comentário**. Qualquer outra linha que não seja
+  `<globs> - <N> pontos` é **ignorada com aviso** no log do juiz — não vire grupo.
+- O casamento teste→grupo é por **glob mesmo** (`aula_*` casa `aula_2_1`), e **todo teste
+  precisa cair num grupo** (teste órfão zera a submissão; grupo de peso>0 sem teste derruba o
+  veredicto). O `validate-problem.sh` confere tudo isso no upload (check `score_file_sane`).
 
-Quem interpreta é o `mojtools/score-summary.sh`, no juiz.
+Quem interpreta é o `mojtools/score-summary.sh`, no juiz. Editar o `tests/score` (ou um
+`tests/output/*`) muda o checksum do pacote — o juiz re-baixa e recalibra sozinho.
 
 ### `sols/`
 
