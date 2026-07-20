@@ -31,7 +31,7 @@ ARG WITH_JPLAG=1
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Núcleo (bash+jq+git+coreutils+...) + CGI (fcgiwrap da distro, não o ELF vendado) + conteúdo
-# (pandoc) + daemon (inotify-tools, socat) + mídia/impressão (imagemagick/ghostscript/poppler/
+# (pandoc + graphviz) + daemon (inotify-tools, socat) + mídia/impressão (imagemagick/ghostscript/poppler/
 # qpdf/paps). LibreOffice e a JRE do jplag entram por --build-arg (default 1 = imagem completa).
 #
 # NÃO PODE PODAR desta lista sem ler o porquê — os que faltavam quebravam produção EM SILÊNCIO:
@@ -46,6 +46,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   python3 mojtools/kattis/: o `have_py` exige python3 **e o módulo yaml**. Sem eles o sidecar
 #   python3-yaml  (chamado por create/edit/upload com `|| true`) some CALADO — problem.yaml e
 #           .kattis.json nunca eram gerados — e o import/export ICPC morre (422/500).
+#   graphviz  mojtools/render-statement.sh: blocos ```{.graph} do enunciado (fonte DOT) viram SVG
+#           via `dot`. Sem ele o grafo aparece como TEXTO DOT cru no enunciado (degrada com
+#           graciosidade — não quebra o resto — mas a figura some). Ver mojtools/docs/enunciado-grafos.md.
 # As asserções de build lá embaixo conferem todos: podar um pacote quebra o BUILD, não a produção.
 RUN set -eux; \
     apt-get update; \
@@ -54,7 +57,7 @@ RUN set -eux; \
       rsync file bzip2 zstd xz-utils python3 python3-yaml \
       curl ca-certificates \
       fcgiwrap \
-      pandoc \
+      pandoc graphviz \
       inotify-tools socat \
       imagemagick ghostscript poppler-utils qpdf paps fonts-dejavu-core; \
     if [ "$WITH_OFFICE" = "1" ]; then \
@@ -90,6 +93,7 @@ RUN set -eux; \
     command -v convert; convert -version >/dev/null; \
     command -v magick || ln -s "$(command -v convert)" /usr/local/bin/magick; \
     pandoc --version | head -1; \
+    command -v dot; dot -V; \
     command -v fcgiwrap; \
     for b in rsync file bzip2 zstd xz unzip zip tar gzip jq git curl inotifywait socat \
              gs pdfinfo qpdf paps python3; do command -v "$b" >/dev/null || { echo "FALTA: $b" >&2; exit 1; }; done; \

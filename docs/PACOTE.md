@@ -127,6 +127,11 @@ Três regras que o portão de qualidade cobra:
 Imagens devem ser embutidas em base64. O renderizador roda com `--embed-resources`, então o HTML
 servido ao aluno é autocontido, sem depender de arquivo externo.
 
+**Grafos**: um bloco de código com a classe `.graph` (fonte [graphviz DOT](https://graphviz.org/)) é
+renderizado como **SVG** — a fonte DOT fica editável no enunciado, não é uma imagem colada. Ex.:
+` ```{ .graph .center caption="…"} graph G { a -- b; } ``` `. Detalhes e atributos em
+**`mojtools/docs/enunciado-grafos.md`**.
+
 Quem renderiza é **um script só**: `mojtools/render-statement.sh`. O botão "Pré-visualizar" do
 editor, o HTML que o aluno lê e o HTML que a validação confere são exatamente o mesmo. Não existe
 segundo renderizador, e não se deve criar um.
