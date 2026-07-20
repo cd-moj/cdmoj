@@ -1,5 +1,9 @@
 # MOJ: Manual do Treino Livre (aluno)
 
+> **Prefere o terminal?** A CLI `moj-comp` também funciona no treino: buscar problema, baixar
+> enunciado, enviar e receber o veredicto sem sair do shell. Guia:
+> [/treino/cli.html](/treino/cli.html).
+
 Bem-vindo ao **Treino Livre** do MOJ, o juiz online. Este manual mostra, passo a passo,
 como criar sua conta, entrar, achar problemas, enviar sua solução e acompanhar o
 resultado. Ele foi escrito para quem está começando, então vamos com calma e sem pressa.

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="moj-comp on open training — solve from the terminal">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>moj-comp no treino livre — resolva pelo terminal</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .tlayout{display:grid;grid-template-columns:15rem 1fr;gap:2rem;align-items:start}
+    @media(max-width:900px){.tlayout{grid-template-columns:1fr}.ttoc{position:static}}
+    .ttoc{position:sticky;top:1rem;font-size:.88rem;border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.8rem 1rem}
+    .ttoc a{display:block;padding:.15rem 0;text-decoration:none;color:inherit;opacity:.85}
+    .ttoc a:hover{color:var(--accent,#5b8cff);opacity:1}
+    .tmain{max-width:50rem;min-width:0}
+    .tmain h2{margin:2rem 0 .6rem;padding-top:.5rem;border-top:1px solid var(--border,#2a2a2a)}
+    .tmain h2:first-child{border-top:none;margin-top:.4rem}
+    .tmain p, .tmain li{line-height:1.55}
+    .tmain pre{background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.6rem .9rem;overflow-x:auto;font-size:.85rem;line-height:1.55}
+    .tip{border-left:3px solid var(--accent,#5b8cff);background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border-radius:0 .5rem .5rem 0;padding:.5rem .8rem;margin:.6rem 0;font-size:.92rem}
+    .tip::before{content:"💡 ";font-weight:700}
+    table.cheat{border-collapse:collapse;width:100%;font-size:.88rem;margin:.5rem 0}
+    .cheat th,.cheat td{border:1px solid var(--border,#2a2a2a);padding:.3rem .55rem;text-align:left;vertical-align:top}
+    .cheat td:first-child{white-space:nowrap;font-family:ui-monospace,monospace;font-size:.84rem}
+    .cheat th{background:color-mix(in srgb, var(--accent,#5b8cff) 8%, transparent)}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/treino/" data-en="Training problems">Problemas do treino</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="moj-comp on open training — pick, read, solve and submit without leaving the terminal">moj-comp no treino livre — escolha, leia, resolva e envie sem sair do terminal</h1>
+      <p class="small muted" data-en="The same CLI used in contests, in training mode: search the public problem bank, download a statement, submit and get the verdict right there. Your site account, your usual $EDITOR, zero clicking.">A mesma CLI usada nos contests, no modo treino: busque no banco público, baixe o enunciado, envie e receba o veredicto ali mesmo. Sua conta do site, seu <code>$EDITOR</code> de sempre, zero clique.</p>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc" id="toc">
+        <b data-en="Contents">Conteúdo</b>
+        <a href="#comecar" data-en="1. Install & log in">1. Instalar e entrar</a>
+        <a href="#achar" data-en="2. Find a problem">2. Achar um problema</a>
+        <a href="#resolver" data-en="3. Read, solve, submit">3. Ler, resolver, enviar</a>
+        <a href="#comandos" data-en="4. Quick commands">4. Comandos rápidos</a>
+        <a href="#dicas" data-en="5. Tips">5. Dicas</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="comecar" data-en="1. Install and log in (one minute)">1. Instalar e entrar (um minuto)</h2>
+        <pre id="dl-cmd">curl -fsSL https://moj.naquadah.com.br/moj-comp -o ~/.local/bin/moj-comp &amp;&amp; chmod +x ~/.local/bin/moj-comp
+moj-comp login treino           # a MESMA conta que você usa no site</pre>
+        <p data-en="Requirements: bash, curl, jq — any Linux/macOS has them; no root, no install, one file. After login the CLI remembers you're on training: no extra flags on the next commands.">Requisitos: <code>bash</code>, <code>curl</code>, <code>jq</code> — qualquer Linux/macOS tem; sem root, sem instalação, um arquivo. Depois do login a CLI lembra que você está no treino: nenhuma flag extra nos próximos comandos.</p>
+
+        <h2 id="achar" data-en="2. Find a problem">2. Achar um problema</h2>
+        <pre>moj-comp problems vetores       # busca por id/título
+moj-comp problems fibonacci
+# moj-problems#fibonacci-memoizacao   Fibonacci   13 resolveram</pre>
+        <p data-en="Each problem has an id in the org#slug form (e.g. apc#vetor1) — that id is what you use to read and to submit. Browsing by collection and tags is nicer on the site (/treino); the CLI shines at the submit loop.">Cada problema tem um id na forma <code>org#slug</code> (ex.: <code>apc#vetor1</code>) — é esse id que você usa p/ ler e p/ enviar. Navegar por coleções e tags é mais gostoso no site (<a href="/treino/">/treino</a>); a CLI brilha no ciclo de envio.</p>
+
+        <h2 id="resolver" data-en="3. Read, solve, submit — the loop">3. Ler, resolver, enviar — o ciclo</h2>
+        <pre>moj-comp statement apc#vetor1   # salva ./vetor1.html — abra no navegador
+$EDITOR sol.c                   # resolva no seu canto
+moj-comp submit apc#vetor1 sol.c
+# enviada (apc#vetor1, sol.c) — id 54ada0…. aguardando veredicto…
+# veredicto: Accepted
+moj-comp subs                   # seu histórico de envios e veredictos</pre>
+        <p data-en="The language comes from the file extension (sol.c, sol.cpp, sol.py, Main.java…). submit waits for the verdict and prints it — the whole practice loop stays in one terminal.">A linguagem vem da extensão (<code>sol.c</code>, <code>sol.cpp</code>, <code>sol.py</code>, <code>Main.java</code>…). O <code>submit</code> espera o veredicto e imprime — o ciclo inteiro de prática fica num terminal só.</p>
+        <div class="tip" data-en="Wrong Answer? The submission page on the site shows the full report (test by test). The CLI gets you the verdict fast; the site gives you the forensic detail.">Deu Wrong Answer? A página da submissão no site mostra o relatório completo (teste a teste). A CLI te dá o veredicto rápido; o site, o detalhe forense.</div>
+
+        <h2 id="comandos" data-en="4. Quick commands">4. ⚡ Comandos rápidos</h2>
+        <table class="cheat">
+          <tr><th data-en="Command">Comando</th><th data-en="What it does">O que faz</th></tr>
+          <tr><td>moj-comp login treino</td><td data-en="log in with your site account (remembered afterwards)">entra com a sua conta do site (fica lembrado)</td></tr>
+          <tr><td>moj-comp problems &lt;busca&gt;</td><td data-en="search the public bank (id, title, solve count)">busca no banco público (id, título, quantos resolveram)</td></tr>
+          <tr><td>moj-comp statement &lt;org#slug&gt;</td><td data-en="download the statement as HTML">baixa o enunciado em HTML</td></tr>
+          <tr><td>moj-comp submit &lt;org#slug&gt; &lt;arquivo&gt;</td><td data-en="submit and wait for the verdict">envia e espera o veredicto</td></tr>
+          <tr><td>moj-comp subs</td><td data-en="your submissions and verdicts">seus envios e veredictos</td></tr>
+          <tr><td>moj-comp doctor · update</td><td data-en="environment check · self-update">diagnóstico · auto-atualização</td></tr>
+        </table>
+
+        <h2 id="dicas" data-en="5. Tips">5. 💡 Dicas</h2>
+        <ul>
+          <li data-en="Going to compete? The SAME CLI runs contests (scoreboard, clarifications and more) — guide at /contest/cli.html.">Vai competir? A MESMA CLI opera contests (placar, clarifications e mais) — guia em <a href="/contest/cli.html">/contest/cli.html</a>.</li>
+          <li data-en="moj-comp update keeps it fresh; moj-comp doctor diagnoses anything odd.">O <code>moj-comp update</code> mantém a CLI em dia; <code>moj-comp doctor</code> diagnostica qualquer esquisitice.</li>
+          <li data-en="Scripts welcome: it's plain bash+curl+jq — loop over your exercise list and submit as you go.">Script é bem-vindo: é bash+curl+jq puro — faça loop na sua lista de exercícios e envie conforme resolve.</li>
+        </ul>
+        <p>
+          <a href="/treino/" data-en="← back to the problem list">← voltar à lista de problemas</a> ·
+          <a href="/docs/MANUAL-TREINO.html" target="_blank" data-en="Open-training manual">Manual do treino livre</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="/shared/site-header.js"></script>
+  <script type="module">
+    import { renderAuthArea } from '/shared/ui.js';
+    renderAuthArea(document.getElementById('authArea'), 'treino', () => location.reload());
+    const pre = document.getElementById('dl-cmd');
+    if (pre) pre.textContent = pre.textContent.replaceAll('https://moj.naquadah.com.br', location.origin);
+  </script>
+</body>
+</html>
