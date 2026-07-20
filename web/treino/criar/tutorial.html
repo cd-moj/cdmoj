@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="Running contests on MOJ — organizer's guide">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Criando e gerenciando contests no MOJ — guia do organizador</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .tlayout{display:grid;grid-template-columns:15rem 1fr;gap:2rem;align-items:start}
+    @media(max-width:900px){.tlayout{grid-template-columns:1fr}.ttoc{position:static}}
+    .ttoc{position:sticky;top:1rem;font-size:.88rem;border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.8rem 1rem}
+    .ttoc a{display:block;padding:.15rem 0;text-decoration:none;color:inherit;opacity:.85}
+    .ttoc a:hover{color:var(--accent,#5b8cff);opacity:1}
+    .tmain{max-width:50rem;min-width:0}
+    .tmain h2{margin:2rem 0 .6rem;padding-top:.5rem;border-top:1px solid var(--border,#2a2a2a)}
+    .tmain h2:first-child{border-top:none;margin-top:.4rem}
+    .tmain h3{margin:1.3rem 0 .4rem}
+    .tmain p, .tmain li{line-height:1.55}
+    .tmain pre{background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.6rem .9rem;overflow-x:auto;font-size:.85rem;line-height:1.55}
+    .tip{border-left:3px solid var(--accent,#5b8cff);background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border-radius:0 .5rem .5rem 0;padding:.5rem .8rem;margin:.6rem 0;font-size:.92rem}
+    .tip::before{content:"💡 ";font-weight:700}
+    .warn{border-left:3px solid #d99a2b;background:color-mix(in srgb, #d99a2b 8%, transparent);border-radius:0 .5rem .5rem 0;padding:.5rem .8rem;margin:.6rem 0;font-size:.92rem}
+    .warn::before{content:"⚠ ";font-weight:700}
+    .cycle{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;font-weight:600;margin:.6rem 0}
+    .cycle span{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.3rem .7rem}
+    .cycle b{color:var(--accent,#5b8cff)}
+    table.cheat{border-collapse:collapse;width:100%;font-size:.88rem;margin:.5rem 0}
+    .cheat th,.cheat td{border:1px solid var(--border,#2a2a2a);padding:.3rem .55rem;text-align:left;vertical-align:top}
+    .cheat td:first-child{white-space:nowrap;font-family:ui-monospace,monospace;font-size:.84rem}
+    .cheat th{background:color-mix(in srgb, var(--accent,#5b8cff) 8%, transparent)}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/treino/criar/" data-en="Create contest">Criar contest</a>
+        <a href="/problemas/" data-en="Problem management">Gestão de Problemas</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="Creating and running contests on MOJ — the organizer's guide">Criando e gerenciando contests no MOJ — o guia do organizador</h1>
+      <p class="small muted" data-en="A contest is a room of its own: its problems, its accounts, its scoreboard, its clock. Everything here exists in the web wizard AND in the CLI (moj contest …) — same API, same server-side gates. This is the professor-to-professor script, from creation to the final report.">Um contest é uma sala própria: seus problemas, suas contas, seu placar, seu relógio. Tudo aqui existe no wizard web E na CLI (<code>moj contest …</code>) — mesma API, mesmos cortes no servidor. Este é o roteiro de professor para professor, da criação ao relatório final.</p>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc" id="toc">
+        <b data-en="Contents">Conteúdo</b>
+        <a href="#ciclo" data-en="1. The life cycle">1. O ciclo de vida</a>
+        <a href="#cli" data-en="2. The CLI in 60 seconds">2. A CLI em 60 segundos</a>
+        <a href="#criar" data-en="3. Creating">3. Criar o contest</a>
+        <a href="#problemas" data-en="4. Problems (and the draw)">4. Problemas (e o sorteio)</a>
+        <a href="#usuarios" data-en="5. Accounts">5. As contas dos alunos</a>
+        <a href="#placar" data-en="6. Scoreboard modes">6. Placar: icpc × obi</a>
+        <a href="#durante" data-en="7. During the contest">7. Durante a prova</a>
+        <a href="#depois" data-en="8. Afterwards">8. Depois da prova</a>
+        <a href="#comandos" data-en="9. Quick commands">9. Comandos rápidos</a>
+        <a href="#dicas" data-en="10. Tips &amp; pitfalls">10. Dicas &amp; armadilhas</a>
+        <a href="#refs" data-en="11. References">11. Referências</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="ciclo" data-en="1. The life cycle of a contest">1. O ciclo de vida de um contest</h2>
+        <div class="cycle"><span><b data-en="create">criar</b></span> → <span data-en="problems">problemas</span> → <span data-en="accounts">contas</span> → <span><b data-en="live">no ar</b></span> → <span data-en="run it">conduzir</span> → <span><b data-en="report">relatório</b></span></div>
+        <ul>
+          <li data-en="The contest goes LIVE the moment you create it — what controls what students see is the START/END window (countdown before, problems during, closed after). You can prepare everything calmly with the room already up."><b>O contest entra no ar na hora da criação</b> — quem controla o que o aluno vê é a janela de INÍCIO/FIM (contagem regressiva antes, problemas durante, encerrado depois). Dá p/ preparar tudo com calma com a sala já de pé.</li>
+          <li data-en="Problems can be PRIVATE (exam mode): a contest uses any problem you have access to — owner, collaborator or org member. Nothing leaks before the start.">Os problemas podem ser <b>privados</b> (modo prova): o contest usa qualquer problema a que você tem acesso — dono, colaborador ou membro da org. Nada vaza antes da largada.</li>
+          <li data-en="Accounts belong to the CONTEST (separate from open training): each student gets a login/password of that room only.">As contas são <b>do contest</b> (separadas do treino livre): cada aluno ganha login/senha daquela sala, e só dela.</li>
+          <li data-en="Who can create: any account with the “can create” permission — the same one that allows creating problems (ask an admin if you don't have it yet).">Quem pode criar: conta com a permissão <b>“pode criar”</b> — a mesma da criação de problemas (peça a um admin se ainda não tem; confira com <code>moj whoami</code>).</li>
+        </ul>
+
+        <h2 id="cli" data-en="2. The CLI in 60 seconds">2. A CLI em 60 segundos</h2>
+        <pre id="dl-cmd">curl -fsSL https://moj.naquadah.com.br/moj -o ~/.local/bin/moj &amp;&amp; chmod +x ~/.local/bin/moj
+curl -fsSL https://moj.naquadah.com.br/moj-contest -o ~/.local/bin/moj-contest &amp;&amp; chmod +x ~/.local/bin/moj-contest
+moj login                       # sessão do TREINO — cria contests, templates, export
+moj contest create --name "Prova 1 APC" --start "$(date -d 'tomorrow 10:00' +%s)" --end "$(date -d 'tomorrow 12:00' +%s)"</pre>
+        <p data-en="Requirements: bash, curl, jq — nothing else (no mojtools, no bubblewrap: contest management is pure API). moj contest … delegates to moj-contest; use whichever spelling you prefer.">Requisitos: <code>bash</code>, <code>curl</code>, <code>jq</code> — e mais nada (sem mojtools, sem bubblewrap: gestão de contest é API pura). <code>moj contest …</code> delega ao <code>moj-contest</code>; use a grafia que preferir.</p>
+        <div class="warn"><span data-en="TWO sessions, and this is the classic stumble: CREATING/templates/export/duplicate/list/remove use your TRAINING session (moj login). ADMINISTERING a contest (settings, problems, users, news, extend…) requires a session IN that contest:">DUAS sessões, e este é o tropeço clássico: <b>criar</b>/templates/export/duplicate/list/remove usam a sua sessão do <b>treino</b> (<code>moj login</code>). <b>Administrar</b> um contest (settings, problems, users, news, extend…) exige sessão <b>naquele contest</b>:</span>
+        <pre>moj contest login prova1apc -u ribas.admin   # conta *.admin DO contest
+moj contest -c prova1apc settings get        # agora os comandos de admin funcionam</pre>
+        <span data-en="The token is stored per contest (~/.config/moj/token-&lt;cid&gt;) — it does not clobber your training session. moj update / moj doctor keep the CLI healthy.">O token fica por contest (<code>~/.config/moj/token-&lt;cid&gt;</code>) — não atropela a sessão do treino. <code>moj update</code> / <code>moj doctor</code> mantêm a CLI em dia.</span></div>
+
+        <h2 id="criar" data-en="3. Creating the contest">3. Criar o contest</h2>
+        <p data-en="Web: the wizard at /treino/criar/ walks through data, problems, accounts, options, look-and-feel and review. CLI: one command, three ways to feed it:">Web: o wizard em <a href="/treino/criar/">/treino/criar/</a> percorre dados, problemas, contas, opções, visual e revisão. CLI: um comando, três jeitos de alimentá-lo:</p>
+        <pre>moj contest create --id prova1apc --name "Prova 1 — APC" --start &lt;epoch&gt; --end &lt;epoch&gt;
+moj contest create spec.json                 # spec completa em JSON (veja: moj contest export)
+moj contest create --template prova-apc --id prova2apc --start … --end …</pre>
+        <ul>
+          <li data-en="The id becomes the students' address: /contest/?c=prova1apc AND https://prova1apc.moj.naquadah.com.br. It MUST be lowercase (the subdomain lowercases whatever you type — an uppercase id would never match)."><span>O <b>id</b> vira o endereço dos alunos: <code>/contest/?c=prova1apc</code> E <code>https://prova1apc.moj.naquadah.com.br</code>. Tem de ser <b>minúsculo</b> (o subdomínio minúscula tudo — id com maiúscula nunca casaria).</span></li>
+          <li data-en="Reuse beats retyping: duplicate copies a whole contest (problems, options — accounts NOT included) and template save --from-contest turns one into a named recipe for next semester."><span>Reaproveitar vence redigitar: <code>duplicate</code> copia um contest inteiro (problemas, opções — contas NÃO vão junto) e <code>template save --from-contest</code> transforma um contest numa receita nomeada p/ o próximo semestre.</span></li>
+        </ul>
+        <pre>moj contest duplicate prova1apc --id prova2apc --name "Prova 2" --start … --end …
+moj contest template save prova-apc --from-contest prova1apc --with-problems
+moj contest template list</pre>
+
+        <h2 id="problemas" data-en="4. Problems (and the draw)">4. Problemas (e o sorteio)</h2>
+        <pre>moj contest -c prova1apc problems add apc#fibonacci           # vira a próxima letra (A, B, …)
+moj contest -c prova1apc problems add apc#vetor1 --letter C --name "Vetores I"
+moj contest -c prova1apc problems ls
+moj contest -c prova1apc problems reorder C A B               # nova ordem das letras
+moj contest -c prova1apc problems rm B</pre>
+        <p data-en="Searching and DRAWING from the public bank — the draw filters by collection, tag and difficulty; --seed makes it reproducible (auditability: same seed, same draw); --add already puts the result in the contest:">Buscar e <b>sortear</b> do banco público — o sorteio filtra por coleção, tag e dificuldade; <code>--seed</code> o torna reprodutível (auditável: mesma seed, mesmo sorteio); <code>--add</code> já coloca o resultado no contest:</p>
+        <pre>moj contest -c prova1apc problems search fibonacci --collection "Olimpíada Brasileira de Informática"
+moj contest -c prova1apc problems draw --collections "problemas-apc" --tags vetores,strings \
+    --count 5 --difficulty facil --seed 42 --add</pre>
+        <ul>
+          <li data-en="Per-problem language restriction: problems langs C c,cpp (only C/C++ on problem C); “-” goes back to inheriting the contest's list.">Restrição de linguagem por problema: <code>problems langs C c,cpp</code> (só C/C++ no problema C); <code>-</code> volta a herdar a lista do contest.</li>
+          <li data-en="Private problems enter normally IF you have access (owner/collaborator/org member) — that's the exam flow: the problem never becomes public.">Problema privado entra normalmente SE você tem acesso (dono/colaborador/membro da org) — é o fluxo de prova: o problema nunca vira público.</li>
+        </ul>
+        <div class="tip" data-en="Statements, tests and time limits come from the problem PACKAGE — a contest only references problems. Authoring is the other guide: “Creating problems on MOJ” (button on the management page).">Enunciado, testes e time-limits vêm do PACOTE do problema — o contest só referencia problemas. A autoria é o outro guia: <a href="/problemas/tutorial.html">Criando problemas no MOJ</a> (botão na Gestão de Problemas).</div>
+
+        <h2 id="usuarios" data-en="5. The students' accounts">5. As contas dos alunos</h2>
+        <p data-en="In the wizard: paste your class list (one student per line), click “process”, generate the missing passwords and DOWNLOAD THE CSV — that file is what you hand out (login, password, name). In the CLI:">No wizard: cole a lista da turma (um aluno por linha), clique “processar”, gere as senhas faltantes e <b>baixe o CSV</b> — esse arquivo é o que você distribui (login, senha, nome). Na CLI:</p>
+        <pre>moj contest -c prova1apc users add 231026714 --name "Ada Lovelace" --email ada@aluno.unb.br
+moj contest -c prova1apc users ls
+moj contest -c prova1apc users reset 231026714        # nova senha p/ um aluno
+moj contest -c prova1apc users set-password-all "senha-da-sala"   # lab presencial: uma senha só
+moj contest -c prova1apc users disable 231026714      # bloqueia (suspeita de fraude etc.)
+moj contest -c prova1apc users logout 231026714       # derruba a sessão ativa</pre>
+        <div class="warn" data-en="Contest accounts are NOT training-site accounts: they live inside the contest, with their own passwords. A student logged into open training still needs the contest's login/password you handed out.">Conta de contest NÃO é a conta do treino livre: ela vive dentro do contest, com senha própria. O aluno logado no treino ainda precisa do login/senha do contest que você distribuiu.</div>
+
+        <h2 id="placar" data-en="6. Scoreboard: icpc × obi">6. Placar: icpc × obi</h2>
+        <ul>
+          <li><b>icpc</b> — <span data-en="ranking by problems solved; tie-breaks: penalty, then last AC. Penalty is configurable:">ranking por problemas resolvidos; desempates: penalidade, depois último AC. A penalidade é configurável:</span>
+            <pre>moj contest -c prova1apc settings set penalty_minutes=20 penalty_verdicts=wa,tle,mle,rte,ce
+moj contest -c prova1apc settings set penalty_verdicts=      # vazio = NENHUM veredicto penaliza</pre></li>
+          <li><b>obi</b> — <span data-en="score by POINTS per group (subtasks): the problem's tests/score defines the groups and the scoreboard adds points instead of solved-count. How to make a problem with groups: the problems guide, “tests/score step by step”.">placar por <b>pontos</b> por grupo (subtarefas): o <code>tests/score</code> do problema define os grupos e o placar soma pontos em vez de contar resolvidos. Como fazer problema com grupos: o <a href="/problemas/tutorial.html">guia de problemas</a>, seção “tests/score passo a passo”.</span></li>
+        </ul>
+        <p data-en="The mode is chosen at creation (wizard: “Modo / placar”; CLI: in the spec/template). Balloon colors and scoreboard region filters live in the wizard's “Visual” step.">O modo se escolhe na criação (wizard: “Modo / placar”; CLI: na spec/template). Cores de balão e filtros de região do placar ficam no passo “Visual” do wizard.</p>
+
+        <h2 id="durante" data-en="7. During the contest">7. Durante a prova</h2>
+        <pre>moj contest -c prova1apc dashboard      # visão geral ao vivo (pendências, juízes, alertas)
+moj contest -c prova1apc sessions       # quem está logado (IP, navegador)
+moj contest -c prova1apc score          # o placar, no terminal
+moj contest -c prova1apc news add "Atenção" "O problema C teve o enunciado corrigido."
+moj contest -c prova1apc extend +15                       # prorroga p/ TODOS
+moj contest -c prova1apc extend +15 --group '^lab2-' --reason "queda de luz na sala 2"
+moj contest -c prova1apc audit 50       # trilha de auditoria (quem fez o quê)
+moj contest -c prova1apc access         # log de acessos do dia</pre>
+        <ul>
+          <li data-en="Clarifications (student questions) are answered in the contest's web admin — the same place staff handles printing and balloons (see the STAFF manual in the docs).">As <b>clarifications</b> (dúvidas dos alunos) são respondidas no admin web do contest — o mesmo lugar onde o staff cuida de impressão e balões (ver o <a href="/docs/MANUAL-STAFF.html" target="_blank">manual do staff</a>).</li>
+          <li data-en="extend --group extends only logins matching the regex — per-room/per-site extension without touching the rest.">O <code>extend --group</code> prorroga só os logins que casam a regex — prorrogação por sala/sede sem mexer no resto.</li>
+          <li data-en="Judge pool: settings set judges=cpu1,cpu2 pins which judges serve this contest (empty = any online judge); problems judges D host1 pins per problem.">Pool de juízes: <code>settings set judges=cpu1,cpu2</code> prende quais juízes atendem o contest (vazio = qualquer juiz online); <code>problems judges D host1</code> prende por problema.</li>
+        </ul>
+
+        <h2 id="depois" data-en="8. Afterwards">8. Depois da prova</h2>
+        <pre>moj contest -c prova1apc report prova1.html    # relatório completo (submissões, placar, estatística)
+moj contest export prova1apc spec.json --full  # a spec (sem credenciais) p/ versionar/reusar
+moj contest template save prova-apc --from-contest prova1apc --with-problems
+moj contest remove prova1apc                   # tira do ar (sessão .admin do TREINO; história preservada)</pre>
+        <p data-en="After the end the room stays visible (closed) in the /contests/ archive; students can review their submissions. remove takes it off the air when that's what you want.">Depois do fim a sala continua visível (encerrada) no arquivo <a href="/contests/">/contests/</a>; os alunos podem rever as próprias submissões. O <code>remove</code> tira do ar quando é isso que você quer.</p>
+
+        <h2 id="comandos" data-en="9. Quick commands">9. ⚡ Comandos rápidos</h2>
+        <table class="cheat">
+          <tr><th data-en="Command">Comando</th><th data-en="What it does">O que faz</th></tr>
+          <tr><td>moj contest create [spec|--template N] [--id --name --start --end]</td><td data-en="create (live immediately; START/END control visibility)">cria (no ar na hora; INÍCIO/FIM controlam a visibilidade)</td></tr>
+          <tr><td>moj contest list · show &lt;cid&gt;</td><td data-en="your contests · one contest's summary">seus contests · resumo de um</td></tr>
+          <tr><td>moj contest login &lt;cid&gt; [-u login]</td><td data-en="ADMIN session inside that contest (required for everything below)">sessão de ADMIN naquele contest (necessária p/ tudo abaixo)</td></tr>
+          <tr><td>… -c &lt;cid&gt; problems add|rm|ls|reorder|langs|judges</td><td data-en="the problem set (letters, order, per-problem languages/judges)">os problemas (letras, ordem, linguagens/juízes por problema)</td></tr>
+          <tr><td>… -c &lt;cid&gt; problems draw --collections … --seed N --add</td><td data-en="reproducible draw from the public bank">sorteio reprodutível do banco público</td></tr>
+          <tr><td>… -c &lt;cid&gt; users add|ls|reset|rm|disable|logout|set-password-all</td><td data-en="the accounts (contest-local)">as contas (locais do contest)</td></tr>
+          <tr><td>… -c &lt;cid&gt; settings get|set k=v</td><td data-en="options: penalty_minutes, penalty_verdicts, judges…">opções: penalty_minutes, penalty_verdicts, judges…</td></tr>
+          <tr><td>… -c &lt;cid&gt; extend +min [--group re]</td><td data-en="extend (everyone or one room/site)">prorroga (todos ou uma sala/sede)</td></tr>
+          <tr><td>… -c &lt;cid&gt; dashboard · sessions · score · audit · access</td><td data-en="live operation">operação ao vivo</td></tr>
+          <tr><td>… -c &lt;cid&gt; news add|ls|rm</td><td data-en="announcements to the room">avisos p/ a sala</td></tr>
+          <tr><td>… -c &lt;cid&gt; report [arq]</td><td data-en="final report">relatório final</td></tr>
+          <tr><td>moj contest export|duplicate|template …</td><td data-en="reuse: spec, copy, named recipes">reúso: spec, cópia, receitas nomeadas</td></tr>
+          <tr><td>moj contest remove &lt;cid&gt;</td><td data-en="take off the air (training .admin session)">tira do ar (sessão .admin do treino)</td></tr>
+        </table>
+
+        <h2 id="dicas" data-en="10. Tips &amp; pitfalls (learned the hard way)">10. 💡 Dicas &amp; armadilhas (aprendidas na prática)</h2>
+        <ul>
+          <li data-en="Contest id LOWERCASE, always — it doubles as the subdomain, and subdomains have no uppercase.">Id de contest <b>minúsculo</b>, sempre — ele dobra como subdomínio, e subdomínio não tem maiúscula.</li>
+          <li data-en="“admin_required” on an admin command? You're using the training session. Run moj contest login <cid> first — the two sessions coexist.">“admin_required” num comando de admin? Você está na sessão do treino. Rode <code>moj contest login &lt;cid&gt;</code> antes — as duas sessões coexistem.</li>
+          <li data-en="Test a STUDENT login before the exam: open the contest URL in a private window with one line of the CSV. Five minutes that save the first half hour of the exam.">Teste um login de ALUNO antes da prova: abra a URL do contest numa janela anônima com uma linha do CSV. Cinco minutos que salvam a primeira meia hora da prova.</li>
+          <li data-en="Exam problems: keep them PRIVATE in an org of yours; the contest can use them without ever publishing. Publishing to open training is a decision for AFTER the exam.">Problema de prova: mantenha <b>privado</b> numa org sua; o contest o usa sem nunca publicar. Publicar no treino livre é decisão de DEPOIS da prova.</li>
+          <li data-en="The draw with --seed is your audit trail: record the seed and anyone can re-run the same draw.">O sorteio com <code>--seed</code> é a sua trilha de auditoria: registre a seed e qualquer um re-executa o mesmo sorteio.</li>
+          <li data-en="penalty_verdicts= (empty) means “nothing penalizes” — handy for practice sessions; the migrated legacy contests use wa,tle,mle,rte,ce.">`penalty_verdicts=` vazio significa “nada penaliza” — útil em treinos; os contests legados migrados usam <code>wa,tle,mle,rte,ce</code>.</li>
+          <li data-en="langs -/judges - (a dash) puts a problem back to inheriting the contest's languages/judge pool."><code>langs -</code>/<code>judges -</code> (um traço) devolve o problema à herança das linguagens/pool de juízes do contest.</li>
+          <li data-en="Hand students the COMPETITOR manual (/docs/MANUAL-CONTEST.html): how to enter, submit, read the scoreboard, ask clarifications.">Distribua aos alunos o <a href="/docs/MANUAL-CONTEST.html" target="_blank">manual do competidor</a>: como entrar, enviar, ler o placar, perguntar.</li>
+        </ul>
+
+        <h2 id="refs" data-en="11. References">11. Referências</h2>
+        <p>
+          <a href="/treino/criar/" data-en="← the creation wizard">← o wizard de criação</a> ·
+          <a href="/problemas/tutorial.html" data-en="Creating problems (the other guide)">Criando problemas (o outro guia)</a> ·
+          <a href="/docs/MANUAL-CONTEST.html" target="_blank" data-en="Competitor manual (hand out to students)">Manual do competidor (distribua aos alunos)</a> ·
+          <a href="/docs/MANUAL-STAFF.html" target="_blank" data-en="Staff manual">Manual do staff</a> ·
+          <a href="/docs/" target="_blank" data-en="Full documentation">Documentação completa</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="/shared/site-header.js"></script>
+  <script type="module">
+    // comandos de download com o ORIGIN real deste deploy (funciona em espelhos/teste)
+    import { renderAuthArea } from '/shared/ui.js';
+    renderAuthArea(document.getElementById('authArea'), 'treino', () => location.reload());
+    const pre = document.getElementById('dl-cmd');
+    if (pre) pre.textContent = pre.textContent.replaceAll('https://moj.naquadah.com.br', location.origin);
+  </script>
+</body>
+</html>
