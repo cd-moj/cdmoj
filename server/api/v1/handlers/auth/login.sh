@@ -32,5 +32,22 @@ tok="$(create_session "$contest" "$u" "$name")"
 mkdir -p "$CONTESTSDIR/$contest/var"
 printf '%s\t%s\t%s\t%s\n' "$EPOCHSECONDS" "$u" "$(client_ip)" "$(printf '%s' "${HTTP_USER_AGENT:-}" | base64 -w0)" \
   >> "$CONTESTSDIR/$contest/var/access.log" 2>/dev/null || true
-ok_json '{token:$t, logged_in:true, username:$u, name:$n, contest:$c}' \
-  --arg t "$tok" --arg u "$u" --arg n "$name" --arg c "$contest"
+# Contest (≠ treino): a resposta leva o kit da submissão OFFLINE do moj-comp — hora do
+# servidor (a CLI mede o desvio do relógio local), a chave PÚBLICA do contest e um beacon
+# de tempo assinado (piso do carimbo offline). Ver lib/contest-offline.sh e docs/API.md.
+# Falha de openssl degrada p/ a resposta clássica (offline indisponível, login normal).
+if [[ "$contest" != treino ]]; then
+  source "$_LIBDIR/contest-offline.sh"
+  _opub=""; _obeacon=""
+  _opubf="$(offline_ensure_keys "$contest" 2>/dev/null)" && _opub="$(cat "$_opubf" 2>/dev/null)"
+  [[ -n "$_opub" ]] && _obeacon="$(SESSION_LOGIN="$u" offline_beacon "$contest" "$u" 2>/dev/null)"
+  if [[ -n "$_opub" && -n "$_obeacon" ]]; then
+    ok_json '{token:$t, logged_in:true, username:$u, name:$n, contest:$c,
+              server_utc:$st, offline_pubkey_pem:$pk, beacon:$b}' \
+      --arg t "$tok" --arg u "$u" --arg n "$name" --arg c "$contest" \
+      --argjson st "$EPOCHSECONDS" --arg pk "$_opub" --arg b "$_obeacon"
+    exit 0
+  fi
+fi
+ok_json '{token:$t, logged_in:true, username:$u, name:$n, contest:$c, server_utc:$st}' \
+  --arg t "$tok" --arg u "$u" --arg n "$name" --arg c "$contest" --argjson st "$EPOCHSECONDS"

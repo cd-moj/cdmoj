@@ -158,6 +158,25 @@ gera o placar a partir de `users/*/metrics.json` (uma passada; ver `SCOREBOARD.m
 O front (`web/contest/score/`) busca `GET /contest/score`, despacha pelo modo e renderiza
 (com bandeiras locais de `/shared/flags/`, regras `teams-meta`, modo anônimo, etc.).
 
+## 7½. Submissão OFFLINE de contest (moj-comp, rota emergencial)
+
+Caiu a Internet na sala? A CLI do competidor (`moj-comp`) empacota a submissão **cifrada com a
+hora UTC corrente** e reenvia quando a rede volta — e ela **conta no horário do carimbo**
+(penalidade justa). O tempo é cercado por dois lados:
+
+- **Piso**: o pacote embute o último **beacon** (carimbo `{c,l,t,n}` assinado RSA-PSS com a
+  chave do contest, renovado a cada comando com rede — `GET /contest/beacon`). O pacote
+  provadamente nasceu **depois** de `beacon.t`.
+- **Teto**: a chegada. O servidor exige `beacon.t ≤ claimed ≤ now+30s`, claimed dentro da
+  janela DO aluno (extend por sede conta) e monotonicidade entre pacotes aceitos.
+
+O pacote é híbrido RSA-OAEP(+sha do conteúdo no envelope — integridade)/AES-256-CBC; a
+privada vive em `contests/<c>/secrets/` e nunca sai. A CLI mede o desvio do relógio local
+contra `server_utc` a cada contato (funciona sem root) e carimba com a hora corrigida.
+Pacote aceito entra no MESMO spool da seção 1 com `time=claimed` + `offline:true`; o
+organizador enxerga tudo em `var/offline-log` e no audit (`offline-submit`, com os gaps
+beacon→claimed→chegada). Lib: `server/api/v1/lib/contest-offline.sh`; rotas em API.md.
+
 ## 8. Outros caminhos pelo mesmo spool
 
 O mesmo mecanismo (API → spool → daemon) serve comandos administrativos vindos da web

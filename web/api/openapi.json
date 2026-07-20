@@ -296,7 +296,8 @@
           "401": {
             "description": "credenciais inválidas"
           }
-        }
+        },
+        "description": "Em contest (≠ treino), a resposta inclui server_utc, offline_pubkey_pem e beacon (kit da submissão offline do moj-comp)."
       }
     },
     "/auth/status": {
@@ -6351,6 +6352,81 @@
         "responses": {
           "200": {
             "description": "{success, results:[{id,host,verdict,login,problem_id,lang,duration_s,finalized_at,contest,score}], by_host:{<h>:{total,accepted,judge_errors,avg_duration,last_at}}}"
+          }
+        }
+      }
+    },
+    "/contest/beacon": {
+      "get": {
+        "summary": "Beacon de tempo assinado p/ a submissão offline (moj-comp): payload_b64.sig_b64; a CLI re-ancora a cada comando. Piso do carimbo do pacote offline.",
+        "tags": [
+          "contest"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/contest/offline-submit": {
+      "post": {
+        "summary": "Rota emergencial do moj-comp: pacotes cifrados criados sem rede; cada um é validado (beacon assinado, janela beacon.t≤claimed≤now, janela da prova do aluno, monotonicidade, dedup) e contabilizado NO horário reivindicado, com flag p/ o organizador (var/offline-log + audit).",
+        "tags": [
+          "contest"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "packets": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "pacotes cifrados (JSON {v,wk,ct} como string), máx 50"
+                  }
+                }
+              }
+            }
           }
         }
       }

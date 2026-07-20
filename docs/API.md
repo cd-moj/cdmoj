@@ -8,7 +8,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 ## Auth
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
-| `/auth/login?contest=<c>` | POST | — | body `{username,password}` → `{token,logged_in,username,name,contest}` |
+| `/auth/login?contest=<c>` | POST | — | body `{username,password}` → `{token,logged_in,username,name,contest,server_utc}`. **Contest (≠ treino)** inclui o kit da **submissão OFFLINE** do `moj-comp`: `offline_pubkey_pem` (pública RSA-4096 do contest, gerada lazy em `contests/<c>/secrets/`) e `beacon` (carimbo de tempo assinado — ver `/contest/beacon`). `server_utc` permite à CLI medir o desvio do relógio local. |
 | `/auth/status?contest=<c>` | GET | Bearer | `{logged_in,login,name,contest,is_admin,is_judge,is_staff,is_cstaff,is_chief}` (`.cjudge` = juiz-chefe → `is_judge:true,is_chief:true`; `.cstaff` = chefe de sede → `is_cstaff:true`, **sem** herdar `is_staff`) |
 | `/auth/logout` | POST | Bearer | `{logged_out:true}` |
 
@@ -184,6 +184,8 @@ servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<pr
 ## Submissão (assíncrona)
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
+| `/contest/beacon?contest=<c>` | GET | Bearer | → `{beacon,server_utc}`. **Beacon de tempo** p/ a submissão offline (`moj-comp`): `payload_b64.sig_b64`, payload `{v,c,l,t,n}` assinado RSA-PSS com a chave do contest. A CLI re-ancora a cada comando com rede; o beacon embutido no pacote offline prova que ele nasceu **depois** de `.t` (piso do carimbo). Ver `lib/contest-offline.sh` e FLOW.md §offline. |
+| `/contest/offline-submit?contest=<c>` | POST | Bearer | body `{packets:["<pkt-json>",…]}` (máx 50). **Rota emergencial** do `moj-comp`: pacotes cifrados (RSA-OAEP+AES-256-CBC com sha do conteúdo no envelope) criados SEM rede. Valida por pacote: decripta; `v`/login/contest conferem; beacon assinado do mesmo login/contest; `beacon.t ≤ claimed_utc ≤ now+30s`; claimed na janela DO aluno (start…fim efetivo, extend conta); claimed monotônico vs último aceito; dedup por sha256. Aceito ⇒ spool com `time=claimed` (**contabiliza no horário reivindicado** — placar/penalidade usam sub_epoch) + `var/offline-log` + audit (`offline-submit`, com gaps beacon→claimed→chegada p/ o organizador adjudicar). → `{results:[{sha,status:accepted\|rejected\|duplicate,…}],accepted,rejected}` |
 | `/submit?contest=<c>` | POST | Bearer | body `{problem_id,filename,code_b64,source?}` (`source`=`web`\|`file`) → `{submission_id,status:"queued"}` (não bloqueia). Registra o editor em `var/editor-log` p/ o card "editor da semana". **Gate por fase+papel (forçado pela API)**: `.admin`/`.judge` submetem sempre; `.staff` **nunca** (`403 submit_forbidden`); usuário normal **e `.mon`** só **durante** a janela (`403 contest_not_started` antes do início, `403 contest_ended` após o fim) — o `.mon` submete mas fica **fora do placar**. |
 | `/submission/source?contest=<c>&id=<subid>` | GET | Bearer | código-fonte (texto) |
 | `/submission/log?contest=<c>&id=<subid>` | GET | Bearer | log do julgamento (`report.html`; **expõe input+diff de TODOS os testes**). Juiz/admin sempre; dono conforme o **SHOWLOG efetivo** (`showlog_effective` em `lib/verdict.sh`): `SHOWLOG` explícito no conf manda; **ausente = OCULTO em modo `icpc`** (anti-vazamento de prova) e visível nos demais modos |

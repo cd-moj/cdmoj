@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="moj-comp — the competitor's CLI (with offline mode)">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>moj-comp — a CLI do competidor (com modo sem-Internet)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .tlayout{display:grid;grid-template-columns:15rem 1fr;gap:2rem;align-items:start}
+    @media(max-width:900px){.tlayout{grid-template-columns:1fr}.ttoc{position:static}}
+    .ttoc{position:sticky;top:1rem;font-size:.88rem;border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.8rem 1rem}
+    .ttoc a{display:block;padding:.15rem 0;text-decoration:none;color:inherit;opacity:.85}
+    .ttoc a:hover{color:var(--accent,#5b8cff);opacity:1}
+    .tmain{max-width:50rem;min-width:0}
+    .tmain h2{margin:2rem 0 .6rem;padding-top:.5rem;border-top:1px solid var(--border,#2a2a2a)}
+    .tmain h2:first-child{border-top:none;margin-top:.4rem}
+    .tmain p, .tmain li{line-height:1.55}
+    .tmain pre{background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.6rem .9rem;overflow-x:auto;font-size:.85rem;line-height:1.55}
+    .tip{border-left:3px solid var(--accent,#5b8cff);background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border-radius:0 .5rem .5rem 0;padding:.5rem .8rem;margin:.6rem 0;font-size:.92rem}
+    .tip::before{content:"💡 ";font-weight:700}
+    .warn{border-left:3px solid #d99a2b;background:color-mix(in srgb, #d99a2b 8%, transparent);border-radius:0 .5rem .5rem 0;padding:.5rem .8rem;margin:.6rem 0;font-size:.92rem}
+    .warn::before{content:"⚠ ";font-weight:700}
+    table.cheat{border-collapse:collapse;width:100%;font-size:.88rem;margin:.5rem 0}
+    .cheat th,.cheat td{border:1px solid var(--border,#2a2a2a);padding:.3rem .55rem;text-align:left;vertical-align:top}
+    .cheat td:first-child{white-space:nowrap;font-family:ui-monospace,monospace;font-size:.84rem}
+    .cheat th{background:color-mix(in srgb, var(--accent,#5b8cff) 8%, transparent)}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/docs/MANUAL-CONTEST.html" target="_blank" data-en="Competitor manual">Manual do competidor</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="moj-comp — the competitor's CLI (submit from the terminal, survive Internet outages)">moj-comp — a CLI do competidor (envie do terminal, sobreviva à queda de Internet)</h1>
+      <p class="small muted" data-en="Everything the contest web page does — submit, verdicts, scoreboard, clarifications — from your terminal. And one thing the browser can't do: if the Internet DROPS, your submission is safely packed with the correct time and counts at THAT time when the network returns.">Tudo que a página do contest faz — enviar, veredictos, placar, clarifications — no seu terminal. E uma coisa que o navegador não faz: se a Internet CAIR, sua submissão fica guardada com o horário correto e conta NAQUELE horário quando a rede voltar.</p>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc" id="toc">
+        <b data-en="Contents">Conteúdo</b>
+        <a href="#comecar" data-en="1. Getting ready">1. Preparar (antes da prova)</a>
+        <a href="#enviar" data-en="2. Submitting">2. Enviar e acompanhar</a>
+        <a href="#prova" data-en="3. During the contest">3. Placar, dúvidas, avisos</a>
+        <a href="#offline" data-en="4. Internet DOWN?">4. ☠ Caiu a Internet?</a>
+        <a href="#comandos" data-en="5. Quick commands">5. Comandos rápidos</a>
+        <a href="#dicas" data-en="6. Tips">6. Dicas</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="comecar" data-en="1. Getting ready (do this BEFORE the contest)">1. Preparar (faça ANTES da prova)</h2>
+        <pre id="dl-cmd">curl -fsSL https://moj.naquadah.com.br/moj-comp -o ~/.local/bin/moj-comp &amp;&amp; chmod +x ~/.local/bin/moj-comp
+moj-comp login prova1apc        # o login/senha que a organização te entregou
+moj-comp fetch                  # baixa TODOS os enunciados p/ ./prova1apc-prova/</pre>
+        <p data-en="Requirements: bash, curl, jq, openssl — present on any Linux/macOS lab machine; no root, no install, a single file. The login also accepts the contest URL (moj-comp login https://prova1apc.moj.naquadah.com.br).">Requisitos: <code>bash</code>, <code>curl</code>, <code>jq</code>, <code>openssl</code> — qualquer máquina de laboratório Linux/macOS tem; sem root, sem instalação, um arquivo só. O login também aceita a URL da prova (<code>moj-comp login https://prova1apc.moj.naquadah.com.br</code>).</p>
+        <div class="tip" data-en="fetch is your insurance: statements saved locally (HTML/PDF) mean you keep WORKING even with zero network. Run it right after login.">O <code>fetch</code> é o seu seguro: enunciados salvos localmente (HTML/PDF) significam que você continua TRABALHANDO mesmo com rede zero. Rode logo depois do login.</div>
+        <p data-en="At login the CLI also receives the contest's public key and measures your clock against the server's — that's what arms the offline mode (section 4). moj-comp doctor checks everything.">No login a CLI também recebe a chave pública do contest e mede o seu relógio contra o do servidor — é isso que arma o modo offline (seção 4). <code>moj-comp doctor</code> confere tudo.</p>
+
+        <h2 id="enviar" data-en="2. Submitting and following verdicts">2. Enviar e acompanhar</h2>
+        <pre>moj-comp problems               # letras, nomes e time-limits
+moj-comp submit A sol.c         # envia e ESPERA o veredicto ali mesmo
+moj-comp subs                   # todas as suas submissões e veredictos</pre>
+        <p data-en="The language comes from the file extension (sol.c, sol.cpp, sol.py, Main.java…). submit waits for the verdict (a few seconds) and prints it — no tab-switching, no refresh.">A linguagem vem da extensão do arquivo (<code>sol.c</code>, <code>sol.cpp</code>, <code>sol.py</code>, <code>Main.java</code>…). O <code>submit</code> espera o veredicto (poucos segundos) e imprime — sem trocar de aba, sem refresh.</p>
+
+        <h2 id="prova" data-en="3. Scoreboard, questions, announcements">3. Placar, dúvidas, avisos</h2>
+        <pre>moj-comp score                  # o placar, no terminal
+moj-comp clar ask B "A entrada termina com EOF ou com 0?"
+moj-comp clar ls                # suas perguntas e as respostas
+moj-comp news                   # avisos da organização</pre>
+
+        <h2 id="offline" data-en="4. ☠ Internet DOWN? Breathe. It still counts at the right time.">4. ☠ Caiu a Internet? Respira. Conta no horário certo.</h2>
+        <p data-en="In a contest the submission TIME defines the penalty — losing the network should not cost you minutes. When submit can't reach the server, the CLI switches to the emergency mode BY ITSELF:">Em prova, o HORÁRIO da submissão define a penalidade — perder a rede não pode te custar minutos. Quando o <code>submit</code> não alcança o servidor, a CLI entra no modo emergencial <b>sozinha</b>:</p>
+        <pre>$ moj-comp submit C sol.cpp
+⚠ SEM REDE — ativando o modo emergencial.
+submissão EMPACOTADA offline: C, sol.cpp, carimbo UTC 14:32:07.
+ela vale NO HORÁRIO DO CARIMBO quando a rede voltar. Deixe rodando: moj-comp monitor</pre>
+        <p data-en="Then leave THIS running in a terminal — it shows the queue, retries by itself every 15s, and follows the verdicts when the network returns:">Aí deixe ISTO rodando num terminal — mostra a fila, tenta reenviar sozinho a cada 15s e acompanha os veredictos quando a rede voltar:</p>
+        <pre>$ moj-comp monitor
+[14:33:02] rede: OFFLINE · fila: 1 pacote(s)
+  1784561527-000.pkt  carimbo 14:32:07 (há 1min)
+[14:41:17] rede: ONLINE · fila: 1 pacote(s)
+✓ 1784561527-000.pkt ACEITA — contabilizada às 14:32:07 UTC (id 3f9a…)
+veredicto: Accepted</pre>
+        <ul>
+          <li data-en="Why is the time trustworthy? The package is encrypted with the contest's key and carries a signed time anchor received from the server — the organization can verify your submission was created when it says. Your machine's clock may even be wrong: the CLI measures the offset against the server and stamps corrected UTC.">Por que o horário é confiável? O pacote é cifrado com a chave do contest e carrega uma âncora de tempo ASSINADA recebida do servidor — a organização consegue verificar que a submissão nasceu quando diz. Seu relógio pode até estar errado: a CLI mede o desvio contra o servidor e carimba o UTC corrigido.</li>
+          <li data-en="Your code is protected too: on a shared lab disk, the queued package is unreadable by others (only the server can open it).">Seu código também fica protegido: em disco de laboratório, o pacote na fila é ilegível p/ os outros (só o servidor abre).</li>
+          <li data-en="When it's accepted, it enters the scoreboard AT THE STAMPED TIME — penalty computed as if the network had never dropped.">Quando aceita, entra no placar NO HORÁRIO DO CARIMBO — penalidade calculada como se a rede nunca tivesse caído.</li>
+        </ul>
+        <div class="warn" data-en="The stamp must be within your contest window and after your last contact with the server — packages that fail validation are kept in rejeitados/ with the reason: show them to the organization.">O carimbo precisa estar dentro da sua janela de prova e depois do seu último contato com o servidor — pacote que falha na validação fica guardado em <code>rejeitados/</code> com o motivo: mostre à organização.</div>
+
+        <h2 id="comandos" data-en="5. Quick commands">5. ⚡ Comandos rápidos</h2>
+        <table class="cheat">
+          <tr><th data-en="Command">Comando</th><th data-en="What it does">O que faz</th></tr>
+          <tr><td>moj-comp login &lt;id|url&gt;</td><td data-en="log into the contest (credentials from the organization)">entra no contest (credenciais da organização)</td></tr>
+          <tr><td>moj-comp fetch</td><td data-en="download ALL statements locally (your outage insurance)">baixa TODOS os enunciados (seu seguro anti-queda)</td></tr>
+          <tr><td>moj-comp problems · score · news</td><td data-en="problems/TLs · scoreboard · announcements">problemas/TLs · placar · avisos</td></tr>
+          <tr><td>moj-comp submit &lt;letra&gt; &lt;arquivo&gt;</td><td data-en="submit + wait for the verdict (offline mode kicks in alone)">envia + espera o veredicto (modo offline entra sozinho)</td></tr>
+          <tr><td>moj-comp subs</td><td data-en="your submissions and verdicts">suas submissões e veredictos</td></tr>
+          <tr><td>moj-comp clar ls | ask &lt;letra|geral&gt; &lt;texto&gt;</td><td data-en="questions to the judges">dúvidas p/ a organização</td></tr>
+          <tr><td>moj-comp outbox · sync · monitor</td><td data-en="offline queue · resend now · WATCHDOG during the outage">fila offline · reenviar já · VIGIA durante a queda</td></tr>
+          <tr><td>moj-comp time · doctor · update</td><td data-en="clock check · environment check · self-update">relógio · diagnóstico · auto-atualização</td></tr>
+        </table>
+
+        <h2 id="dicas" data-en="6. Tips">6. 💡 Dicas</h2>
+        <ul>
+          <li data-en="Run fetch RIGHT AFTER login — statements on disk beat any outage.">Rode <code>fetch</code> LOGO após o login — enunciado em disco vence qualquer queda.</li>
+          <li data-en="During an outage, keep coding and submitting: each submit stacks a stamped package; monitor delivers them all in order when the network returns.">Durante a queda, continue codando e enviando: cada <code>submit</code> empilha um pacote carimbado; o <code>monitor</code> entrega tudo em ordem quando a rede volta.</li>
+          <li data-en="moj-comp time tells you if your clock is off (no root needed — the CLI corrects the stamps by itself).">O <code>moj-comp time</code> diz se seu relógio está torto (sem precisar de root — a CLI corrige os carimbos sozinha).</li>
+          <li data-en="The web page and the CLI are the same account: use both at once if you like (browser for reading, terminal for submitting).">A página web e a CLI são a mesma conta: use as duas ao mesmo tempo se quiser (navegador p/ ler, terminal p/ enviar).</li>
+        </ul>
+        <p>
+          <a href="/docs/MANUAL-CONTEST.html" target="_blank" data-en="Competitor manual (the web page side)">Manual do competidor (o lado da página web)</a> ·
+          <a href="/docs/" target="_blank" data-en="Full documentation">Documentação completa</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module">
+    const pre = document.getElementById('dl-cmd');
+    if (pre) pre.textContent = pre.textContent.replaceAll('https://moj.naquadah.com.br', location.origin);
+  </script>
+</body>
+</html>

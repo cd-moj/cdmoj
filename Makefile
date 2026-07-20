@@ -56,7 +56,7 @@ check-jq:
 cli-dist:
 	@if [ -d ../moj-cli ]; then \
 	  ( cd ../moj-cli && bash mkdist.sh >/dev/null ) || { echo "cli-dist: mkdist FALHOU" >&2; exit 1; }; \
-	  for f in moj moj-contest moj-judges moj.build; do \
+	  for f in moj moj-contest moj-judges moj-comp moj.build; do \
 	    if ! cmp -s ../moj-cli/dist/$$f web/$$f 2>/dev/null; then \
 	      cp ../moj-cli/dist/$$f web/$$f && echo "cli-dist: web/$$f ATUALIZADO"; \
 	    fi; \
