@@ -147,7 +147,7 @@ export async function renderAuthArea(mount, contest, onChange) {
 
     const wrap = el('span', { class: 'user-menu' });
     const trigger = el('button', { class: 'user-menu-btn', 'aria-haspopup': 'true', 'aria-expanded': 'false', title: st.login || '' },
-      avatarEl(st.login, st.name, 26), el('span', {}, st.name || st.login), el('span', { class: 'caret' }, '▾'));
+      avatarEl(st.login, st.name, 26), el('span', { class: 'un' }, st.name || st.login), el('span', { class: 'caret' }, '▾'));
     const panel = el('div', { class: 'menu-panel', role: 'menu' });
     wrap.append(trigger, panel);
     const dd = attachDropdown(trigger, panel, wrap);

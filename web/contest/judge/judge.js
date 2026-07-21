@@ -106,7 +106,7 @@ function renderReview() {
       el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink(s), srcLink(s))),
       el('td', {}, actionCell)));
   });
-  box.append(el('table', { class: 'moj' }, head, tb));
+  box.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb)));
   if (IS_CHIEF && (c.conflicts || 0) > 0) box.append(el('p', { class: 'small' },
     T('⚠ Há conflitos — resolva no ', '⚠ There are conflicts — resolve in the '), el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, T('painel do juiz-chefe', 'chief judge panel')), '.'));
 }
@@ -150,7 +150,7 @@ function renderLegacy() {
       el('td', {}, sel, ' ', btn, ' ', msg),
       el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink({ id: s.id, sub_epoch: s.epoch }), srcLink({ id: s.id, sub_epoch: s.epoch, lang: s.lang })))));
   });
-  box.append(el('table', { class: 'moj' }, head, tb));
+  box.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb)));
 }
 async function loadLegacy() {
   let txt; try { txt = await apiGetText('/contest/allsubmissions?contest=' + enc(CONTEST), G); }
