@@ -80,7 +80,8 @@ moj-problems/<org>/<prob>/
 ├── conf                      limites e ajustes de execução                  453
 ├── docs/
 │   ├── enunciado.md          o enunciado (também aceita .org e .tex)        453  (obrigatório)
-│   ├── sample-notes.json     explicação de cada exemplo                     opcional
+│   ├── notes/sample1.md      explicação de cada exemplo (markdown; 1/sample) opcional
+│   ├── <figura>.png          imagens do enunciado/notas (o render embute)   opcional
 │   └── solucao.md            editorial, só para o autor                     opcional
 ├── tests/
 │   ├── input/sample1         exemplo (aparece no enunciado)                 obrigatório, >= 1
@@ -124,8 +125,15 @@ Três regras que o portão de qualidade cobra:
    `tests/output/sample*` e injetados no fim do HTML. Se você escrever um exemplo à mão dentro do
    enunciado, ele vai aparecer duplicado. (A validação avisa, mas não bloqueia.)
 
-Imagens devem ser embutidas em base64. O renderizador roda com `--embed-resources`, então o HTML
-servido ao aluno é autocontido, sem depender de arquivo externo.
+**Imagens — dois jeitos, ambos viram HTML autocontido** (o renderizador roda com
+`--embed-resources` e embute tudo em base64):
+
+1. **Colar/arrastar no editor web**: a imagem vira `data:URI` DENTRO do texto do enunciado —
+   não existe arquivo separado, viaja com o markdown por qualquer via.
+2. **Arquivo em `docs/`** + `![](figura.png)` no texto: a figura fica editável como arquivo.
+   Viaja no `moj push`/`clone` (campo `docs_files`, o análogo do `scripts_files`; cap 2MB por
+   imagem), no `moj upload` (tar) e aparece no Pré-visualizar (o preview recebe as imagens do
+   pacote/locais). Nomes simples (`[A-Za-z0-9._-]`, extensão png/jpg/jpeg/gif/svg/webp).
 
 **Grafos**: um bloco de código com a classe `.graph` (fonte [graphviz DOT](https://graphviz.org/)) é
 renderizado como **SVG** — a fonte DOT fica editável no enunciado, não é uma imagem colada. Ex.:
@@ -136,16 +144,24 @@ Quem renderiza é **um script só**: `mojtools/render-statement.sh`. O botão "P
 editor, o HTML que o aluno lê e o HTML que a validação confere são exatamente o mesmo. Não existe
 segundo renderizador, e não se deve criar um.
 
-### `docs/sample-notes.json`
+### `docs/notes/<sample>.md` — a explicação de cada exemplo
 
-Opcional. Um array JSON de textos, um por exemplo, **na ordem dos exemplos**:
+Opcional. **Um arquivo Markdown por exemplo**, com o MESMO nome do teste de exemplo:
+`docs/notes/sample1.md` explica o `tests/input/sample1`, e assim por diante. É markdown normal —
+parágrafos, listas, `código`, e **imagens** (`![](figura.png)` com a figura em `docs/`, igual ao
+enunciado; o render embute em base64). A nota aparece logo abaixo do exemplo correspondente.
 
-```json
-["No primeiro exemplo, os dois times empatam, então a saída é 0.",
- "Aqui o segundo time vence por 3 pontos."]
+```
+docs/notes/sample1.md      # "Neste exemplo temos:\n\n- 4 grupos...\n\n![](mesas.png)"
+docs/notes/sample2.md
 ```
 
-Cada nota é renderizada em markdown e aparece logo abaixo do exemplo correspondente.
+Você **nunca edita JSON**: o editor web (campo "explicação" de cada exemplo), o `moj edit`
+(opção `[n]ota`) e o `moj push`/`clone` leem e gravam esses arquivos; a serialização é da
+plataforma. A validação avisa quando há nota sem exemplo correspondente.
+
+**Legado**: `docs/sample-notes.json` (array JSON de strings, por índice) ainda é LIDO em pacotes
+antigos, mas **nunca mais é escrito** — qualquer salvamento converte para `docs/notes/`.
 
 ### `docs/solucao.md`
 

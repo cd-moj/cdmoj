@@ -461,7 +461,7 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
   # ---------- 1 passada: TODAS as sondas + os escalares curtos (antes: ~36 re-parses) ----------
   local HAS_ENUN=0 HAS_AUTHOR=0 HAS_TAGS=0 HAS_CONF=0 HAS_EXAMPLES=0 HAS_NOTES=0 HAS_TESTS=0 \
         HAS_SCORE=0 SCORE_ENABLED=0 HAS_SOLS=0 HAS_GOODSOL=0 HAS_SCRIPTS=0 HAS_SCORETXT=0 \
-        HAS_EDITORIAL=0 EFMT='' GOODSOL_FN='' SOLS_CATS=''
+        HAS_EDITORIAL=0 HAS_DOCSFILES=0 EFMT='' GOODSOL_FN='' SOLS_CATS=''
   _man="$(jq -r '
       def b(x): (if x then "1" else "0" end);
       "HAS_ENUN=\(b(has("enunciado_md")))",
@@ -476,6 +476,7 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
       "HAS_SOLS=\(b(has("sols")))",
       "HAS_GOODSOL=\(b(has("good_sol")))",
       "HAS_SCRIPTS=\(b(has("scripts_files")))",
+      "HAS_DOCSFILES=\(b(has("docs_files")))",
       "HAS_SCORETXT=\(b(has("score_text")))",
       "HAS_EDITORIAL=\(b(has("editorial_md")))",
       "EFMT=\((.enunciado_format // "") | @sh)",
@@ -529,12 +530,24 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
       printf '%s' "$inp"  > "$pkg/tests/input/sample$i"
       printf '%s' "$outp" > "$pkg/tests/output/sample$i"
     done < "$_t/ex.nul"
-    # explicação por exemplo -> docs/sample-notes.json. Só mexe se o cliente for "ciente de
-    # explicação" (algum exemplo traz a chave); cliente antigo não apaga as notas de ninguém.
+    # explicação por exemplo -> docs/notes/sample<N>.md (1 arquivo MARKDOWN por exemplo —
+    # o formato de autoria; o autor nunca edita JSON). Escrever aqui REMOVE o legado
+    # sample-notes.json (fonte única). Só mexe se o cliente for "ciente de explicação"
+    # (algum exemplo traz a chave); cliente antigo não apaga as notas de ninguém.
     if (( HAS_NOTES )); then
+      rm -rf "$pkg/docs/notes"; rm -f "$pkg/docs/sample-notes.json"
       if [[ "$(jq -r 'map(select(.!=""))|length' <<<"$S_NOTES" 2>/dev/null)" -gt 0 ]]; then
-        printf '%s' "$S_NOTES" > "$pkg/docs/sample-notes.json"
-      else rm -f "$pkg/docs/sample-notes.json"; fi
+        mkdir -p "$pkg/docs/notes"
+        printf '%s' "$S_NOTES" > "$_t/notes.json"
+        local nk=0 nc ntf
+        nc="$(jq 'length' "$_t/notes.json" 2>/dev/null)"; [[ "$nc" =~ ^[0-9]+$ ]] || nc=0
+        while (( nk < nc )); do
+          ntf="$_t/note.$nk"
+          jq -r --argjson k "$nk" '.[$k] // ""' "$_t/notes.json" > "$ntf" 2>/dev/null
+          [[ -n "$(tr -d '[:space:]' < "$ntf" 2>/dev/null)" ]] && cp "$ntf" "$pkg/docs/notes/sample$((nk+1)).md"
+          nk=$((nk+1))
+        done
+      fi
     fi
   fi
 
@@ -662,6 +675,26 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
     [[ -d "$pkg/scripts" ]] && find "$pkg/scripts" -type d -empty -delete 2>/dev/null
   fi
 
+  # ---- docs/ IMAGENS (docs_files) — o análogo do scripts_files p/ figuras do enunciado/notas.
+  # Quando o body traz docs_files, SUBSTITUI as imagens de docs/ (remoção local vale no push);
+  # campo ausente = não toca (cliente antigo não apaga a figura de ninguém). Item: {name,
+  # content_b64}. Nome saneado: basename simples, extensão de IMAGEM, sem dotfile; cap ~3MB.
+  if (( HAS_DOCSFILES )); then
+    find "$pkg/docs" -maxdepth 1 -type f \
+      \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' \
+         -o -iname '*.svg' -o -iname '*.webp' \) -delete 2>/dev/null
+    jq --raw-output0 '.docs_files[]? | (.name // ""), (.content_b64 // "")' \
+      < "$bodyf" > "$_t/docsf.nul" 2>/dev/null
+    local dn='' db=''
+    while IFS= read -r -d '' dn && IFS= read -r -d '' db; do
+      dn="${dn##*/}"
+      [[ "$dn" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*\.(png|jpg|jpeg|gif|svg|webp|PNG|JPG|JPEG|GIF|SVG|WEBP)$ ]] || continue
+      (( ${#db} > 4194304 )) && continue
+      mkdir -p "$pkg/docs"
+      printf '%s' "$db" | base64 -d > "$pkg/docs/$dn" 2>/dev/null || rm -f "$pkg/docs/$dn"
+    done < "$_t/docsf.nul"
+  fi
+
   # tests/score VERBATIM (round-trip byte-fiel da CLI; o campo estruturado `score` do editor web
   # continua valendo — se os dois vierem, score_text vence por rodar depois)
   if (( HAS_SCORETXT )); then
@@ -749,14 +782,41 @@ read_problem_source(){
   _read_sols "$pkg" good "$d/sg"; _read_sols "$pkg" slow "$d/ss"; _read_sols "$pkg" wrong "$d/sw"
   _read_sols "$pkg" pass "$d/sp"; _read_sols "$pkg" upcoming "$d/su"
   _read_scripts "$pkg" "$d/scf"
-  # explicação por exemplo (docs/sample-notes.json, na ordem) -> examples[].explanation
-  local notes='[]'; [[ -f "$pkg/docs/sample-notes.json" ]] && notes="$(cat "$pkg/docs/sample-notes.json" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$notes" || notes='[]'
-  jq -cn --slurpfile all "$d/exs" --argjson n "$notes" \
-     '$all | to_entries[] | .value + {explanation: ($n[.key] // "")}' > "$d/exs2" 2>/dev/null && mv -f "$d/exs2" "$d/exs"
+  # explicação por exemplo -> examples[].explanation. Formato de AUTORIA: docs/notes/<sample>.md
+  # (1 markdown por exemplo, pareado pelo NOME — o autor nunca edita JSON); legado:
+  # sample-notes.json por ÍNDICE (lido via arquivo — nota com imagem data:URI passa de 128KiB
+  # e por --argjson estourava o teto por-argumento: as explanations sumiam MUDAS do editor).
+  if [[ -d "$pkg/docs/notes" ]]; then
+    local _ln _nm; : > "$d/exs2"
+    while IFS= read -r _ln; do
+      _nm="$(jq -r '.name' <<<"$_ln")"
+      if [[ "$_nm" =~ ^[A-Za-z0-9._-]+$ && -f "$pkg/docs/notes/$_nm.md" ]]; then
+        jq -c --rawfile n "$pkg/docs/notes/$_nm.md" '. + {explanation:($n|rtrimstr("\n"))}' <<<"$_ln"
+      else jq -c '. + {explanation:""}' <<<"$_ln"; fi
+    done < "$d/exs" >> "$d/exs2"
+    mv -f "$d/exs2" "$d/exs"
+  else
+    printf '[]' > "$d/notes.json"
+    [[ -f "$pkg/docs/sample-notes.json" ]] && cat "$pkg/docs/sample-notes.json" > "$d/notes.json" 2>/dev/null
+    jq -e . >/dev/null 2>&1 < "$d/notes.json" || printf '[]' > "$d/notes.json"
+    jq -cn --slurpfile all "$d/exs" --slurpfile nn "$d/notes.json" \
+       '($nn[0] // []) as $n | $all | to_entries[] | .value + {explanation: ($n[.key] // "")}' \
+       > "$d/exs2" 2>/dev/null && mv -f "$d/exs2" "$d/exs"
+  fi
+  # imagens de docs/ (docs_files) — round-trip do clone/push
+  : > "$d/docsf"
+  ( set +o noglob; shopt -s nullglob
+    for _f in "$pkg/docs"/*; do
+      [[ -f "$_f" ]] || continue
+      case "$_f" in *.png|*.jpg|*.jpeg|*.gif|*.svg|*.webp|*.PNG|*.JPG|*.JPEG|*.GIF|*.SVG|*.WEBP) ;; *) continue;; esac
+      base64 -w0 "$_f" > "$d/.b64"
+      jq -nc --arg n "${_f##*/}" --rawfile b "$d/.b64" '{name:$n, content_b64:$b}'
+    done ) >> "$d/docsf"
   jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" --rawfile editorial "$ted" \
         --rawfile scr "$tscr" --rawfile scoretxt "$tsct" \
         --argjson tags "$tags" --argjson meta "$meta" --argjson score "$score" --arg fmt "$fmt" \
         --slurpfile exs "$d/exs" --slurpfile tss "$d/tss" --slurpfile scf "$d/scf" \
+        --slurpfile dfl "$d/docsf" \
         --slurpfile sg "$d/sg" --slurpfile ss "$d/ss" --slurpfile sw "$d/sw" --slurpfile sp "$d/sp" --slurpfile su "$d/su" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
@@ -764,7 +824,7 @@ read_problem_source(){
       title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
       score_text:$scoretxt,
       scripts:($scr | split("\n") | map(select(. != ""))),
-      scripts_files:$scf,
+      scripts_files:$scf, docs_files:$dfl,
       editorial_md:$editorial, sols:{good:$sg, slow:$ss, wrong:$sw, pass:$sp, upcoming:$su} }'
   rm -rf "$d"; rm -f "$te" "$ta" "$tc" "$ted" "$tscr" "$tsct"
 }

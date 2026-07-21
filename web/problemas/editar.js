@@ -581,7 +581,11 @@ const collectFields = () => {
 async function preview() {
   const btn = $('preview'); btn.disabled = true; setMsg(T('Renderizando…', 'Rendering…'));
   try {
-    const j = await apiPost('/problems/preview', { enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(), title: $('ptitle').value.trim() }, { contest: CONTEST, auth: true });
+    // id junto: o servidor semeia as IMAGENS de docs/ do pacote no render — `![](fig.png)`
+    // aparece no preview igual ao servido (imagem colada é data:URI e nunca dependeu disso)
+    const pbody = { enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(), title: $('ptitle').value.trim() };
+    if (ID) pbody.id = ID;
+    const j = await apiPost('/problems/preview', pbody, { contest: CONTEST, auth: true });
     const html = b64ToUtf8(j.html_b64 || ''); const pb = $('previewBody');   // .statement-content (CSS unificado), não iframe
     try { const d = new DOMParser().parseFromString(html, 'text/html'); pb.innerHTML = d.body ? d.body.innerHTML : html; } catch { pb.innerHTML = html; }
     $('previewModal').style.display = ''; setMsg('');

@@ -4906,7 +4906,7 @@
           "problems"
         ],
         "summary": "Source do pacote inteiro (só dono/colaborador)",
-        "description": "Source completo: enunciado + testes OCULTOS + SOLUÇÕES + editorial. Acesso garantido NA API: só dono/colaborador; não-autorizado recebe 404 (sem read-only, sem atalho de .admin). Inclui title, collections, languages (ids de submissão permitidos, [] = todas), examples[].explanation, sols por categoria, score, score_text (tests/score cru), editorial_md, scripts (caminhos, árvore do editor) e scripts_files (round-trip da correção especial: [{path,content_b64,exec}|{path,symlink}]).",
+        "description": "Source completo: enunciado + testes OCULTOS + SOLUÇÕES + editorial. Acesso garantido NA API: só dono/colaborador; não-autorizado recebe 404 (sem read-only, sem atalho de .admin). Inclui title, collections, languages (ids de submissão permitidos, [] = todas), examples[].explanation, sols por categoria, score, score_text (tests/score cru), editorial_md, scripts (caminhos, árvore do editor) e scripts_files (round-trip da correção especial: [{path,content_b64,exec}|{path,symlink}]). docs_files = round-trip das imagens de docs/ ([{name,content_b64}]); examples[].explanation vive em docs/notes/<sample>.md (legado sample-notes.json só leitura).",
         "security": [
           {
             "bearerAuth": []
@@ -4965,7 +4965,7 @@
           "problems"
         ],
         "summary": "Pré-visualização HTML do enunciado",
-        "description": "Usa o renderizador único (render-statement.sh) — idêntico ao HTML servido ao aluno. Injeta o título (h1) e os exemplos (cada um com explanation opcional).",
+        "description": "Usa o renderizador único (render-statement.sh) — idêntico ao HTML servido ao aluno. Injeta o título (h1) e os exemplos (cada um com explanation opcional). Aceita id (semeia as imagens de docs/ do pacote no render; exige permissão de edição) e images:[{name,content_b64}] p/ figuras ainda não enviadas.",
         "security": [
           {
             "bearerAuth": []
@@ -5251,7 +5251,8 @@
           "200": {
             "description": "{id,sha}"
           }
-        }
+        },
+        "description": "docs_files = round-trip das imagens de docs/ ([{name,content_b64}]); examples[].explanation vive em docs/notes/<sample>.md (legado sample-notes.json só leitura)."
       }
     },
     "/problems/edit": {
@@ -5299,7 +5300,8 @@
           "200": {
             "description": "{id,sha}"
           }
-        }
+        },
+        "description": "docs_files = round-trip das imagens de docs/ ([{name,content_b64}]); examples[].explanation vive em docs/notes/<sample>.md (legado sample-notes.json só leitura)."
       }
     },
     "/problems/history": {
