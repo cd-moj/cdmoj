@@ -79,7 +79,7 @@ metrics="$(printf '%s\n' "$rows" | jq -R -cs --slurpfile finf "$FINMAP" --argjso
 revitems=()
 while IFS= read -r rf; do
   [[ -n "$rf" ]] || continue
-  p="$(jq -c --argjson now "$now" "$(rv_expire_filter)
+  p="$(jq -c --argjson now "$now" --argjson q "$(rv_quorum "$contest")" "$(rv_expire_filter)
     | $(rv_recompute)
     | select((.status // \"open\") != \"released\")
     | { id, problem_id, login, computed_verdict, status, conflict,

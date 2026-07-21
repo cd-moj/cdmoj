@@ -2110,7 +2110,8 @@
           "200": {
             "description": "{manual,options,items,counts:{not_evaluated,being_evaluated,awaiting_second,conflicts},my_active}"
           }
-        }
+        },
+        "description": "Resposta inclui quorum (REVIEW_JUDGES do contest)."
       }
     },
     "/contest/review/claim": {
@@ -3789,7 +3790,8 @@
           "200": {
             "description": "settings"
           }
-        }
+        },
+        "description": "review_judges (1..5, default 2): quantos juízes humanos validam cada veredicto na correção manual."
       },
       "post": {
         "tags": [
@@ -3805,7 +3807,8 @@
           "200": {
             "description": "{saved,changed}"
           }
-        }
+        },
+        "description": "review_judges (1..5, default 2): quantos juízes humanos validam cada veredicto na correção manual."
       }
     },
     "/contest/admin/bank": {

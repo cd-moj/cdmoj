@@ -26,11 +26,13 @@ const srcLink = (s) => _srcLink(CONTEST, s);
 // ===================== MODO MANUAL (fila de revisão) =====================
 async function rvAct(path, body) { return apiPost('/contest/review/' + path + '?contest=' + enc(CONTEST), body, G); }
 
+function quorum() { return (rv && Number.isInteger(rv.quorum) && rv.quorum >= 1) ? rv.quorum : 2; }
 function countsBar(c) {
   return el('div', { class: 'row', style: 'gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem' },
     el('span', { class: 'dash-card' }, el('b', {}, c.not_evaluated || 0), T(' não avaliadas', ' not evaluated')),
     el('span', { class: 'dash-card' }, el('b', {}, c.being_evaluated || 0), T(' sendo avaliadas', ' being evaluated')),
-    el('span', { class: 'dash-card' }, el('b', {}, c.awaiting_second || 0), T(' aguardando 2º voto', ' awaiting 2nd vote')),
+    el('span', { class: 'dash-card' }, el('b', {}, c.awaiting_second || 0),
+      quorum() === 2 ? T(' aguardando 2º voto', ' awaiting 2nd vote') : T(' aguardando mais votos', ' awaiting more votes')),
     el('span', { class: 'dash-card', style: (c.conflicts ? 'border-color:#c00' : '') }, el('b', {}, c.conflicts || 0), T(' em conflito', ' in conflict')));
 }
 
@@ -86,15 +88,16 @@ function renderReview() {
     el('th', {}, T('Avaliando', 'Evaluating')), el('th', {}, T('Ver', 'View')), el('th', {}, T('Ação', 'Action'))));
   const tb = el('tbody');
   items.forEach((s) => {
-    const full = (s.claimants || []).length >= 2;
+    const q = quorum();                                   // nº de juízes que validam (REVIEW_JUDGES)
+    const full = (s.claimants || []).length >= q;
     const voted = !!s.my_vote;
-    const canClaim = !full && !voted && (s.votes_n || 0) < 2 && s.status !== 'released';
+    const canClaim = !full && !voted && (s.votes_n || 0) < q && s.status !== 'released';
     const whoCell = (s.claimants || []).length
       ? el('div', { class: 'small' }, (s.claimants).map(x => x.by + ' (' + (x.elapsed_s | 0) + 's)').join(', '))
-      : el('span', { class: 'small muted' }, (s.votes_n ? T('1º voto dado', '1st vote cast') : '—'));
+      : el('span', { class: 'small muted' }, (s.votes_n ? (s.votes_n + '/' + q + T(' votos', ' votes')) : '—'));
     const actionCell = canClaim
       ? el('button', { class: 'btn', onclick: () => act('claim', s.id, 'claim') }, T('Pegar p/ avaliar', 'Claim to evaluate'))
-      : el('span', { class: 'small muted' }, voted ? T('você já votou', 'you already voted') : (full ? T('lotada (2)', 'full (2)') : (s.conflict ? T('conflito', 'conflict') : '—')));
+      : el('span', { class: 'small muted' }, voted ? T('você já votou', 'you already voted') : (full ? T('lotada (', 'full (') + q + ')' : (s.conflict ? T('conflito', 'conflict') : '—')));
     tb.append(el('tr', {},
       el('td', {}, el('b', {}, shortOf(s.problem_id))),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.computed_verdict) }, s.computed_verdict || '?')),

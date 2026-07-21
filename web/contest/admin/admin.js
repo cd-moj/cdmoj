@@ -728,10 +728,12 @@ function verdictTab() {
     panel.append(el('h2', {}, T('⚖️ Tarefas do judge', '⚖️ Judge tasks')),
       el('p', { class: 'muted small' },
         T('Fila da correção manual: quem pegou, votos e idade de cada submissão segurada. ', 'Manual grading queue: who claimed, votes and age of each held submission. '),
-        T('"Decidir/Resolver" libera o veredicto AO ALUNO na hora (override auditado); o fluxo normal de 2 votos fica na ', '"Decide/Resolve" releases the verdict TO THE STUDENT right away (audited override); the normal 2-vote flow is in the '),
+        T('"Decidir/Resolver" libera o veredicto AO ALUNO na hora (override auditado); o fluxo normal de votos fica na ', '"Decide/Resolve" releases the verdict TO THE STUDENT right away (audited override); the normal voting flow is in the '),
         el('a', { href: '/contest/judge/?c=' + enc(CONTEST) }, T('área de avaliação', 'evaluation area')),
-        T('. O modo liga/desliga em Configurações; o juiz-chefe tem a mesma fila no ', '. Toggle the mode in Settings; the chief judge has the same queue in the '),
-        el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, T('painel do juiz-chefe', 'chief judge panel')), '.'),
+        T('. O modo e o nº de juízes que validam (1–5) ficam em Configurações; o juiz-chefe tem a mesma fila no ', '. The mode and how many judges validate (1–5) live in Settings; the chief judge has the same queue in the '),
+        el('a', { href: '/contest/chief/?c=' + enc(CONTEST) }, T('painel do juiz-chefe', 'chief judge panel')),
+        T('. Papéis, quórum e quantas pessoas você precisa: ', '. Roles, quorum and how many people you need: '),
+        el('a', { href: '/docs/MANUAL-ADMIN.html', target: '_blank' }, T('manual do organizador', "organizer's manual")), '.'),
       board.el,
       el('h3', { style: 'margin:1.2rem 0 .3rem' }, T('⚙️ Configuração do veredicto manual', '⚙️ Manual verdict configuration')),
       makeVerdictOptionsEditor(CONTEST), makeAutoVerdictEditor(CONTEST));
@@ -791,6 +793,9 @@ async function boot() {
   app.innerHTML = '';
   const tabbar = el('div', { class: 'tabbar' }), wrap = el('div', {});
   app.append(tabbar, wrap);
+  // manual do organizador sempre à mão (abre em outra aba; explica cada opção e os papéis)
+  tabbar.append(el('a', { class: 'btn ghost', style: 'margin-left:auto', target: '_blank',
+    href: '/docs/MANUAL-ADMIN.html' }, T('📖 Manual do organizador', "📖 Organizer's manual")));
   const built = {}, btn = {};
   async function show(id) {
     TABS.forEach((t) => { if (built[t.id]) built[t.id].panel.hidden = (t.id !== id); btn[t.id].classList.toggle('active', t.id === id); });

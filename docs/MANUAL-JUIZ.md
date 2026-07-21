@@ -60,7 +60,7 @@ Abaixo dos contadores vem a lista das submissões seguradas para revisão. Para 
 
 ### Dois juízes têm de concordar
 
-Uma submissão só tem seu veredicto entregue ao competidor quando **dois juízes votam a mesma coisa**. Quando os dois votos batem, o veredicto vai para o competidor (a entrega é feita por um único escritor, o daemon, para não haver bagunça).
+Uma submissão só tem seu veredicto entregue ao competidor quando **N juízes votam a mesma coisa** — o N é decidido pelo admin do contest (Configurações → "Nº de juízes que validam", de 1 a 5; o padrão é 2). Quando os votos batem, o veredicto vai para o competidor (a entrega é feita por um único escritor, o daemon, para não haver bagunça). Com N=1, o seu voto sozinho decide.
 
 Quando os dois votos **divergem**, a submissão vira um **conflito** e fica marcada para o **juiz-chefe** resolver. Um juiz comum não resolve conflito: sua parte termina no seu voto.
 

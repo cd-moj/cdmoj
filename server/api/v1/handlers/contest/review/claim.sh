@@ -27,11 +27,12 @@ snap="$(rv_snapshot "$f")"; [[ -n "$snap" ]] || fail 500 "Falha ao ler" "read_fa
 case "$action" in
   claim)
     [[ "$(jq -r --arg me "$me" 'any((.votes//[])[]; .by==$me)' <<<"$snap")" == true ]] && fail 409 "Você já votou nesta submissão" "already_voted"
-    (( "$(jq '(.votes//[])|length' <<<"$snap")" < 2 )) || fail 409 "Submissão já avaliada (aguardando liberação/chief)" "already_evaluated"
+    Q="$(rv_quorum "$contest")"   # quórum configurável (REVIEW_JUDGES, 1..5; default 2)
+    (( "$(jq '(.votes//[])|length' <<<"$snap")" < Q )) || fail 409 "Submissão já avaliada (aguardando liberação/chief)" "already_evaluated"
     other="$(rv_active_claim_by "$contest" "$me")"
     [[ -z "$other" || "$other" == "$id" ]] || fail 409 "Você já avalia a submissão $other; termine antes" "already_evaluating"
     if [[ "$(jq -r --arg me "$me" 'any((.claimants//[])[]; .by==$me)' <<<"$snap")" != true ]]; then
-      (( "$(jq '(.claimants//[])|length' <<<"$snap")" < 2 )) || fail 409 "Já há 2 juízes avaliando" "slots_full"
+      (( "$(jq '(.claimants//[])|length' <<<"$snap")" < Q )) || fail 409 "Já há $Q juízes avaliando" "slots_full"
     fi
     new="$(rv_apply "$f" '.claimants = ([ (.claimants//[])[] | select(.by != $me) ] + [{by:$me, at:$now, expires_at:($now+$ttl)}])' --arg me "$me" --argjson ttl "$ttl")"
     audit_log_to "$contest" review-claim "id=$id by=$me"

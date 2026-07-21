@@ -50,6 +50,9 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const ua = el('input', { value: s.login_ua_substring || '', placeholder: T('substring do UA (vazio = sem gate)', 'UA substring (empty = no gate)') });
   const penMin = el('input', { type: 'number', min: '0', step: '1', style: 'max-width:100px',
     value: String(Number.isInteger(s.penalty_minutes) ? s.penalty_minutes : 20) });
+  // quórum da correção manual: quantos juízes validam cada veredicto (1..5; default 2)
+  const revJudges = el('input', { type: 'number', min: '1', max: '5', step: '1', style: 'max-width:80px',
+    value: String(Number.isInteger(s.review_judges) ? s.review_judges : 2) });
   const pvSel = new Set(Array.isArray(s.penalty_verdicts) ? s.penalty_verdicts : PENALTY_DEFAULT);
   const penChecks = PENALTY_OPTS.map(([code, label]) => ({ code, box: mkBool(pvSel.has(code)), label }));
   const langs = makeLangPicker(s.languages || []);
@@ -95,7 +98,8 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     chk(T('Mostrar o tempo-limite dos problemas aos usuários', "Show problems' time limit to users"), showTL),
     chk(T('Permitir backup de arquivos pelos usuários', 'Allow file backup by users'), allowBackup),
     chk(T('Permitir pedidos de impressão pelos usuários (.staff)', 'Allow print requests by users (.staff)'), allowPrint),
-    chk(T('Veredicto manual (2 juízes decidem; daemon segura o veredicto)', 'Manual verdict (2 judges decide; daemon holds the verdict)'), manualVerdict),
+    chk(T('Veredicto manual (juízes validam cada veredicto; o daemon o segura até o acordo)', 'Manual verdict (judges validate each verdict; the daemon holds it until agreement)'), manualVerdict),
+    field(T('Nº de juízes que validam cada veredicto (1–5; 1 = revisão simples)', 'Judges required to validate each verdict (1–5; 1 = single review)'), revJudges),
     chk(T('Placar anônimo (esconde desempenho individual)', 'Anonymous scoreboard (hides individual performance)'), scoreAnon),
     chk(T('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', '🕵️ SUPER SECRET — off the home/archive/status; scoreboard and view require login (the login screen still works for whoever has the link)'), secret),
     field(T('Gate de login por substring de UA (só não-privilegiados)', 'Login gate by UA substring (only non-privileged)'), ua),
@@ -127,6 +131,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       allow_late: allowLate.checked, score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
       manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,
+      review_judges: Math.min(5, Math.max(1, parseInt(revJudges.value, 10) || 2)),
       languages: langs.get(),
       judges: judges.get(),
       score_full_users: fullUsers.value.trim() ? fullUsers.value.trim().split(/\s+/) : [],

@@ -71,6 +71,7 @@ const TABS = [
   { id: 'opts', label: T('🏷️ Opções', '🏷️ Options'), make: optionsTab },
   { id: 'auto', label: T('⚙️ Auto-veredicto', '⚙️ Auto-verdict'), make: autoTab },
 ];
+const MANUAL_LINK = { href: '/docs/MANUAL-ADMIN.html', label: T('📖 Manual do organizador', "📖 Organizer's manual") };
 
 async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
@@ -87,6 +88,7 @@ async function boot() {
     history.replaceState(null, '', location.pathname + '?c=' + enc(CONTEST) + '#' + id);
   }
   TABS.forEach(t => { btn[t.id] = el('button', { onclick: () => show(t.id) }, t.label); tabbar.append(btn[t.id]); });
+  tabbar.append(el('a', { class: 'btn ghost', style: 'margin-left:auto', target: '_blank', href: MANUAL_LINK.href }, MANUAL_LINK.label));
   // o banner global (shared/chief-alert.js) pede esta aba ao ser clicado, mesmo já estando aqui
   window.addEventListener('moj:show-conflicts', () => show('conf'));
   const want = (location.hash || '').replace('#', '');

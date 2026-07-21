@@ -23,9 +23,10 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
-            secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd}' \
+            secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj}' \
     --arg mode "$(contest_score_mode "$contest")" \
     --argjson pm "$PENALTY_MINUTES" --argjson pvd "$pvd_json" \
+    --argjson rj "$([[ "${REVIEW_JUDGES:-}" =~ ^[1-5]$ ]] && echo "$REVIEW_JUDGES" || echo 2)" \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
@@ -116,6 +117,12 @@ if has penalty_minutes; then
   v="$(jq -r '.penalty_minutes' <<<"$body")"
   { [[ "$v" =~ ^[0-9]+$ ]] && (( v <= 100000 )); } || fail 422 "penalty_minutes inválido" "penalty_minutes_invalid"
   if (( v == 20 )); then delvar PENALTY_MINUTES; else setvar PENALTY_MINUTES "$v"; fi
+fi
+# nº de juízes que VALIDAM cada veredicto na correção manual (quórum; 1..5, default 2 = ausente)
+if has review_judges; then
+  v="$(jq -r '.review_judges' <<<"$body")"
+  [[ "$v" =~ ^[1-5]$ ]] || fail 422 "review_judges inválido (1..5)" "review_judges_invalid"
+  if (( v == 2 )); then delvar REVIEW_JUDGES; else setvar REVIEW_JUDGES "$v"; fi
 fi
 if has penalty_verdicts; then
   pv="$(penalty_codes_normalize "$(jq -c '.penalty_verdicts' <<<"$body")")" \

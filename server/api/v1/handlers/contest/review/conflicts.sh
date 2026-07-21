@@ -13,7 +13,7 @@ now="$EPOCHSECONDS"
 items=()
 while IFS= read -r rf; do
   [[ -n "$rf" ]] || continue
-  p="$(jq -c --argjson now "$now" "$(rv_expire_filter)
+  p="$(jq -c --argjson now "$now" --argjson q "$(rv_quorum "$contest")" "$(rv_expire_filter)
     | $(rv_recompute)
     | select(.conflict == true)
     | { id, login, problem_id, lang, sub_epoch, computed_verdict, created_at,

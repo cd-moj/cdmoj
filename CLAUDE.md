@@ -117,7 +117,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Veredicto manual** (`MANUAL_VERDICT`, opt-in): o **daemon** (`daemons/judged.sh`) SEGURA o
   veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) salvo o que
   a matriz `auto-verdicts.json` (problema×lang×veredicto, casada pelo **canônico**) libera; **erros
-  de juiz também são segurados** (o competidor só vê `Not Answered Yet`); dois `.judge` decidem
+  de juiz também são segurados** (o competidor só vê `Not Answered Yet`); **N `.judge` decidem** —
+  N = `REVIEW_JUDGES` do conf (1..5, default 2; settings `review_judges`; `rv_quorum` em
+  `lib/review.sh` — N votos unânimes liberam, divergência = conflito p/ o chief)
   (`handlers/contest/review/*` + `lib/review.sh`, flock + TTL), e o veredicto vai ao aluno pelo
   **escritor único** via o consumidor `setverdict` do daemon. O **voto é permanente e libera o juiz**
   (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo

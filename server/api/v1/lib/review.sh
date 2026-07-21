@@ -64,16 +64,27 @@ rv_expire_filter() {
 JQ
 }
 
+# rv_quorum <contest> — quantos juízes VALIDAM cada veredicto (decisão do admin:
+# conf REVIEW_JUDGES, 1..5; default 2). 1 = revisão simples (um voto decide).
+rv_quorum() {
+  local q; q="$(grep -m1 '^REVIEW_JUDGES=' "$CONTESTSDIR/$1/conf" 2>/dev/null | cut -d= -f2- | tr -dc 0-9)"
+  [[ "$q" =~ ^[1-5]$ ]] || q=2
+  printf '%s' "$q"
+}
+# rv_quorum_file <review-item-file> — idem, derivando o contest do caminho do item
+rv_quorum_file() { local d="${1%/review/*}"; rv_quorum "${d##*/}"; }
+
 # rv_recompute : recalcula status/conflict a partir dos VOTOS (permanentes) + claimants ATIVOS.
-# Votar encerra a tarefa do juiz (sai dos claimants), mas o voto fica. 2 votos iguais -> agreed;
-# 2 diferentes -> conflict; 1 voto -> voting (aguarda o 2º juiz); senão claimed/open. (released fixo.)
+# Votar encerra a tarefa do juiz (sai dos claimants), mas o voto fica. O QUÓRUM é o $q do jq
+# (rv_quorum; default 2): q votos UNÂNIMES -> agreed; q votos com divergência -> conflict;
+# 1..q-1 votos -> voting (aguarda os próximos juízes); senão claimed/open. (released fixo.)
 rv_recompute() {
   cat <<'JQ'
     if (.status // "open") == "released" then .
     else
       (.votes // []) as $v | ($v | map(.verdict) | unique) as $vv
-      | if ($v|length) >= 2 then (if ($vv|length)==1 then (.status="agreed" | .conflict=false) else (.status="conflict" | .conflict=true) end)
-        elif ($v|length) == 1 then (.status="voting" | .conflict=false)
+      | if ($v|length) >= $q then (if ($vv|length)==1 then (.status="agreed" | .conflict=false) else (.status="conflict" | .conflict=true) end)
+        elif ($v|length) >= 1 then (.status="voting" | .conflict=false)
         elif ((.claimants // [])|length) >= 1 then (.status="claimed" | .conflict=false)
         else (.status="open" | .conflict=false) end
     end
@@ -82,7 +93,7 @@ JQ
 
 # rv_snapshot <file> : ecoa o item com claimants/votos expirados + status recalculado (sem gravar).
 rv_snapshot() {
-  jq -c --argjson now "$EPOCHSECONDS" "$(rv_expire_filter)
+  jq -c --argjson now "$EPOCHSECONDS" --argjson q "$(rv_quorum_file "$1")" "$(rv_expire_filter)
 | $(rv_recompute)" "$1" 2>/dev/null
 }
 
@@ -91,7 +102,7 @@ rv_snapshot() {
 rv_apply() {
   local f="$1" trans="$2"; shift 2
   local out
-  out="$(jq -c --argjson now "$EPOCHSECONDS" "$@" "$(rv_expire_filter)
+  out="$(jq -c --argjson now "$EPOCHSECONDS" --argjson q "$(rv_quorum_file "$f")" "$@" "$(rv_expire_filter)
 | ( $trans )
 | $(rv_recompute)" "$f" 2>/dev/null)" || return 1
   [[ -n "$out" ]] || return 1
