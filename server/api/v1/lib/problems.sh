@@ -319,20 +319,42 @@ coll_rename(){ local o="$1" n="$2" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
 # A reindexação dos públicos é SEQUENCIAL (index_problem_now) — N setsids paralelos de
 # gen-problem-json eram uma tempestade de pandoc.
 coll_bulk_retag(){
-  local old="$1" new="$2" login="${3:-moj}" n=0 pdir meta newc org prob id owner ispub
+  local old="$1" new="$2" login="${3:-moj}" n=0 pdir meta org prob id owner lk rc
+  local newc_now title_now author_txt pub_now
   declare -F index_problem_now >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
   while IFS= read -r pdir; do
     meta="$pdir/.moj-meta.json"; [[ -f "$meta" ]] || continue
     jq -e --arg o "$old" '((.collections // [])|index($o)) != null' >/dev/null 2>&1 < "$meta" || continue
-    if [[ -n "$new" ]]; then newc="$(jq -c --arg o "$old" --arg nn "$new" '(.collections//[])|map(if .==$o then $nn else . end)|unique' "$meta")"
-    else newc="$(jq -c --arg o "$old" '(.collections//[])|map(select(.!=$o))' "$meta")"; fi
     prob="${pdir##*/}"; org="${pdir%/*}"; org="${org##*/}"; id="$org#$prob"
     owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$login"
-    ispub="$(jq -r 'if .public==true then 1 else 0 end' "$meta" 2>/dev/null)"
-    write_meta "$pdir" "$owner" "$org" "" "$newc" ""
+    # A mutação ler-meta -> write_meta fica sob o MESMO lock por-problema do problem_commit:
+    # N renames em rajada = N workers setsid varrendo os MESMOS metas, e o read-modify-write
+    # sem lock corria — last-writer-wins engolia o rename do outro worker (problema em 4
+    # coleções renomeadas ficou com resto de nome velho, 2026-07-22). O newc é recomputado
+    # DENTRO do lock (recomputar fora e só escrever dentro perde update do mesmo jeito).
+    # NÃO aninhar o problem_commit aqui (mesmo arquivo de lock, open próprio = se bloqueia).
+    mkdir -p "${RUNDIR:-/home/ribas/moj/run}/locks" 2>/dev/null
+    lk="${RUNDIR:-/home/ribas/moj/run}/locks/$(printf '%s' "$pdir" | md5sum 2>/dev/null | cut -c1-24).lock"
+    rc=0
+    (
+      flock 9 2>/dev/null
+      jq -e --arg o "$old" '((.collections // [])|index($o)) != null' >/dev/null 2>&1 < "$meta" || exit 3
+      if [[ -n "$new" ]]; then nc="$(jq -c --arg o "$old" --arg nn "$new" '(.collections//[])|map(if .==$o then $nn else . end)|unique' "$meta")"
+      else nc="$(jq -c --arg o "$old" '(.collections//[])|map(select(.!=$o))' "$meta")"; fi
+      write_meta "$pdir" "$owner" "$org" "" "$nc" ""
+    ) 9>"$lk" || rc=$?
+    [[ $rc -eq 3 ]] && continue        # outro worker já retagueou este meta (retomada/rajada)
     problem_commit "$pdir" "$login" "coleção: $old -> ${new:-(removida)}" >/dev/null
-    authored_patch "$id" '.collections=$c' --argjson c "$newc"
-    [[ "$ispub" == 1 ]] && declare -F index_problem_now >/dev/null && index_problem_now "$id" 1
+    # Overlay via UPSERT, não patch: o authored_patch era NO-OP p/ id já PODADO do overlay —
+    # problema PRIVADO renomeado ficava com o índice servido velho (moj info/collection show)
+    # até a regen de ~30 min; o público se salvava pelo index_problem_now abaixo. Mesmo
+    # padrão do edit.sh: relê os campos do meta recém-escrito.
+    newc_now="$(jq -c '.collections // []' "$meta" 2>/dev/null)"; [[ -n "$newc_now" ]] || newc_now='[]'
+    title_now="$(jq -r '.display_title // ""' "$meta" 2>/dev/null)"
+    pub_now="$(jq -r 'if .public==true then "true" else "false" end' "$meta" 2>/dev/null)"
+    author_txt="$(head -1 "$pdir/author" 2>/dev/null)"
+    authored_upsert "$id" "$owner" "$org" "$prob" "$title_now" "${pub_now:-false}" "$newc_now" "$author_txt" '[]'
+    [[ "$pub_now" == true ]] && declare -F index_problem_now >/dev/null && index_problem_now "$id" 1
     n=$((n+1))
   done < <(find "$MOJ_PROBLEMS_DIR" -mindepth 2 -maxdepth 2 -type d ! -name '.git' 2>/dev/null)
   printf '%s' "$n"
