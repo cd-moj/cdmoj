@@ -279,8 +279,10 @@ o caminho, o juiz vê "pacote mudou" e **recalibra à toa**.
 
 **Mexer em `scripts/` obriga a recalibrar** (seção 10).
 
-O guia completo (submissão de função, proibir funções da biblioteca, checker com testlib, problema
-interativo) está em `mojtools/docs/correcao-especial.md`.
+O guia-hub é `mojtools/docs/correcao-especial.md` (proibir funções da biblioteca, visão geral);
+os guias longos: `mojtools/docs/submissao-de-funcao.md` (**submissão de função** — templates
+prontos via `moj fn` ou pelo editor web, com a sentinela anti-IO), `checker-testlib.md` e
+`problema-interativo.md`.
 
 ### `conf`
 
