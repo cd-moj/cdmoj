@@ -26,7 +26,7 @@ elif coll_exists "$to"; then
 else
   fail 404 "Coleção não existe" "not_found"
 fi
-coll_bulk_retag_bg "$name" "$to" "$SESSION_LOGIN"
-audit_log "collection-rename" "from=$name to=$to resume=$resume by=$SESSION_LOGIN (retag em background)"
-ok_json '{action:"collection-rename", name:$to, from:$from, retag:"background", resumed:($r=="1")}' \
-  --arg to "$to" --arg from "$name" --arg r "$resume"
+job="$(coll_bulk_retag_bg "$name" "$to" "$SESSION_LOGIN")"
+audit_log "collection-rename" "from=$name to=$to resume=$resume job=$job by=$SESSION_LOGIN (retag em background)"
+ok_json '{action:"collection-rename", name:$to, from:$from, retag:"background", retag_job:$job, resumed:($r=="1")}' \
+  --arg to "$to" --arg from "$name" --arg r "$resume" --arg job "$job"

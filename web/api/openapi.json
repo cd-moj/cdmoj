@@ -6005,10 +6005,46 @@
         },
         "responses": {
           "200": {
-            "description": "{name,from,retag:\"background\",resumed}"
+            "description": "{name,from,retag:\"background\",retag_job,resumed}"
           },
           "403": {
             "description": "não é dono da coleção"
+          }
+        }
+      }
+    },
+    "/problems/collection-retag-status": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Situação dos jobs de retag de coleção (rename/delete em background): jobs mais novos primeiro; sem finished_at = rodando (done/total = progresso)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{jobs:[{id,from,to,by,started_at,total,done,failed,finished_at}]}"
           }
         }
       }
@@ -6044,7 +6080,7 @@
         },
         "responses": {
           "200": {
-            "description": "{name,untagged}"
+            "description": "{name,untag:\"background\",retag_job}"
           },
           "403": {
             "description": "não é dono da coleção"

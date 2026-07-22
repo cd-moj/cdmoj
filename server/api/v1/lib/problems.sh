@@ -310,7 +310,29 @@ coll_rename(){ local o="$1" n="$2" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
     ( umask 077; jq --arg o "$o" --arg n "$n" 'if has($o) and ($o!=$n) then .[$n]=(.[$o]) | del(.[$o]) else . end' <<<"$cur" ) \
       > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY" || rm -f "$tmp"
   ) 9>"$lk"; }
-# coll_bulk_retag <old> <new|""> <login> -> nº de problemas afetados. Renomeia (new!="") ou REMOVE
+# ---- registro de JOBS do retag (visibilidade do background) --------------------------------
+# O retag roda destacado (setsid) e antes era MUDO: não dava p/ saber quando terminou nem se
+# falhou parcialmente (a corrida do rename em rajada foi silenciosa). Cada bulk agora tem um
+# job em var/retag-jobs.json {jobid:{from,to,by,started_at,total,done,failed,finished_at}},
+# atualizado pelo worker e servido por GET /problems/collection-retag-status. Mantém ~50.
+RETAG_JOBS="$CONTESTSDIR/treino/var/retag-jobs.json"
+# _retag_job_patch <jobid> <jq-expr sobre o job> [jq args...] — RMW com flock; cria se ausente.
+_retag_job_patch(){
+  local jid="$1" expr="$2"; shift 2
+  local f="$RETAG_JOBS" lk; lk="$(_idx_lock "$f")"
+  ( flock 9 2>/dev/null
+    local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
+    tmp="$f.tmp.$$"
+    ( umask 077; jq "$@" --arg _j "$jid" '
+        .[$_j] = ((.[$_j] // {}) | '"$expr"')
+        | (if (keys|length) > 60
+           then (to_entries | sort_by(.value.started_at // 0) | .[-50:] | from_entries)
+           else . end)' <<<"$cur" ) \
+      > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$f" || rm -f "$tmp"
+  ) 9>"$lk"
+}
+
+# coll_bulk_retag <old> <new|""> <login> [jobid] -> nº de problemas afetados. Renomeia (new!="") ou REMOVE
 # (new=="") a tag <old> no .moj-meta.json de TODOS os problemas que a têm (+ commit local + overlay +
 # re-index dos que estão públicos, p/ o json servido refletir a tag nova). Usado por rename/delete.
 # RETOMÁVEL por construção (processa só metas que AINDA têm a tag velha) e feito p/ rodar em
@@ -319,9 +341,18 @@ coll_rename(){ local o="$1" n="$2" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
 # A reindexação dos públicos é SEQUENCIAL (index_problem_now) — N setsids paralelos de
 # gen-problem-json eram uma tempestade de pandoc.
 coll_bulk_retag(){
-  local old="$1" new="$2" login="${3:-moj}" n=0 pdir meta org prob id owner lk rc
-  local newc_now title_now author_txt pub_now
+  local old="$1" new="$2" login="${3:-moj}" jid="${4:-}" n=0 failed=0 pdir meta org prob id owner lk rc
+  local newc_now title_now author_txt pub_now total
   declare -F index_problem_now >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
+  if [[ -n "$jid" ]]; then
+    # total p/ a barra de progresso: um jq só sobre todos os metas (xargs pode fatiar em
+    # lotes -> soma). Meta corrompido derruba um lote inteiro do jq -s: o total vira
+    # ESTIMATIVA por baixo — aceitável, é só progresso.
+    total="$(find "$MOJ_PROBLEMS_DIR" -mindepth 3 -maxdepth 3 -name .moj-meta.json -print0 2>/dev/null \
+      | xargs -0 -r jq -s --arg o "$old" '[ .[] | select(((.collections // [])|index($o)) != null) ] | length' 2>/dev/null \
+      | awk '{s+=$1} END{print s+0}')"
+    _retag_job_patch "$jid" '. + {total: $t}' --argjson t "${total:-0}"
+  fi
   while IFS= read -r pdir; do
     meta="$pdir/.moj-meta.json"; [[ -f "$meta" ]] || continue
     jq -e --arg o "$old" '((.collections // [])|index($o)) != null' >/dev/null 2>&1 < "$meta" || continue
@@ -344,6 +375,11 @@ coll_bulk_retag(){
       write_meta "$pdir" "$owner" "$org" "" "$nc" ""
     ) 9>"$lk" || rc=$?
     [[ $rc -eq 3 ]] && continue        # outro worker já retagueou este meta (retomada/rajada)
+    if [[ $rc -ne 0 ]]; then
+      failed=$((failed+1))
+      [[ -n "$jid" ]] && _retag_job_patch "$jid" '. + {failed: $f}' --argjson f "$failed"
+      continue
+    fi
     problem_commit "$pdir" "$login" "coleção: $old -> ${new:-(removida)}" >/dev/null
     # Overlay via UPSERT, não patch: o authored_patch era NO-OP p/ id já PODADO do overlay —
     # problema PRIVADO renomeado ficava com o índice servido velho (moj info/collection show)
@@ -356,6 +392,7 @@ coll_bulk_retag(){
     authored_upsert "$id" "$owner" "$org" "$prob" "$title_now" "${pub_now:-false}" "$newc_now" "$author_txt" '[]'
     [[ "$pub_now" == true ]] && declare -F index_problem_now >/dev/null && index_problem_now "$id" 1
     n=$((n+1))
+    [[ -n "$jid" ]] && _retag_job_patch "$jid" '. + {done: $n}' --argjson n "$n"
   done < <(find "$MOJ_PROBLEMS_DIR" -mindepth 2 -maxdepth 2 -type d ! -name '.git' 2>/dev/null)
   printf '%s' "$n"
 }
@@ -363,16 +400,22 @@ coll_bulk_retag(){
 # (o request responde na hora; o retag é retomável). 4º arg "delete" = remove a coleção do
 # REGISTRO só NO FIM do bulk (delete que morre no meio continua existindo ⇒ repetir retoma).
 coll_bulk_retag_bg(){
-  local old="$1" new="$2" login="${3:-moj}" after="${4:-}" lib
+  local old="$1" new="$2" login="${3:-moj}" after="${4:-}" lib jid
   lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  jid="rt$EPOCHSECONDS.$$.$RANDOM"
+  _retag_job_patch "$jid" '. + {from:$from, to:$to, by:$by, started_at:$now, done:0, failed:0}' \
+    --arg from "$old" --arg to "$new" --arg by "$login" --argjson now "$EPOCHSECONDS"
   ( setsid env RUNDIR="$RUNDIR" CONTESTSDIR="$CONTESTSDIR" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
       MOJTOOLS_DIR="$MOJTOOLS_DIR" \
       bash -c 'source "$1/common.sh" 2>/dev/null; source "$1/problems.sh" && source "$1/tl-store.sh"
-               n="$(coll_bulk_retag "$2" "$3" "$4")"
+               n="$(coll_bulk_retag "$2" "$3" "$4" "$6")"
                [[ "$5" == delete ]] && coll_delete "$2"
+               _retag_job_patch "$6" ". + {finished_at: \$now, done: \$n}" \
+                 --argjson now "$EPOCHSECONDS" --argjson n "${n:-0}"
                declare -F audit_log >/dev/null 2>&1 \
-                 && audit_log "collection-retag-done" "from=$2 to=${3:-(removida)} n=$n by=$4"' \
-      _ "$lib" "$old" "$new" "$login" "$after" >/dev/null 2>&1 & ) 2>/dev/null
+                 && audit_log "collection-retag-done" "from=$2 to=${3:-(removida)} n=$n by=$4 job=$6"' \
+      _ "$lib" "$old" "$new" "$login" "$after" "$jid" >/dev/null 2>&1 & ) 2>/dev/null
+  printf '%s' "$jid"   # o handler devolve o job id p/ o cliente acompanhar
 }
 # grant_problem_collections — NO-OP (acesso é por ORG; coleção é só tag, não propaga colaborador).
 grant_problem_collections(){ return 0; }
