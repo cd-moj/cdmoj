@@ -101,16 +101,22 @@ core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]
 # percentil de dificuldade contra o ACERVO: taxa de sucesso POR USUÁRIO (solved/attempted,
 # usuários distintos) deste problema comparada com a de todos os públicos, no MESMO dataset
 # (var/problems.json, a lista servida do treino — só públicos, nada vaza). Elegível =
-# ≥5 tentantes; precisa de ≥10 elegíveis p/ o percentil significar algo; senão null.
+# ≥5 tentantes; precisa de ≥10 elegíveis; senão null. O ranking usa a taxa SUAVIZADA de
+# Laplace ((solved+1)/(attempted+2)) + midrank nos empates: 142/319 do acervo têm 100% de
+# sucesso em coorte minúscula (mediana 8 tentantes) — sem a suavização, um 8/8 empatado no
+# topo fazia até o olamundo (33/34) parecer "mais difícil que 45%". `success_rate` sai CRU.
 pctl='null'
 if [[ -f "$T/var/problems.json" ]]; then
   pctl="$(jq -c --arg id "$id" '
     [ .[] | select((.attempted_count // 0) >= 5)
-      | {id, r: ((.solved_count // 0) / (.attempted_count))} ] as $all
+      | {id, rr: ((.solved_count // 0) / (.attempted_count)),
+         r: (((.solved_count // 0) + 1) / (.attempted_count + 2))} ] as $all
     | ($all | map(select(.id == $id)) | .[0]) as $me
     | if $me == null or ($all|length) < 10 then null
-      else { harder_than_pct: ((100 * ([ $all[] | select(.r > $me.r) ] | length) / ($all|length)) | round),
-             cohort: ($all|length), success_rate: ($me.r) } end' "$T/var/problems.json" 2>/dev/null)"
+      else { harder_than_pct: ((100 * (([ $all[] | select(.r > $me.r) ] | length)
+                                       + (([ $all[] | select(.r == $me.r) ] | length) - 1) / 2)
+                                / ($all|length)) | round),
+             cohort: ($all|length), success_rate: ($me.rr) } end' "$T/var/problems.json" 2>/dev/null)"
   [[ -n "$pctl" ]] || pctl='null'
 fi
 
