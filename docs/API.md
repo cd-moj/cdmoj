@@ -34,7 +34,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | `/treino/profile?user=<u>` | opc | GET visão pública (respeita privacidade); POST aceita também `favorite_editor`, `profile_public` |
 | `/treino/profile/photo?user=<u>` | opc/Bearer | GET serve png 100×100 · POST `{image_b64}` (redimensiona) |
 | `/treino/editors` | — | ranking dos editores favoritos declarados `{editors:[{editor,count}],total}` |
-| `/treino/problem-stats?id=<p>` | — | estatísticas do problema (métricas, veredictos, por-linguagem c/ solvers distintos, editores, avatares públicos) — cache **por EVENTO** (`.score-dirty` mais novo = regenera; sem submissão nova vale p/ sempre; piso 2 min sob rajada; flock) |
+| `/treino/problem-stats?id=<p>` | — | estatísticas do problema (métricas, veredictos, por-linguagem c/ solvers distintos, editores, avatares públicos) **+ séries temporais** (fuso America/Sao_Paulo): `daily{YYYY-MM-DD:n}` (heatmap), `monthly[{m,subs,ac}]`, `dow_hour[{dow 0=dom,hour,n}]`, `first_ac_epochs[]` (curva de resolvedores), `tries[{bucket,n}]`+`tries_median` (subs até o 1º AC), `time_to_solve[{bucket,n}]`+`t2s_median` (1ª sub→AC), `facts{first_sub_epoch,last_sub_epoch,peak_day,first_solver{epoch,login?,name?}}` (login/nome do 1º solver SÓ se perfil público) — cache **por EVENTO** (`.score-dirty` mais novo = regenera; sem submissão nova vale p/ sempre; piso 2 min sob rajada; flock) |
 
 ## Treino — cadastro & vínculo Telegram (overlay do treino)
 Cadastro **web-first** verificado pelo Telegram (1 Telegram = 1 conta; anti-duplicata). Os endpoints

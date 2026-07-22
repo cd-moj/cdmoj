@@ -122,7 +122,8 @@ export function pieChart(data, opts = {}) {
 // Ideal p/ distribuições categóricas de RÓTULO LONGO (veredictos, linguagens):
 // cada categoria ocupa a sua própria linha — rótulo | barra proporcional | valor·%.
 // Muito mais legível que uma pizza + legenda quando há nomes grandes/muitas fatias.
-// data: [{label,value,color?}]; opts:{total, hideZero, maxRows}.
+// data: [{label,value,color?}]; opts:{total, hideZero, maxRows, fmt(value)->string
+// (texto da coluna de valor; default "<v>  ·  <pct>%" quando há total)}.
 export function hBarChart(data, opts = {}) {
   let rows = (data || []).slice();
   if (opts.hideZero) rows = rows.filter(d => (d.value || 0) > 0);
@@ -145,7 +146,8 @@ export function hBarChart(data, opts = {}) {
     fill.style.background = color;
     track.append(fill);
     const val = document.createElement('div'); val.className = 'hbar-val';
-    val.textContent = String(d.value || 0) + (total > 0 ? '  ·  ' + Math.round(((d.value || 0) / total) * 100) + '%' : '');
+    val.textContent = opts.fmt ? opts.fmt(d.value || 0)
+      : String(d.value || 0) + (total > 0 ? '  ·  ' + Math.round(((d.value || 0) / total) * 100) + '%' : '');
     row.append(lab, track, val);
     wrap.append(row);
   });

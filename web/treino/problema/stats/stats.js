@@ -1,15 +1,26 @@
 // treino/problema/stats/stats.js — estatísticas de um problema do Treino Livre.
 import { apiGet } from '/shared/api.js';
 import { el, avatarEl, renderAuthArea } from '/shared/ui.js';
-import { barChart, pieChart } from '/lib/charts.js';
+import { barChart, pieChart, hBarChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
 import { langById } from '/shared/languages.js';
 import { editorLabel } from '/shared/editors.js';
 import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
 const ID = new URLSearchParams(location.search).get('id') || '';
+const LOCALE = T('pt-BR', 'en-US');
 const langLabel = (l) => (langById(String(l || '').toLowerCase()) || {}).label || l || '?';
 const pct = (x) => Math.round((x || 0) * 100) + '%';
+const fdate = (e) => (e ? new Date(e * 1000).toLocaleDateString(LOCALE) : '—');
+// 'YYYY-MM-DD' -> data local SEM passar por new Date(string) (parse UTC deslocaria o dia)
+const fdateStr = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(LOCALE); };
+const fmonth = (m) => { const [y, mo] = String(m).split('-'); return mo + '/' + y.slice(2); };
+const fdur = (sec) => {
+  if (sec == null) return '—';
+  if (sec < 3600) return Math.max(1, Math.round(sec / 60)) + ' min';
+  if (sec < 86400) return Math.round(sec / 3600) + ' h';
+  return Math.round(sec / 86400) + ' ' + T('dia(s)', 'day(s)');
+};
 const isKnownLang = (l) => l && langById(String(l).toLowerCase());
 const langDisplay = (l) => (l === 'outro' ? T('Outros (ext. não reconhecidas)', 'Others (unrecognized ext.)') : langLabel(l));
 // junta tokens de linguagem não reconhecidos (olamundo, txt, exe, …) num único "Outros"
@@ -73,15 +84,99 @@ async function boot() {
       metric((s.avg_submissions_per_user || 0).toFixed(1), T('subs / usuário', 'subs / user')),
       metric(diff, T('dificuldade', 'difficulty')))));
 
-  // --- distribuições ---
+  // --- fatos rápidos ---
+  const f = s.facts || {};
+  const factCard = (v, l) => { const m = metric(v, l); m.querySelector('.v').classList.add('sm'); return m; };
+  const fs = f.first_solver;
+  const fsName = fs ? (fs.name || fs.login || T('perfil privado', 'private profile')) : null;
+  content.append(el('div', { class: 'section' }, el('h2', {}, T('📌 Fatos', '📌 Facts')),
+    el('div', { class: 'metrics' },
+      factCard(fdate(f.first_sub_epoch), T('primeira submissão', 'first submission')),
+      fs ? factCard(fsName + ' · ' + fdate(fs.epoch), T('primeiro a resolver', 'first to solve')) : null,
+      f.peak_day ? factCard(fdateStr(f.peak_day.date) + ' (' + f.peak_day.n + ')', T('dia de pico', 'peak day')) : null,
+      factCard(fdate(f.last_sub_epoch), T('última submissão', 'last submission')),
+      s.tries_median != null ? factCard(String(s.tries_median), T('mediana de tentativas até o aceite', 'median tries until accept')) : null,
+      s.t2s_median != null ? factCard(fdur(s.t2s_median), T('tempo mediano até resolver', 'median time to solve')) : null)));
+
+  // --- linha do tempo: histograma mensal completo + curvas de crescimento ---
+  const monthly = s.monthly || [];
+  if (monthly.length) {
+    const mData = monthly.map((m) => ({ label: fmonth(m.m), value: m.subs }));
+    const hist = barChart(mData, { width: Math.max(720, monthly.length * 26), height: 240, color: '#216097', rotateLabels: true, maxLabels: 24 });
+    const acPts = (s.first_ac_epochs || []).map((e, i) => ({ x: e, y: i + 1, label: fdate(e) }));
+    let cum = 0, cumAc = 0;
+    const ratePts = monthly.map((m) => { cum += m.subs; cumAc += m.ac; return { x: m.m + '-15', y: Math.round((cumAc / Math.max(1, cum)) * 100), label: fmonth(m.m) }; });
+    content.append(el('div', { class: 'section' }, el('h2', {}, T('📈 Linha do tempo', '📈 Timeline')),
+      el('div', { class: 'subcard' },
+        el('h3', { class: 'small', style: 'margin:.1rem 0 .6rem;color:var(--blue-dark)' }, T('Submissões por mês, desde a primeira', 'Submissions per month, since the first')),
+        el('div', { class: 'chart-wrap' }, hist)),
+      el('div', { class: 'chart-grid two', style: 'margin-top:1rem' },
+        acPts.length ? chartCard(T('Resolvedores acumulados', 'Cumulative solvers'),
+          lineChart(acPts, { width: 460, height: 220, color: '#1a7f37' })) : null,
+        chartCard(T('Taxa de aceitação acumulada (%)', 'Cumulative acceptance rate (%)'),
+          lineChart(ratePts, { width: 460, height: 220, color: '#7a5ada', fill: false })))));
+  }
+
+  // --- calendário: heatmap anual (por ano + soma de todos) e punchcard hora×dia ---
+  const daily = s.daily || {};
+  const years = [...new Set(Object.keys(daily).map((d) => d.slice(0, 4)))].sort();
+  if (years.length) {
+    const bar = el('div', { class: 'yearbar' });
+    const holder = el('div', { class: 'chart-wrap' });
+    const note = el('p', { class: 'small muted', style: 'margin:.4rem 0 0' });
+    const render = (mode) => {
+      holder.innerHTML = ''; note.textContent = '';
+      [...bar.children].forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+      if (mode === 'all') {
+        // soma de TODOS os anos por dia-do-ano, projetada num ano bissexto (29/02 aparece)
+        const agg = {};
+        for (const [d, n] of Object.entries(daily)) { const k = '2024' + d.slice(4); agg[k] = (agg[k] || 0) + n; }
+        holder.append(heatmap(agg, { weeks: 53, end: new Date(2024, 11, 31), color: '#216097',
+          fmt: (v, tag) => tag.slice(5) + ': ' + v + ' ' + T('subs (todos os anos)', 'subs (all years)') }));
+        note.textContent = T('Todos os anos somados, dia a dia — os períodos quentes do calendário letivo saltam aos olhos.',
+          'All years summed, day by day — the hot periods of the school calendar stand out.');
+      } else {
+        const one = {};
+        for (const [d, n] of Object.entries(daily)) if (d.startsWith(mode)) one[d] = n;
+        holder.append(heatmap(one, { weeks: 53, end: new Date(+mode, 11, 31), color: '#216097' }));
+      }
+    };
+    years.forEach((y) => { const b = el('button', { class: 'btn ghost', 'data-mode': y }, y); b.onclick = () => render(y); bar.append(b); });
+    if (years.length > 1) { const b = el('button', { class: 'btn ghost', 'data-mode': 'all' }, T('Σ todos', 'Σ all')); b.onclick = () => render('all'); bar.append(b); }
+    const punch = heatmapGrid((s.dow_hour || []).map((c) => ({ dow: c.dow, hour: c.hour, value: c.n, n: c.n })),
+      { cell: 13, gap: 3, color: '#216097', fmt: (v) => String(v) });
+    content.append(el('div', { class: 'section' }, el('h2', {}, T('🗓 Calendário de atividade', '🗓 Activity calendar')),
+      bar, holder, note,
+      el('div', { class: 'chart-grid two', style: 'margin-top:1rem' },
+        chartCard(T('Hora do dia × dia da semana', 'Hour of day × weekday'), el('div', { class: 'chart-wrap' }, punch)))));
+    render(years.length > 1 ? 'all' : years[0]);
+  }
+
+  // --- como resolvem: veredictos, linguagens, tentativas, tempo, editores ---
   const vData = (s.verdicts || []).map((v) => ({ label: v.verdict, value: v.count, color: verdictColor(v.verdict) }));
   const bl = cleanLangs(s.by_language);
   const slData = bl.filter((l) => l.solvers > 0).map((l) => ({ label: langDisplay(l.lang), value: l.solvers }));
-  content.append(el('div', { class: 'section' }, el('h2', {}, T('Distribuições', 'Distributions')),
+  const rateData = bl.filter((l) => l.submissions >= 3)
+    .map((l) => ({ label: langDisplay(l.lang), value: Math.round((l.accepted / l.submissions) * 100) }))
+    .sort((a, b) => b.value - a.value);
+  const triesData = (s.tries || []).map((b) => ({ label: b.bucket === '1' ? T('1 (de primeira!)', '1 (first try!)') : b.bucket, value: b.n }));
+  const T2SL = { '<1h': T('menos de 1 hora', 'under 1 hour'), '1h-1d': T('1 hora a 1 dia', '1 hour to 1 day'),
+    '1d-1sem': T('1 dia a 1 semana', '1 day to 1 week'), '>1sem': T('mais de 1 semana', 'over 1 week') };
+  const t2sData = (s.time_to_solve || []).map((b) => ({ label: T2SL[b.bucket] || b.bucket, value: b.n }));
+  const eData = (s.editors || []).map((e) => ({ label: editorLabel(e.editor), value: e.count }));
+  content.append(el('div', { class: 'section' }, el('h2', {}, T('🧩 Como resolvem', '🧩 How they solve')),
     el('div', { class: 'chart-grid' },
       chartCard(T('Veredictos', 'Verdicts'), pieChart(vData, { size: 240, donut: 0.55 })),
       chartCard(T('Resolvedores distintos por linguagem', 'Distinct solvers by language'),
-        barChart(slData, { width: 460, height: 240, color: '#216097', rotateLabels: true })))));
+        barChart(slData, { width: 460, height: 240, color: '#216097', rotateLabels: true })),
+      rateData.length ? chartCard(T('Taxa de aceitação por linguagem', 'Acceptance rate by language'),
+        hBarChart(rateData, { total: 0, fmt: (v) => v + '%' })) : null,
+      triesData.some((d) => d.value) ? chartCard(T('Submissões até o 1º aceite', 'Submissions until first accept'),
+        hBarChart(triesData, {})) : null,
+      t2sData.some((d) => d.value) ? chartCard(T('Tempo entre a 1ª tentativa e o aceite', 'Time from first try to accept'),
+        hBarChart(t2sData, {})) : null,
+      eData.length ? chartCard(T('⌨ Editores de quem resolveu', '⌨ Editors of those who solved'),
+        pieChart(eData, { size: 240 })) : null)));
 
   // --- tabela por linguagem ---
   const tb = el('tbody');
@@ -96,13 +191,6 @@ async function boot() {
     el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
       el('th', {}, T('Linguagem', 'Language')), el('th', {}, T('Submissões', 'Submissions')), el('th', {}, T('Aceitas', 'Accepted')),
       el('th', {}, T('Taxa', 'Rate')), el('th', {}, T('Resolveram', 'Solved')))), tb)));
-
-  // --- editores declarados pelos solvers ---
-  if ((s.editors || []).length) {
-    const eData = s.editors.map((e) => ({ label: editorLabel(e.editor), value: e.count }));
-    content.append(el('div', { class: 'section' }, el('h2', {}, T('⌨ Editores de quem resolveu', '⌨ Editors of those who solved')),
-      el('div', { class: 'chart-grid' }, chartCard(T('Editores declarados', 'Declared editors'), pieChart(eData, { size: 240 })))));
-  }
 
   // --- nuvem de avatares (solvers públicos) ---
   const avs = s.solver_avatars || [];
