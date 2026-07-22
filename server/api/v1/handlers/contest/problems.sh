@@ -22,10 +22,9 @@ load_contest_conf "$contest"
 # tempo-limite por problema (do store run/tl/<id>.json), salvo se o conf ocultar (SHOWTL=0).
 source "$_DIR/lib/tl-store.sh"
 SHOW_TL=true; [[ "$SHOWTL" == 0 ]] && SHOW_TL=false
-# linguagens permitidas: override por problema (problem-langs.json) -> whitelist do contest
-# (LANGUAGES) -> [] (= todas). O front filtra o editor e a tabela de TL por essa lista.
-PLANGS='{}'; [[ -f "$CONTESTSDIR/$contest/problem-langs.json" ]] && PLANGS="$(jq -c . "$CONTESTSDIR/$contest/problem-langs.json" 2>/dev/null)"; [[ -n "$PLANGS" ]] || PLANGS='{}'
-CLANGS='[]'; [[ -n "$LANGUAGES" ]] && CLANGS="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
+# linguagens permitidas: cadeia em lib/langs.sh (FONTE ÚNICA — o /submit APLICA a mesma
+# lista que esta listagem oferece; front filtra o editor e a tabela de TL por ela).
+source "$_LIBDIR/langs.sh"
 # pool de juízes: override por problema (problem-judges.json) -> pool do contest
 # (CONTEST_JUDGES) -> "" (= todos). O TL servido é o MÁX só entre os hosts do pool efetivo.
 PJUDGES='{}'; [[ -f "$CONTESTSDIR/$contest/problem-judges.json" ]] && PJUDGES="$(jq -c . "$CONTESTSDIR/$contest/problem-judges.json" 2>/dev/null)"; [[ -n "$PJUDGES" ]] || PJUDGES='{}'
@@ -79,20 +78,9 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   pj="$(jq -r --arg id "$PROBLEMID" '(.[$id] // []) | join(" ")' <<<"$PJUDGES" 2>/dev/null)"
   [[ -n "$pj" ]] || pj="$CONTEST_JUDGES"
   tl='{}'; [[ "$SHOW_TL" == true ]] && { tl="$(tl_store_served "$PROBLEMID" "$pj" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'; }
-  # linguagens deste problema (cadeia mais-específico-vence): override por-problema-no-contest
-  # (problem-langs.json) -> whitelist do contest (LANGUAGES) -> default do PRÓPRIO pacote
-  # (jsons/<id>.json .languages, novo último elo — pega o "só-pddl" de um problema sem que o
-  # contest precise configurar nada) -> [] (= todas). Não-regressivo: só o 3º elo é novo, e ele
-  # só entra quando NEM override NEM whitelist existem (antes daria [] direto).
-  plangs="$(jq -c --arg id "$PROBLEMID" '.[$id] // empty' <<<"$PLANGS" 2>/dev/null)"
-  if [[ -z "$plangs" || "$plangs" == null ]]; then
-    if [[ -n "$CLANGS" && "$CLANGS" != "[]" ]]; then
-      plangs="$CLANGS"
-    else
-      pjf="$CONTESTSDIR/treino/var/jsons/$PROBLEMID.json"; [[ -f "$pjf" ]] || pjf="$CONTESTSDIR/treino/var/jsons-private/$PROBLEMID.json"
-      plangs="$(jq -c '.languages // []' "$pjf" 2>/dev/null)"; [[ -n "$plangs" ]] || plangs='[]'
-    fi
-  fi
+  # linguagens deste problema: cadeia compartilhada (override do contest -> LANGUAGES ->
+  # default do pacote -> todas) — a MESMA que o /submit força (lib/langs.sh).
+  plangs="$(effective_problem_langs "$contest" "$PROBLEMID")"; [[ -n "$plangs" ]] || plangs='[]'
   args+=( --argjson tl "$tl" --argjson plangs "$plangs" ); filt+=", time_limits:\$tl, languages:\$plangs}"
 
   ITEMS+=( "$(jq -cn --arg id "$PROBLEMID" --arg short "$SHORTNAME" \

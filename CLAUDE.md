@@ -260,8 +260,11 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   **`languages`** = ids de linguagem de submissão permitidos
   (`[]`/ausente = todas as PADRÃO); o `gen-problem-json.sh` o serve no índice do treino, o dropdown
   do treino filtra por ele, e ele é o último elo da cadeia de fallback de linguagem do contest
-  (`handlers/contest/problems.sh`: override-no-contest → whitelist do contest → default do
-  pacote → todas). **Linguagens EXÓTICAS/custom** (`pddl`, `grepe` do curso de compiladores,
+  (override-no-contest → whitelist do contest → default do pacote → todas). A cadeia tem FONTE
+  ÚNICA em **`lib/langs.sh`** (`effective_problem_langs`/`lang_allowed`) e é **FORÇADA no
+  `/submit` e no `/contest/offline-submit`** (`400 lang_not_allowed`, extensão canonicalizada
+  py3→py/cc→cpp) — a listagem `contest/problems.sh` usa a mesma função; o dropdown é só
+  conveniência (2026-07-22; antes era decorativa e trocar a extensão burlava o ban de função). **Linguagens EXÓTICAS/custom** (`pddl`, `grepe` do curso de compiladores,
   `sas`/`l`/`lpp`/`downward`, …) são **opt-in** em `web/shared/languages.js` (flag `optIn`): NÃO
   aparecem no dropdown por padrão — só quando o problema as **declara** em `languages`. Um id
   exótico não-registrado aparece com o próprio id como label (fallback do `langById`). Habilita,

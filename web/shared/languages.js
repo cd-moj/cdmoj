@@ -38,6 +38,15 @@ export const DEFAULT_SUBMIT_LANGUAGES = LANGUAGES.filter((l) => !l.optIn);
 // como label, sem realce/template — sem precisar de código novo. Só cai no LANGUAGES[0] p/ id vazio.
 export const langById = (id) =>
   LANGUAGES.find((l) => l.id === id) || (id ? { id, label: id, cm: null, template: '' } : LANGUAGES[0]);
+// canon ESTRITO de extensão p/ conferir com a whitelist `languages` de um problema —
+// espelha o lib/langs.sh do servidor (que APLICA a whitelist no /submit). O langByExt
+// abaixo é p/ EXIBIÇÃO e tem fallbacks generosos (rb->py, desconhecido->c) que validariam
+// errado; aqui desconhecido fica literal (e reprova contra a lista).
+export function extCanon(ext) {
+  const e = (ext || '').toLowerCase();
+  const m = { cc: 'cpp', cxx: 'cpp', 'c++': 'cpp', hpp: 'cpp', h: 'c', py3: 'py', py2: 'py' };
+  return m[e] || e;
+}
 // extensão de arquivo -> id de linguagem do MOJ
 export function langByExt(ext) {
   const e = (ext || '').toLowerCase();

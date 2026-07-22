@@ -1102,7 +1102,7 @@
         "tags": [
           "submission"
         ],
-        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar)",
+        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar). Whitelist de linguagens FORÇADA (400 lang_not_allowed): extensão canonicalizada tem de estar na lista efetiva do problema (override do contest -> LANGUAGES -> pacote -> todas)",
         "security": [
           {
             "bearerAuth": []
@@ -6427,7 +6427,7 @@
     },
     "/contest/offline-submit": {
       "post": {
-        "summary": "Rota emergencial do moj-comp: pacotes cifrados criados sem rede; cada um é validado (beacon assinado, janela beacon.t≤claimed≤now, janela da prova do aluno, monotonicidade, dedup) e contabilizado NO horário reivindicado, com flag p/ o organizador (var/offline-log + audit).",
+        "summary": "Rota emergencial do moj-comp: pacotes cifrados criados sem rede; cada um é validado (beacon assinado, janela beacon.t≤claimed≤now, janela da prova do aluno, monotonicidade, dedup, whitelist de linguagens do problema) e contabilizado NO horário reivindicado, com flag p/ o organizador (var/offline-log + audit).",
         "tags": [
           "contest"
         ],

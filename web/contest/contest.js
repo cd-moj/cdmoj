@@ -4,7 +4,7 @@ import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
-import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById } from '/shared/languages.js';
+import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
@@ -646,6 +646,15 @@ function renderSubmitInline(p) {
   edBtn.addEventListener('click', async () => {
     if (fileInput.files && fileInput.files[0]) {
       const f = fileInput.files[0];
+      // whitelist do problema vale TAMBÉM p/ upload de arquivo (a API rejeita; aqui é a
+      // mensagem amigável antes do POST — o dropdown do editor já filtra)
+      if (p.languages && p.languages.length) {
+        const fext = f.name.includes('.') ? f.name.split('.').pop() : '';
+        if (!p.languages.map(extCanon).includes(extCanon(fext))) {
+          edSteps.innerHTML = `<span class="error-box">${T(`Este problema só aceita: ${p.languages.join(', ')} — o arquivo .${fext || '?'} não pode ser enviado.`, `This problem only accepts: ${p.languages.join(', ')} — the .${fext || '?'} file cannot be submitted.`)}</span>`;
+          return;
+        }
+      }
       edSteps.textContent = T('Preparando…', 'Preparing…');
       doSubmit({ filename: f.name, code_b64: await fileToBase64(f), source: 'file' }, edSteps, edBtn);
       return;

@@ -407,7 +407,7 @@ Campo a campo:
 | `owner` | login | o dono do problema |
 | `public` | booleano | se `true`, o problema entra no treino livre. Publicar exige que a **org** permita (seção 7) |
 | `collections` | lista de textos | as coleções em que o problema está (seção 8). Pode estar em várias |
-| `languages` | lista de ids | as linguagens de submissão **permitidas** neste problema. Vazio ou ausente = todas as linguagens padrão. É o que permite um problema só-PDDL, por exemplo. O servidor normaliza (minúsculas, `py2`/`py3` viram `py`, sem repetidos) |
+| `languages` | lista de ids | as linguagens de submissão **permitidas** neste problema. Vazio ou ausente = todas as linguagens padrão. É o que permite um problema só-PDDL, por exemplo. O servidor normaliza (minúsculas, `py2`/`py3` viram `py`, sem repetidos). **A API REJEITA submissão fora da lista** (`400 lang_not_allowed`, no `/submit` e no offline — não é só o filtro do dropdown), essencial em problema de função/ban: sem isso, trocar a extensão burlava o driver |
 | `public_at` | epoch | quando o problema foi publicado **pela primeira vez**. Fica lá mesmo se despublicarem depois. Alimenta a estatística de entrada de problemas públicos |
 | `migrated_at` | epoch | quando o problema veio de uma migração. Só informativo |
 

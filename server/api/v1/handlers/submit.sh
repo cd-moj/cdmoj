@@ -32,6 +32,19 @@ ext="${filename##*.}"
 if [[ "$ext" == "$filename" || -z "$ext" ]]; then FILETYPE="TXT"
 else FILETYPE="$(printf '%s' "$ext" | tr '[:lower:]' '[:upper:]')"; fi
 
+# WHITELIST de linguagens do problema — FORÇADA AQUI (o dropdown da web é só conveniência;
+# antes disto a restrição era decorativa: trocar a extensão burlava até o ban de função).
+# Mesma cadeia da listagem (lib/langs.sh): override do contest -> LANGUAGES -> pacote -> todas.
+source "$_LIBDIR/langs.sh"
+_wl="$(effective_problem_langs "$contest" "$problem")"
+if ! lang_allowed "$_wl" "$FILETYPE"; then
+  _wll="$(jq -r 'join(", ")' <<<"$_wl" 2>/dev/null)"
+  if [[ "$FILETYPE" == TXT ]]; then
+    fail 400 "Arquivo sem extensão de linguagem — este problema aceita: ${_wll:-?}" "lang_not_allowed"
+  fi
+  fail 400 "Linguagem .${ext,,} não aceita neste problema (aceitas: ${_wll:-?})" "lang_not_allowed"
+fi
+
 AGORA="$EPOCHSECONDS"
 ID="$(printf '%s%s%s%s%s' "$contest" "$AGORA" "$SESSION_LOGIN" "$problem" "$RANDOM" | md5sum | cut -d' ' -f1)"
 

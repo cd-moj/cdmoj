@@ -20,6 +20,7 @@ require_auth_contest "$contest"
 [[ "$contest" != treino ]] || fail 400 "Offline-submit é de contest" "not_a_contest"
 source "$_LIBDIR/contest-gate.sh"
 source "$_LIBDIR/contest-offline.sh"
+source "$_LIBDIR/langs.sh"
 { is_staff || is_cstaff; } && fail 403 "Usuário staff não submete soluções" "submit_forbidden"
 
 body="$(read_body)"
@@ -63,6 +64,11 @@ while (( i < NP )); do
   [[ -n "$problem" && -n "$codeb64" ]] || { reject "faltou problem_id/code_b64"; continue; }
   valid_id "$problem" || { reject "problem_id inválido"; continue; }
   [[ "$claimed" =~ ^[0-9]+$ ]] || { reject "claimed_utc inválido"; continue; }
+  # WHITELIST de linguagens do problema — mesma regra do /submit online (lib/langs.sh):
+  # pacote offline com extensão fora da lista é rejeitado NA CHEGADA (motivo visível).
+  wlx="${filename##*.}"; [[ "$wlx" == "$filename" || -z "$wlx" ]] && wlx=TXT
+  lang_allowed "$(effective_problem_langs "$contest" "$problem")" "$wlx" \
+    || { reject "linguagem .$(printf '%s' "$wlx" | tr '[:upper:]' '[:lower:]') não aceita neste problema"; continue; }
 
   bp="$(offline_beacon_verify "$contest" "$beacon")" || { reject "beacon inválido (assinatura)"; continue; }
   bl="$(jq -r '.l' <<<"$bp")"; bc="$(jq -r '.c' <<<"$bp")"; bt="$(jq -r '.t' <<<"$bp")"
