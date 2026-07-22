@@ -201,6 +201,38 @@ async function boot() {
       el('th', {}, T('Linguagem', 'Language')), el('th', {}, T('Submissões', 'Submissions')), el('th', {}, T('Aceitas', 'Accepted')),
       el('th', {}, T('Taxa', 'Rate')), el('th', {}, T('Resolveram', 'Solved')))), tb)));
 
+  // --- tempo de execução das aceitas (estilo Kattis) ---
+  // runtimes = [{lang, t}] onde t = o teste mais LENTO da submissão aceita. Só cobre
+  // submissões julgadas na plataforma nova (results/ por submissão) — cresce sozinho.
+  const rts = s.runtimes || [];
+  if (rts.length) {
+    const ts = rts.map((r) => r.t);
+    const tmax = Math.max(...ts, 0.01);
+    // passo "redondo" (1/2/5 × 10^k) dando ~10 faixas
+    const raw = tmax / 10;
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 5, 10].map((m) => m * pow).find((s2) => s2 >= raw) || raw;
+    const dec = Math.max(0, -Math.floor(Math.log10(step)));
+    const nb = Math.max(1, Math.ceil((tmax + 1e-9) / step));
+    const bins = new Array(nb).fill(0);
+    ts.forEach((t) => { bins[Math.min(nb - 1, Math.floor(t / step))]++; });
+    const hData = bins.map((v, i) => ({ label: (i * step).toFixed(dec) + '–' + ((i + 1) * step).toFixed(dec) + 's', value: v }));
+    const fastest = {};
+    rts.forEach((r) => { if (fastest[r.lang] == null || r.t < fastest[r.lang]) fastest[r.lang] = r.t; });
+    const fData = Object.entries(fastest).map(([l, t]) => ({ label: langDisplay(l), value: t }))
+      .sort((a, b) => a.value - b.value);
+    content.append(el('div', { class: 'section' },
+      el('h2', {}, T('⏱ Tempo de execução (submissões aceitas)', '⏱ Running time (accepted submissions)')),
+      el('p', { class: 'small muted', style: 'margin:0 0 .6rem' },
+        T(`Tempo do teste mais lento de cada aceita — ${rts.length} submissões julgadas na plataforma atual (submissões antigas migradas não têm medição).`,
+          `Slowest-test time of each accepted run — ${rts.length} submissions judged on the current platform (old migrated submissions have no measurement).`)),
+      el('div', { class: 'chart-grid two' },
+        chartCard(T('Distribuição', 'Distribution'),
+          el('div', { class: 'chart-wrap' }, barChart(hData, { width: Math.max(460, nb * 40), height: 220, color: '#0aa', rotateLabels: true }))),
+        chartCard(T('Mais rápida por linguagem', 'Fastest by language'),
+          hBarChart(fData, { total: 0, fmt: (v) => v.toFixed(2) + 's' })))));
+  }
+
   // --- nuvem de avatares (solvers públicos) ---
   const avs = s.solver_avatars || [];
   if (avs.length) {

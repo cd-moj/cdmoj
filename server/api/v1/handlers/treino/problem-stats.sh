@@ -98,6 +98,21 @@ core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]
           solvers: $solv
         }')"
 
+# tempos de execução das ACEITAS (estilo Kattis): o results/<subid>.json do modelo pull JÁ
+# traz tests[].time (o agente extrai dos timelogs) — o "tempo" da submissão é o do teste
+# mais lento. Só cobre a era newmoj (submissão migrada não tem results/) — engrossa sozinho.
+# Lista de arquivos por NUL + slurpfile no final (nunca argv — ARG_MAX).
+rtf="$(mktemp)"; echo '[]' > "$rtf"
+_rtlist="$(mktemp)"
+printf '%s\n' "$plines" | awk -F: '$5 ~ /^Accepted/ {print $2 "/results/" $7 ".json"}' \
+  | while IFS= read -r rel; do p="$T/users/$rel"; [[ -f "$p" ]] && printf '%s\0' "$p"; done > "$_rtlist"
+if [[ -s "$_rtlist" ]]; then
+  xargs -0 jq -c '{lang: (.lang // "?"), t: ([.tests[]?.time? // empty] | (if length>0 then max else null end))} | select(.t != null)' < "$_rtlist" 2>/dev/null \
+    | jq -sc 'map(.lang |= ((ascii_upcase) as $u | (({"C++":"cpp","CC":"cpp","CXX":"cpp","HPP":"cpp","H":"c","PY3":"py","PY2":"py"}[$u]) // ($u|ascii_downcase))))' > "$rtf" 2>/dev/null || echo '[]' > "$rtf"
+  [[ -s "$rtf" ]] || echo '[]' > "$rtf"
+fi
+rm -f "$_rtlist"
+
 # percentil de dificuldade contra o ACERVO: taxa de sucesso POR USUÁRIO (solved/attempted,
 # usuários distintos) deste problema comparada com a de todos os públicos, no MESMO dataset
 # (var/problems.json, a lista servida do treino — só públicos, nada vaza). Elegível =
@@ -150,7 +165,9 @@ avjson="$( ((${#AV[@]})) && printf '%s\n' "${AV[@]}" | jq -cs '.' || echo '[]')"
 jq -n --arg id "$id" --arg title "$title" --argjson core "$core" \
    --argjson editors "$edjson" --argjson avatars "$avjson" --argjson pub "$pubcount" \
    --argjson fspub "$fspub" --arg fsname "$fsname" --argjson pctl "$pctl" \
-  '{success:true, problem_id:$id, title:$title, difficulty_percentile:$pctl}
+   --slurpfile rt "$rtf" \
+  '{success:true, problem_id:$id, title:$title, difficulty_percentile:$pctl,
+    runtimes: ($rt[0] // [])}
    + ($core | del(.solvers)
       | (if (.facts.first_solver != null) then
            (if $fspub then (.facts.first_solver.name = $fsname)
@@ -159,5 +176,6 @@ jq -n --arg id "$id" --arg title "$title" --argjson core "$core" \
    + {editors:$editors, solvers_public_count:$pub, solver_avatars:$avatars,
       generated_at: '"$EPOCHSECONDS"'}' > "$CACHE.tmp" 2>/dev/null \
   && mv -f "$CACHE.tmp" "$CACHE"
+rm -f "$rtf"
 [[ -f "$CACHE" ]] || fail 500 "Falha ao montar as estatísticas" "stats_failed"
 _pshdr; cat "$CACHE"
