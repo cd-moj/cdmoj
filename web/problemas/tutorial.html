@@ -216,10 +216,10 @@ moj push         # envia — cria/atualiza no servidor (round-trip completo)</pr
         <p data-en="Every push/save is a git commit server-side: the history tab of the editor (and moj log / moj restore) lets you inspect and roll back any version.">Todo push/salvar é um commit git no servidor: a aba histórico do editor (e <code>moj log</code>/<code>moj restore</code>) permite inspecionar e voltar qualquer versão.</p>
 
         <h3 data-en="Step 8 — validate, calibrate, publish">Passo 8 — validar, calibrar, publicar</h3>
-        <pre>moj validate minha-org#fibonacci   # portão + calibração no juiz — CONTINUA PRIVADO
-moj check    minha-org#fibonacci   # QA: checks, TL por juiz, good sem TL
+        <pre>moj validate minha-org#fibonacci   # portão + (RE)ENFILEIRA calibração — CONTINUA PRIVADO
+moj check    minha-org#fibonacci   # QA read-only: checks, TL por juiz, good sem TL
 moj publish  minha-org#fibonacci   # público no treino (a ORG precisa permitir)</pre>
-        <p data-en="validate is the exam mode: full quality check, zero exposure. check shows the judge's verdict on YOUR solutions and the calibrated TLs. publish requires the org's public lock open (Orgs tab) — the implicit personal org never publishes."><code>validate</code> é o modo prova: conferência completa, exposição zero. <code>check</code> mostra o veredicto do juiz sobre as SUAS soluções e os TLs calibrados. <code>publish</code> exige a trava de público da org aberta (aba Orgs) — a org pessoal implícita nunca publica.</p>
+        <p data-en="validate is the exam mode: full quality check, zero exposure — and each call RE-ENQUEUES calibration, so to just LOOK use check/status (read-only). check shows the judge's verdict on YOUR solutions and the calibrated TLs. publish requires the org's public lock open (Orgs tab) — the implicit personal org never publishes."><code>validate</code> é o modo prova: conferência completa, exposição zero — e cada chamada RE-ENFILEIRA calibração, então p/ só OLHAR use <code>check</code>/<code>status</code> (read-only). <code>check</code> mostra o veredicto do juiz sobre as SUAS soluções e os TLs calibrados. <code>publish</code> exige a trava de público da org aberta (aba Orgs) — a org pessoal implícita nunca publica.</p>
 
         <h2 id="receitas" data-en="4. Professor recipes">4. Receitas de professor</h2>
 
