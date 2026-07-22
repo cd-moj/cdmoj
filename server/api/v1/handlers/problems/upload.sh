@@ -66,26 +66,35 @@ pub_srv=false
 # imagem, TODO upload em produção caía nele, calado: teste/solução apagada continuava valendo, e um
 # tar com .git dentro sobrescrevia o histórico do servidor. Agora o caminho sem rsync FAZ a mesma
 # coisa (com tar, que sempre existe), e erro de rsync não é mais engolido.
+# `tags` é CURADORIA (não entra no julgamento nem no tl-checksum): tar SEM o arquivo =>
+# preserva o do servidor — dir montado à mão raramente o tem, e o --delete o apagava, mudo.
+# Tar COM o arquivo (mesmo vazio) substitui — apagar de propósito = mandar o arquivo vazio.
+keep_tags=0; [[ ! -f "$src/tags" && -f "$pdir/tags" ]] && keep_tags=1
 if command -v rsync >/dev/null 2>&1; then
-  rsync -a --delete --exclude='.git' --exclude='.moj-meta.json' "$src"/ "$pdir"/ \
+  rs_ex=(--exclude='.git' --exclude='.moj-meta.json'); (( keep_tags )) && rs_ex+=(--exclude='/tags')
+  rsync -a --delete "${rs_ex[@]}" "$src"/ "$pdir"/ \
     || fail 500 "Falha ao gravar o pacote (rsync)" "pkg_write_failed"
 else
-  find "$pdir" -mindepth 1 -maxdepth 1 ! -name .git ! -name .moj-meta.json -exec rm -rf {} + 2>/dev/null
+  fd_ex=(); (( keep_tags )) && fd_ex=(! -name tags)
+  find "$pdir" -mindepth 1 -maxdepth 1 ! -name .git ! -name .moj-meta.json "${fd_ex[@]}" -exec rm -rf {} + 2>/dev/null
   ( cd "$src" && tar -cf - --exclude=.git --exclude=.moj-meta.json . ) | ( cd "$pdir" && tar -xf - ) \
     || fail 500 "Falha ao gravar o pacote (tar)" "pkg_write_failed"
 fi
 owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
 
-# TÍTULO e COLEÇÕES vêm do PACOTE (o `.moj-meta.json` do tar): são campos de CONTEÚDO. Só
-# `public`/`public_at`/`owner` são de ACESSO e continuam IGNORADOS do tar (é o furo que o --exclude
-# fecha). Sem isto, todo problema NOVO subido por upload entrava com o título = NOME DA PASTA e sem
-# coleção: o write_meta só PRESERVA o que o servidor já tem, e problema novo não tem nada — e o
-# .moj-meta.json do tar, que traz o título certo, tinha acabado de ser descartado pelo --exclude.
-tar_title=""; tar_colls=""
+# TÍTULO, COLEÇÕES e LANGUAGES vêm do PACOTE (o `.moj-meta.json` do tar): são campos de CONTEÚDO.
+# Só `public`/`public_at`/`owner` são de ACESSO e continuam IGNORADOS do tar (é o furo que o
+# --exclude fecha). Sem isto, todo problema NOVO subido por upload entrava com o título = NOME DA
+# PASTA, sem coleção e SEM WHITELIST de linguagem (languages [] = todas — furava o ban de função):
+# o write_meta só PRESERVA o que o servidor já tem, e problema novo não tem nada — e o
+# .moj-meta.json do tar, que traz os valores certos, tinha acabado de ser descartado pelo --exclude.
+tar_title=""; tar_colls=""; tar_langs=""
 if [[ -f "$src/.moj-meta.json" ]] && jq -e . "$src/.moj-meta.json" >/dev/null 2>&1; then
   tar_title="$(jq -r '.display_title // empty' "$src/.moj-meta.json" 2>/dev/null)"
   tar_colls="$(jq -c '[.collections[]? | select(type=="string")]' "$src/.moj-meta.json" 2>/dev/null)"
   [[ "$tar_colls" == "[]" ]] && tar_colls=""      # sem coleção no tar => não mexe nas do servidor
+  tar_langs="$(jq -c '[.languages[]? | select(type=="string")]' "$src/.moj-meta.json" 2>/dev/null)"
+  [[ "$tar_langs" == "[]" ]] && tar_langs=""      # sem languages no tar => não mexe nas do servidor
 fi
 coll_register "$org" "$SESSION_LOGIN"             # a coleção homônima da org é sempre válida (= create)
 # CURADA: coleção marcada tem de EXISTIR no registro (mesma trava do /problems/edit)
@@ -94,7 +103,7 @@ if [[ -n "$tar_colls" ]]; then
     coll_exists "$cn" || fail 400 "Coleção '$cn' não existe — crie antes (moj collection create)" "coll_unknown"
   done < <(jq -r '.[]?' <<<"$tar_colls")
 fi
-write_meta "$pdir" "$owner" "$org" "$pub_srv" "$tar_colls" "$tar_title"   # public: o do SERVIDOR
+write_meta "$pdir" "$owner" "$org" "$pub_srv" "$tar_colls" "$tar_title" "$tar_langs"   # public: o do SERVIDOR
 _pkg_canon_modes "$pdir"   # 644/755 — o mesmo modo do caminho do push (o tl-checksum inclui o modo)
 [[ -f "$pdir/problem.yaml" ]] || bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true
 

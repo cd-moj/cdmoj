@@ -351,6 +351,11 @@ Os assuntos do problema, uma tag por linha, começando com `#`, em minúsculas:
 
 As tags alimentam a busca do treino e o **sorteio** de problemas na criação de contest.
 
+Tags são **curadoria**, não conteúdo julgável — e o `moj upload` as trata assim: tar **sem** o
+arquivo `tags` ⇒ o servidor **preserva** as que já tem (um diretório montado à mão raramente traz o
+arquivo, e o espelhamento as apagava em silêncio); tar **com** o arquivo (mesmo vazio) ⇒ substitui.
+Apagar todas de propósito = enviar o arquivo vazio (ou usar o editor web / `moj push`).
+
 **Dificuldade não é uma tag e não existe no pacote.** Ela é **calculada** a partir da taxa de acerto
 real dos alunos (fácil se pelo menos metade acerta, difícil se menos de 20% acerta, desconhecida se
 ninguém tentou). Não adianta procurar um campo de dificuldade para preencher.
@@ -369,11 +374,17 @@ o autor nem a CLI editam este arquivo à mão: eles mandam os campos pela API, e
 
 **No `moj upload` (o pacote sobe num tar), o servidor separa os campos em dois grupos:**
 
-- **conteúdo** — `display_title` e `collections`: **vêm do `.moj-meta.json` do tar** (é o pacote que
-  sabe como o problema se chama). Ausentes ⇒ o servidor **preserva** o que já tinha.
+- **conteúdo** — `display_title`, `collections` e `languages`: **vêm do `.moj-meta.json` do tar**
+  (é o pacote que sabe como o problema se chama e em que linguagens aceita submissão). Ausentes ou
+  vazios (`[]`) ⇒ o servidor **preserva** o que já tinha — zerar a whitelist de linguagens é pelo
+  `moj push`/editor, nunca por omissão num tar.
 - **acesso** — `public`, `public_at` e `owner`: **nunca** vêm do tar; só as rotas próprias os mudam
   (`/problems/set-public` etc.). Se viessem, bastava baixar um problema público, adaptá-lo para uma
   prova numa org privada e dar `moj upload` — a próxima indexação publicaria a prova.
+
+A CLI fecha o círculo: no `moj upload` de um **diretório**, ela sintetiza um `.moj-meta.json` no tar
+a partir do `.moj-id` local (título/coleções/languages) — um pacote de `moj clone` sobe completo.
+(Um tar de `moj download` já traz o meta real do servidor.)
 
 Exemplo real (`moj-problems/apc/seno/.moj-meta.json`):
 
@@ -432,7 +443,7 @@ ida e volta. O `moj push` **exclui** este arquivo do que sobe.
 | `id`, `repo`, `prob` | qual problema este diretório é (`<org>#<prob>`) |
 | `title` | espelho local do `display_title`. Editar aqui e dar `push` muda o título no servidor. O `push` **recusa** enviar com o título vazio |
 | `format` | `md`, `org` ou `tex`, o formato do enunciado deste clone |
-| `collections`, `languages`, `public` | espelhos locais dos campos do `.moj-meta.json`, com ida e volta pelo `push` |
+| `collections`, `languages`, `public` | espelhos locais dos campos do `.moj-meta.json`, com ida e volta pelo `push` (e o `moj upload` de diretório leva título/coleções/languages num meta **sintetizado** a partir daqui; `public` nunca sobe). `moj languages <dir>` edita a whitelist sem abrir o arquivo |
 | `scripts_rt` | marca que este clone sabe fazer ida e volta de `scripts/` e `tests/score`. Sem essa marca, o `push` não tem permissão de **apagar** esses arquivos no servidor (protege clones antigos de destruir a correção especial sem querer) |
 
 Resumindo a diferença:
@@ -654,7 +665,8 @@ Você não escreve. Ele é medido pela calibração. O que você pode ajustar é
 `TLMOD[calibrafactor]` no `conf`.
 
 **Quero que o problema só aceite Python.**
-Ponha `["py"]` no campo `languages` do `.moj-meta.json` (pelo editor ou pelo `.moj-id`).
+Ponha `["py"]` no campo `languages` do `.moj-meta.json` — pelo editor web, por
+`moj languages <dir> py` + `moj push`, ou editando o `.moj-id`.
 
 **Meu problema tem várias respostas certas.**
 Você precisa de um checker: `scripts/compare.sh`. Ver `mojtools/docs/correcao-especial.md` e o guia

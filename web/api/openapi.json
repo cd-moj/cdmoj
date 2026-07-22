@@ -5073,7 +5073,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Sobe um pacote (.tar/.gz/.bz2/.zst/.zip) e substitui tudo",
+        "summary": "Sobe um pacote (.tar/.gz/.bz2/.zst/.zip) e substitui o conteúdo; do .moj-meta.json do tar lê display_title/collections/languages (ausente=preserva); tags ausente no tar = preservadas",
         "security": [
           {
             "bearerAuth": []
