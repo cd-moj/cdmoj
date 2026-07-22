@@ -437,15 +437,47 @@ async function loadScriptTemplates() {
   SCR_TEMPLATES.forEach(t => sel.append(el('option', { value: t.key }, t.name)));
   return SCR_TEMPLATES;
 }
+// slot de um path de scripts/: compare | compile | run | summary (ver docs/correcao-especial.md
+// — os templates são ADITIVOS por slot: aplicar um template preenche o slot dele e PRESERVA
+// os demais; dois do MESMO slot = o último vence naquele slot)
+function slotOfPath(p) {
+  if (p === 'compare.sh' || p === 'checker.cpp') return 'compare';
+  if (p === 'summary.sh') return 'summary';
+  if (/\/compile\.sh$/.test(p)) return 'compile';
+  if (/\/(run|prep)\.sh$/.test(p) || !p.includes('/')) return 'run';   // symlink de lang = run
+  return 'outro';
+}
 async function applyScriptTemplate() {
   const key = $('scrTplSel').value; if (!key) return;
   const t = (SCR_TEMPLATES || []).find(x => x.key === key); if (!t) return;
-  if (scrEntries.length && !confirm(`${T('Aplicar o template "', 'Applying the template "')}${t.name}${T('" SUBSTITUI os ', '" REPLACES the ')}${scrEntries.length}${T(' arquivo(s) atuais de scripts/. Continuar?', ' current scripts/ file(s). Continue?')}`)) return;
-  renderScripts(t.files || []);
+  const cur = collectScripts();
+  const tplPaths = new Set((t.files || []).map(f => f.path));
+  const kept = cur.filter(f => !tplPaths.has(f.path));
+  const replaced = cur.filter(f => tplPaths.has(f.path));
+  // conflito estrutural: interativo (slot run) × submissão-de-função (compile por-lang)
+  const tplSlots = new Set(t.slots || []);
+  const curSlots = new Set(cur.map(f => slotOfPath(f.path)));
+  let msg = `${T('Adicionar o template "', 'Add template "')}${t.name}"?\n`;
+  msg += T(`• ${(t.files || []).length} arquivo(s) do template entram`, `• ${(t.files || []).length} template file(s) go in`);
+  if (replaced.length) msg += T(` (${replaced.length} substituem arquivos de mesmo nome)`, ` (${replaced.length} replace same-name files)`);
+  msg += '\n';
+  if (kept.length) msg += T(`• ${kept.length} arquivo(s) atuais FICAM (os slots compõem)\n`, `• ${kept.length} current file(s) STAY (slots compose)\n`);
+  if ((tplSlots.has('run') && curSlots.has('compile')) || (tplSlots.has('compile') && curSlots.has('run'))) {
+    msg += T('⚠ ATENÇÃO: interativo × submissão-de-função NÃO compõem (o interativo controla a execução por linguagem). Confira o resultado!\n',
+             '⚠ WARNING: interactive × function-submission do NOT compose (interactive owns per-language execution). Review the result!\n');
+  }
+  if (!confirm(msg)) return;
+  renderScripts([...kept, ...(t.files || [])]);
   const hint = $('scrTplHint');
   hint.style.display = '';
   hint.textContent = (t.description ? t.description + ' ' : '') + (t.conf_hints ? '💡 ' + t.conf_hints : '');
-  setMsg(T('Template aplicado — revise os arquivos (o exemplo é um ponto de partida) e salve.', 'Template applied — review the files (the example is a starting point) and save.'), '');
+  setMsg(T('Template ADICIONADO (os demais scripts ficaram) — revise e salve.', 'Template ADDED (other scripts kept) — review and save.'), '');
+}
+function clearScripts() {
+  if (!scrEntries.length) return;
+  if (!confirm(T(`Remover TODOS os ${scrEntries.length} arquivo(s) de scripts/ (todos os slots)?`, `Remove ALL ${scrEntries.length} scripts/ file(s) (every slot)?`))) return;
+  renderScripts([]);
+  setMsg(T('scripts/ limpo — salve para efetivar.', 'scripts/ cleared — save to apply.'), '');
 }
 
 // ---- árvore do pacote (clicável -> troca de aba e rola até a seção) ------------------------
@@ -1118,6 +1150,7 @@ function bindHandlers() {
   $('scrUpload').onclick = () => scrFi.click(); $('scrUpload').after(scrFi);
   $('scrTplSel').addEventListener('focus', loadScriptTemplates, { once: true });
   $('scrTplApply').onclick = applyScriptTemplate;
+  $('scrClear').onclick = clearScripts;
 }
 
 async function boot() {

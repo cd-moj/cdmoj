@@ -47,7 +47,7 @@ while IFS= read -r tdir; do
   done < <(find "$froot" \( -type f -o -type l \) 2>/dev/null | LC_ALL=C sort)
   jq -nc --arg key "$key" --argjson meta "$meta" --slurpfile files "$D/files.ndjson" \
     '{key:$key, name:($meta.name // $key), description:($meta.description // ""),
-      conf_hints:($meta.conf_hints // ""), files:$files}' >> "$D/templates.ndjson"
+      conf_hints:($meta.conf_hints // ""), slots:($meta.slots // []), files:$files}' >> "$D/templates.ndjson"
 done < <(find "$TDIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | LC_ALL=C sort)
 
 emit_json 200 OK
