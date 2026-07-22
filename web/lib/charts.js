@@ -213,19 +213,32 @@ export function lineChart(points, opts = {}) {
     c.append(title); svg.append(c);
   });
 
-  // rótulos do eixo x: primeiro e último (datas), mais alguns intermediários
+  // rótulos do eixo x: escolhidos por POSIÇÃO no eixo (não por índice do ponto — pontos
+  // aglomerados no tempo punham dois rótulos no mesmo pixel), com folga mínima entre eles
+  // e o do último ponto sempre presente.
   const fmtX = (t) => {
     const dt = new Date(t);
     return String(dt.getDate()).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0');
   };
   const nLab = Math.min(opts.maxLabels || 6, pts.length);
+  const minGap = 38;                                  // ~largura de "dd/mm" em font-size 9 + respiro
+  const lastX = sx(pts[pts.length - 1].t);
+  const chosen = [];
   for (let k = 0; k < nLab; k++) {
-    const idx = Math.round(k * (pts.length - 1) / (nLab - 1 || 1));
-    const p = pts[idx];
-    const tx = svgEl('text', { x: sx(p.t), y: padT + innerH + 14, 'text-anchor': k === 0 ? 'start' : k === nLab - 1 ? 'end' : 'middle', 'font-size': 9, fill: '#5b6b7d' });
+    const targetT = tMin + (tSpan * k) / (nLab - 1 || 1);
+    let best = 0, bd = Infinity;
+    pts.forEach((p, i) => { const d = Math.abs(p.t - targetT); if (d < bd) { bd = d; best = i; } });
+    const p = pts[best], x = sx(p.t);
+    if (chosen.length && x - chosen[chosen.length - 1].x < minGap) continue;
+    if (x < lastX && lastX - x < minGap) continue;    // reserva o lugar do rótulo do último ponto
+    chosen.push({ p, x });
+  }
+  if (!chosen.length || chosen[chosen.length - 1].x < lastX) chosen.push({ p: pts[pts.length - 1], x: lastX });
+  chosen.forEach(({ p, x }, k) => {
+    const tx = svgEl('text', { x, y: padT + innerH + 14, 'text-anchor': k === 0 ? 'start' : k === chosen.length - 1 ? 'end' : 'middle', 'font-size': 9, fill: '#5b6b7d' });
     tx.textContent = p.label != null && typeof points[0] === 'object' && points[0].x === undefined ? p.label : fmtX(p.t);
     svg.append(tx);
-  }
+  });
   return svg;
 }
 
