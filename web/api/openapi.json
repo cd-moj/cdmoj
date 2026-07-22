@@ -670,7 +670,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{total_submissions,distinct_attempted,distinct_solved,acceptance_rate,verdicts,by_language:[{lang,submissions,accepted,solvers}],editors,solver_avatars,solvers_public_count, daily:{YYYY-MM-DD:n}, monthly:[{m,subs,ac}], dow_hour:[{dow,hour,n}], first_ac_epochs:[epoch], tries:[{bucket,n}], tries_median, time_to_solve:[{bucket,n}], t2s_median, facts:{first_sub_epoch,last_sub_epoch,peak_day:{date,n},first_solver:{epoch,login?,name?}}} — datas/horas em America/Sao_Paulo; first_solver só expõe login/nome se o perfil for público"
+            "description": "{total_submissions,distinct_attempted,distinct_solved,acceptance_rate,verdicts,by_language:[{lang,submissions,accepted,solvers}],editors,solver_avatars,solvers_public_count, daily:{YYYY-MM-DD:n}, monthly:[{m,subs,ac}], dow_hour:[{dow,hour,n}], first_ac_epochs:[epoch], tries:[{bucket,n}], tries_median, time_to_solve:[{bucket,n}], t2s_median, facts:{first_sub_epoch,last_sub_epoch,peak_day:{date,n},first_solver:{epoch,login?,name?}}, difficulty_percentile:{harder_than_pct,cohort,success_rate}|null} — datas/horas em America/Sao_Paulo; first_solver só expõe login/nome se o perfil for público; percentil = taxa de sucesso por usuário vs. acervo público (≥5 tentantes, coorte ≥10)"
           }
         }
       }

@@ -74,6 +74,14 @@ async function boot() {
   // --- resumo ---
   const ar = s.acceptance_rate || 0;
   const diff = ar >= 0.9 ? T('muito fácil', 'very easy') : ar >= 0.7 ? T('fácil', 'easy') : ar >= 0.5 ? T('médio', 'medium') : T('difícil', 'hard');
+  // percentil contra o acervo: X% dos problemas públicos têm taxa de sucesso por usuário MAIOR
+  const dp = s.difficulty_percentile;
+  let dpCard = null;
+  if (dp && dp.harder_than_pct != null) {
+    dpCard = metric(dp.harder_than_pct + '%', T('do acervo é mais fácil que este', 'of the archive is easier than this'));
+    dpCard.title = T(`taxa de sucesso por usuário ${Math.round((dp.success_rate || 0) * 100)}%, comparada com ${dp.cohort} problemas públicos com ≥5 tentantes`,
+      `per-user success rate ${Math.round((dp.success_rate || 0) * 100)}%, compared with ${dp.cohort} public problems with ≥5 attempters`);
+  }
   content.append(el('div', { class: 'section' },
     el('h2', {}, T('Resumo', 'Summary')),
     el('div', { class: 'metrics' },
@@ -82,7 +90,8 @@ async function boot() {
       metric(s.distinct_solved, T('resolveram', 'solved')),
       metric(pct(ar), T('taxa de acerto', 'acceptance rate')),
       metric((s.avg_submissions_per_user || 0).toFixed(1), T('subs / usuário', 'subs / user')),
-      metric(diff, T('dificuldade', 'difficulty')))));
+      metric(diff, T('dificuldade', 'difficulty')),
+      dpCard)));
 
   // --- fatos rápidos ---
   const f = s.facts || {};

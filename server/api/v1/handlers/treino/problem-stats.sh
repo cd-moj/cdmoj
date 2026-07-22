@@ -98,6 +98,22 @@ core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]
           solvers: $solv
         }')"
 
+# percentil de dificuldade contra o ACERVO: taxa de sucesso POR USUÁRIO (solved/attempted,
+# usuários distintos) deste problema comparada com a de todos os públicos, no MESMO dataset
+# (var/problems.json, a lista servida do treino — só públicos, nada vaza). Elegível =
+# ≥5 tentantes; precisa de ≥10 elegíveis p/ o percentil significar algo; senão null.
+pctl='null'
+if [[ -f "$T/var/problems.json" ]]; then
+  pctl="$(jq -c --arg id "$id" '
+    [ .[] | select((.attempted_count // 0) >= 5)
+      | {id, r: ((.solved_count // 0) / (.attempted_count))} ] as $all
+    | ($all | map(select(.id == $id)) | .[0]) as $me
+    | if $me == null or ($all|length) < 10 then null
+      else { harder_than_pct: ((100 * ([ $all[] | select(.r > $me.r) ] | length) / ($all|length)) | round),
+             cohort: ($all|length), success_rate: ($me.r) } end' "$T/var/problems.json" 2>/dev/null)"
+  [[ -n "$pctl" ]] || pctl='null'
+fi
+
 # editores declarados pelos solvers + avatares de quem é público
 declare -A EDC; declare -a AV; pubcount=0
 # 1º a resolver: o login/nome só saem no JSON se a conta for PÚBLICA (senão fica só a data)
@@ -127,8 +143,8 @@ avjson="$( ((${#AV[@]})) && printf '%s\n' "${AV[@]}" | jq -cs '.' || echo '[]')"
 
 jq -n --arg id "$id" --arg title "$title" --argjson core "$core" \
    --argjson editors "$edjson" --argjson avatars "$avjson" --argjson pub "$pubcount" \
-   --argjson fspub "$fspub" --arg fsname "$fsname" \
-  '{success:true, problem_id:$id, title:$title}
+   --argjson fspub "$fspub" --arg fsname "$fsname" --argjson pctl "$pctl" \
+  '{success:true, problem_id:$id, title:$title, difficulty_percentile:$pctl}
    + ($core | del(.solvers)
       | (if (.facts.first_solver != null) then
            (if $fspub then (.facts.first_solver.name = $fsname)
