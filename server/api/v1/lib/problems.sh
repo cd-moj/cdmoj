@@ -593,7 +593,12 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
     while IFS= read -r -d '' inp && IFS= read -r -d '' outp; do
       i=$((i+1))
       printf '%s' "$inp"  > "$pkg/tests/input/sample$i"
-      printf '%s' "$outp" > "$pkg/tests/output/sample$i"
+      # output VAZIO + arquivo AUSENTE = não cria: interativo puro não tem tests/output/* e o
+      # push materializava vazios — mudava o tl-checksum e disparava recalibração espúria.
+      # Arquivo existente segue recebendo (vazio legítimo/limpeza intencional preservados).
+      if [[ -n "$outp" || -e "$pkg/tests/output/sample$i" ]]; then
+        printf '%s' "$outp" > "$pkg/tests/output/sample$i"
+      fi
     done < "$_t/ex.nul"
     # explicação por exemplo -> docs/notes/sample<N>.md (1 arquivo MARKDOWN por exemplo —
     # o formato de autoria; o autor nunca edita JSON). Escrever aqui REMOVE o legado
@@ -663,7 +668,10 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
         fi
       fi
       printf '%s' "$inp"  > "$pkg/tests/input/$nm"
-      printf '%s' "$outp" > "$pkg/tests/output/$nm"
+      # mesma regra dos samples: vazio + ausente = não cria (interativo sem tests/output/*)
+      if [[ -n "$outp" || -e "$pkg/tests/output/$nm" ]]; then
+        printf '%s' "$outp" > "$pkg/tests/output/$nm"
+      fi
     done < "$_t/tests.nul"
   fi
 
