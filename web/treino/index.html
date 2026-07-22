@@ -6,6 +6,28 @@
   <title>Treino Livre — MOJ</title>
   <link rel="stylesheet" href="/shared/ui.css">
   <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    /* explorador de coleções/tags (facetas client-side) */
+    .expl-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:start; margin-top:.6rem; }
+    @media (max-width:820px){ .expl-grid { grid-template-columns:1fr; } }
+    .expl-panel { background:#fafcff; border:1px solid var(--line); border-radius:12px; padding:.7rem .8rem; min-width:0; }
+    .expl-panel h3 { margin:.1rem 0 .5rem; font-size:.92rem; color:var(--blue-dark); }
+    .expl-panel input { width:100%; box-sizing:border-box; margin-bottom:.5rem; }
+    .ctree { max-height:340px; overflow:auto; }
+    .ctree .node { display:flex; align-items:center; gap:.25rem; padding:.08rem 0; }
+    .ctree .caret { cursor:pointer; width:1.15rem; text-align:center; color:var(--muted); user-select:none; flex:none; }
+    .ctree .kids { margin-left:.55rem; border-left:2px solid #e7ecf5; padding-left:.55rem; }
+    .ctree .collection { margin:0; cursor:pointer; }
+    .tcloud { max-height:340px; overflow:auto; }
+    .tcloud .tag { cursor:pointer; }
+    .collection.on { background:#4a37c9; color:#fff; }
+    .tag.on { background:var(--blue-dark); color:#fff; }
+    .tag.dim { opacity:.4; }
+    #active { margin-top:.5rem; }
+    #active .chip-x { margin-left:.35rem; font-weight:800; opacity:.7; }
+    #active .collection, #active .tag { cursor:pointer; }
+    summary.expl-sum { cursor:pointer; font-weight:600; color:var(--blue-dark); }
+  </style>
 </head>
 <body>
   <header class="topbar">
@@ -31,8 +53,6 @@
       </div>
       <div class="row">
         <input id="q" placeholder="Buscar por título…" data-en-ph="Search by title…" style="flex:1; min-width:220px">
-        <input id="qcol" placeholder="Filtrar por coleção (ex: obi2024)" data-en-ph="Filter by collection (e.g. obi2024)">
-        <input id="qtag" placeholder="Filtrar por tag (ex: grafos)" data-en-ph="Filter by tag (e.g. graphs)">
         <select id="filter">
           <option value="all" data-en="All">Todos</option>
           <option value="solved" data-en="Solved">Resolvidos</option>
@@ -40,11 +60,23 @@
         </select>
         <button id="toggleTags" class="btn ghost" data-en="Show tags">Mostrar tags</button>
       </div>
-      <div id="count" class="small muted" style="margin-top:.5rem"></div>
-      <details id="collIndexWrap" style="margin-top:.5rem">
-        <summary class="small" style="cursor:pointer" data-en="Browse by collection ▾">Navegar por coleção ▾</summary>
-        <div id="collIndex" class="small" style="margin-top:.4rem;line-height:2"></div>
+      <details id="explorer" open>
+        <summary class="expl-sum small" data-en="🧭 Explore by collection and tag">🧭 Explorar por coleção e tag</summary>
+        <div class="expl-grid">
+          <div class="expl-panel">
+            <h3 data-en="📚 Collections">📚 Coleções</h3>
+            <input id="colFilter" placeholder="🔎 filtrar coleções…" data-en-ph="🔎 filter collections…">
+            <div id="colTree" class="ctree small"></div>
+          </div>
+          <div class="expl-panel">
+            <h3 data-en="🏷 Tags">🏷 Tags</h3>
+            <input id="tagFilter" placeholder="🔎 filtrar tags…" data-en-ph="🔎 filter tags…">
+            <div id="tagCloud" class="tcloud"></div>
+          </div>
+        </div>
       </details>
+      <div id="active" class="row" style="align-items:center"></div>
+      <div id="count" class="small muted" style="margin-top:.5rem"></div>
     </div>
 
     <div class="section">
