@@ -183,6 +183,11 @@ index_problem_now(){
     MOJ_TL_STORE="$TL_STORE_DIR" MOJ_FORCE_PRIVATE="$fp" RUNDIR="$RUNDIR" \
     CONTESTSDIR="$CONTESTSDIR" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \
       bash "$MOJTOOLS_DIR/validate-problem.sh" "$pkg" "$id" >/dev/null 2>&1
+    # validate-problem.sh escreve run/validation/<id>.json, mas NÃO conhece o sumário do Painel.
+    # Sem este upsert, o /problems/status (lê run/validation-summary.json) fica em "não validado"
+    # p/ SEMPRE — o moj check (lê o json por-problema) diz validado e a web não. É o análogo do
+    # tl_store_record→tl_summary_upsert; sem ele a validação era o único evento que não propagava.
+    [[ -f "$RUNDIR/validation/$id.json" ]] && val_summary_upsert "$id" 2>/dev/null || true
   else
     MOJ_TL_STORE="$TL_STORE_DIR" MOJ_FORCE_PRIVATE="$fp" RUNDIR="$RUNDIR" \
     CONTESTSDIR="$CONTESTSDIR" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \

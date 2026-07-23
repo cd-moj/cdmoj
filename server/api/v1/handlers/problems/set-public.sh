@@ -27,7 +27,14 @@ if [[ "$pub" == "true" && -f "$pdir/conf" ]]; then
   sed -i -E '/^[[:space:]]*PUBLIC[[:space:]]*=[[:space:]]*no[[:space:]]*$/d' "$pdir/conf" 2>/dev/null || true
 fi
 problem_commit "$pdir" "$SESSION_LOGIN" "set public=$pub ($prob)" >/dev/null
-authored_patch "$id" '.public=($p=="true")' --arg p "$pub"
+# overlay via UPSERT (não patch): authored_patch é NO-OP p/ id já PODADO do overlay ⇒ o Painel e
+# a listagem ficavam com public velho até a regen ~30min do índice de donos. Relê os campos do meta
+# recém-escrito (padrão do edit.sh / coll_bulk_retag) p/ owners_merged refletir na hora.
+pub_now="$(jq -r 'if .public==true then "true" else "false" end' "$pdir/.moj-meta.json" 2>/dev/null)"
+title_now="$(jq -r '.display_title // ""' "$pdir/.moj-meta.json" 2>/dev/null)"
+colls_now="$(jq -c '.collections // []' "$pdir/.moj-meta.json" 2>/dev/null)"; [[ -n "$colls_now" ]] || colls_now='[]'
+author_txt="$(head -1 "$pdir/author" 2>/dev/null)"
+authored_upsert "$id" "$owner" "$org" "$prob" "$title_now" "${pub_now:-false}" "$colls_now" "$author_txt" '[]'
 reqid=""; calib=""
 if [[ "$pub" == "true" ]]; then
   # público => fluxo completo: VALIDA (portão + índice) + CALIBRA (juiz roda as good, reporta TL).

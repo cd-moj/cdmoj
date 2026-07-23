@@ -20,7 +20,13 @@ while IFS= read -r cn; do [[ -n "$cn" ]] || continue
 done < <(jq -r '.[]?' <<<"$colls")
 write_meta "$pdir" "$owner" "$org" "" "$colls" ""
 problem_commit "$pdir" "$SESSION_LOGIN" "coleções de $prob" >/dev/null
-authored_patch "$id" '.collections=$c' --argjson c "$colls"   # overlay: visibilidade imediata p/ o setter
+# overlay via UPSERT (não patch): authored_patch é NO-OP p/ id já PODADO ⇒ a contagem de coleção
+# (/problems/collections, do owners_merged) ficava 0 até a regen ~30min. Relê os campos do meta.
+pub_now="$(jq -r 'if .public==true then "true" else "false" end' "$pdir/.moj-meta.json" 2>/dev/null)"
+title_now="$(jq -r '.display_title // ""' "$pdir/.moj-meta.json" 2>/dev/null)"
+colls_now="$(jq -c '.collections // []' "$pdir/.moj-meta.json" 2>/dev/null)"; [[ -n "$colls_now" ]] || colls_now='[]'
+author_txt="$(head -1 "$pdir/author" 2>/dev/null)"
+authored_upsert "$id" "$owner" "$org" "$prob" "$title_now" "${pub_now:-false}" "$colls_now" "$author_txt" '[]'
 # público: RE-SERVE o json do treino p/ o ALUNO ver a tag nova (o served json carrega collections).
 if jq -e '.public==true' >/dev/null 2>&1 < "$pdir/.moj-meta.json"; then
   declare -F index_problem_bg >/dev/null || source "$_DIR/lib/tl-store.sh" 2>/dev/null

@@ -196,9 +196,12 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   — e regenera agregando os **sidecars `var/jsons-meta/<id>.json`** (metadados minúsculos,
   derivados do json servível no indexador; nunca slurpar `statement_html_b64` p/ listar). O
   Painel usa os **sumários `run/{tl,validation}-summary.json`** mantidos por upsert nos
-  escritores (`tl_store_record`, `judge/update-report.sh`); rebuild só a frio
-  (`tl_summary_ensure`/`val_summary_ensure`). Escritor novo de json servível/TL/validação ⇒
-  OBRIGATÓRIO tocar stamp/upsert (senão a lista/painel congela até o TTL de segurança de 60 min).
+  escritores (`tl_store_record`→`tl_summary_upsert`; a validação estática do
+  `index_problem_now validate=1`→`val_summary_upsert`; `judge/update-report.sh`); rebuild só a
+  frio (`tl_summary_ensure`/`val_summary_ensure`) **e só quando o arquivo NÃO existe** (não há
+  TTL — se um escritor esquecer o upsert, o Painel CONGELA até apagarem o sumário; foi o bug dos
+  mini-gpt 2026-07-23: validado na CLI, "não validado" na web). Escritor novo de json
+  servível/TL/validação ⇒ OBRIGATÓRIO tocar stamp/upsert.
   **Contagens da lista vêm do STORE NOVO** (`server/score/treino-list-gen.sh` agrega
   `users/*/metrics.json` `.solved`/`.attempted`, sobrepondo a base legada `var/json-count/`),
   com refresh LAZY em background via `.score-dirty` + piso 10 min. Mesmo padrão por-evento em
