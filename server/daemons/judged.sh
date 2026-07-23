@@ -37,6 +37,15 @@ _COMMON_CONF="$SERVER_DIR/etc/common.conf"
 : "${SPOOLDIR:=$RUNDIR/spool/submissions}"
 : "${SPOOLDONEDIR:=$RUNDIR/spool/submissions-done}"
 : "${SCORE_BUILD:=$SERVER_DIR/score/build.sh}"
+# Janela de COALESCÊNCIA do rebuild do placar (s). O build.sh relê ~3000 arquivos + monta o
+# placar inteiro (~0,7s p/ 1152 users, ~1s p/ 1500) — antes ele rodava INLINE a CADA veredicto,
+# então a ingestão travava em ~1,4 veredictos/s (o daemon é serial). Agora o rebuild é
+# coalescido: no máx. 1× a cada SCORE_COALESCE_S por contest. Numa rajada de 50 veredictos =
+# 1 rebuild, não 50. O trabalho por-veredicto que sobra (metrics_recompute de 1 usuário,
+# ~2ms + write_result) não bloqueia mais. Nada se perde: metrics_recompute já tocou
+# .score-dirty, então o placar pulado é regenerado pelo próximo veredicto após a janela OU
+# pelo /contest/score (regen preguiçoso). 0 desliga a coalescência (volta ao inline).
+: "${SCORE_COALESCE_S:=5}"
 
 # gateway de julgamento (expõe judge_run; honra $JUDGE_BACKEND)
 JUDGE_GW="$SERVER_DIR/judge-gw/judge.sh"
@@ -71,6 +80,22 @@ record_provisional() {
   local c="$1" login="$2" tempo="$3" prob="$4" lang="$5" se="$6" id="$7"
   user_history_replace "$c" "$login" "$id" "$tempo:$prob:$lang:Not Answered Yet:$se:$id"
   metrics_recompute "$c" "$login"   # placar lê só metrics: PENDING precisa aparecer já
+}
+# schedule_score_rebuild <contest> — rebuild COALESCIDO do placar (ver SCORE_COALESCE_S).
+# Substitui o `bash build.sh` inline por-veredicto. Gate no mtime do PRÓPRIO placar.txt: se
+# foi reconstruído há menos de SCORE_COALESCE_S (pelo daemon OU pelo handler /contest/score,
+# que também regrava placar.txt), pula. Assim a ingestão não bloqueia no build e a entrega de
+# veredicto deixa de ser limitada pelo tempo de placar. build.sh grava atômico (mktemp+mv),
+# então um build coalescido e o regen preguiçoso do handler nunca se corrompem.
+schedule_score_rebuild() {
+  local contest="$1"
+  [[ -e "$SCORE_BUILD" ]] || return 0
+  local out="$CONTESTSDIR/$contest/var/placar.txt"
+  if (( SCORE_COALESCE_S > 0 )) \
+     && [[ -n "$(find "$out" -newermt "-$SCORE_COALESCE_S seconds" 2>/dev/null)" ]]; then
+    return 0   # placar reconstruído há < janela; o próximo evento/visita cobre o resto
+  fi
+  bash "$SCORE_BUILD" "$contest" >/dev/null 2>&1
 }
 # hist_line_by_id <c> <login> <id> : ecoa a linha de history da submissão (normalizada p/ 7 campos
 # <tempo>:<login>:<prob>:<lang>:<verdict>:<sub_epoch>:<id>, com login preenchido), ou vazio.
@@ -225,7 +250,7 @@ consume_setverdict() {
   if [[ -f "$rf" ]]; then
     jq -c --arg v "$verdict" --argjson at "$EPOCHSECONDS" '.status="released" | .released_verdict=$v | .released_at=$at' "$rf" > "$rf.tmp" && mv -f "$rf.tmp" "$rf"
   fi
-  [[ -e "$SCORE_BUILD" ]] && bash "$SCORE_BUILD" "$contest" >/dev/null 2>&1
+  schedule_score_rebuild "$contest"
   clog "$contest" verdict-released "id=$id verdict=$verdict"
   log "setverdict aplicado id=$id contest=$contest verdict=$verdict"
   return 0
@@ -287,7 +312,7 @@ ingest_result() {
   [[ -n "$html_b64" ]] && printf '%s' "$html_b64" | base64 -d > "$hout" 2>/dev/null
   write_result_json "$contest" "$id" "$h_login" "$h_prob" "$json"
   [[ -n "$host" ]] && q_done "$host" "$id"
-  [[ -e "$SCORE_BUILD" ]] && bash "$SCORE_BUILD" "$contest" >/dev/null 2>&1
+  schedule_score_rebuild "$contest"
   log "result ingerido id=$id contest=$contest verdict=$verdict"
   return 0
 }
@@ -473,11 +498,8 @@ process_spool_file() {
   # ---- (5) arquiva a fonte decodificada (ramo store-v2 x legado em archive_source) ----
   archive_source "$contest" "$id" "$login" "$problem" "$lang" "$code_b64"
 
-  # ---- (6) recalcula placar, se o builder existir --------------------------
-  if [[ -x "$SCORE_BUILD" || -r "$SCORE_BUILD" ]]; then
-    bash "$SCORE_BUILD" "$contest" >/dev/null 2>&1 \
-      || log "score/build.sh falhou p/ $contest (ignorando)"
-  fi
+  # ---- (6) recalcula placar (COALESCIDO — ver schedule_score_rebuild) -------
+  schedule_score_rebuild "$contest"
 
   # ---- (7) arquiva o arquivo de spool --------------------------------------
   mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
