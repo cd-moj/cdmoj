@@ -101,7 +101,11 @@ function filteredRows() {
 }
 
 function renderTable() {
-  const rows = filteredRows();
+  // ordem por TÍTULO, sort NATURAL (numeric): coleções com prefixo de ordem no título
+  // ("01) …", "10) …", ex.: mini-gpt) saem na sequência certa ao abrir a coleção; as abas
+  // Meus/Compartilhados/Públicos ficam alfabéticas (a API devolve por id/slug, embaralhado).
+  const rows = filteredRows().sort((a, b) =>
+    (a.title || a.prob || a.id).localeCompare(b.title || b.prob || b.id, 'pt', { numeric: true, sensitivity: 'base' }));
   const isMine = TAB === 'mine';
   document.getElementById('count').textContent =
     `${rows.length} ${T('problema(s)', 'problem(s)')}` + (isMine ? ` · ${rows.filter(r => r.claimed).length} ${T('reivindicados', 'claimed')}, ${rows.filter(r => !r.claimed).length} ${T('prováveis', 'likely')}` : '');
