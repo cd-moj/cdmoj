@@ -4517,7 +4517,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problem,checksum,time_limits,calibrated_checksum,hosts,updated_at,calibrated_at,calibrated,stale,needs_recalibration} + quando needs_recalibration: {reason,changes,changed_files}"
+            "description": "{problem,checksum,time_limits,calibrated_checksum,hosts,updated_at,calibrated_at,calibrated,being_calibrated,stale,needs_recalibration} + quando needs_recalibration: {reason,changes,changed_files}. being_calibrated=true enquanto há calibração pendente/em execução p/ o problema."
           },
           "404": {
             "description": "privado e o login não é dono/colaborador (not_found)"

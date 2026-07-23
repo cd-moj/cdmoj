@@ -42,9 +42,15 @@ if [[ "$nhosts" -gt 0 && -n "$cal" && "$cal" != "$cur" && "$calat" -gt 0 && -d "
   reason="pacote mudou desde a calibração (checksum ${cal:0:8} -> ${cur:0:8})"
 fi
 
+# há calibração ENFILEIRADA/em execução p/ este problema AGORA? (mesma fonte do painel:
+# run/updates/{pending,inprogress} + run/commands por kind/action==calibrate). Distingue
+# "store de TL vazio porque acabou de enfileirar" de "calibrou e não obteve TL" — o `moj check`
+# usa isto p/ não gritar "falhou em TODAS as máquinas" enquanto o juiz nem rodou.
+calibrating="$(calibrating_set 2>/dev/null)"; [[ -n "$calibrating" ]] || calibrating='[]'
+
 body="$(jq -cn --arg p "$id" --arg cks "$cur" \
    --argjson tl "$(tl_store_served_for "$id" "$cur")" \
-   --argjson store "$store" \
+   --argjson store "$store" --argjson calibrating "$calibrating" \
    --arg reason "$reason" --argjson changes "$changes" --argjson chfiles "$chfiles" '
    ($store.checksum // "") as $cal
    | (($store.hosts // {}) | length > 0) as $calibrated
@@ -53,6 +59,7 @@ body="$(jq -cn --arg p "$id" --arg cks "$cur" \
       calibrated_checksum:$cal, hosts:($store.hosts // {}),
       updated_at:($store.updated_at // null), calibrated_at:($store.updated_at // null),
       calibrated:$calibrated,
+      being_calibrated:(($calibrating | index($p)) != null),
       stale:($cal != $cks and $cal != ""),
       needs_recalibration:$recal}
    + (if $recal then {reason:$reason, changes:$changes, changed_files:$chfiles} else {} end)')"
