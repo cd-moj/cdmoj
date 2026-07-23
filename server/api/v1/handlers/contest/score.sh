@@ -11,10 +11,19 @@ require_not_secret_or_auth "$contest"
 f="$CONTESTSDIR/$contest/var/placar.txt"
 # Cache preguiçoso: (re)gera o placar se a fonte mudou (var/.score-dirty, tocado a cada
 # escrita de history; + conf) ou se ele nunca foi montado. O daemon já reconstrói a cada
-# veredicto; isto cobre contests importados cujo placar nunca foi gerado.
-regen_locked "$CONTESTSDIR/$contest/var/.placar.lock" \
-  "$f" "$CONTESTSDIR/$contest/var/.score-dirty" "$CONTESTSDIR/$contest/conf" \
-  -- bash "$SCOREDIR/build.sh" "$contest"
+# veredicto (coalescido); isto cobre contests importados cujo placar nunca foi gerado.
+# PISO DE STALENESS (H2): se o placar foi montado há menos de SCORE_SERVE_FLOOR_S, serve como
+# está SEM tentar regen. Sem o piso, 1500 clientes polando /contest/score logo após um
+# veredicto disparavam rebuilds concorrentes presos no `flock -w 20` — medido: 16 requests
+# concorrentes travavam ~0,74s CADA, ocupando os 8 workers. O daemon já mantém o placar
+# fresco (SCORE_COALESCE_S); um placar até ~poucos segundos atrasado é aceitável (já é
+# atrasado/frozen por natureza). Placar inexistente NÃO cai no piso: gera na 1ª vez.
+: "${SCORE_SERVE_FLOOR_S:=8}"
+if [[ ! -f "$f" ]] || [[ -z "$(find "$f" -newermt "-$SCORE_SERVE_FLOOR_S seconds" 2>/dev/null)" ]]; then
+  regen_locked "$CONTESTSDIR/$contest/var/.placar.lock" \
+    "$f" "$CONTESTSDIR/$contest/var/.score-dirty" "$CONTESTSDIR/$contest/conf" \
+    -- bash "$SCOREDIR/build.sh" "$contest"
+fi
 
 # Privilegiados veem o placar COMPLETO (sem freeze): .admin/.judge SEMPRE + os logins na
 # allowlist do conf (SCORE_FULL_USERS, espaço-separados, configurável pelo .admin — vale
