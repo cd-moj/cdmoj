@@ -64,7 +64,9 @@ async function boot() {
   content.append(el('div', { class: 'section' },
     el('h1', { style: 'margin:0;color:var(--blue-dark)' }, '📊 ', s.title || ID),
     el('p', { class: 'small muted', style: 'margin:.3rem 0 0' }, T('Problema do Treino Livre · ', 'Free Training problem · '),
-      el('a', { href: '/treino/problema/?id=' + encodeURIComponent(ID) }, T('abrir o problema →', 'open the problem →')))));
+      el('a', { href: '/treino/problema/?id=' + encodeURIComponent(ID) }, T('abrir o problema →', 'open the problem →')),
+      ' · ', el('a', { href: '/docs/ESTATISTICAS-PROBLEMA.html', target: '_blank' },
+        T('ⓘ como calculamos estas estatísticas', 'ⓘ how these statistics are computed')))));
 
   if (!s.total_submissions) {
     content.append(el('div', { class: 'section muted' }, T('Ainda não há submissões para este problema.', 'No submissions for this problem yet.')));
