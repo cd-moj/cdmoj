@@ -9,7 +9,16 @@ set -euo pipefail
 : "${MOJ_PROBLEMS_DIR:=/data/moj-problems}"
 : "${NEWSDIR:=/data/news}"
 : "${FCGI_SOCK:=$RUNDIR/fcgiwrap.sock}"
-: "${FCGI_WORKERS:=8}"
+# Nº de workers do fcgiwrap = TETO de requisições de API em paralelo (cada uma é 1 bash+jq).
+# Auto-dimensiona ao box: 2×núcleos, teto 32. Num contest de 1500 clientes polando, 8 (o valor
+# fixo antigo) era o gargalo — sob concorrência a latência inflava (200 req concorrentes:
+# mediana 347ms com 8 workers). Requisições são curtas (~12ms de CPU) e muitas I/O-bound
+# (jq/git/find), então oversubscrição 2× é segura. Override explícito via env FCGI_WORKERS.
+if [[ -z "${FCGI_WORKERS:-}" ]]; then
+  _cores="$(nproc 2>/dev/null || echo 4)"; FCGI_WORKERS=$(( _cores * 2 ))
+  (( FCGI_WORKERS > 32 )) && FCGI_WORKERS=32
+  (( FCGI_WORKERS < 8 ))  && FCGI_WORKERS=8
+fi
 # O socket unix nasce com 0777&~umask. Com o default (022) sai 0755 = sem `w` p/ grupo/outros:
 # um nginx que rode como OUTRO usuário (www-data, do nginx do sistema) leva EACCES no connect()
 # e a API vira 502. 007 => 0770 (dono + GRUPO) e basta pôr o usuário do nginx no grupo do dono
