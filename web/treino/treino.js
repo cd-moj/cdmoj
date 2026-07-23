@@ -244,7 +244,11 @@ function applyURL() {
 
 // ---- tabela -------------------------------------------------------------------------------
 function render() {
-  const rows = filtered();
+  // ordem PADRÃO por título, com sort NATURAL (numeric) — coleções com prefixo de ordem no
+  // título ("01) …", "10) …", "28) …", ex.: mini-gpt) saem na sequência certa, e a lista geral
+  // fica alfabética. A API devolve por id/slug (embaralhado); ordenamos no cliente.
+  const rows = filtered().sort((a, b) =>
+    (a.title || a.id).localeCompare(b.title || b.id, 'pt', { numeric: true, sensitivity: 'base' }));
   $('count').textContent = `${rows.length} ${T('problema(s)', 'problem(s)')}`;
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   if (page >= pages) page = 0;
