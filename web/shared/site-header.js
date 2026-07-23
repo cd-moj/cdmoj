@@ -17,9 +17,10 @@ const NAV = [
   { key: 'contests', href: '/contests/', pt: 'Contests',     en: 'Contests' },
   { key: 'noticias', href: '/noticias/', pt: 'Notícias',     en: 'News' },
   { key: 'status',   href: '/status/',   pt: 'Status',       en: 'Status' },
-  // Ajuda do ALUNO (como enviar: E/S, extensões, templates). A doc TÉCNICA (API/OVERVIEW/DEPLOY)
-  // segue em /docs/ e no repo — só não é anunciada aqui: /docs/ serve .md CRU (o browser baixa).
-  { key: 'ajuda',    href: '/treino/ajuda/', pt: 'Ajuda',    en: 'Help' },
+  // Docs = o site de documentação (/docs/ serve o HTML renderizado de docs/html/ — manuais,
+  // API, formato de pacote, gestão de orgs/coleções). A ajuda do ALUNO (como enviar: E/S,
+  // extensões, templates) segue viva nos links contextuais (hero, página do problema, contest).
+  { key: 'docs',     href: '/docs/',     pt: 'Docs',         en: 'Docs' },
 ];
 
 // seletor pt/en (só aparece no header do site principal — nunca dentro de contest, que fixa
