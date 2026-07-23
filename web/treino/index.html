@@ -27,6 +27,13 @@
     #active .chip-x { margin-left:.35rem; font-weight:800; opacity:.7; }
     #active .collection, #active .tag { cursor:pointer; }
     summary.expl-sum { cursor:pointer; font-weight:600; color:var(--blue-dark); }
+    /* "mais enviados na semana" (estado inicial) */
+    .trend-row { display:flex; align-items:center; gap:.6rem; padding:.4rem .2rem; border-bottom:1px solid #eef2f8; text-decoration:none; color:inherit; }
+    .trend-row:last-child { border-bottom:none; }
+    .trend-row:hover { background:#f4f8ff; border-radius:8px; }
+    .trend-rank { flex:none; width:1.6rem; height:1.6rem; border-radius:50%; background:var(--blue-soft); color:var(--blue-dark); font-weight:800; font-size:.8rem; display:flex; align-items:center; justify-content:center; }
+    .trend-ttl { flex:1; min-width:0; font-weight:600; color:var(--blue-dark); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .trend-n { flex:none; font-size:.78rem; color:var(--muted); }
   </style>
 </head>
 <body>

@@ -19,6 +19,11 @@ let tagShowAll = false;
 let TREE = [];               // nós de exibição do topo
 let TAGS = new Map();        // chave -> {label, count}
 const openNodes = new Set(); // caminhos expandidos da árvore
+let TRENDING = null;         // top-N por submissões na semana (null=carregando; []=vazio/falha)
+
+// há filtro ATIVO? (busca, coleção, tag ou status != todos) — sem filtro, mostramos o estado
+// inicial (explorador + mais enviados) em vez de despejar os ~900 problemas misturando níveis.
+const hasFilter = () => !!(selColl || selTags.size || $('q').value.trim() || $('filter').value !== 'all');
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const tagKey = (t) => norm(t).replace(/^#/, '');
@@ -243,7 +248,38 @@ function applyURL() {
 }
 
 // ---- tabela -------------------------------------------------------------------------------
+// estado inicial (sem filtro): explica a organização + "mais enviados na semana". A tabela só
+// aparece quando o aluno busca/filtra — 900 problemas de cara misturam níveis e não ajudam.
+function renderInitial() {
+  const list = $('list'); list.innerHTML = ''; $('pager').innerHTML = '';
+  $('count').textContent = '';
+  list.append(el('div', { class: 'section', style: 'margin:0' },
+    el('p', { class: 'muted', style: 'margin:.2rem 0 .8rem' },
+      T(`${ALL.length} problemas, organizados por `, `${ALL.length} problems, organized by `),
+      el('b', {}, T('coleção', 'collection')), T(' (curso, prova, trilha) e por ', ' (course, exam, track) and by '),
+      el('b', {}, T('assunto', 'topic')), T(' (tags). Use o explorador acima, ou ', ' (tags). Use the explorer above, or '),
+      el('b', {}, T('busque pelo título', 'search by title')), T(' — a lista aparece ao filtrar.', ' — the list shows up once you filter.'))));
+
+  const box = el('div', { class: 'subcard', style: 'max-width:640px' },
+    el('h3', { class: 'small', style: 'margin:.1rem 0 .6rem;color:var(--blue-dark)' },
+      T('🔥 Mais enviados na última semana', '🔥 Most submitted this past week')));
+  if (TRENDING === null) {
+    box.append(el('span', { class: 'muted small' }, T('carregando…', 'loading…')));
+  } else if (!TRENDING.length) {
+    box.append(el('span', { class: 'muted small' },
+      T('Pouca atividade esta semana — explore por coleção ou assunto acima.',
+        'Little activity this week — explore by collection or topic above.')));
+  } else {
+    TRENDING.forEach((p, i) => box.append(el('a', { class: 'trend-row', href: p.url || ('/treino/problema/?id=' + encodeURIComponent(p.id)) },
+      el('span', { class: 'trend-rank' }, String(i + 1)),
+      el('span', { class: 'trend-ttl' }, p.title || p.id),
+      el('span', { class: 'trend-n' }, `${p.count} ${T('envios', 'submissions')}`))));
+  }
+  list.append(box);
+}
+
 function render() {
+  if (!hasFilter()) { renderInitial(); return; }
   // ordem PADRÃO por título, com sort NATURAL (numeric) — coleções com prefixo de ordem no
   // título ("01) …", "10) …", "28) …", ex.: mini-gpt) saem na sequência certa, e a lista geral
   // fica alfabética. A API devolve por id/slug (embaralhado); ordenamos no cliente.
@@ -322,8 +358,13 @@ async function boot() {
   }
   buildTags(); buildTree(); applyURL();
   await loadSolve();
+  // "mais enviados na semana" p/ o estado inicial — em paralelo, não bloqueia a página;
+  // ao chegar, re-renderiza só se ainda estivermos no estado inicial (sem filtro).
+  apiGet('/treino/trending', { contest: CONTEST })
+    .then((j) => { TRENDING = (j && j.problems) || []; if (!hasFilter()) render(); })
+    .catch(() => { TRENDING = []; if (!hasFilter()) render(); });
   $('q').addEventListener('input', () => { page = 0; syncURL(); render(); renderActive(); });
-  $('filter').addEventListener('input', () => { page = 0; render(); renderTags(); });
+  $('filter').addEventListener('input', () => { page = 0; renderAll(); });   // status muda -> tabela aparece/some
   $('colFilter').addEventListener('input', renderTree);
   $('tagFilter').addEventListener('input', renderTags);
   $('toggleTags').addEventListener('click', () => {

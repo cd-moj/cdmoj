@@ -406,6 +406,19 @@
         }
       }
     },
+    "/treino/trending": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Top-10 problemas por submissões nos últimos 7 dias (estado inicial do Treino Livre); anônimo, sem problemas privados, cache var/trending.json com piso 6h",
+        "responses": {
+          "200": {
+            "description": "{success,window_days:7,generated_at,problems:[{id,title,count,url}]} ordenado por count desc"
+          }
+        }
+      }
+    },
     "/treino/problem": {
       "get": {
         "tags": [
