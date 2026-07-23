@@ -28,11 +28,14 @@ lvl="$(verdict_detail_level "$(contest_score_mode "$contest")")"
 [[ "$isjudge" == 1 ]] && lvl=full
 
 cdir="$CONTESTSDIR/$contest"
-tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
 set +o noglob; shopt -s nullglob
 
 # até 1000 ids; cada um casa md5(32) ou uuid(36). Dono vem da fonte arquivada (submissions/*<id>*).
+# 1ª passada (bash): resolve + gate por id, coletando os result files PERMITIDOS. A extração dos
+# campos vai num jq SÓ sobre todos eles (id = basename do arquivo) — antes era 1 jq POR id (medido:
+# 60 ids = 192ms; 1 jq = 8ms, ~24×). O fork de jq por-id dominava sob rajada de veredictos.
 n=0
+declare -a RF=()
 IFS=',' read -ra IDS <<< "$idsraw"
 for sid in "${IDS[@]}"; do
   sid="${sid//[[:space:]]/}"
@@ -45,11 +48,19 @@ for sid in "${IDS[@]}"; do
     (( hidden )) && continue
     [[ "$SUB_OWNER" == "$SESSION_LOGIN" || "${SHOWCODE:-0}" == 1 ]] || continue
   fi
-  # extrai os campos do resumo redigidos por $lvl; tolera ausência (submissões antigas) -> null.
-  # $vc = canônico (fallback: derivado da string); $g = grupos (fallback: cauda "Pontos | … |");
-  # $heur = Score/Score Ajustado da string (MESMAS regexes do metrics_recompute em lib/users.sh).
-  jq -c --arg id "$sid" --arg lvl "$lvl" "$VERDICT_CANON_JQ"'
-    (.verdict // null) as $vraw
+  RF+=("$rf")
+done
+shopt -u nullglob
+
+emit_json 200 OK
+if (( ${#RF[@]} == 0 )); then printf '{}\n'; exit 0; fi
+# UM jq sobre todos os result files (streaming: input_filename por-input recupera o id, = basename
+# sem .json — write_result_json sempre grava <id>.json). Redação por $lvl idêntica à anterior.
+# $vc = canônico (fallback: derivado da string); $g = grupos (fallback: cauda "Pontos | … |");
+# $heur = Score/Score Ajustado da string (MESMAS regexes do metrics_recompute em lib/users.sh).
+jq -c --arg lvl "$lvl" "$VERDICT_CANON_JQ"'
+    (input_filename | sub(".*/"; "") | sub("\\.json$"; "")) as $id
+    | (.verdict // null) as $vraw
     | (.verdict_canon // ($vraw | vcanon)) as $vc
     | (.groups // (
         if (($vraw // "") | test("Pontos \\|"))
@@ -74,9 +85,5 @@ for sid in "${IDS[@]}"; do
       else
         { id:$id, verdict:$vc, verdict_canon:$vc,
           score:null, score_max:null, score_kind:null, correct:null, total:null, groups:null }
-      end' "$rf" 2>/dev/null >> "$tmp"
-done
-shopt -u nullglob
-
-emit_json 200 OK
-jq -s 'map({key:.id, value:(del(.id))}) | from_entries' "$tmp" 2>/dev/null || printf '{}\n'
+      end' "${RF[@]}" 2>/dev/null \
+  | jq -sc 'map({key:.id, value:(del(.id))}) | from_entries' 2>/dev/null || printf '{}\n'
