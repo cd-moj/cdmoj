@@ -50,7 +50,7 @@ dentro de uma org** — por isso o editor pede para criar a primeira antes de de
 
 | Web | CLI |
 |---|---|
-| Aba **Orgs** → escolha a org → gerencie membros/admins. No editor de um problema há também o **share** (adiciona coautor à org daquele problema). | `moj share <org> <login>` (adiciona membro) · `moj org members <org> --add a,b --remove c --admins-add d --admins-remove e` |
+| Aba **Orgs** → escolha a org → gerencie membros/admins: **clique na estrela** do chip do membro (⭐ admin ↔ ☆ membro) para **promover/rebaixar**; ✕ remove da org. O criador da org é sempre admin (não dá para rebaixá-lo). No editor de um problema há também o **share** (adiciona coautor à org daquele problema). | `moj share <org> <login>` (adiciona membro) · `moj org members <org> --add a,b --remove c --admins-add d --admins-remove e` |
 
 > Acesso a problema **privado** é decidido **só pela org** — nem um `.admin` global do MOJ vê o
 > conteúdo/pacote de um problema privado de uma org da qual não é membro. Provas em elaboração
@@ -128,7 +128,7 @@ mostrando o progresso.
 
 | Web | CLI |
 |---|---|
-| Aba **Coleções** → renomear/excluir (dono/admin). | `moj collection rename "<nome>" "<novo>"`  ·  `moj collection delete "<nome>"`  ·  `moj collection status` (acompanha os jobs) |
+| Aba **Coleções** → renomear/excluir (dono/admin); um **banner de progresso** ("⏳ re-tag em andamento: N/M") aparece na própria aba até o job terminar. | `moj collection rename "<nome>" "<novo>"`  ·  `moj collection delete "<nome>"`  ·  `moj collection status` (acompanha os jobs) |
 
 > Renomear/apagar não afeta o **acesso** de ninguém (coleção é só rótulo) — só troca/remove a
 > etiqueta nos problemas.
@@ -145,7 +145,7 @@ mostrando o progresso.
   `public_allowed` ligado; senão o botão/publish recusa.
 - **Desligar o público da org despublica em cascata** — cuidado ao mexer nessa trava.
 - **Rename/delete de coleção é assíncrono** — responde na hora e re-etiqueta em segundo plano;
-  na CLI, `moj collection status` mostra o andamento.
+  na web a aba Coleções mostra um banner de progresso; na CLI, `moj collection status`.
 - **Mover problema muda o id** — links/refs antigos ao id velho deixam de resolver.
 
 ## Receitas rápidas

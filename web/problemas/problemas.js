@@ -194,6 +194,7 @@ function renderCollections() {
   const list = document.getElementById('list'); list.innerHTML = '';
   list.append(el('div', { class: 'small muted', style: 'margin-bottom:.4rem' },
     T('Coleções são rótulos de agrupamento — um problema pode estar em VÁRIAS (diferente de ORG, que controla acesso). Clique no nome para ver os problemas.', 'Collections are grouping labels — a problem can be in SEVERAL (unlike ORG, which controls access). Click a name to see its problems.')));
+  list.append(el('div', { id: 'retagBanner' }));   // progresso dos re-tags em background (pollRetag)
   const nc = el('input', { placeholder: T('nova coleção (pode ter espaços)', 'new collection (spaces allowed)'), style: 'padding:.35rem;min-width:16rem' });
   const mineBtn = el('button', { class: 'pill ' + (COLL_MINE ? 'ok' : 'mut'), style: 'cursor:pointer;border:none',
     onclick: () => { COLL_MINE = !COLL_MINE; renderCollections(); } }, T('só minhas', 'mine only'));
@@ -230,6 +231,35 @@ function renderCollections() {
   });
   table.append(tb);
   list.append(el('div', { style: 'overflow-x:auto' }, table));
+  pollRetag();
+}
+// acompanha os JOBS de re-tag (rename/delete rodam em background no servidor — espelho do
+// _retag_wait da CLI): banner com done/total a cada 2s; ao concluir, recarrega a aba (contagens).
+let RETAG_TIMER = null, RETAG_WAS_RUNNING = false;
+async function pollRetag() {
+  if (RETAG_TIMER) { clearTimeout(RETAG_TIMER); RETAG_TIMER = null; }
+  if (TAB !== 'collections') return;
+  let jobs = [];
+  try {
+    const j = await apiGet('/problems/collection-retag-status', { contest: CONTEST, auth: true });
+    jobs = (j.jobs || []).filter(x => !x.finished_at);
+  } catch { jobs = []; }
+  const box = document.getElementById('retagBanner');
+  if (!box || TAB !== 'collections') return;
+  box.innerHTML = '';
+  if (jobs.length) {
+    RETAG_WAS_RUNNING = true;
+    jobs.forEach(x => box.append(el('div', { class: 'small', style: 'margin:.2rem 0 .4rem;padding:.3rem .5rem;border:1px solid #b90;border-radius:6px' },
+      '⏳ ' + (x.to
+        ? `${T('re-tag em andamento: “', 're-tag in progress: “')}${x.from}${T('” → “', '” → “')}${x.to}”`
+        : `${T('removendo a tag “', 'removing tag “')}${x.from}”`)
+      + ` (${x.done ?? 0}/${x.total ?? '?'})`
+      + ((x.failed || 0) > 0 ? `  ⚠ ${T('falhas: ', 'failures: ')}${x.failed}` : ''))));
+    RETAG_TIMER = setTimeout(pollRetag, 2000);
+  } else if (RETAG_WAS_RUNNING) {
+    RETAG_WAS_RUNNING = false;
+    loadTab('collections');   // terminou: recarrega p/ as contagens finais
+  }
 }
 async function createColl(name, inp) {
   if (!name) return;
@@ -239,12 +269,12 @@ async function createColl(name, inp) {
 async function renameColl(c) {
   const to = (prompt(`${T('Renomear a coleção “', 'Rename the collection “')}${c.name}${T('” para:', '” to:')}`, c.name) || '').trim();
   if (!to || to === c.name) return;
-  try { const j = await apiPost('/problems/collection-rename', { name: c.name, to }, { contest: CONTEST, auth: true }); alert(T('Renomeada — o re-tag dos problemas roda em segundo plano (alguns minutos em coleções grandes).', 'Renamed — problems are re-tagged in the background (a few minutes for large collections).')); loadTab('collections'); }
+  try { await apiPost('/problems/collection-rename', { name: c.name, to }, { contest: CONTEST, auth: true }); RETAG_WAS_RUNNING = true; loadTab('collections'); }
   catch (e) { alert(e.message); }
 }
 async function deleteColl(c) {
   if (!confirm(`${T('Excluir a coleção “', 'Delete the collection “')}${c.name}${T('”? Ela sai de ', '”? It leaves ')}${c.count}${T(' problema(s) (a tag é removida deles).', ' problem(s) (the tag is removed from them).')}`)) return;
-  try { const j = await apiPost('/problems/collection-delete', { name: c.name }, { contest: CONTEST, auth: true }); alert(T('Excluída — o untag dos problemas roda em segundo plano (a coleção some do registro ao final).', 'Deleted — problems are untagged in the background (the collection leaves the registry when done).')); loadTab('collections'); }
+  try { await apiPost('/problems/collection-delete', { name: c.name }, { contest: CONTEST, auth: true }); RETAG_WAS_RUNNING = true; loadTab('collections'); }
   catch (e) { alert(e.message); }
 }
 
@@ -296,12 +326,21 @@ function renderOrgs() {
       el('td', { style: 'width:1.5rem;text-align:center' }, open ? '▾' : '▸')));
     if (open) {
       const box = el('div', {});
-      // membros como CHIPS: ⭐ = admin da org; ✕ = remover (só quem administra, org não-implícita)
+      // membros como CHIPS: ⭐ = admin da org (quem administra CLICA a estrela p/ promover/rebaixar
+      // — paridade com `moj org members --admins-add/remove`; o criador é blindado no servidor);
+      // ✕ = remover (só quem administra, org não-implícita)
       const chips = el('div', { style: 'margin:.2rem 0 .4rem' });
       const admins = o.admins || [];
       (o.members || []).forEach(m => {
-        const ch = el('span', { class: 'chip', title: admins.includes(m) ? T('admin da org', 'org admin') : '' },
-          (admins.includes(m) ? '⭐ ' : '') + m);
+        const isAdm = admins.includes(m);
+        const ch = el('span', { class: 'chip', title: isAdm ? T('admin da org', 'org admin') : '' });
+        if (o.can_manage && !o.implicit) {
+          ch.append(el('span', { style: 'cursor:pointer', title: isAdm
+              ? T('admin — clique p/ rebaixar a membro', 'admin — click to demote to member')
+              : T('membro — clique p/ promover a admin', 'member — click to promote to admin'),
+            onclick: (ev) => { ev.stopPropagation(); orgAdmin(o, m, !isAdm); } }, isAdm ? '⭐ ' : '☆ '));
+        } else if (isAdm) ch.append('⭐ ');
+        ch.append(m);
         if (o.can_manage && !o.implicit) ch.append(el('span', { class: 'x', title: T('Remover da org', 'Remove from org'),
           onclick: (ev) => { ev.stopPropagation();
             if (confirm(`${T('Remover ', 'Remove ')}${m}${T(' da org ', ' from org ')}${o.name}?`)) orgMember(o, m, false, null); } }, '✕'));
@@ -348,7 +387,20 @@ async function orgMember(o, login, add, inp) {
   if (!login) return;
   try {
     const j = await apiPost('/orgs/members', add ? { name: o.name, add: [login] } : { name: o.name, remove: [login] }, { contest: CONTEST, auth: true });
-    o.members = j.members; if (inp) inp.value = ''; renderOrgs();
+    o.members = j.members; o.admins = j.admins || o.admins; if (inp) inp.value = ''; renderOrgs();
+  } catch (e) { alert(e.message); }
+}
+// promove/rebaixa admin (⭐/☆ do chip). O criador da org é blindado no servidor: rebaixá-lo é
+// no-op silencioso — o refresh mostra a estrela de volta.
+async function orgAdmin(o, login, promote) {
+  try {
+    const j = await apiPost('/orgs/members',
+      promote ? { name: o.name, admins_add: [login] } : { name: o.name, admins_remove: [login] },
+      { contest: CONTEST, auth: true });
+    o.members = j.members; o.admins = j.admins || [];
+    if (!promote && (o.admins || []).includes(login))
+      alert(T('Este login é o criador da org — sempre admin.', 'This login is the org creator — always an admin.'));
+    renderOrgs();
   } catch (e) { alert(e.message); }
 }
 async function toggleOrgPublic(o) {
@@ -392,10 +444,22 @@ async function openDetail(id) {
         j.owner ? el('span', {}, T(' · dono: ', ' · owner: '), el('b', {}, j.owner)) : '',
         (j.collaborators && j.collaborators.length) ? el('span', {}, T(' · compartilhado: ', ' · shared: ') + j.collaborators.join(', ')) : ''),
       el('div', { class: 'row', style: 'gap:.4rem;margin-top:.3rem' }, ...stateBadges(j),
-        ...(j.tags || []).map(t => el('span', { class: 'tag' }, t)))),
+        ...(j.tags || []).map(t => el('span', { class: 'tag' }, t))),
+      // whitelist de linguagens de SUBMISSÃO (paridade com `moj languages`): badges + atalho
+      // p/ o widget do editor (aba Publicação). Vazio/ausente = todas as padrão.
+      el('div', { class: 'small', style: 'margin-top:.3rem' }, T('linguagens: ', 'languages: '),
+        ...((j.languages && j.languages.length)
+          ? j.languages.map(l => el('span', { class: 'tag' }, l))
+          : [el('span', { class: 'muted2' }, T('todas as padrão', 'all standard'))]),
+        ' ', el('a', { class: 'small', href: '/problemas/editar.html?id=' + encodeURIComponent(id) + '#pub' },
+          T('editar ✎', 'edit ✎')))),
     el('div', { class: 'row', style: 'gap:.4rem' },
       el('a', { class: 'btn ghost', href: '/problemas/editar.html?id=' + encodeURIComponent(id) }, T('Editar', 'Edit')),
-      el('button', { class: 'btn', id: 'btnPub', onclick: () => doAction('publish', id) }, T('Validar & Publicar', 'Validate & Publish')),
+      // "Validar" de verdade (a rota antiga /problems/publish era ALIAS de validate e o rótulo
+      // "Validar & Publicar" MENTIA — validar NUNCA publica; publicar é o botão ao lado.
+      el('button', { class: 'btn', id: 'btnPub', onclick: () => doAction('validate', id) }, T('Validar', 'Validate')),
+      el('button', { class: 'btn ' + (j.public ? 'ghost' : ''), id: 'btnSetPub', onclick: () => setPublic(id, !j.public) },
+        j.public ? T('Despublicar', 'Unpublish') : T('Publicar', 'Publish')),
       el('button', { class: 'btn ghost', id: 'btnCal', onclick: () => doAction('request-calibration', id) }, T('Calibrar', 'Calibrate')),
       el('button', { class: 'btn ghost', title: T('Baixar como pacote ICPC/Kattis', 'Download as ICPC/Kattis package'), onclick: () => downloadAuthed('/problems/export?id=' + encodeURIComponent(id), id.split('#').pop() + '.icpc.tar.gz') }, '⬇ ICPC')));
 
@@ -470,14 +534,35 @@ async function openDetail(id) {
 }
 
 async function doAction(action, id) {
-  const btn = document.getElementById(action === 'publish' ? 'btnPub' : 'btnCal');
+  const btn = document.getElementById(action === 'validate' ? 'btnPub' : 'btnCal');
   const old = btn.textContent; btn.disabled = true; btn.textContent = T('Enviando…', 'Submitting…');
   try {
     const j = await apiPost('/problems/' + action, { id }, { contest: CONTEST, auth: true });
-    btn.textContent = (action === 'publish' ? T('Enfileirado p/ validação', 'Queued for validation') : T('Calibração enfileirada', 'Calibration queued')) + ' ✓';
+    btn.textContent = (action === 'validate' ? T('Enfileirado p/ validação', 'Queued for validation') : T('Calibração enfileirada', 'Calibration queued')) + ' ✓';
   } catch (e) {
     btn.textContent = old; btn.disabled = false;
     alert((e instanceof ApiError ? e.message : T('Falha', 'Failed')) + (e.code ? ` (${e.code})` : ''));
+  }
+}
+
+// publica/despublica DE VERDADE (set-public checa a trava public_allowed da org — o 403 vira
+// mensagem explicando; validar é outro botão, portão de qualidade apenas).
+async function setPublic(id, on) {
+  if (on && !confirm(T('⚠ TORNAR PÚBLICO publica "', '⚠ MAKING PUBLIC publishes "') + id +
+      T('" no TREINO LIVRE — fica visível a TODOS.\n\nProblemas de prova devem ficar PRIVADOS até a prova passar. Confirmar a publicação?',
+        '" in FREE TRAINING — visible to EVERYONE.\n\nExam problems must stay PRIVATE until the exam is over. Confirm publication?'))) return;
+  const btn = document.getElementById('btnSetPub');
+  btn.disabled = true; btn.textContent = T('Enviando…', 'Submitting…');
+  try {
+    await apiPost('/problems/set-public', { id, public: on }, { contest: CONTEST, auth: true });
+    openDetail(id);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = on ? T('Publicar', 'Publish') : T('Despublicar', 'Unpublish');
+    const msg = (e && e.code === 'org_private')
+      ? T('A org deste problema está com publicação travada (public_allowed=off) — destrave na aba Orgs.',
+          'This problem’s org has publishing locked (public_allowed=off) — unlock it in the Orgs tab.')
+      : (e instanceof ApiError ? e.message : T('Falha', 'Failed')) + (e.code ? ` (${e.code})` : '');
+    alert(msg);
   }
 }
 

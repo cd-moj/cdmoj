@@ -1015,7 +1015,7 @@ async function act(action, label) {
   setMsg(label + '…');
   try {
     await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true });
-    RUNNING = (action === 'publish') ? 'publish' : 'calibrate';
+    RUNNING = (action === 'validate') ? 'publish' : 'calibrate';   // 'publish' = nome interno do estado
     calibPrevMax = maxCalibAt();
     setMsg(label + T(' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', ' started ✓ — see progress in “Validation & calibration” (Publication tab).'), 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
@@ -1114,7 +1114,7 @@ function bindHandlers() {
   $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
   $('save').onclick = save;
   if ($('delprob')) $('delprob').onclick = delProblem;
-  $('publish').onclick = () => act('publish', T('Validar', 'Validate'));
+  $('publish').onclick = () => act('validate', T('Validar', 'Validate'));   // rota nova (publish = alias deprecado)
   $('calibrate').onclick = () => act('request-calibration', T('Calibração', 'Calibration'));
   $('newdir').onclick = newDir;
   if ($('moveorg')) $('moveorg').onclick = moveProblem;
@@ -1162,6 +1162,10 @@ async function boot() {
   bindHandlers();           // 1) liga TUDO antes de qualquer await de dados
   setupTabs();
   if (location.hash === '#hist') showTab('hist');   // link direto p/ a aba Histórico (painel)
+  if (location.hash === '#pub') {                   // link direto p/ Publicação (gestão → "editar linguagens")
+    showTab('pub');
+    setTimeout(() => { const p = $('plangs'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+  }
   updateReady();
 
   // dispara em PARALELO o que é independente (antes era uma cadeia de awaits — lenta pelo túnel):

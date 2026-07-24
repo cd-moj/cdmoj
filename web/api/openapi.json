@@ -4440,7 +4440,7 @@
         ],
         "responses": {
           "200": {
-            "description": "índice + validation (relatório do portão) + statement_html_b64/tags/time_limits"
+            "description": "índice + validation (relatório do portão) + statement_html_b64/tags/time_limits. Inclui `languages` (whitelist de submissão; vazio = todas as padrão)"
           },
           "404": {
             "description": "não encontrado"
