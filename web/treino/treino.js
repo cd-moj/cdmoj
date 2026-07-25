@@ -93,10 +93,12 @@ const SORTS = [
   { key: 'solved', pt: 'Mais resolvidos', en: 'Most solved' },
   { key: 'az', pt: 'A–Z', en: 'A–Z' },
   { key: 'diff', pt: 'Dificuldade', en: 'Difficulty' },
+  { key: 'new', pt: 'Novidades', en: 'Newest' },       // exige public_at na lista (fase 2)
 ];
 const byTitle = (a, b) => (a.title || a.id).localeCompare(b.title || b.id, 'pt', { numeric: true, sensitivity: 'base' });
 function sortRows(rows) {
   if (SORT === 'az') return rows.sort(byTitle);
+  if (SORT === 'new') return rows.sort((a, b) => (b.public_at || 0) - (a.public_at || 0) || byTitle(a, b));
   if (SORT === 'diff') return rows.sort((a, b) => {
     const aa = a.attempted_count || 0, ba = b.attempted_count || 0;
     if (!aa !== !ba) return aa ? -1 : 1;                     // "novo" (sem dados) por último
@@ -599,8 +601,10 @@ function submitHeroQuery() {
 // ---- BUSCA AVANÇADA (tabela) --------------------------------------------------------------
 function renderSorts() {
   const box = $('sorts'); box.innerHTML = '';
-  SORTS.forEach((s) => box.append(el('a', { class: SORT === s.key ? 'on' : '',
-    onclick: () => { SORT = s.key; page = 0; syncURL(); renderBrowse(); } }, T(s.pt, s.en))));
+  const hasPub = ALL.some((p) => p.public_at);         // servidor antigo sem o campo: sem a aba
+  SORTS.filter((s) => s.key !== 'new' || hasPub)
+    .forEach((s) => box.append(el('a', { class: SORT === s.key ? 'on' : '',
+      onclick: () => { SORT = s.key; page = 0; syncURL(); renderBrowse(); } }, T(s.pt, s.en))));
 }
 function renderPager(box, pages) {
   box.innerHTML = '';

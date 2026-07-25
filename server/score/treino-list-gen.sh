@@ -59,14 +59,23 @@ jq -n --slurpfile a "$tmpd/legacy" --slurpfile b "$tmpd/store" \
   '($a[0] // {}) + ($b[0] // {})' > "$tmpd/counts" 2>/dev/null
 [[ -s "$tmpd/counts" ]] || echo '{}' > "$tmpd/counts"
 
-# --- lista final (sidecars + contagens) -----------------------------------------------
+# --- public_at: mapa id -> epoch da 1ª publicação, do índice de donos ------------------
+# (gen-problem-owners.sh carimba meta.public_at // seed do backfill; null = desconhecido.
+#  O índice regenera em background — atraso de até ~30 min é aceitável p/ "Novidades".)
+jq '(.problems // []) | map(select(.public_at != null)
+      | {key:.id, value:.public_at}) | from_entries' \
+  "$T/var/problem-owners.json" > "$tmpd/pubat" 2>/dev/null
+[[ -s "$tmpd/pubat" ]] || echo '{}' > "$tmpd/pubat"
+
+# --- lista final (sidecars + contagens + public_at) -----------------------------------
 # `select(.public != false)`: 3ª camada anti-vazamento — a lista é ANÔNIMA; json legado sem
 # o campo passa, só o explicitamente privado é barrado. Ver mojtools/gen-problem-json.sh.
-body="$(jq -s --slurpfile c "$tmpd/counts" '
-  ($c[0] // {}) as $cnt
+body="$(jq -s --slurpfile c "$tmpd/counts" --slurpfile pa "$tmpd/pubat" '
+  ($c[0] // {}) as $cnt | ($pa[0] // {}) as $pub
   | map(select(.public != false)
       | {id, title, tags: (.tags // []), collections: (.collections // [])}
-        + ($cnt[.id] // {solved_count:0, attempted_count:0}))
+        + ($cnt[.id] // {solved_count:0, attempted_count:0})
+        + (if $pub[.id] then {public_at: $pub[.id]} else {} end))
 ' "$META"/*.json 2>/dev/null)"
 if [[ -z "$body" ]]; then
   # sem sidecar nenhum = base legitimamente vazia; com sidecar, corpo vazio é ERRO
