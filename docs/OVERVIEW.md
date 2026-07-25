@@ -81,7 +81,16 @@ regiões, básico, **settings/toggles** (`settings-editor.js`), **seletor de lin
 ### Home & treino livre
 Home com notícias, contests (abertos/por vir/encerrados; abre cada um pelo **subdomínio**),
 top10 e destaques; página pública **`/status/`** (health: fila por lista, máquinas
-julgando, daemons). Treino livre: busca de problemas, página do problema com enunciado +
+julgando, daemons). Treino livre (`/treino/`, UMA página com DOIS estados client-side após 1
+fetch): **hub** (default) com omnibusca central de sugestões agrupadas (coleções/tags/problemas,
+com status pessoal), atalhos (aleatório/fáceis/não resolvidos), "Para você" (continue de onde
+parou + sugestão, do `/treino/history-full`), **carrossel de coleções em destaque** com barra de
+progresso pessoal (dedup por sobreposição de conjunto — "obi" × "Olimpíada Brasileira…") e "mais
+enviados na semana" (`/treino/trending`); **busca avançada** (`?browse=1` ou qualquer filtro,
+deep-links `?searchcol=` antigos continuam valendo) com trilho de facetas — status, dificuldade
+(derivada da taxa), árvore de coleções com **multi-seleção OR** (checkbox; `searchcol` aceita
+CSV) e progresso por nó, tags AND com contagens vivas — chips removíveis, ordenação (mais
+resolvidos/A–Z/dificuldade) e tabela sempre visível paginada; página do problema com enunciado +
 **editor CodeMirror** + upload + histórico com polling (o veredicto exibido é **sempre o
 canônico**; cada submissão julgada mostra um **resumo** abaixo — "Passou em X/Y testes (Z%)",
 pontos + grupos, ou Score heurístico — via `/submission/summary`, redigido por modo em

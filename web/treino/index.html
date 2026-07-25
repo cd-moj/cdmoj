@@ -7,33 +7,127 @@
   <link rel="stylesheet" href="/shared/ui.css">
   <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
   <style>
-    /* explorador de coleções/tags (facetas client-side) */
-    .expl-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:start; margin-top:.6rem; }
-    @media (max-width:820px){ .expl-grid { grid-template-columns:1fr; } }
-    .expl-panel { background:#fafcff; border:1px solid var(--line); border-radius:12px; padding:.7rem .8rem; min-width:0; }
-    .expl-panel h3 { margin:.1rem 0 .5rem; font-size:.92rem; color:var(--blue-dark); }
-    .expl-panel input { width:100%; box-sizing:border-box; margin-bottom:.5rem; }
-    .ctree { max-height:340px; overflow:auto; }
-    .ctree .node { display:flex; align-items:center; gap:.25rem; padding:.08rem 0; }
-    .ctree .caret { cursor:pointer; width:1.15rem; text-align:center; color:var(--muted); user-select:none; flex:none; }
-    .ctree .kids { margin-left:.55rem; border-left:2px solid #e7ecf5; padding-left:.55rem; }
-    .ctree .collection { margin:0; cursor:pointer; }
-    .tcloud { max-height:340px; overflow:auto; }
+    /* ============ HUB: omnibusca central ============ */
+    /* NÃO usar a classe .hero aqui — é o banner da home no ui.css (gradiente escuro). */
+    .thero { text-align:center; padding:1.1rem 0 .2rem; }
+    .thero h1 { font-size:1.55rem; color:var(--blue-dark); margin:.2rem 0 .15rem; }
+    .herosearch { position:relative; max-width:760px; margin:.8rem auto 0; text-align:left; }
+    .herosearch input { width:100%; box-sizing:border-box; font-size:1.05rem; padding:.8rem 1rem .8rem 2.6rem;
+      border-radius:14px; border:1.5px solid var(--blue); box-shadow:0 0 0 4px rgba(43,108,176,.10), var(--shadow); }
+    .herosearch .mag { position:absolute; left:.95rem; top:.85rem; opacity:.55; }
+    .suggest { position:absolute; left:0; right:0; top:calc(100% + .4rem); background:#fff;
+      border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:.5rem .4rem; z-index:30; }
+    .suggest .grp { font-size:.7rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+      color:var(--muted); padding:.4rem .7rem .15rem; }
+    .suggest .it { display:flex; align-items:center; gap:.55rem; padding:.42rem .7rem; border-radius:9px;
+      font-size:.92rem; color:var(--ink); cursor:pointer; }
+    .suggest .it:hover, .suggest .it.sel { background:var(--blue-soft); }
+    .suggest .it .mut { color:var(--muted); font-size:.78rem; margin-left:auto; white-space:nowrap; }
+    .quickchips { max-width:760px; margin:.7rem auto 0; display:flex; gap:.45rem; flex-wrap:wrap; justify-content:center; }
+    .fchip { display:inline-flex; align-items:center; gap:.3rem; background:#fff; border:1px solid var(--line);
+      color:var(--ink); border-radius:999px; padding:.22rem .7rem; font-size:.8rem; font-weight:600; cursor:pointer; }
+    .fchip:hover { background:var(--blue-soft); text-decoration:none; }
+    .fchip.on { background:var(--blue-dark); border-color:var(--blue-dark); color:#fff; }
+    .fchip .n { opacity:.65; font-weight:500; }
+    /* ============ HUB: "Para você" + carrossel + em alta ============ */
+    .cont-strip { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+    .cont-card { border:1px solid var(--line); border-left:4px solid var(--blue); border-radius:12px;
+      background:#fafcff; padding:.75rem .95rem; display:flex; flex-direction:column; gap:.35rem; color:inherit; }
+    .cont-card:hover { text-decoration:none; box-shadow:var(--shadow-sm); }
+    .cont-card .k { font-size:.72rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+    .cont-card .t { font-weight:800; color:var(--blue-dark); font-size:1.02rem; }
+    .crow-head { display:flex; align-items:center; gap:.6rem; margin:.2rem 0 .55rem; flex-wrap:wrap; }
+    .crow-head h2 { margin:0; font-size:1.05rem; color:var(--blue-dark); }
+    .crow-head .arr { width:1.9rem; height:1.9rem; border-radius:50%; border:1px solid var(--line);
+      background:#fff; color:var(--blue-dark); font-weight:800; cursor:pointer; display:inline-flex;
+      align-items:center; justify-content:center; box-shadow:var(--shadow-sm); }
+    .crow-head .arr:hover { background:var(--blue-soft); }
+    .carousel { display:flex; gap:.8rem; overflow-x:auto; scroll-snap-type:x mandatory;
+      padding-bottom:.4rem; scrollbar-width:thin; }
+    .carousel > * { flex:0 0 240px; scroll-snap-align:start; }
+    .lcard { background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow-sm);
+      overflow:hidden; display:flex; flex-direction:column; color:inherit; transition:box-shadow .15s; cursor:pointer; }
+    .lcard:hover { box-shadow:var(--shadow); text-decoration:none; }
+    .lcard .banner { height:64px; display:flex; align-items:center; justify-content:center;
+      font-size:1.7rem; color:#fff; font-weight:800; }
+    .lcard .bd { padding:.6rem .8rem .7rem; display:flex; flex-direction:column; gap:.4rem; flex:1; }
+    .lcard .t { font-weight:800; color:var(--blue-dark); font-size:.92rem; line-height:1.25; }
+    .lcard .sub { font-size:.75rem; color:var(--muted); }
+    .lcard .foot { font-size:.75rem; color:var(--muted); margin-top:auto; display:flex; gap:.4rem; align-items:center; }
+    .bn-blue   { background:linear-gradient(120deg,#2b6cb0,#1c4e86); }
+    .bn-purple { background:linear-gradient(120deg,#6d5cff,#4a37c9); }
+    .bn-green  { background:linear-gradient(120deg,#2fb56b,#15803d); }
+    .bn-orange { background:linear-gradient(120deg,#f6ad55,#dd6b20); }
+    .bn-teal   { background:linear-gradient(120deg,#38b2ac,#2c7a7b); }
+    .bn-pink   { background:linear-gradient(120deg,#ed64a6,#b83280); }
+    .bn-slate  { background:linear-gradient(120deg,#718096,#4a5568); }
+    .pbar { height:8px; background:#e8f0fb; border-radius:999px; overflow:hidden; }
+    .pbar > i { display:block; height:100%; background:linear-gradient(90deg,var(--blue),var(--blue-dark)); border-radius:999px; }
+    .pbar.done > i { background:linear-gradient(90deg,#22a55a,var(--ok)); }
+    .hubduo { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; align-items:stretch; }
+    .trend-li { display:flex; align-items:center; gap:.5rem; padding:.18rem 0; font-size:.88rem; color:inherit; }
+    .trend-li:hover { text-decoration:none; background:#f4f8ff; border-radius:8px; }
+    .trend-li .rk { width:1.35rem; height:1.35rem; border-radius:50%; background:var(--blue-soft); color:var(--blue-dark);
+      font-size:.72rem; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+    .trend-li .tt { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; color:var(--blue-dark); }
+    .trend-li .nn { font-size:.74rem; color:var(--muted); white-space:nowrap; }
+    /* ============ BUSCA AVANÇADA: trilho de facetas + lista ============ */
+    .blayout { display:grid; grid-template-columns:290px 1fr; gap:1.2rem; align-items:start; }
+    .rail { position:sticky; top:70px; display:flex; flex-direction:column; gap:.8rem; min-width:0; }
+    .rail-card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+      box-shadow:var(--shadow-sm); padding:.75rem .9rem; }
+    .rail-card input { width:100%; box-sizing:border-box; font-size:.88rem; padding:.4rem .6rem; }
+    .fgroup { border-top:1px solid var(--line); padding:.55rem 0 .35rem; }
+    .fgroup:first-of-type { border-top:0; padding-top:0; }
+    .fgroup > summary { list-style:none; cursor:pointer; font-size:.8rem; font-weight:800;
+      color:var(--blue-dark); text-transform:uppercase; letter-spacing:.04em; display:flex; align-items:center; }
+    .fgroup > summary::-webkit-details-marker { display:none; }
+    .fgroup > summary::after { content:"▾"; margin-left:auto; font-size:.7rem; opacity:.55; }
+    .fgroup:not([open]) > summary::after { content:"▸"; }
+    .fgroup .fbody { padding:.45rem 0 .1rem; }
+    .fitem { display:flex; align-items:center; gap:.45rem; padding:.16rem 0; font-size:.86rem; cursor:pointer; }
+    .fitem input { width:auto; margin:0; accent-color:var(--blue); }
+    .fitem .cnt2 { margin-left:auto; font-size:.74rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .toolbar { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; margin-bottom:.6rem; }
+    .toolbar .cnt { font-weight:800; color:var(--blue-dark); white-space:nowrap; }
+    .sorttabs { display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+    .sorttabs a { padding:.32rem .7rem; font-size:.82rem; font-weight:600; color:var(--muted);
+      border-right:1px solid var(--line); white-space:nowrap; cursor:pointer; }
+    .sorttabs a:last-child { border-right:0; }
+    .sorttabs a.on { background:var(--blue-soft); color:var(--blue-dark); }
+    .sorttabs a:hover { text-decoration:none; background:#f3f7fd; }
+    tr.solvedrow td:first-child { border-left:3px solid var(--ok); }
+    td.stc, th.stc { width:1.6rem; text-align:center !important; padding-left:.5rem !important; padding-right:.5rem !important; }
+    /* árvore de coleções (com checkbox de multi-seleção + progresso pessoal) */
+    .ctree { max-height:300px; overflow:auto; }
+    .ctree .node { display:flex; align-items:center; gap:.3rem; padding:.08rem 0; }
+    .ctree .node input[type=checkbox] { width:auto; margin:0; accent-color:#4a37c9; flex:none; cursor:pointer; }
+    .ctree .caret { cursor:pointer; width:1.05rem; text-align:center; color:var(--muted); user-select:none; flex:none; }
+    .ctree .kids { margin-left:.5rem; border-left:2px solid #e7ecf5; padding-left:.5rem; }
+    .ctree .collection { margin:0; cursor:pointer; min-width:0; }
+    .ctree .me { margin-left:auto; font-size:.72rem; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; flex:none; }
+    .ctree .me.full { color:var(--ok); font-weight:700; }
+    .tcloud { max-height:220px; overflow:auto; }
     .tcloud .tag { cursor:pointer; }
     .collection.on { background:#4a37c9; color:#fff; }
     .tag.on { background:var(--blue-dark); color:#fff; }
     .tag.dim { opacity:.4; }
-    #active { margin-top:.5rem; }
     #active .chip-x { margin-left:.35rem; font-weight:800; opacity:.7; }
-    #active .collection, #active .tag { cursor:pointer; }
-    summary.expl-sum { cursor:pointer; font-weight:600; color:var(--blue-dark); }
-    /* "mais enviados na semana" (estado inicial) */
-    .trend-row { display:flex; align-items:center; gap:.6rem; padding:.4rem .2rem; border-bottom:1px solid #eef2f8; text-decoration:none; color:inherit; }
-    .trend-row:last-child { border-bottom:none; }
-    .trend-row:hover { background:#f4f8ff; border-radius:8px; }
-    .trend-rank { flex:none; width:1.6rem; height:1.6rem; border-radius:50%; background:var(--blue-soft); color:var(--blue-dark); font-weight:800; font-size:.8rem; display:flex; align-items:center; justify-content:center; }
-    .trend-ttl { flex:1; min-width:0; font-weight:600; color:var(--blue-dark); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .trend-n { flex:none; font-size:.78rem; color:var(--muted); }
+    #active .collection, #active .tag, #active .fchip { cursor:pointer; }
+    /* ============ mobile ============ */
+    .mfilterbar { display:none; }
+    @media (max-width:820px){
+      .blayout { display:block; }
+      .rail { display:none; position:static; }
+      .rail.open { display:flex; margin-bottom:.8rem; }
+      .mfilterbar { display:flex; gap:.45rem; flex-wrap:wrap; align-items:center; margin-bottom:.6rem; }
+      .mfilterbar input { flex:1; min-width:140px; }
+      .cont-strip, .hubduo { grid-template-columns:1fr; }
+      .crow-head .arr { display:none; }
+      table.moj .hide-m { display:none; }
+      .thero h1 { font-size:1.2rem; }
+      .toolbar .sorttabs { overflow-x:auto; max-width:100%; }
+    }
   </style>
 </head>
 <body>
@@ -52,43 +146,116 @@
   </header>
 
   <main class="container">
-    <div class="section">
-      <div class="row" style="align-items:center;gap:.8rem">
-        <h2 style="margin:0" data-en="Free Training — Problems">Treino Livre — Problemas</h2>
-        <span style="flex:1"></span>
-        <a class="btn ghost" href="/treino/cli.html" target="_blank" data-en="⌨ Submit from the terminal (CLI)">⌨ Enviar pelo terminal (CLI)</a>
-      </div>
-      <div class="row">
-        <input id="q" placeholder="Buscar por título…" data-en-ph="Search by title…" style="flex:1; min-width:220px">
-        <select id="filter">
-          <option value="all" data-en="All">Todos</option>
-          <option value="solved" data-en="Solved">Resolvidos</option>
-          <option value="attempted" data-en="Attempted, unsolved">Tentados não resolvidos</option>
-        </select>
-        <button id="toggleTags" class="btn ghost" data-en="Show tags">Mostrar tags</button>
-      </div>
-      <details id="explorer" open>
-        <summary class="expl-sum small" data-en="🧭 Explore by collection and tag">🧭 Explorar por coleção e tag</summary>
-        <div class="expl-grid">
-          <div class="expl-panel">
-            <h3 data-en="📚 Collections">📚 Coleções</h3>
-            <input id="colFilter" placeholder="🔎 filtrar coleções…" data-en-ph="🔎 filter collections…">
-            <div id="colTree" class="ctree small"></div>
-          </div>
-          <div class="expl-panel">
-            <h3 data-en="🏷 Tags">🏷 Tags</h3>
-            <input id="tagFilter" placeholder="🔎 filtrar tags…" data-en-ph="🔎 filter tags…">
-            <div id="tagCloud" class="tcloud"></div>
-          </div>
+    <!-- =================== HUB (estado inicial) =================== -->
+    <div id="hub" class="hidden">
+      <div class="thero">
+        <h1 data-en="Free Training">Treino Livre</h1>
+        <p id="heroSub" class="small muted" style="margin:.1rem 0 0"></p>
+        <div class="herosearch">
+          <span class="mag">🔎</span>
+          <input id="hq" autocomplete="off" placeholder="Busque por título, coleção ou tag…"
+            data-en-ph="Search by title, collection or tag…">
+          <div id="suggest" class="suggest hidden"></div>
         </div>
-      </details>
-      <div id="active" class="row" style="align-items:center"></div>
-      <div id="count" class="small muted" style="margin-top:.5rem"></div>
+        <div class="quickchips">
+          <a class="fchip" id="qcRandom" data-en="🎲 random problem">🎲 problema aleatório</a>
+          <a class="fchip" id="qcEasy" data-en="🌱 easy starters">🌱 fáceis para começar</a>
+          <a class="fchip" id="qcUnsolved" data-en="🚀 not solved yet">🚀 ainda não resolvidos</a>
+          <a class="fchip on" id="qcBrowse" data-en="🔬 advanced search">🔬 busca avançada</a>
+        </div>
+      </div>
+
+      <section class="section" id="contSec" style="margin-top:1rem" hidden>
+        <div class="cont-strip" id="contStrip"></div>
+      </section>
+
+      <section class="section">
+        <div class="crow-head">
+          <h2 data-en="📚 Featured collections">📚 Coleções em destaque</h2>
+          <span style="flex:1"></span>
+          <button class="arr" id="carPrev" aria-label="anterior">‹</button>
+          <button class="arr" id="carNext" aria-label="próximo">›</button>
+          <a class="small" id="allColls" href="?browse=1" style="margin-left:.4rem"></a>
+        </div>
+        <div id="carousel" class="carousel"><span class="muted" data-en="loading…">carregando…</span></div>
+      </section>
+
+      <div class="hubduo">
+        <section class="section" style="margin:0">
+          <h2 style="font-size:1.05rem;margin:.05rem 0 .5rem" data-en="🔥 Most submitted this week">🔥 Mais enviados na semana</h2>
+          <div id="trendList"></div>
+        </section>
+        <section class="section" style="margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;text-align:center">
+          <span style="font-size:1.6rem">🔬</span>
+          <b style="color:var(--blue-dark)" data-en="Looking for something specific?">Procurando algo específico?</b>
+          <span id="ctaSub" class="small muted"></span>
+          <a class="btn" id="ctaBrowse" href="?browse=1" data-en="Open the advanced search">Abrir a busca avançada</a>
+        </section>
+      </div>
     </div>
 
-    <div class="section">
-      <div id="pager" class="row" style="margin-bottom:.5rem"></div>
-      <div id="list"><span class="muted" data-en="loading…">carregando…</span></div>
+    <!-- =================== BUSCA AVANÇADA (browse) =================== -->
+    <div id="browse" class="hidden">
+      <div class="row" style="margin:.9rem 0 .7rem">
+        <a class="small" id="backHub" href="/treino/" data-en="← Free Training">← Treino Livre</a>
+        <h2 style="margin:0;color:var(--blue-dark)" data-en="🔬 Advanced search">🔬 Busca avançada</h2>
+        <span style="flex:1"></span>
+        <span id="mystats" class="small muted"></span>
+        <a class="btn ghost" href="/treino/cli.html" target="_blank" data-en="⌨ CLI">⌨ CLI</a>
+      </div>
+
+      <div class="mfilterbar">
+        <input id="mq" placeholder="🔎 Buscar por título…" data-en-ph="🔎 Search by title…">
+        <a class="fchip" id="mFilters"></a>
+      </div>
+
+      <div class="blayout">
+        <aside class="rail" id="rail">
+          <div class="rail-card">
+            <input id="q" placeholder="🔎 Filtrar por título…" data-en-ph="🔎 Filter by title…">
+            <a class="small" id="clearAll" style="display:inline-block;margin-top:.4rem;cursor:pointer"
+              data-en="clear all filters">limpar todos os filtros</a>
+          </div>
+          <div class="rail-card">
+            <details class="fgroup" open id="fStatusGrp">
+              <summary data-en="My status">Meu status</summary>
+              <div class="fbody" id="fStatus"></div>
+            </details>
+            <details class="fgroup" open>
+              <summary data-en="Difficulty">Dificuldade</summary>
+              <div class="fbody" id="fDiff"></div>
+            </details>
+            <details class="fgroup" open>
+              <summary data-en="Collections">Coleções</summary>
+              <div class="fbody">
+                <input id="colFilter" placeholder="filtrar coleções…" data-en-ph="filter collections…" style="margin-bottom:.4rem">
+                <div id="colTree" class="ctree small"></div>
+              </div>
+            </details>
+            <details class="fgroup" open>
+              <summary data-en="Tags">Tags</summary>
+              <div class="fbody">
+                <input id="tagFilter" placeholder="filtrar tags…" data-en-ph="filter tags…" style="margin-bottom:.4rem">
+                <div id="tagCloud" class="tcloud"></div>
+              </div>
+            </details>
+          </div>
+        </aside>
+
+        <div style="min-width:0">
+          <div class="toolbar">
+            <span id="count" class="cnt"></span>
+            <span id="active" class="row" style="gap:.3rem"></span>
+            <span style="flex:1"></span>
+            <span class="small muted" data-en="sort:">ordenar:</span>
+            <span class="sorttabs" id="sorts"></span>
+            <button id="toggleTags" class="btn ghost" style="padding:.32rem .7rem;font-size:.82rem" data-en="Show tags">Mostrar tags</button>
+          </div>
+          <div id="pager" class="row" style="margin-bottom:.5rem"></div>
+          <div id="list" class="chart-wrap"><span class="muted" data-en="loading…">carregando…</span></div>
+          <div id="pager2" class="row" style="margin-top:.6rem;justify-content:center"></div>
+        </div>
+      </div>
     </div>
   </main>
 
