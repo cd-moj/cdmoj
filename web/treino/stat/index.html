@@ -1,40 +1,54 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-en-doctitle="User statistics — Free Training — MOJ">
+<html lang="pt-br" data-en-doctitle="User profile — Free Training — MOJ">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Estatísticas do Usuário — Treino Livre — MOJ</title>
+  <title>Perfil — Treino Livre — MOJ</title>
   <link rel="stylesheet" href="/shared/ui.css">
   <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
   <style>
-    /* ---- cabeçalho de perfil ---- */
-    .profile-head { display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap; }
-    .avatar { width:84px; height:84px; border-radius:50%; flex:0 0 auto; object-fit:cover;
-      box-shadow:0 2px 10px rgba(20,40,80,.18); border:3px solid #fff; background:#fff; }
-    .avatar-ini { display:grid; place-items:center; color:#fff; font-weight:800; font-size:2rem;
-      letter-spacing:-.02em; user-select:none; }
+    /* ---- cabeçalho compacto de perfil ---- */
+    .profile-head { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+    .profile-head .avatar-mini { box-shadow:0 2px 10px rgba(20,40,80,.18); border:3px solid #fff; }
     .profile-meta { flex:1; min-width:240px; }
-    .profile-meta .pname { font-size:1.55rem; font-weight:850; color:var(--blue-dark); letter-spacing:-.01em; line-height:1.2; }
-    .profile-meta .plogin { color:var(--muted); font-family:var(--mono); font-size:.9rem; }
-    .profile-meta .pline { margin-top:.25rem; color:var(--ink); font-size:.95rem; }
-    .profile-meta .pline .lbl { color:var(--muted); }
+    .profile-meta .pname { font-size:1.35rem; font-weight:850; color:var(--blue-dark); letter-spacing:-.01em; line-height:1.2; }
+    .profile-meta .plogin { color:var(--muted); font-family:var(--mono); font-size:.88rem; font-weight:500; }
+    .profile-meta .pline { margin-top:.25rem; color:var(--muted); font-size:.88rem; }
     .profile-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
-    /* ---- cartões de métricas ---- */
-    .stat-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.7rem; margin-top:1rem; }
-    .stat-card { background:#fafcff; border:1px solid var(--line); border-radius:12px; padding:.7rem .9rem; }
-    .stat-card .n { font-size:1.5rem; font-weight:800; color:var(--blue-dark); line-height:1.1; font-variant-numeric:tabular-nums; }
-    .stat-card .lbl { font-size:.78rem; color:var(--muted); margin-top:.15rem; }
-    .stat-card.hl { background:var(--blue-soft); border-color:#cfe0f6; }
-    /* ---- grade de gráficos ---- */
-    .stat-grid { display:grid; grid-template-columns:1fr; gap:1.2rem; }
-    @media (min-width:760px){ .stat-grid.two { grid-template-columns:1fr 1fr; } }
-    .stat-grid > div { min-width:0; }
-    .chart-title { text-align:center; font-weight:650; color:var(--ink); margin-bottom:.4rem; font-size:.95rem; }
-    .legend { display:flex; flex-wrap:wrap; gap:.4rem .9rem; justify-content:center; margin-top:.5rem; font-size:.85rem; color:var(--ink); }
-    .legend .sw { display:inline-block; width:.8em; height:.8em; border-radius:3px; margin-right:.3em; vertical-align:-.05em; }
-    svg.chart { max-width:100%; height:auto; display:block; margin:auto; }
-    .heat-wrap { overflow-x:auto; }
     .private-box { text-align:center; font-size:1.15rem; color:var(--muted); padding:2.2rem 1rem; }
+    /* ---- cartões de métricas ---- */
+    .stat-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; margin-top:1rem; }
+    .stat-card { background:#fafcff; border:1px solid var(--line); border-radius:12px; padding:.65rem .85rem; }
+    .stat-card .n { font-size:1.35rem; font-weight:800; color:var(--blue-dark); line-height:1.2;
+      font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .stat-card .lbl { font-size:.75rem; color:var(--muted); margin-top:.12rem; }
+    .stat-card.hl { background:var(--blue-soft); border-color:#cfe0f6; }
+    /* ---- grade de cartões de gráfico (2 col -> 1 no mobile) ---- */
+    .duo { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; align-items:start; margin:1.2rem 0; }
+    .duo > .subcard { min-width:0; }
+    .subcard h3 { margin:.1rem 0 .55rem; font-size:.95rem; color:var(--blue-dark); }
+    svg.chart { max-width:100%; height:auto; display:block; margin:auto; }
+    /* barra de progresso (coleções) */
+    .pbar { height:8px; background:#e8f0fb; border-radius:999px; overflow:hidden; }
+    .pbar > i { display:block; height:100%; background:linear-gradient(90deg,var(--blue),var(--blue-dark)); border-radius:999px; }
+    .pbar.done > i { background:linear-gradient(90deg,#22a55a,var(--ok)); }
+    /* conquistas */
+    .badge-strip { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .abadge { display:inline-flex; align-items:center; gap:.4rem; background:#fffdf2; border:1px solid #f0e6bb;
+      border-radius:999px; padding:.28rem .8rem; font-size:.8rem; font-weight:700; color:#7a5b00; }
+    .abadge.lock { background:#f6f8fb; border-color:var(--line); color:#a9b4c3; filter:grayscale(1); }
+    /* histórico: filtros + tabela (o thead sticky global grudava atrás da topbar) */
+    .histbar { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-bottom:.6rem; }
+    .histbar input { flex:1; min-width:160px; font-size:.88rem; padding:.4rem .6rem; }
+    .histbar select { font-size:.88rem; padding:.35rem .55rem; }
+    table.moj thead th { position:static; }
+    #histTable td { vertical-align:top; }
+    /* ---- mobile ---- */
+    @media (max-width:820px){
+      .duo { grid-template-columns:1fr; }
+      .stat-cards { grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); }
+      table.moj .hide-m { display:none; }
+    }
   </style>
 </head>
 <body>
@@ -53,7 +67,7 @@
   </header>
 
   <main class="container">
-    <!-- cabeçalho de perfil + métricas -->
+    <!-- cabeçalho de perfil + cartões -->
     <div class="section">
       <div class="profile-head" id="profileHead">
         <div class="muted" data-en="loading…">carregando…</div>
@@ -61,7 +75,7 @@
       <div class="stat-cards" id="quickStats"></div>
     </div>
 
-    <!-- corpo do dashboard (escondido se o perfil for privado) -->
+    <!-- corpo do dashboard (vazio se o perfil for privado) -->
     <div id="dashboard"></div>
   </main>
 

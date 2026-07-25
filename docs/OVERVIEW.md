@@ -94,8 +94,12 @@ resolvidos/A–Z/dificuldade) e tabela sempre visível paginada; página do prob
 **editor CodeMirror** + upload + histórico com polling (o veredicto exibido é **sempre o
 canônico**; cada submissão julgada mostra um **resumo** abaixo — "Passou em X/Y testes (Z%)",
 pontos + grupos, ou Score heurístico — via `/submission/summary`, redigido por modo em
-contests: `lib/verdict.sh`), stats por usuário (gráficos,
-editor favorito, foto, privacidade), **stats por problema** (cache, linguagens, editores,
+contests: `lib/verdict.sh`), **perfil público por usuário** (`/treino/stat/?user=` — cabeçalho
+com membro desde/editor/último envio, cartões, curva de resolvidos, heatmap 26 semanas +
+punchcard dia×hora, veredictos/linguagens/dificuldade/tags em barras, progresso por coleção,
+problemas em aberto, conquistas derivadas e **histórico paginado com filtros**; tudo
+client-side dos mesmos 3 fetches; perfil privado = cadeado, e o Bearer vai sempre que logado
+— admin vê o que a API já lhe permitia), **stats por problema** (cache, linguagens, editores,
 nuvem de avatares), e **painel admin do treino** (sessões/logs com UA+IP, busca/regex,
 bulk logout/lock, notícias, **auditoria**, máquinas, e — em abas com **índice/TOC** — **Fila &
 tempo de resposta** (contadores de submissão + calibração, **o que cada máquina roda agora**

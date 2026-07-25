@@ -1,7 +1,7 @@
 // treino/problema/stats/stats.js — estatísticas de um problema do Treino Livre.
 import { apiGet } from '/shared/api.js';
 import { el, avatarEl, renderAuthArea } from '/shared/ui.js';
-import { barChart, pieChart, hBarChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
+import { barChart, pieChart, hBarChart, lineChart, heatmap, heatmapGrid, verdictColor } from '/lib/charts.js';
 import { langById } from '/shared/languages.js';
 import { editorLabel } from '/shared/editors.js';
 import { T } from '/shared/i18n.js';
@@ -41,16 +41,6 @@ function metric(v, l) { return el('div', { class: 'metric' }, el('div', { class:
 function chartCard(title, node) {
   return el('div', { class: 'subcard' }, el('h3', { class: 'small', style: 'margin:.1rem 0 .6rem;color:var(--blue-dark)' }, title), node);
 }
-function verdictColor(v) {
-  const s = (v || '').toLowerCase();
-  if (s.startsWith('accepted')) return '#15803d';
-  if (s.startsWith('wrong')) return '#be1241';
-  if (s.startsWith('time')) return '#9a6700';
-  if (s.startsWith('runtime')) return '#d94f9a';
-  if (s.startsWith('compil')) return '#7a5ada';
-  return '#94a3b8';
-}
-
 async function boot() {
   await renderAuthArea(document.getElementById('authArea'), CONTEST, () => {});
   const content = document.getElementById('content');

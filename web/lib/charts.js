@@ -18,6 +18,17 @@ function svgEl(tag, attrs) {
 function colorAt(i) { return PALETTE[i % PALETTE.length]; }
 function esc(s) { return String(s); }
 
+// cor canônica por veredicto (fonte ÚNICA — stat do usuário e stats do problema usam a mesma;
+// alinhada às faixas do ui.css: --ok/--err/--warn)
+export function verdictColor(v) {
+  v = String(v || '');
+  return /^Accepted/i.test(v) ? '#15803d'
+    : /^Wrong/i.test(v) ? '#be1241'
+      : /^Time Limit/i.test(v) ? '#9a6700'
+        : /^(Possible Runtime|Runtime)/i.test(v) ? '#d94f9a'
+          : /^(Compilation|Language)/i.test(v) ? '#7a5ada' : '#5b6b7d';
+}
+
 // ---- barras verticais --------------------------------------------------------
 // data: [{label, value}], opts: {width,height,color,maxLabels}
 export function barChart(data, opts = {}) {

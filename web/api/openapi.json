@@ -528,7 +528,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Perfil (próprio com Bearer; ?user=X = visão pública, respeita privacidade)",
+        "summary": "Perfil (próprio com Bearer; ?user=X = visão pública, respeita privacidade; ambos trazem created_at, epoch de criação da conta)",
         "security": [
           {
             "bearerAuth": []

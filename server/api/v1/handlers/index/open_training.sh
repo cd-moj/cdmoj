@@ -59,6 +59,7 @@ while IFS=: read -r relat user prob lang resp epoch md5; do
   [[ -z "$user" ]] && continue
   (( ${#V[@]} >= 5 )) && break
   _private "$prob" && continue
+  profile_is_public treino "$user" || continue     # perfil privado não aparece em lista pública
   [[ "$epoch" =~ ^[0-9]+$ ]] || epoch=0
   name="$(user_fullname_of treino "$user")"
   V+=( "$(jq -cn --arg pid "$prob" --arg title "$(_title "$prob")" \
@@ -110,15 +111,18 @@ EDITOR_RANK="$(
 [[ -n "$EDITOR_RANK" ]] || EDITOR_RANK='[]'
 
 # --- top_users: top10 por problemas distintos resolvidos -------------------
+# perfil PRIVADO não entra na lista pública (pula e pega o próximo — folga de 40 candidatos)
 declare -a U
 while read -r total user; do
   [[ -z "$user" ]] && continue
+  (( ${#U[@]} >= 10 )) && break
   name="$(user_fullname_of treino "$user")"
   read_profile treino "$user"
+  [[ "$PROFILE_PUBLIC" == "false" ]] && continue
   U+=( "$(jq -cn --arg user "$user" --arg name "$name" --arg fe "$FAVORITE_EDITOR" --argjson n "$total" \
       '{username:$user, name:$name, favorite_editor:$fe, solved_count:$n}')" )
 done <<< "$(awk -F: '$5 ~ /Accepted/ {print $2 ":" $3}' "$HIST" \
-            | sort -u | cut -d: -f1 | sort | uniq -c | sort -rn | head -n10 \
+            | sort -u | cut -d: -f1 | sort | uniq -c | sort -rn | head -n40 \
             | awk '{print $1, $2}')"
 
 jarr(){ if (( $# == 0 )); then printf '[]'; else printf '%s\n' "$@" | jq -cs .; fi; }

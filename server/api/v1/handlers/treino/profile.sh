@@ -25,8 +25,10 @@ if [[ "$REQUEST_METHOD" == GET && -n "$quser" ]]; then
   fi
   qname="$(user_fullname_of treino "$quser")"
   haspic="$([[ -f "$(photo_file treino "$quser")" ]] && echo true || echo false)"
-  ok_json '{login:$l, name:$n, university:$u, favorite_editor:$fe, has_photo:$hp, is_public:true}' \
-    --arg l "$quser" --arg n "$qname" --arg u "$UNIVERSITY" --arg fe "$FAVORITE_EDITOR" --argjson hp "$haspic"
+  created="$(account_field treino "$quser" '.created_at')"; created="${created//[^0-9]/}"
+  ok_json '{login:$l, name:$n, university:$u, favorite_editor:$fe, has_photo:$hp, is_public:true, created_at:$ca}' \
+    --arg l "$quser" --arg n "$qname" --arg u "$UNIVERSITY" --arg fe "$FAVORITE_EDITOR" --argjson hp "$haspic" \
+    --argjson ca "${created:-0}"
   exit 0
 fi
 
@@ -93,11 +95,12 @@ else
 fi
 tgjson="$(jq -cn --argjson a "$tgjson" --argjson b "$tgq" '$a + $b')"
 
+created="$(account_field treino "$login" '.created_at')"; created="${created//[^0-9]/}"
 ok_json '{login:$l, name:$n, university:$u, favorite_editor:$fe, profile_public:$pub, has_photo:$hp,
-          username_changes_used:$used, username_changes_limit:$lim,
+          created_at:$ca, username_changes_used:$used, username_changes_limit:$lim,
           username_changes_remaining:$rem, username_next_available:$next, telegram:$tg}' \
   --arg l "$login" --arg n "$name" --arg u "$UNIVERSITY" --arg fe "$FAVORITE_EDITOR" \
   --argjson pub "$([[ "$PROFILE_PUBLIC" == false ]] && echo false || echo true)" \
-  --argjson hp "$haspic" \
+  --argjson hp "$haspic" --argjson ca "${created:-0}" \
   --argjson used "$used" --argjson lim "$UNAME_CHANGE_LIMIT" \
   --argjson rem "$remaining" --argjson next "${nextav:-0}" --argjson tg "$tgjson"
