@@ -314,9 +314,12 @@ function renderDashboard(stats) {
     const p = problemsById[pid]; if (!p) return;
     const k = diffOf(p); if (k) dcounts[k]++;
   });
+  // ordena por VOLUME resolvido (percentual primeiro escondia o progresso grande atrás de
+  // coleçõezinhas 3/3); completas desempatam na frente
   const collRows = [...collProgress(stats)]
     .filter(([, e]) => e.mine > 0)
-    .sort((a, b) => (b[1].mine / b[1].total) - (a[1].mine / a[1].total) || b[1].mine - a[1].mine)
+    .sort((a, b) => b[1].mine - a[1].mine
+      || (b[1].mine === b[1].total ? 1 : 0) - (a[1].mine === a[1].total ? 1 : 0))
     .slice(0, 6);
   const collBox = collRows.length
     ? el('div', { style: 'display:flex;flex-direction:column;gap:.55rem' }, ...collRows.map(([name, e]) => {
