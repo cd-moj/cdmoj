@@ -395,6 +395,7 @@ function goHub() {
   syncURL(); renderAll();
 }
 function showMode() {
+  const pl = $('pageLoading'); if (pl) pl.remove();
   $('hub').classList.toggle('hidden', MODE !== 'hub');
   $('browse').classList.toggle('hidden', MODE !== 'browse');
 }
@@ -697,8 +698,7 @@ async function boot() {
     const j = await apiGet('/treino/problems', { contest: CONTEST });
     ALL = Array.isArray(j) ? j : (j.problems || j.data || []);
   } catch (e) {
-    $('hub').classList.remove('hidden');
-    $('carousel').innerHTML = `<span class="error-box">${T('Falha ao carregar problemas.', 'Failed to load problems.')}</span>`;
+    $('pageLoading').innerHTML = `<span class="error-box">${T('Falha ao carregar problemas.', 'Failed to load problems.')}</span>`;
     return;
   }
   buildTags(); buildTree(); applyURL();
