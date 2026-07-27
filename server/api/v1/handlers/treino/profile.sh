@@ -61,6 +61,9 @@ if [[ "$REQUEST_METHOD" == POST ]]; then
   fi
   if jq -e 'has("profile_public")' >/dev/null 2>&1 <<<"$body"; then
     pub="$(jq -r 'if .profile_public then "true" else "false" end' <<<"$body")"
+    # conta GERIDA de menor é sempre privada — recusa tornar público (libera aos 18)
+    [[ "$pub" == true ]] && is_managed_minor treino "$login" \
+      && fail 400 "Conta gerida: o perfil fica privado até os 18 anos" "managed_minor"
     set_profile_field treino "$login" public "$pub"; PROFILE_PUBLIC="$pub"
   fi
   # nome/editor/privacidade aparecem na home (top10, ranking de editores, avatares) e no
@@ -96,9 +99,18 @@ fi
 tgjson="$(jq -cn --argjson a "$tgjson" --argjson b "$tgq" '$a + $b')"
 
 created="$(account_field treino "$login" '.created_at')"; created="${created//[^0-9]/}"
+# conta gerida: a UI do perfil precisa saber (esconde o vínculo Telegram e trava a privacidade)
+mng="$(managed_json treino "$login")"; mngout=null
+if [[ -n "$mng" ]]; then
+  minor=false; is_managed_minor treino "$login" && minor=true
+  mngout="$(jq -c --argjson mi "$minor" \
+    '{minor:$mi, by:(.by // ""), birthdate:(.birthdate // ""), note:(.note // ""), expires_at:(.expires_at // null)}' \
+    <<<"$mng")"
+fi
 ok_json '{login:$l, name:$n, university:$u, favorite_editor:$fe, profile_public:$pub, has_photo:$hp,
-          created_at:$ca, username_changes_used:$used, username_changes_limit:$lim,
+          created_at:$ca, managed:$mng2, username_changes_used:$used, username_changes_limit:$lim,
           username_changes_remaining:$rem, username_next_available:$next, telegram:$tg}' \
+  --argjson mng2 "$mngout" \
   --arg l "$login" --arg n "$name" --arg u "$UNIVERSITY" --arg fe "$FAVORITE_EDITOR" \
   --argjson pub "$([[ "$PROFILE_PUBLIC" == false ]] && echo false || echo true)" \
   --argjson hp "$haspic" --argjson ca "${created:-0}" \

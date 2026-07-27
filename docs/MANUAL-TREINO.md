@@ -93,6 +93,10 @@ Um ponto importante sobre a senha:
 
 Terminado o cadastro, siga para a tela de login (próxima seção).
 
+> **Menor de idade (sem Telegram)?** A conta é criada por um professor/admin
+> **responsável**, que entrega o login e a senha. Essas contas têm o perfil sempre
+> privado até os 18 anos — detalhes em [`CONTAS-GERIDAS.md`](CONTAS-GERIDAS.md).
+
 ---
 
 ## 3. Entrar
@@ -127,6 +131,9 @@ Se você **vinculou o Telegram** à sua conta (o que acontece no cadastro), faç
 3. Você recebe uma **nova senha por mensagem privada** no próprio Telegram.
 
 Depois, é só voltar à tela de login e entrar com a senha nova.
+
+Se a sua conta **não tem Telegram** (conta criada por um responsável — ver a nota da
+seção 2), o reset de senha é feito **pelo responsável que criou a conta**.
 
 ---
 

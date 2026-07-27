@@ -1077,6 +1077,208 @@ function makeAchievementsTab() {
   return { panel, load };
 }
 
+// ============================ 🧒 contas geridas (menores, sem Telegram) ============================
+// Criadas por admin p/ menores de idade: perfil sempre privado e Telegram bloqueado até os 18
+// (caem sozinhos), senha gerada mostrada UMA vez, reset só por aqui. docs/CONTAS-GERIDAS.md.
+function makeManagedTab() {
+  const panel = el('div', { class: 'section' });
+  const head = el('h2', {}, '🧒 ' + T('Contas geridas', 'Managed accounts'));
+  const intro = el('p', { class: 'small muted', style: 'margin:.2rem 0 .6rem' },
+    T('Contas para MENORES, sem Telegram: perfil sempre privado e vínculo bloqueado até os 18 anos (liberam sozinhos pela data de nascimento). A senha aparece UMA única vez — anote/imprima na hora. Detalhes: docs/CONTAS-GERIDAS.md.',
+      'Accounts for MINORS, without Telegram: profile always private and linking blocked until 18 (auto-unlocks by birthdate). Passwords are shown ONCE — write them down right away. Details: docs/CONTAS-GERIDAS.md.'));
+  const q = el('input', { placeholder: T('filtrar…', 'filter…'), style: 'width:12rem',
+    oninput: () => renderList() });
+  const mineChk = el('input', { type: 'checkbox', onchange: () => renderList() });
+  const tools = el('div', { class: 'row', style: 'margin:.4rem 0' },
+    el('button', { class: 'btn', onclick: () => openForm() }, T('➕ Nova conta', '➕ New account')),
+    el('button', { class: 'btn', onclick: () => openBatch() }, T('📥 Criar em lote', '📥 Batch create')),
+    el('button', { class: 'btn ghost', onclick: load }, '↻'),
+    q, el('label', { class: 'small row', style: 'gap:.3rem;cursor:pointer' }, mineChk, T('só as minhas', 'only mine')));
+  const msg = el('div', { class: 'small', style: 'margin:.3rem 0' });
+  const credsBox = el('div', {});
+  const formBox = el('div', {});
+  const body = el('div', {}, loading());
+  panel.append(head, intro, tools, msg, credsBox, formBox, body);
+
+  let USERS = [], ME = '';
+  const norm = (s) => (s || '').toLowerCase();
+  const ageOf = (bd) => { const d = new Date(bd + 'T00:00:00'); if (isNaN(d)) return '?';
+    const n = new Date(); let a = n.getFullYear() - d.getFullYear();
+    if (n.getMonth() < d.getMonth() || (n.getMonth() === d.getMonth() && n.getDate() < d.getDate())) a--;
+    return a; };
+  const fmtD = (e) => e ? new Date(e * 1000).toLocaleDateString() : '';
+  const dateToEpoch = (v) => v ? Math.floor(new Date(v + 'T23:59:59').getTime() / 1000) : null;
+
+  function showCreds(list, skipped) {
+    credsBox.innerHTML = '';
+    if (!list.length && !(skipped || []).length) return;
+    const box = el('div', { class: 'subcard', style: 'margin:.5rem 0;border-left:4px solid var(--warn)' });
+    if (list.length) {
+      box.append(el('b', {}, T('⚠️ Credenciais geradas — aparecem SÓ AGORA. Copie/anote antes de sair.',
+        '⚠️ Generated credentials — shown ONLY NOW. Copy them before leaving.')));
+      const tb = el('tbody');
+      list.forEach(u => tb.append(el('tr', {},
+        el('td', { style: 'font-family:var(--mono)' }, u.login),
+        el('td', { style: 'font-family:var(--mono);font-weight:700' }, u.password),
+        el('td', { class: 'small' }, u.fullname || ''))));
+      box.append(el('table', { class: 'moj', style: 'margin:.5rem 0' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'login'), el('th', {}, T('senha', 'password')), el('th', {}, T('nome', 'name')))), tb));
+      const txt = list.map(u => `${u.login}\t${u.password}\t${u.fullname || ''}`).join('\n');
+      box.append(el('button', { class: 'btn ghost', onclick: () => {
+        navigator.clipboard.writeText(txt).then(() => { msg.className = 'small'; msg.textContent = T('✓ copiado', '✓ copied'); });
+      } }, T('📋 Copiar tudo', '📋 Copy all')));
+    }
+    (skipped || []).forEach(s => box.append(el('div', { class: 'small error-box', style: 'margin-top:.3rem' },
+      `${s.fullname || s.login || '?'}: ${s.reason}`)));
+    credsBox.append(box);
+  }
+
+  function renderList() {
+    body.innerHTML = '';
+    const f = norm(q.value);
+    const rows = USERS.filter(u =>
+      (!mineChk.checked || u.by === ME)
+      && (!f || norm(u.login).includes(f) || norm(u.fullname).includes(f) || norm(u.note).includes(f) || norm(u.by).includes(f)));
+    if (!rows.length) { body.append(el('div', { class: 'muted small' }, T('Nenhuma conta gerida.', 'No managed accounts.'))); return; }
+    const tb = el('tbody');
+    rows.forEach(u => {
+      const minor = u.minor;
+      const expired = u.expires_at && u.expires_at < Date.now() / 1000;
+      tb.append(el('tr', {},
+        el('td', {}, el('a', { href: '/treino/stat/?user=' + encodeURIComponent(u.login), style: 'font-family:var(--mono)' }, u.login)),
+        el('td', {}, u.fullname),
+        el('td', { class: 'small', style: 'white-space:nowrap' }, `${u.birthdate} `,
+          el('span', { class: 'verdict ' + (minor ? 'v-warn' : 'v-ok'), style: 'font-size:.72rem;padding:.1rem .45rem' },
+            minor ? T(`menor (${ageOf(u.birthdate)})`, `minor (${ageOf(u.birthdate)})`) : '18+')),
+        el('td', { class: 'small' }, u.by),
+        el('td', { class: 'small' }, u.note || ''),
+        el('td', { class: 'small', style: 'white-space:nowrap' }, u.expires_at
+          ? el('span', { style: expired ? 'color:var(--err);font-weight:700' : '' }, fmtD(u.expires_at) + (expired ? ' ⛔' : '')) : '—'),
+        el('td', {}, u.disabled
+          ? el('span', { class: 'verdict v-err', style: 'font-size:.75rem;padding:.15rem .5rem' }, T('desabilitada', 'disabled'))
+          : el('span', { class: 'verdict v-ok', style: 'font-size:.75rem;padding:.15rem .5rem' }, T('ativa', 'active'))),
+        el('td', { class: 'small', style: 'white-space:nowrap' },
+          el('a', { style: 'cursor:pointer', title: T('nova senha', 'new password'), onclick: () => resetPw(u) }, '🔑'), ' ',
+          el('a', { style: 'cursor:pointer', title: T('editar', 'edit'), onclick: () => openForm(u) }, '✎'), ' ',
+          el('a', { style: 'cursor:pointer', title: u.disabled ? T('reabilitar', 'enable') : T('desabilitar', 'disable'),
+            onclick: () => toggleDisabled(u) }, u.disabled ? '▶' : '⏻'), ' ',
+          el('a', { style: 'cursor:pointer;color:var(--err)', title: T('remover', 'remove'), onclick: () => removeU(u) }, '✕'))));
+    });
+    body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+      el('thead', {}, el('tr', {}, el('th', {}, 'login'), el('th', {}, T('nome', 'name')),
+        el('th', {}, T('nascimento', 'birthdate')), el('th', {}, T('responsável', 'created by')),
+        el('th', {}, T('nota', 'note')), el('th', {}, T('expira', 'expires')),
+        el('th', {}, T('estado', 'state')), el('th', {}, ''))), tb)),
+      el('div', { class: 'small muted', style: 'margin-top:.3rem' }, `${rows.length}/${USERS.length}`));
+  }
+
+  async function post(path, payload) {
+    return apiPost(path, payload, G());
+  }
+  async function resetPw(u) {
+    if (!confirm(T(`Gerar senha NOVA para ${u.login}? A atual deixa de valer e as sessões caem.`,
+      `Generate a NEW password for ${u.login}? The current one stops working and sessions are dropped.`))) return;
+    try { const j = await post('/treino/admin/managed-reset', { login: u.login });
+      showCreds([{ login: j.login, password: j.password, fullname: u.fullname }]); }
+    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message; }
+  }
+  async function toggleDisabled(u) {
+    const dis = !u.disabled;
+    if (!confirm(dis ? T(`Desabilitar ${u.login}?`, `Disable ${u.login}?`)
+      : T(`Reabilitar ${u.login}? Uma senha nova será gerada.`, `Enable ${u.login}? A new password will be generated.`))) return;
+    try {
+      const j = await post('/treino/admin/managed-update', { login: u.login, disabled: dis });
+      if (j.password) showCreds([{ login: u.login, password: j.password, fullname: u.fullname }]);
+      await load();
+    } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message; }
+  }
+  async function removeU(u) {
+    if (!confirm(T(`REMOVER a conta ${u.login} (${u.fullname})? As submissões ficam arquivadas em .removed-users.`,
+      `REMOVE account ${u.login} (${u.fullname})? Submissions are archived under .removed-users.`))) return;
+    try { await post('/treino/admin/managed-remove', { login: u.login }); await load(); }
+    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message; }
+  }
+
+  function openForm(u) {
+    const editing = !!u;
+    const nameI = el('input', { value: editing ? u.fullname : '', placeholder: T('Nome completo', 'Full name'), style: 'width:100%' });
+    if (editing) nameI.disabled = true;
+    const bdI = el('input', { type: 'date', value: editing ? u.birthdate : '' });
+    const loginI = el('input', { value: '', placeholder: T('login (vazio = gerado do nome)', 'login (empty = generated)'), style: 'width:16rem;font-family:var(--mono)' });
+    if (editing) { loginI.value = u.login; loginI.disabled = true; }
+    const noteI = el('input', { value: editing ? (u.note || '') : '', placeholder: T('nota (turma, escola, responsável…)', 'note (class, school, guardian…)'), style: 'width:100%' });
+    const expI = el('input', { type: 'date', value: editing && u.expires_at ? new Date(u.expires_at * 1000).toISOString().slice(0, 10) : '' });
+    const ferr = el('span', { class: 'small error-box hidden' });
+    const saveB = el('button', { class: 'btn', onclick: async () => {
+      ferr.classList.add('hidden');
+      try {
+        if (editing) {
+          await post('/treino/admin/managed-update', { login: u.login, note: noteI.value.trim(),
+            birthdate: bdI.value, expires_at: expI.value ? dateToEpoch(expI.value) : null });
+          formBox.innerHTML = ''; await load();
+        } else {
+          if (!nameI.value.trim() || !bdI.value) { ferr.classList.remove('hidden'); ferr.textContent = T('nome e nascimento são obrigatórios', 'name and birthdate are required'); return; }
+          const item = { fullname: nameI.value.trim(), birthdate: bdI.value, note: noteI.value.trim() };
+          if (loginI.value.trim()) item.login = loginI.value.trim();
+          if (expI.value) item.expires_at = dateToEpoch(expI.value);
+          const j = await post('/treino/admin/managed-create', { users: [item] });
+          formBox.innerHTML = ''; showCreds(j.created || [], j.skipped || []); await load();
+        }
+      } catch (e) { ferr.classList.remove('hidden'); ferr.textContent = e.message; }
+    } }, editing ? T('Salvar', 'Save') : T('Criar conta', 'Create account'));
+    formBox.innerHTML = '';
+    formBox.append(el('div', { class: 'subcard', style: 'margin:.5rem 0' },
+      el('div', { class: 'row' }, nameI),
+      el('div', { class: 'row', style: 'margin-top:.4rem' },
+        el('label', { class: 'small' }, T('nascimento ', 'birthdate '), bdI), loginI),
+      el('div', { class: 'row', style: 'margin-top:.4rem' }, noteI),
+      el('div', { class: 'row', style: 'margin-top:.4rem' },
+        el('label', { class: 'small' }, T('expira em (opcional) ', 'expires on (optional) '), expI)),
+      el('div', { class: 'row', style: 'margin-top:.5rem' }, saveB,
+        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel')), ferr)));
+  }
+
+  function openBatch() {
+    const ta = el('textarea', { rows: '8', placeholder: T('Um por linha:  Nome Completo;AAAA-MM-DD', 'One per line:  Full Name;YYYY-MM-DD'),
+      style: 'width:100%;font-family:var(--mono);font-size:.88rem' });
+    const noteI = el('input', { placeholder: T('nota comum (turma, escola…)', 'shared note (class, school…)'), style: 'width:100%' });
+    const expI = el('input', { type: 'date' });
+    const ferr = el('span', { class: 'small error-box hidden' });
+    const goB = el('button', { class: 'btn', onclick: async () => {
+      ferr.classList.add('hidden');
+      const users = ta.value.split('\n').map(s => s.trim()).filter(Boolean).map(ln => {
+        const [nm, bd] = ln.split(';').map(x => (x || '').trim());
+        const it = { fullname: nm, birthdate: bd, note: noteI.value.trim() };
+        if (expI.value) it.expires_at = dateToEpoch(expI.value);
+        return it;
+      });
+      if (!users.length) { ferr.classList.remove('hidden'); ferr.textContent = T('nada para criar', 'nothing to create'); return; }
+      try {
+        const j = await post('/treino/admin/managed-create', { users });
+        formBox.innerHTML = ''; showCreds(j.created || [], j.skipped || []); await load();
+      } catch (e) { ferr.classList.remove('hidden'); ferr.textContent = e.message; }
+    } }, T('Criar todas', 'Create all'));
+    formBox.innerHTML = '';
+    formBox.append(el('div', { class: 'subcard', style: 'margin:.5rem 0' }, ta,
+      el('div', { class: 'row', style: 'margin-top:.4rem' }, noteI),
+      el('div', { class: 'row', style: 'margin-top:.4rem' },
+        el('label', { class: 'small' }, T('expira em (opcional) ', 'expires on (optional) '), expI)),
+      el('div', { class: 'row', style: 'margin-top:.5rem' }, goB,
+        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel')), ferr)));
+  }
+
+  async function load() {
+    body.innerHTML = ''; body.append(loading());
+    try {
+      if (!ME) { const st = await status(CONTEST); ME = st.login || ''; }
+      const j = await apiGet('/treino/admin/managed-users', G());
+      USERS = j.users || [];
+      renderList();
+    } catch (e) { body.innerHTML = ''; body.append(el('div', { class: 'error-box' }, e.message || T('falha', 'failed'))); }
+  }
+  return { panel, load };
+}
+
 // ============================ painel + abas ============================
 function renderPanel(content) {
   content.innerHTML = '';
@@ -1085,6 +1287,7 @@ function renderPanel(content) {
     { id: 'sessions', label: T('👥 Sessões ativas', '👥 Active sessions'), make: makeSessionsTab },
     { id: 'news', label: T('📰 Notícias', '📰 News'), make: makeNewsTab },
     { id: 'achievements', label: T('🏅 Conquistas', '🏅 Achievements'), make: makeAchievementsTab },
+    { id: 'managed', label: T('🧒 Contas geridas', '🧒 Managed accounts'), make: makeManagedTab },
     { id: 'contests', label: '🏆 Contests', make: makeContestsTab },
     { id: 'access', label: T('📝 Acessos (log)', '📝 Access (log)'), make: makeAccessLogTab },
     { id: 'activity', label: T('📜 Atividade', '📜 Activity'), make: makeActivityTab },

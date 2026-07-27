@@ -798,6 +798,46 @@
         }
       }
     },
+    "/treino/admin/managed-users": {
+      "get": {
+        "tags": ["treino-admin"],
+        "summary": "Contas GERIDAS (menores, sem Telegram — docs/CONTAS-GERIDAS.md); .admin",
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{users:[{login,fullname,by,note,birthdate,minor,expires_at,disabled,created_at}]}"}}
+      }
+    },
+    "/treino/admin/managed-create": {
+      "post": {
+        "tags": ["treino-admin"],
+        "summary": "Cria contas geridas {users:[{fullname,birthdate,login?,note?,expires_at?}]} (1..500); senhas devolvidas UMA vez; .admin",
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{created:[{login,password,fullname,birthdate}], skipped:[{reason}]}"}}
+      }
+    },
+    "/treino/admin/managed-reset": {
+      "post": {
+        "tags": ["treino-admin"],
+        "summary": "Senha nova p/ conta gerida {login} (devolvida uma vez; derruba sessões); .admin",
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{reset, login, password, sessions_removed}"}}
+      }
+    },
+    "/treino/admin/managed-update": {
+      "post": {
+        "tags": ["treino-admin"],
+        "summary": "Edita conta gerida {login, note?, birthdate?, expires_at?|null, disabled?}; disabled:false devolve senha nova; .admin",
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{updated, login, password?}"}}
+      }
+    },
+    "/treino/admin/managed-remove": {
+      "post": {
+        "tags": ["treino-admin"],
+        "summary": "Remove conta gerida {login} (arquiva em .removed-users); .admin",
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{removed, login}"}}
+      }
+    },
     "/treino/admin/sessions": {
       "get": {
         "tags": [

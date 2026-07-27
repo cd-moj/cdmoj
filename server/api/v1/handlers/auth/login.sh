@@ -12,6 +12,12 @@ p="$(jq -r '.password // empty' <<<"$body")"
 
 verify_password "$contest" "$u" "$p" || fail 401 "Wrong user or password" "bad_creds"
 
+# conta GERIDA com expiração vencida não entra (docs/CONTAS-GERIDAS.md); 1 jq só p/ quem
+# tem .managed.expires_at — custo desprezível no caminho quente
+_mexp="$(account_field "$contest" "$u" '.managed.expires_at')"; _mexp="${_mexp//[^0-9]/}"
+[[ -n "$_mexp" ]] && (( _mexp < EPOCHSECONDS )) \
+  && fail 403 "Conta expirada — fale com o responsável que a criou" "account_expired"
+
 # Gate por substring de USERAGENT (configurável por contest). Lido com grep (sem
 # sourcing do conf no caminho de auth). Papéis privilegiados (.admin/.judge/.cjudge/.staff/.cstaff/.mon)
 # ficam isentos — para conseguirem entrar e configurar. Racional: o browser da máquina

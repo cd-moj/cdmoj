@@ -152,7 +152,11 @@ repo/collections, casefold, slug, título e, por último, o TEXTO do enunciado) 
 qualquer linha `?`) e **funde** num contest vivo — conta nova entra por `mv` do diretório, conta
 que já existe só ganha history (dedup por subid) e submissões, senha do prod prevalece, telegram
 via `tg_link`. `stage`/`verify` não tocam o destino; `audit` confere o instalado contra o legado.
-O **treino** ganha um overlay de
+**Contas GERIDAS** (menores, SEM Telegram — `docs/CONTAS-GERIDAS.md`): criadas pelo admin
+(aba 🧒; rotas `/treino/admin/managed-*`), marca `.managed{by,note,birthdate,expires_at}` no
+account.json; menor de 18 = perfil sempre privado (gate no `profile_is_public`) + Telegram
+bloqueado (`link-start` 403) — caem sozinhos aos 18; expiração opcional corta o login;
+senhas geradas mostradas UMA vez ao admin. O **treino** ganha um overlay de
 **Telegram** (`lib/telegram.sh`): cadastro **web-first** (`/treino/cadastro/`) confirmado por deep-link
 no bot, **1 Telegram = 1 conta** (anti-duplicata), recuperação de senha pelo vínculo, e senha entregue
 **só por DM**. O **mojinho-bot** virou transporte fino (bot-token `mojb_`, sem `.admin`/GODS) e entrega

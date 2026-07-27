@@ -111,6 +111,11 @@ function render(p, st) {
         try { await apiPost('/treino/telegram/unlink', {}, { contest: CONTEST, auth: true }); ok(tgM, T('✓ Desvinculado', '✓ Unlinked')); setTimeout(load, 800); }
         catch (e) { err(tgM, e.message || T('falha', 'failed')); }
       } }, T('Desvincular', 'Unlink')));
+  } else if (p.managed && p.managed.minor) {
+    // conta GERIDA de menor: o vínculo com o Telegram libera automaticamente aos 18
+    tgBody.append(el('p', { class: 'small muted', style: 'margin:.2rem 0' },
+      T('Esta é uma conta gerida por um responsável. O vínculo com o Telegram é liberado automaticamente quando você completa 18 anos. Esqueceu a senha? Fale com quem criou a sua conta.',
+        'This account is managed by a guardian. Telegram linking unlocks automatically when you turn 18. Forgot your password? Ask the person who created your account.')));
   } else {
     const linkBtn = el('button', { class: 'btn' }, T('🔗 Vincular Telegram', '🔗 Link Telegram'));
     linkBtn.onclick = async () => {
@@ -153,12 +158,18 @@ function render(p, st) {
     } catch (e) { privChk.checked = !privChk.checked; err(privM, e.message || T('falha ao salvar', 'failed to save')); }
     finally { privChk.disabled = false; }
   });
+  // conta gerida de menor: o perfil é SEMPRE privado (o servidor recusa tornar público)
+  const managedMinor = !!(p.managed && p.managed.minor);
+  if (managedMinor) { privChk.checked = false; privChk.disabled = true; }
   content.append(el('div', { class: 'section' },
     el('h2', {}, T('🔒 Privacidade', '🔒 Privacy')),
     el('label', { class: 'row', for: 'privChk', style: 'gap:.5rem; cursor:pointer; font-weight:600' },
       privChk, T('Perfil público', 'Public profile')),
     el('p', { class: 'small muted', style: 'margin:.4rem 0 0' },
-      T('Se desmarcado, suas estatísticas e histórico ficam visíveis só para você.', 'If unchecked, your statistics and history are visible only to you.')),
+      managedMinor
+        ? T('Conta gerida: o perfil fica privado até você completar 18 anos.',
+            'Managed account: the profile stays private until you turn 18.')
+        : T('Se desmarcado, suas estatísticas e histórico ficam visíveis só para você.', 'If unchecked, your statistics and history are visible only to you.')),
     privM));
 
   // --- Foto de perfil ---

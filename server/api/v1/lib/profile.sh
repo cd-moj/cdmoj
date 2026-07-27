@@ -35,8 +35,28 @@ set_profile_field(){
 }
 set_profile_str(){ set_profile_field "$1" "$2" "$3" "$(jq -n --arg s "$4" '$s')"; }
 
-# profile_is_public <c> <login> -> 0 (público) se public != false (default público)
+# --- contas GERIDAS (criadas por admin p/ MENORES, sem Telegram) — docs/CONTAS-GERIDAS.md
+# managed_json <c> <login> -> ecoa o objeto .managed (nada se a conta não é gerida)
+managed_json(){
+  local f; f="$(_profile_account "$1" "$2")"; [[ -f "$f" ]] || return 0
+  jq -c '.managed // empty' "$f" 2>/dev/null
+}
+# is_managed_minor <c> <login> -> 0 se conta GERIDA e MENOR de 18. Aos 18 os gates caem
+# sozinhos (a idade é calculada, nunca gravada). birthdate ilegível = menor (fail-safe).
+is_managed_minor(){
+  local m bd adult
+  m="$(managed_json "$1" "$2")"; [[ -n "$m" ]] || return 1
+  bd="$(jq -r '.birthdate // ""' <<<"$m" 2>/dev/null)"
+  adult="$(date -d "${bd} +18 years" +%s 2>/dev/null)" || adult=""
+  [[ "$adult" =~ ^[0-9]+$ ]] || return 0
+  (( adult > EPOCHSECONDS ))
+}
+
+# profile_is_public <c> <login> -> 0 (público) se public != false (default público).
+# Conta gerida de MENOR é SEMPRE privada (chokepoint: cobre perfil, foto, history-full e
+# as listas públicas da home — todos passam por aqui).
 profile_is_public(){
+  is_managed_minor "$1" "$2" && return 1
   local f; f="$(_profile_account "$1" "$2")"; [[ -f "$f" ]] || return 0
   [[ "$(jq -r 'if .public==false then "n" else "y" end' "$f" 2>/dev/null)" != "n" ]]
 }

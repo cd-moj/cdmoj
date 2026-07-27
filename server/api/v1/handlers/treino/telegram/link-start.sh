@@ -5,6 +5,9 @@
 require_method POST
 require_auth_contest treino
 [[ -n "$SESSION_LOGIN" ]] || fail 401 "Not authenticated" "auth_required"
+# conta GERIDA de menor não vincula Telegram (libera sozinho aos 18 — docs/CONTAS-GERIDAS.md)
+is_managed_minor treino "$SESSION_LOGIN" \
+  && fail 403 "Conta gerida: o vínculo com o Telegram é liberado aos 18 anos" "managed_minor"
 nonce="$(tg_nonce_new link "$(jq -cn --arg b "$SESSION_LOGIN" '{bind_login:$b}')")"
 ok_json '{nonce:$n, deep_link:$dl, expires_at:$e}' \
   --arg n "$nonce" --arg dl "$(tg_deeplink "$nonce")" --argjson e "$(( EPOCHSECONDS + TG_NONCE_TTL ))"

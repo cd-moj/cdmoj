@@ -6,6 +6,8 @@
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
+# guarda: no TREINO isto resetaria ~todas as contas da plataforma de uma vez — nunca faz sentido
+[[ "$contest" == treino ]] && fail 400 "Troca de senha geral não se aplica ao treino" "treino_forbidden"
 require_contest "$contest"
 require_auth_contest "$contest"
 is_admin || fail 403 "Apenas o admin do contest" "admin_required"
