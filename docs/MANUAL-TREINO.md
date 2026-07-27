@@ -126,29 +126,55 @@ Depois, é só voltar à tela de login e entrar com a senha nova.
 
 ## 5. Achar problemas
 
-A lista de problemas fica em `/treino/`. **Ver a lista e ler o enunciado não exige
-login.** Já o **filtro de status** e o **envio de solução** exigem que você esteja
-logado.
+A busca de problemas fica em `/treino/`. **Ver a lista e ler os enunciados não exige
+login** — o seu **progresso pessoal** e o **envio de solução**, sim.
 
-No alto da página há vários filtros para você achar o que quer:
+A página tem **dois modos**: o **hub** (a porta de entrada) e a **busca avançada** (a
+lista completa com filtros). Qualquer busca ou filtro leva você do hub para a busca
+avançada automaticamente.
 
-- **Buscar por título:** digite parte do nome do problema.
-- **Filtrar por coleção:** por exemplo, `obi2024`.
-- **Filtrar por tag:** por exemplo, `grafos`.
-- **Seletor Todos / Resolvidos / Tentados não resolvidos:** ajuda a ver o seu progresso.
-  Este filtro **só funciona quando você está logado**.
-- **Botão Mostrar/Ocultar tags:** liga e desliga a exibição das tags na tabela.
-- **Navegar por coleção:** abre a relação de coleções disponíveis.
+### O hub
 
-A tabela de resultados tem as colunas:
+- **Busca central:** digite 2+ letras e aparecem **sugestões agrupadas** em Coleções,
+  Tags e Problemas (cada problema já com o seu status ✓/…). Use as setas ↑↓ e Enter, ou
+  clique. Enter sem escolher abre a busca avançada com o texto digitado.
+- **Atalhos:** 🎲 **problema aleatório** (prioriza um que você ainda não resolveu),
+  🌱 **fáceis para começar**, 🚀 **ainda não resolvidos** e 🔬 **busca avançada**.
+- **Para você** (aparece logado): **Continue de onde parou** (sua última tentativa ainda
+  sem AC) e uma **Sugestão** de próximo problema.
+- **Coleções em destaque:** um carrossel de cards — cada card mostra o tamanho da coleção
+  e a **barra do seu progresso**; clicar filtra a lista por aquela coleção. Role com as
+  setas ‹ › (ou o dedo, no celular). O link **todas (N) →** abre a busca avançada.
+- **Mais enviados na semana:** os 10 problemas com mais envios nos últimos 7 dias.
+
+### A busca avançada
+
+A lista completa, sempre visível, com o **trilho de filtros** à esquerda:
+
+- **Filtrar por título:** digite parte do nome.
+- **Meu status** (só logado): Todos / A resolver / ✓ Resolvidos / … Tentados.
+- **Dificuldade:** muito fácil → difícil, **derivada da taxa de acerto** de cada problema
+  (“novo” = ainda sem dados). Cada opção mostra quantos problemas restam com ela.
+- **Coleções:** a árvore com **caixas de seleção** — dá para marcar **várias ao mesmo
+  tempo** (a lista mostra a **união**). Marcar um **grupo** (ex.: `obi`) pega todas as
+  coleções dele de uma vez. O número à direita é o **seu progresso** (ex.: `20/140`).
+- **Tags:** marque quantas quiser — o problema precisa ter **todas** as marcadas. As
+  contagens se **atualizam ao vivo** conforme você filtra.
+
+Sobre a tabela ficam os **chips** dos filtros ativos (o × remove um a um), a contagem de
+resultados e a **ordenação**: **Mais resolvidos**, **A–Z**, **Dificuldade** e
+**Novidades** (mais recém-publicados primeiro).
 
 | Coluna | O que mostra |
 |---|---|
+| **✓** | Se você resolveu (✓) ou tentou (…) — aparece quando logado |
 | **Problema** | O título, que é o **link** para abrir o problema |
-| **Coleções** | A que coleções o problema pertence |
-| **Tags** | Os assuntos do problema |
-| **Dificuldade** | Um indicador, com acertos e tentativas |
-| **Status** | Se você resolveu, tentou ou ainda não mexeu (aparece quando logado) |
+| **Coleções** | Clique numa coleção para **somá-la** ao filtro |
+| **Dificuldade** | A faixa derivada da taxa de acerto |
+| **Resolvidos** | Quantos usuários resolveram / tentaram |
+
+A lista vem em **páginas de 50**. Dica: a **URL guarda os seus filtros** — copie o link
+para compartilhar uma busca. No celular, o trilho vira o botão **Filtros (n)**.
 
 Para abrir um problema, **clique no título** dele.
 
@@ -239,33 +265,36 @@ Um cuidado com a troca de **Nome de usuário**:
 > de trocas por ano** (o padrão é **2**), e a própria tela mostra **quantas você já
 > usou**.
 
+Essa página é a **edição** do perfil. O que os outros veem — o seu **perfil público** —
+fica em `/treino/stat/?user=<seu login>` e é o assunto da próxima seção.
+
 ---
 
 ## 8. Minhas estatísticas
 
-As suas estatísticas ficam em `/treino/stat/`. É um painel completo com o seu desempenho.
+Cada usuário tem um **perfil público** em `/treino/stat/?user=<login>`. O seu abre pelo
+menu do avatar → **📊 Minhas estatísticas**; o dos outros, clicando no nome deles (no
+Top 10 da home, por exemplo).
 
-Você encontra **cartões** com números como:
+De cima para baixo, o perfil mostra:
 
-- total de submissões;
-- problemas resolvidos;
-- taxa de acerto;
-- média de tentativas;
-- sequência atual;
-- linguagens usadas;
-- e outros.
+- **Cabeçalho:** foto (ou iniciais), universidade, **membro desde**, editor favorito
+  (com a posição dele no ranking de editores) e o **último envio**.
+- **Cartões:** problemas resolvidos, submissões, taxa de acerto, **AC na 1ª tentativa**,
+  tentativas até resolver, **streaks** (dias seguidos com envio) e a linguagem preferida.
+- **Gráficos:** evolução dos resolvidos no tempo, mapa de atividade (26 semanas),
+  **ritmo dia × hora**, veredictos, desempenho por linguagem, **dificuldade dos
+  resolvidos**, **progresso por coleção**, forças por tag e a lista **Em aberto**
+  (problemas que você tentou e ainda não resolveu — uma ótima fila de volta ao treino).
+- **🏅 Conquistas:** medalhas automáticas — Primeiro AC, Centurião (100 resolvidos),
+  streaks, Poliglota, coleção completa e outras. As **travadas** aparecem acinzentadas
+  com o **quanto falta** (ex.: `82/100`). O catálogo completo e as regras estão em
+  [`PERFIL.md`](PERFIL.md).
+- **Histórico paginado** (25 por página) com **filtros** por problema, veredicto e
+  linguagem, e ordenação por coluna. Os links de **cód**/**log** só aparecem para o dono.
 
-E também **gráficos**:
-
-- evolução ao longo do tempo;
-- mapa de atividade;
-- distribuição de veredictos;
-- desempenho por linguagem;
-- força por tag.
-
-No fim, vem o seu **histórico completo**.
-
-Lembre-se: se o seu perfil for **privado**, essas estatísticas **só aparecem para você**.
+Lembre-se: se o seu perfil for **privado** (seção 7), tudo isso **só aparece para você**
+— e o seu nome também **sai das listas públicas** da página inicial.
 
 ---
 
