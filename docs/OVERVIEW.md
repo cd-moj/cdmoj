@@ -97,8 +97,10 @@ pontos + grupos, ou Score heurístico — via `/submission/summary`, redigido po
 contests: `lib/verdict.sh`), **perfil público por usuário** (`/treino/stat/?user=` — cabeçalho
 com membro desde/editor/último envio, cartões, curva de resolvidos, heatmap 26 semanas +
 punchcard dia×hora, veredictos/linguagens/dificuldade/tags em barras, progresso por coleção,
-problemas em aberto, conquistas derivadas e **histórico paginado com filtros**; tudo
-client-side dos mesmos 3 fetches; perfil privado = cadeado, e o Bearer vai sempre que logado
+problemas em aberto, conquistas derivadas de um REGISTRO gerível (aba 🏅 do admin →
+`var/achievements.json`; default embarcado; ver `docs/PERFIL.md`) e **histórico paginado
+com filtros**; tudo
+client-side de poucos fetches paralelos; perfil privado = cadeado, e o Bearer vai sempre que logado
 — admin vê o que a API já lhe permitia), **stats por problema** (cache, linguagens, editores,
 nuvem de avatares), e **painel admin do treino** (sessões/logs com UA+IP, busca/regex,
 bulk logout/lock, notícias, **auditoria**, máquinas, e — em abas com **índice/TOC** — **Fila &

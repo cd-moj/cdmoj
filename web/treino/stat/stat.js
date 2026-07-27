@@ -231,27 +231,56 @@ function renderQuickStats(stats) {
   );
 }
 
-// ---- conquistas -------------------------------------------------------------
-function computeAchievements(stats) {
-  const acertos = stats.acertos;
+// ---- conquistas (registro vindo do GET /treino/achievements) ----------------
+// Avaliação GENÉRICA por kind: conquista nova de kind existente é só DADO (aba 🏅 do
+// admin / var/achievements.json); kind NOVO = acrescentar um case aqui + validação no
+// handlers/treino/admin/achievements.sh + docs/PERFIL.md.
+let ACHREG = null;   // [{id,icon,pt,en,kind,params,enabled}] ou null (rota indisponível)
+function diffCounts(stats) {
+  const d = { veasy: 0, easy: 0, med: 0, hard: 0 };
+  Object.keys(stats.resolved).forEach(pid => {
+    const p = problemsById[pid]; if (!p) return;
+    const k = diffOf(p); if (k) d[k]++;
+  });
+  return d;
+}
+function achContext(stats) {
   const { longest } = computeStreaks(stats.dayStats);
-  const nLangs = Object.keys(stats.langStats).length;
-  const oneShots = Object.values(stats.solvedAtFirst).filter(Boolean).length;
-  let fullColl = null;
-  for (const [name, e] of collProgress(stats)) {
-    if (e.total >= 10 && e.mine === e.total) { fullColl = name; break; }
+  return {
+    acertos: stats.acertos,
+    subs: history.length,
+    longest,
+    nLangs: Object.keys(stats.langStats).length,
+    oneShots: Object.values(stats.solvedAtFirst).filter(Boolean).length,
+    collMap: collProgress(stats),
+    dcounts: diffCounts(stats),
+  };
+}
+// devolve {got, sub} ou null p/ kind desconhecido (registro mais novo que o cliente)
+function evalAchievement(a, stats, ctx) {
+  const p = a.params || {};
+  const prog = (v, goal) => (v < goal ? `${v}/${goal}` : '');
+  switch (a.kind) {
+    case 'solved_gte': return { got: ctx.acertos >= p.n, sub: prog(ctx.acertos, p.n) };
+    case 'submissions_gte': return { got: ctx.subs >= p.n, sub: prog(ctx.subs, p.n) };
+    case 'streak_gte': return { got: ctx.longest >= p.days, sub: prog(ctx.longest, p.days) };
+    case 'langs_gte': return { got: ctx.nLangs >= p.n, sub: prog(ctx.nLangs, p.n) };
+    case 'oneshots_gte': return { got: ctx.oneShots >= p.n, sub: ctx.oneShots >= p.n ? `×${ctx.oneShots}` : prog(ctx.oneShots, p.n) };
+    case 'collection_complete': {
+      const hit = [...ctx.collMap].find(([, e]) => e.total >= (p.min_size || 10) && e.mine === e.total);
+      return { got: !!hit, sub: hit ? hit[0] : '' };
+    }
+    case 'collection_named': {
+      const e = ctx.collMap.get(p.collection);
+      return { got: !!e && e.total > 0 && e.mine === e.total, sub: e ? `${e.mine}/${e.total}` : '' };
+    }
+    case 'tag_solved_gte': {
+      const n = (stats.tagStats[String(p.tag).replace(/^#+/, '')] || { resolved: 0 }).resolved;
+      return { got: n >= p.n, sub: prog(n, p.n) };
+    }
+    case 'diff_solved_gte': return { got: (ctx.dcounts[p.diff] || 0) >= p.n, sub: prog(ctx.dcounts[p.diff] || 0, p.n) };
+    default: return null;
   }
-  const missing = (n, goal) => T(`faltam ${goal - n}`, `${goal - n} to go`);
-  return [
-    { icon: '🌱', label: T('Primeiro AC', 'First AC'), got: acertos >= 1 },
-    { icon: '🔥', label: T('Streak 7 dias', '7-day streak'), got: longest >= 7, sub: longest < 7 ? `${longest}/7` : '' },
-    { icon: '🔥', label: T('Streak 30 dias', '30-day streak'), got: longest >= 30, sub: longest < 30 ? `${longest}/30` : '' },
-    { icon: '💻', label: T('Poliglota (5 linguagens)', 'Polyglot (5 languages)'), got: nLangs >= 5, sub: nLangs < 5 ? `${nLangs}/5` : '' },
-    { icon: '🏆', label: fullColl ? T(`Coleção completa: ${fullColl}`, `Collection complete: ${fullColl}`) : T('Coleção completa (≥10)', 'Complete a collection (≥10)'), got: !!fullColl },
-    { icon: '🎯', label: T('25 one-shots (AC de primeira)', '25 one-shots (first-try AC)'), got: oneShots >= 25, sub: oneShots < 25 ? `${oneShots}/25` : `×${oneShots}` },
-    { icon: '⭐', label: T('Meio-centurião (50 resolvidos)', 'Half-centurion (50 solved)'), got: acertos >= 50, sub: acertos < 50 ? missing(acertos, 50) : '' },
-    { icon: '🏅', label: T('Centurião (100 resolvidos)', 'Centurion (100 solved)'), got: acertos >= 100, sub: acertos < 100 ? missing(acertos, 100) : '' },
-  ];
 }
 
 // ---- dashboard --------------------------------------------------------------
@@ -309,11 +338,7 @@ function renderDashboard(stats) {
       langTable)));
 
   // dificuldade | coleções
-  const dcounts = { veasy: 0, easy: 0, med: 0, hard: 0 };
-  Object.keys(stats.resolved).forEach(pid => {
-    const p = problemsById[pid]; if (!p) return;
-    const k = diffOf(p); if (k) dcounts[k]++;
-  });
+  const dcounts = diffCounts(stats);
   // ordena por VOLUME resolvido (percentual primeiro escondia o progresso grande atrás de
   // coleçõezinhas 3/3); completas desempatam na frente
   const collRows = [...collProgress(stats)]
@@ -365,12 +390,20 @@ function renderDashboard(stats) {
         : el('div', { class: 'muted small' }, T('Nenhum resolvido ainda.', 'None solved yet.'))),
     chartCard(T('⏳ Em aberto (tentados sem AC)', '⏳ Open (attempted, unsolved)'), openBox)));
 
-  // conquistas
-  const ach = computeAchievements(stats);
-  const strip = el('div', { class: 'badge-strip' });
-  ach.filter(a => a.got).forEach(a => strip.append(el('span', { class: 'abadge' }, `${a.icon} ${a.label}` + (a.sub ? ` ${a.sub}` : ''))));
-  ach.filter(a => !a.got).forEach(a => strip.append(el('span', { class: 'abadge lock' }, `🔒 ${a.label}` + (a.sub ? ` — ${a.sub}` : ''))));
-  dash.append(el('div', { class: 'section' }, el('h2', {}, T('🏅 Conquistas', '🏅 Achievements')), strip));
+  // conquistas (some se o registro não veio)
+  if (ACHREG && ACHREG.length) {
+    const ctx = achContext(stats);
+    const evald = ACHREG.filter(a => a.enabled !== false)
+      .map(a => ({ a, r: evalAchievement(a, stats, ctx) })).filter(x => x.r);
+    if (evald.length) {
+      const strip = el('div', { class: 'badge-strip' });
+      evald.filter(x => x.r.got).forEach(({ a, r }) => strip.append(el('span', { class: 'abadge', title: a.id },
+        `${a.icon} ${T(a.pt, a.en)}` + (r.sub ? ` ${r.sub}` : ''))));
+      evald.filter(x => !x.r.got).forEach(({ a, r }) => strip.append(el('span', { class: 'abadge lock', title: a.id },
+        `🔒 ${T(a.pt, a.en)}` + (r.sub ? ` — ${r.sub}` : ''))));
+      dash.append(el('div', { class: 'section' }, el('h2', {}, T('🏅 Conquistas', '🏅 Achievements')), strip));
+    }
+  }
 
   // histórico paginado
   const sec = el('div', { class: 'section' }, el('h2', {}, T('📜 Histórico de submissões', '📜 Submission history')));
@@ -539,11 +572,13 @@ async function boot() {
 
   // perfil + problemas + histórico EM PARALELO (o Bearer vai sempre que logado: o servidor
   // corta o que o visitante não pode ver; é o que dá ao .admin a visão de perfil privado)
-  const [profileR, problemsR, histR] = await Promise.allSettled([
+  const [profileR, problemsR, histR, achR] = await Promise.allSettled([
     apiGet('/treino/profile?user=' + encodeURIComponent(USER), { contest: CONTEST, auth: logged }),
     apiGet('/treino/problems', { contest: CONTEST }),
     apiGetText('/treino/history-full?user=' + encodeURIComponent(USER), { contest: CONTEST, auth: logged }),
+    apiGet('/treino/achievements', { contest: CONTEST }),
   ]);
+  if (achR.status === 'fulfilled' && Array.isArray(achR.value.achievements)) ACHREG = achR.value.achievements;
 
   if (profileR.status === 'rejected') {
     document.getElementById('profileHead').innerHTML =

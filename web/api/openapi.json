@@ -665,6 +665,40 @@
         }
       }
     },
+    "/treino/achievements": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Registro de conquistas do perfil (custom do admin ou default embarcado; avaliação no cliente — docs/PERFIL.md)",
+        "responses": {
+          "200": {
+            "description": "{custom, version, achievements:[{id,icon,pt,en,kind,params,enabled}]}"
+          }
+        }
+      }
+    },
+    "/treino/admin/achievements": {
+      "post": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Salva o registro de conquistas ({achievements:[…]} validado) ou restaura o padrão ({restore_default:true}); .admin",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{saved,count} | {restored:true}"
+          },
+          "400": {
+            "description": "achievements_invalid (primeira mensagem de validação)"
+          }
+        }
+      }
+    },
     "/treino/problem-stats": {
       "get": {
         "tags": [

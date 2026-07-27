@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "achievements": [
+    { "id": "primeiro-ac",      "icon": "🌱", "pt": "Primeiro AC",                      "en": "First AC",                       "kind": "solved_gte",          "params": { "n": 1 },   "enabled": true },
+    { "id": "aquecendo",        "icon": "✊", "pt": "Aquecendo (10 resolvidos)",        "en": "Warming up (10 solved)",         "kind": "solved_gte",          "params": { "n": 10 },  "enabled": true },
+    { "id": "meio-centuriao",   "icon": "⭐", "pt": "Meio-centurião (50 resolvidos)",   "en": "Half-centurion (50 solved)",     "kind": "solved_gte",          "params": { "n": 50 },  "enabled": true },
+    { "id": "centuriao",        "icon": "🏅", "pt": "Centurião (100 resolvidos)",       "en": "Centurion (100 solved)",         "kind": "solved_gte",          "params": { "n": 100 }, "enabled": true },
+    { "id": "imparavel",        "icon": "👑", "pt": "Imparável (250 resolvidos)",       "en": "Unstoppable (250 solved)",       "kind": "solved_gte",          "params": { "n": 250 }, "enabled": true },
+    { "id": "streak-7",         "icon": "🔥", "pt": "Streak de 7 dias",                 "en": "7-day streak",                   "kind": "streak_gte",          "params": { "days": 7 },  "enabled": true },
+    { "id": "streak-30",        "icon": "🔥", "pt": "Streak de 30 dias",                "en": "30-day streak",                  "kind": "streak_gte",          "params": { "days": 30 }, "enabled": true },
+    { "id": "poliglota",        "icon": "💻", "pt": "Poliglota (5 linguagens)",         "en": "Polyglot (5 languages)",         "kind": "langs_gte",           "params": { "n": 5 },   "enabled": true },
+    { "id": "oneshot-25",       "icon": "🎯", "pt": "25 one-shots (AC de primeira)",    "en": "25 one-shots (first-try AC)",    "kind": "oneshots_gte",        "params": { "n": 25 },  "enabled": true },
+    { "id": "sniper",           "icon": "🎯", "pt": "Sniper (100 one-shots)",           "en": "Sniper (100 one-shots)",         "kind": "oneshots_gte",        "params": { "n": 100 }, "enabled": true },
+    { "id": "colecao-completa", "icon": "🏆", "pt": "Coleção completa (≥10 problemas)", "en": "Collection complete (≥10 problems)", "kind": "collection_complete", "params": { "min_size": 10 }, "enabled": true },
+    { "id": "alpinista",        "icon": "🧗", "pt": "Alpinista (10 difíceis)",          "en": "Climber (10 hard)",              "kind": "diff_solved_gte",     "params": { "diff": "hard", "n": 10 }, "enabled": true },
+    { "id": "grafeiro",         "icon": "🕸️", "pt": "Grafeiro (15 de #grafos)",         "en": "Graph wrangler (15 #grafos)",    "kind": "tag_solved_gte",      "params": { "tag": "grafos", "n": 15 }, "enabled": true },
+    { "id": "maratonista",      "icon": "📚", "pt": "Maratonista (500 envios)",         "en": "Marathoner (500 submissions)",   "kind": "submissions_gte",     "params": { "n": 500 }, "enabled": true }
+  ]
+}

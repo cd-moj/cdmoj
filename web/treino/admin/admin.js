@@ -933,6 +933,150 @@ function makeContestsTab() {
   return { panel, load };
 }
 
+// ============================ 🏅 conquistas do perfil ============================
+// Registro exibido em TODOS os perfis (/treino/stat/): GET /treino/achievements (público)
+// + POST /treino/admin/achievements (salvar/restaurar). Conquista de um tipo (kind)
+// existente é só DADO; kind novo é código — ver docs/PERFIL.md.
+const ACH_KINDS = {
+  solved_gte:          { pt: 'Resolvidos ≥ n', en: 'Solved ≥ n', fields: [['n', 'number']] },
+  submissions_gte:     { pt: 'Envios ≥ n', en: 'Submissions ≥ n', fields: [['n', 'number']] },
+  streak_gte:          { pt: 'Maior streak ≥ dias', en: 'Longest streak ≥ days', fields: [['days', 'number']] },
+  langs_gte:           { pt: 'Linguagens distintas ≥ n', en: 'Distinct languages ≥ n', fields: [['n', 'number']] },
+  oneshots_gte:        { pt: 'ACs de primeira ≥ n', en: 'First-try ACs ≥ n', fields: [['n', 'number']] },
+  collection_complete: { pt: 'Alguma coleção 100% (≥ min_size)', en: 'Any collection 100% (≥ min_size)', fields: [['min_size', 'number']] },
+  collection_named:    { pt: 'Coleção específica 100%', en: 'Specific collection 100%', fields: [['collection', 'text']] },
+  tag_solved_gte:      { pt: 'Resolvidos numa tag ≥ n', en: 'Solved in a tag ≥ n', fields: [['tag', 'text'], ['n', 'number']] },
+  diff_solved_gte:     { pt: 'Resolvidos por dificuldade ≥ n', en: 'Solved by difficulty ≥ n', fields: [['diff', 'select'], ['n', 'number']] },
+};
+function makeAchievementsTab() {
+  const panel = el('div', { class: 'section' });
+  const head = el('h2', {}, '🏅 ' + T('Conquistas do perfil', 'Profile achievements'));
+  const intro = el('p', { class: 'small muted', style: 'margin:.2rem 0 .6rem' },
+    T('O registro vale para TODOS os perfis do treino. Editar/criar conquista de um tipo existente é só dado — salve e pronto. Tipo novo de regra é código (docs/PERFIL.md).',
+      'The registry applies to ALL training profiles. Editing/creating an achievement of an existing kind is just data — save and done. A new rule kind is code (docs/PERFIL.md).'));
+  const srcSpan = el('span', { class: 'small muted' });
+  const msg = el('div', { class: 'small', style: 'margin:.4rem 0' });
+  const tools = el('div', { class: 'row', style: 'margin:.4rem 0' },
+    el('button', { class: 'btn', onclick: () => openForm() }, T('➕ Nova conquista', '➕ New achievement')),
+    el('button', { class: 'btn', onclick: save }, T('💾 Salvar registro', '💾 Save registry')),
+    el('button', { class: 'btn ghost', onclick: restore }, T('↺ Restaurar padrão', '↺ Restore default')),
+    srcSpan);
+  const formBox = el('div', {});
+  const body = el('div', {}, loading());
+  panel.append(head, intro, tools, msg, formBox, body);
+
+  let REG = [];        // cópia de trabalho
+  let CUSTOM = false;
+
+  const paramsText = (a) => Object.entries(a.params || {}).map(([k, v]) => `${k}=${v}`).join(' ');
+  const kindLabel = (k) => (ACH_KINDS[k] ? T(ACH_KINDS[k].pt, ACH_KINDS[k].en) : k);
+
+  function renderList() {
+    srcSpan.textContent = CUSTOM
+      ? T('· registro PERSONALIZADO (var/achievements.json)', '· CUSTOM registry (var/achievements.json)')
+      : T('· padrão embarcado (nunca salvo)', '· built-in default (never saved)');
+    body.innerHTML = '';
+    if (!REG.length) { body.append(el('div', { class: 'muted small' }, T('Registro vazio.', 'Empty registry.'))); return; }
+    const tb = el('tbody');
+    REG.forEach((a, i) => {
+      const en = el('input', { type: 'checkbox', onchange: () => { a.enabled = en.checked; } });
+      en.checked = a.enabled !== false;
+      tb.append(el('tr', {},
+        el('td', { style: 'font-size:1.2rem' }, a.icon || ''),
+        el('td', { class: 'small', style: 'font-family:var(--mono)' }, a.id),
+        el('td', {}, a.pt, el('div', { class: 'small muted' }, a.en)),
+        el('td', { class: 'small' }, kindLabel(a.kind), el('div', { class: 'muted', style: 'font-family:var(--mono)' }, paramsText(a))),
+        el('td', {}, en),
+        el('td', { class: 'small', style: 'white-space:nowrap' },
+          el('a', { style: 'cursor:pointer', onclick: () => openForm(a, i) }, '✎'), ' ',
+          el('a', { style: 'cursor:pointer', onclick: () => { REG.splice(i, 1); renderList(); } }, '✕'))));
+    });
+    body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+      el('thead', {}, el('tr', {}, el('th', {}, ''), el('th', {}, 'id'),
+        el('th', {}, T('Nome (pt/en)', 'Name (pt/en)')), el('th', {}, T('Regra', 'Rule')),
+        el('th', {}, T('Ligada', 'On')), el('th', {}, ''))), tb)));
+  }
+
+  function openForm(a, idx) {
+    const editing = a != null;
+    const icon = el('input', { value: editing ? (a.icon || '') : '', placeholder: '🏅', style: 'width:4.5rem' });
+    const id = el('input', { value: editing ? a.id : '', placeholder: 'minha-conquista', style: 'width:14rem;font-family:var(--mono)' });
+    if (editing) id.disabled = true;
+    const pt = el('input', { value: editing ? (a.pt || '') : '', placeholder: T('Nome em português', 'Name in Portuguese'), style: 'width:100%' });
+    const enI = el('input', { value: editing ? (a.en || '') : '', placeholder: T('Nome em inglês', 'Name in English'), style: 'width:100%' });
+    const kind = el('select', { onchange: renderParams }, ...Object.keys(ACH_KINDS).map(k =>
+      el('option', { value: k }, `${k} — ${kindLabel(k)}`)));
+    if (editing) kind.value = a.kind;
+    const paramsBox = el('div', { class: 'row', style: 'gap:.5rem' });
+    function renderParams() {
+      paramsBox.innerHTML = '';
+      (ACH_KINDS[kind.value].fields || []).forEach(([name, type]) => {
+        let inp;
+        if (type === 'select') {
+          inp = el('select', { 'data-p': name }, ...['veasy', 'easy', 'med', 'hard'].map(d => el('option', { value: d }, d)));
+          if (editing && a.params && a.params[name]) inp.value = a.params[name];
+        } else {
+          inp = el('input', { 'data-p': name, type: type === 'number' ? 'number' : 'text', min: '1',
+            value: editing && a.params && a.params[name] != null ? String(a.params[name]) : '',
+            placeholder: name, style: 'width:10rem' });
+        }
+        paramsBox.append(el('label', { class: 'small' }, name + ' ', inp));
+      });
+    }
+    renderParams();
+    const ferr = el('span', { class: 'small error-box hidden' });
+    const saveB = el('button', { class: 'btn', onclick: () => {
+      const item = { id: id.value.trim(), icon: icon.value.trim(), pt: pt.value.trim(), en: enI.value.trim(),
+        kind: kind.value, params: {}, enabled: editing ? a.enabled !== false : true };
+      for (const inp of paramsBox.querySelectorAll('[data-p]')) {
+        const v = inp.type === 'number' ? Number(inp.value) : inp.value.trim();
+        item.params[inp.getAttribute('data-p')] = v;
+      }
+      const bad = !/^[a-z0-9-]{1,40}$/.test(item.id) ? T('id inválido (minúsculas/dígitos/hífen)', 'invalid id (lowercase/digits/hyphen)')
+        : (!item.icon ? T('ícone vazio', 'empty icon') : (!item.pt || !item.en) ? T('nomes pt/en obrigatórios', 'pt/en names required')
+          : (!editing && REG.some(x => x.id === item.id)) ? T('id já existe', 'id already exists')
+            : Object.values(item.params).some(v => v === '' || (typeof v === 'number' && !(v > 0))) ? T('parâmetros inválidos', 'invalid params') : '');
+      if (bad) { ferr.classList.remove('hidden'); ferr.textContent = bad; return; }
+      if (editing) REG[idx] = item; else REG.push(item);
+      formBox.innerHTML = '';
+      msg.className = 'small'; msg.textContent = T('Alterado localmente — clique em 💾 Salvar registro para publicar.', 'Changed locally — click 💾 Save registry to publish.');
+      renderList();
+    } }, editing ? T('Aplicar', 'Apply') : T('Adicionar', 'Add'));
+    formBox.innerHTML = '';
+    formBox.append(el('div', { class: 'subcard', style: 'margin:.5rem 0' },
+      el('div', { class: 'row' }, icon, id, kind),
+      el('div', { class: 'row', style: 'margin-top:.4rem' }, pt), el('div', { class: 'row' }, enI),
+      el('div', { style: 'margin-top:.4rem' }, paramsBox),
+      el('div', { class: 'row', style: 'margin-top:.5rem' }, saveB,
+        el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel')), ferr)));
+  }
+
+  async function save() {
+    msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…');
+    try {
+      const j = await apiPost('/treino/admin/achievements', { achievements: REG }, G());
+      msg.textContent = T(`Salvo (${j.count} conquistas).`, `Saved (${j.count} achievements).`);
+      await load();
+    } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+  }
+  async function restore() {
+    if (!confirm(T('Descartar o registro personalizado e voltar ao padrão embarcado?', 'Discard the custom registry and return to the built-in default?'))) return;
+    msg.className = 'small'; msg.textContent = '…';
+    try { await apiPost('/treino/admin/achievements', { restore_default: true }, G()); msg.textContent = T('Padrão restaurado.', 'Default restored.'); await load(); }
+    catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+  }
+  async function load() {
+    body.innerHTML = ''; body.append(loading());
+    try {
+      const j = await apiGet('/treino/achievements', G());
+      REG = (j.achievements || []).map(a => ({ ...a }));
+      CUSTOM = !!j.custom;
+      renderList();
+    } catch (e) { body.innerHTML = ''; body.append(el('div', { class: 'error-box' }, e.message || T('falha', 'failed'))); }
+  }
+  return { panel, load };
+}
+
 // ============================ painel + abas ============================
 function renderPanel(content) {
   content.innerHTML = '';
@@ -940,6 +1084,7 @@ function renderPanel(content) {
   const TABS = [
     { id: 'sessions', label: T('👥 Sessões ativas', '👥 Active sessions'), make: makeSessionsTab },
     { id: 'news', label: T('📰 Notícias', '📰 News'), make: makeNewsTab },
+    { id: 'achievements', label: T('🏅 Conquistas', '🏅 Achievements'), make: makeAchievementsTab },
     { id: 'contests', label: '🏆 Contests', make: makeContestsTab },
     { id: 'access', label: T('📝 Acessos (log)', '📝 Access (log)'), make: makeAccessLogTab },
     { id: 'activity', label: T('📜 Atividade', '📜 Activity'), make: makeActivityTab },
