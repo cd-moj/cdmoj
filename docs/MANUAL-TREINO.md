@@ -37,28 +37,34 @@ No topo fica a **barra de menu** com os itens:
 
 | Item | Para que serve |
 |---|---|
-| **Notícias** | Avisos e novidades da plataforma |
-| **Contests** | Competições e treinos com prazo |
+| **Início** | Volta para esta página |
 | **Treino Livre** | O espaço de prática livre (é o assunto deste manual) |
+| **Contests** | Competições e treinos com prazo |
+| **Notícias** | Avisos e novidades da plataforma |
 | **Status** | Situação dos juízes e do sistema |
-| **Documentação** | Manuais e ajuda |
+| **Docs** | Manuais e documentação |
 
-À **direita** da barra fica a área de login. Quando você ainda não entrou, aparecem os
-campos de usuário e senha. Depois de entrar, essa área vira o seu **avatar**, que abre um
-menu com atalhos.
+Ao lado do menu há o **seletor de idioma PT/EN** — o site inteiro é bilíngue. À
+**direita** fica a área de login: antes de entrar, os campos de usuário e senha; depois,
+o seu **avatar**, que abre um menu com atalhos (Minhas estatísticas, Perfil, Sair…).
 
-Descendo a página, você encontra várias seções úteis:
+Descendo a página, você encontra:
 
-- A **notícia em destaque** do momento.
-- O **Top 10** de quem mais resolve problemas.
-- Os **problemas mais resolvidos na semana**.
-- Os **editores mais usados** pelos estudantes.
-- O que foi **resolvido recentemente**.
+- O **destaque** do topo, com a **notícia em evidência** e os botões-atalho
+  **Treino Livre →**, **Gestão de Problemas →** e **📖 Ajuda**.
+- O card **🗂️ Gestão de Problemas** — para quem **cria** problemas (professores,
+  monitores, autores). Se você só quer treinar, pode ignorar.
+- O card **🏋️ Treino Livre**, com o botão **Buscar problemas →**.
+- O **🏆 Top 10** de quem mais resolve — **clique num nome** para abrir o **perfil
+  público** daquela pessoa (seção 8).
+- Os **🔥 mais resolvidos na semana passada** e os **⌨ editores da semana**.
+- O **✅ resolvido recentemente** — que também linka os perfis de quem resolveu.
 - A **lista de contests**, separada em **Abertos agora**, **Por vir** e **Encerrados**,
-  com uma **busca por nome**.
+  com um **filtro por nome**.
+- As **📰 notícias**.
 
-Para começar a praticar, clique no botão **Treino Livre**. Ele leva você para o endereço
-`/treino/`.
+Para começar a praticar, clique em **Treino Livre**. Ele leva você para o endereço
+`/treino/` (seção 5).
 
 ---
 
