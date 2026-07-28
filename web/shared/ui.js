@@ -107,18 +107,33 @@ export function avatarEl(login, name, size = 26, hasPhoto) {
 // dropdown mínimo: liga um <button> gatilho a um painel — abre/fecha no clique, fecha em
 // clique-fora e Esc. Não há componente de menu no projeto; este é o primeiro (reusável).
 // Registra os listeners de documento só enquanto aberto (não empilha em re-render).
-export function attachDropdown(trigger, panel, wrap) {
+export function attachDropdown(trigger, panel, wrap, opts = {}) {
   const onDoc = (e) => { if (!wrap.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === 'Escape') { close(); trigger.focus(); } };
   function close() {
     if (!panel.classList.contains('open')) return;
     panel.classList.remove('open');
     trigger.setAttribute('aria-expanded', 'false');
+    if (opts.fixedPos) { panel.style.position = ''; panel.style.top = ''; panel.style.right = ''; panel.style.left = ''; }
     document.removeEventListener('click', onDoc);
     document.removeEventListener('keydown', onKey);
   }
   function open() {
     panel.classList.add('open');
+    // fixedPos: posiciona por JS relativo ao TRIGGER, em position:fixed — escapa o clip da
+    // tira rolável do topbar mobile (overflow-x:auto clipa o outro eixo) e o overflow-x:clip
+    // do body quando o chip está à esquerda. O topbar é sticky, então a âncora não se move.
+    if (opts.fixedPos) {
+      const r = trigger.getBoundingClientRect();
+      panel.style.position = 'fixed';
+      panel.style.top = (r.bottom + 6) + 'px';
+      panel.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+      panel.style.left = 'auto';
+      requestAnimationFrame(() => {         // clamp: não deixar sair pela esquerda
+        const pr = panel.getBoundingClientRect();
+        if (pr.left < 8) { panel.style.right = 'auto'; panel.style.left = '8px'; }
+      });
+    }
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('click', onDoc);
     document.addEventListener('keydown', onKey);
@@ -150,7 +165,7 @@ export async function renderAuthArea(mount, contest, onChange) {
       avatarEl(st.login, st.name, 26), el('span', { class: 'un' }, st.name || st.login), el('span', { class: 'caret' }, '▾'));
     const panel = el('div', { class: 'menu-panel', role: 'menu' });
     wrap.append(trigger, panel);
-    const dd = attachDropdown(trigger, panel, wrap);
+    const dd = attachDropdown(trigger, panel, wrap, { fixedPos: true });
     const item = (href, label) => el('a', { class: 'menu-item', role: 'menuitem', href }, label);
     if (st.login) panel.append(item('/treino/stat/?user=' + encodeURIComponent(st.login), '📊 ' + T('Minhas estatísticas', 'My statistics')));
     if (canCreate) panel.append(item('/problemas/', '🗂 ' + T('Gestão de Problemas', 'Problem Management')));

@@ -58,7 +58,7 @@ h1,h2,h3 { line-height:1.25; letter-spacing:-.01em; }
 .user-menu-btn:hover { background:rgba(255,255,255,.14); }
 .user-menu-btn .caret { font-size:.7rem; opacity:.8; transition:transform .12s; }
 .user-menu-btn[aria-expanded="true"] .caret { transform:rotate(180deg); }
-.menu-panel { position:absolute; right:0; top:calc(100% + .4rem); min-width:12.5rem;
+.menu-panel { position:absolute; right:0; top:calc(100% + .4rem); min-width:12.5rem; max-width:calc(100vw - 16px);
   background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:12px;
   box-shadow:var(--shadow); z-index:60; padding:.3rem; display:none; }
 .menu-panel.open { display:block; }
