@@ -18,6 +18,8 @@
 #   contests/<c>/docs/<tipo>.<lang>.{html,pdf}
 #   contests/<c>/docs/index.json             [{type,lang,fmt,bytes,generated_at,by}]
 : "${DOC_TYPES:=info-sheet contest times}"
+# cadeia de linguagens permitidas (folha de time limits) — fonte única, a MESMA do /submit
+declare -F effective_problem_langs >/dev/null || source "$_DIR/lib/langs.sh" 2>/dev/null || true
 
 doc_dir(){ printf '%s/%s/docs' "$CONTESTSDIR" "$1"; }
 doc_file(){ printf '%s/%s.%s.%s' "$(doc_dir "$1")" "$2" "$3" "$4"; }   # <c> <tipo> <lang> <fmt>
@@ -102,16 +104,22 @@ _doc_pool(){
 # doc_tl_rows <c> -> TSV: letra \t nome \t tl_texto  (tl vazio = não calibrado)
 doc_tl_rows(){
   local c="$1" probs; probs="$(cc_probs_json "$c")"
-  local n i letter name pid tl
+  local n i letter name pid tl allow
   n="$(jq -r 'length' <<<"$probs" 2>/dev/null)"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
   for ((i=0; i<n; i++)); do
     letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
     name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
     pid="$(jq -r --argjson i "$i" '.[$i].statement_key // .[$i].problem_id // ""' <<<"$probs")"
     tl="$(tl_store_served "$pid" "$(_doc_pool "$c" "$pid")" 2>/dev/null)"
+    # SÓ as linguagens que o competidor pode usar neste problema (override por problema >
+    # whitelist do contest > default do pacote — a mesma cadeia do /submit). O store guarda o
+    # TL medido de TODAS as linguagens calibradas; publicar Rust numa prova só-C confunde.
+    allow="[]"; declare -F effective_problem_langs >/dev/null && allow="$(effective_problem_langs "$c" "$pid" 2>/dev/null)"
+    [[ -n "$allow" ]] || allow='[]'
     # texto: se todas as linguagens têm o mesmo TL, mostra um número; senão "lang: t" por linguagem
-    tl="$(jq -r '
-      (to_entries | map(select(.key != "default"))) as $e
+    tl="$(jq -r --argjson allow "$allow" '
+      (to_entries | map(select(.key != "default"))
+        | map(.key as $k | select(($allow|length) == 0 or (($allow|index($k)) != null)))) as $e
       | if ($e|length) == 0 then ""
         elif (($e | map(.value) | unique | length) == 1) then ($e[0].value | tonumber | (.*1000|round)/1000 | tostring)
         else ($e | sort_by(.key) | map("\(.key): \(.value|tonumber|(.*1000|round)/1000)") | join(" · ")) end' <<<"${tl:-\{\}}" 2>/dev/null)"
