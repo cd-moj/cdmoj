@@ -45,6 +45,14 @@ Logo abaixo há um menu de navegação com **Contest**, **Score** (placar), **Cl
 
 Um **aviso** no topo mostra quando há "novas notícias" e "clarifications respondidas". Ele pisca quando existe uma dúvida sua que foi respondida e você ainda não leu.
 
+Se a prova tiver um **aquecimento** (rodada de ensaio antes da prova oficial), uma faixa fixa
+avisa no topo: *"🔁 AQUECIMENTO — esta rodada serve para testar o ambiente e a sua conta: o placar
+dela NÃO é o da prova"*. É a hora de conferir login, editor, envio, impressão e balão — e de
+avisar o staff se algo estiver errado. Quando o aquecimento acaba, a organização coloca a prova
+oficial no ar **no mesmo endereço, com o mesmo login**: o placar volta a zero e os problemas
+mudam. O placar e as suas submissões do aquecimento continuam disponíveis (link **Rodadas
+encerradas** em *Arquivos & Recursos*), quando a organização os publica.
+
 Quando existirem, aparecem também as seções **Informações & Notícias** e **Arquivos & Recursos**.
 Em **Arquivos & Recursos** é onde a organização publica os documentos da prova quando quer que
 você os tenha em mãos: as **informações do ambiente** (versões de compilador, limites de memória

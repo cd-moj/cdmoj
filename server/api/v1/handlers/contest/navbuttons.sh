@@ -18,7 +18,8 @@ if is_cstaff; then
   btns='[{label:"Score", url:"/contest/score/"},
          {label:"🖨️ Impressão", url:"/contest/staff/"},
          {label:"🏷️ Etiquetas", url:"/contest/badges/"},
-         {label:"📄 Documentos", url:"/contest/docs/"}]'
+         {label:"📄 Documentos", url:"/contest/docs/"},
+         {label:"🔁 Rodadas", url:"/contest/rounds/"}]'
   if contest_over_for_all "$contest"; then
     btns="$btns + [{label:\"🏆 Revelação\", url:\"/contest/score/reveal.html\"}]"
   fi
@@ -34,6 +35,7 @@ if is_staff; then
     {label:"Score", url:"/contest/score/"},
     {label:"🖨️ Impressão", url:"/contest/staff/"},
     {label:"📄 Documentos", url:"/contest/docs/"},
+    {label:"🔁 Rodadas", url:"/contest/rounds/"},
     {label:"Logout", url:"/logout"}
   ]}'
   exit 0
@@ -49,11 +51,13 @@ if is_admin; then
     {label:\"⚙ Administração\",  url:\"/contest/admin/\"},
     {label:\"Todas Submissões\", url:\"/contest/allsubmissions/\"},
     {label:\"Estatísticas\",     url:\"/contest/statistics/\"},
-    {label:\"jplag\",            url:\"/contest/jplag/\"}]"
+    {label:\"jplag\",            url:\"/contest/jplag/\"},
+    {label:\"🔁 Rodadas\",        url:\"/contest/rounds/\"}]"
 elif is_chief; then
   buttons="$buttons + [
     {label:\"⚖️ Avaliar\",        url:\"/contest/judge/\"},
     {label:\"👑 Juiz-chefe\",     url:\"/contest/chief/\"},
+    {label:\"🔁 Rodadas\",        url:\"/contest/rounds/\"},
     {label:\"Todas Submissões\",  url:\"/contest/allsubmissions/\"},
     {label:\"Estatísticas\",      url:\"/contest/statistics/\"}]"
 elif is_judge; then

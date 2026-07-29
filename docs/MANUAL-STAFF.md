@@ -28,6 +28,7 @@ Você é a pessoa que fica na sala cuidando das impressões e dos balões. Você
 | **Score** | O placar (a versão congelada, como um usuário comum). |
 | **🖨️ Impressão** | A fila de impressão e balões da sua sede. É a sua tela principal. |
 | **📄 Documentos** | Os documentos que a organização publicou (info sheet, caderno da prova, folha de time limits) para você baixar e imprimir. |
+| **🔁 Rodadas** | O placar e as submissões das rodadas encerradas (o aquecimento, por exemplo). |
 | **Sair** | Encerra a sua sessão. |
 
 ### A fila de impressão (`/contest/staff/`)
@@ -56,6 +57,18 @@ Há uma **caixa de seleção** de modo automático, e a sua escolha fica guardad
 
 Para que a janela de impressão do navegador não apareça a cada tarefa, rode o navegador em **modo quiosque**. No Chrome/Chromium, use a opção `--kiosk-printing`.
 
+### Aquecimento: a prova pode ter duas rodadas
+
+Muita prova roda um **aquecimento** antes da prova oficial — mesma sala, mesmas contas, mesmo
+endereço. Para você isso significa três coisas:
+
+- o aquecimento é o ensaio da **sua** operação também: pegue os pedidos, imprima, entregue balão,
+  confira a impressora e a cor dos balões;
+- quando a organização promove a prova oficial, a **numeração dos pedidos volta a 1** e os
+  **balões do aquecimento não contam** (a fila começa limpa) — se você anotou números, eles se
+  referem ao aquecimento;
+- o que aconteceu no aquecimento continua consultável na aba **🔁 Rodadas**.
+
 ### O que a `.staff` NÃO faz
 
 - Não envia solução.
@@ -77,6 +90,7 @@ Você supervisiona uma sede. Você acompanha a fila da sua sede, imprime as etiq
 | **🖨️ Impressão** | A fila da sua sede, em modo **somente leitura**. |
 | **🏷️ Etiquetas** | As folhas de credenciais da sua sede, com senha. |
 | **📄 Documentos** | Os documentos publicados da prova, para baixar e imprimir na sede. |
+| **🔁 Rodadas** | O placar e as submissões das rodadas já encerradas. |
 | **Sair** | Encerra a sua sessão. |
 | **🏆 Revelação** | A cerimônia de revelação da sua sede. Só aparece **depois que a prova encerra para todas as sedes**. |
 

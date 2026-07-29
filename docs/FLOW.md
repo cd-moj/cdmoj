@@ -185,6 +185,32 @@ O mesmo mecanismo (API → spool → daemon) serve comandos administrativos vind
 dispara `server/score/jplag-run.sh` em background, que junta as soluções aceitas, roda o jar
 e grava os pares de similaridade em `contests/<c>/jplag/`.
 
+## Troca de rodada (aquecimento → prova oficial)
+
+O mesmo contest roda o aquecimento e depois a prova. A rodada ATIVA é o `conf`
+(`CONTEST_START/END/FREEZE_TIME/PROBS` + `ROUND/ROUND_NAME/ROUND_KIND`); `rounds.json` guarda o
+plano das outras. Promover (`POST /contest/admin/rounds {action:"promote"}`, `lib/contest-rounds.sh`)
+é **arquivar + zerar + reapontar**, sob `flock` em `var/.round.lock`:
+
+1. **checklist** — recusa (409 `not_ready`) com job no spool/fila, veredicto pendente, review
+   aberto, daemon caído, sem rodada planejada ou contas compartilhadas (`USERS_FROM`);
+2. `pr_reconcile_balloons` → `build.sh` → `stats-gen.sh` (fecha os números da rodada);
+3. `report-gen.sh` → `rounds/<slug>/relatorio/` — **antes** de mover qualquer coisa;
+4. `mv` do que é dado de rodada (`users/<l>/{history,metrics.json,submissions,mojlog,results}`,
+   `review/`, `print-requests/`, `clarifications/`, `news*`, `backups/`, `jplag/`, `docs/*.pdf`,
+   `placar*.txt`, `statistics.cache.json`, `time-overrides.json`, `resources.json`) + **cópia**
+   de `var/{access.log,admin-audit.log,editor-log,offline-log}` + `conf.snapshot` + `meta.json` +
+   `machines.json`;
+5. store vazio de volta (`history` vazio, `submissions/mojlog/results` recriados),
+   `staff-filters.json` e os templates de `docs/` preservados, `.seq` da impressão zerado;
+6. `rd_apply` grava a janela e o `PROBS` da rodada nova (`CC_KEEP_STATEMENTS=1`, p/ não
+   re-baixar enunciado do banco por cima do que o admin subiu);
+7. `touch var/.score-dirty`, remove `.metrics-stamp` (recompute limpo) e `rounds.json` passa a
+   apontar para a rodada nova.
+
+O arquivo é lido depois por `/contest/round` (site estático, gate por `published`) e por
+`/contest/admin/round-archive` (tar.gz cru, só admin).
+
 ## Serviços systemd (`server/etc/systemd/`)
 
 | Unit | Papel |

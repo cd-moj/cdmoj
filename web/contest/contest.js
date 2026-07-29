@@ -798,6 +798,31 @@ async function loadSubmissions() {
   }
 }
 
+// Faixa da RODADA: um contest pode rodar aquecimento (ensaio) antes da prova oficial, no mesmo
+// endereço e com o mesmo login. O time não pode confundir os dois — então, quando a rodada no ar
+// é de aquecimento, a faixa fica fixa no topo dizendo que aquilo não vale.
+function renderRoundBanner() {
+  const r = basic && basic.round;
+  document.getElementById('roundBanner')?.remove();
+  if (!r || !r.warmup) return;
+  const main = document.querySelector('main.container') || document.body;
+  main.prepend(el('div', { id: 'roundBanner', class: 'alert', style: 'font-weight:600' },
+    '🔁 ' + T('AQUECIMENTO', 'WARM-UP') + ' — ' + (r.name || r.slug) + '. '
+    + T('Esta rodada serve para testar o ambiente e a sua conta: o placar dela NÃO é o da prova.',
+        'This round is for testing the environment and your account: its scoreboard is NOT the contest one.')));
+}
+
+function renderRoundsLink(archived) {
+  if (!archived || !archived.length) return;
+  const ul = document.getElementById('resourcesList');
+  if (!ul) return;
+  show('resourcesSection');
+  ul.append(el('li', { style: 'margin:.3rem 0' },
+    el('a', { href: '/contest/rounds/?c=' + encodeURIComponent(CONTEST), target: '_blank' },
+      '🔁 ' + T('Rodadas encerradas (placar e submissões do aquecimento)',
+                'Finished rounds (warm-up scoreboard and submissions)'))));
+}
+
 async function bootMain() {
   hide('loginView'); show('mainView');
   document.title = (basic.contest_name || 'Contest') + ' — MOJ';
@@ -816,6 +841,11 @@ async function bootMain() {
   const buttons = nav ? (Array.isArray(nav) ? nav : (nav.buttons || [])) : [];
   if (buttons.length) renderNav(buttons);
   balloons = bc ? (bc.balloons || bc) : {};
+
+  renderRoundBanner();
+  // rodadas: faixa do aquecimento + link p/ o arquivo das encerradas (só quando houver)
+  apiGet('/contest/rounds?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true })
+    .then(j => renderRoundsLink((j.rounds || []).filter(r => r.state === 'archived'))).catch(() => {});
 
   // news/resources (opcionais — escondem se vazio/erro)
   apiGet('/contest/news?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true })

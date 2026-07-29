@@ -8,6 +8,7 @@ import { logLink, srcLink } from '/shared/submission-links.js';
 import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest-config/verdict-config.js';
 import { makeReviewBoard } from '/shared/review-board.js';
 import { makeDocsTab } from '/contest/admin/docs-tab.js';
+import { makeRoundsTab } from '/contest/admin/rounds-tab.js';
 import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
@@ -72,6 +73,7 @@ const TABS = [
   { id: 'opts', label: T('🏷️ Opções', '🏷️ Options'), make: optionsTab },
   { id: 'auto', label: T('⚙️ Auto-veredicto', '⚙️ Auto-verdict'), make: autoTab },
   { id: 'docs', label: T('📄 Documentos', '📄 Documents'), make: () => makeDocsTab(CONTEST) },
+  { id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds'), make: () => makeRoundsTab(CONTEST, { readOnly: true }) },
 ];
 const MANUAL_LINK = { href: '/docs/MANUAL-ADMIN.html', label: T('📖 Manual do organizador', "📖 Organizer's manual") };
 

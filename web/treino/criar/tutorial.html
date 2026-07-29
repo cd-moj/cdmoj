@@ -62,11 +62,12 @@
         <a href="#usuarios" data-en="5. Accounts">5. As contas dos alunos</a>
         <a href="#placar" data-en="6. Scoreboard modes">6. Placar: icpc × obi</a>
         <a href="#documentos" data-en="7. Printed documents">7. Documentos impressos</a>
-        <a href="#durante" data-en="8. During the contest">8. Durante a prova</a>
-        <a href="#depois" data-en="9. Afterwards">9. Depois da prova</a>
-        <a href="#comandos" data-en="10. Quick commands">10. Comandos rápidos</a>
-        <a href="#dicas" data-en="11. Tips &amp; pitfalls">11. Dicas &amp; armadilhas</a>
-        <a href="#refs" data-en="12. References">12. Referências</a>
+        <a href="#rodadas" data-en="8. Warm-up and official round">8. Aquecimento e prova</a>
+        <a href="#durante" data-en="9. During the contest">9. Durante a prova</a>
+        <a href="#depois" data-en="10. Afterwards">10. Depois da prova</a>
+        <a href="#comandos" data-en="11. Quick commands">11. Comandos rápidos</a>
+        <a href="#dicas" data-en="12. Tips &amp; pitfalls">12. Dicas &amp; armadilhas</a>
+        <a href="#refs" data-en="13. References">13. Referências</a>
       </nav>
 
       <article class="tmain">
@@ -154,7 +155,27 @@ moj contest -c prova1apc docs publish info --lang pt --news   # libera p/ a sede
         </ul>
         <p class="small muted" data-en="All of this is also in the web panel, tab 📄 Documents (admin and chief judge).">Tudo isso também está no painel web, aba <b>📄 Documentos</b> (admin e juiz-chefe).</p>
 
-        <h2 id="durante" data-en="8. During the contest">8. Durante a prova</h2>
+        <h2 id="rodadas" data-en="8. Warm-up and official round (same contest)">8. Aquecimento e prova oficial (o mesmo contest)</h2>
+        <p data-en="Every marathon runs a warm-up (dress rehearsal) before the real thing: two or three easy problems so the team boots the machine, tests the login, the editor, printing and balloons — and so your judges and staff rehearse. The MOJ does that as ROUNDS of the SAME contest: same URL, same login, same configuration. The live round is the one you see in Settings and Problems; the others stay planned until you promote.">Toda maratona roda um <b>aquecimento</b> (ensaio) antes da prova: dois ou três problemas fáceis para o time ligar a máquina, testar login, editor, impressão e balão — e para os seus juízes e staff ensaiarem. No MOJ isso são <b>rodadas</b> do MESMO contest: mesma URL, mesmo login, mesma configuração. A rodada no ar é a que aparece nas Configurações e nos Problemas; as outras ficam planejadas até você promover.</p>
+<pre>moj contest -c prova1apc rounds ls                       # rodadas + checklist de promoção
+moj contest -c prova1apc rounds set aquecimento --name "Aquecimento" --kind warmup
+moj contest -c prova1apc rounds add oficial --name "Prova oficial" \
+    --start "2026-09-12 13:00" --end "2026-09-12 18:00" --freeze "2026-09-12 17:00"
+moj contest -c prova1apc rounds problems oficial set apc#a,apc#b,apc#c   # a prova de verdade
+# … roda o aquecimento …
+moj contest -c prova1apc rounds promote                  # arquiva o aquecimento, prova no ar
+moj contest -c prova1apc machines --round aquecimento    # time × IP × navegador da sala</pre>
+        <ul>
+          <li data-en="Promoting ARCHIVES the live round — submissions with source code, verdicts, judge logs, scoreboard, statistics, clarifications, news, staff tasks and access logs are kept under rounds/&lt;round&gt;/, plus a browsable report — then RESETS the scoreboard and applies the next round's window and problems.">Promover <b>arquiva</b> a rodada no ar — submissões com código-fonte, veredictos, log do juiz, placar, estatísticas, clarifications, notícias, tarefas do staff e logs de acesso ficam em <code>rounds/&lt;rodada&gt;/</code>, mais um relatório navegável —, <b>zera</b> o placar e <b>aplica</b> a janela e os problemas da rodada seguinte.</li>
+          <li data-en="The problem list of the official round is stored and only goes live on promotion: nobody sees the real problems during the warm-up.">A lista de problemas da rodada oficial fica guardada e só entra no ar na promoção: ninguém vê os problemas da prova durante o aquecimento.</li>
+          <li data-en="It REFUSES to promote while there is a job in the judge queue, a pending verdict or an open manual review — a submission judged after the switch would have its time computed against the new start and would reappear in the contest history. rounds ls lists the blockers.">Ele <b>recusa</b> promover enquanto houver job na fila do juiz, veredicto pendente ou correção manual aberta — uma submissão julgada depois da troca teria o tempo calculado contra o início novo e reapareceria no histórico da prova. O <code>rounds ls</code> lista os bloqueadores.</li>
+          <li data-en="What does NOT change: accounts and passwords, teams/sites/flags, staff scope, balloon colours, calibrated time limits, languages, judge pool, auto-verdict matrix and the document templates. What resets: scoreboard, team history and submissions (archived, not lost), balloons, printing numbering and per-site extensions.">O que <b>não</b> muda: contas e senhas, times/sedes/bandeiras, escopo do staff, cores de balão, time limits calibrados, linguagens, pool de juízes, matriz de auto-veredicto e os textos dos documentos. O que <b>zera</b>: placar, histórico e submissões dos times (arquivados, não perdidos), balões, numeração de impressão e prorrogações por sede.</li>
+          <li data-en="The team sees a fixed banner saying it is the WARM-UP and that its scoreboard is not the contest one; afterwards the finished round stays readable (publish it to show the teams).">O time vê uma <b>faixa fixa</b> dizendo que é AQUECIMENTO e que aquele placar não é o da prova; depois, a rodada encerrada continua legível (publique-a para os times verem).</li>
+          <li data-en="The warm-up is when the teams actually boot the room's computers — so it is when the MOJ can map team × IP × browser (machines). During the contest, a team logging in from a different machine gets flagged; from that map you can also fill in each team's site and arm the browser gate.">O aquecimento é quando os times ligam de fato os computadores da sala — então é ali que o MOJ mapeia <b>time × IP × navegador</b> (<code>machines</code>). Na prova, quem loga de outra máquina fica marcado; do mesmo mapa você preenche a sede dos times e arma o gate de navegador.</li>
+        </ul>
+        <p class="small muted" data-en="Web: tabs 🔁 Rounds and 💻 Machines of the admin panel.">Na web: abas <b>🔁 Rodadas</b> e <b>💻 Máquinas</b> do painel de administração.</p>
+
+        <h2 id="durante" data-en="9. During the contest">9. Durante a prova</h2>
         <pre>moj contest -c prova1apc dashboard      # visão geral ao vivo (pendências, juízes, alertas)
 moj contest -c prova1apc sessions       # quem está logado (IP, navegador)
 moj contest -c prova1apc score          # o placar, no terminal
@@ -169,14 +190,14 @@ moj contest -c prova1apc access         # log de acessos do dia</pre>
           <li data-en="Judge pool: settings set judges=cpu1,cpu2 pins which judges serve this contest (empty = any online judge); problems judges D host1 pins per problem.">Pool de juízes: <code>settings set judges=cpu1,cpu2</code> prende quais juízes atendem o contest (vazio = qualquer juiz online); <code>problems judges D host1</code> prende por problema.</li>
         </ul>
 
-        <h2 id="depois" data-en="9. Afterwards">9. Depois da prova</h2>
+        <h2 id="depois" data-en="10. Afterwards">10. Depois da prova</h2>
         <pre>moj contest -c prova1apc report prova1.html    # relatório completo (submissões, placar, estatística)
 moj contest export prova1apc spec.json --full  # a spec (sem credenciais) p/ versionar/reusar
 moj contest template save prova-apc --from-contest prova1apc --with-problems
 moj contest remove prova1apc                   # tira do ar (sessão .admin do TREINO; história preservada)</pre>
         <p data-en="After the end the room stays visible (closed) in the /contests/ archive; students can review their submissions. remove takes it off the air when that's what you want.">Depois do fim a sala continua visível (encerrada) no arquivo <a href="/contests/">/contests/</a>; os alunos podem rever as próprias submissões. O <code>remove</code> tira do ar quando é isso que você quer.</p>
 
-        <h2 id="comandos" data-en="10. Quick commands">10. ⚡ Comandos rápidos</h2>
+        <h2 id="comandos" data-en="11. Quick commands">11. ⚡ Comandos rápidos</h2>
         <table class="cheat">
           <tr><th data-en="Command">Comando</th><th data-en="What it does">O que faz</th></tr>
           <tr><td>moj contest create [spec|--template N] [--id --name --start --end]</td><td data-en="create (live immediately; START/END control visibility)">cria (no ar na hora; INÍCIO/FIM controlam a visibilidade)</td></tr>
@@ -189,13 +210,15 @@ moj contest remove prova1apc                   # tira do ar (sessão .admin do T
           <tr><td>… -c &lt;cid&gt; extend +min [--group re]</td><td data-en="extend (everyone or one room/site)">prorroga (todos ou uma sala/sede)</td></tr>
           <tr><td>… -c &lt;cid&gt; dashboard · sessions · score · audit · access</td><td data-en="live operation">operação ao vivo</td></tr>
           <tr><td>… -c &lt;cid&gt; news add|ls|rm</td><td data-en="announcements to the room">avisos p/ a sala</td></tr>
+          <tr><td>… -c &lt;cid&gt; rounds ls|add|set|problems|promote|publish|archive</td><td data-en="rounds: warm-up and official contest in the same contest (promote archives everything and resets the scoreboard)">rodadas: aquecimento e prova oficial no mesmo contest (promover arquiva tudo e zera o placar)</td></tr>
+          <tr><td>… -c &lt;cid&gt; machines [--round R] [--csv]</td><td data-en="team × IP × browser of a round; flags who changed machine">time × IP × navegador de uma rodada; marca quem trocou de máquina</td></tr>
           <tr><td>… -c &lt;cid&gt; docs gen|ls|get|publish|cover|set|text</td><td data-en="printed documents: info sheet, problem set (custom cover) and time limits sheet, PDF+HTML, pt/en">documentos impressos: info sheet, caderno (capa customizável) e folha de time limits, PDF+HTML, pt/en</td></tr>
           <tr><td>… -c &lt;cid&gt; report [arq]</td><td data-en="final report">relatório final</td></tr>
           <tr><td>moj contest export|duplicate|template …</td><td data-en="reuse: spec, copy, named recipes">reúso: spec, cópia, receitas nomeadas</td></tr>
           <tr><td>moj contest remove &lt;cid&gt;</td><td data-en="take off the air (training .admin session)">tira do ar (sessão .admin do treino)</td></tr>
         </table>
 
-        <h2 id="dicas" data-en="11. Tips &amp; pitfalls (learned the hard way)">11. 💡 Dicas &amp; armadilhas (aprendidas na prática)</h2>
+        <h2 id="dicas" data-en="12. Tips &amp; pitfalls (learned the hard way)">12. 💡 Dicas &amp; armadilhas (aprendidas na prática)</h2>
         <ul>
           <li data-en="Contest id LOWERCASE, always — it doubles as the subdomain, and subdomains have no uppercase.">Id de contest <b>minúsculo</b>, sempre — ele dobra como subdomínio, e subdomínio não tem maiúscula.</li>
           <li data-en="“admin_required” on an admin command? You're using the training session. Run moj contest login <cid> first — the two sessions coexist.">“admin_required” num comando de admin? Você está na sessão do treino. Rode <code>moj contest login &lt;cid&gt;</code> antes — as duas sessões coexistem.</li>
@@ -207,7 +230,7 @@ moj contest remove prova1apc                   # tira do ar (sessão .admin do T
           <li data-en="Hand students the COMPETITOR manual (/docs/MANUAL-CONTEST.html) and the moj-comp CLI guide (/contest/cli.html) — the CLI survives Internet outages: submissions get packed with a signed timestamp and count at the right time when the network returns.">Distribua aos alunos o <a href="/docs/MANUAL-CONTEST.html" target="_blank">manual do competidor</a> e o <a href="/contest/cli.html" target="_blank">guia da CLI moj-comp</a> — a CLI sobrevive a queda de Internet: a submissão fica empacotada com carimbo assinado e conta no horário certo quando a rede volta.</li>
         </ul>
 
-        <h2 id="refs" data-en="12. References">12. Referências</h2>
+        <h2 id="refs" data-en="13. References">13. Referências</h2>
         <p>
           <a href="/treino/criar/" data-en="← the creation wizard">← o wizard de criação</a> ·
           <a href="/problemas/tutorial.html" data-en="Creating problems (the other guide)">Criando problemas (o outro guia)</a> ·

@@ -22,6 +22,8 @@ na barra do topo.
 | **👥 Times** | Identidade de cada conta no placar: nome do time, país/bandeira, sede/região, universidade, brasão. Carga por CSV e "materializar matches" das regras por regex. |
 | **🎨 Aparência** | Cores dos balões por problema, países/escolas por regex e filtros de região do placar. |
 | **👥 Usuários & sessões** | Criar/resetar/desabilitar contas (individual e em lote), trocar a senha de todos, **sessões ativas** (alertas de multi-IP/UA, deslogar), log de acessos por dia (CSV) e download dos backups dos usuários. É AQUI que você cria as contas de papel (seção 3). |
+| **🔁 Rodadas** | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + lista de problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
+| **💻 Máquinas** | De onde cada time logou (IP e navegador) em cada rodada, com CSV: mapeia a sala no aquecimento, marca quem trocou de máquina na prova, preenche a sede dos times e arma o gate de navegador. |
 | **📄 Documentos** | Gera, em PDF e HTML e nos dois idiomas, os três documentos impressos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados) e **folha de time limits**. Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. A seção 5 explica. |
 | **🖨️ Tarefas do staff** | Panorama e ação sobre a fila de impressão + balões, desempenho por staff e o escopo de cada staff (regex por sede/sala). |
 | **⚖️ Tarefas do judge** | A fila da correção manual: quem pegou cada submissão, votos, idade; decidir/resolver na hora; e a configuração do veredicto manual (opções de rótulo + matriz de auto-veredicto). |
@@ -146,7 +148,87 @@ imprimiu ficou com a versão velha (é para isso que serve o campo *versão do c
 > baixá-lo. Para todo o resto (inclusive `.cstaff` e times) a API responde **404** — não é uma
 > trava de interface.
 
-## 6. Template de usuários (habilita todas as funções)
+## 6. Rodadas: aquecimento e prova oficial (aba 🔁 Rodadas)
+
+Toda maratona roda um **aquecimento** (dress rehearsal) antes da prova: dois ou três problemas
+fáceis, no dia anterior ou na manhã do dia, para o time ligar a máquina, testar o login, o
+editor, a impressão e o balão — e para a sua equipe de juízes e staff ensaiar. Depois disso a
+prova começa **no mesmo contest**, porque é a configuração dele (contas, senhas, sedes, cores de
+balão, time limits, linguagens, pool de juízes) que você quer garantir.
+
+No MOJ isso são **rodadas**. A rodada **no ar** é a que aparece em ⚙️ Configurações e 📚
+Problemas; as demais ficam planejadas até você promover.
+
+**O roteiro**
+
+1. **Monte o contest** normalmente, com os problemas do **aquecimento** e a janela do aquecimento.
+2. Na aba 🔁 Rodadas, dê o nome certo à rodada no ar (`aquecimento`, tipo *aquecimento*) e
+   **crie a próxima** (`oficial`): janela, freeze e a lista de problemas da prova de verdade.
+   A lista fica guardada e só entra no ar na promoção — ninguém vê os problemas da prova antes.
+3. **Rode o aquecimento.** O time vê uma faixa fixa dizendo que é aquecimento e que aquele placar
+   não é o da prova.
+4. Quando terminar, clique **🚀 Promover**. O MOJ confere o checklist e, se estiver tudo pronto:
+   - **arquiva** a rodada — submissões (com código-fonte), veredictos, log do juiz, placar,
+     estatísticas, clarifications, notícias, tarefas do staff e os logs de acesso ficam guardados
+     em `rounds/<rodada>/`, mais um **relatório navegável** da rodada;
+   - **zera** o placar e o histórico dos times, reinicia a numeração da impressão e limpa as
+     prorrogações por sede;
+   - **aplica** a janela e os problemas da prova oficial.
+   Você digita o id do contest para confirmar. Tudo é auditado.
+5. **Depois**: o placar e as submissões do aquecimento continuam legíveis em 🔁 Rodadas (e você
+   pode **publicar** a rodada para os times verem). O **arquivo bruto** em `.tar.gz` — com
+   código-fonte — sai por um clique, para a auditoria posterior.
+
+**O checklist é sério.** A promoção RECUSA enquanto houver:
+
+| Bloqueador | Por quê |
+|---|---|
+| `round_running` | a rodada no ar não terminou (contando prorrogação por sede) |
+| `jobs_in_flight` | tem submissão no spool/fila do juiz. Se ela fosse julgada depois da troca, o tempo seria calculado contra o início da prova e a submissão do aquecimento reapareceria no histórico da prova |
+| `pending_verdicts` | ainda há submissão sem veredicto no histórico |
+| `review_pending` | tem submissão na correção manual sem veredicto liberado — o voto do juiz cairia no placar da prova |
+| `judged_down` | o daemon de julgamento não está vivo, então a fila não drena |
+| `no_next_round` | não há rodada planejada |
+| `shared_users` | o contest usa as contas de outro (`USERS_FROM`) — arquivar aqui mexeria no store alheio |
+
+Há um `--force` (checkbox "ignorar os bloqueadores"), para emergência: ele **não** desfaz o
+risco, só assume que você sabe o que está fazendo. Os dois últimos bloqueadores nunca são
+ignorados.
+
+**O que NÃO muda na promoção:** contas e senhas, times/sedes/bandeiras, escopo do staff, cores de
+balão, regiões, time limits calibrados, linguagens, pool de juízes, matriz de auto-veredicto e os
+textos/capa dos documentos. **O que zera:** placar, histórico e submissões dos times (arquivados,
+não perdidos), balões, numeração de impressão, prorrogações, e a lista de documentos publicados.
+
+> ⚠️ **Cores de balão são por LETRA.** Se o problema A do aquecimento e o A da prova são
+> diferentes, a cor do balão A é a mesma nas duas rodadas. Confira em 🎨 Aparência antes da prova.
+
+**Na CLI:** `moj contest -c <cid> rounds ls | add | set | problems | promote | publish | archive`.
+
+## 7. Máquinas dos times (aba 💻 Máquinas)
+
+É no aquecimento que os times ligam de fato os computadores — e é dali que o MOJ tira o mapa
+**time × IP × navegador** da sala (do log de acessos do contest, recortado pela janela da rodada:
+nada novo é capturado). A aba mostra, por rodada:
+
+- **por time**: nome, sede, IPs e navegadores usados, primeiro login e um alerta quando o time
+  usou **mais de um IP**;
+- **por IP**: quais times vieram de cada máquina — e marca **IP compartilhado** (dois times na
+  mesma máquina é sinal de mesa trocada ou conta emprestada);
+- **quem trocou de máquina**: na prova oficial, o time que loga de IP/navegador diferente do que
+  usou no aquecimento aparece marcado em vermelho;
+- **⇣ CSV** de tudo, para conferir com a planilha da sede.
+
+Duas ações saem daqui e escrevem no lugar de sempre:
+
+- **aplicar sede**: na visão por IP, digitar o nome da sede e clicar grava a **sede** dos times
+  daquele IP (o mesmo campo da aba 👥 Times) — o placar, as etiquetas e o escopo do staff passam
+  a respeitá-la;
+- **armar o gate de navegador**: o MOJ calcula a **substring comum** aos navegadores vistos e
+  oferece usá-la como `login_ua_substring` (só entra quem usa o navegador da sala). Se os
+  navegadores forem diferentes, ele diz isso em vez de sugerir algo que trancaria alguém fora.
+
+## 8. Template de usuários (habilita todas as funções)
 
 Cole na carga em lote da aba *Usuários & sessões* (uma linha por conta: `login nome`), ou crie
 um a um com `moj contest -c <cid> users add <login> --name "<nome>"`:
@@ -164,7 +246,7 @@ monitor1.mon     Monitor (responde clarifications)
 Depois: ligue **Veredicto manual** (e ajuste o **Nº de juízes**) nas Configurações; distribua
 as senhas geradas; cada pessoa loga na MESMA tela do contest e vê os botões do seu papel.
 
-## 7. Referências
+## 9. Referências
 
 - [Manual do juiz humano](MANUAL-JUIZ.html) — a operação da aba ⚖️ Avaliar e do juiz-chefe.
 - [Manual do staff](MANUAL-STAFF.html) — impressão, balões, etiquetas, revelação por sede.
