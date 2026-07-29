@@ -9,6 +9,7 @@ import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest
 import { makeTasksTab } from './tasks.js';
 import { makeDocsTab } from './docs-tab.js';
 import { makeRoundsTab } from './rounds-tab.js';
+import { makeMachinesTab } from './machines-tab.js';
 import { makeTeamsTab } from './teams-tab.js';
 import { makeReviewBoard } from '/shared/review-board.js';
 import { parseUsers, parseRichCsv, downloadCsv } from '/shared/users-batch.js';
@@ -779,6 +780,7 @@ const TABS = [
   { id: 'appearance', label: T('🎨 Aparência', '🎨 Appearance'), make: appearanceTab },
   { id: 'users', label: T('👥 Usuários & sessões', '👥 Users & sessions'), make: usersTab },
   { id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds'), make: () => makeRoundsTab(CONTEST) },
+  { id: 'machines', label: T('💻 Máquinas', '💻 Machines'), make: () => makeMachinesTab(CONTEST) },
   { id: 'docs', label: T('📄 Documentos', '📄 Documents'), make: () => makeDocsTab(CONTEST) },
   { id: 'tasks', label: T('🖨️ Tarefas do staff', '🖨️ Staff tasks'), make: () => makeTasksTab(CONTEST) },
   { id: 'verdict', label: T('⚖️ Tarefas do judge', '⚖️ Judge tasks'), make: verdictTab },
