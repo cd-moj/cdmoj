@@ -61,11 +61,12 @@
         <a href="#problemas" data-en="4. Problems (and the draw)">4. Problemas (e o sorteio)</a>
         <a href="#usuarios" data-en="5. Accounts">5. As contas dos alunos</a>
         <a href="#placar" data-en="6. Scoreboard modes">6. Placar: icpc × obi</a>
-        <a href="#durante" data-en="7. During the contest">7. Durante a prova</a>
-        <a href="#depois" data-en="8. Afterwards">8. Depois da prova</a>
-        <a href="#comandos" data-en="9. Quick commands">9. Comandos rápidos</a>
-        <a href="#dicas" data-en="10. Tips &amp; pitfalls">10. Dicas &amp; armadilhas</a>
-        <a href="#refs" data-en="11. References">11. Referências</a>
+        <a href="#documentos" data-en="7. Printed documents">7. Documentos impressos</a>
+        <a href="#durante" data-en="8. During the contest">8. Durante a prova</a>
+        <a href="#depois" data-en="9. Afterwards">9. Depois da prova</a>
+        <a href="#comandos" data-en="10. Quick commands">10. Comandos rápidos</a>
+        <a href="#dicas" data-en="11. Tips &amp; pitfalls">11. Dicas &amp; armadilhas</a>
+        <a href="#refs" data-en="12. References">12. Referências</a>
       </nav>
 
       <article class="tmain">
@@ -137,7 +138,23 @@ moj contest -c prova1apc settings set penalty_verdicts=      # vazio = NENHUM ve
         </ul>
         <p data-en="The mode is chosen at creation (wizard: “Modo / placar”; CLI: in the spec/template). Balloon colors and scoreboard region filters live in the wizard's “Visual” step.">O modo se escolhe na criação (wizard: “Modo / placar”; CLI: na spec/template). Cores de balão e filtros de região do placar ficam no passo “Visual” do wizard.</p>
 
-        <h2 id="durante" data-en="7. During the contest">7. Durante a prova</h2>
+        <h2 id="documentos" data-en="7. Printed documents (info sheet, problem set, time limits)">7. Documentos impressos (info sheet, caderno, time limits)</h2>
+        <p data-en="Three documents get printed at every contest: the testing environment info sheet (compiler versions, memory/stack limits, accepted languages), the problem set (cover + statements) and the time limits sheet. The MOJ generates all three as PDF and HTML, in Portuguese and English, from what the contest already has — no copy-and-paste.">Toda prova imprime três documentos: as <b>informações do ambiente</b> (versões de compilador, limites de memória/pilha, linguagens aceitas), o <b>caderno da prova</b> (capa + enunciados) e a <b>folha de time limits</b>. O MOJ gera os três em PDF <b>e</b> HTML, em português e inglês, a partir do que o contest já tem — sem copiar e colar nada.</p>
+<pre>moj contest -c prova1apc docs set caderno_version=v1.0 errata="**C**: onde se lê 10^5, leia-se 10^6."
+moj contest -c prova1apc docs gen                      # os 3 tipos, pt+en (leva alguns segundos)
+moj contest -c prova1apc docs ls                       # o que existe, tamanho, quem gerou
+moj contest -c prova1apc docs get all --lang pt        # baixa p/ imprimir
+moj contest -c prova1apc docs publish info --lang pt --news   # libera p/ a sede + vira notícia</pre>
+        <ul>
+          <li data-en="Cover, three modes in this precedence: an uploaded PDF (docs cover capa.pdf — the event's artwork, used as is), an edited Markdown text (docs text capa --from capa.md, with markers {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}}), or the default generated cover. The page count printed on the cover is always the real one.">A <b>capa</b> tem três modos, nesta precedência: <b>PDF enviado</b> (<code>docs cover capa.pdf</code> — a arte do evento, entra como está), <b>texto editado</b> (<code>docs text capa --from capa.md</code>, com os marcadores <code>{{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}}</code>) ou a <b>capa padrão</b>. O número de páginas impresso na capa é sempre o real.</li>
+          <li data-en="Where a problem has its own PDF statement in the contest, that PDF goes into the problem set (layout preserved); otherwise the statement is rendered.">Onde o problema tem <b>PDF próprio</b> de enunciado no contest, é esse PDF que entra no caderno (diagramação preservada); senão o enunciado é renderizado.</li>
+          <li data-en="Publishing does two things: the document shows up under &ldquo;Contest&rdquo; for the teams and the site chief (.cstaff) can download it in 📄 Documents. Before that, the problem set is contest material: the API answers 404 for anyone who is not the admin or the chief judge.">Publicar faz duas coisas: o documento aparece na seção “Prova” para os times e o <b>chefe de sede</b> (<code>.cstaff</code>) passa a baixá-lo em 📄 Documentos. Antes disso o caderno é conteúdo de prova: a API responde <b>404</b> p/ quem não é admin nem juiz-chefe.</li>
+          <li data-en="The site downloads with the very same CLI: moj contest login &lt;cid&gt; with the .cstaff account, then docs ls and docs get all — it only ever sees what was published. Handy for a venue on an isolated network.">A sede baixa pela MESMA CLI: <code>moj contest login &lt;cid&gt;</code> com a conta <code>.cstaff</code>, depois <code>docs ls</code> e <code>docs get all</code> — ela só enxerga o que foi publicado. Útil para sede em rede isolada.</li>
+          <li data-en="PT/EN applies to cover, headings and tables. The statement itself comes out in the language it was written in — the MOJ keeps one statement per problem, not two.">⚠️ PT/EN vale p/ capa, títulos e tabelas. O <b>enunciado</b> sai no idioma em que foi escrito — o MOJ guarda um enunciado por problema, não dois.</li>
+        </ul>
+        <p class="small muted" data-en="All of this is also in the web panel, tab 📄 Documents (admin and chief judge).">Tudo isso também está no painel web, aba <b>📄 Documentos</b> (admin e juiz-chefe).</p>
+
+        <h2 id="durante" data-en="8. During the contest">8. Durante a prova</h2>
         <pre>moj contest -c prova1apc dashboard      # visão geral ao vivo (pendências, juízes, alertas)
 moj contest -c prova1apc sessions       # quem está logado (IP, navegador)
 moj contest -c prova1apc score          # o placar, no terminal
@@ -152,14 +169,14 @@ moj contest -c prova1apc access         # log de acessos do dia</pre>
           <li data-en="Judge pool: settings set judges=cpu1,cpu2 pins which judges serve this contest (empty = any online judge); problems judges D host1 pins per problem.">Pool de juízes: <code>settings set judges=cpu1,cpu2</code> prende quais juízes atendem o contest (vazio = qualquer juiz online); <code>problems judges D host1</code> prende por problema.</li>
         </ul>
 
-        <h2 id="depois" data-en="8. Afterwards">8. Depois da prova</h2>
+        <h2 id="depois" data-en="9. Afterwards">9. Depois da prova</h2>
         <pre>moj contest -c prova1apc report prova1.html    # relatório completo (submissões, placar, estatística)
 moj contest export prova1apc spec.json --full  # a spec (sem credenciais) p/ versionar/reusar
 moj contest template save prova-apc --from-contest prova1apc --with-problems
 moj contest remove prova1apc                   # tira do ar (sessão .admin do TREINO; história preservada)</pre>
         <p data-en="After the end the room stays visible (closed) in the /contests/ archive; students can review their submissions. remove takes it off the air when that's what you want.">Depois do fim a sala continua visível (encerrada) no arquivo <a href="/contests/">/contests/</a>; os alunos podem rever as próprias submissões. O <code>remove</code> tira do ar quando é isso que você quer.</p>
 
-        <h2 id="comandos" data-en="9. Quick commands">9. ⚡ Comandos rápidos</h2>
+        <h2 id="comandos" data-en="10. Quick commands">10. ⚡ Comandos rápidos</h2>
         <table class="cheat">
           <tr><th data-en="Command">Comando</th><th data-en="What it does">O que faz</th></tr>
           <tr><td>moj contest create [spec|--template N] [--id --name --start --end]</td><td data-en="create (live immediately; START/END control visibility)">cria (no ar na hora; INÍCIO/FIM controlam a visibilidade)</td></tr>
@@ -172,12 +189,13 @@ moj contest remove prova1apc                   # tira do ar (sessão .admin do T
           <tr><td>… -c &lt;cid&gt; extend +min [--group re]</td><td data-en="extend (everyone or one room/site)">prorroga (todos ou uma sala/sede)</td></tr>
           <tr><td>… -c &lt;cid&gt; dashboard · sessions · score · audit · access</td><td data-en="live operation">operação ao vivo</td></tr>
           <tr><td>… -c &lt;cid&gt; news add|ls|rm</td><td data-en="announcements to the room">avisos p/ a sala</td></tr>
+          <tr><td>… -c &lt;cid&gt; docs gen|ls|get|publish|cover|set|text</td><td data-en="printed documents: info sheet, problem set (custom cover) and time limits sheet, PDF+HTML, pt/en">documentos impressos: info sheet, caderno (capa customizável) e folha de time limits, PDF+HTML, pt/en</td></tr>
           <tr><td>… -c &lt;cid&gt; report [arq]</td><td data-en="final report">relatório final</td></tr>
           <tr><td>moj contest export|duplicate|template …</td><td data-en="reuse: spec, copy, named recipes">reúso: spec, cópia, receitas nomeadas</td></tr>
           <tr><td>moj contest remove &lt;cid&gt;</td><td data-en="take off the air (training .admin session)">tira do ar (sessão .admin do treino)</td></tr>
         </table>
 
-        <h2 id="dicas" data-en="10. Tips &amp; pitfalls (learned the hard way)">10. 💡 Dicas &amp; armadilhas (aprendidas na prática)</h2>
+        <h2 id="dicas" data-en="11. Tips &amp; pitfalls (learned the hard way)">11. 💡 Dicas &amp; armadilhas (aprendidas na prática)</h2>
         <ul>
           <li data-en="Contest id LOWERCASE, always — it doubles as the subdomain, and subdomains have no uppercase.">Id de contest <b>minúsculo</b>, sempre — ele dobra como subdomínio, e subdomínio não tem maiúscula.</li>
           <li data-en="“admin_required” on an admin command? You're using the training session. Run moj contest login <cid> first — the two sessions coexist.">“admin_required” num comando de admin? Você está na sessão do treino. Rode <code>moj contest login &lt;cid&gt;</code> antes — as duas sessões coexistem.</li>
@@ -189,7 +207,7 @@ moj contest remove prova1apc                   # tira do ar (sessão .admin do T
           <li data-en="Hand students the COMPETITOR manual (/docs/MANUAL-CONTEST.html) and the moj-comp CLI guide (/contest/cli.html) — the CLI survives Internet outages: submissions get packed with a signed timestamp and count at the right time when the network returns.">Distribua aos alunos o <a href="/docs/MANUAL-CONTEST.html" target="_blank">manual do competidor</a> e o <a href="/contest/cli.html" target="_blank">guia da CLI moj-comp</a> — a CLI sobrevive a queda de Internet: a submissão fica empacotada com carimbo assinado e conta no horário certo quando a rede volta.</li>
         </ul>
 
-        <h2 id="refs" data-en="11. References">11. Referências</h2>
+        <h2 id="refs" data-en="12. References">12. Referências</h2>
         <p>
           <a href="/treino/criar/" data-en="← the creation wizard">← o wizard de criação</a> ·
           <a href="/problemas/tutorial.html" data-en="Creating problems (the other guide)">Criando problemas (o outro guia)</a> ·

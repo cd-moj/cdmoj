@@ -300,7 +300,9 @@ Permissão: usuários `.admin` sempre podem; demais por **lista do admin OU thre
 O CLI **`moj-contest`** (`web/moj-contest`, servido em `GET /moj-contest`; fonte em `moj-cli/`;
 `moj contest …` delega a ele) cobre estas rotas e as de `/contest/admin/*`: criação (spec/
 template), templates nomeados, export/duplicate, settings, problemas (com **sorteio por
-coleção**), usuários, sessões, auditoria e remoção. Sessões: criação/reuso = token do **treino**
+coleção**), usuários, sessões, auditoria, remoção e os **documentos da prova**
+(`docs ls|gen|get|publish|unpublish|cover|set|text` — `ls`/`get` valem p/ QUALQUER conta do
+contest, então a **sede** (`.cstaff`) baixa o publicado pelo terminal, útil em rede isolada). Sessões: criação/reuso = token do **treino**
 (`moj login`); administração = token **daquele contest** (`moj-contest login <cid>`, conta
 `*.admin` do contest) — o corte de acesso é sempre o do servidor.
 
