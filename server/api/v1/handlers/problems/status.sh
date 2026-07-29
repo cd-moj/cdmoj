@@ -48,13 +48,20 @@ tlmap="$TL_SUMMARY"; valmap="$VAL_SUMMARY"
 out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$calib" --argjson SUP "$sup" '
   ($TL[0] // {}) as $tl | ($VAL[0] // {}) as $val
   | ($CAL | map({(.):true}) | add // {}) as $calset
+  | (.generated_at // 0) as $idx_at
   | [ .problems[]
       | .id as $id
       | ($val[$id]) as $v | ($tl[$id]) as $t
       | (($v.checks // []) | any(.name=="good_sol_accepts" and (.ok|not))) as $gsbad
       | (if $v==null then "none" elif ($v.ok==true) then "ok" else "error" end) as $vstate
       | ($t.calibrated // false) as $cal
-      | (($t.checksum // "") != "" and (.tl_checksum // "") != "" and ($t.checksum != .tl_checksum)) as $stale
+      # STALE = checksum calibrado != checksum do pacote NO ÍNDICE. Mas o índice de donos regenera
+      # em BACKGROUND (≤30 min): quem edita e recalibra na mesma janela via o painel gritar "precisa
+      # recalibrar" para sempre — o calibrado já é o novo, o índice ainda tem o velho. Se a calibração
+      # é MAIS NOVA que o índice, o tl_checksum de lá é sabidamente velho: não dá p/ concluir stale.
+      | (($t.at // 0) > ($idx_at // 0)) as $tl_newer_than_index
+      | (($t.checksum // "") != "" and (.tl_checksum // "") != "" and ($t.checksum != .tl_checksum)
+         and ($tl_newer_than_index | not)) as $stale
       # linguagens good SEM TL servido = solução good que não calibrou (o TL servido é a UNIÃO entre
       # hosts, então ausente = falhou em TODOS os juízes). Só vale p/ calibração ATUAL (senão é "stale").
       | ([ (.good_langs // [])[] | (if .=="py3" or .=="py2" then "py" else . end)

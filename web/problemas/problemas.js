@@ -36,7 +36,7 @@ let ANALYSIS = null, ANA_SORT = { key: 'attempts', dir: -1 };
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const b64ToUtf8 = (b) => { try { return new TextDecoder().decode(Uint8Array.from(atob(b), c => c.charCodeAt(0))); } catch { return ''; } };
-const pill = (cls, txt) => el('span', { class: 'pill ' + cls }, txt);
+const pill = (cls, txt, title) => el('span', { class: 'pill ' + cls, title: title || null }, txt);
 
 // ---- painel de status (aba "Painel") ----
 // filtro por categoria (clicar num card): chave -> predicado sobre a linha do painel
@@ -83,7 +83,14 @@ const reviewChip = (p) => {
 function stateBadges(p) {
   const out = [];
   out.push(p.public ? pill('ok', T('público', 'public')) : pill('warn', T('rascunho', 'draft')));
-  if (!p.html) out.push(pill('no', T('sem HTML', 'no HTML')));
+  // o `html` vem do ÍNDICE DE DONOS, que regenera em background (≤30 min): logo após validar,
+  // o enunciado já está no ar (e aparece renderizado logo abaixo, no próprio detalhe) enquanto a
+  // pill ainda diz "sem HTML" — daí o rótulo honesto de "não indexado ainda", e nada de pill
+  // quando a própria resposta já traz o HTML.
+  if (!p.html && !p.statement_html_b64) out.push(pill('no',
+    T('HTML não indexado ainda', 'HTML not indexed yet'),
+    T('O enunciado já pode estar publicado: este selo vem do índice, que atualiza em até ~30 min.',
+      'The statement may already be published: this badge comes from the index, refreshed within ~30 min.')));
   return out;
 }
 

@@ -647,17 +647,29 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
   # ---------- testes OCULTOS (substitui; mantém os sample*) ----------
   if (( HAS_TESTS )); then
     local inp0 nm0
+    # Os ocultos saem de cena, mas vão p/ um staging em vez de sumir: o editor web pode mandar
+    # `{name, keep:true}` p/ um teste que ele NÃO baixou (source com tests=meta) — aí o conteúdo
+    # é restaurado daqui. Sem isso, salvar pela web zeraria todo teste não carregado.
+    mkdir -p "$_t/oldin" "$_t/oldout"
     set +o noglob; shopt -s nullglob
     for inp0 in "$pkg/tests/input"/*; do nm0="${inp0##*/}"; [[ "$nm0" == sample* ]] && continue
-      rm -f "$inp0" "$pkg/tests/output/$nm0"; done
+      mv -f "$inp0" "$_t/oldin/$nm0" 2>/dev/null
+      [[ -f "$pkg/tests/output/$nm0" ]] && mv -f "$pkg/tests/output/$nm0" "$_t/oldout/$nm0" 2>/dev/null
+    done
     shopt -u nullglob; set -o noglob
-    jq --raw-output0 "$JQNL"'.tests[]? | (.name // ""), (.group // ""), (.input // "" | nl1), (.output // "" | nl1)' \
+    jq --raw-output0 "$JQNL"'.tests[]? | (.name // ""), (.group // ""), (if .keep == true then "1" else "0" end), (.input // "" | nl1), (.output // "" | nl1)' \
       < "$bodyf" > "$_t/tests.nul" 2>/dev/null
-    local i=0 nm='' tgrp='' gpre n cand
-    while IFS= read -r -d '' nm && IFS= read -r -d '' tgrp && IFS= read -r -d '' inp && IFS= read -r -d '' outp; do
+    local i=0 nm='' tgrp='' tkeep='' gpre n cand
+    while IFS= read -r -d '' nm && IFS= read -r -d '' tgrp && IFS= read -r -d '' tkeep && IFS= read -r -d '' inp && IFS= read -r -d '' outp; do
       i=$((i+1))
       nm="${nm//[^A-Za-z0-9._-]/}"; [[ -n "$nm" ]] || nm="$i"
       [[ "$nm" == sample* ]] && nm="t$nm"   # nomes sample* são reservados aos exemplos
+      # keep: restaura o teste que o cliente não carregou (nome preservado, sem renomear por grupo)
+      if [[ "$tkeep" == 1 && -f "$_t/oldin/$nm" ]]; then
+        mv -f "$_t/oldin/$nm" "$pkg/tests/input/$nm"
+        [[ -f "$_t/oldout/$nm" ]] && mv -f "$_t/oldout/$nm" "$pkg/tests/output/$nm"
+        continue
+      fi
       if (( SCORE_ENABLED )); then
         tgrp="${tgrp//[^A-Za-z0-9._-]/}"
         if [[ -n "$tgrp" && -n "${GGLOB[$tgrp]:-}" ]]; then
@@ -792,6 +804,16 @@ _read_pairs(){
     if [[ "$which" == sample ]]; then [[ "$nm" == sample* ]] || continue
     else [[ "$nm" == sample* ]] && continue; fi
     outp="$pkg/tests/output/$nm"; [[ -f "$outp" ]] || outp=/dev/null
+    # MODO META (SRC_TESTS=meta): só nome+tamanho. Um problema com testes grandes (OBI tem
+    # inputs de 12MB) gerava um /problems/source de centenas de MB — o editor web ficava
+    # dezenas de segundos mostrando o formulário VAZIO (a cara de "problema novo") e o
+    # browser ainda tinha de parsear tudo. O conteúdo vem sob demanda por /problems/test.
+    if [[ "${SRC_TESTS:-full}" == meta && "$which" != sample ]]; then
+      jq -nc --arg nm "$nm" --argjson si "$(stat -c%s "$inp" 2>/dev/null || echo 0)" \
+             --argjson so "$(stat -c%s "$outp" 2>/dev/null || echo 0)" \
+             '{name:$nm, size_in:$si, size_out:$so, omitted:true}' >> "$of"
+      continue
+    fi
     jq -nc --arg nm "$nm" --rawfile i "$inp" --rawfile o "$outp" '{name:$nm, input:$i, output:$o}' >> "$of"
   done
   shopt -u nullglob; set -o noglob
@@ -895,6 +917,7 @@ read_problem_source(){
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
       languages:($meta.languages // []),
       title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
+      tests_omitted:($tss | any(.omitted == true)),
       score_text:$scoretxt,
       scripts:($scr | split("\n") | map(select(. != ""))),
       scripts_files:$scf, docs_files:$dfl,

@@ -4990,6 +4990,18 @@
         }
       }
     },
+    "/problems/test": {
+      "get": {
+        "tags": ["problems"],
+        "summary": "Conteúdo de UM teste (par do tests=meta do /problems/source); só membro da org",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "id", "in": "query", "required": true, "schema": {"type": "string"}},
+          {"name": "name", "in": "query", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {"200": {"description": "{name,input,output}"}, "404": {"description": "not_found | test_notfound"}}
+      }
+    },
     "/problems/source": {
       "get": {
         "tags": [

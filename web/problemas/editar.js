@@ -294,13 +294,51 @@ function testRow(name = '', input = '', output = '', group = '') {
   lo.addEventListener('change', async () => { if (lo.files[0]) outT.value = await lo.files[0].text(); });
   return row;
 }
-const renderTests = (tests) => { $('tests').innerHTML = ''; (tests || []).forEach(t => $('tests').append(testRow(t.name, t.input, t.output, t.group || ''))); refreshTestGroupSelects(); };
+// teste OMITIDO (source com tests=meta): a linha nasce sem conteúdo, com o tamanho e um botão
+// que busca só aquele teste (/problems/test). Enquanto não for carregado, o save NÃO o reenvia
+// (fica marcado com _omitted) — o servidor preserva o que já está lá.
+function omittedTestRow(t) {
+  const kb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round((n || 0) / 1024)) + ' KB');
+  const row = el('div', { class: 'ex' });
+  const btn = el('button', { class: 'btn ghost', type: 'button' }, T('carregar conteúdo', 'load content'));
+  row.append(el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
+    el('span', { class: 'small' }, T('teste', 'test')),
+    el('b', {}, t.name),
+    el('span', { class: 'small muted' }, `${T('entrada', 'input')} ${kb(t.size_in)} · ${T('saída', 'output')} ${kb(t.size_out)}`),
+    btn));
+  row._omitted = true; row._name = t.name; row._group = t.group || '';
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; btn.textContent = T('carregando…', 'loading…');
+    try {
+      const j = await apiGet('/problems/test?id=' + encodeURIComponent(ID) + '&name=' + encodeURIComponent(t.name),
+        { contest: CONTEST, auth: true });
+      const full = testRow(t.name, j.input || '', j.output || '', row._group);
+      row.replaceWith(full); refreshTestGroupSelects(); updatePkgInfo();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = T('falhou — tentar de novo', 'failed — retry');
+      setMsg(T('Falha ao carregar o teste: ', 'Failed to load test: ') + (e && e.message || e), 'error');
+    }
+  });
+  return row;
+}
+const renderTests = (tests) => {
+  $('tests').innerHTML = '';
+  (tests || []).forEach(t => $('tests').append(t && t.omitted ? omittedTestRow(t) : testRow(t.name, t.input, t.output, t.group || '')));
+  refreshTestGroupSelects();
+};
 const addTest = () => { $('tests').append(testRow()); refreshTestGroupSelects(); updatePkgInfo(); };
+// testes NÃO carregados (omitidos) viram {name, keep:true} — o servidor mantém o conteúdo atual
+// em vez de receber vazio (que apagaria o teste).
 const collectTests = () => [...$('tests').querySelectorAll('.ex')].map(r => {
+  if (r._omitted) {
+    const o = { name: r._name, keep: true };
+    if ($('scoreEnabled').checked && r._group) o.group = r._group;
+    return o;
+  }
   const o = { name: (r._nameI ? r._nameI.value : '').trim(), input: r.querySelector('.tin').value, output: r.querySelector('.tout').value };
   if ($('scoreEnabled').checked && r._gsel && r._gsel.value) o.group = r._gsel.value;
   return o;
-}).filter(t => t.input !== '' || t.output !== '');
+}).filter(t => t.keep || t.input !== '' || t.output !== '');
 async function loadTestPairs(files) {
   const map = {};
   for (const f of files) {
@@ -1174,9 +1212,16 @@ async function boot() {
   const pRepos = apiGet('/problems/repos', { contest: CONTEST, auth: true }).then(r => r.repos || []).catch(() => []);
   const pPerm  = apiGet('/treino/contest-create/permission', { contest: CONTEST, auth: true }).then(r => !!r.can_create).catch(() => false);
   const pSrc   = pid ? apiGet('/problems/source?id=' + encodeURIComponent(pid), { contest: CONTEST, auth: true }) : Promise.resolve(null);
+  // Enquanto o source não chega, a tela é IDÊNTICA à de "Novo Problema" (form vazio + h2
+  // estático) — o setter jura que o problema virou novo. Marca o carregamento e trava o save.
+  if (pid) {
+    $('title').textContent = T('Carregando ', 'Loading ') + pid + '…';
+    ['save', 'publish', 'calibrate'].forEach(b => { if ($(b)) $(b).disabled = true; });
+  }
   try {
     const [repos, src] = await Promise.all([pRepos, pSrc]);
     REPOS = repos;
+    if (pid) ['save', 'publish', 'calibrate'].forEach(b => { if ($(b)) $(b).disabled = false; });
     if (src) { MODE = 'edit'; ID = pid; await loadSource(ID, src); }
     else {
       MODE = 'new'; REPO = p.get('repo') || ''; fillRepoSelect();
@@ -1187,7 +1232,17 @@ async function boot() {
     }
     await Promise.all([loadShare(), loadColls()]);
   } catch (e) {
-    setMsg(T('Falha ao carregar o problema: ', 'Failed to load the problem: ') + (e instanceof ApiError ? e.message : (e && e.message || e)), 'error');
+    // falha carregando um problema EXISTENTE: não deixar a tela no estado "novo problema"
+    // (form vazio + botões ligados = o setter acha que o problema sumiu e salva por cima).
+    const msg = (e instanceof ApiError ? e.message : (e && e.message || e));
+    setMsg(T('Falha ao carregar o problema: ', 'Failed to load the problem: ') + msg, 'error');
+    if (pid) {
+      MODE = 'error';
+      $('title').textContent = '⚠ ' + T('Falha ao carregar ', 'Failed to load ') + pid;
+      ['save', 'publish', 'calibrate'].forEach(b => { if ($(b)) $(b).disabled = true; });
+      showNote(T(`⚠ Não foi possível carregar “${pid}”: ${msg}. A edição está BLOQUEADA para não sobrescrever o problema — recarregue a página para tentar de novo.`,
+        `⚠ Could not load “${pid}”: ${msg}. Editing is BLOCKED so the problem is not overwritten — reload the page to retry.`));
+    }
   }
   CAN_CREATE = await pPerm;
 

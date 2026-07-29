@@ -641,8 +641,12 @@ O campo `checksum` acima é o que amarra o TL ao pacote. Ele é calculado pelo `
 |---|---|
 | `conf` | `docs/enunciado.*` |
 | `tests/input/*` | `tags` |
-| `sols/good/*` | `author` |
-| `scripts/*` (conteúdo **e** bit de execução) | `tests/output/*` |
+| `tests/output/*` (não-vazios) e `tests/score` | `author` |
+| `sols/good/*` | `.moj-meta.json` (título/coleções/tags) |
+| `scripts/*` (conteúdo **e** bit de execução) | |
+
+> `tests/output/*` e `tests/score` entraram no checksum em 2026-07-19: sem eles, um gabarito ou
+> uma pontuação corrigida **nunca chegava ao juiz** (o cache do problema não invalidava).
 
 Se o checksum do pacote deixa de bater com o guardado, o TL é considerado **velho** e some (o problema
 passa a aparecer como "precisa recalibrar"). Ou seja: **corrigir um typo no enunciado não força
