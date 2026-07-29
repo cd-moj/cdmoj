@@ -154,6 +154,18 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
   `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado
   (`badges-view`).
+- **Rodadas do contest** (`lib/contest-rounds.sh` + `handlers/contest/{admin/rounds,rounds,round,
+  admin/round-archive}.sh`): **aquecimento → prova oficial NO MESMO contest** (mesma URL, mesmo
+  login, config preservada). `rounds.json` é o plano; **a rodada ativa É o `conf`** — não torne
+  placar/gate/daemon "conscientes de rodada", a troca é **arquivar + zerar + reapontar** em
+  `contests/<c>/rounds/<slug>/` (com o site estático do `report-gen`, servido por
+  `/contest/round`). A promoção **recusa** com job em voo/veredicto pendente/review aberto (o
+  daemon lê o conf no CONSUMO do spool e o `ingest_result` recria a linha do history), e
+  **preserva** `print-requests/staff-filters.json` e os templates de `docs/` enquanto zera
+  `.seq`, balões, `time-overrides.json` e `resources.json`. Ao mexer, mantenha a fronteira
+  CONFIG × DADO DE RODADA documentada no topo da lib. `CC_KEEP_STATEMENTS=1` (em
+  `cc_build_probs`) existe para a troca não re-baixar o enunciado do banco por cima do que o
+  admin subiu à mão.
 - **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, aba
   **📄 Documentos** do admin e do `.cjudge`): info sheet, caderno (capa + enunciados) e folha de
   time limits, em **PDF+HTML × pt/en**, tudo derivado do que o contest já tem (conf, `PROBS`,

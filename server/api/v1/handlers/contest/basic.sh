@@ -8,6 +8,7 @@ require_contest "$contest"
 
 CONTEST_ID="$contest"; CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0
 LOGIN_START_TIME=""; LOCALE=""; LOGIN_ENABLED=""; FREEZE_TIME=""; SCORE_ANON=""; LANGUAGES=""; SECRET=""
+ROUND=""; ROUND_NAME=""; ROUND_KIND=""
 load_contest_conf "$contest"
 
 source "$_LIBDIR/contest-gate.sh"
@@ -26,9 +27,16 @@ langs_json='[]'
 
 # `secret`: contest SUPER SECRETO (fora das listagens; placar/visual exigem login). O basic
 # em si continua público — a tela de login/countdown precisa do nome p/ quem tem o link.
+# `round`: rodada ATIVA (aquecimento × prova oficial no mesmo contest). O front avisa o time
+# em faixa fixa — competidor não pode confundir aquecimento com prova. null = contest sem rodadas.
+round_json=null
+[[ -n "$ROUND" ]] && round_json="$(jq -cn --arg s "$ROUND" --arg n "${ROUND_NAME:-$ROUND}" \
+   --arg k "${ROUND_KIND:-official}" '{slug:$s, name:$n, kind:$k, warmup:($k == "warmup")}')"
+
 ok_json '{contest_id:$id, contest_name:$name, start_time:$start, end_time:$end,
           login_start_time:$lst, locale:$loc, login_enabled:$le, freeze_time:$fz, score_anon:$sa,
-          languages:$langs, secret:$sec}' \
+          languages:$langs, secret:$sec, round:$round}' \
+  --argjson round "$round_json" \
   --arg id "$CONTEST_ID" --arg name "$CONTEST_NAME" \
   --argjson start "${CONTEST_START:-0}" --argjson end "${CONTEST_END:-0}" \
   --argjson lst "${LOGIN_START_TIME:-0}" --arg loc "$LOCALE" \

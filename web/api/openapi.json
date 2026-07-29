@@ -1982,6 +1982,72 @@
         }
       }
     },
+    "/contest/rounds": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Rodadas do contest (aquecimento / prova oficial) visiveis a este login",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{active, can_manage, rounds:[{slug,name,kind,state,start,end,published,stats,has_report}]}"
+          }
+        }
+      }
+    },
+    "/contest/round": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Serve o relatorio arquivado de uma rodada (site estatico)",
+        "description": "Admin/juiz/chief/staff/cstaff/mon sempre; demais logins so rodada publicada (404 not_published). O caminho e confinado ao diretorio do relatorio.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "round",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "file",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "index.html"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "o arquivo (HTML/PDF/CSS/JS/imagem)"
+          },
+          "404": {
+            "description": "not_published | no_report | file_notfound | round_notfound"
+          }
+        }
+      }
+    },
     "/contest/resources": {
       "get": {
         "tags": [
@@ -4222,6 +4288,197 @@
         "responses": {
           "200": {
             "description": "{answered}"
+          }
+        }
+      }
+    },
+    "/contest/admin/rounds": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Rodadas + checklist de promocao (admin ou juiz-chefe)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{active, rounds[], next, promote_ready:{ok,blockers}}"
+          },
+          "403": {
+            "description": "admin_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "add | set | problems | remove | publish | promote (so admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "add",
+                      "set",
+                      "problems",
+                      "remove",
+                      "publish",
+                      "promote"
+                    ]
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "warmup",
+                      "official",
+                      "extra"
+                    ]
+                  },
+                  "start": {
+                    "type": "integer"
+                  },
+                  "end": {
+                    "type": "integer"
+                  },
+                  "freeze": {
+                    "type": "integer"
+                  },
+                  "problems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "on": {
+                    "type": "boolean"
+                  },
+                  "to": {
+                    "type": "string"
+                  },
+                  "force": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "403": {
+            "description": "admin_required"
+          },
+          "409": {
+            "description": "not_ready (com blockers) | slug_taken | not_pending | round_archived | archive_exists"
+          },
+          "422": {
+            "description": "slug_invalid | epoch_invalid | end_before_start | freeze_outside | kind_invalid"
+          },
+          "429": {
+            "description": "busy (promocao em andamento)"
+          }
+        }
+      }
+    },
+    "/contest/admin/round-archive": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "tar.gz do arquivo CRU da rodada (com codigo-fonte) — so admin",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "round",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "application/gzip"
+          },
+          "404": {
+            "description": "not_archived"
+          }
+        }
+      }
+    },
+    "/contest/admin/machines": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Mapa de maquinas da rodada: time x IP x User-Agent",
+        "description": "Agregado do var/access.log recortado pela janela da rodada. changed = mudou de maquina em relacao a ultima rodada arquivada. Só leitura: sede via /contest/admin/teams, gate de UA via /contest/admin/settings.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "round",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{window, by_login[], by_ip[], uas[], ua_suggestion, totals}"
+          },
+          "403": {
+            "description": "admin_required"
           }
         }
       }

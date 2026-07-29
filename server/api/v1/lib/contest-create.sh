@@ -430,6 +430,10 @@ cc_del_conf_var(){
 # cc_build_probs <target_dir> <problems_json_array> [enun_src_dir] -> ecoa "PROBS=(...)"
 # e grava os enunciados em <target_dir>/enunciados/. Letra: usa .letter se válida, senão A,B,...
 # Retorna 1 em validação inválida.
+# **CC_KEEP_STATEMENTS=1**: não re-busca o enunciado do banco quando o contest JÁ tem
+# `enunciados/<skey>.html`. Sem isso, um problema sem `statement_b64` no spec faz o helper
+# baixar o enunciado do banco e SOBRESCREVER o que o admin subiu à mão (a troca de rodada
+# aplica a lista da rodada e clobberaria os enunciados finais da prova).
 cc_build_probs(){
   local tdir="$1" spec="$2" enun="${3:-}" probs="PROBS=(" i=0
   local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
@@ -452,7 +456,10 @@ cc_build_probs(){
     skey="${pid//\//#}"
     { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || return 1
     html=""
-    if [[ -n "$stmt_b64" ]]; then html="$(printf '%s' "$stmt_b64" | base64 -d 2>/dev/null)" || return 1
+    if [[ "${CC_KEEP_STATEMENTS:-0}" == 1 && -z "$stmt_b64" && -z "$stmt_file" \
+          && -s "$tdir/enunciados/$skey.html" ]]; then
+      : # enunciado já está no contest e o spec não traz outro: preserva o que está no disco
+    elif [[ -n "$stmt_b64" ]]; then html="$(printf '%s' "$stmt_b64" | base64 -d 2>/dev/null)" || return 1
     elif [[ -n "$enun" && -n "$stmt_file" && -f "$enun/$stmt_file" ]]; then html="$(cat "$enun/$stmt_file")"
     elif [[ -n "$bankid" ]]; then bf="$CONTESTSDIR/treino/var/jsons/$bankid.json"; [[ -f "$bf" ]] || bf="$CONTESTSDIR/treino/var/jsons-private/$bankid.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
     else bf="$CONTESTSDIR/treino/var/jsons/$skey.json"; [[ -f "$bf" ]] || bf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"; fi

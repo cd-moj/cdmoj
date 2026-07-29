@@ -252,6 +252,21 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   credenciais — subir competidores depois de criar o contest só com contas administrativas)
   + sessões com **alerta de UA/IP diferente**, deslogar por UA, log de acessos + **backups** dos
   usuários);
+  **Rodadas** (`lib/contest-rounds.sh` + `handlers/contest/admin/rounds.sh` — **aquecimento
+  (dress rehearsal) e prova oficial no MESMO contest**: mesma URL, mesmo login, config intacta.
+  `rounds.json` é o PLANO (janela + lista de problemas por rodada) e a rodada **ATIVA continua
+  sendo o `conf`** — nada no caminho quente (placar, gates, daemon) fica "consciente de rodada".
+  **Promover** = arquivar + zerar + reapontar, sob `flock`, com checklist que RECUSA enquanto
+  houver job em voo / veredicto pendente / review aberto (um job que atravessasse a troca usaria
+  o `CONTEST_START` novo e o `ingest_result` recriaria a submissão do aquecimento no history da
+  prova). O arquivo `rounds/<slug>/` guarda tudo p/ auditoria — inclusive o **site estático do
+  `report-gen`**, que segue navegável em `/contest/round` (publicável p/ os times) — e o `.seq`
+  da impressão, os balões e a prorrogação por sede voltam ao zero. Config (contas, senhas,
+  sedes, `staff-filters.json`, cores, TL, templates de documento) **sobrevive**);
+  **Máquinas** (`handlers/contest/admin/machines.sh` — time × IP × UA agregado do
+  `var/access.log` pela janela da rodada: é no aquecimento que os times ligam as máquinas, então
+  é ali que se descobre de onde cada um vem, quem divide IP e, na prova, **quem trocou de
+  máquina**; alimenta a sede do time e o gate de UA pelos endpoints que já existem);
   **Documentos** (`web/contest/admin/docs-tab.js` — os três documentos impressos da prova em
   **PDF+HTML × pt/en**: *info sheet* (versões de compilador do `run/registry`, memória/pilha do
   conf, TL calibrado, linguagens), **caderno** (capa + enunciados; usa o **PDF próprio** do
