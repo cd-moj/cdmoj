@@ -174,9 +174,16 @@ rd_apply_obj(){
 # escritor único em handlers/auth/login.sh), recortado pela JANELA da rodada. Nada novo a capturar.
 # rd_machines <c> [<slug>] -> {window, by_login:[…], by_ip:[…], uas:[…], ua_suggestion}
 rd_machines(){
-  local c="$1" s="${2:-}" r cs ce log prev
+  local c="$1" s="${2:-}" r cs ce log prev stored
   [[ -n "$s" ]] || s="$(rd_active "$c")"
   r="$(rd_round "$c" "$s")"; [[ -n "$r" ]] || r='{}'
+  # rodada ARQUIVADA: o machines.json gravado na promoção É o artefato de auditoria (foi medido
+  # com o log e a janela vivos). Só recomputa se ele não existir (arquivo antigo).
+  stored="$(rd_archive_dir "$c" "$s")/machines.json"
+  if [[ "$(jq -r '.state // ""' <<<"$r")" == archived && -s "$stored" ]] \
+     && jq -e '(.by_login | length) > 0' "$stored" >/dev/null 2>&1; then
+    cat "$stored"; return 0
+  fi
   cs="$(jq -r '.start // 0' <<<"$r")"; ce="$(jq -r '.end // 0' <<<"$r")"
   [[ "$cs" =~ ^[0-9]+$ ]] || cs=0; [[ "$ce" =~ ^[0-9]+$ ]] || ce=0
   (( ce > 0 )) || ce=$EPOCHSECONDS
@@ -257,6 +264,11 @@ rd_promote(){
   rd_valid_slug "$from" && rd_valid_slug "$to" || return 1
   ad="$(rd_archive_dir "$c" "$from")"
   [[ -e "$ad" ]] && return 2                          # já arquivado: nunca sobrescreve auditoria
+  # A rodada que sai é fotografada AQUI, antes de qualquer escrita no conf: depois do rd_apply o
+  # espelho conf→json (rd_sync_active) carimbaria a janela da rodada NOVA sobre ela — e o arquivo
+  # (e o mapa de máquinas, que recorta o access.log pela janela) sairia com a janela errada.
+  local from_obj; from_obj="$(rd_round "$c" "$from")"
+  [[ -n "$from_obj" ]] || return 1
   mkdir -p "$ad" || return 1
 
   # 1. fecha o livro de balões e refaz os derivados, p/ o relatório sair coerente
@@ -275,7 +287,7 @@ rd_promote(){
   rd_machines "$c" "$from" > "$ad/machines.json" 2>/dev/null || printf '{}' > "$ad/machines.json"
   cp -f "$cdir/conf" "$ad/conf.snapshot" 2>/dev/null || true
   # meta.json: o arquivo tem de se explicar sozinho quando alguém abrir o tar.gz meses depois
-  jq -cn --arg c "$c" --argjson r "$(rd_round "$c" "$from")" --arg by "$by" \
+  jq -cn --arg c "$c" --argjson r "$from_obj" --arg by "$by" \
      --argjson at "$EPOCHSECONDS" --argjson nu "${nusers:-0}" --argjson ns "${nsubs:-0}" \
      --argjson rep "$([[ -s "$ad/relatorio/index.html" ]] && printf true || printf false)" \
      '{contest:$c, round:($r.slug), name:($r.name), kind:($r.kind),
@@ -334,13 +346,15 @@ rd_promote(){
   touch "$cdir/var/.score-dirty" 2>/dev/null || true
 
   # 6. rounds.json: arquiva a anterior (com as contagens) e ativa a nova
+  # `rd_get` (cru), NÃO rd_sync_active: o espelho só é correto DEPOIS que .active aponta p/ a
+  # rodada nova. A entrada da rodada que saiu vem do retrato tirado no começo.
   local j
-  j="$(rd_sync_active "$c")"
+  j="$(rd_get "$c")"
   j="$(jq -c --arg f "$from" --arg t "$to" --arg by "$by" --argjson at "$EPOCHSECONDS" \
-        --argjson nu "${nusers:-0}" --argjson ns "${nsubs:-0}" '
+        --argjson nu "${nusers:-0}" --argjson ns "${nsubs:-0}" --argjson fo "$from_obj" '
         .active = $t
         | .rounds = [ .rounds[]
-            | if .slug == $f then (. + {state:"archived", promoted_at:$at, promoted_by:$by,
+            | if .slug == $f then ($fo + {state:"archived", promoted_at:$at, promoted_by:$by,
                                         published:(.published // false),
                                         stats:{users:$nu, submissions:$ns}})
               elif .slug == $t then (. + {state:"active"})
