@@ -119,12 +119,35 @@ doc_tl_rows(){
   done
 }
 
-# _doc_toolchain -> linhas "linguagem: versão" reportadas pelos juízes (registry)
+# _doc_lang_name <id> -> nome de exibição da linguagem
+_doc_lang_name(){
+  case "$1" in
+    c) printf C;; cpp) printf 'C++';; py) printf 'Python 3 (PyPy3)';; java) printf Java;;
+    kt) printf Kotlin;; rs) printf Rust;; go) printf Go;; js) printf JavaScript;;
+    sh) printf 'Shell (bash)';; pas) printf Pascal;; cs) printf 'C#';; hs) printf Haskell;;
+    ml) printf OCaml;; pl) printf Prolog;; *) printf '%s' "$1";;
+  esac
+}
+
+# _doc_toolchain [<c>] -> linhas "Linguagem — versão" do que os JUÍZES reportam
+# (`toolchain` do registry, medido DENTRO da jaula pelo agente: judge/agent/inventory.sh).
+# Com o contest, filtra pelas linguagens aceitas nele — a info sheet não lista compilador
+# que ninguém pode usar. Juiz antigo (sem o campo) simplesmente não contribui.
 _doc_toolchain(){
-  find "${REGISTRYDIR:-$RUNDIR/registry}" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
-    | jq -rs '[.[] | (.report.toolchain // .toolchain // {}) | to_entries[]?]
-              | group_by(.key) | map({k:.[0].key, v:(map(.value)|unique|join(" / "))})
-              | sort_by(.k)[] | "\(.k): \(.v)"' 2>/dev/null
+  local c="${1:-}" langs="" tmp
+  [[ -n "$c" ]] && langs="$( . "$CONTESTSDIR/$c/conf" 2>/dev/null; printf '%s' "${LANGUAGES:-}" )"
+  tmp="$(find "${REGISTRYDIR:-$RUNDIR/registry}" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+    | jq -rs --arg only "$langs" '
+        ($only | split(" ") | map(select(. != ""))) as $keep
+        | [ .[] | (.toolchain // .report.toolchain // {}) | to_entries[]? ]
+        | map(.key as $k | select(($keep | length) == 0 or (($keep | index($k)) != null)))
+        | group_by(.key) | map({k: .[0].key, v: (map(.value) | unique | join(" / "))})
+        | sort_by(.k)[] | "\(.k)\t\(.v)"' 2>/dev/null)"
+  local k v
+  while IFS=$'\t' read -r k v; do
+    [[ -n "$k" ]] || continue
+    printf '%s — %s\n' "$(_doc_lang_name "$k")" "$v"
+  done <<<"$tmp"
 }
 
 # _doc_langs_table <c> <lang> -> tabela HTML das linguagens aceitas no contest
@@ -134,14 +157,10 @@ _doc_langs_table(){
   [[ -n "$langs" ]] || { printf '<p>%s</p>' "$(_doc_t "$l" langs)"; return; }
   printf '<table class="doc-tbl"><thead><tr><th>%s</th><th>%s</th></tr></thead><tbody>' \
     "$(_doc_t "$l" langs)" "$([[ "$l" == pt ]] && printf 'Extensão do arquivo' || printf 'File extension')"
-  local x nm
+  local x
   for x in $langs; do
-    case "$x" in
-      c) nm=C;; cpp) nm='C++';; py) nm='Python 3 (PyPy3)';; java) nm=Java;; kt) nm=Kotlin;;
-      rs) nm=Rust;; go) nm=Go;; js) nm=JavaScript;; sh) nm='Shell (bash)';; pas) nm=Pascal;;
-      cs) nm='C#';; hs) nm=Haskell;; ml) nm=OCaml;; *) nm="$x";;
-    esac
-    printf '<tr><td>%s</td><td><code>.%s</code></td></tr>' "$(_doc_escs "$nm")" "$(_doc_escs "$x")"
+    printf '<tr><td>%s</td><td><code>.%s</code></td></tr>' \
+      "$(_doc_escs "$(_doc_lang_name "$x")")" "$(_doc_escs "$x")"
   done
   printf '</tbody></table>'
 }
@@ -177,7 +196,7 @@ _doc_html_infosheet(){
       "$tpl" > "$tmp"
   local body; body="$(render_markdown_html < "$tmp" 2>/dev/null)"
   rm -f "$tmp"
-  local tc; tc="$(_doc_toolchain)"
+  local tc; tc="$(_doc_toolchain "$c")"
   local tchtml="<ul>"; while IFS= read -r line; do [[ -n "$line" ]] && tchtml+="<li>$(_doc_escs "$line")</li>"; done <<<"$tc"; tchtml+="</ul>"
   [[ -n "$tc" ]] || tchtml="<p><i>$([[ "$l" == pt ]] && printf 'nenhum juiz reportou versões ainda' || printf 'no judge reported versions yet')</i></p>"
   _doc_html_head "$CNAME — info sheet"
@@ -364,7 +383,11 @@ doc_index(){
   local c="$1" d; d="$(doc_dir "$c")"
   local idx="$d/index.json" pub; pub="$(doc_conf_get "$c" | jq -c '.published // []')"
   [[ -s "$idx" ]] || { printf '[]'; return; }
-  jq -c --argjson p "$pub" 'map(. + {published: (($p | index(.type + "." + .lang)) != null)})' "$idx" 2>/dev/null || printf '[]'
+  # a chave é BINDADA antes (`as $k`): o argumento de `index()` avalia contra a ENTRADA do
+  # pipe — que aqui é `$p`, o array de publicados —, não contra o elemento do map. Sem o
+  # bind dava "Cannot index array with string" e a lista de documentos voltava VAZIA.
+  jq -c --argjson p "$pub" 'map((.type + "." + .lang) as $k
+     | . + {published: (($p | index($k)) != null)})' "$idx" 2>/dev/null || printf '[]'
 }
 
 # doc_index_upsert <c> <entrada-json>

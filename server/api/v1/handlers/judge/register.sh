@@ -1,7 +1,9 @@
 # POST /judge/register   (Bearer mojw_<token>)
 # Anuncia/atualiza a capacidade + inventário de um worker (juiz). Grava
 # $REGISTRYDIR/<host>.json. Chamado pelo agent ao subir e quando o inventário muda.
-# body: {host, capability, arch, cpu, mem_kb, gpu, problems:{id:mtime,...}, inv_hash, boot?}
+# body: {host, capability, arch, cpu, mem_kb, gpu, problems:{id:mtime,...}, langs, toolchain,
+#        inv_hash, boot?}   (`toolchain` = {lang: versão medida DENTRO da jaula; alimenta a
+#        info sheet da prova — lib/contest-docs.sh)
 #   boot:true (só no BOOT do agente) => o servidor RE-ENFILEIRA na hora o que estava atribuído
 #   a este host (jobs + calibrações — os processos morreram no restart; nada espera TTL).
 # resp inclui `config` (a vigente do judges-config.json) — o agente a adota ANTES do 1º
@@ -37,6 +39,7 @@ reg="$(jq -c --argjson now "$EPOCHSECONDS" '
     problems:(.problems// {}),
     problems_count: ((.problems // {}) | length),
     langs:   (.langs   // []),
+    toolchain:(.toolchain // {}),
     cage_root:(.cage_root // null),
     cache_bytes:(.cache_bytes // 0),
     inv_hash:(.inv_hash// null),
