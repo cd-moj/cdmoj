@@ -1,0 +1,38 @@
+/* contest-doc.css — estilo ÚNICO dos documentos da prova (info sheet, caderno, time limits).
+   Alvo: impressão A4 via LibreOffice (soffice --convert-to pdf) — que suporta um subconjunto
+   de CSS. Nada de flex/grid: só o que o importador de HTML do LO entende bem. */
+@page { size: A4; margin: 2cm 1.8cm; }
+
+body { font-family: "DejaVu Serif", Georgia, serif; font-size: 11pt; line-height: 1.45; color: #000; }
+h1 { font-size: 17pt; margin: 0 0 .2em; }
+h2 { font-size: 13.5pt; margin: 1.1em 0 .3em; }
+h3 { font-size: 12pt; margin: .9em 0 .25em; }
+p, li { margin: .35em 0; }
+code, pre { font-family: "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
+pre { background: #f4f4f4; border: 1px solid #ddd; padding: .5em .7em; }
+.sub { color: #333; font-size: 10.5pt; margin-bottom: 1em; }
+.center { text-align: center; }
+.foot { font-size: 9pt; color: #333; margin-top: 2em; border-top: 1px solid #999; padding-top: .4em; }
+
+/* tabelas (time limits, linguagens) */
+table.doc-tbl { border-collapse: collapse; width: 100%; margin: .8em 0; font-size: 10.5pt; }
+table.doc-tbl th, table.doc-tbl td { border: 1px solid #666; padding: .3em .5em; text-align: left; }
+table.doc-tbl th { background: #e8e8e8; }
+table.doc-tbl td.c { text-align: center; }
+
+/* capa */
+.cover { text-align: center; page-break-after: always; }
+.cover h1 { font-size: 20pt; margin-top: 2.5cm; }
+.cover .session { font-size: 15pt; margin: 2.2cm 0 1.4cm; font-weight: normal; }
+.cover .note { margin: 1.2cm 2cm; }
+.cover .sites { margin: 1.2cm 1cm; font-size: 10pt; }
+.cover .ver { margin-top: 2cm; color: #444; }
+
+/* um problema por página no caderno */
+.prob { page-break-before: always; }
+.prob:first-of-type { page-break-before: avoid; }
+.prob h1 { border-bottom: 1.5px solid #000; padding-bottom: .15em; margin-bottom: .6em; }
+
+/* enunciado embutido: o HTML do pacote traz o próprio h1 (título) — some, já temos o cabeçalho */
+.prob h1.moj-title { display: none; }
+.prob img { max-width: 100%; }

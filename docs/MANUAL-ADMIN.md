@@ -22,6 +22,7 @@ na barra do topo.
 | **👥 Times** | Identidade de cada conta no placar: nome do time, país/bandeira, sede/região, universidade, brasão. Carga por CSV e "materializar matches" das regras por regex. |
 | **🎨 Aparência** | Cores dos balões por problema, países/escolas por regex e filtros de região do placar. |
 | **👥 Usuários & sessões** | Criar/resetar/desabilitar contas (individual e em lote), trocar a senha de todos, **sessões ativas** (alertas de multi-IP/UA, deslogar), log de acessos por dia (CSV) e download dos backups dos usuários. É AQUI que você cria as contas de papel (seção 3). |
+| **📄 Documentos** | Gera, em PDF e HTML e nos dois idiomas, os três documentos impressos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados) e **folha de time limits**. Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. A seção 5 explica. |
 | **🖨️ Tarefas do staff** | Panorama e ação sobre a fila de impressão + balões, desempenho por staff e o escopo de cada staff (regex por sede/sala). |
 | **⚖️ Tarefas do judge** | A fila da correção manual: quem pegou cada submissão, votos, idade; decidir/resolver na hora; e a configuração do veredicto manual (opções de rótulo + matriz de auto-veredicto). |
 | **🧾 Auditoria** | Feed unificado de tudo que aconteceu (ações de admin, logins, submissões, veredictos), com filtros e download CSV. |
@@ -100,7 +101,52 @@ O `.admin` também vota (conta como juiz), mas em prova grande deixe o admin liv
 Com **N=1** um único juiz revisa tudo (bom p/ prova pequena); N=2 é o padrão equilibrado;
 N≥3 é para finais onde o veredicto precisa de banca.
 
-## 5. Template de usuários (habilita todas as funções)
+## 5. Documentos da prova (aba 📄 Documentos)
+
+A aba existe para o **`.admin` e para o juiz-chefe (`.cjudge`)**, e produz os três documentos
+que a prova imprime — cada um em **PDF e HTML**, em **português e inglês**:
+
+| Documento | O que sai | De onde vêm os dados |
+|---|---|---|
+| **Informações do ambiente** (*info sheet*) | Versões de compilador de cada linguagem, limite de memória, tamanho de pilha, tempo limite por teste de cada problema e a tabela de linguagens aceitas. | Texto editável (Markdown) + dados vivos: `run/registry` (o que os juízes reportam), o `conf` do contest e o TL calibrado. |
+| **Caderno da prova** | Capa + um enunciado por problema, na ordem das letras. Onde o problema tem **PDF próprio** no contest, é esse PDF que entra (diagramação preservada); senão o enunciado é renderizado. | `PROBS` do contest, `enunciados/<chave>.{pdf,html}` e, se faltar, o enunciado do banco. |
+| **Folha de time limits** | Tabela `letra · nome · tempo limite`, com quebra por linguagem quando o TL difere entre elas, mais a **errata** que você escrever. | O TL **calibrado e servido** aos juízes (`run/tl`). |
+
+**Fluxo, do começo ao fim**
+
+1. **Preencha os dados** (⚙️ *Dados dos documentos*): versão do caderno (`v1.0`), nota da capa
+   e errata. Salve.
+2. **Ajuste a capa**, se quiser (🎨 *Capa do caderno*). São três modos, nesta ordem de
+   precedência: **PDF enviado** › **texto editado** › **capa padrão**. O texto editado é
+   Markdown e aceita marcadores substituídos na geração: `{{CONTEST_NAME}}`, `{{DATE}}`,
+   `{{N_PROBLEMS}}`, `{{N_PAGES}}`, `{{SITES}}`, `{{VERSION}}`. Envie um PDF quando a capa for
+   arte pronta do evento — ela entra como está e o resto do caderno é anexado depois dela.
+3. **Ajuste o texto do info sheet**, se quiser (📝): também Markdown, com os marcadores
+   `{{TOOLCHAIN}}`, `{{TL_TABLE}}`, `{{LANGS_TABLE}}`, `{{MEMLIMIT}}`, `{{STACK}}`,
+   `{{CONTEST_NAME}}` e `{{DATE}}`. Apagar o texto volta ao padrão embarcado.
+4. **Gere** (botão de cada linha, ou *Gerar todos (pt+en)*). Converter os PDFs leva alguns
+   segundos — o caderno é o mais demorado, porque junta um PDF por problema.
+5. **Confira**: cada linha tem **PDF**, **HTML** e **abrir**. Reveja antes de publicar.
+6. **Publique** o que a sede pode ver. Publicar faz duas coisas: o documento passa a aparecer na
+   seção **Prova** da página do contest e o `.cstaff` consegue baixá-lo em **📄 Documentos**.
+   Marcando **+ notícia**, o MOJ ainda cria uma notícia com o PDF anexado.
+   **Despublicar** desfaz (o link some; a notícia, se criada, continua — apague-a na aba de
+   notícias se for o caso).
+
+**Regenerou? Publique de novo não é preciso** — o link publicado aponta para o documento atual,
+então gerar de novo já entrega a versão nova a quem baixar. Mas **avise a sede**: quem já
+imprimiu ficou com a versão velha (é para isso que serve o campo *versão do caderno* na capa).
+
+> ⚠️ **Enunciado não é traduzido.** PT/EN vale para a capa, os títulos, as tabelas e o info
+> sheet. O corpo do enunciado sai no idioma em que foi escrito — o MOJ guarda um enunciado por
+> problema, não dois. Prova bilíngue continua exigindo dois problemas (ou um enunciado que já
+> traga as duas versões).
+
+> 🔒 **Antes de publicar, o caderno é conteúdo de prova**: só `.admin` e `.cjudge` conseguem
+> baixá-lo. Para todo o resto (inclusive `.cstaff` e times) a API responde **404** — não é uma
+> trava de interface.
+
+## 6. Template de usuários (habilita todas as funções)
 
 Cole na carga em lote da aba *Usuários & sessões* (uma linha por conta: `login nome`), ou crie
 um a um com `moj contest -c <cid> users add <login> --name "<nome>"`:
@@ -118,7 +164,7 @@ monitor1.mon     Monitor (responde clarifications)
 Depois: ligue **Veredicto manual** (e ajuste o **Nº de juízes**) nas Configurações; distribua
 as senhas geradas; cada pessoa loga na MESMA tela do contest e vê os botões do seu papel.
 
-## 6. Referências
+## 7. Referências
 
 - [Manual do juiz humano](MANUAL-JUIZ.html) — a operação da aba ⚖️ Avaliar e do juiz-chefe.
 - [Manual do staff](MANUAL-STAFF.html) — impressão, balões, etiquetas, revelação por sede.

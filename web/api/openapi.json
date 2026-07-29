@@ -1920,6 +1920,68 @@
         }
       }
     },
+    "/contest/doc": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Documentos da prova: lista (sem type) ou download (com type)",
+        "description": "Sem `type`: lista os documentos que o login pode baixar. Com `type`: serve o arquivo (PDF/HTML). Admin e juiz-chefe sempre; qualquer outro login so o que estiver PUBLICADO (404 not_published).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "info-sheet",
+                "contest",
+                "times"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pt",
+                "en"
+              ]
+            }
+          },
+          {
+            "name": "fmt",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "pdf",
+              "enum": [
+                "pdf",
+                "html"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{docs:[{type,lang,html_bytes,pdf_bytes,generated_at,by,published}], can_manage} ou o arquivo"
+          },
+          "404": {
+            "description": "not_published | not_generated"
+          }
+        }
+      }
+    },
     "/contest/resources": {
       "get": {
         "tags": [
@@ -4160,6 +4222,147 @@
         "responses": {
           "200": {
             "description": "{answered}"
+          }
+        }
+      }
+    },
+    "/contest/admin/docs": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Documentos da prova: estado, textos e capa (admin ou juiz-chefe)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{docs, config, templates:{info_sheet_pt,info_sheet_en,cover_pt,cover_en}, cover_uploaded:{pt,en}, problems:[{letter,name,has_pdf,has_html}]}"
+          },
+          "403": {
+            "description": "admin_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "config | cover | generate | publish | unpublish",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "config",
+                      "cover",
+                      "generate",
+                      "publish",
+                      "unpublish"
+                    ]
+                  },
+                  "caderno_version": {
+                    "type": "string"
+                  },
+                  "cover_note": {
+                    "type": "string"
+                  },
+                  "errata": {
+                    "type": "string"
+                  },
+                  "info_sheet_pt": {
+                    "type": "string"
+                  },
+                  "info_sheet_en": {
+                    "type": "string"
+                  },
+                  "cover_pt": {
+                    "type": "string"
+                  },
+                  "cover_en": {
+                    "type": "string"
+                  },
+                  "lang": {
+                    "type": "string",
+                    "enum": [
+                      "pt",
+                      "en"
+                    ]
+                  },
+                  "pdf_b64": {
+                    "type": "string",
+                    "description": "capa em PDF (action=cover)"
+                  },
+                  "remove": {
+                    "type": "boolean",
+                    "description": "remove a capa enviada (action=cover)"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "langs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "info-sheet",
+                      "contest",
+                      "times"
+                    ]
+                  },
+                  "news": {
+                    "type": "boolean",
+                    "description": "cria a noticia com o PDF anexo (action=publish)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "400": {
+            "description": "action_invalid | type_invalid | lang_invalid | pdf_invalid"
+          },
+          "403": {
+            "description": "admin_required"
+          },
+          "409": {
+            "description": "not_generated (publicar sem gerar)"
           }
         }
       }

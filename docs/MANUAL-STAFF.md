@@ -27,6 +27,7 @@ Você é a pessoa que fica na sala cuidando das impressões e dos balões. Você
 |---|---|
 | **Score** | O placar (a versão congelada, como um usuário comum). |
 | **🖨️ Impressão** | A fila de impressão e balões da sua sede. É a sua tela principal. |
+| **📄 Documentos** | Os documentos que a organização publicou (info sheet, caderno da prova, folha de time limits) para você baixar e imprimir. |
 | **Sair** | Encerra a sua sessão. |
 
 ### A fila de impressão (`/contest/staff/`)
@@ -75,6 +76,7 @@ Você supervisiona uma sede. Você acompanha a fila da sua sede, imprime as etiq
 | **Score** | O placar (a versão congelada, como um usuário comum). |
 | **🖨️ Impressão** | A fila da sua sede, em modo **somente leitura**. |
 | **🏷️ Etiquetas** | As folhas de credenciais da sua sede, com senha. |
+| **📄 Documentos** | Os documentos publicados da prova, para baixar e imprimir na sede. |
 | **Sair** | Encerra a sua sessão. |
 | **🏆 Revelação** | A cerimônia de revelação da sua sede. Só aparece **depois que a prova encerra para todas as sedes**. |
 
@@ -90,6 +92,22 @@ Aqui está o que a `.staff` não tem: as folhas de credenciais prontas para impr
 - Serve para imprimir as etiquetas das mesas e as credenciais dos times da sua sede.
 - As opções de administração (escolher o arquivo de outra sede, incluir contas desabilitadas) **não aparecem** para você.
 - Todo acesso a esta tela é registrado.
+
+### 📄 Documentos da prova (`/contest/docs/`)
+
+Aqui ficam os documentos que a organização **publicou**, prontos para você baixar e imprimir na sede:
+
+| Documento | O que é |
+|---|---|
+| **Informações do ambiente** | O *info sheet*: versões de compilador, limite de memória e de pilha, linguagens aceitas e o tempo limite de cada problema. Costuma ser afixado na sala ou entregue com o caderno. |
+| **Caderno da prova** | Capa + todos os enunciados. É o que vai impresso na mesa de cada time. |
+| **Folha de time limits** | A tabela `letra · nome · tempo limite` (com errata, se houver). |
+
+Cada um sai em **PDF** (para imprimir) e **HTML**, em **português e em inglês** — escolha a linha do idioma que a sua sede usa. O botão **abrir** mostra o arquivo na hora, para conferir antes de mandar para a impressora.
+
+- Você só vê o que já foi **publicado**. Antes disso, o caderno é conteúdo de prova e nem aparece — inclusive para você.
+- Se a lista estiver vazia, a organização ainda não publicou nada: volte mais perto da prova.
+- **Confira a versão da capa** antes de imprimir em quantidade: se a organização corrigir um enunciado, ela regera o caderno e sobe a versão. Imprimir na véspera pode significar reimprimir.
 
 ### Score congelado
 
@@ -123,6 +141,8 @@ Descongelar tudo e publicar o placar global são ações do **administrador**, n
 | Pegar, imprimir e entregar tarefas da fila | Sim | Não (acesso negado) |
 | Usar o modo automático de impressão | Sim | Não |
 | Ver etiquetas com senha (🏷️ Etiquetas) | Não (acesso negado) | Sim (só a sua sede) |
+| Baixar os documentos publicados (📄 Documentos) | Sim | Sim |
+| Gerar/publicar documentos | Não (é do admin/juiz-chefe) | Não (é do admin/juiz-chefe) |
 | Conduzir a revelação da sua sede (🏆) | Não | Sim (após encerrar todas as sedes) |
 | Enviar solução (competir) | Não | Não |
 | Ver clarifications | Não | Não |

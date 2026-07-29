@@ -317,8 +317,26 @@ function renderResources(items) {
   if (!Array.isArray(items) || !items.length) { hide('resourcesSection'); return; }
   show('resourcesSection');
   const ul = document.getElementById('resourcesList'); ul.innerHTML = '';
-  items.forEach(r => ul.append(el('li', { style: 'margin:.3rem 0' },
-    el('a', { href: r.url || '#', target: '_blank' }, r.label || r.url || ''))));
+  items.forEach(r => {
+    const url = r.url || '#', label = r.label || r.url || '';
+    // recurso da PRÓPRIA API (ex.: documentos da prova) exige Bearer — link cru daria 401.
+    // Busca como blob e abre numa aba; link externo continua sendo <a href> normal.
+    if (url.startsWith('/api/v1/')) {
+      const a = el('a', { href: '#', onclick: async (ev) => {
+        ev.preventDefault();
+        const w = window.open('', '_blank');
+        try {
+          const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + (getToken(CONTEST) || '') } });
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const u = URL.createObjectURL(await resp.blob());
+          if (w) w.location = u; else window.open(u, '_blank');
+        } catch (e) { if (w) w.close(); alert(T('Falha ao abrir o arquivo.', 'Failed to open the file.')); }
+      } }, label);
+      ul.append(el('li', { style: 'margin:.3rem 0' }, a));
+    } else {
+      ul.append(el('li', { style: 'margin:.3rem 0' }, el('a', { href: url, target: '_blank' }, label)));
+    }
+  });
 }
 
 // ---- notificações ao usuário: novidades (notícias) + clarifications respondidas ----------

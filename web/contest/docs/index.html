@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="Contest documents — MOJ">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentos da prova — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+  <main class="container">
+    <h1 style="margin:.2rem 0 .3rem" data-en="📄 Contest documents">📄 Documentos da prova</h1>
+    <p class="muted small" style="margin:.1rem 0 1rem" data-en-html="Download the documents the organization published — testing environment info sheet, problem set and time limits sheet — to print at your site. Print with <b>margins: default</b> and <b>scale: 100%</b>.">Baixe os documentos publicados pela organização — informações do ambiente, caderno da prova e folha de time limits — para imprimir na sua sede. Imprima com <b>margens: padrão</b> e <b>escala: 100%</b>.</p>
+    <div id="app"><p class="muted" data-en="Loading…">carregando…</p></div>
+  </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="./docs.js"></script>
+</body>
+</html>

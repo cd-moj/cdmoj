@@ -154,6 +154,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
   `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado
   (`badges-view`).
+- **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, aba
+  **📄 Documentos** do admin e do `.cjudge`): info sheet, caderno (capa + enunciados) e folha de
+  time limits, em **PDF+HTML × pt/en**, tudo derivado do que o contest já tem (conf, `PROBS`,
+  `enunciados/`, `run/tl`, `run/registry`) — nada de dado novo. **PDF só por `soffice --headless
+  --convert-to pdf`** (não há LaTeX/wkhtmltopdf/chromium na imagem; `pdfunite`/`pdfinfo` juntam e
+  contam). O caderno prefere o **PDF próprio** do problema; a **capa** tem 3 modos (PDF enviado ›
+  markdown editado com marcadores `{{…}}` › gerada) e é **regerada no fim** com o total real de
+  páginas. **PT/EN é só o chrome** — o MOJ não tem enunciado bilíngue; diga isso na UI, não finja.
+  `publish` escreve `resources.json` (seção "Prova") e opcionalmente a notícia com anexo; o gate
+  de download é do handler (`/contest/doc`: não publicado ⇒ **404** p/ quem não é admin/chefe).
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o

@@ -46,6 +46,10 @@ Logo abaixo há um menu de navegação com **Contest**, **Score** (placar), **Cl
 Um **aviso** no topo mostra quando há "novas notícias" e "clarifications respondidas". Ele pisca quando existe uma dúvida sua que foi respondida e você ainda não leu.
 
 Quando existirem, aparecem também as seções **Informações & Notícias** e **Arquivos & Recursos**.
+Em **Arquivos & Recursos** é onde a organização publica os documentos da prova quando quer que
+você os tenha em mãos: as **informações do ambiente** (versões de compilador, limites de memória
+e de tempo), o **caderno da prova** e a **folha de time limits**, cada um em PDF, em português ou
+inglês. Clique no nome para abrir; se a organização não publicou nada, a seção nem aparece.
 
 ### A lista de problemas
 

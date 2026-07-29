@@ -252,6 +252,16 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   credenciais — subir competidores depois de criar o contest só com contas administrativas)
   + sessões com **alerta de UA/IP diferente**, deslogar por UA, log de acessos + **backups** dos
   usuários);
+  **Documentos** (`web/contest/admin/docs-tab.js` — os três documentos impressos da prova em
+  **PDF+HTML × pt/en**: *info sheet* (versões de compilador do `run/registry`, memória/pilha do
+  conf, TL calibrado, linguagens), **caderno** (capa + enunciados; usa o **PDF próprio** do
+  problema quando existe e junta com `pdfunite`, capa regerada no fim com o total real de páginas)
+  e **folha de time limits**; motor em `lib/contest-docs.sh`, PDF por `soffice` — o único engine da
+  imagem. Capa em **3 modos**: PDF enviado › markdown editado (marcadores `{{…}}`) › gerada.
+  **Publicar** escreve o `resources.json` (seção "Prova" do contest) e libera o download p/ a
+  sede (`.cstaff`, página `/contest/docs/`), opcionalmente criando a **notícia com o PDF anexo**;
+  antes de publicar o caderno só existe p/ admin/`.cjudge` — `/contest/doc` responde **404**. A
+  MESMA aba é montada na página do juiz-chefe);
   **Tarefas do staff** (`web/contest/admin/tasks.js` — panorama e AÇÃO: resumo em cards, a fila
   completa de **impressão + balões** de `/contest/staff/queue` com filtros/idade/CSV, o admin
   pode abrir o PDF e marcar processada/entregue, **desempenho por staff** e o **escopo por regex**
@@ -351,7 +361,13 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
     usuário normal (admin libera o completo via `SCORE_FULL_USERS`) e, pós-fim p/ todas as sedes,
     abre a **cerimônia de revelação da sede** (navbutton 🏆). O escopo (mesmo `staff-filters.json`,
     entradas `region:<nome>`/regex) governa fila, etiquetas e cerimônia — **configure-o sempre**
-    (vazio = vê tudo, inclusive todas as senhas).
+    (vazio = vê tudo, inclusive todas as senhas). Baixa também os **📄 Documentos publicados**
+    da prova (`/contest/docs/`) para imprimir na sede.
+
+- **`/contest/docs/`** — **Documentos da prova (só-leitura)**: a mesma aba do admin em modo
+  leitura, montada para `.staff`/`.cstaff` (e qualquer login do contest) — lista o que foi
+  **publicado** e baixa/abre o PDF ou o HTML para imprimir na sede. Quem gera e publica é o
+  admin ou o juiz-chefe; o gate é da API (`/contest/doc` sem publicação = 404).
 
 **Auditoria**: ações administrativas são logadas em `contests/<c>/var/admin-audit.log`
 (e `treino/var/admin-audit.log` no treino) — o contest fica auto-contido.
