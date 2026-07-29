@@ -6,7 +6,8 @@
 #          next, promote_ready:{ok, blockers:[{code,detail}]}}
 # POST {action}:
 #   add      {slug,name?,kind?,start,end,freeze?}   — cria rodada PLANEJADA
-#   set      {slug,name?,start?,end?,freeze?,kind?} — edita (a ATIVA vai direto p/ o conf)
+#   set      {slug,new_slug?,name?,start?,end?,freeze?,kind?} — edita/renomeia (a ATIVA vai
+#              direto p/ o conf)
 #   problems {slug, problems:[{bank_id|problem_id,name?,letter?}]}
 #   remove   {slug}            — só rodada planejada (arquivada é auditoria, nunca some)
 #   publish  {slug, on:bool}   — arquivo da rodada visível p/ os times
@@ -76,6 +77,21 @@ case "$action" in
     fz="$(jq -r '.freeze // 0' <<<"$cur")"
     { (( fz == 0 )) || { (( fz > $(jq -r '.start' <<<"$cur") )) && (( fz < $(jq -r '.end' <<<"$cur") )); }; } \
       || fail 422 "o freeze deve cair dentro da janela" "freeze_outside"
+    # renomear (o contest nasce com a rodada corrente chamada "oficial"; quem vai rodar
+    # aquecimento primeiro precisa rebatizá-la). Arquivada não muda — o dir rounds/<slug> já existe.
+    if jq -e 'has("new_slug")' "$bodyf" >/dev/null 2>&1; then
+      ns="$(jq -r '.new_slug' "$bodyf")"
+      rd_valid_slug "$ns" || fail 422 "new_slug inválido" "slug_invalid"
+      if [[ "$ns" != "$slug" ]]; then
+        jq -e --arg s "$ns" '(.rounds // []) | map(.slug) | index($s) != null' <<<"$j" >/dev/null 2>&1 \
+          && fail 409 "já existe uma rodada '$ns'" "slug_taken"
+        cur="$(jq -c --arg s "$ns" '.slug=$s' <<<"$cur")"
+        j="$(jq -c --arg o "$slug" --arg s "$ns" \
+             '(if .active == $o then .active = $s else . end)
+              | .rounds = [ .rounds[] | if .slug == $o then (.slug = $s) else . end ]' <<<"$j")"
+        rd_save "$contest" "$j"; slug="$ns"
+      fi
+    fi
     for k in name kind; do
       jq -e --arg k "$k" 'has($k)' "$bodyf" >/dev/null 2>&1 || continue
       v="$(jq -r --arg k "$k" '.[$k]' "$bodyf")"
@@ -84,8 +100,9 @@ case "$action" in
     done
     j="$(jq -c --arg s "$slug" --argjson r "$cur" '.rounds = [ .rounds[] | if .slug == $s then $r else . end ]' <<<"$j")"
     rd_save "$contest" "$j"
-    # a rodada ATIVA vive no conf: aplica na hora (é a mesma escrita da aba Configurações)
-    [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]] && { rd_apply "$contest" "$slug" || fail 500 "Falha ao gravar no conf" "conf_write"; }
+    # a rodada ATIVA vive no conf: aplica na hora, a partir do OBJETO editado (passar pelo slug
+    # releria via rd_sync_active, que re-espelha a janela do conf por cima — edição no-op)
+    [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]] && { rd_apply_obj "$contest" "$cur" || fail 500 "Falha ao gravar no conf" "conf_write"; }
     audit_log_to "$contest" round-set "slug=$slug"
     ok_json '{saved:true, round:$r}' --argjson r "$cur"
     ;;
@@ -113,7 +130,8 @@ case "$action" in
     j="$(jq -c --arg s "$slug" --argjson p "$probs" \
         '.rounds = [ .rounds[] | if .slug == $s then (. + {problems:$p}) else . end ]' <<<"$j")"
     rd_save "$contest" "$j"
-    [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]] && { rd_apply "$contest" "$slug" || fail 422 "Falha ao gravar PROBS" "probs_write"; }
+    cur="$(jq -c --argjson p "$probs" '. + {problems:$p}' <<<"$cur")"
+    [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]] && { rd_apply_obj "$contest" "$cur" || fail 422 "Falha ao gravar PROBS" "probs_write"; }
     audit_log_to "$contest" round-problems "slug=$slug n=$(jq 'length' <<<"$probs")"
     ok_json '{saved:true, n:$n}' --argjson n "$(jq 'length' <<<"$probs")"
     ;;

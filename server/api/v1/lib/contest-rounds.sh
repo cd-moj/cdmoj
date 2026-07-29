@@ -140,8 +140,18 @@ rd_promote_blockers(){
 # CC_KEEP_STATEMENTS=1: não deixa o cc_build_probs re-baixar o enunciado do banco por cima do
 # que o admin subiu à mão (o caderno final da prova!).
 rd_apply(){
-  local c="$1" s="$2" r probs cs ce fz nm
+  local c="$1" s="$2" r
   r="$(rd_round "$c" "$s")"; [[ -n "$r" ]] || return 1
+  rd_apply_obj "$c" "$r"
+}
+
+# rd_apply_obj <c> <round-json> — a versão que recebe o OBJETO. Editar a rodada ATIVA tem de
+# passar por aqui: `rd_apply <slug>` releria a rodada com `rd_round`, que passa pelo
+# rd_sync_active e RE-ESPELHA a janela do conf por cima — a edição virava no-op.
+rd_apply_obj(){
+  local c="$1" r="$2" probs cs ce fz nm s
+  [[ -n "$r" ]] || return 1
+  s="$(jq -r '.slug // ""' <<<"$r")"; [[ -n "$s" ]] || return 1
   cs="$(jq -r '.start // 0' <<<"$r")"; ce="$(jq -r '.end // 0' <<<"$r")"
   fz="$(jq -r '.freeze // 0' <<<"$r")"; nm="$(jq -r '.name // .slug' <<<"$r")"
   probs="$(jq -c '.problems // []' <<<"$r")"

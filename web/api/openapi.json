@@ -4356,6 +4356,10 @@
                   "slug": {
                     "type": "string"
                   },
+                  "new_slug": {
+                    "type": "string",
+                    "description": "renomeia a rodada (action=set; arquivada nao muda)"
+                  },
                   "name": {
                     "type": "string"
                   },
