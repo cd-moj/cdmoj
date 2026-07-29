@@ -24,6 +24,7 @@ const TYPES = [
 
 export function makeDocsTab(CONTEST, opts = {}) {
   const readOnly = !!opts.readOnly;         // .cstaff: só baixa o que está publicado
+  const bare = !!opts.bare;                 // página própria já tem título/introdução
   const panel = el('div', { class: 'section' });
   let DATA = null;
 
@@ -193,13 +194,13 @@ export function makeDocsTab(CONTEST, opts = {}) {
 
   function render() {
     panel.innerHTML = '';
-    panel.append(el('h2', {}, T('📄 Documentos da prova', '📄 Contest documents')));
+    if (!bare) panel.append(el('h2', {}, T('📄 Documentos da prova', '📄 Contest documents')));
     if (readOnly) {
-      panel.append(el('p', { class: 'small muted' },
+      if (!bare) panel.append(el('p', { class: 'small muted' },
         T('Documentos publicados pela organização — baixe e imprima na sede.',
-          'Documents published by the organization — download and print at your site.')),
-        el('div', { class: 'row', style: 'gap:.5rem;margin:.3rem 0' },
-          el('button', { class: 'btn ghost', onclick: load }, '↻')));
+          'Documents published by the organization — download and print at your site.')));
+      panel.append(el('div', { class: 'row', style: 'gap:.5rem;margin:.3rem 0' },
+        el('button', { class: 'btn ghost', onclick: load }, T('↻ atualizar', '↻ refresh'))));
       if (!(DATA.docs || []).length) panel.append(el('div', { class: 'small muted', style: 'margin:.4rem 0' },
         T('A organização ainda não publicou documentos. Volte mais perto da prova.',
           'The organization has not published any documents yet. Check back closer to the contest.')));
@@ -237,8 +238,8 @@ export function makeDocsTab(CONTEST, opts = {}) {
       render();
     } catch (e) {
       panel.innerHTML = '';
-      panel.append(el('h2', {}, T('📄 Documentos da prova', '📄 Contest documents')),
-        el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load')));
+      if (!bare) panel.append(el('h2', {}, T('📄 Documentos da prova', '📄 Contest documents')));
+      panel.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load')));
     }
   }
   return { panel, load };

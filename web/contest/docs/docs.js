@@ -22,7 +22,7 @@ async function boot() {
     return;
   }
   app.innerHTML = '';
-  const tab = makeDocsTab(CONTEST, { readOnly: true });
+  const tab = makeDocsTab(CONTEST, { readOnly: true, bare: true });
   app.append(tab.panel);
   await tab.load();
 }
