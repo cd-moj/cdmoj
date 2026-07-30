@@ -8,9 +8,17 @@ require_contest "$contest"
 require_auth_contest "$contest"
 is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 
-sub="$(grep -m1 '^LOGIN_UA_SUBSTRING=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2-)"
-sub="${sub%\'}"; sub="${sub#\'}"; sub="${sub%\"}"; sub="${sub#\"}"
-[[ -n "$sub" ]] || fail 422 "Defina o filtro de UA (LOGIN_UA_SUBSTRING) primeiro" "no_substring"
+# O esperado é POR TIME (sede): lib/ua-gate.sh resolve (captura no login, override por sede,
+# isentos) e cai no LOGIN_UA_SUBSTRING legado quando não há ua-gate.json.
+source "$_DIR/lib/ua-gate.sh"
+_g="$(ug_get "$contest")"
+if [[ "$(jq -r '.mode' <<<"$_g")" == off ]]; then
+  fail 422 "o gate de UA está desligado (mode:off)" "gate_off"
+fi
+jq -e '(.from_login != null) or ((.by_region|length) > 0) or ((.by_regex|length) > 0)
+       or ((.fallback // "") != "")' <<<"$_g" >/dev/null 2>&1 \
+  || [[ -n "$(ug_legacy "$contest")" ]] \
+  || fail 422 "Configure o gate de UA primeiro (ua-gate.json ou LOGIN_UA_SUBSTRING)" "no_substring"
 
 removed=0
 set +o noglob; shopt -s nullglob
@@ -20,9 +28,9 @@ for f in "$SESSIONDIR"/*; do
   [[ "$CONTEST" == "$contest" ]] || continue
   is_reserved_role_login "$LOGIN" && continue
   ua="$(printf '%s' "$UA_B64" | base64 -d 2>/dev/null)"
-  [[ "$ua" == *"$sub"* ]] && continue
+  ug_ok "$contest" "$LOGIN" "$ua" && continue
   rm -f "$f"; ((removed++))
 done
 shopt -u nullglob
-audit_log_to "$contest" logout-mismatch "substring=$sub removed=$removed"
+audit_log_to "$contest" logout-mismatch "por-sede removed=$removed"
 ok_json '{logged_out:true, sessions_removed:$n}' --argjson n "${removed:-0}"

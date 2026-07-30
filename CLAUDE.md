@@ -154,6 +154,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
   `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado
   (`badges-view`).
+- **Gate de navegador POR SEDE** (`lib/ua-gate.sh` + `handlers/contest/admin/ua-gate.sh`): a
+  imagem de cada sede manda um UA com um pedaço do login do time (`teambrspso001` → `brspso`).
+  `ug_expected` resolve na ordem isentos › papel › `by_regex` › `by_region` › `from_login`
+  (captura `\1`) › `fallback`/`LOGIN_UA_SUBSTRING` legado; `ug_ok` é o match (substring,
+  case-insensitive) e `login.sh`/`logout-mismatch.sh` usam os dois. **`ug_expected_map` é o MESMO
+  programa jq em lote** (`UG_JQ`) — o painel de Máquinas precisa do esperado por time e não pode
+  forkar por login; se mudar a ordem, mude nos dois. Armadilhas jq que isto pisou: `first()` de
+  stream vazio e **`match()` SEM casamento** devolvem VAZIO, e `vazio as $v | …` anula a
+  expressão inteira (use `// null`); `sub()` **não entende `\1`** — as capturas vêm do `match`.
 - **Coortes de placar** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh`): times oficiais ×
   **convidados** (extra-oficiais/"CCL"). Coorte privada não aparece no placar público nem no
   `/contest/teams`; os convidados veem todos; `results_released` libera. O corte **sobe até

@@ -225,8 +225,34 @@ Duas ações saem daqui e escrevem no lugar de sempre:
   daquele IP (o mesmo campo da aba 👥 Times) — o placar, as etiquetas e o escopo do staff passam
   a respeitá-la;
 - **armar o gate de navegador**: o MOJ calcula a **substring comum** aos navegadores vistos e
-  oferece usá-la como `login_ua_substring` (só entra quem usa o navegador da sala). Se os
-  navegadores forem diferentes, ele diz isso em vez de sugerir algo que trancaria alguém fora.
+  oferece usá-la como gate único. Se os navegadores forem diferentes, ele diz isso em vez de
+  sugerir algo que trancaria alguém fora.
+
+### O gate POR SEDE (o caso da maratona)
+
+Quando cada sede roda a **sua** imagem, o UA de cada máquina carrega um pedaço do próprio login
+do time: `teambrspso001` (Brasil/BR, São Paulo/SP, Sorocaba/SO) roda numa imagem cujo UA contém
+`brspso`. Uma substring única não serve — então o MOJ **deriva o esperado do login**:
+
+```
+moj contest -c <cid> ua-gate set --from-login '^team([a-z]{6})[0-9]{3}$' --expect '\1'
+moj contest -c <cid> ua-gate set --region 'Sorocaba=brspso-v2'     # sede fora do padrão
+moj contest -c <cid> ua-gate set --exempt '^ccl' --exempt time-reserva-07
+moj contest -c <cid> ua-gate check teambrspso001                   # o que se espera dele
+moj contest -c <cid> ua-gate show
+```
+
+Uma regra cobre **todas as sedes de uma vez**. A ordem de resolução é: **isentos** › conta de
+papel (sempre entra) › regra por regex › **override da sede** › captura no login › substring
+única (o `login_ua_substring` de sempre, que continua valendo como último recurso).
+
+- Quem não casa é **barrado no login** (403) — a decisão foi barrar, com a lista de **isentos**
+  como margem. `--mode off` desliga o gate sem apagar a configuração.
+- A aba 💻 Máquinas mostra **UA esperado × UA visto** por time e conta quantos estão fora da
+  imagem da sede: é assim que se conserta a sala **no aquecimento**, antes de o gate barrar
+  alguém na prova.
+- Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (aba Usuários),
+  que agora compara cada sessão com o esperado **daquele** time.
 
 ## 8. Times convidados (coortes de placar)
 

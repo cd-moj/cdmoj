@@ -219,9 +219,19 @@ rd_machines(){
       "$(rd_archive_dir "$c" "$prev")/machines.json" > "$tmpp" 2>/dev/null || printf '{}' > "$tmpp"
   fi
 
-  jq -sc --slurpfile users "$tmpu" --slurpfile prev "$tmpp" \
+  # UA ESPERADO por time (gate de navegador por sede): resolvido em LOTE — ver lib/ua-gate.sh.
+  # É o que deixa o painel de Máquinas mostrar "esperado × visto" e consertar a sala no
+  # aquecimento, antes de o gate barrar alguém na prova.
+  local tmpe; tmpe="$(mktemp)"; printf '{}' > "$tmpe"
+  if declare -F ug_expected_map >/dev/null; then
+    ug_expected_map "$c" "$(jq -rc '[.[].login] | unique' <<<"$(jq -sc '.' "$tmpj" 2>/dev/null || echo '[]')" 2>/dev/null || echo '[]')" \
+      "$(jq -c 'with_entries(.value |= .region)' "$tmpu" 2>/dev/null || echo '{}')" > "$tmpe" 2>/dev/null \
+      || printf '{}' > "$tmpe"
+    [[ -s "$tmpe" ]] || printf '{}' > "$tmpe"
+  fi
+  jq -sc --slurpfile users "$tmpu" --slurpfile prev "$tmpp" --slurpfile exp "$tmpe" \
      --arg round "$s" --arg prev_round "$prev" --argjson cs "$cs" --argjson ce "$ce" '
-    ($users[0] // {}) as $U | ($prev[0] // {}) as $P
+    ($users[0] // {}) as $U | ($prev[0] // {}) as $P | ($exp[0] // {}) as $E
     | (group_by(.login) | map({
         login: .[0].login,
         name:  (($U[.[0].login].name) // .[0].login),
@@ -230,10 +240,15 @@ rd_machines(){
         first: (map(.t) | min), last: (map(.t) | max),
         ips: (map(.ip) | unique),
         uas: (map(.ua64) | unique),
-        pairs: (group_by(.ip + " " + .ua64) | map({ip:.[0].ip, ua64:.[0].ua64,
+        pairs: (group_by(.ip + "|" + .ua64) | map({ip:.[0].ip, ua64:.[0].ua64,
                  n:length, first:(map(.t)|min), last:(map(.t)|max)}))
       })) as $BY
     | ($BY | map(.login as $l | . + {
+        ua_expected: ($E[$l] // ""),
+        # o time casa o esperado se ALGUM dos UAs vistos contém a substring (case-insensitive)
+        ua_match: (($E[$l] // "") == "" or
+                   any(.uas[]; (. | @base64d | ascii_downcase)
+                       | contains(($E[$l] // "") | ascii_downcase))),
         multi_ip: ((.ips|length) > 1),
         changed: ( ($P[$l] != null) and
                    (((.ips - ($P[$l].ips // [])) | length) > 0 or
@@ -249,8 +264,9 @@ rd_machines(){
         uas: ([ .[] | .ua64 ] | unique | map({ua64:., n:0})),
         totals: { logins: ($BY2|length), ips: ($BYIP|length),
                   changed: ([$BY2[] | select(.changed)] | length),
-                  shared_ips: ([$BYIP[] | select(.shared)] | length) } }' "$tmpj"
-  rm -f "$tmpj" "$tmpu" "$tmpp"
+                  shared_ips: ([$BYIP[] | select(.shared)] | length),
+                  ua_mismatch: ([$BY2[] | select(.ua_match == false)] | length) } }' "$tmpj"
+  rm -f "$tmpj" "$tmpu" "$tmpp" "$tmpe"
 }
 
 # ---------- promoção -----------------------------------------------------------------------

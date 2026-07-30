@@ -18,19 +18,14 @@ _mexp="$(account_field "$contest" "$u" '.managed.expires_at')"; _mexp="${_mexp//
 [[ -n "$_mexp" ]] && (( _mexp < EPOCHSECONDS )) \
   && fail 403 "Conta expirada — fale com o responsável que a criou" "account_expired"
 
-# Gate por substring de USERAGENT (configurável por contest). Lido com grep (sem
-# sourcing do conf no caminho de auth). Papéis privilegiados (.admin/.judge/.cjudge/.staff/.cstaff/.mon)
-# ficam isentos — para conseguirem entrar e configurar. Racional: o browser da máquina
-# de prova manda um UA único; só quem tem aquele UA loga.
-_ua_sub="$(grep -m1 '^LOGIN_UA_SUBSTRING=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2-)"
-_ua_sub="${_ua_sub%\'}"; _ua_sub="${_ua_sub#\'}"; _ua_sub="${_ua_sub%\"}"; _ua_sub="${_ua_sub#\"}"
-if [[ -n "$_ua_sub" ]]; then
-  case "$u" in
-    *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) ;;   # privilegiados isentos
-    *) [[ "${HTTP_USER_AGENT:-}" == *"$_ua_sub"* ]] \
-         || fail 403 "Login bloqueado: este navegador/máquina não está autorizado para o contest" "ua_gate" ;;
-  esac
-fi
+# Gate por USER-AGENT. Racional: o browser da máquina de prova manda um UA único; só quem tem
+# aquele UA loga. O esperado é POR SEDE — a imagem de cada sede carrega um pedaço do próprio
+# login do time (teambrspso001 -> "brspso") —, com override por sede e lista de isentos:
+# lib/ua-gate.sh resolve tudo e cai no LOGIN_UA_SUBSTRING legado quando não há ua-gate.json.
+# Papéis privilegiados seguem isentos (precisam entrar para configurar).
+source "$_LIBDIR/ua-gate.sh"
+ug_ok "$contest" "$u" "${HTTP_USER_AGENT:-}" \
+  || fail 403 "Login bloqueado: este navegador/máquina não está autorizado para o contest (sede errada?)" "ua_gate"
 
 name="$(user_fullname "$contest" "$u")"
 tok="$(create_session "$contest" "$u" "$name")"

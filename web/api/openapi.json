@@ -4453,6 +4453,126 @@
         }
       }
     },
+    "/contest/admin/ua-gate": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Gate de navegador por sede (admin ou juiz-chefe); ?login= faz dry-run",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "login",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{gate, legacy, regions, check}"
+          },
+          "403": {
+            "description": "admin_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "set | check",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "set",
+                      "check"
+                    ]
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "enforce",
+                      "off"
+                    ]
+                  },
+                  "from_login": {
+                    "type": "object",
+                    "description": "{regex, expect} — expect usa \\1 para a captura",
+                    "properties": {
+                      "regex": {
+                        "type": "string"
+                      },
+                      "expect": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "by_region": {
+                    "type": "object",
+                    "description": "{\"Sede\": \"substring\"}"
+                  },
+                  "by_regex": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "exempt": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "fallback": {
+                    "type": "string"
+                  },
+                  "login": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{saved, gate} ou {check}"
+          },
+          "403": {
+            "description": "admin_required"
+          },
+          "422": {
+            "description": "mode_invalid | regex_invalid | rule_long | too_many"
+          }
+        }
+      }
+    },
     "/contest/admin/machines": {
       "get": {
         "tags": [

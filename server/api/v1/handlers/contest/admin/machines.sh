@@ -17,6 +17,7 @@ require_contest "$contest"
 require_auth_contest "$contest"
 is_admin_or_chief || fail 403 "Apenas o admin ou o juiz-chefe" "admin_required"
 source "$_DIR/lib/users.sh"; source "$_DIR/lib/contest-create.sh"
+source "$_DIR/lib/ua-gate.sh"     # UA esperado por time (gate por sede) no mapa
 source "$_DIR/lib/contest-rounds.sh"
 
 round="$(param round)"

@@ -62,8 +62,16 @@ export function makeMachinesTab(CONTEST) {
         el('td', {}, el('b', {}, r.name || r.login), el('br'), el('span', { class: 'small muted' }, r.login)),
         el('td', {}, r.region || el('span', { class: 'muted' }, '—')),
         el('td', { class: r.multi_ip ? 'flag-anom' : '' }, ips || '—'),
-        el('td', { class: 'small', style: 'max-width:26rem;overflow-wrap:anywhere' }, ua
+        el('td', { class: 'small', style: 'max-width:22rem;overflow-wrap:anywhere' }, ua
           + ((r.uas || []).length > 1 ? T(` (+${r.uas.length - 1})`, ` (+${r.uas.length - 1})`) : '')),
+        // GATE POR SEDE: o que a imagem da sede deste time deveria mandar × o que veio
+        el('td', { class: 'small' + (r.ua_match === false ? ' flag-anom' : '') },
+          r.ua_expected
+            ? [el('code', {}, r.ua_expected), ' ',
+               r.ua_match === false
+                 ? el('span', { class: 'pill', style: 'background:#c0392b;color:#fff' }, T('fora do padrão', 'off-image'))
+                 : el('span', { class: 'pill ok' }, '✓')]
+            : el('span', { class: 'muted' }, T('sem gate', 'no gate'))),
         el('td', { class: 'small' }, fmt(r.first) + (r.logins > 1 ? T(` · ${r.logins} logins`, ` · ${r.logins} logins`) : '')),
         el('td', {}, r.changed ? el('span', { class: 'pill', style: 'background:#c0392b;color:#fff' },
           T('trocou de máquina', 'machine changed')) : (r.multi_ip ? el('span', { class: 'pill' }, T('vários IPs', 'several IPs')) : ''))));
@@ -71,7 +79,8 @@ export function makeMachinesTab(CONTEST) {
     return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
       el('thead', {}, el('tr', {},
         el('th', {}, T('Time', 'Team')), el('th', {}, T('Sede', 'Site')), el('th', {}, 'IP'),
-        el('th', {}, 'User-Agent'), el('th', {}, T('1º login', 'first login')), el('th', {}, ''))), tb));
+        el('th', {}, 'User-Agent'), el('th', {}, T('UA esperado (sede)', 'expected UA (site)')),
+        el('th', {}, T('1º login', 'first login')), el('th', {}, ''))), tb));
   }
 
   function byIpTable() {
@@ -138,14 +147,17 @@ export function makeMachinesTab(CONTEST) {
         T('↔ ver por IP / por time', '↔ view by IP / by team')),
       el('button', { class: 'btn ghost', onclick: () => {
         const rows = [[T('login', 'login'), T('time', 'team'), T('sede', 'site'), 'ip', 'user_agent',
+          T('ua_esperado', 'ua_expected'), T('ua_bate', 'ua_match'),
           T('logins', 'logins'), T('primeiro', 'first'), T('ultimo', 'last'), T('trocou', 'changed')]];
         (DATA.by_login || []).forEach((r) => (r.pairs || []).forEach((p) => rows.push([
-          r.login, r.name, r.region, p.ip, p.ua, p.n, fmt(p.first), fmt(p.last), r.changed ? 'sim' : ''])));
+          r.login, r.name, r.region, p.ip, p.ua, r.ua_expected || '',
+          r.ua_expected ? (r.ua_match === false ? 'nao' : 'sim') : '',
+          p.n, fmt(p.first), fmt(p.last), r.changed ? 'sim' : ''])));
         download('maquinas-' + CONTEST + '-' + (DATA.round || '') + '.csv', toCsv(rows));
       } }, T('⇣ CSV', '⇣ CSV'))));
     panel.append(el('div', { class: 'small muted' },
-      T(`${t.logins || 0} conta(s) · ${t.ips || 0} IP(s) · ${t.changed || 0} trocaram de máquina · ${t.shared_ips || 0} IP(s) compartilhado(s)`,
-        `${t.logins || 0} account(s) · ${t.ips || 0} IP(s) · ${t.changed || 0} changed machine · ${t.shared_ips || 0} shared IP(s)`)),
+      T(`${t.logins || 0} conta(s) · ${t.ips || 0} IP(s) · ${t.changed || 0} trocaram de máquina · ${t.shared_ips || 0} IP(s) compartilhado(s) · ${t.ua_mismatch || 0} fora da imagem da sede`,
+        `${t.logins || 0} account(s) · ${t.ips || 0} IP(s) · ${t.changed || 0} changed machine · ${t.shared_ips || 0} shared IP(s) · ${t.ua_mismatch || 0} off the site image`)),
       msg);
     const body = el('div', {});
     panel.append(body, uaBox());
