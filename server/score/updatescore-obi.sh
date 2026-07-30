@@ -25,7 +25,10 @@ sc_load "${1:-}"
   printf 'obi\n'
   printf 'asc:username:team name'
   for ((p=0; p<SC_NPROB; p++)); do printf ':%s' "${SC_SHORT[p]}"; done
-  printf ':Total\n'
+  printf ':Total'
+  # MOJ_UNRANKED: a visão inclui time EXTRA-OFICIAL (convidado) — coluna final `guest`
+  [[ -n "${MOJ_UNRANKED:-}" ]] && printf ':guest'
+  printf '\n'
 }
 
 # --- cells from metrics (one pass over users/*/metrics.json) ----------------
@@ -36,7 +39,7 @@ done < <(sc_cells)
 
 # --- rows ------------------------------------------------------------------
 {
-  while IFS=$'\t' read -r login full team us uf flag; do
+  while IFS=$'\001' read -r login full team us uf flag coh; do
     total=0
     cells=""
     for ((p=0; p<SC_NPROB; p++)); do
@@ -48,6 +51,8 @@ done < <(sc_cells)
         cells+=":${best}"
       fi
     done
-    printf '%d\t%s:%s%s:%d\n' "$total" "$login" "$team" "$cells" "$total"
+    guest=""
+    [[ -n "${MOJ_UNRANKED:-}" ]] && { guest=":"; [[ " ${MOJ_UNRANKED} " == *" ${coh:-} "* ]] && guest=":1"; }
+    printf '%d\t%s:%s%s:%d%s\n' "$total" "$login" "$team" "$cells" "$total" "$guest"
   done < <(sc_users)
 } | sort -t $'\t' -k1,1nr | cut -f2-

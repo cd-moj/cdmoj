@@ -40,7 +40,12 @@ START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
   printf 'icpc\n'
   printf 'desc:asc:flag:username:univ short:team name:univ full'
   for ((p=0; p<SC_NPROB; p++)); do printf ':%s' "${SC_SHORT[p]}"; done
-  printf ':Total:Penalty:LastAC\n'
+  printf ':Total:Penalty:LastAC'
+  # MOJ_UNRANKED="<coorte> …": a visão inclui time EXTRA-OFICIAL (convidado). Ganha a coluna
+  # final `guest` (1 = convidado) — os parsers acham coluna por NOME no cabeçalho, então quem
+  # não conhece a coluna simplesmente a ignora. A numeração de posição pula os convidados.
+  [[ -n "${MOJ_UNRANKED:-}" ]] && printf ':guest'
+  printf '\n'
 }
 
 # --- cells from metrics (one pass over users/*/metrics.json) ----------------
@@ -56,7 +61,7 @@ done < <(sc_cells)
 mapfile -t SC_ROWS < <(sc_users)
 declare -A FTSMIN
 for row in "${SC_ROWS[@]}"; do
-  IFS=$'\t' read -r login _rest <<<"$row"
+  IFS=$'\001' read -r login _rest <<<"$row"
   for ((p=0; p<SC_NPROB; p++)); do
     key="$login|${SC_CANON[p]}"
     [[ "${CSOL[$key]:-0}" == 1 ]] || continue
@@ -72,7 +77,7 @@ done
 # penalty e lastmin agora TAMBÉM vão no corpo visível (colunas Penalty/LastAC).
 {
   for row in "${SC_ROWS[@]}"; do
-    IFS=$'\t' read -r login full team us uf flag <<<"$row"
+    IFS=$'\001' read -r login full team us uf flag coh <<<"$row"
     solved=0
     penalty=0
     lastmin=0        # minuto de prova do ÚLTIMO problema resolvido (3º desempate)
@@ -95,9 +100,11 @@ done
         cells+=":${tent}/-"              # tried, unsolved
       fi
     done
+    guest=""
+    [[ -n "${MOJ_UNRANKED:-}" ]] && { guest=":"; [[ " ${MOJ_UNRANKED} " == *" ${coh:-} "* ]] && guest=":1"; }
     # chaves de ordenação + a linha visível (com Penalty e LastAC no corpo)
-    printf '%d\t%d\t%d\t%s:%s:%s:%s:%s%s:%d:%d:%d\n' \
+    printf '%d\t%d\t%d\t%s:%s:%s:%s:%s%s:%d:%d:%d%s\n' \
       "$solved" "$penalty" "$lastmin" \
-      "$flag" "$login" "$us" "$team" "$uf" "$cells" "$solved" "$penalty" "$lastmin"
+      "$flag" "$login" "$us" "$team" "$uf" "$cells" "$solved" "$penalty" "$lastmin" "$guest"
   done
 } | sort -t $'\t' -k1,1nr -k2,2n -k3,3n | cut -f4-

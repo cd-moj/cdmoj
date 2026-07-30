@@ -102,13 +102,20 @@ sc_is_real_user() {
   return 0
 }
 
-# sc_users  -> prints, one per line: "login<TAB>fullname<TAB>team<TAB>univshort<TAB>univfull<TAB>flag"
+# sc_users  -> uma linha por time, campos separados por \x01 (SOH):
+#   login \x01 fullname \x01 team \x01 univ_short \x01 univ_full \x01 flag \x01 cohort
+#
+# POR QUE \x01 E NÃO TAB: `IFS=$'\t' read -r a b c …` COLAPSA runs de tab (tab é IFS
+# whitespace), então um campo vazio no meio DESLOCA todos os seguintes — um time com bandeira
+# mas sem `univ_full` tinha a bandeira lida como univ_full (bug silencioso que existia antes da
+# coorte e que a 7ª coluna escancarou). Separador não-whitespace preserva campo vazio.
 #
 # Source: users/*/account.json (batch find|xargs jq — no ARG_MAX, no per-user fork).
 # Team metadata lives in account.json .team {name, univ_short, univ_full, flag} (optional;
 # falls back to fullname). USERS_FROM: shared participants have a LOCAL user dir (history,
 # created on first submit) without a local account.json — their identity comes from the
 # source contest's account.json. Only "real" users are emitted (sc_is_real_user).
+# Saída TSV: login, fullname, team, univ_short, univ_full, flag, **cohort** (7 campos).
 sc_users() {
   local d="$CONTESTDIR/users"
   [[ -d "$d" ]] || return 0
@@ -119,12 +126,32 @@ sc_users() {
   [[ -n "$src" ]] && sc_valid_id "$src" && [[ -d "$CONTESTSDIR/$src/users" ]] \
     && srcdir="$CONTESTSDIR/$src/users"
 
-  local ACCT_JQ='[.login//"", .fullname//"", (.team.name // .fullname // ""),
-                  (.team.univ_short//""), (.team.univ_full//""), (.team.flag//"")] | @tsv'
+  # COORTE (times oficiais × convidados): o 7º campo. `.team.cohort` vence; senão a 1ª coorte
+  # cujo regex casa o login; senão a default. Resolvido AQUI, no mesmo jq que já lê cada
+  # account.json — nada de fork por usuário. `.regex` bindado antes do test (armadilha de
+  # contexto de args do jq). MOJ_COHORTS="id id" filtra a saída; vazio = todas (comportamento
+  # de sempre). É deste funil que saem o rank (ordem das linhas) e a ESTRELA de first-to-solve,
+  # e é por isso que o corte por coorte tem de ser aqui e não no TXT pronto.
+  local CH_JSON='{"cohorts":[]}'
+  if [[ -s "$CONTESTDIR/cohorts.json" ]]; then
+    CH_JSON="$(jq -c '{cohorts:[ (.cohorts // [])[] | {id:(.id//""), regex:(.regex//""),
+                       default:(.default == true)} | select(.id != "") ]}' \
+                 "$CONTESTDIR/cohorts.json" 2>/dev/null)" || CH_JSON='{"cohorts":[]}'
+    [[ -n "$CH_JSON" ]] || CH_JSON='{"cohorts":[]}'
+  fi
+  local ACCT_JQ='(.login // "") as $l
+    | [$l, .fullname//"", (.team.name // .fullname // ""),
+       (.team.univ_short//""), (.team.univ_full//""), (.team.flag//""),
+       ((.team.cohort // "") as $c
+        | if $c != "" then $c
+          else ((first($CH.cohorts[] | .regex as $rr
+                       | select($rr != "" and (try ($l|test($rr;"i")) catch false)) | .id))
+                // (first($CH.cohorts[] | select(.default) | .id)) // "") end)]
+    | map(tostring | gsub("[\t\n\r]"; " ")) | join("\u0001")'
   {
     # contas locais em uma passada
     find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-      | xargs -0 -r jq -r "$ACCT_JQ"
+      | xargs -0 -r jq -r --argjson CH "$CH_JSON" "$ACCT_JQ"
     # participantes compartilhados: dir local sem account.json -> identidade da fonte
     if [[ -n "$srcdir" ]]; then
       ( set +o noglob 2>/dev/null; shopt -s nullglob
@@ -133,17 +160,23 @@ sc_users() {
           login="${ud%/}"; login="${login##*/}"
           [[ -f "$ud/account.json" ]] && continue
           [[ -f "$srcdir/$login/account.json" ]] || continue
-          jq -r "$ACCT_JQ" "$srcdir/$login/account.json" 2>/dev/null
+          jq -r --argjson CH "$CH_JSON" "$ACCT_JQ" "$srcdir/$login/account.json" 2>/dev/null
         done )
     fi
   } | {
-    local login full tn us uf flag
-    while IFS=$'\t' read -r login full tn us uf flag; do
+    local login full tn us uf flag coh
+    local want=" ${MOJ_COHORTS:-} "
+    while IFS=$'\001' read -r login full tn us uf flag coh; do
       sc_is_real_user "$login" || continue
+      # filtro de VISÃO: só as coortes pedidas (vazio = todas)
+      if [[ -n "${MOJ_COHORTS:-}" ]]; then
+        [[ "$want" == *" ${coh:-} "* ]] || continue
+      fi
       [[ -z "$tn" ]] && tn="$full"
       # strip any stray ':' that would break the field layout
       full="${full//:/ }"; tn="${tn//:/ }"; us="${us//:/ }"; uf="${uf//:/ }"; flag="${flag//:/}"
-      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$login" "$full" "$tn" "$us" "$uf" "$flag"
+      printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' \
+        "$login" "$full" "$tn" "$us" "$uf" "$flag" "${coh:-}"
     done
   }
 }

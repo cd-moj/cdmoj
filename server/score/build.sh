@@ -104,18 +104,57 @@ fi
 gen_one() {
   local out="$1" nofreeze="$2" tmp first
   tmp="$(mktemp "$out.XXXXXX")" || die "cannot create temp file next to $out"
-  if ! MOJ_NOFREEZE="$nofreeze" bash "$GEN" "$CONTEST" > "$tmp"; then rm -f "$tmp"; die "generator failed: $GEN $CONTEST"; fi
+  if ! MOJ_NOFREEZE="$nofreeze" MOJ_COHORTS="${VIEW_COHORTS:-}" MOJ_UNRANKED="${VIEW_UNRANKED:-}" \
+       bash "$GEN" "$CONTEST" > "$tmp"; then rm -f "$tmp"; die "generator failed: $GEN $CONTEST"; fi
   first="$(head -1 "$tmp")"
   [[ "$first" == "$MODE" ]] || { rm -f "$tmp"; die "generator '$GEN' line 1 was '$first', expected '$MODE'"; }
   mv "$tmp" "$out" || { rm -f "$tmp"; die "cannot install board to $out"; }
 }
 
-if [[ -n "$FREEZE_RAW" ]] && (( FREEZE_RAW > 0 )); then
-  gen_one "$FULL" 1     # completo (sem freeze) — gera primeiro
-  gen_one "$OUT"  0     # público (com freeze)
+# gen_pair <out-frozen> <out-full> — o par de sempre (com freeze gera os dois; sem freeze,
+# completo == público e o `-full` é removido).
+gen_pair() {
+  local out="$1" full="$2"
+  if [[ -n "$FREEZE_RAW" ]] && (( FREEZE_RAW > 0 )); then
+    gen_one "$full" 1     # completo (sem freeze) — gera primeiro
+    gen_one "$out"  0     # público (com freeze)
+  else
+    rm -f "$full" 2>/dev/null
+    gen_one "$out" 0
+  fi
+}
+
+# COORTES (times oficiais × convidados): quando o contest tem coorte NÃO-pública, cada VISÃO
+# ganha o seu par de placares — `var/placar[-full].txt` continua sendo a visão pública (nada
+# mudou de nome para quem já lia), e cada visão extra vira `var/placar-view-<id>[-full].txt`.
+# Sem cohorts.json (ou com todas as coortes públicas) isto roda exatamente as 1-2 passadas de
+# sempre: nenhum custo novo. Ver server/api/v1/lib/cohorts.sh.
+VIEW_COHORTS=""; VIEW_UNRANKED=""
+CH_LIB="$HERE/../api/v1/lib/cohorts.sh"
+if [[ -s "$CONTESTDIR/cohorts.json" && -r "$CH_LIB" ]]; then
+  # shellcheck source=/dev/null
+  source "$CH_LIB"
+  export CONTESTSDIR
+fi
+
+if declare -F ch_enabled >/dev/null && ch_enabled "$CONTEST"; then
+  mapfile -t VIEWS < <(ch_views "$CONTEST")
+  for v in "${VIEWS[@]}"; do
+    [[ -n "$v" ]] || continue
+    VIEW_COHORTS="$(ch_cohorts_of_view "$CONTEST" "$v")"
+    VIEW_UNRANKED="$(ch_unranked_of_view "$CONTEST" "$v" | tr '\n' ' ' | sed 's/ *$//')"
+    if [[ "$v" == public ]]; then gen_pair "$OUT" "$FULL"
+    else gen_pair "$(ch_view_file "$CONTEST" "$v")" "$(ch_view_file "$CONTEST" "$v" full)"; fi
+  done
+  # placares de visão que sobraram de uma coorte removida não podem seguir servíveis
+  ( set +o noglob; shopt -s nullglob
+    for f in "$CONTESTDIR"/var/placar-view-*.txt; do
+      base="${f##*/placar-view-}"; base="${base%-full.txt}"; base="${base%.txt}"
+      printf '%s\n' "${VIEWS[@]}" | grep -qxF "$base" || rm -f "$f"
+    done )
 else
-  rm -f "$FULL" 2>/dev/null   # sem freeze: completo == público
-  gen_one "$OUT" 0
+  rm -f "$CONTESTDIR"/var/placar-view-*.txt 2>/dev/null
+  gen_pair "$OUT" "$FULL"
 fi
 
 echo "$OUT"

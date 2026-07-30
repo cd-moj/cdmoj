@@ -32,7 +32,7 @@ done < <(sc_cells)
 
 # --- rows ------------------------------------------------------------------
 {
-  while IFS=$'\t' read -r login full team us uf flag; do
+  while IFS=$'\001' read -r login full team us uf flag coh; do
     solved=0
     attempts=0
     for ((p=0; p<SC_NPROB; p++)); do

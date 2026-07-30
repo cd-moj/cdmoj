@@ -62,10 +62,12 @@ echo "== placar icpc (frozen × full) =="
 ck "placar.txt modo icpc" '[[ "$(head -1 "$M/var/placar.txt")" == icpc ]]'
 # alice resolveu A pré-freeze com 2 tentativas: célula 2/23* (min = (1001400-1000000)/60;
 # * = first to solve — só a alice resolveu A)
-ck "alice A = 2/23*, total 1" 'grep -q ":alice:.*:2/23\*::1$" "$M/var/placar.txt"'
+# (o TXT ganhou as colunas Penalty/LastAC depois deste teste — a asserção ancorava no fim da
+# linha e falhava desde então; agora ancora no Total seguido das novas colunas)
+ck "alice A = 2/23*, total 1" 'grep -q ":alice:.*:2/23\*::1:" "$M/var/placar.txt"'
 # bob: AC do B é pós-freeze -> frozen esconde (1/- pendente); full mostra 1/100
 ck "frozen: bob sem solved" 'grep -q ":bob:.*:0$" "$M/var/placar.txt"'
-ck "full: bob B = 1/100* (FTS de B)" 'grep -q ":bob:.*1/100\*:1$" "$M/var/placar-full.txt"'
+ck "full: bob B = 1/100* (FTS de B)" 'grep -q ":bob:.*1/100\*:1:" "$M/var/placar-full.txt"'
 
 echo "== placar obi (best_score dos metrics) =="
 CONTESTSDIR="$TARGET" CONTEST_TYPE=obi bash "$ROOT/score/build.sh" mg >/dev/null 2>&1
