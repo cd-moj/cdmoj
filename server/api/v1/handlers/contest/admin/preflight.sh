@@ -169,9 +169,45 @@ else
   add print warn "Impressão sem staff" "PRINT ligado mas nenhuma conta .staff existe — balões/impressões ficarão sem operador"
 fi
 
+# --- escopo do staff/chefe de sede -------------------------------------------------
+# Sem staff-filters.json (ou com lista vazia), staff_can_see devolve TRUE p/ todo mundo: cada
+# chefe de sede imprime as ETIQUETAS COM SENHA de TODOS os times, não só da sede dele.
+sfj="$cdir/print-requests/staff-filters.json"
+cstaff_n="$(find "$cdir/users" -maxdepth 1 -type d -name '*.cstaff' 2>/dev/null | wc -l | tr -d '[:space:]')"
+cstaff_n="${cstaff_n//[^0-9]/}"; cstaff_n="${cstaff_n:-0}"
+if (( cstaff_n + staff_n <= 1 )); then
+  add staff_filters ok "Escopo do staff" "$(( cstaff_n + staff_n )) conta(s) de staff — sem sede p/ separar"
+else
+  scoped=0
+  if [[ -s "$sfj" ]]; then
+    while IFS= read -r sl; do
+      [[ -n "$sl" ]] || continue
+      [[ -d "$cdir/users/$sl" ]] && (( scoped++ ))
+    done < <(jq -r 'to_entries[] | select((.value // []) | length > 0) | .key' "$sfj" 2>/dev/null)
+  fi
+  if (( scoped >= cstaff_n + staff_n )); then
+    add staff_filters ok "Escopo do staff por sede" "$scoped conta(s) de staff com escopo definido"
+  else
+    add staff_filters warn "Staff sem escopo de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) conta(s) .staff/.cstaff sem filtro: veem a fila e as ETIQUETAS COM SENHA de todos os times (Operação → Staff)"
+  fi
+fi
+
+# --- balões: cor por letra -----------------------------------------------------------
+# Sem balloons.json a cor é o default ICPC A–O (pr_balloon_color); da letra P em diante todo
+# balão sai CINZA — em prova com mais de 15 problemas isso é um problema de verdade no balcão.
+if [[ -s "$cdir/balloons.json" ]]; then
+  nbc="$(jq -r 'length' "$cdir/balloons.json" 2>/dev/null)"; nbc="${nbc//[^0-9]/}"
+  add balloons ok "Cores dos balões" "${nbc:-0} letra(s) com cor definida"
+elif (( nprob > 15 )); then
+  add balloons warn "Balões sem cor a partir da letra P" "$nprob problemas e o default cobre A–O: da letra P em diante o balão sai CINZA (Prova → Balões)"
+else
+  add balloons ok "Cores dos balões (default ICPC)" "A–O no padrão da maratona; defina em Prova → Balões p/ mudar"
+fi
+
 # --- contas ------------------------------------------------------------------------
+# (o `cstaff` PRECISA estar na lista: sem ele o chefe de sede era contado como competidor)
 users_n="$(find "$cdir/users" -maxdepth 2 -name account.json 2>/dev/null \
-  | grep -vcE '\.(admin|judge|cjudge|staff|mon)/account\.json$')"
+  | grep -vcE '\.(admin|judge|cjudge|staff|cstaff|mon)/account\.json$')"
 users_n="${users_n//[^0-9]/}"; users_n="${users_n:-0}"
 if (( users_n > 0 )); then add users ok "Contas de competidores" "$users_n conta(s)"
 else add users warn "Nenhum competidor" "crie as contas (Usuários & sessões → carga em lote)"; fi
@@ -194,8 +230,105 @@ add mode "$([[ "$mode" == icpc ]] && echo ok || echo warn)" "Modo do placar" "$m
                                  || add manual ok "Veredicto manual desligado" "veredicto automático direto ao aluno"
 tov="$cdir/time-overrides.json"
 ntov=0; [[ -s "$tov" ]] && ntov="$(jq -r 'length' "$tov" 2>/dev/null)"; ntov="${ntov//[^0-9]/}"; ntov="${ntov:-0}"
-(( ntov > 0 )) && add tov warn "Prorrogação por sede ativa" "$ntov regra(s) em time-overrides.json" \
-               || add tov ok "Sem prorrogações ativas" "todos seguem o fim normal"
+if (( ntov > 0 )); then
+  # o freeze vale p/ TODO mundo, inclusive quem tem prorrogação: se o fim prorrogado passa do
+  # freeze, aquele grupo joga a última parte com placar congelado (às vezes é o que se quer —
+  # mas tem de ser escolha, não surpresa).
+  maxend="$(jq -r '[.[]?.end // 0] | max // 0' "$tov" 2>/dev/null)"; maxend="${maxend//[^0-9]/}"; maxend="${maxend:-0}"
+  extra=""
+  (( fz > 0 && maxend > CONTEST_END )) && extra=" — o fim prorrogado ($(date -d "@$maxend" '+%d/%m %H:%M' 2>/dev/null)) passa do freeze"
+  add tov warn "Prorrogação por sede ativa" "$ntov regra(s) em time-overrides.json$extra"
+else
+  add tov ok "Sem prorrogações ativas" "todos seguem o fim normal"
+fi
+
+# --- coortes de placar (times convidados) ---------------------------------------------
+source "$_LIBDIR/cohorts.sh"
+chj="$(ch_get "$contest")"
+nch="$(jq -r '(.cohorts // []) | length' <<<"$chj" 2>/dev/null)"; nch="${nch//[^0-9]/}"; nch="${nch:-0}"
+if (( nch == 0 )); then
+  add cohorts ok "Sem coortes" "um placar só, todos oficiais"
+else
+  npriv="$(jq -r '[(.cohorts // [])[] | select(.public == false)] | length' <<<"$chj")"; npriv="${npriv//[^0-9]/}"
+  if ch_released "$contest"; then
+    add cohorts warn "Resultados LIBERADOS" "todas as coortes aparecem no placar público — só depois da cerimônia (Pessoas → Coortes)"
+  else
+    add cohorts ok "Coortes configuradas" "$nch coorte(s), ${npriv:-0} privada(s) fora do placar público"
+  fi
+fi
+
+# --- gate de navegador por sede ---------------------------------------------------------
+source "$_LIBDIR/ua-gate.sh"
+ugj="$(ug_get "$contest")"
+if [[ "$(jq -r '.mode // "off"' <<<"$ugj")" != enforce ]]; then
+  if [[ -n "$(ug_legacy "$contest")" ]]; then
+    add ua_gate warn "Gate de navegador só no LOGIN_UA_SUBSTRING legado" "configure a regra por sede em Pessoas → Máquinas & gate"
+  else
+    add ua_gate ok "Gate de navegador desligado" "qualquer navegador entra (confira a sala no aquecimento)"
+  fi
+else
+  # quem está DENTRO do gate e quem ficou sem regra: o time sem esperado entra de qualquer
+  # navegador — se isso não foi escolha (lista de isentos), é buraco no gate.
+  logins="$(find "$cdir/users" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' 2>/dev/null \
+    | grep -vE '\.(admin|judge|cjudge|staff|cstaff|mon)$' | jq -R . | jq -cs .)"
+  [[ -n "$logins" ]] || logins='[]'
+  ugmap="$(ug_expected_map "$contest" "$logins")"
+  [[ -n "$ugmap" ]] || ugmap='{}'
+  # ISENTO é escolha (a margem do gate); "sem regra" é buraco. Separar os dois é o que faz este
+  # item ser útil — senão a lista de isentos viraria aviso p/ sempre.
+  cnt="$(jq -c --argjson g "$ugj" '
+      [ ($g.exempt // [])[] | tostring | select(length > 0) ] as $ex
+      | to_entries
+      | { gated:  [ .[] | select((.value // "") != "") ] | length,
+          exempt: [ .[] | select((.value // "") == "")
+                        | select(.key as $k | ($ex | any(. as $r | (try ($k|test($r;"i")) catch ($k == $r))))) ] | length,
+          total:  length }' <<<"$ugmap" 2>/dev/null)"
+  [[ -n "$cnt" ]] || cnt='{"gated":0,"exempt":0,"total":0}'
+  ng="$(jq -r '.gated' <<<"$cnt")"; ng="${ng//[^0-9]/}"; ng="${ng:-0}"
+  nx="$(jq -r '.exempt' <<<"$cnt")"; nx="${nx//[^0-9]/}"; nx="${nx:-0}"
+  nt="$(jq -r '.total' <<<"$cnt")"; nt="${nt//[^0-9]/}"; nt="${nt:-0}"
+  nu=$(( nt - ng - nx )); (( nu < 0 )) && nu=0
+  if (( ng == 0 )); then
+    add ua_gate fail "Gate armado mas SEM regra que casa" "modo enforce e nenhum time tem UA esperado — ou a regex não casa os logins, ou todos estão isentos"
+  elif (( nu > 0 )); then
+    add ua_gate warn "Gate armado com $nu time(s) de fora" "$ng com UA esperado, $nu sem regra (entram de qualquer navegador; isentos declarados: $nx) — confira em Pessoas → Máquinas & gate"
+  else
+    add ua_gate ok "Gate de navegador por sede" "$ng time(s) presos à imagem da sede$( (( nx > 0 )) && echo ", $nx isento(s) por escolha")"
+  fi
+fi
+
+# --- rodada seguinte (aquecimento → prova) ------------------------------------------------
+# Só carrega o motor de rodadas quando HÁ rodada planejada: contest sem rodadas (a maioria) não
+# paga nada, e rd_promote_blockers precisa de users.sh + contest-create.sh (cc_probs_json).
+if [[ -s "$cdir/rounds.json" ]]; then
+  nxt="$(jq -r 'first((.rounds // [])[] | select(.state == "pending") | .slug) // ""' "$cdir/rounds.json" 2>/dev/null)"
+  if [[ -z "$nxt" ]]; then
+    add next_round ok "Sem rodada planejada" "a rodada no ar é a última do plano"
+  else
+    declare -F cc_probs_json >/dev/null || { source "$_LIBDIR/users.sh"; source "$_LIBDIR/contest-create.sh"; }
+    source "$_LIBDIR/contest-rounds.sh"
+    rblk="$(rd_promote_blockers "$contest")"; [[ -n "$rblk" ]] || rblk='[]'
+    nb="$(jq -r 'length' <<<"$rblk" 2>/dev/null)"; nb="${nb//[^0-9]/}"; nb="${nb:-0}"
+    if (( nb > 0 )); then
+      add next_round warn "Rodada seguinte: $nxt" "$(jq -r 'map(.detail) | join(" · ")' <<<"$rblk")"
+    else
+      add next_round ok "Rodada seguinte: $nxt" "pronta para promover (Prova → Rodadas)"
+    fi
+  fi
+fi
+
+# --- documentos da prova ------------------------------------------------------------------
+source "$_LIBDIR/contest-docs.sh"
+docs_j="$(doc_index "$contest")"; [[ -n "$docs_j" ]] || docs_j='[]'
+ndoc="$(jq -r 'length' <<<"$docs_j")"; ndoc="${ndoc//[^0-9]/}"; ndoc="${ndoc:-0}"
+npub="$(jq -r '[.[] | select(.published)] | length' <<<"$docs_j")"; npub="${npub//[^0-9]/}"; npub="${npub:-0}"
+if (( ndoc == 0 )); then
+  add docs warn "Nenhum documento gerado" "info sheet, caderno e folha de time limits saem de Prova → Documentos"
+elif (( npub == 0 )); then
+  add docs warn "Documentos gerados mas não publicados" "$ndoc arquivo(s) só visíveis ao admin/chefe"
+else
+  add docs ok "Documentos da prova" "$ndoc gerado(s), $npub publicado(s) p/ a sede"
+fi
 
 ok_json '{checks:$c, summary:{ok:($c|map(select(.level=="ok"))|length),
                               warn:($c|map(select(.level=="warn"))|length),

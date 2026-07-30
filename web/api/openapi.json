@@ -1763,7 +1763,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Checklist pré-prova (janela, SHOWLOG, freeze, juízes online, pool de juízes — estrito: fail se o pool do contest está todo offline; pool_problems p/ overrides por problema — toolchains e TL calibrado no pool efetivo, staff, contas, spool)",
+        "summary": "Checklist pré-prova, a lista da 🏁 Central do painel de admin (janela, SHOWLOG, freeze, juízes online, pool de juízes — estrito: fail se o pool do contest está todo offline; pool_problems p/ overrides por problema — toolchains e TL calibrado no pool efetivo, staff e o ESCOPO do staff, contas (sem contas de papel), balões sem cor, coortes, gate de navegador por sede, rodada seguinte com os bloqueadores, documentos gerados/publicados, prorrogação × freeze, spool)",
         "security": [
           {
             "bearerAuth": []
@@ -1776,7 +1776,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{checks:[{id,level:ok|warn|fail,label,detail}], summary:{ok,warn,fail}}"
+            "description": "{checks:[{id,level:ok|warn|fail,label,detail}], summary:{ok,warn,fail}} — ids: window, show_log, show_code, freeze, judges, pool, langs, problems, pool_problems, print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs"
           }
         }
       }
