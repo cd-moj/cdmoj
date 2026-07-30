@@ -387,3 +387,26 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 table.score tr.guest-row { background: rgba(120,120,120,.07) }
 table.score tr.guest-row .cl-place { color: var(--muted, #777); font-style: italic }
 @media (prefers-color-scheme: dark) { table.score tr.guest-row { background: rgba(255,255,255,.05) } }
+
+/* ---- primitivas de painel (admin de contest e afins) ----
+   Estavam definidas só no <style> de algumas páginas (ou em nenhuma): `.pill` e `.btn.danger`
+   eram usadas no JS de contest sem existir na cascata — pílula virava texto solto e o botão
+   destrutivo ficava igual aos outros. Página com <style> local continua vencendo (carga depois). */
+.pill { display:inline-block; font-size:.78rem; line-height:1.4; padding:.05rem .5rem; border-radius:999px;
+  border:1px solid var(--line); background:#fff; color:var(--muted); white-space:nowrap; }
+.pill.ok { border-color:var(--ok); color:var(--ok); background:var(--ok-bg); }
+.pill.bad { border-color:var(--err); color:#fff; background:var(--err); }
+.btn.danger { background:linear-gradient(180deg,#e0436c,var(--err)); box-shadow:0 2px 8px rgba(190,18,65,.28); }
+.btn.danger:hover { box-shadow:0 4px 14px rgba(190,18,65,.36); }
+.btn.ghost.danger { background:#fff; color:var(--err); border-color:var(--err); box-shadow:none; }
+.btn.ghost.danger:hover { background:var(--err-bg); color:var(--err); }
+.alert { background:#fff7e0; border:1px solid #f3df9e; color:#7a5c00; padding:.5rem .7rem;
+  border-radius:8px; margin:.4rem 0; font-size:.9rem; }
+/* grupo dobrável de campos (configurações avançadas, listas de regra) */
+details.fgroup { border:1px solid var(--line); border-radius:10px; padding:.3rem .7rem; margin:.4rem 0;
+  background:#fff; }
+details.fgroup > summary { cursor:pointer; font-weight:700; padding:.3rem 0; list-style:none;
+  color:var(--blue-dark); }
+details.fgroup > summary::-webkit-details-marker { display:none }
+details.fgroup > summary::before { content:'▸ '; color:var(--blue); }
+details.fgroup[open] > summary::before { content:'▾ '; }

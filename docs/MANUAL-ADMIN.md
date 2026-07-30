@@ -20,10 +20,11 @@ na barra do topo.
 | **⚙️ Configurações** | Todas as opções do contest — a seção 2 explica uma a uma. Inclui a **⏱ Prorrogação por sede/grupo** (regras regex → novo fim; só estende, nunca encurta). |
 | **📚 Problemas** | A prova em si: renomear/reordenar/remover problemas, restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco, e **Adicionar do banco** (busca e sorteio). |
 | **👥 Times** | Identidade de cada conta no placar: nome do time, país/bandeira, sede/região, universidade, brasão. Carga por CSV e "materializar matches" das regras por regex. |
+| **🎭 Coortes** | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o botão **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
 | **🎨 Aparência** | Cores dos balões por problema, países/escolas por regex e filtros de região do placar. |
 | **👥 Usuários & sessões** | Criar/resetar/desabilitar contas (individual e em lote), trocar a senha de todos, **sessões ativas** (alertas de multi-IP/UA, deslogar), log de acessos por dia (CSV) e download dos backups dos usuários. É AQUI que você cria as contas de papel (seção 3). |
 | **🔁 Rodadas** | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + lista de problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
-| **💻 Máquinas** | De onde cada time logou (IP e navegador) em cada rodada, com CSV: mapeia a sala no aquecimento, marca quem trocou de máquina na prova, preenche a sede dos times e arma o gate de navegador. |
+| **💻 Máquinas** | De onde cada time logou (IP e navegador) em cada rodada, com CSV: mapeia a sala no aquecimento, marca quem trocou de máquina na prova, preenche a sede dos times e configura o **gate de navegador por sede** (esperado × visto por time). |
 | **📄 Documentos** | Gera, em PDF e HTML e nos dois idiomas, os três documentos impressos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados) e **folha de time limits**. Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. A seção 5 explica. |
 | **🖨️ Tarefas do staff** | Panorama e ação sobre a fila de impressão + balões, desempenho por staff e o escopo de cada staff (regex por sede/sala). |
 | **⚖️ Tarefas do judge** | A fila da correção manual: quem pegou cada submissão, votos, idade; decidir/resolver na hora; e a configuração do veredicto manual (opções de rótulo + matriz de auto-veredicto). |
@@ -224,15 +225,22 @@ Duas ações saem daqui e escrevem no lugar de sempre:
 - **aplicar sede**: na visão por IP, digitar o nome da sede e clicar grava a **sede** dos times
   daquele IP (o mesmo campo da aba 👥 Times) — o placar, as etiquetas e o escopo do staff passam
   a respeitá-la;
-- **armar o gate de navegador**: o MOJ calcula a **substring comum** aos navegadores vistos e
-  oferece usá-la como gate único. Se os navegadores forem diferentes, ele diz isso em vez de
-  sugerir algo que trancaria alguém fora.
+- **configurar o gate de navegador**: a seção 🔒 no topo da aba (logo abaixo) — os navegadores
+  realmente vistos na rodada ficam listados lá, e cada um pode virar o *fallback* com um clique.
 
 ### O gate POR SEDE (o caso da maratona)
 
 Quando cada sede roda a **sua** imagem, o UA de cada máquina carrega um pedaço do próprio login
 do time: `teambrspso001` (Brasil/BR, São Paulo/SP, Sorocaba/SO) roda numa imagem cujo UA contém
-`brspso`. Uma substring única não serve — então o MOJ **deriva o esperado do login**:
+`brspso`. Uma substring única não serve — então o MOJ **deriva o esperado do login**.
+
+**Na web** (seção 🔒 no topo da aba 💻 Máquinas): a chave **"Barrar quem não vem da imagem da
+sede"** liga/desliga; abaixo dela vão a **regex do login com captura** e o **UA esperado** (`\1`),
+com um **testador ao vivo** ("testar com o login" → *UA precisa conter `brspso` · sede Sorocaba*),
+e três listas dobráveis — **overrides por sede**, **regras por regex de login** e **isentos**.
+Salvar já vale para o próximo login.
+
+**Na CLI**, o mesmo:
 
 ```
 moj contest -c <cid> ua-gate set --from-login '^team([a-z]{6})[0-9]{3}$' --expect '\1'
@@ -270,7 +278,27 @@ de visibilidade própria.
   **intercalado pelo desempenho mas sem consumir posição oficial** — o pódio combinado continua
   batendo com o oficial.
 
-**Como configurar** (CLI hoje; a aba web é o próximo passo):
+**Como configurar (aba 🎭 Coortes)**
+
+Uma linha por coorte, com o que decide o comportamento: **id**, **nome**, **regex do login**,
+**pública** (aparece no placar público), **extra-oficial** (entra sem consumir posição), **padrão**
+(quem não casa nada cai nela) e **vê** — as caixas que dizem quais coortes aquela visão enxerga
+(a coorte sempre vê a si mesma). A coluna **times** conta quantos estão em cada uma.
+
+- **+ criar coorte**: nasce privada e extra-oficial vendo todas — que é o caso do CCL.
+- **atribuir**: escolhe um time e a coorte dele (o campo vence a regex); "— pela regra —" solta o
+  time de volta para o regex.
+- **📌 Materializar (N)**: carimba a coorte de quem hoje só casa por regex — depois disso, mudar o
+  regex não remaneja ninguém. O contador diz quantos times estão nessa situação.
+- **🔓 Liberar resultados**: pede o **id do contest** digitado para confirmar (é irreversível na
+  prática — o placar público passa a mostrar todos).
+- **Placares gerados**: as visões que o `build.sh` mantém (uma por coorte que vê um conjunto
+  diferente, mais a pública).
+
+Para mudar a coorte **padrão**, marque o rádio da outra linha e salve **aquela** linha. Remover
+uma coorte exige que ela esteja **vazia** (e a padrão nunca é removível).
+
+**A mesma coisa na CLI:**
 
 ```
 moj contest -c <cid> cohorts ls

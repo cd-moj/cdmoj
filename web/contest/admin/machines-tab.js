@@ -5,8 +5,9 @@
 // rodada (nada novo é capturado). Na prova oficial, quem loga de IP/UA diferente do aquecimento
 // aparece marcado: time na máquina errada, ou conta emprestada.
 //
-// As AÇÕES reusam o que já existe: preencher a sede é o mesmo POST da aba 👥 Times; armar o gate
-// de navegador é o mesmo POST da aba ⚙️ Configurações (login_ua_substring).
+// As AÇÕES reusam o que já existe: preencher a sede é o mesmo POST da aba 👥 Times. E é AQUI que
+// se configura o GATE DE NAVEGADOR POR SEDE (seção `gateBox`, POST /contest/admin/ua-gate) —
+// porque é aqui que se vê o esperado × visto de cada time, que é o que diz se a regra está certa.
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
@@ -24,7 +25,7 @@ function download(name, text) {
 export function makeMachinesTab(CONTEST) {
   const panel = el('div', { class: 'section' });
   const G = { contest: CONTEST, auth: true };
-  let DATA = null, ROUNDS = [], round = '', filter = '', view = 'login';
+  let DATA = null, ROUNDS = [], GATE = null, round = '', filter = '', view = 'login';
 
   const msg = el('div', { class: 'small', style: 'margin:.4rem 0' });
   const setMsg = (t, cls) => { msg.className = 'small ' + (cls || ''); msg.textContent = t; };
@@ -38,14 +39,136 @@ export function makeMachinesTab(CONTEST) {
       await load();
     } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
   }
-  async function armUaGate(sub) {
-    if (!confirm(T('Trancar o login do contest nos navegadores cujo User-Agent contenha:\n\n', 'Lock contest login to browsers whose User-Agent contains:\n\n') + sub
-      + T('\n\nContas de papel (.admin/.judge/.staff/…) continuam isentas.', '\n\nRole accounts (.admin/.judge/.staff/…) stay exempt.'))) return;
-    try {
-      await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), { login_ua_substring: sub }, G);
-      setMsg(T('✓ gate de navegador armado (quem já entrou continua: use "deslogar divergentes" na aba Usuários)',
-               '✓ browser gate armed (already-logged-in users stay: use "log out mismatched" in the Users tab)'));
-    } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
+  // lista editável (uma linha por item) usada pelos overrides por sede, regras por regex e isentos
+  function listEditor(items, render) {
+    const wrap = el('div', { style: 'display:flex;flex-direction:column;gap:.25rem' });
+    const rows = [];
+    const add = (v) => {
+      const r = render(v || {});
+      rows.push(r);
+      const line = el('div', { class: 'row', style: 'gap:.35rem;align-items:center' }, ...r.els,
+        el('button', { class: 'btn ghost small danger', title: T('remover', 'remove'), onclick: () => { r.dead = true; line.remove(); } }, '✕'));
+      wrap.append(line);
+    };
+    (items || []).forEach(add);
+    return { wrap, add, get: () => rows.filter((r) => !r.dead).map((r) => r.get()).filter((v) => v != null) };
+  }
+
+  // ---- GATE DE NAVEGADOR POR SEDE (POST /contest/admin/ua-gate) ----
+  // A imagem de cada sede manda um UA com um pedaço do login do time (teambrspso001 -> brspso),
+  // então UMA regra com captura cobre todas as sedes; o resto é override/isento. É aqui, e não em
+  // Configurações, porque é aqui que se vê o esperado × visto de cada time.
+  function gateBox() {
+    const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' });
+    const g = (GATE && GATE.gate) || {};
+    const on = (g.mode || 'off') === 'enforce';
+    box.append(el('h3', { style: 'margin:.1rem 0 .3rem' }, T('🔒 Gate de navegador por sede', '🔒 Per-site browser gate')),
+      el('p', { class: 'small muted' },
+        T('A imagem de prova de cada sede manda um User-Agent que carrega um pedaço do login do time (teambrspso001 → brspso). Uma regra com captura cobre todas as sedes de uma vez. Contas de papel (.admin/.judge/.staff/…) nunca são barradas.',
+          'Each site image sends a User-Agent carrying a slice of the team login (teambrspso001 → brspso). One capture rule covers every site at once. Role accounts (.admin/.judge/.staff/…) are never blocked.')));
+
+    const mode = el('input', { type: 'checkbox', checked: on });
+    box.append(el('div', { class: on ? 'alert' : '' },
+      el('label', { class: 'row', style: 'gap:.5rem;align-items:center' }, mode,
+        el('b', {}, T('Barrar quem não vem da imagem da sede', 'Block anyone not coming from the site image')),
+        el('span', { class: 'small muted' }, on
+          ? T('(ativo — o login devolve 403 ua_gate)', '(active — login returns 403 ua_gate)')
+          : T('(desligado — a configuração fica guardada)', '(off — the configuration is kept)')))));
+
+    const rx = el('input', { value: (g.from_login && g.from_login.regex) || '', placeholder: '^team([a-z]{6})[0-9]{3}$', style: 'width:16rem;font-family:var(--mono)' });
+    const ex = el('input', { value: (g.from_login && g.from_login.expect) || '\\1', placeholder: '\\1', style: 'width:7rem;font-family:var(--mono)' });
+    const someLogin = ((DATA && DATA.by_login) || []).map((r) => r.login).find((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon)$/.test(l)) || '';
+    const chkIn = el('input', { value: someLogin, placeholder: T('login do time', 'team login'), style: 'width:11rem;font-family:var(--mono)' });
+    const chkOut = el('span', { class: 'small' }, '—');
+    const doCheck = async () => {
+      const l = chkIn.value.trim(); if (!l) return;
+      chkOut.textContent = '…';
+      try {
+        const r = await apiPost('/contest/admin/ua-gate?contest=' + enc(CONTEST), { action: 'check', login: l }, G);
+        const c = r.check || {};
+        chkOut.innerHTML = '';
+        chkOut.append(c.gated
+          ? el('span', {}, T('UA precisa conter ', 'UA must contain '), el('code', {}, c.expected),
+            c.region ? el('span', { class: 'muted' }, ' · ' + T('sede ', 'site ') + c.region) : null)
+          : el('span', { class: 'pill' }, T('isento (entra com qualquer navegador)', 'exempt (any browser gets in)')));
+      } catch (e) { chkOut.textContent = e.message || T('falha', 'failed'); }
+    };
+    box.append(el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap;align-items:flex-end;margin-top:.4rem' },
+      el('div', { class: 'field' }, el('label', { class: 'small' }, T('regex do login (com captura)', 'login regex (with capture)')), rx),
+      el('div', { class: 'field' }, el('label', { class: 'small' }, T('UA esperado', 'expected UA')), ex),
+      el('div', { class: 'field' }, el('label', { class: 'small' }, T('testar com o login', 'test with login')),
+        el('div', { class: 'row', style: 'gap:.3rem' }, chkIn,
+          el('button', { class: 'btn ghost', onclick: doCheck }, T('testar', 'test')))),
+      el('div', { class: 'field' }, el('label', { class: 'small' }, T('resultado', 'result')), chkOut)));
+    if (someLogin) doCheck();
+
+    const regions = ((GATE && GATE.regions) || []).map((r) => r.name);
+    const byRegion = listEditor(Object.entries(g.by_region || {}).map(([k, v]) => ({ k, v })), (v) => {
+      const k = el('input', { value: v.k || '', placeholder: T('sede', 'site'), list: 'ua-regions-dl', style: 'width:9rem' });
+      const s = el('input', { value: v.v || '', placeholder: 'brspcp-especial', style: 'width:11rem;font-family:var(--mono)' });
+      return { els: [k, el('span', { class: 'muted' }, '→'), s], get: () => (k.value.trim() ? { k: k.value.trim(), v: s.value.trim() } : null) };
+    });
+    const byRegex = listEditor(g.by_regex || [], (v) => {
+      const k = el('input', { value: v.regex || '', placeholder: '^conv', style: 'width:9rem;font-family:var(--mono)' });
+      const s = el('input', { value: v.expect || '', placeholder: 'convidado', style: 'width:11rem;font-family:var(--mono)' });
+      return { els: [k, el('span', { class: 'muted' }, '→'), s], get: () => (k.value.trim() ? { regex: k.value.trim(), expect: s.value.trim() } : null) };
+    });
+    const exempt = listEditor((g.exempt || []).map((s) => ({ s })), (v) => {
+      const k = el('input', { value: v.s || '', placeholder: '^ccl', style: 'width:14rem;font-family:var(--mono)' });
+      return { els: [k], get: () => (k.value.trim() || null) };
+    });
+    const fb = el('input', { value: g.fallback || '', placeholder: T('(nenhum — sem regra, o time entra)', '(none — with no rule the team gets in)'), style: 'width:14rem;font-family:var(--mono)' });
+    const grp = (label, hint, ed, btnLabel) => el('details', { class: 'fgroup' },
+      el('summary', {}, label),
+      el('div', { class: 'small muted', style: 'margin:.2rem 0 .4rem' }, hint),
+      ed.wrap, el('button', { class: 'btn ghost small', style: 'margin-top:.3rem', onclick: () => ed.add({}) }, btnLabel));
+    box.append(
+      grp(T('Overrides por sede', 'Per-site overrides'),
+        T('a sede tem imagem própria e o UA não segue a captura — vence a regra geral.',
+          'the site has its own image and its UA does not follow the capture — beats the general rule.'),
+        byRegion, T('+ sede', '+ site')),
+      grp(T('Regras por regex de login', 'Login regex rules'),
+        T('para grupos que não seguem o padrão de nome (convidados, reservas).',
+          'for groups that do not follow the naming pattern (guests, spares).'),
+        byRegex, T('+ regra', '+ rule')),
+      grp(T('Isentos (a margem)', 'Exempt (the margin)'),
+        T('regex OU login literal: estes times entram de qualquer navegador. É aqui que entra o time cuja máquina falhou.',
+          'regex OR literal login: these teams get in from any browser. This is where the team with a broken machine goes.'),
+        exempt, T('+ isento', '+ exempt')),
+      el('datalist', { id: 'ua-regions-dl' }, ...regions.map((r) => el('option', { value: r }))),
+      el('div', { class: 'field' }, el('label', { class: 'small' }, T('fallback (quem não casa nenhuma regra)', 'fallback (matching no rule)')), fb));
+    // atalho: os UA realmente vistos nesta rodada viram fallback com um clique (era o gate antigo)
+    const uas = (DATA && DATA.uas) || [];
+    if (uas.length) {
+      const ul = el('ul', { style: 'margin:.3rem 0 0 1.1rem' });
+      uas.forEach((u) => ul.append(el('li', { class: 'small', style: 'overflow-wrap:anywhere;margin:.2rem 0' },
+        el('code', {}, u), ' ',
+        el('button', { class: 'btn ghost small', onclick: () => { fb.value = u; } }, T('usar como fallback', 'use as fallback')))));
+      box.append(el('details', { class: 'fgroup' },
+        el('summary', {}, T(`Navegadores vistos nesta rodada (${uas.length})`, `Browsers seen in this round (${uas.length})`)),
+        (GATE && GATE.legacy)
+          ? el('div', { class: 'small muted' }, T('LOGIN_UA_SUBSTRING legado no conf: ', 'legacy LOGIN_UA_SUBSTRING in conf: ') + GATE.legacy)
+          : null,
+        ul));
+    }
+
+    const save = async () => {
+      try {
+        await apiPost('/contest/admin/ua-gate?contest=' + enc(CONTEST), {
+          action: 'set', mode: mode.checked ? 'enforce' : 'off',
+          from_login: rx.value.trim() ? { regex: rx.value.trim(), expect: ex.value.trim() || '\\1' } : null,
+          by_region: Object.fromEntries(byRegion.get().map((o) => [o.k, o.v])),
+          by_regex: byRegex.get(), exempt: exempt.get(), fallback: fb.value.trim(),
+        }, G);
+        setMsg(T('✓ gate salvo. Quem já está logado continua — use "deslogar divergentes" na aba Usuários & sessões.',
+          '✓ gate saved. Already-logged-in users stay — use "log out mismatched" in the Users & sessions tab.'));
+        await load();
+      } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
+    };
+    box.append(el('div', { class: 'row', style: 'gap:.5rem;margin-top:.5rem' },
+      el('button', { class: 'btn', onclick: save }, T('Salvar gate', 'Save gate')),
+      el('button', { class: 'btn ghost', onclick: load }, T('descartar', 'discard'))));
+    return box;
   }
 
   function byLoginTable() {
@@ -103,33 +226,10 @@ export function makeMachinesTab(CONTEST) {
         el('th', {}, ''), el('th', {}, T('Ação', 'Action')))), tb));
   }
 
-  function uaBox() {
-    const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' },
-      el('h3', { style: 'margin:.1rem 0 .4rem' }, T('🔒 Gate de navegador (login_ua_substring)', '🔒 Browser gate (login_ua_substring)')));
-    const uas = DATA.uas || [];
-    if (!uas.length) { box.append(el('p', { class: 'small muted' }, T('nenhum User-Agent registrado nesta rodada', 'no User-Agent recorded in this round'))); return box; }
-    if (DATA.ua_suggestion) {
-      box.append(el('p', { class: 'small' },
-        T('Substring comum a TODOS os navegadores vistos: ', 'Substring common to ALL browsers seen: '),
-        el('code', {}, DATA.ua_suggestion)),
-        el('button', { class: 'btn', onclick: () => armUaGate(DATA.ua_suggestion) },
-          T('usar como gate', 'use as gate')));
-    } else {
-      box.append(el('p', { class: 'small muted' },
-        T('Os navegadores vistos não têm substring comum — um gate único deixaria alguém de fora. Escolha um abaixo (ou padronize a sala antes).',
-          'The browsers seen share no common substring — a single gate would lock someone out. Pick one below (or standardize the room first).')));
-    }
-    const ul = el('ul', { style: 'margin:.4rem 0 0 1.1rem' });
-    uas.forEach((u) => ul.append(el('li', { class: 'small', style: 'overflow-wrap:anywhere;margin:.2rem 0' },
-      el('code', {}, u), ' ',
-      el('button', { class: 'btn ghost', onclick: () => armUaGate(u) }, T('usar', 'use')))));
-    box.append(ul);
-    return box;
-  }
-
   function render() {
     panel.innerHTML = '';
-    panel.append(el('h2', {}, T('💻 Máquinas dos times', '💻 Team machines')),
+    panel.append(gateBox(),
+      el('h2', {}, T('💻 Máquinas dos times', '💻 Team machines')),
       el('p', { class: 'small muted' },
         T('De onde cada time logou nesta rodada (IP e navegador), do log de acessos do contest. Use o aquecimento para mapear a sala: depois, quem aparecer de outra máquina na prova fica marcado.',
           'Where each team logged in from during this round (IP and browser), from the contest access log. Use the warm-up to map the room: afterwards, anyone showing up from another machine during the contest gets flagged.')));
@@ -160,18 +260,19 @@ export function makeMachinesTab(CONTEST) {
         `${t.logins || 0} account(s) · ${t.ips || 0} IP(s) · ${t.changed || 0} changed machine · ${t.shared_ips || 0} shared IP(s) · ${t.ua_mismatch || 0} off the site image`)),
       msg);
     const body = el('div', {});
-    panel.append(body, uaBox());
+    panel.append(body);
     function renderBody() { body.innerHTML = ''; body.append(view === 'ip' ? byIpTable() : byLoginTable()); }
     renderBody();
   }
 
   async function load() {
     try {
-      const [m, rj] = await Promise.all([
+      const [m, rj, ug] = await Promise.all([
         apiGet('/contest/admin/machines?contest=' + enc(CONTEST) + (round ? '&round=' + enc(round) : ''), G),
         apiGet('/contest/admin/rounds?contest=' + enc(CONTEST), G).catch(() => ({ rounds: [] })),
+        apiGet('/contest/admin/ua-gate?contest=' + enc(CONTEST), G).catch(() => null),
       ]);
-      DATA = m; ROUNDS = (rj.rounds || []).filter((r) => r.state !== 'pending');
+      DATA = m; ROUNDS = (rj.rounds || []).filter((r) => r.state !== 'pending'); GATE = ug;
       render();
     } catch (e) {
       panel.innerHTML = '';

@@ -11,6 +11,7 @@ import { makeDocsTab } from './docs-tab.js';
 import { makeRoundsTab } from './rounds-tab.js';
 import { makeMachinesTab } from './machines-tab.js';
 import { makeTeamsTab } from './teams-tab.js';
+import { makeCohortsTab } from './cohorts-tab.js';
 import { makeReviewBoard } from '/shared/review-board.js';
 import { parseUsers, parseRichCsv, downloadCsv } from '/shared/users-batch.js';
 import { T } from '/shared/i18n.js';
@@ -777,6 +778,7 @@ const TABS = [
   { id: 'settings', label: T('⚙️ Configurações', '⚙️ Settings'), make: settingsTab },
   { id: 'problems', label: T('📚 Problemas', '📚 Problems'), make: problemsTab },
   { id: 'teams', label: T('👥 Times', '👥 Teams'), make: () => makeTeamsTab(CONTEST) },
+  { id: 'cohorts', label: T('🎭 Coortes', '🎭 Cohorts'), make: () => makeCohortsTab(CONTEST) },
   { id: 'appearance', label: T('🎨 Aparência', '🎨 Appearance'), make: appearanceTab },
   { id: 'users', label: T('👥 Usuários & sessões', '👥 Users & sessions'), make: usersTab },
   { id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds'), make: () => makeRoundsTab(CONTEST) },

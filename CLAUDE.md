@@ -154,7 +154,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
   `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado
   (`badges-view`).
-- **Gate de navegador POR SEDE** (`lib/ua-gate.sh` + `handlers/contest/admin/ua-gate.sh`): a
+- **Gate de navegador POR SEDE** (`lib/ua-gate.sh` + `handlers/contest/admin/ua-gate.sh`, UI na
+  seção 🔒 do `web/contest/admin/machines-tab.js` — fica lá, e não em Configurações, porque é ali
+  que se vê o **esperado × visto** de cada time; o `armUaGate` antigo, que gravava só
+  `login_ua_substring` via `settings`, deixou de existir): a
   imagem de cada sede manda um UA com um pedaço do login do time (`teambrspso001` → `brspso`).
   `ug_expected` resolve na ordem isentos › papel › `by_regex` › `by_region` › `from_login`
   (captura `\1`) › `fallback`/`LOGIN_UA_SUBSTRING` legado; `ug_ok` é o match (substring,
@@ -163,7 +166,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   forkar por login; se mudar a ordem, mude nos dois. Armadilhas jq que isto pisou: `first()` de
   stream vazio e **`match()` SEM casamento** devolvem VAZIO, e `vazio as $v | …` anula a
   expressão inteira (use `// null`); `sub()` **não entende `\1`** — as capturas vêm do `match`.
-- **Coortes de placar** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh`): times oficiais ×
+- **Coortes de placar** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh`, UI na aba
+  🎭 Coortes = `web/contest/admin/cohorts-tab.js`): times oficiais ×
   **convidados** (extra-oficiais/"CCL"). Coorte privada não aparece no placar público nem no
   `/contest/teams`; os convidados veem todos; `results_released` libera. O corte **sobe até
   `sc_users`** (`score/score-common.sh`, env `MOJ_COHORTS`) porque a ESTRELA de first-to-solve é
