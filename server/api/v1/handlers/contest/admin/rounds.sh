@@ -151,6 +151,14 @@ case "$action" in
     [[ -n "$cur" ]] || fail 404 "rodada não encontrada" "round_notfound"
     [[ "$(jq -r '.state' <<<"$cur")" == archived ]] || fail 409 "só rodada arquivada é publicável" "not_archived"
     on=true; jq -e '.on == false' "$bodyf" >/dev/null 2>&1 && on=false
+    # COORTES: o relatório da rodada traz o placar ABERTO com todos os times. Publicá-lo para os
+    # times antes de liberar os resultados entregaria os convidados de graça.
+    if [[ "$on" == true ]]; then
+      source "$_DIR/lib/cohorts.sh"
+      if ch_enabled "$contest" && ! ch_released "$contest"; then
+        fail 409 "o contest tem coorte de convidados e os resultados não foram liberados — o relatório da rodada mostra todos os times" "cohorts_not_released"
+      fi
+    fi
     j="$(jq -c --arg s "$slug" --argjson on "$on" \
         '.rounds = [ .rounds[] | if .slug == $s then (. + {published:$on}) else . end ]' <<<"$j")"
     rd_save "$contest" "$j"

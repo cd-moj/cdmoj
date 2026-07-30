@@ -30,6 +30,9 @@ let activeRegion = (() => {
 })();
 let searchTerm = '';
 let noAnim = false;
+// COORTES: qual visão de placar pedir ao servidor. '' = a do login (o servidor decide);
+// 'oficial' = só as coortes públicas; 'geral' = tudo (só vale p/ quem já pode ver tudo).
+let cohortView = '';
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
 let refreshTimer = null;
 
@@ -264,7 +267,11 @@ function animateMoves() {
 async function pollScore() {
   clearTimeout(refreshTimer);
   let txt = '';
-  try { txt = await apiGetText('/contest/score?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }); }
+  try {
+    txt = await apiGetText('/contest/score?contest=' + encodeURIComponent(CONTEST)
+      + (cohortView ? '&view=' + encodeURIComponent(cohortView) : ''),
+      { contest: CONTEST, auth: isAuth });
+  }
   catch {
     const box = document.getElementById('scoreContainer');
     if (basic && basic.secret && !isAuth) {
@@ -345,6 +352,28 @@ async function boot() {
     cb.addEventListener('change', () => { anonMode = cb.checked; localStorage.setItem('moj_score_anon_' + CONTEST, cb.checked ? '1' : '0'); reRender(); });
     document.getElementById('noAnim').parentNode.parentNode.append(
       el('label', { class: 'small', style: 'margin-left:.6rem' }, cb, ' ' + T('Anônimo', 'Anonymous')));
+  }
+
+  // COORTES (times oficiais × convidados): aviso p/ quem é convidado e, p/ quem pode ver tudo,
+  // o seletor Oficial × Geral. Sem coortes no contest, `basic.cohort` é null e nada aparece.
+  const coh = basic && basic.cohort;
+  if (coh) {
+    const bar = document.getElementById('noAnim').parentNode.parentNode;
+    if (coh.unranked || !coh.public) {
+      const main = document.querySelector('main.container') || document.body;
+      main.prepend(el('div', { class: 'alert', style: 'font-weight:600' },
+        T(`🏅 Você está na categoria “${coh.name}” (convidado): aparece neste placar, mas fora da classificação oficial.`,
+          `🏅 You are in the “${coh.name}” category (guest): you show up on this scoreboard, but outside the official ranking.`)));
+    }
+    if ((coh.views || []).length > 1) {
+      const sel = el('select', {},
+        el('option', { value: 'geral' }, T('Geral (com convidados)', 'Overall (with guests)')),
+        el('option', { value: 'oficial' }, T('Oficial', 'Official')));
+      sel.value = cohortView || 'geral';
+      sel.addEventListener('change', () => { cohortView = sel.value; pollScore(); });
+      bar.append(el('label', { class: 'small', style: 'margin-left:.6rem' },
+        T('Placar: ', 'Board: '), sel));
+    }
   }
 
   // ordenação por clique no cabeçalho (delegação)

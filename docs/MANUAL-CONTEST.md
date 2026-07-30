@@ -116,6 +116,11 @@ Durante o **congelamento (freeze)**, você vê o placar congelado, igual a todo 
 
 No modo **anônimo**, o placar vira uma visão agregada, sem nomes.
 
+Algumas provas têm **times convidados** (extra-oficiais). Se você for um deles, uma faixa avisa no
+topo do placar: você aparece nele, mas fora da classificação oficial — a sua linha vem marcada
+**convidado** e sem número de posição. O placar que você vê inclui os times oficiais; o placar
+deles não inclui os convidados até a organização liberar os resultados.
+
 Se o contest for secreto e você não estiver logado, é preciso entrar para conseguir ver o placar.
 
 ## 5. Clarifications (`/contest/clarification/?c=<id>`)

@@ -154,6 +154,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
   `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado
   (`badges-view`).
+- **Coortes de placar** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh`): times oficiais ×
+  **convidados** (extra-oficiais/"CCL"). Coorte privada não aparece no placar público nem no
+  `/contest/teams`; os convidados veem todos; `results_released` libera. O corte **sobe até
+  `sc_users`** (`score/score-common.sh`, env `MOJ_COHORTS`) porque a ESTRELA de first-to-solve é
+  um mínimo global sobre a lista de times — filtrar o TXT pronto daria estrela errada. `build.sh`
+  gera um par de placares por VISÃO; `var/placar[-full].txt` continua sendo a pública. Convidado
+  entra intercalado **sem consumir posição** (coluna `guest`, última do TXT, lida por NOME de
+  cabeçalho). Privilegiado (statistics/allsubmissions/staff/relatório) **continua vendo tudo** —
+  de propósito, documentado. Ver `docs/SCOREBOARD.md`.
+  ⚠️ `sc_users` separa campos por **\x01, não TAB**: `IFS=$'\t' read` colapsa runs de tab e
+  campo vazio no meio DESLOCA os seguintes (era bug silencioso com bandeira sem `univ_full`).
 - **Rodadas do contest** (`lib/contest-rounds.sh` + `handlers/contest/{admin/rounds,rounds,round,
   admin/round-archive}.sh`): **aquecimento → prova oficial NO MESMO contest** (mesma URL, mesmo
   login, config preservada). `rounds.json` é o plano; **a rodada ativa É o `conf`** — não torne

@@ -4487,6 +4487,124 @@
         }
       }
     },
+    "/contest/admin/cohorts": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Coortes de placar: oficiais x convidados (admin ou juiz-chefe)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{cohorts, results_released, views, counts, by_regex_only}"
+          },
+          "403": {
+            "description": "admin_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "add | set | rm | assign | materialize | release (so admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "add",
+                      "set",
+                      "rm",
+                      "assign",
+                      "materialize",
+                      "release"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "regex": {
+                    "type": "string",
+                    "description": "casa o login; tem de compilar"
+                  },
+                  "public": {
+                    "type": "boolean"
+                  },
+                  "unranked": {
+                    "type": "boolean",
+                    "description": "aparece sem consumir posicao oficial"
+                  },
+                  "default": {
+                    "type": "boolean"
+                  },
+                  "sees": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "login": {
+                    "type": "string"
+                  },
+                  "cohort": {
+                    "type": "string"
+                  },
+                  "on": {
+                    "type": "boolean",
+                    "description": "release: liberar os resultados"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "403": {
+            "description": "admin_required"
+          },
+          "409": {
+            "description": "id_taken | is_default | cohort_in_use"
+          },
+          "422": {
+            "description": "id_invalid | regex_invalid | too_many"
+          }
+        }
+      }
+    },
     "/contest/admin/docs": {
       "get": {
         "tags": [

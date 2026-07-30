@@ -228,7 +228,51 @@ Duas ações saem daqui e escrevem no lugar de sempre:
   oferece usá-la como `login_ua_substring` (só entra quem usa o navegador da sala). Se os
   navegadores forem diferentes, ele diz isso em vez de sugerir algo que trancaria alguém fora.
 
-## 8. Template de usuários (habilita todas as funções)
+## 8. Times convidados (coortes de placar)
+
+Maratona convida times que **competem sem entrar na disputa oficial** — o pessoal chama de
+convidado, extra-oficial, "CCL". O MOJ trata isso como **coorte**: um grupo de times com política
+de visibilidade própria.
+
+**O que uma coorte privada garante**
+
+- os times dela **não aparecem no placar público**;
+- os times regulares **não sabem que ela existe** — nem no placar, nem no diretório de times
+  (`/contest/teams`, que é público e listava todo login);
+- os **próprios convidados veem todos** (o placar deles traz oficiais + convidados);
+- quando você **libera os resultados**, todo mundo passa a ver todos, e o convidado aparece
+  **intercalado pelo desempenho mas sem consumir posição oficial** — o pódio combinado continua
+  batendo com o oficial.
+
+**Como configurar** (CLI hoje; a aba web é o próximo passo):
+
+```
+moj contest -c <cid> cohorts ls
+moj contest -c <cid> cohorts add ccl --name "Café com Leite" --regex ccl --private --unranked
+moj contest -c <cid> cohorts assign timeconvidado07 ccl     # convidado sem 'ccl' no login
+moj contest -c <cid> cohorts materialize                    # carimba a regra em campo por time
+moj contest -c <cid> cohorts release                        # o "liberamos tudo" (pede o id)
+```
+
+A coorte casa por **regex no login** e/ou pelo campo `.team.cohort` de cada time (o campo vence).
+`materialize` transforma a regra em dado: depois disso, mudar o regex não remaneja ninguém.
+Quem não casa nada cai na coorte **default** (a dos oficiais).
+
+**O que continua completo, de propósito** — são papéis privilegiados, e você precisa deles:
+**⚖️ Todas as Submissões**, **📊 Estatísticas** (inclusive quem resolveu primeiro), a **fila do
+staff** (o balão do convidado tem de ser entregue) e o **relatório final**. Duas consequências
+práticas:
+
+- **não** ligue "ver código das submissões" (`SHOWCODE`) numa prova com convidados: ela abre o
+  fonte de qualquer submissão para qualquer login;
+- **publicar o arquivo de uma rodada** (aba 🔁 Rodadas) exige os resultados liberados quando há
+  coorte privada — o relatório da rodada traz o placar aberto com todos.
+
+> ℹ️ Sobram dois canais **numéricos** que não escondem identidade mas existem: a página de status
+> pública conta as submissões pendentes de **todos** os times, e a numeração de tarefas de
+> impressão é única por contest (saltos indicam atividade que o time não vê).
+
+## 9. Template de usuários (habilita todas as funções)
 
 Cole na carga em lote da aba *Usuários & sessões* (uma linha por conta: `login nome`), ou crie
 um a um com `moj contest -c <cid> users add <login> --name "<nome>"`:
@@ -246,7 +290,7 @@ monitor1.mon     Monitor (responde clarifications)
 Depois: ligue **Veredicto manual** (e ajuste o **Nº de juízes**) nas Configurações; distribua
 as senhas geradas; cada pessoa loga na MESMA tela do contest e vê os botões do seu papel.
 
-## 9. Referências
+## 10. Referências
 
 - [Manual do juiz humano](MANUAL-JUIZ.html) — a operação da aba ⚖️ Avaliar e do juiz-chefe.
 - [Manual do staff](MANUAL-STAFF.html) — impressão, balões, etiquetas, revelação por sede.

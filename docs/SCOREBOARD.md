@@ -58,6 +58,55 @@ BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:2/40:1/55::3/68::4:213:68
 | `heuristic` | melhor Score | Score↓ (Score Ajustado como desempate) | — |
 | `outro` | colunas 100% personalizadas (cabeçalho traz os nomes reais) | já ordenado | se houver coluna `flag`, mostra bandeira |
 
+## Coortes: times oficiais × CONVIDADOS (extra-oficiais / "CCL")
+
+Maratona convida times que competem na mesma prova sem entrar na disputa oficial. Eles **não
+podem aparecer no placar público** e os times regulares não podem nem saber que existem; os
+próprios convidados **veem todos**. Depois que a organização **libera os resultados**, todos
+aparecem juntos. Isso é uma **coorte com política**, não um caso especial no código.
+
+`contests/<c>/cohorts.json` (ausente = comportamento clássico, custo zero):
+
+```json
+{ "version": 1, "results_released": false,
+  "cohorts": [
+    {"id":"oficial","name":"Oficiais","default":true,"public":true},
+    {"id":"ccl","name":"Café com Leite","regex":"ccl","public":false,
+     "unranked":true,"sees":["oficial","ccl"]} ] }
+```
+
+| campo | efeito |
+|---|---|
+| `regex` | casa o **login** (case-insensitive). `.team.cohort` no `account.json` **vence** o regex; sem os dois, o time cai na coorte `default` |
+| `public` | `false` = não entra no placar que todo mundo vê |
+| `unranked` | aparece **intercalado** pelo desempenho mas **não consome posição oficial** (convenção ICPC para time extra-oficial) |
+| `sees` | as coortes que um membro desta enxerga (default: as públicas + ela mesma) |
+| `results_released` | o "liberamos tudo": todos passam a ver todos e o placar público vira o combinado |
+
+**VISÕES são derivadas, não configuradas**: a pública (as `public:true`), uma por coorte privada
+(o `sees` dela) e a completa (`all`, para privilegiado e pós-liberação). `build.sh` gera **um par
+de placares por visão** — `var/placar[-full].txt` continua sendo a pública e cada visão extra vira
+`var/placar-view-<id>[-full].txt`. `/contest/score` escolhe pelo login (`?view=oficial` força a
+pública; `?view=geral` só vale para quem já pode ver tudo).
+
+**Por que o corte sobe até `sc_users` e não fica no TXT pronto:** no TXT a **posição é a ordem das
+linhas**, então filtrar linhas daria posição correta de graça — mas a **estrela de first-to-solve**
+é um mínimo global sobre a saída de `sc_users`. Cortando só no TXT, o placar público exibiria a
+estrela de um problema que, para ele, ninguém resolveu primeiro. `MOJ_COHORTS="<id> …"` é o
+filtro (vazio = todas) e `MOJ_UNRANKED="<id> …"` liga a coluna `guest`.
+
+**A coluna `guest`** (só existe quando a visão tem coorte `unranked`) é a última do TXT, com `1`
+para convidado. Os renderizadores acham coluna por NOME no cabeçalho, então quem não a conhece
+simplesmente a ignora; o front usa para pular a numeração e marcar a linha.
+
+**O que NÃO é recortado** (e está assim de propósito, porque é papel privilegiado):
+`/contest/statistics` (admin/juiz/monitor — inclusive `first_solver` nominal),
+`/contest/allsubmissions`, a fila do staff (o balão do convidado precisa ser entregue) e o
+relatório final do admin. E há canais laterais **numéricos** que continuam existindo:
+`/index/status` conta as submissões pendentes de todos os times do contest, e o contador de
+tarefas de impressão é único. São contagens, não identidade — mas saiba que existem.
+`updatescore-outro.sh` (placar custom) não participa de coortes.
+
 ## Como adicionar um modo novo (ex.: `xyz`)
 
 1. `server/score/updatescore-xyz.sh <contest>` — emite o TXT (1ª linha `xyz` + cabeçalho + linhas

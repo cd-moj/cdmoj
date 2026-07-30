@@ -263,6 +263,13 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   `report-gen`**, que segue navegável em `/contest/round` (publicável p/ os times) — e o `.seq`
   da impressão, os balões e a prorrogação por sede voltam ao zero. Config (contas, senhas,
   sedes, `staff-filters.json`, cores, TL, templates de documento) **sobrevive**);
+  **Coortes** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh` — times oficiais ×
+  **CONVIDADOS** (extra-oficiais/"CCL"): coorte privada não entra no placar público nem no
+  `/contest/teams`, os regulares não sabem que ela existe, os convidados veem todos, e `release`
+  libera tudo. `build.sh` gera **um placar por VISÃO** (`var/placar-view-<id>.txt`) porque a
+  ESTRELA de first-to-solve é um mínimo global sobre `sc_users` — cortar só no TXT pronto daria
+  estrela de problema que, para aquela visão, ninguém resolveu primeiro. Convidado entra
+  intercalado **sem consumir posição oficial** (coluna `guest`). Ver `docs/SCOREBOARD.md`);
   **Máquinas** (`handlers/contest/admin/machines.sh` — time × IP × UA agregado do
   `var/access.log` pela janela da rodada: é no aquecimento que os times ligam as máquinas, então
   é ali que se descobre de onde cada um vem, quem divide IP e, na prova, **quem trocou de

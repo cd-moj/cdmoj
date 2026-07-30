@@ -12,7 +12,7 @@ import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
 import { balloonColorHex, balloonIsDark, balloonSVG } from './score-colors.js';
 
-const SYS = ['flag', 'username', 'univ short', 'team name', 'univ full', 'total', 'penalty', 'lastac'];
+const SYS = ['flag', 'username', 'univ short', 'team name', 'univ full', 'total', 'penalty', 'lastac', 'guest'];
 
 // parse: recebe linhas (já split por \n, sem a 1ª linha do modo) e o mapa de balões.
 export function parseICPC(lines, balloons) {
@@ -26,7 +26,7 @@ export function parseICPC(lines, balloons) {
   const idx = (name) => header.findIndex(h => h.trim().toLowerCase() === name);
   const iFlag = idx('flag'), iUser = idx('username'), iUnivS = idx('univ short'),
         iTeam = idx('team name'), iUnivF = idx('univ full'), iTotal = idx('total'),
-        iPen = idx('penalty'), iLast = idx('lastac');
+        iPen = idx('penalty'), iLast = idx('lastac'), iGuest = idx('guest');
 
   // problemas = colunas que não são do sistema, até "total"
   const probEnd = iTotal >= 0 ? iTotal : header.length;
@@ -47,6 +47,8 @@ export function parseICPC(lines, balloons) {
       total: iTotal >= 0 ? (v[iTotal] || '') : '',
       penalty: iPen >= 0 ? (v[iPen] || '') : '',
       lastac: iLast >= 0 ? (v[iLast] || '') : '',
+      // time CONVIDADO (extra-oficial): aparece intercalado, mas NÃO consome posição oficial
+      guest: iGuest >= 0 && String(v[iGuest] || '').trim() === '1',
       probs: {},
     };
     probIdx.forEach((ci, k) => { t.probs[probShorts[k]] = v[ci] || ''; });
@@ -55,11 +57,15 @@ export function parseICPC(lines, balloons) {
 
   // colocações com empates (placar já vem ORDENADO; só numera). Empate REAL = os três
   // critérios iguais: resolvidos + penalidade + minuto do último AC.
-  teams.forEach((t, i) => {
-    if (i > 0 && teams[i - 1].total === t.total
-        && teams[i - 1].penalty === t.penalty && teams[i - 1].lastac === t.lastac) {
-      t.place = teams[i - 1].place;
-    } else t.place = i + 1;
+  // CONVIDADO (coluna `guest`) aparece na linha certa pelo desempenho mas NÃO consome posição:
+  // a numeração oficial pula ele, então o pódio combinado bate com o placar oficial.
+  let place = 0, prev = null;
+  teams.forEach((t) => {
+    if (t.guest) { t.place = null; return; }
+    if (prev && prev.total === t.total && prev.penalty === t.penalty && prev.lastac === t.lastac) {
+      t.place = prev.place;
+    } else { place++; t.place = place; }
+    prev = t;
   });
 
   return { mode: 'icpc', probShorts, teams, balloons };
@@ -90,8 +96,10 @@ export function renderICPC(parsed, opts) {
 
   const tb = el('tbody');
   teams.forEach(t => {
-    const tr = el('tr', { id: 'tr-team-' + t.username.replace(/\W/g, '_') });
-    tr.append(el('td', { class: 'cl-place' }, String(t.place)));
+    const tr = el('tr', { id: 'tr-team-' + t.username.replace(/\W/g, '_'),
+      class: t.guest ? 'guest-row' : '' });
+    // convidado não tem posição oficial: mostra "–" no lugar do número
+    tr.append(el('td', { class: 'cl-place' }, t.guest ? '–' : String(t.place)));
     // bandeira
     const flagTd = el('td', {});
     if (t.flag) { const fi = flagEl(t.flag, { height: 18, title: t.flagTitle || t.flag }); if (fi) flagTd.append(fi); }
@@ -103,6 +111,10 @@ export function renderICPC(parsed, opts) {
     const teamTd = el('td', { class: 'team', title: t.univFull || t.univShort || '', html: logo + label });
     // foto do time (photo.png subida pelo admin): link clicável, abre em nova aba
     if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
+    if (t.guest) teamTd.append(' ', el('span', { class: 'pill',
+      title: T('Time convidado (extra-oficial): não entra na classificação oficial.',
+               'Guest team (unofficial): does not enter the official ranking.') },
+      T('convidado', 'guest')));
     tr.append(teamTd);
     // problemas
     parsed.probShorts.forEach(sn => {

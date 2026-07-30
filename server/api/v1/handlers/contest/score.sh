@@ -8,7 +8,26 @@ require_contest "$contest"
 # (gate ANTES do regen preguiçoso: anônimo não gasta rebuild)
 require_not_secret_or_auth "$contest"
 
-f="$CONTESTSDIR/$contest/var/placar.txt"
+# COORTES (times oficiais × convidados): quando o contest tem coorte não-pública, cada VISÃO
+# tem o seu placar. O login determina a visão — convidado recebe a dele (com todos), time
+# regular recebe a pública (sem convidado nenhum), privilegiado e pós-liberação recebem a
+# completa. `?view=oficial` força a pública (o pódio oficial continua alcançável depois da
+# liberação). Sem cohorts.json nada disso acontece: é o placar único de sempre.
+# ATENÇÃO: o corte é do SERVIDOR. Os filtros do front (região/país/escola) são client-side
+# sobre o TXT recebido — mandar a linha do convidado e esconder no browser não esconderia nada.
+source "$_LIBDIR/cohorts.sh"
+CH_VIEW=public
+if ch_enabled "$contest"; then
+  vparam="$(param view)"
+  if [[ "$vparam" == oficial ]]; then CH_VIEW=public
+  else
+    load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] \
+      && CH_VIEW="$(ch_view_for_login "$contest" "$SESSION_LOGIN")"
+    # `view=geral` só vale p/ quem já pode ver tudo (privilegiado ou pós-liberação)
+    [[ "$vparam" == geral && "$CH_VIEW" == all ]] && CH_VIEW=all
+  fi
+fi
+f="$(ch_view_file "$contest" "$CH_VIEW")"
 # Cache preguiçoso: (re)gera o placar se a fonte mudou (var/.score-dirty, tocado a cada
 # escrita de history; + conf) ou se ele nunca foi montado. O daemon já reconstrói a cada
 # veredicto (coalescido); isto cobre contests importados cujo placar nunca foi gerado.
@@ -24,6 +43,9 @@ if [[ ! -f "$f" ]] || [[ -z "$(find "$f" -newermt "-$SCORE_SERVE_FLOOR_S seconds
     "$f" "$CONTESTSDIR/$contest/var/.score-dirty" "$CONTESTSDIR/$contest/conf" \
     -- bash "$SCOREDIR/build.sh" "$contest"
 fi
+# uma passada de build gera TODAS as visões, então o gatilho acima (no arquivo da visão pedida)
+# basta — mas a visão pedida pode não existir ainda num contest que acabou de ganhar coortes.
+[[ -f "$f" ]] || bash "$SCOREDIR/build.sh" "$contest" >/dev/null 2>&1
 
 # Privilegiados veem o placar COMPLETO (sem freeze): .admin/.judge SEMPRE + os logins na
 # allowlist do conf (SCORE_FULL_USERS, espaço-separados, configurável pelo .admin — vale
@@ -35,7 +57,7 @@ fi
 # usuários que o cstaff enxerga (staff-filters) — é a cerimônia POR SEDE. Fora da
 # allowlist, o cstaff só recebe o full quando o contest terminou PARA TODOS
 # (contest_over_for_all: fim base + a prorrogação mais tardia de time-overrides.json).
-ff="$CONTESTSDIR/$contest/var/placar-full.txt"
+ff="$(ch_view_file "$contest" "$CH_VIEW" full)"
 sess=0
 load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && sess=1
 if [[ "$(param view)" != public && -f "$ff" && "$sess" == 1 ]]; then

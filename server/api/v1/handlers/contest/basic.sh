@@ -33,10 +33,25 @@ round_json=null
 [[ -n "$ROUND" ]] && round_json="$(jq -cn --arg s "$ROUND" --arg n "${ROUND_NAME:-$ROUND}" \
    --arg k "${ROUND_KIND:-official}" '{slug:$s, name:$n, kind:$k, warmup:($k == "warmup")}')"
 
+# COORTE do login (times oficiais × convidados): o front avisa o convidado que ele está no
+# placar de convidados, e o seletor de visão só aparece p/ quem tem mais de uma. null = contest
+# sem coortes (o caso comum). Precisa de sessão DESTE contest — anônimo não recebe nada.
+cohort_json=null
+source "$_LIBDIR/cohorts.sh"
+if ch_enabled "$contest" && load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]]; then
+  _co="$(ch_of "$contest" "$SESSION_LOGIN")"
+  _cv="$(ch_view_for_login "$contest" "$SESSION_LOGIN")"
+  cohort_json="$(jq -cn --arg i "$_co" --arg v "$_cv" --argjson j "$(ch_get "$contest")" '
+    ($j.cohorts | map(select(.id == $i)) | first // {}) as $c
+    | {id:$i, name:($c.name // $i), unranked:($c.unranked == true), public:($c.public != false),
+       view:$v, released:($j.results_released == true),
+       views:(if $v == "all" then ["geral","oficial"] else [] end)}')"
+fi
+
 ok_json '{contest_id:$id, contest_name:$name, start_time:$start, end_time:$end,
           login_start_time:$lst, locale:$loc, login_enabled:$le, freeze_time:$fz, score_anon:$sa,
-          languages:$langs, secret:$sec, round:$round}' \
-  --argjson round "$round_json" \
+          languages:$langs, secret:$sec, round:$round, cohort:$cohort}' \
+  --argjson round "$round_json" --argjson cohort "$cohort_json" \
   --arg id "$CONTEST_ID" --arg name "$CONTEST_NAME" \
   --argjson start "${CONTEST_START:-0}" --argjson end "${CONTEST_END:-0}" \
   --argjson lst "${LOGIN_START_TIME:-0}" --arg loc "$LOCALE" \
