@@ -56,10 +56,33 @@ export function makeStepInicio(ctx) {
       say(''); ctx.goto(1);
     } catch (e) { say(e.message || T('falha ao exportar', 'failed to export'), true); }
   } }, T('Duplicar →', 'Duplicate →'));
+  // CÓPIA FIEL: o caminho acima passa pelo wizard (o enunciado é re-buscado do banco); este
+  // chama /contest-create/duplicate, que copia os enunciados POR ARQUIVO — é o único jeito de
+  // levar o HTML/PDF que o admin subiu à mão (o caderno da prova!) para o contest novo.
+  const dupId = el('input', { placeholder: T('id novo (minúsculo; vazio = derivado do nome)', 'new id (lowercase; empty = derived from the name)'), style: 'min-width:220px' });
+  const dupName = el('input', { placeholder: T('nome novo (vazio = "Cópia de …")', 'new name (empty = "Cópia de …")'), style: 'min-width:200px' });
+  const dupNow = el('button', { class: 'btn ghost', onclick: async () => {
+    const id = dupSel.value; if (!id) return;
+    const nid = dupId.value.trim().toLowerCase();
+    if (nid && !/^[a-z0-9][a-z0-9-]*$/.test(nid)) { say(T('id inválido: minúsculas, números e hífen (vira subdomínio)', 'invalid id: lowercase, digits and hyphen (it becomes a subdomain)'), true); return; }
+    if (!confirm(T('Criar AGORA uma cópia fiel de "', 'Create a faithful copy of "') + id + T('"?\n\nProblemas, enunciados enviados à mão, opções e visual são copiados. Usuários e submissões NÃO.', '"NOW?\n\nProblems, hand-uploaded statements, options and appearance are copied. Users and submissions are NOT.'))) return;
+    dupNow.disabled = true; say(T('duplicando ', 'duplicating ') + id + '…');
+    try {
+      const r = await ctx.api.post('/treino/contest-create/duplicate', {
+        from: id, ...(nid ? { id: nid } : {}), ...(dupName.value.trim() ? { name: dupName.value.trim() } : {}),
+      });
+      say(''); ctx.showResult(r);
+    } catch (e) { say(e.message || T('falha ao duplicar', 'failed to duplicate'), true); }
+    dupNow.disabled = false;
+  } }, T('Cópia fiel agora', 'Faithful copy now'));
   const dupBox = el('div', { class: 'start-card' },
     el('h3', {}, T('🧬 Duplicar um contest meu', '🧬 Duplicate one of my contests')),
     el('p', { class: 'muted small' }, T('Copia problemas, opções e visual (nunca usuários/submissões). Datas novas; revise e crie.', 'Copies problems, options and appearance (never users/submissions). New dates; review and create.')),
-    el('div', { class: 'row' }, dupSel, dupBtn));
+    el('div', { class: 'row' }, dupSel, dupBtn),
+    el('p', { class: 'muted small', style: 'margin:.5rem 0 .2rem' },
+      T('Ou crie a cópia direto, sem passar pelos passos: mantém os enunciados que você subiu à mão (HTML/PDF) e a duração original.',
+        'Or create the copy directly, skipping the steps: it keeps the statements you uploaded by hand (HTML/PDF) and the original duration.')),
+    el('div', { class: 'row', style: 'flex-wrap:wrap' }, dupId, dupName, dupNow));
 
   // --- salvar template a partir de contest existente ---
   const stSel = el('select', { style: 'min-width:220px' });
@@ -86,9 +109,9 @@ export function makeStepInicio(ctx) {
       if (!cs.length) {
         dupSel.append(el('option', { value: '' }, T('(você ainda não criou contests)', '(you have not created contests yet)')));
         stSel.append(el('option', { value: '' }, T('(nenhum)', '(none)')));
-        dupBtn.disabled = stBtn.disabled = true; return;
+        dupBtn.disabled = dupNow.disabled = stBtn.disabled = true; return;
       }
-      dupBtn.disabled = stBtn.disabled = false;
+      dupBtn.disabled = dupNow.disabled = stBtn.disabled = false;
       cs.forEach((c) => {
         const label = c.id + ' — ' + (c.name || '') + ' (' + (c.problems_count || 0) + ' probs)';
         dupSel.append(el('option', { value: c.id }, label));
