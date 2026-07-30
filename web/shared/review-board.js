@@ -42,7 +42,7 @@ export function makeReviewBoard({ contest }) {
   function renderSummary(counts) {
     sumBox.innerHTML = '';
     if (!MANUAL) sumBox.append(el('div', { class: 'warn-box', style: 'margin:.3rem 0' },
-      T('⚠ O veredicto manual está DESLIGADO (ligue em Configurações). ', '⚠ Manual verdict is OFF (turn it on in Settings). ') + (ITEMS.length ? T('Ainda há sobras na fila abaixo.', 'There are still leftovers in the queue below.') : T('Nada é segurado p/ revisão.', 'Nothing is held for review.'))));
+      T('⚠ O veredicto manual está DESLIGADO (ligue em Central › Regras). ', '⚠ Manual verdict is OFF (turn it on in Home › Rules). ') + (ITEMS.length ? T('Ainda há sobras na fila abaixo.', 'There are still leftovers in the queue below.') : T('Nada é segurado p/ revisão.', 'Nothing is held for review.'))));
     const c = counts || {};
     const oldest = ITEMS.length ? Math.max(...ITEMS.map((t) => nowE() - (t.created_at || nowE()))) : 0;
     sumBox.append(el('div', { class: 'dash-cards' },

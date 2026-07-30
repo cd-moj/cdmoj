@@ -52,6 +52,22 @@
     .acc-head:hover { background:#f4f9ff }
     .acc-tog { color:#64748b; width:1em }
     .acc-body { padding:.3rem .9rem .8rem; border-top:1px solid #eef2f8 }
+    /* Central: itens da checklist e cartões de "gerar" */
+    .ck { display:flex; gap:.5rem; align-items:flex-start; padding:.4rem 0; border-bottom:1px solid #eef2f7 }
+    .ck:last-child { border-bottom:0 }
+    .ck .ico { width:1.4rem; text-align:center; flex:0 0 auto }
+    .ck .txt { flex:1; min-width:0 }
+    .ck .txt b { display:block }
+    .gen-card { border:1px solid #d7dee8; border-radius:10px; padding:.6rem .7rem; background:#fff;
+      display:flex; flex-direction:column; gap:.35rem }
+    .gen-card h4 { margin:0; font-size:.95rem }
+    .gen-card .st { font-size:.82rem; color:#64748b; flex:1 }
+    @media (max-width:820px){
+      /* no telefone o texto usa a largura toda e o botão cai numa linha própria */
+      .ck { flex-wrap:wrap }
+      .ck .txt { flex-basis:calc(100% - 2.2rem) }
+      .ck > button { margin-left:auto }
+    }
   </style>
 </head>
 <body>

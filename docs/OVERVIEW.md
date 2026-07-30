@@ -219,8 +219,18 @@ tem **prorrogação por sede/grupo** (`time-overrides.json`, regras regex no log
 `lib/contest-gate.sh` vale no `/submit` e no countdown do `/contest/basic` autenticado; editável
 na aba Configurações do admin e por `moj-contest extend --group`, auditado). Telas internas:
 
-- **`/contest/admin/`** — hub com **10 sub-abas** (abas antigas viram alias: `#staff`→Tarefas,
-  `#log`/`#backups`→Usuários & sessões):
+- **`/contest/admin/`** — o painel do organizador. O `admin.js` é só o **SHELL** (~130 linhas):
+  **4 grupos** (🏁 Central · 🧩 Prova · 👥 Pessoas · 🎛️ Operação) × painéis, hash `#grupo/painel`,
+  `ALIAS` de TODOS os hashes antigos das 13 abas planas (`#settings`→`central/regras`,
+  `#log`→`pessoas/sessoes`, `#backups`→`operacao/auditoria`, …) e a guarda de admin. Cada painel é
+  um módulo `web/contest/admin/<nome>-tab.js` com o MESMO contrato **`{panel, load}`** — construído
+  uma vez e só escondido (mantém filtros e timers), e reusável fora do painel (o `chief.js` monta
+  Documentos e Rodadas assim). Helpers comuns (CSV, download autenticado, formatação, `field/chk`)
+  em **`shared/admin-ui.js`**. A **🏁 Central** é a porta de entrada: *Falta para começar* (o
+  `preflight` como lista ACIONÁVEL — cada item com botão que abre o painel exato, mapa `id→painel`
+  no front), *Gerar* (cartões dos artefatos com o estado atual), *Ao vivo* (resumo do `dashboard`,
+  o único bloco com auto-refresh — re-renderiza só ele p/ não apagar o que está sendo digitado) e
+  *Regras da prova* (janela/freeze inline). Os painéis:
   **👥 Times** (gerência POR-USUÁRIO da identidade dos times — **o NOME é campo único:
   `fullname` = nome do time**, pois usuário de contest É o time; + país, **sede**,
   universidade (`.team` do account.json, que placar/crachás/impressão leem), **brasão**
@@ -239,14 +249,19 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   **saúde por juiz** (online/offline/cache/linguagens), fila, pendentes com tempo de espera,
   **submissões recentes**, **por problema**, métricas avg/p95, timeline com picos e **cards de
   tarefas do staff** (impressões/balões pendentes) — `/contest/admin/dashboard`, auto-refresh);
-  **Configurações** (tempos, login on/off, abertura, freeze, toggles editor/log/código/**tempo-limite**/anônimo/
-  **🕵️ SUPER SECRETO**, gate de UA, **linguagens permitidas do contest** — o MESMO `settings-editor` do wizard;
-  desmarcar o secreto exige **digitar o id**);
+  **Central › Regras** (tempos, login on/off, abertura, freeze, toggles editor/log/código/**tempo-limite**/
+  anônimo/**🕵️ SUPER SECRETO**, gate de UA, **linguagens permitidas do contest** — o MESMO
+  `settings-editor` do wizard, com os campos redistribuídos em **5 `<details>`** por assunto
+  (`settings-tab.js` realoca os nós VIVOS do editor por índice: mexeu na ordem do editor, ajuste o
+  mapa `GROUPS` lá); desmarcar o secreto exige **digitar o id**; + a prorrogação por sede);
   **Problemas** (busca no banco **público + os privados do dono do contest** com badges, sorteio
   por coleção/tag/dificuldade, add/remover/reordenar/renomear — **sem** "add por id");
-  **Aparência** (cores/Sonic, **países/escolas com preview de matches + import/export JSON +
-  template dos sem match**, regiões, básico);
-  **Usuários & sessões** (add/reset/remover/**deslogar**/**desabilitar**/**troca de senha geral**,
+  **Balões** (`balloons-tab.js` — a cor de cada letra, que o staff imprime na folha do balão; o
+  default cobre A–O) e **Sedes & escolas** (`sites-tab.js` — as SEDES (nome + regex), que alimentam
+  filtro do placar/escopo do staff/etiquetas/gate por sede, e **países/escolas com preview de
+  matches + import/export JSON + template dos sem match**; era a antiga aba "Aparência", onde sede
+  ficava perdida junto de cor de balão);
+  **Contas** + **Sessões** (`users-tab.js`/`sessions-tab.js`: add/reset/remover/**deslogar**/**desabilitar**/**troca de senha geral**,
   **filtros** (busca + ativos/desabilitados/privilegiados, teto de 300 p/ contest 1000+) e
   **carga em lote** (colar/arquivo → `POST /contest/admin/users-bulk`, skip/update, CSV das
   credenciais — subir competidores depois de criar o contest só com contas administrativas)

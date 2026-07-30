@@ -11,24 +11,60 @@ juízes** — incluindo quantas pessoas você precisa.
 Você chega ao painel logando com a conta `.admin` do contest e clicando em **⚙ Administração**
 na barra do topo.
 
-## 1. As abas do painel
+## 1. O painel: a Central e os 4 grupos
 
-| Aba | O que faz |
+O painel abre na **🏁 Central** e tem quatro grupos na barra de cima; cada grupo tem seus painéis
+na segunda linha. O endereço guarda o painel (`#grupo/painel`), então dá para salvar o link — e os
+links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, redirecionados.
+
+```
+[🏁 Central] [🧩 Prova] [👥 Pessoas] [🎛️ Operação]                        📖 Manual
+```
+
+### 🏁 Central — o que falta e o que gerar
+
+| Bloco | O que faz |
 |---|---|
-| **📊 Situação** | O dashboard ao vivo (atualiza sozinho a cada ~12s): quem está logado, juízes de máquina online/ocupados, fila de julgamento, submissões pendentes, tarefas de impressão/balão abertas e o estado da avaliação manual. Os botões **🏆 Cerimônia de revelação** e **📦 Relatório estático** ficam aqui. |
-| **✅ Pré-prova** | Checklist verde/amarelo/vermelho do que ainda bloqueia começar (problemas sem enunciado, TL não calibrado, login fechado…). Rode antes de toda prova. |
-| **⚙️ Configurações** | Todas as opções do contest — a seção 2 explica uma a uma. Inclui a **⏱ Prorrogação por sede/grupo** (regras regex → novo fim; só estende, nunca encurta). |
-| **📚 Problemas** | A prova em si: renomear/reordenar/remover problemas, restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco, e **Adicionar do banco** (busca e sorteio). |
-| **👥 Times** | Identidade de cada conta no placar: nome do time, país/bandeira, sede/região, universidade, brasão. Carga por CSV e "materializar matches" das regras por regex. |
-| **🎭 Coortes** | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o botão **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
-| **🎨 Aparência** | Cores dos balões por problema, países/escolas por regex e filtros de região do placar. |
-| **👥 Usuários & sessões** | Criar/resetar/desabilitar contas (individual e em lote), trocar a senha de todos, **sessões ativas** (alertas de multi-IP/UA, deslogar), log de acessos por dia (CSV) e download dos backups dos usuários. É AQUI que você cria as contas de papel (seção 3). |
-| **🔁 Rodadas** | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + lista de problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
-| **💻 Máquinas** | De onde cada time logou (IP e navegador) em cada rodada, com CSV: mapeia a sala no aquecimento, marca quem trocou de máquina na prova, preenche a sede dos times e configura o **gate de navegador por sede** (esperado × visto por time). |
-| **📄 Documentos** | Gera, em PDF e HTML e nos dois idiomas, os três documentos impressos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados) e **folha de time limits**. Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. A seção 5 explica. |
-| **🖨️ Tarefas do staff** | Panorama e ação sobre a fila de impressão + balões, desempenho por staff e o escopo de cada staff (regex por sede/sala). |
-| **⚖️ Tarefas do judge** | A fila da correção manual: quem pegou cada submissão, votos, idade; decidir/resolver na hora; e a configuração do veredicto manual (opções de rótulo + matriz de auto-veredicto). |
-| **🧾 Auditoria** | Feed unificado de tudo que aconteceu (ações de admin, logins, submissões, veredictos), com filtros e download CSV. |
+| **Falta para começar** | O checklist pré-prova (verde/amarelo/vermelho) com **botão que abre o painel exato** de cada pendência. Vermelho BLOQUEIA a prova; os itens já conferidos ficam recolhidos. Confere janela, log de julgamento, freeze, juízes, linguagens, TL calibrado, pool, contas, staff, **coortes**, **gate de navegador**, **rodada seguinte**, **documentos**, **balões**, prorrogação e o daemon. |
+| **Gerar** | Um cartão por artefato, com o estado atual: documentos da prova, etiquetas de credenciais, promover rodada (com os bloqueadores), relatório final, cerimônia de revelação e jplag. |
+| **Ao vivo** | Resumo curto (pendentes, submissões, juízes online, resposta p95, correção manual). Atualiza sozinho; o painel completo é **Operação › Situação**. |
+| **Regras da prova** | Início, fim e freeze editáveis ali mesmo, mais o modo e as linguagens em leitura. O resto está em **Central › Regras**. |
+
+| Painel | O que faz |
+|---|---|
+| **Central › Regras** | **Todas** as opções do contest, em cinco seções dobráveis (identidade e janela · o que o time vê · julgamento · placar/freeze/penalidade · acesso) + a **⏱ Prorrogação por sede/grupo** (regex → novo fim; só estende, nunca encurta). A seção 2 explica opção por opção. |
+
+### 🧩 Prova — o conteúdo
+
+| Painel | O que faz |
+|---|---|
+| **Problemas** | A prova em si: renomear/reordenar/remover, restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF), e **Adicionar do banco** (busca e sorteio). |
+| **Rodadas** | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
+| **Documentos** | Gera, em PDF e HTML nos dois idiomas, os três documentos impressos: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados) e **folha de time limits**. Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. A seção 5 explica. |
+| **Balões** | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). |
+
+### 👥 Pessoas — quem entra, quem é quem
+
+| Painel | O que faz |
+|---|---|
+| **Contas** | Criar/resetar/desabilitar/remover contas (individual e em lote por .txt/.csv), trocar a senha de todos e o atalho das **🏷️ Etiquetas de credenciais**. É AQUI que você cria as contas de papel (seção 3). |
+| **Times** | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
+| **Coortes** | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
+| **Sedes & escolas** | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas e o gate por sede — e as regras de país/escola por regex. |
+| **Máquinas & gate** | De onde cada time logou (IP e navegador) em cada rodada, com CSV, **e a configuração do gate de navegador por sede** (esperado × visto por time). A seção 7 explica. |
+| **Sessões** | Sessões ativas com alerta de multi-IP/UA, deslogar, **deslogar UA divergente** e o log de acessos por dia (CSV). |
+
+### 🎛️ Operação — o dia da prova
+
+| Painel | O que faz |
+|---|---|
+| **Situação** | O dashboard ao vivo (atualiza a cada ~12s): logados, juízes online/ocupados, fila, pendentes, latência, timeline, avaliação manual, e as **ações sugeridas** quando algo está fora do lugar. Os botões **🏆 Cerimônia de revelação** e **📦 Relatório estático** ficam aqui. |
+| **Staff** | Panorama e ação sobre a fila de impressão + balões, desempenho por staff e o **escopo** de cada staff/chefe de sede (regex ou `region:<sede>`). |
+| **Juízes** | A fila da correção manual: quem pegou cada submissão, votos, idade; decidir/resolver na hora; e a configuração do veredicto manual (opções de rótulo + matriz de auto-veredicto). |
+| **Auditoria** | Feed unificado de tudo que aconteceu (ações de admin, logins, submissões, veredictos) com filtros e CSV, mais os **backups** que os usuários subiram (por usuário, com ZIP). |
+
+Fora do painel, mas linkadas da Central: **etiquetas de credenciais**, **cerimônia de revelação**,
+**jplag**, **fila do staff** e **placar**.
 
 ## 2. Configurações — opção por opção
 
@@ -55,7 +91,7 @@ na barra do topo.
 
 **Julgamento**
 
-- **Linguagens** — a lista permitida no contest (cada problema pode restringir mais, na aba Problemas).
+- **Linguagens** — a lista permitida no contest (cada problema pode restringir mais, em Prova › Problemas).
 - **Pool de juízes (máquinas)** — quais MÁQUINAS de julgamento atendem este contest (vazio = qualquer juiz online). Não confundir com juízes HUMANOS (seção 4).
 - **Veredicto manual** — liga a **correção validada por juízes humanos** (seção 4).
 - **Nº de juízes que validam cada veredicto** — o quórum da correção manual: **1 a 5, padrão 2**. Com 1, um único voto decide (revisão simples); com N≥2, o veredicto só sai com N votos **unânimes** — qualquer divergência vira conflito p/ o juiz-chefe.
@@ -104,7 +140,7 @@ O `.admin` também vota (conta como juiz), mas em prova grande deixe o admin liv
 Com **N=1** um único juiz revisa tudo (bom p/ prova pequena); N=2 é o padrão equilibrado;
 N≥3 é para finais onde o veredicto precisa de banca.
 
-## 5. Documentos da prova (aba 📄 Documentos)
+## 5. Documentos da prova (Prova › Documentos)
 
 A aba existe para o **`.admin` e para o juiz-chefe (`.cjudge`)**, e produz os três documentos
 que a prova imprime — cada um em **PDF e HTML**, em **português e inglês**:
@@ -149,7 +185,7 @@ imprimiu ficou com a versão velha (é para isso que serve o campo *versão do c
 > baixá-lo. Para todo o resto (inclusive `.cstaff` e times) a API responde **404** — não é uma
 > trava de interface.
 
-## 6. Rodadas: aquecimento e prova oficial (aba 🔁 Rodadas)
+## 6. Rodadas: aquecimento e prova oficial (Prova › Rodadas)
 
 Toda maratona roda um **aquecimento** (dress rehearsal) antes da prova: dois ou três problemas
 fáceis, no dia anterior ou na manhã do dia, para o time ligar a máquina, testar o login, o
@@ -157,13 +193,13 @@ editor, a impressão e o balão — e para a sua equipe de juízes e staff ensai
 prova começa **no mesmo contest**, porque é a configuração dele (contas, senhas, sedes, cores de
 balão, time limits, linguagens, pool de juízes) que você quer garantir.
 
-No MOJ isso são **rodadas**. A rodada **no ar** é a que aparece em ⚙️ Configurações e 📚
+No MOJ isso são **rodadas**. A rodada **no ar** é a que aparece em Central › Regras e em Prova ›
 Problemas; as demais ficam planejadas até você promover.
 
 **O roteiro**
 
 1. **Monte o contest** normalmente, com os problemas do **aquecimento** e a janela do aquecimento.
-2. Na aba 🔁 Rodadas, dê o nome certo à rodada no ar (`aquecimento`, tipo *aquecimento*) e
+2. Em Prova › Rodadas, dê o nome certo à rodada no ar (`aquecimento`, tipo *aquecimento*) e
    **crie a próxima** (`oficial`): janela, freeze e a lista de problemas da prova de verdade.
    A lista fica guardada e só entra no ar na promoção — ninguém vê os problemas da prova antes.
 3. **Rode o aquecimento.** O time vê uma faixa fixa dizendo que é aquecimento e que aquele placar
@@ -206,7 +242,7 @@ não perdidos), balões, numeração de impressão, prorrogações, e a lista de
 
 **Na CLI:** `moj contest -c <cid> rounds ls | add | set | problems | promote | publish | archive`.
 
-## 7. Máquinas dos times (aba 💻 Máquinas)
+## 7. Máquinas dos times (Pessoas › Máquinas & gate)
 
 É no aquecimento que os times ligam de fato os computadores — e é dali que o MOJ tira o mapa
 **time × IP × navegador** da sala (do log de acessos do contest, recortado pela janela da rodada:
@@ -223,7 +259,7 @@ nada novo é capturado). A aba mostra, por rodada:
 Duas ações saem daqui e escrevem no lugar de sempre:
 
 - **aplicar sede**: na visão por IP, digitar o nome da sede e clicar grava a **sede** dos times
-  daquele IP (o mesmo campo da aba 👥 Times) — o placar, as etiquetas e o escopo do staff passam
+  daquele IP (o mesmo campo de Pessoas › Times) — o placar, as etiquetas e o escopo do staff passam
   a respeitá-la;
 - **configurar o gate de navegador**: a seção 🔒 no topo da aba (logo abaixo) — os navegadores
   realmente vistos na rodada ficam listados lá, e cada um pode virar o *fallback* com um clique.
@@ -234,7 +270,7 @@ Quando cada sede roda a **sua** imagem, o UA de cada máquina carrega um pedaço
 do time: `teambrspso001` (Brasil/BR, São Paulo/SP, Sorocaba/SO) roda numa imagem cujo UA contém
 `brspso`. Uma substring única não serve — então o MOJ **deriva o esperado do login**.
 
-**Na web** (seção 🔒 no topo da aba 💻 Máquinas): a chave **"Barrar quem não vem da imagem da
+**Na web** (seção 🔒 no topo de Pessoas › Máquinas & gate): a chave **"Barrar quem não vem da imagem da
 sede"** liga/desliga; abaixo dela vão a **regex do login com captura** e o **UA esperado** (`\1`),
 com um **testador ao vivo** ("testar com o login" → *UA precisa conter `brspso` · sede Sorocaba*),
 e três listas dobráveis — **overrides por sede**, **regras por regex de login** e **isentos**.
@@ -256,10 +292,10 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
 
 - Quem não casa é **barrado no login** (403) — a decisão foi barrar, com a lista de **isentos**
   como margem. `--mode off` desliga o gate sem apagar a configuração.
-- A aba 💻 Máquinas mostra **UA esperado × UA visto** por time e conta quantos estão fora da
+- O painel Máquinas & gate mostra **UA esperado × UA visto** por time e conta quantos estão fora da
   imagem da sede: é assim que se conserta a sala **no aquecimento**, antes de o gate barrar
   alguém na prova.
-- Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (aba Usuários),
+- Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (Pessoas › Sessões),
   que agora compara cada sessão com o esperado **daquele** time.
 
 ## 8. Times convidados (coortes de placar)
@@ -278,7 +314,7 @@ de visibilidade própria.
   **intercalado pelo desempenho mas sem consumir posição oficial** — o pódio combinado continua
   batendo com o oficial.
 
-**Como configurar (aba 🎭 Coortes)**
+**Como configurar (Pessoas › Coortes)**
 
 Uma linha por coorte, com o que decide o comportamento: **id**, **nome**, **regex do login**,
 **pública** (aparece no placar público), **extra-oficial** (entra sem consumir posição), **padrão**
@@ -319,7 +355,7 @@ práticas:
 
 - **não** ligue "ver código das submissões" (`SHOWCODE`) numa prova com convidados: ela abre o
   fonte de qualquer submissão para qualquer login;
-- **publicar o arquivo de uma rodada** (aba 🔁 Rodadas) exige os resultados liberados quando há
+- **publicar o arquivo de uma rodada** (Prova › Rodadas) exige os resultados liberados quando há
   coorte privada — o relatório da rodada traz o placar aberto com todos.
 
 > ℹ️ Sobram dois canais **numéricos** que não escondem identidade mas existem: a página de status
@@ -328,7 +364,7 @@ práticas:
 
 ## 9. Template de usuários (habilita todas as funções)
 
-Cole na carga em lote da aba *Usuários & sessões* (uma linha por conta: `login nome`), ou crie
+Cole na carga em lote de *Pessoas › Contas* (uma linha por conta: `login nome`), ou crie
 um a um com `moj contest -c <cid> users add <login> --name "<nome>"`:
 
 ```
@@ -341,7 +377,7 @@ sede1.cstaff     Chefe da Sede 1 (etiquetas + revelação)
 monitor1.mon     Monitor (responde clarifications)
 ```
 
-Depois: ligue **Veredicto manual** (e ajuste o **Nº de juízes**) nas Configurações; distribua
+Depois: ligue **Veredicto manual** (e ajuste o **Nº de juízes**) em Central › Regras; distribua
 as senhas geradas; cada pessoa loga na MESMA tela do contest e vê os botões do seu papel.
 
 ## 10. Referências

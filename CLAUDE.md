@@ -363,6 +363,21 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   volta), enunciados, **títulos de problema/nomes de contest/time**, corpo de notícias, tags.
 - **Toda tela/string nova NASCE nos DOIS idiomas** (`T('pt','en')` no JS, `data-en` no HTML) — deixar
   só em PT é **bug**, igual doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`.
+- ⚠️ **`T()` no TOPO do módulo congela o idioma**: o valor é calculado no import, ANTES de
+  `initContestShell` aplicar o `LOCALE` do contest (o rótulo sai no idioma do browser). Rótulo de
+  aba/estado/tipo tem de ser **fábrica preguiçosa** — `const TABS = () => [...]`, chamada no render
+  (padrão em `bank-panel.js:14`, `contest/admin/admin.js`, `audit-tab.js`).
+- **Painel de admin do contest = SHELL + módulos.** `web/contest/admin/admin.js` só navega: 4 grupos
+  (`central|prova|pessoas|operacao`) × painéis, hash **`#grupo/painel`** e o mapa `ALIAS` com TODOS
+  os hashes antigos (link salvo/manual não pode quebrar — ao renomear um painel, ATUALIZE o ALIAS).
+  Cada painel é um `web/contest/admin/<nome>-tab.js` exportando `make<Nome>Tab(CONTEST)` →
+  **`{panel, load}`** (construído uma vez e escondido: mantém filtros/timers; `load()` roda de novo
+  a cada volta ao painel). Helpers compartilhados (CSV, `downloadAuthed`, `fmtS/fmtDate`,
+  `field/chk/mkBool`) em **`shared/admin-ui.js`** — não recrie a 4ª cópia. A **Central**
+  (`central-tab.js`) renderiza o `preflight` como lista acionável: o mapa `TARGET` (id da checagem →
+  `[grupo, painel]`) mora no FRONT, então checagem nova do servidor aparece sozinha e só ganha botão
+  quando entrar no mapa. `settings-tab.js` REALOCA os nós vivos do `makeSettingsEditor` em 5
+  `<details>` por ÍNDICE — mudou a ordem dos campos no editor? Ajuste o `GROUPS` de lá.
 
 ## Testar / rodar
 

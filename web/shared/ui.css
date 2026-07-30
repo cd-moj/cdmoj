@@ -410,3 +410,25 @@ details.fgroup > summary { cursor:pointer; font-weight:700; padding:.3rem 0; lis
 details.fgroup > summary::-webkit-details-marker { display:none }
 details.fgroup > summary::before { content:'▸ '; color:var(--blue); }
 details.fgroup[open] > summary::before { content:'▾ '; }
+
+/* ---- navegação em 2 níveis: barra de GRUPOS + sub-navegação de painéis ----
+   (painel de admin do contest; a `.tabbar` de aba única continua existindo para as outras
+   páginas). No telefone as duas viram TIRA ROLÁVEL — empilhar 6 painéis come a tela toda. */
+.groupbar { display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; margin:.2rem 0 .1rem;
+  padding:.35rem .4rem; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.groupbar button { font-size:1rem; font-weight:700; padding:.45rem .9rem; border-radius:9px;
+  border:1px solid transparent; background:transparent; color:var(--ink); cursor:pointer; }
+.groupbar button:hover { background:var(--blue-soft); }
+.groupbar button.active { background:var(--blue); color:#fff; }
+.subnav { display:flex; gap:.3rem; flex-wrap:wrap; margin:.5rem 0 .8rem;
+  border-bottom:1px solid var(--line); padding-bottom:.4rem; }
+.subnav button { font-size:.9rem; padding:.3rem .7rem; border-radius:8px; border:1px solid var(--line);
+  background:#fff; color:var(--ink); cursor:pointer; }
+.subnav button:hover { background:var(--blue-soft); }
+.subnav button.active { border-color:var(--blue); color:var(--blue-dark); font-weight:700; }
+@media (max-width:820px){
+  .groupbar, .subnav { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
+  .groupbar::-webkit-scrollbar, .subnav::-webkit-scrollbar { display:none; }
+  .groupbar button, .subnav button { white-space:nowrap; }
+  .groupbar button { font-size:.9rem; padding:.35rem .6rem; }
+}

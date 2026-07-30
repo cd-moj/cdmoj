@@ -14,7 +14,7 @@ export function makeRegionsEditor(opts = {}) {
       name.addEventListener('input', () => { r.name = name.value; });
       const rx = el('input', { value: r.regex || '', placeholder: T('regex (ex.: ^br-df-)', 'regex (e.g. ^br-df-)'), style: 'flex:1' });
       rx.addEventListener('input', () => { r.regex = rx.value; });
-      const rm = el('button', { class: 'btn danger', onclick: () => { regions.splice(i, 1); render(); } }, '✕');
+      const rm = el('button', { class: 'btn danger ghost', title: T('remover', 'remove'), onclick: () => { regions.splice(i, 1); render(); } }, '✕');
       list.append(el('div', { class: 'row', style: 'margin:.25rem 0' }, name, rx, rm));
     });
   }

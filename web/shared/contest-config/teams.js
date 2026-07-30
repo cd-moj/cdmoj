@@ -46,7 +46,7 @@ export async function makeTeamsEditor(opts = {}) {
     const logoInp = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
     logoInp.addEventListener('change', () => { const f = logoInp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { r.logo = rd.result; showLogo(); }; rd.readAsDataURL(f); });
     showLogo();
-    const rm = el('button', { class: 'btn danger', onclick: () => { rules.splice(i, 1); render(); } }, '✕');
+    const rm = el('button', { class: 'btn danger ghost', title: T('remover', 'remove'), onclick: () => { rules.splice(i, 1); render(); } }, '✕');
     return el('div', { style: 'border:1px solid #e3e9f2;border-radius:8px;padding:.5rem;margin:.4rem 0;background:#fafcff' },
       el('div', { class: 'row' }, el('span', { class: 'small muted' }, T('login casa:', 'login matches:')), regex),
       el('div', { class: 'row' }, country, flagPrev, school,
