@@ -71,7 +71,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   escrevem no account.json; remover = `mv` p/ `.removed-users/`. **`.team` agora tem WRITERS
   na API** (antes só o store-migrate): `users-bulk`/`user-add`/`contest-create users[]` aceitam
   `univ_short/univ_full/country/region` (helper `team_fields_json` + `account_team_merge` em
-  lib/users.sh — saneiam `:`/tab/newline) e `/contest/admin/teams` (aba 👥 Times) faz set
+  lib/users.sh — saneiam `:`/tab/newline) e `/contest/admin/teams` (painel **Pessoas › Times**) faz set
   por-usuário de `fullname` + esses campos (`""` apaga os de `.team`) + **materialize**
   (regex→campos vazios). **O NOME é campo ÚNICO: `fullname` = nome do time** (usuário de
   contest É o time); `.team.name` existe só como LEGADO da migração — os leitores fazem
@@ -123,7 +123,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`handlers/contest/review/*` + `lib/review.sh`, flock + TTL), e o veredicto vai ao aluno pelo
   **escritor único** via o consumidor `setverdict` do daemon. O **voto é permanente e libera o juiz**
   (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo
-  `auth.status` → segue o chief/admin em qualquer página); a aba **Situação** traz estatística por juiz
+  `auth.status` → segue o chief/admin em qualquer página); o painel **Operação › Situação** traz estatística por juiz
   (`review/stats`, derivada do `admin-audit.log`). **Mexeu no `judged.sh` → reinicie o
   daemon** (mantendo `INTAKE_MODE`/`JUDGE_BACKEND`); handlers/score são frescos por requisição.
 - **Liveness do daemon = `daemon_judged_alive()` (`lib/common.sh`), NUNCA `pgrep` direto.** Em
@@ -162,12 +162,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `ug_expected` resolve na ordem isentos › papel › `by_regex` › `by_region` › `from_login`
   (captura `\1`) › `fallback`/`LOGIN_UA_SUBSTRING` legado; `ug_ok` é o match (substring,
   case-insensitive) e `login.sh`/`logout-mismatch.sh` usam os dois. **`ug_expected_map` é o MESMO
-  programa jq em lote** (`UG_JQ`) — o painel de Máquinas precisa do esperado por time e não pode
+  programa jq em lote** (`UG_JQ`) — o painel **Pessoas › Máquinas & gate** precisa do esperado por time e não pode
   forkar por login; se mudar a ordem, mude nos dois. Armadilhas jq que isto pisou: `first()` de
   stream vazio e **`match()` SEM casamento** devolvem VAZIO, e `vazio as $v | …` anula a
   expressão inteira (use `// null`); `sub()` **não entende `\1`** — as capturas vêm do `match`.
-- **Coortes de placar** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh`, UI na aba
-  🎭 Coortes = `web/contest/admin/cohorts-tab.js`): times oficiais ×
+- **Coortes de placar** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh`, UI no painel
+  **Pessoas › Coortes** = `web/contest/admin/cohorts-tab.js`): times oficiais ×
   **convidados** (extra-oficiais/"CCL"). Coorte privada não aparece no placar público nem no
   `/contest/teams`; os convidados veem todos; `results_released` libera. O corte **sobe até
   `sc_users`** (`score/score-common.sh`, env `MOJ_COHORTS`) porque a ESTRELA de first-to-solve é
@@ -190,8 +190,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   CONFIG × DADO DE RODADA documentada no topo da lib. `CC_KEEP_STATEMENTS=1` (em
   `cc_build_probs`) existe para a troca não re-baixar o enunciado do banco por cima do que o
   admin subiu à mão.
-- **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, aba
-  **📄 Documentos** do admin e do `.cjudge`): info sheet, caderno (capa + enunciados) e folha de
+- **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, painel
+  **Prova › Documentos** do admin e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados) e folha de
   time limits, em **PDF+HTML × pt/en**, tudo derivado do que o contest já tem (conf, `PROBS`,
   `enunciados/`, `run/tl`, `run/registry`) — nada de dado novo. **PDF só por `soffice --headless
   --convert-to pdf`** (não há LaTeX/wkhtmltopdf/chromium na imagem; `pdfunite`/`pdfinfo` juntam e
@@ -200,6 +200,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   páginas. **PT/EN é só o chrome** — o MOJ não tem enunciado bilíngue; diga isso na UI, não finja.
   `publish` escreve `resources.json` (seção "Prova") e opcionalmente a notícia com anexo; o gate
   de download é do handler (`/contest/doc`: não publicado ⇒ **404** p/ quem não é admin/chefe).
+- **Checklist pré-prova** (`handlers/contest/admin/preflight.sh`): a lista que a **🏁 Central**
+  do painel renderiza — `{id, level:ok|warn|fail, label, detail}` + `summary`. Feature de contest
+  nova que possa dar errado no dia da prova **ganha uma checagem aqui**, com o `id` no mapa
+  `TARGET` do `central-tab.js` (é o botão "resolver →") e uma asserção em
+  `server/test/smoke-preflight.sh`. `fail` significa BLOQUEIA a prova — use `warn` p/ escolha
+  legítima (isento de gate declarado, coorte privada) e nunca transforme configuração
+  deliberada em aviso eterno. Libs pesadas (rodadas) só são `source`adas dentro do `if` que
+  precisa delas: o handler roda a cada abertura da Central.
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
