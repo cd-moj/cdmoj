@@ -60,14 +60,15 @@ command -v tg_rename >/dev/null 2>&1 && tg_rename treino "$old" "$new" 2>/dev/nu
 source "$_DIR/lib/orgs.sh"
 orgs_rename_login "$old" "$new" || true
 
-# mantém a sessão atual logada como o novo username (comum aos dois ramos)
-if [[ -n "$SESSION_TOKEN" && -f "$SESSIONDIR/$SESSION_TOKEN" ]]; then
-  stmp="$(mktemp)"
-  _NL="$new" awk -F= 'BEGIN{OFS="="} /^LOGIN=/{print "LOGIN=\"" ENVIRON["_NL"] "\""; next} {print}' \
-    "$SESSIONDIR/$SESSION_TOKEN" > "$stmp" && cat "$stmp" > "$SESSIONDIR/$SESSION_TOKEN"; rm -f "$stmp"
-fi
+# TODAS as sessões do login seguem o novo nome — não só a que pediu a troca. A sessão da outra
+# aba/computador e o token do moj-cli continuavam valendo com o login VELHO: como a conta é um
+# diretório (rename = mv), a próxima submissão por uma dessas sessões recriava o diretório do
+# nome antigo (fantasma sem account.json). Ver rename_contest_sessions em lib/auth.sh.
+nsess="$(rename_contest_sessions treino "$old" "$new")"
 
 flock -u 9
 used2=$(( used + 1 ))
-ok_json '{updated:true, new_username:$n, username_changes_used:$u2, username_changes_remaining:$rem}' \
-  --arg n "$new" --argjson u2 "$used2" --argjson rem "$(( UNAME_CHANGE_LIMIT - used2 < 0 ? 0 : UNAME_CHANGE_LIMIT - used2 ))"
+ok_json '{updated:true, new_username:$n, username_changes_used:$u2, username_changes_remaining:$rem,
+          sessions_updated:$ns}' \
+  --arg n "$new" --argjson u2 "$used2" --argjson ns "${nsess:-0}" \
+  --argjson rem "$(( UNAME_CHANGE_LIMIT - used2 < 0 ? 0 : UNAME_CHANGE_LIMIT - used2 ))"

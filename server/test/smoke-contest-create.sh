@@ -133,7 +133,8 @@ ck "conf: penalidade não-default (10 / wa ce)" '[[ "$( . "$CF"; echo "$PENALTY_
 ck "languages array canônico (filtra inválida)" '[[ "$( . "$CF"; echo "$LANGUAGES" )" == "c cpp" ]]'
 ck "problem-langs.json por problema (PY3 legado -> py)" '[[ "$(jq -rc ".[\"bankprob\"]" "$FIX/tog-c/problem-langs.json")" == "[\"c\",\"py\"]" ]]'
 ck "enunciado PDF gravado"  '[[ -f "$FIX/tog-c/enunciados/bankprob.pdf" ]]'
-printf 'CONTEST=tog-c\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/togadm"
+# o admin do tog-c é o CRIADOR + .admin (o SPEC2 não traz bloco admin): regular.admin
+printf 'CONTEST=tog-c\nLOGIN=regular.admin\nUSERFULLNAME=Regular\nLOGINAT=1\n' > "$SESS/togadm"
 call /contest/admin/settings GET '' togadm 'contest=tog-c'
 ck "round-trip settings: toggles"  '[[ "$(jq -r ".show_log" <<<"$BODY")" == false && "$(jq -r ".score_anon" <<<"$BODY")" == true && "$(jq -r ".manual_verdict" <<<"$BODY")" == true ]]'
 ck "round-trip settings: langs/ua" '[[ "$(jq -rc ".languages" <<<"$BODY")" == "[\"c\",\"cpp\"]" && "$(jq -r ".login_ua_substring" <<<"$BODY")" == "MOJBOX" ]]'

@@ -24,6 +24,8 @@ pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo 
 call /treino/contest-create/create POST "{\"id\":\"sec-c\",\"name\":\"Prova Secreta\",\"mode\":\"icpc\",\"secret\":true,\"start\":$((NOW-100)),\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
 [[ "$(jq -r .contest_id <<<"$BODY")" == sec-c ]] || { echo "SETUP FAIL: $BODY"; exit 1; }
 call /treino/contest-create/create POST "{\"id\":\"vis-c\",\"name\":\"Prova Visivel\",\"mode\":\"icpc\",\"start\":$((NOW-100)),\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}]}" reg
+fx_user "$FIX/sec-c" aluno1 s "A"     # sessão só vale p/ quem TEM conta no contest (lib/auth.sh)
+fx_user "$FIX/vis-c" aluno2 s "B"
 printf 'CONTEST=sec-c\nLOGIN=aluno1\nUSERFULLNAME=A\nLOGINAT=1\n' > "$SESS/sal"
 printf 'CONTEST=sec-c\nLOGIN=regular.admin\nUSERFULLNAME=Adm\nLOGINAT=1\n' > "$SESS/sadm"
 printf 'CONTEST=vis-c\nLOGIN=aluno2\nUSERFULLNAME=B\nLOGINAT=1\n' > "$SESS/valu"

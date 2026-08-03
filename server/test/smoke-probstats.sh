@@ -46,6 +46,15 @@ ck "avatar tem nome do account" '[[ "$(J ".solver_avatars[]|select(.login==\"ali
 ck "não vaza lista solvers"   '[[ "$(J "has(\"solvers\")")" == "false" ]]'
 ck "cache criado"             '[[ -f "$T/var/problem-stats/p#x.json" ]]'
 
+# dir de history SEM account.json (resíduo de conta renomeada) não é usuário: caía no default
+# pub=1 e virava avatar SEM NOME, com link p/ um perfil 404, e contava em solvers_public_count.
+mkdir -p "$T/users/7305847700"
+printf '800:p#x:C:Accepted,100p:800:s8\n' > "$T/users/7305847700/history"
+rm -f "$T/var/problem-stats/p#x.json"; call
+ck "órfão sem account fora dos avatares" '[[ "$(J ".solver_avatars|map(.login)|index(\"7305847700\")")" == null ]]'
+ck "órfão não conta em solvers_public_count" '[[ "$(J .solvers_public_count)" == 2 ]]'
+rm -rf "$T/users/7305847700" "$T/var/problem-stats/p#x.json"; call
+
 # 2ª chamada deve vir do cache (mesmo conteúdo; não regenera)
 cp "$T/var/problem-stats/p#x.json" "$FIX/snap"
 call

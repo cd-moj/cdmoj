@@ -10,7 +10,16 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 |---|---|---|---|
 | `/auth/login?contest=<c>` | POST | — | body `{username,password}` → `{token,logged_in,username,name,contest,server_utc}`. **Contest (≠ treino)** inclui o kit da **submissão OFFLINE** do `moj-comp`: `offline_pubkey_pem` (pública RSA-4096 do contest, gerada lazy em `contests/<c>/secrets/`) e `beacon` (carimbo de tempo assinado — ver `/contest/beacon`). `server_utc` permite à CLI medir o desvio do relógio local. |
 | `/auth/status?contest=<c>` | GET | Bearer | `{logged_in,login,name,contest,is_admin,is_judge,is_staff,is_cstaff,is_chief}` (`.cjudge` = juiz-chefe → `is_judge:true,is_chief:true`; `.cstaff` = chefe de sede → `is_cstaff:true`, **sem** herdar `is_staff`) |
-| `/auth/logout` | POST | Bearer | `{logged_out:true}` |
+| `/auth/logout` | POST | Bearer | `{logged_out:true}` — apaga o arquivo de sessão **mesmo se ela já não vale** (senão o zumbi ficava p/ sempre no store) |
+
+**Invariante da sessão:** o token só continua valendo enquanto a CONTA existir
+(`users/<login>/account.json` do contest da sessão ou, com `USERS_FROM`, o da fonte
+compartilhada). Conta renomeada, removida ou contest apagado ⇒ **401 `auth_required`** na
+primeira requisição, e o cliente cai no login. Sessão do MOJ **não expira** por tempo: sem essa
+checagem uma sessão aberta antes de uma troca de handle seguia autenticada com o login VELHO e o
+`/submit` (que faz `mkdir -p` no dir do usuário) **recriava o diretório do nome antigo** — resíduo
+sem `account.json` que ainda aparecia como "solver" nas estatísticas. Ver `lib/auth.sh`
+(`_session_account_alive`) e `server/bin/user-merge.sh` (conserto do resíduo).
 
 ## Index (home)
 | Rota | I/O |
@@ -31,7 +40,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | `/treino/history-full?user=<u>` | opc | TXT 7 campos (todo o histórico). Veredicto **canônico** (idem acima) — visitante do perfil público vê só o rótulo, sem resumo (summary é só do dono) |
 | `/treino/profile` | Bearer | GET: perfil + cota de username + **`telegram:{linked,username,linked_at}`** (vínculo do próprio login; sem o telegram_id) · POST `{name?,university?}` |
 | `/treino/profile/password` | Bearer | POST `{old_password,new_password}` |
-| `/treino/profile/username` | Bearer | POST `{new_username}` — **máx. 2/ano**, cascata nos arquivos de controle **incluindo as ORGs** (`orgs_rename_login`: o login troca em members/admins de todas; o NOME da org — inclusive a implícita antiga, que vira comum — não muda: é o prefixo dos ids). O `owner` carimbado nos problemas mantém o login histórico (como autor de commit) — o ACESSO vem da org, que segue o rename. **Sufixo de papel é PRESERVADO**: sufixo(novo)==sufixo(atual) — `.admin` troca p/ `outro.admin` (400 `uname_role_suffix` se tentar derrubar o sufixo; `uname_reserved` se usuário comum tentar assumir um) |
+| `/treino/profile/username` | Bearer | POST `{new_username}` → `{updated,new_username,username_changes_used,username_changes_remaining,sessions_updated}`. **máx. 2/ano**, cascata nos arquivos de controle **incluindo as SESSÕES** (`rename_contest_sessions`: TODAS as sessões daquele login — outra aba, outro dispositivo, token do `moj-cli` e as de contests que herdam os usuários via `USERS_FROM` — passam a valer com o nome novo; `sessions_updated` = quantas; ninguém é deslogado) e as **ORGs** (`orgs_rename_login`: o login troca em members/admins de todas; o NOME da org — inclusive a implícita antiga, que vira comum — não muda: é o prefixo dos ids). O `owner` carimbado nos problemas mantém o login histórico (como autor de commit) — o ACESSO vem da org, que segue o rename. **Sufixo de papel é PRESERVADO**: sufixo(novo)==sufixo(atual) — `.admin` troca p/ `outro.admin` (400 `uname_role_suffix` se tentar derrubar o sufixo; `uname_reserved` se usuário comum tentar assumir um) |
 | `/treino/profile?user=<u>` | opc | GET visão pública (respeita privacidade): `{login,name,university,favorite_editor,has_photo,is_public,created_at}` (`created_at`=epoch de criação da conta, p/ o "membro desde" do perfil; a visão do dono também o traz — que inclui ainda `managed:{minor,by,birthdate,note,expires_at}\|null` p/ conta GERIDA); POST aceita também `favorite_editor`, `profile_public` (**400 `managed_minor`** se conta gerida de menor tentar tornar público). Conta gerida de MENOR é sempre privada (`profile_is_public` corta perfil/foto/history/listas da home); `link-start` do Telegram → **403 `managed_minor`**; login com `.managed.expires_at` vencido → **403 `account_expired`** |
 | `/treino/profile/photo?user=<u>` | opc/Bearer | GET serve png 100×100 · POST `{image_b64}` (redimensiona) |
 | `/treino/editors` | — | ranking dos editores favoritos declarados `{editors:[{editor,count}],total}` |

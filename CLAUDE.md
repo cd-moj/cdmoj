@@ -21,7 +21,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `id→sub_epoch` do history em `score/treino-response-gen.sh`) **não** vai por `--argjson` — estoura
   `Argument list too long`. Use `--slurpfile <arquivo>` ou encadeie etapas com pipe.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
-  `printf %q` (é *sourced*). Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.cstaff/.mon`).
+  `printf %q` (é *sourced*). **A sessão vale enquanto a CONTA existir** (`_session_account_alive`
+  no `load_session`): sessão do MOJ não expira por tempo, então a conferência do `account.json` é
+  o que mata token de conta renomeada/removida (401 `auth_required`). ⚠ O teste tem de ficar no
+  `load_session`, que resolve `USERS_FROM` — participante compartilhado tem dir local SEM
+  `account.json` de propósito, e um `user_exists` cru no `submit.sh` barraria submissão legítima.
+  Espelho disso: **conta renomeada arrasta TODAS as sessões** (`rename_contest_sessions`), não só
+  o token da requisição — foi o furo que fez uma sessão velha submeter com o login antigo e
+  RECRIAR o diretório do fantasma (`server/bin/user-merge.sh` conserta o resíduo).
+  Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.cstaff/.mon`).
   **`.cjudge`** = juiz-chefe: `is_judge` vale p/ ele (herda juiz) + `is_chief`/`is_admin_or_chief`
   p/ os extras escopados (editar notícias/respostas já dadas, Situação, Todas Submissões, resolver
   conflitos, config de auto-veredicto) — **não** é admin pleno. **`.cstaff`** = chefe de staff de
@@ -91,7 +99,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **Troca de handle preserva o sufixo de papel** (`profile/username.sh`: sufixo(novo)==sufixo(atual);
   `.admin` troca p/ `outro.admin`, nunca derruba nem assume papel) **e as ORGs seguem o rename**
   (`orgs_rename_login` em lib/orgs.sh — sem isso a conta renomeada ficava órfã de TODAS as orgs;
-  o nome da org e o `owner` histórico dos problemas não mudam: acesso vem da membership). O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
+  o nome da org e o `owner` histórico dos problemas não mudam: acesso vem da membership)
+  **e as SESSÕES também** (`rename_contest_sessions`, resposta `sessions_updated`). Item novo na
+  cascata de rename ⇒ entra aqui, no `username.sh` E no `smoke-profile.sh`. O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
   autentica com **bot-token** `mojb_…` (`lib/bot-auth.sh` `require_bot`, `run/secrets/bot.token`) — não
   loga como `.admin`, sem GODS. Em produção roda **ENJAULADO** (`mojinho-bot/run-caged.sh`: bwrap
   sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com

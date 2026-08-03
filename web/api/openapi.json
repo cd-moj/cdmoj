@@ -332,7 +332,7 @@
         "tags": [
           "auth"
         ],
-        "summary": "Logout",
+        "summary": "Logout (apaga o arquivo de sessão mesmo se ela já não vale)",
         "security": [
           {
             "bearerAuth": []
@@ -1147,7 +1147,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Troca o próprio username (máx. 2/ano + cascata; sufixo de papel é PRESERVADO — sufixo(novo)==sufixo(atual): .admin troca p/ outro.admin, uname_role_suffix se derrubar o sufixo, uname_reserved se assumir um)",
+        "summary": "Troca o próprio username (máx. 2/ano + cascata, incluindo TODAS as sessões do login — outra aba, outro dispositivo, token do moj-cli — que passam a valer com o nome novo sem deslogar; sufixo de papel é PRESERVADO — sufixo(novo)==sufixo(atual): .admin troca p/ outro.admin, uname_role_suffix se derrubar o sufixo, uname_reserved se assumir um)",
         "security": [
           {
             "bearerAuth": []
@@ -1173,7 +1173,7 @@
         },
         "responses": {
           "200": {
-            "description": "{updated:true,new_username,username_changes_remaining}"
+            "description": "{updated:true,new_username,username_changes_used,username_changes_remaining,sessions_updated}"
           },
           "403": {
             "description": "limite anual atingido"

@@ -142,10 +142,12 @@ fsl="$(jq -r '.facts.first_solver.login // ""' <<<"$core")"; fspub=false; fsname
 while IFS= read -r u; do
   [[ -z "$u" ]] && continue
   pf="$T/users/$u/account.json"; fe=""; pub=1
-  if [[ -f "$pf" ]]; then
-    fe="$(jq -r '.favorite_editor // ""' "$pf" 2>/dev/null)"
-    [[ "$(jq -r 'if .public==false then "n" else "y" end' "$pf" 2>/dev/null)" == "n" ]] && pub=0
-  fi
+  # sem account.json não é usuário real (mesma regra do sc_users): dir de history órfão —
+  # resíduo de conta renomeada/removida — caía no default pub=1 e virava avatar SEM NOME,
+  # com link p/ um perfil 404, além de contar em solvers_public_count.
+  [[ -f "$pf" ]] || continue
+  fe="$(jq -r '.favorite_editor // ""' "$pf" 2>/dev/null)"
+  [[ "$(jq -r 'if .public==false then "n" else "y" end' "$pf" 2>/dev/null)" == "n" ]] && pub=0
   [[ -n "$fe" ]] && EDC["$fe"]=$(( ${EDC["$fe"]:-0} + 1 ))
   if (( pub )); then
     [[ -n "$fsl" && "$u" == "$fsl" ]] && { fspub=true; fsname="$(jq -r '.fullname // ""' "$pf" 2>/dev/null)"; }

@@ -214,7 +214,7 @@ function render(p, st) {
   content.append(el('div', { class: 'section' },
     el('h2', {}, T('🏷️ Nome de usuário (handle)', '🏷️ Username (handle)')),
     el('p', { class: 'small muted' }, T('Seu login atual é ', 'Your current login is '), el('b', {}, p.login),
-      T('. Trocar o handle atualiza todo o seu histórico do Treino Livre (submissões, estatísticas, etc.).', '. Changing the handle updates all your Free Training history (submissions, statistics, etc.).')),
+      T('. Trocar o handle atualiza todo o seu histórico do Treino Livre (submissões, estatísticas, etc.) e vale em todos os dispositivos onde você está conectado — inclusive na CLI: ninguém é deslogado.', '. Changing the handle updates all your Free Training history (submissions, statistics, etc.) and applies to every device you are logged in on — the CLI included: nobody gets logged out.')),
     (() => {
       const m = /\.(admin|cjudge|judge|cstaff|staff|mon)$/.exec(p.login);
       return m ? el('p', { class: 'small notice', style: 'margin:.3rem 0' },

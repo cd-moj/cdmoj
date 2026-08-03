@@ -10,6 +10,24 @@ _bearer_token() {
 
 SESSION_TOKEN=""; SESSION_CONTEST=""; SESSION_LOGIN=""; SESSION_NAME=""; SESSION_AT=""
 
+# _session_account_alive <contest> <login> — a conta da sessão ainda EXISTE?
+# Sessão do MOJ não expira, então sem este teste ela continua autenticada como um login que
+# já não existe: foi assim que uma sessão aberta ANTES de uma troca de handle seguiu submetendo
+# com o nome velho e o /submit (mkdir -p) RECRIOU o diretório do usuário renomeado (fantasma
+# sem account.json, que ainda aparecia como "solver" nas estatísticas).
+# ⚠ O teste tem de ser AQUI, não no submit: em contest com USERS_FROM o participante
+# compartilhado tem dir local SEM account.json de propósito (a identidade vem da fonte — ver
+# sc_users em score/score-common.sh), e um user_exists cru barraria submissão legítima.
+# A fonte só é consultada quando o account.json local falta: custo zero no caminho comum.
+_session_account_alive() {
+  local c="$1" u="$2" src
+  [[ -n "$c" && -n "$u" ]] || return 1
+  valid_id "$c" && valid_id "$u" || return 1
+  [[ -f "$CONTESTSDIR/$c/users/$u/account.json" ]] && return 0
+  src="$(_users_source "$c")"
+  [[ "$src" != "$c" && -f "$CONTESTSDIR/$src/users/$u/account.json" ]]
+}
+
 # load_session -> 0 se autenticado (popula SESSION_*), 1 caso contrário.
 load_session() {
   SESSION_TOKEN="$(_bearer_token)"
@@ -21,7 +39,8 @@ load_session() {
   source "$f"
   SESSION_CONTEST="$CONTEST"; SESSION_LOGIN="$LOGIN"
   SESSION_NAME="$USERFULLNAME"; SESSION_AT="$LOGINAT"
-  [[ -n "$SESSION_LOGIN" ]]
+  [[ -n "$SESSION_LOGIN" ]] || return 1
+  _session_account_alive "$SESSION_CONTEST" "$SESSION_LOGIN"
 }
 
 require_auth() { load_session || fail 401 "Not authenticated" "auth_required"; }
@@ -128,4 +147,31 @@ remove_contest_sessions(){
   done
   shopt -u nullglob
   printf '%s' "$n"
+}
+
+# rename_contest_sessions <contest> <old> <new> -> ecoa o nº de sessões reescritas.
+# A conta é um DIRETÓRIO (rename = mv); as sessões guardam o login em texto, então TODAS
+# as sessões daquela conta têm de seguir o novo nome — não só o token da requisição que
+# pediu a troca. Sem isso, a aba do outro computador (ou o token do moj-cli) continuava
+# valendo com o login velho até alguém submeter por ela.
+# Casa por FONTE de usuários: sessão de contest que herda os usuários de <contest>
+# (USERS_FROM) é do mesmo login e também é reescrita.
+rename_contest_sessions(){
+  local c="$1" old="$2" new="$3"
+  [[ -n "$c" && -n "$old" && -n "$new" && "$old" != "$new" ]] || { printf '0'; return 0; }
+  local qnew; printf -v qnew '%q' "$new"
+  ( set +o noglob; shopt -s nullglob
+    local n=0 f tmp CONTEST LOGIN
+    for f in "$SESSIONDIR"/*; do
+      [[ -f "$f" ]] || continue
+      CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
+      [[ "$LOGIN" == "$old" && -n "$CONTEST" ]] || continue
+      [[ "$(_users_source "$CONTEST")" == "$c" ]] || continue
+      tmp="$(mktemp "$f.XXXXXX")" || continue
+      if _NEWLOGIN="$qnew" awk '/^LOGIN=/{ print "LOGIN=" ENVIRON["_NEWLOGIN"]; next } {print}' \
+           "$f" > "$tmp" 2>/dev/null; then
+        chmod 600 "$tmp" 2>/dev/null; mv -f "$tmp" "$f" && ((n++))
+      else rm -f "$tmp"; fi
+    done
+    printf '%s' "$n" )
 }

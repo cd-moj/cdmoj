@@ -70,6 +70,8 @@ call "Bearer $BOT" /treino/signup/verify POST "" "{\"nonce\":\"$LN\",\"telegram_
 ck "link do mesmo tg -> already_linked" '[[ "$(jq -r .status <<<"$BODY")" == already_linked ]]'
 
 echo "== admin do contest v2 (user-add/disable/set-password/remove) =="
+# o admin precisa EXISTIR: sessão de conta inexistente morre em load_session (lib/auth.sh)
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"; fx_user "$T" boss.admin p "Boss"
 printf 'CONTEST=treino\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/tok-adm"
 call "Bearer tok-adm" /contest/admin/user-add POST "contest=treino" '{"login":"maria","password":"s3nh4","fullname":"Maria"}'
 ck "user-add cria no store"      '[[ -f "$T/users/maria/account.json" ]]'

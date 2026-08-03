@@ -143,7 +143,12 @@ Migração de contest pré-reforma (arquivado em `contests-legado/`): `server/bi
 `org#prob`), leva team/perfil ao account.json, roteia os flat files, gera metrics, move os
 resíduos p/ `.legacy-store/` e só publica em `contests/` após verificação (contas, spot-check
 de senhas, soma do history, metrics, placar). `server/bin/store-cleanup.sh <c>` limpa resíduos
-de contest já migrado.
+de contest já migrado. `server/bin/user-merge.sh <c> <de> <para> [--apply]` funde um **dir de
+usuário órfão** (sem `account.json`) na conta viva — history ordenado por epoch, arquivos de
+submissão, `metrics_recompute`, `.score-dirty` e o login do `var/editor-log`; o resíduo vai p/
+`var/merged/` (nada é apagado) e os logs de auditoria (`access.log`, `activity-*.log`) ficam
+como estão. Órfão desses só nascia pelo furo da sessão que sobrevivia ao rename (ver API.md,
+"Invariante da sessão"); a ferramenta segue valendo p/ qualquer resíduo.
 Migração vinda do **MOJ ANTIGO** (backup em `contests-backup/`, probid já em `<repo>#<slug>`) é
 outro caminho — o `store-migrate.sh` **não serve** porque aborta se o destino existe e faz `mv -T`
 do contest: `server/bin/treino-map-gen.sh` decide `<repo legado>#<slug>` → `<org>#<prob>` (alias

@@ -39,6 +39,7 @@ call /treino/contest-create/create POST "$SPEC" reg
 ADM="$(jq -r .admin_login <<<"$BODY")"
 [[ "$ADM" == "boss.admin" ]] && echo "(criou ac-c, admin=$ADM)" || { echo "SETUP FAIL: $BODY"; exit 1; }
 # sessões DO contest
+fx_user "$FIX/ac-c" alice a "Alice"   # sessão só vale p/ quem TEM conta no contest (lib/auth.sh)
 printf 'CONTEST=ac-c\nLOGIN=boss.admin\nUSERFULLNAME=Boss\nLOGINAT=1\n' > "$SESS/cadm"
 printf 'CONTEST=ac-c\nLOGIN=alice\nUSERFULLNAME=Alice\nLOGINAT=1\n' > "$SESS/cuser"
 

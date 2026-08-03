@@ -12,6 +12,7 @@ fx_user "$C" bob b "Bob"
 fx_user "$C" carol c "Carol"
 fx_user "$C" jx.judge p "Judge"
 fx_user "$C" cj.cjudge p "Chief"
+fx_user "$C" dave d "Dave"        # sessão só existe p/ quem TEM conta (lib/auth.sh confere)
 b64(){ printf '%s' "$1" | base64 -w0; }
 mkses(){ printf 'CONTEST=uc\nLOGIN=%q\nUSERFULLNAME=x\nLOGINAT=1\nIP=1.1.1.1\nUA_B64=%q\n' "$2" "$(b64 "$3")" > "$SESS/$1"; }
 printf 'CONTEST=uc\nLOGIN=uc.admin\nLOGINAT=1\n' > "$SESS/adm"
@@ -39,13 +40,13 @@ ck "users: bob disabled=true"  '[[ "$(jq -r ".users[]|select(.login==\"bob\")|.d
 
 echo "== troca de senha geral =="
 call /contest/admin/users-set-password POST '{"password":"prova2026"}' adm 'contest=uc'
-ck "trocou 2 (alice,carol; pula priv/disabled)" '[[ "$(jq -r .count <<<"$BODY")" == 2 ]]'
+ck "trocou 3 (alice,carol,dave; pula priv/disabled)" '[[ "$(jq -r .count <<<"$BODY")" == 3 ]]'
 ck "alice:prova2026"         '[[ "$(jq -r .password "$C/users/alice/account.json")" == "prova2026" ]]'
 ck "bob continua desabilitado" '[[ "$(jq -r .password "$C/users/bob/account.json")" == \!* ]]'
 ck "admin intacto"           '[[ "$(jq -r .password "$C/users/uc.admin/account.json")" == "p" ]]'
 ck ".cjudge intacto"         '[[ "$(jq -r .password "$C/users/cj.cjudge/account.json")" == "p" ]]'
 call /contest/admin/users-set-password POST '{"password":"secreta","include_disabled":true}' adm 'contest=uc'
-ck "com include_disabled troca 3" '[[ "$(jq -r .count <<<"$BODY")" == 3 ]]'
+ck "com include_disabled troca 4" '[[ "$(jq -r .count <<<"$BODY")" == 4 ]]'
 ck "bob reabilitado (secreta)" '[[ "$(jq -r .password "$C/users/bob/account.json")" == "secreta" ]]'
 
 echo "== deslogar UA divergente =="
