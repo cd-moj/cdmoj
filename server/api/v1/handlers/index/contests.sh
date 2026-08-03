@@ -63,7 +63,9 @@ body="$(jq -R -s -c \
   split("\n")
   | map(select(length>0) | split("\u001f") | select(length>=6)
       | { st:(.[1]),
-          obj:{ id:(.[2]), title:(.[3]),
+          # jq 1.7 (o da imagem) EXIGE parênteses em volta do valor quando ele é uma
+          # expressão composta ({…} + (…)): sem eles é "syntax error, unexpected else"
+          obj: ({ id:(.[2]), title:(.[3]),
                 start_time:(.[0]|tonumber? // 0), end_time:(.[4]|tonumber? // 0),
                 problems_count:(.[5]|tonumber? // 0),
                 url:("/contest/?c=" + .[2]), scoreboard_url:("/contest/score/?c=" + .[2]) }
@@ -72,7 +74,7 @@ body="$(jq -R -s -c \
                                        closes_at:((.[8] // "0")|tonumber? // 0),
                                        late_until:((.[9] // "0")|tonumber? // 0),
                                        url:("/contests/inscricao/?c=" + .[2]) } }
-                else {} end) })
+                else {} end)) })
   | (map(select(.st=="r") | .obj)) as $open
   | (map(select(.st=="u") | .obj)) as $up
   | (map(select(.st=="e") | .obj)) as $closed
