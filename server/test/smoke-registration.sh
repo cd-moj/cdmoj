@@ -35,7 +35,7 @@ mkses tok-adm esq esq.admin
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" \
     HTTP_AUTHORIZATION="Bearer ${4:-tok-ana}" bash "$ROUTER" <<<"${3:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
-reg(){ call /treino/contest-registration POST "$1" "${2:-tok-ana}" 'contest=esq'; }
+reg(){ call /treino/contest-registration POST "$1" "${2:-tok-ana}" ''; }   # contest vai no CORPO
 adm(){ call /contest/admin/registrations POST "$1" tok-adm 'contest=esq'; }
 login(){ call /auth/login POST "{\"username\":\"$1\",\"password\":\"${2:-s3nha}\"}" '' 'contest=esq'; }
 pass=0; fail=0
@@ -45,7 +45,7 @@ J(){ jq -r "$1" <<<"$BODY" 2>/dev/null; }
 echo "== sem roster: contest aberto como sempre =="
 call /treino/contest-registration GET '' tok-ana 'contest=esq'
 ck "GET diz enabled:false"      '[[ "$(J .enabled)" == false ]]'
-reg '{"action":"register"}'
+reg '{"contest":"esq","action":"register"}'
 ck "inscrever sem roster -> 409" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == registration_off ]]'
 login bob
 ck "bob entra (sem roster, porta aberta)" '[[ "$(J .logged_in)" == true ]]'
@@ -57,38 +57,38 @@ ck "coortes semeadas"           '[[ "$(jq -r "[.cohorts[].id]|sort|join(\",\")" 
 ck "roster criado"              '[[ -f "$C/registrations.json" ]]'
 
 echo "== inscrição individual =="
-reg '{"action":"register"}' tok-zeze
+reg '{"contest":"esq","action":"register"}' tok-zeze
 ck "zeze inscrito"              '[[ "$(J .me.kind)" == individual ]]'
 ck "coorte individual"          '[[ "$(J .me.cohort)" == individual ]]'
 ck "overlay SEM senha no store" '[[ -f "$C/users/zeze/account.json" && -z "$(jq -r ".password // empty" "$C/users/zeze/account.json")" ]]'
 ck "nome veio do treino"        '[[ "$(jq -r .fullname "$C/users/zeze/account.json")" == "Fulano zeze" ]]'
-reg '{"action":"register"}' tok-zeze
+reg '{"contest":"esq","action":"register"}' tok-zeze
 ck "inscrever 2x -> 409"        '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == already_registered ]]'
 
 echo "== time: criar, convidar, aceitar, recusar =="
-reg '{"action":"team-create","name":"Os Três Ponteiros"}' tok-ana
+reg '{"contest":"esq","action":"team-create","name":"Os Três Ponteiros"}' tok-ana
 ck "time criado"                '[[ "$(J .team.login)" == "time-os-tres-ponteiros" ]]'
 ck "ana é capitã"               '[[ "$(J .team.captain)" == ana && "$(J .me.kind)" == team ]]'
 ck "conta do time no store"     '[[ "$(jq -r .fullname "$C/users/time-os-tres-ponteiros/account.json")" == "Os Três Ponteiros" ]]'
 ck "senha do time desativada"   '[[ "$(jq -r .password "$C/users/time-os-tres-ponteiros/account.json")" == \!* ]]'
 ck "coorte times"               '[[ "$(jq -r .team.cohort "$C/users/time-os-tres-ponteiros/account.json")" == times ]]'
-reg '{"action":"team-create","name":"Os Tres Ponteiros"}' tok-bob
+reg '{"contest":"esq","action":"team-create","name":"Os Tres Ponteiros"}' tok-bob
 ck "nome repetido -> 409"       '[[ "$(J .error.code)" == name_taken ]]'
-reg '{"action":"team-invite","login":"caio"}' tok-ana
+reg '{"contest":"esq","action":"team-invite","login":"caio"}' tok-ana
 ck "convite p/ caio"            '[[ "$(J ".team.invited|join(\",\")")" == *caio* ]]'
-reg '{"action":"team-invite","login":"naoexiste"}' tok-ana
+reg '{"contest":"esq","action":"team-invite","login":"naoexiste"}' tok-ana
 ck "convidar quem não existe -> 404" '[[ "$(J .error.code)" == user_notfound ]]'
-reg '{"action":"team-invite","login":"west"}' tok-ana
+reg '{"contest":"esq","action":"team-invite","login":"west"}' tok-ana
 ck "convite p/ west"            '[[ "$(J .error.code)" != team_full ]]'
-reg '{"action":"team-invite","login":"bob"}' tok-ana
+reg '{"contest":"esq","action":"team-invite","login":"bob"}' tok-ana
 ck "4º integrante -> team_full"  '[[ "$(J .error.code)" == team_full ]]'
 call /treino/contest-registration GET '' tok-caio 'contest=esq'
 ck "caio vê o convite"          '[[ "$(J ".invites[0].login")" == time-os-tres-ponteiros ]]'
-reg '{"action":"team-accept","team":"time-os-tres-ponteiros"}' tok-caio
+reg '{"contest":"esq","action":"team-accept","team":"time-os-tres-ponteiros"}' tok-caio
 ck "caio no time"               '[[ "$(J .me.kind)" == team && "$(J ".team.members|join(\",\")")" == *caio* ]]'
-reg '{"action":"team-decline","team":"time-os-tres-ponteiros"}' tok-west
+reg '{"contest":"esq","action":"team-decline","team":"time-os-tres-ponteiros"}' tok-west
 ck "west recusou"               '[[ "$(J ".invites|length")" == 0 ]]'
-reg '{"action":"team-invite","login":"caio"}' tok-caio
+reg '{"contest":"esq","action":"team-invite","login":"caio"}' tok-caio
 ck "convite de quem não é capitão -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 
 echo "== a PORTA do contest =="
@@ -116,14 +116,14 @@ echo "== janela: atrasado e fechado =="
 conf "$((NOW-600))" "$((NOW+10800))" 'REG_LATE_MINUTES=30'   # REG_CLOSE volta ao início (passado)
 call /treino/contest-registration GET '' tok-bob 'contest=esq'
 ck "janela = late"              '[[ "$(J .window.state)" == late ]]'
-reg '{"action":"register"}' tok-bob
+reg '{"contest":"esq","action":"register"}' tok-bob
 ck "bob entra atrasado"         '[[ "$(J .me.cohort)" == individual-atrasado ]]'
 login bob
 ck "atrasado consegue entrar"   '[[ "$(J .logged_in)" == true ]]'
 conf "$((NOW-7200))" "$((NOW+10800))" 'REG_LATE_MINUTES=30'  # início há 2h: atraso vencido
 call /treino/contest-registration GET '' tok-west 'contest=esq'
 ck "janela = closed"            '[[ "$(J .window.state)" == closed ]]'
-reg '{"action":"register"}' tok-west
+reg '{"contest":"esq","action":"register"}' tok-west
 ck "inscrição fechada -> 403"   '[[ "$OUT" == *"Status: 403"* && "$(J .error.code)" == registration_closed ]]'
 login west
 ck "quem não entrou fica fora"  '[[ "$(J .error.code)" == registration_closed ]]'

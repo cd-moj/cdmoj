@@ -22,7 +22,11 @@
 #   team-dissolve                 — capitão desfaz o time
 #   team-rename   {name}          — capitão troca o NOME (o login do time não muda)
 require_auth_contest treino
+# o contest pode vir na QUERY (?contest=) ou no CORPO — o front manda no corpo, junto da ação.
+# read_body lê o stdin UMA vez: por isso ele vem antes de tudo que precisa do contest.
+body=""; [[ "$REQUEST_METHOD" == POST ]] && body="$(read_body)"
 contest="$(param contest)"
+if [[ -z "$contest" && -n "$body" ]]; then contest="$(jq -r '.contest // empty' <<<"$body" 2>/dev/null)"; fi
 [[ -n "$contest" ]] || fail 400 "Informe o contest" "contest_missing"
 require_contest "$contest"
 [[ "$contest" == treino ]] && fail 400 "O treino não tem inscrição" "contest_invalid"
@@ -61,7 +65,6 @@ _emit(){  # estado completo, p/ o front redesenhar com UMA chamada
 [[ "$REQUEST_METHOD" == POST ]] || { _emit; exit 0; }
 
 reg_enabled "$contest" || fail 409 "Este contest não usa inscrição" "registration_off"
-body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 action="$(jq -r '.action // empty' <<<"$body")"
 [[ -n "$action" ]] || fail 400 "Informe a ação" "action_missing"
