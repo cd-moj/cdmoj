@@ -55,11 +55,14 @@ while IFS= read -r -d '' f; do
       grep -oE '\$[a-zA-Z_][a-zA-Z0-9_]*' <<<"$prog" | sed 's/^\$//' | grep -vxE 'ENV|__loc__' | sort -u)
     err="$(echo null | jq "${args[@]}" "$prog" 2>&1 >/dev/null)"
     grep -q "syntax error" <<<"$err" || continue
-    # A incompatibilidade 1.7 x 1.8 é UMA: valor de campo de objeto com operador binário solto —
-    # e ela sempre reclama "expecting '}'". Qualquer outro erro de sintaxe é o EXTRATOR daqui que
-    # pegou lixo (jq com programa sem aspas dentro de string do shell, programa montado por
-    # concatenação, etc.) — vira AVISO, não falha, senão o guard fica inútil de tão barulhento.
-    if grep -q "expecting '}'" <<<"$err"; then
+    # A incompatibilidade 1.7 x 1.8 aparece de DUAS formas, conforme o que está solto no valor
+    # do campo:  operador binário  -> "expecting '}'"
+    #            um if/then/else   -> "unexpected else"   ({a: X + (if … else … end)})
+    # A segunda custou uma listagem de contests em produção (500 na home) porque caía no balde de
+    # "ruído". Qualquer OUTRO erro de sintaxe é o EXTRATOR daqui que pegou lixo (programa montado
+    # por concatenação, jq sem aspas dentro de string do shell) — vira AVISO, não falha, senão o
+    # guard fica inútil de tão barulhento.
+    if grep -qE "expecting '\}'|unexpected else" <<<"$err"; then
       bad=$((bad+1))
       echo "FAIL $f"
       grep -oE "unexpected [^,]*" <<<"$err" | head -1 | sed 's/^/     /'
