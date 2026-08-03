@@ -9,6 +9,11 @@ _bearer_token() {
 }
 
 SESSION_TOKEN=""; SESSION_CONTEST=""; SESSION_LOGIN=""; SESSION_NAME=""; SESSION_AT=""
+# SESSION_ACTOR = a PESSOA por trás da sessão quando ela não é o próprio login: num contest
+# com times (lib/registration.sh), o membro entra com a credencial dele e a sessão é do TIME —
+# SESSION_LOGIN é o time (é o competidor: placar, balões, impressão) e SESSION_ACTOR é quem
+# estava no teclado. Vazio = sessão comum.
+SESSION_ACTOR=""
 
 # _session_account_alive <contest> <login> — a conta da sessão ainda EXISTE?
 # Sessão do MOJ não expira, então sem este teste ela continua autenticada como um login que
@@ -35,10 +40,10 @@ load_session() {
   valid_id "$SESSION_TOKEN" || return 1
   local f="$SESSIONDIR/$SESSION_TOKEN"
   [[ -f "$f" ]] || return 1
-  local CONTEST="" LOGIN="" USERFULLNAME="" LOGINAT=""
+  local CONTEST="" LOGIN="" USERFULLNAME="" LOGINAT="" ACTOR=""
   source "$f"
   SESSION_CONTEST="$CONTEST"; SESSION_LOGIN="$LOGIN"
-  SESSION_NAME="$USERFULLNAME"; SESSION_AT="$LOGINAT"
+  SESSION_NAME="$USERFULLNAME"; SESSION_AT="$LOGINAT"; SESSION_ACTOR="$ACTOR"
   [[ -n "$SESSION_LOGIN" ]] || return 1
   _session_account_alive "$SESSION_CONTEST" "$SESSION_LOGIN"
 }
@@ -112,7 +117,9 @@ client_ip(){
   printf '%s' "$ip" | tr -cd '0-9a-fA-F.:'
 }
 
-# create_session <contest> <login> <name> -> ecoa o token (uuid)
+# create_session <contest> <login> <name> [actor] -> ecoa o token (uuid)
+# <actor> só é gravado quando a sessão é de um TIME (o membro que autenticou) — ver
+# SESSION_ACTOR acima e o alias em handlers/auth/login.sh.
 create_session() {
   mkdir -p "$SESSIONDIR"; chmod 700 "$SESSIONDIR" 2>/dev/null
   local uuid; uuid="$(</proc/sys/kernel/random/uuid)"
@@ -127,6 +134,7 @@ create_session() {
       printf 'LOGINAT=%q\n'      "$EPOCHSECONDS"
       printf 'IP=%q\n'           "$ip"
       printf 'UA_B64=%q\n'       "$ua"
+      [[ -n "${4:-}" ]] && printf 'ACTOR=%q\n' "$4"
     } > "$SESSIONDIR/$uuid"
   )
   printf '%s' "$uuid"
@@ -161,14 +169,22 @@ rename_contest_sessions(){
   [[ -n "$c" && -n "$old" && -n "$new" && "$old" != "$new" ]] || { printf '0'; return 0; }
   local qnew; printf -v qnew '%q' "$new"
   ( set +o noglob; shopt -s nullglob
-    local n=0 f tmp CONTEST LOGIN
+    local n=0 f tmp CONTEST LOGIN ACTOR
     for f in "$SESSIONDIR"/*; do
       [[ -f "$f" ]] || continue
-      CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
-      [[ "$LOGIN" == "$old" && -n "$CONTEST" ]] || continue
+      CONTEST=""; LOGIN=""; ACTOR=""; source "$f" 2>/dev/null
+      # o ATOR também segue: numa sessão de time o login é o time e o ator é o membro
+      [[ ( "$LOGIN" == "$old" || "$ACTOR" == "$old" ) && -n "$CONTEST" ]] || continue
       [[ "$(_users_source "$CONTEST")" == "$c" ]] || continue
+      # a decisão é do bash (já temos os valores do source); o awk só reescreve a chave
+      local dol=0 doa=0
+      [[ "$LOGIN" == "$old" ]] && dol=1
+      [[ "$ACTOR" == "$old" ]] && doa=1
       tmp="$(mktemp "$f.XXXXXX")" || continue
-      if _NEWLOGIN="$qnew" awk '/^LOGIN=/{ print "LOGIN=" ENVIRON["_NEWLOGIN"]; next } {print}' \
+      if _NEWLOGIN="$qnew" _DOL="$dol" _DOA="$doa" awk '
+             /^LOGIN=/ && ENVIRON["_DOL"] == "1" { print "LOGIN=" ENVIRON["_NEWLOGIN"]; next }
+             /^ACTOR=/ && ENVIRON["_DOA"] == "1" { print "ACTOR=" ENVIRON["_NEWLOGIN"]; next }
+             {print}' \
            "$f" > "$tmp" 2>/dev/null; then
         chmod 600 "$tmp" 2>/dev/null; mv -f "$tmp" "$f" && ((n++))
       else rm -f "$tmp"; fi

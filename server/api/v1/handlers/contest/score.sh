@@ -20,6 +20,9 @@ CH_VIEW=public
 if ch_enabled "$contest"; then
   vparam="$(param view)"
   if [[ "$vparam" == oficial ]]; then CH_VIEW=public
+  # placar PARALELO de coorte pública (ex.: `?view=times` num contest com inscrição): é
+  # público como o geral — não depende de sessão nem esconde ninguém, só recorta o ranking.
+  elif [[ -n "$vparam" ]] && ch_is_ranking_view "$contest" "$vparam"; then CH_VIEW="$vparam"
   else
     load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] \
       && CH_VIEW="$(ch_view_for_login "$contest" "$SESSION_LOGIN")"

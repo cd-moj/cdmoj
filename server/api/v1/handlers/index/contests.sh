@@ -33,6 +33,7 @@ for d in "$CONTESTSDIR"/*/; do
   [[ -f "$c/conf" ]] || continue
   (
     CONTEST_START=""; CONTEST_END=""; CONTEST_NAME=""; SECRET=""; PROBS=()
+    REG_OPEN=""; REG_CLOSE=""; REG_LATE_MINUTES=""
     source "$c/conf" 2>/dev/null
     [[ "$SECRET" == 1 ]] && exit 0   # SUPER SECRETO: fora de abertos/por vir/encerrados
     [[ "$CONTEST_START" =~ ^[0-9]+$ && "$CONTEST_END" =~ ^[0-9]+$ ]] || exit 0
@@ -40,8 +41,20 @@ for d in "$CONTESTSDIR"/*/; do
     elif (( CONTEST_START >  NOW )); then st=u
     else st=r; fi
     t="${CONTEST_NAME//$'\x1f'/ }"; t="${t//$'\n'/ }"; t="${t//$'\t'/ }"
-    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' \
-      "$CONTEST_START" "$st" "$id" "$t" "$CONTEST_END" "$(( ${#PROBS[@]} / 5 ))"
+    # INSCRIÇÃO (roster existe = ligada): manda as DATAS, não o estado — quem decide "aberta
+    # / atrasada / fechada" é o relógio do cliente, sem duplicar a regra do lib/registration.sh
+    reg=0; ro=0; rc=0; rl=0
+    if [[ -s "$c/registrations.json" ]]; then
+      reg=1
+      [[ "$REG_OPEN" =~ ^[0-9]+$ ]] && ro="$REG_OPEN"
+      if [[ "$REG_CLOSE" =~ ^[0-9]+$ ]]; then rc="$REG_CLOSE"; else rc="$CONTEST_START"; fi
+      if [[ "$REG_LATE_MINUTES" =~ ^[0-9]+$ ]] && (( REG_LATE_MINUTES > 0 )); then
+        rl=$(( CONTEST_START + REG_LATE_MINUTES * 60 )); (( rl < rc )) && rl=$rc
+      fi
+    fi
+    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' \
+      "$CONTEST_START" "$st" "$id" "$t" "$CONTEST_END" "$(( ${#PROBS[@]} / 5 ))" \
+      "$reg" "$ro" "$rc" "$rl"
   )
 done | sort -t"$US" -k1,1rn > "$TSV"
 
@@ -53,7 +66,13 @@ body="$(jq -R -s -c \
           obj:{ id:(.[2]), title:(.[3]),
                 start_time:(.[0]|tonumber? // 0), end_time:(.[4]|tonumber? // 0),
                 problems_count:(.[5]|tonumber? // 0),
-                url:("/contest/?c=" + .[2]), scoreboard_url:("/contest/score/?c=" + .[2]) } })
+                url:("/contest/?c=" + .[2]), scoreboard_url:("/contest/score/?c=" + .[2]) }
+             + (if (.[6] // "0") == "1"
+                then { registration: { opens_at:((.[7] // "0")|tonumber? // 0),
+                                       closes_at:((.[8] // "0")|tonumber? // 0),
+                                       late_until:((.[9] // "0")|tonumber? // 0),
+                                       url:("/contests/inscricao/?c=" + .[2]) } }
+                else {} end) })
   | (map(select(.st=="r") | .obj)) as $open
   | (map(select(.st=="u") | .obj)) as $up
   | (map(select(.st=="e") | .obj)) as $closed

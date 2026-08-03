@@ -100,8 +100,21 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `.admin` troca p/ `outro.admin`, nunca derruba nem assume papel) **e as ORGs seguem o rename**
   (`orgs_rename_login` em lib/orgs.sh — sem isso a conta renomeada ficava órfã de TODAS as orgs;
   o nome da org e o `owner` histórico dos problemas não mudam: acesso vem da membership)
-  **e as SESSÕES também** (`rename_contest_sessions`, resposta `sessions_updated`). Item novo na
-  cascata de rename ⇒ entra aqui, no `username.sh` E no `smoke-profile.sh`. O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
+  **e as SESSÕES também** (`rename_contest_sessions`, resposta `sessions_updated`) **e as
+  INSCRIÇÕES** (`reg_rename_login`). Item novo na cascata de rename ⇒ entra aqui, no
+  `username.sh` E no `smoke-profile.sh`.
+- **Inscrição em contest (`lib/registration.sh`)**: `contests/<c>/registrations.json` — **existir =
+  ligado** (doutrina do `cohorts.json`: ausente = comportamento de sempre, custo zero). Vale só p/
+  contest com `USERS_FROM` (quem se inscreve é a conta da FONTE, pela página `/contests/inscricao/`
+  do site principal — o token é por ORIGEM e o subdomínio do contest não vê a sessão do treino).
+  Janela no conf (`REG_OPEN`/`REG_CLOSE`/`REG_LATE_MINUTES`/`REG_TEAM_MAX`/`REG_TEAMS`); atrasado
+  cai em coorte `unranked`. **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
+  — que eram só desenho de tela — e o roster valem lá; papel nunca é barrado. **TIME = conta local**
+  (`users/time-<slug>/`, senha `!<uuid>`) e o membro entra com a credencial DELE: o login faz o
+  **alias** (`SESSION_LOGIN` = time, `SESSION_ACTOR` = a pessoa), então placar/balões/impressão não
+  mudam. Toda mudança MATERIALIZA o store (overlay `account.json` **sem senha** — `verify_password`
+  cai p/ a fonte) e semeia `individual`/`times`; coorte pública com **`ranking:true`** ganha placar
+  próprio (`ch_views`/`build.sh`, seletor no `/contest/score/`). O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
   autentica com **bot-token** `mojb_…` (`lib/bot-auth.sh` `require_bot`, `run/secrets/bot.token`) — não
   loga como `.admin`, sem GODS. Em produção roda **ENJAULADO** (`mojinho-bot/run-caged.sh`: bwrap
   sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com

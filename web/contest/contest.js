@@ -217,6 +217,17 @@ function bootLogin() {
       location.reload();
     } catch (ex) {
       err.textContent = ex && ex.message ? ex.message : T('Erro de login, tente novamente', 'Login error, try again');
+      // A PORTA do contest (roster/janela): a mensagem sozinha não resolve — quem não se
+      // inscreveu precisa do link, e a inscrição mora no site principal (outro domínio).
+      const code = ex && ex.code;
+      if (code === 'not_registered' || code === 'registration_not_open') {
+        const base = location.host.replace(/^[^.]+\./, '');   // <id>.moj.x → moj.x
+        const a = document.createElement('a');
+        a.href = location.protocol + '//' + base + '/contests/inscricao/?c=' + encodeURIComponent(CONTEST);
+        a.textContent = T(' Inscreva-se aqui →', ' Register here →');
+        a.style.marginLeft = '.4rem';
+        err.append(a);
+      }
       err.classList.remove('hidden');
       btn.disabled = false;
     }
@@ -289,6 +300,11 @@ function renderUser() {
     el('div', { class: 'small muted' }, 'Login: ', el('b', {}, userinfo.login),
       userinfo.is_admin ? '  · admin' : (userinfo.is_judge ? '  · judge'
         : (userinfo.is_staff ? '  · staff' : (userinfo.is_cstaff ? '  · ' + T('chefe de sede', 'site chief') : '')))),
+    // sessão de TIME: quem está no teclado é o `actor`, mas quem compete é o time
+    userinfo.is_team ? el('div', { class: 'small' },
+      T('👥 Você entrou como ', '👥 You logged in as '), el('b', {}, userinfo.actor || ''),
+      T(' e está competindo pelo time acima — as submissões contam para o time.',
+        ' and you are competing for the team above — submissions count for the team.')) : '',
   );
 }
 

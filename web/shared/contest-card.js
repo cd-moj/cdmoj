@@ -30,10 +30,28 @@ export function contestCard(c, status) {
   else actions.push(el('a', { class: 'btn ghost', href: url, style: bs }, status === 'upcoming' ? T('Detalhes', 'Details') : T('Ver', 'View')));
   actions.push(el('a', { class: 'btn ghost', href: score, style: bs }, T('Placar', 'Scoreboard')));
 
+  // INSCRIÇÃO: o contest só deixa entrar quem se inscreveu ANTES (roster + janela). O estado
+  // sai do relógio do cliente a partir das datas — a regra em bash é a do lib/registration.sh.
+  const r = c.registration, now = Date.now() / 1000;
+  let regState = '';
+  if (r && status !== 'closed') {
+    regState = now < (r.opens_at || 0) ? 'soon'
+             : now <= (r.closes_at || 0) || !r.closes_at ? 'open'
+             : now <= (r.late_until || 0) ? 'late' : 'closed';
+    if (regState === 'open' || regState === 'late') {
+      actions.unshift(el('a', { class: 'btn', href: r.url || ('/contests/inscricao/?c=' + encodeURIComponent(id)), style: bs },
+        regState === 'late' ? T('Inscrição atrasada →', 'Late registration →') : T('📝 Inscreva-se', '📝 Register')));
+    }
+  }
+
   const meta = el('div', { class: 'cc-meta' },
     el('span', { class: 'cc-when' }, when),
     el('span', {}, T('início ', 'start ') + fmtDate(start)),
     el('span', {}, T('fim ', 'end ') + fmtDate(end)));
+  if (regState === 'open') meta.append(el('span', {}, T('inscrições fecham ', 'registration closes ') + relTime(r.closes_at)));
+  else if (regState === 'soon') meta.append(el('span', {}, T('inscrições abrem ', 'registration opens ') + relTime(r.opens_at)));
+  else if (regState === 'late') meta.append(el('span', {}, T('inscrição atrasada até ', 'late registration until ') + relTime(r.late_until)));
+  else if (regState === 'closed') meta.append(el('span', {}, T('inscrições encerradas', 'registration closed')));
   if (c.problems_count != null) meta.append(el('span', {}, c.problems_count + T(' problemas', ' problems')));
 
   return el('div', { class: 'contest-card ' + status },

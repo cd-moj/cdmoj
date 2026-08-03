@@ -49,6 +49,7 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 |---|---|
 | **Contas** | Criar/resetar/desabilitar/remover contas (individual e em lote por .txt/.csv), trocar a senha de todos e o atalho das **🏷️ Etiquetas de credenciais**. É AQUI que você cria as contas de papel (seção 3). |
 | **Times** | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
+| **Inscrições** | O **roster** do contest (só inscrito entra) e a **janela**: quando abre, quando fecha (default: o início da prova) e quantos minutos de entrada atrasada. Lista times e individuais, dissolve time, inscreve à mão e exporta CSV. A seção 8½ explica. |
 | **Coortes** | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
 | **Sedes & escolas** | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas e o gate por sede — e as regras de país/escola por regex. |
 | **Máquinas & gate** | De onde cada time logou (IP e navegador) em cada rodada, com CSV, **e a configuração do gate de navegador por sede** (esperado × visto por time). A seção 7 explica. |
@@ -361,6 +362,35 @@ práticas:
 > ℹ️ Sobram dois canais **numéricos** que não escondem identidade mas existem: a página de status
 > pública conta as submissões pendentes de **todos** os times, e a numeração de tarefas de
 > impressão é única por contest (saltos indicam atividade que o time não vê).
+
+## 8½. Inscrição prévia e times de 3 contas do treino
+
+Vale para contest criado com **"usuários compartilhados do Treino Livre"**. Ligando a inscrição
+(Pessoas › Inscrições → **Ligar inscrição**), o contest passa a ter uma **porta**: quem não se
+inscreveu **não entra** (a API recusa o login, não é só a tela).
+
+**Como a pessoa se inscreve:** no site principal, logada no treino, em
+`/contests/inscricao/?c=<id>` (o cartão do contest na home ganha o botão **📝 Inscreva-se**).
+Ela escolhe **individual** ou **criar um time**: dá um nome e convida até 2 logins do treino;
+cada convidado precisa **aceitar**. Enquanto a janela estiver aberta dá para sair, renomear e
+desfazer. Participação é exclusiva — aceitar convite desfaz a inscrição individual.
+
+**Na prova, cada membro entra com o PRÓPRIO login e senha do treino** e a sessão vira a do time:
+o placar, os balões e a impressão veem **uma linha só**. Quem estava no teclado fica registrado
+(`var/actor-log` e a 5ª coluna do `var/access.log`) — útil para conferir depois.
+
+**A janela** (Pessoas › Inscrições → *Janela de inscrição*): `abre` (vazio = já aberta), `fecha`
+(vazio = o início da prova) e **`atraso (min)`** — minutos após o início em que ainda dá para
+entrar, mas na coorte `…-atrasado`, que aparece no placar **sem ocupar posição** (é a *extra
+registration* do Codeforces). Passou disso, a porta fecha.
+
+**Placar:** a inscrição semeia as coortes `individual` e `times`, cada uma com **placar próprio**
+— o seletor "Placar: Geral | Times | Individual" aparece sozinho na página do placar. Se o
+contest já tinha coortes configuradas, o checklist pré-prova avisa que faltam essas duas.
+
+> Dica de dia de prova: o checklist da Central mostra quantos se inscreveram e **quantos convites
+> ficaram pendentes** — convite não aceito significa gente achando que está no time e que, na
+> hora, não entra.
 
 ## 9. Template de usuários (habilita todas as funções)
 

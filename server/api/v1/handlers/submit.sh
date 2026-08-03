@@ -77,5 +77,9 @@ else FAVORITE_EDITOR=""; read_profile "$contest" "$SESSION_LOGIN" 2>/dev/null; e
 mkdir -p "$CONTESTSDIR/$contest/var"
 printf '%s:%s:%s:%s\n' "$AGORA" "$ID" "$SESSION_LOGIN" "$editor" \
   >> "$CONTESTSDIR/$contest/var/editor-log" 2>/dev/null || true
+# Sessão de TIME: a submissão é do time (é ele que compete), mas o organizador precisa saber
+# QUEM estava no teclado — nem o history nem o results carregam isso.
+[[ -n "${SESSION_ACTOR:-}" ]] && printf '%s:%s:%s:%s\n' "$AGORA" "$ID" "$SESSION_LOGIN" "$SESSION_ACTOR" \
+  >> "$CONTESTSDIR/$contest/var/actor-log" 2>/dev/null || true
 
 ok_json '{submission_id:$id, status:"queued"}' --arg id "$ID"

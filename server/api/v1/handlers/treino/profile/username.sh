@@ -59,6 +59,10 @@ command -v tg_rename >/dev/null 2>&1 && tg_rename treino "$old" "$new" 2>/dev/nu
 # renomeada ficava órfã de todas — inclusive da implícita — e perdia acesso aos problemas)
 source "$_DIR/lib/orgs.sh"
 orgs_rename_login "$old" "$new" || true
+# INSCRIÇÕES seguem o rename: sem isto a pessoa "sumia" do roster (e do time) de todo contest
+# em que estava inscrita ao trocar de handle. Ver lib/registration.sh.
+source "$_DIR/lib/registration.sh"
+reg_rename_login "$old" "$new" || true
 
 # TODAS as sessões do login seguem o novo nome — não só a que pediu a troca. A sessão da outra
 # aba/computador e o token do moj-cli continuavam valendo com o login VELHO: como a conta é um

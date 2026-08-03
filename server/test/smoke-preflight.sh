@@ -131,5 +131,18 @@ printf '[{"regex":"^teambrspso","end":%s,"reason":"queda de energia"}]' "$((NOW+
 check "prorrogação ativa => warn"          '[[ "$(lvl tov)" == warn ]]'
 check "avisa que passa do freeze"          '[[ "$(det tov)" == *"passa do freeze"* ]]'
 
+echo "== inscrição (roster + janela) =="
+check "sem roster => item ausente"       '[[ "$(lvl registration)" == "(ausente)" ]]'
+printf '{"version":1,"teams":{},"entries":{}}' > "$C/registrations.json"; run
+check "roster vazio => warn"             '[[ "$(lvl registration)" == warn ]]'
+check "diz onde as pessoas se inscrevem" '[[ "$(det registration)" == *"/contests/inscricao/"* ]]'
+check "contas próprias => avisa fonte"   '[[ "$(lvl reg_source)" == warn ]]'
+check "sem coortes de inscrição => warn" '[[ "$(lvl reg_cohorts)" == warn ]]'
+printf '{"version":1,"teams":{"time-x":{"name":"X","captain":"a","members":["a"],"invited":["b","c"]}},"entries":{"a":{"kind":"team","team":"time-x"}}}' \
+  > "$C/registrations.json"; run
+check "com inscrito => ok"               '[[ "$(lvl registration)" == ok ]]'
+check "convites pendentes => warn"       '[[ "$(lvl reg_invites)" == warn && "$(det reg_invites)" == *"NÃO entra"* ]]'
+rm -f "$C/registrations.json"
+
 echo ""; echo "RESULT: $pass passed, $fail failed"
 exit $(( fail > 0 ? 1 : 0 ))

@@ -376,6 +376,20 @@ async function boot() {
     }
   }
 
+  // PLACARES PARALELOS (times × individual): coortes públicas com ranking próprio. É público —
+  // não depende de sessão — e o "Geral" continua sendo o placar com todo mundo.
+  const svs = (basic && basic.score_views) || [];
+  // se o seletor de CONVIDADOS já está na barra, ele manda (é sobre quem vê quem): os dois
+  // escrevem o mesmo `cohortView` e brigariam pelo `?view=`
+  if (svs.length > 1 && !(coh && (coh.views || []).length > 1)) {
+    const bar = document.getElementById('noAnim').parentNode.parentNode;
+    const sel = el('select', {}, el('option', { value: '' }, T('Geral (todos)', 'Overall (everyone)')),
+      ...svs.map((v) => el('option', { value: v.id }, v.name || v.id)));
+    sel.value = cohortView || '';
+    sel.addEventListener('change', () => { cohortView = sel.value; pollScore(); });
+    bar.append(el('label', { class: 'small', style: 'margin-left:.6rem' }, T('Placar: ', 'Board: '), sel));
+  }
+
   // ordenação por clique no cabeçalho (delegação)
   document.getElementById('scoreContainer').addEventListener('click', (e) => {
     const th = e.target.closest('table.score th');

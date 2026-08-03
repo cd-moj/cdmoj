@@ -138,6 +138,26 @@ username = `mv` do diretório** e a maioria dos scripts de conta/julgamento só 
 (`lib/users.sh`, `emit_history_stream`). Os handlers de usuário do **admin do contest**
 (`user-add`/`user-disable`/`user-remove`/`users-set-password`) escrevem no `account.json` (fonte
 da verdade); remover = `mv` do diretório p/ `.removed-users/` (submissões preservadas).
+### Inscrição em contest (roster, janela e TIMES de contas do treino)
+Contest que usa as contas do treino (`USERS_FROM=treino`) pode exigir **inscrição prévia**:
+`contests/<c>/registrations.json` — **existir = ligado** (mesma doutrina do `cohorts.json`).
+Motor em `lib/registration.sh`; a pessoa se inscreve pela página `/contests/inscricao/?c=<id>`
+**do site principal** (o token é por ORIGEM: o subdomínio do contest não enxerga a sessão do
+treino), individual ou em **time de até 3 contas existentes** (convite + aceite do convidado).
+A **janela** vem do conf (`REG_OPEN`/`REG_CLOSE`, default = início da prova, e
+`REG_LATE_MINUTES` p/ a entrada atrasada, que cai numa coorte `unranked` — a *extra
+registration* do Codeforces). **A porta é a API**: `handlers/auth/login.sh` recusa quem não está
+no roster (403 `not_registered`) e passou a valer `LOGIN_ENABLED`/`LOGIN_START_TIME`, que antes
+só existiam no desenho da tela.
+
+O time é **uma conta local** do contest (`users/time-<slug>/`, senha desativada) e o membro entra
+com a **própria** credencial do treino: o login faz o **alias** (sessão = time, `ACTOR` = a pessoa),
+então placar, balões, impressão e clarifications continuam vendo uma linha só, sem nenhuma mudança
+neles. Cada mudança no roster **materializa** o store (overlay `account.json` sem senha p/ o
+inscrito — a credencial segue sendo a da fonte) e semeia as coortes `individual`/`times`, que têm
+**placar próprio** (`ranking:true` em `cohorts.json` ⇒ `var/placar-view-<id>.txt`, seletor no
+`/contest/score/`). Admin: painel **Pessoas › Inscrições** + item no checklist pré-prova.
+
 Migração de contest pré-reforma (arquivado em `contests-legado/`): `server/bin/store-migrate.sh
 <c> [--apply] [--from <dir>]` — dry-run por padrão; canonicaliza probids (offset/`a.b` →
 `org#prob`), leva team/perfil ao account.json, roteia os flat files, gera metrics, move os

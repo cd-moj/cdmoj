@@ -38,6 +38,14 @@ round_json=null
 # sem coortes (o caso comum). Precisa de sessão DESTE contest — anônimo não recebe nada.
 cohort_json=null
 source "$_LIBDIR/cohorts.sh"
+# PLACARES PARALELOS (ex.: times × individual num contest com inscrição): coorte PÚBLICA com
+# `ranking:true` tem placar próprio, e a lista é pública (não depende de sessão) — o seletor
+# do /contest/score/ só existe quando há mais de um.
+score_views_json='[]'
+if ch_enabled "$contest"; then
+  score_views_json="$(jq -c '[.cohorts[] | select(.public and .ranking) | {id, name}]' <<<"$(ch_get "$contest")")"
+  [[ -n "$score_views_json" ]] || score_views_json='[]'
+fi
 if ch_enabled "$contest" && load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]]; then
   _co="$(ch_of "$contest" "$SESSION_LOGIN")"
   _cv="$(ch_view_for_login "$contest" "$SESSION_LOGIN")"
@@ -50,8 +58,8 @@ fi
 
 ok_json '{contest_id:$id, contest_name:$name, start_time:$start, end_time:$end,
           login_start_time:$lst, locale:$loc, login_enabled:$le, freeze_time:$fz, score_anon:$sa,
-          languages:$langs, secret:$sec, round:$round, cohort:$cohort}' \
-  --argjson round "$round_json" --argjson cohort "$cohort_json" \
+          languages:$langs, secret:$sec, round:$round, cohort:$cohort, score_views:$sv}' \
+  --argjson round "$round_json" --argjson cohort "$cohort_json" --argjson sv "$score_views_json" \
   --arg id "$CONTEST_ID" --arg name "$CONTEST_NAME" \
   --argjson start "${CONTEST_START:-0}" --argjson end "${CONTEST_END:-0}" \
   --argjson lst "${LOGIN_START_TIME:-0}" --arg loc "$LOCALE" \

@@ -257,6 +257,34 @@ else
   fi
 fi
 
+# --- inscrição (roster + janela) --------------------------------------------------------
+# Com registro ligado, quem não está no roster NÃO ENTRA (a API corta no login) — no dia da
+# prova isso vira fila no balcão. Aqui o organizador vê quantos entraram, quantos convites
+# ficaram pendentes (esses NÃO entram) e se a janela está coerente com o início.
+source "$_LIBDIR/registration.sh"
+if reg_enabled "$contest"; then
+  regj="$(reg_get "$contest")"
+  rp="$(jq -r '.entries | length' <<<"$regj")"; rp="${rp//[^0-9]/}"; rp="${rp:-0}"
+  rt="$(jq -r '.teams | length' <<<"$regj")"; rt="${rt//[^0-9]/}"; rt="${rt:-0}"
+  ri="$(jq -r '[.teams[] | (.invited // []) | length] | add // 0' <<<"$regj")"; ri="${ri//[^0-9]/}"; ri="${ri:-0}"
+  rwin="$(reg_window_state "$contest")"
+  if (( rp == 0 )); then
+    add registration warn "Inscrição ligada, ninguém inscrito" "com o roster ligado SÓ inscrito entra — a inscrição fica em /contests/inscricao/?c=$contest"
+  else
+    add registration ok "Inscrição ligada" "$rp inscrito(s) · $rt time(s) · janela $rwin"
+  fi
+  (( ri > 0 )) && add reg_invites warn "$ri convite(s) de time pendente(s)" "quem não aceitar NÃO entra como membro do time (e talvez nem esteja inscrito)"
+  # contest com contas locais: a inscrição pela web é da conta do TREINO — sem USERS_FROM
+  # ninguém consegue se inscrever sozinho, só o admin inscreve à mão
+  if [[ "$(reg_source_of "$contest")" == "$contest" ]]; then
+    add reg_source warn "Inscrição sem fonte compartilhada" "este contest tem contas próprias (sem USERS_FROM): ninguém se inscreve pela web — só o admin, à mão"
+  fi
+  # coortes: o placar separado depende delas existirem (a semeadura pula quando o contest já
+  # tinha coortes configuradas)
+  jq -e 'any(.cohorts[]; .id == "times") and any(.cohorts[]; .id == "individual")' <<<"$chj" >/dev/null 2>&1 \
+    || add reg_cohorts warn "Coortes de inscrição ausentes" "sem as coortes 'individual' e 'times' o placar não separa times de individuais (Pessoas → Coortes)"
+fi
+
 # --- gate de navegador por sede ---------------------------------------------------------
 source "$_LIBDIR/ua-gate.sh"
 ugj="$(ug_get "$contest")"

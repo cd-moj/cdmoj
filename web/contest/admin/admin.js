@@ -18,6 +18,7 @@ import { makeBalloonsTab } from './balloons-tab.js';
 import { makeUsersTab } from './users-tab.js';
 import { makeTeamsTab } from './teams-tab.js';
 import { makeCohortsTab } from './cohorts-tab.js';
+import { makeRegistrationsTab } from './registrations-tab.js';
 import { makeSitesTab } from './sites-tab.js';
 import { makeMachinesTab } from './machines-tab.js';
 import { makeSessionsTab } from './sessions-tab.js';
@@ -47,6 +48,7 @@ const GROUPS = () => [
   ] },
   { id: 'pessoas', label: T('👥 Pessoas', '👥 People'), panels: [
     { id: 'contas', label: T('Contas', 'Accounts'), make: () => makeUsersTab(CONTEST) },
+    { id: 'inscricoes', label: T('Inscrições', 'Registrations'), make: () => makeRegistrationsTab(CONTEST) },
     { id: 'times', label: T('Times', 'Teams'), make: () => makeTeamsTab(CONTEST) },
     { id: 'coortes', label: T('Coortes', 'Cohorts'), make: () => makeCohortsTab(CONTEST) },
     { id: 'sedes', label: T('Sedes & escolas', 'Sites & schools'), make: () => makeSitesTab(CONTEST) },
@@ -68,7 +70,7 @@ const ALIAS = {
   appearance: 'pessoas/sedes', users: 'pessoas/contas', log: 'pessoas/sessoes',
   backups: 'operacao/auditoria', rounds: 'prova/rodadas', machines: 'pessoas/maquinas',
   docs: 'prova/documentos', tasks: 'operacao/staff', staff: 'operacao/staff',
-  verdict: 'operacao/juizes', audit: 'operacao/auditoria',
+  verdict: 'operacao/juizes', audit: 'operacao/auditoria', registrations: 'pessoas/inscricoes',
 };
 
 const built = {};           // 'grupo/painel' -> {panel, load}

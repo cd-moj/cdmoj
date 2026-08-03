@@ -1142,6 +1142,90 @@
         }
       }
     },
+    "/treino/contest-registration": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Inscrição do próprio login num contest que usa as contas do treino (individual ou time de até 3 contas existentes): janela, minha situação, meu time e convites recebidos",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{enabled,contest,contest_name,start_time,end_time,window:{state,opens_at,closes_at,late_until},team_max,teams_allowed,me,team,invites,totals}"
+          },
+          "409": {
+            "description": "not_shared (contest sem USERS_FROM)"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Ações da inscrição: register | cancel | team-create | team-invite | team-accept | team-decline | team-leave | team-dissolve | team-rename (participação é exclusiva; fora da janela recusa)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "login": {
+                    "type": "string"
+                  },
+                  "team": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contest",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "estado completo da inscrição (mesmo shape do GET)"
+          },
+          "403": {
+            "description": "registration_closed | registration_not_open"
+          },
+          "409": {
+            "description": "registration_off | already_registered | in_team | team_full | name_taken"
+          }
+        }
+      }
+    },
     "/treino/profile/username": {
       "post": {
         "tags": [
@@ -4600,6 +4684,71 @@
         "responses": {
           "200": {
             "description": "{window, by_login[], by_ip[], uas[], ua_suggestion, totals}"
+          },
+          "403": {
+            "description": "admin_required"
+          }
+        }
+      }
+    },
+    "/contest/admin/registrations": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Inscrições do contest (roster + janela): times, individuais, convites pendentes e totais",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{enabled,window,team_max,teams_allowed,teams,individuals,totals}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "enable | disable | window {open,close,late_minutes,team_max,teams} | add | rm | team-add | team-rm | materialize",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "estado completo das inscrições (mesmo shape do GET)"
           },
           "403": {
             "description": "admin_required"

@@ -35,17 +35,27 @@ ch_get(){
             cohorts:[ (.cohorts // [])[] | {
               id:(.id // ""), name:(.name // .id // ""), regex:(.regex // ""),
               public:(.public != false), unranked:(.unranked == true),
+              ranking:(.ranking == true),
               default:(.default == true), sees:(.sees // []) } | select(.id != "") ]}' "$f" 2>/dev/null \
       || printf '{"version":1,"results_released":false,"cohorts":[]}'
   else printf '{"version":1,"results_released":false,"cohorts":[]}'; fi
 }
 ch_save(){ local f; f="$(ch_file "$1")"; printf '%s\n' "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"; }
 
-# ch_enabled <c> — 0 (true) só quando há coorte NÃO-pública configurada. Enquanto não houver,
-# todo o resto do sistema segue o caminho de sempre (um placar, um /contest/teams inteiro).
+# ch_enabled <c> — 0 (true) quando há coorte NÃO-pública (visão recortada: convidados/CCL) OU
+# coorte PÚBLICA com `ranking:true` (placar próprio, ex.: times × individual num contest com
+# inscrição). Enquanto não houver nenhuma das duas, o resto do sistema segue o caminho de
+# sempre (um placar, um /contest/teams inteiro) — custo novo ZERO.
 ch_enabled(){
   local j; j="$(ch_get "$1")"
-  jq -e '[.cohorts[] | select(.public == false)] | length > 0' <<<"$j" >/dev/null 2>&1
+  jq -e '[.cohorts[] | select(.public == false or .ranking)] | length > 0' <<<"$j" >/dev/null 2>&1
+}
+
+# ch_is_ranking_view <c> <id> — 0 se <id> é coorte PÚBLICA com placar próprio (o `?view=<id>`
+# do /contest/score aceita essas sem sessão: público é público).
+ch_is_ranking_view(){
+  jq -e --arg i "$2" 'any(.cohorts[]; .id == $i and .public and .ranking)' \
+    <<<"$(ch_get "$1")" >/dev/null 2>&1
 }
 ch_released(){ jq -e '.results_released == true' <<<"$(ch_get "$1")" >/dev/null 2>&1; }
 
@@ -82,6 +92,9 @@ ch_view_cohorts(){
         ((first(.cohorts[] | select(.id == $v))) as $co
          | if $co == null then $pub
            elif ($co.sees | length) > 0 then $co.sees
+           # placar PARALELO de coorte pública (times × individual): só ela — senão o
+           # "placar dos times" mostraria todo mundo, que é o placar geral
+           elif ($co.public and $co.ranking) then [$co.id]
            else ($pub + [$co.id]) end)
       end
     | unique | .[]' <<<"$j"
@@ -101,13 +114,14 @@ ch_view_for_login(){
 }
 
 # ch_views <c> -> visões que precisam de placar próprio (uma por linha).
-# Sem coorte privada: só "public" (= o placar de hoje). Com: "public" + uma por coorte privada.
-# "all" só existe como visão quando há coorte privada (é o placar completo).
+# Sem coorte privada nem `ranking`: só "public" (= o placar de hoje). Com: "public" + uma por
+# coorte privada (visão recortada) + uma por coorte pública com `ranking` (placar paralelo:
+# times × individual). "all" (placar completo) só existe quando as coortes estão ativas.
 ch_views(){
   local c="$1"
   ch_enabled "$c" || { printf 'public\n'; return 0; }
   printf 'public\n'
-  jq -r '.cohorts[] | select(.public == false) | .id' <<<"$(ch_get "$c")"
+  jq -r '.cohorts[] | select(.public == false or .ranking) | .id' <<<"$(ch_get "$c")"
   printf 'all\n'
 }
 
