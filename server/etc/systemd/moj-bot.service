@@ -4,11 +4,18 @@ Documentation=file:///home/ribas/moj/cdmoj/mojinho-bot/README.md
 After=network.target
 # Roda via run-caged.sh: jaula bwrap sem /home/workspace/contests/run/moj-problems.
 # Segredos SÓ no dir vivo (~/mojinho-live: token + bot.conf) — nunca no repo/unit.
+#
+# ⚠ INSTALE COM:  systemctl --user enable --now moj-bot
+# `start` sozinho NÃO sobrevive a reboot (unit comum de usuário precisa do symlink de enable;
+# só quadlet é ativado pelo generator). Foi assim que o bot ficou fora no reboot de 2026-08-04.
+# Confira: `systemctl --user is-enabled moj-bot` → enabled.
 
 [Service]
 Type=simple
 ExecStart=/bin/bash %h/moj/cdmoj/mojinho-bot/run-caged.sh
-Restart=on-failure
+# always (não on-failure): saída "limpa" por config quebrada também tem de voltar —
+# o bot é o carteiro dos alertas, morto ele não avisa nem a própria morte.
+Restart=always
 RestartSec=5
 NoNewPrivileges=true
 

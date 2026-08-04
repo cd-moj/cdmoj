@@ -2868,7 +2868,7 @@
         "summary": "Health público (fila, máquinas, daemons)",
         "responses": {
           "200": {
-            "description": "{queue,judge:{online,total,busy,healthy,cpus_online,gpus_online},alert,daemons} — cache 20s; gpus_online = só GPU de compute comprovada (nvidia-smi/rocm-smi); daemons.judged = processo local ou heartbeat run/judged.alive (deploy em container)"
+            "description": "{queue,judge:{online,total,busy,healthy,cpus_online,gpus_online},alert,daemons} — cache 20s; gpus_online = só GPU de compute comprovada (nvidia-smi/rocm-smi); daemons.judged = processo local ou heartbeat run/judged.alive (deploy em container) + bot:{alive,last_poll_age_s}|null (mojinho; null = sem bot)"
           }
         },
         "description": "judge.slots = capacidade total em SLOTS (multi-slot); judge.busy = slots ocupados."

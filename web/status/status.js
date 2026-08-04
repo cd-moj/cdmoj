@@ -21,6 +21,8 @@ function render(s) {
   else if (!j.online) { probs.push(T('Nenhum juiz conectado no momento.', 'No judge connected right now.')); warn = true; }
   else if (j.total > j.online) { probs.push((j.total - j.online) + T(' juiz(es) offline.', ' judge(s) offline.')); warn = true; }
   if (!d.judged) { probs.push(T('Daemon de julgamento (judged) parado.', 'Judging daemon (judged) stopped.')); warn = true; }
+  // bot de alertas: null = instalação sem bot (não é problema); alive:false = o carteiro caiu
+  if (s.bot && s.bot.alive === false) { probs.push(T('Bot de alertas (mojinho) sem poll há ' + Math.round((s.bot.last_poll_age_s || 0) / 60) + ' min.', 'Alert bot (mojinho) has not polled for ' + Math.round((s.bot.last_poll_age_s || 0) / 60) + ' min.')); warn = true; }
   if ((q.total_pending || 0) > 50) { probs.push(T('Fila grande: ', 'Large queue: ') + q.total_pending + T(' submissões pendentes.', ' pending submissions.')); warn = true; }
   const level = crit ? 'down' : warn ? 'warn' : 'ok';
   const label = crit ? T('Sistema com problemas', 'System with problems') : warn ? T('Operação parcial / degradada', 'Partial / degraded operation') : T('Todos os sistemas operacionais', 'All systems operational');
@@ -59,7 +61,9 @@ function render(s) {
   // --- daemons ---
   grid.append(el('div', { class: 'stat-card' }, el('h3', {}, T('⚙️ Daemons & serviços', '⚙️ Daemons & services')),
     el('div', { class: 'kv first' }, el('span', {}, T('API web', 'Web API')), el('span', { class: 'ind ok' }, T('✓ no ar', '✓ up'))),
-    el('div', { class: 'kv' }, el('span', {}, T('judged (julgamento)', 'judged (judging)')), ind(d.judged, T('rodando', 'running'), T('parado', 'stopped')))));
+    el('div', { class: 'kv' }, el('span', {}, T('judged (julgamento)', 'judged (judging)')), ind(d.judged, T('rodando', 'running'), T('parado', 'stopped'))),
+    s.bot ? el('div', { class: 'kv' }, el('span', {}, T('🤖 bot de alertas (mojinho)', '🤖 alert bot (mojinho)')),
+      ind(s.bot.alive, T('polando', 'polling'), T('sem poll há ' + Math.round((s.bot.last_poll_age_s || 0) / 60) + ' min', 'no poll for ' + Math.round((s.bot.last_poll_age_s || 0) / 60) + ' min'))) : ''));
 
   app.append(grid);
   const when = s.time ? new Date(s.time * 1000).toLocaleTimeString('pt-BR') : '—';

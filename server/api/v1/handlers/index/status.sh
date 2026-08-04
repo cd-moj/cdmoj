@@ -63,6 +63,14 @@ done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
 
 # --- daemons (liveness: processo local OU heartbeat, se estiver em outro container) ---
 dj=false; daemon_judged_alive && dj=true
+# bot de alertas (mojinho): mtime de run/alerts/bot.alive = último poll (handlers/ops/alerts.sh
+# o toca a cada GET do bot). Sem o arquivo = instalação sem bot ⇒ null (não é incidente).
+# Incidente 2026-08-04: o bot ficou fora após um reboot e ninguém viu — agora o /status/ mostra.
+bot_json=null
+if [[ -f "$RUNDIR/alerts/bot.alive" ]]; then
+  bot_age=$(( now - $(stat -c %Y "$RUNDIR/alerts/bot.alive" 2>/dev/null || echo 0) ))
+  bot_json="$(jq -cn --argjson a "$bot_age" '{alive:($a <= 180), last_poll_age_s:$a}')"
+fi
 # fila do modelo pull (bandas) + alerta: trabalho pendente e NENHUM juiz online
 band_queue=0; [[ -d "$QUEUEDIR" ]] && band_queue="$(find "$QUEUEDIR" -mindepth 2 -name '*.json' 2>/dev/null | wc -l)"
 judges_alert=false; (( jonline == 0 )) && (( band_queue + total > 0 )) && judges_alert=true
@@ -76,12 +84,13 @@ out="$(jq -cn \
   --argjson cpus "${cpus:-0}" --argjson gpus "${gpus:-0}" \
   --argjson dj "$dj" \
   --argjson alert "$judges_alert" \
+  --argjson bot "$bot_json" \
   '{success:true, time:$t,
     queue:{total_pending:$total, spool_queued:$spool, band_queued:$bq, lists:$lists},
     judge:{online:$on, total:$jt, busy:$busy, slots:$slots, healthy:($on>0),
            cpus_online:$cpus, gpus_online:$gpus},
     alert:{no_judges:$alert},
-    daemons:{judged:$dj}}')"
+    daemons:{judged:$dj}, bot:$bot}')"
 mkdir -p "$RUNDIR" 2>/dev/null
 printf '%s' "$out" > "$CACHE.tmp" 2>/dev/null && mv -f "$CACHE.tmp" "$CACHE" 2>/dev/null
 printf '%s' "$out"

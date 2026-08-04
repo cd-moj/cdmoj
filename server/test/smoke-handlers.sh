@@ -225,6 +225,30 @@ else
   echo "  skip: store de problemas vazio"
 fi
 
+echo "== ops/alerts: heartbeat do bot + /index/status.bot =="
+RUN2="$(mktemp -d)"
+bcall(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="" \
+  HTTP_AUTHORIZATION="$3" \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" RUNDIR="$RUN2" \
+  BOT_TOKEN_FILE="$RUN2/bot.token" bash "$ROUTER" <<<"" 2>&1)"
+  BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+mkdir -p "$RUN2"; printf 'mojb_smoketoken' > "$RUN2/bot.token"
+bcall /ops/alerts GET "Bearer mojb_smoketoken"
+check "ops/alerts com bot-token 200" 'okstatus && jvalid'
+check "poll do bot toca bot.alive" '[[ -f "$RUN2/alerts/bot.alive" ]]'
+bcall /index/status GET ""
+check "status: bot.alive=true (stamp fresco)" '(printf "%s" "$BODY" | jq -e ".bot.alive == true" >/dev/null)'
+touch -d "10 minutes ago" "$RUN2/alerts/bot.alive"
+rm -f "$RUN2/status.json"          # o handler cacheia 20s em $RUNDIR/status.json
+bcall /index/status GET ""
+check "status: stamp velho => alive=false" '(printf "%s" "$BODY" | jq -e ".bot.alive == false and .bot.last_poll_age_s > 500" >/dev/null)'
+rm -f "$RUN2/alerts/bot.alive" "$RUN2/status.json"
+bcall /index/status GET ""
+check "status: sem stamp => bot:null" '(printf "%s" "$BODY" | jq -e ".bot == null" >/dev/null)'
+bcall /ops/alerts GET "Bearer errado"
+check "ops/alerts sem bot-token -> 401" '[[ "$OUT" == *"Status: 401"* ]]'
+rm -rf "$RUN2"
+
 echo "== authz negatives =="
 call "/contest/allsubmissions" GET "contest=$CONTEST" "$NTOK"
 check "non-admin allsubmissions -> 403" '[[ "$OUT" == *"Status: 403"* ]]'

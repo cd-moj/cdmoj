@@ -56,8 +56,20 @@ seção **📨 Telegram** do perfil (`/treino/perfil/` → botão "🔗 Vincular
 ## Rodar
 
 Direto (debug): `bash mojinho-api.sh`. **Produção: enjaulado** (abaixo) via
-`server/etc/systemd/moj-bot.service` (`ExecStart=/bin/bash %h/moj/cdmoj/mojinho-bot/run-caged.sh`),
-`systemctl --user restart moj-bot`.
+`server/etc/systemd/moj-bot.service` (`ExecStart=/bin/bash %h/moj/cdmoj/mojinho-bot/run-caged.sh`):
+
+```
+cp server/etc/systemd/moj-bot.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now moj-bot      # ⚠ ENABLE, não só start
+systemctl --user is-enabled moj-bot        # tem de dizer "enabled"
+```
+
+⚠ **`start` sozinho NÃO volta no reboot** — unit comum de usuário precisa do symlink de
+`enable` (quadlet é ativado pelo generator, unit comum não). Foi assim que o bot ficou fora
+depois do reboot de 2026-08-04. A queda fica visível na página **`/status/`** (linha "🤖 bot
+de alertas", via `run/alerts/bot.alive` tocado a cada poll) e, quando o bot volta, os `.admin`
+recebem uma DM com o período fora do ar (condição `bot_gone` em `lib/alerts.sh`).
 
 ## Rodando enjaulado (produção — `run-caged.sh`)
 
