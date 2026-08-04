@@ -23,7 +23,9 @@ function flagPicker(current) {
   const draw = () => { prev.innerHTML = ''; const f = flagEl(sel.value, { height: 18 }); if (f) prev.append(f); };
   if (FLAGS) {
     const gBR = el('optgroup', { label: T('Estados do Brasil', 'Brazilian states') });
-    (FLAGS.br_states || []).forEach((x) => gBR.append(el('option', { value: x.code }, x.name)));
+    // o manifest guarda o código do estado PURO ("rj"); a bandeira renderiza por "br-rj"
+    // (2 letras sem prefixo = PAÍS — "sc" é Seychelles, não Santa Catarina)
+    (FLAGS.br_states || []).forEach((x) => gBR.append(el('option', { value: 'br-' + x.code }, x.name)));
     const gW = el('optgroup', { label: T('Países', 'Countries') });
     (FLAGS.countries || []).forEach((x) => gW.append(el('option', { value: x.code }, x.name)));
     sel.append(gBR, gW);

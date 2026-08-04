@@ -9,6 +9,7 @@ import { el, fmtDate } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
 import { field, toCsv, downloadText } from '/shared/admin-ui.js';
+import { flagEl } from '/shared/flags.js';
 
 const enc = encodeURIComponent;
 const dt = (e) => (e ? new Date(e * 1000).toISOString().slice(0, 16) : '');
@@ -65,7 +66,8 @@ export function makeRegistrationsTab(CONTEST) {
   function teamsTable() {
     const rows = (DATA.teams || []).map((t) => el('tr', {},
       el('td', {}, el('b', {}, (t.univ ? '[' + t.univ + '] ' : '') + t.name),
-        el('div', { class: 'small muted' }, (t.flag ? t.flag.toUpperCase() + ' · ' : '') + t.login
+        el('div', { class: 'small muted' }, flagEl(t.flag, { height: 14 }) || '',
+          (t.flag ? ' ' + t.flag.toUpperCase() + ' · ' : '') + t.login
           + (t.ai === true ? ' · 🤖 IA' : t.ai === false ? ' · sem IA' : '')
           + (t.has_photo ? ' · 📷' : ''))),
       el('td', {}, (t.members || []).join(', ')),
