@@ -69,6 +69,7 @@ dj=false; daemon_judged_alive && dj=true
 bot_json=null
 if [[ -f "$RUNDIR/alerts/bot.alive" ]]; then
   bot_age=$(( now - $(stat -c %Y "$RUNDIR/alerts/bot.alive" 2>/dev/null || echo 0) ))
+  (( bot_age < 0 )) && bot_age=0   # poll do bot entre o `now=` do topo e o stat
   bot_json="$(jq -cn --argjson a "$bot_age" '{alive:($a <= 180), last_poll_age_s:$a}')"
 fi
 # fila do modelo pull (bandas) + alerta: trabalho pendente e NENHUM juiz online
