@@ -25,6 +25,18 @@ Princípio: **adicionar um modo = 1 gerador (`server/score/updatescore-<modo>.sh
    estampida) e então serve. Assim contests importados deixam de ficar com placar vazio.
 5. O front (`web/contest/score/`) lê a **1ª linha = modo** e despacha para o renderizador.
 
+### Pré-início: a VITRINE (`var/placar-prestart.txt`)
+
+**REGRA: o placar nunca revela a quantidade de problemas antes de a competição começar.**
+Antes do `CONTEST_START`, quem não é `is_judge` (`.admin`/`.judge`/`.cjudge`) recebe a
+**vitrine**: o mesmo TXT, mas com **zero colunas de problema** — só os times (bandeira, sigla,
+nome, totais 0), na visão **pública** das coortes (convidado oculto continua oculto). Gerada
+por `build.sh <c> --prestart` (`MOJ_PRESTART=1` zera as tuplas de problema no `sc_load`, então
+vale p/ todos os modos), servida pelo mesmo cache preguiçoso do handler. O front mostra o aviso
+"ainda não começou" + contagem regressiva e, no start, busca o placar de verdade. O corte é da
+**API** (o cabeçalho com os short names nunca sai do servidor antes da hora); pela mesma regra,
+`/index/contests` emite `problems_count:0` p/ contest `upcoming`.
+
 ## Formato do TXT
 
 ```

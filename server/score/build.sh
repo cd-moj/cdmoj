@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# build.sh <contest>
+# build.sh <contest> [--prestart]
 #
 # Dispatcher for the MOJ multi-mode scoreboard generators.
 #
@@ -29,7 +29,12 @@ export CONTESTSDIR
 die() { echo "build.sh: $*" >&2; exit 1; }
 
 CONTEST="${1:-}"
-[[ -n "$CONTEST" ]] || die "usage: build.sh <contest>"
+[[ -n "$CONTEST" ]] || die "usage: build.sh <contest> [--prestart]"
+# --prestart: gera SÓ var/placar-prestart.txt — o quadro PRÉ-INÍCIO (vitrine de times, ZERO
+# colunas de problema; a regra é que o placar nunca revela a quantidade de problemas antes de
+# a competição começar). Servido por /contest/score quando contest_phase == before.
+PRESTART=0
+[[ "${2:-}" == --prestart ]] && PRESTART=1
 
 # --- validate contest id (no path traversal before sourcing conf) ---------
 case "$CONTEST" in
@@ -92,7 +97,8 @@ FREEZE_RAW="$(printf '%s' "$FREEZE_RAW" | tr -cd '0-9')"
 # Também cobre o 1º build de um contest importado/backfill (stamp ausente).
 source "$HERE/../api/v1/lib/users.sh"
 STAMP="$CONTESTDIR/var/.metrics-stamp"
-if [[ ! -f "$STAMP" || "$CONF" -nt "$STAMP" ]]; then
+# (pré-início não lê métricas — 0 colunas de problema; pula o recompute em massa)
+if (( ! PRESTART )) && [[ ! -f "$STAMP" || "$CONF" -nt "$STAMP" ]]; then
   while IFS= read -r _u; do
     [[ -n "$_u" ]] && metrics_recompute "$CONTEST" "$_u"
   done < <(list_users "$CONTEST")
@@ -105,6 +111,7 @@ gen_one() {
   local out="$1" nofreeze="$2" tmp first
   tmp="$(mktemp "$out.XXXXXX")" || die "cannot create temp file next to $out"
   if ! MOJ_NOFREEZE="$nofreeze" MOJ_COHORTS="${VIEW_COHORTS:-}" MOJ_UNRANKED="${VIEW_UNRANKED:-}" \
+       MOJ_PRESTART="${MOJ_PRESTART:-}" \
        bash "$GEN" "$CONTEST" > "$tmp"; then rm -f "$tmp"; die "generator failed: $GEN $CONTEST"; fi
   first="$(head -1 "$tmp")"
   [[ "$first" == "$MODE" ]] || { rm -f "$tmp"; die "generator '$GEN' line 1 was '$first', expected '$MODE'"; }
@@ -135,6 +142,19 @@ if [[ -s "$CONTESTDIR/cohorts.json" && -r "$CH_LIB" ]]; then
   # shellcheck source=/dev/null
   source "$CH_LIB"
   export CONTESTSDIR
+fi
+
+# --prestart: uma passada só, com os envs da VISÃO PÚBLICA das coortes (coorte privada não
+# pode aparecer antes do início) e sem par frozen/full (não há submissão antes do start).
+if (( PRESTART )); then
+  PRE="$CONTESTDIR/var/placar-prestart.txt"
+  if declare -F ch_enabled >/dev/null && ch_enabled "$CONTEST"; then
+    VIEW_COHORTS="$(ch_cohorts_of_view "$CONTEST" public)"
+    VIEW_UNRANKED="$(ch_unranked_of_view "$CONTEST" public | tr '\n' ' ' | sed 's/ *$//')"
+  fi
+  MOJ_PRESTART=1 gen_one "$PRE" 1
+  echo "$PRE"
+  exit 0
 fi
 
 if declare -F ch_enabled >/dev/null && ch_enabled "$CONTEST"; then

@@ -8,6 +8,30 @@ require_contest "$contest"
 # (gate ANTES do regen preguiçoso: anônimo não gasta rebuild)
 require_not_secret_or_auth "$contest"
 
+# PRÉ-INÍCIO (regra de produto): o placar NUNCA revela a quantidade de problemas antes de a
+# competição começar. Antes do CONTEST_START, quem não é juiz/admin (mesmo conjunto de
+# can_see_problems) recebe a VITRINE — var/placar-prestart.txt: os times da visão pública,
+# com bandeira/sigla/nome e ZERO colunas de problema. O corte é AQUI, na API; o front só
+# acrescenta a contagem regressiva. `is_judge` segue no fluxo normal (placar completo).
+source "$_LIBDIR/contest-gate.sh"
+if [[ "$(contest_phase "$contest")" == before ]]; then
+  pre_priv=0
+  load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && is_judge && pre_priv=1
+  if [[ "$pre_priv" == 0 ]]; then
+    pf="$CONTESTSDIR/$contest/var/placar-prestart.txt"
+    : "${SCORE_SERVE_FLOOR_S:=8}"
+    if [[ ! -f "$pf" ]] || [[ -z "$(find "$pf" -newermt "-$SCORE_SERVE_FLOOR_S seconds" 2>/dev/null)" ]]; then
+      regen_locked "$CONTESTSDIR/$contest/var/.placar-prestart.lock" \
+        "$pf" "$CONTESTSDIR/$contest/var/.score-dirty" "$CONTESTSDIR/$contest/conf" \
+        -- bash "$SCOREDIR/build.sh" "$contest" --prestart
+    fi
+    [[ -f "$pf" ]] || bash "$SCOREDIR/build.sh" "$contest" --prestart >/dev/null 2>&1
+    emit_text
+    if [[ -f "$pf" ]]; then cat "$pf"; else score_mode_of "$contest"; printf '\n'; fi
+    exit 0
+  fi
+fi
+
 # COORTES (times oficiais × convidados): quando o contest tem coorte não-pública, cada VISÃO
 # tem o seu placar. O login determina a visão — convidado recebe a dele (com todos), time
 # regular recebe a pública (sem convidado nenhum), privilegiado e pós-liberação recebem a

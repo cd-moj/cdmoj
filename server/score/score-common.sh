@@ -62,6 +62,13 @@ sc_load() {
     SC_CANON+=("$canon")
   done
   SC_NPROB=${#SC_PIDX[@]}
+
+  # MOJ_PRESTART=1 — quadro PRÉ-INÍCIO: o placar nunca revela a quantidade de problemas
+  # antes de a competição começar. Zerar as tuplas aqui faz TODOS os geradores saírem sem
+  # coluna de problema (vitrine de times: bandeira/sigla/nome, totais 0), sem tocar em cada um.
+  if [[ "${MOJ_PRESTART:-}" == 1 ]]; then
+    SC_PIDX=(); SC_SHORT=(); SC_FULL=(); SC_CANON=(); SC_NPROB=0
+  fi
 }
 
 # sc_cells — emits one TSV row per (user, problem) from users/*/metrics.json in a

@@ -61,8 +61,11 @@ for d in "$CONTESTSDIR"/*/; do
       # aquecimento no ar sem prova planejada: a inscrição fica sem prazo (o cartão mostra aberta)
       [[ "${ROUND_KIND:-}" == warmup ]] && (( _os > 0 && _os <= NOW )) && { rc=0; rl=0; }
     fi
+    # contest AINDA NÃO COMEÇADO não revela a quantidade de problemas (mesma regra do
+    # placar pré-início): o card da home mostra 0 e o front oculta o trecho.
+    np=$(( ${#PROBS[@]} / 5 )); [[ "$st" == u ]] && np=0
     printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' \
-      "$CONTEST_START" "$st" "$id" "$t" "$CONTEST_END" "$(( ${#PROBS[@]} / 5 ))" \
+      "$CONTEST_START" "$st" "$id" "$t" "$CONTEST_END" "$np" \
       "$reg" "$ro" "$rc" "$rl"
   )
 done | sort -t"$US" -k1,1rn > "$TSV"

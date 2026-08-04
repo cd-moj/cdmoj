@@ -4,6 +4,9 @@
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$SPOOL"' EXIT
+# o que se testa aqui é o GATILHO (.score-dirty/conf), não o piso anti-estampida de produção
+# (SCORE_SERVE_FLOOR_S=8 faria o handler nem tentar regen com placar mais novo que 8s)
+export SCORE_SERVE_FLOOR_S=0
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 
 # --- contest (store por-usuário) com history mas SEM placar ---

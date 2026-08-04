@@ -52,7 +52,8 @@ export function contestCard(c, status) {
   else if (regState === 'soon') meta.append(el('span', {}, T('inscrições abrem ', 'registration opens ') + relTime(r.opens_at)));
   else if (regState === 'late') meta.append(el('span', {}, T('inscrição atrasada até ', 'late registration until ') + relTime(r.late_until)));
   else if (regState === 'closed') meta.append(el('span', {}, T('inscrições encerradas', 'registration closed')));
-  if (c.problems_count != null) meta.append(el('span', {}, c.problems_count + T(' problemas', ' problems')));
+  // 0 = servidor ocultou de propósito (contest por vir não revela quantidade de problemas)
+  if (c.problems_count) meta.append(el('span', {}, c.problems_count + T(' problemas', ' problems')));
 
   return el('div', { class: 'contest-card ' + status },
     el('span', { class: 'cc-badge ' + status }, label),

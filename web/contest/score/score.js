@@ -66,8 +66,23 @@ function renderNav(buttons) {
 
 function startCountdown() {
   const eln = document.getElementById('contestCountdown');
+  const pre = document.getElementById('prestartNotice');
+  const preLeft = document.getElementById('prestartLeft');
+  let wasBefore = false;
   const tick = () => {
     const now = Math.floor(Date.now() / 1000);
+    // PRÉ-INÍCIO: o servidor já serve a vitrine (times SEM colunas de problema); aqui é só
+    // o aviso + a contagem regressiva até o start. Ao zerar, busca o placar de verdade.
+    const toStart = (basic.start_time || 0) - now;
+    if (toStart > 0) {
+      eln.textContent = T('Começa em: ', 'Starts in: ') + fmtLeft(toStart);
+      preLeft.textContent = fmtLeft(toStart);
+      pre.classList.remove('hidden');
+      wasBefore = true;
+      setTimeout(tick, 1000);
+      return;
+    }
+    if (wasBefore) { wasBefore = false; pre.classList.add('hidden'); pollScore(); }
     const left = (basic.end_time || 0) - now;
     if (left > 0) { eln.textContent = T('Termina em: ', 'Ends in: ') + fmtLeft(left); setTimeout(tick, 1000); }
     else eln.textContent = T('Competição encerrada', 'Contest ended');

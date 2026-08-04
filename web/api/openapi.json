@@ -363,7 +363,7 @@
         "tags": [
           "index"
         ],
-        "summary": "Contests (abertos/por vir/encerrados)",
+        "summary": "Contests (abertos/por vir/encerrados); problems_count é 0 em contest por vir (não revela a quantidade de problemas antes do início)",
         "parameters": [
           {
             "name": "page",
@@ -2232,7 +2232,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Placar (TXT, 1ª linha = modo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação); scope=mine (só .cstaff) recorta à sede",
+        "summary": "Placar (TXT, 1ª linha = modo); antes do início serve a VITRINE (times sem colunas de problema — o placar nunca revela a quantidade de problemas antes de a competição começar; is_judge vê o completo); privilegiado recebe o completo — view=public força o congelado (usado pela cerimônia de revelação); scope=mine (só .cstaff) recorta à sede",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

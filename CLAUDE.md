@@ -210,6 +210,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   de propósito, documentado. Ver `docs/SCOREBOARD.md`.
   ⚠️ `sc_users` separa campos por **\x01, não TAB**: `IFS=$'\t' read` colapsa runs de tab e
   campo vazio no meio DESLOCA os seguintes (era bug silencioso com bandeira sem `univ_full`).
+- **Placar PRÉ-INÍCIO = VITRINE (regra: nunca revelar a quantidade de problemas antes de a
+  competição começar).** Antes do `CONTEST_START`, `/contest/score` serve
+  `var/placar-prestart.txt` (`build.sh <c> --prestart`; `MOJ_PRESTART=1` zera as tuplas no
+  `sc_load` — vale p/ todos os modos): os times da visão pública SEM coluna de problema;
+  `is_judge` segue no completo. `/index/contests` emite `problems_count:0` p/ `upcoming` pela
+  mesma regra. Teste: `smoke-score-prestart.sh`. Ver `docs/SCOREBOARD.md`.
 - **Rodadas do contest** (`lib/contest-rounds.sh` + `handlers/contest/{admin/rounds,rounds,round,
   admin/round-archive}.sh`): **aquecimento → prova oficial NO MESMO contest** (mesma URL, mesmo
   login, config preservada). `rounds.json` é o plano; **a rodada ativa É o `conf`** — não torne
