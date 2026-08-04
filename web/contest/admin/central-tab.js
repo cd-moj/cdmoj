@@ -27,6 +27,7 @@ const TARGET = {
   users: ['pessoas', 'contas'], cohorts: ['pessoas', 'coortes'], ua_gate: ['pessoas', 'maquinas'],
   registration: ['pessoas', 'inscricoes'], reg_invites: ['pessoas', 'inscricoes'],
   reg_source: ['pessoas', 'inscricoes'], reg_cohorts: ['pessoas', 'coortes'],
+  reg_warmup: ['prova', 'rodadas'],
   print: ['operacao', 'staff'], staff_filters: ['operacao', 'staff'],
   judges: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
 };

@@ -268,10 +268,22 @@ if reg_enabled "$contest"; then
   rt="$(jq -r '.teams | length' <<<"$regj")"; rt="${rt//[^0-9]/}"; rt="${rt:-0}"
   ri="$(jq -r '[.teams[] | (.invited // []) | length] | add // 0' <<<"$regj")"; ri="${ri//[^0-9]/}"; ri="${ri:-0}"
   rwin="$(reg_window_state "$contest")"
+  IFS=$'\t' read -r _rs _rop _rcl _rlt _ranc _rrnd < <(reg_window "$contest")
+  # a inscrição fecha no início da PROVA OFICIAL — o aquecimento pode ficar dias no ar
+  rwhen="$([[ "$_rcl" =~ ^[1-9][0-9]*$ ]] && date -d "@$_rcl" '+%d/%m %H:%M' 2>/dev/null || echo 'sem prazo')"
+  ranchor="$([[ -n "$_rrnd" ]] && echo " (âncora: início da rodada '$_rrnd')" || echo "")"
   if (( rp == 0 )); then
     add registration warn "Inscrição ligada, ninguém inscrito" "com o roster ligado SÓ inscrito entra — a inscrição fica em /contests/inscricao/?c=$contest"
   else
-    add registration ok "Inscrição ligada" "$rp inscrito(s) · $rt time(s) · janela $rwin"
+    add registration ok "Inscrição ligada" "$rp inscrito(s) · $rt time(s) · janela $rwin, fecha em $rwhen$ranchor"
+  fi
+  # AQUECIMENTO: a porta fica ABERTA (qualquer conta da fonte entra) até a promoção da prova
+  if [[ "$(reg_round_kind "$contest")" == warmup ]]; then
+    if [[ -n "$_rrnd" ]]; then
+      add reg_warmup ok "Aquecimento com porta aberta" "qualquer conta entra até a promoção da rodada '$_rrnd'; na promoção quem não se inscreveu perde a sessão"
+    else
+      add reg_warmup warn "Aquecimento sem prova planejada" "a inscrição fica SEM PRAZO (a âncora seria o início do aquecimento, já passado): planeje a rodada oficial em Prova → Rodadas"
+    fi
   fi
   (( ri > 0 )) && add reg_invites warn "$ri convite(s) de time pendente(s)" "quem não aceitar NÃO entra como membro do time (e talvez nem esteja inscrito)"
   # contest com contas locais: a inscrição pela web é da conta do TREINO — sem USERS_FROM

@@ -173,8 +173,10 @@ case "$action" in
       || fail 409 "a rodada '$to' não está planejada" "not_pending"
     force=false; jq -e '.force == true' "$bodyf" >/dev/null 2>&1 && force=true
     bl="$(rd_promote_blockers "$contest")"; [[ -n "$bl" ]] || bl='[]'
-    # `force` ignora tudo menos o que tornaria a promoção INCORRETA (sem rodada / contas de outro contest)
-    hard="$(jq -c '[ .[] | select(.code == "no_next_round" or .code == "shared_users") ]' <<<"$bl")"
+    # `force` ignora tudo menos o que tornaria a promoção INCORRETA (sem rodada planejada).
+    # `shared_users` saiu da lista: contest com USERS_FROM promove normalmente — o arquivamento
+    # só mexe nos diretórios LOCAIS (ver lib/contest-rounds.sh).
+    hard="$(jq -c '[ .[] | select(.code == "no_next_round") ]' <<<"$bl")"
     if [[ "$force" == true ]]; then blk="$hard"; else blk="$bl"; fi
     if [[ "$(jq 'length' <<<"$blk")" != 0 ]]; then
       emit_json 409 Conflict
@@ -191,9 +193,21 @@ case "$action" in
       *) fail 500 "Falha ao promover a rodada (nada foi perdido: confira o arquivo em rounds/)" "promote_failed";;
     esac
     [[ -n "$res" ]] || fail 500 "Falha ao promover a rodada" "promote_failed"
+    # INSCRIÇÃO: no aquecimento a porta fica aberta (reg_gate_active), então a rodada que entra —
+    # se não for outro aquecimento — precisa varrer quem entrou sem se inscrever: sessão não
+    # expira (a aba aberta entraria na prova) e o dir vazio sujaria o placar novo.
+    source "$_DIR/lib/registration.sh"
+    swept=""
+    if reg_enabled "$contest" && [[ "$(reg_round_kind "$contest")" != warmup ]]; then
+      swept="$(reg_sweep_unregistered "$contest")"
+      IFS=$'\t' read -r _sw_s _sw_d <<<"$swept"
+      (( ${_sw_s:-0} + ${_sw_d:-0} > 0 )) \
+        && audit_log_to "$contest" round-promote-sweep "sessoes=${_sw_s:-0} dirs=${_sw_d:-0}"
+    fi
     audit_log_to "$contest" "round-promote$([[ "$force" == true ]] && printf -- -forced)" \
       "from=$(jq -r '.from' <<<"$res") to=$(jq -r '.to' <<<"$res") users=$(jq -r '.archived.users' <<<"$res") subs=$(jq -r '.archived.submissions' <<<"$res")"
-    ok_json '$r + {promoted:true}' --argjson r "$res"
+    ok_json '$r + {promoted:true} + (if $sw == "" then {} else {swept:{sessions:($sw|split("\t")[0]|tonumber? // 0), dirs:($sw|split("\t")[1]|tonumber? // 0)}} end)' \
+      --argjson r "$res" --arg sw "$swept"
     ;;
   *) fail 400 "action inválida" "action_invalid";;
 esac

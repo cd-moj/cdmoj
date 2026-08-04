@@ -41,7 +41,10 @@ if ! is_reserved_role_login "$u"; then
   [[ "$_le" == n ]] && fail 403 "O acesso a este contest está fechado" "login_disabled"
   [[ "$_ls" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS < _ls )) \
     && fail 403 "O acesso a este contest ainda não abriu" "login_not_open"
-  if reg_enabled "$contest" && ! reg_is_registered "$contest" "$u"; then
+  # reg_gate_active: no AQUECIMENTO a porta fica aberta (qualquer conta da fonte entra e brinca);
+  # a inscrição só é exigida quando a PROVA entra no ar. Quem passou pelo aquecimento sem se
+  # inscrever é varrido na promoção (reg_sweep_unregistered) — sessão não expira sozinha.
+  if reg_gate_active "$contest" && ! reg_is_registered "$contest" "$u"; then
     case "$(reg_window_state "$contest")" in
       open|late) fail 403 "Você não está inscrito neste contest — a inscrição ainda está aberta na página do contest" "not_registered" ;;
       soon)      fail 403 "As inscrições deste contest ainda não abriram" "registration_not_open" ;;

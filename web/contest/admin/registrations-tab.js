@@ -39,19 +39,27 @@ export function makeRegistrationsTab(CONTEST) {
       value: String(Math.max(0, Math.round(((w.late_until || 0) - (w.closes_at || 0)) / 60))) });
     const mx = el('input', { type: 'number', min: '1', max: '9', style: 'width:5rem', value: String(DATA.team_max || 3) });
     const tm = el('input', { type: 'checkbox' }); tm.checked = DATA.teams_allowed !== false;
+    // a data herdada é a da PROVA OFICIAL (o aquecimento pode ficar dias no ar) — ver
+    // reg_official_window em lib/registration.sh
+    const anc = w.official_start ? fmtDate(w.official_start) : T('(prova não marcada)', '(contest not scheduled)');
+    const herda = el('p', { class: 'small' },
+      T('Deixe “fecha” vazio para herdar o início da prova: ', 'Leave “closes” empty to inherit the contest start: '),
+      el('b', {}, anc),
+      w.official_round ? el('span', { class: 'muted' }, T(' · rodada ', ' · round ') + w.official_round) : '');
+    const form = el('div', { class: 'row', style: 'gap:.8rem; flex-wrap:wrap; align-items:flex-end' },
+      field(T('abre', 'opens'), op), field(T('fecha', 'closes'), cl),
+      field(T('atraso (min)', 'late (min)'), lm), field(T('tamanho do time', 'team size'), mx),
+      el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, tm, ' ' + T('aceita times', 'teams allowed'))),
+      el('button', { class: 'btn', onclick: () => act({
+        action: 'window', open: toEpoch(op.value) || undefined, close: toEpoch(cl.value) || undefined,
+        late_minutes: Number(lm.value) || 0, team_max: Number(mx.value) || 3, teams: tm.checked,
+      }, T('Janela salva.', 'Window saved.')) }, T('Salvar janela', 'Save window')));
     return el('div', { class: 'section' },
       el('h3', {}, T('Janela de inscrição', 'Registration window')),
       el('p', { class: 'small muted' },
-        T('Fecha por padrão no início da prova. Os minutos de atraso deixam entrar depois do início, mas na coorte “atrasado” (aparece no placar sem ocupar posição) — é a extra registration do Codeforces.',
-          'Closes at the contest start by default. The late minutes let people join after the start, but in the “late” cohort (they appear on the scoreboard without taking a position) — the Codeforces extra registration.')),
-      el('div', { class: 'row', style: 'gap:.8rem; flex-wrap:wrap; align-items:flex-end' },
-        field(T('abre', 'opens'), op), field(T('fecha', 'closes'), cl),
-        field(T('atraso (min)', 'late (min)'), lm), field(T('tamanho do time', 'team size'), mx),
-        el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, tm, ' ' + T('aceita times', 'teams allowed'))),
-        el('button', { class: 'btn', onclick: () => act({
-          action: 'window', open: toEpoch(op.value) || undefined, close: toEpoch(cl.value) || undefined,
-          late_minutes: Number(lm.value) || 0, team_max: Number(mx.value) || 3, teams: tm.checked,
-        }, T('Janela salva.', 'Window saved.')) }, T('Salvar janela', 'Save window'))));
+        T('Fecha por padrão no início da PROVA OFICIAL — não no da rodada corrente: o aquecimento pode ficar dias no ar. Os minutos de atraso deixam entrar depois do início da prova, mas na coorte “atrasado” (aparece no placar sem ocupar posição) — é a extra registration do Codeforces.',
+          'Closes at the OFFICIAL CONTEST start by default — not the current round: the warm-up may run for days. The late minutes let people join after the contest starts, but in the “late” cohort (they appear on the scoreboard without taking a position) — the Codeforces extra registration.')),
+      herda, form);
   }
 
   function teamsTable() {
@@ -96,6 +104,12 @@ export function makeRegistrationsTab(CONTEST) {
         el('h2', { style: 'margin:.2rem 0' }, T('📝 Inscrições', '📝 Registrations')),
         el('span', { class: 'pill ' + (DATA.enabled ? 'ok' : '') },
           DATA.enabled ? T('ligada · ', 'on · ') + STATE() : T('desligada', 'off')),
+        // no aquecimento a porta fica aberta: o roster só é exigido quando a prova entra no ar
+        DATA.enabled && DATA.gate_active === false
+          ? el('span', { class: 'pill', title: T('a porta só fecha quando a prova oficial entrar no ar (promoção da rodada)',
+                                                 'the door only closes when the official round goes live (round promotion)') },
+              T('🔥 aquecimento: entrada livre', '🔥 warm-up: open door'))
+          : '',
         el('div', { class: 'spacer' }),
         el('button', { class: 'btn ghost', onclick: () => act({ action: DATA.enabled ? 'disable' : 'enable' },
           DATA.enabled ? T('Inscrição desligada.', 'Registration off.') : T('Inscrição ligada.', 'Registration on.')) },

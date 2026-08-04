@@ -68,33 +68,92 @@ reg_save(){  # <c> <json>
   printf '%s\n' "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"
 }
 
+# --- a PROVA OFICIAL é a âncora -------------------------------------------
+# reg_official_window <c> -> "<início>\t<fim>\t<slug>" da prova que vale.
+#
+# PORQUÊ: o contest pode passar DIAS em rodada de AQUECIMENTO antes da prova (lib/contest-rounds.sh:
+# a rodada ativa É o conf). Ancorar a inscrição no CONTEST_START faria a janela nascer FECHADA
+# durante todo o aquecimento, e o intervalo entre o fim do aquecimento e a promoção da oficial
+# ainda diria "contest encerrado". A data que interessa é a da PROVA.
+#
+# Lê o rounds.json CRU (nunca rd_sync_active: aquilo espelha conf→json e grava — caminho de
+# leitura não pode ter efeito colateral). Pega a 1ª rodada NÃO-ARQUIVADA com kind=official; se ela
+# for a ativa (ou não houver rodadas), o conf é a verdade e cai nele.
+reg_official_window(){
+  local c="$1" f j cs ce slug act
+  f="$CONTESTSDIR/$c/rounds.json"
+  cs=0; ce=0; slug=""
+  if [[ -s "$f" ]]; then
+    j="$(jq -r '
+      (.active // "") as $a
+      | ((.rounds // []) | map(select((.kind // "official") == "official"
+                                      and (.state // "") != "archived")) | first) as $o
+      | if $o == null or $o.slug == $a then "" else
+          ((($o.start // 0)|tostring) + "\t" + (($o.end // 0)|tostring) + "\t" + ($o.slug // ""))
+        end' "$f" 2>/dev/null)"
+    if [[ -n "$j" ]]; then
+      IFS=$'\t' read -r cs ce slug <<<"$j"
+      [[ "$cs" =~ ^[0-9]+$ ]] || cs=0; [[ "$ce" =~ ^[0-9]+$ ]] || ce=0
+    fi
+  fi
+  if (( cs == 0 )); then     # oficial já é a ativa (ou contest sem rodadas): o conf manda
+    IFS=$'\x01' read -r cs ce < <( CONTEST_START=""; CONTEST_END=""; ROUND=""
+      source "$CONTESTSDIR/$c/conf" 2>/dev/null
+      printf '%s\x01%s' "${CONTEST_START:-0}" "${CONTEST_END:-0}" )
+    [[ "$cs" =~ ^[0-9]+$ ]] || cs=0; [[ "$ce" =~ ^[0-9]+$ ]] || ce=0
+    slug=""
+  fi
+  printf '%s\t%s\t%s' "$cs" "$ce" "$slug"
+}
+
+# reg_round_kind <c> -> warmup|official|extra (do conf; sem rodadas = official)
+reg_round_kind(){
+  local v; v="$( ( ROUND_KIND=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${ROUND_KIND:-}" ) )"
+  printf '%s' "${v:-official}"
+}
+
+# reg_gate_active <c> — 0 quando o roster DEVE ser exigido no login agora.
+# No AQUECIMENTO a porta fica aberta (decisão do organizador: o esquenta atrai gente; quem quiser
+# competir na prova se inscreve). Quem entrou no aquecimento sem se inscrever é varrido na
+# promoção — ver reg_sweep_unregistered.
+reg_gate_active(){
+  reg_enabled "$1" || return 1
+  [[ "$(reg_round_kind "$1")" == warmup ]] && return 1
+  return 0
+}
+
 # --- janela ---------------------------------------------------------------
-# reg_window <c> -> "<estado>\t<abre>\t<fecha>\t<atrasado_ate>"
+# reg_window <c> -> "<estado>\t<abre>\t<fecha>\t<atrasado_ate>\t<ancora>\t<rodada>"
 #   soon (ainda não abriu) | open | late (só entrada atrasada) | closed
 # O `source` do conf roda command substitution (o treino tem CONTEST_END="$(date …)") — é o
 # mesmo padrão do contest_phase; por isso roda em subshell.
 reg_window(){
-  local c="$1"
-  ( local CONTEST_START=0 CONTEST_END=0 REG_OPEN="" REG_CLOSE="" REG_LATE_MINUTES=""
+  local c="$1" ancs ance ancr
+  IFS=$'\t' read -r ancs ance ancr < <(reg_official_window "$c")
+  ( local REG_OPEN="" REG_CLOSE="" REG_LATE_MINUTES=""
     source "$CONTESTSDIR/$c/conf" 2>/dev/null
-    [[ "$CONTEST_START" =~ ^[0-9]+$ ]] || CONTEST_START=0
-    [[ "$CONTEST_END"   =~ ^[0-9]+$ ]] || CONTEST_END=0
     local op=0 cl=0 lt=0 mins=0 now="$EPOCHSECONDS" st
     [[ "$REG_OPEN"  =~ ^[0-9]+$ ]] && op="$REG_OPEN"
-    if [[ "$REG_CLOSE" =~ ^[0-9]+$ ]]; then cl="$REG_CLOSE"; else cl="$CONTEST_START"; fi
+    # sem REG_CLOSE, fecha no início da PROVA OFICIAL (não da rodada corrente)
+    if [[ "$REG_CLOSE" =~ ^[0-9]+$ ]]; then cl="$REG_CLOSE"; else cl="$ancs"; fi
     [[ "$REG_LATE_MINUTES" =~ ^[0-9]+$ ]] && mins="$REG_LATE_MINUTES"
-    # o atraso é ancorado no INÍCIO da prova (é o que a pessoa entende por "atrasado"),
+    # o atraso é ancorado no INÍCIO DA PROVA (é o que a pessoa entende por "atrasado"),
     # nunca antes do fechamento normal
     if (( mins > 0 )); then
-      lt=$(( (CONTEST_START > 0 ? CONTEST_START : cl) + mins * 60 ))
+      lt=$(( (ancs > 0 ? ancs : cl) + mins * 60 ))
       (( lt < cl )) && lt=$cl
     fi
-    if   (( op > 0 && now < op ));            then st=soon
-    elif (( CONTEST_END > 0 && now > CONTEST_END )); then st=closed
-    elif (( cl == 0 || now <= cl ));          then st=open
-    elif (( lt > 0 && now <= lt ));           then st=late
+    # AQUECIMENTO sem prova planejada: a âncora cairia num instante já passado e ninguém
+    # conseguiria se inscrever. Nesse caso a inscrição fica ABERTA (e o pré-prova avisa).
+    if [[ "$(reg_round_kind "$c")" == warmup ]] && (( ancs > 0 && ancs <= now )); then
+      cl=0; lt=0
+    fi
+    if   (( op > 0 && now < op ));       then st=soon
+    elif (( ance > 0 && now > ance ));   then st=closed   # a PROVA acabou (não o aquecimento)
+    elif (( cl == 0 || now <= cl ));     then st=open
+    elif (( lt > 0 && now <= lt ));      then st=late
     else st=closed; fi
-    printf '%s\t%s\t%s\t%s' "$st" "$op" "$cl" "$lt" )
+    printf '%s\t%s\t%s\t%s\t%s\t%s' "$st" "$op" "$cl" "$lt" "$ancs" "$ancr" )
 }
 
 reg_window_state(){ reg_window "$1" | cut -f1; }
@@ -412,19 +471,62 @@ reg_rename_login(){
   return 0
 }
 
+# --- varredura da promoção ------------------------------------------------
+# reg_sweep_unregistered <c> -> "<sessões derrubadas>\t<dirs removidos>"
+# Chamada na PROMOÇÃO para uma rodada que NÃO é aquecimento. Durante o aquecimento a porta fica
+# aberta (reg_gate_active), então quem entrou sem se inscrever precisa:
+#   (a) perder a sessão — sessão do MOJ não expira e a porta só é aplicada no /auth/login: sem
+#       isso o turista do esquenta entra na PROVA pela aba que deixou aberta;
+#   (b) sumir do store — o dir local vazio (sem account.json) continua listado pelo sc_users via
+#       USERS_FROM, e o placar da prova nasceria com dezenas de linhas zeradas.
+# Conta LOCAL de verdade (com senha) e conta de PAPEL nunca são tocadas.
+reg_sweep_unregistered(){
+  local c="$1" ns=0 nd=0 f d u
+  reg_enabled "$c" || { printf '0\t0'; return 0; }
+  declare -A _REGOK=()
+  while IFS= read -r u; do [[ -n "$u" ]] && _REGOK["$u"]=1; done \
+    < <(reg_get "$c" | jq -r '((.entries // {}) | keys[]), ((.teams // {}) | keys[])' 2>/dev/null)
+  set +o noglob; shopt -s nullglob
+  local CONTEST LOGIN
+  for f in "$SESSIONDIR"/*; do
+    [[ -f "$f" ]] || continue
+    CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
+    [[ "$CONTEST" == "$c" && -n "$LOGIN" ]] || continue
+    is_reserved_role_login "$LOGIN" && continue
+    [[ -n "${_REGOK[$LOGIN]:-}" ]] && continue
+    rm -f "$f"; ns=$(( ns + 1 ))
+  done
+  for d in "$CONTESTSDIR/$c/users"/*/; do
+    u="${d%/}"; u="${u##*/}"
+    is_reserved_role_login "$u" && continue
+    [[ -n "${_REGOK[$u]:-}" ]] && continue
+    [[ -e "$d/account.json" ]] && continue          # conta local (admin criou) — não é turista
+    [[ -s "$d/history" ]] && continue               # ainda tem dado vivo: não mexe
+    rm -rf "$d"; nd=$(( nd + 1 ))
+  done
+  shopt -u nullglob
+  (( nd > 0 )) && _score_dirty "$c"
+  printf '%s\t%s' "$ns" "$nd"
+}
+
 # --- visão p/ o front -----------------------------------------------------
 # reg_status_json <c> <login> -> objeto com janela, minha situação, meu time e convites.
 reg_status_json(){
-  local c="$1" l="${2:-}" st op cl lt
-  # tab como separador é seguro AQUI porque os 4 campos são sempre não-vazios (o colapso de
-  # runs de tab do `IFS=$'\t' read` só morde quando há campo vazio no meio — ver CLAUDE.md)
-  IFS=$'\t' read -r st op cl lt < <(reg_window "$c")
+  local c="$1" l="${2:-}" st op cl lt anc rnd
+  # tab como separador é seguro AQUI porque só o ÚLTIMO campo (slug da rodada) pode ser vazio —
+  # o colapso de runs de tab do `IFS=$'\t' read` só morde com campo vazio no MEIO (ver CLAUDE.md)
+  IFS=$'\t' read -r st op cl lt anc rnd < <(reg_window "$c")
   reg_get "$c" | jq -c --arg l "$l" --arg st "$st" --argjson op "${op:-0}" \
       --argjson cl "${cl:-0}" --argjson lt "${lt:-0}" --argjson max "$(reg_team_max "$c")" \
+      --argjson anc "${anc:-0}" --arg rnd "${rnd:-}" \
+      --argjson gate "$(reg_gate_active "$c" && echo true || echo false)" \
+      --arg kind "$(reg_round_kind "$c")" \
       --argjson teams_ok "$(reg_teams_allowed "$c" && echo true || echo false)" '
     (.entries[$l] // null) as $me
     | (if $me != null and $me.kind == "team" then .teams[$me.team] else null end) as $team
-    | { window:{state:$st, opens_at:$op, closes_at:$cl, late_until:$lt},
+    | { window:{state:$st, opens_at:$op, closes_at:$cl, late_until:$lt,
+                official_start:$anc, official_round:$rnd},
+        round_kind:$kind, gate_active:$gate,
         team_max:$max, teams_allowed:$teams_ok,
         me: (if $me == null then {kind:"none"} else ($me + {}) end),
         team: (if $team == null then null

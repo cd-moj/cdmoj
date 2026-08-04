@@ -30,15 +30,19 @@ else
 fi
 
 _emit(){
-  local st op cl lt out
-  IFS=$'\t' read -r st op cl lt < <(reg_window "$contest")
+  local st op cl lt anc rnd out
+  IFS=$'\t' read -r st op cl lt anc rnd < <(reg_window "$contest")
   # corpo ANTES do header: jq que falha depois de emit_json vira 200 mudo com corpo vazio
   out="$(reg_get "$contest" | jq -c --arg st "$st" --argjson op "${op:-0}" --argjson cl "${cl:-0}" \
       --argjson lt "${lt:-0}" --argjson max "$(reg_team_max "$contest")" \
+      --argjson anc "${anc:-0}" --arg rnd "${rnd:-}" --arg kind "$(reg_round_kind "$contest")" \
+      --argjson gate "$(reg_gate_active "$contest" && echo true || echo false)" \
       --argjson en "$(reg_enabled "$contest" && echo true || echo false)" \
       --argjson tok "$(reg_teams_allowed "$contest" && echo true || echo false)" '
     { success:true, enabled:$en, teams_allowed:$tok, team_max:$max,
-      window:{state:$st, opens_at:$op, closes_at:$cl, late_until:$lt},
+      window:{state:$st, opens_at:$op, closes_at:$cl, late_until:$lt,
+              official_start:$anc, official_round:$rnd},
+      round_kind:$kind, gate_active:$gate,
       teams: [ .teams | to_entries[]
                | {login:.key, name:.value.name, captain:.value.captain,
                   members:.value.members, invited:.value.invited, cohort:.value.cohort,

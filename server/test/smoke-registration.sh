@@ -9,7 +9,8 @@ ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; SPOOL="$(mktemp -d)"
 trap 'rm -rf "$FIX" "$SESS" "$SPOOL"' EXIT
-export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" SCOREDIR="$ROOT/score"
+RUN="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$SPOOL" "$RUN"' EXIT
+export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" SCOREDIR="$ROOT/score" RUNDIR="$RUN"
 NOW="$(date +%s)"
 
 T="$FIX/treino"; mkdir -p "$T/var/jsons"
@@ -159,6 +160,56 @@ call /treino/profile/username POST '{"new_username":"caio2"}' tok-caio
 ck "rename ok"                  '[[ "$(J .updated)" == true ]]'
 ck "roster seguiu"              'jq -e ".teams[\"time-os-tres-ponteiros\"].members|index(\"caio2\")" "$C/registrations.json" >/dev/null'
 ck "entries seguiram"           'jq -e ".entries|has(\"caio2\")" "$C/registrations.json" >/dev/null'
+
+
+echo "== RODADAS: aquecimento aberto por dias, prova fechada =="
+# history no TREINO p/ provar depois que a promoção NÃO mexe no store da fonte
+printf '5:org#alfa:c:Accepted,100p:5:tt1\n' > "$T/users/west/history"
+OFF_START=$((NOW + 7200)); OFF_END=$((NOW + 18000))
+conf "$((NOW-1800))" "$((NOW+1800))" 'REG_LATE_MINUTES=30' 'ROUND=aquecimento' 'ROUND_KIND=warmup'
+jq -cn --argjson s "$OFF_START" --argjson e "$OFF_END" \
+  '{version:1, active:"aquecimento",
+    rounds:[{slug:"aquecimento", name:"Aquecimento", kind:"warmup", state:"active", start:0, end:0, problems:[]},
+            {slug:"prova", name:"Prova oficial", kind:"official", state:"pending",
+             start:$s, end:$e, freeze:0, problems:[]}]}' > "$C/rounds.json"
+call /treino/contest-registration GET '' tok-west 'contest=esq'
+ck "janela ancora na PROVA, não no aquecimento" '[[ "$(J .window.closes_at)" == '"$OFF_START"' ]]'
+ck "estado = aberta (aquecimento no ar)"        '[[ "$(J .window.state)" == open ]]'
+ck "diz qual rodada ancora"                     '[[ "$(J .window.official_round)" == prova ]]'
+ck "atraso conta a partir da PROVA"             '[[ "$(J .window.late_until)" == '"$((OFF_START+1800))"' ]]'
+ck "gate DESLIGADO no aquecimento"              '[[ "$(J .gate_active)" == false ]]'
+login west
+ck "NÃO inscrito entra no aquecimento"          '[[ "$(J .logged_in)" == true ]]'
+TOKW="$(J .token)"
+call /submit POST '{"problem_id":"org#alfa","filename":"s.c","code_b64":"aQ=="}' "$TOKW" 'contest=esq'
+ck "e submete no aquecimento"                   '[[ "$(J .status)" == queued ]]'
+ck "ganhou dir local (sem conta)"               '[[ -d "$C/users/west" && ! -e "$C/users/west/account.json" ]]'
+
+# pronto p/ promover: aquecimento encerrado, fila vazia, sem veredicto pendente, daemon vivo
+conf "$((NOW-1800))" "$((NOW-60))" 'REG_LATE_MINUTES=30' 'ROUND=aquecimento' 'ROUND_KIND=warmup'
+rm -f "$SPOOL"/* 2>/dev/null
+printf '10:org#alfa:c:Accepted,100p:%s:w1\n' "$((NOW-100))" > "$C/users/west/history"
+printf '10:org#alfa:c:Accepted,100p:%s:s1\n' "$((NOW-200))" > "$C/users/time-os-tres-ponteiros/history"
+mkdir -p "$RUNDIR"; : > "$RUNDIR/judged.alive"
+bash "$SCOREDIR/build.sh" esq >/dev/null 2>&1
+call /contest/admin/rounds POST '{"action":"promote","to":"prova"}' tok-adm 'contest=esq'
+ck "promoção de contest COMPARTILHADO passa"    '[[ "$(J .promoted)" == true ]]'
+ck "varreu a sessão do turista"                 '[[ "$(J .swept.sessions)" -ge 1 ]]'
+ck "e o diretório vazio dele"                   '[[ "$(J .swept.dirs)" -ge 1 && ! -e "$C/users/west" ]]'
+ck "TREINO intacto (a fonte não é tocada)"      '[[ "$(wc -l < "$T/users/west/history")" == 1 ]]'
+ck "arquivo levou os placares por coorte"       '[[ -f "$C/rounds/aquecimento/placar-view-times.txt" ]]'
+login west
+ck "turista não entra na PROVA"                 '[[ "$(J .error.code)" == not_registered ]]'
+call /auth/status GET '' "$TOKW" 'contest=esq'
+ck "sessão velha do turista morreu"             '[[ "$(J .logged_in)" == false ]]'
+ck "roster sobreviveu à promoção"               'jq -e ".teams[\"time-os-tres-ponteiros\"]" "$C/registrations.json" >/dev/null'
+ck "conta do time sobreviveu"                   '[[ -f "$C/users/time-os-tres-ponteiros/account.json" ]]'
+ck "history do time foi arquivado e zerado"     '[[ ! -s "$C/users/time-os-tres-ponteiros/history" && -s "$C/rounds/aquecimento/users/time-os-tres-ponteiros/history" ]]'
+login caio2
+ck "membro entra na prova COMO O TIME"          '[[ "$(J .username)" == time-os-tres-ponteiros && "$(J .actor)" == caio2 ]]'
+call /treino/contest-registration GET '' tok-zeze 'contest=esq'
+ck "gate LIGADO agora (prova no ar)"            '[[ "$(J .gate_active)" == true ]]'
+ck "janela segue ancorada no início da prova"   '[[ "$(J .window.closes_at)" == '"$OFF_START"' ]]'
 
 echo "== admin: listar, inscrever à mão, dissolver =="
 call /contest/admin/registrations GET '' tok-adm 'contest=esq'

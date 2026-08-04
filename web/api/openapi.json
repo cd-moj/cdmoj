@@ -1147,7 +1147,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Inscrição do próprio login num contest que usa as contas do treino (individual ou time de até 3 contas existentes): janela, minha situação, meu time e convites recebidos",
+        "summary": "Inscrição do próprio login num contest que usa as contas do treino (individual ou time de até 3 contas existentes): janela ancorada na PROVA OFICIAL (o aquecimento pode ficar dias no ar), minha situação, meu time e convites recebidos",
         "security": [
           {
             "bearerAuth": []
@@ -1165,7 +1165,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{enabled,contest,contest_name,start_time,end_time,window:{state,opens_at,closes_at,late_until},team_max,teams_allowed,me,team,invites,totals}"
+            "description": "{enabled,contest,contest_name,start_time,end_time,window:{state,opens_at,closes_at,late_until,official_start,official_round},round_kind,gate_active,team_max,teams_allowed,me,team,invites,totals}"
           },
           "409": {
             "description": "not_shared (contest sem USERS_FROM)"
@@ -4714,7 +4714,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{enabled,window,team_max,teams_allowed,teams,individuals,totals}"
+            "description": "{enabled,window:{…,official_start,official_round},round_kind,gate_active,team_max,teams_allowed,teams,individuals,totals}"
           }
         }
       },

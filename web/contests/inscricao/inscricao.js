@@ -58,7 +58,10 @@ function windowBox() {
   if (w.state === 'open') {
     box.append(el('b', {}, T('Inscrições abertas', 'Registration open')));
     if (deadline > now) box.append(el('span', {}, T(' — fecham em ', ' — closes in ')), cd,
-      el('span', {}, ' (' + fmtDate(w.closes_at) + ')'));
+      el('span', {}, ' (' + fmtDate(w.closes_at)
+        + (w.official_start && w.official_start === w.closes_at ? T(', início da prova', ', contest start') : '') + ')'));
+    else box.append(el('span', {}, T(' — sem prazo definido ainda (a prova oficial não está marcada)',
+                                     ' — no deadline yet (the official contest is not scheduled)')));
   } else if (w.state === 'late') {
     box.append(el('b', {}, T('⏰ Inscrição atrasada', '⏰ Late registration')),
       el('span', {}, T(' — a prova já começou. Dá para entrar por mais ', ' — the contest already started. You can still join for ')), cd,
@@ -74,6 +77,22 @@ function windowBox() {
 }
 
 const canAct = () => st.window && (st.window.state === 'open' || st.window.state === 'late');
+
+// AQUECIMENTO: enquanto a rodada ativa é de aquecimento a porta fica ABERTA (qualquer conta do
+// Treino Livre entra e joga); a inscrição é o que garante a vaga na PROVA — e é na promoção da
+// prova que quem não se inscreveu perde a sessão.
+function warmupBox() {
+  if (st.round_kind !== 'warmup') return '';
+  const w = st.window || {};
+  return el('div', { class: 'notice', style: 'margin:.6rem 0' },
+    el('b', {}, T('🔥 Aquecimento no ar — entrada livre', '🔥 Warm-up running — open door')),
+    el('span', {}, T(' Qualquer conta do Treino Livre entra e treina agora, sem inscrição. Para a PROVA você precisa estar inscrito',
+                     ' Anyone with a Free Training account can come in and practice now, no registration needed. For the CONTEST you must be registered')),
+    w.official_start ? el('span', {}, T(' — ela começa em ', ' — it starts on ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'),
+    el('div', { class: 'small muted', style: 'margin-top:.3rem' },
+      T('Quando a prova entrar no ar, quem não se inscreveu é desconectado.',
+        'When the contest goes live, whoever did not register is logged out.')));
+}
 
 function meBox() {
   const kind = (st.me || {}).kind || 'none';
@@ -192,7 +211,7 @@ function render() {
       el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →')));
     return;
   }
-  c.append(windowBox(), msg, invitesBox(), meBox());
+  c.append(warmupBox(), windowBox(), msg, invitesBox(), meBox());
   const tot = st.totals || {};
   c.append(el('p', { class: 'small muted', style: 'margin-top:1rem' },
     T('Inscritos: ', 'Registered: ') + (tot.people || 0) + T(' pessoas · ', ' people · ') + (tot.teams || 0)

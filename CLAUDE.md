@@ -108,7 +108,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   contest com `USERS_FROM` (quem se inscreve é a conta da FONTE, pela página `/contests/inscricao/`
   do site principal — o token é por ORIGEM e o subdomínio do contest não vê a sessão do treino).
   Janela no conf (`REG_OPEN`/`REG_CLOSE`/`REG_LATE_MINUTES`/`REG_TEAM_MAX`/`REG_TEAMS`); atrasado
-  cai em coorte `unranked`. **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
+  cai em coorte `unranked`. **A âncora é a PROVA OFICIAL** (`reg_official_window`: 1ª rodada
+  não-arquivada `kind=official` do `rounds.json`), nunca a rodada corrente — o AQUECIMENTO pode
+  ficar dias no ar e nele a porta fica ABERTA (`reg_gate_active`); quem não se inscreveu é varrido
+  na PROMOÇÃO (`reg_sweep_unregistered`: sessão + dir vazio), porque sessão não expira sozinha. **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
   — que eram só desenho de tela — e o roster valem lá; papel nunca é barrado. **TIME = conta local**
   (`users/time-<slug>/`, senha `!<uuid>`) e o membro entra com a credencial DELE: o login faz o
   **alias** (`SESSION_LOGIN` = time, `SESSION_ACTOR` = a pessoa), então placar/balões/impressão não

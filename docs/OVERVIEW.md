@@ -144,9 +144,13 @@ Contest que usa as contas do treino (`USERS_FROM=treino`) pode exigir **inscriç
 Motor em `lib/registration.sh`; a pessoa se inscreve pela página `/contests/inscricao/?c=<id>`
 **do site principal** (o token é por ORIGEM: o subdomínio do contest não enxerga a sessão do
 treino), individual ou em **time de até 3 contas existentes** (convite + aceite do convidado).
-A **janela** vem do conf (`REG_OPEN`/`REG_CLOSE`, default = início da prova, e
-`REG_LATE_MINUTES` p/ a entrada atrasada, que cai numa coorte `unranked` — a *extra
-registration* do Codeforces). **A porta é a API**: `handlers/auth/login.sh` recusa quem não está
+A **janela** vem do conf (`REG_OPEN`/`REG_CLOSE` e `REG_LATE_MINUTES` p/ a entrada atrasada, que
+cai numa coorte `unranked` — a *extra registration* do Codeforces) e **ancora na PROVA OFICIAL**,
+não na rodada corrente (`reg_official_window`): o AQUECIMENTO pode ficar dias no ar, e nele a porta
+fica **aberta** a qualquer conta da fonte (`reg_gate_active`) — a inscrição é o que garante a vaga
+na prova. Na **promoção** da rodada oficial, `reg_sweep_unregistered` derruba a sessão de quem não
+se inscreveu (sessão não expira sozinha) e apaga o diretório vazio dele, p/ o placar da prova não
+nascer com linhas zeradas de quem só passeou no esquenta. **A porta é a API**: `handlers/auth/login.sh` recusa quem não está
 no roster (403 `not_registered`) e passou a valer `LOGIN_ENABLED`/`LOGIN_START_TIME`, que antes
 só existiam no desenho da tela.
 

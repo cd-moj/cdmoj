@@ -14,6 +14,8 @@
 #  - Sem jq POR contest (eram 781 forks ≈ 4s de resposta) — só o subshell do source (barato
 #    e load-bearing: isola as variáveis do conf de cada contest).
 set +o noglob
+# reg_official_window: a data que ancora a inscrição é a da PROVA, não a da rodada corrente
+source "$_DIR/lib/registration.sh"
 
 PAGE="$(param page)"; [[ "$PAGE" =~ ^[0-9]+$ ]] || PAGE=1
 (( PAGE < 1 )) && PAGE=1
@@ -33,7 +35,7 @@ for d in "$CONTESTSDIR"/*/; do
   [[ -f "$c/conf" ]] || continue
   (
     CONTEST_START=""; CONTEST_END=""; CONTEST_NAME=""; SECRET=""; PROBS=()
-    REG_OPEN=""; REG_CLOSE=""; REG_LATE_MINUTES=""
+    REG_OPEN=""; REG_CLOSE=""; REG_LATE_MINUTES=""; ROUND_KIND=""
     source "$c/conf" 2>/dev/null
     [[ "$SECRET" == 1 ]] && exit 0   # SUPER SECRETO: fora de abertos/por vir/encerrados
     [[ "$CONTEST_START" =~ ^[0-9]+$ && "$CONTEST_END" =~ ^[0-9]+$ ]] || exit 0
@@ -46,11 +48,18 @@ for d in "$CONTESTSDIR"/*/; do
     reg=0; ro=0; rc=0; rl=0
     if [[ -s "$c/registrations.json" ]]; then
       reg=1
+      # a âncora é o início da PROVA OFICIAL, não o da rodada corrente: o aquecimento pode ficar
+      # dias no ar (lib/registration.sh `reg_official_window` — mesma regra do resto do sistema).
+      # O fork extra só acontece p/ contest COM inscrição (raro), nunca no caminho comum.
+      IFS=$'\x09' read -r _os _oe _or < <(reg_official_window "$id")
+      [[ "$_os" =~ ^[0-9]+$ ]] || _os="$CONTEST_START"
       [[ "$REG_OPEN" =~ ^[0-9]+$ ]] && ro="$REG_OPEN"
-      if [[ "$REG_CLOSE" =~ ^[0-9]+$ ]]; then rc="$REG_CLOSE"; else rc="$CONTEST_START"; fi
+      if [[ "$REG_CLOSE" =~ ^[0-9]+$ ]]; then rc="$REG_CLOSE"; else rc="$_os"; fi
       if [[ "$REG_LATE_MINUTES" =~ ^[0-9]+$ ]] && (( REG_LATE_MINUTES > 0 )); then
-        rl=$(( CONTEST_START + REG_LATE_MINUTES * 60 )); (( rl < rc )) && rl=$rc
+        rl=$(( _os + REG_LATE_MINUTES * 60 )); (( rl < rc )) && rl=$rc
       fi
+      # aquecimento no ar sem prova planejada: a inscrição fica sem prazo (o cartão mostra aberta)
+      [[ "${ROUND_KIND:-}" == warmup ]] && (( _os > 0 && _os <= NOW )) && { rc=0; rl=0; }
     fi
     printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' \
       "$CONTEST_START" "$st" "$id" "$t" "$CONTEST_END" "$(( ${#PROBS[@]} / 5 ))" \

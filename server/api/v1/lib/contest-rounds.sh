@@ -115,8 +115,11 @@ rd_promote_blockers(){
   next="$(rd_next "$c")"
   [[ -n "$next" ]] || _add no_next_round "nenhuma rodada planejada: crie a próxima antes de promover"
 
-  uf="$( . "$CONTESTSDIR/$c/conf" 2>/dev/null; printf '%s' "${USERS_FROM:-}" )"
-  [[ -z "$uf" ]] || _add shared_users "o contest compartilha as contas de '$uf' (USERS_FROM): arquivar aqui mexeria no store de outro contest"
+  # (ERA um bloqueador: "USERS_FROM ⇒ arquivar mexeria no store de outro contest". Não mexe —
+  #  o arquivamento itera `$cdir/users/*/`, que são os diretórios LOCAIS deste contest, e a
+  #  fonte nunca é aberta. O guard impedia justamente o caso real: esquenta com as contas do
+  #  treino, aquecimento de dias e depois a prova. O smoke prova que o store do treino sai
+  #  intacto da promoção.)
 
   if declare -F contest_over_for_all >/dev/null && ! contest_over_for_all "$c"; then
     _add round_running "a rodada ativa ainda não terminou (inclusive prorrogações por sede)"
@@ -347,9 +350,13 @@ rd_promote(){
       > "$cdir/docs/config.json" 2>/dev/null
   fi
   # placar/estatística da rodada: MOVE (viram o retrato). placar-custom.txt é ENTRADA humana: fica.
+  # Os placares POR VISÃO (coortes com ranking próprio: times × individual, convidados) entram
+  # junto — sem eles o arquivo da rodada perde justamente os placares separados.
   for x in placar.txt placar-full.txt statistics.cache.json; do
     [[ -e "$cdir/var/$x" ]] && mv -f "$cdir/var/$x" "$ad/$x" 2>/dev/null
   done
+  ( set +o noglob; shopt -s nullglob
+    for f in "$cdir"/var/placar-view-*.txt; do mv -f "$f" "$ad/${f##*/}" 2>/dev/null; done )
   # append-only: COPIA (a trilha do contest precisa continuar; o access.log é a fonte do
   # mapa de máquinas e tem de atravessar as rodadas)
   for x in access.log admin-audit.log editor-log offline-log; do

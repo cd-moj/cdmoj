@@ -388,6 +388,14 @@ registration* do Codeforces). Passou disso, a porta fecha.
 — o seletor "Placar: Geral | Times | Individual" aparece sozinho na página do placar. Se o
 contest já tinha coortes configuradas, o checklist pré-prova avisa que faltam essas duas.
 
+**Com AQUECIMENTO (o esquenta que fica dias no ar):** planeje as duas rodadas em *Prova → Rodadas*
+(aquecimento agora, prova oficial na data real). Enquanto o aquecimento estiver no ar a porta fica
+**aberta** — qualquer conta do Treino Livre entra e treina, sem inscrição — e a inscrição fecha
+sozinha **no início da prova oficial** (é essa data que o "fecha" herda, não a do aquecimento).
+Ao **promover** a prova, quem não se inscreveu perde a sessão na hora e some do store, então o
+placar da prova nasce só com os inscritos. O painel mostra o selo *🔥 aquecimento: entrada livre*
+enquanto isso vale.
+
 > Dica de dia de prova: o checklist da Central mostra quantos se inscreveram e **quantos convites
 > ficaram pendentes** — convite não aceito significa gente achando que está no time e que, na
 > hora, não entra.
