@@ -72,7 +72,10 @@ while IFS= read -r -d '' f; do
       [[ -n "${VERBOSE:-}" ]] && echo "  (não-extraível: $f)"
     fi
   done < <(extract "$f")
-done < <(find "$DIR" -name '*.sh' -print0 | sort -z)
+# server/test/ fica FORA: programa jq de teste só roda no dev (nunca com o jq da imagem), e as
+# fixtures dos smokes — cheias de aspas simples em `check '… | jq -e "…"'` — fazem o extrator
+# recortar SHELL entre aspas (if/else/fi), que compila com "unexpected else" e vira falso FAIL.
+done < <(find "$DIR" -name '*.sh' ! -path '*/test/*' -print0 | sort -z)
 
 echo "jq $(jq --version): $total programas · $bad INCOMPATÍVEL(EIS) · $noise não-extraível(eis) (VERBOSE=1 p/ ver)"
 [[ $bad -eq 0 ]]
