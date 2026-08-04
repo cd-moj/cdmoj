@@ -112,30 +112,9 @@ alerts_evaluate(){
     "🛑 <b>MOJ</b>: o daemon de julgamento (judged) parece PARADO — submissões não são processadas." \
     "✅ <b>MOJ</b>: daemon de julgamento de volta."
 
-  # bot_gone: o CARTEIRO sumiu (bot.alive é tocado a cada poll — handlers/ops/alerts.sh).
-  # NÃO usa alert_step: com o bot fora ninguém drena o outbox, e o cooldown empilharia
-  # "bot fora" repetidos que virariam FLOOD na volta. Aqui só se registra a queda (stamp) e,
-  # quando o bot REAPARECE (este código roda no poll dele), enfileira UMA mensagem contando o
-  # período fora do ar — que é exatamente a mensagem entregável.
-  # (Incidente 2026-08-04: a máquina reiniciou e o moj-bot não voltou — a unit nunca tinha sido
-  #  `enable`d — e ninguém ficou sabendo até sentirem falta dos alertas.)
-  local bstamp="$d/cond-bot_gone.json" balive="$d/bot.alive" bage bdown
-  if [[ -f "$balive" ]]; then
-    bage=$(( EPOCHSECONDS - $(stat -c %Y "$balive" 2>/dev/null || echo 0) ))
-    bdown="$(jq -r '.down_since // 0' "$bstamp" 2>/dev/null)"; [[ "$bdown" =~ ^[0-9]+$ ]] || bdown=0
-    if (( bage > ALERT_BOT_GONE_AFTER )); then
-      # fora do ar: só grava desde quando (uma vez) — nada de outbox
-      (( bdown == 0 )) && jq -cn --argjson t $(( EPOCHSECONDS - bage )) '{down_since:$t}' \
-        > "$bstamp.tmp" 2>/dev/null && mv -f "$bstamp.tmp" "$bstamp"
-    elif (( bdown > 0 )); then
-      # voltou: a mensagem única do período fora
-      local fmin=$(( (EPOCHSECONDS - bdown) / 60 ))
-      ( umask 077; printf '⚠️ <b>MOJ</b>: o bot de alertas (mojinho) ficou FORA DO AR por ~%s min (desde %s) — alertas desse período podem ter se perdido. Voltou agora.' \
-          "$fmin" "$(date -d "@$bdown" '+%d/%m %H:%M' 2>/dev/null)" \
-          > "$d/outbox/$EPOCHSECONDS-bot_gone-$$.txt" )
-      printf '{}' > "$bstamp.tmp" 2>/dev/null && mv -f "$bstamp.tmp" "$bstamp"
-    fi
-  fi
+  # (a detecção de "bot fora do ar" NÃO mora aqui de propósito: alerts_evaluate só roda no
+  #  poll do bot — com o bot morto ninguém avalia nada. Quem mede a ausência é o handler
+  #  ops/alerts, no PRIMEIRO poll da volta, pelo mtime velho do bot.alive.)
 }
 
 # --- claim do outbox ------------------------------------------------------

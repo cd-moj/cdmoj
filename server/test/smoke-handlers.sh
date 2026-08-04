@@ -242,6 +242,13 @@ touch -d "10 minutes ago" "$RUN2/alerts/bot.alive"
 rm -f "$RUN2/status.json"          # o handler cacheia 20s em $RUNDIR/status.json
 bcall /index/status GET ""
 check "status: stamp velho => alive=false" '(printf "%s" "$BODY" | jq -e ".bot.alive == false and .bot.last_poll_age_s > 500" >/dev/null)'
+# o PRIMEIRO poll depois de uma ausência longa enfileira a DM "ficou fora de X" — e o próprio
+# poll a drena (items) — é assim que os .admin ficam sabendo QUANDO o bot volta
+touch -d "10 minutes ago" "$RUN2/alerts/bot.alive"
+bcall /ops/alerts GET "Bearer mojb_smoketoken"
+check "volta após ausência => DM do período fora" '(printf "%s" "$BODY" | jq -e "[.items[].text] | any(contains(\"FORA DO AR\"))" >/dev/null)'
+bcall /ops/alerts GET "Bearer mojb_smoketoken"
+check "poll seguinte: sem repetição" '(printf "%s" "$BODY" | jq -e "[.items[].text // empty] | any(contains(\"FORA DO AR\")) | not" >/dev/null)'
 rm -f "$RUN2/alerts/bot.alive" "$RUN2/status.json"
 bcall /index/status GET ""
 check "status: sem stamp => bot:null" '(printf "%s" "$BODY" | jq -e ".bot == null" >/dev/null)'
