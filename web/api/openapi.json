@@ -1176,7 +1176,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Ações da inscrição: register | cancel | team-create | team-invite | team-accept | team-decline | team-leave | team-dissolve | team-rename (participação é exclusiva; fora da janela recusa)",
+        "summary": "Ações da inscrição: register | team-create {name,univ?,ai?} | team-invite | team-accept | team-decline | team-rename | team-meta {univ?,ai?} | team-photo {image_b64}. Modo de participação é DEFINITIVO (403 mode_locked em cancel/leave/dissolve/troca); warmup também exige inscrição por padrão (REG_WARMUP_OPEN=y libera)",
         "security": [
           {
             "bearerAuth": []

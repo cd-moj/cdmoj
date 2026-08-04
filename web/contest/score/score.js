@@ -137,6 +137,7 @@ function applyTeamsDir(p) {
     if (d.has_logo && !t.schoolLogo) {
       t.schoolLogo = '/api/v1/contest/team-logo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
     }
+    if (d.ai) t.aiDeclared = true;
     if (d.has_photo) {
       t.photoUrl = '/api/v1/contest/team-photo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
     }

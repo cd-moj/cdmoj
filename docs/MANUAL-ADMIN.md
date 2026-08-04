@@ -403,12 +403,24 @@ registration* do Codeforces). Passou disso, a porta fecha.
 contest já tinha coortes configuradas, o checklist pré-prova avisa que faltam essas duas.
 
 **Com AQUECIMENTO (o esquenta que fica dias no ar):** planeje as duas rodadas em *Prova → Rodadas*
-(aquecimento agora, prova oficial na data real). Enquanto o aquecimento estiver no ar a porta fica
-**aberta** — qualquer conta do Treino Livre entra e treina, sem inscrição — e a inscrição fecha
-sozinha **no início da prova oficial** (é essa data que o "fecha" herda, não a do aquecimento).
-Ao **promover** a prova, quem não se inscreveu perde a sessão na hora e some do store, então o
-placar da prova nasce só com os inscritos. O painel mostra o selo *🔥 aquecimento: entrada livre*
-enquanto isso vale.
+(aquecimento agora, prova oficial na data real). Por padrão **o aquecimento também exige
+inscrição** — é nele que o competidor resolve login, submissão e placar; deixar entrar sem
+inscrição só empurra o problema para o dia da prova. A inscrição fecha sozinha **no início da
+prova oficial** (é essa data que o "fecha" herda, não a do aquecimento). Se você preferir o
+aquecimento de porta aberta (qualquer conta da fonte entra sem inscrição), ligue
+`REG_WARMUP_OPEN=y` no conf — nesse caso a **promoção** derruba a sessão de quem não se
+inscreveu e o placar da prova nasce só com os inscritos; o painel mostra o selo
+*🔥 aquecimento: entrada livre* enquanto isso vale.
+
+**O modo de participação é definitivo:** depois de inscrito (individual ou em time), o competidor
+não cancela nem troca de modo sozinho — a página de inscrição deixa isso claro antes da escolha, e
+qualquer mudança passa por você (Pessoas › Inscrições: remover, dissolver, inscrever à mão).
+
+**O time também declara na inscrição:** a **universidade** (vira o prefixo `[SIGLA] Nome do Time`
+no placar e a coluna/filtro de escola), o **uso de IA** (aparece como 🤖 ao lado do nome — é
+transparência, não julgamento) e uma **foto do time** (o 📷 do placar; reprocessada no servidor,
+sem metadados). Tudo editável pelo capitão enquanto a janela estiver aberta, e visível no seu
+painel e no CSV.
 
 > Dica de dia de prova: o checklist da Central mostra quantos se inscreveram e **quantos convites
 > ficaram pendentes** — convite não aceito significa gente achando que está no time e que, na

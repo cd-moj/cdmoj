@@ -92,6 +92,46 @@ ck "west recusou"               '[[ "$(J ".invites|length")" == 0 ]]'
 reg '{"contest":"esq","action":"team-invite","login":"caio"}' tok-caio
 ck "convite de quem não é capitão -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== universidade, IA e foto do time =="
+reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes"}' tok-ana
+ck "univ salva"                  '[[ "$(J .team.univ)" == UnB ]]'
+ck "ai declarada"                '[[ "$(J .team.ai)" == true ]]'
+ck "placar: nome prefixado"      '[[ "$(jq -r .fullname "$C/users/time-os-tres-ponteiros/account.json")" == "[UnB] Os Três Ponteiros" ]]'
+ck "placar: univ_short"          '[[ "$(jq -r .team.univ_short "$C/users/time-os-tres-ponteiros/account.json")" == UnB ]]'
+ck "placar: .team.ai"            '[[ "$(jq -r .team.ai "$C/users/time-os-tres-ponteiros/account.json")" == true ]]'
+reg '{"contest":"esq","action":"team-meta","univ":"","ai":"no"}' tok-ana
+ck "univ apagada volta o nome"   '[[ "$(jq -r .fullname "$C/users/time-os-tres-ponteiros/account.json")" == "Os Três Ponteiros" ]]'
+ck "ai=no"                       '[[ "$(jq -r .team.ai "$C/users/time-os-tres-ponteiros/account.json")" == false ]]'
+reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes"}' tok-caio
+ck "não-capitão não mexe -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
+if command -v convert >/dev/null 2>&1; then
+  PNG64="$(printf '\x89PNG\r\n\x1a\n' | cat - /dev/null | base64 -w0)"
+  # png de verdade: gera com o próprio convert
+  convert -size 4x4 xc:red /tmp/reg-smoke-$$.png 2>/dev/null
+  PNG64="$(base64 -w0 < /tmp/reg-smoke-$$.png)"; rm -f /tmp/reg-smoke-$$.png
+  reg "{\"contest\":\"esq\",\"action\":\"team-photo\",\"image_b64\":\"$PNG64\"}" tok-ana
+  ck "foto do time aceita"       '[[ "$(J .team.has_photo)" == true && -f "$C/users/time-os-tres-ponteiros/photo.png" ]]'
+  reg "{\"contest\":\"esq\",\"action\":\"team-photo\",\"image_b64\":\"$PNG64\"}" tok-caio
+  ck "foto por não-capitão -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
+else
+  echo "  skip: sem convert (foto não testada)"
+fi
+
+echo "== modo de participação é DEFINITIVO =="
+reg '{"contest":"esq","action":"cancel"}' tok-zeze
+ck "individual não cancela -> mode_locked"    '[[ "$OUT" == *"Status: 403"* && "$(J .error.code)" == mode_locked ]]'
+reg '{"contest":"esq","action":"team-create","name":"Fuga do Zeze"}' tok-zeze
+ck "individual não vira time"                 '[[ "$(J .error.code)" == mode_locked ]]'
+reg '{"contest":"esq","action":"team-leave"}' tok-caio
+ck "membro não sai do time"                   '[[ "$(J .error.code)" == mode_locked ]]'
+reg '{"contest":"esq","action":"team-dissolve"}' tok-ana
+ck "capitã não desfaz o time"                 '[[ "$(J .error.code)" == mode_locked ]]'
+ck "mas convidar/renomear segue ok"           'true'
+adm '{"action":"rm","login":"zeze"}'
+ck "ADMIN remove (a organização muda)"        '[[ "$(J .totals.individuals)" == 0 ]]'
+adm '{"action":"add","login":"zeze"}'
+ck "…e reinscreve p/ o resto do teste"        '[[ "$(J .totals.individuals)" == 1 ]]'
+
 echo "== a PORTA do contest =="
 conf "$((NOW-600))" "$((NOW+10800))" 'REG_LATE_MINUTES=30' "REG_CLOSE=$((NOW+3600))"
 login bob
@@ -177,9 +217,15 @@ ck "janela ancora na PROVA, não no aquecimento" '[[ "$(J .window.closes_at)" ==
 ck "estado = aberta (aquecimento no ar)"        '[[ "$(J .window.state)" == open ]]'
 ck "diz qual rodada ancora"                     '[[ "$(J .window.official_round)" == prova ]]'
 ck "atraso conta a partir da PROVA"             '[[ "$(J .window.late_until)" == '"$((OFF_START+1800))"' ]]'
-ck "gate DESLIGADO no aquecimento"              '[[ "$(J .gate_active)" == false ]]'
+ck "gate LIGADO no aquecimento (default estrito)" '[[ "$(J .gate_active)" == true ]]'
 login west
-ck "NÃO inscrito entra no aquecimento"          '[[ "$(J .logged_in)" == true ]]'
+ck "NÃO inscrito barrado no aquecimento"        '[[ "$(J .error.code)" == not_registered ]]'
+# porta aberta é OPT-IN: REG_WARMUP_OPEN=y restaura o comportamento de porta livre
+conf "$((NOW-1800))" "$((NOW+1800))" 'REG_LATE_MINUTES=30' 'ROUND=aquecimento' 'ROUND_KIND=warmup' 'REG_WARMUP_OPEN=y'
+call /treino/contest-registration GET '' tok-west 'contest=esq'
+ck "REG_WARMUP_OPEN=y => gate desligado"        '[[ "$(J .gate_active)" == false ]]'
+login west
+ck "com opt-in, não inscrito entra"             '[[ "$(J .logged_in)" == true ]]'
 TOKW="$(J .token)"
 call /submit POST '{"problem_id":"org#alfa","filename":"s.c","code_b64":"aQ=="}' "$TOKW" 'contest=esq'
 ck "e submete no aquecimento"                   '[[ "$(J .status)" == queued ]]'

@@ -78,20 +78,24 @@ function windowBox() {
 
 const canAct = () => st.window && (st.window.state === 'open' || st.window.state === 'late');
 
-// AQUECIMENTO: enquanto a rodada ativa é de aquecimento a porta fica ABERTA (qualquer conta do
-// Treino Livre entra e joga); a inscrição é o que garante a vaga na PROVA — e é na promoção da
-// prova que quem não se inscreveu perde a sessão.
+// AQUECIMENTO: por padrão o aquecimento também exige inscrição (só inscrito entra — quem não
+// resolve isso no warmup vira atraso no dia da prova). gate_active=false = o contest optou
+// pela porta aberta (REG_WARMUP_OPEN=y).
 function warmupBox() {
   if (st.round_kind !== 'warmup') return '';
   const w = st.window || {};
+  if (st.gate_active === false) {
+    return el('div', { class: 'notice', style: 'margin:.6rem 0' },
+      el('b', {}, T('🔥 Aquecimento no ar — entrada livre', '🔥 Warm-up running — open door')),
+      el('span', {}, T(' Qualquer conta do Treino Livre entra e treina agora, sem inscrição. Para a PROVA você precisa estar inscrito',
+                       ' Anyone with a Free Training account can come in and practice now, no registration needed. For the CONTEST you must be registered')),
+      w.official_start ? el('span', {}, T(' — ela começa em ', ' — it starts on ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'));
+  }
   return el('div', { class: 'notice', style: 'margin:.6rem 0' },
-    el('b', {}, T('🔥 Aquecimento no ar — entrada livre', '🔥 Warm-up running — open door')),
-    el('span', {}, T(' Qualquer conta do Treino Livre entra e treina agora, sem inscrição. Para a PROVA você precisa estar inscrito',
-                     ' Anyone with a Free Training account can come in and practice now, no registration needed. For the CONTEST you must be registered')),
-    w.official_start ? el('span', {}, T(' — ela começa em ', ' — it starts on ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'),
-    el('div', { class: 'small muted', style: 'margin-top:.3rem' },
-      T('Quando a prova entrar no ar, quem não se inscreveu é desconectado.',
-        'When the contest goes live, whoever did not register is logged out.')));
+    el('b', {}, T('🔥 Aquecimento no ar — só para inscritos', '🔥 Warm-up running — registered only')),
+    el('span', {}, T(' Inscreva-se para participar do aquecimento E da prova: é no aquecimento que você testa login, submissão e placar — resolver isso agora evita atraso no dia',
+                     ' Register to join the warm-up AND the contest: the warm-up is where you test login, submissions and the scoreboard — sorting it out now avoids delays on the day')),
+    w.official_start ? el('span', {}, T('. A prova começa em ', '. The contest starts on ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'));
 }
 
 function meBox() {
@@ -103,18 +107,31 @@ function meBox() {
     s.append(el('h2', {}, T('Como você quer participar?', 'How do you want to take part?')),
       el('p', { class: 'small muted' },
         T('Escolha uma das duas: individual ou em time de até ', 'Pick one: individually or in a team of up to ')
-        + (st.team_max || 3) + T(' pessoas com conta no Treino Livre.', ' people with a Free Training account.')));
+        + (st.team_max || 3) + T(' pessoas com conta no Treino Livre.', ' people with a Free Training account.')),
+      el('div', { class: 'notice', style: 'margin:.3rem 0 .6rem' },
+        el('b', {}, T('⚠️ Escolha com calma: ', '⚠️ Choose carefully: ')),
+        T('depois de inscrito, o modo de participação (individual ou time) é definitivo — para qualquer mudança, fale com a organização.',
+          'once registered, your participation mode (individual or team) is final — for any change, talk to the organizers.')));
     const row = el('div', { class: 'row', style: 'gap:.6rem; flex-wrap:wrap' });
     row.append(el('button', { class: 'btn', disabled: !canAct(),
       onclick: () => act({ action: 'register' }, T('Inscrição feita!', 'You are registered!')) },
       T('Participar individualmente', 'Take part individually')));
     if (st.teams_allowed !== false) {
       const name = el('input', { placeholder: T('nome do time', 'team name'), style: 'min-width:15rem' });
-      row.append(el('span', { class: 'row', style: 'gap:.4rem' }, name,
+      const univ = el('input', { placeholder: T('sigla da universidade (opcional)', 'university acronym (optional)'), style: 'width:16rem', maxlength: '20' });
+      const aiSel = el('select', {},
+        el('option', { value: '' }, T('uso de IA: prefiro não declarar', 'AI use: prefer not to say')),
+        el('option', { value: 'yes' }, T('🤖 vamos usar IA', '🤖 we will use AI')),
+        el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
+      row.append(el('span', { class: 'row', style: 'gap:.4rem; flex-wrap:wrap' }, name, univ, aiSel,
         el('button', { class: 'btn ghost', disabled: !canAct(),
-          onclick: () => act({ action: 'team-create', name: name.value.trim() },
+          onclick: () => act({ action: 'team-create', name: name.value.trim(),
+                               univ: univ.value.trim(), ai: aiSel.value },
                              T('Time criado — agora convide o resto.', 'Team created — now invite the others.')) },
           T('Criar um time', 'Create a team'))));
+      row.append(el('div', { class: 'small muted', style: 'flex-basis:100%' },
+        T('A universidade vira o prefixo do nome no placar — “[SIGLA] Seu Time” — e a declaração de IA aparece como 🤖 ao lado do nome (transparência, sem julgamento).',
+          'The university becomes the team-name prefix on the scoreboard — “[ACRONYM] Your Team” — and the AI declaration shows as 🤖 next to the name (transparency, not judgement).')));
     }
     s.append(row);
     return s;
@@ -127,11 +144,10 @@ function meBox() {
       late ? el('p', { class: 'small' }, T('⏰ Inscrição atrasada: você aparece no placar sem ocupar posição oficial.',
                                            '⏰ Late registration: you appear on the scoreboard without taking an official position.')) : '',
       el('div', { class: 'row', style: 'gap:.6rem' },
-        el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →')),
-        el('button', { class: 'btn ghost danger', disabled: !canAct(),
-          onclick: () => confirm(T('Cancelar sua inscrição?', 'Cancel your registration?'))
-            && act({ action: 'cancel' }, T('Inscrição cancelada.', 'Registration cancelled.')) },
-          T('Cancelar inscrição', 'Cancel registration'))));
+        el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →'))),
+      el('p', { class: 'small muted', style: 'margin-top:.4rem' },
+        T('Sua participação individual está confirmada e é definitiva — precisa mudar algo? Fale com a organização.',
+          'Your individual participation is confirmed and final — need a change? Talk to the organizers.')));
     return s;
   }
 
@@ -165,20 +181,49 @@ function meBox() {
       el('button', { class: 'btn ghost',
         onclick: () => act({ action: 'team-rename', name: nm.value.trim() }, T('Nome trocado.', 'Name changed.')) },
         T('Renomear', 'Rename'))));
+
+    // universidade + declaração de IA (capitão edita enquanto a janela estiver aberta)
+    const univ = el('input', { value: t.univ || '', maxlength: '20',
+      placeholder: T('sigla da universidade', 'university acronym'), style: 'width:14rem' });
+    const aiSel = el('select', {},
+      el('option', { value: '' }, T('uso de IA: não declarado', 'AI use: not declared')),
+      el('option', { value: 'yes' }, T('🤖 vamos usar IA', '🤖 we will use AI')),
+      el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
+    aiSel.value = t.ai === true ? 'yes' : t.ai === false ? 'no' : '';
+    s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0; flex-wrap:wrap' }, univ, aiSel,
+      el('button', { class: 'btn ghost',
+        onclick: () => act({ action: 'team-meta', univ: univ.value.trim(), ai: aiSel.value },
+                           T('Dados do time salvos.', 'Team info saved.')) },
+        T('Salvar universidade/IA', 'Save university/AI'))));
+    s.append(el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
+      T('No placar, a universidade aparece como prefixo do nome — “[SIGLA] Seu Time”.',
+        'On the scoreboard the university shows as the name prefix — “[ACRONYM] Your Team”.')));
+
+    // foto do time — pública no placar; pedido de bom senso escrito com carinho
+    const file = el('input', { type: 'file', accept: 'image/*' });
+    s.append(el('div', { class: 'section', style: 'margin:.5rem 0' },
+      el('h3', { style: 'margin:.2rem 0' }, T('📷 Foto do time', '📷 Team photo')
+        + (t.has_photo ? ' ✓' : '')),
+      el('p', { class: 'small muted' },
+        T('Uma foto deixa o placar com cara de gente. Escolham uma imagem em que o time apareça bem e da qual vocês se orgulhem — ela fica pública no placar durante toda a prova (e nas lembranças depois dela). Capricha: é assim que a comunidade vai conhecer vocês. 😊',
+          'A photo gives the scoreboard a human face. Pick an image the team looks good in and is proud of — it stays public on the scoreboard for the whole contest (and in the memories afterwards). Make it count: this is how the community will meet you. 😊')),
+      t.has_photo ? el('img', { src: '/api/v1/contest/team-photo?contest=' + encodeURIComponent(TARGET) + '&user=' + encodeURIComponent(t.login) + '&t=' + Date.now(),
+        style: 'max-width:220px; border-radius:10px; display:block; margin:.3rem 0' }) : '',
+      el('div', { class: 'row', style: 'gap:.4rem' }, file,
+        el('button', { class: 'btn ghost', onclick: async () => {
+          const f = file.files && file.files[0];
+          if (!f) { err(T('Escolha uma imagem primeiro.', 'Pick an image first.')); return; }
+          if (f.size > 4 * 1024 * 1024) { err(T('Imagem muito grande (máx 4MB).', 'Image too large (max 4MB).')); return; }
+          const b64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(f); });
+          act({ action: 'team-photo', image_b64: b64 }, T('Foto enviada! Ela já aparece no placar.', 'Photo uploaded! It already shows on the scoreboard.'));
+        } }, T('Enviar foto', 'Upload photo')))));
   }
 
-  const acts = el('div', { class: 'row', style: 'gap:.6rem; margin-top:.5rem' },
-    el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →')));
-  if (canAct()) {
-    acts.append(el('button', { class: 'btn ghost danger',
-      onclick: () => confirm(T('Sair do time?', 'Leave the team?')) && act({ action: 'team-leave' }, T('Você saiu do time.', 'You left the team.')) },
-      T('Sair do time', 'Leave team')));
-    if (isCap) acts.append(el('button', { class: 'btn ghost danger',
-      onclick: () => confirm(T('Desfazer o time inteiro?', 'Dissolve the whole team?'))
-        && act({ action: 'team-dissolve' }, T('Time desfeito.', 'Team dissolved.')) },
-      T('Desfazer o time', 'Dissolve team')));
-  }
-  s.append(acts);
+  s.append(el('div', { class: 'row', style: 'gap:.6rem; margin-top:.5rem' },
+    el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →'))),
+    el('p', { class: 'small muted', style: 'margin-top:.4rem' },
+      T('A formação em time é definitiva (dá para completar o time com convites até fechar a janela). Para sair ou desfazer, fale com a organização.',
+        'The team setup is final (you can still fill the team via invites while the window is open). To leave or dissolve, talk to the organizers.')));
   return s;
 }
 

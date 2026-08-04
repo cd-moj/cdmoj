@@ -64,7 +64,10 @@ export function makeRegistrationsTab(CONTEST) {
 
   function teamsTable() {
     const rows = (DATA.teams || []).map((t) => el('tr', {},
-      el('td', {}, el('b', {}, t.name), el('div', { class: 'small muted' }, t.login)),
+      el('td', {}, el('b', {}, (t.univ ? '[' + t.univ + '] ' : '') + t.name),
+        el('div', { class: 'small muted' }, t.login
+          + (t.ai === true ? ' · 🤖 IA' : t.ai === false ? ' · sem IA' : '')
+          + (t.has_photo ? ' · 📷' : ''))),
       el('td', {}, (t.members || []).join(', ')),
       el('td', { class: 'small muted' }, (t.invited || []).join(', ')),
       el('td', { class: 'small' }, t.cohort || ''),
@@ -154,9 +157,9 @@ export function makeRegistrationsTab(CONTEST) {
         }, T('Time criado.', 'Team created.')) }, T('Criar time', 'Create team'))),
       el('div', { class: 'row', style: 'margin-top:.6rem' },
         el('button', { class: 'btn ghost', onclick: () => {
-          const rows = [[T('tipo', 'kind'), 'login', T('nome', 'name'), T('membros', 'members'), T('coorte', 'cohort')]];
-          (DATA.teams || []).forEach((x) => rows.push(['time', x.login, x.name, (x.members || []).join(' '), x.cohort || '']));
-          (DATA.individuals || []).forEach((x) => rows.push(['individual', x.login, '', '', x.cohort || '']));
+          const rows = [[T('tipo', 'kind'), 'login', T('nome', 'name'), T('membros', 'members'), T('coorte', 'cohort'), T('univ', 'univ'), 'IA', T('foto', 'photo')]];
+          (DATA.teams || []).forEach((x) => rows.push(['time', x.login, x.name, (x.members || []).join(' '), x.cohort || '', x.univ || '', x.ai === true ? 'sim' : x.ai === false ? 'nao' : '', x.has_photo ? 'sim' : '']));
+          (DATA.individuals || []).forEach((x) => rows.push(['individual', x.login, '', '', x.cohort || '', '', '', '']));
           downloadText(`inscricoes-${CONTEST}.csv`, toCsv(rows));
         } }, T('⬇ CSV dos inscritos', '⬇ CSV of registrations'))));
   }

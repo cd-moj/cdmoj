@@ -110,8 +110,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Janela no conf (`REG_OPEN`/`REG_CLOSE`/`REG_LATE_MINUTES`/`REG_TEAM_MAX`/`REG_TEAMS`); atrasado
   cai em coorte `unranked`. **A âncora é a PROVA OFICIAL** (`reg_official_window`: 1ª rodada
   não-arquivada `kind=official` do `rounds.json`), nunca a rodada corrente — o AQUECIMENTO pode
-  ficar dias no ar e nele a porta fica ABERTA (`reg_gate_active`); quem não se inscreveu é varrido
-  na PROMOÇÃO (`reg_sweep_unregistered`: sessão + dir vazio), porque sessão não expira sozinha. **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
+  ficar dias no ar e por DEFAULT só inscrito entra
+  em QUALQUER rodada (aquecimento incluso — decisão 2026-08-04); `REG_WARMUP_OPEN=y` no conf é o
+  opt-in da porta aberta no warmup, e aí a PROMOÇÃO varre quem não se inscreveu
+  (`reg_sweep_unregistered`: sessão + dir vazio, porque sessão não expira sozinha). **Modo de
+  participação é DEFINITIVO** p/ o competidor (403 `mode_locked` em cancel/leave/dissolve/troca) —
+  o admin muda pelo painel (a lib segue permissiva). Time declara `univ` (prefixo "[UNIV] Nome" +
+  univ_short), `ai` (🤖 no placar via /contest/teams — cuidado: `.ai // null` COME false, use
+  `has("ai")`) e foto (`team-photo`, reprocessada; 📷 já existia). **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
   — que eram só desenho de tela — e o roster valem lá; papel nunca é barrado. **TIME = conta local**
   (`users/time-<slug>/`, senha `!<uuid>`) e o membro entra com a credencial DELE: o login faz o
   **alias** (`SESSION_LOGIN` = time, `SESSION_ACTOR` = a pessoa), então placar/balões/impressão não

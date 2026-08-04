@@ -21,6 +21,15 @@
 #   team-leave                    — membro sai (capitão passa a capitania; último dissolve)
 #   team-dissolve                 — capitão desfaz o time
 #   team-rename   {name}          — capitão troca o NOME (o login do time não muda)
+#   team-meta     {univ?, ai?}     — capitão declara a universidade (vira "[UNIV] Nome" no
+#                                    placar + coluna de escola) e o uso de IA (yes|no|"")
+#   team-photo    {image_b64}      — capitão sobe a foto do time (aparece no placar; máx ~4MB,
+#                                    redimensionada e sem metadados)
+#
+# MODO DE PARTICIPAÇÃO É DEFINITIVO: depois de inscrito (individual OU time), o competidor não
+# cancela nem troca de modo pela API pública (403 mode_locked) — mudança é com a ORGANIZAÇÃO
+# (painel Pessoas › Inscrições). Evita o vaivém individual↔time na véspera e o buraco
+# cancelar+reinscrever. As funções da lib seguem permissivas: o admin usa as mesmas.
 require_auth_contest treino
 # o contest pode vir na QUERY (?contest=) ou no CORPO — o front manda no corpo, junto da ação.
 # read_body lê o stdin UMA vez: por isso ele vem antes de tudo que precisa do contest.
@@ -86,6 +95,7 @@ flock 9
 
 _err(){ # <código> — mensagem amigável p/ cada recusa do motor
   case "$1" in
+    mode_locked)        fail 403 "Sua forma de participação já está definida — para mudar (ou sair), fale com a organização" "mode_locked" ;;
     already_registered) fail 409 "Você já está inscrito" "$1" ;;
     in_team|already_in_team) fail 409 "Você já está num time deste contest" "$1" ;;
     not_registered)     fail 409 "Você não está inscrito" "$1" ;;
@@ -108,31 +118,59 @@ _run(){ RUNOUT="$("$@")" || _err "$RUNOUT"; }
 case "$action" in
   register)      _run reg_register_individual "$contest" "$me"
                  audit_log_to "$contest" reg-register "login=$me" ;;
-  cancel)        _run reg_cancel "$contest" "$me"
+  cancel)        reg_is_registered "$contest" "$me" && _err mode_locked
+                 _run reg_cancel "$contest" "$me"
                  audit_log_to "$contest" reg-cancel "login=$me" ;;
-  team-create)   name="$(jq -r '.name // empty' <<<"$body")"
+  team-create)   [[ "$(reg_kind_of "$contest" "$me")" == individual ]] && _err mode_locked
+                 name="$(jq -r '.name // empty' <<<"$body")"
                  _run reg_team_create "$contest" "$me" "$name"; t="$RUNOUT"
-                 audit_log_to "$contest" reg-team-create "team=$t captain=$me" ;;
+                 # univ/IA podem vir junto da criação (o form manda tudo de uma vez)
+                 u="$(jq -r '.univ // ""' <<<"$body")"; a="$(jq -r '.ai // ""' <<<"$body")"
+                 case "$a" in yes|no|"") ;; *) a="";; esac
+                 [[ -n "$u$a" ]] && reg_team_meta "$contest" "$me" "$u" "$a" >/dev/null
+                 audit_log_to "$contest" reg-team-create "team=$t captain=$me univ=$u ai=$a" ;;
   team-invite)   who="$(jq -r '.login // empty' <<<"$body")"
                  valid_id "$who" || fail 400 "Login inválido" "login_invalid"
                  user_exists treino "$who" || fail 404 "Não existe conta no Treino Livre com esse login" "user_notfound"
                  is_reserved_role_login "$who" && fail 400 "Conta de papel não entra em time" "role_account"
                  _run reg_team_invite "$contest" "$me" "$who"
                  audit_log_to "$contest" reg-team-invite "captain=$me invited=$who" ;;
-  team-accept)   t="$(jq -r '.team // empty' <<<"$body")"
+  team-accept)   [[ "$(reg_kind_of "$contest" "$me")" == individual ]] && _err mode_locked
+                 t="$(jq -r '.team // empty' <<<"$body")"
                  valid_id "$t" || fail 400 "Time inválido" "team_invalid"
                  _run reg_team_accept "$contest" "$me" "$t"
                  audit_log_to "$contest" reg-team-accept "team=$t login=$me" ;;
   team-decline)  t="$(jq -r '.team // empty' <<<"$body")"
                  valid_id "$t" || fail 400 "Time inválido" "team_invalid"
                  reg_team_decline "$contest" "$me" "$t" ;;
-  team-leave)    _run reg_team_leave "$contest" "$me"
-                 audit_log_to "$contest" reg-team-leave "login=$me" ;;
-  team-dissolve) _run reg_team_dissolve "$contest" "$me"
-                 audit_log_to "$contest" reg-team-dissolve "captain=$me" ;;
+  team-leave|team-dissolve)
+                 _err mode_locked ;;   # sair/desfazer = mudar o modo; só a organização (admin)
   team-rename)   name="$(jq -r '.name // empty' <<<"$body")"
                  _run reg_team_rename "$contest" "$me" "$name"
                  audit_log_to "$contest" reg-team-rename "captain=$me name=$name" ;;
+  team-meta)     u="$(jq -r '.univ // ""' <<<"$body")"; a="$(jq -r '.ai // ""' <<<"$body")"
+                 case "$a" in yes|no|"") ;; *) fail 400 "ai deve ser yes|no" "ai_invalid";; esac
+                 _run reg_team_meta "$contest" "$me" "$u" "$a"
+                 audit_log_to "$contest" reg-team-meta "captain=$me univ=$u ai=$a" ;;
+  team-photo)    t="$(reg_team_of "$contest" "$me")"
+                 [[ -n "$t" ]] || fail 409 "Você não está num time" "no_team"
+                 reg_get "$contest" | jq -e --arg t "$t" --arg l "$me" '.teams[$t].captain == $l' >/dev/null 2>&1 \
+                   || fail 403 "Só o capitão do time envia a foto" "not_captain"
+                 img="$(jq -r '.image_b64 // empty' <<<"$body")"
+                 [[ -n "$img" ]] || fail 400 "Imagem ausente" "img_missing"
+                 img="${img#data:*;base64,}"
+                 (( ${#img} <= 5500000 )) || fail 413 "Imagem muito grande (máx ~4MB)" "img_large"
+                 out="$CONTESTSDIR/$contest/users/$t/photo.png"
+                 mkdir -p "$(dirname "$out")"
+                 tmpimg="$(mktemp)"
+                 printf '%s' "$img" | base64 -d > "$tmpimg" 2>/dev/null \
+                   || { rm -f "$tmpimg"; fail 400 "Base64 inválido" "img_b64"; }
+                 # mesma disciplina da foto de perfil: reprocessa (mata payload não-imagem),
+                 # tira metadados; aqui SEM crop quadrado (é foto de equipe), só teto 900px
+                 if convert "$tmpimg" -auto-orient -strip -resize "900x900>" "png:$out.tmp" 2>/dev/null; then
+                   mv -f "$out.tmp" "$out"; rm -f "$tmpimg"; _score_dirty "$contest"
+                 else rm -f "$tmpimg" "$out.tmp"; fail 400 "Não foi possível processar a imagem" "img_bad"; fi
+                 audit_log_to "$contest" reg-team-photo "team=$t by=$me" ;;
   *)             fail 400 "Ação desconhecida" "action_invalid" ;;
 esac
 

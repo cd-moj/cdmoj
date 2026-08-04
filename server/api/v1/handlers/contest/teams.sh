@@ -47,9 +47,10 @@ teams="$( { find "$cdir/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sor
                    // (first($CH.cohorts[] | select(.default) | .id)) // "") end) as $coh
         | if $want != "" and (($want | contains(" " + $coh + " ")) | not) then empty
           else
-            ({univ_short:($tm.univ_short // ""), univ_full:($tm.univ_full // ""),
-              flag:($tm.flag // ""), region:($tm.region // "")}
-             | with_entries(select(.value != ""))) as $fields
+            (({univ_short:($tm.univ_short // ""), univ_full:($tm.univ_full // ""),
+               flag:($tm.flag // ""), region:($tm.region // "")}
+              | with_entries(select(.value != "")))
+             + (if $tm.ai == true then {ai:true} else {} end)) as $fields
             | if ($fields|length) > 0 or $hp or $hl
               then {($l): ($fields + {has_photo:$hp, has_logo:$hl})} else empty end
           end' "$d/account.json" 2>/dev/null

@@ -54,7 +54,8 @@ reg_get(){
                        name:(.name // ""), captain:(.captain // ""),
                        members:((.members // []) | map(tostring)),
                        invited:((.invited // []) | map(tostring)),
-                       cohort:(.cohort // "times"), created_at:(.created_at // 0)})),
+                       cohort:(.cohort // "times"), created_at:(.created_at // 0),
+                       univ:(.univ // ""), ai:(if has("ai") then .ai else null end)})),
              entries: ((.entries // {}) | with_entries(.value |= {
                        kind:(.kind // "individual"), team:(.team // null),
                        cohort:(.cohort // ""), at:(.at // 0)})) }' "$f" 2>/dev/null \
@@ -113,12 +114,16 @@ reg_round_kind(){
 }
 
 # reg_gate_active <c> — 0 quando o roster DEVE ser exigido no login agora.
-# No AQUECIMENTO a porta fica aberta (decisão do organizador: o esquenta atrai gente; quem quiser
-# competir na prova se inscreve). Quem entrou no aquecimento sem se inscrever é varrido na
-# promoção — ver reg_sweep_unregistered.
+# DEFAULT: inscrição ligada = só inscrito entra, AQUECIMENTO INCLUSO — quem não se inscreveu
+# no warmup vira atraso no dia da prova (decisão do Ribas, 2026-08-04, revendo a porta aberta).
+# REG_WARMUP_OPEN=y no conf restaura a porta aberta durante rodada warmup (o esquenta que
+# quiser atrair curiosos); nesse caso a varredura da promoção (reg_sweep_unregistered) limpa.
 reg_gate_active(){
   reg_enabled "$1" || return 1
-  [[ "$(reg_round_kind "$1")" == warmup ]] && return 1
+  if [[ "$(reg_round_kind "$1")" == warmup ]]; then
+    local v; v="$( ( REG_WARMUP_OPEN=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${REG_WARMUP_OPEN:-}" ) )"
+    [[ "$v" == y ]] && return 1
+  fi
   return 0
 }
 
@@ -265,10 +270,18 @@ reg_materialize_team(){
   local pw; pw="$(jq -r '.password // empty' "$f" 2>/dev/null)"
   [[ -n "$pw" ]] || pw="!$(</proc/sys/kernel/random/uuid)"
   # objeto de UM time (nome + até 3 logins) — cabe folgado em argv, longe do limite do jq
+  # univ declarada vira o prefixo "[UNIV] Nome" (o nome que o placar mostra) + univ_short
+  # (a coluna/filtro de escola que o placar JÁ tem); a declaração de IA vai em .team.ai e
+  # sai no diretório /contest/teams (o placar marca 🤖).
   jq -n --argjson x "$j" --arg t "$t" --arg pw "$pw" --argjson ts "$EPOCHSECONDS" \
-    '{login:$t, password:$pw, fullname:($x.name), status:"active", is_team:true,
+    '($x.univ // "") as $u
+     | {login:$t, password:$pw,
+        fullname:(if $u != "" then "[" + $u + "] " + $x.name else $x.name end),
+        status:"active", is_team:true,
         registered_at:($x.created_at // $ts), updated_at:$ts,
-        team:{cohort:($x.cohort // "times"), members:($x.members), captain:($x.captain)}}' \
+        team:({cohort:($x.cohort // "times"), members:($x.members), captain:($x.captain)}
+              + (if $u != "" then {univ_short:$u} else {} end)
+              + (if ($x.ai != null) then {ai:$x.ai} else {} end))}' \
     > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
   _score_dirty "$c"
 }
@@ -429,6 +442,21 @@ reg_team_dissolve(){  # <c> <captain>
   reg_unmaterialize_team "$c" "$t"
 }
 
+# reg_team_meta <c> <captain> <univ> <ai> — declara universidade e uso de IA. univ vazia
+# APAGA; ai ∈ yes|no|"" ("" = não declarar/limpar). Sanitiza como o team_fields_json
+# (`:`/tab/newline quebrariam o TSV do placar).
+reg_team_meta(){
+  local c="$1" cap="$2" univ="$3" ai="$4" t aiv=null
+  t="$(reg_team_of "$c" "$cap")"; [[ -n "$t" ]] || { printf 'no_team'; return 1; }
+  reg_get "$c" | jq -e --arg t "$t" --arg l "$cap" '.teams[$t].captain == $l' >/dev/null 2>&1 \
+    || { printf 'not_captain'; return 1; }
+  univ="$(printf '%s' "$univ" | tr -d ':\t\n\r' | sed 's/^ *//; s/ *$//' | cut -c1-20)"
+  case "$ai" in yes) aiv=true;; no) aiv=false;; esac
+  reg_save "$c" "$(reg_get "$c" | jq -c --arg t "$t" --arg u "$univ" --argjson a "$aiv" \
+    '.teams[$t].univ = $u | .teams[$t].ai = $a')"
+  reg_materialize_team "$c" "$t"
+}
+
 reg_team_rename(){  # <c> <captain> <novo-nome>  (o LOGIN do time não muda)
   local c="$1" cap="$2" name="$3" t
   t="$(reg_team_of "$c" "$cap")"; [[ -n "$t" ]] || { printf 'no_team'; return 1; }
@@ -516,9 +544,12 @@ reg_status_json(){
   # tab como separador é seguro AQUI porque só o ÚLTIMO campo (slug da rodada) pode ser vazio —
   # o colapso de runs de tab do `IFS=$'\t' read` só morde com campo vazio no MEIO (ver CLAUDE.md)
   IFS=$'\t' read -r st op cl lt anc rnd < <(reg_window "$c")
+  local tteam tphoto=false
+  tteam="$(reg_team_of "$c" "$l")"
+  [[ -n "$tteam" && -f "$CONTESTSDIR/$c/users/$tteam/photo.png" ]] && tphoto=true
   reg_get "$c" | jq -c --arg l "$l" --arg st "$st" --argjson op "${op:-0}" \
       --argjson cl "${cl:-0}" --argjson lt "${lt:-0}" --argjson max "$(reg_team_max "$c")" \
-      --argjson anc "${anc:-0}" --arg rnd "${rnd:-}" \
+      --argjson anc "${anc:-0}" --arg rnd "${rnd:-}" --argjson tphoto "$tphoto" \
       --argjson gate "$(reg_gate_active "$c" && echo true || echo false)" \
       --arg kind "$(reg_round_kind "$c")" \
       --argjson teams_ok "$(reg_teams_allowed "$c" && echo true || echo false)" '
@@ -531,7 +562,9 @@ reg_status_json(){
         me: (if $me == null then {kind:"none"} else ($me + {}) end),
         team: (if $team == null then null
                else {login:($me.team), name:$team.name, captain:$team.captain,
-                     members:$team.members, invited:$team.invited, cohort:$team.cohort} end),
+                     members:$team.members, invited:$team.invited, cohort:$team.cohort,
+                     univ:($team.univ // ""), ai:(if ($team | has("ai")) then $team.ai else null end),
+                     has_photo:$tphoto} end),
         invites: [ .teams | to_entries[] | select((.value.invited // []) | index($l))
                    | {login:.key, name:.value.name, captain:.value.captain,
                       members:.value.members} ],

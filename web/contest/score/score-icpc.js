@@ -111,6 +111,8 @@ export function renderICPC(parsed, opts) {
     const teamTd = el('td', { class: 'team', title: t.univFull || t.univShort || '', html: logo + label });
     // foto do time (photo.png subida pelo admin): link clicável, abre em nova aba
     if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
+    // 🤖 = o time DECLAROU na inscrição que usa IA (transparência, não julgamento)
+    if (t.aiDeclared) teamTd.append(' ', el('span', { title: T('Este time declarou que usa IA', 'This team declared AI use'), style: 'cursor:default' }, '🤖'));
     if (t.guest) teamTd.append(' ', el('span', { class: 'pill',
       title: T('Time convidado (extra-oficial): não entra na classificação oficial.',
                'Guest team (unofficial): does not enter the official ranking.') },

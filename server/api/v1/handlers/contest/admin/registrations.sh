@@ -33,7 +33,12 @@ _emit(){
   local st op cl lt anc rnd out
   IFS=$'\t' read -r st op cl lt anc rnd < <(reg_window "$contest")
   # corpo ANTES do header: jq que falha depois de emit_json vira 200 mudo com corpo vazio
-  out="$(reg_get "$contest" | jq -c --arg st "$st" --argjson op "${op:-0}" --argjson cl "${cl:-0}" \
+  local photos='[]'
+  photos="$( ( set +o noglob; shopt -s nullglob
+    for f in "$cdir"/users/*/photo.png; do d="${f%/photo.png}"; printf '%s\n' "${d##*/}"; done ) \
+    | jq -R . | jq -cs .)"
+  [[ -n "$photos" ]] || photos='[]'
+  out="$(reg_get "$contest" | jq -c --argjson photos "$photos" --arg st "$st" --argjson op "${op:-0}" --argjson cl "${cl:-0}" \
       --argjson lt "${lt:-0}" --argjson max "$(reg_team_max "$contest")" \
       --argjson anc "${anc:-0}" --arg rnd "${rnd:-}" --arg kind "$(reg_round_kind "$contest")" \
       --argjson gate "$(reg_gate_active "$contest" && echo true || echo false)" \
@@ -46,7 +51,9 @@ _emit(){
       teams: [ .teams | to_entries[]
                | {login:.key, name:.value.name, captain:.value.captain,
                   members:.value.members, invited:.value.invited, cohort:.value.cohort,
-                  created_at:.value.created_at} ] | sort_by(.name),
+                  created_at:.value.created_at, univ:(.value.univ // ""),
+                  ai:(if (.value | has("ai")) then .value.ai else null end),
+                  has_photo:((.key as $k | $photos | index($k)) != null)} ] | sort_by(.name),
       individuals: [ .entries | to_entries[] | select(.value.kind == "individual")
                      | {login:.key, cohort:.value.cohort, at:.value.at} ] | sort_by(.login),
       totals: { people:(.entries | length), teams:(.teams | length),
