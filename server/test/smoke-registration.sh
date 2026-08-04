@@ -104,6 +104,14 @@ ck "placar: .team.ai"            '[[ "$(jq -r .team.ai "$C/users/time-os-tres-po
 reg '{"contest":"esq","action":"team-meta","univ":"","ai":"no"}' tok-ana
 ck "univ apagada some do .team"  '[[ "$(jq -r ".team.univ_short // \"\"" "$C/users/time-os-tres-ponteiros/account.json")" == "" ]]'
 ck "ai=no"                       '[[ "$(jq -r .team.ai "$C/users/time-os-tres-ponteiros/account.json")" == false ]]'
+reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes","flag":"BR-SC"}' tok-ana
+ck "bandeira normalizada br-sc"  '[[ "$(jq -r .team.flag "$C/users/time-os-tres-ponteiros/account.json")" == "br-sc" ]]'
+ck "status expõe a flag"         '[[ "$(J .team.flag)" == "br-sc" ]]'
+reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes","flag":"xyz9"}' tok-ana
+ck "bandeira inválida -> 400"    '[[ "$OUT" == *"Status: 400"* && "$(J .error.code)" == flag_invalid ]]'
+adm '{"action":"team-meta","team":"time-os-tres-ponteiros","univ":"UnB","ai":"yes","flag":"ar"}'
+ck "ADMIN ajusta a bandeira"     '[[ "$(jq -r .team.flag "$C/users/time-os-tres-ponteiros/account.json")" == "ar" ]]'
+reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes","flag":"br-sc"}' tok-ana
 reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes"}' tok-caio
 ck "não-capitão não mexe -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 if command -v convert >/dev/null 2>&1; then

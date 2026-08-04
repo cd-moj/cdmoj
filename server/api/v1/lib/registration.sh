@@ -55,7 +55,8 @@ reg_get(){
                        members:((.members // []) | map(tostring)),
                        invited:((.invited // []) | map(tostring)),
                        cohort:(.cohort // "times"), created_at:(.created_at // 0),
-                       univ:(.univ // ""), ai:(if has("ai") then .ai else null end)})),
+                       univ:(.univ // ""), ai:(if has("ai") then .ai else null end),
+                       flag:(.flag // "")})),
              entries: ((.entries // {}) | with_entries(.value |= {
                        kind:(.kind // "individual"), team:(.team // null),
                        cohort:(.cohort // ""), at:(.at // 0)})) }' "$f" 2>/dev/null \
@@ -282,6 +283,7 @@ reg_materialize_team(){
         registered_at:($x.created_at // $ts), updated_at:$ts,
         team:({cohort:($x.cohort // "times"), members:($x.members), captain:($x.captain)}
               + (if $u != "" then {univ_short:$u} else {} end)
+              + (if (($x.flag // "") != "") then {flag:$x.flag} else {} end)
               + (if ($x.ai != null) then {ai:$x.ai} else {} end))}' \
     > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
   _score_dirty "$c"
@@ -443,18 +445,21 @@ reg_team_dissolve(){  # <c> <captain>
   reg_unmaterialize_team "$c" "$t"
 }
 
-# reg_team_meta <c> <captain> <univ> <ai> — declara universidade e uso de IA. univ vazia
-# APAGA; ai ∈ yes|no|"" ("" = não declarar/limpar). Sanitiza como o team_fields_json
-# (`:`/tab/newline quebrariam o TSV do placar).
+# reg_team_meta <c> <captain> <univ> <ai> [flag] — declara universidade, uso de IA e a
+# BANDEIRA (país ISO-2 ou estado "br-xx"; shared/flags/ tem as duas). Vazio APAGA;
+# ai ∈ yes|no|"" ("" = não declarar/limpar). Sanitiza como o team_fields_json
+# (`:`/tab/newline quebrariam o TSV do placar). Flag inválida = código flag_invalid.
 reg_team_meta(){
-  local c="$1" cap="$2" univ="$3" ai="$4" t aiv=null
+  local c="$1" cap="$2" univ="$3" ai="$4" flag="${5:-}" t aiv=null
   t="$(reg_team_of "$c" "$cap")"; [[ -n "$t" ]] || { printf 'no_team'; return 1; }
   reg_get "$c" | jq -e --arg t "$t" --arg l "$cap" '.teams[$t].captain == $l' >/dev/null 2>&1 \
     || { printf 'not_captain'; return 1; }
   univ="$(printf '%s' "$univ" | tr -d ':\t\n\r' | sed 's/^ *//; s/ *$//' | cut -c1-20)"
+  flag="${flag,,}"; flag="${flag//_/-}"
+  [[ -z "$flag" || "$flag" =~ ^[a-z]{2}(-[a-z]{2})?$ ]] || { printf 'flag_invalid'; return 1; }
   case "$ai" in yes) aiv=true;; no) aiv=false;; esac
-  reg_save "$c" "$(reg_get "$c" | jq -c --arg t "$t" --arg u "$univ" --argjson a "$aiv" \
-    '.teams[$t].univ = $u | .teams[$t].ai = $a')"
+  reg_save "$c" "$(reg_get "$c" | jq -c --arg t "$t" --arg u "$univ" --argjson a "$aiv" --arg f "$flag" \
+    '.teams[$t].univ = $u | .teams[$t].ai = $a | .teams[$t].flag = $f')"
   reg_materialize_team "$c" "$t"
 }
 
@@ -564,7 +569,8 @@ reg_status_json(){
         team: (if $team == null then null
                else {login:($me.team), name:$team.name, captain:$team.captain,
                      members:$team.members, invited:$team.invited, cohort:$team.cohort,
-                     univ:($team.univ // ""), ai:(if ($team | has("ai")) then $team.ai else null end),
+                     univ:($team.univ // ""), flag:($team.flag // ""),
+                     ai:(if ($team | has("ai")) then $team.ai else null end),
                      has_photo:$tphoto} end),
         invites: [ .teams | to_entries[] | select((.value.invited // []) | index($l))
                    | {login:.key, name:.value.name, captain:.value.captain,

@@ -21,8 +21,9 @@
 #   team-leave                    — membro sai (capitão passa a capitania; último dissolve)
 #   team-dissolve                 — capitão desfaz o time
 #   team-rename   {name}          — capitão troca o NOME (o login do time não muda)
-#   team-meta     {univ?, ai?}     — capitão declara a universidade (vira "[UNIV] Nome" no
-#                                    placar + coluna de escola) e o uso de IA (yes|no|"")
+#   team-meta     {univ?, ai?, flag?} — capitão declara universidade (o placar exibe
+#                                    "[UNIV] Nome" + coluna de escola), uso de IA (yes|no|"")
+#                                    e a BANDEIRA (país ISO-2 ou estado "br-xx")
 #   team-photo    {image_b64}      — capitão sobe a foto do time (aparece no placar; máx ~4MB,
 #                                    redimensionada e sem metadados)
 #
@@ -109,6 +110,7 @@ _err(){ # <código> — mensagem amigável p/ cada recusa do motor
     self_invite)        fail 400 "Você já está no time" "$1" ;;
     no_invite)          fail 404 "Não há convite desse time p/ você" "$1" ;;
     slug_failed)        fail 409 "Não consegui gerar um identificador p/ esse nome" "$1" ;;
+    flag_invalid)       fail 400 "Bandeira inválida — use o código do país (ex.: br, ar) ou do estado (ex.: br-sc)" "$1" ;;
     *)                  fail 500 "Falha na inscrição (${1:-?})" "${1:-reg_failed}" ;;
   esac
 }
@@ -126,9 +128,10 @@ case "$action" in
                  _run reg_team_create "$contest" "$me" "$name"; t="$RUNOUT"
                  # univ/IA podem vir junto da criação (o form manda tudo de uma vez)
                  u="$(jq -r '.univ // ""' <<<"$body")"; a="$(jq -r '.ai // ""' <<<"$body")"
+                 fl="$(jq -r '.flag // ""' <<<"$body")"
                  case "$a" in yes|no|"") ;; *) a="";; esac
-                 [[ -n "$u$a" ]] && reg_team_meta "$contest" "$me" "$u" "$a" >/dev/null
-                 audit_log_to "$contest" reg-team-create "team=$t captain=$me univ=$u ai=$a" ;;
+                 [[ -n "$u$a$fl" ]] && reg_team_meta "$contest" "$me" "$u" "$a" "$fl" >/dev/null
+                 audit_log_to "$contest" reg-team-create "team=$t captain=$me univ=$u ai=$a flag=$fl" ;;
   team-invite)   who="$(jq -r '.login // empty' <<<"$body")"
                  valid_id "$who" || fail 400 "Login inválido" "login_invalid"
                  user_exists treino "$who" || fail 404 "Não existe conta no Treino Livre com esse login" "user_notfound"
@@ -149,9 +152,10 @@ case "$action" in
                  _run reg_team_rename "$contest" "$me" "$name"
                  audit_log_to "$contest" reg-team-rename "captain=$me name=$name" ;;
   team-meta)     u="$(jq -r '.univ // ""' <<<"$body")"; a="$(jq -r '.ai // ""' <<<"$body")"
+                 fl="$(jq -r '.flag // ""' <<<"$body")"
                  case "$a" in yes|no|"") ;; *) fail 400 "ai deve ser yes|no" "ai_invalid";; esac
-                 _run reg_team_meta "$contest" "$me" "$u" "$a"
-                 audit_log_to "$contest" reg-team-meta "captain=$me univ=$u ai=$a" ;;
+                 _run reg_team_meta "$contest" "$me" "$u" "$a" "$fl"
+                 audit_log_to "$contest" reg-team-meta "captain=$me univ=$u ai=$a flag=$fl" ;;
   team-photo)    t="$(reg_team_of "$contest" "$me")"
                  [[ -n "$t" ]] || fail 409 "Você não está num time" "no_team"
                  reg_get "$contest" | jq -e --arg t "$t" --arg l "$me" '.teams[$t].captain == $l' >/dev/null 2>&1 \

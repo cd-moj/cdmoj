@@ -7,11 +7,31 @@
 import { apiGet, apiPost } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
+import { flagManifest, flagEl } from '/shared/flags.js';
 import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
 const TARGET = new URLSearchParams(location.search).get('c') || '';
-let st = null, busy = false, tick = null;
+let st = null, busy = false, tick = null, FLAGS = null;
+
+// seletor de bandeira: estados do Brasil primeiro (o público é BR), países depois; tudo
+// offline (shared/flags/). Devolve {sel, box} — box mostra o preview da bandeira escolhida.
+function flagPicker(current) {
+  const sel = el('select', { style: 'max-width:16rem' },
+    el('option', { value: '' }, T('bandeira (opcional)', 'flag (optional)')));
+  const prev = el('span', { style: 'display:inline-flex;align-items:center;min-width:26px' });
+  const draw = () => { prev.innerHTML = ''; const f = flagEl(sel.value, { height: 18 }); if (f) prev.append(f); };
+  if (FLAGS) {
+    const gBR = el('optgroup', { label: T('Estados do Brasil', 'Brazilian states') });
+    (FLAGS.br_states || []).forEach((x) => gBR.append(el('option', { value: x.code }, x.name)));
+    const gW = el('optgroup', { label: T('Países', 'Countries') });
+    (FLAGS.countries || []).forEach((x) => gW.append(el('option', { value: x.code }, x.name)));
+    sel.append(gBR, gW);
+  }
+  sel.value = current || '';
+  sel.addEventListener('change', draw); draw();
+  return { sel, box: el('span', { class: 'row', style: 'gap:.3rem;align-items:center' }, sel, prev) };
+}
 
 const contestUrl = () => (/^moj\./i.test(location.hostname)
   ? `${location.protocol}//${TARGET}.${location.host}/`
@@ -123,10 +143,11 @@ function meBox() {
         el('option', { value: '' }, T('uso de IA: prefiro não declarar', 'AI use: prefer not to say')),
         el('option', { value: 'yes' }, T('🤖 vamos usar IA', '🤖 we will use AI')),
         el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
-      row.append(el('span', { class: 'row', style: 'gap:.4rem; flex-wrap:wrap' }, name, univ, aiSel,
+      const fp = flagPicker('');
+      row.append(el('span', { class: 'row', style: 'gap:.4rem; flex-wrap:wrap' }, name, univ, aiSel, fp.box,
         el('button', { class: 'btn ghost', disabled: !canAct(),
           onclick: () => act({ action: 'team-create', name: name.value.trim(),
-                               univ: univ.value.trim(), ai: aiSel.value },
+                               univ: univ.value.trim(), ai: aiSel.value, flag: fp.sel.value },
                              T('Time criado — agora convide o resto.', 'Team created — now invite the others.')) },
           T('Criar um time', 'Create a team'))));
       row.append(el('div', { class: 'small muted', style: 'flex-basis:100%' },
@@ -190,11 +211,12 @@ function meBox() {
       el('option', { value: 'yes' }, T('🤖 vamos usar IA', '🤖 we will use AI')),
       el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
     aiSel.value = t.ai === true ? 'yes' : t.ai === false ? 'no' : '';
-    s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0; flex-wrap:wrap' }, univ, aiSel,
+    const fp = flagPicker(t.flag || '');
+    s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0; flex-wrap:wrap' }, univ, aiSel, fp.box,
       el('button', { class: 'btn ghost',
-        onclick: () => act({ action: 'team-meta', univ: univ.value.trim(), ai: aiSel.value },
+        onclick: () => act({ action: 'team-meta', univ: univ.value.trim(), ai: aiSel.value, flag: fp.sel.value },
                            T('Dados do time salvos.', 'Team info saved.')) },
-        T('Salvar universidade/IA', 'Save university/AI'))));
+        T('Salvar universidade/IA/bandeira', 'Save university/AI/flag'))));
     s.append(el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
       T('No placar, a universidade aparece como prefixo do nome — “[SIGLA] Seu Time”.',
         'On the scoreboard the university shows as the name prefix — “[ACRONYM] Your Team”.')));
@@ -286,6 +308,7 @@ async function load(quiet) {
 }
 
 async function boot() {
+  try { FLAGS = await flagManifest(); } catch (e) { FLAGS = null; }
   await renderAuthArea(document.getElementById('authArea'), CONTEST, () => load());
   load();
 }
