@@ -131,6 +131,11 @@ printf '[{"regex":"^teambrspso","end":%s,"reason":"queda de energia"}]' "$((NOW+
 check "prorrogação ativa => warn"          '[[ "$(lvl tov)" == warn ]]'
 check "avisa que passa do freeze"          '[[ "$(det tov)" == *"passa do freeze"* ]]'
 
+echo "== gate sem NENHUMA configuração = desligado (não é fail falso) =="
+mv "$C/ua-gate.json" "$C/ua-gate.json.bak"; run
+check "sem ua-gate.json => ok"           '[[ "$(lvl ua_gate)" == ok ]]'
+mv "$C/ua-gate.json.bak" "$C/ua-gate.json"; run
+
 echo "== inscrição (roster + janela) =="
 check "sem roster => item ausente"       '[[ "$(lvl registration)" == "(ausente)" ]]'
 printf '{"version":1,"teams":{},"entries":{}}' > "$C/registrations.json"; run

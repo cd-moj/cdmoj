@@ -197,7 +197,7 @@ balão, time limits, linguagens, pool de juízes) que você quer garantir.
 No MOJ isso são **rodadas**. A rodada **no ar** é a que aparece em Central › Regras e em Prova ›
 Problemas; as demais ficam planejadas até você promover.
 
-**O roteiro**
+**O roteiro** (repare na ordem: o aquecimento vem PRIMEIRO)
 
 1. **Monte o contest** normalmente, com os problemas do **aquecimento** e a janela do aquecimento.
 2. Em Prova › Rodadas, dê o nome certo à rodada no ar (`aquecimento`, tipo *aquecimento*) e
@@ -213,6 +213,20 @@ Problemas; as demais ficam planejadas até você promover.
      prorrogações por sede;
    - **aplica** a janela e os problemas da prova oficial.
    Você digita o id do contest para confirmar. Tudo é auditado.
+
+**Registrei a PROVA primeiro — e agora?** Aconteceu de montar o contest já com a prova e só
+depois criar a rodada de aquecimento? **Não promova** — promover arquiva a rodada no ar (a sua
+prova, vazia), e arquivo é imutável. O certo é **inverter editando as duas rodadas** ali mesmo
+(o painel avisa quando detecta uma planejada começando antes da que está no ar):
+
+1. Edite a rodada **planejada**: renomeie para `prova`, tipo *prova oficial*, e dê a ela a
+   janela + freeze da prova; em **Problemas da rodada**, coloque a lista da prova (fica
+   guardada, ninguém vê).
+2. Edite a rodada **no ar**: renomeie para `aquecimento`, tipo *aquecimento*, janela do
+   aquecimento (sem freeze) e troque os problemas pelos do aquecimento — na rodada no ar,
+   salvar **aplica na hora**.
+3. Confira em Central › Regras que a janela vigente é a do aquecimento — e siga o roteiro
+   normal a partir do passo 3.
 5. **Depois**: o placar e as submissões do aquecimento continuam legíveis em 🔁 Rodadas (e você
    pode **publicar** a rodada para os times verem). O **arquivo bruto** em `.tar.gz` — com
    código-fonte — sai por um clique, para a auditoria posterior.

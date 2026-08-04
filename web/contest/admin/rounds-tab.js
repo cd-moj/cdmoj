@@ -218,6 +218,19 @@ export function makeRoundsTab(CONTEST, opts = {}) {
         T('Aquecimento e prova oficial no MESMO contest: mesma URL, mesmo login, mesma configuração. A rodada no ar é a que está nas Configurações e nos Problemas; ao promover, o MOJ arquiva tudo o que aconteceu e coloca a próxima no ar.',
           'Warm-up and official contest in the SAME contest: same URL, same login, same configuration. The live round is the one in Settings and Problems; on promotion, the MOJ archives everything that happened and puts the next one live.')),
       msg);
+    // "Registrei a prova primeiro e criei o aquecimento depois": a rodada PENDENTE começa antes
+    // da ATIVA ⇒ promover seria o caminho ERRADO (arquivaria a prova vazia, e arquivo é
+    // imutável). O certo é INVERTER editando as duas — este aviso ensina exatamente isso.
+    const act = (DATA.rounds || []).find((r) => r.state === 'active');
+    const early = (DATA.rounds || []).find((r) => r.state === 'pending' && act && r.start && act.start && r.start < act.start);
+    if (early) {
+      panel.append(el('div', { class: 'notice', style: 'margin:.4rem 0' },
+        el('b', {}, T('⚠ A rodada planejada "', '⚠ The planned round "') + (early.name || early.slug)
+          + T('" começa ANTES da rodada no ar.', '" starts BEFORE the live round.')),
+        el('div', { class: 'small', style: 'margin-top:.25rem' },
+          T('A rodada no ar é a que vive nas Configurações — NÃO promova (promover arquiva a rodada no ar, e arquivo não volta). Para a planejada rodar primeiro, INVERTA editando as duas aqui mesmo: troque janela, tipo e problemas entre elas (a edição da rodada no ar aplica na hora).',
+            'The live round is the one in Settings — do NOT promote (promotion archives the live round, and archives are final). For the planned one to run first, SWAP by editing both rounds right here: exchange window, kind and problems (edits to the live round apply immediately).'))));
+    }
     (DATA.rounds || []).forEach(r => panel.append(roundRow(r)));
     if (!(DATA.rounds || []).length) panel.append(el('div', { class: 'small muted' },
       T('nenhuma rodada ainda', 'no rounds yet')));

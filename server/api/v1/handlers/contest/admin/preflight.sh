@@ -300,7 +300,14 @@ fi
 # --- gate de navegador por sede ---------------------------------------------------------
 source "$_LIBDIR/ua-gate.sh"
 ugj="$(ug_get "$contest")"
-if [[ "$(jq -r '.mode // "off"' <<<"$ugj")" != enforce ]]; then
+# SEM CONFIGURAÇÃO NENHUMA = gate desligado de fato. O ug_get default é mode:enforce (p/ o
+# LOGIN_UA_SUBSTRING legado seguir valendo sem arquivo), mas enforce com ZERO regras deixa
+# todo mundo entrar (esperado vazio) — tratar isso como "armado sem regra" era um FAIL falso
+# em TODO contest que nunca configurou gate (pego no esquenta 2026-08-04).
+ug_has_rules="$(jq -r '((.from_login != null) or ((.by_regex // []) | length > 0)
+                        or ((.by_region // {}) | length > 0) or ((.fallback // "") != "")) | tostring' <<<"$ugj")"
+[[ -n "$(ug_legacy "$contest")" ]] && ug_has_rules=true
+if [[ "$(jq -r '.mode // "off"' <<<"$ugj")" != enforce || "$ug_has_rules" != true ]]; then
   if [[ -n "$(ug_legacy "$contest")" ]]; then
     add ua_gate warn "Gate de navegador só no LOGIN_UA_SUBSTRING legado" "configure a regra por sede em Pessoas → Máquinas & gate"
   else
