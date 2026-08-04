@@ -96,11 +96,13 @@ echo "== universidade, IA e foto do time =="
 reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes"}' tok-ana
 ck "univ salva"                  '[[ "$(J .team.univ)" == UnB ]]'
 ck "ai declarada"                '[[ "$(J .team.ai)" == true ]]'
-ck "placar: nome prefixado"      '[[ "$(jq -r .fullname "$C/users/time-os-tres-ponteiros/account.json")" == "[UnB] Os Três Ponteiros" ]]'
+# o PREFIXO "[SIGLA]" é do RENDERER (score-icpc monta de univ_short); o fullname fica PURO —
+# gravar o prefixo no nome duplicava a sigla na tela
+ck "placar: fullname SEM prefixo" '[[ "$(jq -r .fullname "$C/users/time-os-tres-ponteiros/account.json")" == "Os Três Ponteiros" ]]'
 ck "placar: univ_short"          '[[ "$(jq -r .team.univ_short "$C/users/time-os-tres-ponteiros/account.json")" == UnB ]]'
 ck "placar: .team.ai"            '[[ "$(jq -r .team.ai "$C/users/time-os-tres-ponteiros/account.json")" == true ]]'
 reg '{"contest":"esq","action":"team-meta","univ":"","ai":"no"}' tok-ana
-ck "univ apagada volta o nome"   '[[ "$(jq -r .fullname "$C/users/time-os-tres-ponteiros/account.json")" == "Os Três Ponteiros" ]]'
+ck "univ apagada some do .team"  '[[ "$(jq -r ".team.univ_short // \"\"" "$C/users/time-os-tres-ponteiros/account.json")" == "" ]]'
 ck "ai=no"                       '[[ "$(jq -r .team.ai "$C/users/time-os-tres-ponteiros/account.json")" == false ]]'
 reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes"}' tok-caio
 ck "não-capitão não mexe -> 403" '[[ "$OUT" == *"Status: 403"* ]]'

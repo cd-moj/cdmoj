@@ -270,13 +270,14 @@ reg_materialize_team(){
   local pw; pw="$(jq -r '.password // empty' "$f" 2>/dev/null)"
   [[ -n "$pw" ]] || pw="!$(</proc/sys/kernel/random/uuid)"
   # objeto de UM time (nome + até 3 logins) — cabe folgado em argv, longe do limite do jq
-  # univ declarada vira o prefixo "[UNIV] Nome" (o nome que o placar mostra) + univ_short
-  # (a coluna/filtro de escola que o placar JÁ tem); a declaração de IA vai em .team.ai e
-  # sai no diretório /contest/teams (o placar marca 🤖).
+  # univ declarada vai SÓ em .team.univ_short: é o RENDERER do placar quem monta o
+  # "[SIGLA] Nome" (score-icpc.js, label = "[univShort] teamName" — convenção pré-existente).
+  # Gravar o prefixo TAMBÉM no fullname duplicava a sigla na tela ("[UFSC] [UFSC] Nome" —
+  # pago no 1º time inscrito do esquenta). A declaração de IA vai em .team.ai e sai no
+  # diretório /contest/teams (o placar marca 🤖).
   jq -n --argjson x "$j" --arg t "$t" --arg pw "$pw" --argjson ts "$EPOCHSECONDS" \
     '($x.univ // "") as $u
-     | {login:$t, password:$pw,
-        fullname:(if $u != "" then "[" + $u + "] " + $x.name else $x.name end),
+     | {login:$t, password:$pw, fullname:($x.name),
         status:"active", is_team:true,
         registered_at:($x.created_at // $ts), updated_at:$ts,
         team:({cohort:($x.cohort // "times"), members:($x.members), captain:($x.captain)}

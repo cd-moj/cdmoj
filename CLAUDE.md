@@ -115,8 +115,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   opt-in da porta aberta no warmup, e aí a PROMOÇÃO varre quem não se inscreveu
   (`reg_sweep_unregistered`: sessão + dir vazio, porque sessão não expira sozinha). **Modo de
   participação é DEFINITIVO** p/ o competidor (403 `mode_locked` em cancel/leave/dissolve/troca) —
-  o admin muda pelo painel (a lib segue permissiva). Time declara `univ` (prefixo "[UNIV] Nome" +
-  univ_short), `ai` (🤖 no placar via /contest/teams — cuidado: `.ai // null` COME false, use
+  o admin muda pelo painel (a lib segue permissiva). Time declara `univ` (SÓ `.team.univ_short` — o RENDERER do placar
+  monta o "[SIGLA] Nome"; prefixar o fullname também DUPLICAVA a sigla), `ai` (🤖 no placar via /contest/teams — cuidado: `.ai // null` COME false, use
   `has("ai")`) e foto (`team-photo`, reprocessada; 📷 já existia). **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
   — que eram só desenho de tela — e o roster valem lá; papel nunca é barrado. **TIME = conta local**
   (`users/time-<slug>/`, senha `!<uuid>`) e o membro entra com a credencial DELE: o login faz o
