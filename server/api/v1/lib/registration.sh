@@ -59,7 +59,9 @@ reg_get(){
                        flag:(.flag // "")})),
              entries: ((.entries // {}) | with_entries(.value |= {
                        kind:(.kind // "individual"), team:(.team // null),
-                       cohort:(.cohort // ""), at:(.at // 0)})) }' "$f" 2>/dev/null \
+                       cohort:(.cohort // ""), at:(.at // 0),
+                       univ:(.univ // ""), ai:(if has("ai") then .ai else null end),
+                       flag:(.flag // "")})) }' "$f" 2>/dev/null \
       || printf '{"version":1,"teams":{},"entries":{}}'
   else printf '{"version":1,"teams":{},"entries":{}}'; fi
 }
@@ -228,16 +230,29 @@ reg_materialize_login(){
   d="$(user_dir "$c" "$l")"; f="$d/account.json"
   mkdir -p "$d/submissions" "$d/mojlog" "$d/results" 2>/dev/null || return 1
   [[ -f "$d/history" ]] || : > "$d/history"
+  # meta declarada na ENTRY do roster (univ/ai/flag do individual) — a fonte é SEMPRE o
+  # roster (o overlay é reescrito a cada materialize; edição manual do account.json não vale)
+  local meta
+  meta="$(reg_get "$c" | jq -c --arg l "$l" '
+    (.entries[$l] // {}) as $e
+    | (if ($e.univ // "") != "" then {univ_short:$e.univ} else {} end)
+    + (if ($e.flag // "") != "" then {flag:$e.flag} else {} end)
+    + (if (($e | has("ai")) and ($e.ai != null)) then {ai:$e.ai} else {} end)' 2>/dev/null)"
+  [[ -n "$meta" ]] || meta='{}'
   if [[ -f "$f" ]] && [[ -n "$(jq -r '.password // empty' "$f" 2>/dev/null)" ]]; then
-    # conta LOCAL de verdade (criada pelo admin): não sobrescreve credencial, só marca a coorte
-    account_merge "$c" "$l" '.team = ((.team // {}) + {cohort:$co}) | .updated_at = $t' \
-      --arg co "$co" --argjson t "$EPOCHSECONDS"
+    # conta LOCAL de verdade (criada pelo admin): não sobrescreve credencial, só marca a
+    # coorte + a meta do roster (del antes: campo limpo na entry some do account)
+    account_merge "$c" "$l" \
+      '.team = (((.team // {}) | del(.univ_short, .flag, .ai)) + {cohort:$co} + $meta)
+       | .updated_at = $t' \
+      --arg co "$co" --argjson meta "$meta" --argjson t "$EPOCHSECONDS"
   else
     name="$(jq -r '.fullname // ""' "$CONTESTSDIR/$src/users/$l/account.json" 2>/dev/null)"
     [[ -n "$name" ]] || name="$l"
-    jq -n --arg l "$l" --arg n "$name" --arg co "$co" --argjson t "$EPOCHSECONDS" \
+    jq -n --arg l "$l" --arg n "$name" --arg co "$co" --argjson meta "$meta" \
+      --argjson t "$EPOCHSECONDS" \
       '{login:$l, fullname:$n, status:"active", registered_at:$t, updated_at:$t,
-        team:{cohort:$co}}' > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
+        team:({cohort:$co} + $meta)}' > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
   fi
   _score_dirty "$c"
 }
@@ -461,6 +476,23 @@ reg_team_meta(){
   reg_save "$c" "$(reg_get "$c" | jq -c --arg t "$t" --arg u "$univ" --argjson a "$aiv" --arg f "$flag" \
     '.teams[$t].univ = $u | .teams[$t].ai = $a | .teams[$t].flag = $f')"
   reg_materialize_team "$c" "$t"
+}
+
+# reg_individual_meta <c> <login> <univ> <ai> <flag> — o inscrito INDIVIDUAL declara
+# universidade/IA/bandeira (paridade com reg_team_meta): grava na ENTRY do roster e
+# re-materializa (o placar lê do .team do overlay). "" limpa; ai vazio = não declarado.
+reg_individual_meta(){
+  local c="$1" l="$2" univ="$3" ai="$4" flag="${5:-}" k aiv=null
+  k="$(reg_kind_of "$c" "$l")"
+  [[ "$k" == team ]] && { printf 'in_team'; return 1; }
+  [[ "$k" == individual ]] || { printf 'not_registered'; return 1; }
+  univ="$(printf '%s' "$univ" | tr -d ':\t\n\r' | sed 's/^ *//; s/ *$//' | cut -c1-20)"
+  flag="${flag,,}"; flag="${flag//_/-}"
+  [[ -z "$flag" || "$flag" =~ ^[a-z]{2}(-[a-z]{2})?$ ]] || { printf 'flag_invalid'; return 1; }
+  case "$ai" in yes) aiv=true;; no) aiv=false;; esac
+  reg_save "$c" "$(reg_get "$c" | jq -c --arg l "$l" --arg u "$univ" --argjson a "$aiv" --arg f "$flag" \
+    '.entries[$l].univ = $u | .entries[$l].ai = $a | .entries[$l].flag = $f')"
+  reg_materialize_login "$c" "$l" "$(reg_get "$c" | jq -r --arg l "$l" '.entries[$l].cohort // "individual"')"
 }
 
 reg_team_rename(){  # <c> <captain> <novo-nome>  (o LOGIN do time não muda)

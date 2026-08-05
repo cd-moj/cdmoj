@@ -127,6 +127,24 @@ else
   echo "  skip: sem convert (foto não testada)"
 fi
 
+echo "== meta do INDIVIDUAL (univ/IA/bandeira — paridade com o time) =="
+reg '{"contest":"esq","action":"individual-meta","univ":"UnB","ai":"no","flag":"BR-DF"}' tok-zeze
+ck "status: me.flag normalizada"  '[[ "$(J .me.flag)" == "br-df" ]]'
+ck "overlay: .team.flag"          '[[ "$(jq -r .team.flag "$C/users/zeze/account.json")" == "br-df" ]]'
+ck "overlay: univ_short"          '[[ "$(jq -r .team.univ_short "$C/users/zeze/account.json")" == UnB ]]'
+ck "overlay: ai=false não é comido" '[[ "$(jq -r .team.ai "$C/users/zeze/account.json")" == false ]]'
+reg '{"contest":"esq","action":"individual-meta","flag":"zz9"}' tok-zeze
+ck "flag inválida -> 400"         '[[ "$OUT" == *"Status: 400"* && "$(J .error.code)" == flag_invalid ]]'
+reg '{"contest":"esq","action":"individual-meta","univ":"","ai":"no","flag":"br-df"}' tok-zeze
+ck "univ apagada some do overlay" '[[ "$(jq -r ".team.univ_short // \"\"" "$C/users/zeze/account.json")" == "" ]]'
+adm '{"action":"individual-meta","login":"zeze","univ":"UFSC","ai":"no","flag":"rs"}'
+ck "ADMIN ajusta o individual"    '[[ "$(jq -r .team.flag "$C/users/zeze/account.json")" == "rs" ]]'
+ck "listagem do admin traz univ"  '[[ "$(jq -r ".individuals[]|select(.login==\"zeze\").univ" <<<"$BODY")" == UFSC ]]'
+reg '{"contest":"esq","action":"individual-meta","flag":"br"}' tok-ana
+ck "quem está em TIME -> in_team" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == in_team ]]'
+reg '{"contest":"esq","action":"individual-meta","univ":"UnB","ai":"no","flag":"br-df"}' tok-zeze
+ck "volta ao br-df (estado final)" '[[ "$(jq -r .team.flag "$C/users/zeze/account.json")" == "br-df" ]]'
+
 echo "== modo de participação é DEFINITIVO =="
 reg '{"contest":"esq","action":"cancel"}' tok-zeze
 ck "individual não cancela -> mode_locked"    '[[ "$OUT" == *"Status: 403"* && "$(J .error.code)" == mode_locked ]]'
@@ -167,8 +185,13 @@ echo "== janela: atrasado e fechado =="
 conf "$((NOW-600))" "$((NOW+10800))" 'REG_LATE_MINUTES=30'   # REG_CLOSE volta ao início (passado)
 call /treino/contest-registration GET '' tok-bob 'contest=esq'
 ck "janela = late"              '[[ "$(J .window.state)" == late ]]'
-reg '{"contest":"esq","action":"register"}' tok-bob
+reg '{"contest":"esq","action":"register","univ":"UTFPR","ai":"no","flag":"BR-PR"}' tok-bob
 ck "bob entra atrasado"         '[[ "$(J .me.cohort)" == individual-atrasado ]]'
+ck "meta veio junto do register" '[[ "$(J .me.flag)" == "br-pr" && "$(jq -r .team.univ_short "$C/users/bob/account.json")" == UTFPR ]]'
+reg '{"contest":"esq","action":"register","flag":"nope!"}' tok-west
+ck "register c/ flag inválida = 400 SEM inscrever" '[[ "$OUT" == *"Status: 400"* && "$(J .error.code)" == flag_invalid ]]'
+call /treino/contest-registration GET '' tok-west 'contest=esq'
+ck "west continua fora"         '[[ "$(J .me.kind)" == none ]]'
 login bob
 ck "atrasado consegue entrar"   '[[ "$(J .logged_in)" == true ]]'
 conf "$((NOW-7200))" "$((NOW+10800))" 'REG_LATE_MINUTES=30'  # início há 2h: atraso vencido
@@ -201,6 +224,8 @@ bash "$SCOREDIR/build.sh" esq >/dev/null 2>&1
 ck "placar geral tem os dois"   'grep -q ":time-os-tres-ponteiros:" "$C/var/placar.txt" && grep -q ":zeze:" "$C/var/placar.txt"'
 ck "placar dos TIMES só o time" '[[ -f "$C/var/placar-view-times.txt" ]] && grep -q ":time-os-tres-ponteiros:" "$C/var/placar-view-times.txt" && ! grep -q ":zeze:" "$C/var/placar-view-times.txt"'
 ck "placar INDIVIDUAL sem time" 'grep -q ":zeze:" "$C/var/placar-view-individual.txt" && ! grep -q ":time-os-tres-ponteiros:" "$C/var/placar-view-individual.txt"'
+# (zeze perde a meta no rm+re-add do bloco anterior — correto; bob inscreveu COM a flag)
+ck "bandeira do individual no TXT" 'grep -q "^br-pr:bob:" "$C/var/placar-view-individual.txt"'
 ck "atrasado aparece no individual" 'grep -q ":bob:" "$C/var/placar-view-individual.txt"'
 call /contest/score GET '' '' 'contest=esq&view=times'
 ck "GET score?view=times sem sessão" '[[ "$OUT" == *"time-os-tres-ponteiros"* && "$OUT" != *":zeze:"* ]]'

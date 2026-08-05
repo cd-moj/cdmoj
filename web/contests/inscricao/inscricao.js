@@ -135,9 +135,18 @@ function meBox() {
         T('depois de inscrito, o modo de participação (individual ou time) é definitivo — para qualquer mudança, fale com a organização.',
           'once registered, your participation mode (individual or team) is final — for any change, talk to the organizers.')));
     const row = el('div', { class: 'row', style: 'gap:.6rem; flex-wrap:wrap' });
-    row.append(el('button', { class: 'btn', disabled: !canAct(),
-      onclick: () => act({ action: 'register' }, T('Inscrição feita!', 'You are registered!')) },
-      T('Participar individualmente', 'Take part individually')));
+    // individual também declara universidade/IA/bandeira (paridade com o time)
+    const iUniv = el('input', { placeholder: T('sigla da universidade (opcional)', 'university acronym (optional)'), style: 'width:16rem', maxlength: '20' });
+    const iAi = el('select', {},
+      el('option', { value: '' }, T('uso de IA: prefiro não declarar', 'AI use: prefer not to say')),
+      el('option', { value: 'yes' }, T('🤖 vou usar IA', '🤖 I will use AI')),
+      el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
+    const ifp = flagPicker('');
+    row.append(el('span', { class: 'row', style: 'gap:.4rem; flex-wrap:wrap' }, iUniv, iAi, ifp.box,
+      el('button', { class: 'btn', disabled: !canAct(),
+        onclick: () => act({ action: 'register', univ: iUniv.value.trim(), ai: iAi.value, flag: ifp.sel.value },
+                           T('Inscrição feita!', 'You are registered!')) },
+        T('Participar individualmente', 'Take part individually'))));
     if (st.teams_allowed !== false) {
       const name = el('input', { placeholder: T('nome do time', 'team name'), style: 'min-width:15rem' });
       const univ = el('input', { placeholder: T('sigla da universidade (opcional)', 'university acronym (optional)'), style: 'width:16rem', maxlength: '20' });
@@ -165,8 +174,28 @@ function meBox() {
       el('p', { class: 'small muted' },
         T('Entre no contest com o SEU login e senha do Treino Livre.', 'Log into the contest with YOUR Free Training username and password.')),
       late ? el('p', { class: 'small' }, T('⏰ Inscrição atrasada: você aparece no placar sem ocupar posição oficial.',
-                                           '⏰ Late registration: you appear on the scoreboard without taking an official position.')) : '',
-      el('div', { class: 'row', style: 'gap:.6rem' },
+                                           '⏰ Late registration: you appear on the scoreboard without taking an official position.')) : '');
+    // universidade + IA + bandeira (edita enquanto a janela estiver aberta — como o capitão)
+    if (canAct()) {
+      const me = st.me || {};
+      const univ = el('input', { value: me.univ || '', maxlength: '20',
+        placeholder: T('sigla da universidade', 'university acronym'), style: 'width:14rem' });
+      const aiSel = el('select', {},
+        el('option', { value: '' }, T('uso de IA: não declarado', 'AI use: not declared')),
+        el('option', { value: 'yes' }, T('🤖 vou usar IA', '🤖 I will use AI')),
+        el('option', { value: 'no' }, T('sem IA, na raça', 'no AI, old school')));
+      aiSel.value = me.ai === true ? 'yes' : me.ai === false ? 'no' : '';
+      const fp = flagPicker(me.flag || '');
+      s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0; flex-wrap:wrap' }, univ, aiSel, fp.box,
+        el('button', { class: 'btn ghost',
+          onclick: () => act({ action: 'individual-meta', univ: univ.value.trim(), ai: aiSel.value, flag: fp.sel.value },
+                             T('Dados salvos.', 'Info saved.')) },
+          T('Salvar universidade/IA/bandeira', 'Save university/AI/flag'))));
+      s.append(el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
+        T('No placar, a universidade aparece como prefixo do nome — “[SIGLA] Seu Nome” — e a bandeira na primeira coluna.',
+          'On the scoreboard the university shows as the name prefix — “[ACRONYM] Your Name” — and the flag in the first column.')));
+    }
+    s.append(el('div', { class: 'row', style: 'gap:.6rem' },
         el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →'))),
       el('p', { class: 'small muted', style: 'margin-top:.4rem' },
         T('Sua participação individual está confirmada e é definitiva — precisa mudar algo? Fale com a organização.',

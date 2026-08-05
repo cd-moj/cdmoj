@@ -14,6 +14,7 @@
 #   team-add      {name, members:[…]} — cria um time pronto (sem convite; uso do organizador)
 #   team-rm       {team}           — dissolve
 #   team-meta     {team, univ?, ai?, flag?} — a organização ajusta a apresentação de um time
+#   individual-meta {login, univ?, ai?, flag?} — idem p/ um inscrito INDIVIDUAL
 #   materialize   — reescreve os overlays do store a partir do roster (conserto)
 require_auth_contest "$(param contest)"
 contest="$(param contest)"
@@ -56,7 +57,10 @@ _emit(){
                   ai:(if (.value | has("ai")) then .value.ai else null end),
                   has_photo:((.key as $k | $photos | index($k)) != null)} ] | sort_by(.name),
       individuals: [ .entries | to_entries[] | select(.value.kind == "individual")
-                     | {login:.key, cohort:.value.cohort, at:.value.at} ] | sort_by(.login),
+                     | {login:.key, cohort:.value.cohort, at:.value.at,
+                        univ:(.value.univ // ""), flag:(.value.flag // ""),
+                        ai:(if (.value | has("ai")) then .value.ai else null end)} ]
+                   | sort_by(.login),
       totals: { people:(.entries | length), teams:(.teams | length),
                 individuals:([.entries[] | select(.kind=="individual")] | length),
                 invites:([.teams[] | (.invited // []) | length] | add // 0) } }')"
@@ -134,6 +138,14 @@ case "$action" in
     # a lib exige capitão: o admin ajusta EM NOME do capitão do time
     out="$(reg_team_meta "$contest" "$cap" "$u" "$a" "$fl")" || fail 400 "Não deu ($out)" "$out"
     audit_log_to "$contest" reg-team-meta-admin "team=$t univ=$u ai=$a flag=$fl" ;;
+  individual-meta)
+    login="$(jq -r '.login // empty' <<<"$body")"
+    valid_id "$login" || fail 400 "Login inválido" "login_invalid"
+    u="$(jq -r '.univ // ""' <<<"$body")"; a="$(jq -r '.ai // ""' <<<"$body")"
+    fl="$(jq -r '.flag // ""' <<<"$body")"
+    case "$a" in yes|no|"") ;; *) fail 400 "ai deve ser yes|no" "ai_invalid";; esac
+    out="$(reg_individual_meta "$contest" "$login" "$u" "$a" "$fl")" || fail 400 "Não deu ($out)" "$out"
+    audit_log_to "$contest" reg-individual-meta-admin "login=$login univ=$u ai=$a flag=$fl" ;;
   team-rm)
     t="$(jq -r '.team // empty' <<<"$body")"
     valid_id "$t" || fail 400 "Time inválido" "team_invalid"

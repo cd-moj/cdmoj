@@ -88,7 +88,11 @@ export function makeRegistrationsTab(CONTEST) {
 
   function peopleTable() {
     const rows = (DATA.individuals || []).map((p) => el('tr', {},
-      el('td', {}, p.login), el('td', { class: 'small' }, p.cohort || ''),
+      el('td', {}, (p.univ ? '[' + p.univ + '] ' : '') + p.login,
+        el('span', { class: 'small muted' }, ' ', flagEl(p.flag, { height: 14 }) || '',
+          (p.flag ? ' ' + p.flag.toUpperCase() : '')
+          + (p.ai === true ? ' · 🤖 IA' : p.ai === false ? ' · sem IA' : ''))),
+      el('td', { class: 'small' }, p.cohort || ''),
       el('td', { class: 'small muted' }, p.at ? fmtDate(p.at) : ''),
       el('td', {}, el('button', {
         class: 'btn ghost danger', title: T('remover', 'remove'),
@@ -161,7 +165,7 @@ export function makeRegistrationsTab(CONTEST) {
         el('button', { class: 'btn ghost', onclick: () => {
           const rows = [[T('tipo', 'kind'), 'login', T('nome', 'name'), T('membros', 'members'), T('coorte', 'cohort'), T('univ', 'univ'), 'IA', T('bandeira', 'flag'), T('foto', 'photo')]];
           (DATA.teams || []).forEach((x) => rows.push(['time', x.login, x.name, (x.members || []).join(' '), x.cohort || '', x.univ || '', x.ai === true ? 'sim' : x.ai === false ? 'nao' : '', x.flag || '', x.has_photo ? 'sim' : '']));
-          (DATA.individuals || []).forEach((x) => rows.push(['individual', x.login, '', '', x.cohort || '', '', '', '', '']));
+          (DATA.individuals || []).forEach((x) => rows.push(['individual', x.login, '', '', x.cohort || '', x.univ || '', x.ai === true ? 'sim' : x.ai === false ? 'nao' : '', x.flag || '', '']));
           downloadText(`inscricoes-${CONTEST}.csv`, toCsv(rows));
         } }, T('⬇ CSV dos inscritos', '⬇ CSV of registrations'))));
   }

@@ -12,7 +12,10 @@
 # GET  -> {enabled, contest, contest_name, start_time, end_time, window:{state,opens_at,
 #          closes_at,late_until}, team_max, teams_allowed, me:{kind,…}, team, invites[], totals}
 # POST {contest, action, …}:
-#   register                      — entra como INDIVIDUAL
+#   register      {univ?, ai?, flag?} — entra como INDIVIDUAL (a meta pode vir junto)
+#   individual-meta {univ?, ai?, flag?} — inscrito individual declara/edita universidade
+#                                    ("[UNIV] Nome" no placar), uso de IA e bandeira —
+#                                    paridade com o team-meta do capitão
 #   cancel                        — desfaz (individual) ou sai do time
 #   team-create   {name}          — cria o time e vira capitão
 #   team-invite   {login}         — capitão convida uma conta do treino
@@ -118,8 +121,23 @@ _err(){ # <código> — mensagem amigável p/ cada recusa do motor
 _run(){ RUNOUT="$("$@")" || _err "$RUNOUT"; }
 
 case "$action" in
-  register)      _run reg_register_individual "$contest" "$me"
-                 audit_log_to "$contest" reg-register "login=$me" ;;
+  register)      # univ/IA/bandeira podem vir junto (o form manda tudo de uma vez, como no
+                 # time) — a flag é validada ANTES de inscrever (400 depois da mutação
+                 # deixaria a pessoa inscrita e o retry daria already_registered)
+                 u="$(jq -r '.univ // ""' <<<"$body")"; a="$(jq -r '.ai // ""' <<<"$body")"
+                 fl="$(jq -r '.flag // ""' <<<"$body")"
+                 case "$a" in yes|no|"") ;; *) a="";; esac
+                 flchk="${fl,,}"; flchk="${flchk//_/-}"
+                 [[ -z "$flchk" || "$flchk" =~ ^[a-z]{2}(-[a-z]{2})?$ ]] || _err flag_invalid
+                 _run reg_register_individual "$contest" "$me"
+                 [[ -n "$u$a$fl" ]] && reg_individual_meta "$contest" "$me" "$u" "$a" "$fl" >/dev/null
+                 audit_log_to "$contest" reg-register "login=$me univ=$u ai=$a flag=$fl" ;;
+  individual-meta)
+                 u="$(jq -r '.univ // ""' <<<"$body")"; a="$(jq -r '.ai // ""' <<<"$body")"
+                 fl="$(jq -r '.flag // ""' <<<"$body")"
+                 case "$a" in yes|no|"") ;; *) fail 400 "ai deve ser yes|no" "ai_invalid";; esac
+                 _run reg_individual_meta "$contest" "$me" "$u" "$a" "$fl"
+                 audit_log_to "$contest" reg-individual-meta "login=$me univ=$u ai=$a flag=$fl" ;;
   cancel)        reg_is_registered "$contest" "$me" && _err mode_locked
                  _run reg_cancel "$contest" "$me"
                  audit_log_to "$contest" reg-cancel "login=$me" ;;

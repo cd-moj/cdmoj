@@ -420,7 +420,10 @@ qualquer mudança passa por você (Pessoas › Inscrições: remover, dissolver,
 no placar e a coluna/filtro de escola), o **uso de IA** (aparece como 🤖 ao lado do nome — é
 transparência, não julgamento), a **bandeira** (país ou estado do Brasil — a bandeirinha do
 placar) e uma **foto do time** (o 📷 do placar; reprocessada no servidor, sem metadados). Tudo editável pelo capitão enquanto a janela estiver aberta, e visível no seu
-painel e no CSV.
+painel e no CSV. **O inscrito INDIVIDUAL declara as mesmas coisas** (menos a foto):
+universidade, IA e bandeira, na inscrição ou depois, pela mesma página. A organização ajusta
+qualquer um pelas ações `team-meta`/`individual-meta` do painel — sem regra regex no
+`teams-meta.json` (o mecanismo legado continua valendo só como sobreposição visual).
 
 > Dica de dia de prova: o checklist da Central mostra quantos se inscreveram e **quantos convites
 > ficaram pendentes** — convite não aceito significa gente achando que está no time e que, na

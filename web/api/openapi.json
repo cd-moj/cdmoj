@@ -1176,7 +1176,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Ações da inscrição: register | team-create {name,univ?,ai?} | team-invite | team-accept | team-decline | team-rename | team-meta {univ?,ai?,flag?} | team-photo {image_b64}. Modo de participação é DEFINITIVO (403 mode_locked em cancel/leave/dissolve/troca); warmup também exige inscrição por padrão (REG_WARMUP_OPEN=y libera)",
+        "summary": "Ações da inscrição: register {univ?,ai?,flag?} | individual-meta {univ?,ai?,flag?} (o INDIVIDUAL declara/edita universidade, IA e bandeira — paridade com o team-meta) | team-create {name,univ?,ai?,flag?} | team-invite | team-accept | team-decline | team-rename | team-meta {univ?,ai?,flag?} | team-photo {image_b64}. Modo de participação é DEFINITIVO (403 mode_locked em cancel/leave/dissolve/troca); warmup também exige inscrição por padrão (REG_WARMUP_OPEN=y libera)",
         "security": [
           {
             "bearerAuth": []
@@ -4696,7 +4696,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Inscrições do contest (roster + janela): times, individuais, convites pendentes e totais",
+        "summary": "Inscrições do contest (roster + janela): times, individuais (com univ/flag/ai), convites pendentes e totais",
         "security": [
           {
             "bearerAuth": []
@@ -4722,7 +4722,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "enable | disable | window {open,close,late_minutes,team_max,teams} | add | rm | team-add | team-rm | materialize",
+        "summary": "enable | disable | window {open,close,late_minutes,team_max,teams} | add | rm | team-add | team-rm | team-meta {team,univ?,ai?,flag?} | individual-meta {login,univ?,ai?,flag?} | materialize",
         "security": [
           {
             "bearerAuth": []
