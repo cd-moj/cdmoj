@@ -414,19 +414,31 @@ function problemAccepted(p) {
   return submissions.some(s => s.problem === p.problem_id && /^accepted/i.test(s.verdict || ''));
 }
 
-function openStatementNewTab(p) {
+// CSS p/ o caso raro de enunciado-FRAGMENTO: num documento blob: nem <link href="/shared/ui.css">
+// resolve (base URL opaca) — o CSS tem de ir INLINE. Busca uma vez e cacheia.
+let _uiCssText = null;
+async function uiCssText() {
+  if (_uiCssText === null) {
+    try { _uiCssText = await (await fetch('/shared/ui.css')).text(); } catch { _uiCssText = ''; }
+  }
+  return _uiCssText;
+}
+
+async function openStatementNewTab(p) {
   const html = b64utf8(p.statement_html_b64 || '');
-  let body = html;
-  try {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    if (doc.body && doc.body.innerHTML.trim()) body = doc.body.innerHTML;
-  } catch {}
-  // reusa o CSS compartilhado para o enunciado
-  const full = `<!DOCTYPE html><html lang="${getLang() === 'en' ? 'en' : 'pt-br'}"><head>
-    <meta charset="utf-8"><title>${(p.short_name || '') + ' — ' + (p.full_name || '')}</title>
-    <link rel="stylesheet" href="/shared/ui.css">
-    <style>body{padding:1.4rem;max-width:900px;margin:auto}</style></head>
-    <body><div class="statement-content">${body}</div></body></html>`;
+  let full;
+  if (/<html[\s>]/i.test(html)) {
+    // documento COMPLETO do renderer: tem o <style> clássico de competição no <head> e a
+    // matemática em MathML — vai pro blob INTACTO (jogar fora o head deixava a página pelada)
+    full = html;
+  } else {
+    const css = await uiCssText();
+    full = `<!DOCTYPE html><html lang="${getLang() === 'en' ? 'en' : 'pt-br'}"><head>
+      <meta charset="utf-8"><title>${(p.short_name || '') + ' — ' + (p.full_name || '')}</title>
+      <style>${css}</style>
+      <style>body{padding:1.4rem;max-width:900px;margin:auto}</style></head>
+      <body><div class="statement-content">${html}</div></body></html>`;
+  }
   const url = URL.createObjectURL(new Blob([full], { type: 'text/html' }));
   window.open(url, '_blank');
   setTimeout(() => URL.revokeObjectURL(url), 60000);
