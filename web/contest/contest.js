@@ -426,25 +426,27 @@ async function uiCssText() {
 
 async function openStatementNewTab(p) {
   const html = b64utf8(p.statement_html_b64 || '');
-  let full;
-  if (/<html[\s>]/i.test(html)) {
-    // documento COMPLETO do renderer: tem o <style> clássico de competição no <head> e a
-    // matemática em MathML — vai pro blob INTACTO (jogar fora o head deixava a página pelada)
-    full = html;
-  } else {
-    const css = await uiCssText();
-    full = `<!DOCTYPE html><html lang="${getLang() === 'en' ? 'en' : 'pt-br'}"><head>
-      <meta charset="utf-8"><title>${(p.short_name || '') + ' — ' + (p.full_name || '')}</title>
-      <style>${css}</style>
-      <style>body{padding:1.4rem;max-width:900px;margin:auto}</style></head>
-      <body><div class="statement-content">${html}</div></body></html>`;
-  }
+  // MESMA cara da sanfona/Treino Livre: miolo do body em .statement-content com o ui.css
+  // INLINE (num documento blob: nem <link href="/shared/ui.css"> resolve — base URL opaca;
+  // e o <style> próprio do renderer tem OUTRAS cores, divergia do enunciado embutido)
+  let body = html;
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    if (doc.body && doc.body.innerHTML.trim()) body = doc.body.innerHTML;
+  } catch {}
+  const css = await uiCssText();
+  const full = `<!DOCTYPE html><html lang="${getLang() === 'en' ? 'en' : 'pt-br'}"><head>
+    <meta charset="utf-8"><title>${(p.short_name || '') + ' — ' + (p.full_name || '')}</title>
+    <style>${css}</style>
+    <style>body{padding:1.4rem;max-width:900px;margin:auto}</style></head>
+    <body><div class="statement-content">${body}</div></body></html>`;
   const url = URL.createObjectURL(new Blob([full], { type: 'text/html' }));
   window.open(url, '_blank');
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function renderProblems() {
+  uiCssText(); // pré-carrega o CSS do "abrir em nova aba" (o clique não espera rede)
   const list = document.getElementById('problemList');
   list.innerHTML = '';
   const visible = problems.filter(p => p.show !== false);
