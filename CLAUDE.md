@@ -232,9 +232,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `cc_build_probs`) existe para a troca não re-baixar o enunciado do banco por cima do que o
   admin subiu à mão.
 - **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, painel
-  **Prova › Documentos** do admin e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados) e folha de
-  time limits, em **PDF+HTML × pt/en**, tudo derivado do que o contest já tem (conf, `PROBS`,
-  `enunciados/`, `run/tl`, `run/registry`) — nada de dado novo. **PDF só por `soffice --headless
+  **Prova › Documentos** do admin e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados), folha de
+  time limits e **EDITORIAL** (o `docs/solucao.md` do PACOTE de cada problema, via `pkg_path` —
+  o campo que nunca vai ao aluno), em **PDF+HTML × pt/en**, tudo derivado do que o contest já tem (conf, `PROBS`,
+  `enunciados/`, `run/tl`, `run/registry`) — nada de dado novo. **Gates de FASE no `/contest/doc`**
+  (quem não é organização): `contest`/`times` publicados só a partir do INÍCIO (`contest_phase`),
+  `editorial` só com `contest_over_for_all` — que também trava o **publish** do editorial; `news:true`
+  de caderno/times antes do início = 409 (a notícia anexa o PDF por fora do gate). Teste:
+  `smoke-contest-docs.sh`. **PDF só por `soffice --headless
   --convert-to pdf`** (não há LaTeX/wkhtmltopdf/chromium na imagem; `pdfunite`/`pdfinfo` juntam e
   contam). **MATEMÁTICA**: o enunciado vem com MathML (`pandoc --mathml`) e o import HTML do
   Writer NÃO o entende (achatava as fórmulas + duplicava o TeX do `<annotation>`) — por isso o

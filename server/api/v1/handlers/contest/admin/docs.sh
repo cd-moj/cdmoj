@@ -62,7 +62,7 @@ mkdir -p "$D" 2>/dev/null
 case "$action" in
   config)
     cfg="$(doc_conf_get "$contest")"
-    for k in caderno_version cover_note errata; do
+    for k in caderno_version cover_note errata editorial_note; do
       if jq -e --arg k "$k" 'has($k)' "$bodyf" >/dev/null 2>&1; then
         v="$(jq -r --arg k "$k" '.[$k] // ""' "$bodyf")"
         cfg="$(jq -c --arg k "$k" --arg v "$v" '.[$k] = $v' <<<"$cfg")"
@@ -102,7 +102,7 @@ case "$action" in
     (( ${#langs[@]} )) || langs=(pt en)
     done_list='[]'; failed='[]'
     for t in "${types[@]}"; do
-      case "$t" in info-sheet|contest|times) ;; *) continue;; esac
+      case "$t" in info-sheet|contest|times|editorial) ;; *) continue;; esac
       for l in "${langs[@]}"; do
         [[ "$l" == pt || "$l" == en ]] || continue
         if e="$(doc_build "$contest" "$t" "$l")" && [[ -n "$e" ]]; then
@@ -119,13 +119,27 @@ case "$action" in
     ;;
   publish|unpublish)
     t="$(jq -r '.type // ""' "$bodyf")"; l="$(jq -r '.lang // ""' "$bodyf")"
-    case "$t" in info-sheet|contest|times) ;; *) fail 400 "type inválido" "type_invalid";; esac
+    case "$t" in info-sheet|contest|times|editorial) ;; *) fail 400 "type inválido" "type_invalid";; esac
     [[ "$l" == pt || "$l" == en ]] || fail 400 "lang deve ser pt|en" "lang_invalid"
     key="$t.$l"
     cfg="$(doc_conf_get "$contest")"
     if [[ "$action" == publish ]]; then
       [[ -s "$(doc_file "$contest" "$t" "$l" pdf)" || -s "$(doc_file "$contest" "$t" "$l" html)" ]] \
         || fail 409 "Gere o documento antes de publicar" "not_generated"
+      source "$_DIR/lib/contest-gate.sh"
+      # EDITORIAL é a solução da prova: só publica quando o contest terminou PARA TODOS
+      # (inclusive prorrogações por sede — time-overrides.json).
+      if [[ "$t" == editorial ]] && ! contest_over_for_all "$contest"; then
+        fail 403 "O editorial só pode ser publicado depois do FIM da prova (para todas as sedes)" "contest_running"
+      fi
+      # notícia com PDF anexo NÃO passa pelo gate de fase do /contest/doc: caderno/times
+      # antes do início vazariam a prova por ali. Publique sem news e anexe depois do start.
+      if jq -e '.news == true' "$bodyf" >/dev/null 2>&1; then
+        case "$t" in contest|times)
+          [[ "$(contest_phase "$contest")" == before ]] \
+            && fail 409 "Antes do início, publique SEM notícia (a notícia anexa o PDF e os times a leem) — o documento já fica liberado para a sede" "news_before_start" ;;
+        esac
+      fi
       cfg="$(jq -c --arg k "$key" '.published = ((.published // []) + [$k] | unique)' <<<"$cfg")"
     else
       cfg="$(jq -c --arg k "$key" '.published = ((.published // []) | map(select(. != $k)))' <<<"$cfg")"
@@ -137,7 +151,8 @@ case "$action" in
     label="$(_doc_t "$l" session)"
     case "$t" in info-sheet) label="$([[ "$l" == pt ]] && printf 'Informações do ambiente' || printf 'Testing environment')";;
                  times)      label="$(_doc_t "$l" times_title)";;
-                 contest)    label="$(_doc_t "$l" session)";; esac
+                 contest)    label="$(_doc_t "$l" session)";;
+                 editorial)  label="$(_doc_t "$l" editorial)";; esac
     url="/api/v1/contest/doc?contest=$contest&type=$t&lang=$l&fmt=pdf"
     if [[ "$action" == publish ]]; then
       jq -c --arg lb "$label ($l)" --arg u "$url" \

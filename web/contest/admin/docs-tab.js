@@ -1,7 +1,8 @@
 // contest/admin/docs-tab.js — aba "📄 Documentos" (admin e juiz-chefe): gera o info sheet, o
-// caderno da prova (com capa customizável) e a folha de time limits, em PDF+HTML e nos dois
-// idiomas; baixa, publica (seção "Prova" do contest + notícia opcional com o PDF anexo) e
-// despublica. O .cstaff só VÊ o que foi publicado (gate na API, não aqui).
+// caderno da prova (com capa customizável), a folha de time limits e o EDITORIAL (solução de
+// cada problema; só publica após o fim), em PDF+HTML e nos dois idiomas; baixa, publica
+// (seção "Prova" do contest + notícia opcional com o PDF anexo) e despublica. O .cstaff só
+// VÊ o que foi publicado (gates de fase e publicação na API, não aqui).
 //
 // Idioma: PT/EN vale para capa, títulos e tabelas. O corpo do ENUNCIADO sai no idioma em que
 // foi escrito — o MOJ não tem enunciado bilíngue (dito na própria tela, para não enganar).
@@ -20,6 +21,9 @@ const TYPES = [
     hpt: 'Capa + enunciados (usa o PDF do problema quando existir).', hen: 'Cover + statements (uses each problem PDF when present).' },
   { id: 'times', pt: 'Folha de time limits', en: 'Time limits sheet',
     hpt: 'Tabela letra · nome · tempo limite (+ errata).', hen: 'Table letter · name · time limit (+ errata).' },
+  { id: 'editorial', pt: 'Editorial', en: 'Editorial',
+    hpt: 'A solução de cada problema (docs/solucao.md do pacote). Gere e revise quando quiser; SÓ PUBLICA depois do fim da prova (todas as sedes).',
+    hen: 'Each problem’s solution write-up (the package’s docs/solucao.md). Generate and review anytime; it can only be PUBLISHED after the contest ends (all sites).' },
 ];
 
 export function makeDocsTab(CONTEST, opts = {}) {

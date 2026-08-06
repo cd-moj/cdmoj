@@ -40,7 +40,7 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 |---|---|
 | **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF), e **Adicionar do banco** (busca e sorteio). |
 | **Rodadas** | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
-| **Documentos** | Gera, em PDF e HTML nos dois idiomas, os três documentos impressos: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados) e **folha de time limits**. Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. A seção 5 explica. |
+| **Documentos** | Gera, em PDF e HTML nos dois idiomas, os documentos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (solução de cada problema — só publica depois do FIM da prova). Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. Times só veem caderno/times publicados a partir do INÍCIO (a sede vê antes, para imprimir). A seção 5 explica. |
 | **Balões** | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). |
 
 ### 👥 Pessoas — quem entra, quem é quem
@@ -143,14 +143,15 @@ N≥3 é para finais onde o veredicto precisa de banca.
 
 ## 5. Documentos da prova (Prova › Documentos)
 
-A aba existe para o **`.admin` e para o juiz-chefe (`.cjudge`)**, e produz os três documentos
-que a prova imprime — cada um em **PDF e HTML**, em **português e inglês**:
+A aba existe para o **`.admin` e para o juiz-chefe (`.cjudge`)**, e produz os documentos da
+prova — cada um em **PDF e HTML**, em **português e inglês**:
 
 | Documento | O que sai | De onde vêm os dados |
 |---|---|---|
 | **Informações do ambiente** (*info sheet*) | Versões de compilador de cada linguagem, limite de memória, tamanho de pilha, tempo limite por teste de cada problema e a tabela de linguagens aceitas. | Texto editável (Markdown) + dados vivos: `run/registry` (o que os juízes reportam), o `conf` do contest e o TL calibrado. |
 | **Caderno da prova** | Capa + um enunciado por problema, na ordem das letras. Onde o problema tem **PDF próprio** no contest, é esse PDF que entra (diagramação preservada); senão o enunciado é renderizado. | `PROBS` do contest, `enunciados/<chave>.{pdf,html}` e, se faltar, o enunciado do banco. |
 | **Folha de time limits** | Tabela `letra · nome · tempo limite`, com quebra por linguagem quando o TL difere entre elas, mais a **errata** que você escrever. | O TL **calibrado e servido** aos juízes (`run/tl`). |
+| **Editorial** | A **solução** de cada problema, na ordem das letras, com uma nota introdutória opcional. Gere e revise quando quiser; o servidor **só deixa PUBLICAR depois do fim da prova** (contando prorrogações por sede) — e o time só o baixa com a prova encerrada. | O `docs/solucao.md` do **pacote** de cada problema (o texto que o autor escreveu e que nunca vai ao aluno). |
 
 **Fluxo, do começo ao fim**
 
@@ -169,6 +170,9 @@ que a prova imprime — cada um em **PDF e HTML**, em **português e inglês**:
 5. **Confira**: cada linha tem **PDF**, **HTML** e **abrir**. Reveja antes de publicar.
 6. **Publique** o que a sede pode ver. Publicar faz duas coisas: o documento passa a aparecer na
    seção **Prova** da página do contest e o `.cstaff` consegue baixá-lo em **📄 Documentos**.
+   **Times NÃO veem caderno/time limits publicados antes do INÍCIO da prova** — publicar cedo
+   serve para a sede imprimir, sem vazar nada (o `+ notícia` desses dois é recusado antes do
+   início, porque a notícia anexa o PDF). O **editorial** só publica depois do fim.
    Marcando **+ notícia**, o MOJ ainda cria uma notícia com o PDF anexado.
    **Despublicar** desfaz (o link some; a notícia, se criada, continua — apague-a na aba de
    notícias se for o caso).

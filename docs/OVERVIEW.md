@@ -322,7 +322,9 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   **PDF+HTML × pt/en**: *info sheet* (versões de compilador do `run/registry`, memória/pilha do
   conf, TL calibrado, linguagens), **caderno** (capa + enunciados; usa o **PDF próprio** do
   problema quando existe e junta com `pdfunite`, capa regerada no fim com o total real de páginas)
-  e **folha de time limits**; motor em `lib/contest-docs.sh`, PDF por `soffice` — o único engine da
+  **folha de time limits** e **EDITORIAL** (a solução de cada problema, lida do `docs/solucao.md` do
+  pacote; publicável só depois do FIM da prova; times só veem caderno/times publicados A PARTIR do
+  início — a sede vê antes, para imprimir); motor em `lib/contest-docs.sh`, PDF por `soffice` — o único engine da
   imagem. Capa em **3 modos**: PDF enviado › markdown editado (marcadores `{{…}}`) › gerada.
   **Publicar** escreve o `resources.json` (seção "Prova" do contest) e libera o download p/ a
   sede (`.cstaff`, página `/contest/docs/`), opcionalmente criando a **notícia com o PDF anexo**;

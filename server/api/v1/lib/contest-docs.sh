@@ -13,13 +13,16 @@
 # do ENUNCIADO sai no idioma em que foi escrito — o MOJ não tem enunciado bilíngue.
 #
 # Layout em disco:
-#   contests/<c>/docs/config.json            {caderno_version, cover_note, errata, published:[…]}
+#   contests/<c>/docs/config.json            {caderno_version, cover_note, errata,
+#                                             editorial_note, published:[…]}
 #   contests/<c>/docs/info-sheet.<lang>.md   template editável (default: server/etc/)
 #   contests/<c>/docs/<tipo>.<lang>.{html,pdf}
 #   contests/<c>/docs/index.json             [{type,lang,fmt,bytes,generated_at,by}]
-: "${DOC_TYPES:=info-sheet contest times}"
+: "${DOC_TYPES:=info-sheet contest times editorial}"
 # cadeia de linguagens permitidas (folha de time limits) — fonte única, a MESMA do /submit
 declare -F effective_problem_langs >/dev/null || source "$_DIR/lib/langs.sh" 2>/dev/null || true
+# pkg_path (editorial lê docs/solucao.md do PACOTE do problema)
+declare -F pkg_path >/dev/null || source "$_DIR/lib/tl-store.sh" 2>/dev/null || true
 
 doc_dir(){ printf '%s/%s/docs' "$CONTESTSDIR" "$1"; }
 doc_file(){ printf '%s/%s.%s.%s' "$(doc_dir "$1")" "$2" "$3" "$4"; }   # <c> <tipo> <lang> <fmt>
@@ -45,6 +48,9 @@ _doc_t(){
     pt:general) printf 'Informações gerais';;     en:general) printf 'General information';;
     pt:sites) printf 'Sedes participantes';;      en:sites) printf 'Participating sites';;
     pt:author) printf 'Autor';;          en:author)  printf 'Author';;
+    pt:editorial) printf 'Editorial';;   en:editorial) printf 'Editorial';;
+    pt:no_solution) printf 'solução indisponível no pacote deste problema';;
+    en:no_solution) printf 'no solution write-up in this problem'\''s package';;
     *) printf '%s' "$k";;
   esac
 }
@@ -307,6 +313,36 @@ _doc_html_contest(){
   _doc_html_foot
 }
 
+# _doc_html_editorial <c> <lang> — EDITORIAL da prova: a SOLUÇÃO de cada problema, lida do
+# docs/solucao.md do PACOTE (campo `editorial_md` da API de problemas — por contrato NUNCA
+# vai ao aluno; o gen-problem-json o ignora). Conteúdo mais sensível que o caderno: o
+# publish exige contest_over_for_all (handler) e o download idem p/ quem não é organização.
+_doc_html_editorial(){
+  local c="$1" l="$2" probs n i letter name skey pkg cname note
+  cname="$( (CONTEST_NAME=""; source "$CONTESTSDIR/$c/conf" 2>/dev/null; printf '%s' "${CONTEST_NAME:-$1}") )"
+  probs="$(cc_probs_json "$c")"; n="$(jq -r 'length' <<<"$probs")"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
+  _doc_html_head "$(_doc_t "$l" editorial) — $cname"
+  printf '<h1>%s — %s</h1>\n' "$(_doc_t "$l" editorial)" "$(_doc_escs "$cname")"
+  note="$(doc_conf_get "$c" | jq -r '.editorial_note // ""')"
+  if [[ -n "$note" ]]; then
+    printf '<div class="note">'; printf '%s' "$note" | render_markdown_html; printf '</div>\n'
+  fi
+  for ((i=0; i<n; i++)); do
+    letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
+    name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
+    skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
+    printf '<div class="prob"><h1>%s %s — %s</h1>\n' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+    pkg=""; declare -F pkg_path >/dev/null && pkg="$(pkg_path "$skey" 2>/dev/null)"
+    if [[ -n "$pkg" && -s "$pkg/docs/solucao.md" ]]; then
+      render_markdown_html < "$pkg/docs/solucao.md"
+    else
+      printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_solution)"
+    fi
+    printf '</div>\n'
+  done
+  _doc_html_foot
+}
+
 # ---------- PDF ----------------------------------------------------------------------
 # _doc_strip_annotation — remove os <annotation> (o TeX cru que o pandoc --mathml duplica
 # dentro de cada <math>): o import HTML do LibreOffice descarta MathML achatando os nós de
@@ -326,6 +362,29 @@ _doc_html2pdf(){
   rm -rf "$work"; return 1
 }
 _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
+
+# _doc_html2pdf_odt <html-file> <pdf-out> -> 0/1 — ROTA PREFERIDA p/ conteúdo com MathML:
+# pandoc html→odt + soffice odt→pdf. O import HTML do Writer NÃO entende MathML (achatava
+# as fórmulas); via ODT elas viram fórmulas ODF de verdade — exige o libreoffice-math da
+# imagem. O ESTILO vem do reference-doc etc/caderno-reference.odt (ODT ignora CSS): Text
+# Body JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos). Receita p/
+# regenerar: `pandoc --print-default-data-file reference.odt`, retocar no styles.xml os
+# estilos Text_20_body (fo:text-align=justify) e Preformatted_20_Text
+# (fo:background-color/fo:padding/fo:border) e rezipar com o mimetype PRIMEIRO (zip -0).
+# O html de entrada NÃO deve ter <title> (o pandoc o promoveria a título órfão no topo).
+_doc_html2pdf_odt(){
+  local src="$1" out="$2" work rf refodt=()
+  command -v pandoc >/dev/null 2>&1 || return 1
+  work="$(mktemp -d)"
+  rf="$_DIR/../../etc/caderno-reference.odt"; [[ -f "$rf" ]] || rf="$_DIR/etc/caderno-reference.odt"
+  [[ -f "$rf" ]] && refodt=( --reference-doc="$rf" )
+  if pandoc -f html -t odt "${refodt[@]}" "$src" -o "$work/doc.odt" 2>/dev/null; then
+    soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
+            --outdir "$work" "$work/doc.odt" >/dev/null 2>&1
+    [[ -s "$work/doc.pdf" ]] && { mv -f "$work/doc.pdf" "$out"; rm -rf "$work"; return 0; }
+  fi
+  rm -rf "$work"; return 1
+}
 
 # _doc_pdf_contest <c> <lang> <out.pdf> — caderno: capa + (PDF custom | enunciado renderizado),
 # unidos com pdfunite; capa REGERADA no fim com o total real de páginas.
@@ -355,28 +414,11 @@ _doc_pdf_contest(){
       else
         printf '<p><i>%s</i></p>' "$([[ "$l" == pt ]] && printf 'enunciado indisponível' || printf 'statement unavailable')" > "$bodyf"
       fi
-      # ROTA PREFERIDA: pandoc html→odt + soffice odt→pdf. O import HTML do Writer NÃO
-      # entende MathML (achatava as fórmulas); via ODT elas viram fórmulas ODF de verdade —
-      # exige o libreoffice-math da imagem. Sem <title> no input: o pandoc o promoveria a
-      # título de documento e sairia uma linha órfã no topo.
-      # O ESTILO vem do reference-doc etc/caderno-reference.odt (ODT ignora CSS): Text Body
-      # JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos). Receita p/
-      # regenerar: `pandoc --print-default-data-file reference.odt`, retocar no styles.xml
-      # os estilos Text_20_body (fo:text-align=justify) e Preformatted_20_Text
-      # (fo:background-color/fo:padding/fo:border) e rezipar com o mimetype PRIMEIRO (zip -0).
-      if command -v pandoc >/dev/null 2>&1; then
-        local refodt=() rf="$_DIR/../../etc/caderno-reference.odt"
-        [[ -f "$rf" ]] || rf="$_DIR/etc/caderno-reference.odt"
-        [[ -f "$rf" ]] && refodt=( --reference-doc="$rf" )
-        { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
-          printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
-          cat "$bodyf"; printf '</body></html>'; } > "$work/o$i.html"
-        if pandoc -f html -t odt "${refodt[@]}" "$work/o$i.html" -o "$work/o$i.odt" 2>/dev/null; then
-          soffice --headless -env:UserInstallation="file://$work/lo$i" --convert-to pdf \
-                  --outdir "$work" "$work/o$i.odt" >/dev/null 2>&1
-          [[ -s "$work/o$i.pdf" ]] && { mv -f "$work/o$i.pdf" "$work/p$i.pdf"; okpdf=1; }
-        fi
-      fi
+      # rota preferida: pandoc→odt→pdf (MathML vira fórmula ODF; ver _doc_html2pdf_odt)
+      { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+        printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+        cat "$bodyf"; printf '</body></html>'; } > "$work/o$i.html"
+      _doc_html2pdf_odt "$work/o$i.html" "$work/p$i.pdf" && okpdf=1
       # FALLBACK (sem pandoc / pandoc falhou): soffice direto no HTML — o strip de
       # <annotation> do _doc_html2pdf ao menos evita o TeX duplicado.
       if [[ -z "$okpdf" ]]; then
@@ -413,11 +455,21 @@ doc_build(){
     info-sheet) _doc_html_infosheet "$c" "$l" > "$tmp" ;;
     times)      _doc_html_times "$c" "$l"    > "$tmp" ;;
     contest)    _doc_html_contest "$c" "$l"  > "$tmp" ;;
+    editorial)  _doc_html_editorial "$c" "$l" > "$tmp" ;;
     *) return 2 ;;
   esac
   [[ -s "$tmp" ]] || { rm -f "$tmp"; return 1; }
   mv -f "$tmp" "$html"
   if [[ "$t" == contest ]]; then _doc_pdf_contest "$c" "$l" "$pdf.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"
+  elif [[ "$t" == editorial ]]; then
+    # um documento só, pela rota ODT (as soluções têm math); miolo sem <title>
+    local mini="$d/.$t.$l.odtin.html"
+    { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+      sed -n '/<body[^>]*>/,/<\/body>/p' "$html" | sed -e 's|<body[^>]*>||' -e 's|</body>||'
+      printf '</body></html>'; } > "$mini"
+    _doc_html2pdf_odt "$mini" "$pdf.tmp" || _doc_html2pdf "$html" "$pdf.tmp" || true
+    rm -f "$mini"
+    if [[ -s "$pdf.tmp" ]]; then mv -f "$pdf.tmp" "$pdf"; else rm -f "$pdf.tmp"; fi
   else _doc_html2pdf "$html" "$pdf.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"; fi
   jq -cn --arg t "$t" --arg l "$l" \
      --argjson bh "$(stat -c%s "$html" 2>/dev/null || echo 0)" \
