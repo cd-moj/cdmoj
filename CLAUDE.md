@@ -127,6 +127,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   roster: `reg_get` normaliza e DESCARTA chave desconhecida) com `dm` (qualquer aviso, dá o
   intervalo mínimo) × `warn` (o automático já disparado, garante "uma vez") — cutucar à mão não
   pode cancelar o aviso da véspera. Texto em HTML ⇒ **escapar `&<>`** de nome de time/contest.
+  Idioma: contest `LOCALE=en` manda **EN + PT no mesmo texto** (DM não tem seletor como a web, e
+  contest `en` é o que mistura gente de fora com brasileiros); contest pt manda só PT.
   **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
   — que eram só desenho de tela — e o roster valem lá; papel nunca é barrado. **TIME = conta local**
   (`users/time-<slug>/`, senha `!<uuid>`) e o membro entra com a credencial DELE: o login faz o

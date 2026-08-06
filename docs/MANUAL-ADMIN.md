@@ -395,7 +395,9 @@ desfazer. Participação é exclusiva — aceitar convite desfaz a inscrição i
 
 **O convite avisa sozinho.** No instante em que o capitão convida, o **mojinho manda uma DM** ao
 convidado com o link de aceitar/recusar; e na **véspera do fechamento** (24 h antes) manda **um
-único** último aviso para quem ainda não respondeu. Só alcança quem tem **Telegram vinculado**
+único** último aviso para quem ainda não respondeu (a mensagem sai em português; se o contest
+estiver com `LOCALE=en`, vai em inglês **e** português no mesmo texto — DM não tem seletor de
+idioma). Só alcança quem tem **Telegram vinculado**
 (perfil do treino → 📨 Telegram) — por isso a lista de convites mostra `📨` (alcançável) ou `⚠️`
 (sem canal), e o resumo conta quantos ficaram sem. Na tabela de times, cada convite pendente tem
 o botão **🔔** para cutucar na hora, e o cabeçalho tem **🔔 Lembrar todos**; cutucar à mão **não**

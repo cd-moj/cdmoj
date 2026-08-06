@@ -96,7 +96,7 @@ echo "== o convite AVISA: DM do mojinho (lib/invite-notify.sh) =="
 OB="$RUN/alerts/outbox"
 nob(){ ( shopt -s nullglob; set -- "$OB"/*.json; echo $# ); }
 # achar a DM pelo CONTEÚDO (o nome do arquivo tem epoch+pid: ordenar por nome não dá cronologia)
-dmfor(){ grep -l "$1" "$OB"/*.json 2>/dev/null | tail -1; }
+dmfor(){ grep -l "$1" "$OB"/*.json 2>/dev/null | xargs -r ls -t 2>/dev/null | head -1; }
 sweep(){ # [gap] [lead] -> quantas DMs a varredura automática enfileirou
   ( export _DIR="$ROOT/api/v1"
     # a MESMA pilha que o router monta: auth.sh é quem tem o _users_source (USERS_FROM) — sem
@@ -160,6 +160,14 @@ adm '{"action":"window","remind":false}'
 ck "painel desliga o automático" '[[ "$(J .remind)" == false ]]'
 ck "e a varredura obedece"       '[[ "$(sweep 0)" == 0 ]]'
 adm '{"action":"window","remind":true}'
+# contest LOCALE=en (o esquenta é assim) mistura gente de fora com brasileiros: a DM não tem
+# seletor de idioma como a web, então vai nos DOIS
+printf 'LOCALE=en\n' >> "$C/conf"
+adm '{"action":"invite-remind","team":"time-os-tres-ponteiros","login":"west"}'
+ck "contest en: DM em EN e PT"   '[[ "$(jq -r .text "$(dmfor 4242)")" == *"Accept or decline"* && "$(jq -r .text "$(dmfor 4242)")" == *"Aceite ou recuse"* ]]'
+sed -i '/^LOCALE=en$/d' "$C/conf"
+adm '{"action":"invite-remind","team":"time-os-tres-ponteiros","login":"west"}'
+ck "contest pt: DM só em PT"     '[[ "$(jq -r .text "$(dmfor 4242)")" != *"Accept or decline"* ]]'
 # limpa o 2º time (o resto do smoke conta 1 time) e o convite pendente dele
 adm '{"action":"team-rm","team":"time-a-b-x"}'
 ck "2º time dissolvido"          '[[ "$(J .totals.teams)" == 1 ]]'

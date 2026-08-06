@@ -133,40 +133,53 @@ _inv_left(){  # <segundos> <lang> -> "~5 h" / "~40 min"
   else printf '~%s min' "$(( s / 60 ))"; fi
 }
 
+_inv_msg_pt(){  # <kind> <time> <contest> <link> <quando> <faltam>
+  local kind="$1" team="$2" nm="$3" link="$4" when="$5" left="$6" dl=""
+  if [[ "$kind" != invite ]]; then
+    printf '⏰ <b>%s</b> — as inscrições fecham %s%s e você ainda tem um <b>convite de time pendente</b> do <b>%s</b>.\n\nAceite ou recuse: %s\n\nQuem não aceita o convite não entra no time.' \
+      "$nm" "${when:-em breve}" "${left:+ (faltam $left)}" "$team" "$link"
+  else
+    # ⚠ `${when:+$'\n\n'…}` NÃO funciona: bash não faz ANSI-C quoting dentro de ${…}
+    [[ -n "$when" ]] && dl=$'\n\n'"⏳ As inscrições fecham $when."
+    printf '🎫 O time <b>%s</b> convidou você para o <b>%s</b>.\n\nAceite ou recuse aqui: %s%s' \
+      "$team" "$nm" "$link" "$dl"
+  fi
+}
+_inv_msg_en(){
+  local kind="$1" team="$2" nm="$3" link="$4" when="$5" left="$6" dl=""
+  if [[ "$kind" != invite ]]; then
+    printf '⏰ <b>%s</b> — registration closes %s%s and you still have a <b>pending team invite</b> from <b>%s</b>.\n\nAccept or decline: %s\n\nIf you do not accept, you will not be on the team.' \
+      "$nm" "${when:-soon}" "${left:+ (in $left)}" "$team" "$link"
+  else
+    [[ -n "$when" ]] && dl=$'\n\n'"⏳ Registration closes $when."
+    printf '🎫 <b>%s</b> invited you to their team in <b>%s</b>.\n\nAccept or decline here: %s%s' \
+      "$team" "$nm" "$link" "$dl"
+  fi
+}
+
 # inv_msg <c> <invite|remind|lastcall> <nome-do-time> <closes_at> -> texto HTML da DM
 # (`remind` = o botão do painel; usa o mesmo texto do aviso automático)
+#
+# IDIOMA: contest em pt manda só português; contest com `LOCALE=en` manda **inglês E português**
+# no mesmo texto. A DM não tem seletor de idioma como a web, e contest `en` é justamente o que
+# mistura gente de fora com brasileiros (o esquenta da maratona é `LOCALE=en` e a maioria dos
+# convidados é do Brasil): mandar só inglês deixaria a maioria sem entender.
 inv_msg(){
-  local c="$1" kind="$2" team="$3" cl="$4" lang nm link when left now="$EPOCHSECONDS"
+  local c="$1" kind="$2" team="$3" cl="$4" lang nm link when whenen left leften now="$EPOCHSECONDS"
   lang="$(inv_lang "$c")"
   nm="$(inv_html_escape "$(inv_contest_name "$c")")"
   team="$(inv_html_escape "$team")"
   link="$(inv_link "$c")"
-  when="$(_inv_when "$cl" "$lang")"
   [[ "$cl" =~ ^[0-9]+$ ]] || cl=0
-  (( cl > now )) && left="$(_inv_left $(( cl - now )) "$lang")" || left=""
-  if [[ "$kind" != invite ]]; then
-    if [[ "$lang" == en ]]; then
-      printf '⏰ <b>%s</b> — registration closes %s%s and you still have a <b>pending team invite</b> from <b>%s</b>.\n\nAccept or decline: %s\n\nIf you do not accept, you will not be on the team.' \
-        "$nm" "${when:-soon}" "${left:+ (in $left)}" "$team" "$link"
-    else
-      printf '⏰ <b>%s</b> — as inscrições fecham %s%s e você ainda tem um <b>convite de time pendente</b> do <b>%s</b>.\n\nAceite ou recuse: %s\n\nQuem não aceita o convite não entra no time.' \
-        "$nm" "${when:-em breve}" "${left:+ (faltam $left)}" "$team" "$link"
-    fi
+  when="$(_inv_when "$cl" pt)"; whenen="$(_inv_when "$cl" en)"
+  if (( cl > now )); then left="$(_inv_left $(( cl - now )) pt)"; leften="$(_inv_left $(( cl - now )) en)"
+  else left=""; leften=""; fi
+  if [[ "$lang" == en ]]; then
+    printf '%s\n\n———\n\n%s' \
+      "$(_inv_msg_en "$kind" "$team" "$nm" "$link" "$whenen" "$leften")" \
+      "$(_inv_msg_pt "$kind" "$team" "$nm" "$link" "$when" "$left")"
   else
-    # ⚠ `${when:+$'\n\n'…}` NÃO funciona: bash não faz ANSI-C quoting dentro de ${…}. A linha do
-    # prazo é montada aqui, com o \n de verdade.
-    local dl=""
-    if [[ -n "$when" ]]; then
-      if [[ "$lang" == en ]]; then dl=$'\n\n'"⏳ Registration closes $when."
-      else dl=$'\n\n'"⏳ As inscrições fecham $when."; fi
-    fi
-    if [[ "$lang" == en ]]; then
-      printf '🎫 <b>%s</b> invited you to their team in <b>%s</b>.\n\nAccept or decline here: %s%s' \
-        "$team" "$nm" "$link" "$dl"
-    else
-      printf '🎫 O time <b>%s</b> convidou você para o <b>%s</b>.\n\nAceite ou recuse aqui: %s%s' \
-        "$team" "$nm" "$link" "$dl"
-    fi
+    _inv_msg_pt "$kind" "$team" "$nm" "$link" "$when" "$left"
   fi
 }
 
