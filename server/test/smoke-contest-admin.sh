@@ -133,6 +133,21 @@ call /contest/admin/problems POST "{\"action\":\"reorder\",\"order\":$ORD}" cadm
 ck "reorder >26 sem letra inválida" '[[ "$(jq -r "[.problems[].letter]|join(\",\")" <<<"$BODY")" == *"Z,AA,AB,AC,AD"* ]]'
 ck "reorder inverteu (último virou A)" '[[ "$(jq -r ".problems[0].name" <<<"$BODY")" == "P25" ]]'
 
+echo "== identificador CUSTOMIZADO (rename new_letter; reorder preserva) =="
+call /contest/admin/problems POST '{"action":"rename","letter":"A","new_letter":"W1"}' cadm 'contest=ac-c'
+ck "rename muda o identificador"  '[[ "$(jq -r ".problems[0].letter" <<<"$BODY")" == "W1" ]]'
+call /contest/admin/problems POST '{"action":"rename","letter":"B","new_letter":"W1"}' cadm 'contest=ac-c'
+ck "identificador em uso -> 422"  '[[ "$OUT" == *"Status: 422"* && "$(jq -r ".error.code" <<<"$BODY")" == letter_taken ]]'
+call /contest/admin/problems POST '{"action":"rename","letter":"B","new_letter":"WXYZ"}' cadm 'contest=ac-c'
+ck "identificador inválido -> 422" '[[ "$OUT" == *"Status: 422"* ]]'
+call /contest/admin/problems GET '' cadm 'contest=ac-c'
+ORD2="$(jq -c '[.problems[].letter]|reverse' <<<"$BODY")"
+call /contest/admin/problems POST "{\"action\":\"reorder\",\"order\":$ORD2}" cadm 'contest=ac-c'
+ck "reorder PRESERVA letra custom" '[[ "$(jq -r ".problems[-1].letter" <<<"$BODY")" == "W1" ]]'
+printf '{"W1":"FF0000"}' > "$FIX/ac-c/balloons.json"
+call /contest/admin/problems POST '{"action":"rename","letter":"W1","new_letter":"W9"}' cadm 'contest=ac-c'
+ck "rename migra a cor do balão"  '[[ "$(jq -r ".W9" "$FIX/ac-c/balloons.json")" == "FF0000" && "$(jq -r ".W1 // \"-\"" "$FIX/ac-c/balloons.json")" == "-" ]]'
+
 echo "== proteções de acesso =="
 call /contest/admin/config GET '' cuser 'contest=ac-c'
 ck "não-admin do contest 403" '[[ "$OUT" == *"Status: 403"* ]]'

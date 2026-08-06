@@ -38,7 +38,7 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 
 | Painel | O que faz |
 |---|---|
-| **Problemas** | A prova em si: renomear/reordenar/remover, restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF), e **Adicionar do banco** (busca e sorteio). |
+| **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF), e **Adicionar do banco** (busca e sorteio). |
 | **Rodadas** | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
 | **Documentos** | Gera, em PDF e HTML nos dois idiomas, os três documentos impressos: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados) e **folha de time limits**. Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. A seção 5 explica. |
 | **Balões** | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). |

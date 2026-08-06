@@ -109,11 +109,17 @@ export function makeRoundsTab(CONTEST, opts = {}) {
       plist.innerHTML = '';
       if (!probs.length) plist.append(el('div', { class: 'small muted' },
         T('nenhum problema nesta rodada ainda', 'no problems in this round yet')));
-      probs.forEach((p, i) => plist.append(el('div', { class: 'row', style: 'gap:.5rem;align-items:center;padding:.15rem 0' },
-        el('b', { style: 'min-width:2rem' }, p.letter || String.fromCharCode(65 + i)),
-        el('span', { style: 'min-width:16rem' }, p.name || p.problem_id || p.bank_id),
-        el('code', { class: 'small muted' }, p.bank_id || p.problem_id || ''),
-        el('button', { class: 'btn ghost', onclick: () => { probs.splice(i, 1); renderP(); } }, '✕'))));
+      probs.forEach((p, i) => {
+        // identificador editável (W1, Q… — não precisa ser A,B,C); salvo junto com a lista
+        const letInp = el('input', { value: p.letter || String.fromCharCode(65 + i), maxlength: '3',
+          style: 'width:3.6rem; font-family:var(--mono)' });
+        letInp.addEventListener('input', () => { p.letter = letInp.value.trim(); });
+        plist.append(el('div', { class: 'row', style: 'gap:.5rem;align-items:center;padding:.15rem 0' },
+          letInp,
+          el('span', { style: 'min-width:16rem' }, p.name || p.problem_id || p.bank_id),
+          el('code', { class: 'small muted' }, p.bank_id || p.problem_id || ''),
+          el('button', { class: 'btn ghost', onclick: () => { probs.splice(i, 1); renderP(); } }, '✕')));
+      });
     };
     renderP();
     const saveP = el('button', { class: 'btn', onclick: () => act({

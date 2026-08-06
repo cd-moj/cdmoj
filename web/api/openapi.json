@@ -4252,7 +4252,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "add|remove|reorder|rename|langs|judges|statement (langs -> problem-langs.json; judges -> problem-judges.json, pool por problema, vazio herda o do contest; add de privado: só se o dono do contest é dono/colaborador — senão 404)",
+        "summary": "add|remove|reorder|rename|langs|judges|statement (langs -> problem-langs.json; judges -> problem-judges.json, pool por problema, vazio herda o do contest; add de privado: só se o dono do contest é dono/colaborador — senão 404) — rename {letter,name?,new_letter?} troca o identificador (migra a cor do balão); reorder preserva letra customizada (só re-letra sequência automática)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

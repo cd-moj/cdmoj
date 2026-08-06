@@ -60,19 +60,37 @@ case "$action" in
   rename)
     L="$(jq -r '.letter // empty' <<<"$body")"
     [[ -n "$L" ]] || fail 400 "Informe a letra" "letter_missing"
+    NLCHK="$(jq -r '.new_letter // empty' <<<"$body")"
+    if [[ -n "$NLCHK" && "$NLCHK" != "$L" ]]; then
+      jq -e --arg n "$NLCHK" 'any(.[]; .letter == $n)' <<<"$cur" >/dev/null 2>&1 \
+        && fail 422 "Já existe um problema com esse identificador" "letter_taken"
+    fi
     new="$(jq -cn --argjson cur "$cur" --argjson b "$body" --arg l "$L" '
       [ $cur[] | if .letter==$l then
           (if ($b|has("name")) then .name=$b.name else . end)
           | (if ($b|has("new_letter")) then .letter=$b.new_letter else . end)
         else . end ]')"
+    # a cor do balão é chaveada pela LETRA (balloons.json): a letra renomeada leva a cor junto
+    NL="$(jq -r '.new_letter // empty' <<<"$body")"
+    if [[ -n "$NL" && "$NL" != "$L" && -s "$CONTESTSDIR/$contest/balloons.json" ]]; then
+      bf="$CONTESTSDIR/$contest/balloons.json"
+      jq -c --arg o "$L" --arg n "$NL" \
+        'if (has($o) and (has($n)|not)) then (.[$n] = .[$o] | del(.[$o])) else . end' \
+        "$bf" > "$bf.tmp" 2>/dev/null && mv -f "$bf.tmp" "$bf" || rm -f "$bf.tmp"
+    fi
     ;;
   reorder)
     order="$(jq -c '.order // []' <<<"$body")"
-    # letra pela posição: A..Z, depois AA,AB,… ([65+key]|implode puro virava lixo com >26)
+    # letra pela posição: A..Z, depois AA,AB,… ([65+key]|implode puro virava lixo com >26).
+    # SÓ re-letra quando as letras atuais JÁ são a sequência automática (contest clássico):
+    # letra CUSTOMIZADA (W1..W4, Q/R/S…) sobrevive à reordenação — o ↑/↓ da UI apagava os
+    # identificadores do aquecimento e não havia como recolocá-los.
     new="$(jq -cn --argjson cur "$cur" --argjson order "$order" '
       def letter($i): if $i < 26 then ([65+$i]|implode) else ([65+(($i/26|floor)-1), 65+($i%26)]|implode) end;
-      ($cur | map({(.letter): .}) | add) as $by
-      | [ $order | to_entries[] | . as $e | ($by[$e.value] // empty) | (.letter = letter($e.key)) ]')"
+      ($cur | to_entries | all(.value.letter == letter(.key))) as $auto
+      | ($cur | map({(.letter): .}) | add) as $by
+      | [ $order | to_entries[] | . as $e | ($by[$e.value] // empty)
+          | (if $auto then .letter = letter($e.key) else . end) ]')"
     ;;
   langs)
     # linguagens permitidas POR problema (ids canônicos minúsculos). Chaveado pelo id

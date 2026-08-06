@@ -43,9 +43,16 @@ export function makeProblemsTab(CONTEST) {
       el('button', { class: 'btn danger', title: T('remover', 'remove'), onclick: (e) => { stop(e); if (confirm(T('Remover ', 'Remove ') + p.letter + '?')) act({ action: 'remove', letter: p.letter }); } }, '✕'));
     head.addEventListener('click', () => { const hid = body.classList.toggle('hidden'); tog.textContent = hid ? '▶' : '▼'; });
 
-    // --- renomear ---
+    // --- renomear (nome E identificador: a letra pode ser custom — W1, Q… — e o reorder a preserva) ---
     const nameInp = el('input', { value: p.name || '', style: 'max-width:280px' });
+    const letInp = el('input', { value: p.letter || '', maxlength: '3', style: 'width:4.5rem; font-family:var(--mono)' });
     const rnMsg = el('div', { class: 'small' });
+    const saveRename = () => {
+      const payload = { action: 'rename', letter: p.letter, name: nameInp.value };
+      const nl = letInp.value.trim();
+      if (nl && nl !== p.letter) payload.new_letter = nl;
+      postProb(payload, rnMsg, true);
+    };
     // --- linguagens (inline) ---
     const picker = makeLangPicker(p.languages || []);
     const lMsg = el('div', { class: 'small' });
@@ -59,8 +66,10 @@ export function makeProblemsTab(CONTEST) {
     const sendStmt = async (payload) => postProb({ action: 'statement', letter: p.letter, ...payload }, sMsg, false);
 
     body.append(
-      el('div', { class: 'row', style: 'margin:.3rem 0' }, el('span', { class: 'small muted' }, T('Nome:', 'Name:')), nameInp,
-        el('button', { class: 'btn ghost', onclick: () => postProb({ action: 'rename', letter: p.letter, name: nameInp.value }, rnMsg, true) }, T('Renomear', 'Rename')), rnMsg),
+      el('div', { class: 'row', style: 'margin:.3rem 0; flex-wrap:wrap' },
+        el('span', { class: 'small muted' }, T('Identificador:', 'Identifier:')), letInp,
+        el('span', { class: 'small muted' }, T('Nome:', 'Name:')), nameInp,
+        el('button', { class: 'btn ghost', onclick: saveRename }, T('Renomear', 'Rename')), rnMsg),
       el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, T('💻 Linguagens (nenhuma marcada = herda do contest):', '💻 Languages (none checked = inherits from contest):')),
         picker.el, el('div', { class: 'row' }, el('button', { class: 'btn', onclick: () => postProb({ action: 'langs', letter: p.letter, languages: picker.get() }, lMsg, false) }, T('Salvar linguagens', 'Save languages')), lMsg)),
       el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, T('🖥️ Máquinas de juiz deste problema (nenhuma marcada = herda o pool do contest):', '🖥️ Judge machines for this problem (none checked = inherits the contest pool):')),
