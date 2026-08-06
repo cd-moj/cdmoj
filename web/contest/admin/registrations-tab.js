@@ -15,11 +15,17 @@ import { el, fmtDate } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
 import { field, toCsv, downloadText } from '/shared/admin-ui.js';
+import { toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { flagEl } from '/shared/flags.js';
 
 const enc = encodeURIComponent;
-const dt = (e) => (e ? new Date(e * 1000).toISOString().slice(0, 16) : '');
-const toEpoch = (s) => (s ? Math.floor(new Date(s).getTime() / 1000) : 0);
+// ⚠ datas: SEMPRE o par toLocalDT/dtToEpoch. `<input type=datetime-local>` é lido por Date.parse
+// em hora LOCAL, então preencher com toISOString() (UTC) não fecha o ida-e-volta: a janela nascia
+// +3h na tela e CADA "Salvar" empurrava REG_OPEN/REG_CLOSE mais 3h — bastava mexer no checkbox
+// ao lado. É o helper que as outras 9 telas de data já usavam.
+const tzName = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } };
+const tzOffset = () => { const m = -new Date().getTimezoneOffset();
+  return 'UTC' + (m < 0 ? '−' : '+') + Math.floor(Math.abs(m) / 60) + (Math.abs(m) % 60 ? ':' + String(Math.abs(m) % 60).padStart(2, '0') : ''); };
 
 export function makeRegistrationsTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };
@@ -52,8 +58,8 @@ export function makeRegistrationsTab(CONTEST) {
 
   function windowBox() {
     const w = DATA.window || {};
-    const op = el('input', { type: 'datetime-local', value: dt(w.opens_at) });
-    const cl = el('input', { type: 'datetime-local', value: dt(w.closes_at) });
+    const op = el('input', { type: 'datetime-local', value: toLocalDT(w.opens_at) });
+    const cl = el('input', { type: 'datetime-local', value: toLocalDT(w.closes_at) });
     const lm = el('input', { type: 'number', min: '0', style: 'width:6rem',
       value: String(Math.max(0, Math.round(((w.late_until || 0) - (w.closes_at || 0)) / 60))) });
     const mx = el('input', { type: 'number', min: '1', max: '9', style: 'width:5rem', value: String(DATA.team_max || 3) });
@@ -66,6 +72,16 @@ export function makeRegistrationsTab(CONTEST) {
       T('Deixe “fecha” vazio para herdar o início da prova: ', 'Leave “closes” empty to inherit the contest start: '),
       el('b', {}, anc),
       w.official_round ? el('span', { class: 'muted' }, T(' · rodada ', ' · round ') + w.official_round) : '');
+    // em que relógio estão estes campos — a ambiguidade entre o fuso do navegador e o do contest
+    // é o que fazia o organizador achar que o horário "andava sozinho"
+    const inTz = (e, tz) => { try { return new Date(e * 1000).toLocaleString('pt-BR', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' }); } catch { return ''; } };
+    const ctz = DATA.tz || '';
+    const difere = ctz && w.closes_at && inTz(w.closes_at, ctz) !== inTz(w.closes_at, undefined);
+    const tzline = el('p', { class: 'small muted' },
+      T('Horários no relógio DESTE navegador (', 'Times in THIS browser’s clock ('),
+      (tzName() ? tzName() + ' · ' : '') + tzOffset(), ')',
+      ctz ? T('. Fuso da prova: ', '. Contest timezone: ') + ctz : '',
+      difere ? el('b', {}, T(' — lá, “fecha” é ', ' — there, “closes” is ') + inTz(w.closes_at, ctz)) : '');
     const form = el('div', { class: 'row', style: 'gap:.8rem; flex-wrap:wrap; align-items:flex-end' },
       field(T('abre', 'opens'), op), field(T('fecha', 'closes'), cl),
       field(T('atraso (min)', 'late (min)'), lm), field(T('tamanho do time', 'team size'), mx),
@@ -76,7 +92,10 @@ export function makeRegistrationsTab(CONTEST) {
                  'the day before it closes, mojinho sends ONE DM per still-pending invite'),
       }, rm, ' ' + T('lembrete automático', 'automatic reminder'))),
       el('button', { class: 'btn', onclick: () => act({
-        action: 'window', open: toEpoch(op.value) || undefined, close: toEpoch(cl.value) || undefined,
+        action: 'window', open: dtToEpoch(op.value) || undefined,
+        // `null` (não `undefined`) APAGA o REG_CLOSE: é o que faz a promessa do "deixe vazio para
+        // herdar o início da prova" valer depois que o valor já foi gravado uma vez
+        close: cl.value ? dtToEpoch(cl.value) : null,
         late_minutes: Number(lm.value) || 0, team_max: Number(mx.value) || 3, teams: tm.checked,
         remind: rm.checked,
       }, T('Janela salva.', 'Window saved.')) }, T('Salvar janela', 'Save window')));
@@ -85,7 +104,7 @@ export function makeRegistrationsTab(CONTEST) {
       el('p', { class: 'small muted' },
         T('Fecha por padrão no início da PROVA OFICIAL — não no da rodada corrente: o aquecimento pode ficar dias no ar. Os minutos de atraso deixam entrar depois do início da prova, mas na coorte “atrasado” (aparece no placar sem ocupar posição) — é a extra registration do Codeforces.',
           'Closes at the OFFICIAL CONTEST start by default — not the current round: the warm-up may run for days. The late minutes let people join after the contest starts, but in the “late” cohort (they appear on the scoreboard without taking a position) — the Codeforces extra registration.')),
-      herda, form);
+      herda, tzline, form);
   }
 
   // pílulas dos convites pendentes: quem é, se o mojinho alcança (📨), há quanto tempo espera,

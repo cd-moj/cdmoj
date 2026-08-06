@@ -4080,7 +4080,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui mode read-only, judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false)",
+        "summary": "Configurações do contest (inclui mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4097,7 +4097,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Atualiza configurações (auditado; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
+        "summary": "Atualiza configurações (auditado; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4723,7 +4723,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "enable | disable | window {open,close,late_minutes,team_max,teams,remind} | add | rm | team-add | team-rm | team-meta {team,univ?,ai?,flag?} | individual-meta {login,univ?,ai?,flag?} | materialize | invite-remind {team,login} | invite-remind-all (o mojinho manda DM ao convidado com o link de aceitar/recusar; remind=false desliga o aviso automático da véspera)",
+        "summary": "enable | disable | window {open,close,late_minutes,team_max,teams,remind} (campo ausente não mexe; null APAGA a chave — close:null volta a herdar o início da prova) | add | rm | team-add | team-rm | team-meta {team,univ?,ai?,flag?} | individual-meta {login,univ?,ai?,flag?} | materialize | invite-remind {team,login} | invite-remind-all (o mojinho manda DM ao convidado com o link de aceitar/recusar; remind=false desliga o aviso automático da véspera)",
         "security": [
           {
             "bearerAuth": []

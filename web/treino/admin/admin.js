@@ -1108,6 +1108,10 @@ function makeManagedTab() {
     return a; };
   const fmtD = (e) => e ? new Date(e * 1000).toLocaleDateString() : '';
   const dateToEpoch = (v) => v ? Math.floor(new Date(v + 'T23:59:59').getTime() / 1000) : null;
+  // par do dateToEpoch: componentes LOCAIS. Com toISOString() (UTC) a validade gravada às 23:59
+  // de Brasília voltava para a tela como o DIA SEGUINTE — e reabrir+salvar empurrava +1 dia.
+  const epochToDate = (e) => { if (!e) return ''; const d = new Date(e * 1000), p = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
 
   function showCreds(list, skipped) {
     credsBox.innerHTML = '';
@@ -1207,7 +1211,7 @@ function makeManagedTab() {
     const loginI = el('input', { value: '', placeholder: T('login (vazio = gerado do nome)', 'login (empty = generated)'), style: 'width:16rem;font-family:var(--mono)' });
     if (editing) { loginI.value = u.login; loginI.disabled = true; }
     const noteI = el('input', { value: editing ? (u.note || '') : '', placeholder: T('nota (turma, escola, responsável…)', 'note (class, school, guardian…)'), style: 'width:100%' });
-    const expI = el('input', { type: 'date', value: editing && u.expires_at ? new Date(u.expires_at * 1000).toISOString().slice(0, 10) : '' });
+    const expI = el('input', { type: 'date', value: editing ? epochToDate(u.expires_at) : '' });
     const ferr = el('span', { class: 'small error-box hidden' });
     const saveB = el('button', { class: 'btn', onclick: async () => {
       ferr.classList.add('hidden');

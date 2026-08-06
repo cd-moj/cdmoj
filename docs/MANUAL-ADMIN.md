@@ -414,6 +414,12 @@ o placar, os balões e a impressão veem **uma linha só**. Quem estava no tecla
 entrar, mas na coorte `…-atrasado`, que aparece no placar **sem ocupar posição** (é a *extra
 registration* do Codeforces). Passou disso, a porta fecha.
 
+**Em que relógio estão esses campos:** no do **seu navegador** — a caixa mostra qual é, logo
+abaixo. Já as horas que o **MOJ escreve para as pessoas** (a DM do mojinho, o checklist
+pré-prova, a data do caderno, o relatório final) saem no **fuso da prova**, que você define em
+*Configurações → 🌎 Fuso horário da prova* (vazio = `America/Sao_Paulo`). Quando os dois relógios
+diferem, a caixa da janela mostra também o horário no fuso da prova, para não haver dúvida.
+
 **Placar:** a inscrição semeia as coortes `individual` e `times`, cada uma com **placar próprio**
 — o seletor "Placar: Geral | Times | Individual" aparece sozinho na página do placar. Se o
 contest já tinha coortes configuradas, o checklist pré-prova avisa que faltam essas duas.

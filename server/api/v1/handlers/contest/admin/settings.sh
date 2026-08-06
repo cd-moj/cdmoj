@@ -9,7 +9,7 @@ is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
-  CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""
+  CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
   FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""
   PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"
   load_contest_conf "$contest"
@@ -20,7 +20,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   [[ "$PENALTY_MINUTES" =~ ^[0-9]+$ ]] || PENALTY_MINUTES=20
   [[ "$PENALTY_VERDICTS" == "__unset" ]] && PENALTY_VERDICTS="$PENALTY_CODES_DEFAULT"
   pvd_json="$(jq -cn --arg pv "$PENALTY_VERDICTS" '$pv|split(" ")|map(select(length>0))')"
-  ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc,
+  ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc, tz:$tz,
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj}' \
@@ -29,6 +29,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson rj "$([[ "${REVIEW_JUDGES:-}" =~ ^[1-5]$ ]] && echo "$REVIEW_JUDGES" || echo 2)" \
     --arg nm "$CONTEST_NAME" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
+    --arg tz "$(contest_tz "$contest")" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
     --argjson sc "$([[ "$SHOWCODE" == 1 ]] && echo true || echo false)" \
     --argjson sl "$([[ "$(showlog_effective "$contest")" == 0 ]] && echo false || echo true)" \
@@ -59,6 +60,18 @@ for pair in start:CONTEST_START end:CONTEST_END login_start:LOGIN_START_TIME fre
   has "$k" && { v="$(jq -r ".$k" <<<"$body")"; [[ "$v" =~ ^[0-9]+$ ]] || fail 422 "$k inválido" "int_invalid"; setvar "$var" "$v"; }
 done
 has locale && { v="$(jq -r '.locale' <<<"$body")"; [[ "$v" =~ ^(pt|en)$ ]] || fail 422 "locale inválido" "locale_invalid"; setvar LOCALE "$v"; }
+# FUSO da prova: governa TODA hora que o servidor escreve p/ gente sobre este contest (DM do
+# convite, checklist pré-prova, caderno, relatório). Vazio = volta ao padrão da instalação
+# (MOJ_TZ). Validado contra o zoneinfo: nome errado faria o `date` cair mudo em UTC.
+if has tz; then
+  v="$(jq -r '.tz // ""' <<<"$body")"
+  if [[ -z "$v" || "$v" == null ]]; then delvar CONTEST_TZ
+  else
+    [[ "$v" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$ && -f "/usr/share/zoneinfo/$v" ]] \
+      || fail 422 "fuso horário desconhecido (ex.: America/Sao_Paulo)" "tz_invalid"
+    setvar CONTEST_TZ "$v"
+  fi
+fi
 
 bset(){ # <jsonkey> <VAR> <on-value-p/-positivos>
   has "$1" || return 0

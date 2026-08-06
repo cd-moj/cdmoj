@@ -30,7 +30,7 @@ mode="$(contest_score_mode "$contest")"
 # --- janela -----------------------------------------------------------------
 if [[ "$CONTEST_START" =~ ^[0-9]+$ && "$CONTEST_END" =~ ^[0-9]+$ ]] \
    && (( CONTEST_START > 0 && CONTEST_END > CONTEST_START )); then
-  add window ok "Janela da prova" "início $(date -d "@$CONTEST_START" '+%d/%m %H:%M' 2>/dev/null) → fim $(date -d "@$CONTEST_END" '+%d/%m %H:%M' 2>/dev/null)"
+  add window ok "Janela da prova" "início $(fmt_epoch "$CONTEST_START" '%d/%m %H:%M' "$contest") → fim $(fmt_epoch "$CONTEST_END" '%d/%m %H:%M' "$contest") ($(contest_tz "$contest"))"
 else
   add window fail "Janela da prova" "CONTEST_START/CONTEST_END ausentes ou invertidos no conf"
 fi
@@ -51,7 +51,7 @@ fi
 # --- freeze -------------------------------------------------------------------
 fz="${FREEZE_TIME:-0}"; [[ "$fz" =~ ^[0-9]+$ ]] || fz=0
 if (( fz > 0 && fz > CONTEST_START && fz < CONTEST_END )); then
-  add freeze ok "Freeze configurado" "congela em $(date -d "@$fz" '+%d/%m %H:%M' 2>/dev/null)"
+  add freeze ok "Freeze configurado" "congela em $(fmt_epoch "$fz" '%d/%m %H:%M' "$contest")"
 elif (( fz > 0 )); then
   add freeze warn "Freeze fora da janela" "FREEZE_TIME não está entre o início e o fim"
 else
@@ -236,7 +236,7 @@ if (( ntov > 0 )); then
   # mas tem de ser escolha, não surpresa).
   maxend="$(jq -r '[.[]?.end // 0] | max // 0' "$tov" 2>/dev/null)"; maxend="${maxend//[^0-9]/}"; maxend="${maxend:-0}"
   extra=""
-  (( fz > 0 && maxend > CONTEST_END )) && extra=" — o fim prorrogado ($(date -d "@$maxend" '+%d/%m %H:%M' 2>/dev/null)) passa do freeze"
+  (( fz > 0 && maxend > CONTEST_END )) && extra=" — o fim prorrogado ($(fmt_epoch "$maxend" '%d/%m %H:%M' "$contest")) passa do freeze"
   add tov warn "Prorrogação por sede ativa" "$ntov regra(s) em time-overrides.json$extra"
 else
   add tov ok "Sem prorrogações ativas" "todos seguem o fim normal"
@@ -270,7 +270,7 @@ if reg_enabled "$contest"; then
   rwin="$(reg_window_state "$contest")"
   IFS=$'\t' read -r _rs _rop _rcl _rlt _ranc _rrnd < <(reg_window "$contest")
   # a inscrição fecha no início da PROVA OFICIAL — o aquecimento pode ficar dias no ar
-  rwhen="$([[ "$_rcl" =~ ^[1-9][0-9]*$ ]] && date -d "@$_rcl" '+%d/%m %H:%M' 2>/dev/null || echo 'sem prazo')"
+  rwhen="$([[ "$_rcl" =~ ^[1-9][0-9]*$ ]] && fmt_epoch "$_rcl" '%d/%m %H:%M' "$contest" || echo 'sem prazo')"
   ranchor="$([[ -n "$_rrnd" ]] && echo " (âncora: início da rodada '$_rrnd')" || echo "")"
   if (( rp == 0 )); then
     add registration warn "Inscrição ligada, ninguém inscrito" "com o roster ligado SÓ inscrito entra — a inscrição fica em /contests/inscricao/?c=$contest"

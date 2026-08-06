@@ -275,6 +275,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   legítima (isento de gate declarado, coorte privada) e nunca transforme configuração
   deliberada em aviso eterno. Libs pesadas (rodadas) só são `source`adas dentro do `if` que
   precisa delas: o handler roda a cada abertura da Central.
+- **FUSO (2026-08-06)**: a imagem é debian-slim **sem TZ** ⇒ o servidor rodava em UTC e TUDO que
+  ele escrevia p/ humano saía 3 h adiantado (DM do convite, preflight, caderno, relatório). Hoje
+  `lib/common.sh` faz `export TZ="$MOJ_TZ"` (default `America/Sao_Paulo`, em `etc/common.conf`) e
+  o que fala DE um contest usa **`fmt_epoch <epoch> <fmt> <contest>`** + **`contest_tz`**
+  (`CONTEST_TZ` no conf, validado contra o zoneinfo — nome inválido faria o `date` cair mudo em
+  UTC). Epoch nunca muda: o fuso é só renderização. Script standalone (`score/report-gen.sh`) não
+  herda o common ⇒ exporta o TZ ele mesmo.
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
@@ -438,6 +445,12 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   volta), enunciados, **títulos de problema/nomes de contest/time**, corpo de notícias, tags.
 - **Toda tela/string nova NASCE nos DOIS idiomas** (`T('pt','en')` no JS, `data-en` no HTML) — deixar
   só em PT é **bug**, igual doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`.
+- ⚠️ **Campo de data/hora: SEMPRE o par `toLocalDT`/`dtToEpoch`** (`shared/contest-config/util.js`),
+  NUNCA `toISOString()`. `<input type="datetime-local">` é lido por `Date.parse` em hora **LOCAL**;
+  preencher com `toISOString()` (**UTC**) não fecha o ida-e-volta e **cada Salvar empurra o valor
+  pelo offset do fuso** (o painel de Inscrições empurrava +3 h por clique, e a janela nascia +3 h
+  na tela). O mesmo vale p/ `type="date"`: componentes locais dos dois lados. `toISOString` só em
+  coluna de CSV/nome de arquivo, onde UTC é o combinado.
 - ⚠️ **`T()` no TOPO do módulo congela o idioma**: o valor é calculado no import, ANTES de
   `initContestShell` aplicar o `LOCALE` do contest (o rótulo sai no idioma do browser). Rótulo de
   aba/estado/tipo tem de ser **fábrica preguiçosa** — `const TABS = () => [...]`, chamada no render

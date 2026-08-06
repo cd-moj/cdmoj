@@ -385,6 +385,35 @@ ck "admin dissolveu o time"     '[[ "$(J .totals.teams)" == 0 ]]'
 call /contest/admin/registrations GET '' tok-zeze 'contest=esq'
 ck "não-admin 403"              '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== janela: o que entra é o que volta (o painel gravava com fuso trocado) =="
+# NÃO havia teste algum da GRAVAÇÃO da janela — só da leitura de um conf pré-fabricado. O bug do
+# painel (mostrava em UTC, salvava em local) empurrava REG_OPEN/REG_CLOSE +3h a cada Salvar.
+WOPEN=$(( NOW + 1000 )); WCLOSE=$(( NOW + 90000 ))
+adm "{\"action\":\"window\",\"open\":$WOPEN,\"close\":$WCLOSE}"
+ck "abre volta igual"           '[[ "$(J .window.opens_at)" == '"$WOPEN"' ]]'
+ck "fecha volta igual"          '[[ "$(J .window.closes_at)" == '"$WCLOSE"' ]]'
+adm '{"action":"window","late_minutes":15}'
+ck "salvar de novo NÃO move"    '[[ "$(J .window.opens_at)" == '"$WOPEN"' && "$(J .window.closes_at)" == '"$WCLOSE"' ]]'
+adm '{"action":"window","close":null}'
+ck "close:null apaga a chave"   '[[ "$(grep -c "^REG_CLOSE=" "$C/conf")" == 0 ]]'
+ck "…e volta a herdar a prova"  '[[ "$(J .window.closes_at)" != '"$WCLOSE"' ]]'
+adm '{"action":"window","open":null}'
+ck "open:null idem"             '[[ "$(grep -c "^REG_OPEN=" "$C/conf")" == 0 ]]'
+
+echo "== fuso: o servidor escreve no relógio da PROVA =="
+tzq(){ ( export CONTESTSDIR="$FIX" RUNDIR="$RUN"
+         source "$ROOT/api/v1/lib/common.sh"
+         printf '%s|%s' "$(contest_tz esq)" "$(fmt_epoch 1786813200 '%d/%m %H:%M' esq)" ); }
+ck "sem CONTEST_TZ: padrão BRT" '[[ "$(tzq)" == "America/Sao_Paulo|15/08 14:00" ]]'
+printf 'CONTEST_TZ=UTC\n' >> "$C/conf"
+ck "CONTEST_TZ=UTC manda"       '[[ "$(tzq)" == "UTC|15/08 17:00" ]]'
+sed -i '/^CONTEST_TZ=UTC$/d' "$C/conf"
+printf 'CONTEST_TZ=Nao/Existe\n' >> "$C/conf"
+ck "fuso inexistente = padrão"  '[[ "$(tzq)" == "America/Sao_Paulo|15/08 14:00" ]]'
+sed -i '\|^CONTEST_TZ=Nao/Existe$|d' "$C/conf"
+call /contest/admin/registrations GET '' tok-adm 'contest=esq'
+ck "painel diz o fuso da prova" '[[ "$(J .tz)" == "America/Sao_Paulo" ]]'
+
 echo ""
 echo "RESULT: $pass passed, $fail failed"
 exit $(( fail>0 ? 1 : 0 ))

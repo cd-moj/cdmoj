@@ -58,6 +58,13 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const langs = makeLangPicker(s.languages || []);
   const judges = makeJudgePicker(s.judges || [], apiCtx || {});
   const fullUsers = el('input', { value: (s.score_full_users || []).join(' '), placeholder: T('logins (espaço) — além de .admin/.judge/.cjudge', 'logins (space) — besides .admin/.judge/.cjudge'), style: 'width:100%' });
+  // FUSO da prova: governa as horas que o SERVIDOR escreve para gente (DM do mojinho, checklist
+  // pré-prova, caderno, relatório). Os campos de data desta tela seguem no relógio do navegador.
+  const TZS = ['America/Sao_Paulo', 'America/Manaus', 'America/Belem', 'America/Fortaleza',
+    'America/Cuiaba', 'America/Rio_Branco', 'America/Noronha', 'America/Argentina/Buenos_Aires',
+    'America/Bogota', 'Europe/Lisbon', 'UTC'];
+  const tzList = el('datalist', { id: 'tzlist' }, ...TZS.map((z) => el('option', { value: z })));
+  const tz = el('input', { value: s.tz || '', list: 'tzlist', placeholder: 'America/Sao_Paulo', style: 'width:16rem' });
 
   let cmode = contestMode;
   const penaltySec = el('div', {},
@@ -115,7 +122,14 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     judges.el,
     el('h3', { style: 'margin:1rem 0 .3rem' }, T('👁️ Placar completo (sem freeze)', '👁️ Full scoreboard (no freeze)')),
     el('p', { class: 'muted small' }, T('Quem vê o placar real mesmo durante o freeze: .admin, .judge e .cjudge (juiz-chefe) sempre; some outros logins aqui.', 'Who sees the real scoreboard even during freeze: .admin, .judge and .cjudge (chief judge) always; add other logins here.')),
-    fullUsers);
+    fullUsers,
+    // ⚠ campo NOVO entra no FIM: o settings-tab.js monta as seções por ÍNDICE dos filhos —
+    // inserir no meio deslocaria todos os seguintes p/ a seção errada.
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🌎 Fuso horário da prova', '🌎 Contest timezone')),
+    el('p', { class: 'muted small' },
+      T('Em que relógio o MOJ escreve as horas desta prova para as pessoas: mensagem do mojinho, checklist pré-prova, caderno e relatório. Vazio = padrão da instalação (America/Sao_Paulo). Os campos de data desta tela continuam no relógio do SEU navegador.',
+        'Which clock the MOJ uses when writing this contest’s times for people: mojinho message, pre-contest checklist, problem set and report. Empty = installation default (America/Sao_Paulo). The date fields on this screen still follow YOUR browser’s clock.')),
+    el('div', {}, tzList, field(T('Fuso (IANA)', 'Timezone (IANA)'), tz)));
 
   function getValue() {
     return {
@@ -126,7 +140,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       }),
       ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}),
       ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
-      locale: locale.value, login_enabled: loginEnabled.checked,
+      locale: locale.value, tz: tz.value.trim(), login_enabled: loginEnabled.checked,
       show_code: showCode.checked, show_log: showLog.checked, show_editor: showEditor.checked,
       allow_late: allowLate.checked, score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,

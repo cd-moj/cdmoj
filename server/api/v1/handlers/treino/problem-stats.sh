@@ -28,10 +28,12 @@ title="$(jq -r '.title // ""' "$T/var/jsons/$id.json" 2>/dev/null)"
 # linhas do problema (campo 3 == id). Pode ser vazio. emit_history_stream unifica store-v2/legado.
 plines="$(emit_history_stream treino | awk -F: -v p="$id" '$3==p' 2>/dev/null)"
 
-# O sub_epoch (campo 6) alimenta as séries temporais; datas/horas no fuso do público-alvo
-# (TZ p/ o strflocaltime do jq). Uma passada só; buckets fixos saem prontos p/ o front.
+# O sub_epoch (campo 6) alimenta as séries temporais; datas/horas no fuso do público-alvo — o
+# TZ do processo (MOJ_TZ, exportado no lib/common.sh) é quem o strflocaltime do jq lê. Antes
+# isto era o ÚNICO ponto do servidor com o fuso certo, cravado na mão.
+# Uma passada só; buckets fixos saem prontos p/ o front.
 core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]//""), lang:(.[3]//"?"), verdict:(.[4]//""), epoch:((.[5]//"0")|(tonumber? // 0))}' \
-  | TZ=America/Sao_Paulo jq -s '
+  | jq -s '
       def vc: if startswith("Accepted") then "Accepted"
               elif startswith("Wrong") then "Wrong Answer"
               elif startswith("Time Limit") then "Time Limit Exceeded"

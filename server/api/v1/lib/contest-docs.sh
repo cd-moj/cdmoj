@@ -92,11 +92,16 @@ _doc_meta(){
   [[ -n "$CNAME" ]] || CNAME="$c"
 }
 
-_doc_date(){  # <epoch> <lang>
-  local e="${1:-0}" l="$2"
+_doc_date(){  # <epoch> <lang> [contest] — data da prova NO FUSO DELA
+  # sem o fuso do contest, uma prova que começa depois das 21h (BRT) saía no documento com a
+  # data do DIA SEGUINTE (o servidor renderiza em UTC por padrão).
+  local e="${1:-0}" l="$2" c3="${3:-}" tz=""
   [[ "$e" =~ ^[0-9]+$ && "$e" -gt 0 ]] || { printf '—'; return; }
-  if [[ "$l" == pt ]]; then LC_ALL=pt_BR.UTF-8 date -d "@$e" '+%d/%m/%Y' 2>/dev/null || date -d "@$e" '+%d/%m/%Y'
-  else LC_ALL=C date -d "@$e" '+%B %d, %Y' 2>/dev/null || date -d "@$e" '+%Y-%m-%d'; fi
+  [[ -n "$c3" ]] && tz="$(contest_tz "$c3")"
+  if [[ "$l" == pt ]]; then TZ="${tz:-$TZ}" LC_ALL=pt_BR.UTF-8 date -d "@$e" '+%d/%m/%Y' 2>/dev/null \
+                            || TZ="${tz:-$TZ}" date -d "@$e" '+%d/%m/%Y'
+  else TZ="${tz:-$TZ}" LC_ALL=C date -d "@$e" '+%B %d, %Y' 2>/dev/null \
+       || TZ="${tz:-$TZ}" date -d "@$e" '+%Y-%m-%d'; fi
 }
 
 # _doc_pool <c> <problem_id> -> pool de hosts p/ o TL (problem-judges.json > CONTEST_JUDGES)
@@ -204,7 +209,7 @@ _doc_html_infosheet(){
   tmp="$(mktemp)"
   # marcadores -> conteúdo gerado (tabelas entram como HTML puro depois do pandoc)
   sed -e "s|{{CONTEST_NAME}}|$(_doc_escs "$CNAME")|g" \
-      -e "s|{{DATE}}|$(_doc_date "$CDATE" "$l")|g" \
+      -e "s|{{DATE}}|$(_doc_date "$CDATE" "$l" "$c")|g" \
       -e "s|{{MEMLIMIT}}|${CMEM:-1024} MB|g" \
       -e "s|{{STACK}}|$(( ${CSTACK:-131072} / 1024 )) MB|g" \
       "$tpl" > "$tmp"
@@ -214,7 +219,7 @@ _doc_html_infosheet(){
   local tchtml="<ul>"; while IFS= read -r line; do [[ -n "$line" ]] && tchtml+="<li>$(_doc_escs "$line")</li>"; done <<<"$tc"; tchtml+="</ul>"
   [[ -n "$tc" ]] || tchtml="<p><i>$([[ "$l" == pt ]] && printf 'nenhum juiz reportou versões ainda' || printf 'no judge reported versions yet')</i></p>"
   _doc_html_head "$CNAME — info sheet"
-  printf '<h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l")"
+  printf '<h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
   # substitui os marcadores de BLOCO que sobraram no HTML renderizado
   printf '%s' "$body" \
     | sed -e "s|{{TOOLCHAIN}}|$(printf '%s' "$tchtml" | sed 's/[&|]/\\&/g')|" \
@@ -228,7 +233,7 @@ _doc_html_times(){
   local c="$1" l="$2" cfg errata
   _doc_meta "$c"; cfg="$(doc_conf_get "$c")"; errata="$(jq -r '.errata // ""' <<<"$cfg")"
   _doc_html_head "$CNAME — time limits"
-  printf '<h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l")"
+  printf '<h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
   printf '<h2 class="center">%s</h2>\n' "$(_doc_t "$l" times_title)"
   _doc_tl_table "$c" "$l"
   printf '<p class="foot"><sup>1</sup> %s</p>\n' "$(_doc_t "$l" seconds)"
@@ -259,7 +264,7 @@ _doc_html_cover(){
     _doc_html_head "$CNAME"
     printf '<div class="cover">'
     sed -e "s|{{CONTEST_NAME}}|$(_doc_escs "$CNAME")|g" \
-        -e "s|{{DATE}}|$(_doc_date "$CDATE" "$l")|g" \
+        -e "s|{{DATE}}|$(_doc_date "$CDATE" "$l" "$c")|g" \
         -e "s|{{N_PROBLEMS}}|$np|g" \
         -e "s|{{N_PAGES}}|${pg:-?}|g" \
         -e "s|{{SITES}}|$(_doc_escs "$sites")|g" \
@@ -271,7 +276,7 @@ _doc_html_cover(){
   fi
 
   _doc_html_head "$CNAME"
-  printf '<div class="cover"><h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l")"
+  printf '<div class="cover"><h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
   printf '<h2 class="session">%s</h2>\n' "$(_doc_t "$l" session)"
   printf '<p class="center">%s <b>%s</b> %s' "$(_doc_t "$l" contains)" "$np" "$(_doc_t "$l" problems_w)"
   [[ -n "$pg" ]] && printf '; %s %s' "$(_doc_t "$l" pages)" "$pg"

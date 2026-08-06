@@ -20,6 +20,28 @@ _LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${DEFAULT_SCORE_MODE:=icpc}"
 export CONTESTSDIR SCOREDIR   # herdados por sub-processos (ex.: server/score/build.sh)
 
+# --- FUSO: toda hora que o servidor ESCREVE para gente ---------------------
+# A imagem é debian-slim sem TZ ⇒ o processo rodava em UTC e TUDO que o servidor imprimia p/
+# humano saía 3 h à frente do relógio de Brasília: a DM do convite, o checklist pré-prova, a data
+# do caderno, o relatório final. (A web nunca sofreu disso — ela formata no relógio do browser.)
+# Epoch não muda: o que muda é só a renderização (date, jq strflocaltime, awk strftime).
+: "${MOJ_TZ:=America/Sao_Paulo}"
+export TZ="$MOJ_TZ"
+
+# contest_tz <c> — fuso DO CONTEST (CONTEST_TZ no conf), com fallback p/ o MOJ_TZ.
+# Validado contra o zoneinfo: nome inválido faria `date` cair mudo em UTC.
+contest_tz(){
+  local v; v="$( ( CONTEST_TZ=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${CONTEST_TZ:-}" ) )"
+  if [[ -n "$v" && "$v" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$ && -f "/usr/share/zoneinfo/$v" ]]
+    then printf '%s' "$v"; else printf '%s' "$MOJ_TZ"; fi
+}
+# fmt_epoch <epoch> <formato-date> [contest] — data legível no fuso certo (vazio se não for epoch)
+fmt_epoch(){
+  [[ "$1" =~ ^[0-9]+$ ]] && (( $1 > 0 )) || return 0
+  if [[ -n "${3:-}" ]]; then TZ="$(contest_tz "$3")" date -d "@$1" "+$2" 2>/dev/null
+  else date -d "@$1" "+$2" 2>/dev/null; fi
+}
+
 # --- liveness do daemon de julgamento -------------------------------------
 # O `pgrep` só enxerga o judged quando ele roda no MESMO namespace de PID que a API. No deploy
 # recomendado (imagem podman) são DOIS containers — moj-api e moj-judged — e a API JAMAIS veria

@@ -60,9 +60,10 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
       --argjson en "$(reg_enabled "$contest" && echo true || echo false)" \
       --argjson tok "$(reg_teams_allowed "$contest" && echo true || echo false)" \
       --argjson remind "$(reg_remind_on "$contest" && echo true || echo false)" \
+      --arg tz "$(contest_tz "$contest")" \
       --argjson tgs "$tgs" --slurpfile inv "$invf" '
     (($inv[0].items) // {}) as $im
-    | { success:true, enabled:$en, teams_allowed:$tok, team_max:$max, remind:$remind,
+    | { success:true, enabled:$en, teams_allowed:$tok, team_max:$max, remind:$remind, tz:$tz,
       window:{state:$st, opens_at:$op, closes_at:$cl, late_until:$lt,
               official_start:$anc, official_round:$rnd},
       round_kind:$kind, gate_active:$gate,
@@ -114,11 +115,16 @@ case "$action" in
     [[ -f "$(reg_file "$contest")" ]] && mv -f "$(reg_file "$contest")" "$(reg_file "$contest").off"
     audit_log_to "$contest" reg-disable "" ;;
   window)
-    # epochs no conf, no mesmo caminho do settings (cc_set_conf_var); vazio/null APAGA a chave
+    # epochs no conf, no mesmo caminho do settings (cc_set_conf_var)
     source "$_DIR/lib/contest-create.sh"
-    _set(){ # <chave> <valor-jq>
-      local k="$1" v; v="$(jq -r "$2 // empty" <<<"$body")"
-      [[ -z "$v" || "$v" == null ]] && return 0
+    _set(){ # <chave> <campo> — campo AUSENTE não mexe; null/"" APAGA; número grava
+      # o comentário antigo já prometia "vazio/null APAGA", mas o código só dava `return 0`: uma
+      # vez gravado o REG_CLOSE, não havia como voltar a herdar o início da prova pela tela.
+      # (`undefined` no JS some do JSON, então "não mexe" continua sendo o default de quem omite.)
+      local k="$1" f="${2#.}" v
+      jq -e --arg f "$f" 'has($f)' >/dev/null 2>&1 <<<"$body" || return 0
+      v="$(jq -r --arg f "$f" '.[$f] // empty' <<<"$body")"
+      if [[ -z "$v" || "$v" == null ]]; then cc_del_conf_var "$contest" "$k"; return 0; fi
       [[ "$v" =~ ^[0-9]+$ ]] || fail 400 "Valor inválido p/ $k" "bad_value"
       cc_set_conf_var "$contest" "$k" "$v"
     }

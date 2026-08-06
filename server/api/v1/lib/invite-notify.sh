@@ -125,10 +125,11 @@ inv_contest_name(){
   local v; v="$( ( CONTEST_NAME=""; source "$CONTESTSDIR/$1/conf" 2>/dev/null; printf '%s' "${CONTEST_NAME:-}" ) )"
   printf '%s' "${v:-$1}"
 }
-_inv_when(){  # <epoch> <lang> -> data curta legível
-  [[ "$1" =~ ^[0-9]+$ ]] && (( $1 > 0 )) || return 0
-  if [[ "$2" == en ]]; then date -d "@$1" '+%b %d, %H:%M' 2>/dev/null
-  else date -d "@$1" '+%d/%m às %H:%M' 2>/dev/null; fi
+_inv_when(){  # <epoch> <lang> <contest> -> data curta legível NO FUSO DA PROVA
+  # fmt_epoch (lib/common.sh) resolve o CONTEST_TZ: sem isso a DM anunciava o prazo no fuso do
+  # servidor (UTC) e o competidor lia 3 h a mais do que o relógio dele.
+  if [[ "$2" == en ]]; then fmt_epoch "$1" '%b %d, %H:%M' "$3"
+  else fmt_epoch "$1" '%d/%m às %H:%M' "$3"; fi
 }
 _inv_left(){  # <segundos> <lang> -> "~5 h" / "~40 min"
   local s="$1" h=$(( $1 / 3600 ))
@@ -174,7 +175,7 @@ inv_msg(){
   team="$(inv_html_escape "$team")"
   link="$(inv_link "$c")"
   [[ "$cl" =~ ^[0-9]+$ ]] || cl=0
-  when="$(_inv_when "$cl" pt)"; whenen="$(_inv_when "$cl" en)"
+  when="$(_inv_when "$cl" pt "$c")"; whenen="$(_inv_when "$cl" en "$c")"
   if (( cl > now )); then left="$(_inv_left $(( cl - now )) pt)"; leften="$(_inv_left $(( cl - now )) en)"
   else left=""; leften=""; fi
   if [[ "$lang" == en ]]; then

@@ -51,11 +51,17 @@ bash "$HERE/build.sh" "$C" >/dev/null 2>&1 || true
 bash "$HERE/stats-gen.sh" "$C" "$CDIR/var/statistics.cache.json" 2>/dev/null || true
 
 # --- conf (mesmo padrão do stats-gen: o gerador roda fora do contexto de handler) ---
-PROBS=(); CONTEST_NAME=""; CONTEST_START=""; CONTEST_END=""; FREEZE_TIME=""
+PROBS=(); CONTEST_NAME=""; CONTEST_START=""; CONTEST_END=""; FREEZE_TIME=""; CONTEST_TZ=""
 PENALTY_MINUTES=""
 set +o noglob; shopt -s nullglob
 # shellcheck disable=SC1090
 source "$CDIR/conf" 2>/dev/null || true
+# FUSO: o relatório é lido por gente. Rodando standalone (CLI) o processo herda o UTC da imagem
+# e TODA hora do relatório sairia adiantada — inclusive o `strftime` do awk e o `strflocaltime`
+# do jq lá embaixo, que leem o TZ do processo. CONTEST_TZ manda; senão MOJ_TZ.
+: "${MOJ_TZ:=America/Sao_Paulo}"
+_tz="${CONTEST_TZ:-$MOJ_TZ}"; [[ -f "/usr/share/zoneinfo/$_tz" ]] || _tz="$MOJ_TZ"
+export TZ="$_tz"
 MODE="$(contest_score_mode "$C")"
 START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 END="${CONTEST_END:-0}";     [[ "$END"   =~ ^[0-9]+$ ]] || END=0
