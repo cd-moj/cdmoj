@@ -359,11 +359,19 @@ _doc_pdf_contest(){
       # entende MathML (achatava as fórmulas); via ODT elas viram fórmulas ODF de verdade —
       # exige o libreoffice-math da imagem. Sem <title> no input: o pandoc o promoveria a
       # título de documento e sairia uma linha órfã no topo.
+      # O ESTILO vem do reference-doc etc/caderno-reference.odt (ODT ignora CSS): Text Body
+      # JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos). Receita p/
+      # regenerar: `pandoc --print-default-data-file reference.odt`, retocar no styles.xml
+      # os estilos Text_20_body (fo:text-align=justify) e Preformatted_20_Text
+      # (fo:background-color/fo:padding/fo:border) e rezipar com o mimetype PRIMEIRO (zip -0).
       if command -v pandoc >/dev/null 2>&1; then
+        local refodt=() rf="$_DIR/../../etc/caderno-reference.odt"
+        [[ -f "$rf" ]] || rf="$_DIR/etc/caderno-reference.odt"
+        [[ -f "$rf" ]] && refodt=( --reference-doc="$rf" )
         { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
           printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
           cat "$bodyf"; printf '</body></html>'; } > "$work/o$i.html"
-        if pandoc -f html -t odt "$work/o$i.html" -o "$work/o$i.odt" 2>/dev/null; then
+        if pandoc -f html -t odt "${refodt[@]}" "$work/o$i.html" -o "$work/o$i.odt" 2>/dev/null; then
           soffice --headless -env:UserInstallation="file://$work/lo$i" --convert-to pdf \
                   --outdir "$work" "$work/o$i.odt" >/dev/null 2>&1
           [[ -s "$work/o$i.pdf" ]] && { mv -f "$work/o$i.pdf" "$work/p$i.pdf"; okpdf=1; }

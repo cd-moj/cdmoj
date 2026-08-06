@@ -240,7 +240,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Writer NÃO o entende (achatava as fórmulas + duplicava o TeX do `<annotation>`) — por isso o
   enunciado do caderno vai por **`pandoc -f html -t odt` → soffice** (fórmula ODF de verdade;
   a imagem tem `libreoffice-math`), com fallback soffice-HTML + strip de `<annotation>`
-  (`_doc_strip_annotation`, aplicado também em `_doc_html2pdf` p/ capa/errata). O caderno prefere o **PDF próprio** do problema; a **capa** tem 3 modos (PDF enviado ›
+  (`_doc_strip_annotation`, aplicado também em `_doc_html2pdf` p/ capa/errata). O ESTILO da rota
+  ODT vem do **`etc/caderno-reference.odt`** (`--reference-doc`; ODT ignora CSS): corpo
+  JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos) — receita de
+  regeneração comentada no `contest-docs.sh`. O caderno prefere o **PDF próprio** do problema; a **capa** tem 3 modos (PDF enviado ›
   markdown editado com marcadores `{{…}}` › gerada) e é **regerada no fim** com o total real de
   páginas. **PT/EN é só o chrome** — o MOJ não tem enunciado bilíngue; diga isso na UI, não finja.
   `publish` escreve `resources.json` (seção "Prova") e opcionalmente a notícia com anexo; o gate
