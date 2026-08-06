@@ -34,8 +34,28 @@ org_exists "$org" || fail 404 "Org não existe (crie com /orgs/create)" "org_mis
 org_is_member "$org" "$SESSION_LOGIN" || fail 403 "Você não é membro dessa org" "forbidden"
 
 id="$org#$prob"
+# CURADA: coleção marcada tem de EXISTIR no registro — a MESMA trava do edit/set-collections.
+# Sem isto o create aceitava coleção não-registrada e o PRÓXIMO push (via edit) morria com
+# coll_unknown — armadilha de primeira-vez p/ autor novo. Antes de criar qualquer coisa.
+# A coleção homônima da org é isenta: o próprio create a registra logo abaixo.
+if (( H_HASCOLLS )); then
+  while IFS= read -r cn; do [[ -n "$cn" && "$cn" != "$org" ]] || continue
+    coll_exists "$cn" || fail 400 "Coleção '$cn' não existe — crie antes (aba Coleções / moj collection create)" "coll_unknown"
+  done < <(jq -r '.[]?' <<<"$H_COLLS")
+fi
 pdir="$MOJ_PROBLEMS_DIR/$org/$prob"
 [[ -e "$pdir" ]] && fail 409 "Problema já existe nessa org" "prob_exists"
+
+# CURADA: coleção marcada tem de EXISTIR no registro — a MESMA trava do edit/set-collections.
+# Sem isto o create aceitava coleção não-registrada e o push SEGUINTE (edit) morria com
+# coll_unknown: armadilha de primeiro-push-passa-segundo-quebra. A homônima da org passa
+# (o coll_register logo abaixo a registra). Validar ANTES do mkdir (nada meio-criado).
+if (( H_HASCOLLS )); then
+  while IFS= read -r cn; do [[ -n "$cn" ]] || continue
+    [[ "$cn" == "$org" ]] && continue
+    coll_exists "$cn" || fail 400 "Coleção '$cn' não existe — crie antes (aba Coleções / moj collection create)" "coll_unknown"
+  done < <(jq -r '.[]?' <<<"$H_COLLS")
+fi
 mkdir -p "$pdir"
 [[ -f "$pdir/conf" ]] || printf 'ULIMITS[-u]=10000\nALLOWPARALLELTEST=y\n' > "$pdir/conf"
 apply_problem_fields "$pdir" "$bodyf" || fail 400 "Corpo do problema ilegível" "bad_body"
