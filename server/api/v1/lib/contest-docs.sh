@@ -308,10 +308,18 @@ _doc_html_contest(){
 }
 
 # ---------- PDF ----------------------------------------------------------------------
+# _doc_strip_annotation — remove os <annotation> (o TeX cru que o pandoc --mathml duplica
+# dentro de cada <math>): o import HTML do LibreOffice descarta MathML achatando os nós de
+# texto, e sem o strip cada fórmula saía DUAS vezes ("2≤n≤10⁵2 \leq n \leq 10^5").
+_doc_strip_annotation(){
+  python3 -c 'import re,sys; sys.stdout.write(re.sub(r"<annotation[^>]*>.*?</annotation>", "", sys.stdin.read(), flags=re.S))' 2>/dev/null || cat
+}
+
 # _doc_html2pdf <html-file> <pdf-out> -> 0/1 (soffice; único engine da imagem)
 _doc_html2pdf(){
   local src="$1" out="$2" work; work="$(mktemp -d)"
-  cp -f "$src" "$work/doc.html"
+  _doc_strip_annotation < "$src" > "$work/doc.html"
+  [[ -s "$work/doc.html" ]] || cp -f "$src" "$work/doc.html"
   soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
           --outdir "$work" "$work/doc.html" >/dev/null 2>&1
   if [[ -s "$work/doc.pdf" ]]; then mv -f "$work/doc.pdf" "$out"; rm -rf "$work"; return 0; fi
@@ -332,21 +340,45 @@ _doc_pdf_contest(){
       cp -f "$pdf" "$work/p$i.pdf"
     else
       # renderiza SÓ este problema (capa fica de fora) e converte
-      local h="$work/p$i.html"
-      { _doc_html_head "x"; printf '<div class="prob">';
-        local letter name f
-        letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
-        name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
-        printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
-        f="$CONTESTSDIR/$c/enunciados/$skey.html"
-        if [[ ! -f "$f" ]]; then
-          local jf="$CONTESTSDIR/treino/var/jsons/$skey.json"
-          [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"
-          [[ -f "$jf" ]] && { jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null | base64 -d > "$work/s$i.html" 2>/dev/null; [[ -s "$work/s$i.html" ]] && f="$work/s$i.html"; }
+      local letter name f bodyf="$work/b$i.html" okpdf=""
+      letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
+      name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
+      f="$CONTESTSDIR/$c/enunciados/$skey.html"
+      if [[ ! -f "$f" ]]; then
+        local jf="$CONTESTSDIR/treino/var/jsons/$skey.json"
+        [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"
+        [[ -f "$jf" ]] && { jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null | base64 -d > "$work/s$i.html" 2>/dev/null; [[ -s "$work/s$i.html" ]] && f="$work/s$i.html"; }
+      fi
+      # miolo do <body> do enunciado (HTML standalone com <head> próprio)
+      if [[ -f "$f" ]]; then
+        sed -n '/<body[^>]*>/,/<\/body>/p' "$f" | sed -e 's|<body[^>]*>||' -e 's|</body>||' > "$bodyf"
+      else
+        printf '<p><i>%s</i></p>' "$([[ "$l" == pt ]] && printf 'enunciado indisponível' || printf 'statement unavailable')" > "$bodyf"
+      fi
+      # ROTA PREFERIDA: pandoc html→odt + soffice odt→pdf. O import HTML do Writer NÃO
+      # entende MathML (achatava as fórmulas); via ODT elas viram fórmulas ODF de verdade —
+      # exige o libreoffice-math da imagem. Sem <title> no input: o pandoc o promoveria a
+      # título de documento e sairia uma linha órfã no topo.
+      if command -v pandoc >/dev/null 2>&1; then
+        { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+          printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+          cat "$bodyf"; printf '</body></html>'; } > "$work/o$i.html"
+        if pandoc -f html -t odt "$work/o$i.html" -o "$work/o$i.odt" 2>/dev/null; then
+          soffice --headless -env:UserInstallation="file://$work/lo$i" --convert-to pdf \
+                  --outdir "$work" "$work/o$i.odt" >/dev/null 2>&1
+          [[ -s "$work/o$i.pdf" ]] && { mv -f "$work/o$i.pdf" "$work/p$i.pdf"; okpdf=1; }
         fi
-        [[ -f "$f" ]] && sed -n '/<body[^>]*>/,/<\/body>/p' "$f" | sed -e 's|<body[^>]*>||' -e 's|</body>||'
-        printf '</div>'; _doc_html_foot; } > "$h"
-      _doc_html2pdf "$h" "$work/p$i.pdf" || continue
+      fi
+      # FALLBACK (sem pandoc / pandoc falhou): soffice direto no HTML — o strip de
+      # <annotation> do _doc_html2pdf ao menos evita o TeX duplicado.
+      if [[ -z "$okpdf" ]]; then
+        local h="$work/p$i.html"
+        { _doc_html_head "x"; printf '<div class="prob">';
+          printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+          cat "$bodyf"
+          printf '</div>'; _doc_html_foot; } > "$h"
+        _doc_html2pdf "$h" "$work/p$i.pdf" || continue
+      fi
     fi
     [[ -s "$work/p$i.pdf" ]] && { parts+=( "$work/p$i.pdf" ); tot=$(( tot + $(_doc_pages "$work/p$i.pdf" 2>/dev/null || echo 0) )); }
   done

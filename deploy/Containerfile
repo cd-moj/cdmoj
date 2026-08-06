@@ -61,7 +61,7 @@ RUN set -eux; \
       inotify-tools socat \
       imagemagick ghostscript poppler-utils qpdf paps fonts-dejavu-core; \
     if [ "$WITH_OFFICE" = "1" ]; then \
-      apt-get install -y --no-install-recommends libreoffice-core libreoffice-writer libreoffice-calc; \
+      apt-get install -y --no-install-recommends libreoffice-core libreoffice-writer libreoffice-calc libreoffice-math; \
     fi; \
     if [ "$WITH_JPLAG" = "1" ]; then \
       apt-get install -y --no-install-recommends default-jre-headless; \
