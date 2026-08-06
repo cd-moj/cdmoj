@@ -161,7 +161,7 @@ case "$action" in
                  # não aceita NÃO entra no time. DM na hora, com o link de aceitar/recusar.
                  # BEST-EFFORT: o convite já está gravado; falha de notificação não o desfaz.
                  t="$(reg_team_of "$contest" "$me")"
-                 inv_reconcile "$contest" >/dev/null 2>&1
+                 inv_reconcile "$contest" "$EPOCHSECONDS" >/dev/null 2>&1   # este SIM nasceu agora
                  dmres="$(inv_notify "$contest" "$t" "$who" invite 2>/dev/null)" || true
                  audit_log_to "$contest" reg-team-invite "captain=$me invited=$who dm=${dmres:-skip}" ;;
   team-accept)   [[ "$(reg_kind_of "$contest" "$me")" == individual ]] && _err mode_locked

@@ -58,12 +58,15 @@ inv_save(){  # <c> <json>
   printf '%s\n' "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"
 }
 
-# inv_reconcile <c> — casa o invites.json com os convites que existem AGORA no roster.
+# inv_reconcile <c> [<at-dos-novos>] — casa o invites.json com os convites que existem AGORA.
+# O `at` default é 0 = DESCONHECIDO: só quem SABE que o convite acabou de nascer (o handler do
+# team-invite) passa o epoch. Adotar convite antigo com `at=agora` faria o painel mostrar "há 0
+# min" p/ um convite de três dias — mentira pior que campo vazio.
 # Os dois JSONs vão por --slurpfile (arquivo), NUNCA por --argjson: roster de contest grande passa
 # de 128 KiB por argumento e o jq morreria com "Argument list too long" — mascarado pelo
 # 2>/dev/null, viraria resultado vazio mudo.
 inv_reconcile(){
-  local c="$1" now="$EPOCHSECONDS" rf jf out
+  local c="$1" now="${2:-0}" rf jf out
   rf="$(mktemp)"; jf="$(mktemp)"
   reg_get "$c" > "$rf"; inv_get "$c" > "$jf"
   out="$(jq -cn --slurpfile r "$rf" --slurpfile i "$jf" --argjson now "$now" '
@@ -100,7 +103,7 @@ inv_stamp(){
   local c="$1" k="$2|$3" kind="$4" now="$EPOCHSECONDS" out
   out="$(inv_get "$c" | jq -c --arg k "$k" --argjson now "$now" \
         --argjson auto "$( [[ "$4" == lastcall ]] && echo true || echo false )" '
-      .items[$k] = ((.items[$k] // {at:$now, by:"", dm:0, warn:0})
+      .items[$k] = ((.items[$k] // {at:0, by:"", dm:0, warn:0})   # at=0: idade desconhecida
                     | .dm = $now
                     | (if $auto then .warn = $now else . end))')"
   [[ -n "$out" ]] && inv_save "$c" "$out"
