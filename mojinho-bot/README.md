@@ -49,7 +49,19 @@ painel admin da web ou o `moj-cli`. O bot ficou restrito ao que é ancorado no T
 
 O loop faz long-poll curto de `getUpdates` (`timeout=ALERT_POLL_SECS`) e, a cada volta, chama
 `deliver_alerts` → `GET /ops/alerts` → envia cada `item.text` para `item.chats` (DMs dos `.admin`
-vinculados) **+** `ALERT_GROUP_CHAT`. Os `.admin` recebem DM só depois de vincularem o Telegram na
+vinculados) **+** `ALERT_GROUP_CHAT`.
+
+O item traz dois campos que mudam a entrega — a API decide, o bot obedece:
+
+| Campo | Efeito |
+|---|---|
+| `group:false` | mensagem **dirigida a uma pessoa** (ex.: convite de time pendente): NÃO copiar no `ALERT_GROUP_CHAT`. ⚠️ Ler com `.group == false` — `.group // true` daria `true` para `false` (o `//` do jq trata `false` como vazio) e o grupo receberia a DM de todo mundo. |
+| `loud:true` | entregar **com notificação** (`disable_notification:false`). O default do `tg_send` é silencioso: alerta de operação não acorda ninguém; lembrete de inscrição precisa ser visto. |
+
+A API entrega no máximo `ALERT_CLAIM_MAX` (30) itens por poll e o bot dá `sleep 0.05` entre envios
+— o Telegram corta acima de ~30 msg/s. O que sobra sai no poll seguinte (~25 s).
+
+Os `.admin` recebem DM só depois de vincularem o Telegram na
 seção **📨 Telegram** do perfil (`/treino/perfil/` → botão "🔗 Vincular Telegram", deep-link de
 `POST /treino/telegram/link-start`; desfazer = `POST /treino/telegram/unlink`).
 

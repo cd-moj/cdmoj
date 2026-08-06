@@ -49,7 +49,7 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 |---|---|
 | **Contas** | Criar/resetar/desabilitar/remover contas (individual e em lote por .txt/.csv), trocar a senha de todos e o atalho das **🏷️ Etiquetas de credenciais**. É AQUI que você cria as contas de papel (seção 3). |
 | **Times** | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
-| **Inscrições** | O **roster** do contest (só inscrito entra) e a **janela**: quando abre, quando fecha (default: o início da prova) e quantos minutos de entrada atrasada. Lista times e individuais, dissolve time, inscreve à mão e exporta CSV. A seção 8½ explica. |
+| **Inscrições** | O **roster** do contest (só inscrito entra) e a **janela**: quando abre, quando fecha (default: o início da prova) e quantos minutos de entrada atrasada. Lista times e individuais, dissolve time, inscreve à mão, **cutuca convite pendente por DM** (🔔) e exporta CSV. A seção 8½ explica. |
 | **Coortes** | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
 | **Sedes & escolas** | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas e o gate por sede — e as regras de país/escola por regex. |
 | **Máquinas & gate** | De onde cada time logou (IP e navegador) em cada rodada, com CSV, **e a configuração do gate de navegador por sede** (esperado × visto por time). A seção 7 explica. |
@@ -392,6 +392,16 @@ inscreveu **não entra** (a API recusa o login, não é só a tela).
 Ela escolhe **individual** ou **criar um time**: dá um nome e convida até 2 logins do treino;
 cada convidado precisa **aceitar**. Enquanto a janela estiver aberta dá para sair, renomear e
 desfazer. Participação é exclusiva — aceitar convite desfaz a inscrição individual.
+
+**O convite avisa sozinho.** No instante em que o capitão convida, o **mojinho manda uma DM** ao
+convidado com o link de aceitar/recusar; e na **véspera do fechamento** (24 h antes) manda **um
+único** último aviso para quem ainda não respondeu. Só alcança quem tem **Telegram vinculado**
+(perfil do treino → 📨 Telegram) — por isso a lista de convites mostra `📨` (alcançável) ou `⚠️`
+(sem canal), e o resumo conta quantos ficaram sem. Na tabela de times, cada convite pendente tem
+o botão **🔔** para cutucar na hora, e o cabeçalho tem **🔔 Lembrar todos**; cutucar à mão **não**
+cancela o aviso automático da véspera. Para desligar o automático neste contest, desmarque
+*lembrete automático* na caixa da janela (grava `REG_REMIND=n`). Isso importa porque **quem não
+aceita o convite não entra no time** — e às vezes nem está inscrito.
 
 **Na prova, cada membro entra com o PRÓPRIO login e senha do treino** e a sessão vira a do time:
 o placar, os balões e a impressão veem **uma linha só**. Quem estava no teclado fica registrado

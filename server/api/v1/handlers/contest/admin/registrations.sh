@@ -16,6 +16,9 @@
 #   team-meta     {team, univ?, ai?, flag?} — a organização ajusta a apresentação de um time
 #   individual-meta {login, univ?, ai?, flag?} — idem p/ um inscrito INDIVIDUAL
 #   materialize   — reescreve os overlays do store a partir do roster (conserto)
+#   invite-remind {team, login}   — o mojinho cutuca UM convite pendente por DM
+#   invite-remind-all             — idem p/ TODOS os convites pendentes do contest
+#     (o aviso automático da véspera é da lib/invite-notify.sh, varrida no poll do bot)
 require_auth_contest "$(param contest)"
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -23,6 +26,7 @@ require_contest "$contest"
 source "$_DIR/lib/users.sh"
 source "$_DIR/lib/cohorts.sh"
 source "$_DIR/lib/registration.sh"
+source "$_DIR/lib/invite-notify.sh"
 
 cdir="$CONTESTSDIR/$contest"
 if [[ "$REQUEST_METHOD" != POST ]]; then
@@ -31,8 +35,8 @@ else
   is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 fi
 
-_emit(){
-  local st op cl lt anc rnd out
+_emit(){   # [<json-extra p/ mesclar na resposta>]
+  local extra="${1:-}" st op cl lt anc rnd out
   IFS=$'\t' read -r st op cl lt anc rnd < <(reg_window "$contest")
   # corpo ANTES do header: jq que falha depois de emit_json vira 200 mudo com corpo vazio
   local photos='[]'
@@ -40,22 +44,39 @@ _emit(){
     for f in "$cdir"/users/*/photo.png; do d="${f%/photo.png}"; printf '%s\n' "${d##*/}"; done ) \
     | jq -R . | jq -cs .)"
   [[ -n "$photos" ]] || photos='[]'
+  # quem tem Telegram vinculado entre os CONVIDADOS (é quem o lembrete alcança) + a
+  # contabilidade dos avisos já enviados. São poucos: um arquivo lido por convidado.
+  local tgs invf
+  tgs="$( reg_get "$contest" | jq -r '[.teams[] | (.invited // [])[]] | unique[]' 2>/dev/null \
+          | while IFS= read -r l; do [[ -n "$l" ]] || continue
+              [[ -n "$(inv_chat_of "$contest" "$l")" ]] && printf '%s\n' "$l"
+            done | jq -R . | jq -cs . )"
+  [[ -n "$tgs" ]] || tgs='[]'
+  invf="$(mktemp)"; inv_get "$contest" > "$invf"
   out="$(reg_get "$contest" | jq -c --argjson photos "$photos" --arg st "$st" --argjson op "${op:-0}" --argjson cl "${cl:-0}" \
       --argjson lt "${lt:-0}" --argjson max "$(reg_team_max "$contest")" \
       --argjson anc "${anc:-0}" --arg rnd "${rnd:-}" --arg kind "$(reg_round_kind "$contest")" \
       --argjson gate "$(reg_gate_active "$contest" && echo true || echo false)" \
       --argjson en "$(reg_enabled "$contest" && echo true || echo false)" \
-      --argjson tok "$(reg_teams_allowed "$contest" && echo true || echo false)" '
-    { success:true, enabled:$en, teams_allowed:$tok, team_max:$max,
+      --argjson tok "$(reg_teams_allowed "$contest" && echo true || echo false)" \
+      --argjson remind "$(reg_remind_on "$contest" && echo true || echo false)" \
+      --argjson tgs "$tgs" --slurpfile inv "$invf" '
+    (($inv[0].items) // {}) as $im
+    | { success:true, enabled:$en, teams_allowed:$tok, team_max:$max, remind:$remind,
       window:{state:$st, opens_at:$op, closes_at:$cl, late_until:$lt,
               official_start:$anc, official_round:$rnd},
       round_kind:$kind, gate_active:$gate,
-      teams: [ .teams | to_entries[]
-               | {login:.key, name:.value.name, captain:.value.captain,
-                  members:.value.members, invited:.value.invited, cohort:.value.cohort,
-                  created_at:.value.created_at, univ:(.value.univ // ""), flag:(.value.flag // ""),
-                  ai:(if (.value | has("ai")) then .value.ai else null end),
-                  has_photo:((.key as $k | $photos | index($k)) != null)} ] | sort_by(.name),
+      teams: [ .teams | to_entries[] | .key as $tm | .value as $v
+               | {login:$tm, name:$v.name, captain:$v.captain,
+                  members:$v.members, invited:$v.invited, cohort:$v.cohort,
+                  created_at:$v.created_at, univ:($v.univ // ""), flag:($v.flag // ""),
+                  ai:(if ($v | has("ai")) then $v.ai else null end),
+                  has_photo:(($photos | index($tm)) != null),
+                  invited_meta: [ ($v.invited // [])[] | . as $l
+                                  | (($im[$tm + "|" + $l]) // {}) as $e
+                                  | {login:$l, at:($e.at // 0), dm_at:($e.dm // 0),
+                                     warned_at:($e.warn // 0), tg:(($tgs | index($l)) != null)} ]} ]
+             | sort_by(.name),
       individuals: [ .entries | to_entries[] | select(.value.kind == "individual")
                      | {login:.key, cohort:.value.cohort, at:.value.at,
                         univ:(.value.univ // ""), flag:(.value.flag // ""),
@@ -63,8 +84,15 @@ _emit(){
                    | sort_by(.login),
       totals: { people:(.entries | length), teams:(.teams | length),
                 individuals:([.entries[] | select(.kind=="individual")] | length),
-                invites:([.teams[] | (.invited // []) | length] | add // 0) } }')"
+                invites:([.teams[] | (.invited // []) | length] | add // 0),
+                invites_no_tg:([.teams[] | (.invited // [])[] | . as $l
+                                | select(($tgs | index($l)) == null)] | length) } }')"
+  rm -f "$invf"
   [[ -n "$out" ]] || fail 500 "Falha ao montar as inscrições" "reg_render_failed"
+  if [[ -n "$extra" ]]; then
+    out="$(jq -c --argjson x "$extra" '. + $x' <<<"$out")" \
+      || fail 500 "Falha ao montar as inscrições" "reg_render_failed"
+  fi
   emit_json 200 OK; printf '%s\n' "$out"
 }
 [[ "$REQUEST_METHOD" == POST ]] || { _emit; exit 0; }
@@ -96,11 +124,19 @@ case "$action" in
     }
     _set REG_OPEN '.open'; _set REG_CLOSE '.close'
     _set REG_LATE_MINUTES '.late_minutes'; _set REG_TEAM_MAX '.team_max'
-    case "$(jq -r '.teams // empty' <<<"$body")" in
+    # ⚠ `.teams // empty` NÃO serve p/ BOOLEANO: o // do jq trata `false` como vazio, então
+    # desmarcar a caixinha nunca chegava aqui (bug silencioso: "aceita times" não desligava).
+    _bool(){ jq -r --arg k "$1" 'if has($k) then (.[$k] | tostring) else "" end' <<<"$body"; }
+    case "$(_bool teams)" in
       false) cc_set_conf_var "$contest" REG_TEAMS n ;;
       true)  cc_del_conf_var "$contest" REG_TEAMS ;;
     esac
-    audit_log_to "$contest" reg-window "$(jq -c '{open,close,late_minutes,team_max,teams}' <<<"$body")" ;;
+    # aviso automático do convite pendente (default ligado; n = desligado)
+    case "$(_bool remind)" in
+      false) cc_set_conf_var "$contest" REG_REMIND n ;;
+      true)  cc_del_conf_var "$contest" REG_REMIND ;;
+    esac
+    audit_log_to "$contest" reg-window "$(jq -c '{open,close,late_minutes,team_max,teams,remind}' <<<"$body")" ;;
   add)
     login="$(jq -r '.login // empty' <<<"$body")"
     valid_id "$login" || fail 400 "Login inválido" "login_invalid"
@@ -153,6 +189,41 @@ case "$action" in
     [[ -n "$cap" ]] || fail 404 "Time não encontrado" "team_notfound"
     out="$(reg_team_dissolve "$contest" "$cap")" || fail 409 "Não deu p/ dissolver ($out)" "$out"
     audit_log_to "$contest" reg-team-rm "team=$t" ;;
+  invite-remind|invite-remind-all)
+    # o botão "lembrar" do painel. Carimba `dm` (intervalo mínimo entre pings) mas NÃO `warn`:
+    # cutucar hoje não pode cancelar o aviso automático da véspera, que é o mais valioso.
+    IFS=$'\t' read -r wst wo wc wl wa wr < <(reg_window "$contest")
+    [[ "$wst" == closed ]] \
+      && fail 409 "As inscrições já fecharam — o convite não pode mais ser aceito" "registration_closed"
+    inv_reconcile "$contest" >/dev/null 2>&1
+    sent=0; skipped=()
+    if [[ "$action" == invite-remind ]]; then
+      t="$(jq -r '.team // empty' <<<"$body")"; login="$(jq -r '.login // empty' <<<"$body")"
+      valid_id "$t" || fail 400 "Time inválido" "team_invalid"
+      valid_id "$login" || fail 400 "Login inválido" "login_invalid"
+      reg_get "$contest" | jq -e --arg t "$t" --arg l "$login" \
+          '((.teams[$t].invited // []) | index($l)) != null' >/dev/null 2>&1 \
+        || fail 404 "Não há convite pendente desse time p/ esse login" "no_invite"
+      out="$(inv_notify "$contest" "$t" "$login" remind)"
+      case "$out" in
+        sent)        sent=1 ;;
+        no_telegram) fail 409 "$login não tem Telegram vinculado — não dá p/ avisar por DM" "no_telegram" ;;
+        *)           fail 500 "Não deu p/ enfileirar o aviso (${out:-?})" "${out:-remind_failed}" ;;
+      esac
+      audit_log_to "$contest" reg-invite-remind "team=$t login=$login" ;
+    else
+      while IFS=$'\t' read -r it il iat idm iwn; do
+        [[ -n "$it" && -n "$il" ]] || continue
+        if [[ "$(inv_notify "$contest" "$it" "$il" remind)" == sent ]]
+          then sent=$(( sent + 1 ))
+          else skipped+=("$il"); fi
+      done < <(inv_pending "$contest")
+      audit_log_to "$contest" reg-invite-remind-all "n=$sent sem_telegram=${#skipped[@]}"
+    fi
+    skipjson="$(printf '%s\n' ${skipped[@]+"${skipped[@]}"} | grep -v '^[[:space:]]*$' | jq -R . | jq -cs .)"
+    [[ -n "$skipjson" ]] || skipjson='[]'
+    extra="$(jq -cn --argjson s "$sent" --argjson k "$skipjson" \
+              '{remind_result:{sent:$s, skipped:$k}}')" ;;
   materialize)
     n=0
     while IFS=$'\t' read -r l co; do
@@ -169,4 +240,4 @@ case "$action" in
 esac
 
 flock -u 9
-_emit
+_emit "${extra:-}"

@@ -18,7 +18,8 @@
 #                                    paridade com o team-meta do capitão
 #   cancel                        — desfaz (individual) ou sai do time
 #   team-create   {name}          — cria o time e vira capitão
-#   team-invite   {login}         — capitão convida uma conta do treino
+#   team-invite   {login}         — capitão convida uma conta do treino (o mojinho manda DM na
+#                                   hora, com o link de aceitar/recusar — lib/invite-notify.sh)
 #   team-accept   {team}          — convidado aceita (desfaz a inscrição individual dele)
 #   team-decline  {team}          — convidado recusa
 #   team-leave                    — membro sai (capitão passa a capitania; último dissolve)
@@ -47,6 +48,7 @@ require_contest "$contest"
 source "$_DIR/lib/users.sh"
 source "$_DIR/lib/cohorts.sh"
 source "$_DIR/lib/registration.sh"
+source "$_DIR/lib/invite-notify.sh"
 
 cdir="$CONTESTSDIR/$contest"
 # contest SUPER SECRETO não existe para quem está de fora (nem p/ dizer "não pode")
@@ -155,7 +157,13 @@ case "$action" in
                  user_exists treino "$who" || fail 404 "Não existe conta no Treino Livre com esse login" "user_notfound"
                  is_reserved_role_login "$who" && fail 400 "Conta de papel não entra em time" "role_account"
                  _run reg_team_invite "$contest" "$me" "$who"
-                 audit_log_to "$contest" reg-team-invite "captain=$me invited=$who" ;;
+                 # o convite era MUDO — o convidado só descobria se abrisse esta página, e quem
+                 # não aceita NÃO entra no time. DM na hora, com o link de aceitar/recusar.
+                 # BEST-EFFORT: o convite já está gravado; falha de notificação não o desfaz.
+                 t="$(reg_team_of "$contest" "$me")"
+                 inv_reconcile "$contest" >/dev/null 2>&1
+                 dmres="$(inv_notify "$contest" "$t" "$who" invite 2>/dev/null)" || true
+                 audit_log_to "$contest" reg-team-invite "captain=$me invited=$who dm=${dmres:-skip}" ;;
   team-accept)   [[ "$(reg_kind_of "$contest" "$me")" == individual ]] && _err mode_locked
                  t="$(jq -r '.team // empty' <<<"$body")"
                  valid_id "$t" || fail 400 "Time inválido" "team_invalid"

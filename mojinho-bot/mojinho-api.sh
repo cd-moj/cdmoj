@@ -73,9 +73,12 @@ tg_api() {  # tg_api <método-tg> <json> [timeout] -> resposta no stdout
     -K <(printf 'url = "%s/%s"\n' "$API_TG" "$path"); rc=$?
   rm -f "$bf"; return $rc
 }
-tg_send() {  # tg_send <chat_id> <json-msg-sem-chat_id>
-  local chat="$1" msg="$2"
-  msg="$(jq -c --argjson id "$chat" '. + {chat_id:$id, disable_notification:true}' <<<"$msg")"
+tg_send() {  # tg_send <chat_id> <json-msg-sem-chat_id> [loud]
+  # Silencioso por padrão (alerta de operação não acorda ninguém de madrugada). `loud` = com
+  # notificação: é o caso do convite/lembrete, que precisa ser visto ANTES de a inscrição fechar.
+  local chat="$1" msg="$2" loud="${3:-}"
+  msg="$(jq -c --argjson id "$chat" --argjson q "$( [[ -n "$loud" ]] && echo false || echo true )" \
+          '. + {chat_id:$id, disable_notification:$q}' <<<"$msg")"
   tg_api sendMessage "$msg" >/dev/null
 }
 tg_send_document() {  # <chat_id> <file> [caption]
@@ -184,11 +187,13 @@ erro() { set_text_html "Não entendi. Envie <b>/help</b> para ver os comandos.";
 
 # ===========================================================================
 # ALERTAS — drena o outbox da API e entrega (grupo + DMs). A API decide tudo.
-# GET /ops/alerts (bot-token) -> {items:[{id, text, chats:[<chat_id>...]}]}.
+# GET /ops/alerts (bot-token) -> {items:[{id, text, chats:[<chat_id>…], loud, group}]}.
+#   group:false — mensagem DIRIGIDA a uma pessoa (ex.: convite de time): NÃO copiar no grupo.
+#   loud:true   — entregar com notificação (o default do tg_send é silencioso).
 # ===========================================================================
 deliver_alerts() {
   [[ -n "$BOT_TOKEN" ]] || return 0
-  local resp st items n i text chats c
+  local resp st n i text chats c loud nogroup
   resp="$(api GET /ops/alerts)"
   st="$(api_status "$resp")"; resp="$(api_body "$resp")"
   [[ "$st" == "200" ]] || return 0
@@ -196,11 +201,20 @@ deliver_alerts() {
   for (( i=0; i<n; i++ )); do
     text="$(jq -r ".items[$i].text // empty" <<<"$resp")"
     [[ -n "$text" ]] || continue
-    # destinos: chats do item + grupo configurado
+    # ⚠ `.group // true` NÃO serve: o // do jq trata false como vazio e o grupo receberia a DM
+    # de todo mundo. A pergunta tem de ser explícita.
+    nogroup="$(jq -r ".items[$i].group == false" <<<"$resp" 2>/dev/null)"
+    loud="$(jq -r ".items[$i].loud == true" <<<"$resp" 2>/dev/null)"
+    # destinos: chats do item + grupo configurado (salvo mensagem dirigida)
     mapfile -t chats < <(jq -r ".items[$i].chats[]? // empty" <<<"$resp")
-    [[ -n "$ALERT_GROUP_CHAT" ]] && chats+=("$ALERT_GROUP_CHAT")
+    [[ -n "$ALERT_GROUP_CHAT" && "$nogroup" != "true" ]] && chats+=("$ALERT_GROUP_CHAT")
     local msg; msg="$(jq -cn --arg t "$text" '{text:$t, parse_mode:"HTML"}')"
-    for c in "${chats[@]}"; do [[ -n "$c" ]] && tg_send "$c" "$msg"; done
+    for c in "${chats[@]}"; do
+      [[ -n "$c" ]] || continue
+      # `a && x || y` mandaria DUAS vezes se o envio falhasse (o || pega o rc do tg_send)
+      if [[ "$loud" == "true" ]]; then tg_send "$c" "$msg" loud; else tg_send "$c" "$msg"; fi
+      sleep 0.05    # o Telegram corta acima de ~30 msg/s
+    done
   done
 }
 

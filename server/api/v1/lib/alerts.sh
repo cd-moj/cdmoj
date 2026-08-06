@@ -78,6 +78,35 @@ alert_step(){
   fi
 }
 
+# --- DM dirigida (destino resolvido pelo PRODUTOR) -------------------------
+# alert_dm <texto> <chats-um-por-linha> [loud] -> ecoa o id do item enfileirado.
+#
+# O item `.txt` do alert_step é de INCIDENTE: quem recebe são os .admin, decididos no claim. Uma
+# mensagem para UMA pessoa (ex.: convite de time pendente) não cabe nisso — aqui o produtor já
+# resolveu o chat_id e ele viaja no próprio item, com `group:false` p/ o bot NÃO copiar no grupo
+# de admins. `loud` desliga o disable_notification (lembrete precisa apitar; alerta não).
+# Sem destino não enfileira nada (rc≠0): quem chamou usa isso p/ dizer "sem Telegram vinculado".
+alert_dm(){
+  local text="$1" chats="$2" loud="${3:-}" d cj f id
+  [[ -n "$text" ]] || return 1
+  cj="$(printf '%s\n' "$chats" | grep -v '^[[:space:]]*$' | jq -R . | jq -cs 'map(tonumber? // .)')"
+  [[ -n "$cj" && "$cj" != '[]' ]] || return 1
+  d="$(_alert_dir)"; mkdir -p "$d/outbox"
+  # UNICIDADE pelo mktemp, nunca por contador de shell: quem chama costuma ser
+  # `$(inv_notify …)` — COMMAND SUBSTITUTION, ou seja SUBSHELL —, então um contador voltaria a
+  # 1 a cada chamada e duas DMs no mesmo segundo (mesmo epoch, mesmo $$) se sobrescreviam: a
+  # segunda pessoa simplesmente não recebia, sem erro nenhum. O nome temporário não termina em
+  # .json de propósito (o claim só enxerga *.json ⇒ ninguém lê pela metade).
+  f="$(umask 077; mktemp "$d/outbox/$EPOCHSECONDS-dm-XXXXXXXX" 2>/dev/null)" || return 1
+  jq -cn --arg t "$text" --argjson c "$cj" \
+     --argjson l "$( [[ -n "$loud" ]] && echo true || echo false )" \
+     '{text:$t, chats:$c, loud:$l, group:false}' > "$f" 2>/dev/null \
+    || { rm -f "$f"; return 1; }
+  id="${f##*/}"
+  mv -f "$f" "$d/outbox/$id.json" || { rm -f "$f"; return 1; }
+  printf '%s' "$id"
+}
+
 # --- avaliação (throttled) ------------------------------------------------
 alerts_evaluate(){
   local d; d="$(_alert_dir)"; mkdir -p "$d/outbox"
@@ -118,19 +147,42 @@ alerts_evaluate(){
 }
 
 # --- claim do outbox ------------------------------------------------------
-# alerts_claim -> ecoa um array JSON [{id,text,chats:[...]}] e REMOVE os itens entregues.
+# alerts_claim -> ecoa um array JSON [{id,text,chats:[…],loud,group}] e REMOVE os entregues.
+#
+# DOIS tipos de item convivem no outbox:
+#   <epoch>-<cond>-<pid>.txt   INCIDENTE — texto puro; destino = os .admin vinculados (resolvidos
+#                              AQUI) + o grupo, que o bot acrescenta. É o formato original.
+#   <epoch>-dm-<pid>-<n>.json  DM DIRIGIDA (alert_dm) — {text,chats,loud,group:false}.
+# Ordem = nome do arquivo (o prefixo epoch dá FIFO) e TETO de ALERT_CLAIM_MAX por chamada: o bot
+# entrega em série e o Telegram corta acima de ~30 msg/s — o resto sai no poll seguinte (~25 s).
+# Item ilegível é descartado (rm antes de emitir) p/ não travar a fila para sempre.
 alerts_claim(){
   local d; d="$(_alert_dir)"; local ob="$d/outbox"
   [[ -d "$ob" ]] || { echo '[]'; return; }
-  local chats_json
-  chats_json="$(alerts_admin_chats | jq -R . | jq -cs 'map(tonumber? // .)')"
-  ( set +o noglob; shopt -s nullglob
-    local first=1; printf '['
-    for f in "$ob"/*.txt; do
-      local id text; id="${f##*/}"; id="${id%.txt}"; text="$(cat "$f")"
-      (( first )) || printf ','; first=0
-      jq -cn --arg id "$id" --arg t "$text" --argjson c "$chats_json" '{id:$id, text:$t, chats:$c}'
-      rm -f "$f"
-    done
-    printf ']' )
+  local files=() chats_json="" first=1 n=0 f id out
+  mapfile -t files < <( set +o noglob; shopt -s nullglob
+                        for f in "$ob"/*.txt "$ob"/*.json; do printf '%s\n' "$f"; done | sort )
+  printf '['
+  for f in "${files[@]}"; do
+    (( n >= ${ALERT_CLAIM_MAX:-30} )) && break
+    id="${f##*/}"
+    if [[ "$f" == *.json ]]; then
+      id="${id%.json}"
+      out="$(jq -c --arg id "$id" '{id:$id, text:(.text // ""), loud:(.loud == true),
+              group:(.group != false), chats:((.chats // []) | map(tonumber? // .))}
+             | select((.text != "") and ((.chats | length) > 0))' "$f" 2>/dev/null)"
+    else
+      id="${id%.txt}"
+      # só resolve os admins se houver item de incidente (varre as contas do treino)
+      [[ -n "$chats_json" ]] || chats_json="$(alerts_admin_chats | jq -R . | jq -cs 'map(tonumber? // .)')"
+      [[ -n "$chats_json" ]] || chats_json='[]'
+      out="$(jq -cn --arg id "$id" --arg t "$(cat "$f")" --argjson c "$chats_json" \
+              '{id:$id, text:$t, chats:$c, loud:false, group:true}')"
+    fi
+    rm -f "$f"
+    [[ -n "$out" ]] || continue
+    (( first )) || printf ','; first=0
+    printf '%s' "$out"; n=$(( n + 1 ))
+  done
+  printf ']'
 }

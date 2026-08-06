@@ -21,6 +21,16 @@ if [[ -f "$_ba" ]]; then
 fi
 touch "$_ba" 2>/dev/null || true
 alerts_evaluate
+# CONVITE DE TIME pendente: o "último aviso" (lib/invite-notify.sh) usa o MESMO relógio — o poll
+# do bot —, mas com stamp PRÓPRIO: a varredura é bem mais cara que a avaliação de incidente
+# (lê roster e janela de cada contest com inscrição). Antes do claim, p/ o que for enfileirado
+# agora sair neste mesmo poll.
+_iv="$RUNDIR/alerts/.invite-stamp"
+if (( EPOCHSECONDS - $(stat -c %Y "$_iv" 2>/dev/null || echo 0) >= ${INVITE_SWEEP_THROTTLE:-300} )); then
+  : > "$_iv"
+  source "$_DIR/lib/invite-notify.sh"
+  inv_sweep_all >/dev/null 2>&1 || true
+fi
 items="$(alerts_claim)"
 [[ -n "$items" ]] || items='[]'
 ok_json '{items:$items}' --argjson items "$items"

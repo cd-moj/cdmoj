@@ -285,7 +285,20 @@ if reg_enabled "$contest"; then
       add reg_warmup warn "Aquecimento sem prova planejada" "a inscrição fica SEM PRAZO (a âncora seria o início do aquecimento, já passado): planeje a rodada oficial em Prova → Rodadas"
     fi
   fi
-  (( ri > 0 )) && add reg_invites warn "$ri convite(s) de time pendente(s)" "quem não aceitar NÃO entra como membro do time (e talvez nem esteja inscrito)"
+  if (( ri > 0 )); then
+    # o mojinho avisa por DM (na hora do convite e na véspera) — mas só alcança quem tem
+    # Telegram VINCULADO. Quem não tem depende de alguém avisar por fora: é o que interessa aqui.
+    source "$_LIBDIR/invite-notify.sh"
+    rnotg=0
+    while IFS= read -r _il; do
+      [[ -n "$_il" ]] || continue
+      [[ -n "$(inv_chat_of "$contest" "$_il")" ]] || rnotg=$(( rnotg + 1 ))
+    done < <(jq -r '[.teams[] | (.invited // [])[]] | unique[]' <<<"$regj" 2>/dev/null)
+    rdet="quem não aceitar NÃO entra como membro do time (e talvez nem esteja inscrito)"
+    reg_remind_on "$contest" || rdet="$rdet; o aviso automático do mojinho está DESLIGADO neste contest"
+    (( rnotg > 0 )) && rdet="$rdet; $rnotg SEM Telegram vinculado (nenhum lembrete os alcança)"
+    add reg_invites warn "$ri convite(s) de time pendente(s)" "$rdet"
+  fi
   # contest com contas locais: a inscrição pela web é da conta do TREINO — sem USERS_FROM
   # ninguém consegue se inscrever sozinho, só o admin inscreve à mão
   if [[ "$(reg_source_of "$contest")" == "$contest" ]]; then

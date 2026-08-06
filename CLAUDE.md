@@ -120,7 +120,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `has("ai")`), `flag` e foto (`team-photo`, reprocessada; 📷 já existia). **O INDIVIDUAL declara o
   mesmo** (menos foto): `register {univ?,ai?,flag?}`/`individual-meta` gravam na ENTRY do roster e
   `reg_materialize_login` leva ao `.team` do overlay (a fonte é SEMPRE o roster — o overlay é
-  reescrito a cada materialize); admin: ação `individual-meta {login,…}`. **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
+  reescrito a cada materialize); admin: ação `individual-meta {login,…}`. **O convite AVISA** (`lib/invite-notify.sh`, 2026-08-06): DM do mojinho na
+  hora do `team-invite` + **um** último aviso quando falta ≤`REG_REMIND_LEAD`(24h) p/ fechar
+  (varredura `inv_sweep_all` no poll do bot, stamp próprio; `REG_REMIND=n` desliga) + botão 🔔 do
+  painel (`invite-remind`/`invite-remind-all`). Contabilidade em `var/invites.json` (**não** no
+  roster: `reg_get` normaliza e DESCARTA chave desconhecida) com `dm` (qualquer aviso, dá o
+  intervalo mínimo) × `warn` (o automático já disparado, garante "uma vez") — cutucar à mão não
+  pode cancelar o aviso da véspera. Texto em HTML ⇒ **escapar `&<>`** de nome de time/contest.
+  **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
   — que eram só desenho de tela — e o roster valem lá; papel nunca é barrado. **TIME = conta local**
   (`users/time-<slug>/`, senha `!<uuid>`) e o membro entra com a credencial DELE: o login faz o
   **alias** (`SESSION_LOGIN` = time, `SESSION_ACTOR` = a pessoa), então placar/balões/impressão não
@@ -131,7 +138,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   loga como `.admin`, sem GODS. Em produção roda **ENJAULADO** (`mojinho-bot/run-caged.sh`: bwrap
   sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
   histerese/cooldown e enfileira no outbox `run/alerts/`; o bot drena e entrega a `.admin` vinculados
-  + grupo). Senha nova **só por DM** (nunca na web).
+  + grupo). O outbox tem **DOIS formatos**: `*.txt` = incidente (destino resolvido no claim = os
+  `.admin`) e `*.json` = **DM dirigida** (`alert_dm`: o produtor resolve o chat; `group:false` p/ não
+  copiar no grupo, `loud:true` p/ notificar). O claim entrega no máx. `ALERT_CLAIM_MAX`(30) por poll
+  (teto do Telegram) — o resto sai no seguinte. No bot, ler `group` com **`.group == false`**: o `//`
+  do jq trata `false` como vazio e o grupo receberia a DM de todo mundo.
+  Senha nova **só por DM** (nunca na web).
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +

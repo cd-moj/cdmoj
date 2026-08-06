@@ -191,6 +191,10 @@ no bot, **1 Telegram = 1 conta** (anti-duplicata), recuperação de senha pelo v
 **só por DM**. O **mojinho-bot** virou transporte fino (bot-token `mojb_`, sem `.admin`/GODS) e entrega
 **alertas** de incidente que a **API** decide (`lib/alerts.sh` + `GET /ops/alerts`: juiz offline+fila,
 fila grande, daemon caído, com histerese/cooldown) aos `.admin` com Telegram vinculado + grupo.
+O mesmo outbox carrega **DM dirigida a UMA pessoa** (`alert_dm`: o produtor resolve o chat, o item
+vai com `group:false` p/ não vazar no grupo e `loud:true` p/ notificar) — é assim que o
+**convite de time** avisa o convidado na hora e cutuca quem não respondeu na véspera
+(`lib/invite-notify.sh`; o poll do bot continua sendo o relógio, agora com stamp próprio).
 
 ### Criação de contest (`/treino/criar/`) — wizard multi-etapa
 Permissão por **lista do admin OU threshold** de problemas resolvidos. **Wizard em 8 passos**

@@ -92,6 +92,78 @@ ck "west recusou"               '[[ "$(J ".invites|length")" == 0 ]]'
 reg '{"contest":"esq","action":"team-invite","login":"caio"}' tok-caio
 ck "convite de quem não é capitão -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== o convite AVISA: DM do mojinho (lib/invite-notify.sh) =="
+OB="$RUN/alerts/outbox"
+nob(){ ( shopt -s nullglob; set -- "$OB"/*.json; echo $# ); }
+# achar a DM pelo CONTEÚDO (o nome do arquivo tem epoch+pid: ordenar por nome não dá cronologia)
+dmfor(){ grep -l "$1" "$OB"/*.json 2>/dev/null | tail -1; }
+sweep(){ # [gap] [lead] -> quantas DMs a varredura automática enfileirou
+  ( export _DIR="$ROOT/api/v1"
+    # a MESMA pilha que o router monta: auth.sh é quem tem o _users_source (USERS_FROM) — sem
+    # ele o reg_source_of devolve o PRÓPRIO contest e o índice de Telegram do treino não é
+    # achado — e ele depende do valid_id do common.sh.
+    source "$ROOT/api/v1/lib/common.sh"; source "$ROOT/api/v1/lib/auth.sh"
+    source "$ROOT/api/v1/lib/users.sh"; source "$ROOT/api/v1/lib/telegram.sh"
+    source "$ROOT/api/v1/lib/alerts.sh"
+    source "$ROOT/api/v1/lib/registration.sh"; source "$ROOT/api/v1/lib/invite-notify.sh"
+    REG_REMIND_MIN_GAP="${1:-21600}"; REG_REMIND_LEAD="${2:-86400}"
+    inv_sweep_all ); }
+
+# west ainda NÃO tem Telegram vinculado: o convite vale igual, mas ninguém é avisado
+reg '{"contest":"esq","action":"team-invite","login":"west"}' tok-ana
+ck "convite p/ west (de novo)"   '[[ "$(J ".team.invited|join(\",\")")" == *west* ]]'
+ck "sem Telegram: nada na fila"  '[[ "$(nob)" == 0 ]]'
+call /contest/admin/registrations GET '' tok-adm 'contest=esq'
+ck "painel vê o convite sem canal" '[[ "$(J ".teams[0].invited_meta[0].tg")" == false && "$(J .totals.invites_no_tg)" == 1 ]]'
+ck "painel vê desde quando"      '[[ "$(J ".teams[0].invited_meta[0].at")" -gt 0 ]]'
+ck "aviso automático ligado"     '[[ "$(J .remind)" == true ]]'
+
+mkdir -p "$T/var/telegram/by-login"; echo 4242 > "$T/var/telegram/by-login/west"
+adm '{"action":"invite-remind","team":"time-os-tres-ponteiros","login":"west"}'
+ck "lembrete do painel enfileira" '[[ "$(J .remind_result.sent)" == 1 && "$(nob)" == 1 ]]'
+DM="$(dmfor 4242)"
+ck "DM vai só p/ o convidado"    '[[ "$(jq -r ".chats|join(\",\")" "$DM")" == 4242 ]]'
+ck "DM NÃO vaza no grupo"        '[[ "$(jq -r .group "$DM")" == false ]]'
+ck "DM notifica (loud)"          '[[ "$(jq -r .loud "$DM")" == true ]]'
+ck "DM leva o link de aceitar"   '[[ "$(jq -r .text "$DM")" == *"/contests/inscricao/?c=esq"* ]]'
+call /contest/admin/registrations GET '' tok-adm 'contest=esq'
+ck "painel: canal e aviso"       '[[ "$(J ".teams[0].invited_meta[0].tg")" == true && "$(J ".teams[0].invited_meta[0].dm_at")" -gt 0 ]]'
+ck "lembrar à mão NÃO gasta o aviso automático" '[[ "$(J ".teams[0].invited_meta[0].warned_at")" == 0 ]]'
+
+adm '{"action":"invite-remind","team":"time-os-tres-ponteiros","login":"bob"}'
+ck "lembrar quem não foi convidado -> 404" '[[ "$(J .error.code)" == no_invite ]]'
+mv "$T/var/telegram/by-login/west" "$T/var/telegram/west.off"
+adm '{"action":"invite-remind","team":"time-os-tres-ponteiros","login":"west"}'
+ck "lembrar sem Telegram -> 409"  '[[ "$(J .error.code)" == no_telegram ]]'
+mv "$T/var/telegram/west.off" "$T/var/telegram/by-login/west"
+
+# o texto vai em HTML: nome de time com & ou < derruba a mensagem inteira (400 do Telegram)
+adm '{"action":"team-add","name":"A & B <x>","members":["bob"]}'
+echo 7373 > "$T/var/telegram/by-login/zeze"
+reg '{"contest":"esq","action":"team-invite","login":"zeze"}' tok-bob
+ck "convite do 2º time avisa"    '[[ "$(nob)" == 2 ]]'
+ck "nome do time escapado"       '[[ "$(jq -r .text "$(dmfor 7373)")" == *"A &amp; B &lt;x&gt;"* ]]'
+
+echo "== último aviso automático (a varredura do poll do bot) =="
+ck "intervalo mínimo segura"     '[[ "$(sweep)" == 0 ]]'
+ck "no prazo: avisa os 2"        '[[ "$(sweep 0)" == 2 && "$(nob)" == 4 ]]'
+ck "e NÃO repete"                '[[ "$(sweep 0)" == 0 ]]'
+jq -c '.items |= with_entries(.value.warn = 0)' "$C/var/invites.json" > "$C/var/i.tmp" \
+  && mv "$C/var/i.tmp" "$C/var/invites.json"          # zera o carimbo p/ isolar cada trava
+ck "prazo longe: cala"           '[[ "$(sweep 0 60)" == 0 ]]'
+printf 'REG_REMIND=n\n' >> "$C/conf"
+ck "REG_REMIND=n silencia"       '[[ "$(sweep 0)" == 0 ]]'
+sed -i '/^REG_REMIND=n$/d' "$C/conf"
+call /contest/admin/registrations GET '' tok-adm 'contest=esq'
+ck "painel: aviso automático de volta" '[[ "$(J .remind)" == true ]]'
+adm '{"action":"window","remind":false}'
+ck "painel desliga o automático" '[[ "$(J .remind)" == false ]]'
+ck "e a varredura obedece"       '[[ "$(sweep 0)" == 0 ]]'
+adm '{"action":"window","remind":true}'
+# limpa o 2º time (o resto do smoke conta 1 time) e o convite pendente dele
+adm '{"action":"team-rm","team":"time-a-b-x"}'
+ck "2º time dissolvido"          '[[ "$(J .totals.teams)" == 1 ]]'
+
 echo "== universidade, IA e foto do time =="
 reg '{"contest":"esq","action":"team-meta","univ":"UnB","ai":"yes"}' tok-ana
 ck "univ salva"                  '[[ "$(J .team.univ)" == UnB ]]'

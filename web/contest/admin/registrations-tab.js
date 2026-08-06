@@ -1,6 +1,12 @@
 // contest/admin/registrations-tab.js — painel "📝 Inscrições": o roster do contest (quem
 // pode entrar) e a JANELA (quando dá p/ se inscrever). Espelha GET/POST
-// /contest/admin/registrations (enable|disable|window|add|rm|team-add|team-rm|materialize).
+// /contest/admin/registrations (enable|disable|window|add|rm|team-add|team-rm|materialize|
+// invite-remind|invite-remind-all).
+//
+// CONVITE PENDENTE é a linha que mais custa no dia da prova: quem não aceita NÃO entra como
+// membro do time. Por isso cada convite aparece como uma pílula com o estado do canal (📨 =
+// Telegram vinculado) e o botão 🔔 que manda o mojinho cutucar — o aviso da véspera é
+// automático (lib/invite-notify.sh), este é o empurrão manual.
 //
 // Como funciona: com o registro LIGADO, só quem está no roster entra no contest (a API corta
 // no /auth/login). Quem se inscreve são as contas do Treino Livre, pela página
@@ -22,9 +28,21 @@ export function makeRegistrationsTab(CONTEST) {
 
   const say = (m, bad) => { const d = panel.querySelector('#rgMsg'); if (!d) return; d.className = bad ? 'small error-box' : 'small v-ok'; d.textContent = m; };
   const post = (b) => apiPost('/contest/admin/registrations?contest=' + enc(CONTEST), b, G);
+  // okMsg pode ser função (recebe a resposta) — o lembrete em lote precisa contar quantos foram
   async function act(body, okMsg) {
-    try { DATA = await post(body); render(); say(okMsg); }
+    try { DATA = await post(body); render(); say(typeof okMsg === 'function' ? okMsg(DATA) : okMsg); }
     catch (e) { say(e.message || T('falha', 'failed'), true); }
+  }
+
+  // "há 3 d" / "3d ago" — idade do convite (T() aqui dentro, nunca no topo do módulo: no topo
+  // ele congelaria o idioma antes de o LOCALE do contest ser aplicado)
+  function ago(at) {
+    if (!at) return '';
+    const s = Math.max(0, Math.floor(Date.now() / 1000) - at);
+    const d = Math.floor(s / 86400), h = Math.floor(s / 3600);
+    if (d >= 1) return T('há ' + d + ' d', d + 'd ago');
+    if (h >= 1) return T('há ' + h + ' h', h + 'h ago');
+    return T('há ' + Math.floor(s / 60) + ' min', Math.floor(s / 60) + 'm ago');
   }
 
   const STATE = () => ({
@@ -40,6 +58,7 @@ export function makeRegistrationsTab(CONTEST) {
       value: String(Math.max(0, Math.round(((w.late_until || 0) - (w.closes_at || 0)) / 60))) });
     const mx = el('input', { type: 'number', min: '1', max: '9', style: 'width:5rem', value: String(DATA.team_max || 3) });
     const tm = el('input', { type: 'checkbox' }); tm.checked = DATA.teams_allowed !== false;
+    const rm = el('input', { type: 'checkbox' }); rm.checked = DATA.remind !== false;
     // a data herdada é a da PROVA OFICIAL (o aquecimento pode ficar dias no ar) — ver
     // reg_official_window em lib/registration.sh
     const anc = w.official_start ? fmtDate(w.official_start) : T('(prova não marcada)', '(contest not scheduled)');
@@ -51,9 +70,15 @@ export function makeRegistrationsTab(CONTEST) {
       field(T('abre', 'opens'), op), field(T('fecha', 'closes'), cl),
       field(T('atraso (min)', 'late (min)'), lm), field(T('tamanho do time', 'team size'), mx),
       el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, tm, ' ' + T('aceita times', 'teams allowed'))),
+      el('div', { class: 'field' }, el('label', {
+        style: 'font-weight:400',
+        title: T('na véspera do fechamento, o mojinho manda UMA DM a cada convite ainda pendente',
+                 'the day before it closes, mojinho sends ONE DM per still-pending invite'),
+      }, rm, ' ' + T('lembrete automático', 'automatic reminder'))),
       el('button', { class: 'btn', onclick: () => act({
         action: 'window', open: toEpoch(op.value) || undefined, close: toEpoch(cl.value) || undefined,
         late_minutes: Number(lm.value) || 0, team_max: Number(mx.value) || 3, teams: tm.checked,
+        remind: rm.checked,
       }, T('Janela salva.', 'Window saved.')) }, T('Salvar janela', 'Save window')));
     return el('div', { class: 'section' },
       el('h3', {}, T('Janela de inscrição', 'Registration window')),
@@ -61,6 +86,31 @@ export function makeRegistrationsTab(CONTEST) {
         T('Fecha por padrão no início da PROVA OFICIAL — não no da rodada corrente: o aquecimento pode ficar dias no ar. Os minutos de atraso deixam entrar depois do início da prova, mas na coorte “atrasado” (aparece no placar sem ocupar posição) — é a extra registration do Codeforces.',
           'Closes at the OFFICIAL CONTEST start by default — not the current round: the warm-up may run for days. The late minutes let people join after the contest starts, but in the “late” cohort (they appear on the scoreboard without taking a position) — the Codeforces extra registration.')),
       herda, form);
+  }
+
+  // pílulas dos convites pendentes: quem é, se o mojinho alcança (📨), há quanto tempo espera,
+  // se já foi avisado — e o botão de cutucar.
+  function inviteChips(t) {
+    const meta = (t.invited_meta && t.invited_meta.length) ? t.invited_meta
+      : (t.invited || []).map((l) => ({ login: l, tg: false, at: 0, dm_at: 0, warned_at: 0 }));
+    if (!meta.length) return el('span', { class: 'muted small' }, '—');
+    return el('div', { class: 'row', style: 'gap:.35rem; flex-wrap:wrap' }, ...meta.map((m) => {
+      const last = Math.max(m.dm_at || 0, m.warned_at || 0);
+      const btn = el('button', {
+        class: 'btn ghost', style: 'padding:0 .3rem; line-height:1.4',
+        title: m.tg ? T('mandar um lembrete agora pelo mojinho', 'send a reminder now via mojinho')
+                    : T('sem Telegram vinculado — nenhum lembrete alcança essa pessoa',
+                        'no Telegram linked — no reminder can reach this person'),
+        onclick: () => act({ action: 'invite-remind', team: t.login, login: m.login },
+          T('Lembrete a caminho.', 'Reminder on its way.')),
+      }, '🔔');
+      if (!m.tg) btn.disabled = true;
+      return el('span', { class: 'pill', style: 'gap:.3rem' },
+        el('span', {}, (m.tg ? '📨 ' : '⚠️ ') + m.login),
+        el('span', { class: 'small muted' },
+          ago(m.at) + (last ? ' · ' + T('avisado ', 'notified ') + ago(last) : '')),
+        btn);
+    }));
   }
 
   function teamsTable() {
@@ -71,7 +121,7 @@ export function makeRegistrationsTab(CONTEST) {
           + (t.ai === true ? ' · 🤖 IA' : t.ai === false ? ' · sem IA' : '')
           + (t.has_photo ? ' · 📷' : ''))),
       el('td', {}, (t.members || []).join(', ')),
-      el('td', { class: 'small muted' }, (t.invited || []).join(', ')),
+      el('td', { class: 'small' }, inviteChips(t)),
       el('td', { class: 'small' }, t.cohort || ''),
       el('td', {}, el('button', {
         class: 'btn ghost danger', title: T('dissolver', 'dissolve'),
@@ -123,6 +173,18 @@ export function makeRegistrationsTab(CONTEST) {
         el('button', { class: 'btn ghost', onclick: () => act({ action: DATA.enabled ? 'disable' : 'enable' },
           DATA.enabled ? T('Inscrição desligada.', 'Registration off.') : T('Inscrição ligada.', 'Registration on.')) },
           DATA.enabled ? T('Desligar', 'Turn off') : T('Ligar inscrição', 'Turn on')),
+        DATA.enabled && (t.invites || 0) > 0
+          ? el('button', { class: 'btn ghost',
+              title: T('o mojinho manda uma DM a cada convidado que ainda não respondeu',
+                       'mojinho sends a DM to every invitee who has not answered yet'),
+              onclick: () => confirm(T('Mandar lembrete para os ' + t.invites + ' convites pendentes?',
+                                       'Send a reminder to the ' + t.invites + ' pending invites?'))
+                && act({ action: 'invite-remind-all' }, (d) => {
+                  const r = d.remind_result || {}; const k = (r.skipped || []).length;
+                  return T('Lembrete a caminho para ' + (r.sent || 0) + '.' + (k ? ' ' + k + ' sem Telegram vinculado.' : ''),
+                           'Reminder on its way to ' + (r.sent || 0) + '.' + (k ? ' ' + k + ' without a linked Telegram.' : ''));
+                }) }, T('🔔 Lembrar todos', '🔔 Remind all'))
+          : '',
         el('button', { class: 'btn ghost', onclick: () => act({ action: 'materialize' }, T('Store reescrito a partir do roster.', 'Store rewritten from the roster.')) },
           T('Re-materializar', 'Re-materialize'))),
       el('div', { id: 'rgMsg', class: 'small' }));
@@ -137,7 +199,12 @@ export function makeRegistrationsTab(CONTEST) {
       el('p', { class: 'small muted' },
         T('Inscritos: ', 'Registered: ') + (t.people || 0) + T(' pessoas · ', ' people · ') + (t.teams || 0)
         + T(' times · ', ' teams · ') + (t.individuals || 0) + T(' individuais · ', ' individuals · ')
-        + (t.invites || 0) + T(' convites pendentes. A pessoa se inscreve em ', ' pending invites. People register at ')
+        + (t.invites || 0) + T(' convites pendentes', ' pending invites')
+        + ((t.invites_no_tg || 0) > 0
+            ? T(' (' + t.invites_no_tg + ' sem Telegram vinculado — nenhum lembrete os alcança)',
+                ' (' + t.invites_no_tg + ' without a linked Telegram — no reminder reaches them)')
+            : '')
+        + T('. A pessoa se inscreve em ', '. People register at ')
         + '/contests/inscricao/?c=' + CONTEST),
       windowBox(),
       el('h3', {}, T('Times', 'Teams')), teamsTable(),
