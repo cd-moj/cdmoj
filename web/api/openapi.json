@@ -5072,7 +5072,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{status,results}"
+            "description": "{status,results:[{problem,lang,pairs:[{a,b,similarity,a_login,a_name,a_univ,b_login,b_name,b_univ}]}]} — a/b = nome sanitizado do arquivo; a_name = nome do time (aditivo; run antigo não tem)"
           }
         }
       }

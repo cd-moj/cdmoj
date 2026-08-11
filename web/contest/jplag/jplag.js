@@ -13,6 +13,10 @@ let pollTimer = null;
 
 const simClass = (s) => (s >= 80 ? 'sim-high' : s >= 50 ? 'sim-mid' : 'sim-low');
 
+// "[UNIV] Time (login)" quando o run traz os campos novos; run antigo cai no nome do arquivo
+const who = (name, login, univ) =>
+  (name ? (univ ? '[' + univ + '] ' : '') + name + ' (' + login + ')' : login);
+
 function openMatch(run, i) {
   fetch('/api/v1/contest/admin/jplag-match?contest=' + enc(CONTEST) + '&run=' + enc(run) + '&i=' + i,
     { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } })
@@ -37,7 +41,8 @@ function render(data) {
     if (!r.pairs || !r.pairs.length) { sec.append(el('div', { class: 'muted small' }, T('nenhum par acima do limite.', 'no pairs above the threshold.'))); app.append(sec); return; }
     const tb = el('tbody');
     r.pairs.forEach((p) => tb.append(el('tr', {},
-      el('td', {}, p.a), el('td', {}, p.b),
+      el('td', {}, who(p.a_name, p.a_login || p.a, p.a_univ)),
+      el('td', {}, who(p.b_name, p.b_login || p.b, p.b_univ)),
       el('td', { class: 'n ' + simClass(p.similarity) }, (p.similarity || 0).toFixed(1) + '%'),
       el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openMatch(r.run, p.index); } }, T('ver lado-a-lado', 'view side-by-side'))))));
     sec.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },

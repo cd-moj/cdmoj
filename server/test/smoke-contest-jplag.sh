@@ -45,6 +45,9 @@ R="$(ls "$C/jplag"/r-*.json 2>/dev/null | head -1)"
 ck "gerou resultado"        '[[ -n "$R" ]]'
 ck "status concluído"       '[[ "$(jq -r .running "$C/jplag/status.json" 2>/dev/null)" == "false" ]]'
 ck "par alice-bob ~100%"    '[[ -n "$R" ]] && [[ "$(jq -r "[.pairs[]|select((.a==\"alice\" and .b==\"bob\") or (.a==\"bob\" and .b==\"alice\"))][0].similarity" "$R" 2>/dev/null | cut -d. -f1)" -ge 90 ]]'
+ck "run gravou users.json"  '[[ -n "$R" ]] && [[ -s "$C/jplag/$(jq -r .run "$R")/users.json" ]]'
+ck "par traz nome do time (a_name)" '[[ -n "$R" ]] && jq -e "[.pairs[]|select(.a_name==\"Alice\" or .b_name==\"Alice\")]|length>=1" "$R" >/dev/null'
+ck "par traz login literal (a_login)" '[[ -n "$R" ]] && jq -e "[.pairs[]|select(.a_login==\"alice\" or .b_login==\"alice\")]|length>=1" "$R" >/dev/null'
 
 echo "== handlers =="
 call /contest/admin/jplag-results GET '' adm 'contest=jp'
