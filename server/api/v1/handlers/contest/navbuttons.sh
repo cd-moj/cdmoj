@@ -61,9 +61,10 @@ elif is_chief; then
     {label:\"Todas Submissões\",  url:\"/contest/allsubmissions/\"},
     {label:\"Estatísticas\",      url:\"/contest/statistics/\"}]"
 elif is_judge; then
-  # juiz puro avalia pela página Avaliar (a lista completa "Todas Submissões" é admin/juiz-chefe)
+  # juiz puro avalia pela página Avaliar; "Todas Submissões" vem ANÔNIMA (sem user/team)
   buttons="$buttons + [
     {label:\"⚖️ Avaliar\",            url:\"/contest/judge/\"},
+    {label:\"Todas Submissões\",     url:\"/contest/allsubmissions/\"},
     {label:\"Estatísticas\",         url:\"/contest/statistics/\"}]"
 elif is_mon; then
   buttons="$buttons + [

@@ -354,7 +354,8 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   admin já existente (senha digitada respeitada; em modo compartilhado o `<login>.admin` existente é
   reutilizado).
 - **`/contest/allsubmissions/`** — todas as submissões (ver código/log, filtrar, marcar
-  grupo/todos, **rejulgar em lote**).
+  grupo/todos, **rejulgar em lote**). `.judge`/`.mon` veem a lista **anônima** (a API zera
+  usuário/time — corte no servidor, não na UI).
 - **`/contest/statistics/`** — estatísticas ricas (totais, por problema, quartis, distribuição,
   tentativas, veredicto×problema, balões, linha do tempo).
 - **`/contest/clarification/`** — perguntas (por problema/geral); admin/judge/mon respondem

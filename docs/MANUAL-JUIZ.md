@@ -27,6 +27,7 @@ Como juiz, sua barra de navegação tem estas abas:
 | **Score** | O placar. |
 | **Clarification** | Perguntas e respostas (esclarecimentos). |
 | **⚖️ Avaliar** | A sua fila de avaliação. É aqui que você trabalha. |
+| **Todas as Submissões** | O feed completo da prova, **anônimo**: você vê horário, problema, veredicto cru, código e log — mas **não** vê usuário nem time (nem a API revela; quem submeteu é irrelevante para avaliar). |
 | **Estatísticas** | Números da prova. |
 | **Sair** | Encerra a sessão. |
 
@@ -85,7 +86,7 @@ Além das abas do juiz, o juiz-chefe vê:
 | Aba | Para quê |
 |---|---|
 | **👑 Juiz-chefe** | O painel de chefia (detalhado abaixo). |
-| **Todas as Submissões** | A lista completa de submissões, com o veredicto cru. |
+| **Todas as Submissões** | A lista completa **com usuário e time** (o juiz comum a vê anônima), com o veredicto cru. |
 
 ### O painel do chefe
 
@@ -102,7 +103,7 @@ Em **qualquer página do contest**, o juiz-chefe recebe um **aviso vermelho pisc
 
 ### Outros poderes do chefe
 
-- Ver **Todas as Submissões**, com o veredicto cru.
+- Ver **Todas as Submissões** com usuário e time (o juiz comum a vê anônima), com o veredicto cru.
 - Responder **clarifications** (esclarecimentos). Você precisa **reservar** a pergunta antes de responder. O autor da pergunta é **anônimo** para você.
 - Editar **respostas e notícias** da prova.
 
@@ -126,7 +127,7 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas e esta
 | Resolver **conflitos**. | Usar jplag. |
 | Editar a lista de veredictos (🏷️ Opções). | Mudar configurações do contest. |
 | Editar o **auto-veredicto** (matriz problema x linguagem x veredicto). | Gerenciar times ou usuários. |
-| Ver **Todas as Submissões** com veredicto cru. | |
+| Ver **Todas as Submissões** com usuário/time e veredicto cru. | |
 | Responder clarifications (reservando antes; autor anônimo). | |
 | Editar respostas e notícias. | |
 | Receber o alerta piscante de conflito em qualquer página. | |

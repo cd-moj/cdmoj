@@ -2,7 +2,9 @@
 // Dois modos: (1) MANUAL (contest com manual_verdict): fila de revisão /contest/review/* — pega
 // (máx 2, 1 ativa, 5 min + prorroga), vê log+fonte+veredicto computado, escolhe o veredicto;
 // 2 juízes no mesmo → vai ao aluno; diferentes → conflito (juiz-chefe resolve). (2) LEGADO:
-// /contest/allsubmissions + /contest/set-verdict (admin/chief).
+// /contest/allsubmissions + /contest/set-verdict. No legado, juiz PURO recebe a lista
+// ANÔNIMA da API (username/fullname vazios) — sem colunas Usuário e Veredicto final
+// (o set-verdict exige username).
 import { apiGet, apiGetText, apiPost } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
@@ -16,6 +18,7 @@ const enc = encodeURIComponent;
 const G = { contest: CONTEST, auth: true };
 let problems = [], subs = [], finalVerdicts = [];
 let REVIEW = false, rv = null, ME = '', OPTIONS = [], IS_CHIEF = false, pollT = null, tickT = null;
+let PRIV = false; // admin/chief: lista legada com identidade + set-verdict; juiz puro: anônima
 
 const shortOf = (pid) => { const p = problems.find(x => x.problem_id === pid); return p ? (p.short_name || pid) : pid; };
 
@@ -135,7 +138,11 @@ function renderLegacy() {
   const onlyP = (document.getElementById('onlyPending') || {}).checked;
   const list = subs.filter(s => (!onlyP || isPending(s.verdict)) && (!fu || (s.username || '').toLowerCase().includes(fu.toLowerCase())) && (!fp || shortOf(s.problem_id).toLowerCase().includes(fp.toLowerCase())));
   if (!list.length) { box.innerHTML = '<span class="muted">' + T('Nenhuma submissão.', 'No submissions.') + '</span>'; return; }
-  const head = el('thead', {}, el('tr', {}, el('th', {}, T('Quando', 'When')), el('th', {}, T('Usuário', 'User')), el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Veredicto', 'Verdict')), el('th', {}, T('Veredicto final', 'Final verdict')), el('th', {}, T('Ver', 'View'))));
+  const head = el('thead', {}, el('tr', {}, el('th', {}, T('Quando', 'When')),
+    ...(PRIV ? [el('th', {}, T('Usuário', 'User'))] : []),
+    el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Veredicto', 'Verdict')),
+    ...(PRIV ? [el('th', {}, T('Veredicto final', 'Final verdict'))] : []),
+    el('th', {}, T('Ver', 'View'))));
   const tb = el('tbody');
   list.forEach(s => {
     const sel = el('select', {}, el('option', { value: '' }, T('-- escolha --', '-- choose --')), ...finalVerdicts.map(v => el('option', { value: v }, v)));
@@ -144,17 +151,18 @@ function renderLegacy() {
     btn.addEventListener('click', async () => { btn.disabled = true; msg.textContent = T('Enviando…', 'Sending…');
       try { await apiPost('/contest/set-verdict?contest=' + enc(CONTEST), { problem_id: s.problem_id, verdict: sel.value, username: s.username }, G); msg.textContent = T('✓ Enviado!', '✓ Sent!'); }
       catch (e) { msg.innerHTML = '<span class="error-box">' + T('Erro: ', 'Error: ') + (e && e.message ? e.message : T('falha', 'failed')) + '</span>'; btn.disabled = false; } });
-    tb.append(el('tr', {}, el('td', {}, el('span', { class: 'small' }, fmtDate(s.epoch))), el('td', {}, s.username || ''),
+    tb.append(el('tr', {}, el('td', {}, el('span', { class: 'small' }, fmtDate(s.epoch))),
+      ...(PRIV ? [el('td', {}, s.username || '')] : []),
       el('td', {}, el('b', {}, shortOf(s.problem_id))),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, isPending(s.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
-      el('td', {}, sel, ' ', btn, ' ', msg),
+      ...(PRIV ? [el('td', {}, sel, ' ', btn, ' ', msg)] : []),
       el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink({ id: s.id, sub_epoch: s.epoch }), srcLink({ id: s.id, sub_epoch: s.epoch, lang: s.lang })))));
   });
   box.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, head, tb)));
 }
 async function loadLegacy() {
   let txt; try { txt = await apiGetText('/contest/allsubmissions?contest=' + enc(CONTEST), G); }
-  catch { document.getElementById('judgeContainer').innerHTML = '<div class="notice">' + T('Feed completo requer perfil admin/juiz-chefe. (Contest sem veredicto manual.)', 'Full feed requires admin/chief-judge role. (Contest without manual verdict.)') + '</div>'; return; }
+  catch { document.getElementById('judgeContainer').innerHTML = '<div class="notice">' + T('Falha ao carregar as submissões.', 'Failed to load submissions.') + '</div>'; return; }
   subs = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean).sort((a, b) => Number(b.epoch) - Number(a.epoch));
   renderLegacy();
 }
@@ -167,7 +175,7 @@ async function boot() {
   const st = await status(CONTEST);
   if (!st.logged_in) { location.href = '/contest/?c=' + enc(CONTEST); return; }
   if (!st.is_judge && !st.is_admin) { document.body.innerHTML = '<div class="container"><div class="notice">' + T('Acesso restrito a juízes.', 'Access restricted to judges.') + '</div></div>'; return; }
-  ME = st.login || '';
+  ME = st.login || ''; PRIV = !!(st.is_admin || st.is_chief);
   await mountChrome(CONTEST, basic, { auth: true });
   problems = (await apiGet('/contest/problems?contest=' + enc(CONTEST), G).catch(() => null)) || [];
   problems = Array.isArray(problems) ? problems : (problems.problems || []);
@@ -184,8 +192,8 @@ async function boot() {
   } else if (!st.is_admin && !st.is_chief) {
     // contest SEM veredicto manual: o juiz puro não tem fila de avaliação (veredictos automáticos)
     document.getElementById('judgeContainer').innerHTML =
-      '<div class="notice">' + T('Este contest não usa <b>veredicto manual</b> — as correções são automáticas, não há fila para avaliar. (O administrador pode ligar o modo manual em Configurações; a lista completa de submissões é do admin/juiz-chefe.)',
-        'This contest does not use <b>manual verdict</b> — corrections are automatic, there is no queue to evaluate. (The administrator can turn on manual mode in Settings; the full submission list is for admin/chief-judge.)') + '</div>';
+      '<div class="notice">' + T('Este contest não usa <b>veredicto manual</b> — as correções são automáticas, não há fila para avaliar. Acompanhe o feed em <b>Todas Submissões</b> (anônimo para juízes).',
+        'This contest does not use <b>manual verdict</b> — corrections are automatic, there is no queue to evaluate. Follow the feed in <b>All Submissions</b> (anonymous for judges).') + '</div>';
   } else {
     const fv = await apiGet('/contest/final-verdicts?contest=' + enc(CONTEST), G).catch(() => null);
     finalVerdicts = fv ? (fv.verdicts || []) : [];

@@ -21,7 +21,7 @@ web/
     ├── login/           # login full-screen, countdown, bandeiras
     ├── (main)           # problemas, submissão, balões, tabela de submissões
     ├── score/           # renderizadores por modo (icpc/obi/treino/heuristic/outro)
-    ├── allsubmissions/  # admin
+    ├── allsubmissions/  # admin/chief (completa) + judge/mon (anônima)
     ├── judge/           # veredicto final
     └── statistics/      # gráficos do contest
 ```

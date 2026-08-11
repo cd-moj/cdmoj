@@ -31,6 +31,7 @@ call /contest/review/list GET '' j1 'contest=rv'
 ck "juiz vê 2 itens, manual on"   '[[ "$(jq -r ".items|length" <<<"$BODY")" == 2 && "$(jq -r .manual <<<"$BODY")" == true ]]'
 ck "counts: 2 não avaliadas"      '[[ "$(jq -r .counts.not_evaluated <<<"$BODY")" == 2 ]]'
 ck "idade disponível (created_at)" '[[ "$(jq -r ".items[0].created_at" <<<"$BODY")" == "$OLD" ]]'
+ck "juiz comum NÃO vê o login do competidor" '[[ "$(jq -r ".items[0].login" <<<"$BODY")" == null ]]'
 
 echo "== claim + vote (j1) =="
 call /contest/review/claim POST '{"id":"r1","action":"claim"}' j1 'contest=rv'
@@ -43,6 +44,7 @@ call /contest/review/list GET '' j2 'contest=rv'
 ck "juiz comum NÃO vê os votos"   '[[ "$(jq -r ".items[]|select(.id==\"r1\").votes" <<<"$BODY")" == null && "$(jq -r ".items[]|select(.id==\"r1\").votes_n" <<<"$BODY")" == 1 ]]'
 call /contest/review/list GET '' adm 'contest=rv'
 ck "ADMIN vê os votos"            '[[ "$(jq -r ".items[]|select(.id==\"r1\").votes[0].by" <<<"$BODY")" == "j1.judge" ]]'
+ck "ADMIN vê o login do competidor" '[[ "$(jq -r ".items[0].login" <<<"$BODY")" == aluno1 ]]'
 call /contest/review/list GET '' cj 'contest=rv'
 ck "chefe vê os votos"            '[[ "$(jq -r ".items[]|select(.id==\"r1\").votes[0].by" <<<"$BODY")" == "j1.judge" ]]'
 

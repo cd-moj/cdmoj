@@ -2281,7 +2281,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Todas as submissões (admin, TXT 9 campos)",
+        "summary": "Todas as submissões (TXT 9 campos; admin/chief completo; judge/mon ANÔNIMO — username/fullname/univ vazios, ordenado por epoch)",
         "security": [
           {
             "bearerAuth": []
@@ -2395,7 +2395,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Fila de revisão de veredicto manual (judge; votos detalhados só p/ admin/chief — anti-anchoring)",
+        "summary": "Fila de revisão de veredicto manual (judge; votos detalhados e login do competidor só p/ admin/chief — anti-anchoring/anonimato)",
         "security": [
           {
             "bearerAuth": []

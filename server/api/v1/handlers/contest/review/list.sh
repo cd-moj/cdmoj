@@ -2,6 +2,8 @@
 # Fila de revisão de veredicto manual + minha avaliação ativa + contadores. Votos dos outros
 # juízes ficam OCULTOS p/ o JUIZ COMUM (evita anchoring); juiz-chefe E admin veem tudo (o
 # mesmo par que resolve/override — conflicts/resolve/stats já são is_admin_or_chief).
+# O LOGIN do competidor também é só admin/chief (null p/ juiz comum — mesma regra de
+# anonimato do /contest/allsubmissions; o juiz avalia o código, não a pessoa).
 require_method GET
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -24,7 +26,8 @@ for f in "$dir"/*.json; do
   proj="$(jq -c --argjson now "$now" --arg me "$me" --argjson chief "$chief" --argjson q "$Q" "$(rv_expire_filter)
     | $(rv_recompute)
     | select((.status // \"open\") != \"released\")
-    | { id, login, problem_id, lang, computed_verdict, status, conflict, created_at, sub_epoch,
+    | { id, login: (if \$chief then .login else null end),
+        problem_id, lang, computed_verdict, status, conflict, created_at, sub_epoch,
         claimants: [ (.claimants // [])[] | {by, elapsed_s:(\$now - (.at // 0)), expires_in_s:((.expires_at // 0) - \$now)} ],
         votes_n: ((.votes // [])|length),
         my_vote: (((.votes // [])[] | select(.by==\$me) | .verdict) // null),

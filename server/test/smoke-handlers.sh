@@ -26,6 +26,8 @@ for k in pa pb pc pd; do printf '<h1>col#%s</h1>' "$k" > "$C/enunciados/col#$k.h
 # fx_user cria users/<login>/{account.json,history,submissions,mojlog,results}
 fx_user "$C" "$ADMIN" adm "Admin Handson"
 fx_user "$C" alice    a   "Alice Silva"
+fx_user "$C" hands.judge j "Juiz Um"
+fx_user "$C" hands.mon   m "Monitor Um"
 printf '5:col#pa:C:Accepted,100p:1718000000:%s\n' "$SID" > "$C/users/alice/history"
 printf 'int main(){return 0;}\n' > "$C/users/alice/submissions/$SID.c"
 printf '<html>report</html>\n'   > "$C/users/alice/mojlog/$SID.html"
@@ -50,6 +52,20 @@ cat > "$SESS/$NTOK" <<EOF
 CONTEST="$CONTEST"
 LOGIN="alice"
 USERFULLNAME="Alice Silva"
+LOGINAT=$EPOCHSECONDS
+EOF
+JTOK="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+cat > "$SESS/$JTOK" <<EOF
+CONTEST="$CONTEST"
+LOGIN="hands.judge"
+USERFULLNAME="Juiz Um"
+LOGINAT=$EPOCHSECONDS
+EOF
+MTOK="12121212-3434-5656-7878-909090909090"
+cat > "$SESS/$MTOK" <<EOF
+CONTEST="$CONTEST"
+LOGIN="hands.mon"
+USERFULLNAME="Monitor Um"
 LOGINAT=$EPOCHSECONDS
 EOF
 
@@ -144,6 +160,14 @@ call "/contest/allsubmissions" GET "contest=$CONTEST" "$TOKEN"
 check "allsubmissions 200 (TXT)" 'okstatus'
 check "allsubmissions has >=9 colon-fields" '[[ -n "$BODY" ]] && [[ "$(printf "%s" "$BODY" | head -1 | awk -F: "{print NF}")" -ge 9 ]]'
 check "allsubmissions resolve fullname do account.json" '[[ "$BODY" == *"Alice Silva"* ]]'
+
+echo "== contest/allsubmissions ANÔNIMA (.judge/.mon: sem login/fullname) =="
+call "/contest/allsubmissions" GET "contest=$CONTEST" "$JTOK"
+check "judge: 200 e >=9 campos (aridade preservada)" 'okstatus && [[ -n "$BODY" ]] && [[ "$(printf "%s" "$BODY" | head -1 | awk -F: "{print NF}")" -ge 9 ]]'
+check "judge: campo 2 (login) VAZIO em todas as linhas" 'printf "%s\n" "$BODY" | awk -F: "\$2 != \"\" {bad=1} END {exit bad+0}"'
+check "judge: corpo NÃO contém login nem fullname" '[[ "$BODY" != *alice* && "$BODY" != *"Alice Silva"* ]]'
+call "/contest/allsubmissions" GET "contest=$CONTEST" "$MTOK"
+check "mon: 200 anônima (sem login)" 'okstatus && [[ -n "$BODY" && "$BODY" != *alice* ]]'
 
 echo "== contest/final-verdicts (Bearer, judge) =="
 call "/contest/final-verdicts" GET "contest=$CONTEST" "$TOKEN"

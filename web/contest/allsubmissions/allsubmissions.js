@@ -1,6 +1,8 @@
-// contest/allsubmissions/allsubmissions.js — ADMIN: todas as submissões do contest.
+// contest/allsubmissions/allsubmissions.js — todas as submissões do contest.
 // 9 campos: tempo:username:problemid:lang:verdict:epoch:subid:fullname:univ
-// Agrupa por usuário/problema, filtros, links cód/log, multi-seleção -> rejudge ({ids:[...]}).
+// admin/chief (FULL): identidade + filtros + multi-seleção -> rejudge ({ids:[...]}).
+// .judge/.mon: a API manda os campos de identidade VAZIOS (anônimo) — a UI esconde as
+// colunas Usuário/Equipe, o agrupador/filtro por usuário e o rejudge (POST é admin/chief).
 import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
@@ -13,6 +15,7 @@ let problems = [];
 let subs = [];
 let groupBy = 'all';
 let selected = new Set();
+let FULL = false; // admin/chief = identidade + rejudge; juiz/monitor = lista anônima
 
 function shortOf(pid) { const p = problems.find(x => x.problem_id === pid); return p ? (p.short_name || pid) : pid; }
 function fullOf(pid) { const p = problems.find(x => x.problem_id === pid); return p ? (p.full_name || '') : ''; }
@@ -60,7 +63,8 @@ async function openReportAuthed(path) {
 }
 
 function filteredSubs() {
-  const fu = document.getElementById('fUser').value.trim().toLowerCase();
+  const fuEl = document.getElementById('fUser'); // removido no modo anônimo
+  const fu = fuEl ? fuEl.value.trim().toLowerCase() : '';
   const fp = document.getElementById('fProblem').value.trim().toLowerCase();
   const fv = document.getElementById('fVerdict').value.trim().toLowerCase();
   return subs.filter(s => {
@@ -73,9 +77,9 @@ function filteredSubs() {
 
 function rowTable(items) {
   const head = el('thead', {}, el('tr', {},
-    el('th', { style: 'width:1.5rem' }, ''),
+    ...(FULL ? [el('th', { style: 'width:1.5rem' }, '')] : []),
     el('th', {}, T('Tempo', 'Time')), el('th', {}, T('Quando', 'When')),
-    el('th', {}, T('Usuário', 'User')), el('th', {}, T('Equipe', 'Team')),
+    ...(FULL ? [el('th', {}, T('Usuário', 'User')), el('th', {}, T('Equipe', 'Team'))] : []),
     el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Veredicto', 'Verdict')),
     el('th', {}, T('Arquivo', 'File')), el('th', {}, 'Log')));
   const tb = el('tbody');
@@ -85,11 +89,13 @@ function rowTable(items) {
     cb.addEventListener('change', () => { if (cb.checked) selected.add(s.submission_id); else selected.delete(s.submission_id); });
     const pending = isPending(s.verdict);
     tb.append(el('tr', {},
-      el('td', {}, cb),
+      ...(FULL ? [el('td', {}, cb)] : []),
       el('td', {}, s.sinceStart || ''),
       el('td', {}, el('span', { class: 'small' }, fmtDate(s.epoch))),
-      el('td', {}, s.username || ''),
-      el('td', {}, (s.univ ? `[${s.univ}] ` : '') + (s.fullname || '')),
+      ...(FULL ? [
+        el('td', {}, s.username || ''),
+        el('td', {}, (s.univ ? `[${s.univ}] ` : '') + (s.fullname || '')),
+      ] : []),
       el('td', {}, el('b', {}, shortOf(s.problem_id)), ' ', el('span', { class: 'small muted' }, fullOf(s.problem_id))),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
       el('td', {},
@@ -144,7 +150,7 @@ async function loadSubs() {
   let txt;
   try { txt = await apiGetText('/contest/allsubmissions?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); }
   catch (e) {
-    document.getElementById('adminContainer').innerHTML = `<span class="error-box">${T('Falha ao carregar (precisa ser admin ou juiz-chefe).', 'Failed to load (must be admin or chief judge).')}</span>`;
+    document.getElementById('adminContainer').innerHTML = `<span class="error-box">${T('Falha ao carregar (precisa ser admin, juiz-chefe, juiz ou monitor).', 'Failed to load (must be admin, chief judge, judge, or monitor).')}</span>`;
     return;
   }
   subs = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean)
@@ -160,9 +166,18 @@ async function boot() {
 
   const st = await status(CONTEST);
   if (!st.logged_in) { location.href = '/contest/?c=' + encodeURIComponent(CONTEST); return; }
-  if (!st.is_admin && !st.is_chief) { document.body.innerHTML = `<div class="container"><div class="notice">${T('Acesso restrito a administradores e ao juiz-chefe.', 'Restricted to administrators and the chief judge.')}</div></div>`; return; }
+  // .mon não vem no /auth/status — mesmo sufixo que o servidor usa; o gate REAL é a API
+  const isMon = /\.mon$/.test(st.login || '');
+  if (!st.is_admin && !st.is_chief && !st.is_judge && !isMon) { document.body.innerHTML = `<div class="container"><div class="notice">${T('Acesso restrito a administradores, juízes e monitores.', 'Restricted to administrators, judges and monitors.')}</div></div>`; return; }
+  FULL = !!(st.is_admin || st.is_chief);
 
   await mountChrome(CONTEST, basic, { auth: true });
+
+  if (!FULL) {
+    // lista anônima: sem usuário/equipe, sem agrupar/filtrar por usuário, sem rejudge
+    ['fUser', 'markAll', 'rejudgeBtn', 'rejudgeMsg'].forEach((id) => { const e = document.getElementById(id); if (e) e.remove(); });
+    const gu = document.querySelector('[data-group="user"]'); if (gu) gu.remove();
+  }
 
   try {
     const j = await apiGet('/contest/problems?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true });
@@ -170,11 +185,13 @@ async function boot() {
   } catch {}
 
   document.querySelectorAll('[data-group]').forEach(btn => btn.addEventListener('click', () => { groupBy = btn.dataset.group; render(); }));
-  ['fUser', 'fProblem', 'fVerdict'].forEach(id => document.getElementById(id).addEventListener('input', render));
-  document.getElementById('markAll').addEventListener('click', () => { filteredSubs().forEach(s => selected.add(s.submission_id)); render(); });
-  const clearBtn = el('button', { class: 'btn ghost', onclick: () => { selected.clear(); render(); } }, T('Desmarcar todos', 'Clear selection'));
-  document.getElementById('markAll').after(clearBtn);
-  document.getElementById('rejudgeBtn').addEventListener('click', doRejudge);
+  ['fUser', 'fProblem', 'fVerdict'].forEach(id => { const e = document.getElementById(id); if (e) e.addEventListener('input', render); });
+  if (FULL) {
+    document.getElementById('markAll').addEventListener('click', () => { filteredSubs().forEach(s => selected.add(s.submission_id)); render(); });
+    const clearBtn = el('button', { class: 'btn ghost', onclick: () => { selected.clear(); render(); } }, T('Desmarcar todos', 'Clear selection'));
+    document.getElementById('markAll').after(clearBtn);
+    document.getElementById('rejudgeBtn').addEventListener('click', doRejudge);
+  }
 
   await loadSubs();
 }
