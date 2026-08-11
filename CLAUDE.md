@@ -455,6 +455,13 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `initContestShell` aplicar o `LOCALE` do contest (o rótulo sai no idioma do browser). Rótulo de
   aba/estado/tipo tem de ser **fábrica preguiçosa** — `const TABS = () => [...]`, chamada no render
   (padrão em `bank-panel.js:14`, `contest/admin/admin.js`, `audit-tab.js`).
+- **Rótulos da NAV do contest são bilíngues no FRONT** (`shared/nav-i18n.js`): o servidor
+  (`navbuttons.sh`) manda label PT fixo e a **URL é o identificador estável** — `navLabel(url,label)`
+  resolve o par pt/en na renderização (os 4 renderizadores de nav — `contest-shell.js`,
+  `lib/contest-chrome.js`, `contest.js`, `score/score.js` — re-pintam no evento `moj:lang`).
+  **Botão novo no `navbuttons.sh` ⇒ linha nova no mapa do `nav-i18n.js`** (sem a linha ele cai no
+  label PT do servidor — não some, mas vira string só-PT, que é bug). Datas: `toLocaleString()` SEM
+  `'pt-BR'` fixo (o formato segue `document.documentElement.lang`, que o `applyHtmlLang` ajusta).
 - **Painel de admin do contest = SHELL + módulos.** `web/contest/admin/admin.js` só navega: 4 grupos
   (`central|prova|pessoas|operacao`) × painéis, hash **`#grupo/painel`** e o mapa `ALIAS` com TODOS
   os hashes antigos (link salvo/manual não pode quebrar — ao renomear um painel, ATUALIZE o ALIAS).

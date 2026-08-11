@@ -6,6 +6,7 @@ import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js'
 import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
+import { navLabel } from '/shared/nav-i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -268,22 +269,26 @@ function navHref(url) {
   return url + (url.includes('?') ? '&' : '?') + 'c=' + c;
 }
 
+let NAVBTNS = []; // últimos botões pintados — re-render quando o idioma muda (moj:lang)
 function renderNav(buttons) {
+  NAVBTNS = buttons;
   const nav = document.getElementById('contestNav');
   nav.innerHTML = '';
   const here = location.pathname.replace(/\/+$/, '');
   buttons.forEach(b => {
     const href = navHref(b.url);
+    const label = navLabel(b.url, b.label);
     if (href === '#logout') {
       nav.append(el('a', {
         href: '#', onclick: async (e) => { e.preventDefault(); await doLogout(); },
-      }, b.label));
+      }, label));
       return;
     }
     const active = href.split('?')[0].replace(/\/+$/, '') === here;
-    nav.append(el('a', { href, class: active ? 'active' : '' }, b.label));
+    nav.append(el('a', { href, class: active ? 'active' : '' }, label));
   });
 }
+document.addEventListener('moj:lang', () => { if (NAVBTNS.length) renderNav(NAVBTNS); });
 
 async function doLogout() {
   await logout(CONTEST);

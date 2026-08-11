@@ -16,7 +16,8 @@ const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const enc = encodeURIComponent;
 const fmt = (e) => (+e ? new Date(+e * 1000).toLocaleString() : '—');
-const KIND = { warmup: T('aquecimento', 'warm-up'), official: T('prova oficial', 'official contest'), extra: T('extra', 'extra') };
+// função, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
+const KIND = (k) => ({ warmup: T('aquecimento', 'warm-up'), official: T('prova oficial', 'official contest'), extra: T('extra', 'extra') }[k] || '');
 let ROUNDS = [];
 
 const authHdr = () => ({ Authorization: 'Bearer ' + (getToken(CONTEST) || '') });
@@ -90,7 +91,7 @@ function render() {
   if (live) box.append(el('div', { class: 'subcard', style: 'margin:.3rem 0' },
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
       el('b', {}, live.name || live.slug), el('span', { class: 'pill ok' }, T('no ar', 'live')),
-      el('span', { class: 'small muted' }, KIND[live.kind] || ''),
+      el('span', { class: 'small muted' }, KIND(live.kind)),
       el('span', { class: 'small muted' }, fmt(live.start) + ' → ' + fmt(live.end)))));
   if (!arch.length) {
     box.append(el('p', { class: 'small muted', style: 'margin-top:.6rem' },
@@ -101,7 +102,7 @@ function render() {
       const row = el('div', { class: 'subcard', style: 'margin:.3rem 0' },
         el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
           el('b', {}, r.name || r.slug),
-          el('span', { class: 'small muted' }, KIND[r.kind] || ''),
+          el('span', { class: 'small muted' }, KIND(r.kind)),
           el('span', { class: 'small muted' }, fmt(r.start) + ' → ' + fmt(r.end)),
           r.stats ? el('span', { class: 'small muted' },
             T(`${r.stats.submissions} submissões · ${r.stats.users} contas`,

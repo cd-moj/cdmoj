@@ -10,7 +10,7 @@ const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const G = { contest: CONTEST, auth: true };
-const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString('pt-BR');
+const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
 
 async function downloadAuthed(path, filename) {
   const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + (getToken(CONTEST) || '') } });

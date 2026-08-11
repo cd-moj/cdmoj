@@ -14,7 +14,7 @@ const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const G = { contest: CONTEST, auth: true };
 const enc = encodeURIComponent;
-const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString('pt-BR');
+const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
 const AUTOKEY = 'moj_autoprint_' + CONTEST;
 
 const STATUS = {

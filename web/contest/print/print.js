@@ -11,13 +11,14 @@ const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const G = { contest: CONTEST, auth: true };
 const enc = encodeURIComponent;
-const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString('pt-BR');
+const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
 
-const STATUS = {
+// função, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
+const STATUS = (k) => ({
   pending:   { t: T('🕓 pendente', '🕓 pending'),     c: '' },
   printed:   { t: T('🖨️ processada', '🖨️ processed'), c: 'color:#0a7' },
   delivered: { t: T('✅ entregue', '✅ delivered'),    c: 'color:#0a7; font-weight:600' },
-};
+}[k]);
 
 async function downloadAuthed(path, filename) {
   const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + (getToken(CONTEST) || '') } });
@@ -37,7 +38,7 @@ async function loadList() {
   if (!items.length) { listBox.append(el('p', { class: 'muted' }, T('Nenhum pedido de impressão ainda.', 'No printing requests yet.'))); return; }
   listBox.append(el('div', { class: 'small muted', style: 'margin:.2rem 0' }, items.length + T(' pedido(s).', ' request(s).')));
   items.forEach((b) => {
-    const st = STATUS[b.status] || STATUS.pending;
+    const st = STATUS(b.status) || STATUS('pending');
     const pg = (b.pages > 0 && b.status !== 'pending') ? ' · ' + b.pages + T(' pág.', ' pg.') : '';
     listBox.append(el('div', { class: 'bk-row' },
       el('span', {},

@@ -4,7 +4,7 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { MODE_LABEL } from '../criar.js';
 
-const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString('pt-BR');
+const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
 
 export function makeStepRevisao(ctx) {
   const d = ctx.draft;

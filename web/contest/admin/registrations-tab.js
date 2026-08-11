@@ -74,7 +74,7 @@ export function makeRegistrationsTab(CONTEST) {
       w.official_round ? el('span', { class: 'muted' }, T(' · rodada ', ' · round ') + w.official_round) : '');
     // em que relógio estão estes campos — a ambiguidade entre o fuso do navegador e o do contest
     // é o que fazia o organizador achar que o horário "andava sozinho"
-    const inTz = (e, tz) => { try { return new Date(e * 1000).toLocaleString('pt-BR', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' }); } catch { return ''; } };
+    const inTz = (e, tz) => { try { return new Date(e * 1000).toLocaleString(undefined, { timeZone: tz, dateStyle: 'short', timeStyle: 'short' }); } catch { return ''; } };
     const ctz = DATA.tz || '';
     const difere = ctz && w.closes_at && inTz(w.closes_at, ctz) !== inTz(w.closes_at, undefined);
     const tzline = el('p', { class: 'small muted' },

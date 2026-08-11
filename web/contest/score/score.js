@@ -9,6 +9,7 @@ import { parseICPC, renderICPC } from './score-icpc.js';
 import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
+import { navLabel } from '/shared/nav-i18n.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -53,16 +54,20 @@ function navHref(url) {
   if (map[url]) return map[url];
   return url + (url.includes('?') ? '&' : '?') + 'c=' + c;
 }
+let NAVBTNS = []; // últimos botões pintados — re-render quando o idioma muda (moj:lang)
 function renderNav(buttons) {
+  NAVBTNS = buttons;
   const nav = document.getElementById('contestNav'); nav.innerHTML = '';
   const here = location.pathname.replace(/\/+$/, '');
   buttons.forEach(b => {
     const href = navHref(b.url);
-    if (href === '#logout') { nav.append(el('a', { href: '#', onclick: async (e) => { e.preventDefault(); await logout(CONTEST); location.href = '/contest/?c=' + encodeURIComponent(CONTEST); } }, b.label)); return; }
+    const label = navLabel(b.url, b.label);
+    if (href === '#logout') { nav.append(el('a', { href: '#', onclick: async (e) => { e.preventDefault(); await logout(CONTEST); location.href = '/contest/?c=' + encodeURIComponent(CONTEST); } }, label)); return; }
     const active = href.split('?')[0].replace(/\/+$/, '') === here;
-    nav.append(el('a', { href, class: active ? 'active' : '' }, b.label));
+    nav.append(el('a', { href, class: active ? 'active' : '' }, label));
   });
 }
+document.addEventListener('moj:lang', () => { if (NAVBTNS.length) renderNav(NAVBTNS); });
 
 function startCountdown() {
   const eln = document.getElementById('contestCountdown');

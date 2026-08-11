@@ -67,7 +67,8 @@ function conflitosTab() {
 function optionsTab() { const panel = el('div', {}); function load() { panel.innerHTML = ''; panel.append(makeVerdictOptionsEditor(CONTEST)); } return { panel, load }; }
 function autoTab() { const panel = el('div', {}); function load() { panel.innerHTML = ''; panel.append(makeAutoVerdictEditor(CONTEST)); } return { panel, load }; }
 
-const TABS = [
+// função, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
+const TABS = () => [
   { id: 'sit', label: T('📊 Situação', '📊 Status'), make: situacaoTab },
   { id: 'conf', label: T('⚖️ Conflitos', '⚖️ Conflicts'), make: conflitosTab },
   { id: 'opts', label: T('🏷️ Opções', '🏷️ Options'), make: optionsTab },
@@ -75,7 +76,7 @@ const TABS = [
   { id: 'docs', label: T('📄 Documentos', '📄 Documents'), make: () => makeDocsTab(CONTEST) },
   { id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds'), make: () => makeRoundsTab(CONTEST, { readOnly: true }) },
 ];
-const MANUAL_LINK = { href: '/docs/MANUAL-ADMIN.html', label: T('📖 Manual do organizador', "📖 Organizer's manual") };
+const MANUAL_LINK = () => ({ href: '/docs/MANUAL-ADMIN.html', label: T('📖 Manual do organizador', "📖 Organizer's manual") });
 
 async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
@@ -87,15 +88,15 @@ async function boot() {
   app.append(tabbar, wrap);
   const built = {}, btn = {};
   async function show(id) {
-    TABS.forEach(t => { if (built[t.id]) built[t.id].panel.hidden = (t.id !== id); btn[t.id].classList.toggle('active', t.id === id); });
-    if (!built[id]) { const t = TABS.find(x => x.id === id); const inst = t.make(); built[id] = inst; wrap.append(inst.panel); if (inst.load) await inst.load(); if (inst.live) { clearInterval(inst._t); inst._t = setInterval(() => { if (!inst.panel.hidden) inst.load(); }, 12000); } }
+    TABS().forEach(t => { if (built[t.id]) built[t.id].panel.hidden = (t.id !== id); btn[t.id].classList.toggle('active', t.id === id); });
+    if (!built[id]) { const t = TABS().find(x => x.id === id); const inst = t.make(); built[id] = inst; wrap.append(inst.panel); if (inst.load) await inst.load(); if (inst.live) { clearInterval(inst._t); inst._t = setInterval(() => { if (!inst.panel.hidden) inst.load(); }, 12000); } }
     history.replaceState(null, '', location.pathname + '?c=' + enc(CONTEST) + '#' + id);
   }
-  TABS.forEach(t => { btn[t.id] = el('button', { onclick: () => show(t.id) }, t.label); tabbar.append(btn[t.id]); });
-  tabbar.append(el('a', { class: 'btn ghost', style: 'margin-left:auto', target: '_blank', href: MANUAL_LINK.href }, MANUAL_LINK.label));
+  TABS().forEach(t => { btn[t.id] = el('button', { onclick: () => show(t.id) }, t.label); tabbar.append(btn[t.id]); });
+  tabbar.append(el('a', { class: 'btn ghost', style: 'margin-left:auto', target: '_blank', href: MANUAL_LINK().href }, MANUAL_LINK().label));
   // o banner global (shared/chief-alert.js) pede esta aba ao ser clicado, mesmo já estando aqui
   window.addEventListener('moj:show-conflicts', () => show('conf'));
   const want = (location.hash || '').replace('#', '');
-  show(TABS.some(t => t.id === want) ? want : 'sit');
+  show(TABS().some(t => t.id === want) ? want : 'sit');
 }
 boot();

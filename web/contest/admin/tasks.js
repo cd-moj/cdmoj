@@ -8,7 +8,7 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
-const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString('pt-BR');
+const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
 const fmtS = (s) => { s = Math.max(0, Math.round(+s || 0)); if (s < 60) return s + 's'; const m = Math.floor(s / 60); return m < 60 ? m + 'min' : Math.floor(m / 60) + 'h' + (m % 60 ? (m % 60) + 'min' : ''); };
 const nowE = () => Math.floor(Date.now() / 1000);
 const STATUS = {

@@ -7,8 +7,8 @@ import { T } from './i18n.js';
 
 // --- formatação -------------------------------------------------------------
 export const pad2 = (n) => String(n).padStart(2, '0');
-export const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString('pt-BR');
-export const fmtClock = (e) => new Date((+e || 0) * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+export const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
+export const fmtClock = (e) => new Date((+e || 0) * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 export const fmtS = (s) => {
   s = Math.max(0, Math.round(+s || 0));
   if (s < 60) return s + 's';

@@ -82,7 +82,7 @@ function labelNode(u, d) {
   const tag = (S.fRegion && u.region ? u.region : '') + (role ? (S.fRegion && u.region ? ' · ' : '') + role : '');
   if (tag) inner.append(el('div', { class: 'tag' }, tag));
   if (S.fEvent) {
-    const dt = DATA.start_epoch > 0 ? new Date(DATA.start_epoch * 1000).toLocaleDateString('pt-BR') : '';
+    const dt = DATA.start_epoch > 0 ? new Date(DATA.start_epoch * 1000).toLocaleDateString() : '';
     inner.append(el('div', { class: 'foot' }, (DATA.contest_name || CONTEST) + (dt ? ' · ' + dt : '')));
   }
   return el('div', { class: 'lbl' }, inner);

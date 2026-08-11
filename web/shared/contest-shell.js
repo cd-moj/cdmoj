@@ -4,6 +4,7 @@ import { apiGet } from '/shared/api.js';
 import { status, logout } from '/shared/auth.js';
 import { el, avatarEl } from '/shared/ui.js';
 import { T, setLang } from '/shared/i18n.js';
+import { navLabel } from '/shared/nav-i18n.js';
 
 // chip do usuário logado do contest no topbar (avatar + nome) — consistência com o
 // site principal. Inserido à esquerda do botão "Contest"/countdown; idempotente.
@@ -34,16 +35,20 @@ function startCountdown(basic) {
   tick();
 }
 
+let lastNav = null; // {buttons, contest} p/ re-render quando o idioma muda (moj:lang)
 function renderNav(buttons, contest) {
   const nav = document.getElementById('contestNav'); if (!nav) return; nav.innerHTML = '';
+  lastNav = { buttons, contest };
   const here = location.pathname.replace(/\/+$/, '');
   buttons.forEach((b) => {
     const href = navHref(b.url, contest);
-    if (href === '#logout') { nav.append(el('a', { href: '#', onclick: async (e) => { e.preventDefault(); await logout(contest); location.href = '/contest/?c=' + encodeURIComponent(contest); } }, b.label)); return; }
+    const label = navLabel(b.url, b.label);
+    if (href === '#logout') { nav.append(el('a', { href: '#', onclick: async (e) => { e.preventDefault(); await logout(contest); location.href = '/contest/?c=' + encodeURIComponent(contest); } }, label)); return; }
     const active = href.split('?')[0].replace(/\/+$/, '') === here;
-    nav.append(el('a', { href, class: active ? 'active' : '' }, b.label));
+    nav.append(el('a', { href, class: active ? 'active' : '' }, label));
   });
 }
+document.addEventListener('moj:lang', () => { if (lastNav) renderNav(lastNav.buttons, lastNav.contest); });
 
 // initContestShell(contest) -> {basic, isAuth, st}. Preenche título, countdown, nav.
 export async function initContestShell(contest) {

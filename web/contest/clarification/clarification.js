@@ -13,11 +13,12 @@ const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const enc = encodeURIComponent;
 const G = { contest: CONTEST, auth: true };
-const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString('pt-BR');
+const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
 let canAnswer = false, isChief = false, myLogin = '', problems = [];
 
 const listBox = el('div', { class: 'section' }, el('h2', {}, '💬 Clarifications'));
-const listBody = el('div', {}, el('p', { class: 'muted small' }, T('carregando…', 'loading…')));
+// texto de "carregando" entra no boot() — T() no import congelaria o idioma antes do setLang(LOCALE)
+const listBody = el('div', {});
 
 const post = (path, body) => apiPost('/contest/' + path + '?contest=' + enc(CONTEST), body, G);
 
@@ -179,6 +180,7 @@ async function boot() {
   try { const pr = await apiGet('/contest/problems?contest=' + enc(CONTEST), G); problems = pr.problems || []; } catch { /* sem problemas */ }
   app.innerHTML = '';
   const formSlot = el('div', {});
+  listBody.append(el('p', { class: 'muted small' }, T('carregando…', 'loading…')));
   app.append(formSlot, listBox); listBox.append(listBody);
   await loadList();
   if (canAnswer) { formSlot.append(broadcastForm()); app.append(newsSection()); }

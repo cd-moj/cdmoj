@@ -66,7 +66,7 @@ function render(s) {
       ind(s.bot.alive, T('polando', 'polling'), T('sem poll há ' + Math.round((s.bot.last_poll_age_s || 0) / 60) + ' min', 'no poll for ' + Math.round((s.bot.last_poll_age_s || 0) / 60) + ' min'))) : ''));
 
   app.append(grid);
-  const when = s.time ? new Date(s.time * 1000).toLocaleTimeString('pt-BR') : '—';
+  const when = s.time ? new Date(s.time * 1000).toLocaleTimeString() : '—';
   app.append(el('div', { class: 'upd' }, T('Atualizado ', 'Updated ') + when + T(' · atualiza a cada 10s', ' · refreshes every 10s')));
 }
 

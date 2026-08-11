@@ -5,6 +5,7 @@ import { logout, status } from '/shared/auth.js';
 import { el } from '/shared/ui.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
 import { T, setLang } from '/shared/i18n.js';
+import { navLabel } from '/shared/nav-i18n.js';
 
 function fmtLeft(sec) {
   if (sec < 0) sec = 0;
@@ -50,7 +51,7 @@ export async function mountChrome(contest, basic, { auth = true } = {}) {
   // chip do usuário do contest no topbar (consistência com o site principal)
   try { mountContestUserChip(await status(contest)); } catch { /* sem chip */ }
 
-  // nav
+  // nav (re-pinta no moj:lang p/ os rótulos seguirem o idioma corrente)
   const navEl = document.getElementById('contestNav');
   if (navEl) {
     let buttons = [];
@@ -58,17 +59,22 @@ export async function mountChrome(contest, basic, { auth = true } = {}) {
       const nav = await apiGet('/contest/navbuttons?contest=' + encodeURIComponent(contest), { contest, auth });
       buttons = Array.isArray(nav) ? nav : (nav.buttons || []);
     } catch {}
-    navEl.innerHTML = '';
-    const here = location.pathname.replace(/\/+$/, '');
-    buttons.forEach(b => {
-      const href = navHref(contest, b.url);
-      if (href === '#logout') {
-        navEl.append(el('a', { href: '#', onclick: async (e) => { e.preventDefault(); await logout(contest); location.href = '/contest/?c=' + encodeURIComponent(contest); } }, b.label));
-        return;
-      }
-      const active = href.split('?')[0].replace(/\/+$/, '') === here;
-      navEl.append(el('a', { href, class: active ? 'active' : '' }, b.label));
-    });
+    const paint = () => {
+      navEl.innerHTML = '';
+      const here = location.pathname.replace(/\/+$/, '');
+      buttons.forEach(b => {
+        const href = navHref(contest, b.url);
+        const label = navLabel(b.url, b.label);
+        if (href === '#logout') {
+          navEl.append(el('a', { href: '#', onclick: async (e) => { e.preventDefault(); await logout(contest); location.href = '/contest/?c=' + encodeURIComponent(contest); } }, label));
+          return;
+        }
+        const active = href.split('?')[0].replace(/\/+$/, '') === here;
+        navEl.append(el('a', { href, class: active ? 'active' : '' }, label));
+      });
+    };
+    paint();
+    document.addEventListener('moj:lang', paint);
   }
   return { locale, T };
 }

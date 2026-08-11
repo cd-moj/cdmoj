@@ -12,12 +12,13 @@ import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
 const fmt = (e) => (+e ? new Date(+e * 1000).toLocaleString() : '—');
-const KIND = { warmup: T('aquecimento', 'warm-up'), official: T('prova oficial', 'official contest'), extra: T('extra', 'extra') };
-const STATE = {
+// funções, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
+const KIND = (k) => ({ warmup: T('aquecimento', 'warm-up'), official: T('prova oficial', 'official contest'), extra: T('extra', 'extra') }[k]);
+const STATE = (k) => ({
   active:   { t: T('no ar', 'live'),        c: 'ok' },
   pending:  { t: T('planejada', 'planned'), c: '' },
   archived: { t: T('arquivada', 'archived'), c: '' },
-};
+}[k]);
 
 export function makeRoundsTab(CONTEST, opts = {}) {
   const readOnly = !!opts.readOnly;           // juiz-chefe: acompanha, não promove
@@ -92,7 +93,7 @@ export function makeRoundsTab(CONTEST, opts = {}) {
     const fz = el('input', { type: 'datetime-local', value: toLocalDT(r.freeze) });
     const nm = el('input', { value: r.name || r.slug, style: 'min-width:14rem' });
     const kd = el('select', {}, ...['warmup', 'official', 'extra'].map(k =>
-      el('option', { value: k, selected: (r.kind || 'official') === k }, KIND[k])));
+      el('option', { value: k, selected: (r.kind || 'official') === k }, KIND(k))));
     const fld = (l, i) => el('div', { class: 'field' }, el('label', {}, l), i);
     box.append(el('div', { class: 'row', style: 'gap:.6rem;flex-wrap:wrap' },
       fld(T('nome', 'name'), nm), fld(T('tipo', 'kind'), kd),
@@ -148,12 +149,12 @@ export function makeRoundsTab(CONTEST, opts = {}) {
   }
 
   function roundRow(r) {
-    const s = STATE[r.state] || { t: r.state, c: '' };
+    const s = STATE(r.state) || { t: r.state, c: '' };
     const row = el('div', { class: 'subcard', style: 'margin:.4rem 0' });
     const head = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
       el('b', {}, r.name || r.slug),
       el('span', { class: 'pill ' + s.c }, s.t),
-      el('span', { class: 'small muted' }, KIND[r.kind] || r.kind || ''),
+      el('span', { class: 'small muted' }, KIND(r.kind) || r.kind || ''),
       el('span', { class: 'small muted' }, fmt(r.start) + ' → ' + fmt(r.end)),
       (r.problems || []).length ? el('span', { class: 'small muted' },
         T(`${r.problems.length} problema(s)`, `${r.problems.length} problem(s)`)) : null);
@@ -202,7 +203,7 @@ export function makeRoundsTab(CONTEST, opts = {}) {
   function addBox() {
     const slug = el('input', { placeholder: 'oficial', style: 'width:9rem' });
     const nm = el('input', { placeholder: T('Prova oficial', 'Official contest'), style: 'min-width:12rem' });
-    const kd = el('select', {}, ...['official', 'warmup', 'extra'].map(k => el('option', { value: k }, KIND[k])));
+    const kd = el('select', {}, ...['official', 'warmup', 'extra'].map(k => el('option', { value: k }, KIND(k))));
     const st = el('input', { type: 'datetime-local' });
     const en = el('input', { type: 'datetime-local' });
     const fld = (l, i) => el('div', { class: 'field' }, el('label', {}, l), i);
