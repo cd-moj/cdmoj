@@ -7,7 +7,7 @@ faz, e **como operar cada coisa nas DUAS interfaces**: a web (Gestão de Problem
 qualquer lado — use o que for mais confortável.
 
 > O **formato** dos metadados (o que fica no `.moj-meta.json`, como o id é montado) é descrito,
-> em detalhe canônico, no [PACOTE.md](PACOTE.html) (seções 7–9). Aqui o foco é o **uso**.
+> em detalhe canônico, no [PACOTE.md](PACOTE.md) (seções 7–9). Aqui o foco é o **uso**.
 
 ## Os dois eixos, em 30 segundos
 
@@ -167,8 +167,8 @@ mostrando o progresso.
 
 ## Ver também
 
-- **[PACOTE.md](PACOTE.html)** — o formato canônico (o que fica no `.moj-meta.json`, o id, as
+- **[PACOTE.md](PACOTE.md)** — o formato canônico (o que fica no `.moj-meta.json`, o id, as
   seções 7 (ORG), 8 (COLEÇÃO) e 9 (ORG × COLEÇÃO)).
 - **Tutoriais passo a passo**: [Criar problemas na CLI](/problemas/tutorial.html) e
   [Criar e gerir um contest](/treino/criar/tutorial.html).
-- **[API.md](API.html)** — as rotas `/orgs/*` e `/problems/collection*` para quem automatiza.
+- **[API.md](API.md)** — as rotas `/orgs/*` e `/problems/collection*` para quem automatiza.

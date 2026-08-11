@@ -7,6 +7,7 @@ set -u
 DOCS="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 OUT="$DOCS/html"; mkdir -p "$OUT"
 command -v pandoc >/dev/null 2>&1 || { echo "ERRO: pandoc não encontrado (instale pandoc)"; exit 1; }
+rm -f "$OUT"/*.html   # limpa build anterior (senão .md apagado deixa .html órfão servido)
 
 cat > "$OUT/moj-docs.css" <<'CSS'
 :root{--fg:#1f2d3d;--mut:#64748b;--ac:#1e57c4;--bd:#e3e9f2;--code:#f6f8fb}
@@ -44,6 +45,7 @@ NAV="$OUT/.nav.html"
 
 for m in "${DOCLIST[@]}"; do
   pandoc "$DOCS/$m" -f gfm -t html5 -s --toc --toc-depth=2 \
+    --lua-filter "$DOCS/md2html-links.lua" \
     --metadata title="$(title_of "$DOCS/$m") — MOJ docs" \
     -c moj-docs.css -B "$NAV" -o "$OUT/${m%.md}.html" \
     || { echo "ERRO ao compilar $m"; rm -f "$NAV"; exit 1; }

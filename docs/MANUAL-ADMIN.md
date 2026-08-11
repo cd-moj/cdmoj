@@ -471,8 +471,8 @@ as senhas geradas; cada pessoa loga na MESMA tela do contest e vê os botões do
 
 ## 10. Referências
 
-- [Manual do juiz humano](MANUAL-JUIZ.html) — a operação da aba ⚖️ Avaliar e do juiz-chefe.
-- [Manual do staff](MANUAL-STAFF.html) — impressão, balões, etiquetas, revelação por sede.
-- [Manual do competidor](MANUAL-CONTEST.html) — o que o aluno vê (distribua com as senhas).
+- [Manual do juiz humano](MANUAL-JUIZ.md) — a operação da aba ⚖️ Avaliar e do juiz-chefe.
+- [Manual do staff](MANUAL-STAFF.md) — impressão, balões, etiquetas, revelação por sede.
+- [Manual do competidor](MANUAL-CONTEST.md) — o que o aluno vê (distribua com as senhas).
 - [Tutorial do organizador](/treino/criar/tutorial.html) — criar o contest (wizard e CLI).
 - [CLI do competidor](/contest/cli.html) — envio pelo terminal, com modo sem-Internet.

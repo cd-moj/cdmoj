@@ -109,7 +109,7 @@ deploy:
 	git pull --ff-only
 	git -C $(WORKROOT)/mojtools pull --ff-only || true
 ifeq ($(FROM),registry)
-	$(MAKE) pull
+	$(MAKE) pull docs-html
 else
 	$(MAKE) image
 endif
