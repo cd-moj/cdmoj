@@ -168,15 +168,17 @@ rel_html(){
   out+=$'\n\n'
 
   out+="<b>Top 10 listas</b>"$'\n'
+  # barra máx 8 e id cortado em 34: ids irmãos diferem no MEIO (…_t08_qua_… × …_t11_ter_…)
+  # — corte curto demais os torna indistinguíveis (visto no top real do prod).
   local maxc=0 wnum cnt cid w bar line n=0
   maxc="$(jq -r '([ .window.top[].count ] | max) // 0' "$jf")"
   wnum="$(rel_fmt_n "$maxc")"; wnum=${#wnum}
   while IFS=$'\t' read -r cnt cid; do
     [[ -n "$cnt" ]] || continue
     n=$(( n + 1 ))
-    w=$(( maxc > 0 ? cnt * 10 / maxc : 0 )); (( w < 1 && cnt > 0 )) && w=1
+    w=$(( maxc > 0 ? cnt * 8 / maxc : 0 )); (( w < 1 && cnt > 0 )) && w=1
     bar="$(_rel_bar "$w")"
-    (( ${#cid} > 24 )) && cid="${cid:0:23}…"
+    (( ${#cid} > 34 )) && cid="${cid:0:33}…"
     printf -v line '%*s' "$wnum" "$(rel_fmt_n "$cnt")"
     out+="<code>$line $bar $(rel_esc "$cid")</code>"$'\n'
   done < <(jq -r '.window.top[] | [(.count|tostring), .contest] | @tsv' "$jf")
