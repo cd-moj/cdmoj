@@ -85,6 +85,10 @@ conjunto que recebe alertas) — o gate é da API, pelo `telegram_id`; o comando
 dentro do grupo (é o uso normal). Config em `contests/treino/var/relatorio.json`; cache do
 gerador em `var/relatorio-cache.json` (TTL 600 s).
 
+Com a base **fria** a varredura pode passar de 1 min: nesse caso a resposta vem na hora
+("⏳ … em segundo plano") e o painel sai no `/relatorio` seguinte (~1 min), do cache. O
+envio automático de quartil não sofre disso — gera em background e envia no sweep seguinte.
+
 Os `.admin` recebem DM só depois de vincularem o Telegram na
 seção **📨 Telegram** do perfil (`/treino/perfil/` → botão "🔗 Vincular Telegram", deep-link de
 `POST /treino/telegram/link-start`; desfazer = `POST /treino/telegram/unlink`).

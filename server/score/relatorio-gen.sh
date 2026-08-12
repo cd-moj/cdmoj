@@ -40,7 +40,10 @@ MAX="$AE"
 mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "relatorio-gen: mktemp falhou" >&2; exit 1; }
 NORM="$(mktemp)"; AGG="$(mktemp)"; NAMES="$(mktemp)"
+# TERM/INT também limpam (a lib roda o gerador sob `timeout` — sem o trap de TERM os
+# temporários $OUT.XXXXXX iriam se acumulando em var/ a cada estouro de orçamento).
 trap 'rm -f "$TMP" "$NORM" "$AGG" "$NAMES"' EXIT
+trap 'rm -f "$TMP" "$NORM" "$AGG" "$NAMES"; exit 143' INT TERM
 
 # --- estágio 1: normaliza (contest, login, epoch) na janela envelope ---------
 find "$CONTESTSDIR" -mindepth 4 -maxdepth 4 -type f -path '*/users/*/history' -print0 \

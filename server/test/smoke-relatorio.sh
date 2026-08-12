@@ -16,11 +16,11 @@ mkdir -p "$RUN"; printf 'mojb_smoketoken' > "$RUN/bot.token"
 
 pass=0; fail=0
 check(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1"; echo "      out: ${OUT:0:400}"; ((fail++)); fi; }
-bcall(){ # <path> <method> <auth-header> [body-json]
+bcall(){ # <path> <method> <auth-header> [body-json]  (BUDGET simula base fria: ver abaixo)
   OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="" \
     HTTP_AUTHORIZATION="$3" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" RUNDIR="$RUN" \
-    BOT_TOKEN_FILE="$RUN/bot.token" RELATORIO_SWEEP_THROTTLE=0 \
+    BOT_TOKEN_FILE="$RUN/bot.token" RELATORIO_SWEEP_THROTTLE=0 REL_SYNC_BUDGET="${BUDGET:-50}" \
     bash "$ROUTER" <<<"${4:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 okstatus(){ [[ "$OUT" == *"Status: 200"* ]]; }
@@ -137,6 +137,22 @@ bcall /ops/relatorio POST "$AUTH" "$(J 999 '["3000-01-01"]')"
 check "data futura -> 400" '[[ "$OUT" == *"Status: 400"* ]]'
 bcall /ops/relatorio POST "$AUTH" "$(J 999 '["banana"]')"
 check "subcomando desconhecido -> 400" '[[ "$OUT" == *"Status: 400"* && "$OUT" == *bad_args* ]]'
+
+echo "== base fria: orçamento síncrono estourado -> background + retry =="
+# orçamento de 1 ms mata o gerador (rc 124) e o handler relança em background devolvendo
+# "pending". Data de override nova ⇒ o cache existente (outro since) não serve.
+OVR2="$(date -d "@$e_pjan" +%F)"
+BUDGET=0.001 bcall /ops/relatorio POST "$AUTH" "$(J 999 "[\"$OVR2\"]")"
+check "orçamento estourado -> 200 pending com aviso" \
+  'okstatus && (printf "%s" "$BODY" | jq -e ".pending==true" >/dev/null) && [[ "$(html)" == *"segundo plano"* ]]'
+ok2=""
+for _ in $(seq 1 30); do
+  sleep 0.5
+  bcall /ops/relatorio POST "$AUTH" "$(J 999 "[\"$OVR2\"]")"
+  if printf '%s' "$BODY" | jq -e '.pending != true' >/dev/null 2>&1; then ok2=1; break; fi
+done
+check "retry após o background -> painel de verdade" \
+  '[[ -n "$ok2" ]] && [[ "$(html)" == *"submissões"* ]]'
 
 echo "== status =="
 bcall /ops/relatorio POST "$AUTH" "$(J 999 '["status"]')"

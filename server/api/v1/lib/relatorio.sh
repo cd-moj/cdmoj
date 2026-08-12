@@ -17,6 +17,9 @@
 
 rel_conf_file(){ printf '%s/treino/var/relatorio.json' "$CONTESTSDIR"; }
 rel_cache_file(){ printf '%s/treino/var/relatorio-cache.json' "$CONTESTSDIR"; }
+# cache PRÓPRIO do envio automático: o on-demand sobrescreveria o do quartil (janelas
+# diferentes) entre dois sweeps e o exact-match nunca fecharia.
+rel_cache_file_auto(){ printf '%s/treino/var/relatorio-cache-auto.json' "$CONTESTSDIR"; }
 rel_conf_get(){ jq -c . "$(rel_conf_file)" 2>/dev/null || printf '{}'; }
 
 # rel_quartil_bounds <inicio> <fim> -> "b1 b2 b3 b4" (b_k = inicio + k*(fim-inicio)/4; b4 = fim)
@@ -93,24 +96,38 @@ rel_parse_date(){
 }
 
 # rel_generate <since> <until> <cachefile> — roda score/relatorio-gen.sh sob flock, com
-# cache e TTL (repetir /relatorio no grupo é instantâneo). O on-demand chama com
-# until=AGORA, que muda a cada segundo — por isso o cache vale quando o since bate e o
-# until pedido está a menos de TTL do until gerado (igualdade exata nunca acertaria).
+# cache. rc: 0 = cache pronto | 2 = GERANDO em background (tente de novo) | 1 = erro.
+#
+# Cache válido quando o since bate E: (a) until gerado a menos de TTL do pedido — o
+# on-demand chama com until=AGORA, que muda a cada segundo, igualdade exata nunca
+# acertaria; ou (b) until IGUAL — janela de until FIXO no passado (o envio de quartil) é
+# IMUTÁVEL (submissão nova tem epoch de agora, fora da janela), vale em qualquer idade.
+#
+# ORÇAMENTO SÍNCRONO: com a base fria a varredura de todos os history pode passar de 1 min
+# (medido no prod: ~70 s frio, ~3 s quente) e estouraria o curl do bot (60 s) e o nginx.
+# Então a geração síncrona roda sob `timeout REL_SYNC_BUDGET` (50 s); estourou ⇒ relança
+# em BACKGROUND (setsid, herdando o flock — ninguém duplica) e devolve 2: o chamador
+# responde "gerando" e a próxima tentativa/sweep encontra o cache pronto.
 rel_generate(){
   local since="$1" until="$2" cache="$3"
   _rel_cache_ok(){
     [[ -f "$cache" ]] || return 1
-    (( EPOCHSECONDS - $(stat -c %Y "$cache" 2>/dev/null || echo 0) < REL_CACHE_TTL )) || return 1
     local cs cu
     read -r cs cu <<<"$(jq -r '"\(.since) \(.until)"' "$cache" 2>/dev/null)"
     [[ "$cs" == "$since" && "$cu" =~ ^[0-9]+$ ]] || return 1
+    [[ "$cu" == "$until" ]] && return 0
     (( cu <= until && until - cu < REL_CACHE_TTL ))
   }
   _rel_cache_ok && return 0
   mkdir -p "${cache%/*}" 2>/dev/null
-  ( flock -w 55 9 || exit 1
-    _rel_cache_ok && exit 0     # outro processo gerou enquanto esperávamos o lock
-    bash "$SCOREDIR/relatorio-gen.sh" "$since" "$until" "$cache"
+  # limpa temporários órfãos de gerações mortas (mv atômico nunca deixa lixo em sucesso)
+  find "${cache%/*}" -maxdepth 1 -name "${cache##*/}.*" ! -name '*.lock' -mmin +120 -delete 2>/dev/null
+  ( flock -n 9 || exit 2        # alguém já está gerando (sync ou bg) — "tente de novo"
+    _rel_cache_ok && exit 0
+    timeout "${REL_SYNC_BUDGET:-50}" bash "$SCOREDIR/relatorio-gen.sh" "$since" "$until" "$cache" && exit 0
+    rc=$?; (( rc == 124 )) || exit 1
+    setsid bash "$SCOREDIR/relatorio-gen.sh" "$since" "$until" "$cache" </dev/null >/dev/null 2>&1 &
+    exit 2
   ) 9>"$cache.lock"
 }
 
@@ -186,15 +203,18 @@ rel_html(){
 # rel_sched_check — chamado (throttled) pelo handler /ops/alerts: se um quartil venceu e
 # não foi enviado, gera o relatório [inicio, b_k], enfileira SÓ PARA O GRUPO (alert_group,
 # loud) e marca 1..k. `sent` só é marcado APÓS o enqueue OK (falha ⇒ retenta no próximo
-# sweep). Requer lib/alerts.sh já sourced (alert_group).
+# sweep). Geração em background (rc 2, base fria) também retenta: a janela é de until
+# FIXO, então no sweep seguinte o cache fecha por igualdade exata e o envio sai.
+# Requer lib/alerts.sh já sourced (alert_group).
 rel_sched_check(){
   local cj i f k b cache html j ks=()
   k="$(rel_due_quartil "$EPOCHSECONDS")"; [[ -n "$k" ]] || return 0
   cj="$(rel_conf_get)"
   i="$(jq -r '.inicio' <<<"$cj")"; f="$(jq -r '.fim' <<<"$cj")"
   read -r -a b <<<"$(rel_quartil_bounds "$i" "$f")"
-  cache="$(rel_cache_file)"
-  rel_generate "$i" "${b[k-1]}" "$cache" || return 1
+  cache="$(rel_cache_file_auto)"
+  rel_generate "$i" "${b[k-1]}" "$cache"
+  case $? in 0) ;; 2) return 0 ;; *) return 1 ;; esac
   html="$(rel_html "$cache" "quartil <b>$k/4</b>")"
   [[ -n "$html" ]] || return 1
   alert_group "$html" loud >/dev/null || return 1

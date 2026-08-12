@@ -87,8 +87,14 @@ case "$sub" in
       if (( now >= f )); then label="quartil <b>4/4</b> (encerrado)"
       else label="quartil <b>$(rel_quartil_now "$i" "$f" "$now")/4</b>"; fi
     fi
-    rel_generate "$since" "$now" "$(rel_cache_file)" \
-      || fail 500 "Falha ao gerar o relatório (tente de novo em instantes)" "gen_fail"
+    rel_generate "$since" "$now" "$(rel_cache_file)"
+    case $? in
+      0) ;;
+      2) ok_json '{html:$h, pending:true}' \
+           --arg h "⏳ A base estava fria — estou terminando o relatório em segundo plano. Mande /relatorio de novo em ~1 minuto."
+         exit 0 ;;
+      *) fail 500 "Falha ao gerar o relatório (tente de novo em instantes)" "gen_fail" ;;
+    esac
     html="$(rel_html "$(rel_cache_file)" "$label")"
     [[ -n "$html" ]] || fail 500 "Falha ao montar o relatório" "gen_fail"
     ok_json '{html:$h}' --arg h "$html"
