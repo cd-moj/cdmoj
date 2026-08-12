@@ -140,12 +140,20 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   loga como `.admin`, sem GODS. Em produção roda **ENJAULADO** (`mojinho-bot/run-caged.sh`: bwrap
   sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
   histerese/cooldown e enfileira no outbox `run/alerts/`; o bot drena e entrega a `.admin` vinculados
-  + grupo). O outbox tem **DOIS formatos**: `*.txt` = incidente (destino resolvido no claim = os
-  `.admin`) e `*.json` = **DM dirigida** (`alert_dm`: o produtor resolve o chat; `group:false` p/ não
-  copiar no grupo, `loud:true` p/ notificar). O claim entrega no máx. `ALERT_CLAIM_MAX`(30) por poll
+  + grupo). O outbox tem **TRÊS formatos**: `*.txt` = incidente (destino resolvido no claim = os
+  `.admin`), `*-dm-*.json` = **DM dirigida** (`alert_dm`: o produtor resolve o chat; `group:false` p/ não
+  copiar no grupo, `loud:true` p/ notificar) e `*-grp-*.json` = **só grupo** (`alert_group`:
+  `chats:[]` + `group:true`; o claim SÓ aceita chats vazio quando `group` — DM sem destino segue
+  descartada). O claim entrega no máx. `ALERT_CLAIM_MAX`(30) por poll
   (teto do Telegram) — o resto sai no seguinte. No bot, ler `group` com **`.group == false`**: o `//`
   do jq trata `false` como vazio e o grupo receberia a DM de todo mundo.
   Senha nova **só por DM** (nunca na web).
+  **Relatório de quartil** (`/relatorio` no bot → `POST /ops/relatorio`; `lib/relatorio.sh` +
+  `score/relatorio-gen.sh`): painel de submissões p/ o grupo dos professores; gate = conta
+  `.admin` do treino com Telegram vinculado (pelo `telegram_id` — o bot NÃO sabe quem é admin);
+  semestre em `contests/treino/var/relatorio.json` (JSON, atômico, nunca *sourced*), cache do
+  gerador em `var/relatorio-cache.json`; o envio automático mora no sweep do `GET /ops/alerts`
+  (stamp `.relatorio-stamp`, throttle 1 h; quartis já vencidos na config entram pré-marcados).
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +

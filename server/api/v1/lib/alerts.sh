@@ -107,6 +107,25 @@ alert_dm(){
   printf '%s' "$id"
 }
 
+# alert_group <texto-html> [loud] — mensagem SÓ PARA O GRUPO (relatórios/avisos coletivos):
+# chats fica VAZIO e group:true — o bot acrescenta o ALERT_GROUP_CHAT dele como único destino.
+# Diferente do .txt de incidente, NINGUÉM recebe DM. Se o bot não tiver ALERT_GROUP_CHAT
+# configurado, a mensagem é descartada em silêncio (config do bot é invisível para a API).
+# Mesma doutrina de unicidade/parcialidade do alert_dm (mktemp; nome temporário sem .json).
+alert_group(){
+  local text="$1" loud="${2:-}" d f id
+  [[ -n "$text" ]] || return 1
+  d="$(_alert_dir)"; mkdir -p "$d/outbox"
+  f="$(umask 077; mktemp "$d/outbox/$EPOCHSECONDS-grp-XXXXXXXX" 2>/dev/null)" || return 1
+  jq -cn --arg t "$text" \
+     --argjson l "$( [[ -n "$loud" ]] && echo true || echo false )" \
+     '{text:$t, chats:[], loud:$l, group:true}' > "$f" 2>/dev/null \
+    || { rm -f "$f"; return 1; }
+  id="${f##*/}"
+  mv -f "$f" "$d/outbox/$id.json" || { rm -f "$f"; return 1; }
+  printf '%s' "$id"
+}
+
 # --- avaliação (throttled) ------------------------------------------------
 alerts_evaluate(){
   local d; d="$(_alert_dir)"; mkdir -p "$d/outbox"
@@ -149,10 +168,12 @@ alerts_evaluate(){
 # --- claim do outbox ------------------------------------------------------
 # alerts_claim -> ecoa um array JSON [{id,text,chats:[…],loud,group}] e REMOVE os entregues.
 #
-# DOIS tipos de item convivem no outbox:
+# TRÊS tipos de item convivem no outbox:
 #   <epoch>-<cond>-<pid>.txt   INCIDENTE — texto puro; destino = os .admin vinculados (resolvidos
 #                              AQUI) + o grupo, que o bot acrescenta. É o formato original.
 #   <epoch>-dm-<pid>-<n>.json  DM DIRIGIDA (alert_dm) — {text,chats,loud,group:false}.
+#   <epoch>-grp-XXXX.json      SÓ GRUPO (alert_group) — {text,chats:[],loud,group:true}; o
+#                              único destino é o ALERT_GROUP_CHAT que o bot acrescenta.
 # Ordem = nome do arquivo (o prefixo epoch dá FIFO) e TETO de ALERT_CLAIM_MAX por chamada: o bot
 # entrega em série e o Telegram corta acima de ~30 msg/s — o resto sai no poll seguinte (~25 s).
 # Item ilegível é descartado (rm antes de emitir) p/ não travar a fila para sempre.
@@ -168,9 +189,11 @@ alerts_claim(){
     id="${f##*/}"
     if [[ "$f" == *.json ]]; then
       id="${id%.json}"
+      # chats vazio SÓ passa com group:true (item "só grupo" do alert_group) — DM sem
+      # destino continua sendo descartada.
       out="$(jq -c --arg id "$id" '{id:$id, text:(.text // ""), loud:(.loud == true),
               group:(.group != false), chats:((.chats // []) | map(tonumber? // .))}
-             | select((.text != "") and ((.chats | length) > 0))' "$f" 2>/dev/null)"
+             | select((.text != "") and (((.chats | length) > 0) or .group))' "$f" 2>/dev/null)"
     else
       id="${id%.txt}"
       # só resolve os admins se houver item de incidente (varre as contas do treino)

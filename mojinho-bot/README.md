@@ -39,6 +39,7 @@ juízes, com token e GODS embutidos — está **gitignorado** e não é mais usa
 | `/participar` | `POST /treino/signup/telegram` | cria+vincula a conta no treino (bot-first, idempotente) |
 | `/trocarsenha` | `POST /treino/recover-password` | recupera a senha pelo vínculo Telegram |
 | `/status` | `GET /index/status` (público) | saúde do MOJ (juízes/fila) |
+| `/relatorio [args]` | `POST /ops/relatorio` | painel de submissões p/ o grupo (**só admins**: o gate é da API, pelo `telegram_id` → conta `.admin` do treino vinculada). Funciona dentro do grupo — é o ritual |
 | `/help`, `/cantar` | — | locais |
 
 Comandos administrativos antigos (`rejulgar*`, `onqueue`, `listjudges`, `problemtl`,
@@ -58,8 +59,31 @@ O item traz dois campos que mudam a entrega — a API decide, o bot obedece:
 | `group:false` | mensagem **dirigida a uma pessoa** (ex.: convite de time pendente): NÃO copiar no `ALERT_GROUP_CHAT`. ⚠️ Ler com `.group == false` — `.group // true` daria `true` para `false` (o `//` do jq trata `false` como vazio) e o grupo receberia a DM de todo mundo. |
 | `loud:true` | entregar **com notificação** (`disable_notification:false`). O default do `tg_send` é silencioso: alerta de operação não acorda ninguém; lembrete de inscrição precisa ser visto. |
 
+Um item pode vir com `chats:[]` **e** `group` ausente/true — é a mensagem **só para o grupo**
+(`alert_group` na API; ex.: o **relatório de quartil** abaixo): o único destino vira o
+`ALERT_GROUP_CHAT`. Sem `ALERT_GROUP_CHAT` no `bot.conf`, o item é descartado em silêncio.
+
 A API entrega no máximo `ALERT_CLAIM_MAX` (30) itens por poll e o bot dá `sleep 0.05` entre envios
 — o Telegram corta acima de ~30 msg/s. O que sobra sai no poll seguinte (~25 s).
+
+## Relatório periódico (/relatorio)
+
+O ritual dos professores: a cada **quartil do semestre**, um painel no grupo com o top-10 de
+contests por submissões desde o início do semestre, o treino livre, usuários ativos e as
+comparações com o ano anterior. Tudo mora na API (`POST /ops/relatorio` + sweep no
+`GET /ops/alerts`); o bot só transporta:
+
+- `/relatorio config 2026-03-16 2026-07-18` — grava o semestre (quartis JÁ vencidos ficam
+  pré-marcados: configurar no meio do semestre não dispara relatórios retroativos);
+- a partir daí o sweep (stamp próprio, `RELATORIO_SWEEP_THROTTLE`=1 h) envia o painel ao
+  grupo sozinho quando cada quartil vence (`alert_group`, com notificação);
+- `/relatorio` — painel na hora (período `[início, agora]`); `/relatorio 2026-01-01` —
+  override pontual; `/relatorio status` — config, quartis, o que já foi enviado.
+
+**Quem pode**: só quem tem conta **`.admin` do treino com Telegram vinculado** (o mesmo
+conjunto que recebe alertas) — o gate é da API, pelo `telegram_id`; o comando funciona
+dentro do grupo (é o uso normal). Config em `contests/treino/var/relatorio.json`; cache do
+gerador em `var/relatorio-cache.json` (TTL 600 s).
 
 Os `.admin` recebem DM só depois de vincularem o Telegram na
 seção **📨 Telegram** do perfil (`/treino/perfil/` → botão "🔗 Vincular Telegram", deep-link de

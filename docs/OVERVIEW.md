@@ -195,6 +195,10 @@ O mesmo outbox carrega **DM dirigida a UMA pessoa** (`alert_dm`: o produtor reso
 vai com `group:false` p/ não vazar no grupo e `loud:true` p/ notificar) — é assim que o
 **convite de time** avisa o convidado na hora e cutuca quem não respondeu na véspera
 (`lib/invite-notify.sh`; o poll do bot continua sendo o relógio, agora com stamp próprio).
+E carrega também a mensagem **só para o grupo** (`alert_group`: `chats:[]` + `group:true`) — é
+por ela que sai o **relatório de quartil** (`lib/relatorio.sh` + `POST /ops/relatorio`, comando
+`/relatorio` do bot, gate `.admin` pelo `telegram_id`): top-10 de contests por submissões no
+semestre + treino + comparações com o ano anterior, automático ao vencer cada quartil.
 
 ### Criação de contest (`/treino/criar/`) — wizard multi-etapa
 Permissão por **lista do admin OU threshold** de problemas resolvidos. **Wizard em 8 passos**

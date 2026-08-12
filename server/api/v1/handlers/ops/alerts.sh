@@ -31,6 +31,16 @@ if (( EPOCHSECONDS - $(stat -c %Y "$_iv" 2>/dev/null || echo 0) >= ${INVITE_SWEE
   source "$_DIR/lib/invite-notify.sh"
   inv_sweep_all >/dev/null 2>&1 || true
 fi
+# RELATÓRIO DE QUARTIL (mojinho → grupo dos professores): mesmo relógio, stamp PRÓPRIO e
+# throttle largo (1h — a granularidade do agendamento é "o dia do quartil"). Stamp ANTES
+# do trabalho: a geração varre todos os history e não pode re-disparar em polls seguidos.
+# Antes do claim, p/ o relatório devido sair NESTE mesmo poll.
+_rl="$RUNDIR/alerts/.relatorio-stamp"
+if (( EPOCHSECONDS - $(stat -c %Y "$_rl" 2>/dev/null || echo 0) >= ${RELATORIO_SWEEP_THROTTLE:-3600} )); then
+  : > "$_rl"
+  source "$_DIR/lib/relatorio.sh"
+  rel_sched_check >/dev/null 2>&1 || true
+fi
 items="$(alerts_claim)"
 [[ -n "$items" ]] || items='[]'
 ok_json '{items:$items}' --argjson items "$items"

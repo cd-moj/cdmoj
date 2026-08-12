@@ -7169,13 +7169,65 @@
         "tags": [
           "ops"
         ],
-        "summary": "Bot: avalia incidentes + drena outbox de alertas (bot-token)",
+        "summary": "Bot: avalia incidentes + drena outbox de alertas (bot-token); sweeps de convite e do relatório de quartil",
         "responses": {
           "200": {
-            "description": "{items:[{id,text,chats:[chat_id]}]}"
+            "description": "{items:[{id,text,chats:[chat_id],loud,group}]} — chats vazio + group:true = mensagem só para o grupo"
           },
           "401": {
             "description": "bot_unauth"
+          }
+        }
+      }
+    },
+    "/ops/relatorio": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Bot: painel de submissões p/ o grupo (comando /relatorio; bot-token; gate .admin pelo telegram_id)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "telegram_id"
+                ],
+                "properties": {
+                  "telegram_id": {
+                    "type": "integer"
+                  },
+                  "args": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "vazio = relatório do semestre configurado | AAAA-MM-DD (override) | config <ini> <fim> | status"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{html} — painel Telegram HTML: top-10 por submissões no período, treino, usuários ativos, comparações com o ano anterior"
+          },
+          "400": {
+            "description": "bad_json/tgid_invalid/bad_date/bad_args"
+          },
+          "401": {
+            "description": "bot_unauth"
+          },
+          "403": {
+            "description": "admin_required — telegram_id sem conta .admin do treino vinculada"
+          },
+          "409": {
+            "description": "not_configured/not_started"
+          },
+          "422": {
+            "description": "bad_date/bad_range (config)"
           }
         }
       }

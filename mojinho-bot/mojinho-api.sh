@@ -13,6 +13,8 @@
 #   /participar      cria+vincula a conta no treino livre (bot-first)
 #   /trocarsenha     recupera a senha (prova = posse do Telegram)
 #   /status          saúde do MOJ (fila/juízes) — via /index/status (público)
+#   /relatorio       painel de submissões p/ o grupo (só admins; gate na API pelo
+#                    telegram_id) — via POST /ops/relatorio; funciona no grupo
 #   /help /cantar    locais
 #
 # Config em ./bot.conf (veja bot.conf.sample). Token do Telegram só em ./token.
@@ -173,7 +175,24 @@ status() {
   set_text_html "Juízes online: <b>$jon</b>/$jt"$'\n'"Fila (pendentes): <b>$qp</b> (bandas: $bq)$warn"
 }
 
-help() { set_text_html "Comandos: <b>/participar</b> (criar conta), <b>/trocarsenha</b> (recuperar senha), <b>/status</b> (saúde do MOJ), <b>/cantar</b> 🎵."; }
+help() { set_text_html "Comandos: <b>/participar</b> (criar conta), <b>/trocarsenha</b> (recuperar senha), <b>/status</b> (saúde do MOJ), <b>/relatorio</b> (painel de submissões — admins), <b>/cantar</b> 🎵."; }
+
+# /relatorio [AAAA-MM-DD] | config <início> <fim> | status — painel de submissões
+# (top-10 do período + treino + comparações). SEM guarda de grupo de propósito: o ritual
+# é pedir DENTRO do grupo dos professores. Quem pode = a API decide (telegram_id → conta
+# .admin do treino); o bot só transporta.
+relatorio() {
+  local body resp st html
+  body="$(jq -cn --argjson id "$FROM_ID" '{telegram_id:$id, args:$ARGS.positional}' --args "$@")"
+  resp="$(api_json POST /ops/relatorio "$body")"
+  st="$(api_status "$resp")"; resp="$(api_body "$resp")"
+  if [[ "$st" == "200" ]]; then
+    html="$(jq -r '.html // empty' <<<"$resp" 2>/dev/null)"
+    if [[ -n "$html" ]]; then set_text_html "$html"; else set_text "Relatório vazio."; fi
+  else
+    set_text "Não consegui gerar o relatório: $(err_msg "$resp")"
+  fi
+}
 
 cantar() {
   local ARQM STRING="" LINE
@@ -226,7 +245,7 @@ OFFSET=0
 [[ "$OFFSET" =~ ^[0-9]+$ ]] || OFFSET=0
 
 declare -A ALLOWEDFUNCTIONS
-for f in start participar trocarsenha status help cantar; do ALLOWEDFUNCTIONS[$f]=true; done
+for f in start participar trocarsenha status help cantar relatorio; do ALLOWEDFUNCTIONS[$f]=true; done
 
 # processa um único update (objeto .message) já extraído em $UPD
 process_update() {
