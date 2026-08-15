@@ -89,10 +89,37 @@ fail() {
 
 # ok_json <jq-filter> [jq-args...] — envelope de sucesso: {success:true} + (filter)
 # ex.: ok_json '{token:$t, name:$n}' --arg t "$UUID" --arg n "$NAME"
+#
+# MONTA O CORPO ANTES DO CABEÇALHO (arquivo temporário, não variável — corpo grande não
+# precisa caber na memória do shell). Antes o `emit_json 200 OK` vinha primeiro e QUALQUER
+# falha do jq — o caso real: argumento acima do teto de 128KiB do `--argjson` — virava um
+# **200 com corpo vazio**, que o front só sabe reportar como "Resposta inválida do servidor",
+# sem rastro em log nenhum. Agora falha vira 500 `build_fail` e o stderr do jq vai para o
+# error.log. (Corpo grande NÃO é motivo de falha: use --slurpfile/--rawfile — ver ok_json_slurp.)
 ok_json() {
   local filter="$1"; shift
+  local _bf; _bf="$(mktemp)" || fail 500 "Falha ao montar a resposta" "build_fail"
+  if ! jq -cn "$@" "{success:true} + ($filter)" > "$_bf" || [[ ! -s "$_bf" ]]; then
+    rm -f "$_bf"
+    fail 500 "Falha ao montar a resposta" "build_fail"
+  fi
   emit_json 200 OK
-  jq -cn "$@" "{success:true} + ($filter)"
+  cat "$_bf"
+  rm -f "$_bf"
+}
+
+# ok_json_slurp <jq-filter> <nome> <json-grande> [jq-args...] — igual ao ok_json, mas o valor
+# GRANDE entra por --slurpfile (arquivo) em vez de --argjson. O jq tem teto de **128KiB POR
+# ARGUMENTO**: todo agregado de N arquivos (pares do jplag, times, clarifications, fila de
+# impressão, banco de problemas) passa disso num contest grande e o jq falha. No filtro, o
+# valor aparece como $<nome>[0] — o slurpfile entrega um ARRAY de documentos.
+# ex.: ok_json_slurp '{teams:$t[0]}' t "$teams"
+ok_json_slurp() {
+  local filter="$1" name="$2" big="$3"; shift 3
+  local _sf; _sf="$(mktemp)" || fail 500 "Falha ao montar a resposta" "build_fail"
+  printf '%s' "${big:-null}" > "$_sf"
+  ok_json "$filter" --slurpfile "$name" "$_sf" "$@"
+  rm -f "$_sf"
 }
 
 # --- validação / paths ----------------------------------------------------

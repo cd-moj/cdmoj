@@ -46,6 +46,9 @@ counts="$(jq -c --argjson q "$Q" '{
 my_active="$(rv_active_claim_by "$contest" "$me")"; [[ -n "$my_active" ]] || my_active=null
 [[ "$my_active" == null ]] || my_active="\"$my_active\""
 
-ok_json '{manual:$mn, options:$o, items:$it, counts:$c, my_active:$ma, is_chief:$ch, quorum:$q}' \
-  --argjson mn "$manual" --argjson o "$options" --argjson it "$list" --argjson c "$counts" \
+# `items` é a fila inteira de revisão (cresce com as submissões seguradas): --slurpfile,
+# nunca --argjson (teto de 128KiB por argumento) — ver ok_json_slurp em lib/common.sh.
+ok_json_slurp '{manual:$mn, options:$o, items:$it[0], counts:$c, my_active:$ma, is_chief:$ch, quorum:$q}' \
+  it "$list" \
+  --argjson mn "$manual" --argjson o "$options" --argjson c "$counts" \
   --argjson ma "$my_active" --argjson ch "$chief" --argjson q "$Q"

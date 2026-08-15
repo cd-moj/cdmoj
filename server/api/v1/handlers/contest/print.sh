@@ -26,7 +26,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   out="$( ((${#items[@]})) && printf '%s\n' "${items[@]}" | jq -cs 'sort_by(-.seq)' || echo '[]')"
   se="$(staff_exists "$contest" && echo true || echo false)"
   ap="$(print_enabled "$contest" && echo true || echo false)"
-  ok_json '{requests:$r, staff_exists:$se, allow_print:$ap}' --argjson r "$out" --argjson se "$se" --argjson ap "$ap"
+  ok_json_slurp '{requests:$r[0], staff_exists:$se, allow_print:$ap}' r "$out" \
+    --argjson se "$se" --argjson ap "$ap"
   exit 0
 fi
 

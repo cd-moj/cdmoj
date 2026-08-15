@@ -27,5 +27,7 @@ else
     | select(.login==$me or (.public==true and ((.answer//"")|length)>0))
     | .mine=(.login==$me) | del(.login, .answered_by, .answer_claim) ]' <<<"$all")"
 fi
-ok_json '{clarifications:$c, can_answer:$ca, is_chief:$ch}' \
-  --argjson c "$out" --argjson ca "$priv" --argjson ch "$(is_chief && echo true || echo false)"
+# a lista inteira (texto livre de pergunta+resposta) estoura o teto de 128KiB do --argjson
+# numa prova com muitas clarifications — vai por --slurpfile (ver ok_json_slurp).
+ok_json_slurp '{clarifications:$c[0], can_answer:$ca, is_chief:$ch}' c "$out" \
+  --argjson ca "$priv" --argjson ch "$(is_chief && echo true || echo false)"

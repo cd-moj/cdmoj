@@ -62,4 +62,6 @@ teams="$( { find "$cdir/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sor
   done; } | jq -cs 'add // {}')"
 [[ -n "$teams" ]] || teams='{}'
 
-ok_json '{teams:$t}' --argjson t "$teams"
+# mapa de TODOS os times/participantes: passa de 128KiB (teto do --argjson) num contest
+# grande — vai por --slurpfile (ver ok_json_slurp em lib/common.sh).
+ok_json_slurp '{teams:$t[0]}' t "$teams"

@@ -20,6 +20,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **`jq` + ARG_MAX** (ver `../CLAUDE.md`): JSON grande (mapas com milhares de chaves, ex.: o
   `id→sub_epoch` do history em `score/treino-response-gen.sh`) **não** vai por `--argjson` — estoura
   `Argument list too long`. Use `--slurpfile <arquivo>` ou encadeie etapas com pipe.
+  **REGRA DERIVADA (paga 2× no jplag): agregado de N arquivos NUNCA entra por `--argjson`.**
+  O teto é de **128 KiB POR ARGUMENTO** e todo agregado cresce com o tamanho do evento —
+  pares do jplag, times, clarifications, fila de impressão, fila de revisão, backups. Use o
+  helper **`ok_json_slurp <filtro> <nome> <json> [args…]`** (`lib/common.sh`; no filtro o
+  valor vira `$<nome>[0]`). Sintoma do estouro, antes da blindagem: **200 com corpo vazio** e
+  "Resposta inválida do servidor" na tela, sem NADA no log — hoje o `ok_json` monta o corpo
+  antes do cabeçalho e uma falha do jq vira `500 build_fail` com o stderr no error.log.
+  Teste que fecha a porta: caso *oversized* (>128 KiB) no smoke — ver `smoke-contest-jplag.sh`.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
   `printf %q` (é *sourced*). **A sessão vale enquanto a CONTA existir** (`_session_account_alive`
   no `load_session`): sessão do MOJ não expira por tempo, então a conferência do `account.json` é

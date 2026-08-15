@@ -66,4 +66,4 @@ out="$(jq -cn --arg q "$q" --arg col "$col" --arg own "$cowner" --argjson n "$li
      mine:([.[]|select(.access=="mine")]|length), shared:([.[]|select(.access=="shared")]|length)}' 2>/dev/null)"
 rm -rf "$tmpd"
 [[ -n "$out" ]] || out='{"problems":[],"total":0,"mine":0,"shared":0}'
-ok_json '$o' --argjson o "$out"
+ok_json_slurp '$o[0]' o "$out"
