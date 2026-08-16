@@ -98,6 +98,8 @@ ck "estatísticas: fallback sem JS"         'grep -q "<noscript>" "$R/statistics
 ck "estatísticas: nome do 1º a resolver"   'grep -q "first_solver_name" "$R/statistics.html"'
 ck "bundle inlinado sem import/export"     '! grep -qE "^(import|export) " "$R/statistics.html"'
 ck "documentos: aba com o PUBLICADO"       '[[ -s "$R/documentos.html" ]] && [[ -s "$R/documentos/contest.pt.pdf" ]]'
+# a aba só entra na nav se documentos.html já existir quando as outras páginas são escritas
+ck "documentos: link na navegação"        'grep -q "documentos.html" "$R/index.html" && grep -q "documentos.html" "$R/statistics.html"'
 ck "documentos: NÃO leva o não-publicado"  '[[ ! -e "$R/documentos/editorial.pt.pdf" ]] && ! grep -rq "SEGREDO_DOC_NAO_PUBLICADO" "$R"'
 # --- gates ---
 callf /contest/admin/report usr 'contest=rp' "$FIX/r2.bin"

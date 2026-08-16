@@ -454,6 +454,45 @@ if (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" ]]; then
   FROZEN_NOTE="<p class=\"note\">O placar abaixo está ABERTO (sem congelamento). A visão congelada aos ${fmin} min está em <a href=\"score-frozen.html\">Placar congelado</a>.</p>"
 fi
 
+# --- documentos.html: os documentos PUBLICADOS da prova, dentro do pacote ---------------
+# "Disponibilizar tudo depois" só funciona se o caderno, a folha de time limits, o info
+# sheet e o editorial viajarem junto com o relatório. Entram só os PUBLICADOS (o que os
+# times viram) — rascunho gerado e não publicado não vaza aqui.
+DOCS_JSON="$CDIR/docs/config.json"
+if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON" >/dev/null 2>&1; then
+  mkdir -p "$OUTD/documentos"
+  : > "$W/docs.tsv"
+  while IFS= read -r key; do
+    [[ "$key" =~ ^([a-z-]+)\.(pt|en)$ ]] || continue
+    dt="${BASH_REMATCH[1]}"; dl="${BASH_REMATCH[2]}"
+    for fmt in pdf html; do
+      src="$CDIR/docs/$dt.$dl.$fmt"
+      [[ -s "$src" ]] || continue
+      cp -f "$src" "$OUTD/documentos/$dt.$dl.$fmt" 2>/dev/null || continue
+      printf '%s\t%s\t%s\t%s\n' "$dt" "$dl" "$fmt" "$(stat -c%s "$src" 2>/dev/null || echo 0)" >> "$W/docs.tsv"
+    done
+  done < <(jq -r '(.published // [])[]' "$DOCS_JSON" 2>/dev/null)
+  if [[ -s "$W/docs.tsv" ]]; then
+    {
+      rep_head "Documentos da prova" docs
+      printf '<p class="note">Os documentos publicados aos times, como foram entregues. Abra o arquivo <b>extraído</b> do pacote (dentro do visualizador de rodadas os links relativos não abrem).</p>\n'
+      printf '<div class="tblwrap"><table class="moj">\n<thead><tr><th>Documento</th><th>Idioma</th><th>Arquivo</th><th>Tamanho</th></tr></thead>\n<tbody>\n'
+      while IFS=$'\t' read -r dt dl fmt sz; do
+        case "$dt" in
+          contest)    lbl="📕 Caderno de problemas";;
+          times)      lbl="⏱ Limites de tempo";;
+          info-sheet) lbl="ℹ️ Informações do ambiente";;
+          editorial)  lbl="📝 Editorial (soluções)";;
+          *)          lbl="$dt";;
+        esac
+        printf '<tr><td>%s</td><td>%s</td><td><a href="documentos/%s.%s.%s">%s</a></td><td>%s KB</td></tr>\n' \
+          "$(esc "$lbl")" "$dl" "$dt" "$dl" "$fmt" "${fmt^^}" "$(( (sz + 1023) / 1024 ))"
+      done < "$W/docs.tsv"
+      printf '</tbody></table></div>\n'
+      rep_foot
+    } > "$OUTD/documentos.html"
+  fi
+
 # --- index.html ------------------------------------------------------------------------
 mode_label(){ case "$1" in icpc) echo "ICPC";; obi) echo "OBI (pontos)";; heuristic) echo "Heurístico";; treino) echo "Lista/treino";; *) echo "Custom";; esac; }
 dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02d' $((s/3600)) $(( (s%3600)/60 )); }
@@ -494,44 +533,6 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
   rep_foot
 } > "$OUTD/index.html"
 
-# --- documentos.html: os documentos PUBLICADOS da prova, dentro do pacote ---------------
-# "Disponibilizar tudo depois" só funciona se o caderno, a folha de time limits, o info
-# sheet e o editorial viajarem junto com o relatório. Entram só os PUBLICADOS (o que os
-# times viram) — rascunho gerado e não publicado não vaza aqui.
-DOCS_JSON="$CDIR/docs/config.json"
-if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON" >/dev/null 2>&1; then
-  mkdir -p "$OUTD/documentos"
-  : > "$W/docs.tsv"
-  while IFS= read -r key; do
-    [[ "$key" =~ ^([a-z-]+)\.(pt|en)$ ]] || continue
-    dt="${BASH_REMATCH[1]}"; dl="${BASH_REMATCH[2]}"
-    for fmt in pdf html; do
-      src="$CDIR/docs/$dt.$dl.$fmt"
-      [[ -s "$src" ]] || continue
-      cp -f "$src" "$OUTD/documentos/$dt.$dl.$fmt" 2>/dev/null || continue
-      printf '%s\t%s\t%s\t%s\n' "$dt" "$dl" "$fmt" "$(stat -c%s "$src" 2>/dev/null || echo 0)" >> "$W/docs.tsv"
-    done
-  done < <(jq -r '(.published // [])[]' "$DOCS_JSON" 2>/dev/null)
-  if [[ -s "$W/docs.tsv" ]]; then
-    {
-      rep_head "Documentos da prova" docs
-      printf '<p class="note">Os documentos publicados aos times, como foram entregues. Abra o arquivo <b>extraído</b> do pacote (dentro do visualizador de rodadas os links relativos não abrem).</p>\n'
-      printf '<div class="tblwrap"><table class="moj">\n<thead><tr><th>Documento</th><th>Idioma</th><th>Arquivo</th><th>Tamanho</th></tr></thead>\n<tbody>\n'
-      while IFS=$'\t' read -r dt dl fmt sz; do
-        case "$dt" in
-          contest)    lbl="📕 Caderno de problemas";;
-          times)      lbl="⏱ Limites de tempo";;
-          info-sheet) lbl="ℹ️ Informações do ambiente";;
-          editorial)  lbl="📝 Editorial (soluções)";;
-          *)          lbl="$dt";;
-        esac
-        printf '<tr><td>%s</td><td>%s</td><td><a href="documentos/%s.%s.%s">%s</a></td><td>%s KB</td></tr>\n' \
-          "$(esc "$lbl")" "$dl" "$dt" "$dl" "$fmt" "${fmt^^}" "$(( (sz + 1023) / 1024 ))"
-      done < "$W/docs.tsv"
-      printf '</tbody></table></div>\n'
-      rep_foot
-    } > "$OUTD/documentos.html"
-  fi
 fi
 
 # --- runs.html ---------------------------------------------------------------------------
