@@ -118,8 +118,12 @@ rep_flag(){   # <código> -> <img …> (vazio se o código não for reconhecíve
   [[ "$c" =~ ^br[-_]([a-z]{2})$ ]] && f="$MOJ_WEB/shared/flags/br/${BASH_REMATCH[1]}.svg"
   [[ -z "$f" && "$c" =~ ^[a-z]{2}$ ]] && f="$MOJ_WEB/shared/flags/country/$c.svg"
   [[ -n "$f" && -s "$f" ]] || { printf '%s' ""; return; }
-  local name b64
-  name="$(jq -r --arg c "$c" 'first((.countries//[])[],(.br_states//[])[] | select((.code|ascii_downcase)==$c) | .name) // empty' \
+  # nome p/ o title/alt: no index.json o estado é indexado SEM o prefixo ("sc", não "br-sc"),
+  # e os dois arrays entram CONCATENADOS (`first(A, B|filtro)` filtraria só o B — a vírgula
+  # é mais frouxa que o pipe e o primeiro ramo passava direto).
+  local key="$c" name b64
+  [[ "$c" =~ ^br[-_]([a-z]{2})$ ]] && key="${BASH_REMATCH[1]}"
+  name="$(jq -r --arg c "$key" 'first((((.countries//[]) + (.br_states//[]))[]) | select((.code|ascii_downcase)==$c) | .name) // empty' \
           "$MOJ_WEB/shared/flags/index.json" 2>/dev/null)"
   [[ -n "$name" ]] || name="$1"
   b64="$(base64 -w0 < "$f" 2>/dev/null)" || return

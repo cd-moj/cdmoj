@@ -90,6 +90,7 @@ ck "offline: sem script externo/ESM/fetch" '! grep -rqE "<script src=|import |fe
 ck "visual MOJ: topbar + ui.css inlinado"  'grep -q "class=\"topbar\"" "$R/index.html" && grep -q "linear-gradient(105deg" "$R/index.html"'
 ck "bandeira de ESTADO vira SVG embutido"  'grep -q "flag-mini\" src=\"data:image/svg+xml;base64," "$R/index.html"'
 ck "bandeira NÃO sai como texto cru"       '! grep -qE ">br-rj<|>br-sc<" "$R/index.html"'
+ck "bandeira com o NOME no title"          'grep -q "alt=\"Rio de Janeiro\"" "$R/index.html" && grep -q "alt=\"Santa Catarina\"" "$R/index.html"'
 ck "placar: coluna de penalidade"          'grep -q ">Penal.<" "$R/index.html"'
 ck "problemas: coluna Autor preenchida"    'grep -q ">Autor<" "$R/index.html" && grep -q "Bruno Ribas, Maria da Silva" "$R/index.html"'
 ck "runs: cstaff excluído"                 '! grep -q "rp.cstaff" "$R/runs.html"'
