@@ -30,6 +30,7 @@ const TARGET = {
   reg_warmup: ['prova', 'rodadas'],
   print: ['operacao', 'staff'], staff_filters: ['operacao', 'staff'],
   judges: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
+  report: ['operacao', 'situacao'],   // postflight (encerrar evento)
 };
 
 export function makeCentralTab(CONTEST, opts = {}) {
@@ -70,12 +71,13 @@ export function makeCentralTab(CONTEST, opts = {}) {
 
   async function load() {
     panel.innerHTML = '';
-    const [pre, dash, docs, rd, st] = await Promise.all([
+    const [pre, dash, docs, rd, st, fin] = await Promise.all([
       apiGet('/contest/admin/preflight?contest=' + enc(CONTEST), G).catch(() => null),
       apiGet('/contest/admin/dashboard?contest=' + enc(CONTEST), G).catch(() => null),
       apiGet('/contest/admin/docs?contest=' + enc(CONTEST), G).catch(() => null),
       apiGet('/contest/admin/rounds?contest=' + enc(CONTEST), G).catch(() => null),
       apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G).catch(() => null),
+      apiGet('/contest/admin/finish?contest=' + enc(CONTEST), G).catch(() => null),
     ]);
 
     // ---------- 1. falta para começar ----------
@@ -99,6 +101,46 @@ export function makeCentralTab(CONTEST, opts = {}) {
       el('summary', {}, T(`${good.length} itens já conferidos`, `${good.length} items already checked`)),
       ...good.map(checkEl)));
     panel.append(box1);
+
+    // ---------- 1½. depois da prova (só quando acabou p/ TODOS — quem decide é a API) -------
+    if (fin && fin.can_finish) {
+      const fchecks = fin.checks || [];
+      const fs = fin.summary || { ok: 0, warn: 0, fail: 0 };
+      const fbad = fchecks.filter((c) => c.level === 'fail').concat(fchecks.filter((c) => c.level === 'warn'));
+      const fgood = fchecks.filter((c) => c.level === 'ok');
+      const fmsg = el('div', { class: 'small' });
+      const npd = (fin.pending_docs || []).length;
+      const btn = el('button', { class: 'btn' + (fs.fail ? '' : ' ghost') }, T('🏁 Encerrar evento', '🏁 Finish event'));
+      const box = el('div', { class: 'section' },
+        el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },
+          el('h2', { style: 'margin:.1rem 0' }, T('Depois da prova', 'After the contest')),
+          fs.fail > 0 ? el('span', { class: 'pill bad' }, T(`${fs.fail} item(ns) ainda fechado(s)`, `${fs.fail} item(s) still closed`))
+            : el('span', { class: 'pill ok' }, T('resultado liberado', 'results released'))),
+        el('div', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
+          T('O botão abre o PLACAR (tira o congelamento) e publica os documentos já gerados. O resto continua sendo escolha sua — cada item abaixo tem o atalho para resolver.',
+            'The button opens the SCOREBOARD (removes the freeze) and publishes the documents already generated. Everything else stays your call — each item below links to where it is fixed.')));
+      fbad.forEach((c) => box.append(checkEl(c)));
+      if (fgood.length) box.append(el('details', { class: 'fgroup' },
+        el('summary', {}, T(`${fgood.length} itens já liberados`, `${fgood.length} items already released`)),
+        ...fgood.map(checkEl)));
+      btn.addEventListener('click', async () => {
+        const willFreeze = fchecks.some((c) => c.id === 'freeze' && c.level === 'fail');
+        const what = [willFreeze ? T('descongelar o placar', 'unfreeze the scoreboard') : null,
+          npd ? T(`publicar ${npd} documento(s)`, `publish ${npd} document(s)`) : null].filter(Boolean);
+        if (!what.length) { fmsg.className = 'small muted'; fmsg.textContent = T('Nada a fazer: já está tudo liberado.', 'Nothing to do: everything is already released.'); return; }
+        // eslint-disable-next-line no-alert
+        if (!confirm(T('Encerrar o evento vai: ', 'Finishing the event will: ') + what.join(T(' e ', ' and ')) + '.\n\n'
+          + T('Isso fica visível para todo mundo. Confirmar?', 'This becomes visible to everyone. Confirm?'))) return;
+        btn.disabled = true; fmsg.className = 'small'; fmsg.textContent = T('Encerrando…', 'Finishing…');
+        try {
+          const r = await apiPost('/contest/admin/finish?contest=' + enc(CONTEST), { action: 'finish' }, G);
+          fmsg.textContent = '✓ ' + (r.done || []).map((d) => d.item).join(', ');
+          setTimeout(load, 600);
+        } catch (e) { fmsg.className = 'small error-box'; fmsg.textContent = e.message || T('falha', 'failed'); btn.disabled = false; }
+      });
+      box.append(el('div', { class: 'row', style: 'gap:.5rem;margin-top:.6rem;align-items:center' }, btn, fmsg));
+      panel.append(box);
+    }
 
     // ---------- 2. gerar ----------
     const nd = docs ? (docs.docs || []).length : 0;
@@ -153,7 +195,10 @@ export function makeCentralTab(CONTEST, opts = {}) {
         const body = {};
         if (ini.value) body.start = dtToEpoch(ini.value);
         if (fim.value) body.end = dtToEpoch(fim.value);
-        if (fz.value) body.freeze = dtToEpoch(fz.value);
+        // campo de freeze VAZIO = sem congelamento -> manda 0. Omitir a chave (como era antes)
+        // fazia o "limpar o freeze" virar no-op MUDO: o campo aceitava ser apagado, salvava
+        // "✓" e o placar continuava congelado (a API só mexe no que vem no corpo).
+        body.freeze = fz.value ? dtToEpoch(fz.value) : 0;
         if (body.start && body.end && body.end <= body.start) {
           msg.className = 'small error-box'; msg.textContent = T('o fim tem de ser depois do início.', 'the end must be after the start.'); return;
         }

@@ -1955,6 +1955,65 @@
         }
       }
     },
+    "/contest/admin/finish": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Checklist pós-prova (o que ainda está fechado) — admin",
+        "responses": {
+          "200": {
+            "description": "{checks:[{id,level,label,detail}], summary:{ok,warn,fail}, can_finish, pending_docs:[{type,lang}]}"
+          },
+          "403": {
+            "description": "admin_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Encerrar evento: abre o placar (FREEZE_TIME=0) e publica os documentos gerados — admin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "finish"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{finished:true, done:[{item,detail}], skipped:[{item,reason}]}"
+          },
+          "400": {
+            "description": "bad_json/action_invalid"
+          },
+          "403": {
+            "description": "admin_required"
+          },
+          "409": {
+            "description": "contest_running — a prova ainda não acabou para todas as sedes"
+          },
+          "429": {
+            "description": "busy"
+          }
+        }
+      }
+    },
     "/contest/admin/report": {
       "get": {
         "tags": [

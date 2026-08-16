@@ -162,6 +162,19 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   semestre em `contests/treino/var/relatorio.json` (JSON, atômico, nunca *sourced*), cache do
   gerador em `var/relatorio-cache.json`; o envio automático mora no sweep do `GET /ops/alerts`
   (stamp `.relatorio-stamp`, throttle 1 h; quartis já vencidos na config entram pré-marcados).
+- **Relatório offline (`server/score/report-gen.sh`)**: é o pacote do evento e usa a
+  identidade do site — `web/shared/ui.css` INLINADO, topbar/logo e bandeiras (mesmo SVG do
+  placar) como `data:` URI. Roda STANDALONE, então resolve `MOJ_HOME`/`MOJ_WEB`/
+  `MOJ_PROBLEMS_DIR` sozinho. Invariantes: **zero `<script src=`, `import `, `fetch(`** e a
+  palavra `password` (smoke), e nada de caminho relativo p/ asset — o visualizador de rodadas
+  abre as páginas em `iframe srcdoc`. As estatísticas NÃO são reescritas em jq: o relatório
+  inlina `web/lib/stats-view.js` + `web/lib/charts.js` + `web/shared/dom.js` (as linhas
+  `import`/`export` saem no `sed`) — **o mesmo módulo que a página do admin usa**, senão as
+  duas telas divergem. ⚠ Ao criar classe CSS no relatório, cuidado com colisão com o `ui.css`
+  (um `.bar{height:14px}` local achatou a topbar inteira: `.bar` é o contêiner dela).
+- **`el()` mora em `web/shared/dom.js`** (sem dependência de rede) e o `ui.js` re-exporta —
+  é o que permite reusar renderizadores no relatório offline. Importar de `/shared/ui.js`
+  segue valendo p/ os ~79 arquivos que já faziam isso.
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +

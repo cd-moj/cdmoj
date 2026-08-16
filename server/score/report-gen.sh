@@ -35,6 +35,12 @@ export CONTESTSDIR
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/../api/v1/lib/users.sh"
 source "$HERE/../api/v1/lib/verdict.sh"
+# roda STANDALONE (CLI e handler): nada de lib/common.sh, então os caminhos do checkout e do
+# store de problemas se auto-resolvem a partir daqui (server/score) — o relatório precisa do
+# web/ (ui.css, bandeiras, logo, módulos de gráfico) e do pacote (autor do problema).
+: "${MOJ_HOME:=$(cd "$HERE/../.." && pwd)}"
+: "${MOJ_WEB:=$MOJ_HOME/web}"
+: "${MOJ_PROBLEMS_DIR:=$MOJ_HOME/../moj-problems}"
 
 C="${1:-}"; OUTD="${2:-}"
 [[ -n "$C" && -n "$OUTD" ]] || { echo "uso: report-gen.sh <contest> <outdir>" >&2; exit 1; }
@@ -97,19 +103,38 @@ ACCT_JQ='[.login//"", ((.team.name // .fullname // "")|gsub("[:\t\n]";" ")),
   fi
 } > "$W/names.tsv"
 
-# --- bandeiras: código de 2 letras -> emoji (indicadores regionais), pré-computado ----
-rep_flag(){
-  local cc="$1"
-  [[ "$cc" =~ ^[A-Za-z]{2}$ ]] || { printf '%s' "$cc"; return; }
-  local up="${cc^^}" a b
-  a=$(( 0x1F1E6 + $(printf '%d' "'${up:0:1}") - 65 ))
-  b=$(( 0x1F1E6 + $(printf '%d' "'${up:1:1}") - 65 ))
-  # shellcheck disable=SC2059
-  printf "$(printf '\\U%08X\\U%08X' "$a" "$b")"
+# escape/format: definidos ANTES das bandeiras — rep_flag usa esc() no alt/title.
+esc(){ printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&#39;/g"; }
+fmt_dt(){ (( ${1:-0} > 0 )) && date -d "@$1" '+%d/%m/%Y %H:%M' 2>/dev/null || printf '—'; }
+
+# --- bandeiras: MESMA regra do site (web/shared/flags.js), SVG local -> data URI ------
+# Era emoji de indicador regional: não renderiza no Windows nem em servidor sem Noto Color
+# Emoji, e — pior — só casava 2 letras, então os códigos de ESTADO ("br-rj", que é o que a
+# maioria dos times usa) saíam como TEXTO CRU no placar. Agora resolve o mesmo arquivo que o
+# placar ao vivo usa e embute como data URI (obrigatório: o visualizador de rodadas abre as
+# páginas em iframe srcdoc, onde caminho relativo não resolve). Só os códigos USADOS entram.
+rep_flag(){   # <código> -> <img …> (vazio se o código não for reconhecível)
+  local c="${1,,}" f=""
+  [[ "$c" =~ ^br[-_]([a-z]{2})$ ]] && f="$MOJ_WEB/shared/flags/br/${BASH_REMATCH[1]}.svg"
+  [[ -z "$f" && "$c" =~ ^[a-z]{2}$ ]] && f="$MOJ_WEB/shared/flags/country/$c.svg"
+  [[ -n "$f" && -s "$f" ]] || { printf '%s' ""; return; }
+  local name b64
+  name="$(jq -r --arg c "$c" 'first((.countries//[])[],(.br_states//[])[] | select((.code|ascii_downcase)==$c) | .name) // empty' \
+          "$MOJ_WEB/shared/flags/index.json" 2>/dev/null)"
+  [[ -n "$name" ]] || name="$1"
+  b64="$(base64 -w0 < "$f" 2>/dev/null)" || return
+  printf '<img class="flag-mini" src="data:image/svg+xml;base64,%s" alt="%s" title="%s">' \
+    "$b64" "$(esc "$name")" "$(esc "$name")"
 }
 awk -F'\t' '$5!=""{print $5}' "$W/names.tsv" | sort -u | while IFS= read -r fcode; do
   printf '%s\t%s\n' "$fcode" "$(rep_flag "$fcode")"
 done > "$W/flags.tsv"
+
+# logo do MOJ (1,4 KB) embutido — mesma imagem da topbar do site
+LOGO_IMG=""
+if [[ -s "$MOJ_WEB/shared/assets/logo_moj.svg" ]]; then
+  LOGO_IMG="<img src=\"data:image/svg+xml;base64,$(base64 -w0 < "$MOJ_WEB/shared/assets/logo_moj.svg")\" alt=\"MOJ\">"
+fi
 
 # --- cores de balão (balloons.json: short -> RRGGBB) + luminância p/ cor do texto -----
 : > "$W/balloons.tsv"
@@ -126,85 +151,103 @@ if [[ -f "$CDIR/balloons.json" ]] && jq -e . "$CDIR/balloons.json" >/dev/null 2>
 fi
 
 # --- HTML compartilhado --------------------------------------------------------------
-esc(){ printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&#39;/g"; }
-fmt_dt(){ (( ${1:-0} > 0 )) && date -d "@$1" '+%d/%m/%Y %H:%M' 2>/dev/null || printf '—'; }
+
+# CSS: o MESMO do site (web/shared/ui.css) inlinado + os <style> locais do placar e das
+# estatísticas + o pouco que é exclusivo do relatório. Antes o relatório tinha paleta própria
+# (#1d2b45/#ffb74d) e não parecia MOJ. ui.css não tem @font-face nem URL externa (as fontes
+# são stacks do sistema), então inlinar é offline-safe.
+rep_css(){
+  printf ':root{color-scheme:light}\n'
+  cat "$MOJ_WEB/shared/ui.css" 2>/dev/null
+  # locais do placar (web/contest/score/index.html) e das estatísticas (…/statistics/index.html)
+  sed -n '/<style>/,/<\/style>/p' "$MOJ_WEB/contest/score/index.html" 2>/dev/null | sed '/<\/\?style>/d'
+  sed -n '/<style>/,/<\/style>/p' "$MOJ_WEB/contest/statistics/index.html" 2>/dev/null | sed '/<\/\?style>/d'
+  cat <<'CSSEOF'
+/* exclusivos do relatório offline */
+body{background:var(--blue-bg)}
+/* o relatório é DOCUMENTO, não app: nem o cabeçalho nem a barra de abas grudam no topo
+   (duas faixas sticky em top:0 se atropelavam no headless e no PDF de impressão). */
+.topbar{position:static}
+.topbar .bar{padding:.8rem 1.2rem;gap:.5rem}
+.topbar .rep-sub{opacity:.85;font-size:.85rem}
+.wrap{max-width:var(--page-max);margin:0 auto;padding:1.1rem 1.2rem 2.5rem}
+.repnav{background:#fff;border-bottom:1px solid var(--line);position:static}
+.repnav .wrap{display:flex;flex-wrap:wrap;gap:.15rem;padding:0 1.2rem}
+.repnav a{color:var(--muted);text-decoration:none;padding:.6rem .85rem;font-size:.92rem;font-weight:600;border-bottom:3px solid transparent}
+.repnav a:hover{color:var(--blue-dark);background:var(--blue-soft)}
+.repnav a.on{color:var(--blue-dark);border-bottom-color:var(--accent)}
+h2{font-size:1.25rem;color:var(--blue-dark);margin:1.4rem 0 .6rem}
+table{width:100%}
+.tblwrap{overflow-x:auto}
+table.score td.cell{text-align:center;white-space:nowrap;min-width:52px}
+table.score th.prob{text-align:center}
+td.place{text-align:right;font-weight:800;color:var(--blue-dark);width:2.4em}
+td.team .u{color:var(--muted);font-size:.8em}
+td.c-try{background:var(--err-bg);color:var(--err);text-align:center}
+tr.guest-row td{background:#fbfbfd;color:var(--muted)}
+.v-ac{color:var(--ok);font-weight:700}
+.v-rej{color:var(--err)}
+.v-pend{color:var(--muted);font-style:italic}
+.badge{display:inline-block;border-radius:999px;padding:1px 9px;font-size:.75rem;background:var(--blue-soft);color:var(--blue-dark)}
+.badge.pub{background:var(--ok-bg);color:var(--ok)}.badge.priv{background:var(--err-bg);color:var(--err)}
+.badge.org,.badge.st-printed{background:var(--warn-bg);color:var(--warn)}
+.badge.st-pending{background:var(--err-bg);color:var(--err)}
+.badge.st-delivered{background:var(--ok-bg);color:var(--ok)}
+.cards{display:flex;flex-wrap:wrap;gap:.6rem;margin:.6rem 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:.7rem 1.1rem;min-width:140px;box-shadow:var(--shadow-sm)}
+.card .n{font-size:1.6rem;font-weight:800;color:var(--blue-dark)}
+.card .l{font-size:.78rem;color:var(--muted)}
+.info{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:.3rem 1.1rem .9rem;margin:.7rem 0;box-shadow:var(--shadow-sm)}
+.info dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:.6rem 0 0}
+.info dt{color:var(--muted);font-size:.85rem}.info dd{margin:0;font-size:.92rem}
+/* barrinha da linha do tempo do <noscript>. NÃO pode se chamar .bar: essa classe é a do
+   CONTEINER da topbar no ui.css e o height:14px daqui achatava o cabeçalho inteiro. */
+.tbar{background:var(--blue-soft);height:14px;display:inline-block;vertical-align:middle;border-radius:3px}
+.tbar.ac{background:#bfe8cd}
+.qa{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:.7rem 1.1rem;margin:.7rem 0;box-shadow:var(--shadow-sm)}
+.qa .q{white-space:pre-wrap;margin:.4rem 0}
+.qa .a{white-space:pre-wrap;margin:.4rem 0;padding:.5rem .7rem;background:var(--ok-bg);border-left:3px solid var(--ok);border-radius:6px}
+.qa .meta{color:var(--muted);font-size:.8rem}
+.swatch{display:inline-block;width:.9em;height:.9em;border-radius:50%;border:1px solid #9993;vertical-align:-.1em}
+.flag-mini{height:18px;vertical-align:middle;border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,.45)}
+input.filter{padding:.45rem .7rem;border:1px solid #c8cfd9;border-radius:10px;margin:0 0 .7rem;width:280px;max-width:100%}
+footer{color:var(--muted);font-size:.78rem;margin:2rem 0 .6rem}
+.note{color:var(--muted);font-size:.85rem;margin:.4rem 0}
+CSSEOF
+}
 
 rep_head(){ # <título> <id-da-aba-ativa>
-  local title="$1" active="$2" tabs t id label
+  local title="$1" active="$2" tabs t fn id label
   tabs=""
-  for t in "index.html:index:Placar" "runs.html:runs:Runs" \
-           "clarifications.html:clar:Clarifications" "statistics.html:stats:Estatísticas" \
-           "staff-tasks.html:staff:Tarefas do staff" "infra.html:infra:Infra"; do
+  for t in "index.html:index:🏆 Placar" "runs.html:runs:📨 Runs" \
+           "clarifications.html:clar:💬 Clarifications" "statistics.html:stats:📊 Estatísticas" \
+           "documentos.html:docs:📄 Documentos" \
+           "staff-tasks.html:staff:🖨️ Tarefas do staff" "infra.html:infra:⚙️ Infra"; do
     IFS=: read -r fn id label <<< "$t"
-    [[ "$id" == frozen ]] && continue
+    [[ "$id" == docs && ! -f "$OUTD/documentos.html" && "$active" != docs ]] && continue
     tabs+="<a href=\"$fn\"$([[ "$id" == "$active" ]] && printf ' class="on"')>$label</a>"
   done
   [[ -f "$OUTD/score-frozen.html" || "$active" == frozen ]] && \
-    tabs+="<a href=\"score-frozen.html\"$([[ "$active" == frozen ]] && printf ' class="on"')>Placar congelado</a>"
+    tabs+="<a href=\"score-frozen.html\"$([[ "$active" == frozen ]] && printf ' class="on"')>❄ Placar congelado</a>"
   cat <<EOF
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="$([[ "${LOCALE:-pt}" == en ]] && printf 'en' || printf 'pt-BR')">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>$(esc "$title") — $(esc "$CNAME")</title>
 <style>
-:root{color-scheme:light}
-*{box-sizing:border-box}
-body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;background:#f6f7f9;color:#1c2430}
-.wrap{max-width:1200px;margin:0 auto;padding:16px}
-header.site{background:#1d2b45;color:#fff;padding:14px 0}
-header.site .wrap{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;padding-top:0;padding-bottom:0}
-header.site h1{font-size:1.25rem;margin:0}
-header.site .sub{opacity:.75;font-size:.85rem}
-nav.tabs{background:#243553}
-nav.tabs .wrap{display:flex;flex-wrap:wrap;gap:2px;padding-top:0;padding-bottom:0}
-nav.tabs a{color:#cfd8ea;text-decoration:none;padding:9px 14px;font-size:.9rem;border-bottom:3px solid transparent}
-nav.tabs a:hover{color:#fff}
-nav.tabs a.on{color:#fff;font-weight:700;border-bottom-color:#ffb74d}
-h2{font-size:1.05rem;margin:22px 0 10px}
-table{border-collapse:collapse;background:#fff;width:100%;font-size:.88rem}
-th,td{border:1px solid #dde2e9;padding:5px 8px;text-align:left}
-th{background:#eef1f6;font-weight:600;white-space:nowrap}
-tr:nth-child(even) td{background:#fbfcfe}
-.tblwrap{overflow-x:auto;border:1px solid #dde2e9;border-radius:6px}
-.tblwrap table{border:0}
-table.score td.cell{text-align:center;white-space:nowrap;min-width:52px}
-table.score th.prob{text-align:center}
-td.place{text-align:right;font-weight:700;color:#555;width:2.2em}
-td.team .u{color:#667;font-size:.8em}
-td.c-try{background:#ffe5e5;color:#a33;text-align:center}
-.v-ac{color:#0a7a33;font-weight:700}
-.v-rej{color:#b3261e}
-.v-pend{color:#777;font-style:italic}
-.badge{display:inline-block;border-radius:10px;padding:1px 8px;font-size:.75rem;background:#e8ecf3;color:#345}
-.badge.pub{background:#e2f4e7;color:#1c6b38}.badge.priv{background:#f3e6e6;color:#8a3b3b}
-.badge.org{background:#fff3d6;color:#8a6d1a}
-.badge.st-pending{background:#fdecec;color:#a33}.badge.st-printed{background:#fff3d6;color:#8a6d1a}
-.badge.st-delivered{background:#e2f4e7;color:#1c6b38}
-.cards{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
-.card{background:#fff;border:1px solid #dde2e9;border-radius:8px;padding:10px 16px;min-width:130px}
-.card .n{font-size:1.5rem;font-weight:700}
-.card .l{font-size:.78rem;color:#667}
-.info{background:#fff;border:1px solid #dde2e9;border-radius:8px;padding:4px 16px 12px;margin:10px 0}
-.info dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:8px 0 0}
-.info dt{color:#667;font-size:.85rem}.info dd{margin:0;font-size:.9rem}
-.bar{background:#dbe6f6;height:14px;display:inline-block;vertical-align:middle;border-radius:2px}
-.bar.ac{background:#9fd4ae}
-.qa{background:#fff;border:1px solid #dde2e9;border-radius:8px;padding:10px 14px;margin:10px 0}
-.qa .q{white-space:pre-wrap;margin:6px 0}
-.qa .a{white-space:pre-wrap;margin:6px 0;padding:8px 10px;background:#f2f7f2;border-left:3px solid #7cb98a}
-.qa .meta{color:#667;font-size:.8rem}
-.swatch{display:inline-block;width:.9em;height:.9em;border-radius:50%;border:1px solid #9993;vertical-align:-.1em}
-input.filter{padding:6px 10px;border:1px solid #c8cfd9;border-radius:6px;margin:0 0 10px;width:280px;max-width:100%}
-footer{color:#889;font-size:.78rem;margin:26px 0 10px}
-.note{color:#667;font-size:.85rem;margin:6px 0}
-a{color:#1a56b0}
+$(rep_css)
 </style>
 </head>
 <body>
-<header class="site"><div class="wrap"><h1>$(esc "$CNAME")</h1><span class="sub">relatório da competição</span></div></header>
-<nav class="tabs"><div class="wrap">$tabs</div></nav>
+<header class="topbar"><div class="bar">
+<span class="brand">$LOGO_IMG MOJ</span>
+<span class="contest-topbar-title">$(esc "$CNAME")</span>
+<span class="spacer"></span>
+<span class="rep-sub">relatório da competição</span>
+</div></header>
+<nav class="repnav"><div class="wrap">$tabs</div></nav>
 <div class="wrap">
 <h2>$(esc "$title")</h2>
 EOF
@@ -230,18 +273,21 @@ rep_score_html(){ # <placar.txt>
   awk -F: -v MODE="$MODE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); gsub(/"/,"\\&quot;",s); return s }
-    function issys(h){ return (h=="flag"||h=="username"||h=="univ short"||h=="team name"||h=="univ full"||h=="total") }
-    function flag_html(v,  e){ if(v=="")return ""; e=(v in femoji)?femoji[v]:v; return "<span title=\"" esc(v) "\">" e "</span>" }
-    function team_html(us,tn,uf,un,  lbl){
+    function issys(h){ return (h=="flag"||h=="username"||h=="univ short"||h=="team name"||h=="univ full"||h=="total"||h=="penalty"||h=="lastac"||h=="guest") }
+    # fimg[] já vem pronto (<img> com o SVG em data URI, montado em rep_flag); código sem
+    # bandeira conhecida vira texto discreto em vez de sumir.
+    function flag_html(v){ if(v=="")return ""; if(v in fimg) return fimg[v]; return "<span class=\"small muted\" title=\"" esc(v) "\">" esc(v) "</span>" }
+    function team_html(us,tn,uf,un,g,  lbl){
       lbl=""; if(us!="") lbl="[" esc(us) "] ";
       lbl=lbl esc(tn!=""?tn:un)
       if(un!="") lbl=lbl " <span class=\"u\">[" esc(un) "]</span>"
+      if(g) lbl=lbl " <span class=\"pill\" title=\"Time convidado (extra-oficial): não entra na classificação\">convidado</span>"
       return "<td class=\"team\" title=\"" esc(uf!=""?uf:us) "\">" lbl "</td>"
     }
     BEGIN{
       while ((getline l < BF) > 0) { n=split(l,a,"\t"); if(n>=3){ bhex[a[1]]=a[2]; bdark[a[1]]=a[3] } }
       close(BF)
-      while ((getline l < FF) > 0) { n=split(l,a,"\t"); if(n>=2){ femoji[a[1]]=a[2] } }
+      while ((getline l < FF) > 0) { n=split(l,a,"\t"); if(n>=2){ fimg[a[1]]=a[2] } }
       close(FF)
     }
     NR==1{ next }
@@ -249,10 +295,11 @@ rep_score_html(){ # <placar.txt>
       n=split($0, H, ":"); s=1
       while (s<=n) { h=trim(tolower(H[s])); if (h=="desc"||h=="asc") s++; else break }
       ncol=0; for(i=s;i<=n;i++){ ncol++; hdr[ncol]=H[i] }
-      iflag=iuser=ius=iteam=iuf=itot=0
+      iflag=iuser=ius=iteam=iuf=itot=ipen=ilast=iguest=0
       for(i=1;i<=ncol;i++){ h=trim(tolower(hdr[i]))
         if(h=="flag")iflag=i; else if(h=="username")iuser=i; else if(h=="univ short")ius=i
-        else if(h=="team name")iteam=i; else if(h=="univ full")iuf=i; else if(h=="total")itot=i }
+        else if(h=="team name")iteam=i; else if(h=="univ full")iuf=i; else if(h=="total")itot=i
+        else if(h=="penalty")ipen=i; else if(h=="lastac")ilast=i; else if(h=="guest")iguest=i }
       probend=(itot? itot-1 : ncol); np=0
       for(i=1;i<=probend;i++){ h=trim(tolower(hdr[i])); if(!issys(h)){ np++; pcol[np]=i; pname[np]=trim(hdr[i]) } }
       printf "<div class=\"tblwrap\"><table class=\"score\">\n<thead><tr><th>#</th>"
@@ -265,6 +312,7 @@ rep_score_html(){ # <placar.txt>
           printf "<th class=\"prob\"%s>%s</th>", sty, esc(pname[k])
         }
         printf "<th>Total</th>"
+        if (MODE=="icpc" && ipen) printf "<th>Penal.</th>"
       } else {
         for(i=1;i<=ncol;i++) printf "<th>%s</th>", esc(trim(hdr[i])=="flag" ? "" : hdr[i])
       }
@@ -274,15 +322,25 @@ rep_score_html(){ # <placar.txt>
     NF==0{ next }
     {
       rr++
+      # COLOCAÇÃO igual à do placar ao vivo (score-icpc.js:62-68): empate real exige os TRÊS
+      # critérios (resolvidos + penalidade + minuto do último AC) — antes empatava só por
+      # total e a classificação do relatório divergia da oficial. E CONVIDADO não consome
+      # posição: aparece na linha do desempenho dele, com "–" no lugar do número.
+      guest=(iguest ? trim($(iguest)) : "")
+      isguest=(guest!="" && guest!="0" && tolower(guest)!="false" && tolower(guest)!="no")
+      pnum=""
       if (MODE=="icpc") {
-        tot=(itot? $(itot) : "")
-        if (rr>1 && tot==prevtot) place=prevplace; else place=rr
-        prevtot=tot; prevplace=place
-      } else place=rr
-      printf "<tr><td class=\"place\">%d</td>", place
+        tot=(itot? trim($(itot)) : ""); pen=(ipen? trim($(ipen)) : ""); lac=(ilast? trim($(ilast)) : "")
+        if (!isguest) {
+          if (nseen>0 && tot==prevtot && pen==prevpen && lac==prevlac) place=prevplace
+          else { nseen++; place=nseen }
+          prevtot=tot; prevpen=pen; prevlac=lac; prevplace=place; pnum=place
+        }
+      } else if (!isguest) { nseen++; pnum=nseen }
+      printf "<tr%s><td class=\"place\">%s</td>", (isguest?" class=\"guest-row\"":""), (isguest?"–":pnum "")
       if (MODE=="icpc" || MODE=="obi") {
         if(iflag) printf "<td>%s</td>", flag_html(trim($(iflag)))
-        printf "%s", team_html((ius?trim($(ius)):""), (iteam?trim($(iteam)):""), (iuf?trim($(iuf)):""), (iuser?trim($(iuser)):""))
+        printf "%s", team_html((ius?trim($(ius)):""), (iteam?trim($(iteam)):""), (iuf?trim($(iuf)):""), (iuser?trim($(iuser)):""), isguest)
         for(k=1;k<=np;k++){
           v=trim($(pcol[k]))
           if (MODE=="icpc") {
@@ -301,6 +359,7 @@ rep_score_html(){ # <placar.txt>
           }
         }
         printf "<td class=\"cell\"><b>%s</b></td>", esc(itot? trim($(itot)) : "")
+        if (MODE=="icpc" && ipen) printf "<td class=\"cell\">%s</td>", esc(trim($(ipen)))
       } else {       # generic: colunas livres do cabeçalho
         for(i=1;i<=ncol;i++){
           v=trim($(i))
@@ -324,7 +383,7 @@ awk -F: -v NAMES="$W/names.tsv" -v PROBS="$W/probs.tsv" "$VERDICT_CANON_AWK"'
     close(PROBS)
   }
   NF>=6 {
-    if ($2 ~ /\.(admin|judge|cjudge|staff|mon)$/ || $2=="admin") next
+    if ($2 ~ /\.(admin|judge|cjudge|staff|cstaff|mon)$/ || $2=="admin") next   # cstaff INCLUÍDO: não casa \.staff$
     login=$2; prob=$3; lang=$4
     v=$5; for(i=6;i<=NF-2;i++) v=v":"$i
     se=$(NF-1)+0; sid=$NF
@@ -332,14 +391,34 @@ awk -F: -v NAMES="$W/names.tsv" -v PROBS="$W/probs.tsv" "$VERDICT_CANON_AWK"'
     printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", se, login, letter, lang, canon(v), sid, tname[login], tus[login], tuf[login]
   }' "$W/hist.txt" | sort -n -k1,1 > "$W/runs.tsv"
 RUNS_N="$(wc -l < "$W/runs.tsv" | tr -d '[:space:]')"
-TEAMS_N="$(awk -F'\t' '$1!~/\.(admin|judge|cjudge|staff|mon)$/ && $1!="admin" && $1!=""' "$W/names.tsv" | sort -u | wc -l | tr -d '[:space:]')"
+TEAMS_N="$(awk -F'\t' '$1!~/\.(admin|judge|cjudge|staff|cstaff|mon)$/ && $1!="admin" && $1!=""' "$W/names.tsv" | sort -u | wc -l | tr -d '[:space:]')"
+
+# --- autor do problema (o crédito de quem escreveu) ------------------------------------
+# Fonte canônica: o arquivo `author` do PACOTE (texto livre, um autor por linha, já é nome de
+# exibição — não é login). Fallback: o `.author` do JSON do banco, a mesma cadeia que o
+# enunciado usa logo abaixo. Snapshot na geração: pacote editado depois não reescreve o
+# relatório de uma prova que já aconteceu.
+rep_author(){   # <statement_key>
+  local skey="$1" pkg a=""
+  pkg="$MOJ_PROBLEMS_DIR/${skey%%#*}/${skey##*#}"
+  [[ -d "$pkg" ]] || pkg="$MOJ_PROBLEMS_DIR/${skey//#//}"
+  if [[ -s "$pkg/author" ]]; then
+    a="$(grep -v '^[[:space:]]*$' "$pkg/author" 2>/dev/null | paste -sd'|' - | sed 's/|/, /g')"
+  fi
+  if [[ -z "$a" ]]; then
+    local jf="$CONTESTSDIR/treino/var/jsons/$skey.json"
+    [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"
+    [[ -f "$jf" ]] && a="$(jq -r '.author // ""' "$jf" 2>/dev/null)"
+  fi
+  printf '%s' "${a//[$'\t\n']/ }"
+}
 
 # --- enunciados: copia p/ statements/<LETRA>.{html,pdf} (com fallback do banco) --------
-# stmt.tsv: letter \t fullname \t has_html(0/1) \t has_pdf(0/1) \t url
+# stmt.tsv: letter \t fullname \t has_html(0/1) \t has_pdf(0/1) \t url \t autor
 : > "$W/stmt.tsv"
 while IFS=$'\t' read -r pshort pfull pskey _off _raw _dot _hash; do
   Lsafe="$(printf '%s' "$pshort" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$Lsafe" ]] || Lsafe="p$_off"
-  hh=0; hp=0; url=""
+  hh=0; hp=0; url=""; pauthor="$(rep_author "$pskey")"
   if [[ "$pskey" == *http* ]]; then
     url="$pskey"
   else
@@ -355,7 +434,10 @@ while IFS=$'\t' read -r pshort pfull pskey _off _raw _dot _hash; do
     fi
     [[ -f "$CDIR/enunciados/$pskey.pdf" ]] && cp -f "$CDIR/enunciados/$pskey.pdf" "$OUTD/statements/$Lsafe.pdf" && hp=1
   fi
-  printf '%s\t%s\t%s\t%s\t%s\n' "$Lsafe" "$pfull" "$hh" "$hp" "$url"
+  # ⚠ campo vazio NO MEIO da linha some no `IFS=$'\t' read`: TAB é whitespace, então dois
+  # seguidos contam como UM separador (foi assim que o autor sumiu quando a url é vazia —
+  # o caso normal). Sentinela "-" em quem pode ser vazio; o leitor desfaz.
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$Lsafe" "$pfull" "$hh" "$hp" "${url:--}" "${pauthor:--}"
 done < "$W/probs.tsv" >> "$W/stmt.tsv"
 
 # --- placares: aberto (index) + congelado (se houver freeze) ---------------------------
@@ -393,14 +475,16 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
   printf '<dt>Submissões</dt><dd>%s (<a href="runs.html">runs</a>)</dd>\n' "$RUNS_N"
   printf '</dl></div>\n'
 
-  printf '<h2>Problemas</h2>\n<div class="tblwrap"><table>\n<thead><tr><th>Letra</th><th>Problema</th><th>Enunciado</th></tr></thead>\n<tbody>\n'
-  while IFS=$'\t' read -r Ls pfull hh hp url; do
+  printf '<h2>Problemas</h2>\n<div class="tblwrap"><table class="moj">\n<thead><tr><th>Letra</th><th>Problema</th><th>Autor</th><th>Enunciado</th></tr></thead>\n<tbody>\n'
+  while IFS=$'\t' read -r Ls pfull hh hp url pauthor; do
+    [[ "$url" == - ]] && url=""; [[ "$pauthor" == - ]] && pauthor=""
     links=""
     [[ "$hh" == 1 ]] && links+="<a href=\"statements/$Ls.html\">HTML</a> "
     [[ "$hp" == 1 ]] && links+="<a href=\"statements/$Ls.pdf\">PDF</a> "
     [[ -n "$url" ]] && links+="<a href=\"$(esc "$url")\">link externo</a> "
     [[ -n "$links" ]] || links="—"
-    printf '<tr><td><b>%s</b></td><td>%s</td><td>%s</td></tr>\n' "$(esc "$Ls")" "$(esc "$pfull")" "$links"
+    printf '<tr><td><b>%s</b></td><td>%s</td><td>%s</td><td>%s</td></tr>\n' \
+      "$(esc "$Ls")" "$(esc "$pfull")" "$([[ -n "$pauthor" ]] && esc "$pauthor" || printf '—')" "$links"
   done < "$W/stmt.tsv"
   printf '</tbody></table></div>\n'
 
@@ -409,6 +493,46 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
   rep_score_html "$OPEN_TXT"
   rep_foot
 } > "$OUTD/index.html"
+
+# --- documentos.html: os documentos PUBLICADOS da prova, dentro do pacote ---------------
+# "Disponibilizar tudo depois" só funciona se o caderno, a folha de time limits, o info
+# sheet e o editorial viajarem junto com o relatório. Entram só os PUBLICADOS (o que os
+# times viram) — rascunho gerado e não publicado não vaza aqui.
+DOCS_JSON="$CDIR/docs/config.json"
+if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON" >/dev/null 2>&1; then
+  mkdir -p "$OUTD/documentos"
+  : > "$W/docs.tsv"
+  while IFS= read -r key; do
+    [[ "$key" =~ ^([a-z-]+)\.(pt|en)$ ]] || continue
+    dt="${BASH_REMATCH[1]}"; dl="${BASH_REMATCH[2]}"
+    for fmt in pdf html; do
+      src="$CDIR/docs/$dt.$dl.$fmt"
+      [[ -s "$src" ]] || continue
+      cp -f "$src" "$OUTD/documentos/$dt.$dl.$fmt" 2>/dev/null || continue
+      printf '%s\t%s\t%s\t%s\n' "$dt" "$dl" "$fmt" "$(stat -c%s "$src" 2>/dev/null || echo 0)" >> "$W/docs.tsv"
+    done
+  done < <(jq -r '(.published // [])[]' "$DOCS_JSON" 2>/dev/null)
+  if [[ -s "$W/docs.tsv" ]]; then
+    {
+      rep_head "Documentos da prova" docs
+      printf '<p class="note">Os documentos publicados aos times, como foram entregues. Abra o arquivo <b>extraído</b> do pacote (dentro do visualizador de rodadas os links relativos não abrem).</p>\n'
+      printf '<div class="tblwrap"><table class="moj">\n<thead><tr><th>Documento</th><th>Idioma</th><th>Arquivo</th><th>Tamanho</th></tr></thead>\n<tbody>\n'
+      while IFS=$'\t' read -r dt dl fmt sz; do
+        case "$dt" in
+          contest)    lbl="📕 Caderno de problemas";;
+          times)      lbl="⏱ Limites de tempo";;
+          info-sheet) lbl="ℹ️ Informações do ambiente";;
+          editorial)  lbl="📝 Editorial (soluções)";;
+          *)          lbl="$dt";;
+        esac
+        printf '<tr><td>%s</td><td>%s</td><td><a href="documentos/%s.%s.%s">%s</a></td><td>%s KB</td></tr>\n' \
+          "$(esc "$lbl")" "$dl" "$dt" "$dl" "$fmt" "${fmt^^}" "$(( (sz + 1023) / 1024 ))"
+      done < "$W/docs.tsv"
+      printf '</tbody></table></div>\n'
+      rep_foot
+    } > "$OUTD/documentos.html"
+  fi
+fi
 
 # --- runs.html ---------------------------------------------------------------------------
 {
@@ -486,10 +610,35 @@ EOF
 } > "$OUTD/clarifications.html"
 
 # --- statistics.html ---------------------------------------------------------------------
+# MESMAS seções do painel do admin: o módulo web/lib/stats-view.js (que a página
+# /contest/statistics/ usa) é INLINADO aqui junto do dom.js e do charts.js, com o
+# statistics.cache.json embutido como literal. Sem fetch, sem ESM, sem arquivo externo — as
+# linhas `import`/`export` são removidas na hora da inlinagem (o smoke proíbe as duas no
+# relatório) e o T() do prelúdio fixa o idioma no LOCALE do contest.
+# O <noscript> mantém as tabelas antigas: o relatório é um arquivo de ARQUIVO MORTO e tem
+# de continuar legível se alguém abrir sem JS.
+rep_stats_bundle(){
+  local f
+  printf '<script>\n'
+  printf 'const LANG=%s;\nfunction T(pt,en){return LANG==="en"?en:pt}\n' "$([[ "${LOCALE:-pt}" == en ]] && printf '"en"' || printf '"pt"')"
+  for f in "$MOJ_WEB/shared/dom.js" "$MOJ_WEB/lib/charts.js" "$MOJ_WEB/lib/stats-view.js"; do
+    [[ -s "$f" ]] || return 1
+    sed -E '/^import /d; s/^export (function|const|let|class) /\1 /; /^export \{/d' "$f"
+  done
+  printf 'const STATS=\n'
+  cat "$1"
+  printf ';\ntry{ statsSections(STATS).forEach(function(s){ document.getElementById("stats").append(s) }) }\n'
+  printf 'catch(e){ document.getElementById("stats").innerHTML = "<p class=\\"note\\">"+String(e)+"</p>" }\n'
+  printf '</script>\n'
+}
+
 {
   rep_head "Estatísticas" stats
   SJ="$CDIR/var/statistics.cache.json"
   if [[ -s "$SJ" ]]; then
+    printf '<div id="stats"></div>\n'
+    rep_stats_bundle "$SJ" || printf '<p class="note">Sem os módulos de gráfico (web/ ausente).</p>\n'
+    printf '<noscript>\n'
     jq -r '
       def pct: (.*1000|floor)/10;
       "<div class=\"cards\">"
@@ -509,12 +658,13 @@ EOF
       + "</tbody></table></div>"
       + (([ .timeline[].submissions ] | max // 0) as $mx
          | "<h2>Linha do tempo (janelas de 10 min)</h2><div class=\"tblwrap\"><table><thead><tr><th>Min</th><th>Submissões</th><th style=\"width:50%\"></th></tr></thead><tbody>"
-         + ([ .timeline[] | "<tr><td>\(.minute)</td><td>\(.submissions) (\(.accepted) AC)</td><td><span class=\"bar\" style=\"width:\(if $mx>0 then (.submissions*100/$mx) else 0 end)%\"></span><span class=\"bar ac\" style=\"width:\(if $mx>0 then (.accepted*100/$mx) else 0 end)%\"></span></td></tr>" ] | join(""))
+         + ([ .timeline[] | "<tr><td>\(.minute)</td><td>\(.submissions) (\(.accepted) AC)</td><td><span class=\"tbar\" style=\"width:\(if $mx>0 then (.submissions*100/$mx) else 0 end)%\"></span><span class=\"tbar ac\" style=\"width:\(if $mx>0 then (.accepted*100/$mx) else 0 end)%\"></span></td></tr>" ] | join(""))
          + "</tbody></table></div>")
       + "<h2>Distribuição de problemas resolvidos</h2><div class=\"tblwrap\"><table><thead><tr><th>Resolveu</th><th>Times</th></tr></thead><tbody>"
       + ([ .problems_solved_dist[]? | "<tr><td>\(.solved)</td><td>\(.users)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
     ' "$SJ" 2>/dev/null || printf '<p class="note">Falha ao renderizar as estatísticas.</p>\n'
+    printf '</noscript>\n'
   else
     printf '<p class="note">Sem estatísticas geradas.</p>\n'
   fi
@@ -607,7 +757,7 @@ EOF
     { b=int((($5+0)-START)/600); if(b<0)b=0; c[b]++; s[b]+=$1; if(b>mb)mb=b }
     END{
       mxa=0; for(i=0;i<=mb;i++) if(c[i] && s[i]/c[i]>mxa) mxa=s[i]/c[i]
-      for(i=0;i<=mb;i++) if(c[i]) printf "<tr><td>%d</td><td>%d</td><td>%ds</td><td><span class=\"bar\" style=\"width:%d%%\"></span></td></tr>\n", i*10, c[i], s[i]/c[i], (mxa>0? int(s[i]/c[i]*100/mxa) : 0)
+      for(i=0;i<=mb;i++) if(c[i]) printf "<tr><td>%d</td><td>%d</td><td>%ds</td><td><span class=\"tbar\" style=\"width:%d%%\"></span></td></tr>\n", i*10, c[i], s[i]/c[i], (mxa>0? int(s[i]/c[i]*100/mxa) : 0)
     }' "$W/waits.tsv"
   printf '</tbody></table></div>\n'
 

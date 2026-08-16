@@ -140,26 +140,14 @@ case "$action" in
             && fail 409 "Antes do início, publique SEM notícia (a notícia anexa o PDF e os times a leem) — o documento já fica liberado para a sede" "news_before_start" ;;
         esac
       fi
-      cfg="$(jq -c --arg k "$key" '.published = ((.published // []) + [$k] | unique)' <<<"$cfg")"
+      doc_publish "$contest" "$t" "$l" || fail 500 "Falha ao publicar" "publish_fail"
     else
-      cfg="$(jq -c --arg k "$key" '.published = ((.published // []) | map(select(. != $k)))' <<<"$cfg")"
+      doc_unpublish "$contest" "$t" "$l" || fail 500 "Falha ao despublicar" "publish_fail"
     fi
-    printf '%s\n' "$cfg" > "$D/config.json.tmp" && mv -f "$D/config.json.tmp" "$D/config.json"
-
-    # seção "Prova" do contest (resources.json): leitor já existe em /contest/resources
-    res="$CONTESTSDIR/$contest/resources.json"; [[ -s "$res" ]] || printf '[]' > "$res"
-    label="$(_doc_t "$l" session)"
-    case "$t" in info-sheet) label="$([[ "$l" == pt ]] && printf 'Informações do ambiente' || printf 'Testing environment')";;
-                 times)      label="$(_doc_t "$l" times_title)";;
-                 contest)    label="$(_doc_t "$l" session)";;
-                 editorial)  label="$(_doc_t "$l" editorial)";; esac
-    url="/api/v1/contest/doc?contest=$contest&type=$t&lang=$l&fmt=pdf"
-    if [[ "$action" == publish ]]; then
-      jq -c --arg lb "$label ($l)" --arg u "$url" \
-        '(map(select(.url != $u))) + [{label:$lb, url:$u}]' "$res" > "$res.tmp" && mv -f "$res.tmp" "$res"
-    else
-      jq -c --arg u "$url" 'map(select(.url != $u))' "$res" > "$res.tmp" && mv -f "$res.tmp" "$res"
-    fi
+    # config.json/resources.json são gravados por doc_publish/doc_unpublish (lib/contest-docs.sh)
+    # — MESMO caminho do "encerrar evento", p/ os dois não divergirem.
+    cfg="$(doc_conf_get "$contest")"
+    label="$(_doc_label "$t" "$l")"
 
     # notícia com o PDF anexado (opcional) — reusa o formato de news.json/news-files
     news_created=false

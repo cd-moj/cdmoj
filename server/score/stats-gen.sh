@@ -99,4 +99,30 @@ END{
       verdict_by_problem: ([ $r[] | select(.[0]=="PV") | {problem:.[1], verdict:.[2], count:(.[3]|tonumber)} ]) }' \
   > "$TMP" 2>/dev/null || printf '%s\n' "$empty" > "$TMP"
 
+# --- nome de quem resolveu primeiro ------------------------------------------------------
+# Estatística NUNCA mostra só o login: quem lê procura o NOME do time. Resolvido AQUI (no
+# cache) e não na tela, porque são DOIS consumidores — o painel /contest/statistics/ e o
+# statistics.html do relatório offline — e nenhum deles tem como consultar contas. São no
+# máximo N logins (um por problema), então o custo é irrelevante.
+NAMES_F="$(mktemp)"
+{
+  usrc="$(sed -n 's/^[[:space:]]*USERS_FROM=//p' "$conf" 2>/dev/null | tail -1)"
+  usrc="${usrc//\'/}"; usrc="${usrc//\"/}"
+  jq -r '[.problems[]?.first_solver] | map(select(. != null and . != "")) | unique[]' "$TMP" 2>/dev/null \
+  | while IFS= read -r lg; do
+      [[ -n "$lg" ]] || continue
+      af="$(account_file "$C" "$lg")"
+      [[ -f "$af" ]] || { [[ -n "$usrc" && "$usrc" != *[!A-Za-z0-9._-]* ]] && af="$(account_file "$usrc" "$lg")"; }
+      [[ -f "$af" ]] || continue
+      jq -c --arg l "$lg" '{login:$l, name:((.team.name // .fullname // "") | gsub("[\n\t]";" "))}' "$af" 2>/dev/null
+    done
+} > "$NAMES_F"
+if [[ -s "$NAMES_F" ]]; then
+  jq --slurpfile nm "$NAMES_F" '
+      ($nm | map({key:.login, value:.name}) | from_entries) as $m
+      | .problems |= map(. + {first_solver_name: ($m[.first_solver] // "")})
+    ' "$TMP" > "$TMP.n" 2>/dev/null && mv -f "$TMP.n" "$TMP"
+fi
+rm -f "$NAMES_F"
+
 mv "$TMP" "$OUT"; trap - EXIT

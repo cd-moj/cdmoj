@@ -135,7 +135,7 @@ Você conduz a cerimônia de revelação da sua sede, no estilo ICPC (de baixo p
 2. Ela só destrava **depois que a prova encerra para todas as sedes** (o horário base mais as prorrogações).
 3. Você revela posição por posição, do último para o primeiro.
 
-Descongelar tudo e publicar o placar global são ações do **administrador**, não suas.
+Descongelar tudo e publicar o placar global são ações do **administrador**, não suas (ele faz isso pelo botão **🏁 Encerrar evento**, na Central do painel — ver `MANUAL-ADMIN.md` §6½).
 
 ### O que a `.cstaff` NÃO faz
 

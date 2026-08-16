@@ -261,6 +261,30 @@ não perdidos), balões, numeração de impressão, prorrogações, e a lista de
 
 **Na CLI:** `moj contest -c <cid> rounds ls | add | set | problems | promote | publish | archive`.
 
+## 6½. Depois da prova: encerrar o evento
+
+Quando a prova acaba, o placar continua **congelado** e os documentos seguem **não
+publicados** até alguém mandar liberar — nada disso vira automático com o relógio. A Central
+passa a mostrar o bloco **"Depois da prova"** com o checklist do que ainda está fechado e o
+botão **🏁 Encerrar evento**, que faz de uma vez as duas coisas que todo mundo esquece:
+
+1. **abre o placar** — tira o congelamento (`FREEZE_TIME=0`), então o resultado final fica
+   público (é o mesmo efeito do botão "🔓 Descongelar tudo" da cerimônia de revelação);
+2. **publica os documentos já gerados** que ainda não estavam publicados — caderno, folha de
+   limites de tempo, info sheet e editorial passam a aparecer em "Arquivos & Recursos" para
+   os times. (O editorial só pode ser publicado depois do fim; por isso ele entra aqui.)
+
+O botão **não** mexe no resto: liberar o **relatório de correção** para os times (`SHOWLOG`),
+abrir o **código das outras equipes** (`SHOWCODE`), mostrar os **limites de tempo** e
+**liberar as coortes** (convidados) continuam sendo escolha sua — cada um aparece no
+checklist com o atalho "resolver →" para a tela certa. Só roda depois que a prova terminou
+**para todas as sedes** (prorrogação por sede conta) e pode ser repetido à vontade: na
+segunda vez ele não faz nada.
+
+Fecha o ciclo com o **relatório final** (Operação › Situação): o `tar.gz` navegável leva o
+placar aberto, as submissões, as estatísticas completas, os enunciados **e** os documentos
+publicados — é o pacote que se manda para os participantes e para o arquivo do evento.
+
 ## 7. Máquinas dos times (Pessoas › Máquinas & gate)
 
 É no aquecimento que os times ligam de fato os computadores — e é dali que o MOJ tira o mapa

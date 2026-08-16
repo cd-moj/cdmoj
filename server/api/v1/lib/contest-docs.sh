@@ -72,6 +72,53 @@ doc_conf_get(){
   else printf '{"caderno_version":"v1.0","cover_note":"","errata":"","published":[]}'; fi
 }
 
+# _doc_label <tipo> <lang> -> rótulo do documento na seção "Prova" do contest.
+_doc_label(){
+  case "$1" in
+    info-sheet) [[ "$2" == pt ]] && printf 'Informações do ambiente' || printf 'Testing environment';;
+    times)      _doc_t "$2" times_title;;
+    editorial)  _doc_t "$2" editorial;;
+    *)          _doc_t "$2" session;;
+  esac
+}
+_doc_url(){ printf '/api/v1/contest/doc?contest=%s&type=%s&lang=%s&fmt=pdf' "$1" "$2" "$3"; }
+
+# doc_publish <c> <tipo> <lang> — marca como publicado (config.json) e insere na seção "Prova"
+# (resources.json, lido por /contest/resources). IDEMPOTENTE. Não valida fase nem geração: o
+# gate (403 do editorial antes do fim, 409 not_generated) é do CHAMADOR — mas a regra de ONDE
+# grava mora AQUI, para o painel de documentos e o "encerrar evento" não divergirem.
+doc_publish(){
+  local c="$1" t="$2" l="$3" d cfg res
+  d="$(doc_dir "$c")"; mkdir -p "$d" 2>/dev/null
+  cfg="$(doc_conf_get "$c" | jq -c --arg k "$t.$l" '.published = ((.published // []) + [$k] | unique)')" || return 1
+  printf '%s\n' "$cfg" > "$d/config.json.tmp" && mv -f "$d/config.json.tmp" "$d/config.json" || return 1
+  res="$CONTESTSDIR/$c/resources.json"; [[ -s "$res" ]] || printf '[]' > "$res"
+  jq -c --arg lb "$(_doc_label "$t" "$l") ($l)" --arg u "$(_doc_url "$c" "$t" "$l")" \
+     '(map(select(.url != $u))) + [{label:$lb, url:$u}]' "$res" > "$res.tmp" && mv -f "$res.tmp" "$res"
+}
+
+# doc_unpublish <c> <tipo> <lang> — o inverso (tira do config.json e da seção "Prova").
+doc_unpublish(){
+  local c="$1" t="$2" l="$3" d cfg res
+  d="$(doc_dir "$c")"; mkdir -p "$d" 2>/dev/null
+  cfg="$(doc_conf_get "$c" | jq -c --arg k "$t.$l" '.published = ((.published // []) | map(select(. != $k)))')" || return 1
+  printf '%s\n' "$cfg" > "$d/config.json.tmp" && mv -f "$d/config.json.tmp" "$d/config.json" || return 1
+  res="$CONTESTSDIR/$c/resources.json"; [[ -s "$res" ]] || printf '[]' > "$res"
+  jq -c --arg u "$(_doc_url "$c" "$t" "$l")" 'map(select(.url != $u))' "$res" > "$res.tmp" && mv -f "$res.tmp" "$res"
+}
+
+# doc_pending <c> -> linhas "tipo\tlang" dos documentos GERADOS que ainda não foram publicados
+# (é o que o "encerrar evento" libera de uma vez).
+doc_pending(){
+  local c="$1" pub t l
+  pub="$(doc_conf_get "$c" | jq -c '.published // []')"; [[ -n "$pub" ]] || pub='[]'
+  for t in $DOC_TYPES; do for l in pt en; do
+    [[ -s "$(doc_file "$c" "$t" "$l" pdf)" || -s "$(doc_file "$c" "$t" "$l" html)" ]] || continue
+    jq -e --arg k "$t.$l" 'index($k) != null' <<<"$pub" >/dev/null 2>&1 && continue
+    printf '%s\t%s\n' "$t" "$l"
+  done; done
+}
+
 # _doc_meta <c> -> define CNAME/CDATE/CLANGS/CMEM/CSTACK a partir do conf do contest.
 # O conf é SOURCED (por isso o subshell, p/ não poluir o processo) e volta por `eval` de
 # uma linha com printf %q — nada de arquivo temporário (um /tmp/… compartilhado por PID

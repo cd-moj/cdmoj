@@ -3,23 +3,10 @@ import { t, T } from './i18n.js';
 import { status, login, logout, getToken } from './auth.js';
 import { apiGet } from './api.js';
 
-export function el(tag, attrs = {}, ...kids) {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    // booleano = atributo booleano HTML: false OMITE (setAttribute('disabled', false)
-    // deixaria o atributo PRESENTE = desabilitado!), true põe o atributo vazio.
-    if (v == null || v === false) continue;
-    if (k === 'class') e.className = v;
-    else if (k === 'html') e.innerHTML = v;
-    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
-    else e.setAttribute(k, v === true ? '' : v);
-  }
-  for (const kid of kids.flat()) {
-    if (kid == null) continue;
-    e.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
-  }
-  return e;
-}
+// `el` mora em shared/dom.js (sem dependência de rede, p/ ser reaproveitado no relatório
+// offline) e é RE-EXPORTADO aqui: `import { el } from '/shared/ui.js'` segue valendo.
+export { el } from './dom.js';
+import { el } from './dom.js';
 
 // classe de cor pelo veredicto (regras do design log)
 export function verdictClass(v) {

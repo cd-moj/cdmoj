@@ -139,7 +139,9 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
         ...(end.value ? { end: dtToEpoch(end.value) } : {}),
       }),
       ...(loginStart.value ? { login_start: dtToEpoch(loginStart.value) } : {}),
-      ...(freeze.value ? { freeze: dtToEpoch(freeze.value) } : {}),
+      // freeze VAZIO = sem congelamento -> 0 (e não "não mexe"): apagar o campo tem de
+      // DESCONGELAR. Omitir a chave fazia o salvar responder ✓ sem tirar o freeze.
+      freeze: freeze.value ? dtToEpoch(freeze.value) : 0,
       locale: locale.value, tz: tz.value.trim(), login_enabled: loginEnabled.checked,
       show_code: showCode.checked, show_log: showLog.checked, show_editor: showEditor.checked,
       allow_late: allowLate.checked, score_anon: scoreAnon.checked, show_tl: showTL.checked,

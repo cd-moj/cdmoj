@@ -477,7 +477,11 @@ function renderProblems() {
       balloonSlot,
       el('span', { class: 'prob-sn' }, p.short_name || ''),
       ' ',
-      el('span', { class: 'prob-full' }, p.full_name || ''));
+      el('span', { class: 'prob-full' }, p.full_name || ''),
+      // crédito do autor: a API só manda depois que a prova acaba (durante a prova o nome
+      // do autor é pista) — ver SHOW_AUTHOR em handlers/contest/problems.sh
+      p.author ? el('span', { class: 'small muted', style: 'margin-left:.5rem' },
+        T('· autor: ', '· author: ') + p.author) : null);
 
     // links de enunciado (HTML/PDF em nova aba)
     const linksWrap = el('span', { class: 'row' });

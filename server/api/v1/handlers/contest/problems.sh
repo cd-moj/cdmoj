@@ -22,6 +22,9 @@ load_contest_conf "$contest"
 # tempo-limite por problema (do store run/tl/<id>.json), salvo se o conf ocultar (SHOWTL=0).
 source "$_DIR/lib/tl-store.sh"
 SHOW_TL=true; [[ "$SHOWTL" == 0 ]] && SHOW_TL=false
+# autor do problema: revelado com a prova ENCERRADA (ou sempre p/ quem organiza)
+SHOW_AUTHOR=false
+{ contest_over_for_all "$contest" || is_admin_or_chief || is_judge; } && SHOW_AUTHOR=true
 # linguagens permitidas: cadeia em lib/langs.sh (FONTE ÚNICA — o /submit APLICA a mesma
 # lista que esta listagem oferece; front filtra o editor e a tabela de TL por ela).
 source "$_LIBDIR/langs.sh"
@@ -81,6 +84,14 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   # linguagens deste problema: cadeia compartilhada (override do contest -> LANGUAGES ->
   # default do pacote -> todas) — a MESMA que o /submit força (lib/langs.sh).
   plangs="$(effective_problem_langs "$contest" "$PROBLEMID")"; [[ -n "$plangs" ]] || plangs='[]'
+  # AUTOR: crédito de quem escreveu o problema. Só DEPOIS do fim (ou p/ admin/juiz): durante
+  # a prova o nome do autor é pista (quem conhece o autor deduz o tema/estilo da solução).
+  if [[ "$SHOW_AUTHOR" == true ]]; then
+    pkg="$(pkg_path "$PROBLEMID")"
+    au=""
+    [[ -n "$pkg" && -s "$pkg/author" ]] && au="$(grep -v '^[[:space:]]*$' "$pkg/author" 2>/dev/null | paste -sd'|' - | sed 's/|/, /g')"
+    [[ -n "$au" ]] && { args+=( --arg au "$au" ); filt+=", author:\$au"; }
+  fi
   args+=( --argjson tl "$tl" --argjson plangs "$plangs" ); filt+=", time_limits:\$tl, languages:\$plangs}"
 
   ITEMS+=( "$(jq -cn --arg id "$PROBLEMID" --arg short "$SHORTNAME" \
