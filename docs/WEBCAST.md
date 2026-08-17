@@ -110,9 +110,20 @@ times** — três decisões que valem a pena conhecer antes de mexer:
 - **Cache-buster é o `mtime`** (`&v=<mtime>`), não `Date.now()`: com o relógio, cada render
   rebaixava todas as imagens de novo.
 
-A tela abre filtrada em **"sem foto"** (a fila de trabalho), com chips de contagem viva, busca
-sem acento (debounce de 150 ms), recortes por coorte/universidade/sede e **paginação de 48
-cartões** — o DOM fica pequeno e só as fotos da página corrente são baixadas.
+A tela abre em **⚠ Pendências** — quem falta foto **ou** música, a fila de trabalho inteira — e
+tem uma fileira de chips por família (`Foto:` sem/com/todos, `Música:` sem/com/todos), busca sem
+acento (debounce de 150 ms), recortes por coorte/universidade/sede e **paginação de 48 cartões**
+(o DOM fica pequeno e só as fotos da página corrente são baixadas).
+
+Dois detalhes de comportamento que valem a pena conhecer:
+
+- **A contagem do chip é o número de cartões que ele mostra.** Cada família conta com a OUTRA já
+  aplicada: com "Sem foto" ligado, o chip de música vira "Sem música (64)" e não "(96)". Contar
+  tudo sobre a base crua (como era antes) fazia o número mentir assim que dois recortes se
+  cruzavam.
+- **"Pendências" é exclusivo com as famílias** (é um OU entre elas, que chip por família não
+  expressa): clicar em qualquer chip de foto/música sai do modo pendências, e voltar a ele devolve
+  as duas famílias a "Todos". `limpar` mostra **todos** os times — não re-liga as pendências.
 
 ### A foto PADRÃO (time sem foto)
 
@@ -140,8 +151,8 @@ própria (`false`). Custo: ~20 KB por time sem foto (o zip não deduplica cópia
 
 Cada time pode ter uma **música própria** em MP3 — a faixa que o telão toca quando ele resolve um
 problema. É o mesmo desenho da foto: link por time na API, padrão para quem não mandou a sua,
-gestão na página do `.animeitor` (botão **♪** que toca no próprio navegador, filtro
-*todas/com/sem música*) e presença no pacote `.zip`.
+gestão na página do `.animeitor` (botão **♪** que toca no próprio navegador e a fileira de chips
+`Música: sem/com/todos`, irmã da de foto) e presença no pacote `.zip`.
 
 ```
 GET  /contest/team-music?contest=<id>&user=<login>   ->  audio/mpeg (a do time, ou a PADRÃO)

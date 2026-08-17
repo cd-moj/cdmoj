@@ -20,9 +20,11 @@ const enc = encodeURIComponent;
 let PHOTOS = null;   // {teams:[…], total, with_photo}
 let WC = null;       // {keys:[…], views:[…], url_path}
 
-// ESTADO DA GALERIA (prova de verdade tem 1000+ times): filtro + página. Abre em "sem foto",
-// que é a fila de trabalho de quem opera o telão.
-const F = { photo: 'no', music: 'all', q: '', cohort: '', univ: '', region: '' };
+// ESTADO DA GALERIA (prova de verdade tem 1000+ times): filtro + página. Abre em PENDÊNCIAS —
+// quem falta foto OU música, que é a fila de trabalho inteira de quem opera o telão.
+// `mode` é exclusivo: ou vale o recorte de pendências (um OU entre as duas famílias, que os chips
+// por família não conseguem expressar), ou vale a combinação foto×música. Nunca os dois.
+const F = { mode: 'pending', photo: 'all', music: 'all', q: '', cohort: '', univ: '', region: '' };
 let PAGE_I = 0;
 const PAGE = 48;     // 48 cartões = a grade cheia; o DOM fica pequeno e só estas fotos baixam
 const MUSIC_MAX_MB = 15;   // o mesmo teto do handler (contest/animeitor/music.sh)
@@ -178,14 +180,19 @@ function photoCard(t, box) {
 
 // ---- filtro (tudo no cliente, sobre a lista já carregada) ----
 const teamsAll = () => (PHOTOS && PHOTOS.teams) || [];
-// os predicados são separados p/ a CONTAGEM VIVA dos chips (contar sem o próprio filtro de foto)
+// os predicados são separados p/ a CONTAGEM VIVA dos chips: cada família ignora só a SI MESMA
+// (faceta de verdade, como no /treino) — é o que faz o número do chip ser exatamente o número de
+// cartões que aparecem ao clicar nele.
 const matchQ = (t) => !F.q || norm(`${t.name} ${t.login} ${t.univ}`).includes(F.q);
 const matchSel = (t) => (!F.cohort || t.cohort === F.cohort)
                      && (!F.univ || t.univ === F.univ)
                      && (!F.region || t.region === F.region);
 const matchPhoto = (t) => F.photo === 'all' || (F.photo === 'yes' ? t.has_photo : !t.has_photo);
 const matchMusic = (t) => F.music === 'all' || (F.music === 'yes' ? t.has_music : !t.has_music);
-const filtered = () => teamsAll().filter((t) => matchPhoto(t) && matchMusic(t) && matchSel(t) && matchQ(t));
+const isPending = (t) => !t.has_photo || !t.has_music;
+// o recorte corrente: pendências OU a combinação das duas famílias
+const matchMode = (t) => (F.mode === 'pending' ? isPending(t) : matchPhoto(t) && matchMusic(t));
+const filtered = () => teamsAll().filter((t) => matchMode(t) && matchSel(t) && matchQ(t));
 
 function selOf(field, label, id) {
   const vals = [...new Set(teamsAll().map((t) => t[field]).filter(Boolean))].sort();
@@ -198,28 +205,30 @@ function selOf(field, label, id) {
   return el('label', {}, label, sel);
 }
 
-// filtro de MÚSICA (o mesmo recorte da foto, mas em select: a fila de trabalho principal é a
-// foto, e três chips a mais deixariam a barra ilegível)
-function musicSel(base) {
-  const nYes = base.filter((t) => t.has_music).length;
-  const sel = el('select', { id: 'fMusic' },
-    el('option', { value: 'all' }, `${T('todas', 'all')} (${base.length})`),
-    el('option', { value: 'yes' }, `${T('com música', 'with music')} (${nYes})`),
-    el('option', { value: 'no' }, `${T('sem música', 'missing')} (${base.length - nYes})`));
-  sel.value = F.music;
-  sel.addEventListener('change', () => { F.music = sel.value; PAGE_I = 0; renderPhotos(); });
-  return el('label', {}, T('Música:', 'Music:'), sel);
+// uma fileira de chips por família (foto | música). O universo contado é o `pool`: em modo
+// família, é a base JÁ com a OUTRA família aplicada (o número bate com a tela); em pendências,
+// é a base pura — porque clicar num chip SAI do modo pendências, e é isso que vai aparecer.
+function chipRow(fam, label, pool, labels, ids) {
+  const has = (t) => (fam === 'photo' ? t.has_photo : t.has_music);
+  const nYes = pool.filter(has).length;
+  const chip = (key, txt, n, id) => el('button', {
+    id,
+    class: 'btn ' + (F.mode === 'family' && F[fam] === key ? '' : 'ghost'),
+    onclick: () => { F.mode = 'family'; F[fam] = key; PAGE_I = 0; renderPhotos(); },
+  }, `${txt} (${n})`);
+  return el('div', { class: 'row', style: 'gap:.3rem; align-items:center' },
+    el('span', { class: 'small muted' }, label),
+    chip('no', labels[0], pool.length - nYes, ids[0]),
+    chip('yes', labels[1], nYes, ids[1]),
+    chip('all', T('Todos', 'All'), pool.length, ids[2]));
 }
 
 function photosBar(box) {
-  // contagem VIVA dos chips: conta com os OUTROS filtros aplicados (o de foto não conta a si
-  // mesmo) — mesma semântica das facetas do treino
   const base = teamsAll().filter((t) => matchSel(t) && matchQ(t));
-  const nYes = base.filter((t) => t.has_photo).length;
-  const chip = (key, label, n) => el('button', {
-    class: 'btn ' + (F.photo === key ? '' : 'ghost'),
-    onclick: () => { F.photo = key; PAGE_I = 0; renderPhotos(); },
-  }, `${label} (${n})`);
+  const nPend = base.filter(isPending).length;
+  // em modo família cada fileira conta com a OUTRA aplicada; em pendências, sobre a base pura
+  const poolPhoto = F.mode === 'family' ? base.filter(matchMusic) : base;
+  const poolMusic = F.mode === 'family' ? base.filter(matchPhoto) : base;
 
   const q = el('input', { id: 'fQ', class: 'filter', type: 'search',
     placeholder: T('buscar time, login, universidade…', 'search team, login, university…') });
@@ -228,17 +237,26 @@ function photosBar(box) {
   q.addEventListener('input', debounce(() => { F.q = norm(q.value.trim()); PAGE_I = 0; renderPhotos(); }, 150));
 
   return el('div', { class: 'fbar' },
-    el('div', { class: 'row', style: 'gap:.3rem' },
-      chip('no', T('Sem foto', 'Missing'), base.length - nYes),
-      chip('yes', T('Com foto', 'With photo'), nYes),
-      chip('all', T('Todos', 'All'), base.length)),
-    musicSel(base),
+    // a FILA DE TRABALHO inteira num clique: falta foto, falta música, ou faltam as duas
+    el('button', { id: 'fPending', class: 'btn ' + (F.mode === 'pending' ? '' : 'ghost'),
+      title: T('times sem foto, sem música ou sem os dois',
+               'teams missing a photo, missing music, or missing both'),
+      onclick: () => { F.mode = 'pending'; F.photo = 'all'; F.music = 'all'; PAGE_I = 0; renderPhotos(); },
+    }, `⚠ ${T('Pendências', 'To do')} (${nPend})`),
+    chipRow('photo', T('Foto:', 'Photo:'), poolPhoto,
+      [T('Sem foto', 'Missing'), T('Com foto', 'With photo')],
+      ['fPhotoNo', 'fPhotoYes', 'fPhotoAll']),
+    chipRow('music', T('Música:', 'Music:'), poolMusic,
+      [T('Sem música', 'Missing'), T('Com música', 'With music')],
+      ['fMusicNo', 'fMusicYes', 'fMusicAll']),
     selOf('cohort', T('Coorte:', 'Cohort:'), 'fCohort'),
     selOf('univ', T('Universidade:', 'University:'), 'fUniv'),
     selOf('region', T('Sede:', 'Site:'), 'fRegion'),
     q,
+    // limpar é limpar: mostra TODOS (não volta a ligar o recorte de pendências)
     el('button', { id: 'fClear', class: 'btn ghost', onclick: () => {
-      F.photo = 'all'; F.music = 'all'; F.q = ''; F.cohort = ''; F.univ = ''; F.region = '';
+      F.mode = 'family'; F.photo = 'all'; F.music = 'all';
+      F.q = ''; F.cohort = ''; F.univ = ''; F.region = '';
       PAGE_I = 0; renderPhotos();
     } }, T('limpar', 'clear')),
     el('span', { class: 'fcount', id: 'fCount' }, ''),
