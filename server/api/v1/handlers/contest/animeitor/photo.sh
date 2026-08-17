@@ -19,22 +19,10 @@ source "$_LIBDIR/team-photo.sh"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 
-# resolve <nome-de-arquivo|login> -> login existente (case-insensitive), como no team-assets
-resolve_login(){
-  local want="$1" d login
-  want="$(basename "$want")"; want="${want%.*}"; want="${want,,}"
-  [[ -n "$want" ]] || return 1
-  user_exists "$contest" "$want" && { printf '%s' "$want"; return 0; }
-  while IFS= read -r d; do
-    login="${d##*/}"
-    [[ "${login,,}" == "$want" ]] && { printf '%s' "$login"; return 0; }
-  done < <(find "$CONTESTSDIR/$contest/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
-  return 1
-}
-
 want="$(jq -r '.login // .filename // empty' <<<"$body")"
 [[ -n "$want" ]] || fail 400 "Informe login" "login_missing"
-login="$(resolve_login "$want")" || fail 404 "Nenhum time casa com '$want'" "user_not_found"
+# nome-de-arquivo|login -> login (lib/users.sh; a mesma resolução que a música usa)
+login="$(user_resolve_name "$contest" "$want")" || fail 404 "Nenhum time casa com '$want'" "user_not_found"
 case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor)
   fail 422 "Conta de papel não tem foto de time" "role_account";; esac
 

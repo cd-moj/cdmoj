@@ -1,8 +1,9 @@
 // contest/animeitor/animeitor.js — a mesa do operador do TELÃO (.animeitor; o admin também
-// entra). Duas seções: 📷 FOTOS dos times (galeria, trocar/remover, envio em lote pelo nome do
-// arquivo, pacote .zip) e 🎥 STREAMING (as chaves do webcast que o sistema Animeitor busca em
-// loop — ver docs/WEBCAST.md).
-// A foto é gravada em WEBP pelo servidor (lib/team-photo.sh); aqui só se manda o arquivo.
+// entra). Duas seções: 📷 FOTOS E MÚSICAS dos times (galeria, trocar/remover, envio em lote pelo
+// nome do arquivo, pacote .zip) e 🎥 STREAMING (as chaves do webcast que o sistema Animeitor
+// busca em loop — ver docs/WEBCAST.md).
+// A foto é gravada em WEBP pelo servidor (lib/team-photo.sh) e a música em MP3 como veio
+// (lib/team-music.sh, sem ffmpeg em produção); aqui só se manda o arquivo.
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { fileToBase64 } from '/shared/auth.js';
@@ -21,9 +22,10 @@ let WC = null;       // {keys:[…], views:[…], url_path}
 
 // ESTADO DA GALERIA (prova de verdade tem 1000+ times): filtro + página. Abre em "sem foto",
 // que é a fila de trabalho de quem opera o telão.
-const F = { photo: 'no', q: '', cohort: '', univ: '', region: '' };
+const F = { photo: 'no', music: 'all', q: '', cohort: '', univ: '', region: '' };
 let PAGE_I = 0;
 const PAGE = 48;     // 48 cartões = a grade cheia; o DOM fica pequeno e só estas fotos baixam
+const MUSIC_MAX_MB = 15;   // o mesmo teto do handler (contest/animeitor/music.sh)
 
 // MINIATURA (thumb=1, ~7 KB em vez de 37 KB) e cache-buster ESTÁVEL (v=<mtime>): com
 // `t=Date.now()` cada render rebaixava a imagem inteira de novo.
@@ -37,6 +39,34 @@ const phUrl = (thumb) => {
 const photoUrl = (t, thumb) =>
   `/api/v1/contest/team-photo?contest=${enc(CONTEST)}&user=${enc(t.login)}`
   + (thumb ? '&thumb=1' : '') + `&v=${t.mtime || 0}`;
+
+// ♪ MÚSICA do time (a faixa que o telão toca quando ele resolve) — mesmo cache-buster da foto
+const musicUrl = (t) =>
+  `/api/v1/contest/team-music?contest=${enc(CONTEST)}&user=${enc(t.login)}&v=${t.music_mtime || 0}`;
+const phMusicUrl = () => {
+  const m = (PHOTOS && PHOTOS.placeholder && PHOTOS.placeholder.music_mtime) || 0;
+  return `/api/v1/contest/placeholder?contest=${enc(CONTEST)}&kind=music&v=${m}`;
+};
+
+// UM player para a página inteira (48 <audio> por página seria peso à toa, e o telão toca uma
+// faixa por vez): o botão só troca o src. Quem estiver tocando volta a ♪ quando a faixa acaba.
+const AUDIO = new Audio();
+let PLAYING = '';
+AUDIO.addEventListener('ended', () => { PLAYING = ''; syncPlay(); });
+function syncPlay() {
+  document.querySelectorAll('button.playbtn').forEach((b) => {
+    const on = b.dataset.src === PLAYING;
+    b.textContent = on ? '⏸' : '♪';
+    b.classList.toggle('on', on);
+  });
+}
+function toggleAudio(src) {
+  if (PLAYING === src) { AUDIO.pause(); PLAYING = ''; }
+  else { AUDIO.src = src; AUDIO.play().catch(() => { PLAYING = ''; syncPlay(); }); PLAYING = src; }
+  syncPlay();
+}
+const playBtn = (src, title) => el('button',
+  { class: 'btn ghost playbtn', 'data-src': src, title, onclick: () => toggleAudio(src) }, '♪');
 
 // URL que o Animeitor deve buscar. Host atual: dentro do contest é o subdomínio dele, que é
 // exatamente o endereço que o operador tem à mão.
@@ -62,6 +92,53 @@ async function sendPhoto(t, file, box) {
   if (PHOTOS) PHOTOS.with_photo = PHOTOS.teams.filter((x) => x.has_photo).length;
   renderPhotos();
   if (box) msg(box, T('Foto atualizada: ', 'Photo updated: ') + (t.name || t.login), 'small');
+}
+
+// mesma ideia do sendPhoto: manda o mp3 do time e atualiza SÓ o cartão
+async function sendMusic(t, file, box) {
+  const b64 = await fileToBase64(file);
+  const r = await apiPost('/contest/animeitor/music?contest=' + enc(CONTEST), { login: t.login, file_b64: b64 }, G);
+  Object.assign(t, { has_music: true, music_bytes: r.bytes || 0, music_mtime: Math.floor(Date.now() / 1000) });
+  if (PHOTOS) PHOTOS.with_music = PHOTOS.teams.filter((x) => x.has_music).length;
+  renderPhotos();
+  if (box) msg(box, T('Música atualizada: ', 'Music updated: ') + (t.name || t.login), 'small');
+}
+
+// a linha ♪ do cartão: tocar (a do time ou a padrão), enviar/trocar e remover
+function musicRow(t, box) {
+  const inp = el('input', { type: 'file', accept: 'audio/mpeg,.mp3', style: 'display:none' });
+  inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    if (f.size > MUSIC_MAX_MB * 1024 * 1024) {
+      msg(box, T(`Música muito grande (máx ${MUSIC_MAX_MB}MB).`, `Music too large (max ${MUSIC_MAX_MB}MB).`), 'error-box'); return;
+    }
+    msg(box, T('Enviando música de ', 'Uploading music of ') + t.login + '…');
+    try { await sendMusic(t, f, box); }
+    catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+  });
+  // botões da música são ÍCONES (⬆ / ×): o cartão tem ~170 px e os rótulos por extenso jogavam
+  // o "remover" para uma segunda linha, deixando a grade com cartões de alturas diferentes
+  return el('div', { class: 'acts mus' }, inp,
+    playBtn(t.has_music ? musicUrl(t) : phMusicUrl(),
+      t.has_music ? T('tocar a música do time', 'play the team music')
+                  : T('tocar a música padrão', 'play the default music')),
+    el('span', { class: 'lg' }, t.has_music
+      ? `${Math.round((t.music_bytes || 0) / 1024)} KB`
+      : T('padrão', 'default')),
+    el('button', { class: 'btn ghost', onclick: () => inp.click(),
+      title: t.has_music ? T('trocar a música', 'replace the music')
+                         : T('enviar a música', 'upload the music') }, '⬆'),
+    t.has_music ? el('button', { class: 'btn ghost danger',
+      title: T('remover a música', 'remove the music'), onclick: async () => {
+      if (!confirm(T('Remover a música de ', 'Remove the music of ') + (t.name || t.login) + '?')) return;
+      try {
+        await apiPost('/contest/animeitor/music?contest=' + enc(CONTEST), { action: 'delete', login: t.login }, G);
+        Object.assign(t, { has_music: false, music_bytes: 0, music_mtime: 0 });
+        if (PHOTOS) PHOTOS.with_music = PHOTOS.teams.filter((x) => x.has_music).length;
+        renderPhotos();
+      } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+    } }, '×') : '');
 }
 
 function photoCard(t, box) {
@@ -95,6 +172,7 @@ function photoCard(t, box) {
           renderPhotos();
         } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
       } }, T('remover', 'remove')) : ''),
+    musicRow(t, box),
   );
 }
 
@@ -106,7 +184,8 @@ const matchSel = (t) => (!F.cohort || t.cohort === F.cohort)
                      && (!F.univ || t.univ === F.univ)
                      && (!F.region || t.region === F.region);
 const matchPhoto = (t) => F.photo === 'all' || (F.photo === 'yes' ? t.has_photo : !t.has_photo);
-const filtered = () => teamsAll().filter((t) => matchPhoto(t) && matchSel(t) && matchQ(t));
+const matchMusic = (t) => F.music === 'all' || (F.music === 'yes' ? t.has_music : !t.has_music);
+const filtered = () => teamsAll().filter((t) => matchPhoto(t) && matchMusic(t) && matchSel(t) && matchQ(t));
 
 function selOf(field, label, id) {
   const vals = [...new Set(teamsAll().map((t) => t[field]).filter(Boolean))].sort();
@@ -117,6 +196,19 @@ function selOf(field, label, id) {
   sel.value = F[field] || '';
   sel.addEventListener('change', () => { F[field] = sel.value; PAGE_I = 0; renderPhotos(); });
   return el('label', {}, label, sel);
+}
+
+// filtro de MÚSICA (o mesmo recorte da foto, mas em select: a fila de trabalho principal é a
+// foto, e três chips a mais deixariam a barra ilegível)
+function musicSel(base) {
+  const nYes = base.filter((t) => t.has_music).length;
+  const sel = el('select', { id: 'fMusic' },
+    el('option', { value: 'all' }, `${T('todas', 'all')} (${base.length})`),
+    el('option', { value: 'yes' }, `${T('com música', 'with music')} (${nYes})`),
+    el('option', { value: 'no' }, `${T('sem música', 'missing')} (${base.length - nYes})`));
+  sel.value = F.music;
+  sel.addEventListener('change', () => { F.music = sel.value; PAGE_I = 0; renderPhotos(); });
+  return el('label', {}, T('Música:', 'Music:'), sel);
 }
 
 function photosBar(box) {
@@ -140,12 +232,14 @@ function photosBar(box) {
       chip('no', T('Sem foto', 'Missing'), base.length - nYes),
       chip('yes', T('Com foto', 'With photo'), nYes),
       chip('all', T('Todos', 'All'), base.length)),
+    musicSel(base),
     selOf('cohort', T('Coorte:', 'Cohort:'), 'fCohort'),
     selOf('univ', T('Universidade:', 'University:'), 'fUniv'),
     selOf('region', T('Sede:', 'Site:'), 'fRegion'),
     q,
     el('button', { id: 'fClear', class: 'btn ghost', onclick: () => {
-      F.photo = 'all'; F.q = ''; F.cohort = ''; F.univ = ''; F.region = ''; PAGE_I = 0; renderPhotos();
+      F.photo = 'all'; F.music = 'all'; F.q = ''; F.cohort = ''; F.univ = ''; F.region = '';
+      PAGE_I = 0; renderPhotos();
     } }, T('limpar', 'clear')),
     el('span', { class: 'fcount', id: 'fCount' }, ''),
   );
@@ -160,7 +254,41 @@ function pager(pages) {
     el('button', { class: 'btn ghost', onclick: () => { if (PAGE_I < pages - 1) { PAGE_I++; renderPhotos(); } } }, '›'));
 }
 
-// cartão da FOTO PADRÃO: é ela que aparece no telão para quem não mandou foto
+// linha da MÚSICA PADRÃO (dentro do cartão do padrão): é a que toca para quem não mandou a sua
+function placeholderMusicRow(box) {
+  const ph = (PHOTOS && PHOTOS.placeholder) || {};
+  const custom = !!ph.music_custom;
+  const inp = el('input', { type: 'file', accept: 'audio/mpeg,.mp3', style: 'display:none' });
+  inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    if (f.size > MUSIC_MAX_MB * 1024 * 1024) {
+      msg(box, T(`Música muito grande (máx ${MUSIC_MAX_MB}MB).`, `Music too large (max ${MUSIC_MAX_MB}MB).`), 'error-box'); return;
+    }
+    msg(box, T('Enviando a música padrão…', 'Uploading the default music…'));
+    try {
+      const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST),
+        { kind: 'music', file_b64: await fileToBase64(f) }, G);
+      if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, music_custom: r.music.custom, music_mtime: r.music.mtime };
+      renderPhotos();
+      msg(document.getElementById('phMsg') || box, T('Música padrão trocada.', 'Default music replaced.'), 'small');
+    } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+  });
+  return el('div', { class: 'row', style: 'gap:.3rem; margin-top:.35rem; align-items:center; flex-wrap:wrap' }, inp,
+    playBtn(phMusicUrl(), T('tocar a música padrão', 'play the default music')),
+    el('span', { class: 'small muted' }, T('Música padrão', 'Default music'),
+      custom ? T(' · sua faixa', ' · your track') : T(' · a do MOJ', ' · the MOJ one')),
+    el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar música', 'replace music')),
+    custom ? el('button', { class: 'btn ghost', onclick: async () => {
+      if (!confirm(T('Voltar à música padrão do MOJ?', 'Restore the MOJ default music?'))) return;
+      const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST),
+        { kind: 'music', action: 'reset' }, G);
+      if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, music_custom: r.music.custom, music_mtime: r.music.mtime };
+      renderPhotos();
+    } }, T('voltar ao padrão do MOJ', 'restore MOJ default')) : '');
+}
+
+// cartão do PADRÃO: a foto (e a música) que vão para o telão de quem não mandou as suas
 function placeholderCard(box) {
   const custom = !!(PHOTOS && PHOTOS.placeholder && PHOTOS.placeholder.custom);
   const inp = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
@@ -172,7 +300,7 @@ function placeholderCard(box) {
     try {
       const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST),
         { file_b64: await fileToBase64(f) }, G);
-      if (PHOTOS) PHOTOS.placeholder = { custom: r.custom, mtime: r.mtime };
+      if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, custom: r.custom, mtime: r.mtime };
       renderPhotos();
       msg(document.getElementById('phMsg') || box, T('Foto padrão trocada.', 'Default photo replaced.'), 'small');
     } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
@@ -184,16 +312,17 @@ function placeholderCard(box) {
         el('span', { class: 'small muted' }, custom ? T(' · sua imagem', ' · your image')
                                                     : T(' · a do MOJ', ' · the MOJ one'))),
       el('div', { class: 'small muted' },
-        T('É o que a API responde — e o que vai no pacote — para quem ainda não mandou foto.',
-          'This is what the API answers — and what goes in the package — for teams without a photo.')),
-      el('div', { class: 'row', style: 'gap:.3rem; margin-top:.35rem' }, inp,
+        T('É o que a API responde — e o que vai no pacote — para quem ainda não mandou a sua.',
+          'This is what the API answers — and what goes in the package — for teams without their own.')),
+      el('div', { class: 'row', style: 'gap:.3rem; margin-top:.35rem; align-items:center; flex-wrap:wrap' }, inp,
         el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar imagem', 'replace image')),
         custom ? el('button', { class: 'btn ghost', onclick: async () => {
           if (!confirm(T('Voltar à foto padrão do MOJ?', 'Restore the MOJ default photo?'))) return;
           const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST), { action: 'reset' }, G);
-          if (PHOTOS) PHOTOS.placeholder = { custom: r.custom, mtime: r.mtime };
+          if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, custom: r.custom, mtime: r.mtime };
           renderPhotos();
-        } }, T('voltar ao padrão do MOJ', 'restore MOJ default')) : '')));
+        } }, T('voltar ao padrão do MOJ', 'restore MOJ default')) : ''),
+      placeholderMusicRow(box)));
 }
 
 // re-render SÓ da seção de fotos (o streaming não é tocado por filtro/página)
@@ -209,16 +338,20 @@ function renderPhotos() {
   if (PAGE_I >= pages) PAGE_I = pages - 1;
   const slice = rows.slice(PAGE_I * PAGE, PAGE_I * PAGE + PAGE);
 
+  const nP = (PHOTOS && PHOTOS.with_photo) || 0;
+  const nM = (PHOTOS && PHOTOS.with_music) || 0;
+  const nT = (PHOTOS && PHOTOS.total) || 0;
   host.innerHTML = '';
   host.append(
-    el('h2', {}, T('📷 Fotos dos times', '📷 Team photos')),
+    el('h2', {}, T('📷 Fotos e ♪ músicas dos times', '📷 Team photos and ♪ music')),
     el('p', { class: 'note' },
-      T(`${(PHOTOS && PHOTOS.with_photo) || 0} de ${(PHOTOS && PHOTOS.total) || 0} times já têm foto.`,
-        `${(PHOTOS && PHOTOS.with_photo) || 0} of ${(PHOTOS && PHOTOS.total) || 0} teams already have a photo.`)),
+      T(`${nP} de ${nT} times já têm foto; ${nM} têm música própria (o resto toca a padrão).`,
+        `${nP} of ${nT} teams already have a photo; ${nM} have their own music (the rest play the default).`)),
     placeholderCard(box),
     el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.4rem; flex-wrap:wrap' }, bulkInput(box),
       el('button', { class: 'btn', onclick: () => document.getElementById('phBulk').click() },
-        T('⬆ Enviar em lote (nome do arquivo = login)', '⬆ Bulk upload (file name = login)')),
+        T('⬆ Enviar em lote — fotos e músicas (nome do arquivo = login)',
+          '⬆ Bulk upload — photos and music (file name = login)')),
       el('button', { class: 'btn ghost', onclick: () => downloadAuthed(CONTEST,
           '/contest/animeitor/photos-zip?contest=' + enc(CONTEST), 'fotos-' + CONTEST + '.zip') },
         T('⬇ Baixar pacote (.zip)', '⬇ Download package (.zip)'))),
@@ -227,31 +360,39 @@ function renderPhotos() {
                 : el('p', { class: 'muted' }, T('Nenhum time casa com o filtro.', 'No team matches the filter.')),
     pager(pages),
   );
+  syncPlay();                                        // o cartão que estava tocando continua ⏸
   const c = document.getElementById('fCount');
   if (c) c.textContent = (rows.length === teamsAll().length)
     ? T(`${rows.length} times`, `${rows.length} teams`)
     : T(`Mostrando ${rows.length} de ${teamsAll().length} times`, `Showing ${rows.length} of ${teamsAll().length} teams`);
 }
 
+// o lote aceita FOTO e MÚSICA no mesmo arrastar: cada arquivo vai para a rota certa pelo tipo
+// (o MP3 é reconhecido pelo mime ou pela extensão — o Firefox não sabe o mime de todo .mp3)
+const isMusicFile = (f) => /^audio\//.test(f.type || '') || /\.mp3$/i.test(f.name || '');
+
 function bulkInput(box) {
-  const bulk = el('input', { id: 'phBulk', type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+  const bulk = el('input', { id: 'phBulk', type: 'file', accept: 'image/*,audio/mpeg,.mp3',
+    multiple: true, style: 'display:none' });
   bulk.addEventListener('change', async () => {
     const fs = [...(bulk.files || [])];
     if (!fs.length) return;
-    let ok = 0; const bad = [];
+    let okP = 0; let okM = 0; const bad = [];
     for (let i = 0; i < fs.length; i++) {
       msg(box, T('Enviando ', 'Uploading ') + (i + 1) + '/' + fs.length + '…');
-      // o LOGIN vem do nome do arquivo (fulano.jpg -> fulano), como no painel de Times
+      // o LOGIN vem do nome do arquivo (fulano.jpg / fulano.mp3 -> fulano), como no painel de Times
+      const mus = isMusicFile(fs[i]);
       try {
-        await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST),
+        await apiPost('/contest/animeitor/' + (mus ? 'music' : 'photo') + '?contest=' + enc(CONTEST),
           { login: fs[i].name, file_b64: await fileToBase64(fs[i]) }, G);
-        ok++;
+        if (mus) okM++; else okP++;
       } catch { bad.push(fs[i].name); }
     }
     await loadPhotos(); renderPhotos();
     const b = document.getElementById('phMsg');
-    if (b) msg(b, T(`${ok} foto(s) enviada(s).`, `${ok} photo(s) uploaded.`)
-      + (bad.length ? T(' Não casaram com nenhum time: ', ' No team matched: ') + bad.join(', ') : ''),
+    if (b) msg(b, T(`${okP} foto(s) e ${okM} música(s) enviada(s).`, `${okP} photo(s) and ${okM} music file(s) uploaded.`)
+      + (bad.length ? T(' Falharam (time inexistente ou formato recusado): ',
+                        ' Failed (no such team or format rejected): ') + bad.join(', ') : ''),
       bad.length ? 'error-box' : 'small');
   });
   return bulk;

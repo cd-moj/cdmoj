@@ -56,18 +56,21 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   no placar/balão/etiqueta — o `smoke-animeitor.sh` cobre placar+teams+badges de uma vez.)
   **`.animeitor`** = a mesa do TELÃO (`is_animeitor`, não herda nada): NÃO submete e não vê
   enunciado; vê o placar **SEMPRE DESCONGELADO** (é quem conduz a revelação), as estatísticas e a
-  página `/contest/animeitor/` — fotos dos times (em **webp**, `lib/team-photo.sh`) e as CHAVES do
-  **webcast**, o pacote de placar que alimenta o sistema Animeitor pela rota **sem sessão**
-  `/contest/webcast?key=…` (formato do BOCA, separador `0x1C`). Ver `docs/WEBCAST.md`.
+  página `/contest/animeitor/` — fotos (em **webp**, `lib/team-photo.sh`) e **músicas** dos times
+  (mp3 como veio, `lib/team-music.sh`: **não há `ffmpeg` na imagem**, então a defesa é validar o
+  MIME — `file --mime-type` = `audio/mpeg` — e o corpo vai por `read_body_file`, 15 MB) e as
+  CHAVES do **webcast**, o pacote de placar que alimenta o sistema Animeitor pela rota **sem
+  sessão** `/contest/webcast?key=…` (formato do BOCA, separador `0x1C`). Ver `docs/WEBCAST.md`.
   ⚠ **Listagem de MUITOS usuários é UMA varredura** (`find -printf` + `find|xargs jq`, login pelo
   `input_filename` — molde do `sc_cells`), nunca um `jq`/`stat` por conta: a galeria de fotos
   levava 5,3 s com 1000 times e passou a 0,10 s. A galeria pede **miniatura**
   (`team-photo?thumb=1`, 320 px) e usa `&v=<mtime>` como cache-buster — `Date.now()` na URL
-  rebaixa a imagem a cada render. **Time sem foto NÃO dá 404**: a API responde a **foto padrão**
-  do contest (`X-MOJ-Photo: placeholder`), escolhida pelo `.animeitor` e com default embarcado em
-  `server/etc/team-placeholder.webp` (mesmo idioma do `info-sheet` — arquivo do contest
-  sobrescreve, apagar volta ao de fábrica). `has_photo` continua sendo a verdade sobre quem
-  mandou foto.
+  rebaixa a imagem a cada render. **Time sem foto (ou sem música) NÃO dá 404**: a API responde o
+  **padrão** do contest (`X-MOJ-Photo: placeholder` / `X-MOJ-Music: placeholder`), escolhido pelo
+  `.animeitor` e com default embarcado em `server/etc/team-placeholder.{webp,mp3}` (mesmo idioma
+  do `info-sheet` — arquivo do contest sobrescreve, apagar volta ao de fábrica). `has_photo`/
+  `has_music` continuam sendo a verdade sobre quem mandou o seu. No pacote `.zip` a FOTO padrão é
+  copiada por time (20 KB) e a MÚSICA padrão vai só uma vez na raiz (megabytes × 1000 times não).
   Auto-cadastro **nunca** cria papel por sufixo: use `is_reserved_role_login` (`lib/auth.sh`) —
   já aplicado no signup; o `/admin/adduser` (admin autenticado) **continua** podendo criar
   `.judge`/`.staff`/`.cstaff` de um contest (legítimo).

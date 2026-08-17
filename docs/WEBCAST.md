@@ -17,7 +17,7 @@ Conta de contest com o sufixo `.animeitor` (criada pelo admin, como `.judge`/`.s
 |---|---|
 | ver o placar **sempre DESCONGELADO** (é ele quem conduz a revelação) | submeter solução (403 `submit_forbidden`) |
 | a **cerimônia de revelação** e as **estatísticas** do contest | ver enunciado (não compete) |
-| gerir as **fotos dos times** (ver, trocar, subir, baixar o pacote) | qualquer coisa de admin |
+| gerir **fotos e músicas dos times** (ver, ouvir, trocar, subir, baixar o pacote) | qualquer coisa de admin |
 | criar/revogar as **chaves do webcast** | — |
 
 Como todo papel, o sufixo está fora do placar, do `/contest/teams`, das etiquetas, dos balões,
@@ -134,17 +134,67 @@ No **pacote .zip** a padrão aparece de duas formas: uma vez na raiz (`placehold
 A coluna **`padrao`** do `teams.csv` diz quem está com a imagem padrão (`true`) e quem mandou a
 própria (`false`). Custo: ~20 KB por time sem foto (o zip não deduplica cópias idênticas).
 
-Rota do pacote:
+---
+
+## Músicas dos times (♪)
+
+Cada time pode ter uma **música própria** em MP3 — a faixa que o telão toca quando ele resolve um
+problema. É o mesmo desenho da foto: link por time na API, padrão para quem não mandou a sua,
+gestão na página do `.animeitor` (botão **♪** que toca no próprio navegador, filtro
+*todas/com/sem música*) e presença no pacote `.zip`.
 
 ```
-GET /contest/animeitor/photos-zip?contest=<id>   ->  fotos/<login>.webp + teams.csv
+GET  /contest/team-music?contest=<id>&user=<login>   ->  audio/mpeg (a do time, ou a PADRÃO)
+POST /contest/animeitor/music?contest=<id>          ->  {login|filename, file_b64} | {action:"delete", login}
+GET  /contest/placeholder?contest=<id>&kind=music   ->  a música padrão
 ```
 
-`teams.csv` é o índice (`login,nome,universidade,coorte,bandeira,foto`) que casa cada foto com o
-time do placar. A foto é armazenada em **WEBP** (`users/<login>/photo.webp`) — qualquer formato
-que chegue (png/jpg/webp) é convertido, redimensionado (lado máx. 1000 px) e limpo de metadados
-por `lib/team-photo.sh`. Fotos antigas em `photo.png` continuam sendo servidas; converta o
-acervo com `server/bin/photos-to-webp.sh --apply`.
+Três decisões que valem a pena conhecer:
+
+- **A música é guardada como veio** (`users/<login>/music.mp3`), sem conversão: a imagem de
+  produção **não tem `ffmpeg`** (a foto tem o `convert`; áudio não tem equivalente). O que
+  protege é a **validação por MIME** — `file --mime-type` tem de dizer `audio/mpeg`, senão 400
+  `music_bad`. Extensão não é prova de nada, e um "mp3" que é outra coisa travaria o telão na
+  hora errada. Teto de **15 MB** (~10 min a 192 kbps).
+- **O corpo vem em ARQUIVO** (`read_body_file`): 15 MB de mp3 são ~20 MB de base64, e enfiar isso
+  numa variável de shell é o caminho conhecido para o 504.
+- **Sem `Range`** (a API não tem em rota nenhuma): o player toca progressivo, que é o uso aqui.
+  Buscar uma posição no meio da faixa pode rebaixar o arquivo.
+
+A **música padrão** vive em `contests/<c>/placeholder.mp3` e, sem escolha do `.animeitor`, é a de
+fábrica `server/etc/team-placeholder.mp3` — mesma regra da foto padrão (arquivo do contest
+sobrescreve o embarcado; `reset` apaga e volta ao default).
+
+## O pacote `.zip` (fotos + músicas)
+
+```
+GET /contest/animeitor/photos-zip?contest=<id>
+    fotos/<login>.webp     — TODOS os times (quem não mandou leva a padrão)
+    musicas/<login>.mp3    — SÓ quem mandou a sua
+    placeholder.webp       — a foto padrão, uma vez
+    placeholder.mp3        — a música padrão, uma vez
+    teams.csv              — o índice
+```
+
+`teams.csv` é o índice que casa os arquivos com o time do placar:
+
+```
+login,nome,universidade,coorte,bandeira,foto,padrao,musica,musica_padrao
+```
+
+`padrao=true` diz que a foto daquele time é a padrão; `musica_padrao=true` diz que ele **não** tem
+faixa própria e deve tocar `placeholder.mp3`. A assimetria é proposital: foto são ~20 KB e sai
+mais simples o Animeitor achar `<login>.webp` sempre; música são megabytes — copiar a padrão para
+cada um de 1000 times daria um pacote de gigabytes.
+
+A foto é armazenada em **WEBP** (`users/<login>/photo.webp`) — qualquer formato que chegue
+(png/jpg/webp) é convertido, redimensionado (lado máx. 1000 px) e limpo de metadados por
+`lib/team-photo.sh`. Fotos antigas em `photo.png` continuam sendo servidas e entram no pacote
+como `fotos/<login>.png`; converta o acervo com `server/bin/photos-to-webp.sh --apply`.
+
+O **envio em lote** aceita os dois de uma vez: o operador arrasta fotos e mp3 juntos e cada
+arquivo vai para a rota certa pelo tipo — o **nome do arquivo é o login** (`fulano.jpg`,
+`fulano.mp3`).
 
 ---
 
@@ -155,7 +205,9 @@ acervo com `server/bin/photos-to-webp.sh --apply`.
 | `server/score/webcast-gen.sh` | monta os cinco arquivos e o zip |
 | `server/api/v1/lib/webcast.sh` | chaves (criar/revogar/validar/contabilizar) |
 | `server/api/v1/handlers/contest/webcast.sh` | a rota **sem sessão** que o Animeitor busca |
-| `server/api/v1/handlers/contest/animeitor/*.sh` | fotos e chaves (gate `.animeitor`/admin) |
+| `server/api/v1/handlers/contest/animeitor/*.sh` | fotos, músicas e chaves (gate `.animeitor`/admin) |
 | `server/api/v1/lib/team-photo.sh` | foto do time (webp), fonte única dos três escritores |
+| `server/api/v1/lib/team-music.sh` | música do time (mp3 validado por MIME, sem conversão) |
+| `server/etc/team-placeholder.{webp,mp3}` | a foto e a música de fábrica (o contest sobrescreve) |
 | `web/contest/animeitor/` | a página do papel |
 | `server/test/smoke-animeitor.sh` | o contrato inteiro, inclusive o formato do pacote |

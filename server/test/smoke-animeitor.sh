@@ -1,8 +1,9 @@
 #!/bin/bash
 # Papel .animeitor (mesa do telão): não submete; placar SEMPRE descongelado; estatísticas;
-# fora do placar/times/etiquetas; fotos dos times em WEBP (galeria, upload, remoção, pacote
-# .zip); e o WEBCAST — chaves por visão de coorte e a rota SEM SESSÃO que devolve o pacote no
-# formato do BOCA (contest/runs/time/version/icpc, campos separados por 0x1C).
+# fora do placar/times/etiquetas; fotos dos times em WEBP e MÚSICAS em MP3 (galeria, upload,
+# remoção, padrão de fábrica, pacote .zip); e o WEBCAST — chaves por visão de coorte e a rota
+# SEM SESSÃO que devolve o pacote no formato do BOCA (contest/runs/time/version/icpc, campos
+# separados por 0x1C).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; TMP="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$TMP"' EXIT
@@ -140,14 +141,66 @@ ck "reset volta à de fábrica"    'grep -q "\"custom\":false" <<<"$BODY" && [[ 
 call /contest/animeitor/placeholder GET tb 'contest=an'
 ck "competidor não gere a padrão" 'grep -q "animeitor_required" <<<"$BODY"'
 
+echo "== música do time (mp3) =="
+# MP3 mínimo de verdade (8 quadros MPEG1 layer III): o servidor valida pelo MIME, não pela
+# extensão — é o que impede um .mp3 que na verdade é outra coisa de entrar no telão.
+{ for _i in 1 2 3 4 5 6 7 8; do printf '\xff\xfb\x90\x00'; head -c 413 /dev/zero; done; } > "$TMP/tiny.mp3"
+MP3="$(base64 -w0 "$TMP/tiny.mp3")"
+call /contest/animeitor/music POST ani 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$MP3\"}"
+ck "upload grava music.mp3"      'grep -q "\"saved\":true" <<<"$BODY" && [[ -s "$C/users/time-a/music.mp3" ]]'
+ck "arquivo é audio/mpeg"        '[[ "$(file --mime-type -b "$C/users/time-a/music.mp3")" == audio/mpeg ]]'
+call /contest/animeitor/music POST ani 'contest=an' "{\"login\":\"time-b\",\"file_b64\":\"$PNG1\"}"
+ck "não-mp3 é RECUSADO"          'grep -q "music_bad" <<<"$BODY" && [[ ! -e "$C/users/time-b/music.mp3" ]]'
+call /contest/animeitor/music POST ani 'contest=an' "{\"login\":\"telao.animeitor\",\"file_b64\":\"$MP3\"}"
+ck "conta de papel não tem música" 'grep -q "role_account" <<<"$BODY"'
+callf /contest/team-music GET '' 'contest=an&user=time-a' '' "$TMP/m1.bin"
+ck "team-music serve audio/mpeg"  'head -c 200 "$TMP/m1.bin" | grep -q "Content-Type: audio/mpeg" && head -c 200 "$TMP/m1.bin" | grep -q "Content-Length: 3336"'
+ck "quem TEM música não leva padrão" '! head -c 200 "$TMP/m1.bin" | grep -q "X-MOJ-Music"'
+callf /contest/team-music GET '' 'contest=an&user=time-b' '' "$TMP/m2.bin"
+ck "sem música → 200 com a padrão" 'head -c 200 "$TMP/m2.bin" | grep -q "Status: 200" && head -c 200 "$TMP/m2.bin" | grep -q "X-MOJ-Music: placeholder"'
+call /contest/animeitor/photos GET ani 'contest=an'
+ck "galeria conta a música"      '[[ "$(jq -r .with_music <<<"$BODY")" == 1 ]]'
+ck "galeria traz has_music/bytes" '[[ "$(jq -r ".teams[]|select(.login==\"time-a\")|.has_music" <<<"$BODY")" == true ]] && [[ "$(jq -r ".teams[]|select(.login==\"time-a\")|.music_bytes" <<<"$BODY")" == 3336 ]]'
+ck "quem não tem: has_music false" '[[ "$(jq -r ".teams[]|select(.login==\"time-b\")|.has_music" <<<"$BODY")" == false ]]'
+
+echo "== música PADRÃO =="
+callf /contest/placeholder GET '' 'contest=an&kind=music' '' "$TMP/phm.bin"
+ck "placeholder?kind=music público" 'head -c 200 "$TMP/phm.bin" | grep -q "Content-Type: audio/mpeg"'
+call /contest/animeitor/placeholder GET ani 'contest=an'
+ck "GET traz foto E música"      '[[ "$(jq -r .custom <<<"$BODY")" == false ]] && [[ "$(jq -r .music.custom <<<"$BODY")" == false ]] && [[ "$(jq -r .music.bytes <<<"$BODY")" -gt 0 ]]'
+call /contest/animeitor/placeholder POST ani 'contest=an' "{\"kind\":\"music\",\"file_b64\":\"$MP3\"}"
+ck "troca a música padrão"       '[[ "$(jq -r .music.custom <<<"$BODY")" == true ]] && [[ -s "$C/placeholder.mp3" ]]'
+ck "trocar música não mexe na foto" '[[ "$(jq -r .custom <<<"$BODY")" == false ]] && [[ ! -e "$C/placeholder.webp" ]]'
+call /contest/animeitor/placeholder POST ani 'contest=an' "{\"kind\":\"music\",\"file_b64\":\"$PNG1\"}"
+ck "padrão: não-mp3 recusado"    'grep -q "music_bad" <<<"$BODY"'
+callf /contest/team-music GET '' 'contest=an&user=time-b' '' "$TMP/m3.bin"
+ck "quem não tem já recebe a nova" '[[ "$(stat -c %s "$TMP/m3.bin")" != "$(stat -c %s "$TMP/m2.bin")" ]]'
+call /contest/animeitor/placeholder POST ani 'contest=an' '{"kind":"music","action":"reset"}'
+ck "reset volta à de fábrica"    '[[ "$(jq -r .music.custom <<<"$BODY")" == false ]] && [[ ! -e "$C/placeholder.mp3" ]]'
+call /contest/animeitor/placeholder POST ani 'contest=an' '{"kind":"video"}'
+ck "kind inválido → 422"         'grep -q "kind_invalid" <<<"$BODY"'
+call /contest/animeitor/music POST tb 'contest=an' "{\"login\":\"time-b\",\"file_b64\":\"$MP3\"}"
+ck "competidor: 403 na música"   'grep -q "animeitor_required" <<<"$BODY"'
+# o envio em LOTE manda o nome do arquivo como login (fulano.mp3 -> fulano)
+call /contest/animeitor/music POST ani 'contest=an' "{\"login\":\"Time-A.MP3\",\"file_b64\":\"$MP3\"}"
+ck "lote: nome do arquivo vira login" 'grep -q "\"login\":\"time-a\"" <<<"$BODY"'
+
 echo "== pacote: todo time tem arquivo =="
 callf /contest/animeitor/photos-zip GET ani 'contest=an' '' "$TMP/f2.bin"
 unhead "$TMP/f2.bin" "$TMP/f2.zip"
 ck "padrão na raiz do pacote"    'unzip -Z1 "$TMP/f2.zip" 2>/dev/null | grep -qx "placeholder.webp"'
 ck "time SEM foto tem arquivo"   'unzip -Z1 "$TMP/f2.zip" | grep -q "fotos/time-a.webp"'
 ck "time COM foto mantém a dele" 'unzip -Z1 "$TMP/f2.zip" | grep -q "fotos/time-b.png"'
-ck "CSV marca padrao=true"       'unzip -p "$TMP/f2.zip" teams.csv | grep -q "^\"time-a\".*,true$"'
-ck "CSV marca padrao=false"      'unzip -p "$TMP/f2.zip" teams.csv | grep -q "^\"time-b\".*,false$"'
+ck "CSV marca padrao=true"       'unzip -p "$TMP/f2.zip" teams.csv | grep -q "^\"time-a\",.*,\"time-a.webp\",true,"'
+ck "CSV marca padrao=false"      'unzip -p "$TMP/f2.zip" teams.csv | grep -q "^\"time-b\",.*,\"time-b.png\",false,"'
+# MÚSICA no pacote: só quem mandou a sua (a padrão vai UMA vez na raiz — copiar 5 MB por time
+# daria pacote de gigabytes numa prova de 1000)
+ck "música do time no pacote"    'unzip -Z1 "$TMP/f2.zip" | grep -q "musicas/time-a.mp3"'
+ck "quem não tem música: SEM arquivo" '! unzip -Z1 "$TMP/f2.zip" | grep -q "musicas/time-b"'
+ck "música padrão na raiz"       'unzip -Z1 "$TMP/f2.zip" | grep -qx "placeholder.mp3"'
+ck "CSV: colunas de música"      'unzip -p "$TMP/f2.zip" teams.csv | head -1 | grep -q "musica,musica_padrao$"'
+ck "CSV: quem tem música"        'unzip -p "$TMP/f2.zip" teams.csv | grep -q "\"time-a.mp3\",false$"'
+ck "CSV: quem toca a padrão"     'unzip -p "$TMP/f2.zip" teams.csv | grep -q "^\"time-b\",.*,\"\",true$"'
 
 echo "== webcast: chaves =="
 call /contest/animeitor/webcast POST ani 'contest=an' '{"action":"create","view":"public","label":"telao"}'

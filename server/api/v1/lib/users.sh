@@ -26,6 +26,29 @@ metrics_file(){ printf '%s/%s/users/%s/metrics.json' "$CONTESTSDIR" "$1" "$2"; }
 
 user_exists(){ [[ -f "$(account_file "$1" "$2")" ]]; }
 
+# user_resolve_name <c> <nome-de-arquivo|login> -> login existente (case-insensitive), rc!=0 se
+# nenhum casa. É o que faz o ENVIO EM LOTE funcionar: o operador arrasta `Fulano.JPG`/`fulano.mp3`
+# e o arquivo acha o dono pelo nome. Sem account.json local (participante de USERS_FROM) o dir
+# ainda conta — os assets do time são locais do contest.
+# ⚠ O nome INTEIRO é tentado ANTES do sem-extensão: login com ponto é comum aqui (`ufba.time1`,
+# e todas as contas de papel — `fulano.animeitor`), e cortar no ponto faria `telao.animeitor`
+# virar `telao` (= "nenhum time casa", escondendo o 422 de conta de papel).
+user_resolve_name(){
+  local c="$1" raw cand want d login
+  raw="$(basename "$2")"
+  for cand in "$raw" "${raw%.*}"; do
+    want="${cand,,}"
+    [[ -n "$want" ]] || continue
+    user_exists "$c" "$want" && { printf '%s' "$want"; return 0; }
+    while IFS= read -r d; do
+      login="${d##*/}"
+      [[ "${login,,}" == "$want" ]] && { printf '%s' "$login"; return 0; }
+    done < <(find "$CONTESTSDIR/$c/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+    [[ "${raw%.*}" == "$raw" ]] && break        # sem extensão: não varrer de novo
+  done
+  return 1
+}
+
 # _atomic_write <destfile>  (conteúdo no stdin) — grava atômico (tmp no mesmo dir + mv).
 _atomic_write(){
   local f="$1" tmp; tmp="$(mktemp "$f.XXXXXX")" || return 1

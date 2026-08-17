@@ -3741,6 +3741,32 @@
         }
       }
     },
+    "/contest/team-music": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Música do time (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. Sem suporte a Range (toca progressivo)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "audio/mpeg (+ Content-Length); sem música do time vem a padrão (X-MOJ-Music: placeholder)"
+          }
+        }
+      }
+    },
     "/contest/team-logo": {
       "get": {
         "tags": [
@@ -3815,7 +3841,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime}], total, with_photo, placeholder:{custom,mtime}} — UMA varredura (find|xargs jq), pensada p/ 1000+ times"
+            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime,has_music,music_bytes,music_mtime}], total, with_photo, with_music, placeholder:{custom,mtime,music_custom,music_mtime}} — UMA varredura (find|xargs jq) para foto E música, pensada p/ 1000+ times"
           },
           "403": {
             "description": "animeitor_required"
@@ -3868,12 +3894,63 @@
         }
       }
     },
+    "/contest/animeitor/music": {
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Sobe/troca/remove a MÚSICA de um time (mp3 validado por MIME, máx 15MB; login aceita nome de arquivo, que é como o envio em lote funciona)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": { "type": "string" },
+                  "filename": { "type": "string" },
+                  "file_b64": { "type": "string" },
+                  "action": { "type": "string", "enum": ["delete"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{saved:true,login,bytes} ou {deleted:true,login}"
+          },
+          "400": {
+            "description": "music_bad (o arquivo não é audio/mpeg) | file_b64 | file_missing"
+          },
+          "403": {
+            "description": "animeitor_required"
+          },
+          "404": {
+            "description": "nenhum time casa com o login/arquivo"
+          },
+          "413": {
+            "description": "file_large (máx 15MB)"
+          }
+        }
+      }
+    },
     "/contest/animeitor/photos-zip": {
       "get": {
         "tags": [
           "contest"
         ],
-        "summary": "Pacote das fotos: fotos/<login>.webp para TODOS os times (quem não mandou leva a padrão) + placeholder.webp + teams.csv (coluna padrao diz quem está com a padrão)",
+        "summary": "Pacote do telão: fotos/<login>.webp para TODOS os times (quem não mandou leva a padrão) + musicas/<login>.mp3 só de quem mandou + placeholder.webp + placeholder.mp3 + teams.csv (login,nome,universidade,coorte,bandeira,foto,padrao,musica,musica_padrao)",
         "security": [
           {
             "bearerAuth": []
@@ -3899,10 +3976,20 @@
         "tags": [
           "contest"
         ],
-        "summary": "Foto PADRÃO do contest (a que a API responde no lugar da foto de quem não mandou). Escolhida pelo .animeitor; sem escolha, a de fábrica do repo",
+        "summary": "PADRÃO do contest — o que a API responde no lugar do asset de quem não mandou o seu: kind=photo (default) = a foto padrão, kind=music = a música padrão. Escolhido pelo .animeitor; sem escolha, o de fábrica do repo",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["photo", "music"]
+            },
+            "description": "photo (default) | music"
           },
           {
             "name": "thumb",
@@ -3911,12 +3998,12 @@
             "schema": {
               "type": "string"
             },
-            "description": "1 = miniatura 320px"
+            "description": "1 = miniatura 320px (só p/ kind=photo)"
           }
         ],
         "responses": {
           "200": {
-            "description": "image/webp (X-MOJ-Photo: placeholder)"
+            "description": "image/webp (X-MOJ-Photo: placeholder) ou audio/mpeg (X-MOJ-Music: placeholder)"
           }
         }
       }
@@ -3926,7 +4013,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Estado da foto padrão do contest",
+        "summary": "Estado do padrão do contest (foto no topo, música em .music)",
         "security": [
           {
             "bearerAuth": []
@@ -3939,7 +4026,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{custom, bytes, mtime}"
+            "description": "{custom, bytes, mtime, music:{custom, bytes, mtime}}"
           },
           "403": {
             "description": "animeitor_required"
@@ -3950,7 +4037,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Troca a foto padrão do contest (file_b64) ou volta à de fábrica (action:reset)",
+        "summary": "Troca o padrão do contest (file_b64; kind=photo default | kind=music, mp3 máx 15MB) ou volta ao de fábrica (action:reset, respeitando o kind)",
         "security": [
           {
             "bearerAuth": []
@@ -3968,6 +4055,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "kind": { "type": "string", "enum": ["photo", "music"] },
                   "file_b64": { "type": "string" },
                   "action": { "type": "string", "enum": ["reset"] }
                 }
@@ -3977,10 +4065,13 @@
         },
         "responses": {
           "200": {
-            "description": "{custom, bytes, mtime}"
+            "description": "{custom, bytes, mtime, music:{custom, bytes, mtime}}"
           },
           "403": {
             "description": "animeitor_required"
+          },
+          "422": {
+            "description": "kind_invalid"
           }
         }
       }

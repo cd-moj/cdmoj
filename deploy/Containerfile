@@ -104,6 +104,10 @@ RUN set -eux; \
     # ImageMagick grava PNG com nome .webp EM SILÊNCIO — por isso a asserção olha o mime.
     magick -size 10x10 xc:white /tmp/_x.webp \
       && [ "$(file --mime-type -b /tmp/_x.webp)" = image/webp ] && rm -f /tmp/_x.webp; \
+    # a MÚSICA do time é validada pelo MIME (lib/team-music.sh — não há ffmpeg aqui): esta
+    # asserção prova de uma vez que o asset de fábrica entrou na imagem E que a base de magic
+    # do `file` reconhece mp3 (sem ela, TODO upload de música viraria 400).
+    [ "$(file --mime-type -b /opt/moj/cdmoj/server/etc/team-placeholder.mp3)" = audio/mpeg ]; \
     bash -n /opt/moj/cdmoj/server/api/v1/router.sh
 
 # Caminhos: todos os defaults do server são `: "${VAR:=…}"` ⇒ o ENV vence (zero edição de código).
