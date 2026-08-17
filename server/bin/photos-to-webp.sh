@@ -30,7 +30,9 @@ for c in "${CONTESTS[@]}"; do
     [[ -s "$d/photo.webp" ]] && continue      # já convertido (o png é resíduo)
     tot=$((tot+1)); sz=$(stat -c %s "$f" 2>/dev/null || echo 0); before=$((before+sz))
     if (( APPLY == 0 )); then printf 'DRY %s/%s (%s KB)\n' "$c" "$login" "$((sz/1024))"; continue; fi
-    if convert "$f" -auto-orient -strip -resize '1000x1000>' -quality 82 "$d/photo.webp.tmp" 2>/dev/null \
+    # `webp:` explícito: sem ele o ImageMagick escolhe o formato pela EXTENSÃO — e a do
+    # temporário é `.tmp`, que não é formato nenhum (era o motivo de falhar em tudo)
+    if convert "$f" -auto-orient -strip -resize '1000x1000>' -quality 82 "webp:$d/photo.webp.tmp" 2>/dev/null \
        && [[ "$(file --mime-type -b "$d/photo.webp.tmp" 2>/dev/null)" == image/webp ]]; then
       mv -f "$d/photo.webp.tmp" "$d/photo.webp"; rm -f "$f"
       nsz=$(stat -c %s "$d/photo.webp" 2>/dev/null || echo 0); after=$((after+nsz)); ok=$((ok+1))
