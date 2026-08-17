@@ -88,9 +88,11 @@ ck "clarifications: sem answered_by" '! grep -rq "zeca.judge" "$R"'
 ck "offline: sem script externo/ESM/fetch" '! grep -rqE "<script src=|import |fetch\(" "$R"'
 # --- reforma visual/conteúdo (2026-08) ---
 ck "visual MOJ: topbar + ui.css inlinado"  'grep -q "class=\"topbar\"" "$R/index.html" && grep -q "linear-gradient(105deg" "$R/index.html"'
-ck "bandeira de ESTADO vira SVG embutido"  'grep -q "flag-mini\" src=\"data:image/svg+xml;base64," "$R/index.html"'
+ck "bandeira de ESTADO vira SVG embutido"  'grep -q "\.f-br-rj{background-image:url(\"data:image/svg+xml;base64," "$R/index.html" && grep -q "class=\"flag-mini f-br-rj\"" "$R/index.html"'
+# o SVG entra UMA vez (era por linha: 458 KB de brasão × N linhas × N placares)
+ck "bandeira embutida uma vez por código"  '[[ "$(grep -c "background-image:url(\"data:image/svg" "$R/index.html")" == 2 ]]'
 ck "bandeira NÃO sai como texto cru"       '! grep -qE ">br-rj<|>br-sc<" "$R/index.html"'
-ck "bandeira com o NOME no title"          'grep -q "alt=\"Rio de Janeiro\"" "$R/index.html" && grep -q "alt=\"Santa Catarina\"" "$R/index.html"'
+ck "bandeira com o NOME no title"          'grep -q "title=\"Rio de Janeiro\"" "$R/index.html" && grep -q "aria-label=\"Santa Catarina\"" "$R/index.html"'
 ck "placar: coluna de penalidade"          'grep -q ">Penal.<" "$R/index.html"'
 ck "problemas: coluna Autor preenchida"    'grep -q ">Autor<" "$R/index.html" && grep -q "Bruno Ribas, Maria da Silva" "$R/index.html"'
 ck "runs: cstaff excluído"                 '! grep -q "rp.cstaff" "$R/runs.html"'

@@ -302,14 +302,20 @@ rep_flag_name(){  # <código> -> nome (cai no próprio código quando não está
           "$MOJ_WEB/shared/flags/index.json" 2>/dev/null)"
   printf '%s' "${name:-$1}"
 }
-rep_flag(){   # <código> -> <img …> (vazio se o código não for reconhecível)
-  local f name b64
-  f="$(rep_flag_file "$1")"; [[ -n "$f" ]] || { printf '%s' ""; return; }
+rep_flag_slug(){ local c="${1,,}"; c="${c//_/-}"; printf '%s' "${c//[^a-z0-9-]/}"; }
+# A bandeira entra UMA vez, como classe CSS. Era um <img> com o SVG em data URI POR LINHA: com
+# 3 placares (um por coorte) o index.html do esquenta foi a 21 MB — 20,8 MB de base64, sendo 19
+# imagens distintas repetidas 177 vezes (um brasão de estado tem 458 KB). Agora a linha só
+# aponta para a classe e o dado mora no <style> da página. `background-size:contain` cuida da
+# proporção (a caixa é fixa), então nada de calcular largura por bandeira.
+rep_flag(){   # <código> -> <span …> (vazio se o código não for reconhecível)
+  local name
+  [[ -n "$(rep_flag_file "$1")" ]] || { printf '%s' ""; return; }
   name="$(rep_flag_name "$1")"
-  b64="$(base64 -w0 < "$f" 2>/dev/null)" || return
-  printf '<img class="flag-mini" src="data:image/svg+xml;base64,%s" alt="%s" title="%s">' \
-    "$b64" "$(esc "$name")" "$(esc "$name")"
+  printf '<span class="flag-mini f-%s" role="img" aria-label="%s" title="%s"></span>' \
+    "$(rep_flag_slug "$1")" "$(esc "$name")" "$(esc "$name")"
 }
+rep_flag_css(){ [[ -s "$W/flags.css" ]] && { printf '<style>\n'; cat "$W/flags.css"; printf '</style>\n'; }; return 0; }
 # os códigos vêm das CONTAS e também dos próprios placares: time que saiu do store (ou veio de
 # USERS_FROM) continua no placar.txt, e sem a segunda fonte a bandeira dele virava texto cru.
 # O glob pega TODOS os placares (inclusive os placar-view-<coorte>.txt), porque o relatório
@@ -321,9 +327,15 @@ rep_flag(){   # <código> -> <img …> (vazio se o código não for reconhecíve
                     for(i=s;i<=NF;i++) if (tolower($i)=="flag") { fi=i-s+1; break }; next }
              fi && NR>2 { split($0,a,":"); if (a[fi]!="") print a[fi] }' "$_pt"
   done
-} | sort -u | while IFS= read -r fcode; do
-  [[ -n "$fcode" ]] && printf '%s\t%s\t%s\n' "$fcode" "$(rep_flag_name "$fcode")" "$(rep_flag "$fcode")"
-done > "$W/flags.tsv"
+} | sort -u | { : > "$W/flags.css"
+  while IFS= read -r fcode; do
+    [[ -n "$fcode" ]] || continue
+    printf '%s\t%s\t%s\n' "$fcode" "$(rep_flag_name "$fcode")" "$(rep_flag "$fcode")"
+    _ff="$(rep_flag_file "$fcode")"; [[ -n "$_ff" ]] || continue
+    printf '.f-%s{background-image:url("data:image/svg+xml;base64,%s")}\n' \
+      "$(rep_flag_slug "$fcode")" "$(base64 -w0 < "$_ff" 2>/dev/null)" >> "$W/flags.css"
+  done
+} > "$W/flags.tsv"
 
 # logo do MOJ (1,4 KB) embutido — mesma imagem da topbar do site
 LOGO_IMG=""
@@ -410,6 +422,14 @@ tr.guest-row td{background:#fbfbfd;color:var(--muted)}
 .qa .a{white-space:pre-wrap;margin:.4rem 0;padding:.5rem .7rem;background:var(--ok-bg);border-left:3px solid var(--ok);border-radius:6px}
 .qa .meta{color:var(--muted);font-size:.8rem}
 .swatch{display:inline-block;width:.9em;height:.9em;border-radius:50%;border:1px solid #9993;vertical-align:-.1em}
+/* bandeira = caixa fixa + imagem no CSS (uma vez por código, ver rep_flag): `contain` mantém a
+   proporção de qualquer bandeira dentro dela. */
+span.flag-mini{display:inline-block;width:27px;height:18px;max-width:100%;
+  background-repeat:no-repeat;background-position:center;background-size:contain;
+  vertical-align:middle;border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,.45)}
+/* o tier de celular do ui.css manda `height:auto` na bandeira — regra pensada p/ <img>, que tem
+   proporção própria; num <span> ela zeraria a altura. */
+@media (max-width:640px){ table.score span.flag-mini{height:14px !important;width:100%} }
 .flag-mini{height:18px;vertical-align:middle;border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,.45)}
 input.filter{padding:.45rem .7rem;border:1px solid #c8cfd9;border-radius:10px;margin:0 0 .7rem;width:280px;max-width:100%}
 footer{color:var(--muted);font-size:.78rem;margin:2rem 0 .6rem}
@@ -721,6 +741,8 @@ rep_score_boards(){
   gen=0; for ((i=0;i<n;i++)); do [[ "${ids[$i]}" == all ]] && gen=$i; done
   genf="$W/genplace.tsv"; rep_place_map "${files[$gen]}" > "$genf" 2>/dev/null || : > "$genf"
 
+  # as bandeiras usadas vão no <style> só das páginas que têm placar (o rep_css é comum às 7)
+  rep_flag_css
   rep_filter_bar ids labels
   for ((i=0;i<n;i++)); do
     printf '<section class="board-view" data-view="%s" data-label="%s"%s>\n' \

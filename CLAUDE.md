@@ -181,7 +181,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   mínimo global (`lib/cohorts.sh`). Em placar de coorte a coluna `#` leva a posição na coorte E a
   do geral (`.plg`). Bandeira/universidade/sede/busca são recorte de linhas (`data-*` na `<tr>`,
   script inline **depois** das seções — no parse o `querySelectorAll` ainda estaria vazio) e
-  **não renumeram**. Detalhes em `docs/SCOREBOARD.md`.
+  **não renumeram**. A **bandeira entra UMA vez** (classe CSS `.f-<código>` com o `data:` URI;
+  um `<img>` por linha levava o index.html a 21 MB — 458 KB de brasão × N linhas × N placares).
+  Detalhes em `docs/SCOREBOARD.md`.
 - **Placar NUNCA rola para o lado** (contest, revelação e relatório usam o MESMO CSS em
   `ui.css`): `table-layout:fixed` + `<colgroup>` com frações (`score-cols.js` carimba
   `--nprob`; o CSS divide), número da célula em `.pv` com fonte menor, e no celular (≤640px)
