@@ -175,6 +175,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
   do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).
+  **Placar do relatório = UM placar por VISÃO de coorte** (`rep_score_boards`, uma `<section
+  class="board-view">` por `placar-view-*.txt` que o `build.sh` já gerou; o seletor troca qual
+  aparece). NÃO filtre o TXT pronto p/ fabricar placar de coorte: a estrela de first-to-solve é
+  mínimo global (`lib/cohorts.sh`). Em placar de coorte a coluna `#` leva a posição na coorte E a
+  do geral (`.plg`). Bandeira/universidade/sede/busca são recorte de linhas (`data-*` na `<tr>`,
+  script inline **depois** das seções — no parse o `querySelectorAll` ainda estaria vazio) e
+  **não renumeram**. Detalhes em `docs/SCOREBOARD.md`.
 - **Placar NUNCA rola para o lado** (contest, revelação e relatório usam o MESMO CSS em
   `ui.css`): `table-layout:fixed` + `<colgroup>` com frações (`score-cols.js` carimba
   `--nprob`; o CSS divide), número da célula em `.pv` com fonte menor, e no celular (≤640px)

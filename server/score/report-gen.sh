@@ -35,6 +35,10 @@ export CONTESTSDIR
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/../api/v1/lib/users.sh"
 source "$HERE/../api/v1/lib/verdict.sh"
+# COORTES: o relatório serve UM placar por visão (o build.sh já gerou cada TXT com a posição e a
+# estrela certas dentro dela) — filtrar o TXT pronto daria estrela errada, ver lib/cohorts.sh.
+# A lib é pura (jq + $CONTESTSDIR), então dá para sourcear standalone.
+source "$HERE/../api/v1/lib/cohorts.sh"
 # roda STANDALONE (CLI e handler): nada de lib/common.sh, então os caminhos do checkout e do
 # store de problemas se auto-resolvem a partir daqui (server/score) — o relatório precisa do
 # web/ (ui.css, bandeiras, logo, módulos de gráfico) e do pacote (autor do problema).
@@ -213,6 +217,26 @@ rep_t(){ case "$LOC:$1" in
   pt:doc_times) printf '⏱ Limites de tempo';;     en:doc_times) printf '⏱ Time limits';;
   pt:doc_info) printf 'ℹ️ Informações do ambiente';; en:doc_info) printf 'ℹ️ Testing environment';;
   pt:doc_editorial) printf '📝 Editorial (soluções)';; en:doc_editorial) printf '📝 Editorial (solutions)';;
+  # filtros do placar (coorte, bandeira, universidade, sede, busca)
+  pt:f_board) printf 'Placar:';;                  en:f_board) printf 'Board:';;
+  pt:f_flag) printf 'Bandeira:';;                 en:f_flag) printf 'Flag:';;
+  pt:f_flag_all) printf 'todas';;                 en:f_flag_all) printf 'all';;
+  pt:f_univ) printf 'Universidade:';;             en:f_univ) printf 'University:';;
+  pt:f_univ_all) printf 'todas';;                 en:f_univ_all) printf 'all';;
+  pt:f_region) printf 'Sede:';;                   en:f_region) printf 'Site:';;
+  pt:f_region_all) printf 'todas';;               en:f_region_all) printf 'all';;
+  pt:f_search) printf 'buscar time, universidade, login…';; en:f_search) printf 'search team, university, login…';;
+  pt:f_clear) printf 'limpar filtros';;           en:f_clear) printf 'clear filters';;
+  # o %s daqui é TEMPLATE para o JS (vai em data-tpl): printf '%s' p/ o printf não comê-los
+  pt:f_count) printf '%s' 'Mostrando %s de %s times';; en:f_count) printf '%s' 'Showing %s of %s teams';;
+  pt:f_none) printf 'Nenhum time casa com o filtro.';; en:f_none) printf 'No team matches the filter.';;
+  pt:view_public) printf 'Geral (todos)';;        en:view_public) printf 'Overall (everyone)';;
+  pt:view_all) printf 'Todos, com convidados';;   en:view_all) printf 'Everyone, incl. guests';;
+  pt:view_of) printf 'Visão da coorte %s' "$2";;  en:view_of) printf 'As seen by cohort %s' "$2";;
+  pt:gen_place) printf 'Geral';;                  en:gen_place) printf 'Overall';;
+  pt:gen_place_t) printf 'Posição no placar geral';; en:gen_place_t) printf 'Position in the overall scoreboard';;
+  pt:cohort_note) printf 'Placar da coorte <b>%s</b>: a posição grande é dentro dela; o número menor, cinza, é a posição no placar geral.' "$2";;
+  en:cohort_note) printf 'Cohort <b>%s</b> scoreboard: the large number is the position within it; the smaller grey one is the position in the overall scoreboard.' "$2";;
   *) printf '%s' "$1";;
 esac; }
 
@@ -224,11 +248,13 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$pshort" "$pfull" "$pskey" "$i" "$praw" "${praw/\//.}" "$phash"
 done >> "$W/probs.tsv"
 
-# --- identidade dos times (SÓ fullname/team/univ/flag — nunca password/email) ---------
-# login \t team-name \t univ_short \t univ_full \t flag ; USERS_FROM cobre compartilhados.
+# --- identidade dos times (SÓ fullname/team/univ/flag/sede — nunca password/email) -----
+# login \t team-name \t univ_short \t univ_full \t flag \t sede ; USERS_FROM cobre compartilhados.
+# A SEDE (.team.region) entra como 6º campo (leitores antigos usam 1-5): é o que alimenta o
+# filtro por sede do placar — o TXT do placar não tem essa coluna.
 ACCT_JQ='[.login//"", ((.team.name // .fullname // "")|gsub("[:\t\n]";" ")),
           ((.team.univ_short//"")|gsub("[:\t\n]";" ")), ((.team.univ_full//"")|gsub("[:\t\n]";" ")),
-          ((.team.flag//"")|gsub("[:\t\n]";""))] | @tsv'
+          ((.team.flag//"")|gsub("[:\t\n]";"")), ((.team.region//"")|gsub("[:\t\n]";" "))] | @tsv'
 {
   find "$CDIR/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
     | xargs -0 -r jq -r "$ACCT_JQ" 2>/dev/null
@@ -255,37 +281,48 @@ fmt_dt(){ (( ${1:-0} > 0 )) && date -d "@$1" "+$([[ "${LOC:-pt}" == en ]] && pri
 # maioria dos times usa) saíam como TEXTO CRU no placar. Agora resolve o mesmo arquivo que o
 # placar ao vivo usa e embute como data URI (obrigatório: o visualizador de rodadas abre as
 # páginas em iframe srcdoc, onde caminho relativo não resolve). Só os códigos USADOS entram.
-rep_flag(){   # <código> -> <img …> (vazio se o código não for reconhecível)
+rep_flag_file(){  # <código> -> caminho do SVG (vazio se não houver)
   local c="${1,,}" f=""
   c="${c//_/-}"
   [[ "$c" =~ ^br-([a-z]{2})$ ]] && f="$MOJ_WEB/shared/flags/br/${BASH_REMATCH[1]}.svg"
   [[ -z "$f" && "$c" =~ ^[a-z]{2}$ ]] && f="$MOJ_WEB/shared/flags/country/$c.svg"
   # subdivisão fora do BR (gb-eng, es-ct, sh-ac…) mora no cache de países com o código inteiro
   [[ -z "$f" && "$c" =~ ^[a-z]{2}-[a-z]{2,3}$ ]] && f="$MOJ_WEB/shared/flags/country/$c.svg"
-  [[ -n "$f" && -s "$f" ]] || { printf '%s' ""; return; }
-  # nome p/ o title/alt. Duas armadilhas: no index.json o estado é indexado SEM o prefixo
-  # ("sc", não "br-sc") e o array certo depende do FORMATO do código — procurar nos dois
-  # concatenados faz "br-sc" virar Seychelles (país sc) em vez de Santa Catarina.
-  local key="$c" arr=".countries" name b64
+  [[ -n "$f" && -s "$f" ]] && printf '%s' "$f"
+}
+# nome legível do código. Duas armadilhas: no index.json o estado é indexado SEM o prefixo
+# ("sc", não "br-sc") e o array certo depende do FORMATO do código — procurar nos dois
+# concatenados faz "br-sc" virar Seychelles (país sc) em vez de Santa Catarina.
+# Vale para o alt/title da bandeira E para o rótulo do filtro por bandeira (fonte única).
+rep_flag_name(){  # <código> -> nome (cai no próprio código quando não está no índice)
+  local c="${1,,}" key arr=".countries" name
+  c="${c//_/-}"; key="$c"
   [[ "$c" =~ ^br-([a-z]{2})$ ]] && { key="${BASH_REMATCH[1]}"; arr=".br_states"; }
   name="$(jq -r --arg c "$key" "first(($arr // [])[] | select((.code|ascii_downcase)==\$c) | .name) // empty" \
           "$MOJ_WEB/shared/flags/index.json" 2>/dev/null)"
-  [[ -n "$name" ]] || name="$1"
+  printf '%s' "${name:-$1}"
+}
+rep_flag(){   # <código> -> <img …> (vazio se o código não for reconhecível)
+  local f name b64
+  f="$(rep_flag_file "$1")"; [[ -n "$f" ]] || { printf '%s' ""; return; }
+  name="$(rep_flag_name "$1")"
   b64="$(base64 -w0 < "$f" 2>/dev/null)" || return
   printf '<img class="flag-mini" src="data:image/svg+xml;base64,%s" alt="%s" title="%s">' \
     "$b64" "$(esc "$name")" "$(esc "$name")"
 }
-# os códigos vêm das CONTAS e também do próprio placar: time que saiu do store (ou veio de
+# os códigos vêm das CONTAS e também dos próprios placares: time que saiu do store (ou veio de
 # USERS_FROM) continua no placar.txt, e sem a segunda fonte a bandeira dele virava texto cru.
+# O glob pega TODOS os placares (inclusive os placar-view-<coorte>.txt), porque o relatório
+# publica um placar por visão — coorte privada só aparece lá.
 { awk -F'\t' '$5!=""{print $5}' "$W/names.tsv"
-  for _pt in "$CDIR/var/placar.txt" "$CDIR/var/placar-full.txt"; do
+  for _pt in "$CDIR"/var/placar*.txt; do
     [[ -s "$_pt" ]] || continue
     awk -F: 'NR==2{ s=1; while (s<=NF && tolower($s) ~ /^(desc|asc)$/) s++
                     for(i=s;i<=NF;i++) if (tolower($i)=="flag") { fi=i-s+1; break }; next }
              fi && NR>2 { split($0,a,":"); if (a[fi]!="") print a[fi] }' "$_pt"
   done
 } | sort -u | while IFS= read -r fcode; do
-  [[ -n "$fcode" ]] && printf '%s\t%s\n' "$fcode" "$(rep_flag "$fcode")"
+  [[ -n "$fcode" ]] && printf '%s\t%s\t%s\n' "$fcode" "$(rep_flag_name "$fcode")" "$(rep_flag "$fcode")"
 done > "$W/flags.tsv"
 
 # logo do MOJ (1,4 KB) embutido — mesma imagem da topbar do site
@@ -377,6 +414,21 @@ tr.guest-row td{background:#fbfbfd;color:var(--muted)}
 input.filter{padding:.45rem .7rem;border:1px solid #c8cfd9;border-radius:10px;margin:0 0 .7rem;width:280px;max-width:100%}
 footer{color:var(--muted);font-size:.78rem;margin:2rem 0 .6rem}
 .note{color:var(--muted);font-size:.85rem;margin:.4rem 0}
+/* barra de filtros do placar (coorte, bandeira, universidade, sede, busca) */
+.fbar{display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:center;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--radius);padding:.6rem .9rem;margin:.7rem 0;
+  box-shadow:var(--shadow-sm)}
+.fbar label{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:.35rem}
+.fbar select{padding:.35rem .5rem;border:1px solid #c8cfd9;border-radius:8px;background:#fff;
+  font:inherit;font-size:.85rem;max-width:15rem}
+.fbar input.filter{margin:0;width:16rem}
+.fbar .fcount{font-size:.85rem;color:var(--muted);margin-left:auto}
+.fbar button{padding:.35rem .7rem;border:1px solid #c8cfd9;border-radius:8px;background:#fff;
+  font:inherit;font-size:.85rem;cursor:pointer;color:var(--blue-dark)}
+.fbar button:hover{background:var(--blue-soft)}
+/* posição no placar geral, dentro da coluna # do placar de coorte */
+.plg{display:block;font-size:.7em;font-weight:600;color:var(--muted);line-height:1.1}
+@media (max-width:640px){ table.score th .plg{display:none} }
 CSSEOF
 }
 
@@ -431,10 +483,12 @@ EOF
 # modo; linha 2 = cabeçalho COM marcadores iniciais desc/asc (as linhas de dados NÃO têm
 # os marcadores — alinham 1:1 com o cabeçalho já sem eles); células icpc: vazio | t/m |
 # t/m* (first to solve) | t/-.
-rep_score_html(){ # <placar.txt>
-  local f="$1"
+rep_score_html(){ # <placar.txt> [genplace.tsv]
+  local f="$1" gp="${2:-}"
   [[ -s "$f" ]] || { printf '<p class="note">%s</p>\n' "$(rep_t no_score)"; return; }
-  awk -F: -v MODE="$MODE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" \
+  [[ -n "$gp" && -s "$gp" ]] || gp=/dev/null
+  awk -F: -v MODE="$MODE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" -v NF_="$W/names.tsv" \
+      -v GP="$gp" -v T_GEN="$(rep_t gen_place)" -v T_GENT="$(rep_t gen_place_t)" \
       -v T_TEAM="$(rep_t team_col)" -v T_TOTAL="$(rep_t total)" -v T_PEN="$(rep_t pen_col)" \
       -v T_GUEST="$(rep_t guest)" -v T_GUESTT="$(rep_t guest_title)" -v T_FTS="$(rep_t fts)" '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
@@ -456,8 +510,16 @@ rep_score_html(){ # <placar.txt>
     BEGIN{
       while ((getline l < BF) > 0) { n=split(l,a,"\t"); if(n>=3){ bhex[a[1]]=a[2]; bdark[a[1]]=a[3] } }
       close(BF)
-      while ((getline l < FF) > 0) { n=split(l,a,"\t"); if(n>=2){ fimg[a[1]]=a[2] } }
+      # flags.tsv: código \t nome legível \t <img>. O nome alimenta o rótulo do filtro por
+      # bandeira (data-fname) — é a MESMA resolução do alt/title (rep_flag_name).
+      while ((getline l < FF) > 0) { n=split(l,a,"\t"); if(n>=3){ fimg[a[1]]=a[3]; fnm[tolower(a[1])]=a[2] } }
       close(FF)
+      # sede (.team.region) só existe na conta, não no TXT do placar: 6º campo do names.tsv.
+      while ((getline l < NF_) > 0) { n=split(l,a,"\t"); if(n>=6 && a[1]!="") reg[a[1]]=a[6] }
+      close(NF_)
+      # posição no placar GERAL, por login (vazio = este É o placar geral)
+      while ((getline l < GP) > 0) { n=split(l,a,"\t"); if(n>=2 && a[1]!=""){ gpl[a[1]]=a[2]; hasgp=1 } }
+      close(GP)
     }
     NR==1{ next }
     NR==2{
@@ -484,7 +546,9 @@ rep_score_html(){ # <placar.txt>
       if (MODE=="icpc" || MODE=="obi") printf "<col class=\"c-total\">"
       if (MODE=="icpc" && ipen) printf "<col class=\"c-pen\">"
       printf "</colgroup>\n"
-      printf "<thead><tr><th>#</th>"
+      # em placar de COORTE a coluna # leva dois números: a posição na coorte (grande) e a do
+      # placar geral (pequena, cinza) — sem coluna nova, senão o placar voltaria a não caber.
+      printf "<thead><tr><th>#%s</th>", (hasgp? "<span class=\"plg\">" esc(T_GEN) "</span>" : "")
       if (MODE=="icpc" || MODE=="obi") {
         if(iflag) printf "<th></th>"
         printf "<th>%s</th>", T_TEAM
@@ -519,7 +583,21 @@ rep_score_html(){ # <placar.txt>
           prevtot=tot; prevpen=pen; prevlac=lac; prevplace=place; pnum=place
         }
       } else if (!isguest) { nseen++; pnum=nseen }
-      printf "<tr%s><td class=\"place\">%s</td>", (isguest?" class=\"guest-row\"":""), (isguest?"–":pnum "")
+      # DADOS DO FILTRO na própria linha (o script do relatório não tem de onde buscar nada:
+      # sem fetch, sem import). data-search cobre o login, que saiu do texto visível.
+      fcode=(iflag? tolower(trim($(iflag))) : "")
+      un=(iuser? trim($(iuser)) : ""); us=(ius? trim($(ius)) : ""); uf=(iuf? trim($(iuf)) : "")
+      tn=(iteam? trim($(iteam)) : "")
+      rg=(un in reg ? reg[un] : "")
+      attrs=(isguest? " class=\"guest-row\"" : "")
+      if(fcode!="") attrs=attrs " data-flag=\"" esc(fcode) "\" data-fname=\"" esc(fcode in fnm ? fnm[fcode] : toupper(fcode)) "\""
+      if(us!="")    attrs=attrs " data-univ=\"" esc(us) "\""
+      if(uf!="")    attrs=attrs " data-ufull=\"" esc(uf) "\""
+      if(rg!="")    attrs=attrs " data-region=\"" esc(rg) "\""
+      attrs=attrs " data-search=\"" esc(tolower(tn " " us " " uf " " un)) "\""
+      gtxt=""
+      if (hasgp && !isguest && (un in gpl)) gtxt="<span class=\"plg\" title=\"" esc(T_GENT) "\">" esc(gpl[un]) "</span>"
+      printf "<tr%s><td class=\"place\">%s%s</td>", attrs, (isguest?"–":pnum ""), gtxt
       if (MODE=="icpc" || MODE=="obi") {
         if(iflag) printf "<td>%s</td>", flag_html(trim($(iflag)))
         printf "%s", team_html((ius?trim($(ius)):""), (iteam?trim($(iteam)):""), (iuf?trim($(iuf)):""), (iuser?trim($(iuser)):""), isguest)
@@ -553,6 +631,205 @@ rep_score_html(){ # <placar.txt>
     }
     END{ printf "</tbody></table></div>\n" }
   ' "$f"
+}
+
+# --- placares por VISÃO de coorte + barra de filtros ------------------------------------
+# O contest pode ter coortes (individual × times, oficiais × convidados/CCL). O build.sh já
+# gera UM TXT por visão, com posição e ESTRELA corretas dentro dela — por isso o seletor de
+# coorte TROCA de placar (como o `?view=` da página ao vivo) em vez de esconder linhas: a
+# estrela de first-to-solve é mínimo global e filtrar o TXT pronto mostraria a estrela errada
+# (a armadilha está documentada em lib/cohorts.sh). Bandeira/universidade/sede/busca, sim,
+# são recorte de linhas do placar exibido — e vão em `data-*` na <tr>.
+
+# rep_view_label <id> -> rótulo da visão (nome da coorte é conteúdo do usuário: não traduz).
+# Visão de coorte PÚBLICA com ranking = o placar paralelo dela (só ela) ⇒ o nome basta.
+# Visão de coorte PRIVADA = o que ELA vê (as públicas + ela) ⇒ tem de dizer "visão de".
+rep_view_label(){
+  local nm
+  case "$1" in
+    public) rep_t view_public;;
+    all)    rep_t view_all;;
+    *) nm="$(jq -r --arg i "$1" 'first(.cohorts[] | select(.id == $i) | .name) // $i' \
+              <<<"$(ch_get "$C")" 2>/dev/null)"; [[ -n "$nm" ]] || nm="$1"
+       if jq -e --arg i "$1" 'any(.cohorts[]; .id == $i and .public == false)' \
+            <<<"$(ch_get "$C")" >/dev/null 2>&1
+       then rep_t view_of "$nm"; else printf '%s' "$nm"; fi;;
+  esac
+}
+
+# rep_place_map <placar.txt> -> "login \t posição" (só quem tem posição; convidado não tem)
+# ⚠ MESMA regra de empate do rep_score_html (resolvidos + penalidade + minuto do último AC):
+# se mudar lá, mude aqui — é o número que aparece como "posição no placar geral".
+rep_place_map(){
+  awk -F: '
+    function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
+    NR==1{ next }
+    NR==2{ n=split($0,H,":"); s=1
+      while (s<=n) { h=trim(tolower(H[s])); if (h=="desc"||h=="asc") s++; else break }
+      ncol=0; for(i=s;i<=n;i++){ ncol++; hdr[ncol]=H[i] }
+      for(i=1;i<=ncol;i++){ h=trim(tolower(hdr[i]))
+        if(h=="username")iuser=i; else if(h=="total")itot=i; else if(h=="penalty")ipen=i
+        else if(h=="lastac")ilast=i; else if(h=="guest")iguest=i }
+      next }
+    NF==0{ next }
+    {
+      g=(iguest? trim($(iguest)) : "")
+      if (g!="" && g!="0" && tolower(g)!="false" && tolower(g)!="no") next
+      tot=(itot? trim($(itot)) : ""); pen=(ipen? trim($(ipen)) : ""); lac=(ilast? trim($(ilast)) : "")
+      if (n_>0 && tot==pt_ && pen==pp_ && lac==pl_) place=pc_
+      else { n_++; place=n_ }
+      pt_=tot; pp_=pen; pl_=lac; pc_=place
+      if (iuser && trim($(iuser))!="") printf "%s\t%s\n", trim($(iuser)), place
+    }' "$1"
+}
+
+# rep_score_boards <open|frozen> — a barra de filtros + um <section> por visão
+rep_score_boards(){
+  local kind="$1" v lbl f ck gen genf n=0 cj
+  local -a ids=() labels=() files=() cks=() have=() cand=()
+  mapfile -t have < <(ch_views "$C" 2>/dev/null)
+  # ORDEM do seletor (e da dedupe): pública › placares paralelos › todos › visão de coorte
+  # privada. `all` tem de vir ANTES da visão privada: quando a coorte privada vê todo mundo os
+  # dois placares são idênticos, e o rótulo que fica é o do primeiro — "Todos, com convidados"
+  # descreve melhor do que "Visão da coorte X".
+  cj="$(ch_get "$C" 2>/dev/null)"
+  cand=( public )
+  mapfile -t -O "${#cand[@]}" cand < <(jq -r '.cohorts[]|select(.public and .ranking)|.id' <<<"$cj" 2>/dev/null)
+  cand+=( all )
+  mapfile -t -O "${#cand[@]}" cand < <(jq -r '.cohorts[]|select(.public == false)|.id' <<<"$cj" 2>/dev/null)
+  for v in "${cand[@]}"; do
+    [[ -n "$v" ]] || continue
+    printf '%s\n' "${have[@]+"${have[@]}"}" | grep -qxF "$v" || continue
+    if [[ "$kind" == open ]] && (( FREEZE > 0 )); then
+      f="$(ch_view_file "$C" "$v" full)"; [[ -s "$f" ]] || f="$(ch_view_file "$C" "$v")"
+    else
+      f="$(ch_view_file "$C" "$v")"
+    fi
+    [[ -s "$f" ]] || continue
+    # placares idênticos (no esquenta `public` e `all` são a mesma coisa, porque toda coorte é
+    # pública) apareceriam duas vezes no seletor: dedup por conteúdo.
+    ck="$(cksum < "$f")"
+    printf '%s\n' "${cks[@]+"${cks[@]}"}" | grep -qxF "$ck" && continue
+    ids+=("$v"); labels+=("$(rep_view_label "$v")"); files+=("$f"); cks+=("$ck")
+    n=$((n+1))
+  done
+
+  (( n > 0 )) || { rep_score_html ""; return; }
+
+  # placar GERAL = a visão `all` quando existir (é a que tem todo mundo), senão a pública.
+  # É dele que sai a "posição geral" mostrada nos placares de coorte.
+  gen=0; for ((i=0;i<n;i++)); do [[ "${ids[$i]}" == all ]] && gen=$i; done
+  genf="$W/genplace.tsv"; rep_place_map "${files[$gen]}" > "$genf" 2>/dev/null || : > "$genf"
+
+  rep_filter_bar ids labels
+  for ((i=0;i<n;i++)); do
+    printf '<section class="board-view" data-view="%s" data-label="%s"%s>\n' \
+      "$(esc "${ids[$i]}")" "$(esc "${labels[$i]}")" "$([[ $i -eq 0 ]] || printf ' hidden')"
+    if (( n > 1 )); then
+      printf '<h3>%s</h3>\n' "$(esc "${labels[$i]}")"
+      [[ "${ids[$i]}" == public || "${ids[$i]}" == all ]] \
+        || printf '<p class="note">%s</p>\n' "$(rep_t cohort_note "${labels[$i]}")"
+    fi
+    # a segunda posição só entra quando INFORMA algo: no placar geral (e em qualquer visão cuja
+    # classificação seja a mesma dele, como a pública quando não há coorte privada) seria uma
+    # coluna repetindo o número ao lado.
+    if (( i == gen )); then rep_score_html "${files[$i]}"
+    else
+      rep_place_map "${files[$i]}" > "$W/vplace.tsv" 2>/dev/null || : > "$W/vplace.tsv"
+      if cmp -s "$W/vplace.tsv" "$genf"; then rep_score_html "${files[$i]}"
+      else rep_score_html "${files[$i]}" "$genf"; fi
+    fi
+    printf '</section>\n'
+  done
+  rep_filter_js
+}
+
+# rep_filter_bar <nome-do-array-de-ids> <nome-do-array-de-rótulos>
+# Sem fetch/import/src (invariante do relatório): as opções de bandeira/universidade/sede são
+# montadas pelo próprio script a partir dos data-* das linhas do placar VISÍVEL — igual ao
+# placar ao vivo, que monta as opções a partir dos times presentes.
+rep_filter_bar(){
+  local -n _ids="$1" _lbls="$2"
+  local i
+  printf '<div class="fbar" id="fbar" data-tpl="%s">\n' "$(esc "$(rep_t f_count)")"
+  if (( ${#_ids[@]} > 1 )); then
+    printf '<label>%s <select id="fView">' "$(esc "$(rep_t f_board)")"
+    for i in "${!_ids[@]}"; do
+      printf '<option value="%s">%s</option>' "$(esc "${_ids[$i]}")" "$(esc "${_lbls[$i]}")"
+    done
+    printf '</select></label>\n'
+  fi
+  printf '<label>%s <select id="fFlag"><option value="">%s</option></select></label>\n' \
+    "$(esc "$(rep_t f_flag)")" "$(esc "$(rep_t f_flag_all)")"
+  printf '<label>%s <select id="fUniv"><option value="">%s</option></select></label>\n' \
+    "$(esc "$(rep_t f_univ)")" "$(esc "$(rep_t f_univ_all)")"
+  printf '<label>%s <select id="fRegion"><option value="">%s</option></select></label>\n' \
+    "$(esc "$(rep_t f_region)")" "$(esc "$(rep_t f_region_all)")"
+  printf '<input class="filter" id="fQ" type="search" placeholder="%s">\n' "$(esc "$(rep_t f_search)")"
+  printf '<button type="button" id="fClear">%s</button>\n' "$(esc "$(rep_t f_clear)")"
+  printf '<span class="fcount" id="fCount"></span>\n</div>\n'
+  # sem JS: a barra não serve p/ nada e os placares escondidos têm de aparecer (cada um tem <h3>)
+  printf '<noscript><style>.fbar{display:none}.board-view[hidden]{display:block}</style></noscript>\n'
+}
+
+# rep_filter_js — vai DEPOIS dos placares: script inline roda na hora em que é parseado, e antes
+# das <section> existirem o querySelectorAll voltava vazio (a barra ficava decorativa).
+rep_filter_js(){
+  cat <<'FBAREOF'
+<script>
+(function(){
+  var bar=document.getElementById('fbar'); if(!bar) return;
+  var boards=[].slice.call(document.querySelectorAll('.board-view')); if(!boards.length) return;
+  var selV=document.getElementById('fView'), selF=document.getElementById('fFlag'),
+      selU=document.getElementById('fUniv'), selR=document.getElementById('fRegion'),
+      q=document.getElementById('fQ'), cnt=document.getElementById('fCount'),
+      tpl=bar.getAttribute('data-tpl')||'%s/%s';
+  function board(){ for(var i=0;i<boards.length;i++) if(!boards[i].hidden) return boards[i]; return boards[0]; }
+  function rows(b){ var t=b&&b.querySelector('table.score'); return (t&&t.tBodies[0])?[].slice.call(t.tBodies[0].rows):[]; }
+  function fill(sel,attr,label){
+    if(!sel) return;
+    var cur=sel.value, seen={}, opts=[];
+    rows(board()).forEach(function(r){
+      var v=r.getAttribute(attr); if(!v||seen[v]) return; seen[v]=1;
+      opts.push([v,label(r,v)]);
+    });
+    opts.sort(function(a,b){ return String(a[1]).localeCompare(String(b[1])) });
+    while(sel.options.length>1) sel.remove(1);
+    opts.forEach(function(o){ var e=document.createElement('option'); e.value=o[0]; e.textContent=o[1]; sel.add(e) });
+    sel.value = seen[cur] ? cur : '';
+    if(sel.parentNode) sel.parentNode.style.display = opts.length ? '' : 'none';
+  }
+  function refill(){
+    fill(selF,'data-flag',function(r,v){ return r.getAttribute('data-fname')||v });
+    fill(selU,'data-univ',function(r,v){ var f=r.getAttribute('data-ufull'); return f?(v+' — '+f):v });
+    fill(selR,'data-region',function(r,v){ return v });
+  }
+  function apply(){
+    var f=selF?selF.value:'', u=selU?selU.value:'', g=selR?selR.value:'',
+        s=(q?q.value:'').trim().toLowerCase(), tot=0, vis=0;
+    rows(board()).forEach(function(r){
+      tot++;
+      var ok=(!f||r.getAttribute('data-flag')===f) && (!u||r.getAttribute('data-univ')===u)
+          && (!g||r.getAttribute('data-region')===g)
+          && (!s||(r.getAttribute('data-search')||'').indexOf(s)>=0);
+      r.style.display=ok?'':'none'; if(ok) vis++;
+    });
+    if(cnt) cnt.textContent=tpl.replace('%s',vis).replace('%s',tot);
+  }
+  if(selV) selV.addEventListener('change',function(){
+    boards.forEach(function(b){ b.hidden = b.getAttribute('data-view')!==selV.value });
+    refill(); apply();
+  });
+  [selF,selU,selR].forEach(function(s){ if(s) s.addEventListener('change',apply) });
+  if(q) q.addEventListener('input',apply);
+  var clr=document.getElementById('fClear');
+  if(clr) clr.addEventListener('click',function(){
+    [selF,selU,selR].forEach(function(s){ if(s) s.value='' }); if(q) q.value=''; apply();
+  });
+  refill(); apply();
+})();
+</script>
+FBAREOF
 }
 
 # --- histórico de runs (TSV intermediário: epoch login letter lang verdict subid team us uf) ---
@@ -623,15 +900,14 @@ while IFS=$'\t' read -r pshort pfull pskey _off _raw _dot _hash; do
 done < "$W/probs.tsv" >> "$W/stmt.tsv"
 
 # --- placares: aberto (index) + congelado (se houver freeze) ---------------------------
-OPEN_TXT="$CDIR/var/placar.txt"; FROZEN_NOTE=""
+FROZEN_NOTE=""
 if (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" ]]; then
-  OPEN_TXT="$CDIR/var/placar-full.txt"
   fmin=$(( (FREEZE - START) / 60 ))
   {
     rep_head "$(rep_t frozen_title)" frozen
     printf '<p class="note">%s <a href="index.html">%s</a>.</p>\n' \
       "$(rep_t frozen_note "$fmin" "$(fmt_dt "$FREEZE")")" "$(rep_t tab_score)"
-    rep_score_html "$CDIR/var/placar.txt"
+    rep_score_boards frozen
     rep_foot
   } > "$OUTD/score-frozen.html"
   FROZEN_NOTE="<p class=\"note\">$(rep_t open_note "$fmin") <a href=\"score-frozen.html\">$(rep_t frozen_title)</a>.</p>"
@@ -676,8 +952,11 @@ if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON"
       rep_foot
     } > "$OUTD/documentos.html"
   fi
+fi
 
 # --- index.html ------------------------------------------------------------------------
+# ⚠ FORA do if dos documentos: com o `fi` no fim deste bloco (era o caso), contest SEM
+# documento publicado saía com relatório sem a página do placar.
 mode_label(){ case "$1" in icpc) rep_t mode_icpc;; obi) rep_t mode_obi;; heuristic) rep_t mode_heur;; treino) rep_t mode_list;; *) rep_t mode_custom;; esac; }
 dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02d' $((s/3600)) $(( (s%3600)/60 )); }
 {
@@ -714,11 +993,9 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
 
   printf '<h2>%s</h2>\n' "$(rep_t final_score)"
   printf '%s\n' "$FROZEN_NOTE"
-  rep_score_html "$OPEN_TXT"
+  rep_score_boards open
   rep_foot
 } > "$OUTD/index.html"
-
-fi
 
 # --- runs.html ---------------------------------------------------------------------------
 {

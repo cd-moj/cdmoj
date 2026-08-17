@@ -17,8 +17,8 @@ fx_user "$C" alice a "Time Alice"
 fx_user "$C" bob b "Time Bob"
 fx_user "$C" rp.cstaff s "Chefe de Sede"
 # bandeira de ESTADO (br-rj): o código que o relatório antigo imprimia como TEXTO
-jq -c '.team={name:"Time Alice",univ_short:"UFRJ",flag:"br-rj"}' "$C/users/alice/account.json" > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/alice/account.json"
-jq -c '.team={name:"Time Bob",univ_short:"UFSC",flag:"br-sc"}'  "$C/users/bob/account.json"   > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/bob/account.json"
+jq -c '.team={name:"Time Alice",univ_short:"UFRJ",univ_full:"Univ Federal do RJ",flag:"br-rj",region:"Rio"}' "$C/users/alice/account.json" > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/alice/account.json"
+jq -c '.team={name:"Time Bob",univ_short:"UFSC",univ_full:"Univ Federal de SC",flag:"br-sc",region:"Floripa"}'  "$C/users/bob/account.json"   > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/bob/account.json"
 # pacote com AUTOR (2 linhas) + documentos: 1 publicado, 1 gerado e NÃO publicado
 PKG="$FIX/probs"; mkdir -p "$PKG/col/pa"
 printf 'Bruno Ribas\nMaria da Silva\n' > "$PKG/col/pa/author"
@@ -108,6 +108,13 @@ ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*
 ck "placar: CSS sem nowrap/min-width"     '! grep -qE "table.score td.cell\{[^}]*(nowrap|min-width)" "$R/index.html"'
 ck "placar: penalidade sobrevive no celular" 'grep -q "td.cell:not(.tot):not(.pen) .pv { display:none" "$R/index.html" && ! grep -q "table.score td.cell .pv { display:none" "$R/index.html"'
 ck "placar: login do time no title"       'grep -q "class=\"team\" title=\"[^\"]*·[^\"]*\"" "$R/index.html" && ! grep -q "<span class=\"u\">" "$R/index.html"'
+# --- filtros do placar (bandeira, universidade, sede, busca) ---
+ck "filtro: dado na própria linha"        'grep -q "data-flag=\"br-sc\"" "$R/index.html" && grep -q "data-fname=\"Santa Catarina\"" "$R/index.html" && grep -q "data-univ=\"UFSC\"" "$R/index.html" && grep -q "data-region=\"Floripa\"" "$R/index.html" && grep -q "data-search=\"time bob ufsc" "$R/index.html"'
+ck "filtro: os 4 controles + contador"    'grep -q "id=\"fFlag\"" "$R/index.html" && grep -q "id=\"fUniv\"" "$R/index.html" && grep -q "id=\"fRegion\"" "$R/index.html" && grep -q "id=\"fQ\"" "$R/index.html" && grep -q "id=\"fCount\"" "$R/index.html"'
+ck "filtro: fallback sem JS"              'grep -q "<noscript><style>.fbar{display:none}" "$R/index.html"'
+# script inline roda no parse: antes das <section> o querySelectorAll voltava vazio
+ck "filtro: script DEPOIS dos placares"   '[[ "$(grep -n "</section>" "$R/index.html" | tail -1 | cut -d: -f1)" -lt "$(grep -n "id=.fbar.\|<script>" "$R/index.html" | grep "<script>" | tail -1 | cut -d: -f1)" ]]'
+ck "sem coorte: um placar, sem seletor"   '[[ "$(grep -c "class=\"board-view\"" "$R/index.html")" == 1 ]] && ! grep -q "id=\"fView\"" "$R/index.html" && ! grep -q "class=\"plg\"" "$R/index.html"'
 ck "documentos: link na navegação"        'grep -q "documentos.html" "$R/index.html" && grep -q "documentos.html" "$R/statistics.html"'
 ck "documentos: NÃO leva o não-publicado"  '[[ ! -e "$R/documentos/editorial.pt.pdf" ]] && ! grep -rq "SEGREDO_DOC_NAO_PUBLICADO" "$R"'
 # --- gates ---
@@ -128,7 +135,26 @@ ck "EN: placar traduzido"        'grep -q "<th>Team</th>" "$EN/index.html" && gr
 ck "EN: runs/clar/staff/infra"   'grep -q "<th>Verdict</th>" "$EN/runs.html" && grep -q "<th>Type</th>" "$EN/staff-tasks.html" && grep -q "Judging infrastructure" "$EN/infra.html"'
 ck "EN: documentos traduzidos"   'grep -q "Problem set" "$EN/documentos.html" && grep -q "<th>Language</th>" "$EN/documentos.html"'
 ck "EN: html lang=en"            'grep -q "<html lang=\"en\">" "$EN/index.html"'
-ck "EN: sem PT vazando"          '! grep -qE "<dt>Competição</dt>|<th>Equipe</th>|Tarefas do staff" "$EN/index.html" "$EN/staff-tasks.html"'
+ck "EN: filtros traduzidos"      'grep -q "<label>Flag: <select id=\"fFlag\">" "$EN/index.html" && grep -q "<label>Site: <select id=\"fRegion\">" "$EN/index.html" && grep -q "data-tpl=\"Showing %s of %s teams\"" "$EN/index.html"'
+ck "EN: sem PT vazando"          '! grep -qE "<dt>Competição</dt>|<th>Equipe</th>|Tarefas do staff|>Bandeira:|>Sede:" "$EN/index.html" "$EN/staff-tasks.html"'
 ck "EN: estatística em inglês"   'grep -q "\"en\"" "$EN/statistics.html"'
+
+# --- COORTES: um placar por visão (o build.sh gera um TXT por coorte) --------------------
+# O relatório não pode filtrar o TXT pronto (a estrela de first-to-solve é mínimo global —
+# lib/cohorts.sh): o seletor TROCA de placar. `all` == `public` aqui (as duas coortes são
+# públicas) ⇒ dedup por conteúdo deixa 3 placares.
+sed -i '/^LOCALE=en$/d' "$C/conf"
+jq -cn '{version:1, results_released:false, cohorts:[
+   {id:"ind", name:"Individual", regex:"^alice", public:true, ranking:true, default:true, sees:["ind"]},
+   {id:"tim", name:"Times", regex:"^bob", public:true, ranking:true, sees:["tim"]}]}' > "$C/cohorts.json"
+CO="$FIX/rco"; CONTESTSDIR="$FIX" MOJ_PROBLEMS_DIR="$PKG" bash "$ROOT/score/report-gen.sh" rp "$CO" >/dev/null 2>&1
+ck "coorte: um placar por visão"      '[[ "$(grep -c "class=\"board-view\"" "$CO/index.html")" == 3 ]] && grep -q "data-view=\"ind\"" "$CO/index.html" && grep -q "data-view=\"tim\"" "$CO/index.html"'
+ck "coorte: só o 1º placar visível"   '[[ "$(grep -c "class=\"board-view\" data-view=\"[a-z]*\" data-label=\"[^\"]*\" hidden" "$CO/index.html")" == 2 ]]'
+ck "coorte: seletor com o NOME dela"  'grep -q "id=\"fView\"" "$CO/index.html" && grep -q "<option value=\"ind\">Individual</option>" "$CO/index.html" && grep -q "<option value=\"tim\">Times</option>" "$CO/index.html"'
+ck "coorte: dedup de placar idêntico" '! grep -q "data-view=\"all\"" "$CO/index.html"'
+ck "coorte: posição na coorte + geral" 'grep -q "#<span class=\"plg\">Geral</span>" "$CO/index.html" && grep -qE "<td class=\"place\">1<span class=\"plg\"[^>]*>2</span>" "$CO/index.html"'
+ck "coorte: placar geral sem 2ª posição" 'awk "/data-view=\"public\"/,/<\/section>/" "$CO/index.html" | grep -q "<td class=\"place\">1</td>"'
+ck "coorte: congelado também tem visões" '[[ "$(grep -c "class=\"board-view\"" "$CO/score-frozen.html")" == 3 ]]'
+ck "coorte: segue offline"            '! grep -rqE "<script src=|import |fetch\(" "$CO"'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

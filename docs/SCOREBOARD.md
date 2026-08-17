@@ -111,6 +111,19 @@ filtro (vazio = todas) e `MOJ_UNRANKED="<id> …"` liga a coluna `guest`.
 para convidado. Os renderizadores acham coluna por NOME no cabeçalho, então quem não a conhece
 simplesmente a ignora; o front usa para pular a numeração e marcar a linha.
 
+**No relatório offline as visões viram um seletor**: `report-gen.sh` publica **um placar por
+visão** (`rep_score_boards`, uma `<section class="board-view" data-view="…">` por TXT, a primeira
+visível) e o `<select>` só troca qual aparece — pelo mesmo motivo do parágrafo acima, o script
+NÃO filtra linhas do placar geral para fabricar um placar de coorte. Decisão do produto: entram
+**todas** as visões (inclusive `all` e coorte privada, sem esperar `results_released`), porque o
+relatório é privilegiado e só o admin o baixa; placares de conteúdo idêntico são deduplicados
+(quando toda coorte é pública, `public` == `all`) e a ordem do seletor é pública › placares
+paralelos › todos › visão de coorte privada. Em placar de coorte a coluna `#` leva **duas**
+posições — a da coorte (grande) e a do **placar geral** (menor, cinza, `.plg`) —, e ela só
+aparece quando informa algo (na visão cuja classificação é a do geral, não). Filtrar por
+bandeira/universidade/sede/busca (os outros controles da barra) **nunca renumera**: a posição
+segue a oficial e um contador diz quantos times estão visíveis.
+
 **O que NÃO é recortado** (e está assim de propósito, porque é papel privilegiado):
 `/contest/statistics` (admin/juiz/monitor — inclusive `first_solver` nominal),
 `/contest/allsubmissions`, a fila do staff (o balão do convidado precisa ser entregue) e o
