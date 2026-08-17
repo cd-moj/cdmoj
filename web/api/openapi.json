@@ -3119,11 +3119,12 @@
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "description": "bank_id OU source+problem_id; name/letter; statement_b64/statement_file, statement_pdf_b64/statement_pdf_file; languages[] por problema (vira problem-langs.json)"
+                      "description": "bank_id OU source+problem_id; name/letter; statement_b64/statement_file, statement_pdf_b64/statement_pdf_file; languages[] por problema (vira problem-langs.json). Ao menos um item — ou allow_empty:true"
                     }
                   },
                   "allow_empty": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "cria o contest SEM problemas (configura depois por /contest/admin/problems). Sem ele, problems[] vazio ⇒ 422 no_problems. Só o booleano true vale (1/\"true\" não)"
                   },
                   "admin": {
                     "type": "object",
@@ -3196,8 +3197,7 @@
                 },
                 "required": [
                   "name",
-                  "end",
-                  "problems"
+                  "end"
                 ]
               }
             }
@@ -3205,7 +3205,7 @@
         },
         "responses": {
           "200": {
-            "description": "{contest_id,admin_login,admin_password,url,scoreboard_url}"
+            "description": "{contest_id,admin_login,admin_reused,admin_password,url,scoreboard_url}"
           },
           "403": {
             "description": "sem permissão"
@@ -3214,7 +3214,7 @@
             "description": "id em uso/reservado"
           },
           "422": {
-            "description": "validação"
+            "description": "validação (no_problems = problems[] vazio sem allow_empty)"
           }
         }
       }
