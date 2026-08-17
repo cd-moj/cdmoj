@@ -149,9 +149,12 @@ revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
 - O número da célula vive em **`<span class="pv">`** e tem fonte menor que o cabeçalho — a
   referência da coluna (letra + balão) é o que precisa ser legível. Cada faixa de tela
   (`≤1100`, `≤820`, `≤640`) só ajusta constantes.
-- **Celular (≤640px)**: o número sai de cena e a célula vira **marca** (`✓` resolvido, `✗`
-  tentou; o fundo do balão continua sendo a informação principal). Tentativas e minuto ficam no
-  `title` (`A: 1 tentativa, 28 min`, via `cellTitle`).
+- **Celular (≤640px)**: na célula de **problema** o número sai de cena e vira **marca** (`✓`
+  resolvido, `✗` tentou; o fundo do balão continua sendo a informação principal). Tentativas e
+  minuto ficam no `title` (`A: 1 tentativa, 28 min`, via `cellTitle`). **Total e penalidade
+  continuam com o número** — os dois também são `td.cell` (`.tot`/`.pen`), então a regra que
+  esconde o `.pv` os EXCLUI explicitamente; sem isso a coluna "Penal." aparecia com cabeçalho e
+  células vazias, gastando largura sem informar a 1ª desempatadora.
 - O embrulho do placar é **`.board-wrap`** (sem `overflow-x`), nunca `.chart-wrap`/`.tblwrap` —
   esses rolam e são para as outras tabelas.
 

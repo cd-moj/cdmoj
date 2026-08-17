@@ -178,7 +178,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Placar NUNCA rola para o lado** (contest, revelação e relatório usam o MESMO CSS em
   `ui.css`): `table-layout:fixed` + `<colgroup>` com frações (`score-cols.js` carimba
   `--nprob`; o CSS divide), número da célula em `.pv` com fonte menor, e no celular (≤640px)
-  a célula vira ✓/✗ com os números no `title`. Embrulho é `.board-wrap` (sem overflow).
+  a célula de PROBLEMA vira ✓/✗ com os números no `title` — total e penalidade (também
+  `td.cell`) ficam de fora da regra e mantêm o número. Embrulho é `.board-wrap` (sem overflow).
   ⚠ `min()`/`max()` em largura de `<col>` é IGNORADO pelo Firefox — só `calc()` simples.
   Detalhes em `docs/SCOREBOARD.md`.
 - **Coluna NUMÉRICA em tabela = `class="n"` no `<td>` E no `<th>`** (`ui.css`: alinha à direita,

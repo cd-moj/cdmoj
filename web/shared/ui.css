@@ -455,7 +455,7 @@ table.score td.cell .fts { font-size:.7em; vertical-align:top; }
   table.score { font-size:.78rem;
     /* o número virou ✓: a coluna de problema precisa de quase nada e o nome do time e os
        totais ficam com o espaço (senão "Total" quebrava em "T/ot/al"). */
-    --w-place:6%; --w-flag-on:4.5%; --w-total-on:8.5%; --w-pen-on:8.5%; --w-prob-share:.5; }
+    --w-place:6%; --w-flag-on:4.5%; --w-total-on:8%; --w-pen-on:10%; --w-prob-share:.5; }
   table.score th, table.score td { padding:.3rem .06rem; }
   table.score th { font-size:.74em; letter-spacing:-.02em; }
   table.score td.team { font-size:.95em; }
@@ -464,11 +464,14 @@ table.score td.cell .fts { font-size:.7em; vertical-align:top; }
      retângulo alto sem sentido. Some no celular — a informação fica no title. */
   table.score td.cell { box-shadow:none !important; }
   table.score .flag-mini { height:11px !important; }
-  table.score td.cell .pv { display:none; }
-  table.score td.cell.ok::before { content:"✓"; font-weight:800; }
-  table.score td.cell.c-try::before { content:"✗"; }
+  /* só o número do PROBLEMA vira marca. A penalidade é a 1ª desempatadora depois do total —
+     esconder o `.pv` dela (total e penalidade também são `td.cell`) deixava a coluna "Pen."
+     com cabeçalho e nenhuma célula, ocupando largura sem informar nada. */
+  table.score td.cell:not(.tot):not(.pen) .pv { display:none; }
+  table.score td.cell:not(.tot):not(.pen).ok::before { content:"✓"; font-weight:800; }
+  table.score td.cell:not(.tot):not(.pen).c-try::before { content:"✗"; }
+  table.score td.cell.pen .pv { font-size:.72em; }
   table.score td.team .u, table.score td.team .pill { display:none; }
-  table.score td.team img { display:none; }
 }
 table.score tr.guest-row { background: rgba(120,120,120,.07) }
 table.score tr.guest-row .cl-place { color: var(--muted, #777); font-style: italic }

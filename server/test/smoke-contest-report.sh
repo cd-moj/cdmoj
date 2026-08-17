@@ -106,6 +106,7 @@ ck "placar: --nprob carimbado na tabela"  'grep -q "table class=\"score\" style=
 ck "placar: embrulho SEM rolagem"         'grep -q "board-wrap.*table class=\"score\"" "$R/index.html" && ! grep -q "tblwrap.*table class=\"score\"" "$R/index.html"'
 ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*>(<span class=\"fts\">[^<]*</span>)?<span class=\"pv\">1/70</span>" "$R/index.html"'
 ck "placar: CSS sem nowrap/min-width"     '! grep -qE "table.score td.cell\{[^}]*(nowrap|min-width)" "$R/index.html"'
+ck "placar: penalidade sobrevive no celular" 'grep -q "td.cell:not(.tot):not(.pen) .pv { display:none" "$R/index.html" && ! grep -q "table.score td.cell .pv { display:none" "$R/index.html"'
 ck "placar: login do time no title"       'grep -q "class=\"team\" title=\"[^\"]*·[^\"]*\"" "$R/index.html" && ! grep -q "<span class=\"u\">" "$R/index.html"'
 ck "documentos: link na navegação"        'grep -q "documentos.html" "$R/index.html" && grep -q "documentos.html" "$R/statistics.html"'
 ck "documentos: NÃO leva o não-publicado"  '[[ ! -e "$R/documentos/editorial.pt.pdf" ]] && ! grep -rq "SEGREDO_DOC_NAO_PUBLICADO" "$R"'
