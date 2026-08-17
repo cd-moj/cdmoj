@@ -257,14 +257,17 @@ fmt_dt(){ (( ${1:-0} > 0 )) && date -d "@$1" "+$([[ "${LOC:-pt}" == en ]] && pri
 # páginas em iframe srcdoc, onde caminho relativo não resolve). Só os códigos USADOS entram.
 rep_flag(){   # <código> -> <img …> (vazio se o código não for reconhecível)
   local c="${1,,}" f=""
-  [[ "$c" =~ ^br[-_]([a-z]{2})$ ]] && f="$MOJ_WEB/shared/flags/br/${BASH_REMATCH[1]}.svg"
+  c="${c//_/-}"
+  [[ "$c" =~ ^br-([a-z]{2})$ ]] && f="$MOJ_WEB/shared/flags/br/${BASH_REMATCH[1]}.svg"
   [[ -z "$f" && "$c" =~ ^[a-z]{2}$ ]] && f="$MOJ_WEB/shared/flags/country/$c.svg"
+  # subdivisão fora do BR (gb-eng, es-ct, sh-ac…) mora no cache de países com o código inteiro
+  [[ -z "$f" && "$c" =~ ^[a-z]{2}-[a-z]{2,3}$ ]] && f="$MOJ_WEB/shared/flags/country/$c.svg"
   [[ -n "$f" && -s "$f" ]] || { printf '%s' ""; return; }
   # nome p/ o title/alt. Duas armadilhas: no index.json o estado é indexado SEM o prefixo
   # ("sc", não "br-sc") e o array certo depende do FORMATO do código — procurar nos dois
   # concatenados faz "br-sc" virar Seychelles (país sc) em vez de Santa Catarina.
   local key="$c" arr=".countries" name b64
-  [[ "$c" =~ ^br[-_]([a-z]{2})$ ]] && { key="${BASH_REMATCH[1]}"; arr=".br_states"; }
+  [[ "$c" =~ ^br-([a-z]{2})$ ]] && { key="${BASH_REMATCH[1]}"; arr=".br_states"; }
   name="$(jq -r --arg c "$key" "first(($arr // [])[] | select((.code|ascii_downcase)==\$c) | .name) // empty" \
           "$MOJ_WEB/shared/flags/index.json" 2>/dev/null)"
   [[ -n "$name" ]] || name="$1"
@@ -272,8 +275,17 @@ rep_flag(){   # <código> -> <img …> (vazio se o código não for reconhecíve
   printf '<img class="flag-mini" src="data:image/svg+xml;base64,%s" alt="%s" title="%s">' \
     "$b64" "$(esc "$name")" "$(esc "$name")"
 }
-awk -F'\t' '$5!=""{print $5}' "$W/names.tsv" | sort -u | while IFS= read -r fcode; do
-  printf '%s\t%s\n' "$fcode" "$(rep_flag "$fcode")"
+# os códigos vêm das CONTAS e também do próprio placar: time que saiu do store (ou veio de
+# USERS_FROM) continua no placar.txt, e sem a segunda fonte a bandeira dele virava texto cru.
+{ awk -F'\t' '$5!=""{print $5}' "$W/names.tsv"
+  for _pt in "$CDIR/var/placar.txt" "$CDIR/var/placar-full.txt"; do
+    [[ -s "$_pt" ]] || continue
+    awk -F: 'NR==2{ s=1; while (s<=NF && tolower($s) ~ /^(desc|asc)$/) s++
+                    for(i=s;i<=NF;i++) if (tolower($i)=="flag") { fi=i-s+1; break }; next }
+             fi && NR>2 { split($0,a,":"); if (a[fi]!="") print a[fi] }' "$_pt"
+  done
+} | sort -u | while IFS= read -r fcode; do
+  [[ -n "$fcode" ]] && printf '%s\t%s\n' "$fcode" "$(rep_flag "$fcode")"
 done > "$W/flags.tsv"
 
 # logo do MOJ (1,4 KB) embutido — mesma imagem da topbar do site
@@ -333,11 +345,9 @@ table.moj.narrow{width:auto;min-width:min(100%,34rem)}
    largura da tabela. Em `narrow` a coluna volta a ser do tamanho do conteúdo. */
 table.moj.narrow th.n, table.moj.narrow td.n{width:auto}
 .tblwrap{overflow-x:auto}
-table.score td.cell{text-align:center;white-space:nowrap;min-width:52px}
-table.score th.prob{text-align:center}
-td.place{text-align:right;font-weight:800;color:var(--blue-dark);width:2.4em}
-td.team .u{color:var(--muted);font-size:.8em}
-td.c-try{background:var(--err-bg);color:var(--err);text-align:center}
+/* o placar (largura por colgroup, quebra de linha, marca no celular) vem do ui.css inlinado:
+   aqui NÃO pode voltar `white-space:nowrap` nem `min-width` — era o que forçava a rolagem. */
+td.place{text-align:right}
 tr.guest-row td{background:#fbfbfd;color:var(--muted)}
 .v-ac{color:var(--ok);font-weight:700}
 .v-rej{color:var(--err)}
@@ -436,9 +446,12 @@ rep_score_html(){ # <placar.txt>
     function team_html(us,tn,uf,un,g,  lbl){
       lbl=""; if(us!="") lbl="[" esc(us) "] ";
       lbl=lbl esc(tn!=""?tn:un)
-      if(un!="") lbl=lbl " <span class=\"u\">[" esc(un) "]</span>"
       if(g) lbl=lbl " <span class=\"pill\" title=\"" esc(T_GUESTT) "\">" esc(T_GUEST) "</span>"
-      return "<td class=\"team\" title=\"" esc(uf!=""?uf:us) "\">" lbl "</td>"
+      # o LOGIN saiu da célula (era o que mais gastava largura) e vive no title, junto da
+      # universidade — a coluna do time agora divide espaço com todas as de problema.
+      ttl = (uf!=""?uf:us)
+      if(un!="") ttl = (ttl!="" ? ttl " · " un : un)
+      return "<td class=\"team\" title=\"" esc(ttl) "\">" lbl "</td>"
     }
     BEGIN{
       while ((getline l < BF) > 0) { n=split(l,a,"\t"); if(n>=3){ bhex[a[1]]=a[2]; bdark[a[1]]=a[3] } }
@@ -458,7 +471,20 @@ rep_score_html(){ # <placar.txt>
         else if(h=="penalty")ipen=i; else if(h=="lastac")ilast=i; else if(h=="guest")iguest=i }
       probend=(itot? itot-1 : ncol); np=0
       for(i=1;i<=probend;i++){ h=trim(tolower(hdr[i])); if(!issys(h)){ np++; pcol[np]=i; pname[np]=trim(hdr[i]) } }
-      printf "<div class=\"tblwrap\"><table class=\"score\">\n<thead><tr><th>#</th>"
+      # placar NÃO rola para o lado: largura por <colgroup> + table-layout:fixed (a conta das
+      # frações mora no ui.css, que este relatório inlina). --nprob diz o cenário.
+      vars = "--nprob:" (np?np:1)
+      if(!iflag) vars = vars ";--w-flag:0%"
+      if(!(MODE=="icpc" && ipen)) vars = vars ";--w-pen:0%"
+      printf "<div class=\"board-wrap\"><table class=\"score\" style=\"%s\">\n", vars
+      printf "<colgroup><col class=\"c-place\">"
+      if(iflag) printf "<col class=\"c-flag\">"
+      printf "<col class=\"c-team\">"
+      for(k=1;k<=np;k++) printf "<col class=\"c-prob\">"
+      if (MODE=="icpc" || MODE=="obi") printf "<col class=\"c-total\">"
+      if (MODE=="icpc" && ipen) printf "<col class=\"c-pen\">"
+      printf "</colgroup>\n"
+      printf "<thead><tr><th>#</th>"
       if (MODE=="icpc" || MODE=="obi") {
         if(iflag) printf "<th></th>"
         printf "<th>%s</th>", T_TEAM
@@ -505,17 +531,17 @@ rep_score_html(){ # <placar.txt>
               if (pname[k] in bhex) sty="background:#" bhex[pname[k]] ";color:" (bdark[pname[k]]==1?"#fff":"#222")
               else sty="background:#e2ffe9;color:#222"
               sty=sty ";font-weight:700"; if(fts) sty=sty ";box-shadow:inset 0 0 0 2px currentColor"
-              printf "<td class=\"cell\" style=\"%s\"%s>%s%s</td>", sty, (fts?" title=\"" esc(T_FTS) "\"":""), (fts?"&#9733; ":""), esc(shown)
-            } else if (v ~ /^[0-9]+\/-/) printf "<td class=\"cell c-try\">%s</td>", esc(v)
+              printf "<td class=\"cell ok\" style=\"%s\"%s>%s<span class=\"pv\">%s</span></td>", sty, (fts?" title=\"" esc(T_FTS) "\"":""), (fts?"<span class=\"fts\">&#9733;</span>":""), esc(shown)
+            } else if (v ~ /^[0-9]+\/-/) printf "<td class=\"cell c-try\"><span class=\"pv\">%s</span></td>", esc(v)
             else printf "<td class=\"cell\">%s</td>", esc(v)
           } else {   # obi: pontos
-            if (v!="" && v+0>0) printf "<td class=\"cell\" style=\"background:#dde9ff;color:#1346aa;font-weight:700\">%s</td>", esc(v)
-            else if (v=="0")    printf "<td class=\"cell\" style=\"background:#fbe7e9;color:#c4314b;font-weight:700\">%s</td>", esc(v)
+            if (v!="" && v+0>0) printf "<td class=\"cell ok\" style=\"background:#dde9ff;color:#1346aa;font-weight:700\"><span class=\"pv\">%s</span></td>", esc(v)
+            else if (v=="0")    printf "<td class=\"cell c-try\" style=\"background:#fbe7e9;color:#c4314b;font-weight:700\"><span class=\"pv\">%s</span></td>", esc(v)
             else printf "<td class=\"cell\"></td>"
           }
         }
-        printf "<td class=\"cell\"><b>%s</b></td>", esc(itot? trim($(itot)) : "")
-        if (MODE=="icpc" && ipen) printf "<td class=\"cell\">%s</td>", esc(trim($(ipen)))
+        printf "<td class=\"cell tot\"><b>%s</b></td>", esc(itot? trim($(itot)) : "")
+        if (MODE=="icpc" && ipen) printf "<td class=\"cell pen\"><span class=\"pv\">%s</span></td>", esc(trim($(ipen)))
       } else {       # generic: colunas livres do cabeçalho
         for(i=1;i<=ncol;i++){
           v=trim($(i))

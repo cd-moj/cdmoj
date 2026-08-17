@@ -4,6 +4,7 @@
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
+import { scoreColsGeneric } from './score-cols.js';
 
 export function parseGeneric(lines, mode) {
   if (lines.length < 1) return null;
@@ -35,9 +36,11 @@ export function renderGeneric(parsed, opts) {
   }
 
   const table = el('table', { class: 'score' });
+  // larguras por <colgroup> (table-layout:fixed) — o placar não rola para o lado
+  scoreColsGeneric(table, parsed.header, { iFlag: parsed.iFlag, iUser: parsed.iUser, iTeam: parsed.iTeam });
   const headRow = el('tr', {}, el('th', {}, '#'));
   parsed.header.forEach((h, i) => {
-    if (i === parsed.iFlag) { headRow.append(el('th', {}, T('Bandeira', 'Flag'))); return; }
+    if (i === parsed.iFlag) { headRow.append(el('th', { title: T('Bandeira', 'Flag') }, '')); return; }
     headRow.append(el('th', {}, h));
   });
   table.append(el('thead', {}, headRow));
@@ -55,7 +58,7 @@ export function renderGeneric(parsed, opts) {
       } else if (i === parsed.iUser || i === parsed.iTeam) {
         tr.append(el('td', { class: 'team' }, val));
       } else {
-        tr.append(el('td', {}, val));
+        tr.append(el('td', { class: 'cell' }, el('span', { class: 'pv' }, val)));
       }
     });
     tb.append(tr);

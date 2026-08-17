@@ -11,6 +11,7 @@ import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
 import { balloonColorHex, balloonIsDark, balloonSVG } from './score-colors.js';
+import { scoreCols, cellTitle } from './score-cols.js';
 
 const SYS = ['flag', 'username', 'univ short', 'team name', 'univ full', 'total', 'penalty', 'lastac', 'guest'];
 
@@ -80,18 +81,21 @@ export function renderICPC(parsed, opts) {
   if (regionFn) teams = teams.filter(regionFn);
 
   const table = el('table', { class: 'score' });
+  // largura por <colgroup>: com table-layout:fixed é o que garante que TODAS as colunas
+  // caibam (o conteúdo quebra dentro da célula em vez de a tabela rolar).
+  scoreCols(table, parsed.probShorts.length, { flag: true, penalty: true });
   const headRow = el('tr', {},
     el('th', {}, '#'),
-    el('th', {}, T('Bandeira', 'Flag')),
+    el('th', { title: T('Bandeira', 'Flag') }, ''),   // rótulo não cabe na coluna estreita: fica no title
     el('th', {}, T('Equipe', 'Team')));
   const sonic = sonicEnabled(parsed.balloons);
   parsed.probShorts.forEach(pb => {
     const cc = balloonColorHex(parsed.balloons, pb);
     const icon = sonic ? sonicImgHTML(pb) + ' ' : (cc ? balloonSVG(cc) + ' ' : '');
-    headRow.append(el('th', { html: icon + escapeHtml(pb) }));
+    headRow.append(el('th', { class: 'prob', html: icon + escapeHtml(pb) }));
   });
   headRow.append(el('th', {}, 'Total'));
-  headRow.append(el('th', { title: T('Soma das penalidades (min)', 'Penalty sum (min)') }, T('Penal.', 'Penalty')));
+  headRow.append(el('th', { title: T('Soma das penalidades (min)', 'Penalty sum (min)') }, T('Penal.', 'Pen.')));
   table.append(el('thead', {}, headRow));
 
   const tb = el('tbody');
@@ -108,7 +112,8 @@ export function renderICPC(parsed, opts) {
     const safeLogo = /^(data:image\/|\/|https?:)/.test(t.schoolLogo || '') ? String(t.schoolLogo).replace(/"/g, '') : '';
     const logo = safeLogo ? `<img src="${safeLogo}" alt="" style="height:16px;vertical-align:middle;margin-right:4px;border-radius:2px" onerror="this.remove()"> ` : '';
     const label = (t.univShort ? `[${escapeHtml(t.univShort)}] ` : '') + escapeHtml(t.teamName || t.username);
-    const teamTd = el('td', { class: 'team', title: t.univFull || t.univShort || '', html: logo + label });
+    const teamTd = el('td', { class: 'team',
+      title: [t.univFull || t.univShort || '', t.username].filter(Boolean).join(' · '), html: logo + label });
     // foto do time (photo.png subida pelo admin): link clicável, abre em nova aba
     if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
     // 🤖 = o time DECLAROU na inscrição que usa IA (transparência, não julgamento)
@@ -125,19 +130,24 @@ export function renderICPC(parsed, opts) {
         const fts = v.endsWith('*');                       // first to solve
         const shown = fts ? v.slice(0, -1) : v;
         const color = balloonColorHex(parsed.balloons, sn);
-        const td = el('td', {}, (fts ? '★ ' : '') + shown);
+        // valor dentro de .pv: é o que ganha fonte menor (e no celular sai de cena, dando
+        // lugar ao ✓ — os números ficam no title).
+        const td = el('td', { class: 'cell ok', title: cellTitle(sn, shown, T) },
+          fts ? el('span', { class: 'fts' }, '★') : null,
+          el('span', { class: 'pv' }, shown));
         if (color) { td.style.background = color; td.style.color = balloonIsDark(color) ? '#fff' : '#222'; td.style.fontWeight = '700'; }
         else { td.style.background = '#e2ffe9'; td.style.color = '#222'; td.style.fontWeight = '700'; }
-        if (fts) { td.title = 'First to solve'; td.style.boxShadow = 'inset 0 0 0 2px currentColor'; }
+        if (fts) { td.title = T('Primeiro a resolver', 'First to solve') + ' · ' + cellTitle(sn, shown, T); td.style.boxShadow = 'inset 0 0 0 2px currentColor'; }
         tr.append(td);
       } else if (cellWait(v)) {
-        tr.append(el('td', { class: 'prob-wait-cell' }, v));
+        tr.append(el('td', { class: 'cell c-try prob-wait-cell', title: cellTitle(sn, v, T) },
+          el('span', { class: 'pv' }, v)));
       } else {
-        tr.append(el('td', {}, v));
+        tr.append(el('td', { class: 'cell', title: sn }, el('span', { class: 'pv' }, v)));
       }
     });
-    tr.append(el('td', {}, t.total));
-    tr.append(el('td', {}, t.penalty));
+    tr.append(el('td', { class: 'cell tot' }, t.total));
+    tr.append(el('td', { class: 'cell pen' }, el('span', { class: 'pv' }, t.penalty)));
     tb.append(tr);
   });
   table.append(tb);

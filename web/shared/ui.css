@@ -389,6 +389,87 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 
 /* placar: linha de time CONVIDADO (extra-oficial) — aparece intercalada mas sem posição
    oficial (a numeração pula). Fundo levemente distinto + número "–" na coluna de posição. */
+/* ===== PLACAR — definição ÚNICA (a página do contest, a cerimônia de revelação e o relatório
+   offline usam esta; o report-gen inlina este arquivo). REGRA: o placar NUNCA rola para o lado.
+   Como se garante isso: `table-layout:fixed` + <colgroup> com porcentagens que fecham em 100%
+   (ver web/contest/score/score-cols.js e o mesmo cálculo no awk do report-gen.sh) — a coluna
+   vale o que o <col> diz e o conteúdo QUEBRA dentro dela. Antes era layout auto + nowrap em
+   toda célula: o nome comprido do time esticava a tabela e sobrava rolagem (em 1024px só 3 de
+   14 problemas apareciam). O número da célula fica em fonte menor (`.pv`) para a REFERÊNCIA da
+   coluna (letra + balão) continuar legível. */
+table.score { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0;
+  background:#fff; border-radius:10px; overflow:hidden; font-size:.92rem;
+  /* cenário (o JS carimba): --nprob, --w-flag, --w-pen, --w-total; o resto é conta daqui.
+     A divisão fecha SEMPRE em 100%: colunas fixas + os problemas ficam com a FRAÇÃO
+     `--w-prob-share` do que sobra e o time com o resto. Cada faixa de tela só mexe nas
+     constantes. ⚠ Sem `min()`/`max()`: o Firefox IGNORA função de comparação na largura de
+     <col> (testado — a tabela caía para colunas uniformes), então a proporção substitui o
+     "piso" do nome do time. */
+  --nprob:1; --w-place:4%; --w-flag-on:3.5%; --w-total-on:5.5%; --w-pen-on:6.5%;
+  --w-flag:var(--w-flag-on); --w-total:var(--w-total-on); --w-pen:var(--w-pen-on);
+  --w-prob-share:.62; --w-team-div:1;
+  --w-fixed:calc(var(--w-place) + var(--w-flag) + var(--w-total) + var(--w-pen));
+  --w-avail:calc(100% - var(--w-fixed));
+  --w-team:calc(var(--w-avail) * (1 - var(--w-prob-share)));
+  --w-prob:calc(var(--w-avail) * var(--w-prob-share) / var(--nprob)); }
+table.score col.c-place { width:var(--w-place); }
+table.score col.c-flag  { width:var(--w-flag); }
+table.score col.c-team  { width:calc(var(--w-team) / var(--w-team-div)); }
+table.score col.c-prob  { width:var(--w-prob); }
+table.score col.c-total { width:var(--w-total); }
+table.score col.c-pen   { width:var(--w-pen); }
+table.score th, table.score td { padding:.4rem .35rem; text-align:center;
+  border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums;
+  white-space:normal; overflow-wrap:anywhere; }
+table.score th { background:var(--blue-soft); color:var(--blue-dark); font-weight:700;
+  cursor:pointer; user-select:none; position:sticky; top:0; z-index:1; line-height:1.15; }
+table.score th.prob { font-size:.95em; }
+table.score td.team { text-align:left; line-height:1.25; }
+table.score td.team .u { color:var(--muted); font-size:.8em; }
+table.score tr:hover td { background:#f0f7ff; }
+table.score .cl-place, table.score td.place { font-weight:800; color:var(--blue-dark); }
+/* o número é uma unidade: não quebra no meio (só a coluna encolhe a fonte) */
+table.score td.cell .pv { font-size:.78em; font-variant-numeric:tabular-nums;
+  overflow-wrap:normal; word-break:keep-all; }
+table.score td.cell .fts { font-size:.7em; vertical-align:top; }
+.prob-wait-cell, table.score td.c-try { background:#fdf1d0; color:var(--warn); font-weight:700; }
+.balloon-svg { width:20px; height:23px; vertical-align:middle; }
+/* embrulho do placar: ao contrário do .chart-wrap, NÃO rola — o layout já garante o encaixe */
+.board-wrap { overflow-x:visible; }
+/* telas médias: aperta espaçamento e fonte antes de mexer no conteúdo */
+@media (max-width:1100px) {
+  table.score { font-size:.86rem; }
+  table.score th, table.score td { padding:.3rem .15rem; }
+  table.score td.cell .pv { font-size:.74em; }
+  .balloon-svg { width:16px; height:18px; }
+}
+@media (max-width:820px) {
+  table.score { font-size:.8rem; --w-prob-share:.68; }
+  table.score th, table.score td { padding:.25rem .1rem; }
+  table.score td.cell .pv { font-size:.7em; }
+  .balloon-svg { width:13px; height:15px; }
+}
+/* CELULAR: número não cabe em 14+ colunas — a célula vira MARCA (o fundo do balão continua
+   sendo a informação; ✓/✗ garante leitura sem depender de cor). Os números seguem no title. */
+@media (max-width:640px) {
+  table.score { font-size:.78rem;
+    /* o número virou ✓: a coluna de problema precisa de quase nada e o nome do time e os
+       totais ficam com o espaço (senão "Total" quebrava em "T/ot/al"). */
+    --w-place:6%; --w-flag-on:4.5%; --w-total-on:8.5%; --w-pen-on:8.5%; --w-prob-share:.5; }
+  table.score th, table.score td { padding:.3rem .06rem; }
+  table.score th { font-size:.74em; letter-spacing:-.02em; }
+  table.score td.team { font-size:.95em; }
+  table.score td.team img, table.score td.cell .fts { display:none; }
+  /* o anel do "primeiro a resolver" é inline (box-shadow): em coluna de ~9px ele virava um
+     retângulo alto sem sentido. Some no celular — a informação fica no title. */
+  table.score td.cell { box-shadow:none !important; }
+  table.score .flag-mini { height:11px !important; }
+  table.score td.cell .pv { display:none; }
+  table.score td.cell.ok::before { content:"✓"; font-weight:800; }
+  table.score td.cell.c-try::before { content:"✗"; }
+  table.score td.team .u, table.score td.team .pill { display:none; }
+  table.score td.team img { display:none; }
+}
 table.score tr.guest-row { background: rgba(120,120,120,.07) }
 table.score tr.guest-row .cl-place { color: var(--muted, #777); font-style: italic }
 @media (prefers-color-scheme: dark) { table.score tr.guest-row { background: rgba(255,255,255,.05) } }

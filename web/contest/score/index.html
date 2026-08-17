@@ -9,19 +9,9 @@
   <style>
     .contest-topbar-title { font-weight:800; font-size:1.25rem; }
     .quicknav a.active { text-decoration:underline; }
-    /* placar */
-    table.score { width:100%; border-collapse:separate; border-spacing:0; background:#fff;
-      border-radius:10px; overflow:hidden; font-size:.92rem; }
-    table.score th, table.score td { padding:.45rem .6rem; text-align:center; border-bottom:1px solid var(--line);
-      font-variant-numeric:tabular-nums; white-space:nowrap; }
-    table.score th { background:var(--blue-soft); color:var(--blue-dark); font-weight:700; cursor:pointer; user-select:none;
-      position:sticky; top:0; z-index:1; }
-    table.score td.team { text-align:left; }
-    table.score tr:hover td { background:#f0f7ff; }
-    table.score .cl-place { font-weight:800; color:var(--blue-dark); }
-    .prob-wait-cell { background:#fdf1d0; color:var(--warn); font-weight:700; }
-    .score-flag { height:18px; vertical-align:middle; border-radius:3px; }
-    .balloon-svg { width:20px; height:23px; vertical-align:middle; }
+    /* o CSS do placar (largura fixa por colgroup, quebra de linha, marca no celular) mora em
+       /shared/ui.css — é o MESMO da cerimônia e do relatório offline. Aqui fica só o que é
+       desta página. */
     /* animação de mudança de posição */
     tr.placing-up td { animation:flash-up 1.1s ease; }
     tr.placing-down td { animation:flash-down 1.1s ease; }

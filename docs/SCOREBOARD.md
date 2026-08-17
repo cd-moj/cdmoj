@@ -131,6 +131,30 @@ Geradores existentes (testados contra dados reais, batem com os placares legados
 `updatescore-icpc.sh`, `updatescore-obi.sh`, `updatescore-treino.sh`, `updatescore-heuristic.sh`,
 `updatescore-outro.sh`.
 
+## Layout: o placar NUNCA rola para o lado
+
+Regra de produto: todas as colunas têm de ser visíveis em qualquer tela — pode quebrar linha,
+não pode rolar. Como isso é garantido (vale para o placar do contest, a **cerimônia de
+revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
+
+- `table.score { table-layout:fixed }` + **`<colgroup>`**: a coluna vale o que o `<col>` diz e
+  o conteúdo quebra dentro dela. Antes era layout automático + `white-space:nowrap`: o nome
+  comprido do time esticava a tabela e, com 14 problemas, em 1024px só três apareciam.
+- As larguras são **fração**, não pixel: o renderizador só carimba o cenário
+  (`--nprob`, e zera `--w-flag`/`--w-pen` quando a coluna não existe) e o `ui.css` divide —
+  colunas fixas (`#`, bandeira, Total, Penal.), os problemas ficam com `--w-prob-share` do que
+  sobra e o time com o resto. Helper: `web/contest/score/score-cols.js` (`scoreCols`).
+  ⚠ **Não use `min()`/`max()` na largura de `<col>`**: o Firefox ignora função de comparação
+  ali e a tabela cai para colunas uniformes (testado). Só `calc()` com `+ - * /`.
+- O número da célula vive em **`<span class="pv">`** e tem fonte menor que o cabeçalho — a
+  referência da coluna (letra + balão) é o que precisa ser legível. Cada faixa de tela
+  (`≤1100`, `≤820`, `≤640`) só ajusta constantes.
+- **Celular (≤640px)**: o número sai de cena e a célula vira **marca** (`✓` resolvido, `✗`
+  tentou; o fundo do balão continua sendo a informação principal). Tentativas e minuto ficam no
+  `title` (`A: 1 tentativa, 28 min`, via `cellTitle`).
+- O embrulho do placar é **`.board-wrap`** (sem `overflow-x`), nunca `.chart-wrap`/`.tblwrap` —
+  esses rolam e são para as outras tabelas.
+
 ## Recursos do placar (web/contest/score/)
 
 - **Bandeiras locais (offline):** a coluna `flag` (código de país ISO-2 ou estado `BR-SP`)

@@ -14,6 +14,7 @@ import { status } from '/shared/auth.js';
 import { parseICPC } from './score-icpc.js';
 import { balloonColorHex, balloonIsDark } from './score-colors.js';
 import { flagEl } from '/shared/flags.js';
+import { scoreCols, cellTitle } from './score-cols.js';
 
 const CONTEST = new URLSearchParams(location.search).get('c') || '';
 const G = { contest: CONTEST, auth: true };
@@ -50,8 +51,11 @@ function render(highlight) {
   const box = document.getElementById('board'); box.innerHTML = '';
   const ordered = standingsSort(teams);
   const table = el('table', { class: 'score' });
+  // mesmas larguras do placar (table-layout:fixed): no projetor TODAS as colunas aparecem —
+  // antes a página não tinha nem embrulho e o body{overflow-x:clip} CORTAVA as últimas.
+  scoreCols(table, probShorts.length, { flag: true, penalty: true });
   const hr = el('tr', {}, el('th', {}, '#'), el('th', {}, ''), el('th', {}, T('Equipe', 'Team')));
-  probShorts.forEach(sn => hr.append(el('th', {}, sn)));
+  probShorts.forEach(sn => hr.append(el('th', { class: 'prob' }, sn)));
   hr.append(el('th', {}, 'Total'), el('th', {}, T('Penal.', 'Pen.')));
   table.append(el('thead', {}, hr));
   const tb = el('tbody');
@@ -62,32 +66,38 @@ function render(highlight) {
     tr.append(el('td', { class: 'cl-place' }, String(i + 1)));
     const ftd = el('td', {}); if (t.flag) { const fi = flagEl(t.flag, { height: 16 }); if (fi) ftd.append(fi); }
     tr.append(ftd);
-    tr.append(el('td', { class: 'team', title: t.univFull || '' },
+    tr.append(el('td', { class: 'team', title: [t.univFull || '', t.username].filter(Boolean).join(' · ') },
       (t.univShort ? '[' + t.univShort + '] ' : '') + (t.teamName || t.username)));
     probShorts.forEach(sn => {
       const v = t.cells[sn] || '';
       const pend = (v !== (t.fullCells[sn] || ''));
-      const td = el('td', {});
+      const td = el('td', { class: 'cell' });
+      const shownIn = (txt) => td.append(el('span', { class: 'pv' }, txt));
       if (cellSolvedRe.test(v)) {
         const fts = v.endsWith('*');
-        td.textContent = (fts ? '★ ' : '') + (fts ? v.slice(0, -1) : v);
+        const shown = fts ? v.slice(0, -1) : v;
+        td.className = 'cell ok';
+        td.title = cellTitle(sn, shown, T);
+        if (fts) td.append(el('span', { class: 'fts' }, '★'));
+        shownIn(shown);
         const color = balloonColorHex(balloons, sn);
         td.style.background = color || '#e2ffe9';
         td.style.color = color && balloonIsDark(color) ? '#fff' : '#222';
         td.style.fontWeight = '700';
         if (fts) td.style.boxShadow = 'inset 0 0 0 2px currentColor';
       } else if (pend) {
-        td.textContent = (v && v !== ':' ? v.replace(/\/-$/, '') + ' ' : '') + '?';
-        td.className = 'prob-wait-cell';
-      } else td.textContent = v;
+        td.className = 'cell c-try prob-wait-cell';
+        td.title = sn;
+        shownIn((v && v !== ':' ? v.replace(/\/-$/, '') + ' ' : '') + '?');
+      } else { td.title = sn; shownIn(v); }
       tr.append(td);
     });
-    tr.append(el('td', { style: 'font-weight:800' }, String(t.solved)),
-              el('td', {}, String(t.penalty)));
+    tr.append(el('td', { class: 'cell tot', style: 'font-weight:800' }, String(t.solved)),
+              el('td', { class: 'cell pen' }, el('span', { class: 'pv' }, String(t.penalty))));
     tb.append(tr);
   });
   table.append(tb);
-  box.append(table);
+  box.append(el('div', { class: 'board-wrap' }, table));
   const st = document.getElementById('status');
   st.textContent = finished ? T('Cerimônia concluída — placar final revelado. 🎉', 'Ceremony complete — final scoreboard revealed. 🎉')
     : cursor < 0 ? T('Pronto. Espaço/→ (ou ▶ Auto) para revelar de baixo para cima.', 'Ready. Space/→ (or ▶ Auto) to reveal from bottom to top.')

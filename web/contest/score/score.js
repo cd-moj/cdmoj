@@ -261,7 +261,9 @@ function reRender() {
   else if (parsed.mode === 'obi') table = renderOBI(parsed, opts);
   else table = renderGeneric(parsed, opts);
   box.innerHTML = '';
-  box.append(el('div', { class: 'chart-wrap' }, table));
+  // .board-wrap (e NÃO .chart-wrap): o placar não rola para o lado — as larguras do
+  // <colgroup> já garantem que tudo cabe, quebrando linha quando precisa.
+  box.append(el('div', { class: 'board-wrap' }, table));
   animateMoves();
 }
 

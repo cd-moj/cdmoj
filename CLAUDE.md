@@ -175,6 +175,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
   do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).
+- **Placar NUNCA rola para o lado** (contest, revelação e relatório usam o MESMO CSS em
+  `ui.css`): `table-layout:fixed` + `<colgroup>` com frações (`score-cols.js` carimba
+  `--nprob`; o CSS divide), número da célula em `.pv` com fonte menor, e no celular (≤640px)
+  a célula vira ✓/✗ com os números no `title`. Embrulho é `.board-wrap` (sem overflow).
+  ⚠ `min()`/`max()` em largura de `<col>` é IGNORADO pelo Firefox — só `calc()` simples.
+  Detalhes em `docs/SCOREBOARD.md`.
 - **Coluna NUMÉRICA em tabela = `class="n"` no `<td>` E no `<th>`** (`ui.css`: alinha à direita,
   `tabular-nums`, largura do conteúdo). Marcar só o `td` foi bug real: com `width:100%` o
   cabeçalho ficava à esquerda e o número a meia tela dele, parecendo pertencer à coluna

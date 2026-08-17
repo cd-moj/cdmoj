@@ -10,6 +10,9 @@ export function flagPath(code) {
   const m = c.match(/^br[-_]([a-z]{2})$/);
   if (m) return BASE + '/br/' + m[1] + '.svg';
   if (/^[a-z]{2}$/.test(c)) return BASE + '/country/' + c + '.svg';
+  // subdivisão fora do Brasil (gb-eng, es-ct, sh-ac…): o cache de países tem esses arquivos
+  // com o código INTEIRO. Sem isto, um time com flag "sh-ac" ficava sem bandeira nenhuma.
+  if (/^[a-z]{2}[-_][a-z]{2,3}$/.test(c)) return BASE + '/country/' + c.replace('_', '-') + '.svg';
   return '';
 }
 
