@@ -3711,7 +3711,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Foto do time (webp; png no acervo antigo — lado máx 1000; 📷 clicável no placar; secreto exige sessão)",
+        "summary": "Foto do time (webp; png no acervo antigo — lado máx 1000; 📷 clicável no placar; secreto exige sessão). thumb=1 devolve a MINIATURA de 320px (~7 KB), usada pela galeria do .animeitor",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3723,6 +3723,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "thumb",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "1 = miniatura 320px (Cache-Control longo; o cliente manda &v=<mtime>)"
           }
         ],
         "responses": {
@@ -3806,7 +3815,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{teams:[{login,name,univ,cohort,flag,has_photo,format,bytes,mtime}], total, with_photo}"
+            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime}], total, with_photo} — UMA varredura (find|xargs jq), pensada p/ 1000+ times"
           },
           "403": {
             "description": "animeitor_required"

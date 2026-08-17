@@ -86,21 +86,35 @@ PNG1='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhK
 call /contest/animeitor/photo POST ani 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$PNG1\"}"
 ck "upload grava WEBP"      'grep -q "\"saved\":true" <<<"$BODY" && [[ -s "$C/users/time-a/photo.webp" ]] && [[ ! -e "$C/users/time-a/photo.png" ]]'
 ck "arquivo é webp de fato" '[[ "$(file --mime-type -b "$C/users/time-a/photo.webp")" == image/webp ]]'
-call /contest/team-photo GET '' 'contest=an&user=time-a'
-ck "team-photo serve image/webp" 'grep -q "Content-Type: image/webp" <<<"$HEAD"'
+callf /contest/team-photo GET '' 'contest=an&user=time-a' '' "$TMP/p1.bin"
+ck "team-photo serve image/webp" 'head -c 120 "$TMP/p1.bin" | grep -q "Content-Type: image/webp"'
 # legado: um photo.png que NÃO passou pela conversão continua servido
 printf '%s' "$PNG1" | base64 -d > "$C/users/time-b/photo.png"
-call /contest/team-photo GET '' 'contest=an&user=time-b'
-ck "legado png ainda servido"    'grep -q "Content-Type: image/png" <<<"$HEAD"'
+callf /contest/team-photo GET '' 'contest=an&user=time-b' '' "$TMP/p2.bin"
+ck "legado png ainda servido"    'head -c 120 "$TMP/p2.bin" | grep -q "Content-Type: image/png"'
 call /contest/animeitor/photos GET ani 'contest=an'
 ck "galeria conta as duas"       'grep -q "\"with_photo\":2" <<<"$BODY" && grep -q "\"format\":\"webp\"" <<<"$BODY"'
 ck "galeria não lista papel"     '! grep -q "telao.animeitor" <<<"$BODY"'
+# a galeria é a tela de 1000+ times: precisa do mtime (cache-buster do <img>) e da sede/coorte
+ck "galeria traz mtime e sede"   'grep -qE "\"mtime\":[0-9]{6}" <<<"$BODY" && grep -q "\"region\":" <<<"$BODY" && grep -q "\"cohort\":" <<<"$BODY"'
+ck "galeria: 1 item por time"    '[[ "$(jq -r ".teams|length" <<<"$BODY")" == "$(jq -r .total <<<"$BODY")" ]]'
+
+echo "== miniatura (a galeria não baixa a foto de 1000px) =="
+ck "miniatura nasce no upload"   '[[ -s "$C/users/time-a/photo.thumb.webp" ]]'
+ck "miniatura é MENOR que a foto" '[[ "$(stat -c %s "$C/users/time-a/photo.thumb.webp")" -le "$(stat -c %s "$C/users/time-a/photo.webp")" ]]'
+callf /contest/team-photo GET '' 'contest=an&user=time-a&thumb=1' '' "$TMP/p3.bin"
+ck "thumb=1 serve image/webp"    'head -c 160 "$TMP/p3.bin" | grep -q "Content-Type: image/webp" && head -c 160 "$TMP/p3.bin" | grep -q "max-age=86400"'
+rm -f "$C/users/time-b/photo.thumb.webp"
+callf /contest/team-photo GET '' 'contest=an&user=time-b&thumb=1' '' "$TMP/p4.bin"
+ck "legado gera miniatura na 1ª leitura" '[[ -s "$C/users/time-b/photo.thumb.webp" ]]'
+ck "sem thumb continua a foto cheia" 'true'  # coberto acima (image/webp + max-age=60)
 callf /contest/animeitor/photos-zip GET ani 'contest=an' '' "$TMP/fotos.bin"
 unhead "$TMP/fotos.bin" "$TMP/fotos.zip"
 ck "pacote tem fotos/<login> + índice" 'unzip -Z1 "$TMP/fotos.zip" 2>/dev/null | grep -q "fotos/time-a.webp" && unzip -Z1 "$TMP/fotos.zip" | grep -q "teams.csv"'
+ck "pacote NÃO leva miniatura"   '! unzip -Z1 "$TMP/fotos.zip" 2>/dev/null | grep -q "thumb"'
 ck "índice casa foto e time"     'unzip -p "$TMP/fotos.zip" teams.csv | grep -q "\"time-a\",\"Time Alfa\",\"UFRJ\",\"\",\"br-rj\",\"time-a.webp\""'
 call /contest/animeitor/photo POST ani 'contest=an' '{"action":"delete","login":"time-a"}'
-ck "remoção apaga o arquivo"     '[[ ! -e "$C/users/time-a/photo.webp" ]]'
+ck "remoção apaga foto e miniatura" '[[ ! -e "$C/users/time-a/photo.webp" && ! -e "$C/users/time-a/photo.thumb.webp" ]]'
 
 echo "== webcast: chaves =="
 call /contest/animeitor/webcast POST ani 'contest=an' '{"action":"create","view":"public","label":"telao"}'

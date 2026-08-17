@@ -7,7 +7,7 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
-import { downloadAuthed, fmtDate } from '/shared/admin-ui.js';
+import { downloadAuthed, fmtDate, norm, debounce } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
@@ -19,8 +19,17 @@ const enc = encodeURIComponent;
 let PHOTOS = null;   // {teams:[…], total, with_photo}
 let WC = null;       // {keys:[…], views:[…], url_path}
 
-const photoUrl = (login) =>
-  `/api/v1/contest/team-photo?contest=${enc(CONTEST)}&user=${enc(login)}&t=${Date.now()}`;
+// ESTADO DA GALERIA (prova de verdade tem 1000+ times): filtro + página. Abre em "sem foto",
+// que é a fila de trabalho de quem opera o telão.
+const F = { photo: 'no', q: '', cohort: '', univ: '', region: '' };
+let PAGE_I = 0;
+const PAGE = 48;     // 48 cartões = a grade cheia; o DOM fica pequeno e só estas fotos baixam
+
+// MINIATURA (thumb=1, ~7 KB em vez de 37 KB) e cache-buster ESTÁVEL (v=<mtime>): com
+// `t=Date.now()` cada render rebaixava a imagem inteira de novo.
+const photoUrl = (t, thumb) =>
+  `/api/v1/contest/team-photo?contest=${enc(CONTEST)}&user=${enc(t.login)}`
+  + (thumb ? '&thumb=1' : '') + `&v=${t.mtime || 0}`;
 
 // URL que o Animeitor deve buscar. Host atual: dentro do contest é o subdomínio dele, que é
 // exatamente o endereço que o operador tem à mão.
@@ -37,11 +46,15 @@ async function loadPhotos() {
   PHOTOS = await apiGet('/contest/animeitor/photos?contest=' + enc(CONTEST), G);
 }
 
-async function sendPhoto(login, file, box) {
+// upload de UM time: atualiza só o cartão (a resposta traz bytes/format) — recarregar a
+// listagem inteira a cada foto seria absurdo numa prova de 1000 times.
+async function sendPhoto(t, file, box) {
   const b64 = await fileToBase64(file);
-  await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST), { login, file_b64: b64 }, G);
-  await loadPhotos(); render();
-  if (box) msg(box, T('Foto atualizada.', 'Photo updated.'), 'small');
+  const r = await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST), { login: t.login, file_b64: b64 }, G);
+  Object.assign(t, { has_photo: true, format: r.format || 'webp', bytes: r.bytes || 0, mtime: Math.floor(Date.now() / 1000) });
+  if (PHOTOS) PHOTOS.with_photo = PHOTOS.teams.filter((x) => x.has_photo).length;
+  renderPhotos();
+  if (box) msg(box, T('Foto atualizada: ', 'Photo updated: ') + (t.name || t.login), 'small');
 }
 
 function photoCard(t, box) {
@@ -51,12 +64,14 @@ function photoCard(t, box) {
     if (!f) return;
     if (f.size > 8 * 1024 * 1024) { msg(box, T('Imagem muito grande (máx 8MB).', 'Image too large (max 8MB).'), 'error-box'); return; }
     msg(box, T('Enviando ', 'Uploading ') + t.login + '…');
-    try { await sendPhoto(t.login, f, box); }
+    try { await sendPhoto(t, f, box); }
     catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
   });
   return el('div', { class: 'card' },
     t.has_photo
-      ? el('img', { class: 'ph', src: photoUrl(t.login), alt: t.name, loading: 'lazy' })
+      // miniatura + lazy: só as fotos da página corrente são baixadas, e a 2ª visita vem do cache
+      ? el('a', { href: photoUrl(t, false), target: '_blank', title: T('ver em tamanho real', 'view full size') },
+          el('img', { class: 'ph', src: photoUrl(t, true), alt: t.name, loading: 'lazy', decoding: 'async' }))
       : el('div', { class: 'ph none' }, T('sem foto', 'no photo')),
     el('div', { class: 'nm' }, t.name || t.login),
     el('div', { class: 'lg' }, (t.univ ? '[' + t.univ + '] ' : '') + t.login),
@@ -68,51 +83,134 @@ function photoCard(t, box) {
         if (!confirm(T('Remover a foto de ', 'Remove the photo of ') + (t.name || t.login) + '?')) return;
         try {
           await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST), { action: 'delete', login: t.login }, G);
-          await loadPhotos(); render();
+          Object.assign(t, { has_photo: false, format: '', bytes: 0, mtime: 0 });
+          if (PHOTOS) PHOTOS.with_photo = PHOTOS.teams.filter((x) => x.has_photo).length;
+          renderPhotos();
         } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
       } }, T('remover', 'remove')) : ''),
   );
 }
 
-function photosSection() {
-  const box = el('div', { class: 'small muted' });
-  const bulk = el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+// ---- filtro (tudo no cliente, sobre a lista já carregada) ----
+const teamsAll = () => (PHOTOS && PHOTOS.teams) || [];
+// os predicados são separados p/ a CONTAGEM VIVA dos chips (contar sem o próprio filtro de foto)
+const matchQ = (t) => !F.q || norm(`${t.name} ${t.login} ${t.univ}`).includes(F.q);
+const matchSel = (t) => (!F.cohort || t.cohort === F.cohort)
+                     && (!F.univ || t.univ === F.univ)
+                     && (!F.region || t.region === F.region);
+const matchPhoto = (t) => F.photo === 'all' || (F.photo === 'yes' ? t.has_photo : !t.has_photo);
+const filtered = () => teamsAll().filter((t) => matchPhoto(t) && matchSel(t) && matchQ(t));
+
+function selOf(field, label, id) {
+  const vals = [...new Set(teamsAll().map((t) => t[field]).filter(Boolean))].sort();
+  if (!vals.length) return '';
+  const sel = el('select', { id },
+    el('option', { value: '' }, T('todas', 'all')),
+    ...vals.map((v) => el('option', { value: v }, v)));
+  sel.value = F[field] || '';
+  sel.addEventListener('change', () => { F[field] = sel.value; PAGE_I = 0; renderPhotos(); });
+  return el('label', {}, label, sel);
+}
+
+function photosBar(box) {
+  // contagem VIVA dos chips: conta com os OUTROS filtros aplicados (o de foto não conta a si
+  // mesmo) — mesma semântica das facetas do treino
+  const base = teamsAll().filter((t) => matchSel(t) && matchQ(t));
+  const nYes = base.filter((t) => t.has_photo).length;
+  const chip = (key, label, n) => el('button', {
+    class: 'btn ' + (F.photo === key ? '' : 'ghost'),
+    onclick: () => { F.photo = key; PAGE_I = 0; renderPhotos(); },
+  }, `${label} (${n})`);
+
+  const q = el('input', { id: 'fQ', class: 'filter', type: 'search',
+    placeholder: T('buscar time, login, universidade…', 'search team, login, university…') });
+  q.value = F.q;
+  // debounce: com 1000 times o re-render a cada tecla seria perceptível
+  q.addEventListener('input', debounce(() => { F.q = norm(q.value.trim()); PAGE_I = 0; renderPhotos(); }, 150));
+
+  return el('div', { class: 'fbar' },
+    el('div', { class: 'row', style: 'gap:.3rem' },
+      chip('no', T('Sem foto', 'Missing'), base.length - nYes),
+      chip('yes', T('Com foto', 'With photo'), nYes),
+      chip('all', T('Todos', 'All'), base.length)),
+    selOf('cohort', T('Coorte:', 'Cohort:'), 'fCohort'),
+    selOf('univ', T('Universidade:', 'University:'), 'fUniv'),
+    selOf('region', T('Sede:', 'Site:'), 'fRegion'),
+    q,
+    el('button', { id: 'fClear', class: 'btn ghost', onclick: () => {
+      F.photo = 'all'; F.q = ''; F.cohort = ''; F.univ = ''; F.region = ''; PAGE_I = 0; renderPhotos();
+    } }, T('limpar', 'clear')),
+    el('span', { class: 'fcount', id: 'fCount' }, ''),
+  );
+}
+
+// pager do padrão da casa (treino/problemas): ‹ página X / Y ›
+function pager(pages) {
+  if (pages <= 1) return '';
+  return el('div', { class: 'row', style: 'gap:.4rem; align-items:center; margin:.5rem 0' },
+    el('button', { class: 'btn ghost', onclick: () => { if (PAGE_I > 0) { PAGE_I--; renderPhotos(); } } }, '‹'),
+    el('span', { class: 'small' }, ` ${T('página', 'page')} ${PAGE_I + 1} / ${pages} `),
+    el('button', { class: 'btn ghost', onclick: () => { if (PAGE_I < pages - 1) { PAGE_I++; renderPhotos(); } } }, '›'));
+}
+
+// re-render SÓ da seção de fotos (o streaming não é tocado por filtro/página)
+function renderPhotos() {
+  const host = document.getElementById('photosSec');
+  if (!host) return;
+  const box = el('div', { class: 'small muted', id: 'phMsg' });
+  const prev = document.getElementById('phMsg');
+  if (prev) box.append(...prev.childNodes);           // preserva a mensagem do último upload
+
+  const rows = filtered();
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  if (PAGE_I >= pages) PAGE_I = pages - 1;
+  const slice = rows.slice(PAGE_I * PAGE, PAGE_I * PAGE + PAGE);
+
+  host.innerHTML = '';
+  host.append(
+    el('h2', {}, T('📷 Fotos dos times', '📷 Team photos')),
+    el('p', { class: 'note' },
+      T(`${(PHOTOS && PHOTOS.with_photo) || 0} de ${(PHOTOS && PHOTOS.total) || 0} times já têm foto.`,
+        `${(PHOTOS && PHOTOS.with_photo) || 0} of ${(PHOTOS && PHOTOS.total) || 0} teams already have a photo.`)),
+    el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.4rem; flex-wrap:wrap' }, bulkInput(box),
+      el('button', { class: 'btn', onclick: () => document.getElementById('phBulk').click() },
+        T('⬆ Enviar em lote (nome do arquivo = login)', '⬆ Bulk upload (file name = login)')),
+      el('button', { class: 'btn ghost', onclick: () => downloadAuthed(CONTEST,
+          '/contest/animeitor/photos-zip?contest=' + enc(CONTEST), 'fotos-' + CONTEST + '.zip') },
+        T('⬇ Baixar pacote (.zip)', '⬇ Download package (.zip)'))),
+    photosBar(box), box,
+    rows.length ? el('div', { class: 'gal' }, ...slice.map((t) => photoCard(t, box)))
+                : el('p', { class: 'muted' }, T('Nenhum time casa com o filtro.', 'No team matches the filter.')),
+    pager(pages),
+  );
+  const c = document.getElementById('fCount');
+  if (c) c.textContent = (rows.length === teamsAll().length)
+    ? T(`${rows.length} times`, `${rows.length} teams`)
+    : T(`Mostrando ${rows.length} de ${teamsAll().length} times`, `Showing ${rows.length} of ${teamsAll().length} teams`);
+}
+
+function bulkInput(box) {
+  const bulk = el('input', { id: 'phBulk', type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
   bulk.addEventListener('change', async () => {
     const fs = [...(bulk.files || [])];
     if (!fs.length) return;
-    let ok = 0, bad = [];
+    let ok = 0; const bad = [];
     for (let i = 0; i < fs.length; i++) {
       msg(box, T('Enviando ', 'Uploading ') + (i + 1) + '/' + fs.length + '…');
       // o LOGIN vem do nome do arquivo (fulano.jpg -> fulano), como no painel de Times
-      try { await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST),
-              { login: fs[i].name, file_b64: await fileToBase64(fs[i]) }, G); ok++; }
-      catch { bad.push(fs[i].name); }
+      try {
+        await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST),
+          { login: fs[i].name, file_b64: await fileToBase64(fs[i]) }, G);
+        ok++;
+      } catch { bad.push(fs[i].name); }
     }
-    await loadPhotos(); render();
+    await loadPhotos(); renderPhotos();
     const b = document.getElementById('phMsg');
     if (b) msg(b, T(`${ok} foto(s) enviada(s).`, `${ok} photo(s) uploaded.`)
       + (bad.length ? T(' Não casaram com nenhum time: ', ' No team matched: ') + bad.join(', ') : ''),
       bad.length ? 'error-box' : 'small');
   });
-  box.id = 'phMsg';
-
-  const list = (PHOTOS && PHOTOS.teams) || [];
-  const missing = list.filter((t) => !t.has_photo).length;
-  return el('div', { class: 'section' },
-    el('h2', {}, T('📷 Fotos dos times', '📷 Team photos')),
-    el('p', { class: 'note' },
-      T(`${(PHOTOS && PHOTOS.with_photo) || 0} de ${(PHOTOS && PHOTOS.total) || 0} times com foto`,
-        `${(PHOTOS && PHOTOS.with_photo) || 0} of ${(PHOTOS && PHOTOS.total) || 0} teams with a photo`)
-      + (missing ? T(` · ${missing} sem foto`, ` · ${missing} without one`) : '')),
-    el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.7rem; flex-wrap:wrap' }, bulk,
-      el('button', { class: 'btn', onclick: () => bulk.click() },
-        T('⬆ Enviar em lote (nome do arquivo = login)', '⬆ Bulk upload (file name = login)')),
-      el('button', { class: 'btn ghost', onclick: () => downloadAuthed(CONTEST,
-          '/contest/animeitor/photos-zip?contest=' + enc(CONTEST), 'fotos-' + CONTEST + '.zip') },
-        T('⬇ Baixar pacote (.zip)', '⬇ Download package (.zip)'))),
-    box,
-    el('div', { class: 'gal' }, ...list.map((t) => photoCard(t, box))),
-  );
+  return bulk;
 }
 
 // ---------- 🎥 streaming ------------------------------------------------------
@@ -182,7 +280,10 @@ function streamSection() {
 // ---------- render ------------------------------------------------------------
 function render() {
   app.innerHTML = '';
-  app.append(streamSection(), photosSection());
+  // a seção de fotos tem hospedeiro FIXO: filtro/página redesenham só ela (renderPhotos),
+  // sem tocar nas chaves do streaming
+  app.append(streamSection(), el('div', { class: 'section', id: 'photosSec' }));
+  renderPhotos();
 }
 
 async function boot() {

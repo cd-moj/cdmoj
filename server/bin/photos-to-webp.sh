@@ -11,8 +11,13 @@
 # outra rota — por isso o contest `treino` é pulado.
 set -u
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
-APPLY=0; ARGS=()
-for a in "$@"; do case "$a" in --apply) APPLY=1;; -*) echo "uso: $0 [<contest> …] [--apply]" >&2; exit 1;; *) ARGS+=("$a");; esac; done
+APPLY=0; THUMBS=0; ARGS=()
+for a in "$@"; do case "$a" in
+  --apply)  APPLY=1;;
+  --thumbs) THUMBS=1; APPLY=1;;   # só preenche as miniaturas que faltam (não reconverte foto)
+  -*) echo "uso: $0 [<contest> …] [--apply] [--thumbs]" >&2; exit 1;;
+  *) ARGS+=("$a");;
+esac; done
 
 command -v convert >/dev/null || { echo "sem ImageMagick (convert)" >&2; exit 1; }
 convert -list format 2>/dev/null | grep -qE '^ *WEBP' || { echo "convert SEM delegate WEBP" >&2; exit 1; }
@@ -22,9 +27,25 @@ if (( ${#ARGS[@]} )); then CONTESTS=("${ARGS[@]}"); else
   CONTESTS=(); for d in "$CONTESTSDIR"/*/; do c="${d%/}"; c="${c##*/}"; [[ "$c" == treino ]] && continue; CONTESTS+=("$c"); done
 fi
 
-tot=0; ok=0; fail=0; before=0; after=0
+# mkthumb <origem> <destino> — a MESMA receita da lib (320px/q78); `webp:` explícito porque o
+# ImageMagick escolhe o formato pela extensão e o temporário é .tmp
+mkthumb(){
+  convert "$1" -strip -resize '320x320>' -quality 78 "webp:$2.tmp" 2>/dev/null \
+    && [[ "$(file --mime-type -b "$2.tmp" 2>/dev/null)" == image/webp ]] \
+    && mv -f "$2.tmp" "$2" && return 0
+  rm -f "$2.tmp"; return 1
+}
+
+tot=0; ok=0; fail=0; before=0; after=0; nth=0
 for c in "${CONTESTS[@]}"; do
   [[ -d "$CONTESTSDIR/$c/users" ]] || continue
+  # miniaturas que faltam (para QUALQUER foto, inclusive as já convertidas)
+  for f in "$CONTESTSDIR/$c/users"/*/photo.webp "$CONTESTSDIR/$c/users"/*/photo.png; do
+    d="${f%/photo.*}"; th="$d/photo.thumb.webp"
+    [[ -s "$th" && "$th" -nt "$f" ]] && continue
+    if (( APPLY )); then mkthumb "$f" "$th" && nth=$((nth+1)); else nth=$((nth+1)); fi
+  done
+  (( THUMBS )) && continue
   for f in "$CONTESTSDIR/$c/users"/*/photo.png; do
     d="${f%/photo.png}"; login="${d##*/}"
     [[ -s "$d/photo.webp" ]] && continue      # já convertido (o png é resíduo)
@@ -42,7 +63,7 @@ for c in "${CONTESTS[@]}"; do
     fi
   done
 done
-printf -- '---\n%s foto(s); convertidas=%s falhas=%s; %s KB -> %s KB\n' \
-  "$tot" "$ok" "$fail" "$((before/1024))" "$((after/1024))"
+printf -- '---\n%s foto(s); convertidas=%s falhas=%s; %s KB -> %s KB; miniaturas=%s\n' \
+  "$tot" "$ok" "$fail" "$((before/1024))" "$((after/1024))" "$nth"
 (( APPLY == 0 )) && printf 'dry-run: rode com --apply para gravar\n'
 exit 0

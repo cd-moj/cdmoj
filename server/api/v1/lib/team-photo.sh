@@ -47,8 +47,36 @@ tp_store(){
   fi
   mv -f "$out.tmp" "$out"
   rm -f "$d/photo.png"                              # o webp substitui o legado deste time
+  _tp_mkthumb "$out" "$d/$TP_THUMB"                 # miniatura já sai pronta (50 ms)
   printf '%s' "$out"
 }
 
-# tp_remove <c> <login> — apaga a foto (as duas extensões)
-tp_remove(){ local d; d="$(user_dir "$1" "$2")"; rm -f "$d/photo.webp" "$d/photo.png"; }
+# --- MINIATURA (galeria) ---------------------------------------------------------------
+# A galeria do .animeitor mostra o time num cartão de ~170px: servir a foto de 1000px ali é
+# 37 KB por cartão (numa prova de 1000 times, dezenas de MB ao rolar). A miniatura de 320px
+# custa 7 KB. Ela nasce no upload; para o acervo antigo é gerada na 1ª leitura, no molde
+# build-once do pr_build_pdf (lib/print.sh): confere mtime, flock, reconfere dentro do lock.
+TP_THUMB=photo.thumb.webp
+
+_tp_mkthumb(){  # <origem> <destino> — silencioso; rc!=0 se não deu
+  convert "$1" -strip -resize '320x320>' -quality 78 "webp:$2.tmp" 2>/dev/null || { rm -f "$2.tmp"; return 1; }
+  [[ "$(file --mime-type -b "$2.tmp" 2>/dev/null)" == image/webp ]] || { rm -f "$2.tmp"; return 1; }
+  mv -f "$2.tmp" "$2"
+}
+
+# tp_thumb <c> <login> -> caminho da miniatura ("" se não há foto nem deu para gerar)
+tp_thumb(){
+  local c="$1" u="$2" d src th
+  src="$(tp_file "$c" "$u")"; [[ -n "$src" ]] || { printf ''; return 0; }
+  d="$(user_dir "$c" "$u")"; th="$d/$TP_THUMB"
+  [[ -s "$th" && "$th" -nt "$src" ]] && { printf '%s' "$th"; return 0; }
+  ( flock -w 10 9 || exit 1
+    [[ -s "$th" && "$th" -nt "$src" ]] && exit 0            # outro processo já gerou
+    _tp_mkthumb "$src" "$th" || exit 1
+  ) 9>"$d/.thumb.lock" 2>/dev/null
+  [[ -s "$th" ]] && { printf '%s' "$th"; return 0; }
+  printf '%s' "$src"                                        # sem miniatura, serve a foto
+}
+
+# tp_remove <c> <login> — apaga a foto (as duas extensões) e a miniatura
+tp_remove(){ local d; d="$(user_dir "$1" "$2")"; rm -f "$d/photo.webp" "$d/photo.png" "$d/$TP_THUMB"; }

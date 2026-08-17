@@ -20,6 +20,14 @@ export const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g
 // cor pelo veredicto nas tabelas do painel (pendente = neutro, o resto = anomalia visível)
 export const vClass = (v) => (/accepted/i.test(v || '') ? 'v-ok' : (/(not answered|queue|running)/i.test(v || '') ? '' : 'flag-anom'));
 
+// --- busca em lista ---------------------------------------------------------
+// norm: minúsculas SEM acento — "São Carlos" casa com "sao". Estava copiado em 5 telas
+// (treino, problemas, home, contests, stat); telas novas usam esta.
+export const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+// debounce: só para busca que custa (re-render de lista grande ou chamada de rede). Filtro de
+// array pequeno em memória não precisa — o repo filtra a cada tecla e vai bem.
+export const debounce = (fn, ms = 150) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; };
+
 // --- campos -----------------------------------------------------------------
 export const field = (l, inp) => el('div', { class: 'field' }, el('label', {}, l), inp);
 export const chk = (l, c) => el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, c, ' ' + l));

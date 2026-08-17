@@ -59,6 +59,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   página `/contest/animeitor/` — fotos dos times (em **webp**, `lib/team-photo.sh`) e as CHAVES do
   **webcast**, o pacote de placar que alimenta o sistema Animeitor pela rota **sem sessão**
   `/contest/webcast?key=…` (formato do BOCA, separador `0x1C`). Ver `docs/WEBCAST.md`.
+  ⚠ **Listagem de MUITOS usuários é UMA varredura** (`find -printf` + `find|xargs jq`, login pelo
+  `input_filename` — molde do `sc_cells`), nunca um `jq`/`stat` por conta: a galeria de fotos
+  levava 5,3 s com 1000 times e passou a 0,10 s. A galeria pede **miniatura**
+  (`team-photo?thumb=1`, 320 px) e usa `&v=<mtime>` como cache-buster — `Date.now()` na URL
+  rebaixa a imagem a cada render.
   Auto-cadastro **nunca** cria papel por sufixo: use `is_reserved_role_login` (`lib/auth.sh`) —
   já aplicado no signup; o `/admin/adduser` (admin autenticado) **continua** podendo criar
   `.judge`/`.staff`/`.cstaff` de um contest (legítimo).

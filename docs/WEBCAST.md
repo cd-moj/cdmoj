@@ -97,7 +97,24 @@ nginx (o BOCA tem a mesma propriedade) — trate como senha e revogue depois do 
 ## Fotos dos times
 
 O `.animeitor` tem uma galeria em `/contest/animeitor/`: ver quem já tem foto, trocar, subir em
-lote (o **nome do arquivo é o login**) e baixar o pacote:
+lote (o **nome do arquivo é o login**) e baixar o pacote. Ela é feita para **prova de 1000+
+times** — três decisões que valem a pena conhecer antes de mexer:
+
+- **A listagem é UMA varredura, não um `jq` por time.** `GET /contest/animeitor/photos` faz um
+  `find -printf` (tamanho+mtime de todas as fotos) e um `find | xargs jq` (todas as contas, login
+  pelo `input_filename`, como o `sc_cells`), e junta por `--slurpfile`. Medido com 1000 times:
+  **5,3 s → 0,10 s**. Voltar a forkar por usuário é o jeito garantido de derrubar a página.
+- **A galeria pede MINIATURA** (`/contest/team-photo?…&thumb=1`, 320 px ≈ 7 KB no lugar de 37 KB).
+  Ela nasce no upload (`tp_store`) e, para o acervo antigo, é gerada na 1ª leitura
+  (`tp_thumb`, build-once com `flock`). O 📷 do placar e o pacote continuam com a foto CHEIA.
+- **Cache-buster é o `mtime`** (`&v=<mtime>`), não `Date.now()`: com o relógio, cada render
+  rebaixava todas as imagens de novo.
+
+A tela abre filtrada em **"sem foto"** (a fila de trabalho), com chips de contagem viva, busca
+sem acento (debounce de 150 ms), recortes por coorte/universidade/sede e **paginação de 48
+cartões** — o DOM fica pequeno e só as fotos da página corrente são baixadas.
+
+Rota do pacote:
 
 ```
 GET /contest/animeitor/photos-zip?contest=<id>   ->  fotos/<login>.webp + teams.csv
