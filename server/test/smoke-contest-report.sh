@@ -111,4 +111,16 @@ callf /contest/admin/report adm 'contest=rp' "$FIX/r3.bin"
 ck "geração concorrente → 429 busy" 'head -c 100 "$FIX/r3.bin" | grep -q "Status: 429"'
 wait "$LOCKPID" 2>/dev/null
 
+# --- i18n: o mesmo relatório com o contest em inglês -------------------------------------
+printf 'LOCALE=en\n' >> "$C/conf"
+EN="$FIX/ren"; CONTESTSDIR="$FIX" MOJ_PROBLEMS_DIR="$PKG" bash "$ROOT/score/report-gen.sh" rp "$EN" >/dev/null 2>&1
+ck "EN: chrome traduzido"        'grep -q ">🏆 Scoreboard<" "$EN/index.html" && grep -q ">📊 Statistics<" "$EN/index.html"'
+ck "EN: índice traduzido"        'grep -q "<dt>Contest</dt>" "$EN/index.html" && grep -q "<th>Author</th>" "$EN/index.html"'
+ck "EN: placar traduzido"        'grep -q "<th>Team</th>" "$EN/index.html" && grep -q "<th>Pen.</th>" "$EN/index.html"'
+ck "EN: runs/clar/staff/infra"   'grep -q "<th>Verdict</th>" "$EN/runs.html" && grep -q "<th>Type</th>" "$EN/staff-tasks.html" && grep -q "Judging infrastructure" "$EN/infra.html"'
+ck "EN: documentos traduzidos"   'grep -q "Problem set" "$EN/documentos.html" && grep -q "<th>Language</th>" "$EN/documentos.html"'
+ck "EN: html lang=en"            'grep -q "<html lang=\"en\">" "$EN/index.html"'
+ck "EN: sem PT vazando"          '! grep -qE "<dt>Competição</dt>|<th>Equipe</th>|Tarefas do staff" "$EN/index.html" "$EN/staff-tasks.html"'
+ck "EN: estatística em inglês"   'grep -q "\"en\"" "$EN/statistics.html"'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

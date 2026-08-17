@@ -75,6 +75,147 @@ FREEZE="${FREEZE_TIME:-0}";  [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0
 CNAME="${CONTEST_NAME:-$C}"
 NOW="$EPOCHSECONDS"
 
+# --- idioma do relatório: o LOCALE do contest ------------------------------------------
+# Rodamos provas com times de fora; o relatório é o documento que sobra do evento, então
+# nasce nos DOIS idiomas como qualquer tela (regra do CLAUDE.md). Mesma mecânica do
+# lib/contest-docs.sh (_doc_t): uma tabela de chaves, nada de string solta no meio do HTML.
+# Blocos awk/jq recebem os rótulos já traduzidos por -v/--arg.
+LOC="${LOCALE:-pt}"; [[ "$LOC" == en ]] || LOC=pt
+rep_t(){ case "$LOC:$1" in
+  # chrome
+  pt:tab_score) printf '🏆 Placar';;              en:tab_score) printf '🏆 Scoreboard';;
+  pt:tab_runs) printf '📨 Runs';;                 en:tab_runs) printf '📨 Runs';;
+  pt:tab_clar) printf '💬 Clarifications';;       en:tab_clar) printf '💬 Clarifications';;
+  pt:tab_stats) printf '📊 Estatísticas';;        en:tab_stats) printf '📊 Statistics';;
+  pt:tab_docs) printf '📄 Documentos';;           en:tab_docs) printf '📄 Documents';;
+  pt:tab_staff) printf '🖨️ Tarefas do staff';;    en:tab_staff) printf '🖨️ Staff tasks';;
+  pt:tab_infra) printf '⚙️ Infra';;               en:tab_infra) printf '⚙️ Infra';;
+  pt:tab_frozen) printf '❄ Placar congelado';;    en:tab_frozen) printf '❄ Frozen scoreboard';;
+  pt:subtitle) printf 'relatório da competição';; en:subtitle) printf 'contest report';;
+  pt:footer) printf 'Gerado em';;                 en:footer) printf 'Generated on';;
+  pt:by_moj) printf 'pelo MOJ';;                  en:by_moj) printf 'by MOJ';;
+  # index
+  pt:page_index) printf 'Placar e informações';;  en:page_index) printf 'Scoreboard and info';;
+  pt:contest) printf 'Competição';;               en:contest) printf 'Contest';;
+  pt:start) printf 'Início';;                     en:start) printf 'Start';;
+  pt:end) printf 'Término';;                      en:end) printf 'End';;
+  pt:duration) printf 'Duração';;                 en:duration) printf 'Duration';;
+  pt:mode) printf 'Modo';;                        en:mode) printf 'Mode';;
+  pt:penalty) printf 'Penalidade';;               en:penalty) printf 'Penalty';;
+  pt:penalty_val) printf 'min por tentativa rejeitada';; en:penalty_val) printf 'min per rejected attempt';;
+  pt:freeze) printf 'Congelamento';;              en:freeze) printf 'Freeze';;
+  pt:freeze_none) printf 'sem congelamento';;     en:freeze_none) printf 'no freeze';;
+  pt:freeze_at) printf 'aos';;                    en:freeze_at) printf 'at';;
+  pt:min_w) printf 'min';;                        en:min_w) printf 'min';;
+  pt:teams) printf 'Times';;                      en:teams) printf 'Teams';;
+  pt:subs) printf 'Submissões';;                  en:subs) printf 'Submissions';;
+  pt:problems) printf 'Problemas';;               en:problems) printf 'Problems';;
+  pt:letter) printf 'Letra';;                     en:letter) printf 'Letter';;
+  pt:problem) printf 'Problema';;                 en:problem) printf 'Problem';;
+  pt:author) printf 'Autor';;                     en:author) printf 'Author';;
+  pt:statement) printf 'Enunciado';;              en:statement) printf 'Statement';;
+  pt:ext_link) printf 'link externo';;            en:ext_link) printf 'external link';;
+  pt:final_score) printf 'Placar final (aberto)';; en:final_score) printf 'Final scoreboard (open)';;
+  pt:no_score) printf 'Sem placar gerado.';;      en:no_score) printf 'No scoreboard generated.';;
+  pt:frozen_title) printf 'Placar congelado';;    en:frozen_title) printf 'Frozen scoreboard';;
+  pt:frozen_note) printf 'Visão CONGELADA aos %s min (%s) — é o placar que o público viu durante a prova. O placar final aberto está na aba' "$2" "$3";;
+  en:frozen_note) printf 'FROZEN view at %s min (%s) — this is what the public saw during the contest. The final open scoreboard is in the tab' "$2" "$3";;
+  pt:open_note) printf 'O placar abaixo está ABERTO (sem congelamento). A visão congelada aos %s min está em' "$2";;
+  en:open_note) printf 'The scoreboard below is OPEN (no freeze). The frozen view at %s min is in' "$2";;
+  pt:team_col) printf 'Equipe';;                  en:team_col) printf 'Team';;
+  pt:total) printf 'Total';;                      en:total) printf 'Total';;
+  pt:pen_col) printf 'Penal.';;                   en:pen_col) printf 'Pen.';;
+  pt:guest) printf 'convidado';;                  en:guest) printf 'guest';;
+  pt:guest_title) printf 'Time convidado (extra-oficial): não entra na classificação';;
+  en:guest_title) printf 'Guest team (unofficial): not in the official ranking';;
+  pt:fts) printf 'Primeiro a resolver';;          en:fts) printf 'First to solve';;
+  pt:mode_icpc) printf 'ICPC';;                   en:mode_icpc) printf 'ICPC';;
+  pt:mode_obi) printf 'OBI (pontos)';;            en:mode_obi) printf 'OBI (points)';;
+  pt:mode_heur) printf 'Heurístico';;             en:mode_heur) printf 'Heuristic';;
+  pt:mode_list) printf 'Lista/treino';;           en:mode_list) printf 'List/practice';;
+  pt:mode_custom) printf 'Custom';;               en:mode_custom) printf 'Custom';;
+  # runs
+  pt:page_runs) printf 'Runs — todas as submissões';; en:page_runs) printf 'Runs — all submissions';;
+  pt:filter_ph) printf 'filtrar por time, login, problema…';; en:filter_ph) printf 'filter by team, login, problem…';;
+  pt:hour) printf 'Hora';;                        en:hour) printf 'Time';;
+  pt:team) printf 'Time';;                        en:team) printf 'Team';;
+  pt:univ) printf 'Univ';;                        en:univ) printf 'Univ';;
+  pt:prob) printf 'Prob';;                        en:prob) printf 'Prob';;
+  pt:lang) printf 'Ling';;                        en:lang) printf 'Lang';;
+  pt:verdict) printf 'Veredicto';;                en:verdict) printf 'Verdict';;
+  pt:minute) printf 'Min';;                       en:minute) printf 'Min';;
+  # clarifications
+  pt:page_clar) printf 'Clarifications';;         en:page_clar) printf 'Clarifications';;
+  pt:notice) printf 'Aviso da organização';;      en:notice) printf 'Announcement';;
+  pt:public) printf 'Pública';;                   en:public) printf 'Public';;
+  pt:private) printf 'Privada';;                  en:private) printf 'Private';;
+  pt:none_clar) printf 'Nenhuma clarification registrada.';; en:none_clar) printf 'No clarifications.';;
+  # estatísticas (noscript)
+  pt:page_stats) printf 'Estatísticas';;          en:page_stats) printf 'Statistics';;
+  pt:no_charts) printf 'Sem os módulos de gráfico (web/ ausente).';; en:no_charts) printf 'Chart modules missing (no web/).';;
+  pt:by_problem) printf 'Por problema';;          en:by_problem) printf 'By problem';;
+  pt:by_lang) printf 'Por linguagem';;            en:by_lang) printf 'By language';;
+  pt:by_verdict) printf 'Por veredicto';;         en:by_verdict) printf 'By verdict';;
+  pt:timeline) printf 'Linha do tempo (janelas de 10 min)';; en:timeline) printf 'Timeline (10-min windows)';;
+  pt:dist) printf 'Distribuição de problemas resolvidos';; en:dist) printf 'Distribution of problems solved';;
+  pt:name_w) printf 'Nome';;                      en:name_w) printf 'Name';;
+  pt:accepted) printf 'Aceitas';;                 en:accepted) printf 'Accepted';;
+  pt:solved_col) printf 'Resolveram';;            en:solved_col) printf 'Solved';;
+  pt:rate) printf 'Aceitação';;                   en:rate) printf 'Accept rate';;
+  pt:first_solve) printf '1º a resolver';;        en:first_solve) printf 'First to solve';;
+  pt:solvers) printf 'Times que resolveram';;     en:solvers) printf 'Teams that solved';;
+  pt:occurrences) printf 'Ocorrências';;          en:occurrences) printf 'Count';;
+  pt:solved_w) printf 'Resolveu';;                en:solved_w) printf 'Solved';;
+  pt:stats_fail) printf 'Falha ao renderizar as estatísticas.';; en:stats_fail) printf 'Failed to render the statistics.';;
+  pt:stats_none) printf 'Sem estatísticas geradas.';; en:stats_none) printf 'No statistics generated.';;
+  # staff
+  pt:page_staff) printf 'Tarefas do staff';;      en:page_staff) printf 'Staff tasks';;
+  pt:type) printf 'Tipo';;                        en:type) printf 'Type';;
+  pt:detail) printf 'Detalhe';;                   en:detail) printf 'Detail';;
+  pt:status) printf 'Status';;                    en:status) printf 'Status';;
+  pt:service) printf 'Atendimento';;              en:service) printf 'Handling';;
+  pt:balloon) printf 'balão';;                    en:balloon) printf 'balloon';;
+  pt:printing) printf 'impressão';;               en:printing) printf 'printing';;
+  pt:pages_sfx) printf 'pág.';;                   en:pages_sfx) printf 'pages';;
+  pt:none_tasks) printf 'Nenhuma tarefa registrada.';; en:none_tasks) printf 'No tasks recorded.';;
+  # infra
+  pt:page_infra) printf 'Infra';;                 en:page_infra) printf 'Infra';;
+  pt:snapshot) printf 'Snapshot no momento da geração do relatório (%s) + métricas de resposta da prova inteira.' "$2";;
+  en:snapshot) printf 'Snapshot taken when the report was generated (%s) + response metrics for the whole contest.' "$2";;
+  pt:avg_wait) printf 'espera média';;            en:avg_wait) printf 'average wait';;
+  pt:max_w) printf 'máxima';;                     en:max_w) printf 'max';;
+  pt:coverage) printf 'Cobertura: %s de %s submissões com tempo de resposta registrado.' "$2" "$3";;
+  en:coverage) printf 'Coverage: %s of %s submissions with a recorded response time.' "$2" "$3";;
+  pt:wait_by_prob) printf 'Espera média por problema';; en:wait_by_prob) printf 'Average wait per problem';;
+  pt:judged) printf 'Julgadas';;                  en:judged) printf 'Judged';;
+  pt:by_judge) printf 'Julgamentos por juiz';;    en:by_judge) printf 'Judgements per judge';;
+  pt:judge_host) printf 'Juiz (host)';;           en:judge_host) printf 'Judge (host)';;
+  pt:judgements) printf 'Julgamentos';;           en:judgements) printf 'Judgements';;
+  pt:avg_dur) printf 'Duração média do julgamento';; en:avg_dur) printf 'Average judging time';;
+  pt:registered) printf 'Juízes registrados (snapshot)';; en:registered) printf 'Registered judges (snapshot)';;
+  pt:queue_now) printf 'Fila no momento da geração: %s job(s) aguardando.' "$2";;
+  en:queue_now) printf 'Queue when generated: %s job(s) waiting.' "$2";;
+  pt:host) printf 'Host';;                        en:host) printf 'Host';;
+  pt:state) printf 'Estado';;                     en:state) printf 'State';;
+  pt:online) printf 'Online';;                    en:online) printf 'Online';;
+  pt:last_hb) printf 'Último heartbeat';;         en:last_hb) printf 'Last heartbeat';;
+  pt:langs) printf 'Linguagens';;                 en:langs) printf 'Languages';;
+  pt:cached) printf 'Problemas em cache';;        en:cached) printf 'Cached problems';;
+  # documentos
+  pt:page_docs) printf 'Documentos da prova';;    en:page_docs) printf 'Contest documents';;
+  pt:docs_note) printf 'Os documentos publicados aos times, como foram entregues. Abra o arquivo <b>extraído</b> do pacote (dentro do visualizador de rodadas os links relativos não abrem).';;
+  en:docs_note) printf 'The documents published to the teams, as delivered. Open the <b>extracted</b> package (relative links do not open inside the rounds viewer).';;
+  pt:doc_col) printf 'Documento';;                en:doc_col) printf 'Document';;
+  pt:lang_col) printf 'Idioma';;                  en:lang_col) printf 'Language';;
+  pt:file) printf 'Arquivo';;                     en:file) printf 'File';;
+  pt:size) printf 'Tamanho';;                     en:size) printf 'Size';;
+  pt:doc_contest) printf '📕 Caderno de problemas';; en:doc_contest) printf '📕 Problem set';;
+  pt:doc_times) printf '⏱ Limites de tempo';;     en:doc_times) printf '⏱ Time limits';;
+  pt:doc_info) printf 'ℹ️ Informações do ambiente';; en:doc_info) printf 'ℹ️ Testing environment';;
+  pt:doc_editorial) printf '📝 Editorial (soluções)';; en:doc_editorial) printf '📝 Editorial (solutions)';;
+  *) printf '%s' "$1";;
+esac; }
+
 # --- probmeta: letra/nome/skey + as 4 grafias do probid no history (off/raw/dot/hash) ---
 : > "$W/probs.tsv"
 for (( i=0; i<${#PROBS[@]}; i+=5 )); do
@@ -105,7 +246,8 @@ ACCT_JQ='[.login//"", ((.team.name // .fullname // "")|gsub("[:\t\n]";" ")),
 
 # escape/format: definidos ANTES das bandeiras — rep_flag usa esc() no alt/title.
 esc(){ printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&#39;/g"; }
-fmt_dt(){ (( ${1:-0} > 0 )) && date -d "@$1" '+%d/%m/%Y %H:%M' 2>/dev/null || printf '—'; }
+# data no formato do idioma do relatório (dd/mm em pt, yyyy-mm-dd em en)
+fmt_dt(){ (( ${1:-0} > 0 )) && date -d "@$1" "+$([[ "${LOC:-pt}" == en ]] && printf '%%Y-%%m-%%d %%H:%%M' || printf '%%d/%%m/%%Y %%H:%%M')" 2>/dev/null || printf '—'; }
 
 # --- bandeiras: MESMA regra do site (web/shared/flags.js), SVG local -> data URI ------
 # Era emoji de indicador regional: não renderiza no Windows nem em servidor sem Noto Color
@@ -223,16 +365,16 @@ CSSEOF
 rep_head(){ # <título> <id-da-aba-ativa>
   local title="$1" active="$2" tabs t fn id label
   tabs=""
-  for t in "index.html:index:🏆 Placar" "runs.html:runs:📨 Runs" \
-           "clarifications.html:clar:💬 Clarifications" "statistics.html:stats:📊 Estatísticas" \
-           "documentos.html:docs:📄 Documentos" \
-           "staff-tasks.html:staff:🖨️ Tarefas do staff" "infra.html:infra:⚙️ Infra"; do
+  for t in "index.html:index:$(rep_t tab_score)" "runs.html:runs:$(rep_t tab_runs)" \
+           "clarifications.html:clar:$(rep_t tab_clar)" "statistics.html:stats:$(rep_t tab_stats)" \
+           "documentos.html:docs:$(rep_t tab_docs)" \
+           "staff-tasks.html:staff:$(rep_t tab_staff)" "infra.html:infra:$(rep_t tab_infra)"; do
     IFS=: read -r fn id label <<< "$t"
     [[ "$id" == docs && ! -f "$OUTD/documentos.html" && "$active" != docs ]] && continue
     tabs+="<a href=\"$fn\"$([[ "$id" == "$active" ]] && printf ' class="on"')>$label</a>"
   done
   [[ -f "$OUTD/score-frozen.html" || "$active" == frozen ]] && \
-    tabs+="<a href=\"score-frozen.html\"$([[ "$active" == frozen ]] && printf ' class="on"')>❄ Placar congelado</a>"
+    tabs+="<a href=\"score-frozen.html\"$([[ "$active" == frozen ]] && printf ' class="on"')>$(rep_t tab_frozen)</a>"
   cat <<EOF
 <!DOCTYPE html>
 <html lang="$([[ "${LOCALE:-pt}" == en ]] && printf 'en' || printf 'pt-BR')">
@@ -249,7 +391,7 @@ $(rep_css)
 <span class="brand">$LOGO_IMG MOJ</span>
 <span class="contest-topbar-title">$(esc "$CNAME")</span>
 <span class="spacer"></span>
-<span class="rep-sub">relatório da competição</span>
+<span class="rep-sub">$(rep_t subtitle)</span>
 </div></header>
 <nav class="repnav"><div class="wrap">$tabs</div></nav>
 <div class="wrap">
@@ -259,7 +401,7 @@ EOF
 
 rep_foot(){
   cat <<EOF
-<footer>Gerado em $(fmt_dt "$NOW") pelo MOJ — moj.naquadah.com.br</footer>
+<footer>$(rep_t footer) $(fmt_dt "$NOW") $(rep_t by_moj) — moj.naquadah.com.br</footer>
 </div>
 </body>
 </html>
@@ -273,8 +415,10 @@ EOF
 # t/m* (first to solve) | t/-.
 rep_score_html(){ # <placar.txt>
   local f="$1"
-  [[ -s "$f" ]] || { printf '<p class="note">Sem placar gerado.</p>\n'; return; }
-  awk -F: -v MODE="$MODE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" '
+  [[ -s "$f" ]] || { printf '<p class="note">%s</p>\n' "$(rep_t no_score)"; return; }
+  awk -F: -v MODE="$MODE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" \
+      -v T_TEAM="$(rep_t team_col)" -v T_TOTAL="$(rep_t total)" -v T_PEN="$(rep_t pen_col)" \
+      -v T_GUEST="$(rep_t guest)" -v T_GUESTT="$(rep_t guest_title)" -v T_FTS="$(rep_t fts)" '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); gsub(/"/,"\\&quot;",s); return s }
     function issys(h){ return (h=="flag"||h=="username"||h=="univ short"||h=="team name"||h=="univ full"||h=="total"||h=="penalty"||h=="lastac"||h=="guest") }
@@ -285,7 +429,7 @@ rep_score_html(){ # <placar.txt>
       lbl=""; if(us!="") lbl="[" esc(us) "] ";
       lbl=lbl esc(tn!=""?tn:un)
       if(un!="") lbl=lbl " <span class=\"u\">[" esc(un) "]</span>"
-      if(g) lbl=lbl " <span class=\"pill\" title=\"Time convidado (extra-oficial): não entra na classificação\">convidado</span>"
+      if(g) lbl=lbl " <span class=\"pill\" title=\"" esc(T_GUESTT) "\">" esc(T_GUEST) "</span>"
       return "<td class=\"team\" title=\"" esc(uf!=""?uf:us) "\">" lbl "</td>"
     }
     BEGIN{
@@ -309,14 +453,14 @@ rep_score_html(){ # <placar.txt>
       printf "<div class=\"tblwrap\"><table class=\"score\">\n<thead><tr><th>#</th>"
       if (MODE=="icpc" || MODE=="obi") {
         if(iflag) printf "<th></th>"
-        printf "<th>Equipe</th>"
+        printf "<th>%s</th>", T_TEAM
         for(k=1;k<=np;k++){
           sty=""
           if (pname[k] in bhex) sty=" style=\"border-bottom:4px solid #" bhex[pname[k]] "\""
           printf "<th class=\"prob\"%s>%s</th>", sty, esc(pname[k])
         }
-        printf "<th>Total</th>"
-        if (MODE=="icpc" && ipen) printf "<th>Penal.</th>"
+        printf "<th>%s</th>", T_TOTAL
+        if (MODE=="icpc" && ipen) printf "<th>%s</th>", T_PEN
       } else {
         for(i=1;i<=ncol;i++) printf "<th>%s</th>", esc(trim(hdr[i])=="flag" ? "" : hdr[i])
       }
@@ -353,7 +497,7 @@ rep_score_html(){ # <placar.txt>
               if (pname[k] in bhex) sty="background:#" bhex[pname[k]] ";color:" (bdark[pname[k]]==1?"#fff":"#222")
               else sty="background:#e2ffe9;color:#222"
               sty=sty ";font-weight:700"; if(fts) sty=sty ";box-shadow:inset 0 0 0 2px currentColor"
-              printf "<td class=\"cell\" style=\"%s\"%s>%s%s</td>", sty, (fts?" title=\"First to solve\"":""), (fts?"&#9733; ":""), esc(shown)
+              printf "<td class=\"cell\" style=\"%s\"%s>%s%s</td>", sty, (fts?" title=\"" esc(T_FTS) "\"":""), (fts?"&#9733; ":""), esc(shown)
             } else if (v ~ /^[0-9]+\/-/) printf "<td class=\"cell c-try\">%s</td>", esc(v)
             else printf "<td class=\"cell\">%s</td>", esc(v)
           } else {   # obi: pontos
@@ -450,12 +594,13 @@ if (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" ]]; then
   OPEN_TXT="$CDIR/var/placar-full.txt"
   fmin=$(( (FREEZE - START) / 60 ))
   {
-    rep_head "Placar congelado" frozen
-    printf '<p class="note">Visão CONGELADA aos %s min (%s) — é o placar que o público viu durante a prova. O placar final aberto está na aba <a href="index.html">Placar</a>.</p>\n' "$fmin" "$(fmt_dt "$FREEZE")"
+    rep_head "$(rep_t frozen_title)" frozen
+    printf '<p class="note">%s <a href="index.html">%s</a>.</p>\n' \
+      "$(rep_t frozen_note "$fmin" "$(fmt_dt "$FREEZE")")" "$(rep_t tab_score)"
     rep_score_html "$CDIR/var/placar.txt"
     rep_foot
   } > "$OUTD/score-frozen.html"
-  FROZEN_NOTE="<p class=\"note\">O placar abaixo está ABERTO (sem congelamento). A visão congelada aos ${fmin} min está em <a href=\"score-frozen.html\">Placar congelado</a>.</p>"
+  FROZEN_NOTE="<p class=\"note\">$(rep_t open_note "$fmin") <a href=\"score-frozen.html\">$(rep_t frozen_title)</a>.</p>"
 fi
 
 # --- documentos.html: os documentos PUBLICADOS da prova, dentro do pacote ---------------
@@ -478,15 +623,16 @@ if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON"
   done < <(jq -r '(.published // [])[]' "$DOCS_JSON" 2>/dev/null)
   if [[ -s "$W/docs.tsv" ]]; then
     {
-      rep_head "Documentos da prova" docs
-      printf '<p class="note">Os documentos publicados aos times, como foram entregues. Abra o arquivo <b>extraído</b> do pacote (dentro do visualizador de rodadas os links relativos não abrem).</p>\n'
-      printf '<div class="tblwrap"><table class="moj">\n<thead><tr><th>Documento</th><th>Idioma</th><th>Arquivo</th><th>Tamanho</th></tr></thead>\n<tbody>\n'
+      rep_head "$(rep_t page_docs)" docs
+      printf '<p class="note">%s</p>\n' "$(rep_t docs_note)"
+      printf '<div class="tblwrap"><table class="moj">\n<thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
+        "$(rep_t doc_col)" "$(rep_t lang_col)" "$(rep_t file)" "$(rep_t size)"
       while IFS=$'\t' read -r dt dl fmt sz; do
         case "$dt" in
-          contest)    lbl="📕 Caderno de problemas";;
-          times)      lbl="⏱ Limites de tempo";;
-          info-sheet) lbl="ℹ️ Informações do ambiente";;
-          editorial)  lbl="📝 Editorial (soluções)";;
+          contest)    lbl="$(rep_t doc_contest)";;
+          times)      lbl="$(rep_t doc_times)";;
+          info-sheet) lbl="$(rep_t doc_info)";;
+          editorial)  lbl="$(rep_t doc_editorial)";;
           *)          lbl="$dt";;
         esac
         printf '<tr><td>%s</td><td>%s</td><td><a href="documentos/%s.%s.%s">%s</a></td><td>%s KB</td></tr>\n' \
@@ -498,40 +644,41 @@ if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON"
   fi
 
 # --- index.html ------------------------------------------------------------------------
-mode_label(){ case "$1" in icpc) echo "ICPC";; obi) echo "OBI (pontos)";; heuristic) echo "Heurístico";; treino) echo "Lista/treino";; *) echo "Custom";; esac; }
+mode_label(){ case "$1" in icpc) rep_t mode_icpc;; obi) rep_t mode_obi;; heuristic) rep_t mode_heur;; treino) rep_t mode_list;; *) rep_t mode_custom;; esac; }
 dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02d' $((s/3600)) $(( (s%3600)/60 )); }
 {
-  rep_head "Placar e informações" index
+  rep_head "$(rep_t page_index)" index
   printf '<div class="info"><dl>\n'
-  printf '<dt>Competição</dt><dd>%s</dd>\n' "$(esc "$CNAME")"
-  printf '<dt>Início</dt><dd>%s</dd>\n' "$(fmt_dt "$START")"
-  printf '<dt>Término</dt><dd>%s</dd>\n' "$(fmt_dt "$END")"
-  printf '<dt>Duração</dt><dd>%s</dd>\n' "$(dur_label $((END-START)))"
-  printf '<dt>Modo</dt><dd>%s</dd>\n' "$(mode_label "$MODE")"
-  [[ "$MODE" == icpc ]] && printf '<dt>Penalidade</dt><dd>%s min por tentativa rejeitada</dd>\n' "${PENALTY_MINUTES:-20}"
+  printf '<dt>%s</dt><dd>%s</dd>\n' "$(rep_t contest)" "$(esc "$CNAME")"
+  printf '<dt>%s</dt><dd>%s</dd>\n' "$(rep_t start)" "$(fmt_dt "$START")"
+  printf '<dt>%s</dt><dd>%s</dd>\n' "$(rep_t end)" "$(fmt_dt "$END")"
+  printf '<dt>%s</dt><dd>%s</dd>\n' "$(rep_t duration)" "$(dur_label $((END-START)))"
+  printf '<dt>%s</dt><dd>%s</dd>\n' "$(rep_t mode)" "$(mode_label "$MODE")"
+  [[ "$MODE" == icpc ]] && printf '<dt>%s</dt><dd>%s %s</dd>\n' "$(rep_t penalty)" "${PENALTY_MINUTES:-20}" "$(rep_t penalty_val)"
   if (( FREEZE > 0 )); then
-    printf '<dt>Congelamento</dt><dd>%s (aos %s min)</dd>\n' "$(fmt_dt "$FREEZE")" "$(( (FREEZE-START)/60 ))"
+    printf '<dt>%s</dt><dd>%s (%s %s min)</dd>\n' "$(rep_t freeze)" "$(fmt_dt "$FREEZE")" "$(rep_t freeze_at)" "$(( (FREEZE-START)/60 ))"
   else
-    printf '<dt>Congelamento</dt><dd>sem congelamento</dd>\n'
+    printf '<dt>%s</dt><dd>%s</dd>\n' "$(rep_t freeze)" "$(rep_t freeze_none)"
   fi
-  printf '<dt>Times</dt><dd>%s</dd>\n' "$TEAMS_N"
-  printf '<dt>Submissões</dt><dd>%s (<a href="runs.html">runs</a>)</dd>\n' "$RUNS_N"
+  printf '<dt>%s</dt><dd>%s</dd>\n' "$(rep_t teams)" "$TEAMS_N"
+  printf '<dt>%s</dt><dd>%s (<a href="runs.html">runs</a>)</dd>\n' "$(rep_t subs)" "$RUNS_N"
   printf '</dl></div>\n'
 
-  printf '<h2>Problemas</h2>\n<div class="tblwrap"><table class="moj">\n<thead><tr><th>Letra</th><th>Problema</th><th>Autor</th><th>Enunciado</th></tr></thead>\n<tbody>\n'
+  printf '<h2>%s</h2>\n<div class="tblwrap"><table class="moj">\n<thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
+    "$(rep_t problems)" "$(rep_t letter)" "$(rep_t problem)" "$(rep_t author)" "$(rep_t statement)"
   while IFS=$'\t' read -r Ls pfull hh hp url pauthor; do
     [[ "$url" == - ]] && url=""; [[ "$pauthor" == - ]] && pauthor=""
     links=""
     [[ "$hh" == 1 ]] && links+="<a href=\"statements/$Ls.html\">HTML</a> "
     [[ "$hp" == 1 ]] && links+="<a href=\"statements/$Ls.pdf\">PDF</a> "
-    [[ -n "$url" ]] && links+="<a href=\"$(esc "$url")\">link externo</a> "
+    [[ -n "$url" ]] && links+="<a href=\"$(esc "$url")\">$(rep_t ext_link)</a> "
     [[ -n "$links" ]] || links="—"
     printf '<tr><td><b>%s</b></td><td>%s</td><td>%s</td><td>%s</td></tr>\n' \
       "$(esc "$Ls")" "$(esc "$pfull")" "$([[ -n "$pauthor" ]] && esc "$pauthor" || printf '—')" "$links"
   done < "$W/stmt.tsv"
   printf '</tbody></table></div>\n'
 
-  printf '<h2>Placar final (aberto)</h2>\n'
+  printf '<h2>%s</h2>\n' "$(rep_t final_score)"
   printf '%s\n' "$FROZEN_NOTE"
   rep_score_html "$OPEN_TXT"
   rep_foot
@@ -541,16 +688,17 @@ fi
 
 # --- runs.html ---------------------------------------------------------------------------
 {
-  rep_head "Runs — todas as submissões" runs
-  printf '<p class="note">Todas as submissões da prova (sem código-fonte e sem logs do juiz; veredicto canônico). Clique num cabeçalho para ordenar.</p>\n'
-  printf '<input class="filter" id="fq" type="search" placeholder="filtrar por time, login, problema…">\n'
-  printf '<div class="tblwrap"><table id="runs">\n<thead><tr><th>#</th><th>Min</th><th>Hora</th><th>Time</th><th>Univ</th><th>Prob</th><th>Ling</th><th>Veredicto</th></tr></thead>\n<tbody>\n'
-  awk -F'\t' -v START="$START" '
+  rep_head "$(rep_t page_runs)" runs
+  printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'All submissions (no source code, no judge logs; canonical verdict). Click a header to sort.' || printf 'Todas as submissões da prova (sem código-fonte e sem logs do juiz; veredicto canônico). Clique num cabeçalho para ordenar.')"
+  printf '<input class="filter" id="fq" type="search" placeholder="%s">\n' "$(rep_t filter_ph)"
+  printf '<div class="tblwrap"><table id="runs">\n<thead><tr><th>#</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
+    "$(rep_t minute)" "$(rep_t hour)" "$(rep_t team)" "$(rep_t univ)" "$(rep_t prob)" "$(rep_t lang)" "$(rep_t verdict)"
+  awk -F'\t' -v START="$START" -v DTFMT="$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); gsub(/"/,"\\&quot;",s); return s }
     {
       se=$1+0; login=$2; letter=$3; lang=$4; v=$5; sid=$6; tn=$7; us=$8; uf=$9
       mn=(START>0)? int((se-START)/60) : ""
-      hora=strftime("%d/%m %H:%M:%S", se)
+      hora=strftime(DTFMT, se)
       cls="v-rej"
       if (v ~ /^Accepted/) cls="v-ac"
       else if (v ~ /^(Not Answered Yet|On queue|Running)/) cls="v-pend"
@@ -589,28 +737,31 @@ EOF
 
 # --- clarifications.html -----------------------------------------------------------------
 {
-  rep_head "Clarifications" clar
-  printf '<p class="note">Perguntas e respostas da prova. Quem perguntou e quem respondeu ficam anônimos.</p>\n'
+  rep_head "$(rep_t page_clar)" clar
+  printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'Questions and answers. Who asked and who answered stay anonymous.' || printf 'Perguntas e respostas da prova. Quem perguntou e quem respondeu ficam anônimos.')"
   ncl=0
   if [[ -d "$CDIR/clarifications" ]]; then
     find "$CDIR/clarifications" -maxdepth 1 -name '*.json' -print0 2>/dev/null \
       | xargs -0 -r jq -c 'del(.login, .answered_by, .answer_claim)' 2>/dev/null \
-      | jq -rs --argjson start "$START" 'sort_by(.time) | .[] |
-          (if .broadcast==true then "<span class=\"badge org\">Aviso da organização</span>"
-           elif .public==true then "<span class=\"badge pub\">Pública</span>"
-           else "<span class=\"badge priv\">Privada</span>" end) as $b
-          | ((.problem // "general") | if .=="general" then "Geral" else . end) as $p
-          | ((.time // 0) | strflocaltime("%d/%m %H:%M")) as $h
+      | jq -rs --argjson start "$START" --arg t_notice "$(rep_t notice)" --arg t_pub "$(rep_t public)" \
+             --arg t_priv "$(rep_t private)" --arg t_gen "$([[ "$LOC" == en ]] && printf 'General' || printf 'Geral')" \
+             --arg t_noans "$([[ "$LOC" == en ]] && printf '— no answer —' || printf '— sem resposta —')" \
+             --arg dtfmt "$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M' || printf '%%d/%%m %%H:%%M')" 'sort_by(.time) | .[] |
+          (if .broadcast==true then "<span class=\"badge org\">" + $t_notice + "</span>"
+           elif .public==true then "<span class=\"badge pub\">" + $t_pub + "</span>"
+           else "<span class=\"badge priv\">" + $t_priv + "</span>" end) as $b
+          | ((.problem // "general") | if .=="general" then $t_gen else . end) as $p
+          | ((.time // 0) | strflocaltime($dtfmt)) as $h
           | (if $start>0 and (.time//0)>0 then " (min \(((.time - $start)/60)|floor))" else "" end) as $mn
           | "<div class=\"qa\"><div class=\"meta\"><b>\($p|@html)</b> · \($h)\($mn) · \($b)</div>"
             + "<div class=\"q\">\((.question // "")|@html)</div>"
             + (if ((.answer // "")|length) > 0
                then "<div class=\"a\">\(.answer|@html)</div>"
-               else "<div class=\"a\" style=\"border-left-color:#c99\">— sem resposta —</div>" end)
+               else "<div class=\"a\" style=\"border-left-color:#c99\">" + $t_noans + "</div>" end)
             + "</div>"'
     ncl="$(find "$CDIR/clarifications" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l | tr -d '[:space:]')"
   fi
-  [[ "${ncl:-0}" == 0 ]] && printf '<p class="note">Nenhuma clarification registrada.</p>\n'
+  [[ "${ncl:-0}" == 0 ]] && printf '<p class="note">%s</p>\n' "$(rep_t none_clar)"
   rep_foot
 } > "$OUTD/clarifications.html"
 
@@ -638,79 +789,94 @@ rep_stats_bundle(){
 }
 
 {
-  rep_head "Estatísticas" stats
+  rep_head "$(rep_t page_stats)" stats
   SJ="$CDIR/var/statistics.cache.json"
   if [[ -s "$SJ" ]]; then
     printf '<div id="stats"></div>\n'
-    rep_stats_bundle "$SJ" || printf '<p class="note">Sem os módulos de gráfico (web/ ausente).</p>\n'
+    rep_stats_bundle "$SJ" || printf '<p class="note">%s</p>\n' "$(rep_t no_charts)"
     printf '<noscript>\n'
-    jq -r '
+    jq -r --arg t_subs "$(rep_t subs)" --arg t_acc "$(rep_t accepted)" --arg t_teams "$(rep_t teams)" \
+          --arg t_solvedp "$([[ "$LOC" == en ]] && printf 'problems solved' || printf 'problemas resolvidos')" \
+          --arg t_byprob "$(rep_t by_problem)" --arg t_prob "$(rep_t prob)" --arg t_name "$(rep_t name_w)" \
+          --arg t_solvedc "$(rep_t solved_col)" --arg t_rate "$(rep_t rate)" --arg t_first "$(rep_t first_solve)" \
+          --arg t_min "$(rep_t minute)" --arg t_bylang "$(rep_t by_lang)" --arg t_lang "$(rep_t by_lang)" \
+          --arg t_langc "$([[ "$LOC" == en ]] && printf 'Language' || printf 'Linguagem')" \
+          --arg t_solvers "$(rep_t solvers)" --arg t_byverd "$(rep_t by_verdict)" --arg t_verd "$(rep_t verdict)" \
+          --arg t_occ "$(rep_t occurrences)" --arg t_tl "$(rep_t timeline)" --arg t_dist "$(rep_t dist)" \
+          --arg t_solvedw "$(rep_t solved_w)" '
       def pct: (.*1000|floor)/10;
       "<div class=\"cards\">"
-      + "<div class=\"card\"><div class=\"n\">\(.totals.submissions)</div><div class=\"l\">submissões</div></div>"
-      + "<div class=\"card\"><div class=\"n\">\(.totals.accepted)</div><div class=\"l\">aceitas</div></div>"
-      + "<div class=\"card\"><div class=\"n\">\(.totals.users)</div><div class=\"l\">times ativos</div></div>"
-      + "<div class=\"card\"><div class=\"n\">\(.totals.problems_solved)</div><div class=\"l\">problemas resolvidos</div></div>"
+      + "<div class=\"card\"><div class=\"n\">\(.totals.submissions)</div><div class=\"l\">" + $t_subs + "</div></div>"
+      + "<div class=\"card\"><div class=\"n\">\(.totals.accepted)</div><div class=\"l\">" + $t_acc + "</div></div>"
+      + "<div class=\"card\"><div class=\"n\">\(.totals.users)</div><div class=\"l\">" + $t_teams + "</div></div>"
+      + "<div class=\"card\"><div class=\"n\">\(.totals.problems_solved)</div><div class=\"l\">" + $t_solvedp + "</div></div>"
       + "</div>"
-      + "<h2>Por problema</h2><div class=\"tblwrap\"><table><thead><tr><th>Prob</th><th>Nome</th><th>Subs</th><th>Times</th><th>Resolveram</th><th>Aceitação</th><th>1º a resolver</th><th>Minuto</th></tr></thead><tbody>"
+      + "<h2>" + $t_byprob + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_prob + "</th><th>" + $t_name + "</th><th>Subs</th><th>" + $t_teams + "</th><th>" + $t_solvedc + "</th><th>" + $t_rate + "</th><th>" + $t_first + "</th><th>" + $t_min + "</th></tr></thead><tbody>"
       + ([ .problems[] | "<tr><td><b>\(.short_name|@html)</b></td><td>\(.full_name|@html)</td><td>\(.submissions)</td><td>\(.attempted)</td><td>\(.solved)</td><td>\(.accept_rate|pct)%</td><td>\(.first_solver|@html)</td><td>\(if .first_minute<0 then "—" else (.first_minute|tostring) end)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
-      + "<h2>Por linguagem</h2><div class=\"tblwrap\"><table><thead><tr><th>Linguagem</th><th>Subs</th><th>Aceitas</th><th>Times que resolveram</th></tr></thead><tbody>"
+      + "<h2>" + $t_bylang + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_langc + "</th><th>Subs</th><th>" + $t_acc + "</th><th>" + $t_solvers + "</th></tr></thead><tbody>"
       + ([ .languages[] | "<tr><td>\(.lang|@html)</td><td>\(.submissions)</td><td>\(.accepted)</td><td>\(.solvers)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
-      + "<h2>Por veredicto</h2><div class=\"tblwrap\"><table><thead><tr><th>Veredicto</th><th>Ocorrências</th></tr></thead><tbody>"
+      + "<h2>" + $t_byverd + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_verd + "</th><th>" + $t_occ + "</th></tr></thead><tbody>"
       + ([ .verdicts[] | "<tr><td>\(.verdict|@html)</td><td>\(.count)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
       + (([ .timeline[].submissions ] | max // 0) as $mx
-         | "<h2>Linha do tempo (janelas de 10 min)</h2><div class=\"tblwrap\"><table><thead><tr><th>Min</th><th>Submissões</th><th style=\"width:50%\"></th></tr></thead><tbody>"
+         | "<h2>" + $t_tl + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_min + "</th><th>" + $t_subs + "</th><th style=\"width:50%\"></th></tr></thead><tbody>"
          + ([ .timeline[] | "<tr><td>\(.minute)</td><td>\(.submissions) (\(.accepted) AC)</td><td><span class=\"tbar\" style=\"width:\(if $mx>0 then (.submissions*100/$mx) else 0 end)%\"></span><span class=\"tbar ac\" style=\"width:\(if $mx>0 then (.accepted*100/$mx) else 0 end)%\"></span></td></tr>" ] | join(""))
          + "</tbody></table></div>")
-      + "<h2>Distribuição de problemas resolvidos</h2><div class=\"tblwrap\"><table><thead><tr><th>Resolveu</th><th>Times</th></tr></thead><tbody>"
+      + "<h2>" + $t_dist + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_solvedw + "</th><th>" + $t_teams + "</th></tr></thead><tbody>"
       + ([ .problems_solved_dist[]? | "<tr><td>\(.solved)</td><td>\(.users)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
-    ' "$SJ" 2>/dev/null || printf '<p class="note">Falha ao renderizar as estatísticas.</p>\n'
+    ' "$SJ" 2>/dev/null || printf '<p class="note">%s</p>\n' "$(rep_t stats_fail)"
     printf '</noscript>\n'
   else
-    printf '<p class="note">Sem estatísticas geradas.</p>\n'
+    printf '<p class="note">%s</p>\n' "$(rep_t stats_none)"
   fi
   rep_foot
 } > "$OUTD/statistics.html"
 
 # --- staff-tasks.html ---------------------------------------------------------------------
 {
-  rep_head "Tarefas do staff" staff
-  printf '<p class="note">Fila atendida pelo staff durante a prova: impressões (🖨️, só METADADOS — o arquivo enviado não é publicado) e balões (🎈).</p>\n'
+  rep_head "$(rep_t page_staff)" staff
+  printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'Queue handled by the staff during the contest: printing (🖨️, METADATA only — the uploaded file is not published) and balloons (🎈).' || printf 'Fila atendida pelo staff durante a prova: impressões (🖨️, só METADADOS — o arquivo enviado não é publicado) e balões (🎈).')"
   PRD="$CDIR/print-requests"
   nst=0
   if [[ -d "$PRD" ]]; then
-    printf '<div class="tblwrap"><table>\n<thead><tr><th>Nº</th><th>Tipo</th><th>Hora</th><th>Time</th><th>Univ</th><th>Detalhe</th><th>Status</th><th>Atendimento</th></tr></thead>\n<tbody>\n'
+    printf '<div class="tblwrap"><table>\n<thead><tr><th>#</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
+      "$(rep_t type)" "$(rep_t hour)" "$(rep_t team)" "$(rep_t univ)" "$(rep_t detail)" "$(rep_t status)" "$(rep_t service)"
     find "$PRD" -maxdepth 1 -name '*.json' ! -name badges.json ! -name staff-filters.json -print0 2>/dev/null \
       | xargs -0 -r jq -c 'select((.seq? // null) != null)' 2>/dev/null \
-      | jq -rs 'sort_by(.seq) | .[] |
+      | jq -rs --arg t_balloon "$(rep_t balloon)" --arg t_print "$(rep_t printing)" --arg t_pages "$(rep_t pages_sfx)" \
+             --arg t_prob "$([[ "$LOC" == en ]] && printf 'problem' || printf 'problema')" \
+             --arg t_deliv "$([[ "$LOC" == en ]] && printf 'delivered' || printf 'entregue')" \
+             --arg t_proc "$([[ "$LOC" == en ]] && printf 'processed' || printf 'processada')" \
+             --arg t_pend "$([[ "$LOC" == en ]] && printf 'pending' || printf 'pendente')" \
+             --arg t_by "$([[ "$LOC" == en ]] && printf 'by' || printf 'por')" \
+             --arg dtfmt "$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M' || printf '%%d/%%m %%H:%%M')" 'sort_by(.seq) | .[] |
           ((.kind // "print")) as $k
-          | ((.time // 0) | strflocaltime("%d/%m %H:%M")) as $h
+          | ((.time // 0) | strflocaltime($dtfmt)) as $h
           | (if $k=="balloon"
-             then "🎈 <span class=\"swatch\" style=\"background:#\(.color_hex // "CCCCCC")\"></span> \((.color_name // "")|@html) — problema <b>\((.short // "")|@html)</b>"
-             else "🖨️ \((.filename // "")|@html) (\(.size // 0) bytes\(if (.pages // 0) > 0 then ", \(.pages) pág." else "" end))" end) as $det
-          | (if .status=="delivered" then "<span class=\"badge st-delivered\">entregue</span>"
-             elif .status=="printed" then "<span class=\"badge st-printed\">processada</span>"
-             else "<span class=\"badge st-pending\">pendente</span>" end) as $st
-          | ((if (.processed_at // 0) > 0 then "processada \((.processed_at)|strflocaltime("%H:%M")) por \((.processed_by // "")|@html)" else "" end)
-             + (if (.delivered_at // 0) > 0 then " · entregue \((.delivered_at)|strflocaltime("%H:%M")) por \((.delivered_by // "")|@html)" else "" end)) as $att
-          | "<tr><td class=\"place\">\(.seq)</td><td>\(if $k=="balloon" then "balão" else "impressão" end)</td><td>\($h)</td>"
+             then "🎈 <span class=\"swatch\" style=\"background:#\(.color_hex // "CCCCCC")\"></span> \((.color_name // "")|@html) — " + $t_prob + " <b>\((.short // "")|@html)</b>"
+             else "🖨️ \((.filename // "")|@html) (\(.size // 0) bytes\(if (.pages // 0) > 0 then ", \(.pages) " + $t_pages else "" end))" end) as $det
+          | (if .status=="delivered" then "<span class=\"badge st-delivered\">" + $t_deliv + "</span>"
+             elif .status=="printed" then "<span class=\"badge st-printed\">" + $t_proc + "</span>"
+             else "<span class=\"badge st-pending\">" + $t_pend + "</span>" end) as $st
+          | ((if (.processed_at // 0) > 0 then $t_proc + " \((.processed_at)|strflocaltime("%H:%M")) " + $t_by + " \((.processed_by // "")|@html)" else "" end)
+             + (if (.delivered_at // 0) > 0 then " · " + $t_deliv + " \((.delivered_at)|strflocaltime("%H:%M")) " + $t_by + " \((.delivered_by // "")|@html)" else "" end)) as $att
+          | "<tr><td class=\"place\">\(.seq)</td><td>\(if $k=="balloon" then $t_balloon else $t_print end)</td><td>\($h)</td>"
             + "<td class=\"team\">\((.fullname // .team // "")|@html) <span class=\"u\">[\((.login // "")|@html)]</span></td>"
             + "<td>\((.univ // "")|@html)</td><td>\($det)</td><td>\($st)</td><td class=\"meta\">\(if ($att|length)>0 then $att else "—" end)</td></tr>"'
     printf '</tbody></table></div>\n'
     nst="$(find "$PRD" -maxdepth 1 -name '*.json' ! -name badges.json ! -name staff-filters.json 2>/dev/null | wc -l | tr -d '[:space:]')"
   fi
-  [[ "${nst:-0}" == 0 ]] && printf '<p class="note">Nenhuma tarefa registrada.</p>\n'
+  [[ "${nst:-0}" == 0 ]] && printf '<p class="note">%s</p>\n' "$(rep_t none_tasks)"
   rep_foot
 } > "$OUTD/staff-tasks.html"
 
 # --- infra.html (dados da aba Situação, janela = prova inteira) -----------------------------
 {
-  rep_head "Infraestrutura de julgamento" infra
-  printf '<p class="note">Snapshot no momento da geração do relatório (%s) + métricas de resposta da prova inteira.</p>\n' "$(fmt_dt "$NOW")"
+  rep_head "$([[ "$LOC" == en ]] && printf 'Judging infrastructure' || printf 'Infraestrutura de julgamento')" infra
+  printf '<p class="note">%s</p>\n' "$(rep_t snapshot "$(fmt_dt "$NOW")")"
 
   # métricas de resposta: espera = finalized_at - sub_epoch (results por-usuário)
   find "$CDIR/users" -mindepth 3 -maxdepth 3 -path '*/results/*.json' -print0 2>/dev/null \
@@ -731,34 +897,40 @@ rep_stats_bundle(){
   touch "$W/waits.tsv"
 
   sort -n -k1,1 "$W/waits.tsv" -o "$W/waits.tsv"
-  awk -F'\t' '
+  awk -F'\t' -v T_MEAS="$([[ "$LOC" == en ]] && printf 'measured responses' || printf 'respostas medidas')" \
+      -v T_AVG="$(rep_t avg_wait)" -v T_MED="$([[ "$LOC" == en ]] && printf 'median' || printf 'mediana')" \
+      -v T_MAX="$(rep_t max_w)" '
     { w[NR]=$1+0; s+=$1 }
     END{
       n=NR
-      if(n==0){ printf "<div class=\"cards\"><div class=\"card\"><div class=\"n\">0</div><div class=\"l\">respostas medidas</div></div></div>\n"; exit }
+      if(n==0){ printf "<div class=\"cards\"><div class=\"card\"><div class=\"n\">0</div><div class=\"l\">%s</div></div></div>\n", T_MEAS; exit }
       p50=w[int((n-1)*0.5)+1]; p95=w[int((n-1)*0.95)+1]
       printf "<div class=\"cards\">"
-      printf "<div class=\"card\"><div class=\"n\">%d</div><div class=\"l\">respostas medidas</div></div>", n
-      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">espera média</div></div>", s/n
-      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">mediana (p50)</div></div>", p50
+      printf "<div class=\"card\"><div class=\"n\">%d</div><div class=\"l\">%s</div></div>", n, T_MEAS
+      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">%s</div></div>", s/n, T_AVG
+      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">%s (p50)</div></div>", p50, T_MED
       printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">p95</div></div>", p95
-      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">máxima</div></div>", w[n]
+      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">%s</div></div>", w[n], T_MAX
       printf "</div>\n"
     }' "$W/waits.tsv"
-  printf '<p class="note">Cobertura: %s de %s submissões com tempo de resposta registrado.</p>\n' "$RJOIN" "$RTOT"
+  printf '<p class="note">%s</p>\n' "$(rep_t coverage "$RJOIN" "$RTOT")"
 
-  printf '<h2>Espera média por problema</h2>\n<div class="tblwrap"><table><thead><tr><th>Prob</th><th>Julgadas</th><th>Espera média</th><th>Máxima</th></tr></thead><tbody>\n'
+  printf '<h2>%s</h2>\n<div class="tblwrap"><table><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n' \
+    "$(rep_t wait_by_prob)" "$(rep_t prob)" "$(rep_t judged)" "$(rep_t avg_wait)" "$(rep_t max_w)"
   awk -F'\t' '{ c[$2]++; s[$2]+=$1; if($1+0>mx[$2]) mx[$2]=$1+0 }
     END{ for(p in c) printf "%s\t%d\t%d\t%d\n", p, c[p], s[p]/c[p], mx[p] }' "$W/waits.tsv" \
     | sort | awk -F'\t' '{ printf "<tr><td><b>%s</b></td><td>%s</td><td>%ss</td><td>%ss</td></tr>\n", $1, $2, $3, $4 }'
   printf '</tbody></table></div>\n'
 
-  printf '<h2>Julgamentos por juiz</h2>\n<div class="tblwrap"><table><thead><tr><th>Juiz (host)</th><th>Julgamentos</th><th>Duração média do julgamento</th></tr></thead><tbody>\n'
+  printf '<h2>%s</h2>\n<div class="tblwrap"><table><thead><tr><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n' \
+    "$(rep_t by_judge)" "$(rep_t judge_host)" "$(rep_t judgements)" "$(rep_t avg_dur)"
   awk -F'\t' '$3!=""{ c[$3]++; s[$3]+=$4 } END{ for(h in c) printf "<tr><td>%s</td><td>%d</td><td>%.1fs</td></tr>\n", h, c[h], s[h]/c[h] }' "$W/waits.tsv" | sort
   printf '</tbody></table></div>\n'
 
-  printf '<h2>Espera ao longo da prova (janelas de 10 min)</h2>\n<div class="tblwrap"><table><thead><tr><th>Min</th><th>Julgadas</th><th>Espera média</th><th style="width:45%%"></th></tr></thead><tbody>\n'
-  awk -F'\t' -v START="$START" '
+  printf '<h2>%s</h2>\n<div class="tblwrap"><table><thead><tr><th>%s</th><th>%s</th><th>%s</th><th style="width:45%%"></th></tr></thead><tbody>\n' \
+    "$([[ "$LOC" == en ]] && printf 'Wait over the contest (10-min windows)' || printf 'Espera ao longo da prova (janelas de 10 min)')" \
+    "$(rep_t minute)" "$(rep_t judged)" "$(rep_t avg_wait)"
+  awk -F'\t' -v START="$START" -v DTFMT="$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
     { b=int((($5+0)-START)/600); if(b<0)b=0; c[b]++; s[b]+=$1; if(b>mb)mb=b }
     END{
       mxa=0; for(i=0;i<=mb;i++) if(c[i] && s[i]/c[i]>mxa) mxa=s[i]/c[i]
@@ -767,22 +939,24 @@ rep_stats_bundle(){
   printf '</tbody></table></div>\n'
 
   # snapshot do cluster (registry) — pode estar vazio/for a do ar após a prova
-  printf '<h2>Juízes registrados (snapshot)</h2>\n'
+  printf '<h2>%s</h2>\n' "$(rep_t registered)"
   if source "$HERE/../judge-gw/sched-lib.sh" 2>/dev/null && [[ -d "${REGISTRYDIR:-}" ]]; then
     qd="$(find "${QUEUEDIR:-/nonexistent}" -mindepth 2 -maxdepth 2 -name '*.json' 2>/dev/null | wc -l | tr -d '[:space:]')"
-    printf '<p class="note">Fila no momento da geração: %s job(s) aguardando.</p>\n' "${qd:-0}"
-    printf '<div class="tblwrap"><table><thead><tr><th>Host</th><th>Estado</th><th>Online</th><th>Último heartbeat</th><th>Linguagens</th><th>Problemas em cache</th></tr></thead><tbody>\n'
+    printf '<p class="note">%s</p>\n' "$(rep_t queue_now "${qd:-0}")"
+    printf '<div class="tblwrap"><table><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n' \
+      "$(rep_t host)" "$(rep_t state)" "$(rep_t online)" "$(rep_t last_hb)" "$(rep_t langs)" "$(rep_t cached)"
     find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null | sort | while IFS= read -r jf; do
-      jq -r --argjson now "$NOW" --argjson ttl "${REG_TTL:-30}" '
+      jq -r --argjson now "$NOW" --argjson ttl "${REG_TTL:-30}" \
+         --arg dtfmt "$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
         "<tr><td>\(.host // "?" | @html)</td><td>\(.state // "?" | @html)</td>"
         + "<td>\(if ((.last_seen//0) >= ($now - $ttl)) then "✅" else "—" end)</td>"
-        + "<td>\(if (.last_seen//0) > 0 then ((.last_seen)|strflocaltime("%d/%m %H:%M:%S")) else "—" end)</td>"
+        + "<td>\(if (.last_seen//0) > 0 then ((.last_seen)|strflocaltime($dtfmt)) else "—" end)</td>"
         + "<td>\((.langs // []) | join(", ") | @html)</td>"
         + "<td>\(.problems_count // ((.problems//{})|length))</td></tr>"' "$jf" 2>/dev/null
     done
     printf '</tbody></table></div>\n'
   else
-    printf '<p class="note">Sem registro de juízes disponível no momento da geração.</p>\n'
+    printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'No judge registry available when the report was generated.' || printf 'Sem registro de juízes disponível no momento da geração.')"
   fi
   rep_foot
 } > "$OUTD/infra.html"

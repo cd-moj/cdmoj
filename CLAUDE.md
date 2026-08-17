@@ -172,6 +172,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `import`/`export` saem no `sed`) — **o mesmo módulo que a página do admin usa**, senão as
   duas telas divergem. ⚠ Ao criar classe CSS no relatório, cuidado com colisão com o `ui.css`
   (um `.bar{height:14px}` local achatou a topbar inteira: `.bar` é o contêiner dela).
+  **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
+  do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
+  `-v`/`--arg` (nunca literal no meio do programa).
 - **`el()` mora em `web/shared/dom.js`** (sem dependência de rede) e o `ui.js` re-exporta —
   é o que permite reusar renderizadores no relatório offline. Importar de `/shared/ui.js`
   segue valendo p/ os ~79 arquivos que já faziam isso.
