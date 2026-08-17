@@ -142,9 +142,11 @@ export function makeStatusTab(CONTEST) {
       panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('📚 Por problema', '📚 By problem')));
       const tb = el('tbody');
       pp.forEach((x) => tb.append(el('tr', {}, el('td', {}, el('b', {}, x.problem)),
-        el('td', {}, String(x.submits)), el('td', { class: x.pending ? 'flag-anom' : '' }, String(x.pending)), el('td', {}, String(x.accepted)))));
+        el('td', { class: 'n' }, String(x.submits)),
+        el('td', { class: 'n' + (x.pending ? ' flag-anom' : '') }, String(x.pending)),
+        el('td', { class: 'n' }, String(x.accepted)))));
       panel.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'Prob'), el('th', {}, 'Subs'), el('th', {}, 'Pend'), el('th', {}, 'AC'))), tb)));
+        el('thead', {}, el('tr', {}, el('th', {}, 'Prob'), el('th', { class: 'n' }, 'Subs'), el('th', { class: 'n' }, 'Pend'), el('th', { class: 'n' }, 'AC'))), tb)));
     }
 
     // submissões recentes (feed palpável)

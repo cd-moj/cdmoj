@@ -183,15 +183,15 @@ async function boot() {
   const tb = el('tbody');
   bl.forEach((l) => tb.append(el('tr', {},
     el('td', {}, langDisplay(l.lang)),
-    el('td', {}, String(l.submissions)),
-    el('td', {}, String(l.accepted)),
-    el('td', {}, l.submissions ? pct(l.accepted / l.submissions) : '-'),
-    el('td', {}, String(l.solvers)))));
+    el('td', { class: 'n' }, String(l.submissions)),
+    el('td', { class: 'n' }, String(l.accepted)),
+    el('td', { class: 'n' }, l.submissions ? pct(l.accepted / l.submissions) : '-'),
+    el('td', { class: 'n' }, String(l.solvers)))));
   content.append(el('div', { class: 'section' }, el('h2', {}, T('Por linguagem', 'By language')),
     el('p', { class: 'small muted', style: 'margin:0 0 .5rem' }, T('"Resolveram" = usuários distintos que acertaram com aquela linguagem.', '"Solved" = distinct users who got it accepted with that language.')),
     el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
-      el('th', {}, T('Linguagem', 'Language')), el('th', {}, T('Submissões', 'Submissions')), el('th', {}, T('Aceitas', 'Accepted')),
-      el('th', {}, T('Taxa', 'Rate')), el('th', {}, T('Resolveram', 'Solved')))), tb)));
+      el('th', {}, T('Linguagem', 'Language')), el('th', { class: 'n' }, T('Submissões', 'Submissions')), el('th', { class: 'n' }, T('Aceitas', 'Accepted')),
+      el('th', { class: 'n' }, T('Taxa', 'Rate')), el('th', { class: 'n' }, T('Resolveram', 'Solved')))), tb)));
 
   // --- tempo de execução das aceitas (estilo Kattis) ---
   // runtimes = [{lang, t}] onde t = o teste mais LENTO da submissão aceita. Só cobre

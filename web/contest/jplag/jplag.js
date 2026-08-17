@@ -46,7 +46,7 @@ function render(data) {
       el('td', { class: 'n ' + simClass(p.similarity) }, (p.similarity || 0).toFixed(1) + '%'),
       el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openMatch(r.run, p.index); } }, T('ver lado-a-lado', 'view side-by-side'))))));
     sec.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-      el('thead', {}, el('tr', {}, el('th', {}, T('Solução A', 'Solution A')), el('th', {}, T('Solução B', 'Solution B')), el('th', {}, T('Similaridade', 'Similarity')), el('th', {}, ''))), tb)));
+      el('thead', {}, el('tr', {}, el('th', {}, T('Solução A', 'Solution A')), el('th', {}, T('Solução B', 'Solution B')), el('th', { class: 'n' }, T('Similaridade', 'Similarity')), el('th', {}, ''))), tb)));
     app.append(sec);
   });
 }

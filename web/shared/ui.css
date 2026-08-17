@@ -109,6 +109,11 @@ table.moj th,table.moj td { padding:.6rem .9rem; text-align:left; border-bottom:
   font-variant-numeric:tabular-nums; }
 table.moj thead th { background:#f3f7fd; color:var(--blue-dark); font-weight:700; font-size:.82rem;
   text-transform:uppercase; letter-spacing:.03em; cursor:pointer; user-select:none; position:sticky; top:0; }
+/* COLUNA NUMÉRICA (.n no th E no td): número à direita, cabeçalho no MESMO lado e largura
+   só do conteúdo. Sem isto o th ficava à esquerda e o número no fim de uma coluna esticada
+   pelo width:100% — a olho, o valor parecia pertencer à coluna vizinha. */
+table.moj th.n, table.moj td.n { text-align:right; font-variant-numeric:tabular-nums;
+  width:1%; white-space:nowrap; }
 table.moj tbody tr:nth-child(even) td { background:#fafcff; }
 table.moj tbody tr:hover td { background:var(--blue-soft); }
 table.moj tbody tr:last-child td { border-bottom:0; }

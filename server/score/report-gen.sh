@@ -324,6 +324,14 @@ body{background:var(--blue-bg)}
 .repnav a.on{color:var(--blue-dark);border-bottom-color:var(--accent)}
 h2{font-size:1.25rem;color:var(--blue-dark);margin:1.4rem 0 .6rem}
 table{width:100%}
+/* tabela de POUCAS colunas não estica: com width:100% a coluna de rótulo engolia o vão e os
+   números ficavam a meia tela do próprio cabeçalho. `narrow` deixa as colunas do tamanho do
+   conteúdo (com um piso p/ não virar tabelinha perdida no meio do card). */
+table.moj.narrow{width:auto;min-width:min(100%,34rem)}
+/* o width:1% das colunas numéricas (que no modo esticado empurra o número p/ a direita)
+   FORÇA a tabela de largura automática a crescer — porcentagem de célula resolve contra a
+   largura da tabela. Em `narrow` a coluna volta a ser do tamanho do conteúdo. */
+table.moj.narrow th.n, table.moj.narrow td.n{width:auto}
 .tblwrap{overflow-x:auto}
 table.score td.cell{text-align:center;white-space:nowrap;min-width:52px}
 table.score th.prob{text-align:center}
@@ -625,7 +633,7 @@ if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON"
     {
       rep_head "$(rep_t page_docs)" docs
       printf '<p class="note">%s</p>\n' "$(rep_t docs_note)"
-      printf '<div class="tblwrap"><table class="moj">\n<thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
+      printf '<div class="tblwrap"><table class="moj narrow">\n<thead><tr><th>%s</th><th>%s</th><th>%s</th><th class="n">%s</th></tr></thead>\n<tbody>\n' \
         "$(rep_t doc_col)" "$(rep_t lang_col)" "$(rep_t file)" "$(rep_t size)"
       while IFS=$'\t' read -r dt dl fmt sz; do
         case "$dt" in
@@ -635,7 +643,7 @@ if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON"
           editorial)  lbl="$(rep_t doc_editorial)";;
           *)          lbl="$dt";;
         esac
-        printf '<tr><td>%s</td><td>%s</td><td><a href="documentos/%s.%s.%s">%s</a></td><td>%s KB</td></tr>\n' \
+        printf '<tr><td>%s</td><td>%s</td><td><a href="documentos/%s.%s.%s">%s</a></td><td class="n">%s KB</td></tr>\n' \
           "$(esc "$lbl")" "$dl" "$dt" "$dl" "$fmt" "${fmt^^}" "$(( (sz + 1023) / 1024 ))"
       done < "$W/docs.tsv"
       printf '</tbody></table></div>\n'
@@ -691,7 +699,7 @@ fi
   rep_head "$(rep_t page_runs)" runs
   printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'All submissions (no source code, no judge logs; canonical verdict). Click a header to sort.' || printf 'Todas as submissões da prova (sem código-fonte e sem logs do juiz; veredicto canônico). Clique num cabeçalho para ordenar.')"
   printf '<input class="filter" id="fq" type="search" placeholder="%s">\n' "$(rep_t filter_ph)"
-  printf '<div class="tblwrap"><table id="runs">\n<thead><tr><th>#</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
+  printf '<div class="tblwrap"><table class="moj" id="runs">\n<thead><tr><th class="n">#</th><th class="n">%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
     "$(rep_t minute)" "$(rep_t hour)" "$(rep_t team)" "$(rep_t univ)" "$(rep_t prob)" "$(rep_t lang)" "$(rep_t verdict)"
   awk -F'\t' -v START="$START" -v DTFMT="$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); gsub(/"/,"\\&quot;",s); return s }
@@ -705,7 +713,7 @@ fi
       team=(tn!="")? tn : login
       lbl=esc(team) " <span class=\"u\">[" esc(login) "]</span>"
       univ=(us!="")? us : uf
-      printf "<tr><td class=\"place\" title=\"%s\">%d</td><td>%s</td><td>%s</td><td class=\"team\">%s</td><td>%s</td><td><b>%s</b></td><td>%s</td><td class=\"%s\">%s</td></tr>\n", \
+      printf "<tr><td class=\"place\" title=\"%s\">%d</td><td class=\"n\">%s</td><td>%s</td><td class=\"team\">%s</td><td>%s</td><td><b>%s</b></td><td>%s</td><td class=\"%s\">%s</td></tr>\n", \
         esc(sid), NR, mn, hora, lbl, esc(univ), esc(letter), esc(lang), cls, esc(v)
     }' "$W/runs.tsv"
   printf '</tbody></table></div>\n'
@@ -811,21 +819,21 @@ rep_stats_bundle(){
       + "<div class=\"card\"><div class=\"n\">\(.totals.users)</div><div class=\"l\">" + $t_teams + "</div></div>"
       + "<div class=\"card\"><div class=\"n\">\(.totals.problems_solved)</div><div class=\"l\">" + $t_solvedp + "</div></div>"
       + "</div>"
-      + "<h2>" + $t_byprob + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_prob + "</th><th>" + $t_name + "</th><th>Subs</th><th>" + $t_teams + "</th><th>" + $t_solvedc + "</th><th>" + $t_rate + "</th><th>" + $t_first + "</th><th>" + $t_min + "</th></tr></thead><tbody>"
-      + ([ .problems[] | "<tr><td><b>\(.short_name|@html)</b></td><td>\(.full_name|@html)</td><td>\(.submissions)</td><td>\(.attempted)</td><td>\(.solved)</td><td>\(.accept_rate|pct)%</td><td>\(.first_solver|@html)</td><td>\(if .first_minute<0 then "—" else (.first_minute|tostring) end)</td></tr>" ] | join(""))
+      + "<h2>" + $t_byprob + "</h2><div class=\"tblwrap\"><table class=\"moj\"><thead><tr><th>" + $t_prob + "</th><th>" + $t_name + "</th><th class=\"n\">Subs</th><th class=\"n\">" + $t_teams + "</th><th class=\"n\">" + $t_solvedc + "</th><th class=\"n\">" + $t_rate + "</th><th>" + $t_first + "</th><th class=\"n\">" + $t_min + "</th></tr></thead><tbody>"
+      + ([ .problems[] | "<tr><td><b>\(.short_name|@html)</b></td><td>\(.full_name|@html)</td><td class=\"n\">\(.submissions)</td><td class=\"n\">\(.attempted)</td><td class=\"n\">\(.solved)</td><td class=\"n\">\(.accept_rate|pct)%</td><td>\(((.first_solver_name // "") | if .=="" then (.first_solver // "") else . end)|@html)\(if ((.first_solver_name // "")|length)>0 then " (\(.first_solver|@html))" else "" end)</td><td class=\"n\">\(if .first_minute<0 then "—" else (.first_minute|tostring) end)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
-      + "<h2>" + $t_bylang + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_langc + "</th><th>Subs</th><th>" + $t_acc + "</th><th>" + $t_solvers + "</th></tr></thead><tbody>"
-      + ([ .languages[] | "<tr><td>\(.lang|@html)</td><td>\(.submissions)</td><td>\(.accepted)</td><td>\(.solvers)</td></tr>" ] | join(""))
+      + "<h2>" + $t_bylang + "</h2><div class=\"tblwrap\"><table class=\"moj narrow\"><thead><tr><th>" + $t_langc + "</th><th class=\"n\">Subs</th><th class=\"n\">" + $t_acc + "</th><th class=\"n\">" + $t_solvers + "</th></tr></thead><tbody>"
+      + ([ .languages[] | "<tr><td>\(.lang|@html)</td><td class=\"n\">\(.submissions)</td><td class=\"n\">\(.accepted)</td><td class=\"n\">\(.solvers)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
-      + "<h2>" + $t_byverd + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_verd + "</th><th>" + $t_occ + "</th></tr></thead><tbody>"
-      + ([ .verdicts[] | "<tr><td>\(.verdict|@html)</td><td>\(.count)</td></tr>" ] | join(""))
+      + "<h2>" + $t_byverd + "</h2><div class=\"tblwrap\"><table class=\"moj narrow\"><thead><tr><th>" + $t_verd + "</th><th class=\"n\">" + $t_occ + "</th></tr></thead><tbody>"
+      + ([ .verdicts[] | "<tr><td>\(.verdict|@html)</td><td class=\"n\">\(.count)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
       + (([ .timeline[].submissions ] | max // 0) as $mx
-         | "<h2>" + $t_tl + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_min + "</th><th>" + $t_subs + "</th><th style=\"width:50%\"></th></tr></thead><tbody>"
-         + ([ .timeline[] | "<tr><td>\(.minute)</td><td>\(.submissions) (\(.accepted) AC)</td><td><span class=\"tbar\" style=\"width:\(if $mx>0 then (.submissions*100/$mx) else 0 end)%\"></span><span class=\"tbar ac\" style=\"width:\(if $mx>0 then (.accepted*100/$mx) else 0 end)%\"></span></td></tr>" ] | join(""))
+         | "<h2>" + $t_tl + "</h2><div class=\"tblwrap\"><table class=\"moj\"><thead><tr><th class=\"n\">" + $t_min + "</th><th class=\"n\">" + $t_subs + "</th><th style=\"width:50%\"></th></tr></thead><tbody>"
+         + ([ .timeline[] | "<tr><td class=\"n\">\(.minute)</td><td class=\"n\">\(.submissions) (\(.accepted) AC)</td><td><span class=\"tbar\" style=\"width:\(if $mx>0 then (.submissions*100/$mx) else 0 end)%\"></span><span class=\"tbar ac\" style=\"width:\(if $mx>0 then (.accepted*100/$mx) else 0 end)%\"></span></td></tr>" ] | join(""))
          + "</tbody></table></div>")
-      + "<h2>" + $t_dist + "</h2><div class=\"tblwrap\"><table><thead><tr><th>" + $t_solvedw + "</th><th>" + $t_teams + "</th></tr></thead><tbody>"
-      + ([ .problems_solved_dist[]? | "<tr><td>\(.solved)</td><td>\(.users)</td></tr>" ] | join(""))
+      + "<h2>" + $t_dist + "</h2><div class=\"tblwrap\"><table class=\"moj narrow\"><thead><tr><th class=\"n\">" + $t_solvedw + "</th><th class=\"n\">" + $t_teams + "</th></tr></thead><tbody>"
+      + ([ .problems_solved_dist[]? | "<tr><td class=\"n\">\(.solved)</td><td class=\"n\">\(.users)</td></tr>" ] | join(""))
       + "</tbody></table></div>"
     ' "$SJ" 2>/dev/null || printf '<p class="note">%s</p>\n' "$(rep_t stats_fail)"
     printf '</noscript>\n'
@@ -842,7 +850,7 @@ rep_stats_bundle(){
   PRD="$CDIR/print-requests"
   nst=0
   if [[ -d "$PRD" ]]; then
-    printf '<div class="tblwrap"><table>\n<thead><tr><th>#</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
+    printf '<div class="tblwrap"><table class="moj">\n<thead><tr><th class="n">#</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
       "$(rep_t type)" "$(rep_t hour)" "$(rep_t team)" "$(rep_t univ)" "$(rep_t detail)" "$(rep_t status)" "$(rep_t service)"
     find "$PRD" -maxdepth 1 -name '*.json' ! -name badges.json ! -name staff-filters.json -print0 2>/dev/null \
       | xargs -0 -r jq -c 'select((.seq? // null) != null)' 2>/dev/null \
@@ -915,26 +923,26 @@ rep_stats_bundle(){
     }' "$W/waits.tsv"
   printf '<p class="note">%s</p>\n' "$(rep_t coverage "$RJOIN" "$RTOT")"
 
-  printf '<h2>%s</h2>\n<div class="tblwrap"><table><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n' \
+  printf '<h2>%s</h2>\n<div class="tblwrap"><table class="moj narrow"><thead><tr><th>%s</th><th class="n">%s</th><th class="n">%s</th><th class="n">%s</th></tr></thead><tbody>\n' \
     "$(rep_t wait_by_prob)" "$(rep_t prob)" "$(rep_t judged)" "$(rep_t avg_wait)" "$(rep_t max_w)"
   awk -F'\t' '{ c[$2]++; s[$2]+=$1; if($1+0>mx[$2]) mx[$2]=$1+0 }
     END{ for(p in c) printf "%s\t%d\t%d\t%d\n", p, c[p], s[p]/c[p], mx[p] }' "$W/waits.tsv" \
-    | sort | awk -F'\t' '{ printf "<tr><td><b>%s</b></td><td>%s</td><td>%ss</td><td>%ss</td></tr>\n", $1, $2, $3, $4 }'
+    | sort | awk -F'\t' '{ printf "<tr><td><b>%s</b></td><td class=\"n\">%s</td><td class=\"n\">%ss</td><td class=\"n\">%ss</td></tr>\n", $1, $2, $3, $4 }'
   printf '</tbody></table></div>\n'
 
-  printf '<h2>%s</h2>\n<div class="tblwrap"><table><thead><tr><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n' \
+  printf '<h2>%s</h2>\n<div class="tblwrap"><table class="moj narrow"><thead><tr><th>%s</th><th class="n">%s</th><th class="n">%s</th></tr></thead><tbody>\n' \
     "$(rep_t by_judge)" "$(rep_t judge_host)" "$(rep_t judgements)" "$(rep_t avg_dur)"
-  awk -F'\t' '$3!=""{ c[$3]++; s[$3]+=$4 } END{ for(h in c) printf "<tr><td>%s</td><td>%d</td><td>%.1fs</td></tr>\n", h, c[h], s[h]/c[h] }' "$W/waits.tsv" | sort
+  awk -F'\t' '$3!=""{ c[$3]++; s[$3]+=$4 } END{ for(h in c) printf "<tr><td>%s</td><td class=\"n\">%d</td><td class=\"n\">%.1fs</td></tr>\n", h, c[h], s[h]/c[h] }' "$W/waits.tsv" | sort
   printf '</tbody></table></div>\n'
 
-  printf '<h2>%s</h2>\n<div class="tblwrap"><table><thead><tr><th>%s</th><th>%s</th><th>%s</th><th style="width:45%%"></th></tr></thead><tbody>\n' \
+  printf '<h2>%s</h2>\n<div class="tblwrap"><table class="moj"><thead><tr><th class="n">%s</th><th class="n">%s</th><th class="n">%s</th><th style="width:45%%"></th></tr></thead><tbody>\n' \
     "$([[ "$LOC" == en ]] && printf 'Wait over the contest (10-min windows)' || printf 'Espera ao longo da prova (janelas de 10 min)')" \
     "$(rep_t minute)" "$(rep_t judged)" "$(rep_t avg_wait)"
   awk -F'\t' -v START="$START" -v DTFMT="$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
     { b=int((($5+0)-START)/600); if(b<0)b=0; c[b]++; s[b]+=$1; if(b>mb)mb=b }
     END{
       mxa=0; for(i=0;i<=mb;i++) if(c[i] && s[i]/c[i]>mxa) mxa=s[i]/c[i]
-      for(i=0;i<=mb;i++) if(c[i]) printf "<tr><td>%d</td><td>%d</td><td>%ds</td><td><span class=\"tbar\" style=\"width:%d%%\"></span></td></tr>\n", i*10, c[i], s[i]/c[i], (mxa>0? int(s[i]/c[i]*100/mxa) : 0)
+      for(i=0;i<=mb;i++) if(c[i]) printf "<tr><td class=\"n\">%d</td><td class=\"n\">%d</td><td class=\"n\">%ds</td><td><span class=\"tbar\" style=\"width:%d%%\"></span></td></tr>\n", i*10, c[i], s[i]/c[i], (mxa>0? int(s[i]/c[i]*100/mxa) : 0)
     }' "$W/waits.tsv"
   printf '</tbody></table></div>\n'
 
@@ -943,8 +951,8 @@ rep_stats_bundle(){
   if source "$HERE/../judge-gw/sched-lib.sh" 2>/dev/null && [[ -d "${REGISTRYDIR:-}" ]]; then
     qd="$(find "${QUEUEDIR:-/nonexistent}" -mindepth 2 -maxdepth 2 -name '*.json' 2>/dev/null | wc -l | tr -d '[:space:]')"
     printf '<p class="note">%s</p>\n' "$(rep_t queue_now "${qd:-0}")"
-    printf '<div class="tblwrap"><table><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n' \
-      "$(rep_t host)" "$(rep_t state)" "$(rep_t online)" "$(rep_t last_hb)" "$(rep_t langs)" "$(rep_t cached)"
+    printf '<div class="tblwrap"><table class="moj"><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th class="n">%s</th></tr></thead><tbody>\n' \
+      "$(rep_t host)" "$(rep_t state)" "$(rep_t online)" "$(rep_t last_hb)" "$(rep_t langs)" "$(rep_t cached)"   # cached = numérico (th.n abaixo)
     find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null | sort | while IFS= read -r jf; do
       jq -r --argjson now "$NOW" --argjson ttl "${REG_TTL:-30}" \
          --arg dtfmt "$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
@@ -952,7 +960,7 @@ rep_stats_bundle(){
         + "<td>\(if ((.last_seen//0) >= ($now - $ttl)) then "✅" else "—" end)</td>"
         + "<td>\(if (.last_seen//0) > 0 then ((.last_seen)|strflocaltime($dtfmt)) else "—" end)</td>"
         + "<td>\((.langs // []) | join(", ") | @html)</td>"
-        + "<td>\(.problems_count // ((.problems//{})|length))</td></tr>"' "$jf" 2>/dev/null
+        + "<td class=\"n\">\(.problems_count // ((.problems//{})|length))</td></tr>"' "$jf" 2>/dev/null
     done
     printf '</tbody></table></div>\n'
   else

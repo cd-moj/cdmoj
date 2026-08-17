@@ -175,6 +175,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
   do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).
+- **Coluna NUMÉRICA em tabela = `class="n"` no `<td>` E no `<th>`** (`ui.css`: alinha à direita,
+  `tabular-nums`, largura do conteúdo). Marcar só o `td` foi bug real: com `width:100%` o
+  cabeçalho ficava à esquerda e o número a meia tela dele, parecendo pertencer à coluna
+  vizinha. Tabela de POUCAS colunas ganha `narrow` (relatório) p/ não esticar — e nela o
+  `.n` volta a `width:auto`, senão a porcentagem de célula infla a tabela toda.
 - **`el()` mora em `web/shared/dom.js`** (sem dependência de rede) e o `ui.js` re-exporta —
   é o que permite reusar renderizadores no relatório offline. Importar de `/shared/ui.js`
   segue valendo p/ os ~79 arquivos que já faziam isso.

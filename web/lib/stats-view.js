@@ -59,8 +59,11 @@ function problemsTable(ps, shortOf) {
     el('td', { class: 'n' }, p.avg_subs != null ? p.avg_subs.toFixed(1) : '—'),
     el('td', {}, p.first_solver ? (who(p.first_solver, p.first_solver_name) + ' · ' + p.first_minute + 'min' + (p.first_seconds >= 0 ? ' (' + p.first_seconds + 's)' : '')) : '—'))));
   return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-    el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem')), el('th', {}, 'Subs'), el('th', {}, T('Aceitas', 'Accepted')), el('th', {}, T('Tentaram', 'Attempted')),
-      el('th', {}, T('Resolveram', 'Solved')), el('th', {}, T('Taxa', 'Rate')), el('th', {}, T('Subs/pessoa', 'Subs/person')), el('th', {}, T('1º a resolver', 'First to solve')))), tb));
+    el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem')),
+      el('th', { class: 'n' }, 'Subs'), el('th', { class: 'n' }, T('Aceitas', 'Accepted')),
+      el('th', { class: 'n' }, T('Tentaram', 'Attempted')), el('th', { class: 'n' }, T('Resolveram', 'Solved')),
+      el('th', { class: 'n' }, T('Taxa', 'Rate')), el('th', { class: 'n' }, T('Subs/pessoa', 'Subs/person')),
+      el('th', {}, T('1º a resolver', 'First to solve')))), tb));
 }
 
 function verdictMatrix(s, shortOf) {
@@ -76,7 +79,7 @@ function verdictMatrix(s, shortOf) {
       ...cols.map((c) => { const v = row[c] || 0; return el('td', { class: 'n' + (v && v === maxv ? ' hot' : '') }, v ? String(v) : '·'); })));
   });
   return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj vp-table' },
-    el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem')), ...cols.map((c) => el('th', {}, c)))), tb));
+    el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem')), ...cols.map((c) => el('th', { class: 'n' }, c)))), tb));
 }
 
 function balloonsSection(ps, shortOf) {
@@ -95,7 +98,8 @@ function langTable(ls) {
     el('td', {}, l.lang), el('td', { class: 'n' }, String(l.submissions)),
     el('td', { class: 'n' }, String(l.accepted)), el('td', { class: 'n' }, String(l.solvers)))));
   return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
-    el('thead', {}, el('tr', {}, el('th', {}, T('Linguagem', 'Language')), el('th', {}, 'Subs'), el('th', {}, T('Aceitas', 'Accepted')), el('th', {}, T('Resolvedores', 'Solvers')))), tb));
+    el('thead', {}, el('tr', {}, el('th', {}, T('Linguagem', 'Language')), el('th', { class: 'n' }, 'Subs'),
+      el('th', { class: 'n' }, T('Aceitas', 'Accepted')), el('th', { class: 'n' }, T('Resolvedores', 'Solvers')))), tb));
 }
 
 // statsSections(s, opts) -> [elementos] na ordem da página.
