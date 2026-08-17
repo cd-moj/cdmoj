@@ -3711,7 +3711,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Foto do time (webp; png no acervo antigo — lado máx 1000; 📷 clicável no placar; secreto exige sessão). thumb=1 devolve a MINIATURA de 320px (~7 KB), usada pela galeria do .animeitor",
+        "summary": "Foto do time (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3736,7 +3736,7 @@
         ],
         "responses": {
           "200": {
-            "description": "image/webp ou image/png (404 sem foto)"
+            "description": "image/webp ou image/png; sem foto do time vem a padrão (X-MOJ-Photo: placeholder)"
           }
         }
       }
@@ -3815,7 +3815,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime}], total, with_photo} — UMA varredura (find|xargs jq), pensada p/ 1000+ times"
+            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime}], total, with_photo, placeholder:{custom,mtime}} — UMA varredura (find|xargs jq), pensada p/ 1000+ times"
           },
           "403": {
             "description": "animeitor_required"
@@ -3873,7 +3873,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Pacote com as fotos de todos os times: fotos/<login>.webp + teams.csv",
+        "summary": "Pacote das fotos: fotos/<login>.webp para TODOS os times (quem não mandou leva a padrão) + placeholder.webp + teams.csv (coluna padrao diz quem está com a padrão)",
         "security": [
           {
             "bearerAuth": []
@@ -3887,6 +3887,97 @@
         "responses": {
           "200": {
             "description": "application/zip"
+          },
+          "403": {
+            "description": "animeitor_required"
+          }
+        }
+      }
+    },
+    "/contest/placeholder": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Foto PADRÃO do contest (a que a API responde no lugar da foto de quem não mandou). Escolhida pelo .animeitor; sem escolha, a de fábrica do repo",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "thumb",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "1 = miniatura 320px"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "image/webp (X-MOJ-Photo: placeholder)"
+          }
+        }
+      }
+    },
+    "/contest/animeitor/placeholder": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Estado da foto padrão do contest",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{custom, bytes, mtime}"
+          },
+          "403": {
+            "description": "animeitor_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Troca a foto padrão do contest (file_b64) ou volta à de fábrica (action:reset)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file_b64": { "type": "string" },
+                  "action": { "type": "string", "enum": ["reset"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{custom, bytes, mtime}"
           },
           "403": {
             "description": "animeitor_required"

@@ -27,6 +27,13 @@ const PAGE = 48;     // 48 cartões = a grade cheia; o DOM fica pequeno e só es
 
 // MINIATURA (thumb=1, ~7 KB em vez de 37 KB) e cache-buster ESTÁVEL (v=<mtime>): com
 // `t=Date.now()` cada render rebaixava a imagem inteira de novo.
+// a FOTO PADRÃO do contest — o que a API devolve para quem não mandou foto (e o que vai no
+// pacote no lugar dele). O mtime fura o cache da pré-visualização quando o operador troca.
+const phUrl = (thumb) => {
+  const m = (PHOTOS && PHOTOS.placeholder && PHOTOS.placeholder.mtime) || 0;
+  return `/api/v1/contest/placeholder?contest=${enc(CONTEST)}` + (thumb ? '&thumb=1' : '') + `&v=${m}`;
+};
+
 const photoUrl = (t, thumb) =>
   `/api/v1/contest/team-photo?contest=${enc(CONTEST)}&user=${enc(t.login)}`
   + (thumb ? '&thumb=1' : '') + `&v=${t.mtime || 0}`;
@@ -153,6 +160,42 @@ function pager(pages) {
     el('button', { class: 'btn ghost', onclick: () => { if (PAGE_I < pages - 1) { PAGE_I++; renderPhotos(); } } }, '›'));
 }
 
+// cartão da FOTO PADRÃO: é ela que aparece no telão para quem não mandou foto
+function placeholderCard(box) {
+  const custom = !!(PHOTOS && PHOTOS.placeholder && PHOTOS.placeholder.custom);
+  const inp = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
+  inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) { msg(box, T('Imagem muito grande (máx 8MB).', 'Image too large (max 8MB).'), 'error-box'); return; }
+    msg(box, T('Enviando a foto padrão…', 'Uploading the default photo…'));
+    try {
+      const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST),
+        { file_b64: await fileToBase64(f) }, G);
+      if (PHOTOS) PHOTOS.placeholder = { custom: r.custom, mtime: r.mtime };
+      renderPhotos();
+      msg(document.getElementById('phMsg') || box, T('Foto padrão trocada.', 'Default photo replaced.'), 'small');
+    } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
+  });
+  return el('div', { class: 'phdef' },
+    el('img', { src: phUrl(true), alt: T('foto padrão', 'default photo'), loading: 'lazy' }),
+    el('div', {},
+      el('div', { class: 'nm' }, T('Foto padrão', 'Default photo'),
+        el('span', { class: 'small muted' }, custom ? T(' · sua imagem', ' · your image')
+                                                    : T(' · a do MOJ', ' · the MOJ one'))),
+      el('div', { class: 'small muted' },
+        T('É o que a API responde — e o que vai no pacote — para quem ainda não mandou foto.',
+          'This is what the API answers — and what goes in the package — for teams without a photo.')),
+      el('div', { class: 'row', style: 'gap:.3rem; margin-top:.35rem' }, inp,
+        el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar imagem', 'replace image')),
+        custom ? el('button', { class: 'btn ghost', onclick: async () => {
+          if (!confirm(T('Voltar à foto padrão do MOJ?', 'Restore the MOJ default photo?'))) return;
+          const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST), { action: 'reset' }, G);
+          if (PHOTOS) PHOTOS.placeholder = { custom: r.custom, mtime: r.mtime };
+          renderPhotos();
+        } }, T('voltar ao padrão do MOJ', 'restore MOJ default')) : '')));
+}
+
 // re-render SÓ da seção de fotos (o streaming não é tocado por filtro/página)
 function renderPhotos() {
   const host = document.getElementById('photosSec');
@@ -172,6 +215,7 @@ function renderPhotos() {
     el('p', { class: 'note' },
       T(`${(PHOTOS && PHOTOS.with_photo) || 0} de ${(PHOTOS && PHOTOS.total) || 0} times já têm foto.`,
         `${(PHOTOS && PHOTOS.with_photo) || 0} of ${(PHOTOS && PHOTOS.total) || 0} teams already have a photo.`)),
+    placeholderCard(box),
     el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.4rem; flex-wrap:wrap' }, bulkInput(box),
       el('button', { class: 'btn', onclick: () => document.getElementById('phBulk').click() },
         T('⬆ Enviar em lote (nome do arquivo = login)', '⬆ Bulk upload (file name = login)')),

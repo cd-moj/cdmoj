@@ -114,6 +114,26 @@ A tela abre filtrada em **"sem foto"** (a fila de trabalho), com chips de contag
 sem acento (debounce de 150 ms), recortes por coorte/universidade/sede e **paginação de 48
 cartões** — o DOM fica pequeno e só as fotos da página corrente são baixadas.
 
+### A foto PADRÃO (time sem foto)
+
+`GET /contest/team-photo` **não devolve mais 404**: quem não mandou foto recebe a **foto
+padrão** do contest, com o cabeçalho `X-MOJ-Photo: placeholder`. É o que faz o Animeitor achar
+imagem para todo time do placar, sem tratar ausência. Quem precisa saber quem MANDOU foto usa o
+`has_photo` das listagens (é por isso que o 📷 do placar continua aparecendo só para foto de
+verdade, e a galeria continua mostrando a caixa "sem foto").
+
+Quem escolhe a imagem é o **`.animeitor`**, na própria página (trocar / voltar ao padrão do
+MOJ) — ela vive em `contests/<c>/placeholder.webp` (+ miniatura). Sem escolha, vale a de fábrica
+que vem no repositório: `server/etc/team-placeholder.webp`, mesmo idioma do
+`server/etc/info-sheet.pt.md` (arquivo do contest sobrescreve o embarcado; apagar volta ao
+default). ⚠ Em produção `server/etc/` é read-only (vem da imagem), então a miniatura de fábrica
+é **commitada** — nada é gerado ao lado dela, e a imagem nova só chega com `make deploy`.
+
+No **pacote .zip** a padrão aparece de duas formas: uma vez na raiz (`placeholder.webp`) e como
+`fotos/<login>.webp` de cada time sem foto — assim o Animeitor acha o arquivo de qualquer time.
+A coluna **`padrao`** do `teams.csv` diz quem está com a imagem padrão (`true`) e quem mandou a
+própria (`false`). Custo: ~20 KB por time sem foto (o zip não deduplica cópias idênticas).
+
 Rota do pacote:
 
 ```

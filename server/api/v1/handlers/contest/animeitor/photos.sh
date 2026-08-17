@@ -55,5 +55,12 @@ jq -cn --slurpfile acc "$W/acc.json" --slurpfile ph "$W/ph.json" '
   | sort_by(.name | ascii_downcase)' > "$W/out.json" 2>/dev/null || printf '[]' > "$W/out.json"
 [[ -s "$W/out.json" ]] || printf '[]' > "$W/out.json"
 
-ok_json '{teams:$t[0], total:($t[0] | length), with_photo:($t[0] | map(select(.has_photo)) | length)}' \
-  --slurpfile t "$W/out.json"
+# a página mostra a foto PADRÃO (a que vai para quem não mandou) e precisa do mtime dela p/
+# furar o cache da própria pré-visualização
+source "$_LIBDIR/team-photo.sh"
+_phf="$(tp_placeholder "$contest")"
+ok_json '{teams:$t[0], total:($t[0] | length), with_photo:($t[0] | map(select(.has_photo)) | length),
+          placeholder:{custom:$pc, mtime:$pm}}' \
+  --slurpfile t "$W/out.json" \
+  --argjson pc "$(tp_placeholder_custom "$contest" && echo true || echo false)" \
+  --argjson pm "$(stat -c %Y "$_phf" 2>/dev/null || echo 0)"

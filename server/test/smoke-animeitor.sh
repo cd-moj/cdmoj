@@ -116,6 +116,39 @@ ck "índice casa foto e time"     'unzip -p "$TMP/fotos.zip" teams.csv | grep -q
 call /contest/animeitor/photo POST ani 'contest=an' '{"action":"delete","login":"time-a"}'
 ck "remoção apaga foto e miniatura" '[[ ! -e "$C/users/time-a/photo.webp" && ! -e "$C/users/time-a/photo.thumb.webp" ]]'
 
+echo "== foto PADRÃO (time sem foto não dá mais 404) =="
+# neste ponto do fixture: time-a SEM foto (removida acima) e time-b com o photo.png legado
+callf /contest/team-photo GET '' 'contest=an&user=time-a' '' "$TMP/np.bin"
+ck "sem foto → 200 com a padrão" 'head -c 200 "$TMP/np.bin" | grep -q "Status: 200" && head -c 200 "$TMP/np.bin" | grep -q "X-MOJ-Photo: placeholder"'
+callf /contest/team-photo GET '' 'contest=an&user=time-a&thumb=1' '' "$TMP/npt.bin"
+ck "padrão também em miniatura"  'head -c 200 "$TMP/npt.bin" | grep -q "X-MOJ-Photo: placeholder" && [[ "$(stat -c %s "$TMP/npt.bin")" -lt "$(stat -c %s "$TMP/np.bin")" ]]'
+callf /contest/team-photo GET '' 'contest=an&user=time-b' '' "$TMP/nb.bin"
+ck "quem TEM foto não recebe padrão" '! head -c 200 "$TMP/nb.bin" | grep -q "X-MOJ-Photo"'
+callf /contest/placeholder GET '' 'contest=an' '' "$TMP/ph.bin"
+ck "/contest/placeholder é público" 'head -c 200 "$TMP/ph.bin" | grep -q "Content-Type: image/webp"'
+call /contest/animeitor/placeholder GET ani 'contest=an'
+ck "GET diz que é a de fábrica"  'grep -q "\"custom\":false" <<<"$BODY"'
+call /contest/animeitor/placeholder POST ani 'contest=an' "{\"file_b64\":\"$PNG1\"}"
+ck "troca a padrão do contest"   'grep -q "\"custom\":true" <<<"$BODY" && [[ -s "$C/placeholder.webp" && -s "$C/placeholder.thumb.webp" ]]'
+callf /contest/team-photo GET '' 'contest=an&user=time-a' '' "$TMP/np2.bin"
+ck "quem não tem foto já recebe a nova" '[[ "$(stat -c %s "$TMP/np2.bin")" != "$(stat -c %s "$TMP/np.bin")" ]]'
+call /contest/animeitor/photos GET ani 'contest=an'
+ck "listagem informa a padrão"   'grep -q "\"placeholder\":{\"custom\":true" <<<"$BODY"'
+ck "has_photo NÃO vira true"     '[[ "$(jq -r ".teams[]|select(.login==\"time-a\")|.has_photo" <<<"$BODY")" == false ]]'
+call /contest/animeitor/placeholder POST ani 'contest=an' '{"action":"reset"}'
+ck "reset volta à de fábrica"    'grep -q "\"custom\":false" <<<"$BODY" && [[ ! -e "$C/placeholder.webp" && ! -e "$C/placeholder.thumb.webp" ]]'
+call /contest/animeitor/placeholder GET tb 'contest=an'
+ck "competidor não gere a padrão" 'grep -q "animeitor_required" <<<"$BODY"'
+
+echo "== pacote: todo time tem arquivo =="
+callf /contest/animeitor/photos-zip GET ani 'contest=an' '' "$TMP/f2.bin"
+unhead "$TMP/f2.bin" "$TMP/f2.zip"
+ck "padrão na raiz do pacote"    'unzip -Z1 "$TMP/f2.zip" 2>/dev/null | grep -qx "placeholder.webp"'
+ck "time SEM foto tem arquivo"   'unzip -Z1 "$TMP/f2.zip" | grep -q "fotos/time-a.webp"'
+ck "time COM foto mantém a dele" 'unzip -Z1 "$TMP/f2.zip" | grep -q "fotos/time-b.png"'
+ck "CSV marca padrao=true"       'unzip -p "$TMP/f2.zip" teams.csv | grep -q "^\"time-a\".*,true$"'
+ck "CSV marca padrao=false"      'unzip -p "$TMP/f2.zip" teams.csv | grep -q "^\"time-b\".*,false$"'
+
 echo "== webcast: chaves =="
 call /contest/animeitor/webcast POST ani 'contest=an' '{"action":"create","view":"public","label":"telao"}'
 KEY="$(jq -r '.key // empty' <<<"$BODY" 2>/dev/null)"

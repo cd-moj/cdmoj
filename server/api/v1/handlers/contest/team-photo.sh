@@ -1,9 +1,13 @@
 # GET /contest/team-photo?contest=<id>&user=<login>[&thumb=1]   -> foto do time
-# Gate = o do PLACAR (público; contest SECRETO exige sessão do contest). 404 sem foto.
+# Gate = o do PLACAR (público; contest SECRETO exige sessão do contest).
 #   sem thumb  -> a foto (webp; png no acervo antigo) — é o que o 📷 do placar abre
 #   &thumb=1   -> a MINIATURA de 320px (~7 KB), para a galeria do .animeitor
-# O cliente manda `&v=<mtime>` na URL, então a miniatura pode ter cache longo: mudou a foto,
-# muda o v e o browser busca de novo (o repo não tem ETag/304 em lugar nenhum).
+# TIME SEM FOTO **não dá mais 404**: devolve a FOTO PADRÃO do contest (200) com o cabeçalho
+# `X-MOJ-Photo: placeholder`. É o que faz o Animeitor achar imagem para todo time do placar.
+# Quem precisa saber quem MANDOU foto usa o `has_photo` das listagens (/contest/teams,
+# /contest/animeitor/photos) — é lá que mora a verdade, e é o que o 📷 do placar consulta.
+# O cliente manda `&v=<mtime>` na URL, então a foto real pode ter cache longo; a padrão troca
+# quando o .animeitor quiser, por isso cache curto.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -13,11 +17,16 @@ quser="$(param user)"
 valid_id "$quser" || fail 400 "Invalid user" "user_invalid"
 source "$_LIBDIR/team-photo.sh"
 
-if [[ -n "$(param thumb)" ]]; then
-  f="$(tp_thumb "$contest" "$quser")"; maxage=86400
+want_thumb="$(param thumb)"
+if [[ -n "$want_thumb" ]]; then f="$(tp_thumb "$contest" "$quser")"; else f="$(tp_file "$contest" "$quser")"; fi
+if [[ -n "$f" ]]; then
+  ph=0; maxage=$([[ -n "$want_thumb" ]] && echo 86400 || echo 60)
 else
-  f="$(tp_file "$contest" "$quser")";  maxage=60
+  f="$(tp_placeholder "$contest" "$want_thumb")"; ph=1; maxage=60
 fi
-[[ -n "$f" ]] || fail 404 "Sem foto" "no_photo"
-printf 'Status: 200 OK\r\nContent-Type: %s\r\nCache-Control: max-age=%s\r\n\r\n' "$(tp_ctype "$f")" "$maxage"
+[[ -n "$f" ]] || fail 404 "Sem foto" "no_photo"      # nem padrão (instalação sem server/etc)
+
+printf 'Status: 200 OK\r\nContent-Type: %s\r\nCache-Control: max-age=%s\r\n' "$(tp_ctype "$f")" "$maxage"
+(( ph )) && printf 'X-MOJ-Photo: placeholder\r\n'
+printf '\r\n'
 cat "$f"

@@ -63,7 +63,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `input_filename` — molde do `sc_cells`), nunca um `jq`/`stat` por conta: a galeria de fotos
   levava 5,3 s com 1000 times e passou a 0,10 s. A galeria pede **miniatura**
   (`team-photo?thumb=1`, 320 px) e usa `&v=<mtime>` como cache-buster — `Date.now()` na URL
-  rebaixa a imagem a cada render.
+  rebaixa a imagem a cada render. **Time sem foto NÃO dá 404**: a API responde a **foto padrão**
+  do contest (`X-MOJ-Photo: placeholder`), escolhida pelo `.animeitor` e com default embarcado em
+  `server/etc/team-placeholder.webp` (mesmo idioma do `info-sheet` — arquivo do contest
+  sobrescreve, apagar volta ao de fábrica). `has_photo` continua sendo a verdade sobre quem
+  mandou foto.
   Auto-cadastro **nunca** cria papel por sufixo: use `is_reserved_role_login` (`lib/auth.sh`) —
   já aplicado no signup; o `/admin/adduser` (admin autenticado) **continua** podendo criar
   `.judge`/`.staff`/`.cstaff` de um contest (legítimo).
