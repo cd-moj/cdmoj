@@ -32,8 +32,11 @@ let activeRegion = (() => {
 let searchTerm = '';
 let noAnim = false;
 // COORTES: qual visão de placar pedir ao servidor. '' = a do login (o servidor decide);
-// 'oficial' = só as coortes públicas; 'geral' = tudo (só vale p/ quem já pode ver tudo).
-let cohortView = '';
+// 'oficial' = só as coortes públicas; 'geral' = tudo (só vale p/ quem já pode ver tudo);
+// <id de coorte> = placar paralelo dela. `?view=` na URL abre já naquele placar (link direto
+// p/ "o placar dos individuais"); o servidor valida o valor, aqui é só a preferência inicial.
+let cohortView = (qs.get('view') || '').replace(/[^a-z0-9_-]/gi, '');
+let genPlace = null;        // login -> posição no placar GERAL (só em placar de coorte)
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
 let refreshTimer = null;
 
@@ -105,33 +108,27 @@ function regionMatch(t) {
       String(t._region).toLowerCase() === String(activeRegion.name).toLowerCase()) return true;
   return false;
 }
-function regionFilterFn() {
-  if (!activeRegion) return null;
-  return (t) => regionMatch(t);
-}
 function setRegion(r) {
   activeRegion = (r && (r.name || r.regex)) ? { name: r.name || '', regex: r.regex || '' } : null;
   if (activeRegion) localStorage.setItem('moj_score_region_' + CONTEST, JSON.stringify(activeRegion));
   else localStorage.removeItem('moj_score_region_' + CONTEST);
-  renderRegionBar();
   reRender();
 }
-function renderRegionBar() {
-  const bar = document.getElementById('regionBar');
-  if (!Array.isArray(regions) || !regions.length) { bar.classList.add('hidden'); return; }
-  bar.classList.remove('hidden');
-  bar.innerHTML = '';
-  bar.append(el('span', { class: 'small muted' }, T('Filtrar região: ', 'Filter region: ')));
-  bar.append(el('a', { href: '#', class: !activeRegion ? 'active' : '', onclick: (e) => { e.preventDefault(); setRegion(null); } }, T('Todas', 'All')));
-  const isActive = (r) => !!activeRegion &&
-    ((r.name || '') === (activeRegion.name || '') && (r.regex || '') === (activeRegion.regex || ''));
-  const walk = (list) => {
-    list.forEach(r => {
-      if (r.regex || r.name) bar.append(el('a', { href: '#', class: isActive(r) ? 'active' : '', onclick: (e) => { e.preventDefault(); setRegion(r); } }, r.name || r.regex));
-      if (Array.isArray(r.subregions) && r.subregions.length) walk(r.subregions);
-    });
-  };
-  walk(regions);
+// sedes para o <select>: a ÁRVORE do regions.json (achatada, subregião indentada — é a curadoria
+// do organizador e pode filtrar por regex) mais as sedes que aparecem no placar e não estão lá.
+function regionOptions() {
+  const out = [];
+  const walk = (list, depth) => (list || []).forEach(r => {
+    if (r.regex || r.name) out.push({ name: r.name || '', regex: r.regex || '', depth });
+    if (Array.isArray(r.subregions) && r.subregions.length) walk(r.subregions, depth + 1);
+  });
+  walk(regions, 0);
+  const seen = new Set(out.map(o => (o.name || '').toLowerCase()));
+  ((parsed && parsed.teams) || []).forEach(t => {
+    const n = t._region || ''; if (!n || seen.has(n.toLowerCase())) return;
+    seen.add(n.toLowerCase()); out.push({ name: n, regex: '', depth: 0 });
+  });
+  return out;
 }
 
 // ---- país / escola (teams-meta) ---------------------------------------------
@@ -143,6 +140,10 @@ function applyTeamsDir(p) {
   if (!p || !(p.mode === 'icpc' || p.mode === 'obi')) return;
   let anyFlag = false;
   p.teams.forEach(t => {
+    // o TXT do placar já traz bandeira e sigla: quem não está no diretório (time removido do
+    // store, vindo de USERS_FROM…) precisa entrar nos filtros do mesmo jeito.
+    if (!t._country && t.flag) { t._country = t.flag; t.flagTitle = t.flagTitle || flagNames[String(t.flag).toLowerCase()] || t.flag; }
+    if (!t._school && t.univShort) t._school = t.univShort;
     const d = teamsDir[t.username || ''];
     if (!d) return;
     if (d.flag) {
@@ -185,36 +186,102 @@ function applyTeamsMeta(p) {
   });
   if (anyFlag && p.mode === 'obi') p.hasFlag = true;
 }
+// casamento ESTRITO (igual ao do relatório): quem não tem o dado NÃO casa. Era
+// `t._country !== undefined && …`, então time sem bandeira aparecia em QUALQUER filtro de
+// bandeira — pedir "Santa Catarina" trazia de volta todo mundo sem bandeira.
+const eqi = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
 function combinedFilterFn() {
   if (!activeRegion && !activeCountry && !activeSchool) return null;
   return (t) => {
     if (!regionMatch(t)) return false;
-    if (activeCountry && t._country !== undefined && t._country !== activeCountry) return false;
-    if (activeSchool && t._school !== undefined && t._school !== activeSchool) return false;
+    if (activeCountry && !eqi(t._country, activeCountry)) return false;
+    if (activeSchool && !eqi(t._school, activeSchool)) return false;
     return true;
   };
 }
-function renderMetaFilters() {
-  const bar = document.getElementById('metaFilterBar');
+// UMA barra de filtros, com os MESMOS controles do relatório offline (coorte, bandeira,
+// universidade, sede, busca) + contador de times visíveis e "limpar". As opções vêm dos times
+// PRESENTES no placar exibido: trocar de coorte reconstrói as listas.
+function fLabel(txt, ctl) { return el('label', {}, txt, ctl); }
+function renderFilters() {
+  const bar = document.getElementById('scoreFilters');
   if (!bar) return;
+  const isBoard = parsed && (parsed.mode === 'icpc' || parsed.mode === 'obi');
   bar.innerHTML = '';
-  if (!parsed || !(parsed.mode === 'icpc' || parsed.mode === 'obi')) { bar.classList.add('hidden'); return; }
-  const countries = [...new Set(parsed.teams.map(t => t._country).filter(Boolean))].sort();
-  const schools = [...new Set(parsed.teams.map(t => t._school).filter(Boolean))].sort();
-  if (!countries.length && !schools.length) { bar.classList.add('hidden'); return; }
-  bar.classList.remove('hidden');
-  if (countries.length) {
-    const sel = el('select', { class: 'meta-filter' }, el('option', { value: '' }, T('País: todos', 'Country: all')),
-      ...countries.map(c => el('option', { value: c }, flagNames[String(c).toLowerCase()] || String(c).toUpperCase())));
-    sel.value = activeCountry; sel.addEventListener('change', () => { activeCountry = sel.value; reRender(); });
-    bar.append(sel);
+  bar.classList.toggle('hidden', !!anonMode);   // no anônimo não há linha p/ filtrar
+
+  // COORTE (troca o placar no servidor: cada visão tem posição e ⭐ próprias — filtrar linha
+  // daria estrela errada, ver lib/cohorts.sh). Duas fontes: convidados × placares paralelos.
+  const coh = basic && basic.cohort;
+  const svs = (basic && basic.score_views) || [];
+  let viewSel = null;
+  // os ids são os MESMOS do relatório offline (fView/fFlag/fUniv/fRegion/fQ/fCount): a barra é a
+  // mesma coisa nos dois lugares, e é por eles que a bancada de teste mexe nos controles.
+  if (coh && (coh.views || []).length > 1) {
+    viewSel = el('select', { id: 'fView' },
+      el('option', { value: 'geral' }, T('Geral (com convidados)', 'Overall (with guests)')),
+      el('option', { value: 'oficial' }, T('Oficial', 'Official')));
+    viewSel.value = cohortView || 'geral';
+  } else if (svs.length > 1) {
+    viewSel = el('select', { id: 'fView' }, el('option', { value: '' }, T('Geral (todos)', 'Overall (everyone)')),
+      ...svs.map((v) => el('option', { value: v.id }, v.name || v.id)));
+    viewSel.value = cohortView || '';
   }
-  if (schools.length) {
-    const sel = el('select', { class: 'meta-filter' }, el('option', { value: '' }, T('Escola: todas', 'School: all')),
-      ...schools.map(s => el('option', { value: s }, s)));
-    sel.value = activeSchool; sel.addEventListener('change', () => { activeSchool = sel.value; reRender(); });
-    bar.append(sel);
+  if (viewSel) {
+    viewSel.addEventListener('change', () => { cohortView = viewSel.value; pollScore(); });
+    bar.append(fLabel(T('Placar:', 'Board:'), viewSel));
   }
+
+  if (isBoard) {
+    const countries = [...new Set(parsed.teams.map(t => t._country).filter(Boolean))]
+      .sort((a, b) => flagLabel(a).localeCompare(flagLabel(b)));
+    const schools = [...new Set(parsed.teams.map(t => t._school).filter(Boolean))].sort();
+    if (countries.length) {
+      const sel = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todas', 'all')),
+        ...countries.map(c => el('option', { value: c }, flagLabel(c))));
+      sel.value = activeCountry;
+      sel.addEventListener('change', () => { activeCountry = sel.value; reRender(); });
+      bar.append(fLabel(T('Bandeira:', 'Flag:'), sel));
+    }
+    if (schools.length) {
+      const sel = el('select', { id: 'fUniv' }, el('option', { value: '' }, T('todas', 'all')),
+        ...schools.map(s => el('option', { value: s }, s)));
+      sel.value = activeSchool;
+      sel.addEventListener('change', () => { activeSchool = sel.value; reRender(); });
+      bar.append(fLabel(T('Universidade:', 'University:'), sel));
+    }
+    const rops = regionOptions();
+    if (rops.length) {
+      const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
+        ...rops.map((r, i) => el('option', { value: String(i) },
+          ' '.repeat(r.depth * 2) + (r.name || r.regex))));
+      const cur = rops.findIndex(r => (r.name || '') === ((activeRegion && activeRegion.name) || '') &&
+                                      (r.regex || '') === ((activeRegion && activeRegion.regex) || ''));
+      sel.value = activeRegion && cur >= 0 ? String(cur) : '';
+      sel.addEventListener('change', () => setRegion(sel.value === '' ? null : rops[Number(sel.value)]));
+      bar.append(fLabel(T('Sede:', 'Site:'), sel));
+    }
+  }
+
+  const q = el('input', { id: 'fQ', class: 'filter', type: 'search',
+    placeholder: T('buscar time, universidade, login…', 'search team, university, login…') });
+  q.value = searchTerm;
+  q.addEventListener('input', () => { searchTerm = q.value; reRender(); });
+  bar.append(q);
+  bar.append(el('button', { id: 'fClear', type: 'button', onclick: () => {
+    activeCountry = ''; activeSchool = ''; searchTerm = ''; setRegion(null); renderFilters();
+  } }, T('limpar filtros', 'clear filters')));
+  bar.append(el('span', { class: 'fcount', id: 'fCount' }, ''));
+}
+function flagLabel(c) { return flagNames[String(c).toLowerCase()] || String(c).toUpperCase(); }
+// contador: quantos times a seleção deixou visíveis (o placar NÃO renumera — a posição é a
+// oficial, então o contador é o que diz que há um filtro ativo).
+function updateCount(shown, total) {
+  const c = document.getElementById('fCount');
+  if (!c) return;
+  c.textContent = (shown === total)
+    ? T(`${total} times`, `${total} teams`)
+    : T(`Mostrando ${shown} de ${total} times`, `Showing ${shown} of ${total} teams`);
 }
 
 // ---- placar anônimo (agregado: distribuição + quartis, sem nomes) ------------
@@ -254,8 +321,12 @@ let parsed = null;
 function reRender() {
   const box = document.getElementById('scoreContainer');
   if (!parsed) { box.innerHTML = `<span class="muted">${T('Placar indisponível.', 'Scoreboard unavailable.')}</span>`; return; }
+  // modo anônimo é agregado: filtro de linha não se aplica, então a barra sai de cena (senão
+  // ficaria um contador mentindo sobre um placar que não mostra times)
+  const fb = document.getElementById('scoreFilters');
+  if (fb) fb.classList.toggle('hidden', !!anonMode);
   if (anonMode) { renderAnon(parsed); return; }
-  const opts = { searchTerm, regionFn: combinedFilterFn() };
+  const opts = { searchTerm, regionFn: combinedFilterFn(), genPlace };
   let table;
   if (parsed.mode === 'icpc') table = renderICPC(parsed, opts);
   else if (parsed.mode === 'obi') table = renderOBI(parsed, opts);
@@ -264,6 +335,7 @@ function reRender() {
   // .board-wrap (e NÃO .chart-wrap): o placar não rola para o lado — as larguras do
   // <colgroup> já garantem que tudo cabe, quebrando linha quando precisa.
   box.append(el('div', { class: 'board-wrap' }, table));
+  updateCount(Number(table.dataset.shown || 0), Number(table.dataset.total || 0));
   animateMoves();
 }
 
@@ -287,6 +359,28 @@ function animateMoves() {
   lastOrder = order;
 }
 
+// posição de cada login no placar GERAL (a visão que ESTE espectador recebe sem `?view=`).
+// Serve p/ o placar de coorte mostrar as duas classificações, como o relatório offline.
+async function fetchGenPlace() {
+  genPlace = null;
+  // só faz sentido num placar paralelo/de coorte; 'geral' e 'oficial' diferem só por convidado,
+  // que não consome posição — a classificação é a mesma e o 2º número seria ruído.
+  if (!cohortView || cohortView === 'geral' || cohortView === 'oficial') return;
+  let txt = '';
+  try { txt = await apiGetText('/contest/score?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }); }
+  catch { return; }
+  const lines = txt.replace(/\r/g, '').split('\n');
+  const mode = (lines[0] || '').trim().toLowerCase();
+  const data = lines.slice(1).filter(Boolean);
+  if (!data.length) return;
+  let p = null;
+  if (/^icpc/.test(mode)) p = parseICPC(data, BALLOONS);
+  else if (/^obi/.test(mode)) p = parseOBI(data);
+  if (!p) return;
+  const m = {};
+  p.teams.forEach(t => { if (t.username && t.place != null) m[t.username] = t.place; });
+  genPlace = Object.keys(m).length ? m : null;
+}
 async function pollScore() {
   clearTimeout(refreshTimer);
   let txt = '';
@@ -323,7 +417,14 @@ async function pollScore() {
     // treino / heuristic / outro / qualquer outro -> genérico
     parsed = parseGeneric(dataLines, mode || 'outro');
   }
-  if (parsed) { if (!parsed.balloons) parsed.balloons = BALLOONS; applyTeamsDir(parsed); applyTeamsMeta(parsed); renderMetaFilters(); reRender(); }
+  if (parsed) {
+    if (!parsed.balloons) parsed.balloons = BALLOONS;
+    applyTeamsDir(parsed); applyTeamsMeta(parsed);
+    await fetchGenPlace();
+    // a mesma classificação nos dois placares (nada a informar) ⇒ não mostra a 2ª posição
+    if (genPlace && parsed.teams.every(t => t.place == null || genPlace[t.username] === t.place)) genPlace = null;
+    renderFilters(); reRender();
+  }
 
   refreshTimer = setTimeout(pollScore, 30000 + Math.random() * 30000); // 30–60s
 }
@@ -360,11 +461,8 @@ async function boot() {
   teamsDir = (td && td.teams) || {};
   (mani.countries || []).forEach(c => { flagNames[c.code] = c.name; });
   (mani.br_states || []).forEach(s => { flagNames['br-' + s.code] = s.name; });
-  renderRegionBar();
 
-  // controles
-  const searchInput = document.getElementById('scoreSearch');
-  searchInput.addEventListener('input', () => { searchTerm = searchInput.value; reRender(); });
+  // controles (busca, bandeira, universidade, sede e coorte vivem na barra: renderFilters)
   document.getElementById('noAnim').addEventListener('change', (e) => { noAnim = e.target.checked; });
 
   // modo anônimo: forçado pelo contest (não-admin não desliga) ou alternável localmente
@@ -377,40 +475,14 @@ async function boot() {
       el('label', { class: 'small', style: 'margin-left:.6rem' }, cb, ' ' + T('Anônimo', 'Anonymous')));
   }
 
-  // COORTES (times oficiais × convidados): aviso p/ quem é convidado e, p/ quem pode ver tudo,
-  // o seletor Oficial × Geral. Sem coortes no contest, `basic.cohort` é null e nada aparece.
+  // COORTES: o AVISO p/ quem é convidado (o seletor de placar mora na barra de filtros, junto
+  // dos outros — quem escolhe a visão está filtrando o placar como quem escolhe uma bandeira).
   const coh = basic && basic.cohort;
-  if (coh) {
-    const bar = document.getElementById('noAnim').parentNode.parentNode;
-    if (coh.unranked || !coh.public) {
-      const main = document.querySelector('main.container') || document.body;
-      main.prepend(el('div', { class: 'alert', style: 'font-weight:600' },
-        T(`🏅 Você está na categoria “${coh.name}” (convidado): aparece neste placar, mas fora da classificação oficial.`,
-          `🏅 You are in the “${coh.name}” category (guest): you show up on this scoreboard, but outside the official ranking.`)));
-    }
-    if ((coh.views || []).length > 1) {
-      const sel = el('select', {},
-        el('option', { value: 'geral' }, T('Geral (com convidados)', 'Overall (with guests)')),
-        el('option', { value: 'oficial' }, T('Oficial', 'Official')));
-      sel.value = cohortView || 'geral';
-      sel.addEventListener('change', () => { cohortView = sel.value; pollScore(); });
-      bar.append(el('label', { class: 'small', style: 'margin-left:.6rem' },
-        T('Placar: ', 'Board: '), sel));
-    }
-  }
-
-  // PLACARES PARALELOS (times × individual): coortes públicas com ranking próprio. É público —
-  // não depende de sessão — e o "Geral" continua sendo o placar com todo mundo.
-  const svs = (basic && basic.score_views) || [];
-  // se o seletor de CONVIDADOS já está na barra, ele manda (é sobre quem vê quem): os dois
-  // escrevem o mesmo `cohortView` e brigariam pelo `?view=`
-  if (svs.length > 1 && !(coh && (coh.views || []).length > 1)) {
-    const bar = document.getElementById('noAnim').parentNode.parentNode;
-    const sel = el('select', {}, el('option', { value: '' }, T('Geral (todos)', 'Overall (everyone)')),
-      ...svs.map((v) => el('option', { value: v.id }, v.name || v.id)));
-    sel.value = cohortView || '';
-    sel.addEventListener('change', () => { cohortView = sel.value; pollScore(); });
-    bar.append(el('label', { class: 'small', style: 'margin-left:.6rem' }, T('Placar: ', 'Board: '), sel));
+  if (coh && (coh.unranked || !coh.public)) {
+    const main = document.querySelector('main.container') || document.body;
+    main.prepend(el('div', { class: 'alert', style: 'font-weight:600' },
+      T(`🏅 Você está na categoria “${coh.name}” (convidado): aparece neste placar, mas fora da classificação oficial.`,
+        `🏅 You are in the “${coh.name}” category (guest): you show up on this scoreboard, but outside the official ranking.`)));
   }
 
   // ordenação por clique no cabeçalho (delegação)

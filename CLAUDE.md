@@ -190,6 +190,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   a célula de PROBLEMA vira ✓/✗ com os números no `title` — total e penalidade (também
   `td.cell`) ficam de fora da regra e mantêm o número. Embrulho é `.board-wrap` (sem overflow).
   ⚠ `min()`/`max()` em largura de `<col>` é IGNORADO pelo Firefox — só `calc()` simples.
+  **A BARRA DE FILTROS também é a mesma nos dois** (coorte, bandeira, universidade, sede, busca,
+  contador, limpar): CSS `.fbar` + `.plg` no `ui.css`, mesmos `id` (`fView`/`fFlag`/`fUniv`/
+  `fRegion`/`fQ`/`fCount`), e só a COORTE fala com o servidor (`?view=`, aceito também na URL da
+  página) — o resto recorta linhas e **nunca renumera** (o contador é quem denuncia o filtro).
   Detalhes em `docs/SCOREBOARD.md`.
 - **Coluna NUMÉRICA em tabela = `class="n"` no `<td>` E no `<th>`** (`ui.css`: alinha à direita,
   `tabular-nums`, largura do conteúdo). Marcar só o `td` foi bug real: com `width:100%` o

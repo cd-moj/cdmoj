@@ -76,16 +76,21 @@ function cellSolved(v) { return /^\d+\/\d+\/?\*?$/.test(v); }  // tries/minutes[
 function cellWait(v) { return /^\d+\/-/.test(v); }             // tries/-
 
 export function renderICPC(parsed, opts) {
-  const { searchTerm = '', regionFn = null } = opts || {};
+  const { searchTerm = '', regionFn = null, genPlace = null } = opts || {};
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
   const table = el('table', { class: 'score' });
+  // quantos times a seleção deixou visíveis (o contador da barra de filtros lê daqui — a
+  // posição NUNCA é renumerada, então é o contador que revela que há filtro ativo)
+  table.dataset.shown = String(teams.length);
+  table.dataset.total = String(parsed.teams.length);
   // largura por <colgroup>: com table-layout:fixed é o que garante que TODAS as colunas
   // caibam (o conteúdo quebra dentro da célula em vez de a tabela rolar).
   scoreCols(table, parsed.probShorts.length, { flag: true, penalty: true });
   const headRow = el('tr', {},
-    el('th', {}, '#'),
+    // em placar de COORTE a coluna leva duas posições: a da coorte e a do placar geral
+    el('th', {}, '#', genPlace ? el('span', { class: 'plg' }, T('Geral', 'Overall')) : null),
     el('th', { title: T('Bandeira', 'Flag') }, ''),   // rótulo não cabe na coluna estreita: fica no title
     el('th', {}, T('Equipe', 'Team')));
   const sonic = sonicEnabled(parsed.balloons);
@@ -103,7 +108,10 @@ export function renderICPC(parsed, opts) {
     const tr = el('tr', { id: 'tr-team-' + t.username.replace(/\W/g, '_'),
       class: t.guest ? 'guest-row' : '' });
     // convidado não tem posição oficial: mostra "–" no lugar do número
-    tr.append(el('td', { class: 'cl-place' }, t.guest ? '–' : String(t.place)));
+    const gp = genPlace && !t.guest ? genPlace[t.username] : null;
+    tr.append(el('td', { class: 'cl-place' }, t.guest ? '–' : String(t.place),
+      gp != null ? el('span', { class: 'plg',
+        title: T('Posição no placar geral', 'Position in the overall scoreboard') }, String(gp)) : null));
     // bandeira
     const flagTd = el('td', {});
     if (t.flag) { const fi = flagEl(t.flag, { height: 18, title: t.flagTitle || t.flag }); if (fi) flagTd.append(fi); }

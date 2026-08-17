@@ -36,6 +36,8 @@ export function renderGeneric(parsed, opts) {
   }
 
   const table = el('table', { class: 'score' });
+  table.dataset.shown = String(rows.length);           // contador da barra de filtros
+  table.dataset.total = String(parsed.rows.length);
   // larguras por <colgroup> (table-layout:fixed) — o placar não rola para o lado
   scoreColsGeneric(table, parsed.header, { iFlag: parsed.iFlag, iUser: parsed.iUser, iTeam: parsed.iTeam });
   const headRow = el('tr', {}, el('th', {}, '#'));

@@ -2302,12 +2302,9 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "enum": [
-                "public"
-              ]
+              "type": "string"
             },
-            "description": "public = visão pública/congelada mesmo com sessão privilegiada"
+            "description": "VISÃO do placar (coortes): public = visão pública/congelada mesmo com sessão privilegiada; oficial = só as coortes públicas; geral = tudo (só p/ quem já pode ver tudo); <id de coorte pública com ranking> = o placar paralelo dela (ex.: individual, times) — é público, não exige sessão. Valor inválido cai na visão do login."
           },
           {
             "name": "scope",

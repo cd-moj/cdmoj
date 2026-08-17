@@ -434,21 +434,8 @@ span.flag-mini{display:inline-block;width:27px;height:18px;max-width:100%;
 input.filter{padding:.45rem .7rem;border:1px solid #c8cfd9;border-radius:10px;margin:0 0 .7rem;width:280px;max-width:100%}
 footer{color:var(--muted);font-size:.78rem;margin:2rem 0 .6rem}
 .note{color:var(--muted);font-size:.85rem;margin:.4rem 0}
-/* barra de filtros do placar (coorte, bandeira, universidade, sede, busca) */
-.fbar{display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:center;background:var(--card);
-  border:1px solid var(--line);border-radius:var(--radius);padding:.6rem .9rem;margin:.7rem 0;
-  box-shadow:var(--shadow-sm)}
-.fbar label{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:.35rem}
-.fbar select{padding:.35rem .5rem;border:1px solid #c8cfd9;border-radius:8px;background:#fff;
-  font:inherit;font-size:.85rem;max-width:15rem}
-.fbar input.filter{margin:0;width:16rem}
-.fbar .fcount{font-size:.85rem;color:var(--muted);margin-left:auto}
-.fbar button{padding:.35rem .7rem;border:1px solid #c8cfd9;border-radius:8px;background:#fff;
-  font:inherit;font-size:.85rem;cursor:pointer;color:var(--blue-dark)}
-.fbar button:hover{background:var(--blue-soft)}
-/* posição no placar geral, dentro da coluna # do placar de coorte */
-.plg{display:block;font-size:.7em;font-weight:600;color:var(--muted);line-height:1.1}
-@media (max-width:640px){ table.score th .plg{display:none} }
+/* a barra de filtros (.fbar) e a posição geral (.plg) moram no ui.css inlinado acima: são as
+   MESMAS do placar ao vivo — os dois filtram o mesmo placar. */
 CSSEOF
 }
 

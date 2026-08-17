@@ -111,6 +111,18 @@ filtro (vazio = todas) e `MOJ_UNRANKED="<id> …"` liga a coluna `guest`.
 para convidado. Os renderizadores acham coluna por NOME no cabeçalho, então quem não a conhece
 simplesmente a ignora; o front usa para pular a numeração e marcar a linha.
 
+**A BARRA DE FILTROS é a mesma no placar ao vivo e no relatório** (coorte · bandeira ·
+universidade · sede · busca · contador · limpar): mesmos rótulos, mesmos `id`
+(`fView`/`fFlag`/`fUniv`/`fRegion`/`fQ`/`fCount`) e o mesmo CSS (`.fbar` em `web/shared/ui.css`,
+que o relatório inlina). Ao vivo ela é montada por `renderFilters()` (`web/contest/score/score.js`)
+com as opções dos times PRESENTES no placar exibido; a sede vem da árvore do `regions.json` mais
+as sedes que aparecem no placar. Trocar de coorte é o único controle que fala com o servidor
+(`?view=`); os outros recortam linhas no cliente e **nunca renumeram** — quem diz que há filtro
+ativo é o contador ("Mostrando N de M times"). `/contest/score/?c=<c>&view=<coorte>` abre direto
+num placar paralelo (link compartilhável). ⚠ O casamento é **estrito**: quem não tem o dado não
+casa — o `t._country !== undefined` de antes fazia time sem bandeira aparecer em QUALQUER filtro
+de bandeira.
+
 **No relatório offline as visões viram um seletor**: `report-gen.sh` publica **um placar por
 visão** (`rep_score_boards`, uma `<section class="board-view" data-view="…">` por TXT, a primeira
 visível) e o `<select>` só troca qual aparece — pelo mesmo motivo do parágrafo acima, o script
@@ -120,9 +132,10 @@ relatório é privilegiado e só o admin o baixa; placares de conteúdo idêntic
 (quando toda coorte é pública, `public` == `all`) e a ordem do seletor é pública › placares
 paralelos › todos › visão de coorte privada. Em placar de coorte a coluna `#` leva **duas**
 posições — a da coorte (grande) e a do **placar geral** (menor, cinza, `.plg`) —, e ela só
-aparece quando informa algo (na visão cuja classificação é a do geral, não). Filtrar por
-bandeira/universidade/sede/busca (os outros controles da barra) **nunca renumera**: a posição
-segue a oficial e um contador diz quantos times estão visíveis.
+aparece quando informa algo (na visão cuja classificação é a do geral, não). **O placar ao vivo faz
+o mesmo**: ao entrar num placar paralelo ele busca TAMBÉM o placar geral (`fetchGenPlace`, um GET
+a mais só nesse caso) e mostra as duas posições; se as classificações coincidem, o segundo número
+não aparece.
 
 **O que NÃO é recortado** (e está assim de propósito, porque é papel privilegiado):
 `/contest/statistics` (admin/juiz/monitor — inclusive `first_solver` nominal),

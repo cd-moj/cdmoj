@@ -17,9 +17,7 @@
     tr.placing-down td { animation:flash-down 1.1s ease; }
     @keyframes flash-up { 0%{background:#d7f5dd;} 100%{background:transparent;} }
     @keyframes flash-down { 0%{background:#fde0e4;} 100%{background:transparent;} }
-    .region-bar { margin-bottom:.8rem; }
-    .region-bar a { margin-right:.3rem; }
-    .region-bar a.active { font-weight:800; text-decoration:underline; }
+    /* a barra de filtros (.fbar) é a MESMA do relatório offline: mora no /shared/ui.css */
   </style>
 </head>
 <body>
@@ -47,11 +45,10 @@
     </div>
     <div class="section">
       <div class="row" style="margin-bottom:.6rem">
-        <input id="scoreSearch" placeholder="🔍 Buscar time / universidade / login…" data-en-ph="🔍 Search team / university / login…" style="flex:1; min-width:240px">
         <label class="small"><input type="checkbox" id="noAnim"> <span data-en="Disable animation">Desabilitar animação</span></label>
       </div>
-      <div class="region-bar hidden" id="regionBar"></div>
-      <div class="region-bar hidden" id="metaFilterBar" style="gap:.5rem"></div>
+      <!-- coorte + bandeira + universidade + sede + busca + contador: montada pelo score.js -->
+      <div class="fbar hidden" id="scoreFilters"></div>
       <div id="scoreContainer"><span class="muted" data-en="Loading…">carregando…</span></div>
     </div>
   </main>

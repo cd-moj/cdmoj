@@ -439,6 +439,25 @@ table.score .flag-mini { max-width:100%; }
 .balloon-svg { width:20px; height:23px; vertical-align:middle; }
 /* embrulho do placar: ao contrário do .chart-wrap, NÃO rola — o layout já garante o encaixe */
 .board-wrap { overflow-x:visible; }
+/* BARRA DE FILTROS do placar (coorte, bandeira, universidade, sede, busca). Definição ÚNICA:
+   vale para a página do contest e para o relatório offline, que inlina este arquivo — os dois
+   filtram o mesmo placar, então filtram com a mesma cara. */
+.fbar { display:flex; flex-wrap:wrap; gap:.5rem .8rem; align-items:center; background:var(--card);
+  border:1px solid var(--line); border-radius:var(--radius); padding:.6rem .9rem; margin:.7rem 0;
+  box-shadow:var(--shadow-sm); }
+.fbar label { font-size:.85rem; color:var(--muted); display:flex; align-items:center; gap:.35rem; }
+.fbar select { padding:.35rem .5rem; border:1px solid #c8cfd9; border-radius:8px; background:#fff;
+  font:inherit; font-size:.85rem; max-width:15rem; }
+.fbar input.filter { margin:0; width:16rem; padding:.35rem .5rem; border:1px solid #c8cfd9;
+  border-radius:8px; font:inherit; font-size:.85rem; max-width:100%; }
+.fbar .fcount { font-size:.85rem; color:var(--muted); margin-left:auto; }
+.fbar button { padding:.35rem .7rem; border:1px solid #c8cfd9; border-radius:8px; background:#fff;
+  font:inherit; font-size:.85rem; cursor:pointer; color:var(--blue-dark); }
+.fbar button:hover { background:var(--blue-soft); }
+/* posição no placar GERAL, dentro da coluna # do placar de coorte (o número grande é a posição
+   na coorte). No celular o rótulo do cabeçalho sai — o dado continua, com title. */
+.plg { display:block; font-size:.7em; font-weight:600; color:var(--muted); line-height:1.1; }
+@media (max-width:640px) { table.score th .plg { display:none; } }
 /* telas médias: aperta espaçamento e fonte antes de mexer no conteúdo */
 @media (max-width:1100px) {
   table.score { font-size:.86rem; }
