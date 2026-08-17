@@ -9,7 +9,7 @@ import { mkBool } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
-const PRIV = /\.(admin|judge|cjudge|staff|cstaff|mon)$/;
+const PRIV = /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/;
 
 export function makeUsersTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };

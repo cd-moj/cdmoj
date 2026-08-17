@@ -200,7 +200,7 @@ if command -v convert >/dev/null 2>&1; then
   convert -size 4x4 xc:red /tmp/reg-smoke-$$.png 2>/dev/null
   PNG64="$(base64 -w0 < /tmp/reg-smoke-$$.png)"; rm -f /tmp/reg-smoke-$$.png
   reg "{\"contest\":\"esq\",\"action\":\"team-photo\",\"image_b64\":\"$PNG64\"}" tok-ana
-  ck "foto do time aceita"       '[[ "$(J .team.has_photo)" == true && -f "$C/users/time-os-tres-ponteiros/photo.png" ]]'
+  ck "foto do time aceita"       '[[ "$(J .team.has_photo)" == true && -f "$C/users/time-os-tres-ponteiros/photo.webp" ]]'
   reg "{\"contest\":\"esq\",\"action\":\"team-photo\",\"image_b64\":\"$PNG64\"}" tok-caio
   ck "foto por não-capitão -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 else

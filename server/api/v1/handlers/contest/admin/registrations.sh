@@ -41,7 +41,8 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
   # corpo ANTES do header: jq que falha depois de emit_json vira 200 mudo com corpo vazio
   local photos='[]'
   photos="$( ( set +o noglob; shopt -s nullglob
-    for f in "$cdir"/users/*/photo.png; do d="${f%/photo.png}"; printf '%s\n' "${d##*/}"; done ) \
+    for f in "$cdir"/users/*/photo.webp "$cdir"/users/*/photo.png; do
+      d="${f%/photo.*}"; printf '%s\n' "${d##*/}"; done | sort -u ) \
     | jq -R . | jq -cs .)"
   [[ -n "$photos" ]] || photos='[]'
   # quem tem Telegram vinculado entre os CONVIDADOS (é quem o lembrete alcança) + a

@@ -106,7 +106,7 @@ ch_view_for_login(){
   local c="$1" l="$2" co
   ch_enabled "$c" || { printf 'public'; return 0; }
   ch_released "$c" && { printf 'all'; return 0; }
-  case "$l" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) printf 'all'; return 0;; esac
+  case "$l" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) printf 'all'; return 0;; esac
   co="$(ch_of "$c" "$l")"
   # membro de coorte pública vê a visão pública; de coorte privada, a visão dela
   if [[ -n "$co" ]] && jq -e --arg i "$co" 'any(.cohorts[]; .id == $i and .public == false)' \

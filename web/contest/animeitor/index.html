@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="Animeitor — Contest — MOJ">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Animeitor — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    /* galeria de fotos: cartão por time, miniatura com proporção livre */
+    .gal { display:grid; gap:.7rem; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); }
+    .gal .card { padding:.5rem; text-align:center; display:flex; flex-direction:column; gap:.35rem; }
+    .gal .ph { width:100%; height:120px; border-radius:8px; background:var(--blue-soft);
+               object-fit:cover; display:block; }
+    .gal .ph.none { display:flex; align-items:center; justify-content:center; color:var(--muted);
+                    font-size:.8rem; }
+    .gal .nm { font-weight:700; font-size:.85rem; line-height:1.15; overflow-wrap:anywhere; }
+    .gal .lg { color:var(--muted); font-size:.72rem; overflow-wrap:anywhere; }
+    .gal .acts { display:flex; gap:.3rem; justify-content:center; flex-wrap:wrap; }
+    .gal .acts button { font-size:.75rem; padding:.2rem .5rem; }
+    .keyurl { font-family:var(--mono); font-size:.78rem; word-break:break-all; background:var(--blue-bg);
+              padding:.3rem .45rem; border-radius:6px; display:block; }
+    .revoked { opacity:.55 }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+  <main class="container">
+    <h1 style="margin:.2rem 0 .3rem" data-en="🎥 Animeitor">🎥 Animeitor</h1>
+    <p class="muted small" style="margin:.1rem 0 1rem"
+       data-en="The screen operator&#39;s desk: team photos and the scoreboard streaming that feeds the Animeitor system.">
+       A mesa de quem opera o telão: as fotos dos times e o streaming de placar que alimenta o sistema Animeitor.</p>
+    <div id="app"><p class="muted" data-en="Loading…">carregando…</p></div>
+  </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="./animeitor.js"></script>
+</body>
+</html>

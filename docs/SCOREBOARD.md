@@ -137,6 +137,10 @@ o mesmo**: ao entrar num placar paralelo ele busca TAMBÉM o placar geral (`fetc
 a mais só nesse caso) e mostra as duas posições; se as classificações coincidem, o segundo número
 não aparece.
 
+**A conta `.animeitor`** (mesa do telão) recebe o placar **sempre descongelado** e é dela que sai
+o **webcast**: um pacote por VISÃO, no formato do BOCA, que o sistema Animeitor busca em loop —
+inclusive com os runs pós-freeze, porque quem anima a virada é ele. Ver `docs/WEBCAST.md`.
+
 **O que NÃO é recortado** (e está assim de propósito, porque é papel privilegiado):
 `/contest/statistics` (admin/juiz/monitor — inclusive `first_solver` nominal),
 `/contest/allsubmissions`, a fila do staff (o balão do convidado precisa ser entregue) e o

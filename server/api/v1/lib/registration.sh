@@ -584,7 +584,9 @@ reg_status_json(){
   IFS=$'\t' read -r st op cl lt anc rnd < <(reg_window "$c")
   local tteam tphoto=false
   tteam="$(reg_team_of "$c" "$l")"
-  [[ -n "$tteam" && -f "$CONTESTSDIR/$c/users/$tteam/photo.png" ]] && tphoto=true
+  # foto do time é webp desde 2026-08 (photo.png = acervo antigo — ver lib/team-photo.sh)
+  [[ -n "$tteam" ]] && { [[ -f "$CONTESTSDIR/$c/users/$tteam/photo.webp" ]] \
+                      || [[ -f "$CONTESTSDIR/$c/users/$tteam/photo.png" ]]; } && tphoto=true
   reg_get "$c" | jq -c --arg l "$l" --arg st "$st" --argjson op "${op:-0}" \
       --argjson cl "${cl:-0}" --argjson lt "${lt:-0}" --argjson max "$(reg_team_max "$c")" \
       --argjson anc "${anc:-0}" --arg rnd "${rnd:-}" --argjson tphoto "$tphoto" \

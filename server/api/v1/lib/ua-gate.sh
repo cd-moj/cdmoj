@@ -80,7 +80,7 @@ ug_expected(){
   jq -e --arg l "$l" 'any(.exempt[]; . as $rr | (try ($l|test($rr;"i")) catch false))' \
     <<<"$g" >/dev/null 2>&1 && return 0
   # 2. conta de papel: sempre entra (é quem configura o gate)
-  case "$l" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) return 0;; esac
+  case "$l" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 0;; esac
   # 3./5. by_regex e from_login resolvem no mesmo jq
   out="$(jq -r --arg l "$l" '
     # `// null` é obrigatório: `first()` de stream VAZIO é vazio, e `vazio as $v | …` faz a
@@ -131,7 +131,7 @@ UG_JQ='
   def ug_expect($g; $l; $reg):
     if ($g.mode == "off") then ""
     elif any($g.exempt[]; . as $rr | (try ($l|test($rr;"i")) catch false)) then ""
-    elif ($l | test("\\.(admin|judge|cjudge|staff|cstaff|mon)$")) then ""
+    elif ($l | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) then ""
     else
       (((first($g.by_regex[] | .regex as $rr
                 | select(try ($l|test($rr;"i")) catch false) | .expect)) // null) as $byrx

@@ -7,7 +7,8 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_admin || is_judge || is_mon; } || fail 403 "Apenas admin/judge/monitor" "stats_forbidden"
+# .animeitor opera o telão: as estatísticas são parte do que ele mostra (decisão do produto)
+{ is_admin || is_judge || is_mon || is_animeitor; } || fail 403 "Apenas admin/judge/monitor/animeitor" "stats_forbidden"
 
 cache="$CONTESTSDIR/$contest/var/statistics.cache.json"
 regen_locked "$CONTESTSDIR/$contest/var/.stats.lock" \

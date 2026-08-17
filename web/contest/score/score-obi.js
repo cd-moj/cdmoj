@@ -82,7 +82,7 @@ export function renderOBI(parsed, opts) {
     const label = (parsed.hasUnivShort && t.univShort ? `[${escHtml(t.univShort)}] ` : '') + escHtml(t.teamName || t.username);
     const teamTd = el('td', { class: 'team',
       title: [(parsed.hasUnivFull && t.univFull) || '', t.username].filter(Boolean).join(' · '), html: logo + label });
-    // foto do time (photo.png subida pelo admin): link clicável, abre em nova aba
+    // foto do time (photo.webp; a rota serve o legado png também): link, abre em nova aba
     if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
     tr.append(teamTd);
     parsed.probShorts.forEach(sn => {

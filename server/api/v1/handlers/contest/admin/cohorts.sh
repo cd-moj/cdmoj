@@ -27,7 +27,7 @@ _ch_counts_file(){  # <out-json>
   { find "$cdir/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
       | xargs -0 -r jq -r --argjson CH "$chj" '
           (.login // "") as $l
-          | select($l | test("\\.(admin|judge|cjudge|staff|cstaff|mon)$") | not)
+          | select($l | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$") | not)
           | (((.team.cohort // "") as $c
               | if $c != "" then $c
                 else ((first($CH.cohorts[] | .regex as $rr

@@ -9,6 +9,20 @@ source "$_LIBDIR/print.sh"
 
 emit_json 200 OK
 
+# .animeitor (telão): NÃO submete e não vê enunciado. Vê o placar (SEMPRE descongelado — é ele
+# que conduz a revelação), as estatísticas, e a página dele: fotos dos times + as chaves do
+# webcast que alimentam o sistema Animeitor.
+if is_animeitor; then
+  jq -cn '{success:true, buttons:[
+    {label:"Score", url:"/contest/score/"},
+    {label:"🎥 Animeitor", url:"/contest/animeitor/"},
+    {label:"📊 Estatísticas", url:"/contest/statistics/"},
+    {label:"🏆 Revelação", url:"/contest/score/reveal.html"},
+    {label:"Logout", url:"/logout"}
+  ]}'
+  exit 0
+fi
+
 # .cstaff (chefe de sede): NÃO submete. Vê o placar (congelado, como usuário normal), a
 # fila de impressão em modo leitura e as ETIQUETAS de credenciais da sede. O botão da
 # cerimônia (🏆) só aparece quando o contest terminou p/ TODAS as sedes — mesmo gate que

@@ -49,7 +49,7 @@ trap 'rm -f "$TMP" "$NORM" "$AGG" "$NAMES"; exit 143' INT TERM
 find "$CONTESTSDIR" -mindepth 4 -maxdepth 4 -type f -path '*/users/*/history' -print0 \
 | xargs -0 -r awk -F: -v MIN="$MIN" -v MAX="$MAX" '
     FNR==1 { n=split(FILENAME,p,"/"); login=p[n-1]; contest=p[n-3];
-             skip=(login ~ /\.(admin|judge|cjudge|staff|cstaff|mon)$/) }
+             skip=(login ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) }
     skip { next }
     NF>=5 { e=$(NF-1)+0; if (e>=MIN && e<=MAX) printf "%s\t%s\t%d\n", contest, login, e }
   ' > "$NORM"

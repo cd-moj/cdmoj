@@ -16,7 +16,8 @@ require_not_secret_or_auth "$contest"
 source "$_LIBDIR/contest-gate.sh"
 if [[ "$(contest_phase "$contest")" == before ]]; then
   pre_priv=0
-  load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && is_judge && pre_priv=1
+  load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] \
+    && { is_judge || is_animeitor; } && pre_priv=1
   if [[ "$pre_priv" == 0 ]]; then
     pf="$CONTESTSDIR/$contest/var/placar-prestart.txt"
     : "${SCORE_SERVE_FLOOR_S:=8}"
@@ -88,7 +89,8 @@ ff="$(ch_view_file "$contest" "$CH_VIEW" full)"
 sess=0
 load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && sess=1
 if [[ "$(param view)" != public && -f "$ff" && "$sess" == 1 ]]; then
-  priv=0; is_judge && priv=1
+  # .animeitor SEMPRE recebe o descongelado: é a conta do TELÃO, que conduz a revelação
+  priv=0; { is_judge || is_animeitor; } && priv=1
   if [[ "$priv" == 0 ]]; then
     allow="$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${SCORE_FULL_USERS:-}")"
     case " $allow " in *" $SESSION_LOGIN "*) priv=1;; esac

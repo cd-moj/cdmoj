@@ -1,7 +1,7 @@
 // contest/admin/teams-tab.js — aba "👥 Times": gerência POR-USUÁRIO da identidade do time.
 // O NOME é campo ÚNICO (`fullname` — usuário de contest É o time); aqui também vivem país
 // (bandeira), sede/região, universidade (`.team` do account.json, que placar/badges/
-// impressão leem), BRASÃO (logo.png) e FOTO (photo.png, com link clicável no placar).
+// impressão leem), BRASÃO (logo.png) e FOTO (photo.webp, com link clicável no placar).
 // Carga única via CSV com cabeçalho (parseRichCsv), fotos/brasões em LOTE (arquivos
 // <login>.<ext>, enviados 1-a-1 com progresso), e o botão "Materializar matches" que
 // aplica as regras regex (teams-meta/regions) aos campos vazios de uma vez.

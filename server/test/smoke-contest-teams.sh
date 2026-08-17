@@ -68,17 +68,18 @@ echo "== team-assets (foto/brasão) + rotas de leitura =="
 call /contest/admin/team-assets POST t-adm 'contest=tm' "{\"kind\":\"photo\",\"filename\":\"ZETA.jpg\",\"file_b64\":\"$PNG1\"}"
 ck "upload por nome sem usuário -> 404" '[[ "$OUT" == *"Status: 404"* ]]'
 call /contest/admin/team-assets POST t-adm 'contest=tm' "{\"kind\":\"photo\",\"filename\":\"Alfa.png\",\"file_b64\":\"$PNG1\"}"
-ck "upload case-insensitive casa alfa" '[[ "$(jq -r .login <<<"$BODY")" == "alfa" && -s "$C/users/alfa/photo.png" ]]'
+# a FOTO é gravada em webp (lib/team-photo.sh); o brasão continua PNG
+ck "upload case-insensitive casa alfa" '[[ "$(jq -r .login <<<"$BODY")" == "alfa" && -s "$C/users/alfa/photo.webp" ]]'
 call /contest/admin/team-assets POST t-adm 'contest=tm' "{\"kind\":\"logo\",\"filename\":\"beta.png\",\"file_b64\":\"$PNG1\"}"
 ck "brasão da beta salvo"      '[[ -s "$C/users/beta/logo.png" ]]'
 call /contest/team-photo GET '' 'contest=tm&user=alfa'
-ck "team-photo serve PNG"      '[[ "$OUT" == *"image/png"* ]]'
+ck "team-photo serve webp"     '[[ "$OUT" == *"image/webp"* ]]'
 call /contest/team-logo GET '' 'contest=tm&user=alfa'
 ck "sem brasão -> 404"         '[[ "$OUT" == *"Status: 404"* ]]'
 call /contest/teams GET '' 'contest=tm'
 ck "has_photo/has_logo refletem" '[[ "$(jq -r .teams.alfa.has_photo <<<"$BODY")" == "true" && "$(jq -r .teams.beta.has_logo <<<"$BODY")" == "true" ]]'
 call /contest/admin/team-assets POST t-adm 'contest=tm' '{"action":"delete","kind":"photo","login":"alfa"}'
-ck "delete remove"             '[[ ! -e "$C/users/alfa/photo.png" ]]'
+ck "delete remove"             '[[ ! -e "$C/users/alfa/photo.webp" && ! -e "$C/users/alfa/photo.png" ]]'
 
 echo "== staff por sede (region:<nome>) =="
 call /contest/admin/staff-filters POST t-adm 'contest=tm' '{"filters":{"sede1.staff":["region:Norte"]}}'

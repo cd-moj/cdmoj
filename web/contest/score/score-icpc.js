@@ -122,7 +122,7 @@ export function renderICPC(parsed, opts) {
     const label = (t.univShort ? `[${escapeHtml(t.univShort)}] ` : '') + escapeHtml(t.teamName || t.username);
     const teamTd = el('td', { class: 'team',
       title: [t.univFull || t.univShort || '', t.username].filter(Boolean).join(' · '), html: logo + label });
-    // foto do time (photo.png subida pelo admin): link clicável, abre em nova aba
+    // foto do time (photo.webp; a rota serve o legado png também): link, abre em nova aba
     if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
     // 🤖 = o time DECLAROU na inscrição que usa IA (transparência, não julgamento)
     if (t.aiDeclared) teamTd.append(' ', el('span', { title: T('Este time declarou que usa IA', 'This team declared AI use'), style: 'cursor:default' }, '🤖'));

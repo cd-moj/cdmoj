@@ -17,7 +17,8 @@ new="$(jq -r '.new_username // empty' <<<"$body")"
 # réplica da lista canônica de sufixos de papel (ver lib/auth.sh is_reserved_role_login)
 _role_suffix(){ case "$1" in
   *.admin) echo admin;; *.cjudge) echo cjudge;; *.judge) echo judge;;
-  *.cstaff) echo cstaff;; *.staff) echo staff;; *.mon) echo mon;; *) echo "";; esac; }
+  *.cstaff) echo cstaff;; *.staff) echo staff;; *.mon) echo mon;;
+  *.animeitor) echo animeitor;; *) echo "";; esac; }
 oldsuf="$(_role_suffix "$old")"; newsuf="$(_role_suffix "$new")"
 if [[ "$newsuf" != "$oldsuf" ]]; then
   if [[ -n "$newsuf" ]]; then fail 400 "Sufixo reservado não permitido" "uname_reserved"

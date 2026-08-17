@@ -1,6 +1,7 @@
 # GET /contest/teams?contest=<id>   (público; contest SECRETO exige sessão — gate do placar)
 # DIRETÓRIO DE TIMES p/ o placar mesclar: por login não-privilegiado, os campos explícitos
-# do account.json `.team` + se há brasão (logo.png) e foto (photo.png) no dir do usuário.
+# do account.json `.team` + se há brasão (logo.png) e foto (photo.webp, ou photo.png no
+# acervo antigo) no dir do usuário.
 # O NOME do time NÃO vai aqui — é o `fullname`, que o TXT do placar já carrega.
 #   -> {teams:{<login>:{univ_short?,univ_full?,flag?,region?,has_logo,has_photo}}}
 # Só entram logins com ALGO a dizer (campo de time, foto ou brasão) — payload enxuto.
@@ -31,8 +32,9 @@ fi
 cdir="$CONTESTSDIR/$contest"
 teams="$( { find "$cdir/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | while IFS= read -r d; do
     login="${d##*/}"
-    case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|.removed-users) continue;; esac
-    hp=false; [[ -s "$d/photo.png" ]] && hp=true
+    case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor|.removed-users) continue;; esac
+    # foto é webp desde 2026-08 (photo.png = acervo antigo, ainda válido — lib/team-photo.sh)
+    hp=false; { [[ -s "$d/photo.webp" ]] || [[ -s "$d/photo.png" ]]; } && hp=true
     hl=false; [[ -s "$d/logo.png" ]] && hl=true
     if [[ -f "$d/account.json" ]]; then
       jq -c --arg l "$login" --argjson hp "$hp" --argjson hl "$hl" \

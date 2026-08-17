@@ -78,13 +78,13 @@ contest_phase() {
 # can_see_problems <contest> : 0 se o usuário logado pode ver os enunciados AGORA.
 can_see_problems() {
   is_judge && return 0                       # .admin/.judge: sempre
-  { is_staff || is_cstaff; } && return 1     # .staff/.cstaff: nunca
+  { is_staff || is_cstaff || is_animeitor; } && return 1   # staff/sede/telão: nunca
   [[ "$(contest_phase "$1")" != before ]]   # demais: só após o início
 }
 
 # can_submit <contest> : 0 se o usuário logado pode submeter AGORA.
 can_submit() {
   is_judge && return 0                       # .admin/.judge: sempre
-  { is_staff || is_cstaff; } && return 1     # .staff/.cstaff: nunca
+  { is_staff || is_cstaff || is_animeitor; } && return 1   # staff/sede/telão: nunca
   [[ "$(contest_phase "$1")" == running ]]   # normal/.mon: só durante a janela
 }

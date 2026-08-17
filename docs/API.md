@@ -249,8 +249,18 @@ servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<pr
 | `/contest/regions?contest=<c>` | Bearer | regiões p/ filtro do placar (o filtro casa por **nome** — igualdade com a sede `.team.region` do time via `/contest/teams` — **ou** pelo `regex` no login) |
 | `/contest/teams-meta?contest=<c>` | — | regras regex→{country,school,school_full} `{rules:[…]}` — placar resolve bandeira/escola e filtra por país/escola (bandeiras locais em `/shared/flags/`). **Fallback**: só preenche o que o por-usuário (`/contest/teams`) não trouxe |
 | `/contest/teams?contest=<c>` | — (secreto exige sessão) | ⚠️ **com coortes**, só os logins das coortes que o chamador pode ver (é o endpoint PÚBLICO que mais vazaria um convidado). **diretório de TIMES por-usuário** p/ o placar mesclar: `{teams:{<login>:{univ_short?,univ_full?,flag?,region?,has_logo,has_photo}}} (o NOME vem do TXT do placar — `fullname`)` — do `.team` do account.json + presença de `logo.png`/`photo.png`; só logins não-privilegiados com algo a dizer. Precedência no placar: **isto > teams-meta (regex) > vazio** |
-| `/contest/team-photo?contest=<c>&user=<l>` | — (secreto exige sessão) | PNG da **foto do time** (lado máx 1000; o placar mostra 📷 clicável quando existe). 404 sem foto |
+| `/contest/team-photo?contest=<c>&user=<l>` | — (secreto exige sessão) | **foto do time** (lado máx 1000; o placar mostra 📷 clicável quando existe). Serve `image/webp` (formato de hoje) ou `image/png` (acervo antigo — ver `lib/team-photo.sh`). 404 sem foto |
 | `/contest/team-logo?contest=<c>&user=<l>` | — (secreto exige sessão) | PNG do **brasão do time** (máx 128; célula do time no placar — vence o logo por regra do teams-meta). 404 sem brasão |
+| `/contest/webcast?contest=<c>&key=<K>` | **— (só a chave)** | **ZIP do placar no protocolo do Animeitor** (o mesmo do `webcast.php` do BOCA: `contest`/`runs`/`time`/`version`/`icpc`, campos separados por `0x1C`). **Rota SEM SESSÃO**, de propósito: é o sistema Animeitor buscando em loop. A chave (criada pelo `.animeitor`) declara a **visão de coorte** servida; chave inválida/revogada → **404** (e linha em `var/webcast-denied.log`). O pacote vai SEMPRE descongelado — quem anima a virada é o Animeitor, que sabe a hora do freeze pelo `lastmilescore`. Cache com piso de 10 s. **Formato inteiro em `docs/WEBCAST.md`** |
+
+### Conta de placar / telão (`.animeitor`, ou o admin do contest)
+| Rota | Método | I/O |
+|---|---|---|
+| `/contest/animeitor/photos?contest=<c>` | GET | galeria: `{teams:[{login,name,univ,cohort,flag,has_photo,format,bytes,mtime}], total, with_photo}` (conta de papel fora) |
+| `/contest/animeitor/photo?contest=<c>` | POST | `{login\|filename, file_b64}` sobe/troca a foto (convertida p/ **webp**, máx ~8 MB) · `{action:"delete", login}` remove. `login` aceita NOME DE ARQUIVO (`fulano.jpg` → `fulano`), que é como o envio em lote funciona. Auditado (`animeitor-photo`); toca `.score-dirty`. ⚠ diferente do `admin/team-assets`, **não** recusa contest com `USERS_FROM` (a foto é asset local) |
+| `/contest/animeitor/photos-zip?contest=<c>` | GET | ZIP com `fotos/<login>.webp` + `teams.csv` (`login,nome,universidade,coorte,bandeira,foto`) |
+| `/contest/animeitor/webcast?contest=<c>` | GET | `{keys:[{id,key,view,label,created_by,created_at,revoked_at,fetches,last_at,last_ip}], views:[{id,name}], url_path, contest}` — a chave aparece em claro (é o que se copia p/ o Animeitor) |
+| `/contest/animeitor/webcast?contest=<c>` | POST | `{action:"create", view, label?}` → `{key, view}` · `{action:"revoke", id}`. Visão inexistente → 422 `view_invalid`. Auditado (`webcast-key`) |
 
 ### Admin do contest (logado como `.admin` daquele contest)
 | Rota | Método | I/O |

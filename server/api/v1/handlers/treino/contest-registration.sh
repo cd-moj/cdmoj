@@ -188,18 +188,16 @@ case "$action" in
                    || fail 403 "Só o capitão do time envia a foto" "not_captain"
                  img="$(jq -r '.image_b64 // empty' <<<"$body")"
                  [[ -n "$img" ]] || fail 400 "Imagem ausente" "img_missing"
-                 img="${img#data:*;base64,}"
                  (( ${#img} <= 5500000 )) || fail 413 "Imagem muito grande (máx ~4MB)" "img_large"
-                 out="$CONTESTSDIR/$contest/users/$t/photo.png"
-                 mkdir -p "$(dirname "$out")"
-                 tmpimg="$(mktemp)"
-                 printf '%s' "$img" | base64 -d > "$tmpimg" 2>/dev/null \
-                   || { rm -f "$tmpimg"; fail 400 "Base64 inválido" "img_b64"; }
-                 # mesma disciplina da foto de perfil: reprocessa (mata payload não-imagem),
-                 # tira metadados; aqui SEM crop quadrado (é foto de equipe), só teto 900px
-                 if convert "$tmpimg" -auto-orient -strip -resize "900x900>" "png:$out.tmp" 2>/dev/null; then
-                   mv -f "$out.tmp" "$out"; rm -f "$tmpimg"; _score_dirty "$contest"
-                 else rm -f "$tmpimg" "$out.tmp"; fail 400 "Não foi possível processar a imagem" "img_bad"; fi
+                 # a lib reprocessa (mata payload não-imagem), tira metadados e grava WEBP;
+                 # sem crop quadrado (é foto de equipe), só teto 900px
+                 source "$_LIBDIR/team-photo.sh"
+                 tp_store "$contest" "$t" "$img" 900 >/dev/null
+                 case "$?" in
+                   1) fail 400 "Base64 inválido" "img_b64";;
+                   2) fail 400 "Não foi possível processar a imagem" "img_bad";;
+                 esac
+                 _score_dirty "$contest"
                  audit_log_to "$contest" reg-team-photo "team=$t by=$me" ;;
   *)             fail 400 "Ação desconhecida" "action_invalid" ;;
 esac

@@ -18,6 +18,7 @@ const MAP = {
   '/contest/badges/':           ['🏷️ Etiquetas', '🏷️ Badges'],
   '/contest/docs/':             ['📄 Documentos', '📄 Documents'],
   '/contest/print/':            ['🖨️ Impressão', '🖨️ Printing'],
+  '/contest/animeitor/':        ['🎥 Animeitor', '🎥 Animeitor'],
 };
 
 export function navLabel(url, serverLabel) {

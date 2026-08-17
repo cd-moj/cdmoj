@@ -3711,7 +3711,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Foto do time (PNG, lado máx 1000; 📷 clicável no placar; secreto exige sessão)",
+        "summary": "Foto do time (webp; png no acervo antigo — lado máx 1000; 📷 clicável no placar; secreto exige sessão)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3727,7 +3727,7 @@
         ],
         "responses": {
           "200": {
-            "description": "image/png (404 sem foto)"
+            "description": "image/webp ou image/png (404 sem foto)"
           }
         }
       }
@@ -3754,6 +3754,203 @@
         "responses": {
           "200": {
             "description": "image/png (404 sem brasão)"
+          }
+        }
+      }
+    },
+    "/contest/webcast": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "ZIP do placar no protocolo do Animeitor (= webcast.php do BOCA). SEM SESSÃO: quem autoriza é a chave, que declara a visão de coorte. Pacote sempre DESCONGELADO — formato em docs/WEBCAST.md",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "chave mojwc_… criada pelo .animeitor; inválida/revogada/ausente → 404"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "application/zip (contest/runs/time/version/icpc; campos separados por 0x1C)"
+          },
+          "404": {
+            "description": "chave inválida (não confirma sequer que o contest existe)"
+          }
+        }
+      }
+    },
+    "/contest/animeitor/photos": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Galeria das fotos dos times (.animeitor ou admin do contest)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{teams:[{login,name,univ,cohort,flag,has_photo,format,bytes,mtime}], total, with_photo}"
+          },
+          "403": {
+            "description": "animeitor_required"
+          }
+        }
+      }
+    },
+    "/contest/animeitor/photo": {
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Sobe/troca/remove a foto de um time (gravada em webp; login aceita nome de arquivo, que é como o envio em lote funciona)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "login": { "type": "string" },
+                  "filename": { "type": "string" },
+                  "file_b64": { "type": "string" },
+                  "action": { "type": "string", "enum": ["delete"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{saved:true,login,bytes,format} ou {deleted:true,login}"
+          },
+          "403": {
+            "description": "animeitor_required"
+          },
+          "404": {
+            "description": "nenhum time casa com o login/arquivo"
+          }
+        }
+      }
+    },
+    "/contest/animeitor/photos-zip": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Pacote com as fotos de todos os times: fotos/<login>.webp + teams.csv",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "application/zip"
+          },
+          "403": {
+            "description": "animeitor_required"
+          }
+        }
+      }
+    },
+    "/contest/animeitor/webcast": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Chaves do webcast (a chave vai em claro: é o que se copia para o Animeitor)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{keys:[{id,key,view,label,created_by,created_at,revoked_at,fetches,last_at,last_ip}], views:[{id,name}], url_path, contest}"
+          },
+          "403": {
+            "description": "animeitor_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Cria/revoga chave do webcast (view = visão de coorte servida)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": { "type": "string", "enum": ["create", "revoke"] },
+                  "view": { "type": "string" },
+                  "label": { "type": "string" },
+                  "id": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{created:true,key,view} ou {revoked:true,id}"
+          },
+          "422": {
+            "description": "view_invalid"
+          },
+          "403": {
+            "description": "animeitor_required"
           }
         }
       }

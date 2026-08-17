@@ -104,7 +104,7 @@ sc_is_real_user() {
   [[ -z "$u" ]] && return 1
   [[ "$u" == \#* ]] && return 1
   case "$u" in
-    *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|admin) return 1 ;;
+    *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor|admin) return 1 ;;
   esac
   return 0
 }

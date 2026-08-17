@@ -1,6 +1,6 @@
 # POST /contest/admin/team-assets?contest=<id>   (admin DO contest)
-# Upload de FOTO do time (photo.png, lado máx 1000 — é p/ VER, clicável no placar) e de
-# BRASÃO (logo.png, máx 128 — aparece na célula do time). UM arquivo por POST (o front
+# Upload de FOTO do time (photo.webp via lib/team-photo.sh, lado máx 1000 — é p/ VER, clicável
+# no placar) e de BRASÃO (logo.png, máx 128 — aparece na célula do time). UM arquivo por POST (o front
 # manda em sequência com progresso; evita o client_max_body_size de 25m do nginx):
 #   {kind:"photo"|"logo", filename:"<login>.<ext>", file_b64}
 #     — o basename SEM extensão é o login (case-insensitive contra os usuários existentes).
@@ -32,11 +32,14 @@ resolve_login(){
   done < <(find "$CONTESTSDIR/$contest/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
 }
 
+source "$_LIBDIR/team-photo.sh"   # foto é gravada em WEBP por lá (o brasão segue PNG)
+
 if [[ "$(jq -r '.action // empty' <<<"$body")" == delete ]]; then
   login="$(jq -r '.login // empty' <<<"$body")"
   [[ -n "$login" ]] && valid_id "$login" || fail 400 "login inválido" "login_invalid"
   user_exists "$contest" "$login" || fail 404 "Usuário não existe" "user_not_found"
-  rm -f "$(user_dir "$contest" "$login")/$kind.png"
+  if [[ "$kind" == photo ]]; then tp_remove "$contest" "$login"
+  else rm -f "$(user_dir "$contest" "$login")/logo.png"; fi
   audit_log_to "$contest" team-asset "delete kind=$kind login=$login"
   ok_json '{deleted:true, login:$l, kind:$k}' --arg l "$login" --arg k "$kind"
   exit 0
@@ -53,15 +56,24 @@ img="$(jq -r '.file_b64 // empty' <<<"$body")"
 img="${img#data:*;base64,}"                          # tolera data-url
 (( ${#img} <= 11000000 )) || fail 413 "Arquivo muito grande (máx ~8MB)" "file_large"
 
-out="$(user_dir "$contest" "$login")/$kind.png"
-tmp="$(mktemp)"
-printf '%s' "$img" | base64 -d > "$tmp" 2>/dev/null || { rm -f "$tmp"; fail 400 "Base64 inválido" "file_b64"; }
-# normaliza p/ PNG sem metadados; '>' = só ENCOLHE (não infla imagem pequena)
-size='1000x1000>'; [[ "$kind" == logo ]] && size='128x128>'
-if convert "$tmp" -auto-orient -strip -resize "$size" "png:$out.tmp" 2>/dev/null; then
-  mv -f "$out.tmp" "$out"; rm -f "$tmp"
+if [[ "$kind" == photo ]]; then
+  # FOTO: a lib grava webp (e limpa o photo.png legado deste time)
+  out="$(tp_store "$contest" "$login" "$img" 1000)"
+  case "$?" in
+    1) fail 400 "Base64 inválido" "file_b64";;
+    2) fail 400 "Não foi possível processar a imagem" "img_bad";;
+  esac
 else
-  rm -f "$tmp" "$out.tmp"; fail 400 "Não foi possível processar a imagem" "img_bad"
+  # BRASÃO: continua PNG (vai embutido na célula do placar, 128px, fundo transparente)
+  out="$(user_dir "$contest" "$login")/logo.png"
+  tmp="$(mktemp)"
+  printf '%s' "${img#data:*;base64,}" | base64 -d > "$tmp" 2>/dev/null \
+    || { rm -f "$tmp"; fail 400 "Base64 inválido" "file_b64"; }
+  if convert "$tmp" -auto-orient -strip -resize '128x128>' "png:$out.tmp" 2>/dev/null; then
+    mv -f "$out.tmp" "$out"; rm -f "$tmp"
+  else
+    rm -f "$tmp" "$out.tmp"; fail 400 "Não foi possível processar a imagem" "img_bad"
+  fi
 fi
 audit_log_to "$contest" team-asset "upload kind=$kind login=$login bytes=$(stat -c %s "$out" 2>/dev/null)"
 ok_json '{saved:true, login:$l, kind:$k}' --arg l "$login" --arg k "$kind"

@@ -304,7 +304,8 @@ function renderUser() {
       userinfo.name || userinfo.login),
     el('div', { class: 'small muted' }, 'Login: ', el('b', {}, userinfo.login),
       userinfo.is_admin ? '  · admin' : (userinfo.is_judge ? '  · judge'
-        : (userinfo.is_staff ? '  · staff' : (userinfo.is_cstaff ? '  · ' + T('chefe de sede', 'site chief') : '')))),
+        : (userinfo.is_staff ? '  · staff' : (userinfo.is_cstaff ? '  · ' + T('chefe de sede', 'site chief')
+          : (userinfo.is_animeitor ? '  · ' + T('placar/telão', 'scoreboard/screen') : ''))))),
     // sessão de TIME: quem está no teclado é o `actor`, mas quem compete é o time
     userinfo.is_team ? el('div', { class: 'small' },
       T('👥 Você entrou como ', '👥 You logged in as '), el('b', {}, userinfo.actor || ''),
@@ -978,6 +979,11 @@ async function boot() {
   // direto à área da fila (o .cstaff a vê em modo somente leitura).
   if (st.logged_in && (st.is_staff || st.is_cstaff) && !st.is_admin) {
     location.replace('/contest/staff/?c=' + encodeURIComponent(CONTEST));
+    return;
+  }
+  // .animeitor opera o telão: vai direto à página dele (fotos + streaming do placar)
+  if (st.logged_in && st.is_animeitor && !st.is_admin) {
+    location.replace('/contest/animeitor/?c=' + encodeURIComponent(CONTEST));
     return;
   }
   if (st.logged_in) { if (EDITOR_ONLY) await bootEditorOnly(); else await bootMain(); }

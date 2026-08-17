@@ -157,7 +157,7 @@ export function makeCohortsTab(CONTEST) {
         apiGet('/contest/admin/users?contest=' + enc(CONTEST), G).catch(() => ({ users: [] })),
       ]);
     } catch (e) { panel.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ') + (e.message || T('erro', 'error')))); return; }
-    DATA = d; LOGINS = ((u && u.users) || []).map((x) => x.login).filter((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon)$/.test(l));
+    DATA = d; LOGINS = ((u && u.users) || []).map((x) => x.login).filter((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/.test(l));
     const all = DATA.cohorts || [];
 
     panel.append(releaseBox());

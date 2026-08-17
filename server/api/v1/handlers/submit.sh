@@ -13,6 +13,7 @@ require_auth_contest "$contest"
 source "$_LIBDIR/contest-gate.sh"
 if ! can_submit "$contest"; then
   { is_staff || is_cstaff; } && fail 403 "Usuário staff não submete soluções" "submit_forbidden"
+  is_animeitor && fail 403 "Conta de placar (.animeitor) não submete soluções" "submit_forbidden"
   ph="$(contest_phase "$contest")"
   [[ "$ph" == before ]] && fail 403 "A competição ainda não começou" "contest_not_started"
   fail 403 "A competição já terminou" "contest_ended"

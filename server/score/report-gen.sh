@@ -851,7 +851,7 @@ awk -F: -v NAMES="$W/names.tsv" -v PROBS="$W/probs.tsv" "$VERDICT_CANON_AWK"'
     close(PROBS)
   }
   NF>=6 {
-    if ($2 ~ /\.(admin|judge|cjudge|staff|cstaff|mon)$/ || $2=="admin") next   # cstaff INCLUÍDO: não casa \.staff$
+    if ($2 ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/ || $2=="admin") next   # cstaff INCLUÍDO: não casa \.staff$
     login=$2; prob=$3; lang=$4
     v=$5; for(i=6;i<=NF-2;i++) v=v":"$i
     se=$(NF-1)+0; sid=$NF
@@ -859,7 +859,7 @@ awk -F: -v NAMES="$W/names.tsv" -v PROBS="$W/probs.tsv" "$VERDICT_CANON_AWK"'
     printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", se, login, letter, lang, canon(v), sid, tname[login], tus[login], tuf[login]
   }' "$W/hist.txt" | sort -n -k1,1 > "$W/runs.tsv"
 RUNS_N="$(wc -l < "$W/runs.tsv" | tr -d '[:space:]')"
-TEAMS_N="$(awk -F'\t' '$1!~/\.(admin|judge|cjudge|staff|cstaff|mon)$/ && $1!="admin" && $1!=""' "$W/names.tsv" | sort -u | wc -l | tr -d '[:space:]')"
+TEAMS_N="$(awk -F'\t' '$1!~/\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/ && $1!="admin" && $1!=""' "$W/names.tsv" | sort -u | wc -l | tr -d '[:space:]')"
 
 # --- autor do problema (o crédito de quem escreveu) ------------------------------------
 # Fonte canônica: o arquivo `author` do PACOTE (texto livre, um autor por linha, já é nome de

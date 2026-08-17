@@ -49,7 +49,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `lib/auth.sh`, `score/score-common.sh`, `score/stats-gen.sh`, `handlers/auth/login.sh` (+ guard
   `treino/profile/username.sh`) — **e das réplicas** em `handlers/contest/teams.sh`,
   `handlers/contest/admin/teams.sh`, `lib/telegram.sh`, `daemons/judged.sh` (`should_hold`),
-  `lib/print.sh` (`pr_reconcile_balloons`) e `handlers/contest/badges.sh` (regex jq).
+  `lib/print.sh` (`pr_reconcile_balloons`) e `handlers/contest/badges.sh` (regex jq) —
+  **e ainda** `lib/cohorts.sh` (`ch_view_for_login`), `lib/ua-gate.sh`, `admin/cohorts.sh`,
+  `admin/preflight.sh`, `score/report-gen.sh`, `score/relatorio-gen.sh` e as regex `PRIV` do
+  `web/contest/admin/*-tab.js`. (Sufixo esquecido numa réplica = conta de papel virando "time"
+  no placar/balão/etiqueta — o `smoke-animeitor.sh` cobre placar+teams+badges de uma vez.)
+  **`.animeitor`** = a mesa do TELÃO (`is_animeitor`, não herda nada): NÃO submete e não vê
+  enunciado; vê o placar **SEMPRE DESCONGELADO** (é quem conduz a revelação), as estatísticas e a
+  página `/contest/animeitor/` — fotos dos times (em **webp**, `lib/team-photo.sh`) e as CHAVES do
+  **webcast**, o pacote de placar que alimenta o sistema Animeitor pela rota **sem sessão**
+  `/contest/webcast?key=…` (formato do BOCA, separador `0x1C`). Ver `docs/WEBCAST.md`.
   Auto-cadastro **nunca** cria papel por sufixo: use `is_reserved_role_login` (`lib/auth.sh`) —
   já aplicado no signup; o `/admin/adduser` (admin autenticado) **continua** podendo criar
   `.judge`/`.staff`/`.cstaff` de um contest (legítimo).

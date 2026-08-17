@@ -464,7 +464,7 @@ pr_reconcile_balloons() {
     while IFS=: read -r _t login cid _lang verdict _rest; do
       [[ -n "$login" && -n "$cid" ]] || continue
       case "$verdict" in *Accepted*) ;; *) continue;; esac
-      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) continue;; esac
+      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
       id="bln$(printf '%s%s%s' "$c" "$login" "$cid" | md5sum | cut -c1-20)"
       [[ -f "$dir/$id.json" ]] && continue
       short="$(pr_short_of "$c" "$cid")"; [[ -n "$short" ]] || short="?"

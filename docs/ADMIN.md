@@ -142,6 +142,9 @@ Dois tokens **compartilhados** (600, sob `run/secrets/`), nunca versionados, nun
     > /home/ribas/moj/run/secrets/bot.token && chmod 600 /home/ribas/moj/run/secrets/bot.token
   ```
   (O bot ainda precisa do token da API do Telegram em `mojinho-bot/token` e de `mojinho-bot/bot.conf`.)
+- **Chave do webcast** (`mojwc_…`) — NÃO se gera à mão: a conta `.animeitor` do contest cria e
+  revoga pela página `/contest/animeitor/` (guardada em `contests/<c>/webcast.json`, modo 600).
+  É o que o sistema **Animeitor** usa para buscar o placar; ver `docs/WEBCAST.md`.
 
 ## 5. ★ Bootstrap do `treino` e da primeira conta `.admin`
 

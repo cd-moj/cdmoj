@@ -1,0 +1,152 @@
+#!/bin/bash
+# Papel .animeitor (mesa do telão): não submete; placar SEMPRE descongelado; estatísticas;
+# fora do placar/times/etiquetas; fotos dos times em WEBP (galeria, upload, remoção, pacote
+# .zip); e o WEBCAST — chaves por visão de coorte e a rota SEM SESSÃO que devolve o pacote no
+# formato do BOCA (contest/runs/time/version/icpc, campos separados por 0x1C).
+set -u
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
+FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; TMP="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS" "$TMP"' EXIT
+source "$(dirname "$(readlink -f "$0")")/fixture.sh"
+
+NOW="$EPOCHSECONDS"; START=$(( NOW - 7200 )); FREEZE=$(( NOW - 3600 )); END=$(( NOW + 3600 ))
+C="$FIX/an"; mkdir -p "$C/var"
+{ printf 'CONTEST_ID=an\nCONTEST_TYPE=icpc\nCONTEST_NAME=Prova\\ Animeitor\n'
+  printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\nPENALTY_MINUTES=20\n' "$START" "$END" "$FREEZE"
+  printf "PROBS=( x col#pa Alfa A col#pa x col#pb Beta B col#pb )\n"; } > "$C/conf"
+fx_user "$C" an.admin p "Admin"
+fx_user "$C" telao.animeitor p "Mesa do Telão"
+fx_user "$C" an.staff p "Staff"
+fx_user "$C" time-a a "Time Alfa"
+fx_user "$C" time-b b "Time Beta"
+jq -c '.team={name:"Time Alfa",univ_short:"UFRJ",flag:"br-rj"}' "$C/users/time-a/account.json" > "$C/t" && mv "$C/t" "$C/users/time-a/account.json"
+jq -c '.team={name:"Time Beta",univ_short:"UFSC",flag:"br-sc"}' "$C/users/time-b/account.json" > "$C/t" && mv "$C/t" "$C/users/time-b/account.json"
+
+# time-a: AC pré-freeze em A + AC PÓS-freeze em B (o pós só aparece no placar descongelado)
+{ printf '10:col#pa:C:Accepted,100p:%s:s1\n' $(( START + 600 ))
+  printf '70:col#pb:C:Accepted,100p:%s:s2\n' $(( FREEZE + 60 )); } > "$C/users/time-a/history"
+# time-b: um de cada veredicto que o webcast tem de mapear (N / X / ? )
+{ printf '15:col#pa:C:Wrong,60p. Pontos | 30 | 0 |:%s:s3\n' $(( START + 900 ))
+  printf '20:col#pa:C:Compilation Error:%s:s4\n' $(( START + 1200 ))
+  printf '25:col#pb:C:Not Answered Yet:%s:s5\n' $(( START + 1500 )); } > "$C/users/time-b/history"
+# conta de PAPEL com history: não pode virar time no placar
+printf '5:col#pa:C:Accepted,100p:%s:s9\n' $(( START + 300 )) > "$C/users/telao.animeitor/history"
+touch "$C/var/.score-dirty"
+
+mktok(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' an "$1" "$1" "$NOW" > "$SESS/$2"; }
+mktok an.admin adm; mktok telao.animeitor ani; mktok an.staff stf; mktok time-b tb
+
+call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="${2:-GET}" QUERY_STRING="${4:-}" \
+    HTTP_AUTHORIZATION="${3:+Bearer $3}" REMOTE_ADDR=127.0.0.9 \
+    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SCOREDIR="$ROOT/score" bash "$ROUTER" <<<"${5:-}" 2>/dev/null)"
+  HEAD="$(printf '%s' "$OUT" | awk '{print} /^\r?$/{exit}')"
+  BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+# separa o corpo BINÁRIO do cabeçalho CGI (binário: nada de sed/grep no meio do zip)
+unhead(){ python3 -c 'import sys
+d=open(sys.argv[1],"rb").read(); i=d.index(b"\r\n\r\n")+4
+open(sys.argv[2],"wb").write(d[i:])' "$1" "$2"; }
+# ⚠ a captura vai por PIPE (`| cat > arquivo`), não por redirecionamento direto: com stdout em
+# ARQUIVO o bash bufferiza os printf do cabeçalho e o `zip`/`tar` filho escreve ANTES deles — o
+# corpo sai embaralhado. Em produção o stdout é o pipe do fcgiwrap, que é o que isto imita.
+callf(){ PATH_INFO="$1" REQUEST_METHOD="${2:-GET}" QUERY_STRING="${4:-}" \
+    HTTP_AUTHORIZATION="${3:+Bearer $3}" REMOTE_ADDR=127.0.0.9 \
+    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SCOREDIR="$ROOT/score" bash "$ROUTER" <<<"${5:-}" 2>/dev/null \
+    | cat > "$6"; }
+pass=0; fail=0
+ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:200}"; ((fail++)); fi; }
+
+echo "== papel: não submete, vê tudo que é de placar =="
+call /submit POST ani 'contest=an' '{"problem":"col#pa","lang":"c","source":"aW50IG1haW4oKXt9"}'
+ck "animeitor: submit 403"        'grep -q "submit_forbidden" <<<"$BODY"'
+call /contest/offline-submit POST ani 'contest=an' '{"packets":[]}'
+ck "animeitor: offline-submit 403" 'grep -q "submit_forbidden" <<<"$BODY"'
+call /contest/score GET ani 'contest=an'
+ck "placar DESCONGELADO p/ animeitor" 'grep -q ":time-a:" <<<"$BODY" && grep -qE "1/(6[0-9]|[0-9]{2,3})" <<<"$BODY"'
+ANI_BOARD="$BODY"
+call /contest/score GET tb 'contest=an'
+ck "usuário comum recebe congelado"   '[[ "$BODY" != "$ANI_BOARD" ]]'
+call /contest/score GET ani 'contest=an&view=public'
+ck "view=public força congelado"      '[[ "$BODY" != "$ANI_BOARD" ]]'
+call /contest/statistics GET ani 'contest=an'
+ck "estatísticas liberadas"           'grep -q "\"totals\"" <<<"$BODY"'
+call /contest/navbuttons GET ani 'contest=an'
+ck "navbuttons próprios"              'grep -q "/contest/animeitor/" <<<"$BODY" && ! grep -q "Clarification" <<<"$BODY"'
+call /auth/status GET ani 'contest=an'
+ck "auth/status: is_animeitor"        'grep -q "\"is_animeitor\":true" <<<"$BODY"'
+
+echo "== não é competidor =="
+ck "fora do placar"                   '! grep -q "telao.animeitor" <<<"$ANI_BOARD"'
+call /contest/teams GET ani 'contest=an'
+ck "fora do diretório de times"       '! grep -q "telao.animeitor" <<<"$BODY"'
+call /contest/badges GET adm 'contest=an'
+ck "fora das etiquetas"               '! grep -q "telao.animeitor" <<<"$BODY"'
+
+echo "== fotos (webp) =="
+# PNG de 1x1 (o servidor converte p/ webp)
+PNG1='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+call /contest/animeitor/photo POST ani 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$PNG1\"}"
+ck "upload grava WEBP"      'grep -q "\"saved\":true" <<<"$BODY" && [[ -s "$C/users/time-a/photo.webp" ]] && [[ ! -e "$C/users/time-a/photo.png" ]]'
+ck "arquivo é webp de fato" '[[ "$(file --mime-type -b "$C/users/time-a/photo.webp")" == image/webp ]]'
+call /contest/team-photo GET '' 'contest=an&user=time-a'
+ck "team-photo serve image/webp" 'grep -q "Content-Type: image/webp" <<<"$HEAD"'
+# legado: um photo.png que NÃO passou pela conversão continua servido
+printf '%s' "$PNG1" | base64 -d > "$C/users/time-b/photo.png"
+call /contest/team-photo GET '' 'contest=an&user=time-b'
+ck "legado png ainda servido"    'grep -q "Content-Type: image/png" <<<"$HEAD"'
+call /contest/animeitor/photos GET ani 'contest=an'
+ck "galeria conta as duas"       'grep -q "\"with_photo\":2" <<<"$BODY" && grep -q "\"format\":\"webp\"" <<<"$BODY"'
+ck "galeria não lista papel"     '! grep -q "telao.animeitor" <<<"$BODY"'
+callf /contest/animeitor/photos-zip GET ani 'contest=an' '' "$TMP/fotos.bin"
+unhead "$TMP/fotos.bin" "$TMP/fotos.zip"
+ck "pacote tem fotos/<login> + índice" 'unzip -Z1 "$TMP/fotos.zip" 2>/dev/null | grep -q "fotos/time-a.webp" && unzip -Z1 "$TMP/fotos.zip" | grep -q "teams.csv"'
+ck "índice casa foto e time"     'unzip -p "$TMP/fotos.zip" teams.csv | grep -q "\"time-a\",\"Time Alfa\",\"UFRJ\",\"\",\"br-rj\",\"time-a.webp\""'
+call /contest/animeitor/photo POST ani 'contest=an' '{"action":"delete","login":"time-a"}'
+ck "remoção apaga o arquivo"     '[[ ! -e "$C/users/time-a/photo.webp" ]]'
+
+echo "== webcast: chaves =="
+call /contest/animeitor/webcast POST ani 'contest=an' '{"action":"create","view":"public","label":"telao"}'
+KEY="$(jq -r '.key // empty' <<<"$BODY" 2>/dev/null)"
+ck "cria chave mojwc_"           '[[ "$KEY" == mojwc_* ]]'
+ck "webcast.json é 600"          '[[ "$(stat -c %a "$C/webcast.json")" == 600 ]]'
+call /contest/animeitor/webcast POST ani 'contest=an' '{"action":"create","view":"nao-existe"}'
+ck "visão inexistente → 422"     'grep -q "view_invalid" <<<"$BODY"'
+
+echo "== webcast: o pacote (formato BOCA) =="
+callf /contest/webcast GET '' "contest=an&key=$KEY" '' "$TMP/wc.bin"      # SEM Authorization
+head -c 200 "$TMP/wc.bin" > "$TMP/wc.head"
+ck "rota pública responde zip"   'grep -q "Content-Type: application/zip" "$TMP/wc.head"'
+unhead "$TMP/wc.bin" "$TMP/wc.zip"
+ck "5 arquivos do protocolo"     '[[ "$(unzip -Z1 "$TMP/wc.zip" 2>/dev/null | sort | tr "\n" " ")" == "contest icpc runs time version " ]]'
+ck "version = 1.0"               '[[ "$(unzip -p "$TMP/wc.zip" version)" == "1.0" ]]'
+ck "time é minuto inteiro"       '[[ "$(unzip -p "$TMP/wc.zip" time)" =~ ^[0-9]+$ ]]'
+unzip -p "$TMP/wc.zip" contest > "$TMP/contest"
+ck "contest: separador 0x1C"     '[[ "$(grep -c $'"'"'\x1c'"'"' "$TMP/contest")" -ge 4 ]]'
+ck "contest: nome na 1ª linha"   '[[ "$(sed -n 1p "$TMP/contest")" == "Prova Animeitor" ]]'
+L2_WANT=$'180\x1c180\x1c60\x1c20'      # duração 180 min, freeze aos 60, penalidade 20
+ck "contest: duração/freeze/pen" '[[ "$(sed -n 2p "$TMP/contest")" == "$L2_WANT" ]]'
+ck "contest: nTimes e nProblemas" '[[ "$(sed -n 3p "$TMP/contest")" == $'"'"'2\x1c2'"'"' ]]'
+ck "contest: linha de time"      'grep -q $'"'"'^time-a\x1cUFRJ\x1cTime Alfa$'"'"' "$TMP/contest"'
+ck "contest: rodapé 1/1 e nprob/Y" 'grep -q $'"'"'^1\x1c1$'"'"' "$TMP/contest" && grep -q $'"'"'^2\x1cY$'"'"' "$TMP/contest"'
+unzip -p "$TMP/wc.zip" runs > "$TMP/runs"
+ck "runs: AC pós-freeze VAI no pacote" 'grep -q $'"'"'\x1ctime-a\x1cB\x1cY$'"'"' "$TMP/runs"'
+ck "runs: WA vira N"             'grep -q $'"'"'\x1ctime-b\x1cA\x1cN$'"'"' "$TMP/runs"'
+ck "runs: CE vira X"             'grep -q $'"'"'\x1ctime-b\x1cA\x1cX$'"'"' "$TMP/runs"'
+ck "runs: pendente vira ?"       'grep -q $'"'"'\x1ctime-b\x1cB\x1c?$'"'"' "$TMP/runs"'
+ck "runs: id sequencial"         '[[ "$(cut -d$'"'"'\x1c'"'"' -f1 "$TMP/runs" | tr "\n" " ")" == "1 2 3 4 5 " ]]'
+ck "runs: conta de papel fora"   '! grep -q "telao.animeitor" "$TMP/runs"'
+
+echo "== webcast: gates =="
+call /contest/webcast GET '' 'contest=an&key=mojwc_errada'
+ck "chave errada → 404"          'grep -q "Status: 404" <<<"$OUT"'
+ck "recusa vai p/ o log"         'grep -q "mojwc_errada" "$C/var/webcast-denied.log"'
+ID="$(jq -r '.keys[0].id' "$C/webcast.json")"
+call /contest/animeitor/webcast POST ani 'contest=an' "{\"action\":\"revoke\",\"id\":\"$ID\"}"
+call /contest/webcast GET '' "contest=an&key=$KEY"
+ck "chave revogada → 404"        'grep -q "Status: 404" <<<"$OUT"'
+call /contest/animeitor/photos GET tb 'contest=an'
+ck "competidor: 403 nas rotas"   'grep -q "animeitor_required" <<<"$BODY"'
+call /contest/animeitor/webcast GET stf 'contest=an'
+ck "staff: 403 nas rotas"        'grep -q "animeitor_required" <<<"$BODY"'
+call /contest/animeitor/photos GET adm 'contest=an'
+ck "admin também entra"          'grep -q "\"teams\"" <<<"$BODY"'
+
+echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

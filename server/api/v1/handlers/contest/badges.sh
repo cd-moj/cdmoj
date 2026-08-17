@@ -74,7 +74,7 @@ src="$(_users_source "$contest")"
   # alunos: sem contas de papel. Região EXPLÍCITA (.team.region do account) vence; senão
   # derivada de regions.json (regex no login). O recorte do view (vazio/ausente = tudo)
   # entende "region:<nome>" (igualdade com a região do aluno) além de regex no login.
-  | ( map(select(.login | test("\\.(admin|judge|cjudge|staff|cstaff|mon)$") | not))
+  | ( map(select(.login | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$") | not))
       | map(. + {region: (if (.region // "") != "" then .region
                           else ((.login as $l
                             | first($regions[] | (.regex//"") as $rr | select($rr != ""

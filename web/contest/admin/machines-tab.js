@@ -77,7 +77,7 @@ export function makeMachinesTab(CONTEST) {
 
     const rx = el('input', { value: (g.from_login && g.from_login.regex) || '', placeholder: '^team([a-z]{6})[0-9]{3}$', style: 'width:16rem;font-family:var(--mono)' });
     const ex = el('input', { value: (g.from_login && g.from_login.expect) || '\\1', placeholder: '\\1', style: 'width:7rem;font-family:var(--mono)' });
-    const someLogin = ((DATA && DATA.by_login) || []).map((r) => r.login).find((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon)$/.test(l)) || '';
+    const someLogin = ((DATA && DATA.by_login) || []).map((r) => r.login).find((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/.test(l)) || '';
     const chkIn = el('input', { value: someLogin, placeholder: T('login do time', 'team login'), style: 'width:11rem;font-family:var(--mono)' });
     const chkOut = el('span', { class: 'small' }, '—');
     const doCheck = async () => {

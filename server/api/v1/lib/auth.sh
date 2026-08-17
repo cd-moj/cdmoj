@@ -65,13 +65,17 @@ is_staff(){ [[ "$SESSION_LOGIN" == *.staff ]]; }
 # staff, cerimônia de revelação da sede) mas não AGE — handlers testam is_cstaff explicitamente.
 is_cstaff(){ [[ "$SESSION_LOGIN" == *.cstaff ]]; }
 is_mon(){ [[ "$SESSION_LOGIN" == *.mon ]]; }
+# .animeitor = quem opera o TELÃO. Não submete e não julga: vê o placar SEMPRE DESCONGELADO
+# (é ele quem conduz a revelação), gere as FOTOS dos times e as chaves do webcast que alimenta
+# o sistema Animeitor. Não herda nada e nada herda dele — handlers testam is_animeitor.
+is_animeitor(){ [[ "$SESSION_LOGIN" == *.animeitor ]]; }
 # is_reserved_role_login <login> — 0 se o login termina num SUFIXO DE PAPEL reservado. Helper
 # central p/ (a) o auto-cadastro NUNCA criar papel por sufixo (signup web/bot) e (b) os handlers
 # de admin de contest NÃO tratarem conta privilegiada como aluno (disable/troca de senha em massa/
 # logout em massa). NÃO trava o /admin/adduser (admin autenticado cria .judge/.staff de um contest
 # legitimamente). Mantém a lista em UM lugar (awk não enxerga a função — ao replicar em regex,
-# lembre do .cjudge/.cstaff: \.(admin|judge|cjudge|staff|cstaff|mon)$).
-is_reserved_role_login(){ case "$1" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon) return 0;; *) return 1;; esac; }
+# lembre do .cjudge/.cstaff/.animeitor: \.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$).
+is_reserved_role_login(){ case "$1" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 0;; *) return 1;; esac; }
 require_admin(){ require_auth; is_admin || fail 403 "Admin only" "admin_required"; }
 require_judge(){ require_auth; is_judge || fail 403 "Judge only" "judge_required"; }
 require_chief(){ require_auth; is_chief || fail 403 "Chief judge only" "chief_required"; }

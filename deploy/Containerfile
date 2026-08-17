@@ -100,6 +100,10 @@ RUN set -eux; \
     file --version | head -1; \
     python3 -c 'import yaml' ; \
     magick -size 10x10 xc:white /tmp/_x.pdf && [ -s /tmp/_x.pdf ] && rm -f /tmp/_x.pdf; \
+    # delegate WEBP: a foto do time é gravada em webp (lib/team-photo.sh). Sem libwebp o
+    # ImageMagick grava PNG com nome .webp EM SILÊNCIO — por isso a asserção olha o mime.
+    magick -size 10x10 xc:white /tmp/_x.webp \
+      && [ "$(file --mime-type -b /tmp/_x.webp)" = image/webp ] && rm -f /tmp/_x.webp; \
     bash -n /opt/moj/cdmoj/server/api/v1/router.sh
 
 # Caminhos: todos os defaults do server são `: "${VAR:=…}"` ⇒ o ENV vence (zero edição de código).

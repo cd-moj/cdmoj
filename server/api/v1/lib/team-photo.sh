@@ -1,0 +1,54 @@
+# lib/team-photo.sh — FOTO e BRASÃO do time: um caminho só para gravar e para achar.
+#
+# A foto do time chega por três portas (o capitão na inscrição, o admin no painel de Times e o
+# .animeitor na página do telão) e antes cada uma repetia o mesmo `convert`. Agora todas passam
+# por aqui, e o formato de armazenamento é **WEBP** (decisão do Ribas): a foto de time é grande
+# (170-620 KB em PNG no esquenta) e o pacote que vai para o Animeitor fica muito menor.
+#
+# LEGADO: os `photo.png` que já estão no disco continuam válidos e servidos — `tp_file` procura
+# o webp primeiro e cai no png. `server/bin/photos-to-webp.sh --apply` converte o acervo antigo.
+# Por isso NADA no código pode presumir a extensão: use tp_file/tp_has.
+#
+# ⚠ O `convert` precisa do delegate WEBP (libwebp). Sem ele, o ImageMagick grava PNG com nome
+# .webp SEM avisar — por isso `tp_store` confere o formato do arquivo gravado antes de publicar
+# (e o Containerfile tem asserção de build).
+
+# tp_file <c> <login> -> caminho da foto existente ("" se não há)
+tp_file(){
+  local d; d="$(user_dir "$1" "$2")"
+  [[ -s "$d/photo.webp" ]] && { printf '%s' "$d/photo.webp"; return 0; }
+  [[ -s "$d/photo.png"  ]] && { printf '%s' "$d/photo.png";  return 0; }
+  printf ''
+}
+tp_has(){ [[ -n "$(tp_file "$1" "$2")" ]]; }
+
+# tp_ctype <arquivo> -> Content-Type pela EXTENSÃO (só gravamos webp/png)
+tp_ctype(){ case "$1" in *.webp) printf 'image/webp';; *) printf 'image/png';; esac; }
+
+# tp_store <c> <login> <base64> [maxpx] — grava a foto (webp). Ecoa o caminho final.
+# Aceita qualquer formato de entrada (png/jpg/webp/…): quem valida é o convert.
+# rc!=0: 1 = base64 inválido, 2 = imagem inválida/sem delegate webp.
+tp_store(){
+  local c="$1" u="$2" b64="$3" px="${4:-1000}" d out tmp
+  d="$(user_dir "$c" "$u")"; mkdir -p "$d" 2>/dev/null
+  out="$d/photo.webp"
+  b64="${b64#data:*;base64,}"                       # tolera data-url
+  tmp="$(mktemp)" || return 2
+  printf '%s' "$b64" | base64 -d > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
+  # '>' = só ENCOLHE (não infla foto pequena); -strip tira metadados (EXIF/GPS da câmera)
+  if ! convert "$tmp" -auto-orient -strip -resize "${px}x${px}>" -quality 82 "webp:$out.tmp" 2>/dev/null; then
+    rm -f "$tmp" "$out.tmp"; return 2
+  fi
+  rm -f "$tmp"
+  # o convert sem delegate WEBP escreve PNG calado: conferir o que saiu, não o que pedimos.
+  # (--mime-type, não a descrição por extenso: essa muda entre versões do `file`.)
+  if [[ "$(file --mime-type -b "$out.tmp" 2>/dev/null)" != image/webp ]]; then
+    rm -f "$out.tmp"; return 2
+  fi
+  mv -f "$out.tmp" "$out"
+  rm -f "$d/photo.png"                              # o webp substitui o legado deste time
+  printf '%s' "$out"
+}
+
+# tp_remove <c> <login> — apaga a foto (as duas extensões)
+tp_remove(){ local d; d="$(user_dir "$1" "$2")"; rm -f "$d/photo.webp" "$d/photo.png"; }
