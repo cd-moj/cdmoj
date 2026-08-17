@@ -432,6 +432,9 @@ table.score .cl-place, table.score td.place { font-weight:800; color:var(--blue-
 table.score td.cell .pv { font-size:.78em; font-variant-numeric:tabular-nums;
   overflow-wrap:normal; word-break:keep-all; }
 table.score td.cell .fts { font-size:.7em; vertical-align:top; }
+/* a bandeira vem com ALTURA inline (flags.js) e largura livre: numa coluna estreita ela
+   TRANSBORDA e encosta na 1ª letra do nome do time (a célula não corta). O teto é da coluna. */
+table.score .flag-mini { max-width:100%; }
 .prob-wait-cell, table.score td.c-try { background:#fdf1d0; color:var(--warn); font-weight:700; }
 .balloon-svg { width:20px; height:23px; vertical-align:middle; }
 /* embrulho do placar: ao contrário do .chart-wrap, NÃO rola — o layout já garante o encaixe */
@@ -455,15 +458,20 @@ table.score td.cell .fts { font-size:.7em; vertical-align:top; }
   table.score { font-size:.78rem;
     /* o número virou ✓: a coluna de problema precisa de quase nada e o nome do time e os
        totais ficam com o espaço (senão "Total" quebrava em "T/ot/al"). */
-    --w-place:6%; --w-flag-on:4.5%; --w-total-on:8%; --w-pen-on:10%; --w-prob-share:.5; }
+    --w-place:6%; --w-flag-on:5.5%; --w-total-on:8%; --w-pen-on:10%; --w-prob-share:.515; }
   table.score th, table.score td { padding:.3rem .06rem; }
-  table.score th { font-size:.74em; letter-spacing:-.02em; }
+  /* rótulo curto não quebra: "Total" virava "Tota/l" em 360px. O que passa da coluna é
+     fração de pixel e o fundo do cabeçalho é contínuo — ninguém percebe. */
+  table.score th { font-size:.74em; letter-spacing:-.02em;
+    overflow-wrap:normal; word-break:keep-all; hyphens:none; }
   table.score td.team { font-size:.95em; }
   table.score td.team img, table.score td.cell .fts { display:none; }
   /* o anel do "primeiro a resolver" é inline (box-shadow): em coluna de ~9px ele virava um
      retângulo alto sem sentido. Some no celular — a informação fica no title. */
   table.score td.cell { box-shadow:none !important; }
-  table.score .flag-mini { height:11px !important; }
+  /* quem manda é a LARGURA da coluna: a altura sai da proporção (height inline vira auto),
+     senão a bandeira invade o nome do time. */
+  table.score .flag-mini { height:auto !important; }
   /* só o número do PROBLEMA vira marca. A penalidade é a 1ª desempatadora depois do total —
      esconder o `.pv` dela (total e penalidade também são `td.cell`) deixava a coluna "Pen."
      com cabeçalho e nenhuma célula, ocupando largura sem informar nada. */
@@ -472,6 +480,12 @@ table.score td.cell .fts { font-size:.7em; vertical-align:top; }
   table.score td.cell:not(.tot):not(.pen).c-try::before { content:"✗"; }
   table.score td.cell.pen .pv { font-size:.72em; }
   table.score td.team .u, table.score td.team .pill { display:none; }
+}
+/* celular ESTREITO (360px ainda é comum): a letra da coluna precisa de mais folga que o nome
+   do time — o nome quebra em mais linhas, que é o combinado (quebrar, nunca rolar). */
+@media (max-width:420px) {
+  table.score { --w-prob-share:.56; }
+  table.score th { font-size:.7em; }
 }
 table.score tr.guest-row { background: rgba(120,120,120,.07) }
 table.score tr.guest-row .cl-place { color: var(--muted, #777); font-style: italic }
