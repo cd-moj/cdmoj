@@ -12,9 +12,9 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-# o chefe de sede VÊ/OUVE o padrão (é o que vai ao telão de quem não mandou o seu), mas não
-# troca: o padrão vale para o contest INTEIRO, não só para a sede dele.
-{ is_animeitor || is_admin || is_cstaff; } || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff) ou o admin" "animeitor_required"
+# a sede (.cstaff/.staff) VÊ/OUVE o padrão (é o que vai ao telão de quem não mandou o seu), mas
+# não troca: o padrão vale para o contest INTEIRO, não só para a sede dela.
+{ is_animeitor || is_admin || is_cstaff || is_staff; } || fail 403 "Apenas a conta de placar (.animeitor), a sede (.cstaff/.staff) ou o admin" "animeitor_required"
 source "$_LIBDIR/team-photo.sh"
 source "$_LIBDIR/team-music.sh"
 

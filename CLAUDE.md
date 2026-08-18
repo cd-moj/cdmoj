@@ -65,11 +65,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   is_admin`), mas **sem botão na nav**: página avulsa se LINKA do painel (doutrina do
   `admin.js`) — cartão na *Central › Gerar* e link no painel *Pessoas › Times*, que em contest
   com `USERS_FROM` é o único caminho para foto/música (o `admin/team-assets` recusa; o telão não).
-  O **`.cstaff` entra RECORTADO na sede dele** (botão próprio na nav): galeria, upload e pacote
-  passam pelo `staff-filters.json` via `staff_can_see`/`staff_visible_logins` (`lib/print.sh`) —
-  é o **primeiro caminho de escrita escopada** do papel, então cada POST re-autoriza o login
-  **resolvido** (o corpo manda nome de arquivo). Ele não troca o PADRÃO do contest nem vê as
-  chaves do webcast. ⚠ Escopo ausente = vê tudo (convenção da casa), mas escopo que **existe e não
+  A **SEDE entra RECORTADA** (botão próprio na nav de cada papel): galeria, upload e pacote passam
+  pelo `staff-filters.json` via `staff_can_see`/`staff_visible_logins` (`lib/print.sh`). O
+  **`.cstaff`** ESCREVE no escopo dele — é o **primeiro caminho de escrita escopada** do papel,
+  então cada POST re-autoriza o login **resolvido** (o corpo manda nome de arquivo); o **`.staff`**
+  é **só leitura** (galeria + GET do padrão; foto/música/zip → 403, e a página o põe em `NOWRITE`).
+  Nenhum dos dois troca o PADRÃO do contest nem vê as chaves do webcast. ⚠ Escopo ausente = vê tudo (convenção da casa), mas escopo que **existe e não
   casa ninguém = vê NADA**: quem manda é o `rc` do `staff_visible_logins`, não o tamanho da saída.
   ⚠ **Listagem de MUITOS usuários é UMA varredura** (`find -printf` + `find|xargs jq`, login pelo
   `input_filename` — molde do `sc_cells`), nunca um `jq`/`stat` por conta: a galeria de fotos

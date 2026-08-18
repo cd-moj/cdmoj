@@ -14,19 +14,20 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_animeitor || is_admin || is_cstaff; } || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff) ou o admin" "animeitor_required"
+{ is_animeitor || is_admin || is_cstaff || is_staff; } || fail 403 "Apenas a conta de placar (.animeitor), a sede (.cstaff/.staff) ou o admin" "animeitor_required"
 
 cdir="$CONTESTSDIR/$contest"
 W="$(mktemp -d)" || fail 500 "tmp" "tmp"
 trap 'rm -rf "$W"' EXIT
 
-# CHEFE DE SEDE: vê só os times do escopo dele (staff-filters.json — o MESMO recorte da fila de
-# impressão, das etiquetas e da cerimônia). Escopo vazio/ausente = vê tudo (convenção da casa;
-# o preflight avisa). rc=1 de staff_visible_logins significa "não filtre".
+# SEDE (.cstaff e .staff): vê só os times do escopo dela (staff-filters.json — o MESMO recorte da
+# fila de impressão, das etiquetas e da cerimônia; o arquivo é chaveado pelos DOIS papéis).
+# O .staff entra em modo LEITURA: as rotas de escrita (photo/music/photos-zip/placeholder POST)
+# não o aceitam. Escopo vazio/ausente = vê tudo (convenção da casa; o preflight avisa).
 # ⚠ quem manda é o rc, NÃO o tamanho da saída: rc=0 com lista VAZIA é "escopo que não casa
 # ninguém" (vê nada), e tratar isso como "sem filtro" abriria o contest inteiro.
 scoped=false
-if is_cstaff; then
+if is_cstaff || is_staff; then
   source "$_LIBDIR/print.sh"
   staff_visible_logins "$contest" "$SESSION_LOGIN" > "$W/vis.txt" && scoped=true
 fi

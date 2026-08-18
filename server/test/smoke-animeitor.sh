@@ -287,8 +287,27 @@ ck "CSV do cstaff: 1 time"        '[[ "$(unzip -p "$TMP/f3.zip" teams.csv | tail
 ck "pacote do cstaff leva padrão" 'unzip -Z1 "$TMP/f3.zip" | grep -qx "placeholder.webp"'
 call /contest/navbuttons GET cst 'contest=an'
 ck "cstaff tem botão do telão"    'grep -q "/contest/animeitor/" <<<"$BODY"'
+echo "== .staff: o telão da sede em SOMENTE LEITURA =="
+# o staff-filters é chaveado pelos DOIS papéis: an.staff só enxerga a sede Sul (time-b)
+printf '%s' '{"norte.cstaff":["region:Norte"],"an.staff":["region:Sul"]}' > "$C/print-requests/staff-filters.json"
 call /contest/animeitor/photos GET stf 'contest=an'
-ck ".staff puro continua fora"    'grep -q "animeitor_required" <<<"$BODY"'
+ck ".staff entra e vê a sede dele" '[[ "$(jq -r .total <<<"$BODY")" == 1 ]] && [[ "$(jq -r ".teams[0].login" <<<"$BODY")" == time-b ]] && grep -q "\"scoped\":true" <<<"$BODY"'
+call /contest/animeitor/placeholder GET stf 'contest=an'
+ck ".staff vê/ouve o padrão"      'grep -q "\"custom\"" <<<"$BODY" && grep -q "\"music\"" <<<"$BODY"'
+call /contest/animeitor/photo POST stf 'contest=an' "{\"login\":\"time-b\",\"file_b64\":\"$PNG1\"}"
+ck ".staff NÃO sobe foto"         'grep -q "animeitor_required" <<<"$BODY"'
+call /contest/animeitor/music POST stf 'contest=an' "{\"login\":\"time-b\",\"file_b64\":\"$MP3\"}"
+ck ".staff NÃO sobe música"       'grep -q "animeitor_required" <<<"$BODY" && [[ ! -e "$C/users/time-b/music.mp3" ]]'
+call /contest/animeitor/photo POST stf 'contest=an' '{"action":"delete","login":"time-b"}'
+ck ".staff NÃO remove"            'grep -q "animeitor_required" <<<"$BODY" && [[ -s "$C/users/time-b/photo.png" ]]'
+call /contest/animeitor/placeholder POST stf 'contest=an' "{\"file_b64\":\"$PNG1\"}"
+ck ".staff NÃO troca o padrão"    'grep -q "animeitor_required" <<<"$BODY"'
+callf /contest/animeitor/photos-zip GET stf 'contest=an' '' "$TMP/f4.bin"
+ck ".staff NÃO baixa o pacote"    'grep -q "animeitor_required" "$TMP/f4.bin"'
+call /contest/navbuttons GET stf 'contest=an'
+ck ".staff tem botão do telão"    'grep -q "/contest/animeitor/" <<<"$BODY" && ! grep -q "Etiquetas" <<<"$BODY"'
+call /contest/animeitor/photos GET tb 'contest=an'
+ck "competidor segue fora"        'grep -q "animeitor_required" <<<"$BODY"'
 # escopo que não casa NINGUÉM tem de dar ZERO (o rc do staff_visible_logins é que manda; tratar
 # "lista vazia" como "sem filtro" abriria o contest inteiro ao chefe de sede)
 printf '%s' '{"norte.cstaff":["region:Inexistente"]}' > "$C/print-requests/staff-filters.json"

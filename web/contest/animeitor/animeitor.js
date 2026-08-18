@@ -19,10 +19,12 @@ const enc = encodeURIComponent;
 
 let PHOTOS = null;   // {teams:[…], total, with_photo, with_music, scoped}
 let WC = null;       // {keys:[…], views:[…], url_path}
-// .cstaff (chefe de sede) entra na MESMA tela com menos poder (molde do staff.js): sobe foto e
-// música só dos times da SEDE dele — o recorte é da API (staff-filters.json), aqui só se esconde
-// o que ele não pode: as chaves do webcast e a troca do padrão do contest.
+// A SEDE entra na MESMA tela com menos poder (molde do staff.js), e o recorte de quais times ela
+// vê é da API (staff-filters.json) — aqui só se esconde o que ela não pode:
+//   RO      (.cstaff e .staff) — sem as chaves do webcast e sem trocar o PADRÃO do contest;
+//   NOWRITE (.staff)           — sem NENHUMA escrita: nada de enviar/trocar/remover, lote ou zip.
 let RO = false;
+let NOWRITE = false;
 
 // ESTADO DA GALERIA (prova de verdade tem 1000+ times): filtro + página. Abre em PENDÊNCIAS —
 // quem falta foto OU música, que é a fila de trabalho inteira de quem opera o telão.
@@ -132,10 +134,10 @@ function musicRow(t, box) {
     el('span', { class: 'lg' }, t.has_music
       ? `${Math.round((t.music_bytes || 0) / 1024)} KB`
       : T('padrão', 'default')),
-    el('button', { class: 'btn ghost', onclick: () => inp.click(),
+    NOWRITE ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click(),
       title: t.has_music ? T('trocar a música', 'replace the music')
                          : T('enviar a música', 'upload the music') }, '⬆'),
-    t.has_music ? el('button', { class: 'btn ghost danger',
+    (t.has_music && !NOWRITE) ? el('button', { class: 'btn ghost danger',
       title: T('remover a música', 'remove the music'), onclick: async () => {
       if (!confirm(T('Remover a música de ', 'Remove the music of ') + (t.name || t.login) + '?')) return;
       try {
@@ -166,7 +168,7 @@ function photoCard(t, box) {
     el('div', { class: 'nm' }, t.name || t.login),
     el('div', { class: 'lg' }, (t.univ ? '[' + t.univ + '] ' : '') + t.login),
     el('div', { class: 'lg' }, t.has_photo ? `${t.format} · ${Math.round((t.bytes || 0) / 1024)} KB` : ''),
-    el('div', { class: 'acts' }, inp,
+    NOWRITE ? '' : el('div', { class: 'acts' }, inp,
       el('button', { class: 'btn ghost', onclick: () => inp.click() },
         t.has_photo ? T('trocar', 'replace') : T('enviar', 'upload')),
       t.has_photo ? el('button', { class: 'btn ghost danger', onclick: async () => {
@@ -372,11 +374,13 @@ function renderPhotos() {
         `${nP} of ${nT} teams already have a photo; ${nM} have their own music (the rest play the default).`),
       // o recorte é da API (staff-filters): dizer isso evita o susto de "sumiram times"
       (PHOTOS && PHOTOS.scoped)
-        ? el('span', { class: 'small muted' },
-            T(' Você vê e gere apenas os times da SUA SEDE.', ' You see and manage only YOUR SITE’s teams.'))
+        ? el('span', { class: 'small muted' }, NOWRITE
+            ? T(' Você vê os times da SUA SEDE (somente leitura).', ' You see YOUR SITE’s teams (read-only).')
+            : T(' Você vê e gere apenas os times da SUA SEDE.', ' You see and manage only YOUR SITE’s teams.'))
         : ''),
     placeholderCard(box),
-    el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.4rem; flex-wrap:wrap' }, bulkInput(box),
+    // lote e pacote são ESCRITA/exportação: o .staff não tem nenhum dos dois
+    NOWRITE ? '' : el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.4rem; flex-wrap:wrap' }, bulkInput(box),
       el('button', { class: 'btn', onclick: () => document.getElementById('phBulk').click() },
         T('⬆ Enviar em lote — fotos e músicas (nome do arquivo = login)',
           '⬆ Bulk upload — photos and music (file name = login)')),
@@ -503,12 +507,13 @@ async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'No contest given.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) { location.replace('/contest/?c=' + enc(CONTEST)); return; }
-  if (!(st.is_animeitor || st.is_admin || st.is_cstaff)) {
+  if (!(st.is_animeitor || st.is_admin || st.is_cstaff || st.is_staff)) {
     app.innerHTML = '<div class="error-box">' + T('Esta área é da conta de placar (.animeitor).',
       'This area belongs to the scoreboard account (.animeitor).') + '</div>';
     return;
   }
-  RO = !!st.is_cstaff && !st.is_admin && !st.is_animeitor;
+  RO = !!(st.is_cstaff || st.is_staff) && !st.is_admin && !st.is_animeitor;
+  NOWRITE = RO && !st.is_cstaff;                      // .staff puro: só olha e ouve
   try {
     // o cstaff NÃO pede as chaves (403 na API): pedir aqui derrubaria a página inteira no catch
     [WC] = await Promise.all([

@@ -44,12 +44,14 @@ if is_cstaff; then
 fi
 
 # .staff: NÃO submete (sem Contest/Clarification). Vê o placar (congela no freeze, como
-# usuário normal) e a área de tarefas de impressão recebidas. Etiquetas de credenciais
-# são do .cstaff/admin — o .staff não as vê.
+# usuário normal), a área de tarefas de impressão recebidas e o TELÃO da sede dele em modo
+# SOMENTE LEITURA (olha e ouve foto/música do escopo; não sobe, não baixa pacote). Etiquetas de
+# credenciais são do .cstaff/admin — o .staff não as vê.
 if is_staff; then
   jq -cn '{success:true, buttons:[
     {label:"Score", url:"/contest/score/"},
     {label:"🖨️ Impressão", url:"/contest/staff/"},
+    {label:"🎥 Animeitor", url:"/contest/animeitor/"},
     {label:"📄 Documentos", url:"/contest/docs/"},
     {label:"🔁 Rodadas", url:"/contest/rounds/"},
     {label:"Logout", url:"/logout"}

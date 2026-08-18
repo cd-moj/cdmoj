@@ -3841,7 +3841,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime,has_music,music_bytes,music_mtime}], total, with_photo, with_music, scoped, placeholder:{custom,mtime,music_custom,music_mtime}} — UMA varredura (find|xargs jq) para foto E música, pensada p/ 1000+ times. Para o .cstaff a lista vem recortada na sede dele (scoped:true)"
+            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime,has_music,music_bytes,music_mtime}], total, with_photo, with_music, scoped, placeholder:{custom,mtime,music_custom,music_mtime}} — UMA varredura (find|xargs jq) para foto E música, pensada p/ 1000+ times. Para a sede (.cstaff/.staff) a lista vem recortada nela (scoped:true); o .staff entra em modo leitura"
           },
           "403": {
             "description": "animeitor_required"
@@ -4013,7 +4013,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Estado do padrão do contest (foto no topo, música em .music). Leitura também para o .cstaff",
+        "summary": "Estado do padrão do contest (foto no topo, música em .music). Leitura também para a sede (.cstaff/.staff)",
         "security": [
           {
             "bearerAuth": []

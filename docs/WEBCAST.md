@@ -32,20 +32,29 @@ título do painel *Pessoas › Times*. Em contest com `USERS_FROM` esse link nã
 **único** caminho: o `/contest/admin/team-assets` recusa contest de usuários compartilhados e as
 rotas do telão não (foto e música são asset LOCAL do contest).
 
-### O chefe de sede (`.cstaff`) — a mesma tela, recortada na sede dele
+### A sede (`.cstaff` e `.staff`) — a mesma tela, recortada
 
-O `.cstaff` também abre `/contest/animeitor/` (botão **🎥 Animeitor** na barra dele), mas **só vê
-e só escreve nos times da SUA sede**:
+Os dois papéis de sede abrem `/contest/animeitor/` (botão **🎥 Animeitor** na barra deles) e veem
+**só os times do escopo deles**. A diferença é o que podem fazer com eles:
 
-| pode | não pode |
-|---|---|
-| ver a galeria da sede e subir/trocar/remover **foto e música** desses times | tocar em time de outra sede (**403 `staff_scope`**) |
-| baixar o **pacote .zip** — recortado na sede | trocar a **foto/música PADRÃO** (é do contest inteiro; ele vê e ouve) |
-| ver e ouvir o padrão que vai ao telão | ver ou criar **chaves do webcast** (403 — a seção nem aparece na página) |
+| | `.cstaff` (chefe) | `.staff` (voluntário) |
+|---|---|---|
+| ver a galeria da sede, com filtros e busca | ✅ | ✅ |
+| ver e **ouvir** o padrão que vai ao telão | ✅ | ✅ |
+| subir/trocar/remover **foto e música** dos times da sede | ✅ | ❌ 403 |
+| baixar o **pacote .zip** (recortado na sede) | ✅ | ❌ 403 (é exportação em massa) |
+| tocar em time de **outra** sede | ❌ 403 `staff_scope` | ❌ |
+| trocar a **foto/música PADRÃO** (é do contest inteiro) | ❌ 403 | ❌ 403 |
+| ver ou criar **chaves do webcast** | ❌ 403 (a seção nem aparece) | ❌ 403 |
+
+Na página, o `.staff` cai no modo `NOWRITE`: além de não ter a seção de streaming nem os botões do
+padrão (como o chefe), ele fica **sem os botões de enviar/trocar/remover** dos cartões e **sem a
+linha de lote/pacote** — sobra o ▶ da música e a foto em tamanho real.
 
 O recorte é o **mesmo `staff-filters.json`** que já corta a fila de impressão, as etiquetas com
-senha e a cerimônia de revelação — `{"<login>.cstaff": ["region:<sede>"|regex]}`, resolvido pelos
-helpers `staff_can_see`/`staff_visible_logins` de `lib/print.sh`. Três regras que valem lembrar:
+senha e a cerimônia de revelação — `{"<login .staff|.cstaff>": ["region:<sede>"|regex]}`, resolvido
+pelos helpers `staff_can_see`/`staff_visible_logins` de `lib/print.sh`. Três regras que valem
+lembrar:
 
 - **Quem autoriza é a API, não a tela.** A listagem já vem recortada (`scoped:true` na resposta) e
   cada POST re-autoriza o login **resolvido** — o corpo pode mandar nome de arquivo
@@ -53,7 +62,8 @@ helpers `staff_can_see`/`staff_visible_logins` de `lib/print.sh`. Três regras q
 - **Escopo vazio/ausente = vê tudo** (convenção da casa nos quatro consumidores; o `preflight`
   avisa com "Staff sem escopo de sede"). Mas **escopo que existe e não casa ninguém = vê nada** —
   quem manda é o `rc` do `staff_visible_logins`, não o tamanho da saída.
-- Este é o **primeiro caminho de escrita escopada** do `.cstaff` (nas outras telas ele só lê).
+- Este é o **primeiro caminho de escrita escopada** do `.cstaff` (nas outras telas ele só lê);
+  o `.staff` continua **100% leitura** em todo o MOJ.
 
 ---
 
