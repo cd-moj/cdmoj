@@ -24,13 +24,36 @@ Como todo papel, o sufixo está fora do placar, do `/contest/teams`, das etiquet
 das estatísticas e do gate de UA (a lista canônica é a de `lib/auth.sh`; ver a nota de papéis no
 `CLAUDE.md`). A página dele é `/contest/animeitor/`.
 
-**O admin do contest entra na MESMA página, com os mesmos poderes** — as seis rotas gatam
+**O admin do contest entra na MESMA página, com os mesmos poderes** — as rotas gatam
 `{ is_animeitor || is_admin; }` e o `boot()` da página aceita os dois. Ele não tem botão na barra
 de navegação (a doutrina do painel: página avulsa se linka, não vira aba); as portas são o cartão
 **🎥 Telão (Animeitor)** na *Central › Gerar* e o link **🎥 Fotos e músicas no telão** ao lado do
 título do painel *Pessoas › Times*. Em contest com `USERS_FROM` esse link não é atalho, é o
 **único** caminho: o `/contest/admin/team-assets` recusa contest de usuários compartilhados e as
 rotas do telão não (foto e música são asset LOCAL do contest).
+
+### O chefe de sede (`.cstaff`) — a mesma tela, recortada na sede dele
+
+O `.cstaff` também abre `/contest/animeitor/` (botão **🎥 Animeitor** na barra dele), mas **só vê
+e só escreve nos times da SUA sede**:
+
+| pode | não pode |
+|---|---|
+| ver a galeria da sede e subir/trocar/remover **foto e música** desses times | tocar em time de outra sede (**403 `staff_scope`**) |
+| baixar o **pacote .zip** — recortado na sede | trocar a **foto/música PADRÃO** (é do contest inteiro; ele vê e ouve) |
+| ver e ouvir o padrão que vai ao telão | ver ou criar **chaves do webcast** (403 — a seção nem aparece na página) |
+
+O recorte é o **mesmo `staff-filters.json`** que já corta a fila de impressão, as etiquetas com
+senha e a cerimônia de revelação — `{"<login>.cstaff": ["region:<sede>"|regex]}`, resolvido pelos
+helpers `staff_can_see`/`staff_visible_logins` de `lib/print.sh`. Três regras que valem lembrar:
+
+- **Quem autoriza é a API, não a tela.** A listagem já vem recortada (`scoped:true` na resposta) e
+  cada POST re-autoriza o login **resolvido** — o corpo pode mandar nome de arquivo
+  (`fulano.mp3`), então resolve-se primeiro e autoriza-se depois.
+- **Escopo vazio/ausente = vê tudo** (convenção da casa nos quatro consumidores; o `preflight`
+  avisa com "Staff sem escopo de sede"). Mas **escopo que existe e não casa ninguém = vê nada** —
+  quem manda é o `rc` do `staff_visible_logins`, não o tamanho da saída.
+- Este é o **primeiro caminho de escrita escopada** do `.cstaff` (nas outras telas ele só lê).
 
 ---
 

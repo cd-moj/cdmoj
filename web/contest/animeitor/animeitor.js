@@ -17,8 +17,12 @@ const app = document.getElementById('app');
 const G = { contest: CONTEST, auth: true };
 const enc = encodeURIComponent;
 
-let PHOTOS = null;   // {teams:[…], total, with_photo}
+let PHOTOS = null;   // {teams:[…], total, with_photo, with_music, scoped}
 let WC = null;       // {keys:[…], views:[…], url_path}
+// .cstaff (chefe de sede) entra na MESMA tela com menos poder (molde do staff.js): sobe foto e
+// música só dos times da SEDE dele — o recorte é da API (staff-filters.json), aqui só se esconde
+// o que ele não pode: as chaves do webcast e a troca do padrão do contest.
+let RO = false;
 
 // ESTADO DA GALERIA (prova de verdade tem 1000+ times): filtro + página. Abre em PENDÊNCIAS —
 // quem falta foto OU música, que é a fila de trabalho inteira de quem opera o telão.
@@ -251,7 +255,7 @@ function photosBar(box) {
       ['fMusicNo', 'fMusicYes', 'fMusicAll']),
     selOf('cohort', T('Coorte:', 'Cohort:'), 'fCohort'),
     selOf('univ', T('Universidade:', 'University:'), 'fUniv'),
-    selOf('region', T('Sede:', 'Site:'), 'fRegion'),
+    RO ? '' : selOf('region', T('Sede:', 'Site:'), 'fRegion'),   // uma sede só: o select seria ruído
     q,
     // limpar é limpar: mostra TODOS (não volta a ligar o recorte de pendências)
     el('button', { id: 'fClear', class: 'btn ghost', onclick: () => {
@@ -296,8 +300,9 @@ function placeholderMusicRow(box) {
     playBtn(phMusicUrl(), T('tocar a música padrão', 'play the default music')),
     el('span', { class: 'small muted' }, T('Música padrão', 'Default music'),
       custom ? T(' · sua faixa', ' · your track') : T(' · a do MOJ', ' · the MOJ one')),
-    el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar música', 'replace music')),
-    custom ? el('button', { class: 'btn ghost', onclick: async () => {
+    // o chefe de sede ouve, mas não troca: o padrão é do contest inteiro
+    RO ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar música', 'replace music')),
+    (custom && !RO) ? el('button', { class: 'btn ghost', onclick: async () => {
       if (!confirm(T('Voltar à música padrão do MOJ?', 'Restore the MOJ default music?'))) return;
       const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST),
         { kind: 'music', action: 'reset' }, G);
@@ -333,8 +338,8 @@ function placeholderCard(box) {
         T('É o que a API responde — e o que vai no pacote — para quem ainda não mandou a sua.',
           'This is what the API answers — and what goes in the package — for teams without their own.')),
       el('div', { class: 'row', style: 'gap:.3rem; margin-top:.35rem; align-items:center; flex-wrap:wrap' }, inp,
-        el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar imagem', 'replace image')),
-        custom ? el('button', { class: 'btn ghost', onclick: async () => {
+        RO ? '' : el('button', { class: 'btn ghost', onclick: () => inp.click() }, T('trocar imagem', 'replace image')),
+        (custom && !RO) ? el('button', { class: 'btn ghost', onclick: async () => {
           if (!confirm(T('Voltar à foto padrão do MOJ?', 'Restore the MOJ default photo?'))) return;
           const r = await apiPost('/contest/animeitor/placeholder?contest=' + enc(CONTEST), { action: 'reset' }, G);
           if (PHOTOS) PHOTOS.placeholder = { ...PHOTOS.placeholder, custom: r.custom, mtime: r.mtime };
@@ -364,7 +369,12 @@ function renderPhotos() {
     el('h2', {}, T('📷 Fotos e ♪ músicas dos times', '📷 Team photos and ♪ music')),
     el('p', { class: 'note' },
       T(`${nP} de ${nT} times já têm foto; ${nM} têm música própria (o resto toca a padrão).`,
-        `${nP} of ${nT} teams already have a photo; ${nM} have their own music (the rest play the default).`)),
+        `${nP} of ${nT} teams already have a photo; ${nM} have their own music (the rest play the default).`),
+      // o recorte é da API (staff-filters): dizer isso evita o susto de "sumiram times"
+      (PHOTOS && PHOTOS.scoped)
+        ? el('span', { class: 'small muted' },
+            T(' Você vê e gere apenas os times da SUA SEDE.', ' You see and manage only YOUR SITE’s teams.'))
+        : ''),
     placeholderCard(box),
     el('div', { class: 'row', style: 'gap:.5rem; margin-bottom:.4rem; flex-wrap:wrap' }, bulkInput(box),
       el('button', { class: 'btn', onclick: () => document.getElementById('phBulk').click() },
@@ -484,8 +494,8 @@ function streamSection() {
 function render() {
   app.innerHTML = '';
   // a seção de fotos tem hospedeiro FIXO: filtro/página redesenham só ela (renderPhotos),
-  // sem tocar nas chaves do streaming
-  app.append(streamSection(), el('div', { class: 'section', id: 'photosSec' }));
+  // sem tocar nas chaves do streaming (que o chefe de sede nem vê)
+  app.append(RO ? '' : streamSection(), el('div', { class: 'section', id: 'photosSec' }));
   renderPhotos();
 }
 
@@ -493,13 +503,17 @@ async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'No contest given.') + '</div>'; return; }
   const { st } = await initContestShell(CONTEST);
   if (!st || !st.logged_in) { location.replace('/contest/?c=' + enc(CONTEST)); return; }
-  if (!(st.is_animeitor || st.is_admin)) {
+  if (!(st.is_animeitor || st.is_admin || st.is_cstaff)) {
     app.innerHTML = '<div class="error-box">' + T('Esta área é da conta de placar (.animeitor).',
       'This area belongs to the scoreboard account (.animeitor).') + '</div>';
     return;
   }
+  RO = !!st.is_cstaff && !st.is_admin && !st.is_animeitor;
   try {
-    [WC] = await Promise.all([apiGet('/contest/animeitor/webcast?contest=' + enc(CONTEST), G), loadPhotos()]);
+    // o cstaff NÃO pede as chaves (403 na API): pedir aqui derrubaria a página inteira no catch
+    [WC] = await Promise.all([
+      RO ? Promise.resolve(null) : apiGet('/contest/animeitor/webcast?contest=' + enc(CONTEST), G),
+      loadPhotos()]);
   } catch (e) {
     app.innerHTML = '<div class="error-box">' + (e.message || e) + '</div>'; return;
   }

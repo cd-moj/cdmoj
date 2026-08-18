@@ -51,7 +51,7 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 | **Times** | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
 | **Inscrições** | O **roster** do contest (só inscrito entra) e a **janela**: quando abre, quando fecha (default: o início da prova) e quantos minutos de entrada atrasada. Lista times e individuais, dissolve time, inscreve à mão, **cutuca convite pendente por DM** (🔔) e exporta CSV. A seção 8½ explica. |
 | **Coortes** | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
-| **Sedes & escolas** | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas e o gate por sede — e as regras de país/escola por regex. |
+| **Sedes & escolas** | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas, **as fotos/músicas que cada chefe de sede gere no telão** e o gate por sede — e as regras de país/escola por regex. |
 | **Máquinas & gate** | De onde cada time logou (IP e navegador) em cada rodada, com CSV, **e a configuração do gate de navegador por sede** (esperado × visto por time). A seção 7 explica. |
 | **Sessões** | Sessões ativas com alerta de multi-IP/UA, deslogar, **deslogar UA divergente** e o log de acessos por dia (CSV). |
 

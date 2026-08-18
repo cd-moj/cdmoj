@@ -146,7 +146,9 @@ Dois tokens **compartilhados** (600, sob `run/secrets/`), nunca versionados, nun
   (guardada em `contests/<c>/webcast.json`, modo 600), que é da conta `.animeitor` **e também do
   admin do contest** — a porta do admin é o cartão *🎥 Telão (Animeitor)* na Central › Gerar (ou o
   link no painel Pessoas › Times). É o que o sistema **Animeitor** usa para buscar o placar; a
-  mesma tela gere as fotos e as músicas dos times. Ver `docs/WEBCAST.md`.
+  mesma tela gere as fotos e as músicas dos times. O **`.cstaff`** também abre essa tela, mas
+  recortada na sede dele pelo `staff-filters.json` (Pessoas › Sedes & escolas) — e sem as chaves.
+  Ver `docs/WEBCAST.md`.
 
 ## 5. ★ Bootstrap do `treino` e da primeira conta `.admin`
 

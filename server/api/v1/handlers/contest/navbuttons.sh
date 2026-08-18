@@ -24,14 +24,16 @@ if is_animeitor; then
 fi
 
 # .cstaff (chefe de sede): NÃO submete. Vê o placar (congelado, como usuário normal), a
-# fila de impressão em modo leitura e as ETIQUETAS de credenciais da sede. O botão da
-# cerimônia (🏆) só aparece quando o contest terminou p/ TODAS as sedes — mesmo gate que
-# libera o placar full na API (a UI é só conveniência).
+# fila de impressão em modo leitura, as ETIQUETAS de credenciais da sede e o TELÃO com as
+# fotos/músicas DA SEDE dele (o mesmo recorte do staff-filters; ele não gere chaves de webcast
+# nem o padrão do contest). O botão da cerimônia (🏆) só aparece quando o contest terminou p/
+# TODAS as sedes — mesmo gate que libera o placar full na API (a UI é só conveniência).
 if is_cstaff; then
   source "$_LIBDIR/contest-gate.sh"
   btns='[{label:"Score", url:"/contest/score/"},
          {label:"🖨️ Impressão", url:"/contest/staff/"},
          {label:"🏷️ Etiquetas", url:"/contest/badges/"},
+         {label:"🎥 Animeitor", url:"/contest/animeitor/"},
          {label:"📄 Documentos", url:"/contest/docs/"},
          {label:"🔁 Rodadas", url:"/contest/rounds/"}]'
   if contest_over_for_all "$contest"; then

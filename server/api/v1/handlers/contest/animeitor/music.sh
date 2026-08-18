@@ -12,8 +12,9 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_animeitor || is_admin; } || fail 403 "Apenas a conta de placar (.animeitor) ou o admin" "animeitor_required"
+{ is_animeitor || is_admin || is_cstaff; } || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff) ou o admin" "animeitor_required"
 source "$_LIBDIR/team-music.sh"
+is_cstaff && source "$_LIBDIR/print.sh"
 
 MUSIC_MAX_MB=15                      # ~10 min a 192 kbps; o nginx de produção aceita bem mais
 bodyf="$(read_body_file)"
@@ -25,6 +26,9 @@ want="$(jq -r '.login // .filename // empty' < "$bodyf")"
 login="$(user_resolve_name "$contest" "$want")" || fail 404 "Nenhum time casa com '$want'" "user_not_found"
 case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor)
   fail 422 "Conta de papel não tem música de time" "role_account";; esac
+# CHEFE DE SEDE só mexe em quem ele enxerga (mesma regra da foto)
+is_cstaff && ! staff_can_see "$contest" "$SESSION_LOGIN" "$login" \
+  && fail 403 "Time fora da sua sede" "staff_scope"
 
 if [[ "$(jq -r '.action // empty' < "$bodyf")" == delete ]]; then
   tm_remove "$contest" "$login"

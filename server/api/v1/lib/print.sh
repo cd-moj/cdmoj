@@ -110,11 +110,16 @@ staff_visible_logins() {
   n="$(jq -r --arg s "$who" '(.[$s] // []) | length' "$f" 2>/dev/null)"
   n="${n//[^0-9]/}"; [[ -n "$n" && "$n" -gt 0 ]] || return 1
   src="$(_users_source "$c")"
+  # o login é IMPLÍCITO no nome do diretório (rename de conta é `mv`): o campo .login é só uma
+  # cópia e pode faltar (conta escrita à mão, store migrado). Sem o fallback pelo caminho, a
+  # conta sumia da lista — e "lista vazia" viraria escopo que não casa ninguém.
   { find "$CONTESTSDIR/$c/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-      | xargs -0 -r jq -c '{login:(.login//""), region:(.team.region//""), prio:0}' 2>/dev/null
+      | xargs -0 -r jq -c '{login:(if (.login//"") == "" then (input_filename|split("/")|.[-2]) else .login end),
+                            region:(.team.region//""), prio:0}' 2>/dev/null
     if [[ "$src" != "$c" ]]; then
       find "$CONTESTSDIR/$src/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-        | xargs -0 -r jq -c '{login:(.login//""), region:(.team.region//""), prio:1}' 2>/dev/null
+        | xargs -0 -r jq -c '{login:(if (.login//"") == "" then (input_filename|split("/")|.[-2]) else .login end),
+                              region:(.team.region//""), prio:1}' 2>/dev/null
     fi
     true
   } | jq -rs --slurpfile ff "$f" --arg s "$who" '

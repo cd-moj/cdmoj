@@ -12,7 +12,9 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_animeitor || is_admin; } || fail 403 "Apenas a conta de placar (.animeitor) ou o admin" "animeitor_required"
+# o chefe de sede VÊ/OUVE o padrão (é o que vai ao telão de quem não mandou o seu), mas não
+# troca: o padrão vale para o contest INTEIRO, não só para a sede dele.
+{ is_animeitor || is_admin || is_cstaff; } || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff) ou o admin" "animeitor_required"
 source "$_LIBDIR/team-photo.sh"
 source "$_LIBDIR/team-music.sh"
 
@@ -31,6 +33,7 @@ _ph_json(){
 }
 
 if [[ "${REQUEST_METHOD:-GET}" != POST ]]; then _ph_json; exit 0; fi
+{ is_animeitor || is_admin; } || fail 403 "O padrão é do contest inteiro: só a mesa do telão (.animeitor) ou o admin trocam" "animeitor_required"
 
 bodyf="$(read_body_file)"
 trap 'rm -f "$bodyf" "$bodyf.b64"' EXIT

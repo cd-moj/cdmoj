@@ -17,10 +17,14 @@ C="$FIX/an"; mkdir -p "$C/var"
 fx_user "$C" an.admin p "Admin"
 fx_user "$C" telao.animeitor p "Mesa do Telão"
 fx_user "$C" an.staff p "Staff"
+fx_user "$C" norte.cstaff p "Chefe de Sede Norte"
 fx_user "$C" time-a a "Time Alfa"
 fx_user "$C" time-b b "Time Beta"
-jq -c '.team={name:"Time Alfa",univ_short:"UFRJ",flag:"br-rj"}' "$C/users/time-a/account.json" > "$C/t" && mv "$C/t" "$C/users/time-a/account.json"
-jq -c '.team={name:"Time Beta",univ_short:"UFSC",flag:"br-sc"}' "$C/users/time-b/account.json" > "$C/t" && mv "$C/t" "$C/users/time-b/account.json"
+jq -c '.team={name:"Time Alfa",univ_short:"UFRJ",flag:"br-rj",region:"Norte"}' "$C/users/time-a/account.json" > "$C/t" && mv "$C/t" "$C/users/time-a/account.json"
+jq -c '.team={name:"Time Beta",univ_short:"UFSC",flag:"br-sc",region:"Sul"}' "$C/users/time-b/account.json" > "$C/t" && mv "$C/t" "$C/users/time-b/account.json"
+# escopo do chefe de sede pelo token `region:` (o mesmo staff-filters da fila/etiquetas/cerimônia)
+mkdir -p "$C/print-requests"
+printf '%s' '{"norte.cstaff":["region:Norte"]}' > "$C/print-requests/staff-filters.json"
 
 # time-a: AC pré-freeze em A + AC PÓS-freeze em B (o pós só aparece no placar descongelado)
 { printf '10:col#pa:C:Accepted,100p:%s:s1\n' $(( START + 600 ))
@@ -35,6 +39,7 @@ touch "$C/var/.score-dirty"
 
 mktok(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' an "$1" "$1" "$NOW" > "$SESS/$2"; }
 mktok an.admin adm; mktok telao.animeitor ani; mktok an.staff stf; mktok time-b tb
+mktok norte.cstaff cst
 
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="${2:-GET}" QUERY_STRING="${4:-}" \
     HTTP_AUTHORIZATION="${3:+Bearer $3}" REMOTE_ADDR=127.0.0.9 \
@@ -248,5 +253,49 @@ call /contest/animeitor/webcast GET stf 'contest=an'
 ck "staff: 403 nas rotas"        'grep -q "animeitor_required" <<<"$BODY"'
 call /contest/animeitor/photos GET adm 'contest=an'
 ck "admin também entra"          'grep -q "\"teams\"" <<<"$BODY"'
+
+echo "== .cstaff: o telão RECORTADO na sede dele =="
+# neste ponto: time-a (sede Norte) tem música e NÃO tem foto; time-b (sede Sul) tem photo.png
+# legado e nenhuma música. O escopo do norte.cstaff é `region:Norte` ⇒ só time-a.
+call /contest/animeitor/photos GET cst 'contest=an'
+ck "cstaff entra na galeria"      'grep -q "\"teams\"" <<<"$BODY" && grep -q "\"scoped\":true" <<<"$BODY"'
+ck "cstaff vê SÓ a sede dele"     '[[ "$(jq -r .total <<<"$BODY")" == 1 ]] && [[ "$(jq -r ".teams[0].login" <<<"$BODY")" == time-a ]]'
+call /contest/animeitor/photos GET ani 'contest=an'
+ck "animeitor segue vendo tudo"   '[[ "$(jq -r .total <<<"$BODY")" == 2 ]] && grep -q "\"scoped\":false" <<<"$BODY"'
+call /contest/animeitor/photo POST cst 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$PNG1\"}"
+ck "cstaff sobe foto da sede"     'grep -q "\"saved\":true" <<<"$BODY" && [[ -s "$C/users/time-a/photo.webp" ]]'
+call /contest/animeitor/photo POST cst 'contest=an' "{\"login\":\"time-b\",\"file_b64\":\"$PNG1\"}"
+ck "foto fora da sede → 403"      'grep -q "staff_scope" <<<"$BODY"'
+call /contest/animeitor/music POST cst 'contest=an' "{\"login\":\"time-b\",\"file_b64\":\"$MP3\"}"
+ck "música fora da sede → 403"    'grep -q "staff_scope" <<<"$BODY" && [[ ! -e "$C/users/time-b/music.mp3" ]]'
+call /contest/animeitor/music POST cst 'contest=an' '{"action":"delete","login":"time-b"}'
+ck "delete fora da sede → 403"    'grep -q "staff_scope" <<<"$BODY"'
+call /contest/animeitor/music POST cst 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$MP3\"}"
+ck "música da sede: pode"         'grep -q "\"saved\":true" <<<"$BODY"'
+call /contest/animeitor/placeholder GET cst 'contest=an'
+ck "cstaff VÊ o padrão"           'grep -q "\"custom\"" <<<"$BODY" && grep -q "\"music\"" <<<"$BODY"'
+call /contest/animeitor/placeholder POST cst 'contest=an' "{\"file_b64\":\"$PNG1\"}"
+ck "cstaff NÃO troca o padrão"    'grep -q "animeitor_required" <<<"$BODY" && [[ ! -e "$C/placeholder.webp" ]]'
+call /contest/animeitor/webcast GET cst 'contest=an'
+ck "cstaff não vê as chaves"      'grep -q "animeitor_required" <<<"$BODY"'
+call /contest/animeitor/webcast POST cst 'contest=an' '{"action":"create","view":"public"}'
+ck "cstaff não cria chave"        'grep -q "animeitor_required" <<<"$BODY"'
+callf /contest/animeitor/photos-zip GET cst 'contest=an' '' "$TMP/f3.bin"
+unhead "$TMP/f3.bin" "$TMP/f3.zip"
+ck "pacote do cstaff: só a sede"  'unzip -Z1 "$TMP/f3.zip" | grep -q "fotos/time-a.webp" && ! unzip -Z1 "$TMP/f3.zip" | grep -q "time-b"'
+ck "CSV do cstaff: 1 time"        '[[ "$(unzip -p "$TMP/f3.zip" teams.csv | tail -n +2 | wc -l)" == 1 ]]'
+ck "pacote do cstaff leva padrão" 'unzip -Z1 "$TMP/f3.zip" | grep -qx "placeholder.webp"'
+call /contest/navbuttons GET cst 'contest=an'
+ck "cstaff tem botão do telão"    'grep -q "/contest/animeitor/" <<<"$BODY"'
+call /contest/animeitor/photos GET stf 'contest=an'
+ck ".staff puro continua fora"    'grep -q "animeitor_required" <<<"$BODY"'
+# escopo que não casa NINGUÉM tem de dar ZERO (o rc do staff_visible_logins é que manda; tratar
+# "lista vazia" como "sem filtro" abriria o contest inteiro ao chefe de sede)
+printf '%s' '{"norte.cstaff":["region:Inexistente"]}' > "$C/print-requests/staff-filters.json"
+call /contest/animeitor/photos GET cst 'contest=an'
+ck "escopo sem casamento → zero" '[[ "$(jq -r .total <<<"$BODY")" == 0 ]] && grep -q "\"scoped\":true" <<<"$BODY"'
+call /contest/animeitor/photo POST cst 'contest=an' "{\"login\":\"time-a\",\"file_b64\":\"$PNG1\"}"
+ck "e nada de escrever nesse caso" 'grep -q "staff_scope" <<<"$BODY"'
+printf '%s' '{"norte.cstaff":["region:Norte"]}' > "$C/print-requests/staff-filters.json"
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

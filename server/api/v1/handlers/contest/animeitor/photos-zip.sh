@@ -15,9 +15,23 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_animeitor || is_admin; } || fail 403 "Apenas a conta de placar (.animeitor) ou o admin" "animeitor_required"
+{ is_animeitor || is_admin || is_cstaff; } || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff) ou o admin" "animeitor_required"
 source "$_LIBDIR/team-photo.sh"
 source "$_LIBDIR/team-music.sh"
+
+# CHEFE DE SEDE leva só a sede dele. O conjunto visível é materializado UMA vez (o
+# staff_can_see por time seria um jq por participante — 1000 forks num contest grande).
+declare -A ONLY=(); scoped=0
+if is_cstaff; then
+  source "$_LIBDIR/print.sh"
+  _vis="$(mktemp)"
+  # rc=0 com lista vazia = escopo que não casa ninguém (pacote vazio), NÃO "sem filtro"
+  if staff_visible_logins "$contest" "$SESSION_LOGIN" > "$_vis"; then
+    scoped=1
+    while IFS= read -r _l; do [[ -n "$_l" ]] && ONLY["$_l"]=1; done < "$_vis"
+  fi
+  rm -f "$_vis"
+fi
 
 stg="$(mktemp -d 2>/dev/null)" || fail 500 "tmp" "tmp"
 trap 'rm -rf "$stg"' EXIT
@@ -36,6 +50,7 @@ n=0; nf=0; nph=0; nm=0
 while IFS= read -r d; do
   login="${d##*/}"
   case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor|.removed-users) continue;; esac
+  (( scoped )) && [[ -z "${ONLY[$login]:-}" ]] && continue
   n=$((n+1))
   f="$(tp_file "$contest" "$login")"
   fname=""; isph=false
@@ -66,7 +81,7 @@ while IFS= read -r d; do
   fi >> "$csv"
 done < <(find "$CONTESTSDIR/$contest/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
 
-audit_log_to "$contest" animeitor-photos-zip "teams=$n photos=$nf padrao=$nph musicas=$nm by=$SESSION_LOGIN"
+audit_log_to "$contest" animeitor-photos-zip "teams=$n photos=$nf padrao=$nph musicas=$nm scoped=$scoped by=$SESSION_LOGIN"
 
 fn="fotos-$(printf '%s' "$contest" | tr -cd 'A-Za-z0-9._-')-$(date +%Y%m%d-%H%M).zip"
 printf 'Status: 200 OK\r\n'

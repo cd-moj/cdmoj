@@ -3841,7 +3841,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime,has_music,music_bytes,music_mtime}], total, with_photo, with_music, placeholder:{custom,mtime,music_custom,music_mtime}} — UMA varredura (find|xargs jq) para foto E música, pensada p/ 1000+ times"
+            "description": "{teams:[{login,name,univ,cohort,region,flag,has_photo,format,bytes,mtime,has_music,music_bytes,music_mtime}], total, with_photo, with_music, scoped, placeholder:{custom,mtime,music_custom,music_mtime}} — UMA varredura (find|xargs jq) para foto E música, pensada p/ 1000+ times. Para o .cstaff a lista vem recortada na sede dele (scoped:true)"
           },
           "403": {
             "description": "animeitor_required"
@@ -3854,7 +3854,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Sobe/troca/remove a foto de um time (gravada em webp; login aceita nome de arquivo, que é como o envio em lote funciona)",
+        "summary": "Sobe/troca/remove a foto de um time (gravada em webp; login aceita nome de arquivo, que é como o envio em lote funciona). O .cstaff só na própria sede (403 staff_scope)",
         "security": [
           {
             "bearerAuth": []
@@ -3899,7 +3899,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Sobe/troca/remove a MÚSICA de um time (mp3 validado por MIME, máx 15MB; login aceita nome de arquivo, que é como o envio em lote funciona)",
+        "summary": "Sobe/troca/remove a MÚSICA de um time (mp3 validado por MIME, máx 15MB; login aceita nome de arquivo, que é como o envio em lote funciona). O .cstaff só na própria sede (403 staff_scope)",
         "security": [
           {
             "bearerAuth": []
@@ -3950,7 +3950,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Pacote do telão: fotos/<login>.webp para TODOS os times (quem não mandou leva a padrão) + musicas/<login>.mp3 só de quem mandou + placeholder.webp + placeholder.mp3 + teams.csv (login,nome,universidade,coorte,bandeira,foto,padrao,musica,musica_padrao)",
+        "summary": "Pacote do telão: fotos/<login>.webp para TODOS os times (quem não mandou leva a padrão) + musicas/<login>.mp3 só de quem mandou + placeholder.webp + placeholder.mp3 + teams.csv (login,nome,universidade,coorte,bandeira,foto,padrao,musica,musica_padrao). Para o .cstaff sai recortado na sede dele",
         "security": [
           {
             "bearerAuth": []
@@ -4013,7 +4013,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Estado do padrão do contest (foto no topo, música em .music)",
+        "summary": "Estado do padrão do contest (foto no topo, música em .music). Leitura também para o .cstaff",
         "security": [
           {
             "bearerAuth": []
@@ -4037,7 +4037,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Troca o padrão do contest (file_b64; kind=photo default | kind=music, mp3 máx 15MB) ou volta ao de fábrica (action:reset, respeitando o kind)",
+        "summary": "Troca o padrão do contest (file_b64; kind=photo default | kind=music, mp3 máx 15MB) ou volta ao de fábrica (action:reset, respeitando o kind). Só .animeitor/admin — o padrão é do contest inteiro",
         "security": [
           {
             "bearerAuth": []

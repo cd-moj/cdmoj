@@ -13,8 +13,9 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-{ is_animeitor || is_admin; } || fail 403 "Apenas a conta de placar (.animeitor) ou o admin" "animeitor_required"
+{ is_animeitor || is_admin || is_cstaff; } || fail 403 "Apenas a conta de placar (.animeitor), o chefe de sede (.cstaff) ou o admin" "animeitor_required"
 source "$_LIBDIR/team-photo.sh"
+is_cstaff && source "$_LIBDIR/print.sh"
 
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
@@ -25,6 +26,10 @@ want="$(jq -r '.login // .filename // empty' <<<"$body")"
 login="$(user_resolve_name "$contest" "$want")" || fail 404 "Nenhum time casa com '$want'" "user_not_found"
 case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor)
   fail 422 "Conta de papel não tem foto de time" "role_account";; esac
+# CHEFE DE SEDE só mexe em quem ele enxerga (staff-filters.json). Autoriza o login RESOLVIDO —
+# o corpo pode mandar nome de arquivo, então resolver primeiro e só depois autorizar.
+is_cstaff && ! staff_can_see "$contest" "$SESSION_LOGIN" "$login" \
+  && fail 403 "Time fora da sua sede" "staff_scope"
 
 if [[ "$(jq -r '.action // empty' <<<"$body")" == delete ]]; then
   tp_remove "$contest" "$login"

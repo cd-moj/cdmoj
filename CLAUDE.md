@@ -61,10 +61,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   MIME — `file --mime-type` = `audio/mpeg` — e o corpo vai por `read_body_file`, 15 MB) e as
   CHAVES do **webcast**, o pacote de placar que alimenta o sistema Animeitor pela rota **sem
   sessão** `/contest/webcast?key=…` (formato do BOCA, separador `0x1C`). Ver `docs/WEBCAST.md`.
-  O **admin entra na mesma página com os mesmos poderes** (as 6 rotas gatam `is_animeitor ||
+  O **admin entra na mesma página com os mesmos poderes** (as rotas gatam `is_animeitor ||
   is_admin`), mas **sem botão na nav**: página avulsa se LINKA do painel (doutrina do
   `admin.js`) — cartão na *Central › Gerar* e link no painel *Pessoas › Times*, que em contest
   com `USERS_FROM` é o único caminho para foto/música (o `admin/team-assets` recusa; o telão não).
+  O **`.cstaff` entra RECORTADO na sede dele** (botão próprio na nav): galeria, upload e pacote
+  passam pelo `staff-filters.json` via `staff_can_see`/`staff_visible_logins` (`lib/print.sh`) —
+  é o **primeiro caminho de escrita escopada** do papel, então cada POST re-autoriza o login
+  **resolvido** (o corpo manda nome de arquivo). Ele não troca o PADRÃO do contest nem vê as
+  chaves do webcast. ⚠ Escopo ausente = vê tudo (convenção da casa), mas escopo que **existe e não
+  casa ninguém = vê NADA**: quem manda é o `rc` do `staff_visible_logins`, não o tamanho da saída.
   ⚠ **Listagem de MUITOS usuários é UMA varredura** (`find -printf` + `find|xargs jq`, login pelo
   `input_filename` — molde do `sc_cells`), nunca um `jq`/`stat` por conta: a galeria de fotos
   levava 5,3 s com 1000 times e passou a 0,10 s. A galeria pede **miniatura**
