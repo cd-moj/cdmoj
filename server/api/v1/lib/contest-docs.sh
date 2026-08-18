@@ -280,26 +280,44 @@ _doc_langs_table(){
   local c="$1" l="$2" langs
   langs="$( . "$CONTESTSDIR/$c/conf" 2>/dev/null; printf '%s' "${LANGUAGES:-}" )"
   [[ -n "$langs" ]] || { printf '<p>%s</p>' "$(_doc_t "$l" langs)"; return; }
-  printf '<table class="doc-tbl"><thead><tr><th>%s</th><th>%s</th></tr></thead><tbody>' \
-    "$(_doc_t "$l" langs)" "$(_doc_t "$l" file_ext)"
-  local x
-  for x in $langs; do
-    printf '<tr><td>%s</td><td><code>.%s</code></td></tr>' \
-      "$(_doc_escs "$(_doc_lang_name "$x")")" "$(_doc_escs "$x")"
+  printf '<table class="doc-tbl"><thead><tr><th %s>%s</th><th %s>%s</th></tr></thead><tbody>' \
+    "$_DOC_TH_RULE" "$(_doc_t "$l" langs)" "$_DOC_TH_RULE" "$(_doc_t "$l" file_ext)"
+  local x arr=() i st
+  for x in $langs; do arr+=( "$x" ); done
+  for i in "${!arr[@]}"; do
+    st="$_DOC_TD"; (( i == ${#arr[@]} - 1 )) && st="$_DOC_TD_LAST"
+    printf '<tr><td %s>%s</td><td %s><code>.%s</code></td></tr>' \
+      "$st" "$(_doc_escs "$(_doc_lang_name "${arr[$i]}")")" "$st" "$(_doc_escs "${arr[$i]}")"
   done
   printf '</tbody></table>'
 }
 
 # _doc_tl_table <c> <lang> -> tabela HTML letra|nome|TL
+# FILETES DA TABELA (booktabs) — INLINE, de propósito: o importador de HTML do LibreOffice
+# IGNORA borda de tabela/célula vinda de CSS (testado: só o atributo `style=` na própria célula
+# rende). O `contest-doc.css` mantém as mesmas regras para quem abre o HTML no navegador.
+_DOC_TH_RULE='style="border-top:1.1pt solid #000;border-bottom:.6pt solid #000;padding:.3em .9em .3em 0;text-align:left"'
+_DOC_TD_LAST='style="border-bottom:1.1pt solid #000;padding:.3em .9em .3em 0"'
+_DOC_TD='style="padding:.3em .9em .3em 0"'
+
 _doc_tl_table(){
   local c="$1" l="$2" letter name tl
-  printf '<table class="doc-tbl"><thead><tr><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>' \
-    "$(_doc_t "$l" problem)" "$(_doc_t "$l" name)" "$(_doc_t "$l" tl)"
+  printf '<table class="doc-tbl"><thead><tr><th %s>%s</th><th %s>%s</th><th %s>%s</th></tr></thead><tbody>' \
+    "$_DOC_TH_RULE" "$(_doc_t "$l" problem)" "$_DOC_TH_RULE" "$(_doc_t "$l" name)" \
+    "$_DOC_TH_RULE" "$(_doc_t "$l" tl)"
+  # o filete de baixo vai na ÚLTIMA linha: junta tudo e só então imprime (nunca use conteúdo
+  # de usuário como FORMATO do printf — um problema chamado "50% off" viraria lixo)
+  local rows=() i st
   while IFS=$'\t' read -r letter name tl; do
     [[ -n "$letter$name" ]] || continue
-    printf '<tr><td class="c">%s</td><td>%s</td><td class="c">%s</td></tr>' \
-      "$(_doc_escs "$letter")" "$(_doc_escs "$name")" "$(_doc_escs "${tl:-—}")"
+    rows+=( "$(printf '%s\t%s\t%s' "$(_doc_escs "$letter")" "$(_doc_escs "$name")" "$(_doc_escs "${tl:-—}")")" )
   done < <(doc_tl_rows "$c")
+  for i in "${!rows[@]}"; do
+    st="$_DOC_TD"; (( i == ${#rows[@]} - 1 )) && st="$_DOC_TD_LAST"
+    IFS=$'\t' read -r letter name tl <<<"${rows[$i]}"
+    printf '<tr><td class="c" %s>%s</td><td %s>%s</td><td class="c" %s>%s</td></tr>' \
+      "$st" "$letter" "$st" "$name" "$st" "$tl"
+  done
   printf '</tbody></table>'
 }
 
