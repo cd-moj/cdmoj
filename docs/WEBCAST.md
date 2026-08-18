@@ -24,6 +24,14 @@ Como todo papel, o sufixo está fora do placar, do `/contest/teams`, das etiquet
 das estatísticas e do gate de UA (a lista canônica é a de `lib/auth.sh`; ver a nota de papéis no
 `CLAUDE.md`). A página dele é `/contest/animeitor/`.
 
+**O admin do contest entra na MESMA página, com os mesmos poderes** — as seis rotas gatam
+`{ is_animeitor || is_admin; }` e o `boot()` da página aceita os dois. Ele não tem botão na barra
+de navegação (a doutrina do painel: página avulsa se linka, não vira aba); as portas são o cartão
+**🎥 Telão (Animeitor)** na *Central › Gerar* e o link **🎥 Fotos e músicas no telão** ao lado do
+título do painel *Pessoas › Times*. Em contest com `USERS_FROM` esse link não é atalho, é o
+**único** caminho: o `/contest/admin/team-assets` recusa contest de usuários compartilhados e as
+rotas do telão não (foto e música são asset LOCAL do contest).
+
 ---
 
 ## O protocolo (compatível com o `webcast.php` do BOCA)

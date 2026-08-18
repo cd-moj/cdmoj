@@ -168,6 +168,10 @@ export function makeCentralTab(CONTEST, opts = {}) {
         gcard(T('🏆 Cerimônia de revelação', '🏆 Reveal ceremony'),
           T('placar congelado → aberto, de baixo para cima', 'frozen → open scoreboard, bottom-up'),
           el('a', { class: 'btn', target: '_blank', href: '/contest/score/reveal.html?c=' + enc(CONTEST) }, T('abrir', 'open'))),
+        gcard(T('🎥 Telão (Animeitor)', '🎥 Big screen (Animeitor)'),
+          T('fotos e músicas dos times, pacote .zip e as chaves do webcast',
+            'team photos and music, .zip package and the webcast keys'),
+          el('a', { class: 'btn ghost', target: '_blank', href: '/contest/animeitor/?c=' + enc(CONTEST) }, T('abrir', 'open'))),
         gcard(T('🔍 jplag (similaridade)', '🔍 jplag (similarity)'),
           T('compara as soluções aceitas entre os times', 'compares accepted solutions across teams'),
           el('a', { class: 'btn ghost', target: '_blank', href: '/contest/jplag/?c=' + enc(CONTEST) }, T('abrir', 'open'))))));

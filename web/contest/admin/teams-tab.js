@@ -14,7 +14,9 @@ import { parseRichCsv } from '/shared/users-batch.js';
 import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
-const PRIV_RE = /\.(admin|judge|cjudge|staff|mon)$/;
+// lista CANÔNICA de sufixos de papel (a mesma de users-tab/sites-tab/machines-tab/cohorts-tab):
+// esquecer um faz a conta de papel virar "time" nesta tabela, com nome/bandeira/foto editáveis.
+const PRIV_RE = /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/;
 const FIELDS = ['fullname', 'country', 'region', 'univ_short', 'univ_full'];
 
 export function makeTeamsTab(CONTEST) {
@@ -108,7 +110,12 @@ export function makeTeamsTab(CONTEST) {
   }
 
   async function load() {
-    panel.innerHTML = ''; panel.append(el('h2', {}, T('👥 Times', '👥 Teams')));
+    // o acervo de mídia em MASSA (galeria, lote, música, pacote .zip) é a mesa do telão — aqui
+    // fica a identidade tabular do time. O admin entra lá com os mesmos poderes do .animeitor.
+    panel.innerHTML = ''; panel.append(el('h2', {}, T('👥 Times', '👥 Teams'), ' ',
+      el('a', { class: 'btn ghost', style: 'font-size:.85rem; font-weight:400', target: '_blank',
+        href: '/contest/animeitor/?c=' + enc(CONTEST) },
+        T('🎥 Fotos e músicas no telão', '🎥 Photos & music on the big screen'))));
     let usersR, teamsR, regionsR;
     try {
       [usersR, teamsR, regionsR] = await Promise.all([
@@ -120,9 +127,16 @@ export function makeTeamsTab(CONTEST) {
     } catch (e) { panel.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ') + (e.message || T('erro', 'error')))); return; }
 
     if (usersR.shared) {
+      // ⚠ aqui o telão não é um atalho, é o ÚNICO caminho: /contest/admin/team-assets recusa
+      // contest com USERS_FROM, mas as rotas do .animeitor aceitam (foto/música são asset LOCAL).
       panel.append(el('div', { class: 'error-box' },
         T('Este contest usa usuários COMPARTILHADOS (users_from) — a gerência de times por-usuário não se aplica. ', 'This contest uses SHARED users (users_from) — per-user team management does not apply. '),
         T('Use as regras por regex em Aparência (teams-meta/regiões).', 'Use the regex rules in Appearance (teams-meta/regions).')));
+      panel.append(el('p', { class: 'note' },
+        T('As fotos e músicas dos times continuam sendo geridas na mesa do telão: ',
+          'Team photos and music are still managed from the big-screen desk: '),
+        el('a', { class: 'btn ghost', target: '_blank', href: '/contest/animeitor/?c=' + enc(CONTEST) },
+          T('🎥 abrir o telão', '🎥 open the big screen'))));
       return;
     }
 
