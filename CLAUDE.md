@@ -298,7 +298,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `include_disabled=1`): o `!` não guarda a senha antiga — o `user-disable` a substitui por uma
   aleatória e a de TIME é um `!<uuid>` interno, então era segredo que não abre porta; a etiqueta
   diz "conta desabilitada". Contest de contas próprias não mudou. Guardado pelo
-  `server/test/smoke-badges.sh` (roda contra o handler antigo e FALHA). Escopo do
+  `server/test/smoke-badges.sh` (roda contra o handler antigo e FALHA).
+  A mesma regra vale para **`staff_visible_logins`** (`lib/print.sh`): a população do escopo de
+  sede é quem tem **diretório NESTE contest** — a fonte entra só como tabela de região. Antes, um
+  escopo com regex ampla (`.`, `^tg`) puxava contas de fora do contest para a lista (inerte nos
+  consumidores de hoje, fechado por profundidade). **Auditoria da classe** (2026-08-18): os
+  demais consumidores de `USERS_FROM` já iteram o store local e usam a fonte só como tabela de
+  identidade por login — `sc_users`, `report-gen`, `stats-gen`, `jplag-run`, `contest/teams`,
+  `admin/users`, `allsubmissions` (mapa de nomes, não devolvido). Escopo do
   `.cstaff` via `staff-filters.json` (+ a própria conta e as `.staff`/`.cstaff` do MESMO escopo —
   o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
   `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado

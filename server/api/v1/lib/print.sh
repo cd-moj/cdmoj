@@ -104,12 +104,18 @@ staff_can_see() {  # <c> <staff_login> <student_login>
 # find|xargs jq — sem N execuções de jq nem --argjson gigante; filtros por --slurpfile).
 # rc=1 = sem filtro p/ este login (escopo vazio/ausente = vê tudo — o chamador NÃO filtra).
 staff_visible_logins() {
-  local c="$1" who="$2" f n src
+  local c="$1" who="$2" f n src loc rc
   f="$(pr_dir "$c")/staff-filters.json"
   { [[ -f "$f" ]] && jq -e . "$f" >/dev/null 2>&1; } || return 1
   n="$(jq -r --arg s "$who" '(.[$s] // []) | length' "$f" 2>/dev/null)"
   n="${n//[^0-9]/}"; [[ -n "$n" && "$n" -gt 0 ]] || return 1
   src="$(_users_source "$c")"
+  # POPULAÇÃO = quem tem diretório NESTE contest. A fonte USERS_FROM entra só como tabela de
+  # região (participante compartilhado sem account.json local) — nunca como população: um escopo
+  # com regex de login (`^tg`, `.`) puxaria contas de fora do contest para a lista. Mesma regra
+  # que o /contest/badges aprendeu no incidente de 2026-08-18.
+  loc="$(mktemp)" || return 1
+  find "$CONTESTSDIR/$c/users" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null > "$loc"
   # o login é IMPLÍCITO no nome do diretório (rename de conta é `mv`): o campo .login é só uma
   # cópia e pode faltar (conta escrita à mão, store migrado). Sem o fallback pelo caminho, a
   # conta sumia da lista — e "lista vazia" viraria escopo que não casa ninguém.
@@ -122,15 +128,18 @@ staff_visible_logins() {
                               region:(.team.region//""), prio:1}' 2>/dev/null
     fi
     true
-  } | jq -rs --slurpfile ff "$f" --arg s "$who" '
+  } | jq -rs --slurpfile ff "$f" --arg s "$who" --rawfile loc "$loc" '
       ($ff[0][$s] // []) as $scope
+      | ($loc | split("\n") | map(select(length > 0)) | map({(.): true}) | add // {}) as $LOC
       | map(select(.login != "")) | group_by(.login) | map(min_by(.prio))
+      | map(select($LOC[.login]))                       # só quem é DESTE contest
       | map(select(. as $u | any($scope[]; . as $r
           | if ($r|startswith("region:"))
             then (($u.region // "") != ""
                   and ((($u.region)|ascii_downcase) == ($r[7:] | ascii_downcase | gsub("^ +| +$"; ""))))
             else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end)))
       | .[].login' 2>/dev/null
+  rc=$?; rm -f "$loc"; return "$rc"
 }
 
 # pr_filter_board <c> <login> — filtra um placar TXT (stdin→stdout) às linhas cujo username

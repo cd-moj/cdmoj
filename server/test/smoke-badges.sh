@@ -105,6 +105,15 @@ printf '%s' '{"sede2.cstaff":["region:Norte"]}' > "$S/print-requests/staff-filte
 call /contest/badges GET scst 'contest=bs'
 ck "escopo region: ainda recorta" '[[ "$(jq -r "[.users[]|select(.login|startswith(\"aluno\"))]|length" <<<"$BODY")" == 2 ]] && ! grep -q "forasteiro" <<<"$BODY"'
 
+echo "== escopo de sede também não alcança fora do contest (lib/print.sh) =="
+# regex AMPLA no staff-filters: a população do escopo tem de ser só quem tem dir NESTE contest —
+# senão o `forasteiro`, que só existe na fonte, entraria em toda lista feita por staff_visible_logins
+printf '%s' '{"sede2.cstaff":["."]}' > "$S/print-requests/staff-filters.json"
+VIS="$( (cd "$ROOT/api/v1" && CONTESTSDIR="$FIX" bash -c 'source lib/common.sh; source lib/auth.sh; source lib/users.sh; source lib/print.sh; staff_visible_logins bs sede2.cstaff') )"
+BODY="$VIS"
+ck "regex ampla NÃO puxa a fonte" '! grep -qx forasteiro <<<"$VIS"'
+ck "e continua vendo os do contest" 'grep -qx aluno1 <<<"$VIS" && grep -qx aluno2 <<<"$VIS"'
+
 echo "== auditoria: o tamanho da leitura fica registrado =="
 ck "badges-view com n= e senhas=" 'grep -q "badges-view" "$S/var/admin-audit.log" && grep -qE "n=[0-9]+ senhas=[0-9]+" "$S/var/admin-audit.log"'
 ck "1 senha só (a de papel local)" 'grep "badges-view" "$S/var/admin-audit.log" | tail -1 | grep -q "senhas=1"'
