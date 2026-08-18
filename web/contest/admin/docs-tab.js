@@ -1,16 +1,20 @@
 // contest/admin/docs-tab.js — aba "📄 Documentos" (admin e juiz-chefe): gera o info sheet, o
 // caderno da prova (com capa customizável), a folha de time limits e o EDITORIAL (solução de
-// cada problema; só publica após o fim), em PDF+HTML e nos dois idiomas; baixa, publica
+// cada problema; só publica após o fim), em PDF+HTML e nos TRÊS idiomas; baixa, publica
 // (seção "Prova" do contest + notícia opcional com o PDF anexo) e despublica. O .cstaff só
 // VÊ o que foi publicado (gates de fase e publicação na API, não aqui).
 //
-// Idioma: PT/EN vale para capa, títulos e tabelas. O corpo do ENUNCIADO sai no idioma em que
-// foi escrito — o MOJ não tem enunciado bilíngue (dito na própria tela, para não enganar).
+// Idioma: PT/EN/ES vale para capa, títulos e tabelas. O corpo do ENUNCIADO sai no idioma em
+// que foi escrito — o MOJ não traduz enunciado (dito na própria tela, para não enganar); para
+// prova traduzida existe o PDF ENVIADO, que vence o gerado.
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
+import { fileToBase64 } from '/shared/auth.js';
 import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
+const LANGS = ['pt', 'en', 'es'];           // idioma dos DOCUMENTOS (a interface segue pt/en)
+const PDF_MAX_MB = 60;                       // o mesmo teto do handler (DOC_PDF_MAX_MB)
 const fmtDate = (e) => (+e ? new Date(+e * 1000).toLocaleString() : '—');
 const fmtKB = (n) => (!n ? '—' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
 
@@ -60,16 +64,20 @@ export function makeDocsTab(CONTEST, opts = {}) {
     const row = el('div', { class: 'subcard', style: 'margin:.5rem 0' });
     row.append(el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },
       el('b', {}, T(t.pt, t.en)), el('span', { class: 'small muted' }, T(t.hpt, t.hen))));
-    ['pt', 'en'].forEach(lang => {
+    LANGS.forEach(lang => {
       const d = (DATA.docs || []).find(x => x.type === t.id && x.lang === lang);
       const line = el('div', { class: 'row', style: 'gap:.5rem;margin-top:.35rem;align-items:center' },
         el('span', { class: 'pill' }, lang.toUpperCase()));
       if (d) {
-        line.append(
-          el('span', { class: 'small muted' }, `${T('gerado', 'generated')} ${fmtDate(d.generated_at)} · PDF ${fmtKB(d.pdf_bytes)} · HTML ${fmtKB(d.html_bytes)}`),
-          el('button', { class: 'btn ghost', onclick: () => download(t.id, lang, 'pdf') }, 'PDF'),
-          el('button', { class: 'btn ghost', onclick: () => download(t.id, lang, 'html') }, 'HTML'),
-          el('button', { class: 'btn ghost', onclick: () => openDoc(t.id, lang, 'pdf') }, T('abrir', 'open')));
+        // PDF ENVIADO vence o gerado no que o mundo baixa — a linha diz qual é qual
+        line.append(d.uploaded
+          ? el('span', { class: 'small' }, el('b', {}, T('enviado', 'uploaded')),
+              ` · PDF ${fmtKB(d.uploaded_bytes)}`,
+              d.pdf_bytes ? el('span', { class: 'muted' }, T(' (o gerado está guardado)', ' (generated copy kept)')) : '')
+          : el('span', { class: 'small muted' }, `${T('gerado', 'generated')} ${fmtDate(d.generated_at)} · PDF ${fmtKB(d.pdf_bytes)} · HTML ${fmtKB(d.html_bytes)}`),
+          el('button', { class: 'btn ghost', onclick: () => download(t.id, lang, 'pdf') }, 'PDF'));
+        if (!d.uploaded && d.html_bytes) line.append(el('button', { class: 'btn ghost', onclick: () => download(t.id, lang, 'html') }, 'HTML'));
+        line.append(el('button', { class: 'btn ghost', onclick: () => openDoc(t.id, lang, 'pdf') }, T('abrir', 'open')));
         if (d.published) line.append(el('span', { class: 'pill ok' }, T('publicado', 'published')));
       } else {
         line.append(el('span', { class: 'small muted' }, readOnly
@@ -78,6 +86,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
       }
       if (!readOnly) {
         line.append(el('span', { style: 'flex:1' }));
+        line.append(uploadBtn(t.id, lang, !!(d && d.uploaded)));
         line.append(el('button', { class: 'btn', onclick: () => generate([t.id], [lang]) }, T('gerar', 'generate')));
         if (d) {
           if (d.published) {
@@ -92,6 +101,41 @@ export function makeDocsTab(CONTEST, opts = {}) {
       row.append(line);
     });
     return row;
+  }
+
+  // --- PDF PRONTO enviado pelo admin (vence o gerado) ---------------------------------
+  // ⚠ o base64 sai do FileReader (fileToBase64). O código antigo fazia
+  // `btoa(String.fromCharCode(...new Uint8Array(buf)))` — um argumento por byte, que estoura a
+  // pilha do V8 a partir de ~100 KB — e a linha ficava FORA do try: o clique morria calado.
+  async function sendPdf(action, extra, f, okMsg) {
+    if (f.size > PDF_MAX_MB * 1024 * 1024) {
+      setMsg(T(`PDF muito grande (máx ${PDF_MAX_MB}MB).`, `PDF too large (max ${PDF_MAX_MB}MB).`), 'error-box');
+      return false;
+    }
+    setMsg(T('Enviando o PDF…', 'Uploading the PDF…'));
+    try {
+      await api('/contest/admin/docs?contest=' + enc(CONTEST), { action, ...extra, pdf_b64: await fileToBase64(f) });
+      setMsg(okMsg); await load(); return true;
+    } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); return false; }
+  }
+
+  function uploadBtn(type, lang, has) {
+    const inp = el('input', { type: 'file', accept: 'application/pdf', style: 'display:none' });
+    inp.addEventListener('change', () => {
+      const f = inp.files && inp.files[0];
+      if (f) sendPdf('upload', { type, lang }, f, T('✓ PDF enviado — é ele que os times baixam', '✓ PDF uploaded — this is what teams download'));
+    });
+    const box = el('span', { class: 'row', style: 'gap:.3rem' }, inp,
+      el('button', { class: 'btn ghost', title: T('subir o PDF pronto deste documento (vence o gerado)', 'upload the finished PDF for this document (wins over the generated one)'),
+        onclick: () => inp.click() }, has ? T('trocar PDF', 'replace PDF') : T('subir PDF', 'upload PDF')));
+    if (has) box.append(el('button', { class: 'btn ghost', onclick: async () => {
+      if (!confirm(T('Voltar ao PDF gerado pelo MOJ?', 'Go back to the MOJ-generated PDF?'))) return;
+      try {
+        await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'upload', type, lang, remove_upload: true });
+        setMsg(T('✓ voltou ao gerado', '✓ back to the generated one')); await load();
+      } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
+    } }, T('voltar ao gerado', 'back to generated')));
+    return box;
   }
 
   async function generate(types, langs) {
@@ -119,18 +163,14 @@ export function makeDocsTab(CONTEST, opts = {}) {
       el('p', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
         T('Três modos, nesta ordem de precedência: PDF enviado › texto editado › capa padrão. Marcadores do texto: {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}}.',
           'Three modes, in this precedence: uploaded PDF › edited text › default cover. Text markers: {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}}.')));
-    ['pt', 'en'].forEach(lang => {
+    LANGS.forEach(lang => {
       const up = (DATA.cover_uploaded || {})[lang];
       const ta = el('textarea', { rows: '6', style: 'width:100%;font-family:var(--mono);font-size:.86rem' },
         (DATA.templates || {})['cover_' + lang] || '');
       const file = el('input', { type: 'file', accept: 'application/pdf', style: 'display:none' });
-      file.addEventListener('change', async () => {
-        const f = file.files[0]; if (!f) return;
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(await f.arrayBuffer())));
-        try {
-          await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'cover', lang, pdf_b64: b64 });
-          setMsg(T('✓ capa enviada — gere o caderno de novo', '✓ cover uploaded — generate the problem set again')); await load();
-        } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
+      file.addEventListener('change', () => {
+        const f = file.files && file.files[0]; if (!f) return;
+        sendPdf('cover', { lang }, f, T('✓ capa enviada — gere o caderno de novo', '✓ cover uploaded — generate the problem set again'));
       });
       box.append(el('div', { style: 'margin-top:.5rem' },
         el('div', { class: 'row', style: 'gap:.5rem;align-items:center' },
@@ -181,7 +221,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
       el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
         T('Markdown. Os marcadores {{TOOLCHAIN}} {{TL_TABLE}} {{LANGS_TABLE}} {{MEMLIMIT}} {{STACK}} {{CONTEST_NAME}} {{DATE}} são preenchidos na geração. Deixe em branco para voltar ao texto padrão.',
           'Markdown. Markers {{TOOLCHAIN}} {{TL_TABLE}} {{LANGS_TABLE}} {{MEMLIMIT}} {{STACK}} {{CONTEST_NAME}} {{DATE}} are filled in at generation time. Leave empty to restore the default text.')));
-    ['pt', 'en'].forEach(lang => {
+    LANGS.forEach(lang => {
       const ta = el('textarea', { rows: '10', style: 'width:100%;font-family:var(--mono);font-size:.85rem' },
         (DATA.templates || {})['info_sheet_' + lang] || '');
       box.append(el('div', { style: 'margin-top:.5rem' },
@@ -216,7 +256,8 @@ export function makeDocsTab(CONTEST, opts = {}) {
           T('⚠️ PT/EN vale para capa, títulos e tabelas. O enunciado sai no idioma em que foi escrito.',
             '⚠️ PT/EN applies to cover, headings and tables. Statements come out in the language they were written in.')),
         el('div', { class: 'row', style: 'gap:.5rem;margin:.5rem 0' },
-          el('button', { class: 'btn', onclick: () => generate(TYPES.map(t => t.id), ['pt', 'en']) }, T('⚙️ Gerar todos (pt+en)', '⚙️ Generate all (pt+en)')),
+          el('button', { class: 'btn', onclick: () => generate(TYPES.map(t => t.id), LANGS) },
+            T('⚙️ Gerar todos (pt+en+es)', '⚙️ Generate all (pt+en+es)')),
           el('button', { class: 'btn ghost', onclick: load }, '↻')));
     }
     panel.append(msg);

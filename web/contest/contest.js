@@ -335,26 +335,67 @@ function renderNews(items) {
   });
 }
 
+// recurso da PRÓPRIA API (documentos da prova) exige Bearer — link cru daria 401. Busca como
+// blob e abre numa aba (a aba é aberta ANTES do fetch, senão o navegador bloqueia o popup).
+function openAuthed(url) {
+  return async (ev) => {
+    ev.preventDefault();
+    const w = window.open('', '_blank');
+    try {
+      const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + (getToken(CONTEST) || '') } });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const u = URL.createObjectURL(await resp.blob());
+      if (w) w.location = u; else window.open(u, '_blank');
+    } catch (e) { if (w) w.close(); alert(T('Falha ao abrir o arquivo.', 'Failed to open the file.')); }
+  };
+}
+
+// nome de cada documento NO IDIOMA DA INTERFACE (o `label` do servidor vem no idioma do
+// DOCUMENTO e traz o sufixo " (pt)" — aqui o idioma virou chip, o rótulo é do tipo)
+const DOC_NAME = {
+  'contest':    () => T('📘 Caderno de problemas', '📘 Problem set'),
+  'info-sheet': () => T('📋 Informações do ambiente', '📋 Testing environment'),
+  'times':      () => T('⏱️ Limites de tempo', '⏱️ Time limits'),
+  'editorial':  () => T('📝 Editorial', '📝 Editorial'),
+};
+
 function renderResources(items) {
   if (!Array.isArray(items) || !items.length) { hide('resourcesSection'); return; }
   show('resourcesSection');
   const ul = document.getElementById('resourcesList'); ul.innerHTML = '';
-  items.forEach(r => {
+  // renderResources pode rodar de novo (recarga): tira as linhas de documento da rodada anterior
+  document.querySelectorAll('#resourcesSection .doc-lines').forEach((n) => n.remove());
+
+  // DOCUMENTO DA PROVA (tem type+lang): uma linha por documento, um chip por idioma —
+  // "Caderno: PT | EN | ES" em vez de um bullet por par. Recurso avulso segue bullet.
+  const docs = new Map();
+  const rest = [];
+  items.forEach((r) => {
+    if (r && r.type && r.lang && DOC_NAME[r.type]) {
+      if (!docs.has(r.type)) docs.set(r.type, []);
+      docs.get(r.type).push(r);
+    } else rest.push(r);
+  });
+
+  if (docs.size) {
+    const box = el('div', { class: 'doc-lines' });
+    ['contest', 'info-sheet', 'times', 'editorial'].forEach((ty) => {
+      const langs = docs.get(ty); if (!langs) return;
+      const line = el('div', { class: 'doc-line' },
+        el('span', { class: 'doc-name' }, DOC_NAME[ty]()));
+      langs.sort((a, b) => ['pt', 'en', 'es'].indexOf(a.lang) - ['pt', 'en', 'es'].indexOf(b.lang))
+        .forEach((r) => line.append(el('a', {
+          class: 'tag', href: '#', title: r.label || '', onclick: openAuthed(r.url || '#'),
+        }, (r.lang || '').toUpperCase())));
+      box.append(line);
+    });
+    ul.parentNode.insertBefore(box, ul);
+  }
+
+  rest.forEach(r => {
     const url = r.url || '#', label = r.label || r.url || '';
-    // recurso da PRÓPRIA API (ex.: documentos da prova) exige Bearer — link cru daria 401.
-    // Busca como blob e abre numa aba; link externo continua sendo <a href> normal.
     if (url.startsWith('/api/v1/')) {
-      const a = el('a', { href: '#', onclick: async (ev) => {
-        ev.preventDefault();
-        const w = window.open('', '_blank');
-        try {
-          const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + (getToken(CONTEST) || '') } });
-          if (!resp.ok) throw new Error('HTTP ' + resp.status);
-          const u = URL.createObjectURL(await resp.blob());
-          if (w) w.location = u; else window.open(u, '_blank');
-        } catch (e) { if (w) w.close(); alert(T('Falha ao abrir o arquivo.', 'Failed to open the file.')); }
-      } }, label);
-      ul.append(el('li', { style: 'margin:.3rem 0' }, a));
+      ul.append(el('li', { style: 'margin:.3rem 0' }, el('a', { href: '#', onclick: openAuthed(url) }, label)));
     } else {
       ul.append(el('li', { style: 'margin:.3rem 0' }, el('a', { href: url, target: '_blank' }, label)));
     }

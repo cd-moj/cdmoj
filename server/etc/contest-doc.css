@@ -1,38 +1,68 @@
 /* contest-doc.css — estilo ÚNICO dos documentos da prova (info sheet, caderno, time limits).
    Alvo: impressão A4 via LibreOffice (soffice --convert-to pdf) — que suporta um subconjunto
-   de CSS. Nada de flex/grid: só o que o importador de HTML do LO entende bem. */
-@page { size: A4; margin: 2cm 1.8cm; }
+   de CSS. Nada de flex/grid: só o que o importador de HTML do LO entende bem.
 
-body { font-family: "DejaVu Serif", Georgia, serif; font-size: 11pt; line-height: 1.45; color: #000; }
-h1 { font-size: 17pt; margin: 0 0 .2em; }
-h2 { font-size: 13.5pt; margin: 1.1em 0 .3em; }
-h3 { font-size: 12pt; margin: .9em 0 .25em; }
-p, li { margin: .35em 0; }
-code, pre { font-family: "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
-pre { background: #f4f4f4; border: 1px solid #ddd; padding: .5em .7em; }
-.sub { color: #333; font-size: 10.5pt; margin-bottom: 1em; }
-.center { text-align: center; }
-.foot { font-size: 9pt; color: #333; margin-top: 2em; border-top: 1px solid #999; padding-top: .4em; }
+   CARA DE LATEX (2026-08-18): o alvo é `article` em 11pt. O que faz a diferença, em ordem de
+   impacto: (1) LATIN MODERN (o Computer Modern do LaTeX — com itálico e negrito REAIS; o
+   DejaVu da imagem não tem itálico e saía com inclinação sintética, o tell nº 1 de "Word");
+   (2) texto JUSTIFICADO; (3) parágrafo com RECUO e sem espaço entre parágrafos — o primeiro
+   depois de um título fica sem recuo, como no LaTeX; (4) títulos com espaço ANTES ≫ depois;
+   (5) tabelas estilo booktabs (só três filetes, sem grade).
+   ⚠ Este arquivo e o server/etc/caderno-reference.odt (rota pandoc→ODT do caderno/editorial)
+   descrevem O MESMO documento por caminhos diferentes: mexeu num, confira o outro — foi a
+   divergência entre eles que deixava capa em A4 e miolo em Letter. */
+@page { size: A4; margin: 2.5cm 2.5cm; }
 
-/* tabelas (time limits, linguagens) */
-table.doc-tbl { border-collapse: collapse; width: 100%; margin: .8em 0; font-size: 10.5pt; }
-table.doc-tbl th, table.doc-tbl td { border: 1px solid #666; padding: .3em .5em; text-align: left; }
-table.doc-tbl th { background: #e8e8e8; }
-table.doc-tbl td.c { text-align: center; }
+body { font-family: "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
+       font-size: 11pt; line-height: 1.32; color: #000; text-align: justify; }
+
+/* títulos: seriais e em negrito, com o respiro do LaTeX (antes ≫ depois) */
+h1, h2, h3, h4 { font-family: "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
+                 font-weight: bold; text-align: left; page-break-after: avoid; }
+h1 { font-size: 14.4pt; margin: 1.6em 0 .55em; }
+h2 { font-size: 12.5pt; margin: 1.4em 0 .45em; }
+h3 { font-size: 11pt;   margin: 1.2em 0 .4em; }
+
+/* parágrafo LaTeX: sem espaço entre, com recuo — menos o primeiro depois de título */
+p { margin: 0; text-indent: 1.5em; }
+p + p { margin-top: 0; }
+h1 + p, h2 + p, h3 + p, .sub + p, li > p:first-child { text-indent: 0; }
+ul, ol { margin: .45em 0 .45em 0; padding-left: 1.6em; }
+li { margin: .12em 0; text-indent: 0; }
+
+code, pre, tt { font-family: "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
+pre { background: #f7f7f7; border: 1px solid #ccc; padding: .45em .6em; margin: .6em 0;
+      text-align: left; line-height: 1.2; }
+em, i { font-style: italic; }          /* com Latin Modern isto é itálico DE VERDADE */
+
+/* bloco de título (o \maketitle): centrado, com o respiro de artigo */
+h1.title, .cover h1 { text-align: center; }
+.sub { text-align: center; color: #000; font-size: 10.5pt; margin: .3em 0 2em; font-style: italic; }
+.center { text-align: center; text-indent: 0; }
+.foot { font-size: 9pt; color: #000; margin-top: 2em; border-top: .5pt solid #000;
+        padding-top: .4em; text-align: left; text-indent: 0; }
+
+/* tabelas (time limits, linguagens): booktabs — três filetes, nada de grade */
+table.doc-tbl { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 10.5pt; }
+table.doc-tbl th, table.doc-tbl td { border: 0; padding: .28em .5em; text-align: left; }
+table.doc-tbl thead th { border-top: 1.1pt solid #000; border-bottom: .5pt solid #000;
+                         font-weight: bold; background: none; }
+table.doc-tbl tbody tr:last-child td { border-bottom: 1.1pt solid #000; }
+table.doc-tbl td.c, table.doc-tbl th.c { text-align: center; }
 
 /* capa */
 .cover { text-align: center; page-break-after: always; }
-.cover h1 { font-size: 20pt; margin-top: 2.5cm; }
-.cover .session { font-size: 15pt; margin: 2.2cm 0 1.4cm; font-weight: normal; }
-.cover .note { margin: 1.2cm 2cm; }
+.cover h1 { font-size: 20pt; margin-top: 4cm; }
+.cover .session { font-size: 15pt; margin: 2.2cm 0 1.4cm; font-weight: normal; font-style: italic; }
+.cover .note { margin: 1.2cm 2cm; text-align: center; text-indent: 0; }
 .cover .sites { margin: 1.2cm 1cm; font-size: 10pt; }
-.cover .ver { margin-top: 2cm; color: #444; }
+.cover .ver { margin-top: 2cm; color: #333; font-size: 10pt; }
 
 /* um problema por página no caderno */
 .prob { page-break-before: always; }
 .prob:first-of-type { page-break-before: avoid; }
-.prob h1 { border-bottom: 1.5px solid #000; padding-bottom: .15em; margin-bottom: .6em; }
-
+.prob h1 { text-align: left; border-bottom: .8pt solid #000; padding-bottom: .12em;
+           margin: 0 0 .8em; }
 /* enunciado embutido: o HTML do pacote traz o próprio h1 (título) — some, já temos o cabeçalho */
 .prob h1.moj-title { display: none; }
 .prob img { max-width: 100%; }

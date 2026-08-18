@@ -357,8 +357,21 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, painel
   **Prova › Documentos** do admin e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados), folha de
   time limits e **EDITORIAL** (o `docs/solucao.md` do PACOTE de cada problema, via `pkg_path` —
-  o campo que nunca vai ao aluno), em **PDF+HTML × pt/en**, tudo derivado do que o contest já tem (conf, `PROBS`,
-  `enunciados/`, `run/tl`, `run/registry`) — nada de dado novo. **Gates de FASE no `/contest/doc`**
+  o campo que nunca vai ao aluno), em **PDF+HTML × pt/en/es** (`DOC_LANGS`; a INTERFACE segue pt/en —
+  são eixos diferentes), tudo derivado do que o contest já tem (conf, `PROBS`, `enunciados/`,
+  `run/tl`, `run/registry`) — nada de dado novo. **Toda string do documento sai do `_doc_t`**:
+  ternário `[[ $l == pt ]] && … || …` solto é o que travava um 3º idioma.
+  **PDF PRONTO enviado** (`action:upload` → `docs/<tipo>.<lang>.uploaded.pdf`) **vence o gerado**
+  em tudo que é servido (`doc_pdf_served`), deixa publicar sem nunca ter gerado, e `remove_upload`
+  volta ao gerado — que nunca é apagado. É como entra prova traduzida por fora.
+  ⚠ **Tipografia**: `server/etc/contest-doc.css` (rota HTML→soffice) e `server/etc/caderno-reference.odt`
+  (rota pandoc→ODT, que IGNORA CSS) descrevem o MESMO documento por caminhos diferentes — mexeu num,
+  confira o outro. Ambos em **A4 + Latin Modern** (a cara de LaTeX; `fonts-lmodern` é asserção de
+  build). Antes divergiam: capa A4 + miolo US Letter no mesmo caderno, `Heading 1` menor que o
+  `Heading 2` e itálico SINTÉTICO (o DejaVu da imagem não tem itálico). Regenerar o ODT: receita no
+  cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO recusa calado.
+  Renderização real (pandoc+soffice) só é exercida por `server/test/render-docs.sh`, que roda
+  DENTRO da imagem (A4 em toda página, Latin Modern embarcada, texto extraído). **Gates de FASE no `/contest/doc`**
   (quem não é organização): `contest`/`times` publicados só a partir do INÍCIO (`contest_phase`),
   `editorial` só com `contest_over_for_all` — que também trava o **publish** do editorial; `news:true`
   de caderno/times antes do início = 409 (a notícia anexa o PDF por fora do gate). Teste:

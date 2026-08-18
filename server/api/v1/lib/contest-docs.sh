@@ -1,6 +1,6 @@
 # lib/contest-docs.sh — DOCUMENTOS DA PROVA (info sheet, caderno, folha de time limits).
 #
-# Gera HTML + PDF, em pt e en, a partir do que o contest já tem: conf (nome/datas/limites/
+# Gera HTML + PDF, em pt/en/es, a partir do que o contest já tem: conf (nome/datas/limites/
 # linguagens), PROBS (letra/nome/enunciado), enunciados/<key>.{html,pdf}, run/tl (time limits)
 # e o registry dos juízes (versões de compilador). Nada aqui inventa dado novo.
 #
@@ -9,14 +9,20 @@
 # Caderno com PDF custom de problema: junta com `pdfunite` e a CAPA é regerada no fim com o
 # total real de páginas (pdfinfo).
 #
-# Idioma: PT/EN vale para o CHROME do documento (capa, títulos, tabelas, info sheet). O corpo
-# do ENUNCIADO sai no idioma em que foi escrito — o MOJ não tem enunciado bilíngue.
+# Idioma: PT/EN/ES vale para o CHROME do documento (capa, títulos, tabelas, info sheet) — a
+# tabela é o `_doc_t`. O corpo do ENUNCIADO sai no idioma em que foi escrito: o MOJ não traduz
+# enunciado (para isso existe o PDF ENVIADO, abaixo).
+#
+# PDF ENVIADO: o admin pode subir o documento PRONTO de um tipo+idioma
+# (docs/<tipo>.<lang>.uploaded.pdf). Ele VENCE o gerado em tudo que é servido (doc_pdf_served) e
+# o gerado continua no disco — voltar atrás é apagar o enviado.
 #
 # Layout em disco:
 #   contests/<c>/docs/config.json            {caderno_version, cover_note, errata,
 #                                             editorial_note, published:[…]}
 #   contests/<c>/docs/info-sheet.<lang>.md   template editável (default: server/etc/)
 #   contests/<c>/docs/<tipo>.<lang>.{html,pdf}
+#   contests/<c>/docs/<tipo>.<lang>.uploaded.pdf   PDF pronto enviado pelo admin (vence)
 #   contests/<c>/docs/index.json             [{type,lang,fmt,bytes,generated_at,by}]
 : "${DOC_TYPES:=info-sheet contest times editorial}"
 # cadeia de linguagens permitidas (folha de time limits) — fonte única, a MESMA do /submit
@@ -27,32 +33,77 @@ declare -F pkg_path >/dev/null || source "$_DIR/lib/tl-store.sh" 2>/dev/null || 
 doc_dir(){ printf '%s/%s/docs' "$CONTESTSDIR" "$1"; }
 doc_file(){ printf '%s/%s.%s.%s' "$(doc_dir "$1")" "$2" "$3" "$4"; }   # <c> <tipo> <lang> <fmt>
 
+# --- PDF ENVIADO (documento pronto, feito fora do MOJ) ----------------------------------
+# doc_upload_pdf <c> <tipo> <lang> -> caminho do arquivo enviado (exista ou não)
+doc_upload_pdf(){ printf '%s/%s.%s.uploaded.pdf' "$(doc_dir "$1")" "$2" "$3"; }
+doc_has_upload(){ [[ -s "$(doc_upload_pdf "$1" "$2" "$3")" ]]; }
+# doc_pdf_served <c> <tipo> <lang> -> QUAL pdf o mundo vê: o enviado vence o gerado.
+# Ecoa vazio quando não há nenhum (o chamador decide o 404).
+doc_pdf_served(){
+  local u g; u="$(doc_upload_pdf "$1" "$2" "$3")"; g="$(doc_file "$1" "$2" "$3" pdf)"
+  [[ -s "$u" ]] && { printf '%s' "$u"; return 0; }
+  [[ -s "$g" ]] && { printf '%s' "$g"; return 0; }
+  printf ''
+}
+
 _doc_esc(){ sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 _doc_escs(){ printf '%s' "${1:-}" | _doc_esc; }
 
-# _doc_t <lang> <chave> -> rótulo traduzido (chrome do documento)
+# IDIOMAS dos documentos: pt/en/es. É separado do LOCALE do contest (que veste a INTERFACE e
+# segue pt|en) — aqui o idioma é PARÂMETRO: cada documento é gerado em cada idioma pedido.
+: "${DOC_LANGS:=pt en es}"
+# teto do PDF que o admin SOBE (capa e documento pronto). O nginx do subdomínio corta antes,
+# mas aqui a recusa tem código e mensagem do MOJ em vez de um 413 cru do nginx.
+: "${DOC_PDF_MAX_MB:=60}"
+doc_lang_ok(){ case " $DOC_LANGS " in *" $1 "*) return 0;; *) return 1;; esac; }
+
+# _doc_t <lang> <chave> -> rótulo traduzido (chrome do documento).
+# ⚠ TODA string do documento entra AQUI — ternário `[[ $l == pt ]] && … || …` espalhado pelo
+# arquivo foi o que travou o espanhol por tanto tempo. Idioma sem entrada cai na chave crua.
 _doc_t(){
   local l="$1" k="$2"
   case "$l:$k" in
-    pt:problem) printf 'Problema';;      en:problem) printf 'Problem';;
-    pt:name)    printf 'Nome';;          en:name)    printf 'Name';;
-    pt:tl)      printf 'Tempo limite por teste';; en:tl) printf 'Time limit per test';;
-    pt:langs)   printf 'Linguagens aceitas';;     en:langs) printf 'Accepted languages';;
-    pt:times_title) printf 'Limites de tempo da prova';; en:times_title) printf 'Time Limits for the Contest Session';;
-    pt:errata)  printf 'Errata';;        en:errata)  printf 'Errata';;
-    pt:seconds) printf 'Tempos em segundos.';;    en:seconds) printf 'Times are given in seconds.';;
-    pt:session) printf 'Caderno de Problemas';;   en:session) printf 'Contest Session';;
-    pt:contains) printf 'Este caderno contém';;   en:contains) printf 'This problem set contains';;
-    pt:problems_w) printf 'problemas';;  en:problems_w) printf 'problems';;
-    pt:pages) printf 'páginas numeradas de 1 a';; en:pages) printf 'pages are numbered from 1 to';;
-    pt:general) printf 'Informações gerais';;     en:general) printf 'General information';;
-    pt:sites) printf 'Sedes participantes';;      en:sites) printf 'Participating sites';;
-    pt:author) printf 'Autor';;          en:author)  printf 'Author';;
-    pt:editorial) printf 'Editorial';;   en:editorial) printf 'Editorial';;
+    pt:problem) printf 'Problema';;      en:problem) printf 'Problem';;      es:problem) printf 'Problema';;
+    pt:name)    printf 'Nome';;          en:name)    printf 'Name';;         es:name)    printf 'Nombre';;
+    pt:tl)      printf 'Tempo limite por teste';; en:tl) printf 'Time limit per test';; es:tl) printf 'Límite de tiempo por prueba';;
+    pt:langs)   printf 'Linguagens aceitas';;     en:langs) printf 'Accepted languages';; es:langs) printf 'Lenguajes aceptados';;
+    pt:times_title) printf 'Limites de tempo da prova';; en:times_title) printf 'Time Limits for the Contest Session';; es:times_title) printf 'Límites de tiempo de la competencia';;
+    pt:errata)  printf 'Errata';;        en:errata)  printf 'Errata';;       es:errata)  printf 'Fe de erratas';;
+    pt:seconds) printf 'Tempos em segundos.';;    en:seconds) printf 'Times are given in seconds.';; es:seconds) printf 'Tiempos en segundos.';;
+    pt:session) printf 'Caderno de Problemas';;   en:session) printf 'Contest Session';; es:session) printf 'Cuadernillo de Problemas';;
+    pt:contains) printf 'Este caderno contém';;   en:contains) printf 'This problem set contains';; es:contains) printf 'Este cuadernillo contiene';;
+    pt:problems_w) printf 'problemas';;  en:problems_w) printf 'problems';;  es:problems_w) printf 'problemas';;
+    pt:pages) printf 'páginas numeradas de 1 a';; en:pages) printf 'pages are numbered from 1 to';; es:pages) printf 'páginas numeradas de 1 a';;
+    pt:general) printf 'Informações gerais';;     en:general) printf 'General information';; es:general) printf 'Información general';;
+    pt:sites) printf 'Sedes participantes';;      en:sites) printf 'Participating sites';; es:sites) printf 'Sedes participantes';;
+    pt:author) printf 'Autor';;          en:author)  printf 'Author';;       es:author)  printf 'Autor';;
+    pt:editorial) printf 'Editorial';;   en:editorial) printf 'Editorial';;  es:editorial) printf 'Editorial';;
     pt:no_solution) printf 'solução indisponível no pacote deste problema';;
     en:no_solution) printf 'no solution write-up in this problem'\''s package';;
+    es:no_solution) printf 'solución no disponible en el paquete de este problema';;
+    # chaves que ANTES eram ternário solto no meio do código (é o que sangrava num 3º idioma)
+    pt:env_title) printf 'Informações do ambiente';; en:env_title) printf 'Testing environment';; es:env_title) printf 'Información del entorno';;
+    pt:file_ext)  printf 'Extensão do arquivo';;     en:file_ext)  printf 'File extension';;      es:file_ext)  printf 'Extensión del archivo';;
+    pt:no_versions) printf 'nenhum juiz reportou versões ainda';; en:no_versions) printf 'no judge reported versions yet';; es:no_versions) printf 'ningún juez ha reportado versiones todavía';;
+    pt:no_statement) printf 'enunciado indisponível';; en:no_statement) printf 'statement unavailable';; es:no_statement) printf 'enunciado no disponible';;
+    pt:news_doc) printf 'Documento da prova disponível para download.';;
+    en:news_doc) printf 'Contest document available for download.';;
+    es:news_doc) printf 'Documento de la competencia disponible para descargar.';;
     *) printf '%s' "$k";;
   esac
+}
+
+# _doc_month <lang> <1..12> — nome do mês SEM depender de locale instalado (a imagem é slim:
+# `LC_ALL=pt_BR.UTF-8` já era aposta, e es_ES não existe lá).
+_doc_month(){
+  local l="$1" m="$2"
+  case "$l" in
+    en) set -- January February March April May June July August September October November December;;
+    es) set -- enero febrero marzo abril mayo junio julio agosto septiembre octubre noviembre diciembre;;
+    *)  set -- janeiro fevereiro março abril maio junho julho agosto setembro outubro novembro dezembro;;
+  esac
+  m="${m#0}"; [[ "$m" =~ ^[0-9]+$ ]] && (( m >= 1 && m <= 12 )) || return 0
+  eval "printf '%s' \"\${$m}\""
 }
 
 # _doc_html_head <título> -> abre um HTML standalone com o CSS de impressão
@@ -75,7 +126,7 @@ doc_conf_get(){
 # _doc_label <tipo> <lang> -> rótulo do documento na seção "Prova" do contest.
 _doc_label(){
   case "$1" in
-    info-sheet) [[ "$2" == pt ]] && printf 'Informações do ambiente' || printf 'Testing environment';;
+    info-sheet) _doc_t "$2" env_title;;
     times)      _doc_t "$2" times_title;;
     editorial)  _doc_t "$2" editorial;;
     *)          _doc_t "$2" session;;
@@ -93,8 +144,11 @@ doc_publish(){
   cfg="$(doc_conf_get "$c" | jq -c --arg k "$t.$l" '.published = ((.published // []) + [$k] | unique)')" || return 1
   printf '%s\n' "$cfg" > "$d/config.json.tmp" && mv -f "$d/config.json.tmp" "$d/config.json" || return 1
   res="$CONTESTSDIR/$c/resources.json"; [[ -s "$res" ]] || printf '[]' > "$res"
+  # `type`/`lang` são o que deixa a aba Contest juntar "Caderno: PT | EN | ES" numa linha só
+  # (antes era um bullet por idioma). A URL NÃO muda: é ela que o doc_unpublish casa.
   jq -c --arg lb "$(_doc_label "$t" "$l") ($l)" --arg u "$(_doc_url "$c" "$t" "$l")" \
-     '(map(select(.url != $u))) + [{label:$lb, url:$u}]' "$res" > "$res.tmp" && mv -f "$res.tmp" "$res"
+     --arg ty "$t" --arg lg "$l" \
+     '(map(select(.url != $u))) + [{label:$lb, url:$u, type:$ty, lang:$lg}]' "$res" > "$res.tmp" && mv -f "$res.tmp" "$res"
 }
 
 # doc_unpublish <c> <tipo> <lang> — o inverso (tira do config.json e da seção "Prova").
@@ -112,8 +166,8 @@ doc_unpublish(){
 doc_pending(){
   local c="$1" pub t l
   pub="$(doc_conf_get "$c" | jq -c '.published // []')"; [[ -n "$pub" ]] || pub='[]'
-  for t in $DOC_TYPES; do for l in pt en; do
-    [[ -s "$(doc_file "$c" "$t" "$l" pdf)" || -s "$(doc_file "$c" "$t" "$l" html)" ]] || continue
+  for t in $DOC_TYPES; do for l in $DOC_LANGS; do
+    [[ -n "$(doc_pdf_served "$c" "$t" "$l")" || -s "$(doc_file "$c" "$t" "$l" html)" ]] || continue
     jq -e --arg k "$t.$l" 'index($k) != null' <<<"$pub" >/dev/null 2>&1 && continue
     printf '%s\t%s\n' "$t" "$l"
   done; done
@@ -145,10 +199,15 @@ _doc_date(){  # <epoch> <lang> [contest] — data da prova NO FUSO DELA
   local e="${1:-0}" l="$2" c3="${3:-}" tz=""
   [[ "$e" =~ ^[0-9]+$ && "$e" -gt 0 ]] || { printf '—'; return; }
   [[ -n "$c3" ]] && tz="$(contest_tz "$c3")"
-  if [[ "$l" == pt ]]; then TZ="${tz:-$TZ}" LC_ALL=pt_BR.UTF-8 date -d "@$e" '+%d/%m/%Y' 2>/dev/null \
-                            || TZ="${tz:-$TZ}" date -d "@$e" '+%d/%m/%Y'
-  else TZ="${tz:-$TZ}" LC_ALL=C date -d "@$e" '+%B %d, %Y' 2>/dev/null \
-       || TZ="${tz:-$TZ}" date -d "@$e" '+%Y-%m-%d'; fi
+  # nome do mês vem da tabela (_doc_month), não do locale: a imagem slim não tem pt_BR nem es_ES
+  local d m y
+  d="$(TZ="${tz:-$TZ}" date -d "@$e" '+%d')"; m="$(TZ="${tz:-$TZ}" date -d "@$e" '+%m')"
+  y="$(TZ="${tz:-$TZ}" date -d "@$e" '+%Y')"
+  case "$l" in
+    en) printf '%s %s, %s' "$(_doc_month en "$m")" "${d#0}" "$y";;
+    es) printf '%s de %s de %s' "${d#0}" "$(_doc_month es "$m")" "$y";;
+    *)  printf '%s de %s de %s' "${d#0}" "$(_doc_month pt "$m")" "$y";;
+  esac
 }
 
 # _doc_pool <c> <problem_id> -> pool de hosts p/ o TL (problem-judges.json > CONTEST_JUDGES)
@@ -222,7 +281,7 @@ _doc_langs_table(){
   langs="$( . "$CONTESTSDIR/$c/conf" 2>/dev/null; printf '%s' "${LANGUAGES:-}" )"
   [[ -n "$langs" ]] || { printf '<p>%s</p>' "$(_doc_t "$l" langs)"; return; }
   printf '<table class="doc-tbl"><thead><tr><th>%s</th><th>%s</th></tr></thead><tbody>' \
-    "$(_doc_t "$l" langs)" "$([[ "$l" == pt ]] && printf 'Extensão do arquivo' || printf 'File extension')"
+    "$(_doc_t "$l" langs)" "$(_doc_t "$l" file_ext)"
   local x
   for x in $langs; do
     printf '<tr><td>%s</td><td><code>.%s</code></td></tr>' \
@@ -264,7 +323,7 @@ _doc_html_infosheet(){
   rm -f "$tmp"
   local tc; tc="$(_doc_toolchain "$c")"
   local tchtml="<ul>"; while IFS= read -r line; do [[ -n "$line" ]] && tchtml+="<li>$(_doc_escs "$line")</li>"; done <<<"$tc"; tchtml+="</ul>"
-  [[ -n "$tc" ]] || tchtml="<p><i>$([[ "$l" == pt ]] && printf 'nenhum juiz reportou versões ainda' || printf 'no judge reported versions yet')</i></p>"
+  [[ -n "$tc" ]] || tchtml="<p><i>$(_doc_t "$l" no_versions)</i></p>"
   _doc_html_head "$CNAME — info sheet"
   printf '<h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
   # substitui os marcadores de BLOCO que sobraram no HTML renderizado
@@ -358,7 +417,7 @@ _doc_html_contest(){
       # só o miolo do <body> (o enunciado é HTML standalone com <head> próprio)
       sed -n '/<body[^>]*>/,/<\/body>/p' "$f" | sed -e 's|<body[^>]*>||' -e 's|</body>||'
     else
-      printf '<p><i>%s</i></p>' "$([[ "$l" == pt ]] && printf 'enunciado indisponível' || printf 'statement unavailable')"
+      printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)"
     fi
     printf '</div>\n'
   done
@@ -464,7 +523,7 @@ _doc_pdf_contest(){
       if [[ -f "$f" ]]; then
         sed -n '/<body[^>]*>/,/<\/body>/p' "$f" | sed -e 's|<body[^>]*>||' -e 's|</body>||' > "$bodyf"
       else
-        printf '<p><i>%s</i></p>' "$([[ "$l" == pt ]] && printf 'enunciado indisponível' || printf 'statement unavailable')" > "$bodyf"
+        printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)" > "$bodyf"
       fi
       # rota preferida: pandoc→odt→pdf (MathML vira fórmula ODF; ver _doc_html2pdf_odt)
       { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
@@ -538,8 +597,32 @@ doc_index(){
   # a chave é BINDADA antes (`as $k`): o argumento de `index()` avalia contra a ENTRADA do
   # pipe — que aqui é `$p`, o array de publicados —, não contra o elemento do map. Sem o
   # bind dava "Cannot index array with string" e a lista de documentos voltava VAZIA.
-  jq -c --argjson p "$pub" 'map((.type + "." + .lang) as $k
-     | . + {published: (($p | index($k)) != null)})' "$idx" 2>/dev/null || printf '[]'
+  # o PDF ENVIADO não passa pelo index.json (não é "gerado"): entra aqui, por par tipo+idioma,
+  # lido do disco — é o que a UI usa p/ mostrar "enviado" e o botão de voltar ao gerado.
+  local upl='[]' t l f
+  for t in $DOC_TYPES; do for l in $DOC_LANGS; do
+    f="$(doc_upload_pdf "$c" "$t" "$l")"; [[ -s "$f" ]] || continue
+    upl="$(jq -c --arg t "$t" --arg l "$l" --argjson b "$(stat -c%s "$f" 2>/dev/null || echo 0)" \
+            --argjson at "$(stat -c%Y "$f" 2>/dev/null || echo 0)" \
+            '. + [{type:$t, lang:$l, bytes:$b, at:$at}]' <<<"$upl")"
+  done; done
+  jq -c --argjson p "$pub" --argjson u "$upl" '
+      ($u | map({(.type + "." + .lang): .}) | add // {}) as $U
+      | map((.type + "." + .lang) as $k
+            | . + {published: (($p | index($k)) != null),
+                   uploaded: ($U[$k] != null),
+                   uploaded_bytes: ($U[$k].bytes // 0), uploaded_at: ($U[$k].at // 0)})
+      # par que SÓ tem PDF enviado (nunca foi gerado) também precisa aparecer na lista
+      | . as $rows
+      | $rows + ($u | map(select(. as $x | ($rows | any(.type == $x.type and .lang == $x.lang)) | not))
+                    # ⚠ chave BINDADA antes: o argumento de index() avalia contra a ENTRADA do
+                    # pipe ($p, um array), não contra o elemento — sem isto o jq morre e a
+                    # listagem inteira volta VAZIA (a mesma pegadinha do bloco acima)
+                    | map((.type + "." + .lang) as $k
+                          | {type, lang, html_bytes:0, pdf_bytes:0, generated_at:0, by:"",
+                             published: (($p | index($k)) != null),
+                             uploaded:true, uploaded_bytes:.bytes, uploaded_at:.at}))' \
+     "$idx" 2>/dev/null || printf '[]'
 }
 
 # doc_index_upsert <c> <entrada-json>

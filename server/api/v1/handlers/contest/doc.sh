@@ -51,7 +51,7 @@ if [[ -z "$t" ]]; then
 fi
 
 case "$t" in info-sheet|contest|times|editorial) ;; *) fail 400 "type inválido" "type_invalid";; esac
-[[ "$l" == pt || "$l" == en ]] || fail 400 "lang deve ser pt|en" "lang_invalid"
+doc_lang_ok "$l" || fail 400 "lang deve ser um de: $DOC_LANGS" "lang_invalid"
 case "$f" in pdf|html) ;; *) f=pdf;; esac
 
 if ! is_admin_or_chief; then
@@ -60,8 +60,11 @@ if ! is_admin_or_chief; then
   _doc_phase_ok "$t" || fail 404 "Documento não disponível" "not_available_yet"
 fi
 
-file="$(doc_file "$contest" "$t" "$l" "$f")"
-[[ -s "$file" ]] || fail 404 "Documento não gerado" "not_generated"
+# PDF: o ENVIADO pelo admin vence o gerado (doc_pdf_served). HTML é sempre o gerado —
+# documento enviado é PDF pronto, não tem versão HTML.
+if [[ "$f" == pdf ]]; then file="$(doc_pdf_served "$contest" "$t" "$l")"
+else file="$(doc_file "$contest" "$t" "$l" html)"; fi
+[[ -n "$file" && -s "$file" ]] || fail 404 "Documento não gerado" "not_generated"
 
 name="$contest-$t.$l.$f"
 if [[ "$f" == pdf ]]; then ct="application/pdf"; disp="inline"; else ct="text/html; charset=utf-8"; disp="inline"; fi

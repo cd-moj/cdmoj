@@ -165,6 +165,13 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 .editor-box.collapsed { height:0 !important; min-height:0; border-width:0; resize:none; }
 .editor-bar { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:.5rem; }
 .editor-bar .btn { padding:.3rem .7rem; font-size:.85rem; }
+/* documentos da prova na aba Contest: uma linha por documento, idiomas como chips à direita
+   ("📘 Caderno de problemas   PT EN ES") — mesma anatomia do .tl-block abaixo */
+.doc-lines { display:flex; flex-direction:column; gap:.35rem; margin:.1rem 0 .2rem; }
+.doc-line { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+.doc-name { font-size:.92rem; font-weight:600; color:var(--blue-dark); margin-right:.15rem; }
+.doc-line .tag { min-width:2.1rem; text-align:center; font-family:var(--mono); font-size:.74rem; }
+
 /* time limits (chips) na página do problema */
 .tl-block { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-top:.7rem; }
 .tl-label { font-size:.82rem; font-weight:700; color:var(--blue-dark); margin-right:.15rem; }

@@ -95,5 +95,45 @@ ck "editorial em prova -> 404"        '[[ "$OUT" == *"Status: 404"* ]]'
 adm '{"action":"publish","type":"contest","lang":"pt","news":true}'
 ck "caderno + news pós-início ok"     '[[ "$(J .ok)" == true ]]'
 
+echo "== ESPANHOL: 3º idioma de ponta a ponta =="
+printf '%%PDF-fake' > "$C/docs/info-sheet.es.pdf"
+adm '{"action":"publish","type":"info-sheet","lang":"es"}'
+ck "publica em es"                    '[[ "$(J .ok)" == true ]]'
+call /contest/doc GET '' tok-time 'type=info-sheet&lang=es&fmt=pdf'
+ck "time baixa o es -> 200"           '[[ "$OUT" == *"Status: 200"* ]]'
+call /contest/doc GET '' tok-time 'type=info-sheet&lang=de&fmt=pdf'
+ck "idioma fora da lista -> 400"      '[[ "$OUT" == *"Status: 400"* && "$BODY" == *lang_invalid* ]]'
+
+echo "== PDF ENVIADO: vence o gerado, e publica mesmo sem gerar =="
+# PDF de verdade (o handler valida por file --mime-type; %PDF-fake não passa)
+PDF64="$(printf '%%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%%%EOF\n' | base64 -w0)"
+adm "{\"action\":\"upload\",\"type\":\"times\",\"lang\":\"es\",\"pdf_b64\":\"$PDF64\"}"
+ck "upload aceito"                    '[[ "$(J .saved)" == true ]] && [[ -s "$C/docs/times.es.uploaded.pdf" ]]'
+adm '{"action":"publish","type":"times","lang":"es"}'
+ck "publica SEM ter gerado"           '[[ "$(J .ok)" == true ]]'
+call /contest/doc GET '' tok-time 'type=times&lang=es&fmt=pdf'
+ck "time recebe o ENVIADO"            '[[ "$OUT" == *"Status: 200"* ]] && [[ "$OUT" == *"1 0 obj"* ]]'
+printf '%%PDF-gerado-diferente' > "$C/docs/times.es.pdf"
+call /contest/doc GET '' tok-time 'type=times&lang=es&fmt=pdf'
+ck "enviado VENCE o gerado"           '[[ "$OUT" == *"1 0 obj"* && "$OUT" != *"PDF-gerado-diferente"* ]]'
+call /contest/admin/docs GET '' tok-adm
+ck "listagem marca uploaded"          '[[ "$(J "[.docs[]|select(.type==\"times\" and .lang==\"es\")|.uploaded]|first")" == true ]]'
+adm '{"action":"upload","type":"times","lang":"es","remove_upload":true}'
+ck "voltar ao gerado"                 '[[ "$(J .removed)" == true ]]'
+call /contest/doc GET '' tok-time 'type=times&lang=es&fmt=pdf'
+ck "agora vem o gerado"               '[[ "$OUT" == *"PDF-gerado-diferente"* ]]'
+adm "{\"action\":\"upload\",\"type\":\"times\",\"lang\":\"es\",\"pdf_b64\":\"$(printf 'nao sou pdf' | base64 -w0)\"}"
+ck "não-PDF recusado"                 '[[ "$BODY" == *pdf_invalid* ]]'
+
+echo "== resources.json: type/lang + gate de fase (a aba Contest agrupa por documento) =="
+call /contest/resources GET '' tok-adm
+ck "documento traz type e lang"       '[[ "$(J "[.items[]|select(.type==\"contest\" and .lang==\"pt\")]|length")" == 1 ]]'
+conf "$((NOW+3600))" "$((NOW+10800))"        # volta p/ ANTES do início
+call /contest/resources GET '' tok-time
+ck "time não vê caderno pré-início"   '[[ "$(J "[.items[]|select(.type==\"contest\")]|length")" == 0 ]]'
+ck "…mas vê o info-sheet"             '[[ "$(J "[.items[]|select(.type==\"info-sheet\")]|length")" -ge 1 ]]'
+call /contest/resources GET '' tok-cstaff
+ck "sede vê tudo (organização)"       '[[ "$(J "[.items[]|select(.type==\"contest\")]|length")" -ge 1 ]]'
+
 echo; echo "passed=$pass failed=$fail"
 (( fail == 0 ))

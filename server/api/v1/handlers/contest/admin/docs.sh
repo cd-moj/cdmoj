@@ -37,18 +37,27 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
         '$o + [ (.[$i] + {has_pdf:$hp, has_html:$hh}) ]' "$tmpp")"
   done
   rm -f "$tmpp"
-  tpl_pt="$(cat "$D/info-sheet.pt.md" 2>/dev/null || cat "$_DIR/../../etc/info-sheet.pt.md" 2>/dev/null)"
-  tpl_en="$(cat "$D/info-sheet.en.md" 2>/dev/null || cat "$_DIR/../../etc/info-sheet.en.md" 2>/dev/null)"
-  cov_pt="$(cat "$(doc_cover_md "$contest" pt)" 2>/dev/null)"
-  cov_en="$(cat "$(doc_cover_md "$contest" en)" 2>/dev/null)"
-  cup_pt=false; [[ -s "$(doc_cover_pdf "$contest" pt)" ]] && cup_pt=true
-  cup_en=false; [[ -s "$(doc_cover_pdf "$contest" en)" ]] && cup_en=true
+  # templates e capas POR IDIOMA (mapa — pt/en/es; as chaves planas antigas continuam saindo
+  # para não quebrar cliente velho). ⚠ template é texto livre do admin: vai por --rawfile
+  # (arquivo), NUNCA por --arg — acima de 128 KiB o jq recusaria e a aba inteira morria.
+  tmap='{}'; cmap='{}'; umap='{}'
+  for L in $DOC_LANGS; do
+    tf="$D/info-sheet.$L.md"; [[ -s "$tf" ]] || tf="$_DIR/../../etc/info-sheet.$L.md"
+    [[ -s "$tf" ]] || tf=/dev/null
+    tmap="$(jq -c --arg l "$L" --rawfile v "$tf" '.[$l] = $v' <<<"$tmap")"
+    cf="$(doc_cover_md "$contest" "$L")"; [[ -s "$cf" ]] || cf=/dev/null
+    cmap="$(jq -c --arg l "$L" --rawfile v "$cf" '.[$l] = $v' <<<"$cmap")"
+    cu=false; [[ -s "$(doc_cover_pdf "$contest" "$L")" ]] && cu=true
+    umap="$(jq -c --arg l "$L" --argjson v "$cu" '.[$l] = $v' <<<"$umap")"
+  done
   body="$(jq -cn --argjson docs "$(doc_index "$contest")" --argjson cfg "$(doc_conf_get "$contest")" \
-     --argjson probs "$out" --arg tp "$tpl_pt" --arg te "$tpl_en" --arg cp "$cov_pt" --arg ce "$cov_en" \
-     --argjson up "$cup_pt" --argjson ue "$cup_en" \
-     '{success:true, docs:$docs, config:$cfg, problems:$probs,
-       templates:{info_sheet_pt:$tp, info_sheet_en:$te, cover_pt:$cp, cover_en:$ce},
-       cover_uploaded:{pt:$up, en:$ue}}')"
+     --argjson probs "$out" --argjson tm "$tmap" --argjson cm "$cmap" --argjson um "$umap" \
+     --arg langs "$DOC_LANGS" \
+     '{success:true, docs:$docs, config:$cfg, problems:$probs, langs:($langs | split(" ")),
+       templates:({info_sheet_pt:($tm.pt // ""), info_sheet_en:($tm.en // ""),
+                   cover_pt:($cm.pt // ""), cover_en:($cm.en // "")}
+                  + {info_sheet:$tm, cover:$cm}),
+       cover_uploaded:$um}')"
   [[ -n "$body" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
   emit_json 200 OK; printf '%s\n' "$body"; exit 0
 fi
@@ -70,8 +79,8 @@ case "$action" in
     done
     printf '%s\n' "$cfg" > "$D/config.json.tmp" && mv -f "$D/config.json.tmp" "$D/config.json"
     # textos longos (templates) vão para arquivo próprio — nunca por --arg (ARG_MAX)
-    for pair in "info_sheet_pt:info-sheet.pt.md" "info_sheet_en:info-sheet.en.md" \
-                "cover_pt:cover.pt.md" "cover_en:cover.en.md"; do
+    pairs=(); for L in $DOC_LANGS; do pairs+=( "info_sheet_$L:info-sheet.$L.md" "cover_$L:cover.$L.md" ); done
+    for pair in "${pairs[@]}"; do
       key="${pair%%:*}"; fn="${pair##*:}"
       if jq -e --arg k "$key" 'has($k)' "$bodyf" >/dev/null 2>&1; then
         jq -r --arg k "$key" '.[$k] // ""' "$bodyf" > "$D/$fn.tmp" && mv -f "$D/$fn.tmp" "$D/$fn"
@@ -81,30 +90,43 @@ case "$action" in
     audit_log_to "$contest" docs-config ""
     ok_json '{saved:true}'
     ;;
-  cover)
-    lang="$(jq -r '.lang // ""' "$bodyf")"; [[ "$lang" == pt || "$lang" == en ]] || fail 400 "lang deve ser pt|en" "lang_invalid"
-    f="$(doc_cover_pdf "$contest" "$lang")"
-    if jq -e '.remove == true' "$bodyf" >/dev/null 2>&1; then
-      rm -f "$f"; audit_log_to "$contest" docs-cover "lang=$lang remove"; ok_json '{removed:true}'; exit 0
+  cover|upload)
+    # cover  = a CAPA do caderno (o gerador usa no lugar da capa que ele montaria)
+    # upload = o DOCUMENTO PRONTO de um tipo+idioma; vence o gerado em tudo que é servido
+    lang="$(jq -r '.lang // ""' "$bodyf")"; doc_lang_ok "$lang" || fail 400 "lang deve ser um de: $DOC_LANGS" "lang_invalid"
+    if [[ "$action" == upload ]]; then
+      t="$(jq -r '.type // ""' "$bodyf")"
+      case "$t" in info-sheet|contest|times|editorial) ;; *) fail 400 "type inválido" "type_invalid";; esac
+      f="$(doc_upload_pdf "$contest" "$t" "$lang")"; what="upload type=$t"
+      _rm_flag='.remove == true or .remove_upload == true'
+    else
+      f="$(doc_cover_pdf "$contest" "$lang")"; what="cover"; _rm_flag='.remove == true'
+    fi
+    if jq -e "$_rm_flag" "$bodyf" >/dev/null 2>&1; then
+      rm -f "$f"; audit_log_to "$contest" docs-cover "$what lang=$lang remove"; ok_json '{removed:true}'; exit 0
     fi
     jq -r '.pdf_b64 // ""' "$bodyf" | base64 -d > "$f.tmp" 2>/dev/null
     [[ -s "$f.tmp" ]] || { rm -f "$f.tmp"; fail 400 "PDF vazio ou inválido" "pdf_invalid"; }
+    # teto explícito (o nginx do subdomínio corta em 100m; aqui a mensagem é do MOJ, não 413 cru)
+    if (( $(stat -c%s "$f.tmp" 2>/dev/null || echo 0) > DOC_PDF_MAX_MB * 1024 * 1024 )); then
+      rm -f "$f.tmp"; fail 413 "PDF muito grande (máx ${DOC_PDF_MAX_MB}MB)" "file_large"
+    fi
     [[ "$(file -b --mime-type "$f.tmp" 2>/dev/null)" == application/pdf ]] \
       || { rm -f "$f.tmp"; fail 400 "O arquivo enviado não é um PDF" "pdf_invalid"; }
     mv -f "$f.tmp" "$f"
-    audit_log_to "$contest" docs-cover "lang=$lang bytes=$(stat -c%s "$f" 2>/dev/null)"
+    audit_log_to "$contest" docs-cover "$what lang=$lang bytes=$(stat -c%s "$f" 2>/dev/null)"
     ok_json '{saved:true, bytes:$b}' --argjson b "$(stat -c%s "$f" 2>/dev/null || echo 0)"
     ;;
   generate)
     mapfile -t types < <(jq -r '(.types // ["info-sheet","contest","times"])[]' "$bodyf" 2>/dev/null)
-    mapfile -t langs < <(jq -r '(.langs // ["pt","en"])[]' "$bodyf" 2>/dev/null)
+    mapfile -t langs < <(jq -r --arg d "$DOC_LANGS" '(.langs // ($d | split(" ")))[]' "$bodyf" 2>/dev/null)
     (( ${#types[@]} )) || types=(info-sheet contest times)
-    (( ${#langs[@]} )) || langs=(pt en)
+    (( ${#langs[@]} )) || read -r -a langs <<<"$DOC_LANGS"
     done_list='[]'; failed='[]'
     for t in "${types[@]}"; do
       case "$t" in info-sheet|contest|times|editorial) ;; *) continue;; esac
       for l in "${langs[@]}"; do
-        [[ "$l" == pt || "$l" == en ]] || continue
+        doc_lang_ok "$l" || continue
         if e="$(doc_build "$contest" "$t" "$l")" && [[ -n "$e" ]]; then
           doc_index_upsert "$contest" "$e"
           done_list="$(jq -c --argjson d "$done_list" --argjson e "$e" '$d + [$e]' <<<'null')"
@@ -120,12 +142,13 @@ case "$action" in
   publish|unpublish)
     t="$(jq -r '.type // ""' "$bodyf")"; l="$(jq -r '.lang // ""' "$bodyf")"
     case "$t" in info-sheet|contest|times|editorial) ;; *) fail 400 "type inválido" "type_invalid";; esac
-    [[ "$l" == pt || "$l" == en ]] || fail 400 "lang deve ser pt|en" "lang_invalid"
+    doc_lang_ok "$l" || fail 400 "lang deve ser um de: $DOC_LANGS" "lang_invalid"
     key="$t.$l"
     cfg="$(doc_conf_get "$contest")"
     if [[ "$action" == publish ]]; then
-      [[ -s "$(doc_file "$contest" "$t" "$l" pdf)" || -s "$(doc_file "$contest" "$t" "$l" html)" ]] \
-        || fail 409 "Gere o documento antes de publicar" "not_generated"
+      # PDF ENVIADO conta como documento pronto — publicar sem gerar é o caso de uso dele
+      [[ -n "$(doc_pdf_served "$contest" "$t" "$l")" || -s "$(doc_file "$contest" "$t" "$l" html)" ]] \
+        || fail 409 "Gere (ou envie) o documento antes de publicar" "not_generated"
       source "$_DIR/lib/contest-gate.sh"
       # EDITORIAL é a solução da prova: só publica quando o contest terminou PARA TODOS
       # (inclusive prorrogações por sede — time-overrides.json).

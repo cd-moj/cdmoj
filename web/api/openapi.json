@@ -2068,8 +2068,8 @@
         "tags": [
           "contest"
         ],
-        "summary": "Documentos da prova: lista (sem type) ou download (com type)",
-        "description": "Sem `type`: lista os documentos que o login pode baixar. Com `type`: serve o arquivo (PDF/HTML). Admin e juiz-chefe sempre; qualquer outro login so o que estiver PUBLICADO (404 not_published).",
+        "summary": "Documentos da prova em pt/en/es: lista (sem type) ou download (com type; o PDF enviado pelo admin vence o gerado)",
+        "description": "Sem `type`: lista os documentos que o login pode baixar. Com `type`: serve o arquivo (PDF/HTML). Idiomas pt/en/es. Em fmt=pdf o documento ENVIADO pelo admin (docs/<tipo>.<lang>.uploaded.pdf) vence o gerado; fmt=html e sempre o gerado. Admin e juiz-chefe sempre; qualquer outro login so o que estiver PUBLICADO (404 not_published).",
         "security": [
           {
             "bearerAuth": []
@@ -2099,7 +2099,8 @@
               "type": "string",
               "enum": [
                 "pt",
-                "en"
+                "en",
+                "es"
               ]
             }
           },
@@ -3103,7 +3104,8 @@
                     "type": "string",
                     "enum": [
                       "pt",
-                      "en"
+                      "en",
+                      "es"
                     ]
                   },
                   "login_start": {
@@ -5330,7 +5332,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Documentos da prova: estado, textos e capa (admin ou juiz-chefe)",
+        "summary": "Documentos da prova: estado, textos, capa e PDF PRONTO enviado (admin ou juiz-chefe); pt/en/es",
         "security": [
           {
             "bearerAuth": []
@@ -5354,7 +5356,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "config | cover | generate | publish | unpublish",
+        "summary": "config | cover | upload (PDF pronto: vence o gerado; remove_upload volta) | generate | publish | unpublish",
         "security": [
           {
             "bearerAuth": []
@@ -5410,7 +5412,8 @@
                     "type": "string",
                     "enum": [
                       "pt",
-                      "en"
+                      "en",
+                      "es"
                     ]
                   },
                   "pdf_b64": {

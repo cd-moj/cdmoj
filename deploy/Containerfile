@@ -59,7 +59,7 @@ RUN set -eux; \
       fcgiwrap \
       pandoc graphviz \
       inotify-tools socat \
-      imagemagick ghostscript poppler-utils qpdf paps fonts-dejavu-core; \
+      imagemagick ghostscript poppler-utils qpdf paps fonts-dejavu-core fonts-lmodern; \
     if [ "$WITH_OFFICE" = "1" ]; then \
       apt-get install -y --no-install-recommends libreoffice-core libreoffice-writer libreoffice-calc libreoffice-math; \
     fi; \
@@ -108,6 +108,11 @@ RUN set -eux; \
     # asserção prova de uma vez que o asset de fábrica entrou na imagem E que a base de magic
     # do `file` reconhece mp3 (sem ela, TODO upload de música viraria 400).
     [ "$(file --mime-type -b /opt/moj/cdmoj/server/etc/team-placeholder.mp3)" = audio/mpeg ]; \
+    # LATIN MODERN = a cara de LaTeX dos documentos da prova (contest-doc.css + o reference.odt
+    # do caderno). Sem a fonte, o fontconfig cai calado no DejaVu — que NÃO tem itálico na
+    # imagem (fonts-dejavu-core) e sai com inclinação sintética, a assinatura do "cara de Word".
+    fc-list : family | grep -qi 'Latin Modern Roman'; \
+    fc-list 'Latin Modern Roman' : style | grep -qi 'Italic'; \
     bash -n /opt/moj/cdmoj/server/api/v1/router.sh
 
 # Caminhos: todos os defaults do server são `: "${VAR:=…}"` ⇒ o ENV vence (zero edição de código).
