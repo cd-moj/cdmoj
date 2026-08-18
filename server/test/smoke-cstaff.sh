@@ -72,13 +72,15 @@ echo "== scope=mine de não-cstaff é ignorado =="
 call /contest/score GET alu 'contest=cs&scope=mine'
 ck "aluno: sem recorte e congelado"   '[[ "$BODY" == *":aluno2:"* && -n "$(a1cells)" && "$(a1cells)" != *"1/61"* ]]'
 
-echo "== etiquetas: staff 403; cstaff com senha; toggle extinto =="
+# etiqueta é do .staff (fica na mesa); a credencial do CHEFE — que abre esta tela — não sai
+# em adesivo, nem a dele próprio
+echo "== etiquetas: staff 403; cstaff vê os alunos; nenhum crachá de .cstaff =="
 call /contest/badges GET stf 'contest=cs'
 ck "staff perdeu as etiquetas (403)"  '[[ "$OUT" == *"Status: 403"* && "$BODY" == *cstaff_required* ]]'
 call /contest/badges GET cst 'contest=cs'
 ck "cstaff vê aluno1 COM senha"       '[[ "$(jq -r ".users[]|select(.login==\"aluno1\").password" <<<"$BODY")" == a ]]'
 ck "recorte: sem aluno2"              '[[ "$(jq -r "[.users[]|select(.login==\"aluno2\")]|length" <<<"$BODY")" == 0 ]]'
-ck "a própria credencial entra"       '[[ "$(jq -r ".users[]|select(.login==\"sede1.cstaff\").password" <<<"$BODY")" == p ]]'
+ck "a própria credencial NÃO entra"   '[[ "$(jq -r "[.users[]|select(.login==\"sede1.cstaff\")]|length" <<<"$BODY")" == 0 ]]'
 ck "staff fora do escopo não entra"   '[[ "$(jq -r "[.users[]|select(.login==\"sede1.staff\")]|length" <<<"$BODY")" == 0 ]]'
 ck "flag staff_password extinta"      '[[ "$(jq -r "has(\"staff_password\")" <<<"$BODY")" == false ]]'
 call /contest/badges GET cst 'contest=cs&staff=cs.admin'
@@ -87,7 +89,7 @@ call /contest/badges POST adm 'contest=cs' '{"staff_password":false}'
 ck "POST extinto (405)"               '[[ "$OUT" == *"Status: 405"* ]]'
 call /contest/badges GET adm 'contest=cs'
 ck "seletor do admin = só .cstaff"    '[[ "$(jq -r ".staff|length" <<<"$BODY")" == 1 && "$(jq -r ".staff[0].login" <<<"$BODY")" == sede1.cstaff ]]'
-ck "lista completa: os dois papéis"   '[[ -n "$(jq -r ".users[]|select(.login==\"sede1.staff\").login" <<<"$BODY")" && -n "$(jq -r ".users[]|select(.login==\"sede1.cstaff\").login" <<<"$BODY")" ]]'
+ck "lista: .staff sim, .cstaff não"   '[[ -n "$(jq -r ".users[]|select(.login==\"sede1.staff\").login" <<<"$BODY")" && "$(jq -r "[.users[]|select(.login==\"sede1.cstaff\")]|length" <<<"$BODY")" == 0 ]]'
 call /contest/badges GET adm 'contest=cs&staff=sede1.cstaff'
 ck "arquivo da sede p/ admin"         '[[ "$(jq -r "[.users[]|select(.login==\"aluno2\")]|length" <<<"$BODY")" == 0 && -n "$(jq -r ".users[]|select(.login==\"aluno1\").login" <<<"$BODY")" ]]'
 call /contest/badges GET adm 'contest=cs&staff=sede1.staff'

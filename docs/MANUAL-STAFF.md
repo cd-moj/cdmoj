@@ -102,7 +102,7 @@ Você supervisiona uma sede. Você acompanha a fila da sua sede, imprime as etiq
 
 Aqui está o que a `.staff` não tem: as folhas de credenciais prontas para imprimir (modelo Pimaco A4), com **nome, login, senha, sede e instituição** de cada conta.
 
-- Você vê só a **sua sede**: a sua conta e as contas `.staff` e `.cstaff` do mesmo escopo.
+- Você vê só a **sua sede** — e só as contas **`.staff`** dela: a sua própria credencial (de chefe) **não** sai em etiqueta, porque é ela que abre esta tela.
 - Serve para imprimir as etiquetas das mesas e as credenciais dos times da sua sede.
 - As opções de administração (escolher o arquivo de outra sede, incluir contas desabilitadas) **não aparecem** para você.
 - **Contest que usa as contas do Treino Livre não tem senha na etiqueta**: a credencial é pessoal

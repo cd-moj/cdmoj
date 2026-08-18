@@ -306,9 +306,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   demais consumidores de `USERS_FROM` já iteram o store local e usam a fonte só como tabela de
   identidade por login — `sc_users`, `report-gen`, `stats-gen`, `jplag-run`, `contest/teams`,
   `admin/users`, `allsubmissions` (mapa de nomes, não devolvido). Escopo do
-  `.cstaff` via `staff-filters.json` (+ a própria conta e as `.staff`/`.cstaff` do MESMO escopo —
-  o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
-  `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado
+  `.cstaff` via `staff-filters.json` (+ as `.staff` do MESMO escopo — o chefe imprime as
+  credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
+  `staff=<login .cstaff>`. **Só o `.staff` ganha etiqueta**: `.cstaff` (inclusive a conta de quem
+  está olhando), `.admin/.judge/.cjudge/.mon` nunca entram — a credencial do chefe é a que ABRE
+  esta tela; ela não circula em adesivo. Sempre auditado
   (`badges-view`).
 - **Gate de navegador POR SEDE** (`lib/ua-gate.sh` + `handlers/contest/admin/ua-gate.sh`, UI na
   seção 🔒 do `web/contest/admin/machines-tab.js` — fica lá, e não em Configurações, porque é ali

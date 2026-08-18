@@ -4,10 +4,10 @@
 # Admin: lista completa, ou o "arquivo" de uma sede via staff=<login .cstaff>; .cstaff: só
 # o próprio recorte (staff-filters.json, semântica de staff_can_see: lista vazia/ausente =
 # vê tudo, region:<nome> por igualdade, demais entradas como regex no login). Contas de
-# papel: .admin/.judge/.cjudge/.mon NUNCA entram; .staff/.cstaff entram como seção própria
-# — no arquivo de uma sede, a conta do PRÓPRIO view + as que casam o MESMO escopo dele (o
-# chefe imprime a própria credencial e as do staff da sede). É o ÚNICO endpoint que devolve
-# senha numa releitura — toda chamada é auditada (badges-view).
+# papel: só o .staff ganha etiqueta (fica na mesa e precisa do crachá) — no arquivo de uma
+# sede, os que casam o escopo do view. .admin/.judge/.cjudge/.mon e o PRÓPRIO .cstaff nunca
+# entram: a credencial do chefe é a que abre esta tela, não circula em adesivo. É o ÚNICO
+# endpoint que devolve senha numa releitura — toda chamada é auditada (badges-view).
 #
 # ⚠ REGRA DE OURO (incidente de 2026-08-18): a etiqueta lista quem PERTENCE ao contest e
 # imprime SÓ A SENHA QUE O CONTEST CONTROLA.
@@ -109,12 +109,15 @@ _badges_accounts "$d/users" "$([[ -n "$shared_src" ]] && echo true || echo false
                       then ((($u.region // "")|ascii_downcase) == ($r[7:] | ascii_downcase | gsub("^ +| +$"; "")))
                       else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end))) end)
     ) as $students
-  # contas de papel (.staff/.cstaff): seção própria. Lista completa = todas; arquivo de uma
-  # sede = a conta do PRÓPRIO view + (escopo vazio = todas; senão as que casam o MESMO
-  # escopo do view). Região de cada conta: 1º token region:<nome> do filtro DELA; senão a
+  # contas de papel: só o **.staff** ganha etiqueta (é quem fica na mesa e precisa do crachá).
+  # O **.cstaff NÃO** — a credencial do chefe de sede é justamente a que lê as senhas de todo
+  # mundo nesta tela; ela não circula em adesivo (nem a dele próprio, nem a dos outros). O chefe
+  # recebe a conta pelo admin, que já mostra a credencial ao criar.
+  # Lista completa = todos os .staff; arquivo de uma sede = os que casam o escopo do view
+  # (escopo vazio = todos). Região de cada conta: 1º token region:<nome> do filtro DELA; senão a
   # derivação clássica (igualdade do regex do filtro com o regex de uma região — semeadura
   # antiga).
-  | ( map(select(.login | test("\\.(staff|cstaff)$")))
+  | ( map(select(.login | test("\\.staff$")))
       | map(. + {region: ((($filters[.login] // []) as $fl
             | (first($fl[] | select(startswith("region:")) | .[7:] | gsub("^ +| +$"; ""))
                // first($regions[] | (.regex//"") as $rr | select($rr != ""
@@ -122,11 +125,10 @@ _badges_accounts "$d/users" "$([[ -n "$shared_src" ]] && echo true || echo false
       | ($filters[$view] // []) as $scope
       | (if $view == "" then .
          elif ($scope|length) == 0 then .
-         else map(select(.login == $view
-               or (. as $u | any($scope[]; . as $r
+         else map(select(. as $u | any($scope[]; . as $r
                    | if ($r|startswith("region:"))
                      then ((($u.region // "")|ascii_downcase) == ($r[7:] | ascii_downcase | gsub("^ +| +$"; "")))
-                     else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end)))) end)
+                     else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end))) end)
     ) as $staffacc
   | ($students + $staffacc)
   | map(. + {name: (if .team != "" then .team else .fullname end),
@@ -136,7 +138,7 @@ _badges_accounts "$d/users" "$([[ -n "$shared_src" ]] && echo true || echo false
                           and (try ($l|test($rr)) catch false))
                         | (.school_full // .school // ""))) // "") end)})
   | map(del(.team))
-  | sort_by([(.region // "\uffff"), (.login|test("\\.(staff|cstaff)$")), .name, .login])
+  | sort_by([(.region // "\uffff"), (.login|test("\\.staff$")), .name, .login])
 ' > "$tmp/users" || fail 500 "Falha ao montar a lista" "internal"
 
 # lista de .cstaff (só p/ admin — alimenta o seletor "arquivo da sede" da página)

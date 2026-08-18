@@ -73,7 +73,7 @@ echo "== contas PRÓPRIAS: a senha continua saindo (a razão de a tela existir) 
 call /contest/badges GET padm 'contest=bp'
 ck "admin lista os alunos"        '[[ "$(jq -r "[.users[]|select(.login|startswith(\"aluno\"))]|length" <<<"$BODY")" == 2 ]]'
 ck "senha do aluno sai"           '[[ "$(pw aluno1)" == senha1 ]] && [[ "$(pw aluno2)" == senha2 ]]'
-ck "conta de papel traz a dela"   '[[ "$(pw sede1.cstaff)" == cs ]] && [[ "$(pw sede1.staff)" == st ]]'
+ck "só o .staff ganha crachá"     '[[ "$(pw sede1.staff)" == st ]] && [[ "$(jq -r "[.users[]|select(.login==\"sede1.cstaff\")]|length" <<<"$BODY")" == 0 ]]'
 ck "nada de shared_credential"    '[[ "$(jq -r "[.users[]|select(.shared_credential)]|length" <<<"$BODY")" == 0 ]]'
 ck "envelope sem fonte"           '[[ "$(jq -r .shared <<<"$BODY")" == "" ]]'
 ck "desabilitado fica fora por padrão" '! grep -q "aluno3" <<<"$BODY"'
@@ -93,7 +93,7 @@ ck "e a senha dele NÃO vaza"      '! grep -q "segredo123" <<<"$BODY"'
 ck "senha do treino não sai"      '[[ "$(pw aluno1)" == "" ]] && ! grep -q "senha1" <<<"$BODY"'
 ck "marcado shared_credential"    '[[ "$(jq -r "(.users[]|select(.login==\"aluno1\")|.shared_credential)" <<<"$BODY")" == true ]]'
 ck "envelope diz a fonte"         '[[ "$(jq -r .shared <<<"$BODY")" == bp ]]'
-ck "papel LOCAL mantém a senha"   '[[ "$(pw sede2.cstaff)" == cs2 ]] && [[ "$(jq -r "(.users[]|select(.login==\"sede2.cstaff\")|.shared_credential)" <<<"$BODY")" == false ]]'
+ck "chefe de sede fora da lista"  '[[ "$(jq -r "[.users[]|select(.login==\"sede2.cstaff\")]|length" <<<"$BODY")" == 0 ]] && ! grep -q "cs2" <<<"$BODY"'
 call /contest/badges GET sadm 'contest=bs&include_disabled=1'
 ck "include_disabled não ressuscita a fonte" '! grep -q "forasteiro" <<<"$BODY" && ! grep -q "segredo123" <<<"$BODY"'
 ck "conta de TIME entra sem segredo" '[[ "$(pw time-alfa)" == "" ]] && ! grep -q "11111111-2222" <<<"$BODY"'
@@ -116,7 +116,7 @@ ck "e continua vendo os do contest" 'grep -qx aluno1 <<<"$VIS" && grep -qx aluno
 
 echo "== auditoria: o tamanho da leitura fica registrado =="
 ck "badges-view com n= e senhas=" 'grep -q "badges-view" "$S/var/admin-audit.log" && grep -qE "n=[0-9]+ senhas=[0-9]+" "$S/var/admin-audit.log"'
-ck "1 senha só (a de papel local)" 'grep "badges-view" "$S/var/admin-audit.log" | tail -1 | grep -q "senhas=1"'
+ck "nenhuma senha no compartilhado" 'grep "badges-view" "$S/var/admin-audit.log" | tail -1 | grep -q "senhas=0"'
 ck "e a fonte aparece no log"     'grep "badges-view" "$S/var/admin-audit.log" | tail -1 | grep -q "shared=bp"'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))
