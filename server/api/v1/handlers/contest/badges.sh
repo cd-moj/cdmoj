@@ -21,6 +21,11 @@
 #       — a senha do treino é pessoal e vale em todo o MOJ, não é credencial de prova. Mesma
 #       doutrina do lib/contest-create.sh, que devolve `admin_password:null` quando reusa a
 #       conta da fonte. Contest com contas PRÓPRIAS não muda nada.
+#   (3) conta DESABILITADA (`!…`) sai com `password:""` + `disabled:true`, mesmo com
+#       `include_disabled=1`. O `!` não guarda a senha antiga: o `user-disable` a SUBSTITUI por
+#       uma aleatória, e a de TIME é um `!<uuid>` interno (ninguém loga em conta de time) —
+#       revelar isso era mostrar segredo que não abre porta nenhuma. Reabilitar é reset por
+#       `user-add`, que já devolve a senha nova na hora.
 # O antigo toggle {staff_password} do .staff foi extinto junto com o acesso do .staff
 # (print-requests/badges.json é arquivo morto, sem leitor).
 contest="$(param contest)"
@@ -70,8 +75,9 @@ _badges_accounts() {  # <usersdir> <shared:true|false>
          team:(.team.name//""),
          univ:((.team.univ_full // .team.univ_short) // ""),
          region:(.team.region//""),
-         password:(if ($shared and ((.password//"") == "")) then ""
-                   else ((.password//"")|ltrimstr("!")) end),
+         password:(if ((.password//"")|startswith("!")) then ""          # desabilitada: ver nota
+                   elif ($shared and ((.password//"") == "")) then ""
+                   else (.password//"") end),
          shared_credential:($shared and ((.password//"") == "")),
          disabled:((.password//"")|startswith("!"))}'
 }

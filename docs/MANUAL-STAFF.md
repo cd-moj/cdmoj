@@ -108,6 +108,8 @@ Aqui está o que a `.staff` não tem: as folhas de credenciais prontas para impr
 - **Contest que usa as contas do Treino Livre não tem senha na etiqueta**: a credencial é pessoal
   de cada participante (a mesma que ele usa no treino), então a etiqueta sai com "use sua senha do
   treino" no lugar. A lista traz **só quem está inscrito** naquele contest.
+- **Conta desabilitada** sai com "conta desabilitada" em vez de senha — desabilitar troca a senha
+  por uma aleatória, então não existe credencial para imprimir (o admin reabilita com um reset).
 - Todo acesso a esta tela é registrado.
 
 ### 📄 Documentos da prova (`/contest/docs/`)

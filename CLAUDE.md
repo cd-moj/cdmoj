@@ -294,7 +294,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `badges-view`), enquanto o inscrito — overlay local **sem** `.password` — saía em branco. Hoje:
   fonte NUNCA é roster (mesmo critério do `sc_users`/`list_users`), conta compartilhada vem com
   `password:""` + `shared_credential:true`, o envelope traz `shared:"<fonte>"` e a etiqueta
-  imprime "use sua senha do treino". Contest de contas próprias não mudou. Guardado pelo
+  imprime "use sua senha do treino". **Conta DESABILITADA também sai sem senha** (mesmo com
+  `include_disabled=1`): o `!` não guarda a senha antiga — o `user-disable` a substitui por uma
+  aleatória e a de TIME é um `!<uuid>` interno, então era segredo que não abre porta; a etiqueta
+  diz "conta desabilitada". Contest de contas próprias não mudou. Guardado pelo
   `server/test/smoke-badges.sh` (roda contra o handler antigo e FALHA). Escopo do
   `.cstaff` via `staff-filters.json` (+ a própria conta e as `.staff`/`.cstaff` do MESMO escopo —
   o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via

@@ -92,7 +92,12 @@ function labelNode(u, d) {
   // credencial que o CONTEST não controla (conta compartilhada do treino): a senha não vem da
   // API de propósito — em vez de um buraco branco na etiqueta, diz de onde é a senha.
   if (S.showPass) {
-    inner.append(u.shared_credential
+    // conta desabilitada não tem credencial que funcione (o `!` do user-disable é aleatório):
+    // a etiqueta diz isso, em vez de imprimir um segredo que não abre porta nenhuma
+    inner.append(u.disabled
+      ? el('div', { class: 'cred shared', style: 'font-size:' + mm(credSz * 0.85) },
+          T('conta desabilitada', 'account disabled'))
+      : u.shared_credential
       ? el('div', { class: 'cred shared', style: 'font-size:' + mm(credSz * 0.85) },
           T('use sua senha do ' + (DATA.shared || 'treino'), 'use your ' + (DATA.shared || 'training') + ' password'))
       : el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.password || ''));
