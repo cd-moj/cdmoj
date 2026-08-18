@@ -414,8 +414,8 @@ _doc_html_contest(){
       fi
     fi
     if [[ -f "$f" ]]; then
-      # só o miolo do <body> (o enunciado é HTML standalone com <head> próprio)
-      sed -n '/<body[^>]*>/,/<\/body>/p' "$f" | sed -e 's|<body[^>]*>||' -e 's|</body>||'
+      # só o miolo do <body>, sem o h1 do próprio enunciado (o cabeçalho já é nosso)
+      _doc_body_inner "$f"
     else
       printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)"
     fi
@@ -499,11 +499,58 @@ _doc_html2pdf_odt(){
 
 # _doc_pdf_contest <c> <lang> <out.pdf> — caderno: capa + (PDF custom | enunciado renderizado),
 # unidos com pdfunite; capa REGERADA no fim com o total real de páginas.
+# _doc_body_inner <arquivo-html> -> só o miolo do <body>, sem o título do próprio enunciado.
+# Duas armadilhas que apareceram no PDF: (1) enunciado gerado em UMA LINHA fazia o `sed` de
+# faixa devolver o <head> junto — e o pandoc promovia o <title> a um título gigante no topo da
+# página; (2) o <h1 class="moj-title"> do enunciado é escondido por CSS na rota HTML, mas a rota
+# ODT IGNORA CSS e o nome do problema saía DUAS vezes ("Problema A — Soma" + "Soma").
+_doc_body_inner(){
+  sed -n '/<body[^>]*>/,/<\/body>/p' "$1" \
+    | sed -e 's|.*<body[^>]*>||' -e 's|</body>.*||' \
+    | python3 -c 'import re,sys; sys.stdout.write(re.sub(r"<h1[^>]*class=\"[^\"]*moj-title[^\"]*\"[^>]*>.*?</h1>", "", sys.stdin.read(), flags=re.S|re.I))' 2>/dev/null \
+    || sed -n '/<body[^>]*>/,/<\/body>/p' "$1" | sed -e 's|.*<body[^>]*>||' -e 's|</body>.*||'
+}
+
+# CADERNO. Quando NENHUM problema tem PDF próprio, os enunciados viram UM ODT só — é o que dá
+# NUMERAÇÃO CONTÍNUA (antes cada problema era um PDF e a página voltava a "1" em cada um, com a
+# capa anunciando "páginas numeradas de 1 a N" que não existia). A quebra entre problemas vem do
+# `fo:break-before="page"` do Heading 1 no caderno-reference.odt. Com PDF próprio no meio, não há
+# como renumerar (não temos pdftk/cpdf na imagem): volta ao caminho por-problema.
 _doc_pdf_contest(){
-  local c="$1" l="$2" out="$3" probs n i skey work parts=() pdf tot=0
+  local c="$1" l="$2" out="$3" probs n i skey work parts=() pdf tot=0 custom=""
   work="$(mktemp -d)"; probs="$(cc_probs_json "$c")"; n="$(jq -r 'length' <<<"$probs")"
   [[ "$n" =~ ^[0-9]+$ ]] || n=0
   for ((i=0; i<n; i++)); do
+    skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
+    [[ -f "$CONTESTSDIR/$c/enunciados/$skey.pdf" ]] && { custom=1; break; }
+  done
+  if [[ -z "$custom" && "$n" -gt 0 ]]; then
+    # --- caminho normal: um ODT com todos os enunciados (numeração contínua) ---
+    local allf="$work/all.html" letter name f bodyf
+    { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+      for ((i=0; i<n; i++)); do
+        skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
+        letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
+        name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
+        f="$CONTESTSDIR/$c/enunciados/$skey.html"
+        if [[ ! -f "$f" ]]; then
+          local jf="$CONTESTSDIR/treino/var/jsons/$skey.json"
+          [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"
+          [[ -f "$jf" ]] && { jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null | base64 -d > "$work/s$i.html" 2>/dev/null; [[ -s "$work/s$i.html" ]] && f="$work/s$i.html"; }
+        fi
+        printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+        if [[ -f "$f" ]]; then _doc_body_inner "$f"; else printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)"; fi
+      done
+      printf '</body></html>'; } > "$allf"
+    if _doc_html2pdf_odt "$allf" "$work/body.pdf" && [[ -s "$work/body.pdf" ]]; then
+      parts=( "$work/body.pdf" ); tot="$(_doc_pages "$work/body.pdf" 2>/dev/null || echo 0)"
+      n="$n"   # (mantém a contagem de problemas para a capa)
+    else
+      custom=1   # pandoc indisponível/falhou: cai no caminho por-problema (com fallback soffice)
+    fi
+  fi
+  # --- caminho por-problema (só quando há PDF próprio de enunciado, ou o pandoc falhou) ---
+  [[ -n "$custom" ]] && for ((i=0; i<n; i++)); do
     skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
     pdf="$CONTESTSDIR/$c/enunciados/$skey.pdf"
     if [[ -f "$pdf" ]]; then
@@ -521,7 +568,7 @@ _doc_pdf_contest(){
       fi
       # miolo do <body> do enunciado (HTML standalone com <head> próprio)
       if [[ -f "$f" ]]; then
-        sed -n '/<body[^>]*>/,/<\/body>/p' "$f" | sed -e 's|<body[^>]*>||' -e 's|</body>||' > "$bodyf"
+        _doc_body_inner "$f" > "$bodyf"
       else
         printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)" > "$bodyf"
       fi
@@ -576,7 +623,7 @@ doc_build(){
     # um documento só, pela rota ODT (as soluções têm math); miolo sem <title>
     local mini="$d/.$t.$l.odtin.html"
     { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
-      sed -n '/<body[^>]*>/,/<\/body>/p' "$html" | sed -e 's|<body[^>]*>||' -e 's|</body>||'
+      sed -n '/<body[^>]*>/,/<\/body>/p' "$html" | sed -e 's|.*<body[^>]*>||' -e 's|</body>.*||'
       printf '</body></html>'; } > "$mini"
     _doc_html2pdf_odt "$mini" "$pdf.tmp" || _doc_html2pdf "$html" "$pdf.tmp" || true
     rm -f "$mini"
