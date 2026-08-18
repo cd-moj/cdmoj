@@ -166,7 +166,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
     LANGS.forEach(lang => {
       const up = (DATA.cover_uploaded || {})[lang];
       const ta = el('textarea', { rows: '6', style: 'width:100%;font-family:var(--mono);font-size:.86rem' },
-        (DATA.templates || {})['cover_' + lang] || '');
+        ((DATA.templates || {}).cover || {})[lang] || (DATA.templates || {})['cover_' + lang] || '');
       const file = el('input', { type: 'file', accept: 'application/pdf', style: 'display:none' });
       file.addEventListener('change', () => {
         const f = file.files && file.files[0]; if (!f) return;
@@ -223,7 +223,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
           'Markdown. Markers {{TOOLCHAIN}} {{TL_TABLE}} {{LANGS_TABLE}} {{MEMLIMIT}} {{STACK}} {{CONTEST_NAME}} {{DATE}} are filled in at generation time. Leave empty to restore the default text.')));
     LANGS.forEach(lang => {
       const ta = el('textarea', { rows: '10', style: 'width:100%;font-family:var(--mono);font-size:.85rem' },
-        (DATA.templates || {})['info_sheet_' + lang] || '');
+        ((DATA.templates || {}).info_sheet || {})[lang] || (DATA.templates || {})['info_sheet_' + lang] || '');
       box.append(el('div', { style: 'margin-top:.5rem' },
         el('b', {}, lang.toUpperCase()), ta,
         el('button', { class: 'btn ghost', style: 'margin-top:.3rem', onclick: async () => {
@@ -250,11 +250,11 @@ export function makeDocsTab(CONTEST, opts = {}) {
           'The organization has not published any documents yet. Check back closer to the contest.')));
     } else {
       panel.append(el('p', { class: 'small muted' },
-        T('Gere em PDF e HTML, nos dois idiomas. Publicar deixa o documento visível na seção “Prova” do contest e para os chefes de sede (.cstaff).',
-          'Generate as PDF and HTML, in both languages. Publishing shows the document under “Contest” and to site chiefs (.cstaff).')),
+        T('Gere em PDF e HTML, em pt, en e es. Publicar deixa o documento visível na seção “Prova” do contest e para os chefes de sede (.cstaff).',
+          'Generate as PDF and HTML, in pt, en and es. Publishing shows the document under “Contest” and to site chiefs (.cstaff).')),
         el('p', { class: 'small muted' },
-          T('⚠️ PT/EN vale para capa, títulos e tabelas. O enunciado sai no idioma em que foi escrito.',
-            '⚠️ PT/EN applies to cover, headings and tables. Statements come out in the language they were written in.')),
+          T('⚠️ O idioma vale para capa, títulos e tabelas. O enunciado sai no idioma em que foi escrito — para prova traduzida, use “subir PDF” (o enviado vence o gerado).',
+            '⚠️ The language applies to cover, headings and tables. Statements come out in the language they were written in — for a translated set, use “upload PDF” (the uploaded file wins).')),
         el('div', { class: 'row', style: 'gap:.5rem;margin:.5rem 0' },
           el('button', { class: 'btn', onclick: () => generate(TYPES.map(t => t.id), LANGS) },
             T('⚙️ Gerar todos (pt+en+es)', '⚙️ Generate all (pt+en+es)')),

@@ -12,7 +12,10 @@
 # ⚠ Precisa de pandoc + soffice + poppler: NÃO roda no checkout de desenvolvimento.
 #    Rode DENTRO da imagem:  podman exec <container> bash /opt/moj/cdmoj/server/test/render-docs.sh
 set -u
-ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+# ROOT pelo caminho do script — mas o jeito de rodar isto é copiando o arquivo para dentro da
+# imagem (`podman cp … :/tmp/`), e aí o caminho derivado não acha as libs: cai no /opt do container.
+ROOT="${MOJ_SERVER_ROOT:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+[[ -f "$ROOT/api/v1/lib/contest-docs.sh" ]] || ROOT=/opt/moj/cdmoj/server
 for b in pandoc soffice pdfinfo pdffonts pdftotext; do
   command -v "$b" >/dev/null 2>&1 || { echo "SKIP: sem $b (rode dentro da imagem)"; exit 0; }
 done

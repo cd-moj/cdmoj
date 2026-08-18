@@ -108,6 +108,7 @@ install-units:
 deploy:
 	git pull --ff-only
 	git -C $(WORKROOT)/mojtools pull --ff-only || true
+	git -C $(WORKROOT)/moj-cli pull --ff-only || true
 ifeq ($(FROM),registry)
 	$(MAKE) pull docs-html
 else

@@ -38,28 +38,35 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   done
   rm -f "$tmpp"
   # templates e capas POR IDIOMA (mapa — pt/en/es; as chaves planas antigas continuam saindo
-  # para não quebrar cliente velho). ⚠ template é texto livre do admin: vai por --rawfile
-  # (arquivo), NUNCA por --arg — acima de 128 KiB o jq recusaria e a aba inteira morria.
-  tmap='{}'; cmap='{}'; umap='{}'
+  # para não quebrar cliente velho). ⚠ template é texto livre do admin: o conteúdo anda SEMPRE
+  # por ARQUIVO (--rawfile na entrada, --slurpfile na junção) — mapa somado por --argjson teria
+  # o mesmo teto de 128 KiB POR ARGUMENTO que derruba jq no exec (a armadilha clássica da casa).
+  tmpm="$(mktemp -d)" || fail 500 "tmp" "tmp"
+  trap 'rm -rf "$tmpm"' EXIT
+  printf '{}' > "$tmpm/t.json"; printf '{}' > "$tmpm/c.json"; umap='{}'
   for L in $DOC_LANGS; do
     tf="$D/info-sheet.$L.md"; [[ -s "$tf" ]] || tf="$_DIR/../../etc/info-sheet.$L.md"
     [[ -s "$tf" ]] || tf=/dev/null
-    tmap="$(jq -c --arg l "$L" --rawfile v "$tf" '.[$l] = $v' <<<"$tmap")"
+    jq -c --arg l "$L" --rawfile v "$tf" '.[$l] = $v' "$tmpm/t.json" > "$tmpm/t.new" \
+      && mv -f "$tmpm/t.new" "$tmpm/t.json"
     cf="$(doc_cover_md "$contest" "$L")"; [[ -s "$cf" ]] || cf=/dev/null
-    cmap="$(jq -c --arg l "$L" --rawfile v "$cf" '.[$l] = $v' <<<"$cmap")"
+    jq -c --arg l "$L" --rawfile v "$cf" '.[$l] = $v' "$tmpm/c.json" > "$tmpm/c.new" \
+      && mv -f "$tmpm/c.new" "$tmpm/c.json"
     cu=false; [[ -s "$(doc_cover_pdf "$contest" "$L")" ]] && cu=true
     umap="$(jq -c --arg l "$L" --argjson v "$cu" '.[$l] = $v' <<<"$umap")"
   done
-  body="$(jq -cn --argjson docs "$(doc_index "$contest")" --argjson cfg "$(doc_conf_get "$contest")" \
-     --argjson probs "$out" --argjson tm "$tmap" --argjson cm "$cmap" --argjson um "$umap" \
-     --arg langs "$DOC_LANGS" \
-     '{success:true, docs:$docs, config:$cfg, problems:$probs, langs:($langs | split(" ")),
-       templates:({info_sheet_pt:($tm.pt // ""), info_sheet_en:($tm.en // ""),
-                   cover_pt:($cm.pt // ""), cover_en:($cm.en // "")}
-                  + {info_sheet:$tm, cover:$cm}),
-       cover_uploaded:$um}')"
-  [[ -n "$body" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
-  emit_json 200 OK; printf '%s\n' "$body"; exit 0
+  printf '%s' "$out" > "$tmpm/probs.json"
+  doc_index "$contest" > "$tmpm/docs.json"
+  emit_json 200 OK
+  jq -cn --slurpfile docs "$tmpm/docs.json" --argjson cfg "$(doc_conf_get "$contest")" \
+     --slurpfile probs "$tmpm/probs.json" --slurpfile tm "$tmpm/t.json" --slurpfile cm "$tmpm/c.json" \
+     --argjson um "$umap" --arg langs "$DOC_LANGS" \
+     '{success:true, docs:$docs[0], config:$cfg, problems:$probs[0], langs:($langs | split(" ")),
+       templates:({info_sheet_pt:($tm[0].pt // ""), info_sheet_en:($tm[0].en // ""),
+                   cover_pt:($cm[0].pt // ""), cover_en:($cm[0].en // "")}
+                  + {info_sheet:$tm[0], cover:$cm[0]}),
+       cover_uploaded:$um}'
+  exit 0
 fi
 
 require_method POST
