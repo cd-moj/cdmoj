@@ -325,7 +325,8 @@ _doc_html_infosheet(){
   local tchtml="<ul>"; while IFS= read -r line; do [[ -n "$line" ]] && tchtml+="<li>$(_doc_escs "$line")</li>"; done <<<"$tc"; tchtml+="</ul>"
   [[ -n "$tc" ]] || tchtml="<p><i>$(_doc_t "$l" no_versions)</i></p>"
   _doc_html_head "$CNAME — info sheet"
-  printf '<h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
+  # bloco de título centrado (o \maketitle do LaTeX) — a classe é o que o CSS usa p/ centrar
+  printf '<h1 class="title">%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
   # substitui os marcadores de BLOCO que sobraram no HTML renderizado
   printf '%s' "$body" \
     | sed -e "s|{{TOOLCHAIN}}|$(printf '%s' "$tchtml" | sed 's/[&|]/\\&/g')|" \
@@ -339,7 +340,8 @@ _doc_html_times(){
   local c="$1" l="$2" cfg errata
   _doc_meta "$c"; cfg="$(doc_conf_get "$c")"; errata="$(jq -r '.errata // ""' <<<"$cfg")"
   _doc_html_head "$CNAME — time limits"
-  printf '<h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
+  # bloco de título centrado (o \maketitle do LaTeX) — a classe é o que o CSS usa p/ centrar
+  printf '<h1 class="title">%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
   printf '<h2 class="center">%s</h2>\n' "$(_doc_t "$l" times_title)"
   _doc_tl_table "$c" "$l"
   printf '<p class="foot"><sup>1</sup> %s</p>\n' "$(_doc_t "$l" seconds)"

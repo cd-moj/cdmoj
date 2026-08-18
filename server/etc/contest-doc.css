@@ -42,12 +42,15 @@ h1.title, .cover h1 { text-align: center; }
 .foot { font-size: 9pt; color: #000; margin-top: 2em; border-top: .5pt solid #000;
         padding-top: .4em; text-align: left; text-indent: 0; }
 
-/* tabelas (time limits, linguagens): booktabs — três filetes, nada de grade */
-table.doc-tbl { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 10.5pt; }
-table.doc-tbl th, table.doc-tbl td { border: 0; padding: .28em .5em; text-align: left; }
-table.doc-tbl thead th { border-top: 1.1pt solid #000; border-bottom: .5pt solid #000;
-                         font-weight: bold; background: none; }
-table.doc-tbl tbody tr:last-child td { border-bottom: 1.1pt solid #000; }
+/* tabelas (time limits, linguagens): booktabs — três filetes, nada de grade.
+   ⚠ o importador de HTML do LibreOffice ignora `tbody tr:last-child`: o filete de baixo vem da
+   BORDA DA TABELA (que ele respeita), não do último td. */
+table.doc-tbl { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 10.5pt;
+                border-top: 1.1pt solid #000; border-bottom: 1.1pt solid #000; }
+table.doc-tbl th, table.doc-tbl td { border: 0; padding: .3em .9em .3em 0; text-align: left;
+                                     vertical-align: top; }
+table.doc-tbl thead th { border-bottom: .6pt solid #000; font-weight: bold; background: none;
+                         padding-bottom: .35em; }
 table.doc-tbl td.c, table.doc-tbl th.c { text-align: center; }
 
 /* capa */
