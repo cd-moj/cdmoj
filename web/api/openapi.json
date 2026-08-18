@@ -1777,7 +1777,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Credenciais p/ etiquetas imprimíveis (SENHA EM CLARO, sempre presente; auditado badges-view). Admin/.cstaff apenas — .staff recebe 403 cstaff_required. Admin: tudo ou o arquivo de uma sede via staff=<login .cstaff>; .cstaff: só o próprio recorte (staff-filters) + a própria conta e as .staff/.cstaff do mesmo escopo. include_disabled=1 inclui contas desativadas",
+        "summary": "Credenciais p/ etiquetas imprimíveis (senha em claro — auditado badges-view). A lista sai SÓ do store local do contest, nunca da fonte USERS_FROM, e a senha só sai quando é do contest: conta compartilhada vem com password vazia + shared_credential:true (incidente de 2026-08-18). Admin/.cstaff apenas — .staff recebe 403 cstaff_required. Admin: tudo ou o arquivo de uma sede via staff=<login .cstaff>; .cstaff: só o próprio recorte (staff-filters) + a própria conta e as .staff/.cstaff do mesmo escopo. include_disabled=1 inclui contas desativadas",
         "security": [
           {
             "bearerAuth": []
@@ -1790,7 +1790,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{users:[{login,name,fullname,password,disabled,region,univ}], staff:[…só admin, logins .cstaff], regions, contest_name, start_epoch}"
+            "description": "{users:[{login,name,fullname,password,shared_credential,disabled,region,univ}], staff:[…só admin, logins .cstaff], regions, shared, contest_name, start_epoch} — shared = fonte USERS_FROM (vazio em contest de contas próprias)"
           },
           "403": {
             "description": "cstaff_required | staff_scope"

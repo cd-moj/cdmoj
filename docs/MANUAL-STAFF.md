@@ -105,6 +105,9 @@ Aqui está o que a `.staff` não tem: as folhas de credenciais prontas para impr
 - Você vê só a **sua sede**: a sua conta e as contas `.staff` e `.cstaff` do mesmo escopo.
 - Serve para imprimir as etiquetas das mesas e as credenciais dos times da sua sede.
 - As opções de administração (escolher o arquivo de outra sede, incluir contas desabilitadas) **não aparecem** para você.
+- **Contest que usa as contas do Treino Livre não tem senha na etiqueta**: a credencial é pessoal
+  de cada participante (a mesma que ele usa no treino), então a etiqueta sai com "use sua senha do
+  treino" no lugar. A lista traz **só quem está inscrito** naquele contest.
 - Todo acesso a esta tela é registrado.
 
 ### 📄 Documentos da prova (`/contest/docs/`)

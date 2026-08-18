@@ -6,11 +6,23 @@
 # vê tudo, region:<nome> por igualdade, demais entradas como regex no login). Contas de
 # papel: .admin/.judge/.cjudge/.mon NUNCA entram; .staff/.cstaff entram como seção própria
 # — no arquivo de uma sede, a conta do PRÓPRIO view + as que casam o MESMO escopo dele (o
-# chefe imprime a própria credencial e as do staff da sede). A senha sai SEMPRE (ver
-# credencial é a razão de ser do papel; o antigo toggle {staff_password} do .staff foi
-# extinto junto com o acesso do .staff — print-requests/badges.json é arquivo morto, sem
-# leitor). É o ÚNICO endpoint que devolve senha numa releitura — toda chamada é auditada
-# (badges-view).
+# chefe imprime a própria credencial e as do staff da sede). É o ÚNICO endpoint que devolve
+# senha numa releitura — toda chamada é auditada (badges-view).
+#
+# ⚠ REGRA DE OURO (incidente de 2026-08-18): a etiqueta lista quem PERTENCE ao contest e
+# imprime SÓ A SENHA QUE O CONTEST CONTROLA.
+#   (1) a lista sai do store LOCAL (`contests/<c>/users`) e mais nada. Antes havia uma 2ª
+#       varredura na fonte `USERS_FROM`: num contest de contas compartilhadas isso devolvia
+#       a senha em claro das ~1150 contas do TREINO — gente que nem se inscreveu. A fonte é
+#       tabela de identidade (verify_password/fullname), NUNCA roster (mesmo critério do
+#       `sc_users` do placar e do `list_users` do users-set-password).
+#   (2) conta cuja credencial mora na fonte (inscrito compartilhado: overlay local SEM
+#       `.password`, ver lib/registration.sh) sai com `password:""` + `shared_credential:true`
+#       — a senha do treino é pessoal e vale em todo o MOJ, não é credencial de prova. Mesma
+#       doutrina do lib/contest-create.sh, que devolve `admin_password:null` quando reusa a
+#       conta da fonte. Contest com contas PRÓPRIAS não muda nada.
+# O antigo toggle {staff_password} do .staff foi extinto junto com o acesso do .staff
+# (print-requests/badges.json é arquivo morto, sem leitor).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -44,32 +56,36 @@ _slurp_json "$d/regions.json"                        '[]' "$tmp/regions"
 _slurp_json "$(pr_dir "$contest")/staff-filters.json" '{}' "$tmp/filters"
 _slurp_json "$d/teams-meta.json"                     '[]' "$tmp/teams"
 
-# contas: store próprio (prio 0) + fonte USERS_FROM (prio 1); dedup = local vence
-# (mesma precedência de verify_password/_pr_acct). find|xargs jq — sem ARG_MAX.
-_badges_accounts() {  # <usersdir> <prio>
+# contas: SÓ o store próprio do contest (ver a regra de ouro no cabeçalho). find|xargs jq —
+# sem ARG_MAX. O login cai no nome do DIRETÓRIO quando o campo falta (ele é implícito no
+# store por-usuário; sem isso a conta sumia calada da etiqueta).
+# `shared_credential` = a senha desta conta não é do contest (mora na fonte USERS_FROM) ⇒
+# a etiqueta não imprime senha nenhuma, imprime o rótulo.
+_badges_accounts() {  # <usersdir> <shared:true|false>
   [[ -d "$1" ]] || return 0
   find "$1" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-    | xargs -0 -r jq -c --argjson prio "$2" '
-        {login:(.login//""), fullname:(.fullname//""),
+    | xargs -0 -r jq -c --argjson shared "$2" '
+        {login:(if (.login//"") == "" then (input_filename|split("/")|.[-2]) else .login end),
+         fullname:(.fullname//""),
          team:(.team.name//""),
          univ:((.team.univ_full // .team.univ_short) // ""),
          region:(.team.region//""),
-         password:((.password//"")|ltrimstr("!")),
-         disabled:((.password//"")|startswith("!")),
-         prio:$prio}'
+         password:(if ($shared and ((.password//"") == "")) then ""
+                   else ((.password//"")|ltrimstr("!")) end),
+         shared_credential:($shared and ((.password//"") == "")),
+         disabled:((.password//"")|startswith("!"))}'
 }
 src="$(_users_source "$contest")"
-{ _badges_accounts "$d/users" 0
-  [[ "$src" != "$contest" ]] && _badges_accounts "$CONTESTSDIR/$src/users" 1
-  true
-} | jq -cs --slurpfile re "$tmp/regions" --slurpfile ff "$tmp/filters" --slurpfile tm "$tmp/teams" \
+shared_src=""; [[ "$src" != "$contest" ]] && shared_src="$src"
+_badges_accounts "$d/users" "$([[ -n "$shared_src" ]] && echo true || echo false)" \
+  | jq -cs --slurpfile re "$tmp/regions" --slurpfile ff "$tmp/filters" --slurpfile tm "$tmp/teams" \
       --arg view "$view" --arg dis "$inc_dis" '
   ($re[0] // []) as $regions
   | ($ff[0] // {}) as $filters
   # teams-meta: objeto {rules:[…]} ou array cru; SEM .rules em array (indexar array com
   # string é ERRO no jq — o // não o engole — e 500ava contest sem teams-meta.json)
   | ($tm[0] | (if type=="object" then (.rules // []) elif type=="array" then . else [] end)) as $teams
-  | map(select(.login != "")) | group_by(.login) | map(min_by(.prio)) | map(del(.prio))
+  | map(select(.login != "")) | group_by(.login) | map(.[0])
   | (if $dis == "1" then . else map(select(.disabled | not)) end)
   # alunos: sem contas de papel. Região EXPLÍCITA (.team.region do account) vence; senão
   # derivada de regions.json (regex no login). O recorte do view (vazio/ausente = tudo)
@@ -133,13 +149,17 @@ cstart="$(. "$d/conf" 2>/dev/null; printf '%s' "${CONTEST_START:-0}")"
 cstart="${cstart//[^0-9]/}"; cstart="${cstart:-0}"
 
 n="$(jq -r 'length' "$tmp/users" 2>/dev/null)"; n="${n//[^0-9]/}"; n="${n:-0}"
-audit_log_to "$contest" badges-view "view=${view:-ALL} n=$n disabled=${inc_dis:-0}"
+npw="$(jq -r '[.[] | select((.password // "") != "")] | length' "$tmp/users" 2>/dev/null)"
+npw="${npw//[^0-9]/}"; npw="${npw:-0}"
+# o `n=` e o `senhas=` do log são a prova forense do tamanho de cada leitura
+audit_log_to "$contest" badges-view "view=${view:-ALL} n=$n senhas=$npw disabled=${inc_dis:-0}${shared_src:+ shared=$shared_src}"
 
 # envelope por --slurpfile (contests com milhares de contas — nunca --argjson gigante)
 emit_json 200 OK
 jq -cn --slurpfile u "$tmp/users" --slurpfile st "$tmp/staff" --slurpfile re "$tmp/regions" \
-   --arg view "$view" --arg cn "$cname" --argjson start "$cstart" '
+   --arg view "$view" --arg cn "$cname" --argjson start "$cstart" --arg shared "$shared_src" '
   {success:true, users:$u[0], count:($u[0]|length),
    staff_view:(if $view=="" then null else $view end),
+   shared:$shared,
    regions:$re[0], staff:$st[0],
    contest_name:$cn, start_epoch:$start, generated_at:(now|floor)}'

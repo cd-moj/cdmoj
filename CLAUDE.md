@@ -286,8 +286,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
 - **Etiquetas de credenciais** (`/contest/badges` + página `web/contest/badges/`, gabaritos Pimaco
   A4): é o **único** endpoint que devolve `.password` numa releitura — gate **admin/`.cstaff`**
-  (o `.staff` recebe **403 `cstaff_required`**), GET-only, senha **sempre** presente (o antigo
-  toggle `{staff_password}` foi extinto; `print-requests/badges.json` é arquivo morto). Escopo do
+  (o `.staff` recebe **403 `cstaff_required`**), GET-only (o antigo toggle `{staff_password}` foi
+  extinto; `print-requests/badges.json` é arquivo morto).
+  ⚠ **REGRA DE OURO (incidente 2026-08-18)**: a lista sai **só do store LOCAL** do contest e a
+  senha só sai **quando é do contest**. A varredura da fonte `USERS_FROM` devolvia a senha em
+  claro de TODO o treino (1145 contas puxadas por um admin de outro contest, medido no
+  `badges-view`), enquanto o inscrito — overlay local **sem** `.password` — saía em branco. Hoje:
+  fonte NUNCA é roster (mesmo critério do `sc_users`/`list_users`), conta compartilhada vem com
+  `password:""` + `shared_credential:true`, o envelope traz `shared:"<fonte>"` e a etiqueta
+  imprime "use sua senha do treino". Contest de contas próprias não mudou. Guardado pelo
+  `server/test/smoke-badges.sh` (roda contra o handler antigo e FALHA). Escopo do
   `.cstaff` via `staff-filters.json` (+ a própria conta e as `.staff`/`.cstaff` do MESMO escopo —
   o chefe imprime as credenciais do staff da sede); admin vê tudo ou o arquivo de uma sede via
   `staff=<login .cstaff>`. Contas `.admin/.judge/.cjudge/.mon` nunca entram. Sempre auditado

@@ -47,6 +47,16 @@ let DATA = null;         // última resposta da API
 let IS_ADMIN = false;
 let afterLoad = () => {}; // repopula selects (definido em render())
 const statusBar = el('span', { class: 'small muted' });
+// aviso de contest com contas COMPARTILHADAS: a etiqueta não traz senha porque a credencial é
+// pessoal (do treino) e não é do contest — dizer isso evita o "cadê a senha?" na hora de imprimir
+const sharedNote = el('div', { class: 'small muted no-print', style: 'margin-top:.5rem' });
+function renderSharedNote() {
+  sharedNote.innerHTML = '';
+  if (!DATA || !DATA.shared) return;
+  sharedNote.append(el('span', {},
+    T(`⚠ Este contest usa as contas compartilhadas de “${DATA.shared}”: a etiqueta sai SEM senha — a credencial é pessoal de cada participante e vale em todo o MOJ. A lista traz só quem está no contest.`,
+      `⚠ This contest uses shared accounts from “${DATA.shared}”: badges come WITHOUT a password — the credential is each participant’s personal one, valid across the MOJ. The list shows only who is in this contest.`)));
+}
 
 async function load() {
   let q = '/contest/badges?contest=' + enc(CONTEST);
@@ -56,6 +66,7 @@ async function load() {
   try { DATA = await apiGet(q, G); }
   catch (e) { DATA = null; sheets.innerHTML = ''; statusBar.textContent = T('Falha ao listar: ', 'Failed to list: ') + (e.message || T('erro', 'error')); return; }
   afterLoad();
+  renderSharedNote();
   renderSheets();
 }
 
@@ -78,7 +89,14 @@ function labelNode(u, d) {
   inner.append(el('div', { class: 'name', style: 'font-size:' + mm(nameSz) }, u.name || u.login));
   if (S.fUniv && u.univ) inner.append(el('div', { class: 'univ', style: 'font-size:' + mm(Math.max(2.4, nameSz * 0.55)) }, u.univ));
   inner.append(el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.login));
-  if (S.showPass) inner.append(el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.password || ''));
+  // credencial que o CONTEST não controla (conta compartilhada do treino): a senha não vem da
+  // API de propósito — em vez de um buraco branco na etiqueta, diz de onde é a senha.
+  if (S.showPass) {
+    inner.append(u.shared_credential
+      ? el('div', { class: 'cred shared', style: 'font-size:' + mm(credSz * 0.85) },
+          T('use sua senha do ' + (DATA.shared || 'treino'), 'use your ' + (DATA.shared || 'training') + ' password'))
+      : el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.password || ''));
+  }
   const tag = (S.fRegion && u.region ? u.region : '') + (role ? (S.fRegion && u.region ? ' · ' : '') + role : '');
   if (tag) inner.append(el('div', { class: 'tag' }, tag));
   if (S.fEvent) {
@@ -209,7 +227,8 @@ function render() {
       IS_ADMIN ? mkChk(T('incluir desabilitados', 'include disabled'), 'incDisabled', true) : '',
       el('label', {}, T('pular ', 'skip '), skipIn, T(' etiqueta(s)', ' badge(s)')),
       el('div', { class: 'spacer' }), statusBar,
-      el('button', { class: 'btn', onclick: () => window.print() }, T('🖨️ Imprimir', '🖨️ Print')))));
+      el('button', { class: 'btn', onclick: () => window.print() }, T('🖨️ Imprimir', '🖨️ Print'))),
+    sharedNote));
   load();
 }
 
