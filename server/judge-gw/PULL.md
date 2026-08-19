@@ -67,6 +67,11 @@ Na 1ª vez (ou quando o checksum muda) ele **calibra**
 guarda o TL **por host, por checksum** (`run/tl/<id>.json`) e serve o **máximo entre os hosts**
 no `var/jsons` (conservador). Ao **relançar**, o agente re-reporta os TLs do cache (sem
 recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos recalibram).
+O `POST /judge/calib-report` leva, além do log texto e dos `reports` (report.html por solução),
+o campo **`sols`** = o `.calib-sols.json` do calibreitor (a calibração POR EXTENSO:
+`[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`, ≤300 KB; cópia em
+`<cache>/<id>/.calib-sols.json` p/ o re-envio de boot). O servidor PRESERVA `sols`/`reports`
+de um POST sem esses campos com o MESMO checksum (boot/agente velho não apagam o dado).
 
 - **GC do cache no juiz** (lado agente): pacote sem uso há `AGENT_CACHE_MAX_DAYS` (14) vira
   **stub** — o `pkg/` pesado sai, `tl.<host>`+meta ficam (o registro segue anunciando o

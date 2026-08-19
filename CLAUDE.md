@@ -248,6 +248,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **`el()` mora em `web/shared/dom.js`** (sem dependência de rede) e o `ui.js` re-exporta —
   é o que permite reusar renderizadores no relatório offline. Importar de `/shared/ui.js`
   segue valendo p/ os ~79 arquivos que já faziam isso.
+- **Calibração/TL — 3 mecanismos de autoria (2026-08-19)**: (1) o `/problems/calib` devolve
+  **`sols`** estruturado por host (`[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`,
+  do `.calib-sols.json` do calibreitor via `/judge/calib-report` — que PRESERVA sols/reports
+  quando o POST vem sem eles com o MESMO checksum: re-envio de boot/agente velho não apagam);
+  (2) **`TLOVERRIDE[<lang>|default]`** no conf do PACOTE = o autor manda no TL — julgamento
+  (build-and-test) e TODA exibição usam o efetivo (`tl_store_served` aplica; servidor lê por
+  **grep**, `tl_conf_overrides`/`tl_override_apply` em lib/tl-store.sh — conf de autor NUNCA é
+  sourced no servidor); (3) **test-run** (`/problems/test-run`, `moj testrun`) roda solução
+  avulsa no juiz com o contest **sentinela `_testrun`** (id de contest criável começa com
+  `[a-z0-9]` — sentinela inatingível), desviado p/ `run/testrun/` no `ingest_result` — nunca
+  history. Gate de tudo: `require_problem_edit`. Testes: `smoke-{tl-override,calib-sols,testrun}.sh`.
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +

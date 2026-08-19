@@ -283,6 +283,33 @@ write_result_json() {
   cp -f "$resdir/$id.json" "$RESULTSDIR/$id.json" 2>/dev/null || true
 }
 
+# testrun_finalize <result-json> : resultado de um TEST-RUN de autoria (contest sentinela
+# _testrun, enfileirado por /problems/test-run). Funde no registro run/testrun/<id>.json e
+# salva o report.html — NUNCA toca history/metrics/placar (não é submissão de ninguém).
+testrun_finalize() {
+  local json="$1" id reg dir="${TESTRUN_DIR:-$RUNDIR/testrun}"
+  id="$(jq -r '.id // empty' <<<"$json")"
+  [[ "$id" =~ ^[a-f0-9]{32}$ ]] || { log "testrun: id inválido"; return 1; }
+  reg="$dir/$id.json"
+  [[ -s "$reg" ]] || { log "testrun: registro ausente id=$id — resultado descartado"; return 1; }
+  mkdir -p "$dir/r" 2>/dev/null
+  local hb; hb="$(jq -r '.report_html_b64 // empty' <<<"$json")"
+  local hasrep=false
+  if [[ -n "$hb" ]] && printf '%s' "$hb" | base64 -d > "$dir/r/$id.html" 2>/dev/null \
+     && [[ -s "$dir/r/$id.html" ]]; then hasrep=true; else rm -f "$dir/r/$id.html"; fi
+  # merge resultado→registro por ARQUIVO (o vetor tests pode ser grande — nunca argv)
+  local rf tmp; rf="$(mktemp)"; tmp="$reg.tmp.$$"
+  jq -c 'del(.report_html_b64)' <<<"$json" > "$rf" 2>/dev/null
+  if ( umask 077; jq -c --slurpfile r "$rf" --argjson now "$EPOCHSECONDS" --argjson rep "$hasrep" \
+        '. + ($r[0] // {} | del(.id, .contest, .login))
+         + {status:"done", finished_at:$now, report:$rep}' "$reg" > "$tmp" 2>/dev/null ) \
+     && [[ -s "$tmp" ]]; then
+    mv -f "$tmp" "$reg"
+  else rm -f "$tmp"; log "testrun: merge falhou id=$id"; fi
+  rm -f "$rf"
+  log "testrun concluído id=$id verdict=$(jq -r '.verdict // "?"' <<<"$json")"
+}
+
 # ingest_result <result-json> : finaliza um julgamento vindo do worker (modelo pull).
 # Único escritor do history. Herda tempo/login/prob/lang/epoch da linha provisória.
 ingest_result() {
@@ -290,6 +317,8 @@ ingest_result() {
   local id contest host verdict h_login h_prob h_lang tempo sub_epoch line hist
   id="$(jq -r '.id // empty' <<<"$json")"
   contest="$(jq -r '.contest // empty' <<<"$json")"
+  # TEST-RUN de autoria: desvia ANTES de qualquer contest/history (sentinela _testrun)
+  if [[ "$contest" == "_testrun" ]]; then testrun_finalize "$json"; return $?; fi
   host="$(jq -r '.host // empty' <<<"$json")"
   verdict="$(jq -r '.verdict // "Judge Error"' <<<"$json")"
   # canônico (sem score) p/ casar o auto-veredicto; fallback: tira o sufixo ,Np do verdict.

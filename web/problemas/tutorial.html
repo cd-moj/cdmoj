@@ -254,6 +254,16 @@ moj collection add apc2026#fibonacci "APC 2026.1"</pre>
 moj check apc2026#fibonacci  # o porquê de cada estado, juiz por juiz
 moj calibrate --all-stale    # recalibra TUDO que o painel marcou (lote seguro)</pre>
 
+        <h3 data-en="Inspect the calibration; test on the REAL judge">Inspecionar a calibração; testar no juiz REAL</h3>
+        <pre>moj calib apc2026#fibonacci             # a calibração POR EXTENSO: cada juiz, cada solução,
+                                        # cada teste {nome, código, tempo, tl}
+moj --json calib apc2026#fibonacci      # o mesmo, em JSON — p/ os seus scripts
+moj calib-report apc2026#fibonacci      # lista os report.html disponíveis (e baixa com --host/--sol)
+moj testrun apc2026#fibonacci sol.c     # roda UMA solução avulsa NO JUIZ (jaula e TL reais),
+                                        # fora do histórico — devolve o vetor por teste
+moj testrun ... --report out.html       # e ainda baixa o report.html do julgamento</pre>
+        <p data-en="testrun requires EDIT permission on the problem (it runs against the hidden tests). If the package conf has a TLOVERRIDE, the shown/judged TL is the override — calibration keeps running for reference."><code>testrun</code> exige permissão de EDIÇÃO no problema (roda contra os testes ocultos). Se o conf do pacote tem <code>TLOVERRIDE</code>, o TL exibido/julgado é o do override — a calibração continua rodando como referência.</p>
+
         <h2 id="comandos" data-en="5. Quick commands">5. ⚡ Comandos rápidos</h2>
         <table class="cheat">
           <tr><th data-en="Command">Comando</th><th data-en="What it does">O que faz</th></tr>
@@ -267,6 +277,9 @@ moj calibrate --all-stale    # recalibra TUDO que o painel marcou (lote seguro)<
           <tr><td>moj upload/download &lt;id&gt;</td><td data-en="whole package as tarball (download --sha = old version)">pacote inteiro via tarball (<code>download --sha</code> = versão antiga)</td></tr>
           <tr><td>moj validate &lt;id&gt;</td><td data-en="quality gate + calibration — STAYS private (exam mode)">portão + calibração — CONTINUA privado (modo prova)</td></tr>
           <tr><td>moj check &lt;id&gt;</td><td data-en="QA: checks, per-judge TLs, why it needs recalibration">QA: checks, TLs por juiz, o porquê da recalibração</td></tr>
+          <tr><td>moj calib &lt;id&gt;</td><td data-en="calibration in FULL: per judge/solution/test ({name,code,time,tl}; --json for scripts)">a calibração POR EXTENSO: por juiz/solução/teste (<code>--json</code> p/ scripts)</td></tr>
+          <tr><td>moj calib-report &lt;id&gt;</td><td data-en="report.html of one calibrated solution (no args = list)">report.html de uma solução calibrada (sem args = lista)</td></tr>
+          <tr><td>moj testrun &lt;id|dir&gt; &lt;sol&gt;</td><td data-en="run ONE loose solution on the REAL judge, outside the history (edit permission)">roda UMA solução avulsa no juiz REAL, fora do histórico (permissão de edição)</td></tr>
           <tr><td>moj publish &lt;id&gt; · public &lt;id&gt; on|off</td><td data-en="make public in training (org must allow) / toggle">público no treino (org precisa permitir) / alternar</td></tr>
           <tr><td>moj ls · board · info &lt;id&gt;</td><td data-en="lists · health dashboard · everything about one problem">listas · painel de saúde · tudo de um problema</td></tr>
           <tr><td>moj log &lt;id&gt; · restore &lt;id&gt; &lt;sha&gt;</td><td data-en="git history · roll back as a NEW commit">histórico git · volta como commit NOVO</td></tr>

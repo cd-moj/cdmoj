@@ -323,6 +323,8 @@ Todas as chaves que o `build-and-test.sh` entende:
 | `STOPWHEN_RE` | não para | `y` interrompe no primeiro Runtime Error | 0 |
 | `TLERERUN` | `y` | repete o teste uma vez antes de confirmar um TLE (evita TLE por ruído da máquina) | 0 |
 | `CALIBRATIONTL` | `5` | tempo-limite usado **durante** a calibração, antes de existir um TL real | 0 |
+| `ALLOWTLEDURINGCALIBRATION` | desligado | `y` aceita solução `good` com TLE como "calibrou" (a linguagem ganha TL mesmo estourando o `CALIBRATIONTL` — casos raros de good deliberadamente no limite) | 0 |
+| `TLOVERRIDE[<lang>]` / `TLOVERRIDE[default]` | sem override | **o autor decide o TL na marra** (segundos, por linguagem + default). A calibração continua rodando (e o histórico dela fica visível), mas o valor FINAL — no julgamento (o juiz aplica DEPOIS dos `TLMOD`, então ele vence tudo) e em TODA exibição (treino, contest, folha de TL da prova, `/problems/tl`) — é `TLOVERRIDE[lang] // TLOVERRIDE[default] // calibrado[lang]`. Só valor numérico literal (`TLOVERRIDE[java]=2.5`); o servidor lê por grep, nunca executa o conf. ⚠ mudar o override muda o tl-checksum ⇒ dispara uma recalibração (inofensiva — o override vence de qualquer jeito) | 0 |
 
 A coluna "uso hoje" conta em quantos dos 453 `conf` do acervo a chave aparece. Um zero não quer dizer
 que a chave não funciona: quer dizer que o default serve para quase todo problema. Mexa só quando

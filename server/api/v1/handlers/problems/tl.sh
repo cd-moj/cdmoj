@@ -48,14 +48,20 @@ fi
 # usa isto p/ não gritar "falhou em TODAS as máquinas" enquanto o juiz nem rodou.
 calibrating="$(calibrating_set 2>/dev/null)"; [[ -n "$calibrating" ]] || calibrating='[]'
 
+# TLOVERRIDE do conf: time_limits sai o EFETIVO (o que o aluno vê e o juiz honra);
+# o calibrado cru fica em time_limits_calibrated e o override declarado em tl_override.
+tlcal="$(tl_store_served_for "$id" "$cur")"
+ov="$(tl_conf_overrides "$pdir")"
 body="$(jq -cn --arg p "$id" --arg cks "$cur" \
-   --argjson tl "$(tl_store_served_for "$id" "$cur")" \
+   --argjson tl "$(tl_override_apply "$tlcal" "$ov")" \
+   --argjson tlcal "$tlcal" --argjson ov "$ov" \
    --argjson store "$store" --argjson calibrating "$calibrating" \
    --arg reason "$reason" --argjson changes "$changes" --argjson chfiles "$chfiles" '
    ($store.checksum // "") as $cal
    | (($store.hosts // {}) | length > 0) as $calibrated
    | ($calibrated and $cal != $cks and $cal != "") as $recal
    | {success:true, problem:$p, checksum:$cks, time_limits:$tl,
+      time_limits_calibrated:$tlcal, tl_override:$ov,
       calibrated_checksum:$cal, hosts:($store.hosts // {}),
       updated_at:($store.updated_at // null), calibrated_at:($store.updated_at // null),
       calibrated:$calibrated,

@@ -5945,7 +5945,7 @@
           "problems"
         ],
         "summary": "Time limits AO VIVO + staleness exata de 1 problema (com o PORQUÊ da recalibração)",
-        "description": "Recomputa o checksum do pacote agora (1 problema) e devolve o TL servível + stale/needs_recalibration exatos. Quando needs_recalibration, explica o motivo: reason (checksum velho→novo), changes = commits desde a calibração que tocaram os caminhos cobertos pelo tl-checksum (conf, tests/input, sols/good, scripts; [{sha,at,author,subject}], ≤20) e changed_files (≤30). Acesso: dono/colaborador OU público (require_problem_view; 404 senão). Versão não-admin do /ops/problemtl.",
+        "description": "Recomputa o checksum do pacote agora (1 problema) e devolve o TL servível + stale/needs_recalibration exatos. time_limits = o EFETIVO: com TLOVERRIDE no conf do pacote, override[lang] // override[default] // calibrado[lang]; time_limits_calibrated = o cru dos juízes; tl_override = o declarado no conf ({} sem override). Quando needs_recalibration, explica o motivo: reason (checksum velho→novo), changes = commits desde a calibração que tocaram os caminhos cobertos pelo tl-checksum (conf, tests/input, sols/good, scripts; [{sha,at,author,subject}], ≤20) e changed_files (≤30). Acesso: dono/colaborador OU público (require_problem_view; 404 senão). Versão não-admin do /ops/problemtl.",
         "security": [
           {
             "bearerAuth": []
@@ -5966,7 +5966,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problem,checksum,time_limits,calibrated_checksum,hosts,updated_at,calibrated_at,calibrated,being_calibrated,stale,needs_recalibration} + quando needs_recalibration: {reason,changes,changed_files}. being_calibrated=true enquanto há calibração pendente/em execução p/ o problema."
+            "description": "{problem,checksum,time_limits,time_limits_calibrated,tl_override,calibrated_checksum,hosts,updated_at,calibrated_at,calibrated,being_calibrated,stale,needs_recalibration} + quando needs_recalibration: {reason,changes,changed_files}. being_calibrated=true enquanto há calibração pendente/em execução p/ o problema."
           },
           "404": {
             "description": "privado e o login não é dono/colaborador (not_found)"
@@ -6067,7 +6067,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{id,checksum,good_langs,missing_langs,hosts:[{host,tl,missing,at,log,reports}]} — missing_langs = linguagem good sem TL em NENHUM host (solução good falhou em todas as máquinas); hosts[].missing = faltantes naquele juiz"
+            "description": "{id,checksum,good_langs,missing_langs,tl_override,hosts:[{host,tl,missing,at,log,reports,sols}]} — missing_langs = linguagem good sem TL em NENHUM host (solução good falhou em todas as máquinas); hosts[].missing = faltantes naquele juiz; sols = calibração POR EXTENSO estruturada [{file,lang,category:good|pass|slow|wrong,verdict,tests:[{name,code,time,tl}]}] (mesmo formato do vetor tests da submissão normal; [] = juiz antigo); tl_override = TLOVERRIDE do conf do pacote ({} sem override)"
           }
         }
       }
@@ -6115,6 +6115,114 @@
         "responses": {
           "200": {
             "description": "text/html do report da solução",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/problems/test-run": {
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Roda UMA solução avulsa NO JUIZ (autoria; fora do history)",
+        "description": "Job real na fila (banda lista-privada, contest sentinela _testrun): mesma jaula e mesmo TL da submissão de aluno, sem tocar history/placar de ninguém. Gate: membro da org (require_problem_edit; 404). Teto SUBMIT_MAX_KB (413 source_too_large); linguagens = PLATAFORMA ∪ languages do pacote (400 lang_not_allowed); máx 3 runs queued por login (429 testrun_busy). Auditado (test-run). Registro em run/testrun/ com TTL de 7 dias.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "code_b64"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "filename": {
+                    "type": "string"
+                  },
+                  "code_b64": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{run:<32hex>, status:\"queued\"}"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Polling de um test-run",
+        "description": "{run,problem_id,filename,lang,status:queued|done,requested_at} e, quando done, +{verdict,verdict_canon,score,correct,total_tests,duration_s,tl_used,tests:[{name,code,time,tl}],finished_at,report:bool} — o vetor tests é o MESMO da submissão normal. Gate pelo problema DO REGISTRO (membro da org; 404).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "registro do test-run"
+          }
+        }
+      }
+    },
+    "/problems/test-run-report": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "report.html de um test-run",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/html do report (404 enquanto julga/expirado). Mesmo gate do registro.",
             "content": {
               "text/html": {
                 "schema": {

@@ -9,12 +9,19 @@ problem="$(param problem)"
 [[ -n "$problem" ]] || fail 400 "Missing problem" "problem_missing"
 valid_id "$problem" || fail 400 "Invalid problem" "problem_invalid"
 
-cur="$(pkg_tl_checksum "$(pkg_path "$problem")")"
-emit_json 200 OK
-jq -cn --arg p "$problem" --arg cks "$cur" \
-   --argjson tl "$(tl_store_served_for "$problem" "$cur")" \
+pdir="$(pkg_path "$problem")"
+cur="$(pkg_tl_checksum "$pdir")"
+tlcal="$(tl_store_served_for "$problem" "$cur")"
+ov="$(tl_conf_overrides "$pdir")"   # time_limits = efetivo (TLOVERRIDE do conf vence)
+body="$(jq -cn --arg p "$problem" --arg cks "$cur" \
+   --argjson tl "$(tl_override_apply "$tlcal" "$ov")" \
+   --argjson tlcal "$tlcal" --argjson ov "$ov" \
    --argjson store "$(tl_store_get "$problem")" '
    {success:true, problem:$p, checksum:$cks, time_limits:$tl,
+    time_limits_calibrated:$tlcal, tl_override:$ov,
     calibrated_checksum:($store.checksum // ""),
     hosts:($store.hosts // {}), updated_at:($store.updated_at // null),
-    stale:(($store.checksum // "") != $cks and ($store.checksum // "") != "")}'
+    stale:(($store.checksum // "") != $cks and ($store.checksum // "") != "")}')"
+[[ -n "$body" ]] || fail 500 "Falha ao montar a resposta" "tl_fail"
+emit_json 200 OK
+printf '%s' "$body"

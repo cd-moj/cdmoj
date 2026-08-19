@@ -139,9 +139,44 @@ tl_store_served_hosts(){
            | with_entries(.value |= tostring)
       end' "$f" 2>/dev/null || echo '{}'
 }
+# ===== TLOVERRIDE — o autor decide o TL "na marra" pelo conf do PACOTE ==============
+# Chave associativa no conf: TLOVERRIDE[default]=1.0, TLOVERRIDE[java]=2.5. A calibração
+# continua rodando (e o histórico dela fica visível), mas o valor EXIBIDO (treino, contest,
+# docs da prova) e o JULGADO (build-and-test source-a o conf no juiz) são o override.
+# ⚠ O conf é CÓDIGO do autor: o servidor NUNCA o source-a — parse por sed/grep.
+# tl_conf_overrides <pkgdir> -> {lang:"seg"} das linhas TLOVERRIDE válidas, ou {}.
+tl_conf_overrides(){
+  local conf="$1/conf"
+  [[ -n "$1" && -f "$conf" ]] || { echo '{}'; return; }
+  sed -nE 's/^[[:space:]]*TLOVERRIDE\[([A-Za-z0-9]{1,16})\]=([0-9]+\.?[0-9]*|\.[0-9]+)[[:space:]]*(#.*)?$/\1\t\2/p' \
+      "$conf" 2>/dev/null \
+    | jq -Rnc '[inputs | split("\t") | select(length==2)
+                | {((.[0] | if .=="py3" or .=="py2" then "py" else . end)): .[1]}]
+               | add // {}'
+}
+# tl_override_apply <tl-json> <ov-json> -> TL efetivo: p/ cada linguagem (união das chaves),
+# TLOVERRIDE[lang] // TLOVERRIDE[default] // calibrado[lang]. Valores string (convenção do store).
+tl_override_apply(){
+  local tl="$1" ov="$2"
+  jq -e . >/dev/null 2>&1 <<<"$tl" || tl='{}'
+  [[ -n "$ov" ]] && jq -e 'length > 0' >/dev/null 2>&1 <<<"$ov" || { printf '%s' "$tl"; return; }
+  jq -cn --argjson tl "$tl" --argjson ov "$ov" '
+    (($tl|keys) + ($ov|keys) | unique) as $ks
+    | reduce $ks[] as $k ({}; .[$k] = ($ov[$k] // $ov["default"] // $tl[$k]))
+    | with_entries(select(.value != null) | .value |= tostring)'
+}
+
 # tl_store_served <id> [hosts] -> time_limits p/ a versão ATUAL do pacote no store do
-# servidor; 2º arg opcional restringe ao pool ("h1 h2 …").
-tl_store_served(){ tl_store_served_hosts "$1" "$(pkg_tl_checksum "$(pkg_path "$1")")" "${2:-}"; }
+# servidor, JÁ com o TLOVERRIDE do conf aplicado (é a função dos leitores de exibição:
+# contest/problems, docs da prova); 2º arg opcional restringe ao pool ("h1 h2 …").
+# O valor CRU (só calibrado) continua em tl_store_served_for/tl_store_served_hosts.
+tl_store_served(){
+  local pkg tl ov
+  pkg="$(pkg_path "$1")"
+  tl="$(tl_store_served_hosts "$1" "$(pkg_tl_checksum "$pkg")" "${2:-}")"
+  ov="$(tl_conf_overrides "$pkg")"
+  tl_override_apply "$tl" "$ov"
+}
 # tl_store_get <id> -> store bruto (ou {})
 tl_store_get(){ cat "$(tl_store_file "$1")" 2>/dev/null || echo '{}'; }
 

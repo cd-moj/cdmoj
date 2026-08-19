@@ -127,6 +127,12 @@ juiz (repo judge/, agente moj-agent@)
 offline o job **espera na fila** (o preflight/dashboard avisam). Protocolo completo em
 `server/judge-gw/PULL.md`.
 
+**Test-run de autoria** (`POST /problems/test-run`, `moj testrun`): o autor roda UMA solução
+avulsa no juiz real — o job entra na MESMA fila (banda `040-lista-privada`) com o contest
+**sentinela `_testrun`**, o juiz o julga como submissão normal, e o `ingest_result` do judged
+DESVIA o resultado p/ `run/testrun/<run>.json` (+ `r/<run>.html`) em vez do history — não é
+submissão de ninguém, não toca placar. Gate de EDIÇÃO no problema; TTL de 7 dias.
+
 ## 5. Registro + heartbeat — `sched-lib.sh` + `handlers/judge/*`
 
 Cada juiz se registra (`POST /judge/register`) e manda heartbeat (`POST /judge/heartbeat`),
