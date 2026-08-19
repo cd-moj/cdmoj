@@ -7121,6 +7121,7 @@
           "problems"
         ],
         "summary": "Compartilha o diretório (só o dono gerencia)",
+        "description": "Cada login em add precisa EXISTIR no treino e PODER CRIAR PROBLEMAS (cc_can_create) — 422 login_invalid / 404 user_notfound / 403 cannot_create, recusa atômica; remove não valida.",
         "security": [
           {
             "bearerAuth": []
@@ -7269,6 +7270,7 @@
           "orgs"
         ],
         "summary": "Cria org (criador vira membro+admin; exige cc_can_create)",
+        "description": "Cada login de members/admins precisa EXISTIR no treino e PODER CRIAR PROBLEMAS (cc_can_create) — 422/404/403 senão, recusa atômica (a org nem nasce).",
         "security": [
           {
             "bearerAuth": []
@@ -7352,6 +7354,7 @@
           "orgs"
         ],
         "summary": "Gerencia membros/admins (só admin da org)",
+        "description": "add/admins_add validam cada login (existe no treino + cc_can_create; 422 login_invalid / 404 user_notfound / 403 cannot_create, recusa atômica); remove/admins_remove não validam (lixo já gravado precisa poder sair).",
         "security": [
           {
             "bearerAuth": []

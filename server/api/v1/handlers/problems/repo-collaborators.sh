@@ -15,8 +15,10 @@ owner="$(jq -r --arg n "$repo" '.[$n].created_by // ""' "$ORGS_REGISTRY" 2>/dev/
 if [[ "$REQUEST_METHOD" == POST ]]; then
   org_can_manage "$repo" "$SESSION_LOGIN" || fail 403 "Só um admin da org gerencia o compartilhamento" "forbidden"
   org_is_implicit "$repo" && fail 409 "Org implícita não compartilha" "implicit"
-  add="$(jq -c '(.add // []) | map(select(test("^[A-Za-z0-9][A-Za-z0-9._-]*$")))' <<<"$body")"
+  add="$(jq -c '.add // []' <<<"$body")"
   rem="$(jq -c '(.remove // [])' <<<"$body")"
+  # quem ENTRA precisa existir e poder criar problemas (422/404/403 atômico); remove não valida
+  org_require_valid_logins "$add"
   newm="$(jq -cn --argjson c "$(org_members "$repo")" --argjson a "$add" --argjson r "$rem" --arg o "$owner" '((($c+$a)-$r)+[$o])|unique')"
   org_set_members "$repo" "$newm"
   audit_log "repo-collaborators" "org=$repo by=$SESSION_LOGIN"

@@ -29,6 +29,28 @@ org_can_manage(){
 # org_list_for <login> -> JSON array de nomes de org de que o login é membro/admin (inclui a implícita).
 org_list_for(){ _orgs_read | jq -c --arg u "$1" '[to_entries[]|select(((.value.members//[])+(.value.admins//[]))|index($u))|.key]|sort'; }
 
+# org_require_valid_logins <json-array> — valida CADA login que está ENTRANDO numa org (como
+# membro ou admin): formato, a conta EXISTE no treino, e PODE CRIAR PROBLEMAS (cc_can_create —
+# a MESMA régua do /problems/create: membro de org edita o acervo inteiro dela). Qualquer um
+# reprovado = fail nomeando o login e o motivo (recusa ATÔMICA — nada foi gravado ainda).
+# Antes disso um select() mudo descartava o que não casava a regex e gravava o resto sem
+# conferir nada: typo virava membro fantasma. REMOÇÕES nunca passam por aqui — lixo já
+# gravado precisa poder sair.
+org_require_valid_logins(){
+  local arr="$1" l reason
+  jq -e 'type=="array"' >/dev/null 2>&1 <<<"$arr" || arr='[]'
+  declare -F cc_can_create >/dev/null \
+    || source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/contest-create.sh"
+  while IFS= read -r l; do
+    [[ "$l" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || fail 422 "Login inválido: '$l'" "login_invalid"
+    user_exists treino "$l" || fail 404 "Não existe conta no treino: '$l'" "user_notfound"
+    if ! cc_can_create "$l"; then
+      reason="${CC_REASON:-sem permissão}"   # capturado JÁ: os globais CC_* mudam a cada chamada
+      fail 403 "'$l' não pode criar problemas ($reason) — membro de org edita o acervo dela" "cannot_create"
+    fi
+  done < <(jq -r '.[]' <<<"$arr")
+}
+
 # ---- escrita do registro (atômica) --------------------------------------------------------
 # org_register <org> <creator> [members-csv] [admins-csv] [title] [public_allowed:true|false]
 # O criador entra como membro E admin. public_allowed só LIGA (nunca desliga aqui). Idempotente.

@@ -12,8 +12,14 @@ name="$(jq -r '.name // empty' <<<"$body")"
 [[ "$name" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ ]] || fail 400 "Nome de org inválido (use [a-z0-9._-])" "name_invalid"
 if org_exists "$name"; then org_can_manage "$name" "$SESSION_LOGIN" || fail 409 "Org já existe" "taken"; fi
 title="$(jq -r '.title // empty' <<<"$body")"
-members_csv="$(jq -r '(.members // []) | map(select(test("^[A-Za-z0-9][A-Za-z0-9._-]*$"))) | join(",")' <<<"$body")"
-admins_csv="$(jq -r '(.admins // []) | map(select(test("^[A-Za-z0-9][A-Za-z0-9._-]*$"))) | join(",")' <<<"$body")"
+# cada login que ENTRA precisa existir e poder criar problemas (422/404/403 — recusa atômica,
+# a org nem nasce); antes um select() mudo descartava inválido e gravava o resto sem conferir
+members_json="$(jq -c '.members // []' <<<"$body")"
+admins_json="$(jq -c '.admins // []' <<<"$body")"
+org_require_valid_logins "$members_json"
+org_require_valid_logins "$admins_json"
+members_csv="$(jq -r 'join(",")' <<<"$members_json")"
+admins_csv="$(jq -r 'join(",")' <<<"$admins_json")"
 pa="$(jq -r 'if .public_allowed==true then "true" else "false" end' <<<"$body")"
 
 org_register "$name" "$SESSION_LOGIN" "$members_csv" "$admins_csv" "$title" "$pa"

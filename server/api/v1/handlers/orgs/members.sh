@@ -16,10 +16,14 @@ cb="$(jq -r --arg n "$name" '.[$n].created_by // ""' "$ORGS_REGISTRY" 2>/dev/nul
 if [[ "$REQUEST_METHOD" == POST ]]; then
   org_can_manage "$name" "$SESSION_LOGIN" || fail 403 "Só um admin da org gerencia membros" "forbidden"
   org_is_implicit "$name" && fail 409 "Org implícita não tem gestão de membros" "implicit"
-  add="$(jq -c '(.add // []) | map(select(test("^[A-Za-z0-9][A-Za-z0-9._-]*$")))' <<<"$body")"
+  add="$(jq -c '.add // []' <<<"$body")"
   rem="$(jq -c '(.remove // [])' <<<"$body")"
-  aadd="$(jq -c '(.admins_add // []) | map(select(test("^[A-Za-z0-9][A-Za-z0-9._-]*$")))' <<<"$body")"
+  aadd="$(jq -c '.admins_add // []' <<<"$body")"
   arem="$(jq -c '(.admins_remove // [])' <<<"$body")"
+  # quem ENTRA (add/admins_add) precisa existir e poder criar problemas (422/404/403 atômico);
+  # remove/admins_remove não validam — lixo já gravado precisa poder sair
+  org_require_valid_logins "$add"
+  org_require_valid_logins "$aadd"
   # remove = sai da org (membro e admin); admins_remove = rebaixa a membro. Criador é blindado.
   newm="$(jq -cn --argjson c "$(org_members "$name")" --argjson a "$add" --argjson aa "$aadd" --argjson r "$rem" --arg cb "$cb" '((($c+$a+$aa)-$r)+[$cb])|unique')"
   newa="$(jq -cn --argjson c "$(org_admins "$name")"  --argjson aa "$aadd" --argjson ar "$arem" --argjson r "$rem" --arg cb "$cb" '(((($c+$aa)-$ar)-$r)+[$cb])|unique')"

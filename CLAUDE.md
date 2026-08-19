@@ -447,7 +447,11 @@ indexa inline; sem mirror/push/token/LFS/webhook. O `<org>` do id `<org>#<prob>`
 **admins** gerem membros + a trava **`public_allowed`** (privada por PADRÃO ⇒ problemas nunca ficam
 públicos: anti-vazamento de prova; rebaixar a org despublica em cascata) + **removem a org VAZIA**
 (`/orgs/delete`: só admin, org **implícita** e org com problema ⇒ **409**; vazio conferido em disco).
-Cada usuário tem a org implícita `<login>` (sempre privada). Migração/cut-over:
+Cada usuário tem a org implícita `<login>` (sempre privada). **Quem ENTRA numa org
+(membro/admin, pelos 3 escritores: orgs/create, orgs/members, problems/repo-collaborators)
+precisa EXISTIR no treino e PODER CRIAR PROBLEMAS** — `org_require_valid_logins` (lib/orgs.sh,
+reusa `cc_can_create`; 422/404/403, recusa ATÔMICA; remoção nunca valida — lixo pré-existente
+precisa poder sair). Teste: `smoke-orgs.sh`. Migração/cut-over:
 `server/bin/migrate-to-orgs.sh`. **Mover** um problema de rascunho entre orgs: `/problems/move`
 (muda o id; recusa público/em uso; membro das DUAS orgs) — na web (editor + lista) e no `moj mv`.
 
