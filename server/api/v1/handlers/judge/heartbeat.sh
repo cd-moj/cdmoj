@@ -83,20 +83,27 @@ if [[ "$command" == null && "$disabled" != true ]] && (( free_slots > 0 )); then
     update="$upd"
     claimed=1
   else
-    # 2) LOTE: reivindica até free_slots jobs da fila de prioridade
+    # 2) LOTE: reivindica até free_slots jobs da fila de prioridade.
+    # Os jobs agregam por ARQUIVO (1/linha + jq -s), NUNCA por --argjson: job com fonte
+    # grande (base64 >128 KiB) estourava o teto por-argumento do jq, o beat saía 200 com
+    # corpo VAZIO e o job — que o q_claim JÁ tinha movido p/ assigned/ — quicava
+    # assigned→TTL→fila p/ sempre (4ª instância da classe ARG_MAX, pega pela prova de
+    # fogo do incidente 2026-08-19: fonte de 200 KiB julgável de ponta a ponta).
     cap="$(jq -r '.capability // "pos"' "$REGISTRYDIR/$host.json" 2>/dev/null)"
     probs="$(jq -c '.problems // {}' "$REGISTRYDIR/$host.json" 2>/dev/null)"
     langs="$(jq -c '.langs // []' "$REGISTRYDIR/$host.json" 2>/dev/null)"
-    assigned='[]'
+    JOBSF="$(mktemp)"
     while (( claimed < free_slots )); do
       job="$(q_claim "$host" "$cap" "$probs" "$langs")"
       [[ -n "$job" ]] && jq -e . >/dev/null 2>&1 <<<"$job" || break
-      assigned="$(jq -c --argjson j "$job" '. + [$j]' <<<"$assigned")"
+      jq -c . <<<"$job" >> "$JOBSF"
       claimed=$((claimed+1))
     done
-    if [[ "$assigned" == '[]' ]]; then assigned=null
-    elif [[ "$batch" != true ]]; then assigned="$(jq -c '.[0]' <<<"$assigned")"   # agente antigo: escalar
+    if [[ -s "$JOBSF" ]]; then
+      assigned="$(jq -cs 'if $batch then . else .[0] end' --argjson batch "$batch" "$JOBSF")"
+      [[ -n "$assigned" ]] || assigned=null
     fi
+    rm -f "$JOBSF"
   fi
 fi
 
@@ -107,8 +114,10 @@ reg_touch_state "$host" "$st"
 reg_set "$host" '.free_slots=$f | .total_slots=$t' \
   --argjson f "$left" --argjson t "$total_slots" 2>/dev/null || true
 
-emit_json 200 OK
-jq -cn --argjson a "$assigned" --argjson u "$update" --argjson rr "$reregister" \
-   --argjson cmd "$command" --argjson cfg "$config" \
-  '{success:true, assigned:$a, update:$u, reregister:$rr, command:$cmd}
-   + (if $cfg == null then {} else {config:$cfg} end)'
+# assigned entra por --slurpfile (ok_json_slurp): pode passar de 128 KiB e o corpo é
+# montado ANTES do cabeçalho — falha do jq vira 500 build_fail, nunca 200 vazio.
+ok_json_slurp '{assigned:$a[0], update:$u, reregister:$rr, command:$cmd}
+   + (if $cfg == null then {} else {config:$cfg} end)' \
+  a "$assigned" \
+  --argjson u "$update" --argjson rr "$reregister" \
+  --argjson cmd "$command" --argjson cfg "$config"

@@ -134,4 +134,27 @@ ck "veredicto fora da lista → 400" 'grep -q "verdict_invalid" <<<"$BODY"'
 qcall GET 'details=1' '' joana-token
 ck "não-admin → 401/403"          '! grep -q "pending_details" <<<"$BODY"'
 
+echo "== heartbeat: job com fonte GRANDE atravessa o beat inteiro (4ª instância ARG_MAX) =="
+# o q_claim tirava o job da fila, o --argjson do lote estourava e o beat respondia 200 com
+# corpo vazio — o job quicava assigned→TTL→fila p/ sempre, sem nunca chegar ao juiz.
+mkdir -p "$RUN/secrets" "$RUN/queue/080-lista-publica" "$RUN/registry"
+printf 'mojw_smoketest' > "$RUN/secrets/worker.token"
+rm -f "$RUN"/queue/*/*.json   # sobras dos blocos anteriores (drain do judged) fora do lote
+jq -cn --argjson now "$NOW" \
+  '{host:"jtest", state:"free", last_seen:$now, capability:"pos",
+    problems:{"col#pa":1}, langs:[], inv_hash:"ih"}' > "$RUN/registry/jtest.json"
+HBID="cafe0000cafe0000cafe0000cafe0000"
+printf '%s' "$B64BIG" > "$FIX/b64big"   # --rawfile: o base64 nunca anda por argv (a regra!)
+jq -cn --rawfile b "$FIX/b64big" --arg id "$HBID" \
+  '{contest:"sp", id:$id, problem_id:"col#pa", login:"aluno", lang:"C",
+    filename:"big.c", code_b64:$b}' > "$RUN/queue/080-lista-publica/${NOW}_$HBID.json"
+OUT="$(PATH_INFO=/judge/heartbeat REQUEST_METHOD=POST QUERY_STRING="host=jtest" \
+  HTTP_AUTHORIZATION="Bearer mojw_smoketest" bash "$ROUTER" \
+  <<<'{"host":"jtest","state":"free","free_slots":2,"total_slots":2,"inv_hash":"ih","status":"ok"}' 2>/dev/null)"
+BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"
+ck "beat respondeu com corpo"       '[[ -n "$BODY" ]] && jq -e .success <<<"$BODY" >/dev/null 2>&1'
+ck "assigned traz o job (lote)"     '[[ "$(jq -r ".assigned | length" <<<"$BODY" 2>/dev/null)" == 1 && "$(jq -r ".assigned[0].id" <<<"$BODY" 2>/dev/null)" == "$HBID" ]]'
+ck "fonte chegou INTEIRA ao juiz"   '[[ "$(jq -r ".assigned[0].code_b64 | length" <<<"$BODY" 2>/dev/null)" == "${#B64BIG}" ]]'
+ck "job saiu da fila p/ assigned/"  '[[ -e "$RUN/assigned/jtest/${NOW}_$HBID.json" ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

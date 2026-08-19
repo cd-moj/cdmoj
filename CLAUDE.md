@@ -25,7 +25,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   ⚠ e vale TAMBÉM para dado de UM usuário: a FONTE de submissão passava por `--arg b` no
   /submit e no judged (fonte >~96 KiB = spool/job de 0 bytes, submissão pendente p/ SEMPRE —
   incidente 2026-08-19, 6 presas). Regra: **código de aluno/mojlog nunca anda por argv de
-  jq** — `--rawfile`/`--slurpfile` de ponta a ponta. E o /submit é FAIL-CLOSED: valida o spool
+  jq** — `--rawfile`/`--slurpfile` de ponta a ponta. A 4ª instância estava no
+  `/judge/heartbeat` (o lote de jobs agregava por `--argjson`): o `q_claim` já tinha movido
+  o job p/ `assigned/`, o beat respondia 200 VAZIO e o job quicava assigned→TTL→fila p/
+  sempre — fonte grande era aceita mas nunca julgada. Hoje o lote agrega por arquivo e a
+  resposta sai por `ok_json_slurp`. E o /submit é FAIL-CLOSED: valida o spool
   antes do OK; o judged nunca descarta submit em silêncio (JSON ruim → Judge Error na linha) e
   o **reconciliador** (`reconcile_stale_pending`, `--reconcile` p/ rodar à mão) resolve
   pendência órfã >15 min (re-enfileira com fonte 1×; sem fonte → Judge Error). Whitelist de

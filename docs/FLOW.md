@@ -139,7 +139,10 @@ run/registry/<host>.json     (cpu, langs, slots, last_seen; vivo = last_seen rec
 
 O escalonador in-daemon (`sched-lib.sh`) casa job×juiz por **capacidade** e por
 `allowed_hosts`, com claim atômico (`flock`+`mv` p/ `run/assigned/`); job reivindicado sem
-novo beat em `ASSIGN_TTL` (120s) volta p/ a fila.
+novo beat em `ASSIGN_TTL` (120s) volta p/ a fila. No beat, o lote de jobs agrega por
+**arquivo** e a resposta sai por `ok_json_slurp` — job com fonte grande (>128 KiB de
+base64) passava do teto por-argumento do jq, o beat respondia 200 vazio e o job quicava
+assigned→TTL→fila p/ sempre (incidente 2026-08-19).
 
 ## 6. Juízes — `judge/` (máquinas separadas, modelo pull)
 
