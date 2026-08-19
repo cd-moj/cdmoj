@@ -30,6 +30,9 @@ o modelo **pull** (os juízes puxam o job no heartbeat — sem master, sem push 
       5. arquiva o fonte em users/<login>/submissions/<id>.<ext>
       6. roda server/score/build.sh <c>  ──▶  reescreve var/placar.txt
       7. move o arquivo de spool p/ run/spool/submissions-done/
+      (+ spool de submit INVÁLIDO vira "Judge Error" na linha do history — nunca descarte mudo;
+       e o reconciliador resolve pendência órfã >15 min: com fonte re-enfileira 1×, sem fonte
+       Judge Error — incidente 2026-08-19)
                                                               │
    Placar:  GET /api/v1/contest/score  ◀── lê var/placar.txt (1ª linha = modo)
 ```

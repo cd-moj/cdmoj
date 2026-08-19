@@ -14,12 +14,21 @@ _lang_canon(){ local t; t="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
     *)              printf '%s' "$t";;
   esac; }
 
-# effective_problem_langs <contest> <problem_id> -> array JSON ([] = todas as linguagens).
+# PLATFORM_LANGS — as linguagens que a PLATAFORMA roda (espelho de mojtools/lang/, menos o
+# alias py3). É o CHÃO da whitelist: lista efetiva vazia significa "estas", nunca "qualquer
+# extensão" — foi assim que um `.exe` (binário!) entrou na fila e ficou pendente para sempre
+# (incidente 2026-08-19). Linguagem exótica continua possível: o problema/contest declara
+# `languages` EXPLÍCITO (com o toolchain no pacote), e lista explícita é soberana.
+: "${PLATFORM_LANGS:=apl c cpp cs go hs java js kt ml pas pl py riscv rs sh spim}"
+platform_langs_json(){ printf '%s\n' $PLATFORM_LANGS | jq -R . | jq -cs .; }
+
+# effective_problem_langs <contest> <problem_id> -> array JSON ([] = PLATFORM_LANGS p/ o
+# enforcement; a listagem também trata [] como "as da plataforma").
 # Cadeia mais-específico-vence (a MESMA da listagem do contest):
 #   1. override por-problema no contest (problem-langs.json)
 #   2. whitelist do contest (LANGUAGES do conf)
 #   3. default do PACOTE (var/jsons{,-private}/<id>.json .languages)
-#   4. [] = todas (sem restrição)
+#   4. [] = as linguagens da plataforma (PLATFORM_LANGS)
 # O conf é sourced em SUBSHELL (não vaza globais p/ o handler chamador).
 effective_problem_langs(){
   local contest="$1" pid="$2" plangs="" clangs="" pjf
@@ -40,7 +49,8 @@ effective_problem_langs(){
 # Compara CANÔNICO dos dois lados: x.py3 passa em ["py"]; ids exóticos comparam literal.
 lang_allowed(){
   local langs="$1" ext="$2" c
-  [[ -z "$langs" || "$langs" == '[]' || "$langs" == null ]] && return 0
+  # lista vazia = o CHÃO da plataforma (nunca "qualquer extensão" — ver PLATFORM_LANGS acima)
+  [[ -z "$langs" || "$langs" == '[]' || "$langs" == null ]] && langs="$(platform_langs_json)"
   c="$(_lang_canon "$ext")"
   jq -e --arg c "$c" 'map( ascii_downcase
       | (if .=="c++" or .=="cc" or .=="cxx" or .=="hpp" then "cpp"

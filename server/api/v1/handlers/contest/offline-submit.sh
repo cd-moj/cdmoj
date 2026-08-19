@@ -104,11 +104,19 @@ while (( i < NP )); do
   mkdir -p "$SPOOLDIR"
   spoolname="$contest:$claimed:$ID:$SESSION_LOGIN:submit:$problem:$FILETYPE"
   tmp="$SPOOLDIR/.in.$ID"
+  # a FONTE vai por ARQUIVO (--rawfile), nunca argv: `--arg b` estourava ARG_MAX >~96 KiB e
+  # publicava spool de 0 bytes (pendente eterno) — mesma classe do /submit online
+  _b64f="$(mktemp)"; printf '%s' "$codeb64" > "$_b64f"
   jq -cn --arg c "$contest" --arg l "$SESSION_LOGIN" --arg p "$problem" \
-     --arg f "$filename" --arg b "$codeb64" --arg t "$FILETYPE" \
+     --arg f "$filename" --rawfile b "$_b64f" --arg t "$FILETYPE" \
      --argjson ts "$claimed" --arg id "$ID" \
      '{contest:$c, login:$l, problem_id:$p, filename:$f, code_b64:$b, lang:$t,
        time:$ts, id:$id, offline:true}' > "$tmp"
+  rm -f "$_b64f"
+  # FAIL CLOSED: spool inválido = rejeita o pacote (o competidor reenvia), nunca pendente mudo
+  if ! jq -e '.code_b64 | length > 0' "$tmp" >/dev/null 2>&1; then
+    rm -f "$tmp"; exec 8>&-; reject "falha ao gravar a submissão (tente de novo)"; continue
+  fi
   mv -f "$tmp" "$SPOOLDIR/$spoolname"
 
   user_history_append "$contest" "$SESSION_LOGIN" \

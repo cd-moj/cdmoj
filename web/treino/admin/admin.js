@@ -400,7 +400,7 @@ function makeQueueTab() {
     let q, judges, resp, calib;
     try {
       [q, judges, resp, calib] = await Promise.all([
-        apiGet('/treino/admin/queue', G()),
+        apiGet('/treino/admin/queue?details=1', G()),
         apiGet('/treino/admin/judges', G()).catch(() => ({ machines: [] })),
         apiGet('/treino/admin/response-stats', G()).catch(() => ({})),
         apiGet('/treino/admin/calib-activity', G()).catch(() => ({})),
@@ -464,6 +464,75 @@ function makeQueueTab() {
       s1.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' }, T('Pendentes por lista', 'Pending per list')));
       s1.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
         el('thead', {}, el('tr', {}, el('th', {}, T('Lista', 'List')), el('th', {}, 'Contest'), el('th', {}, T('Pendentes', 'Pending')))), tb)));
+    }
+
+    // QUAIS são as pendentes (quem, o quê, desde quando, estado no pipeline) + ações.
+    // Nasceu do incidente 2026-08-19: 6 submissões mudas — o admin via só o NÚMERO.
+    const pend = q.pending_details || [];
+    if (pend.length) {
+      const ptb = el('tbody');
+      const stLabel = (st) => ({
+        'no-spool': T('no spool', 'in spool'), 'na-fila': T('na fila', 'queued'),
+        'em-julgamento': T('em julgamento', 'judging'),
+        'consumido-sem-veredicto': T('consumida SEM veredicto', 'consumed WITHOUT verdict'),
+        'sem-rastro': T('sem rastro', 'no trace') }[st] || st);
+      pend.forEach(pd => {
+        const age = pd.age_s || 0;
+        const ageEl = el('span', { style: age > 3600 ? 'color:var(--err);font-weight:700'
+          : age > 900 ? 'color:var(--warn);font-weight:700' : '' },
+          age > 3600 ? Math.floor(age / 3600) + 'h' + Math.floor((age % 3600) / 60) + 'm'
+                     : Math.floor(age / 60) + 'm');
+        const msg = el('div', { class: 'small muted' });
+        const logBox = el('tr', { style: 'display:none' }, el('td', { colspan: '7' }));
+        const row = el('tr', {},
+          el('td', { class: 'small', style: 'font-family:var(--mono)' }, pd.contest),
+          el('td', {}, pd.login),
+          el('td', { class: 'small' }, pd.problem + ' · ' + (pd.lang || '?')),
+          el('td', { class: 'small' }, fmtDate(pd.since), ' (', ageEl, ')'),
+          el('td', { class: 'small' }, stLabel(pd.state)),
+          el('td', {},
+            el('button', { class: 'btn ghost', title: T('log e estado desta submissão', 'this submission’s log and state'),
+              onclick: async () => {
+                if (logBox.style.display !== 'none') { logBox.style.display = 'none'; return; }
+                try {
+                  const d = await apiGet('/treino/admin/queue?sub=' + encodeURIComponent(pd.contest + ':' + pd.login + ':' + pd.id), G());
+                  const cell = logBox.firstChild; cell.innerHTML = '';
+                  cell.append(
+                    el('div', { class: 'small', style: 'font-family:var(--mono)' }, d.history_line || ''),
+                    el('div', { class: 'small muted' },
+                      T('estado: ', 'state: ') + stLabel(d.state)
+                      + T(' · fonte: ', ' · source: ') + (d.has_source ? d.source_bytes + ' B' : T('AUSENTE', 'MISSING'))
+                      + T(' · mojlog: ', ' · mojlog: ') + (d.mojlog_bytes ? d.mojlog_bytes + ' B' : T('não existe', 'none'))),
+                    d.mojlog ? el('iframe', { style: 'width:100%;height:16rem;border:1px solid var(--line);border-radius:8px;background:#fff',
+                      sandbox: '', srcdoc: d.mojlog }) : '');
+                  logBox.style.display = '';
+                } catch (e) { msg.textContent = e.message || T('falha', 'failed'); }
+              } }, '📜'),
+            pd.has_source ? el('button', { class: 'btn ghost', title: T('re-enfileirar para julgamento', 're-queue for judging'),
+              onclick: async () => {
+                if (!confirm(T('Re-enfileirar esta submissão?', 'Re-queue this submission?'))) return;
+                try {
+                  await apiPost('/treino/admin/queue', { action: 'requeue', contest: pd.contest, login: pd.login, id: pd.id }, G());
+                  msg.textContent = T('re-enfileirada — recarregue em instantes', 're-queued — reload shortly');
+                } catch (e) { msg.textContent = e.message || T('falha', 'failed'); }
+              } }, '🔁') : '',
+            el('button', { class: 'btn ghost danger', title: T('resolver como Judge Error (não penaliza; o aluno reenvia)', 'resolve as Judge Error (non-penalizing; the student resubmits)'),
+              onclick: async () => {
+                if (!confirm(T('Resolver como Judge Error?', 'Resolve as Judge Error?'))) return;
+                try {
+                  await apiPost('/treino/admin/queue', { action: 'resolve', contest: pd.contest, login: pd.login, id: pd.id, verdict: 'Judge Error' }, G());
+                  msg.textContent = T('resolvida — recarregue em instantes', 'resolved — reload shortly');
+                } catch (e) { msg.textContent = e.message || T('falha', 'failed'); }
+              } }, '✔'),
+            msg));
+        ptb.append(row, logBox);
+      });
+      s1.append(el('div', { class: 'chart-title', style: 'margin-top:.6rem' },
+        T('As pendentes, uma a uma', 'The pending ones, one by one')));
+      s1.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Contest'), el('th', {}, 'Login'),
+          el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Entrou em', 'Entered at')),
+          el('th', {}, T('Estado', 'State')), el('th', {}, T('Ações', 'Actions')))), ptb)));
     }
 
     // (b) Tempo de resposta   (c) Volume

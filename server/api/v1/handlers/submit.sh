@@ -23,10 +23,21 @@ body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 problem="$(jq -r '.problem_id // empty' <<<"$body")"
 filename="$(jq -r '.filename // empty' <<<"$body")"
-codeb64="$(jq -r '.code_b64 // empty' <<<"$body")"
-[[ -n "$problem" && -n "$codeb64" ]] || fail 400 "Missing problem_id or code_b64" "submit_incomplete"
+# ⚠ a FONTE nunca passa por variável de argv: vai do corpo direto para ARQUIVO. O spool era
+# escrito com `--arg b "$codeb64"` — fonte >~96 KiB estourava o ARG_MAX do jq, o spool saía com
+# 0 BYTES e a submissão ficava "Not Answered Yet" para sempre (incidente de 2026-08-19: 6 presas).
+B64F="$(mktemp)"; trap 'rm -f "$B64F"' EXIT
+jq -r '.code_b64 // empty' <<<"$body" | tr -d '\r\n' > "$B64F"
+b64sz="$(stat -c%s "$B64F" 2>/dev/null || echo 0)"
+[[ -n "$problem" && "$b64sz" -gt 0 ]] || fail 400 "Missing problem_id or code_b64" "submit_incomplete"
 valid_id "$problem" || fail 400 "Invalid problem id" "problem_invalid"
 [[ -n "$filename" ]] || filename="solution"
+
+# teto da FONTE (política, não limite técnico — o técnico morreu com o --arg): base64 ≈ 4/3
+: "${SUBMIT_MAX_KB:=1024}"
+if (( b64sz > SUBMIT_MAX_KB * 1024 * 4 / 3 + 4096 )); then
+  fail 413 "Fonte muito grande (máx ${SUBMIT_MAX_KB} KB)" "source_too_large"
+fi
 
 # extensão -> tipo/linguagem (uppercase), como no MOJ
 ext="${filename##*.}"
@@ -39,6 +50,7 @@ else FILETYPE="$(printf '%s' "$ext" | tr '[:lower:]' '[:upper:]')"; fi
 source "$_LIBDIR/langs.sh"
 _wl="$(effective_problem_langs "$contest" "$problem")"
 if ! lang_allowed "$_wl" "$FILETYPE"; then
+  [[ -z "$_wl" || "$_wl" == '[]' ]] && _wl="$(platform_langs_json)"   # mostra o CHÃO real
   _wll="$(jq -r 'join(", ")' <<<"$_wl" 2>/dev/null)"
   if [[ "$FILETYPE" == TXT ]]; then
     fail 400 "Arquivo sem extensão de linguagem — este problema aceita: ${_wll:-?}" "lang_not_allowed"
@@ -53,9 +65,15 @@ mkdir -p "$SPOOLDIR"
 spoolname="$contest:$AGORA:$ID:$SESSION_LOGIN:submit:$problem:$FILETYPE"
 tmp="$SPOOLDIR/.in.$ID"
 jq -cn --arg c "$contest" --arg l "$SESSION_LOGIN" --arg p "$problem" \
-   --arg f "$filename" --arg b "$codeb64" --arg t "$FILETYPE" \
+   --arg f "$filename" --rawfile b "$B64F" --arg t "$FILETYPE" \
    --argjson ts "$AGORA" --arg id "$ID" \
-   '{contest:$c, login:$l, problem_id:$p, filename:$f, code_b64:$b, lang:$t, time:$ts, id:$id}' > "$tmp"
+   '{contest:$c, login:$l, problem_id:$p, filename:$f, code_b64:($b | rtrimstr("\n")), lang:$t, time:$ts, id:$id}' > "$tmp"
+# FAIL CLOSED: só confirma ao aluno (e só escreve o history) com o spool VÁLIDO no disco.
+# Antes, o jq falhava calado e o mv publicava um arquivo de 0 bytes — pendente eterno.
+if ! jq -e '.code_b64 | length > 0' "$tmp" >/dev/null 2>&1; then
+  rm -f "$tmp"
+  fail 500 "Falha ao gravar a submissão — tente de novo" "spool_write_failed"
+fi
 mv -f "$tmp" "$SPOOLDIR/$spoolname"   # atômico: só aparece pronto p/ o daemon
 
 # entrada provisória no histórico p/ o front mostrar "loading" no polling

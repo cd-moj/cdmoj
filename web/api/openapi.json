@@ -892,15 +892,71 @@
         "tags": [
           "treino-admin"
         ],
-        "summary": "Submissões pendentes por lista + spool + fila de calibração",
+        "summary": "Submissões pendentes por lista + spool + fila de calibração. details=1 lista CADA pendente (quem, o quê, desde quando, estado no pipeline, teto 100); sub=<c>:<login>:<id> devolve o dossiê de uma (history, mojlog, fonte)",
         "security": [
           {
             "bearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "name": "details",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "1 = inclui pending_details:[{contest,login,problem,lang,id,since,age_s,state,has_source}]"
+          },
+          {
+            "name": "sub",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "<contest>:<login>:<id> — dossiê de UMA pendente: {history_line,state,has_source,source_bytes,mojlog,mojlog_bytes}"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "{total_pending,spool_queued,calib_pending,calib_inflight,calib_targeted,lists:[{contest,name,pending}]} — calib_* = fila de calibração (kind=calibrate, separada de index; calib_targeted = recalibrações direcionadas por host)"
+            "description": "{total_pending,spool_queued,calib_pending,calib_inflight,calib_targeted,lists:[{contest,name,pending}],pending_details:[…]}"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "treino-admin"
+        ],
+        "summary": "Agir sobre uma pendente (auditado queue-resolve): requeue re-enfileira (409 no_source sem fonte); resolve aplica Judge Error|Compilation Error via setverdict",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": { "type": "string", "enum": ["requeue", "resolve"] },
+                  "contest": { "type": "string" },
+                  "login": { "type": "string" },
+                  "id": { "type": "string" },
+                  "verdict": { "type": "string", "enum": ["Judge Error", "Compilation Error"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{requeued:true}|{resolved:true,verdict}"
+          },
+          "409": {
+            "description": "no_source (requeue sem fonte arquivada)"
           }
         }
       }
@@ -1273,7 +1329,7 @@
         "tags": [
           "submission"
         ],
-        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar). Whitelist de linguagens FORÇADA (400 lang_not_allowed): extensão canonicalizada tem de estar na lista efetiva do problema (override do contest -> LANGUAGES -> pacote -> todas)",
+        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar). Whitelist de linguagens FORÇADA (400 lang_not_allowed): extensão canonicalizada tem de estar na lista efetiva do problema (override do contest -> LANGUAGES -> pacote -> todas) Teto SUBMIT_MAX_KB (1024) -> 413 source_too_large; whitelist vazia = as linguagens da PLATAFORMA (.exe -> 400); fail-closed: spool validado antes do OK (500 spool_write_failed, sem pendente fantasma)",
         "security": [
           {
             "bearerAuth": []

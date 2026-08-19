@@ -22,6 +22,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `Argument list too long`. Use `--slurpfile <arquivo>` ou encadeie etapas com pipe.
   **REGRA DERIVADA (paga 2× no jplag): agregado de N arquivos NUNCA entra por `--argjson`.**
   O teto é de **128 KiB POR ARGUMENTO** e todo agregado cresce com o tamanho do evento —
+  ⚠ e vale TAMBÉM para dado de UM usuário: a FONTE de submissão passava por `--arg b` no
+  /submit e no judged (fonte >~96 KiB = spool/job de 0 bytes, submissão pendente p/ SEMPRE —
+  incidente 2026-08-19, 6 presas). Regra: **código de aluno/mojlog nunca anda por argv de
+  jq** — `--rawfile`/`--slurpfile` de ponta a ponta. E o /submit é FAIL-CLOSED: valida o spool
+  antes do OK; o judged nunca descarta submit em silêncio (JSON ruim → Judge Error na linha) e
+  o **reconciliador** (`reconcile_stale_pending`, `--reconcile` p/ rodar à mão) resolve
+  pendência órfã >15 min (re-enfileira com fonte 1×; sem fonte → Judge Error). Whitelist de
+  linguagem tem CHÃO: lista vazia = `PLATFORM_LANGS` (as 17 de mojtools/lang), nunca "qualquer
+  extensão". Teste: `smoke-submit-pipeline.sh`. —
   pares do jplag, times, clarifications, fila de impressão, fila de revisão, backups. Use o
   helper **`ok_json_slurp <filtro> <nome> <json> [args…]`** (`lib/common.sh`; no filtro o
   valor vira `$<nome>[0]`). Sintoma do estouro, antes da blindagem: **200 com corpo vazio** e

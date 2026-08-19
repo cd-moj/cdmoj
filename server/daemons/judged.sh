@@ -164,13 +164,22 @@ intake_enqueue() {
     ah="$(printf '%s\n' $CONTEST_JUDGES | grep -v '^$' | jq -R . | jq -cs .)"
     [[ -n "$ah" ]] || ah='[]'
   fi
-  local job
+  # a FONTE vai ao jq por ARQUIVO (--rawfile): `--arg b` estoura ARG_MAX >~96 KiB e o job
+  # sairia vazio/mudo — a mesma classe do incidente 2026-08-19 no /submit
+  local job _bf; _bf="$(mktemp)"; printf '%s' "$code_b64" > "$_bf"
   job="$(jq -cn --arg id "$id" --arg c "$contest" --arg p "$problem" --arg login "$login" \
-    --arg lang "$lang" --arg f "${filename:-solution}" --arg b "$code_b64" \
+    --arg lang "$lang" --arg f "${filename:-solution}" --rawfile b "$_bf" \
     --arg prio "$prio" --argjson now "$EPOCHSECONDS" --argjson ah "$ah" \
     '{id:$id, contest:$c, problem_id:$p, login:$login, lang:$lang, filename:$f,
       code_b64:$b, priority:$prio, enqueued_at:$now}
      + (if ($ah|length) > 0 then {allowed_hosts:$ah} else {} end)')"
+  rm -f "$_bf"
+  if [[ -z "$job" ]]; then
+    log "intake_enqueue: job vazio (jq falhou) id=$id — Judge Error em vez de silêncio"
+    clog "$contest" intake-falhou "id=$id login=$login prob=$problem motivo=job-vazio"
+    record_verdict "$contest" "$login" "$EPOCHSECONDS" "$problem" "$lang" "Judge Error" "$EPOCHSECONDS" "$id"
+    schedule_score_rebuild "$contest"; return 1
+  fi
   q_enqueue "$id" "$prio" "$job"
 }
 
@@ -363,9 +372,11 @@ process_spool_file() {
     if [[ -z "$r_b64" ]]; then log "rejulgar: fonte ausente p/ $rid ($r_src)"; clog "$rc" rejulgar-falhou "id=$rid motivo=sem-fonte src=$r_src"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; return 1; fi
     # provisório "Not Answered Yet" -> aparece como PENDENTE na Situação enquanto re-julga
     record_provisional "$rc" "$r_login" "$r_tempo" "$r_prob" "$r_lang" "$r_sub" "$rid"
+    local _rbf; _rbf="$(mktemp)"; printf '%s' "$r_b64" > "$_rbf"   # nunca por argv (ARG_MAX)
     json="$(jq -cn --arg c "$rc" --arg l "$r_login" --arg p "$r_prob" --arg lang "$r_lang" \
-      --arg b "$r_b64" --arg fn "solution.${r_llang:-txt}" --argjson t "${r_sub:-$EPOCHSECONDS}" --arg id "$rid" \
+      --rawfile b "$_rbf" --arg fn "solution.${r_llang:-txt}" --argjson t "${r_sub:-$EPOCHSECONDS}" --arg id "$rid" \
       '{contest:$c, login:$l, problem_id:$p, filename:$fn, code_b64:$b, lang:$lang, time:$t, id:$id}')"
+    rm -f "$_rbf"
     comando=submit   # daqui em diante: trata como submit (enfileira/julga + troca a linha :id)
   else
     # JSON do conteúdo (submit/result normais)
@@ -373,6 +384,19 @@ process_spool_file() {
     if ! jq -e . >/dev/null 2>&1 <<<"$json"; then
       log "JSON inválido/vazio em $base — descartado (cmd=$comando)"
       clog "$(cut -d: -f1 <<<"$base")" spool-descartado "base=$base cmd=$comando motivo=json-invalido-ou-vazio"
+      # SUBMIT nunca morre mudo: o aluno está vendo "Not Answered Yet" — os metadados estão no
+      # NOME do arquivo, então a linha vira Judge Error (não penaliza; ele reenvia). Foi o
+      # descarte silencioso que deixou 6 submissões pendentes p/ sempre em 2026-08-19.
+      if [[ "$comando" == submit ]]; then
+        local d_c d_ep d_id d_login d_prob d_ft
+        IFS=: read -r d_c d_ep d_id d_login _ d_prob d_ft <<<"$base"
+        if valid_contest_id "$d_c" && [[ -n "$d_id" && -n "$d_login" ]]; then
+          record_verdict "$d_c" "$d_login" "${d_ep:-$EPOCHSECONDS}" "$d_prob" "$d_ft" "Judge Error" "${d_ep:-$EPOCHSECONDS}" "$d_id"
+          touch "$CONTESTSDIR/$d_c/var/.score-dirty" 2>/dev/null   # invalida o cache de pendentes
+          schedule_score_rebuild "$d_c"
+          clog "$d_c" spool-judge-error "id=$d_id login=$d_login prob=$d_prob (spool corrompido -> Judge Error)"
+        fi
+      fi
       mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
       return 1
     fi
@@ -535,6 +559,69 @@ drain_spool() {
   log "drain: $processed arquivo(s) processado(s)"
 }
 
+# ===== RECONCILIADOR de pendência velha ====================================================
+# Nada no pipeline pode ficar "Not Answered Yet" para sempre: se um job se perdeu (spool
+# corrompido de antes do fail-closed, juiz que morreu com o job, bug futuro), ALGUÉM tem de
+# notar. A cada RECONCILE_EVERY_S (600), para cada contest com pendência (count_pending>0,
+# que é cacheado e barato), toda linha pendente mais velha que PENDING_TTL_MIN (15) e sem
+# rastro vivo em spool/ | queue/ | assigned/ é resolvida:
+#   - fonte arquivada existe  -> re-enfileira UMA vez (marcador rejulgar; a 2ª expiração do
+#                                MESMO id não insiste — vira Judge Error);
+#   - sem fonte               -> Judge Error direto (o aluno reenvia).
+# Tudo vai p/ o clog do contest — o log conta a história (incidente 2026-08-19: 6 presas mudas).
+: "${PENDING_TTL_MIN:=15}"
+: "${RECONCILE_EVERY_S:=600}"
+_RECONCILE_LAST=0
+_recon_tried_dir="$RUNDIR/.reconciled"   # ids já re-enfileirados (1 tentativa por id)
+
+reconcile_stale_pending() {
+  local now="$EPOCHSECONDS"
+  (( now - _RECONCILE_LAST >= RECONCILE_EVERY_S )) || return 0
+  _RECONCILE_LAST="$now"
+  mkdir -p "$_recon_tried_dir" 2>/dev/null
+  local cdir c n
+  for cdir in "$CONTESTSDIR"/*/; do
+    c="${cdir%/}"; c="${c##*/}"
+    valid_contest_id "$c" || continue
+    n="$(count_pending "$c" 2>/dev/null)"; n="${n//[^0-9]/}"
+    [[ -n "$n" && "$n" -gt 0 ]] || continue
+    local hf login line tempo prob lang se id age
+    for hf in "$cdir"users/*/history; do
+      [[ -f "$hf" ]] || continue
+      grep -qE ':(Not Answered Yet|On queue|on queue|Running|running):' "$hf" 2>/dev/null || continue
+      login="${hf%/history}"; login="${login##*/}"
+      while IFS= read -r line; do
+        # campos SEGUROS da linha (verdict pode conter ':'): 1=tempo 2=prob 3=lang NF-1=se NF=id
+        IFS=$'\x01' read -r tempo prob lang se id \
+          <<<"$(awk -F: '{printf "%s\x01%s\x01%s\x01%s\x01%s", $1, $2, $3, $(NF-1), $NF}' <<<"$line")"
+        [[ -n "$id" && "$se" =~ ^[0-9]+$ ]] || continue
+        age=$(( now - se ))
+        (( age > PENDING_TTL_MIN * 60 )) || continue
+        # rastro vivo? (spool de entrada, fila do cluster ou assigned de algum juiz)
+        if compgen -G "$SPOOLDIR/*:$id:*" >/dev/null 2>&1 \
+           || compgen -G "$QUEUEDIR/*/*_$id.json" >/dev/null 2>&1 \
+           || compgen -G "$ASSIGNEDDIR/*/*_$id.json" >/dev/null 2>&1; then
+          continue
+        fi
+        local llang src; llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
+        src="$(user_dir "$c" "$login")/submissions/$id.${llang:-txt}"
+        if [[ -s "$src" && ! -e "$_recon_tried_dir/$id" ]]; then
+          : > "$_recon_tried_dir/$id"
+          : > "$SPOOLDIR/$c:$se:$id:$login:rejulgar:$prob:$lang"
+          log "reconciler: pendente ${age}s sem rastro — re-enfileirado id=$id ($c/$login)"
+          clog "$c" pendente-reenfileirado "id=$id login=$login prob=$prob idade=${age}s"
+        else
+          record_verdict "$c" "$login" "$tempo" "$prob" "$lang" "Judge Error" "$se" "$id"
+          touch "$CONTESTSDIR/$c/var/.score-dirty" 2>/dev/null   # invalida o cache de pendentes
+          schedule_score_rebuild "$c"
+          log "reconciler: pendente ${age}s irrecuperável — Judge Error id=$id ($c/$login)"
+          clog "$c" pendente-judge-error "id=$id login=$login prob=$prob idade=${age}s fonte=$([[ -s $src ]] && echo re-tentada || echo ausente)"
+        fi
+      done < <(grep -E ':(Not Answered Yet|On queue|on queue|Running|running):' "$hf" 2>/dev/null)
+    done
+  done
+}
+
 # loop principal: inotify (push) com fallback p/ polling.
 # IMPORTANTE: o padrão é DRENA-então-ESPERA-UM-evento (inotifywait sem -m, com -t de
 # re-drain). Todo giro drena TODO o spool no topo; então o inotifywait espera UM evento
@@ -557,6 +644,7 @@ watch_loop() {
     while true; do
       beat
       while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
+      reconcile_stale_pending
       inotifywait -q -e create -e moved_to -t "${WATCH_REDRAIN_SECS:-30}" "$SPOOLDIR" >/dev/null 2>&1
       rc=$?
       # rc 0=evento, 2=timeout (re-drena no topo). Erro real (1/outros): evita busy-loop.
@@ -567,6 +655,7 @@ watch_loop() {
     while true; do
       beat
       while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
+      reconcile_stale_pending
       sleep 1
     done
   fi
@@ -599,6 +688,12 @@ main() {
       drain_spool
       exit 0
       ;;
+    --reconcile)
+      # roda o reconciliador de pendência velha UMA vez e sai (operação/testes)
+      _RECONCILE_LAST=-999999
+      reconcile_stale_pending
+      exit 0
+      ;;
     ""|--watch|--daemon)
       watch_loop
       ;;
@@ -607,7 +702,7 @@ main() {
       exit 0
       ;;
     *)
-      echo "argumento desconhecido: $1 (use --once|--drain|--watch)" >&2
+      echo "argumento desconhecido: $1 (use --once|--drain|--reconcile|--watch)" >&2
       exit 2
       ;;
   esac
