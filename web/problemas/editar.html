@@ -46,6 +46,13 @@
     table.tlsummary th .cpu{font-weight:400;font-size:.7rem;opacity:.7;max-width:13rem;overflow:hidden;text-overflow:ellipsis}
     .caliblog{max-height:26rem;overflow:auto;background:#fff;color:#111;border:1px solid var(--border,#2a2a2a);border-radius:.4rem;
       padding:.5rem;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;margin:0}
+    /* calibração POR EXTENSO (sols): uma linha por solução + tabela de testes expansível */
+    .solrow{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:.18rem 0}
+    table.soltests{border-collapse:collapse;font-size:.78rem;margin:.15rem 0 .4rem 1.2rem}
+    table.soltests th,table.soltests td{border:1px solid var(--border,#2a2a2a);padding:.12rem .5rem;white-space:nowrap}
+    table.soltests th{background:var(--card,#1b1f26);font-weight:600}
+    table.soltests td.num{text-align:right;font-variant-numeric:tabular-nums}
+    table.soltests td.bad{color:#ff8a8a}
     /* indicador de "executando no juiz" (calibração/validação em andamento) */
     .rdy.run .dot{background:#e0a64b;animation:moj-pulse 1s ease-in-out infinite}
     @keyframes moj-pulse{0%,100%{opacity:1}50%{opacity:.25}}

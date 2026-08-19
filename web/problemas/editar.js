@@ -29,6 +29,7 @@ let RUNNING = '';                                        // '', 'calibrate' ou '
 let calibTimer = null, calibPrevMax = 0;                 // polling do resultado (atualiza sozinho)
 let JUDGES = [];                                          // juízes do registro (calibração direcionada)
 const OPEN_LOGS = new Set();                              // hosts com "ver log" aberto (sobrevive ao re-render do polling)
+const OPEN_SOLS = new Set();                              // soluções com a tabela de testes aberta (idem)
 let LAST_RENDER_SIG = '';                                 // assinatura do painel: só reconstrói quando MUDA (não a cada poll)
 const CALIB_SCROLL = {};                                  // scrollTop do log de cada juiz, p/ restaurar no re-render
 
@@ -713,6 +714,58 @@ const TL_LANG_NAME = { c: 'C', cpp: 'C++', cc: 'C++', cxx: 'C++', py: 'Python', 
   asm: 'Assembly', gas: 'Assembly', default: T('default (demais)', 'default (others)') };
 const tlLangName = (k) => TL_LANG_NAME[k] || k;
 const tlSecs = (v) => { if (v == null || v === '') return '—'; const n = +v; return (Number.isFinite(n) ? +n.toFixed(4) : v) + 's'; };
+// a solução se comportou como a CATEGORIA espera? (good/pass aceitam; wrong falha; slow estoura
+// o tempo). null = sem expectativa (categoria desconhecida). O mesmo juízo do calibreitor.
+function solOk(s) {
+  const v = s.verdict || '';
+  if (s.category === 'good' || s.category === 'pass') return v.startsWith('Accepted');
+  if (s.category === 'wrong') return !v.startsWith('Accepted');
+  if (s.category === 'slow') return v.includes('Time Limit');
+  return null;
+}
+// calibração POR EXTENSO de um juiz (h.sols): solução a solução, teste a teste — o mesmo
+// vetor do `moj calib` / `moj --json calib` (integração com ferramentas externas).
+function solsBlock(h) {
+  const sols = h.sols || [];
+  if (!sols.length) return null;
+  const box = el('div', { class: 'small', style: 'margin-top:.3rem' });
+  sols.forEach(s => {
+    const key = h.host + '|' + (s.category || '?') + '/' + (s.file || '?');
+    const tests = s.tests || [];
+    const ok = solOk(s);
+    const tdet = el('div', { style: 'display:' + (OPEN_SOLS.has(key) ? '' : 'none') });
+    if (tests.length) {
+      const tb = el('tbody', {});
+      tests.forEach(t => tb.append(el('tr', {},
+        el('td', {}, t.name || ''),
+        el('td', { class: (t.code === 'AC' || t.code === 'AC,PE') ? '' : 'bad' }, t.code || '—'),
+        el('td', { class: 'num' }, t.time == null ? '—' : (+t.time).toFixed(2) + 's'),
+        el('td', { class: 'num' }, t.tl == null ? '—' : tlSecs(t.tl)))));
+      tdet.append(el('table', { class: 'soltests' },
+        el('thead', {}, el('tr', {},
+          el('th', {}, T('teste', 'test')), el('th', {}, T('resultado', 'result')),
+          el('th', {}, T('tempo', 'time')), el('th', {}, 'TL'))),
+        tb));
+    } else tdet.append(el('p', { class: 'muted', style: 'margin:.1rem 0 .3rem 1.2rem' }, T('sem testes registrados.', 'no recorded tests.')));
+    const lbl = (open) => (open ? T('ocultar testes', 'hide tests') : T('testes', 'tests')) + ' (' + tests.length + ')';
+    const tg = el('a', { href: '#', onclick: (e) => {
+      e.preventDefault();
+      const open = !OPEN_SOLS.has(key);
+      if (open) OPEN_SOLS.add(key); else OPEN_SOLS.delete(key);
+      tdet.style.display = open ? '' : 'none'; tg.textContent = lbl(open);
+    } }, lbl(OPEN_SOLS.has(key)));
+    const repName = (s.category || '') + '-' + (s.file || '');
+    box.append(el('div', { class: 'solrow' },
+      ok == null ? el('span', { class: 'muted' }, '•') : el('span', { class: 'pill ' + (ok ? 'ok' : 'no') }, ok ? 'ok' : T('revisar', 'review')),
+      el('b', {}, (s.category || '?') + '/' + (s.file || '?')),
+      el('span', { class: 'muted' }, s.verdict || ''),
+      tg,
+      (h.reports || []).includes(repName)
+        ? el('a', { href: '#', style: 'white-space:nowrap', onclick: (e) => { e.preventDefault(); openCalibReport(h.host, repName); } }, '📄 report')
+        : null), tdet);
+  });
+  return box;
+}
 // quadro-resumo: tempo-limite por linguagem em cada juiz; o "servido" (o que o aluno vê) em negrito
 function tlSummaryTable(hosts, served) {
   const langs = [...new Set([...Object.keys(served || {}), ...hosts.flatMap(h => Object.keys(h.tl || {}))])];
@@ -743,7 +796,7 @@ function valRenderSig() {
   return JSON.stringify({
     run: RUNNING,
     checks: checks.map(c => `${c.name}:${c.ok}:${c.detail || ''}`),
-    hosts: hosts.map(h => `${h.host}|${h.at}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}`),
+    hosts: hosts.map(h => `${h.host}|${h.at}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}|${(h.sols || []).map(s => `${s.category}/${s.file}:${s.verdict}:${(s.tests || []).length}`).join(',')}`),
     served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
   });
 }
@@ -786,12 +839,15 @@ function renderVal() {
         el('b', {}, h.host), el('span', { class: 'small muted' }, tlLine(h.tl) || T('sem TL', 'no TL')),
         h.at ? el('span', { class: 'small muted' }, '· ' + fmtDate(h.at)) : null,
         el('span', { style: 'flex:1' }), toggle);
+      // sols estruturado: solução a solução, teste a teste (cada linha já linka o seu report);
+      // juiz antigo sem o vetor cai na lista de reports + log texto de sempre
+      const sols = solsBlock(h);
       const reps = el('div', { class: 'small', style: 'margin-top:.25rem' });
-      if ((h.reports || []).length) {
+      if (!sols && (h.reports || []).length) {
         reps.append(el('span', { class: 'muted' }, T('report por solução: ', 'report per solution: ')));
         h.reports.forEach(rn => reps.append(el('a', { href: '#', style: 'margin-right:.7rem;white-space:nowrap', onclick: (e) => { e.preventDefault(); openCalibReport(h.host, rn); } }, '📄 ' + rn)));
       }
-      box.append(el('div', { class: 'judgecard' }, head, reps, det));
+      box.append(el('div', { class: 'judgecard' }, head, sols, reps, det));
     });
   } else if (!RUNNING) box.append(el('p', { class: 'small muted' }, T('Ainda não calibrado — clique “Calibrar” na barra de baixo.', 'Not calibrated yet — click “Calibrate” on the bottom bar.')));
   // sem juízes calibrados mas com TL servido (legado): mostra o tempo-limite usado na correção

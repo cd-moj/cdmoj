@@ -251,7 +251,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Calibração/TL — 3 mecanismos de autoria (2026-08-19)**: (1) o `/problems/calib` devolve
   **`sols`** estruturado por host (`[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`,
   do `.calib-sols.json` do calibreitor via `/judge/calib-report` — que PRESERVA sols/reports
-  quando o POST vem sem eles com o MESMO checksum: re-envio de boot/agente velho não apagam);
+  quando o POST vem sem eles com o MESMO checksum: re-envio de boot/agente velho não apagam;
+  o editor web o renderiza no cartão de cada juiz — `solsBlock` em `web/problemas/editar.js`,
+  linha por solução com expectativa da categoria + tabela de testes expansível; host sem sols
+  cai no fluxo antigo de log/reports);
   (2) **`TLOVERRIDE[<lang>|default]`** no conf do PACOTE = o autor manda no TL — julgamento
   (build-and-test) e TODA exibição usam o efetivo (`tl_store_served` aplica; servidor lê por
   **grep**, `tl_conf_overrides`/`tl_override_apply` em lib/tl-store.sh — conf de autor NUNCA é
