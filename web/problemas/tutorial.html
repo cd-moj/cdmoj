@@ -259,6 +259,9 @@ moj calibrate --all-stale    # recalibra TUDO que o painel marcou (lote seguro)<
                                         # cada teste {nome, código, tempo, tl}
 moj --json calib apc2026#fibonacci      # o mesmo, em JSON — p/ os seus scripts
 moj calib-report apc2026#fibonacci      # lista os report.html disponíveis (e baixa com --host/--sol)
+moj calibrate apc2026#fibonacci --all-judges   # calibra em TODOS os juízes online (como na web;
+                                        # --hosts j1,j2 escolhe, --per-cpu pega 1 por modelo,
+                                        # moj calibrate --judges lista o parque)
 moj testrun apc2026#fibonacci sol.c     # roda UMA solução avulsa NO JUIZ (jaula e TL reais),
                                         # fora do histórico — devolve o vetor por teste
 moj testrun ... --report out.html       # e ainda baixa o report.html do julgamento</pre>
