@@ -10,6 +10,20 @@
 root   @WORKROOT@/cdmoj/web;
 index  index.html;
 
+# --- COMPRESSÃO ---------------------------------------------------------------------------
+# O `gzip on` do nginx.conf sozinho comprime só text/html: o PLACAR (text/plain) e TODA a API
+# (application/json) saíam CRUS. Num contest de 2000 times o placar é 168 KB por consulta, e
+# cada time o pede a cada 30-60 s — 60 Mbit/s sustentados só nisso. Comprimido ele vai a 11 KB
+# (14×, medido em 2026-08-20), e a conta cai p/ ~4 Mbit/s. É o que protege a sede de link magro.
+# `gzip_proxied any` importa porque a resposta da API vem do fcgiwrap (upstream).
+gzip              on;
+gzip_vary         on;
+gzip_proxied      any;
+gzip_comp_level   5;
+gzip_min_length   1024;
+gzip_types        text/plain text/css text/csv application/json application/javascript
+                  text/javascript application/xml image/svg+xml;
+
 # --- redirects de URLs do MOJ ANTIGO (links por aí em e-mails/favoritos/planilhas) --------
 # /cgi-bin/index.sh era a home do CGI; /new/ era o prefixo da interface nova no site velho.
 location = /cgi-bin/index.sh { return 301 /; }

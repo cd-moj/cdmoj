@@ -294,15 +294,22 @@ emit_user_history(){
 }
 
 # emit_history_stream <c> — history inteiro do contest (fan-out sobre users/*).
-emit_history_stream(){
-  local c="$1"
-  local d; d="$(users_dir "$c")"; [[ -d "$d" ]] || return 0
-  ( set +o noglob; shopt -s nullglob
-    local hf login
-    for hf in "$d"/*/history; do
-      login="${hf%/history}"; login="${login##*/}"
-      awk -v u="$login" 'NF{ i=index($0,":"); print substr($0,1,i-1)":"u":"substr($0,i+1) }' "$hf"
-    done )
+emit_history_stream(){ emit_history_stream_since "$1"; }
+
+# emit_history_stream_since <c> [ref] — o stream global, opcionalmente só dos history
+# ALTERADOS depois de <ref>. Duas coisas importam aqui em contest grande:
+#   1. UM awk para TODOS os arquivos (o laço antigo forkava um awk POR USUÁRIO: 2000 forks por
+#      chamada, e é isso que fazia a reconciliação de balões custar 27 s a 2000 times);
+#   2. o filtro por mtime é o que torna a varredura INCREMENTAL — e ele é correto p/ veredicto
+#      manual: o history do usuário é reescrito quando o juiz decide, então o mtime muda e a
+#      linha entra na varredura seguinte (filtrar por sub_epoch perderia esse caso).
+emit_history_stream_since(){
+  local c="$1" ref="${2:-}" d; d="$(users_dir "$c")"; [[ -d "$d" ]] || return 0
+  local args=(-mindepth 2 -maxdepth 2 -name history)
+  [[ -n "$ref" && -e "$ref" ]] && args+=(-newer "$ref")
+  find "$d" "${args[@]}" -print0 2>/dev/null \
+    | xargs -0 -r awk 'NF{ n=split(FILENAME,p,"/"); u=p[n-1];
+                           i=index($0,":"); print substr($0,1,i-1)":"u":"substr($0,i+1) }'
 }
 
 # emit_history_sorted <c> [n] — como emit_history_stream, mas ordenado por sub_epoch

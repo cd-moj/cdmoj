@@ -495,9 +495,17 @@ pr_reconcile_balloons() {
   [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && return 0
   ( flock -w 5 9 || exit 0
     [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && exit 0
-    touch -r "$hist" "$stamp"                      # carimba o mtime do marcador ANTES de varrer
+    # o carimbo ANTERIOR vira a referência da varredura incremental; o novo é gravado ANTES de
+    # varrer (de propósito: escrita que aconteça DURANTE a varredura fica p/ a próxima, e o
+    # filtro -newer do stream a pega, porque o novo carimbo é do instante pré-varredura).
+    local prev="$dir/.balloon-prev"
+    if [[ -f "$stamp" ]]; then touch -r "$stamp" "$prev"; else rm -f "$prev"; fi
+    touch -r "$hist" "$stamp"
     local sub_epoch login cid verdict id short colorhex colorname team univ fullname seq
     local fz allow held _l
+    # caches: sem eles o laço refazia POR LINHA o que só depende do problema (letra/cor) ou do
+    # time (nome/universidade) — 9 forks por balão. Com eles são 12 problemas e N times, uma vez.
+    declare -A C_SHORT=() C_HEX=() C_NAME=() C_TEAM=() C_UNIV=() C_FULL=()
     read -r fz allow < <(pr_balloon_freeze_gate "$c")
     declare -A FROZEN=()                           # lápides já registradas (id -> 1)
     held="$dir/.balloon-frozen"
@@ -516,8 +524,13 @@ pr_reconcile_balloons() {
       id="bln$(printf '%s%s%s' "$c" "$login" "$cid" | md5sum | cut -c1-20)"
       [[ -f "$dir/$id.json" ]] && continue
       [[ -n "${FROZEN[$id]:-}" ]] && continue
+      if [[ -z "${C_SHORT[$cid]+x}" ]]; then
+        C_SHORT[$cid]="$(pr_short_of "$c" "$cid")"; [[ -n "${C_SHORT[$cid]}" ]] || C_SHORT[$cid]="?"
+        C_HEX[$cid]="$(pr_balloon_color "$c" "${C_SHORT[$cid]}")"
+        C_NAME[$cid]="$(pr_color_name "${C_HEX[$cid]}")"
+      fi
+      short="${C_SHORT[$cid]}"
       if (( fz > 0 )) && [[ "$allow" != 1 ]] && (( ${sub_epoch:-0} >= fz )); then
-        short="$(pr_short_of "$c" "$cid")"; [[ -n "$short" ]] || short="?"
         jq -cn --arg id "$id" --arg login "$login" --arg prob "$cid" --arg short "$short" \
           --argjson se "${sub_epoch:-0}" --argjson fz "$fz" --argjson at "$EPOCHSECONDS" \
           '{id:$id, login:$login, problem:$prob, short:$short, sub_epoch:$se,
@@ -526,10 +539,13 @@ pr_reconcile_balloons() {
         audit_log_to "$c" balloon-frozen "login=$login problema=$short sub_epoch=$sub_epoch freeze=$fz"
         continue
       fi
-      short="$(pr_short_of "$c" "$cid")"; [[ -n "$short" ]] || short="?"
-      colorhex="$(pr_balloon_color "$c" "$short")"; colorname="$(pr_color_name "$colorhex")"
-      team="$(pr_resolve_team "$c" "$login")"; univ="$(pr_resolve_univ "$c" "$login")"
-      fullname="$(user_fullname "$c" "$login")"; [[ -n "$fullname" ]] || fullname="$login"
+      colorhex="${C_HEX[$cid]}"; colorname="${C_NAME[$cid]}"
+      if [[ -z "${C_TEAM[$login]+x}" ]]; then
+        C_TEAM[$login]="$(pr_resolve_team "$c" "$login")"
+        C_UNIV[$login]="$(pr_resolve_univ "$c" "$login")"
+        C_FULL[$login]="$(user_fullname "$c" "$login")"; [[ -n "${C_FULL[$login]}" ]] || C_FULL[$login]="$login"
+      fi
+      team="${C_TEAM[$login]}"; univ="${C_UNIV[$login]}"; fullname="${C_FULL[$login]}"
       seq="$(pr_next_seq "$c")"
       jq -cn --arg id "$id" --argjson seq "$seq" --arg login "$login" --arg fn "$fullname" \
         --arg team "$team" --arg univ "$univ" --arg prob "$cid" --arg short "$short" \
@@ -539,9 +555,10 @@ pr_reconcile_balloons() {
           claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0}' \
         > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json"
       audit_log_to "$c" balloon-task "seq=$seq login=$login problema=$short cor=$colorname"
-    done < <(emit_history_sorted "$c" | awk -F: 'NF>=7{
-               v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i;
-               print $(NF-1) "\t" $2 "\t" $3 "\t" v }')
+    done < <(emit_history_stream_since "$c" "$prev" \
+               | awk -F: 'NF>=7{ v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i;
+                                 print $(NF-1) "\t" $2 "\t" $3 "\t" v }' \
+               | sort -n -k1,1)
   ) 9>"$dir/.balloon.lock"
 }
 
