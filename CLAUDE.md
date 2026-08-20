@@ -538,9 +538,15 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `smoke-contest-problems-cache.sh` (o caso que importa é o de envenenamento entre variantes).
   ⚠ **A REGERAÇÃO É CARA E TEM DE SER RARA E SOLITÁRIA** (medido no esquenta, 20/08/2026: a rota
   a frio levava **2,0 s**). Três coisas, e as três importam:
-  (1) **`pkg_tl_checksum` memoiza** (`run/tl/<id>.cks`, chaveado por assinatura de METADATA — ver
-  `lib/tl-store.sh`): o `tl-checksum.sh` LÊ o conteúdo de `tests/*` e eram **112,8 MB hasheados
-  por regeração**, 1,3 s dos 2,0 s, só p/ mostrar tempo-limite na tela;
+  (1) **O TL NÃO REABRE O PACOTE.** Quem conhece o problema é a **gestão de problemas**, e ela já
+  carimba o `tl_checksum` no índice — a rota lê de lá (`tl_index_checksums`, um jq p/ a prova
+  inteira) e passa o valor a `tl_store_served <id> <pool> <checksum>`. É a MESMA doutrina do
+  `/problems/status` ("comparação de dois checksums já materializados", nunca hash por request) e
+  a mesma origem do `time_limits` que o treino serve pronto do `var/jsons/<id>.json`. Antes a
+  rota chamava `pkg_tl_checksum`, que roda o `tl-checksum.sh` — o qual **LÊ o conteúdo** de
+  `tests/*`: **112,8 MB hasheados por regeração**, 1,3 s dos 2,0 s. Problema fora do índice cai no
+  caminho lento (hashear), que é correto e raro; e o `pkg_tl_checksum` **memoiza** (`run/tl/<id>.cks`,
+  chaveado por assinatura de METADATA) p/ as rotas de AUTORIA, que precisam do checksum real;
   (2) **`run/tl` virou ENTRADA** (o juiz reportando TL faz um `mv` lá dentro ⇒ mtime do
   diretório muda) e por isso o teto de idade pôde ir de **60 s p/ 900 s** — antes forçava uma
   regeração por minuto durante a prova inteira, por relógio, sem nada ter mudado;

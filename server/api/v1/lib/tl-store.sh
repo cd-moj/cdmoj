@@ -95,9 +95,15 @@ pkg_path(){
 #   - a FUNÇÃO de hash mudou (nova cobertura) => assinatura muda  => re-hasheia tudo uma vez.
 # Custo medido: 5,3 ms/problema contra 94,7 ms — 18×. A lista de caminhos TEM de acompanhar o
 # tl-checksum.sh: fora dela, mudança no arquivo não invalida e o checksum velho vale p/ sempre.
-_tlcks_sig(){ ( cd "$1" 2>/dev/null || exit 0
-  find conf tests/input tests/output tests/score sols/good scripts -type f \
-       -printf '%P\t%m\t%s\t%T@\n' 2>/dev/null | LC_ALL=C sort | cksum | awk '{print $1}' ) }
+# Os CAMINHOS que entram na assinatura — a lista TEM de acompanhar o tl-checksum.sh.
+_TLCKS_PATHS=(conf tests/input tests/output tests/score sols/good scripts)
+
+_tlcks_sig(){
+  local s starts=()
+  for s in "${_TLCKS_PATHS[@]}"; do starts+=("$1/$s"); done
+  find "${starts[@]}" -type f -printf '%p\t%m\t%s\t%T@\n' 2>/dev/null \
+    | LC_ALL=C sort | cksum | { read -r s _; printf '%s' "$s"; }
+}
 _tlcks_ver(){ [[ -n "${_TLCKS_VER:-}" ]] || _TLCKS_VER="$(cksum "$MOJTOOLS_DIR/tl-checksum.sh" 2>/dev/null | awk '{print $1}')"
   printf '%s' "${_TLCKS_VER:-0}"; }
 pkg_tl_checksum(){
@@ -115,6 +121,25 @@ pkg_tl_checksum(){
     printf '%s\t%s' "$sig" "$cks" > "$f.tmp.$$" 2>/dev/null && mv -f "$f.tmp.$$" "$f" 2>/dev/null \
       || rm -f "$f.tmp.$$" 2>/dev/null; }
   printf '%s' "$cks"
+}
+
+# tl_index_checksums <id>... -> "<id>\t<checksum>" p/ cada problema ACHADO no índice, num jq só.
+# O TL de exibição não precisa (nem deve) reabrir o pacote: quem conhece o problema é a gestão de
+# problemas, e ela já carimba o `tl_checksum` no índice — é exatamente o que o treino usa p/ servir
+# `time_limits` sem trabalho por requisição. Id fora do índice não sai daqui, e o chamador cai no
+# caminho lento (hashear), que é correto, só raro.
+tl_index_checksums(){
+  (( $# )) || return 0
+  # o caminho do índice mora no lib/problems.sh, que nem todo chamador sourceia — sem este
+  # default a função voltaria VAZIA e o chamador cairia calado no caminho lento (hashear)
+  : "${OWNERS_INDEX:=$CONTESTSDIR/treino/var/problem-owners.json}"
+  [[ -s "$OWNERS_INDEX" ]] || return 0
+  printf '%s\n' "$@" | jq -Rrn --slurpfile idx "$OWNERS_INDEX" '
+    [inputs] as $want
+    | ($idx[0].problems // [])[]
+    | select(.id as $i | $want | index($i))
+    | "\(.id)\t\(.tl_checksum // "")"' 2>/dev/null
+  return 0
 }
 
 # tl_store_record <host> <id> <checksum> <tl-json> : funde o TL do host (atômico).
@@ -209,10 +234,16 @@ tl_override_apply(){
 # servidor, JÁ com o TLOVERRIDE do conf aplicado (é a função dos leitores de exibição:
 # contest/problems, docs da prova); 2º arg opcional restringe ao pool ("h1 h2 …").
 # O valor CRU (só calibrado) continua em tl_store_served_for/tl_store_served_hosts.
+# tl_store_served <id> [<pool>] [<checksum-do-pacote>]
+# ⚠ O 3º argumento é a diferença entre custar 0 e custar CARO: sem ele, descobrir "o pacote é o
+# mesmo que foi calibrado?" exige rodar o tl-checksum.sh, que LÊ o conteúdo de tests/* — 112,8 MB
+# num contest de 14 problemas. Quem já tem o checksum MATERIALIZADO (o índice de problemas o
+# carimba; é a mesma comparação-de-dois-checksums que o /problems/status faz) deve passá-lo.
 tl_store_served(){
-  local pkg tl ov
+  local pkg tl ov cks="${3:-}"
   pkg="$(pkg_path "$1")"
-  tl="$(tl_store_served_hosts "$1" "$(pkg_tl_checksum "$pkg" "$1")" "${2:-}")"
+  [[ -n "$cks" ]] || cks="$(pkg_tl_checksum "$pkg" "$1")"
+  tl="$(tl_store_served_hosts "$1" "$cks" "${2:-}")"
   ov="$(tl_conf_overrides "$pkg")"
   tl_override_apply "$tl" "$ov"
 }

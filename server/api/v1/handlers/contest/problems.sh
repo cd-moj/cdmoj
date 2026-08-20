@@ -96,6 +96,22 @@ PJUDGES='{}'; [[ -f "$CONTESTSDIR/$contest/problem-judges.json" ]] && PJUDGES="$
 set +o noglob
 ENUN="$CONTESTSDIR/$contest/enunciados"
 
+# CHECKSUM DO PACOTE: vem do ÍNDICE de problemas, num jq só p/ a prova inteira — NÃO de reabrir
+# o pacote. Quem conhece o problema é a gestão de problemas, e ela já carimba o `tl_checksum`
+# (é a mesma comparação-de-dois-checksums-materializados que o `/problems/status` faz, e a mesma
+# origem do `time_limits` que o treino serve). Hashear o pacote aqui custava 112,8 MB lidos e
+# 1,3 s por regeração — para exibir tempo-limite na tela.
+declare -A TLCKS=()
+_ids=()
+for (( i=0; i<${#PROBS[@]}; i+=5 )); do
+  _sid="${PROBS[$((i+4))]}"; [[ "$_sid" == *"#"* ]] || _sid="${PROBS[$((i+1))]//\//#}"
+  _ids+=("$_sid")
+done
+if [[ "$SHOW_TL" == true ]] && (( ${#_ids[@]} )); then
+  while IFS=$'\t' read -r _ci _cc; do [[ -n "$_ci" ]] && TLCKS["$_ci"]="$_cc"; done \
+    < <(tl_index_checksums "${_ids[@]}")
+fi
+
 declare -a ITEMS
 for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   FROM="${PROBS[$i]}"
@@ -134,7 +150,9 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   # senão o do contest, senão todos — p/ a versão atual do pacote), salvo se oculto
   pj="$(jq -r --arg id "$PROBLEMID" '(.[$id] // []) | join(" ")' <<<"$PJUDGES" 2>/dev/null)"
   [[ -n "$pj" ]] || pj="$CONTEST_JUDGES"
-  tl='{}'; [[ "$SHOW_TL" == true ]] && { tl="$(tl_store_served "$PROBLEMID" "$pj" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'; }
+  # o checksum sai do índice; problema ainda não indexado cai no caminho lento (hashear), que é
+  # correto e raro — e é o único caso em que esta rota toca o pacote.
+  tl='{}'; [[ "$SHOW_TL" == true ]] && { tl="$(tl_store_served "$PROBLEMID" "$pj" "${TLCKS[$PROBLEMID]:-}" 2>/dev/null)"; [[ -n "$tl" ]] || tl='{}'; }
   # linguagens deste problema: cadeia compartilhada (override do contest -> LANGUAGES ->
   # default do pacote -> todas) — a MESMA que o /submit força (lib/langs.sh).
   plangs="$(effective_problem_langs "$contest" "$PROBLEMID")"; [[ -n "$plangs" ]] || plangs='[]'

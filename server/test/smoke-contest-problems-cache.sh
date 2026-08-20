@@ -101,6 +101,29 @@ call /contest/problems time01
 ck "antes do início: lista vazia"  '[[ "$(jq -r ".problems|length" <<<"$BODY")" == 0 ]]'
 ck "e diz o motivo (locked)"       '[[ "$(jq -r .locked <<<"$BODY")" == not_started ]]'
 
+echo "== o TL vem do ÍNDICE, não de reabrir o pacote =="
+# quem conhece o problema é a gestão de problemas, e ela já carimba o tl_checksum no índice —
+# a mesma comparação de dois checksums materializados que o /problems/status faz. Reabrir o
+# pacote aqui custava 112,8 MB lidos por regeração, só p/ mostrar tempo-limite na tela.
+T_VAR="$FIX/treino/var"; mkdir -p "$T_VAR" "$FIX/run/tl"
+sed -i "s/^CONTEST_START=.*/CONTEST_START=$T0/" "$C/conf"
+printf '{"checksum":"deadbeef","hosts":{"j1":{"tl":{"c":"1.5","py":"4.0"},"at":1}}}' > "$FIX/run/tl/col#pa.json"
+mkidx(){ jq -cn --arg c "$1" '{problems:[{id:"col#pa", tl_checksum:$c}]}' > "$T_VAR/problem-owners.json"; }
+mkidx deadbeef
+rm -f "$C/var/problems-cache."* "$FIX/run/tl/col#pa.cks"
+call /contest/problems time01
+ck "TL do store aparece"          '[[ "$(jq -r ".problems[]|select(.short_name==\"A\").time_limits.c" <<<"$BODY")" == 1.5 ]]'
+# o sidecar do hash só nasce quando alguém REABRE o pacote — com o índice respondendo, ninguém
+# reabre. (O col#pb, que não está no índice de mentira, cai no caminho lento de propósito.)
+ck "e sem reabrir o pacote"       '[[ ! -e "$FIX/run/tl/col#pa.cks" ]]'
+# índice com checksum DIFERENTE = pacote mudou desde a calibração: o TL velho NÃO pode ser servido
+sleep 1; mkidx outrocoisa; rm -f "$C/var/problems-cache."*
+call /contest/problems time01
+ck "checksum divergente => sem TL" '[[ "$(jq -r ".problems[]|select(.short_name==\"A\").time_limits|length" <<<"$BODY")" == 0 ]]'
+sleep 1; mkidx deadbeef; rm -f "$C/var/problems-cache."*
+call /contest/problems time01
+ck "volta a bater => TL de novo"  '[[ "$(jq -r ".problems[]|select(.short_name==\"A\").time_limits.py" <<<"$BODY")" == 4.0 ]]'
+
 echo "== o checksum do pacote é MEMOIZADO (era 112 MB de teste hasheados por regeração) =="
 # o tl-checksum.sh LÊ o conteúdo de tests/*; sem cache, cada regeração do /contest/problems
 # re-hasheava o pacote inteiro — 1,3 s em 14 problemas, medido em produção
