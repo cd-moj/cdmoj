@@ -109,3 +109,46 @@ rv_apply() {
   printf '%s' "$out" > "$f.tmp" && mv -f "$f.tmp" "$f"
   printf '%s' "$out"
 }
+
+# rv_release_uncontested <contest> <by> — varre a fila de revisão e LIBERA, com o veredicto
+# COMPUTADO, todo item que ninguém contestou (sem voto e sem conflito). Ecoa "<liberados>
+# <restantes>".
+#
+# Existe por causa de um buraco real: desligar o MANUAL_VERDICT com a fila cheia deixava as
+# sobras seguradas PARA SEMPRE — o juiz comum passa a ver "este contest não usa veredicto
+# manual" e não consegue votar, e o competidor fica em "Not Answered Yet" sem que ninguém
+# perceba. Desligar o manual é dizer "daqui p/ frente vale o veredicto da máquina"; o que
+# ninguém contestou segue essa mesma regra.
+#
+# O que NÃO é liberado (de propósito): item com QUALQUER voto ou em CONFLITO — ali um humano
+# já discordou da máquina, e soltar o computado por cima seria passar por cima dele. Esses
+# ficam p/ o juiz-chefe decidir (o painel dele continua funcionando com o manual desligado),
+# e o chamador informa quantos sobraram.
+rv_release_uncontested() {
+  local c="$1" by="${2:-system}" dir f id snap n=0 left=0
+  dir="$(rv_dir "$c")"; [[ -d "$dir" ]] || { printf '0 0'; return 0; }
+  exec 9>"$(rv_lock "$c")"; flock -w 10 9 || { printf '0 0'; return 1; }
+  local now="$EPOCHSECONDS"
+  while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    snap="$(cat "$f" 2>/dev/null)"; [[ -n "$snap" ]] || continue
+    jq -e '.status == "released"' >/dev/null 2>&1 <<<"$snap" && continue
+    if jq -e '((.votes // []) | length) == 0 and (.conflict != true)' >/dev/null 2>&1 <<<"$snap"; then
+      id="$(jq -r '.id // empty' <<<"$snap")"
+      local login prob verdict
+      login="$(jq -r '.login // ""' <<<"$snap")"
+      prob="$(jq -r '.problem_id // ""' <<<"$snap")"
+      verdict="$(jq -r '.computed_verdict // ""' <<<"$snap")"
+      [[ -n "$id" && -n "$verdict" ]] || { left=$((left+1)); continue; }
+      rv_emit_setverdict "$c" "$id" "$login" "$prob" "$verdict"
+      jq -c --arg v "$verdict" --arg by "$by" --argjson at "$now" \
+        '.status="released" | .released_verdict=$v | .released_by=$by | .released_at=$at' \
+        "$f" > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
+      n=$((n+1))
+    else
+      left=$((left+1))
+    fi
+  done < <(find "$dir" -maxdepth 1 -name '*.json' -type f 2>/dev/null)
+  exec 9>&-
+  printf '%s %s' "$n" "$left"
+}

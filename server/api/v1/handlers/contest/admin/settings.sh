@@ -73,6 +73,10 @@ if has tz; then
   fi
 fi
 
+# estado do veredicto manual ANTES de gravar: desligar com a fila cheia deixava as sobras
+# seguradas p/ sempre (o juiz comum não consegue mais votar) — ver a varredura no fim.
+MV_WAS=0; grep -qE '^MANUAL_VERDICT=1?\b' "$CONTESTSDIR/$contest/conf" 2>/dev/null && MV_WAS=1
+
 bset(){ # <jsonkey> <VAR> <on-value-p/-positivos>
   has "$1" || return 0
   local on; on="$(jq -r ".$1" <<<"$body")"
@@ -143,6 +147,21 @@ if has penalty_verdicts; then
   if [[ "$pv" == "$PENALTY_CODES_DEFAULT" ]]; then delvar PENALTY_VERDICTS; else setvar PENALTY_VERDICTS "$pv"; fi
 fi
 
+# DESLIGOU o veredicto manual? As sobras da fila não podem ficar presas: libera com o
+# veredicto COMPUTADO o que ninguém contestou (sem voto e sem conflito) — é o que "automático"
+# quer dizer. O que tem voto ou está em conflito FICA p/ o juiz-chefe (ali um humano já
+# discordou da máquina) e volta na resposta p/ o admin saber que precisa de decisão.
+RV_FREED=0; RV_LEFT=0
+if [[ "$MV_WAS" == 1 ]] && has manual_verdict && [[ "$(jq -r '.manual_verdict' <<<"$body")" != true ]]; then
+  source "$_LIBDIR/review.sh"
+  read -r RV_FREED RV_LEFT < <(rv_release_uncontested "$contest" "$SESSION_LOGIN")
+  RV_FREED="${RV_FREED//[^0-9]/}"; RV_FREED="${RV_FREED:-0}"
+  RV_LEFT="${RV_LEFT//[^0-9]/}"; RV_LEFT="${RV_LEFT:-0}"
+  (( RV_FREED > 0 || RV_LEFT > 0 )) && \
+    audit_log_to "$contest" review-manual-off "liberadas=$RV_FREED pendentes=$RV_LEFT by=$SESSION_LOGIN"
+fi
+
 audit_log_to "$contest" settings "$( ((${#CH[@]})) && { IFS=,; echo "${CH[*]}"; } || echo nada )"
-ok_json '{saved:true, changed:$c}' \
+ok_json '{saved:true, changed:$c, review_released:$rf, review_pending:$rl}' \
+  --argjson rf "$RV_FREED" --argjson rl "$RV_LEFT" \
   --argjson c "$( ((${#CH[@]})) && printf '%s\n' "${CH[@]}" | jq -R . | jq -cs . || echo '[]')"

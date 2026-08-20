@@ -86,4 +86,17 @@ ck "juiz-chefe sobrescreve"       '[[ "$OUT" == *queued* ]]'
 call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Accepted","username":"aluno1"}' adm 'contest=rv'
 ck "admin sobrescreve"            '[[ "$OUT" == *queued* ]]'
 
+
+echo "== desligar o veredicto manual NÃO pode deixar submissão presa (bug 2026-08-20) =="
+# sobras: r3 sem voto (ninguém contestou -> sai com o computado) e r4 em conflito (dois humanos
+# discordaram -> FICA p/ o chefe decidir)
+printf '%s' "{\"id\":\"r3\",\"login\":\"aluno1\",\"problem_id\":\"apc#p1\",\"lang\":\"C\",\"computed_verdict\":\"Accepted\",\"status\":\"open\",\"conflict\":false,\"created_at\":$OLD,\"sub_epoch\":$OLD,\"claimants\":[],\"votes\":[]}" > "$C/review/r3.json"
+printf '%s' "{\"id\":\"r4\",\"login\":\"aluno1\",\"problem_id\":\"apc#p1\",\"lang\":\"C\",\"computed_verdict\":\"Accepted\",\"status\":\"conflict\",\"conflict\":true,\"created_at\":$OLD,\"sub_epoch\":$OLD,\"claimants\":[],\"votes\":[{\"by\":\"j1.judge\",\"verdict\":\"Accepted\"},{\"by\":\"j2.judge\",\"verdict\":\"Wrong Answer\"}]}" > "$C/review/r4.json"
+call /contest/admin/settings POST '{"manual_verdict":false}' adm 'contest=rv'
+ck "resposta diz quantas liberou"  '[[ "$OUT" == *\"review_released\":1* ]]'
+ck "e quantas ficaram p/ o chefe"  '[[ "$OUT" == *\"review_pending\":1* ]]'
+ck "a sem voto saiu com o computado" '[[ "$(jq -r .status "$C/review/r3.json")" == released && "$(jq -r .released_verdict "$C/review/r3.json")" == "Accepted" ]]'
+ck "o conflito NÃO foi atropelado"   '[[ "$(jq -r .status "$C/review/r4.json")" != released ]]'
+ck "o setverdict foi p/ o spool"     'grep -lF "\"id\":\"r3\"" "$SPOOL"/rv:*:setverdict:* >/dev/null 2>&1 || grep -rlF "r3" "$SPOOL" >/dev/null 2>&1'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

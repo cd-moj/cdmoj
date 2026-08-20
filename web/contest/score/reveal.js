@@ -21,7 +21,7 @@ const G = { contest: CONTEST, auth: true };
 const enc = encodeURIComponent;
 const app = document.getElementById('app');
 
-let PEN = 20;                 // PENALTY_MINUTES (settings; fallback 20)
+let PEN = 20;                 // PENALTY_MINUTES (vem do /contest/basic; fallback 20)
 let balloons = {};
 let probShorts = [];
 let teams = [];               // [{username, teamName, univShort, flag, cells:{sn:v}, fullCells:{sn:v}}]
@@ -155,7 +155,12 @@ async function main() {
   }
   try { balloons = await apiGet('/contest/balloons?contest=' + enc(CONTEST), G); } catch { balloons = {}; }
   if (!CSTAFF) {
-    try { const s = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G); if (Number.isInteger(s.penalty_minutes)) PEN = s.penalty_minutes; } catch { /* .judge sem settings: PEN=20 */ }
+    // a penalidade vem do /contest/basic (todo login do contest lê). Antes vinha do
+    // /contest/admin/settings, que é admin-only: p/ .animeitor/.judge/.cstaff o fetch dava
+    // 403 e PEN caía em 20 — em prova com penalidade diferente, a coluna Penal. E A ORDEM
+    // das linhas saíam erradas justamente no telão da cerimônia.
+    try { const b = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);
+          if (Number.isInteger(b.penalty_minutes)) PEN = b.penalty_minutes; } catch { /* fallback 20 */ }
   }
   const frozen = parseICPC(fl.slice(1), balloons), full = parseICPC(ul.slice(1), balloons);
   if (!frozen || !full) { app.textContent = T('Placar vazio.', 'Empty scoreboard.'); return; }

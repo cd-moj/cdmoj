@@ -56,13 +56,20 @@ if ch_enabled "$contest" && load_session 2>/dev/null && [[ "$SESSION_CONTEST" ==
        views:(if $v == "all" then ["geral","oficial"] else [] end)}')"
 fi
 
+# penalty_minutes: REGRA DE PONTUAÇÃO, não segredo — o competidor precisa saber quanto custa
+# um erro. Vive aqui porque a cerimônia de revelação (que .animeitor/.judge/.cstaff abrem)
+# precisa dela p/ recalcular penalidade e ORDEM das linhas; ela só existia em
+# /contest/admin/settings (admin-only), então o telão caía no default 20 e mostrava
+# classificação errada em prova com penalidade diferente (2026-08-20).
 ok_json '{contest_id:$id, contest_name:$name, start_time:$start, end_time:$end,
           login_start_time:$lst, locale:$loc, login_enabled:$le, freeze_time:$fz, score_anon:$sa,
+          penalty_minutes:$pen,
           languages:$langs, secret:$sec, round:$round, cohort:$cohort, score_views:$sv}' \
   --argjson round "$round_json" --argjson cohort "$cohort_json" --argjson sv "$score_views_json" \
   --arg id "$CONTEST_ID" --arg name "$CONTEST_NAME" \
   --argjson start "${CONTEST_START:-0}" --argjson end "${CONTEST_END:-0}" \
   --argjson lst "${LOGIN_START_TIME:-0}" --arg loc "$LOCALE" \
   --argjson le "$le" --argjson fz "${FREEZE_TIME:-0}" --argjson sa "$sa" \
+  --argjson pen "$(p="${PENALTY_MINUTES:-20}"; [[ "$p" =~ ^[0-9]+$ ]] || p=20; printf %s "$p")" \
   --argjson langs "$langs_json" \
   --argjson sec "$([[ "$SECRET" == 1 ]] && echo true || echo false)"
