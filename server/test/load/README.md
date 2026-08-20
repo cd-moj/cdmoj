@@ -90,7 +90,29 @@ A 2000 times isso dá 16.000 submissões, e o que decide é o custo de julgar um
 **Meça o `duration_s` das soluções oficiais do problem set antes do evento** — é o único parâmetro
 que muda a conclusão.
 
-### Onde está o teto de ~460 req/s (medido 2026-08-20, 30 conexões)
+### ⚠ O teto de "460 req/s" era do GERADOR, não da API (corrigido 2026-08-20)
+
+O `web-poll-bench.sh` sobe um `curl` **por requisição**. Num servidor cujo gargalo é criar
+processo, isso mede o gerador. Com `stress.sh` (curl `-Z`, processo único) a MESMA API entrega:
+
+| | req/s | erros |
+|---|---|---|
+| estático (nginx puro) | **7.934** | 0 |
+| API trivial | **2.370** | 0 até conc=512 |
+| `/contest/history` | 1.361 | 0 |
+| `/contest/problems` (cache + gzip pronto) | 1.130 | 0 |
+| `/contest/basic` | 950 | 0 |
+| `/contest/updates` | 932 | 0 |
+| `/contest/score` (144 KB, 2000 times) | 758 | 0 |
+| **mistura real de contest** | **~875** | **0 até conc=2048** |
+
+**Estampida** (2000 times × basic+problems+history no mesmo instante = 6.000 requisições):
+escoa em **5,5 s**, zero erro, pior requisição individual **0,31 s**.
+
+Use `stress.sh` para número de capacidade. O `web-poll-bench.sh` continua útil como carga de
+"cliente burro", mas o número dele é piso, não teto.
+
+### Onde está o custo por requisição (medido 2026-08-20, 30 conexões, gerador antigo)
 
 | Camada | req/s |
 |---|---|
