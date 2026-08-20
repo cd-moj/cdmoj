@@ -45,6 +45,10 @@ make smoke
 - **Volumes (`:z`, SHARED):** `run/`, `contests/`, `moj-problems/`, `server/var/news` → `/data/…`.
   Estado e segredos NUNCA entram na imagem (ver `deploy/.containerignore`). Rootless: container-root
   ↔ o usuário do host (não defina `USER` nem `--userns=keep-id`).
+- **Mudou o `.container`?** `make install-units` de novo (ele faz o `daemon-reload`) e reinicie a
+  unit — `podman auto-update` só troca a IMAGEM, não relê o quadlet. Vale em especial p/ o
+  `Sysctl=net.core.somaxconn` do `moj-api`: sem reinstalar+reiniciar, o backlog do socket continua
+  clampado no valor antigo **sem erro nenhum** (o entrypoint avisa no log; ver `server/test/load/README.md`).
 - **Raiz do workspace:** os quadlets são **templates** (`@WORKROOT@`) e o `make install-units`
   substitui pelo caminho absoluto de `$(WORKROOT)` (default `..`). Copiar o arquivo cru p/
   `~/.config/containers/systemd/` deixa o placeholder literal e o container não sobe.

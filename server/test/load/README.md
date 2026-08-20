@@ -135,14 +135,39 @@ O que foi testado e **NÃO** resolve:
 
 **O que foi feito** (tudo medido depois):
 
-1. **Backlog do socket de 512 p/ 4096.** O fcgiwrap abre com 512 fixo (medido: a 545ª conexão
+1. **Backlog do socket de 512 p/ 10.000.** O fcgiwrap abre com 512 fixo (medido: a 545ª conexão
    pendente dá EAGAIN) e não tem opção. O `deploy/moj-entrypoint` passou a criar o socket com o
    backlog desejado e entregá-lo no **fd 0** (convenção do FastCGI). Backlog efetivo medido depois:
    **4.129**. A 2000 conexões simultâneas os erros caíram de 82% para 18%.
+   ⚠ **O `listen()` é clampado por `net.core.somaxconn`** (no syscall genérico — vale p/ socket
+   unix também), que é **por namespace de rede** e estava em 4096: pedir mais dava 4096 **em
+   silêncio**. Por isso o par: `FCGI_BACKLOG` no entrypoint **e** `Sysctl=net.core.somaxconn` no
+   `deploy/quadlet/moj-api.container` — os dois números andam juntos, e o entrypoint avisa no log
+   quando o pedido é maior que o teto. Medido na imagem de produção: somaxconn 4096 ⇒ **4.097**
+   conexões enfileiradas antes do EAGAIN; somaxconn 10000 ⇒ **10.001**. Hoje os dois estão em
+   **10.000**, p/ rajada de F5 muito intensa.
 2. **Cliente espalha a largada** (até 1,2 s sorteado) e **retenta com espera crescente**
    (`web/contest/contest.js`, `loadContestBody`). Antes, um 502 ali deixava a página parada num
    aviso de erro até o time recarregar à mão.
-3. **Cache do `/contest/rounds`** (275 → 991 req/s): era a rota mais cara do lote de boot.
+3. **Cache do LOTE DE BOOT INTEIRO.** Cada rota que toda página de contest pede virou resposta
+   cacheada (`resp_cache_fresh`/`resp_cache_store`), com **variante por dimensão de segurança** —
+   ver a receita no `cdmoj/CLAUDE.md`. Processos por requisição com o cache quente, medidos com
+   `strace -c -e trace=execve` contra o fixture de 2000 times:
+
+   | rota | antes | depois |
+   |---|---:|---:|
+   | `/contest/problems` (12 problemas) | 89 | **2** |
+   | `/contest/rounds` | 20 | **2** |
+   | `/contest/navbuttons` | 9 | **2** |
+   | `/contest/basic` (contest **com** coortes) | 28 | **3** |
+   | `/contest/basic` (sem coortes) | 4 | **2** |
+   | `/contest/balloons` | 7 | **1** |
+
+   Os dois maiores ganhos não vieram do cache em si: o `/contest/basic` custava 28 processos
+   porque `ch_enabled`/`ch_of`/`ch_view_for_login` se chamam em cascata (hoje `ch_ctx` responde os
+   três num jq só), e o `/contest/balloons` chegou a 1 processo ao trocar o teto de idade por ter
+   o próprio handler como entrada, e ao substituir o `grep | cut` do `contest_is_secret` — que
+   roda em TODA rota pública de contest — por leitura em bash puro (`conf_value`).
 
 ### O F5 na contagem regressiva (o comportamento real do aluno)
 

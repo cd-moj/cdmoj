@@ -110,6 +110,7 @@ ok_json() {
   local _b
   _b="$(jq -cn "$@" "{success:true} + ($filter)")" || fail 500 "Falha ao montar a resposta" "build_fail"
   [[ -n "$_b" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
+  OK_JSON_BODY="$_b"          # p/ quem quiser guardar a resposta (ver resp_cache_store)
   emit_json 200 OK
   printf '%s\n' "$_b"
 }
@@ -128,6 +129,40 @@ ok_json_slurp() {
   rm -f "$_sf"
 }
 
+# --- cache de RESPOSTA (rotas do lote de boot) -----------------------------
+# Rotas que todo carregamento de página pede e cujo corpo é o MESMO p/ muita gente. O aluno na
+# contagem regressiva aperta F5 em vez de esperar, então este lote é o que decide o pico.
+#
+# DUAS REGRAS, e as duas são de segurança:
+#   1. VARIANTE — se o corpo muda por papel/sessão, o arquivo de cache muda junto (o nome leva a
+#      variante). Ignorar isso faz o GET de um juiz vazar p/ um competidor;
+#   2. FRESCOR PELAS ENTRADAS — em vez de confiar em alguém lembrar de invalidar, compara-se o
+#      cache com os arquivos que o alimentam (`-nt` é builtin do bash: zero processos). O teto de
+#      idade é a rede p/ o que não é arquivo daqui (TL de juiz, pacote no treino, relógio).
+#
+# resp_cache_fresh <arquivo> <ttl_s> <entrada>... -> 0 se pode servir do cache
+resp_cache_fresh(){
+  local cf="$1" ttl="$2"; shift 2
+  [[ -s "$cf" ]] || return 1
+  local f
+  for f in "$@"; do [[ -e "$f" && "$f" -nt "$cf" ]] && return 1; done
+  # ttl 0 = SEM teto de idade: só p/ rota cujas entradas cobrem 100% do que muda o corpo (e aí
+  # o próprio arquivo do handler entra como entrada, p/ um deploy invalidar). O teto existe p/ o
+  # que NÃO é arquivo deste contest — fase da prova pelo relógio, TL reportado por um juiz — e
+  # custa um `find` por requisição, que nessas rotas é o processo mais caro que sobra.
+  (( ttl > 0 )) || return 0
+  [[ -n "$(find "$cf" -newermt "-$ttl seconds" 2>/dev/null)" ]] || return 1
+  return 0
+}
+# resp_cache_store <arquivo> <corpo> — grava por tmp+mv (leitor concorrente nunca vê pela metade)
+resp_cache_store(){
+  local cf="$1" body="$2"
+  mkdir -p "${cf%/*}" 2>/dev/null
+  printf '%s' "$body" > "$cf.tmp.$$" 2>/dev/null && mv -f "$cf.tmp.$$" "$cf" 2>/dev/null \
+    || rm -f "$cf.tmp.$$" 2>/dev/null
+  return 0
+}
+
 # --- validação / paths ----------------------------------------------------
 valid_id() {  # id seguro (sem traversal). Permite #, @, ., +, -, _ (usados em ids).
   [[ "$1" =~ ^[A-Za-z0-9._@#+-]+$ ]] && [[ "$1" != *..* ]]
@@ -139,13 +174,23 @@ require_contest() {  # require_contest <id>
 }
 # carrega o conf do contest em variáveis (CONTEST_NAME, CONTEST_TYPE, PROBS, ...)
 load_contest_conf() { source "$CONTESTSDIR/$1/conf"; }
-# contest SUPER SECRETO (conf SECRET=1): fora das listagens públicas (home/arquivo/status);
-# placar e visual (balloons/regions/teams-meta) exigem sessão DO contest. Lido com grep
-# (sem source no caminho quente — padrão do _users_source).
-contest_is_secret() {
-  local v; v="$(grep -m1 '^SECRET=' "$CONTESTSDIR/$1/conf" 2>/dev/null | cut -d= -f2-)"
-  v="${v//\'/}"; v="${v//\"/}"; [[ "$v" == 1 ]]
+# conf_value <contest> <CHAVE> -> valor da 1ª linha `CHAVE=…`, sem aspas, SEM PROCESSO NENHUM.
+# O conf é *sourced* em outros caminhos, mas aqui não pode ser (é o caminho de auth: conteúdo de
+# usuário não vira código) — e o par grep|cut custava DOIS processos numa checagem que roda em
+# TODA rota pública de contest. `$(<arquivo)` é caso especial do bash: lê sem forkar.
+conf_value() {
+  local f="$CONTESTSDIR/$1/conf" k="$2=" line v
+  [[ -r "$f" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" == "$k"* ]] || continue
+    v="${line#"$k"}"; v="${v//\'/}"; v="${v//\"/}"; printf '%s' "$v"; return 0
+  done < "$f"
+  return 0
 }
+# contest SUPER SECRETO (conf SECRET=1): fora das listagens públicas (home/arquivo/status);
+# placar e visual (balloons/regions/teams-meta) exigem sessão DO contest. Lido SEM source
+# (caminho quente e de auth — padrão do _users_source).
+contest_is_secret() { [[ "$(conf_value "$1" SECRET)" == 1 ]]; }
 # gate dos endpoints públicos quando o contest é secreto: exige sessão válida DAQUELE contest.
 require_not_secret_or_auth() {  # <contest>
   contest_is_secret "$1" || return 0

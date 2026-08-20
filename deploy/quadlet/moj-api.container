@@ -20,6 +20,15 @@ Exec=api
 # perde e o processo-PAI entra em BUSY LOOP de wait4 — medido: 32.683 chamadas/s, 100% de um core,
 # desde o boot, sem tráfego nenhum. O tini reapa os órfãos e o fcgiwrap só espera pelos filhos DELE.
 RunInit=yes
+# BACKLOG DA FILA DE CONEXÕES (rajada de F5 na contagem regressiva: 2000 times recarregando ao
+# mesmo tempo). O socket é aberto pelo moj-entrypoint com FCGI_BACKLOG (10000) e entregue ao
+# fcgiwrap no fd 0 — mas o `listen()` é CLAMPADO por net.core.somaxconn, que é por NAMESPACE DE
+# REDE e vale p/ socket unix também. Sem esta linha o pedido de 10000 vira 4096 EM SILÊNCIO
+# (o entrypoint avisa no log, mas a fila fica menor do que se pediu) e o excedente vira
+# `connect() ... (11: Resource temporarily unavailable)` no nginx = 502 na cara do competidor.
+# Medido na imagem de produção: somaxconn 4096 => 4097 na fila; 10000 => 10001.
+# Mexeu aqui? Mexa no FCGI_BACKLOG do deploy/moj-entrypoint — os dois números andam JUNTOS.
+Sysctl=net.core.somaxconn=10000
 # Estado por volume, rótulo SELinux :z (SHARED — o nginx do host e o moj-judged mantêm acesso).
 # NÃO usar :Z (privado) nem User=/UserNS=keep-id (quebraria o dono dos arquivos nos volumes).
 Volume=@WORKROOT@/run:/data/run:z

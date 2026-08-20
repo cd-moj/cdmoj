@@ -509,6 +509,40 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   (`PROBLEMS_CACHE_TTL`, 60s) como rede p/ o que não é deste contest: TL novo reportado por juiz e
   o `languages` do pacote no treino. Cache quente = **2 processos**. Teste:
   `smoke-contest-problems-cache.sh` (o caso que importa é o de envenenamento entre variantes).
+- **CACHE DE RESPOSTA — a receita da casa** (`resp_cache_fresh`/`resp_cache_store` em
+  `lib/common.sh`), hoje no LOTE DE BOOT inteiro (`problems`, `rounds`, `basic`, `navbuttons`,
+  `balloons`): toda página de contest pede esse lote, e o aluno aperta **F5 na contagem
+  regressiva** em vez de esperar — é o tráfego mais repetido do dia. Três regras:
+  1. **A VARIANTE é regra de segurança, não otimização.** Se o corpo muda conforme QUEM pede, a
+     dimensão que o muda entra no NOME DO ARQUIVO — senão o primeiro GET privilegiado enche o
+     cache e o competidor recebe aquilo. Hoje: `problems` por `author|noauthor`, `rounds` por
+     `priv|pub`, `navbuttons` por **papel** (8), `basic` por **(fim efetivo, coorte, visão)**.
+     `balloons` é o único sem variante — o mapa de cores é igual p/ todo mundo. O teste que
+     importa em cada um é o de **envenenamento entre variantes, nas DUAS ordens**
+     (`smoke-boot-cache.sh`, `smoke-contest-{problems,rounds}-cache.sh`).
+  2. **Variante vira NOME DE ARQUIVO ⇒ sanear por remoção é pior que não cachear.** `a/b` e `ab`
+     colapsariam no mesmo arquivo e um veria o placar do outro. Id fora do padrão: **não cacheia**.
+  3. **Frescor não depende de ninguém lembrar de invalidar**: compara com as ENTRADAS por `-nt`
+     (builtin, zero processos) + **teto de idade** p/ o que não é arquivo (fase da prova pelo
+     relógio). `ttl 0` = sem teto, e aí o próprio handler entra como entrada (`${BASH_SOURCE[0]}`)
+     p/ um deploy invalidar — é o caso do `balloons`, que assim chega a **1 processo**.
+  ⚠ Cachear é fácil ligar e caro errar: o gzip do nginx nesse mesmo lote **derrubou** o
+  `/contest/problems` de 452 p/ 30 req/s (recomprimia 2,1 MB por time) — por isso a versão `.gz`
+  vai gravada junto do corpo. Medir antes e depois faz parte da receita.
+- **`ch_ctx` (lib/cohorts.sh) responde ligado/coorte/visão num ÚNICO jq.** O trio
+  `ch_enabled`+`ch_of`+`ch_view_for_login` se chama em cascata e refazia a normalização do
+  `ch_get` em cada nível: **28 processos** por `/contest/basic` num contest com coortes — e a
+  prova grande tem coortes. Memoizar **não** resolve: os chamadores usam `$(…)` e a atribuição
+  feita no subshell não volta p/ o pai. A saída é a mesma do `ug_expected_map` do gate de UA — um
+  programa jq que devolve tudo de uma vez. Custo: `basic` foi a **3 processos**. O preço é ter
+  DUAS implementações da mesma regra (as duas no mesmo arquivo, de propósito), e o que impede a
+  divergência é o teste **diferencial** `smoke-cohort-ctx.sh` — mexeu numa, mexa na outra.
+  ⚠ O separador é **`\x01`, não TAB**: o id de coorte pode ser vazio e TAB é whitespace do IFS —
+  `IFS=$'\t' read` colapsa a sequência e a visão sai no lugar do id (mesma armadilha do `sc_users`).
+- **`conf_value <contest> <CHAVE>` (lib/common.sh) lê uma chave do conf SEM PROCESSO NENHUM.** O
+  `contest_is_secret`, que roda em TODA rota pública de contest, gastava um `grep | cut` (2
+  processos) p/ ler `SECRET=`. `$(<arquivo)`/`read` são builtins. Não confundir com
+  `load_contest_conf`: no caminho de auth o conf **não pode** ser *sourced*.
 - **Caches de problemas invalidam POR EVENTO, não por TTL** (2026-07-17): a lista do treino
   (`/treino/problems` → `var/problems.json`) é invalidada pelo stamp **`var/.treino-list-dirty`**
   — TODO ponto que cria/remove json servível TOCA o stamp (`index_problem_bg` pós-gen;

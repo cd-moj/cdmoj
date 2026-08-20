@@ -50,9 +50,19 @@ case "$role" in
     # rajada de conexões passa fácil disso — e o nginx, sem conseguir connect(), devolve 502.
     # Medido de 5 máquinas externas em 20/08/2026: limpo até ~480 simultâneas, 26% de 502 em 640.
     # Solução: o socket é criado AQUI, com o backlog que quisermos, e entregue ao fcgiwrap no
-    # fd 0 — que é a convenção do FastCGI (é assim que socket-activation funciona). O teto real
-    # é o net.core.somaxconn do namespace (4096 no deploy atual).
-    : "${FCGI_BACKLOG:=4096}"
+    # fd 0 — que é a convenção do FastCGI (é assim que socket-activation funciona).
+    #
+    # ⚠ O `listen()` é CLAMPADO por net.core.somaxconn (no syscall genérico, vale p/ AF_UNIX
+    # também) — pedir 10000 com somaxconn=4096 dá 4096 e NÃO avisa. Por isso o valor real vem em
+    # par com o `Sysctl=net.core.somaxconn` do quadlet, e o aviso abaixo torna o clamp visível no
+    # log em vez de silencioso. Medido na imagem de produção: somaxconn 4096 => 4097 conexões
+    # enfileiradas antes do EAGAIN; somaxconn 10000 => 10001.
+    : "${FCGI_BACKLOG:=10000}"
+    _smc="$(cat /proc/sys/net/core/somaxconn 2>/dev/null || echo 0)"
+    if [[ "$_smc" =~ ^[0-9]+$ ]] && (( _smc > 0 && _smc < FCGI_BACKLOG )); then
+      echo "moj-entrypoint: AVISO — backlog pedido $FCGI_BACKLOG, mas net.core.somaxconn=$_smc" \
+           "limita a fila a $_smc. Ajuste o Sysctl= do quadlet." >&2
+    fi
     if command -v python3 >/dev/null 2>&1; then
       exec python3 - "$FCGI_SOCK" "$FCGI_BACKLOG" "$FCGI" "$FCGI_WORKERS" <<'PYEOF'
 import os, socket, sys

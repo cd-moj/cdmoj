@@ -42,15 +42,10 @@ CVAR=noauthor; [[ "$SHOW_AUTHOR" == true ]] && CVAR=author
 CDIR="$CONTESTSDIR/$contest/var"; CF="$CDIR/problems-cache.$CVAR.json"
 : "${PROBLEMS_CACHE_TTL:=60}"
 _cache_fresh(){
-  [[ -s "$CF" ]] || return 1
-  local f
-  for f in "$CONTESTSDIR/$contest/conf" "$CONTESTSDIR/$contest/problem-langs.json" \
-           "$CONTESTSDIR/$contest/problem-judges.json" "$CONTESTSDIR/$contest/enunciados" \
-           "$CDIR/.problems-dirty"; do
-    [[ -e "$f" && "$f" -nt "$CF" ]] && return 1
-  done
-  [[ -n "$(find "$CF" -newermt "-$PROBLEMS_CACHE_TTL seconds" 2>/dev/null)" ]] || return 1
-  return 0
+  resp_cache_fresh "$CF" "$PROBLEMS_CACHE_TTL" \
+    "$CONTESTSDIR/$contest/conf" "$CONTESTSDIR/$contest/problem-langs.json" \
+    "$CONTESTSDIR/$contest/problem-judges.json" "$CONTESTSDIR/$contest/enunciados" \
+    "$CDIR/.problems-dirty"
 }
 # O payload é grande (enunciados embutidos: MB) e idêntico p/ todos. Se o nginx comprimir a
 # cada resposta, 2000 times no segundo da abertura pagam 2000 compressões do MESMO conteúdo —
@@ -149,8 +144,7 @@ else
 fi
 [[ -n "$BODY" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
 # grava por tmp+mv: leitor concorrente nunca vê arquivo pela metade
-mkdir -p "$CDIR" 2>/dev/null
-printf '%s' "$BODY" > "$CF.tmp.$$" 2>/dev/null && mv -f "$CF.tmp.$$" "$CF" 2>/dev/null || rm -f "$CF.tmp.$$" 2>/dev/null
+resp_cache_store "$CF" "$BODY"
 # a versão comprimida é gravada DEPOIS da crua: se algo falhar aqui, o pior caso é o nginx
 # comprimir como antes — nunca servir .gz de um corpo diferente do .json
 printf '%s' "$BODY" | gzip -6 -c > "$CF.gz.tmp.$$" 2>/dev/null && mv -f "$CF.gz.tmp.$$" "$CF.gz" 2>/dev/null || rm -f "$CF.gz.tmp.$$" 2>/dev/null

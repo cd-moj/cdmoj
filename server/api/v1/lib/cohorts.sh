@@ -28,7 +28,17 @@
 ch_file(){ printf '%s/%s/cohorts.json' "$CONTESTSDIR" "$1"; }
 
 # ch_get <c> -> cohorts.json normalizado (default coerente quando não existe)
+# MEMOIZAÇÃO POR REQUISIÇÃO (o processo morre no fim dela — não há risco de servir valor velho).
+# `ch_get` era refeito em CASCATA: `ch_view_for_login` chama `ch_enabled` + `ch_released` + `ch_of`,
+# e cada um refazia os dois jq da normalização. Medido no /contest/basic com coortes ligadas: 28
+# processos por requisição, dos quais ~18 eram esta cascata. Vale p/ todo consumidor da lib
+# (placar, teams, basic), não só p/ quem chamou primeiro.
+declare -gA _CH_J=() _CH_EN=() _CH_OF=() _CH_VW=()
 ch_get(){
+  [[ -v _CH_J[$1] ]] && { printf '%s' "${_CH_J[$1]}"; return 0; }
+  _CH_J[$1]="$(_ch_get_raw "$1")"; printf '%s' "${_CH_J[$1]}"
+}
+_ch_get_raw(){
   local f; f="$(ch_file "$1")"
   if [[ -s "$f" ]] && jq -e '.cohorts' "$f" >/dev/null 2>&1; then
     jq -c '{version:(.version // 1), results_released:(.results_released == true),
@@ -47,8 +57,12 @@ ch_save(){ local f; f="$(ch_file "$1")"; printf '%s\n' "$2" > "$f.tmp" && mv -f 
 # inscrição). Enquanto não houver nenhuma das duas, o resto do sistema segue o caminho de
 # sempre (um placar, um /contest/teams inteiro) — custo novo ZERO.
 ch_enabled(){
-  local j; j="$(ch_get "$1")"
-  jq -e '[.cohorts[] | select(.public == false or .ranking)] | length > 0' <<<"$j" >/dev/null 2>&1
+  if [[ ! -v _CH_EN[$1] ]]; then
+    local j; j="$(ch_get "$1")"
+    if jq -e '[.cohorts[] | select(.public == false or .ranking)] | length > 0' <<<"$j" >/dev/null 2>&1
+    then _CH_EN[$1]=1; else _CH_EN[$1]=0; fi
+  fi
+  (( _CH_EN[$1] ))
 }
 
 # ch_is_ranking_view <c> <id> — 0 se <id> é coorte PÚBLICA com placar próprio (o `?view=<id>`
@@ -66,6 +80,10 @@ ch_default(){
 
 # ch_of <c> <login> -> id da coorte deste login (campo vence regex; regex vence default)
 ch_of(){
+  [[ -v _CH_OF[$1/$2] ]] && { printf '%s' "${_CH_OF[$1/$2]}"; return 0; }
+  _CH_OF[$1/$2]="$(_ch_of_raw "$1" "$2")"; printf '%s' "${_CH_OF[$1/$2]}"
+}
+_ch_of_raw(){
   local c="$1" l="$2" ex j
   j="$(ch_get "$c")"
   ex="$(jq -r '.team.cohort // ""' "$CONTESTSDIR/$c/users/$l/account.json" 2>/dev/null)"
@@ -102,7 +120,46 @@ ch_view_cohorts(){
 
 # ch_view_for_login <c> <login> -> visão que ESTE login deve receber.
 # Privilegiado (admin/juiz/monitor/staff) e pós-liberação: "all" (tudo).
+# ch_ctx <contest> <login> -> "<enabled 0|1>\x01<id da coorte>\x01<visão>" num ÚNICO jq.
+# POR QUE EXISTE: o trio ch_enabled + ch_of + ch_view_for_login é o que TODA página de contest
+# paga no /contest/basic, e ele se chama em cascata — ch_view_for_login chama ch_enabled,
+# ch_released e ch_of, e cada um refazia a normalização do ch_get. Medido: 28 processos por
+# requisição num contest com coortes. Memoizar não resolve: os chamadores usam `$(…)`, e a
+# atribuição feita dentro de um subshell não volta p/ o pai. Então a resposta é a mesma do
+# `ug_expected_map` do gate de UA — UM programa jq que devolve tudo de uma vez (2 processos).
+# ⚠ A lógica aqui é a MESMA de ch_of/ch_view_for_login; ao mexer numa, mexa na outra (as duas
+# ficam neste arquivo, de propósito). A normalização do ch_get está embutida no `norm`.
+ch_ctx(){
+  local c="$1" l="$2" a="$CONTESTSDIR/$1/users/$2/account.json"
+  [[ -f "$a" ]] || a=/dev/null
+  jq -rn --arg l "$l" --slurpfile a "$a" --slurpfile j "$(ch_file "$c")" '
+    ( ($j[0] // {}) | {released:(.results_released == true),
+        cohorts:[ (.cohorts // [])[] | {id:(.id // ""), regex:(.regex // ""),
+          public:(.public != false), ranking:(.ranking == true),
+          default:(.default == true)} | select(.id != "") ]} ) as $C
+    | ([$C.cohorts[] | select(.public == false or .ranking)] | length > 0) as $en
+    | (($a[0].team.cohort // "")) as $ex
+    | (if ($ex != "" and any($C.cohorts[]; .id == $ex)) then $ex
+       else (first($C.cohorts[] | .regex as $rr
+                   | select($rr != "" and (try ($l|test($rr;"i")) catch false)) | .id)
+             // first($C.cohorts[] | select(.default) | .id) // ($C.cohorts[0].id) // "") end) as $co
+    | (if ($en|not) then "public"
+       elif $C.released then "all"
+       elif ($l|test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) then "all"
+       elif ($co != "" and any($C.cohorts[]; .id == $co and (.public|not))) then $co
+       else "public" end) as $vw
+    | [(if $en then "1" else "0" end), $co, $vw] | join("\u0001")' 2>/dev/null \
+    || printf '0\x01\x01public'
+}
+# ⚠ SEPARADOR \x01, NÃO TAB: o id da coorte pode ser VAZIO (contest sem coortes) e TAB é
+# whitespace do IFS — `IFS=$'\t' read` colapsa a sequência e o campo vazio do meio DESLOCA os
+# seguintes (a visão sairia no lugar do id). Mesma convenção do `sc_users` do score-common.
+
 ch_view_for_login(){
+  [[ -v _CH_VW[$1/$2] ]] && { printf '%s' "${_CH_VW[$1/$2]}"; return 0; }
+  _CH_VW[$1/$2]="$(_ch_view_raw "$1" "$2")"; printf '%s' "${_CH_VW[$1/$2]}"
+}
+_ch_view_raw(){
   local c="$1" l="$2" co
   ch_enabled "$c" || { printf 'public'; return 0; }
   ch_released "$c" && { printf 'all'; return 0; }
