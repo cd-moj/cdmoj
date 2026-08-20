@@ -30,13 +30,23 @@ platform_langs_json(){ printf '%s\n' $PLATFORM_LANGS | jq -R . | jq -cs .; }
 #   3. default do PACOTE (var/jsons{,-private}/<id>.json .languages)
 #   4. [] = as linguagens da plataforma (PLATFORM_LANGS)
 # O conf é sourced em SUBSHELL (não vaza globais p/ o handler chamador).
+# memória POR REQUISIÇÃO: o override do contest e a whitelist do conf são os MESMOS para todos
+# os problemas, mas a função era chamada dentro do laço do /contest/problems — relia o arquivo e
+# re-sourceava o conf 12 vezes (3 processos por problema). O cache vive só neste processo, então
+# não há invalidação a fazer: a próxima requisição relê.
+declare -gA _EPL=()
 effective_problem_langs(){
   local contest="$1" pid="$2" plangs="" clangs="" pjf
-  plangs="$(jq -c --arg id "$pid" '.[$id] // empty' "$CONTESTSDIR/$contest/problem-langs.json" 2>/dev/null)"
-  if [[ -n "$plangs" && "$plangs" != null ]]; then printf '%s' "$plangs"; return 0; fi
-  clangs="$( ( LANGUAGES=""
+  if [[ -z "${_EPL[pj:$contest]+x}" ]]; then
+    _EPL[pj:$contest]="$(<"$CONTESTSDIR/$contest/problem-langs.json")" 2>/dev/null || _EPL[pj:$contest]='{}'
+    [[ -n "${_EPL[pj:$contest]}" ]] || _EPL[pj:$contest]='{}'
+    _EPL[cl:$contest]="$( ( LANGUAGES=""
                load_contest_conf "$contest" >/dev/null 2>&1
                [[ -n "$LANGUAGES" ]] && printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs . ) 2>/dev/null)"
+  fi
+  plangs="$(jq -c --arg id "$pid" '.[$id] // empty' <<<"${_EPL[pj:$contest]}" 2>/dev/null)"
+  if [[ -n "$plangs" && "$plangs" != null ]]; then printf '%s' "$plangs"; return 0; fi
+  clangs="${_EPL[cl:$contest]}"
   if [[ -n "$clangs" && "$clangs" != '[]' ]]; then printf '%s' "$clangs"; return 0; fi
   pjf="$CONTESTSDIR/treino/var/jsons/$pid.json"
   [[ -f "$pjf" ]] || pjf="$CONTESTSDIR/treino/var/jsons-private/$pid.json"

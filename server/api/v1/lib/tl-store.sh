@@ -148,6 +148,10 @@ tl_store_served_hosts(){
 tl_conf_overrides(){
   local conf="$1/conf"
   [[ -n "$1" && -f "$conf" ]] || { echo '{}'; return; }
+  # atalho sem processo nenhum: quase todo pacote NÃO tem TLOVERRIDE, e o sed+jq rodava assim
+  # mesmo — por problema, dentro do laço do /contest/problems. `$(<arquivo)` não forka.
+  local _c; _c="$(<"$conf")" 2>/dev/null || _c=""
+  [[ "$_c" == *TLOVERRIDE* ]] || { echo '{}'; return; }
   sed -nE 's/^[[:space:]]*TLOVERRIDE\[([A-Za-z0-9]{1,16})\]=([0-9]+\.?[0-9]*|\.[0-9]+)[[:space:]]*(#.*)?$/\1\t\2/p' \
       "$conf" 2>/dev/null \
     | jq -Rnc '[inputs | split("\t") | select(length==2)
@@ -159,7 +163,8 @@ tl_conf_overrides(){
 tl_override_apply(){
   local tl="$1" ov="$2"
   jq -e . >/dev/null 2>&1 <<<"$tl" || tl='{}'
-  [[ -n "$ov" ]] && jq -e 'length > 0' >/dev/null 2>&1 <<<"$ov" || { printf '%s' "$tl"; return; }
+  # era um jq só p/ perguntar "o objeto tem chave?" — o bash responde sem forkar
+  [[ -n "$ov" && "$ov" != "{}" && "$ov" != "null" ]] || { printf '%s' "$tl"; return; }
   jq -cn --argjson tl "$tl" --argjson ov "$ov" '
     (($tl|keys) + ($ov|keys) | unique) as $ks
     | reduce $ks[] as $k ({}; .[$k] = ($ov[$k] // $ov["default"] // $tl[$k]))
