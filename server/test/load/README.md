@@ -260,6 +260,35 @@ Divergir ali congela o placar **em silêncio**: a rota segue respondendo 200, co
 sempre. É o que o `smoke-contest-score-serve.sh` guarda, junto com a outra família de risco —
 qual placar cada papel recebe.
 
+### O enunciado saiu da lista (20/08/2026) — o maior ganho de banda de todos
+
+O `/contest/problems` mandava TODOS os enunciados em base64 dentro da lista. Em contest de HTML
+isso era pequeno (o esquenta: 252 KB crus / 56 KB gz). Em contest de **PDF**, não:
+
+| contest de produção | enunciados em disco | lista ANTES (gz) | lista DEPOIS (gz) |
+|---|---:|---:|---:|
+| `lista01-pc-unila` | 3,8 MB | **2,5 MB** | **1.588 B** |
+| `sundfeld_apc_2025_01_t10_listao` | 10 MB (62 PDFs) | — | **2.856 B** |
+| `boaventura_lab_p1_apc_2026_04` | 4 MB (20 PDFs) | — | **1.228 B** |
+
+**Base64 de PDF não comprime** (o PDF já é comprimido), então o gzip não ajudava: 2000 times
+abrindo a prova no mesmo segundo eram ~**5 GB** de uma vez, para entregar 12 enunciados que cada
+time lê de um em um. Hoje a lista diz só que o enunciado existe e o corpo vem do
+`/contest/statement` quando a pessoa abre a sanfona ou clica em HTML/PDF.
+
+Medido num fixture de 2000 times × 12 problemas com **HTML de 130 KB + PDF de 300 KB cada**:
+
+| | na rede (gz) | req/s |
+|---|---:|---:|
+| `/contest/problems` | **253 B** | 1067 |
+| `/contest/statement?format=html` | 2.431 B | 970 |
+| `/contest/statement?format=pdf` | 300.000 B | — (só quem clica) |
+| `/contest/score` (pré-comprimido) | 12.665 B | 714 |
+| F5 completo (6 chamadas), 2000 conexões simultâneas | — | **1048, zero erro** |
+
+O ETag fecha a conta: reabrir o enunciado ou recarregar a página devolve **304 com 0 byte** em
+vez do arquivo.
+
 ### Hipótese testada e DESCARTADA: os buffers do FastCGI
 
 O `error.log` mostrava `an upstream response is buffered to a temporary file` e o repo não define
