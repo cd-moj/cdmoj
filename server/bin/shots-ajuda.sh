@@ -64,7 +64,7 @@ mk_user(){ # <login> <nome> <sigla> <sede> <bandeira>
   : > "$d/history"
 }
 mk_user time-alfa    "Os Alfabetizados"    UFPR  "Curitiba" br
-mk_user time-beta    "Beta Testers"        UTFPR "Curitiba" br
+mk_user time-beta    "Beta Testers"        UnB   "Curitiba" br
 mk_user time-gama    "Gama Radiação"       UFPR  "Curitiba" br
 mk_user time-delta   "Delta de Dirac"      USP   "São Paulo" br
 mk_user time-epsilon "Épsilon Suficiente"  UNESP "São Paulo" br
@@ -92,7 +92,7 @@ mkpr(){ # <id> <login> <time> <univ> <arquivo> <status> <seq> <kind> <idade_s> [
 }
 mkpr p1 time-alfa  "Os Alfabetizados" UFPR  "solucao-b.cpp" pending   7 print   240
 mkpr p2 time-gama  "Gama Radiação"    UFPR  "rascunho.txt"  pending   8 print   120
-mkpr p3 time-beta  "Beta Testers"     UTFPR "solucao-a.c"   processed 6 print   900
+mkpr p3 time-beta  "Beta Testers"     UnB   "solucao-a.c"   processed 6 print   900
 # uma tarefa JÁ PEGA por mim: o claim MANTÉM status=pending (print-action.sh só permite claim
 # sobre pendente) e grava claimed_by/claimed_at — é o estado logo depois de clicar em "Pegar"
 mkpr p0 time-alfa  "Os Alfabetizados" UFPR  "main.c"        pending   5 print   300
@@ -115,7 +115,7 @@ int main(void) {
 SRC
 cp "$C/print-requests/p0.src" "$C/print-requests/p1.src"
 mkpr b1 time-alfa  "Os Alfabetizados" UFPR  ""              pending   9 balloon  60 A e63946 vermelho
-mkpr b2 time-beta  "Beta Testers"     UTFPR ""              pending  10 balloon  30 C 2a9d8f verde
+mkpr b2 time-beta  "Beta Testers"     UnB   ""              pending  10 balloon  30 C 2a9d8f verde
 
 # --- placar (TXT cru, como o build.sh gera): cabeçalho + 6 linhas
 # FORMATO REAL do placar (updatescore-icpc.sh): 1ª linha = modo; 2ª = header com os DOIS
@@ -125,7 +125,7 @@ SCOL='desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total:Penalt
 { printf 'icpc\n%s\n' "$SCOL"
   printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12:2/45:1/78::3:147:78\n'
   printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:1/-:1/61:3/-:2:81:61\n'
-  printf 'br:time-beta:UTFPR:Beta Testers:Univ. Tecnológica Federal do Paraná:1/33:2/-:::1:33:33\n'
+  printf 'br:time-beta:UnB:Beta Testers:Universidade de Brasília:1/33:2/-:::1:33:33\n'
   printf 'br:time-epsilon:UNESP:Épsilon Suficiente:Universidade Estadual Paulista:1/40:::2/-:1:40:40\n'
   printf 'br:time-gama:UFPR:Gama Radiação:Univ. Federal do Paraná::1/-:::0:0:0\n'
   printf 'ar:time-zeta:USP:Zeta Zero:Universidade de São Paulo:::::0:0:0\n'
@@ -135,7 +135,7 @@ SCOL='desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total:Penalt
 { printf 'icpc\n%s\n' "$SCOL"
   printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:2/152:1/61:3/188:4:280:188\n'
   printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12:2/45:1/78:2/171:4:338:171\n'
-  printf 'br:time-beta:UTFPR:Beta Testers:Univ. Tecnológica Federal do Paraná:1/33:3/166::1/195*:3:239:195\n'
+  printf 'br:time-beta:UnB:Beta Testers:Universidade de Brasília:1/33:3/166::1/195*:3:239:195\n'
   printf 'br:time-epsilon:UNESP:Épsilon Suficiente:Universidade Estadual Paulista:1/40:::2/-:1:40:40\n'
   printf 'br:time-gama:UFPR:Gama Radiação:Univ. Federal do Paraná::2/-:::0:0:0\n'
   printf 'ar:time-zeta:USP:Zeta Zero:Universidade de São Paulo:::::0:0:0\n'
@@ -246,7 +246,7 @@ jq -cn --argjson t "$((NOW-3600))" --arg by decano.cjudge \
     {type:"times",     lang:"pt", html_bytes:4180,   pdf_bytes:22140,   generated_at:($t-200), by:$by},
     {type:"editorial", lang:"pt", html_bytes:31240,  pdf_bytes:204800,  generated_at:($t+200), by:$by}]' \
   > "$C/docs/index.json"
-jq -cn '{caderno_version:"v1.2", cover_note:"Realização: MOJ · Apoio: UTFPR",
+jq -cn '{caderno_version:"v1.2", cover_note:"Realização: MOJ · Apoio: UnB",
          errata:"Problema C: leia 1 ≤ N ≤ 10^5.",
          published:["info-sheet.pt","info-sheet.en","times.pt"]}' > "$C/docs/config.json"
 # enunciados (só p/ a aba não abrir com o aviso "sem enunciado no contest")
