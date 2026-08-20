@@ -75,4 +75,15 @@ ck ".cjudge vê o placar COMPLETO" '[[ "$OUT" == *COMPLETO* ]]'
 call /contest/score GET '' alu 'contest=rv'
 ck "aluno vê o congelado"         '[[ "$OUT" == *CONGELADO* && "$OUT" != *COMPLETO* ]]'
 
+
+echo "== set-verdict: sobrescrever veredicto é ato de CHEFIA (gate fechado 2026-08-20) =="
+# a UI já escondia a coluna do juiz puro, mas a rota aceitava qualquer is_judge: por curl um
+# juiz comum sobrescrevia veredicto de time sozinho, fora do quórum.
+call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Accepted","username":"aluno1"}' j1 'contest=rv'
+ck "juiz puro NÃO sobrescreve"    '[[ "$OUT" == *chief_required* ]]'
+call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Accepted","username":"aluno1"}' cj 'contest=rv'
+ck "juiz-chefe sobrescreve"       '[[ "$OUT" == *queued* ]]'
+call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Accepted","username":"aluno1"}' adm 'contest=rv'
+ck "admin sobrescreve"            '[[ "$OUT" == *queued* ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))
