@@ -35,7 +35,7 @@ export function renderGeneric(parsed, opts) {
     rows = rows.filter(r => regionFn({ username: r[parsed.iUser] || '' }));
   }
 
-  const table = el('table', { class: 'score' });
+  const table = el('table', { class: 'score m-generic' });
   table.dataset.shown = String(rows.length);           // contador da barra de filtros
   table.dataset.total = String(parsed.rows.length);
   // larguras por <colgroup> (table-layout:fixed) — o placar não rola para o lado

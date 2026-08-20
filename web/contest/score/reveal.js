@@ -51,7 +51,7 @@ function pendingCells(t) { return probShorts.filter(sn => (t.cells[sn] || '') !=
 function render(highlight) {
   const box = document.getElementById('board'); box.innerHTML = '';
   const ordered = standingsSort(teams);
-  const table = el('table', { class: 'score' });
+  const table = el('table', { class: 'score m-icpc' });
   // mesmas larguras do placar (table-layout:fixed): no projetor TODAS as colunas aparecem —
   // antes a página não tinha nem embrulho e o body{overflow-x:clip} CORTAVA as últimas.
   scoreCols(table, probShorts.length, { flag: true, penalty: true });

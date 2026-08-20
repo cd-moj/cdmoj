@@ -104,8 +104,10 @@ ck "documentos: aba com o PUBLICADO"       '[[ -s "$R/documentos.html" ]] && [[ 
 # a aba só entra na nav se documentos.html já existir quando as outras páginas são escritas
 # --- placar não rola para o lado (colgroup + fixed) ---
 ck "placar: colgroup completo (N+5 cols)" '[[ "$(grep -o "<col class=\"c-[a-z]*\">" "$R/index.html" | wc -l)" == 7 ]]'
-ck "placar: --nprob carimbado na tabela"  'grep -q "table class=\"score\" style=\"--nprob:2" "$R/index.html"'
-ck "placar: embrulho SEM rolagem"         'grep -q "board-wrap.*table class=\"score\"" "$R/index.html" && ! grep -q "tblwrap.*table class=\"score\"" "$R/index.html"'
+ck "placar: --nprob carimbado na tabela"  'grep -q "table class=\"score m-icpc\" style=\"--nprob:2" "$R/index.html"'
+# a classe de MODO escopa ao ICPC o ✓/✗ do celular (no OBI a célula é a NOTA, não um acerto)
+ck "placar: classe de modo na tabela"     'grep -q "class=\"score m-icpc\"" "$R/index.html"'
+ck "placar: embrulho SEM rolagem"         'grep -q "board-wrap.*table class=\"score m-" "$R/index.html" && ! grep -q "tblwrap.*table class=\"score" "$R/index.html"'
 ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*>(<span class=\"fts\">[^<]*</span>)?(<span class=\"bdot\"[^>]*></span>)?<span class=\"pv\">1/70</span>" "$R/index.html"'
 # modo 'icon' (padrão): a célula resolvida NÃO depende da cor — fundo neutro + o ponto da cor,
 # cujo contorno é o que faz o balão BRANCO existir (ver docs/SCOREBOARD.md)

@@ -49,7 +49,7 @@ export function renderOBI(parsed, opts) {
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
-  const table = el('table', { class: 'score' });
+  const table = el('table', { class: 'score m-obi' });
   table.dataset.shown = String(teams.length);          // contador da barra de filtros
   table.dataset.total = String(parsed.teams.length);
   // larguras por <colgroup> (table-layout:fixed) — o placar não rola para o lado

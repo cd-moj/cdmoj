@@ -80,7 +80,7 @@ export function renderICPC(parsed, opts) {
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
-  const table = el('table', { class: 'score' });
+  const table = el('table', { class: 'score m-icpc' });
   // quantos times a seleção deixou visíveis (o contador da barra de filtros lê daqui — a
   // posição NUNCA é renumerada, então é o contador que revela que há filtro ativo)
   table.dataset.shown = String(teams.length);

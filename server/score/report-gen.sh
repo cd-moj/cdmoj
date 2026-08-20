@@ -578,7 +578,9 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
       vars = "--nprob:" (np?np:1)
       if(!iflag) vars = vars ";--w-flag:0%"
       if(!(MODE=="icpc" && ipen)) vars = vars ";--w-pen:0%"
-      printf "<div class=\"board-wrap\"><table class=\"score\" style=\"%s\">\n", vars
+      # a classe de MODO acompanha o placar ao vivo: é ela que escopa ao ICPC o ✓/✗ do celular
+      # (no OBI a célula é a NOTA — ver ui.css, que este relatório inlina)
+      printf "<div class=\"board-wrap\"><table class=\"score m-%s\" style=\"%s\">\n", (MODE=="icpc"?"icpc":(MODE=="obi"?"obi":"generic")), vars
       printf "<colgroup><col class=\"c-place\">"
       if(iflag) printf "<col class=\"c-flag\">"
       printf "<col class=\"c-team\">"

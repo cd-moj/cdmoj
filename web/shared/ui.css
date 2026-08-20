@@ -507,13 +507,16 @@ table.score .flag-mini { max-width:100%; }
   /* só o número do PROBLEMA vira marca. A penalidade é a 1ª desempatadora depois do total —
      esconder o `.pv` dela (total e penalidade também são `td.cell`) deixava a coluna "Pen."
      com cabeçalho e nenhuma célula, ocupando largura sem informar nada. */
-  table.score td.cell:not(.tot):not(.pen) .pv { display:none; }
-  table.score td.cell:not(.tot):not(.pen).ok::before { content:"✓"; font-weight:800; }
+  /* ⚠ SÓ no ICPC: aqui a célula é `tentativas/minuto`, que vira ✓. No OBI (e no genérico) a
+     célula é a NOTA — esconder o número e mostrar ✓ dizia "acertou" p/ QUALQUER pontuação > 0,
+     inclusive 10 de 100. A classe de modo vem dos renderizadores (score-{icpc,obi,generic}.js). */
+  table.score.m-icpc td.cell:not(.tot):not(.pen) .pv { display:none; }
+  table.score.m-icpc td.cell:not(.tot):not(.pen).ok::before { content:"✓"; font-weight:800; }
   /* o ponto da cor e o ✓ não cabem juntos: a ~2,6% da largura da tabela a coluna tem ~9px num
      aparelho de 360px. Aqui quem diz "resolvido" é o ✓ — um SÍMBOLO, que é justamente o canal
      que não depende de enxergar cor — e a cor de cada problema segue no balão do cabeçalho. */
   table.score td.cell .bdot { display:none; }
-  table.score td.cell:not(.tot):not(.pen).c-try::before { content:"✗"; }
+  table.score.m-icpc td.cell:not(.tot):not(.pen).c-try::before { content:"✗"; }
   table.score td.cell.pen .pv { font-size:.72em; }
   table.score td.team .u, table.score td.team .pill { display:none; }
 }
