@@ -229,26 +229,36 @@ rede não é o limite; o que o ajuste comprou foi **não perder requisição na 
 coletivo de 2000 times chega a ~12.000 simultâneas (o navegador abre 6 em paralelo por site), e
 20.000 passam sem um erro. Máquina no fim: load 24, **1 GB de 62 em uso**.
 
-### O que sobrou de mais caro: o `/contest/score`
+### O `/contest/score`: 16 → 3 processos, 259 → 705 req/s
 
-Com o lote de boot resolvido, a rota mais lenta do caminho quente é o placar — e ela é **29% da
-mistura real**. Medido no mesmo fixture de 2000 times:
+Resolvido o lote de boot, a rota mais lenta do caminho quente passou a ser o placar — e ela é
+**29% da mistura real**. Dos 16 processos por requisição, **13 eram jq**: `ch_enabled` +
+`ch_view_for_login` se chamam em cascata e refaziam a normalização do `ch_get` quatro vezes.
+Hoje é o `ch_ctx` (um jq), mais três cortes menores: a sessão era carregada em três pontos, o
+`find` do piso de staleness rodava mesmo sem nada a regenerar, e o `SCORE_FULL_USERS` saía de um
+`. conf` em subshell. Contest **sem** coortes: 2 processos.
 
-| | req/s | p50 | pior |
-|---|---:|---:|---:|
-| 1ª chamada (reconstrói de 2001 `metrics.json`) | — | — | 92,9 s |
-| regime permanente, conc=100 | **259** | 0,381 s | 0,525 s |
-| regime permanente, conc=300 | 260 | 1,139 s | 1,473 s |
-| mistura real completa, conc=100 | **525** | 0,170 s | 1,200 s |
+| | antes | depois |
+|---|---:|---:|
+| processos por requisição (com coortes) | 16 | **3** |
+| req/s, conc=100, com gzip | 259 | **705** |
+| p50 | 0,381 s | **0,140 s** |
+| **mistura real completa** | 525 | **833 req/s** |
 
-⚠ **O rebuild frio é o número que assusta e o que engana**: os 92,9 s de pior caso são a primeira
+Sem gzip a rota faz 761 req/s — ou seja, comprimir o placar custa ~7% de CPU e devolve **11× de
+banda** (174.810 → 15.692 bytes). Vale. Pré-comprimir o placar no `build.sh`, como se faz com o
+`/contest/problems`, recuperaria esses 7%; não foi feito porque o ganho não paga o risco novo.
+
+⚠ **O rebuild frio é o número que assusta e o que engana**: 92,9 s de pior caso na primeira
 chamada depois de tocar o `.score-dirty` com 2001 usuários — o `SCORE_SERVE_FLOOR_S` serve cache
-depois disso. Aquecer o placar **antes** de abrir a prova é item de véspera; medir sem aquecer dá
-119 req/s e um p99 de 10 s que não representa nada.
+depois disso. Medir sem aquecer dá 119 req/s e um p99 de 10 s que não representa nada, e **abrir a
+prova sem aquecer entrega essa chamada a um time de verdade**. É item de véspera.
 
-Na rede o placar são **174.810 bytes** crus e **15.692** com gzip. A 259 req/s, 2000 times podem
-recarregar o placar a cada ~8 s — o poll padrão é mais lento que isso, mas é a folga menor que
-sobrou. É o próximo alvo se precisar de mais.
+⚠ Ao mexer no frescor do placar: a guarda `-nt` do handler tem de usar **as mesmas fontes** que o
+`regen_locked` passa ao `stale_cache` (`.score-dirty` e `conf` — helper `score_sources_newer`).
+Divergir ali congela o placar **em silêncio**: a rota segue respondendo 200, com dado velho, para
+sempre. É o que o `smoke-contest-score-serve.sh` guarda, junto com a outra família de risco —
+qual placar cada papel recebe.
 
 ### Hipótese testada e DESCARTADA: os buffers do FastCGI
 
