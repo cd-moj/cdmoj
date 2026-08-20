@@ -133,9 +133,29 @@ O que foi testado e **NÃO** resolve:
   **PIORA MUITO** — o fcgiwrap 1.1.0 não lida bem com conexão FastCGI reaproveitada; a estampida
   passou de 5 s p/ 190 s com quase tudo falhando. Testado e revertido; não repita.
 
-O que foi feito: o cliente passou a **espalhar a largada** (até 1,2 s sorteado) e a **retentar com
-espera crescente** se a carga do segundo zero falhar (`web/contest/contest.js`, `loadContestBody`).
-Antes, um 502 ali deixava a página parada num aviso de erro até o time recarregar à mão.
+**O que foi feito** (tudo medido depois):
+
+1. **Backlog do socket de 512 p/ 4096.** O fcgiwrap abre com 512 fixo (medido: a 545ª conexão
+   pendente dá EAGAIN) e não tem opção. O `deploy/moj-entrypoint` passou a criar o socket com o
+   backlog desejado e entregá-lo no **fd 0** (convenção do FastCGI). Backlog efetivo medido depois:
+   **4.129**. A 2000 conexões simultâneas os erros caíram de 82% para 18%.
+2. **Cliente espalha a largada** (até 1,2 s sorteado) e **retenta com espera crescente**
+   (`web/contest/contest.js`, `loadContestBody`). Antes, um 502 ali deixava a página parada num
+   aviso de erro até o time recarregar à mão.
+3. **Cache do `/contest/rounds`** (275 → 991 req/s): era a rota mais cara do lote de boot.
+
+### O F5 na contagem regressiva (o comportamento real do aluno)
+
+Um F5 custa **6 chamadas de API** (o navegador serve os estáticos do cache). Medido:
+
+| | F5/s | 2000 times podem apertar F5 a cada |
+|---|---|---|
+| antes | 107 | 18,8 s |
+| **depois do cache de rounds** | **149** | **13,4 s** |
+
+Se apertarem mais rápido que isso, a fila cresce. O próximo ganho, se precisar, é cachear o resto
+do lote de boot — `userinfo` (547 req/s) é o mais lento dos que sobraram; `basic` 788,
+`navbuttons` 865, `balloons` 1040.
 
 Use `stress.sh` para número de capacidade. O `web-poll-bench.sh` continua útil como carga de
 "cliente burro", mas o número dele é piso, não teto.
