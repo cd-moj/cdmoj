@@ -52,10 +52,11 @@
         <a href="#fila" data-en="3. The evaluation queue">3. A fila de avaliação</a>
         <a href="#avaliar" data-en="4. Evaluating, step by step">4. Avaliando, passo a passo</a>
         <a href="#dois" data-en="5. Two judges must agree">5. Dois juízes têm de concordar</a>
-        <a href="#cego" data-en="6. Why you judge blind">6. Por que você julga às cegas</a>
-        <a href="#clar" data-en="7. Clarifications">7. Clarifications</a>
-        <a href="#auto" data-en="8. When there is no queue">8. Quando não há fila</a>
-        <a href="#nao" data-en="9. What you cannot do">9. O que você não faz</a>
+        <a href="#todas" data-en="6. All submissions">6. Todas Submissões</a>
+        <a href="#cego" data-en="7. Why you judge blind">7. Por que você julga às cegas</a>
+        <a href="#clar" data-en="8. Clarifications">8. Clarifications</a>
+        <a href="#auto" data-en="9. When there is no queue">9. Quando não há fila</a>
+        <a href="#nao" data-en="10. What you cannot do">10. O que você não faz</a>
       </nav>
 
       <article class="tmain">
@@ -116,6 +117,20 @@
           <li data-en-html="<b>Look</b> — the panel opens with the computed verdict, the <i>log</i> (what the machine did, test by test) and the <i>código</i> (the source the team sent)."><b>Olhe</b> — o painel abre com o veredicto computado, o <i>log</i> (o que a máquina fez, teste a teste) e o <i>código</i> (a fonte que o time mandou).</li>
           <li data-en-html="<b>Vote</b> — choose the verdict in the list and confirm. Your vote is <b>final</b>: there is no undo."><b>Vote</b> — escolha o veredicto na lista e confirme. O seu voto é <b>definitivo</b>: não há desfazer.</li>
         </ol>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/judge-avaliando.png" alt="">
+          <figcaption data-en="This is the screen right after &quot;Take to evaluate&quot;: the queue gives way to the evaluation panel — computed verdict for reference, links to the log and the source, the verdict list, and the clock of your reservation.">
+            É esta a tela logo depois de <i>Pegar p/ avaliar</i>: a fila dá lugar ao painel de
+            avaliação — veredicto computado como referência, links para o log e o código, a lista
+            de veredictos e o relógio da sua reserva.
+          </figcaption>
+        </figure>
+        <p data-en-html="Note the counters stay on top: while you work, you still see how the queue is doing. The <b>log</b> shows what the machine did test by test; the <b>código</b> is the source the team sent. Those two links are always available to a judge, no matter what the contest shows to competitors.">
+          Repare que os contadores continuam no topo: enquanto você trabalha, ainda vê como a fila
+          está. O <b>log</b> mostra o que a máquina fez teste a teste; o <b>código</b> é a fonte
+          que o time mandou. Esses dois links estão sempre disponíveis a um juiz, independente do
+          que a prova mostra aos competidores.
+        </p>
         <div class="tip" data-en="Two buttons help with the clock: +5 min extends your reservation if the case is hard, and Desistir hands it back to the queue for another judge. While you have a submission open, the page stops reloading by itself — it will not pull the case from under you.">
           Dois botões ajudam com o relógio: <b>+5 min</b> estende a sua reserva se o caso é difícil,
           e <b>Desistir</b> devolve à fila para outro juiz. Enquanto você tem uma submissão aberta,
@@ -141,7 +156,32 @@
           É por isso que a fila anda mais rápido com mais juízes online.
         </div>
 
-        <h2 id="cego" data-en="6. Why you judge blind">6. Por que você julga às cegas</h2>
+        <h2 id="todas" data-en="6. All submissions">6. Todas Submissões</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/judge-todas.png" alt="">
+          <figcaption data-en="Every submission of the contest, as a judge sees it: time, problem, verdict, and the links to the file and the log. There is no user column — and that is deliberate.">
+            Todas as submissões da prova, como um juiz as vê: horário, problema, veredicto e os
+            links para o arquivo e o log. Não há coluna de usuário — e isso é deliberado.
+          </figcaption>
+        </figure>
+        <p data-en-html="This is the panoramic view of the contest: useful for spotting a problem nobody is solving, a wave of <i>Compilation Error</i> in the first minutes, or a language behaving oddly. The filters at the top cut by problem and by verdict.">
+          É a visão panorâmica da prova: serve para perceber um problema que ninguém resolve, uma
+          onda de <i>Compilation Error</i> nos primeiros minutos, ou uma linguagem se comportando
+          de forma estranha. Os filtros do topo recortam por problema e por veredicto.
+        </p>
+        <div class="tip" data-en-html="For a judge the list comes <b>anonymous</b> and sorted by time — the user and team columns simply do not exist, and the &quot;by user&quot; grouping is gone. The chronological order is part of the protection: grouped by team, the mere sequence would give away who is who.">
+          Para o juiz a lista vem <b>anônima</b> e ordenada por horário — as colunas de usuário e
+          equipe simplesmente não existem, e o agrupamento &quot;por usuário&quot; some. A ordem
+          cronológica faz parte da proteção: agrupada por time, a mera sequência entregaria quem é
+          quem.
+        </div>
+        <p data-en-html="The <b>ver</b> and <b>⬇</b> links open the source, and the last column opens the judging log. A judge always has access to both — this is the screen for investigating &quot;what happened in that submission&quot; outside the evaluation queue.">
+          Os links <b>ver</b> e <b>⬇</b> abrem o código, e a última coluna abre o log do
+          julgamento. O juiz sempre tem acesso aos dois — esta é a tela para investigar &quot;o que
+          aconteceu naquela submissão&quot; fora da fila de avaliação.
+        </p>
+
+<h2 id="cego" data-en="7. Why you judge blind">7. Por que você julga às cegas</h2>
         <p data-en="Three deliberate blindfolds protect the fairness of the contest — and you:">
           Três vendas deliberadas protegem a lisura da prova — e você:
         </p>
@@ -155,7 +195,7 @@
           nem o juiz, vê quem fez uma pergunta na clarification.
         </div>
 
-        <h2 id="clar" data-en="7. Clarifications">7. Clarifications</h2>
+        <h2 id="clar" data-en="8. Clarifications">8. Clarifications</h2>
         <p data-en="Questions from the teams arrive anonymous. Before answering, RESERVE the question — that is what stops two judges from answering the same thing differently. Then write the answer and decide whether it is private (only the asker) or public (everyone sees it).">
           As perguntas dos times chegam anônimas. Antes de responder, <b>reserve</b> a pergunta —
           é o que impede dois juízes de responderem a mesma coisa de formas diferentes. Depois
@@ -167,7 +207,7 @@
           Leia duas vezes antes de enviar.
         </div>
 
-        <h2 id="auto" data-en="8. When there is no queue">8. Quando não há fila</h2>
+        <h2 id="auto" data-en="9. When there is no queue">9. Quando não há fila</h2>
         <p data-en="Not every contest uses manual verdict. If the organizer left the correction automatic, your Evaluate page says so and there is nothing to judge — the machine's verdict goes straight to the team. Your role is then to watch the submissions, answer clarifications and help with the problems.">
           Nem toda prova usa veredicto manual. Se o organizador deixou a correção automática, a sua
           página <i>Avaliar</i> diz isso e não há o que julgar — o veredicto da máquina vai direto
@@ -175,7 +215,7 @@
           ajudar nos problemas.
         </p>
 
-        <h2 id="nao" data-en="9. What you cannot do">9. O que você não faz</h2>
+        <h2 id="nao" data-en="10. What you cannot do">10. O que você não faz</h2>
         <table class="cheat">
           <tr><th data-en="Attempt">Tentativa</th><th data-en="Answer">Resposta</th></tr>
           <tr><td data-en="Resolve a conflict / override a verdict">Resolver conflito / contrariar um veredicto fechado</td><td><code>403</code> — <span data-en="chief judge only">só o juiz-chefe</span></td></tr>

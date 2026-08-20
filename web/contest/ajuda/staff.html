@@ -51,10 +51,11 @@
         <a href="#fila" data-en="3. The print queue">3. A fila de impressão</a>
         <a href="#tarefa" data-en="4. Handling a task">4. Tratando uma tarefa</a>
         <a href="#baloes" data-en="5. Balloons">5. Balões</a>
-        <a href="#auto" data-en="6. Automatic mode">6. Modo automático</a>
-        <a href="#telao" data-en="7. The big screen (read-only)">7. O telão (só leitura)</a>
-        <a href="#nao" data-en="8. What you cannot do">8. O que você não faz</a>
-        <a href="#resumo" data-en="9. Summary">9. Resumo</a>
+        <a href="#papel-impresso" data-en="6. What comes out of the printer">6. O que sai na impressora</a>
+        <a href="#auto" data-en="7. Automatic mode">7. Modo automático</a>
+        <a href="#telao" data-en="8. The big screen (read-only)">8. O telão (só leitura)</a>
+        <a href="#nao" data-en="9. What you cannot do">9. O que você não faz</a>
+        <a href="#resumo" data-en="10. Summary">10. Resumo</a>
       </nav>
 
       <article class="tmain">
@@ -126,6 +127,14 @@
           <li data-en-html="<b>Print it</b> — press <i>🖨️ Imprimir</i>. MOJ builds a PDF with a <b>cover sheet</b> (team, university, login, task number, page count and a line to sign) followed by the document itself; source code comes out with numbered lines."><b>Imprima</b> — aperte <i>🖨️ Imprimir</i>. O MOJ monta um PDF com uma <b>folha de rosto</b> (time, universidade, login, número da tarefa, nº de páginas e uma linha para assinar) seguida do documento; código-fonte sai com as linhas numeradas.</li>
           <li data-en-html="<b>Deliver it</b> — after handing the paper over, press <i>✅ Entregue</i>. That closes the task and is what tells the organizers the paper actually arrived."><b>Entregue</b> — depois de entregar o papel, aperte <i>✅ Entregue</i>. Isso fecha a tarefa e é o que diz à organização que o papel chegou de fato.</li>
         </ol>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/staff-pega.png" alt="">
+          <figcaption data-en="Task #5 was taken by me: under the status it now says &quot;by sala.staff&quot;. Task #7, right below, is still free for anyone. That line is the only mark of the reservation — it is what stops two volunteers from printing the same thing.">
+            A tarefa #5 foi pega por mim: embaixo do status agora diz <b>por sala.staff</b>. A #7,
+            logo abaixo, continua livre para qualquer um. Essa linha é a única marca da reserva —
+            é o que impede dois voluntários de imprimirem a mesma coisa.
+          </figcaption>
+        </figure>
         <div class="tip" data-en="Prefer the button over the browser's own print: the generated PDF carries the cover sheet, and the buttons are what record who printed and when.">
           Prefira o botão à impressão do próprio navegador: o PDF gerado leva a folha de rosto, e
           são os botões que registram quem imprimiu e quando.
@@ -147,7 +156,45 @@
           <i>Accepted</i> — então o balão pode demorar alguns minutos mais que o placar.
         </div>
 
-        <h2 id="auto" data-en="6. Automatic mode">6. Modo automático</h2>
+        <h2 id="papel-impresso" data-en="6. What comes out of the printer">6. O que sai na impressora</h2>
+        <p data-en="Whatever the team sent, the printed job always starts with a COVER SHEET. It is what turns a loose sheet of paper into a deliverable: it says who it belongs to and it has a place to sign.">
+          Seja lá o que o time mandou, o trabalho impresso sempre começa por uma <b>folha de
+          rosto</b>. É ela que transforma um papel solto em algo entregável: diz de quem é e tem
+          onde assinar.
+        </p>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/pdf-impressao-p1.png" alt="">
+          <figcaption data-en="Page 1 of a print request: team, university, login, the task number (the same # of the queue), how many pages come after, and the two lines to fill in on delivery.">
+            Página 1 de um pedido de impressão: time, universidade, login, o número da tarefa (o
+            mesmo <code>#</code> da fila), quantas páginas vêm depois, e as duas linhas para
+            preencher na entrega.
+          </figcaption>
+        </figure>
+        <p data-en-html="After the cover sheet comes the document itself. Source code is printed with <b>numbered lines</b> (easier to talk about with the team); images, PDFs and office files are converted as they are.">
+          Depois da folha de rosto vem o documento. Código-fonte sai com as <b>linhas
+          numeradas</b> (mais fácil de conversar com o time); imagens, PDFs e arquivos de
+          escritório são convertidos como estão.
+        </p>
+        <div class="warn" data-en-html="The task number on paper says &quot;check with the system&quot; for a reason: what closes the task is pressing <b>✅ Entregue</b> in the queue, not the signature on the sheet. The paper is the team's receipt; the queue is the organizers'.">
+          O número da tarefa no papel diz &quot;confira com o sistema&quot; por um motivo: o que
+          encerra a tarefa é apertar <b>✅ Entregue</b> na fila, não a assinatura na folha. O papel
+          é o comprovante do time; a fila é o da organização.
+        </div>
+
+        <h3 data-en="The balloon sheet">A folha do balão</h3>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/pdf-balao.png" alt="">
+          <figcaption data-en="A balloon task prints a single page: the team, the problem letter, and the balloon drawn in its colour with the name written out. Take the sheet and the balloon together.">
+            Uma tarefa de balão imprime uma página só: o time, a letra do problema e o balão
+            desenhado na cor, com o nome por extenso. Leve a folha junto com o balão.
+          </figcaption>
+        </figure>
+        <div class="tip" data-en="The colour on paper is the same one the contest configured for that problem — if the drawing says red and the balloon in your hand is another colour, ask the organizers before delivering.">
+          A cor no papel é a mesma que a prova configurou para aquele problema — se o desenho diz
+          vermelho e o balão na sua mão é de outra cor, pergunte à organização antes de entregar.
+        </div>
+
+<h2 id="auto" data-en="7. Automatic mode">7. Modo automático</h2>
         <p data-en="The checkbox at the top of the page turns on automatic printing: every new task is taken, printed and marked as processed by itself. You are left with only the walking — take the paper to the desk and press delivered.">
           A caixinha no topo da página liga a impressão automática: cada tarefa nova é pega,
           impressa e marcada como processada sozinha. Sobra para você só a caminhada — levar o
@@ -159,7 +206,7 @@
           sistema.
         </div>
 
-        <h2 id="telao" data-en="7. The big screen (read-only)">7. O telão (só leitura)</h2>
+        <h2 id="telao" data-en="8. The big screen (read-only)">8. O telão (só leitura)</h2>
         <figure class="shot">
           <img src="/contest/ajuda/img/staff-telao.png" alt="">
           <figcaption data-en="The same big-screen desk the Animeitor operator uses, but with every write button removed — the room team looks and listens, nothing else.">
@@ -177,7 +224,22 @@
           avisar o chefe de sede quem está faltando.
         </div>
 
-        <h2 id="nao" data-en="8. What you cannot do">8. O que você não faz</h2>
+        <h3 data-en="Rounds: the warm-up and the real thing">Rodadas: o aquecimento e a prova</h3>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/rodadas.png" alt="">
+          <figcaption data-en="A contest can have more than one round in the same address: the warm-up, already archived, and the official round on the air. The archived one keeps its own scoreboard and submissions.">
+            Uma prova pode ter mais de uma rodada no mesmo endereço: o aquecimento, já arquivado, e
+            a prova oficial no ar. A arquivada guarda o placar e as submissões dela.
+          </figcaption>
+        </figure>
+        <p data-en-html="This matters to you on the day: when the organizers promote the warm-up to the official round, the queue is <b>zeroed</b> — task numbering starts over and the balloons of the warm-up are gone. If a paper from the warm-up is still on the counter, deliver it before the promotion.">
+          Isso importa para você no dia: quando a organização promove o aquecimento para a prova
+          oficial, a fila é <b>zerada</b> — a numeração das tarefas recomeça e os balões do
+          aquecimento somem. Se ainda houver papel do aquecimento no balcão, entregue antes da
+          promoção.
+        </p>
+
+        <h2 id="nao" data-en="9. What you cannot do">9. O que você não faz</h2>
         <div class="no" data-en="These are refused by the server itself, not just hidden in the interface. If you try through the URL, you get an error.">
           Estas coisas são recusadas pelo próprio servidor, não apenas escondidas na interface.
           Se tentar pela URL, recebe erro.
@@ -195,7 +257,7 @@
           <tr><td data-en="See tasks or labels of ANOTHER site">Ver tarefas ou etiquetas de OUTRA sede</td><td><code>403</code></td></tr>
         </table>
 
-        <h2 id="resumo" data-en="9. Summary">9. Resumo</h2>
+        <h2 id="resumo" data-en="10. Summary">10. Resumo</h2>
         <table class="cheat">
           <tr><th data-en="You do">Você faz</th><th data-en="You do not">Você não faz</th></tr>
           <tr>

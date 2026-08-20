@@ -45,9 +45,13 @@ mkdir -p "$C/var" "$C/users" "$C/print-requests" "$C/review" "$C/enunciados"
 { printf 'CONTEST_ID=demo\n'
   printf 'CONTEST_NAME=%q\n' "Copa MOJ de Demonstração"
   printf 'CONTEST_TYPE=icpc\nLOCALE=pt\n'
-  printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=60\n' "$((NOW-7200))" "$((NOW+3600))"
+  # FREEZE_TIME é EPOCH ABSOLUTO (não minutos): congela na última hora
+  printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\n' "$((NOW-7200))" "$((NOW+3600))" "$((NOW-1800))"
   printf 'PRINT=1\nMANUAL_VERDICT=1\nREVIEW_JUDGES=2\n'
-  printf 'PROBS=( a demo#somatorio "Somatório curioso" b demo#labirinto "Labirinto de espelhos" c demo#cofre "O cofre do reitor" d demo#tapete "Tapete voador" )\n'
+  printf 'ROUND=oficial\nROUND_NAME=%q\n' "Prova oficial"
+  # PROBS = tuplas de CINCO campos: <source> <problem_id> <nome> <letra> <chave-do-enunciado>
+  printf 'PROBS=( demo demo#somatorio %q A demo#somatorio demo demo#labirinto %q B demo#labirinto demo demo#cofre %q C demo#cofre demo demo#tapete %q D demo#tapete )\n' \
+    "Somatório curioso" "Labirinto de espelhos" "O cofre do reitor" "Tapete voador"
 } > "$C/conf"
 
 # --- contas: 6 times fictícios (2 sedes) + as 5 contas de papel
@@ -89,20 +93,88 @@ mkpr(){ # <id> <login> <time> <univ> <arquivo> <status> <seq> <kind> <idade_s> [
 mkpr p1 time-alfa  "Os Alfabetizados" UFPR  "solucao-b.cpp" pending   7 print   240
 mkpr p2 time-gama  "Gama Radiação"    UFPR  "rascunho.txt"  pending   8 print   120
 mkpr p3 time-beta  "Beta Testers"     UTFPR "solucao-a.c"   processed 6 print   900
+# uma tarefa JÁ PEGA por mim: o claim MANTÉM status=pending (print-action.sh só permite claim
+# sobre pendente) e grava claimed_by/claimed_at — é o estado logo depois de clicar em "Pegar"
+mkpr p0 time-alfa  "Os Alfabetizados" UFPR  "main.c"        pending   5 print   300
+jq -c --arg by sala.staff --argjson at "$((NOW-30))" '.claimed_by=$by | .claimed_at=$at' \
+  "$C/print-requests/p0.json" > "$C/print-requests/p0.tmp" \
+  && mv "$C/print-requests/p0.tmp" "$C/print-requests/p0.json"
+# fonte real da tarefa (o .src é o que o pr_build_pdf imprime depois da folha de rosto)
+cat > "$C/print-requests/p0.src" <<'SRC'
+#include <stdio.h>
+
+/* Somatório curioso — solução do time Os Alfabetizados */
+int main(void) {
+    long long n, soma = 0;
+    if (scanf("%lld", &n) != 1) return 1;
+    for (long long i = 1; i <= n; i++)
+        if (i % 3 == 0 || i % 5 == 0) soma += i;
+    printf("%lld\n", soma);
+    return 0;
+}
+SRC
+cp "$C/print-requests/p0.src" "$C/print-requests/p1.src"
 mkpr b1 time-alfa  "Os Alfabetizados" UFPR  ""              pending   9 balloon  60 A e63946 vermelho
 mkpr b2 time-beta  "Beta Testers"     UTFPR ""              pending  10 balloon  30 C 2a9d8f verde
 
 # --- placar (TXT cru, como o build.sh gera): cabeçalho + 6 linhas
-{ printf 'icpc\n'
-  printf '#\tTime\tUniv\tBandeira\tSede\tA\tB\tC\tD\tTot\tPen\tguest\n'
-  printf '1\tOs Alfabetizados\tUFPR\tbr\tCuritiba\t1/12\t2/45\t1/78\t-\t3\t147\t\n'
-  printf '2\tDelta de Dirac\tUSP\tbr\tSão Paulo\t1/20\t-\t1/61\t3/-\t2\t81\t\n'
-  printf '3\tBeta Testers\tUTFPR\tbr\tCuritiba\t1/33\t2/-\t-\t-\t1\t33\t\n'
-  printf '4\tÉpsilon Suficiente\tUNESP\tbr\tSão Paulo\t1/40\t-\t-\t-\t1\t40\t\n'
-  printf '5\tGama Radiação\tUFPR\tbr\tCuritiba\t-\t1/-\t-\t-\t0\t0\t\n'
-  printf '6\tZeta Zero\tUSP\tar\tSão Paulo\t-\t-\t-\t-\t0\t0\t\n'
+# FORMATO REAL do placar (updatescore-icpc.sh): 1ª linha = modo; 2ª = header com os DOIS
+# marcadores desc:asc na frente; dados separados por ':' e SEM os marcadores. Célula:
+# vazia=não tentou · 3/187=resolveu na 3ª tentativa no minuto 187 · 3/-=tentou e não resolveu.
+SCOL='desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total:Penalty:LastAC'
+{ printf 'icpc\n%s\n' "$SCOL"
+  printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12:2/45:1/78::3:147:78\n'
+  printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:1/-:1/61:3/-:2:81:61\n'
+  printf 'br:time-beta:UTFPR:Beta Testers:Univ. Tecnológica Federal do Paraná:1/33:2/-:::1:33:33\n'
+  printf 'br:time-epsilon:UNESP:Épsilon Suficiente:Universidade Estadual Paulista:1/40:::2/-:1:40:40\n'
+  printf 'br:time-gama:UFPR:Gama Radiação:Univ. Federal do Paraná::1/-:::0:0:0\n'
+  printf 'ar:time-zeta:USP:Zeta Zero:Universidade de São Paulo:::::0:0:0\n'
 } > "$C/var/placar.txt"
-cp "$C/var/placar.txt" "$C/var/placar-full.txt"
+# o placar COMPLETO diverge do congelado em várias células — é EXATAMENTE esse delta que a
+# cerimônia abre uma a uma (reveal.js pendingCells), incluindo uma virada de liderança
+{ printf 'icpc\n%s\n' "$SCOL"
+  printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:2/152:1/61:3/188:4:280:188\n'
+  printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12:2/45:1/78:2/171:4:338:171\n'
+  printf 'br:time-beta:UTFPR:Beta Testers:Univ. Tecnológica Federal do Paraná:1/33:3/166::1/195*:3:239:195\n'
+  printf 'br:time-epsilon:UNESP:Épsilon Suficiente:Universidade Estadual Paulista:1/40:::2/-:1:40:40\n'
+  printf 'br:time-gama:UFPR:Gama Radiação:Univ. Federal do Paraná::2/-:::0:0:0\n'
+  printf 'ar:time-zeta:USP:Zeta Zero:Universidade de São Paulo:::::0:0:0\n'
+} > "$C/var/placar-full.txt"
+# cores dos balões (as células resolvidas saem na cor do balão do problema)
+jq -cn '{A:"E63946", B:"264653", C:"2A9D8F", D:"E9C46A"}' > "$C/balloons.json"
+
+# --- history dos times: é a fonte de "Todas Submissões" (6 campos, login implícito:
+#     tempo:probid:lang:verdict:sub_epoch:subid)
+h(){ # <login> <min-desde-o-inicio> <probid> <lang> <verdict> <subid>
+  local ep=$((NOW-7200+$2*60))
+  printf '%s:%s:%s:%s:%s:%s\n' "$ep" "$3" "$4" "$5" "$ep" "$6" >> "$C/users/$1/history"
+}
+h time-alfa   12 demo#somatorio C    "Accepted"                  aa01
+h time-alfa   31 demo#labirinto C    "Wrong Answer"              aa02
+h time-alfa   45 demo#labirinto C    "Accepted"                  aa03
+h time-alfa   78 demo#cofre     C++  "Accepted"                  aa04
+h time-alfa   95 demo#tapete    C    "Not Answered Yet"          aa05
+h time-beta   33 demo#somatorio C    "Accepted"                  bb01
+h time-beta   52 demo#labirinto Java "Time Limit Exceeded"       bb02
+h time-beta   71 demo#labirinto Java "Not Answered Yet"          bb03
+h time-gama   28 demo#labirinto C    "Compilation Error"         cc01
+h time-gama   64 demo#cofre     Java "Not Answered Yet"          cc02
+h time-delta  20 demo#somatorio C++  "Accepted"                  dd01
+h time-delta  61 demo#cofre     C++  "Accepted"                  dd02
+h time-delta  88 demo#tapete    Py   "Not Answered Yet"          dd03
+h time-epsilon 40 demo#somatorio Py  "Accepted"                  ee01
+h time-epsilon 57 demo#labirinto Py  "Runtime Error"             ee02
+h time-zeta   26 demo#somatorio C    "Wrong Answer"              ff01
+
+# --- rodadas: um aquecimento arquivado + a prova oficial em andamento
+mkdir -p "$C/rounds/aquecimento"
+jq -cn --argjson now "$NOW" \
+  '{version:1, active:"prova",
+    rounds:[{slug:"aquecimento", name:"Aquecimento", kind:"warmup", state:"archived",
+             start:($now-86400), end:($now-82800), published:true, problems:2},
+            {slug:"prova", name:"Prova oficial", kind:"official", state:"active",
+             start:($now-7200), end:($now+3600), problems:4}]}' > "$C/rounds.json"
+cp "$C/var/placar.txt" "$C/rounds/aquecimento/placar.txt" 2>/dev/null || true
 
 # --- fila de avaliação do veredicto manual (contrato de write_review_item, judged.sh:217)
 mkrev(){ # <id> <login> <cid> <lang> <verdict-computado> <idade> [label1] [v1] [label2] [v2]
@@ -119,6 +191,12 @@ mkrev(){ # <id> <login> <cid> <lang> <verdict-computado> <idade> [label1] [v1] [
 }
 mkrev r1 time-alfa  demo#labirinto C    "Wrong Answer" 300
 mkrev r2 time-delta demo#somatorio C++  "Accepted"     180
+# r5 está RESERVADA pelo juri.judge (claimants com expires_at no futuro) — é o que faz o
+# /contest/review/list devolver my_active e a página abrir o PAINEL DE AVALIAÇÃO
+mkrev r5 time-epsilon demo#tapete Py "Time Limit Exceeded" 120
+jq -c --argjson exp "$((NOW+240))" \
+  '.claimants=[{by:"juri.judge", at:('"$NOW"'-60), expires_at:$exp}] | .status="claimed"' \
+  "$C/review/r5.json" > "$C/review/r5.tmp" && mv "$C/review/r5.tmp" "$C/review/r5.json"
 mkrev r3 time-gama  demo#cofre     Java "Accepted"     900 "1 - YES" "Accepted"
 mkrev r4 time-beta  demo#cofre     C    "Accepted"     600 "1 - YES" "Accepted" "5 - NO - Wrong answer" "Wrong Answer"
 # opções de veredicto do contest (as 6 padrão do RV_DEFAULT_OPTS)
@@ -189,15 +267,41 @@ shot(){
 }
 
 echo ">> capturando (porta $PORT, delay ${SHOT_DELAY_MS}ms)"
-shot staff-fila.png       s_staff   /contest/staff/
-shot staff-telao.png      s_staff   /contest/animeitor/       1100
-shot cstaff-fila.png      s_cstaff  /contest/staff/
-shot cstaff-etiquetas.png s_cstaff  /contest/badges/          1100
-shot cstaff-telao.png     s_cstaff  /contest/animeitor/       1100
-shot cstaff-placar.png    s_cstaff  /contest/score/
-shot animeitor-telao.png  s_anim    /contest/animeitor/       1250
-shot animeitor-placar.png s_anim    /contest/score/
-shot judge-fila.png       s_judge   /contest/judge/
-shot cjudge-painel.png    s_cjudge  /contest/chief/           1100
+shot staff-fila.png        s_staff   /contest/staff/
+shot staff-pega.png        s_staff   /contest/staff/
+shot staff-telao.png       s_staff   /contest/animeitor/       1100
+shot cstaff-fila.png       s_cstaff  /contest/staff/
+shot cstaff-etiquetas.png  s_cstaff  /contest/badges/          1100
+shot cstaff-telao.png      s_cstaff  /contest/animeitor/       1100
+shot cstaff-placar.png     s_cstaff  /contest/score/
+shot animeitor-telao.png   s_anim    /contest/animeitor/       1250
+shot animeitor-placar.png  s_anim    /contest/score/
+shot animeitor-cerimonia.png s_anim  "/contest/score/reveal.html?click=Step&times=4" 1000
+shot judge-fila.png        s_judge   /contest/judge/
+shot judge-avaliando.png   s_judge   /contest/judge/
+shot judge-todas.png       s_judge   /contest/allsubmissions/  1000
+shot cjudge-todas.png      s_cjudge  /contest/allsubmissions/  1000
+shot cjudge-painel.png     s_cjudge  /contest/chief/           1100
+shot rodadas.png           s_staff   /contest/rounds/          800
+
+# ---------------------------------------------------------------- PDFs de exemplo
+# O que SAI NA IMPRESSORA: a folha de rosto do pedido (página 1) e a folha do balão. As duas
+# são geradas pelas funções REAIS do lib/print.sh sobre o fixture; a página 1 vira PNG p/ o
+# tutorial mostrar o papel de verdade (paps/magick/soffice/pdfunite/pdftoppm no host).
+if [[ -z "$ONLY" ]] && command -v pdftoppm >/dev/null; then
+  echo ">> PDFs de exemplo"
+  ( set +u
+    export CONTESTSDIR="$FIX" RUNDIR="$RUNF" SESSIONDIR="$SESS"
+    source "$ROOT/server/api/v1/lib/print.sh" 2>/dev/null
+    for pair in "p1:pdf-impressao-p1" "b1:pdf-balao"; do
+      id="${pair%%:*}"; name="${pair##*:}"
+      if [[ "$id" == b1 ]]; then pdf="$(pr_build_balloon demo "$id" 2>/dev/null)"
+      else pdf="$(pr_build_pdf demo "$id" 2>/dev/null)"; fi
+      if [[ -s "$pdf" ]]; then
+        pdftoppm -png -r 100 -f 1 -l 1 -singlefile "$pdf" "$OUT/$name" 2>/dev/null
+        printf '  %-32s %8s bytes\n' "$name.png" "$(stat -c%s "$OUT/$name.png" 2>/dev/null || echo 0)"
+      else echo "  ⚠ $name: PDF não foi gerado (falta paps/magick/soffice?)"; fi
+    done )
+fi
 
 echo ">> pronto: $OUT"

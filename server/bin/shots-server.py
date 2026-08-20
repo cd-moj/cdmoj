@@ -159,6 +159,18 @@ class H(BaseHTTPRequestHandler):
             inject = (f'<script>window.__SHOT_TOKEN={sess!r};</script>'
                       f'<img src="/__delay" alt="" style="position:fixed;left:-9px;top:-9px;'
                       f'width:1px;height:1px;opacity:0">')
+            # ?click=<seletor>&times=N : aperta um botão N vezes antes da foto. É como se
+            # fotografa uma tela que só existe DEPOIS de interagir — a cerimônia de revelação
+            # começa parada, e o que interessa no tutorial é ela no meio do caminho.
+            q = urllib.parse.parse_qs(qs)
+            click = (q.get("click") or [""])[0]
+            if click:
+                n = int((q.get("times") or ["1"])[0])
+                inject += (
+                    '<script>addEventListener("load",()=>{let i=0;const t=setInterval(()=>{'
+                    'const b=[...document.querySelectorAll("button,.btn")]'
+                    f'.find(e=>(e.textContent||"").includes({click!r}));'
+                    f'if(b)b.click(); if(++i>={n})clearInterval(t);}},220);}});</script>')
             txt = txt.replace("</body>", inject + "</body>", 1)
             data = txt.encode("utf-8")
             if sess:
