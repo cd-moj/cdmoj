@@ -1557,7 +1557,7 @@
           "contest"
         ],
         "summary": "Problemas da prova. Gate: admin/judge veem sempre; staff nunca; normal só após o início (antes -> {problems:[], locked:'not_started'})",
-        "description": "Resposta em CACHE por VARIANTE (author|noauthor). O payload é o mesmo para todo time; a única dimensão que o muda é o AUTOR do problema, que só aparece com a prova encerrada ou para admin/juiz-chefe/juiz — o cache por variante existe para que um GET do juiz nunca entregue o autor a um competidor. Invalida comparando com as entradas (conf, problem-langs.json, problem-judges.json, enunciados/, carimbo var/.problems-dirty tocado pelo admin e pela promocao de rodada) mais um teto de idade de 60s."
+        "description": "Resposta em CACHE por VARIANTE (author|noauthor). O payload é o mesmo para todo time; a única dimensão que o muda é o AUTOR do problema, que só aparece com a prova encerrada ou para admin/juiz-chefe/juiz — o cache por variante existe para que um GET do juiz nunca entregue o autor a um competidor. Invalida comparando com as entradas (conf, problem-langs.json, problem-judges.json, enunciados/, carimbo var/.problems-dirty tocado pelo admin e pela promocao de rodada) mais um teto de idade de 60s.",
         "security": [
           {
             "bearerAuth": []
