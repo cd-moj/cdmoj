@@ -45,6 +45,13 @@ make smoke
 - **Volumes (`:z`, SHARED):** `run/`, `contests/`, `moj-problems/`, `server/var/news` → `/data/…`.
   Estado e segredos NUNCA entram na imagem (ver `deploy/.containerignore`). Rootless: container-root
   ↔ o usuário do host (não defina `USER` nem `--userns=keep-id`).
+- **nginx do HOST — ajuste obrigatório p/ evento grande** (>1000 times): o default do Debian é
+  `worker_connections 768` **e** `LimitNOFILESoft=1024` no worker; como cada requisição proxiada
+  gasta 2 descritores, dá ~512 requisições simultâneas por worker. Numa rajada de F5 coletivo isso
+  vira **500** com `768 worker_connections are not enough` no `error.log`. Em `/etc/nginx/nginx.conf`
+  (não dá p/ pôr em `conf.d`: `worker_connections` fica no bloco `events`, fora do `http`):
+  `worker_rlimit_nofile 65535;` no topo e `worker_connections 8192;` no `events`, depois
+  `nginx -t && systemctl reload nginx`. Medições em `server/test/load/README.md`.
 - **Mudou o `.container`?** `make install-units` de novo (ele faz o `daemon-reload`) e reinicie a
   unit — `podman auto-update` só troca a IMAGEM, não relê o quadlet. Vale em especial p/ o
   `Sysctl=net.core.somaxconn` do `moj-api`: sem reinstalar+reiniciar, o backlog do socket continua

@@ -176,14 +176,59 @@ Um F5 custa **6 chamadas de API** (o navegador serve os estáticos do cache). Me
 | | F5/s | 2000 times podem apertar F5 a cada |
 |---|---|---|
 | antes | 107 | 18,8 s |
-| **depois do cache de rounds** | **149** | **13,4 s** |
+| depois do cache de rounds | 149 | 13,4 s |
+| **depois do cache do lote inteiro** | **175** | **11,4 s** |
 
-Se apertarem mais rápido que isso, a fila cresce. O próximo ganho, se precisar, é cachear o resto
-do lote de boot — `userinfo` (547 req/s) é o mais lento dos que sobraram; `basic` 788,
-`navbuttons` 865, `balloons` 1040.
+Medido em 20/08/2026 contra fixture de 2000 times × 12 problemas **com coortes ligadas** (a
+configuração da prova de verdade), enunciados de ~130 KB cada, cliente mandando `Accept-Encoding:
+gzip` como o navegador faz. Rota a rota, 30.000 requisições a 100 conexões:
+
+| rota | antes | depois |
+|---|---:|---:|
+| `/contest/balloons` | 1040 | **1657** req/s |
+| `/contest/navbuttons` | 865 | **1223** |
+| `/contest/rounds` | 991 | **1055** |
+| `/contest/updates` | — | 904 |
+| `/contest/basic` | 788 | **840** |
+| `/contest/userinfo` (sem cache: é por usuário) | 547 | 527 |
+
+⚠ **O gzip é o que salva o `/contest/problems`**: 1.587.225 bytes crus contra **42.211** com
+`Accept-Encoding: gzip` — 38× menos. É o corpo pré-comprimido gravado junto do cache; sem ele o
+nginx recomprimiria 1,5 MB por time. Sem gzip o F5 completo cai de 1053 p/ 847 req/s.
 
 Use `stress.sh` para número de capacidade. O `web-poll-bench.sh` continua útil como carga de
 "cliente burro", mas o número dele é piso, não teto.
+
+### O teto hoje é o nginx do HOST, não a API (medido 20/08/2026, de 5 máquinas externas)
+
+Com o backlog em 10.000, a rajada que antes falhava passa limpa — e o próximo joelho mudou de
+lugar. Lote de boot completo (6 chamadas por F5), gerado de `cm1..cm4` + `hu1` pela internet:
+
+| conexões simultâneas | requisições | erro |
+|---:|---:|---|
+| 2.000 | 12.000 | **0** |
+| 5.000 | 30.000 | 14% (**500**) |
+| 10.000 | 30.000 | 17% (**500**) |
+
+Vazão agregada estável em ~1.030 req/s nos três — igual à medida no loopback (1.053), então a
+rede não é o limite. E o erro mudou de **502** (`connect() … Resource temporarily unavailable` =
+backlog cheio) p/ **500**, que é outra coisa: o `error.log` diz `768 worker_connections are not
+enough while connecting to upstream`.
+
+**É o default do Debian, e o limite real é ainda menor**: cada requisição proxiada gasta **dois**
+descritores (cliente + upstream) e o worker do nginx sobe com `LimitNOFILESoft=1024` — ou seja
+~512 requisições simultâneas por worker, antes mesmo de encostar nas 768. Correção (config do
+HOST, em `/etc/nginx/nginx.conf`; o `conf.d` não serve porque `worker_connections` mora no bloco
+`events`, que é fora do `http`):
+
+```nginx
+worker_rlimit_nofile 65535;   # topo do arquivo: cada requisição proxiada gasta 2 fds
+events { worker_connections 8192; }
+```
+
+`nginx -t && systemctl reload nginx` (o reload é gracioso). **É a única peça do caminho que ainda
+não está dimensionada p/ 2000 times** — 2000 × 6 conexões paralelas do navegador = até 12.000
+simultâneas num F5 coletivo.
 
 ### Onde está o custo por requisição (medido 2026-08-20, 30 conexões, gerador antigo)
 
