@@ -58,6 +58,24 @@ else
   add freeze warn "Sem freeze" "prova ICPC costuma congelar o placar (Configurações → Freeze)"
 fi
 
+# --- balão × freeze -----------------------------------------------------------
+# Só faz sentido com freeze configurado. Nunca `fail`: as duas políticas são legítimas — a
+# padrão (retém) protege o placar congelado, e liberar é escolha deliberada do admin.
+if (( fz > 0 )); then
+  bdf=0; grep -qE '^[[:space:]]*BALLOONS_DURING_FREEZE=1?\b' "$cdir/conf" 2>/dev/null && bdf=1
+  nfz=0
+  if [[ -f "$cdir/print-requests/.balloon-frozen" ]]; then
+    nfz="$(grep -c '"id"' "$cdir/print-requests/.balloon-frozen" 2>/dev/null)"; nfz="${nfz//[^0-9]/}"; nfz="${nfz:-0}"
+  fi
+  if (( bdf == 1 )); then
+    add balloons_freeze warn "Balão ENTREGUE durante o freeze" \
+      "permissão ligada: o balão andando pela sala conta o que o placar congelado esconde"
+  else
+    add balloons_freeze ok "Balão retido no freeze" \
+      "AC a partir de $(fmt_epoch "$fz" '%H:%M' "$contest") não vira tarefa de entrega$( ((nfz>0)) && echo " ($nfz já retido(s))" )"
+  fi
+fi
+
 # --- juízes online + linguagens ------------------------------------------------
 judges="$( { find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null | while IFS= read -r jf; do
       jq -c --argjson now "$now" --argjson ttl "$REG_TTL" \

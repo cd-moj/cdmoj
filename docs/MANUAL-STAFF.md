@@ -39,6 +39,14 @@ A tela de impressão é uma tabela com **duas coisas na mesma fila**:
 1. **Pedidos de impressão** dos times: um arquivo enviado pelo time, já montado com uma folha de rosto.
 2. **Balões**: tarefas **automáticas**, criadas no primeiro Accepted de cada dupla (time, problema). O balão mostra a **cor** daquele problema, para você levar o balão certo até a mesa do time.
 
+> **Durante o congelamento do placar (freeze) não entra balão novo — e isso não é defeito.** Um balão
+> atravessando a sala conta à plateia exatamente o que o freeze existe para esconder: quem acabou de
+> resolver. Então acerto feito com o placar congelado **não vira tarefa** e **não é entregue depois**;
+> a tarefa simplesmente não existe. Se a organização preferir o clássico (balão andando durante o
+> freeze), o `.admin` liga isso nas Configurações — e aí eles aparecem normalmente.
+>
+> **Pedido de impressão não muda**: o time continua imprimindo a qualquer momento, freeze ou não.
+
 Você só vê a fila da **sua sede**. Pedidos e balões de outras sedes não aparecem para você.
 
 ### Como tratar uma tarefa

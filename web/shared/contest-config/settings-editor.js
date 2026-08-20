@@ -46,7 +46,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
     showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
     allowPrint = mkBool(s.allow_print !== false), manualVerdict = mkBool(s.manual_verdict === true),
-    secret = mkBool(s.secret === true);
+    secret = mkBool(s.secret === true), balloonsFreeze = mkBool(s.balloons_during_freeze === true);
   const ua = el('input', { value: s.login_ua_substring || '', placeholder: T('substring do UA (vazio = sem gate)', 'UA substring (empty = no gate)') });
   const penMin = el('input', { type: 'number', min: '0', step: '1', style: 'max-width:100px',
     value: String(Number.isInteger(s.penalty_minutes) ? s.penalty_minutes : 20) });
@@ -129,7 +129,13 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     el('p', { class: 'muted small' },
       T('Em que relógio o MOJ escreve as horas desta prova para as pessoas: mensagem do mojinho, checklist pré-prova, caderno e relatório. Vazio = padrão da instalação (America/Sao_Paulo). Os campos de data desta tela continuam no relógio do SEU navegador.',
         'Which clock the MOJ uses when writing this contest’s times for people: mojinho message, pre-contest checklist, problem set and report. Empty = installation default (America/Sao_Paulo). The date fields on this screen still follow YOUR browser’s clock.')),
-    el('div', {}, tzList, field(T('Fuso (IANA)', 'Timezone (IANA)'), tz)));
+    el('div', {}, tzList, field(T('Fuso (IANA)', 'Timezone (IANA)'), tz)),
+    // idem: no FIM (índice novo entra no GROUPS do settings-tab.js, seção do freeze)
+    el('h3', { style: 'margin:1rem 0 .3rem' }, T('🎈 Balões durante o freeze', '🎈 Balloons during the freeze')),
+    el('p', { class: 'muted small' },
+      T('Por padrão o MOJ NÃO gera tarefa de entrega para acerto feito com o placar congelado: o balão andando pela sala conta ao público exatamente o que o freeze esconde. Esses balões não são entregues depois — simplesmente não existem. Marque para entregar normalmente durante o freeze (o clássico do ICPC); marcar agora também libera os que já ficaram retidos. Pedido de impressão não é afetado.',
+        'By default the MOJ does NOT create a delivery task for a solve made while the scoreboard is frozen: a balloon crossing the room tells the audience exactly what the freeze hides. Those balloons are not delivered later — they simply never exist. Check to deliver normally during the freeze (the ICPC classic); checking it now also releases the ones already held back. Print requests are unaffected.')),
+    chk(T('Entregar balão durante o freeze', 'Deliver balloons during the freeze'), balloonsFreeze));
 
   function getValue() {
     return {
@@ -147,6 +153,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       allow_late: allowLate.checked, score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
       manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,
+      balloons_during_freeze: balloonsFreeze.checked,
       review_judges: Math.min(5, Math.max(1, parseInt(revJudges.value, 10) || 2)),
       languages: langs.get(),
       judges: judges.get(),

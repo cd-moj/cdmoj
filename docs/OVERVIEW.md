@@ -476,6 +476,16 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
     default ICPC A–O, com tabela hex→nome + cor mais próxima no custom), o **nº da
     tarefa** (`seq`) e **assinatura + hora**. Reusa o fluxo pegar→imprimir→entregar e é auditado
     (`balloon-task`/`-claim`/`-processed`/`-served`/`-delivered`). Balão **não** aparece p/ o aluno.
+    **Balão × FREEZE (default: RETÉM)**: acerto com `sub_epoch >= FREEZE_TIME` **não vira tarefa** —
+    o balão atravessando a sala conta à plateia exatamente o que o placar congelado esconde (o
+    vazamento é **físico**, não de rota: o competidor nunca recebe balão por API). A supressão é
+    gravada em `print-requests/.balloon-frozen` (JSONL, auditado `balloon-frozen`) e a **lápide é
+    permanente** — sem ela, o "Encerrar evento" (que zera o `FREEZE_TIME`) reativaria o gate e TODOS
+    os suprimidos nasceriam de uma vez, bem na geração do relatório final. A chave é o **`sub_epoch`
+    da submissão**, nunca o instante do veredicto (mesma semântica do placar: em modo manual, um AC
+    enviado antes do freeze e julgado depois seria retido por engano). O opt-in do clássico ICPC é
+    `BALLOONS_DURING_FREEZE=1` no conf (toggle `balloons_during_freeze`), e **ligar libera
+    retroativamente** os retidos. **Impressão não é afetada** pelo freeze.
   - **Chefe de sede (`.cstaff`)**: papel de supervisão da sede. Usa a **mesma página** da fila em
     modo **somente leitura** (acompanha o escopo dele; sem pegar/imprimir/entregar — a API corta
     `print-action`/`print-pdf`/`print-file` com 403) e é o **único papel além do admin** que vê as

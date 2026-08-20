@@ -10,7 +10,7 @@ source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""
+  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""
   PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"
   load_contest_conf "$contest"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
@@ -20,10 +20,16 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   [[ "$PENALTY_MINUTES" =~ ^[0-9]+$ ]] || PENALTY_MINUTES=20
   [[ "$PENALTY_VERDICTS" == "__unset" ]] && PENALTY_VERDICTS="$PENALTY_CODES_DEFAULT"
   pvd_json="$(jq -cn --arg pv "$PENALTY_VERDICTS" '$pv|split(" ")|map(select(length>0))')"
+  # quantos balões a regra do freeze já suprimiu (o admin precisa VER isso antes de decidir)
+  source "$_LIBDIR/print.sh"; BLN_FROZEN="$(pr_balloons_frozen_count "$contest")"
+  BLN_FROZEN="${BLN_FROZEN//[^0-9]/}"; BLN_FROZEN="${BLN_FROZEN:-0}"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc, tz:$tz,
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
-            secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj}' \
+            secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
+            balloons_during_freeze:$bdf, balloons_frozen:$bfz}' \
+    --argjson bdf "$([[ "$BALLOONS_DURING_FREEZE" == 1 ]] && echo true || echo false)" \
+    --argjson bfz "$BLN_FROZEN" \
     --arg mode "$(contest_score_mode "$contest")" \
     --argjson pm "$PENALTY_MINUTES" --argjson pvd "$pvd_json" \
     --argjson rj "$([[ "${REVIEW_JUDGES:-}" =~ ^[1-5]$ ]] && echo "$REVIEW_JUDGES" || echo 2)" \
@@ -76,6 +82,8 @@ fi
 # estado do veredicto manual ANTES de gravar: desligar com a fila cheia deixava as sobras
 # seguradas p/ sempre (o juiz comum não consegue mais votar) — ver a varredura no fim.
 MV_WAS=0; grep -qE '^MANUAL_VERDICT=1?\b' "$CONTESTSDIR/$contest/conf" 2>/dev/null && MV_WAS=1
+# idem p/ a entrega de balão no freeze: LIGAR precisa soltar o que já ficou retido (varredura no fim)
+BDF_WAS=0; grep -qE '^BALLOONS_DURING_FREEZE=1?\b' "$CONTESTSDIR/$contest/conf" 2>/dev/null && BDF_WAS=1
 
 bset(){ # <jsonkey> <VAR> <on-value-p/-positivos>
   has "$1" || return 0
@@ -99,6 +107,7 @@ bset allow_backup BACKUP _
 bset allow_print PRINT _
 bset manual_verdict MANUAL_VERDICT 1
 bset secret      SECRET 1
+bset balloons_during_freeze BALLOONS_DURING_FREEZE 1
 
 if has login_ua_substring; then
   v="$(jq -r '.login_ua_substring' <<<"$body")"; v="${v//$'\n'/}"
@@ -161,7 +170,18 @@ if [[ "$MV_WAS" == 1 ]] && has manual_verdict && [[ "$(jq -r '.manual_verdict' <
     audit_log_to "$contest" review-manual-off "liberadas=$RV_FREED pendentes=$RV_LEFT by=$SESSION_LOGIN"
 fi
 
+# LIGOU a entrega de balão durante o freeze? Os que ficaram retidos até agora têm de sair — senão
+# a permissão valeria só p/ os ACs seguintes e o mesmo freeze teria dois pesos (time que resolveu
+# antes de o admin liberar não ganharia balão; o de depois, sim). Apagar as lápides + o stamp faz
+# a próxima abertura da fila materializar todos de uma vez (id determinístico, não duplica).
+BLN_FREED=0
+if [[ "$BDF_WAS" == 0 ]] && has balloons_during_freeze && [[ "$(jq -r '.balloons_during_freeze' <<<"$body")" == true ]]; then
+  source "$_LIBDIR/print.sh"
+  BLN_FREED="$(pr_balloons_release_frozen "$contest" "$SESSION_LOGIN")"
+  BLN_FREED="${BLN_FREED//[^0-9]/}"; BLN_FREED="${BLN_FREED:-0}"
+fi
+
 audit_log_to "$contest" settings "$( ((${#CH[@]})) && { IFS=,; echo "${CH[*]}"; } || echo nada )"
-ok_json '{saved:true, changed:$c, review_released:$rf, review_pending:$rl}' \
-  --argjson rf "$RV_FREED" --argjson rl "$RV_LEFT" \
+ok_json '{saved:true, changed:$c, review_released:$rf, review_pending:$rl, balloons_released:$bf}' \
+  --argjson rf "$RV_FREED" --argjson rl "$RV_LEFT" --argjson bf "$BLN_FREED" \
   --argjson c "$( ((${#CH[@]})) && printf '%s\n' "${CH[@]}" | jq -R . | jq -cs . || echo '[]')"

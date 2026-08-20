@@ -99,9 +99,11 @@ echo "== fila: cstaff lê o escopo, não age =="
 call /contest/staff/queue GET cst 'contest=cs'
 ck "vê pr1 (aluno1)"                  '[[ -n "$(jq -r ".requests[]|select(.id==\"pr1\").id" <<<"$BODY")" ]]'
 ck "não vê pr2 (fora do escopo)"      '[[ "$(jq -r "[.requests[]|select(.id==\"pr2\")]|length" <<<"$BODY")" == 0 ]]'
-ck "balões do escopo (só aluno1)"     '[[ "$(jq -r "[.requests[]|select(.kind==\"balloon\")]|length" <<<"$BODY")" == 2 && "$(jq -cr "[.requests[]|select(.kind==\"balloon\").login]|unique" <<<"$BODY")" == "[\"aluno1\"]" ]]'
+# o 2º AC do aluno1 é PÓS-FREEZE: não vira balão (ver smoke-balloon-freeze.sh) — sobra o de A
+ck "balões do escopo (só aluno1)"     '[[ "$(jq -r "[.requests[]|select(.kind==\"balloon\")]|length" <<<"$BODY")" == 1 && "$(jq -cr "[.requests[]|select(.kind==\"balloon\").login]|unique" <<<"$BODY")" == "[\"aluno1\"]" ]]'
 call /contest/staff/queue GET adm 'contest=cs'
-ck "reconcile ignora conta de papel"  '[[ "$(jq -r "[.requests[]|select(.kind==\"balloon\")]|length" <<<"$BODY")" == 3 && "$(jq -r "[.requests[]|select(.kind==\"balloon\" and .login==\"sede1.cstaff\")]|length" <<<"$BODY")" == 0 ]]'
+ck "reconcile ignora conta de papel"  '[[ "$(jq -r "[.requests[]|select(.kind==\"balloon\")]|length" <<<"$BODY")" == 2 && "$(jq -r "[.requests[]|select(.kind==\"balloon\" and .login==\"sede1.cstaff\")]|length" <<<"$BODY")" == 0 ]]'
+ck "AC pós-freeze não virou balão"    '[[ "$(jq -r "[.requests[]|select(.kind==\"balloon\" and .short==\"B\")]|length" <<<"$BODY")" == 0 ]]'
 call /contest/staff/print-action POST cst 'contest=cs' '{"id":"pr1","action":"claim"}'
 ck "ação vedada ao cstaff (403)"      '[[ "$OUT" == *"Status: 403"* ]]'
 call /contest/staff/print-pdf GET cst 'contest=cs&id=pr1'

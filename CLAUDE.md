@@ -311,6 +311,19 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `users/<login>/history`; vale auto+manual), dedup por id determinístico, gateado pelo mtime de
   **`var/.score-dirty`**, **sem mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
+  ⚠ **BALÃO × FREEZE (2026-08-20)**: AC com **`sub_epoch >= FREEZE_TIME`** NÃO vira tarefa — o balão
+  atravessando a sala conta o que o placar congelado esconde (o vazamento é **físico**, não de rota:
+  o competidor nunca recebe balão por API, então não adianta gate de handler). Três invariantes ao
+  mexer aqui: (1) a chave é o **`sub_epoch` da SUBMISSÃO**, nunca o instante do veredicto — em
+  `MANUAL_VERDICT` o balão nasce quando o juiz decide, e um AC pré-freeze julgado depois seria retido
+  por engano (mesma semântica do `frozen` do metrics); (2) a supressão vira **lápide** em
+  `print-requests/.balloon-frozen` e é **PERMANENTE** — sem ela o `finish.sh` zera o `FREEZE_TIME`,
+  o gate desliga e todos os suprimidos nascem de uma vez, na geração do relatório final; (3) o
+  `sub_epoch` é o campo **NF-1** e o veredicto **pode conter `:` e TAB** — por isso o laço é
+  alimentado por `emit_history_sorted` + awk, e não por `read` posicional. Opt-in do clássico ICPC:
+  `BALLOONS_DURING_FREEZE=1` (toggle `balloons_during_freeze`), e **ligar libera os retidos**
+  (apaga lápides + stamp). **Impressão é ortogonal** e continua livre no freeze. Teste:
+  `smoke-balloon-freeze.sh`.
 - **Etiquetas de credenciais** (`/contest/badges` + página `web/contest/badges/`, gabaritos Pimaco
   A4): é o **único** endpoint que devolve `.password` numa releitura — gate **admin/`.cstaff`**
   (o `.staff` recebe **403 `cstaff_required`**), GET-only (o antigo toggle `{staff_password}` foi

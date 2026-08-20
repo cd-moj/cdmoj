@@ -43,6 +43,15 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 | **Documentos** | Gera, em PDF e HTML nos três idiomas (pt/en/es), os documentos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (solução de cada problema — só publica depois do FIM da prova). Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. Times só veem caderno/times publicados a partir do INÍCIO (a sede vê antes, para imprimir). A seção 5 explica. |
 | **Balões** | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). |
 
+> **Balão e o freeze.** Por padrão, acerto feito com o placar **congelado não gera tarefa de
+> balão** — e esses balões **não são entregues depois**: a tarefa não existe. É a regra de
+> competição (o balão andando pela sala revela o que o freeze esconde), e vale só para o balão:
+> **pedido de impressão continua livre**. Se você quiser o clássico do ICPC — balão circulando
+> durante o freeze, plateia adivinhando — marque **Entregar balão durante o freeze** em
+> **Central › Regras**; marcar também **libera os que já ficaram retidos**. O checklist pré-prova
+> mostra qual política está valendo, e **Operação › Situação** mostra quantos balões estão
+> retidos.
+
 ### 👥 Pessoas — quem entra, quem é quem
 
 | Painel | O que faz |

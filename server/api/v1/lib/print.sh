@@ -460,10 +460,32 @@ pr_build_balloon() {
   return 1
 }
 
+# pr_balloon_freeze_gate <c> -> ecoa "<freeze_time> <permitido>" (0 0 = sem freeze / sem gate).
+# BALÃO NÃO SE ENTREGA COM O PLACAR CONGELADO: o balão anda pela sala, então entregá-lo durante
+# o freeze conta ao público o que o placar está escondendo — o vazamento é FÍSICO, não de rota.
+# `BALLOONS_DURING_FREEZE=1` no conf é o opt-in explícito do admin p/ o comportamento clássico.
+# O conf é *sourced* em toda parte, mas AQUI não: leitura por sed/grep (é código do autor e isto
+# roda dentro de um laço) — mesma receita de metrics_recompute (lib/users.sh).
+pr_balloon_freeze_gate() {
+  local cf="$CONTESTSDIR/$1/conf" fz allow=0
+  fz="$(sed -n 's/^[[:space:]]*FREEZE_TIME=//p' "$cf" 2>/dev/null | tail -1 | tr -cd '0-9')"
+  grep -qE '^[[:space:]]*BALLOONS_DURING_FREEZE=1?\b' "$cf" 2>/dev/null && allow=1
+  printf '%s %s' "${fz:-0}" "$allow"
+}
+
 # pr_reconcile_balloons <c> : gera (preguiçosamente) as tarefas de balão pendentes — 1 por (login,
 # problema) na 1ª solução. Idempotente (id determinístico), sob flock, gateado pelo mtime de
 # var/.score-dirty (tocado a cada escrita de history — substitui o extinto controle/history).
-# Lê o veredicto FINAL do stream (campo-5 ~ Accepted) — vale p/ auto E manual. Auditado.
+# Lê o veredicto FINAL do stream — vale p/ auto E manual. Auditado.
+#
+# FREEZE: AC com `sub_epoch >= FREEZE_TIME` NÃO vira tarefa, e a supressão é REGISTRADA em
+# `.balloon-frozen` (JSONL, sob este mesmo flock). A lápide é o que faz o "nunca" ser nunca:
+# sem ela, o `finish.sh` zera o FREEZE_TIME no encerrar-evento, o gate desliga e todos os
+# suprimidos nasceriam de uma vez — bem na geração do relatório final. Só o admin desfaz, e
+# desfaz de propósito (settings: ligar a permissão apaga as lápides e o stamp).
+# A chave é o `sub_epoch` da SUBMISSÃO, nunca o instante do veredicto: em MANUAL_VERDICT o
+# balão nasce quando os .judge decidem, e um AC enviado ANTES do freeze e julgado DEPOIS
+# seria retido por engano. É a mesma semântica do placar (`.ac and .sub_epoch < $freeze`).
 pr_reconcile_balloons() {
   local c="$1" dir hist stamp
   staff_exists "$c" || return 0
@@ -474,13 +496,36 @@ pr_reconcile_balloons() {
   ( flock -w 5 9 || exit 0
     [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && exit 0
     touch -r "$hist" "$stamp"                      # carimba o mtime do marcador ANTES de varrer
-    local _t login cid _lang verdict id short colorhex colorname team univ fullname seq
-    while IFS=: read -r _t login cid _lang verdict _rest; do
+    local sub_epoch login cid verdict id short colorhex colorname team univ fullname seq
+    local fz allow held _l
+    read -r fz allow < <(pr_balloon_freeze_gate "$c")
+    declare -A FROZEN=()                           # lápides já registradas (id -> 1)
+    held="$dir/.balloon-frozen"
+    [[ -f "$held" ]] && while IFS= read -r _l; do
+      _l="${_l#*\"id\":\"}"; _l="${_l%%\"*}"; [[ -n "$_l" ]] && FROZEN[$_l]=1
+    done < "$held"
+    # O sub_epoch é o campo NF-1 e o veredicto PODE conter ':' (5 linhas em produção) — por isso
+    # o awk, e não um `read` posicional. emit_history_sorted ordena por sub_epoch, então o `seq`
+    # do lote sai cronológico. Veredicto por ÚLTIMO no TSV: no modo heurístico ele contém TAB.
+    while IFS=$'\t' read -r sub_epoch login cid verdict; do
       [[ -n "$login" && -n "$cid" ]] || continue
+      sub_epoch="${sub_epoch//[^0-9]/}"; sub_epoch="${sub_epoch:-0}"   # nunca deixe (( )) ver lixo
       case "$verdict" in *Accepted*) ;; *) continue;; esac
+      case "$verdict" in *" (Ignored)") continue;; esac   # ignorada não conta no placar nem ganha balão
       case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
       id="bln$(printf '%s%s%s' "$c" "$login" "$cid" | md5sum | cut -c1-20)"
       [[ -f "$dir/$id.json" ]] && continue
+      [[ -n "${FROZEN[$id]:-}" ]] && continue
+      if (( fz > 0 )) && [[ "$allow" != 1 ]] && (( ${sub_epoch:-0} >= fz )); then
+        short="$(pr_short_of "$c" "$cid")"; [[ -n "$short" ]] || short="?"
+        jq -cn --arg id "$id" --arg login "$login" --arg prob "$cid" --arg short "$short" \
+          --argjson se "${sub_epoch:-0}" --argjson fz "$fz" --argjson at "$EPOCHSECONDS" \
+          '{id:$id, login:$login, problem:$prob, short:$short, sub_epoch:$se,
+            freeze_time:$fz, at:$at}' >> "$held"
+        FROZEN[$id]=1
+        audit_log_to "$c" balloon-frozen "login=$login problema=$short sub_epoch=$sub_epoch freeze=$fz"
+        continue
+      fi
       short="$(pr_short_of "$c" "$cid")"; [[ -n "$short" ]] || short="?"
       colorhex="$(pr_balloon_color "$c" "$short")"; colorname="$(pr_color_name "$colorhex")"
       team="$(pr_resolve_team "$c" "$login")"; univ="$(pr_resolve_univ "$c" "$login")"
@@ -494,6 +539,29 @@ pr_reconcile_balloons() {
           claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0}' \
         > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json"
       audit_log_to "$c" balloon-task "seq=$seq login=$login problema=$short cor=$colorname"
-    done < <(emit_history_stream "$c")
+    done < <(emit_history_sorted "$c" | awk -F: 'NF>=7{
+               v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i;
+               print $(NF-1) "\t" $2 "\t" $3 "\t" v }')
   ) 9>"$dir/.balloon.lock"
+}
+
+# pr_balloons_frozen_count <c> — quantos balões a regra do freeze suprimiu (0 se nenhum).
+pr_balloons_frozen_count() {
+  local f; f="$(pr_dir "$1")/.balloon-frozen"
+  [[ -f "$f" ]] || { printf '0'; return 0; }
+  local n; n="$(grep -c '"id"' "$f" 2>/dev/null)"; printf '%s' "${n//[^0-9]/}"
+}
+
+# pr_balloons_release_frozen <c> <by> — o admin ligou a entrega durante o freeze: apaga as
+# lápides e o stamp p/ o próximo reconcile materializar TUDO que estava retido (o id é
+# determinístico, então re-executar não duplica). Ecoa quantos foram liberados.
+pr_balloons_release_frozen() {
+  local c="$1" by="$2" dir n
+  dir="$(pr_dir "$c")"; n="$(pr_balloons_frozen_count "$c")"
+  (( ${n:-0} > 0 )) || { printf '0'; return 0; }
+  ( flock -w 5 9 || exit 0
+    rm -f "$dir/.balloon-frozen" "$dir/.balloon-stamp"
+  ) 9>"$dir/.balloon.lock"
+  audit_log_to "$c" balloon-freeze-release "liberados=$n by=$by"
+  printf '%s' "$n"
 }

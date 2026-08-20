@@ -40,9 +40,13 @@ export function makeStatusTab(CONTEST) {
     const tasks = (tq && tq.requests) || [];
     const tPend = tasks.filter((t) => t.status === 'pending');
     const tOld = tPend.length ? Math.max(...tPend.map((t) => Math.floor(Date.now() / 1000) - (t.time || 0))) : 0;
-    const taskCards = tasks.length ? [
+    // balões que a regra do freeze suprimiu (nunca viram tarefa) — o admin tem de saber que
+    // existem, senão o silêncio da fila durante o freeze parece defeito
+    const bFrozen = (tq && Number(tq.balloons_frozen)) || 0;
+    const taskCards = (tasks.length || bFrozen) ? [
       card(T('🖨️ impressões pend.', '🖨️ pending prints'), tPend.filter((t) => t.kind !== 'balloon').length, tOld > 600),
       card(T('🎈 balões pend.', '🎈 pending balloons'), tPend.filter((t) => t.kind === 'balloon').length, tOld > 600),
+      ...(bFrozen ? [card(T('🧊 balões retidos (freeze)', '🧊 balloons held (freeze)'), bFrozen, false)] : []),
     ] : [];
     panel.innerHTML = '';
     panel.append(el('h2', {}, T('📊 Situação da prova', '📊 Contest status'),

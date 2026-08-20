@@ -1762,6 +1762,7 @@
           "contest"
         ],
         "summary": "Fila de tarefas do staff (impressão + balões; escopo por staff-filters; .cstaff SÓ LÊ — ações/PDF 403). Reconcilia balões pendentes (1ª-AC) ao carregar",
+        "description": "FREEZE: acerto com sub_epoch >= FREEZE_TIME NÃO vira tarefa de balão (o balão andando pela sala conta o que o placar congelado esconde) e a supressão é registrada em print-requests/.balloon-frozen — permanente, para que encerrar o evento (FREEZE_TIME=0) não a desfaça. Só o admin desfaz, ligando balloons_during_freeze no settings. Pedido de impressão NÃO é afetado pelo freeze. balloons_frozen (contagem dos suprimidos) só vai para o admin.",
         "security": [
           {
             "bearerAuth": []
@@ -1774,7 +1775,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{requests:[{id,seq,kind,login,team,univ,short,color_hex,color_name,filename,status,…}]}"
+            "description": "{requests:[{id,seq,kind,login,team,univ,short,color_hex,color_name,filename,status,…}], balloons_frozen}"
           }
         }
       }
@@ -4593,7 +4594,7 @@
             "description": "settings"
           }
         },
-        "description": "review_judges (1..5, default 2): quantos juízes humanos validam cada veredicto na correção manual."
+        "description": "review_judges (1..5, default 2): quantos juízes humanos validam cada veredicto na correção manual. balloons_during_freeze (bool, default false): entregar balão com o placar CONGELADO. O default RETÉM — acerto feito no freeze não vira tarefa de entrega e não é entregue depois; ligar libera retroativamente os retidos (resposta traz balloons_released) e o GET traz balloons_frozen com quantos estão suprimidos."
       },
       "post": {
         "tags": [
@@ -4610,7 +4611,7 @@
             "description": "{saved,changed}"
           }
         },
-        "description": "review_judges (1..5, default 2): quantos juízes humanos validam cada veredicto na correção manual."
+        "description": "review_judges (1..5, default 2): quantos juízes humanos validam cada veredicto na correção manual. balloons_during_freeze (bool, default false): entregar balão com o placar CONGELADO. O default RETÉM — acerto feito no freeze não vira tarefa de entrega e não é entregue depois; ligar libera retroativamente os retidos (resposta traz balloons_released) e o GET traz balloons_frozen com quantos estão suprimidos."
       }
     },
     "/contest/admin/bank": {

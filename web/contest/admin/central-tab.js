@@ -21,6 +21,7 @@ const ICON = { ok: '🟢', warn: '🟡', fail: '🔴' };
 const TARGET = {
   window: ['central', 'regras'], show_log: ['central', 'regras'], show_code: ['central', 'regras'],
   freeze: ['central', 'regras'], mode: ['central', 'regras'], langs: ['central', 'regras'],
+  balloons_freeze: ['central', 'regras'],
   tov: ['central', 'regras'],
   problems: ['prova', 'problemas'], pool_problems: ['prova', 'problemas'], pool: ['prova', 'problemas'],
   next_round: ['prova', 'rodadas'], docs: ['prova', 'documentos'], balloons: ['prova', 'baloes'],

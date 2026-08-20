@@ -138,6 +138,13 @@ o mesmo**: ao entrar num placar paralelo ele busca TAMBÉM o placar geral (`fetc
 a mais só nesse caso) e mostra as duas posições; se as classificações coincidem, o segundo número
 não aparece.
 
+**O balão obedece ao freeze** (desde 2026-08-20): acerto com `sub_epoch >= FREEZE_TIME` **não vira
+tarefa de entrega** e não é entregue depois — um balão atravessando a sala conta à plateia
+exatamente o que o placar congelado esconde. A supressão é permanente (lápide em
+`print-requests/.balloon-frozen`), sobrevive ao "Encerrar evento" e só o admin a desfaz, ligando
+`balloons_during_freeze` (o clássico do ICPC), o que também **libera os retidos**. Pedido de
+impressão não é afetado. Ver `OVERVIEW.md` (§ Balões) e `MANUAL-STAFF.md`.
+
 **A conta `.animeitor`** (mesa do telão) recebe o placar **sempre descongelado** e é dela que sai
 o **webcast**: um pacote por VISÃO, no formato do BOCA, que o sistema Animeitor busca em loop —
 inclusive com os runs pós-freeze, porque quem anima a virada é ele. Ver `docs/WEBCAST.md`.

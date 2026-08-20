@@ -131,6 +131,13 @@ printf '[{"regex":"^teambrspso","end":%s,"reason":"queda de energia"}]' "$((NOW+
 check "prorrogação ativa => warn"          '[[ "$(lvl tov)" == warn ]]'
 check "avisa que passa do freeze"          '[[ "$(det tov)" == *"passa do freeze"* ]]'
 
+echo "== balão × freeze =="
+check "com freeze, retém por padrão"       '[[ "$(lvl balloons_freeze)" == ok ]]'
+check "diz a partir de que hora"           '[[ "$(det balloons_freeze)" == *"não vira tarefa de entrega"* ]]'
+printf 'BALLOONS_DURING_FREEZE=1\n' >> "$C/conf"; run
+check "permissão ligada => warn"           '[[ "$(lvl balloons_freeze)" == warn ]]'
+sed -i '/^BALLOONS_DURING_FREEZE=/d' "$C/conf"; run
+
 echo "== gate sem NENHUMA configuração = desligado (não é fail falso) =="
 mv "$C/ua-gate.json" "$C/ua-gate.json.bak"; run
 check "sem ua-gate.json => ok"           '[[ "$(lvl ua_gate)" == ok ]]'
