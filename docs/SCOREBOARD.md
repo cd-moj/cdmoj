@@ -56,7 +56,7 @@ BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:2/40:1/55::3/68::4:213:68
 ### Células por modo
 | Modo | Célula de problema | Ordenação | Cor |
 |---|---|---|---|
-| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/minuto*`=**first to solve** (★ + contorno; menor `first_ac_epoch` do problema entre os times do placar, na mesma visão frozen/full) · `tentativas/-`=tentou | **1º** acertos↓ · **2º** penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) · **3º** minuto do ÚLTIMO problema resolvido↑ (`LastAC`) | pinta com a cor do balão |
+| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/minuto*`=**first to solve** (★ + contorno; menor `first_ac_epoch` do problema entre os times do placar, na mesma visão frozen/full) · `tentativas/-`=tentou | **1º** acertos↓ · **2º** penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) · **3º** minuto do ÚLTIMO problema resolvido↑ (`LastAC`) | ver **Balão × visibilidade** abaixo |
 | `obi` | pontos (0–100) | Total↓ | — |
 | `treino` | resolvidos / tentativas | resolvidos↓ | — |
 | `heuristic` | melhor Score | Score↓ (Score Ajustado como desempate) | — |
@@ -137,6 +137,34 @@ aparece quando informa algo (na visão cuja classificação é a do geral, não)
 o mesmo**: ao entrar num placar paralelo ele busca TAMBÉM o placar geral (`fetchGenPlace`, um GET
 a mais só nesse caso) e mostra as duas posições; se as classificações coincidem, o segundo número
 não aparece.
+
+### Balão × visibilidade (a célula "resolveu")
+
+**Regra: a cor do balão é adorno; "resolvido" nunca pode depender dela.** A paleta ICPC dá
+`A = FFFFFF` e a API a devolve **sempre** (o `balloons.json` só sobrepõe chaves) — branco sobre o
+fundo branco do placar é **o mesmo pixel** (1,00:1), então quem resolvia o A parecia não ter
+resolvido. Não era exceção: **5 das 15 cores padrão** ficam abaixo de 3:1 (branco 1,00 · amarelo
+1,07 · azul-claro 1,25 · limão 1,37 · prata 1,82), e o amarelo dá **1,05 contra a célula de erro** —
+quem RESOLVIA parecia ter feito menos que quem ERROU.
+
+O admin escolhe como a célula se pinta (`SCORE_BALLOON_STYLE` no conf; `balloon_style` no
+settings e no `/contest/basic`), e vale para o **placar ao vivo, a cerimônia e o relatório**:
+
+| Modo | Célula resolvida |
+|---|---|
+| **`icon`** (padrão) | fundo neutro igual p/ todos + **ponto da cor** (`.bdot`) ao lado do número. "Resolvido" deixa de depender de enxergar cor |
+| `fill` | o clássico: fundo com a cor do balão + **contorno** derivado (`balloonEdge`) — cor clara deixa de sumir |
+
+O **contorno** é a própria cor escurecida até cruzar **3:1** contra o branco (WCAG 1.4.11) —
+`FFFFFF→8A8A8A`; cor já escura não muda (`000000→000000`). Fator fixo não serve: o limão parava
+em 2,29:1. Fonte única em `web/contest/score/score-colors.js` (`balloonEdge`/`balloonTint`/
+`paintSolvedCell`/`balloonDot`); o gêmeo inevitável é o awk de `score/report-gen.sh` (`bl_edge`).
+O anel do **first-to-solve** vence nos dois modos. No **celular** (≤640px) o ponto e o contorno
+somem: ali quem diz "resolvido" é o **✓** — um símbolo, o canal que não depende de cor — e a cor
+segue no balão do cabeçalho. Esse ✓ é **só do ICPC** (`table.score.m-icpc`): no OBI a célula é a
+NOTA. Na **página do contest** a linha resolvida usa tom claro da cor + barra lateral com a cor
+real (contornada) + selo "✔ resolvido" — pintá-la com a cor crua deixava o título ilegível nas
+5 cores escuras.
 
 **O balão obedece ao freeze** (desde 2026-08-20): acerto com `sub_epoch >= FREEZE_TIME` **não vira
 tarefa de entrega** e não é entregue depois — um balão atravessando a sala conta à plateia

@@ -45,7 +45,16 @@
 
     /* problemas (accordion) */
     .prob-item { border:1px solid var(--line); border-radius:10px; margin:.5rem 0; overflow:hidden; background:#fff; }
-    .prob-item.accepted { border-color:#abf7c3; }
+    /* RESOLVIDO: tom claro da cor no fundo + a cor REAL na barra lateral (com contorno — é o
+       contorno que faz a barra do balão BRANCO existir) + o selo "✔ resolvido". A linha NÃO é
+       mais pintada com a cor crua: era isso que sumia no branco e que deixava título, hover e
+       links ilegíveis nas cores escuras. As variáveis vêm do tintProbItem (contest.js). */
+    .prob-item.accepted { border-color:var(--bln-edge,#abf7c3); background:var(--bln-tint,#e2ffe9);
+      position:relative; }
+    .prob-item.accepted::before { content:''; position:absolute; left:0; top:0; bottom:0; width:7px;
+      background:var(--bln,#e2ffe9); border-right:1px solid var(--bln-edge,#abf7c3); }
+    .prob-item.accepted .prob-row { padding-left:1.2rem; }
+    .prob-ok { margin-left:.5rem; flex:none; }
     .prob-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.6rem .9rem; cursor:pointer; flex-wrap:wrap; }
     .prob-row:hover { background:#f4f9ff; }
     .prob-left { display:flex; align-items:center; gap:.5rem; min-width:0; }

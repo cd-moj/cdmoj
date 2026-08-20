@@ -229,6 +229,20 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **não renumeram**. A **bandeira entra UMA vez** (classe CSS `.f-<código>` com o `data:` URI;
   um `<img>` por linha levava o index.html a 21 MB — 458 KB de brasão × N linhas × N placares).
   Detalhes em `docs/SCOREBOARD.md`.
+- **COR DE BALÃO NUNCA APARECE SEM CONTORNO, e "resolvido" NUNCA depende só da cor.** A paleta
+  ICPC dá `A = FFFFFF` e a API a devolve SEMPRE (o `balloons.json` só sobrepõe chaves): branco
+  sobre o fundo branco do placar é **o mesmo pixel** — quem resolvia o A parecia não ter
+  resolvido (queixa de um estudante, 2026-08-20). Não era exceção: 5 das 15 cores padrão ficam
+  abaixo de 3:1, e o amarelo dá 1,05 contra a célula de ERRO. Hoje o admin escolhe
+  (`SCORE_BALLOON_STYLE`/`balloon_style`, default **`icon`** = fundo neutro + `.bdot` com a cor;
+  `fill` = cor no fundo + contorno), e vale nas TRÊS telas de placar (ao vivo, cerimônia,
+  relatório). O contorno (`balloonEdge`) escurece a cor **até cruzar 3:1** — fator fixo não
+  serve (o limão parava em 2,29:1). **Fonte única: `web/contest/score/score-colors.js`**
+  (`balloonEdge`/`balloonTint`/`balloonDot`/`paintSolvedCell`) — o `contest.js` tinha uma CÓPIA
+  literal dessas funções, que é como a correção nasce divergente; o gêmeo inevitável é o awk de
+  `score/report-gen.sh` (`bl_edge`/`bsvg`). No celular quem diz "resolvido" é o **✓** (símbolo,
+  não cor) e ele é **só do ICPC** (`table.score.m-icpc`): no OBI a célula é a NOTA, e a regra
+  global escondia a nota mostrando ✓ p/ qualquer pontuação. Teste: `smoke-score-balloon.sh`.
 - **Placar NUNCA rola para o lado** (contest, revelação e relatório usam o MESMO CSS em
   `ui.css`): `table-layout:fixed` + `<colgroup>` com frações (`score-cols.js` carimba
   `--nprob`; o CSS divide), número da célula em `.pv` com fonte menor, e no celular (≤640px)

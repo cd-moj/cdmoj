@@ -12,7 +12,7 @@ import { T } from '/shared/i18n.js';
 import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { parseICPC } from './score-icpc.js';
-import { balloonColorHex, balloonIsDark } from './score-colors.js';
+import { balloonColorHex, balloonDot, paintSolvedCell } from './score-colors.js';
 import { flagEl } from '/shared/flags.js';
 import { scoreCols, cellTitle } from './score-cols.js';
 
@@ -22,6 +22,7 @@ const enc = encodeURIComponent;
 const app = document.getElementById('app');
 
 let PEN = 20;                 // PENALTY_MINUTES (vem do /contest/basic; fallback 20)
+let BSTYLE = 'icon';          // como pintar a célula resolvida (/contest/basic; ver score-colors.js)
 let balloons = {};
 let probShorts = [];
 let teams = [];               // [{username, teamName, univShort, flag, cells:{sn:v}, fullCells:{sn:v}}]
@@ -79,12 +80,12 @@ function render(highlight) {
         td.className = 'cell ok';
         td.title = cellTitle(sn, shown, T);
         if (fts) td.append(el('span', { class: 'fts' }, '★'));
-        shownIn(shown);
         const color = balloonColorHex(balloons, sn);
-        td.style.background = color || '#e2ffe9';
-        td.style.color = color && balloonIsDark(color) ? '#fff' : '#222';
-        td.style.fontWeight = '700';
-        if (fts) td.style.boxShadow = 'inset 0 0 0 2px currentColor';
+        // o ponto vem ANTES do número (shownIn faz append)
+        if (BSTYLE === 'icon' && color) td.append(balloonDot(color));
+        shownIn(shown);
+        // contorno de 2px no modo 'fill': aqui é PROJETOR, 1px some da plateia
+        paintSolvedCell(td, color, { style: BSTYLE, fts, ring: 2 });
       } else if (pend) {
         td.className = 'cell c-try prob-wait-cell';
         td.title = sn;
@@ -154,6 +155,10 @@ async function main() {
     app.textContent = T('A cerimônia é só para contests em modo icpc.', 'The ceremony is only for contests in icpc mode.'); return;
   }
   try { balloons = await apiGet('/contest/balloons?contest=' + enc(CONTEST), G); } catch { balloons = {}; }
+  // o modo de pintura vale p/ TODOS os papéis que abrem a cerimônia (a leitura de PEN abaixo é
+  // só p/ não-cstaff); falhou = fica no default 'icon', que é o legível
+  try { const bb = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);
+        if (bb && bb.balloon_style === 'fill') BSTYLE = 'fill'; } catch { /* default */ }
   if (!CSTAFF) {
     // a penalidade vem do /contest/basic (todo login do contest lê). Antes vinha do
     // /contest/admin/settings, que é admin-only: p/ .animeitor/.judge/.cstaff o fetch dava

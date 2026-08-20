@@ -25,7 +25,7 @@ export function makeSettingsTab(CONTEST) {
     { label: T('👁 O que o time vê durante a prova', '👁 What the team sees during the contest'), idx: [6, 7, 8, 9, 10, 11, 12] },
     { label: T('⚖️ Julgamento (linguagens, pool, veredicto manual)', '⚖️ Judging (languages, pool, manual verdict)'), idx: [13, 14, 19, 20, 21, 22, 23, 24] },
     // 31,32,33 = o bloco "balões durante o freeze", também acrescentado no fim do editor
-    { label: T('🏅 Placar, freeze e penalidade', '🏅 Scoreboard, freeze and penalty'), idx: [15, 18, 25, 26, 27, 31, 32, 33] },
+    { label: T('🏅 Placar, freeze e penalidade', '🏅 Scoreboard, freeze and penalty'), idx: [15, 18, 25, 26, 27, 31, 32, 33, 34, 35, 36] },
     { label: T('🔒 Acesso ao contest', '🔒 Contest access'), idx: [4, 5, 16, 17] },
   ];
 

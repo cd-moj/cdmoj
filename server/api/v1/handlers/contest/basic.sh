@@ -7,7 +7,7 @@ contest="$(param contest)"
 require_contest "$contest"
 
 CONTEST_ID="$contest"; CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0
-LOGIN_START_TIME=""; LOCALE=""; LOGIN_ENABLED=""; FREEZE_TIME=""; SCORE_ANON=""; LANGUAGES=""; SECRET=""
+LOGIN_START_TIME=""; LOCALE=""; LOGIN_ENABLED=""; FREEZE_TIME=""; SCORE_ANON=""; LANGUAGES=""; SECRET=""; SCORE_BALLOON_STYLE=""
 ROUND=""; ROUND_NAME=""; ROUND_KIND=""
 load_contest_conf "$contest"
 
@@ -64,7 +64,9 @@ fi
 ok_json '{contest_id:$id, contest_name:$name, start_time:$start, end_time:$end,
           login_start_time:$lst, locale:$loc, login_enabled:$le, freeze_time:$fz, score_anon:$sa,
           penalty_minutes:$pen,
-          languages:$langs, secret:$sec, round:$round, cohort:$cohort, score_views:$sv}' \
+          languages:$langs, secret:$sec, round:$round, cohort:$cohort, score_views:$sv,
+          balloon_style:$bstyle}' \
+  --arg bstyle "$([[ "$SCORE_BALLOON_STYLE" == fill ]] && echo fill || echo icon)" \
   --argjson round "$round_json" --argjson cohort "$cohort_json" --argjson sv "$score_views_json" \
   --arg id "$CONTEST_ID" --arg name "$CONTEST_NAME" \
   --argjson start "${CONTEST_START:-0}" --argjson end "${CONTEST_END:-0}" \

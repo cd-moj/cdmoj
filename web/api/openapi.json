@@ -1492,6 +1492,7 @@
           "contest"
         ],
         "summary": "Info pública (nome, horários, login_start_time)",
+        "description": "Traz também balloon_style (icon|fill, default icon): como o placar pinta a célula de quem resolveu. icon = fundo neutro igual para todos + um ponto com a cor do balão, de modo que \"resolvido\" não dependa de enxergar a cor — a paleta ICPC dá o problema A BRANCO, e branco sobre o fundo branco do placar é o mesmo pixel (1,00:1), então o acerto sumia. fill = o clássico, cor do balão no fundo, mais um contorno derivado da própria cor para as claras não sumirem. Vale para o placar ao vivo, a cerimônia de revelação e o relatório offline. Ver docs/SCOREBOARD.md.",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

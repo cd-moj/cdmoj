@@ -10,7 +10,7 @@ source "$_LIBDIR/contest-create.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""
+  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
   PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"
   load_contest_conf "$contest"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
@@ -27,7 +27,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
-            balloons_during_freeze:$bdf, balloons_frozen:$bfz}' \
+            balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty}' \
+    --arg bsty "$([[ "$SCORE_BALLOON_STYLE" == fill ]] && echo fill || echo icon)" \
     --argjson bdf "$([[ "$BALLOONS_DURING_FREEZE" == 1 ]] && echo true || echo false)" \
     --argjson bfz "$BLN_FROZEN" \
     --arg mode "$(contest_score_mode "$contest")" \
@@ -108,6 +109,13 @@ bset allow_print PRINT _
 bset manual_verdict MANUAL_VERDICT 1
 bset secret      SECRET 1
 bset balloons_during_freeze BALLOONS_DURING_FREEZE 1
+# como o placar pinta a célula resolvida: 'icon' (default, neutro + ponto da cor) | 'fill'
+# (cor do balão no fundo + contorno). Ver docs/SCOREBOARD.md.
+if has balloon_style; then
+  v="$(jq -r '.balloon_style' <<<"$body")"
+  [[ "$v" =~ ^(icon|fill)$ ]] || fail 422 "balloon_style inválido (icon|fill)" "balloon_style_invalid"
+  if [[ "$v" == fill ]]; then setvar SCORE_BALLOON_STYLE fill; else delvar SCORE_BALLOON_STYLE; fi
+fi
 
 if has login_ua_substring; then
   v="$(jq -r '.login_ua_substring' <<<"$body")"; v="${v//$'\n'/}"

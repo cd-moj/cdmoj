@@ -52,6 +52,14 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 > mostra qual política está valendo, e **Operação › Situação** mostra quantos balões estão
 > retidos.
 
+> **Como o placar marca quem resolveu.** Por padrão a célula de quem resolveu é **sempre igual**
+> (verde) e a cor do balão vai numa **bolinha** ao lado. É de propósito: a paleta ICPC dá o
+> problema A **branco**, e branco sobre o fundo branco do placar é o mesmo pixel — quem resolvia
+> o A parecia não ter resolvido (a queixa que originou a mudança veio de um estudante). Se você
+> preferir o clássico — a célula inteira pintada com a cor do balão — marque em **Central ›
+> Regras › Célula "resolveu" no placar**; as cores claras ganham contorno para não sumirem. Vale
+> para o placar, a cerimônia de revelação e o relatório.
+
 ### 👥 Pessoas — quem entra, quem é quem
 
 | Painel | O que faz |

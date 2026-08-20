@@ -106,7 +106,12 @@ ck "documentos: aba com o PUBLICADO"       '[[ -s "$R/documentos.html" ]] && [[ 
 ck "placar: colgroup completo (N+5 cols)" '[[ "$(grep -o "<col class=\"c-[a-z]*\">" "$R/index.html" | wc -l)" == 7 ]]'
 ck "placar: --nprob carimbado na tabela"  'grep -q "table class=\"score\" style=\"--nprob:2" "$R/index.html"'
 ck "placar: embrulho SEM rolagem"         'grep -q "board-wrap.*table class=\"score\"" "$R/index.html" && ! grep -q "tblwrap.*table class=\"score\"" "$R/index.html"'
-ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*>(<span class=\"fts\">[^<]*</span>)?<span class=\"pv\">1/70</span>" "$R/index.html"'
+ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*>(<span class=\"fts\">[^<]*</span>)?(<span class=\"bdot\"[^>]*></span>)?<span class=\"pv\">1/70</span>" "$R/index.html"'
+# modo 'icon' (padrão): a célula resolvida NÃO depende da cor — fundo neutro + o ponto da cor,
+# cujo contorno é o que faz o balão BRANCO existir (ver docs/SCOREBOARD.md)
+ck "placar: célula resolvida neutra"      'grep -q "cell ok\" style=\"background:#e2ffe9" "$R/index.html"'
+ck "placar: ponto da cor com contorno"    'grep -qE "<span class=\"bdot\" style=\"--bdot:#[0-9A-F]{6};--bdot-edge:#[0-9A-F]{6}\"" "$R/index.html"'
+ck "placar: cabeçalho traz o BALÃO"       'grep -q "th class=\"prob\"><svg class=\"balloon-svg\"" "$R/index.html"'
 ck "placar: CSS sem nowrap/min-width"     '! grep -qE "table.score td.cell\{[^}]*(nowrap|min-width)" "$R/index.html"'
 ck "placar: penalidade sobrevive no celular" 'grep -q "td.cell:not(.tot):not(.pen) .pv { display:none" "$R/index.html" && ! grep -q "table.score td.cell .pv { display:none" "$R/index.html"'
 ck "placar: login do time no title"       'grep -q "class=\"team\" title=\"[^\"]*·[^\"]*\"" "$R/index.html" && ! grep -q "<span class=\"u\">" "$R/index.html"'

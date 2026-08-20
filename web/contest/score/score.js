@@ -326,7 +326,8 @@ function reRender() {
   const fb = document.getElementById('scoreFilters');
   if (fb) fb.classList.toggle('hidden', !!anonMode);
   if (anonMode) { renderAnon(parsed); return; }
-  const opts = { searchTerm, regionFn: combinedFilterFn(), genPlace };
+  const opts = { searchTerm, regionFn: combinedFilterFn(), genPlace,
+    style: (basic && basic.balloon_style) === 'fill' ? 'fill' : 'icon' };
   let table;
   if (parsed.mode === 'icpc') table = renderICPC(parsed, opts);
   else if (parsed.mode === 'obi') table = renderOBI(parsed, opts);

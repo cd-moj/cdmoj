@@ -7,6 +7,7 @@ import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
+import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -91,26 +92,27 @@ function hide(id) { document.getElementById(id).classList.add('hidden'); }
 function vClass(v) { return verdictClass(v); }
 
 // cor do balão para um short_name (mapa hex SEM '#')
-function balloonColor(shortName) {
-  const c = balloons && balloons[shortName];
-  if (!c) return '';
-  const hex = typeof c === 'string' ? c : c.hex;
-  return hex ? (hex.startsWith('#') ? hex : '#' + hex) : '';
-}
-function balloonIsDark(hex) {
-  hex = hex.replace('#', '');
-  if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
-  const r = parseInt(hex.substr(0, 2), 16), g = parseInt(hex.substr(2, 2), 16), b = parseInt(hex.substr(4, 2), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
-}
-function balloonSVG(color) {
-  return `<svg class="balloon-svg" viewBox="0 0 42 47" aria-hidden="true">
-    <ellipse cx="21" cy="21" rx="18" ry="18" fill="${color}" stroke="#b2b2b2" stroke-width="2"/>
-    <ellipse cx="16" cy="14" rx="5" ry="5.1" fill="#fff" fill-opacity=".48"/>
-    <polygon points="18,36 24,36 21,46" fill="${color}" stroke="#b2b2b2" stroke-width="1.4" stroke-linejoin="round"/>
-    <ellipse cx="14" cy="15" rx="1.4" ry="2.8" fill="#fff" fill-opacity=".30"/>
-    <ellipse cx="12" cy="22" rx="1.1" ry="1.5" fill="#fff" fill-opacity=".22"/>
-  </svg>`;
+// cor/contorno/tom do balão: FONTE ÚNICA em contest/score/score-colors.js (aqui havia uma
+// CÓPIA LITERAL das três funções — o tipo de duplicação que faz a correção nascer divergente)
+const balloonColor = (shortName) => balloonColorHex(balloons, shortName);
+
+// tintProbItem — a ÚNICA definição de como a linha de um problema RESOLVIDO se pinta.
+// Antes a linha levava a cor CRUA no background e trocava `style.color`; isso (a) deixava o
+// aceite do balão BRANCO idêntico ao não-aceito e (b) quebrava três coisas nas cores escuras:
+// o título (.prob-full tem cor FIXA e não acompanhava), o hover (repinta o fundo e o color:#fff
+// herdado ficava, texto branco sobre quase branco) e os links. Agora o fundo é o TOM CLARO da
+// cor, a cor REAL vive na barra lateral (com contorno, que é o que faz a branca existir) e o
+// texto nunca muda de cor. Ver web/contest/index.html (.prob-item.accepted).
+function tintProbItem(item, accepted, color) {
+  item.classList.toggle('accepted', accepted);
+  item.style.color = '';                       // nunca mais mexer na cor do texto
+  if (!accepted) { item.style.removeProperty('--bln'); item.style.removeProperty('--bln-edge');
+                   item.style.removeProperty('--bln-tint'); item.style.background = ''; return; }
+  const c = color || '#e2ffe9';
+  item.style.setProperty('--bln', c);
+  item.style.setProperty('--bln-edge', balloonEdge(c));
+  item.style.setProperty('--bln-tint', color ? balloonTint(c) : '#e2ffe9');
+  item.style.background = '';                  // quem pinta agora é o CSS
 }
 
 async function downloadAuthed(path, filename) {
@@ -503,14 +505,7 @@ function renderProblems() {
     const accepted = problemAccepted(p);
     const color = accepted ? balloonColor(p.short_name) : '';
     const item = el('div', { class: 'prob-item' + (accepted ? ' accepted' : ''), id: 'prob-' + p.problem_id });
-    if (accepted) {
-      if (color) {
-        item.style.background = color;
-        item.style.color = balloonIsDark(color) ? '#fff' : '#222';
-      } else {
-        item.style.background = '#e2ffe9';
-      }
-    }
+    tintProbItem(item, accepted, color);
 
     const toggle = el('span', { class: 'prob-toggle' }, '▶');
     const balloonSlot = el('span', { class: 'prob-balloon', html: accepted && color ? balloonSVG(color) : '' });
@@ -523,7 +518,8 @@ function renderProblems() {
       // crédito do autor: a API só manda depois que a prova acaba (durante a prova o nome
       // do autor é pista) — ver SHOW_AUTHOR em handlers/contest/problems.sh
       p.author ? el('span', { class: 'small muted', style: 'margin-left:.5rem' },
-        T('· autor: ', '· author: ') + p.author) : null);
+        T('· autor: ', '· author: ') + p.author) : null,
+      accepted ? el('span', { class: 'pill ok prob-ok' }, T('✔ resolvido', '✔ solved')) : null);
 
     // links de enunciado (HTML/PDF em nova aba)
     const linksWrap = el('span', { class: 'row' });
@@ -555,16 +551,16 @@ function retintProblems() {
     if (!item) return;
     const accepted = problemAccepted(p);
     const color = accepted ? balloonColor(p.short_name) : '';
-    item.classList.toggle('accepted', accepted);
-    if (accepted) {
-      item.style.background = color || '#e2ffe9';
-      item.style.color = color && balloonIsDark(color) ? '#fff' : '#222';
-    } else {
-      item.style.background = '';
-      item.style.color = '';
-    }
+    tintProbItem(item, accepted, color);
     const slot = item.querySelector('.prob-balloon');
     if (slot) slot.innerHTML = accepted && color ? balloonSVG(color) : '';
+    // o selo acompanha: quem resolve DURANTE a prova (o retint roda no polling) tem de ver
+    // o "✔ resolvido" aparecer sem recarregar a página
+    let pill = item.querySelector('.prob-ok');
+    if (accepted && !pill) {
+      pill = el('span', { class: 'pill ok prob-ok' }, T('✔ resolvido', '✔ solved'));
+      const left = item.querySelector('.prob-left'); if (left) left.append(pill);
+    } else if (!accepted && pill) pill.remove();
   });
 }
 

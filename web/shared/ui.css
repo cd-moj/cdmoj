@@ -439,6 +439,12 @@ table.score .cl-place, table.score td.place { font-weight:800; color:var(--blue-
 table.score td.cell .pv { font-size:.78em; font-variant-numeric:tabular-nums;
   overflow-wrap:normal; word-break:keep-all; }
 table.score td.cell .fts { font-size:.7em; vertical-align:top; }
+/* .bdot — o ponto da cor do balão na célula resolvida (modo 'icon' do placar, o padrão).
+   A BORDA é a informação, não acabamento: sobre o verde de acerto um ponto branco dá 1,1:1.
+   Ela vem do balloonEdge (score-colors.js) e chega por --bdot-edge. Ver docs/SCOREBOARD.md. */
+table.score td.cell .bdot { display:inline-block; width:.62em; height:.62em; border-radius:50%;
+  border:1px solid var(--bdot-edge,#8a8a8a); background:var(--bdot,#ccc);
+  vertical-align:-.02em; margin-right:.2em; }
 /* a bandeira vem com ALTURA inline (flags.js) e largura livre: numa coluna estreita ela
    TRANSBORDA e encosta na 1ª letra do nome do time (a célula não corta). O teto é da coluna. */
 table.score .flag-mini { max-width:100%; }
@@ -503,6 +509,10 @@ table.score .flag-mini { max-width:100%; }
      com cabeçalho e nenhuma célula, ocupando largura sem informar nada. */
   table.score td.cell:not(.tot):not(.pen) .pv { display:none; }
   table.score td.cell:not(.tot):not(.pen).ok::before { content:"✓"; font-weight:800; }
+  /* o ponto da cor e o ✓ não cabem juntos: a ~2,6% da largura da tabela a coluna tem ~9px num
+     aparelho de 360px. Aqui quem diz "resolvido" é o ✓ — um SÍMBOLO, que é justamente o canal
+     que não depende de enxergar cor — e a cor de cada problema segue no balão do cabeçalho. */
+  table.score td.cell .bdot { display:none; }
   table.score td.cell:not(.tot):not(.pen).c-try::before { content:"✗"; }
   table.score td.cell.pen .pv { font-size:.72em; }
   table.score td.team .u, table.score td.team .pill { display:none; }

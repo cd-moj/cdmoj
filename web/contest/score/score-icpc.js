@@ -10,7 +10,7 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
-import { balloonColorHex, balloonIsDark, balloonSVG } from './score-colors.js';
+import { balloonColorHex, balloonSVG, balloonDot, paintSolvedCell } from './score-colors.js';
 import { scoreCols, cellTitle } from './score-cols.js';
 
 const SYS = ['flag', 'username', 'univ short', 'team name', 'univ full', 'total', 'penalty', 'lastac', 'guest'];
@@ -76,7 +76,7 @@ function cellSolved(v) { return /^\d+\/\d+\/?\*?$/.test(v); }  // tries/minutes[
 function cellWait(v) { return /^\d+\/-/.test(v); }             // tries/-
 
 export function renderICPC(parsed, opts) {
-  const { searchTerm = '', regionFn = null, genPlace = null } = opts || {};
+  const { searchTerm = '', regionFn = null, genPlace = null, style = 'icon' } = opts || {};
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
@@ -142,10 +142,10 @@ export function renderICPC(parsed, opts) {
         // lugar ao ✓ — os números ficam no title).
         const td = el('td', { class: 'cell ok', title: cellTitle(sn, shown, T) },
           fts ? el('span', { class: 'fts' }, '★') : null,
+          style === 'icon' && color ? balloonDot(color) : null,
           el('span', { class: 'pv' }, shown));
-        if (color) { td.style.background = color; td.style.color = balloonIsDark(color) ? '#fff' : '#222'; td.style.fontWeight = '700'; }
-        else { td.style.background = '#e2ffe9'; td.style.color = '#222'; td.style.fontWeight = '700'; }
-        if (fts) { td.title = T('Primeiro a resolver', 'First to solve') + ' · ' + cellTitle(sn, shown, T); td.style.boxShadow = 'inset 0 0 0 2px currentColor'; }
+        paintSolvedCell(td, color, { style, fts });
+        if (fts) td.title = T('Primeiro a resolver', 'First to solve') + ' · ' + cellTitle(sn, shown, T);
         tr.append(td);
       } else if (cellWait(v)) {
         tr.append(el('td', { class: 'cell c-try prob-wait-cell', title: cellTitle(sn, v, T) },

@@ -76,6 +76,9 @@ MODE="$(contest_score_mode "$C")"
 START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 END="${CONTEST_END:-0}";     [[ "$END"   =~ ^[0-9]+$ ]] || END=0
 FREEZE="${FREEZE_TIME:-0}";  [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0
+# como pintar a célula resolvida — o MESMO modo do placar ao vivo (/contest/basic balloon_style),
+# p/ o relatório não contar uma história diferente do que as pessoas viram na prova
+BSTYLE="${SCORE_BALLOON_STYLE:-icon}"; [[ "$BSTYLE" == fill ]] || BSTYLE=icon
 CNAME="${CONTEST_NAME:-$C}"
 NOW="$EPOCHSECONDS"
 
@@ -343,19 +346,41 @@ if [[ -s "$MOJ_WEB/shared/assets/logo_moj.svg" ]]; then
   LOGO_IMG="<img src=\"data:image/svg+xml;base64,$(base64 -w0 < "$MOJ_WEB/shared/assets/logo_moj.svg")\" alt=\"MOJ\">"
 fi
 
-# --- cores de balão (balloons.json: short -> RRGGBB) + luminância p/ cor do texto -----
+# --- cores de balão + luminância (cor do texto) + CONTORNO (o balão claro não some) ------
+# A paleta PADRÃO ICPC entra mesmo SEM balloons.json — é o que a API já faz
+# (handlers/contest/balloons.sh devolve o default sempre, o arquivo só sobrepõe chaves). Antes
+# o relatório só lia cores se o arquivo existisse, então o MESMO evento tinha placar colorido
+# ao vivo e relatório todo verde. GÊMEO de web/contest/score/score-colors.js — mudou lá, mude aqui.
 : > "$W/balloons.tsv"
-if [[ -f "$CDIR/balloons.json" ]] && jq -e . "$CDIR/balloons.json" >/dev/null 2>&1; then
-  jq -r 'to_entries[] | [.key, (.value | if type=="object" then (.hex//"") else tostring end)] | @tsv' \
-      "$CDIR/balloons.json" 2>/dev/null \
-  | while IFS=$'\t' read -r bk bv; do
+# bl_edge <RRGGBB> -> a própria cor escurecida ATÉ cruzar 3:1 contra o branco (WCAG 1.4.11).
+# Escurecer por fator fixo não serve: o verde-limão 00FF00 parava em 2,29:1.
+bl_edge() {
+  local r=$((16#${1:0:2})) g=$((16#${1:2:2})) b=$((16#${1:4:2})) k=78 i er eg eb lr lg lb L
+  for (( i=0; i<12 && k>20; i++ )); do
+    er=$(( r*k/100 )); eg=$(( g*k/100 )); eb=$(( b*k/100 ))
+    # luminância relativa aproximada em milésimos (a curva sRGB via awk seria fork por cor)
+    L=$(awk -v r="$er" -v g="$eg" -v b="$eb" 'function f(c){c/=255; return c<=0.03928? c/12.92 : ((c+0.055)/1.055)^2.4}
+        BEGIN{printf "%d", 1000*(0.2126*f(r)+0.7152*f(g)+0.0722*f(b))}')
+    (( (1050*1000) / (L + 50) >= 3000 )) && break
+    k=$(( k - 6 ))
+  done
+  printf '%02X%02X%02X' $(( r*k/100 )) $(( g*k/100 )) $(( b*k/100 ))
+}
+{ # default ICPC A–O primeiro; o balloons.json do contest sobrescreve depois (última linha vence
+  # no awk, que faz bhex[k]=... na ordem de leitura)
+  printf 'A\tFFFFFF\nB\t000000\nC\tFF0000\nD\t800000\nE\tFFFF00\nF\t008000\nG\t0000FF\nH\t000080\n'
+  printf 'I\tFF00FF\nJ\t800080\nK\t00FF00\nL\t00FFFF\nM\tC0C0C0\nN\tFF8000\nO\tA3794D\n'
+  if [[ -f "$CDIR/balloons.json" ]] && jq -e . "$CDIR/balloons.json" >/dev/null 2>&1; then
+    jq -r 'to_entries[] | [.key, (.value | if type=="object" then (.hex//"") else tostring end)] | @tsv' \
+        "$CDIR/balloons.json" 2>/dev/null
+  fi
+} | while IFS=$'\t' read -r bk bv; do
       bv="${bv#\#}"; bv="$(printf '%s' "$bv" | tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F')"
-      [[ ${#bv} -eq 6 ]] || continue
+      [[ ${#bv} -eq 6 ]] || continue          # ignora chave que não é cor (ex.: enableSonic)
       r=$((16#${bv:0:2})); g=$((16#${bv:2:2})); b=$((16#${bv:4:2}))
       dark=0; (( (299*r + 587*g + 114*b) / 1000 < 128 )) && dark=1
-      printf '%s\t%s\t%s\n' "$bk" "$bv" "$dark"
+      printf '%s\t%s\t%s\t%s\n' "$bk" "$bv" "$dark" "$(bl_edge "$bv")"
     done >> "$W/balloons.tsv"
-fi
 
 # --- HTML compartilhado --------------------------------------------------------------
 
@@ -494,13 +519,21 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
   local f="$1" gp="${2:-}"
   [[ -s "$f" ]] || { printf '<p class="note">%s</p>\n' "$(rep_t no_score)"; return; }
   [[ -n "$gp" && -s "$gp" ]] || gp=/dev/null
-  awk -F: -v MODE="$MODE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" -v NF_="$W/names.tsv" \
+  awk -F: -v MODE="$MODE" -v BSTYLE="$BSTYLE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" -v NF_="$W/names.tsv" \
       -v GP="$gp" -v T_GEN="$(rep_t gen_place)" -v T_GENT="$(rep_t gen_place_t)" \
       -v T_TEAM="$(rep_t team_col)" -v T_TOTAL="$(rep_t total)" -v T_PEN="$(rep_t pen_col)" \
       -v T_GUEST="$(rep_t guest)" -v T_GUESTT="$(rep_t guest_title)" -v T_FTS="$(rep_t fts)" '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); gsub(/"/,"\\&quot;",s); return s }
     function issys(h){ return (h=="flag"||h=="username"||h=="univ short"||h=="team name"||h=="univ full"||h=="total"||h=="penalty"||h=="lastac"||h=="guest") }
+    # bsvg(): gêmeo do balloonSVG (score-colors.js). O cabeçalho marcava a coluna com uma barra
+    # de 4px na cor: branco sobre --blue-soft era invisível, então o problema A não tinha
+    # indicação de cor NENHUMA no relatório. O balão tem contorno e resolve.
+    function bsvg(c){ return "<svg class=\"balloon-svg\" viewBox=\"0 0 42 47\" aria-hidden=\"true\">" \
+      "<ellipse cx=\"21\" cy=\"21\" rx=\"18\" ry=\"18\" fill=\"" c "\" stroke=\"#b2b2b2\" stroke-width=\"2\"/>" \
+      "<ellipse cx=\"16\" cy=\"14\" rx=\"5\" ry=\"5.1\" fill=\"#fff\" fill-opacity=\".48\"/>" \
+      "<polygon points=\"18,36 24,36 21,46\" fill=\"" c "\" stroke=\"#b2b2b2\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/>" \
+      "</svg>" }
     # fimg[] já vem pronto (<img> com o SVG em data URI, montado em rep_flag); código sem
     # bandeira conhecida vira texto discreto em vez de sumir.
     function flag_html(v){ if(v=="")return ""; if(v in fimg) return fimg[v]; return "<span class=\"small muted\" title=\"" esc(v) "\">" esc(v) "</span>" }
@@ -515,7 +548,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
       return "<td class=\"team\" title=\"" esc(ttl) "\">" lbl "</td>"
     }
     BEGIN{
-      while ((getline l < BF) > 0) { n=split(l,a,"\t"); if(n>=3){ bhex[a[1]]=a[2]; bdark[a[1]]=a[3] } }
+      while ((getline l < BF) > 0) { n=split(l,a,"\t"); if(n>=3){ bhex[a[1]]=a[2]; bdark[a[1]]=a[3]; if(n>=4) bedge[a[1]]=a[4] } }
       close(BF)
       # flags.tsv: código \t nome legível \t <img>. O nome alimenta o rótulo do filtro por
       # bandeira (data-fname) — é a MESMA resolução do alt/title (rep_flag_name).
@@ -560,9 +593,9 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
         if(iflag) printf "<th></th>"
         printf "<th>%s</th>", T_TEAM
         for(k=1;k<=np;k++){
-          sty=""
-          if (pname[k] in bhex) sty=" style=\"border-bottom:4px solid #" bhex[pname[k]] "\""
-          printf "<th class=\"prob\"%s>%s</th>", sty, esc(pname[k])
+          ic=""
+          if (pname[k] in bhex) ic=bsvg("#" bhex[pname[k]]) " "
+          printf "<th class=\"prob\">%s%s</th>", ic, esc(pname[k])
         }
         printf "<th>%s</th>", T_TOTAL
         if (MODE=="icpc" && ipen) printf "<th>%s</th>", T_PEN
@@ -613,10 +646,19 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
           if (MODE=="icpc") {
             if (v ~ /^[0-9]+\/[0-9]+\/?\*?$/) {
               fts=(v ~ /\*$/); shown=v; if(fts) sub(/\*$/,"",shown)
-              if (pname[k] in bhex) sty="background:#" bhex[pname[k]] ";color:" (bdark[pname[k]]==1?"#fff":"#222")
-              else sty="background:#e2ffe9;color:#222"
+              # gêmeo de paintSolvedCell (web/contest/score/score-colors.js): 'icon' = fundo
+              # neutro + ponto da cor; 'fill' = cor no fundo + contorno derivado.
+              dot=""
+              if (BSTYLE=="fill" && (pname[k] in bhex)) {
+                sty="background:#" bhex[pname[k]] ";color:" (bdark[pname[k]]==1?"#fff":"#222")
+                if(!fts && (pname[k] in bedge)) sty=sty ";box-shadow:inset 0 0 0 1px #" bedge[pname[k]]
+              } else {
+                sty="background:#e2ffe9;color:#222"
+                if (pname[k] in bhex)
+                  dot="<span class=\"bdot\" style=\"--bdot:#" bhex[pname[k]] ";--bdot-edge:#" (pname[k] in bedge ? bedge[pname[k]] : "8A8A8A") "\"></span>"
+              }
               sty=sty ";font-weight:700"; if(fts) sty=sty ";box-shadow:inset 0 0 0 2px currentColor"
-              printf "<td class=\"cell ok\" style=\"%s\"%s>%s<span class=\"pv\">%s</span></td>", sty, (fts?" title=\"" esc(T_FTS) "\"":""), (fts?"<span class=\"fts\">&#9733;</span>":""), esc(shown)
+              printf "<td class=\"cell ok\" style=\"%s\"%s>%s%s<span class=\"pv\">%s</span></td>", sty, (fts?" title=\"" esc(T_FTS) "\"":""), (fts?"<span class=\"fts\">&#9733;</span>":""), dot, esc(shown)
             } else if (v ~ /^[0-9]+\/-/) printf "<td class=\"cell c-try\"><span class=\"pv\">%s</span></td>", esc(v)
             else printf "<td class=\"cell\">%s</td>", esc(v)
           } else {   # obi: pontos
