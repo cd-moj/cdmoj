@@ -289,6 +289,41 @@ Medido num fixture de 2000 times × 12 problemas com **HTML de 130 KB + PDF de 3
 O ETag fecha a conta: reabrir o enunciado ou recarregar a página devolve **304 com 0 byte** em
 vez do arquivo.
 
+### A carga A FRIO do `/contest/problems`: 2,0 s → 0,72 s (e a estampida sumiu)
+
+Com o cache quente a rota custa 30 ms — mas o Ribas viu **2,0 s** numa carga a frio do esquenta,
+depois de o TTL vencer. Medido em produção, o custo estava num lugar inesperado:
+
+| por problema (14 no contest) | antes | depois |
+|---|---:|---:|
+| `tl_store_served` | **110,3 ms** | 24,2 ms |
+| ` └ pkg_tl_checksum` | (dentro do acima) | 11,8 ms |
+| `effective_problem_langs` | 4,8 ms | 4,8 ms |
+| `pkg_path` + autor | 2,8 ms | 2,8 ms |
+
+O `tl-checksum.sh` **lê o conteúdo** de `tests/{input,output,score}`, `sols/good` e `scripts/`:
+eram **112,8 MB hasheados a cada regeração**, só para mostrar tempo-limite na tela. Três
+consertos:
+
+1. **`pkg_tl_checksum` memoiza** num sidecar `run/tl/<id>.cks`, chaveado por uma **assinatura de
+   metadata** (`find -printf` de caminho/modo/tamanho/mtime sobre exatamente os caminhos que o
+   `tl-checksum.sh` cobre + a versão do próprio script) — o mesmo remédio que o
+   `gen-problem-owners.sh` já usava. **5,3 ms/problema contra 94,7** (18×). Mudou qualquer
+   arquivo do pacote, a assinatura muda e re-hasheia; mudou a função de hash, invalida tudo uma
+   vez. Os `.cks` são invisíveis p/ quem enumera o store (todos filtram `*.json`).
+2. **`run/tl` virou ENTRADA** do cache (o juiz reportando TL faz um `mv` lá dentro, o que mexe no
+   mtime do diretório), então o teto de idade foi de **60 s p/ 900 s**: antes o relógio forçava
+   uma regeração por minuto durante a prova inteira, sem nada ter mudado.
+3. **A regeração é SOLITÁRIA** (`flock -n` + servir o cache velho). Sem isso, no segundo em que o
+   cache vence TODAS as requisições em voo regeneram juntas — com 2000 times polando, a mesma
+   conta paga 2000 vezes. Medido com o cache vencido e **200 requisições simultâneas**: média
+   **0,128 s**, pior 0,767 s (a que regenerou), **zero erro**. Antes, as 200 pagariam ~2 s cada.
+
+O que sobrou de caro é a própria assinatura (4 processos por problema) e o resto do
+`tl_store_served`. Dá p/ fazer uma varredura só p/ todos os problemas, mas o ganho estimado é
+~0,2 s numa operação que hoje acontece **uma vez a cada 15 min e trava uma única requisição** —
+não vale o risco às vésperas da prova.
+
 ### Hipótese testada e DESCARTADA: os buffers do FastCGI
 
 O `error.log` mostrava `an upstream response is buffered to a temporary file` e o repo não define
