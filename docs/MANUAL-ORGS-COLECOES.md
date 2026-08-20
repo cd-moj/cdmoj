@@ -56,6 +56,26 @@ dentro de uma org** — por isso o editor pede para criar a primeira antes de de
 > conteúdo/pacote de um problema privado de uma org da qual não é membro. Provas em elaboração
 > não vazam, por construção.
 
+### Quem PODE virar membro (validado desde 2026-08-20)
+
+Adicionar alguém a uma org não aceita mais qualquer texto. Cada login que **entra** (como membro
+ou admin, pela web, pelo `moj share` ou pelo `moj org members --add`) é conferido na hora:
+
+| Situação | Resposta |
+|---|---|
+| Formato inválido (`Inv@lido`) | **422** `login_invalid` |
+| Não existe conta no treino | **404** — *"Não existe conta no treino: 'fulano'"* |
+| Existe, mas **não pode criar problemas** | **403** — *"'fulano' não pode criar problemas (motivo) — membro de org edita o acervo dela"* |
+
+O critério de "pode criar problemas" é o **mesmo** de criar um problema ou um contest: conta
+`.admin` sempre pode; a lista de autorizados e a de bloqueados do painel do treino mandam; senão
+vale o limiar de problemas resolvidos. Se o seu monitor foi recusado, o conserto é autorizá-lo
+em **Painel do treino › Quem pode criar contests e problemas** — não é contornar por outra tela.
+
+A recusa é **atômica**: se você mandar cinco logins e um for inválido, **nenhum** entra (a org
+nem chega a ser criada, no caso do `create`). **Remover** não valida nada — lixo que ficou de
+antes sempre pode sair.
+
 ### Trava de público (`public_allowed`) — o anti-vazamento
 
 Toda org nasce **privada**: seus problemas **não podem ser publicados** no Treino Livre. Isso é

@@ -76,6 +76,15 @@ Para enviar uma solução:
 2. Digite o código no editor ou envie um **arquivo**.
 3. Clique em **Enviar solução**.
 
+> **O que o MOJ aceita.** A extensão do arquivo tem de ser de uma linguagem que a plataforma
+> roda — e, se o problema restringe as linguagens, de uma das permitidas ali. Mandar um binário
+> compilado (`.exe`), um PDF ou um `.zip` é recusado **na hora**, com a lista do que aquele
+> problema aceita: nenhum juiz do mundo roda um `.exe`, e antes essa submissão entrava na fila e
+> ficava pendente para sempre. O tamanho do código é limitado a **1 MB**.
+>
+> Se a resposta for um erro em vez de "enviada", **leia a mensagem**: ela diz exatamente o que
+> houve. Uma submissão só é aceita quando o servidor confirma — não existe "sumiu no caminho".
+
 ## 3. Minhas submissões
 
 Logo abaixo da lista de problemas há um filtro por problema e uma tabela com as suas submissões. As colunas são:

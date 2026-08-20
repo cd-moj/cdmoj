@@ -18,6 +18,12 @@ A página ensina o mesmo que este arquivo ensinava, e é onde o conteúdo passa 
    com botão de copiar.
 5. **Avisos**: a classe `public` do Java, `.pl` que é Prolog e não Perl, Python que é pypy3, e a pilha
    de 128 MB.
+6. **O que é recusado na porta**: extensão que a plataforma não roda (`.exe`, `.pdf`, `.zip`…) volta
+   com **400 `lang_not_allowed`** e a lista do que aquele problema aceita — lista de linguagens
+   vazia significa **as da plataforma** (`PLATFORM_LANGS`, o espelho de `mojtools/lang/`), nunca
+   "qualquer extensão". Fonte acima de **1 MB** volta com **413 `source_too_large`**. As duas
+   travas nasceram do incidente de 2026-08-19, em que um binário compilado entrou na fila e ficou
+   pendente para sempre.
 
 ## Por que virou página, e não um `.md`
 
