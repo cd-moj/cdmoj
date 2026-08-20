@@ -199,36 +199,64 @@ nginx recomprimiria 1,5 MB por time. Sem gzip o F5 completo cai de 1053 p/ 847 r
 Use `stress.sh` para número de capacidade. O `web-poll-bench.sh` continua útil como carga de
 "cliente burro", mas o número dele é piso, não teto.
 
-### O teto hoje é o nginx do HOST, não a API (medido 20/08/2026, de 5 máquinas externas)
+### O nginx do HOST era o teto — e foi corrigido (medido 20/08/2026, de 5 máquinas externas)
 
-Com o backlog em 10.000, a rajada que antes falhava passa limpa — e o próximo joelho mudou de
-lugar. Lote de boot completo (6 chamadas por F5), gerado de `cm1..cm4` + `hu1` pela internet:
+Com o backlog em 10.000, a rajada que antes dava 502 passou limpa e o joelho mudou de lugar: o
+erro virou **500**, e o `error.log` dizia `768 worker_connections are not enough while connecting
+to upstream`. Era o default do Debian — com um agravante: cada requisição proxiada gasta **dois**
+descritores (cliente + upstream) e o worker do nginx subia com `LimitNOFILESoft=1024`, ou seja
+~512 requisições simultâneas por worker, antes mesmo de encostar nas 768.
 
-| conexões simultâneas | requisições | erro |
-|---:|---:|---|
-| 2.000 | 12.000 | **0** |
-| 5.000 | 30.000 | 14% (**500**) |
-| 10.000 | 30.000 | 17% (**500**) |
-
-Vazão agregada estável em ~1.030 req/s nos três — igual à medida no loopback (1.053), então a
-rede não é o limite. E o erro mudou de **502** (`connect() … Resource temporarily unavailable` =
-backlog cheio) p/ **500**, que é outra coisa: o `error.log` diz `768 worker_connections are not
-enough while connecting to upstream`.
-
-**É o default do Debian, e o limite real é ainda menor**: cada requisição proxiada gasta **dois**
-descritores (cliente + upstream) e o worker do nginx sobe com `LimitNOFILESoft=1024` — ou seja
-~512 requisições simultâneas por worker, antes mesmo de encostar nas 768. Correção (config do
-HOST, em `/etc/nginx/nginx.conf`; o `conf.d` não serve porque `worker_connections` mora no bloco
-`events`, que é fora do `http`):
+Correção aplicada em `/etc/nginx/nginx.conf` (o `conf.d` **não serve**: `worker_connections` mora
+no bloco `events`, que é fora do `http`), + `nginx -t && systemctl reload nginx` (gracioso):
 
 ```nginx
 worker_rlimit_nofile 65535;   # topo do arquivo: cada requisição proxiada gasta 2 fds
 events { worker_connections 8192; }
 ```
 
-`nginx -t && systemctl reload nginx` (o reload é gracioso). **É a única peça do caminho que ainda
-não está dimensionada p/ 2000 times** — 2000 × 6 conexões paralelas do navegador = até 12.000
-simultâneas num F5 coletivo.
+Lote de boot completo (6 chamadas por F5), de `cm1..cm4` + `hu1` pela internet, antes × depois:
+
+| conexões simultâneas | requisições | antes | depois |
+|---:|---:|---|---|
+| 2.000 | 12.000 | 0 erro | **0 erro** |
+| 5.000 | 30.000 | 14% de **500** | **0 erro** |
+| 10.000 | 30.000 | 17% de **500** | **0 erro** |
+| 20.000 | 40.000 | — | **0 erro** |
+
+Vazão agregada estável em ~1.030 req/s em todos — igual à medida no loopback (1.054), então a
+rede não é o limite; o que o ajuste comprou foi **não perder requisição na rajada**. Um F5
+coletivo de 2000 times chega a ~12.000 simultâneas (o navegador abre 6 em paralelo por site), e
+20.000 passam sem um erro. Máquina no fim: load 24, **1 GB de 62 em uso**.
+
+### O que sobrou de mais caro: o `/contest/score`
+
+Com o lote de boot resolvido, a rota mais lenta do caminho quente é o placar — e ela é **29% da
+mistura real**. Medido no mesmo fixture de 2000 times:
+
+| | req/s | p50 | pior |
+|---|---:|---:|---:|
+| 1ª chamada (reconstrói de 2001 `metrics.json`) | — | — | 92,9 s |
+| regime permanente, conc=100 | **259** | 0,381 s | 0,525 s |
+| regime permanente, conc=300 | 260 | 1,139 s | 1,473 s |
+| mistura real completa, conc=100 | **525** | 0,170 s | 1,200 s |
+
+⚠ **O rebuild frio é o número que assusta e o que engana**: os 92,9 s de pior caso são a primeira
+chamada depois de tocar o `.score-dirty` com 2001 usuários — o `SCORE_SERVE_FLOOR_S` serve cache
+depois disso. Aquecer o placar **antes** de abrir a prova é item de véspera; medir sem aquecer dá
+119 req/s e um p99 de 10 s que não representa nada.
+
+Na rede o placar são **174.810 bytes** crus e **15.692** com gzip. A 259 req/s, 2000 times podem
+recarregar o placar a cada ~8 s — o poll padrão é mais lento que isso, mas é a folga menor que
+sobrou. É o próximo alvo se precisar de mais.
+
+### Hipótese testada e DESCARTADA: os buffers do FastCGI
+
+O `error.log` mostrava `an upstream response is buffered to a temporary file` e o repo não define
+`fastcgi_buffers` (default 32 KB), enquanto o `/contest/problems` cru tem 1,5 MB — parecia disco
+por requisição. **Não é**: com `Accept-Encoding: gzip` (o que o navegador manda) o corpo tem 42 KB,
+a rota faz **1.096 req/s** e o contador de `buffered to a temporary file` fica em **zero**. Os
+avisos vinham das medições SEM gzip. Não mexa nos buffers sem antes contar os avisos.
 
 ### Onde está o custo por requisição (medido 2026-08-20, 30 conexões, gerador antigo)
 
