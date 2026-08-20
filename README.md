@@ -20,7 +20,7 @@ repo — eles rodam o `judge/` + `mojtools/` e puxam job pela API (modelo pull).
 | `cdmoj/` (este) | Plataforma: `server/` (API bash) + `web/` (frontend estático) + `docs/`. |
 | `mojtools/` | Sandbox de julgamento + renderer de enunciado (usado pelo servidor e pelos juízes). |
 | `judge/` | Agente pull que roda nas máquinas de julgamento. |
-| `moj-cli/` | CLI `moj` de autoria de problemas (espelha o editor web). |
+| `moj-cli/` | As CLIs: `moj` (autoria, espelha o editor web), `moj-contest` (gestão de prova), `moj-judges` (parque de juízes) e `moj-comp` (competidor, com submissão offline). |
 | `contests/`, `moj-problems/`, `run/` | Dados + estado de runtime (fora do versionamento). |
 
 ## Rodar com podman (recomendado)
@@ -35,9 +35,9 @@ cd cdmoj
 make check          # bash -n + node --check (ESM)
 make image          # constrói localhost/moj-server:<data> e re-tagueia :prod
 make install-units  # instala os quadlets em ~/.config/containers/systemd/
+sudo loginctl enable-linger "$USER"   # OBRIGATÓRIO — sem linger nada sobe (nem no boot)
 systemctl --user start moj-api moj-judged
-loginctl enable-linger "$USER"   # (opcional) sobreviver a logout
-make smoke          # login->submit->history no contest de teste
+make smoke          # API viva + /index/status (o fluxo submit->history está no DEPLOY.md)
 ```
 
 Dois containers da MESMA imagem, papéis diferentes: **moj-api** (fcgiwrap + `router.sh`) e

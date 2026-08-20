@@ -142,7 +142,8 @@ status:
 	[ "$$img" = "$$head" ] && echo "OK: em sincronia" || echo "AVISO: imagem != checkout (rode make image)"; \
 	systemctl --user is-active moj-api moj-judged 2>/dev/null || true
 
-## smoke — fluxo zzdemo ponta-a-ponta (login -> submit -> history) via o nginx do host
+## smoke — API viva + /index/status via o nginx do host (o fluxo ponta-a-ponta com o contest
+##         descartável zzdemo está em docs/DEPLOY.md, e a receita cria o contest antes)
 smoke:
 	@H="Host: $(HOST_HDR)"; B="$(BASE)"; \
 	echo ">> API viva:"; curl -s -H "$$H" $$B/api/v1/ | jq -c . ; \

@@ -172,7 +172,7 @@ O `/docs/` serve o **HTML renderizado** de `docs/html/` (artefato por-checkout, 
 alvo `docs-html` (sem pandoc: avisa e segue; o autoindex do nginx é o fallback). `/docs` sem
 barra redireciona.
 
-## CLIs servidas (`/moj`, `/moj-contest` e `/moj-judges`)
+## CLIs servidas (`/moj`, `/moj-contest`, `/moj-judges` e `/moj-comp`)
 
 `web/moj*` são **artefatos de distribuição** (1 arquivo, com a lib comum embutida) gerados
 de `moj-cli/` — **nunca** copie o script do repo direto (ele sourceia `lib/core.sh` e
@@ -183,14 +183,17 @@ o que divergir (sem `../moj-cli` no checkout, avisa e segue). Para regenerar na 
 ```bash
 bash /home/ribas/moj/moj-cli/mkdist.sh
 install -m755 /home/ribas/moj/moj-cli/dist/moj /home/ribas/moj/moj-cli/dist/moj-contest \
-  /home/ribas/moj/moj-cli/dist/moj-judges /home/ribas/moj/cdmoj/web/
+  /home/ribas/moj/moj-cli/dist/moj-judges /home/ribas/moj/moj-cli/dist/moj-comp \
+  /home/ribas/moj/cdmoj/web/
 install -m644 /home/ribas/moj/moj-cli/dist/moj.build /home/ribas/moj/cdmoj/web/
 ```
 
 O `mkdist.sh` **carimba o build** (`MOJ_CLI_BUILD=<git-short>-<data>`) dentro de cada artefato e
 gera `dist/moj.build` (1 linha com o mesmo carimbo), servido como **`/moj.build`** — é com ele
 que `moj version`/`moj doctor` detectam CLI desatualizada e `moj update` se atualiza. O
-`cli-dist` copia os 4 arquivos.
+`cli-dist` copia os **5** arquivos (as quatro CLIs + o `moj.build`). **`moj-comp`** é a CLI do
+competidor (com o modo offline assinado) — é a que vai para as máquinas da prova, então esquecê-la
+numa sincronização à mão deixa a sede com uma versão velha.
 
 ## Como acessar / testar
 
@@ -199,7 +202,7 @@ O proxy escuta em **8080 (HTTP)** e **8443 (HTTPS)**. Se o DNS de `moj.charge.na
 ```bash
 H="Host: moj.charge.naquadah.com.br"; B=http://127.0.0.1:8080
 curl -s -H "$H" $B/api/v1/                         # {"success":true,"name":"MOJ API","version":"v1"}
-curl -s -H "$H" $B/api/v1/treino/problems | jq length   # 736
+curl -s -H "$H" $B/api/v1/treino/problems | jq length   # 1137 (o nº de problemas públicos)
 ```
 
 No navegador (com DNS ou um entry em /etc/hosts apontando o domínio p/ a máquina):
@@ -210,7 +213,23 @@ No navegador (com DNS ou um entry em /etc/hosts apontando o domínio p/ a máqui
 
 ### Sandbox de teste do fluxo completo (sem poluir dados reais)
 
-Existe um contest descartável **`zzdemo`** (login `demo` / senha `demo`). Fluxo assíncrono ponta a ponta:
+O `zzdemo` é um contest **descartável que você cria na hora** (ele não vem no checkout nem é criado
+pelo `setup.sh` — é fixture de teste, some quando você apagar o diretório):
+
+```bash
+C=<raiz>/contests/zzdemo; mkdir -p "$C/users"
+cat > "$C/conf" <<'EOF'
+CONTESTNAME='Sandbox de teste'
+CONTEST_START=0
+CONTEST_END=4102444800
+SCORETYPE=lista
+PROBS='moj-problems#soma 0 Soma A soma'
+EOF
+source cdmoj/server/test/fixture.sh && fx_user "$C" demo demo 'Time de teste'
+```
+
+(`fx_user` é o helper dos smokes: escreve `users/demo/account.json` + o `history` vazio, que é o
+store por-usuário inteiro de uma conta.) Com ele no lugar, o fluxo assíncrono ponta a ponta:
 
 ```bash
 H="Host: moj.charge.naquadah.com.br"; B=http://127.0.0.1:8080

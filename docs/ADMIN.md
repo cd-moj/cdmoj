@@ -223,15 +223,19 @@ equivalentes — todas batem em `POST /api/v1/auth/login?contest=treino` com `{u
 H="Host: moj.charge.naquadah.com.br"; B=http://127.0.0.1:8080
 curl -s -H "$H" -X POST -H 'Content-Type: application/json' \
   --data '{"username":"ribas.admin","password":"TROQUE-esta-senha"}' \
-  "$B/api/v1/auth/login?contest=treino" | jq -r .token         # -> um token mojs_…
+  "$B/api/v1/auth/login?contest=treino" | jq -r .token         # -> um UUID (o token da sessão)
 ```
 
 - **Web:** `https://<host>/treino/` (formulário de login).
 - **CLI:** `MOJ_URL=https://<host> moj login` (contest default `treino`; a CLI vem servida em `/moj`).
 
-> **Gotchas:** `LOGIN_ENABLED=n` só esconde o formulário web — a **API continua autenticando**
-> (útil no bootstrap). Se o `conf` tiver `LOGIN_UA_SUBSTRING`, contas `.admin` são **isentas** do
-> gate. `SECRET=1` exigiria sessão até p/ endpoints públicos — não use no treino.
+> **Gotchas:** `LOGIN_ENABLED=n` **hoje barra na própria API** (403 `login_disabled`) — o que era só
+> desenho de tela virou porta de verdade em `auth/login.sh`. O bootstrap continua funcionando porque
+> **conta de PAPEL nunca é barrada** (`is_reserved_role_login`: `.admin`, `.judge`, `.cjudge`,
+> `.staff`, `.cstaff`, `.mon`, `.animeitor`) — o organizador precisa entrar antes de todo mundo. O
+> mesmo vale p/ `LOGIN_START_TIME` e p/ a exigência de inscrição. Se o `conf` tiver
+> `LOGIN_UA_SUBSTRING`, contas de papel também são **isentas** do gate. `SECRET=1` exigiria sessão
+> até p/ endpoints públicos — não use no treino.
 
 ### 5.4. Loop fechado — daí em diante é tudo pela sessão `.admin`
 
@@ -289,9 +293,10 @@ curl -s -H "$H" $B/api/v1/            # {"success":true,"name":"MOJ API","versio
       `generated` — é o esperado num quadlet, não é erro).
 - [ ] **Socket 0770**: `ls -l <raiz>/run/fcgiwrap.sock` → `srwxrwx---` e o usuário do nginx está no
       grupo do dono (`id -nG www-data`). Se estiver `srwxr-xr-x`, o 502 volta.
-- [ ] Fluxo ponta a ponta: use o contest descartável **`zzdemo`** (login `demo`/`demo`) do
-      [`DEPLOY.md`](DEPLOY.md) (§ *Sandbox*) — submeter → `judged` → `history` = `Accepted,100p`
-      (ou `make smoke`).
+- [ ] Fluxo ponta a ponta: **crie** o contest descartável `zzdemo` (login `demo`/`demo`) com a
+      receita do [`DEPLOY.md`](DEPLOY.md) (§ *Sandbox* — 6 linhas: `conf` + `fx_user`) e siga:
+      submeter → `judged` → `history` = `Accepted,100p`. (`make smoke` NÃO faz esse fluxo: ele só
+      confere que a API responde e o `/index/status` está são.)
 - [ ] Um **juiz** aparece online (`/api/v1/judge/list` ou o painel `/treino/admin/`).
 
 ## Ponteiros
