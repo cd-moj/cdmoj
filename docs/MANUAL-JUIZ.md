@@ -136,3 +136,9 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas e esta
 
 - Para a visão de quem compete, veja `MANUAL-CONTEST.md`.
 - Para a equipe de sala, veja `MANUAL-STAFF.md`.
+
+## Tutorial web com screenshots
+
+As telas deste manual, passo a passo e com imagens (PT/EN), estão em
+`/contest/ajuda/judge.html` e `/contest/ajuda/cjudge.html` — o botão
+**📖 Como funciona este papel** na sua tela abre direto.

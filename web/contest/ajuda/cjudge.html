@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="MOJ — the .cjudge role (chief judge)">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOJ — o papel .cjudge (juiz-chefe)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="/contest/ajuda/_tutorial.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/docs/MANUAL-JUIZ.html" target="_blank" data-en="Judge manual">Manual dos juízes</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="👑 The .cjudge role — chief judge">👑 O papel .cjudge — juiz-chefe</h1>
+      <div class="rolehead">
+        <span class="em">👑</span>
+        <div>
+          <code>alguem.cjudge</code>
+          <div class="d" data-en="You are a judge with the last word: everything a judge does, plus resolving conflicts, seeing the names, tuning the verdict options and keeping the queue moving. You are NOT a full administrator — the contest configuration stays with the admin.">
+            Você é juiz com a última palavra: tudo que um juiz faz, mais resolver conflitos, ver os
+            nomes, ajustar as opções de veredicto e manter a fila andando. Você <b>não</b> é
+            administrador pleno — a configuração da prova continua com o admin.
+          </div>
+        </div>
+      </div>
+      <nav class="rolenav">
+        <a href="/contest/ajuda/staff.html">🖨️ .staff</a>
+        <a href="/contest/ajuda/cstaff.html">🏷️ .cstaff</a>
+        <a href="/contest/ajuda/animeitor.html">🎥 .animeitor</a>
+        <a href="/contest/ajuda/judge.html">⚖️ .judge</a>
+        <a class="cur" href="/contest/ajuda/cjudge.html">👑 .cjudge</a>
+      </nav>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc">
+        <b data-en="Contents">Conteúdo</b>
+        <a href="#papel" data-en="1. What the role is">1. O que é o papel</a>
+        <a href="#painel" data-en="2. The chief panel">2. O painel do chefe</a>
+        <a href="#conflitos" data-en="3. Resolving conflicts">3. Resolvendo conflitos</a>
+        <a href="#alerta" data-en="4. The conflict alarm">4. O alarme de conflito</a>
+        <a href="#situacao" data-en="5. Watching the queue">5. Vigiando a fila</a>
+        <a href="#config" data-en="6. Verdict options and auto-verdict">6. Opções e auto-veredicto</a>
+        <a href="#extras" data-en="7. Your other powers">7. Seus outros poderes</a>
+        <a href="#nao" data-en="8. What you are NOT">8. O que você NÃO é</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="papel" data-en="1. What the role is">1. O que é o papel</h2>
+        <p data-en="A login ending in .cjudge is the chief judge. Everything on the judge page works the same for you — take, look, vote — because the chief is a judge too. What the suffix adds is the authority to close what the judges could not.">
+          Um login terminado em <code>.cjudge</code> é o juiz-chefe. Tudo da página do juiz
+          funciona igual para você — pegar, olhar, votar — porque o chefe também é juiz. O que o
+          sufixo acrescenta é a autoridade de fechar o que os juízes não conseguiram.
+        </p>
+        <div class="tip" data-en="Read the judge tutorial first: the queue, the two-vote rule and the blindfolds are the same for you (except that you DO see the names and the votes).">
+          Leia antes o <a href="/contest/ajuda/judge.html">tutorial do juiz</a>: a fila, a regra
+          dos dois votos e as vendas são as mesmas para você (exceto que você <b>vê</b> os nomes e
+          os votos).
+        </div>
+
+        <h2 id="painel" data-en="2. The chief panel">2. O painel do chefe</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/cjudge-painel.png" alt="">
+          <figcaption data-en="The chief panel: the red alarm at the top, the situation cards, and the full queue with names, votes and the Resolve button. Note the row in CONFLICT, with both votes shown by name.">
+            O painel do chefe: o alarme vermelho no topo, os cartões de situação e a fila completa
+            com nomes, votos e o botão de resolver. Repare na linha em <b>CONFLITO</b>, com os dois
+            votos mostrados com nome.
+          </figcaption>
+        </figure>
+        <p data-en="The panel has six tabs: Situation (the whole queue), Conflicts (only what needs you), Options and Auto-verdict (configuration), Documents and Rounds.">
+          O painel tem seis abas: <b>Situação</b> (a fila inteira), <b>Conflitos</b> (só o que
+          precisa de você), <b>Opções</b> e <b>Auto-veredicto</b> (configuração), <b>Documentos</b>
+          e <b>Rodadas</b>.
+        </p>
+
+        <h2 id="conflitos" data-en="3. Resolving conflicts">3. Resolvendo conflitos</h2>
+        <p data-en="A conflict is a submission where the judges voted differently. It is frozen: the competitor keeps seeing &quot;not answered yet&quot; until you decide. This is your most urgent job in a live contest.">
+          Conflito é uma submissão em que os juízes votaram diferente. Ela fica <b>parada</b>: o
+          competidor continua vendo &quot;ainda não respondida&quot; até você decidir. Este é o seu
+          trabalho mais urgente durante a prova.
+        </p>
+        <ol>
+          <li data-en="Open the conflict: you see both votes with the judges' names, plus the log and the source.">Abra o conflito: você vê os dois votos com o nome dos juízes, mais o log e o código.</li>
+          <li data-en="Decide. Your verdict is the final one — it goes straight to the competitor's history and to the scoreboard.">Decida. O seu veredicto é o final — vai direto ao histórico do competidor e ao placar.</li>
+          <li data-en="If the disagreement points to a problem in the problem set (a weak test, an ambiguous statement), that is a signal to talk to the judges and maybe rejudge.">Se a divergência aponta um problema no problema (teste fraco, enunciado ambíguo), é sinal de conversar com os juízes e talvez rejulgar.</li>
+        </ol>
+        <div class="tip" data-en="You can also decide a submission that is NOT in conflict — the Decidir button is on every row. Use it when the queue is stuck (a judge left, an old case is waiting).">
+          Você também pode decidir uma submissão que <b>não</b> está em conflito — o botão
+          <i>Decidir</i> está em todas as linhas. Use quando a fila travou (um juiz saiu, um caso
+          antigo está esperando).
+        </div>
+
+        <h2 id="alerta" data-en="4. The conflict alarm">4. O alarme de conflito</h2>
+        <p data-en="You do not need to keep the panel open. Whenever a conflict appears, a red bar takes over the top of ANY contest page you are on, it beeps and it vibrates on the phone. Clicking it takes you straight to the conflicts.">
+          Você não precisa ficar com o painel aberto. Sempre que aparece um conflito, uma barra
+          vermelha toma o topo de <b>qualquer</b> página do contest em que você esteja, apita e
+          vibra no celular. Clicar leva direto aos conflitos.
+        </p>
+        <div class="warn" data-en="The alarm only sounds when the NUMBER of conflicts goes up — it does not nag while you are working through them. If it went quiet but the bar is still there, there is still something waiting.">
+          O alarme só toca quando o <b>número</b> de conflitos sobe — ele não fica insistindo
+          enquanto você trabalha. Se parou de apitar mas a barra continua, ainda há algo esperando.
+        </div>
+
+        <h2 id="situacao" data-en="5. Watching the queue">5. Vigiando a fila</h2>
+        <p data-en="The Situation tab is the health of the judging. The card that matters most is the OLDEST ONE WAITING: if it starts growing past a few minutes, the contest is about to feel it — either a judge dropped, or something is stuck in conflict.">
+          A aba <b>Situação</b> é a saúde do julgamento. O cartão que mais importa é a
+          <b>mais antiga esperando</b>: se ele passa de alguns minutos, a prova vai sentir — ou um
+          juiz caiu, ou algo travou em conflito.
+        </p>
+        <p data-en="The panel also shows the performance per judge (how many votes, average response time, how many agreements and conflicts). It is for spotting who needs help or who is voting too fast — not for ranking people.">
+          O painel também mostra o <b>desempenho por juiz</b> (quantos votos, tempo médio de
+          resposta, quantas concordâncias e conflitos). Serve para perceber quem precisa de ajuda
+          ou quem está votando rápido demais — não para ranquear gente.
+        </p>
+
+        <h2 id="config" data-en="6. Verdict options and auto-verdict">6. Opções e auto-veredicto</h2>
+        <p data-en="Two configuration tabs are yours:">Duas abas de configuração são suas:</p>
+        <ul>
+          <li data-en-html="<b>🏷️ Options</b> — the list of verdicts the judges can vote (the classic ICPC set: <i>YES</i>, <i>NO - Wrong answer</i>, <i>NO - Time limit exceeded</i>…). Change the wording here and every judge sees the new list."><b>🏷️ Opções</b> — a lista de veredictos que os juízes podem votar (o conjunto clássico da ICPC: <i>YES</i>, <i>NO - Wrong answer</i>, <i>NO - Time limit exceeded</i>…). Mude aqui e todos os juízes veem a lista nova.</li>
+          <li data-en-html="<b>⚙️ Auto-verdict</b> — the matrix that lets some results skip the queue. The classic use is releasing <i>Compilation Error</i> automatically: it does not need human judgement and it floods the queue in the first minutes."><b>⚙️ Auto-veredicto</b> — a matriz que deixa alguns resultados pularem a fila. O uso clássico é liberar <i>Compilation Error</i> automaticamente: não precisa de julgamento humano e entope a fila nos primeiros minutos.</li>
+        </ul>
+        <div class="warn" data-en="Turning the manual verdict itself ON or OFF, and choosing how many judges are needed, belongs to the administrator — not to you.">
+          Ligar ou desligar o veredicto manual, e escolher de quantos juízes ele precisa, é do
+          administrador — não seu.
+        </div>
+
+        <h2 id="extras" data-en="7. Your other powers">7. Seus outros poderes</h2>
+        <table class="cheat">
+          <tr><th data-en="Power">Poder</th><th data-en="What it is for">Para que serve</th></tr>
+          <tr><td data-en="See the names">Ver os nomes</td><td data-en="In the queue and in All submissions you see who submitted — the judges do not.">Na fila e em Todas Submissões você vê quem submeteu — os juízes não.</td></tr>
+          <tr><td data-en="Rejudge">Rejulgar</td><td data-en="Re-run submissions after fixing a test or a checker.">Rodar de novo as submissões depois de corrigir um teste ou um corretor.</td></tr>
+          <tr><td data-en="Edit answers and news">Editar respostas e notícias</td><td data-en="Fix a clarification already answered, or a news item already sent.">Corrigir uma clarification já respondida, ou uma notícia já enviada.</td></tr>
+          <tr><td data-en="Documents">Documentos</td><td data-en="Generate and publish the contest documents — including the ones not published yet, which judges cannot see.">Gerar e publicar os documentos da prova — inclusive os não publicados, que os juízes não veem.</td></tr>
+          <tr><td data-en="Pre-flight checklist">Checklist pré-prova</td><td data-en="The list of checks before the contest starts.">A lista de conferências antes de a prova começar.</td></tr>
+          <tr><td data-en="Machines">Máquinas</td><td data-en="Which team is on which machine — useful when a room misbehaves.">Que time está em que máquina — útil quando uma sala dá problema.</td></tr>
+        </table>
+
+        <h2 id="nao" data-en="8. What you are NOT">8. O que você NÃO é</h2>
+        <div class="no" data-en="The chief judge is not a full administrator. These stay with the admin account, and asking for them mid-contest is a sign that the admin should be in the room:">
+          O juiz-chefe não é administrador pleno. Estas ficam com a conta de admin, e precisar
+          delas no meio da prova é sinal de que o admin deveria estar na sala:
+        </div>
+        <ul>
+          <li data-en-html="Contest <b>settings</b> — start/end, freeze, turning manual verdict on/off, number of judges.">Configuração do contest — início/fim, congelamento, ligar/desligar o veredicto manual, número de juízes.</li>
+          <li data-en-html="<b>Accounts</b> — creating, disabling, resetting passwords, sessions.">Contas — criar, desabilitar, resetar senha, sessões.</li>
+          <li data-en-html="<b>Problems</b> of the contest, the draw, time extensions per site.">Problemas do contest, sorteio, prorrogação por sede.</li>
+          <li data-en-html="<b>Promoting a round</b> (warm-up → official) and the final report.">Promover rodada (aquecimento → oficial) e o relatório final.</li>
+          <li data-en-html="The <b>staff scope</b> (which venue each staff account sees).">O escopo do staff (que sede cada conta de staff vê).</li>
+          <li data-en-html="Print queue, credential labels and the big screen — those belong to the other roles.">Fila de impressão, etiquetas de credenciais e telão — são dos outros papéis.</li>
+        </ul>
+        <p class="small muted">
+          <a href="/contest/ajuda/judge.html" data-en="← The judge (.judge)">← O juiz (.judge)</a> ·
+          <a href="/docs/MANUAL-JUIZ.html" target="_blank" data-en="Full judge manual">Manual completo dos juízes</a> ·
+          <a href="/docs/MANUAL-ADMIN.html" target="_blank" data-en="Organizer manual">Manual do organizador</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+</body>
+</html>

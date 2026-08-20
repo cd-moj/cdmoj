@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="MOJ — the .judge role">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOJ — o papel .judge (juiz)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="/contest/ajuda/_tutorial.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/docs/MANUAL-JUIZ.html" target="_blank" data-en="Judge manual">Manual dos juízes</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="⚖️ The .judge role — judge">⚖️ O papel .judge — juiz</h1>
+      <div class="rolehead">
+        <span class="em">⚖️</span>
+        <div>
+          <code>alguem.judge</code>
+          <div class="d" data-en="You decide the verdicts. In contests with manual verdict, nothing reaches the competitor before two judges agree — and you are one of them. You judge blind: you do not see who submitted, and you do not see the other judge's vote before you cast yours.">
+            Você decide os veredictos. Em provas com veredicto manual, nada chega ao competidor
+            antes de dois juízes concordarem — e você é um deles. Você julga às cegas: não vê quem
+            submeteu, nem o voto do outro juiz antes de dar o seu.
+          </div>
+        </div>
+      </div>
+      <nav class="rolenav">
+        <a href="/contest/ajuda/staff.html">🖨️ .staff</a>
+        <a href="/contest/ajuda/cstaff.html">🏷️ .cstaff</a>
+        <a href="/contest/ajuda/animeitor.html">🎥 .animeitor</a>
+        <a class="cur" href="/contest/ajuda/judge.html">⚖️ .judge</a>
+        <a href="/contest/ajuda/cjudge.html">👑 .cjudge</a>
+      </nav>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc">
+        <b data-en="Contents">Conteúdo</b>
+        <a href="#papel" data-en="1. What the role is">1. O que é o papel</a>
+        <a href="#abas" data-en="2. Your tabs">2. Suas abas</a>
+        <a href="#fila" data-en="3. The evaluation queue">3. A fila de avaliação</a>
+        <a href="#avaliar" data-en="4. Evaluating, step by step">4. Avaliando, passo a passo</a>
+        <a href="#dois" data-en="5. Two judges must agree">5. Dois juízes têm de concordar</a>
+        <a href="#cego" data-en="6. Why you judge blind">6. Por que você julga às cegas</a>
+        <a href="#clar" data-en="7. Clarifications">7. Clarifications</a>
+        <a href="#auto" data-en="8. When there is no queue">8. Quando não há fila</a>
+        <a href="#nao" data-en="9. What you cannot do">9. O que você não faz</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="papel" data-en="1. What the role is">1. O que é o papel</h2>
+        <p data-en="A login ending in .judge is a judge of the contest. Two things separate you from a competitor: you see the statements and can submit at any time (to test the problems), and you decide verdicts — but you stay out of the scoreboard and out of the statistics.">
+          Um login terminado em <code>.judge</code> é juiz da prova. Duas coisas te separam de um
+          competidor: você vê os enunciados e pode submeter a qualquer momento (para testar os
+          problemas), e você decide veredictos — mas fica fora do placar e das estatísticas.
+        </p>
+        <div class="tip" data-en="Your scoreboard is always unfrozen: judges need to see the real standings to work.">
+          O seu placar é sempre descongelado: juiz precisa ver a classificação real para trabalhar.
+        </div>
+        <div class="warn" data-en="Do not confuse the .judge ROLE with the judge MACHINES. The machines that compile and run the code are servers with their own credential; the .judge account is a person deciding verdicts.">
+          Não confunda o <b>papel</b> <code>.judge</code> com as <b>máquinas de juiz</b>. As
+          máquinas que compilam e rodam o código são servidores com credencial própria; a conta
+          <code>.judge</code> é uma pessoa decidindo veredicto.
+        </div>
+
+        <h2 id="abas" data-en="2. Your tabs">2. Suas abas</h2>
+        <table class="cheat">
+          <tr><th data-en="Tab">Aba</th><th data-en="What it is for">Para que serve</th></tr>
+          <tr><td>Contest</td><td data-en="The problems, with statements — you see them before, during and after.">Os problemas, com enunciado — você vê antes, durante e depois.</td></tr>
+          <tr><td>Score</td><td data-en="The scoreboard, always unfrozen.">O placar, sempre descongelado.</td></tr>
+          <tr><td>Clarification</td><td data-en="Questions from the teams — you answer them (section 7).">Perguntas dos times — você responde (seção 7).</td></tr>
+          <tr><td>⚖️ <span data-en="Evaluate">Avaliar</span></td><td data-en="YOUR queue — this is where you work.">A SUA fila — é onde você trabalha.</td></tr>
+          <tr><td data-en="All submissions">Todas Submissões</td><td data-en="Every submission of the contest, ANONYMOUS for you (section 6).">Todas as submissões da prova, ANÔNIMAS para você (seção 6).</td></tr>
+          <tr><td data-en="Statistics">Estatísticas</td><td data-en="Numbers of the contest.">Números da prova.</td></tr>
+        </table>
+
+        <h2 id="fila" data-en="3. The evaluation queue">3. A fila de avaliação</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/judge-fila.png" alt="">
+          <figcaption data-en="The evaluation queue: counters at the top, then one row per submission with the computed verdict, the status, how many votes it already has and the action available to you.">
+            A fila de avaliação: contadores no topo e uma linha por submissão com o veredicto
+            computado, o status, quantos votos ela já tem e a ação disponível para você.
+          </figcaption>
+        </figure>
+        <p data-en="The counters tell you the shape of the work: how many were not evaluated yet, how many are being evaluated right now, how many are waiting for the second vote and how many are in conflict.">
+          Os contadores dizem o formato do trabalho: quantas <b>não avaliadas</b>, quantas
+          <b>sendo avaliadas</b> agora, quantas <b>aguardando o 2º voto</b> e quantas <b>em
+          conflito</b>.
+        </p>
+        <table class="cheat">
+          <tr><th>Status</th><th data-en="Meaning">O que quer dizer</th></tr>
+          <tr><td><code>open</code></td><td data-en="Nobody took it — it is yours to take.">Ninguém pegou — está livre para você pegar.</td></tr>
+          <tr><td><code>claimed</code></td><td data-en="Someone is looking at it right now.">Alguém está olhando agora.</td></tr>
+          <tr><td><code>voting</code></td><td data-en="It already has a vote and needs another one to close.">Já tem um voto e precisa de mais um para fechar.</td></tr>
+          <tr><td><code>conflict</code> ⚠</td><td data-en="The judges disagreed — only the chief judge resolves it.">Os juízes divergiram — só o juiz-chefe resolve.</td></tr>
+        </table>
+        <p data-en="The verdict the machine computed appears in colour on every row. It is a suggestion, not a decision: your job is to confirm it or override it.">
+          O veredicto que a máquina computou aparece colorido em cada linha. Ele é uma
+          <b>sugestão</b>, não uma decisão: o seu trabalho é confirmar ou contrariar.
+        </p>
+
+        <h2 id="avaliar" data-en="4. Evaluating, step by step">4. Avaliando, passo a passo</h2>
+        <ol>
+          <li data-en-html="<b>Take it</b> — press <i>Pegar p/ avaliar</i>. The submission is reserved for you for a few minutes so two judges do not work on the same one."><b>Pegue</b> — aperte <i>Pegar p/ avaliar</i>. A submissão fica reservada para você por alguns minutos, para dois juízes não trabalharem na mesma.</li>
+          <li data-en-html="<b>Look</b> — the panel opens with the computed verdict, the <i>log</i> (what the machine did, test by test) and the <i>código</i> (the source the team sent)."><b>Olhe</b> — o painel abre com o veredicto computado, o <i>log</i> (o que a máquina fez, teste a teste) e o <i>código</i> (a fonte que o time mandou).</li>
+          <li data-en-html="<b>Vote</b> — choose the verdict in the list and confirm. Your vote is <b>final</b>: there is no undo."><b>Vote</b> — escolha o veredicto na lista e confirme. O seu voto é <b>definitivo</b>: não há desfazer.</li>
+        </ol>
+        <div class="tip" data-en="Two buttons help with the clock: +5 min extends your reservation if the case is hard, and Desistir hands it back to the queue for another judge. While you have a submission open, the page stops reloading by itself — it will not pull the case from under you.">
+          Dois botões ajudam com o relógio: <b>+5 min</b> estende a sua reserva se o caso é difícil,
+          e <b>Desistir</b> devolve à fila para outro juiz. Enquanto você tem uma submissão aberta,
+          a página para de recarregar sozinha — ela não puxa o caso debaixo de você.
+        </div>
+        <div class="warn" data-en="You can only have ONE submission open at a time. Vote or give up before taking another.">
+          Você só pode ter <b>uma</b> submissão aberta por vez. Vote ou desista antes de pegar
+          outra.
+        </div>
+
+        <h2 id="dois" data-en="5. Two judges must agree">5. Dois juízes têm de concordar</h2>
+        <p data-en="The rule of the manual verdict is simple: the result only reaches the competitor when the required number of judges (two, by default) vote the SAME verdict. Then MOJ writes it to the team's history and the scoreboard moves.">
+          A regra do veredicto manual é simples: o resultado só chega ao competidor quando o número
+          exigido de juízes (dois, por padrão) votar o <b>mesmo</b> veredicto. Aí o MOJ escreve no
+          histórico do time e o placar se mexe.
+        </p>
+        <p data-en="If the votes differ, the submission becomes a CONFLICT and stops there: it waits for the chief judge, who sees both votes with names and decides. Your part ends with your vote.">
+          Se os votos divergem, a submissão vira <b>conflito</b> e para ali: espera o juiz-chefe,
+          que vê os dois votos com nome e decide. A sua parte termina no seu voto.
+        </p>
+        <div class="tip" data-en="Voting frees you immediately — you can take the next one while the first still waits for its second vote. That is why the queue moves faster with more judges online.">
+          Votar já te libera — você pega a próxima enquanto a primeira ainda espera o segundo voto.
+          É por isso que a fila anda mais rápido com mais juízes online.
+        </div>
+
+        <h2 id="cego" data-en="6. Why you judge blind">6. Por que você julga às cegas</h2>
+        <p data-en="Three deliberate blindfolds protect the fairness of the contest — and you:">
+          Três vendas deliberadas protegem a lisura da prova — e você:
+        </p>
+        <ul>
+          <li data-en-html="In the queue you do <b>not</b> see who the competitor is.">Na fila você <b>não</b> vê quem é o competidor.</li>
+          <li data-en-html="You do <b>not</b> see the other judge's vote before yours (no anchoring)."><b>Não</b> vê o voto do outro juiz antes do seu (sem ancoragem).</li>
+          <li data-en-html="In <i>All submissions</i> the user and team columns come <b>empty</b> for you, and the list is sorted by time so the order does not give the identity away."><b>Todas Submissões</b> vem com as colunas de usuário e time <b>vazias</b> para você, e a lista é ordenada por horário para a ordem não entregar a identidade.</li>
+        </ul>
+        <div class="tip" data-en="The chief judge and the administrator do see the names — someone has to be able to audit. Also: nobody, not even a judge, sees who asked a clarification.">
+          O juiz-chefe e o administrador veem os nomes — alguém precisa poder auditar. E ninguém,
+          nem o juiz, vê quem fez uma pergunta na clarification.
+        </div>
+
+        <h2 id="clar" data-en="7. Clarifications">7. Clarifications</h2>
+        <p data-en="Questions from the teams arrive anonymous. Before answering, RESERVE the question — that is what stops two judges from answering the same thing differently. Then write the answer and decide whether it is private (only the asker) or public (everyone sees it).">
+          As perguntas dos times chegam anônimas. Antes de responder, <b>reserve</b> a pergunta —
+          é o que impede dois juízes de responderem a mesma coisa de formas diferentes. Depois
+          escreva a resposta e decida se ela é privada (só para quem perguntou) ou pública (todos
+          veem).
+        </p>
+        <div class="warn" data-en="An answer already given cannot be edited by you — only by the chief judge or the administrator. Read it twice before sending.">
+          Resposta já dada não é editável por você — só pelo juiz-chefe ou pelo administrador.
+          Leia duas vezes antes de enviar.
+        </div>
+
+        <h2 id="auto" data-en="8. When there is no queue">8. Quando não há fila</h2>
+        <p data-en="Not every contest uses manual verdict. If the organizer left the correction automatic, your Evaluate page says so and there is nothing to judge — the machine's verdict goes straight to the team. Your role is then to watch the submissions, answer clarifications and help with the problems.">
+          Nem toda prova usa veredicto manual. Se o organizador deixou a correção automática, a sua
+          página <i>Avaliar</i> diz isso e não há o que julgar — o veredicto da máquina vai direto
+          ao time. O seu papel passa a ser acompanhar as submissões, responder clarifications e
+          ajudar nos problemas.
+        </p>
+
+        <h2 id="nao" data-en="9. What you cannot do">9. O que você não faz</h2>
+        <table class="cheat">
+          <tr><th data-en="Attempt">Tentativa</th><th data-en="Answer">Resposta</th></tr>
+          <tr><td data-en="Resolve a conflict / override a verdict">Resolver conflito / contrariar um veredicto fechado</td><td><code>403</code> — <span data-en="chief judge only">só o juiz-chefe</span></td></tr>
+          <tr><td data-en="See the other judges' votes or the judge performance panel">Ver os votos dos outros ou o painel de desempenho</td><td><code>403</code></td></tr>
+          <tr><td data-en="Edit an answer already given / a news item already sent">Editar resposta já dada / notícia já enviada</td><td><code>403</code></td></tr>
+          <tr><td data-en="Change the verdict options or the auto-verdict matrix">Mudar as opções de veredicto ou a matriz de auto-veredicto</td><td><code>403</code></td></tr>
+          <tr><td data-en="Rejudge submissions">Rejulgar submissões</td><td><code>403</code></td></tr>
+          <tr><td data-en="Print queue, labels, big screen">Fila de impressão, etiquetas, telão</td><td><code>403</code></td></tr>
+          <tr><td data-en="Any administration screen">Qualquer tela de administração</td><td><code>403</code></td></tr>
+        </table>
+        <p class="small muted">
+          <a href="/contest/ajuda/cjudge.html" data-en="The chief judge (.cjudge) →">O juiz-chefe (.cjudge) →</a> ·
+          <a href="/docs/MANUAL-JUIZ.html" target="_blank" data-en="Full judge manual">Manual completo dos juízes</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+</body>
+</html>

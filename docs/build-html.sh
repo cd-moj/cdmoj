@@ -30,7 +30,7 @@ blockquote{border-left:4px solid var(--ac);margin:1rem 0;padding:.2rem 1rem;colo
 #TOC::before{content:"Conteúdo";font-weight:700;color:var(--mut);font-size:.85em}
 CSS
 
-ORDER=(OVERVIEW.md FLOW.md API.md PACOTE.md MANUAL-ORGS-COLECOES.md SCOREBOARD.md DEPLOY.md ADMIN.md MANUAL-ADMIN.md MANUAL-TREINO.md MANUAL-CONTEST.md MANUAL-LINGUAGENS.md MANUAL-STAFF.md MANUAL-JUIZ.md PLAN.md README.md)
+ORDER=(OVERVIEW.md FLOW.md API.md PACOTE.md MANUAL-ORGS-COLECOES.md SCOREBOARD.md DEPLOY.md ADMIN.md MANUAL-ADMIN.md MANUAL-TREINO.md MANUAL-CONTEST.md MANUAL-LINGUAGENS.md MANUAL-STAFF.md MANUAL-JUIZ.md MANUAL-ANIMEITOR.md WEBCAST.md PLAN.md README.md)
 title_of(){ local t; t="$(grep -m1 '^# ' "$1" 2>/dev/null | sed 's/^#\+ //')"; printf '%s' "${t:-$(basename "$1" .md)}"; }
 
 # lista final de docs: ORDER primeiro, depois o resto em ordem alfabética (sem duplicar)

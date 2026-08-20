@@ -40,6 +40,7 @@ Voltados ao usuário final, em português simples e sem travessão:
 - **[MANUAL-CONTEST.md](MANUAL-CONTEST.md)**: o competidor num contest (entrar, enviar, placar, clarifications, impressão, backup).
 - **[MANUAL-LINGUAGENS.md](MANUAL-LINGUAGENS.md)**: como enviar em cada linguagem e como funciona a entrada/saída. **Virou página do site** (`/treino/ajuda/`, o link "Ajuda" do menu): a tabela de linguagens é gerada da lista real e a página é bilíngue. Este `.md` é só o ponteiro.
 - **[MANUAL-STAFF.md](MANUAL-STAFF.md)**: a equipe de sala (`.staff` e `.cstaff`): fila de impressão, balões, etiquetas, revelação por sede.
+- **[MANUAL-ANIMEITOR.md](MANUAL-ANIMEITOR.md)**: quem opera o **telão** (`.animeitor`): chaves de streaming, fotos e músicas dos times, foto/música padrão, cerimônia. O técnico é o [WEBCAST.md](WEBCAST.md).
 - **[MANUAL-JUIZ.md](MANUAL-JUIZ.md)**: os juízes (`.judge` e `.cjudge`): fila de avaliação, votos, conflitos, painel do chefe.
 
 ## Compilar em HTML

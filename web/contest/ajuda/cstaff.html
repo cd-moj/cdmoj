@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="MOJ — the .cstaff role (site chief)">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOJ — o papel .cstaff (chefe de sede)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="/contest/ajuda/_tutorial.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/docs/MANUAL-STAFF.html" target="_blank" data-en="Staff manual">Manual da equipe</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="🏷️ The .cstaff role — site chief">🏷️ O papel .cstaff — chefe de sede</h1>
+      <div class="rolehead">
+        <span class="em">🏷️</span>
+        <div>
+          <code>alguem.cstaff</code>
+          <div class="d" data-en="You are in charge of one venue. You SEE almost everything about your site — queue, credentials, photos, scoreboard — but you act very little: your two real jobs are handing out the credential labels and running the reveal ceremony of your site.">
+            Você responde por uma sede. Você <b>vê</b> quase tudo da sua sede — fila, credenciais,
+            fotos, placar — mas <b>age pouco</b>: os seus dois trabalhos de verdade são entregar
+            as etiquetas de credenciais e conduzir a revelação da sua sede.
+          </div>
+        </div>
+      </div>
+      <nav class="rolenav">
+        <a href="/contest/ajuda/staff.html">🖨️ .staff</a>
+        <a class="cur" href="/contest/ajuda/cstaff.html">🏷️ .cstaff</a>
+        <a href="/contest/ajuda/animeitor.html">🎥 .animeitor</a>
+        <a href="/contest/ajuda/judge.html">⚖️ .judge</a>
+        <a href="/contest/ajuda/cjudge.html">👑 .cjudge</a>
+      </nav>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc">
+        <b data-en="Contents">Conteúdo</b>
+        <a href="#papel" data-en="1. What the role is">1. O que é o papel</a>
+        <a href="#escopo" data-en="2. Your site (the scope)">2. A sua sede (o escopo)</a>
+        <a href="#abas" data-en="3. Your tabs">3. Suas abas</a>
+        <a href="#etiquetas" data-en="4. Credential labels">4. Etiquetas de credenciais</a>
+        <a href="#fila" data-en="5. Print queue (read-only)">5. Fila de impressão (só leitura)</a>
+        <a href="#telao" data-en="6. Photos and songs of your site">6. Fotos e músicas da sua sede</a>
+        <a href="#placar" data-en="7. Scoreboard and the reveal">7. Placar e a revelação</a>
+        <a href="#nao" data-en="8. What you cannot do">8. O que você não faz</a>
+        <a href="#resumo" data-en="9. Summary">9. Resumo</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="papel" data-en="1. What the role is">1. O que é o papel</h2>
+        <p data-en="A login ending in .cstaff is the chief of one venue. The role exists for contests spread over several sites: each site has someone who hands out credentials, keeps an eye on the queue and, at the end, runs the reveal ceremony locally.">
+          Um login terminado em <code>.cstaff</code> é o chefe de uma sede. O papel existe para
+          provas espalhadas por várias sedes: cada sede tem alguém que entrega credenciais, olha a
+          fila e, no fim, conduz a cerimônia de revelação localmente.
+        </p>
+        <div class="warn" data-en="Careful with the names: .cstaff does NOT inherit .staff. You are not part of the room team — you cannot take, print or deliver a task. A contest that only has .cstaff accounts has no printing and no balloons at all.">
+          Cuidado com os nomes: <code>.cstaff</code> <b>não herda</b> <code>.staff</code>. Você não
+          é a equipe de sala — não pode pegar, imprimir nem entregar tarefa. Uma prova que só tem
+          contas <code>.cstaff</code> fica sem impressão e sem balões.
+        </div>
+
+        <h2 id="escopo" data-en="2. Your site (the scope)">2. A sua sede (o escopo)</h2>
+        <p data-en="Everything you see is cut to your venue. The administrator configures that cut — usually by region name (&quot;Curitiba&quot;), sometimes by a pattern in the login. Every screen of yours obeys the same cut: queue, labels, gallery, package and the reveal.">
+          Tudo que você vê é recortado na sua sede. Esse recorte é configurado pelo administrador —
+          normalmente pelo nome da região (&quot;Curitiba&quot;), às vezes por um padrão no login.
+          Todas as suas telas obedecem ao mesmo recorte: fila, etiquetas, galeria, pacote e a
+          revelação.
+        </p>
+        <div class="warn" data-en="Two limit cases worth knowing: with NO scope configured you see the WHOLE contest (including every password on the labels screen) — ask the administrator to set your site. With a scope that matches nobody you see NOTHING, and that is on purpose, not a bug.">
+          Dois casos-limite que vale conhecer: <b>sem escopo configurado você vê o contest
+          INTEIRO</b> (inclusive todas as senhas na tela de etiquetas) — peça ao administrador
+          para definir a sua sede. <b>Com um escopo que não casa ninguém você não vê NADA</b>, e
+          isso é de propósito, não é defeito.
+        </div>
+        <div class="tip" data-en="You cannot edit your own scope — that is the administrator's job, in the admin panel (Operation › Staff).">
+          Você não edita o próprio escopo — isso é do administrador, no painel de administração
+          (Operação › Staff).
+        </div>
+
+        <h2 id="abas" data-en="3. Your tabs">3. Suas abas</h2>
+        <table class="cheat">
+          <tr><th data-en="Tab">Aba</th><th data-en="What it is for">Para que serve</th></tr>
+          <tr><td>Score</td><td data-en="Scoreboard, frozen like everyone's (see section 7).">Placar, congelado como o de todos (ver a seção 7).</td></tr>
+          <tr><td>🖨️ <span data-en="Printing">Impressão</span></td><td data-en="The queue of your site, READ-ONLY — to know how the counter is doing.">A fila da sua sede, SOMENTE LEITURA — para saber como o balcão está indo.</td></tr>
+          <tr><td>🏷️ <span data-en="Labels">Etiquetas</span></td><td data-en="Credential labels with password — your main tool.">Etiquetas de credenciais com senha — a sua ferramenta principal.</td></tr>
+          <tr><td>🎥 Animeitor</td><td data-en="Photos and songs of the teams of your site — here you CAN write.">Fotos e músicas dos times da sua sede — aqui você PODE escrever.</td></tr>
+          <tr><td>📄 <span data-en="Documents">Documentos</span></td><td data-en="Published documents of the contest.">Documentos publicados da prova.</td></tr>
+          <tr><td>🔁 <span data-en="Rounds">Rodadas</span></td><td data-en="Warm-up and official round.">Aquecimento e prova oficial.</td></tr>
+          <tr><td>🏆 <span data-en="Reveal">Revelação</span></td><td data-en="Appears only when the contest has ended for EVERY site.">Só aparece quando a prova terminou para TODAS as sedes.</td></tr>
+        </table>
+
+        <h2 id="etiquetas" data-en="4. Credential labels">4. Etiquetas de credenciais</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/cstaff-etiquetas.png" alt="">
+          <figcaption data-en="The labels screen: sticker templates, options, and the sheet ready to print. Note that only the teams of this site appear — plus the badge of the room team of the same site.">
+            A tela de etiquetas: gabaritos de adesivo, opções e a folha pronta para imprimir.
+            Repare que só aparecem os times desta sede — mais o crachá da equipe de sala da
+            mesma sede.
+          </figcaption>
+        </figure>
+        <p data-en="This is the only screen in MOJ that shows passwords in plain text again after the accounts are created. Print, cut and hand each team its own label.">
+          Esta é a única tela do MOJ que mostra senha em claro depois que as contas foram criadas.
+          Imprima, recorte e entregue a cada time a etiqueta dele.
+        </p>
+        <ul>
+          <li data-en-html="<b>Template</b> — ready-made Pimaco A4 sheets and a MOJ badge; the fields (width, columns, margins) are there for calibrating your printer."><b>Gabarito</b> — folhas Pimaco A4 prontas e um crachá do MOJ; os campos (largura, colunas, margens) existem para calibrar a sua impressora.</li>
+          <li data-en-html="<b>Skip N labels</b> — to reuse a sheet that already had some stickers pulled off."><b>Pular N etiquetas</b> — para reaproveitar uma folha da qual já se arrancaram alguns adesivos.</li>
+          <li data-en-html="<b>Outline</b> — prints a border to check the alignment before wasting the sticker sheet."><b>Contorno</b> — imprime a borda para conferir o alinhamento antes de gastar a folha de adesivo.</li>
+        </ul>
+        <div class="warn" data-en="Some labels come with no password, and that is correct: an account whose credential belongs to another system (a shared training account) prints &quot;use your training password&quot;, and a disabled account says so. MOJ only prints the password it actually controls.">
+          Algumas etiquetas saem <b>sem senha</b>, e está certo: conta cuja credencial pertence a
+          outro sistema (conta compartilhada do treino) imprime &quot;use sua senha do treino&quot;,
+          e conta desabilitada diz isso. O MOJ só imprime a senha que ele de fato controla.
+        </div>
+        <div class="no" data-en="Every opening of this screen is recorded in the audit log, with how many passwords were shown. Print what you need, hand it out, and do not leave the sheet lying around.">
+          Toda abertura desta tela é registrada na auditoria, com quantas senhas foram exibidas.
+          Imprima o necessário, entregue e não deixe a folha rodando pela sala.
+        </div>
+
+        <h2 id="fila" data-en="5. Print queue (read-only)">5. Fila de impressão (só leitura)</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/cstaff-fila.png" alt="">
+          <figcaption data-en="The same queue the room team uses, without the action buttons: you follow the work, you do not do it.">
+            A mesma fila da equipe de sala, sem os botões de ação: você acompanha o trabalho, não
+            o executa.
+          </figcaption>
+        </figure>
+        <p data-en="It is for supervision: see whether tasks are piling up, whether balloons are being delivered, whether the counter needs another pair of hands. Taking, printing and delivering are refused for your role — if the queue is stuck, the fix is a .staff account, not a workaround.">
+          Serve para supervisão: ver se as tarefas estão empilhando, se os balões estão saindo, se
+          o balcão precisa de mais um par de mãos. Pegar, imprimir e entregar são recusados para o
+          seu papel — se a fila travou, a solução é uma conta <code>.staff</code>, não um jeitinho.
+        </p>
+
+        <h2 id="telao" data-en="6. Photos and songs of your site">6. Fotos e músicas da sua sede</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/cstaff-telao.png" alt="">
+          <figcaption data-en="The big-screen desk cut to your venue: you can upload, replace and remove the photo and the song of your teams, and download the package of your site.">
+            A mesa do telão recortada na sua sede: você pode enviar, trocar e remover a foto e a
+            música dos seus times, e baixar o pacote da sua sede.
+          </figcaption>
+        </figure>
+        <p data-en="This is the one place where you WRITE. It is normally used on the eve of the contest: collect the team photos at your venue and upload them, so that the ceremony on the big screen has everyone's face.">
+          Este é o único lugar em que você <b>escreve</b>. Costuma ser usado na véspera: recolher
+          as fotos dos times da sua sede e subir, para a cerimônia no telão ter o rosto de todo
+          mundo.
+        </p>
+        <ul>
+          <li data-en-html="<b>Batch upload</b> — drag many files at once; the file NAME is the team's login (<code>time-alfa.jpg</code>). Photos and mp3 can go in the same drag."><b>Envio em lote</b> — arraste vários arquivos de uma vez; o <b>nome do arquivo</b> é o login do time (<code>time-alfa.jpg</code>). Fotos e mp3 podem ir no mesmo arrastar.</li>
+          <li data-en-html="<b>Pending filter</b> — the screen opens showing exactly who is still missing a photo or a song."><b>Filtro de pendências</b> — a tela abre mostrando exatamente quem ainda está sem foto ou sem música.</li>
+          <li data-en-html="<b>.zip package</b> — everything from your site in one download (photos, songs and a CSV of the teams)."><b>Pacote .zip</b> — tudo da sua sede num download só (fotos, músicas e um CSV dos times).</li>
+        </ul>
+        <div class="warn" data-en="Trying to write to a team from another site is refused. And the contest's DEFAULT photo/song (the one used by whoever sent nothing) is not yours to change — that belongs to the big-screen operator.">
+          Escrever num time de outra sede é recusado. E a foto/música <b>padrão</b> do contest (a
+          que vale para quem não mandou a sua) não é sua para trocar — isso é do operador do telão.
+        </div>
+
+        <h2 id="placar" data-en="7. Scoreboard and the reveal">7. Placar e a revelação</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/cstaff-placar.png" alt="">
+          <figcaption data-en="Your scoreboard is the frozen one, like any competitor's.">
+            O seu placar é o congelado, como o de qualquer competidor.
+          </figcaption>
+        </figure>
+        <p data-en="During the contest you see the frozen scoreboard — the same one the teams see. The 🏆 Reveal button only appears when the contest is over for EVERY site (if one venue got an extension, the ceremony waits for it), and then it shows the ceremony cut to your teams: the frozen board plus the pending cells, opened one at a time.">
+          Durante a prova você vê o placar congelado — o mesmo que os times veem. O botão 🏆
+          <b>Revelação</b> só aparece quando a prova acabou para <b>todas as sedes</b> (se uma
+          delas teve prorrogação, a cerimônia espera por ela) e aí mostra a cerimônia recortada
+          nos seus times: o placar congelado mais as células pendentes, abertas uma a uma.
+        </p>
+        <div class="tip" data-en="If you need the full scoreboard before that (a rehearsal, for instance), ask the administrator: there is a setting that releases it for specific logins.">
+          Se precisar do placar completo antes disso (um ensaio, por exemplo), peça ao
+          administrador: existe uma configuração que libera para logins específicos.
+        </div>
+
+        <h2 id="nao" data-en="8. What you cannot do">8. O que você não faz</h2>
+        <table class="cheat">
+          <tr><th data-en="Attempt">Tentativa</th><th data-en="Answer">Resposta</th></tr>
+          <tr><td data-en="Submit a solution / see statements">Submeter uma solução / ver enunciados</td><td><code>403</code></td></tr>
+          <tr><td data-en="Take, print or deliver a queue task">Pegar, imprimir ou entregar tarefa da fila</td><td><code>403</code> — <span data-en="that is the room team">é da equipe de sala</span></td></tr>
+          <tr><td data-en="Download the competitor's raw file">Baixar o arquivo cru do competidor</td><td><code>403</code></td></tr>
+          <tr><td data-en="See the labels of ANOTHER site">Ver as etiquetas de OUTRA sede</td><td><code>403</code></td></tr>
+          <tr><td data-en="Change the contest's default photo/song">Trocar a foto/música padrão do contest</td><td><code>403</code></td></tr>
+          <tr><td data-en="See or create streaming keys">Ver ou criar chaves de streaming</td><td><code>403</code></td></tr>
+          <tr><td data-en="Statistics / answer clarifications">Estatísticas / responder clarifications</td><td><code>403</code></td></tr>
+          <tr><td data-en="Unfreeze the public scoreboard">Descongelar o placar público</td><td data-en="Administrator only">Só o administrador</td></tr>
+        </table>
+
+        <h2 id="resumo" data-en="9. Summary">9. Resumo</h2>
+        <table class="cheat">
+          <tr><th data-en="Your two real jobs">Seus dois trabalhos de verdade</th><th data-en="Plus">Mais</th></tr>
+          <tr>
+            <td data-en-html="Print and hand out the <b>credential labels</b> of your site · run the <b>reveal ceremony</b> of your site">Imprimir e entregar as <b>etiquetas de credenciais</b> da sua sede · conduzir a <b>revelação</b> da sua sede</td>
+            <td data-en-html="Collect the <b>photos and songs</b> of your teams · watch the print queue · print published documents">Recolher as <b>fotos e músicas</b> dos seus times · acompanhar a fila de impressão · imprimir documentos publicados</td>
+          </tr>
+        </table>
+        <p class="small muted">
+          <a href="/contest/ajuda/staff.html" data-en="← The room team (.staff)">← A equipe de sala (.staff)</a> ·
+          <a href="/contest/ajuda/animeitor.html" data-en="The big screen (.animeitor) →">O telão (.animeitor) →</a> ·
+          <a href="/docs/MANUAL-STAFF.html" target="_blank" data-en="Full staff manual">Manual completo da equipe</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+</body>
+</html>

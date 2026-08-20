@@ -27,6 +27,7 @@ Você é a pessoa que fica na sala cuidando das impressões e dos balões. Você
 |---|---|
 | **Score** | O placar (a versão congelada, como um usuário comum). |
 | **🖨️ Impressão** | A fila de impressão e balões da sua sede. É a sua tela principal. |
+| **🎥 Animeitor** | A mesa do telão em modo **somente leitura**: as fotos e músicas dos times da sua sede. Você olha e escuta; não envia, não troca, não baixa o pacote. |
 | **📄 Documentos** | Os documentos que a organização publicou (info sheet, caderno da prova, folha de time limits) para você baixar e imprimir. |
 | **🔁 Rodadas** | O placar e as submissões das rodadas encerradas (o aquecimento, por exemplo). |
 | **Sair** | Encerra a sua sessão. |
@@ -89,6 +90,7 @@ Você supervisiona uma sede. Você acompanha a fila da sua sede, imprime as etiq
 | **Score** | O placar (a versão congelada, como um usuário comum). |
 | **🖨️ Impressão** | A fila da sua sede, em modo **somente leitura**. |
 | **🏷️ Etiquetas** | As folhas de credenciais da sua sede, com senha. |
+| **🎥 Animeitor** | A mesa do telão recortada na sua sede: aqui você **escreve** (envia/troca/remove foto e música dos seus times, e baixa o pacote .zip da sede). Não troca o padrão do contest nem vê chaves de webcast. |
 | **📄 Documentos** | Os documentos publicados da prova, para baixar e imprimir na sede. |
 | **🔁 Rodadas** | O placar e as submissões das rodadas já encerradas. |
 | **Sair** | Encerra a sua sessão. |
@@ -163,6 +165,11 @@ Descongelar tudo e publicar o placar global são ações do **administrador**, n
 | Baixar os documentos publicados (📄 Documentos) | Sim | Sim |
 | Gerar/publicar documentos | Não (é do admin/juiz-chefe) | Não (é do admin/juiz-chefe) |
 | Conduzir a revelação da sua sede (🏆) | Não | Sim (após encerrar todas as sedes) |
+| Ver a mesa do telão (🎥 Animeitor) da sua sede | Sim (só olhar/ouvir) | Sim |
+| Enviar/trocar foto e música dos times da sede | Não (acesso negado) | Sim (só a sua sede) |
+| Baixar o pacote .zip do telão | Não | Sim (recortado na sede) |
+| Trocar a foto/música PADRÃO do contest | Não | Não (é do `.animeitor`/admin) |
+| Ver ou criar chaves de webcast | Não | Não (é do `.animeitor`/admin) |
 | Enviar solução (competir) | Não | Não |
 | Ver clarifications | Não | Não |
 | Ver o placar completo | Não | Não (salvo liberação do admin) |
@@ -172,5 +179,10 @@ Descongelar tudo e publicar o placar global são ações do **administrador**, n
 ---
 
 ## Ponteiros
+
+- **Tutorial web do seu papel** (com screenshots das telas, PT/EN): `/contest/ajuda/staff.html`
+  e `/contest/ajuda/cstaff.html` — abre pelo botão **📖 Como funciona este papel** na sua tela.
+- **[MANUAL-ANIMEITOR.md](MANUAL-ANIMEITOR.md)**: quem opera o telão (o dono da foto/música padrão
+  e das chaves de webcast que vocês NÃO têm).
 
 - Para a visão de quem compete (login, envio de soluções, placar, clarifications, impressão e backup), veja o `MANUAL-CONTEST.md`.

@@ -1,0 +1,40 @@
+/* web/contest/ajuda/_tutorial.css — visual dos TUTORIAIS DE PAPEL (staff, cstaff, animeitor,
+   judge, cjudge). Mesmo desenho dos tutoriais do site (.tlayout/.ttoc/.tmain/.tip/.warn/
+   table.cheat), extraído p/ um arquivo só porque agora são cinco páginas — lá são <style>
+   locais copiados. Acrescenta o que só existe aqui: .shot (screenshot com legenda) e .rolehead
+   (o cartão de identificação do papel no topo). */
+.tlayout{display:grid;grid-template-columns:15rem 1fr;gap:2rem;align-items:start}
+@media(max-width:900px){.tlayout{grid-template-columns:1fr}.ttoc{position:static}}
+.ttoc{position:sticky;top:1rem;font-size:.88rem;border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.8rem 1rem}
+.ttoc a{display:block;padding:.15rem 0;text-decoration:none;color:inherit;opacity:.85}
+.ttoc a:hover{color:var(--accent,#5b8cff);opacity:1}
+.tmain{max-width:52rem;min-width:0}
+.tmain h2{margin:2rem 0 .6rem;padding-top:.5rem;border-top:1px solid var(--border,#2a2a2a)}
+.tmain h2:first-child{border-top:none;margin-top:.4rem}
+.tmain h3{margin:1.3rem 0 .4rem}
+.tmain p, .tmain li{line-height:1.55}
+.tmain pre{background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.6rem .9rem;overflow-x:auto;font-size:.85rem;line-height:1.55}
+.tip{border-left:3px solid var(--accent,#5b8cff);background:color-mix(in srgb, var(--accent,#5b8cff) 6%, transparent);border-radius:0 .5rem .5rem 0;padding:.5rem .8rem;margin:.6rem 0;font-size:.92rem}
+.tip::before{content:"💡 ";font-weight:700}
+.warn{border-left:3px solid #d99a2b;background:color-mix(in srgb, #d99a2b 8%, transparent);border-radius:0 .5rem .5rem 0;padding:.5rem .8rem;margin:.6rem 0;font-size:.92rem}
+.warn::before{content:"⚠ ";font-weight:700}
+.no{border-left:3px solid #d9534f;background:color-mix(in srgb, #d9534f 8%, transparent);border-radius:0 .5rem .5rem 0;padding:.5rem .8rem;margin:.6rem 0;font-size:.92rem}
+.no::before{content:"⛔ ";font-weight:700}
+table.cheat{border-collapse:collapse;width:100%;font-size:.88rem;margin:.5rem 0}
+.cheat th,.cheat td{border:1px solid var(--border,#2a2a2a);padding:.3rem .55rem;text-align:left;vertical-align:top}
+.cheat th{background:color-mix(in srgb, var(--accent,#5b8cff) 8%, transparent)}
+.cheat code{font-size:.84rem}
+/* screenshot: a imagem é larga (1280px) — encolhe sem estourar a coluna */
+.shot{margin:.9rem 0 1.2rem}
+.shot img{display:block;width:100%;height:auto;border:1px solid var(--border,#2a2a2a);border-radius:.5rem;background:#fff}
+.shot figcaption{font-size:.85rem;opacity:.8;margin-top:.35rem;line-height:1.45}
+/* cartão do papel no topo da página */
+.rolehead{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;border:1px solid var(--border,#2a2a2a);border-radius:.6rem;padding:.7rem 1rem;margin:.6rem 0 0}
+.rolehead .em{font-size:2.2rem;line-height:1}
+.rolehead code{font-size:1rem;font-weight:700}
+.rolehead .d{font-size:.9rem;opacity:.85;max-width:38rem}
+/* trilha de páginas de ajuda dos OUTROS papéis */
+.rolenav{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0 0;font-size:.88rem}
+.rolenav a{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.2rem .6rem;text-decoration:none;color:inherit;opacity:.85}
+.rolenav a:hover{color:var(--accent,#5b8cff);opacity:1}
+.rolenav a.cur{border-color:var(--accent,#5b8cff);color:var(--accent,#5b8cff);opacity:1;font-weight:600}

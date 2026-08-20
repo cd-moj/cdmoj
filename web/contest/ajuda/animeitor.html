@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="MOJ — the .animeitor role (big screen)">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOJ — o papel .animeitor (telão)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="/contest/ajuda/_tutorial.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/docs/MANUAL-ANIMEITOR.html" target="_blank" data-en="Big-screen manual">Manual do telão</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="🎥 The .animeitor role — the big screen">🎥 O papel .animeitor — o telão</h1>
+      <div class="rolehead">
+        <span class="em">🎥</span>
+        <div>
+          <code>alguem.animeitor</code>
+          <div class="d" data-en="You run the show: the scoreboard on the big screen, the photos and songs that play when a team scores, and the reveal ceremony at the end. You are the only role that sees the scoreboard ALWAYS unfrozen — because you are the one who animates the turn.">
+            Você conduz o espetáculo: o placar no telão, as fotos e músicas que tocam quando um
+            time pontua, e a cerimônia de revelação no fim. Você é o único papel que vê o placar
+            <b>sempre descongelado</b> — porque é você quem anima a virada.
+          </div>
+        </div>
+      </div>
+      <nav class="rolenav">
+        <a href="/contest/ajuda/staff.html">🖨️ .staff</a>
+        <a href="/contest/ajuda/cstaff.html">🏷️ .cstaff</a>
+        <a class="cur" href="/contest/ajuda/animeitor.html">🎥 .animeitor</a>
+        <a href="/contest/ajuda/judge.html">⚖️ .judge</a>
+        <a href="/contest/ajuda/cjudge.html">👑 .cjudge</a>
+      </nav>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc">
+        <b data-en="Contents">Conteúdo</b>
+        <a href="#papel" data-en="1. What the role is">1. O que é o papel</a>
+        <a href="#abas" data-en="2. Your tabs">2. Suas abas</a>
+        <a href="#mesa" data-en="3. The desk">3. A mesa do telão</a>
+        <a href="#streaming" data-en="4. Streaming keys">4. Chaves de streaming</a>
+        <a href="#fotos" data-en="5. Photos and songs">5. Fotos e músicas</a>
+        <a href="#padrao" data-en="6. The default photo/song">6. A foto/música padrão</a>
+        <a href="#placar" data-en="7. Scoreboard and ceremony">7. Placar e cerimônia</a>
+        <a href="#vespera" data-en="8. Checklist before the show">8. Checklist da véspera</a>
+        <a href="#nao" data-en="9. What you cannot do">9. O que você não faz</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="papel" data-en="1. What the role is">1. O que é o papel</h2>
+        <p data-en="A login ending in .animeitor is the big-screen desk. The name comes from the Animeitor, the scoreboard display system used in ICPC-style contests: it fetches a package from MOJ in a loop and animates the board on the projector.">
+          Um login terminado em <code>.animeitor</code> é a mesa do telão. O nome vem do
+          <b>Animeitor</b>, o sistema de exibição de placar usado em provas no estilo ICPC: ele
+          busca um pacote do MOJ em laço e anima o quadro no projetor.
+        </p>
+        <p data-en="Your account exists to feed that screen with three things: the scoreboard (through a streaming key), the team photos and the team songs.">
+          A sua conta existe para alimentar essa tela com três coisas: o <b>placar</b> (por uma
+          chave de streaming), as <b>fotos</b> dos times e as <b>músicas</b> dos times.
+        </p>
+        <div class="tip" data-en="The administrator enters the same screen with the same powers — so if you are an admin running the show yourself, everything here applies to you too.">
+          O administrador entra na mesma tela com os mesmos poderes — então, se você é admin e
+          está conduzindo o espetáculo, tudo aqui vale para você também.
+        </div>
+
+        <h2 id="abas" data-en="2. Your tabs">2. Suas abas</h2>
+        <table class="cheat">
+          <tr><th data-en="Tab">Aba</th><th data-en="What it is for">Para que serve</th></tr>
+          <tr><td>Score</td><td data-en="The scoreboard, ALWAYS unfrozen (see section 7).">O placar, SEMPRE descongelado (ver a seção 7).</td></tr>
+          <tr><td>🎥 Animeitor</td><td data-en="Your desk: streaming keys + photos and songs.">A sua mesa: chaves de streaming + fotos e músicas.</td></tr>
+          <tr><td>📊 <span data-en="Statistics">Estatísticas</span></td><td data-en="Numbers of the contest — good filler material between rounds of the show.">Números da prova — bom material de intervalo durante o espetáculo.</td></tr>
+          <tr><td>🏆 <span data-en="Reveal">Revelação</span></td><td data-en="The ceremony, available to you at any time (you rehearse it).">A cerimônia, disponível a qualquer momento (você ensaia).</td></tr>
+        </table>
+
+        <h2 id="mesa" data-en="3. The desk">3. A mesa do telão</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/animeitor-telao.png" alt="">
+          <figcaption data-en="The whole desk: streaming keys on top (with URL, number of fetches, last access and revoke), the default photo/song card, batch upload, .zip package, and the team gallery with the filters.">
+            A mesa inteira: as chaves de streaming em cima (com URL, número de buscas, último
+            acesso e revogar), o cartão da foto/música padrão, o envio em lote, o pacote .zip e a
+            galeria dos times com os filtros.
+          </figcaption>
+        </figure>
+
+        <h2 id="streaming" data-en="4. Streaming keys">4. Chaves de streaming</h2>
+        <p data-en="A key turns into a URL. You paste that URL into the Animeitor (or any compatible display), and it fetches the scoreboard package in a loop. Each key declares WHICH board it serves — the general one, or the board of a specific cohort when the contest has guest teams.">
+          Uma chave vira uma <b>URL</b>. Você cola essa URL no Animeitor (ou em qualquer exibidor
+          compatível) e ele busca o pacote do placar em laço. Cada chave declara <b>qual</b>
+          placar ela serve — o geral, ou o de uma coorte específica quando a prova tem times
+          convidados.
+        </p>
+        <ol>
+          <li data-en-html="Pick the board in <b>Placar</b>, give the key a nickname (&quot;main projector&quot;, &quot;YouTube stream&quot;) and press <b>+ Nova chave</b>.">Escolha o placar em <b>Placar</b>, dê um apelido à chave (&quot;telão principal&quot;, &quot;transmissão YouTube&quot;) e aperte <b>+ Nova chave</b>.</li>
+          <li data-en-html="<b>Copiar</b> puts the URL on the clipboard; <b>testar</b> opens it so you can confirm the package is coming.">
+            <b>copiar</b> põe a URL na área de transferência; <b>testar</b> abre para você confirmar que o pacote está vindo.</li>
+          <li data-en-html="The table shows <b>how many times</b> the key was fetched and the <b>last access</b> with the IP — that is how you know the projector is really connected.">A tabela mostra <b>quantas buscas</b> a chave recebeu e o <b>último acesso</b> com o IP — é assim que você sabe que o projetor está mesmo conectado.</li>
+        </ol>
+        <div class="warn" data-en="The key opens the UNFROZEN scoreboard, with no login. Whoever has the URL sees the real standings during the contest. Treat it like a password: one key per screen, and revoke them all after the event.">
+          A chave abre o placar <b>descongelado</b>, sem login. Quem tem a URL vê a classificação
+          real durante a prova. Trate como senha: uma chave por tela, e revogue todas depois do
+          evento.
+        </div>
+        <div class="tip" data-en="Revoking is instant: a revoked key answers 404 and the attempt is logged. If a URL leaks, revoke it and create another one — the display just needs the new URL.">
+          Revogar é imediato: chave revogada responde 404 e a tentativa fica registrada. Se uma
+          URL vazar, revogue e crie outra — o exibidor só precisa da URL nova.
+        </div>
+
+        <h2 id="fotos" data-en="5. Photos and songs">5. Fotos e músicas</h2>
+        <p data-en="Each team can have a photo (shown when they solve something) and an mp3 (played at that moment). The gallery opens filtered by ⚠ Pending — exactly the teams still missing a photo or a song, which is your whole to-do list.">
+          Cada time pode ter uma <b>foto</b> (que aparece quando ele resolve algo) e um <b>mp3</b>
+          (que toca nessa hora). A galeria abre filtrada em <b>⚠ Pendências</b> — exatamente os
+          times que ainda estão sem foto ou sem música, que é a sua lista de trabalho inteira.
+        </p>
+        <ul>
+          <li data-en-html="<b>Batch upload</b> is the fast way: drag dozens of files at once — the file NAME is the team login (<code>time-alfa.jpg</code>, <code>time-alfa.mp3</code>). Photos and songs can go together."><b>Enviar em lote</b> é o caminho rápido: arraste dezenas de arquivos de uma vez — o <b>nome do arquivo</b> é o login do time (<code>time-alfa.jpg</code>, <code>time-alfa.mp3</code>). Fotos e músicas podem ir juntas.</li>
+          <li data-en-html="The photo is converted and resized by the server; the song goes as it is, and must be a real <b>mp3</b> (up to 15 MB) — the server checks the file, not the extension."><b>A foto</b> é convertida e redimensionada pelo servidor; a música vai como veio e precisa ser <b>mp3</b> de verdade (até 15 MB) — o servidor confere o arquivo, não a extensão.</li>
+          <li data-en-html="<b>Baixar pacote (.zip)</b> gives you everything in one file — photos, songs and a CSV of the teams — which is what you hand to whoever operates the display."><b>Baixar pacote (.zip)</b> entrega tudo num arquivo só — fotos, músicas e um CSV dos times — que é o que se passa para quem opera o exibidor.</li>
+        </ul>
+        <div class="tip" data-en="The site chiefs (.cstaff) can upload the photos of THEIR venue. In a multi-venue contest, let them collect locally and you only check the pending list.">
+          Os chefes de sede (<code>.cstaff</code>) podem subir as fotos <b>da sede deles</b>. Numa
+          prova com várias sedes, deixe-os recolher localmente e você só confere a lista de
+          pendências.
+        </div>
+
+        <h2 id="padrao" data-en="6. The default photo/song">6. A foto/música padrão</h2>
+        <p data-en="A team with no photo does not break the show: MOJ answers with the contest's DEFAULT photo, and the same for the song. The card at the top of the gallery is where you change that default — an image with the event's identity, a jingle — or go back to the MOJ factory one.">
+          Time sem foto não quebra o espetáculo: o MOJ responde com a foto <b>padrão</b> do
+          contest, e o mesmo para a música. O cartão no topo da galeria é onde você troca esse
+          padrão — uma imagem com a identidade do evento, uma vinheta — ou volta ao padrão de
+          fábrica do MOJ.
+        </p>
+        <div class="warn" data-en="Only you (and the administrator) change the default. The site chiefs upload their teams' files but cannot touch the contest-wide default.">
+          Só você (e o administrador) trocam o padrão. Os chefes de sede sobem os arquivos dos
+          times deles, mas não mexem no padrão do contest.
+        </div>
+
+        <h2 id="placar" data-en="7. Scoreboard and ceremony">7. Placar e cerimônia</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/animeitor-placar.png" alt="">
+          <figcaption data-en="Your scoreboard: unfrozen from the first minute, including before the contest starts.">
+            O seu placar: descongelado desde o primeiro minuto, inclusive antes de a prova começar.
+          </figcaption>
+        </figure>
+        <p data-en="You see the real standings all the time — that is the point of the role, and it is why the account must stay with whoever is running the screen. The 🏆 Reveal page is always available to you, so you can rehearse the ceremony before the audience arrives.">
+          Você vê a classificação real o tempo todo — é o sentido do papel, e é por isso que a
+          conta tem de ficar com quem opera a tela. A página 🏆 <b>Revelação</b> está sempre
+          disponível para você, então dá para ensaiar a cerimônia antes de a plateia chegar.
+        </p>
+
+        <h2 id="vespera" data-en="8. Checklist before the show">8. Checklist da véspera</h2>
+        <ol>
+          <li data-en="Create one key per screen and test each URL on the machine that will actually project.">Crie uma chave por tela e teste cada URL na máquina que vai realmente projetar.</li>
+          <li data-en="Open the gallery on ⚠ Pending and chase the missing photos (ask the site chiefs).">Abra a galeria em ⚠ Pendências e persiga as fotos que faltam (peça aos chefes de sede).</li>
+          <li data-en="Set the default photo and song with the event's identity.">Defina a foto e a música padrão com a identidade do evento.</li>
+          <li data-en="Download the .zip and keep it on the show machine as a fallback.">Baixe o .zip e guarde na máquina do espetáculo como plano B.</li>
+          <li data-en="Rehearse the reveal page and check the sound on the room's audio.">Ensaie a página de revelação e teste o som no áudio da sala.</li>
+          <li data-en="After the event: revoke every key.">Depois do evento: revogue todas as chaves.</li>
+        </ol>
+
+        <h2 id="nao" data-en="9. What you cannot do">9. O que você não faz</h2>
+        <table class="cheat">
+          <tr><th data-en="Attempt">Tentativa</th><th data-en="Answer">Resposta</th></tr>
+          <tr><td data-en="Submit a solution / see statements">Submeter uma solução / ver enunciados</td><td><code>403</code></td></tr>
+          <tr><td data-en="Print queue, balloons, raw files">Fila de impressão, balões, arquivos crus</td><td><code>403</code> — <span data-en="that is the room team">é da equipe de sala</span></td></tr>
+          <tr><td data-en="Credential labels (passwords)">Etiquetas de credenciais (senhas)</td><td><code>403</code> — <span data-en="that is the site chief">é do chefe de sede</span></td></tr>
+          <tr><td data-en="Answer clarifications / publish news">Responder clarifications / publicar notícias</td><td><code>403</code></td></tr>
+          <tr><td data-en="Photo or song of a ROLE account (staff, judge…)">Foto ou música de conta de PAPEL (staff, juiz…)</td><td data-en="Refused — roles are not teams">Recusado — papéis não são times</td></tr>
+        </table>
+        <div class="warn" data-en="Two asymmetries that surprise people: unlike the room team, you do NOT see contest documents before the start, and you do not see archived rounds that were not published. If you need the problem set to prepare the screen, ask the administrator to publish it.">
+          Duas assimetrias que surpreendem: diferente da equipe de sala, você <b>não</b> vê os
+          documentos da prova antes do início, e não vê rodadas arquivadas que não foram
+          publicadas. Se precisar do caderno para preparar a tela, peça ao administrador para
+          publicar.
+        </div>
+        <p class="small muted">
+          <a href="/contest/ajuda/cstaff.html" data-en="← The site chief (.cstaff)">← O chefe de sede (.cstaff)</a> ·
+          <a href="/docs/MANUAL-ANIMEITOR.html" target="_blank" data-en="Full big-screen manual">Manual completo do telão</a> ·
+          <a href="/docs/WEBCAST.html" target="_blank" data-en="Webcast protocol (technical)">Protocolo do webcast (técnico)</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+</body>
+</html>

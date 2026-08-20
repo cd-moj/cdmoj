@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="MOJ — the .staff role (room team)">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MOJ — o papel .staff (equipe de sala)</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="/contest/ajuda/_tutorial.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/docs/MANUAL-STAFF.html" target="_blank" data-en="Staff manual">Manual da equipe</a>
+        <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="section">
+      <h1 data-en="🖨️ The .staff role — room team">🖨️ O papel .staff — equipe de sala</h1>
+      <div class="rolehead">
+        <span class="em">🖨️</span>
+        <div>
+          <code>alguem.staff</code>
+          <div class="d" data-en="You are the counter of the contest: you print what the teams ask for, you deliver the balloons, and you hand the paper over. You never submit, never see the statements, and never see anyone's password.">
+            Você é o balcão da prova: imprime o que os times pedem, entrega os balões e leva o
+            papel até a mesa. Você não submete, não vê enunciado e não vê senha de ninguém.
+          </div>
+        </div>
+      </div>
+      <nav class="rolenav">
+        <a class="cur" href="/contest/ajuda/staff.html">🖨️ .staff</a>
+        <a href="/contest/ajuda/cstaff.html">🏷️ .cstaff</a>
+        <a href="/contest/ajuda/animeitor.html">🎥 .animeitor</a>
+        <a href="/contest/ajuda/judge.html">⚖️ .judge</a>
+        <a href="/contest/ajuda/cjudge.html">👑 .cjudge</a>
+      </nav>
+    </div>
+
+    <div class="section tlayout">
+      <nav class="ttoc">
+        <b data-en="Contents">Conteúdo</b>
+        <a href="#papel" data-en="1. What the role is">1. O que é o papel</a>
+        <a href="#abas" data-en="2. Your tabs">2. Suas abas</a>
+        <a href="#fila" data-en="3. The print queue">3. A fila de impressão</a>
+        <a href="#tarefa" data-en="4. Handling a task">4. Tratando uma tarefa</a>
+        <a href="#baloes" data-en="5. Balloons">5. Balões</a>
+        <a href="#auto" data-en="6. Automatic mode">6. Modo automático</a>
+        <a href="#telao" data-en="7. The big screen (read-only)">7. O telão (só leitura)</a>
+        <a href="#nao" data-en="8. What you cannot do">8. O que você não faz</a>
+        <a href="#resumo" data-en="9. Summary">9. Resumo</a>
+      </nav>
+
+      <article class="tmain">
+        <h2 id="papel" data-en="1. What the role is">1. O que é o papel</h2>
+        <p data-en="In MOJ the role comes from the SUFFIX of the login. A login that ends in .staff is the room team: the person at the counter who receives print requests, prints them and delivers them to the team's desk. There is no configuration screen for this — an administrator creates the account already with the suffix.">
+          No MOJ o papel vem do <b>sufixo do login</b>. Um login terminado em <code>.staff</code>
+          é a equipe de sala: quem fica no balcão recebendo pedidos de impressão, imprimindo e
+          levando o papel à mesa do time. Não há tela de configuração disso — um administrador
+          cria a conta já com o sufixo.
+        </p>
+        <div class="tip" data-en="Your account is invisible to the competition: it does not appear on the scoreboard, in team listings, in statistics or in the balloon list. You are also exempt from the browser check (UA gate) and from the login window — you can get in before the contest opens to set the room up.">
+          Sua conta é invisível para a competição: não aparece no placar, na lista de times, nas
+          estatísticas nem na lista de balões. Você também é isento da checagem de navegador
+          (gate de UA) e da janela de login — pode entrar antes da prova abrir para montar a sala.
+        </div>
+        <div class="warn" data-en="A contest with NO .staff account has no printing and no balloons at all: the print button never shows up for the competitor and no balloon task is ever created. A .cstaff (site chief) account does NOT replace a .staff for this.">
+          Um contest <b>sem nenhuma conta <code>.staff</code></b> fica sem impressão e sem
+          balões: o botão de impressão nem aparece para o competidor e nenhuma tarefa de balão é
+          criada. Uma conta <code>.cstaff</code> (chefe de sede) <b>não substitui</b> a
+          <code>.staff</code> para isso.
+        </div>
+
+        <h2 id="abas" data-en="2. Your tabs">2. Suas abas</h2>
+        <p data-en="When you log in, the bar at the top shows exactly what your role can open:">
+          Ao entrar, a barra do topo mostra exatamente o que o seu papel pode abrir:
+        </p>
+        <table class="cheat">
+          <tr><th data-en="Tab">Aba</th><th data-en="What it is for">Para que serve</th></tr>
+          <tr><td>Score</td><td data-en="The scoreboard, frozen like everyone else's near the end.">O placar, congelado perto do fim como o de todo mundo.</td></tr>
+          <tr><td>🖨️ <span data-en="Printing">Impressão</span></td><td data-en="YOUR work queue — this is the page you live on.">A SUA fila de trabalho — é a página onde você fica.</td></tr>
+          <tr><td>🎥 Animeitor</td><td data-en="The big-screen desk, in view-only mode (photos and songs of the teams).">A mesa do telão, em modo só-visualização (fotos e músicas dos times).</td></tr>
+          <tr><td>📄 <span data-en="Documents">Documentos</span></td><td data-en="Published contest documents (info sheet, problem set, time limits) — to print at the site.">Documentos publicados da prova (info sheet, caderno, time limits) — para imprimir na sede.</td></tr>
+          <tr><td>🔁 <span data-en="Rounds">Rodadas</span></td><td data-en="Warm-up and official round of this contest.">Aquecimento e prova oficial deste contest.</td></tr>
+        </table>
+        <div class="tip" data-en="There is no Contest tab and no Clarification tab: you do not see statements and do not answer questions. Opening /contest/ sends you straight to the print queue.">
+          Não existe aba <i>Contest</i> nem <i>Clarification</i>: você não vê enunciados e não
+          responde perguntas. Abrir <code>/contest/</code> te leva direto para a fila de impressão.
+        </div>
+
+        <h2 id="fila" data-en="3. The print queue">3. A fila de impressão</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/staff-fila.png" alt="">
+          <figcaption data-en="The print queue as the room team sees it: numbered tasks, team, file, status and the actions of each row.">
+            A fila de impressão como a equipe de sala vê: tarefas numeradas, time, arquivo,
+            status e as ações de cada linha.
+          </figcaption>
+        </figure>
+        <p data-en="Each row is one task. The number (#7, #8…) is the order in which the request arrived — it is your service order. The page refreshes itself every few seconds; you do not need to keep pressing update.">
+          Cada linha é uma tarefa. O número (<code>#7</code>, <code>#8</code>…) é a ordem em que o
+          pedido chegou — é a sua ordem de atendimento. A página se atualiza sozinha a cada poucos
+          segundos; não precisa ficar apertando atualizar.
+        </p>
+        <table class="cheat">
+          <tr><th data-en="Status">Status</th><th data-en="Meaning">O que quer dizer</th></tr>
+          <tr><td><code>pending</code></td><td data-en="Nobody took it yet. It is up for grabs.">Ninguém pegou ainda. Está livre.</td></tr>
+          <tr><td><code>printed</code></td><td data-en="Printed — now walk it to the team's desk.">Impressa — agora é levar até a mesa do time.</td></tr>
+          <tr><td><code>delivered</code></td><td data-en="Delivered. Task closed.">Entregue. Tarefa encerrada.</td></tr>
+        </table>
+        <div class="warn" data-en="You only see the tasks of YOUR site. The administrator configures that filter; if it is missing you see everything, which is fine in a single-venue contest and a mess in a multi-venue one.">
+          Você só vê as tarefas <b>da sua sede</b>. O administrador configura esse filtro; se ele
+          estiver ausente você vê tudo — o que é normal numa prova de sede única e uma confusão
+          numa prova com várias sedes.
+        </div>
+
+        <h2 id="tarefa" data-en="4. Handling a task">4. Tratando uma tarefa</h2>
+        <p data-en="The cycle is always the same three steps:">O ciclo é sempre o mesmo, em três passos:</p>
+        <ol>
+          <li data-en-html="<b>Take it</b> — press <i>Pegar</i>. The task becomes yours for a while so two volunteers do not print the same thing."><b>Pegue</b> — aperte <i>Pegar</i>. A tarefa passa a ser sua por um tempo, para dois voluntários não imprimirem a mesma coisa.</li>
+          <li data-en-html="<b>Print it</b> — press <i>🖨️ Imprimir</i>. MOJ builds a PDF with a <b>cover sheet</b> (team, university, login, task number, page count and a line to sign) followed by the document itself; source code comes out with numbered lines."><b>Imprima</b> — aperte <i>🖨️ Imprimir</i>. O MOJ monta um PDF com uma <b>folha de rosto</b> (time, universidade, login, número da tarefa, nº de páginas e uma linha para assinar) seguida do documento; código-fonte sai com as linhas numeradas.</li>
+          <li data-en-html="<b>Deliver it</b> — after handing the paper over, press <i>✅ Entregue</i>. That closes the task and is what tells the organizers the paper actually arrived."><b>Entregue</b> — depois de entregar o papel, aperte <i>✅ Entregue</i>. Isso fecha a tarefa e é o que diz à organização que o papel chegou de fato.</li>
+        </ol>
+        <div class="tip" data-en="Prefer the button over the browser's own print: the generated PDF carries the cover sheet, and the buttons are what record who printed and when.">
+          Prefira o botão à impressão do próprio navegador: o PDF gerado leva a folha de rosto, e
+          são os botões que registram quem imprimiu e quando.
+        </div>
+
+        <h2 id="baloes" data-en="5. Balloons">5. Balloons</h2>
+        <p data-en="Balloon tasks show up in the SAME queue, marked 🎈 with the problem letter and a dot in the balloon's colour. They are created automatically at each team's first Accepted for a problem — nobody has to type anything.">
+          Tarefas de balão aparecem <b>na mesma fila</b>, marcadas com 🎈, a letra do problema e
+          uma bolinha na cor do balão. Elas nascem sozinhas na primeira solução aceita de cada
+          time em cada problema — ninguém precisa digitar nada.
+        </p>
+        <p data-en="The flow is the same (take → print → delivered); printing gives you a one-page sheet with the team and the colour, to walk with the balloon. The colour comes from the contest configuration, with the classic ICPC set as the default.">
+          O fluxo é o mesmo (pegar → imprimir → entregue); imprimir dá uma folha de uma página com
+          o time e a cor, para você levar junto com o balão. A cor vem da configuração do contest,
+          com o conjunto clássico da ICPC como padrão.
+        </p>
+        <div class="warn" data-en="In contests with manual verdicts the balloon is only born after the judges confirm the Accepted — so a balloon may take a few minutes longer than the scoreboard.">
+          Em provas com veredicto manual o balão só nasce depois que os juízes confirmam o
+          <i>Accepted</i> — então o balão pode demorar alguns minutos mais que o placar.
+        </div>
+
+        <h2 id="auto" data-en="6. Automatic mode">6. Modo automático</h2>
+        <p data-en="The checkbox at the top of the page turns on automatic printing: every new task is taken, printed and marked as processed by itself. You are left with only the walking — take the paper to the desk and press delivered.">
+          A caixinha no topo da página liga a impressão automática: cada tarefa nova é pega,
+          impressa e marcada como processada sozinha. Sobra para você só a caminhada — levar o
+          papel à mesa e marcar como entregue.
+        </p>
+        <div class="tip" data-en="For it to print with no dialog, open the browser in kiosk-printing mode (in Chrome: --kiosk-printing). Otherwise every task opens the system print dialog.">
+          Para imprimir sem diálogo, abra o navegador em modo <i>kiosk printing</i> (no Chrome:
+          <code>--kiosk-printing</code>). Sem isso, cada tarefa abre a janela de impressão do
+          sistema.
+        </div>
+
+        <h2 id="telao" data-en="7. The big screen (read-only)">7. O telão (só leitura)</h2>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/staff-telao.png" alt="">
+          <figcaption data-en="The same big-screen desk the Animeitor operator uses, but with every write button removed — the room team looks and listens, nothing else.">
+            A mesma mesa do telão que o operador do Animeitor usa, mas com todos os botões de
+            escrita removidos — a equipe de sala olha e escuta, nada mais.
+          </figcaption>
+        </figure>
+        <p data-en="You can browse the photos and play the songs of the teams of your site, and check the contest's default photo and song. You cannot upload, replace or remove anything, and you do not see the streaming keys.">
+          Você pode navegar pelas fotos e tocar as músicas dos times da sua sede, e conferir a
+          foto e a música padrão do contest. Você não pode enviar, trocar nem remover nada, e não
+          vê as chaves de streaming.
+        </p>
+        <div class="tip" data-en="It is useful for checking, before the ceremony, whether the teams at your site already sent their photo — and telling the site chief who is missing.">
+          Serve para conferir, antes da cerimônia, se os times da sua sede já mandaram a foto — e
+          avisar o chefe de sede quem está faltando.
+        </div>
+
+        <h2 id="nao" data-en="8. What you cannot do">8. O que você não faz</h2>
+        <div class="no" data-en="These are refused by the server itself, not just hidden in the interface. If you try through the URL, you get an error.">
+          Estas coisas são recusadas pelo próprio servidor, não apenas escondidas na interface.
+          Se tentar pela URL, recebe erro.
+        </div>
+        <table class="cheat">
+          <tr><th data-en="Attempt">Tentativa</th><th data-en="Answer">Resposta</th></tr>
+          <tr><td data-en="Submit a solution">Submeter uma solução</td><td><code>403</code> — <span data-en="staff does not submit">staff não submete</span></td></tr>
+          <tr><td data-en="See the problem statements">Ver os enunciados</td><td data-en="Empty list (locked)">Lista vazia (bloqueada)</td></tr>
+          <tr><td data-en="Open the credential labels (passwords)">Abrir as etiquetas de credenciais (senhas)</td><td><code>403</code> — <span data-en="that screen belongs to the site chief">essa tela é do chefe de sede</span></td></tr>
+          <tr><td data-en="Upload/replace/remove photo or song">Enviar/trocar/remover foto ou música</td><td><code>403</code></td></tr>
+          <tr><td data-en="Download the big-screen .zip package">Baixar o pacote .zip do telão</td><td><code>403</code></td></tr>
+          <tr><td data-en="See or create streaming keys">Ver ou criar chaves de streaming</td><td><code>403</code></td></tr>
+          <tr><td data-en="Open the statistics">Abrir as estatísticas</td><td><code>403</code></td></tr>
+          <tr><td data-en="Answer a clarification">Responder uma clarification</td><td><code>403</code></td></tr>
+          <tr><td data-en="See tasks or labels of ANOTHER site">Ver tarefas ou etiquetas de OUTRA sede</td><td><code>403</code></td></tr>
+        </table>
+
+        <h2 id="resumo" data-en="9. Summary">9. Resumo</h2>
+        <table class="cheat">
+          <tr><th data-en="You do">Você faz</th><th data-en="You do not">Você não faz</th></tr>
+          <tr>
+            <td data-en-html="Take, print and deliver print tasks · walk the balloons · look at the big screen of your site · print published documents · see the frozen scoreboard">Pegar, imprimir e entregar tarefas · levar os balões · olhar o telão da sua sede · imprimir documentos publicados · ver o placar congelado</td>
+            <td data-en-html="Submit · see statements · see passwords · change photos/songs · streaming keys · statistics · answer questions">Submeter · ver enunciados · ver senhas · mexer em fotos/músicas · chaves de streaming · estatísticas · responder perguntas</td>
+          </tr>
+        </table>
+        <p class="small muted">
+          <a href="/contest/ajuda/cstaff.html" data-en="The site chief (.cstaff) →">O chefe de sede (.cstaff) →</a> ·
+          <a href="/docs/MANUAL-STAFF.html" target="_blank" data-en="Full staff manual">Manual completo da equipe</a> ·
+          <a href="/docs/" target="_blank" data-en="All documentation">Toda a documentação</a>
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <script type="module" src="/shared/i18n-dom.js"></script>
+</body>
+</html>
