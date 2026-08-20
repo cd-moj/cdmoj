@@ -13,18 +13,24 @@ require_not_secret_or_auth "$contest"
 # can_see_problems) recebe a VITRINE — var/placar-prestart.txt: os times da visão pública,
 # com bandeira/sigla/nome e ZERO colunas de problema. O corte é AQUI, na API; o front só
 # acrescenta a contagem regressiva. `is_judge` segue no fluxo normal (placar completo).
+# SESSÃO UMA VEZ. O handler a consultava em TRÊS pontos (pré-início, coorte, placar full) e esta
+# é a rota mais polada do contest — 29% da mistura real medida.
+sess=0; SLOGIN=""
+load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && { sess=1; SLOGIN="$SESSION_LOGIN"; }
+
 source "$_LIBDIR/contest-gate.sh"
 if [[ "$(contest_phase "$contest")" == before ]]; then
   pre_priv=0
-  load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] \
-    && { is_judge || is_animeitor; } && pre_priv=1
+  (( sess )) && { is_judge || is_animeitor; } && pre_priv=1
   if [[ "$pre_priv" == 0 ]]; then
     pf="$CONTESTSDIR/$contest/var/placar-prestart.txt"
     : "${SCORE_SERVE_FLOOR_S:=8}"
-    if [[ ! -f "$pf" ]] || [[ -z "$(find "$pf" -newermt "-$SCORE_SERVE_FLOOR_S seconds" 2>/dev/null)" ]]; then
+    if [[ ! -f "$pf" ]] || score_sources_newer "$contest" "$pf"; then
+     if [[ ! -f "$pf" ]] || [[ -z "$(find "$pf" -newermt "-$SCORE_SERVE_FLOOR_S seconds" 2>/dev/null)" ]]; then
       regen_locked "$CONTESTSDIR/$contest/var/.placar-prestart.lock" \
         "$pf" "$CONTESTSDIR/$contest/var/.score-dirty" "$CONTESTSDIR/$contest/conf" \
         -- bash "$SCOREDIR/build.sh" "$contest" --prestart
+     fi
     fi
     [[ -f "$pf" ]] || bash "$SCOREDIR/build.sh" "$contest" --prestart >/dev/null 2>&1
     emit_text
@@ -41,16 +47,22 @@ fi
 # ATENÇÃO: o corte é do SERVIDOR. Os filtros do front (região/país/escola) são client-side
 # sobre o TXT recebido — mandar a linha do convidado e esconder no browser não esconderia nada.
 source "$_LIBDIR/cohorts.sh"
-CH_VIEW=public
-if ch_enabled "$contest"; then
+# `ch_ctx` responde LIGADO + a visão do login num ÚNICO jq. Antes eram `ch_enabled` +
+# `ch_view_for_login`, que se chamam em cascata e refaziam a normalização do `ch_get` QUATRO
+# vezes: 13 processos jq por requisição nesta rota, medidos. Curto-circuito por existência do
+# arquivo (builtin, zero processos) p/ o contest sem coortes, que é a maioria.
+CH_ON=0; CH_VIEW=public; _co=""; _cv=public
+if [[ -s "$CONTESTSDIR/$contest/cohorts.json" ]]; then
+  IFS=$'\x01' read -r CH_ON _co _cv <<<"$(ch_ctx "$contest" "$SLOGIN")"
+fi
+if [[ "$CH_ON" == 1 ]]; then
   vparam="$(param view)"
   if [[ "$vparam" == oficial ]]; then CH_VIEW=public
   # placar PARALELO de coorte pública (ex.: `?view=times` num contest com inscrição): é
   # público como o geral — não depende de sessão nem esconde ninguém, só recorta o ranking.
   elif [[ -n "$vparam" ]] && ch_is_ranking_view "$contest" "$vparam"; then CH_VIEW="$vparam"
   else
-    load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] \
-      && CH_VIEW="$(ch_view_for_login "$contest" "$SESSION_LOGIN")"
+    (( sess )) && CH_VIEW="$_cv"
     # `view=geral` só vale p/ quem já pode ver tudo (privilegiado ou pós-liberação)
     [[ "$vparam" == geral && "$CH_VIEW" == all ]] && CH_VIEW=all
   fi
@@ -66,10 +78,17 @@ f="$(ch_view_file "$contest" "$CH_VIEW")"
 # fresco (SCORE_COALESCE_S); um placar até ~poucos segundos atrasado é aceitável (já é
 # atrasado/frozen por natureza). Placar inexistente NÃO cai no piso: gera na 1ª vez.
 : "${SCORE_SERVE_FLOOR_S:=8}"
-if [[ ! -f "$f" ]] || [[ -z "$(find "$f" -newermt "-$SCORE_SERVE_FLOOR_S seconds" 2>/dev/null)" ]]; then
-  regen_locked "$CONTESTSDIR/$contest/var/.placar.lock" \
-    "$f" "$CONTESTSDIR/$contest/var/.score-dirty" "$CONTESTSDIR/$contest/conf" \
-    -- bash "$SCOREDIR/build.sh" "$contest"
+# ORDEM IMPORTA: primeiro pergunta se há o que regenerar (`-nt`, builtin, zero processos) e só
+# então paga o `find` do piso. O piso existe p/ 2000 clientes não dispararem rebuild concorrente,
+# NÃO p/ decidir se há rebuild — e no estado normal (nada mudou desde o último build) o `find`
+# era um processo por requisição, à toa. As fontes são as MESMAS que o `regen_locked` passa ao
+# `stale_cache`; divergir aqui congelaria o placar em silêncio (200 com dado velho para sempre).
+if [[ ! -f "$f" ]] || score_sources_newer "$contest" "$f"; then
+  if [[ ! -f "$f" ]] || [[ -z "$(find "$f" -newermt "-$SCORE_SERVE_FLOOR_S seconds" 2>/dev/null)" ]]; then
+    regen_locked "$CONTESTSDIR/$contest/var/.placar.lock" \
+      "$f" "$CONTESTSDIR/$contest/var/.score-dirty" "$CONTESTSDIR/$contest/conf" \
+      -- bash "$SCOREDIR/build.sh" "$contest"
+  fi
 fi
 # uma passada de build gera TODAS as visões, então o gatilho acima (no arquivo da visão pedida)
 # basta — mas a visão pedida pode não existir ainda num contest que acabou de ganhar coortes.
@@ -86,13 +105,12 @@ fi
 # allowlist, o cstaff só recebe o full quando o contest terminou PARA TODOS
 # (contest_over_for_all: fim base + a prorrogação mais tardia de time-overrides.json).
 ff="$(ch_view_file "$contest" "$CH_VIEW" full)"
-sess=0
-load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]] && sess=1
 if [[ "$(param view)" != public && -f "$ff" && "$sess" == 1 ]]; then
   # .animeitor SEMPRE recebe o descongelado: é a conta do TELÃO, que conduz a revelação
   priv=0; { is_judge || is_animeitor; } && priv=1
   if [[ "$priv" == 0 ]]; then
-    allow="$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${SCORE_FULL_USERS:-}")"
+    # `conf_value` em vez de `. conf` num subshell: roda em toda requisição de quem tem sessão.
+    allow="$(conf_value "$contest" SCORE_FULL_USERS)"
     case " $allow " in *" $SESSION_LOGIN "*) priv=1;; esac
   fi
   if [[ "$priv" == 0 && "$(param scope)" == mine ]] && is_cstaff; then

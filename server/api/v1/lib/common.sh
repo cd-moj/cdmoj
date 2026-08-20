@@ -213,6 +213,16 @@ score_mode_of() {  # ecoa o modo de placar do contest (default DEFAULT_SCORE_MOD
 #
 # stale_cache <cache> <fonte...> : 0 (stale) se o cache não existe OU alguma fonte
 # é mais nova que ele (mtime). 1 (fresco) caso contrário.
+# score_sources_newer <contest> <placar> — 0 se alguma FONTE do placar mudou depois dele.
+# Mesmas fontes que o `regen_locked` do /contest/score passa ao `stale_cache`; existe p/ o
+# handler poder perguntar isso SEM processo nenhum antes de pagar o `find` do piso.
+score_sources_newer() {
+  local c="$1" f="$2" s
+  for s in "$CONTESTSDIR/$c/var/.score-dirty" "$CONTESTSDIR/$c/conf"; do
+    [[ -e "$s" && "$s" -nt "$f" ]] && return 0
+  done
+  return 1
+}
 stale_cache() {
   local cache="$1"; shift
   [[ -f "$cache" ]] || return 0
