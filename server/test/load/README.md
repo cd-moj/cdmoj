@@ -32,7 +32,11 @@ Para incluir `/contest/updates` (auth), exporte `MOJ_BENCH_TOKEN`.
 bash web-poll-bench.sh https://127.0.0.1 rto_treino12 150 8 moj.naquadah.com.br
 ```
 
-## Números medidos (2026-07, servidor de produção: 18 núcleos, 62 GB)
+## Números medidos (2026-07, servidor de produção: 62 GB)
+
+> ⚠ Esta seção dizia **18 núcleos**; a máquina de produção tem **32** (Xeon E5-2690 v4,
+> conferido em 2026-08-20). Ou a nota nasceu de outra máquina, ou o servidor cresceu depois —
+> os números de julho ficam como estão, mas **não os normalize por núcleo** sem remedir.
 
 ### Ingestão de veredictos (o gargalo real de 1500 users)
 Fixture de 1152 usuários × 13 problemas:
@@ -44,6 +48,27 @@ Fixture de 1152 usuários × 13 problemas:
 
 Um contest de 1500 times gera ~1,2–2,1 veredictos/s em média e picos de 10–50/s. Antes do H1
 a entrega travava em ~1,4/s (fila crescia, veredicto demorava minutos); depois folga larga.
+
+## Números medidos (2026-08-20, alvo 2000 times — fixture de 2000 × 12 problemas, 31k submissões)
+
+Levantamento para a prova de 2000+ times. A **demanda** saiu do esquenta de 15/08 (90 times ativos,
+`moj.access.log` + `history`/`results`); a **capacidade** foi medida no dia, contra fixture criada e
+removida. Relatório completo com a interpolação: veja o artifact de capacidade de 2026-08-20.
+
+| Subsistema | Medida | Leitura |
+|---|---|---|
+| Web (nginx→fcgiwrap→bash) | **~460 req/s** (461/451/470 com 50/150/300 clientes, 0 erros) | não é o gargalo: 2000 times pedem ~64 req/s de média, ~229 no pico |
+| Ingestão de veredicto | **92/s** | folga larga (a prova pede ~1,7/s) |
+| Rebuild do placar | **2,85 s** quente · **44,6 s** frio | frio dispara quando o `conf` muda ⇒ **não editar config durante a prova** |
+| Placar servido | **168 KB** cru · **11 KB** em gzip (14×) | ⚠ `gzip_types` está COMENTADO no nginx: `text/plain` e JSON saem crus (60 Mbit/s sustentados) |
+| `pr_reconcile_balloons` | **427 s** frio · **27 s** por recarga | ⚠ roda SÍNCRONO no `staff/queue`, a tela pola a cada 5–8 s e o `fastcgi_read_timeout` é 300 s |
+| Frota de juízes | 12 slots (2 × 6) | a 1ª hora de 2000 times pede **~20** — ver a conta em s-juiz no relatório |
+
+**Perfil temporal do esquenta** (é o que dimensiona o juiz): 591 · 333 · 208 · 148 · 108 submissões
+por hora — **43% na 1ª hora**. Dimensionar pela média das 5h subestima o pico em 2,2×.
+
+**Por submissão** (esquenta): mediana 5 s, p90 10 s, p99 21 s, total **7.559 s-juiz** em 1.388
+submissões. Cada juiz de 6 slots entrega 21.600 s-juiz/hora ≈ 3.970 submissões/hora.
 
 ### Web tier (nginx→fcgiwrap→bash)
 `/contest/score` (placar de 1152 users, 41 KB), 200 requests concorrentes:
