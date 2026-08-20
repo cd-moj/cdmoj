@@ -40,7 +40,7 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 |---|---|
 | **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF), e **Adicionar do banco** (busca e sorteio). |
 | **Rodadas** | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
-| **Documentos** | Gera, em PDF e HTML nos dois idiomas, os documentos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (solução de cada problema — só publica depois do FIM da prova). Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. Times só veem caderno/times publicados a partir do INÍCIO (a sede vê antes, para imprimir). A seção 5 explica. |
+| **Documentos** | Gera, em PDF e HTML nos três idiomas (pt/en/es), os documentos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (solução de cada problema — só publica depois do FIM da prova). Baixa, publica para a sede e, se você quiser, vira notícia com o PDF anexo. Times só veem caderno/times publicados a partir do INÍCIO (a sede vê antes, para imprimir). A seção 5 explica. |
 | **Balões** | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). |
 
 ### 👥 Pessoas — quem entra, quem é quem
@@ -96,7 +96,7 @@ Fora do painel, mas linkadas da Central: **etiquetas de credenciais**, **cerimô
 - **Pool de juízes (máquinas)** — quais MÁQUINAS de julgamento atendem este contest (vazio = qualquer juiz online). Não confundir com juízes HUMANOS (seção 4).
 - **Veredicto manual** — liga a **correção validada por juízes humanos** (seção 4).
 - **Nº de juízes que validam cada veredicto** — o quórum da correção manual: **1 a 5, padrão 2**. Com 1, um único voto decide (revisão simples); com N≥2, o veredicto só sai com N votos **unânimes** — qualquer divergência vira conflito p/ o juiz-chefe.
-- **Penalidade (ICPC)** — minutos somados por tentativa não aceita antes do Accepted (padrão 20) e QUAIS veredictos penalizam (padrão wa/tle/mle/rte/ce; vazio = nada penaliza).
+- **Penalidade (ICPC)** — minutos somados por tentativa não aceita antes do Accepted (padrão 20) e QUAIS veredictos penalizam (padrão wa/tle/mle/rte — **Compilation Error fica de FORA** por padrão; vazio = nada penaliza).
 - **Placar completo p/ logins** — allowlist de logins que veem o placar sem freeze (além de admin/juízes).
 
 Pela CLI, tudo isso é `moj contest -c <cid> settings set chave=valor` (ex.:
@@ -144,7 +144,7 @@ N≥3 é para finais onde o veredicto precisa de banca.
 ## 5. Documentos da prova (Prova › Documentos)
 
 A aba existe para o **`.admin` e para o juiz-chefe (`.cjudge`)**, e produz os documentos da
-prova — cada um em **PDF e HTML**, em **português e inglês**:
+prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
 
 | Documento | O que sai | De onde vêm os dados |
 |---|---|---|
@@ -165,11 +165,11 @@ prova — cada um em **PDF e HTML**, em **português e inglês**:
 3. **Ajuste o texto do info sheet**, se quiser (📝): também Markdown, com os marcadores
    `{{TOOLCHAIN}}`, `{{TL_TABLE}}`, `{{LANGS_TABLE}}`, `{{MEMLIMIT}}`, `{{STACK}}`,
    `{{CONTEST_NAME}}` e `{{DATE}}`. Apagar o texto volta ao padrão embarcado.
-4. **Gere** (botão de cada linha, ou *Gerar todos (pt+en)*). Converter os PDFs leva alguns
+4. **Gere** (botão de cada linha, ou *Gerar todos (pt+en+es)*). Converter os PDFs leva alguns
    segundos — o caderno é o mais demorado, porque junta um PDF por problema.
 5. **Confira**: cada linha tem **PDF**, **HTML** e **abrir**. Reveja antes de publicar.
 6. **Publique** o que a sede pode ver. Publicar faz duas coisas: o documento passa a aparecer na
-   seção **Prova** da página do contest e o `.cstaff` consegue baixá-lo em **📄 Documentos**.
+   seção **Prova** da página do contest e **toda a organização** (`.judge`, `.staff`, `.cstaff`, `.mon`) consegue baixá-lo em **📄 Documentos**, inclusive antes do início — o TIME é que espera a fase.
    **Times NÃO veem caderno/time limits publicados antes do INÍCIO da prova** — publicar cedo
    serve para a sede imprimir, sem vazar nada (o `+ notícia` desses dois é recusado antes do
    início, porque a notícia anexa o PDF). O **editorial** só publica depois do fim.
@@ -245,11 +245,14 @@ prova, vazia), e arquivo é imutável. O certo é **inverter editando as duas ro
 | `review_pending` | tem submissão na correção manual sem veredicto liberado — o voto do juiz cairia no placar da prova |
 | `judged_down` | o daemon de julgamento não está vivo, então a fila não drena |
 | `no_next_round` | não há rodada planejada |
-| `shared_users` | o contest usa as contas de outro (`USERS_FROM`) — arquivar aqui mexeria no store alheio |
 
 Há um `--force` (checkbox "ignorar os bloqueadores"), para emergência: ele **não** desfaz o
-risco, só assume que você sabe o que está fazendo. Os dois últimos bloqueadores nunca são
-ignorados.
+risco, só assume que você sabe o que está fazendo. O único que o `--force` **não** ignora é o
+`no_next_round` (sem rodada planejada não há para onde promover).
+
+> Contest que usa as contas de outro (`USERS_FROM`) **promove normalmente** — o arquivamento só
+> mexe no `users/` local. Já foi bloqueador; deixou de ser, porque é justamente o caso de uso
+> real (aquecimento + prova com as contas do treino).
 
 **O que NÃO muda na promoção:** contas e senhas, times/sedes/bandeiras, escopo do staff, cores de
 balão, regiões, time limits calibrados, linguagens, pool de juízes, matriz de auto-veredicto e os
@@ -441,7 +444,7 @@ registration* do Codeforces). Passou disso, a porta fecha.
 **Em que relógio estão esses campos:** no do **seu navegador** — a caixa mostra qual é, logo
 abaixo. Já as horas que o **MOJ escreve para as pessoas** (a DM do mojinho, o checklist
 pré-prova, a data do caderno, o relatório final) saem no **fuso da prova**, que você define em
-*Configurações → 🌎 Fuso horário da prova* (vazio = `America/Sao_Paulo`). Quando os dois relógios
+*Central › Regras → 🕒 Identidade e janela → Fuso horário da prova* (vazio = `America/Sao_Paulo`). Quando os dois relógios
 diferem, a caixa da janela mostra também o horário no fuso da prova, para não haver dúvida.
 
 **Placar:** a inscrição semeia as coortes `individual` e `times`, cada uma com **placar próprio**

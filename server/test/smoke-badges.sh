@@ -119,4 +119,17 @@ ck "badges-view com n= e senhas=" 'grep -q "badges-view" "$S/var/admin-audit.log
 ck "nenhuma senha no compartilhado" 'grep "badges-view" "$S/var/admin-audit.log" | tail -1 | grep -q "senhas=0"'
 ck "e a fonte aparece no log"     'grep "badges-view" "$S/var/admin-audit.log" | tail -1 | grep -q "shared=bp"'
 
+
+echo "== o TREINO não tem etiqueta (a senha dele é pessoal, não credencial de prova) =="
+# o treino é um contest cujo store local tem a senha de TODAS as contas: abrir a tela nele
+# despejaria a base inteira — é o vazamento de 2026-08-18 pelo outro lado.
+mkdir -p "$FIX/treino/users" "$FIX/treino/var"
+printf 'CONTEST_ID=treino\nCONTEST_NAME=Treino\n' > "$FIX/treino/conf"
+fx_user "$FIX/treino" alguem s "Alguem"
+fx_user "$FIX/treino" chefe.admin s "Chefe"
+printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' treino chefe.admin Chefe "$NOW" > "$SESS/tadm"
+call /contest/badges GET tadm "contest=treino"
+ck "treino recusado"              'grep -q "treino_forbidden" <<<"$BODY"'
+ck "e nenhuma senha vazou"        '! grep -q "\"password\":\"s\"" <<<"$BODY"'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

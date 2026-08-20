@@ -2647,7 +2647,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Definir veredicto final (judge)",
+        "summary": "Definir veredicto final (admin ou juiz-chefe)",
         "security": [
           {
             "bearerAuth": []

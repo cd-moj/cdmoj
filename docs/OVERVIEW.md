@@ -146,10 +146,11 @@ Motor em `lib/registration.sh`; a pessoa se inscreve pela página `/contests/ins
 treino), individual ou em **time de até 3 contas existentes** (convite + aceite do convidado).
 A **janela** vem do conf (`REG_OPEN`/`REG_CLOSE` e `REG_LATE_MINUTES` p/ a entrada atrasada, que
 cai numa coorte `unranked` — a *extra registration* do Codeforces) e **ancora na PROVA OFICIAL**,
-não na rodada corrente (`reg_official_window`): o AQUECIMENTO pode ficar dias no ar, e nele a porta
-fica **aberta** a qualquer conta da fonte (`reg_gate_active`) — a inscrição é o que garante a vaga
-na prova. Na **promoção** da rodada oficial, `reg_sweep_unregistered` derruba a sessão de quem não
-se inscreveu (sessão não expira sozinha) e apaga o diretório vazio dele, p/ o placar da prova não
+não na rodada corrente (`reg_official_window`): o AQUECIMENTO pode ficar dias no ar, mas por
+**DEFAULT só inscrito entra em QUALQUER rodada, aquecimento incluso** (decisão 2026-08-04) —
+`REG_WARMUP_OPEN=y` no conf é o **opt-in** que reabre a porta no warmup a qualquer conta da fonte
+(`reg_gate_active`). Só nesse caso a **promoção** faz sentido varrer: `reg_sweep_unregistered`
+derruba a sessão de quem não se inscreveu (sessão não expira sozinha) e apaga o diretório vazio dele, p/ o placar da prova não
 nascer com linhas zeradas de quem só passeou no esquenta. **A porta é a API**: `handlers/auth/login.sh` recusa quem não está
 no roster (403 `not_registered`) e passou a valer `LOGIN_ENABLED`/`LOGIN_START_TIME`, que antes
 só existiam no desenho da tela.
@@ -396,7 +397,7 @@ Dois `.judge` **pegam** a submissão (máx 2, **1 ativa** por juiz, **TTL 5 min*
 **desistir**), veem **log + fonte + veredicto computado** (a tela **não recarrega** enquanto se avalia)
 e escolhem um veredicto de uma **lista configurável** (`final-verdicts.json`, `{label,verdict}`;
 default = as 6: 1-YES…6-Contact staff). O **voto é permanente e libera o juiz** na hora (ele já pode
-pegar outra submissão). **Dois no mesmo → vai ao aluno**; **diferentes → conflito**, que **só o
+pegar outra submissão). **N votos unânimes → vai ao aluno**; **diferentes → conflito**, que **só o
 juiz-chefe resolve** (avisado pelo **alerta global** de conflito em qualquer página). A liberação enfileira `setverdict`, consumido pelo daemon e finalizado pelo
 **escritor único** (`update_history` + `results/<id>.json`), então o veredicto manual entra no
 timeline de auditoria como qualquer outro. **TUDO** é auditado (`clar-*`, `news-edit`, `final-/

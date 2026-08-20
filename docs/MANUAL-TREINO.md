@@ -225,7 +225,7 @@ O editor tem alguns confortos:
 
 - **Tela cheia:** ocupa a janela toda.
 - **Nova janela:** abre um modo só com o editor.
-- **Recolher:** encolhe o editor quando você não precisa dele.
+- **▾ Ocultar editor / ▸ Mostrar editor:** encolhe o editor quando você não precisa dele.
 
 ### Acompanhar o resultado
 

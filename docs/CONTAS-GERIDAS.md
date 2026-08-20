@@ -47,7 +47,7 @@ o badge `18+`), e o perfil continua privado até o próprio usuário abri-lo.
 - **📥 Criar em lote**: uma linha por conta no formato `Nome Completo;AAAA-MM-DD`, com
   nota e expiração comuns — ideal para uma turma.
 - **Credenciais**: a resposta mostra **login + senha de cada conta criada, UMA única
-  vez**, com "📋 Copiar tudo". A senha não fica recuperável — anote/imprima na hora.
+  vez**, com "📋 Copiar tudo". A senha **não é recuperável depois** — anote/imprima na hora (o treino não tem tela de etiquetas: `/contest/badges` recusa `contest=treino` de propósito, para não despejar a base inteira em claro).
 - **Por conta**: 🔑 senha nova (mostrada uma vez; derruba sessões) · ✎ editar
   nota/nascimento/expiração · ⏻ desabilitar (senha-sentinela + derruba sessões) /
   ▶ reabilitar (senha nova) · ✕ remover (arquiva em `.removed-users/`, submissões

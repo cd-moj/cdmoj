@@ -33,6 +33,12 @@ contest="$(param contest)"
 require_contest "$contest"
 require_auth_contest "$contest"
 { is_admin || is_cstaff; } || fail 403 "Apenas admin/chefe de sede (.cstaff)" "cstaff_required"
+# O TREINO NÃO TEM ETIQUETA. Ele é um "contest" cujo store local guarda a senha de TODAS as
+# contas da plataforma (milhares) — abrir esta tela nele despejaria a base inteira em claro, que
+# é exatamente o vazamento fechado em 2026-08-18 pelo outro lado (contest que PUXA as contas do
+# treino). A senha do treino é pessoal, vale em todo o MOJ e não é credencial de prova: quem
+# esquece recupera pelo vínculo do Telegram. Mesma guarda do users-set-password (2026-08-20).
+[[ "$contest" == treino ]] && fail 400 "O treino livre não tem etiquetas de credenciais — a senha é pessoal, não credencial de prova" "treino_forbidden"
 require_method GET
 source "$_LIBDIR/print.sh"
 
