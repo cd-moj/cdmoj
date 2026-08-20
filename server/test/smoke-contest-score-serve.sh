@@ -33,10 +33,13 @@ for u in time01 time02 conv01 sv.admin sv.judge sv.animeitor sv.cstaff livre01; 
 done
 CONTESTSDIR="$FIX" RUNDIR="$FIX/run" bash "$ROOT/score/build.sh" sv >/dev/null 2>&1
 
-call(){ BODY="$(PATH_INFO=/contest/score REQUEST_METHOD=GET QUERY_STRING="contest=sv${2:+&$2}" \
-    HTTP_AUTHORIZATION="Bearer ${1:-}" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$FIX/run" \
-    SCORE_SERVE_FLOOR_S="${FLOOR:-8}" bash "$ROUTER" </dev/null 2>/dev/null \
-    | awk 'f{print} /^\r?$/{f=1}')"; }
+raw(){ env PATH_INFO=/contest/score REQUEST_METHOD=GET QUERY_STRING="contest=sv${2:+&$2}" \
+    HTTP_AUTHORIZATION="Bearer ${1:-}" ${GZ:+HTTP_ACCEPT_ENCODING=gzip} CONTESTSDIR="$FIX" \
+    SESSIONDIR="$SESS" RUNDIR="$FIX/run" SCORE_SERVE_FLOOR_S="${FLOOR:-8}" bash "$ROUTER" </dev/null 2>/dev/null; }
+# o `tr -d` é p/ o caso gzip: o corpo tem byte nulo e o bash avisa a cada substituição. Aqui só
+# os CABEÇALHOS importam; o teste que confere os BYTES lê a resposta de um arquivo.
+call(){ OUT="$(raw "$@" | tr -d '\000')"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+frozen(){ printf '%s' "$OUT" | awk -F': ' '/^X-MOJ-Frozen/{gsub(/\r/,"");print $2}'; }
 tem(){ grep -q "$1" <<<"$BODY"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1"; ((fail++)); fi; }
 
@@ -110,5 +113,50 @@ rm -f "$C/var/placar"*.txt
 FLOOR=3600 call time01                    # piso alto NÃO pode impedir a 1ª geração
 ck "gera mesmo com piso alto"           '[[ -f "$C/var/placar.txt" ]]'
 ck "e o corpo veio com os times"        'tem time01'
+
+echo "== o cabeçalho X-MOJ-Frozen: quem decide é o SERVIDOR =="
+# a tela não tem como saber se ESTE espectador recebeu o congelado ou o completo — sem o
+# cabeçalho, o competidor lê um placar parado achando que é o placar de verdade
+CONTESTSDIR="$FIX" RUNDIR="$FIX/run" bash "$ROOT/score/build.sh" sv >/dev/null 2>&1
+call time01;              ck "competidor: congelado"     '[[ "$(frozen)" == 1 ]]'
+call sv.judge;            ck "juiz: NÃO congelado"       '[[ "$(frozen)" == 0 ]]'
+call sv.animeitor;        ck "telão: NÃO congelado"      '[[ "$(frozen)" == 0 ]]'
+call livre01;             ck "SCORE_FULL_USERS: NÃO"     '[[ "$(frozen)" == 0 ]]'
+call sv.judge view=public;ck "juiz pedindo o público: congelado" '[[ "$(frozen)" == 1 ]]'
+call '';                  ck "anônimo: congelado"        '[[ "$(frozen)" == 1 ]]'
+sed -i "s/^FREEZE_TIME=.*/FREEZE_TIME=0/" "$C/conf"
+sleep 1; CONTESTSDIR="$FIX" RUNDIR="$FIX/run" bash "$ROOT/score/build.sh" sv >/dev/null 2>&1
+call time01;              ck "sem freeze: 0 p/ todo mundo" '[[ "$(frozen)" == 0 ]]'
+FZ=$(( $(date +%s) + 3600 )); sed -i "s/^FREEZE_TIME=.*/FREEZE_TIME=$FZ/" "$C/conf"
+sleep 1; CONTESTSDIR="$FIX" RUNDIR="$FIX/run" bash "$ROOT/score/build.sh" sv >/dev/null 2>&1
+call time01;              ck "freeze FUTURO ainda é 0"     '[[ "$(frozen)" == 0 ]]'
+
+echo "== o placar pré-comprimido (o corpo mais servido do dia) =="
+FZ=$(( $(date +%s) - 60 )); sed -i "s/^FREEZE_TIME=.*/FREEZE_TIME=$FZ/" "$C/conf"
+sleep 1; CONTESTSDIR="$FIX" RUNDIR="$FIX/run" bash "$ROOT/score/build.sh" sv >/dev/null 2>&1
+ck "o build gravou o .gz"        '[[ -s "$C/var/placar.txt.gz" ]] && gzip -t "$C/var/placar.txt.gz" 2>/dev/null'
+ck "e o do full também"          '[[ -s "$C/var/placar-full.txt.gz" ]]'
+ck "descomprime no MESMO corpo"  'diff -q <(gzip -dc "$C/var/placar.txt.gz") "$C/var/placar.txt" >/dev/null'
+GZ=1 call time01
+ck "cliente com gzip: comprimido" '[[ "$OUT" == *"Content-Encoding: gzip"* && "$OUT" == *"Vary: Accept-Encoding"* ]]'
+ck "e o freeze vai junto"        '[[ "$(frozen)" == 1 ]]'
+# ⚠ o corpo comprimido é BINÁRIO: `$(...)` come byte nulo — a resposta vai para ARQUIVO
+GZ=1 raw time01 > "$FIX/resp.bin"
+off=0; while IFS= read -r h; do off=$(( off + ${#h} + 1 )); [[ -z "${h//$'\r'/}" ]] && break
+done < <(LC_ALL=C head -c 800 "$FIX/resp.bin")
+tail -c +$(( off + 1 )) "$FIX/resp.bin" > "$FIX/resp.gz"
+ck "o corpo bate com o .txt"     'diff -q <(gzip -dc "$FIX/resp.gz") "$C/var/placar.txt" >/dev/null'
+call time01
+ck "cliente sem gzip: corpo cru" '[[ "$OUT" != *"Content-Encoding"* ]] && grep -q time01 <<<"$BODY"'
+# .gz VELHO (build falhou no meio) não pode ser servido: seria placar de outro instante
+touch "$C/var/placar.txt"
+GZ=1 call time01
+ck ".gz velho é ignorado"        '[[ "$OUT" != *"Content-Encoding"* ]] && grep -q time01 <<<"$BODY"'
+# recorte por sede filtra LINHAS: não dá p/ servir o arquivo inteiro comprimido
+CONTESTSDIR="$FIX" RUNDIR="$FIX/run" bash "$ROOT/score/build.sh" sv >/dev/null 2>&1
+mkdir -p "$C/print-requests"; printf '{"sv.cstaff":["^time01$"]}' > "$C/print-requests/staff-filters.json"
+GZ=1 call sv.cstaff scope=mine
+ck "scope=mine sai CRU"          '[[ "$OUT" != *"Content-Encoding"* ]]'
+ck "e recortado à sede"          'grep -q time01 <<<"$BODY" && ! grep -q time02 <<<"$BODY"'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

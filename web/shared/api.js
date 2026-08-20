@@ -33,11 +33,24 @@ export async function apiGet(path, { contest, auth = false } = {}) {
   const r = await fetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
   return unwrap(r);
 }
-// GET texto cru (histórico, placar)
-export async function apiGetText(path, { contest, auth = false } = {}) {
+// GET texto cru + os CABEÇALHOS da resposta. O /contest/score responde `X-MOJ-Frozen: 0|1`:
+// só o servidor sabe qual dos dois placares (congelado × completo) acabou de escolher para
+// este login, e é isso que a página usa p/ avisar o competidor. Quem recebe o completo (juiz,
+// telão, SCORE_FULL_USERS) recebe 0.
+export async function apiGetTextMeta(path, { contest, auth = false } = {}) {
   const r = await fetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
   if (!r.ok) throw new ApiError(r.status, 'HTTP ' + r.status);
-  return r.text();
+  return { text: await r.text(), headers: r.headers };
+}
+// GET texto cru (histórico, placar)
+export async function apiGetText(path, opts = {}) {
+  return (await apiGetTextMeta(path, opts)).text;
+}
+// GET binário (enunciado em PDF): texto corromperia os bytes
+export async function apiGetBlob(path, { contest, auth = false } = {}) {
+  const r = await fetch(API_BASE + path, { headers: auth ? authHeaders(contest) : {} });
+  if (!r.ok) throw new ApiError(r.status, 'HTTP ' + r.status);
+  return r.blob();
 }
 // POST JSON
 export async function apiPost(path, body, { contest, auth = false } = {}) {

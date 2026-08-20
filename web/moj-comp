@@ -330,6 +330,17 @@ _load_problems(){ # atualiza o mapa local letra→id (o submit OFFLINE depende d
   printf '%s' "$r"
 }
 _letter2id(){ awk -F'\t' -v l="$1" 'toupper($1)==toupper(l){print $2; exit}' "$(_cdir)/problems.tsv" 2>/dev/null; }
+# _stmt_get <letra> <html|pdf> <arquivo-destino> — baixa UM enunciado.
+# A lista NÃO traz mais o corpo em base64 (era 3,8 MB por time num contest de PDF): cada
+# enunciado vem do /contest/statement. Vai direto p/ arquivo — PDF é binário e `$( )` come
+# byte nulo. 404 = não existe naquele formato, e isso é normal (nem todo problema tem PDF).
+_stmt_get(){ local letter="$1" fmt="$2" out="$3" hf auth=() code
+  hf="$(auth_hdr_file 2>/dev/null || true)"; [[ -n "$hf" ]] && auth=(-H "@$hf")
+  code="$(curl -sS --max-time 30 -o "$out" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" \
+      "$MOJ_URL/api/v1/contest/statement$(qc)&problem=$(enc "$letter")&format=$fmt" 2>/dev/null || true)"
+  [[ "$code" == 200 && -s "$out" ]] && return 0
+  rm -f "$out"; return 1
+}
 cmd_problems(){ need_contest; local filtro="${1:-}"
   if _is_treino; then
     local r; r="$(_api_net GET "/treino/problems")" || die "sem rede."
@@ -356,19 +367,25 @@ cmd_statement(){ need_contest; local ref="${1:-}"
     echo "enunciado: $out  ($(jq -r '.title // ""' <<<"$r"))  — abra no navegador"
     return 0
   fi
-  cmd_fetch >/dev/null
-  echo "enunciado: ./${CONTEST}-prova/${ref}.html (e .pdf se houver)"; }
+  # contest: um enunciado só, sem baixar o kit inteiro
+  need_login; _load_problems >/dev/null || die "sem rede — não deu p/ baixar agora."
+  local base="./${ref}" got=""
+  _stmt_get "$ref" html "$base.html" && got="$base.html"
+  _stmt_get "$ref" pdf  "$base.pdf"  && got="${got:+$got e }$base.pdf"
+  [[ -n "$got" ]] || die "problema '$ref' sem enunciado servível (confira a letra com: $MOJ_TOOL problems)"
+  echo "enunciado: $got  — abra no navegador"; }
 _contest_only(){ _is_treino && die "'$1' é de CONTEST — no treino livre use: problems <busca> · statement <id> · submit <id> <arq> · subs"; return 0; }
 cmd_fetch(){ need_contest; _contest_only fetch; need_login
   local d="./${CONTEST}-prova" r n=0
   r="$(_load_problems)" || die "sem rede — não deu p/ baixar agora."
   mkdir -p "$d"
+  # um GET por enunciado (a lista só diz quais existem) — o kit continua saindo completo
   while IFS=$'\t' read -r letter pid name; do
     local base="$d/${letter}"
-    jq -r --arg l "$letter" '.problems[] | select(.short_name==$l) | .statement_html_b64 // empty' <<<"$r" | base64 -d > "$base.html" 2>/dev/null
-    [[ -s "$base.html" ]] || rm -f "$base.html"
-    jq -r --arg l "$letter" '.problems[] | select(.short_name==$l) | .statement_pdf_b64 // empty' <<<"$r" | base64 -d > "$base.pdf" 2>/dev/null
-    [[ -s "$base.pdf" ]] || rm -f "$base.pdf"
+    jq -e --arg l "$letter" '.problems[] | select(.short_name==$l) | .has_statement_html == true' >/dev/null 2>&1 <<<"$r" \
+      && _stmt_get "$letter" html "$base.html"
+    jq -e --arg l "$letter" '.problems[] | select(.short_name==$l) | .has_statement_pdf == true' >/dev/null 2>&1 <<<"$r" \
+      && _stmt_get "$letter" pdf "$base.pdf"
     n=$((n+1))
   done < "$(_cdir)/problems.tsv"
   jq -r '.problems[]? | "\(.short_name)\t\(.full_name)"' <<<"$r" > "$d/problemas.txt"

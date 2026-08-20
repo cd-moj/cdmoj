@@ -1,7 +1,13 @@
 # GET /contest/problems?contest=<id>   (Bearer)
 # Lista de problemas da prova a partir de PROBS (5-tuplas) + enunciados/<key>.{html,pdf}.
-# [{short_name, full_name, problem_id, statement_html_b64, statement_pdf_b64, time_limits, show}]
-# Codifica os enunciados em base64 inline (SEM escrever no dir do contest).
+# [{short_name, full_name, problem_id, has_statement_html, has_statement_pdf, time_limits, show}]
+#
+# O ENUNCIADO NÃO VEM AQUI (2026-08-20). Vinha, em base64 — e num contest de PDF isso é 3,8 MB
+# crus / 2,5 MB comprimidos POR TIME (base64 de PDF não comprime: o PDF já é comprimido).
+# Com 2000 times abrindo a prova no mesmo segundo são ~5 GB de uma vez, para entregar 12
+# enunciados dos quais cada time lê um por vez. Hoje a lista diz só QUE EXISTE
+# (`has_statement_html`/`has_statement_pdf`) e o corpo sai pelo `/contest/statement`, quando a
+# pessoa abre a sanfona ou clica em HTML/PDF — mesma doutrina dos documentos da prova.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -75,10 +81,6 @@ set +o noglob
 ENUN="$CONTESTSDIR/$contest/enunciados"
 
 declare -a ITEMS
-# enunciados grandes (base64, às vezes com imagem embutida) vão p/ o jq via --rawfile, nunca
-# como argumento de linha de comando — senão estoura ARG_MAX ("jq: Argument list too long").
-TMPD="$(mktemp -d 2>/dev/null)" || TMPD="${TMPDIR:-/tmp}/cprob.$$"; mkdir -p "$TMPD"
-trap 'rm -rf "$TMPD"' EXIT
 for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   FROM="${PROBS[$i]}"
   # id canônico do pacote = 'coleção#problema' (igual ao treino: pkg_path/judge exigem '#').
@@ -91,26 +93,23 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   STATEMENT="${PROBS[$((i+4))]}"
 
   args=(); filt='{short_name:$short, full_name:$full, problem_id:$id, show:true'
-  for T in html pdf; do
-    src="$ENUN/$STATEMENT.$T"
-    if [[ -f "$src" ]]; then
-      base64 -w0 < "$src" 2>/dev/null > "$TMPD/$T"
-      args+=( --rawfile "$T" "$TMPD/$T" ); filt+=", statement_${T}_b64:\$$T"
-    elif [[ "$T" == html ]]; then
-      # fallback: enunciado gerado DEPOIS (problema privado validado -> jsons-private).
-      # Aparece automaticamente assim que o juiz indexa; cacheia no contest na 1ª vez.
-      jf="$CONTESTSDIR/treino/var/jsons/$STATEMENT.json"; [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$STATEMENT.json"
-      if [[ -f "$jf" ]] && jq -e '(.statement_html_b64 // "") != ""' "$jf" >/dev/null 2>&1; then
-        jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null > "$TMPD/html"
-        args+=( --rawfile html "$TMPD/html" ); filt+=", statement_html_b64:\$html"
-        ( mkdir -p "$ENUN"; base64 -d < "$TMPD/html" > "$ENUN/$STATEMENT.html" ) 2>/dev/null || true
-      else
-        filt+=", statement_html_b64:null"
-      fi
-    else
-      filt+=", statement_${T}_b64:null"
+  # só a EXISTÊNCIA: o corpo sai pelo /contest/statement (ver o cabeçalho deste arquivo)
+  HAS_PDF=false; [[ -f "$ENUN/$STATEMENT.pdf" ]] && HAS_PDF=true
+  HAS_HTML=false
+  if [[ -f "$ENUN/$STATEMENT.html" ]]; then
+    HAS_HTML=true
+  else
+    # fallback: enunciado gerado DEPOIS (problema privado validado -> jsons-private).
+    # Aparece automaticamente assim que o juiz indexa; materializa no contest na 1ª vez, e daí
+    # em diante é o arquivo do contest que o /contest/statement serve.
+    jf="$CONTESTSDIR/treino/var/jsons/$STATEMENT.json"; [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$STATEMENT.json"
+    if [[ -f "$jf" ]] && jq -e '(.statement_html_b64 // "") != ""' "$jf" >/dev/null 2>&1; then
+      if ( mkdir -p "$ENUN" && jq -r '.statement_html_b64 // ""' "$jf" | base64 -d > "$ENUN/$STATEMENT.html.tmp.$$" \
+           && mv -f "$ENUN/$STATEMENT.html.tmp.$$" "$ENUN/$STATEMENT.html" ) 2>/dev/null
+      then HAS_HTML=true; else rm -f "$ENUN/$STATEMENT.html.tmp.$$" 2>/dev/null; fi
     fi
-  done
+  fi
+  filt+=", has_statement_html:$HAS_HTML, has_statement_pdf:$HAS_PDF"
   # enunciado pode ser uma URL externa
   if [[ "$STATEMENT" == *http* ]]; then
     args+=( --arg url "$STATEMENT" ); filt+=", url:\$url"

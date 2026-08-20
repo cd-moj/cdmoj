@@ -33,7 +33,14 @@ if [[ "$(contest_phase "$contest")" == before ]]; then
      fi
     fi
     [[ -f "$pf" ]] || bash "$SCOREDIR/build.sh" "$contest" --prestart >/dev/null 2>&1
-    emit_text
+    # antes do início não há freeze possível — o cabeçalho vai em 0 p/ o front não ter de
+    # adivinhar a ausência dele.
+    if [[ -f "$pf" && -s "$pf.gz" && ! "$pf" -nt "$pf.gz" && "${HTTP_ACCEPT_ENCODING:-}" == *gzip* ]]; then
+      printf 'Status: 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n'
+      printf 'X-MOJ-Frozen: 0\r\nContent-Encoding: gzip\r\nVary: Accept-Encoding\r\n\r\n'
+      cat "$pf.gz"; exit 0
+    fi
+    printf 'Status: 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nX-MOJ-Frozen: 0\r\n\r\n'
     if [[ -f "$pf" ]]; then cat "$pf"; else score_mode_of "$contest"; printf '\n'; fi
     exit 0
   fi
@@ -120,9 +127,32 @@ if [[ "$(param view)" != public && -f "$ff" && "$sess" == 1 ]]; then
   [[ "$priv" == 1 ]] && f="$ff"
 fi
 
-emit_text
+# CONGELADO? A resposta é do SERVIDOR, não da tela: só ele sabe qual dos dois arquivos acabou de
+# escolher. O front usa isto p/ avisar o competidor que está vendo o placar congelado — quem
+# recebe o descongelado (juiz, telão, SCORE_FULL_USERS) recebe 0 e não vê aviso nenhum.
+# `FREEZE_TIME` é lido sem sourcear o conf (caminho quente).
+FROZEN=0
+_fz="$(conf_value "$contest" FREEZE_TIME)"
+if [[ "$_fz" =~ ^[0-9]+$ ]] && (( _fz > 0 && EPOCHSECONDS >= _fz )) && [[ "$f" != "$ff" ]]; then
+  FROZEN=1
+fi
+
+# Corpo PRÉ-COMPRIMIDO (o `build.sh` grava o .gz ao lado de cada placar): o placar de 2000 times
+# tem ~175 KB e é o corpo mais servido do dia — sem isto o nginx recomprime o MESMO conteúdo a
+# cada requisição. Só vale p/ o arquivo INTEIRO: o recorte por sede (`scope=mine`) filtra linhas
+# e sai cru. E o .gz só é servido quando NÃO é mais velho que o .txt.
+FILTRA=0
+[[ "$sess" == 1 && "$(param scope)" == mine ]] && is_cstaff && FILTRA=1
+if (( ! FILTRA )) && [[ -f "$f" && -s "$f.gz" && ! "$f" -nt "$f.gz" && "${HTTP_ACCEPT_ENCODING:-}" == *gzip* ]]; then
+  printf 'Status: 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n'
+  printf 'X-MOJ-Frozen: %s\r\nContent-Encoding: gzip\r\nVary: Accept-Encoding\r\n\r\n' "$FROZEN"
+  cat "$f.gz"
+  exit 0
+fi
+
+printf 'Status: 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nX-MOJ-Frozen: %s\r\n\r\n' "$FROZEN"
 if [[ -f "$f" ]]; then
-  if [[ "$sess" == 1 && "$(param scope)" == mine ]] && is_cstaff; then
+  if (( FILTRA )); then
     source "$_LIBDIR/print.sh"
     pr_filter_board "$contest" "$SESSION_LOGIN" < "$f"
   else

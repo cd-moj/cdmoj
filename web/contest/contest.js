@@ -1,6 +1,6 @@
 // contest/contest.js — entrada do contest: login full-screen (não logado) OU página
 // principal (logado). Lê ?c=<contestId> da URL. Reusa shared/* e a API v1 real.
-import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
+import { apiGet, apiGetText, apiGetBlob, apiPost, getToken } from '/shared/api.js';
 import { login, logout, status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
@@ -67,12 +67,6 @@ let loginCountdownTimer = null, loginPollTimer = null;
 let preStartTimer = null, preStartPoll = null;
 
 // ---- helpers ---------------------------------------------------------------
-function b64utf8(b64) {
-  try {
-    const bin = atob(b64 || '');
-    return new TextDecoder('utf-8').decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
-  } catch { return ''; }
-}
 function fmtLeft(sec) {
   if (sec < 0) sec = 0;
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
@@ -473,8 +467,39 @@ async function uiCssText() {
   return _uiCssText;
 }
 
+// ENUNCIADO SOB DEMANDA. A lista (/contest/problems) só diz QUE existe; o corpo vem daqui,
+// quando a pessoa abre a sanfona ou clica em HTML/PDF — antes vinham todos em base64 dentro da
+// lista, e num contest de PDF isso é 3,8 MB por time no segundo da abertura. Guarda a PROMESSA
+// (não o texto): dois cliques rápidos no mesmo problema fazem uma requisição só.
+const _stmt = new Map();
+function statementUrl(p, fmt) {
+  return '/contest/statement?contest=' + encodeURIComponent(CONTEST)
+    + '&problem=' + encodeURIComponent(p.short_name) + '&format=' + fmt;
+}
+function statementHtml(p) {
+  const k = p.short_name + ':html';
+  if (!_stmt.has(k)) {
+    _stmt.set(k, apiGetText(statementUrl(p, 'html'), { contest: CONTEST, auth: true })
+      .catch((e) => { _stmt.delete(k); throw e; }));   // erro não fica grudado no cache
+  }
+  return _stmt.get(k);
+}
+// abre a aba ANTES de ir à rede: `window.open` depois de um await é bloqueado como pop-up
+function openTabThen(fill) {
+  const w = window.open('', '_blank');
+  if (w) {
+    try {
+      w.document.write('<!DOCTYPE html><meta charset="utf-8"><body style="font:16px system-ui;padding:2rem">'
+        + T('carregando o enunciado…', 'loading the statement…') + '</body>');
+      w.document.close();
+    } catch { /* alguns navegadores não deixam escrever em about:blank */ }
+  }
+  return fill(w).catch(() => {
+    if (w) { try { w.document.body.textContent = T('não deu para abrir o enunciado.', 'could not open the statement.'); } catch { /* */ } }
+  });
+}
 async function openStatementNewTab(p) {
-  const html = b64utf8(p.statement_html_b64 || '');
+  const html = await statementHtml(p);
   // MESMA cara da sanfona/Treino Livre: miolo do body em .statement-content com o ui.css
   // INLINE (num documento blob: nem <link href="/shared/ui.css"> resolve — base URL opaca;
   // e o <style> próprio do renderer tem OUTRAS cores, divergia do enunciado embutido)
@@ -489,9 +514,23 @@ async function openStatementNewTab(p) {
     <style>${css}</style>
     <style>body{padding:1.4rem;max-width:900px;margin:auto}</style></head>
     <body><div class="statement-content">${body}</div></body></html>`;
-  const url = URL.createObjectURL(new Blob([full], { type: 'text/html' }));
-  window.open(url, '_blank');
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return full;
+}
+function openHtmlTab(p) {
+  return openTabThen(async (w) => {
+    const full = await openStatementNewTab(p);
+    const url = URL.createObjectURL(new Blob([full], { type: 'text/html' }));
+    if (w) w.location.replace(url); else window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  });
+}
+function openPdfTab(p) {
+  return openTabThen(async (w) => {
+    const blob = await apiGetBlob(statementUrl(p, 'pdf'), { contest: CONTEST, auth: true });
+    const url = URL.createObjectURL(blob);
+    if (w) w.location.replace(url); else window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  });
 }
 
 function renderProblems() {
@@ -524,8 +563,8 @@ function renderProblems() {
     // links de enunciado (HTML/PDF em nova aba)
     const linksWrap = el('span', { class: 'row' });
     if (p.url) linksWrap.append(el('a', { href: p.url, target: '_blank' }, T('Enunciado', 'Statement')));
-    if (p.statement_html_b64) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openStatementNewTab(p); } }, 'HTML'));
-    if (p.statement_pdf_b64) linksWrap.append(el('a', { href: 'data:application/pdf;base64,' + p.statement_pdf_b64, target: '_blank' }, 'PDF'));
+    if (p.has_statement_html) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openHtmlTab(p); } }, 'HTML'));
+    if (p.has_statement_pdf) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openPdfTab(p); } }, 'PDF'));
 
     // form de submit ao lado (editor abre no detalhe; aqui só upload rápido + botão)
     const submitWrap = renderSubmitInline(p);
@@ -598,14 +637,21 @@ function toggleDetail(p, item, toggle, submitWrap) {
     const editorOn = !(userinfo && userinfo.show_editor === false);
     // coluna do enunciado (decodifica o b64 só agora, na 1ª abertura)
     let stmtCol = null;
-    if (p.statement_html_b64) {
-      const stmtDiv = el('div', { class: 'statement-content' });
-      stmtDiv.innerHTML = (() => {
-        const html = b64utf8(p.statement_html_b64);
-        try { const d = new DOMParser().parseFromString(html, 'text/html'); return d.body ? d.body.innerHTML : html; }
-        catch { return html; }
-      })();
+    if (p.has_statement_html) {
+      // a coluna nasce agora (o layout não pode pular quando o texto chegar) e o corpo é
+      // preenchido quando a rede responde — é a 1ª vez que ESTE time pede ESTE enunciado
+      const stmtDiv = el('div', { class: 'statement-content' },
+        el('span', { class: 'muted' }, T('carregando o enunciado…', 'loading the statement…')));
       stmtCol = el('div', { class: 'prob-statement-col' }, stmtDiv);
+      statementHtml(p).then((html) => {
+        stmtDiv.innerHTML = (() => {
+          try { const d = new DOMParser().parseFromString(html, 'text/html'); return d.body ? d.body.innerHTML : html; }
+          catch { return html; }
+        })();
+      }).catch(() => {
+        stmtDiv.textContent = T('não deu para carregar o enunciado — recarregue a página.',
+                               'could not load the statement — reload the page.');
+      });
     }
     if (editorOn) {
       const edCol = el('div', { class: 'prob-editor-col' }, submitWrap.editorBlock);

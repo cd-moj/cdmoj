@@ -116,6 +116,14 @@ gen_one() {
   first="$(head -1 "$tmp")"
   [[ "$first" == "$MODE" ]] || { rm -f "$tmp"; die "generator '$GEN' line 1 was '$first', expected '$MODE'"; }
   mv "$tmp" "$out" || { rm -f "$tmp"; die "cannot install board to $out"; }
+  # VERSÃO COMPRIMIDA ao lado. O placar de 2000 times tem ~175 KB e é o corpo mais servido do
+  # dia; sem isto o nginx recomprime o MESMO conteúdo a cada requisição (medido: 7% da vazão
+  # da rota). Gravada DEPOIS do .txt e por tmp+mv — se falhar, o pior caso é o nginx comprimir
+  # como antes, nunca servir um .gz de conteúdo diferente do .txt. O handler só a usa quando
+  # ela não é mais VELHA que o .txt.
+  gzip -6 -c < "$out" > "$out.gz.tmp.$$" 2>/dev/null && mv -f "$out.gz.tmp.$$" "$out.gz" 2>/dev/null \
+    || rm -f "$out.gz.tmp.$$" "$out.gz" 2>/dev/null
+  return 0
 }
 
 # gen_pair <out-frozen> <out-full> — o par de sempre (com freeze gera os dois; sem freeze,
@@ -126,7 +134,7 @@ gen_pair() {
     gen_one "$full" 1     # completo (sem freeze) — gera primeiro
     gen_one "$out"  0     # público (com freeze)
   else
-    rm -f "$full" 2>/dev/null
+    rm -f "$full" "$full.gz" 2>/dev/null
     gen_one "$out" 0
   fi
 }
@@ -170,10 +178,10 @@ if declare -F ch_enabled >/dev/null && ch_enabled "$CONTEST"; then
   ( set +o noglob; shopt -s nullglob
     for f in "$CONTESTDIR"/var/placar-view-*.txt; do
       base="${f##*/placar-view-}"; base="${base%-full.txt}"; base="${base%.txt}"
-      printf '%s\n' "${VIEWS[@]}" | grep -qxF "$base" || rm -f "$f"
+      printf '%s\n' "${VIEWS[@]}" | grep -qxF "$base" || rm -f "$f" "$f.gz"
     done )
 else
-  rm -f "$CONTESTDIR"/var/placar-view-*.txt 2>/dev/null
+  rm -f "$CONTESTDIR"/var/placar-view-*.txt "$CONTESTDIR"/var/placar-view-*.txt.gz 2>/dev/null
   gen_pair "$OUT" "$FULL"
 fi
 

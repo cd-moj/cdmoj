@@ -243,6 +243,19 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `score/report-gen.sh` (`bl_edge`/`bsvg`). No celular quem diz "resolvido" é o **✓** (símbolo,
   não cor) e ele é **só do ICPC** (`table.score.m-icpc`): no OBI a célula é a NOTA, e a regra
   global escondia a nota mostrando ✓ p/ qualquer pontuação. Teste: `smoke-score-balloon.sh`.
+- **PLACAR CONGELADO SE ANUNCIA NA TELA** (2026-08-20): quem decide é o SERVIDOR — o
+  `/contest/score` responde **`X-MOJ-Frozen: 0|1`**, porque só ele sabe qual dos dois arquivos
+  (congelado × completo) acabou de escolher para ESTE login; juiz, telão e `SCORE_FULL_USERS`
+  recebem 0 e não veem aviso nenhum. Sem isso o competidor lê um placar parado nos últimos 60
+  minutos achando que é o placar de verdade, no momento mais tenso da prova. O aviso é o
+  `#freezeNotice` do `web/contest/score/index.html` (bilíngue, como toda tela) e quem o liga é o
+  `pollScore` via `apiGetTextMeta` (o `apiGetText` passou a delegar nele — uma implementação só).
+- **O PLACAR É SERVIDO PRÉ-COMPRIMIDO**: o `build.sh` grava um `.gz` ao lado de cada
+  `placar*.txt` (mesma receita do `/contest/problems`) e o handler o serve direto — 175 KB por
+  requisição, no corpo mais servido do dia, é 7% da vazão da rota em recompressão do MESMO
+  conteúdo. O `.gz` só é usado quando **não é mais velho** que o `.txt` (build que falhou no meio
+  não pode servir placar de outro instante) e **nunca** no recorte por sede (`scope=mine` filtra
+  linhas). Teste: `smoke-contest-score-serve.sh`.
 - **Placar NUNCA rola para o lado** (contest, revelação e relatório usam o MESMO CSS em
   `ui.css`): `table-layout:fixed` + `<colgroup>` com frações (`score-cols.js` carimba
   `--nprob`; o CSS divide), número da célula em `.pv` com fonte menor, e no celular (≤640px)
@@ -497,6 +510,21 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   quem não é membro da org nem colaborador, **inclusive `.admin`**. Não-autorizado: **404**.
   Motivo: provas em elaboração não podem vazar. Testado como não-dono via `moj-cli` (não burlável).
 
+- **O ENUNCIADO NÃO VIAJA NA LISTA** (2026-08-20): o `/contest/problems` diz só que ele existe
+  (`has_statement_html`/`has_statement_pdf`) e o corpo sai por **`/contest/statement?contest=…&
+  problem=<letra|id>&format=html|pdf`**, quando a pessoa abre a sanfona ou clica em HTML/PDF —
+  mesma doutrina do `/contest/doc`. Vinha em base64 dentro da lista, e num contest de **PDF** isso
+  é **3,8 MB por time** (base64 de PDF não comprime: o PDF já é comprimido, e o gzip do nginx não
+  tira nada) — 2000 times abrindo a prova no mesmo segundo eram **~5 GB de uma vez**, para
+  entregar 12 enunciados que cada um lê de um em um. Três invariantes ao mexer aqui:
+  (1) **o gate é o MESMO da lista** (`can_see_problems`) e a recusa é **404**, não 403 — pedir o
+  enunciado direto não pode confirmar que o problema existe antes de a prova abrir;
+  (2) **a chave do arquivo sai do `PROBS` do conf, nunca do parâmetro** (`problem=../x` = 404);
+  (3) **ETag** (mtime+tamanho) + `If-None-Match` ⇒ **304**: recarregar a página não repuxa MB, e
+  enunciado corrigido no meio da prova invalida sozinho. Clientes que acompanharam no mesmo
+  commit: `web/contest/contest.js` (busca ao abrir a sanfona/clicar; abre a aba ANTES da rede,
+  senão o navegador bloqueia como pop-up) e o **`moj-comp`** (`_stmt_get`, um GET por enunciado —
+  o `fetch` continua baixando o kit completo). Teste: `smoke-contest-statement.sh`.
 - **`/contest/problems` tem CACHE POR VARIANTE** (2026-08-20): a rota monta o mesmo payload p/ todo
   time (~79 processos com 12 problemas) e 2000 deles a pedem no segundo em que a prova abre. O
   cache é `var/problems-cache.<author|noauthor>.json`, e a **variante é regra de segurança**: o

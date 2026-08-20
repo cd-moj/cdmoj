@@ -1,7 +1,7 @@
 // contest/score/score.js — placar do contest. Lê ?c=. Busca /contest/score (TXT),
 // 1ª linha = modo, despacha para o renderizador certo. Busca, filtro de região,
 // refresh 30–60s, animação de mudança de posição.
-import { apiGet, apiGetText } from '/shared/api.js';
+import { apiGet, apiGetText, apiGetTextMeta } from '/shared/api.js';
 import { status, logout } from '/shared/auth.js';
 import { el, fmtDate } from '/shared/ui.js';
 import { flagManifest } from '/shared/flags.js';
@@ -382,13 +382,29 @@ async function fetchGenPlace() {
   p.teams.forEach(t => { if (t.username && t.place != null) m[t.username] = t.place; });
   genPlace = Object.keys(m).length ? m : null;
 }
+// AVISO DE FREEZE. Quem decide é o servidor (cabeçalho `X-MOJ-Frozen` do /contest/score): a
+// página não tem como saber se ESTE espectador recebeu o placar congelado ou o completo. Sem o
+// aviso, o competidor lê um placar parado nos últimos 60 minutos achando que é o placar de
+// verdade — e é justamente o momento mais tenso da prova.
+function setFrozenNotice(on) {
+  const box = document.getElementById('freezeNotice');
+  if (!box) return;
+  box.classList.toggle('hidden', !on);
+  if (!on) return;
+  const t = (basic && basic.freeze_time) || 0;
+  const el2 = document.getElementById('freezeSince');
+  if (el2) el2.textContent = t ? new Date(t * 1000).toLocaleTimeString() : '';
+}
+
 async function pollScore() {
   clearTimeout(refreshTimer);
   let txt = '';
   try {
-    txt = await apiGetText('/contest/score?contest=' + encodeURIComponent(CONTEST)
+    const r = await apiGetTextMeta('/contest/score?contest=' + encodeURIComponent(CONTEST)
       + (cohortView ? '&view=' + encodeURIComponent(cohortView) : ''),
       { contest: CONTEST, auth: isAuth });
+    txt = r.text;
+    setFrozenNotice(r.headers.get('X-MOJ-Frozen') === '1');
   }
   catch {
     const box = document.getElementById('scoreContainer');

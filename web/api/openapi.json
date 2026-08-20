@@ -1551,13 +1551,32 @@
         }
       }
     },
+    "/contest/statement": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "UM enunciado da prova, cru (html ou pdf), sob demanda",
+        "description": "Gate IDENTICO ao de /contest/problems (can_see_problems): .staff/.cstaff nunca, competidor so depois do inicio, admin/juiz sempre — e a recusa e 404, nao 403: pedir o enunciado direto nao pode confirmar que o problema existe antes de a prova abrir. A chave do arquivo sai sempre do PROBS do conf, nunca do parametro. Responde ETag (mtime+tamanho) + Cache-Control: private, max-age=60 e honra If-None-Match com 304 — recarregar a pagina nao repuxa MB, e enunciado corrigido no meio da prova invalida sozinho.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}},
+          {"name": "problem", "in": "query", "required": true, "description": "letra (short_name) ou problem_id canonico", "schema": {"type": "string"}},
+          {"name": "format", "in": "query", "description": "html (default) ou pdf", "schema": {"type": "string", "enum": ["html", "pdf"]}}
+        ],
+        "responses": {
+          "200": {"description": "o enunciado (text/html; charset=utf-8 ou application/pdf)"},
+          "304": {"description": "If-None-Match casou o ETag — corpo vazio"},
+          "400": {"description": "problem ausente ou format invalido"},
+          "404": {"description": "sem permissao de ver, problema inexistente ou sem esse formato"}
+        }
+      }
+    },
     "/contest/problems": {
       "get": {
         "tags": [
           "contest"
         ],
         "summary": "Problemas da prova. Gate: admin/judge veem sempre; staff nunca; normal só após o início (antes -> {problems:[], locked:'not_started'})",
-        "description": "Resposta em CACHE por VARIANTE (author|noauthor). O payload é o mesmo para todo time; a única dimensão que o muda é o AUTOR do problema, que só aparece com a prova encerrada ou para admin/juiz-chefe/juiz — o cache por variante existe para que um GET do juiz nunca entregue o autor a um competidor. Invalida comparando com as entradas (conf, problem-langs.json, problem-judges.json, enunciados/, carimbo var/.problems-dirty tocado pelo admin e pela promocao de rodada) mais um teto de idade de 60s.",
+        "description": "Resposta em CACHE por VARIANTE (author|noauthor). O payload é o mesmo para todo time; a única dimensão que o muda é o AUTOR do problema, que só aparece com a prova encerrada ou para admin/juiz-chefe/juiz — o cache por variante existe para que um GET do juiz nunca entregue o autor a um competidor. Invalida comparando com as entradas (conf, problem-langs.json, problem-judges.json, enunciados/, carimbo var/.problems-dirty tocado pelo admin e pela promocao de rodada) mais um teto de idade de 60s. O CORPO DO ENUNCIADO NAO VEM AQUI (2026-08-20): a lista traz apenas has_statement_html/has_statement_pdf e o conteudo sai por /contest/statement, quando a pessoa abre a sanfona ou clica em HTML/PDF. Vinha em base64, e num contest de PDF isso e 3,8 MB por time — 2000 times abrindo a prova ao mesmo tempo eram ~5 GB de uma vez.",
         "security": [
           {
             "bearerAuth": []

@@ -124,7 +124,9 @@ call "/contest/problems" GET "contest=$CONTEST" "$TOKEN"
 check "problems 200 + valid JSON" 'okstatus && jvalid'
 check "problems has 4 items (PROBS/5)" 'printf "%s" "$BODY" | jq -e ".problems|length==4" >/dev/null'
 check "problems short_names A..D" 'printf "%s" "$BODY" | jq -e "[.problems[].short_name]==[\"A\",\"B\",\"C\",\"D\"]" >/dev/null'
-check "problem has problem_id & statement_html_b64 key" 'printf "%s" "$BODY" | jq -e ".problems[0]|has(\"problem_id\") and has(\"statement_html_b64\")" >/dev/null'
+# o CORPO do enunciado não vem mais na lista (ver smoke-contest-statement.sh): só a existência
+check "problem has problem_id & has_statement_* keys" 'printf "%s" "$BODY" | jq -e ".problems[0]|has(\"problem_id\") and has(\"has_statement_html\") and has(\"has_statement_pdf\")" >/dev/null'
+check "e NÃO traz o corpo do enunciado"  'printf "%s" "$BODY" | jq -e ".problems[0]|has(\"statement_html_b64\")|not" >/dev/null'
 
 echo "== contest/news + resources (optional empty) =="
 call "/contest/news" GET "contest=$CONTEST" "$TOKEN"

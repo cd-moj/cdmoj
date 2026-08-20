@@ -19,7 +19,17 @@ Princípio: **adicionar um modo = 1 gerador (`server/score/updatescore-<modo>.sh
    contest importado), despacha para `updatescore-<modo>.sh` e grava
    `contests/<contest>/var/placar.txt` (atômico; `var/placar-full.txt` = sem freeze, p/
    privilegiados). É chamado pelo daemon após cada veredicto.
-4. A rota `GET /api/v1/contest/score?contest=<c>` serve esse TXT cru — com **cache preguiçoso**:
+   Grava também um **`.gz` ao lado de cada placar**: 175 KB por requisição no corpo mais servido
+   do dia, e sem isso o nginx recomprime o MESMO conteúdo a cada uma (7% da vazão da rota). O
+   `.gz` é escrito DEPOIS do `.txt`; a rota só o usa quando ele **não é mais velho** que o `.txt`
+   (build que falhou no meio não pode servir placar de outro instante) e nunca no recorte por
+   sede, que filtra linhas.
+4. A rota `GET /api/v1/contest/score?contest=<c>` serve esse TXT cru e diz, no cabeçalho
+   **`X-MOJ-Frozen: 0|1`**, se o placar entregue está congelado. Quem decide é o SERVIDOR: só ele
+   sabe qual dos dois arquivos escolheu para ESTE login — juiz, `.animeitor` e `SCORE_FULL_USERS`
+   recebem 0. A página do placar liga o aviso `#freezeNotice` por esse cabeçalho; sem ele o
+   competidor lê um placar parado nos últimos 60 minutos achando que é o placar de verdade.
+   Cache preguiçoso:
    se o `placar.txt` está velho (`var/.score-dirty` — tocado a cada escrita de history — ou
    `conf` mais novos) ou nunca foi gerado, a rota chama `build.sh` na hora (sob `flock`, sem
    estampida) e então serve. Assim contests importados deixam de ficar com placar vazio.

@@ -43,6 +43,12 @@
     <div class="section notice hidden" id="prestartNotice">
       ⏳ <span data-en="The contest has not started yet — this is the roster of registered teams; the full scoreboard appears when it starts. Starts in: ">A competição ainda não começou — este é o quadro de times inscritos; o placar completo aparece no início. Começa em: </span><b id="prestartLeft"></b>
     </div>
+    <!-- quem liga/desliga é o cabeçalho X-MOJ-Frozen do /contest/score (ver score.js): só o
+         servidor sabe se ESTE espectador recebeu o placar congelado ou o completo -->
+    <div class="section notice hidden" id="freezeNotice">
+      🧊 <b data-en="Scoreboard frozen.">Placar congelado.</b>
+      <span data-en=" From this point on the results stop appearing — everyone sees the standings as they were at ">A partir daqui os resultados deixam de aparecer — todos veem a classificação como estava às </span><b id="freezeSince"></b><span data-en=". Keep solving: your submissions are still being judged normally.">. Continue resolvendo: suas submissões seguem sendo julgadas normalmente.</span>
+    </div>
     <div class="section">
       <div class="row" style="margin-bottom:.6rem">
         <label class="small"><input type="checkbox" id="noAnim"> <span data-en="Disable animation">Desabilitar animação</span></label>
