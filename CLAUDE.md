@@ -534,9 +534,20 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   invalidar: compara o cache com as ENTRADAS por `-nt` (builtin, zero processos) — `conf`,
   `problem-langs.json`, `problem-judges.json`, `enunciados/` e o carimbo `var/.problems-dirty`
   (tocado pelo `admin/problems.sh` e pela promoção de rodada) — mais um **teto de idade**
-  (`PROBLEMS_CACHE_TTL`, 60s) como rede p/ o que não é deste contest: TL novo reportado por juiz e
-  o `languages` do pacote no treino. Cache quente = **2 processos**. Teste:
+  (`PROBLEMS_CACHE_TTL`) como rede p/ o que sobra. Cache quente = **2 processos**. Teste:
   `smoke-contest-problems-cache.sh` (o caso que importa é o de envenenamento entre variantes).
+  ⚠ **A REGERAÇÃO É CARA E TEM DE SER RARA E SOLITÁRIA** (medido no esquenta, 20/08/2026: a rota
+  a frio levava **2,0 s**). Três coisas, e as três importam:
+  (1) **`pkg_tl_checksum` memoiza** (`run/tl/<id>.cks`, chaveado por assinatura de METADATA — ver
+  `lib/tl-store.sh`): o `tl-checksum.sh` LÊ o conteúdo de `tests/*` e eram **112,8 MB hasheados
+  por regeração**, 1,3 s dos 2,0 s, só p/ mostrar tempo-limite na tela;
+  (2) **`run/tl` virou ENTRADA** (o juiz reportando TL faz um `mv` lá dentro ⇒ mtime do
+  diretório muda) e por isso o teto de idade pôde ir de **60 s p/ 900 s** — antes forçava uma
+  regeração por minuto durante a prova inteira, por relógio, sem nada ter mudado;
+  (3) **lock + servir o velho**: no segundo em que o cache vence, TODAS as requisições em voo
+  regeneravam juntas — com 2000 times polando é a mesma conta paga 2000 vezes. Hoje quem pega o
+  `flock -n` regenera e os outros servem o cache de alguns segundos atrás (lista alguns segundos
+  atrasada não é problema; a rota travar no meio da prova é). Só quem chega SEM cache espera.
 - **CACHE DE RESPOSTA — a receita da casa** (`resp_cache_fresh`/`resp_cache_store` em
   `lib/common.sh`), hoje no LOTE DE BOOT inteiro (`problems`, `rounds`, `basic`, `navbuttons`,
   `balloons`): toda página de contest pede esse lote, e o aluno aperta **F5 na contagem

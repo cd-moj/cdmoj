@@ -101,4 +101,46 @@ call /contest/problems time01
 ck "antes do início: lista vazia"  '[[ "$(jq -r ".problems|length" <<<"$BODY")" == 0 ]]'
 ck "e diz o motivo (locked)"       '[[ "$(jq -r .locked <<<"$BODY")" == not_started ]]'
 
+echo "== o checksum do pacote é MEMOIZADO (era 112 MB de teste hasheados por regeração) =="
+# o tl-checksum.sh LÊ o conteúdo de tests/*; sem cache, cada regeração do /contest/problems
+# re-hasheava o pacote inteiro — 1,3 s em 14 problemas, medido em produção
+mkdir -p "$PKG/col/pa/tests/input" "$PKG/col/pa/sols/good"
+printf '1 2\n' > "$PKG/col/pa/tests/input/01"; printf 'int main(){}\n' > "$PKG/col/pa/sols/good/a.c"
+printf 'TIMELIMIT=1\n' > "$PKG/col/pa/conf"
+export RUNDIR="$FIX/run"; mkdir -p "$RUNDIR/tl"
+( export MOJ_PROBLEMS_DIR="$PKG" MOJTOOLS_DIR="$(cd "$ROOT/../../mojtools" 2>/dev/null && pwd)"
+  export TL_STORE_DIR="$RUNDIR/tl" CONTESTSDIR="$FIX"
+  source "$ROOT/api/v1/lib/problems.sh" 2>/dev/null; source "$ROOT/api/v1/lib/tl-store.sh" 2>/dev/null
+  A="$(pkg_tl_checksum "$PKG/col/pa" 'col#pa')"
+  B="$(pkg_tl_checksum "$PKG/col/pa" 'col#pa')"
+  printf '%s\n%s\n' "$A" "$B" > "$FIX/cks.txt" )
+CK1="$(sed -n 1p "$FIX/cks.txt")"; CK2="$(sed -n 2p "$FIX/cks.txt")"
+ck "o checksum sai"               '[[ -n "$CK1" && "$CK1" =~ ^[0-9a-f]+$ ]]'
+ck "2ª chamada dá o MESMO"        '[[ "$CK1" == "$CK2" ]]'
+ck "e gravou o sidecar"           '[[ -s "$FIX/run/tl/col#pa.cks" ]]'
+ck "o sidecar é <assinatura>TAB<checksum>" 'grep -qP "^[0-9]+\.[0-9]+\t[0-9a-f]+$" "$FIX/run/tl/col#pa.cks"'
+# mudar o TESTE tem de invalidar (senão o TL velho seria servido para sempre)
+sleep 1; printf '9 9\n' > "$PKG/col/pa/tests/input/01"
+( export MOJ_PROBLEMS_DIR="$PKG" MOJTOOLS_DIR="$(cd "$ROOT/../../mojtools" 2>/dev/null && pwd)"
+  export TL_STORE_DIR="$RUNDIR/tl" CONTESTSDIR="$FIX"
+  source "$ROOT/api/v1/lib/problems.sh" 2>/dev/null; source "$ROOT/api/v1/lib/tl-store.sh" 2>/dev/null
+  pkg_tl_checksum "$PKG/col/pa" 'col#pa' > "$FIX/cks2.txt" )
+ck "teste novo => checksum novo"  '[[ "$(cat "$FIX/cks2.txt")" != "$CK1" ]]'
+
+echo "== o cache velho é SERVIDO enquanto outro regenera (anti-estampida) =="
+# a seção anterior empurrou o início p/ o futuro (teste do `locked`): desfaz
+sed -i "s/^CONTEST_START=.*/CONTEST_START=$T0/" "$C/conf"
+rm -f "$C/var/.problems-dirty" "$C/var/problems-cache."*
+call /contest/problems time01 >/dev/null           # popula
+OLD="$(cat "$C/var/problems-cache.noauthor.json")"
+sleep 1; printf 'PROBS=( x col#pa OUTRONOME A col#pa )\n' >> "$C/conf"   # invalida
+# alguém já está regenerando: segura o lock por fora
+mkdir -p "$C/var"; exec 8>>"$C/var/.problems.lock"; flock -n 8
+call /contest/problems time01
+ck "serve o cache VELHO, sem travar" '[[ "$(jq -r ".problems[0].full_name" <<<"$BODY")" != OUTRONOME ]]'
+ck "e não reescreveu o arquivo"      '[[ "$(cat "$C/var/problems-cache.noauthor.json")" == "$OLD" ]]'
+exec 8>&-                                            # solta o lock
+call /contest/problems time01
+ck "solto o lock, regenera"          '[[ "$(jq -r ".problems[0].full_name" <<<"$BODY")" == OUTRONOME ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

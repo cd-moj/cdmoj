@@ -41,17 +41,19 @@ SHOW_AUTHOR=false
 #
 # FRESCOR: em vez de confiar em alguém lembrar de invalidar, o cache é comparado com as ENTRADAS
 # (`-nt` é builtin do bash: zero processos). Entram o conf (PROBS/LANGUAGES/SHOWTL/CONTEST_JUDGES),
-# os dois json de override, o diretório de enunciados e um carimbo explícito que o
-# /contest/admin/problems toca. O teto de idade é a rede de segurança para as entradas que NÃO
-# dependem deste contest — TL novo reportado por um juiz e o `languages` do pacote no treino.
+# os dois json de override, o diretório de enunciados, o **`run/tl`** (um juiz reportando TL
+# novo faz um `mv` lá dentro, o que mexe no mtime do diretório) e um carimbo explícito que o
+# /contest/admin/problems toca. O teto de idade cobre só o que sobra — o `languages` do pacote
+# no treino — e por isso é LARGO: era 60 s, o que forçava uma regeração por minuto durante a
+# prova inteira; hoje a mudança que importa chega por entrada, não por relógio.
 CVAR=noauthor; [[ "$SHOW_AUTHOR" == true ]] && CVAR=author
 CDIR="$CONTESTSDIR/$contest/var"; CF="$CDIR/problems-cache.$CVAR.json"
-: "${PROBLEMS_CACHE_TTL:=60}"
+: "${PROBLEMS_CACHE_TTL:=900}"
 _cache_fresh(){
   resp_cache_fresh "$CF" "$PROBLEMS_CACHE_TTL" \
     "$CONTESTSDIR/$contest/conf" "$CONTESTSDIR/$contest/problem-langs.json" \
     "$CONTESTSDIR/$contest/problem-judges.json" "$CONTESTSDIR/$contest/enunciados" \
-    "$CDIR/.problems-dirty"
+    "$RUNDIR/tl" "$CDIR/.problems-dirty"
 }
 # O payload é grande (enunciados embutidos: MB) e idêntico p/ todos. Se o nginx comprimir a
 # cada resposta, 2000 times no segundo da abertura pagam 2000 compressões do MESMO conteúdo —
@@ -59,15 +61,29 @@ _cache_fresh(){
 # comprimida e a servimos direto; o nginx não recomprime resposta que já vem com
 # Content-Encoding. `Vary` é obrigatório: sem ele um intermediário serviria bytes comprimidos
 # a um cliente que não os aceita.
-if _cache_fresh; then
-  if [[ -s "$CF.gz" && "${HTTP_ACCEPT_ENCODING:-}" == *gzip* ]]; then
+_serve_cache(){
+  if [[ -s "$CF.gz" && ! "$CF" -nt "$CF.gz" && "${HTTP_ACCEPT_ENCODING:-}" == *gzip* ]]; then
     printf 'Status: 200 OK\r\nContent-Type: application/json; charset=utf-8\r\n'
     printf 'Content-Encoding: gzip\r\nVary: Accept-Encoding\r\n\r\n'
     cat "$CF.gz"
   else
     emit_json 200 OK; printf '%s' "$(<"$CF")"
   fi
-  exit 0
+}
+if _cache_fresh; then _serve_cache; exit 0; fi
+
+# REGERAÇÃO SOB LOCK, SERVINDO O VELHO. Sem isto, no segundo em que o cache vence TODAS as
+# requisições em voo regeneram juntas — com 2000 times polando, é a mesma conta paga 2000 vezes
+# ao mesmo tempo. Quem pega o lock regenera; quem não pega serve o cache de alguns segundos
+# atrás e vai embora (lista de problemas alguns segundos atrasada não é problema; a rota travar
+# no meio da prova é). Só quem chega SEM cache nenhum espera de fato.
+mkdir -p "$CDIR" 2>/dev/null
+if exec 9>>"$CDIR/.problems.lock" 2>/dev/null; then
+  if ! flock -n 9 2>/dev/null; then
+    [[ -s "$CF" ]] && { _serve_cache; exit 0; }
+    flock -w 15 9 2>/dev/null || true         # 1ª geração do contest: espera quem está gerando
+    _cache_fresh && { _serve_cache; exit 0; }
+  fi
 fi
 
 # linguagens permitidas: cadeia em lib/langs.sh (FONTE ÚNICA — o /submit APLICA a mesma

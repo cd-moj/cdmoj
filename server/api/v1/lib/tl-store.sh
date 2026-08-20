@@ -80,8 +80,42 @@ pkg_path(){
   [[ -d "$p" ]] || p="$MOJ_PROBLEMS_DIR/${id//#//}"
   [[ -d "$p" ]] && printf '%s' "$p"
 }
-# pkg_tl_checksum <pkgdir> -> checksum dos arquivos que afetam o TL (ou vazio).
-pkg_tl_checksum(){ [[ -d "$1" ]] && bash "$MOJTOOLS_DIR/tl-checksum.sh" "$1" 2>/dev/null; }
+# pkg_tl_checksum <pkgdir> [<id>] -> checksum dos arquivos que afetam o TL (ou vazio).
+#
+# ⚠ O `tl-checksum.sh` LÊ O CONTEÚDO de tests/{input,output,score} + sols/good + scripts: num
+# contest de 14 problemas isso deu **112,8 MB hasheados e 1,3 s** — pagos a CADA regeração do
+# cache do /contest/problems, só p/ mostrar tempo-limite na tela (medido em produção, no
+# esquenta, 20/08/2026: a rota a frio levava 2,0 s).
+#
+# Com o `id`, o resultado é memoizado num sidecar `run/tl/<id>.cks` chaveado por uma ASSINATURA
+# DE METADATA — o mesmo remédio que o `gen-problem-owners.sh` já usava. A assinatura é
+# `find -printf '%P\t%m\t%s\t%T@'` (caminho/modo/tamanho/mtime, SEM ler conteúdo) sobre
+# exatamente os caminhos que o tl-checksum.sh cobre, mais a VERSÃO do próprio tl-checksum.sh:
+#   - conteúdo, modo, tamanho ou mtime mudou  => assinatura muda  => re-hasheia;
+#   - a FUNÇÃO de hash mudou (nova cobertura) => assinatura muda  => re-hasheia tudo uma vez.
+# Custo medido: 5,3 ms/problema contra 94,7 ms — 18×. A lista de caminhos TEM de acompanhar o
+# tl-checksum.sh: fora dela, mudança no arquivo não invalida e o checksum velho vale p/ sempre.
+_tlcks_sig(){ ( cd "$1" 2>/dev/null || exit 0
+  find conf tests/input tests/output tests/score sols/good scripts -type f \
+       -printf '%P\t%m\t%s\t%T@\n' 2>/dev/null | LC_ALL=C sort | cksum | awk '{print $1}' ) }
+_tlcks_ver(){ [[ -n "${_TLCKS_VER:-}" ]] || _TLCKS_VER="$(cksum "$MOJTOOLS_DIR/tl-checksum.sh" 2>/dev/null | awk '{print $1}')"
+  printf '%s' "${_TLCKS_VER:-0}"; }
+pkg_tl_checksum(){
+  [[ -d "$1" ]] || return 0
+  local id="${2:-}" sig f cur cks
+  if [[ -z "$id" ]]; then bash "$MOJTOOLS_DIR/tl-checksum.sh" "$1" 2>/dev/null; return; fi
+  sig="$(_tlcks_sig "$1").$(_tlcks_ver)"
+  f="$(tl_store_file "$id")"; f="${f%.json}.cks"
+  if [[ -n "$sig" && -s "$f" ]]; then
+    cur="$(<"$f")"
+    [[ "${cur%%$'\t'*}" == "$sig" ]] && { printf '%s' "${cur#*$'\t'}"; return 0; }
+  fi
+  cks="$(bash "$MOJTOOLS_DIR/tl-checksum.sh" "$1" 2>/dev/null)"; cks="${cks//[^0-9a-f]/}"
+  [[ -n "$sig" && -n "$cks" ]] && { mkdir -p "${f%/*}" 2>/dev/null
+    printf '%s\t%s' "$sig" "$cks" > "$f.tmp.$$" 2>/dev/null && mv -f "$f.tmp.$$" "$f" 2>/dev/null \
+      || rm -f "$f.tmp.$$" 2>/dev/null; }
+  printf '%s' "$cks"
+}
 
 # tl_store_record <host> <id> <checksum> <tl-json> : funde o TL do host (atômico).
 # Se o checksum difere do guardado, ZERA os hosts (versão nova do problema).
@@ -178,7 +212,7 @@ tl_override_apply(){
 tl_store_served(){
   local pkg tl ov
   pkg="$(pkg_path "$1")"
-  tl="$(tl_store_served_hosts "$1" "$(pkg_tl_checksum "$pkg")" "${2:-}")"
+  tl="$(tl_store_served_hosts "$1" "$(pkg_tl_checksum "$pkg" "$1")" "${2:-}")"
   ov="$(tl_conf_overrides "$pkg")"
   tl_override_apply "$tl" "$ov"
 }
