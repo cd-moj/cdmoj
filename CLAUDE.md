@@ -550,10 +550,15 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   (2) **`run/tl` virou ENTRADA** (o juiz reportando TL faz um `mv` lá dentro ⇒ mtime do
   diretório muda) e por isso o teto de idade pôde ir de **60 s p/ 900 s** — antes forçava uma
   regeração por minuto durante a prova inteira, por relógio, sem nada ter mudado;
-  (3) **lock + servir o velho**: no segundo em que o cache vence, TODAS as requisições em voo
-  regeneravam juntas — com 2000 times polando é a mesma conta paga 2000 vezes. Hoje quem pega o
-  `flock -n` regenera e os outros servem o cache de alguns segundos atrás (lista alguns segundos
-  atrasada não é problema; a rota travar no meio da prova é). Só quem chega SEM cache espera.
+  (3) **ninguém espera a regeração, e regenera UM SÓ.** Distinção que importa: se uma ENTRADA
+  mudou (admin renomeou/removeu problema, conf novo) regenera NA HORA — correção na prova não
+  pode esperar; se só venceu o teto de idade, serve o cache que tem e refaz **destacado**
+  (`setsid`, o padrão do `/treino/problems`; o filho repete a MESMA requisição com
+  `MOJ_PROB_REGEN=1`). E o `flock -n` garante um regerador só: sem ele, no segundo em que o
+  cache vence, todas as requisições em voo regeneram juntas. ⚠ O filho precisa herdar
+  `SESSIONDIR`/`MOJ_PROBLEMS_DIR`/`MOJTOOLS_DIR` — eles vêm do `common.conf` por `:=`, que só
+  respeita variável JÁ setada, então passar VAZIO apagaria o valor do config e o filho não
+  autenticaria.
 - **CACHE DE RESPOSTA — a receita da casa** (`resp_cache_fresh`/`resp_cache_store` em
   `lib/common.sh`), hoje no LOTE DE BOOT inteiro (`problems`, `rounds`, `basic`, `navbuttons`,
   `balloons`): toda página de contest pede esse lote, e o aluno aperta **F5 na contagem

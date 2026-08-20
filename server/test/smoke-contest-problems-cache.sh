@@ -166,4 +166,22 @@ exec 8>&-                                            # solta o lock
 call /contest/problems time01
 ck "solto o lock, regenera"          '[[ "$(jq -r ".problems[0].full_name" <<<"$BODY")" == OUTRONOME ]]'
 
+echo "== prazo vencido: serve na hora e regenera DESTACADO (ninguém espera) =="
+# a distinção que importa: ENTRADA mudou (admin renomeou) => regenera na hora, o time vê já;
+# só o TETO DE IDADE venceu => nada que importe mudou, serve o que tem e refaz por fora.
+rm -f "$C/var/problems-cache."* "$C/var/.problems-dirty"
+call /contest/problems time01 >/dev/null
+SNAP="$(cat "$C/var/problems-cache.noauthor.json")"; M0="$(stat -c %Y "$C/var/problems-cache.noauthor.json")"
+touch -d '-1 hour' "$C/var/problems-cache.noauthor.json" "$C/var/problems-cache.noauthor.json.gz"
+T_ANTES=$(date +%s%N)
+call /contest/problems time01
+T_MS=$(( ($(date +%s%N) - T_ANTES) / 1000000 ))
+ck "responde sem esperar a regeração" '[[ "$BODY" == "$SNAP" ]]'
+ck "e foi rápido (< 400 ms)"          '[[ '"$T_MS"' -lt 400 ]]'
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  [[ "$(stat -c %Y "$C/var/problems-cache.noauthor.json")" != "$M0" ]] && break || sleep 0.5
+done
+ck "o filho destacado regenerou"      '[[ "$(stat -c %Y "$C/var/problems-cache.noauthor.json")" -ge '"$M0"' ]] && [[ -s "$C/var/problems-cache.noauthor.json" ]]'
+ck "e o corpo continua íntegro"       'jq -e ".problems|length >= 1" "$C/var/problems-cache.noauthor.json" >/dev/null'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

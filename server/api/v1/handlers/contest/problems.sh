@@ -49,8 +49,11 @@ SHOW_AUTHOR=false
 CVAR=noauthor; [[ "$SHOW_AUTHOR" == true ]] && CVAR=author
 CDIR="$CONTESTSDIR/$contest/var"; CF="$CDIR/problems-cache.$CVAR.json"
 : "${PROBLEMS_CACHE_TTL:=900}"
+# `_inputs_fresh` = nenhuma ENTRADA mudou (sem teto de idade). `_cache_fresh` = isso E dentro do
+# prazo. A diferença entre as duas decide se a regeração pode esperar: ver mais abaixo.
+_inputs_fresh(){ _cf_ttl=0 _cache_fresh; }
 _cache_fresh(){
-  resp_cache_fresh "$CF" "$PROBLEMS_CACHE_TTL" \
+  resp_cache_fresh "$CF" "${_cf_ttl:-$PROBLEMS_CACHE_TTL}" \
     "$CONTESTSDIR/$contest/conf" "$CONTESTSDIR/$contest/problem-langs.json" \
     "$CONTESTSDIR/$contest/problem-judges.json" "$CONTESTSDIR/$contest/enunciados" \
     "$RUNDIR/tl" "$CDIR/.problems-dirty"
@@ -72,18 +75,51 @@ _serve_cache(){
 }
 if _cache_fresh; then _serve_cache; exit 0; fi
 
-# REGERAÇÃO SOB LOCK, SERVINDO O VELHO. Sem isto, no segundo em que o cache vence TODAS as
-# requisições em voo regeneram juntas — com 2000 times polando, é a mesma conta paga 2000 vezes
-# ao mesmo tempo. Quem pega o lock regenera; quem não pega serve o cache de alguns segundos
-# atrás e vai embora (lista de problemas alguns segundos atrasada não é problema; a rota travar
-# no meio da prova é). Só quem chega SEM cache nenhum espera de fato.
+# CACHE VENCIDO. Duas regras, e as duas existem por causa dos 2000 times:
+#
+# 1. NINGUÉM ESPERA A REGERAÇÃO. Havendo cache — mesmo velho —, ele é servido AGORA e a
+#    regeração vai DESTACADA (`setsid`, o padrão do /treino/problems). Uma lista de problemas
+#    alguns segundos atrasada não é problema; a rota travar no meio da prova é. Só quem chega
+#    quando NUNCA houve cache espera de fato.
+# 2. REGENERA UM SÓ. Sem o `flock`, no segundo em que o cache vence todas as requisições em voo
+#    regeneram juntas — a mesma conta paga 2000 vezes ao mesmo tempo.
+#
+# O filho refaz a MESMA requisição (mesmo Bearer ⇒ MESMA variante do cache) com
+# `MOJ_PROB_REGEN=1`, que é o que o faz pular este bloco e gerar de verdade.
 mkdir -p "$CDIR" 2>/dev/null
-if exec 9>>"$CDIR/.problems.lock" 2>/dev/null; then
-  if ! flock -n 9 2>/dev/null; then
-    [[ -s "$CF" ]] && { _serve_cache; exit 0; }
-    flock -w 15 9 2>/dev/null || true         # 1ª geração do contest: espera quem está gerando
-    _cache_fresh && { _serve_cache; exit 0; }
+# ENTRADA MUDOU × SÓ VENCEU O PRAZO — a distinção importa:
+#  · o admin renomeou/removeu um problema, ou o conf mudou: o time tem de ver AGORA. Regenera
+#    na hora (é raro, e correção na prova não pode esperar);
+#  · só venceu o teto de idade: nada que importe mudou. Serve o que tem e regenera destacado.
+if [[ -z "${MOJ_PROB_REGEN:-}" ]] && _inputs_fresh; then
+  if [[ -s "$CF" ]]; then
+    # ⚠ o filho precisa do MESMO ambiente de caminhos: `SESSIONDIR` e `MOJ_PROBLEMS_DIR` vêm do
+    # `common.conf` por `:=`, que só respeita variável JÁ setada — passar vazio APAGARIA o valor
+    # do config, então só entram no env quando existem (é o que faz o filho autenticar).
+    _rgenv=(MOJ_PROB_REGEN=1 PATH_INFO=/contest/problems REQUEST_METHOD=GET
+            "QUERY_STRING=contest=$contest" "HTTP_AUTHORIZATION=${HTTP_AUTHORIZATION:-}"
+            "CONTESTSDIR=$CONTESTSDIR" "RUNDIR=$RUNDIR")
+    [[ -n "${SESSIONDIR:-}" ]]        && _rgenv+=("SESSIONDIR=$SESSIONDIR")
+    [[ -n "${MOJ_PROBLEMS_DIR:-}" ]]  && _rgenv+=("MOJ_PROBLEMS_DIR=$MOJ_PROBLEMS_DIR")
+    [[ -n "${MOJTOOLS_DIR:-}" ]]      && _rgenv+=("MOJTOOLS_DIR=$MOJTOOLS_DIR")
+    ( setsid env "${_rgenv[@]}" bash "$_DIR/router.sh" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
+    _serve_cache; exit 0
   fi
+fi
+if [[ -z "${MOJ_PROB_REGEN:-}" ]]; then
+  # entrada mudou (ou nunca houve cache): gera na hora — mas só um de cada vez
+  if exec 9>>"$CDIR/.problems.lock" 2>/dev/null; then
+    if ! flock -n 9 2>/dev/null; then
+      [[ -s "$CF" ]] && ! _inputs_fresh && { flock -w 15 9 2>/dev/null || true; }
+      _cache_fresh && { _serve_cache; exit 0; }
+      [[ -s "$CF" ]] && { _serve_cache; exit 0; }
+    fi
+  fi
+else
+  # o filho destacado: um por vez, e se outro já está gerando não há o que fazer
+  exec 9>>"$CDIR/.problems.lock" 2>/dev/null || exit 0
+  flock -n 9 2>/dev/null || exit 0
+  _cache_fresh && exit 0
 fi
 
 # linguagens permitidas: cadeia em lib/langs.sh (FONTE ÚNICA — o /submit APLICA a mesma
