@@ -7,7 +7,14 @@
 #   PATH_INFO=/treino/problem QUERY_STRING='id=moj-problems#olamundo' \
 #   REQUEST_METHOD=GET bash router.sh
 
-_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# caminho absoluto (é sempre o caso sob nginx/fcgiwrap: SCRIPT_FILENAME é absoluto) resolve
+# por expansão do bash — o readlink+dirname+subshell custava 3 processos em TODA requisição.
+# O caminho antigo fica de reserva p/ invocação relativa (testes, linha de comando).
+if [[ "${BASH_SOURCE[0]}" == /* && "${BASH_SOURCE[0]}" != *"/./"* && "${BASH_SOURCE[0]}" != *"/../"* ]]; then
+  _DIR="${BASH_SOURCE[0]%/*}"
+else
+  _DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+fi
 source "$_DIR/lib/common.sh"
 source "$_DIR/lib/params.sh"
 source "$_DIR/lib/auth.sh"

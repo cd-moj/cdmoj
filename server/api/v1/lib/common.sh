@@ -4,7 +4,11 @@
 set -o noglob   # ids podem conter chars de glob; evita expansão acidental
 
 # --- config ---------------------------------------------------------------
-_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${BASH_SOURCE[0]}" == /* && "${BASH_SOURCE[0]}" != *"/./"* && "${BASH_SOURCE[0]}" != *"/../"* ]]; then
+  _LIBDIR="${BASH_SOURCE[0]%/*}"          # idem: sem dirname nem subshell
+else
+  _LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 : "${MOJ_CONF:=$_LIBDIR/../../../etc/common.conf}"
 [[ -f "$MOJ_CONF" ]] && source "$MOJ_CONF"
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
@@ -98,14 +102,16 @@ fail() {
 # error.log. (Corpo grande NÃO é motivo de falha: use --slurpfile/--rawfile — ver ok_json_slurp.)
 ok_json() {
   local filter="$1"; shift
-  local _bf; _bf="$(mktemp)" || fail 500 "Falha ao montar a resposta" "build_fail"
-  if ! jq -cn "$@" "{success:true} + ($filter)" > "$_bf" || [[ ! -s "$_bf" ]]; then
-    rm -f "$_bf"
-    fail 500 "Falha ao montar a resposta" "build_fail"
-  fi
+  # O corpo é montado ANTES do cabeçalho (regra da casa: quem emite 200 e só depois roda o jq
+  # não tem mais como dizer 500 — falha vira "200 com lista vazia", que o cliente lê como "você
+  # não tem nada"). A captura é em VARIÁVEL, não em arquivo: o mktemp+cat+rm custava TRÊS
+  # processos em toda resposta da API, e a variável dá a mesma garantia. Corpo grande cabe —
+  # o que não pode passar por argv é a ENTRADA do jq (ARG_MAX), e p/ isso existe ok_json_slurp.
+  local _b
+  _b="$(jq -cn "$@" "{success:true} + ($filter)")" || fail 500 "Falha ao montar a resposta" "build_fail"
+  [[ -n "$_b" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
   emit_json 200 OK
-  cat "$_bf"
-  rm -f "$_bf"
+  printf '%s\n' "$_b"
 }
 
 # ok_json_slurp <jq-filter> <nome> <json-grande> [jq-args...] — igual ao ok_json, mas o valor

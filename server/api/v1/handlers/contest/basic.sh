@@ -42,11 +42,12 @@ source "$_LIBDIR/cohorts.sh"
 # `ranking:true` tem placar próprio, e a lista é pública (não depende de sessão) — o seletor
 # do /contest/score/ só existe quando há mais de um.
 score_views_json='[]'
-if ch_enabled "$contest"; then
+CH_ON=0; ch_enabled "$contest" && CH_ON=1     # UMA vez: cada chamada forkava um jq
+if (( CH_ON )); then
   score_views_json="$(jq -c '[.cohorts[] | select(.public and .ranking) | {id, name}]' <<<"$(ch_get "$contest")")"
   [[ -n "$score_views_json" ]] || score_views_json='[]'
 fi
-if ch_enabled "$contest" && load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]]; then
+if (( CH_ON )) && load_session 2>/dev/null && [[ "$SESSION_CONTEST" == "$contest" ]]; then
   _co="$(ch_of "$contest" "$SESSION_LOGIN")"
   _cv="$(ch_view_for_login "$contest" "$SESSION_LOGIN")"
   cohort_json="$(jq -cn --arg i "$_co" --arg v "$_cv" --argjson j "$(ch_get "$contest")" '
