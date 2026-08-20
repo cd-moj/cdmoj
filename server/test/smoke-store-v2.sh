@@ -82,11 +82,26 @@ ck "account atualizado (senha)"  '[[ "$(jq -r .password "$T/users/maria/account.
 call "Bearer tok-adm" /contest/admin/user-disable POST "contest=treino" '{"login":"maria"}'
 ck "disable marca ! no account"  '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
 ck "account com senha !"        '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
+# A troca de senha GERAL é barrada no treino de propósito: lá ela resetaria ~todas as contas da
+# plataforma de uma vez. O contest é o lugar dela — então o guard e o comportamento são testados
+# separados (antes este bloco rodava no treino e consagrava o que hoje é 400).
 call "Bearer tok-adm" /contest/admin/users-set-password POST "contest=treino" '{"password":"prova1"}'
-ck "set-password troca joao (pula desabilitada)" '[[ "$(jq -r .password "$T/users/joao/account.json")" == prova1 && "$(jq -r .count <<<"$BODY")" == 1 ]]'
-ck "maria continua desabilitada" '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
-call "Bearer tok-adm" /contest/admin/users-set-password POST "contest=treino" '{"password":"prova2","include_disabled":true}'
-ck "include_disabled reabilita maria (count 2)" '[[ "$(jq -r .password "$T/users/maria/account.json")" == prova2 && "$(jq -r .count <<<"$BODY")" == 2 ]]'
+ck "troca geral BARRADA no treino"  '[[ "$OUT" == *"Status: 400"* && "$(jq -r .error.code <<<"$BODY")" == treino_forbidden ]]'
+ck "e ninguém teve senha trocada"   '[[ "$(jq -r .password "$T/users/joao/account.json")" != prova1 ]]'
+ck "maria continua desabilitada"    '[[ "$(jq -r .password "$T/users/maria/account.json")" == \!* ]]'
+
+echo "== troca de senha geral (no contest, que é onde ela vale) =="
+P="$FIX/prova9"; mkdir -p "$P/users"
+printf 'CONTEST_ID=prova9\nCONTEST_NAME="Prova"\nCONTEST_TYPE=icpc\nUSER_STORE=v2\n' > "$P/conf"
+fx_user "$P" p9.admin p "Chefe"; fx_user "$P" ana a "Ana"; fx_user "$P" bia b "Bia"
+printf 'CONTEST=prova9\nLOGIN=p9.admin\nUSERFULLNAME=Chefe\nLOGINAT=1\n' > "$SESS/tok-p9"
+call "Bearer tok-p9" /contest/admin/user-disable POST "contest=prova9" '{"login":"bia"}'
+call "Bearer tok-p9" /contest/admin/users-set-password POST "contest=prova9" '{"password":"prova1"}'
+ck "troca ana e pula a desabilitada" '[[ "$(jq -r .password "$P/users/ana/account.json")" == prova1 && "$(jq -r .count <<<"$BODY")" == 1 ]]'
+ck "bia (desabilitada) intacta"      '[[ "$(jq -r .password "$P/users/bia/account.json")" == \!* ]]'
+ck "conta de PAPEL fica de fora"     '[[ "$(jq -r .password "$P/users/p9.admin/account.json")" == p ]]'
+call "Bearer tok-p9" /contest/admin/users-set-password POST "contest=prova9" '{"password":"prova2","include_disabled":true}'
+ck "include_disabled alcança bia"    '[[ "$(jq -r .password "$P/users/bia/account.json")" == prova2 && "$(jq -r .count <<<"$BODY")" == 2 ]]'
 call "Bearer tok-adm" /contest/admin/user-remove POST "contest=treino" '{"login":"maria"}'
 ck "remove move o diretório"     '[[ ! -d "$T/users/maria" ]] && ls "$T/.removed-users" 2>/dev/null | grep -q "^maria-"'
 ck "conta de maria movida p/ .removed-users" '[[ ! -e "$T/users/maria" ]]'
