@@ -70,6 +70,39 @@ por hora — **43% na 1ª hora**. Dimensionar pela média das 5h subestima o pic
 **Por submissão** (esquenta): mediana 5 s, p90 10 s, p99 21 s, total **7.559 s-juiz** em 1.388
 submissões. Cada juiz de 6 slots entrega 21.600 s-juiz/hora ≈ 3.970 submissões/hora.
 
+### ⚠ Use as FASES REAIS, não o esquenta, para dimensionar o juiz
+
+O esquenta teve **15,4 submissões por time**; as duas primeiras fases do ICPC Brasil tiveram
+**8,0** (2024: 12.751 subs / 1.462 times · 2025: 10.784 / 1.480 — `Runs.html` do BOCA, descontadas
+as de juiz). Dimensionar pelo aquecimento **dobra** a necessidade de frota. O perfil também difere:
+o esquenta só tem pico inicial; a fase real é **em U** (2024: 29·19·15·15·22% · 2025: 26·16·15·17·26%)
+e o pico absoluto é o **último minuto** (117 e 138 submissões — a corrida do fim).
+
+A 2000 times isso dá 16.000 submissões, e o que decide é o custo de julgar uma:
+
+| s/submissão | hora de pico pede | cabe em 12 slots? | uso médio |
+|---|---|---|---|
+| 5,5 s | 7,0 slots | sim, folgado | 40% |
+| 8 s | 10,3 slots | apertado | 59% |
+| 10 s | 12,9 slots | **não** | 74% |
+| 15 s | 19,3 slots | **não** | 111% |
+
+**Meça o `duration_s` das soluções oficiais do problem set antes do evento** — é o único parâmetro
+que muda a conclusão.
+
+### Onde está o teto de ~460 req/s (medido 2026-08-20, 30 conexões)
+
+| Camada | req/s |
+|---|---|
+| arquivo estático (só nginx) | **1.654** |
+| API trivial (+ fcgiwrap + bash) | **692** |
+| rota real (+ conf + jq) | **420** |
+
+O nginx **não** é o gargalo. Sob carga sustentada: `us=43% sy=55% id=3%` com 39–56 processos
+prontos para 32 núcleos — **CPU saturada e mais da metade em tempo de KERNEL** (fork/exec). Duas
+consequências: **subir os workers de 32 p/ 64 não cria vazão** (só troca de contexto), e o caminho
+para ganhar throughput é **menos processos por requisição**, não mais workers.
+
 ### Web tier (nginx→fcgiwrap→bash)
 `/contest/score` (placar de 1152 users, 41 KB), 200 requests concorrentes:
 
