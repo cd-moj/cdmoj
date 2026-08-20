@@ -497,6 +497,18 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   quem não é membro da org nem colaborador, **inclusive `.admin`**. Não-autorizado: **404**.
   Motivo: provas em elaboração não podem vazar. Testado como não-dono via `moj-cli` (não burlável).
 
+- **`/contest/problems` tem CACHE POR VARIANTE** (2026-08-20): a rota monta o mesmo payload p/ todo
+  time (~79 processos com 12 problemas) e 2000 deles a pedem no segundo em que a prova abre. O
+  cache é `var/problems-cache.<author|noauthor>.json`, e a **variante é regra de segurança**: o
+  AUTOR só aparece com a prova encerrada ou p/ organização (`contest_over_for_all ||
+  is_admin_or_chief || is_judge`) — ignorar a variante faria um GET do juiz encher o cache com o
+  autor e o competidor recebê-lo (pista de prova). Frescor NÃO depende de alguém lembrar de
+  invalidar: compara o cache com as ENTRADAS por `-nt` (builtin, zero processos) — `conf`,
+  `problem-langs.json`, `problem-judges.json`, `enunciados/` e o carimbo `var/.problems-dirty`
+  (tocado pelo `admin/problems.sh` e pela promoção de rodada) — mais um **teto de idade**
+  (`PROBLEMS_CACHE_TTL`, 60s) como rede p/ o que não é deste contest: TL novo reportado por juiz e
+  o `languages` do pacote no treino. Cache quente = **2 processos**. Teste:
+  `smoke-contest-problems-cache.sh` (o caso que importa é o de envenenamento entre variantes).
 - **Caches de problemas invalidam POR EVENTO, não por TTL** (2026-07-17): a lista do treino
   (`/treino/problems` → `var/problems.json`) é invalidada pelo stamp **`var/.treino-list-dirty`**
   — TODO ponto que cria/remove json servível TOCA o stamp (`index_problem_bg` pós-gen;

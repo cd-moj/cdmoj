@@ -25,6 +25,35 @@ SHOW_TL=true; [[ "$SHOWTL" == 0 ]] && SHOW_TL=false
 # autor do problema: revelado com a prova ENCERRADA (ou sempre p/ quem organiza)
 SHOW_AUTHOR=false
 { contest_over_for_all "$contest" || is_admin_or_chief || is_judge; } && SHOW_AUTHOR=true
+# ---- CACHE DE RESPOSTA -------------------------------------------------------------------
+# Esta rota monta o MESMO payload para todos os times (~77 processos com 12 problemas), e no
+# segundo em que a prova abre os 2000 times a pedem juntos. O cache é POR VARIANTE, e a única
+# dimensão que muda o corpo é o AUTOR: ele só aparece com a prova encerrada ou p/ quem organiza
+# (contest_over_for_all || is_admin_or_chief || is_judge). Se a variante fosse ignorada, um GET
+# do juiz encheria o cache com o autor dentro e o competidor o receberia — é o vazamento que o
+# smoke-contest-problems-cache.sh existe p/ impedir.
+#
+# FRESCOR: em vez de confiar em alguém lembrar de invalidar, o cache é comparado com as ENTRADAS
+# (`-nt` é builtin do bash: zero processos). Entram o conf (PROBS/LANGUAGES/SHOWTL/CONTEST_JUDGES),
+# os dois json de override, o diretório de enunciados e um carimbo explícito que o
+# /contest/admin/problems toca. O teto de idade é a rede de segurança para as entradas que NÃO
+# dependem deste contest — TL novo reportado por um juiz e o `languages` do pacote no treino.
+CVAR=noauthor; [[ "$SHOW_AUTHOR" == true ]] && CVAR=author
+CDIR="$CONTESTSDIR/$contest/var"; CF="$CDIR/problems-cache.$CVAR.json"
+: "${PROBLEMS_CACHE_TTL:=60}"
+_cache_fresh(){
+  [[ -s "$CF" ]] || return 1
+  local f
+  for f in "$CONTESTSDIR/$contest/conf" "$CONTESTSDIR/$contest/problem-langs.json" \
+           "$CONTESTSDIR/$contest/problem-judges.json" "$CONTESTSDIR/$contest/enunciados" \
+           "$CDIR/.problems-dirty"; do
+    [[ -e "$f" && "$f" -nt "$CF" ]] && return 1
+  done
+  [[ -n "$(find "$CF" -newermt "-$PROBLEMS_CACHE_TTL seconds" 2>/dev/null)" ]] || return 1
+  return 0
+}
+if _cache_fresh; then emit_json 200 OK; printf '%s' "$(<"$CF")"; exit 0; fi
+
 # linguagens permitidas: cadeia em lib/langs.sh (FONTE ÚNICA — o /submit APLICA a mesma
 # lista que esta listagem oferece; front filtra o editor e a tabela de TL por ela).
 source "$_LIBDIR/langs.sh"
@@ -98,9 +127,14 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
       --arg full "$FULLNAME" "${args[@]}" "$filt")" )
 done
 
-emit_json 200 OK
 if (( ${#ITEMS[@]} == 0 )); then
-  jq -cn '{success:true, problems:[]}'
+  BODY="$(jq -cn '{success:true, problems:[]}')"
 else
-  printf '%s\n' "${ITEMS[@]}" | jq -cs '{success:true, problems:.}'
+  BODY="$(printf '%s\n' "${ITEMS[@]}" | jq -cs '{success:true, problems:.}')"
 fi
+[[ -n "$BODY" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
+# grava por tmp+mv: leitor concorrente nunca vê arquivo pela metade
+mkdir -p "$CDIR" 2>/dev/null
+printf '%s' "$BODY" > "$CF.tmp.$$" 2>/dev/null && mv -f "$CF.tmp.$$" "$CF" 2>/dev/null || rm -f "$CF.tmp.$$" 2>/dev/null
+emit_json 200 OK
+printf '%s' "$BODY"

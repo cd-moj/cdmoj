@@ -179,4 +179,8 @@ esac
 [[ -n "$new" ]] || fail 422 "Nada a fazer" "noop"
 cc_set_probs "$contest" "$new" || fail 422 "Falha ao gravar problemas (dados inválidos?)" "probs_write"
 audit_log_to "$contest" "problems-$action" "$(jq -cr '. | del(.problem.statement_b64)' <<<"$body" 2>/dev/null | head -c 300)"
+# invalida o cache de /contest/problems NA HORA. O handler também confere as entradas por mtime
+# (conf, os dois json, enunciados/) e tem teto de idade, então isto é o caminho rápido, não a
+# única garantia — mas é o que faz a mudança do admin aparecer no próximo carregamento do time.
+mkdir -p "$CONTESTSDIR/$contest/var" 2>/dev/null; touch "$CONTESTSDIR/$contest/var/.problems-dirty" 2>/dev/null
 ok_json '{saved:true, problems:$p}' --argjson p "$(cc_probs_json "$contest")"

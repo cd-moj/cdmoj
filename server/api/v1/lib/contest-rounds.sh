@@ -167,6 +167,8 @@ rd_apply_obj(){
   cc_set_conf_var "$c" ROUND_KIND "$(jq -r '.kind // "official"' <<<"$r")"
   if [[ "$probs" != '[]' ]]; then
     CC_KEEP_STATEMENTS=1 cc_set_probs "$c" "$probs" || return 1
+    # a rodada nova tem OUTRA lista de problemas: derruba o cache de /contest/problems
+    touch "$CONTESTSDIR/$c/var/.problems-dirty" 2>/dev/null
   fi
   return 0
 }
