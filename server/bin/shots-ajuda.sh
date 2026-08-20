@@ -208,6 +208,50 @@ jq -cn '[{label:"1 - YES", verdict:"Accepted"},
          {label:"6 - NO - Contact staff", verdict:"Contact Staff"}]' \
   > "$C/final-verdicts.json"
 
+# --- clarifications: uma aberta, uma respondida em privado e um AVISO OFICIAL (broadcast),
+#     que é a resposta pública que não esperou ninguém perguntar. O asker nunca é exibido.
+mkdir -p "$C/clarifications"
+mkclar(){ # <id> <login> <problema> <idade> <pergunta> [resposta] [public] [broadcast]
+  jq -cn --arg id "$1" --arg l "$2" --arg p "$3" --argjson t "$((NOW-$4))" \
+     --arg q "$5" --arg a "${6:-}" --argjson pub "${7:-false}" --argjson bc "${8:-false}" \
+    '{id:$id, login:$l, problem:$p, question:$q, time:$t,
+      answer:$a, public:$pub, broadcast:$bc,
+      answered_by:(if $a=="" then "" else "juri.judge" end),
+      answered_at:(if $a=="" then null else $t+120 end), answer_claim:null}' \
+    > "$C/clarifications/$1.json"
+}
+mkclar c1 time-beta B 900 \
+  "No problema B, o labirinto pode ter mais de uma saída? O enunciado não diz."
+mkclar c2 time-gama A 1800 \
+  "O N da entrada cabe em 32 bits?" \
+  "Sim — leia o limite na seção Entrada do enunciado." true
+mkclar c3 time-alfa general 600 \
+  "A prova foi prorrogada?" \
+  "A sede de São Paulo teve 20 minutos de prorrogação por queda de energia. As demais sedes seguem o horário original." \
+  true true
+# notícias públicas do contest (contests/<c>/news.json)
+jq -cn --argjson t "$((NOW-2400))" \
+  '[{id:"n1", title:"Almoço liberado a partir das 12h",
+     text:"O refeitório do bloco C está aberto para os times. Leve o crachá.", date:$t}]' \
+  > "$C/news.json"
+
+# --- documentos da prova: o index.json é o que a aba 📄 lista (os tamanhos saem daqui, não do
+#     disco), e o config.json diz o que já está PUBLICADO ("<tipo>.<lang>")
+mkdir -p "$C/docs"
+jq -cn --argjson t "$((NOW-3600))" --arg by decano.cjudge \
+  '[{type:"contest",   lang:"pt", html_bytes:184320, pdf_bytes:1638400, generated_at:$t,     by:$by},
+    {type:"contest",   lang:"en", html_bytes:181240, pdf_bytes:1601210, generated_at:($t+30), by:$by},
+    {type:"info-sheet",lang:"pt", html_bytes:9420,   pdf_bytes:48210,   generated_at:($t-300), by:$by},
+    {type:"info-sheet",lang:"en", html_bytes:9210,   pdf_bytes:47880,   generated_at:($t-295), by:$by},
+    {type:"times",     lang:"pt", html_bytes:4180,   pdf_bytes:22140,   generated_at:($t-200), by:$by},
+    {type:"editorial", lang:"pt", html_bytes:31240,  pdf_bytes:204800,  generated_at:($t+200), by:$by}]' \
+  > "$C/docs/index.json"
+jq -cn '{caderno_version:"v1.2", cover_note:"Realização: MOJ · Apoio: UTFPR",
+         errata:"Problema C: leia 1 ≤ N ≤ 10^5.",
+         published:["info-sheet.pt","info-sheet.en","times.pt"]}' > "$C/docs/config.json"
+# enunciados (só p/ a aba não abrir com o aviso "sem enunciado no contest")
+for k in somatorio labirinto cofre tapete; do printf '%%PDF-1.4\n' > "$C/enunciados/demo#$k.pdf"; done
+
 # --- chaves de webcast do telão (contests/<c>/webcast.json — wc_file)
 jq -cn --argjson now "$NOW" \
   '{keys:[{id:"a1b2c3d4", key:"mojwc_DEMO0000000000000000000000demo", view:"public",
@@ -280,8 +324,11 @@ shot animeitor-cerimonia.png s_anim  "/contest/score/reveal.html?click=Step&time
 shot judge-fila.png        s_judge   /contest/judge/
 shot judge-avaliando.png   s_judge   /contest/judge/
 shot judge-todas.png       s_judge   /contest/allsubmissions/  1000
+shot judge-clarification.png s_judge /contest/clarification/   1250
 shot cjudge-todas.png      s_cjudge  /contest/allsubmissions/  1000
+shot cjudge-clarification.png s_cjudge "/contest/clarification/?click=editar resposta&times=1" 1500
 shot cjudge-painel.png     s_cjudge  /contest/chief/           1100
+shot cjudge-docs.png       s_cjudge  "/contest/chief/?click=Documentos&times=2" 1000
 shot rodadas.png           s_staff   /contest/rounds/          800
 
 # ---------------------------------------------------------------- PDFs de exemplo

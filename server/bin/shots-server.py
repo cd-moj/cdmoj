@@ -166,11 +166,15 @@ class H(BaseHTTPRequestHandler):
             click = (q.get("click") or [""])[0]
             if click:
                 n = int((q.get("times") or ["1"])[0])
+                # ⚠ o clique roda IMEDIATAMENTE (não no `load`): o firefox fotografa NO load, e
+                # um listener de load dispararia depois da foto. O <img> de delay segura o load,
+                # então há tempo de sobra para o app pintar e para estes cliques acontecerem.
                 inject += (
-                    '<script>addEventListener("load",()=>{let i=0;const t=setInterval(()=>{'
-                    'const b=[...document.querySelectorAll("button,.btn")]'
+                    '<script>(()=>{let i=0,done=0;const t=setInterval(()=>{'
+                    'const b=[...document.querySelectorAll("button,.btn,a,summary")]'
                     f'.find(e=>(e.textContent||"").includes({click!r}));'
-                    f'if(b)b.click(); if(++i>={n})clearInterval(t);}},220);}});</script>')
+                    f'if(b){{b.click();if(++done>={n})return clearInterval(t);}}'
+                    f'if(++i>200)clearInterval(t);}},120);}})();</script>')
             txt = txt.replace("</body>", inject + "</body>", 1)
             data = txt.encode("utf-8")
             if sess:

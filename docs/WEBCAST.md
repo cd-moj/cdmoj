@@ -1,6 +1,8 @@
 # Webcast — o pacote de placar do Animeitor (e o papel `.animeitor`)
 
-O **Animeitor** é o sistema autônomo que anima o placar no telão. Ele foi feito para o BOCA:
+O **Animeitor** (de **Emílio Wuerges**) é o sistema autônomo que anima o placar no telão, e é a
+**ferramenta oficial de cerimônia** — a página `/contest/score/reveal.html` do próprio MOJ é
+**experimental** (ensaio, sede pequena, plano B). Ele foi feito para o BOCA:
 busca uma URL em loop e recebe um **ZIP** com o estado da competição. O MOJ fala esse mesmo
 protocolo — não é uma tradução aproximada, é o mesmo pacote, byte a byte na estrutura.
 
