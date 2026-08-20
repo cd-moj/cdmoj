@@ -20,6 +20,7 @@
 #   problems <busca> · statement <org#slug> · submit <org#slug> <arquivo> · subs
 # Config: MOJ_URL (default https://moj.naquadah.com.br), MOJ_CONTEST (= -c). Requisitos:
 # bash, curl, jq, openssl. Sem root, sem instalação: um arquivo.
+
 # moj-cli/lib/core.sh — núcleo COMPARTILHADO das CLIs do MOJ (moj, moj-contest, camadas
 # futuras). SOURCED pelos scripts no repo (dev) e EMBUTIDO nos artefatos de 1 arquivo pelo
 # mkdist.sh (instalação por curl continua de arquivo único) — por isso SEM shebang e SEM set.
@@ -34,7 +35,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="fe940ec-20260820"
+MOJ_CLI_BUILD="68d183f-20260820"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -584,6 +585,6 @@ case "$cmd" in
   sync|reenviar) cmd_sync "$@";;
   monitor) cmd_monitor "$@";;
   doctor) cmd_doctor "$@";; version|--version|-V) cmd_version "$@";; update) cmd_update "$@";;
-  help|-h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//';;
+  help|-h|--help) awk 'NR>1{ if (!/^#/ || /@INLINE/) exit; sub(/^# ?/,""); print }' "$0";;
   *) die "comando desconhecido: $cmd (veja '$MOJ_TOOL help')";;
 esac
