@@ -19,7 +19,10 @@ index  index.html;
 gzip              on;
 gzip_vary         on;
 gzip_proxied      any;
-gzip_comp_level   5;
+# nível 2, não 5: medido a 2026-08-20 num payload de 2,1 MB, o nível 5 custa ~1,8× a CPU do
+# nível 2 e a razão de compressão de TEXTO muda pouco (o placar comprime 14× nos dois). Em
+# resposta grande isso é a diferença entre 137 e 76 req/s.
+gzip_comp_level   2;
 gzip_min_length   1024;
 gzip_types        text/plain text/css text/csv application/json application/javascript
                   text/javascript application/xml image/svg+xml;

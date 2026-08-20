@@ -52,7 +52,22 @@ _cache_fresh(){
   [[ -n "$(find "$CF" -newermt "-$PROBLEMS_CACHE_TTL seconds" 2>/dev/null)" ]] || return 1
   return 0
 }
-if _cache_fresh; then emit_json 200 OK; printf '%s' "$(<"$CF")"; exit 0; fi
+# O payload é grande (enunciados embutidos: MB) e idêntico p/ todos. Se o nginx comprimir a
+# cada resposta, 2000 times no segundo da abertura pagam 2000 compressões do MESMO conteúdo —
+# medido: derruba a rota a ~137 req/s. Como o corpo está em cache, guardamos também a versão
+# comprimida e a servimos direto; o nginx não recomprime resposta que já vem com
+# Content-Encoding. `Vary` é obrigatório: sem ele um intermediário serviria bytes comprimidos
+# a um cliente que não os aceita.
+if _cache_fresh; then
+  if [[ -s "$CF.gz" && "${HTTP_ACCEPT_ENCODING:-}" == *gzip* ]]; then
+    printf 'Status: 200 OK\r\nContent-Type: application/json; charset=utf-8\r\n'
+    printf 'Content-Encoding: gzip\r\nVary: Accept-Encoding\r\n\r\n'
+    cat "$CF.gz"
+  else
+    emit_json 200 OK; printf '%s' "$(<"$CF")"
+  fi
+  exit 0
+fi
 
 # linguagens permitidas: cadeia em lib/langs.sh (FONTE ÚNICA — o /submit APLICA a mesma
 # lista que esta listagem oferece; front filtra o editor e a tabela de TL por ela).
@@ -136,5 +151,8 @@ fi
 # grava por tmp+mv: leitor concorrente nunca vê arquivo pela metade
 mkdir -p "$CDIR" 2>/dev/null
 printf '%s' "$BODY" > "$CF.tmp.$$" 2>/dev/null && mv -f "$CF.tmp.$$" "$CF" 2>/dev/null || rm -f "$CF.tmp.$$" 2>/dev/null
+# a versão comprimida é gravada DEPOIS da crua: se algo falhar aqui, o pior caso é o nginx
+# comprimir como antes — nunca servir .gz de um corpo diferente do .json
+printf '%s' "$BODY" | gzip -6 -c > "$CF.gz.tmp.$$" 2>/dev/null && mv -f "$CF.gz.tmp.$$" "$CF.gz" 2>/dev/null || rm -f "$CF.gz.tmp.$$" 2>/dev/null
 emit_json 200 OK
 printf '%s' "$BODY"

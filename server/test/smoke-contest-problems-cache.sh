@@ -78,6 +78,22 @@ sleep 1; printf '{"col#pa":["c"]}' > "$C/problem-langs.json"
 call /contest/problems time01
 ck "problem-langs novo => regenerou" '[[ "$(jq -r ".problems[]|select(.short_name==\"A\").languages|join(\",\")" <<<"$BODY")" == "c" ]]'
 
+echo "== a versão comprimida do cache =="
+callz(){ OUT="$(PATH_INFO=/contest/problems REQUEST_METHOD=GET QUERY_STRING="contest=pc" \
+    HTTP_AUTHORIZATION="Bearer $1" HTTP_ACCEPT_ENCODING="gzip, deflate" CONTESTSDIR="$FIX" \
+    SESSIONDIR="$SESS" RUNDIR="$FIX/run" MOJ_PROBLEMS_DIR="$PKG" bash "$ROUTER" </dev/null 2>/dev/null)"; }
+call /contest/problems time01 >/dev/null      # popula o cache
+ck "o .gz foi gravado"            '[[ -s "$C/var/problems-cache.noauthor.json.gz" ]]'
+ck "e é gzip de verdade"          'gzip -t "$C/var/problems-cache.noauthor.json.gz" 2>/dev/null'
+ck "descomprime no MESMO corpo"   'diff -q <(gzip -dc "$C/var/problems-cache.noauthor.json.gz") "$C/var/problems-cache.noauthor.json" >/dev/null'
+callz time01
+ck "cliente com gzip: Content-Encoding" '[[ "$OUT" == *"Content-Encoding: gzip"* ]]'
+ck "e manda Vary (senão cache burro erra)" '[[ "$OUT" == *"Vary: Accept-Encoding"* ]]'
+call /contest/problems time01
+ck "cliente SEM gzip: corpo cru"  '[[ "$OUT" != *"Content-Encoding"* && "$(jq -r ".problems|length" <<<"$BODY")" -ge 1 ]]'
+ck "o .gz do JUIZ é outro arquivo" 'call /contest/problems pc.judge >/dev/null; [[ -s "$C/var/problems-cache.author.json.gz" ]] && ! diff -q "$C/var/problems-cache.author.json.gz" "$C/var/problems-cache.noauthor.json.gz" >/dev/null'
+ck "e o .gz do competidor não tem autor" '! gzip -dc "$C/var/problems-cache.noauthor.json.gz" | grep -q "Bruno Ribas"'
+
 echo "== o cache NÃO serve quem não pode ver problema =="
 # antes do início a lista é vazia + locked (o cache não pode servir a lista cheia p/ ele)
 sed -i "s/^CONTEST_START=.*/CONTEST_START=$(( $(date +%s) + 3600 ))/" "$C/conf"
