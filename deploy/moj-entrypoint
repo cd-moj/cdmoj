@@ -45,6 +45,27 @@ case "$role" in
     rm -f "$FCGI_SOCK" 2>/dev/null || true
     FCGI="$(command -v fcgiwrap || echo "$MOJ_HOME/server/bin/fcgiwrap")"
     umask "$FCGI_UMASK"          # socket 0770 (dono+grupo) — ver comentário acima
+    # BACKLOG do socket: o fcgiwrap abre com 512 fixo (medido: a 545ª conexão pendente já dá
+    # EAGAIN) e não tem opção p/ mudar. Com 2000 times apertando F5 na contagem regressiva, a
+    # rajada de conexões passa fácil disso — e o nginx, sem conseguir connect(), devolve 502.
+    # Medido de 5 máquinas externas em 20/08/2026: limpo até ~480 simultâneas, 26% de 502 em 640.
+    # Solução: o socket é criado AQUI, com o backlog que quisermos, e entregue ao fcgiwrap no
+    # fd 0 — que é a convenção do FastCGI (é assim que socket-activation funciona). O teto real
+    # é o net.core.somaxconn do namespace (4096 no deploy atual).
+    : "${FCGI_BACKLOG:=4096}"
+    if command -v python3 >/dev/null 2>&1; then
+      exec python3 - "$FCGI_SOCK" "$FCGI_BACKLOG" "$FCGI" "$FCGI_WORKERS" <<'PYEOF'
+import os, socket, sys
+sock_path, backlog, fcgi, workers = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.bind(sock_path)          # o umask do shell vale aqui: socket nasce 0770 como antes
+s.listen(backlog)
+os.dup2(s.fileno(), 0)     # fd 0 = socket em escuta: o que o fcgiwrap espera sem -s
+if s.fileno() != 0: s.close()
+os.execv(fcgi, [os.path.basename(fcgi), "-c", workers])
+PYEOF
+    fi
+    # sem python3 na imagem: cai no modo antigo (backlog 512) em vez de não subir
     exec "$FCGI" -c "$FCGI_WORKERS" -s "unix:$FCGI_SOCK"
     ;;
   judged)
