@@ -109,6 +109,34 @@ processo, isso mede o gerador. Com `stress.sh` (curl `-Z`, processo único) a ME
 **Estampida** (2000 times × basic+problems+history no mesmo instante = 6.000 requisições):
 escoa em **5,5 s**, zero erro, pior requisição individual **0,31 s**.
 
+### ⚠ O limite REAL é de CONEXÕES SIMULTÂNEAS, e só aparece medindo DE FORA (2026-08-20)
+
+Carga gerada de 5 máquinas externas (chococino, cm2/cm3/cm4, hu1) contra a produção, com RTT de
+~30 ms — que é o que faz várias requisições ficarem de fato simultâneas no servidor (do localhost
+elas terminam rápido demais para se acumular):
+
+| conexões simultâneas (total) | resultado |
+|---|---|
+| até **480** | **limpo** — ~950 req/s, zero erro |
+| 640 | 26% de **502** |
+| 1.000 | 58% de 502 |
+| 2.000 | 82% de 502 |
+
+O erro é `connect() to unix:…fcgiwrap.sock failed (11: Resource temporarily unavailable)`: a fila
+de accept do socket do fcgiwrap enche. **Não é o nginx** (32 workers × 768 conexões = 24k) nem CPU.
+
+O que foi testado e **NÃO** resolve:
+- **mais workers de fcgiwrap** (`FCGI_WORKERS=96`): melhora à margem (estampida de 5,8 s p/ 5,3 s,
+  pior requisição de 1,03 s p/ 0,61 s) mas o joelho continua no mesmo lugar — o limite é o backlog
+  do socket, não o número de filhos. Não vale mudar o padrão;
+- **pool persistente do nginx p/ o upstream** (`upstream ... keepalive 64` + `fastcgi_keep_conn on`):
+  **PIORA MUITO** — o fcgiwrap 1.1.0 não lida bem com conexão FastCGI reaproveitada; a estampida
+  passou de 5 s p/ 190 s com quase tudo falhando. Testado e revertido; não repita.
+
+O que foi feito: o cliente passou a **espalhar a largada** (até 1,2 s sorteado) e a **retentar com
+espera crescente** se a carga do segundo zero falhar (`web/contest/contest.js`, `loadContestBody`).
+Antes, um 502 ali deixava a página parada num aviso de erro até o time recarregar à mão.
+
 Use `stress.sh` para número de capacidade. O `web-poll-bench.sh` continua útil como carga de
 "cliente burro", mas o número dele é piso, não teto.
 

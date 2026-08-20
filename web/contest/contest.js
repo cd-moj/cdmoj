@@ -946,11 +946,28 @@ async function bootMain() {
 async function loadContestBody() {
   clearTimeout(preStartTimer); clearInterval(preStartPoll);
   hide('prestartSection'); show('problemsSection'); show('mySubsSection');
-  try {
-    const j = await apiGet('/contest/problems?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true });
+  // O SEGUNDO ZERO é o pior instante do servidor: todos os times saem juntos da contagem
+  // regressiva. Medido em carga (20/08/2026, 5 máquinas contra a produção): com até ~500
+  // conexões simultâneas os 2000 times carregam em ~5 s sem um erro; acima disso a fila do
+  // socket do fcgiwrap satura e o nginx devolve 502. Antes, um 502 aqui deixava a página
+  // PARADA num aviso de erro até o time recarregar à mão — o pior desfecho possível no minuto
+  // em que a prova começa. Agora tenta de novo, com espera crescente e ALEATÓRIA: o jitter é o
+  // que impede que todos os que falharam retentem no mesmo instante (o mesmo idioma do poll
+  // do placar, que já sorteia o intervalo).
+  const lista = document.getElementById('problemList');
+  let j = null;
+  for (let tent = 0; tent < 5; tent++) {
+    try { j = await apiGet('/contest/problems?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); break; }
+    catch {
+      if (tent === 4) break;
+      if (lista) lista.innerHTML = `<span class="muted">${T('Carregando a prova…', 'Loading the contest…')}</span>`;
+      await new Promise(r => setTimeout(r, 350 * Math.pow(2, tent) + Math.random() * 700));
+    }
+  }
+  if (j) {
     problems = Array.isArray(j) ? j : (j.problems || []);
-  } catch {
-    document.getElementById('problemList').innerHTML = `<span class="error-box">${T('Falha ao carregar problemas.', 'Failed to load problems.')}</span>`;
+  } else {
+    if (lista) lista.innerHTML = `<span class="error-box">${T('Falha ao carregar problemas. Recarregue a página.', 'Failed to load problems. Reload the page.')}</span>`;
     problems = [];
   }
   renderProblems();
@@ -980,6 +997,12 @@ function renderPreStart() {
       cd.textContent = fmtLeft(left);
       preStartTimer = setTimeout(tick, 1000);
     } else {
+      // ESPALHA a largada: sem isto os 2000 times disparam no MESMO milissegundo e a rajada de
+      // conexões satura a fila do socket do fcgiwrap (medido: acima de ~640 simultâneas começa
+      // 502). Até 1,2 s de espera sorteada derruba o pico sem tirar tempo de prova de ninguém
+      // de forma perceptível — e é bem melhor que a alternativa de hoje, que é uma fração dos
+      // times receber erro e ter de recarregar.
+      await new Promise(r => setTimeout(r, Math.random() * 1200));
       // começou: revalida com a API (que agora libera) e carrega o corpo do contest
       try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); } catch {}
       if ((basic.start_time || 0) - Math.floor(Date.now() / 1000) > 0) { preStartTimer = setTimeout(tick, 1000); return; }

@@ -15,14 +15,21 @@
 set -u
 B="${STRESS_BASE:-https://127.0.0.1}"; H="${STRESS_HOST:-moj.naquadah.com.br}"
 _SW="$(mktemp -d)"; trap 'rm -rf "$_SW"' EXIT
-_hdr(){ printf -- '-H\nHost: %s\n' "$H"
-        [[ -n "${STRESS_TOKEN:-}" ]] && printf -- '-H\nAuthorization: Bearer %s\n' "$STRESS_TOKEN"
-        [[ -n "${STRESS_GZIP:-}"  ]] && printf -- '-H\nAccept-Encoding: gzip\n'; }
+# os cabeçalhos vão num ARRAY montado direto (o mapfile de antes é builtin do bash e sumia
+# quando o comando era executado por um shell de login não-bash via ssh: o Authorization não
+# era enviado e TUDO virava 401 — erro que parecia do servidor e era da bancada)
+_HH=()
+_hdr_init(){
+  _HH=(-H "Host: $H")
+  [[ -n "${STRESS_TOKEN:-}" ]] && _HH+=(-H "Authorization: Bearer $STRESS_TOKEN")
+  [[ -n "${STRESS_GZIP:-}"  ]] && _HH+=(-H "Accept-Encoding: gzip")
+  return 0
+}
 _go(){ # <conc> <rótulo> — consome $_SW/urls
   local c="$1" lbl="$2" t0 t1 ok er p50 p99 mx
-  mapfile -t HH < <(_hdr)
+  _hdr_init
   t0=$(date +%s.%N)
-  curl -sk -Z --parallel-max "$c" "${HH[@]}" -K "$_SW/urls" \
+  curl -sk -Z --parallel-max "$c" "${_HH[@]}" -K "$_SW/urls" \
        -w '%{http_code} %{time_total}\n' > "$_SW/out" 2>/dev/null
   t1=$(date +%s.%N)
   ok=$(awk 'NF==2 && $1==200' "$_SW/out" | wc -l)
