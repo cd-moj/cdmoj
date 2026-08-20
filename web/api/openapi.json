@@ -7967,6 +7967,25 @@
         }
       }
     },
+    "/ops/judge-cache": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Limpa o cache local de pacotes de um juiz (comando por-host, entregue no heartbeat)",
+        "description": "Admin. Body {host, action?: clearcache} (única ação suportada hoje). Enfileira um comando POR-HOST que o agente pega no próximo heartbeat, quando estiver livre: apaga o $JUDGE_CACHE e se re-registra com inventário vazio. Não bloqueia — o efeito aparece no /judge/list. Use quando um juiz ficou com pacote velho ou corrompido em cache.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{success, action, host, cmdid, status:queued}"
+          }
+        }
+      }
+    },
     "/ops/calib-cancel": {
       "post": {
         "tags": [
