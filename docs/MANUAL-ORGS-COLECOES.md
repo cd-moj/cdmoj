@@ -33,7 +33,7 @@ sempre privada — é onde seus rascunhos ficam se você não criar outra org.
 ### Criar uma org
 
 Uma org costuma representar uma **disciplina, turma ou competição** (ex.: uma por semestre de
-uma matéria, uma para cada olimpíada). O nome é **minúsculo, sem espaços** (vira subdomínio/id).
+uma matéria, uma para cada olimpíada). O nome é **minúsculo, sem espaços**: ele é o **prefixo do id** `<org>#<prob>` (`^[a-z0-9][a-z0-9._-]{1,63}$` — quem vira subdomínio é o id do *contest*, não a org). Criar org exige a **mesma permissão** de criar problema/contest.
 
 | Web (Gestão de Problemas) | CLI |
 |---|---|
@@ -103,7 +103,7 @@ Só é possível apagar uma org **vazia** (sem nenhum problema). A org implícit
 ### Mover um rascunho para outra org
 
 Como a org é o prefixo do id, mover um problema **muda o id** (`orgA#p` → `orgB#p`). Só vale para
-**rascunho** (problema **não** público e **não** em uso em contest); você precisa ser membro das
+problema **não público** (409 `is_public`; um problema privado já usado num contest ainda move); você precisa ser membro das
 **duas** orgs.
 
 | Web | CLI |

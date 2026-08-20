@@ -160,15 +160,6 @@ Listagens leem o índice de donos `contests/treino/var/problem-owners.json` (ger
 | `/problems/upload` | POST `{id\|repo,prob, tar_b64}` | sobe um pacote (`.tar`/`.tar.gz`/`.tar.bz2`/`.tar.zst`/`.zip`) e **substitui o conteúdo** (commit). Do `.moj-meta.json` do tar lê os campos de CONTEÚDO — `display_title`, `collections`, `languages` (ausente/`[]` ⇒ preserva); os de ACESSO (`public`/`public_at`/`owner`) nunca vêm do tar. Tar **sem** o arquivo `tags` ⇒ preserva as do servidor (curadoria); com (mesmo vazio) ⇒ substitui |
 | `/problems/export?id=<id>` | GET | baixa o problema como **pacote ICPC/Kattis** (2025-09) `.tar.gz` (problem.yaml+statement+data+submissions); inclui soluções → exige escrita/admin (`mojtools/kattis/export.sh`) |
 | `/problems/import` | POST `{repo, prob?, tar_b64}` | **importa** um pacote ICPC/Kattis (`mojtools/kattis/import.sh`) → cria um problema MOJ julgável (checker custom via bridge); exige permissão de criação. Round-trip sem perda via `.kattis.json` |
-
-> `source`/`create`/`edit` cobrem o pacote inteiro: `title` (vem do **campo**, não de `% Título`
-> no texto — o render injeta o h1), `enunciado_md`, `conf_text` (TL/ulimits/STOPWHEN/…, ver
-> `saad-problems/README.org`), `examples` (sample; cada um aceita `explanation` opcional →
-> `docs/sample-notes.json`, mostrada após o exemplo), `tests` (ocultos), `sols` por categoria
-> `{good,wrong,slow,pass,upcoming}` (cada `[{filename,code}]`), `score` (grupos de pontuação;
-> cada grupo tem `{name,weight,glob}` e o `glob` pode ser uma **lista `", "`-separada** de padrões,
-> ex.: `g2_*, g3_*`) e
-> `editorial_md` (resolução em markdown → `docs/solucao.md`, **só p/ setter**, não vai ao aluno).
 | `/problems/create` | POST `{repo,prob,enunciado_md?,author?,tags?,examples?,good_sol?,title?,collections?,languages?,...}` | cria problema novo; commit+push; `{id,sha}`. `prob` = slug minúsculo `^[a-z0-9][a-z0-9._-]{1,80}$` (400 `prob_invalid`); `collections` tem de EXISTIR no registro curado (400 `coll_unknown` — MESMA trava do edit/set-collections; a homônima da org é isenta). `languages` = ids permitidos de submissão (`[]`/ausente = todas) |
 | `/problems/edit` | POST `{id, ...campos}` | edita (só campos presentes); commit+push autorado. Aceita **`languages`** (ids de submissão permitidos no `.moj-meta.json`; ausente = não toca, `[]` = limpa/todas). Aceita também **`scripts_files`** (SUBSTITUI `scripts/` inteiro quando presente — paths validados, sem `..`, confinado a `scripts/`, `exec` vira +x, `symlink` recriado se o alvo resolvido fica dentro de `scripts/`; campo ausente = não toca) e **`score_text`** (grava `tests/score` verbatim; `""` remove). Aceita **`docs_files`** (SUBSTITUI as imagens de `docs/` quando presente — nomes saneados, só extensão de imagem, cap ~3MB; ausente = não toca). `examples[].explanation` grava `docs/notes/<sampleN>.md` (1 markdown por exemplo — e REMOVE o legado `sample-notes.json`). Mexer em `scripts/` muda o tl-checksum ⇒ recalibração. O **editor web** gere a correção especial na sub-aba "⚙ correção" (Soluções & Correção — lista + templates) e envia `scripts_files` no save |
 | `/problems/script-templates` | GET | **templates de corretor especial** (lidos de `mojtools/script-templates/<key>/` — criar template = criar uma pasta lá): `{templates:[{key,name,description,conf_hints,files:[{path,content_b64,exec} \| {path,symlink}]}]}` — `files` no MESMO shape do `scripts_files` (aplicar = preencher a seção da UI e salvar). Symlink externo do template (drivers canônicos do mojtools) vem RESOLVIDO como conteúdo; symlink interno (`cpp -> c`) vem como symlink. Iniciais: `checker-testlib`, `interativo`, `interativo-rank`, `compare-float`, `ban-funcoes-c` |
@@ -181,6 +172,15 @@ Listagens leem o índice de donos `contests/treino/var/problem-owners.json` (ger
 | `/problems/collection-rename` | POST `{name, to}` | renomeia a coleção: registro NA HORA + re-tag dos N problemas em **BACKGROUND** (`retag:"background"`, devolve **`retag_job`** p/ acompanhar; síncrono estourava o timeout do nginx). **RETOMADA**: `name` inexistente + `to` existente = bulk anterior morreu ⇒ repete só o retag (`resumed:true`). Só dono ou `.admin` |
 | `/problems/collection-delete` | POST `{name}` | exclui a coleção: untag dos N problemas em **BACKGROUND** (devolve **`retag_job`**) e o registro só sai NO FIM (`untag:"background"`; morreu no meio ⇒ a coleção ainda existe, repetir o delete RETOMA). Só dono ou `.admin` |
 | `/problems/collection-retag-status?[job=<id>][&name=<coleção>]` | GET | situação dos jobs de retag (rename/delete): `{jobs:[{id,from,to,by,started_at,total?,done,failed,finished_at?}]}` mais novos primeiro (últimos ~50); sem `finished_at` = rodando (`done/total` = progresso, `total` é estimativa). `job=` filtra pelo id devolvido em `retag_job`; `name=` por from/to |
+
+> `source`/`create`/`edit` cobrem o pacote inteiro: `title` (vem do **campo**, não de `% Título`
+> no texto — o render injeta o h1), `enunciado_md`, `conf_text` (TL/ulimits/STOPWHEN/…, ver
+> `saad-problems/README.org`), `examples` (sample; cada um aceita `explanation` opcional →
+> `docs/sample-notes.json`, mostrada após o exemplo), `tests` (ocultos), `sols` por categoria
+> `{good,wrong,slow,pass,upcoming}` (cada `[{filename,code}]`), `score` (grupos de pontuação;
+> cada grupo tem `{name,weight,glob}` e o `glob` pode ser uma **lista `", "`-separada** de padrões,
+> ex.: `g2_*, g3_*`) e
+> `editorial_md` (resolução em markdown → `docs/solucao.md`, **só p/ setter**, não vai ao aluno).
 
 > **Quem pode criar** (problemas/pastas/coleções) = mesma regra de criar contest
 > (`cc_can_create`: `.admin` ou allowlist ou ≥ N resolvidos, menos a denylist) — gerida em

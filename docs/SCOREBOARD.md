@@ -57,6 +57,10 @@ BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:2/40:1/55::3/68::4:213:68
 | Modo | Célula de problema | Ordenação | Cor |
 |---|---|---|---|
 | `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/minuto*`=**first to solve** (★ + contorno; menor `first_ac_epoch` do problema entre os times do placar, na mesma visão frozen/full) · `tentativas/-`=tentou | **1º** acertos↓ · **2º** penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) · **3º** minuto do ÚLTIMO problema resolvido↑ (`LastAC`) | pinta com a cor do balão |
+| `obi` | pontos (0–100) | Total↓ | — |
+| `treino` | resolvidos / tentativas | resolvidos↓ | — |
+| `heuristic` | melhor Score | Score↓ (Score Ajustado como desempate) | — |
+| `outro` | colunas 100% personalizadas (cabeçalho traz os nomes reais) | já ordenado | se houver coluna `flag`, mostra bandeira |
 
 **Penalidade configurável (modo `icpc`)** — duas vars de conf, editáveis pelo
 `/contest/admin/settings` (mudar em prova recomputa o placar no próximo GET):
@@ -65,10 +69,6 @@ BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:2/40:1/55::3/68::4:213:68
   entram no `counted` do metrics. **Judge Error/No_Servers e provisórios nunca contam**;
   strings legadas fora do vocabulário canônico continuam contando (comportamento histórico).
   Lista vazia (`PENALTY_VERDICTS=''`) = nenhum verdict penaliza (só o minuto do AC).
-| `obi` | pontos (0–100) | Total↓ | — |
-| `treino` | resolvidos / tentativas | resolvidos↓ | — |
-| `heuristic` | melhor Score | Score↓ (Score Ajustado como desempate) | — |
-| `outro` | colunas 100% personalizadas (cabeçalho traz os nomes reais) | já ordenado | se houver coluna `flag`, mostra bandeira |
 
 ## Coortes: times oficiais × CONVIDADOS (extra-oficiais / "CCL")
 
@@ -93,6 +93,7 @@ aparecem juntos. Isso é uma **coorte com política**, não um caso especial no 
 | `public` | `false` = não entra no placar que todo mundo vê |
 | `unranked` | aparece **intercalado** pelo desempenho mas **não consome posição oficial** (convenção ICPC para time extra-oficial) |
 | `sees` | as coortes que um membro desta enxerga (default: as públicas + ela mesma) |
+| `ranking` | `true` numa coorte **pública** dá a ela um **placar PRÓPRIO** (`var/placar-view-<id>.txt`), que vira uma opção do seletor — é assim que *times* × *individual* da inscrição aparecem separados. `?view=<id>` dessa coorte é aceito de qualquer um (`ch_is_ranking_view`) e mostra **só ela** |
 | `results_released` | o "liberamos tudo": todos passam a ver todos e o placar público vira o combinado |
 
 **VISÕES são derivadas, não configuradas**: a pública (as `public:true`), uma por coorte privada
@@ -166,6 +167,12 @@ Geradores existentes (testados contra dados reais, batem com os placares legados
 Regra de produto: todas as colunas têm de ser visíveis em qualquer tela — pode quebrar linha,
 não pode rolar. Como isso é garantido (vale para o placar do contest, a **cerimônia de
 revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
+
+> ⚠ A página de revelação (`/contest/score/reveal.html`) é **EXPERIMENTAL** — serve para
+> ensaio, sede pequena ou plano B. A cerimônia **oficial** de um evento é conduzida pelo
+> **Animeitor, de Emílio Wuerges**, alimentado pelo pacote de webcast (ver `WEBCAST.md` e
+> `MANUAL-ANIMEITOR.md`).
+
 
 - `table.score { table-layout:fixed }` + **`<colgroup>`**: a coluna vale o que o `<col>` diz e
   o conteúdo quebra dentro dela. Antes era layout automático + `white-space:nowrap`: o nome

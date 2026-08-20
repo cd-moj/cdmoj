@@ -44,7 +44,7 @@ perfil privado.
 
 ## 3. Privacidade
 
-O dono controla em `/treino/perfil/` (🔒 Privacidade). `public != false` = público (default).
+O dono controla em `/treino/perfil/` (🔒 Privacidade). `public != false` = público (default). **Exceção: conta gerida de MENOR é privada SEMPRE** e o próprio dono não consegue abrir (400 `managed_minor`) — ver [CONTAS-GERIDAS.md](CONTAS-GERIDAS.md).
 
 | Visitante | Perfil PÚBLICO | Perfil PRIVADO |
 |---|---|---|

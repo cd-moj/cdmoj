@@ -52,9 +52,9 @@ Descendo a página, você encontra:
 
 - O **destaque** do topo, com a **notícia em evidência** e os botões-atalho
   **Treino Livre →**, **Gestão de Problemas →** e **📖 Ajuda**.
-- O card **🗂️ Gestão de Problemas** — para quem **cria** problemas (professores,
+- O card **🗂️ Gestão de Problemas** (só aparece para quem pode criar problemas) — para quem **cria** problemas (professores,
   monitores, autores). Se você só quer treinar, pode ignorar.
-- O card **🏋️ Treino Livre**, com o botão **Buscar problemas →**.
+- O card **🏋️ Treino Livre**, com o botão **Procurar problemas →**.
 - O **🏆 Top 10** de quem mais resolve — **clique num nome** para abrir o **perfil
   público** daquela pessoa (seção 8).
 - Os **🔥 mais resolvidos na semana passada** e os **⌨ editores da semana**.

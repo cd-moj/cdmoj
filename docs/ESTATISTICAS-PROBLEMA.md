@@ -122,7 +122,8 @@ O card "**X% do acervo é mais fácil que este**" compara a **taxa de sucesso po
 - **Mais rápida por linguagem** — o mínimo por linguagem (barra curta = mais rápida).
 - Atenção ao comparar linguagens: os tempos vêm de submissões diferentes, de máquinas de
   juiz possivelmente diferentes, e o TL do MOJ é **por linguagem** (calibrado pelas
-  soluções do autor) — a comparação aqui é ilustrativa, não um benchmark controlado.
+  soluções do autor — ou fixado por ele com `TLOVERRIDE` no conf do pacote, que vence o
+  calibrado) — a comparação aqui é ilustrativa, não um benchmark controlado.
 
 ---
 

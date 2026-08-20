@@ -25,16 +25,24 @@ moj/
   server/          backend bash sob nginx + fcgiwrap
     api/v1/
       router.sh    front-controller único: PATH_INFO -> handlers/<segmentos>.sh
-      lib/         common.sh (resposta/JSON/validação/audit), params.sh, auth.sh, profile.sh, contest-create.sh
-      handlers/    auth/ index/ treino/ contest/ submission/ admin/ ops/  (1 arquivo por rota)
+      lib/         ~30 libs: common.sh (resposta/JSON/validação/audit), auth.sh, users.sh, problems.sh,
+                   orgs.sh, langs.sh (whitelist+CHÃO), tl-store.sh (TL+TLOVERRIDE), verdict.sh,
+                   review.sh (veredicto manual), print.sh (fila/balões/escopo de sede),
+                   cohorts.sh, registration.sh, contest-{create,docs,rounds,gate,offline}.sh,
+                   webcast.sh, team-{photo,music}.sh, ua-gate.sh, telegram.sh, alerts.sh, …
+      handlers/    auth/ index/ treino/ contest/ problems/ orgs/ judge/ submission/ admin/ ops/
+                   + submit.sh   (1 arquivo por rota)
     daemons/       judged.sh (consumidor do spool, inotify)
     judge-gw/      sched-lib.sh (escalonador pull: registro+fila+claim) + judge.sh (mock/local, dev) + PULL.md
-    score/         build.sh (recalcula placar), stats-gen.sh (gera o cache de estatísticas), jplag-run.sh
+    score/         build.sh (recalcula placar), updatescore-*.sh (um por modo), stats-gen.sh,
+                   report-gen.sh + relatorio-gen.sh (relatório offline), webcast-gen.sh (pacote do
+                   telão), treino-list-gen.sh, problem-panorama-gen.sh, jplag-run.sh
     etc/           common.conf, nginx/, systemd/
   web/             frontend vanilla (ES modules, sem build), servido estático
     shared/        api.js auth.js ui.js editor.js charts(/lib) flags.js sonic.js contest-host/guard/shell.js contest-config/
     index/ contests/ status/ treino/ contest/  (home, arquivo de encerrados, status público, treino, contest)
-  judge/           agente pull (moj-agent@pos/gpu/cm/hu, puxa job no heartbeat) + mojtools (sandbox bubblewrap)
+  judge/           agente pull (moj-agent@pos/gpu/cm/hu, puxa job no heartbeat) — repo próprio
+  mojtools/        sandbox bubblewrap + calibração + enunciados — repo IRMÃO (não vive sob judge/)
   mojinho-bot/     bot do Telegram (vira cliente da API)
   contests/<id>/   DADOS (conf, users/<login>/ (account.json+history+metrics+submissions), var/placar.txt, …) — fonte da verdade
   run/             estado de runtime (sessions/, spool/, results/, registry/, sockets)  [não versionado]
@@ -50,9 +58,14 @@ moj/
   Histórico e placar são **TXT** cru (eficiência + é o que o front parseia).
 - **Auth** `Authorization: Bearer <token>` → sessões em `run/sessions/` (modo 700), gravadas
   com `printf %q` (o arquivo é *sourced*; nada de injeção). Papéis por sufixo no login:
-  `.admin` / `.judge` / `.cjudge` / `.staff` / `.cstaff` / `.mon` (`.cstaff` = **chefe de
-  sede**: vê etiquetas de credenciais, fila do staff em leitura e a cerimônia da sede —
-  não herda `.staff`).
+  `.admin` / `.judge` / `.cjudge` / `.staff` / `.cstaff` / `.mon` / `.animeitor`. `.cstaff` =
+  **chefe de sede** (etiquetas de credenciais, fila do staff em leitura, fotos/músicas da sede e
+  a cerimônia dela — **não herda** `.staff`); `.animeitor` = **mesa do telão** (placar SEMPRE
+  descongelado, fotos/músicas de todos os times, as chaves de webcast e as estatísticas — não
+  submete, não vê enunciado, e não é coberto por `is_judge`: os handlers testam
+  `is_judge || is_animeitor` explicitamente). Cada papel tem **tutorial próprio com screenshots**
+  em `/contest/ajuda/<papel>.html` (pt/en), alcançável pelo botão *📖 Como funciona este papel*
+  na tela dele; os manuais de usuário são `MANUAL-{STAFF,JUIZ,ANIMEITOR}.md`.
 - **Isolamento por subdomínio**: em `<id>.moj.<base>` o nginx injeta `CONTEST_HOST`; o
   `router.sh` só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend
   redireciona o resto para `/contest/` (`shared/contest-guard.js`). **Única exceção**:
@@ -126,6 +139,34 @@ submissões** dos seus problemas agregado em **toda a plataforma** (treino + as 
 acertos, erros mais comuns, linguagens, nº de contests e o **mais popular** — cache precomputado que
 reconcilia o namespace do history (`problemas-apc#…`) com o índice de donos (`apc#…`) via `collections`;
 só agregados (sem logins, sem nomes de contests) — não vaza prova privada.
+
+**Três mecanismos de autoria em volta da calibração/TL** (2026-08-19):
+
+- **Calibração POR EXTENSO**: além do log em texto, o `calibreitor` grava um vetor estruturado
+  (`pkg/.calib-sols.json`) que o juiz sobe no `/judge/calib-report` e o `GET /problems/calib`
+  serve por host: `[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]` — o **mesmo**
+  formato do vetor `tests` de uma submissão. O editor o renderiza no cartão de cada juiz, e a CLI
+  o entrega cru (`moj calib --json`) para ferramentas externas.
+- **`TLOVERRIDE[<lang>|default]` no conf do PACOTE**: o autor decide o TL na marra. O efetivo
+  (`override[lang] // override[default] // calibrado`) vence **no julgamento** (o juiz aplica
+  depois dos `TLMOD`) e em **toda exibição** (treino, contest, folha de TL, `/problems/tl`, que
+  mostra os três valores). O servidor lê o conf por **grep** — conf de autor é código, nunca é
+  *sourced* fora da jaula.
+- **Test-run** (`POST /problems/test-run`, `moj testrun`): o autor roda **uma solução avulsa no
+  juiz real** — mesma jaula, mesmo TL — sob o contest sentinela `_testrun`; o `ingest_result` do
+  daemon desvia o resultado para `run/testrun/` e **nunca** toca history/metrics/placar. Gate de
+  edição no problema, teto de fonte, rate por login e TTL de 7 dias.
+
+A aba 🕘 **Histórico** do editor é o git de cada problema (`/problems/history`, `download?sha=`,
+`restore` — que grava um commit NOVO, nunca reescreve história).
+
+### Submissão OFFLINE (LAN sem Internet)
+Para prova em rede isolada, o `moj-comp` (CLI do competidor) assina pacotes **sem rede**
+(RSA-OAEP+AES, com um *beacon* assinado que carimba o horário) e o organizador os injeta depois
+por `POST /contest/offline-submit` (máx 50 por vez). O servidor valida envelope, login, contest,
+monotonicidade do horário reivindicado, dedup por sha256 e a **whitelist de linguagem** — e
+contabiliza no **horário reivindicado**, não no da chegada. Ver `lib/contest-offline.sh`,
+`handlers/contest/{offline-submit,beacon}.sh`.
 
 ### Store por-usuário, cadastro por Telegram e alertas
 Todo contest guarda **um diretório por conta** (`contests/<c>/users/<login>/`: `account.json` +
@@ -240,8 +281,12 @@ usuário **`.staff`** no contest, os alunos ganham também a página **Impressã
 enviam um arquivo (PDF/imagem/texto/código) e acompanham o status (pendente→processada→entregue) —
 ver **Impressão (`.staff`)** abaixo. Os problemas usam o **id canônico `coleção#problema`** (igual ao
 treino — é o que o juiz usa p/ achar o pacote); o editor é o **CodeMirror compartilhado**
-(`shared/editor.js`, com tela cheia e nova janela) e a seleção de linguagens é a lista inteira do
-MOJ (`shared/languages.js`), reduzida à whitelist do conf `LANGUAGES=` quando definida. O placar
+(`shared/editor.js`, com tela cheia e nova janela) e a seleção de linguagens tem **fonte única** em
+`lib/langs.sh` (`effective_problem_langs`), com quatro níveis (mais-específico-vence):
+`problem-langs.json` do contest › `LANGUAGES` do conf › `languages` do PACOTE ›
+**`PLATFORM_LANGS`** (as 17 de `mojtools/lang/`). É **FORÇADA no `/submit`** (400
+`lang_not_allowed`) — lista vazia = o CHÃO da plataforma, nunca "qualquer extensão"; o dropdown
+(`shared/languages.js`) é só conveniência. O placar
 é **gerado de `users/*/metrics.json`** (mantidos incrementais pelo daemon; `score/build.sh` +
 `sc_cells` — ver `SCOREBOARD.md`), sem varrer history. O aluno recebe
 **aviso de novidades** (notícias + clarifications respondidas, com badge de não lidas — poll de
