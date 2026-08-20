@@ -28,9 +28,9 @@
         <span class="em">🖨️</span>
         <div>
           <code>alguem.staff</code>
-          <div class="d" data-en="You are the counter of the contest: you print what the teams ask for, you deliver the balloons, and you hand the paper over. You never submit, never see the statements, and never see anyone's password.">
+          <div class="d" data-en="You are the counter of the contest: you print what the teams ask for, you deliver the balloons, and you hand the paper over. You never submit, never compete, and never see anyone's password.">
             Você é o balcão da prova: imprime o que os times pedem, entrega os balões e leva o
-            papel até a mesa. Você não submete, não vê enunciado e não vê senha de ninguém.
+            papel até a mesa. Você não submete, não compete e não vê senha de ninguém.
           </div>
         </div>
       </div>
@@ -90,9 +90,12 @@
           <tr><td>📄 <span data-en="Documents">Documentos</span></td><td data-en="Published contest documents (info sheet, problem set, time limits) — to print at the site.">Documentos publicados da prova (info sheet, caderno, time limits) — para imprimir na sede.</td></tr>
           <tr><td>🔁 <span data-en="Rounds">Rodadas</span></td><td data-en="Warm-up and official round of this contest.">Aquecimento e prova oficial deste contest.</td></tr>
         </table>
-        <div class="tip" data-en="There is no Contest tab and no Clarification tab: you do not see statements and do not answer questions. Opening /contest/ sends you straight to the print queue.">
-          Não existe aba <i>Contest</i> nem <i>Clarification</i>: você não vê enunciados e não
-          responde perguntas. Abrir <code>/contest/</code> te leva direto para a fila de impressão.
+        <div class="tip" data-en-html="There is no Contest tab and no Clarification tab: you do not get the problems as a competitor does and you do not answer questions. You do, however, download the <b>problem set</b> in 📄 Documentos once it is published — printing it for the room is your job, and it means the booklet in your hands is exam material: keep custody of it. Opening /contest/ sends you straight to the print queue.">
+          Não existe aba <i>Contest</i> nem <i>Clarification</i>: você não recebe os problemas como
+          um competidor e não responde perguntas. Mas você <b>baixa o caderno</b> em 📄 Documentos
+          assim que ele é publicado — imprimi-lo para a sala é o seu trabalho, e isso significa que
+          o caderno na sua mão é material de prova: guarde-o. Abrir <code>/contest/</code> te leva
+          direto para a fila de impressão.
         </div>
 
         <h2 id="fila" data-en="3. The print queue">3. A fila de impressão</h2>
@@ -123,8 +126,8 @@
         <h2 id="tarefa" data-en="4. Handling a task">4. Tratando uma tarefa</h2>
         <p data-en="The cycle is always the same three steps:">O ciclo é sempre o mesmo, em três passos:</p>
         <ol>
-          <li data-en-html="<b>Take it</b> — press <i>Pegar</i>. The task becomes yours for a while so two volunteers do not print the same thing."><b>Pegue</b> — aperte <i>Pegar</i>. A tarefa passa a ser sua por um tempo, para dois voluntários não imprimirem a mesma coisa.</li>
-          <li data-en-html="<b>Print it</b> — press <i>🖨️ Imprimir</i>. MOJ builds a PDF with a <b>cover sheet</b> (team, university, login, task number, page count and a line to sign) followed by the document itself; source code comes out with numbered lines."><b>Imprima</b> — aperte <i>🖨️ Imprimir</i>. O MOJ monta um PDF com uma <b>folha de rosto</b> (time, universidade, login, número da tarefa, nº de páginas e uma linha para assinar) seguida do documento; código-fonte sai com as linhas numeradas.</li>
+          <li data-en-html="<b>Take it</b> — press <i>Pegar</i>. The task becomes yours so two volunteers do not print the same thing. <b>This reservation does not expire</b>: if a colleague took tasks and left, pressing <i>🖨️ Imprimir</i> on them works anyway and takes the task over."><b>Pegue</b> — aperte <i>Pegar</i>. A tarefa passa a ser sua, para dois voluntários não imprimirem a mesma coisa. <b>Essa reserva não expira</b>: se um colega pegou tarefas e foi embora, apertar <i>🖨️ Imprimir</i> nelas funciona do mesmo jeito e assume a tarefa.</li>
+          <li data-en-html="<b>Print it</b> — press <i>🖨️ Imprimir</i> (it opens in a new tab, so <b>allow pop-ups</b> for this site before the contest starts — blocked pop-up means the task is not marked). There is also <i>Abrir PDF</i>, which only opens it, without printing or marking. MOJ builds a PDF with a <b>cover sheet</b> (team, university, login, task number, page count and a line to sign) followed by the document itself; source code comes out with numbered lines."><b>Imprima</b> — aperte <i>🖨️ Imprimir</i> (abre em outra aba, então <b>libere os pop-ups</b> deste site antes de a prova começar — pop-up bloqueado significa tarefa não marcada). Há também <i>Abrir PDF</i>, que só abre, sem imprimir nem marcar. O MOJ monta um PDF com uma <b>folha de rosto</b> (time, universidade, login, número da tarefa, nº de páginas e uma linha para assinar) seguida do documento; código-fonte sai com as linhas numeradas.</li>
           <li data-en-html="<b>Deliver it</b> — after handing the paper over, press <i>✅ Entregue</i>. That closes the task and is what tells the organizers the paper actually arrived."><b>Entregue</b> — depois de entregar o papel, aperte <i>✅ Entregue</i>. Isso fecha a tarefa e é o que diz à organização que o papel chegou de fato.</li>
         </ol>
         <figure class="shot">
@@ -256,7 +259,7 @@
         <table class="cheat">
           <tr><th data-en="Attempt">Tentativa</th><th data-en="Answer">Resposta</th></tr>
           <tr><td data-en="Submit a solution">Submeter uma solução</td><td><code>403</code> — <span data-en="staff does not submit">staff não submete</span></td></tr>
-          <tr><td data-en="See the problem statements">Ver os enunciados</td><td data-en="Empty list (locked)">Lista vazia (bloqueada)</td></tr>
+          <tr><td data-en="Get the problems as a competitor (Contest tab)">Receber os problemas como competidor (aba Contest)</td><td data-en-html="Empty list (locked) — but the published problem set is yours in 📄 Documentos">Lista vazia (bloqueada) — mas o caderno publicado é seu em 📄 Documentos</td></tr>
           <tr><td data-en="Open the credential labels (passwords)">Abrir as etiquetas de credenciais (senhas)</td><td><code>403</code> — <span data-en="that screen belongs to the site chief">essa tela é do chefe de sede</span></td></tr>
           <tr><td data-en="Upload/replace/remove photo or song">Enviar/trocar/remover foto ou música</td><td><code>403</code></td></tr>
           <tr><td data-en="Download the big-screen .zip package">Baixar o pacote .zip do telão</td><td><code>403</code></td></tr>

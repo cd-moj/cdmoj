@@ -114,6 +114,7 @@
           <tr><td><code>claimed</code></td><td data-en="Someone is looking at it right now.">Alguém está olhando agora.</td></tr>
           <tr><td><code>voting</code></td><td data-en="It already has a vote and needs another one to close.">Já tem um voto e precisa de mais um para fechar.</td></tr>
           <tr><td><code>conflict</code> ⚠</td><td data-en="The judges disagreed — only the chief judge resolves it.">Os juízes divergiram — só o juiz-chefe resolve.</td></tr>
+          <tr><td data-en-html="&quot;lotada (2)&quot; / &quot;você já votou&quot;">&quot;lotada (2)&quot; / &quot;você já votou&quot;</td><td data-en="In the action column: the submission already has as many judges on it as the quorum, or you already gave your vote. Move to the next one — claimed does NOT mean &quot;wait&quot;: up to the quorum of judges look at the same submission at the same time.">Na coluna de ação: a submissão já tem tantos juízes quanto o quórum, ou você já deu o seu voto. Vá para a próxima — <i>claimed</i> NÃO quer dizer &quot;espere&quot;: até o quórum de juízes olham a mesma submissão ao mesmo tempo.</td></tr>
         </table>
         <p data-en="The verdict the machine computed appears in colour on every row. It is a suggestion, not a decision: your job is to confirm it or override it.">
           O veredicto que a máquina computou aparece colorido em cada linha. Ele é uma
@@ -140,14 +141,24 @@
           que o time mandou. Esses dois links estão sempre disponíveis a um juiz, independente do
           que a prova mostra aos competidores.
         </p>
-        <div class="tip" data-en="Two buttons help with the clock: +5 min extends your reservation if the case is hard, and Desistir hands it back to the queue for another judge. While you have a submission open, the page stops reloading by itself — it will not pull the case from under you.">
-          Dois botões ajudam com o relógio: <b>+5 min</b> estende a sua reserva se o caso é difícil,
-          e <b>Desistir</b> devolve à fila para outro juiz. Enquanto você tem uma submissão aberta,
-          a página para de recarregar sozinha — ela não puxa o caso debaixo de você.
+        <div class="warn" data-en-html="<b>Watch the clock.</b> The reservation lasts 5 minutes; when the counter reaches zero the case goes back to the queue and a vote sent after that is refused (&quot;take the submission before voting&quot;). If the case is hard, press <b>+5 min</b> BEFORE the time runs out; if you are not going to finish, press <b>Desistir</b> and let another judge take it. While the panel is open the page does not reload on its own — but the clock keeps running.">
+          <b>Fique de olho no relógio.</b> A reserva dura 5 minutos; quando o contador zera o caso
+          volta para a fila, e um voto enviado depois disso é recusado (&quot;pegue a submissão
+          antes de votar&quot;). Se o caso é difícil, aperte <b>+5 min</b> ANTES de o tempo acabar;
+          se não vai terminar, aperte <b>Desistir</b> e deixe outro juiz pegar. Enquanto o painel
+          está aberto a página não recarrega sozinha — mas o relógio continua correndo.
         </div>
         <div class="warn" data-en="You can only have ONE submission open at a time. Vote or give up before taking another.">
           Você só pode ter <b>uma</b> submissão aberta por vez. Vote ou desista antes de pegar
           outra.
+        </div>
+
+        <div class="warn" data-en-html="<b>If the computed verdict is <i>Judge Error</i> (or another machine failure), do not vote.</b> In manual mode MOJ holds infrastructure errors in this same queue, so the competitor never sees them — but voting would turn a machine problem into a verdict against an innocent team. Call the chief judge: rejudging is theirs. (If there is no chief around, the honest vote is the &quot;contact staff&quot; option.)">
+          <b>Se o veredicto computado for <i>Judge Error</i> (ou outra falha de máquina), não
+          vote.</b> No modo manual o MOJ segura os erros de infraestrutura nesta mesma fila, para
+          o competidor nunca os ver — mas votar transformaria um problema de máquina em veredicto
+          contra um time inocente. Chame o juiz-chefe: rejulgar é dele. (Sem chefe por perto, o
+          voto honesto é a opção &quot;contact staff&quot;.)
         </div>
 
         <h2 id="dois" data-en="5. Two judges must agree">5. Dois juízes têm de concordar</h2>

@@ -122,9 +122,12 @@
           vermelha toma o topo de <b>qualquer</b> página do contest em que você esteja, apita e
           vibra no celular. Clicar leva direto aos conflitos.
         </p>
-        <div class="warn" data-en="The alarm only sounds when the NUMBER of conflicts goes up — it does not nag while you are working through them. If it went quiet but the bar is still there, there is still something waiting.">
+        <div class="warn" data-en-html="The alarm only sounds when the NUMBER of conflicts goes up — it does not nag while you are working through them. If it went quiet but the bar is still there, there is still something waiting. And <b>do not trust the sound alone</b>: browsers block audio on a page nobody has clicked, so a panel left open on a second monitor may only show the red bar. Click once on the page to release the sound.">
           O alarme só toca quando o <b>número</b> de conflitos sobe — ele não fica insistindo
           enquanto você trabalha. Se parou de apitar mas a barra continua, ainda há algo esperando.
+          E <b>não confie só no som</b>: navegador bloqueia áudio em página que ninguém clicou,
+          então um painel deixado aberto no segundo monitor pode só mostrar a barra vermelha.
+          Clique uma vez na página para liberar o som.
         </div>
 
         <h2 id="situacao" data-en="5. Watching the queue">5. Vigiando a fila</h2>
@@ -158,8 +161,6 @@
           <tr><td data-en="Rejudge">Rejulgar</td><td data-en="Re-run submissions after fixing a test or a checker.">Rodar de novo as submissões depois de corrigir um teste ou um corretor.</td></tr>
           <tr><td data-en="Edit answers and news">Editar respostas e notícias</td><td data-en="Fix a clarification already answered, or a news item already sent.">Corrigir uma clarification já respondida, ou uma notícia já enviada.</td></tr>
           <tr><td data-en="Documents">Documentos</td><td data-en="Generate and publish the contest documents — including the ones not published yet, which judges cannot see.">Gerar e publicar os documentos da prova — inclusive os não publicados, que os juízes não veem.</td></tr>
-          <tr><td data-en="Pre-flight checklist">Checklist pré-prova</td><td data-en="The list of checks before the contest starts.">A lista de conferências antes de a prova começar.</td></tr>
-          <tr><td data-en="Machines">Máquinas</td><td data-en="Which team is on which machine — useful when a room misbehaves.">Que time está em que máquina — útil quando uma sala dá problema.</td></tr>
         </table>
 
         <h3 data-en="All submissions, with names">Todas Submissões, com nomes</h3>
@@ -180,6 +181,12 @@
           Rejulgar é a ferramenta para quando um teste estava errado ou um corretor foi consertado:
           marque as submissões afetadas e mande de volta para as máquinas. Os veredictos são
           recomputados e o placar acompanha.
+        </div>
+
+        <div class="warn" data-en-html="Two powers exist in the API for you but have <b>no screen</b> in your panel: the pre-flight checklist and the machine map live inside the administration panel, which does not open for a chief judge. If you need them on the day, it is the administrator who opens them.">
+          Dois poderes existem na API para você mas <b>não têm tela</b> no seu painel: o checklist
+          pré-prova e o mapa de máquinas moram no painel de administração, que não abre para
+          juiz-chefe. Se precisar deles no dia, quem abre é o administrador.
         </div>
 
         <h2 id="prova" data-en="8. Beyond judging: what only you do">8. Além de julgar: o que só você faz</h2>
@@ -204,9 +211,10 @@
           <b>privada</b> quando devia ser <b>pública</b>. Corrija o texto, marque <b>pública</b> e
           salve; os times passam a ver a versão corrigida.
         </p>
-        <div class="tip" data-en="You can also take over a question another judge reserved — the reservation does not block the chief. Useful when a judge left the room with a question locked.">
-          Você também assume uma pergunta que outro juiz reservou — a reserva não trava o chefe. É
-          útil quando um juiz saiu da sala com uma pergunta presa.
+        <div class="tip" data-en-html="If a judge reserved a question and left the room, not even you answer over it: the reservation applies to everyone and expires by itself in <b>5 minutes</b>. Wait it out (or ask them to release it) and the question is free again.">
+          Se um juiz reservou uma pergunta e saiu da sala, nem você responde por cima: a reserva
+          vale para todos e expira sozinha em <b>5 minutos</b>. Espere o tempo passar (ou peça a
+          ele para liberar) e a pergunta volta a ficar livre.
         </div>
 
         <h3 data-en="Publishing news">Publicar notícia</h3>
