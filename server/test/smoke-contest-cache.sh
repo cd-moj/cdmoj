@@ -26,8 +26,11 @@ printf 'CONTEST=lazy\nLOGIN=lazy.admin\nLOGINAT=1\n' > "$SESS/adm"
 for i in $(seq -w 1 22); do d="$FIX/zz$i"; mkdir -p "$d"
   printf 'CONTEST_ID=zz%s\nCONTEST_NAME=Closed %s\nCONTEST_START=1000\nCONTEST_END=2000\n' "$i" "$i" > "$d/conf"; done
 
+# ⚠ RUNDIR no fixture: sem ele o handler cai no default do common.conf e o teste ESCREVE no
+# run/ de verdade (o cache do /index/contests vive lá). Foi o que aconteceu ao criar este bloco.
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-adm}" \
-    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" SCOREDIR="$ROOT/score" bash "$ROUTER" <<<"${3:-}" 2>&1)"; \
+    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" SCOREDIR="$ROOT/score" RUNDIR="$FIX/run" \
+    bash "$ROUTER" <<<"${3:-}" 2>&1)"; \
     BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:160}"; ((fail++)); fi; }
 mt(){ stat -c %Y "$1" 2>/dev/null || echo 0; }
@@ -67,5 +70,56 @@ ck "há mais de 20 encerrados no fixture" '[[ "$TOTAL" -gt 20 ]]'
 ck "default devolve só 20 itens" '[[ "$(jq -r ".closed.items|length" <<<"$BODY")" == 20 ]]'
 call /index/contests GET '' '' 'all=1'
 ck "all=1 devolve TODOS (items==total)" '[[ "$(jq -r ".closed.items|length" <<<"$BODY")" == "$(jq -r .closed.total <<<"$BODY")" ]]'
+
+echo "== /index/contests: o TSV é cacheado, e o cache NÃO congela o relógio =="
+# O laço que lê os 1482 conf custava 1.455 ms — era a rota INTEIRA (2,2 s), na página inicial,
+# a cada visita. O TSV virou cache invalidado por EVENTO (conf mais novo / contest criado), e
+# p/ isso teve de ficar independente da hora: quem classifica aberto/por vir/encerrado é o jq.
+# É essa independência que este bloco prova — sem ela, cache e relógio brigam em silêncio.
+TSVC="$FIX/run/index-contests.tsv"
+call /index/contests GET '' '' ''
+ck "o cache do TSV foi gravado"       '[[ -s "$TSVC" ]]'
+M0="$(mt "$TSVC")"
+sleep 1; call /index/contests GET '' '' ''
+ck "2ª chamada NÃO refaz a varredura"  '[[ "$(mt "$TSVC")" == "$M0" ]]'
+
+# contest que COMEÇA daqui a 2s: o cache nasce com ele "por vir" e, sem tocar em nada,
+# a resposta tem de virar "aberto" sozinha
+FUT="$FIX/vira"; mkdir -p "$FUT/var"
+NOW=$(date +%s)
+printf 'CONTEST_ID=vira
+CONTEST_TYPE=icpc
+CONTEST_NAME=Vira
+CONTEST_START=%s
+CONTEST_END=%s
+PROBS=( x c#a A A c#a )
+'   "$(( NOW + 2 ))" "$(( NOW + 9999 ))" > "$FUT/conf"
+call /index/contests GET '' '' ''
+ck "nasce em 'por vir'"                '[[ "$(jq -r "[.upcoming[].id]|index(\"vira\")" <<<"$BODY")" != null ]]'
+ck "e sem revelar nº de problemas"     '[[ "$(jq -r ".upcoming[]|select(.id==\"vira\").problems_count" <<<"$BODY")" == 0 ]]'
+M1="$(mt "$TSVC")"
+sleep 3                                   # só o RELÓGIO anda; nenhum conf muda
+call /index/contests GET '' '' ''
+ck "vira 'aberto' sozinho"             '[[ "$(jq -r "[.open[].id]|index(\"vira\")" <<<"$BODY")" != null ]]'
+ck "aí sim mostra o nº de problemas"   '[[ "$(jq -r ".open[]|select(.id==\"vira\").problems_count" <<<"$BODY")" == 1 ]]'
+ck "e NÃO refez a varredura p/ isso"   '[[ "$(mt "$TSVC")" == "$M1" ]]'
+
+# invalidação por EVENTO: editar um conf refaz; a resposta acompanha
+sleep 1; sed -i 's/^CONTEST_NAME=.*/CONTEST_NAME=ViraRenomeado/' "$FUT/conf"
+call /index/contests GET '' '' ''
+ck "conf editado => varredura refeita" '[[ "$(mt "$TSVC")" != "$M1" ]]'
+ck "e o nome novo aparece"             '[[ "$(jq -r ".open[]|select(.id==\"vira\").title" <<<"$BODY")" == ViraRenomeado ]]'
+M2="$(mt "$TSVC")"
+sleep 1; mkdir -p "$FIX/novo/var"
+printf 'CONTEST_ID=novo
+CONTEST_TYPE=icpc
+CONTEST_NAME=Novo
+CONTEST_START=1
+CONTEST_END=2
+PROBS=()
+' > "$FIX/novo/conf"
+# `all=1` de propósito: `novo` começa em 1 (o mais antigo) e cai na ÚLTIMA página do arquivo
+call /index/contests GET '' '' 'all=1'
+ck "contest NOVO também invalida"      '[[ "$(mt "$TSVC")" != "$M2" ]] && [[ "$(jq -r "[.closed.items[].id]|index(\"novo\")" <<<"$BODY")" != null ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

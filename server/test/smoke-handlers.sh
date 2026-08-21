@@ -71,9 +71,11 @@ EOF
 
 pass=0; fail=0
 check(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1"; echo "      out: ${OUT:0:500}"; ((fail++)); fi; }
+# RUNDIR no fixture: sem ele o handler cai no default do common.conf e o teste escreve no run/
+# de verdade (o /index/contests cacheia a varredura dos conf lá dentro).
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="$3" \
   HTTP_AUTHORIZATION="${4:+Bearer $4}" \
-  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" RUNDIR="$FIX/run" \
   bash "$ROUTER" <<<"${5:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 
@@ -205,7 +207,7 @@ SESS2="$(mktemp -d)"
 cp "$SESS/$TOKEN" "$SESS2/$TOKEN"
 acall(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="$3" \
   HTTP_AUTHORIZATION="${4:+Bearer $4}" \
-  CONTESTSDIR="$TMPC" SESSIONDIR="$SESS2" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" \
+  CONTESTSDIR="$TMPC" SESSIONDIR="$SESS2" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" RUNDIR="$TMPC/run" \
   bash "$ROUTER" <<<"${5:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 

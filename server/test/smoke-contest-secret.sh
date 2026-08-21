@@ -16,7 +16,7 @@ printf '%s' '{"id":"bankprob","title":"Banco","tags":[],"statement_html_b64":"PG
 printf '%s' '{"problems":[{"id":"bankprob","title":"Banco","owner":"x","collaborators":[],"public":true}]}' > "$T/var/problem-owners.json"
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-}" \
-    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"
+    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$FIX/run" bash "$ROUTER" <<<"${3:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:200}"; ((fail++)); fi; }
 
