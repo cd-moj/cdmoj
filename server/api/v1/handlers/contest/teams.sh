@@ -5,7 +5,14 @@
 # O NOME do time NÃO vai aqui — é o `fullname`, que o TXT do placar já carrega.
 #   -> {teams:{<login>:{univ_short?,univ_full?,flag?,region?,has_logo,has_photo}}}
 # Só entram logins com ALGO a dizer (campo de time, foto ou brasão) — payload enxuto.
-# Agregação dir-a-dir (sem ARG_MAX). Precedência no front: isto > teams-meta (regex) > vazio.
+# UMA VARREDURA, não um jq por conta (regra da casa — ver o CLAUDE.md, "listagem de MUITOS
+# usuários"). Era um `jq` POR LOGIN: 137 contas = 0,67 s, ~5 ms cada — a 2000 times daria ~10 s,
+# e esta rota está no caminho do placar. Agora são 5 processos, seja qual for o tamanho: um
+# `find` (contas + assets de uma vez), um `awk` que monta o mapa de assets, um `jq` sobre TODAS
+# as contas (login pelo `input_filename`), um p/ quem só tem asset e o `jq -s` que junta.
+# ⚠ O mapa de assets entra por `--slurpfile`, que o jq parseia UMA vez; passá-lo como string e
+# reconstruir dentro do filtro seria O(n²) — refeito a cada conta.
+# Agregação sem ARG_MAX. Precedência no front: isto > teams-meta (regex) > vazio.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -30,16 +37,38 @@ if ch_enabled "$contest"; then
 fi
 
 cdir="$CONTESTSDIR/$contest"
-teams="$( { find "$cdir/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | while IFS= read -r d; do
-    login="${d##*/}"
-    case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor|.removed-users) continue;; esac
-    # foto é webp desde 2026-08 (photo.png = acervo antigo, ainda válido — lib/team-photo.sh)
-    hp=false; { [[ -s "$d/photo.webp" ]] || [[ -s "$d/photo.png" ]]; } && hp=true
-    hl=false; [[ -s "$d/logo.png" ]] && hl=true
-    if [[ -f "$d/account.json" ]]; then
-      jq -c --arg l "$login" --argjson hp "$hp" --argjson hl "$hl" \
-        --argjson CH "$CH_JSON" --arg want "$CH_WANT" '
-        (.team // {}) as $tm
+TD="$(mktemp -d 2>/dev/null)" || TD="${TMPDIR:-/tmp}/cteams.$$"; mkdir -p "$TD"
+trap 'rm -rf "$TD"' EXIT
+
+# 1 find p/ tudo: as contas e os assets. `%h` = dir do usuário, `%f` = nome do arquivo.
+# foto é webp desde 2026-08 (photo.png = acervo antigo, ainda válido — lib/team-photo.sh)
+find "$cdir/users" -mindepth 2 -maxdepth 2 -type f -size +0c \
+     \( -name account.json -o -name photo.webp -o -name photo.png -o -name logo.png \) \
+     -printf '%h\t%f\n' 2>/dev/null \
+  | awk -F'\t' -v amap="$TD/assets.json" -v alst="$TD/accts.lst" '
+      function esc(s){ gsub(/\\/,"\\\\",s); gsub(/"/,"\\\"",s); return s }
+      { n=split($1,p,"/"); l=p[n]
+        if (l ~ /^\./) next                                  # .removed-users e afins
+        if (l ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) next
+        seen[l]=1
+        if ($2 == "account.json") { acct[l]=1; print $1 "/account.json" > alst }
+        else if ($2 ~ /^photo\./)  hp[l]=1
+        else if ($2 == "logo.png")  hl[l]=1 }
+      END{ printf "{" > amap; sep=""
+           for (l in seen) {
+             printf "%s\"%s\":{\"hp\":%s,\"hl\":%s}", sep, esc(l),
+                    (l in hp ? "true":"false"), (l in hl ? "true":"false") > amap
+             sep="," }
+           printf "}\n" > amap }'
+[[ -s "$TD/assets.json" ]] || printf '{}\n' > "$TD/assets.json"
+: > "$TD/accts.lst.ok"; [[ -s "$TD/accts.lst" ]] && sort "$TD/accts.lst" > "$TD/accts.lst.ok"
+
+teams="$( { [[ -s "$TD/accts.lst.ok" ]] && xargs -a "$TD/accts.lst.ok" -d'\n' -r \
+      jq -c --slurpfile A "$TD/assets.json" --argjson CH "$CH_JSON" --arg want "$CH_WANT" '
+        ((input_filename | split("/"))[-2]) as $l
+        | (($A[0][$l] // {}).hp == true) as $hp
+        | (($A[0][$l] // {}).hl == true) as $hl
+        | (.team // {}) as $tm
         # coorte do login (campo vence regex, senão a default) — mesma regra do sc_users, e
         # resolvida DENTRO deste jq: um fork por login num endpoint público seria caro.
         | (($tm.cohort // "") as $c
@@ -55,13 +84,19 @@ teams="$( { find "$cdir/users" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sor
              + (if $tm.ai == true then {ai:true} else {} end)) as $fields
             | if ($fields|length) > 0 or $hp or $hl
               then {($l): ($fields + {has_photo:$hp, has_logo:$hl})} else empty end
-          end' "$d/account.json" 2>/dev/null
-    elif [[ "$hp" == true || "$hl" == true ]]; then
-      # participante compartilhado (USERS_FROM) sem account local: só os assets
-      jq -cn --arg l "$login" --argjson hp "$hp" --argjson hl "$hl" \
-        '{($l): {has_photo:$hp, has_logo:$hl}}'
-    fi
-  done; } | jq -cs 'add // {}')"
+          end' 2>/dev/null
+    # participante compartilhado (USERS_FROM) sem account local: só os assets. Coorte não se
+    # aplica (não há `.team` p/ consultar) — é o mesmo que a versão dir-a-dir fazia.
+    jq -cn --slurpfile A "$TD/assets.json" --rawfile acc "$TD/accts.lst.ok" '
+      ($acc | split("\n") | map(select(length>0) | (split("/")[-2])) | map({key:., value:1})
+       | from_entries) as $tem
+      | ($A[0] // {}) | to_entries[]
+      | select(($tem[.key] // 0) == 0 and (.value.hp or .value.hl))
+      | {(.key): {has_photo:(.value.hp), has_logo:(.value.hl)}}' 2>/dev/null
+  # ordena por login: a versão dir-a-dir iterava `find | sort`, então saía em ordem alfabética.
+  # Manter a MESMA ordem é o que deixa a troca provável byte a byte (e o front, que usa isto
+  # como mapa, não se importa — mas um diff que fecha vale mais que um "não deve importar").
+  } | jq -cs 'add // {} | to_entries | sort_by(.key) | from_entries')"
 [[ -n "$teams" ]] || teams='{}'
 
 # mapa de TODOS os times/participantes: passa de 128KiB (teto do --argjson) num contest

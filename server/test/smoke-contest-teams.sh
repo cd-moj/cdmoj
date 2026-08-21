@@ -26,7 +26,7 @@ mktok tm.admin t-adm; mktok sede1.staff t-stf
 
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${4:-}" \
     HTTP_AUTHORIZATION="${3:+Bearer $3}" \
-    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${5:-}" 2>&1)"
+    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$FIX/run" bash "$ROUTER" <<<"${5:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${OUT:0:220}"; ((fail++)); fi; }
 
@@ -109,5 +109,58 @@ call /contest/admin/teams POST t-adm2 'contest=tm2' '{"action":"materialize"}'
 ck "admin/teams compartilhado -> 409" '[[ "$OUT" == *"Status: 409"* && "$(jq -r .error.code <<<"$BODY")" == "shared_users" ]]'
 call /contest/admin/team-assets POST t-adm2 'contest=tm2' "{\"kind\":\"photo\",\"filename\":\"x.png\",\"file_b64\":\"$PNG1\"}"
 ck "team-assets compartilhado -> 409" '[[ "$OUT" == *"Status: 409"* ]]'
+
+echo "== /contest/teams é UMA varredura, e o que ela devolve não mudou =="
+# Era um `jq` POR CONTA: 137 contas = 0,67 s (~5 ms cada) — a 2000 times daria ~10 s, e esta
+# rota está no caminho do placar. Virou varredura única (find+awk+jq em lote). O que este bloco
+# guarda são as bordas que a troca podia quebrar em silêncio.
+TB="$FIX/tb"; mkdir -p "$TB/var"
+TB0=$(( $(date +%s) - 3600 ))
+printf 'CONTEST_ID=tb
+CONTEST_TYPE=icpc
+CONTEST_NAME=B
+CONTEST_START=%s
+CONTEST_END=%s
+PROBS=( x c#a A A c#a )
+'   "$TB0" "$((TB0+18000))" > "$TB/conf"
+for i in 1 2 3 4 5 6; do fx_user "$TB" "tb0$i" p "Time $i"; done
+jq -c '.team={univ_short:"UnB",univ_full:"Universidade de Brasília",flag:"br",region:"Sede1"}'    "$TB/users/tb01/account.json" > "$TB/u" && mv "$TB/u" "$TB/users/tb01/account.json"
+jq -c '.team={ai:true}'  "$TB/users/tb02/account.json" > "$TB/u" && mv "$TB/u" "$TB/users/tb02/account.json"
+jq -c '.team={ai:false}' "$TB/users/tb03/account.json" > "$TB/u" && mv "$TB/u" "$TB/users/tb03/account.json"
+printf 'x' > "$TB/users/tb04/photo.webp"
+printf 'x' > "$TB/users/tb05/photo.png"          # acervo antigo ainda vale
+: > "$TB/users/tb06/photo.webp"                  # VAZIO não conta
+mkdir -p "$TB/users/compart"; printf 'x' > "$TB/users/compart/photo.webp"   # sem account.json
+for r in tb.admin tb.judge tb.cjudge tb.staff tb.cstaff tb.mon tb.animeitor; do
+  fx_user "$TB" "$r" p P; jq -c '.team={univ_short:"NAO"}' "$TB/users/$r/account.json" > "$TB/u" && mv "$TB/u" "$TB/users/$r/account.json"
+  printf 'x' > "$TB/users/$r/photo.webp"
+done
+mkdir -p "$TB/users/.removed-users/velho"; printf '{}' > "$TB/users/.removed-users/velho/account.json"
+call /contest/teams GET '' 'contest=tb'
+T="$(jq -c .teams <<<"$BODY")"
+ck "campos completos saem"        '[[ "$(jq -r ".tb01.univ_full" <<<"$T")" == "Universidade de Brasília" ]]'
+ck "ai:true vira campo"           '[[ "$(jq -r ".tb02.ai" <<<"$T")" == true ]]'
+ck "ai:false NÃO vira campo"      '[[ "$(jq -r ".tb03|has(\"ai\")" <<<"$T")" == false ]]'
+ck "photo.webp conta"             '[[ "$(jq -r ".tb04.has_photo" <<<"$T")" == true ]]'
+ck "photo.png (acervo) conta"     '[[ "$(jq -r ".tb05.has_photo" <<<"$T")" == true ]]'
+ck "foto VAZIA não conta"         '[[ "$(jq -r ".tb06 // \"fora\"" <<<"$T")" == fora ]]'
+ck "só-asset sem account entra"   '[[ "$(jq -r ".compart.has_photo" <<<"$T")" == true ]]'
+ck "NENHUM papel aparece"         '[[ "$(jq -r "[keys[]|select(test(\"\\\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$\"))]|length" <<<"$T")" == 0 ]]'
+ck ".removed-users fora"          '[[ "$(jq -r "has(\"velho\")" <<<"$T")" == false ]]'
+# tb03 tem só `ai:false`, que não vira campo, e nenhum asset => fica de fora
+ck "quem não tem nada a dizer sai" '[[ "$(jq -r "keys|join(\",\")" <<<"$T")" == "compart,tb01,tb02,tb04,tb05" ]]'
+ck "chaves em ordem alfabética"   '[[ "$(jq -r "keys_unsorted|join(\",\")" <<<"$T")" == "$(jq -r "keys|join(\",\")" <<<"$T")" ]]'
+# coorte privada não pode vazar por esta rota (ela é PÚBLICA e lista login por login)
+jq -cn '{results_released:false,cohorts:[
+  {id:"of",name:"Of",regex:"^tb0[1-3]$",public:true,ranking:true,default:true},
+  {id:"ccl",name:"CCL",regex:"^tb0[4-9]",public:false}]}' > "$TB/cohorts.json"
+call /contest/teams GET '' 'contest=tb'
+ck "anônimo não vê a coorte privada" '[[ "$(jq -r "[.teams|keys[]|select(startswith(\"tb\"))]|join(\",\")" <<<"$BODY")" == "tb01,tb02" ]]'
+# ⚠ LACUNA PRÉ-EXISTENTE, fixada aqui p/ ficar visível (não foi introduzida pela varredura
+# única — o diferencial provou que a saída é byte a byte a mesma de antes): participante de
+# contest com USERS_FROM, que não tem `account.json` local, entra pelos ASSETS e **não passa
+# pelo filtro de coorte**. A coorte dele seria decidível pela regex do login (`ch_of` funciona
+# sem conta), então dá p/ fechar — mas é mudança de COMPORTAMENTO, não de desempenho.
+ck "só-asset entra mesmo com coorte" '[[ "$(jq -r ".teams|has(\"compart\")" <<<"$BODY")" == true ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))
