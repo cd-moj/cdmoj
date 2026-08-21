@@ -29,6 +29,7 @@ for u in pc.admin pc.judge pc.cjudge time01; do
 done
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="${3:-GET}" QUERY_STRING="contest=pc" \
     HTTP_AUTHORIZATION="Bearer $2" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$FIX/run" \
+    PROBLEMS_CACHE_TTL="${PROBLEMS_CACHE_TTL:-}" \
     MOJ_PROBLEMS_DIR="$PKG" bash "$ROUTER" <<<"${4:-}" 2>/dev/null)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 autor(){ printf '%s' "$BODY" | jq -r '[.problems[]?|.author//empty]|join(",")'; }
@@ -169,19 +170,30 @@ ck "solto o lock, regenera"          '[[ "$(jq -r ".problems[0].full_name" <<<"$
 echo "== prazo vencido: serve na hora e regenera DESTACADO (ninguém espera) =="
 # a distinção que importa: ENTRADA mudou (admin renomeou) => regenera na hora, o time vê já;
 # só o TETO DE IDADE venceu => nada que importe mudou, serve o que tem e refaz por fora.
+# ⚠ NÃO envelheça o cache com `touch -d`: isso deixa as ENTRADAS mais novas que ele e o
+# handler cai — corretamente — no caminho SÍNCRONO. O cenário de verdade é o contrário: o cache
+# é o arquivo mais novo de todos e só o TETO DE IDADE venceu. Reproduz-se com um teto curto.
 rm -f "$C/var/problems-cache."* "$C/var/.problems-dirty"
-call /contest/problems time01 >/dev/null
+PROBLEMS_CACHE_TTL=1 call /contest/problems time01 >/dev/null
 SNAP="$(cat "$C/var/problems-cache.noauthor.json")"; M0="$(stat -c %Y "$C/var/problems-cache.noauthor.json")"
-touch -d '-1 hour' "$C/var/problems-cache.noauthor.json" "$C/var/problems-cache.noauthor.json.gz"
+sleep 2                                   # só o prazo vence; nenhuma entrada mudou
+# PROVA DE QUE O PAI NÃO ESPERA: com o lock segurado por fora, o filho destacado não consegue
+# regenerar e desiste. Se o caminho fosse síncrono, o pai é que ficaria preso no `flock -w`.
+exec 7>>"$C/var/.problems.lock"; flock -n 7
 T_ANTES=$(date +%s%N)
-call /contest/problems time01
+PROBLEMS_CACHE_TTL=1 call /contest/problems time01
 T_MS=$(( ($(date +%s%N) - T_ANTES) / 1000000 ))
-ck "responde sem esperar a regeração" '[[ "$BODY" == "$SNAP" ]]'
-ck "e foi rápido (< 400 ms)"          '[[ '"$T_MS"' -lt 400 ]]'
+ck "responde o cache que tem"         '[[ "$BODY" == "$SNAP" ]]'
+ck "sem esperar (< 1 s, e o lock está preso)" '[[ '"$T_MS"' -lt 1000 ]]'
+sleep 1
+ck "o filho desistiu do lock"         '[[ "$(stat -c %Y "$C/var/problems-cache.noauthor.json")" == "$M0" ]]'
+exec 7>&-                                  # solta: agora o filho consegue
+RGOK=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-  [[ "$(stat -c %Y "$C/var/problems-cache.noauthor.json")" != "$M0" ]] && break || sleep 0.5
+  PROBLEMS_CACHE_TTL=1 call /contest/problems time01 >/dev/null
+  [[ "$(stat -c %Y "$C/var/problems-cache.noauthor.json")" != "$M0" ]] && { RGOK=1; break; }; sleep 0.5
 done
-ck "o filho destacado regenerou"      '[[ "$(stat -c %Y "$C/var/problems-cache.noauthor.json")" -ge '"$M0"' ]] && [[ -s "$C/var/problems-cache.noauthor.json" ]]'
+ck "com o lock livre, regenera"       '[[ "$RGOK" == 1 ]]'
 ck "e o corpo continua íntegro"       'jq -e ".problems|length >= 1" "$C/var/problems-cache.noauthor.json" >/dev/null'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))
