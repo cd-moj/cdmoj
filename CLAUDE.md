@@ -510,6 +510,40 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   quem não é membro da org nem colaborador, **inclusive `.admin`**. Não-autorizado: **404**.
   Motivo: provas em elaboração não podem vazar. Testado como não-dono via `moj-cli` (não burlável).
 
+- **A FRONTEIRA DO REPOSITÓRIO DE PROBLEMAS** (2026-08-20). `MOJ_PROBLEMS_DIR` — **23 GB, 1402
+  pacotes** que autores commitam (sob `flock` por problema) enquanto a prova acontece — é tocado
+  **só** por: (1) **gestão de problemas** (`handlers/problems/**`, `handlers/orgs/**`), (2)
+  **comunicação com os juízes** (`handlers/judge/**`, `judge-gw/`), (3) **ops de admin**
+  (`handlers/ops/**`) e (4) `server/bin/**`. **Rota de contest e de treino responde do que o
+  servidor JÁ CONHECE** — o índice de donos, o json servível, o `run/tl`, os enunciados do próprio
+  contest. Ela não abre pacote: é latência (I/O de GB no caminho mais polado do dia), é contenção
+  com quem está editando, e é acoplamento ao formato interno do pacote, que é da gestão.
+  **Por que virou regra:** a fronteira sempre foi doutrina da gestão de problemas ("sem hash de
+  pacote por request" — ver o Painel, abaixo), mas não estava escrita nem testada, e o
+  `/contest/problems` a atravessou sem ninguém notar: `tl_store_served` → `pkg_tl_checksum` →
+  `tl-checksum.sh`, que LÊ o conteúdo de `tests/` — **112,8 MB hasheados por regeração** só p/
+  mostrar tempo-limite na tela, e 2,0 s na carga a frio. Foi achado por acaso, num cronômetro.
+  **Onde está cada dado, quando você precisar de um:** dono/orgs/colaboradores/título/público/
+  coleções/`public_at`/`tl_checksum`/`good_langs` → `contests/treino/var/problem-owners.json`
+  (+ overlay `authored.json`, latência zero); **autor completo**, enunciado renderizado, tags,
+  `languages` e `time_limits` **com o `TLOVERRIDE` já aplicado** → `var/jsons/<id>.json` (público)
+  / `var/jsons-private/<id>.json`; TL por host → `run/tl/<id>.json`; validação → `run/validation*`;
+  calibração → `run/calib/`. ⚠ **Autor: use o JSON SERVÍVEL, não o índice de donos** — o índice
+  guarda só a **1ª linha** do arquivo `author` (é campo de busca) e o json servível junta **todas**
+  com `", "`; trocar a fonte errada perde coautor **em silêncio**.
+  **SÓ existem dentro do pacote:** conteúdo dos testes, código das soluções, `scripts/` de correção
+  especial, o `conf` (incl. `TLOVERRIDE`), o **editorial** (`docs/solucao.md`) e as fontes do
+  enunciado — exatamente o conjunto que `require_problem_edit` protege.
+  **O inventário é um teste:** `server/test/sem-pacote.sh` (dois modos — diferencial em três
+  árvores de pacote, e alcançabilidade estática com fecho transitivo). Hoje ele **relata e não
+  reprova**: sobram 6 pontos que abrem pacote (`contest/problems.sh`, `lib/contest-docs.sh`
+  ×2, `score/report-gen.sh`, `index_problem_bg` ×2) e 5 que podem disparar a varredura da base
+  inteira (`ensure_owners_index` no ramo síncrono, via `owners_merged`). Quando a lista esvaziar,
+  ele vira portão em `make check` — está escrito no cabeçalho dele como fazer.
+  ⚠ Ao mexer nesse teste: **diretório de pacote VAZIO é contraste ruim** (os dois caminhos
+  degradam p/ a mesma resposta de "ausente" e ele passa em falso) — a 2ª árvore é **envenenada**;
+  e há **rota não determinística** (o `beacon` carimba hora e nonce), por isso existe a corrida de
+  controle antes da comparação.
 - **O ENUNCIADO NÃO VIAJA NA LISTA** (2026-08-20): o `/contest/problems` diz só que ele existe
   (`has_statement_html`/`has_statement_pdf`) e o corpo sai por **`/contest/statement?contest=…&
   problem=<letra|id>&format=html|pdf`**, quando a pessoa abre a sanfona ou clica em HTML/PDF —

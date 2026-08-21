@@ -127,6 +127,27 @@ calibrações) e **Estatísticas** (usuários, sessões, **problemas: total/púb
 > **Formato do pacote, `.moj-meta.json`, orgs e coleções: ver [PACOTE.md](PACOTE.md)** (fonte única).
 > Roteiro de montar um pacote e o que faz cada script: `mojtools/README.md`.
 
+#### A fronteira: quem pode tocar `moj-problems/`
+
+A árvore de pacotes (**23 GB, 1402 problemas**) é território da gestão de problemas. Só chegam
+nela: as rotas de **autoria** (`handlers/problems/**`, `handlers/orgs/**`), as de **conversa com
+os juízes** (`handlers/judge/**` — o juiz baixa o pacote e devolve TL/veredicto para `run/`), as de
+**ops de admin** (`handlers/ops/**`) e os utilitários de `server/bin/`.
+
+**Contest e treino ficam do lado de fora**: respondem do que o servidor já materializou — o índice
+de donos (`contests/treino/var/problem-owners.json`), o json servível
+(`var/jsons{,-private}/<id>.json`, que já traz enunciado renderizado, autor completo, tags,
+linguagens e o TL com `TLOVERRIDE` aplicado), o `run/tl/`, e os enunciados do próprio contest
+(`contests/<c>/enunciados/`). Rota de prova não abre pacote por três motivos: **latência** (é I/O
+de gigabytes no caminho mais polado do dia), **contenção** (autores commitam durante a prova) e
+**acoplamento** ao formato interno, que é da gestão e muda por conta dela.
+
+O que acontece quando a fronteira é atravessada tem nome e número: o `/contest/problems` chamava
+`tl-checksum.sh` por problema, que **lê o conteúdo** de `tests/` — 112,8 MB hasheados a cada
+regeração do cache, e 2,0 s de carga a frio, só para exibir tempo-limite. A regra e o inventário
+dos resíduos estão em `cdmoj/CLAUDE.md`; o inventário é executável:
+`bash server/test/sem-pacote.sh`.
+
 Autoria/edição em `/problemas/` (storage: repo git LOCAL por problema em `<org>/<prob>`;
 acesso por **ORG** — membros escrevem, a trava `public_allowed` barra vazamento; só o login do MOJ). A aba **Painel**
 (`GET /problems/status`) dá a visão agregada dos problemas de que o login é **dono, colaborador ou membro da org**:

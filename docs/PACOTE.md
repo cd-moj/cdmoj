@@ -8,6 +8,12 @@ o que são **orgs** e **coleções**, e como um problema sai de rascunho e chega
 > **mojtools**, que tem o roteiro. Aqui está a **referência**: o que cada coisa é e por quê.
 > As rotas da API que leem e escrevem o pacote estão em [API.md](API.md).
 
+> ⚠ **O pacote não é fonte de leitura para rota de contest nem de treino.** Quem serve prova ou
+> treino usa o que já está materializado — índice de donos, `var/jsons{,-private}/<id>.json`,
+> `run/tl/` — e nunca abre a árvore de pacotes. Quem precisa de um dado que só existe aqui dentro
+> materializa antes. A fronteira, os motivos e o inventário do que ainda falta:
+> `cdmoj/CLAUDE.md` e `bash server/test/sem-pacote.sh`.
+
 > **Doc atrasada = bug.** Mudou o pacote (arquivo novo, campo novo, layout, de onde vem o título)?
 > Atualize **este** documento no mesmo commit. Os outros lugares (o `CLAUDE.md` do `cdmoj`, do
 > `mojtools` e do `moj-cli`) apontam para cá em vez de repetir o formato.
