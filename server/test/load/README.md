@@ -289,40 +289,49 @@ Medido num fixture de 2000 times × 12 problemas com **HTML de 130 KB + PDF de 3
 O ETag fecha a conta: reabrir o enunciado ou recarregar a página devolve **304 com 0 byte** em
 vez do arquivo.
 
-### A carga A FRIO do `/contest/problems`: 2,0 s → 0,72 s (e a estampida sumiu)
+### A carga A FRIO do `/contest/problems`: 2,0 s → 0,03 s
 
-Com o cache quente a rota custa 30 ms — mas o Ribas viu **2,0 s** numa carga a frio do esquenta,
-depois de o TTL vencer. Medido em produção, o custo estava num lugar inesperado:
+Com o cache quente a rota custa 30 ms — mas uma carga a frio do esquenta levava **2,0 s**, e
+durante a prova isso acontecia **uma vez por minuto** (o teto de idade era 60 s). O custo estava
+onde ninguém procuraria: `tl_store_served` → `pkg_tl_checksum` → `tl-checksum.sh`, que **lê o
+conteúdo** de `tests/{input,output,score}`, `sols/good` e `scripts/`. Eram **112,8 MB hasheados
+por regeração**, em 14 problemas, **só para mostrar tempo-limite na tela** — 1,3 s dos 2,0 s.
 
-| por problema (14 no contest) | antes | depois |
+**O conserto certo não foi otimizar o hash, foi não fazê-lo.** Quem conhece o problema é a
+gestão de problemas, e ela já carimba o `tl_checksum` no índice: a rota lê de lá
+(`tl_index_checksums`, **um jq para a prova inteira, 27 ms**) e passa o valor a
+`tl_store_served`. É a mesma doutrina do `/problems/status` — "comparação de dois checksums já
+materializados, nunca hash por request" — e a mesma origem do `time_limits` que o **treino**
+serve pronto do `var/jsons/<id>.json`. Problema fora do índice cai no caminho lento (hashear),
+que é correto e raro; e o `pkg_tl_checksum` memoiza (`run/tl/<id>.cks`, chaveado por assinatura
+de metadata) para as rotas de AUTORIA, que precisam do checksum real do pacote.
+
+Depois disso a regeração deixou de aparecer para alguém:
+
+| cenário | antes | depois |
 |---|---:|---:|
-| `tl_store_served` | **110,3 ms** | 24,2 ms |
-| ` └ pkg_tl_checksum` | (dentro do acima) | 11,8 ms |
-| `effective_problem_langs` | 4,8 ms | 4,8 ms |
-| `pkg_path` + autor | 2,8 ms | 2,8 ms |
+| **prazo vencido, nada mudou** (o do dia a dia) | 2,0 s | **0,030 s** |
+| primeira geração do contest (nunca houve cache) | 2,0 s | 0,59 s |
+| cache quente | 0,030 s | 0,028 s |
+| 300 simultâneas com o prazo vencido | 300 × ~2 s | média **0,349 s**, pior 0,674 s, zero erro |
 
-O `tl-checksum.sh` **lê o conteúdo** de `tests/{input,output,score}`, `sols/good` e `scripts/`:
-eram **112,8 MB hasheados a cada regeração**, só para mostrar tempo-limite na tela. Três
-consertos:
+O `0,030 s` vem de duas regras no handler, e a distinção entre elas é o ponto:
 
-1. **`pkg_tl_checksum` memoiza** num sidecar `run/tl/<id>.cks`, chaveado por uma **assinatura de
-   metadata** (`find -printf` de caminho/modo/tamanho/mtime sobre exatamente os caminhos que o
-   `tl-checksum.sh` cobre + a versão do próprio script) — o mesmo remédio que o
-   `gen-problem-owners.sh` já usava. **5,3 ms/problema contra 94,7** (18×). Mudou qualquer
-   arquivo do pacote, a assinatura muda e re-hasheia; mudou a função de hash, invalida tudo uma
-   vez. Os `.cks` são invisíveis p/ quem enumera o store (todos filtram `*.json`).
-2. **`run/tl` virou ENTRADA** do cache (o juiz reportando TL faz um `mv` lá dentro, o que mexe no
-   mtime do diretório), então o teto de idade foi de **60 s p/ 900 s**: antes o relógio forçava
-   uma regeração por minuto durante a prova inteira, sem nada ter mudado.
-3. **A regeração é SOLITÁRIA** (`flock -n` + servir o cache velho). Sem isso, no segundo em que o
-   cache vence TODAS as requisições em voo regeneram juntas — com 2000 times polando, a mesma
-   conta paga 2000 vezes. Medido com o cache vencido e **200 requisições simultâneas**: média
-   **0,128 s**, pior 0,767 s (a que regenerou), **zero erro**. Antes, as 200 pagariam ~2 s cada.
+- **entrada mudou** (admin renomeou/removeu problema, conf novo): regenera **na hora** — correção
+  na prova não pode esperar. É raro;
+- **só venceu o teto de idade**: nada que importe mudou ⇒ serve o cache que tem e refaz
+  **destacado** (`setsid`, o padrão do `/treino/problems`; o filho repete a mesma requisição com
+  `MOJ_PROB_REGEN=1`). E o `flock -n` garante um regerador só — sem ele, no segundo em que o
+  cache vence, todas as requisições em voo regeneram juntas.
 
-O que sobrou de caro é a própria assinatura (4 processos por problema) e o resto do
-`tl_store_served`. Dá p/ fazer uma varredura só p/ todos os problemas, mas o ganho estimado é
-~0,2 s numa operação que hoje acontece **uma vez a cada 15 min e trava uma única requisição** —
-não vale o risco às vésperas da prova.
+O teto de idade também subiu de 60 s para 900 s, porque o que ele cobria virou ENTRADA: um juiz
+reportando TL faz um `mv` dentro de `run/tl`, o que mexe no mtime do diretório.
+
+⚠ **Ao medir isto, não envelheça o cache com `touch -d`**: isso deixa as ENTRADAS mais novas que
+ele e o handler cai — corretamente — no caminho síncrono; mede-se o caminho errado. O cenário de
+verdade é o contrário (o cache é o arquivo mais novo e só o prazo venceu). No smoke isso se faz
+com `PROBLEMS_CACHE_TTL=1` + `sleep`; a prova de que o PAI não espera é segurar o `flock` por
+fora — o filho desiste e o pai responde rápido assim mesmo.
 
 ### Hipótese testada e DESCARTADA: os buffers do FastCGI
 
