@@ -73,5 +73,39 @@ chk "mescla => 2 problemas"          "$(jq -r '.problems|length' <<<"$out")" "2"
 chk "overlay vence (public)"         "$(jq -r 'first(.problems[]|select(.id=="o#p")).public' <<<"$out")" "true"
 chk "índice sobrevive (tl_checksum)" "$(jq -r 'first(.problems[]|select(.id=="o#p")).tl_checksum' <<<"$out")" "abc"
 
+# ---------------------------------------------------------------------------------------------
+# REGEN EM BACKGROUND TEM DE SER BACKGROUND DE VERDADE.
+# O `ensure_owners_index` dispara a varredura da base (medida em produção: 39,8 s) quando o índice
+# passa do TTL. Ela é `setsid ... &` — mas o `>/dev/null 2>&1` estava DENTRO do `bash -c`, então o
+# setsid herdava a saída do CGI, e sob fcgiwrap a resposta só termina quando TODO descritor do
+# socket fecha: quem chegasse primeiro depois do TTL esperava a varredura INTEIRA. Medido em
+# produção antes do conserto: 39,6 s numa rota que já tinha o dado pronto para responder.
+# Aqui o "gerador" é um stub que dorme — se o chamador esperar por ele, o teste percebe.
+# ⚠ TEM DE PASSAR PELO ROUTER, com a saída capturada por `$(…)`: é a substituição de comando
+# que espera o stdout FECHAR — exatamente o que o fcgiwrap faz com o socket. Chamando a função
+# direto, o filho vazado não segura ninguém e o teste passa COM o bug presente (tentei).
+echo "-- regen por TTL não pode segurar o chamador --"
+STUB="$T/stubtools"; mkdir -p "$STUB"
+printf '#!/bin/bash\nsleep 5\n' > "$STUB/gen-problem-owners.sh"; chmod +x "$STUB/gen-problem-owners.sh"
+printf '{"problems":[{"id":"o#p","repo":"o","prob":"p","owner":"tester","collaborators":[],"public":true,"collections":["o"],"tl_checksum":"abc"}]}' > "$CONTESTSDIR/treino/var/problem-owners.json"
+rm -f "$CONTESTSDIR/treino/var/authored.json"
+rmdir "$CONTESTSDIR/treino/var/problem-owners.json.lock" 2>/dev/null
+mkdir -p "$RUNDIR/sessions"; printf 'CONTEST=treino\nLOGIN=tester\nUSERFULLNAME=T\nLOGINAT=1\n' > "$RUNDIR/sessions/tk"
+chmod 600 "$RUNDIR/sessions/tk"
+# a sessão MORRE COM A CONTA (_session_account_alive): sem o account.json a rota dá 401 e o
+# teste passa por não chegar ao índice — que foi o que aconteceu na 1ª tentativa
+mkdir -p "$CONTESTSDIR/treino/users/tester"
+printf '{"login":"tester","password":"x","fullname":"T","status":"active"}' > "$CONTESTSDIR/treino/users/tester/account.json"
+touch -d '-90 minutes' "$CONTESTSDIR/treino/var/problem-owners.json"
+t0=$(date +%s%N)
+RESP="$(env PATH_INFO=/problems/mine REQUEST_METHOD=GET QUERY_STRING="" \
+   HTTP_AUTHORIZATION="Bearer tk" CONTESTSDIR="$CONTESTSDIR" RUNDIR="$RUNDIR" \
+   SESSIONDIR="$RUNDIR/sessions" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" MOJTOOLS_DIR="$STUB" \
+   PROBLEM_OWNERS_TTL_MIN=30 bash "$API/router.sh" </dev/null 2>/dev/null)"
+ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+chk "responde sem esperar a varredura (< 2s)" "$( (( ms < 2000 )) && echo sim || echo "NAO(${ms}ms)" )" "sim"
+chk "e respondeu de verdade"                  "$(grep -c '"success":true' <<<"$RESP")" "1"
+sleep 6; rmdir "$CONTESTSDIR/treino/var/problem-owners.json.lock" 2>/dev/null
+
 printf '\n%s ok, %s falha(s)\n' "$ok" "$bad"
 (( bad == 0 ))

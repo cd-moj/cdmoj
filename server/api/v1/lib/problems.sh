@@ -25,9 +25,14 @@ ensure_owners_index(){
     # kill do worker) e aí o índice não regenerava NUNCA mais.
     [[ -n "$(find "$lock" -maxdepth 0 -mmin +20 2>/dev/null)" ]] && rmdir "$lock" 2>/dev/null
     if mkdir "$lock" 2>/dev/null; then
+      # ⚠ O `>/dev/null 2>&1` vale p/ o **setsid**, não só p/ o comando de dentro. Ele estava
+      # dentro do `bash -c`, então o setsid HERDAVA a saída do CGI — e sob fcgiwrap a resposta
+      # só termina quando TODO descritor do socket fecha. Resultado: quem chegasse primeiro
+      # depois do TTL de 30 min esperava a varredura INTEIRA (medido: **39,6 s**), mesmo com o
+      # handler já tendo respondido. "Regen em background" que o cliente espera não é background.
       ( MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" RUNDIR="${RUNDIR:-/home/ribas/moj/run}" \
         setsid bash -c 'bash "$1" >/dev/null 2>&1; rmdir "$2" 2>/dev/null' \
-          _ "$MOJTOOLS_DIR/gen-problem-owners.sh" "$lock" & ) 2>/dev/null
+          _ "$MOJTOOLS_DIR/gen-problem-owners.sh" "$lock" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
     fi
   fi
   # poda oportunista do overlay (barata: mtime curto-circuita quando não há regen nova)

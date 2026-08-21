@@ -25,8 +25,11 @@ if [[ ! -f "$PANO" ]]; then
   fi
 elif [[ -n "$(find "$PANO" -mmin "+$PROBLEM_PANORAMA_TTL_MIN" 2>/dev/null)" ]]; then
   if mkdir "$lock" 2>/dev/null; then                                        # velho: regen em background
+    # ⚠ mesmo caso do ensure_owners_index: o `>/dev/null 2>&1` tem de valer p/ o **setsid**.
+    # Dentro do `bash -c`, o setsid herda a saída do CGI e o fcgiwrap só encerra a resposta
+    # quando todo descritor fecha — o cliente ficava esperando o panorama INTEIRO.
     ( setsid bash -c 'bash "$1" "$2" >/dev/null 2>&1; rmdir "$3" 2>/dev/null' \
-        _ "$SCOREDIR/problem-panorama-gen.sh" "$PANO" "$lock" & ) 2>/dev/null
+        _ "$SCOREDIR/problem-panorama-gen.sh" "$PANO" "$lock" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
   fi
 fi
 
