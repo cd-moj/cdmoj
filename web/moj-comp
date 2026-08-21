@@ -35,7 +35,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="c2716d8-20260820"
+MOJ_CLI_BUILD="8184145-20260821"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -52,6 +52,19 @@ have jq || die "preciso do 'jq'."; have curl || die "preciso do 'curl'."
 _b64enc(){ base64 -w0 < "$1" 2>/dev/null || base64 < "$1" | tr -d '\n'; }
 # decode de base64 do stdin (GNU: -d; macOS/BSD: -D)
 _b64dec(){ if base64 -d </dev/null >/dev/null 2>&1; then base64 -d; else base64 -D; fi; }
+# epoch de uma data legível. GNU: `date -d` aceita quase tudo. BSD/macOS NÃO tem `-d` — tem
+# `-j -f <formato>`, que EXIGE o formato exato, então tentamos os que a CLI documenta.
+# ⚠ O ramo GNU vem PRIMEIRO: no Linux o resultado é o de sempre, byte a byte.
+# ⚠ No BSD, formato só-data ("YYYY-MM-DD") herda a HORA ATUAL (o GNU usa 00:00) — por isso a
+# forma documentada leva HH:MM, e é a que casa igual nos dois.
+_date2epoch(){
+  local v="$1" e f
+  e="$(date -d "$v" +%s 2>/dev/null)" && [[ -n "$e" ]] && { printf '%s' "$e"; return 0; }
+  for f in '%Y-%m-%d %H:%M:%S' '%Y-%m-%d %H:%M' '%Y-%m-%d'; do
+    e="$(date -j -f "$f" "$v" +%s 2>/dev/null)" && [[ -n "$e" ]] && { printf '%s' "$e"; return 0; }
+  done
+  return 1
+}
 # mtime em epoch (GNU stat -c %Y; BSD stat -f %m)
 _mtime(){ stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; }
 # hash curto de uma string (md5sum GNU; md5 -q BSD; shasum último recurso)
@@ -363,7 +376,7 @@ cmd_statement(){ need_contest; local ref="${1:-}"
     [[ $rc -ne 0 ]] && die "problema '$ref' não achado (o id é org#slug — busque com: $MOJ_TOOL problems <busca>)"
     jq -e '.statement_html_b64 // empty | length > 0' >/dev/null 2>&1 <<<"$r" || die "problema '$ref' sem enunciado servível"
     out="./${ref##*#}.html"
-    jq -r '.statement_html_b64' <<<"$r" | base64 -d > "$out"
+    jq -r '.statement_html_b64' <<<"$r" | _b64dec > "$out"
     echo "enunciado: $out  ($(jq -r '.title // ""' <<<"$r"))  — abra no navegador"
     return 0
   fi
