@@ -45,23 +45,26 @@ mkdir -p "$OUT"
 C="$FIX/demo"; NOW="$EPOCHSECONDS"
 mkdir -p "$C/var" "$C/users" "$C/print-requests" "$C/review" "$C/enunciados"
 { printf 'CONTEST_ID=demo\n'
-  printf 'CONTEST_NAME=%q\n' "Copa MOJ de Demonstração"
-  printf 'CONTEST_TYPE=icpc\nLOCALE=pt\n'
+  printf 'CONTEST_NAME=%q\n' "MOJ Demonstration Cup"
+  # ⚠ LOCALE=en: as telas dos tutoriais saem em INGLÊS de propósito — o tutorial é lido por
+  # quem compete em prova internacional, e captura em PT amarraria a documentação ao Brasil.
+  # O texto do tutorial continua bilíngue; o que a foto mostra é a interface em inglês.
+  printf 'CONTEST_TYPE=icpc\nLOCALE=en\n'
   # FREEZE_TIME é EPOCH ABSOLUTO (não minutos): congela na última hora
   printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\n' "$((NOW-7200))" "$((NOW+3600))" "$((NOW-1800))"
   printf 'PRINT=1\nMANUAL_VERDICT=1\nREVIEW_JUDGES=2\n'
   # célula do placar PINTADA com a cor do balão (o clássico do ICPC) — com a paleta oficial
   # abaixo é o que faz a tela parecer a de uma prova de verdade
   printf 'SCORE_BALLOON_STYLE=fill\n'
-  printf 'ROUND=oficial\nROUND_NAME=%q\n' "Prova oficial"
+  printf 'ROUND=oficial\nROUND_NAME=%q\n' "Main round"
   # PROBS = tuplas de CINCO campos: <source> <problem_id> <nome> <letra> <chave-do-enunciado>
   # OITO problemas, como uma prova de verdade — é o que dá sentido à paleta oficial (A..H) e o
   # que faz o placar ter a largura que ele tem no dia.
   printf 'PROBS=('
-  for t in "somatorio:Somatório curioso:A"      "labirinto:Labirinto de espelhos:B" \
-           "cofre:O cofre do reitor:C"          "tapete:Tapete voador:D" \
-           "estadio:Estádio lotado:E"           "bandejao:A fila do bandejão:F" \
-           "metro:O metrô da capital:G"         "astrolabio:O astrolábio:H"; do
+  for t in "somatorio:A curious sum:A"          "labirinto:Mirror maze:B" \
+           "cofre:The dean's safe:C"            "tapete:Flying carpet:D" \
+           "estadio:A full stadium:E"           "bandejao:The cafeteria queue:F" \
+           "metro:The city subway:G"            "astrolabio:The astrolabe:H"; do
     IFS=: read -r k n l <<<"$t"
     printf ' demo demo#%s %q %s demo#%s' "$k" "$n" "$l" "$k"
   done
@@ -77,15 +80,15 @@ mk_user(){ # <login> <nome> <sigla> <sede> <bandeira>
       team:{name:$n, univ_short:$u, univ_full:$u, region:$r, flag:$f}}' > "$d/account.json"
   : > "$d/history"
 }
-mk_user time-alfa    "Os Alfabetizados"    UFPR  "Curitiba" br
+mk_user time-alfa    "Alpha Team"          UFPR  "Curitiba" br
 mk_user time-beta    "Beta Testers"        UnB   "Curitiba" br
-mk_user time-gama    "Gama Radiação"       UFPR  "Curitiba" br
-mk_user time-delta   "Delta de Dirac"      USP   "São Paulo" br
-mk_user time-epsilon "Épsilon Suficiente"  UNESP "São Paulo" br
+mk_user time-gama    "Gamma Radiation"     UFPR  "Curitiba" br
+mk_user time-delta   "Dirac Delta"         USP   "São Paulo" br
+mk_user time-epsilon "Sufficient Epsilon"  UNESP "São Paulo" br
 mk_user time-zeta    "Zeta Zero"           USP   "São Paulo" ar
 for r in sala.staff chefe.cstaff telao.animeitor juri.judge decano.cjudge; do
   d="$C/users/$r"; mkdir -p "$d"
-  jq -cn --arg l "$r" '{login:$l, password:"demo1234", fullname:"Equipe da prova", email:"",
+  jq -cn --arg l "$r" '{login:$l, password:"demo1234", fullname:"Contest crew", email:"",
      created_at:0, updated_at:0, status:"active", uname_changes:[]}' > "$d/account.json"
   : > "$d/history"
 done
@@ -104,12 +107,12 @@ mkpr(){ # <id> <login> <time> <univ> <arquivo> <status> <seq> <kind> <idade_s> [
       mime:"text/plain", size:1200, time:$t, status:$s, pages:1,
       short:$sh, color_hex:$hex, color_name:$cn}' > "$C/print-requests/$1.json"
 }
-mkpr p1 time-alfa  "Os Alfabetizados" UFPR  "solucao-b.cpp" pending   7 print   240
-mkpr p2 time-gama  "Gama Radiação"    UFPR  "rascunho.txt"  pending   8 print   120
-mkpr p3 time-beta  "Beta Testers"     UnB   "solucao-a.c"   processed 6 print   900
+mkpr p1 time-alfa  "Alpha Team"       UFPR  "solution-b.cpp" pending  7 print   240
+mkpr p2 time-gama  "Gamma Radiation"  UFPR  "draft.txt"      pending  8 print   120
+mkpr p3 time-beta  "Beta Testers"     UnB   "solution-a.c"   processed 6 print  900
 # uma tarefa JÁ PEGA por mim: o claim MANTÉM status=pending (print-action.sh só permite claim
 # sobre pendente) e grava claimed_by/claimed_at — é o estado logo depois de clicar em "Pegar"
-mkpr p0 time-alfa  "Os Alfabetizados" UFPR  "main.c"        pending   5 print   300
+mkpr p0 time-alfa  "Alpha Team"       UFPR  "main.c"         pending  5 print   300
 jq -c --arg by sala.staff --argjson at "$((NOW-30))" '.claimed_by=$by | .claimed_at=$at' \
   "$C/print-requests/p0.json" > "$C/print-requests/p0.tmp" \
   && mv "$C/print-requests/p0.tmp" "$C/print-requests/p0.json"
@@ -117,13 +120,13 @@ jq -c --arg by sala.staff --argjson at "$((NOW-30))" '.claimed_by=$by | .claimed
 cat > "$C/print-requests/p0.src" <<'SRC'
 #include <stdio.h>
 
-/* Somatório curioso — solução do time Os Alfabetizados */
+/* A curious sum - solution by Alpha Team */
 int main(void) {
-    long long n, soma = 0;
+    long long n, sum = 0;
     if (scanf("%lld", &n) != 1) return 1;
     for (long long i = 1; i <= n; i++)
-        if (i % 3 == 0 || i % 5 == 0) soma += i;
-    printf("%lld\n", soma);
+        if (i % 3 == 0 || i % 5 == 0) sum += i;
+    printf("%lld\n", sum);
     return 0;
 }
 SRC
@@ -131,12 +134,12 @@ cp "$C/print-requests/p0.src" "$C/print-requests/p1.src"
 # ⚠ o balão da foto é o do C (VERMELHO) de propósito: o A da paleta oficial é BRANCO, e a folha
 # do tutorial do .staff — que fala em "se o desenho diz vermelho" — ficaria branca no branco.
 # Os dois times abaixo resolveram mesmo esses problemas (ver o history adiante).
-mkpr b1 time-alfa  "Os Alfabetizados" UFPR  ""              pending   9 balloon  60 C ff0000 vermelho
-mkpr b2 time-beta  "Beta Testers"     UnB   ""              pending  10 balloon  30 E ffff00 amarelo
+mkpr b1 time-alfa  "Alpha Team"       UFPR  ""               pending  9 balloon  60 C ff0000 red
+mkpr b2 time-beta  "Beta Testers"     UnB   ""               pending 10 balloon  30 E ffff00 yellow
 # a tela do COMPETIDOR (contest/print/) lista só os pedidos DELE, com o estado de cada um —
 # então o time-alfa precisa dos três estados p/ a foto do tutorial fazer sentido
-mkpr p4 time-alfa  "Os Alfabetizados" UFPR  "leitura.pdf"   delivered 2 print  1800
-mkpr p5 time-alfa  "Os Alfabetizados" UFPR  "solucao-e.py"  printed   4 print   720
+mkpr p4 time-alfa  "Alpha Team"       UFPR  "reading.pdf"    delivered 2 print 1800
+mkpr p5 time-alfa  "Alpha Team"       UFPR  "solution-e.py"  printed  4 print   720
 
 # --- backups do competidor (contests/<c>/backups/<login>/<id> + <id>.meta {name,size,time})
 bkp(){ # <login> <id> <nome> <bytes> <idade_s>
@@ -145,9 +148,9 @@ bkp(){ # <login> <id> <nome> <bytes> <idade_s>
   jq -cn --arg n "$3" --argjson s "$4" --argjson t "$((NOW-$5))" \
     '{name:$n, size:$s, time:$t}' > "$d/$2.meta"
 }
-bkp time-alfa bk01 "somatorio-que-passou.c"  2143 5400
-bkp time-alfa bk02 "labirinto-v2.cpp"        4820 2700
-bkp time-alfa bk03 "tapete-forca-bruta.py"   1160  900
+bkp time-alfa bk01 "sum-that-worked.c"       2143 5400
+bkp time-alfa bk02 "maze-v2.cpp"             4820 2700
+bkp time-alfa bk03 "carpet-brute-force.py"   1160  900
 
 # --- placar (TXT cru, como o build.sh gera): cabeçalho + 6 linhas
 # FORMATO REAL do placar (updatescore-icpc.sh): 1ª linha = modo; 2ª = header com os DOIS
@@ -171,21 +174,21 @@ UFPR='Univ. Federal do Paraná'; USP='Universidade de São Paulo'; UNB='Universi
 UNESP='Universidade Estadual Paulista'
 { printf 'icpc\n%s\n' "$SCOL"
   #    band login        sigla  time                  univ      A       B      C       D     E       F       G       H    tot pen last
-  lin  br time-alfa    UFPR  "Os Alfabetizados"    "$UFPR"  1/12\* 2/45\* 1/78    ""    1/33\* ""      2/-     ""    4 188 78
-  lin  br time-delta   USP   "Delta de Dirac"      "$USP"   1/20   1/-    1/61\*  3/-   2/70   1/85\*  ""      ""    4 256 85
+  lin  br time-alfa    UFPR  "Alpha Team"          "$UFPR"  1/12\* 2/45\* 1/78    ""    1/33\* ""      2/-     ""    4 188 78
+  lin  br time-delta   USP   "Dirac Delta"         "$USP"   1/20   1/-    1/61\*  3/-   2/70   1/85\*  ""      ""    4 256 85
   lin  br time-beta    UnB   "Beta Testers"        "$UNB"   1/33   2/-    ""      ""    1/52   ""      1/88\*  ""    3 173 88
-  lin  br time-epsilon UNESP "Épsilon Suficiente"  "$UNESP" 1/40   ""     ""      2/-   ""     ""      ""      ""    1 40  40
-  lin  br time-gama    UFPR  "Gama Radiação"       "$UFPR"  ""     1/-    ""      ""    1/74   ""      ""      ""    1 74  74
+  lin  br time-epsilon UNESP "Sufficient Epsilon"  "$UNESP" 1/40   ""     ""      2/-   ""     ""      ""      ""    1 40  40
+  lin  br time-gama    UFPR  "Gamma Radiation"     "$UFPR"  ""     1/-    ""      ""    1/74   ""      ""      ""    1 74  74
   lin  ar time-zeta    USP   "Zeta Zero"           "$USP"   1/-    ""     ""      ""    ""     ""      ""      ""    0 0   0
 } > "$C/var/placar.txt"
 # o placar COMPLETO diverge do congelado em várias células — é EXATAMENTE esse delta que a
 # cerimônia abre uma a uma (reveal.js pendingCells), incluindo uma virada de liderança
 { printf 'icpc\n%s\n' "$SCOL"
-  lin  br time-delta   USP   "Delta de Dirac"      "$USP"   1/20   2/104  1/61\*  3/112\* 2/70 1/85\*  ""      ""      6 532 112
-  lin  br time-alfa    UFPR  "Os Alfabetizados"    "$UFPR"  1/12\* 2/45\* 1/78    2/117   1/33\* ""    2/-     ""      5 325 117
+  lin  br time-delta   USP   "Dirac Delta"         "$USP"   1/20   2/104  1/61\*  3/112\* 2/70 1/85\*  ""      ""      6 532 112
+  lin  br time-alfa    UFPR  "Alpha Team"          "$UFPR"  1/12\* 2/45\* 1/78    2/117   1/33\* ""    2/-     ""      5 325 117
   lin  br time-beta    UnB   "Beta Testers"        "$UNB"   1/33   2/-    ""      ""      1/52 ""      1/88\*  1/108\* 4 281 108
-  lin  br time-epsilon UNESP "Épsilon Suficiente"  "$UNESP" 1/40   ""     ""      2/-     ""   ""      ""      ""      1 40  40
-  lin  br time-gama    UFPR  "Gama Radiação"       "$UFPR"  ""     2/-    ""      ""      1/74 ""      ""      ""      1 74  74
+  lin  br time-epsilon UNESP "Sufficient Epsilon"  "$UNESP" 1/40   ""     ""      2/-     ""   ""      ""      ""      1 40  40
+  lin  br time-gama    UFPR  "Gamma Radiation"     "$UFPR"  ""     2/-    ""      ""      1/74 ""      ""      ""      1 74  74
   lin  ar time-zeta    USP   "Zeta Zero"           "$USP"   1/-    ""     ""      ""      ""   ""      ""      ""      0 0   0
 } > "$C/var/placar-full.txt"
 # cores dos balões: a PALETA OFICIAL do ICPC, na ordem das letras (é a que a organização
@@ -238,9 +241,9 @@ h time-zeta    26 demo#somatorio  C    "Wrong Answer"             ff01
 mkdir -p "$C/rounds/aquecimento"
 jq -cn --argjson now "$NOW" \
   '{version:1, active:"prova",
-    rounds:[{slug:"aquecimento", name:"Aquecimento", kind:"warmup", state:"archived",
+    rounds:[{slug:"aquecimento", name:"Warm-up", kind:"warmup", state:"archived",
              start:($now-86400), end:($now-82800), published:true, problems:2},
-            {slug:"prova", name:"Prova oficial", kind:"official", state:"active",
+            {slug:"prova", name:"Main round", kind:"official", state:"active",
              start:($now-7200), end:($now+3600), problems:8}]}' > "$C/rounds.json"
 cp "$C/var/placar.txt" "$C/rounds/aquecimento/placar.txt" 2>/dev/null || true
 
@@ -289,18 +292,18 @@ mkclar(){ # <id> <login> <problema> <idade> <pergunta> [resposta] [public] [broa
     > "$C/clarifications/$1.json"
 }
 mkclar c1 time-beta B 900 \
-  "No problema B, o labirinto pode ter mais de uma saída? O enunciado não diz."
+  "In problem B, can the maze have more than one exit? The statement does not say."
 mkclar c2 time-gama A 1800 \
-  "O N da entrada cabe em 32 bits?" \
-  "Sim — leia o limite na seção Entrada do enunciado." true
+  "Does the N of the input fit in 32 bits?" \
+  "Yes — see the bound in the Input section of the statement." true
 mkclar c3 time-alfa general 600 \
-  "A prova foi prorrogada?" \
-  "A sede de São Paulo teve 20 minutos de prorrogação por queda de energia. As demais sedes seguem o horário original." \
+  "Has the contest been extended?" \
+  "The São Paulo site was given 20 extra minutes after a power outage. All other sites keep the original schedule." \
   true true
 # notícias públicas do contest (contests/<c>/news.json)
 jq -cn --argjson t "$((NOW-2400))" \
-  '[{id:"n1", title:"Almoço liberado a partir das 12h",
-     text:"O refeitório do bloco C está aberto para os times. Leve o crachá.", date:$t}]' \
+  '[{id:"n1", title:"Lunch is open from 12:00",
+     text:"The cafeteria in block C is open to the teams. Bring your badge.", date:$t}]' \
   > "$C/news.json"
 
 # --- documentos da prova: o index.json é o que a aba 📄 lista (os tamanhos saem daqui, não do
@@ -314,15 +317,15 @@ jq -cn --argjson t "$((NOW-3600))" --arg by decano.cjudge \
     {type:"times",     lang:"pt", html_bytes:4180,   pdf_bytes:22140,   generated_at:($t-200), by:$by},
     {type:"editorial", lang:"pt", html_bytes:31240,  pdf_bytes:204800,  generated_at:($t+200), by:$by}]' \
   > "$C/docs/index.json"
-jq -cn '{caderno_version:"v1.2", cover_note:"Realização: MOJ · Apoio: UnB",
-         errata:"Problema C: leia 1 ≤ N ≤ 10^5.",
+jq -cn '{caderno_version:"v1.2", cover_note:"Hosted by MOJ · Supported by UnB",
+         errata:"Problem C: read 1 <= N <= 10^5.",
          published:["info-sheet.pt","info-sheet.en","times.pt"]}' > "$C/docs/config.json"
 # o que o COMPETIDOR vê de documento é a seção "Prova" da aba Contest, que sai do
 # resources.json (escrito pelo doc_publish) — a aba 📄 é dos papéis de organização
 jq -cn --arg c demo '[
-  {label:"Info sheet (pt)", url:("/api/v1/contest/doc?contest=" + $c + "&type=info-sheet&lang=pt&fmt=pdf"), type:"info-sheet", lang:"pt"},
   {label:"Info sheet (en)", url:("/api/v1/contest/doc?contest=" + $c + "&type=info-sheet&lang=en&fmt=pdf"), type:"info-sheet", lang:"en"},
-  {label:"Folha de time limits (pt)", url:("/api/v1/contest/doc?contest=" + $c + "&type=times&lang=pt&fmt=pdf"), type:"times", lang:"pt"}]'   > "$C/resources.json"
+  {label:"Info sheet (pt)", url:("/api/v1/contest/doc?contest=" + $c + "&type=info-sheet&lang=pt&fmt=pdf"), type:"info-sheet", lang:"pt"},
+  {label:"Time limits sheet (en)", url:("/api/v1/contest/doc?contest=" + $c + "&type=times&lang=en&fmt=pdf"), type:"times", lang:"en"}]'   > "$C/resources.json"
 
 # ENUNCIADOS: PDF de mentira + HTML de verdade. O HTML é o que a sanfona mostra ao lado do
 # editor; sem ele o detalhe abre só com o editor e a tela perde o assunto do tutorial.
@@ -334,31 +337,31 @@ mkstmt(){ # <chave> <título> <corpo-html>
 <html><body>
 <h1 class="moj-title">$2</h1>
 $3
-<h2>Entrada</h2>
-<p>A primeira linha contém um inteiro <em>N</em> (1 ≤ <em>N</em> ≤ 10<sup>5</sup>).</p>
-<h2>Saída</h2>
-<p>Imprima uma única linha com a resposta.</p>
-<h2>Exemplos</h2>
-<table class="samples"><tr><th>Entrada</th><th>Saída</th></tr>
+<h2>Input</h2>
+<p>The first line contains one integer <em>N</em> (1 &le; <em>N</em> &le; 10<sup>5</sup>).</p>
+<h2>Output</h2>
+<p>Print a single line with the answer.</p>
+<h2>Examples</h2>
+<table class="samples"><tr><th>Input</th><th>Output</th></tr>
 <tr><td><pre>10</pre></td><td><pre>23</pre></td></tr>
 <tr><td><pre>3</pre></td><td><pre>3</pre></td></tr></table>
 </body></html>
 HTML
 }
-mkstmt somatorio "Somatório curioso" \
-  "<p>Dado um inteiro <em>N</em>, some todos os múltiplos de 3 ou de 5 menores ou iguais a <em>N</em>. Por exemplo, para <em>N</em> = 10 os múltiplos são 3, 5, 6, 9 e 10 — cuja soma é 33.</p><p>Cuidado com o tamanho da resposta: ela pode não caber num inteiro de 32 bits.</p>"
-mkstmt labirinto "Labirinto de espelhos" \
-  "<p>Um raio de luz entra pelo canto superior esquerdo de uma sala quadriculada com espelhos. Diga por qual parede ele sai.</p>"
-mkstmt cofre "O cofre do reitor" \
-  "<p>O cofre abre quando a soma dos dígitos da senha é múltipla de 7. Conte quantas senhas de <em>N</em> dígitos abrem o cofre.</p>"
-mkstmt tapete "Tapete voador" \
-  "<p>Um tapete retangular cobre parte de um piso quadriculado. Calcule a área descoberta.</p>"
-mkstmt estadio "Estádio lotado" \
-  "<p>A torcida entra por <em>N</em> catracas e cada uma libera uma pessoa a cada 4 segundos. Diga quando o último torcedor senta.</p>"
-mkstmt bandejao "A fila do bandejão" \
-  "<p>Cada aluno leva um tempo diferente para se servir. Reordene a fila de modo a minimizar a espera total.</p>"
-mkstmt metro "O metrô da capital" \
-  "<p>Dadas as linhas do metrô e as baldeações, diga o menor número de trocas de trem entre duas estações.</p>"
+mkstmt somatorio "A curious sum" \
+  "<p>Given an integer <em>N</em>, add up every multiple of 3 or of 5 that is at most <em>N</em>. For example, for <em>N</em> = 10 the multiples are 3, 5, 6, 9 and 10 — adding up to 33.</p><p>Mind the size of the answer: it may not fit in a 32-bit integer.</p>"
+mkstmt labirinto "Mirror maze" \
+  "<p>A ray of light enters the top-left corner of a grid room full of mirrors. Tell which wall it leaves through.</p>"
+mkstmt cofre "The dean's safe" \
+  "<p>The safe opens when the digits of the password add up to a multiple of 7. Count how many <em>N</em>-digit passwords open it.</p>"
+mkstmt tapete "Flying carpet" \
+  "<p>A rectangular carpet covers part of a tiled floor. Compute the area left uncovered.</p>"
+mkstmt estadio "A full stadium" \
+  "<p>The crowd comes in through <em>N</em> turnstiles, each letting one person through every 4 seconds. Tell when the last fan sits down.</p>"
+mkstmt bandejao "The cafeteria queue" \
+  "<p>Each student takes a different time to be served. Reorder the queue so that the total waiting time is minimum.</p>"
+mkstmt metro "The city subway" \
+  "<p>Given the subway lines and their interchanges, tell the least number of train changes between two stations.</p>"
 # ⚠ O H (astrolabio) fica SEM `.html` DE PROPÓSITO — só o `.pdf` acima. É a prova que
 # distribui apenas o caderno em PDF: a sanfona dele abre com o TEMPO LIMITE (e o editor, se
 # estiver ligado) e mais nada, e o enunciado sai pelo link PDF. Caso REAL e ilustrado no
@@ -400,10 +403,10 @@ printf '%s\n' "${CKS_IDX[@]}" | jq -s --argjson now "$NOW" \
 # --- chaves de webcast do telão (contests/<c>/webcast.json — wc_file)
 jq -cn --argjson now "$NOW" \
   '{keys:[{id:"a1b2c3d4", key:"mojwc_DEMO0000000000000000000000demo", view:"public",
-           label:"Telão do auditório", created_by:"telao.animeitor", created_at:($now-3600),
+           label:"Auditorium screen", created_by:"telao.animeitor", created_at:($now-3600),
            revoked_at:null, fetches:412, last_at:($now-20), last_ip:"10.0.0.15"},
           {id:"e5f6a7b8", key:"mojwc_DEMO1111111111111111111111demo", view:"all",
-           label:"Transmissão no YouTube", created_by:"telao.animeitor", created_at:($now-1800),
+           label:"YouTube stream", created_by:"telao.animeitor", created_at:($now-1800),
            revoked_at:null, fetches:88, last_at:($now-95), last_ip:"10.0.0.31"}]}' \
   > "$C/webcast.json"
 
@@ -422,12 +425,12 @@ fi
 
 # --- sessões (uma por papel)
 mksess(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' demo "$1" "$2" "$NOW" > "$SESS/$3"; }
-mksess time-alfa        "Os Alfabetizados" s_comp
-mksess sala.staff       "Equipe de sala"  s_staff
-mksess chefe.cstaff     "Chefe de sede"   s_cstaff
-mksess telao.animeitor  "Mesa do telão"   s_anim
-mksess juri.judge       "Juiz"            s_judge
-mksess decano.cjudge    "Juiz-chefe"      s_cjudge
+mksess time-alfa        "Alpha Team"      s_comp
+mksess sala.staff       "Room staff"      s_staff
+mksess chefe.cstaff     "Site chief"      s_cstaff
+mksess telao.animeitor  "Big-screen desk" s_anim
+mksess juri.judge       "Judge"           s_judge
+mksess decano.cjudge    "Chief judge"     s_cjudge
 
 # --------------------------------------------------- 2. servidor de captura (estático + API)
 PORT="$(python3 - <<'PY'
@@ -441,12 +444,9 @@ for i in $(seq 1 40); do
   curl -sf "http://127.0.0.1:$PORT/__ping" >/dev/null 2>&1 && break; sleep 0.25
 done
 
-# ⚠ Imagens RECORTADAS À MÃO: o enquadramento delas não sai de um `--window-size` (o recorte
-# começa no MEIO da página, sem topbar). A captura cheia é PIOR que a que está no repo, e uma
-# rodada sem `--only` as sobrescrevia EM SILÊNCIO — aconteceu em 22/08/2026 com a staff-pega.png
-# (as linhas da fila com os botões Pegar/Imprimir), que voltou a 900px de página inteira. Estas
-# são puladas; p/ refazer de propósito, `SHOTS_REGERAR_RECORTADAS=1` e recorte de novo.
-RECORTADAS=' staff-pega.png '
+# (Não há mais imagem recortada à mão: a staff-pega.png, que era um recorte das linhas da fila,
+# passou a sair do próprio `?hide=` — ver a captura dela lá embaixo. Enquadramento que só existe
+# fora do script é enquadramento que a próxima rodada sobrescreve em silêncio.)
 
 # shot <arquivo.png> <papel> <caminho-da-página> [altura]
 # O `sess=` diz ao servidor de captura QUAL sessão usar ao chamar o router (é o papel logado).
@@ -455,9 +455,6 @@ RECORTADAS=' staff-pega.png '
 shot(){
   local name="$1" role="$2" path="$3" h="${4:-$SHOT_H}"
   [[ -n "$ONLY" && "$role" != "$ONLY" && "$role" != s_"$ONLY"* ]] && return 0
-  if [[ "$RECORTADAS" == *" $name "* && -z "${SHOTS_REGERAR_RECORTADAS:-}" ]]; then
-    printf '  %-32s %s\n' "$name" "pulada (recorte à mão — ver RECORTADAS)"; return 0
-  fi
   local out="$OUT/$name" sep='?'; [[ "$path" == *\?* ]] && sep='&'
   rm -rf "$PROF"; mkdir -p "$PROF"   # perfil limpo: sem --profile o firefox serve do CACHE
   MOZ_HEADLESS=1 timeout 120 firefox --headless --profile "$PROF" \
@@ -510,7 +507,10 @@ if [[ -z "$ONLY" || "s_$ONLY" == s_comp || "$ONLY" == s_comp ]]; then
   mv -f "$C/conf.bak" "$C/conf"
 fi
 shot staff-fila.png        s_staff   /contest/staff/
-shot staff-pega.png        s_staff   /contest/staff/
+# só as LINHAS da fila (sem topbar, título e intro): é a foto do "peguei a tarefa", e a
+# tela inteira não cabe nela sem virar ilustração de outra coisa
+FILA_SO='.topbar,.quicknav,h1,.container%20%3E%20p.muted,.container%20%3E%20a.btn,.pr-auto'
+shot staff-pega.png        s_staff   "/contest/staff/?hide=$FILA_SO"           300
 shot staff-telao.png       s_staff   /contest/animeitor/       1100
 shot cstaff-fila.png       s_cstaff  /contest/staff/
 shot cstaff-etiquetas.png  s_cstaff  /contest/badges/          1100
