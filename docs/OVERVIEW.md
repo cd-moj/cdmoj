@@ -65,7 +65,11 @@ moj/
   submete, não vê enunciado, e não é coberto por `is_judge`: os handlers testam
   `is_judge || is_animeitor` explicitamente). Cada papel tem **tutorial próprio com screenshots**
   em `/contest/ajuda/<papel>.html` (pt/en), alcançável pelo botão *📖 Como funciona este papel*
-  na tela dele; os manuais de usuário são `MANUAL-{STAFF,JUIZ,ANIMEITOR}.md`.
+  na tela dele; os manuais de usuário são `MANUAL-{STAFF,JUIZ,ANIMEITOR}.md`. **Login SEM sufixo
+  é o COMPETIDOR**, e ele também tem o seu — `/contest/ajuda/competidor.html`, pelo botão *📖 Como
+  funciona a prova* da página da prova (só p/ quem não tem papel: organização e juiz já têm o
+  deles), com o manual longo em `MANUAL-CONTEST.md`. Índice dos seis: `/contest/ajuda/`.
+  As screenshots saem de `server/bin/shots-ajuda.sh` (contest fictício + router de verdade).
 - **Isolamento por subdomínio**: em `<id>.moj.<base>` o nginx injeta `CONTEST_HOST`; o
   `router.sh` só serve aquele contest (`auth`/`contest`/`submit`/`submission`) e o frontend
   redireciona o resto para `/contest/` (`shared/contest-guard.js`). **Única exceção**:

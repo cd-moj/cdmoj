@@ -133,7 +133,12 @@ class H(BaseHTTPRequestHandler):
             status, headers, rbody = split_cgi(out)
             ctype = next((v for k, v in headers if k.lower() == "content-type"),
                          "application/json")
-            return self._send(status, ctype, rbody)
+            # repassa os DEMAIS cabeçalhos da API: há tela que depende deles, e sem isso ela
+            # aparece "desligada" na captura sem ninguém entender por quê — foi o caso do
+            # `X-MOJ-Frozen` do /contest/score, que é quem acende o aviso de placar congelado.
+            passa = [(k, v) for k, v in headers
+                     if k.lower() not in ("content-type", "content-length", "status")]
+            return self._send(status, ctype, rbody, passa)
 
         # ---- estático (árvore web/) ----
         fs = os.path.normpath(os.path.join(WEB, path.lstrip("/")))
@@ -163,6 +168,27 @@ class H(BaseHTTPRequestHandler):
             # fotografa uma tela que só existe DEPOIS de interagir — a cerimônia de revelação
             # começa parada, e o que interessa no tutorial é ela no meio do caminho.
             q = urllib.parse.parse_qs(qs)
+            # ?clickcss=<seletor CSS> : quando o alvo NÃO é botão/link. A sanfona do
+            # competidor é um <span class="prob-left"> com listener de clique — por texto não
+            # se acha, e por `div,span` acharia um ancestral gigante que contém o texto.
+            clickcss = (q.get("clickcss") or [""])[0]
+            if clickcss:
+                n = int((q.get("times") or ["1"])[0])
+                inject += (
+                    '<script>(()=>{let i=0,done=0;const t=setInterval(()=>{'
+                    f'const els=[...document.querySelectorAll({clickcss!r})];'
+                    f'const b=els[done];'
+                    f'if(b){{b.click();if(++done>={n})return clearInterval(t);}}'
+                    f'if(++i>200)clearInterval(t);}},120);}})();</script>')
+            # ?hide=<seletores CSS> : esconde seções para a foto sobrar justa. É melhor que
+            # rolar a página — `scrollIntoView` briga com a topbar fixa e o firefox fotografa a
+            # partir do topo do documento, então a tela sai remendada.
+            hide = (q.get("hide") or [""])[0]
+            if hide:
+                inject += f'<style>{hide}{{display:none !important}}</style>'
+                # o app dá `show()` nas seções ao renderizar; o !important do <style> vence o
+                # style inline, mas a regra tem de existir ANTES — por isso vai no <head>… como
+                # o inject vai no fim do body, o !important é o que garante.
             click = (q.get("click") or [""])[0]
             if click:
                 n = int((q.get("times") or ["1"])[0])

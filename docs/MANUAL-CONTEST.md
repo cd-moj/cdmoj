@@ -6,6 +6,13 @@
 
 Este manual é para você que vai participar de uma maratona ou prova no MOJ (o juiz online). Aqui você aprende a entrar no contest, enviar suas soluções, ler o placar, tirar dúvidas (clarifications), pedir impressão e usar o backup.
 
+> **Prefere ver as telas?** O **tutorial web com screenshots** (PT/EN) é
+> [/contest/ajuda/competidor.html](/contest/ajuda/competidor.html) — a versão curta e ilustrada
+> deste manual: a sanfona do problema, o envio, a cor quando você acerta, a notificação de
+> clarification e como se lê o placar. Abre pelo botão **📖 Como funciona a prova**, no seu
+> cartão no alto da página da prova. Os outros papéis (equipe de sala, telão, juiz) têm o deles
+> em [/contest/ajuda/](/contest/ajuda/).
+
 > **Prefere o terminal?** Existe a CLI do competidor, **`moj-comp`** — envia soluções, acompanha
 > veredictos e placar, e tem o modo emergencial de **queda de Internet** (a submissão fica
 > guardada cifrada com o horário e conta certo quando a rede volta). Guia completo:

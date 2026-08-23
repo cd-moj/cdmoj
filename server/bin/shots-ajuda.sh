@@ -16,7 +16,7 @@
 #
 # Uso:  bash server/bin/shots-ajuda.sh [--keep] [--only <papel>]
 #       --keep  não apaga o fixture (p/ inspecionar/depurar)
-#       --only  captura só um papel (staff|cstaff|animeitor|judge|cjudge)
+#       --only  captura só um papel (comp|staff|cstaff|anim|judge|cjudge — com ou sem o `s_`)
 set -uo pipefail
 cd "$(dirname "$(readlink -f "$0")")/../.." || exit 1   # raiz do cdmoj
 ROOT="$PWD"
@@ -120,11 +120,16 @@ mkpr b2 time-beta  "Beta Testers"     UnB   ""              pending  10 balloon 
 # --- placar (TXT cru, como o build.sh gera): cabeçalho + 6 linhas
 # FORMATO REAL do placar (updatescore-icpc.sh): 1ª linha = modo; 2ª = header com os DOIS
 # marcadores desc:asc na frente; dados separados por ':' e SEM os marcadores. Célula:
-# vazia=não tentou · 3/187=resolveu na 3ª tentativa no minuto 187 · 3/-=tentou e não resolveu.
+# vazia=não tentou · 3/187=resolveu na 3ª tentativa no minuto 187 · 3/-=tentou e não resolveu
+# · o `*` final é o FIRST-TO-SOLVE (updatescore-icpc.sh:97 = menor minuto do problema ENTRE os
+# times DAQUELE placar), que o score-icpc.js pinta como ★ — o tutorial do competidor explica a
+# estrela, então ela tem de aparecer na foto. Ela é por VISÃO: o congelado estrela quem é o
+# primeiro no que ele mostra, e por isso o par congelado×completo pode diferir (o D só é
+# resolvido depois do congelamento).
 SCOL='desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total:Penalty:LastAC'
 { printf 'icpc\n%s\n' "$SCOL"
-  printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12:2/45:1/78::3:147:78\n'
-  printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:1/-:1/61:3/-:2:81:61\n'
+  printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12*:2/45*:1/78::3:147:78\n'
+  printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:1/-:1/61*:3/-:2:81:61\n'
   printf 'br:time-beta:UnB:Beta Testers:Universidade de Brasília:1/33:2/-:::1:33:33\n'
   printf 'br:time-epsilon:UNESP:Épsilon Suficiente:Universidade Estadual Paulista:1/40:::2/-:1:40:40\n'
   printf 'br:time-gama:UFPR:Gama Radiação:Univ. Federal do Paraná::1/-:::0:0:0\n'
@@ -133,9 +138,9 @@ SCOL='desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total:Penalt
 # o placar COMPLETO diverge do congelado em várias células — é EXATAMENTE esse delta que a
 # cerimônia abre uma a uma (reveal.js pendingCells), incluindo uma virada de liderança
 { printf 'icpc\n%s\n' "$SCOL"
-  printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:2/152:1/61:3/188:4:280:188\n'
-  printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12:2/45:1/78:2/171:4:338:171\n'
-  printf 'br:time-beta:UnB:Beta Testers:Universidade de Brasília:1/33:3/166::1/195*:3:239:195\n'
+  printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:2/152:1/61*:3/188:4:280:188\n'
+  printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12*:2/45*:1/78:2/171*:4:338:171\n'
+  printf 'br:time-beta:UnB:Beta Testers:Universidade de Brasília:1/33:3/166::1/195:3:239:195\n'
   printf 'br:time-epsilon:UNESP:Épsilon Suficiente:Universidade Estadual Paulista:1/40:::2/-:1:40:40\n'
   printf 'br:time-gama:UFPR:Gama Radiação:Univ. Federal do Paraná::2/-:::0:0:0\n'
   printf 'ar:time-zeta:USP:Zeta Zero:Universidade de São Paulo:::::0:0:0\n'
@@ -249,8 +254,40 @@ jq -cn --argjson t "$((NOW-3600))" --arg by decano.cjudge \
 jq -cn '{caderno_version:"v1.2", cover_note:"Realização: MOJ · Apoio: UnB",
          errata:"Problema C: leia 1 ≤ N ≤ 10^5.",
          published:["info-sheet.pt","info-sheet.en","times.pt"]}' > "$C/docs/config.json"
-# enunciados (só p/ a aba não abrir com o aviso "sem enunciado no contest")
+# o que o COMPETIDOR vê de documento é a seção "Prova" da aba Contest, que sai do
+# resources.json (escrito pelo doc_publish) — a aba 📄 é dos papéis de organização
+jq -cn --arg c demo '[
+  {label:"Info sheet (pt)", url:("/api/v1/contest/doc?contest=" + $c + "&type=info-sheet&lang=pt&fmt=pdf"), type:"info-sheet", lang:"pt"},
+  {label:"Info sheet (en)", url:("/api/v1/contest/doc?contest=" + $c + "&type=info-sheet&lang=en&fmt=pdf"), type:"info-sheet", lang:"en"},
+  {label:"Folha de time limits (pt)", url:("/api/v1/contest/doc?contest=" + $c + "&type=times&lang=pt&fmt=pdf"), type:"times", lang:"pt"}]'   > "$C/resources.json"
+
+# ENUNCIADOS: PDF de mentira + HTML de verdade. O HTML é o que a sanfona mostra ao lado do
+# editor; sem ele o detalhe abre só com o editor e a tela perde o assunto do tutorial.
 for k in somatorio labirinto cofre tapete; do printf '%%PDF-1.4\n' > "$C/enunciados/demo#$k.pdf"; done
+mkstmt(){ # <chave> <título> <corpo-html>
+  cat > "$C/enunciados/demo#$1.html" <<HTML
+<html><body>
+<h1 class="moj-title">$2</h1>
+$3
+<h2>Entrada</h2>
+<p>A primeira linha contém um inteiro <em>N</em> (1 ≤ <em>N</em> ≤ 10<sup>5</sup>).</p>
+<h2>Saída</h2>
+<p>Imprima uma única linha com a resposta.</p>
+<h2>Exemplos</h2>
+<table class="samples"><tr><th>Entrada</th><th>Saída</th></tr>
+<tr><td><pre>10</pre></td><td><pre>23</pre></td></tr>
+<tr><td><pre>3</pre></td><td><pre>3</pre></td></tr></table>
+</body></html>
+HTML
+}
+mkstmt somatorio "Somatório curioso" \
+  "<p>Dado um inteiro <em>N</em>, some todos os múltiplos de 3 ou de 5 menores ou iguais a <em>N</em>. Por exemplo, para <em>N</em> = 10 os múltiplos são 3, 5, 6, 9 e 10 — cuja soma é 33.</p><p>Cuidado com o tamanho da resposta: ela pode não caber num inteiro de 32 bits.</p>"
+mkstmt labirinto "Labirinto de espelhos" \
+  "<p>Um raio de luz entra pelo canto superior esquerdo de uma sala quadriculada com espelhos. Diga por qual parede ele sai.</p>"
+mkstmt cofre "O cofre do reitor" \
+  "<p>O cofre abre quando a soma dos dígitos da senha é múltipla de 7. Conte quantas senhas de <em>N</em> dígitos abrem o cofre.</p>"
+mkstmt tapete "Tapete voador" \
+  "<p>Um tapete retangular cobre parte de um piso quadriculado. Calcule a área descoberta.</p>"
 
 # --- chaves de webcast do telão (contests/<c>/webcast.json — wc_file)
 jq -cn --argjson now "$NOW" \
@@ -277,6 +314,7 @@ fi
 
 # --- sessões (uma por papel)
 mksess(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' demo "$1" "$2" "$NOW" > "$SESS/$3"; }
+mksess time-alfa        "Os Alfabetizados" s_comp
 mksess sala.staff       "Equipe de sala"  s_staff
 mksess chefe.cstaff     "Chefe de sede"   s_cstaff
 mksess telao.animeitor  "Mesa do telão"   s_anim
@@ -295,11 +333,23 @@ for i in $(seq 1 40); do
   curl -sf "http://127.0.0.1:$PORT/__ping" >/dev/null 2>&1 && break; sleep 0.25
 done
 
+# ⚠ Imagens RECORTADAS À MÃO: o enquadramento delas não sai de um `--window-size` (o recorte
+# começa no MEIO da página, sem topbar). A captura cheia é PIOR que a que está no repo, e uma
+# rodada sem `--only` as sobrescrevia EM SILÊNCIO — aconteceu em 22/08/2026 com a staff-pega.png
+# (as linhas da fila com os botões Pegar/Imprimir), que voltou a 900px de página inteira. Estas
+# são puladas; p/ refazer de propósito, `SHOTS_REGERAR_RECORTADAS=1` e recorte de novo.
+RECORTADAS=' staff-pega.png '
+
 # shot <arquivo.png> <papel> <caminho-da-página> [altura]
 # O `sess=` diz ao servidor de captura QUAL sessão usar ao chamar o router (é o papel logado).
+# aceita `--only judge` e `--only s_judge`: o comentário de uso sempre disse "papel", mas a
+# comparação era com o nome da SESSÃO — quem lia a ajuda não capturava nada e nem sabia por quê
 shot(){
   local name="$1" role="$2" path="$3" h="${4:-$SHOT_H}"
-  [[ -n "$ONLY" && "$role" != "$ONLY" ]] && return 0
+  [[ -n "$ONLY" && "$role" != "$ONLY" && "$role" != s_"$ONLY"* ]] && return 0
+  if [[ "$RECORTADAS" == *" $name "* && -z "${SHOTS_REGERAR_RECORTADAS:-}" ]]; then
+    printf '  %-32s %s\n' "$name" "pulada (recorte à mão — ver RECORTADAS)"; return 0
+  fi
   local out="$OUT/$name" sep='?'; [[ "$path" == *\?* ]] && sep='&'
   rm -rf "$PROF"; mkdir -p "$PROF"   # perfil limpo: sem --profile o firefox serve do CACHE
   MOZ_HEADLESS=1 timeout 120 firefox --headless --profile "$PROF" \
@@ -311,6 +361,34 @@ shot(){
 }
 
 echo ">> capturando (porta $PORT, delay ${SHOT_DELAY_MS}ms)"
+# ---- competidor -----------------------------------------------------------------------
+# A sanfona é um <span class="prob-left"> com listener de clique: por TEXTO o ?click= não a
+# acha (ele só varre button/.btn/a/summary), por isso o ?clickcss=.
+shot comp-contest.png      s_comp    /contest/                                    1500
+# a PRIMEIRA tela que o competidor vê. O "papel" é uma sessão que NÃO EXISTE: o token não
+# resolve, a API responde 401 e o app cai no formulário de login — que é o que se quer fotografar.
+shot comp-login.png        s_comp_deslogado /contest/                              760
+OCULTA='%23newsSection,%23resourcesSection,%23userSection,%23mySubsSection'
+# só a FAIXA de notificação (banner + topbar + nav com o badge de clarification): esconde o
+# conteúdo todo e corta na altura da nav. É a ilustração de "como é uma notificação" — recortar
+# a foto da página inteira daria o mesmo pixel, mas exigiria um editor de imagem no caminho.
+shot comp-notify.png       s_comp    "/contest/?hide=$OCULTA,%23problemsSection"   215
+# nas fotos de DETALHE o topo (faixa de notificação + topbar + nav) só rouba altura: o leitor
+# já viu a página inteira na seção 2 e aqui o que importa é a seção fotografada.
+CROMO='.notify-banner,.topbar,.quicknav'
+shot comp-problemas.png    s_comp    "/contest/?hide=$OCULTA,$CROMO"               400
+shot comp-sanfona.png      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO" 840
+shot comp-submissoes.png   s_comp    "/contest/?hide=%23newsSection,%23resourcesSection,%23problemsSection,%23userSection,$CROMO" 460
+shot comp-placar.png       s_comp    /contest/score/                               700
+shot comp-clarification.png s_comp   /contest/clarification/                       960
+# a MESMA sanfona com o editor DESLIGADO (SHOWEDITOR=0) — é o caso da Maratona SBC, em que a
+# prova roda em máquina controlada e o time compila no ambiente dela, não no navegador
+if [[ -z "$ONLY" || "s_$ONLY" == s_comp || "$ONLY" == s_comp ]]; then
+  cp "$C/conf" "$C/conf.bak"; printf 'SHOWEDITOR=0
+' >> "$C/conf"
+  shot comp-sem-editor.png s_comp "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO" 700
+  mv -f "$C/conf.bak" "$C/conf"
+fi
 shot staff-fila.png        s_staff   /contest/staff/
 shot staff-pega.png        s_staff   /contest/staff/
 shot staff-telao.png       s_staff   /contest/animeitor/       1100

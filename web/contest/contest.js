@@ -295,6 +295,19 @@ function renderUser() {
   const box = document.getElementById('userSection');
   box.innerHTML = '';
   if (!userinfo) return;
+  // "Como funciona este papel" é o padrão das outras 5 páginas de papel (staff/cstaff/animeitor/
+  // judge/chief, todas com o mesmo botão no topo). Aqui o papel é o COMPETIDOR — então o botão só
+  // aparece p/ quem não tem papel nenhum; organização e juiz já têm o tutorial DELES na página
+  // deles. O contest-guard deixa passar porque o caminho começa em /contest/.
+  const plain = !(userinfo.is_admin || userinfo.is_judge || userinfo.is_staff
+    || userinfo.is_cstaff || userinfo.is_animeitor);
+  if (plain) {
+    box.append(el('a', { class: 'btn ghost', href: '/contest/ajuda/competidor.html', target: '_blank',
+      rel: 'noopener', style: 'float:right;margin:.2rem 0 0',
+      title: T('As telas da prova explicadas: sanfona, envio, clarification e placar',
+               'The contest screens explained: accordion, submitting, clarifications and scoreboard') },
+      T('📖 Como funciona a prova', '📖 How the contest works')));
+  }
   box.append(
     el('div', { style: 'font-size:1.2rem; font-weight:800; color:var(--blue-dark)' },
       userinfo.name || userinfo.login),
@@ -809,11 +822,26 @@ function renderSubmitInline(p) {
   return { row, editorBlock, mountEditor, refreshEd };
 }
 
+// minuto de prova de um instante: é o que a coluna "Tempo" significa (e o que o placar mostra
+// nas células, "1/12" = acertou na 1ª tentativa no minuto 12). Antes do início dá negativo —
+// e isso é informação, não erro: é submissão de juiz testando a prova.
+function minutoDeProva(epoch) {
+  const ini = (basic && basic.start_time) || 0;
+  if (!ini || !epoch) return '—';
+  return String(Math.floor((epoch - ini) / 60));
+}
+
 // ---- submissões (tabela + filtro + ordenação + polling) --------------------
 function parseHistLine(line) {
   const a = line.split(':');
   if (a.length < 7) return null;
   // tempo:username:problemid:lang:verdict:epoch:subid  (verdict pode conter ':')
+  // ⚠ o campo 0 ("tempo") NÃO é minuto de prova: a reforma do store passou a gravar o EPOCH
+  // nele (o submit.sh escreve `$AGORA` nos campos 0 e 4, e a migração fez `tempo := sub_epoch`
+  // porque o campo 0 do legado era lixo). Mostrá-lo cru punha um número de 10 dígitos numa
+  // coluna chamada "Tempo", ao lado de "Data" com o MESMO instante formatado. O minuto de
+  // prova — que é o que "Tempo" quer dizer no ICPC e o que o placar usa nas células — é
+  // calculado na hora de renderizar, a partir do início do contest.
   return {
     sinceStart: parseInt(a[0], 10) || 0,
     user: a[1],
@@ -888,7 +916,7 @@ function renderSubmissions() {
     const logCell = canLog ? el('td', {},
       el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.subid)}&time=${encodeURIComponent(s.epoch)}`); } }, 'log')) : null;
     tb.append(el('tr', {},
-      el('td', {}, String(s.sinceStart)),
+      el('td', {}, minutoDeProva(s.epoch)),
       el('td', {}, el('b', {}, shortNameOf(s.problem)), ' ', el('span', { class: 'small muted' }, fullNameOf(s.problem))),
       el('td', {}, fileLink),
       vcell,
