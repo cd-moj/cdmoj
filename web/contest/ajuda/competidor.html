@@ -57,7 +57,7 @@
         <a href="#avisos" data-en="8. News and documents">8. Avisos e documentos</a>
         <a href="#clar" data-en="9. Clarifications">9. Clarifications</a>
         <a href="#placar" data-en="10. Reading the scoreboard">10. Ler o placar</a>
-        <a href="#extras" data-en="11. Printing and backup">11. Impressão e backup</a>
+        <a href="#extras" data-en="11. Printing, backup and CLI">11. Impressão, backup e CLI</a>
         <a href="#resumo" data-en="12. Summary">12. Resumo</a>
       </nav>
 
@@ -137,17 +137,37 @@
           <tr><td data-en="Statement only">Só enunciado</td><td data-en="The statement in full width, to read in peace.">O enunciado em largura cheia, para ler com calma.</td></tr>
           <tr><td data-en="Editor only">Só editor</td><td data-en="The editor in full width, to write in peace.">O editor em largura cheia, para escrever com calma.</td></tr>
         </table>
-        <div class="tip" data-en-html="The statement is also there as <b>HTML</b> and <b>PDF</b>, in the links on the row itself — those open in another tab, which is handy for reading on a second monitor while you code on the first. The time limit of the problem appears inside the accordion, one chip per language.">
+        <div class="tip" data-en-html="The statement is also there as <b>HTML</b> and <b>PDF</b>, in the links on the row itself — those open in another tab, which is handy for reading on a second monitor while you code on the first. And the first line inside the accordion is the <b>time limit</b>, one chip per language: <code>C 1 s</code>, <code>Java 2 s</code>, <code>Python 3 s</code>. The languages are not all given the same limit — the slower ones get more time, measured on the judge machine.">
           O enunciado também está como <b>HTML</b> e <b>PDF</b>, nos links da própria linha — eles
           abrem em outra aba, o que ajuda para ler num segundo monitor enquanto você programa no
-          primeiro. O tempo-limite do problema aparece dentro da sanfona, um chip por linguagem.
+          primeiro. E a primeira linha dentro da sanfona é o <b>tempo limite</b>, um chip por
+          linguagem: <code>C 1 s</code>, <code>Java 2 s</code>, <code>Python 3 s</code>. As
+          linguagens não recebem o mesmo limite — as mais lentas ganham mais tempo, medido na
+          máquina do juiz.
         </div>
 
+        <h3 data-en="When the statement is PDF only">Quando o enunciado é só PDF</h3>
+        <p data-en-html="Plenty of contests hand out only the problem set in PDF — no HTML version. There the row has only the <b>PDF</b> link, and the accordion opens with the <b>time limit</b> (and the editor, if there is one) and nothing else. It is not a broken screen: the statement is in the PDF, and it is the PDF you read.">
+          Muita prova entrega só o caderno em <b>PDF</b>, sem versão HTML. Ali a linha tem apenas o
+          link <b>PDF</b>, e a sanfona abre com o <b>tempo limite</b> (e o editor, se houver) e
+          mais nada. Não é tela quebrada: o enunciado está no PDF, e é o PDF que você lê.
+        </p>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/comp-sanfona-pdf.png" alt="">
+          <figcaption data-en="Problem H has no HTML: only the PDF link on the row, and the open accordion shows just the time limit and the editor.">
+            O problema H não tem HTML: só o link PDF na linha, e a sanfona aberta mostra apenas o
+            tempo limite e o editor.
+          </figcaption>
+        </figure>
+
         <h2 id="editor" data-en="4. The editor is not always there">4. O editor nem sempre está lá</h2>
-        <p data-en="The web editor is a convenience, not part of the rules — and the organization can turn it off. In the SBC Programming Marathon it is off: you write in the environment of the machine the organization prepared, compile there and submit the file. Do not count on the browser editor before checking.">
+        <p data-en-html="The web editor is a convenience, not part of the rules — and the organization can turn it off. In the SBC Programming Marathon it is off: you write in <b>an editor of the machine itself</b>, compile in the terminal and submit the file. That is no loss — the contest image comes loaded with editors, and if it is the <b>Maratona Linux</b> you are very well served: vim, neovim, emacs, VS Code, Geany, Kate, gedit, Sublime, CLion, Code::Blocks — with the compilers and the debugger already set up. Do not count on the browser editor before checking.">
           O editor do navegador é uma conveniência, não parte das regras — e a organização pode
-          desligá-lo. Na <b>Maratona SBC de Programação ele fica desligado</b>: você escreve no
-          ambiente da máquina que a organização preparou, compila lá e envia o arquivo. Não conte
+          desligá-lo. Na <b>Maratona SBC de Programação ele fica desligado</b>: você escreve num
+          <b>editor da própria máquina</b>, compila no terminal e envia o arquivo. E isso não é
+          perda nenhuma — a imagem da prova vem cheia de editores, e se for o <b>Maratona
+          Linux</b> você está muito bem servido: vim, neovim, emacs, VS Code, Geany, Kate, gedit,
+          Sublime, CLion, Code::Blocks — com os compiladores e o depurador já ajustados. Não conte
           com o editor do navegador antes de conferir.
         </p>
         <figure class="shot">
@@ -197,7 +217,6 @@
           <tr><td>Time Limit Exceeded</td><td data-en="It took longer than the problem allows.">Demorou mais que o problema permite.</td></tr>
           <tr><td>Runtime Error</td><td data-en="It broke while running — segfault, division by zero, exception.">Quebrou durante a execução — segfault, divisão por zero, exceção.</td></tr>
           <tr><td>Compilation Error</td><td data-en="It did not even compile on the judge machine.">Nem compilou na máquina do juiz.</td></tr>
-          <tr><td>Presentation Error</td><td data-en="Right answer, wrong shape — spacing or line breaks.">Resposta certa, forma errada — espaços ou quebras de linha.</td></tr>
         </table>
         <div class="tip" data-en-html="In a contest, the verdict is <b>all you get</b>: no failing test, no diff, no partial score. That is on purpose — the test data is exam material. If the contest allows it, a <code>log</code> link appears on the row; if it does not appear, there is nothing to ask for.">
           Numa prova, o veredicto é <b>tudo o que você recebe</b>: sem teste que falhou, sem diff,
@@ -220,14 +239,21 @@
         </p>
         <figure class="shot">
           <img src="/contest/ajuda/img/comp-problemas.png" alt="">
-          <figcaption data-en="A, B and C solved, each in the colour of its balloon; D still untouched, with no colour.">
-            A, B e C resolvidos, cada um na cor do seu balão; D ainda intocado, sem cor.
+          <figcaption data-en="A to E solved, each in the colour of its balloon; F, G and H still untouched. This is the official ICPC palette — and note that A is WHITE and B is BLACK.">
+            A a E resolvidos, cada um na cor do seu balão; F, G e H ainda intocados. Esta é a
+            paleta oficial do ICPC — e repare que o A é <b>branco</b> e o B é <b>preto</b>.
           </figcaption>
         </figure>
-        <div class="tip" data-en="The colour is decoration; what says solved is the ✔ tag and the balloon. That matters when the colour is white or very light — and on the phone, where the cell shows a ✓ instead of the numbers.">
-          A cor é enfeite; quem diz <i>resolvido</i> é a etiqueta ✔ e o balão. Isso importa quando
-          a cor é branca ou muito clara — e no celular, onde a célula mostra um ✓ no lugar dos
-          números.
+        <p data-en-html="The palette is the ICPC one and it goes in the order of the letters — A white, B black, C red, D maroon, E yellow, F green, G blue, H navy blue, and so on. The colour is not decoration for its own sake: it is what lets the room tell at a glance who solved what, and it is the colour of the balloon they tie to your chair.">
+          A paleta é a do ICPC e vai na ordem das letras — A branco, B preto, C vermelho, D
+          bordô, E amarelo, F verde, G azul, H azul-marinho, e assim por diante. A cor não é
+          enfeite: é o que faz a sala enxergar de longe quem resolveu o quê, e é a cor do balão
+          que amarram na sua cadeira.
+        </p>
+        <div class="tip" data-en-html="But what <b>says</b> solved is the ✔ tag and the balloon, never the colour by itself — A is white on a white page, and B is black. On the phone the cell shows a ✓ instead of the numbers, for the same reason.">
+          Mas quem <b>diz</b> resolvido é a etiqueta ✔ e o balão, nunca a cor sozinha — o A é
+          branco numa página branca, e o B é preto. No celular a célula mostra um ✓ no lugar dos
+          números, pela mesma razão.
         </div>
 
         <h2 id="avisos" data-en="8. News and documents">8. Avisos e documentos</h2>
@@ -282,49 +308,106 @@
         <h2 id="placar" data-en="10. Reading the scoreboard">10. Ler o placar</h2>
         <figure class="shot">
           <img src="/contest/ajuda/img/comp-placar.png" alt="">
-          <figcaption data-en="The scoreboard, frozen. One column per problem, with its balloon in the header.">
-            O placar, congelado. Uma coluna por problema, com o balão dele no cabeçalho.
+          <figcaption data-en="The scoreboard, frozen. One column per problem, with its balloon in the header — and each solved cell painted in the colour of that balloon.">
+            O placar, congelado. Uma coluna por problema, com o balão dele no cabeçalho — e cada
+            célula resolvida <b>pintada na cor daquele balão</b>.
           </figcaption>
         </figure>
-        <p data-en="Each cell is what your team did on that problem:">
-          Cada célula é o que o seu time fez naquele problema:
+        <p data-en-html="A solved cell comes out <b>in the problem's colour</b>: red in C, yellow in E, blue in G. So one glance across your row tells you which balloons you already have. Each cell is what your team did on that problem:">
+          Célula resolvida sai <b>na cor do problema</b>: vermelha no C, amarela no E, azul no G.
+          Uma passada de olho na sua linha já diz quais balões você tem. Cada célula é o que o seu
+          time fez naquele problema:
         </p>
         <table class="cheat">
           <tr><th data-en="Cell">Célula</th><th data-en="Meaning">O que quer dizer</th></tr>
-          <tr><td data-en="green, 1/12">verde, <code>1/12</code></td><td data-en="Solved on the 1st attempt, at minute 12 of the contest.">Resolvido na 1ª tentativa, no minuto 12 de prova.</td></tr>
-          <tr><td data-en="green, 2/45">verde, <code>2/45</code></td><td data-en="Solved on the 2nd attempt, at minute 45 — the first one was wrong.">Resolvido na 2ª tentativa, no minuto 45 — a primeira estava errada.</td></tr>
-          <tr><td data-en="orange, 2/-">laranja, <code>2/-</code></td><td data-en="Two attempts, not solved.">Duas tentativas, não resolvido.</td></tr>
+          <tr><td data-en-html="colour of the problem, <code>1/12</code>">na cor do problema, <code>1/12</code></td><td data-en="Solved on the 1st attempt, at minute 12 of the contest.">Resolvido na 1ª tentativa, no minuto 12 de prova.</td></tr>
+          <tr><td data-en-html="colour of the problem, <code>2/45</code>">na cor do problema, <code>2/45</code></td><td data-en="Solved on the 2nd attempt, at minute 45 — the first one was wrong.">Resolvido na 2ª tentativa, no minuto 45 — a primeira estava errada.</td></tr>
+          <tr><td data-en-html="orange, <code>2/-</code>">laranja, <code>2/-</code></td><td data-en="Two attempts, not solved. Attempts never get the balloon colour — that one is earned.">Duas tentativas, não resolvido. Tentativa nunca ganha a cor do balão — essa se conquista.</td></tr>
           <tr><td data-en="empty">vazia</td><td data-en="Never attempted.">Nunca tentou.</td></tr>
-          <tr><td>★</td><td data-en="First team to solve that problem in the whole contest.">Primeiro time a resolver aquele problema em toda a prova.</td></tr>
+          <tr><td>★</td><td data-en="First team to solve that problem in the whole contest — the cell also gets a ring around it.">Primeiro time a resolver aquele problema em toda a prova — a célula ainda ganha um anel em volta.</td></tr>
         </table>
+        <div class="tip" data-en-html="Some contests show the cell in a neutral green with a coloured dot instead of painting it — it is the same information, chosen by the organization. And in either style the white A and the black B get a thin outline: without it a white cell on a white table would look like nothing at all.">
+          Algumas provas mostram a célula num verde neutro com um pontinho colorido em vez de
+          pintá-la — é a mesma informação, escolha da organização. E nos dois estilos o A branco e
+          o B preto ganham um contorno fino: sem ele uma célula branca numa tabela branca não
+          pareceria nada.
+        </div>
         <p data-en-html="The ranking is by <b>Total</b> (problems solved) first. On a tie, whoever has the smaller <b>Penal.</b> wins — and the penalty is the sum, over the SOLVED problems, of the minute of the accepted submission plus a fixed fine for each wrong attempt before it. Wrong attempts on a problem you never solved cost nothing.">
           A classificação é por <b>Total</b> (problemas resolvidos) primeiro. No empate, ganha quem
           tem a menor <b>Penal.</b> — e a penalidade é a soma, sobre os problemas
           <b>resolvidos</b>, do minuto da submissão aceita mais uma multa fixa por cada tentativa
           errada anterior. Tentativa errada em problema que você nunca resolveu não custa nada.
         </p>
-        <div class="warn" data-en-html="<b>Frozen scoreboard.</b> Near the end the scoreboard stops showing results — the notice at the top says since when. Everybody sees the standings as they were at that minute, and nobody knows the real ranking until the ceremony. Your submissions keep being judged normally: what freezes is the display, not the contest. Keep solving.">
+        <div class="warn" data-en-html="<b>Frozen scoreboard.</b> Near the end the scoreboard stops showing results — the notice at the top says since when. Everybody sees the standings as they were at that minute, and nobody knows the real ranking until the ceremony. Your submissions keep being judged normally: what freezes is the display, not the contest. Keep solving. In the picture above, that is exactly the D of the team in first place: they solved it at minute 117, it is right there in their submission list with an <i>Accepted</i>, and the frozen column shows nothing.">
           <b>Placar congelado.</b> Perto do fim o placar deixa de mostrar resultados — o aviso do
           topo diz desde quando. Todos veem a classificação como ela estava naquele minuto, e
           ninguém sabe a ordem real até a cerimônia. Suas submissões continuam sendo julgadas
-          normalmente: o que congela é a <b>exibição</b>, não a prova. Continue resolvendo.
+          normalmente: o que congela é a <b>exibição</b>, não a prova. Continue resolvendo. Na
+          foto acima é exatamente o caso do D do primeiro colocado: ele resolveu no minuto 117,
+          está lá na lista de submissões dele com <i>Accepted</i>, e a coluna congelada não
+          mostra nada.
         </div>
         <div class="tip" data-en="The bar above the table filters by country, university, venue or name — it only hides rows, it never renumbers. The counter on the right tells you how many teams are showing.">
           A barra acima da tabela filtra por país, universidade, sede ou nome — ela só esconde
           linhas, nunca renumera. O contador da direita diz quantos times estão aparecendo.
         </div>
 
-        <h2 id="extras" data-en="11. Printing and backup">11. Impressão e backup</h2>
-        <ul>
-          <li data-en-html="<b>🖨️ Impressão</b> — send a file and the room team prints it and walks it to your desk. What comes out has a cover sheet with your team and the task number, so nothing gets swapped. It only exists if the contest has a room team."><b>🖨️ Impressão</b> — mande um arquivo e a equipe de sala imprime e leva até a sua mesa. O que sai tem uma folha de rosto com o seu time e o número da tarefa, para nada se trocar. Só existe se a prova tiver equipe de sala.</li>
-          <li data-en-html="<b>💾 Backup</b> — a drawer of your own on the server: you upload a file (10 MB each), it stays listed there, and you download it back whenever you want. It is for not losing work — the version that was working before you rewrote everything. It is not automatic: what is not uploaded is not saved, and a machine that dies takes with it whatever only existed on it."><b>💾 Backup</b> — uma gaveta sua no servidor: você manda um arquivo (10 MB cada), ele fica listado ali e você baixa de volta quando quiser. Serve para <b>não perder trabalho</b> — a versão que estava funcionando antes de você reescrever tudo. Não é automático: o que não subir, não está guardado, e uma máquina que morre leva junto o que só existia nela.</li>
-          <li data-en-html="<b>CLI</b> — there is a terminal client, <code>moj-comp</code>, that submits and follows the verdicts without the browser, and keeps working through a network outage (it queues the submissions and delivers them when the link returns). See <a href='/contest/cli.html' target='_blank'>the CLI page</a>."><b>CLI</b> — existe um cliente de terminal, <code>moj-comp</code>, que envia e acompanha veredictos sem navegador, e que aguenta queda de rede (ele enfileira as submissões e entrega quando o link volta). Veja <a href="/contest/cli.html" target="_blank">a página da CLI</a>.</li>
-        </ul>
+        <h2 id="extras" data-en="11. Printing, backup and the CLI">11. Impressão, backup e a CLI</h2>
+
+        <h3 data-en="🖨️ Printing">🖨️ Impressão</h3>
+        <p data-en-html="Reading code on paper catches what the screen hides. In the <b>🖨️ Impressão</b> tab you pick the file (source code, text, image or PDF, up to 10 MB) and press <i>Pedir impressão</i>: the room team prints it and walks it to your desk. It comes with a cover sheet carrying your team name and a reference number, so nothing gets delivered to the wrong table.">
+          Ler código no papel pega o que a tela esconde. Na aba <b>🖨️ Impressão</b> você escolhe o
+          arquivo (código-fonte, texto, imagem ou PDF, até 10 MB) e aperta <i>Pedir impressão</i>:
+          a equipe de sala imprime e leva até a sua mesa. Sai com uma folha de rosto com o nome do
+          seu time e um número de conferência, para nada ser entregue na mesa errada.
+        </p>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/comp-impressao.png" alt="">
+          <figcaption data-en-html="The form at the top and your own requests below, each with its state: <b>pendente</b> (in the queue), <b>processada</b> (printed) and <b>entregue</b> (in your hands). You only see your own.">
+            O formulário em cima e os seus pedidos embaixo, cada um com o estado:
+            <b>pendente</b> (na fila), <b>processada</b> (impressa) e <b>entregue</b> (na sua
+            mão). Você só vê os seus.
+          </figcaption>
+        </figure>
+        <div class="tip" data-en="If the tab is not in the menu, this contest has no printing — either there is no room team or the organization turned it off.">
+          Se a aba não está no menu, esta prova não tem impressão — ou não há equipe de sala, ou a
+          organização a desligou.
+        </div>
+
+        <h3 data-en="💾 Backup">💾 Backup</h3>
+        <p data-en-html="The <b>💾 Backup</b> tab is a drawer of your own on the server: pick a file, press <i>Guardar arquivo</i>, and it stays there for you to download back whenever you want. It is for <b>not losing work</b> — the version that was working before you rewrote everything, the machine that decides to die at minute 150. It does <b>not</b> count as a submission and nobody else sees it.">
+          A aba <b>💾 Backup</b> é uma gaveta sua no servidor: escolha um arquivo, aperte
+          <i>Guardar arquivo</i>, e ele fica lá para você baixar de volta quando quiser. Serve
+          para <b>não perder trabalho</b> — a versão que estava funcionando antes de você
+          reescrever tudo, a máquina que resolve morrer no minuto 150. <b>Não</b> conta como
+          submissão e mais ninguém vê.
+        </p>
+        <figure class="shot">
+          <img src="/contest/ajuda/img/comp-backup.png" alt="">
+          <figcaption data-en-html="Upload at the top, your files below — name, size and time, with <i>baixar</i> and the ✕ to remove. 10 MB per file.">
+            O envio em cima, seus arquivos embaixo — nome, tamanho e hora, com <i>baixar</i> e o ✕
+            para remover. 10 MB por arquivo.
+          </figcaption>
+        </figure>
+        <div class="warn" data-en="It is not automatic: what you do not upload is not saved. Get into the habit before each risky rewrite, not after the machine dies.">
+          Não é automático: o que você não subir, não está guardado. Pegue o hábito antes de cada
+          reescrita arriscada, não depois de a máquina morrer.
+        </div>
+
+        <h3 data-en="⌨ The competitor CLI">⌨ A CLI do competidor</h3>
+        <p data-en-html="There is a terminal client, <code>moj-comp</code>, that submits and follows the verdicts and the scoreboard without a browser, and that survives a network outage (it queues the submission signed with the time and delivers it when the link comes back). <b>It is not always available</b>: whether it is allowed in a given contest is up to the organization running the event, and they are the ones who tell you — do not assume it is on. See <a href='/contest/cli.html' target='_blank'>the CLI page</a>.">
+          Existe um cliente de terminal, <code>moj-comp</code>, que envia e acompanha veredictos e
+          placar sem navegador, e que aguenta queda de rede (guarda a submissão assinada com o
+          horário e entrega quando o link volta). <b>Ele nem sempre está habilitado</b>: se vale
+          ou não naquela prova é decisão da organização do evento, e é dela que essa informação
+          vem — não presuma que está ligado. Veja
+          <a href="/contest/cli.html" target="_blank">a página da CLI</a>.
+        </p>
 
         <h2 id="resumo" data-en="12. Summary">12. Resumo</h2>
         <table class="cheat">
           <tr><th data-en="When">Quando</th><th data-en="What to do">O que fazer</th></tr>
-          <tr><td data-en="Before the start">Antes do início</td><td data-en="Log in, open a problem and check whether you have the web editor. Read the info sheet.">Entre, abra um problema e veja se você tem o editor do navegador. Leia o info sheet.</td></tr>
+          <tr><td data-en="Before the start">Antes do início</td><td data-en="Log in, open a problem and check whether you have the web editor — and if not, which editor of the machine you will use. Read the info sheet.">Entre, abra um problema e veja se você tem o editor do navegador — e, se não tiver, qual editor da máquina você vai usar. Leia o info sheet.</td></tr>
           <tr><td data-en="During">Durante</td><td data-en="Click the row to open the statement, submit, watch the verdict. Ask a clarification when the statement is genuinely ambiguous.">Clique na linha para abrir o enunciado, envie, acompanhe o veredicto. Peça clarification quando o enunciado for mesmo ambíguo.</td></tr>
           <tr><td data-en="Yellow bar showed up">Faixa amarela apareceu</td><td data-en="Read it — it is either an announcement or an answered clarification.">Leia — ou é aviso da organização, ou é clarification respondida.</td></tr>
           <tr><td data-en="Scoreboard stopped moving">Placar parou</td><td data-en="It is frozen, not broken. Your submissions are still being judged.">Está congelado, não quebrado. Suas submissões seguem sendo julgadas.</td></tr>

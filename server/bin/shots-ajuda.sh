@@ -34,7 +34,9 @@ command -v python3 >/dev/null || { echo "python3 não encontrado (servidor de ca
 
 FIX="$(mktemp -d)"; RUNF="$(mktemp -d)"; SESS="$(mktemp -d)"; PROF="$(mktemp -d)"
 cleanup(){ [[ -n "${SRV:-}" ]] && kill "$SRV" 2>/dev/null
-  (( KEEP )) && { echo ">> fixture mantido em $FIX"; return; }
+  # p/ depurar uma tela vazia é preciso repetir a chamada do router à mão — e aí os TRÊS
+  # diretórios importam (CONTESTSDIR, RUNDIR e SESSIONDIR), não só o do contest
+  (( KEEP )) && { printf '>> mantidos: CONTESTSDIR=%s RUNDIR=%s SESSIONDIR=%s\n' "$FIX" "$RUNF" "$SESS"; return; }
   rm -rf "$FIX" "$RUNF" "$SESS" "$PROF"; }
 trap cleanup EXIT
 mkdir -p "$OUT"
@@ -48,10 +50,22 @@ mkdir -p "$C/var" "$C/users" "$C/print-requests" "$C/review" "$C/enunciados"
   # FREEZE_TIME é EPOCH ABSOLUTO (não minutos): congela na última hora
   printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\n' "$((NOW-7200))" "$((NOW+3600))" "$((NOW-1800))"
   printf 'PRINT=1\nMANUAL_VERDICT=1\nREVIEW_JUDGES=2\n'
+  # célula do placar PINTADA com a cor do balão (o clássico do ICPC) — com a paleta oficial
+  # abaixo é o que faz a tela parecer a de uma prova de verdade
+  printf 'SCORE_BALLOON_STYLE=fill\n'
   printf 'ROUND=oficial\nROUND_NAME=%q\n' "Prova oficial"
   # PROBS = tuplas de CINCO campos: <source> <problem_id> <nome> <letra> <chave-do-enunciado>
-  printf 'PROBS=( demo demo#somatorio %q A demo#somatorio demo demo#labirinto %q B demo#labirinto demo demo#cofre %q C demo#cofre demo demo#tapete %q D demo#tapete )\n' \
-    "Somatório curioso" "Labirinto de espelhos" "O cofre do reitor" "Tapete voador"
+  # OITO problemas, como uma prova de verdade — é o que dá sentido à paleta oficial (A..H) e o
+  # que faz o placar ter a largura que ele tem no dia.
+  printf 'PROBS=('
+  for t in "somatorio:Somatório curioso:A"      "labirinto:Labirinto de espelhos:B" \
+           "cofre:O cofre do reitor:C"          "tapete:Tapete voador:D" \
+           "estadio:Estádio lotado:E"           "bandejao:A fila do bandejão:F" \
+           "metro:O metrô da capital:G"         "astrolabio:O astrolábio:H"; do
+    IFS=: read -r k n l <<<"$t"
+    printf ' demo demo#%s %q %s demo#%s' "$k" "$n" "$l" "$k"
+  done
+  printf ' )\n'
 } > "$C/conf"
 
 # --- contas: 6 times fictícios (2 sedes) + as 5 contas de papel
@@ -114,8 +128,26 @@ int main(void) {
 }
 SRC
 cp "$C/print-requests/p0.src" "$C/print-requests/p1.src"
-mkpr b1 time-alfa  "Os Alfabetizados" UFPR  ""              pending   9 balloon  60 A e63946 vermelho
-mkpr b2 time-beta  "Beta Testers"     UnB   ""              pending  10 balloon  30 C 2a9d8f verde
+# ⚠ o balão da foto é o do C (VERMELHO) de propósito: o A da paleta oficial é BRANCO, e a folha
+# do tutorial do .staff — que fala em "se o desenho diz vermelho" — ficaria branca no branco.
+# Os dois times abaixo resolveram mesmo esses problemas (ver o history adiante).
+mkpr b1 time-alfa  "Os Alfabetizados" UFPR  ""              pending   9 balloon  60 C ff0000 vermelho
+mkpr b2 time-beta  "Beta Testers"     UnB   ""              pending  10 balloon  30 E ffff00 amarelo
+# a tela do COMPETIDOR (contest/print/) lista só os pedidos DELE, com o estado de cada um —
+# então o time-alfa precisa dos três estados p/ a foto do tutorial fazer sentido
+mkpr p4 time-alfa  "Os Alfabetizados" UFPR  "leitura.pdf"   delivered 2 print  1800
+mkpr p5 time-alfa  "Os Alfabetizados" UFPR  "solucao-e.py"  printed   4 print   720
+
+# --- backups do competidor (contests/<c>/backups/<login>/<id> + <id>.meta {name,size,time})
+bkp(){ # <login> <id> <nome> <bytes> <idade_s>
+  local d="$C/backups/$1"; mkdir -p "$d"
+  head -c "$4" /dev/zero | tr '\0' 'x' > "$d/$2"
+  jq -cn --arg n "$3" --argjson s "$4" --argjson t "$((NOW-$5))" \
+    '{name:$n, size:$s, time:$t}' > "$d/$2.meta"
+}
+bkp time-alfa bk01 "somatorio-que-passou.c"  2143 5400
+bkp time-alfa bk02 "labirinto-v2.cpp"        4820 2700
+bkp time-alfa bk03 "tapete-forca-bruta.py"   1160  900
 
 # --- placar (TXT cru, como o build.sh gera): cabeçalho + 6 linhas
 # FORMATO REAL do placar (updatescore-icpc.sh): 1ª linha = modo; 2ª = header com os DOIS
@@ -126,27 +158,42 @@ mkpr b2 time-beta  "Beta Testers"     UnB   ""              pending  10 balloon 
 # estrela, então ela tem de aparecer na foto. Ela é por VISÃO: o congelado estrela quem é o
 # primeiro no que ele mostra, e por isso o par congelado×completo pode diferir (o D só é
 # resolvido depois do congelamento).
-SCOL='desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:Total:Penalty:LastAC'
+# A prova roda do minuto 0 ao 180, "agora" é o minuto 120 e o FREEZE é o 90 — então o
+# congelado só pode ter célula com minuto ≤ 90, e o que estiver entre 90 e 120 aparece SÓ no
+# completo. É essa a diferença que o competidor vê: o D do time-alfa (minuto 117) está na
+# lista de submissões DELE e não está no placar.
+SCOL='desc:asc:flag:username:univ short:team name:univ full:A:B:C:D:E:F:G:H:Total:Penalty:LastAC'
+# lin <bandeira> <login> <sigla> <time> <univ> <A..H> <total> <penal> <lastac>
+# ⚠ com 8 colunas, contar `:` à mão erra (célula vazia no meio é o caso ruim) — daí a função:
+# ela ENUMERA as células, então "vazio" é um argumento visível e não um colapso de separador.
+lin(){ local IFS=:; printf '%s\n' "$*"; }
+UFPR='Univ. Federal do Paraná'; USP='Universidade de São Paulo'; UNB='Universidade de Brasília'
+UNESP='Universidade Estadual Paulista'
 { printf 'icpc\n%s\n' "$SCOL"
-  printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12*:2/45*:1/78::3:147:78\n'
-  printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:1/-:1/61*:3/-:2:81:61\n'
-  printf 'br:time-beta:UnB:Beta Testers:Universidade de Brasília:1/33:2/-:::1:33:33\n'
-  printf 'br:time-epsilon:UNESP:Épsilon Suficiente:Universidade Estadual Paulista:1/40:::2/-:1:40:40\n'
-  printf 'br:time-gama:UFPR:Gama Radiação:Univ. Federal do Paraná::1/-:::0:0:0\n'
-  printf 'ar:time-zeta:USP:Zeta Zero:Universidade de São Paulo:::::0:0:0\n'
+  #    band login        sigla  time                  univ      A       B      C       D     E       F       G       H    tot pen last
+  lin  br time-alfa    UFPR  "Os Alfabetizados"    "$UFPR"  1/12\* 2/45\* 1/78    ""    1/33\* ""      2/-     ""    4 188 78
+  lin  br time-delta   USP   "Delta de Dirac"      "$USP"   1/20   1/-    1/61\*  3/-   2/70   1/85\*  ""      ""    4 256 85
+  lin  br time-beta    UnB   "Beta Testers"        "$UNB"   1/33   2/-    ""      ""    1/52   ""      1/88\*  ""    3 173 88
+  lin  br time-epsilon UNESP "Épsilon Suficiente"  "$UNESP" 1/40   ""     ""      2/-   ""     ""      ""      ""    1 40  40
+  lin  br time-gama    UFPR  "Gama Radiação"       "$UFPR"  ""     1/-    ""      ""    1/74   ""      ""      ""    1 74  74
+  lin  ar time-zeta    USP   "Zeta Zero"           "$USP"   1/-    ""     ""      ""    ""     ""      ""      ""    0 0   0
 } > "$C/var/placar.txt"
 # o placar COMPLETO diverge do congelado em várias células — é EXATAMENTE esse delta que a
 # cerimônia abre uma a uma (reveal.js pendingCells), incluindo uma virada de liderança
 { printf 'icpc\n%s\n' "$SCOL"
-  printf 'br:time-delta:USP:Delta de Dirac:Universidade de São Paulo:1/20:2/152:1/61*:3/188:4:280:188\n'
-  printf 'br:time-alfa:UFPR:Os Alfabetizados:Univ. Federal do Paraná:1/12*:2/45*:1/78:2/171*:4:338:171\n'
-  printf 'br:time-beta:UnB:Beta Testers:Universidade de Brasília:1/33:3/166::1/195:3:239:195\n'
-  printf 'br:time-epsilon:UNESP:Épsilon Suficiente:Universidade Estadual Paulista:1/40:::2/-:1:40:40\n'
-  printf 'br:time-gama:UFPR:Gama Radiação:Univ. Federal do Paraná::2/-:::0:0:0\n'
-  printf 'ar:time-zeta:USP:Zeta Zero:Universidade de São Paulo:::::0:0:0\n'
+  lin  br time-delta   USP   "Delta de Dirac"      "$USP"   1/20   2/104  1/61\*  3/112\* 2/70 1/85\*  ""      ""      6 532 112
+  lin  br time-alfa    UFPR  "Os Alfabetizados"    "$UFPR"  1/12\* 2/45\* 1/78    2/117   1/33\* ""    2/-     ""      5 325 117
+  lin  br time-beta    UnB   "Beta Testers"        "$UNB"   1/33   2/-    ""      ""      1/52 ""      1/88\*  1/108\* 4 281 108
+  lin  br time-epsilon UNESP "Épsilon Suficiente"  "$UNESP" 1/40   ""     ""      2/-     ""   ""      ""      ""      1 40  40
+  lin  br time-gama    UFPR  "Gama Radiação"       "$UFPR"  ""     2/-    ""      ""      1/74 ""      ""      ""      1 74  74
+  lin  ar time-zeta    USP   "Zeta Zero"           "$USP"   1/-    ""     ""      ""      ""   ""      ""      ""      0 0   0
 } > "$C/var/placar-full.txt"
-# cores dos balões (as células resolvidas saem na cor do balão do problema)
-jq -cn '{A:"E63946", B:"264653", C:"2A9D8F", D:"E9C46A"}' > "$C/balloons.json"
+# cores dos balões: a PALETA OFICIAL do ICPC, na ordem das letras (é a que a organização
+# compra e a que o competidor vê amarrada na cadeira). Ela é de propósito o pior caso do
+# desenho: A é BRANCO e B é PRETO — no modo `fill` a célula do A só existe por causa do
+# contorno do balloonEdge, e a do B inverte o texto p/ branco. Ver [[balao-branco-contorno]].
+jq -cn '{A:"FFFFFF", B:"000000", C:"FF0000", D:"800000",
+         E:"FFFF00", F:"008000", G:"0000FF", H:"000080"}' > "$C/balloons.json"
 
 # --- history dos times: é a fonte de "Todas Submissões" (6 campos, login implícito:
 #     tempo:probid:lang:verdict:sub_epoch:subid)
@@ -154,22 +201,38 @@ h(){ # <login> <min-desde-o-inicio> <probid> <lang> <verdict> <subid>
   local ep=$((NOW-7200+$2*60))
   printf '%s:%s:%s:%s:%s:%s\n' "$ep" "$3" "$4" "$5" "$ep" "$6" >> "$C/users/$1/history"
 }
-h time-alfa   12 demo#somatorio C    "Accepted"                  aa01
-h time-alfa   31 demo#labirinto C    "Wrong Answer"              aa02
-h time-alfa   45 demo#labirinto C    "Accepted"                  aa03
-h time-alfa   78 demo#cofre     C++  "Accepted"                  aa04
-h time-alfa   95 demo#tapete    C    "Not Answered Yet"          aa05
-h time-beta   33 demo#somatorio C    "Accepted"                  bb01
-h time-beta   52 demo#labirinto Java "Time Limit Exceeded"       bb02
-h time-beta   71 demo#labirinto Java "Not Answered Yet"          bb03
-h time-gama   28 demo#labirinto C    "Compilation Error"         cc01
-h time-gama   64 demo#cofre     Java "Not Answered Yet"          cc02
-h time-delta  20 demo#somatorio C++  "Accepted"                  dd01
-h time-delta  61 demo#cofre     C++  "Accepted"                  dd02
-h time-delta  88 demo#tapete    Py   "Not Answered Yet"          dd03
-h time-epsilon 40 demo#somatorio Py  "Accepted"                  ee01
-h time-epsilon 57 demo#labirinto Py  "Runtime Error"             ee02
-h time-zeta   26 demo#somatorio C    "Wrong Answer"              ff01
+# ⚠ o history do time-alfa é a LISTA DE SUBMISSÕES do tutorial do competidor e tem de FECHAR
+# com o placar: cada AC aqui é uma célula lá, e o D (minuto 117, depois do freeze) é de
+# propósito o par que mostra "resolvi e o placar não conta" — está na lista e não no congelado.
+h time-alfa    12 demo#somatorio  C    "Accepted"                 aa01
+h time-alfa    31 demo#labirinto  C    "Wrong Answer"             aa02
+h time-alfa    33 demo#estadio    C++  "Accepted"                 aa03
+h time-alfa    45 demo#labirinto  C    "Accepted"                 aa04
+h time-alfa    62 demo#metro      Java "Wrong Answer"             aa05
+h time-alfa    78 demo#cofre      C++  "Accepted"                 aa06
+h time-alfa    86 demo#metro      Java "Time Limit Exceeded"      aa07
+h time-alfa   101 demo#tapete     C    "Wrong Answer"             aa08
+h time-alfa   117 demo#tapete     C    "Accepted"                 aa09
+h time-alfa   119 demo#astrolabio Py   "Not Answered Yet"         aa10
+h time-beta    33 demo#somatorio  C    "Accepted"                 bb01
+h time-beta    52 demo#estadio    Java "Accepted"                 bb02
+h time-beta    61 demo#labirinto  Java "Time Limit Exceeded"      bb03
+h time-beta    74 demo#labirinto  Java "Wrong Answer"             bb04
+h time-beta    88 demo#metro      C++  "Accepted"                 bb05
+h time-beta   108 demo#astrolabio C++  "Not Answered Yet"         bb06
+h time-gama    28 demo#labirinto  C    "Compilation Error"        cc01
+h time-gama    74 demo#estadio    Java "Accepted"                 cc02
+h time-gama   112 demo#cofre      Java "Not Answered Yet"         cc03
+h time-delta   20 demo#somatorio  C++  "Accepted"                 dd01
+h time-delta   55 demo#estadio    C++  "Runtime Error"            dd02
+h time-delta   61 demo#cofre      C++  "Accepted"                 dd03
+h time-delta   70 demo#estadio    C++  "Accepted"                 dd04
+h time-delta   85 demo#bandejao   C++  "Accepted"                 dd05
+h time-delta  104 demo#labirinto  C++  "Accepted"                 dd06
+h time-delta  118 demo#tapete     Py   "Not Answered Yet"         dd07
+h time-epsilon 40 demo#somatorio  Py   "Accepted"                 ee01
+h time-epsilon 57 demo#tapete     Py   "Runtime Error"            ee02
+h time-zeta    26 demo#somatorio  C    "Wrong Answer"             ff01
 
 # --- rodadas: um aquecimento arquivado + a prova oficial em andamento
 mkdir -p "$C/rounds/aquecimento"
@@ -178,7 +241,7 @@ jq -cn --argjson now "$NOW" \
     rounds:[{slug:"aquecimento", name:"Aquecimento", kind:"warmup", state:"archived",
              start:($now-86400), end:($now-82800), published:true, problems:2},
             {slug:"prova", name:"Prova oficial", kind:"official", state:"active",
-             start:($now-7200), end:($now+3600), problems:4}]}' > "$C/rounds.json"
+             start:($now-7200), end:($now+3600), problems:8}]}' > "$C/rounds.json"
 cp "$C/var/placar.txt" "$C/rounds/aquecimento/placar.txt" 2>/dev/null || true
 
 # --- fila de avaliação do veredicto manual (contrato de write_review_item, judged.sh:217)
@@ -263,7 +326,9 @@ jq -cn --arg c demo '[
 
 # ENUNCIADOS: PDF de mentira + HTML de verdade. O HTML é o que a sanfona mostra ao lado do
 # editor; sem ele o detalhe abre só com o editor e a tela perde o assunto do tutorial.
-for k in somatorio labirinto cofre tapete; do printf '%%PDF-1.4\n' > "$C/enunciados/demo#$k.pdf"; done
+for k in somatorio labirinto cofre tapete estadio bandejao metro astrolabio; do
+  printf '%%PDF-1.4\n' > "$C/enunciados/demo#$k.pdf"
+done
 mkstmt(){ # <chave> <título> <corpo-html>
   cat > "$C/enunciados/demo#$1.html" <<HTML
 <html><body>
@@ -288,6 +353,49 @@ mkstmt cofre "O cofre do reitor" \
   "<p>O cofre abre quando a soma dos dígitos da senha é múltipla de 7. Conte quantas senhas de <em>N</em> dígitos abrem o cofre.</p>"
 mkstmt tapete "Tapete voador" \
   "<p>Um tapete retangular cobre parte de um piso quadriculado. Calcule a área descoberta.</p>"
+mkstmt estadio "Estádio lotado" \
+  "<p>A torcida entra por <em>N</em> catracas e cada uma libera uma pessoa a cada 4 segundos. Diga quando o último torcedor senta.</p>"
+mkstmt bandejao "A fila do bandejão" \
+  "<p>Cada aluno leva um tempo diferente para se servir. Reordene a fila de modo a minimizar a espera total.</p>"
+mkstmt metro "O metrô da capital" \
+  "<p>Dadas as linhas do metrô e as baldeações, diga o menor número de trocas de trem entre duas estações.</p>"
+# ⚠ O H (astrolabio) fica SEM `.html` DE PROPÓSITO — só o `.pdf` acima. É a prova que
+# distribui apenas o caderno em PDF: a sanfona dele abre com o TEMPO LIMITE (e o editor, se
+# estiver ligado) e mais nada, e o enunciado sai pelo link PDF. Caso REAL e ilustrado no
+# tutorial do competidor: dar um `mkstmt astrolabio` aqui é o que faria a foto voltar a mentir.
+
+# --- TEMPO LIMITE calibrado (run/tl/<id>.json): é o que a sanfona mostra como "⏱ Tempo limite",
+# um chip por linguagem. Sem isto o detalhe abre sem o bloco — e a foto do problema SÓ-PDF, que
+# existe justamente p/ mostrar "abriu e só tem o tempo limite", não mostraria nada.
+# ⚠ NÃO adianta gravar só o run/tl: o TL só é servido quando o CHECKSUM do arquivo bate com o
+# do pacote — e checksum vazio é recusado de propósito (`tl_store_served_for`: sem checksum não
+# se prova que aquele TL é desta versão do problema). Sem pacote no fixture, quem fecha a conta
+# é o ÍNDICE DE DONOS (contests/treino/var/problem-owners.json), que carimba o `tl_checksum` e
+# é EXATAMENTE de onde a rota do contest o lê em produção — ver "a fronteira do repositório de
+# problemas" no CLAUDE.md. Então o fixture escreve os DOIS lados com o mesmo valor.
+mkdir -p "$RUNF/tl" "$FIX/treino/var"
+CKS_IDX=()
+tlf(){ # <chave> <c/c++> <java> <python>
+  local cks; cks="$(printf 'demo#%s' "$1" | md5sum | cut -c1-16)"
+  CKS_IDX+=("$(jq -cn --arg id "demo#$1" --arg c "$cks" \
+    '{id:$id, repo:"demo", prob:$id, title:$id, public:false, html:true,
+      owner:"decano.cjudge", collaborators:[], collections:[], tl_checksum:$c}')")
+  jq -cn --arg id "demo#$1" --argjson now "$NOW" --arg cks "$cks" \
+     --arg c "$2" --arg j "$3" --arg p "$4" \
+    '{id:$id, checksum:$cks, updated_at:$now,
+      hosts:{cpu1:{tl:{default:$c, c:$c, cpp:$c, java:$j, py:$p}, at:$now}}}' \
+    > "$RUNF/tl/demo#$1.json"
+}
+tlf somatorio 1.0000 2.0000 3.0000
+tlf labirinto 2.0000 4.0000 6.0000
+tlf cofre     1.0000 2.0000 3.0000
+tlf tapete    3.0000 6.0000 9.0000
+tlf estadio   1.0000 2.0000 3.0000
+tlf bandejao  2.0000 4.0000 6.0000
+tlf metro     2.0000 4.0000 6.0000
+tlf astrolabio 1.0000 2.0000 3.0000
+printf '%s\n' "${CKS_IDX[@]}" | jq -s --argjson now "$NOW" \
+  '{generated_at:$now, count:length, problems:.}' > "$FIX/treino/var/problem-owners.json"
 
 # --- chaves de webcast do telão (contests/<c>/webcast.json — wc_file)
 jq -cn --argjson now "$NOW" \
@@ -364,7 +472,7 @@ echo ">> capturando (porta $PORT, delay ${SHOT_DELAY_MS}ms)"
 # ---- competidor -----------------------------------------------------------------------
 # A sanfona é um <span class="prob-left"> com listener de clique: por TEXTO o ?click= não a
 # acha (ele só varre button/.btn/a/summary), por isso o ?clickcss=.
-shot comp-contest.png      s_comp    /contest/                                    1500
+shot comp-contest.png      s_comp    /contest/                                    2130
 # a PRIMEIRA tela que o competidor vê. O "papel" é uma sessão que NÃO EXISTE: o token não
 # resolve, a API responde 401 e o app cai no formulário de login — que é o que se quer fotografar.
 shot comp-login.png        s_comp_deslogado /contest/                              760
@@ -376,17 +484,29 @@ shot comp-notify.png       s_comp    "/contest/?hide=$OCULTA,%23problemsSection"
 # nas fotos de DETALHE o topo (faixa de notificação + topbar + nav) só rouba altura: o leitor
 # já viu a página inteira na seção 2 e aqui o que importa é a seção fotografada.
 CROMO='.notify-banner,.topbar,.quicknav'
-shot comp-problemas.png    s_comp    "/contest/?hide=$OCULTA,$CROMO"               400
-shot comp-sanfona.png      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO" 840
-shot comp-submissoes.png   s_comp    "/contest/?hide=%23newsSection,%23resourcesSection,%23problemsSection,%23userSection,$CROMO" 460
+# ⚠ com OITO problemas, a sanfona aberta precisa aparecer SOZINHA: sem isso a foto vira uma
+# lista de linhas fechadas com um pedaço do enunciado no fim. `n+2` deixa só o 1º (A) e
+# `-n+7` deixa só o 8º (H). O `+` do CSS é `%2B` na URL — na querystring, `+` é ESPAÇO.
+SO_A='%23problemList%20.prob-item%3Anth-child(n%2B2)'
+SO_H='%23problemList%20.prob-item%3Anth-child(-n%2B7)'
+CLICK_H='%23problemList%20.prob-item%3Anth-child(8)%20.prob-left'
+shot comp-problemas.png    s_comp    "/contest/?hide=$OCULTA,$CROMO"               720
+shot comp-sanfona.png      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 840
+# a MESMA sanfona num problema que só tem PDF (o H): abre com o tempo limite e o editor, e o
+# enunciado sai pelo link PDF. É a prova que distribui só o caderno — a maioria das maratonas.
+shot comp-sanfona-pdf.png  s_comp    "/contest/?clickcss=$CLICK_H&times=1&hide=$OCULTA,$CROMO,$SO_H" 640
+shot comp-submissoes.png   s_comp    "/contest/?hide=%23newsSection,%23resourcesSection,%23problemsSection,%23userSection,$CROMO" 740
 shot comp-placar.png       s_comp    /contest/score/                               700
 shot comp-clarification.png s_comp   /contest/clarification/                       960
+# as duas telas de serviço do competidor: pedir impressão do código e guardar arquivo no servidor
+shot comp-impressao.png    s_comp    /contest/print/                               720
+shot comp-backup.png       s_comp    /contest/backup/                              700
 # a MESMA sanfona com o editor DESLIGADO (SHOWEDITOR=0) — é o caso da Maratona SBC, em que a
 # prova roda em máquina controlada e o time compila no ambiente dela, não no navegador
 if [[ -z "$ONLY" || "s_$ONLY" == s_comp || "$ONLY" == s_comp ]]; then
   cp "$C/conf" "$C/conf.bak"; printf 'SHOWEDITOR=0
 ' >> "$C/conf"
-  shot comp-sem-editor.png s_comp "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO" 700
+  shot comp-sem-editor.png s_comp "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 620
   mv -f "$C/conf.bak" "$C/conf"
 fi
 shot staff-fila.png        s_staff   /contest/staff/
