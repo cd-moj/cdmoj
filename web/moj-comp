@@ -35,7 +35,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="b6b0c21-20260821"
+MOJ_CLI_BUILD="a4af1ff-20260824"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -50,6 +50,11 @@ have jq || die "preciso do 'jq'."; have curl || die "preciso do 'curl'."
 # ---- helpers PORTÁVEIS (Linux/GNU e macOS/BSD) --------------------------------------------
 # base64 de um arquivo, SEM quebra de linha (GNU: -w0; BSD não tem -w e não quebra por default)
 _b64enc(){ base64 -w0 < "$1" 2>/dev/null || base64 < "$1" | tr -d '\n'; }
+# _b64tmp <arquivo> -> ecoa o caminho de um TEMP com o base64 do arquivo, p/ entrar no jq por
+# `--rawfile`. ⚠ NUNCA passe base64 por `--arg`: o Linux limita um argumento a 128 KiB e um PDF
+# de caderno (500 KB -> 665 KB em base64) mata o jq com "Argument list too long" — o mesmo
+# tropeço que o /submit e o /contest/admin/users já levaram no servidor. Quem chama apaga.
+_b64tmp(){ local t; t="$(mktemp)" || return 1; _b64enc "$1" > "$t" || { rm -f "$t"; return 1; }; printf '%s' "$t"; }
 # decode de base64 do stdin (GNU: -d; macOS/BSD: -D)
 _b64dec(){ if base64 -d </dev/null >/dev/null 2>&1; then base64 -d; else base64 -D; fi; }
 # epoch de uma data legível. GNU: `date -d` aceita quase tudo. BSD/macOS NÃO tem `-d` — tem
@@ -414,12 +419,17 @@ _pkg_offline(){ # <letra> <arquivo> — cifra e enfileira; ecoa o caminho do pac
   [[ -n "$pid" ]] || die "não sei o problema da letra '$letter' sem rede — rode '$MOJ_TOOL problems' (ou fetch) quando tiver rede; o mapa fica guardado."
   claimed="$(_now_utc)"
   prev="$(cat "$(_cdir)/chainhead" 2>/dev/null || true)"
-  local b64f; b64f="$(mktemp)"; _b64file "$file" > "$b64f"
+  local b64f bcf; b64f="$(mktemp)"; bcf="$(mktemp)"; _b64file "$file" > "$b64f"
+  # o beacon vem por ARQUIVO como o código: é assinado pelo servidor e não temos como jurar que
+  # cabe nos 128 KiB de um argumento — e um argv estourado aqui derruba a submissão OFFLINE,
+  # que é justamente a que não tem como o aluno perceber que falhou (ver test/argmax.sh).
+  cat "$(_cdir)/beacon" 2>/dev/null > "$bcf" || : > "$bcf"
   inner="$(jq -cn --arg c "$CONTEST" --arg l "$(_session_login)" --arg p "$pid" \
       --arg f "$(basename "$file")" --rawfile b "$b64f" \
-      --argjson t "$claimed" --arg bc "$(cat "$(_cdir)/beacon" 2>/dev/null || true)" --arg ps "$prev" \
-      '{v:1, c:$c, l:$l, problem_id:$p, filename:$f, code_b64:$b, claimed_utc:$t, beacon:$bc, prev_sha256:$ps}')"
-  rm -f "$b64f"
+      --argjson t "$claimed" --rawfile bc "$bcf" --arg ps "$prev" \
+      '{v:1, c:$c, l:$l, problem_id:$p, filename:$f, code_b64:$b, claimed_utc:$t,
+        beacon:($bc|rtrimstr("\n")), prev_sha256:$ps}')"
+  rm -f "$b64f" "$bcf"
   key="$(openssl rand -hex 32)"; iv="$(openssl rand -hex 16)"
   ct="$(printf '%s' "$inner" | openssl enc -aes-256-cbc -K "$key" -iv "$iv" | base64 | tr -d '\n')"
   # o sha do conteúdo vai DENTRO do envelope RSA — integridade (CBC puro é maleável)
