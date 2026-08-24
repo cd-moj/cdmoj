@@ -129,7 +129,15 @@ function renderRows() {
       taskCell,
       el('td', {}, el('span', { class: 'pr-badge', style: st.c }, st.t),
         (t.claimed_by ? el('div', { class: 'small muted' }, T('por ', 'by ') + t.claimed_by) : '')),
-      el('td', { class: 'small' }, (t.pages > 0 ? t.pages + T(' pág.', ' pg') : '—'), el('div', { class: 'small muted' }, fmtDate(t.time))),
+      // ⚠ build_ok===false: a conversão do documento falhou e o PDF é SÓ a folha de rosto.
+      // Antes disso a coluna mostrava um '—' mudo e a sala só descobria no papel impresso.
+      el('td', { class: 'small' },
+        (t.build_ok === false
+          ? el('span', { style: 'color:var(--warn,#b45309); font-weight:600' },
+              T('⚠ não converteu', '⚠ not converted'))
+          : (t.pages > 0 ? t.pages + T(' pág.', ' pg') : '—')),
+        el('div', { class: 'small muted' },
+          t.build_ok === false ? T('baixe o arquivo cru', 'download the raw file') : fmtDate(t.time))),
       el('td', {}, rowActions(t))));
   });
 }

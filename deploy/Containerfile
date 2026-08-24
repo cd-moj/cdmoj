@@ -96,7 +96,19 @@ RUN set -eux; \
     command -v dot; dot -V; \
     command -v fcgiwrap; \
     for b in rsync file bzip2 zstd xz unzip zip tar gzip jq git curl inotifywait socat \
-             gs pdfinfo qpdf paps python3; do command -v "$b" >/dev/null || { echo "FALTA: $b" >&2; exit 1; }; done; \
+             gs pdfinfo pdfunite qpdf paps ps2pdf iconv nl python3; do command -v "$b" >/dev/null || { echo "FALTA: $b" >&2; exit 1; }; done; \
+    # ⚠ BINÁRIO PRESENTE NÃO É CAPACIDADE PRESENTE. O `command -v paps` acima passou
+    # durante meses enquanto TODA impressão de código-fonte saía só com a folha de rosto:
+    # o código chamava `paps --format=pdf`, opção que só existe no paps >= 0.7, e esta
+    # base tem 0.6.8 (o DEV tem 0.8 e aceita — por isso ninguém viu). A asserção agora roda
+    # a cadeia de verdade, com acento e tudo, e exige um PDF de saída.
+    # (escapes OCTAIS: o printf do /bin/sh desta base nao garante \\xHH)
+    printf '// solu\303\247\303\243o\nint main(void){return 0;}\n' > /tmp/_t.cpp; \
+    nl -ba -w3 -s' | ' /tmp/_t.cpp | paps --header --paper=a4 --font='Monospace 11' \
+      | ps2pdf - /tmp/_t.pdf; \
+    [ -s /tmp/_t.pdf ] && pdfinfo /tmp/_t.pdf | grep -q '^Pages: *[1-9]' \
+      || { echo 'FALTA: texto->PDF (paps|ps2pdf) nao produziu PDF' >&2; exit 1; }; \
+    rm -f /tmp/_t.cpp /tmp/_t.pdf; \
     file --version | head -1; \
     python3 -c 'import yaml' ; \
     magick -size 10x10 xc:white /tmp/_x.pdf && [ -s /tmp/_x.pdf ] && rm -f /tmp/_x.pdf; \

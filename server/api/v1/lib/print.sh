@@ -204,13 +204,52 @@ pr_resolve_univ() {  # <c> <login>
   printf '%s' "$un"
 }
 
+# --- TEXTO -> PDF: o caminho que a sala mais usa (código-fonte) ------------------------------
+# _pr_text2pdf <src> <out.pdf> <nome-visível> <workdir> <arquivo-de-erro> -> 0/1
+#
+# Três coisas, e cada uma existe por causa de um incidente:
+#
+# 1. **iconv p/ UTF-8.** O paps só lê UTF-8 e ABORTA em byte inválido ("Error while converting
+#    input from 'UTF-8' to UTF-8"). Um `.cpp` salvo no Dev-C++/Windows vem em CP1252, e um
+#    `// solução` no comentário basta para o time não receber o papel. `-c` descarta o que não
+#    converter: perder um acento é melhor que perder a impressão inteira.
+# 2. **`nl -ba` numera TODAS as linhas** (inclusive as em branco): quem lê código no papel
+#    aponta para o número.
+# 3. **paps -> PostScript -> ps2pdf.** ⚠ NADA de `--format=pdf`: a imagem tem **paps 0.6.8**,
+#    que não conhece a opção e morre com "Command line error: Unknown option --format=pdf" —
+#    e o `2>/dev/null` engolia a mensagem. No DEV o paps é 0.8 e aceita, e foi assim que isto
+#    passou pela revisão e chegou à sala em dia de prova (mesma família do jq 1.7 × 1.8: o dev
+#    aceita, a imagem recusa). PostScript é o denominador comum de todas as versões.
+#
+# O arquivo numerado é gravado com o NOME QUE O TIME DEU e o paps o recebe por caminho
+# relativo: com `--header`, cada página sai "<data>  ribas-ac.cpp  Page 1". Com trinta folhas
+# empilhadas na mesa, é o cabeçalho que diz de quem é o papel.
+_pr_text2pdf() {
+  local src="$1" out="$2" name="$3" work="$4" err="${5:-/dev/null}" enc
+  name="$(basename -- "${name:-arquivo}" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$name" ]] || name=arquivo
+  enc="$(file -b --mime-encoding "$src" 2>/dev/null)"
+  { case "$enc" in
+      utf-8|us-ascii|'') cat "$src" ;;
+      *) iconv -c -f "$enc" -t UTF-8 "$src" 2>>"$err" || cat "$src" ;;
+    esac
+  } | nl -ba -w3 -s' | ' > "$work/$name" 2>>"$err"
+  [[ -s "$work/$name" ]] || return 1
+  ( cd "$work" && paps --header --paper=a4 --font='Monospace 11' -- "$name" 2>>"$err" ) \
+    | ps2pdf - "$out" 2>>"$err"
+  [[ -s "$out" ]]
+}
+
 # --- render interno: produz <id>.combined.pdf (chamado SOB flock) ---------
 # Persiste pages/build_ok no meta. Folha de rosto (capa) sempre é a página 1.
 _pr_render() {  # <c> <id> <src> <meta> <cache>
   local c="$1" id="$2" src="$3" meta="$4" cache="$5"
   local work; work="$(mktemp -d)" || return 1
   trap 'rm -rf "$work"' RETURN
-  local doc="$work/doc.pdf" docok=0 mime enc fn ext inp
+  local doc="$work/doc.pdf" docok=0 mime enc fn ext inp errf
+  # o stderr das conversões vai para <id>.err quando algo falha — antes ia todo p/ /dev/null,
+  # e a única pista de um pedido que não converteu era o "ATENÇÃO" impresso na capa
+  errf="${meta%.json}.err"; : > "$errf"
+  fn="$(jq -r '.filename // "arquivo"' "$meta" 2>/dev/null)"
 
   mime="$(file -b --mime-type "$src" 2>/dev/null)"
   case "$mime" in
@@ -224,16 +263,15 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
       magick "$src" -resize 1240x1754\> -background white -gravity center -extent 1240x1754 \
         -units PixelsPerInch -density 150 "$doc" 2>/dev/null && [[ -s "$doc" ]] && docok=1 ;;
     text/*)
-      # código/texto: numera TODAS as linhas (inclui em branco) antes de renderizar
-      nl -ba -w3 -s' | ' "$src" | paps --format=pdf --paper=a4 --font='Monospace 11' > "$doc" 2>/dev/null && [[ -s "$doc" ]] && docok=1 ;;
+      # o caso mais comum da sala: .c .cpp .py .java .kt .txt — ver _pr_text2pdf
+      _pr_text2pdf "$src" "$doc" "$fn" "$work" "$errf" && docok=1 ;;
     *)
       enc="$(file -b --mime-encoding "$src" 2>/dev/null)"
       if [[ "$enc" != binary ]]; then
-        nl -ba -w3 -s' | ' "$src" | paps --format=pdf --paper=a4 --font='Monospace 11' > "$doc" 2>/dev/null && [[ -s "$doc" ]] && docok=1
+        _pr_text2pdf "$src" "$doc" "$fn" "$work" "$errf" && docok=1
       else
         # office/desconhecido: dá uma extensão real ao input p/ o soffice reconhecer e
         # prever o nome de saída (sem depender de glob, já que common.sh usa noglob).
-        fn="$(jq -r '.filename // "arquivo"' "$meta" 2>/dev/null)"
         ext="${fn##*.}"; ext="$(printf '%s' "$ext" | tr -cd 'A-Za-z0-9')"; [[ -n "$ext" && "$ext" != "$fn" ]] || ext=bin
         inp="$work/input.$ext"; cp "$src" "$inp"
         soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf --outdir "$work" "$inp" >/dev/null 2>&1
@@ -304,19 +342,36 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   local okjson; okjson="$([[ $docok -eq 1 ]] && echo true || echo false)"
   jq --argjson p "${pages:-0}" --argjson ok "$okjson" '.pages=$p | .build_ok=$ok' "$meta" \
     > "$work/meta.json" 2>/dev/null && mv -f "$work/meta.json" "$meta"
+  # deu certo: o log de erro não serve mais (e não vira lixo permanente no print-requests/)
+  (( docok )) && rm -f "$errf"
+  [[ -s "$errf" ]] || rm -f "$errf"
 
   (( built ))
 }
 
 # pr_build_pdf <c> <id>  -> ecoa o caminho do combined.pdf (cache); rc!=0 em falha total.
 # Build-once: o <id>.src é imutável após o upload, então o cache vale para sempre.
+#
+# ⚠ ...desde que o build tenha DADO CERTO. Quando a conversão do documento falha, o
+# _pr_render publica a CAPA SOZINHA no mesmo cache — e a condição `-nt` não distingue as duas
+# coisas: o pedido ficaria imprimindo só a folha de rosto para sempre, mesmo depois de o
+# conserto entrar no ar (foi o caso do paps 0.6.8, agosto/2026). Por isso o `build_ok` do meta
+# faz parte da validade do cache. Meta antigo, sem o campo, conta como bom — não se refaz a
+# base inteira por causa disto.
+_pr_cache_ok() {  # <cache> <src> <meta>
+  [[ -f "$1" && "$1" -nt "$2" ]] || return 1
+  # ⚠ `.build_ok // true` NÃO serve: o `//` do jq trata **false como vazio** e devolveria
+  # `true` justamente no caso que interessa (ver a armadilha do `//` no CLAUDE.md). O teste
+  # de booleano é por igualdade explícita.
+  ! jq -e '.build_ok == false' "$3" >/dev/null 2>&1
+}
 pr_build_pdf() {
   local c="$1" id="$2" dir src meta cache
   dir="$(pr_dir "$c")"; src="$dir/$id.src"; meta="$dir/$id.json"; cache="$dir/$id.combined.pdf"
   [[ -f "$src" && -f "$meta" ]] || return 1
-  if [[ -f "$cache" && "$cache" -nt "$src" ]]; then printf '%s' "$cache"; return 0; fi
+  if _pr_cache_ok "$cache" "$src" "$meta"; then printf '%s' "$cache"; return 0; fi
   ( flock -w 30 9 || exit 1
-    [[ -f "$cache" && "$cache" -nt "$src" ]] && exit 0      # double-check após o lock
+    _pr_cache_ok "$cache" "$src" "$meta" && exit 0          # double-check após o lock
     _pr_render "$c" "$id" "$src" "$meta" "$cache" || exit 1
   ) 9>"$dir/$id.lock"
   [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }

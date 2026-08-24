@@ -850,6 +850,18 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   *default* é seguro (o fallback é o próprio valor falsy) — o veneno é `//` com um sentinela.
   O portão da lista pública tem teste: `server/test/smoke-public-index.sh`; a rede de segurança é
   `server/bin/audit-public-index.sh`.
+- **BINÁRIO PRESENTE ≠ CAPACIDADE PRESENTE — prove a ferramenta externa NA IMAGEM.** O
+  `_pr_render` chamava `paps --format=pdf`; a opção só existe no **paps ≥ 0.7** e a imagem tem
+  **0.6.8**. Resultado: durante meses **toda** impressão de código-fonte saiu só com a folha de
+  rosto (`docok=0` ⇒ capa sozinha no cache + "não foi possível converter" impresso nela), e o
+  `2>/dev/null` apagou a mensagem. **No dev o comando funciona** — paps 0.8 —, então a revisão
+  passou; quem descobriu foi a sala, no ensaio da Maratona. É a irmã da armadilha do `jq 1.7 ×
+  1.8` logo abaixo: *o dev aceita, a imagem recusa*. Regra: ferramenta externa nova em
+  `server/**` se prova **dentro do container** (`podman exec`) e ganha asserção de CAPACIDADE no
+  `deploy/Containerfile` — rodar a cadeia de verdade e exigir a saída, nunca só `command -v`.
+  E o caminho quente da impressão tem teste próprio (`server/test/smoke-print-render.sh`), que
+  cobre ASCII, UTF-8 e **ISO-8859-1** (o `.cpp` do Dev-C++ com `// solução` fazia o paps abortar:
+  ele só lê UTF-8 ⇒ hoje passa por `iconv -c`).
 - **Armadilha `jq 1.7` (imagem) × `jq 1.8` (dev) — causou outage silencioso da listagem inteira:**
   no **jq 1.7** (Debian, o da imagem de produção) o **valor de um campo de objeto NÃO aceita operador
   binário solto** — `{a: X + Y}`, `{a: .x // 0}`, `{a: .x == 1}`, `{a: .x and .y}` são **erro de
