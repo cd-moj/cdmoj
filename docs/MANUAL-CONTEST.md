@@ -17,6 +17,8 @@ Este manual é para você que vai participar de uma maratona ou prova no MOJ (o 
 > veredictos e placar, e tem o modo emergencial de **queda de Internet** (a submissão fica
 > guardada cifrada com o horário e conta certo quando a rede volta). Guia completo:
 > [/contest/cli.html](/contest/cli.html).
+> **Ela nem sempre está liberada**: se vale ou não naquela prova é decisão da organização do
+> evento, e é dela que essa informação vem — não presuma que está ligada.
 
 Se você só quer saber como enviar em cada linguagem e como funciona a entrada e a saída dos programas, veja a página **Ajuda** (`/treino/ajuda/`). Ela abre **de dentro da prova**, pelo link **"📖 Como enviar"** que fica ao lado do seletor de linguagem, na hora do envio.
 
@@ -66,7 +68,15 @@ O que aparece depois disso depende do momento:
 
 O idioma da tela é definido pelo contest e pode estar em inglês.
 
-Se você fizer login **antes de a prova começar**, verá a tela "A competição ainda não começou", com uma contagem regressiva. Não é preciso ficar recarregando: os problemas aparecem sozinhos quando a prova começar.
+Quando a organização abre o login **antes** do início da prova, você entra e vê a tela "A
+competição ainda não começou", com uma contagem regressiva. Não é preciso ficar recarregando:
+os problemas aparecem sozinhos quando a prova começar.
+
+> **Numa prova no molde da Maratona SBC / ICPC, você não entra antes do início.** A abertura do
+> login é marcada para o minuto do começo: até lá a tela tem contagem regressiva e **nenhum
+> formulário**, e isso não é defeito. Também não adianta tentar pelo seu notebook — a prova roda
+> na máquina que a organização preparou, e a checagem de navegador recusa as outras. O lugar de
+> experimentar tudo é o **aquecimento** (seção 3).
 
 ## 3. Página principal (depois de logar)
 
@@ -74,6 +84,9 @@ No topo há uma barra com:
 
 - O nome do contest.
 - Uma contagem regressiva: "Termina em: HH:MM:SS" e, quando o tempo acaba, "Competição encerrada".
+  O **horário de término vem do servidor**, mas quem faz a contagem é o relógio da sua máquina:
+  num computador com a hora errada, a contagem sai errada junto. Quem decide é o servidor —
+  submissão que chega depois do fim não conta, diga o que disser a sua tela.
 - O botão **Sair**.
 
 Logo abaixo há um menu de navegação com **Contest**, **Score** (placar), **Clarification** e, às vezes, **Backup** e **Impressão**.
@@ -82,8 +95,20 @@ Um **aviso** no topo mostra quando há "novas notícias" e "clarifications respo
 
 Se a prova tiver um **aquecimento** (rodada de ensaio antes da prova oficial), uma faixa fixa
 avisa no topo: *"🔁 AQUECIMENTO — esta rodada serve para testar o ambiente e a sua conta: o placar
-dela NÃO é o da prova"*. É a hora de conferir login, editor, envio, impressão e balão — e de
-avisar o staff se algo estiver errado. Quando o aquecimento acaba, a organização coloca a prova
+dela NÃO é o da prova"*. Como você **não entra antes de a prova começar**, o aquecimento é a sua
+única chance de ver estas telas com calma — e vale usá-lo inteiro:
+
+1. **entre** com a credencial que recebeu (etiqueta que não loga é problema para resolver ali,
+   não no minuto 3 da prova);
+2. **abra um problema** e veja qual tela você tem: enunciado + editor, enunciado sozinho, ou só
+   o tempo-limite (prova que distribui apenas o caderno em PDF);
+3. **envie uma solução de propósito** — inclusive uma errada — e acompanhe o veredicto até o fim;
+4. **peça uma clarification**, **peça uma impressão** e **guarde um arquivo no backup**;
+5. **olhe o placar** e ache a sua linha.
+
+Qualquer coisa estranha, é ali que você avisa o staff.
+
+Quando o aquecimento acaba, a organização coloca a prova
 oficial no ar **no mesmo endereço, com o mesmo login**: o placar volta a zero e os problemas
 mudam. O placar e as suas submissões do aquecimento continuam disponíveis (link **Rodadas
 encerradas** em *Arquivos & Recursos*), quando a organização os publica.
@@ -108,7 +133,21 @@ A lista de problemas é um acordeão. Cada linha tem:
 - O nome curto e o nome completo do problema.
 - À direita, os links do enunciado (**Enunciado**, **HTML**, **PDF**) e um **envio rápido** por arquivo.
 
-Ao abrir um problema, você vê os tempos-limite. Se a organização habilitou o editor, aparece um editor lado a lado com o enunciado, com as opções **Lado a lado**, **Só enunciado** e **Só editor**.
+Ao abrir um problema, a primeira linha é o **tempo-limite**, um chip por linguagem (as mais
+lentas ganham mais tempo, medido na máquina do juiz). Depois vem o enunciado e, se a organização
+habilitou o editor, ele ao lado — com as opções **Lado a lado**, **Só enunciado** e **Só editor**.
+O MOJ lembra a sua escolha no próximo problema que você abrir. Abrir um problema não fecha os
+outros: dá para deixar dois abertos ao mesmo tempo.
+
+> **Prova só com PDF.** Muita competição entrega apenas o caderno em PDF, sem versão HTML. Ali a
+> linha tem só o link **PDF** e a sanfona abre com o **tempo-limite** (e o editor, se houver) e
+> mais nada. Não é tela quebrada: o enunciado está no PDF.
+
+> **O editor do navegador nem sempre existe.** Ele é conveniência, não regra, e a organização pode
+> desligá-lo — **na Maratona SBC ele fica desligado**. Nesse caso você escreve num editor da
+> própria máquina, compila no terminal e envia o arquivo pelo seletor da linha do problema. A
+> imagem da prova vem preparada: no **Maratona Linux** há Vim, Emacs, VS Code, CLion e PyCharm,
+> com compiladores e depurador prontos. Descubra qual das duas telas você tem **no aquecimento**.
 
 Para enviar uma solução:
 
@@ -161,13 +200,26 @@ No modo **ICPC**, as colunas são: posição, bandeira, equipe, uma coluna por p
 | Célula | Significado |
 |---|---|
 | Em branco | Você não tentou aquele problema. |
-| Tentativas e minutos em célula colorida | Problema resolvido. |
-| Com **★** e contorno | Você foi o primeiro a resolver aquele problema. |
-| Tentativas e "-" em célula amarela | Você tentou e ainda não resolveu. |
+| `1/12` na **cor do balão** do problema | Resolvido na 1ª tentativa, no minuto 12 de prova. |
+| `2/45` na cor do balão | Resolvido na 2ª tentativa, no minuto 45 — a primeira estava errada. |
+| Com **★** e um anel em volta | Você foi o primeiro a resolver aquele problema (o menor minuto entre os times daquele placar). |
+| `2/-` em célula laranja | Você tentou e ainda não resolveu. Tentativa nunca ganha a cor do balão. |
+
+A cor de cada coluna é a do balão daquele problema, e a maioria das provas usa a **paleta
+oficial do ICPC** na ordem das letras — A branco, B preto, C vermelho, D bordô, E amarelo, F
+verde, G azul, H azul-marinho. Uma passada de olho na sua linha já diz quais balões você tem.
+Algumas provas preferem mostrar a célula num verde neutro com um pontinho colorido em vez de
+pintá-la: é a mesma informação, escolha da organização. Nos dois estilos o A branco e o B preto
+ganham um contorno fino — sem ele, célula branca em tabela branca não pareceria nada. No
+celular a célula vira ✓/✗ com os números no `title`, pela mesma razão.
 
 No modo **OBI**, cada problema mostra os **pontos** obtidos.
 
-Durante o **congelamento (freeze)**, você vê o placar congelado, igual a todo mundo. O que mudar depois do congelamento aparece como pendente.
+Durante o **congelamento (freeze)**, você vê o placar congelado, igual a todo mundo, e uma faixa
+no topo diz **desde quando**. Todos veem a classificação como ela estava naquele minuto, e
+ninguém sabe a ordem real até a cerimônia. As suas submissões continuam sendo julgadas
+normalmente: o que congela é a **exibição**, não a prova — o AC que você tirar depois do freeze
+está na sua lista de submissões e não está na coluna do placar. Continue resolvendo.
 
 No modo **anônimo**, o placar vira uma visão agregada, sem nomes.
 
@@ -185,8 +237,9 @@ Para usar as clarifications você precisa estar logado.
 Para fazer uma pergunta:
 
 1. Escolha o **problema** (ou selecione **Geral**).
-2. Escreva a sua pergunta.
-3. Clique em **Enviar**.
+2. Escreva a sua pergunta — específica: *"no B, o labirinto pode ter mais de uma saída?"* é
+   respondível; *"não entendi o B"* não é.
+3. Clique em **Enviar pergunta**.
 
 A sua identidade fica **anônima para os juízes**.
 
@@ -194,6 +247,9 @@ Na lista você vê:
 
 - As suas perguntas, marcadas com **P:** (pergunta) e **R:** (resposta).
 - Os **avisos oficiais**, que são comunicados públicos da organização.
+- **Respostas públicas de perguntas que não são suas**: quando a dúvida serve à sala inteira, o
+  juiz publica a resposta para todos os times. É por isso que a lista tem respostas que você
+  não pediu.
 
 O aviso no topo da página principal sinaliza quando uma dúvida sua foi respondida.
 
@@ -216,6 +272,10 @@ O backup é um espaço privado para você guardar versões das suas soluções.
 
 - **Não conta como submissão** e só você vê o que está lá.
 - Você envia um arquivo (até 10 MB) e pode baixar ou apagar quando quiser.
+- **Não é automático**: o que você não subir, não está guardado. É a gaveta para a versão que
+  estava funcionando antes de você reescrever tudo, e para a máquina que resolve morrer no
+  minuto 150. Quem baixa de volta a solução **enviada** é o link `cód` da lista de submissões —
+  são coisas diferentes.
 
 O backup aparece a menos que a organização o desligue.
 
