@@ -780,10 +780,15 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   **`data-en`** (+ `data-en-ph`/`-title`/`-html`/`<html data-en-doctitle>`), traduzido por
   `shared/i18n-dom.js` (inclua o `<script>` na página). Um só `LANG` de módulo governa tudo, com
   **precedência**: **LOCALE do contest** (explícito, via `setLang(loc)` sem persist nas páginas de
-  contest — `basic.locale` de `/contest/basic`) **> seletor pt/en do usuário** (header do site,
-  `setLang(l,{persist:true})`, localStorage `moj_lang`) **> idioma do browser** (`navigator.language`
-  não-pt ⇒ en). O seletor vive só no `site-header.js` (páginas públicas); dentro do contest o
-  `LOCALE` fixa o idioma. **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
+  contest — `basic.locale` de `/contest/basic`) **> `?lang=` na URL > seletor pt/en do usuário**
+  (header do site, `setLang(l,{persist:true})`, localStorage `moj_lang`) **> idioma do browser**
+  (`navigator.language` não-pt ⇒ en). O seletor vive só no `site-header.js` (páginas públicas);
+  dentro do contest o `LOCALE` fixa o idioma. O **`?lang=`** (2026-08-24) é para o link que alguém
+  MANDA — e-mail de convocação p/ sede de fora, tutorial passado adiante: sem ele quem escreve o
+  e-mail não tem como garantir a versão que o destinatário vai abrir. Ele **grava** (senão o
+  idioma se perderia no primeiro clique) e **perde para o LOCALE do contest**, igual ao seletor.
+  Tag que não comece por `pt` cai em `en` (mesma regra do navegador), então `?lang=es` abre em
+  inglês — que é o que existe. **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
   volta), enunciados, **títulos de problema/nomes de contest/time**, corpo de notícias, tags.
 - **Toda tela/string nova NASCE nos DOIS idiomas** (`T('pt','en')` no JS, `data-en` no HTML) — deixar
   só em PT é **bug**, igual doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`.

@@ -84,7 +84,9 @@ moj/
 
 Vanilla ES modules, **sem build**, servido estático. `shared/` concentra o cliente de API
 (fetch + Bearer + envelope), auth/token (localStorage), `ui.js` (`el()`, avatares, i18n
-pt/en), o editor **CodeMirror 6** (bundle **vendorizado** em `shared/vendor/codemirror/` —
+pt/en — idioma pelo LOCALE do contest › **`?lang=` na URL** › seletor do header › navegador;
+o `?lang=` é o que faz um link mandado por e-mail abrir na versão certa), o editor
+**CodeMirror 6** (bundle **vendorizado** em `shared/vendor/codemirror/` —
 sem CDN, contest roda em LAN isolada; fallback textarea), os gráficos SVG
 build-free (`/lib/charts.js`), e os **assets offline**: bandeiras locais (`shared/flags/`,
 271 países + 27 estados do BR) e GIFs do Sonic (`shared/assets/sonic/`). Editores de
