@@ -36,6 +36,7 @@ mk(){ # <id> <demo?>
   done
 }
 mk dm demo
+mk dm4 demo
 mk real
 
 post(){ # <contest> <login> <json>  -> BODY/CODE
@@ -58,11 +59,16 @@ ck "o telão também não semeia"        '[[ "$CODE" == 403 ]]'
 
 echo "== semeadura: o que sai =="
 post dm dm.admin '{"teams":12,"submissions":120,"seed":7,"freeze_minute":60,"window_minutes":150}'
+DMBODY="$BODY"   # o $BODY é sobrescrito pelo caso do dm4 mais abaixo
 ck "responde 200"                     '[[ "$CODE" == 200 ]]'
-ck "criou os 12 times"                '[[ "$(jq -r .teams_created <<<"$BODY")" == 12 ]]'
-ck "gerou submissões"                 '(( $(jq -r .submissions <<<"$BODY") > 100 ))'
-ck "veredictos variados (≥4 tipos)"   '(( $(jq -r ".by_verdict|length" <<<"$BODY") >= 4 ))'
-ck "gravou o FREEZE_TIME"             '[[ "$(jq -r .freeze_time <<<"$BODY")" == "$(( T0 + 3600 ))" ]] && grep -q "^FREEZE_TIME=" "$FIX/dm/conf"'
+ck "criou os 12 times"                '[[ "$(jq -r .teams_created <<<"$DMBODY")" == 12 ]]'
+ck "gerou submissões"                 '(( $(jq -r .submissions <<<"$DMBODY") > 100 ))'
+ck "veredictos variados (≥4 tipos)"   '(( $(jq -r ".by_verdict|length" <<<"$DMBODY") >= 4 ))'
+ck "conta as submissões pós-freeze"   '(( $(jq -r .runs_after_freeze <<<"$DMBODY") > 0 ))'
+ck "…e sem elas o freeze é decorativo: a rota AVISA" \
+  'post dm4 dm4.admin "{\"teams\":4,\"submissions\":20,\"seed\":3,\"freeze_minute\":150,\"window_minutes\":150}";
+   [[ "$(jq -r .runs_after_freeze <<<"$BODY")" == 0 ]] && [[ "$(jq -r .hint <<<"$BODY")" != null ]]'
+ck "gravou o FREEZE_TIME"             '[[ "$(jq -r .freeze_time <<<"$DMBODY")" == "$(( T0 + 3600 ))" ]] && grep -q "^FREEZE_TIME=" "$FIX/dm/conf"'
 ck "time sem sufixo de papel"         '[[ -f "$FIX/dm/users/time-01/account.json" ]]'
 ck "o time tem sede e bandeira"       '[[ -n "$(jq -r ".team.flag // empty" "$FIX/dm/users/time-01/account.json")" ]]'
 

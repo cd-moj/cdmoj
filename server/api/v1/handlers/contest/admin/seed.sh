@@ -115,7 +115,7 @@ W_CE="$(jq -r '.verdicts.ce // 8' <<<"$body")";     W_PEND="$(jq -r '.verdicts.p
 for v in W_AC W_WA W_TLE W_RTE W_CE W_PEND; do [[ "${!v}" =~ ^[0-9]+$ ]] || fail 422 "peso inválido" "weight_invalid"; done
 
 awk -v teams="$TEAMS" -v subs="$SUBS" -v seed="$SEED" -v start="$START" -v span="$SPAN" \
-    -v udir="$CONTESTSDIR/$contest/users" -v contest="$contest" -v now="$NOW" \
+    -v udir="$CONTESTSDIR/$contest/users" -v contest="$contest" -v now="$NOW" -v fz="${FZ:-0}" \
     -v wac="$W_AC" -v wwa="$W_WA" -v wtle="$W_TLE" -v wrte="$W_RTE" -v wce="$W_CE" -v wpend="$W_PEND" '
   BEGIN{ FS="\n" }
   { probs[++P]=$0 }
@@ -147,11 +147,19 @@ awk -v teams="$TEAMS" -v subs="$SUBS" -v seed="$SEED" -v start="$START" -v span=
              id, contest, probs[p], login, lang, v, vc, now > (udir "/" login "/results/" id ".json")
       close(udir "/" login "/results/" id ".json")
       cnt[vc]++; n++
+      if (fz > 0 && ep >= fz) after++
     }
     for (k in cnt) printf "%s\t%d\n", k, cnt[k] > "/dev/stderr"
-    print n
+    print n; print after+0
   }' "$WORK/probs" > "$WORK/n" 2> "$WORK/counts"
-made="$(tr -cd '0-9' < "$WORK/n")"; made="${made:-0}"
+made="$(sed -n 1p "$WORK/n" | tr -cd '0-9')"; made="${made:-0}"
+AFTER="$(sed -n 2p "$WORK/n" | tr -cd '0-9')"; AFTER="${AFTER:-0}"
+# ⚠ Freeze com ZERO submissão depois dele é um placar que não exercita nada: o congelado sai
+# IGUAL ao completo e quem está testando o telão não vê a revelação. Acontece quando o
+# `freeze_minute` cai na borda da janela já decorrida — o caso é comum e o erro é mudo, então a
+# resposta DIZ, com o que fazer.
+HINT=""
+[[ -n "$FZ" && "$AFTER" == 0 ]] && HINT="freeze no minuto ${FZMIN} não deixou nenhuma submissão depois dele (a janela semeada tem $(( SPAN / 60 )) min): use um freeze_minute menor ou aumente window_minutes"
 
 # --- tornar visível: métricas por usuário + placar ---------------------------------------------
 touch "$CONTESTSDIR/$contest/var/.score-dirty" 2>/dev/null
@@ -163,10 +171,11 @@ lines=0; [[ -f "$CONTESTSDIR/$contest/var/placar.txt" ]] && lines="$(wc -l < "$C
 audit_log_to "$contest" seed "teams=$TEAMS novos=$created subs=$made seed=$SEED freeze=${FZ:-}"
 
 ok_json_slurp '{teams:$TEAMS, teams_created:$CREATED, submissions:$MADE, seed:$SEED,
-                freeze_time:$FZ, password:$PW, board_lines:$LINES, window_minutes:$WM,
+                freeze_time:$FZ, password:$PW, board_lines:$LINES, window_minutes:$WM, runs_after_freeze:$AFTER,
+                hint:(if $HINT=="" then null else $HINT end),
                 by_verdict:($cnt[0] | split("\n") | map(select(length>0) | split("\t"))
                             | map({(.[0]): (.[1]|tonumber)}) | add // {})}' \
   cnt "$(jq -Rs . < "$WORK/counts")" \
   --argjson TEAMS "$TEAMS" --argjson CREATED "$created" --argjson MADE "$made" \
   --argjson SEED "$SEED" --argjson LINES "${lines//[^0-9]/}" --argjson WM "$(( SPAN / 60 ))" \
-  --arg PW "$PW" --argjson FZ "${FZ:-null}"
+  --arg PW "$PW" --argjson FZ "${FZ:-null}" --argjson AFTER "$AFTER" --arg HINT "$HINT"

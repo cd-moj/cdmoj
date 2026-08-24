@@ -268,8 +268,11 @@ moj login                                     # conta que pode criar contest
 moj-contest create demo.json --id anim-demo   # spec com  "demo": true, "secret": true
 moj-contest login anim-demo -u <seu>.admin
 
-# 2. o placar: 80 times, 900 submissões, freeze no minuto 240 (de 300)
-moj-contest -c anim-demo seed --teams 80 --subs 900 --seed 42 --freeze-minute 240
+# 2. o placar: 80 times, 900 submissões, freeze no minuto 180
+#    ⚠ o freeze tem de cair DENTRO da parte já decorrida da prova, senão não sobra submissão
+#    depois dele e o placar congelado sai IGUAL ao completo — não há o que revelar. A resposta
+#    traz `runs_after_freeze` e avisa quando dá zero.
+moj-contest -c anim-demo seed --teams 80 --subs 900 --seed 42 --freeze-minute 180
 
 # 3. a conta do telão e a chave do webcast
 moj-contest -c anim-demo users add telao.animeitor
