@@ -10,6 +10,7 @@ import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { downloadAuthed, fmtDate, norm, debounce } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
+import { setMediaSrc, mediaLink, setAudioSrc, releaseMedia } from '/shared/media-auth.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -61,17 +62,24 @@ const phMusicUrl = () => {
 const AUDIO = new Audio();
 let PLAYING = '';
 AUDIO.addEventListener('ended', () => { PLAYING = ''; syncPlay(); });
-function syncPlay() {
+function syncPlay(mark) {
   document.querySelectorAll('button.playbtn').forEach((b) => {
     const on = b.dataset.src === PLAYING;
-    b.textContent = on ? '⏸' : '♪';
+    b.textContent = on ? (mark || '⏸') : '♪';
     b.classList.toggle('on', on);
   });
 }
+// ⚠ `PLAYING` e o `data-src` do botão guardam a URL CRUA — ela é a identidade da faixa (e a
+// chave do memo). O `blob:` de um contest secreto fica só dentro do <audio>.
 function toggleAudio(src) {
-  if (PLAYING === src) { AUDIO.pause(); PLAYING = ''; }
-  else { AUDIO.src = src; AUDIO.play().catch(() => { PLAYING = ''; syncPlay(); }); PLAYING = src; }
-  syncPlay();
+  if (PLAYING === src) { AUDIO.pause(); PLAYING = ''; syncPlay(); return; }
+  // em contest SECRETO o mp3 é baixado inteiro com Bearer antes de tocar (não há streaming
+  // progressivo sobre blob:), então o botão avisa com ⏳. Contest normal nem pisca.
+  PLAYING = src; syncPlay('⏳');
+  setAudioSrc(AUDIO, src)
+    .then(() => AUDIO.play())
+    .then(() => { if (PLAYING === src) syncPlay(); })
+    .catch(() => { if (PLAYING === src) { PLAYING = ''; syncPlay(); } });
 }
 const playBtn = (src, title) => el('button',
   { class: 'btn ghost playbtn', 'data-src': src, title, onclick: () => toggleAudio(src) }, '♪');
@@ -96,6 +104,9 @@ async function loadPhotos() {
 async function sendPhoto(t, file, box) {
   const b64 = await fileToBase64(file);
   const r = await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST), { login: t.login, file_b64: b64 }, G);
+  // solta a URL VELHA do memo do media-auth ANTES de mexer no mtime (o `v=` faz parte da chave):
+  // quem troca 300 fotos numa sessão não pode empurrar o cache inteiro para fora.
+  releaseMedia(photoUrl(t, true)); releaseMedia(photoUrl(t, false));
   Object.assign(t, { has_photo: true, format: r.format || 'webp', bytes: r.bytes || 0, mtime: Math.floor(Date.now() / 1000) });
   if (PHOTOS) PHOTOS.with_photo = PHOTOS.teams.filter((x) => x.has_photo).length;
   renderPhotos();
@@ -106,6 +117,7 @@ async function sendPhoto(t, file, box) {
 async function sendMusic(t, file, box) {
   const b64 = await fileToBase64(file);
   const r = await apiPost('/contest/animeitor/music?contest=' + enc(CONTEST), { login: t.login, file_b64: b64 }, G);
+  releaseMedia(musicUrl(t));
   Object.assign(t, { has_music: true, music_bytes: r.bytes || 0, music_mtime: Math.floor(Date.now() / 1000) });
   if (PHOTOS) PHOTOS.with_music = PHOTOS.teams.filter((x) => x.has_music).length;
   renderPhotos();
@@ -142,6 +154,7 @@ function musicRow(t, box) {
       if (!confirm(T('Remover a música de ', 'Remove the music of ') + (t.name || t.login) + '?')) return;
       try {
         await apiPost('/contest/animeitor/music?contest=' + enc(CONTEST), { action: 'delete', login: t.login }, G);
+        releaseMedia(musicUrl(t));
         Object.assign(t, { has_music: false, music_bytes: 0, music_mtime: 0 });
         if (PHOTOS) PHOTOS.with_music = PHOTOS.teams.filter((x) => x.has_music).length;
         renderPhotos();
@@ -162,8 +175,9 @@ function photoCard(t, box) {
   return el('div', { class: 'card' },
     t.has_photo
       // miniatura + lazy: só as fotos da página corrente são baixadas, e a 2ª visita vem do cache
-      ? el('a', { href: photoUrl(t, false), target: '_blank', title: T('ver em tamanho real', 'view full size') },
-          el('img', { class: 'ph', src: photoUrl(t, true), alt: t.name, loading: 'lazy', decoding: 'async' }))
+      ? mediaLink(photoUrl(t, false), { title: T('ver em tamanho real', 'view full size') },
+          setMediaSrc(el('img', { class: 'ph', alt: t.name, loading: 'lazy', decoding: 'async' }),
+                      photoUrl(t, true), { lazy: true }))
       : el('div', { class: 'ph none' }, T('sem foto', 'no photo')),
     el('div', { class: 'nm' }, t.name || t.login),
     el('div', { class: 'lg' }, (t.univ ? '[' + t.univ + '] ' : '') + t.login),
@@ -175,6 +189,7 @@ function photoCard(t, box) {
         if (!confirm(T('Remover a foto de ', 'Remove the photo of ') + (t.name || t.login) + '?')) return;
         try {
           await apiPost('/contest/animeitor/photo?contest=' + enc(CONTEST), { action: 'delete', login: t.login }, G);
+          releaseMedia(photoUrl(t, true)); releaseMedia(photoUrl(t, false));
           Object.assign(t, { has_photo: false, format: '', bytes: 0, mtime: 0 });
           if (PHOTOS) PHOTOS.with_photo = PHOTOS.teams.filter((x) => x.has_photo).length;
           renderPhotos();
@@ -331,7 +346,7 @@ function placeholderCard(box) {
     } catch (e) { msg(box, T('Falha: ', 'Failed: ') + (e.message || e), 'error-box'); }
   });
   return el('div', { class: 'phdef' },
-    el('img', { src: phUrl(true), alt: T('foto padrão', 'default photo'), loading: 'lazy' }),
+    setMediaSrc(el('img', { alt: T('foto padrão', 'default photo'), loading: 'lazy' }), phUrl(true), { lazy: true }),
     el('div', {},
       el('div', { class: 'nm' }, T('Foto padrão', 'Default photo'),
         el('span', { class: 'small muted' }, custom ? T(' · sua imagem', ' · your image')

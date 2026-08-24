@@ -81,6 +81,18 @@ vinheta — ou volta ao padrão de fábrica do MOJ. **Só você e o administrado
 No pacote `.zip`, a foto padrão é copiada por time (é pequena) e a música padrão vai **uma vez** na
 raiz (megabytes × mil times, não).
 
+### Em contest 🕵️ SUPER SECRETO
+
+A galeria funciona igual: fotos e músicas continuam visíveis para quem está logado no contest
+(telão, sede, administrador) — o MOJ as busca com a **sua sessão**, e quem não está logado não vê
+nem ouve nada, que é o ponto do modo secreto. A única diferença que se nota é no ♪: a faixa é
+baixada inteira antes de tocar (o botão mostra **⏳**), então uma música grande demora alguns
+segundos para começar. Se você opera o telão nesse modo, aperte ♪ uma vez em cada faixa antes da
+prova — a segunda vez toca na hora.
+
+> Se as fotos aparecerem em branco num contest secreto, o servidor está atualizado mas o
+> navegador está com a versão antiga da página em cache: recarregue com Ctrl+Shift+R.
+
 ## Ensaio geral: a véspera e o aquecimento
 
 Muita prova roda um **aquecimento** antes da prova oficial — mesma sala, mesmas contas, mesmo

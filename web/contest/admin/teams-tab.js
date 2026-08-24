@@ -12,6 +12,7 @@ import { fileToBase64 } from '/shared/auth.js';
 import { flagEl, flagManifest } from '/shared/flags.js';
 import { parseRichCsv } from '/shared/users-batch.js';
 import { T } from '/shared/i18n.js';
+import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
 
 const enc = encodeURIComponent;
 // lista CANÔNICA de sufixos de papel (a mesma de users-tab/sites-tab/machines-tab/cohorts-tab):
@@ -26,8 +27,12 @@ export function makeTeamsTab(CONTEST) {
   let REGIONS = [];   // nomes de regiões p/ o datalist
   let FLAGS = null;   // manifesto de bandeiras (code -> nome)
 
-  const assetUrl = (kind, login) =>
-    `/api/v1/contest/team-${kind}?contest=${enc(CONTEST)}&user=${enc(login)}&t=${Date.now()}`;
+  // ⚠ o cache-buster é ESTÁVEL (um por carga, renovado só na linha que trocou de asset). Com
+  // `Date.now()` a cada render, o browser rebaixava toda imagem — e, em contest secreto, seria
+  // uma busca autenticada por linha, porque a URL é a chave do memo do media-auth.
+  let STAMP = 0;
+  const assetUrl = (kind, login, v) =>
+    `/api/v1/contest/team-${kind}?contest=${enc(CONTEST)}&user=${enc(login)}&v=${v || STAMP}`;
 
   async function postAsset(body) {
     return apiPost('/contest/admin/team-assets?contest=' + enc(CONTEST), body, G);
@@ -68,13 +73,15 @@ export function makeTeamsTab(CONTEST) {
     const logoBox = el('span', {});
     const syncLogo = () => {
       logoBox.innerHTML = '';
-      if (r.has_logo) logoBox.append(el('img', { src: assetUrl('logo', r.login), style: 'height:18px;vertical-align:middle;border-radius:2px' }));
+      if (r.has_logo) logoBox.append(setMediaSrc(
+        el('img', { style: 'height:18px;vertical-align:middle;border-radius:2px', loading: 'lazy' }),
+        assetUrl('logo', r.login, r.stamp), { lazy: true }));
     };
     syncLogo();
     const logoInp = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
     logoInp.addEventListener('change', async () => {
       const f = logoInp.files[0]; logoInp.value = ''; if (!f) return;
-      try { await postAsset({ kind: 'logo', filename: r.login + '.png', file_b64: await fileToBase64(f) }); r.has_logo = true; syncLogo(); }
+      try { await postAsset({ kind: 'logo', filename: r.login + '.png', file_b64: await fileToBase64(f) }); r.has_logo = true; r.stamp = Date.now(); syncLogo(); }
       catch (e) { alert(e.message || T('falha', 'failed')); }
     });
     const logoDel = () => postAsset({ action: 'delete', kind: 'logo', login: r.login }).then(() => { r.has_logo = false; syncLogo(); }).catch(() => {});
@@ -82,14 +89,14 @@ export function makeTeamsTab(CONTEST) {
     const photoBox = el('span', {});
     const syncPhoto = () => {
       photoBox.innerHTML = '';
-      if (r.has_photo) photoBox.append(el('a', { href: assetUrl('photo', r.login), target: '_blank', title: T('ver foto', 'view photo') }, '📷'));
+      if (r.has_photo) photoBox.append(mediaLink(assetUrl('photo', r.login, r.stamp), { title: T('ver foto', 'view photo') }, '📷'));
       else photoBox.append(el('span', { class: 'muted' }, '—'));
     };
     syncPhoto();
     const photoInp = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
     photoInp.addEventListener('change', async () => {
       const f = photoInp.files[0]; photoInp.value = ''; if (!f) return;
-      try { await postAsset({ kind: 'photo', filename: r.login + '.png', file_b64: await fileToBase64(f) }); r.has_photo = true; syncPhoto(); }
+      try { await postAsset({ kind: 'photo', filename: r.login + '.png', file_b64: await fileToBase64(f) }); r.has_photo = true; r.stamp = Date.now(); syncPhoto(); }
       catch (e) { alert(e.message || T('falha', 'failed')); }
     });
     const photoDel = () => postAsset({ action: 'delete', kind: 'photo', login: r.login }).then(() => { r.has_photo = false; syncPhoto(); }).catch(() => {});
@@ -110,6 +117,7 @@ export function makeTeamsTab(CONTEST) {
   }
 
   async function load() {
+    STAMP = Date.now();          // um carimbo por CARGA (o por-linha só muda quem trocou de asset)
     // o acervo de mídia em MASSA (galeria, lote, música, pacote .zip) é a mesa do telão — aqui
     // fica a identidade tabular do time. O admin entra lá com os mesmos poderes do .animeitor.
     panel.innerHTML = ''; panel.append(el('h2', {}, T('👥 Times', '👥 Teams'), ' ',

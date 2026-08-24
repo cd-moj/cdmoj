@@ -4,6 +4,7 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
+import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
 import { filterTeams } from './score-icpc.js';
 import { scoreCols } from './score-cols.js';
 
@@ -78,12 +79,20 @@ export function renderOBI(parsed, opts) {
       tr.append(flagTd);
     }
     const safeLogo = /^(data:image\/|\/|https?:)/.test(t.schoolLogo || '') ? String(t.schoolLogo).replace(/"/g, '') : '';
-    const logo = safeLogo ? `<img src="${safeLogo}" alt="" style="height:16px;vertical-align:middle;margin-right:4px;border-radius:2px" onerror="this.remove()"> ` : '';
+    // o brasão sai da string de HTML e vira NÓ: em contest SECRETO o src é um blob: buscado com
+    // Bearer (shared/media-auth.js), que nenhuma string de `<img src=…>` consegue. O `safeLogo`
+    // segue validando a URL CRUA (o `rule.logo` do teams-meta é escolha do admin), então `blob:`
+    // nunca precisa entrar na regex. ⚠ o `lazy` não é enfeite: sem ele o 1º render de uma prova
+    // grande dispararia uma busca — um fork de bash — por LINHA do placar.
+    const logoImg = safeLogo ? el('img', { alt: '', loading: 'lazy',
+      style: 'height:16px;vertical-align:middle;margin-right:4px;border-radius:2px',
+      onerror: (e) => e.target.remove() }) : null;
     const label = (parsed.hasUnivShort && t.univShort ? `[${escHtml(t.univShort)}] ` : '') + escHtml(t.teamName || t.username);
     const teamTd = el('td', { class: 'team',
-      title: [(parsed.hasUnivFull && t.univFull) || '', t.username].filter(Boolean).join(' · '), html: logo + label });
+      title: [(parsed.hasUnivFull && t.univFull) || '', t.username].filter(Boolean).join(' · '), html: label });
+    if (logoImg) { teamTd.prepend(logoImg, ' '); setMediaSrc(logoImg, safeLogo, { lazy: true, onerror: () => logoImg.remove() }); }
     // foto do time (photo.webp; a rota serve o legado png também): link, abre em nova aba
-    if (t.photoUrl) teamTd.append(' ', el('a', { href: t.photoUrl, target: '_blank', title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
+    if (t.photoUrl) teamTd.append(' ', mediaLink(t.photoUrl, { title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
     tr.append(teamTd);
     parsed.probShorts.forEach(sn => {
       const v = t.probs[sn] || '';

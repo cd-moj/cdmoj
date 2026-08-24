@@ -10,6 +10,7 @@ import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
+import { primeMedia } from '/shared/media-auth.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -453,6 +454,7 @@ async function boot() {
   try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); }
   catch { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.') + '</div></div>'; return; }
   if (basic.locale) setLang(basic.locale, { persist: false });
+  primeMedia(CONTEST, basic);   // o placar é a única tela de mídia que não passa pelo contest-shell
   document.title = T('Placar — ', 'Scoreboard — ') + (basic.contest_name || 'Contest') + ' — MOJ';
   document.getElementById('contestTitle').textContent = basic.contest_name || 'Contest';
   document.getElementById('backBtn').href = '/contest/?c=' + encodeURIComponent(CONTEST);

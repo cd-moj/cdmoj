@@ -3791,7 +3791,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Foto do time (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens",
+        "summary": "Foto do time (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3814,9 +3814,17 @@
             "description": "1 = miniatura 320px (Cache-Control longo; o cliente manda &v=<mtime>)"
           }
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "image/webp ou image/png; sem foto do time vem a padrão (X-MOJ-Photo: placeholder)"
+          },
+          "401": {
+            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }
@@ -3826,7 +3834,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Música do time (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. Sem suporte a Range (toca progressivo)",
+        "summary": "Música do time (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. Sem suporte a Range (toca progressivo) ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3840,9 +3848,17 @@
             }
           }
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "audio/mpeg (+ Content-Length); sem música do time vem a padrão (X-MOJ-Music: placeholder)"
+          },
+          "401": {
+            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }
@@ -3852,7 +3868,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Brasão do time (PNG, máx 128; célula do time no placar — vence o logo do teams-meta; secreto exige sessão)",
+        "summary": "Brasão do time (PNG, máx 128; célula do time no placar — vence o logo do teams-meta; secreto exige sessão) ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3866,9 +3882,17 @@
             }
           }
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "image/png (404 sem brasão)"
+          },
+          "401": {
+            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }
@@ -4056,7 +4080,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "PADRÃO do contest — o que a API responde no lugar do asset de quem não mandou o seu: kind=photo (default) = a foto padrão, kind=music = a música padrão. Escolhido pelo .animeitor; sem escolha, o de fábrica do repo",
+        "summary": "PADRÃO do contest — o que a API responde no lugar do asset de quem não mandou o seu: kind=photo (default) = a foto padrão, kind=music = a música padrão. Escolhido pelo .animeitor; sem escolha, o de fábrica do repo ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4081,9 +4105,17 @@
             "description": "1 = miniatura 320px (só p/ kind=photo)"
           }
         ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "image/webp (X-MOJ-Photo: placeholder) ou audio/mpeg (X-MOJ-Music: placeholder)"
+          },
+          "401": {
+            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }

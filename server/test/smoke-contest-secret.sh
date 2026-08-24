@@ -2,6 +2,10 @@
 # Contest SUPER SECRETO (conf SECRET=1): fora das listagens públicas (home/arquivo/status),
 # placar e visual (balloons/regions/teams-meta) exigem sessão DO contest; tela de login (basic)
 # continua pública; settings marca/desmarca; export/mine preservam a visão do criador.
+# E a MÍDIA DE TIME (team-photo/team-music/team-logo/placeholder) obedece ao mesmo gate — o que
+# faltava aqui em 2026-08-24, quando a galeria do telão apareceu vazia num contest secreto: as 4
+# rotas viram 401 e `<img src>`/`<audio src>` não mandam `Authorization` (o front passou a
+# buscá-las com Bearer e virar blob:, ver web/shared/media-auth.js).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
@@ -18,6 +22,13 @@ NOW="$(date +%s)"; FUT=$(( NOW + 100000 ))
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$FIX/run" bash "$ROUTER" <<<"${3:-}" 2>&1)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+# corpo BINÁRIO (webp/mp3/png) não passa por `$(…)`: o bash corta no NUL e ainda escreve
+# "ignored null byte in input", que envenenaria o $OUT. Captura por PIPE (molde do callf do
+# smoke-animeitor.sh) e olha só o CABEÇALHO.
+callh(){ local f; f="$(mktemp)"; PATH_INFO="$1" REQUEST_METHOD=GET QUERY_STRING="${3:-}" \
+    HTTP_AUTHORIZATION="Bearer ${2:-}" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$FIX/run" \
+    bash "$ROUTER" </dev/null 2>/dev/null | cat > "$f"
+  OUT="$(head -c 400 "$f" | tr -d '\000')"; BODY=''; rm -f "$f"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:200}"; ((fail++)); fi; }
 
 # um contest SECRETO e um VISÍVEL (mesma janela aberta)
@@ -60,6 +71,45 @@ ck "balloons com sessão 200"    '[[ "$OUT" == *"Status: 200"* ]]'
 call /contest/score GET '' '' 'contest=vis-c'
 ck "visível segue público"      '[[ "$OUT" == *"Status: 200"* ]]'
 
+echo "== mídia do time também exige sessão do contest =="
+# foto/música do time caem no PADRÃO DE FÁBRICA (server/etc/team-placeholder.*) quando o time não
+# mandou a sua — nenhum binário precisa ser fabricado aqui. Só o brasão dá 404 sem arquivo.
+mkdir -p "$FIX/sec-c/users/aluno1"; printf 'x' > "$FIX/sec-c/users/aluno1/logo.png"
+MEDIA=( 'team-photo:contest=sec-c&user=aluno1'
+        'team-photo:contest=sec-c&user=aluno1&thumb=1'
+        'team-music:contest=sec-c&user=aluno1'
+        'team-logo:contest=sec-c&user=aluno1'
+        'placeholder:contest=sec-c'
+        'placeholder:contest=sec-c&kind=music' )
+for m in "${MEDIA[@]}"; do
+  ep="${m%%:*}"; qs="${m#*:}"; lbl="$ep${qs#contest=sec-c&user=aluno1}"
+  callh "/contest/$ep" '' "$qs"
+  ck "$lbl sem token 401"       '[[ "$OUT" == *"Status: 401"* ]]'
+  callh "/contest/$ep" sal "$qs"
+  ck "$lbl com sessão 200"      '[[ "$OUT" == *"Status: 200"* ]]'
+done
+callh /contest/team-photo valu 'contest=sec-c&user=aluno1'
+ck "foto c/ sessão de OUTRO contest 401" '[[ "$OUT" == *"Status: 401"* ]]'
+# a doutrina "nunca 404" continua valendo por trás do gate
+callh /contest/team-photo sal 'contest=sec-c&user=aluno1'
+ck "foto do contest é a padrão"  '[[ "$OUT" == *"X-MOJ-Photo: placeholder"* ]]'
+callh /contest/team-music sal 'contest=sec-c&user=aluno1'
+ck "música do contest é a padrão" '[[ "$OUT" == *"X-MOJ-Music: placeholder"* ]]'
+
+echo "== o FRONT tem de buscar essas rotas com Bearer =="
+# INVENTÁRIO EXECUTÁVEL (molde do sem-pacote.sh): quem monta URL das 4 rotas de mídia precisa
+# passar pelo `shared/media-auth.js`, senão a tag `<img>/<audio>` sai crua e leva 401 em contest
+# secreto — que é exatamente como a galeria do telão apareceu vazia. Esta asserção REPROVA no
+# código de antes de 2026-08-24. Exceção documentada: `contests/inscricao/` roda no site
+# principal com a sessão do TREINO, e o gate exige a sessão DAQUELE contest.
+WEB="$ROOT/../web"; miss=''
+while IFS= read -r f; do
+  case "$f" in *"/contests/inscricao/"*) continue;; esac
+  grep -q 'media-auth.js' "$f" || miss="$miss ${f#"$WEB"/}"
+done < <(grep -rl '/api/v1/contest/team-\|/api/v1/contest/placeholder' "$WEB" --include='*.js' 2>/dev/null)
+BODY="sem media-auth:$miss"
+ck "toda tela de mídia passa pelo media-auth" '[[ -z "$miss" ]]'
+
 echo "== tela de login continua funcional =="
 call /contest/basic GET '' '' 'contest=sec-c'
 ck "basic público com secret:true" '[[ "$(jq -r .secret <<<"$BODY")" == true && "$(jq -r .contest_name <<<"$BODY")" == "Prova Secreta" ]]'
@@ -73,6 +123,8 @@ call /index/contests GET '' '' ''
 ck "desmarcado volta à home"    '[[ "$(jq -r "[.open[].id]|index(\"sec-c\")" <<<"$BODY")" != null ]]'
 call /contest/score GET '' '' 'contest=sec-c'
 ck "placar volta a ser público" '[[ "$OUT" == *"Status: 200"* ]]'
+callh /contest/team-photo '' 'contest=sec-c&user=aluno1'
+ck "foto volta a ser pública"   '[[ "$OUT" == *"Status: 200"* ]]'
 call /contest/admin/settings POST '{"secret":true}' sadm 'contest=sec-c'
 ck "marcou de novo"             'grep -q "^SECRET=1" "$FIX/sec-c/conf"'
 
