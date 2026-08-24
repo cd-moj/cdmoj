@@ -109,7 +109,10 @@ mkpr(){ # <id> <login> <time> <univ> <arquivo> <status> <seq> <kind> <idade_s> [
 }
 mkpr p1 time-alfa  "Alpha Team"       UFPR  "solution-b.cpp" pending  7 print   240
 mkpr p2 time-gama  "Gamma Radiation"  UFPR  "draft.txt"      pending  8 print   120
-mkpr p3 time-beta  "Beta Testers"     UnB   "solution-a.c"   processed 6 print  900
+# ⚠ o status é `printed`, não "processed": os três que o código conhece são pending/printed/
+# delivered (staff.js:20-24, print-action.sh grava "printed"). Com "processed" a linha caía no
+# fallback do STATUS e aparecia como PENDENTE, no fim da fila — a foto desmentindo o texto.
+mkpr p3 time-beta  "Beta Testers"     UnB   "solution-a.c"   printed   6 print  900
 # uma tarefa JÁ PEGA por mim: o claim MANTÉM status=pending (print-action.sh só permite claim
 # sobre pendente) e grava claimed_by/claimed_at — é o estado logo depois de clicar em "Pegar"
 mkpr p0 time-alfa  "Alpha Team"       UFPR  "main.c"         pending  5 print   300

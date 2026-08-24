@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ensayo de la sede — guion de entrenamiento (MOJ)</title>
+<link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+<style>
+/* Estilo de DOCUMENTO, no de página: este mismo archivo se convierte en el PDF que la
+   organización publica (soffice --headless --convert-to pdf). Base copiada de
+   server/etc/contest-doc.css — lo que el importador de HTML de LibreOffice entiende bien.
+   Nada de flex, nada de grid. */
+@page { size: A4; margin: 2.2cm 2.2cm; }
+body { font-family: "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
+       font-size: 11pt; line-height: 1.35; color: #000; text-align: justify;
+       max-width: 19cm; margin: 1.2cm auto; padding: 0 .6cm; }
+h1, h2, h3 { font-weight: bold; text-align: left; page-break-after: avoid; }
+h1 { font-size: 17pt; margin: 0 0 .2em; text-align: center; }
+h2 { font-size: 13pt; margin: 1.6em 0 .5em; border-bottom: .6pt solid #000; padding-bottom: .15em; }
+h3 { font-size: 11.5pt; margin: 1.1em 0 .35em; }
+p { margin: .45em 0; }
+ul, ol { margin: .5em 0; padding-left: 1.5em; }
+li { margin: .25em 0; }
+code, tt { font-family: "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
+pre { font-family: "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 9pt;
+      background: #f6f6f6; border: 1px solid #bbb; padding: .5em .7em; margin: .6em 0;
+      text-align: left; line-height: 1.25; white-space: pre-wrap; }
+em, i { font-style: italic; }
+.sub { text-align: center; font-style: italic; margin: .2em 0 1.4em; }
+.langbar { text-align: center; font-size: 9.5pt; margin: 0 0 1.2em; }
+table { border-collapse: collapse; width: 100%; margin: .9em 0; font-size: 10pt;
+        border-top: 1.1pt solid #000; border-bottom: 1.1pt solid #000; }
+th, td { border: 0; padding: .3em .8em .3em 0; text-align: left; vertical-align: top; }
+thead th { border-bottom: .6pt solid #000; font-weight: bold; }
+figure { margin: .9em 0; text-align: center; page-break-inside: avoid; }
+figure img { width: 15cm; border: 1px solid #999; }
+figcaption { font-size: 9pt; font-style: italic; text-align: center; margin-top: .25em; }
+.box { border: 1px solid #000; padding: .5em .7em; margin: .8em 0; text-align: left; }
+.who { font-weight: bold; }
+.step { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<h1>Ensayo de la sede</h1>
+<p class="sub">Guion de entrenamiento para las cuentas <code>.cstaff</code> y <code>.staff</code><br>
+Maratón de Programación — competencia de ensayo <code>mdp-teste-2026</code></p>
+<p class="langbar"><a href="./pt.html">Português</a> · <a href="./en.html">English</a> · <b>Español</b></p>
+
+<h2>Antes de empezar</h2>
+
+<p>Este guion toma unos <b>treinta minutos</b> y sirve para una sola cosa: hacer que su sede pase una
+vez por todo lo que va a ocurrir el día de la competencia. Un equipo entra, resuelve un
+problema, se equivoca a propósito y pide una impresión. Usted ve llegar el pedido, lo imprime, lo
+entrega y ve nacer el globo. Nada de esto cuenta — la competencia se llama <i>ensayo</i> justamente
+por eso.</p>
+
+<p>Lo que falla el día de la competencia casi nunca es el juez. Es la impresora sin papel, la
+ventana emergente que el navegador bloqueó, la etiqueta que no entra, el globo del color
+equivocado. Todo eso aparece aquí, hoy, cuando todavía hay tiempo de resolverlo con calma.</p>
+
+<h3>Qué necesita</h3>
+<ul>
+  <li>dos ventanas de navegador, de preferencia en máquinas distintas: una para el equipo y otra
+      para la sede;</li>
+  <li>la impresora del salón encendida y con papel;</li>
+  <li>las dos cuentas de su sede, las que entregó la organización:
+      <code>&lt;sede&gt;.cstaff</code> y <code>&lt;sede&gt;.staff</code> — por ejemplo,
+      <code>bolapa.cstaff</code> y <code>bolapa.staff</code>;</li>
+  <li>la dirección del ensayo: <code>https://mdp-teste-2026.moj.naquadah.com.br/</code></li>
+</ul>
+
+<h3>Quién hace qué</h3>
+<table>
+<thead><tr><th>Cuenta</th><th>En el ensayo</th></tr></thead>
+<tbody>
+<tr><td><code>.cstaff</code> — jefe de sede</td><td>Le entrega la credencial al equipo y acompaña.
+<b>Ve</b> la cola, pero no toma ni imprime: esas acciones son de <code>.staff</code>.</td></tr>
+<tr><td><code>.staff</code> — equipo de sala</td><td>Toma la tarea, la imprime y lleva el papel y el
+globo hasta la mesa. Es la cuenta que trabaja.</td></tr>
+<tr><td>el equipo</td><td>Una cuenta de equipo de su sede, prestada para el ensayo.</td></tr>
+</tbody>
+</table>
+
+<p>Si todavía no leyó la guía de su rol, léala antes: ahí se explica cada botón, y aquí solo
+los usamos. <a href="/contest/ajuda/cstaff.html">Guía del jefe de sede</a> ·
+<a href="/contest/ajuda/staff.html">Guía del equipo de sala</a>.</p>
+
+<h2>Paso 1 — el jefe de sede toma una credencial</h2>
+
+<div class="step">
+<p><span class="who">.cstaff:</span> entre a la competencia y abra <b>🏷️ Badges</b>. Esa pantalla
+lista los equipos de <b>su sede</b> con su usuario y su contraseña, listos para imprimir en
+etiquetas. Elija un equipo para el ensayo y anote su credencial.</p>
+
+<figure>
+  <img src="../img/cstaff-etiquetas.png" alt="" width="600">
+  <figcaption>La pantalla de etiquetas. Solo la abre el jefe de sede, y solo con los equipos de su
+  sede.</figcaption>
+</figure>
+
+<p>Si la lista sale vacía, deténgase aquí y avise a la organización: el alcance de su sede no está
+configurado, y el día de la competencia usted se quedaría sin las credenciales.</p>
+</div>
+
+<h2>Paso 2 — el equipo entra</h2>
+
+<div class="step">
+<p><span class="who">Equipo:</span> en la otra ventana, abra la dirección del ensayo y entre con la
+credencial del paso 1.</p>
+
+<figure>
+  <img src="../img/comp-login.png" alt="" width="600">
+  <figcaption>La puerta de entrada. Antes del inicio, esta misma pantalla muestra solo una cuenta
+  regresiva — el formulario aparece en el minuto marcado.</figcaption>
+</figure>
+
+<p>En esta competencia <b>no hay editor en el navegador</b>, y es a propósito: así es en el
+Maratón. El equipo escribe el programa en un editor de la máquina, compila en la terminal y envía
+el archivo ya listo.</p>
+</div>
+
+<h2>Paso 3 — el equipo resuelve el problema A</h2>
+
+<div class="step">
+<p>El problema <b>A — Ola Mundo</b> no lee nada e imprime una línea. Tome el programa del
+<b>Apéndice A</b> en el lenguaje que prefiera, guárdelo en un archivo y envíelo: haga clic en la
+línea del problema, elija el archivo y presione <b>Submit</b>.</p>
+
+<figure>
+  <img src="../img/comp-sem-editor.png" alt="" width="600">
+  <figcaption>El acordeón abierto sin editor: el enunciado ocupa todo el ancho y el envío se hace
+  con el selector de archivo, en la misma línea del problema.</figcaption>
+</figure>
+
+<p>El veredicto llega solo en pocos segundos, sin recargar la página. Lo que usted quiere ver es
+<b>Accepted</b>, y la línea del problema cambia de color allá arriba.</p>
+
+<figure>
+  <img src="../img/comp-submissoes.png" alt="" width="600">
+  <figcaption>La lista de envíos del equipo. <i>Time</i> es el minuto de competencia; <i>Date</i>
+  es la hora del reloj.</figcaption>
+</figure>
+</div>
+
+<h2>Paso 4 — equivocarse a propósito</h2>
+
+<div class="step">
+<p>Ahora mande tres programas con errores, uno de cada tipo. La idea es que la sede reconozca cada
+veredicto cuando aparezca el día de la competencia, y que sepa que ninguno de ellos significa que
+el sistema esté fallando. Los programas están en el <b>Apéndice B</b>.</p>
+
+<table>
+<thead><tr><th>Envíe</th><th>Al problema</th><th>Va a ver</th><th>Quiere decir</th></tr></thead>
+<tbody>
+<tr><td>la cuenta cambiada</td><td>B — Soma 2</td><td><b>Wrong Answer</b></td><td>El programa corrió
+hasta el final, y la respuesta no es la esperada.</td></tr>
+<tr><td>la salida con error</td><td>C — Soma N</td><td><b>Runtime Error</b></td><td>El programa se
+rompió mientras corría.</td></tr>
+<tr><td>el ciclo infinito</td><td>D — EOF</td><td><b>Time Limit Exceeded</b></td><td>El programa
+tardó más de lo que el problema permite.</td></tr>
+</tbody>
+</table>
+
+<p>En una competencia, el veredicto es todo lo que el equipo recibe: ni qué prueba falló, ni el
+diff, ni puntaje parcial. Es a propósito — las pruebas son material de examen.</p>
+</div>
+
+<h2>Paso 5 — el equipo pide una impresión</h2>
+
+<div class="step">
+<p><span class="who">Equipo:</span> abra la pestaña <b>🖨️ Printing</b>, elija el archivo que acaba
+de enviar y presione <b>Request printing</b>. El pedido aparece abajo, como <b>pending</b>.</p>
+
+<figure>
+  <img src="../img/comp-impressao.png" alt="" width="600">
+  <figcaption>La pantalla del equipo: el formulario arriba, sus propios pedidos abajo, cada uno con
+  su estado.</figcaption>
+</figure>
+
+<p>Un detalle que conviene aprender desde ahora: el equipo solo ve sus propios pedidos, y el número
+que aparece al lado es el mismo que sale impreso en la carátula. Con ese número ustedes verifican,
+en la mesa, que el papel llegó al equipo correcto.</p>
+</div>
+
+<h2>Paso 6 — la sede imprime</h2>
+
+<div class="step">
+<p><span class="who">.staff:</span> abra <b>🖨️ Print queue</b>. El pedido del paso 5 está ahí,
+arriba de todo.</p>
+
+<figure>
+  <img src="../img/staff-fila.png" alt="" width="600">
+  <figcaption>La cola de la sede. Arriba, las tareas pendientes; abajo, las que ya se imprimieron y
+  esperan entrega. Las dos líneas con 🎈 son globos.</figcaption>
+</figure>
+
+<p>El ciclo tiene tres pasos, siempre en el mismo orden:</p>
+
+<ol>
+  <li><b>Claim</b> — reserva la tarea para usted, para que dos voluntarios no impriman lo
+      mismo.</li>
+  <li><b>🖨️ Print</b> — abre el PDF en una pestaña nueva y manda a imprimir. <b>Permita las
+      ventanas emergentes de este sitio ahora</b>: si el navegador bloquea la pestaña, la tarea no
+      queda marcada como impresa y el papel desaparece de su lista.</li>
+  <li><b>✅ Delivered</b> — después de entregar el papel en la mesa del equipo. Ese clic es el que
+      le dice a la organización que el papel llegó.</li>
+</ol>
+
+<figure>
+  <img src="../img/staff-pega.png" alt="" width="600">
+  <figcaption>Las líneas de la cola, de cerca. Fíjese en <i>by sala.staff</i> debajo del estado: es
+  la marca de quien la reservó.</figcaption>
+</figure>
+
+<p>De la impresora sale una carátula seguida del documento del equipo. La carátula trae el nombre
+del equipo, la universidad, el usuario y el número de la tarea, con una línea para firmar la
+entrega.</p>
+
+<figure>
+  <img src="../img/pdf-impressao-p1.png" alt="" width="600">
+  <figcaption>La carátula. El número grande es el mismo que el equipo ve en la pantalla.</figcaption>
+</figure>
+
+<p>El texto de esa hoja sale en portugués en todas las sedes, y es a propósito: así la mesa de
+entrega reconoce el mismo papel en todo el continente. El nombre del color del globo viene en dos
+idiomas, justamente para que coincida con el globo físico.</p>
+</div>
+
+<h2>Paso 7 — el globo</h2>
+
+<div class="step">
+<p>¿Se acuerda del <b>Accepted</b> del paso 3? Se convirtió en una tarea de globo, y cae en la
+misma cola, marcada con 🎈 y con el color del problema. Y fíjese en cuándo nace: el globo se crea solo
+cuando <b>alguien de la sede abre la cola</b>. Si nadie la abre, no
+existe — y eso no es que el sistema esté atrasado.</p>
+
+<figure>
+  <img src="../img/pdf-balao.png" alt="" width="600">
+  <figcaption>La hoja del globo: una sola página, con la letra del problema, el color dibujado y su
+  nombre escrito.</figcaption>
+</figure>
+
+<p>Trate el globo como cualquier otra tarea: <b>Claim</b>, <b>Print</b> y <b>Delivered</b> cuando
+el globo llegue a la mesa. Lleve la hoja junto con el globo — esa hoja es la prueba de la
+entrega.</p>
+
+<p>Cada color pertenece a una letra, y la misma letra tiene el mismo color en todas las sedes.
+Compare los colores de sus globos con la hoja antes de que empiece la competencia.</p>
+</div>
+
+<h2>Paso 8 — imprimir sin tocar nada</h2>
+
+<div class="step">
+<p>En una competencia llena, detenerse en cada diálogo de impresión es lo que atrasa el salón. Para
+eso existe el <b>modo automático</b>: la casilla arriba de la cola. Con ella encendida, cada tarea
+nueva se reserva, se imprime y se marca sola. A ustedes solo les queda la caminata hasta la
+mesa.</p>
+
+<p>Para que el papel salga sin ningún diálogo, el navegador tiene que estar en modo <i>kiosk
+printing</i>. Cierre Chrome y ábralo otra vez así:</p>
+
+<pre>Linux
+  google-chrome --kiosk-printing https://mdp-teste-2026.moj.naquadah.com.br/contest/staff/
+
+Windows  (menú Inicio → clic derecho en Chrome → Propiedades → Destino)
+  "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk-printing
+
+macOS
+  open -a "Google Chrome" --args --kiosk-printing</pre>
+
+<p>Con Chrome en ese modo, encienda la casilla, pida otra impresión desde la ventana del equipo y
+no toque nada. El papel sale solo. Así es como funciona el salón el día de la competencia.</p>
+
+<div class="box">
+<p><b>Pruebe esto hoy.</b> El modo kiosk usa la impresora que el sistema tenga como predeterminada,
+y ya no pregunta nada más. Si la predeterminada es la equivocada, usted se entera ahora — y no con
+treinta equipos en la cola.</p>
+</div>
+</div>
+
+<h2>Paso 9 — el jefe de sede verifica</h2>
+
+<div class="step">
+<p><span class="who">.cstaff:</span> abra la misma cola. Usted ve todo lo que ve su equipo, con una
+diferencia: la columna de acciones queda vacía. No es un permiso que falta por error, es como está
+diseñado el rol — quien toma e imprime es el equipo de sala.</p>
+
+<figure>
+  <img src="../img/cstaff-fila.png" alt="" width="600">
+  <figcaption>La misma cola, con los ojos del jefe: para acompañar, no para operar.</figcaption>
+</figure>
+
+<p>Ya que está ahí, confirme las dos cosas que solo usted alcanza a ver. La primera: la cola
+muestra <b>los equipos de su sede y nada más</b>. La segunda: las etiquetas del paso 1 coinciden
+con quienes se van a sentar en el salón.</p>
+</div>
+
+<h2>Lista de verificación de la sede</h2>
+
+<p>Marque cada línea solo después de haberla visto ocurrir:</p>
+
+<table>
+<thead><tr><th>&nbsp;</th><th>Punto</th></tr></thead>
+<tbody>
+<tr><td>☐</td><td>Las etiquetas de mi sede abren, y la lista tiene a mis equipos.</td></tr>
+<tr><td>☐</td><td>Un equipo entró con la credencial de la etiqueta.</td></tr>
+<tr><td>☐</td><td>Un envío volvió <b>Accepted</b>.</td></tr>
+<tr><td>☐</td><td>Vi los tres errores: Wrong Answer, Runtime Error y Time Limit Exceeded.</td></tr>
+<tr><td>☐</td><td>Un pedido de impresión salió en la impresora, con su carátula.</td></tr>
+<tr><td>☐</td><td>Las ventanas emergentes de este sitio están permitidas en el navegador de la sede.</td></tr>
+<tr><td>☐</td><td>El modo automático imprimió solo, con Chrome en kiosk.</td></tr>
+<tr><td>☐</td><td>La tarea de globo apareció y el color coincide con los globos que tenemos aquí.</td></tr>
+<tr><td>☐</td><td>Marqué una tarea como <b>Delivered</b>.</td></tr>
+<tr><td>☐</td><td>La impresora predeterminada del sistema es la del salón.</td></tr>
+</tbody>
+</table>
+
+<h2>Si algo sale mal</h2>
+
+<table>
+<thead><tr><th>Lo que usted ve</th><th>Qué es</th></tr></thead>
+<tbody>
+<tr><td>Presioné <b>Print</b> y no pasó nada</td><td>El navegador bloqueó la ventana emergente.
+Permita las ventanas emergentes de este sitio y presione otra vez — la tarea sigue ahí, sin marca
+de impresa.</td></tr>
+<tr><td>La cola está vacía</td><td>O nadie pidió nada, o el alcance de su sede no coincide con
+ningún equipo. Pídale al jefe de sede que abra las etiquetas: si también salen vacías, es el
+alcance.</td></tr>
+<tr><td><code>403</code> al tomar o imprimir</td><td>Usted está en la cuenta <code>.cstaff</code>.
+Tomar e imprimir son de la cuenta <code>.staff</code>.</td></tr>
+<tr><td>La credencial no entra</td><td>Revise mayúsculas y minúsculas, y que la etiqueta sea de su
+sede. Si sigue fallando, eso es para la organización — anote el usuario y avise.</td></tr>
+<tr><td>El veredicto tarda</td><td>Mientras dice <b>Not Answered Yet</b>, el envío está en la cola
+del juez. En una competencia llena eso toma segundos, no minutos.</td></tr>
+<tr><td>Salió papel sin carátula</td><td>Alguien imprimió con <b>Open PDF</b>, que abre sin
+imprimir ni marcar. El botón del flujo es <b>Print</b>.</td></tr>
+<tr><td>Un programa que se rompió volvió <b>Time Limit Exceeded</b></td><td>Pasa. El límite de estos
+problemas es cortísimo, y guardar la memoria de un proceso que reventó ya lo pasa. El reloj se
+acaba antes de que el juez mire por qué murió.</td></tr>
+</tbody>
+</table>
+
+<h2>Apéndice A — programas que pasan</h2>
+
+<p>Uno por problema, en el lenguaje que su sede prefiera. Guárdelos con el nombre indicado: en
+Java, el nombre del archivo <b>tiene</b> que ser el nombre de la clase pública.</p>
+
+<h3>A — Ola Mundo · imprime una línea</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) { printf("Ola Mundo\n"); return 0; }</pre>
+<pre># sol.py
+print("Ola Mundo")</pre>
+<pre>// Main.java
+public class Main {
+    public static void main(String[] args) { System.out.println("Ola Mundo"); }
+}</pre>
+
+<h3>B — Soma 2 · lee dos números y los suma</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long a, b;
+    scanf("%ld %ld", &amp;a, &amp;b);
+    printf("%ld\n", a + b);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+a, b = map(int, sys.stdin.read().split())
+print(a + b)</pre>
+
+<h3>C — Soma N · lee N y después N números</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long n, x, suma = 0;
+    scanf("%ld", &amp;n);
+    for (long i = 0; i &lt; n; i++) { scanf("%ld", &amp;x); suma += x; }
+    printf("%ld\n", suma);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+nums = list(map(int, sys.stdin.read().split()))
+print(sum(nums[1:1 + nums[0]]))</pre>
+
+<h3>D — EOF · lee hasta que la entrada se acaba y cuenta cuántos números vinieron</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long x, cuantos = 0;
+    while (scanf("%ld", &amp;x) == 1) cuantos++;
+    printf("%ld\n", cuantos);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+print(len(sys.stdin.read().split()))</pre>
+
+<h2>Apéndice B — programas que fallan a propósito</h2>
+
+<h3>Wrong Answer — mándelo al problema B</h3>
+<p>El programa corre hasta el final, imprime un número, y el número está mal.</p>
+<pre>/* wa.c — multiplica en vez de sumar */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long a, b;
+    scanf("%ld %ld", &amp;a, &amp;b);
+    printf("%ld\n", a * b);
+    return 0;
+}</pre>
+<pre># wa.py
+import sys
+a, b = map(int, sys.stdin.read().split())
+print(a * b)</pre>
+
+<h3>Runtime Error — mándelo al problema C</h3>
+<p>El programa no llega al final: se detiene a la mitad y anuncia una falla. Es lo que pasa de
+verdad cuando un arreglo se desborda, cuando un divisor resulta ser cero o cuando una excepción no
+se atrapa.</p>
+<pre>/* rte.c */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+int main(void) {
+    long n;
+    scanf("%ld", &amp;n);
+    exit(1);            /* salir con algo distinto de cero significa "salió mal" */
+}</pre>
+<pre># rte.py
+import sys
+n = int(sys.stdin.readline())
+sys.exit(1)</pre>
+
+<h3>Time Limit Exceeded — mándelo al problema D</h3>
+<p>El programa nunca termina. El juez lo corta y devuelve el veredicto.</p>
+<pre>/* tle.c */
+int main(void) { while (1) { } return 0; }</pre>
+<pre># tle.py
+while True:
+    pass</pre>
+
+<p class="langbar" style="margin-top:2em"><a href="/contest/ajuda/staff.html">Guía del equipo de
+sala</a> · <a href="/contest/ajuda/cstaff.html">Guía del jefe de sede</a> ·
+<a href="/contest/ajuda/">Todos los roles</a></p>
+
+</body>
+</html>

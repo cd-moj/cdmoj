@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ensaio da sede — roteiro de treinamento (MOJ)</title>
+<link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+<style>
+/* Estilo de DOCUMENTO, não de página: este mesmo arquivo vira o PDF que a organização publica
+   (soffice --headless --convert-to pdf). Base copiada de server/etc/contest-doc.css — o que o
+   importador de HTML do LibreOffice entende bem. Nada de flex, nada de grid. */
+@page { size: A4; margin: 2.2cm 2.2cm; }
+body { font-family: "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
+       font-size: 11pt; line-height: 1.35; color: #000; text-align: justify;
+       max-width: 19cm; margin: 1.2cm auto; padding: 0 .6cm; }
+h1, h2, h3 { font-weight: bold; text-align: left; page-break-after: avoid; }
+h1 { font-size: 17pt; margin: 0 0 .2em; text-align: center; }
+h2 { font-size: 13pt; margin: 1.6em 0 .5em; border-bottom: .6pt solid #000; padding-bottom: .15em; }
+h3 { font-size: 11.5pt; margin: 1.1em 0 .35em; }
+p { margin: .45em 0; }
+ul, ol { margin: .5em 0; padding-left: 1.5em; }
+li { margin: .25em 0; }
+code, tt { font-family: "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
+pre { font-family: "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 9pt;
+      background: #f6f6f6; border: 1px solid #bbb; padding: .5em .7em; margin: .6em 0;
+      text-align: left; line-height: 1.25; white-space: pre-wrap; }
+em, i { font-style: italic; }
+.sub { text-align: center; font-style: italic; margin: .2em 0 1.4em; }
+.langbar { text-align: center; font-size: 9.5pt; margin: 0 0 1.2em; }
+table { border-collapse: collapse; width: 100%; margin: .9em 0; font-size: 10pt;
+        border-top: 1.1pt solid #000; border-bottom: 1.1pt solid #000; }
+th, td { border: 0; padding: .3em .8em .3em 0; text-align: left; vertical-align: top; }
+thead th { border-bottom: .6pt solid #000; font-weight: bold; }
+figure { margin: .9em 0; text-align: center; page-break-inside: avoid; }
+figure img { width: 15cm; border: 1px solid #999; }
+figcaption { font-size: 9pt; font-style: italic; text-align: center; margin-top: .25em; }
+.box { border: 1px solid #000; padding: .5em .7em; margin: .8em 0; text-align: left; }
+.who { font-weight: bold; }
+.step { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<h1>Ensaio da sede</h1>
+<p class="sub">Roteiro de treinamento para as contas <code>.cstaff</code> e <code>.staff</code><br>
+Maratona de Programação — contest de ensaio <code>mdp-teste-2026</code></p>
+<p class="langbar"><b>Português</b> · <a href="./en.html">English</a> · <a href="./es.html">Español</a></p>
+
+<h2>Antes de começar</h2>
+
+<p>Este roteiro leva cerca de <b>trinta minutos</b> e serve para uma coisa só: fazer a sua sede
+passar uma vez por tudo o que vai acontecer no dia da prova. Um time entra, resolve um problema,
+erra de propósito e pede uma impressão. Você vê o pedido chegar, imprime, entrega e vê o balão
+nascer. Nada disso vale nota — o contest se chama <i>ensaio</i> porque é exatamente isso.</p>
+
+<p>O que dá errado no dia da prova quase nunca é o juiz. É a impressora sem papel, o pop-up
+bloqueado no navegador, a etiqueta que não loga, o balão da cor errada. Todos esses aparecem
+aqui, hoje, quando ainda dá para resolver com calma.</p>
+
+<h3>O que você precisa</h3>
+<ul>
+  <li>duas janelas de navegador, de preferência em máquinas diferentes: uma para o time, outra
+      para a sede;</li>
+  <li>a impressora da sala ligada, com papel;</li>
+  <li>as duas contas da sua sede, que a organização entregou: <code>&lt;sede&gt;.cstaff</code> e
+      <code>&lt;sede&gt;.staff</code> — por exemplo, <code>bolapa.cstaff</code> e
+      <code>bolapa.staff</code>;</li>
+  <li>o endereço do ensaio: <code>https://mdp-teste-2026.moj.naquadah.com.br/</code></li>
+</ul>
+
+<h3>Quem faz o quê</h3>
+<table>
+<thead><tr><th>Conta</th><th>No ensaio</th></tr></thead>
+<tbody>
+<tr><td><code>.cstaff</code> — chefe de sede</td><td>Entrega a credencial ao time e acompanha. Ele
+<b>vê</b> a fila, mas não pega nem imprime: essas ações são do <code>.staff</code>.</td></tr>
+<tr><td><code>.staff</code> — equipe de sala</td><td>Pega a tarefa, imprime, entrega o papel e o
+balão. É a conta que trabalha.</td></tr>
+<tr><td>o time</td><td>Uma conta de time da sua sede, emprestada para o ensaio.</td></tr>
+</tbody>
+</table>
+
+<p>Se você ainda não leu o guia do seu papel, leia antes: lá cada botão é explicado, e aqui a
+gente só usa. <a href="/contest/ajuda/cstaff.html">Guia do chefe de sede</a> ·
+<a href="/contest/ajuda/staff.html">Guia da equipe de sala</a>.</p>
+
+<h2>Passo 1 — o chefe de sede pega uma credencial</h2>
+
+<div class="step">
+<p><span class="who">.cstaff:</span> entre no contest e abra <b>🏷️ Badges</b>. Essa tela lista os
+times da <b>sua sede</b> com o login e a senha, prontos para imprimir em etiqueta. Escolha um
+time para o ensaio e anote a credencial dele.</p>
+
+<figure>
+  <img src="../img/cstaff-etiquetas.png" alt="" width="600">
+  <figcaption>A tela de etiquetas. Só o chefe de sede a abre, e só com os times da sede dele.</figcaption>
+</figure>
+
+<p>Se a lista vier vazia, pare aqui e fale com a organização: o escopo da sua sede não está
+configurado, e no dia da prova você ficaria sem as credenciais.</p>
+</div>
+
+<h2>Passo 2 — o time entra</h2>
+
+<div class="step">
+<p><span class="who">Time:</span> na outra janela, abra o endereço do ensaio e entre com a
+credencial do passo 1.</p>
+
+<figure>
+  <img src="../img/comp-login.png" alt="" width="600">
+  <figcaption>A porta de entrada. Antes do início da prova, esta tela mostra só uma contagem
+  regressiva — o formulário aparece no minuto marcado.</figcaption>
+</figure>
+
+<p>Neste contest <b>não existe editor no navegador</b>, e isso é de propósito: é assim na
+Maratona. O time escreve o programa num editor da própria máquina, compila no terminal e envia o
+arquivo pronto.</p>
+</div>
+
+<h2>Passo 3 — o time resolve o problema A</h2>
+
+<div class="step">
+<p>O problema <b>A — Ola Mundo</b> não lê nada e imprime uma linha. Copie o programa do
+<b>Apêndice A</b> na linguagem que você preferir, salve num arquivo e envie: clique na linha do
+problema A, escolha o arquivo e aperte <b>Submit</b>.</p>
+
+<figure>
+  <img src="../img/comp-sem-editor.png" alt="" width="600">
+  <figcaption>A sanfona aberta sem o editor: o enunciado ocupa a largura toda e o envio é pelo
+  seletor de arquivo, na própria linha do problema.</figcaption>
+</figure>
+
+<p>Em poucos segundos o veredicto chega sozinho, sem recarregar a página. O que você quer ver é
+<b>Accepted</b>, e a linha do problema A muda de cor lá em cima.</p>
+
+<figure>
+  <img src="../img/comp-submissoes.png" alt="" width="600">
+  <figcaption>A lista de submissões do time. <i>Time</i> é o minuto de prova; <i>Date</i> é a hora
+  do relógio.</figcaption>
+</figure>
+</div>
+
+<h2>Passo 4 — errar de propósito</h2>
+
+<div class="step">
+<p>Agora mande três programas errados, um de cada tipo. O objetivo é a sede reconhecer cada
+veredicto quando ele aparecer no dia da prova, e saber que nenhum deles é defeito do sistema. Os
+programas estão no <b>Apêndice B</b>.</p>
+
+<table>
+<thead><tr><th>Envie</th><th>No problema</th><th>Você vai ver</th><th>Quer dizer</th></tr></thead>
+<tbody>
+<tr><td>a soma trocada</td><td>B — Soma 2</td><td><b>Wrong Answer</b></td><td>O programa rodou até o
+fim, e a resposta não é a esperada.</td></tr>
+<tr><td>a saída com erro</td><td>C — Soma N</td><td><b>Runtime Error</b></td><td>O programa
+quebrou durante a execução.</td></tr>
+<tr><td>o laço infinito</td><td>D — EOF</td><td><b>Time Limit Exceeded</b></td><td>O programa
+passou do tempo que o problema permite.</td></tr>
+</tbody>
+</table>
+
+<p>Numa prova, o veredicto é tudo o que o time recebe: nada de qual teste falhou, nada de diff,
+nada de nota parcial. Isso é de propósito — os testes são material de prova.</p>
+</div>
+
+<h2>Passo 5 — o time pede uma impressão</h2>
+
+<div class="step">
+<p><span class="who">Time:</span> abra a aba <b>🖨️ Printing</b>, escolha o arquivo que você acabou
+de enviar e aperte <b>Request printing</b>. O pedido aparece logo abaixo, como
+<b>pending</b>.</p>
+
+<figure>
+  <img src="../img/comp-impressao.png" alt="" width="600">
+  <figcaption>A tela do time: o formulário em cima, os pedidos dele embaixo, cada um com o estado.</figcaption>
+</figure>
+
+<p>Um detalhe que vale saber agora: o time só vê os pedidos dele, e o número que aparece ao lado
+é o mesmo que sai impresso na folha de rosto. É por ele que vocês conferem, na mesa, se o papel
+foi para o time certo.</p>
+</div>
+
+<h2>Passo 6 — a sede imprime</h2>
+
+<div class="step">
+<p><span class="who">.staff:</span> abra <b>🖨️ Print queue</b>. O pedido do passo 5 está lá, no
+alto da fila.</p>
+
+<figure>
+  <img src="../img/staff-fila.png" alt="" width="600">
+  <figcaption>A fila da sede. Em cima, as tarefas pendentes; embaixo, as que já foram impressas e
+  esperam entrega. As duas linhas com 🎈 são balões.</figcaption>
+</figure>
+
+<p>O ciclo tem três passos, sempre na mesma ordem:</p>
+
+<ol>
+  <li><b>Claim</b> — reserva a tarefa para você, para dois voluntários não imprimirem a mesma
+      coisa.</li>
+  <li><b>🖨️ Print</b> — abre o PDF numa aba nova e chama a impressão. <b>Libere os pop-ups deste
+      site agora</b>: se o navegador bloquear a aba, a tarefa não é marcada como impressa, e o
+      papel some da sua conta.</li>
+  <li><b>✅ Delivered</b> — depois de entregar o papel na mesa do time. Esse clique é o que diz à
+      organização que o papel chegou.</li>
+</ol>
+
+<figure>
+  <img src="../img/staff-pega.png" alt="" width="600">
+  <figcaption>As linhas da fila, de perto. Repare em <i>by sala.staff</i> embaixo do estado: é a
+  marca de quem reservou.</figcaption>
+</figure>
+
+<p>O que sai na impressora é uma folha de rosto seguida do documento do time. A folha traz o nome
+do time, a universidade, o login e o número da tarefa, com uma linha para assinar a entrega.</p>
+
+<figure>
+  <img src="../img/pdf-impressao-p1.png" alt="" width="600">
+  <figcaption>A folha de rosto. O número grande é o mesmo que o time vê na tela.</figcaption>
+</figure>
+
+<p>O texto dessa folha sai em português, em qualquer sede — foi feito assim de propósito, para
+que a mesa de entrega reconheça o mesmo papel em todo o continente. O nome da cor do balão vem
+nos dois idiomas, justamente para casar com o balão físico.</p>
+</div>
+
+<h2>Passo 7 — o balão</h2>
+
+<div class="step">
+<p>Lembra do <b>Accepted</b> do passo 3? Ele virou uma tarefa de balão, e ela aparece na mesma
+fila, marcada com 🎈 e com a cor do problema. E repare em quando ela nasce: o balão só é criado
+quando <b>alguém da sede abre a fila</b>. Se ninguém abrir, ele não
+existe — não é atraso do sistema.</p>
+
+<figure>
+  <img src="../img/pdf-balao.png" alt="" width="600">
+  <figcaption>A folha do balão: uma página só, com a letra do problema, a cor desenhada e o nome
+  dela por extenso.</figcaption>
+</figure>
+
+<p>Trate o balão como qualquer outra tarefa: <b>Claim</b>, <b>Print</b>, e <b>Delivered</b> quando
+o balão chegar à mesa. Leve a folha junto com o balão — é ela que prova a entrega.</p>
+
+<p>Cada cor pertence a uma letra, e a mesma letra tem a mesma cor em todas as sedes. Confira as
+cores dos seus balões contra a folha antes da prova começar.</p>
+</div>
+
+<h2>Passo 8 — imprimir sem apertar nada</h2>
+
+<div class="step">
+<p>Numa prova cheia, parar em cada diálogo de impressão é o que atrasa a sala. Por isso existe o
+<b>modo automático</b>: a caixinha no alto da fila. Com ela ligada, cada tarefa nova é reservada,
+impressa e marcada sozinha. Sobra para vocês só a caminhada até a mesa.</p>
+
+<p>Para o papel sair sem nenhum diálogo, o navegador precisa estar em modo <i>kiosk printing</i>.
+Feche o Chrome e abra de novo assim:</p>
+
+<pre>Linux
+  google-chrome --kiosk-printing https://mdp-teste-2026.moj.naquadah.com.br/contest/staff/
+
+Windows  (Menu Iniciar → botão direito no Chrome → Propriedades → Destino)
+  "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk-printing
+
+macOS
+  open -a "Google Chrome" --args --kiosk-printing</pre>
+
+<p>Com o Chrome nesse modo, ligue a caixinha, peça outra impressão pela janela do time e não toque
+em nada. O papel sai sozinho. É assim que a sala roda no dia.</p>
+
+<div class="box">
+<p><b>Teste isso hoje.</b> O modo kiosk usa a impressora que estiver como padrão no sistema, e não
+pergunta mais nada. Se a padrão for a errada, você descobre agora — e não com trinta times na
+fila.</p>
+</div>
+</div>
+
+<h2>Passo 9 — o chefe de sede confere</h2>
+
+<div class="step">
+<p><span class="who">.cstaff:</span> abra a mesma fila. Você vê tudo o que a sua equipe vê, com
+uma diferença: a coluna de ações fica vazia. Isso não é falta de permissão por engano, é o
+desenho do papel — quem pega e imprime é a equipe de sala.</p>
+
+<figure>
+  <img src="../img/cstaff-fila.png" alt="" width="600">
+  <figcaption>A mesma fila, pelos olhos do chefe: para acompanhar, não para operar.</figcaption>
+</figure>
+
+<p>Aproveite e confirme as duas coisas que só você enxerga. A primeira: a fila mostra <b>os times da
+sua sede e só eles</b>. A segunda: as etiquetas do passo 1 batem com quem vai sentar na sala.</p>
+</div>
+
+<h2>Checklist da sede</h2>
+
+<p>Marque cada linha só depois de ter visto acontecer:</p>
+
+<table>
+<thead><tr><th>&nbsp;</th><th>Item</th></tr></thead>
+<tbody>
+<tr><td>☐</td><td>As etiquetas da minha sede abrem, e a lista tem os meus times.</td></tr>
+<tr><td>☐</td><td>Um time entrou com a credencial da etiqueta.</td></tr>
+<tr><td>☐</td><td>Uma submissão voltou <b>Accepted</b>.</td></tr>
+<tr><td>☐</td><td>Vi os três erros: Wrong Answer, Runtime Error e Time Limit Exceeded.</td></tr>
+<tr><td>☐</td><td>Um pedido de impressão saiu na impressora, com a folha de rosto.</td></tr>
+<tr><td>☐</td><td>Os pop-ups deste site estão liberados no navegador da sede.</td></tr>
+<tr><td>☐</td><td>O modo automático imprimiu sozinho, com o Chrome em kiosk.</td></tr>
+<tr><td>☐</td><td>A tarefa de balão apareceu e a cor bate com os balões que temos aqui.</td></tr>
+<tr><td>☐</td><td>Marquei uma tarefa como <b>Delivered</b>.</td></tr>
+<tr><td>☐</td><td>A impressora padrão do sistema é a da sala.</td></tr>
+</tbody>
+</table>
+
+<h2>Se der errado</h2>
+
+<table>
+<thead><tr><th>O que você vê</th><th>O que é</th></tr></thead>
+<tbody>
+<tr><td>Apertei <b>Print</b> e nada aconteceu</td><td>O navegador bloqueou o pop-up. Libere os
+pop-ups deste site e aperte de novo — a tarefa continua lá, sem marca de impressa.</td></tr>
+<tr><td>A fila está vazia</td><td>Ou ninguém pediu nada, ou o escopo da sua sede não casa com
+nenhum time. Peça ao chefe de sede para conferir as etiquetas: se elas também estiverem vazias, é
+o escopo.</td></tr>
+<tr><td><code>403</code> ao pegar ou imprimir</td><td>Você está na conta <code>.cstaff</code>. Pegar
+e imprimir são da conta <code>.staff</code>.</td></tr>
+<tr><td>A credencial não loga</td><td>Confira maiúsculas e minúsculas, e que a etiqueta é da sua
+sede. Se persistir, é caso para a organização — anote o login e avise.</td></tr>
+<tr><td>O veredicto demora</td><td>Enquanto está <b>Not Answered Yet</b>, a submissão está na fila
+do juiz. Numa prova cheia isso leva alguns segundos, não minutos.</td></tr>
+<tr><td>Saiu papel sem a folha de rosto</td><td>Alguém imprimiu pelo <b>Open PDF</b>, que abre sem
+imprimir nem marcar. O botão do fluxo é o <b>Print</b>.</td></tr>
+<tr><td>Um programa que quebrou voltou <b>Time Limit Exceeded</b></td><td>Acontece. O limite destes
+problemas é curtíssimo, e salvar a memória de um processo que estourou já passa dele. O relógio
+bate antes de o juiz olhar o motivo da queda.</td></tr>
+</tbody>
+</table>
+
+<h2>Apêndice A — programas que passam</h2>
+
+<p>Um por problema, na linguagem que a sua sede preferir. Salve com o nome indicado: em Java, o
+nome do arquivo <b>tem</b> de ser o nome da classe pública.</p>
+
+<h3>A — Ola Mundo · imprime uma linha</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) { printf("Ola Mundo\n"); return 0; }</pre>
+<pre># sol.py
+print("Ola Mundo")</pre>
+<pre>// Main.java
+public class Main {
+    public static void main(String[] args) { System.out.println("Ola Mundo"); }
+}</pre>
+
+<h3>B — Soma 2 · lê dois números e soma</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long a, b;
+    scanf("%ld %ld", &amp;a, &amp;b);
+    printf("%ld\n", a + b);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+a, b = map(int, sys.stdin.read().split())
+print(a + b)</pre>
+
+<h3>C — Soma N · lê N e depois N números</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long n, x, soma = 0;
+    scanf("%ld", &amp;n);
+    for (long i = 0; i &lt; n; i++) { scanf("%ld", &amp;x); soma += x; }
+    printf("%ld\n", soma);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+nums = list(map(int, sys.stdin.read().split()))
+print(sum(nums[1:1 + nums[0]]))</pre>
+
+<h3>D — EOF · lê até a entrada acabar e conta quantos números vieram</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long x, quantos = 0;
+    while (scanf("%ld", &amp;x) == 1) quantos++;
+    printf("%ld\n", quantos);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+print(len(sys.stdin.read().split()))</pre>
+
+<h2>Apêndice B — programas que erram de propósito</h2>
+
+<h3>Wrong Answer — mande no problema B</h3>
+<p>O programa roda até o fim, imprime um número, e o número está errado.</p>
+<pre>/* wa.c — multiplica em vez de somar */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long a, b;
+    scanf("%ld %ld", &amp;a, &amp;b);
+    printf("%ld\n", a * b);
+    return 0;
+}</pre>
+<pre># wa.py
+import sys
+a, b = map(int, sys.stdin.read().split())
+print(a * b)</pre>
+
+<h3>Runtime Error — mande no problema C</h3>
+<p>O programa não chega ao fim: ele para no meio, anunciando erro. É o que acontece de verdade
+quando um vetor estoura, uma divisão dá zero no divisor ou uma exceção não é tratada.</p>
+<pre>/* rte.c */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+int main(void) {
+    long n;
+    scanf("%ld", &amp;n);
+    exit(1);            /* sair com qualquer coisa diferente de zero é "deu errado" */
+}</pre>
+<pre># rte.py
+import sys
+n = int(sys.stdin.readline())
+sys.exit(1)</pre>
+
+<h3>Time Limit Exceeded — mande no problema D</h3>
+<p>O programa nunca termina. O juiz corta e devolve o veredicto.</p>
+<pre>/* tle.c */
+int main(void) { while (1) { } return 0; }</pre>
+<pre># tle.py
+while True:
+    pass</pre>
+
+<p class="langbar" style="margin-top:2em"><a href="/contest/ajuda/staff.html">Guia da equipe de
+sala</a> · <a href="/contest/ajuda/cstaff.html">Guia do chefe de sede</a> ·
+<a href="/contest/ajuda/">Todos os papéis</a></p>
+
+</body>
+</html>

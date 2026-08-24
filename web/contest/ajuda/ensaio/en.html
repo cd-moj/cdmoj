@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site rehearsal — training script (MOJ)</title>
+<link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+<style>
+/* DOCUMENT styling, not page styling: this same file becomes the PDF the organizers publish
+   (soffice --headless --convert-to pdf). Base copied from server/etc/contest-doc.css — what the
+   LibreOffice HTML importer handles well. No flex, no grid. */
+@page { size: A4; margin: 2.2cm 2.2cm; }
+body { font-family: "Latin Modern Roman", "TeX Gyre Termes", P052, "DejaVu Serif", serif;
+       font-size: 11pt; line-height: 1.35; color: #000; text-align: justify;
+       max-width: 19cm; margin: 1.2cm auto; padding: 0 .6cm; }
+h1, h2, h3 { font-weight: bold; text-align: left; page-break-after: avoid; }
+h1 { font-size: 17pt; margin: 0 0 .2em; text-align: center; }
+h2 { font-size: 13pt; margin: 1.6em 0 .5em; border-bottom: .6pt solid #000; padding-bottom: .15em; }
+h3 { font-size: 11.5pt; margin: 1.1em 0 .35em; }
+p { margin: .45em 0; }
+ul, ol { margin: .5em 0; padding-left: 1.5em; }
+li { margin: .25em 0; }
+code, tt { font-family: "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 9.5pt; }
+pre { font-family: "Latin Modern Mono", "DejaVu Sans Mono", monospace; font-size: 9pt;
+      background: #f6f6f6; border: 1px solid #bbb; padding: .5em .7em; margin: .6em 0;
+      text-align: left; line-height: 1.25; white-space: pre-wrap; }
+em, i { font-style: italic; }
+.sub { text-align: center; font-style: italic; margin: .2em 0 1.4em; }
+.langbar { text-align: center; font-size: 9.5pt; margin: 0 0 1.2em; }
+table { border-collapse: collapse; width: 100%; margin: .9em 0; font-size: 10pt;
+        border-top: 1.1pt solid #000; border-bottom: 1.1pt solid #000; }
+th, td { border: 0; padding: .3em .8em .3em 0; text-align: left; vertical-align: top; }
+thead th { border-bottom: .6pt solid #000; font-weight: bold; }
+figure { margin: .9em 0; text-align: center; page-break-inside: avoid; }
+figure img { width: 15cm; border: 1px solid #999; }
+figcaption { font-size: 9pt; font-style: italic; text-align: center; margin-top: .25em; }
+.box { border: 1px solid #000; padding: .5em .7em; margin: .8em 0; text-align: left; }
+.who { font-weight: bold; }
+.step { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<h1>Site rehearsal</h1>
+<p class="sub">Training script for the <code>.cstaff</code> and <code>.staff</code> accounts<br>
+Programming Marathon — rehearsal contest <code>mdp-teste-2026</code></p>
+<p class="langbar"><a href="./pt.html">Português</a> · <b>English</b> · <a href="./es.html">Español</a></p>
+
+<h2>Before you start</h2>
+
+<p>This script takes about <b>thirty minutes</b>, and it exists for one reason: to put your site
+through everything that will happen on contest day, once, while none of it counts. A team logs in,
+solves a problem, gets things wrong on purpose and asks for a printout. You watch the request
+arrive, print it, deliver it, and watch a balloon show up. None of it counts — the contest is called a
+<i>rehearsal</i> because that is exactly what it is.</p>
+
+<p>What goes wrong on contest day is almost never the judge. It is the printer with no paper, the
+pop-up the browser blocked, the label that will not log in, the balloon in the wrong colour. All
+of those show up here, today, while there is still time to fix them calmly.</p>
+
+<h3>What you need</h3>
+<ul>
+  <li>two browser windows, ideally on two machines: one for the team, one for the site;</li>
+  <li>the room printer, switched on, with paper in it;</li>
+  <li>your site's two accounts, the ones the organizers handed you:
+      <code>&lt;site&gt;.cstaff</code> and <code>&lt;site&gt;.staff</code> — for example,
+      <code>bolapa.cstaff</code> and <code>bolapa.staff</code>;</li>
+  <li>the rehearsal address: <code>https://mdp-teste-2026.moj.naquadah.com.br/</code></li>
+</ul>
+
+<h3>Who does what</h3>
+<table>
+<thead><tr><th>Account</th><th>In the rehearsal</th></tr></thead>
+<tbody>
+<tr><td><code>.cstaff</code> — site chief</td><td>Hands the credential to the team and watches. The
+chief <b>sees</b> the queue but never claims or prints: those belong to <code>.staff</code>.</td></tr>
+<tr><td><code>.staff</code> — room team</td><td>Claims the task, prints it, walks the paper and the
+balloon to the desk. This is the account that works.</td></tr>
+<tr><td>the team</td><td>One team account of your site, borrowed for the rehearsal.</td></tr>
+</tbody>
+</table>
+
+<p>If you have not read your role guide yet, read it first: that guide explains every button,
+and here we just use them. <a href="/contest/ajuda/cstaff.html">Site chief guide</a> ·
+<a href="/contest/ajuda/staff.html">Room team guide</a>.</p>
+
+<h2>Step 1 — the site chief picks up a credential</h2>
+
+<div class="step">
+<p><span class="who">.cstaff:</span> log in and open <b>🏷️ Badges</b>. That screen lists the teams
+of <b>your site</b> with their login and password, laid out for printing on labels. Pick one team
+for the rehearsal and write its credential down.</p>
+
+<figure>
+  <img src="../img/cstaff-etiquetas.png" alt="" width="600">
+  <figcaption>The badges screen. Only the site chief opens it, and only with the teams of that
+  site.</figcaption>
+</figure>
+
+<p>If the list comes up empty, stop right here and call the organizers: your site scope is not
+configured, and on contest day you would be left with no credentials.</p>
+</div>
+
+<h2>Step 2 — the team logs in</h2>
+
+<div class="step">
+<p><span class="who">Team:</span> in the other window, open the rehearsal address and log in with
+the credential from step 1.</p>
+
+<figure>
+  <img src="../img/comp-login.png" alt="" width="600">
+  <figcaption>The front door. Before the contest starts this screen shows only a countdown — the
+  form appears at the scheduled minute.</figcaption>
+</figure>
+
+<p>This contest has <b>no editor in the browser</b>, and that is deliberate: the Marathon works
+the same way. The team writes the program in an editor on the machine, compiles it in the
+terminal, and submits the finished file.</p>
+</div>
+
+<h2>Step 3 — the team solves problem A</h2>
+
+<div class="step">
+<p>Problem <b>A — Ola Mundo</b> reads nothing and prints one line. Take the program from
+<b>Appendix A</b> in whichever language you prefer, save it to a file and submit: click the
+problem's row, pick the file and press <b>Submit</b>.</p>
+
+<figure>
+  <img src="../img/comp-sem-editor.png" alt="" width="600">
+  <figcaption>The accordion open with no editor: the statement takes the full width and the file
+  picker on the row is how you submit.</figcaption>
+</figure>
+
+<p>The verdict arrives on its own in a few seconds, with no need to reload. What you want to see
+is <b>Accepted</b>, and the problem's row changes colour up above.</p>
+
+<figure>
+  <img src="../img/comp-submissoes.png" alt="" width="600">
+  <figcaption>The team's submission list. <i>Time</i> is the minute of the contest; <i>Date</i> is
+  the wall clock.</figcaption>
+</figure>
+</div>
+
+<h2>Step 4 — getting it wrong on purpose</h2>
+
+<div class="step">
+<p>Now send three broken programs, one of each kind. The point is for the site to recognise each
+verdict when it shows up on contest day, and to know that none of them means the system is
+broken. The programs are in <b>Appendix B</b>.</p>
+
+<table>
+<thead><tr><th>Send</th><th>To problem</th><th>You will see</th><th>Which means</th></tr></thead>
+<tbody>
+<tr><td>the wrong arithmetic</td><td>B — Soma 2</td><td><b>Wrong Answer</b></td><td>The program ran
+to the end, and the answer is not the expected one.</td></tr>
+<tr><td>the early exit</td><td>C — Soma N</td><td><b>Runtime Error</b></td><td>The program broke
+while running.</td></tr>
+<tr><td>the endless loop</td><td>D — EOF</td><td><b>Time Limit Exceeded</b></td><td>The program
+took longer than the problem allows.</td></tr>
+</tbody>
+</table>
+
+<p>In a contest, the verdict is all the team gets: no failing test, no diff, no partial score. That
+is on purpose — the test data is exam material.</p>
+</div>
+
+<h2>Step 5 — the team asks for a printout</h2>
+
+<div class="step">
+<p><span class="who">Team:</span> open the <b>🖨️ Printing</b> tab, pick the file you have just
+submitted and press <b>Request printing</b>. The request shows up below as
+<b>pending</b>.</p>
+
+<figure>
+  <img src="../img/comp-impressao.png" alt="" width="600">
+  <figcaption>The team's screen: the form on top, their own requests below, each with its
+  state.</figcaption>
+</figure>
+
+<p>One detail worth learning now: the team only ever sees its own requests, and the number beside
+each one is the number printed on the cover sheet. That is how you check, at the counter, that the
+paper went to the right team.</p>
+</div>
+
+<h2>Step 6 — the site prints</h2>
+
+<div class="step">
+<p><span class="who">.staff:</span> open <b>🖨️ Print queue</b>. The request from step 5 is there,
+at the top.</p>
+
+<figure>
+  <img src="../img/staff-fila.png" alt="" width="600">
+  <figcaption>The site queue. Pending tasks on top; below them, the ones already printed and
+  waiting to be delivered. The two rows with 🎈 are balloons.</figcaption>
+</figure>
+
+<p>The cycle has three steps, always in the same order:</p>
+
+<ol>
+  <li><b>Claim</b> — reserves the task for you, so two volunteers do not print the same
+      thing.</li>
+  <li><b>🖨️ Print</b> — opens the PDF in a new tab and calls the printer. <b>Allow pop-ups for
+      this site now</b>: if the browser blocks the tab, the task is never marked as printed, and
+      the paper disappears from your list.</li>
+  <li><b>✅ Delivered</b> — after you hand the paper over at the team's desk. That click is what
+      tells the organizers the paper arrived.</li>
+</ol>
+
+<figure>
+  <img src="../img/staff-pega.png" alt="" width="600">
+  <figcaption>The queue rows, up close. Notice <i>by sala.staff</i> under the state: that is who
+  reserved it.</figcaption>
+</figure>
+
+<p>What comes out of the printer is a cover sheet followed by the team's document. The cover
+carries the team name, the university, the login and the task number, with a line to sign on
+delivery.</p>
+
+<figure>
+  <img src="../img/pdf-impressao-p1.png" alt="" width="600">
+  <figcaption>The cover sheet. The big number is the same one the team sees on screen.</figcaption>
+</figure>
+
+<p>The text on that sheet comes out in Portuguese at every site, and that is on purpose: the
+delivery desk recognises the same piece of paper across the whole continent. The balloon colour is
+named in two languages, so that it matches the physical balloon.</p>
+</div>
+
+<h2>Step 7 — the balloon</h2>
+
+<div class="step">
+<p>Remember the <b>Accepted</b> from step 3? It became a balloon task, and it lands in the same
+queue, marked with 🎈 and carrying the problem's colour. And notice when it appears: the balloon is only
+created when <b>somebody from the site opens the queue</b>. If nobody opens
+it, it does not exist — that is not the system running late.</p>
+
+<figure>
+  <img src="../img/pdf-balao.png" alt="" width="600">
+  <figcaption>The balloon sheet: a single page with the problem letter, the colour drawn, and its
+  name spelled out.</figcaption>
+</figure>
+
+<p>Treat a balloon like any other task: <b>Claim</b>, <b>Print</b>, and <b>Delivered</b> once the
+balloon reaches the desk. Carry the sheet along with the balloon — that sheet is the proof of
+delivery.</p>
+
+<p>Each colour belongs to a letter, and the same letter has the same colour at every site. Check
+your balloons against the sheet before the contest starts.</p>
+</div>
+
+<h2>Step 8 — printing without touching anything</h2>
+
+<div class="step">
+<p>In a busy contest, stopping at every print dialog is what slows the room down. That is what
+<b>automatic mode</b> is for: the checkbox at the top of the queue. With it on, every new task is
+claimed, printed and marked on its own. All that is left for you is the walk to the desk.</p>
+
+<p>For the paper to come out with no dialog at all, the browser has to be in <i>kiosk printing</i>
+mode. Close Chrome and open it again like this:</p>
+
+<pre>Linux
+  google-chrome --kiosk-printing https://mdp-teste-2026.moj.naquadah.com.br/contest/staff/
+
+Windows  (Start menu → right-click Chrome → Properties → Target)
+  "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk-printing
+
+macOS
+  open -a "Google Chrome" --args --kiosk-printing</pre>
+
+<p>With Chrome in that mode, turn the checkbox on, ask for another printout from the team's window
+and do not touch anything. The paper comes out by itself. That is how the room runs on the
+day.</p>
+
+<div class="box">
+<p><b>Test this today.</b> Kiosk mode uses whichever printer the system has as default, and it asks
+nothing else. If the default is the wrong one, you find out now — and not with thirty teams in the
+queue.</p>
+</div>
+</div>
+
+<h2>Step 9 — the site chief checks</h2>
+
+<div class="step">
+<p><span class="who">.cstaff:</span> open the same queue. You see everything your team sees, with
+one difference: the actions column is empty. That is not a permission mistake, it is how the role
+is drawn — claiming and printing belong to the room team.</p>
+
+<figure>
+  <img src="../img/cstaff-fila.png" alt="" width="600">
+  <figcaption>The same queue through the chief's eyes: there to watch, not to operate.</figcaption>
+</figure>
+
+<p>While you are there, confirm the two things only you can see. First: the queue shows <b>the teams of
+your site and nobody else</b>. Second: the badges from step 1 match the people who will sit in the
+room.</p>
+</div>
+
+<h2>Site checklist</h2>
+
+<p>Tick each line only after you have watched it happen:</p>
+
+<table>
+<thead><tr><th>&nbsp;</th><th>Item</th></tr></thead>
+<tbody>
+<tr><td>☐</td><td>My site's badges open, and the list has my teams in it.</td></tr>
+<tr><td>☐</td><td>A team logged in with the credential from the badge.</td></tr>
+<tr><td>☐</td><td>A submission came back <b>Accepted</b>.</td></tr>
+<tr><td>☐</td><td>I saw the three failures: Wrong Answer, Runtime Error and Time Limit Exceeded.</td></tr>
+<tr><td>☐</td><td>A print request came out of the printer, with its cover sheet.</td></tr>
+<tr><td>☐</td><td>Pop-ups for this site are allowed in the site's browser.</td></tr>
+<tr><td>☐</td><td>Automatic mode printed on its own, with Chrome in kiosk.</td></tr>
+<tr><td>☐</td><td>The balloon task showed up and its colour matches the balloons we have here.</td></tr>
+<tr><td>☐</td><td>I marked a task as <b>Delivered</b>.</td></tr>
+<tr><td>☐</td><td>The system's default printer is the room printer.</td></tr>
+</tbody>
+</table>
+
+<h2>When something goes wrong</h2>
+
+<table>
+<thead><tr><th>What you see</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td>I pressed <b>Print</b> and nothing happened</td><td>The browser blocked the pop-up. Allow
+pop-ups for this site and press again — the task is still there, still unmarked.</td></tr>
+<tr><td>The queue is empty</td><td>Either nobody asked for anything, or your site scope matches no
+team at all. Ask the site chief to open the badges: if those are empty too, it is the
+scope.</td></tr>
+<tr><td><code>403</code> when claiming or printing</td><td>You are on the <code>.cstaff</code>
+account. Claiming and printing belong to <code>.staff</code>.</td></tr>
+<tr><td>The credential will not log in</td><td>Check upper and lower case, and that the badge
+belongs to your site. If it still fails, that one is for the organizers — write the login down and
+tell them.</td></tr>
+<tr><td>The verdict is taking long</td><td>While it says <b>Not Answered Yet</b>, the submission is
+in the judge's queue. In a busy contest that takes seconds, not minutes.</td></tr>
+<tr><td>Paper came out with no cover sheet</td><td>Somebody used <b>Open PDF</b>, which opens
+without printing or marking. The button in the flow is <b>Print</b>.</td></tr>
+<tr><td>A program that crashed came back as <b>Time Limit Exceeded</b></td><td>It happens. The time
+limit on these problems is tiny, and dumping the memory of a process that blew up already goes
+past it. The clock runs out before the judge looks at why it died.</td></tr>
+</tbody>
+</table>
+
+<h2>Appendix A — programs that pass</h2>
+
+<p>One per problem, in whichever language your site prefers. Save them under the name shown: in
+Java the file name <b>must</b> be the name of the public class.</p>
+
+<h3>A — Ola Mundo · prints one line</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) { printf("Ola Mundo\n"); return 0; }</pre>
+<pre># sol.py
+print("Ola Mundo")</pre>
+<pre>// Main.java
+public class Main {
+    public static void main(String[] args) { System.out.println("Ola Mundo"); }
+}</pre>
+
+<h3>B — Soma 2 · reads two numbers and adds them</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long a, b;
+    scanf("%ld %ld", &amp;a, &amp;b);
+    printf("%ld\n", a + b);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+a, b = map(int, sys.stdin.read().split())
+print(a + b)</pre>
+
+<h3>C — Soma N · reads N and then N numbers</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long n, x, sum = 0;
+    scanf("%ld", &amp;n);
+    for (long i = 0; i &lt; n; i++) { scanf("%ld", &amp;x); sum += x; }
+    printf("%ld\n", sum);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+nums = list(map(int, sys.stdin.read().split()))
+print(sum(nums[1:1 + nums[0]]))</pre>
+
+<h3>D — EOF · reads until the input ends and counts the numbers</h3>
+<pre>/* sol.c */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long x, count = 0;
+    while (scanf("%ld", &amp;x) == 1) count++;
+    printf("%ld\n", count);
+    return 0;
+}</pre>
+<pre># sol.py
+import sys
+print(len(sys.stdin.read().split()))</pre>
+
+<h2>Appendix B — programs that fail on purpose</h2>
+
+<h3>Wrong Answer — send it to problem B</h3>
+<p>The program runs to the end, prints a number, and the number is wrong.</p>
+<pre>/* wa.c — multiplies instead of adding */
+#include &lt;stdio.h&gt;
+int main(void) {
+    long a, b;
+    scanf("%ld %ld", &amp;a, &amp;b);
+    printf("%ld\n", a * b);
+    return 0;
+}</pre>
+<pre># wa.py
+import sys
+a, b = map(int, sys.stdin.read().split())
+print(a * b)</pre>
+
+<h3>Runtime Error — send it to problem C</h3>
+<p>The program never reaches the end: it stops halfway and announces failure. That is what really
+happens when an array overflows, a divisor turns out to be zero, or an exception goes
+uncaught.</p>
+<pre>/* rte.c */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+int main(void) {
+    long n;
+    scanf("%ld", &amp;n);
+    exit(1);            /* leaving with anything other than zero means "it went wrong" */
+}</pre>
+<pre># rte.py
+import sys
+n = int(sys.stdin.readline())
+sys.exit(1)</pre>
+
+<h3>Time Limit Exceeded — send it to problem D</h3>
+<p>The program never finishes. The judge cuts it off and returns the verdict.</p>
+<pre>/* tle.c */
+int main(void) { while (1) { } return 0; }</pre>
+<pre># tle.py
+while True:
+    pass</pre>
+
+<p class="langbar" style="margin-top:2em"><a href="/contest/ajuda/staff.html">Room team guide</a> ·
+<a href="/contest/ajuda/cstaff.html">Site chief guide</a> ·
+<a href="/contest/ajuda/">All roles</a></p>
+
+</body>
+</html>
