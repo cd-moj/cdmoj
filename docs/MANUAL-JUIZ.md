@@ -55,7 +55,7 @@ Abaixo dos contadores vem a lista das submissões seguradas para revisão. Para 
 
 ### Fluxo de avaliação, passo a passo
 
-1. **Pegar p/ avaliar.** Clique para reservar a submissão. No máximo 2 pessoas podem estar na mesma submissão, e sua reserva tem um tempo limite de 5 minutos. Ao pegar, a tela troca para um painel estável, que não recarrega sozinho enquanto você trabalha (assim você não perde o que está fazendo).
+1. **Pegar p/ avaliar** (*Claim to evaluate*, numa prova em inglês)**.** Clique para reservar a submissão. No máximo 2 pessoas podem estar na mesma submissão, e sua reserva tem um tempo limite de 5 minutos. Ao pegar, a tela troca para um painel estável, que não recarrega sozinho enquanto você trabalha (assim você não perde o que está fazendo).
 2. **Analisar.** No painel você tem tudo à mão: o **veredicto de referência**, o **log** de execução, o **código** enviado e um seletor de veredicto. Dois botões ajudam: **+5 min** (pede mais tempo, caso os 5 minutos não bastem) e **Desistir** (larga a submissão para outra pessoa pegar).
 3. **Votar e liberar.** Escolha o veredicto no seletor e clique para votar. Atenção: o **voto é permanente** (não dá para desfazer) e ele **libera você na hora** para pegar a próxima tarefa.
 
@@ -64,6 +64,24 @@ Abaixo dos contadores vem a lista das submissões seguradas para revisão. Para 
 Uma submissão só tem seu veredicto entregue ao competidor quando **N juízes votam a mesma coisa** — o N é decidido pelo admin do contest (Configurações → "Nº de juízes que validam", de 1 a 5; o padrão é 2). Quando os votos batem, o veredicto vai para o competidor (a entrega é feita por um único escritor, o daemon, para não haver bagunça). Com N=1, o seu voto sozinho decide.
 
 Quando os dois votos **divergem**, a submissão vira um **conflito** e fica marcada para o **juiz-chefe** resolver. Um juiz comum não resolve conflito: sua parte termina no seu voto.
+
+### Aquecimento: o seu ensaio
+
+Muita prova roda um **aquecimento** antes da prova oficial — mesma sala, mesmas contas, mesmo
+endereço. A fila que aparece ali é fila de verdade: submissões chegam, você pega, vota, e a regra
+de N juízes concordando vale igual. Use-o para conferir o que dói descobrir depois: se as
+**opções de veredicto** são as que esta prova quer, se o **log** e o **código** abrem na sua
+máquina, e se você e o outro juiz leem a mesma submissão do mesmo jeito.
+
+> **Não deixe a fila do aquecimento pela metade.** A promoção para a prova oficial é **recusada**
+> enquanto houver submissão sem veredicto liberado — o servidor confere, antes de deixar a
+> organização trocar de rodada, se a rodada terminou, se há job em voo no juiz, se há item na
+> correção manual sem veredicto, se há veredicto pendente no history e se o daemon está vivo.
+> Fila de aquecimento abandonada segura literalmente o início da prova. Termine o que você pegou.
+
+Quando a rodada é promovida, tudo do aquecimento é arquivado: fila, submissões, clarifications e
+placar. A prova oficial começa com o histórico vazio — nada do que você julgou ali conta, nem
+vaza, para a prova.
 
 ### Resumo do que o juiz pode
 
@@ -106,6 +124,24 @@ Em **qualquer página do contest**, o juiz-chefe recebe um **aviso vermelho pisc
 - Ver **Todas as Submissões** com usuário e time (o juiz comum a vê anônima), com o veredicto cru.
 - Responder **clarifications** (esclarecimentos). Você precisa **reservar** a pergunta antes de responder. O autor da pergunta é **anônimo** para você.
 - Editar **respostas e notícias** da prova.
+
+### Aquecimento: o que só o chefe confere
+
+O aquecimento é o único momento em que a mesa inteira roda com submissões de verdade e nada em
+jogo. É ali que você confere o que só você muda: **quantos juízes** um veredicto exige, quais
+veredictos a matriz de **auto-veredicto** libera sozinha, e se o **alarme de conflito** chega
+mesmo até você. Conflito que ninguém vê no aquecimento é conflito que ninguém verá na prova.
+
+É também onde você vê a fila drenar — porque a promoção para a prova oficial é **recusada**
+enquanto houver item sem veredicto liberado, job em voo ou veredicto pendente. A aba **📊
+Situação** do painel é a tela que diz quando a mesa está limpa o bastante para a organização
+trocar de rodada.
+
+> ⚠ **Na promoção, os documentos perdem a marca de publicado.** Os modelos e a capa sobrevivem
+> (são configuração) e os PDFs gerados para o aquecimento vão para o arquivo da rodada — mas o
+> que estava publicado deixa de estar. O info sheet, o caderno e a folha de time limits têm de
+> ser **publicados de novo** para a prova oficial, ou os times abrem *Arquivos & Recursos* e não
+> encontram nada.
 
 ### O que o juiz-chefe NÃO é
 

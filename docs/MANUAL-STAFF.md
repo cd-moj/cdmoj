@@ -51,7 +51,10 @@ Você só vê a fila da **sua sede**. Pedidos e balões de outras sedes não apa
 
 ### Como tratar uma tarefa
 
-Cada botão é uma etapa do processo. O fluxo normal é: **Pegar**, depois **🖨️ Imprimir** (ou **Abrir PDF**), e por fim **✅ Entregue**.
+Cada botão é uma etapa do processo. O fluxo normal é: **Pegar**, depois **🖨️ Imprimir** (ou
+**Abrir PDF**), e por fim **✅ Entregue**. O idioma da tela é o do contest: numa prova em inglês
+esses mesmos botões aparecem como *Claim*, *🖨️ Print*, *Open PDF* e *✅ Delivered* — é o que você
+vê nas telas do [tutorial ilustrado](/contest/ajuda/staff.html).
 
 | Botão | O que faz |
 |---|---|
@@ -66,16 +69,30 @@ Há uma **caixa de seleção** de modo automático, e a sua escolha fica guardad
 
 Para que a janela de impressão do navegador não apareça a cada tarefa, rode o navegador em **modo quiosque**. No Chrome/Chromium, use a opção `--kiosk-printing`.
 
-### Aquecimento: a prova pode ter duas rodadas
+### Aquecimento: o seu ensaio (e a prova pode ter duas rodadas)
 
 Muita prova roda um **aquecimento** antes da prova oficial — mesma sala, mesmas contas, mesmo
-endereço. Para você isso significa três coisas:
+endereço. Para você ele não é simulação: os pedidos e as tarefas de balão que aparecem na fila
+são de verdade, e é a única chance de descobrir se o balcão funciona antes que isso custe caro.
 
-- o aquecimento é o ensaio da **sua** operação também: pegue os pedidos, imprima, entregue balão,
-  confira a impressora e a cor dos balões;
-- quando a organização promove a prova oficial, a **numeração dos pedidos volta a 1** e os
-  **balões do aquecimento não contam** (a fila começa limpa) — se você anotou números, eles se
-  referem ao aquecimento;
+Quatro testes, nesta ordem:
+
+1. **A impressora** — papel, toner e a fila do sistema operacional. Imprima uma tarefa de ponta a
+   ponta, e confira a cor do balão no papel contra o balão que está na sua mão.
+2. **O pop-up** — o **🖨️ Imprimir** abre outra aba; se o navegador bloquear, a tarefa **não** é
+   marcada como impressa. Libere os pop-ups deste site no aquecimento, não no minuto 3 da prova.
+3. **O modo automático**, se for usá-lo — com o navegador em modo kiosk (`--kiosk-printing`),
+   para nada parar num diálogo de impressão.
+4. **O trajeto** — leve um papel até uma mesa e um balão até um time. Quem descobre o número da
+   sala durante a prova já está atrasado.
+
+Quando a organização promove a prova oficial:
+
+- a **numeração dos pedidos volta a 1** e os **balões do aquecimento não contam** (a fila começa
+  limpa) — se você anotou números, eles se referem ao aquecimento. Papel do aquecimento ainda no
+  balcão: entregue **antes** da promoção;
+- o seu **escopo de sede sobrevive** (é configuração, não dado da rodada): o que você viu no
+  aquecimento é o que verá na prova;
 - o que aconteceu no aquecimento continua consultável na aba **🔁 Rodadas**.
 
 ### O que a `.staff` NÃO faz
@@ -151,6 +168,21 @@ Você conduz a cerimônia de revelação da sua sede, no estilo ICPC (de baixo p
 3. Você revela posição por posição, do último para o primeiro.
 
 Descongelar tudo e publicar o placar global são ações do **administrador**, não suas (ele faz isso pelo botão **🏁 Encerrar evento**, na Central do painel — ver `MANUAL-ADMIN.md` §6½).
+
+### Aquecimento: o ensaio da sede
+
+O aquecimento é quando as credenciais que você entregou passam pelo único teste que vale. O que
+você quer sair do aquecimento sabendo é uma coisa só: **todo time da sua sede entrou pelo menos
+uma vez**. Etiqueta que não loga é problema para resolver antes de o relógio começar — e quem
+tem a senha é você.
+
+É também o momento do resto da lista: conferir que a fila mostra os seus times e só eles, ver a
+equipe de sala da sua sede ensaiando com fila de verdade, e recolher as **fotos** que faltam
+enquanto ninguém está sob pressão.
+
+> Duas coisas **não** se perdem na promoção para a prova oficial: o seu **escopo de sede** (é
+> configuração) e as **fotos e músicas** que você recolheu (elas são da conta do time, não da
+> rodada). O que é arquivado é a rodada: placar, submissões, fila de impressão, clarifications.
 
 ### O que a `.cstaff` NÃO faz
 

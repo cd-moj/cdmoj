@@ -81,14 +81,28 @@ vinheta — ou volta ao padrão de fábrica do MOJ. **Só você e o administrado
 No pacote `.zip`, a foto padrão é copiada por time (é pequena) e a música padrão vai **uma vez** na
 raiz (megabytes × mil times, não).
 
-## Checklist da véspera
+## Ensaio geral: a véspera e o aquecimento
+
+Muita prova roda um **aquecimento** antes da prova oficial — mesma sala, mesmas contas, mesmo
+endereço. É o ensaio geral da sala e, portanto, do telão: o placar se enche de submissões de
+verdade, então é a hora de apontar o projetor, rodar a chave de webcast no Animeitor **para
+valer** e ver as fotos e as músicas subirem na parede. Telão testado só com placar vazio é telão
+não testado.
+
+> Nada do que você montar se perde na promoção para a prova oficial: **chaves, fotos, músicas e
+> os padrões** são configuração do contest, não dado da rodada. O que é arquivado é a rodada — o
+> placar e as submissões dela, que continuam acessíveis como rodada encerrada.
+
+A lista da véspera, em ordem:
 
 1. Crie **uma chave por tela** e teste cada URL na máquina que vai projetar.
 2. Abra a galeria em **⚠ Pendências** e persiga as fotos que faltam (peça aos chefes de sede).
 3. Defina a **foto e a música padrão** com a identidade do evento.
 4. Baixe o **.zip** e guarde na máquina do espetáculo como plano B.
 5. **Ensaie** a página de revelação e teste o som no áudio da sala.
-6. Depois do evento: **revogue todas as chaves**.
+6. Durante o **aquecimento**: ponha a tela de verdade na parede e veja-a encher — chave, fotos,
+   música e placar, tudo junto.
+7. Depois do evento: **revogue todas as chaves**.
 
 ## O que o `.animeitor` NÃO faz
 
