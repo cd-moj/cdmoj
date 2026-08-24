@@ -524,10 +524,12 @@ shot judge-avaliando.png   s_judge   /contest/judge/
 shot judge-todas.png       s_judge   /contest/allsubmissions/  1000
 shot judge-clarification.png s_judge /contest/clarification/   1250
 shot cjudge-todas.png      s_cjudge  /contest/allsubmissions/  1000
-shot cjudge-clarification.png s_cjudge "/contest/clarification/?click=editar resposta&times=1" 1500
+# ⚠ o ?click= casa por TEXTO do botão, e a interface do fixture está em INGLÊS (LOCALE=en):
+# rótulo em português aqui = clique que não acontece e foto da tela errada, em silêncio.
+shot cjudge-clarification.png s_cjudge "/contest/clarification/?click=edit answer&times=1" 1500
 shot cjudge-painel.png     s_cjudge  /contest/chief/           1100
-shot cjudge-docs.png       s_cjudge  "/contest/chief/?click=Documentos&times=2" 1000
-shot rodadas.png           s_staff   /contest/rounds/          800
+shot cjudge-docs.png       s_cjudge  "/contest/chief/?click=Documents&times=2" 1000
+shot rodadas.png           s_staff   /contest/rounds/                              560
 
 # ---------------------------------------------------------------- PDFs de exemplo
 # O que SAI NA IMPRESSORA: a folha de rosto do pedido (página 1) e a folha do balão. As duas
