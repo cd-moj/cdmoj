@@ -106,6 +106,15 @@ sleep 1; out="$(pr_build_pdf pr "$id")"
 ck "refez o cache (build_ok era false)" '[[ "$(stat -c %Y "$cache")" -gt "$antes" ]]'
 ck "e o meta voltou a true"             '[[ "$(jq -r .build_ok "$meta")" == true ]]'
 
+echo "== cache: um DEPLOY que mexe na lib refaz o papel =="
+# O desenho da folha mora no código, não no .src — então quando o `lib/print.sh` muda (rodapé
+# novo, numeração, capa) o pedido antigo tem de se refazer sozinho na próxima impressão. Sem
+# isto, "consertei e continua saindo o papel velho" volta a ser possível: é o mesmo veneno do
+# build_ok, por outra porta. Datas antigas de propósito — a lib é sempre mais nova que 2020.
+touch -d '2020-01-01' "$C/print-requests/$id.src" "$cache"
+out="$(pr_build_pdf pr "$id")"
+ck "cache mais velho que a lib foi refeito" '[[ "$(stat -c %Y "$cache")" -gt "$(date -d 2020-01-02 +%s)" ]]'
+
 echo "== cache: build bom é reusado (build-once) =="
 touch -d '1 hour ago' "$C/print-requests/$id.src"
 m1="$(stat -c %Y "$cache")"; sleep 1; pr_build_pdf pr "$id" >/dev/null

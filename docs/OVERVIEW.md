@@ -480,7 +480,7 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
   **regex** (sedes distribuídas; lista vazia = vê tudo; o admin configura na aba **Impressão**).
   Fluxo: **pegar** (claim, evita impressão dupla entre abas) → **imprimir** o PDF gerado pelo
   servidor (`pr_build_pdf` em `lib/print.sh`: capa+documento normalizado em A4 via `paps`/`magick`/
-  `libreoffice`+`pdfunite`, build-once com cache) → **entregue**.
+  `libreoffice`+`pdfunite`, build-once com cache — e o **próprio `lib/print.sh` é entrada do cache**, então um deploy que mude o desenho do papel refaz o pedido antigo sozinho) → **entregue**.
   **Código-fonte** (o caso mais comum da sala) passa por `_pr_text2pdf`: `iconv -c` p/ UTF-8 →
   `nl -ba` → `paps` (**PostScript**, nunca `--format=pdf`: a imagem tem paps 0.6.8) → `ps2pdf` —
   monoespaçado, indentação preservada, **linhas numeradas** e linha comprida QUEBRA em vez de ser

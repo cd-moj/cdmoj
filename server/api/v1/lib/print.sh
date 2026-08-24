@@ -390,8 +390,13 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
 # conserto entrar no ar (foi o caso do paps 0.6.8, agosto/2026). Por isso o `build_ok` do meta
 # faz parte da validade do cache. Meta antigo, sem o campo, conta como bom — não se refaz a
 # base inteira por causa disto.
+# E o DEPLOY também invalida: esta lib entra como entrada do cache (`${BASH_SOURCE[0]}`, a
+# receita do `resp_cache_fresh` p/ o que não é arquivo de dado). Mudou o desenho do papel —
+# rodapé com o login, numeração, capa — e o pedido antigo se refaz sozinho na próxima
+# impressão, sem ninguém apagar `.combined.pdf` à mão. Custo: um rebuild por pedido depois de
+# um deploy que MEXA nesta lib; impressão é ritmo humano, isso não pesa.
 _pr_cache_ok() {  # <cache> <src> <meta>
-  [[ -f "$1" && "$1" -nt "$2" ]] || return 1
+  [[ -f "$1" && "$1" -nt "$2" && "$1" -nt "${BASH_SOURCE[0]}" ]] || return 1
   # ⚠ `.build_ok // true` NÃO serve: o `//` do jq trata **false como vazio** e devolveria
   # `true` justamente no caso que interessa (ver a armadilha do `//` no CLAUDE.md). O teste
   # de booleano é por igualdade explícita.
