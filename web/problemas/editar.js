@@ -779,9 +779,21 @@ function tlSummaryTable(hosts, served) {
   };
   const thead = el('tr', {}, el('th', {}, T('linguagem', 'language')), el('th', { class: 'served' }, T('servido (aluno)', 'served (student)')),
     ...hosts.map(h => el('th', {}, h.host, cpuOf[h.host] ? el('div', { class: 'cpu' }, cpuOf[h.host]) : null)));
+  // TLOVERRIDE no conf: a coluna "servido" deixa de ser a medição e passa a ser a decisão do
+  // autor — então cada linha sobreposta leva o selo, com o calibrado no title.
+  const ovr = (LASTINFO && LASTINFO.tl_override) || {};
+  const ovrOf = (lang) => ovr[lang] != null ? ovr[lang] : (ovr.default != null ? ovr.default : null);
   const body = langs.map(lang => el('tr', {},
     el('td', {}, tlLangName(lang)),
-    el('td', { class: 'served' }, el('b', {}, tlSecs(servedOf(lang)))),
+    el('td', { class: 'served' }, el('b', {}, tlSecs(servedOf(lang))),
+      ovrOf(lang) != null
+        ? (() => { const s = el('span', { class: 'pill warn', style: 'margin-left:.3rem' }, '⚡');
+                   const cal = hosts.map(h => +((h.tl || {})[lang])).filter(Number.isFinite);
+                   s.title = T('Definido por você no conf (TLOVERRIDE). Medido pela calibração: ',
+                               'Set by you in the conf (TLOVERRIDE). Measured by calibration: ')
+                             + (cal.length ? tlSecs(Math.max(...cal)) : '—');
+                   return s; })()
+        : null),
     ...hosts.map(h => el('td', {}, tlSecs((h.tl || {})[lang])))));
   return el('div', { class: 'tlsummary-wrap' },
     el('div', { class: 'small muted', style: 'margin:.3rem 0 .2rem' }, T('Resumo por linguagem — em negrito o tempo-limite que o estudante vê no enunciado:', 'Summary per language — in bold the time limit the student sees in the statement:')),
@@ -798,6 +810,7 @@ function valRenderSig() {
     checks: checks.map(c => `${c.name}:${c.ok}:${c.detail || ''}`),
     hosts: hosts.map(h => `${h.host}|${h.at}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}|${(h.sols || []).map(s => `${s.category}/${s.file}:${s.verdict}:${(s.tests || []).length}`).join(',')}`),
     served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
+    ovr: Object.entries((LASTINFO && LASTINFO.tl_override) || {}).map(([k, v]) => `${k}=${v}`),
   });
 }
 function maybeRenderVal() { if (valRenderSig() !== LAST_RENDER_SIG) renderVal(); }   // re-render só quando algo muda
@@ -824,6 +837,16 @@ function renderVal() {
   if (hosts.length) {
     const sum = tlSummaryTable(hosts, served);   // quadro-resumo por linguagem (antes dos cards de cada juiz)
     if (sum) box.append(sum);
+    // A calibração IGNORA o override de propósito (o calibreitor exporta MOJ_CALIBRATING=1: ali
+    // se mede de verdade). Sem este aviso, o autor lê os tempos dos cartões abaixo e conclui que
+    // o override não pegou — foi exatamente o relato que gerou esta tela.
+    const ovrAll = (info && info.tl_override) || {};
+    if (Object.keys(ovrAll).length) box.append(el('div', { class: 'warn small', style: 'margin:.4rem 0' },
+      '⚡ ', el('b', {}, T('Tempo-limite definido por você no conf: ', 'Time limit set by you in the conf: ')),
+      Object.entries(ovrAll).map(([k, v]) => `${k}=${(+v).toFixed(3)}s`).join(' · '),
+      el('div', { class: 'small' },
+        T('É ele que o juiz cobra e que o estudante lê. Os tempos dos cartões abaixo são a MEDIÇÃO da calibração, que roda sem o override de propósito — servem para você ver a folga de cada solução.',
+          'That is what the judge enforces and what the student reads. The times in the cards below are the calibration MEASUREMENT, which deliberately runs without the override — they show you the headroom of each solution.'))));
     box.append(el('div', { class: 'small muted', style: 'margin:.5rem 0 .2rem' }, `${T('Calibrado em ', 'Calibrated on ')}${hosts.length} ${T('juiz(es) — abra "ver log" para o comportamento de cada solução:', 'judge(s) — open "view log" to see each solution behavior:')}`));
     hosts.forEach(h => {
       const isOpen = OPEN_LOGS.has(h.host);

@@ -47,8 +47,19 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
   | ($store.hosts // {}) as $h
   | (($h|keys) + ($logs|keys) | unique) as $hosts
   | ([ $h[]?.tl // {} | keys[] | npy | select(.!="default") ] | unique) as $served   # calibrado em >=1 host
+  # TL EFETIVO ao lado do medido: o cartão precisa dizer "os tempos abaixo são a MEDIÇÃO da
+  # calibração, mas o julgamento usa X" — a calibração ignora o override de propósito
+  # (MOJ_CALIBRATING=1 no calibreitor), então hosts[].tl NUNCA vai refletir o override.
+  | ([ $h[]?.tl // {} | to_entries[] ] | group_by(.key | npy)
+     | map({ (.[0].key | npy): (map(.value | tonumber? // 0) | max | tostring) }) | add // {}) as $cal
+  | (if ($ov|length) == 0 then $cal
+     else ((($cal|keys) + ($ov|keys)) | unique) as $ks
+          | reduce $ks[] as $k ({}; .[$k] = ($ov[$k] // $ov["default"] // $cal[$k]))
+          | with_entries(select(.value != null) | .value |= tostring)
+     end) as $eff
   | { success:true, id:($store.id // ""), checksum:($store.checksum // ""),
       good_langs:$gl, tl_override:$ov,
+      time_limits:$eff, time_limits_calibrated:$cal,
       missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host
       hosts: [ $hosts[] as $n
                | ($h[$n].tl // {}) as $htl

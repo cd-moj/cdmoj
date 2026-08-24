@@ -5933,6 +5933,7 @@
           "problems"
         ],
         "summary": "Detalhe do problema (índice + validação)",
+        "description": "Devolve time_limits = o EFETIVO (TLOVERRIDE do conf do pacote aplicado por tl_store_served), mais time_limits_calibrated (cru dos juízes) e tl_override (o declarado). O TL vem do PACOTE, não do json servível: o json público só existe depois de publicar, e edit/upload não reindexam — antes disso o editor mostrava o calibrado cru em problema privado.",
         "security": [
           {
             "bearerAuth": []
@@ -5998,7 +5999,7 @@
           "problems"
         ],
         "summary": "Painel de status dos problemas do login (dono + colaborador + membro da org)",
-        "description": "Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo.",
+        "description": "Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo. time_limits é o EFETIVO (o TLOVERRIDE vem carimbado no índice de donos, então o Painel não abre pacote); time_limits_calibrated e tl_override vêm ao lado.",
         "security": [
           {
             "bearerAuth": []
@@ -6144,7 +6145,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{id,checksum,good_langs,missing_langs,tl_override,hosts:[{host,tl,missing,at,log,reports,sols}]} — missing_langs = linguagem good sem TL em NENHUM host (solução good falhou em todas as máquinas); hosts[].missing = faltantes naquele juiz; sols = calibração POR EXTENSO estruturada [{file,lang,category:good|pass|slow|wrong,verdict,tests:[{name,code,time,tl}]}] (mesmo formato do vetor tests da submissão normal; [] = juiz antigo); tl_override = TLOVERRIDE do conf do pacote ({} sem override)"
+            "description": "{id,checksum,good_langs,missing_langs,tl_override,time_limits,time_limits_calibrated,hosts:[{host,tl,missing,at,log,reports,sols}]} — missing_langs = linguagem good sem TL em NENHUM host (solução good falhou em todas as máquinas); hosts[].missing = faltantes naquele juiz; sols = calibração POR EXTENSO estruturada [{file,lang,category:good|pass|slow|wrong,verdict,tests:[{name,code,time,tl}]}] (mesmo formato do vetor tests da submissão normal; [] = juiz antigo); tl_override = TLOVERRIDE do conf do pacote ({} sem override); hosts[].tl e sols[].tests[].tl são a MEDIÇÃO da calibração (que roda com MOJ_CALIBRATING=1 e ignora o override de propósito) — time_limits é o efetivo, para a tela poder avisar que o julgamento usa outro número"
           }
         }
       }

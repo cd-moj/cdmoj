@@ -58,6 +58,20 @@ const scard = (n, l, hl, fkey) => {
   return el('div', a, el('div', { class: 'n' }, String(n)), el('div', { class: 'l' }, l));
 };
 const fmtTL = (tl) => { const e = Object.entries(tl || {}).filter(([k]) => k !== 'default'); return e.length ? e.map(([k, v]) => `${k} ${(+v).toFixed(3)}s`).join(' · ') : '—'; };
+// A coluna mostra o TL EFETIVO (o que o juiz cobra). Quando o autor pôs TLOVERRIDE no conf do
+// pacote, o número deixa de ser o medido — então vai um selo, e o calibrado fica no title.
+// Sem isto o autor lia o calibrado e achava que o override não tinha pegado (relato de 24/08).
+const tlCell = (p) => {
+  const box = el('span', {}, fmtTL(p.time_limits));
+  if (p.tl_override && Object.keys(p.tl_override).length) {
+    const s = el('span', { class: 'pill warn', style: 'margin-left:.35rem' }, '⚡ override');
+    s.title = T('Tempo-limite definido pelo autor no conf do pacote (TLOVERRIDE) — vence o calibrado. Calibrado: ',
+                'Time limit set by the author in the package conf (TLOVERRIDE) — it beats the calibrated one. Calibrated: ')
+              + fmtTL(p.time_limits_calibrated);
+    box.append(s);
+  }
+  return box;
+};
 const sevOf = (p) => p.needs_review ? 3 : p.needs_recalibration ? 2 : p.being_calibrated ? 1 : 0;
 const valChip = (p) => p.validated === 'ok' ? pill('ok', T('validado', 'validated')) : p.validated === 'error' ? pill('no', T('reprovado', 'rejected')) : pill('mut', T('não validado', 'not validated'));
 const calibChip = (p) => {
@@ -534,6 +548,16 @@ async function openDetail(id) {
           pill('ok', T('calibração em dia', 'calibration up to date')),
           t.calibrated_at ? ' · ' + fmtDate(t.calibrated_at) : ''));
       }
+      // a rota já trazia efetivo + calibrado + override e o detalhe jogava os três fora
+      const nov = Object.keys(t.tl_override || {}).length;
+      calbox.append(el('div', { class: 'small', style: 'margin-top:.4rem' },
+        el('b', {}, T('Tempo-limite: ', 'Time limit: ')),
+        el('span', { style: 'font-family:var(--mono,monospace)' }, fmtTL(t.time_limits)),
+        nov ? el('span', { class: 'pill warn', style: 'margin-left:.35rem' }, '⚡ override') : ''));
+      if (nov) calbox.append(el('div', { class: 'small muted2' },
+        T('Definido por você no conf do pacote (TLOVERRIDE) — é o que o juiz cobra e o que o estudante lê. Medido pela calibração: ',
+          'Set by you in the package conf (TLOVERRIDE) — it is what the judge enforces and what the student reads. Measured by calibration: '),
+        el('span', { style: 'font-family:var(--mono,monospace)' }, fmtTL(t.time_limits_calibrated))));
     } catch { calbox.innerHTML = ''; }
   })();
 
@@ -661,7 +685,7 @@ function renderPanel() {
   const arrow = (key) => PANEL_SORT.key === key ? (PANEL_SORT.dir > 0 ? ' ▲' : ' ▼') : '';
   const th = (label, key) => el('th', { class: 'sortable', onclick: () => setPanelSort(key) }, label + arrow(key));
   const head = el('tr', {}, th(T('Problema', 'Problem'), 'title'), th(T('Autor', 'Author'), 'author'),
-    th(T('Validação', 'Validation'), 'validated'), th(T('Calibração', 'Calibration'), 'sev'), el('th', {}, 'Time limits'), th(T('Atualizado', 'Updated'), 'updated'));
+    th(T('Validação', 'Validation'), 'validated'), th(T('Calibração', 'Calibration'), 'sev'), el('th', {}, T('Tempo-limite', 'Time limits')), th(T('Atualizado', 'Updated'), 'updated'));
   const tb = el('tbody');
   slice.forEach(p => tb.append(el('tr', {},
     el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openDetail(p.id); } }, p.title || p.prob || p.id),
@@ -669,7 +693,7 @@ function renderPanel() {
     el('td', { class: 'small' }, p.author || '—'),
     el('td', {}, valChip(p)),
     el('td', {}, calibChip(p), reviewChip(p)),
-    el('td', { class: 'small', style: 'font-family:var(--mono,monospace)' }, fmtTL(p.time_limits)),
+    el('td', { class: 'small', style: 'font-family:var(--mono,monospace)' }, tlCell(p)),
     el('td', { class: 'small muted2' }, p.updated_at ? fmtDate(p.updated_at) : '—'))));
 
   const list = document.getElementById('list'); list.innerHTML = '';

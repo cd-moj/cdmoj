@@ -312,7 +312,8 @@
         <div class="section">
           <h3 data-en="Limits (conf)">Limites (conf)</h3>
           <p class="small muted" style="margin:.2rem 0 .6rem"><span data-en="The">O</span> <b data-en="time limit">tempo-limite</b> <span data-en="is calibrated by the judge from the">é calibrado pelo juiz a partir
-            das soluções</span> <b>good</b> <span data-en="— here you adjust calibration, memory/stack, and execution behavior.">— aqui você ajusta a calibração, memória/stack e o comportamento da execução.</span></p>
+            das soluções</span> <b>good</b> <span data-en="— here you adjust calibration, memory/stack, and execution behavior.">— aqui você ajusta a calibração, memória/stack e o comportamento da execução.</span>
+            <span data-en="If you would rather decide the limit yourself, put TLOVERRIDE[&lt;lang&gt;] or TLOVERRIDE[default] in the raw conf below: it beats the calibrated value in the judge and in everything the student reads (the calibration keeps running and measuring, as a reference).">Se preferir decidir o limite você mesmo, ponha <code>TLOVERRIDE[&lt;lang&gt;]</code> ou <code>TLOVERRIDE[default]</code> no conf bruto lá embaixo: ele vence o calibrado no juiz e em tudo que o estudante lê (a calibração continua rodando e medindo, como referência).</span></p>
 
           <div class="lcard">
             <h4 data-en="⏱ Time">⏱ Tempo</h4>
@@ -368,7 +369,7 @@
           </div>
 
           <details class="lcard" style="margin-top:.6rem">
-            <summary class="small"><span data-en="🔧 Advanced — raw conf (multipliers/drift per language:">🔧 Avançado — conf bruto (multiplicadores/drift por linguagem:</span> <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…)</summary>
+            <summary class="small"><span data-en="🔧 Advanced — raw conf (multipliers/drift per language:">🔧 Avançado — conf bruto (multiplicadores/drift por linguagem:</span> <code>TLMOD[cpp.drift]</code>, <code>TLMOD[java.mult]</code>, <code>TLMOD[py.sum]</code>…<span data-en=" — and "> — e </span><code>TLOVERRIDE[java]</code>/<code>TLOVERRIDE[default]</code><span data-en=", which decide the time limit outright, over the calibrated one">, com que você decide o tempo-limite na marra, por cima do calibrado</span>)</summary>
             <textarea id="confRaw" class="big" style="min-height:9rem;margin-top:.4rem"></textarea>
           </details>
         </div>

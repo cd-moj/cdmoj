@@ -90,7 +90,22 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$c
                             (if $pubunval then "public_unvalidated" else empty end) ]),
           error_reasons:([ (if $vstate=="error" then "validation_failed" else empty end),
                            (if $gsbad then "good_sol_rejected" else empty end) ]),
-          time_limits:($t.tl // {}), updated_at:($t.at // null),
+          # TL EFETIVO: o `tl` do sumário é o CALIBRADO CRU (a projeção só lê hosts[].tl) — sem
+          # o overlay, o Painel mostrava um número que o juiz não usa. O override vem CARIMBADO
+          # no índice de donos (gen-problem-owners.sh), então isto não abre pacote nenhum: o
+          # Painel é rota quente e lista os 1400 problemas de um .admin.
+          # ⚠ `$ovr`/`$cal` são ligados ANTES do reduce: lá dentro o `.` é o ACUMULADOR, não o
+          # problema (a mesma armadilha de escopo do jq que já mordeu o gate de UA).
+          time_limits:( (.tl_override // {}) as $ovr | ($t.tl // {}) as $cal
+                        | if ($ovr|length) == 0 then $cal
+                          else ((($cal|keys) + ($ovr|keys)) | unique) as $ks
+                               | reduce $ks[] as $k ({};
+                                   .[$k] = ($ovr[$k] // $ovr["default"] // $cal[$k]))
+                               | with_entries(select(.value != null) | .value |= tostring)
+                          end ),
+          time_limits_calibrated:($t.tl // {}),
+          tl_override:(.tl_override // {}),
+          updated_at:($t.at // null),
           validated_at:($v.at // null),
           render_warnings:($v.render_warnings // "") } ] as $rows
   | { success:true, total:($rows|length),
