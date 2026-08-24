@@ -34,6 +34,12 @@ Você é a pessoa que fica na sala cuidando das impressões e dos balões. Você
 
 ### A fila de impressão (`/contest/staff/`)
 
+> **Entre pela máquina que tem a impressora da sala instalada e funcionando.** Quem imprime é a sua
+> máquina, pelo seu navegador — o servidor só monta o PDF. Numa prova em que os times rodam uma
+> imagem fechada, essa imagem é a máquina dos times: a sua é um desktop comum (Windows, macOS ou um
+> Linux qualquer), com a impressora configurada. O `.cstaff`, que só acompanha, entra de qualquer
+> máquina.
+
 A tela de impressão é uma tabela com **duas coisas na mesma fila**:
 
 1. **Pedidos de impressão** dos times: um arquivo enviado pelo time, já montado com uma folha de rosto.

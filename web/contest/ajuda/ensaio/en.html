@@ -60,7 +60,14 @@ of those show up here, today, while there is still time to fix them calmly.</p>
 
 <h3>What you need</h3>
 <ul>
-  <li>two browser windows, ideally on two machines: one for the team, one for the site;</li>
+  <li><b>the team's machine: one running Maratona Linux</b>, the same image as contest day. That
+      holds for the rehearsal too — today is exactly when you want to find out that the editor
+      will not open or that a compiler is missing;</li>
+  <li><b>the site machine (<code>.staff</code>): one that can see the room printer</b>. That one is
+      <b>not</b> Maratona Linux: the contest image is not built to print. Windows, macOS or any
+      Linux will do — what matters is that the printer is installed and working on it;</li>
+  <li>the <code>.cstaff</code> can log in from <b>any machine</b>: that account only watches, and
+      watching needs neither a printer nor the contest image;</li>
   <li>the room printer, switched on, with paper in it;</li>
   <li>your site's two accounts, the ones the organizers handed you:
       <code>&lt;site&gt;.cstaff</code> and <code>&lt;site&gt;.staff</code> — for example,
@@ -104,8 +111,9 @@ configured, and on contest day you would be left with no credentials.</p>
 <h2>Step 2 — the team logs in</h2>
 
 <div class="step">
-<p><span class="who">Team:</span> in the other window, open the rehearsal address and log in with
-the credential from step 1.</p>
+<p><span class="who">Team:</span> on the <b>machine running Maratona Linux</b>, open the
+rehearsal address and log in with the credential from step 1. Put a real person in that chair,
+even if it is you: the rehearsal only works if the rehearsal machine is the contest machine.</p>
 
 <figure>
   <img src="../img/comp-login.png" alt="" width="600">
@@ -185,7 +193,8 @@ paper went to the right team.</p>
 <h2>Step 6 — the site prints</h2>
 
 <div class="step">
-<p><span class="who">.staff:</span> open <b>🖨️ Print queue</b>. The request from step 5 is there,
+<p><span class="who">.staff:</span> on the <b>machine that has the printer</b> — Windows, macOS
+or any Linux, never Maratona Linux — open <b>🖨️ Print queue</b>. The request from step 5 is there,
 at the top.</p>
 
 <figure>
@@ -308,6 +317,8 @@ room.</p>
 <table>
 <thead><tr><th>&nbsp;</th><th>Item</th></tr></thead>
 <tbody>
+<tr><td>☐</td><td>The team logged in from a machine running <b>Maratona Linux</b>.</td></tr>
+<tr><td>☐</td><td>The <code>.staff</code> account is on a machine that <b>prints</b> — and it is not Maratona Linux.</td></tr>
 <tr><td>☐</td><td>My site's badges open, and the list has my teams in it.</td></tr>
 <tr><td>☐</td><td>A team logged in with the credential from the badge.</td></tr>
 <tr><td>☐</td><td>A submission came back <b>Accepted</b>.</td></tr>
@@ -333,6 +344,8 @@ team at all. Ask the site chief to open the badges: if those are empty too, it i
 scope.</td></tr>
 <tr><td><code>403</code> when claiming or printing</td><td>You are on the <code>.cstaff</code>
 account. Claiming and printing belong to <code>.staff</code>.</td></tr>
+<tr><td>The team cannot work on the machine</td><td>Check that it really is a Maratona Linux machine. A missing editor, a compiler that is not there, a different path — those are machine problems, not judge problems, and finding them today is what the rehearsal is for.</td></tr>
+<tr><td>The site cannot find the printer</td><td>The <code>.staff</code> account is on the wrong machine. It has to run where the room printer is installed — Windows, macOS or any Linux. Maratona Linux is the team's machine, not the counter's.</td></tr>
 <tr><td>The credential will not log in</td><td>Check upper and lower case, and that the badge
 belongs to your site. If it still fails, that one is for the organizers — write the login down and
 tell them.</td></tr>

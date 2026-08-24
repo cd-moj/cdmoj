@@ -59,8 +59,15 @@ aqui, hoje, quando ainda dá para resolver com calma.</p>
 
 <h3>O que você precisa</h3>
 <ul>
-  <li>duas janelas de navegador, de preferência em máquinas diferentes: uma para o time, outra
-      para a sede;</li>
+  <li><b>a máquina do time: uma máquina com Maratona Linux</b>, a mesma imagem do dia da prova.
+      Vale também no ensaio — é justamente hoje que você quer descobrir que o editor não abre ou
+      que falta um compilador;</li>
+  <li><b>a máquina da sede (<code>.staff</code>): uma que enxergue a impressora da sala</b>. Essa
+      <b>não</b> é o Maratona Linux: a imagem da prova não é feita para imprimir. Pode ser
+      Windows, macOS ou um Linux qualquer — o que importa é que a impressora esteja instalada e
+      funcionando nela;</li>
+  <li>o <code>.cstaff</code> entra de <b>qualquer máquina</b>: ele só olha, e olhar não precisa de
+      impressora nem de imagem de prova;</li>
   <li>a impressora da sala ligada, com papel;</li>
   <li>as duas contas da sua sede, que a organização entregou: <code>&lt;sede&gt;.cstaff</code> e
       <code>&lt;sede&gt;.staff</code> — por exemplo, <code>bolapa.cstaff</code> e
@@ -103,8 +110,9 @@ configurado, e no dia da prova você ficaria sem as credenciais.</p>
 <h2>Passo 2 — o time entra</h2>
 
 <div class="step">
-<p><span class="who">Time:</span> na outra janela, abra o endereço do ensaio e entre com a
-credencial do passo 1.</p>
+<p><span class="who">Time:</span> na <b>máquina com Maratona Linux</b>, abra o endereço do ensaio
+e entre com a credencial do passo 1. Sente alguém de verdade na cadeira, mesmo que seja você: o
+ensaio só serve se a máquina do ensaio for a máquina da prova.</p>
 
 <figure>
   <img src="../img/comp-login.png" alt="" width="600">
@@ -183,8 +191,9 @@ foi para o time certo.</p>
 <h2>Passo 6 — a sede imprime</h2>
 
 <div class="step">
-<p><span class="who">.staff:</span> abra <b>🖨️ Print queue</b>. O pedido do passo 5 está lá, no
-alto da fila.</p>
+<p><span class="who">.staff:</span> na <b>máquina que tem a impressora</b> — Windows, macOS ou
+qualquer Linux, nunca o Maratona Linux —, abra <b>🖨️ Print queue</b>. O pedido do passo 5 está
+lá, no alto da fila.</p>
 
 <figure>
   <img src="../img/staff-fila.png" alt="" width="600">
@@ -301,6 +310,8 @@ sua sede e só eles</b>. A segunda: as etiquetas do passo 1 batem com quem vai s
 <table>
 <thead><tr><th>&nbsp;</th><th>Item</th></tr></thead>
 <tbody>
+<tr><td>☐</td><td>O time entrou de uma máquina com <b>Maratona Linux</b>.</td></tr>
+<tr><td>☐</td><td>A conta <code>.staff</code> está numa máquina que <b>imprime</b> — e não é o Maratona Linux.</td></tr>
 <tr><td>☐</td><td>As etiquetas da minha sede abrem, e a lista tem os meus times.</td></tr>
 <tr><td>☐</td><td>Um time entrou com a credencial da etiqueta.</td></tr>
 <tr><td>☐</td><td>Uma submissão voltou <b>Accepted</b>.</td></tr>
@@ -326,6 +337,8 @@ nenhum time. Peça ao chefe de sede para conferir as etiquetas: se elas também 
 o escopo.</td></tr>
 <tr><td><code>403</code> ao pegar ou imprimir</td><td>Você está na conta <code>.cstaff</code>. Pegar
 e imprimir são da conta <code>.staff</code>.</td></tr>
+<tr><td>O time não consegue trabalhar na máquina</td><td>Confira se a máquina é mesmo a do Maratona Linux. Editor que falta, compilador que não existe e caminho diferente são problema de máquina, não do juiz — e é para achá-los hoje que o ensaio existe.</td></tr>
+<tr><td>A sede não acha a impressora</td><td>A conta <code>.staff</code> está na máquina errada. Ela tem de rodar onde a impressora da sala está instalada — Windows, macOS ou um Linux qualquer. O Maratona Linux é a máquina do time, não a do balcão.</td></tr>
 <tr><td>A credencial não loga</td><td>Confira maiúsculas e minúsculas, e que a etiqueta é da sua
 sede. Se persistir, é caso para a organização — anote o login e avise.</td></tr>
 <tr><td>O veredicto demora</td><td>Enquanto está <b>Not Answered Yet</b>, a submissão está na fila

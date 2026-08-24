@@ -61,8 +61,15 @@ equivocado. Todo eso aparece aquí, hoy, cuando todavía hay tiempo de resolverl
 
 <h3>Qué necesita</h3>
 <ul>
-  <li>dos ventanas de navegador, de preferencia en máquinas distintas: una para el equipo y otra
-      para la sede;</li>
+  <li><b>la máquina del equipo: una con Maratona Linux</b>, la misma imagen del día de la
+      competencia. También vale para el ensayo — hoy es justamente cuando usted quiere descubrir
+      que el editor no abre o que falta un compilador;</li>
+  <li><b>la máquina de la sede (<code>.staff</code>): una que vea la impresora del salón</b>. Esa
+      <b>no</b> es Maratona Linux: la imagen de la competencia no está hecha para imprimir. Puede
+      ser Windows, macOS o cualquier Linux — lo que importa es que la impresora esté instalada y
+      funcionando ahí;</li>
+  <li>el <code>.cstaff</code> entra desde <b>cualquier máquina</b>: esa cuenta solo mira, y mirar
+      no necesita impresora ni imagen de competencia;</li>
   <li>la impresora del salón encendida y con papel;</li>
   <li>las dos cuentas de su sede, las que entregó la organización:
       <code>&lt;sede&gt;.cstaff</code> y <code>&lt;sede&gt;.staff</code> — por ejemplo,
@@ -106,8 +113,9 @@ configurado, y el día de la competencia usted se quedaría sin las credenciales
 <h2>Paso 2 — el equipo entra</h2>
 
 <div class="step">
-<p><span class="who">Equipo:</span> en la otra ventana, abra la dirección del ensayo y entre con la
-credencial del paso 1.</p>
+<p><span class="who">Equipo:</span> en la <b>máquina con Maratona Linux</b>, abra la dirección
+del ensayo y entre con la credencial del paso 1. Siente a alguien de verdad en esa silla, aunque
+sea usted: el ensayo solo sirve si la máquina del ensayo es la máquina de la competencia.</p>
 
 <figure>
   <img src="../img/comp-login.png" alt="" width="600">
@@ -186,8 +194,9 @@ en la mesa, que el papel llegó al equipo correcto.</p>
 <h2>Paso 6 — la sede imprime</h2>
 
 <div class="step">
-<p><span class="who">.staff:</span> abra <b>🖨️ Print queue</b>. El pedido del paso 5 está ahí,
-arriba de todo.</p>
+<p><span class="who">.staff:</span> en la <b>máquina que tiene la impresora</b> — Windows, macOS
+o cualquier Linux, nunca Maratona Linux —, abra <b>🖨️ Print queue</b>. El pedido del paso 5 está
+ahí, arriba de todo.</p>
 
 <figure>
   <img src="../img/staff-fila.png" alt="" width="600">
@@ -309,6 +318,8 @@ con quienes se van a sentar en el salón.</p>
 <table>
 <thead><tr><th>&nbsp;</th><th>Punto</th></tr></thead>
 <tbody>
+<tr><td>☐</td><td>El equipo entró desde una máquina con <b>Maratona Linux</b>.</td></tr>
+<tr><td>☐</td><td>La cuenta <code>.staff</code> está en una máquina que <b>imprime</b> — y no es Maratona Linux.</td></tr>
 <tr><td>☐</td><td>Las etiquetas de mi sede abren, y la lista tiene a mis equipos.</td></tr>
 <tr><td>☐</td><td>Un equipo entró con la credencial de la etiqueta.</td></tr>
 <tr><td>☐</td><td>Un envío volvió <b>Accepted</b>.</td></tr>
@@ -335,6 +346,8 @@ ningún equipo. Pídale al jefe de sede que abra las etiquetas: si también sale
 alcance.</td></tr>
 <tr><td><code>403</code> al tomar o imprimir</td><td>Usted está en la cuenta <code>.cstaff</code>.
 Tomar e imprimir son de la cuenta <code>.staff</code>.</td></tr>
+<tr><td>El equipo no puede trabajar en la máquina</td><td>Revise que sea de verdad una máquina con Maratona Linux. Un editor que falta, un compilador que no está, una ruta distinta — eso es problema de máquina, no del juez, y encontrarlo hoy es para lo que sirve el ensayo.</td></tr>
+<tr><td>La sede no encuentra la impresora</td><td>La cuenta <code>.staff</code> está en la máquina equivocada. Tiene que correr donde esté instalada la impresora del salón — Windows, macOS o cualquier Linux. Maratona Linux es la máquina del equipo, no la del mostrador.</td></tr>
 <tr><td>La credencial no entra</td><td>Revise mayúsculas y minúsculas, y que la etiqueta sea de su
 sede. Si sigue fallando, eso es para la organización — anote el usuario y avise.</td></tr>
 <tr><td>El veredicto tarda</td><td>Mientras dice <b>Not Answered Yet</b>, el envío está en la cola
