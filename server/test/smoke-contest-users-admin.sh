@@ -78,4 +78,23 @@ echo "== proteção =="
 call /contest/admin/logout-user POST '{"login":"bob"}' dave 'contest=uc'
 ck "não-admin 403"           '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== contest GRANDE: a lista de contas passa de 128KiB (regressão do 500 build_fail) =="
+# A lista tem um objeto por CONTA e cresce com o evento: no mdp-teste-2026 (2354 contas) ela
+# passou de 250 KB e o `--argjson u` estourou o teto de 128 KiB POR ARGUMENTO do exec — o jq
+# morria com "Argument list too long" e o handler devolvia 500 build_fail (`moj contest users
+# ls` quebrado). Aqui sintetizamos 2400 contas e exigimos 200 com a lista INTEIRA.
+for i in $(seq 1 2400); do
+  d="$C/users/time-participante-numero-$(printf '%04d' "$i")"; mkdir -p "$d"
+  printf '{"login":"time-participante-numero-%04d","password":"p","fullname":"Equipe Participante Número %04d da Universidade Federal de Exemplo","email":"time%04d@universidade.exemplo.br","status":"active"}\n' "$i" "$i" "$i" > "$d/account.json"
+done
+BIGU="$(find "$C/users" -mindepth 2 -maxdepth 2 -name account.json -print0 \
+        | xargs -0 -r jq -c '{login,fullname,email}' | jq -cs . | wc -c)"
+ck "fixture passou de 128KiB" '(( BIGU > 131072 ))'
+call /contest/admin/users GET '' adm 'contest=uc'
+ck "resposta 200"             '[[ "$OUT" == *"Status: 200"* ]]'
+ck "corpo é JSON de sucesso"  'jq -e ".success == true" >/dev/null 2>&1 <<<"$BODY"'
+ck "count bate com a lista"   '[[ "$(jq -r ".count" <<<"$BODY")" == "$(jq -r ".users|length" <<<"$BODY")" ]]'
+ck "traz as 2400 sintéticas"  '[[ "$(jq -r "[.users[]|select(.login|startswith(\"time-participante-\"))]|length" <<<"$BODY")" == 2400 ]]'
+ck "a última conta veio"      '[[ "$(jq -r ".users[]|select(.login==\"time-participante-numero-2400\")|.fullname" <<<"$BODY")" == *"2400 da Universidade"* ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

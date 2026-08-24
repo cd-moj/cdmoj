@@ -20,7 +20,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **`jq` + ARG_MAX** (ver `../CLAUDE.md`): JSON grande (mapas com milhares de chaves, ex.: o
   `id→sub_epoch` do history em `score/treino-response-gen.sh`) **não** vai por `--argjson` — estoura
   `Argument list too long`. Use `--slurpfile <arquivo>` ou encadeie etapas com pipe.
-  **REGRA DERIVADA (paga 2× no jplag): agregado de N arquivos NUNCA entra por `--argjson`.**
+  **REGRA DERIVADA (paga 3× — jplag, teams e a LISTA DE CONTAS): agregado de N arquivos NUNCA
+  entra por `--argjson`.** Reincidência em 2026-08-24: `/contest/admin/users` montava a lista
+  inteira (um objeto por conta) em `--argjson u` e num contest de **2354 contas** ela passa de
+  250 KB ⇒ **500 `build_fail`** e `moj contest users ls` quebrado. Fechados no mesmo commit os
+  vizinhos da mesma classe: `admin/backups` (`users`) e `admin/registrations` (`photos`/`tgs`),
+  que crescem com o nº de contas/times. Ao escrever handler novo, a pergunta é uma só: **este
+  valor cresce com o tamanho do evento?** Se sim, `ok_json_slurp`/`--slurpfile`.
   O teto é de **128 KiB POR ARGUMENTO** e todo agregado cresce com o tamanho do evento —
   ⚠ e vale TAMBÉM para dado de UM usuário: a FONTE de submissão passava por `--arg b` no
   /submit e no judged (fonte >~96 KiB = spool/job de 0 bytes, submissão pendente p/ SEMPRE —

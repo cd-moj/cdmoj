@@ -18,4 +18,8 @@ if [[ -d "$d" ]]; then
     | jq -cs 'map(select(.login != "")) | sort_by(.login)')"
   [[ -n "$users" ]] || users='[]'
 fi
-ok_json '{users:$u, count:($u|length), shared:$sh}' --argjson u "$users" --arg sh "${shared:-}"
+# ⚠ a lista cresce com o nº de CONTAS (um objeto por conta): num contest de 2354 contas ela
+# passa de 250 KB e estoura o teto de **128 KiB por argumento** do exec — o jq morre com
+# "Argument list too long" e o ok_json devolve 500 build_fail. Agregado de N arquivos NUNCA
+# entra por --argjson (ver ../../../CLAUDE.md e ok_json_slurp em lib/common.sh).
+ok_json_slurp '{users:$u[0], count:($u[0]|length), shared:$sh}' u "$users" --arg sh "${shared:-}"

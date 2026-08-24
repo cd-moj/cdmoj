@@ -29,4 +29,5 @@ out="$(jq -c --arg u "$uq" --arg q "$nq" '
 users="$(jq -c 'group_by(.login) | map({login:.[0].login, count:length, bytes:(map(.size)|add)}) | sort_by(.login)' <<<"$all")"
 # a lista de backups cresce com nº de contas × salvamentos: --slurpfile (teto de 128KiB do
 # --argjson) — ver ok_json_slurp em lib/common.sh.
-ok_json_slurp '{backups:$b[0], users:$u}' b "$out" --argjson u "$users"
+ok_json_slurp '{backups:$b[0], users:$u[0]}' b "$out" \
+  --slurpfile u <(printf '%s' "${users:-[]}")   # 1 objeto por conta: mesmo teto de 128 KiB

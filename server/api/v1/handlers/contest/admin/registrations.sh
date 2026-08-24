@@ -54,7 +54,8 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
             done | jq -R . | jq -cs . )"
   [[ -n "$tgs" ]] || tgs='[]'
   invf="$(mktemp)"; inv_get "$contest" > "$invf"
-  out="$(reg_get "$contest" | jq -c --argjson photos "$photos" --arg st "$st" --argjson op "${op:-0}" --argjson cl "${cl:-0}" \
+  # photos/tgs crescem com o nº de times (um login por elemento): --slurpfile, não --argjson
+  out="$(reg_get "$contest" | jq -c --slurpfile photos <(printf '%s' "${photos:-[]}") --arg st "$st" --argjson op "${op:-0}" --argjson cl "${cl:-0}" \
       --argjson lt "${lt:-0}" --argjson max "$(reg_team_max "$contest")" \
       --argjson anc "${anc:-0}" --arg rnd "${rnd:-}" --arg kind "$(reg_round_kind "$contest")" \
       --argjson gate "$(reg_gate_active "$contest" && echo true || echo false)" \
@@ -62,7 +63,7 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
       --argjson tok "$(reg_teams_allowed "$contest" && echo true || echo false)" \
       --argjson remind "$(reg_remind_on "$contest" && echo true || echo false)" \
       --arg tz "$(contest_tz "$contest")" \
-      --argjson tgs "$tgs" --slurpfile inv "$invf" '
+      --slurpfile tgs <(printf '%s' "${tgs:-[]}") --slurpfile inv "$invf" '
     (($inv[0].items) // {}) as $im
     | { success:true, enabled:$en, teams_allowed:$tok, team_max:$max, remind:$remind, tz:$tz,
       window:{state:$st, opens_at:$op, closes_at:$cl, late_until:$lt,
@@ -73,11 +74,11 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
                   members:$v.members, invited:$v.invited, cohort:$v.cohort,
                   created_at:$v.created_at, univ:($v.univ // ""), flag:($v.flag // ""),
                   ai:(if ($v | has("ai")) then $v.ai else null end),
-                  has_photo:(($photos | index($tm)) != null),
+                  has_photo:(($photos[0] | index($tm)) != null),
                   invited_meta: [ ($v.invited // [])[] | . as $l
                                   | (($im[$tm + "|" + $l]) // {}) as $e
                                   | {login:$l, at:($e.at // 0), dm_at:($e.dm // 0),
-                                     warned_at:($e.warn // 0), tg:(($tgs | index($l)) != null)} ]} ]
+                                     warned_at:($e.warn // 0), tg:(($tgs[0] | index($l)) != null)} ]} ]
              | sort_by(.name),
       individuals: [ .entries | to_entries[] | select(.value.kind == "individual")
                      | {login:.key, cohort:.value.cohort, at:.value.at,
@@ -88,7 +89,7 @@ _emit(){   # [<json-extra p/ mesclar na resposta>]
                 individuals:([.entries[] | select(.kind=="individual")] | length),
                 invites:([.teams[] | (.invited // []) | length] | add // 0),
                 invites_no_tg:([.teams[] | (.invited // [])[] | . as $l
-                                | select(($tgs | index($l)) == null)] | length) } }')"
+                                | select(($tgs[0] | index($l)) == null)] | length) } }')"
   rm -f "$invf"
   [[ -n "$out" ]] || fail 500 "Falha ao montar as inscrições" "reg_render_failed"
   if [[ -n "$extra" ]]; then
