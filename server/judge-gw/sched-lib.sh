@@ -12,7 +12,19 @@
 : "${RESULTSDIR:=$RUNDIR/results}"          # results/<id>.json
 : "${UPDATESDIR:=$RUNDIR/updates}"          # pedidos de atualização de repositório
 : "${REG_TTL:=30}"                          # s; heartbeat mais velho = worker morto
-: "${ASSIGN_TTL:=120}"                      # s; job reivindicado sem novo beat volta p/ fila
+# ⚠ ASSIGN_TTL é o TETO DE PACIÊNCIA com um juiz VIVO, não o detector de juiz morto — e por isso
+# tem de caber a correção INTEIRA, incluindo o download do pacote. Era 120s e mordeu no ensaio da
+# Maratona (24/08/2026): `mdp-unb-xii#areias-da-anarquia` pesa **737 MB / 362 testes**; a correção
+# em si levou **67 s**, mas o time esperou **915 s** porque o job foi revogado no meio e recomeçou
+# em outro juiz (visto no `judge` 19:34 e no `judge-sp1` 19:36). O agente NÃO tem como dizer "ainda
+# estou trabalhando": o heartbeat manda só `{state, free_slots, total_slots}`, então o relógio
+# corre desde a reivindicação. Cada revogação DUPLICA o trabalho e ocupa mais um slot — é assim que
+# a fila cresce em vez de drenar, num problema pesado com muitos times.
+# Quem detecta juiz morto continua sendo o heartbeat (REG_TTL=30s ⇒ requeue NA HORA) e o
+# `register boot:true` (agente que reinicia devolve tudo). O teto só cobre o caso raro de juiz
+# vivo que perdeu o job em silêncio — e a calibração, que é o mesmo tipo de trabalho, já tinha
+# 1800s (UPD_TTL). A assimetria é que era o descuido.
+: "${ASSIGN_TTL:=900}"                      # s; juiz VIVO que não devolveu resultado nesse prazo
 : "${UPD_TTL:=1800}"                         # s; calibração reivindicada e não terminada volta p/ pending
 : "${STARVE_SECS:=300}"                     # s; promove de banda após esse tempo
 : "${COLD_GRACE:=8}"                        # s; modelo cache: juiz que NÃO tem o problema

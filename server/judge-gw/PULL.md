@@ -141,7 +141,7 @@ urgentes kill|restart furam o gate de ocupado via `cmd_claim_urgent`).
 
 | mecanismo | quando devolve à fila | roda onde |
 |---|---|---|
-| `q_reconcile` | host fora de `reg_live_hosts` (sem beat há `REG_TTL`=30s) OU `assigned_at` > `ASSIGN_TTL`=120s | a cada heartbeat (throttle ~15s) |
+| `q_reconcile` | host fora de `reg_live_hosts` (sem beat há `REG_TTL`=30s) OU `assigned_at` > `ASSIGN_TTL`=900s (teto p/ juiz VIVO: cabe a correção inteira, download incluso) | a cada heartbeat (throttle ~15s) |
 | `upd_reconcile` | host morto OU `claimed_at` > `UPD_TTL`=1800s | a cada heartbeat (throttle ~15s) |
 | `upd_touch_host` | (o oposto) re-carimba `claimed_at` das calibrações do host a cada beat de agente NOVO — calibração longa LEGÍTIMA não é re-enfileirada; o `UPD_TTL` vira proteção só de host morto/agente antigo | a cada heartbeat |
 | register `boot:true` | **na hora**: restart do agente devolve TUDO que estava atribuído ao host (`sched_requeue_host`) | no register de boot |
@@ -180,7 +180,7 @@ os agentes mortos a fila simplesmente pausa (nada expira errado).
 - **Juiz**: `moj judges restart <host>` (sem SSH) ou, na máquina, `make restart`
   (systemd user unit se ativa, senão `run-agent.sh`, que mata a SESSÃO inteira — sem órfãos).
   Jobs em voo morrem limpos e voltam à fila NA HORA via register `boot:true`; a config de
-  partição volta como estava. Rede de segurança p/ queda abrupta: `q_reconcile` (120s) /
+  partição volta como estava. Rede de segurança p/ queda abrupta: `q_reconcile` (900s, ou NA HORA se o beat morreu) /
   `upd_reconcile` (1800s).
 - **Tudo de uma vez**: pode — cada peça recupera sozinha pelos mecanismos acima; a única
   consequência de derrubar todos os agentes é a fila pausar até o primeiro heartbeat voltar.
@@ -191,7 +191,7 @@ os agentes mortos a fila simplesmente pausa (nada expira errado).
 |---|---|---|
 | `RUNDIR` | `…/run` | estado: `registry/`, `queue/<banda>/`, `assigned/<host>/`, `results/`, `updates/`, **`tl/`** |
 | `REG_TTL` | `30` | s; heartbeat mais velho = worker morto |
-| `ASSIGN_TTL` | `120` | s; job reivindicado sem novo beat volta p/ fila |
+| `ASSIGN_TTL` | `900` | s; teto de paciência com juiz **vivo** (juiz morto volta na hora, pelo `REG_TTL`). Tem de caber a correção inteira + o download do pacote: era 120 e revogava job de problema pesado no meio — a submissão recomeçava em outro juiz (incidente 24/08/2026). Teste: `smoke-sched-reclaim.sh` |
 | `COLD_GRACE` | `8` | s; juiz que NÃO tem o problema em cache só reivindica após isso |
 | `POOL_GRACE` | `0` | s; job com `allowed_hosts` (pool): `0` = ESTRITO (só o pool julga; offline = fila espera), `>0` = qualquer juiz após esse tempo |
 | `JUDGE_CACHE` | `~/.cache/moj/problems` | (juiz) cache local de pacotes por problema |

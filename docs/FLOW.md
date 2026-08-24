@@ -144,8 +144,12 @@ run/registry/<host>.json     (cpu, langs, slots, last_seen; vivo = last_seen rec
 ```
 
 O escalonador in-daemon (`sched-lib.sh`) casa job×juiz por **capacidade** e por
-`allowed_hosts`, com claim atômico (`flock`+`mv` p/ `run/assigned/`); job reivindicado sem
-novo beat em `ASSIGN_TTL` (120s) volta p/ a fila. No beat, o lote de jobs agrega por
+`allowed_hosts`, com claim atômico (`flock`+`mv` p/ `run/assigned/`); job de juiz VIVO que não
+devolveu resultado em `ASSIGN_TTL` (**900s**) volta p/ a fila — o teto tem de caber a correção
+INTEIRA, download do pacote incluso (um problema de 737 MB revogado no meio recomeça do zero em
+outro juiz e DUPLICA o trabalho; foi o que segurou uma submissão por 915s no ensaio de 24/08/2026,
+sendo que a correção levou 67s). Juiz MORTO não espera teto: sem beat há `REG_TTL` (30s) o job
+volta na hora, e o `register boot:true` devolve tudo do agente que reiniciou. No beat, o lote de jobs agrega por
 **arquivo** e a resposta sai por `ok_json_slurp` — job com fonte grande (>128 KiB de
 base64) passava do teto por-argumento do jq, o beat respondia 200 vazio e o job quicava
 assigned→TTL→fila p/ sempre (incidente 2026-08-19).
