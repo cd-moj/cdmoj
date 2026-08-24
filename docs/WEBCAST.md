@@ -252,6 +252,56 @@ arquivo vai para a rota certa pelo tipo — o **nome do arquivo é o login** (`f
 
 ---
 
+## Como testar um cliente de placar sem uma prova acontecendo
+
+Quem desenvolve o Animeitor (ou qualquer consumidor do webcast) precisa de um placar de verdade:
+muitos times, veredictos misturados e um freeze para mover de lugar. Dá para fabricar um em
+segundos, com **contest de DEMONSTRAÇÃO** — e só nele: a rota que povoa recusa qualquer contest
+que não tenha `DEMO=1` no conf, porque submissão sintética numa prova de verdade é dado
+envenenado.
+
+```bash
+export MOJ_URL=https://moj.naquadah.com.br
+moj login                                     # conta que pode criar contest
+
+# 1. o contest: 12 problemas, 5h de janela, marcado como demo e fora das listagens
+moj-contest create demo.json --id anim-demo   # spec com  "demo": true, "secret": true
+moj-contest login anim-demo -u <seu>.admin
+
+# 2. o placar: 80 times, 900 submissões, freeze no minuto 240 (de 300)
+moj-contest -c anim-demo seed --teams 80 --subs 900 --seed 42 --freeze-minute 240
+
+# 3. a conta do telão e a chave do webcast
+moj-contest -c anim-demo users add telao.animeitor
+#    entre como ela em /contest/animeitor/ e crie a chave (ou use o admin)
+
+# 4. aponte o cliente
+curl -sO "https://anim-demo.moj.naquadah.com.br/api/v1/contest/webcast?key=mojwc_…"
+```
+
+O que exercitar a partir daí:
+
+- **mover o freeze**: `moj-contest -c anim-demo settings set freeze=<epoch>` — o minuto novo
+  aparece no `lastmilescore` (linha 2 do `contest`) na próxima busca. Lembre que **o pacote vai
+  sempre completo**: aplicar o congelamento é trabalho do SEU cliente, e é isto que se está
+  testando;
+- **desligar o freeze**: `settings set freeze=0` (é o que o botão "Descongelar tudo" faz);
+- **repetir o mesmo cenário**: o `--seed` é determinístico — mesmo número, mesmo placar. Um bug
+  do cliente se reproduz com o mesmo comando;
+- **ver o placar se mexer**: `moj-contest -c anim-demo seed --live 8` manda submissões **de
+  verdade** (passam pelo juiz) como os times semeados, por cima do histórico injetado;
+- **mudar a mistura de veredictos**: `verdicts:{accepted,wrong,tle,rte,ce,pending}` no corpo da
+  rota — `pending` é o que gera o `?` no `runs`.
+
+⚠ Um detalhe que só morde em contest de verdade, mas convém saber: **`FREEZE_TIME` no passado
+suprime o balão de todo AC pós-freeze, e a lápide (`print-requests/.balloon-frozen`) é
+PERMANENTE** — só `balloons_during_freeze` a solta. Num contest de demonstração isso é inócuo;
+não repita a receita numa prova.
+
+Detalhes da rota (parâmetros, limites, resposta): `docs/API.md`, `/contest/admin/seed`.
+
+---
+
 ## Onde está o quê
 
 | arquivo | papel |
@@ -265,3 +315,5 @@ arquivo vai para a rota certa pelo tipo — o **nome do arquivo é o login** (`f
 | `server/etc/team-placeholder.{webp,mp3}` | a foto e a música de fábrica (o contest sobrescreve) |
 | `web/contest/animeitor/` | a página do papel |
 | `server/test/smoke-animeitor.sh` | o contrato inteiro, inclusive o formato do pacote |
+| `server/api/v1/handlers/contest/admin/seed.sh` | povoa um contest **DEMO=1** p/ testar cliente de placar |
+| `server/test/smoke-contest-seed.sh` | a trava do DEMO, o determinismo e o freeze partindo o placar |

@@ -23,9 +23,16 @@ add(){ # add <id> <level> <label> <detail>
 
 # conf num subshell-safe: só os campos que precisamos
 CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; FREEZE_TIME=""; LANGUAGES=""
-SHOWCODE=0; PRINT=""; MANUAL_VERDICT=""; PROBS=(); CONTEST_JUDGES=""
+SHOWCODE=0; PRINT=""; MANUAL_VERDICT=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""
 load_contest_conf "$contest"
 mode="$(contest_score_mode "$contest")"
+
+# --- demonstração -----------------------------------------------------------
+# Contest de demo é indistinguível de uma prova de verdade na tela do admin — e ele aceita
+# submissões SINTÉTICAS pelo /contest/admin/seed. Dizer isso na Central é o que impede alguém
+# de olhar este placar achando que é gente.
+[[ "$DEMO" == 1 ]] && add demo warn "Contest de DEMONSTRAÇÃO" \
+  "DEMO=1 no conf: aceita submissões sintéticas (/contest/admin/seed) e o placar não é de gente de verdade"
 
 # --- janela -----------------------------------------------------------------
 if [[ "$CONTEST_START" =~ ^[0-9]+$ && "$CONTEST_END" =~ ^[0-9]+$ ]] \

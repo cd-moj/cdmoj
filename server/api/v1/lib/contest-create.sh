@@ -67,6 +67,10 @@ cc_settings_conf_lines(){
   v="$(jq -r '.manual_verdict' <<<"$spec")"; [[ "$v" == true ]] && printf 'MANUAL_VERDICT=%q\n' 1
   v="$(jq -r '.allow_late' <<<"$spec")";     [[ "$v" == true ]] && printf 'ALLOWLATEUSER=%q\n' y
   v="$(jq -r '.secret' <<<"$spec")";         [[ "$v" == true ]] && printf 'SECRET=%q\n' 1
+  # DEMO=1 é TRAVA, não modo: nada no sistema muda de comportamento por causa dele. Ele existe
+  # para o `/contest/admin/seed` (dados sintéticos) poder recusar QUALQUER contest que não seja
+  # de demonstração — uma prova de verdade nunca pode ser semeada, nem por engano.
+  v="$(jq -r '.demo' <<<"$spec")";           [[ "$v" == true ]] && printf 'DEMO=%q\n' 1
   v="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; v="${v//$'\n'/}"
   [[ -n "$v" ]] && printf 'LOGIN_UA_SUBSTRING=%q\n' "$v"
   v="$(jq -r '(.score_full_users // []) | map(select(type=="string" and test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"

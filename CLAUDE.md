@@ -504,6 +504,20 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   UTC). Epoch nunca muda: o fuso é só renderização. Script standalone (`score/report-gen.sh`) não
   herda o common ⇒ exporta o TZ ele mesmo.
 - `contests/<c>/conf` é *sourced* → criação/edição escreve com `printf %q`.
+- **Contest de DEMONSTRAÇÃO (`DEMO=1`) e o `/contest/admin/seed`** (2026-08-24): quem desenvolve
+  cliente de placar (o **Animeitor**) precisava de uma prova acontecendo p/ ter dado — o juiz mock
+  só devolve `Accepted,100p`, o `/contest/set-verdict` sobrescreve mas não CRIA submissão, e o
+  fixture de 2000 times do `test/load/` foi ad-hoc e apagado. A rota povoa times e submissões
+  SINTÉTICAS pelos **mesmos escritores do veredicto real** (`user_history_append` +
+  `metrics_recompute` + `score/build.sh`), então o resultado é indistinguível p/ placar,
+  estatística, webcast e balões. **A trava é `DEMO=1` no conf** — gravada só na CRIAÇÃO
+  (`demo:true` no spec; não há toggle) e sem ela a rota é **403 `demo_required`**: submissão
+  sintética em prova de verdade é dado envenenado. Duas coisas que o gerador tem de acertar e
+  falham EM SILÊNCIO: o **probid canônico** (`PROBS[i+4]` = `SC_CANON`; outra grafia deixa a
+  célula em branco no placar enquanto estatística e webcast seguem mostrando) e a **janela
+  determinística** (a parte "decorrida" depende do relógio — é arredondada a minuto cheio e
+  `window_minutes` a fixa, senão o mesmo `seed` dá placares diferentes e ninguém reproduz bug de
+  telão). Receita fim a fim em `docs/WEBCAST.md`; teste: `smoke-contest-seed.sh`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

@@ -4667,6 +4667,29 @@
         "description": "review_judges (1..5, default 2): quantos juízes humanos validam cada veredicto na correção manual. balloons_during_freeze (bool, default false): entregar balão com o placar CONGELADO. O default RETÉM — acerto feito no freeze não vira tarefa de entrega e não é entregue depois; ligar libera retroativamente os retidos (resposta traz balloons_released) e o GET traz balloons_frozen com quantos estão suprimidos."
       }
     },
+    "/contest/admin/seed": {
+      "post": {
+        "tags": ["contest-admin"],
+        "summary": "Povoa um contest de DEMONSTRAÇÃO com times e submissões sintéticas",
+        "description": "Só em contest criado com demo:true (DEMO=1 no conf); em qualquer outro responde 403 demo_required. Existe para quem desenvolve cliente de placar (Animeitor) ter um placar de verdade sem uma prova acontecendo. Escreve pelos MESMOS escritores do veredicto real (user_history_append + metrics_recompute + score/build.sh), é determinístico pelo seed, e freeze_minute grava o FREEZE_TIME (é o que faz placar.txt diferir de placar-full.txt).",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {
+          "teams": {"type": "integer", "minimum": 1, "maximum": 500, "default": 20},
+          "submissions": {"type": "integer", "minimum": 0, "maximum": 20000, "default": 200},
+          "seed": {"type": "integer", "default": 1},
+          "freeze_minute": {"type": "integer"},
+          "window_minutes": {"type": "integer"},
+          "password": {"type": "string", "default": "demo1234"},
+          "verdicts": {"type": "object", "description": "pesos: accepted, wrong, tle, rte, ce, pending"}
+        }}}}},
+        "responses": {
+          "200": {"description": "{teams,teams_created,submissions,seed,freeze_time,window_minutes,password,board_lines,by_verdict{}}"},
+          "403": {"description": "não é admin do contest, ou o contest não é DEMO (demo_required)"},
+          "422": {"description": "parâmetro fora da faixa, contest sem problemas ou janela inválida"}
+        }
+      }
+    },
     "/contest/admin/bank": {
       "get": {
         "tags": [
