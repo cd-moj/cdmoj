@@ -63,6 +63,16 @@ vê nas telas do [tutorial ilustrado](/contest/ajuda/staff.html).
 | **Abrir PDF** | Só abre o PDF, sem imprimir. |
 | **✅ Entregue** | Marca que você entregou o material em mãos ao time. |
 
+#### O que sai na impressora
+
+Primeiro a **folha de rosto** (time, universidade, login, número da tarefa, nº de páginas e uma
+linha para assinar), depois o documento. Código-fonte sai em **fonte monoespaçada, com a
+indentação original e as linhas numeradas** — dá para apontar o dedo e dizer "linha 42".
+
+**Cada página de código se identifica sozinha**, em cima e embaixo: no alto, a data e o nome do
+arquivo; no rodapé, o **login do time**, o arquivo e o número da tarefa. Numa mesa com trinta
+impressões empilhadas, uma folha que se solta da capa continua dizendo de quem é.
+
 #### Modo automático
 
 Há uma **caixa de seleção** de modo automático, e a sua escolha fica guardada. Com o modo automático ligado e a aba aberta, cada nova tarefa é **pega, impressa e marcada** sozinha, sem você clicar.

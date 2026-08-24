@@ -264,6 +264,10 @@ Para pedir uma impressão:
 
 Sai uma folha de rosto com o nome do seu time e um número de conferência. A equipe da sua sede imprime e **entrega em mãos**.
 
+Código-fonte sai em **fonte monoespaçada, com a sua indentação e as linhas numeradas**, e **cada
+página repete o login do seu time** e o nome do arquivo — uma folha que se solta do bolo ainda
+acha o caminho de volta até a sua mesa.
+
 Em **Meus pedidos** você acompanha o status de cada pedido: pendente, processada ou entregue.
 
 ## 8. Backup (`/contest/backup/?c=<id>`)

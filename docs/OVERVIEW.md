@@ -480,7 +480,16 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
   **regex** (sedes distribuídas; lista vazia = vê tudo; o admin configura na aba **Impressão**).
   Fluxo: **pegar** (claim, evita impressão dupla entre abas) → **imprimir** o PDF gerado pelo
   servidor (`pr_build_pdf` em `lib/print.sh`: capa+documento normalizado em A4 via `paps`/`magick`/
-  `libreoffice`+`pdfunite`, build-once com cache; **código sai com linhas numeradas**) → **entregue**.
+  `libreoffice`+`pdfunite`, build-once com cache) → **entregue**.
+  **Código-fonte** (o caso mais comum da sala) passa por `_pr_text2pdf`: `iconv -c` p/ UTF-8 →
+  `nl -ba` → `paps` (**PostScript**, nunca `--format=pdf`: a imagem tem paps 0.6.8) → `ps2pdf` —
+  monoespaçado, indentação preservada, **linhas numeradas** e linha comprida QUEBRA em vez de ser
+  cortada. **Toda página de código se identifica**: no alto, o `--header` do paps (data + nome do
+  arquivo + página); no rodapé, um **selo A4 transparente** (magick `xc:none`) carimbado em todas
+  as páginas por `qpdf --overlay --repeat=1` com **login do time + arquivo + nº da tarefa** — a
+  folha que se solta da capa continua identificada. (O login não cabe no cabeçalho do paps: a
+  fonte dele é fixa e um título de mais de ~14 caracteres sobrepõe a data.) Selo ou conversão que
+  falhem **degradam** — sai o PDF sem rodapé, nunca deixa de imprimir.
   A **folha de rosto** (raster, letras garrafais via `caption:` auto-ajustável que sempre cabe) traz
   o **nome do time/participante** (+ universidade) e o login, o **nº sequencial** (conferência), o
   **nº de páginas do documento** (exceto a capa) e um campo **assinatura + hora**. Há **modo automático**: a aba

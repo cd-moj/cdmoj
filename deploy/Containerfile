@@ -108,7 +108,16 @@ RUN set -eux; \
       | ps2pdf - /tmp/_t.pdf; \
     [ -s /tmp/_t.pdf ] && pdfinfo /tmp/_t.pdf | grep -q '^Pages: *[1-9]' \
       || { echo 'FALTA: texto->PDF (paps|ps2pdf) nao produziu PDF' >&2; exit 1; }; \
-    rm -f /tmp/_t.cpp /tmp/_t.pdf; \
+    # e o RODAPÉ de identificação (login do time) que vai em TODA página do código: selo A4
+    # transparente do magick carimbado pelo `qpdf --overlay`. O cabeçalho do paps não cabe o
+    # login (ele colide com a data), então esta é a única via — se sumir, a folha de código
+    # sai anônima na mesa da sala.
+    magick -size 1240x1754 xc:none -gravity south -pointsize 26 -fill '#333' \
+      -annotate +0+40 'timex - a.cpp' -units PixelsPerInch -density 150 /tmp/_s.pdf; \
+    qpdf /tmp/_t.pdf --overlay /tmp/_s.pdf --repeat=1 -- /tmp/_o.pdf; \
+    [ -s /tmp/_o.pdf ] && pdfinfo /tmp/_o.pdf | grep -q '^Pages: *[1-9]' \
+      || { echo 'FALTA: rodape (magick|qpdf --overlay) nao produziu PDF' >&2; exit 1; }; \
+    rm -f /tmp/_t.cpp /tmp/_t.pdf /tmp/_s.pdf /tmp/_o.pdf; \
     file --version | head -1; \
     python3 -c 'import yaml' ; \
     magick -size 10x10 xc:white /tmp/_x.pdf && [ -s /tmp/_x.pdf ] && rm -f /tmp/_x.pdf; \

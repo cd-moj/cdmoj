@@ -69,6 +69,34 @@ echo "== o acento sobrevive ao caminho (iconv -> paps) =="
 ck "latin1 e utf8 rendem o mesmo nº de páginas" \
    '[[ "$(pages "$C/print-requests/req3.combined.pdf")" == "$(pages "$C/print-requests/req2.combined.pdf")" ]]'
 
+echo "== o RODAPÉ de identificação (login do time) em TODA página =="
+# O cabeçalho do paps é `<data> <título> Page N` e o título NÃO cabe o login: passando de ~14
+# caracteres ele SOBREPÕE a data (medido em 4 tamanhos de fonte; a fonte do cabeçalho é fixa e
+# não acompanha o `--font`). Por isso o login vai num selo A4 transparente carimbado por
+# `qpdf --overlay --repeat=1`. Sem isso a folha de código que se solta da capa fica anônima na
+# mesa da sala — que é justamente o que o rodapé existe p/ evitar.
+if command -v qpdf >/dev/null 2>&1; then
+  # arquivo comprido de propósito: o rodapé tem de valer em TODAS as páginas, não só na 1ª
+  seq 1 200 | sed 's/^/int linha_/; s/$/(void){ return 0; }/' > "$FIX/longo.cpp"
+  mkdir -p "$FIX/w1" "$FIX/w2"
+  _pr_text2pdf "$FIX/longo.cpp" "$FIX/sem.pdf" "longo.cpp" ""                  "$FIX/w1" 2>/dev/null
+  _pr_text2pdf "$FIX/longo.cpp" "$FIX/com.pdf" "longo.cpp" "time-x - longo.cpp" "$FIX/w2" 2>/dev/null
+  ck "com e sem rodapé têm o mesmo nº de páginas" '[[ "$(pages "$FIX/sem.pdf")" == "$(pages "$FIX/com.pdf")" ]]'
+  ck "o arquivo comprido rendeu várias páginas"   '(( $(pages "$FIX/com.pdf") >= 3 ))'
+  ck "o rodapé mudou o PDF"                       '[[ "$(stat -c%s "$FIX/com.pdf")" -ne "$(stat -c%s "$FIX/sem.pdf")" ]]'
+  # o selo é uma imagem, e ela tem de aparecer em TODAS as páginas — o erro clássico do overlay
+  # é carimbar só a 1ª. ⚠ contar LINHAS do `pdfimages -list` dá o dobro: o selo é transparente,
+  # então cada página lista `image` + `smask`. O que vale é o conjunto de PÁGINAS citadas.
+  if command -v pdfimages >/dev/null 2>&1; then
+    ck "o selo aparece em todas as páginas (--repeat=1)" \
+       '[[ "$(pdfimages -list "$FIX/com.pdf" 2>/dev/null | awk "/^ *[0-9]/{print \$1}" | sort -u | wc -l)" == "$(pages "$FIX/com.pdf")" ]]'
+  fi
+  # e o pedido de verdade, pela cadeia inteira, tem de continuar saindo
+  ck "pedido real com rodapé continua com capa + documento" '(( $(pages "$C/print-requests/req2.combined.pdf") >= 2 ))'
+else
+  echo "  (pulado: sem qpdf — o rodapé degrada p/ o PDF sem selo, de propósito)"
+fi
+
 echo "== cache: build que falhou NÃO fica servido para sempre =="
 # simula o estado que o bug do paps deixou em produção: capa-só em cache e build_ok=false
 id=req1; cache="$C/print-requests/$id.combined.pdf"; meta="$C/print-requests/$id.json"

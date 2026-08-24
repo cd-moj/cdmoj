@@ -221,11 +221,18 @@ pr_resolve_univ() {  # <c> <login>
 #    passou pela revisão e chegou à sala em dia de prova (mesma família do jq 1.7 × 1.8: o dev
 #    aceita, a imagem recusa). PostScript é o denominador comum de todas as versões.
 #
-# O arquivo numerado é gravado com o NOME QUE O TIME DEU e o paps o recebe por caminho
-# relativo: com `--header`, cada página sai "<data>  ribas-ac.cpp  Page 1". Com trinta folhas
-# empilhadas na mesa, é o cabeçalho que diz de quem é o papel.
-_pr_text2pdf() {
-  local src="$1" out="$2" name="$3" work="$4" err="${5:-/dev/null}" enc
+# IDENTIFICAÇÃO EM TODA PÁGINA, em dois lugares porque um só não coube:
+#   topo    (paps `--header`)  <data>   <nome-do-arquivo>   Page N
+#   rodapé  (selo do qpdf)     <login do time> - <arquivo> - tarefa #N
+# Com trinta folhas empilhadas na mesa, e uma delas se soltando da folha de rosto, é isso que
+# diz de quem é o papel.
+_pr_text2pdf() {  # <src> <out.pdf> <nome-do-arquivo> <rodapé> <workdir> [<err>]
+  local src="$1" out="$2" name="$3" foot="$4" work="$5" err="${6:-/dev/null}" enc fr
+  # o `--header` do paps imprime O NOME DO ARQUIVO que ele recebeu (não há opção de título
+  # nesta versão), então o nome do arquivo numerado é o que aparece no alto de cada página.
+  # ⚠ CURTO: a data que o paps escreve à esquerda come metade da linha, a fonte do cabeçalho é
+  # FIXA (não acompanha o `--font`) e um título de mais de ~14 caracteres SOBREPÕE a data —
+  # medido. Por isso o login do time não cabe aqui: ele vai no rodapé, logo abaixo.
   name="$(basename -- "${name:-arquivo}" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$name" ]] || name=arquivo
   enc="$(file -b --mime-encoding "$src" 2>/dev/null)"
   { case "$enc" in
@@ -236,6 +243,26 @@ _pr_text2pdf() {
   [[ -s "$work/$name" ]] || return 1
   ( cd "$work" && paps --header --paper=a4 --font='Monospace 11' -- "$name" 2>>"$err" ) \
     | ps2pdf - "$out" 2>>"$err"
+  [[ -s "$out" ]] || return 1
+
+  # O RODAPÉ é um SELO: uma página A4 TRANSPARENTE (`xc:none`) que o `qpdf --overlay --repeat=1`
+  # carimba em TODAS as páginas — o `--repeat` é o ponto, senão só a primeira folha sairia
+  # identificada. O selo entra no PDF uma única vez (as páginas referenciam o mesmo XObject),
+  # então o custo não cresce com o tamanho da listagem.
+  # ⚠ o texto do `-annotate` é INTERPRETADO pelo ImageMagick: `%` é escape de propriedade e
+  # `@arquivo` manda LER o arquivo. O nome do arquivo vem do time — saneie antes de anotar.
+  # Se magick ou qpdf falharem, fica o PDF sem rodapé: o papel sai correto, só menos
+  # identificado — nunca deixar de imprimir por causa do carimbo.
+  foot="$(printf '%s' "$foot" | tr -cd 'A-Za-z0-9._ #-' | tr -s ' ' | cut -c1-120)"
+  [[ -n "$foot" ]] || return 0
+  fr="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans$/{print $2; exit}')"
+  [[ -n "$fr" ]] || fr="$(magick -list font 2>/dev/null | awk -F': ' '/Font: /{print $2; exit}')"
+  local -a st=( magick -size 1240x1754 xc:none -gravity south -pointsize 26 -fill '#333' )
+  [[ -n "$fr" ]] && st+=( -font "$fr" )
+  st+=( -annotate +0+40 "$foot" -units PixelsPerInch -density 150 "$work/stamp.pdf" )
+  "${st[@]}" 2>>"$err" && [[ -s "$work/stamp.pdf" ]] \
+    && qpdf "$out" --overlay "$work/stamp.pdf" --repeat=1 -- "$work/stamped.pdf" 2>>"$err" \
+    && [[ -s "$work/stamped.pdf" ]] && mv -f "$work/stamped.pdf" "$out"
   [[ -s "$out" ]]
 }
 
@@ -245,11 +272,16 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   local c="$1" id="$2" src="$3" meta="$4" cache="$5"
   local work; work="$(mktemp -d)" || return 1
   trap 'rm -rf "$work"' RETURN
-  local doc="$work/doc.pdf" docok=0 mime enc fn ext inp errf
+  local doc="$work/doc.pdf" docok=0 mime enc fn ext inp errf foot lg sq
   # o stderr das conversões vai para <id>.err quando algo falha — antes ia todo p/ /dev/null,
   # e a única pista de um pedido que não converteu era o "ATENÇÃO" impresso na capa
   errf="${meta%.json}.err"; : > "$errf"
   fn="$(jq -r '.filename // "arquivo"' "$meta" 2>/dev/null)"
+  # rodapé das páginas de código: LOGIN do time + arquivo + nº da tarefa (ver _pr_text2pdf).
+  # É o que identifica a folha que se separou da capa na mesa da sala.
+  lg="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
+  sq="$(jq -r '.seq // 0' "$meta" 2>/dev/null)"
+  foot="$(printf '%s  -  %s  -  tarefa #%s' "${lg:-?}" "$fn" "${sq:-0}" | tr -d '\n')"
 
   mime="$(file -b --mime-type "$src" 2>/dev/null)"
   case "$mime" in
@@ -264,11 +296,11 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
         -units PixelsPerInch -density 150 "$doc" 2>/dev/null && [[ -s "$doc" ]] && docok=1 ;;
     text/*)
       # o caso mais comum da sala: .c .cpp .py .java .kt .txt — ver _pr_text2pdf
-      _pr_text2pdf "$src" "$doc" "$fn" "$work" "$errf" && docok=1 ;;
+      _pr_text2pdf "$src" "$doc" "$fn" "$foot" "$work" "$errf" && docok=1 ;;
     *)
       enc="$(file -b --mime-encoding "$src" 2>/dev/null)"
       if [[ "$enc" != binary ]]; then
-        _pr_text2pdf "$src" "$doc" "$fn" "$work" "$errf" && docok=1
+        _pr_text2pdf "$src" "$doc" "$fn" "$foot" "$work" "$errf" && docok=1
       else
         # office/desconhecido: dá uma extensão real ao input p/ o soffice reconhecer e
         # prever o nome de saída (sem depender de glob, já que common.sh usa noglob).
