@@ -225,7 +225,15 @@ Problemas; as demais ficam planejadas até você promover.
    **crie a próxima** (`oficial`): janela, freeze e a lista de problemas da prova de verdade.
    A lista fica guardada e só entra no ar na promoção — ninguém vê os problemas da prova antes.
 3. **Rode o aquecimento.** O time vê uma faixa fixa dizendo que é aquecimento e que aquele placar
-   não é o da prova.
+   não é o da prova. Trate-o como **ensaio geral da operação inteira**: se o login abre no minuto
+   do início (modelo ICPC), esse é o único momento em que cada papel toca as telas de verdade sem
+   nada em jogo. Entregue antes a cada pessoa o tutorial do papel dela
+   ([/contest/ajuda/](/contest/ajuda/)) e peça que rode a própria lista: o time (entrar, abrir
+   problema, enviar de propósito, clarification, impressão, backup, placar), a **equipe de sala**
+   (impressora, o **pop-up** liberado, kiosk, o trajeto), o **chefe de sede** (todo time da sede
+   entrou pelo menos uma vez), os **juízes** (opções de veredicto, log/código, a dupla lendo
+   igual), o **chefe** (nº de juízes, auto-veredicto, alarme de conflito) e o **telão** (projetor,
+   chave de webcast no Animeitor, fotos e músicas).
 4. Quando terminar, clique **🚀 Promover**. O MOJ confere o checklist e, se estiver tudo pronto:
    - **arquiva** a rodada — submissões (com código-fonte), veredictos, log do juiz, placar,
      estatísticas, clarifications, notícias, tarefas do staff e os logs de acesso ficam guardados
