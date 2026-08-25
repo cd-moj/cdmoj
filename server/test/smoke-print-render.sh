@@ -69,6 +69,33 @@ echo "== o acento sobrevive ao caminho (iconv -> paps) =="
 ck "latin1 e utf8 rendem o mesmo nº de páginas" \
    '[[ "$(pages "$C/print-requests/req3.combined.pdf")" == "$(pages "$C/print-requests/req2.combined.pdf")" ]]'
 
+echo "== NOME HOSTIL: espaço e o '(N)' do navegador têm de sair no papel =="
+# Irmão do furo da SUBMISSÃO (`l(1).cpp` dava Compilation Error, 2026-08-24): a impressão recebe
+# o MESMO nome, do mesmo campo de arquivo do navegador. Aqui ele não vira comando, mas vira
+# ARQUIVO — o `_pr_text2pdf` grava o texto numerado em `$work/<nome>` e o paps o abre —, por
+# isso a defesa é o `tr -cd` da própria função (a da PORTA, no handler, mantém o espaço: o nome
+# é a etiqueta que o staff usa p/ casar papel com time).
+# A asserção é o Nº DE PÁGINAS, nunca o texto extraído: no paps 0.6.8 da IMAGEM o `pdftotext`
+# não devolve NADA (ele desenha glifos) — um teste que casasse o código sairia verde no dev e
+# vermelho na produção, que é a armadilha que este arquivo inteiro existe p/ evitar.
+i=100
+for nm in "l(1).cpp" "minha sol (2).cpp" "Solução.cpp" "arquivo com espaço.cpp"; do
+  i=$((i+1)); id="h$i"
+  mkreq "$id" "$FIX/utf8.cpp" "$nm"
+  out="$(pr_build_pdf pr "$id")"; rc=$?
+  meta="$C/print-requests/$id.json"
+  ck "[$nm] imprime (capa + documento)" '[[ $rc -eq 0 && -s "$out" ]] && (( $(pages "$out") >= 2 ))'
+  ck "[$nm] build_ok=true"              '[[ "$(jq -r .build_ok "$meta")" == true ]]'
+  ck "[$nm] mesmo papel do nome normal" '[[ "$(pages "$out")" == "$(pages "$C/print-requests/req2.combined.pdf")" ]]'
+done
+# COLISÃO: o nome do aluno vira arquivo DENTRO do workdir, onde já moram doc.pdf/cover.pdf/
+# stamp.pdf. Um .cpp chamado "doc.pdf" faz `$work/<nome>` == `$out` do _pr_text2pdf — o ps2pdf
+# grava no arquivo que o paps está lendo. Não dispara (o paps lê a entrada inteira antes de
+# emitir), mas depende do buffer de um programa de terceiro: fica pinado.
+mkdir -p "$FIX/wc"
+_pr_text2pdf "$FIX/utf8.cpp" "$FIX/wc/doc.pdf" "doc.pdf" "" "$FIX/wc" 2>/dev/null
+ck "[colisão doc.pdf] sai PDF válido" '[[ -s "$FIX/wc/doc.pdf" ]] && (( $(pages "$FIX/wc/doc.pdf") >= 1 ))'
+
 echo "== o RODAPÉ de identificação (login do time) em TODA página =="
 # O cabeçalho do paps é `<data> <título> Page N` e o título NÃO cabe o login: passando de ~14
 # caracteres ele SOBREPÕE a data (medido em 4 tamanhos de fonte; a fonte do cabeçalho é fixa e

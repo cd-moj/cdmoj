@@ -54,6 +54,30 @@ call /contest/staff/queue GET '' adm 'contest=sc'
 ck "fila reflete os estados"     '[[ "$(jq -r "[.requests[]|select(.status==\"delivered\")]|length" <<<"$BODY")" == 2 ]]'
 ck "auditoria registrou as ações" 'grep -q "print-processed" "$C/var/admin-audit.log" && grep -q "balloon-delivered" "$C/var/admin-audit.log" && grep -q "balloon-task" "$C/var/admin-audit.log"'
 
+echo "== a PORTA da impressão: nome de arquivo do aluno (espaço, '(N)', traversal) =="
+# O aluno manda `f.name` do navegador (web/contest/print/print.js) — o MESMO campo que na
+# submissão trouxe o `l(1).cpp` que virava Compilation Error (2026-08-24). Aqui o nome não vira
+# comando, mas é a ETIQUETA que o staff lê p/ casar papel com time, e a jusante ele vira ARQUIVO
+# dentro do workdir do render. O `POST /contest/print` não tinha teste nenhum.
+# ⚠ O ESPAÇO é PRESERVADO de propósito: "minha sol.cpp" é nome legítimo e mutilar a etiqueta
+# piora a mesa da sala. Quem tira o espaço é o `_pr_text2pdf`, onde o nome vira caminho.
+B64C="$(printf 'int main(){return 0;}' | base64 -w0)"
+prname(){ # <nome enviado> -> nome gravado no meta
+  call /contest/print POST "$(jq -cn --arg f "$1" --arg b "$B64C" '{filename:$f,file_b64:$b}')" alu2 'contest=sc'
+  jq -r '.filename // "SEM-META"' "$C/print-requests/$(jq -r '.id // "x"' <<<"$BODY").json" 2>/dev/null; }
+printf 'CONTEST=sc\nLOGIN=aluno2\nUSERFULLNAME=Aluno Dois\nLOGINAT=1\n' > "$SESS/alu2"
+ck "espaço + (N) é aceito e vira etiqueta legível" '[[ "$(prname "minha sol (2).cpp")" == "minha sol 2.cpp" ]]'
+ck "o (N) do navegador sai"                        '[[ "$(prname "l(1).cpp")" == "l1.cpp" ]]'
+ck "nada de traversal na etiqueta"                 '[[ "$(prname "../../etc/passwd")" == "passwd" ]]'
+ck "nome que zera não fica vazio"                  '[[ "$(prname "()")" == "arquivo" ]]'
+call /contest/staff/queue GET '' adm 'contest=sc'
+ck "os quatro entram na fila (+ o pr1 do fixture)" '[[ "$(jq -r "[.requests[]|select(.login==\"aluno2\" and .kind==\"print\")]|length" <<<"$BODY")" == 5 ]]'
+# o anexo cru volta com o nome na Content-Disposition — espaço dentro de aspas é válido (RFC 6266)
+PRID="$(jq -r '[.requests[]|select(.filename=="minha sol 2.cpp")][0].id' <<<"$BODY")"
+RAW="$(PATH_INFO=/contest/print-file REQUEST_METHOD=GET QUERY_STRING="contest=sc&id=$PRID" \
+        HTTP_AUTHORIZATION="Bearer adm" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>/dev/null | head -5)"
+ck "download do anexo traz o nome com espaço" 'grep -q "filename=\"minha sol 2.cpp\"" <<<"$RAW"'
+
 echo "== idempotência do reconcile =="
 call /contest/staff/queue GET '' adm 'contest=sc'
 ck "não duplica o balão"         '[[ "$(jq -r "[.requests[]|select(.kind==\"balloon\")]|length" <<<"$BODY")" == 1 ]]'
