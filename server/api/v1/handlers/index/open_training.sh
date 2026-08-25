@@ -64,9 +64,10 @@ while IFS=: read -r relat user prob lang resp epoch md5; do
   name="$(user_fullname_of treino "$user")"
   V+=( "$(jq -cn --arg pid "$prob" --arg title "$(_title "$prob")" \
       --arg user "$user" --arg name "$name" --argjson at "${epoch:-0}" \
+      --argjson hp "$([[ -f "$(photo_file treino "$user")" ]] && echo true || echo false)" \
       --arg url "/treino/problema/?id=${prob//\#/%23}" \
       '{problem_id:$pid, problem_title:$title,
-        user:{username:$user, name:$name}, solved_at:$at, url:$url}')" )
+        user:{username:$user, name:$name, has_photo:$hp}, solved_at:$at, url:$url}')" )
 done <<< "$(grep -F 'Accepted' "$HIST" | sort -t: -k6,6n | tail -n 60 | tac)"
 
 # --- most_solved_week: por problema, submissões desde o último domingo -----
@@ -119,8 +120,11 @@ while read -r total user; do
   name="$(user_fullname_of treino "$user")"
   read_profile treino "$user"
   [[ "$PROFILE_PUBLIC" == "false" ]] && continue
+  # has_photo p/ o `avatarEl` não pedir foto de quem não tem (ver auth/status.sh): a home é a
+  # página mais visitada e cada 404 desses é um fork de bash sob fcgiwrap.
   U+=( "$(jq -cn --arg user "$user" --arg name "$name" --arg fe "$FAVORITE_EDITOR" --argjson n "$total" \
-      '{username:$user, name:$name, favorite_editor:$fe, solved_count:$n}')" )
+      --argjson hp "$([[ -f "$(photo_file treino "$user")" ]] && echo true || echo false)" \
+      '{username:$user, name:$name, favorite_editor:$fe, solved_count:$n, has_photo:$hp}')" )
 done <<< "$(awk -F: '$5 ~ /Accepted/ {print $2 ":" $3}' "$HIST" \
             | sort -u | cut -d: -f1 | sort | uniq -c | sort -rn | head -n40 \
             | awk '{print $1, $2}')"

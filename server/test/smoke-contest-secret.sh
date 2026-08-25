@@ -57,6 +57,18 @@ ck "status não expõe o secreto" '[[ "$(jq -r "[.queue.lists[].contest]|index(\
 ck "status lista o visível"     '[[ "$(jq -r "[.queue.lists[].contest]|index(\"vis-c\")" <<<"$BODY")" != null ]]'
 ck "total conta os dois"        '[[ "$(jq -r .queue.total_pending <<<"$BODY")" == 2 ]]'
 
+# O `/index/status` agrega o `.pending-count` de TODOS os contests numa varredura só (eram
+# ~1.500 forks e 7 s a frio, 24/08). O que pode dar errado em silêncio é a validade do cache,
+# então ela é pinada aqui: o cache MANDA, e o `.score-dirty` o derruba.
+rm -f "$FIX/run/status.json"
+mkdir -p "$FIX/vis-c/var"; printf "9\n" > "$FIX/vis-c/var/.pending-count"          # mente: history tem 1, cache diz 9
+call /index/status GET '' '' ''
+ck "usa o .pending-count (uma varredura)" '[[ "$(jq -r "[.queue.lists[]|select(.contest==\"vis-c\").pending]|first" <<<"$BODY")" == 9 ]]'
+rm -f "$FIX/run/status.json"
+sleep 1; touch "$FIX/vis-c/var/.score-dirty"            # sujo: tem de recontar o history
+call /index/status GET '' '' ''
+ck "o .score-dirty derruba o cache"       '[[ "$(jq -r "[.queue.lists[]|select(.contest==\"vis-c\").pending]|first" <<<"$BODY")" == 1 ]]'
+
 echo "== placar e visual exigem sessão do contest =="
 for ep in score balloons regions teams-meta; do
   call "/contest/$ep" GET '' '' 'contest=sec-c'

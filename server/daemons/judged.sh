@@ -603,6 +603,32 @@ drain_spool() {
 _RECONCILE_LAST=0
 _recon_tried_dir="$RUNDIR/.reconciled"   # ids já re-enfileirados (1 tentativa por id)
 
+# --- GC do spool JÁ PROCESSADO ---------------------------------------------------------------
+# O `submissions-done/` guarda o job depois de processado — com a FONTE dentro e, nos `result`,
+# o relatório inteiro em base64. Nunca era limpo: em 24/08/2026 eram **7,4 GB** em 6.789
+# arquivos, o mais antigo de 12 de ABRIL (37 passavam de 50 MB; o maior tinha 200 MB).
+# É evidência de incidente — foi lendo isto que se explicou a fila travada de julho —, então a
+# retenção é generosa e a varredura é preguiçosa, no molde do `run/testrun/`.
+# `SPOOL_DONE_KEEP_DAYS=0` desliga. Apaga só o que JÁ SAIU do pipeline: nunca toca em $SPOOLDIR.
+: "${SPOOL_DONE_KEEP_DAYS:=30}"
+: "${SPOOL_GC_EVERY_S:=3600}"
+_SPOOL_GC_LAST=0
+
+spool_done_gc() {
+  local now="$EPOCHSECONDS" n
+  (( SPOOL_DONE_KEEP_DAYS > 0 )) || return 0
+  (( now - _SPOOL_GC_LAST >= SPOOL_GC_EVERY_S )) || return 0
+  _SPOOL_GC_LAST="$now"
+  [[ -d "$SPOOLDONEDIR" ]] || return 0
+  # um `find` só: imprime um ponto por arquivo removido e o `wc -c` os conta (contar por linhas
+  # seria frágil — nome de spool não tem \n, mas o ponto não depende disso).
+  n="$(find "$SPOOLDONEDIR" -maxdepth 1 -type f -mtime "+$SPOOL_DONE_KEEP_DAYS" \
+        -printf . -delete 2>/dev/null | wc -c)"
+  n="${n//[^0-9]/}"
+  (( ${n:-0} > 0 )) && log "spool-gc: removidos $n arquivo(s) de submissions-done/ com mais de ${SPOOL_DONE_KEEP_DAYS}d"
+  return 0
+}
+
 reconcile_stale_pending() {
   local now="$EPOCHSECONDS"
   (( now - _RECONCILE_LAST >= RECONCILE_EVERY_S )) || return 0
@@ -612,6 +638,12 @@ reconcile_stale_pending() {
   for cdir in "$CONTESTSDIR"/*/; do
     c="${cdir%/}"; c="${c##*/}"
     valid_contest_id "$c" || continue
+    # contest de DEMONSTRAÇÃO: o `/contest/admin/seed` cria pendente DE PROPÓSITO (`verdicts.
+    # pending`) — é a célula "?" que quem desenvolve telão precisa para testar o freeze. Sem esta
+    # linha o reconciliador os varria 15 min depois (49 viraram Judge Error no zz-seed-teste em
+    # 24/08) e o cliente ficava testando contra um placar que muda sozinho. Não há o que
+    # reconciliar aqui: submissão sintética nunca teve job no pipeline.
+    [[ "$(conf_value "$c" DEMO)" == 1 ]] && continue
     n="$(count_pending "$c" 2>/dev/null)"; n="${n//[^0-9]/}"
     [[ -n "$n" && "$n" -gt 0 ]] || continue
     local hf login line tempo prob lang se id age
@@ -674,6 +706,7 @@ watch_loop() {
       beat
       while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
       reconcile_stale_pending
+      spool_done_gc
       inotifywait -q -e create -e moved_to -t "${WATCH_REDRAIN_SECS:-30}" "$SPOOLDIR" >/dev/null 2>&1
       rc=$?
       # rc 0=evento, 2=timeout (re-drena no topo). Erro real (1/outros): evita busy-loop.
@@ -685,6 +718,7 @@ watch_loop() {
       beat
       while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
       reconcile_stale_pending
+      spool_done_gc
       sleep 1
     done
   fi
@@ -721,6 +755,21 @@ main() {
       # roda o reconciliador de pendência velha UMA vez e sai (operação/testes)
       _RECONCILE_LAST=-999999
       reconcile_stale_pending
+      exit 0
+      ;;
+    --gc)
+      # limpa o spool processado UMA vez e sai (operação/testes). `--gc-dry` só LISTA.
+      _SPOOL_GC_LAST=-999999
+      spool_done_gc
+      exit 0
+      ;;
+    --gc-dry)
+      # o que o --gc apagaria, sem apagar (é o que se olha antes da primeira limpeza)
+      find "$SPOOLDONEDIR" -maxdepth 1 -type f -mtime "+${SPOOL_DONE_KEEP_DAYS:-30}" \
+        -printf '%TY-%Tm-%Td  %10s  %f\n' 2>/dev/null | sort | tail -20
+      printf 'total: %s arquivo(s), %s\n' \
+        "$(find "$SPOOLDONEDIR" -maxdepth 1 -type f -mtime "+${SPOOL_DONE_KEEP_DAYS:-30}" 2>/dev/null | wc -l)" \
+        "$(find "$SPOOLDONEDIR" -maxdepth 1 -type f -mtime "+${SPOOL_DONE_KEEP_DAYS:-30}" -printf '%s\n' 2>/dev/null | awk '{s+=$1} END{printf "%.1f GB", s/1073741824}')"
       exit 0
       ;;
     ""|--watch|--daemon)

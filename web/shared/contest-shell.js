@@ -15,7 +15,7 @@ export function mountContestUserChip(st) {
   if (!anchor || !anchor.parentNode) return;
   anchor.parentNode.insertBefore(
     el('span', { id: 'contestUserChip', class: 'user-chip small', style: 'margin-right:.3rem', title: st.login },
-      avatarEl(st.login, st.name, 22), el('span', {}, st.name || st.login)),
+      avatarEl(st.login, st.name, 22, st.has_photo), el('span', {}, st.name || st.login)),
     anchor);
 }
 

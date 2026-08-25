@@ -15,12 +15,29 @@ if [[ -f "$CACHE" ]]; then
 fi
 
 # --- fila por lista (users/*/history via count_pending) + spool ---
+# ⚠ UMA VARREDURA, nunca um fork por contest — a rota levava **7 s a frio** (medido em produção,
+# 24/08/2026, com 1.485 contests). O laço em si custa 0,02 s: quem cobrava era o `$(cat)` que o
+# `count_pending` faz em CADA contest (3,9 s medidos; `$( )` forka mesmo quando o corpo é
+# builtin). Hoje o `.pending-count` de todos sai num `awk` só (0,04 s) e o `count_pending` de
+# verdade fica para quem está SUJO (`.score-dirty` mais novo) ou sem cache — e essa comparação é
+# `[[ -nt ]]`, builtin, sem fork. Mesma doutrina do `sc_cells` e da galeria de fotos: agregado de
+# N arquivos é uma varredura.
 set +o noglob; shopt -s nullglob
+declare -A PEND=()
+while IFS=$'\t' read -r _pc _pn; do PEND["$_pc"]="$_pn"; done < <(
+  find "$CONTESTSDIR" -mindepth 3 -maxdepth 3 -name .pending-count -print0 2>/dev/null \
+    | xargs -0 -r awk 'FNR==1 { n=$0; gsub(/[^0-9]/,"",n); split(FILENAME,p,"/");
+                                print p[length(p)-2] "\t" (n=="" ? "0" : n) }' 2>/dev/null)
 declare -a LISTS; total=0
 for cdir in "$CONTESTSDIR"/*/; do
   cdir="${cdir%/}"; cid="${cdir##*/}"
   [[ -f "$cdir/conf" ]] || continue
-  n="$(count_pending "$cid")"; n="${n//[^0-9]/}"; n="${n:-0}"
+  n="${PEND[$cid]-}"
+  # sem cache, ou cache vencido pelo `.score-dirty`: recalcula ESTE (o caminho caro, agora raro)
+  if [[ -z "$n" || "$cdir/var/.score-dirty" -nt "$cdir/var/.pending-count" ]]; then
+    n="$(count_pending "$cid")"
+  fi
+  n="${n//[^0-9]/}"; n="${n:-0}"
   if (( n > 0 )); then
     ((total+=n))
     # contest SUPER SECRETO: conta no total mas NÃO expõe id/nome na página pública

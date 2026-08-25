@@ -101,7 +101,7 @@ async function loadTraining() {
     if (u.favorite_editor) nameWrap.append(el('span', { class: 'ed-tag' }, '⌨ ' + editorLabel(u.favorite_editor)));
     t10.append(el('a', { class: 'rank-row r' + (i + 1), href: '/treino/stat/?user=' + encodeURIComponent(login) },
       el('span', { class: 'rank-num' }, String(i + 1)),
-      avatarEl(login, u.name, 30),
+      avatarEl(login, u.name, 30, u.has_photo),
       nameWrap,
       el('span', { class: 'rank-chip' }, (u.solved_count ?? u.solved ?? u.count ?? 0) + ' ✓')));
   });
@@ -143,7 +143,7 @@ async function loadTraining() {
     const login = (r.user && (r.user.username || r.user.login)) || r.login || '';
     const who = (r.user && (r.user.name || r.user.username)) || r.login || '';
     const sub = el('span', { class: 'feed-sub' });
-    if (login) sub.append(avatarEl(login, who, 18));
+    if (login) sub.append(avatarEl(login, who, 18, r.user && r.user.has_photo));
     sub.append(el('span', { class: 'feed-who' }, who || '—'));
     if (r.solved_at) sub.append(el('span', { class: 'feed-time' }, relTime(r.solved_at)));
     rc.append(el('a', { class: 'feed-item', href: r.url || ('/treino/problema/?id=' + encodeURIComponent(pid)) },

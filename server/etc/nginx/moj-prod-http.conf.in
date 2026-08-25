@@ -15,6 +15,11 @@ map $arg_id $moj_legacy_probid {
     "~^(?<lorg>[^.]+)\.(?<lslug>.+)$" "$lorg%23$lslug";
 }
 
+# tempo de resposta no log — MESMO formato do moj-prod.conf.in (só um dos dois é instalado)
+log_format moj '$remote_addr - $remote_user [$time_local] "$request" '
+               '$status $body_bytes_sent "$http_referer" "$http_user_agent" '
+               'rt=$request_time urt=$upstream_response_time';
+
 server {
     listen      80;
     listen      [::]:80;
@@ -22,7 +27,7 @@ server {
 
     location /.well-known/acme-challenge/ { root /var/www/html; }
 
-    access_log /var/log/nginx/moj.access.log;
+    access_log /var/log/nginx/moj.access.log moj;
     error_log  /var/log/nginx/moj.error.log warn;
 
     include @SNIPPET@;

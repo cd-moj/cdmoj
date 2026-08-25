@@ -18,6 +18,17 @@ map $host $moj_contest_host {
     @SUBDOMAIN_MAP@
 }
 
+# TEMPO DE RESPOSTA no log. Sem isto não se audita latência DEPOIS do fato: a auditoria de
+# 24/08/2026 teve de medir ao vivo a rota lenta (`/index/status`, 7 s a frio) porque o log não
+# guardava tempo nenhum — com o pico do dia já passado, não havia como saber o que a sala sentiu.
+# `$request_time` é o total visto pelo cliente; `$upstream_response_time` é o que o fcgiwrap
+# levou. A diferença entre os dois separa "a API está lenta" de "a rede/o corpo é grande".
+# ⚠ Os dois campos vão no FIM: as 9 primeiras colunas continuam as do formato combined, então
+# todo comando de análise que já existe (e os logs velhos) seguem valendo.
+log_format moj '$remote_addr - $remote_user [$time_local] "$request" '
+               '$status $body_bytes_sent "$http_referer" "$http_user_agent" '
+               'rt=$request_time urt=$upstream_response_time';
+
 # id de problema LEGADO (pontilhado, "org.slug") -> canônico URL-encoded ("org%23slug").
 # Usado pelo redirect de /new/treino/problem/ (moj-app.conf.in). Só o PRIMEIRO ponto vira
 # %23 (o slug pode ter pontos); %23 = '#' — literal no return viraria fragment.
@@ -52,7 +63,7 @@ server {
     ssl_session_cache   shared:MOJSSL:10m;
     ssl_session_timeout 1d;
 
-    access_log /var/log/nginx/moj.access.log;
+    access_log /var/log/nginx/moj.access.log moj;
     error_log  /var/log/nginx/moj.error.log warn;
 
     include @SNIPPET@;

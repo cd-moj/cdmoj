@@ -322,7 +322,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{logged_in, login, name, is_admin, is_judge, is_staff, is_cstaff, is_chief} (.cstaff = chefe de sede, não herda is_staff)"
+            "description": "{logged_in, login, name, is_admin, is_judge, is_staff, is_cstaff, is_chief, has_photo} (.cstaff = chefe de sede, não herda is_staff; has_photo evita que o avatar peça uma foto inexistente)"
           }
         }
       }

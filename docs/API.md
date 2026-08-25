@@ -9,7 +9,7 @@ Horários em **EPOCH**. IDs validados contra path-traversal.
 | Rota | Método | Auth | I/O |
 |---|---|---|---|
 | `/auth/login?contest=<c>` | POST | — | body `{username,password}` → `{token,logged_in,username,name,contest,server_utc}`. **Contest (≠ treino)** inclui o kit da **submissão OFFLINE** do `moj-comp`: `offline_pubkey_pem` (pública RSA-4096 do contest, gerada lazy em `contests/<c>/secrets/`) e `beacon` (carimbo de tempo assinado — ver `/contest/beacon`). `server_utc` permite à CLI medir o desvio do relógio local. |
-| `/auth/status?contest=<c>` | GET | Bearer | `{logged_in,login,name,contest,is_admin,is_judge,is_staff,is_cstaff,is_chief}` (`.cjudge` = juiz-chefe → `is_judge:true,is_chief:true`; `.cstaff` = chefe de sede → `is_cstaff:true`, **sem** herdar `is_staff`) |
+| `/auth/status?contest=<c>` | GET | Bearer | `{logged_in,login,name,contest,is_admin,is_judge,is_staff,is_cstaff,is_chief,has_photo}` (`.cjudge` = juiz-chefe → `is_judge:true,is_chief:true`; `.cstaff` = chefe de sede → `is_cstaff:true`, **sem** herdar `is_staff`). **`has_photo`** existe p/ o `avatarEl` NÃO pedir a foto de quem não tem: o avatar do cabeçalho aparece em toda página e cada 404 desses é um fork de bash (5.712 no dia 24/08/2026, 54% de todos os 404). Mesmo campo em `/index/open_training` (`top_users[]` e `recent_solved[].user`) e em `/treino/problem-stats` |
 | `/auth/logout` | POST | Bearer | `{logged_out:true}` — apaga o arquivo de sessão **mesmo se ela já não vale** (senão o zumbi ficava p/ sempre no store) |
 
 **A porta do contest** (`/auth/login`, forçada pela API — o countdown do front é só conveniência):
