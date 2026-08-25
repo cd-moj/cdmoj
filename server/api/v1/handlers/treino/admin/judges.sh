@@ -11,9 +11,14 @@ now="$EPOCHSECONDS"
 
 set +o noglob
 # resumo de TIME-LIMITS por host (do store): nº de problemas calibrados + linguagens com TL.
-tlsum="$(find "$TL_STORE_DIR" -maxdepth 1 -name '*.json' 2>/dev/null | while IFS= read -r tf; do
-    jq -c '(.hosts // {}) | to_entries[] | {host:.key, langs:((.value.tl//{})|keys|map(select(.!="default")))}' "$tf" 2>/dev/null
-  done | jq -s -c 'group_by(.host) | map({key:.[0].host,
+# ⚠ UM jq para TODOS os arquivos, nunca um jq por arquivo: o `run/tl` tem 1.436 json (um por
+# problema calibrado) e o laço com `jq "$tf"` dentro fazia 1.436 forks — a rota levava **5,26 s**
+# (medido em 25/08/2026, com o `rt=` novo do nginx), e uma aba de admin aberta a pede a cada
+# poucos segundos. Com `find|xargs` são ~2 processos. É a mesma regra da casa que já vale p/
+# `sc_cells`, galeria de fotos e listagem de contas: agregado de N arquivos é UMA varredura.
+tlsum="$(find "$TL_STORE_DIR" -maxdepth 1 -name '*.json' -print0 2>/dev/null \
+  | xargs -0 -r jq -c '(.hosts // {}) | to_entries[] | {host:.key, langs:((.value.tl//{})|keys|map(select(.!="default")))}' 2>/dev/null \
+  | jq -s -c 'group_by(.host) | map({key:.[0].host,
         value:{calibrated:length, langs:(map(.langs)|add|unique|sort)}}) | from_entries')"
 [[ -n "$tlsum" ]] || tlsum='{}'
 
