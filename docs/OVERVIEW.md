@@ -344,7 +344,7 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   **👥 Times** (gerência POR-USUÁRIO da identidade dos times — **o NOME é campo único:
   `fullname` = nome do time**, pois usuário de contest É o time; + país, **sede**,
   universidade (`.team` do account.json, que placar/crachás/impressão leem), **brasão**
-  (`logo.png`, máx 128) e **foto** (`photo.png`, máx 1000, 📷 clicável no placar); carga única
+  (`logo.png`, máx 128) e **foto** (`photo.png`, máx 1000, para o telão); carga única
   via **CSV com cabeçalho** (`login,nome,pais,sede,univ,univ_nome`, ordem livre; `time`/
   `equipe` = aliases de `nome` — o MESMO formato serve na carga em lote de credenciais),
   **fotos/brasões em LOTE** (arquivos `<login>.<ext>`, 1 POST por arquivo) e o botão

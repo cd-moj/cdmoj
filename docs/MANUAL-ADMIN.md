@@ -493,7 +493,7 @@ qualquer mudança passa por você (Pessoas › Inscrições: remover, dissolver,
 **O time também declara na inscrição:** a **universidade** (vira o prefixo `[SIGLA] Nome do Time`
 no placar e a coluna/filtro de escola), o **uso de IA** (aparece como 🤖 ao lado do nome — é
 transparência, não julgamento), a **bandeira** (país ou estado do Brasil — a bandeirinha do
-placar) e uma **foto do time** (o 📷 do placar; reprocessada no servidor, sem metadados). Tudo editável pelo capitão enquanto a janela estiver aberta, e visível no seu
+placar) e uma **foto do time** (a que vai ao telão; reprocessada no servidor, sem metadados). Tudo editável pelo capitão enquanto a janela estiver aberta, e visível no seu
 painel e no CSV. **O inscrito INDIVIDUAL declara as mesmas coisas** (menos a foto):
 universidade, IA e bandeira, na inscrição ou depois, pela mesma página. A organização ajusta
 qualquer um pelas ações `team-meta`/`individual-meta` do painel — sem regra regex no

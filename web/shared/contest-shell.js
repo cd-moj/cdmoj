@@ -5,7 +5,6 @@ import { status, logout } from '/shared/auth.js';
 import { el, avatarEl } from '/shared/ui.js';
 import { T, setLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
-import { primeMedia } from '/shared/media-auth.js';
 
 // chip do usuário logado do contest no topbar (avatar + nome) — consistência com o
 // site principal. Inserido à esquerda do botão "Contest"/countdown; idempotente.
@@ -56,10 +55,6 @@ export async function initContestShell(contest) {
   let basic = null;
   try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(contest), {}); } catch { /* segue */ }
   if (basic && basic.locale) setLang(basic.locale, { persist: false });  // LOCALE do contest impõe o idioma
-  // contest SUPER SECRETO: <img>/<audio> não mandam Bearer, então a mídia de time passa a ser
-  // buscada e virar blob: (shared/media-auth.js). Aqui é o único lugar em que TODA tela de
-  // contest tem o `basic` na mão — e o flag fica pronto antes de qualquer render.
-  primeMedia(contest, basic);
   const titleEl = document.getElementById('contestTitle');
   if (titleEl) titleEl.textContent = (basic && basic.contest_name) || 'Contest';
   document.title = ((basic && basic.contest_name) || 'Contest') + ' — MOJ';

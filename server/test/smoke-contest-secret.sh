@@ -71,7 +71,11 @@ ck "balloons com sessão 200"    '[[ "$OUT" == *"Status: 200"* ]]'
 call /contest/score GET '' '' 'contest=vis-c'
 ck "visível segue público"      '[[ "$OUT" == *"Status: 200"* ]]'
 
-echo "== mídia do time também exige sessão do contest =="
+echo "== mídia do time é PÚBLICA, mesmo em contest secreto =="
+# Decisão de 2026-08-24: a foto e a música existem para ir ao TELÃO, e o telão é um sistema
+# EXTERNO (o Animeitor) que busca sem sessão. O gate protegia pouco e atrapalhava muito — com
+# ele nem o `<img>` do próprio MOJ funcionava, porque tag de mídia não manda `Authorization`.
+# ⚠ Este bloco afirma o AFROUXAMENTO; o de baixo afirma o que ele NÃO pode ter afrouxado junto.
 # foto/música do time caem no PADRÃO DE FÁBRICA (server/etc/team-placeholder.*) quando o time não
 # mandou a sua — nenhum binário precisa ser fabricado aqui. Só o brasão dá 404 sem arquivo.
 mkdir -p "$FIX/sec-c/users/aluno1"; printf 'x' > "$FIX/sec-c/users/aluno1/logo.png"
@@ -84,31 +88,25 @@ MEDIA=( 'team-photo:contest=sec-c&user=aluno1'
 for m in "${MEDIA[@]}"; do
   ep="${m%%:*}"; qs="${m#*:}"; lbl="$ep${qs#contest=sec-c&user=aluno1}"
   callh "/contest/$ep" '' "$qs"
-  ck "$lbl sem token 401"       '[[ "$OUT" == *"Status: 401"* ]]'
+  ck "$lbl SEM token 200"       '[[ "$OUT" == *"Status: 200"* ]]'
   callh "/contest/$ep" sal "$qs"
   ck "$lbl com sessão 200"      '[[ "$OUT" == *"Status: 200"* ]]'
 done
 callh /contest/team-photo valu 'contest=sec-c&user=aluno1'
-ck "foto c/ sessão de OUTRO contest 401" '[[ "$OUT" == *"Status: 401"* ]]'
-# a doutrina "nunca 404" continua valendo por trás do gate
-callh /contest/team-photo sal 'contest=sec-c&user=aluno1'
+ck "foto c/ sessão de OUTRO contest 200" '[[ "$OUT" == *"Status: 200"* ]]'
+# a doutrina "nunca 404" continua valendo
+callh /contest/team-photo '' 'contest=sec-c&user=aluno1'
 ck "foto do contest é a padrão"  '[[ "$OUT" == *"X-MOJ-Photo: placeholder"* ]]'
-callh /contest/team-music sal 'contest=sec-c&user=aluno1'
+callh /contest/team-music '' 'contest=sec-c&user=aluno1'
 ck "música do contest é a padrão" '[[ "$OUT" == *"X-MOJ-Music: placeholder"* ]]'
 
-echo "== o FRONT tem de buscar essas rotas com Bearer =="
-# INVENTÁRIO EXECUTÁVEL (molde do sem-pacote.sh): quem monta URL das 4 rotas de mídia precisa
-# passar pelo `shared/media-auth.js`, senão a tag `<img>/<audio>` sai crua e leva 401 em contest
-# secreto — que é exatamente como a galeria do telão apareceu vazia. Esta asserção REPROVA no
-# código de antes de 2026-08-24. Exceção documentada: `contests/inscricao/` roda no site
-# principal com a sessão do TREINO, e o gate exige a sessão DAQUELE contest.
-WEB="$ROOT/../web"; miss=''
-while IFS= read -r f; do
-  case "$f" in *"/contests/inscricao/"*) continue;; esac
-  grep -q 'media-auth.js' "$f" || miss="$miss ${f#"$WEB"/}"
-done < <(grep -rl '/api/v1/contest/team-\|/api/v1/contest/placeholder' "$WEB" --include='*.js' 2>/dev/null)
-BODY="sem media-auth:$miss"
-ck "toda tela de mídia passa pelo media-auth" '[[ -z "$miss" ]]'
+echo "== …e o afrouxamento PARA na mídia: o placar e o visual seguem trancados =="
+# É a linha que não se atravessa. As cinco rotas abaixo compartilham o MESMO gate que as quatro
+# de mídia perderam — se alguém "simplificar" o require_not_secret_or_auth, é aqui que quebra.
+for ep in score teams teams-meta balloons regions; do
+  call "/contest/$ep" GET '' '' 'contest=sec-c'
+  ck "$ep segue 401 sem sessão"  '[[ "$OUT" == *"Status: 401"* ]]'
+done
 
 echo "== tela de login continua funcional =="
 call /contest/basic GET '' '' 'contest=sec-c'

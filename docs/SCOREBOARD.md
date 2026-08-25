@@ -250,7 +250,8 @@ revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
   `has_logo`/`has_photo`. O **nome do time é o `fullname`** (campo único; a coluna `team name`
   do TXT sai de `.team.name // .fullname` — `.team.name` é só legado da migração). O placar mescla **explícito primeiro**: bandeira/univ que faltarem no
   TXT, a **sede** (`t._region`, filtro por nome), o **brasão** (`/contest/team-logo`, vence o
-  logo por regra) e o link 📷 da **foto** (`/contest/team-photo`, abre em nova aba).
+  logo por regra). ⚠ o placar **não** mostra quem tem foto (2026-08-24, "deixar simples") — o
+  `has_photo` continua servindo à galeria do telão e ao painel Pessoas › Times.
 - **`teams-meta`** (`contests/<id>/teams-meta.json`, lido por `GET /contest/teams-meta`):
   regras **regex no login → {country, school, school_full, logo?}**. **Fallback**: o placar
   preenche bandeira/universidade/logo só no que o por-usuário e a coluna não trouxeram, e

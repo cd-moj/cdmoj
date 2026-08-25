@@ -91,10 +91,11 @@ echo "== badges preferem .team.region =="
 call /contest/badges GET t-adm 'contest=tm'
 ck "região da alfa = Norte (explícita)" '[[ "$(jq -r '"'"'.users[]|select(.login=="alfa")|.region'"'"' <<<"$BODY")" == "Norte" ]]'
 
-echo "== gate secreto nas rotas de foto =="
+echo "== contest secreto: a mídia é pública, o DIRETÓRIO não =="
 printf 'SECRET=1\n' >> "$C/conf"
+# a foto vai para o telão (sistema externo, sem sessão); o diretório de times é dado da prova
 call /contest/team-photo GET '' 'contest=tm&user=beta'
-ck "secreto sem sessão -> 401" '[[ "$OUT" == *"Status: 401"* ]]'
+ck "foto secreta sem sessão -> 200" '[[ "$OUT" == *"Status: 200"* ]]'
 call /contest/teams GET '' 'contest=tm'
 ck "teams secreto sem sessão -> 401" '[[ "$OUT" == *"Status: 401"* ]]'
 sed -i '/^SECRET=1$/d' "$C/conf"

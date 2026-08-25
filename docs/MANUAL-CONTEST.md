@@ -195,7 +195,7 @@ O placar se atualiza sozinho e anima quem sobe e quem desce. Ele tem:
 - Caixas para **desligar a animação** e para o modo **Anônimo** (a prova pode deixá-lo ligado à
   força — aí você não desmarca).
 
-No modo **ICPC**, as colunas são: posição, bandeira, equipe, uma coluna por problema, **Total** e **Penal.** (a soma das penalidades, que é o primeiro desempate). Na célula da equipe podem aparecer 📷 (o time mandou foto para o telão) e 🤖 (o time declarou uso de IA na inscrição). Em cada célula de problema:
+No modo **ICPC**, as colunas são: posição, bandeira, equipe, uma coluna por problema, **Total** e **Penal.** (a soma das penalidades, que é o primeiro desempate). Na célula da equipe pode aparecer 🤖 (o time declarou uso de IA na inscrição). Em cada célula de problema:
 
 | Célula | Significado |
 |---|---|

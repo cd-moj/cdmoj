@@ -69,13 +69,10 @@ function syncPlay(mark) {
     b.classList.toggle('on', on);
   });
 }
-// ⚠ `PLAYING` e o `data-src` do botão guardam a URL CRUA — ela é a identidade da faixa (e a
-// chave do memo). O `blob:` de um contest secreto fica só dentro do <audio>.
+// ⚠ `PLAYING` e o `data-src` do botão guardam a URL — ela é a identidade da faixa.
 function toggleAudio(src) {
   if (PLAYING === src) { AUDIO.pause(); PLAYING = ''; syncPlay(); return; }
-  // em contest SECRETO o mp3 é baixado inteiro com Bearer antes de tocar (não há streaming
-  // progressivo sobre blob:), então o botão avisa com ⏳. Contest normal nem pisca.
-  PLAYING = src; syncPlay('⏳');
+  PLAYING = src; syncPlay('⏳');   // ⏳ até o <audio> aceitar a faixa; costuma nem piscar
   setAudioSrc(AUDIO, src)
     .then(() => AUDIO.play())
     .then(() => { if (PLAYING === src) syncPlay(); })

@@ -149,7 +149,7 @@ times** — três decisões que valem a pena conhecer antes de mexer:
   **5,3 s → 0,10 s**. Voltar a forkar por usuário é o jeito garantido de derrubar a página.
 - **A galeria pede MINIATURA** (`/contest/team-photo?…&thumb=1`, 320 px ≈ 7 KB no lugar de 37 KB).
   Ela nasce no upload (`tp_store`) e, para o acervo antigo, é gerada na 1ª leitura
-  (`tp_thumb`, build-once com `flock`). O 📷 do placar e o pacote continuam com a foto CHEIA.
+  (`tp_thumb`, build-once com `flock`). O pacote continua levando a foto CHEIA.
 - **Cache-buster é o `mtime`** (`&v=<mtime>`), não `Date.now()`: com o relógio, cada render
   rebaixava todas as imagens de novo.
 
@@ -173,7 +173,7 @@ Dois detalhes de comportamento que valem a pena conhecer:
 `GET /contest/team-photo` **não devolve mais 404**: quem não mandou foto recebe a **foto
 padrão** do contest, com o cabeçalho `X-MOJ-Photo: placeholder`. É o que faz o Animeitor achar
 imagem para todo time do placar, sem tratar ausência. Quem precisa saber quem MANDOU foto usa o
-`has_photo` das listagens (é por isso que o 📷 do placar continua aparecendo só para foto de
+`has_photo` das listagens (é por isso que a galeria distingue quem mandou a sua, só para foto de
 verdade, e a galeria continua mostrando a caixa "sem foto").
 
 Quem escolhe a imagem é o **`.animeitor`**, na própria página (trocar / voltar ao padrão do

@@ -3791,7 +3791,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Foto do time (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
+        "summary": "Foto do time — PÚBLICA, inclusive em contest secreto (webp; png no acervo antigo; thumb=1 = miniatura de 320px). TIME SEM FOTO devolve a FOTO PADRÃO do contest (200 + header X-MOJ-Photo: placeholder), não 404 — quem precisa saber quem mandou foto usa has_photo das listagens ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3822,9 +3822,6 @@
         "responses": {
           "200": {
             "description": "image/webp ou image/png; sem foto do time vem a padrão (X-MOJ-Photo: placeholder)"
-          },
-          "401": {
-            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }
@@ -3834,7 +3831,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Música do time (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. Sem suporte a Range (toca progressivo) ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
+        "summary": "Música do time — PÚBLICA, inclusive em contest secreto (mp3 — a faixa que o telão toca quando ele resolve). TIME SEM MÚSICA devolve a MÚSICA PADRÃO do contest (200 + header X-MOJ-Music: placeholder), não 404 — quem precisa saber quem mandou a sua usa has_music das listagens. Sem suporte a Range (toca progressivo) ⚠ em contest SUPER SECRETO o <img>/<audio> cru não serve (tag de mídia não manda Authorization): o cliente tem de BUSCAR com Bearer — o front usa web/shared/media-auth.js, que converte em blob:",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3856,9 +3853,6 @@
         "responses": {
           "200": {
             "description": "audio/mpeg (+ Content-Length); sem música do time vem a padrão (X-MOJ-Music: placeholder)"
-          },
-          "401": {
-            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }
@@ -3890,9 +3884,6 @@
         "responses": {
           "200": {
             "description": "image/png (404 sem brasão)"
-          },
-          "401": {
-            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }
@@ -4113,9 +4104,6 @@
         "responses": {
           "200": {
             "description": "image/webp (X-MOJ-Photo: placeholder) ou audio/mpeg (X-MOJ-Music: placeholder)"
-          },
-          "401": {
-            "description": "contest SUPER SECRETO sem sessão do contest (secret_login_required)"
           }
         }
       }

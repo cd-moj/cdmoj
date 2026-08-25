@@ -283,30 +283,28 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **`el()` mora em `web/shared/dom.js`** (sem dependência de rede) e o `ui.js` re-exporta —
   é o que permite reusar renderizadores no relatório offline. Importar de `/shared/ui.js`
   segue valendo p/ os ~79 arquivos que já faziam isso.
-- **MÍDIA DE TIME PASSA POR `shared/media-auth.js`** (2026-08-24). `<img src>`/`<audio src>`/
-  `<a href>` **não mandam `Authorization`** — o MOJ não tem cookie (token no localStorage) e o
-  nginx só repassa `HTTP_AUTHORIZATION`. Então em contest **`SECRET=1`** as quatro rotas de mídia
-  (`team-photo`/`team-music`/`team-logo`/`placeholder`, todas sob `require_not_secret_or_auth`)
-  devolviam **401 para TODO papel, admin inclusive**: no `mdp-teste-2026` a galeria do telão
-  montava (a LISTAGEM vai por `apiGet` com Bearer e responde 200) e vinha cheia de imagem
-  quebrada — e "trocar a foto" não mudava nada na tela, porque o POST gravava e o `<img>`
-  repintado dava 401 de novo. O módulo busca com Bearer e devolve **`blob:`** (molde do
-  `pdfBlobUrl` do `staff.js`, "sem token na URL"), com **CAMINHO RÁPIDO**: contest público
-  devolve a URL crua, síncrona, com o cache HTTP e o `loading=lazy` nativo intactos — o placar
-  não ganha um `fetch` sequer. O flag vem do `basic.secret` por `primeMedia()`, chamado no
-  `initContestShell` (cobre as telas de contest) e no `score/score.js` (a única que não usa o
-  shell); o default é o caminho rápido, então tela que esquecer de primar se comporta como hoje.
-  Três invariantes: (1) **memo pela URL CRUA** com LRU de 300 — o placar reconstrói o DOM a cada
-  poll e a galeria repagina a cada filtro, e é por isso que o cache-buster tem de ser ESTÁVEL
-  (`&v=<mtime>`, nunca `Date.now()` por linha: desliga o cache do browser E o memo); (2) **música
-  NUNCA cacheia** (15 MB × N = GB) e foto em tamanho real revoga em 120 s; (3) **`lazy` no
-  placar não é enfeite** e o teto de **6 buscas em voo** também não — cada GET dessas rotas é um
-  fork de bash sob fcgiwrap, e o `<img>` cru estava implicitamente limitado pelo teto de
-  conexões do browser. **Tela nova que mostre mídia de time passa pelo `initContestShell` ou
-  chama `primeMedia`.** Exceção documentada: `web/contests/inscricao/` roda no site principal com
-  a sessão do TREINO e o gate exige a sessão DAQUELE contest. Testes: o bloco de mídia do
-  `smoke-contest-secret.sh` (inclusive o **inventário executável** que reprova quem monta essas
-  URLs sem importar o módulo) e a assimetria listagem-200×mídia-401 no `smoke-animeitor.sh`.
+- **MÍDIA DE TIME É PÚBLICA, inclusive em contest SECRETO** (2026-08-24). As quatro rotas
+  (`team-photo`/`team-music`/`team-logo`/`placeholder`) **saíram** do `require_not_secret_or_auth`.
+  A razão é simples: a foto e a música existem para ir ao **TELÃO**, e o telão é um sistema
+  **EXTERNO** (o Animeitor) que busca **sem sessão** — com o gate ele não tinha saída nenhuma.
+  ⚠ **O afrouxamento PARA aí**: `score`, `teams`, `teams-meta`, `balloons` e `regions` seguem sob
+  o mesmo gate — é o placar e o visual dele, e é isso que o `SECRET` existe para esconder. O teste
+  fixa os dois lados (`smoke-contest-secret.sh`: mídia 200 sem token, as cinco 401).
+  **A história, porque explica o nome do arquivo que sobrou**: entre a manhã e a tarde do mesmo
+  dia existiu o `shared/media-auth.js` buscando essas rotas com Bearer e devolvendo `blob:` —
+  `<img>`/`<audio>` **não mandam `Authorization`** (o MOJ não tem cookie; o token mora no
+  localStorage), então em contest secreto TODA foto/miniatura/música voltava **401 para todo
+  papel, admin inclusive**: no `mdp-teste-2026` a galeria do telão montava (a LISTAGEM vai por
+  `apiGet` com Bearer e responde 200) e vinha cheia de imagem quebrada, e "trocar a foto" não
+  mudava nada na tela. Com as rotas abertas esse caminho ficou **inalcançável** e saiu junto com
+  a fila de 6-em-voo, o LRU de 300 `blob:` e o observer que reimplementava o `lazy`. O módulo
+  continua existindo por três helpers que valem por si — `setMediaSrc` (o `lazy` NATIVO, que no
+  placar não é enfeite: cada GET dessas rotas é um fork de bash sob fcgiwrap), `mediaLink` (um
+  `<a href>` de verdade) e `setAudioSrc` (uma faixa viva por vez na galeria). Consequência boa:
+  o `<img>` cru de `web/contests/inscricao/`, que era a exceção documentada, passou a funcionar.
+  ⚠ **O placar NÃO diz quem tem foto** (mesma data, "deixar simples"): o 📷 clicável saiu de
+  `score-icpc.js`/`score-obi.js`. Quem cobra quem não mandou é a galeria do telão e o painel
+  **Pessoas › Times**, que seguem com o `has_photo` do `/contest/teams`.
 - **Calibração/TL — 3 mecanismos de autoria (2026-08-19)**: (1) o `/problems/calib` devolve
   **`sols`** estruturado por host (`[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`,
   do `.calib-sols.json` do calibreitor via `/judge/calib-report` — que PRESERVA sols/reports

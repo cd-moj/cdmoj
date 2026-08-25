@@ -10,7 +10,6 @@ import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
-import { primeMedia } from '/shared/media-auth.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -18,7 +17,7 @@ let basic = null;
 let isAuth = false;
 let regions = [];
 let teamsMeta = [];      // regras regex -> país/escola
-let teamsDir = {};       // /contest/teams: login -> {team,univ_short,univ_full,flag,region,has_logo,has_photo}
+let teamsDir = {};       // /contest/teams: login -> {team,univ_short,univ_full,flag,region,has_logo}
 let flagNames = {};      // code(lower) -> nome (p/ título da bandeira e rótulo do filtro)
 let activeCountry = '';
 let activeSchool = '';
@@ -135,8 +134,10 @@ function regionOptions() {
 // ---- país / escola (teams-meta) ---------------------------------------------
 function safeRe(rx) { try { return new RegExp(rx, 'i'); } catch { return null; } }
 // EXPLÍCITO primeiro (/contest/teams — o `.team` por-usuário + assets): preenche o que o
-// TXT não trouxe, marca a sede (t._region, filtro por nome), aponta o BRASÃO p/ a rota
-// team-logo e cria o link 📷 da FOTO. O teams-meta (regex) roda depois, só nos vazios.
+// TXT não trouxe, marca a sede (t._region, filtro por nome) e aponta o BRASÃO p/ a rota
+// team-logo. O teams-meta (regex) roda depois, só nos vazios.
+// ⚠ O placar NÃO diz quem tem foto (decisão de 2026-08-24: "deixar simples"). Quem precisa
+// saber quem mandou a sua é a galeria do telão e o painel Pessoas › Times — lá continua.
 function applyTeamsDir(p) {
   if (!p || !(p.mode === 'icpc' || p.mode === 'obi')) return;
   let anyFlag = false;
@@ -160,9 +161,6 @@ function applyTeamsDir(p) {
       t.schoolLogo = '/api/v1/contest/team-logo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
     }
     if (d.ai) t.aiDeclared = true;
-    if (d.has_photo) {
-      t.photoUrl = '/api/v1/contest/team-photo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
-    }
   });
   if (anyFlag && p.mode === 'obi') p.hasFlag = true;
 }
@@ -454,7 +452,6 @@ async function boot() {
   try { basic = await apiGet('/contest/basic?contest=' + encodeURIComponent(CONTEST), {}); }
   catch { document.body.innerHTML = '<div class="container"><div class="error-box">' + T('Contest não encontrado.', 'Contest not found.') + '</div></div>'; return; }
   if (basic.locale) setLang(basic.locale, { persist: false });
-  primeMedia(CONTEST, basic);   // o placar é a única tela de mídia que não passa pelo contest-shell
   document.title = T('Placar — ', 'Scoreboard — ') + (basic.contest_name || 'Contest') + ' — MOJ';
   document.getElementById('contestTitle').textContent = basic.contest_name || 'Contest';
   document.getElementById('backBtn').href = '/contest/?c=' + encodeURIComponent(CONTEST);

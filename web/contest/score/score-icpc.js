@@ -10,7 +10,7 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
-import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
+import { setMediaSrc } from '/shared/media-auth.js';
 import { balloonColorHex, balloonSVG, balloonDot, paintSolvedCell } from './score-colors.js';
 import { scoreCols, cellTitle } from './score-cols.js';
 
@@ -119,11 +119,10 @@ export function renderICPC(parsed, opts) {
     tr.append(flagTd);
     // equipe (logo da escola opcional, via teams-meta; data-URL/local p/ offline)
     const safeLogo = /^(data:image\/|\/|https?:)/.test(t.schoolLogo || '') ? String(t.schoolLogo).replace(/"/g, '') : '';
-    // o brasão sai da string de HTML e vira NÓ: em contest SECRETO o src é um blob: buscado com
-    // Bearer (shared/media-auth.js), que nenhuma string de `<img src=…>` consegue. O `safeLogo`
-    // segue validando a URL CRUA (o `rule.logo` do teams-meta é escolha do admin), então `blob:`
-    // nunca precisa entrar na regex. ⚠ o `lazy` não é enfeite: sem ele o 1º render de uma prova
-    // grande dispararia uma busca — um fork de bash — por LINHA do placar.
+    // o brasão sai da string de HTML e vira NÓ (o `setMediaSrc` põe o src e o `lazy` nativo).
+    // O `safeLogo` valida a URL porque o `rule.logo` do teams-meta é escolha do admin.
+    // ⚠ o `lazy` não é enfeite: sem ele o 1º render de uma prova grande pediria uma imagem — um
+    // fork de bash sob fcgiwrap — por LINHA do placar.
     const logoImg = safeLogo ? el('img', { alt: '', loading: 'lazy',
       style: 'height:16px;vertical-align:middle;margin-right:4px;border-radius:2px',
       onerror: (e) => e.target.remove() }) : null;
@@ -132,7 +131,6 @@ export function renderICPC(parsed, opts) {
       title: [t.univFull || t.univShort || '', t.username].filter(Boolean).join(' · '), html: label });
     if (logoImg) { teamTd.prepend(logoImg, ' '); setMediaSrc(logoImg, safeLogo, { lazy: true, onerror: () => logoImg.remove() }); }
     // foto do time (photo.webp; a rota serve o legado png também): link, abre em nova aba
-    if (t.photoUrl) teamTd.append(' ', mediaLink(t.photoUrl, { title: T('Foto do time', 'Team photo'), style: 'text-decoration:none' }, '📷'));
     // 🤖 = o time DECLAROU na inscrição que usa IA (transparência, não julgamento)
     if (t.aiDeclared) teamTd.append(' ', el('span', { title: T('Este time declarou que usa IA', 'This team declared AI use'), style: 'cursor:default' }, '🤖'));
     if (t.guest) teamTd.append(' ', el('span', { class: 'pill',

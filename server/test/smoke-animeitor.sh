@@ -317,16 +317,17 @@ call /contest/animeitor/photo POST cst 'contest=an' "{\"login\":\"time-a\",\"fil
 ck "e nada de escrever nesse caso" 'grep -q "staff_scope" <<<"$BODY"'
 printf '%s' '{"norte.cstaff":["region:Norte"]}' > "$C/print-requests/staff-filters.json"
 
-# A ASSIMETRIA QUE ENGANOU (mdp-teste-2026, 2026-08-24): num contest SUPER SECRETO a LISTAGEM
-# responde 200 (vai por Bearer) enquanto a MÍDIA CRUA responde 401 — então a galeria montava
-# certinha e vinha cheia de imagem quebrada, e trocar a foto "não fazia nada" (o POST gravava,
-# o <img> repintado dava 401 de novo). Quem conserta é o front (web/shared/media-auth.js);
-# aqui se fixa o contrato do servidor, que está certo e não muda.
+# A ASSIMETRIA QUE ENGANOU, E QUE DEIXOU DE EXISTIR (mdp-teste-2026, 2026-08-24): num contest
+# SUPER SECRETO a LISTAGEM respondia 200 (vai por Bearer) e a MÍDIA CRUA respondia 401 — a
+# galeria montava certinha e vinha cheia de imagem quebrada, e trocar a foto "não fazia nada"
+# (o POST gravava, o <img> repintado dava 401 de novo). No mesmo dia a mídia virou PÚBLICA: a
+# foto existe para ir ao telão, e o telão é um sistema EXTERNO que busca sem sessão. Aqui se
+# fixa a SIMETRIA — listagem e mídia respondem igual, com ou sem Bearer.
 echo "SECRET=1" >> "$C/conf"
 call /contest/animeitor/photos GET ani 'contest=an'
 ck "secreto: a listagem do telão segue 200" 'jq -e ".total > 0" >/dev/null <<<"$BODY"'
 callf /contest/team-photo GET '' 'contest=an&user=time-a' '' "$TMP/f5.bin"
-ck "secreto: <img> sem Bearer leva 401"  'grep -q "Status: 401" "$TMP/f5.bin" && grep -q "secret_login_required" "$TMP/f5.bin"'
+ck "secreto: <img> SEM Bearer vem"       'grep -q "Status: 200" "$TMP/f5.bin"'
 callf /contest/team-photo GET ani 'contest=an&user=time-a' '' "$TMP/f6.bin"
 ck "secreto: com Bearer a foto vem"      'grep -q "Status: 200" "$TMP/f6.bin"'
 sed -i '/^SECRET=1$/d' "$C/conf"
