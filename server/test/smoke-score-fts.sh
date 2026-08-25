@@ -97,4 +97,17 @@ ck "recomputado: segue retido (run na fila)" '! star bob'
 wa_alice; build
 ck "julgada como WA: a estrela volta"        'star bob'
 
+echo "== recompute em massa alcança PARTICIPANTE COMPARTILHADO (USERS_FROM) =="
+# Bug antigo, achado ao levar isto p/ produção: o laço usava `list_users`, que enumera quem tem
+# account.json LOCAL — e em contest com USERS_FROM o participante compartilhado tem dir local SEM
+# account.json de propósito. No ensaio-times-2026 eram 12 de 79. Consequência silenciosa: editar
+# o FREEZE_TIME não refazia a visão congelada desses times. Hoje o laço enumera quem tem HISTORY.
+conf ""
+mkdir -p "$C/users/carol"                       # dir local, SEM account.json (o do treino é a fonte)
+printf '10:p#a:c:Accepted,100p:%s:c1\n' $(( START + 300 )) > "$C/users/carol/history"
+rm -f "$C/users/carol/metrics.json"
+build
+ck "metrics do compartilhado foi gerado" '[[ -s "$C/users/carol/metrics.json" ]]'
+ck "…e traz o campo novo"                'jq -e ".by_problem[\"p#a\"]|has(\"pending_min_epoch\")" "$C/users/carol/metrics.json" >/dev/null'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

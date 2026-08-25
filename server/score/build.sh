@@ -107,9 +107,16 @@ STAMP="$CONTESTDIR/var/.metrics-stamp"
 _ULIB="$HERE/../api/v1/lib/users.sh"
 # (pré-início não lê métricas — 0 colunas de problema; pula o recompute em massa)
 if (( ! PRESTART )) && [[ ! -f "$STAMP" || "$CONF" -nt "$STAMP" || "$_ULIB" -nt "$STAMP" ]]; then
-  while IFS= read -r _u; do
+  # ⚠ quem tem METRICS é quem tem HISTORY neste contest, NÃO quem tem account.json local: em
+  # contest com `USERS_FROM` o participante compartilhado tem dir local SEM account.json (de
+  # propósito), então o `list_users` devolvia 12 de 79 no ensaio-times-2026 e o recompute em
+  # massa passava longe justamente de quem compete. Era bug silencioso e antigo — editar o
+  # FREEZE_TIME não refazia a visão congelada desses times —, que só apareceu quando o
+  # `pending_min_epoch` novo ficou ausente para eles. Mesma enumeração do `sc_cells`.
+  while IFS= read -r _h; do
+    _u="${_h%/history}"; _u="${_u##*/}"
     [[ -n "$_u" ]] && metrics_recompute "$CONTEST" "$_u"
-  done < <(list_users "$CONTEST")
+  done < <(find "$CONTESTDIR/users" -mindepth 2 -maxdepth 2 -name history 2>/dev/null)
   touch "$STAMP"
 fi
 
