@@ -125,6 +125,23 @@ mkdir -p "$SPOOLDIR" "$SPOOLDONEDIR" 2>/dev/null
 # valida id de contest antes de tocar contests/<id>/... (evita path traversal).
 valid_contest_id() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] && [[ "$1" != *..* ]]; }
 
+# contest_is_demo <c> — conf com DEMO=1? Leitura BUILTIN, sem fork e sem `source` (o conf leva
+# `printf %q` e nunca é sourceado fora do caminho de contest). ⚠ Reimplementado aqui de
+# propósito: o daemon NÃO carrega `api/v1/lib/common.sh` (só users.sh + o judge-gw), então o
+# `conf_value` de lá não existe neste processo — a primeira versão desta guarda chamava-o e
+# morria com "command not found", deixando o gate mudo (pego pelo teste, não em produção).
+contest_is_demo() {
+  local f="$CONTESTSDIR/$1/conf" line v
+  [[ -r "$f" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" == DEMO=* ]] || continue
+    v="${line#DEMO=}"; v="${v//\'/}"; v="${v//\"/}"
+    [[ "$v" == 1 ]] && return 0
+    return 1
+  done < "$f"
+  return 1
+}
+
 # queue_mode_for <contest> : 0 se o intake deste contest deve ir p/ a fila (pull).
 queue_mode_for() {
   [[ "${INTAKE_MODE:-legacy}" == queue ]] && return 0
@@ -643,7 +660,7 @@ reconcile_stale_pending() {
     # linha o reconciliador os varria 15 min depois (49 viraram Judge Error no zz-seed-teste em
     # 24/08) e o cliente ficava testando contra um placar que muda sozinho. Não há o que
     # reconciliar aqui: submissão sintética nunca teve job no pipeline.
-    [[ "$(conf_value "$c" DEMO)" == 1 ]] && continue
+    contest_is_demo "$c" && continue
     n="$(count_pending "$c" 2>/dev/null)"; n="${n//[^0-9]/}"
     [[ -n "$n" && "$n" -gt 0 ]] || continue
     local hf login line tempo prob lang se id age

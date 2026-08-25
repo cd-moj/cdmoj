@@ -116,6 +116,21 @@ ck "sem fonte → Judge Error"       'grep -q ":Judge Error:" <<<"$BODY"'
 ck "com fonte → re-enfileirada"    '[[ -e "$SPOOLDIR/sp:$OLD:$ID3:aluno:rejulgar:col#pa:C" ]]'
 ck "1 tentativa marcada"           '[[ -e "$RUN/.reconciled/$ID3" ]]'
 
+# contest de DEMONSTRAÇÃO: o `/contest/admin/seed` cria pendente DE PROPÓSITO (é a célula "?"
+# de quem testa freeze no telão). O reconciliador varreu 49 deles no zz-seed-teste (24/08) —
+# 15 min depois do seed o cliente testava contra um placar que muda sozinho.
+# ⚠ Este teste já pegou um bug: a 1ª versão da guarda chamava `conf_value`, que NÃO existe no
+# daemon (ele não carrega o lib/common.sh) — a guarda morria com "command not found" e o
+# pendente era varrido do mesmo jeito. Sem o teste, isso ia calado para produção.
+DC="$FIX/demo"; mkdir -p "$DC/users/aluno" "$DC/var"
+printf 'CONTEST_ID=demo\nCONTEST_TYPE=icpc\nDEMO=1\n' > "$DC/conf"
+IDD="d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0"
+printf '%s:col#pa:C:Not Answered Yet:%s:%s\n' "$OLD" "$OLD" "$IDD" > "$DC/users/aluno/history"
+( cd "$ROOT/daemons" && SPOOLDIR="$SPOOLDIR" SPOOLDONEDIR="$SPOOLDONEDIR" CONTESTSDIR="$FIX" \
+    RUNDIR="$RUN" JUDGE_BACKEND=queue INTAKE_MODE=queue PENDING_TTL_MIN=1 \
+    bash judged.sh --reconcile >/dev/null 2>&1 )
+ck "contest DEMO: pendente SOBREVIVE" 'grep -q ":Not Answered Yet:" "$DC/users/aluno/history"'
+
 echo "== a aba do admin: ver QUAIS são, dossiê e ações =="
 # fixture: um treino mínimo (o handler exige sessão do treino) + pendente órfã
 T="$FIX/treino"; mkdir -p "$T/var"
