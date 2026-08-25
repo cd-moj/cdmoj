@@ -16,27 +16,56 @@
 pr_dir() { printf '%s' "$CONTESTSDIR/$1/print-requests"; }
 
 # _pr_role_accounts <usersdir> <glob> — TSV "login\tfullname\tdisabled" das contas de papel
-# do dir cujo login casa o glob (*.staff | *.cstaff). Subshell: nullglob + noglob off (o
-# common.sh liga noglob) p/ o glob expandir; $pat fica sem aspas de propósito.
+# do dir cujo login casa o glob (*.staff | *.cstaff).
+#
+# ⚠ UMA varredura (`find|xargs jq`), NUNCA um jq por conta. A versão anterior era um glob com
+# `jq` DENTRO do laço — no mdp-teste-2026 (275 `.staff` + 275 `.cstaff`) isso eram 275 forks só
+# no `staff_exists`, que roda em TODA chamada de `/contest/staff/queue`, `/contest/print` e do
+# reconcile de balões. Foi a causa dominante do load da manhã de 25/08/2026: a fila a
+# **1,26 s/req** (40% de TODO o rt do nginx), que no sábado, com 550 staff polando, saturaria os
+# 32 workers do fcgiwrap e derrubaria a API inteira. Medido: 0,95 s → **0,079 s** (12×).
+# Quarta instância da classe fork-por-arquivo (index/status, admin/judges, sc_cells…).
+# O `sort -z` preserva a ordem alfabética que o glob dava (as listagens de staff/etiquetas
+# saem ordenadas por login, como sempre saíram).
 _pr_role_accounts() {
-  local d="$1" pat="$2" af
-  ( set +o noglob 2>/dev/null; shopt -s nullglob
-    for af in "$d"/$pat/account.json; do
-      jq -r '[.login//"", .fullname//"",
-              (if ((.password//"")|startswith("!")) then "true" else "false" end)] | @tsv' \
-        "$af" 2>/dev/null
-    done )
+  local d="$1" pat="$2"
+  [[ -d "$d" ]] || return 0
+  find "$d" -mindepth 2 -maxdepth 2 -path "$d/$pat/account.json" -print0 2>/dev/null \
+    | sort -z \
+    | xargs -0 -r jq -r '[.login//"", .fullname//"",
+        (if ((.password//"")|startswith("!")) then "true" else "false" end)] | @tsv' 2>/dev/null
 }
 
 # existe ao menos um usuário .staff habilitado (store próprio + fonte compartilhada)?
 # SÓ *.staff conta: .cstaff não opera a fila — sem staff de verdade não há impressão p/ aluno.
+#
+# CACHEADO (`.staff-exists`, receita resp_cache da casa): roda no caminho MAIS polado do dia (a
+# fila do staff) e a resposta só muda quando conta de papel nasce/morre. Validade = os `users/`
+# como entrada (`-nt`, builtin — criar/remover conta muda o mtime do dir) + teto de 120 s p/ o
+# que não mexe no dir (disable edita o account.json NO LUGAR: some do cache em até 2 min, e a
+# consequência é só a fila aceitar pedido por esse intervalo). Escrita atômica (tmp+mv): vários
+# workers concorrem aqui.
 staff_exists() {
-  local c="$1" s
-  _pr_role_accounts "$CONTESTSDIR/$c/users" '*.staff' | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}' && return 0
+  local c="$1" s v rc cf="$CONTESTSDIR/$1/print-requests/.staff-exists"
   s="$(_users_source "$c")"
-  [[ "$s" != "$c" ]] \
-    && _pr_role_accounts "$CONTESTSDIR/$s/users" '*.staff' | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}' && return 0
-  return 1
+  if [[ -f "$cf" && ! "$CONTESTSDIR/$c/users" -nt "$cf" ]] \
+     && { [[ "$s" == "$c" ]] || [[ ! "$CONTESTSDIR/$s/users" -nt "$cf" ]]; } \
+     && [[ -n "$(find "$cf" -newermt '-120 seconds' 2>/dev/null)" ]]; then
+    read -r v < "$cf" 2>/dev/null || v=""
+    [[ "$v" == 1 ]] && return 0
+    [[ "$v" == 0 ]] && return 1
+  fi
+  rc=1
+  if _pr_role_accounts "$CONTESTSDIR/$c/users" '*.staff' | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}'; then
+    rc=0
+  elif [[ "$s" != "$c" ]] \
+    && _pr_role_accounts "$CONTESTSDIR/$s/users" '*.staff' | awk -F'\t' '$3=="false"{found=1} END{exit found?0:1}'; then
+    rc=0
+  fi
+  mkdir -p "${cf%/*}" 2>/dev/null
+  printf '%s\n' "$(( 1 - rc ))" > "$cf.tmp.$$" 2>/dev/null && mv -f "$cf.tmp.$$" "$cf" 2>/dev/null \
+    || rm -f "$cf.tmp.$$" 2>/dev/null
+  return $rc
 }
 
 # impressão habilitada pelo admin? (conf PRINT=0 desliga; default ligado)
@@ -103,12 +132,27 @@ staff_can_see() {  # <c> <staff_login> <student_login>
 # pela MESMA semântica de staff_can_see, materializada numa ÚNICA passada (contas por
 # find|xargs jq — sem N execuções de jq nem --argjson gigante; filtros por --slurpfile).
 # rc=1 = sem filtro p/ este login (escopo vazio/ausente = vê tudo — o chamador NÃO filtra).
+#
+# CACHEADO por (contest, staff): a passada única ainda lê ~3.500 account.json (0,27 s medido) e
+# roda em TODA chamada da fila/impressão/reveal de quem tem escopo — com 550 staff polando no
+# sábado seriam ~10 req/s só disto. Validade: `staff-filters.json` como ENTRADA (`-nt` —
+# editar o escopo no painel vale na hora) + teto de 300 s p/ o que não é arquivo daqui (o
+# `.team.region` de uma conta muda sem tocar o filters; sede é configuração de véspera, 5 min
+# de atraso não machuca). A VARIANTE é o login (regra da casa: vira nome de arquivo) —
+# caractere fora do padrão = não cacheia, nunca "saneia por remoção".
 staff_visible_logins() {
-  local c="$1" who="$2" f n src loc rc
+  local c="$1" who="$2" f n src loc rc cf=""
   f="$(pr_dir "$c")/staff-filters.json"
   { [[ -f "$f" ]] && jq -e . "$f" >/dev/null 2>&1; } || return 1
   n="$(jq -r --arg s "$who" '(.[$s] // []) | length' "$f" 2>/dev/null)"
   n="${n//[^0-9]/}"; [[ -n "$n" && "$n" -gt 0 ]] || return 1
+  if [[ "$who" =~ ^[A-Za-z0-9._-]+$ && "$who" != *..* ]]; then
+    cf="$(pr_dir "$c")/.scope-cache/$who"
+    if [[ -f "$cf" && ! "$f" -nt "$cf" ]] \
+       && [[ -n "$(find "$cf" -newermt '-300 seconds' 2>/dev/null)" ]]; then
+      cat "$cf"; return 0
+    fi
+  fi
   src="$(_users_source "$c")"
   # POPULAÇÃO = quem tem diretório NESTE contest. A fonte USERS_FROM entra só como tabela de
   # região (participante compartilhado sem account.json local) — nunca como população: um escopo
@@ -138,8 +182,20 @@ staff_visible_logins() {
             then (($u.region // "") != ""
                   and ((($u.region)|ascii_downcase) == ($r[7:] | ascii_downcase | gsub("^ +| +$"; ""))))
             else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end)))
-      | .[].login' 2>/dev/null
-  rc=$?; rm -f "$loc"; return "$rc"
+      | .[].login' 2>/dev/null > "$loc.out"
+  rc=$?
+  if (( rc == 0 )); then
+    # publica no cache (atômico — vários workers concorrem) e ecoa. Lista VAZIA também é
+    # resultado válido e cacheável: escopo que não casa ninguém = vê NADA (regra de quem manda
+    # é o rc, documentada no CLAUDE.md) — não confundir com o rc=1 lá de cima.
+    if [[ -n "$cf" ]]; then
+      mkdir -p "${cf%/*}" 2>/dev/null
+      cp -f "$loc.out" "$cf.tmp.$$" 2>/dev/null && mv -f "$cf.tmp.$$" "$cf" 2>/dev/null \
+        || rm -f "$cf.tmp.$$" 2>/dev/null
+    fi
+    cat "$loc.out"
+  fi
+  rm -f "$loc" "$loc.out"; return "$rc"
 }
 
 # pr_filter_board <c> <login> — filtra um placar TXT (stdin→stdout) às linhas cujo username

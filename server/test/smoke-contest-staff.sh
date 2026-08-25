@@ -78,6 +78,18 @@ RAW="$(PATH_INFO=/contest/print-file REQUEST_METHOD=GET QUERY_STRING="contest=sc
         HTTP_AUTHORIZATION="Bearer adm" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>/dev/null | head -5)"
 ck "download do anexo traz o nome com espaço" 'grep -q "filename=\"minha sol 2.cpp\"" <<<"$RAW"'
 
+echo "== os CACHES da fila não podem servir escopo velho =="
+# staff_visible_logins é cacheado por (contest, staff) com o staff-filters.json como ENTRADA:
+# editar o escopo no painel tem de valer NA HORA (mtime), nunca esperar TTL. E o .staff-exists
+# é cacheado com o users/ como entrada: criar a primeira conta .staff aparece na hora.
+call /contest/staff/queue GET '' stf 'contest=sc'    # aquece o cache do escopo de sede1.staff
+sleep 1
+printf '%s' '{"sede1.staff":["^aluno1$"]}' > "$C/print-requests/staff-filters.json"
+call /contest/staff/queue GET '' stf 'contest=sc'
+ck "escopo editado vale na hora (cache invalidado)" '[[ "$(jq -r "[.requests[]|select(.id==\"pr1\")]|length" <<<"$BODY")" == 0 ]]'
+printf '%s' '{"sede1.staff":["^aluno2$"]}' > "$C/print-requests/staff-filters.json"
+ck "cache do escopo existe em disco"  '[[ -f "$C/print-requests/.scope-cache/sede1.staff" ]]'
+
 echo "== idempotência do reconcile =="
 call /contest/staff/queue GET '' adm 'contest=sc'
 ck "não duplica o balão"         '[[ "$(jq -r "[.requests[]|select(.kind==\"balloon\")]|length" <<<"$BODY")" == 1 ]]'

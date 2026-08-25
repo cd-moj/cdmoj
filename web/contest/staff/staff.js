@@ -161,10 +161,23 @@ async function loadQueue() {
   autoTick();   // dispara o automático se houver pendente
 }
 
+// Ritmo do poll (2026-08-25, diagnóstico de carga): a fila do staff era 40% de TODO o tempo de
+// servidor da manhã, vinda de meia dúzia de abas polando a cada 5–8 s — e no sábado são 550.
+// Regras: modo AUTOMÁTICO (a estação que imprime) mantém o ritmo rápido, porque ali latência é
+// papel na mão; quem só OLHA pola a cada 15–20 s (com jitter, para as 550 abas não baterem
+// juntas); e ABA ESCONDIDA não pola — volta com refresh imediato no visibilitychange.
 function schedulePoll() {
   if (pollT) clearTimeout(pollT);
-  pollT = setTimeout(async () => { await loadQueue(); schedulePoll(); }, 5000 + Math.random() * 3000);
+  const iv = autoMode ? 8000 + Math.random() * 4000 : 15000 + Math.random() * 5000;
+  pollT = setTimeout(async () => {
+    if (!document.hidden) await loadQueue();
+    schedulePoll();
+  }, iv);
 }
+document.addEventListener('visibilitychange', () => {
+  // só depois que a página armou o poll (pollT) — antes do boot não há sessão nem tabela
+  if (!document.hidden && !busy && pollT) loadQueue().catch(() => {});
+});
 
 function render() {
   app.innerHTML = '';
