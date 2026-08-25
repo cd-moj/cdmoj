@@ -18,16 +18,28 @@ export async function downloadAuthed(contest, path, filename) {
   } catch { alert(T('Falha ao baixar.', 'Download failed.')); }
 }
 
-// abre o report HTML autenticado numa aba nova, isolado num <iframe sandbox> (sem scripts).
+// openHtmlReport(html) — abre um relatório HTML AUTO-CONTIDO (o report.html do mojtools, o de
+// calibração, o de test-run) numa aba nova, por **blob URL**.
+//
+// ⚠ NUNCA use `<iframe srcdoc>` para isto. Um srcdoc tem URL `about:srcdoc` e herda o BASE URL do
+// PAI: um `href="#test-3-in"` resolve para "<a-página-de-onde-você-veio>#test-3-in" e vira
+// NAVEGAÇÃO, não rolagem. Era o que fazia os quadradinhos do log "voltarem para a página de
+// submissão" (relato de juiz, 2026-08-24) — em quatro telas, porque a rotina foi copiada. Com
+// blob o documento ganha URL própria e a âncora volta a ser âncora.
+// Isolar não é problema: o report é gerado sem JS e traz `default-src 'none'` no próprio <head>.
+export function openHtmlReport(html) {
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  const w = window.open(url, '_blank');
+  if (!w) { alert(T('Permita pop-ups para ver o relatório.', 'Allow pop-ups to view the report.')); URL.revokeObjectURL(url); return null; }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return w;
+}
+
+// abre o report HTML AUTENTICADO (busca com Bearer — o nginx não recebe o token por querystring).
 export async function openReportAuthed(contest, path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { Authorization: 'Bearer ' + getToken(contest) } });
-    const html = await r.text();
-    const w = window.open('', '_blank');
-    if (!w) { alert(T('Permita pop-ups para ver o log.', 'Allow pop-ups to view the log.')); return; }
-    w.document.title = 'Log'; w.document.body.style.margin = '0';
-    const ifr = w.document.createElement('iframe'); ifr.setAttribute('sandbox', ''); ifr.srcdoc = html;
-    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%'; w.document.body.append(ifr);
+    openHtmlReport(await r.text());
   } catch { alert(T('Falha ao abrir o log.', 'Failed to open the log.')); }
 }
 

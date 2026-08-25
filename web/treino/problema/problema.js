@@ -4,6 +4,7 @@ import { fileToBase64, textToBase64, status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate, renderAuthArea, resumoText } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
+import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
@@ -143,18 +144,12 @@ async function downloadAuthed(path, filename) {
   document.body.append(a); a.click(); a.remove();
 }
 
-// abre o report.html (auto-contido, SEM JS — conteúdo escapado na origem + CSP no <head>)
-// numa NOVA ABA via blob URL. Não usa iframe sandboxed: o sandbox bloqueia a navegação por
-// âncora (#test-...), por isso os links "não faziam nada". Como página de verdade, as âncoras
-// internas funcionam nativamente.
+// abre o report.html do julgamento numa aba nova (openHtmlReport: blob, nunca srcdoc — ver
+// shared/submission-links.js; é o que faz as âncoras dos casos de teste rolarem).
 async function openReportAuthed(path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    const html = await r.text();
-    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-    const w = window.open(url, '_blank');
-    if (!w) { alert(T('Permita pop-ups para ver o report.', 'Allow pop-ups to view the report.')); URL.revokeObjectURL(url); return; }
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    openHtmlReport(await r.text());
   } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.')); }
 }
 

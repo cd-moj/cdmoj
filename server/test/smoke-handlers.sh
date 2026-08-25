@@ -290,6 +290,31 @@ check "non-admin allsubmissions -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 call "/ops/queue" GET "" "$NTOK"
 check "non-admin ops/queue -> 403" '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== relatório HTML se abre por blob, nunca em iframe srcdoc =="
+# INVENTÁRIO EXECUTÁVEL (molde do sem-pacote.sh). Um `<iframe srcdoc>` herda o BASE URL do PAI:
+# `href="#test-3-in"` resolve para "<a página de onde você veio>#test-3-in" e vira NAVEGAÇÃO. Era
+# o que fazia os quadradinhos do log "voltarem para a página de submissão" — em QUATRO telas, por
+# cópia. Quem abre relatório em ABA usa `openHtmlReport` (shared/submission-links.js), que dá URL
+# própria ao documento. Esta asserção REPROVA no código de antes de 2026-08-24.
+# ⚠ casa a ATRIBUIÇÃO (`srcdoc =` / `srcdoc:`), não a palavra: os comentários que explicam a
+# armadilha citam "srcdoc" de propósito, e um grep solto reprovaria a própria documentação.
+# Allowlist de DOIS embeds INLINE (não abrem aba, então a âncora nunca foi promessa deles), mais
+# o bundle vendorizado do CodeMirror:
+#   contest/rounds/rounds.js  — embute o site estático da rodada arquivada; trata `#` por conta
+#   treino/admin/admin.js     — prévia do mojlog na fila; tem link "abrir em aba" ao lado
+WEB="$ROOT/../web"; sd=''
+while IFS= read -r f; do
+  case "$f" in
+    *"/contest/rounds/rounds.js"|*"/treino/admin/admin.js"|*"/shared/vendor/"*) continue;;
+  esac
+  sd="$sd ${f#"$WEB"/}"
+done < <(grep -rlE 'srcdoc[[:space:]]*[:=]' "$WEB" --include='*.js' 2>/dev/null)
+BODY="com srcdoc:$sd"
+check "nenhuma tela abre relatório em iframe srcdoc" '[[ -z "$sd" ]]'
+# e o helper compartilhado tem de continuar sendo blob + aba
+check "openHtmlReport usa blob URL" \
+  'grep -q "createObjectURL(new Blob(\[html\]" "$WEB/shared/submission-links.js"'
+
 echo ""
 echo "RESULT: $pass passed, $fail failed"
 exit $(( fail > 0 ? 1 : 0 ))

@@ -14,6 +14,7 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, fmtDate, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { barChart, hBarChart, lineChart, heatmap, heatmapGrid } from '/lib/charts.js';
+import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
@@ -503,8 +504,14 @@ function makeQueueTab() {
                       T('estado: ', 'state: ') + stLabel(d.state)
                       + T(' · fonte: ', ' · source: ') + (d.has_source ? d.source_bytes + ' B' : T('AUSENTE', 'MISSING'))
                       + T(' · mojlog: ', ' · mojlog: ') + (d.mojlog_bytes ? d.mojlog_bytes + ' B' : T('não existe', 'none'))),
+                    // prévia embutida (sandbox: sem JS). ⚠ as âncoras dos casos de teste NÃO
+                    // rolam aqui — num srcdoc o `#alvo` resolve contra a URL do pai; para isso
+                    // existe o "abrir em aba", que usa blob (shared/submission-links.js).
                     d.mojlog ? el('iframe', { style: 'width:100%;height:16rem;border:1px solid var(--line);border-radius:8px;background:#fff',
-                      sandbox: '', srcdoc: d.mojlog }) : '');
+                      sandbox: '', srcdoc: d.mojlog }) : '',
+                    d.mojlog ? el('div', { class: 'small', style: 'margin-top:.25rem' },
+                      el('a', { href: '#', onclick: (ev) => { ev.preventDefault(); openHtmlReport(d.mojlog); } },
+                        T('abrir em aba (com as âncoras funcionando) →', 'open in a tab (anchors working) →'))) : '');
                   logBox.style.display = '';
                 } catch (e) { msg.textContent = e.message || T('falha', 'failed'); }
               } }, '📜'),

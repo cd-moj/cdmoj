@@ -280,6 +280,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   cabeçalho ficava à esquerda e o número a meia tela dele, parecendo pertencer à coluna
   vizinha. Tabela de POUCAS colunas ganha `narrow` (relatório) p/ não esticar — e nela o
   `.n` volta a `width:auto`, senão a porcentagem de célula infla a tabela toda.
+- **RELATÓRIO HTML ABRE POR `blob:`, NUNCA EM `<iframe srcdoc>`** (2026-08-24). Um srcdoc tem URL
+  `about:srcdoc` e herda o **base URL do PAI**: `href="#test-3-in"` resolve para
+  `<a-página-de-onde-você-veio>#test-3-in` e vira **navegação**, não rolagem. Era o que fazia os
+  quadradinhos do `report.html` "voltarem para a página de submissão" (relato de juiz) — em
+  QUATRO telas, porque a rotina foi copiada. O `report.html` do mojtools sempre esteve certo
+  (`id=`/`href=` pelo mesmo `slugify`, sem `<base>`, sem JS). Fonte única:
+  **`openHtmlReport(html)`** em `web/shared/submission-links.js` (blob + `window.open` + revoke em
+  60 s); isolar não é motivo para srcdoc — o report traz `default-src 'none'` no próprio `<head>`.
+  Embed INLINE (a prévia do mojlog na fila do treino, o site da rodada arquivada) pode seguir com
+  srcdoc, e é a allowlist do inventário executável em `smoke-handlers.sh`.
 - **`el()` mora em `web/shared/dom.js`** (sem dependência de rede) e o `ui.js` re-exporta —
   é o que permite reusar renderizadores no relatório offline. Importar de `/shared/ui.js`
   segue valendo p/ os ~79 arquivos que já faziam isso.

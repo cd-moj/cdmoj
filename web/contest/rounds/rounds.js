@@ -72,7 +72,17 @@ async function openViewer(round, file) {
       const d = frame.contentDocument; if (!d) return;
       d.querySelectorAll('a[href]').forEach((a) => {
         const href = a.getAttribute('href') || '';
-        if (/^(https?:|mailto:|#)/.test(href)) { a.target = '_blank'; return; }
+        // ⚠ FRAGMENTO NÃO É LINK EXTERNO. Num `<iframe srcdoc>` o `#alvo` resolve contra a URL do
+        // PAI, então com `target=_blank` ele abria uma ABA com a página do app em vez de rolar
+        // até a seção (irmão do bug das âncoras do log — ver shared/submission-links.js).
+        if (href.startsWith('#')) {
+          a.addEventListener('click', (ev) => { ev.preventDefault();
+            const alvo = d.getElementById(href.slice(1)) || d.getElementsByName(href.slice(1))[0];
+            if (alvo) alvo.scrollIntoView({ block: 'start' });
+          });
+          return;
+        }
+        if (/^(https?:|mailto:)/.test(href)) { a.target = '_blank'; return; }
         a.addEventListener('click', (ev) => { ev.preventDefault(); show(resolveRel(f, href)); });
       });
     };

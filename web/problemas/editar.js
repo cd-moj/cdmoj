@@ -7,6 +7,7 @@ import { status, fileToBase64, textToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { createEditor } from '/shared/editor.js';
 import { makeLangPicker } from '/shared/contest-config/lang-picker.js';
+import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 
 const CONTEST = 'treino';
@@ -702,8 +703,7 @@ async function openCalibReport(host, name) {
     const r = await fetch('/api/v1/problems/calib-report?id=' + encodeURIComponent(ID) + '&host=' + encodeURIComponent(host) + '&name=' + encodeURIComponent(name),
       { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    const url = URL.createObjectURL(new Blob([await r.text()], { type: 'text/html' }));
-    window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    openHtmlReport(await r.text());   // blob, nunca srcdoc — ver shared/submission-links.js
   } catch (e) { setMsg(T('Falha ao abrir o report: ', 'Failed to open the report: ') + e.message, 'error'); }
 }
 // nome amigável das linguagens (as chaves de TL são códigos curtos do juiz: c, cpp, py, …)

@@ -7,6 +7,7 @@ import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
+import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 
 const qs = new URLSearchParams(location.search);
@@ -131,21 +132,13 @@ async function openLogAuthed(path) {
   } catch { alert(T('Falha ao abrir o log.', 'Failed to open log.')); }
 }
 
-// abre o report.html (auto-contido) do julgamento num iframe sandboxed: renderiza
-// HTML/CSS mas bloqueia JS (defesa em profundidade — o conteúdo já é escapado na origem).
+// abre o report.html do julgamento numa aba nova (openHtmlReport: blob, nunca srcdoc — é o que
+// faz as âncoras dos casos de teste rolarem em vez de navegar; ver shared/submission-links.js).
 async function openReportAuthed(path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    const html = await r.text();
-    const w = window.open('', '_blank');
-    if (!w) { alert(T('Permita pop-ups para ver o report.', 'Allow pop-ups to view the report.')); return; }
-    w.document.title = 'Report'; w.document.body.style.margin = '0';
-    const ifr = w.document.createElement('iframe');
-    ifr.setAttribute('sandbox', '');
-    ifr.srcdoc = html;
-    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%';
-    w.document.body.append(ifr);
-  } catch { alert(T('Falha ao abrir o report.', 'Failed to open report.')); }
+    openHtmlReport(await r.text());
+  } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.')); }
 }
 
 // ============================================================================

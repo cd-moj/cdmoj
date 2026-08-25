@@ -8,6 +8,7 @@ import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { mountChrome } from '/lib/contest-chrome.js';
+import { openHtmlReport } from '/shared/submission-links.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -46,33 +47,58 @@ async function openLogAuthed(path) {
     w.document.body.append(pre); w.document.close();
   } catch { alert(T('Falha ao abrir o log.', 'Failed to open the log.')); }
 }
-// abre o report.html (auto-contido) do julgamento num iframe sandboxed (HTML/CSS sim, JS não).
+// abre o report.html do julgamento numa aba nova (openHtmlReport: blob, nunca srcdoc — é o que
+// faz as âncoras dos casos de teste rolarem em vez de navegar; ver shared/submission-links.js).
 async function openReportAuthed(path) {
   try {
     const r = await fetch('/api/v1' + path, { headers: { 'Authorization': 'Bearer ' + getToken(CONTEST) } });
-    const html = await r.text();
-    const w = window.open('', '_blank');
-    if (!w) { alert(T('Permita pop-ups para ver o report.', 'Allow pop-ups to view the report.')); return; }
-    w.document.title = 'Report'; w.document.body.style.margin = '0';
-    const ifr = w.document.createElement('iframe');
-    ifr.setAttribute('sandbox', '');
-    ifr.srcdoc = html;
-    ifr.style.cssText = 'position:fixed;inset:0;border:0;width:100%;height:100%';
-    w.document.body.append(ifr);
+    openHtmlReport(await r.text());
   } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.')); }
 }
 
 function filteredSubs() {
   const fuEl = document.getElementById('fUser'); // removido no modo anônimo
   const fu = fuEl ? fuEl.value.trim().toLowerCase() : '';
-  const fp = document.getElementById('fProblem').value.trim().toLowerCase();
-  const fv = document.getElementById('fVerdict').value.trim().toLowerCase();
+  // ⚠ Problema e veredicto casam por IGUALDADE, não por `includes`. Eram campos de texto que
+  // casavam contra o id canônico do pacote (`apc#soma-dos-digitos`), então digitar "a" trazia a
+  // letra A e metade da prova junto — relato de juiz, 2026-08-24. Hoje são listas: o valor vem
+  // da própria opção, e não há o que digitar errado. O USUÁRIO segue busca livre (é nome).
+  const fp = document.getElementById('fProblem').value;
+  const fv = document.getElementById('fVerdict').value;
   return subs.filter(s => {
     if (fu && !(s.username || '').toLowerCase().includes(fu)) return false;
-    if (fp) { const sn = shortOf(s.problem_id).toLowerCase(); if (!sn.includes(fp) && !(s.problem_id || '').toLowerCase().includes(fp)) return false; }
-    if (fv && !(s.verdict || '').toLowerCase().includes(fv)) return false;
+    if (fp && s.problem_id !== fp) return false;
+    if (fv && vHead(s.verdict) !== fv) return false;
     return true;
   });
+}
+
+// head do veredicto: `Accepted,100p` e `Accepted,PE` viram "Accepted"; `Wrong,60p. Pontos | 30 |`
+// vira "Wrong". É o mesmo corte que o `by_verdict` das métricas usa (split na vírgula/ponto).
+function vHead(v) { return String(v || '').split(',')[0].split('.')[0].trim(); }
+
+// Repovoa os dois seletores preservando a escolha atual (o feed recarrega a cada poll).
+// O de problema sai do `/contest/problems` que a página já carrega (letra + título, na ordem da
+// prova); o de veredicto, dos valores que REALMENTE aparecem no feed — assim veredicto legado
+// ou `Judge Error` entram sozinhos, sem lista fixa para manter.
+function fillFilters() {
+  const ps = document.getElementById('fProblem'), vs = document.getElementById('fVerdict');
+  if (ps) {
+    const keep = ps.value;
+    ps.innerHTML = '';
+    ps.append(el('option', { value: '' }, T('todos os problemas', 'all problems')));
+    problems.forEach(p => ps.append(el('option', { value: p.problem_id },
+      (p.short_name || p.problem_id) + (p.full_name ? ' · ' + p.full_name : ''))));
+    ps.value = keep;
+  }
+  if (vs) {
+    const keep = vs.value;
+    const vs_ = [...new Set(subs.map(s => vHead(s.verdict)).filter(Boolean))].sort();
+    vs.innerHTML = '';
+    vs.append(el('option', { value: '' }, T('todos os veredictos', 'all verdicts')));
+    vs_.forEach(v => vs.append(el('option', { value: v }, v)));
+    vs.value = keep;
+  }
 }
 
 function rowTable(items) {
@@ -155,6 +181,7 @@ async function loadSubs() {
   }
   subs = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseLine).filter(Boolean)
     .sort((a, b) => Number(b.epoch) - Number(a.epoch));
+  fillFilters();   // o feed recarrega: repovoa as listas preservando a escolha
   render();
 }
 
@@ -185,7 +212,8 @@ async function boot() {
   } catch {}
 
   document.querySelectorAll('[data-group]').forEach(btn => btn.addEventListener('click', () => { groupBy = btn.dataset.group; render(); }));
-  ['fUser', 'fProblem', 'fVerdict'].forEach(id => { const e = document.getElementById(id); if (e) e.addEventListener('input', render); });
+  const fuE = document.getElementById('fUser'); if (fuE) fuE.addEventListener('input', render);
+  ['fProblem', 'fVerdict'].forEach(id => { const e = document.getElementById(id); if (e) e.addEventListener('change', render); });
   if (FULL) {
     document.getElementById('markAll').addEventListener('click', () => { filteredSubs().forEach(s => selected.add(s.submission_id)); render(); });
     const clearBtn = el('button', { class: 'btn ghost', onclick: () => { selected.clear(); render(); } }, T('Desmarcar todos', 'Clear selection'));
