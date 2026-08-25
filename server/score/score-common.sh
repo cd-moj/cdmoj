@@ -74,7 +74,7 @@ sc_load() {
 # sc_cells — emits one TSV row per (user, problem) from users/*/metrics.json in a
 # single pass (find|xargs jq, login from input_filename — no ARG_MAX, no per-user fork).
 # Columns:
-#   login  probid  solved(0|1)  first_ac_epoch  counted  pending(0|1)  best_score(-|N)  heur_score(-|N)  heur_adj(F)
+#   login  probid  solved(0|1)  first_ac_epoch  counted  pending(0|1)  best_score(-|N)  heur_score(-|N)  heur_adj(F)  pending_min_epoch(0|N)
 # View: MOJ_NOFREEZE=1 (or metrics without .frozen) = full; otherwise the frozen one.
 # This is the ONLY scoreboard data source (replaces the old .d state files and data/).
 sc_cells() {
@@ -93,7 +93,17 @@ sc_cells() {
          (if $v.pending then 1 else 0 end),
          ($v.best_score // "-"),
          ($v.heur.score // "-"),
-         ($v.heur.adjusted // 0)]
+         ($v.heur.adjusted // 0),
+         # 10ª coluna: a run NÃO JULGADA mais antiga deste problema. É o que permite pintar
+         # first-to-solve só com CERTEZA — ver updatescore-icpc.sh. TRÊS estados, e a diferença
+         # entre os dois últimos importa:
+         #   N>0  pendente naquele epoch;
+         #    0   campo presente e NULO = não há pendente que interesse a ESTA visão. Na visão
+         #        congelada isso é comum e legítimo: `pending` lá soma os `hidden` (pós-freeze),
+         #        mas run pós-freeze não pode roubar uma estrela pré-freeze;
+         #   -1   campo AUSENTE = metrics escrito antes deste campo existir ⇒ desconhecido, e aí
+         #        o consumidor é conservador (segura a estrela até o recompute chegar).
+         (if ($v|has("pending_min_epoch")) then ($v.pending_min_epoch // 0) else -1 end)]
       | @tsv'
 }
 

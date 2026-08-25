@@ -95,10 +95,18 @@ FREEZE_RAW="$(printf '%s' "$FREEZE_RAW" | tr -cd '0-9')"
 # mudou depois do último recompute em massa (ex.: FREEZE_TIME editado — a visão frozen
 # vive DENTRO do metrics), recomputa todo mundo uma vez e carimba var/.metrics-stamp.
 # Também cobre o 1º build de um contest importado/backfill (stamp ausente).
+#
+# ⚠ E cobre o DEPLOY que muda o FORMATO do metrics: a `lib/users.sh` entra como entrada, do mesmo
+# jeito que o `${BASH_SOURCE[0]}` entra na validade do cache de impressão. Sem isso, um campo novo
+# só apareceria quando cada usuário recebesse um veredicto — e o consumidor, que não sabe
+# distinguir "não há" de "ainda não calculado", degrada por segurança. Foi o caso do
+# `pending_min_epoch` (25/08/2026): sem ele o placar segura a estrela de first-to-solve, e o
+# deploy apagaria a estrela de todo mundo até o próximo veredicto de cada time.
 source "$HERE/../api/v1/lib/users.sh"
 STAMP="$CONTESTDIR/var/.metrics-stamp"
+_ULIB="$HERE/../api/v1/lib/users.sh"
 # (pré-início não lê métricas — 0 colunas de problema; pula o recompute em massa)
-if (( ! PRESTART )) && [[ ! -f "$STAMP" || "$CONF" -nt "$STAMP" ]]; then
+if (( ! PRESTART )) && [[ ! -f "$STAMP" || "$CONF" -nt "$STAMP" || "$_ULIB" -nt "$STAMP" ]]; then
   while IFS= read -r _u; do
     [[ -n "$_u" ]] && metrics_recompute "$CONTEST" "$_u"
   done < <(list_users "$CONTEST")

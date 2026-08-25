@@ -371,6 +371,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   deriváveis de access.log/history/results — não duplique).
 - Clarifications: o **asker é anônimo** p/ os juízes (handler corta `.login`); responder exige
   **reserva** (`clarification-claim`). Sempre auditar (`audit_log_to`) toda ação de juiz/chefe.
+- **FIRST-TO-SOLVE SÓ COM CERTEZA** (2026-08-25), no placar E no balão. O `*` do ICPC era o mínimo
+  puro dos `first_ac_epoch` e ignorava run pendente: nascia no time errado e MIGRAVA quando o AC
+  mais antigo era julgado. Hoje o `updatescore-icpc.sh` retira a estrela do problema enquanto
+  existir run **não julgada** mais antiga que o melhor AC (`PENDMIN <= FTSMIN`) — ela aparece uma
+  vez, no dono certo. O dado é o **`pending_min_epoch`** do `metrics.json` (10ª coluna do
+  `sc_cells`), com TRÊS estados: `N>0` epoch · `0` nulo (na visão congelada é legítimo: pendente
+  pós-freeze não segura estrela pré-freeze) · `-1` ausente ⇒ desconhecido, e o consumidor é
+  conservador. O `build.sh` recomputa metrics em massa quando a `lib/users.sh` é mais nova que o
+  `.metrics-stamp`, senão um deploy apagaria a estrela de todo mundo até o próximo veredicto.
+  O **balão** faz a mesma pergunta POR SEDE e, por ser FÍSICO, **espera** em vez de se corrigir
+  (ver abaixo). Testes: `smoke-score-fts.sh`, `smoke-balloon-first.sh`; doc: `docs/SCOREBOARD.md`.
 - **Balão** (`.staff`): tarefa **automática** na 1ª solução (`Accepted`) de cada (time, problema),
   na MESMA fila do `.staff` (campo `kind:"balloon"` no `print-requests/<id>.json`, sem `.src`). Gerada
   **preguiçosamente** por `pr_reconcile_balloons` (em `lib/print.sh`) ao carregar `staff/queue` — lê o
@@ -378,6 +389,18 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `users/<login>/history`; vale auto+manual), dedup por id determinístico, gateado pelo mtime de
   **`var/.score-dirty`**, **sem mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
+  **`first_site`**: a tarefa avisa se é o PRIMEIRO balão daquela cor **na SEDE** do time (★ +
+  "first to solve" na fila e numa faixa da folha A4). A sede sai do `.team.region`; o mapa
+  `(sede × problema)` é **uma varredura** (`pr_site_first_map`: `find|xargs jq` sobre account+metrics)
+  e só roda quando há candidato. ⚠ A decisão é DIFERIDA: se existe run mais antiga da mesma sede,
+  no mesmo problema, ainda não julgada, a tarefa **espera** (`print-requests/.balloon-hold`, JSONL
+  no molde da lápide do freeze — a varredura do history é incremental, então sem o arquivo o
+  segurado sumiria) por até `BALLOON_FIRST_WAIT_S` (90s) e depois sai **sem** estrela. Nunca se
+  anuncia um primeiro lugar não apurado, e nunca se atrasa um balão por causa de uma run travada
+  de outro time. Por que não "promover depois": no **modo automático** o `autoTick` imprime a
+  folha segundos depois de a tarefa nascer e o `pr_build_balloon` **cacheia o PDF para sempre** —
+  a estrela tardia mudaria a tela e nunca o papel. ⚠ Na folha a estrela é **desenhada** (polígono,
+  como o balão), nunca o caractere `★`: fonte sem o glifo o imprime como NADA.
   ⚠ **BALÃO × FREEZE (2026-08-20)**: AC com **`sub_epoch >= FREEZE_TIME`** NÃO vira tarefa — o balão
   atravessando a sala conta o que o placar congelado esconde (o vazamento é **físico**, não de rota:
   o competidor nunca recebe balão por API, então não adianta gate de handler). Três invariantes ao

@@ -43,9 +43,13 @@ export function makeStatusTab(CONTEST) {
     // balões que a regra do freeze suprimiu (nunca viram tarefa) — o admin tem de saber que
     // existem, senão o silêncio da fila durante o freeze parece defeito
     const bFrozen = (tq && Number(tq.balloons_frozen)) || 0;
+    // primeiros-da-sede já materializados: é a cerimônia da sala acontecendo, e o admin
+    // acompanha sem precisar da fila do staff (o campo só vem `true` depois de decidido).
+    const bFirst = tasks.filter((t) => t.kind === 'balloon' && t.first_site).length;
     const taskCards = (tasks.length || bFrozen) ? [
       card(T('🖨️ impressões pend.', '🖨️ pending prints'), tPend.filter((t) => t.kind !== 'balloon').length, tOld > 600),
       card(T('🎈 balões pend.', '🎈 pending balloons'), tPend.filter((t) => t.kind === 'balloon').length, tOld > 600),
+      ...(bFirst ? [card(T('★ primeiros da sede', '★ first-to-solve (site)'), bFirst, false)] : []),
       ...(bFrozen ? [card(T('🧊 balões retidos (freeze)', '🧊 balloons held (freeze)'), bFrozen, false)] : []),
     ] : [];
     panel.innerHTML = '';

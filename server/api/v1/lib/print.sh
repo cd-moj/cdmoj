@@ -527,6 +527,22 @@ _pr_render_balloon() {
   addcap 1080  54  80  956 '#555' "$FR" ''   center "TAREFA Nº  (confira com o sistema)"
   addcap 1080 200  80 1016 black  "$FB" 800  center "$seq"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1300 1160,1300" -stroke none )
+  # PRIMEIRO DA SEDE: faixa entre a linha e a assinatura (o espaço livre da folha). Só aparece
+  # quando o campo foi DECIDIDO como true — ver pr_reconcile_balloons; a tarefa espera até haver
+  # certeza justamente porque este papel é impresso segundos depois e não se desanuncia.
+  # ⚠ A ESTRELA É DESENHADA, não escrita: `★` (U+2605) não existe em toda fonte — no dev ele sai
+  # como NADA (testado), e a folha é gerada onde estiver. Polígono é a mesma técnica do balão
+  # logo acima, e não depende de glifo nenhum.
+  # ⚠ O `addcap` compõe um tile de fundo BRANCO, então a faixa é branca com borda forte: fundo
+  # colorido seria coberto pelo tile do texto.
+  if [[ "$(jq -r '.first_site == true' "$meta" 2>/dev/null)" == true ]]; then
+    cov+=( -fill white -stroke '#B8860B' -strokewidth 4 -draw "roundrectangle 80,1330 1160,1452 14,14" )
+    cov+=( -fill '#B8860B' -stroke '#7A5C00' -strokewidth 1
+           -draw "translate 168,1391 polygon 0.0,-26.0 6.2,-8.5 24.7,-8.0 10.0,3.2 15.3,21.0 0.0,10.5 -15.3,21.0 -10.0,3.2 -24.7,-8.0 -6.2,-8.5" )
+    cov+=( -fill none -stroke none )
+    addcap 880 56 220 1344 '#7A5C00' "$FB" 800 west "PRIMEIRO DA SEDE"
+    addcap 880 32 220 1406 '#7A5C00' "$FR" ''  west "first to solve at this site"
+  fi
   addcap  600  46  80 1500 black  "$FR" ''   west   "Assinatura de quem entregou:"
   cov+=( -fill none -stroke black -strokewidth 2 -draw "line 80,1600 700,1600" -stroke none )
   addcap  320  46 760 1500 black  "$FR" ''   west   "Hora da entrega:"
@@ -550,6 +566,54 @@ pr_build_balloon() {
   ) 9>"$dir/$id.lock"
   [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
   return 1
+}
+
+# pr_site_first_map <c> — TSV `<sede>\t<probid>\t<menor_ac_epoch>\t<login_do_ac>\t<menor_pendente>`
+# (0 onde não há). É o que decide "este balão é o PRIMEIRO daquela cor NA SEDE".
+#
+# UMA VARREDURA, no molde do staff_visible_logins: `find|xargs jq` sobre os account.json (a sede
+# vem de `.team.region`) e sobre os metrics.json (`first_ac_epoch` e `pending_min_epoch`, o campo
+# que o placar também usa p/ só pintar a estrela com certeza). Nada de um jq por conta — num
+# contest de 2.355 contas isso seriam 4.710 forks.
+#
+# VISÃO CHEIA de propósito (nunca a `frozen`): o balão é suprimido durante o freeze por outra
+# regra (pr_balloon_freeze_gate), e a pergunta aqui é sobre o AC de verdade.
+# O `min_by([epoch, login])` dá o DESEMPATE determinístico quando dois times da mesma sede têm o
+# mesmo epoch — sem ele sairiam duas estrelas para o mesmo problema na mesma sede.
+pr_site_first_map() {
+  local c="$1" d
+  d="$CONTESTSDIR/$c/users"; [[ -d "$d" ]] || return 0
+  { find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+      | xargs -0 -r jq -c '{k:"r",
+          login:(if (.login//"") == "" then (input_filename|split("/")|.[-2]) else .login end),
+          region:(.team.region // "")}' 2>/dev/null
+    find "$d" -mindepth 2 -maxdepth 2 -name metrics.json -print0 2>/dev/null \
+      | xargs -0 -r jq -c '(input_filename|split("/")|.[-2]) as $l
+          | (.by_problem // {}) | to_entries[]
+          | {k:"m", login:$l, prob:.key,
+             fac:(.value.first_ac_epoch // 0),
+             pmin:(if (.value|has("pending_min_epoch"))
+                   then (.value.pending_min_epoch // 0) else -1 end)}' 2>/dev/null
+    true
+  } | jq -rs '
+      def isrole: test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$");
+      (map(select(.k == "r")) | map(select((.login|isrole)|not) | select(.region != ""))) as $R
+      | ($R | map({(.login): .region}) | add // {}) as $REG
+      | (map(select(.k == "m"))
+         # contas de PAPEL não ganham balão nem roubam o primeiro lugar (lista do reconciliador)
+         | map(select((.login|isrole)|not))
+         | map(. + {region: ($REG[.login] // "")}) | map(select(.region != ""))
+         | group_by([.region, .prob])
+         | map( (map(select(.fac > 0))) as $acs
+              | (map(select(.pmin != 0))) as $pends
+              | [ "S", .[0].region, .[0].prob,
+                  (if ($acs|length) == 0 then 0 else ($acs|min_by([.fac, .login])|.fac) end),
+                  (if ($acs|length) == 0 then "" else ($acs|min_by([.fac, .login])|.login) end),
+                  (if ($pends|length) == 0 then 0
+                   else ($pends|map(if .pmin < 0 then 1 else .pmin end)|min) end) ] )) as $S
+      # duas famílias de linha na MESMA varredura: `R` dá a sede de cada login (o candidato
+      # precisa saber a própria), `S` dá o mínimo por (sede, problema).
+      | (($R | map(["R", .login, .region])) + $S) | .[] | @tsv' 2>/dev/null
 }
 
 # pr_balloon_freeze_gate <c> -> ecoa "<freeze_time> <permitido>" (0 0 = sem freeze / sem gate).
@@ -604,18 +668,58 @@ pr_reconcile_balloons() {
     [[ -f "$held" ]] && while IFS= read -r _l; do
       _l="${_l#*\"id\":\"}"; _l="${_l%%\"*}"; [[ -n "$_l" ]] && FROZEN[$_l]=1
     done < "$held"
-    # O sub_epoch é o campo NF-1 e o veredicto PODE conter ':' (5 linhas em produção) — por isso
-    # o awk, e não um `read` posicional. emit_history_sorted ordena por sub_epoch, então o `seq`
-    # do lote sai cronológico. Veredicto por ÚLTIMO no TSV: no modo heurístico ele contém TAB.
-    while IFS=$'\t' read -r sub_epoch login cid verdict; do
-      [[ -n "$login" && -n "$cid" ]] || continue
-      sub_epoch="${sub_epoch//[^0-9]/}"; sub_epoch="${sub_epoch:-0}"   # nunca deixe (( )) ver lixo
-      case "$verdict" in *Accepted*) ;; *) continue;; esac
-      case "$verdict" in *" (Ignored)") continue;; esac   # ignorada não conta no placar nem ganha balão
-      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
+    # ---- PRIMEIRO DA SEDE ------------------------------------------------------------------
+    # O staff precisa saber, ao entregar, se aquele é o primeiro balão daquela cor NA SEDE — e
+    # dizer isso exige CERTEZA: se existe run mais antiga da mesma sede, no mesmo problema, ainda
+    # não julgada, ela ainda pode virar Accepted e roubar o primeiro lugar. O placar pode ser
+    # otimista (é repintado a cada build); o balão NÃO — ele é físico, o staff atravessa a sala e
+    # anuncia. E no MODO AUTOMÁTICO a folha é impressa segundos depois de a tarefa nascer, com o
+    # PDF cacheado para sempre: "promover depois" mudaria a tela e nunca o papel.
+    # Por isso: quando não dá para decidir, a tarefa ESPERA (no `.balloon-hold`) e é reavaliada no
+    # próximo reconcile — no máximo BALLOON_FIRST_WAIT_S; passado o prazo ela sai SEM estrela, que
+    # é a falha segura (o time recebe o balão; ninguém anuncia um primeiro lugar falso).
+    local hold="$dir/.balloon-hold" wait_s _sm=0
+    wait_s="$(sed -n 's/^[[:space:]]*BALLOON_FIRST_WAIT_S=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null \
+              | tail -1 | tr -cd '0-9')"; wait_s="${wait_s:-90}"
+    declare -A SM_AC=() SM_ACL=() SM_PEND=() SM_REG=()
+    declare -a HOLD_KEEP=()
+
+    # a varredura (2 × N contas) só acontece se houver candidato — sem AC novo nem tarefa
+    # esperando, o reconcile não paga nada por esta feature.
+    _site_map_ensure() {
+      (( _sm )) && return 0
+      _sm=1
+      local k f1 f2 f3 f4 f5
+      while IFS=$'\t' read -r k f1 f2 f3 f4 f5; do
+        case "$k" in
+          R) SM_REG[$f1]="$f2" ;;
+          S) SM_AC["$f1|$f2"]="$f3"; SM_ACL["$f1|$f2"]="$f4"; SM_PEND["$f1|$f2"]="$f5" ;;
+        esac
+      done < <(pr_site_first_map "$c")
+    }
+    # _site_verdict <login> <prob> <epoch> -> first | not | hold
+    _site_verdict() {
+      local l="$1" p="$2" e="$3" reg key ac acl pend
+      _site_map_ensure
+      reg="${SM_REG[$l]:-}"
+      [[ -n "$reg" ]] || { printf 'not'; return 0; }   # sem sede declarada: sem estrela, sem espera
+      key="$reg|$p"
+      ac="${SM_AC[$key]:-0}"; acl="${SM_ACL[$key]:-}"; pend="${SM_PEND[$key]:-0}"
+      [[ "$ac" =~ ^[0-9]+$ ]] || ac=0; [[ "$pend" =~ ^[0-9]+$ ]] || pend=0
+      if (( ac > 0 )); then
+        (( ac < e )) && { printf 'not'; return 0; }                       # alguém resolveu antes
+        (( ac == e )) && [[ -n "$acl" && "$acl" != "$l" ]] && { printf 'not'; return 0; }  # empate: login decide
+      fi
+      (( pend > 0 && pend <= e )) && { printf 'hold'; return 0; }         # a mais antiga ainda na fila
+      printf 'first'
+    }
+    # _mk_balloon <login> <prob> <epoch> <first_site:true|false> — cria a tarefa (ou a lápide do
+    # freeze). É o ÚNICO ponto que materializa balão: o caminho novo e o da espera passam aqui.
+    _mk_balloon() {
+      local login="$1" cid="$2" sub_epoch="$3" fs="$4" id short colorhex colorname team univ fullname seq
       id="bln$(printf '%s%s%s' "$c" "$login" "$cid" | md5sum | cut -c1-20)"
-      [[ -f "$dir/$id.json" ]] && continue
-      [[ -n "${FROZEN[$id]:-}" ]] && continue
+      [[ -f "$dir/$id.json" ]] && return 0
+      [[ -n "${FROZEN[$id]:-}" ]] && return 0
       if [[ -z "${C_SHORT[$cid]+x}" ]]; then
         C_SHORT[$cid]="$(pr_short_of "$c" "$cid")"; [[ -n "${C_SHORT[$cid]}" ]] || C_SHORT[$cid]="?"
         C_HEX[$cid]="$(pr_balloon_color "$c" "${C_SHORT[$cid]}")"
@@ -629,7 +733,7 @@ pr_reconcile_balloons() {
             freeze_time:$fz, at:$at}' >> "$held"
         FROZEN[$id]=1
         audit_log_to "$c" balloon-frozen "login=$login problema=$short sub_epoch=$sub_epoch freeze=$fz"
-        continue
+        return 0
       fi
       colorhex="${C_HEX[$cid]}"; colorname="${C_NAME[$cid]}"
       if [[ -z "${C_TEAM[$login]+x}" ]]; then
@@ -642,15 +746,57 @@ pr_reconcile_balloons() {
       jq -cn --arg id "$id" --argjson seq "$seq" --arg login "$login" --arg fn "$fullname" \
         --arg team "$team" --arg univ "$univ" --arg prob "$cid" --arg short "$short" \
         --arg ch "$colorhex" --arg cn "$colorname" --argjson time "$EPOCHSECONDS" \
+        --argjson fs "$fs" \
         '{id:$id, seq:$seq, kind:"balloon", login:$login, fullname:$fn, team:$team, univ:$univ,
-          problem:$prob, short:$short, color_hex:$ch, color_name:$cn, time:$time, status:"pending",
+          problem:$prob, short:$short, color_hex:$ch, color_name:$cn, first_site:$fs,
+          time:$time, status:"pending",
           claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0}' \
         > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json"
-      audit_log_to "$c" balloon-task "seq=$seq login=$login problema=$short cor=$colorname"
+      audit_log_to "$c" balloon-task "seq=$seq login=$login problema=$short cor=$colorname first_site=$fs"
+    }
+    # _bln_try <login> <prob> <epoch> [<desde>] — decide e materializa, ou guarda p/ esperar.
+    _bln_try() {
+      local login="$1" cid="$2" se="$3" since="${4:-$EPOCHSECONDS}" v
+      v="$(_site_verdict "$login" "$cid" "$se")"
+      if [[ "$v" == hold ]]; then
+        if (( EPOCHSECONDS - since < wait_s )); then
+          HOLD_KEEP+=("$(jq -cn --arg l "$login" --arg p "$cid" --argjson se "$se" \
+                          --argjson since "$since" '{login:$l, problem:$p, sub_epoch:$se, since:$since}')")
+          return 0
+        fi
+        v=not   # prazo vencido: entrega o balão SEM estrela (nunca inventa um primeiro lugar)
+      fi
+      [[ "$v" == first ]] && _mk_balloon "$login" "$cid" "$se" true || _mk_balloon "$login" "$cid" "$se" false
+    }
+    _bln_hold_flush() {
+      if (( ${#HOLD_KEEP[@]} )); then printf '%s\n' "${HOLD_KEEP[@]}" > "$hold"; else rm -f "$hold"; fi
+    }
+    # os que já estavam esperando entram ANTES das linhas novas: a varredura do history é
+    # incremental, então sem isto eles sumiriam para sempre.
+    if [[ -s "$hold" ]]; then
+      local hl hp hse hsince
+      while IFS=$'\t' read -r hl hp hse hsince; do
+        [[ -n "$hl" && -n "$hp" ]] || continue
+        _bln_try "$hl" "$hp" "${hse:-0}" "${hsince:-0}"
+      done < <(jq -r '[.login, .problem, (.sub_epoch // 0), (.since // 0)] | @tsv' "$hold" 2>/dev/null)
+    fi
+
+    # O sub_epoch é o campo NF-1 e o veredicto PODE conter ':' (5 linhas em produção) — por isso
+    # o awk, e não um `read` posicional. emit_history_sorted ordena por sub_epoch, então o `seq`
+    # do lote sai cronológico. Veredicto por ÚLTIMO no TSV: no modo heurístico ele contém TAB.
+    while IFS=$'\t' read -r sub_epoch login cid verdict; do
+      [[ -n "$login" && -n "$cid" ]] || continue
+      sub_epoch="${sub_epoch//[^0-9]/}"; sub_epoch="${sub_epoch:-0}"   # nunca deixe (( )) ver lixo
+      case "$verdict" in *Accepted*) ;; *) continue;; esac
+      case "$verdict" in *" (Ignored)") continue;; esac   # ignorada não conta no placar nem ganha balão
+      case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
+      _bln_try "$login" "$cid" "$sub_epoch" || true
     done < <(emit_history_stream_since "$c" "$prev" \
                | awk -F: 'NF>=7{ v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i;
                                  print $(NF-1) "\t" $2 "\t" $3 "\t" v }' \
                | sort -n -k1,1)
+    # o que ficou esperando decisão volta para o arquivo de espera
+    _bln_hold_flush
   ) 9>"$dir/.balloon.lock"
 }
 

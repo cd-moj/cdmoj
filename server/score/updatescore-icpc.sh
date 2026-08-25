@@ -49,26 +49,55 @@ START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 }
 
 # --- cells from metrics (one pass over users/*/metrics.json) ----------------
-declare -A CSOL CFAC CCNT CPEND
-while IFS=$'\t' read -r l pr s fac cnt pend _rest; do
+declare -A CSOL CFAC CCNT CPEND CPMIN
+while IFS=$'\t' read -r l pr s fac cnt pend _bs _hs _ha pmin; do
   CSOL["$l|$pr"]=$s; CFAC["$l|$pr"]=$fac; CCNT["$l|$pr"]=$cnt; CPEND["$l|$pr"]=$pend
+  CPMIN["$l|$pr"]="${pmin:-0}"
 done < <(sc_cells)
 
 # --- first to solve ----------------------------------------------------------
 # Menor first_ac_epoch por problema SÓ entre os times do placar (sc_users já exclui
 # .admin/.judge/.cjudge/.mon — um juiz que resolve antes não rouba o FTS). Mesma visão
 # do resto do placar (frozen/full), então o freeze não vaza FTS de AC escondido.
+#
+# ⚠ A ESTRELA SÓ PINTA COM CERTEZA (2026-08-25). Antes era o mínimo puro, e isso a fazia
+# NASCER ERRADA e MIGRAR: o time A submete no minuto 10 e a run fica na fila; o B submete no 12
+# e é julgado primeiro ⇒ a estrela aparecia no B e pulava para o A quando o AC dele chegava.
+# O placar se autocorrige (é repintado a cada build), mas para quem olha é confusão pura.
+# Hoje: se existe run NÃO JULGADA mais antiga que o melhor AC conhecido, NINGUÉM recebe a
+# estrela neste build — ela aparece uma vez, no time certo, quando a dúvida acaba. Se uma run
+# travar, o reconciliador a resolve em 15 min; no fim da prova está tudo julgado e o placar
+# final é idêntico ao de antes.
 mapfile -t SC_ROWS < <(sc_users)
-declare -A FTSMIN
+declare -A FTSMIN PENDMIN
 for row in "${SC_ROWS[@]}"; do
   IFS=$'\001' read -r login _rest <<<"$row"
   for ((p=0; p<SC_NPROB; p++)); do
     key="$login|${SC_CANON[p]}"
+    # pendência ENTRA no mínimo mesmo sem AC: uma run em julgamento de quem ainda não resolveu
+    # é justamente a que pode roubar a estrela. Os três estados da coluna (ver sc_cells):
+    #   >0 epoch real · 0 nenhuma pendência QUE INTERESSE a esta visão (na congelada, pendente
+    #   pós-freeze cai aqui — e não pode segurar estrela pré-freeze) · -1 metrics velho,
+    #   desconhecido ⇒ conservador (usa 1, que é menor que qualquer epoch real e segura).
+    pmin="${CPMIN[$key]:-0}"
+    [[ "$pmin" =~ ^-?[0-9]+$ ]] || pmin=0
+    if [[ "${CPEND[$key]:-0}" == 1 ]] && (( pmin != 0 )); then
+      (( pmin < 0 )) && pmin=1
+      cur="${PENDMIN[${SC_CANON[p]}]:-}"
+      if [[ -z "$cur" ]] || (( pmin < cur )); then PENDMIN[${SC_CANON[p]}]=$pmin; fi
+    fi
     [[ "${CSOL[$key]:-0}" == 1 ]] || continue
     fac="${CFAC[$key]:-}"; [[ "$fac" =~ ^[0-9]+$ ]] || continue
     cur="${FTSMIN[${SC_CANON[p]}]:-}"
     if [[ -z "$cur" ]] || (( fac < cur )); then FTSMIN[${SC_CANON[p]}]=$fac; fi
   done
+done
+# problema com dúvida em aberto: a estrela fica de fora deste build (o `unset` é o que faz o
+# teste de baixo, `-n "${FTSMIN[...]}"`, falhar para TODO mundo naquele problema).
+for ((p=0; p<SC_NPROB; p++)); do
+  k="${SC_CANON[p]}"
+  [[ -n "${FTSMIN[$k]:-}" && -n "${PENDMIN[$k]:-}" ]] || continue
+  (( PENDMIN[$k] <= FTSMIN[$k] )) && unset "FTSMIN[$k]"
 done
 
 # --- rows ------------------------------------------------------------------

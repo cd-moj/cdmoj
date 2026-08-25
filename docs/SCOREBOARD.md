@@ -118,6 +118,27 @@ linhas**, então filtrar linhas daria posição correta de graça — mas a **es
 estrela de um problema que, para ele, ninguém resolveu primeiro. `MOJ_COHORTS="<id> …"` é o
 filtro (vazio = todas) e `MOJ_UNRANKED="<id> …"` liga a coluna `guest`.
 
+## A estrela de first-to-solve só pinta com CERTEZA
+
+O `*` da célula (ICPC) marca quem resolveu o problema primeiro. Até 25/08/2026 ele era o **mínimo
+puro** dos `first_ac_epoch` conhecidos, e não olhava run pendente — então **nascia errado e
+migrava**: o time A submete no minuto 10 e a run fica na fila; o B submete no 12, é julgado antes,
+e a estrela aparecia nele; quando o AC do A chegava, ela pulava para o A. O placar se autocorrige
+(é repintado a cada build), mas para quem está olhando é confusão pura.
+
+Hoje `updatescore-icpc.sh` calcula, no MESMO laço, `PENDMIN[prob]` = a run **não julgada** mais
+antiga do problema entre os times da visão, e **retira a estrela do problema inteiro** enquanto
+`PENDMIN <= FTSMIN`. Ela passa a aparecer **uma vez, no time certo**. O dado vem do
+`pending_min_epoch` do `metrics.json` (10ª coluna do `sc_cells`), que tem TRÊS estados: `N>0`
+epoch real · `0` campo presente e nulo (na visão **congelada** isso é comum e legítimo: pendente
+pós-freeze não pode roubar estrela pré-freeze) · `-1` campo ausente (metrics anterior ao campo)
+⇒ desconhecido, e aí o placar é conservador. Para não haver janela sem estrela depois de um
+deploy, o `build.sh` recomputa o metrics em massa quando a `lib/users.sh` é mais nova que o
+`var/.metrics-stamp` — a mesma receita do cache de impressão, que usa o `${BASH_SOURCE[0]}`.
+
+O **balão** faz a mesma pergunta, mas por SEDE e com uma diferença que manda no desenho: ele é
+FÍSICO. Ver `first_site` em `docs/API.md` (`/contest/staff/queue`). Teste: `smoke-score-fts.sh`.
+
 **A coluna `guest`** (só existe quando a visão tem coorte `unranked`) é a última do TXT, com `1`
 para convidado. Os renderizadores acham coluna por NOME no cabeçalho, então quem não a conhece
 simplesmente a ignora; o front usa para pular a numeração e marcar a linha.

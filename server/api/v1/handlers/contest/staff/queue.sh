@@ -26,7 +26,10 @@ if ! is_admin; then
 fi
 # UMA passada de jq sobre TODOS os arquivos; o recorte por escopo entra no PRÓPRIO jq, com o
 # conjunto visível por --rawfile (nunca por argv — ARG_MAX; ver CLAUDE.md).
-PICK='{id,seq,login,fullname,team,univ,kind:(.kind//"print"),short,color_hex,color_name,filename,mime,size,time,status,pages,build_ok,claimed_by,claimed_at,processed_by,processed_at,delivered_by,delivered_at}'
+# `first_site`: este balão é o PRIMEIRO daquela cor NA SEDE do time (★ + "first to solve" na
+# fila e na folha). Só nasce decidido — ver pr_reconcile_balloons. Tarefa antiga não tem o campo
+# e vem `false`, que é a leitura certa: nunca se anuncia um primeiro lugar que não foi apurado.
+PICK='{id,seq,login,fullname,team,univ,kind:(.kind//"print"),short,color_hex,color_name,first_site:(.first_site==true),filename,mime,size,time,status,pages,build_ok,claimed_by,claimed_at,processed_by,processed_at,delivered_by,delivered_at}'
 RANK='def rank: if .status=="pending" then 0 elif .status=="printed" then 1 else 2 end;'
 if [[ -n "$VIS_FILE" ]]; then
   SEL='(($vis|split("\n")|map(select(length>0))|map({(.):true})|add) // {}) as $V | map(select($V[(.login // "")] == true))'

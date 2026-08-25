@@ -245,6 +245,11 @@ metrics_recompute(){
                  + {attempts: ($g|length),
                     counted_all: ($g|map(select(.counts))|length),
                     pending: (($g|map(select(.prov))|length) > 0),
+                    # pending_min_epoch: a run NÃO JULGADA mais antiga deste problema. O booleano
+                    # `pending` não responde "há pendente MAIS ANTIGO que este AC?", e é essa a
+                    # pergunta que decide first-to-solve com CERTEZA — no placar (a estrela só
+                    # pinta quando nenhuma run mais velha pode roubá-la) e no balão da sede.
+                    pending_min_epoch: (($g|map(select(.prov))|map(.sub_epoch)|min) // null),
                     last_sub_epoch: (($g|map(.sub_epoch)|max) // 0)}
                  + (if $freeze > 0 then
                       {frozen: (
@@ -252,6 +257,12 @@ metrics_recompute(){
                          | ($g|map(select(.sub_epoch >= $freeze))|length) as $hidden
                          | vw($g; $ffac; $g|map(select((.prov|not) and .sub_epoch < $freeze)))
                            + {pending: ((($g|map(select(.prov))|length) > 0) or ($hidden > 0)),
+                              # ⚠ SÓ o pendente PRÉ-freeze: a estrela da visão congelada é sobre
+                              # ACs pré-freeze, e run pós-freeze não pode roubá-la. Não confundir
+                              # com o `pending` acima, que soma os `hidden` de propósito (é ele
+                              # que faz a célula parecer "em julgamento" durante o congelamento).
+                              pending_min_epoch:
+                                (($g|map(select(.prov and .sub_epoch < $freeze))|map(.sub_epoch)|min) // null),
                               hidden: $hidden})}
                     else {} end))}
           ) | from_entries),

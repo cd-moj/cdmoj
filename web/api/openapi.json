@@ -1783,7 +1783,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Fila de tarefas do staff (impressão + balões; escopo por staff-filters; .cstaff SÓ LÊ — ações/PDF 403). Reconcilia balões pendentes (1ª-AC) ao carregar",
+        "summary": "Fila de tarefas do staff (impressão + balões; escopo por staff-filters; .cstaff SÓ LÊ — ações/PDF 403). Reconcilia balões pendentes (1ª-AC) ao carregar. Cada balão traz first_site: é o primeiro daquela cor NA SEDE do time (★ na fila e na folha) — só sai decidido; havendo run mais antiga da sede por julgar, a tarefa espera até BALLOON_FIRST_WAIT_S e depois sai sem estrela",
         "description": "FREEZE: acerto com sub_epoch >= FREEZE_TIME NÃO vira tarefa de balão (o balão andando pela sala conta o que o placar congelado esconde) e a supressão é registrada em print-requests/.balloon-frozen — permanente, para que encerrar o evento (FREEZE_TIME=0) não a desfaça. Só o admin desfaz, ligando balloons_during_freeze no settings. Pedido de impressão NÃO é afetado pelo freeze. balloons_frozen (contagem dos suprimidos) só vai para o admin.",
         "security": [
           {

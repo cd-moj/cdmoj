@@ -121,7 +121,14 @@ function renderRows() {
       ? el('td', {}, el('b', {}, T('🎈 Balão · ', '🎈 Balloon · ') + (t.short || '?')),
           el('div', { class: 'small' },
             el('span', { style: 'display:inline-block;width:.8em;height:.8em;border:1px solid #999;border-radius:50%;vertical-align:middle;background:#' + (t.color_hex || 'cccccc') }),
-            ' ' + (t.color_name || '')))
+            ' ' + (t.color_name || '')),
+          // PRIMEIRO DA SEDE: o servidor só manda `true` depois de ter CERTEZA (nenhuma run mais
+          // antiga da sede, no mesmo problema, por julgar) — ver pr_reconcile_balloons. A folha
+          // impressa leva a mesma faixa, então o que o staff anuncia bate com o que ele carrega.
+          t.first_site
+            ? el('div', { class: 'small', style: 'color:#7A5C00;font-weight:700;margin-top:.15rem' },
+                '★ ' + T('primeiro da sede', 'first to solve at this site'))
+            : null)
       : el('td', {}, t.filename, el('div', { class: 'small muted' }, (t.mime || '') + (t.size ? ' · ' + Math.max(1, Math.round(t.size / 1024)) + ' KB' : '')));
     tbody.append(el('tr', {},
       el('td', {}, el('b', {}, '#' + t.seq)),
