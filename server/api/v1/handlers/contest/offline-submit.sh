@@ -54,7 +54,7 @@ while (( i < NP )); do
   pl="$(jq -r '.l // empty' <<<"$inner")"
   pc="$(jq -r '.c // empty' <<<"$inner")"
   problem="$(jq -r '.problem_id // empty' <<<"$inner")"
-  filename="$(jq -r '.filename // "solution"' <<<"$inner")"
+  filename="$(safe_src_filename "$(jq -r '.filename // "solution"' <<<"$inner")")"
   codeb64="$(jq -r '.code_b64 // empty' <<<"$inner")"
   claimed="$(jq -r '.claimed_utc // 0' <<<"$inner")"
   beacon="$(jq -r '.beacon // empty' <<<"$inner")"

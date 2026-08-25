@@ -1351,7 +1351,8 @@
                     "type": "string"
                   },
                   "filename": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Nome do arquivo da fonte. NORMALIZADO pelo servidor (safe_src_filename): sai o caminho, saem espaços, sai o '(N)' que o navegador gruda em download repetido (l(1).cpp -> l.cpp) e saem os metacaracteres de shell/make; acento é preservado. O juiz materializa a fonte com este nome e o entrega ao compilador."
                   },
                   "code_b64": {
                     "type": "string"

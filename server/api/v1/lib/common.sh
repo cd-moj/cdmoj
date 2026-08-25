@@ -167,6 +167,36 @@ resp_cache_store(){
 valid_id() {  # id seguro (sem traversal). Permite #, @, ., +, -, _ (usados em ids).
   [[ "$1" =~ ^[A-Za-z0-9._@#+-]+$ ]] && [[ "$1" != *..* ]]
 }
+# safe_src_filename <nome> — normaliza o NOME DE ARQUIVO DA FONTE que o aluno mandou.
+#
+# É ENTRADA HOSTIL e viaja longe: vai no job, o agente do juiz materializa o arquivo com ELE
+# (`judge/agent/moj-agent.sh`), o build-and-test o copia p/ dentro da jaula e os
+# `mojtools/lang/*/compile.sh` baseados em make o entregam ao `/bin/sh`. Um `l(1).cpp` — a marca
+# que o NAVEGADOR gruda em download repetido, que o time nem escolheu — virava
+# `g++ … l(1).cpp -o l` e dava **Compilation Error** (relato de time, 2026-08-24); com espaço
+# quebra em mais pontos (o make usa whitespace como separador de lista: lá dentro não tem
+# conserto). O juiz também foi blindado, mas quem garante o nome sadio é a porta.
+#
+# Faz, nesta ordem: basename (sem traversal) · tira espaço/controle · tira o "(N)" final do stem
+# · remove metacaractere de shell/make · vazio vira "solution".
+#
+# ⚠ A remoção é por LISTA NEGRA de ASCII, nunca `[^[:alnum:]…]`: sob fcgiwrap o locale é `C`,
+# onde `[:alnum:]` é ASCII puro — a lista branca comeria o `ç` de `Solução.java` em produção e
+# passaria no dev (UTF-8). E o nome importa de verdade em JAVA, onde o arquivo tem de casar a
+# classe pública — daí preservar acento não ser capricho.
+safe_src_filename() {
+  local n="${1##*/}" stem ext="" o="" c i
+  n="${n//[[:space:]]/}"; n="${n//[[:cntrl:]]/}"
+  if [[ "$n" == *.* ]]; then ext="${n##*.}"; stem="${n%.*}"; else stem="$n"; fi
+  while [[ "$stem" =~ ^(.+)\([0-9]+\)$ ]]; do stem="${BASH_REMATCH[1]}"; done
+  local bad='()[]{}<>|&;$`"'"'"'\*?!#~^%=:,/'
+  for ((i = 0; i < ${#stem}; i++)); do c="${stem:i:1}"; [[ "$bad" == *"$c"* ]] || o+="$c"; done
+  stem="$o"; o=""
+  for ((i = 0; i < ${#ext}; i++)); do c="${ext:i:1}"; [[ "$bad" == *"$c"* ]] || o+="$c"; done
+  ext="$o"
+  [[ -n "$stem" ]] || stem="solution"
+  if [[ -n "$ext" ]]; then printf '%s.%s' "$stem" "$ext"; else printf '%s' "$stem"; fi
+}
 require_contest() {  # require_contest <id>
   valid_id "$1" || fail 400 "Invalid contest id" "contest_invalid"
   [[ -d "$CONTESTSDIR/$1" && -f "$CONTESTSDIR/$1/conf" ]] \

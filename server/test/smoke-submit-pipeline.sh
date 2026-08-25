@@ -46,6 +46,26 @@ call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"a.c\",\"code_b64\":
 ck "…e restringe de verdade"       'grep -q "lang_not_allowed" <<<"$BODY"'
 rm -f "$C/problem-langs.json"
 
+echo "== nome de arquivo é ENTRADA HOSTIL: normalizado na PORTA (relato 2026-08-24) =="
+# `l(1).cpp` — a marca que o navegador gruda em download repetido — chegava CRU ao juiz, que
+# monta o recipe do make e o entrega ao /bin/sh: erro de sintaxe = Compilation Error, com o
+# MESMO código que dava AC como `l.cpp`. Espaço quebra em mais pontos (dentro do make não há
+# conserto: whitespace É o separador de lista). Quem garante o nome sadio é aqui.
+spname(){ SPN="$(ls -t "$SPOOLDIR" | grep ":$1:" | head -1)"
+          jq -r '.filename' "$SPOOLDIR/$SPN" 2>/dev/null; }
+subid(){ jq -r '.submission_id // empty' <<<"$BODY"; }
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"l(1).cpp\",\"code_b64\":\"$B64C\"}"
+ck "l(1).cpp aceito"               'grep -q "\"success\":true" <<<"$BODY"'
+ck "…e vai ao juiz como l.cpp"     '[[ "$(spname "$(subid)")" == "l.cpp" ]]'
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"minha sol (2).cpp\",\"code_b64\":\"$B64C\"}"
+ck "espaço sai do nome"            '[[ "$(spname "$(subid)")" == "minhasol.cpp" ]]'
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"../../etc/passwd.c\",\"code_b64\":\"$B64C\"}"
+ck "sem traversal no nome"         '[[ "$(spname "$(subid)")" == "passwd.c" ]]'
+# acento PRECISA sobreviver: em Java o arquivo tem de casar a classe pública, e identificador
+# Java aceita acento — uma lista BRANCA (`[^[:alnum:]]`) comeria o ç no locale C do fcgiwrap.
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"Solução.c\",\"code_b64\":\"$B64C\"}"
+ck "acento sobrevive"              '[[ "$(spname "$(subid)")" == "Solução.c" ]]'
+
 echo "== ARG_MAX: fonte de 200 KiB tem de virar spool VÁLIDO (a regressão do incidente) =="
 { printf '// fonte grande\nint main(){return 0;}\n'; head -c 204800 /dev/zero | tr '\0' 'x'; } > "$FIX/big.c"
 B64BIG="$(base64 -w0 "$FIX/big.c")"

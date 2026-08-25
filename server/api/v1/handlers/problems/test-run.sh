@@ -35,7 +35,7 @@ if [[ "${REQUEST_METHOD:-GET}" == POST ]]; then
   pkg="$(pkg_path "$id")"; [[ -n "$pkg" ]] || fail 404 "Problema não encontrado" "not_found"
 
   filename="$(jq -r '.filename // empty' "$bf")"; [[ -n "$filename" ]] || filename="solution"
-  filename="$(basename "$filename")"
+  filename="$(safe_src_filename "$filename")"   # mesma normalização do /submit
 
   # a FONTE nunca anda por argv de jq (classe ARG_MAX): corpo -> arquivo -> --rawfile
   B64F="$(mktemp)"; trap 'rm -f "$bf" "$B64F"' EXIT

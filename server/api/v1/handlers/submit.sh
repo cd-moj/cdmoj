@@ -32,6 +32,10 @@ b64sz="$(stat -c%s "$B64F" 2>/dev/null || echo 0)"
 [[ -n "$problem" && "$b64sz" -gt 0 ]] || fail 400 "Missing problem_id or code_b64" "submit_incomplete"
 valid_id "$problem" || fail 400 "Invalid problem id" "problem_invalid"
 [[ -n "$filename" ]] || filename="solution"
+# nome de arquivo do aluno é ENTRADA HOSTIL (ver safe_src_filename): o juiz o materializa e os
+# compile.sh de make o entregam ao /bin/sh. `l(1).cpp` — a marca de download repetido do
+# navegador — dava Compilation Error.
+filename="$(safe_src_filename "$filename")"
 
 # teto da FONTE (política, não limite técnico — o técnico morreu com o --arg): base64 ≈ 4/3
 : "${SUBMIT_MAX_KB:=1024}"

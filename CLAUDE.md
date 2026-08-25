@@ -877,6 +877,21 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   *default* é seguro (o fallback é o próprio valor falsy) — o veneno é `//` com um sentinela.
   O portão da lista pública tem teste: `server/test/smoke-public-index.sh`; a rede de segurança é
   `server/bin/audit-public-index.sh`.
+- **NOME DE ARQUIVO DO ALUNO É ENTRADA HOSTIL, e ele viaja até um `/bin/sh`.** O `filename` do
+  `/submit` vai no job, o agente do juiz materializa a fonte **preservando o nome**, o
+  `build-and-test.sh` a copia p/ dentro da jaula e o `mojtools/lang/*/compile.sh` monta um
+  Makefile cujo recipe o make entrega ao `/bin/sh` **cru**. Resultado: o MESMO código dava
+  **AC como `l.cpp` e Compilation Error como `l(1).cpp`** — e o `(1)` é a marca que o NAVEGADOR
+  gruda em download repetido, que o time nem escolheu (relato, 2026-08-24). Quem garante o nome
+  sadio é **a porta**: `safe_src_filename` (`lib/common.sh`), aplicado em `/submit`,
+  `/contest/offline-submit` e `/problems/test-run` (o rejulgamento já monta `solution.<ext>`).
+  Duas coisas não-óbvias: (1) **espaço é IRREPARÁVEL dentro do make** (whitespace É o separador
+  de lista de prerequisito/target) — por isso ele é REMOVIDO aqui, e não só citado lá; (2) a
+  limpeza é **lista NEGRA de ASCII**, nunca `[^[:alnum:]…]` — sob fcgiwrap o locale é `C`, onde
+  `[:alnum:]` é ASCII puro, e a lista branca comeria o `ç` de `Solução.java` **em produção
+  passando no dev** (em Java o arquivo TEM de casar a classe pública). O juiz também foi
+  blindado (aspas no recipe, `printf %q` no `binfile.sh` — `mojtools/check-quoting.sh`), mas
+  defesa em profundidade não substitui a porta. Teste: `smoke-submit-pipeline.sh`.
 - **BINÁRIO PRESENTE ≠ CAPACIDADE PRESENTE — prove a ferramenta externa NA IMAGEM.** O
   `_pr_render` chamava `paps --format=pdf`; a opção só existe no **paps ≥ 0.7** e a imagem tem
   **0.6.8**. Resultado: durante meses **toda** impressão de código-fonte saiu só com a folha de
