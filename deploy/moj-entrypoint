@@ -10,13 +10,19 @@ set -euo pipefail
 : "${NEWSDIR:=/data/news}"
 : "${FCGI_SOCK:=$RUNDIR/fcgiwrap.sock}"
 # Nº de workers do fcgiwrap = TETO de requisições de API em paralelo (cada uma é 1 bash+jq).
-# Auto-dimensiona ao box: 2×núcleos, teto 32. Num contest de 1500 clientes polando, 8 (o valor
+# Auto-dimensiona ao box: 2×núcleos, teto 64. Num contest de 1500 clientes polando, 8 (o valor
 # fixo antigo) era o gargalo — sob concorrência a latência inflava (200 req concorrentes:
 # mediana 347ms com 8 workers). Requisições são curtas (~12ms de CPU) e muitas I/O-bound
 # (jq/git/find), então oversubscrição 2× é segura. Override explícito via env FCGI_WORKERS.
+# O teto foi 32 até 26/08/2026; subiu p/ 64 junto do resize da VM p/ 48 núcleos (Maratona):
+# o pool é compartilhado por TODAS as rotas, e um render de PDF de balão/impressão segura um
+# worker por 3,5–9 s — na onda de ACs dos minutos 5–10 (régua subbr-2025: 110 balões/min) o
+# teto de 32 deixava metade do pool preso em magick. Com 48 cores, 2×cores = 96 estouraria a
+# memória de forks simultâneos sem ganho: 64 é o equilíbrio medido p/ o pior minuto (~20 de
+# concorrência total projetada).
 if [[ -z "${FCGI_WORKERS:-}" ]]; then
   _cores="$(nproc 2>/dev/null || echo 4)"; FCGI_WORKERS=$(( _cores * 2 ))
-  (( FCGI_WORKERS > 32 )) && FCGI_WORKERS=32
+  (( FCGI_WORKERS > 64 )) && FCGI_WORKERS=64
   (( FCGI_WORKERS < 8 ))  && FCGI_WORKERS=8
 fi
 # O socket unix nasce com 0777&~umask. Com o default (022) sai 0755 = sem `w` p/ grupo/outros:
