@@ -38,6 +38,27 @@ if ! _wc_fresh; then
 fi
 [[ -s "$out" ]] || fail 503 "Pacote indisponível" "webcast_unavailable"
 
+# O `time` é carimbado POR REQUISIÇÃO (27/08/2026, pedido do Animeitor): o zip fica em cache
+# pelo piso de idade, mas o relógio da prova não pode andar em SALTOS de WEBCAST_FLOOR_S — o
+# telão anima o cronômetro com ele. Só a entrada `time` é refeita, numa CÓPIA por requisição
+# (dois polls concorrentes nunca mexem no mesmo arquivo); o que é caro no pacote — runs e
+# contest, a varredura do history — continua vindo do cache. Custo medido: ~ms num zip de
+# dezenas de KB. A CONTA É A MESMA do webcast-gen.sh (segundos decorridos, negativo antes do
+# início, teto em DUR*60) — mudou lá, muda aqui.
+_ws="$(conf_value "$contest" CONTEST_START)"; [[ "$_ws" =~ ^[0-9]+$ ]] || _ws=0
+_we="$(conf_value "$contest" CONTEST_END)";   [[ "$_we" =~ ^[0-9]+$ ]] || _we=0
+_wdur=$(( (_we > _ws) ? (_we - _ws) / 60 : 0 ))
+_tsec=$(( EPOCHSECONDS - _ws )); (( _tsec > _wdur * 60 )) && _tsec=$(( _wdur * 60 ))
+_wd="$(mktemp -d 2>/dev/null)" || _wd=""
+if [[ -n "$_wd" ]] && cp -f "$out" "$_wd/wc.zip" 2>/dev/null; then
+  trap 'rm -rf "$_wd"' EXIT
+  printf '%s' "$_tsec" > "$_wd/time"
+  # zip indisponível/falhou? serve a cópia com o time do cache (degrada p/ o salto de 10s,
+  # nunca p/ erro — o telão prefere um relógio grosseiro a nenhum pacote)
+  ( cd "$_wd" && zip -q wc.zip time ) 2>/dev/null || true
+  out="$_wd/wc.zip"
+fi
+
 wc_touch "$contest" "$key" "$ip"
 
 # Content-Length explícito (arquivo pronto): o cliente do Animeitor não precisa lidar com

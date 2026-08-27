@@ -236,6 +236,16 @@ cp "$C/var/placar.txt" "$AN2/var/placar.txt"
 CONTESTSDIR="$FIX" bash "$ROOT/score/webcast-gen.sh" an2 public "$TMP/wc2.zip" >/dev/null 2>&1
 WCT2="$(unzip -p "$TMP/wc2.zip" time 2>/dev/null)"
 ck "pré-início: time NEGATIVO"   '[[ "$WCT2" =~ ^-[0-9]+$ ]] && (( WCT2 <= -300 && WCT2 >= -700 ))'
+# SEM SALTOS: o zip é cacheado por WEBCAST_FLOOR_S (10s), mas o `time` é recarimbado POR
+# REQUISIÇÃO — dois fetches com 2s de intervalo, DENTRO da janela de cache, têm de vir
+# diferentes (sem o carimbo viriam idênticos, que era o pulo que o telão via).
+sleep 2
+callf /contest/webcast GET '' "contest=an&key=$KEY" '' "$TMP/wc3.bin"
+unhead "$TMP/wc3.bin" "$TMP/wc3.zip"
+WCT3="$(unzip -p "$TMP/wc3.zip" time 2>/dev/null)"
+ck "time anda ENTRE requisições (cache quente)" '[[ "$WCT3" =~ ^[0-9]+$ ]] && (( WCT3 > WCT && WCT3 - WCT <= 60 ))'
+# e o resto do pacote continua vindo do cache (o runs não foi regerado no meio)
+ck "runs idêntico ao do cache"   'cmp -s <(unzip -p "$TMP/wc.zip" runs) <(unzip -p "$TMP/wc3.zip" runs)'
 unzip -p "$TMP/wc.zip" contest > "$TMP/contest"
 ck "contest: separador 0x1C"     '[[ "$(grep -c $'"'"'\x1c'"'"' "$TMP/contest")" -ge 4 ]]'
 ck "contest: nome na 1ª linha"   '[[ "$(sed -n 1p "$TMP/contest")" == "Prova Animeitor" ]]'

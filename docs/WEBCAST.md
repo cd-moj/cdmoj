@@ -85,7 +85,10 @@ https://<contest>.moj.naquadah.com.br/api/v1/contest/webcast?contest=<id>&key=<C
   chave (`fetches`, `last_at`, `last_ip`) — sem log crescendo sem fim, porque o Animeitor bate
   de segundos em segundos.
 - Cache: o pacote é regerado quando o placar muda (`var/.score-dirty`) **ou** quando envelhece
-  `WEBCAST_FLOOR_S` (10 s) — o arquivo `time` é o relógio da prova e precisa andar sozinho.
+  `WEBCAST_FLOOR_S` (10 s). **O arquivo `time` é recarimbado POR REQUISIÇÃO** (27/08/2026):
+  o relógio da prova não pode andar em saltos de 10 s — o telão anima o cronômetro com ele.
+  O handler serve uma CÓPIA do zip cacheado com só a entrada `time` refeita (custa ~ms); se o
+  `zip` falhar, degrada para o valor do cache (salto de até 10 s), nunca para erro.
 
 **Conteúdo do ZIP** — cinco arquivos, campos separados por **`0x1C`** (FS; **não** é TAB) e
 linhas por `\n`:
@@ -94,7 +97,7 @@ linhas por `\n`:
 |---|---|
 | `contest` | 1: `<nome da competição>` · 2: `<duração>␜<lastmileanswer>␜<lastmilescore>␜<penalidade>` (MINUTOS) · 3: `<nº de times>␜<nº de problemas>` · N linhas `<login>␜<sigla>␜<nome do time>` · `1␜1` · `<nº de problemas>␜Y` |
 | `runs` | uma linha por submissão: `<id>␜<minuto>␜<login>␜<letra>␜<Y\|N\|?\|X>` |
-| `time` | **segundos decorridos** da prova (inteiro, sem `\n`; **negativo antes do início** — é como o telão sabe quanto falta), limitado à duração no teto. ⚠ é o único campo em segundos: duração/freeze/penalidade do `contest` e o carimbo das linhas de `runs` seguem em MINUTOS (formato do BOCA). Era minutos com piso 0 até 27/08/2026 (pedido do Animeitor) |
+| `time` | **segundos decorridos** da prova (inteiro, sem `\n`; **negativo antes do início** — é como o telão sabe quanto falta), limitado à duração no teto; **exato por requisição** (não sofre o cache de 10 s do pacote). ⚠ é o único campo em segundos: duração/freeze/penalidade do `contest` e o carimbo das linhas de `runs` seguem em MINUTOS (formato do BOCA). Era minutos com piso 0 até 27/08/2026 (pedido do Animeitor) |
 | `version` | `1.0` |
 | `icpc` | vazio (no BOCA o bloco que o preenchia está sob `if(false)`) |
 
