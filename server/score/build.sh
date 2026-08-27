@@ -120,13 +120,19 @@ if (( ! PRESTART )) && [[ ! -f "$STAMP" || "$CONF" -nt "$STAMP" || "$_ULIB" -nt 
   touch "$STAMP"
 fi
 
+# memo do sc_users POR CHAVE DE VISÃO, compartilhado entre as gerações deste build (frozen+full
+# × N visões re-rodavam a varredura de account.json — 0,5 s cada com 2.355 contas). O dir morre
+# com o build; a chave inclui MOJ_COHORTS (a lista É diferente por coorte — ver score-common.sh).
+SC_MEMO_DIR="$(mktemp -d)" || die "cannot create sc memo dir"
+trap 'rm -rf "$SC_MEMO_DIR"' EXIT
+
 # gen_one <outfile> <nofreeze:0|1> — roda o gerador (MOJ_NOFREEZE controla a visão
 # frozen×completa dos metrics), instalando atômico com checagem do modo.
 gen_one() {
   local out="$1" nofreeze="$2" tmp first
   tmp="$(mktemp "$out.XXXXXX")" || die "cannot create temp file next to $out"
   if ! MOJ_NOFREEZE="$nofreeze" MOJ_COHORTS="${VIEW_COHORTS:-}" MOJ_UNRANKED="${VIEW_UNRANKED:-}" \
-       MOJ_PRESTART="${MOJ_PRESTART:-}" \
+       MOJ_PRESTART="${MOJ_PRESTART:-}" MOJ_SC_USERS_DIR="$SC_MEMO_DIR" \
        bash "$GEN" "$CONTEST" > "$tmp"; then rm -f "$tmp"; die "generator failed: $GEN $CONTEST"; fi
   first="$(head -1 "$tmp")"
   [[ "$first" == "$MODE" ]] || { rm -f "$tmp"; die "generator '$GEN' line 1 was '$first', expected '$MODE'"; }

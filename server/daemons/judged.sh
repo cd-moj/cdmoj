@@ -95,7 +95,19 @@ schedule_score_rebuild() {
      && [[ -n "$(find "$out" -newermt "-$SCORE_COALESCE_S seconds" 2>/dev/null)" ]]; then
     return 0   # placar reconstruído há < janela; o próximo evento/visita cobre o resto
   fi
-  bash "$SCORE_BUILD" "$contest" >/dev/null 2>&1
+  # DESTACADO (2026-08-27): o build rodava INLINE aqui — e este processo é o consumidor SERIAL
+  # da fila de veredictos. Com o build medido em 4,4 s na escala da Maratona (2.355 contas,
+  # 3 visões) e a janela de coalescência em 5 s, a ingestão passaria ~metade do tempo parada
+  # montando placar — de volta ao gargalo que o SCORE_COALESCE_S existia para matar, só que
+  # maior. O filho carrega o flock do handler (.placar.lock) p/ nunca haver dois builds do
+  # mesmo contest; se outro build está em voo, este simplesmente não nasce (-n).
+  # ⚠ fds DENTRO do parêntese (a lição do setsid sob CGI vale p/ daemon também: sem isso o
+  # filho herda os fds do daemon e aparece preso em ferramentas que esperam o pipe fechar).
+  ( setsid bash -c '
+      exec 9>>"$1.lock" 2>/dev/null || exit 0
+      flock -n 9 || exit 0
+      bash "$2" "$3"' _ "$CONTESTSDIR/$contest/var/.placar" "$SCORE_BUILD" "$contest" \
+      </dev/null >/dev/null 2>&1 & ) 2>/dev/null
 }
 # hist_line_by_id <c> <login> <id> : ecoa a linha de history da submissão (normalizada p/ 7 campos
 # <tempo>:<login>:<prob>:<lang>:<verdict>:<sub_epoch>:<id>, com login preenchido), ou vazio.

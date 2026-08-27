@@ -705,7 +705,16 @@ pr_reconcile_balloons() {
   [[ -e "$hist" ]] || return 0                     # sem submissão desde o cut-over: nada a fazer
   mkdir -p "$dir"; stamp="$dir/.balloon-stamp"
   [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && return 0
-  ( flock -w 5 9 || exit 0
+  # PISO DE IDADE + ESPERADOR NÃO ESTACIONA (2026-08-27, teste de carga): com veredicto
+  # entrando sem parar o `.score-dirty` está SEMPRE mais novo que o stamp — todo load da fila
+  # entrava aqui, um varria e os outros ficavam presos no `flock -w 5` segurando um worker cada
+  # (fila a p50 de 6 s no teste). Agora: reconcilia no máximo 1×/BALLOON_RECONCILE_FLOOR_S (o
+  # balão pode nascer até ~10 s depois do AC — invisível p/ quem atravessa a sala com ele) e
+  # quem não pega o lock SEGUE (a fila lista o que está materializado; o próximo poll pega o
+  # resto). Mesmo contrato do SCORE_SERVE_FLOOR_S do placar.
+  : "${BALLOON_RECONCILE_FLOOR_S:=10}"
+  [[ -f "$stamp" ]] && [[ -n "$(find "$stamp" -newermt "-$BALLOON_RECONCILE_FLOOR_S seconds" 2>/dev/null)" ]] && return 0
+  ( flock -n 9 || exit 0
     [[ -f "$stamp" && ! "$hist" -nt "$stamp" ]] && exit 0
     # o carimbo ANTERIOR vira a referência da varredura incremental; o novo é gravado ANTES de
     # varrer (de propósito: escrita que aconteça DURANTE a varredura fica p/ a próxima, e o

@@ -134,6 +134,25 @@ sc_is_real_user() {
 # source contest's account.json. Only "real" users are emitted (sc_is_real_user).
 # Saída TSV: login, fullname, team, univ_short, univ_full, flag, **cohort** (7 campos).
 sc_users() {
+  # MEMO POR BUILD (2026-08-27): o build.sh roda o gerador COMPLETO 2× por VISÃO (frozen+full),
+  # e cada geração pagava esta varredura de N account.json de novo (0,5 s × gerações, medido
+  # com 2.355 contas — metade dos 4,4 s do build do mdp). Com MOJ_SC_USERS_DIR setado (só o
+  # build.sh seta), o resultado é memoizado POR CHAVE DE VISÃO — ⚠ a saída DEPENDE de
+  # MOJ_COHORTS/MOJ_UNRANKED (o corte de coorte acontece AQUI dentro; ver docs/SCOREBOARD.md),
+  # então um memo único serviria a lista de uma coorte para outra e o placar de coorte sairia
+  # com os times errados. Sem a env (gerador avulso, relatório, testes): comportamento de sempre.
+  if [[ -n "${MOJ_SC_USERS_DIR:-}" && -d "$MOJ_SC_USERS_DIR" ]]; then
+    local _k _f
+    _k="$(printf '%s|%s' "${MOJ_COHORTS:-}" "${MOJ_UNRANKED:-}" | cksum | cut -d' ' -f1)"
+    _f="$MOJ_SC_USERS_DIR/u$_k"
+    if [[ ! -s "$_f" ]]; then
+      _sc_users_compute > "$_f.tmp.$$" && mv -f "$_f.tmp.$$" "$_f" || { rm -f "$_f.tmp.$$"; _sc_users_compute; return; }
+    fi
+    cat "$_f"; return 0
+  fi
+  _sc_users_compute
+}
+_sc_users_compute() {
   local d="$CONTESTDIR/users"
   [[ -d "$d" ]] || return 0
   # USERS_FROM (lido por sed — o conf roda command substitution, nunca source aqui)

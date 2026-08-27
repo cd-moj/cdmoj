@@ -273,8 +273,19 @@ regen_locked() {
   cmd=("$@")
   stale_cache "$cache" "${srcs[@]:1}" || return 0
   mkdir -p "$(dirname "$lock")" 2>/dev/null
+  # ⚠ ESPERADOR NÃO ESTACIONA (2026-08-27, teste de carga de 10k): quando o cache JÁ EXISTE,
+  # quem não pega o lock serve o VELHO na hora (`flock -n`) — um constrói, os demais respondem
+  # em ms. Antes era `flock -w 20` para todos: com o placar de 10k linhas custando 9,7 s por
+  # build e veredicto tocando o dirty sem parar, cada requisição estacionava um worker do
+  # fcgiwrap na fila do lock — o pool inteiro (64) virou sala de espera e TODAS as rotas
+  # afundaram (usuários reais a p95 6 s; o teste foi abortado). Servir um placar/estatística
+  # alguns segundos velho é doutrina aceita (é o mesmo contrato do SCORE_SERVE_FLOOR_S);
+  # estacionar o pool não é. Só o PRIMEIRO build (cache inexistente) continua esperando:
+  # ali não há o que servir.
+  local _wait=(-n)
+  [[ -s "$cache" ]] || _wait=(-w 20)
   (
-    flock -w 20 9 || exit 0
+    flock "${_wait[@]}" 9 || exit 0
     stale_cache "$cache" "${srcs[@]:1}" || exit 0   # double-check após o lock
     "${cmd[@]}" >/dev/null 2>&1 || true
   ) 9>"$lock"

@@ -13,6 +13,9 @@
 # folha é impressa segundos depois de a tarefa nascer, com o PDF cacheado para sempre: promover
 # a estrela depois mudaria a tela e nunca o papel.
 set -u
+# o PISO do reconcile (1x/10s sob churn de veredicto) é comportamento de produção; aqui os
+# cenários encadeiam reconciles em segundos e o que se testa é a SEMÂNTICA — piso desligado.
+export BALLOON_RECONCILE_FLOOR_S=0
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
