@@ -29,6 +29,17 @@ log_format moj '$remote_addr - $remote_user [$time_local] "$request" '
                '$status $body_bytes_sent "$http_referer" "$http_user_agent" '
                'rt=$request_time urt=$upstream_response_time';
 
+# ANTEPARO DE CONCORRÊNCIA do host principal (ver o comentário grande no moj-app.conf):
+# classe pela MESMA divisão do $moj_contest_host — chave VAZIA = o limit_conn não se aplica,
+# então o subdomínio de contest passa livre sem segundo bloco. Excedente = 429.
+# Em HTTP/2 cada requisição concorrente conta como uma conexão (é o que queremos: o limite é
+# de REQUISIÇÕES em voo, não de sockets).
+map $moj_contest_host $moj_site_conn { "" "site"; default ""; }
+limit_conn_zone $moj_site_conn zone=moj_site:1m;
+limit_conn_status 429;
+# freio de emergência POR CLASSE: só o host principal olha o arquivo; contest nunca.
+map $moj_contest_host $moj_shed_file { "" "/etc/nginx/moj-shed-treino"; default "/nonexistent"; }
+
 # id de problema LEGADO (pontilhado, "org.slug") -> canônico URL-encoded ("org%23slug").
 # Usado pelo redirect de /new/treino/problem/ (moj-app.conf.in). Só o PRIMEIRO ponto vira
 # %23 (o slug pode ter pontos); %23 = '#' — literal no return viraria fragment.
