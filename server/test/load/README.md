@@ -3,6 +3,13 @@
 Ferramentas p/ medir a capacidade do MOJ sob a carga de um contest grande (ex.: 1500 usuários
 × 5h). Antes desta suíte não havia NENHUM dado empírico de dimensionamento no repositório.
 
+## O teste GRANDE (simulação realista de prova): `TESTE-CARGA.md`
+
+Para simular uma Maratona inteira contra a produção — milhares de clientes autenticados, PDFs
+renderizando, veredictos fluindo — o runbook completo com scripts provados (`carga-*.sh`) está
+em **`TESTE-CARGA.md`**. As duas ferramentas abaixo são os benches FOCADOS (um gargalo por vez);
+o TESTE-CARGA é o ensaio geral.
+
 ## Os dois gargalos e as duas ferramentas
 
 O custo de um contest tem dois eixos independentes:
