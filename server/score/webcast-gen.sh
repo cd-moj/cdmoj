@@ -13,7 +13,8 @@
 #               1␜1
 #               <nº de problemas>␜Y
 #   runs     <id>␜<minuto>␜<login>␜<letra>␜<Y|N|?|X>   (uma por submissão)
-#   time     minuto corrente da prova (inteiro, sem \n), limitado à duração
+#   time     SEGUNDOS decorridos da prova (inteiro, sem \n; NEGATIVO antes do início,
+#            limitado à duração no teto)
 #   version  1.0
 #   icpc     vazio (no BOCA o bloco que o preenchia está sob `if(false)`)
 #
@@ -58,8 +59,12 @@ FZMIN=$DUR; (( FREEZE > START )) && FZMIN=$(( (FREEZE - START) / 60 ))
 (( FZMIN > DUR )) && FZMIN=$DUR
 # lastmileanswer = quando os juízes param de responder (o MOJ não tem esse conceito: = duração)
 LMA=$DUR
-# minuto corrente, limitado à duração (antes do início, 0)
-TMIN=$(( (NOW > START) ? (NOW - START) / 60 : 0 )); (( TMIN > DUR )) && TMIN=$DUR
+# relógio da prova em SEGUNDOS decorridos — NEGATIVO antes do início (pedido do Animeitor,
+# 27/08/2026; até então saía em minutos e com piso 0, e o telão não sabia distinguir "faltam
+# 10 min" de "acabou de começar"). Teto na duração: prova encerrada = relógio parado no fim.
+# ⚠ só o arquivo `time` fala em segundos — duração/freeze/penalidade do `contest` e o carimbo
+# das linhas de `runs` continuam em MINUTOS (formato do BOCA).
+TSEC=$(( NOW - START )); (( TSEC > DUR * 60 )) && TSEC=$(( DUR * 60 ))
 
 W="$(mktemp -d)" || exit 1
 trap 'rm -rf "$W"' EXIT
@@ -144,7 +149,7 @@ emit_history_stream "$C" \
   printf '%s\x1cY\n' "$NPROB"
 } > "$W/contest"
 
-printf '%s' "$TMIN" > "$W/time"
+printf '%s' "$TSEC" > "$W/time"
 printf '1.0\n'      > "$W/version"
 : > "$W/icpc"
 

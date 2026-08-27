@@ -222,7 +222,20 @@ ck "rota pública responde zip"   'grep -q "Content-Type: application/zip" "$TMP
 unhead "$TMP/wc.bin" "$TMP/wc.zip"
 ck "5 arquivos do protocolo"     '[[ "$(unzip -Z1 "$TMP/wc.zip" 2>/dev/null | sort | tr "\n" " ")" == "contest icpc runs time version " ]]'
 ck "version = 1.0"               '[[ "$(unzip -p "$TMP/wc.zip" version)" == "1.0" ]]'
-ck "time é minuto inteiro"       '[[ "$(unzip -p "$TMP/wc.zip" time)" =~ ^[0-9]+$ ]]'
+# `time` é o relógio da prova em SEGUNDOS decorridos (pedido do Animeitor, 27/08/2026 — era
+# minutos com piso 0). O fixture começou há 7200 s: um valor ~7200 prova que é SEGUNDOS (em
+# minutos seria 120, que reprova).
+WCT="$(unzip -p "$TMP/wc.zip" time)"
+ck "time em SEGUNDOS decorridos" '[[ "$WCT" =~ ^[0-9]+$ ]] && (( WCT >= 7200 && WCT <= 7500 ))'
+# antes do início o relógio é NEGATIVO (é como o telão sabe que falta) — gerador direto num
+# contest futuro, reusando o placar do fixture
+AN2="$FIX/an2"; mkdir -p "$AN2/var"
+printf 'CONTEST_ID=an2\nCONTEST_NAME=Futuro\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' \
+  "$(( NOW + 600 ))" "$(( NOW + 11400 ))" > "$AN2/conf"
+cp "$C/var/placar.txt" "$AN2/var/placar.txt"
+CONTESTSDIR="$FIX" bash "$ROOT/score/webcast-gen.sh" an2 public "$TMP/wc2.zip" >/dev/null 2>&1
+WCT2="$(unzip -p "$TMP/wc2.zip" time 2>/dev/null)"
+ck "pré-início: time NEGATIVO"   '[[ "$WCT2" =~ ^-[0-9]+$ ]] && (( WCT2 <= -300 && WCT2 >= -700 ))'
 unzip -p "$TMP/wc.zip" contest > "$TMP/contest"
 ck "contest: separador 0x1C"     '[[ "$(grep -c $'"'"'\x1c'"'"' "$TMP/contest")" -ge 4 ]]'
 ck "contest: nome na 1ª linha"   '[[ "$(sed -n 1p "$TMP/contest")" == "Prova Animeitor" ]]'

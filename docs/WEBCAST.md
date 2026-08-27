@@ -94,7 +94,7 @@ linhas por `\n`:
 |---|---|
 | `contest` | 1: `<nome da competição>` · 2: `<duração>␜<lastmileanswer>␜<lastmilescore>␜<penalidade>` (MINUTOS) · 3: `<nº de times>␜<nº de problemas>` · N linhas `<login>␜<sigla>␜<nome do time>` · `1␜1` · `<nº de problemas>␜Y` |
 | `runs` | uma linha por submissão: `<id>␜<minuto>␜<login>␜<letra>␜<Y\|N\|?\|X>` |
-| `time` | minuto corrente da prova (inteiro, sem `\n`), limitado à duração |
+| `time` | **segundos decorridos** da prova (inteiro, sem `\n`; **negativo antes do início** — é como o telão sabe quanto falta), limitado à duração no teto. ⚠ é o único campo em segundos: duração/freeze/penalidade do `contest` e o carimbo das linhas de `runs` seguem em MINUTOS (formato do BOCA). Era minutos com piso 0 até 27/08/2026 (pedido do Animeitor) |
 | `version` | `1.0` |
 | `icpc` | vazio (no BOCA o bloco que o preenchia está sob `if(false)`) |
 
