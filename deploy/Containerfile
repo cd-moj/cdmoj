@@ -165,6 +165,8 @@ ENV MOJ_HOME=/opt/moj/cdmoj \
 # (sourceia as libs da API), injeta PATH_INFO=/ pelo protocolo e exige "Status: 200".
 # Se a libfcgi da final divergir do build stage, ou o molde.sh quebrar, o BUILD falha.
 RUN /opt/moj/bin/moj-molde-shim --selftest
+# idem p/ o PORTEIRO (caminho rápido Python): fixture própria, rotas felizes + declines.
+RUN python3 /opt/moj/cdmoj/server/porteiro/moj-porteiro.py --selftest
 
 WORKDIR /opt/moj/cdmoj
 # papéis: api (fcgiwrap+router) | judged (daemon) | bot | shell

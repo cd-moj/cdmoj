@@ -67,6 +67,24 @@ case "$role" in
           sleep 1
         done ) &
     fi
+    # --- PORTEIRO (caminho rápido Python das rotas quentes de leitura) ------------------
+    # Leitor puro dos caches que o bash materializa; qualquer dúvida = fecha sem resposta =
+    # 502 = fallback pro fcgiwrap (mesmo desenho de rota/fallback do molde). Ver
+    # server/porteiro/moj-porteiro.py e o CLAUDE.md (Backend).
+    : "${PORTEIRO_WORKERS:=4}"
+    : "${PORTEIRO_SOCK:=$RUNDIR/moj-porteiro.sock}"
+    if [[ -f "$MOJ_HOME/server/porteiro/moj-porteiro.py" && "${PORTEIRO_DISABLE:-0}" != 1 ]] \
+       && command -v python3 >/dev/null 2>&1; then
+      rm -f "$PORTEIRO_SOCK" 2>/dev/null || true
+      ( umask "$FCGI_UMASK"
+        while :; do
+          python3 "$MOJ_HOME/server/porteiro/moj-porteiro.py" \
+            -s "$PORTEIRO_SOCK" -c "$PORTEIRO_WORKERS" -b "${PORTEIRO_BACKLOG:=16}" \
+            >> "$RUNDIR/porteiro.err" 2>&1
+          echo "moj-entrypoint: porteiro saiu (rc=$?) — respawn em 1s" >> "$RUNDIR/porteiro.err"
+          sleep 1
+        done ) &
+    fi
     # fcgiwrap roda o router.sh via nginx (que fica FORA da imagem e faz fastcgi_pass
     # p/ $FCGI_SOCK, montado por volume). Remove socket órfão antes de abrir.
     rm -f "$FCGI_SOCK" 2>/dev/null || true

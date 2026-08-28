@@ -32,13 +32,16 @@ A plataforma empacota numa imagem OCI (`deploy/Containerfile`, base `debian:trix
 e faz `fastcgi_pass` ao socket); a imagem é a **API** (fcgiwrap + `router.sh`) + o **daemon**.
 Dois containers da mesma imagem (papéis `api` e `judged`) sobem por **quadlets** rootless.
 
-O papel `api` também sobe o **pool do MOLDE** (workers bash persistentes; ver o CLAUDE.md,
-seção Backend): `moj-molde-shim` (compilado num build stage; `--selftest` roda no build) num
-socket próprio (`$RUNDIR/moj-molde.sock`, `MOLDE_WORKERS` default 8, `MOLDE_DISABLE=1`
-desliga). O nginx só o usa nas rotas ligadas por `server/bin/molde-route.sh add <rota>`
-(snippet em `/etc/nginx/moj-molde-routes/`, com `error_page 502 = @moj_fcgiwrap` — fallback
-automático p/ o fcgiwrap). Rollback por rota: `molde-route.sh rm <rota>`; total:
-`rm /etc/nginx/moj-molde-routes/*.conf && systemctl reload nginx`.
+O papel `api` também sobe dois caminhos rápidos opcionais (ver o CLAUDE.md, seção Backend):
+o **PORTEIRO** (`moj-porteiro.py`, Python puro — leitor dos caches das rotas quentes de
+leitura, socket `$RUNDIR/moj-porteiro.sock`, `PORTEIRO_WORKERS` 4, `PORTEIRO_DISABLE=1`
+desliga) e o **pool do MOLDE** (workers bash persistentes atrás do `moj-molde-shim`,
+compilado num build stage; socket `$RUNDIR/moj-molde.sock`, `MOLDE_WORKERS` 8,
+`MOLDE_DISABLE=1`). O nginx só os usa nas rotas ligadas por `server/bin/molde-route.sh add
+<rota> [porteiro|molde]` (snippet em `/etc/nginx/moj-molde-routes/`, com
+`error_page 502 = @moj_fcgiwrap` — fallback automático p/ o fcgiwrap). Rollback por rota:
+`molde-route.sh rm <rota>`; total: `rm /etc/nginx/moj-molde-routes/*.conf && systemctl
+reload nginx`.
 
 ```bash
 cd <raiz-do-workspace>/cdmoj

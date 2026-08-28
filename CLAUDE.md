@@ -32,6 +32,20 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   smoke-molde.sh). Testes: `smoke-molde.sh` (protocolo+isolamento), `molde-diff.sh`
   (diferencial fcgiwrap×molde na migração). `MOLDE_WORKERS` (default 8) e `MOLDE_DISABLE=1`
   no env do container.
+- **PORTEIRO (caminho rápido Python das rotas quentes de LEITURA, 2026-08-28)**:
+  `server/porteiro/moj-porteiro.py` (stdlib puro, FastCGI próprio, prefork) serve em ~1-3 ms e
+  ZERO forks as rotas cujo corpo o bash JÁ materializou: `score`, `basic`, `navbuttons`,
+  `rounds`, `balloons`, `problems`. **REGRA-MÃE: é um LEITOR PURO** — nunca regenera, nunca
+  escreve, nunca fabrica erro; qualquer coisa fora do caso feliz (cache frio/ausente, sessão
+  esquisita, POST, `scope=mine`, coorte fora do padrão) ele DECLINA fechando a conexão sem
+  resposta ⇒ nginx 502 ⇒ `@moj_fcgiwrap` ⇒ o bash responde E regenera o cache (que o porteiro
+  volta a servir). A preguiça de regeneração do bash continua exercitada por construção.
+  ⚠ As VARIANTES espelhadas nele são REGRAS DE SEGURANÇA (papel da nav, coorte, autor da
+  lista, congelado×completo) — mudou a regra no handler/lib bash ⇒ mude no porteiro E rode
+  `smoke-porteiro.sh` (16 asserções: variantes + declines, com cliente FCGI embutido) e o
+  diferencial (`molde-diff.sh`). Rota liga/desliga por `server/bin/molde-route.sh add|rm
+  <rota> [porteiro|molde]` (default porteiro). `PORTEIRO_WORKERS` (4) e `PORTEIRO_DISABLE=1`
+  no env. `--selftest` roda no build da imagem.
 - Handler típico: `require_method POST`; `require_auth`; `body="$(read_body)"`; valida com
   `jq -e .`; lê com `jq -r`; responde com `emit_json 200 OK` + objeto `jq`, ou
   `fail <http> "<msg>" "<code>"`. Querystring: `param <nome>`. Helpers em `lib/common.sh`.
