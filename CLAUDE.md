@@ -12,6 +12,26 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 
 - `router.sh` — front-controller único: sanitiza segmentos (sem traversal), mapeia
   `/a/b/c → handlers/a/b/c.sh` e faz `source` do handler. `$_DIR` = raiz `api/v1`.
+- **MOLDE (workers bash persistentes, 2026-08-28)**: rotas quentes podem ser servidas por um
+  pool de bash PRÉ-CARREGADOS (`molde.sh` sourceia as libs 1× e atende em loop; cada
+  requisição roda num subshell `( . router.sh )` — fork sem exec = 0,33 ms vs ~6 ms de
+  exec+source). A ponte com o nginx é o **`moj-molde-shim`** (C+libfcgi,
+  `server/molde/moj-molde-shim.c`, compilado num build stage; `--selftest` é asserção de
+  capacidade do build): corpo em `$WDIR/body` (EOF garantido p/ `read_body`), resposta em
+  `$WDIR/resp.out` (CGI completo, streamado após o `done`), stderr em ARQUIVO, deadline de
+  310 s (> fastcgi_read_timeout) com killpg+respawn, reciclagem a cada `MOLDE_MAX_REQS`.
+  **Migração POR ROTA**: `server/bin/molde-route.sh add|rm <rota>` escreve/remove um snippet
+  em `/etc/nginx/moj-molde-routes/` com **`error_page 502 = @moj_fcgiwrap`** — shim morto =
+  fallback AUTOMÁTICO p/ o fcgiwrap (que segue servindo todas as rotas não-migradas); 504
+  NÃO faz fallback de propósito (repetir requisição lenta dobraria a carga). Regras que o
+  molde impõe ao código: (1) a lista de libs do prelúdio é ÚNICA (`lib/sources.sh` — lib
+  nova entra LÁ, nunca numa segunda lista); (2) tmp-names usam **`${BASHPID}`**, nunca `$$`
+  (todas as requisições de um worker compartilham `$$`); (3) `( . router.sh )` é o que
+  contém `fail`/`trap EXIT`/`exec 9>lock`/`set +o noglob` — handler NUNCA assume processo
+  novo por requisição; (4) fds de coproc não sobrevivem a subshell — dup p/ fd fixo (ver
+  smoke-molde.sh). Testes: `smoke-molde.sh` (protocolo+isolamento), `molde-diff.sh`
+  (diferencial fcgiwrap×molde na migração). `MOLDE_WORKERS` (default 8) e `MOLDE_DISABLE=1`
+  no env do container.
 - Handler típico: `require_method POST`; `require_auth`; `body="$(read_body)"`; valida com
   `jq -e .`; lê com `jq -r`; responde com `emit_json 200 OK` + objeto `jq`, ou
   `fail <http> "<msg>" "<code>"`. Querystring: `param <nome>`. Helpers em `lib/common.sh`.

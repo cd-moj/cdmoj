@@ -20,16 +20,7 @@ fi
 # subshell — re-sourcear aqui jogaria fora o ganho (~5 ms). No caminho clássico (fcgiwrap,
 # standalone, o setsid de contest/problems.sh) a variável não existe e nada muda.
 if [[ -z "${MOJ_LIBS_LOADED:-}" ]]; then
-  source "$_DIR/lib/common.sh"
-  source "$_DIR/lib/params.sh"
-  source "$_DIR/lib/auth.sh"
-  source "$_DIR/lib/worker-auth.sh"
-  source "$_DIR/lib/bot-auth.sh"
-  source "$_DIR/lib/profile.sh"
-  source "$_DIR/lib/users.sh"
-  source "$_DIR/lib/verdict.sh"
-  source "$_DIR/lib/telegram.sh"
-  source "$_DIR/lib/alerts.sh"
+  source "$_DIR/lib/sources.sh"      # a lista única do prelúdio (compartilhada com molde.sh)
   MOJ_LIBS_LOADED=1
 fi
 # POR REQUISIÇÃO (não pode ficar atrás da guarda): o params.sh parseia no load; no molde o

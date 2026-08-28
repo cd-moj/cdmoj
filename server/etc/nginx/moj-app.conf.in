@@ -112,6 +112,20 @@ location /api/v1/ {
     fastcgi_pass            unix:@WORKROOT@/run/fcgiwrap.sock;
     fastcgi_split_path_info ^(/api/v1)(/.*)$;
 }
+# --- MOLDE (workers bash persistentes) ----------------------------------------------------
+# Rotas migradas p/ o molde entram como snippets em /etc/nginx/moj-molde-routes/*.conf
+# (um por rota, gerados por server/bin/molde-route.sh add|rm <rota> — rollback por rota é
+# `molde-route.sh rm` ou o rm do arquivo + reload). Cada snippet replica anteparo/breaker/
+# microcache/shed e aponta p/ o socket do molde com `error_page 502 = @moj_fcgiwrap`:
+# shim morto/afogado ⇒ o nginx repete a requisição no fcgiwrap clássico SOZINHO.
+# ⚠ Fallback é SÓ no 502 (conexão/resposta inválida) — nunca no 504: requisição lenta
+# repetida no outro pool dobraria a carga exatamente na hora errada.
+include /etc/nginx/moj-molde-routes/*[.]conf;
+location @moj_fcgiwrap {
+    fastcgi_pass            unix:@WORKROOT@/run/fcgiwrap.sock;
+    fastcgi_split_path_info ^(/api/v1)(/.*)$;
+}
+
 location /api/v1/judge/ {
     fastcgi_pass            unix:@WORKROOT@/run/fcgiwrap.sock;
     fastcgi_split_path_info ^(/api/v1)(/.*)$;

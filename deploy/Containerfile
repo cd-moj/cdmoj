@@ -23,6 +23,17 @@ RUN set -eux; \
         "https://github.com/jplag/JPlag/releases/download/v${JPLAG_VER}/jplag-${JPLAG_VER}-jar-with-dependencies.jar"; \
     else mkdir -p /opt/moj/jplag; fi
 
+# ---------- stage moldeshim: compila a ponte FastCGI↔molde (gcc/dev SÓ aqui) ----------
+# O shim é a ponte FastCGI ↔ worker bash persistente (server/molde/moj-molde-shim.c).
+# libfcgi0ldbl (runtime) já entra na final como dependência do fcgiwrap — mesma release,
+# ABI casada; a asserção de capacidade (--selftest, lá embaixo) prova a dupla de verdade.
+FROM debian:trixie-slim AS moldeshim
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libc6-dev libfcgi-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+COPY cdmoj/server/molde/moj-molde-shim.c /src/moj-molde-shim.c
+RUN gcc -O2 -Wall -Wextra -o /moj-molde-shim /src/moj-molde-shim.c -lfcgi
+
 # ---------------------------- stage final -----------------------------------
 FROM debian:trixie-slim
 ARG JPLAG_VER=3.0.0
@@ -83,6 +94,7 @@ COPY cdmoj/mojinho-bot /opt/moj/cdmoj/mojinho-bot
 COPY mojtools     /opt/moj/mojtools
 COPY --from=jplag /opt/moj/jplag /opt/moj/jplag
 COPY cdmoj/deploy/moj-entrypoint /opt/moj/bin/moj-entrypoint
+COPY --from=moldeshim /moj-molde-shim /opt/moj/bin/moj-molde-shim
 RUN chmod +x /opt/moj/bin/moj-entrypoint \
       /opt/moj/cdmoj/server/api/v1/router.sh 2>/dev/null || true
 
@@ -148,6 +160,11 @@ ENV MOJ_HOME=/opt/moj/cdmoj \
     JPLAG_JAR=/opt/moj/jplag/jplag-${JPLAG_VER}-jar-with-dependencies.jar \
     INTAKE_MODE=queue \
     JUDGE_BACKEND=queue
+
+# CAPACIDADE do molde, não só presença: o --selftest spawna um bash molde de verdade
+# (sourceia as libs da API), injeta PATH_INFO=/ pelo protocolo e exige "Status: 200".
+# Se a libfcgi da final divergir do build stage, ou o molde.sh quebrar, o BUILD falha.
+RUN /opt/moj/bin/moj-molde-shim --selftest
 
 WORKDIR /opt/moj/cdmoj
 # papéis: api (fcgiwrap+router) | judged (daemon) | bot | shell

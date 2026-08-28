@@ -46,6 +46,24 @@ chmod 700 "$RUNDIR/sessions" "$RUNDIR/secrets" 2>/dev/null || true
 role="${1:-api}"
 case "$role" in
   api)
+    # --- POOL DO MOLDE (workers bash persistentes) em background -----------------------
+    # O shim (moj-molde-shim, compilado no build) abre o socket próprio e mantém N bash
+    # pré-carregados; o nginx só o usa nas rotas com snippet em /etc/nginx/moj-molde-routes/
+    # (error_page 502 = fallback automático p/ o fcgiwrap abaixo). Shim morto ⇒ o loop
+    # respawna; loop morto ⇒ socket some ⇒ nginx cai no fallback sozinho. stderr em ARQUIVO
+    # ($RUNDIR/molde.err) — pipe de stderr de vida longa já travou worker (ver CLAUDE.md).
+    : "${MOLDE_WORKERS:=8}"
+    : "${MOLDE_SOCK:=$RUNDIR/moj-molde.sock}"
+    if [[ -x /opt/moj/bin/moj-molde-shim && "${MOLDE_DISABLE:-0}" != 1 ]]; then
+      rm -f "$MOLDE_SOCK" 2>/dev/null || true
+      ( umask "$FCGI_UMASK"
+        while :; do
+          /opt/moj/bin/moj-molde-shim -s "$MOLDE_SOCK" -c "$MOLDE_WORKERS" \
+            -w "$RUNDIR/molde" -m "$MOJ_HOME/server/api/v1/molde.sh" >> "$RUNDIR/molde.err" 2>&1
+          echo "moj-entrypoint: molde-shim saiu (rc=$?) — respawn em 1s" >> "$RUNDIR/molde.err"
+          sleep 1
+        done ) &
+    fi
     # fcgiwrap roda o router.sh via nginx (que fica FORA da imagem e faz fastcgi_pass
     # p/ $FCGI_SOCK, montado por volume). Remove socket órfão antes de abrir.
     rm -f "$FCGI_SOCK" 2>/dev/null || true
