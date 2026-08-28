@@ -1,0 +1,8 @@
+# Mata handlers CGI órfãos (>600 s) — ver server/bin/reap-stale-handlers.sh.
+# Instalado por server/bin/install-reaper.sh; disparado pelo moj-reaper.timer.
+[Unit]
+Description=MOJ: reaper de handlers CGI orfaos
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /home/moj/moj/cdmoj/server/bin/reap-stale-handlers.sh

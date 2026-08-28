@@ -1,0 +1,10 @@
+# A cada 5 min varre handlers órfãos. Par do moj-reaper.service.
+[Unit]
+Description=MOJ: timer do reaper de handlers
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
