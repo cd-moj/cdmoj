@@ -38,6 +38,19 @@ CONTESTSDIR = os.environ.get("CONTESTSDIR", "/data/contests")
 RUNDIR = os.environ.get("RUNDIR", "/data/run")
 SESSIONDIR = os.environ.get("SESSIONDIR", os.path.join(RUNDIR, "sessions"))
 MOJ_HOME = os.environ.get("MOJ_HOME", "/opt/moj/cdmoj")
+
+def _env_int(name, dflt):
+    v = os.environ.get(name, "")
+    return int(v) if v.isdigit() else dflt
+
+# Orçamentos de frescor — MESMOS envs (e defaults) dos handlers bash. Alargá-los via env
+# (entrypoint) reduz os DECLINES p/ o bash; entrada mais nova que o cache SEMPRE invalida,
+# então edição de admin propaga na hora independente do TTL.
+SCORE_FLOOR = _env_int("SCORE_SERVE_FLOOR_S", 8)
+TTL_BASIC = _env_int("BASIC_CACHE_TTL", 20)
+TTL_NAV = _env_int("NAV_CACHE_TTL", 20)
+TTL_ROUNDS = _env_int("ROUNDS_CACHE_TTL", 30)
+TTL_PROBLEMS = _env_int("PROBLEMS_CACHE_TTL", 900)
 HANDLERS = os.path.join(MOJ_HOME, "server/api/v1/handlers")
 
 VALID_ID = re.compile(r"^[A-Za-z0-9._@#+-]+$")
@@ -357,7 +370,9 @@ def _nonempty(path):
         return False
 
 
-def _score_freshness_or_decline(contest, f, floor_s=8):
+def _score_freshness_or_decline(contest, f, floor_s=None):
+    if floor_s is None:
+        floor_s = SCORE_FLOOR
     """Espelho do gatilho do score.sh: fontes mais novas + fora do piso ⇒ bash regenera."""
     mf = mtime_ns(f)
     if mf is None:
@@ -389,7 +404,7 @@ def r_basic(contest, q, params):
     cf = os.path.join(var, f"basic-cache.{bcvar}.json")
     inputs = [os.path.join(CONTESTSDIR, contest, p) for p in
               ("conf", "rounds.json", "cohorts.json", "time-overrides.json")]
-    if not cache_fresh(cf, 20, inputs):
+    if not cache_fresh(cf, TTL_BASIC, inputs):
         raise Decline("basic-cache frio")
     with open(cf, "rb") as f:
         return cgi(f.read())
@@ -403,7 +418,7 @@ def r_navbuttons(contest, q, params):
     cf = os.path.join(CONTESTSDIR, contest, "var", f"nav-cache.{role}.json")
     inputs = [os.path.join(CONTESTSDIR, contest, p) for p in
               ("conf", "users", "time-overrides.json")]
-    if not cache_fresh(cf, 20, inputs):
+    if not cache_fresh(cf, TTL_NAV, inputs):
         raise Decline("nav-cache frio")
     with open(cf, "rb") as f:
         return cgi(f.read())
@@ -416,7 +431,7 @@ def r_rounds(contest, q, params):
     rvar = "priv" if is_priv_rounds(sess[1]) else "pub"
     cf = os.path.join(CONTESTSDIR, contest, "var", f"rounds-cache.{rvar}.json")
     inputs = [os.path.join(CONTESTSDIR, contest, p) for p in ("conf", "rounds.json")]
-    if not cache_fresh(cf, 30, inputs):
+    if not cache_fresh(cf, TTL_ROUNDS, inputs):
         raise Decline("rounds-cache frio")
     with open(cf, "rb") as f:
         return cgi(f.read())
@@ -456,7 +471,7 @@ def r_problems(contest, q, params):
               os.path.join(CONTESTSDIR, contest, "enunciados"),
               os.path.join(RUNDIR, "tl"),
               os.path.join(cdir, ".problems-dirty")]
-    if not cache_fresh(cf, 900, inputs):
+    if not cache_fresh(cf, TTL_PROBLEMS, inputs):
         raise Decline("problems-cache frio")   # o bash serve (e regenera destacado se for o caso)
     return serve_file_maybe_gz(cf, params, ctype="application/json; charset=utf-8")
 

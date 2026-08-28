@@ -35,6 +35,8 @@ printf 'icpc\n' > "$S/var/placar.txt"
 
 # ── porteiro no ar ────────────────────────────────────────────────────────────
 SOCK="$T/p.sock"
+# orçamentos PINADOS (o deploy pode alargá-los por env; o teste fixa o contrato base)
+SCORE_SERVE_FLOOR_S=8 BASIC_CACHE_TTL=20 NAV_CACHE_TTL=20 ROUNDS_CACHE_TTL=30 \
 python3 porteiro/moj-porteiro.py -s "$SOCK" -c 2 -b 8 2> "$T/p.err" &
 PPID_P=$!
 for i in $(seq 40); do [[ -S "$SOCK" ]] && break; sleep 0.1; done

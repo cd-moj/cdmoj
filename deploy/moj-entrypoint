@@ -46,6 +46,16 @@ chmod 700 "$RUNDIR/sessions" "$RUNDIR/secrets" 2>/dev/null || true
 role="${1:-api}"
 case "$role" in
   api)
+    # --- ORÇAMENTOS DE FRESCOR alargados p/ os times (decisão do Ribas, 28/08) ---------
+    # Placar até ~30 s atrás do último veredicto (o daemon coalescido o mantém ~10 s típico)
+    # e lote de boot com TTL 60 s: cada cache "velho" custa um DECLINE do porteiro p/ o bash
+    # (100-300 ms sob carga) — alargar encolhe a classe bash, que é o teto atual. Edição de
+    # admin propaga NA HORA mesmo assim: o frescor por ENTRADAS (-nt conf/rounds/overrides)
+    # invalida independente do TTL. Handlers bash e porteiro honram os MESMOS envs.
+    export SCORE_SERVE_FLOOR_S="${SCORE_SERVE_FLOOR_S:-30}"
+    export BASIC_CACHE_TTL="${BASIC_CACHE_TTL:-60}"
+    export NAV_CACHE_TTL="${NAV_CACHE_TTL:-60}"
+    export ROUNDS_CACHE_TTL="${ROUNDS_CACHE_TTL:-60}"
     # --- POOL DO MOLDE (workers bash persistentes) em background -----------------------
     # O shim (moj-molde-shim, compilado no build) abre o socket próprio e mantém N bash
     # pré-carregados; o nginx só o usa nas rotas com snippet em /etc/nginx/moj-molde-routes/
