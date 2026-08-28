@@ -138,6 +138,17 @@ ssh moj@moj.naquadah.com.br 'podman exec systemd-moj-api bash -c "rm -f /data/ru
 9. **O placar de coorte depende de `MOJ_COHORTS` dentro do `sc_users`** — qualquer cache/memo
    novo nessa área precisa da coorte na CHAVE (memo único = times de uma coorte no placar da
    outra).
+10. **Saturar o pool ATRASA O JULGAMENTO em ~15 min, mesmo com as rotas de juiz isentas do
+    nginx** (visto em 27/08, no teste de 1.000 req/s): a isenção de `limit_conn` não protege do
+    POOL fcgiwrap, que é um só — beat com resposta perdida (502) deixa o job órfão em
+    `assigned/` até o TTL de 15 min re-enfileirar. Submissão real que cair na janela saturada
+    resolve sozinha (reconcile + TTL), mas conte com o atraso — e confira `run/assigned/` e
+    `Not Answered` nos histories na colheita, não só o access log.
+11. **O teto do servidor é ~350-430 req/s com CPU pela METADE** (64 workers; o custo por
+    requisição infla ~3× sob contenção) e **acima do teto não há degradação graciosa**: fila
+    mais funda que capacidade×timeout ⇒ goodput vai a ~2-6 resp/s (todo request que um worker
+    pega já foi abandonado pelo cliente), backlog do socket transborda em 502. Ofereça no
+    máximo o teto; para "testar 1.000 req/s" precisaria de pool maior ou quebra-circuito.
 
 ## Histórico que dá contexto
 
