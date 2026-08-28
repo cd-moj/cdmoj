@@ -458,6 +458,30 @@ _pr_cache_ok() {  # <cache> <src> <meta>
   # de booleano é por igualdade explícita.
   ! jq -e '.build_ok == false' "$3" >/dev/null 2>&1
 }
+
+# _pr_render_slot <cmd...> — SEMÁFORO das renderizações de PDF. magick/paps custam SEGUNDOS de
+# CPU por folha e são disparados por demanda (busca de PDF frio na fila do staff): numa onda de
+# balões — 500 ACs no problema fácil da abertura — cada fetch vira um render e a máquina afunda
+# em dezenas de magick simultâneos (medido no teste de 28/08: magick a 3200% de CPU, 60% do
+# tempo em sys, API inteira degradada). O teto é PR_RENDER_SLOTS vagas via flock: tenta todas
+# sem bloquear; cheias, espera até 60 s na vaga sorteada pelo BASHPID — fila educada em vez do
+# 31º magick. Timeout = falha (o chamador já trata render que falha; o cliente tenta de novo).
+# Sem ciclo com os locks por-tarefa: quem segura vaga nunca pega outro <id>.lock.
+PR_RENDER_SLOTS="${PR_RENDER_SLOTS:-6}"
+_pr_render_slot() {
+  # ${RUNDIR:-}: esta lib também é sourceada STANDALONE sob set -u (smokes, report-gen)
+  local d="${RUNDIR:-/tmp}/locks" i rc fd slot
+  mkdir -p "$d" 2>/dev/null
+  for ((i=0; i<PR_RENDER_SLOTS; i++)); do
+    exec {fd}>"$d/render-$i.lock" || continue
+    if flock -n "$fd"; then "$@"; rc=$?; exec {fd}>&-; return "$rc"; fi
+    exec {fd}>&-
+  done
+  slot=$(( BASHPID % PR_RENDER_SLOTS ))
+  exec {fd}>"$d/render-$slot.lock" || { "$@"; return $?; }
+  if flock -w 60 "$fd"; then "$@"; rc=$?; exec {fd}>&-; return "$rc"; fi
+  exec {fd}>&-; return 1
+}
 pr_build_pdf() {
   local c="$1" id="$2" dir src meta cache
   dir="$(pr_dir "$c")"; src="$dir/$id.src"; meta="$dir/$id.json"; cache="$dir/$id.combined.pdf"
@@ -465,7 +489,7 @@ pr_build_pdf() {
   if _pr_cache_ok "$cache" "$src" "$meta"; then printf '%s' "$cache"; return 0; fi
   ( flock -w 30 9 || exit 1
     _pr_cache_ok "$cache" "$src" "$meta" && exit 0          # double-check após o lock
-    _pr_render "$c" "$id" "$src" "$meta" "$cache" || exit 1
+    _pr_render_slot _pr_render "$c" "$id" "$src" "$meta" "$cache" || exit 1
   ) 9>"$dir/$id.lock"
   [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
   return 1
@@ -618,7 +642,7 @@ pr_build_balloon() {
   [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
   ( flock -w 30 9 || exit 1
     [[ -f "$cache" ]] && exit 0
-    _pr_render_balloon "$c" "$id" "$meta" "$cache" || exit 1
+    _pr_render_slot _pr_render_balloon "$c" "$id" "$meta" "$cache" || exit 1
   ) 9>"$dir/$id.lock"
   [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
   return 1
