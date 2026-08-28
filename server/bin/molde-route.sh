@@ -13,7 +13,7 @@ SNIP=/etc/nginx/snippets/moj-app.conf
 mkdir -p "$DIR"
 
 if [[ "$ACT" == ls ]]; then ls -la "$DIR"; exit 0; fi
-ROTA="${2:?uso: molde-route.sh {add|rm} <rota ex.: contest/updates>}"
+ROTA="${2:?uso: molde-route.sh add|rm <rota ex.: contest/updates>}"
 [[ "$ROTA" =~ ^[a-z0-9/_-]+$ ]] || { echo "rota inválida"; exit 1; }
 SLUG="${ROTA//\//-}"
 F="$DIR/$SLUG.conf"
