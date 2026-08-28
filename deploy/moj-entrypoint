@@ -53,7 +53,12 @@ case "$role" in
     # admin propaga NA HORA mesmo assim: o frescor por ENTRADAS (-nt conf/rounds/overrides)
     # invalida independente do TTL. Handlers bash e porteiro honram os MESMOS envs.
     export SCORE_SERVE_FLOOR_S="${SCORE_SERVE_FLOOR_S:-30}"
-    export BASIC_CACHE_TTL="${BASIC_CACHE_TTL:-60}"
+    # basic = 5 min (decisão do Ribas): o corpo é 100% derivado dos 4 arquivos de entrada
+    # (nada de relógio) e os casos pessoais — prorrogação, troca de coorte — mudam a CHAVE da
+    # variante, propagando na hora. Nos momentos conturbados (abertura, F5 em massa) o basic
+    # vira 100% porteiro. navbuttons/rounds FICAM em 60 s de propósito: têm conteúdo de
+    # relógio (botão da cerimônia via contest_over_for_all; transição de rodada).
+    export BASIC_CACHE_TTL="${BASIC_CACHE_TTL:-300}"
     export NAV_CACHE_TTL="${NAV_CACHE_TTL:-60}"
     export ROUNDS_CACHE_TTL="${ROUNDS_CACHE_TTL:-60}"
     # --- POOL DO MOLDE (workers bash persistentes) em background -----------------------
