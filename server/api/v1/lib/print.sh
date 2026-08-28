@@ -743,7 +743,7 @@ pr_reconcile_balloons() {
     # Por isso: quando não dá para decidir, a tarefa ESPERA (no `.balloon-hold`) e é reavaliada no
     # próximo reconcile — no máximo BALLOON_FIRST_WAIT_S; passado o prazo ela sai SEM estrela, que
     # é a falha segura (o time recebe o balão; ninguém anuncia um primeiro lugar falso).
-    local hold="$dir/.balloon-hold" wait_s _sm=0
+    local hold="$dir/.balloon-hold" wait_s _sm=0 _SV=not
     wait_s="$(sed -n 's/^[[:space:]]*BALLOON_FIRST_WAIT_S=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null \
               | tail -1 | tr -cd '0-9')"; wait_s="${wait_s:-90}"
     declare -A SM_AC=() SM_ACL=() SM_PEND=() SM_REG=()
@@ -762,21 +762,28 @@ pr_reconcile_balloons() {
         esac
       done < <(pr_site_first_map "$c")
     }
-    # _site_verdict <login> <prob> <epoch> -> first | not | hold
+    # _site_verdict <login> <prob> <epoch> — resultado em $_SV: first | not | hold.
+    # ⚠ O resultado sai por VARIÁVEL, não por stdout, DE PROPÓSITO: chamar isto em `$( )`
+    # roda num subshell e o `_sm=1` do _site_map_ensure morre com ele — cada candidato paga a
+    # varredura de N contas DE NOVO. Foi o wedge de 28/08/2026: um lote de ~500 ACs (rajada de
+    # balões do teste de carga) virou ~500 varreduras de 12k contas = HORAS preso no
+    # `.balloon.lock`, com a fila materializando 1 balão a cada vários segundos e um core
+    # ocupado o tempo todo. Com 1-2 ACs por reconcile o bug era invisível.
     _site_verdict() {
       local l="$1" p="$2" e="$3" reg key ac acl pend
       _site_map_ensure
+      _SV=not
       reg="${SM_REG[$l]:-}"
-      [[ -n "$reg" ]] || { printf 'not'; return 0; }   # sem sede declarada: sem estrela, sem espera
+      [[ -n "$reg" ]] || return 0                      # sem sede declarada: sem estrela, sem espera
       key="$reg|$p"
       ac="${SM_AC[$key]:-0}"; acl="${SM_ACL[$key]:-}"; pend="${SM_PEND[$key]:-0}"
       [[ "$ac" =~ ^[0-9]+$ ]] || ac=0; [[ "$pend" =~ ^[0-9]+$ ]] || pend=0
       if (( ac > 0 )); then
-        (( ac < e )) && { printf 'not'; return 0; }                       # alguém resolveu antes
-        (( ac == e )) && [[ -n "$acl" && "$acl" != "$l" ]] && { printf 'not'; return 0; }  # empate: login decide
+        (( ac < e )) && return 0                                          # alguém resolveu antes
+        (( ac == e )) && [[ -n "$acl" && "$acl" != "$l" ]] && return 0    # empate: login decide
       fi
-      (( pend > 0 && pend <= e )) && { printf 'hold'; return 0; }         # a mais antiga ainda na fila
-      printf 'first'
+      (( pend > 0 && pend <= e )) && { _SV=hold; return 0; }              # a mais antiga ainda na fila
+      _SV=first
     }
     # _mk_balloon <login> <prob> <epoch> <first_site:true|false> — cria a tarefa (ou a lápide do
     # freeze). É o ÚNICO ponto que materializa balão: o caminho novo e o da espera passam aqui.
@@ -822,7 +829,7 @@ pr_reconcile_balloons() {
     # _bln_try <login> <prob> <epoch> [<desde>] — decide e materializa, ou guarda p/ esperar.
     _bln_try() {
       local login="$1" cid="$2" se="$3" since="${4:-$EPOCHSECONDS}" v
-      v="$(_site_verdict "$login" "$cid" "$se")"
+      _site_verdict "$login" "$cid" "$se"; v="$_SV"    # SEM $( ): o memo do mapa vive no pai
       if [[ "$v" == hold ]]; then
         if (( EPOCHSECONDS - since < wait_s )); then
           HOLD_KEEP+=("$(jq -cn --arg l "$login" --arg p "$cid" --argjson se "$se" \
