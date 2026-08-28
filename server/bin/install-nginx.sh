@@ -159,9 +159,6 @@ fastcgi_cache_key "$host$request_uri$http_authorization$http_accept_encoding";
 fastcgi_cache_valid 200 2s;
 fastcgi_no_cache $moj_api_skip;
 fastcgi_cache_bypass $moj_api_skip;
-fastcgi_cache_lock on;
-fastcgi_cache_lock_timeout 3s;
-fastcgi_cache_use_stale updating;
 fastcgi_ignore_headers Cache-Control Expires;
 add_header X-MOJ-Cache $upstream_cache_status;
 EOF
