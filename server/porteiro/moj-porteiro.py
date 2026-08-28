@@ -476,8 +476,62 @@ def r_problems(contest, q, params):
     return serve_file_maybe_gz(cf, params, ctype="application/json; charset=utf-8")
 
 
+
+def r_updates(contest, q, params):
+    """Espelho COMPUTADO de handlers/contest/updates.sh — a 1ª rota que o porteiro gera
+    inteira (leitura pura: news.json + clarifications/*.json + filtro por visibilidade).
+    Clar com JSON inválido ⇒ Decline (o bash tem um comportamento peculiar — slurp vira [] —
+    e a resposta canônica é dele)."""
+    sess = load_session(params)
+    if not (sess and sess[0] == contest):
+        raise Decline("updates exige sessão do contest")
+    login = sess[1]
+    ns = q.get("news_since", "");  ns = int(ns) if ns.isdigit() else 0
+    cs = q.get("clar_since", "");  cs = int(cs) if cs.isdigit() else 0
+
+    def _num(x):
+        return x if isinstance(x, (int, float)) and not isinstance(x, bool) else 0
+
+    nf = os.path.join(CONTESTSDIR, contest, "news.json")
+    news = {"last": 0, "count": 0, "unread": 0}
+    if os.path.isfile(nf):
+        data = read_json(nf)
+        if isinstance(data, list):
+            dates = [_num(n.get("date")) for n in data if isinstance(n, dict)]
+            dates += [0] * (len(data) - len(dates))          # itens não-dict contam como date 0
+            news = {"last": max(dates) if dates else 0, "count": len(data),
+                    "unread": sum(1 for d in dates if d > ns)}
+        # arquivo presente mas inválido: bash cai no zerado (jq -e falha) — igual aqui
+
+    cdir = os.path.join(CONTESTSDIR, contest, "clarifications")
+    priv = login.endswith((".admin", ".judge", ".cjudge", ".mon"))
+    vis = []
+    try:
+        names = sorted(f for f in os.listdir(cdir) if f.endswith(".json"))
+    except OSError:
+        names = []
+    for fn in names:
+        c = read_json(os.path.join(cdir, fn))
+        if c is None:
+            raise Decline("clarification com JSON inválido")   # peculiaridade é do bash
+        if not isinstance(c, dict):
+            continue
+        if not (priv or c.get("login") == login or c.get("public") is True):
+            continue
+        if not (c.get("answer") or ""):
+            continue
+        vis.append(_num(c.get("answered_at")))
+    clar = {"last": max(vis) if vis else 0, "count": len(vis),
+            "unread": sum(1 for a in vis if a > cs)}
+
+    body = json.dumps({"success": True, "news": news, "clar": clar},
+                      separators=(",", ":")) + "\n"
+    return cgi(body.encode())
+
+
 ROUTES = {
     "/contest/score": r_score,
+    "/contest/updates": r_updates,
     "/contest/basic": r_basic,
     "/contest/navbuttons": r_navbuttons,
     "/contest/rounds": r_rounds,
