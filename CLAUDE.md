@@ -959,6 +959,15 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   **modo** de `scripts/*`, o MESMO conteúdo dava checksum diferente conforme o caminho (⇒ recalibração
   espúria). Toda escrita de pacote passa por **`_pkg_canon_modes`** (`lib/problems.sh`); pacote antigo
   se conserta com `server/bin/normalize-pkg-modes.sh --apply`.
+- **`${var#pat*}`/`${var%*pat}` sobre string de MB é O(n²) — e prendeu um autor de verdade.**
+  O `${tarb64#data:*;base64,}` do import de contest varria os 5,2 MB inteiros quando o prefixo
+  NÃO estava lá (o caso normal!): **~4,2 s/MB²** no locale C = 119 s ociosa, ~10 min sob carga,
+  com o nginx desistindo aos 300 s e o bash seguindo preso em R (28/08/2026, véspera da
+  Maratona). Em locale UTF-8 é ~5× PIOR — **nunca introduza `LANG` UTF-8 na imagem** sem
+  auditar esses call sites. Regra: strip de data-url usa **`b64_strip_data_prefix`**
+  (lib/common.sh — guarda barata: só tenta quando o começo É `data:`); corpo grande vai por
+  `read_body_file` + `sed`/`jq` no **stream**, nunca por expansão de parâmetro. Teste:
+  `smoke-b64-strip.sh` (semântica + custo + inventário do idioma cru).
 - **Corpo GRANDE (pacote de problema) vai em ARQUIVO, nunca em variável:** use **`read_body_file`** e
   `jq … < "$f"`. Cada `jq … <<<"$body"` é um here-string: o bash **regrava o corpo inteiro** num temp
   e o jq **re-parseia tudo**. O `/problems/edit` fazia isso **36 vezes** (~50 s de CPU e 3,6 GB de

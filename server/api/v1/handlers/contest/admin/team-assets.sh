@@ -53,7 +53,7 @@ login="$(resolve_login "$base")"
 
 img="$(jq -r '.file_b64 // empty' <<<"$body")"
 [[ -n "$img" ]] || fail 400 "Arquivo ausente" "file_missing"
-img="${img#data:*;base64,}"                          # tolera data-url
+b64_strip_data_prefix img                            # tolera data-url (sem o O(n²) do ${#})
 (( ${#img} <= 11000000 )) || fail 413 "Arquivo muito grande (máx ~8MB)" "file_large"
 
 if [[ "$kind" == photo ]]; then
@@ -67,7 +67,7 @@ else
   # BRASÃO: continua PNG (vai embutido na célula do placar, 128px, fundo transparente)
   out="$(user_dir "$contest" "$login")/logo.png"
   tmp="$(mktemp)"
-  printf '%s' "${img#data:*;base64,}" | base64 -d > "$tmp" 2>/dev/null \
+  printf '%s' "$img" | base64 -d > "$tmp" 2>/dev/null \
     || { rm -f "$tmp"; fail 400 "Base64 inválido" "file_b64"; }
   if convert "$tmp" -auto-orient -strip -resize '128x128>' "png:$out.tmp" 2>/dev/null; then
     mv -f "$out.tmp" "$out"; rm -f "$tmp"

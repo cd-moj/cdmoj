@@ -1,19 +1,25 @@
 # POST /treino/contest-create/import  (auth treino, pode criar) {tar_b64}
 # Importa um contest a partir de um .tar.gz (base64) contendo contest.json + enunciados/ opcional.
 # Extração defensiva: rejeita caminhos absolutos e "..".
+# ⚠ O corpo tem MUITOS MB: vai para ARQUIVO e o base64 sai por STREAM — nunca por variável.
+# A versão antiga fazia `${var#data:*;base64,}` sobre a string inteira, que no bash é O(n²)
+# (~4,2 s/MB² no locale C): os 5,2 MB de um caso real custaram ~2 min de CPU em máquina
+# ociosa e ~10 min sob carga, com o nginx desistindo aos 300 s e o bash seguindo preso em R
+# (incidente de 28/08/2026, autor bloqueado na véspera da Maratona).
 require_method POST
 require_auth_contest treino
 source "$_LIBDIR/contest-create.sh"
 cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar contest" "create_forbidden"
-body="$(read_body)"
-jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
-tarb64="$(jq -r '.tar_b64 // empty' <<<"$body")"
-[[ -n "$tarb64" ]] || fail 400 "Envie tar_b64 (tar.gz em base64)" "missing_tar"
-tarb64="${tarb64#data:*;base64,}"
-(( ${#tarb64} <= 30000000 )) || fail 413 "Arquivo muito grande (máx ~22MB)" "tar_large"
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-printf '%s' "$tarb64" | base64 -d > "$tmp/c.tgz" 2>/dev/null || fail 400 "base64 inválido" "tar_b64"
+cat - > "$tmp/body"                       # o teto vem ANTES de qualquer parse
+(( $(stat -c %s "$tmp/body") <= 32000000 )) || fail 413 "Arquivo muito grande (máx ~22MB)" "tar_large"
+jq -e . >/dev/null 2>&1 < "$tmp/body" || fail 400 "JSON inválido" "bad_json"
+jq -r '.tar_b64 // empty' < "$tmp/body" > "$tmp/b64"
+[[ -s "$tmp/b64" ]] || fail 400 "Envie tar_b64 (tar.gz em base64)" "missing_tar"
+# o prefixo data:...;base64, (quando vem de FileReader) sai no stream — sed é O(n)
+sed -e '1s/^data:[^;]*;base64,//' "$tmp/b64" | base64 -d > "$tmp/c.tgz" 2>/dev/null \
+  || fail 400 "base64 inválido" "tar_b64"
 tar -tzf "$tmp/c.tgz" >/dev/null 2>&1 || fail 400 "Não é um tar.gz válido" "tar_bad"
 while IFS= read -r m; do
   [[ -z "$m" ]] && continue

@@ -293,6 +293,18 @@ regen_locked() {
 
 # --- util -----------------------------------------------------------------
 urldecode() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
+# b64_strip_data_prefix <NOME-da-var> — tira o prefixo data:...;base64, de upload SEM pagar
+# o O(n²) do `${var#data:*;base64,}` em string grande (~4,2 s/MB² quando o prefixo NÃO está
+# lá e o bash varre a string inteira — incidente do import, 28/08/2026, 5,2 MB = ~10 min de
+# CPU). A guarda barata: só tenta o strip quando o começo É um data-url — aí o casamento
+# fecha nos primeiros ~30 chars e o custo é trivial. Corpo realmente GRANDE nem deve passar
+# por variável (use read_body_file + sed no stream, ver import.sh).
+b64_strip_data_prefix(){
+  local -n _v="$1"
+  [[ "${_v:0:5}" == "data:" && "${_v:0:100}" == *";base64,"* ]] && _v="${_v#data:*;base64,}"
+  return 0
+}
+
 read_body(){ cat -; }
 # read_body_file — grava o corpo num ARQUIVO temporário e ecoa o CAMINHO. Obrigatório nos POSTs
 # GRANDES (o pacote de um problema chega a 100+ MB de JSON). Com o corpo numa VARIÁVEL, cada

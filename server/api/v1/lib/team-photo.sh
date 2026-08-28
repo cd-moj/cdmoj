@@ -32,7 +32,7 @@ tp_store(){
   local c="$1" u="$2" b64="$3" px="${4:-1000}" d out tmp
   d="$(user_dir "$c" "$u")"; mkdir -p "$d" 2>/dev/null
   out="$d/photo.webp"
-  b64="${b64#data:*;base64,}"                       # tolera data-url
+  b64_strip_data_prefix b64                         # tolera data-url (sem o O(n²) do ${#})
   tmp="$(mktemp)" || return 2
   printf '%s' "$b64" | base64 -d > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
   # '>' = só ENCOLHE (não infla foto pequena); -strip tira metadados (EXIF/GPS da câmera)
@@ -116,7 +116,7 @@ tp_placeholder_custom(){ [[ -s "$CONTESTSDIR/$1/$TP_PH" ]]; }
 tp_placeholder_store(){
   local c="$1" b64="$2" d out tmp
   d="$CONTESTSDIR/$c"; out="$d/$TP_PH"
-  b64="${b64#data:*;base64,}"
+  b64_strip_data_prefix b64
   tmp="$(mktemp)" || return 2
   printf '%s' "$b64" | base64 -d > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
   if ! convert "$tmp" -auto-orient -strip -resize '1000x1000>' -quality 82 "webp:$out.tmp" 2>/dev/null; then

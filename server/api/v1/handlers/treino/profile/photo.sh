@@ -25,7 +25,7 @@ body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
 img="$(jq -r '.image_b64 // empty' <<<"$body")"
 [[ -n "$img" ]] || fail 400 "Imagem ausente" "img_missing"
-img="${img#data:*;base64,}"                         # tolera data-url
+b64_strip_data_prefix img                           # tolera data-url (sem o O(n²) do ${#})
 (( ${#img} <= 5500000 )) || fail 413 "Imagem muito grande (máx ~4MB)" "img_large"
 
 out="$(photo_file treino "$login")"

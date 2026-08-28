@@ -32,7 +32,7 @@ tm_is_mp3(){ [[ "$(file --mime-type -b "$1" 2>/dev/null)" == audio/mpeg ]]; }
 _tm_decode(){
   local src="$1" out="$2"
   if [[ -f "$src" ]]; then base64 -d < "$src" > "$out.tmp" 2>/dev/null
-  else printf '%s' "${src#data:*;base64,}" | base64 -d > "$out.tmp" 2>/dev/null; fi || { rm -f "$out.tmp"; return 1; }
+  else b64_strip_data_prefix src; printf '%s' "$src" | base64 -d > "$out.tmp" 2>/dev/null; fi || { rm -f "$out.tmp"; return 1; }
   [[ -s "$out.tmp" ]] || { rm -f "$out.tmp"; return 1; }
   tm_is_mp3 "$out.tmp" || { rm -f "$out.tmp"; return 2; }
   mv -f "$out.tmp" "$out"
