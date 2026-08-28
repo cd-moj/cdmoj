@@ -51,6 +51,11 @@ map $moj_contest_host $moj_shed_file { "" "/etc/nginx/moj-shed-treino"; default 
 # Religar: recriar o arquivo (o install-nginx.sh o recria se ausente) + reload.
 map $moj_contest_host $moj_contest_conn { "" ""; default "contest"; }
 limit_conn_zone $moj_contest_conn zone=moj_contest:1m;
+# zona PRÓPRIA das rotas do porteiro (28/08, teste de carga): requisição de ~1 ms não pode
+# disputar slot com a de 200 ms do bash — na zona única, o bash lento enchia os 56 e o 429
+# cortava também o que custava nada. 256 slots ociosos na prática; o transbordo do porteiro
+# já tem fallback próprio (backlog 16 → 502 → @moj_fcgiwrap).
+limit_conn_zone $moj_contest_conn zone=moj_porteiro:1m;
 
 # MICROCACHE POR-TOKEN da API (2026-08-28): converte o F5-em-massa em hit de nginx (zero forks).
 # A CHAVE inclui o Authorization: cada token tem entrada própria — congelado×completo×coorte×

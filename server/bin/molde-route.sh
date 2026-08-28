@@ -37,7 +37,9 @@ cat > "$F" <<EOF
 # rota no backend rápido '$BACKEND' (molde-route.sh — rm deste arquivo + reload = fcgiwrap)
 location = /api/v1/$ROTA {
     limit_conn moj_site 16;
-    include /etc/nginx/moj-breaker-contest[.]conf;
+$( [[ "$BACKEND" == porteiro ]] \
+   && echo '    limit_conn moj_porteiro 256;   # zona própria: 1 ms não disputa com 200 ms' \
+   || echo '    include /etc/nginx/moj-breaker-contest[.]conf;' )
     include /etc/nginx/moj-cache-api[.]conf;
     if (-f \$moj_shed_file) { return 503; }
     fastcgi_pass            unix:$WORKROOT/run/$BSOCK;
