@@ -142,8 +142,10 @@ static int handle(FCGX_Request *req) {
 
   int dr = wait_done();
   if (dr == -2) {                                    /* deadline: mata e NÃO responde nada */
-    fprintf(stderr, "moj-molde-shim: deadline de %ds — matando bash (pid %d)\n",
-            g_timeout_s, (int)g_bash);
+    const char *pi = FCGX_GetParam("PATH_INFO", req->envp);
+    const char *qs = FCGX_GetParam("QUERY_STRING", req->envp);
+    fprintf(stderr, "moj-molde-shim: deadline de %ds — matando bash (pid %d) req=%s?%s\n",
+            g_timeout_s, (int)g_bash, pi ? pi : "?", qs ? qs : "");
     bash_kill();
     return -1;                                       /* stream vazio ⇒ nginx 502 ⇒ fallback */
   }
@@ -165,7 +167,19 @@ static void worker(int sock) {
   FCGX_Init();
   FCGX_InitRequest(&req, sock, 0);
   if (bash_spawn() < 0) _exit(1);
-  while (FCGX_Accept_r(&req) >= 0) {
+  /* ⚠ Accept_r < 0 NÃO é fatal: conexão abortada/envenenada (cliente 499, nginx que
+   * desistiu) devolve erro e o worker TEM de seguir p/ a próxima — sair aqui foi o
+   * crash-loop de 28/08 em produção ("worker N morreu — respawn" em série, com o master
+   * respawnando p/ o mesmo veneno). Só desistimos com MUITOS erros consecutivos
+   * (socket de escuta realmente quebrado). */
+  int consec = 0;
+  for (;;) {
+    if (FCGX_Accept_r(&req) < 0) {
+      if (++consec >= 100) { fprintf(stderr, "moj-molde-shim: accept falhou 100x seguidas\n"); break; }
+      usleep(10000);
+      continue;
+    }
+    consec = 0;
     handle(&req);
     FCGX_Finish_r(&req);
   }
@@ -205,13 +219,14 @@ static int selftest(void) {
 
 int main(int argc, char **argv) {
   const char *sock_path = NULL, *wbase = NULL;
-  int nworkers = 8, do_selftest = 0;
+  int nworkers = 8, do_selftest = 0, backlog = 8;
   g_molde = getenv("MOLDE_SH");
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "-s") && i + 1 < argc) sock_path = argv[++i];
     else if (!strcmp(argv[i], "-c") && i + 1 < argc) nworkers = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-w") && i + 1 < argc) wbase = argv[++i];
     else if (!strcmp(argv[i], "-t") && i + 1 < argc) g_timeout_s = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "-b") && i + 1 < argc) backlog = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-m") && i + 1 < argc) g_molde = argv[++i];
     else if (!strcmp(argv[i], "--selftest")) do_selftest = 1;
     else { fprintf(stderr, "arg desconhecido: %s\n", argv[i]); return 2; }
@@ -228,7 +243,12 @@ int main(int argc, char **argv) {
   mkdir(wbase, 0750);
   unlink(sock_path);
   FCGX_Init();
-  int sock = FCGX_OpenSocket(sock_path, 1024);       /* perms vêm do umask (entrypoint: 007) */
+  /* ⚠ BACKLOG PEQUENO É O QUEBRA-CIRCUITO DO MOLDE (incidente 28/08): com 1024, um pool
+   * travado virava FILA SILENCIOSA — conexões esperavam 190 s no backlog segurando a zona
+   * do limit_conn e o nginx nunca via erro nenhum (fallback só dispara com 502). Com
+   * backlog mínimo, pool ocupado = connect recusado NA HORA = 502 = @moj_fcgiwrap serve.
+   * O fcgiwrap é o transbordo natural — o molde nunca deve enfileirar de verdade. */
+  int sock = FCGX_OpenSocket(sock_path, backlog);    /* perms vêm do umask (entrypoint: 007) */
   if (sock < 0) { fprintf(stderr, "não abriu %s\n", sock_path); return 1; }
 
   /* prefork + supervisão: filho morto é respawnado */

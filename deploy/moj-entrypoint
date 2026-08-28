@@ -54,11 +54,14 @@ case "$role" in
     # ($RUNDIR/molde.err) — pipe de stderr de vida longa já travou worker (ver CLAUDE.md).
     : "${MOLDE_WORKERS:=8}"
     : "${MOLDE_SOCK:=$RUNDIR/moj-molde.sock}"
+    : "${MOLDE_TIMEOUT:=30}"     # deadline por requisição: rota quente responde em <1 s;
+    : "${MOLDE_BACKLOG:=8}"      # 30 s preso = bash morto+respawn; backlog mínimo = transbordo
     if [[ -x /opt/moj/bin/moj-molde-shim && "${MOLDE_DISABLE:-0}" != 1 ]]; then
       rm -f "$MOLDE_SOCK" 2>/dev/null || true
       ( umask "$FCGI_UMASK"
         while :; do
           /opt/moj/bin/moj-molde-shim -s "$MOLDE_SOCK" -c "$MOLDE_WORKERS" \
+            -t "$MOLDE_TIMEOUT" -b "$MOLDE_BACKLOG" \
             -w "$RUNDIR/molde" -m "$MOJ_HOME/server/api/v1/molde.sh" >> "$RUNDIR/molde.err" 2>&1
           echo "moj-entrypoint: molde-shim saiu (rc=$?) — respawn em 1s" >> "$RUNDIR/molde.err"
           sleep 1
