@@ -7,7 +7,7 @@
 # Rollback TOTAL: rm /etc/nginx/moj-molde-routes/*.conf && systemctl reload nginx
 set -eu
 [[ $EUID -eq 0 ]] || { echo "rode como root"; exit 1; }
-ACT="${1:?uso: molde-route.sh {add|rm|ls} [rota]}"
+ACT="${1:?uso: molde-route.sh add|rm|ls [rota]}"
 DIR=/etc/nginx/moj-molde-routes
 SNIP=/etc/nginx/snippets/moj-app.conf
 mkdir -p "$DIR"
