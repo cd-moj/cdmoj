@@ -585,6 +585,8 @@ def worker(lsock):
             fcgi_conn(conn)
         except Decline:
             pass                            # fecha sem resposta ⇒ nginx 502 ⇒ fallback bash
+        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+            pass                            # nginx/cliente desistiu no meio (429/abort) — normal
         except Exception as e:              # qualquer bug nosso = mesma coisa, com registro
             print(f"moj-porteiro: erro inesperado: {e!r}", file=sys.stderr, flush=True)
         finally:
