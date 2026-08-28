@@ -52,6 +52,19 @@ map $moj_contest_host $moj_shed_file { "" "/etc/nginx/moj-shed-treino"; default 
 map $moj_contest_host $moj_contest_conn { "" ""; default "contest"; }
 limit_conn_zone $moj_contest_conn zone=moj_contest:1m;
 
+# MICROCACHE POR-TOKEN da API (2026-08-28): converte o F5-em-massa em hit de nginx (zero forks).
+# A CHAVE inclui o Authorization: cada token tem entrada própria — congelado×completo×coorte×
+# recorte ficam isolados POR CONSTRUÇÃO (a lição do envenenamento de variante virou propriedade
+# da chave). Só GET e só 200, TTL 2s, zona em /run (tmpfs; inactive=10s mantém o uso em MB).
+# ⚠ O WEBCAST NUNCA ENTRA: o contrato com o telão é tempo EXATO por requisição (pedido do
+# Emílio, 27/08 — TTL reintroduziria os pulos) e a rota nem tem Authorization na chave.
+# As DIRETIVAS moram em /etc/nginx/moj-cache-api.conf, incluído POR GLOB no snippet:
+#   rm /etc/nginx/moj-cache-api.conf && systemctl reload nginx   # desliga na hora
+# Religar: recriar o arquivo (o install-nginx.sh o recria se ausente) + reload.
+fastcgi_cache_path /run/moj-nginx-cache levels=1:2 keys_zone=moj_api:16m max_size=512m inactive=10s;
+map $uri $moj_api_skip_uri { default 0; "~^/api/v1/contest/webcast" 1; }
+map "$request_method$moj_api_skip_uri" $moj_api_skip { default 1; "GET0" 0; }
+
 # id de problema LEGADO (pontilhado, "org.slug") -> canônico URL-encoded ("org%23slug").
 # Usado pelo redirect de /new/treino/problem/ (moj-app.conf.in). Só o PRIMEIRO ponto vira
 # %23 (o slug pode ter pontos); %23 = '#' — literal no return viraria fragment.

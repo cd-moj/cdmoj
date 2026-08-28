@@ -146,6 +146,28 @@ if [ ! -f "$BREAKER" ]; then
   chmod 644 "$BREAKER"; echo ">> criei $BREAKER (teto 56)"
 fi
 
+# Microcache por-token da API: mesma doutrina do breaker (glob-include; rm = desligada até o
+# próximo install). Zona e maps ($moj_api_skip) vêm do conf.d/moj.conf.
+CACHECONF=/etc/nginx/moj-cache-api.conf
+if [ ! -f "$CACHECONF" ]; then
+  cat > "$CACHECONF" <<'EOF'
+# microcache POR-TOKEN da API (só GET+200, TTL 2s; a chave inclui o Authorization — cada
+# usuário tem entrada própria, variante não vaza). Webcast fica fora pelo map $moj_api_skip.
+# rm deste arquivo + reload = microcache DESLIGADA (o include é por glob). Ver conf.d/moj.conf.
+fastcgi_cache moj_api;
+fastcgi_cache_key "$host$request_uri$http_authorization$http_accept_encoding";
+fastcgi_cache_valid 200 2s;
+fastcgi_no_cache $moj_api_skip;
+fastcgi_cache_bypass $moj_api_skip;
+fastcgi_cache_lock on;
+fastcgi_cache_lock_timeout 3s;
+fastcgi_cache_use_stale updating;
+fastcgi_ignore_headers Cache-Control Expires;
+add_header X-MOJ-Cache $upstream_cache_status;
+EOF
+  chmod 644 "$CACHECONF"; echo ">> criei $CACHECONF (microcache 2s)"
+fi
+
 # nginx mascarado (ex.: máquina que rodava só o proxy user-space) não sobe nunca — destrave.
 if [ "$(systemctl is-enabled nginx 2>/dev/null)" = masked ]; then
   systemctl unmask nginx; echo ">> nginx estava MASKED — desmascarei"
