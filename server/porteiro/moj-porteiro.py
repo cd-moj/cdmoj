@@ -529,6 +529,100 @@ def r_updates(contest, q, params):
     return cgi(body.encode())
 
 
+
+def r_staff_queue(contest, q, params):
+    """Espelho de handlers/contest/staff/queue.sh — a LISTAGEM é computada aqui; o RECONCILE
+    de balões é ESCRITA e fica no bash: quando ele está DEVIDO (mesmo gate do
+    pr_reconcile_balloons: .score-dirty mais novo que .balloon-stamp, fora do piso de 10 s),
+    a requisição DECLINA e o bash reconcilia + serve. Escopo do staff: só via .scope-cache
+    FRESCO (senão decline — o bash o recomputa). Fidelidade: o find do bash lista TODO *.json
+    do dir (staff-filters.json inclusive — a linha fantasma do admin é comportamento)."""
+    sess = load_session(params)
+    if not (sess and sess[0] == contest):
+        raise Decline("queue exige sessão do contest")
+    login = sess[1]
+    if not login.endswith((".staff", ".cstaff", ".admin")):
+        raise Decline("papel sem fila (403 é do bash)")
+    pdir = os.path.join(CONTESTSDIR, contest, "print-requests")
+
+    # gate do reconcile (mesma condição sob a qual o bash FARIA trabalho)
+    dirty = mtime_ns(os.path.join(CONTESTSDIR, contest, "var", ".score-dirty"))
+    stamp = mtime_ns(os.path.join(pdir, ".balloon-stamp"))
+    if dirty is not None and (stamp is None or dirty > stamp):
+        if stamp is None or (time.time() * 1e9 - stamp) > 10 * 1e9:
+            raise Decline("reconcile de balões devido")
+
+    admin = login.endswith(".admin")
+    vis = None                                   # None = vê tudo (admin ou sem escopo)
+    if not admin:
+        ff = os.path.join(pdir, "staff-filters.json")
+        filters = read_json(ff) if os.path.isfile(ff) else None
+        if isinstance(filters, dict):
+            ent = filters.get(login)
+            if isinstance(ent, list) and len(ent) > 0:
+                if not re.match(r"^[A-Za-z0-9._-]+$", login) or ".." in login:
+                    raise Decline("login fora do padrão de cache")
+                cf = os.path.join(pdir, ".scope-cache", login)
+                mcf = mtime_ns(cf)
+                mff = mtime_ns(ff)
+                if (mcf is None or (mff is not None and mff > mcf)
+                        or (time.time() * 1e9 - mcf) > 300 * 1e9):
+                    raise Decline("scope-cache frio (bash recomputa)")
+                with open(cf, errors="replace") as fh:
+                    vis = {ln for ln in fh.read().split("\n") if ln}
+        # filters inválido/sem entrada => vê tudo (mesmo rc!=0 do bash)
+
+    rows = []
+    try:
+        names = sorted(f for f in os.listdir(pdir) if f.endswith(".json"))
+    except OSError:
+        names = []
+    for fn in names:
+        t = read_json(os.path.join(pdir, fn))
+        if t is None:
+            raise Decline("tarefa com JSON inválido")
+        if not isinstance(t, dict):
+            t = {}
+        if vis is not None and (t.get("login") or "") not in vis:
+            continue
+        g = t.get
+        kind = g("kind")
+        rows.append({
+            "id": g("id"), "seq": g("seq"), "login": g("login"), "fullname": g("fullname"),
+            "team": g("team"), "univ": g("univ"),
+            "kind": kind if kind not in (None, False) else "print",
+            "short": g("short"), "color_hex": g("color_hex"), "color_name": g("color_name"),
+            "first_site": g("first_site") is True,
+            "filename": g("filename"), "mime": g("mime"), "size": g("size"), "time": g("time"),
+            "status": g("status"), "pages": g("pages"), "build_ok": g("build_ok"),
+            "claimed_by": g("claimed_by"), "claimed_at": g("claimed_at"),
+            "processed_by": g("processed_by"), "processed_at": g("processed_at"),
+            "delivered_by": g("delivered_by"), "delivered_at": g("delivered_at")})
+
+    def _key(r):
+        st = r["status"]
+        rank = 0 if st == "pending" else (1 if st == "printed" else 2)
+        sq = r["seq"]
+        # ordem do sort_by do jq: null antes de número
+        if isinstance(sq, bool) or not isinstance(sq, (int, float)):
+            return (rank, 0, 0)
+        return (rank, 1, sq)
+    rows.sort(key=_key)
+
+    bfz = 0
+    if admin:
+        fz = os.path.join(pdir, ".balloon-frozen")
+        if os.path.isfile(fz):
+            try:
+                with open(fz, errors="replace") as fh:
+                    bfz = sum(1 for ln in fh if '"id"' in ln)
+            except OSError:
+                bfz = 0
+    body = json.dumps({"success": True, "requests": rows, "balloons_frozen": bfz},
+                      separators=(",", ":")) + "\n"
+    return cgi(body.encode())
+
+
 ROUTES = {
     "/contest/score": r_score,
     "/contest/updates": r_updates,
@@ -536,6 +630,7 @@ ROUTES = {
     "/contest/navbuttons": r_navbuttons,
     "/contest/rounds": r_rounds,
     "/contest/balloons": r_balloons,
+    "/contest/staff/queue": r_staff_queue,
     "/contest/problems": r_problems,
 }
 
