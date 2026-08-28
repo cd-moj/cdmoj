@@ -63,8 +63,8 @@ staff_exists() {
     rc=0
   fi
   mkdir -p "${cf%/*}" 2>/dev/null
-  printf '%s\n' "$(( 1 - rc ))" > "$cf.tmp.$$" 2>/dev/null && mv -f "$cf.tmp.$$" "$cf" 2>/dev/null \
-    || rm -f "$cf.tmp.$$" 2>/dev/null
+  printf '%s\n' "$(( 1 - rc ))" > "$cf.tmp.${BASHPID}" 2>/dev/null && mv -f "$cf.tmp.${BASHPID}" "$cf" 2>/dev/null \
+    || rm -f "$cf.tmp.${BASHPID}" 2>/dev/null
   return $rc
 }
 
@@ -190,8 +190,8 @@ staff_visible_logins() {
     # é o rc, documentada no CLAUDE.md) — não confundir com o rc=1 lá de cima.
     if [[ -n "$cf" ]]; then
       mkdir -p "${cf%/*}" 2>/dev/null
-      cp -f "$loc.out" "$cf.tmp.$$" 2>/dev/null && mv -f "$cf.tmp.$$" "$cf" 2>/dev/null \
-        || rm -f "$cf.tmp.$$" 2>/dev/null
+      cp -f "$loc.out" "$cf.tmp.${BASHPID}" 2>/dev/null && mv -f "$cf.tmp.${BASHPID}" "$cf" 2>/dev/null \
+        || rm -f "$cf.tmp.${BASHPID}" 2>/dev/null
     fi
     cat "$loc.out"
   fi

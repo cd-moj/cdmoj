@@ -51,6 +51,6 @@ jarr(){ if (( $# == 0 )); then printf '[]'; else printf '%s\n' "$@" | jq -cs .; 
 out="$(jq -cn --argjson problems "$(jarr "${P[@]}")" --argjson now "$EPOCHSECONDS" \
   '{success:true, window_days:7, generated_at:$now, problems:$problems}')"
 [[ -n "$out" ]] || fail 500 "Falha ao montar o trending" "trending_failed"
-printf '%s' "$out" > "$CACHE.tmp.$$" && mv -f "$CACHE.tmp.$$" "$CACHE"
+printf '%s' "$out" > "$CACHE.tmp.${BASHPID}" && mv -f "$CACHE.tmp.${BASHPID}" "$CACHE"
 emit_json 200 OK
 printf '%s' "$out"

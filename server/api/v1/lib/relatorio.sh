@@ -51,8 +51,8 @@ rel_conf_set(){
   ( flock -w 5 9 || exit 1
     jq -cn --argjson i "$i" --argjson f "$f" --arg by "$by" \
        --argjson t "$EPOCHSECONDS" --argjson sent "$sent" \
-       '{inicio:$i, fim:$f, configured_by:$by, configured_at:$t, sent:$sent}' > "$cf.tmp.$$" \
-      && mv -f "$cf.tmp.$$" "$cf"
+       '{inicio:$i, fim:$f, configured_by:$by, configured_at:$t, sent:$sent}' > "$cf.tmp.${BASHPID}" \
+      && mv -f "$cf.tmp.${BASHPID}" "$cf"
   ) 9>"$cf.lock"
 }
 
@@ -63,8 +63,8 @@ rel_mark_sent(){
   add='{}'
   for k in "$@"; do add="$(jq -c --arg k "$k" --argjson t "$EPOCHSECONDS" '. + {($k): $t}' <<<"$add")"; done
   ( flock -w 5 9 || exit 1
-    jq -c --argjson add "$add" '.sent = ($add + (.sent // {}))' "$cf" > "$cf.tmp.$$" \
-      && mv -f "$cf.tmp.$$" "$cf"
+    jq -c --argjson add "$add" '.sent = ($add + (.sent // {}))' "$cf" > "$cf.tmp.${BASHPID}" \
+      && mv -f "$cf.tmp.${BASHPID}" "$cf"
   ) 9>"$cf.lock"
 }
 

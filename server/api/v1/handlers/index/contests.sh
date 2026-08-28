@@ -88,8 +88,8 @@ for d in "$CONTESTSDIR"/*/; do
   )
 done | sort -t"$US" -k1,1rn > "$TSV"
 mkdir -p "${TSVC%/*}" 2>/dev/null
-cp -f "$TSV" "$TSVC.tmp.$$" 2>/dev/null && mv -f "$TSVC.tmp.$$" "$TSVC" 2>/dev/null \
-  || rm -f "$TSVC.tmp.$$" 2>/dev/null
+cp -f "$TSV" "$TSVC.tmp.${BASHPID}" 2>/dev/null && mv -f "$TSVC.tmp.${BASHPID}" "$TSVC" 2>/dev/null \
+  || rm -f "$TSVC.tmp.${BASHPID}" 2>/dev/null
 fi
 
 # O jq faz TUDO que depende da hora (ver o cabeçalho): a classificação, o problems_count que o

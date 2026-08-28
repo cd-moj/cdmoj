@@ -157,7 +157,7 @@ cc_create(){
   if (( np < 1 )) && [[ "$allow_empty" != 1 ]]; then fail 422 "Inclua ao menos um problema (ou marque criar vazio)" "no_problems"; fi
   (( np <= 200 )) || fail 422 "Máximo de 200 problemas" "too_many"
 
-  local stg="$CONTESTSDIR/.staging-$id-$$-$RANDOM"
+  local stg="$CONTESTSDIR/.staging-$id-${BASHPID}-$RANDOM"
   rm -rf "$stg"
   mkdir -p "$stg"/{users,enunciados,var} || fail 500 "Falha ao preparar diretório" "mkdir_fail"
 

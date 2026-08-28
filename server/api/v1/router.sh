@@ -15,16 +15,26 @@ if [[ "${BASH_SOURCE[0]}" == /* && "${BASH_SOURCE[0]}" != *"/./"* && "${BASH_SOU
 else
   _DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 fi
-source "$_DIR/lib/common.sh"
-source "$_DIR/lib/params.sh"
-source "$_DIR/lib/auth.sh"
-source "$_DIR/lib/worker-auth.sh"
-source "$_DIR/lib/bot-auth.sh"
-source "$_DIR/lib/profile.sh"
-source "$_DIR/lib/users.sh"
-source "$_DIR/lib/verdict.sh"
-source "$_DIR/lib/telegram.sh"
-source "$_DIR/lib/alerts.sh"
+# Guarda de idempotência (molde): no worker persistente as libs já foram sourceadas UMA vez
+# pelo pai (molde.sh seta MOJ_LIBS_LOADED) e cada requisição roda `( . router.sh )` num
+# subshell — re-sourcear aqui jogaria fora o ganho (~5 ms). No caminho clássico (fcgiwrap,
+# standalone, o setsid de contest/problems.sh) a variável não existe e nada muda.
+if [[ -z "${MOJ_LIBS_LOADED:-}" ]]; then
+  source "$_DIR/lib/common.sh"
+  source "$_DIR/lib/params.sh"
+  source "$_DIR/lib/auth.sh"
+  source "$_DIR/lib/worker-auth.sh"
+  source "$_DIR/lib/bot-auth.sh"
+  source "$_DIR/lib/profile.sh"
+  source "$_DIR/lib/users.sh"
+  source "$_DIR/lib/verdict.sh"
+  source "$_DIR/lib/telegram.sh"
+  source "$_DIR/lib/alerts.sh"
+  MOJ_LIBS_LOADED=1
+fi
+# POR REQUISIÇÃO (não pode ficar atrás da guarda): o params.sh parseia no load; no molde o
+# load aconteceu com QUERY_STRING vazio. Idempotente no caminho clássico (mesmo QUERY_STRING).
+PARAMS=(); _parse_query "${QUERY_STRING:-}"
 
 HANDLERS="$_DIR/handlers"
 REQUEST_METHOD="${REQUEST_METHOD:-GET}"

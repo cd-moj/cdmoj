@@ -31,7 +31,7 @@ emit_history_stream treino > "$HIST"
 
 if [[ ! -s "$HIST" ]]; then
   out='{"success":true,"top_users":[],"recent_solved":[],"most_solved_week":[],"most_solved_prev_week":[],"most_used_editor_prev_week":{"top":null,"total":0,"ranking":[]},"search_problems_url":"/treino"}'
-  printf '%s' "$out" > "$CACHE.tmp.$$" && mv -f "$CACHE.tmp.$$" "$CACHE"
+  printf '%s' "$out" > "$CACHE.tmp.${BASHPID}" && mv -f "$CACHE.tmp.${BASHPID}" "$CACHE"
   emit_json 200 OK; printf '%s' "$out"; exit 0
 fi
 
@@ -142,6 +142,6 @@ out="$(jq -cn \
     most_used_editor_prev_week: ($editor_rank | {top:(.[0] // null), total:(map(.count)|add // 0), ranking:.}),
     search_problems_url:"/treino"}')"
 [[ -n "$out" ]] || fail 500 "Falha ao montar a home do treino" "open_training_failed"
-printf '%s' "$out" > "$CACHE.tmp.$$" && mv -f "$CACHE.tmp.$$" "$CACHE"
+printf '%s' "$out" > "$CACHE.tmp.${BASHPID}" && mv -f "$CACHE.tmp.${BASHPID}" "$CACHE"
 emit_json 200 OK
 printf '%s' "$out"

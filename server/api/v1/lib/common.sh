@@ -158,8 +158,8 @@ resp_cache_fresh(){
 resp_cache_store(){
   local cf="$1" body="$2"
   mkdir -p "${cf%/*}" 2>/dev/null
-  printf '%s' "$body" > "$cf.tmp.$$" 2>/dev/null && mv -f "$cf.tmp.$$" "$cf" 2>/dev/null \
-    || rm -f "$cf.tmp.$$" 2>/dev/null
+  printf '%s' "$body" > "$cf.tmp.${BASHPID}" 2>/dev/null && mv -f "$cf.tmp.${BASHPID}" "$cf" 2>/dev/null \
+    || rm -f "$cf.tmp.${BASHPID}" 2>/dev/null
   return 0
 }
 

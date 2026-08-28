@@ -74,7 +74,7 @@ alert_step(){
   jq -cn --arg s "$st" --argjson si "$since" --argjson ln "$lastn" \
      '{state:$s, since:$si, last_notified:$ln}' > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
   if [[ -n "$emit" ]]; then
-    ( umask 077; printf '%s' "$emit" > "$d/outbox/$now-$cond-$$.txt" )
+    ( umask 077; printf '%s' "$emit" > "$d/outbox/$now-$cond-${BASHPID}.txt" )
   fi
 }
 
@@ -94,7 +94,7 @@ alert_dm(){
   d="$(_alert_dir)"; mkdir -p "$d/outbox"
   # UNICIDADE pelo mktemp, nunca por contador de shell: quem chama costuma ser
   # `$(inv_notify …)` — COMMAND SUBSTITUTION, ou seja SUBSHELL —, então um contador voltaria a
-  # 1 a cada chamada e duas DMs no mesmo segundo (mesmo epoch, mesmo $$) se sobrescreviam: a
+  # 1 a cada chamada e duas DMs no mesmo segundo (mesmo epoch, mesmo ${BASHPID}) se sobrescreviam: a
   # segunda pessoa simplesmente não recebia, sem erro nenhum. O nome temporário não termina em
   # .json de propósito (o claim só enxerga *.json ⇒ ninguém lê pela metade).
   f="$(umask 077; mktemp "$d/outbox/$EPOCHSECONDS-dm-XXXXXXXX" 2>/dev/null)" || return 1

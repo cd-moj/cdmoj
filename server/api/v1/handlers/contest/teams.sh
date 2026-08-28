@@ -37,7 +37,7 @@ if ch_enabled "$contest"; then
 fi
 
 cdir="$CONTESTSDIR/$contest"
-TD="$(mktemp -d 2>/dev/null)" || TD="${TMPDIR:-/tmp}/cteams.$$"; mkdir -p "$TD"
+TD="$(mktemp -d 2>/dev/null)" || TD="${TMPDIR:-/tmp}/cteams.${BASHPID}"; mkdir -p "$TD"
 trap 'rm -rf "$TD"' EXIT
 
 # 1 find p/ tudo: as contas e os assets. `%h` = dir do usuário, `%f` = nome do arquivo.

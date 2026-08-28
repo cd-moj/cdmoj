@@ -61,7 +61,7 @@ out="$(jq -c --argjson t "$EPOCHSECONDS" --arg by "$SESSION_LOGIN" '
 [[ -n "$out" ]] || fail 500 "Falha ao serializar o registro" "achievements_write"
 
 mkdir -p "$(dirname "$F")" 2>/dev/null
-printf '%s\n' "$out" > "$F.tmp.$$" && mv -f "$F.tmp.$$" "$F" || fail 500 "Falha ao gravar" "achievements_write"
+printf '%s\n' "$out" > "$F.tmp.${BASHPID}" && mv -f "$F.tmp.${BASHPID}" "$F" || fail 500 "Falha ao gravar" "achievements_write"
 
 n="$(jq -r '.achievements | length' <<<"$out")"
 audit_log achievements-save "count=$n"

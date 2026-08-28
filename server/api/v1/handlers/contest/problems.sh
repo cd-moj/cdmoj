@@ -172,9 +172,9 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
     # em diante é o arquivo do contest que o /contest/statement serve.
     jf="$CONTESTSDIR/treino/var/jsons/$STATEMENT.json"; [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$STATEMENT.json"
     if [[ -f "$jf" ]] && jq -e '(.statement_html_b64 // "") != ""' "$jf" >/dev/null 2>&1; then
-      if ( mkdir -p "$ENUN" && jq -r '.statement_html_b64 // ""' "$jf" | base64 -d > "$ENUN/$STATEMENT.html.tmp.$$" \
-           && mv -f "$ENUN/$STATEMENT.html.tmp.$$" "$ENUN/$STATEMENT.html" ) 2>/dev/null
-      then HAS_HTML=true; else rm -f "$ENUN/$STATEMENT.html.tmp.$$" 2>/dev/null; fi
+      if ( mkdir -p "$ENUN" && jq -r '.statement_html_b64 // ""' "$jf" | base64 -d > "$ENUN/$STATEMENT.html.tmp.${BASHPID}" \
+           && mv -f "$ENUN/$STATEMENT.html.tmp.${BASHPID}" "$ENUN/$STATEMENT.html" ) 2>/dev/null
+      then HAS_HTML=true; else rm -f "$ENUN/$STATEMENT.html.tmp.${BASHPID}" 2>/dev/null; fi
     fi
   fi
   filt+=", has_statement_html:$HAS_HTML, has_statement_pdf:$HAS_PDF"
@@ -216,6 +216,6 @@ fi
 resp_cache_store "$CF" "$BODY"
 # a versão comprimida é gravada DEPOIS da crua: se algo falhar aqui, o pior caso é o nginx
 # comprimir como antes — nunca servir .gz de um corpo diferente do .json
-printf '%s' "$BODY" | gzip -6 -c > "$CF.gz.tmp.$$" 2>/dev/null && mv -f "$CF.gz.tmp.$$" "$CF.gz" 2>/dev/null || rm -f "$CF.gz.tmp.$$" 2>/dev/null
+printf '%s' "$BODY" | gzip -6 -c > "$CF.gz.tmp.${BASHPID}" 2>/dev/null && mv -f "$CF.gz.tmp.${BASHPID}" "$CF.gz" 2>/dev/null || rm -f "$CF.gz.tmp.${BASHPID}" 2>/dev/null
 emit_json 200 OK
 printf '%s' "$BODY"

@@ -26,8 +26,8 @@ rows="$(awk -F'\t' '
     for (j in votes) printf "%s\t%d\t%d\t%d\t%d\t%d\n", j, votes[j], (rtn[j]?int(rtsum[j]/rtn[j]):0), rtn[j], agree[j]+0, confl[j]+0;
     printf "::TOTAL::\t%d\t%d\n", tv+0, (trtn?int(trts/trtn):0) > "/dev/stderr";
   }
-' "$log" 2>"$log.tot.$$")"
-read -r _tag tv tavg < <(cat "$log.tot.$$" 2>/dev/null); rm -f "$log.tot.$$"
+' "$log" 2>"$log.tot.${BASHPID}")"
+read -r _tag tv tavg < <(cat "$log.tot.${BASHPID}" 2>/dev/null); rm -f "$log.tot.${BASHPID}"
 [[ "$tv" =~ ^[0-9]+$ ]] || tv=0; [[ "$tavg" =~ ^[0-9]+$ ]] || tavg=0
 
 judges="$(printf '%s' "$rows" | jq -R -s '

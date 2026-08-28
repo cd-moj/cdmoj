@@ -368,7 +368,7 @@ count_pending(){
       g="$(grep -cE "$re" "$hf" 2>/dev/null)"; n=$(( n + ${g//[^0-9]/} + 0 ))
     done; echo "$n" )"
   mkdir -p "$CONTESTSDIR/$c/var" 2>/dev/null
-  printf '%s\n' "$m" > "$cache.tmp.$$" 2>/dev/null && mv -f "$cache.tmp.$$" "$cache" 2>/dev/null
+  printf '%s\n' "$m" > "$cache.tmp.${BASHPID}" 2>/dev/null && mv -f "$cache.tmp.${BASHPID}" "$cache" 2>/dev/null
   echo "$m"
 }
 

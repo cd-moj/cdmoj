@@ -157,7 +157,7 @@ authored_upsert(){
   ( flock 9 2>/dev/null
     local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
     jq -e . >/dev/null 2>&1 <<<"$cur" || cur='{}'          # overlay ilegível: recomeça (não propaga lixo)
-    tmp="$f.tmp.$$"
+    tmp="$f.tmp.${BASHPID}"
     # o overlay entra por STDIN, nunca por --argjson: o teto do kernel é 128 KiB POR ARGUMENTO
     # e o overlay CRESCE (1 entrada por problema criado/subido). Quando passou de 128 KiB
     # (migrações em massa de 2026-07), o execve do jq falhava "Argument list too long", o
@@ -189,7 +189,7 @@ authored_patch(){
   local f="$AUTHORED_INDEX" lk; lk="$(_idx_lock "$f")"
   ( flock 9 2>/dev/null
     local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || exit 0
-    tmp="$f.tmp.$$"
+    tmp="$f.tmp.${BASHPID}"
     ( umask 077; jq "$@" --arg _id "$id" "if has(\$_id) then .[\$_id] |= ($expr) else . end" <<<"$cur" ) \
       > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || rm -f "$tmp"
   ) 9>"$lk"
@@ -208,7 +208,7 @@ authored_prune(){
   lk="$(_idx_lock "$f")"
   ( flock 9 2>/dev/null
     [[ "$OWNERS_INDEX" -nt "$f" ]] || exit 0          # rechecagem sob o lock
-    local tmp="$f.tmp.$$"
+    local tmp="$f.tmp.${BASHPID}"
     # overlay por STDIN (ARG_MAX) + índice por --slurpfile; {} de saída é válido (tudo podado)
     jq -c --slurpfile idx "$OWNERS_INDEX" '
       ((($idx[0].problems) // []) | map({key:.id, value:.}) | from_entries) as $by
@@ -229,7 +229,7 @@ authored_remove(){
   local f="$AUTHORED_INDEX" lk; lk="$(_idx_lock "$f")"
   ( flock 9 2>/dev/null
     local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || exit 0
-    tmp="$f.tmp.$$"
+    tmp="$f.tmp.${BASHPID}"
     ( umask 077; jq --arg id "$1" 'del(.[$id])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || rm -f "$tmp"
   ) 9>"$lk"
 }
@@ -297,7 +297,7 @@ coll_can_manage(){ { declare -F is_admin >/dev/null && is_admin; } && return 0; 
 coll_register(){
   local n="$1" o="$2" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
   ( flock 9 2>/dev/null
-    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
+    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.${BASHPID}"
     ( umask 077; jq --arg n "$n" --arg o "$o" --argjson now "$EPOCHSECONDS" '
         .[$n] = ((.[$n] // {}) + {owner:((.[$n].owner) // $o), created_by:((.[$n].created_by) // $o), at:((.[$n].at) // $now)})' <<<"$cur" ) \
       > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY" || rm -f "$tmp"
@@ -305,13 +305,13 @@ coll_register(){
 }
 coll_delete(){ local n="$1" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
   ( flock 9 2>/dev/null
-    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
+    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.${BASHPID}"
     ( umask 077; jq --arg n "$n" 'del(.[$n])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY" || rm -f "$tmp"
   ) 9>"$lk"; }
 # coll_rename <old> <new> — renomeia no registro (o bulk nos metas dos problemas fica no handler).
 coll_rename(){ local o="$1" n="$2" lk; lk="$(_idx_lock "$COLL_REGISTRY")"
   ( flock 9 2>/dev/null
-    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.$$"
+    local cur tmp; cur="$(_coll_read)"; tmp="$COLL_REGISTRY.tmp.${BASHPID}"
     ( umask 077; jq --arg o "$o" --arg n "$n" 'if has($o) and ($o!=$n) then .[$n]=(.[$o]) | del(.[$o]) else . end' <<<"$cur" ) \
       > "$tmp" 2>/dev/null && mv -f "$tmp" "$COLL_REGISTRY" || rm -f "$tmp"
   ) 9>"$lk"; }
@@ -327,7 +327,7 @@ _retag_job_patch(){
   local f="$RETAG_JOBS" lk; lk="$(_idx_lock "$f")"
   ( flock 9 2>/dev/null
     local cur tmp; cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
-    tmp="$f.tmp.$$"
+    tmp="$f.tmp.${BASHPID}"
     ( umask 077; jq "$@" --arg _j "$jid" '
         .[$_j] = ((.[$_j] // {}) | '"$expr"')
         | (if (keys|length) > 60
@@ -407,7 +407,7 @@ coll_bulk_retag(){
 coll_bulk_retag_bg(){
   local old="$1" new="$2" login="${3:-moj}" after="${4:-}" lib jid
   lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  jid="rt$EPOCHSECONDS.$$.$RANDOM"
+  jid="rt$EPOCHSECONDS.${BASHPID}.$RANDOM"
   _retag_job_patch "$jid" '. + {from:$from, to:$to, by:$by, started_at:$now, done:0, failed:0}' \
     --arg from "$old" --arg to "$new" --arg by "$login" --argjson now "$EPOCHSECONDS"
   ( setsid env RUNDIR="$RUNDIR" CONTESTSDIR="$CONTESTSDIR" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" \

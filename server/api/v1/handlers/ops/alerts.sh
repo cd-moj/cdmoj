@@ -16,7 +16,7 @@ if [[ -f "$_ba" ]]; then
   if (( _bage > ${ALERT_BOT_GONE_AFTER:-300} )); then
     ( umask 077; printf '⚠️ <b>MOJ</b>: o bot de alertas (mojinho) ficou FORA DO AR por ~%s min (desde %s) — alertas desse período podem ter se perdido. Voltou agora.' \
         "$(( _bage / 60 ))" "$(date -d "@$(( EPOCHSECONDS - _bage ))" '+%d/%m %H:%M' 2>/dev/null)" \
-        > "$RUNDIR/alerts/outbox/$EPOCHSECONDS-bot_gone-$$.txt" 2>/dev/null ) || true
+        > "$RUNDIR/alerts/outbox/$EPOCHSECONDS-bot_gone-${BASHPID}.txt" 2>/dev/null ) || true
   fi
 fi
 touch "$_ba" 2>/dev/null || true

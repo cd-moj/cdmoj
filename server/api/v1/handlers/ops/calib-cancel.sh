@@ -27,9 +27,9 @@ mkdir -p "$UPDATESDIR/pending" 2>/dev/null
     jq -e --arg t "$id" '.kind=="calibrate" and .target==$t' "$f" >/dev/null 2>&1 || continue
     rm -f "$f" && n=$((n+1))
   done < <(find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null)
-  echo "$n" > "$UPDATESDIR/.cancel-count.$$"
+  echo "$n" > "$UPDATESDIR/.cancel-count.${BASHPID}"
 ) 9>"$UPDATESDIR/.lock"
-removed_pending="$(cat "$UPDATESDIR/.cancel-count.$$" 2>/dev/null)"; rm -f "$UPDATESDIR/.cancel-count.$$"
+removed_pending="$(cat "$UPDATESDIR/.cancel-count.${BASHPID}" 2>/dev/null)"; rm -f "$UPDATESDIR/.cancel-count.${BASHPID}"
 removed_pending="${removed_pending//[^0-9]/}"; removed_pending="${removed_pending:-0}"
 
 # direcionados ainda não entregues (flock por host)
@@ -43,8 +43,8 @@ while IFS= read -r hostdir; do
       rm -f "$f" && echo x
     done < <(find "$hostdir" -maxdepth 1 -name '*.json' 2>/dev/null)
   ) 9>"$hostdir/.lock"
-done < <(find "$CMDDIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null) > "$UPDATESDIR/.cancel-t.$$"
-removed_targeted="$(grep -c x "$UPDATESDIR/.cancel-t.$$" 2>/dev/null)"; rm -f "$UPDATESDIR/.cancel-t.$$"
+done < <(find "$CMDDIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null) > "$UPDATESDIR/.cancel-t.${BASHPID}"
+removed_targeted="$(grep -c x "$UPDATESDIR/.cancel-t.${BASHPID}" 2>/dev/null)"; rm -f "$UPDATESDIR/.cancel-t.${BASHPID}"
 removed_targeted="${removed_targeted//[^0-9]/}"; removed_targeted="${removed_targeted:-0}"
 
 # em execução: conta sempre; remove SÓ com inprogress:true
@@ -55,10 +55,10 @@ removed_targeted="${removed_targeted//[^0-9]/}"; removed_targeted="${removed_tar
     jq -e --arg t "$id" '.kind=="calibrate" and .target==$t' "$f" >/dev/null 2>&1 || continue
     if [[ "$with_inprog" == true ]]; then rm -f "$f" && echo r; else echo i; fi
   done < <(find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' 2>/dev/null)
-) 9>"$UPDATESDIR/.lock" > "$UPDATESDIR/.cancel-i.$$"
-removed_inprog="$(grep -c r "$UPDATESDIR/.cancel-i.$$" 2>/dev/null)"; removed_inprog="${removed_inprog//[^0-9]/}"; removed_inprog="${removed_inprog:-0}"
-inflight="$(grep -c i "$UPDATESDIR/.cancel-i.$$" 2>/dev/null)"; inflight="${inflight//[^0-9]/}"; inflight="${inflight:-0}"
-rm -f "$UPDATESDIR/.cancel-i.$$"
+) 9>"$UPDATESDIR/.lock" > "$UPDATESDIR/.cancel-i.${BASHPID}"
+removed_inprog="$(grep -c r "$UPDATESDIR/.cancel-i.${BASHPID}" 2>/dev/null)"; removed_inprog="${removed_inprog//[^0-9]/}"; removed_inprog="${removed_inprog:-0}"
+inflight="$(grep -c i "$UPDATESDIR/.cancel-i.${BASHPID}" 2>/dev/null)"; inflight="${inflight//[^0-9]/}"; inflight="${inflight:-0}"
+rm -f "$UPDATESDIR/.cancel-i.${BASHPID}"
 
 audit_log "calib-cancel" "id=$id pending=$removed_pending targeted=$removed_targeted inprog_removed=$removed_inprog inflight=$inflight"
 ok_json '{action:"calib-cancel", id:$id, removed_pending:$p, removed_targeted:$t,

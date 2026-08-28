@@ -50,7 +50,7 @@ tg_unlink(){ # <c> <tgid>
 
 tg_touch(){ # <c> <tgid> [username] — atualiza username/last_seen (barato, sem lock)
   local f; f="$(tg_dir "$1")/by-tgid/$2.json"; [[ -f "$f" ]] || return 0
-  local tmp="$f.tmp.$$"
+  local tmp="$f.tmp.${BASHPID}"
   jq -c --arg u "${3:-}" --argjson t "$EPOCHSECONDS" \
      '.username=(if $u=="" then .username else $u end) | .last_seen=$t' "$f" > "$tmp" 2>/dev/null \
      && mv -f "$tmp" "$f"
@@ -64,7 +64,7 @@ tg_rename(){
   ( flock 9
     printf '%s\n' "$tgid" > "$d/by-login/$new"; rm -f "$d/by-login/$old"
     local f="$d/by-tgid/$tgid.json"
-    [[ -f "$f" ]] && { jq -c --arg l "$new" '.login=$l' "$f" > "$f.tmp.$$" && mv -f "$f.tmp.$$" "$f"; }
+    [[ -f "$f" ]] && { jq -c --arg l "$new" '.login=$l' "$f" > "$f.tmp.${BASHPID}" && mv -f "$f.tmp.${BASHPID}" "$f"; }
   ) 9>"$d/.lock" 2>/dev/null
 }
 
@@ -88,7 +88,7 @@ tg_nonce_claim(){
   local n="$1" pf tmp js exp
   valid_id "$n" || return 1
   pf="$RUNDIR/telegram/pending/$n.json"
-  tmp="$RUNDIR/telegram/pending/.claim.$n.$$"
+  tmp="$RUNDIR/telegram/pending/.claim.$n.${BASHPID}"
   mv "$pf" "$tmp" 2>/dev/null || return 1     # atômico: só um claim vence
   js="$(cat "$tmp" 2>/dev/null)"; rm -f "$tmp"
   exp="$(jq -r '.expires_at // 0' <<<"$js" 2>/dev/null)"

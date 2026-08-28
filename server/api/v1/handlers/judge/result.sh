@@ -28,7 +28,7 @@ reg_touch_state "$host" free 2>/dev/null || true
 AGORA="$EPOCHSECONDS"
 spoolname="$contest:$AGORA:$id:$host:result:$problem"
 mkdir -p "$SPOOLDIR" 2>/dev/null
-tmp="$SPOOLDIR/.in.result.$id.$$"
+tmp="$SPOOLDIR/.in.result.$id.${BASHPID}"
 printf '%s' "$body" > "$tmp" && mv -f "$tmp" "$SPOOLDIR/$spoolname"
 
 ok_json '{id:$i, accepted:true}' --arg i "$id"

@@ -56,7 +56,7 @@ org_require_valid_logins(){
 # O criador entra como membro E admin. public_allowed só LIGA (nunca desliga aqui). Idempotente.
 org_register(){
   local n="$1" cr="$2" m="${3:-}" a="${4:-}" t="${5:-}" pa="${6:-false}" cur tmp
-  cur="$(_orgs_read)"; mkdir -p "$(dirname "$ORGS_REGISTRY")" 2>/dev/null; tmp="$ORGS_REGISTRY.tmp.$$"
+  cur="$(_orgs_read)"; mkdir -p "$(dirname "$ORGS_REGISTRY")" 2>/dev/null; tmp="$ORGS_REGISTRY.tmp.${BASHPID}"
   # registro por STDIN, não --argjson (128 KiB/argumento): orgs.json cresce com os usuários
   # (toda conta ganha org implícita) — mesmo no-op silencioso do overlay authored (2026-07-16)
   ( umask 077; printf '%s' "$cur" | jq --arg n "$n" --arg cr "$cr" --arg m "$m" --arg a "$a" \
@@ -79,7 +79,7 @@ org_register(){
 orgs_rename_login(){
   local old="$1" new="$2" cur tmp
   [[ -f "$ORGS_REGISTRY" ]] || return 0
-  cur="$(_orgs_read)"; tmp="$ORGS_REGISTRY.tmp.$$"
+  cur="$(_orgs_read)"; tmp="$ORGS_REGISTRY.tmp.${BASHPID}"
   ( umask 077; printf '%s' "$cur" | jq --arg o "$old" --arg n "$new" '
       map_values(
         if ((((.members // []) + (.admins // [])) | index($o)) != null) then
@@ -94,7 +94,7 @@ orgs_rename_login(){
 ensure_implicit_org(){
   local u="$1"; [[ "$u" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || return 1
   org_exists "$u" && return 0
-  local cur tmp; cur="$(_orgs_read)"; mkdir -p "$(dirname "$ORGS_REGISTRY")" 2>/dev/null; tmp="$ORGS_REGISTRY.tmp.$$"
+  local cur tmp; cur="$(_orgs_read)"; mkdir -p "$(dirname "$ORGS_REGISTRY")" 2>/dev/null; tmp="$ORGS_REGISTRY.tmp.${BASHPID}"
   ( umask 077; printf '%s' "$cur" | jq --arg u "$u" --argjson now "$EPOCHSECONDS" '
       . + { ($u): { created_by:$u, title:$u, members:[$u], admins:[$u],
                     public_allowed:false, implicit:true, at:$now } }' ) \
@@ -103,7 +103,7 @@ ensure_implicit_org(){
 _org_set_field(){  # <org> <field> <json>  (members|admins)
   local n="$1" k="$2" v="$3" cur tmp; cur="$(_orgs_read)"
   jq -e --arg n "$n" 'has($n)' >/dev/null 2>&1 <<<"$cur" || return 1
-  tmp="$ORGS_REGISTRY.tmp.$$"
+  tmp="$ORGS_REGISTRY.tmp.${BASHPID}"
   ( umask 077; jq --arg n "$n" --arg k "$k" --argjson v "$v" '.[$n][$k]=$v' <<<"$cur" ) \
     > "$tmp" 2>/dev/null && mv -f "$tmp" "$ORGS_REGISTRY"
 }
@@ -116,11 +116,11 @@ org_set_public_allowed(){
   [[ "$v" == true || "$v" == false ]] || return 2
   cur="$(_orgs_read)"; jq -e --arg n "$n" 'has($n)' >/dev/null 2>&1 <<<"$cur" || return 1
   if [[ "$v" == true ]] && jq -e --arg n "$n" '.[$n].implicit==true' >/dev/null 2>&1 <<<"$cur"; then return 3; fi
-  tmp="$ORGS_REGISTRY.tmp.$$"
+  tmp="$ORGS_REGISTRY.tmp.${BASHPID}"
   ( umask 077; jq --arg n "$n" --argjson v "$v" '.[$n].public_allowed=$v' <<<"$cur" ) \
     > "$tmp" 2>/dev/null && mv -f "$tmp" "$ORGS_REGISTRY"
 }
 # org_delete <org> — remove a org do registro (espelha coll_delete). O HANDLER garante que está
 # VAZIA e que não é a implícita; aqui é só o del atômico.
-org_delete(){ local n="$1" cur tmp; cur="$(_orgs_read)"; tmp="$ORGS_REGISTRY.tmp.$$"
+org_delete(){ local n="$1" cur tmp; cur="$(_orgs_read)"; tmp="$ORGS_REGISTRY.tmp.${BASHPID}"
   ( umask 077; jq --arg n "$n" 'del(.[$n])' <<<"$cur" ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$ORGS_REGISTRY"; }

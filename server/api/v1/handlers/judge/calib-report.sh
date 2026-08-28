@@ -59,7 +59,7 @@ elif (( same )); then
 fi
 [[ -s "$SOLSF" ]] || echo '[]' > "$SOLSF"
 
-tmp="$f.tmp.$$"
+tmp="$f.tmp.${BASHPID}"
 ( umask 077; jq -c --arg h "$host" --arg c "$cks" --argjson now "$EPOCHSECONDS" \
     --argjson reps "$names" --slurpfile sols "$SOLSF" \
     '{host:$h, checksum:$c, at:$now, log:(.log // ""), reports:$reps, sols:($sols[0] // [])}' \

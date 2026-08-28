@@ -37,7 +37,7 @@ _VAL_SUM_PROG='{ok:.ok, checks:(.checks // []), at:(.at // null),
    render_warnings:(.render_warnings // "")}'
 
 _summary_rebuild(){  # <dir> <prog> <out> — chamar SOB o flock do chamador; tmp+mv atômico
-  local dir="$1" prog="$2" out="$3" tmp="$3.tmp.$$"
+  local dir="$1" prog="$2" out="$3" tmp="$3.tmp.${BASHPID}"
   find "$dir" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
     | jq -sc "map(select(.id != null) | {key:.id, value:$prog}) | from_entries" > "$tmp" 2>/dev/null
   [[ -s "$tmp" ]] || echo '{}' > "$tmp"
@@ -47,7 +47,7 @@ _summary_upsert(){   # <id> <src-file> <prog> <out> — funde 1 chave (entrada p
   local id="$1" src="$2" prog="$3" out="$4"
   ( flock 9
     if [[ ! -s "$out" ]]; then _summary_rebuild "$(dirname "$src")" "$prog" "$out"; exit 0; fi
-    local entry tmp="$out.tmp.$$"
+    local entry tmp="$out.tmp.${BASHPID}"
     entry="$(jq -c "$prog" "$src" 2>/dev/null)"; [[ -n "$entry" ]] || entry='null'
     jq -c --arg id "$id" --argjson e "$entry" '.[$id] = $e' "$out" > "$tmp" 2>/dev/null \
       && [[ -s "$tmp" ]] && mv -f "$tmp" "$out" || rm -f "$tmp"
@@ -118,8 +118,8 @@ pkg_tl_checksum(){
   fi
   cks="$(bash "$MOJTOOLS_DIR/tl-checksum.sh" "$1" 2>/dev/null)"; cks="${cks//[^0-9a-f]/}"
   [[ -n "$sig" && -n "$cks" ]] && { mkdir -p "${f%/*}" 2>/dev/null
-    printf '%s\t%s' "$sig" "$cks" > "$f.tmp.$$" 2>/dev/null && mv -f "$f.tmp.$$" "$f" 2>/dev/null \
-      || rm -f "$f.tmp.$$" 2>/dev/null; }
+    printf '%s\t%s' "$sig" "$cks" > "$f.tmp.${BASHPID}" 2>/dev/null && mv -f "$f.tmp.${BASHPID}" "$f" 2>/dev/null \
+      || rm -f "$f.tmp.${BASHPID}" 2>/dev/null; }
   printf '%s' "$cks"
 }
 
@@ -150,7 +150,7 @@ tl_store_record(){
   local host="$1" id="$2" cks="$3" tl="$4" f cur tmp
   [[ -n "$host" && -n "$id" && -n "$cks" ]] || return 1
   jq -e . >/dev/null 2>&1 <<<"$tl" || tl='{}'
-  mkdir -p "$TL_STORE_DIR" 2>/dev/null; f="$(tl_store_file "$id")"; tmp="$f.tmp.$$"
+  mkdir -p "$TL_STORE_DIR" 2>/dev/null; f="$(tl_store_file "$id")"; tmp="$f.tmp.${BASHPID}"
   cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
   ( umask 077; jq -n --argjson cur "$cur" --arg id "$id" --arg h "$host" \
       --arg cks "$cks" --argjson tl "$tl" --argjson now "$EPOCHSECONDS" '
