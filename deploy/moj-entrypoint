@@ -47,12 +47,14 @@ role="${1:-api}"
 case "$role" in
   api)
     # --- ORÇAMENTOS DE FRESCOR alargados p/ os times (decisão do Ribas, 28/08) ---------
-    # Placar até ~30 s atrás do último veredicto (o daemon coalescido o mantém ~10 s típico)
+    # Placar até ~60 s atrás do último veredicto (o daemon coalescido o mantém ~10 s típico;
+    # 30 s declinava em massa sob veredicto CONTÍNUO no teste de 28/08 — o rebuild atrasa do
+    # piso justo quando a máquina está cheia, e o decline vira tempestade de bash)
     # e lote de boot com TTL 60 s: cada cache "velho" custa um DECLINE do porteiro p/ o bash
     # (100-300 ms sob carga) — alargar encolhe a classe bash, que é o teto atual. Edição de
     # admin propaga NA HORA mesmo assim: o frescor por ENTRADAS (-nt conf/rounds/overrides)
     # invalida independente do TTL. Handlers bash e porteiro honram os MESMOS envs.
-    export SCORE_SERVE_FLOOR_S="${SCORE_SERVE_FLOOR_S:-30}"
+    export SCORE_SERVE_FLOOR_S="${SCORE_SERVE_FLOOR_S:-60}"
     # basic = 5 min (decisão do Ribas): o corpo é 100% derivado dos 4 arquivos de entrada
     # (nada de relógio) e os casos pessoais — prorrogação, troca de coorte — mudam a CHAVE da
     # variante, propagando na hora. Nos momentos conturbados (abertura, F5 em massa) o basic
@@ -86,7 +88,10 @@ case "$role" in
     # Leitor puro dos caches que o bash materializa; qualquer dúvida = fecha sem resposta =
     # 502 = fallback pro fcgiwrap (mesmo desenho de rota/fallback do molde). Ver
     # server/porteiro/moj-porteiro.py e o CLAUDE.md (Backend).
-    : "${PORTEIRO_WORKERS:=4}"
+    # 8 workers + backlog 64: no teste de 28/08, com 4 workers disputando CPU com a
+    # tempestade de bash dos fallbacks, o backlog de 16 enchia e o connect recusado virava
+    # 502⇒fallback até em rota de 2 ms — o backlog largo troca isso por fila de milissegundos.
+    : "${PORTEIRO_WORKERS:=8}"
     : "${PORTEIRO_SOCK:=$RUNDIR/moj-porteiro.sock}"
     if [[ -f "$MOJ_HOME/server/porteiro/moj-porteiro.py" && "${PORTEIRO_DISABLE:-0}" != 1 ]] \
        && command -v python3 >/dev/null 2>&1; then
@@ -94,7 +99,7 @@ case "$role" in
       ( umask "$FCGI_UMASK"
         while :; do
           python3 "$MOJ_HOME/server/porteiro/moj-porteiro.py" \
-            -s "$PORTEIRO_SOCK" -c "$PORTEIRO_WORKERS" -b "${PORTEIRO_BACKLOG:=16}" \
+            -s "$PORTEIRO_SOCK" -c "$PORTEIRO_WORKERS" -b "${PORTEIRO_BACKLOG:=64}" \
             >> "$RUNDIR/porteiro.err" 2>&1
           echo "moj-entrypoint: porteiro saiu (rc=$?) — respawn em 1s" >> "$RUNDIR/porteiro.err"
           sleep 1

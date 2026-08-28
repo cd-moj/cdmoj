@@ -121,7 +121,14 @@ location /api/v1/ {
 # ⚠ Fallback é SÓ no 502 (conexão/resposta inválida) — nunca no 504: requisição lenta
 # repetida no outro pool dobraria a carga exatamente na hora errada.
 include /etc/nginx/moj-molde-routes/*[.]conf;
+# ⚠ O fallback TAMBÉM respeita o quebra-circuito de contest (include por glob, some com o
+# rm do arquivo): sem isso, cada decline do porteiro vira um bash SEM teto que segura a
+# conexão na zona moj_porteiro pelos segundos inteiros do bash — a zona enche e passa a
+# 429ar até as respostas de 2 ms (colapso medido no teste de 28/08: score declinando sob
+# veredicto contínuo derrubou o caminho rápido inteiro). Com o teto, o excesso de fallback
+# leva 429 na hora e o caminho rápido continua aberto.
 location @moj_fcgiwrap {
+    include                 /etc/nginx/moj-breaker-contest[.]conf;
     fastcgi_pass            unix:@WORKROOT@/run/fcgiwrap.sock;
     fastcgi_split_path_info ^(/api/v1)(/.*)$;
 }

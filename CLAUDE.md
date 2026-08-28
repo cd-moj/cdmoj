@@ -49,7 +49,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `smoke-porteiro.sh` (25 asserções: variantes + declines + computadas, com cliente FCGI
   embutido) e o
   diferencial (`molde-diff.sh`). Rota liga/desliga por `server/bin/molde-route.sh add|rm
-  <rota> [porteiro|molde]` (default porteiro). `PORTEIRO_WORKERS` (4) e `PORTEIRO_DISABLE=1`
+  <rota> [porteiro|molde]` (default porteiro). `PORTEIRO_WORKERS` (8) e `PORTEIRO_DISABLE=1`
   no env. `--selftest` roda no build da imagem.
 - Handler típico: `require_method POST`; `require_auth`; `body="$(read_body)"`; valida com
   `jq -e .`; lê com `jq -r`; responde com `emit_json 200 OK` + objeto `jq`, ou
