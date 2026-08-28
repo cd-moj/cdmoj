@@ -25,6 +25,8 @@ map $moj_contest_host $moj_site_conn { "" "site"; default ""; }
 limit_conn_zone $moj_site_conn zone=moj_site:1m;
 limit_conn_status 429;
 map $moj_contest_host $moj_shed_file { "" "/etc/nginx/moj-shed-treino"; default "/nonexistent"; }
+map $moj_contest_host $moj_contest_conn { "" ""; default "contest"; }
+limit_conn_zone $moj_contest_conn zone=moj_contest:1m;
 
 server {
     listen      80;

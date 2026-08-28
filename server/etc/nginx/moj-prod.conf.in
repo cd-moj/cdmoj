@@ -40,6 +40,18 @@ limit_conn_status 429;
 # freio de emergência POR CLASSE: só o host principal olha o arquivo; contest nunca.
 map $moj_contest_host $moj_shed_file { "" "/etc/nginx/moj-shed-treino"; default "/nonexistent"; }
 
+# QUEBRA-CIRCUITO do CONTEST (2026-08-28): a outra metade do anteparo. Um balde só para TODOS
+# os subdomínios (o pool de 64 workers é um só; teto por-contest deixaria 2 contests somarem
+# mais que o pool). Motivo medido no teste de 1.000 req/s de 27/08: acima do teto (~430 req/s)
+# a fila do socket cresce além de capacidade×timeout e o goodput colapsa a ~zero (502 em massa),
+# enquanto o host principal — capado a 16 — seguiu com p50 de 0,12 s sob 3,5× de sobrecarga.
+# O TETO NÃO MORA AQUI: mora em /etc/nginx/moj-breaker-contest.conf (limit_conn moj_contest 56),
+# incluído POR GLOB no snippet — arquivo ausente = SEM limite, sem erro de config. Desligar:
+#   rm /etc/nginx/moj-breaker-contest.conf && systemctl reload nginx
+# Religar: recriar o arquivo (o install-nginx.sh o recria se ausente) + reload.
+map $moj_contest_host $moj_contest_conn { "" ""; default "contest"; }
+limit_conn_zone $moj_contest_conn zone=moj_contest:1m;
+
 # id de problema LEGADO (pontilhado, "org.slug") -> canônico URL-encoded ("org%23slug").
 # Usado pelo redirect de /new/treino/problem/ (moj-app.conf.in). Só o PRIMEIRO ponto vira
 # %23 (o slug pode ter pontos); %23 = '#' — literal no return viraria fragment.

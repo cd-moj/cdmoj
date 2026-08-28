@@ -89,8 +89,17 @@ fastcgi_read_timeout 300s;
 # FREIO DE EMERGÊNCIA: `touch /etc/nginx/moj-shed-treino` derruba a API do host principal (503)
 # na hora, sem reload; `rm` religa. Por classe ($moj_shed_file): o subdomínio de contest e as
 # três exceções nunca olham o arquivo.
+#
+# QUEBRA-CIRCUITO do CONTEST (2026-08-28): o include por GLOB abaixo carrega
+# /etc/nginx/moj-breaker-contest.conf (`limit_conn moj_contest 56;`) quando ele EXISTE — ausente,
+# o glob casa nada e o contest fica sem limite (era o comportamento até hoje). 56 de 64: o
+# excedente leva 429 rápido em vez de estacionar 25 s na fila do socket até o colapso (medido
+# 27/08); os polls da web só tentam de novo no tick seguinte. Vale TAMBÉM para /submit, de
+# propósito: com 56 em voo a fila profunda é pior que o 429 (o aluno reenviaria contra um
+# servidor já afogado). DESLIGAR: rm do arquivo + reload (receita no moj-prod.conf.in).
 location /api/v1/ {
     limit_conn moj_site 16;
+    include /etc/nginx/moj-breaker-contest[.]conf;
     if (-f $moj_shed_file) { return 503; }
     fastcgi_pass            unix:@WORKROOT@/run/fcgiwrap.sock;
     fastcgi_split_path_info ^(/api/v1)(/.*)$;

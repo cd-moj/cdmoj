@@ -137,6 +137,15 @@ render "$TPLDIR/moj-app.conf.in" > "$SNIPPET"
 render "$TPL" > "$CONF_DIR/moj.conf"
 chmod 644 "$SNIPPET" "$CONF_DIR/moj.conf"
 
+# Quebra-circuito do contest: o snippet o inclui por GLOB, então AUSENTE = desligado (estado de
+# emergência, decidido à mão com `rm` + reload). Só criamos se não existe — recriar por cima
+# preservaria a decisão do operador até aqui, e um install novo REARMA o padrão (56).
+BREAKER=/etc/nginx/moj-breaker-contest.conf
+if [ ! -f "$BREAKER" ]; then
+  printf '# teto de requisições em voo dos subdomínios de CONTEST (zona no conf.d/moj.conf).\n# rm deste arquivo + reload = quebra-circuito DESLIGADO (o include é por glob).\nlimit_conn moj_contest 56;\n' > "$BREAKER"
+  chmod 644 "$BREAKER"; echo ">> criei $BREAKER (teto 56)"
+fi
+
 # nginx mascarado (ex.: máquina que rodava só o proxy user-space) não sobe nunca — destrave.
 if [ "$(systemctl is-enabled nginx 2>/dev/null)" = masked ]; then
   systemctl unmask nginx; echo ">> nginx estava MASKED — desmascarei"
