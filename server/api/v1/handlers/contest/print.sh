@@ -14,16 +14,16 @@ valid_id "$login" || fail 400 "login inválido" "login_invalid"
 dir="$(pr_dir "$contest")"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
-  set +o noglob; shopt -s nullglob
-  items=()
-  for j in "$dir"/*.json; do
-    [[ -f "$j" ]] || continue
-    [[ "$(jq -r '.login // ""' "$j" 2>/dev/null)" == "$login" ]] || continue
-    [[ "$(jq -r '.kind // "print"' "$j" 2>/dev/null)" == "print" ]] || continue   # balão é tarefa do staff, não do aluno
-    items+=("$(jq -c '{id,seq,filename,mime,size,time,status,pages,claimed_by,processed_at,delivered_at}' "$j" 2>/dev/null)")
-  done
-  shopt -u nullglob
-  out="$( ((${#items[@]})) && printf '%s\n' "${items[@]}" | jq -cs 'sort_by(-.seq)' || echo '[]')"
+  # UMA varredura (molde do sc_cells) — era 3 jq POR ARQUIVO: com as ~4.000 tarefas da prova
+  # da Maratona (29/08) a aba de impressão do TIME custava 17 s por abertura (max 32 s,
+  # reclamação real). find|xargs + filtro DENTRO do jq; o xargs pode lotear em vários jq e o
+  # -cs final funde tudo. Balão continua fora (kind != print é tarefa do staff, não do aluno).
+  out="$(find "$dir" -maxdepth 1 -name '*.json' -print0 2>/dev/null \
+    | xargs -0 -r jq -c --arg login "$login" '
+        select(((.login // "") == $login) and ((.kind // "print") == "print"))
+        | {id,seq,filename,mime,size,time,status,pages,claimed_by,processed_at,delivered_at}' 2>/dev/null \
+    | jq -cs 'sort_by(-.seq)')"
+  [[ -n "$out" ]] || out='[]'
   se="$(staff_exists "$contest" && echo true || echo false)"
   ap="$(print_enabled "$contest" && echo true || echo false)"
   ok_json_slurp '{requests:$r[0], staff_exists:$se, allow_print:$ap}' r "$out" \
