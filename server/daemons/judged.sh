@@ -687,10 +687,16 @@ reconcile_stale_pending() {
         [[ -n "$id" && "$se" =~ ^[0-9]+$ ]] || continue
         age=$(( now - se ))
         (( age > PENDING_TTL_MIN * 60 )) || continue
-        # rastro vivo? (spool de entrada, fila do cluster ou assigned de algum juiz)
+        # rastro vivo? (spool de entrada, fila do cluster, assigned de algum juiz — OU a fila
+        # de REVISÃO: em MANUAL_VERDICT o veredicto computado fica SEGURADO em review/<id>.json
+        # esperando voto humano, e o history segue pendente DE PROPÓSITO. Sem esta guarda o
+        # reconciliador re-julgava a run segurada e aos 30 min carimbava Judge Error por cima
+        # de submissão perfeitamente julgada — aconteceu no warmup da Maratona, 29/08, minutos
+        # antes da prova. Revisão não tem idade máxima: quem decide é o juiz.)
         if compgen -G "$SPOOLDIR/*:$id:*" >/dev/null 2>&1 \
            || compgen -G "$QUEUEDIR/*/*_$id.json" >/dev/null 2>&1 \
-           || compgen -G "$ASSIGNEDDIR/*/*_$id.json" >/dev/null 2>&1; then
+           || compgen -G "$ASSIGNEDDIR/*/*_$id.json" >/dev/null 2>&1 \
+           || [[ -f "$CONTESTSDIR/$c/review/$id.json" ]]; then
           continue
         fi
         local llang src; llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"

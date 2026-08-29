@@ -131,6 +131,20 @@ printf '%s:col#pa:C:Not Answered Yet:%s:%s\n' "$OLD" "$OLD" "$IDD" > "$DC/users/
     bash judged.sh --reconcile >/dev/null 2>&1 )
 ck "contest DEMO: pendente SOBREVIVE" 'grep -q ":Not Answered Yet:" "$DC/users/aluno/history"'
 
+# veredicto SEGURADO p/ revisão (MANUAL_VERDICT): review/<id>.json presente = rastro VIVO —
+# o reconciliador NÃO pode re-enfileirar nem carimbar Judge Error (bug real do warmup da
+# Maratona 29/08: run julgada + segurada levou Judge Error aos 30 min de espera por voto).
+IDR="ee1dee1dee1dee1dee1dee1dee1dee1d"
+printf '%s:col#pa:C:Not Answered Yet:%s:%s\n' "$OLD" "$OLD" "$IDR" >> "$C/users/aluno/history"
+mkdir -p "$C/review"; printf '{"id":"%s","verdict":"Accepted"}' "$IDR" > "$C/review/$IDR.json"
+rm -f "$C/var/.pending-count"
+( cd "$ROOT/daemons" && SPOOLDIR="$SPOOLDIR" SPOOLDONEDIR="$SPOOLDONEDIR" CONTESTSDIR="$FIX" \
+    RUNDIR="$RUN" JUDGE_BACKEND=queue INTAKE_MODE=queue PENDING_TTL_MIN=1 \
+    bash judged.sh --reconcile >/dev/null 2>&1 )
+BODY="$(grep ":$IDR$" "$C/users/aluno/history")"
+ck "em REVISÃO: pendente sobrevive"   'grep -q ":Not Answered Yet:" <<<"$BODY"'
+ck "em REVISÃO: não re-enfileirada"   '! compgen -G "$SPOOLDIR/*$IDR*" >/dev/null'
+
 echo "== a aba do admin: ver QUAIS são, dossiê e ações =="
 # fixture: um treino mínimo (o handler exige sessão do treino) + pendente órfã
 T="$FIX/treino"; mkdir -p "$T/var"
