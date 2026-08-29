@@ -119,7 +119,7 @@ hist_line_by_id() {
     print $1":"u":"$2":"$3":"v":"$(NF-1)":"$NF; exit}' "$hf" 2>/dev/null
 }
 
-log() { echo "[judged $(date +%H:%M:%S)] $*" >&2; }
+log() { local _ts; printf -v _ts '%(%H:%M:%S)T' -1; echo "[judged $_ts] $*" >&2; }
 
 # clog <contest> <action> <details> : registra um evento do daemon NO LOG DO CONTEST
 # (mesmo arquivo/formato da auditoria do admin, com who="judged") p/ o admin do contest
@@ -374,7 +374,7 @@ ingest_result() {
   # MODO VEREDICTO MANUAL: segura o veredicto computado p/ revisão de 2 juízes (não finaliza).
   if should_hold "$contest" "$h_login" "$h_prob" "$h_lang" "$verdict" "$vcanon"; then
     local hb hout; hb="$hb_all"
-    hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; mkdir -p "$(dirname "$hout")" 2>/dev/null
+    hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; [[ -d "${hout%/*}" ]] || mkdir -p "${hout%/*}" 2>/dev/null
     [[ -n "$hb" ]] && printf '%s' "$hb" | base64 -d > "$hout" 2>/dev/null
     write_review_item "$contest" "$id" "$h_login" "$h_prob" "$h_lang" "$sub_epoch" "$verdict"
     [[ -n "$host" ]] && q_done "$host" "$id"
@@ -383,7 +383,7 @@ ingest_result() {
   fi
   record_verdict "$contest" "$h_login" "$tempo" "$h_prob" "$h_lang" "$verdict" "$sub_epoch" "$id"
   local html_b64 hout; html_b64="$hb_all"
-  hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; mkdir -p "$(dirname "$hout")" 2>/dev/null
+  hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; [[ -d "${hout%/*}" ]] || mkdir -p "${hout%/*}" 2>/dev/null
   [[ -n "$html_b64" ]] && printf '%s' "$html_b64" | base64 -d > "$hout" 2>/dev/null
   write_result_json "$contest" "$id" "$h_login" "$h_prob" "$json"
   [[ -n "$host" ]] && q_done "$host" "$id"
@@ -398,7 +398,7 @@ ingest_result() {
 # ---------------------------------------------------------------------------
 process_spool_file() {
   local f="$1"
-  local base; base="$(basename "$f")"
+  local base; base="${f##*/}"
 
   # higiene: ignora dotfiles e temporários ".in.*" (escrita atômica do submit.sh)
   case "$base" in
@@ -408,7 +408,8 @@ process_spool_file() {
 
   # Nome: <contest>:<epoch>:<id>:<login>:<comando>:<problemid>:<FILETYPE>
   # comando ∈ {submit, rejulgar}. Lemos os dados de verdade do JSON (conteúdo).
-  local comando; comando="$(cut -d: -f5 <<<"$base")"
+  local comando _b1 _b2 _b3 _b4
+  IFS=: read -r _b1 _b2 _b3 _b4 comando _ <<<"$base"
 
   # comando "synctreino": atualização dos problemas do treino (NFS) via update-request.
   # O arquivo de spool é vazio; tratamos antes de tentar ler JSON.
@@ -511,7 +512,9 @@ process_spool_file() {
   fi
 
   local cdir="$CONTESTSDIR/$contest"
-  mkdir -p "$(user_dir "$contest" "$login")/submissions" "$(user_dir "$contest" "$login")/mojlog" "$(user_dir "$contest" "$login")/results" 2>/dev/null
+  local _ud; _ud="$(user_dir "$contest" "$login")"
+  [[ -d "$_ud/submissions" && -d "$_ud/mojlog" && -d "$_ud/results" ]] \
+    || mkdir -p "$_ud/submissions" "$_ud/mojlog" "$_ud/results" 2>/dev/null
 
   log "julgando $base (contest=$contest login=$login prob=$problem lang=$lang id=$id cmd=${comando:-submit})"
 
