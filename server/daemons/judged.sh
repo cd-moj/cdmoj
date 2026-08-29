@@ -344,28 +344,36 @@ testrun_finalize() {
 ingest_result() {
   local json="$1"
   local id contest host verdict h_login h_prob h_lang tempo sub_epoch line hist
-  id="$(jq -r '.id // empty' <<<"$json")"
-  contest="$(jq -r '.contest // empty' <<<"$json")"
+  # UMA extração p/ todos os campos escalares (Maratona 29/08: eram ~8 jq POR RESULT — cada
+  # um re-parseia o JSON INTEIRO, report_html_b64 incluso — e o daemon afundou a ~20 ops/min
+  # com o spool crescendo na prova; a classe é a mesma do "1 jq por id" do summary). O b64
+  # vem por último e o read o toma como resto; \x01 nunca ocorre nos campos (verdict é
+  # single-line por construção).
+  local _ext j_prob j_lang hb_all
+  _ext="$(jq -j '[ (.id // ""), (.contest // ""), (.host // ""), (.verdict // "Judge Error"),
+                   (.verdict_canon // ""), (.login // ""), (.problem_id // ""),
+                   ((.lang // "")|ascii_upcase), (.report_html_b64 // "") ]
+                 | join("\u0001")' <<<"$json")"
+  local vcanon j_login
+  IFS=$'\x01' read -r id contest host verdict vcanon j_login j_prob j_lang hb_all <<<"$_ext"
   # TEST-RUN de autoria: desvia ANTES de qualquer contest/history (sentinela _testrun)
   if [[ "$contest" == "_testrun" ]]; then testrun_finalize "$json"; return $?; fi
-  host="$(jq -r '.host // empty' <<<"$json")"
-  verdict="$(jq -r '.verdict // "Judge Error"' <<<"$json")"
+  [[ -n "$verdict" ]] || verdict="Judge Error"
   # canônico (sem score) p/ casar o auto-veredicto; fallback: tira o sufixo ,Np do verdict.
-  local vcanon; vcanon="$(jq -r '.verdict_canon // empty' <<<"$json")"; [[ -n "$vcanon" ]] || vcanon="${verdict%%,*}"
+  [[ -n "$vcanon" ]] || vcanon="${verdict%%,*}"
   valid_contest_id "$contest" || { log "result: contest inválido"; return 1; }
   [[ -n "$id" ]] || { log "result: sem id"; return 1; }
   local cdir="$CONTESTSDIR/$contest"
-  local j_login; j_login="$(jq -r '.login // ""' <<<"$json")"
   line="$(hist_line_by_id "$contest" "$j_login" "$id")"
   IFS=: read -r tempo h_login h_prob h_lang _ sub_epoch _ <<<"$line"
   [[ -n "$h_login" ]] || h_login="$j_login"
-  [[ -n "$h_prob"  ]] || h_prob="$(jq -r '.problem_id // ""' <<<"$json")"
-  [[ -n "$h_lang"  ]] || h_lang="$(jq -r '(.lang // "")|ascii_upcase' <<<"$json")"
+  [[ -n "$h_prob"  ]] || h_prob="$j_prob"
+  [[ -n "$h_lang"  ]] || h_lang="$j_lang"
   [[ -n "$sub_epoch" ]] || sub_epoch="$EPOCHSECONDS"
   [[ -n "$tempo" ]] || tempo="$sub_epoch"
   # MODO VEREDICTO MANUAL: segura o veredicto computado p/ revisão de 2 juízes (não finaliza).
   if should_hold "$contest" "$h_login" "$h_prob" "$h_lang" "$verdict" "$vcanon"; then
-    local hb hout; hb="$(jq -r '.report_html_b64 // empty' <<<"$json")"
+    local hb hout; hb="$hb_all"
     hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; mkdir -p "$(dirname "$hout")" 2>/dev/null
     [[ -n "$hb" ]] && printf '%s' "$hb" | base64 -d > "$hout" 2>/dev/null
     write_review_item "$contest" "$id" "$h_login" "$h_prob" "$h_lang" "$sub_epoch" "$verdict"
@@ -374,7 +382,7 @@ ingest_result() {
     return 0
   fi
   record_verdict "$contest" "$h_login" "$tempo" "$h_prob" "$h_lang" "$verdict" "$sub_epoch" "$id"
-  local html_b64 hout; html_b64="$(jq -r '.report_html_b64 // empty' <<<"$json")"
+  local html_b64 hout; html_b64="$hb_all"
   hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; mkdir -p "$(dirname "$hout")" 2>/dev/null
   [[ -n "$html_b64" ]] && printf '%s' "$html_b64" | base64 -d > "$hout" 2>/dev/null
   write_result_json "$contest" "$id" "$h_login" "$h_prob" "$json"
@@ -475,12 +483,13 @@ process_spool_file() {
   fi
 
   local contest login problem filename code_b64 lang id
-  contest="$(jq -r '.contest    // empty' <<<"$json")"
-  login="$(  jq -r '.login      // empty' <<<"$json")"
-  problem="$(jq -r '.problem_id // empty' <<<"$json")"
-  filename="$(jq -r '.filename  // empty' <<<"$json")"
-  code_b64="$(jq -r '.code_b64  // empty' <<<"$json")"
-  lang="$(   jq -r '.lang       // empty' <<<"$json")"
+  # UMA extração (era 6 jq re-parseando o JSON inteiro — fonte b64 inclusa — por submissão;
+  # ver o comentário-irmão no ingest_result). b64 por último = resto do read.
+  local _sext
+  _sext="$(jq -j '[ (.contest // ""), (.login // ""), (.problem_id // ""),
+                    (.filename // ""), (.lang // ""), (.code_b64 // "") ]
+                  | join("\u0001")' <<<"$json")"
+  IFS=$'\x01' read -r contest login problem filename lang code_b64 <<<"$_sext"
   id="$(     jq -r '.id         // empty' <<<"$json")"
 
   # fallback: se o JSON não trouxe algo, deriva do nome do arquivo de spool.
@@ -739,7 +748,10 @@ watch_loop() {
     log "watch: inotifywait em $SPOOLDIR (re-arma por evento; re-drena a cada ${WATCH_REDRAIN_SECS:-30}s)"
     while true; do
       beat
-      while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
+      # beat POR ARQUIVO: um dreno de backlog longo (Maratona 29/08: 2.000+ no spool) passava
+      # minutos sem voltar ao topo do laço e o judged.alive envelhecia — alerta falso de
+      # "daemon caído" com ele trabalhando no limite.
+      while f="$(next_spool_file)"; do beat; process_spool_file "$f" || break; done
       reconcile_stale_pending
       spool_done_gc
       inotifywait -q -e create -e moved_to -t "${WATCH_REDRAIN_SECS:-30}" "$SPOOLDIR" >/dev/null 2>&1
