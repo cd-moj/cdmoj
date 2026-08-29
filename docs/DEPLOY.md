@@ -34,7 +34,7 @@ Dois containers da mesma imagem (papéis `api` e `judged`) sobem por **quadlets*
 
 O papel `api` também sobe dois caminhos rápidos opcionais (ver o CLAUDE.md, seção Backend):
 o **PORTEIRO** (`moj-porteiro.py`, Python puro — leitor dos caches das rotas quentes de
-leitura, socket `$RUNDIR/moj-porteiro.sock`, `PORTEIRO_WORKERS` 8, `PORTEIRO_DISABLE=1`
+leitura, socket `$RUNDIR/moj-porteiro.sock`, `PORTEIRO_WORKERS` 16, `PORTEIRO_DISABLE=1`
 desliga) e o **pool do MOLDE** (workers bash persistentes atrás do `moj-molde-shim`,
 compilado num build stage; socket `$RUNDIR/moj-molde.sock`, `MOLDE_WORKERS` 8,
 `MOLDE_DISABLE=1`). O nginx só os usa nas rotas ligadas por `server/bin/molde-route.sh add

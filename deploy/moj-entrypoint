@@ -88,10 +88,10 @@ case "$role" in
     # Leitor puro dos caches que o bash materializa; qualquer dúvida = fecha sem resposta =
     # 502 = fallback pro fcgiwrap (mesmo desenho de rota/fallback do molde). Ver
     # server/porteiro/moj-porteiro.py e o CLAUDE.md (Backend).
-    # 8 workers + backlog 64: no teste de 28/08, com 4 workers disputando CPU com a
+    # 16 workers + backlog 64 (véspera: 8; dobrado na manhã da prova a pedido do Ribas — folga sobre folga): no teste de 28/08, com 4 workers disputando CPU com a
     # tempestade de bash dos fallbacks, o backlog de 16 enchia e o connect recusado virava
     # 502⇒fallback até em rota de 2 ms — o backlog largo troca isso por fila de milissegundos.
-    : "${PORTEIRO_WORKERS:=8}"
+    : "${PORTEIRO_WORKERS:=16}"
     : "${PORTEIRO_SOCK:=$RUNDIR/moj-porteiro.sock}"
     if [[ -f "$MOJ_HOME/server/porteiro/moj-porteiro.py" && "${PORTEIRO_DISABLE:-0}" != 1 ]] \
        && command -v python3 >/dev/null 2>&1; then
