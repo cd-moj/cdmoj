@@ -623,6 +623,48 @@ def r_staff_queue(contest, q, params):
     return cgi(body.encode())
 
 
+def r_summary(contest, q, params):
+    """/submission/summary de NÃO-JUIZ com log OCULTO (showlog_effective==0) responde SEMPRE
+    '{}' — o gate `hidden` do handlers/submission/summary.sh corta antes de qualquer id. É o
+    poll mais quente da prova (cada time com run pendente pola a cada poucos segundos) e sob
+    SHOWLOG=0 queimava um bash inteiro para devolver objeto vazio (Maratona 29/08: router.sh
+    a 25 cores). Espelho de showlog_effective (lib/verdict.sh): SHOWLOG explícito no conf
+    decide (última ocorrência; 0=oculto, resto=visível); ausente = oculto SÓ em modo icpc
+    (contest_score_mode: desconhecido/vazio TAMBÉM cai em icpc). Qualquer outra coisa —
+    juiz/admin, showlog visível, sem ids — DECLINA para o bash."""
+    if not q.get("ids"):
+        raise Decline("sem ids (o 400 é do bash)")
+    sess = load_session(params)
+    if not (sess and sess[0] == contest):
+        raise Decline("summary exige sessão do contest")
+    if is_judge(sess[1]):
+        raise Decline("juiz vê o resumo cheio — bash")
+    showlog = None
+    mode_raw = ""
+    try:
+        with open(os.path.join(CONTESTSDIR, contest, "conf"), "rb") as f:
+            for ln in f:
+                s = ln.decode("utf-8", "replace").strip()
+                if s.startswith("SHOWLOG="):
+                    showlog = s[8:].strip().strip('"').strip("'")
+                elif s.startswith("CONTEST_TYPE="):
+                    mode_raw = s[13:]
+                elif s.startswith("SCORE_MODE="):
+                    mode_raw = s[11:]
+    except OSError:
+        raise Decline("conf ilegível")
+    if showlog is not None and showlog != "":
+        hidden = (showlog == "0")
+    else:
+        m = mode_raw.strip().strip('"').strip("'").lower().replace(" ", "")
+        visible = {"obi", "heuristic", "flia", "treino", "lista-publica",
+                   "lista-privada", "lista", "outro", "custom"}
+        hidden = m not in visible
+    if not hidden:
+        raise Decline("showlog visível — resumo real é do bash")
+    return cgi(b"{}\n")
+
+
 ROUTES = {
     "/contest/score": r_score,
     "/contest/updates": r_updates,
@@ -632,6 +674,7 @@ ROUTES = {
     "/contest/balloons": r_balloons,
     "/contest/staff/queue": r_staff_queue,
     "/contest/problems": r_problems,
+    "/submission/summary": r_summary,
 }
 
 
