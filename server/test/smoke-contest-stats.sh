@@ -25,6 +25,13 @@ fx_team alice "Curitiba" br
 fx_team bob "Curitiba" br-sc
 fx_team carol "Buenos Aires" ar
 fx_team zz.judge "Curitiba" br
+# árvore de regions.json: nós de CIMA agregam por REGEX de login (como o regionMatch do
+# placar) e viram recorte próprio em by_region; "Curitiba" repete a sede do .team.region
+# (dedup: não pode contar duas vezes); regex INVÁLIDA é descartada sem derrubar o gerador
+jq -n '[{name:"Brasil", regex:"^(alice|bob|zz.judge)$", subregions:[
+          {name:"Sul", regex:"^(alice|bob)$", subregions:[{name:"Curitiba", regex:"^(alice|bob)$"}]}]},
+        {name:"Quebrada", regex:"([invalida"},
+        {name:"Argentina", regex:"^carol$"}]' > "$C/regions.json"
 printf 'CONTEST=st\nLOGIN=st.admin\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=st\nLOGIN=alice\nLOGINAT=1\n' > "$SESS/usr"
 { printf '5:0:C:Accepted,100p:1718000000:h1\n'                 # Q (offset)
@@ -58,7 +65,12 @@ ck "verdict Wrong Answer count=1" '[[ "$(jq -r ".verdicts[]|select(.verdict==\"W
 ck "timeline tem bins"     '[[ "$(jq -r ".timeline|length" <<<"$BODY")" -ge 1 ]]'
 
 echo "== recortes por sede/país (R2) =="
-ck "by_region tem as 2 sedes" '[[ "$(jq -c ".by_region|keys|sort" <<<"$BODY")" == "[\"Buenos Aires\",\"Curitiba\"]" ]]'
+ck "by_region: sedes + nós da árvore (regex inválida fora)" \
+  '[[ "$(jq -c ".by_region|keys|sort" <<<"$BODY")" == "[\"Argentina\",\"Brasil\",\"Buenos Aires\",\"Curitiba\",\"Sul\"]" ]]'
+ck "nó Brasil agrega por regex (4 subs, 2 users — zz.judge segue fora)" \
+  '[[ "$(jq -r ".by_region.Brasil.totals.submissions" <<<"$BODY")" == 4 && "$(jq -r ".by_region.Brasil.totals.users" <<<"$BODY")" == 2 ]]'
+ck "nó==sede não conta duas vezes (Curitiba users=2)" \
+  '[[ "$(jq -r ".by_region[\"Curitiba\"].totals.users" <<<"$BODY")" == 2 ]]'
 ck "by_country tem ar+br (br-sc AGREGADO no br, sem chave br-sc)" \
   '[[ "$(jq -c ".by_country|keys|sort" <<<"$BODY")" == "[\"ar\",\"br\"]" ]]'
 ck "br agrega alice(br)+bob(br-sc): 4 subs, 2 users" \

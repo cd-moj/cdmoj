@@ -21,6 +21,8 @@ jq -c '.team={name:"Time Alice",univ_short:"UFRJ",univ_full:"Univ Federal do RJ"
 jq -c '.team={name:"Time Bob",univ_short:"UFSC",univ_full:"Univ Federal de SC",flag:"br-sc",region:"Floripa"}'  "$C/users/bob/account.json"   > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/bob/account.json"
 # foto de time (R5): entra como MINIATURA em fotos/<login>.webp — só no placar ABERTO
 convert -size 40x40 xc:red "$C/users/alice/photo.png" 2>/dev/null || printf 'x' > /dev/null
+# árvore de sedes: o select de Sede da ESTATÍSTICA espelha o do placar (RTREE embutido)
+jq -n '[{name:"Brasil", regex:"^(alice|bob)$", subregions:[{name:"Rio", regex:"^alice$"}]}]' > "$C/regions.json"
 # pacote com AUTOR (2 linhas) + documentos: 1 publicado, 1 gerado e NÃO publicado
 PKG="$FIX/probs"; mkdir -p "$PKG/col/pa"
 printf 'Bruno Ribas\nMaria da Silva\n' > "$PKG/col/pa/author"
@@ -122,6 +124,10 @@ ck "recorte: JS renumera e re-estrela"     'grep -q "rfts" "$R/index.html" && gr
 ck "recorte: ★ global com classe gfts"     'grep -q "fts gfts" "$R/index.html"'
 ck "estatísticas: selects sede/país"       'grep -q "id=\"sRegion\"" "$R/statistics.html" && grep -q "id=\"sFlag\"" "$R/statistics.html"'
 ck "estatísticas: recortes embutidos"      'grep -q "by_region" "$R/statistics.html"'
+ck "estatísticas: árvore de sedes (RTREE, com nó agregador)" \
+  'grep -q "const RTREE=\[{\"n\":\"Brasil\",\"d\":0}" "$R/statistics.html"'
+ck "estatísticas: nó Brasil TEM recorte (agregado por regex)" \
+  'grep -qE "\"Brasil\": *\{" "$R/statistics.html"'
 ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*>(<span class=\"fts( gfts)?\">[^<]*</span>)?(<span class=\"bdot\"[^>]*></span>)?<span class=\"pv\">1/70</span>" "$R/index.html"'
 # modo 'icon' (padrão): a célula resolvida NÃO depende da cor — fundo neutro + o ponto da cor,
 # cujo contorno é o que faz o balão BRANCO existir (ver docs/SCOREBOARD.md)

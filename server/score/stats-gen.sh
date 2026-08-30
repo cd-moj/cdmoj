@@ -59,19 +59,36 @@ if (( ${#pm_items[@]} )); then probmeta="$(printf '%s\n' "${pm_items[@]}" | jq -
 # jeito (país agrega os estados; estado segue selecionável). Conta sem o dado fica FORA do
 # recorte correspondente (o agregado global não muda). Contest com USERS_FROM sem overlay
 # local não tem .team ⇒ dimensões vazias, comportamento de sempre.
-MAPF="$(mktemp)"
-trap 'rm -f "$TMP" "${_HT:-}" "${MAPF:-}"' EXIT
+MAPF="$(mktemp)"; RGF="$(mktemp)"
+trap 'rm -f "$TMP" "${_HT:-}" "${MAPF:-}" "${RGF:-}"' EXIT
 find "$CONTESTSDIR/$C/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
   | xargs -0 -r jq -r '[ (((input_filename | split("/"))[-2]) // ""),
                          ((.team.region // "") | gsub("[\t\n]"; " ")),
                          ((.team.flag // "") | ascii_downcase | gsub("[^a-z0-9-]"; "") | (split("-") | .[0])) ] | @tsv' \
       2>/dev/null > "$MAPF"
 
+# Nós da ÁRVORE de regions.json (país › região/supersede › sede): a estatística oferece o
+# MESMO seletor de Sede do placar, e os nós de cima só existem AGREGANDO por regex de login
+# (o regionMatch do placar: regex no login OU nome == .team.region). Cada nó vira um
+# recorte `r:<nome>` em by_region. Regex inválida p/ ERE é descartada (o placar a ignora
+# igual, via safeRe). Sem regions.json = só as sedes do .team.region, como antes.
+if [[ -s "$CONTESTSDIR/$C/regions.json" ]]; then
+  jq -r 'def flat: .[]? | ([(.name // ""), (.regex // "")] | @tsv), ((.subregions // []) | flat); flat' \
+      "$CONTESTSDIR/$C/regions.json" 2>/dev/null \
+  | while IFS=$'\t' read -r _nm _re; do
+      [[ -n "$_nm" ]] || continue
+      if [[ -n "$_re" ]]; then
+        printf '' | grep -qE -- "$_re" 2>/dev/null; (( $? == 2 )) && continue
+      fi
+      printf '%s\t%s\n' "$_nm" "$_re"
+    done > "$RGF"
+fi
+
 START_VAL="${CONTEST_START:-0}"; [[ "$START_VAL" =~ ^[0-9]+$ ]] || START_VAL=0
-awk -F: -v START="$START_VAL" -v MF="$MAPF" '
-# R2: cada submissão alimenta 1..3 ESCOPOS — g (global), r=<sede>, c=<país> — e o END emite
-# as mesmas linhas de sempre prefixadas por "<kind>\t<val>\t". O escopo vira ID inteiro
-# (sid): a chave composta id SUBSEP x é separável no END mesmo com sede de texto livre.
+awk -F: -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" '
+# R2: cada submissão alimenta N ESCOPOS — g (global), r=<sede/nó da árvore>, c=<país> — e o
+# END emite as mesmas linhas de sempre prefixadas por "<kind>\t<val>\t". O escopo vira ID
+# inteiro (sid): a chave composta id SUBSEP x é separável no END mesmo com sede livre.
 function sid(kind, val,   k) {
   k = kind SUBSEP val
   if (!(k in sidx)) { sidx[k] = ++nsc; skind[nsc] = kind; sval[nsc] = val }
@@ -84,6 +101,12 @@ BEGIN{
     if (n >= 1 && ma[1] != "") { reg[ma[1]] = (n >= 2 ? ma[2] : ""); cty[ma[1]] = (n >= 3 ? ma[3] : "") }
   }
   close(MF)
+  # nós da árvore de regions.json: nome \t regex (regex já validada pelo gerador)
+  while ((getline mline < RF) > 0) {
+    n = split(mline, ma, "\t")
+    if (n >= 1 && ma[1] != "") { nrg++; rgname[nrg] = ma[1]; rgre[nrg] = (n >= 2 ? ma[2] : "") }
+  }
+  close(RF)
 }
 {
   # estatísticas só de usuários normais: descarta privilegiados (.admin/.judge/.cjudge/.staff/.cstaff/.mon)
@@ -94,11 +117,24 @@ BEGIN{
   user=$2; prob=$3; lang=$4; v=$5;
   isac=(v ~ /^Accepted/);
   vc=v; sub(/,.*/,"",vc); sub(/ *\(.*/,"",vc); gsub(/^ +| +$/,"",vc); if(vc=="")vc="?";
-  nsl=0; sc[++nsl]=sid("g","");
-  if (reg[user] != "") sc[++nsl]=sid("r", reg[user]);
-  if (cty[user] != "") sc[++nsl]=sid("c", cty[user]);
-  for (si=1; si<=nsl; si++) {
-    s=sc[si]; tot[s]++;
+  # escopos POR USUÁRIO, computados uma vez (regex de cada nó da árvore contra o login —
+  # como o regionMatch do placar; dedup: nó com o mesmo nome da sede não conta duas vezes)
+  if (!(user in uscn)) {
+    split("", useen)
+    n_u = 0; us_[user, ++n_u] = sid("g", "")
+    r_ = reg[user]
+    if (r_ != "") { s_ = sid("r", r_); useen[s_] = 1; us_[user, ++n_u] = s_ }
+    if (cty[user] != "") us_[user, ++n_u] = sid("c", cty[user])
+    for (i_ = 1; i_ <= nrg; i_++) {
+      hit = 0
+      if (rgre[i_] != "" && user ~ rgre[i_]) hit = 1
+      else if (r_ != "" && tolower(rgname[i_]) == tolower(r_)) hit = 1
+      if (hit) { s_ = sid("r", rgname[i_]); if (!(s_ in useen)) { useen[s_] = 1; us_[user, ++n_u] = s_ } }
+    }
+    uscn[user] = n_u
+  }
+  for (si=1; si<=uscn[user]; si++) {
+    s=us_[user, si]; tot[s]++;
     puk=s SUBSEP prob SUBSEP user;
     if(!(puk in solvedAt)){ att[puk]=att[puk]+1; if(isac) solvedAt[puk]=att[puk] }
     vcl[s SUBSEP vc]++; pv[s SUBSEP prob SUBSEP vc]++;

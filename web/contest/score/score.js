@@ -218,13 +218,18 @@ function combinedFilterFn() {
 // UMA barra de filtros, com os MESMOS controles do relatório offline (coorte, bandeira,
 // universidade, sede, busca) + contador de times visíveis e "limpar". As opções vêm dos times
 // PRESENTES no placar exibido: trocar de coorte reconstrói as listas.
+// ⚠ A barra NÃO é reconstruída sem necessidade (2026-08-30): o pollScore (30-60s) chama
+// isto a cada ciclo, e reconstruir FECHAVA o dropdown aberto na mão do usuário. A barra
+// nova é montada num contêiner avulso e comparada com a da tela: igual ⇒ só re-sincroniza
+// os values; mudou com o usuário interagindo nela ⇒ adia p/ o próximo ciclo.
 function fLabel(txt, ctl) { return el('label', {}, txt, ctl); }
+let filtersSig = '';
 function renderFilters() {
-  const bar = document.getElementById('scoreFilters');
-  if (!bar) return;
+  const realBar = document.getElementById('scoreFilters');
+  if (!realBar) return;
   const isBoard = parsed && (parsed.mode === 'icpc' || parsed.mode === 'obi');
-  bar.innerHTML = '';
-  bar.classList.toggle('hidden', !!anonMode);   // no anônimo não há linha p/ filtrar
+  realBar.classList.toggle('hidden', !!anonMode);   // no anônimo não há linha p/ filtrar
+  const bar = document.createElement('div');
 
   // COORTE (troca o placar no servidor: cada visão tem posição e ⭐ próprias — filtrar linha
   // daria estrela errada, ver lib/cohorts.sh). Duas fontes: convidados × placares paralelos.
@@ -248,6 +253,7 @@ function renderFilters() {
     bar.append(fLabel(T('Placar:', 'Board:'), viewSel));
   }
 
+  const rops = isBoard ? regionOptions() : [];
   if (isBoard) {
     // seletor de bandeira HIERÁRQUICO: país primeiro (agrega os estados no casamento —
     // countryMatch), estados dele indentados logo abaixo (seleção exata)
@@ -273,7 +279,6 @@ function renderFilters() {
       sel.addEventListener('change', () => { activeSchool = sel.value; reRender(); });
       bar.append(fLabel(T('Universidade:', 'University:'), sel));
     }
-    const rops = regionOptions();
     if (rops.length) {
       const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
         ...rops.map((r, i) => el('option', { value: String(i) },
@@ -295,6 +300,31 @@ function renderFilters() {
     activeCountry = ''; activeSchool = ''; searchTerm = ''; setRegion(null); renderFilters();
   } }, T('limpar filtros', 'clear filters')));
   bar.append(el('span', { class: 'fcount', id: 'fCount' }, ''));
+
+  // sincroniza os CONTROLES EXISTENTES com o estado (caminho do "não reconstruir"): só
+  // escreve quando difere — .value em input focado mexeria no cursor de quem digita
+  const sync = () => {
+    const setv = (id, v) => { const e = realBar.querySelector('#' + id); if (e && e.value !== v) e.value = v; };
+    const vs = realBar.querySelector('#fView');
+    if (vs && vs.options.length) {
+      const want = cohortView || vs.options[0].value;
+      if (vs.value !== want) vs.value = want;
+    }
+    setv('fFlag', activeCountry); setv('fUniv', activeSchool); setv('fQ', searchTerm);
+    const rr = realBar.querySelector('#fRegion');
+    if (rr) {
+      const cur = rops.findIndex(r => (r.name || '') === ((activeRegion && activeRegion.name) || '') &&
+                                      (r.regex || '') === ((activeRegion && activeRegion.regex) || ''));
+      const want = activeRegion && cur >= 0 ? String(cur) : '';
+      if (rr.value !== want) rr.value = want;
+    }
+  };
+  const sig = bar.innerHTML;
+  if (sig === filtersSig && realBar.childNodes.length) { sync(); return; }
+  if (realBar.childNodes.length && realBar.contains(document.activeElement)) { sync(); return; }
+  filtersSig = sig;
+  realBar.innerHTML = '';
+  while (bar.firstChild) realBar.append(bar.firstChild);
 }
 function flagLabel(c) { return flagNames[String(c).toLowerCase()] || String(c).toUpperCase(); }
 // contador: quantos times a seleção deixou visíveis. Com filtro ativo o placar RENUMERA

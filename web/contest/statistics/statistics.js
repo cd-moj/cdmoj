@@ -18,9 +18,29 @@ const enc = encodeURIComponent;
 let probMap = {};
 let statsAll = null;
 let flagNames = {};
+let regionsTree = [];              // árvore do regions.json — MESMA curadoria do placar
 let dim = { kind: '', key: '' };   // ''=global, 'r'=sede, 'c'=país
 
 function flagLabel(c) { return flagNames[String(c).toLowerCase()] || String(c).toUpperCase(); }
+
+// opções de Sede = a ÁRVORE do regions.json (mesma ordem e indentação do seletor do
+// placar: país › região/supersede › sede), só com os nós que TÊM recorte computado
+// (by_region — o stats-gen agrega os nós de cima por regex, como o regionMatch), mais as
+// sedes do .team.region que não estão na árvore (depth 0, no fim, como no placar).
+function regionOpts() {
+  const have = statsAll.by_region || {};
+  const out = [];
+  const walk = (list, depth) => (list || []).forEach((r) => {
+    if (r.name && Object.prototype.hasOwnProperty.call(have, r.name)) out.push({ name: r.name, depth });
+    if (Array.isArray(r.subregions) && r.subregions.length) walk(r.subregions, depth + 1);
+  });
+  walk(regionsTree, 0);
+  const seen = new Set(out.map((o) => o.name.toLowerCase()));
+  Object.keys(have).sort((a, b) => a.localeCompare(b)).forEach((n) => {
+    if (!seen.has(n.toLowerCase())) out.push({ name: n, depth: 0 });
+  });
+  return out;
+}
 
 function currentStats() {
   if (dim.kind === 'r') return (statsAll.by_region || {})[dim.key] || statsAll;
@@ -31,7 +51,7 @@ function currentStats() {
 // mesma gramática da barra do placar (fRegion/fFlag): sede filtra por nome, país pela
 // chave de bandeira. Escolher um zera o outro — o recorte é UM, nunca a interseção.
 function filterBar() {
-  const regs = Object.keys(statsAll.by_region || {}).sort((a, b) => a.localeCompare(b));
+  const regs = regionOpts();
   const ctys = Object.keys(statsAll.by_country || {})
     .sort((a, b) => flagLabel(a).localeCompare(flagLabel(b)));
   if (!regs.length && !ctys.length) return null;
@@ -39,7 +59,7 @@ function filterBar() {
   let selR = null; let selC = null;
   if (regs.length) {
     selR = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
-      ...regs.map((r) => el('option', { value: r }, r)));
+      ...regs.map((r) => el('option', { value: r.name }, '  '.repeat(r.depth) + r.name)));
     selR.value = dim.kind === 'r' ? dim.key : '';
     selR.addEventListener('change', () => {
       dim = selR.value ? { kind: 'r', key: selR.value } : { kind: '', key: '' };
@@ -98,6 +118,10 @@ async function boot() {
     (mani.countries || []).forEach((c) => { flagNames[c.code] = c.name; });
     (mani.br_states || []).forEach((st) => { flagNames['br-' + st.code] = st.name; });
   } catch { /* rótulo cai no código */ }
+  try {
+    const rg = await apiGet('/contest/regions?contest=' + enc(CONTEST), { contest: CONTEST, auth: true });
+    regionsTree = rg ? (Array.isArray(rg) ? rg : (rg.regions || [])) : [];
+  } catch { /* sem árvore: as sedes saem ordenadas, como antes */ }
   statsAll = s;
   render();
 }

@@ -1279,12 +1279,20 @@ EOF
 # O <noscript> mantém as tabelas antigas: o relatório é um arquivo de ARQUIVO MORTO e tem
 # de continuar legível se alguém abrir sem JS.
 rep_stats_bundle(){
-  local f cn
+  local f cn rt
   # rótulo de país p/ o select (mesma resolução da bandeira do placar); cai no código
   cn="$(jq -r '(.by_country // {}) | keys[]' "$1" 2>/dev/null | while IFS= read -r _cc; do
           printf '%s\t%s\n' "$_cc" "$(rep_flag_name "$_cc")"
         done | jq -Rn '[inputs | split("\t") | select(length >= 1) | {key:.[0], value:(.[1] // "")}] | from_entries')"
   [[ -n "$cn" ]] || cn='{}'
+  # árvore de regions.json achatada [{n,d}] na ORDEM do documento — o select de Sede da
+  # estatística espelha o do placar (país › região/supersede › sede, indentado)
+  rt='[]'
+  if [[ -s "$CDIR/regions.json" ]]; then
+    rt="$(jq -c 'def flat($d): .[]? | {n:(.name // ""), d:$d}, ((.subregions // []) | flat($d+1));
+                 [flat(0)] | map(select(.n != ""))' "$CDIR/regions.json" 2>/dev/null)"
+    [[ -n "$rt" ]] || rt='[]'
+  fi
   # barra de recorte (R2, 2026-08-30): Sede × País, mutuamente exclusivos — o cache já traz
   # by_region/by_country prontos (mesmo shape do global) e o JS só escolhe o sub-objeto.
   # Sem dimensão nenhuma (cache antigo/contest sem .team) o JS esconde a barra.
@@ -1304,7 +1312,7 @@ rep_stats_bundle(){
   done
   printf 'const STATS=\n'
   cat "$1"
-  printf ';\nconst CNAMES=%s;\n' "$cn"
+  printf ';\nconst CNAMES=%s;\nconst RTREE=%s;\n' "$cn" "$rt"
   cat <<'STEOF'
 (function(){
   var host=document.getElementById('stats'); if(!host) return;
@@ -1315,12 +1323,21 @@ rep_stats_bundle(){
   }
   var bar=document.getElementById('sbar'), selR=document.getElementById('sRegion'),
       selC=document.getElementById('sFlag'), cnt=document.getElementById('sCount');
-  var regs=Object.keys(STATS.by_region||{}).sort(function(a,b){ return a.localeCompare(b) });
+  // Sede = a ÁRVORE do regions.json (ordem e indentação do seletor do placar), só os nós
+  // com recorte computado; sedes fora da árvore entram no fim, ordenadas
+  var have=STATS.by_region||{}, regs=[], seenR={};
+  RTREE.forEach(function(t){
+    if(t.n && Object.prototype.hasOwnProperty.call(have,t.n)){ regs.push(t); seenR[t.n.toLowerCase()]=1; }
+  });
+  Object.keys(have).sort(function(a,b){ return a.localeCompare(b) }).forEach(function(n){
+    if(!seenR[n.toLowerCase()]) regs.push({n:n,d:0});
+  });
   var ctys=Object.keys(STATS.by_country||{}).sort(function(a,b){
     return String(CNAMES[a]||a).localeCompare(String(CNAMES[b]||b)) });
   if(!bar || (!regs.length && !ctys.length)){ render(STATS); return; }
   bar.hidden=false;
-  regs.forEach(function(r){ var o=document.createElement('option'); o.value=r; o.textContent=r; selR.add(o) });
+  regs.forEach(function(r){ var o=document.createElement('option'); o.value=r.n;
+    o.textContent=new Array((r.d||0)+1).join('  ')+r.n; selR.add(o) });
   ctys.forEach(function(c){ var o=document.createElement('option'); o.value=c;
     o.textContent=CNAMES[c]||c.toUpperCase(); selC.add(o) });
   if(selR.options.length<2) selR.parentNode.style.display='none';

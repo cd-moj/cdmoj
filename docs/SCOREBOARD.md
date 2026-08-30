@@ -191,7 +191,14 @@ visíveis, esconde a ★ global (classe `gfts`, via `flt` na section) e pinta a 
 (`rfts`), tudo restaurado ao limpar. **Fotos**: miniaturas em `fotos/<login>.webp` (arquivos
 relativos — nunca data:URI por linha, incidente dos 21MB) e o 📷 só no placar ABERTO
 (`score-frozen.html` sai sem). **Estatísticas** ganham selects Sede×País sobre os recortes
-`by_region`/`by_country` que o `stats-gen.sh` já embute no cache.
+`by_region`/`by_country` que o `stats-gen.sh` já embute no cache — o de Sede com a MESMA
+árvore do placar (`regions.json`, ordem e indentação; nós de cima agregados por regex no
+gerador), no relatório via `RTREE` embutido.
+**A barra do placar ao vivo não é reconstruída à toa** (2026-08-30): o poll de 30-60s
+remontava a barra a cada ciclo e fechava o dropdown aberto — hoje a barra nova é montada
+num contêiner avulso e comparada (innerHTML) com a da tela; igual ⇒ só re-sincroniza os
+values, mudou com o usuário interagindo ⇒ adia p/ o próximo ciclo (`renderFilters`,
+`filtersSig` em `score.js`).
 
 ### Balão × visibilidade (a célula "resolveu")
 
