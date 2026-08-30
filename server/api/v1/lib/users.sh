@@ -172,8 +172,9 @@ user_history_replace(){
 # FREEZE_TIME é lido do conf por sed (o conf roda command substitution — nunca source
 # dentro da lib). CONTEST_START não entra: o gerador converte epoch→minutos via sc_load.
 metrics_recompute(){
-  local c="$1" u="$2" hf mf fz
+  local c="$1" u="$2" hf mf fz _mt
   hf="$(user_hist_file "$c" "$u")"; mf="$(metrics_file "$c" "$u")"
+  _mt="$mf.tmp.${BASHPID}"   # expandido AQUI (no worker), nunca no alvo do redirect
   [[ -f "$hf" ]] || { echo '{}' > "$mf"; return 0; }
   # LEITURA DO CONF SEM PROCESSO NENHUM (dieta 2026-08-30): isto rodava sed|tail|tr +
   # grep + printf|tr — ~6 execs POR CHAMADA produzindo SEMPRE o mesmo valor p/ todos os
@@ -281,13 +282,16 @@ metrics_recompute(){
                     else {} end))}
           ) | from_entries),
         last_submission_at: ((map(.sub_epoch)|max) // 0) }
-  ' "$hf" > "$mf.tmp.${BASHPID}" 2>/dev/null && mv -f "$mf.tmp.${BASHPID}" "$mf" \
-    || rm -f "$mf.tmp.${BASHPID}" 2>/dev/null
+  ' "$hf" > "$_mt" 2>/dev/null && mv -f "$_mt" "$mf" || rm -f "$_mt" 2>/dev/null
   # ⚠ tmp POR PROCESSO (${BASHPID}, doutrina do molde): o recompute roda no daemon (com
   # shards, em K workers) E no recompute em massa do build.sh destacado — com tmp de nome
   # fixo, um `mv` podia publicar o tmp MEIO-ESCRITO do outro escritor (visto na bancada 8×
   # de 30/08 como "mv: cannot stat metrics.json.tmp"; o caso ruim seria metrics corrompido
   # até o veredicto seguinte). Corrida pré-existente ao shard: K=1 + build.sh já disputavam.
+  # ⚠⚠ E o nome vai numa VARIÁVEL (_mt, expandida no topo da função) porque `${BASHPID}`
+  # DIRETO no alvo de redirect de comando EXTERNO expande NO FILHO (o bash processa o
+  # redirect entre o fork e o exec): o jq gravava tmp.<pid-do-jq> e o mv procurava
+  # tmp.<pid-do-worker> — TODO recompute falhava o mv, calado, deixando tmp órfão.
 }
 
 # metrics_solved_count <c> <login> — nº de problemas distintos resolvidos (O(1) via cache).
