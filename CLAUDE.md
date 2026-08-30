@@ -353,9 +353,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   placar não é enfeite: cada GET dessas rotas é um fork de bash sob fcgiwrap), `mediaLink` (um
   `<a href>` de verdade) e `setAudioSrc` (uma faixa viva por vez na galeria). Consequência boa:
   o `<img>` cru de `web/contests/inscricao/`, que era a exceção documentada, passou a funcionar.
-  ⚠ **O placar NÃO diz quem tem foto** (mesma data, "deixar simples"): o 📷 clicável saiu de
-  `score-icpc.js`/`score-obi.js`. Quem cobra quem não mandou é a galeria do telão e o painel
-  **Pessoas › Times**, que seguem com o `has_photo` do `/contest/teams`.
+  **O 📷 do placar VOLTOU** (2026-08-30, revoga a retirada de 2026-08-24): `has_photo` do
+  `/contest/teams` vira `t.photoUrl` e o link só renderiza com o placar **ABERTO**
+  (`opts.showPhotos = !frozenView`, pelo cabeçalho `X-MOJ-Frozen`) — no freeze a foto
+  denunciaria presença. Galeria do telão e o painel **Pessoas › Times** seguem como antes.
 - **Calibração/TL — 3 mecanismos de autoria (2026-08-19)**: (1) o `/problems/calib` devolve
   **`sols`** estruturado por host (`[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`,
   do `.calib-sols.json` do calibreitor via `/judge/calib-report` — que PRESERVA sols/reports

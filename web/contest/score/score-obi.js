@@ -4,7 +4,7 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
-import { setMediaSrc } from '/shared/media-auth.js';
+import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
 import { filterTeams } from './score-icpc.js';
 import { scoreCols } from './score-cols.js';
 
@@ -46,7 +46,7 @@ export function parseOBI(lines) {
 }
 
 export function renderOBI(parsed, opts) {
-  const { searchTerm = '', regionFn = null, genPlace = null } = opts || {};
+  const { searchTerm = '', regionFn = null, genPlace = null, showPhotos = false } = opts || {};
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
@@ -105,7 +105,11 @@ export function renderOBI(parsed, opts) {
     const teamTd = el('td', { class: 'team',
       title: [(parsed.hasUnivFull && t.univFull) || '', t.username].filter(Boolean).join(' · '), html: label });
     if (logoImg) { teamTd.prepend(logoImg, ' '); setMediaSrc(logoImg, safeLogo, { lazy: true, onerror: () => logoImg.remove() }); }
-    // foto do time (photo.webp; a rota serve o legado png também): link, abre em nova aba
+    // 📷 = foto do time, SÓ com o placar aberto (opts.showPhotos = !frozen — R4, 2026-08-30)
+    if (showPhotos && t.photoUrl) {
+      teamTd.append(' ', mediaLink(t.photoUrl,
+        { title: T('Ver a foto do time', 'View team photo'), style: 'text-decoration:none' }, '📷'));
+    }
     tr.append(teamTd);
     parsed.probShorts.forEach(sn => {
       const v = t.probs[sn] || '';

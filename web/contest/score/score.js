@@ -37,6 +37,8 @@ let noAnim = false;
 // p/ "o placar dos individuais"); o servidor valida o valor, aqui é só a preferência inicial.
 let cohortView = (qs.get('view') || '').replace(/[^a-z0-9_-]/gi, '');
 let genPlace = null;        // login -> posição no placar GERAL (só em placar de coorte)
+let frozenView = false;     // ESTE espectador recebeu o placar congelado (X-MOJ-Frozen) —
+                            // gateia o 📷: foto só aparece com o placar aberto (R4, 2026-08-30)
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
 let refreshTimer = null;
 
@@ -136,8 +138,9 @@ function safeRe(rx) { try { return new RegExp(rx, 'i'); } catch { return null; }
 // EXPLÍCITO primeiro (/contest/teams — o `.team` por-usuário + assets): preenche o que o
 // TXT não trouxe, marca a sede (t._region, filtro por nome) e aponta o BRASÃO p/ a rota
 // team-logo. O teams-meta (regex) roda depois, só nos vazios.
-// ⚠ O placar NÃO diz quem tem foto (decisão de 2026-08-24: "deixar simples"). Quem precisa
-// saber quem mandou a sua é a galeria do telão e o painel Pessoas › Times — lá continua.
+// O 📷 VOLTOU (R4, 2026-08-30 — revoga a decisão de 2026-08-24 de tirá-lo): photoUrl é
+// preenchido de has_photo e o render só o mostra com o placar ABERTO (opts.showPhotos =
+// !frozenView) — durante o freeze a foto denunciaria quem está presente/ativo.
 function applyTeamsDir(p) {
   if (!p || !(p.mode === 'icpc' || p.mode === 'obi')) return;
   let anyFlag = false;
@@ -159,6 +162,9 @@ function applyTeamsDir(p) {
     t._school = t._school || t.univShort || '';
     if (d.has_logo && !t.schoolLogo) {
       t.schoolLogo = '/api/v1/contest/team-logo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
+    }
+    if (d.has_photo) {
+      t.photoUrl = '/api/v1/contest/team-photo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
     }
     if (d.ai) t.aiDeclared = true;
   });
@@ -328,6 +334,7 @@ function reRender() {
   if (fb) fb.classList.toggle('hidden', !!anonMode);
   if (anonMode) { renderAnon(parsed); return; }
   const opts = { searchTerm, regionFn: combinedFilterFn(), genPlace,
+    showPhotos: !frozenView,   // 📷 só com o placar ABERTO (R4)
     style: (basic && basic.balloon_style) === 'fill' ? 'fill' : 'icon' };
   let table;
   if (parsed.mode === 'icpc') table = renderICPC(parsed, opts);
@@ -406,7 +413,8 @@ async function pollScore() {
       + (cohortView ? '&view=' + encodeURIComponent(cohortView) : ''),
       { contest: CONTEST, auth: isAuth });
     txt = r.text;
-    setFrozenNotice(r.headers.get('X-MOJ-Frozen') === '1');
+    frozenView = r.headers.get('X-MOJ-Frozen') === '1';
+    setFrozenNotice(frozenView);
   }
   catch {
     const box = document.getElementById('scoreContainer');

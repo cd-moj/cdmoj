@@ -13,7 +13,7 @@ import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { flagEl } from '/shared/flags.js';
 import { sonicEnabled, sonicImgHTML } from '/shared/sonic.js';
-import { setMediaSrc } from '/shared/media-auth.js';
+import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
 import { balloonColorHex, balloonSVG, balloonDot, paintSolvedCell } from './score-colors.js';
 import { scoreCols, cellTitle } from './score-cols.js';
 
@@ -124,7 +124,7 @@ function cellSolved(v) { return /^\d+\/\d+\/?\*?$/.test(v); }  // tries/minutes[
 function cellWait(v) { return /^\d+\/-/.test(v); }             // tries/-
 
 export function renderICPC(parsed, opts) {
-  const { searchTerm = '', regionFn = null, genPlace = null, style = 'icon' } = opts || {};
+  const { searchTerm = '', regionFn = null, genPlace = null, style = 'icon', showPhotos = false } = opts || {};
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
@@ -193,7 +193,12 @@ export function renderICPC(parsed, opts) {
     const teamTd = el('td', { class: 'team',
       title: [t.univFull || t.univShort || '', t.username].filter(Boolean).join(' · '), html: label });
     if (logoImg) { teamTd.prepend(logoImg, ' '); setMediaSrc(logoImg, safeLogo, { lazy: true, onerror: () => logoImg.remove() }); }
-    // foto do time (photo.webp; a rota serve o legado png também): link, abre em nova aba
+    // 📷 = foto do time, SÓ com o placar aberto (opts.showPhotos = !frozen — R4, 2026-08-30;
+    // a rota team-photo é pública, o gate aqui é de PRODUTO: freeze não denuncia presença)
+    if (showPhotos && t.photoUrl) {
+      teamTd.append(' ', mediaLink(t.photoUrl,
+        { title: T('Ver a foto do time', 'View team photo'), style: 'text-decoration:none' }, '📷'));
+    }
     // 🤖 = o time DECLAROU na inscrição que usa IA (transparência, não julgamento)
     if (t.aiDeclared) teamTd.append(' ', el('span', { title: T('Este time declarou que usa IA', 'This team declared AI use'), style: 'cursor:default' }, '🤖'));
     if (t.guest) teamTd.append(' ', el('span', { class: 'pill',
