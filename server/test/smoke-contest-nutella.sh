@@ -124,7 +124,7 @@ echo "== comandos =="
 : > "$MOCKD/posts.log"
 call /contest/nutella POST '{"action":"command","op":"mlreboot","image":"26tsca"}'
 ck "admin comanda a sede → 200"      '[[ "$(J .sent)" == true ]]'
-ck "mock recebeu POST {op} na imagem" 'grep -q "/api/v1/site-images/26tsca/commands" "$MOCKD/posts.log" && grep -q "mlreboot" "$MOCKD/posts.log"'
+ck "mock recebeu POST {command} na imagem" 'grep -q "/api/v1/site-images/26tsca/commands" "$MOCKD/posts.log" && grep -q "\\\\\"command\\\\\":\\\\\"mlreboot\\\\\"" "$MOCKD/posts.log"'
 call /contest/nutella POST '{"action":"command","op":"hackop","image":"26tsca"}'
 ck "op fora do catálogo → 422"       '[[ "$OUT" == *"Status: 422"* && "$OUT" == *op_not_allowed* ]]'
 call /contest/nutella POST '{"action":"command","op":"mlreboot","image":"26tsca","mac":"'"$M1"'"}'

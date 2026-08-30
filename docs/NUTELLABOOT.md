@@ -21,7 +21,7 @@ máquina↔time** (roster/binding).
 - `GET /site-images/{i}/roster`: `user_id` **é o login MOJ** — a ponte entre os mundos.
 - Comandos: catálogo em `GET /site-images/{i}/commands` (`allowed`: cantouch,
   cleanhomenow, disablefirewall, donottouch, enablefirewall, mlpoweroff, mlreboot,
-  precontest, resetcontaeditores); envio por POST `{op}` em `/commands` (frota),
+  precontest, resetcontaeditores); envio por POST **`{command: "<op>"}`** (campo `command`; resposta `{command_id, machines}`) em `/commands` (frota),
   `/site-images/{i}/commands` (sede) ou `…/machines/{mac}/commands` (máquina) — a
   máquina executa no próximo contato (poll).
 - Auth: `Authorization: Bearer nb3a_…`. **A chave é PODEROSA** (a de produção é admin).

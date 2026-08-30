@@ -180,7 +180,9 @@ command)
   [[ "$(nb_status "$r")" == 200 ]] || fail 502 "nutellaboot indisponível (catálogo)" "upstream_error"
   jq -e --arg op "$op" '(.allowed // []) | index($op) != null' <<<"$(nb_body "$r")" >/dev/null 2>&1 \
     || fail 422 "op fora do catálogo da imagem" "op_not_allowed"
-  bf="$(mktemp)"; jq -cn --arg op "$op" '{op: $op}' > "$bf"
+  # shape confirmado na imagem de teste 26tete (30/08): o campo é `command`
+  # (resposta: {command_id, machines}); `op` era 400 "comando não permitido".
+  bf="$(mktemp)"; jq -cn --arg op "$op" '{command: $op}' > "$bf"
   if [[ "$img" == all ]]; then r="$(nb_curl "$contest" POST "/commands" "$bf")"
   elif [[ -n "$mac" ]]; then  r="$(nb_curl "$contest" POST "/site-images/$img/machines/$mac/commands" "$bf")"
   else                        r="$(nb_curl "$contest" POST "/site-images/$img/commands" "$bf")"
