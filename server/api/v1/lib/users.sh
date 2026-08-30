@@ -281,7 +281,13 @@ metrics_recompute(){
                     else {} end))}
           ) | from_entries),
         last_submission_at: ((map(.sub_epoch)|max) // 0) }
-  ' "$hf" > "$mf.tmp" 2>/dev/null && mv -f "$mf.tmp" "$mf"
+  ' "$hf" > "$mf.tmp.${BASHPID}" 2>/dev/null && mv -f "$mf.tmp.${BASHPID}" "$mf" \
+    || rm -f "$mf.tmp.${BASHPID}" 2>/dev/null
+  # ⚠ tmp POR PROCESSO (${BASHPID}, doutrina do molde): o recompute roda no daemon (com
+  # shards, em K workers) E no recompute em massa do build.sh destacado — com tmp de nome
+  # fixo, um `mv` podia publicar o tmp MEIO-ESCRITO do outro escritor (visto na bancada 8×
+  # de 30/08 como "mv: cannot stat metrics.json.tmp"; o caso ruim seria metrics corrompido
+  # até o veredicto seguinte). Corrida pré-existente ao shard: K=1 + build.sh já disputavam.
 }
 
 # metrics_solved_count <c> <login> — nº de problemas distintos resolvidos (O(1) via cache).
