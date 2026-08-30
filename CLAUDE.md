@@ -273,7 +273,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   mínimo global (`lib/cohorts.sh`). Em placar de coorte a coluna `#` leva a posição na coorte E a
   do geral (`.plg`). Bandeira/universidade/sede/busca são recorte de linhas (`data-*` na `<tr>`,
   script inline **depois** das seções — no parse o `querySelectorAll` ainda estaria vazio) e
-  **não renumeram**. A **bandeira entra UMA vez** (classe CSS `.f-<código>` com o `data:` URI;
+  **RENUMERAM o recorte** (2026-08-30, como o placar ao vivo): nº grande = posição no recorte
+  (`data-place`/`data-tie`), `.plg` = a original, ★ do recorte por `data-sec` (classe `rfts`;
+  a global `gfts` some via classe `flt`) — tudo idempotente, restaurado ao limpar. **Fotos
+  dos times entram** (R5): miniaturas em `fotos/<login>.webp` (arquivo relativo, nunca
+  data:URI) e o 📷 só no placar ABERTO (`score-frozen.html` sai sem); a página de
+  estatísticas ganha selects de Sede×País (recortes `by_region`/`by_country` do cache).
+  A **bandeira entra UMA vez** (classe CSS `.f-<código>` com o `data:` URI;
   um `<img>` por linha levava o index.html a 21 MB — 458 KB de brasão × N linhas × N placares).
   Detalhes em `docs/SCOREBOARD.md`.
 - **COR DE BALÃO NUNCA APARECE SEM CONTORNO, e "resolvido" NUNCA depende só da cor.** A paleta

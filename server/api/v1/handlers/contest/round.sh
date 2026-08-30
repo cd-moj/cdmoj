@@ -47,6 +47,7 @@ case "${rel##*.}" in
   js)       ct="application/javascript; charset=utf-8";;
   json)     ct="application/json";;
   png)      ct="image/png";;
+  webp)     ct="image/webp";;   # fotos/<login>.webp do relatório (R5, 2026-08-30)
   jpg|jpeg) ct="image/jpeg";;
   svg)      ct="image/svg+xml";;
   txt)      ct="text/plain; charset=utf-8";;

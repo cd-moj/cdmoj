@@ -27,6 +27,11 @@
 #   - backups/, var/*audit*, access.log, conf cru, sessões/tokens;
 #   - veredicto sempre CANÔNICO (sem ",100p" embutido) — não vaza score em prova icpc.
 #
+# FOTO DE TIME ENTRA (R5, 2026-08-30): mídia de time é PÚBLICA (decisão de 2026-08-24 — ela
+# existe p/ o telão) e o relatório é o retrato do evento. Vai como MINIATURA em
+# fotos/<login>.webp (arquivo relativo, nunca data:URI por linha — não dedupa, incidente dos
+# 21MB) e o 📷 só é rendido no placar ABERTO — score-frozen.html sai SEM foto.
+#
 # É um "build" irmão de build.sh/stats-gen.sh: roda standalone (CLI) ou pelo handler.
 set -u
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
@@ -233,6 +238,16 @@ rep_t(){ case "$LOC:$1" in
   # o %s daqui é TEMPLATE para o JS (vai em data-tpl): printf '%s' p/ o printf não comê-los
   pt:f_count) printf '%s' 'Mostrando %s de %s times';; en:f_count) printf '%s' 'Showing %s of %s teams';;
   pt:f_none) printf 'Nenhum time casa com o filtro.';; en:f_none) printf 'No team matches the filter.';;
+  # renumeração do recorte + estrela relativa (R1/R6, 2026-08-30) e 📷 (R4/R5)
+  pt:f_slice_note) printf '· ★ = 1º do recorte';; en:f_slice_note) printf '· ★ = 1st in selection';;
+  pt:f_slice_t) printf 'Posição no placar completo (sem o filtro)';; en:f_slice_t) printf 'Position in the full scoreboard (without the filter)';;
+  pt:fts_sel) printf 'Primeiro a resolver no recorte';; en:fts_sel) printf 'First to solve in the selection';;
+  pt:photo_t) printf 'Ver a foto do time';;       en:photo_t) printf 'View team photo';;
+  pt:st_country) printf 'País:';;                 en:st_country) printf 'Country:';;
+  pt:st_all) printf 'todos';;                     en:st_all) printf 'all';;
+  # %s do JS (vão em data-*): printf '%s' p/ não comê-los
+  pt:st_sel) printf '%s' 'Recorte: %s — %s de %s participantes';; en:st_sel) printf '%s' 'Selection: %s — %s of %s participants';;
+  pt:st_glob) printf '%s' '%s participantes';;    en:st_glob) printf '%s' '%s participants';;
   pt:view_public) printf 'Geral (todos)';;        en:view_public) printf 'Overall (everyone)';;
   pt:view_all) printf 'Todos, com convidados';;   en:view_all) printf 'Everyone, incl. guests';;
   pt:view_of) printf 'Visão da coorte %s' "$2";;  en:view_of) printf 'As seen by cohort %s' "$2";;
@@ -272,6 +287,23 @@ ACCT_JQ='[.login//"", ((.team.name // .fullname // "")|gsub("[:\t\n]";" ")),
     done
   fi
 } > "$W/names.tsv"
+
+# --- fotos dos times: MINIATURAS em fotos/<login>.webp (R5, 2026-08-30) -----------------
+# tp_thumb gera/cacheia a thumb 320px (~7KB) no store; aqui só copiamos. Login validado
+# (vira nome de arquivo) e cap de 300KB: em dev sem `convert` o tp_thumb degrada p/ a foto
+# CHEIA — o cap impede o pacote de inchar. photos.tsv alimenta o 📷 do rep_score_html.
+source "$HERE/../api/v1/lib/team-photo.sh"
+: > "$W/photos.tsv"
+mkdir -p "$OUTD/fotos"
+while IFS=$'\t' read -r _lg _rest; do
+  [[ -n "$_lg" && "$_lg" != *[!A-Za-z0-9._@-]* ]] || continue
+  _th="$(tp_thumb "$C" "$_lg" 2>/dev/null)"
+  [[ -s "$_th" ]] || continue
+  _sz="$(stat -c%s "$_th" 2>/dev/null)"; [[ "$_sz" =~ ^[0-9]+$ ]] && (( _sz <= 307200 )) || continue
+  cp -f "$_th" "$OUTD/fotos/$_lg.webp" 2>/dev/null || continue
+  printf '%s\n' "$_lg"
+done < "$W/names.tsv" > "$W/photos.tsv"
+rmdir "$OUTD/fotos" 2>/dev/null || true   # sem foto nenhuma = sem diretório
 
 # escape/format: definidos ANTES das bandeiras — rep_flag usa esc() no alt/title.
 esc(){ printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&#39;/g"; }
@@ -512,17 +544,24 @@ EOF
 
 # --- placar TXT -> tabela HTML (icpc/obi/generic) --------------------------------------
 # Espelha os parsers do web (score-icpc.js / score-obi.js / score-generic.js): linha 1 =
-# modo; linha 2 = cabeçalho COM marcadores iniciais desc/asc (as linhas de dados NÃO têm
-# os marcadores — alinham 1:1 com o cabeçalho já sem eles); células icpc: vazio | t/m |
-# t/m* (first to solve) | t/-.
-rep_score_html(){ # <placar.txt> [genplace.tsv]
-  local f="$1" gp="${2:-}"
+# modo (pode trazer a flag `s` = célula icpc em SEGUNDOS, R6 — exibimos floor(seg/60) e
+# gravamos o segundo exato em data-sec p/ a estrela do recorte do rep_filter_js; sem a
+# flag, minutos = legado); linha 2 = cabeçalho COM marcadores iniciais desc/asc (as linhas
+# de dados NÃO têm os marcadores — alinham 1:1 com o cabeçalho já sem eles); células icpc:
+# vazio | t/tempo | t/tempo* (first to solve) | t/-.
+# Cada <tr> leva data-place (posição original; vazio = convidado) e data-tie (chave de
+# empate) — é com eles que o rep_filter_js RENUMERA o recorte (R1). PHF = photos.tsv: 📷
+# relativo em fotos/<login>.webp, passado SÓ p/ o placar aberto (freeze não mostra foto).
+rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
+  local f="$1" gp="${2:-}" ph="${3:-}"
   [[ -s "$f" ]] || { printf '<p class="note">%s</p>\n' "$(rep_t no_score)"; return; }
   [[ -n "$gp" && -s "$gp" ]] || gp=/dev/null
+  [[ -n "$ph" && -s "$ph" ]] || ph=/dev/null
   awk -F: -v MODE="$MODE" -v BSTYLE="$BSTYLE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" -v NF_="$W/names.tsv" \
-      -v GP="$gp" -v T_GEN="$(rep_t gen_place)" -v T_GENT="$(rep_t gen_place_t)" \
+      -v GP="$gp" -v PHF="$ph" -v T_GEN="$(rep_t gen_place)" -v T_GENT="$(rep_t gen_place_t)" \
       -v T_TEAM="$(rep_t team_col)" -v T_TOTAL="$(rep_t total)" -v T_PEN="$(rep_t pen_col)" \
-      -v T_GUEST="$(rep_t guest)" -v T_GUESTT="$(rep_t guest_title)" -v T_FTS="$(rep_t fts)" '
+      -v T_GUEST="$(rep_t guest)" -v T_GUESTT="$(rep_t guest_title)" -v T_FTS="$(rep_t fts)" \
+      -v T_PHOTO="$(rep_t photo_t)" '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); gsub(/"/,"\\&quot;",s); return s }
     function issys(h){ return (h=="flag"||h=="username"||h=="univ short"||h=="team name"||h=="univ full"||h=="total"||h=="penalty"||h=="lastac"||h=="guest") }
@@ -540,6 +579,9 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
     function team_html(us,tn,uf,un,g,  lbl){
       lbl=""; if(us!="") lbl="[" esc(us) "] ";
       lbl=lbl esc(tn!=""?tn:un)
+      # 📷 relativo (fotos/<login>.webp) — só quem está no photos.tsv; o visualizador de
+      # rodadas intercepta o <a href> e abre via blob, e em file:// o relativo resolve
+      if(un in pho) lbl=lbl " <a class=\"tphoto\" href=\"fotos/" un ".webp\" title=\"" esc(T_PHOTO) "\" style=\"text-decoration:none\">&#128247;</a>"
       if(g) lbl=lbl " <span class=\"pill\" title=\"" esc(T_GUESTT) "\">" esc(T_GUEST) "</span>"
       # o LOGIN saiu da célula (era o que mais gastava largura) e vive no title, junto da
       # universidade — a coluna do time agora divide espaço com todas as de problema.
@@ -550,6 +592,9 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
     BEGIN{
       while ((getline l < BF) > 0) { n=split(l,a,"\t"); if(n>=3){ bhex[a[1]]=a[2]; bdark[a[1]]=a[3]; if(n>=4) bedge[a[1]]=a[4] } }
       close(BF)
+      # fotos: login por linha (já validado e copiado p/ fotos/ pelo gerador)
+      while ((getline l < PHF) > 0) { if(l!="") pho[l]=1 }
+      close(PHF)
       # flags.tsv: código \t nome legível \t <img>. O nome alimenta o rótulo do filtro por
       # bandeira (data-fname) — é a MESMA resolução do alt/title (rep_flag_name).
       while ((getline l < FF) > 0) { n=split(l,a,"\t"); if(n>=3){ fimg[a[1]]=a[3]; fnm[tolower(a[1])]=a[2] } }
@@ -561,7 +606,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
       while ((getline l < GP) > 0) { n=split(l,a,"\t"); if(n>=2 && a[1]!=""){ gpl[a[1]]=a[2]; hasgp=1 } }
       close(GP)
     }
-    NR==1{ next }
+    NR==1{ nw=split($0, MW, /[ \t]+/); for(wi=2; wi<=nw; wi++) if(MW[wi]=="s") SECS=1; next }
     NR==2{
       n=split($0, H, ":"); s=1
       while (s<=n) { h=trim(tolower(H[s])); if (h=="desc"||h=="asc") s++; else break }
@@ -637,6 +682,10 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
       if(uf!="")    attrs=attrs " data-ufull=\"" esc(uf) "\""
       if(rg!="")    attrs=attrs " data-region=\"" esc(rg) "\""
       attrs=attrs " data-search=\"" esc(tolower(tn " " us " " uf " " un)) "\""
+      # renumeração do recorte (R1): posição original + chave de empate (a MESMA regra do
+      # pnum acima) — o rep_filter_js renumera os visíveis e restaura ao limpar
+      attrs=attrs " data-place=\"" (isguest? "" : pnum) "\""
+      if (MODE=="icpc" && !isguest) attrs=attrs " data-tie=\"" esc(tot "|" pen "|" lac) "\""
       gtxt=""
       if (hasgp && !isguest && (un in gpl)) gtxt="<span class=\"plg\" title=\"" esc(T_GENT) "\">" esc(gpl[un]) "</span>"
       printf "<tr%s><td class=\"place\">%s%s</td>", attrs, (isguest?"–":pnum ""), gtxt
@@ -648,6 +697,10 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
           if (MODE=="icpc") {
             if (v ~ /^[0-9]+\/[0-9]+\/?\*?$/) {
               fts=(v ~ /\*$/); shown=v; if(fts) sub(/\*$/,"",shown)
+              # unidade da célula: segundos com a flag `s` (exibe floor/60); minutos no legado.
+              # data-sec = segundo exato — é dele que o rep_filter_js tira a ★ do recorte.
+              split(shown, tv_, "/"); sec = (SECS ? tv_[2]+0 : (tv_[2]+0)*60)
+              shown = tv_[1] "/" int(sec/60)
               # gêmeo de paintSolvedCell (web/contest/score/score-colors.js): 'icon' = fundo
               # neutro + ponto da cor; 'fill' = cor no fundo + contorno derivado.
               dot=""
@@ -660,7 +713,9 @@ rep_score_html(){ # <placar.txt> [genplace.tsv]
                   dot="<span class=\"bdot\" style=\"--bdot:#" bhex[pname[k]] ";--bdot-edge:#" (pname[k] in bedge ? bedge[pname[k]] : "8A8A8A") "\"></span>"
               }
               sty=sty ";font-weight:700"; if(fts) sty=sty ";box-shadow:inset 0 0 0 2px currentColor"
-              printf "<td class=\"cell ok\" style=\"%s\"%s>%s%s<span class=\"pv\">%s</span></td>", sty, (fts?" title=\"" esc(T_FTS) "\"":""), (fts?"<span class=\"fts\">&#9733;</span>":""), dot, esc(shown)
+              # a ★ global leva a classe gfts: com filtro ativo o rep_filter_js a esconde e
+              # pinta a rfts do recorte (o anel inline continua marcando o FTS global)
+              printf "<td class=\"cell ok\" data-sec=\"%d\" style=\"%s\"%s>%s%s<span class=\"pv\">%s</span></td>", sec, sty, (fts?" title=\"" esc(T_FTS) "\"":""), (fts?"<span class=\"fts gfts\">&#9733;</span>":""), dot, esc(shown)
             } else if (v ~ /^[0-9]+\/-/) printf "<td class=\"cell c-try\"><span class=\"pv\">%s</span></td>", esc(v)
             else printf "<td class=\"cell\">%s</td>", esc(v)
           } else {   # obi: pontos
@@ -736,7 +791,9 @@ rep_place_map(){
 
 # rep_score_boards <open|frozen> — a barra de filtros + um <section> por visão
 rep_score_boards(){
-  local kind="$1" v lbl f ck gen genf n=0 cj
+  local kind="$1" v lbl f ck gen genf n=0 cj phf=""
+  # 📷 SÓ no placar aberto (R4/R5): o congelado não mostra foto — não denuncia presença
+  [[ "$kind" == open && -s "$W/photos.tsv" ]] && phf="$W/photos.tsv"
   local -a ids=() labels=() files=() cks=() have=() cand=()
   mapfile -t have < <(ch_views "$C" 2>/dev/null)
   # ORDEM do seletor (e da dedupe): pública › placares paralelos › todos › visão de coorte
@@ -786,11 +843,11 @@ rep_score_boards(){
     # a segunda posição só entra quando INFORMA algo: no placar geral (e em qualquer visão cuja
     # classificação seja a mesma dele, como a pública quando não há coorte privada) seria uma
     # coluna repetindo o número ao lado.
-    if (( i == gen )); then rep_score_html "${files[$i]}"
+    if (( i == gen )); then rep_score_html "${files[$i]}" "" "$phf"
     else
       rep_place_map "${files[$i]}" > "$W/vplace.tsv" 2>/dev/null || : > "$W/vplace.tsv"
-      if cmp -s "$W/vplace.tsv" "$genf"; then rep_score_html "${files[$i]}"
-      else rep_score_html "${files[$i]}" "$genf"; fi
+      if cmp -s "$W/vplace.tsv" "$genf"; then rep_score_html "${files[$i]}" "" "$phf"
+      else rep_score_html "${files[$i]}" "$genf" "$phf"; fi
     fi
     printf '</section>\n'
   done
@@ -804,7 +861,11 @@ rep_score_boards(){
 rep_filter_bar(){
   local -n _ids="$1" _lbls="$2"
   local i
-  printf '<div class="fbar" id="fbar" data-tpl="%s">\n' "$(esc "$(rep_t f_count)")"
+  # com filtro ativo (classe flt na section) a ★ GLOBAL some e a do recorte (rfts) entra —
+  # o rep_filter_js pinta; os textos do JS vão em data-* (o heredoc dele é quoted)
+  printf '<style>.board-view.flt span.fts.gfts{display:none}</style>\n'
+  printf '<div class="fbar" id="fbar" data-tpl="%s" data-slice-t="%s" data-fts-sel="%s" data-slice-note="%s">\n' \
+    "$(esc "$(rep_t f_count)")" "$(esc "$(rep_t f_slice_t)")" "$(esc "$(rep_t fts_sel)")" "$(esc "$(rep_t f_slice_note)")"
   if (( ${#_ids[@]} > 1 )); then
     printf '<label>%s <select id="fView">' "$(esc "$(rep_t f_board)")"
     for i in "${!_ids[@]}"; do
@@ -857,17 +918,56 @@ rep_filter_js(){
     fill(selU,'data-univ',function(r,v){ var f=r.getAttribute('data-ufull'); return f?(v+' — '+f):v });
     fill(selR,'data-region',function(r,v){ return v });
   }
+  // Filtro ativo RENUMERA o recorte (R1, 2026-08-30) e re-estrela por data-sec (R6) —
+  // tudo idempotente: cada apply() restaura o DOM original antes de reaplicar.
+  var sliceT=bar.getAttribute('data-slice-t')||'', ftsSel=bar.getAttribute('data-fts-sel')||'',
+      sliceNote=bar.getAttribute('data-slice-note')||'';
   function apply(){
     var f=selF?selF.value:'', u=selU?selU.value:'', g=selR?selR.value:'',
         s=(q?q.value:'').trim().toLowerCase(), tot=0, vis=0;
-    rows(board()).forEach(function(r){
+    var b=board(), rs=rows(b), act=!!(f||u||g||s), visRows=[];
+    // restaura a passada anterior
+    rs.forEach(function(r){ if(r._pl!=null){ r.cells[0].innerHTML=r._pl; r._pl=null; } });
+    [].slice.call(b.querySelectorAll('span.rfts')).forEach(function(x){ x.remove(); });
+    b.classList.remove('flt');
+    rs.forEach(function(r){
       tot++;
       var ok=(!f||r.getAttribute('data-flag')===f) && (!u||r.getAttribute('data-univ')===u)
           && (!g||r.getAttribute('data-region')===g)
           && (!s||(r.getAttribute('data-search')||'').indexOf(s)>=0);
-      r.style.display=ok?'':'none'; if(ok) vis++;
+      r.style.display=ok?'':'none'; if(ok){ vis++; visRows.push(r); }
     });
-    if(cnt) cnt.textContent=tpl.replace('%s',vis).replace('%s',tot);
+    var icpc = !!b.querySelector('table.score.m-icpc');
+    if(act){
+      b.classList.add('flt');
+      // renumera: mesma regra de empate do gerador (data-tie); convidado (data-place vazio)
+      // mantém o "–"; o número original vai p/ o .plg
+      var sp=0, ptie=null;
+      visRows.forEach(function(r){
+        var op=r.getAttribute('data-place'); if(!op) return;
+        var tie=r.getAttribute('data-tie')||'';
+        if(!(ptie!==null && tie!=='' && tie===ptie)) sp++;
+        ptie=tie;
+        var td=r.cells[0]; if(r._pl==null) r._pl=td.innerHTML;
+        td.textContent=String(sp);
+        var sm=document.createElement('span'); sm.className='plg'; sm.title=sliceT;
+        sm.textContent=op; td.appendChild(sm);
+      });
+      // ★ do recorte: menor data-sec por COLUNA entre os visíveis (segundos exatos com a
+      // flag `s` do TXT; min*60 no legado — empate de minuto pode dar mais de uma ★)
+      if(icpc){
+        var best={};
+        visRows.forEach(function(r){ [].slice.call(r.cells).forEach(function(td,ci){
+          var sv=td.getAttribute('data-sec'); if(sv===null) return;
+          sv=+sv; if(!(ci in best)||sv<best[ci]) best[ci]=sv; }); });
+        visRows.forEach(function(r){ [].slice.call(r.cells).forEach(function(td,ci){
+          var sv=td.getAttribute('data-sec'); if(sv===null) return;
+          if(+sv===best[ci]){ var st=document.createElement('span'); st.className='fts rfts';
+            st.title=ftsSel; st.textContent='★'; td.insertBefore(st, td.firstChild); }
+        }); });
+      }
+    }
+    if(cnt) cnt.textContent=tpl.replace('%s',vis).replace('%s',tot)+(act&&icpc?' '+sliceNote:'');
   }
   if(selV) selV.addEventListener('change',function(){
     boards.forEach(function(b){ b.hidden = b.getAttribute('data-view')!==selV.value });
@@ -1138,7 +1238,23 @@ EOF
 # O <noscript> mantém as tabelas antigas: o relatório é um arquivo de ARQUIVO MORTO e tem
 # de continuar legível se alguém abrir sem JS.
 rep_stats_bundle(){
-  local f
+  local f cn
+  # rótulo de país p/ o select (mesma resolução da bandeira do placar); cai no código
+  cn="$(jq -r '(.by_country // {}) | keys[]' "$1" 2>/dev/null | while IFS= read -r _cc; do
+          printf '%s\t%s\n' "$_cc" "$(rep_flag_name "$_cc")"
+        done | jq -Rn '[inputs | split("\t") | select(length >= 1) | {key:.[0], value:(.[1] // "")}] | from_entries')"
+  [[ -n "$cn" ]] || cn='{}'
+  # barra de recorte (R2, 2026-08-30): Sede × País, mutuamente exclusivos — o cache já traz
+  # by_region/by_country prontos (mesmo shape do global) e o JS só escolhe o sub-objeto.
+  # Sem dimensão nenhuma (cache antigo/contest sem .team) o JS esconde a barra.
+  printf '<div class="fbar" id="sbar" hidden data-sel="%s" data-glob="%s">\n' \
+    "$(esc "$(rep_t st_sel)")" "$(esc "$(rep_t st_glob)")"
+  printf '<label>%s <select id="sRegion"><option value="">%s</option></select></label>\n' \
+    "$(esc "$(rep_t f_region)")" "$(esc "$(rep_t f_region_all)")"
+  printf '<label>%s <select id="sFlag"><option value="">%s</option></select></label>\n' \
+    "$(esc "$(rep_t st_country)")" "$(esc "$(rep_t st_all)")"
+  printf '<span class="fcount" id="sCount"></span>\n</div>\n'
+  printf '<div id="stats"></div>\n'
   printf '<script>\n'
   printf 'const LANG=%s;\nfunction T(pt,en){return LANG==="en"?en:pt}\n' "$([[ "${LOCALE:-pt}" == en ]] && printf '"en"' || printf '"pt"')"
   for f in "$MOJ_WEB/shared/dom.js" "$MOJ_WEB/lib/charts.js" "$MOJ_WEB/lib/stats-view.js"; do
@@ -1147,8 +1263,45 @@ rep_stats_bundle(){
   done
   printf 'const STATS=\n'
   cat "$1"
-  printf ';\ntry{ statsSections(STATS).forEach(function(s){ document.getElementById("stats").append(s) }) }\n'
-  printf 'catch(e){ document.getElementById("stats").innerHTML = "<p class=\\"note\\">"+String(e)+"</p>" }\n'
+  printf ';\nconst CNAMES=%s;\n' "$cn"
+  cat <<'STEOF'
+(function(){
+  var host=document.getElementById('stats'); if(!host) return;
+  function render(s){
+    host.innerHTML='';
+    try{ statsSections(s).forEach(function(x){ host.append(x) }) }
+    catch(e){ host.innerHTML='<p class="note">'+String(e)+'</p>' }
+  }
+  var bar=document.getElementById('sbar'), selR=document.getElementById('sRegion'),
+      selC=document.getElementById('sFlag'), cnt=document.getElementById('sCount');
+  var regs=Object.keys(STATS.by_region||{}).sort(function(a,b){ return a.localeCompare(b) });
+  var ctys=Object.keys(STATS.by_country||{}).sort(function(a,b){
+    return String(CNAMES[a]||a).localeCompare(String(CNAMES[b]||b)) });
+  if(!bar || (!regs.length && !ctys.length)){ render(STATS); return; }
+  bar.hidden=false;
+  regs.forEach(function(r){ var o=document.createElement('option'); o.value=r; o.textContent=r; selR.add(o) });
+  ctys.forEach(function(c){ var o=document.createElement('option'); o.value=c;
+    o.textContent=CNAMES[c]||c.toUpperCase(); selC.add(o) });
+  if(selR.options.length<2) selR.parentNode.style.display='none';
+  if(selC.options.length<2) selC.parentNode.style.display='none';
+  function pick(){
+    if(selR.value) return {s:(STATS.by_region||{})[selR.value]||STATS, nm:selR.value};
+    if(selC.value) return {s:(STATS.by_country||{})[selC.value]||STATS, nm:(CNAMES[selC.value]||selC.value.toUpperCase())};
+    return {s:STATS, nm:''};
+  }
+  function upd(){
+    var p=pick(); render(p.s);
+    if(!cnt) return;
+    if(p.nm){ cnt.textContent=(bar.getAttribute('data-sel')||'%s %s %s')
+        .replace('%s',p.nm).replace('%s',p.s.totals.users).replace('%s',STATS.totals.users); }
+    else cnt.textContent=(bar.getAttribute('data-glob')||'%s').replace('%s',STATS.totals.users);
+  }
+  // mutuamente exclusivos: escolher um zera o outro (o recorte é UM, nunca a interseção)
+  selR.addEventListener('change',function(){ if(selR.value) selC.value=''; upd() });
+  selC.addEventListener('change',function(){ if(selC.value) selR.value=''; upd() });
+  upd();
+})();
+STEOF
   printf '</script>\n'
 }
 
@@ -1156,7 +1309,7 @@ rep_stats_bundle(){
   rep_head "$(rep_t page_stats)" stats
   SJ="$CDIR/var/statistics.cache.json"
   if [[ -s "$SJ" ]]; then
-    printf '<div id="stats"></div>\n'
+    # o rep_stats_bundle imprime a barra de recorte + o <div id="stats"> + o script
     rep_stats_bundle "$SJ" || printf '<p class="note">%s</p>\n' "$(rep_t no_charts)"
     printf '<noscript>\n'
     jq -r --arg t_subs "$(rep_t subs)" --arg t_acc "$(rep_t accepted)" --arg t_teams "$(rep_t teams)" \

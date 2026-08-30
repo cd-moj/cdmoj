@@ -181,6 +181,15 @@ o mesmo**: ao entrar num placar paralelo ele busca TAMBÉM o placar geral (`fetc
 a mais só nesse caso) e mostra as duas posições; se as classificações coincidem, o segundo número
 não aparece.
 
+**No relatório o filtro renumera como ao vivo** (R1/R6, 2026-08-30): cada `<tr>` leva
+`data-place` (posição original; vazio = convidado) e `data-tie` (chave de empate), cada célula
+resolvida leva `data-sec` (segundos exatos, da flag `s` do TXT) — o script inline renumera os
+visíveis, esconde a ★ global (classe `gfts`, via `flt` na section) e pinta a ★ do recorte
+(`rfts`), tudo restaurado ao limpar. **Fotos**: miniaturas em `fotos/<login>.webp` (arquivos
+relativos — nunca data:URI por linha, incidente dos 21MB) e o 📷 só no placar ABERTO
+(`score-frozen.html` sai sem). **Estatísticas** ganham selects Sede×País sobre os recortes
+`by_region`/`by_country` que o `stats-gen.sh` já embute no cache.
+
 ### Balão × visibilidade (a célula "resolveu")
 
 **Regra: a cor do balão é adorno; "resolvido" nunca pode depender dela.** A paleta ICPC dá

@@ -19,6 +19,8 @@ fx_user "$C" rp.cstaff s "Chefe de Sede"
 # bandeira de ESTADO (br-rj): o código que o relatório antigo imprimia como TEXTO
 jq -c '.team={name:"Time Alice",univ_short:"UFRJ",univ_full:"Univ Federal do RJ",flag:"br-rj",region:"Rio"}' "$C/users/alice/account.json" > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/alice/account.json"
 jq -c '.team={name:"Time Bob",univ_short:"UFSC",univ_full:"Univ Federal de SC",flag:"br-sc",region:"Floripa"}'  "$C/users/bob/account.json"   > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/bob/account.json"
+# foto de time (R5): entra como MINIATURA em fotos/<login>.webp — só no placar ABERTO
+convert -size 40x40 xc:red "$C/users/alice/photo.png" 2>/dev/null || printf 'x' > /dev/null
 # pacote com AUTOR (2 linhas) + documentos: 1 publicado, 1 gerado e NÃO publicado
 PKG="$FIX/probs"; mkdir -p "$PKG/col/pa"
 printf 'Bruno Ribas\nMaria da Silva\n' > "$PKG/col/pa/author"
@@ -108,10 +110,21 @@ ck "placar: --nprob carimbado na tabela"  'grep -q "table class=\"score m-icpc\"
 # a classe de MODO escopa ao ICPC o ✓/✗ do celular (no OBI a célula é a NOTA, não um acerto)
 ck "placar: classe de modo na tabela"     'grep -q "class=\"score m-icpc\"" "$R/index.html"'
 ck "placar: embrulho SEM rolagem"         'grep -q "board-wrap.*table class=\"score m-" "$R/index.html" && ! grep -q "tblwrap.*table class=\"score" "$R/index.html"'
-ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*>(<span class=\"fts\">[^<]*</span>)?(<span class=\"bdot\"[^>]*></span>)?<span class=\"pv\">1/70</span>" "$R/index.html"'
+# --- fotos (R4/R5) + renumeração/estrela do recorte (R1/R6) + recortes de estatística (R2) ---
+ck "foto: fotos/alice.webp no pacote"      '[[ -s "$R/fotos/alice.webp" ]]'
+ck "foto: 📷 relativo no placar aberto"    'grep -q "class=\"tphoto\" href=\"fotos/alice.webp\"" "$R/index.html"'
+ck "foto: congelado SEM 📷"                '! grep -q "tphoto" "$R/score-frozen.html"'
+ck "foto: é arquivo, nunca data:URI"       '! grep -q "tphoto\" href=\"data:" "$R/index.html"'
+ck "recorte: data-place + data-tie na tr"  'grep -q "data-place=\"1\"" "$R/index.html" && grep -q "data-tie=\"" "$R/index.html"'
+ck "recorte: data-sec (segundos) na célula" 'grep -qE "data-sec=\"[0-9]+\"" "$R/index.html"'
+ck "recorte: JS renumera e re-estrela"     'grep -q "rfts" "$R/index.html" && grep -q "data-slice-t" "$R/index.html"'
+ck "recorte: ★ global com classe gfts"     'grep -q "fts gfts" "$R/index.html"'
+ck "estatísticas: selects sede/país"       'grep -q "id=\"sRegion\"" "$R/statistics.html" && grep -q "id=\"sFlag\"" "$R/statistics.html"'
+ck "estatísticas: recortes embutidos"      'grep -q "by_region" "$R/statistics.html"'
+ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*>(<span class=\"fts( gfts)?\">[^<]*</span>)?(<span class=\"bdot\"[^>]*></span>)?<span class=\"pv\">1/70</span>" "$R/index.html"'
 # modo 'icon' (padrão): a célula resolvida NÃO depende da cor — fundo neutro + o ponto da cor,
 # cujo contorno é o que faz o balão BRANCO existir (ver docs/SCOREBOARD.md)
-ck "placar: célula resolvida neutra"      'grep -q "cell ok\" style=\"background:#e2ffe9" "$R/index.html"'
+ck "placar: célula resolvida neutra"      'grep -qE "cell ok\"[^>]*style=\"background:#e2ffe9" "$R/index.html"'
 ck "placar: ponto da cor com contorno"    'grep -qE "<span class=\"bdot\" style=\"--bdot:#[0-9A-F]{6};--bdot-edge:#[0-9A-F]{6}\"" "$R/index.html"'
 ck "placar: cabeçalho traz o BALÃO"       'grep -q "th class=\"prob\"><svg class=\"balloon-svg\"" "$R/index.html"'
 ck "placar: CSS sem nowrap/min-width"     '! grep -qE "table.score td.cell\{[^}]*(nowrap|min-width)" "$R/index.html"'
