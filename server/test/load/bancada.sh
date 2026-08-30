@@ -87,8 +87,9 @@ if [[ "$RIG" == prova ]]; then
   # registro do juiz mock no registry REAL + daemon no spool REAL
   jq -cn --argjson now "$EPOCHSECONDS" \
      --argjson probs "$(printf '%s\n' "${CANON[@]}" | jq -Rcs 'split("\n")|map(select(length>0))')" \
-    '{host:"mockj", last_seen:$now, state:"free", inv_hash:"bancada", free_slots:8,
-      total_slots:8, ncpu:8, problems:$probs, langs:[], capability:""}' > "$RR/registry/mockj.json"
+    '{host:"mockj", last_seen:$now, state:"free", inv_hash:"bancada",
+      free_slots:'"${MOCKJ_SLOTS:-8}"', total_slots:'"${MOCKJ_SLOTS:-8}"',
+      ncpu:8, problems:$probs, langs:[], capability:""}' > "$RR/registry/mockj.json"
   # BANCADA_SHARDS=K lança K WORKERS particionados (JUDGED_SHARD=k) — direto, sem o
   # supervisor, p/ a soma de CPU por worker sair de /proc/<pid>/stat de cada um.
   # ⚠ o tier web precisa do MESMO JUDGED_SHARDS no env do fcgiwrap (senão tudo cai na
@@ -122,27 +123,44 @@ if [[ "$RIG" == prova ]]; then
   PROC0="$(awk '/^processes/{print $2}' /proc/stat)"
   CPUJ0="$(cpu_jsum)"; CPUB0="$(cpu_box)"
   T0="$EPOCHSECONDS"
-  # feeder HTTP no relógio do plano (+ pendfile p/ a espiral)
+  # feeder HTTP no relógio do plano (+ pendfile p/ a espiral). O feeder SERIAL satura em
+  # ~630 subs/min (curl ~95ms) — medido na 8x de 30/08: platô de 960 virou 630 e o wall
+  # esticou. BANCADA_FEEDERS=F (default: scale>4 ⇒ 4) reparte o plano round-robin em F
+  # injetores; appends em subs.tsv/pend.txt são linhas curtas (<PIPE_BUF, O_APPEND).
   mapfile -t TT < "$RUND/carga-tokens-teams.txt"
+  NFEED="${BANCADA_FEEDERS:-$(( SCALE > 4 ? 4 : 1 ))}"
+  feed_slice(){ # <idx-do-feeder>
+    local fidx="$1" nline=0 toff team prob v now u tok b64 code ok=0 bad=0
+    while IFS=$'\t' read -r toff team prob v; do
+      nline=$(( nline + 1 ))
+      (( (nline - 1) % NFEED == fidx )) || continue
+      now=$(( EPOCHSECONDS - T0 )); (( toff > now )) && sleep $(( toff - now ))
+      u="$(printf 'eq-%04d' "$team")"
+      tok="${TT[$(( team - 1 ))]:-}"
+      [[ -n "$tok" ]] || { bad=$(( bad + 1 )); continue; }
+      b64="$(printf '//moj-mock: %s\nint main(){return 0;}\n' "$v" | base64 -w0)"
+      code="$(curl -sk -o /dev/null -m 20 -w '%{http_code}' -X POST \
+          -H "Host: $DEVHOST" -H 'Content-Type: application/json' -H "Authorization: Bearer $tok" \
+          -d "{\"problem_id\":\"${CANON[$prob]}\",\"filename\":\"a.c\",\"code_b64\":\"$b64\"}" \
+          "$DEVBASE/api/v1/submit?contest=zz-bancada" 2>/dev/null)"
+      if [[ "$code" == 200 ]]; then
+        ok=$(( ok + 1 )); printf '%s\t%s\n' "$u" "$EPOCHSECONDS" >> "$RUND/subs.tsv"
+        # pendência (o poller pola com este TOKEN): entra ao submeter; só cresce durante o
+        # run — é a pendência de PICO, o pior caso honesto da espiral
+        grep -qxF "$tok" "$RUND/pend.txt" 2>/dev/null || echo "$tok" >> "$RUND/pend.txt"
+      else bad=$(( bad + 1 )); fi
+    done < "$RUND/plan.tsv"
+    printf '%s %s\n' "$ok" "$bad" > "$RUND/.feed$fidx"
+  }
+  FPIDS=()
+  for (( _f = 0; _f < NFEED; _f++ )); do feed_slice "$_f" & FPIDS+=($!); done
+  wait "${FPIDS[@]}"
   SUBOK=0; SUBFAIL=0
-  while IFS=$'\t' read -r toff team prob v; do
-    now=$(( EPOCHSECONDS - T0 )); (( toff > now )) && sleep $(( toff - now ))
-    u="$(printf 'eq-%04d' "$team")"
-    tok="${TT[$(( team - 1 ))]:-}"
-    [[ -n "$tok" ]] || { SUBFAIL=$(( SUBFAIL + 1 )); continue; }
-    b64="$(printf '//moj-mock: %s\nint main(){return 0;}\n' "$v" | base64 -w0)"
-    code="$(curl -sk -o /dev/null -m 20 -w '%{http_code}' -X POST \
-        -H "Host: $DEVHOST" -H 'Content-Type: application/json' -H "Authorization: Bearer $tok" \
-        -d "{\"problem_id\":\"${CANON[$prob]}\",\"filename\":\"a.c\",\"code_b64\":\"$b64\"}" \
-        "$DEVBASE/api/v1/submit?contest=zz-bancada" 2>/dev/null)"
-    if [[ "$code" == 200 ]]; then
-      SUBOK=$(( SUBOK + 1 )); printf '%s\t%s\n' "$u" "$EPOCHSECONDS" >> "$RUND/subs.tsv"
-      # pendência (o poller pola com este TOKEN): entra ao submeter; só cresce durante o
-      # run — é a pendência de PICO, o pior caso honesto da espiral
-      grep -qxF "$tok" "$RUND/pend.txt" 2>/dev/null || echo "$tok" >> "$RUND/pend.txt"
-    else SUBFAIL=$(( SUBFAIL + 1 )); fi
-  done < "$RUND/plan.tsv"
-  echo "== subs: $SUBOK ok, $SUBFAIL falhas; aguardando dreno (teto 5 min)…"
+  for (( _f = 0; _f < NFEED; _f++ )); do
+    read -r _ok _bad < "$RUND/.feed$_f" 2>/dev/null || { _ok=0; _bad=0; }
+    SUBOK=$(( SUBOK + ${_ok:-0} )); SUBFAIL=$(( SUBFAIL + ${_bad:-0} ))
+  done
+  echo "== subs: $SUBOK ok, $SUBFAIL falhas ($NFEED feeders); aguardando dreno (teto 5 min)…"
   for _ in $(seq 300); do
     nres="$(find "$RR/spool/submissions-done" -maxdepth 1 -name "zz-bancada:*:result:*" -newer "$RUND/env.txt" 2>/dev/null | wc -l)"
     (( nres >= SUBOK )) && break

@@ -180,15 +180,51 @@ NESSAS que SAT/PB entram bem, como ferramenta, quando a vontade bater.
 | resolve_submission (summary) | 3 globs `users/*` POR id | O(U·ids)/request | rota de treino com SHOWLOG visível (700k lookups/request @2.355 contas) |
 | spool/fila como DIRETÓRIOS | readdir | O(N) por listagem | >50k entradas |
 
-**A escada de folga** (pico Maratona 2026 = 120 subs/min; **4× validado ponta a ponta** —
-480/min de pico com fila ≤ 90 e daemon a 42% de 1 core):
+**A escada de folga** (pico Maratona 2026 = 120 subs/min):
 
-| degrau | teto estimado | folga vs 2026 | custo |
+| degrau | teto | folga vs 2026 | estado |
 |---|---|---|---|
-| hoje (dieta + claim v3) | ~820/min pipeline | **~6,8×** | FEITO (local) |
-| + coproc-jq no daemon | ~1.100-1.200/min | ~10× | médio (protocolo/envelope) |
-| + **SHARD do daemon por hash(login)** — os dados JÁ são por-usuário; placar/clog já são coalescidos/append-only; escritor único POR USUÁRIO preservado | K×820 (4 shards ≈ 3.300/min) | **~27×** | o próximo passo estrutural honesto em bash |
+| dieta + claim v3, escritor único | ~820/min pipeline (4× validado acoplado: 480/min fila ≤ 90, daemon 42%) | ~6,8× | FEITO (local) |
+| + **SHARD do daemon por hash(login)** (`JUDGED_SHARDS=K`) | **MEDIDO: 8× acoplado ponta a ponta — 960/min de pico com saldo≈0** (in=970/out=964, fila ≤ 170, wall = plano+12 s); ingest isolado escala ~linear: K=2 2.545 · K=4 5.262 · K=8 **10.894/min** | **≥8× validado; ~27-40× de teto** | **FEITO (local), seção abaixo** |
+| + coproc-jq nos workers | ~1.100-1.200/min POR worker | compõe com o shard | só se um perfil futuro pedir |
 | daemon em Python (classe ingest-drain) | ≥100k/min | >800× | reescrita + operacional novo |
+
+## SHARD do escritor por hash(login) — implementado e medido (30/08 à noite)
+
+O escritor único é uma garantia POR USUÁRIO, não por instância: history/metrics/
+submissions/results/mojlog são por-login e os pontos cross-user já eram seguros (placar
+coalescido sob flock -n, clog em append O_APPEND, fila do cluster com flock próprio,
+arquivos por-id únicos). `JUDGED_SHARDS=K` (default 1 = byte a byte o de sempre) parte o
+daemon em K workers donos da fatia `hash(login) % K` — `lib/spool-shard.sh`, a MESMA lib
+nos produtores (`/submit`, offline, `/judge/result`, setverdict) que gravam direto no
+spool do dono (`s<k>/`; shard 0 = a raiz). Worker 0 ROTEIA o que produtor legado deixar
+na raiz; reconcile particionado; supervisor re-spawna worker morto; sweep de dirs órfãos
+cobre API com K ≠ daemon. Teste: `smoke-judged-shard.sh` (14 asserções).
+
+**Medições** (dev, mesmas fixtures):
+
+| medição | resultado |
+|---|---|
+| ingest isolado K=1/2/4/8 | 1.368 / 2.545 / 5.262 / **10.894/min** — escala 7,96× em K=8 (nada cross-shard contende) |
+| **acoplado 8× (pico 960 subs/min), K=4, 4 feeders, mock 32 slots** | **9.600/9.600, wall = plano+12 s; platô de 960: in=970 out=964, fila ≤ 170; 4 workers somam 97% de 1 core (~24% cada); web zero erros (score 18 ms)** |
+| acoplado 8× com feeder SERIAL (armadilha de rig) | injetor de curl satura em ~630/min — paralelizado em `BANCADA_FEEDERS` |
+| acoplado 8× com mock de 8 slots (armadilha de rig) | lado-JUIZ vira o teto (~810/min = ritmo do heartbeat × 8 slots) — `MOCKJ_SLOTS` |
+
+**Dois bugs REAIS que a bancada flagrou no caminho** (consertados + smokes):
+1. `metrics_recompute` usava tmp de NOME FIXO — o recompute em massa do build.sh
+   destacado já corria contra o daemon (pré-shard!) e um `mv` podia publicar tmp
+   meio-escrito do outro. Agora tmp por processo.
+2. A correção 1 caiu na armadilha **`${BASHPID}` em alvo de redirect de comando EXTERNO
+   expande no FILHO** (redirect é processado entre fork e exec): o jq gravava
+   `tmp.<pid-do-jq>` e o mv procurava `tmp.<pid-do-worker>` — todo recompute falhava
+   calado. O nome expande UMA vez numa variável. (`$$` não sofre; `BASHPID` sofre.)
+
+**Custo/risco**: K=1 é o default e não muda NADA (smoke-submit-pipeline 38/38 idêntico).
+Ligar em produção = setar `JUDGED_SHARDS` no env dos DOIS containers (moj-api e
+moj-judged) — mismatch não perde submissão (roteador + sweep), só roda pior. A folga
+validada de ponta a ponta é **8× o pico da Maratona com 1 core de daemon**; o teto de
+ingest puro com K=4 (5.262/min) sugere ~27× antes do próximo funil (placar O(U·P) e o
+lado juiz real).
 
 ## A dieta aplicada (commits `dieta:`; correção provada pelos smokes)
 - `metrics_recompute`: conf lido com ZERO processos + memo do deny (era ~6 execs/chamada

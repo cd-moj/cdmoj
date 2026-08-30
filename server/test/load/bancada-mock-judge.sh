@@ -51,7 +51,7 @@ judge_one(){ # <job-json>
 }
 
 while :; do
-  r="$(call /judge/heartbeat '{"host":"mockj","state":"free","free_slots":8,"total_slots":8,"inv_hash":"bancada","status":"ok"}')"
+  r="$(call /judge/heartbeat '{"host":"mockj","state":"free","free_slots":'"${MOCKJ_SLOTS:-8}"',"total_slots":'"${MOCKJ_SLOTS:-8}"',"inv_hash":"bancada","status":"ok"}')"
   n=0
   while IFS= read -r j; do
     [[ -n "$j" ]] || continue
