@@ -15,6 +15,15 @@ fx_user "$C" bob b "Bob"
 fx_user "$C" carol c "Carol"
 fx_user "$C" zz.judge p "Judge"
 fx_user "$C" zz.staff p "Staff"
+# sede/país p/ os recortes (R2): alice+bob = Curitiba/br, carol = Buenos Aires/ar,
+# zz.judge com sede (privilegiado NÃO pode contaminar o recorte); bob sem TEAM não existe
+# aqui — quem fica sem .team é o caso "fora de todo recorte" (st.admin não submete).
+fx_team(){ jq -c --arg r "$2" --arg f "$3" '. + {team:{region:$r, flag:$f}}' \
+  "$C/users/$1/account.json" > "$C/users/$1/account.json.n" && mv "$C/users/$1/account.json.n" "$C/users/$1/account.json"; }
+fx_team alice "Curitiba" br
+fx_team bob "Curitiba" br
+fx_team carol "Buenos Aires" ar
+fx_team zz.judge "Curitiba" br
 printf 'CONTEST=st\nLOGIN=st.admin\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=st\nLOGIN=alice\nLOGINAT=1\n' > "$SESS/usr"
 { printf '5:0:C:Accepted,100p:1718000000:h1\n'                 # Q (offset)
@@ -46,6 +55,18 @@ ck "lang CPP: submissions=2" '[[ "$(jq -r ".languages[]|select(.lang==\"CPP\")|.
 ck "verdict Accepted count=4" '[[ "$(jq -r ".verdicts[]|select(.verdict==\"Accepted\")|.count" <<<"$BODY")" == 4 ]]'
 ck "verdict Wrong Answer count=1" '[[ "$(jq -r ".verdicts[]|select(.verdict==\"Wrong Answer\")|.count" <<<"$BODY")" == 1 ]]'
 ck "timeline tem bins"     '[[ "$(jq -r ".timeline|length" <<<"$BODY")" -ge 1 ]]'
+
+echo "== recortes por sede/país (R2) =="
+ck "by_region tem as 2 sedes" '[[ "$(jq -c ".by_region|keys|sort" <<<"$BODY")" == "[\"Buenos Aires\",\"Curitiba\"]" ]]'
+ck "by_country tem ar+br"     '[[ "$(jq -c ".by_country|keys|sort" <<<"$BODY")" == "[\"ar\",\"br\"]" ]]'
+ck "Curitiba: 4 subs, 2 users (zz.judge com sede NÃO contamina)" \
+  '[[ "$(jq -r ".by_region[\"Curitiba\"].totals.submissions" <<<"$BODY")" == 4 && "$(jq -r ".by_region[\"Curitiba\"].totals.users" <<<"$BODY")" == 2 ]]'
+ck "ar: só a carol (1/1/1/1)" \
+  '[[ "$(jq -c ".by_country.ar.totals" <<<"$BODY")" == "{\"submissions\":1,\"accepted\":1,\"users\":1,\"problems_solved\":1}" ]]'
+ck "recorte tem o MESMO shape (timeline/languages/verdicts)" \
+  '[[ "$(jq -r ".by_region[\"Curitiba\"] | (.timeline|length>=1) and (.languages|length>=1) and (.verdicts|length>=1)" <<<"$BODY")" == true ]]'
+ck "first_solver do recorte resolvido com NOME" \
+  '[[ "$(jq -r ".by_region[\"Curitiba\"].problems[]|select(.problem_id==\"0\")|.first_solver_name" <<<"$BODY")" == "Alice" ]]'
 call /contest/statistics GET '' usr 'contest=st'
 ck "não-privilegiado 403"  '[[ "$OUT" == *"Status: 403"* ]]'
 

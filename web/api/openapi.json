@@ -4850,7 +4850,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{totals,problems,languages,verdicts,timeline}"
+            "description": "{totals,problems,languages,verdicts,timeline, by_region:{<sede>:{...mesmo shape}}, by_country:{<flag>:{...mesmo shape}}}"
           }
         }
       }

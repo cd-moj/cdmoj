@@ -1,21 +1,82 @@
 // contest/statistics/statistics.js — estatísticas ricas do contest (admin/juiz/monitor).
 // As SEÇÕES moram em /lib/stats-view.js: o relatório offline (server/score/report-gen.sh)
 // inlina o mesmo módulo, então as duas telas não podem divergir.
+// R2 (2026-08-30): recorte por SEDE ou PAÍS — dois selects mutuamente exclusivos. O
+// servidor já entrega tudo pronto (by_region/by_country no cache do stats-gen, mesmo
+// shape do global); aqui só se escolhe qual sub-objeto renderizar.
 import { apiGet } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
 import { statsSections } from '/lib/stats-view.js';
 import { T } from '/shared/i18n.js';
+import { flagManifest } from '/shared/flags.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
 const app = document.getElementById('app');
 const enc = encodeURIComponent;
 let probMap = {};
+let statsAll = null;
+let flagNames = {};
+let dim = { kind: '', key: '' };   // ''=global, 'r'=sede, 'c'=país
 
-function render(s) {
+function flagLabel(c) { return flagNames[String(c).toLowerCase()] || String(c).toUpperCase(); }
+
+function currentStats() {
+  if (dim.kind === 'r') return (statsAll.by_region || {})[dim.key] || statsAll;
+  if (dim.kind === 'c') return (statsAll.by_country || {})[dim.key] || statsAll;
+  return statsAll;
+}
+
+// mesma gramática da barra do placar (fRegion/fFlag): sede filtra por nome, país pela
+// chave de bandeira. Escolher um zera o outro — o recorte é UM, nunca a interseção.
+function filterBar() {
+  const regs = Object.keys(statsAll.by_region || {}).sort((a, b) => a.localeCompare(b));
+  const ctys = Object.keys(statsAll.by_country || {})
+    .sort((a, b) => flagLabel(a).localeCompare(flagLabel(b)));
+  if (!regs.length && !ctys.length) return null;
+  const bar = el('div', { class: 'fbar' });
+  let selR = null; let selC = null;
+  if (regs.length) {
+    selR = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
+      ...regs.map((r) => el('option', { value: r }, r)));
+    selR.value = dim.kind === 'r' ? dim.key : '';
+    selR.addEventListener('change', () => {
+      dim = selR.value ? { kind: 'r', key: selR.value } : { kind: '', key: '' };
+      render();
+    });
+    bar.append(el('label', {}, T('Sede:', 'Site:'), selR));
+  }
+  if (ctys.length) {
+    selC = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todos', 'all')),
+      ...ctys.map((c) => el('option', { value: c }, flagLabel(c))));
+    selC.value = dim.kind === 'c' ? dim.key : '';
+    selC.addEventListener('change', () => {
+      dim = selC.value ? { kind: 'c', key: selC.value } : { kind: '', key: '' };
+      render();
+    });
+    bar.append(el('label', {}, T('País:', 'Country:'), selC));
+  }
+  const note = el('span', { class: 'fcount', id: 'fCount' });
+  if (dim.kind) {
+    const s = currentStats();
+    const nm = dim.kind === 'c' ? flagLabel(dim.key) : dim.key;
+    note.textContent = T(`Recorte: ${nm} — ${s.totals.users} de ${statsAll.totals.users} participantes`,
+      `Selection: ${nm} — ${s.totals.users} of ${statsAll.totals.users} participants`);
+    bar.append(el('button', { type: 'button', onclick: () => { dim = { kind: '', key: '' }; render(); } },
+      T('limpar', 'clear')));
+  } else {
+    note.textContent = T(`${statsAll.totals.users} participantes`, `${statsAll.totals.users} participants`);
+  }
+  bar.append(note);
+  return bar;
+}
+
+function render() {
   app.innerHTML = '';
-  statsSections(s, { probMap }).forEach((sec) => app.append(sec));
+  const bar = filterBar();
+  if (bar) app.append(bar);
+  statsSections(currentStats(), { probMap }).forEach((sec) => app.append(sec));
 }
 
 async function boot() {
@@ -32,6 +93,12 @@ async function boot() {
     return;
   }
   try { const pr = await apiGet('/contest/problems?contest=' + enc(CONTEST), { contest: CONTEST, auth: true }); (pr.problems || []).forEach((p) => { probMap[p.problem_id] = p.short_name; }); } catch { /* sem map */ }
-  render(s);
+  try {
+    const mani = await flagManifest();
+    (mani.countries || []).forEach((c) => { flagNames[c.code] = c.name; });
+    (mani.br_states || []).forEach((st) => { flagNames['br-' + st.code] = st.name; });
+  } catch { /* rótulo cai no código */ }
+  statsAll = s;
+  render();
 }
 boot();
