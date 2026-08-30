@@ -96,9 +96,13 @@ review="$(jq -c '{
   pending_total:   length,
   evaluators:      [ .[] | select((.claimants|length)>=1 or (.votes_n//0)>=1 or .conflict==true) ] }' <<<"$allrev")"
 
+# roteamento do ESCRITOR (shards do judged) — mesma fonte única da aba Fila do treino
+routing="$(spool_routing_json)"; [[ -n "$routing" ]] || routing='{}'
+
 ok_json '{now:$now, window:$win,
           judges:{online:($j|map(select(.online))|length), busy:($j|map(select(.state=="busy"))|length),
                   total:($j|length), queue_depth:$qd, assigned:$asg, pool:$pool, list:$j},
-          submissions:$m, review:$rev}' \
+          routing:$rt, submissions:$m, review:$rev}' \
   --argjson now "$now" --argjson win "$WINDOW" --argjson j "$judges" --argjson pool "$pool_json" \
-  --argjson qd "${queue_depth:-0}" --argjson asg "${assigned:-0}" --argjson m "$metrics" --argjson rev "$review"
+  --argjson qd "${queue_depth:-0}" --argjson asg "${assigned:-0}" --argjson rt "$routing" \
+  --argjson m "$metrics" --argjson rev "$review"

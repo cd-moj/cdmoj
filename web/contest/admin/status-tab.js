@@ -77,6 +77,34 @@ export function makeStatusTab(CONTEST) {
         card(T('Resposta p95', 'p95 response'), fmtS(resp.p95_s), (resp.p95_s || 0) > 120),
         ...taskCards));
 
+    // ✍ roteamento do ESCRITOR (shards do judged): entrada/volta por shard + vivacidade
+    // dos workers — a mesma fonte da aba Fila do treino (dashboard.routing).
+    const rt = d.routing || null;
+    if (rt && Array.isArray(rt.workers) && rt.workers.length) {
+      const chip = (w) => {
+        const age = Number(w.alive_age_s);
+        const dead = age < 0 || age > 120;
+        const st = dead
+          ? (age < 0 ? T('morto', 'dead') : T('parado ' + age + 's', 'stalled ' + age + 's'))
+          : (age + 's');
+        return el('span', { class: 'small', style: 'display:inline-block;margin:.15rem .35rem .15rem 0;padding:.2rem .55rem;border-radius:1rem;border:1px solid ' + (dead ? '#c00' : 'var(--line,#d6dbe4)') + (dead ? ';background:#fdeaea;color:#900;font-weight:600' : '') },
+          's' + w.shard + ' ' + (dead ? '⚠ ' : '🟢 ') + st +
+          T(' · entrada ', ' · in ') + (w.in_submit || 0) +
+          T(' · volta ', ' · back ') + (w.in_results || 0) +
+          ((w.in_other || 0) ? T(' · outros ', ' · other ') + w.in_other : ''));
+      };
+      panel.append(el('div', { style: 'margin-top:.5rem' },
+        el('span', { class: 'small muted' },
+          T('✍ Escritor: ', '✍ Writer: ') +
+          (rt.shards > 1 ? rt.shards + T(' shards por hash(login)', ' shards by hash(login)') : T('único', 'single')) +
+          T(' · entregues (5 min): ', ' · delivered (5 min): ') + (rt.delivered_5m || 0) + '  '),
+        ...rt.workers.map(chip),
+        (rt.orphans || 0) > 0
+          ? el('span', { class: 'small', style: 'color:#c00;font-weight:600' },
+              ' ⚠ ' + rt.orphans + T(' em shard órfão (conferir JUDGED_SHARDS nos 2 containers)', ' in orphan shard (check JUDGED_SHARDS on both containers)'))
+          : ''));
+    }
+
     // ⚖️ avaliação manual de veredicto (só aparece quando há fila/conflito)
     const rv = d.review || {};
     if ((rv.pending_total || 0) > 0 || (rv.being_evaluated || 0) > 0 || (rv.conflicts || 0) > 0) {

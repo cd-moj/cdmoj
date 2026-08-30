@@ -920,7 +920,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{total_pending,spool_queued,calib_pending,calib_inflight,calib_targeted,lists:[{contest,name,pending}],pending_details:[…]}"
+            "description": "{total_pending,spool_queued,calib_pending,calib_inflight,calib_targeted,lists:[{contest,name,pending}],pending_details:[…]}. Inclui `routing` (shards do escritor): {shards, workers:[{shard, alive_age_s, in_submit, in_results, in_other}], orphans, queue_depth, assigned, delivered_5m}"
           }
         }
       },
@@ -4636,7 +4636,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{judges:{online,busy,total,queue_depth,assigned,pool,list}, submissions:{total,pending,pending_list,max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline}} (pool = hostnames de CONTEST_JUDGES; [] = sem pool)"
+            "description": "{judges:{online,busy,total,queue_depth,assigned,pool,list}, submissions:{total,pending,pending_list,max_wait_s,response:{avg_s,max_s,p50_s,p95_s},timeline}} (pool = hostnames de CONTEST_JUDGES; [] = sem pool). Inclui `routing` (shards do escritor): {shards, workers:[{shard, alive_age_s, in_submit, in_results, in_other}], orphans, queue_depth, assigned, delivered_5m}"
           }
         }
       }

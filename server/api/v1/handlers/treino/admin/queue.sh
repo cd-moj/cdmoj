@@ -92,11 +92,23 @@ want_details="$(param details)"
 set +o noglob; shopt -s nullglob
 declare -a LISTS; total=0
 DETF="$(mktemp)"; trap 'rm -f "$DETF"' EXIT
+# ⚠ .pending-count de TODOS num awk só (doutrina do index/status.sh, 24/08): o laço fazia
+# `$(count_pending)` POR CONTEST — ~1.500 forks p/ ler caches de 2 bytes; o count_pending de
+# verdade fica p/ quem está sujo/sem cache (comparação -nt, builtin).
+declare -A PEND=()
+while IFS=$'\t' read -r _pc _pn; do PEND["$_pc"]="$_pn"; done < <(
+  find "$CONTESTSDIR" -mindepth 3 -maxdepth 3 -name .pending-count -print0 2>/dev/null \
+    | xargs -0 -r awk 'FNR==1 { n=$0; gsub(/[^0-9]/,"",n); split(FILENAME,p,"/");
+                                print p[length(p)-2] "\t" (n=="" ? "0" : n) }' 2>/dev/null)
 # itera por CONTEST (não por controle/history) — store-v2 não tem history global.
 for cdir in "$CONTESTSDIR"/*/; do
   cdir="${cdir%/}"; cid="${cdir##*/}"
   [[ -f "$cdir/conf" ]] || continue
-  n="$(count_pending "$cid")"; n="${n//[^0-9]/}"; n="${n:-0}"
+  n="${PEND[$cid]-}"
+  if [[ -z "$n" || "$cdir/var/.score-dirty" -nt "$cdir/var/.pending-count" ]]; then
+    n="$(count_pending "$cid")"
+  fi
+  n="${n//[^0-9]/}"; n="${n:-0}"
   if (( n > 0 )); then
     cname="$( . "$cdir/conf" 2>/dev/null; printf '%s' "${CONTEST_NAME:-$cid}" )"
     LISTS+=("$(jq -cn --arg c "$cid" --arg nm "$cname" --argjson n "$n" '{contest:$c, name:$nm, pending:$n}')")
@@ -135,9 +147,12 @@ calib_pending="$(upd_pending_kind_count calibrate)"
 calib_inflight="$(upd_inprogress_kind_count calibrate)"
 calib_targeted="$(cmd_action_count calibrate)"
 lists="$( ((${#LISTS[@]})) && printf '%s\n' "${LISTS[@]}" | jq -cs 'sort_by(-.pending)' || echo '[]')"
+# roteamento do ESCRITOR (shards do judged): entrada/volta por shard, vivacidade dos
+# workers, fila/atribuídos e veredictos entregues em 5 min — fonte única na lib.
+routing="$(spool_routing_json)"; [[ -n "$routing" ]] || routing='{}'
 # pendências por --slurpfile (nunca agregado por --argjson — teto de 128 KiB por argumento)
 ok_json '{total_pending:$t, spool_queued:$sp, calib_pending:$cp, calib_inflight:$ci, calib_targeted:$ct,
-          lists:$lists, pending_details:($d | sort_by(.since))}' \
+          lists:$lists, routing:$rt, pending_details:($d | sort_by(.since))}' \
   --argjson t "$total" --argjson sp "${spool:-0}" \
   --argjson cp "${calib_pending:-0}" --argjson ci "${calib_inflight:-0}" --argjson ct "${calib_targeted:-0}" \
-  --argjson lists "$lists" --slurpfile d "$DETF"
+  --argjson lists "$lists" --argjson rt "$routing" --slurpfile d "$DETF"

@@ -416,6 +416,49 @@ function makeQueueTab() {
       card(num(q.spool_queued), T('na fila (spool)', 'in queue (spool)')),
       card(num(q.calib_pending), T('calibrações na fila', 'calibrations in queue')),
       card(num(q.calib_inflight) + num(q.calib_targeted), T('calibrando agora', 'calibrating now'))));
+
+    // Roteamento do ESCRITOR (shards do judged): entrada (aguardando intake) e a volta dos
+    // resultados (aguardando ingest) POR SHARD, vivacidade de cada worker, fila do cluster
+    // e veredictos entregues nos últimos 5 min. Worker morto/atrasado fica em alerta.
+    const rt = q.routing || null;
+    if (rt && Array.isArray(rt.workers) && rt.workers.length) {
+      const wtb = el('tbody');
+      rt.workers.forEach(w => {
+        const age = Number(w.alive_age_s);
+        let alive;
+        if (age < 0) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ morto (nunca bateu)', '⚠ dead (never beat)'));
+        else if (age > 120) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ parado há ' + age + 's', '⚠ stalled for ' + age + 's'));
+        else alive = el('span', { style: 'color:var(--ok,#1a7f37)' }, T('🟢 vivo (há ' + age + 's)', '🟢 alive (' + age + 's ago)'));
+        const warn = (n) => n > 0 ? el('b', { style: 'color:var(--warn,#a66a00)' }, String(n)) : el('span', { class: 'muted' }, '0');
+        wtb.append(el('tr', {},
+          el('td', {}, el('code', {}, 's' + w.shard)),
+          el('td', {}, alive),
+          el('td', { class: 'n' }, warn(num(w.in_submit))),
+          el('td', { class: 'n' }, warn(num(w.in_results))),
+          el('td', { class: 'n' }, warn(num(w.in_other)))));
+      });
+      const box = el('div', { style: 'margin:.6rem 0' },
+        el('div', { class: 'chart-title' },
+          T('✍ Roteamento do escritor — ', '✍ Writer routing — ') +
+          (rt.shards > 1 ? T(rt.shards + ' shards por hash(login)', rt.shards + ' shards by hash(login)') : T('escritor único', 'single writer'))),
+        el('div', { class: 'chart-wrap' }, el('table', { class: 'moj narrow' },
+          el('thead', {}, el('tr', {},
+            el('th', {}, 'Shard'),
+            el('th', {}, 'Worker'),
+            el('th', { class: 'n' }, T('entrada (p/ julgar)', 'inbound (to judge)')),
+            el('th', { class: 'n' }, T('volta (resultados)', 'returning (results)')),
+            el('th', { class: 'n' }, T('outros', 'other')))), wtb)),
+        el('div', { class: 'small muted', style: 'margin-top:.3rem' },
+          T('fila do cluster: ', 'cluster queue: '), el('b', {}, String(num(rt.queue_depth))),
+          T(' · em julgamento: ', ' · being judged: '), el('b', {}, String(num(rt.assigned))),
+          T(' · veredictos entregues (5 min): ', ' · verdicts delivered (5 min): '), el('b', {}, String(num(rt.delivered_5m)))));
+      if (num(rt.orphans) > 0) {
+        box.append(el('div', { class: 'error-box', style: 'margin-top:.3rem' },
+          T('⚠ ' + num(rt.orphans) + ' arquivo(s) em shard ÓRFÃO (JUDGED_SHARDS da API ≠ daemon?) — o worker 0 devolve à raiz em ≤30 s; se persistir, confira o env dos dois containers.',
+            '⚠ ' + num(rt.orphans) + ' file(s) in ORPHAN shard (API JUDGED_SHARDS ≠ daemon?) — worker 0 returns them to the root in ≤30 s; if it persists, check both containers’ env.')));
+      }
+      s1.append(box);
+    }
     const machines = judges.machines || [];
     if (machines.length) {
       const mtb = el('tbody');

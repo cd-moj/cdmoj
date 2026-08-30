@@ -26,10 +26,13 @@ total=0; online_count=0; busy_any=false
 ms=()
 while IFS= read -r rf; do
   ((total++)); j="$(cat "$rf" 2>/dev/null)"; [[ -n "$j" ]] || continue
-  ls="$(jq -r '.last_seen // 0' <<<"$j" 2>/dev/null)"; [[ "$ls" =~ ^[0-9]+$ ]] || ls=0
+  # dieta 2026-08-31: eram 4 jq escalares POR JUIZ re-parseando o mesmo registro — UMA extração
+  _jx="$(jq -j '[ ((.last_seen // 0)|tostring), (.state // "free"), (.host // ""), (.status // "") ]
+                | join("\u0001")' <<<"$j" 2>/dev/null)"
+  IFS=$'\x01' read -r ls _jstate host ast <<<"$_jx"
+  [[ "$ls" =~ ^[0-9]+$ ]] || ls=0
   on=false; (( ls >= now - REG_TTL )) && { on=true; ((online_count++)); }
-  bz=false; [[ "$(jq -r '.state // "free"' <<<"$j" 2>/dev/null)" == busy ]] && { bz=true; [[ "$on" == true ]] && busy_any=true; }
-  host="$(jq -r '.host // empty' <<<"$j")"
+  bz=false; [[ "$_jstate" == busy ]] && { bz=true; [[ "$on" == true ]] && busy_any=true; }
   # o que a máquina roda AGORA: submissão (run/assigned) tem precedência; senão calibração/index
   # (run/updates/inprogress, ramifica .kind); senão, se busy sem marcador = calibração DIRECIONADA já
   # reivindicada (cmd_claim apaga o arquivo -> não dá p/ nomear o problema). queued_calibrate = alvos
@@ -38,7 +41,6 @@ while IFS= read -r rf; do
   # pode ficar órfão até o TTL — não pintar job fantasma numa máquina offline).
   # multi-slot: TODOS os jobs correntes (assigned/<host>/* + updates in-progress), não só o 1º
   cur='null'; curs='[]'
-  ast="$(jq -r '.status // ""' <<<"$j" 2>/dev/null)"   # status honesto do agente novo (ok|draining|disabled)
   if [[ "$on" == true ]]; then
     curs="$(find "$ASSIGNEDDIR/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
       | jq -sc 'map({kind:"submission", problem_id:(.problem_id//.id//""), login:(.login//""), contest:(.contest//""), lang:(.lang//""), since:(.assigned_at//null)})' 2>/dev/null)"
