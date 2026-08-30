@@ -105,11 +105,12 @@ if [[ "$RIG" == prova ]]; then
   PPID_POLLER=$!
   # medidores
   cpu_of(){ awk '{print $14+$15+$16+$17}' "/proc/$1/stat" 2>/dev/null || echo 0; }
-  # o fcgiwrap é PREFORK (-c 8): o custo mora nos FILHOS persistentes — soma o pool todo
-  cpu_fcgi(){ local t=0 p; for p in $(pgrep fcgiwrap 2>/dev/null); do
-    t=$(( t + $(cpu_of "$p") )); done; echo "$t"; }
+  # ⚠ o fcgiwrap NÃO acumula cutime dos bashs por requisição (medido 30/08: cutime=0 no
+  # pool após 8k reqs) — atribuição fina do tier web exigiria cgroup próprio. O que vale:
+  # CPU do BOX inteiro (user+sys de /proc/stat) como teto, e o judged por utime+cutime.
+  cpu_box(){ awk '/^cpu /{print $2+$3+$4+$7+$8}' /proc/stat; }
   PROC0="$(awk '/^processes/{print $2}' /proc/stat)"
-  CPUJ0="$(cpu_of "$JPID")"; CPUF0="$(cpu_fcgi)"
+  CPUJ0="$(cpu_of "$JPID")"; CPUB0="$(cpu_box)"
   T0="$EPOCHSECONDS"
   # feeder HTTP no relógio do plano (+ pendfile p/ a espiral)
   mapfile -t TT < "$RUND/carga-tokens-teams.txt"
@@ -138,12 +139,12 @@ if [[ "$RIG" == prova ]]; then
     sleep 1
   done
   T1="$EPOCHSECONDS"
-  CPUJ1="$(cpu_of "$JPID")"; CPUF1="$(cpu_fcgi)"
+  CPUJ1="$(cpu_of "$JPID")"; CPUB1="$(cpu_box)"
   PROC1="$(awk '/^processes/{print $2}' /proc/stat)"
   kill "$JPID" "$MPID" "$PPID_POLLER" 2>/dev/null; wait 2>/dev/null; JPID=""; MPID=""
   TICK="$(getconf CLK_TCK)"
   { echo "subs=$SUBOK fails=$SUBFAIL wall_s=$(( T1 - T0 )) veredictos_aterrissados=$nres"
-    echo "cpu_judged_s=$(( (CPUJ1 - CPUJ0) / TICK )) cpu_fcgiwrap_s=$(( (CPUF1 - CPUF0) / TICK ))"
+    echo "cpu_judged_s=$(( (CPUJ1 - CPUJ0) / TICK )) cpu_box_s=$(( (CPUB1 - CPUB0) / TICK ))"
     echo "forks_do_box=$(( PROC1 - PROC0 ))"
     awk '{ n[$2]++; t[$2]+=$4; c[$2 "_" $3]++ } END {
       for (r in n) printf "web %s: n=%d t_avg=%.3fs err=%d\n", r, n[r], t[r]/n[r], n[r]-c[r "_200"] }' \

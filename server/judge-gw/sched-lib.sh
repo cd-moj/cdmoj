@@ -165,45 +165,48 @@ q_claim() {
   sched_init_dirs
   (
     flock 9 || exit 0
-    local band f prob need dest base ts joblang
+    # dieta 2026-08-30: eram 2-6 jq POR JOB examinado — com fila funda (2.000 na Maratona)
+    # e job não-casável no topo, um beat varria O(fila × 6) forks DENTRO do flock. Agora é
+    # UM jq por job: as quatro decisões (capacidade, pool, linguagem, cache quente) saem
+    # numa extração só; os GRACEs continuam no bash (dependem do relógio). Semântica
+    # preservada 1:1 — inclusive `probs` malformado/vazio = "frio" (era o jq -e falhando).
+    local band f dest base ts _d prob capok hostok langok probhot
+    local _probs="$probs"; jq -e . >/dev/null 2>&1 <<<"$_probs" || _probs='{}'
+    local _langs="$langs"; jq -e . >/dev/null 2>&1 <<<"$_langs" || _langs='[]'
     for band in "${SCHED_BANDS[@]}"; do
       while IFS= read -r f; do
         [[ -f "$f" ]] || continue
-        prob="$(jq -r '.problem_id // empty' "$f" 2>/dev/null)"
-        need="$(jq -r '.need_capability // empty' "$f" 2>/dev/null)"
-        [[ -n "$need" && "$need" != "$cap" ]] && continue
-        base="$(basename "$f")"
-        # pool de juízes (allowed_hosts, resolvido no enqueue: problema -> contest): job só
-        # sai p/ host listado. ESTRITO por default (POOL_GRACE=0) — pool offline segura a
-        # fila de propósito (consistência de hardware); POOL_GRACE>0 libera como fallback.
-        if jq -e --arg h "$host" '((.allowed_hosts // [])|length) > 0
-              and (((.allowed_hosts // [])|index($h))|not)' "$f" >/dev/null 2>&1; then
+        _d="$(jq -j --arg h "$host" --arg cap "$cap" --argjson probs "$_probs" --argjson langs "$_langs" '
+          (.problem_id // "") as $p
+          | [ $p,
+              (if ((.need_capability // "") == "" or (.need_capability // "") == $cap) then "1" else "0" end),
+              (if (((.allowed_hosts // []) | length) > 0
+                   and (((.allowed_hosts // []) | index($h)) | not)) then "0" else "1" end),
+              (if (($langs | length) == 0) then "1"
+               else (($langs | map(if . == "py3" or . == "py2" then "py" else . end)) as $L
+                     | ((.lang // "") | ascii_downcase | (if . == "py2" or . == "py3" then "py" else . end)) as $jl
+                     | (if ($jl == "" or (($L | index($jl)) != null)) then "1" else "0" end)) end),
+              (try (([$p, ($p | gsub("#"; "/")), ($p | gsub("/"; "#"))] | unique) as $vs
+                    | (if any($vs[]; in($probs)) then "1" else "0" end)) catch "0")
+            ] | join("\u0001")' "$f" 2>/dev/null)" || continue
+        IFS=$'\x01' read -r prob capok hostok langok probhot <<<"$_d"
+        [[ "$capok" == 1 ]] || continue
+        base="${f##*/}"
+        # pool de juízes (allowed_hosts): ESTRITO por default (POOL_GRACE=0) — pool
+        # offline segura a fila de propósito; POOL_GRACE>0 libera como fallback.
+        if [[ "$hostok" == 0 ]]; then
           ts="${base%%_*}"
           { (( POOL_GRACE > 0 )) && [[ "$ts" =~ ^[0-9]+$ ]] \
               && (( EPOCHSECONDS - ts > POOL_GRACE )); } || continue
         fi
-        # route by language: só julga se o host TEM o toolchain da linguagem do job. Sem ele,
-        # espera LANG_GRACE (dá vez a quem tem); depois pega como fallback (juiz incapaz ->
-        # CE, mas a submissão não fica presa p/ sempre). langs vazio = filtro desligado.
-        if [[ -n "$langs" && "$langs" != "[]" ]]; then
-          joblang="$(jq -r '.lang // empty' "$f" 2>/dev/null | tr 'A-Z' 'a-z')"
-          # python unificado: normaliza dos DOIS lados (job .py2/.py3 legado; juiz com
-          # inventário antigo anunciando py3) — sem isso a transição espera LANG_GRACE.
-          case "$joblang" in py2|py3) joblang=py;; esac
-          if [[ -n "$joblang" ]] && ! printf '%s' "$langs" \
-               | jq -e --arg l "$joblang" 'map(if .=="py3" or .=="py2" then "py" else . end) | index($l)' >/dev/null 2>&1; then
-            ts="${base%%_*}"
-            [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= LANG_GRACE )) && continue
-          fi
+        # route by language: sem o toolchain espera LANG_GRACE; depois pega como fallback.
+        if [[ "$langok" == 0 ]]; then
+          ts="${base%%_*}"
+          [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= LANG_GRACE )) && continue
         fi
-        # modelo cache: QUALQUER juiz capaz pode julgar (baixa o pacote + calibra sob
-        # demanda). Preferência "quente": quem JÁ tem o problema (cache calibrado)
-        # reivindica na hora; quem não tem só pega após COLD_GRACE, dando vantagem aos
-        # juízes quentes. Tolerante à convenção de id (repo#prob vs repo/prob).
-        if ! printf '%s' "$probs" | jq -e --arg p "$prob" '
-              . as $obj
-              | ([$p, ($p|gsub("#";"/")), ($p|gsub("/";"#"))] | unique) as $vs
-              | any($vs[]; in($obj))' >/dev/null 2>&1; then
+        # modelo cache: juiz "quente" (tem o problema) reivindica na hora; frio espera
+        # COLD_GRACE — a vantagem dos caches calibrados.
+        if [[ "$probhot" == 0 ]]; then
           ts="${base%%_*}"
           [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= COLD_GRACE )) && continue
         fi

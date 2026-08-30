@@ -23,7 +23,7 @@ body="$(read_body)"
 # UMA extração (validação inclusa: JSON ruim quebra o próprio jq; campos sem \x01)
 _hb="$(jq -j '[ (.host // ""), (.state // "free"), (.inv_hash // ""),
                 ((.free_slots // "") | tostring), ((.total_slots // 1) | tostring),
-                (.cfg_hash // ""), (.status // "") ] | join("")' <<<"$body" 2>/dev/null)" \
+                (.cfg_hash // ""), (.status // "") ] | join("\u0001")' <<<"$body" 2>/dev/null)" \
   || fail 400 "Invalid JSON body" "bad_json"
 IFS=$'\x01' read -r host state inv_hash free_slots total_slots agent_cfg_hash agent_status <<<"$_hb"
 valid_hostname "$host" || fail 400 "Invalid host" "host_invalid"
