@@ -33,7 +33,7 @@ _alert_judges_online(){
 }
 _alert_work_pending(){   # submissões esperando: spool bruto + bandas da fila pull
   local sp=0 bq=0
-  [[ -d "$SPOOLDIR" ]] && sp="$(find "$SPOOLDIR" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l)"
+  [[ -d "$SPOOLDIR" ]] && sp="$(find "$SPOOLDIR" -type f ! -name '.*' 2>/dev/null | wc -l)"
   [[ -d "$QUEUEDIR" ]] && bq="$(find "$QUEUEDIR" -mindepth 2 -name '*.json' 2>/dev/null | wc -l)"
   echo $(( sp + bq ))
 }

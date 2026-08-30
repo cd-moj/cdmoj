@@ -28,12 +28,13 @@ ID="$(printf '%s%s%s%s%s' "$contest" "$AGORA" "$SESSION_LOGIN" "$username" "$RAN
       | md5sum | cut -d' ' -f1)"
 
 mkdir -p "$SPOOLDIR"
+_sd="$(spool_shard_dir "$username")"   # shard do ALUNO alvo (K=1 ⇒ raiz)
 spoolname="$contest:$AGORA:$ID:$SESSION_LOGIN:setverdict:$problem"
-tmp="$SPOOLDIR/.in.$ID"
+tmp="$_sd/.in.$ID"
 jq -cn --arg c "$contest" --arg j "$SESSION_LOGIN" --arg p "$problem" \
    --arg v "$verdict" --arg u "$username" --argjson ts "$AGORA" --arg id "$ID" \
    '{action:"set-verdict", contest:$c, judge:$j, problem_id:$p,
      verdict:$v, username:$u, time:$ts, id:$id}' > "$tmp"
-mv -f "$tmp" "$SPOOLDIR/$spoolname"
+mv -f "$tmp" "$_sd/$spoolname"
 
 ok_json '{action:"set-verdict", id:$id, status:"queued"}' --arg id "$ID"

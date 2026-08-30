@@ -10,7 +10,8 @@ declare -A COUNT
 total=0
 if [[ -d "$SPOOLDIR" ]]; then
   shopt -s nullglob
-  for f in "$SPOOLDIR"/*; do
+  for f in "$SPOOLDIR"/* "$SPOOLDIR"/s*/*; do
+    [[ -f "$f" ]] || continue
     base="${f##*/}"
     [[ "$base" == .* || "$base" == .in.* ]] && continue
     [[ "$base" == *:* ]] || continue

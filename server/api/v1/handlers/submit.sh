@@ -66,8 +66,9 @@ AGORA="$EPOCHSECONDS"
 ID="$(printf '%s%s%s%s%s' "$contest" "$AGORA" "$SESSION_LOGIN" "$problem" "$RANDOM" | md5sum | cut -d' ' -f1)"
 
 mkdir -p "$SPOOLDIR"
+_sd="$(spool_shard_dir "$SESSION_LOGIN")"   # shard do DONO (lib/spool-shard.sh; K=1 ⇒ raiz)
 spoolname="$contest:$AGORA:$ID:$SESSION_LOGIN:submit:$problem:$FILETYPE"
-tmp="$SPOOLDIR/.in.$ID"
+tmp="$_sd/.in.$ID"
 jq -cn --arg c "$contest" --arg l "$SESSION_LOGIN" --arg p "$problem" \
    --arg f "$filename" --rawfile b "$B64F" --arg t "$FILETYPE" \
    --argjson ts "$AGORA" --arg id "$ID" \
@@ -78,7 +79,7 @@ if ! jq -e '.code_b64 | length > 0' "$tmp" >/dev/null 2>&1; then
   rm -f "$tmp"
   fail 500 "Falha ao gravar a submissão — tente de novo" "spool_write_failed"
 fi
-mv -f "$tmp" "$SPOOLDIR/$spoolname"   # atômico: só aparece pronto p/ o daemon
+mv -f "$tmp" "$_sd/$spoolname"   # atômico: só aparece pronto p/ o daemon (no shard do dono)
 
 # entrada provisória no histórico p/ o front mostrar "loading" no polling
 # (users/<login>/history: login implícito, linha de 6 campos).

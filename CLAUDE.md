@@ -406,6 +406,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `auth.status` → segue o chief/admin em qualquer página); o painel **Operação › Situação** traz estatística por juiz
   (`review/stats`, derivada do `admin-audit.log`). **Mexeu no `judged.sh` → reinicie o
   daemon** (mantendo `INTAKE_MODE`/`JUDGE_BACKEND`); handlers/score são frescos por requisição.
+- **SHARDS do escritor (`JUDGED_SHARDS=K`, default 1)**: o judged particiona em K workers por
+  `hash(login) % K` (`lib/spool-shard.sh` — a MESMA lib nos handlers e no daemon), porque o
+  escritor único é POR USUÁRIO, não por instância (teto serial ~820 veredictos/min ⇒ ~K×820,
+  medido na bancada: K=8 dá 10.894/min no ingest isolado). Shard 0 = raiz do spool (K=1 =
+  comportamento de sempre, zero subdir); k>0 = `spool/submissions/s<k>/`. Produtor que SABE o
+  login grava no shard do dono (`spool_shard_dir`); o resto cai na raiz e o worker 0 roteia.
+  ⚠ **API e daemon precisam do MESMO `JUDGED_SHARDS` no env dos DOIS containers** (mismatch não
+  perde nada: roteador + sweep de órfãos cobrem, mas mede/roda pior). Leitor novo de spool varre
+  raiz **e** `s*/` (a lista dos atuais está no cabeçalho da lib). Teste: `smoke-judged-shard.sh`.
 - **Liveness do daemon = `daemon_judged_alive()` (`lib/common.sh`), NUNCA `pgrep` direto.** Em
   produção a API (`moj-api`) e o daemon (`moj-judged`) são containers **separados**: o `pgrep` da API
   jamais vê o processo. O daemon bate um heartbeat em `run/judged.alive` (volume compartilhado) e o

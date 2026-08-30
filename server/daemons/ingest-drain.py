@@ -70,6 +70,33 @@ def should_hold(c, login, prob, lang, verdict, vcanon):
     return not auto_allows(matrix, prob, lang, vcanon)
 
 
+
+
+def spool_names():
+    """nomes RELATIVOS ao SPOOL, raiz + shards s<k>/ (JUDGED_SHARDS>1 particiona o spool
+    em subdiretorios por hash(login) — ver lib/spool-shard.sh; drain com daemon parado
+    precisa varrer TUDO)."""
+    out = []
+    subs = [""]
+    try:
+        subs += sorted(d for d in os.listdir(SPOOL)
+                       if d.startswith("s") and d[1:].isdigit()
+                       and os.path.isdir(os.path.join(SPOOL, d)))
+    except OSError:
+        pass
+    for sub in subs:
+        root = os.path.join(SPOOL, sub) if sub else SPOOL
+        try:
+            ns = os.listdir(root)
+        except OSError:
+            continue
+        for n in ns:
+            if n.startswith(".") or n.endswith(".tmp"):
+                continue
+            out.append(os.path.join(sub, n) if sub else n)
+    return out
+
+
 def process(base):
     path = os.path.join(SPOOL, base)
     try:
@@ -153,7 +180,7 @@ def process(base):
                         pass
         except OSError:
             pass
-    os.replace(path, os.path.join(DONE, base))
+    os.replace(path, os.path.join(DONE, os.path.basename(base)))
     return ("ok", c, login)
 
 
@@ -163,9 +190,8 @@ def main():
     ok = skip = 0
     t0 = time.time()
     while True:
-        names = [n for n in os.listdir(SPOOL)
-                 if not n.startswith(".") and not n.endswith(".tmp")
-                 and n.split(":")[4:5] == ["result"]]
+        names = [n for n in spool_names()
+                 if os.path.basename(n).split(":")[4:5] == ["result"]]
         names.sort()
         todo = [n for n in names if n not in main.seen]
         if not todo:

@@ -542,7 +542,8 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
 (e `treino/var/admin-audit.log` no treino) — o contest fica auto-contido.
 
 ### Juiz & daemons
-Submissão **assíncrona** (spool + `inotify`), `judged.sh`, e julgamento **pull**: o daemon
+Submissão **assíncrona** (spool + `inotify`), `judged.sh` (particionável em K workers por
+hash(login) — `JUDGED_SHARDS`, ver FLOW.md §2), e julgamento **pull**: o daemon
 enfileira por prioridade (`judge-gw/sched-lib.sh`) e os juízes (`moj-agent@`) puxam o job no
 heartbeat, baixam o pacote sob demanda, calibram e reportam veredicto/TL por HTTP — sem master,
 sem push de entrada. Backends `mock`/`local` do `judge.sh` ficam só p/ dev/legado. Detalhes em

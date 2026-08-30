@@ -6,6 +6,7 @@
 # uma lib a mais no router e a menos no molde viraria "function not found" só em produção.
 # Espera $_DIR = raiz de api/v1 (o router e o molde o definem antes).
 source "$_DIR/lib/common.sh"
+source "$_DIR/lib/spool-shard.sh"
 source "$_DIR/lib/params.sh"
 source "$_DIR/lib/auth.sh"
 source "$_DIR/lib/worker-auth.sh"

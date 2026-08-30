@@ -102,8 +102,9 @@ while (( i < NP )); do
 
   ID="$(printf '%s%s%s%s%s' "$contest" "$claimed" "$SESSION_LOGIN" "$problem" "$RANDOM" | md5sum | cut -d' ' -f1)"
   mkdir -p "$SPOOLDIR"
+  _sd="$(spool_shard_dir "$SESSION_LOGIN")"   # shard do DONO (K=1 ⇒ raiz)
   spoolname="$contest:$claimed:$ID:$SESSION_LOGIN:submit:$problem:$FILETYPE"
-  tmp="$SPOOLDIR/.in.$ID"
+  tmp="$_sd/.in.$ID"
   # a FONTE vai por ARQUIVO (--rawfile), nunca argv: `--arg b` estourava ARG_MAX >~96 KiB e
   # publicava spool de 0 bytes (pendente eterno) — mesma classe do /submit online
   _b64f="$(mktemp)"; printf '%s' "$codeb64" > "$_b64f"
@@ -117,7 +118,7 @@ while (( i < NP )); do
   if ! jq -e '.code_b64 | length > 0' "$tmp" >/dev/null 2>&1; then
     rm -f "$tmp"; exec 8>&-; reject "falha ao gravar a submissão (tente de novo)"; continue
   fi
-  mv -f "$tmp" "$SPOOLDIR/$spoolname"
+  mv -f "$tmp" "$_sd/$spoolname"
 
   user_history_append "$contest" "$SESSION_LOGIN" \
     "$claimed:$problem:$FILETYPE:Not Answered Yet:$claimed:$ID"

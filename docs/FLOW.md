@@ -78,6 +78,18 @@ seguro, reescrita atômica via `mv`), recomputa `users/<login>/metrics.json`, ar
 decodificado, e dispara `server/score/build.sh <contest>` para recalcular o placar. Por fim
 move o arquivo para `run/spool/submissions-done/`.
 
+**Shards do escritor** (`JUDGED_SHARDS=K`, default 1 — `api/v1/lib/spool-shard.sh`): com
+K>1 o daemon vira K workers, cada um dono dos logins com `hash(login) % K == k`. O teto
+serial (~820 veredictos/min medidos) escala ~K× porque history/metrics/submissions são
+POR USUÁRIO; placar (flock coalescido), clog (append) e a fila do cluster (flock próprio)
+já eram seguros entre processos. Layout: shard 0 = a raiz do spool; shard k>0 =
+`spool/submissions/s<k>/`. Os produtores que sabem o login (`/submit`, `offline-submit`,
+`/judge/result`, setverdict) gravam direto no shard do dono; o que cair na raiz (rejudge
+de admin, produtor legado) o worker 0 ROTEIA. O reconciliador roda particionado (cada
+worker só olha os próprios logins) e cada worker bate `judged.alive` (global) +
+`judged.alive.s<k>`. ⚠ API e daemon precisam do MESMO `JUDGED_SHARDS` no env (mismatch
+tem rede: sweep de dirs órfãos devolve à raiz). Teste: `smoke-judged-shard.sh`.
+
 No modo **fila/pull** (`INTAKE_MODE=queue`, ver `server/judge-gw/PULL.md`), em vez de julgar
 na hora o daemon **enfileira** um job JSON `{id,contest,problem_id,login,lang,filename,
 code_b64,priority,enqueued_at,allowed_hosts?}` na banda do `CONTEST_PRIORITY`; um juiz o

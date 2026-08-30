@@ -242,7 +242,7 @@ oldest=0
 while IFS= read -r f; do
   m="$(stat -c %Y "$f" 2>/dev/null)"; [[ "$m" =~ ^[0-9]+$ ]] || continue
   (( oldest == 0 || m < oldest )) && oldest=$m
-done < <(find "$SPOOLDIR" -maxdepth 1 -type f 2>/dev/null | head -50)
+done < <(find "$SPOOLDIR" -type f 2>/dev/null | head -50)
 if (( oldest > 0 && now - oldest > 120 )); then
   add daemon fail "Spool travado" "submissão esperando há $(( (now-oldest)/60 )) min — o daemon moj-judged está rodando?"
 else

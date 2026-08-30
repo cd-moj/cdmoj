@@ -84,9 +84,36 @@ def give_back(claim, orig):
         pass
 
 
+
+
+def spool_names():
+    """nomes RELATIVOS ao SPOOL, raiz + shards s<k>/ (JUDGED_SHARDS>1 particiona o spool
+    em subdiretorios por hash(login) — ver lib/spool-shard.sh; drain com daemon parado
+    precisa varrer TUDO)."""
+    out = []
+    subs = [""]
+    try:
+        subs += sorted(d for d in os.listdir(SPOOL)
+                       if d.startswith("s") and d[1:].isdigit()
+                       and os.path.isdir(os.path.join(SPOOL, d)))
+    except OSError:
+        pass
+    for sub in subs:
+        root = os.path.join(SPOOL, sub) if sub else SPOOL
+        try:
+            ns = os.listdir(root)
+        except OSError:
+            continue
+        for n in ns:
+            if n.startswith(".") or n.endswith(".tmp"):
+                continue
+            out.append(os.path.join(sub, n) if sub else n)
+    return out
+
+
 def process(base):
     orig = os.path.join(SPOOL, base)
-    claim = os.path.join(SPOOL, ".pydrain-" + base)
+    claim = os.path.join(SPOOL, os.path.dirname(base), ".pydrain-" + os.path.basename(base))
     try:
         os.rename(orig, claim)
     except OSError:
@@ -144,15 +171,13 @@ def main():
     idle_since = time.time()
     while True:
         try:
-            names = os.listdir(SPOOL)
+            names = spool_names()
         except OSError:
             time.sleep(1)
             continue
         subs = []
         for n in names:
-            if n.startswith(".") or n.endswith(".tmp"):
-                continue
-            p = n.split(":")
+            p = os.path.basename(n).split(":")
             if len(p) >= 7 and p[4] == "submit":
                 subs.append(n)
         subs.sort()

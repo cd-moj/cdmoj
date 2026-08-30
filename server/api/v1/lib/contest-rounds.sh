@@ -91,7 +91,8 @@ rd_next(){ rd_sync_active "$1" | jq -r 'first((.rounds // [])[] | select(.state 
 rd_jobs_in_flight(){
   local c="$1" n=0 f
   ( set +o noglob; shopt -s nullglob
-    for f in "${SPOOLDIR:-$RUNDIR/spool/submissions}/$c:"*; do [[ -e "$f" ]] && printf 'x\n'; done
+    for f in "${SPOOLDIR:-$RUNDIR/spool/submissions}/$c:"* \
+             "${SPOOLDIR:-$RUNDIR/spool/submissions}/s"*"/$c:"*; do [[ -e "$f" ]] && printf 'x\n'; done
     for f in "${QUEUEDIR:-$RUNDIR/queue}"/*/*.json "${ASSIGNEDDIR:-$RUNDIR/assigned}"/*/*.json; do
       [[ -f "$f" ]] || continue
       [[ "$(jq -r '.contest // ""' "$f" 2>/dev/null)" == "$c" ]] && printf 'x\n'

@@ -48,7 +48,7 @@ for cdir in "$CONTESTSDIR"/*/; do
 done
 shopt -u nullglob
 lists="$( ((${#LISTS[@]})) && printf '%s\n' "${LISTS[@]}" | jq -cs 'sort_by(-.pending)' || echo '[]')"
-spool=0; [[ -d "$SPOOLDIR" ]] && spool="$(find "$SPOOLDIR" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l)"
+spool=0; [[ -d "$SPOOLDIR" ]] && spool="$(find "$SPOOLDIR" -type f ! -name '.*' 2>/dev/null | wc -l)"
 
 # --- juízes (modelo PULL): online = heartbeat fresco; ocupado = state busy ---
 : "${REGISTRYDIR:=$RUNDIR/registry}"; : "${QUEUEDIR:=$RUNDIR/queue}"; : "${REG_TTL:=30}"

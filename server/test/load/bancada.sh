@@ -51,7 +51,7 @@ mkdir -p "$RUND"
 if [[ "$RIG" == prova ]]; then
   DEVBASE="${BANCADA_BASE:-http://127.0.0.1:8080}"
   DEVHOST="zz-bancada.moj.charge.naquadah.com.br"
-  trap '[[ -n "${JPID:-}" ]] && kill "$JPID" 2>/dev/null; [[ -n "${MPID:-}" ]] && kill "$MPID" 2>/dev/null; [[ -n "${PPID_POLLER:-}" ]] && kill "$PPID_POLLER" 2>/dev/null' EXIT
+  trap '[[ -n "${JPIDS[*]:-}" ]] && kill "${JPIDS[@]}" 2>/dev/null; [[ -n "${MPID:-}" ]] && kill "$MPID" 2>/dev/null; [[ -n "${PPID_POLLER:-}" ]] && kill "$PPID_POLLER" 2>/dev/null' EXIT
   RC="${CONTESTSDIR:-$HOME/moj/contests}"; RR="${RUNDIR:-$HOME/moj/run}"
   curl -s -o /dev/null -m 3 "$DEVBASE/api/v1/index/status" -H "Host: moj.charge.naquadah.com.br" \
     || { echo "pilha web de dev fora do ar (start-fcgiwrap.sh + nginx do ~/nginx-proxy)"; exit 1; }
@@ -89,11 +89,20 @@ if [[ "$RIG" == prova ]]; then
      --argjson probs "$(printf '%s\n' "${CANON[@]}" | jq -Rcs 'split("\n")|map(select(length>0))')" \
     '{host:"mockj", last_seen:$now, state:"free", inv_hash:"bancada", free_slots:8,
       total_slots:8, ncpu:8, problems:$probs, langs:[], capability:""}' > "$RR/registry/mockj.json"
-  ( cd "$ROOT/daemons" && exec env CONTESTSDIR="$RC" RUNDIR="$RR" \
-      SPOOLDIR="$RR/spool/submissions" SPOOLDONEDIR="$RR/spool/submissions-done" \
-      JUDGE_BACKEND=queue INTAKE_MODE=queue SCORE_COALESCE_S=5 \
-      bash judged.sh >/dev/null 2>>"$RUND/judged.err" ) &
-  JPID=$!
+  # BANCADA_SHARDS=K lança K WORKERS particionados (JUDGED_SHARD=k) — direto, sem o
+  # supervisor, p/ a soma de CPU por worker sair de /proc/<pid>/stat de cada um.
+  # ⚠ o tier web precisa do MESMO JUDGED_SHARDS no env do fcgiwrap (senão tudo cai na
+  # raiz e o worker 0 vira roteador — funciona, mas mede outra coisa).
+  BSH="${BANCADA_SHARDS:-1}"
+  JPIDS=()
+  for (( _k = 0; _k < BSH; _k++ )); do
+    ( cd "$ROOT/daemons" && exec env CONTESTSDIR="$RC" RUNDIR="$RR" \
+        SPOOLDIR="$RR/spool/submissions" SPOOLDONEDIR="$RR/spool/submissions-done" \
+        JUDGE_BACKEND=queue INTAKE_MODE=queue SCORE_COALESCE_S=5 \
+        JUDGED_SHARDS="$BSH" JUDGED_SHARD="$_k" \
+        bash judged.sh >/dev/null 2>>"$RUND/judged.err" ) &
+    JPIDS+=($!)
+  done
   # rotas de juiz vão no host PRINCIPAL (o vhost do contest isola /judge/*)
   RUNDIR="$RR" MOCKJ_BASE="$DEVBASE" MOCKJ_HOST="moj.charge.naquadah.com.br" \
     "$HERE/bancada-mock-judge.sh" "$ROOT/api/v1/router.sh" "$RUND" >/dev/null 2>>"$RUND/mockj.err" &
@@ -105,12 +114,13 @@ if [[ "$RIG" == prova ]]; then
   PPID_POLLER=$!
   # medidores
   cpu_of(){ awk '{print $14+$15+$16+$17}' "/proc/$1/stat" 2>/dev/null || echo 0; }
+  cpu_jsum(){ local s=0 p v; for p in "${JPIDS[@]}"; do v="$(cpu_of "$p")"; s=$(( s + ${v:-0} )); done; echo "$s"; }
   # ⚠ o fcgiwrap NÃO acumula cutime dos bashs por requisição (medido 30/08: cutime=0 no
   # pool após 8k reqs) — atribuição fina do tier web exigiria cgroup próprio. O que vale:
   # CPU do BOX inteiro (user+sys de /proc/stat) como teto, e o judged por utime+cutime.
   cpu_box(){ awk '/^cpu /{print $2+$3+$4+$7+$8}' /proc/stat; }
   PROC0="$(awk '/^processes/{print $2}' /proc/stat)"
-  CPUJ0="$(cpu_of "$JPID")"; CPUB0="$(cpu_box)"
+  CPUJ0="$(cpu_jsum)"; CPUB0="$(cpu_box)"
   T0="$EPOCHSECONDS"
   # feeder HTTP no relógio do plano (+ pendfile p/ a espiral)
   mapfile -t TT < "$RUND/carga-tokens-teams.txt"
@@ -139,11 +149,11 @@ if [[ "$RIG" == prova ]]; then
     sleep 1
   done
   T1="$EPOCHSECONDS"
-  CPUJ1="$(cpu_of "$JPID")"; CPUB1="$(cpu_box)"
+  CPUJ1="$(cpu_jsum)"; CPUB1="$(cpu_box)"
   PROC1="$(awk '/^processes/{print $2}' /proc/stat)"
-  kill "$JPID" "$MPID" "$PPID_POLLER" 2>/dev/null; wait 2>/dev/null; JPID=""; MPID=""
+  kill "${JPIDS[@]}" "$MPID" "$PPID_POLLER" 2>/dev/null; wait 2>/dev/null; JPIDS=(); MPID=""
   TICK="$(getconf CLK_TCK)"
-  { echo "subs=$SUBOK fails=$SUBFAIL wall_s=$(( T1 - T0 )) veredictos_aterrissados=$nres"
+  { echo "subs=$SUBOK fails=$SUBFAIL wall_s=$(( T1 - T0 )) veredictos_aterrissados=$nres shards=$BSH"
     echo "cpu_judged_s=$(( (CPUJ1 - CPUJ0) / TICK )) cpu_box_s=$(( (CPUB1 - CPUB0) / TICK ))"
     echo "forks_do_box=$(( PROC1 - PROC0 ))"
     awk '{ n[$2]++; t[$2]+=$4; c[$2 "_" $3]++ } END {

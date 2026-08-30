@@ -12,10 +12,11 @@ source "$_DIR/../../judge-gw/sched-lib.sh"
 # `<<<"$body"` o regrava num temp e re-parseia (eram 5 parses; doutrina do read_body_file).
 # Agora: corpo em ARQUIVO + UMA extração (validação inclusa: JSON ruim quebra o próprio jq).
 bf="$(read_body_file)"
-_ext="$(jq -j '[ (.id // ""), (.host // ""), (.contest // ""), (.problem_id // "") ]
+_ext="$(jq -j '[ (.id // ""), (.host // ""), (.contest // ""), (.problem_id // ""),
+                 (.login // "") ]
                | join("\u0001")' "$bf" 2>/dev/null)" \
   || { rm -f "$bf"; fail 400 "Invalid JSON body" "bad_json"; }
-IFS=$'\x01' read -r id host contest problem <<<"$_ext"
+IFS=$'\x01' read -r id host contest problem login <<<"$_ext"
 [[ -n "$id" && -n "$host" && -n "$contest" ]] || { rm -f "$bf"; fail 400 "Missing id/host/contest" "result_incomplete"; }
 valid_id "$id"        || fail 400 "Invalid id" "id_invalid"
 valid_hostname "$host"|| fail 400 "Invalid host" "host_invalid"
@@ -30,10 +31,11 @@ reg_touch_state "$host" free 2>/dev/null || true
 AGORA="$EPOCHSECONDS"
 spoolname="$contest:$AGORA:$id:$host:result:$problem"
 mkdir -p "$SPOOLDIR" 2>/dev/null
-tmp="$SPOOLDIR/.in.result.$id.${BASHPID}"
+_sd="$(spool_shard_dir "$login")"   # shard do DONO do login (K=1 ⇒ raiz; login vazio ⇒ shard 0)
+tmp="$_sd/.in.result.$id.${BASHPID}"
 # o corpo já está em arquivo: cp + mv atômico (fs diferentes); o jq -e de validação
 # virou parte da extração acima
-cp -f "$bf" "$tmp" && mv -f "$tmp" "$SPOOLDIR/$spoolname"
+cp -f "$bf" "$tmp" && mv -f "$tmp" "$_sd/$spoolname"
 rm -f "$bf"
 
 ok_json '{id:$i, accepted:true}' --arg i "$id"

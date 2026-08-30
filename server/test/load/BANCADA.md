@@ -68,3 +68,11 @@ Avaliação completa: `AVALIACAO-CPU.md`.
 users) e mede qualquer drain que respeite RUNDIR/CONTESTSDIR, CONFERINDO o resultado.
 Implementações em `linguagens/ingest.{awk,pl,lua,rb,c}` (+ `drain-awk.sh` que embrulha o
 awk com find/xargs). Números e leitura: seção "awk, make e a casinha" do AVALIACAO-CPU.md.
+
+## Shards do escritor (BANCADA_SHARDS)
+
+`BANCADA_SHARDS=K bash bancada.sh prova …` lança K workers judged particionados
+(JUDGED_SHARD=0..K-1) no lugar do daemon único — ⚠ o tier web precisa do MESMO
+`JUDGED_SHARDS=K` no env do fcgiwrap (senão tudo cai na raiz e o worker 0 vira roteador).
+Teto isolado por K: `teto-shard.sh` (scratchpad da sessão) — K=1 1.368/min, K=2 2.545,
+K=4 5.262, K=8 10.894 (escala ~linear: os dados são por-usuário).

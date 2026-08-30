@@ -16,7 +16,7 @@ _PENDING_RE=':(Not Answered Yet|On queue|on queue|Running|running):'
 # estado no pipeline de UMA submissão (pelo id): onde está o rastro dela?
 _sub_state(){  # <id>
   local id="$1"
-  compgen -G "$SPOOLDIR/*:$id:*" >/dev/null 2>&1 && { printf 'no-spool'; return; }
+  { compgen -G "$SPOOLDIR/*:$id:*" || compgen -G "$SPOOLDIR/s*/*:$id:*"; } >/dev/null 2>&1 && { printf 'no-spool'; return; }
   compgen -G "${QUEUEDIR:-$RUNDIR/queue}/*/*_$id.json" >/dev/null 2>&1 && { printf 'na-fila'; return; }
   compgen -G "${ASSIGNEDDIR:-$RUNDIR/assigned}/*/*_$id.json" >/dev/null 2>&1 && { printf 'em-julgamento'; return; }
   compgen -G "$SPOOLDONEDIR/*:$id:*" >/dev/null 2>&1 && { printf 'consumido-sem-veredicto'; return; }
@@ -127,7 +127,7 @@ for cdir in "$CONTESTSDIR"/*/; do
 done
 shopt -u nullglob
 spool=0
-[[ -d "$SPOOLDIR" ]] && spool="$(find "$SPOOLDIR" -maxdepth 1 -type f ! -name '.*' 2>/dev/null | wc -l)"
+[[ -d "$SPOOLDIR" ]] && spool="$(find "$SPOOLDIR" -type f ! -name '.*' 2>/dev/null | wc -l)"
 # fila de CALIBRAÇÃO (mesmo pool de juízes, filas à parte de run/queue): pendente (kind=calibrate,
 # separada dos kind=index), em execução, e recalibrações direcionadas por host. Contador EXPLÍCITO,
 # à parte das submissões normais (total_pending). Contadores já saneiam/def. 0.

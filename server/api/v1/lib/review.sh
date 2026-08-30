@@ -48,11 +48,12 @@ rv_emit_setverdict() {
   local c="$1" id="$2" login="$3" prob="$4" verdict="$5"
   local sid; sid="$(printf '%s%s%s%s' "$c" "$EPOCHSECONDS" "$id" "$RANDOM" | md5sum | cut -c1-32)"
   mkdir -p "$SPOOLDIR"
-  local tmp="$SPOOLDIR/.in.sv.$sid"
+  local _sd; _sd="$(spool_shard_dir "$login")"   # shard do ALUNO dono da submissão (K=1 ⇒ raiz)
+  local tmp="$_sd/.in.sv.$sid"
   jq -cn --arg c "$c" --arg j "${SESSION_LOGIN:-judge}" --arg p "$prob" --arg v "$verdict" \
     --arg u "$login" --arg id "$id" --argjson t "$EPOCHSECONDS" \
     '{action:"set-verdict", contest:$c, judge:$j, problem_id:$p, verdict:$v, username:$u, time:$t, id:$id}' \
-    > "$tmp" && mv -f "$tmp" "$SPOOLDIR/$c:$EPOCHSECONDS:$sid:${SESSION_LOGIN:-judge}:setverdict:$prob"
+    > "$tmp" && mv -f "$tmp" "$_sd/$c:$EPOCHSECONDS:$sid:${SESSION_LOGIN:-judge}:setverdict:$prob"
 }
 
 # rv_expire_filter : filtro jq que descarta claimants/votos expirados (now > expires_at) e os

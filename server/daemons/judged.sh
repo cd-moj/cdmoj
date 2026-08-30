@@ -56,6 +56,55 @@ source "$JUDGE_GW"
 source "$SERVER_DIR/judge-gw/sched-lib.sh"
 # store por-usuário (user_dir, user_history_*, metrics_*) — write-path universal
 source "$SERVER_DIR/api/v1/lib/users.sh"
+# partição do escritor por hash(login) — a MESMA lib dos handlers (shard_of_login)
+source "$SERVER_DIR/api/v1/lib/spool-shard.sh"
+
+# ===== SHARDS do escritor (2026-08-30) =====================================================
+# JUDGED_SHARDS=K (>1) particiona o daemon em K workers por hash(login) — o teto serial de
+# ~820 veredictos/min vira ~K×820 porque os dados são POR USUÁRIO (ver lib/spool-shard.sh).
+# JUDGED_SHARD=k identifica o worker (0..K-1); sem ele e com K>1, o processo vira SUPERVISOR
+# (spawna os K workers e propaga sinais). Worker 0 drena a RAIZ do spool e ROTEIA p/ os
+# irmãos o que produtores legados deixarem lá; worker k>0 drena só $SPOOLDIR/s<k>.
+: "${JUDGED_SHARD:=}"
+MY_SPOOL="$SPOOLDIR"
+if [[ -n "$JUDGED_SHARD" && "$JUDGED_SHARD" != 0 ]]; then
+  MY_SPOOL="$SPOOLDIR/s$JUDGED_SHARD"
+fi
+
+# roteia um arquivo da RAIZ p/ o shard do dono (worker 0). Ecoa o shard do dono; move se ≠ 0.
+# login por KIND: submit/rejulgar = campo 4 do NOME (zero forks); result/setverdict = 1
+# extração do JSON (só no caminho legado — os produtores quentes já gravam no shard certo).
+route_root_file() {
+  local f="$1" base="${f##*/}" login="" k
+  local _f1 _f2 _f3 _f4 _f5
+  IFS=: read -r _f1 _f2 _f3 _f4 _f5 _ <<<"$base"
+  case "$_f5" in
+    submit|rejulgar) login="$_f4" ;;
+    result|setverdict)
+      login="$(jq -r '.login // .username // empty' "$f" 2>/dev/null)" ;;
+    *) login="" ;;   # synctreino/desconhecido: fica no shard 0
+  esac
+  [[ -n "$login" ]] || { printf 0; return 0; }
+  k="$(shard_of_login "$login")"
+  if [[ "$k" != 0 ]]; then
+    mkdir -p "$SPOOLDIR/s$k" 2>/dev/null
+    mv -f "$f" "$SPOOLDIR/s$k/$base" 2>/dev/null
+  fi
+  printf '%s' "$k"
+}
+
+# rede de segurança p/ config-mismatch: dirs s<j> com j >= K (API configurada com K maior
+# que o daemon) voltam à raiz e são re-roteados pelo módulo K vigente. Barato: só dirs.
+sweep_orphan_shards() {
+  local d j f
+  for d in "$SPOOLDIR"/s*/; do
+    [[ -d "$d" ]] || continue
+    j="${d%/}"; j="${j##*/s}"
+    [[ "$j" =~ ^[0-9]+$ ]] || continue
+    (( j >= ${JUDGED_SHARDS:-1} )) || continue
+    for f in "$d"*; do [[ -f "$f" ]] && mv -f "$f" "$SPOOLDIR/${f##*/}" 2>/dev/null; done
+  done
+}
 : "${RESULTSDIR:=$RUNDIR/results}"
 # INTAKE_MODE=legacy|queue (global); INTAKE_QUEUE_CONTESTS="c1 c2" habilita por contest.
 : "${INTAKE_MODE:=legacy}"
@@ -132,7 +181,7 @@ clog() {
     >> "$CONTESTSDIR/$c/var/admin-audit.log" 2>/dev/null || true
 }
 
-mkdir -p "$SPOOLDIR" "$SPOOLDONEDIR" 2>/dev/null
+mkdir -p "$SPOOLDIR" "$SPOOLDONEDIR" "$MY_SPOOL" 2>/dev/null
 
 # valida id de contest antes de tocar contests/<id>/... (evita path traversal).
 valid_contest_id() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] && [[ "$1" != *..* ]]; }
@@ -614,13 +663,20 @@ process_spool_file() {
 # Modos de execução
 # ---------------------------------------------------------------------------
 
-# pega o "próximo" arquivo elegível do spool (ignora dotfiles/.in.*/.tmp).
+# pega o "próximo" arquivo elegível do MEU spool (ignora dotfiles/.in.*/.tmp e DIRETÓRIOS —
+# com shards, os s<k>/ moram dentro da raiz e não podem travar a varredura do worker 0).
+# Worker 0 com K>1: arquivo da raiz que pertence a outro shard é ROTEADO aqui mesmo (1 mv)
+# e a varredura segue — o dono o pega no giro dele.
 next_spool_file() {
-  local f b
-  for f in "$SPOOLDIR"/*; do
-    [[ -e "$f" ]] || continue
+  local f b k
+  for f in "$MY_SPOOL"/*; do
+    [[ -f "$f" ]] || continue
     b="${f##*/}"          # dieta 2026-08-30: era $(basename) — 1 fork+exec POR ARQUIVO
     case "$b" in .*|*.tmp|.in.*) continue ;; esac
+    if (( ${JUDGED_SHARDS:-1} > 1 )) && [[ "${JUDGED_SHARD:-0}" == 0 ]]; then
+      k="$(route_root_file "$f")"
+      [[ "$k" == 0 ]] || continue   # era de outro shard: já foi movido
+    fi
     printf '%s\n' "$f"
     return 0
   done
@@ -666,6 +722,7 @@ _SPOOL_GC_LAST=0
 
 spool_done_gc() {
   local now="$EPOCHSECONDS" n
+  [[ "${JUDGED_SHARD:-0}" == 0 || -z "${JUDGED_SHARD:-}" ]] || return 0   # done/ é compartilhado: 1 GC basta
   (( SPOOL_DONE_KEEP_DAYS > 0 )) || return 0
   (( now - _SPOOL_GC_LAST >= SPOOL_GC_EVERY_S )) || return 0
   _SPOOL_GC_LAST="$now"
@@ -699,8 +756,13 @@ reconcile_stale_pending() {
     local hf login line tempo prob lang se id age
     for hf in "$cdir"users/*/history; do
       [[ -f "$hf" ]] || continue
-      grep -qE ':(Not Answered Yet|On queue|on queue|Running|running):' "$hf" 2>/dev/null || continue
       login="${hf%/history}"; login="${login##*/}"
+      # com shards, cada worker reconcilia SÓ os próprios logins (senão dois workers
+      # re-enfileirariam/carimbariam o mesmo pendente — corrida no history)
+      if (( ${JUDGED_SHARDS:-1} > 1 )); then
+        [[ "$(shard_of_login "$login")" == "${JUDGED_SHARD:-0}" ]] || continue
+      fi
+      grep -qE ':(Not Answered Yet|On queue|on queue|Running|running):' "$hf" 2>/dev/null || continue
       while IFS= read -r line; do
         # campos SEGUROS da linha (verdict pode conter ':'): 1=tempo 2=prob 3=lang NF-1=se NF=id
         IFS=$'\x01' read -r tempo prob lang se id \
@@ -715,6 +777,7 @@ reconcile_stale_pending() {
         # de submissão perfeitamente julgada — aconteceu no warmup da Maratona, 29/08, minutos
         # antes da prova. Revisão não tem idade máxima: quem decide é o juiz.)
         if compgen -G "$SPOOLDIR/*:$id:*" >/dev/null 2>&1 \
+           || compgen -G "$SPOOLDIR/s*/*:$id:*" >/dev/null 2>&1 \
            || compgen -G "$QUEUEDIR/*/*_$id.json" >/dev/null 2>&1 \
            || compgen -G "$ASSIGNEDDIR/*/*_$id.json" >/dev/null 2>&1 \
            || [[ -f "$CONTESTSDIR/$c/review/$id.json" ]]; then
@@ -724,7 +787,7 @@ reconcile_stale_pending() {
         src="$(user_dir "$c" "$login")/submissions/$id.${llang:-txt}"
         if [[ -s "$src" && ! -e "$_recon_tried_dir/$id" ]]; then
           : > "$_recon_tried_dir/$id"
-          : > "$SPOOLDIR/$c:$se:$id:$login:rejulgar:$prob:$lang"
+          : > "$MY_SPOOL/$c:$se:$id:$login:rejulgar:$prob:$lang"   # login é MEU ⇒ meu spool
           log "reconciler: pendente ${age}s sem rastro — re-enfileirado id=$id ($c/$login)"
           clog "$c" pendente-reenfileirado "id=$id login=$login prob=$prob idade=${age}s"
         else
@@ -751,13 +814,18 @@ reconcile_stale_pending() {
 # deploy recomendado: moj-api + moj-judged). Batemos num arquivo do $RUNDIR (volume
 # compartilhado) a cada giro do laço; quem lê é o daemon_judged_alive() do lib/common.sh.
 : "${JUDGED_ALIVE_FILE:=$RUNDIR/judged.alive}"
-beat(){ : > "$JUDGED_ALIVE_FILE" 2>/dev/null || true; }
+# com shards: TODO worker bate o alive global (qualquer um vivo = daemon vivo p/ a API) e o
+# próprio judged.alive.s<k> — é o que permite alertar shard morto individualmente.
+beat(){
+  : > "$JUDGED_ALIVE_FILE" 2>/dev/null || true
+  [[ -n "${JUDGED_SHARD:-}" ]] && { : > "$JUDGED_ALIVE_FILE.s$JUDGED_SHARD" 2>/dev/null || true; }
+}
 
 watch_loop() {
   local f rc
   beat
   if command -v inotifywait >/dev/null 2>&1; then
-    log "watch: inotifywait em $SPOOLDIR (re-arma por evento; re-drena a cada ${WATCH_REDRAIN_SECS:-30}s)"
+    log "watch: inotifywait em $MY_SPOOL (shard ${JUDGED_SHARD:-0}/${JUDGED_SHARDS:-1}; re-drena a cada ${WATCH_REDRAIN_SECS:-30}s)"
     while true; do
       beat
       # beat POR ARQUIVO: um dreno de backlog longo (Maratona 29/08: 2.000+ no spool) passava
@@ -766,7 +834,8 @@ watch_loop() {
       while f="$(next_spool_file)"; do beat; process_spool_file "$f" || break; done
       reconcile_stale_pending
       spool_done_gc
-      inotifywait -q -e create -e moved_to -t "${WATCH_REDRAIN_SECS:-30}" "$SPOOLDIR" >/dev/null 2>&1
+      if (( ${JUDGED_SHARDS:-1} > 1 )) && [[ "${JUDGED_SHARD:-0}" == 0 ]]; then sweep_orphan_shards; fi
+      inotifywait -q -e create -e moved_to -t "${WATCH_REDRAIN_SECS:-30}" "$MY_SPOOL" >/dev/null 2>&1
       rc=$?
       # rc 0=evento, 2=timeout (re-drena no topo). Erro real (1/outros): evita busy-loop.
       (( rc == 0 || rc == 2 )) || sleep 1
@@ -778,6 +847,7 @@ watch_loop() {
       while f="$(next_spool_file)"; do process_spool_file "$f" || break; done
       reconcile_stale_pending
       spool_done_gc
+      if (( ${JUDGED_SHARDS:-1} > 1 )) && [[ "${JUDGED_SHARD:-0}" == 0 ]]; then sweep_orphan_shards; fi
       sleep 1
     done
   fi
@@ -794,7 +864,37 @@ wait_for_one() {
   return 1
 }
 
+# SUPERVISOR (JUDGED_SHARDS=K>1 sem JUDGED_SHARD): spawna os K workers com o MESMO modo e
+# propaga TERM/INT. Um worker que morre é re-spawnado (backoff 5 s) — shard parado = fatia
+# de usuários sem veredicto, que é pior que daemon caído inteiro (o alerta global não vê).
+# Em --drain/--once/--reconcile os filhos rodam a tarefa e o supervisor espera todos.
+supervise_shards() {
+  local mode="${1:-}" k pids=()
+  log "supervisor: ${JUDGED_SHARDS} shards (modo ${mode:---watch})"
+  trap 'kill "${pids[@]}" 2>/dev/null; wait; exit 0' TERM INT
+  if [[ -z "$mode" || "$mode" == --watch || "$mode" == --daemon ]]; then
+    while true; do
+      pids=()
+      for (( k=0; k<JUDGED_SHARDS; k++ )); do
+        JUDGED_SHARD="$k" bash "$0" "$mode" & pids+=($!)
+      done
+      wait -n 2>/dev/null   # um worker caiu: derruba os irmãos e re-spawna o conjunto
+      log "supervisor: worker de shard morreu — reiniciando o conjunto em 5s"
+      kill "${pids[@]}" 2>/dev/null; wait 2>/dev/null
+      sleep 5
+    done
+  else
+    for (( k=0; k<JUDGED_SHARDS; k++ )); do
+      JUDGED_SHARD="$k" bash "$0" "$mode" & pids+=($!)
+    done
+    wait
+  fi
+}
+
 main() {
+  if (( ${JUDGED_SHARDS:-1} > 1 )) && [[ -z "${JUDGED_SHARD:-}" ]]; then
+    case "${1:-}" in ""|--watch|--daemon|--drain|--once|--reconcile) supervise_shards "${1:-}"; exit 0;; esac
+  fi
   case "${1:-}" in
     --once)
       log "modo --once: processa 1 arquivo e sai (SPOOLDIR=$SPOOLDIR, backend=$JUDGE_BACKEND)"
