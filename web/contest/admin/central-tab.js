@@ -78,7 +78,9 @@ export function makeCentralTab(CONTEST, opts = {}) {
       apiGet('/contest/admin/docs?contest=' + enc(CONTEST), G).catch(() => null),
       apiGet('/contest/admin/rounds?contest=' + enc(CONTEST), G).catch(() => null),
       apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G).catch(() => null),
-      apiGet('/contest/admin/finish?contest=' + enc(CONTEST), G).catch(() => null),
+      // erro NUNCA vira null mudo: o cartão "Depois da prova" sumia em silêncio (403 do
+      // .cjudge, Maratona 29/08) — o load renderiza o erro quando o cartão era esperado.
+      apiGet('/contest/admin/finish?contest=' + enc(CONTEST), G).catch((e) => ({ _err: (e && e.message) || T('falha de rede', 'network error') })),
     ]);
 
     // ---------- 1. falta para começar ----------
@@ -103,8 +105,18 @@ export function makeCentralTab(CONTEST, opts = {}) {
       ...good.map(checkEl)));
     panel.append(box1);
 
-    // ---------- 1½. depois da prova (só quando acabou p/ TODOS — quem decide é a API) -------
-    if (fin && fin.can_finish) {
+    // ---------- 1½. depois da prova ------------------------------------------------------
+    // Renderiza sempre que o cartão é ESPERADO (fim base já passou), mesmo quando
+    // can_finish=false (prorrogação de sede) ou o GET falhou — sumir em silêncio foi o bug
+    // da Maratona 29/08. can_act=false (juiz-chefe) = checklist somente-leitura.
+    const postEnd = !st || !st.end || Math.floor(Date.now() / 1000) > st.end;
+    if (fin && fin._err) {
+      if (postEnd) panel.append(el('div', { class: 'section' },
+        el('h2', { style: 'margin:.1rem 0' }, T('Depois da prova', 'After the contest')),
+        el('div', { class: 'small error-box' },
+          T('Não foi possível consultar o encerramento: ', 'Could not load the finish checklist: ') + fin._err)));
+    } else if (fin && (fin.can_finish || postEnd)) {
+      const canAct = fin.can_act !== false;
       const fchecks = fin.checks || [];
       const fs = fin.summary || { ok: 0, warn: 0, fail: 0 };
       const fbad = fchecks.filter((c) => c.level === 'fail').concat(fchecks.filter((c) => c.level === 'warn'));
@@ -115,8 +127,9 @@ export function makeCentralTab(CONTEST, opts = {}) {
       const box = el('div', { class: 'section' },
         el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },
           el('h2', { style: 'margin:.1rem 0' }, T('Depois da prova', 'After the contest')),
-          fs.fail > 0 ? el('span', { class: 'pill bad' }, T(`${fs.fail} item(ns) ainda fechado(s)`, `${fs.fail} item(s) still closed`))
-            : el('span', { class: 'pill ok' }, T('resultado liberado', 'results released'))),
+          !fin.can_finish ? el('span', { class: 'pill' }, T('aguardando o fim em todas as sedes', 'waiting for every site to finish'))
+            : fs.fail > 0 ? el('span', { class: 'pill bad' }, T(`${fs.fail} item(ns) ainda fechado(s)`, `${fs.fail} item(s) still closed`))
+              : el('span', { class: 'pill ok' }, T('resultado liberado', 'results released'))),
         el('div', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
           T('O botão abre o PLACAR (tira o congelamento) e publica os documentos já gerados. O resto continua sendo escolha sua — cada item abaixo tem o atalho para resolver.',
             'The button opens the SCOREBOARD (removes the freeze) and publishes the documents already generated. Everything else stays your call — each item below links to where it is fixed.')));
@@ -139,7 +152,17 @@ export function makeCentralTab(CONTEST, opts = {}) {
           setTimeout(load, 600);
         } catch (e) { fmsg.className = 'small error-box'; fmsg.textContent = e.message || T('falha', 'failed'); btn.disabled = false; }
       });
-      box.append(el('div', { class: 'row', style: 'gap:.5rem;margin-top:.6rem;align-items:center' }, btn, fmsg));
+      if (!canAct) {
+        box.append(el('div', { class: 'small muted', style: 'margin-top:.6rem' },
+          T('Só o admin do contest pode encerrar — para o juiz-chefe este checklist é somente leitura.',
+            'Only the contest admin can finish — for the chief judge this checklist is read-only.')));
+      } else {
+        if (!fin.can_finish) {
+          btn.disabled = true;
+          btn.title = T('disponível depois do fim para todas as sedes', 'available after every site finishes');
+        }
+        box.append(el('div', { class: 'row', style: 'gap:.5rem;margin-top:.6rem;align-items:center' }, btn, fmsg));
+      }
       panel.append(box);
     }
 

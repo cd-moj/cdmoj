@@ -19,7 +19,14 @@ contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-is_admin || fail 403 "Apenas o admin do contest" "admin_required"
+# GET (checklist) é leitura e vale p/ o juiz-chefe também — na Maratona 29/08 o cartão da
+# Central "sumia" p/ o .cjudge porque o 403 daqui era engolido pelo front. AGIR (POST)
+# segue exclusivo do admin; o front lê can_act p/ esconder o botão.
+if [[ "$REQUEST_METHOD" == GET ]]; then
+  is_admin_or_chief || fail 403 "Apenas admin ou juiz-chefe do contest" "admin_required"
+else
+  is_admin || fail 403 "Apenas o admin do contest" "admin_required"
+fi
 source "$_LIBDIR/contest-gate.sh"
 source "$_LIBDIR/contest-create.sh"
 source "$_LIBDIR/contest-docs.sh"
@@ -81,12 +88,13 @@ if [[ "$REQUEST_METHOD" != POST ]]; then
   fi
   add report ok "Relatório final" "baixe o pacote offline em Operação › Situação"
 
-  ok_json '{checks:$c, summary:{ok:$o, warn:$w, fail:$f}, can_finish:$cf, pending_docs:$pd}' \
+  ok_json '{checks:$c, summary:{ok:$o, warn:$w, fail:$f}, can_finish:$cf, can_act:$ca, pending_docs:$pd}' \
     --argjson c "$CHECKS" \
     --argjson o "$(jq -r '[.[]|select(.level=="ok")]|length' <<<"$CHECKS")" \
     --argjson w "$(jq -r '[.[]|select(.level=="warn")]|length' <<<"$CHECKS")" \
     --argjson f "$(jq -r '[.[]|select(.level=="fail")]|length' <<<"$CHECKS")" \
     --argjson cf "$(contest_over_for_all "$contest" && echo true || echo false)" \
+    --argjson ca "$(is_admin && echo true || echo false)" \
     --argjson pd "$pend"
   exit 0
 fi
@@ -113,7 +121,10 @@ _skip(){ skipped="$(jq -c --arg i "$1" --arg r "$2" '. + [{item:$i, reason:$r}]'
 if [[ "${FREEZE_TIME:-0}" =~ ^[0-9]+$ ]] && (( FREEZE_TIME > 0 )); then
   cc_set_conf_var "$contest" FREEZE_TIME 0 && _done placar "placar descongelado (resultado final público)" \
     || _skip placar "falha ao gravar o conf"
-  touch "$cdir/var/.score-dirty" 2>/dev/null || true
+  # score_kick_rebuild, não touch solto: um build EM VOO terminaria depois desta escrita e
+  # carimbaria tudo "fresco" com os metrics pré-mudança — o placar ficava congelado p/
+  # sempre (corrida de mtime, Maratona 29/08; ver o helper em lib/common.sh).
+  score_kick_rebuild "$contest"
 else
   _skip placar "já estava aberto"
 fi

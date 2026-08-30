@@ -46,7 +46,13 @@ fi
 if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
   bl="$(jq -r '.basic.locale // empty' <<<"$body")"; [[ "$bl" =~ ^(pt|en)$ ]] && cc_set_conf_var "$contest" LOCALE "$bl"
   bs="$(jq -r '.basic.login_start // empty' <<<"$body")"; [[ "$bs" =~ ^[0-9]+$ ]] && cc_set_conf_var "$contest" LOGIN_START_TIME "$bs"
-  bf="$(jq -r '.basic.freeze // empty' <<<"$body")"; [[ "$bf" =~ ^[0-9]+$ ]] && cc_set_conf_var "$contest" FREEZE_TIME "$bf"
+  bf="$(jq -r '.basic.freeze // empty' <<<"$body")"
+  if [[ "$bf" =~ ^[0-9]+$ ]] && [[ "$bf" != "$(conf_value "$contest" FREEZE_TIME)" ]]; then
+    cc_set_conf_var "$contest" FREEZE_TIME "$bf"
+    # freeze mudou ⇒ rebuild FORÇADO: o gatilho passivo "conf mais novo que .metrics-stamp"
+    # perde p/ um build em voo (corrida de mtime, Maratona 29/08 — ver lib/common.sh).
+    score_kick_rebuild "$contest"
+  fi
   if [[ "$(jq -r '.basic.login_enabled' <<<"$body")" == "false" ]]; then cc_set_conf_var "$contest" LOGIN_ENABLED n; else cc_del_conf_var "$contest" LOGIN_ENABLED; fi
 fi
 audit_log_to "$contest" config "$(jq -cr 'keys|join(",")' <<<"$body" 2>/dev/null | head -c 200)"

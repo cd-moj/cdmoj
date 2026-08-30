@@ -2039,13 +2039,13 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Checklist pós-prova (o que ainda está fechado) — admin",
+        "summary": "Checklist pós-prova (o que ainda está fechado) — admin ou juiz-chefe",
         "responses": {
           "200": {
-            "description": "{checks:[{id,level,label,detail}], summary:{ok,warn,fail}, can_finish, pending_docs:[{type,lang}]}"
+            "description": "{checks:[{id,level,label,detail}], summary:{ok,warn,fail}, can_finish, can_act (true só p/ o admin — o POST é dele), pending_docs:[{type,lang}]}"
           },
           "403": {
-            "description": "admin_required"
+            "description": "admin_required (nem admin nem juiz-chefe)"
           }
         }
       },

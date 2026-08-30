@@ -12,6 +12,10 @@ fx_user "$C" sc.admin p Admin
 fx_user "$C" alice    a Alice
 printf 'CONTEST=sc\nLOGIN=sc.admin\nLOGINAT=1\n' > "$SESS/adm"
 printf 'CONTEST=sc\nLOGIN=alice\nLOGINAT=1\n' > "$SESS/usr"
+# segura o lock do placar o smoke INTEIRO: os rebuilds destacados (score_kick_rebuild, ao
+# mudar freeze/penalidade) ficam presos no flock e não re-carimbam .metrics-stamp no meio
+# das asserções.
+exec 8>>"$C/var/.placar.lock"; flock 8
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-adm}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:200}"; ((fail++)); fi; }
@@ -38,9 +42,11 @@ call /contest/admin/settings GET '' adm 'contest=sc'
 ck "GET mode=icpc"            '[[ "$(jq -r .mode <<<"$BODY")" == "icpc" ]]'
 ck "GET penalty_minutes=20"   '[[ "$(jq -r .penalty_minutes <<<"$BODY")" == "20" ]]'
 ck "GET penalty_verdicts default (sem ce)" '[[ "$(jq -c .penalty_verdicts <<<"$BODY")" == "[\"wa\",\"tle\",\"mle\",\"rte\"]" ]]'
+touch "$C/var/.metrics-stamp"
 call /contest/admin/settings POST '{"penalty_minutes":10,"penalty_verdicts":["ce","wa"]}' adm 'contest=sc'
 ck "salvou penalidade"        '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]]'
 ck "conf PENALTY_MINUTES=10"  'grep -q "^PENALTY_MINUTES=10$" "$C/conf"'
+ck "penalidade mudou ⇒ stamp dos metrics removido" '[[ ! -f "$C/var/.metrics-stamp" ]]'
 ck "conf PENALTY_VERDICTS wa+ce (ordem canônica)" 'grep -q "^PENALTY_VERDICTS=wa.\\?.ce$" "$C/conf"'
 call /contest/admin/settings GET '' adm 'contest=sc'
 ck "GET reflete 10 / [wa,ce]" '[[ "$(jq -r .penalty_minutes <<<"$BODY")" == "10" && "$(jq -c .penalty_verdicts <<<"$BODY")" == "[\"wa\",\"ce\"]" ]]'
@@ -54,6 +60,16 @@ call /contest/admin/settings POST '{"penalty_verdicts":["xx"]}' adm 'contest=sc'
 ck "código inválido -> 422"   '[[ "$OUT" == *"Status: 422"* ]]'
 call /contest/admin/settings POST '{"penalty_minutes":"abc"}' adm 'contest=sc'
 ck "minutos inválidos -> 422" '[[ "$OUT" == *"Status: 422"* ]]'
+
+echo "== freeze muda ⇒ rebuild forçado (corrida de mtime, 29/08) =="
+touch "$C/var/.metrics-stamp"; rm -f "$C/var/.score-dirty"
+call /contest/admin/settings POST "{\"freeze\":$(( FUT - 3600 ))}" adm 'contest=sc'
+ck "salvou freeze"                    '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]]'
+ck "stamp dos metrics REMOVIDO"       '[[ ! -f "$C/var/.metrics-stamp" ]]'
+ck "score-dirty tocado"               '[[ -f "$C/var/.score-dirty" ]]'
+touch "$C/var/.metrics-stamp"
+call /contest/admin/settings POST "{\"freeze\":$(( FUT - 3600 )),\"name\":\"Mesmo Freeze\"}" adm 'contest=sc'
+ck "freeze IGUAL não dispara rebuild" '[[ "$(jq -r .saved <<<"$BODY")" == "true" && -f "$C/var/.metrics-stamp" ]]'
 
 echo "== pool de juízes (CONTEST_JUDGES / problem-judges.json) =="
 call /contest/admin/settings POST '{"judges":["cpu2","cpu1","cpu2"]}' adm 'contest=sc'

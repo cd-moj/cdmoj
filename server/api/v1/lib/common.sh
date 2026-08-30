@@ -291,6 +291,32 @@ regen_locked() {
   ) 9>"$lock"
 }
 
+# score_kick_rebuild <contest> — força um rebuild COMPLETO do placar (recompute em massa dos
+# metrics incluído) mesmo com um build em voo. Existe por causa da CORRIDA DE MTIME que
+# prendeu o descongelamento na Maratona (29/08/2026): o admin zera FREEZE_TIME no conf, mas
+# um build já em voo (disparado por veredicto) termina DEPOIS da escrita — placar.txt e
+# .metrics-stamp saem MAIS NOVOS que o conf, calculados com os metrics PRÉ-mudança ⇒ toda
+# comparação -nt diz "fresco" e o placar congelado vira permanente. As três garantias:
+#   1. rm do .metrics-stamp — `! -f STAMP` é gatilho incondicional do recompute em massa no
+#      build.sh, imune a comparação de mtime;
+#   2. touch no .score-dirty — invalida caches derivados (pendentes/home/estatística);
+#   3. build DESTACADO com flock QUE ESPERA (-w 300, não -n): entra na fila ATRÁS do build
+#      em voo e roda depois dele, já com o conf novo. (O -n do caminho de leitura serve o
+#      velho de propósito; aqui a missão é garantir que o novo EXISTA.) Se um build travado
+#      segurar o lock >300 s, o filho desiste — o stamp removido garante o recompute no
+#      próximo gatilho de qualquer origem.
+score_kick_rebuild() {
+  local c="$1" cdir="$CONTESTSDIR/$1"
+  rm -f "$cdir/var/.metrics-stamp" 2>/dev/null
+  touch "$cdir/var/.score-dirty" 2>/dev/null
+  # fds dentro do parêntese (lição do setsid sob CGI): o filho não pode herdar o socket.
+  ( setsid bash -c '
+      exec 9>>"$1" 2>/dev/null || exit 0
+      flock -w 300 9 || exit 0
+      bash "$2" "$3"' _ "$cdir/var/.placar.lock" "$SCOREDIR/build.sh" "$c" \
+      </dev/null >/dev/null 2>&1 & ) 2>/dev/null
+}
+
 # --- util -----------------------------------------------------------------
 urldecode() { local s="${1//+/ }"; printf '%b' "${s//%/\\x}"; }
 # b64_strip_data_prefix <NOME-da-var> — tira o prefixo data:...;base64, de upload SEM pagar

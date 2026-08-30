@@ -18,9 +18,11 @@ mkconf(){ # mkconf <fim> <freeze>
 }
 mkconf "$TE" "$FZ"
 fx_user "$C" fin.admin p "Admin"
+fx_user "$C" fin.cjudge p "Chefe"
 fx_user "$C" alice a "Time Alice"
 printf '10:col#pa:C:Accepted,100p:%s:sA1\n' "$(( T0 + 600 ))" > "$C/users/alice/history"
 printf 'CONTEST=fin\nLOGIN=fin.admin\nLOGINAT=1\n' > "$SESS/adm"
+printf 'CONTEST=fin\nLOGIN=fin.cjudge\nLOGINAT=1\n' > "$SESS/cjd"
 printf 'CONTEST=fin\nLOGIN=alice\nLOGINAT=1\n' > "$SESS/usr"
 # documentos: caderno + folha de TL gerados; NADA publicado ainda
 printf '%%PDF-1.4 caderno\n' > "$C/docs/contest.pt.pdf"
@@ -36,6 +38,12 @@ J(){ printf '%s' "$BODY" | jq -r "$1" 2>/dev/null; }
 echo "== gates =="
 call /contest/admin/finish GET '' usr
 ck "não-admin → 403" '[[ "$OUT" == *"Status: 403"* ]]'
+# juiz-chefe LÊ o checklist (o 403 fazia o cartão da Central sumir p/ o .cjudge — 29/08),
+# mas não AGE: can_act diz ao front quem pode apertar o botão.
+call /contest/admin/finish GET '' cjd
+ck "juiz-chefe GET → 200 + can_act:false" '[[ "$OUT" == *"Status: 200"* && "$(J .can_act)" == false ]]'
+call /contest/admin/finish POST '{"action":"finish"}' cjd
+ck "juiz-chefe POST → 403"               '[[ "$OUT" == *"Status: 403"* ]]'
 
 echo "== prova AINDA em andamento =="
 mkconf "$(( NOW + 3600 ))" "$FZ"
@@ -49,15 +57,22 @@ echo "== prova encerrada: checklist =="
 mkconf "$TE" "$FZ"
 call /contest/admin/finish GET ''
 ck "pode encerrar"                    '[[ "$(J .can_finish)" == true ]]'
+ck "admin vê can_act:true"            '[[ "$(J .can_act)" == true ]]'
 ck "placar congelado = pendência"     '[[ "$(J "[.checks[]|select(.id==\"freeze\")][0].level")" == fail ]]'
 ck "2 documentos pendentes"           '[[ "$(J ".pending_docs|length")" == 2 ]]'
 ck "informativos aparecem (show_log)" '[[ -n "$(J "[.checks[]|select(.id==\"show_log\")][0].label")" ]]'
 
 echo "== encerrar =="
+# corrida de mtime (29/08): um stamp deixado por um build em voo tem de ser REMOVIDO pelo
+# encerramento — é o `! -f` que garante o recompute em massa. Seguramos o .placar.lock no
+# teste p/ o build destacado não re-carimbar antes da asserção.
+touch "$C/var/.metrics-stamp"
+exec 8>>"$C/var/.placar.lock"; flock 8
 call /contest/admin/finish POST '{"action":"finish"}'
 ck "200 + finished"                   '[[ "$(J .finished)" == true ]]'
 ck "descongelou no conf"              'grep -q "^FREEZE_TIME=0$" "$C/conf"'
 ck "placar marcado p/ reconstruir"    '[[ -f "$C/var/.score-dirty" ]]'
+ck "stamp dos metrics REMOVIDO"       '[[ ! -f "$C/var/.metrics-stamp" ]]'
 ck "publicou os 2 documentos"         '[[ "$(jq -r ".published|length" "$C/docs/config.json")" == 2 ]]'
 ck "entraram na seção Prova"          '[[ "$(jq -r "length" "$C/resources.json")" == 2 ]] && grep -q "type=contest" "$C/resources.json"'
 ck "auditado"                         'grep -q "finish-event" "$C/var/admin-audit.log"'

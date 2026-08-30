@@ -61,6 +61,14 @@ has(){ jq -e "has(\"$1\")" >/dev/null 2>&1 <<<"$body"; }
 setvar(){ cc_set_conf_var "$contest" "$1" "$2"; CH+=("$1=$2"); }
 delvar(){ cc_del_conf_var "$contest" "$1"; CH+=("$1=padrao"); }
 
+# fotografia do que invalida metrics/placar (freeze e penalidade) ANTES de gravar: se mudar,
+# o rebuild no fim é FORÇADO via score_kick_rebuild — o gatilho passivo "conf mais novo que
+# var/.metrics-stamp" perde p/ um build EM VOO, que termina depois desta escrita e carimba
+# tudo "fresco" com metrics pré-mudança (corrida de mtime, Maratona 29/08).
+score_snap(){ printf '%s:%s:%s' "$(conf_value "$contest" FREEZE_TIME)" \
+  "$(conf_value "$contest" PENALTY_MINUTES)" "$(conf_value "$contest" PENALTY_VERDICTS)"; }
+SCORE_WAS="$(score_snap)"
+
 if has name; then v="$(jq -r '.name' <<<"$body")"; { [[ -n "$v" ]] && (( ${#v} <= 160 )); } || fail 422 "nome inválido" "name_invalid"; setvar CONTEST_NAME "$v"; fi
 for pair in start:CONTEST_START end:CONTEST_END login_start:LOGIN_START_TIME freeze:FREEZE_TIME; do
   k="${pair%%:*}"; var="${pair#*:}"
@@ -145,8 +153,8 @@ if has score_full_users; then
   [[ -n "$su" ]] && setvar SCORE_FULL_USERS "$su" || delvar SCORE_FULL_USERS
 fi
 
-# penalidade do placar ICPC (default = var ausente; editar em prova recomputa o placar
-# no próximo GET — conf mais novo que var/.metrics-stamp dispara o recompute em massa)
+# penalidade do placar ICPC (default = var ausente; editar em prova recomputa o placar:
+# a mudança entra no score_snap e o fim do handler dispara score_kick_rebuild)
 if has penalty_minutes; then
   v="$(jq -r '.penalty_minutes' <<<"$body")"
   { [[ "$v" =~ ^[0-9]+$ ]] && (( v <= 100000 )); } || fail 422 "penalty_minutes inválido" "penalty_minutes_invalid"
@@ -187,6 +195,11 @@ if [[ "$BDF_WAS" == 0 ]] && has balloons_during_freeze && [[ "$(jq -r '.balloons
   source "$_LIBDIR/print.sh"
   BLN_FREED="$(pr_balloons_release_frozen "$contest" "$SESSION_LOGIN")"
   BLN_FREED="${BLN_FREED//[^0-9]/}"; BLN_FREED="${BLN_FREED:-0}"
+fi
+
+# freeze/penalidade mudaram ⇒ recompute forçado + build destacado (ver o comentário do snap)
+if [[ "$(score_snap)" != "$SCORE_WAS" ]]; then
+  score_kick_rebuild "$contest"
 fi
 
 audit_log_to "$contest" settings "$( ((${#CH[@]})) && { IFS=,; echo "${CH[*]}"; } || echo nada )"
