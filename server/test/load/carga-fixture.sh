@@ -16,8 +16,12 @@
 #   - metrics em PARALELO (xargs -P12): 10k contas seriais = 4+ min; paralelo = ~30 s;
 #   - o /tmp do container MORRE em todo `make deploy` — reenviar os scripts após deploy.
 set -u
+# APIDIR/CARGA_TMP: defaults de PRODUÇÃO (container) — a BANCADA local (bancada.sh) os
+# aponta p/ o checkout e um workdir próprio; nenhum call-site de produção muda.
 export CONTESTSDIR="${CONTESTSDIR:-/data/contests}" RUNDIR="${RUNDIR:-/data/run}"
-cd /opt/moj/cdmoj/server/api/v1
+: "${APIDIR:=/opt/moj/cdmoj/server/api/v1}"
+: "${CARGA_TMP:=/tmp}"
+cd "$APIDIR"
 source lib/common.sh 2>/dev/null; source lib/verdict.sh; source lib/users.sh
 set +o noglob; shopt -s nullglob
 
@@ -46,7 +50,7 @@ awk -v n="$NT" -v np="$NP" -v start="$START" -v span="$SPAN" 'BEGIN{
       printf "H\teq-%04d\t%d\t%d\t%s\t%08d%04d\n", t, p, ep, v, t, s
     }
   }
-}' > /tmp/carga-plan.tsv
+}' > "$CARGA_TMP/carga-plan.tsv"
 i=0
 while IFS=$'\t' read -r k a b c d e; do
   case "$k" in
@@ -56,14 +60,14 @@ while IFS=$'\t' read -r k a b c d e; do
        i=$((i+1)); (( i % 1000 == 0 )) && echo "  $i contas…" ;;
     H) [[ -s "$CD/users/$a/history" ]] || printf '%s:%s:C:%s:%s:%s\n' "$c" "${CANON[$b]}" "$d" "$c" "$e" >> "$CD/users/$a/history" ;;
   esac
-done < /tmp/carga-plan.tsv
+done < "$CARGA_TMP/carga-plan.tsv"
 echo "  contas novas: $i"
 
 echo "== metrics (12 workers em paralelo)…"
 find "$CD/users" -mindepth 2 -maxdepth 2 -name history -printf '%h\n' \
   | xargs -P 12 -n 100 bash -c '
       export CONTESTSDIR="'"$CONTESTSDIR"'"
-      cd /opt/moj/cdmoj/server/api/v1
+      cd "'"$APIDIR"'"
       source lib/common.sh 2>/dev/null; source lib/verdict.sh; source lib/users.sh
       for d; do metrics_recompute "'"$C"'" "${d##*/}"; done' _
 touch "$CD/var/.metrics-stamp"
@@ -80,6 +84,6 @@ jq -e . "$CD/print-requests/staff-filters.json" >/dev/null || { echo "filters in
 rm -f "$CD/print-requests/.staff-exists" "$CD/print-requests/.scope-cache/"* 2>/dev/null
 
 echo "== placar…"
-bash /opt/moj/cdmoj/server/score/build.sh "$C" >/dev/null 2>&1
+bash "$APIDIR/../../score/build.sh" "$C" >/dev/null 2>&1
 wc -c "$CD/var/placar.txt"
 echo "fixture pronta em $(( EPOCHSECONDS - T0 ))s — agora: carga-sessoes.sh $C"

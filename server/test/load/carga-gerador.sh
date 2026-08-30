@@ -13,7 +13,9 @@
 set -u
 TT="$1"; TS="$2"; DUR="$3"; OUT="$4"
 CONTEST="${5:-zz-carga-2026}"
-B="https://$CONTEST.moj.naquadah.com.br"
+# CARGA_BASE/CARGA_HOST: bancada local aponta http://127.0.0.1:8081 com Host do contest
+B="${CARGA_BASE:-https://$CONTEST.moj.naquadah.com.br}"
+HOSTH=(); [[ -n "${CARGA_HOST:-}" ]] && HOSTH=(-H "Host: $CARGA_HOST")
 Q="contest=$CONTEST"
 FA="${6:-10}"                                    # fator ×10 (inteiro; 10 = ritmo real)
 SCORE_IV=$(( 450 / FA ))                         # intervalo do score em segundos, já acelerado
@@ -24,13 +26,13 @@ slp(){ local ds=$(( $1 * 100 / FA )); (( ds < 5 )) && ds=5; sleep "$(( ds/10 )).
 SRC_B64="$(printf '#include <stdio.h>\nint main(){ printf("carga\\n"); return 0; }\n' | base64 | tr -d '\n')"
 
 req(){ # <token> <rota> <tag>
-  local r; r="$(curl -sk --compressed -o /dev/null -m 25 \
+  local r; r="$(curl -sk --compressed -o /dev/null -m 25 "${HOSTH[@]}" \
       -w '%{http_code} %{time_total} %{size_download}' \
       -H "Authorization: Bearer $1" "$B/api/v1/$2" 2>/dev/null)"
   echo "$(date +%s) $3 ${r:-000 25.0 0}" >> "$OUT"
 }
 reqpost(){ # <token> <rota> <tag> <json>
-  local r; r="$(curl -sk --compressed -o /dev/null -m 25 -X POST \
+  local r; r="$(curl -sk --compressed -o /dev/null -m 25 -X POST "${HOSTH[@]}" \
       -H 'Content-Type: application/json' -H "Authorization: Bearer $1" \
       -w '%{http_code} %{time_total} %{size_download}' -d "$4" "$B/api/v1/$2" 2>/dev/null)"
   echo "$(date +%s) $3 ${r:-000 25.0 0}" >> "$OUT"
@@ -56,7 +58,7 @@ staffp(){ local tok="$1"
     # a cada ciclo, a fila; em 5% deles, com corpo — para achar um balão pendente e buscar o PDF
     if (( RANDOM % 20 == 0 )); then
       local r id
-      r="$(curl -sk --compressed -o "$qf" -m 25 -w '%{http_code} %{time_total} %{size_download}' \
+      r="$(curl -sk --compressed -o "$qf" -m 25 "${HOSTH[@]}" -w '%{http_code} %{time_total} %{size_download}' \
            -H "Authorization: Bearer $tok" "$B/api/v1/contest/staff/queue?$Q" 2>/dev/null)"
       echo "$(date +%s) queue ${r:-000 25.0 0}" >> "$OUT"
       id="$(grep -o '"id":"bln[a-f0-9]*"' "$qf" 2>/dev/null | head -20 | shuf -n1 | cut -d'"' -f4)"

@@ -3,8 +3,9 @@
 # judged.sh por veredicto (history + metrics + .score-dirty), sem juiz. É o que faz o placar
 # rebuildar, os balões nascerem e os caches invalidarem DURANTE o teste — mundo vivo.
 set -u
-export CONTESTSDIR=/data/contests RUNDIR=/data/run
-cd /opt/moj/cdmoj/server/api/v1
+export CONTESTSDIR="${CONTESTSDIR:-/data/contests}" RUNDIR="${RUNDIR:-/data/run}"
+: "${APIDIR:=/opt/moj/cdmoj/server/api/v1}"   # bancada local aponta p/ o checkout
+cd "$APIDIR"
 source lib/common.sh 2>/dev/null; source lib/verdict.sh; source lib/users.sh
 set +o noglob; shopt -s nullglob
 C="${1:?uso: carga-injetor.sh <contest> [dur_s]}"; CD="$CONTESTSDIR/$C"

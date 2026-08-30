@@ -38,13 +38,27 @@ judge_log() { echo "[judge.sh] $*" >&2; }
 # ----------------------------------------------------------------- backend: mock
 # Determinístico. Decodifica o base64: se vier vazio => Compilation Error.
 # Caso contrário, Accepted,100p. (Suficiente p/ exercitar todo o pipeline.)
+# BANCADA (2026-08-30): a 1ª linha da fonte pode trazer o hint `//moj-mock: <veredito>`
+# — o mock devolve exatamente aquele veredicto (mix determinístico do plano de carga) —
+# e JUDGE_MOCK_DELAY_MS simula a latência de julgamento sem custo de CPU. Ambos são
+# aditivos: sem hint/env o comportamento é o de sempre.
 judge_run_mock() {
   local code_b64="$4"
   local decoded
   decoded="$(printf '%s' "$code_b64" | base64 -d 2>/dev/null)"
+  if [[ -n "${JUDGE_MOCK_DELAY_MS:-}" && "${JUDGE_MOCK_DELAY_MS}" =~ ^[0-9]+$ ]]; then
+    local _d=$(( JUDGE_MOCK_DELAY_MS ))
+    sleep "$(( _d / 1000 )).$(printf '%03d' "$(( _d % 1000 ))")"
+  fi
   if [[ -z "${decoded//[$' \t\r\n']/}" ]]; then
     echo "Compilation Error"
     return 0
+  fi
+  local first="${decoded%%$'\n'*}"
+  if [[ "$first" == "//moj-mock: "* ]]; then
+    local v="${first#//moj-mock: }"
+    v="${v//[$'\r\t']/}"
+    [[ -n "$v" ]] && { echo "$v"; return 0; }
   fi
   echo "Accepted,100p"
 }
