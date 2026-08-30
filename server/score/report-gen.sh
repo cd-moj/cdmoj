@@ -371,6 +371,14 @@ rep_flag_css(){ [[ -s "$W/flags.css" ]] && { printf '<style>\n'; cat "$W/flags.c
       "$(rep_flag_slug "$fcode")" "$(base64 -w0 < "$_ff" 2>/dev/null)" >> "$W/flags.css"
   done
 } > "$W/flags.tsv"
+# entradas de PAÍS p/ os estados usados (2026-08-30): só o NOME (data-cname do filtro
+# hierárquico) — SEM embutir o SVG do país, que nenhuma linha usa quando ninguém tem a
+# bandeira crua (o smoke conta os SVGs embutidos: um por código USADO).
+awk -F'\t' 'match($1, /-/){ print substr($1, 1, RSTART-1) }' "$W/flags.tsv" | sort -u \
+  | while IFS= read -r _cc; do
+      [[ -n "$_cc" ]] || continue
+      grep -q "^${_cc}	" "$W/flags.tsv" || printf '%s\t%s\t\n' "$_cc" "$(rep_flag_name "$_cc")"
+    done >> "$W/flags.tsv"
 
 # logo do MOJ (1,4 KB) embutido — mesma imagem da topbar do site
 LOGO_IMG=""
@@ -677,7 +685,11 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       tn=(iteam? trim($(iteam)) : "")
       rg=(un in reg ? reg[un] : "")
       attrs=(isguest? " class=\"guest-row\"" : "")
-      if(fcode!="") attrs=attrs " data-flag=\"" esc(fcode) "\" data-fname=\"" esc(fcode in fnm ? fnm[fcode] : toupper(fcode)) "\""
+      if(fcode!="") {
+        cc=fcode; sub(/-.*$/,"",cc)   # país = prefixo (br-rj → br); filtro hierárquico
+        attrs=attrs " data-flag=\"" esc(fcode) "\" data-fname=\"" esc(fcode in fnm ? fnm[fcode] : toupper(fcode)) "\""
+        attrs=attrs " data-country=\"" esc(cc) "\" data-cname=\"" esc(cc in fnm ? fnm[cc] : toupper(cc)) "\""
+      }
       if(us!="")    attrs=attrs " data-univ=\"" esc(us) "\""
       if(uf!="")    attrs=attrs " data-ufull=\"" esc(uf) "\""
       if(rg!="")    attrs=attrs " data-region=\"" esc(rg) "\""
@@ -913,8 +925,33 @@ rep_filter_js(){
     sel.value = seen[cur] ? cur : '';
     if(sel.parentNode) sel.parentNode.style.display = opts.length ? '' : 'none';
   }
+  // bandeira HIERÁRQUICA (2026-08-30): país primeiro (agrega estados no casamento),
+  // estados indentados abaixo — mesma regra do placar ao vivo e do by_country das stats
+  function fillFlag(){
+    if(!selF) return;
+    var cur=selF.value, byC={}, cn={}, sn={};
+    rows(board()).forEach(function(r){
+      var c=r.getAttribute('data-country'), f=r.getAttribute('data-flag');
+      if(!c) return;
+      cn[c]=r.getAttribute('data-cname')||c.toUpperCase();
+      if(!byC[c]) byC[c]={};
+      if(f&&f!==c){ byC[c][f]=1; sn[f]=r.getAttribute('data-fname')||f; }
+    });
+    var opts=[];
+    Object.keys(byC).sort(function(a,b){ return String(cn[a]).localeCompare(String(cn[b])) }).forEach(function(c){
+      opts.push([c,cn[c]]);
+      Object.keys(byC[c]).sort(function(a,b){ return String(sn[a]).localeCompare(String(sn[b])) }).forEach(function(f){
+        opts.push([f,'  '+sn[f]]);
+      });
+    });
+    while(selF.options.length>1) selF.remove(1);
+    var seen={};
+    opts.forEach(function(o){ seen[o[0]]=1; var e=document.createElement('option'); e.value=o[0]; e.textContent=o[1]; selF.add(e) });
+    selF.value = seen[cur]?cur:'';
+    if(selF.parentNode) selF.parentNode.style.display = opts.length?'':'none';
+  }
   function refill(){
-    fill(selF,'data-flag',function(r,v){ return r.getAttribute('data-fname')||v });
+    fillFlag();
     fill(selU,'data-univ',function(r,v){ var f=r.getAttribute('data-ufull'); return f?(v+' — '+f):v });
     fill(selR,'data-region',function(r,v){ return v });
   }
@@ -932,7 +969,11 @@ rep_filter_js(){
     b.classList.remove('flt');
     rs.forEach(function(r){
       tot++;
-      var ok=(!f||r.getAttribute('data-flag')===f) && (!u||r.getAttribute('data-univ')===u)
+      // bandeira: valor sem hífen é PAÍS (casa por data-country, que agrega os estados);
+      // com hífen é estado exato (data-flag)
+      var okF=!f || (f.indexOf('-')>=0 ? r.getAttribute('data-flag')===f
+                                       : r.getAttribute('data-country')===f);
+      var ok=okF && (!u||r.getAttribute('data-univ')===u)
           && (!g||r.getAttribute('data-region')===g)
           && (!s||(r.getAttribute('data-search')||'').indexOf(s)>=0);
       r.style.display=ok?'':'none'; if(ok){ vis++; visRows.push(r); }

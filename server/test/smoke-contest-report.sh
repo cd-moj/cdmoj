@@ -116,6 +116,7 @@ ck "foto: 📷 relativo no placar aberto"    'grep -q "class=\"tphoto\" href=\"f
 ck "foto: congelado SEM 📷"                '! grep -q "tphoto" "$R/score-frozen.html"'
 ck "foto: é arquivo, nunca data:URI"       '! grep -q "tphoto\" href=\"data:" "$R/index.html"'
 ck "recorte: data-place + data-tie na tr"  'grep -q "data-place=\"1\"" "$R/index.html" && grep -q "data-tie=\"" "$R/index.html"'
+ck "bandeira: país agregado (data-country=br do br-rj)" 'grep -qE "data-flag=\"br-rj\"[^>]*data-country=\"br\" data-cname=\"[^\"]+\"" "$R/index.html"'
 ck "recorte: data-sec (segundos) na célula" 'grep -qE "data-sec=\"[0-9]+\"" "$R/index.html"'
 ck "recorte: JS renumera e re-estrela"     'grep -q "rfts" "$R/index.html" && grep -q "data-slice-t" "$R/index.html"'
 ck "recorte: ★ global com classe gfts"     'grep -q "fts gfts" "$R/index.html"'

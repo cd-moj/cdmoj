@@ -53,8 +53,10 @@ if (( ${#pm_items[@]} )); then probmeta="$(printf '%s\n' "${pm_items[@]}" | jq -
 # --- sede/país por login (R2, 2026-08-30) -----------------------------------------------
 # Uma varredura de users/*/account.json (molde do sc_cells: login pelo caminho; find|xargs
 # = imune a ARG_MAX). Sede = .team.region (texto curado, saneado de :/tab pela lib);
-# país = .team.flag minúsculo — a MESMA chave do filtro "Bandeira" do placar (br-pr ≠ br,
-# de propósito: os dois lados do recorte têm de casar). Conta sem o dado fica FORA do
+# país = o PREFIXO do .team.flag minúsculo (br-pr → br): time brasileiro declara bandeira
+# de ESTADO, e "estatísticas do Brasil" tem de juntá-los — na Maratona 2026 só 14 de 1500+
+# tinham a bandeira `br` crua. O filtro "Bandeira" do placar casa por prefixo do mesmo
+# jeito (país agrega os estados; estado segue selecionável). Conta sem o dado fica FORA do
 # recorte correspondente (o agregado global não muda). Contest com USERS_FROM sem overlay
 # local não tem .team ⇒ dimensões vazias, comportamento de sempre.
 MAPF="$(mktemp)"
@@ -62,7 +64,7 @@ trap 'rm -f "$TMP" "${_HT:-}" "${MAPF:-}"' EXIT
 find "$CONTESTSDIR/$C/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
   | xargs -0 -r jq -r '[ (((input_filename | split("/"))[-2]) // ""),
                          ((.team.region // "") | gsub("[\t\n]"; " ")),
-                         ((.team.flag // "") | ascii_downcase | gsub("[^a-z0-9-]"; "")) ] | @tsv' \
+                         ((.team.flag // "") | ascii_downcase | gsub("[^a-z0-9-]"; "") | (split("-") | .[0])) ] | @tsv' \
       2>/dev/null > "$MAPF"
 
 START_VAL="${CONTEST_START:-0}"; [[ "$START_VAL" =~ ^[0-9]+$ ]] || START_VAL=0

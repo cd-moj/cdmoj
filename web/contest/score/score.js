@@ -195,11 +195,22 @@ function applyTeamsMeta(p) {
 // `t._country !== undefined && …`, então time sem bandeira aparecia em QUALQUER filtro de
 // bandeira — pedir "Santa Catarina" trazia de volta todo mundo sem bandeira.
 const eqi = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
+// Bandeira casa por HIERARQUIA (2026-08-30): valor sem hífen é PAÍS e agrega os estados
+// (br casa br E br-*) — time brasileiro declara bandeira de ESTADO e "filtrar o Brasil"
+// tem de juntá-los; valor com hífen (br-pr) segue exato. Mesma regra do by_country das
+// estatísticas (prefixo) e do filtro do relatório.
+function countryMatch(t) {
+  if (!activeCountry) return true;
+  const c = String(t._country || '').toLowerCase();
+  if (!c) return false;
+  if (activeCountry.includes('-')) return c === activeCountry;
+  return c === activeCountry || c.startsWith(activeCountry + '-');
+}
 function combinedFilterFn() {
   if (!activeRegion && !activeCountry && !activeSchool) return null;
   return (t) => {
     if (!regionMatch(t)) return false;
-    if (activeCountry && !eqi(t._country, activeCountry)) return false;
+    if (!countryMatch(t)) return false;
     if (activeSchool && !eqi(t._school, activeSchool)) return false;
     return true;
   };
@@ -238,12 +249,19 @@ function renderFilters() {
   }
 
   if (isBoard) {
-    const countries = [...new Set(parsed.teams.map(t => t._country).filter(Boolean))]
-      .sort((a, b) => flagLabel(a).localeCompare(flagLabel(b)));
+    // seletor de bandeira HIERÁRQUICO: país primeiro (agrega os estados no casamento —
+    // countryMatch), estados dele indentados logo abaixo (seleção exata)
+    const flags = [...new Set(parsed.teams.map(t => String(t._country || '').toLowerCase()).filter(Boolean))];
     const schools = [...new Set(parsed.teams.map(t => t._school).filter(Boolean))].sort();
-    if (countries.length) {
-      const sel = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todas', 'all')),
-        ...countries.map(c => el('option', { value: c }, flagLabel(c))));
+    if (flags.length) {
+      const byC = new Map();
+      flags.forEach(c => { const cc = c.split('-')[0]; if (!byC.has(cc)) byC.set(cc, []); if (c !== cc) byC.get(cc).push(c); });
+      const sel = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todas', 'all')));
+      [...byC.keys()].sort((a, b) => flagLabel(a).localeCompare(flagLabel(b))).forEach(cc => {
+        sel.append(el('option', { value: cc }, flagLabel(cc)));
+        byC.get(cc).sort((a, b) => flagLabel(a).localeCompare(flagLabel(b)))
+          .forEach(st => sel.append(el('option', { value: st }, '  ' + flagLabel(st))));
+      });
       sel.value = activeCountry;
       sel.addEventListener('change', () => { activeCountry = sel.value; reRender(); });
       bar.append(fLabel(T('Bandeira:', 'Flag:'), sel));

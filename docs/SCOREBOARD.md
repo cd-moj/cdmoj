@@ -165,7 +165,10 @@ empate pode dar mais de uma ★, deliberado) e o contador avisa ("· ★ = 1º d
 que há filtro ativo é o contador ("Mostrando N de M times").
 `/contest/score/?c=<c>&view=<coorte>` abre direto num placar paralelo (link compartilhável). ⚠ O casamento é **estrito**: quem não tem o dado não
 casa — o `t._country !== undefined` de antes fazia time sem bandeira aparecer em QUALQUER filtro
-de bandeira.
+de bandeira. **A bandeira é HIERÁRQUICA** (2026-08-30): o seletor lista o PAÍS e, indentados, os
+estados usados; selecionar o país casa por prefixo (`br` pega `br` E `br-*` — na Maratona 2026 só
+14 de 1500+ times tinham `br` cru, o resto declarou estado) e o estado segue exato. Mesma regra
+no relatório (`data-country`/`data-cname` na `<tr>`) e no `by_country` das estatísticas (prefixo).
 
 **No relatório offline as visões viram um seletor**: `report-gen.sh` publica **um placar por
 visão** (`rep_score_boards`, uma `<section class="board-view" data-view="…">` por TXT, a primeira

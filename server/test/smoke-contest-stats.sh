@@ -15,13 +15,14 @@ fx_user "$C" bob b "Bob"
 fx_user "$C" carol c "Carol"
 fx_user "$C" zz.judge p "Judge"
 fx_user "$C" zz.staff p "Staff"
-# sede/país p/ os recortes (R2): alice+bob = Curitiba/br, carol = Buenos Aires/ar,
-# zz.judge com sede (privilegiado NÃO pode contaminar o recorte); bob sem TEAM não existe
-# aqui — quem fica sem .team é o caso "fora de todo recorte" (st.admin não submete).
+# sede/país p/ os recortes (R2): alice = Curitiba/br, bob = Curitiba/br-sc (bandeira de
+# ESTADO — o país AGREGA por prefixo: br-sc conta no br), carol = Buenos Aires/ar,
+# zz.judge com sede (privilegiado NÃO pode contaminar o recorte); quem fica sem .team é o
+# caso "fora de todo recorte" (st.admin não submete).
 fx_team(){ jq -c --arg r "$2" --arg f "$3" '. + {team:{region:$r, flag:$f}}' \
   "$C/users/$1/account.json" > "$C/users/$1/account.json.n" && mv "$C/users/$1/account.json.n" "$C/users/$1/account.json"; }
 fx_team alice "Curitiba" br
-fx_team bob "Curitiba" br
+fx_team bob "Curitiba" br-sc
 fx_team carol "Buenos Aires" ar
 fx_team zz.judge "Curitiba" br
 printf 'CONTEST=st\nLOGIN=st.admin\nLOGINAT=1\n' > "$SESS/adm"
@@ -58,7 +59,10 @@ ck "timeline tem bins"     '[[ "$(jq -r ".timeline|length" <<<"$BODY")" -ge 1 ]]
 
 echo "== recortes por sede/país (R2) =="
 ck "by_region tem as 2 sedes" '[[ "$(jq -c ".by_region|keys|sort" <<<"$BODY")" == "[\"Buenos Aires\",\"Curitiba\"]" ]]'
-ck "by_country tem ar+br"     '[[ "$(jq -c ".by_country|keys|sort" <<<"$BODY")" == "[\"ar\",\"br\"]" ]]'
+ck "by_country tem ar+br (br-sc AGREGADO no br, sem chave br-sc)" \
+  '[[ "$(jq -c ".by_country|keys|sort" <<<"$BODY")" == "[\"ar\",\"br\"]" ]]'
+ck "br agrega alice(br)+bob(br-sc): 4 subs, 2 users" \
+  '[[ "$(jq -r ".by_country.br.totals.submissions" <<<"$BODY")" == 4 && "$(jq -r ".by_country.br.totals.users" <<<"$BODY")" == 2 ]]'
 ck "Curitiba: 4 subs, 2 users (zz.judge com sede NÃO contamina)" \
   '[[ "$(jq -r ".by_region[\"Curitiba\"].totals.submissions" <<<"$BODY")" == 4 && "$(jq -r ".by_region[\"Curitiba\"].totals.users" <<<"$BODY")" == 2 ]]'
 ck "ar: só a carol (1/1/1/1)" \
