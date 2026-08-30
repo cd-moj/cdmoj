@@ -93,12 +93,14 @@ if [[ "$command" == null && "$disabled" != true ]] && (( free_slots > 0 )); then
     probs="$(jq -c '.problems // {}' "$REGISTRYDIR/$host.json" 2>/dev/null)"
     langs="$(jq -c '.langs // []' "$REGISTRYDIR/$host.json" 2>/dev/null)"
     JOBSF="$(mktemp)"
-    while (( claimed < free_slots )); do
-      job="$(q_claim "$host" "$cap" "$probs" "$langs")"
-      [[ -n "$job" ]] && jq -e . >/dev/null 2>&1 <<<"$job" || break
-      jq -c . <<<"$job" >> "$JOBSF"
-      claimed=$((claimed+1))
-    done
+    # claim em LOTE (2026-08-30): UMA varredura colhe até free_slots — o laço antigo
+    # re-varria a fila (e o prefixo preso por pool) p/ CADA slot; um job por linha
+    q_claim "$host" "$cap" "$probs" "$langs" "$free_slots" 2>/dev/null \
+      | while IFS= read -r job; do
+          [[ -n "$job" ]] || continue
+          jq -e . >/dev/null 2>&1 <<<"$job" && printf '%s\n' "$job"
+        done > "$JOBSF"
+    claimed="$(grep -c . "$JOBSF" 2>/dev/null)"; claimed="${claimed//[^0-9]/}"; claimed="${claimed:-0}"
     if [[ -s "$JOBSF" ]]; then
       assigned="$(jq -cs 'if $batch then . else .[0] end' --argjson batch "$batch" "$JOBSF")"
       [[ -n "$assigned" ]] || assigned=null

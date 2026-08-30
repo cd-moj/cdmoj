@@ -157,71 +157,106 @@ q_enqueue() {
   printf '%s' "$json" > "$tmp" && mv -f "$tmp" "$QUEUEDIR/$band/$base"
 }
 
-# q_claim <host> <capability> <problems-json> : reivindica 1 job que o worker pode
-# rodar (capacidade + tem-o-problema), atômico sob flock. Ecoa o job (ou nada).
+# q_claim <host> <capability> <problems-json> [langs-json] [max=1] : reivindica até MAX
+# jobs que o worker pode rodar (capacidade + pool + linguagem + cache), atômico sob
+# flock. Ecoa um job POR LINHA (jq -c; o enqueue grava single-line).
+#
+# COMPLEXIDADE (a lição da bancada, 30/08): a versão original fazia 2-6 jq POR JOB
+# EXAMINADO e recomeçava a varredura DO ZERO a cada job reivindicado — com um prefixo de
+# jobs presos por pool (o retrato da Maratona: 500 presos na frente), o custo era
+# O(prefixo) POR CLAIM e a vazão medida caiu a 30 veredictos/min. Agora:
+#   1. a decisão ESTÁTICA de cada job (problema, capacidade, pool, linguagem) mora num
+#      sidecar `<job>.cmeta` escrito na PRIMEIRA visita (self-heal: 1 jq por job NA VIDA;
+#      requeue/promote que renomeiam o .json só custam mais uma visita) — as varreduras
+#      seguintes leem o sidecar com $(<…), ZERO processos por job pulado;
+#   2. o claim é em LOTE: UMA varredura por chamada colhe até MAX jobs (o heartbeat pedia
+#      1 por vez e re-varria o prefixo p/ cada slot);
+#   3. glob ordenado (epoch de 10 dígitos ⇒ ordem lexical = cronológica) no lugar de
+#      find|sort. Os GRACEs (relógio) continuam no bash. Semântica dos gates preservada
+#      1:1 — provada pelos testes de gate e pelo smoke do pipeline.
 q_claim() {
-  local host="$1" cap="$2" probs="$3" langs="${4:-[]}"
+  local host="$1" cap="$2" probs="$3" langs="${4:-[]}" max="${5:-1}"
   valid_hostname "$host" || return 1
+  [[ "$max" =~ ^[0-9]+$ ]] || max=1
   sched_init_dirs
   (
     flock 9 || exit 0
-    # dieta 2026-08-30: eram 2-6 jq POR JOB examinado — com fila funda (2.000 na Maratona)
-    # e job não-casável no topo, um beat varria O(fila × 6) forks DENTRO do flock. Agora é
-    # UM jq por job: as quatro decisões (capacidade, pool, linguagem, cache quente) saem
-    # numa extração só; os GRACEs continuam no bash (dependem do relógio). Semântica
-    # preservada 1:1 — inclusive `probs` malformado/vazio = "frio" (era o jq -e falhando).
-    local band f dest base ts _d prob capok hostok langok probhot
-    local _probs="$probs"; jq -e . >/dev/null 2>&1 <<<"$_probs" || _probs='{}'
-    local _langs="$langs"; jq -e . >/dev/null 2>&1 <<<"$_langs" || _langs='[]'
+    set +o noglob   # subshell: o noglob da API não vaza; glob = listagem ordenada s/ fork
+    local band f dest base ts meta prob need jl hosts probhot
+    local claimed=0 pk v
+    # conjuntos do JUIZ, calculados UMA vez por chamada (2 jq no total)
+    local -A PH=()
+    while IFS= read -r pk; do [[ -n "$pk" ]] && PH["$pk"]=1; done \
+      < <(jq -r 'keys[]? // empty' <<<"$probs" 2>/dev/null)
+    local LSET=""
+    while IFS= read -r pk; do
+      [[ -n "$pk" ]] || continue
+      case "$pk" in py2|py3) pk=py;; esac
+      LSET+=" $pk"
+    done < <(jq -r '.[]? // empty' <<<"$langs" 2>/dev/null)
+    [[ -n "$LSET" ]] && LSET+=" "
     for band in "${SCHED_BANDS[@]}"; do
-      while IFS= read -r f; do
+      for f in "$QUEUEDIR/$band"/*.json; do
         [[ -f "$f" ]] || continue
-        _d="$(jq -j --arg h "$host" --arg cap "$cap" --argjson probs "$_probs" --argjson langs "$_langs" '
-          (.problem_id // "") as $p
-          | [ $p,
-              (if ((.need_capability // "") == "" or (.need_capability // "") == $cap) then "1" else "0" end),
-              (if (((.allowed_hosts // []) | length) > 0
-                   and (((.allowed_hosts // []) | index($h)) | not)) then "0" else "1" end),
-              (if (($langs | length) == 0) then "1"
-               else (($langs | map(if . == "py3" or . == "py2" then "py" else . end)) as $L
-                     | ((.lang // "") | ascii_downcase | (if . == "py2" or . == "py3" then "py" else . end)) as $jl
-                     | (if ($jl == "" or (($L | index($jl)) != null)) then "1" else "0" end)) end),
-              (try (([$p, ($p | gsub("#"; "/")), ($p | gsub("/"; "#"))] | unique) as $vs
-                    | (if any($vs[]; in($probs)) then "1" else "0" end)) catch "0")
-            ] | join("\u0001")' "$f" 2>/dev/null)" || continue
-        IFS=$'\x01' read -r prob capok hostok langok probhot <<<"$_d"
-        [[ "$capok" == 1 ]] || continue
+        (( claimed >= max )) && break 2
+        # sidecar de decisão estática: prob \x01 need \x01 lang \x01 hosts-csv
+        if [[ -s "$f.cmeta" ]]; then
+          meta="$(<"$f.cmeta")"
+        else
+          meta="$(jq -j '[ (.problem_id // ""),
+                           (.need_capability // ""),
+                           ((.lang // "") | ascii_downcase),
+                           ((.allowed_hosts // []) | join(",")) ] | join("\u0001")' "$f" 2>/dev/null)" \
+            || continue
+          printf '%s' "$meta" > "$f.cmeta" 2>/dev/null
+        fi
+        IFS=$'\x01' read -r prob need jl hosts <<<"$meta"
+        [[ -z "$need" || "$need" == "$cap" ]] || continue
         base="${f##*/}"
         # pool de juízes (allowed_hosts): ESTRITO por default (POOL_GRACE=0) — pool
         # offline segura a fila de propósito; POOL_GRACE>0 libera como fallback.
-        if [[ "$hostok" == 0 ]]; then
+        if [[ -n "$hosts" && ",$hosts," != *",$host,"* ]]; then
           ts="${base%%_*}"
           { (( POOL_GRACE > 0 )) && [[ "$ts" =~ ^[0-9]+$ ]] \
               && (( EPOCHSECONDS - ts > POOL_GRACE )); } || continue
         fi
         # route by language: sem o toolchain espera LANG_GRACE; depois pega como fallback.
-        if [[ "$langok" == 0 ]]; then
-          ts="${base%%_*}"
-          [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= LANG_GRACE )) && continue
+        if [[ -n "$LSET" ]]; then
+          case "$jl" in py2|py3) jl=py;; esac
+          if [[ -n "$jl" && "$LSET" != *" $jl "* ]]; then
+            ts="${base%%_*}"
+            [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= LANG_GRACE )) && continue
+          fi
         fi
         # modelo cache: juiz "quente" (tem o problema) reivindica na hora; frio espera
-        # COLD_GRACE — a vantagem dos caches calibrados.
-        if [[ "$probhot" == 0 ]]; then
+        # COLD_GRACE — a vantagem dos caches calibrados. Tolerante à convenção de id.
+        probhot=0
+        v="${prob//#/\/}"
+        [[ -n "${PH[$prob]:-}" || -n "${PH[$v]:-}" ]] && probhot=1
+        v="${prob//\//#}"
+        [[ -n "${PH[$v]:-}" ]] && probhot=1
+        if (( probhot == 0 )); then
           ts="${base%%_*}"
           [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= COLD_GRACE )) && continue
         fi
         mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null
         dest="$ASSIGNEDDIR/$host/$base"
         if mv "$f" "$dest" 2>/dev/null; then
+          rm -f "$f.cmeta" 2>/dev/null
           local tmp="$dest.tmp"
           jq -c --arg h "$host" --argjson now "$EPOCHSECONDS" \
              '. + {assigned_to:$h, assigned_at:$now}' "$dest" > "$tmp" 2>/dev/null \
              && mv -f "$tmp" "$dest"
-          cat "$dest"
-          exit 0
+          cat "$dest"; printf '\n'
+          claimed=$(( claimed + 1 ))
         fi
-      done < <(find "$QUEUEDIR/$band" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
+      done
+      # sidecar órfão (job saiu por requeue/promote sem levar o cmeta): gc barato
+      for f in "$QUEUEDIR/$band"/*.cmeta; do
+        [[ -e "$f" && ! -f "${f%.cmeta}" ]] && rm -f "$f" 2>/dev/null
+      done
     done
+    exit 0
   ) 9>"$QUEUEDIR/.lock"
 }
 
