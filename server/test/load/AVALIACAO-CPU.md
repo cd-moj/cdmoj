@@ -50,6 +50,7 @@ em bash?* Respondida com a BANCADA local (ver `BANCADA.md`) — **nada foi a pro
 | 1× com q_claim ANTIGO | 1.200/1.200 mas **out≈0 min 1-14**; rajada de ~390/min no dreno final — o colapso de claim reproduzido |
 | 1×: tier web | 7.969 reqs, **zero erros**, p.ex. score avg 50 ms, updates 13 ms, summary 31 ms |
 | **2× (pico 240/min) com dieta completa** | **2.400/2.400 veredictos, wall = a duração exata da escadaria (ZERO dreno residual); saldo in−out ≈ 0 em TODOS os platôs (ex.: min12 in=237 out=233), fila ≤ 31; CPU do daemon 190 s em 15 min (~21% de 1 core); 7.162 reqs web zero erros (score avg 16 ms)** |
+| **4× (pico 480/min) com dieta + q_claim v3** | **4.800/4.800 veredictos, wall 911 s (= o plano + 11 s, ZERO dreno residual); no platô de 480/min: in=477/486 × out=474/478, fila ≤ 90; CPU do daemon 384 s em 15 min (~42% de 1 core — a 59% do teto serial de ~820/min, coerente com o modelo); 7.123 reqs web zero erros (score avg 20 ms, summary 33 ms)** |
 
 ### Spike (decisor do builtin)
 | medição | resultado |
@@ -99,7 +100,8 @@ processo-por-operação, não do algoritmo.
 | resolve_submission (summary) | 3 globs `users/*` POR id | O(U·ids)/request | rota de treino com SHOWLOG visível (700k lookups/request @2.355 contas) |
 | spool/fila como DIRETÓRIOS | readdir | O(N) por listagem | >50k entradas |
 
-**A escada de folga** (pico Maratona 2026 = 120 subs/min; 2× validado ponta a ponta):
+**A escada de folga** (pico Maratona 2026 = 120 subs/min; **4× validado ponta a ponta** —
+480/min de pico com fila ≤ 90 e daemon a 42% de 1 core):
 
 | degrau | teto estimado | folga vs 2026 | custo |
 |---|---|---|---|
