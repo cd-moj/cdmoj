@@ -228,8 +228,14 @@ auto_allows() {
 # Condições: MANUAL_VERDICT=1 no conf, submissor NÃO-privilegiado, veredicto real (não erro de
 # juiz), e NÃO permitido pela matriz auto. Lê MANUAL_VERDICT via grep (ingest_result não dá source).
 should_hold() {
-  local contest="$1" login="$2" prob="$3" lang="$4" verdict="$5" vcanon="${6:-$5}" mv
-  mv="$(grep -m1 '^MANUAL_VERDICT=' "$CONTESTSDIR/$contest/conf" 2>/dev/null | cut -d= -f2-)"
+  local contest="$1" login="$2" prob="$3" lang="$4" verdict="$5" vcanon="${6:-$5}" mv _line
+  # dieta 2026-08-30: era grep|cut (2 execs POR RESULTADO); leitura builtin, molde do
+  # contest_is_demo logo abaixo (o conf_value do common.sh não existe neste processo)
+  mv=""
+  while IFS= read -r _line || [[ -n "$_line" ]]; do
+    [[ "$_line" == MANUAL_VERDICT=* ]] || continue
+    mv="${_line#MANUAL_VERDICT=}"; break
+  done < "$CONTESTSDIR/$contest/conf" 2>/dev/null
   mv="${mv//\'/}"; mv="${mv//\"/}"
   [[ "$mv" == 1 ]] || return 1
   case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) return 1;; esac
@@ -262,11 +268,11 @@ write_review_item() {
 # de auditoria) e marca review/<id>.json como released. Herda metadados da linha :id do history.
 consume_setverdict() {
   local json="$1" contest verdict id username problem
-  contest="$(jq -r '.contest // empty' <<<"$json")"
-  verdict="$(jq -r '.verdict // empty' <<<"$json")"
-  id="$(jq -r '.id // empty' <<<"$json")"
-  username="$(jq -r '.username // empty' <<<"$json")"
-  problem="$(jq -r '.problem_id // empty' <<<"$json")"
+  # dieta 2026-08-30: eram 5 jq -r avulsos re-parseando o mesmo JSON — a MESMA extração
+  # única do ingest_result (join por \x01; verdict pode ter espaço/():, nunca \x01)
+  IFS=$'\x01' read -r contest verdict id username problem < <(
+    jq -j '[.contest // "", .verdict // "", .id // "", .username // "", .problem_id // ""]
+           | join("\u0001")' <<<"$json" 2>/dev/null)
   valid_contest_id "$contest" || { log "setverdict: contest inválido"; return 1; }
   [[ -n "$verdict" ]] || { log "setverdict: sem verdict"; return 1; }
   local cdir="$CONTESTSDIR/$contest" line=""
@@ -309,7 +315,10 @@ write_result_json() {
   [[ -n "$out" ]] || return 0
   local tmp="$resdir/.$id.tmp"
   printf '%s' "$out" > "$tmp" && mv -f "$tmp" "$resdir/$id.json"
-  cp -f "$resdir/$id.json" "$RESULTSDIR/$id.json" 2>/dev/null || true
+  # dieta 2026-08-30: hardlink quando os dois moram no mesmo fs (em prod são volumes
+  # DIFERENTES — contests × run — e o ln falha: cai no cp de sempre)
+  ln -f "$resdir/$id.json" "$RESULTSDIR/$id.json" 2>/dev/null \
+    || cp -f "$resdir/$id.json" "$RESULTSDIR/$id.json" 2>/dev/null || true
 }
 
 # testrun_finalize <result-json> : resultado de um TEST-RUN de autoria (contest sentinela
@@ -607,10 +616,10 @@ process_spool_file() {
 
 # pega o "próximo" arquivo elegível do spool (ignora dotfiles/.in.*/.tmp).
 next_spool_file() {
-  local f
+  local f b
   for f in "$SPOOLDIR"/*; do
     [[ -e "$f" ]] || continue
-    local b; b="$(basename "$f")"
+    b="${f##*/}"          # dieta 2026-08-30: era $(basename) — 1 fork+exec POR ARQUIVO
     case "$b" in .*|*.tmp|.in.*) continue ;; esac
     printf '%s\n' "$f"
     return 0

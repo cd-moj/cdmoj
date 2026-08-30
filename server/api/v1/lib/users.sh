@@ -175,21 +175,35 @@ metrics_recompute(){
   local c="$1" u="$2" hf mf fz
   hf="$(user_hist_file "$c" "$u")"; mf="$(metrics_file "$c" "$u")"
   [[ -f "$hf" ]] || { echo '{}' > "$mf"; return 0; }
-  fz="$(sed -n 's/^[[:space:]]*FREEZE_TIME=//p' "$CONTESTSDIR/$c/conf" 2>/dev/null | tail -1 | tr -cd '0-9')"
+  # LEITURA DO CONF SEM PROCESSO NENHUM (dieta 2026-08-30): isto rodava sed|tail|tr +
+  # grep + printf|tr — ~6 execs POR CHAMADA produzindo SEMPRE o mesmo valor p/ todos os
+  # usuários do contest (no recompute em massa da Maratona: ~30k dos ~35k processos).
+  # Leitor builtin no molde do conf_value (que não existe aqui — o judged não sourceia
+  # common.sh) + memo do `deny` por (contest, pv) — válido no processo, e o daemon é
+  # persistente. Semântica preservada: última linha FREEZE_TIME vence; linha
+  # PENALTY_VERDICTS presente ≠ default; %q vira códigos por limpeza de charset.
+  local _line _t pv="__unset" deny code
+  fz=""
+  while IFS= read -r _line || [[ -n "$_line" ]]; do
+    _t="${_line#"${_line%%[![:space:]]*}"}"        # ltrim (o sed aceitava espaço à esquerda)
+    case "$_t" in
+      FREEZE_TIME=*)       fz="${_t#FREEZE_TIME=}"; fz="${fz//[!0-9]/}" ;;
+    esac
+    case "$_line" in
+      PENALTY_VERDICTS=*)  pv="${_line#PENALTY_VERDICTS=}"; pv="${pv//[!a-z ]/}" ;;
+    esac
+  done < "$CONTESTSDIR/$c/conf" 2>/dev/null
   fz="${fz:-0}"
-  # PENALTY_VERDICTS: presença da linha ≠ default (lista vazia = nada penaliza); o valor foi
-  # gravado com %q (espaço vira `\ `, vazio vira `''`) — tr limpa para códigos espaço-separados.
-  local pvline pv deny code
-  pvline="$(grep -m1 '^PENALTY_VERDICTS=' "$CONTESTSDIR/$c/conf" 2>/dev/null)"
-  if [[ -n "$pvline" ]]; then
-    pv="$(printf '%s' "${pvline#PENALTY_VERDICTS=}" | tr -cd 'a-z ')"
+  [[ "$pv" == "__unset" ]] && pv="$PENALTY_CODES_DEFAULT"
+  if [[ -n "${_MRC_DENY_KEY:-}" && "$_MRC_DENY_KEY" == "$c|$pv" ]]; then
+    deny="$_MRC_DENY"
   else
-    pv="$PENALTY_CODES_DEFAULT"
+    deny=""
+    for code in $PENALTY_CODES_ALL; do
+      [[ " $pv " == *" $code "* ]] || deny+="${deny:+$'\t'}$(penalty_code_canon "$code")"
+    done
+    _MRC_DENY_KEY="$c|$pv"; _MRC_DENY="$deny"
   fi
-  deny=""
-  for code in $PENALTY_CODES_ALL; do
-    [[ " $pv " == *" $code "* ]] || deny+="${deny:+$'\t'}$(penalty_code_canon "$code")"
-  done
   jq -R -s --argjson freeze "${fz:-0}" --argjson now "$EPOCHSECONDS" --arg denyraw "$deny" '
     '"$VERDICT_CANON_JQ"'
     ($denyraw|split("\t")|map(select(length>0))) as $deny |

@@ -9,11 +9,13 @@ require_auth_contest "$contest"
 dir="$CONTESTSDIR/$contest/clarifications"
 priv=false; { is_admin || is_judge || is_mon; } && priv=true
 
+# dieta 2026-08-30: era 1 cat POR clarification — um cat só + jq -cs (ver updates.sh)
 set +o noglob; shopt -s nullglob
-arr=()
-for f in "$dir"/*.json; do [[ -f "$f" ]] && arr+=("$(cat "$f")"); done
+_cf=("$dir"/*.json)
 shopt -u nullglob
-all="$( ((${#arr[@]})) && printf '%s\n' "${arr[@]}" | jq -cs 'sort_by(-.time)' || echo '[]')"
+all='[]'
+(( ${#_cf[@]} )) && all="$(cat "${_cf[@]}" 2>/dev/null | jq -cs 'sort_by(-.time)')"
+[[ -n "$all" ]] || all='[]'
 now="$EPOCHSECONDS"
 if [[ "$priv" == true ]]; then
   # privilegiados coordenam a resposta (veem answer_claim e answered_by), mas NUNCA veem quem

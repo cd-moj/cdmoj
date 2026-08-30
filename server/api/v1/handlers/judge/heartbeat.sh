@@ -19,18 +19,18 @@ require_worker
 source "$_DIR/../../judge-gw/sched-lib.sh"
 
 body="$(read_body)"
-jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "Invalid JSON body" "bad_json"
-host="$(jq -r '.host // empty' <<<"$body")"
+# dieta 2026-08-30: eram 8 jq re-parseando o mesmo corpo A CADA BEAT de CADA juiz —
+# UMA extração (validação inclusa: JSON ruim quebra o próprio jq; campos sem \x01)
+_hb="$(jq -j '[ (.host // ""), (.state // "free"), (.inv_hash // ""),
+                ((.free_slots // "") | tostring), ((.total_slots // 1) | tostring),
+                (.cfg_hash // ""), (.status // "") ] | join("")' <<<"$body" 2>/dev/null)" \
+  || fail 400 "Invalid JSON body" "bad_json"
+IFS=$'\x01' read -r host state inv_hash free_slots total_slots agent_cfg_hash agent_status <<<"$_hb"
 valid_hostname "$host" || fail 400 "Invalid host" "host_invalid"
-state="$(jq -r '.state // "free"' <<<"$body")"
 [[ "$state" == free || "$state" == busy ]] || state=free
-inv_hash="$(jq -r '.inv_hash // empty' <<<"$body")"
 batch=true   # agente novo (manda free_slots) recebe assigned como ARRAY; antigo, escalar
-free_slots="$(jq -r '.free_slots // empty' <<<"$body")"
 [[ "$free_slots" =~ ^[0-9]+$ ]] || { batch=false; free_slots=0; [[ "$state" == free ]] && free_slots=1; }
-total_slots="$(jq -r '.total_slots // 1' <<<"$body")"; [[ "$total_slots" =~ ^[0-9]+$ ]] || total_slots=1
-agent_cfg_hash="$(jq -r '.cfg_hash // ""' <<<"$body")"
-agent_status="$(jq -r '.status // ""' <<<"$body")"
+[[ "$total_slots" =~ ^[0-9]+$ ]] || total_slots=1
 [[ "$agent_status" =~ ^(ok|draining|disabled)$ ]] || agent_status=""
 
 # worker desconhecido (registro expirou) -> pede re-registro

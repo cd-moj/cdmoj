@@ -35,8 +35,9 @@ login(){ row "$1" | cut -d: -f2; }
 echo "== default: 20 min, CE não conta =="
 conf ""
 build
-ck "alice cell 2/10* (CE fora do counted; * = first to solve)" '[[ "$(row 1)$(row 2)" == *":alice:"*  && "$(grep ":alice:" "$C/var/placar.txt" | cut -d: -f6)" == "2/10*" ]]'
-ck "bob primeiro (25 < 1*20+10=30), SEM estrela" '[[ "$(login 1)" == "bob" && "$(login 2)" == "alice" && "$(grep ":bob:" "$C/var/placar.txt" | cut -d: -f6)" == "1/25" ]]'
+# célula em SEGUNDOS desde a flag `icpc s` (2026-08-30): 600 s = o min 10 de antes
+ck "alice cell 2/600* (CE fora do counted; * = first to solve)" '[[ "$(row 1)$(row 2)" == *":alice:"*  && "$(grep ":alice:" "$C/var/placar.txt" | cut -d: -f6)" == "2/600*" ]]'
+ck "bob primeiro (25 < 1*20+10=30), SEM estrela" '[[ "$(login 1)" == "bob" && "$(login 2)" == "alice" && "$(grep ":bob:" "$C/var/placar.txt" | cut -d: -f6)" == "1/1500" ]]'
 
 echo "== PENALTY_MINUTES=10 muda a ordem =="
 conf 'PENALTY_MINUTES=10'
@@ -47,13 +48,13 @@ echo "== PENALTY_VERDICTS com ce: CE volta a contar (recompute em massa via .met
 conf 'PENALTY_MINUTES=10
 PENALTY_VERDICTS=wa\ tle\ mle\ rte\ ce'
 build
-ck "alice cell 3/10* (CE conta)"          '[[ "$(grep ":alice:" "$C/var/placar.txt" | cut -d: -f6)" == "3/10*" ]]'
+ck "alice cell 3/600* (CE conta)"          '[[ "$(grep ":alice:" "$C/var/placar.txt" | cut -d: -f6)" == "3/600*" ]]'
 ck "bob primeiro de novo (2*10+10=30 > 25)" '[[ "$(login 1)" == "bob" ]]'
 
 echo "== PENALTY_VERDICTS='' : nada penaliza (só o minuto do AC) =="
 conf "PENALTY_VERDICTS=''"
 build
-ck "alice cell 1/10* (só o AC conta)"     '[[ "$(grep ":alice:" "$C/var/placar.txt" | cut -d: -f6)" == "1/10*" ]]'
+ck "alice cell 1/600* (só o AC conta)"     '[[ "$(grep ":alice:" "$C/var/placar.txt" | cut -d: -f6)" == "1/600*" ]]'
 ck "alice primeiro (10 < 25)"             '[[ "$(login 1)" == "alice" ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

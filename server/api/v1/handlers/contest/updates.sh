@@ -22,11 +22,14 @@ fi
 # --- clarifications respondidas VISÍVEIS ao usuário (própria OU pública; admin/judge/mon: todas) ---
 dir="$CONTESTSDIR/$contest/clarifications"
 priv=false; { is_admin || is_judge || is_mon; } && priv=true
+# dieta 2026-08-30: era 1 cat POR clarification (2 forks/item na rota mais polada do
+# dia); um cat com TODOS os arquivos + jq -s (valores concatenados slurpam sem separador)
 set +o noglob; shopt -s nullglob
-arr=()
-for f in "$dir"/*.json; do [[ -f "$f" ]] && arr+=("$(cat "$f")"); done
+_cf=("$dir"/*.json)
 shopt -u nullglob
-all="$( ((${#arr[@]})) && printf '%s\n' "${arr[@]}" | jq -cs '.' || echo '[]')"
+all='[]'
+(( ${#_cf[@]} )) && all="$(cat "${_cf[@]}" 2>/dev/null | jq -cs '.')"
+[[ -n "$all" ]] || all='[]'
 clar="$(jq -c --arg me "$SESSION_LOGIN" --argjson priv "$priv" --argjson s "$cs" '
   [ .[] | select(($priv or .login==$me or (.public==true)) and ((.answer//"")|length)>0) ]
   | {last:([.[].answered_at//0]|max//0), count:length,
