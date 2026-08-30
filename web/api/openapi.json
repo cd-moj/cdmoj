@@ -2034,6 +2034,45 @@
         }
       }
     },
+    "/contest/nutella": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Panorama das máquinas mlinux (nutellaboot) — admin/chefe tudo; .cstaff/.staff a própria sede; ?catalog=<image> = catálogo de comandos",
+        "responses": {
+          "200": {
+            "description": "{configured, url, status, can_admin, scoped, data:{global, by_node, sedes[]}} — ver docs/NUTELLABOOT.md"
+          },
+          "403": {
+            "description": "role_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Ações da integração nutellaboot: config (chave write-only)/collect/push-roster (admin) e command (admin ou c/staff na própria sede, fail-closed)",
+        "responses": {
+          "200": {
+            "description": "config:{saved,configured} · collect:{started} · push-roster:{pushed,kept,failed} · command:{sent,op,image,mac,upstream}"
+          },
+          "403": {
+            "description": "admin_required/site_forbidden/command_scope_required"
+          },
+          "409": {
+            "description": "not_configured/no_cache"
+          },
+          "422": {
+            "description": "key_invalid/op_invalid/op_not_allowed/image_invalid"
+          },
+          "502": {
+            "description": "upstream_error — nutellaboot indisponível"
+          }
+        }
+      }
+    },
     "/contest/admin/finish": {
       "get": {
         "tags": [

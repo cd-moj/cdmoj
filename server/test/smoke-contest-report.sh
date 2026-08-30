@@ -23,6 +23,24 @@ jq -c '.team={name:"Time Bob",univ_short:"UFSC",univ_full:"Univ Federal de SC",f
 convert -size 40x40 xc:red "$C/users/alice/photo.png" 2>/dev/null || printf 'x' > /dev/null
 # árvore de sedes: o select de Sede da ESTATÍSTICA espelha o do placar (RTREE embutido)
 jq -n '[{name:"Brasil", regex:"^(alice|bob)$", subregions:[{name:"Rio", regex:"^alice$"}]}]' > "$C/regions.json"
+# cache do nutellaboot (mínimo): a página mlinux.html do relatório nasce dele — SEM MACs
+jq -n '{collected_at:1788000000, window:{start:1787990000, end:1788010000}, skipped:[],
+  global:{machines_total:2, seen:2, firewall_off:0, screen_lock:0, alerts:0, disk_high:0, bound:0,
+    ram_total_mb:23436, cores_total:12, cpu:{"Intel i5":1,"Intel i7":1}, ram_buckets:{"8":1,"16":1},
+    editors:{code:130}, editors_total_min:195, editors_machines:{code:2},
+    series:[{t:1787990400, act:2, mem_sum:40, mem_n:2, ld_sum:1.0, ld_n:2, ld_max:0.7, ed:{code:1}}]},
+  by_node:{Brasil:{machines_total:2, seen:2, ram_total_mb:23436, cores_total:12,
+    cpu:{"Intel i5":1,"Intel i7":1}, ram_buckets:{"8":1,"16":1}, editors:{code:130},
+    editors_total_min:195, editors_machines:{code:2}, series:[]}},
+  sedes:[{id:"26brxrio", name:"Rio", country:"br", fullname:"Rio", teams:["alice"],
+    machines_total:2, seen:2, firewall_off:0, screen_lock:0, alerts:0, disk_high:0, bound:0,
+    ram_total_mb:23436, cores_total:12, ram_avg_mb:11718, cores_avg:6,
+    cpu:{"Intel i5":1,"Intel i7":1}, ram_buckets:{"8":1,"16":1}, editors:{code:130},
+    editors_total_min:195, editors_machines:{code:2},
+    machines:[{mac:"de-ad-be-ef-00-01", processor:"Intel i5", cores:4, mem_mb:7812,
+               editors_time:{code:120,total:150}, fw:true, sl:false, home_pct:10, binding:null}],
+    bindings:[], series:[],
+    ranks:{geral:{ram:1,cpu:1,ed:1,n:1}, pais:{ram:1,cpu:1,ed:1,n:1}}}]}' > "$C/var/nutella.cache.json"
 # pacote com AUTOR (2 linhas) + documentos: 1 publicado, 1 gerado e NÃO publicado
 PKG="$FIX/probs"; mkdir -p "$PKG/col/pa"
 printf 'Bruno Ribas\nMaria da Silva\n' > "$PKG/col/pa/author"
@@ -126,6 +144,13 @@ ck "estatísticas: selects sede/país"       'grep -q "id=\"sRegion\"" "$R/stati
 ck "estatísticas: recortes embutidos"      'grep -q "by_region" "$R/statistics.html"'
 ck "estatísticas: árvore de sedes (RTREE, com nó agregador)" \
   'grep -q "const RTREE=\[{\"n\":\"Brasil\",\"d\":0}" "$R/statistics.html"'
+# --- mlinux.html (nutellaboot) ---
+ck "mlinux: página gerada do cache"        '[[ -s "$R/mlinux.html" ]]'
+ck "mlinux: entra na NAV das outras"       'grep -q "mlinux.html" "$R/index.html"'
+ck "mlinux: view + dados embutidos"        'grep -q "mlinuxSections" "$R/mlinux.html" && grep -q "NBDATA" "$R/mlinux.html"'
+ck "mlinux: hierarquia (RTREE) presente"   'grep -q "const RTREE=" "$R/mlinux.html"'
+ck "mlinux: SEM MAC no relatório"          '! grep -q "de-ad-be-ef" "$R/mlinux.html"'
+ck "mlinux: sem script externo (invariante)" '! grep -qE "<script src=|import |fetch\(" "$R/mlinux.html"'
 ck "estatísticas: nó Brasil TEM recorte (agregado por regex)" \
   'grep -qE "\"Brasil\": *\{" "$R/statistics.html"'
 ck "placar: número em .pv (fonte menor)"  'grep -qE "<td class=\"cell ok\"[^>]*>(<span class=\"fts( gfts)?\">[^<]*</span>)?(<span class=\"bdot\"[^>]*></span>)?<span class=\"pv\">1/70</span>" "$R/index.html"'

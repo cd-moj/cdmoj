@@ -26,6 +26,7 @@ import { makeStatusTab } from './status-tab.js';
 import { makeTasksTab } from './tasks.js';
 import { makeJudgesTab } from './judges-tab.js';
 import { makeAuditTab } from './audit-tab.js';
+import { makeMlinuxTab } from './mlinux-tab.js';
 import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
@@ -59,6 +60,7 @@ const GROUPS = () => [
     { id: 'situacao', label: T('Situação', 'Status'), make: () => makeStatusTab(CONTEST) },
     { id: 'staff', label: T('Staff', 'Staff'), make: () => makeTasksTab(CONTEST) },
     { id: 'juizes', label: T('Juízes', 'Judges'), make: () => makeJudgesTab(CONTEST) },
+    { id: 'mlinux', label: T('mlinux', 'mlinux'), make: () => makeMlinuxTab(CONTEST) },
     { id: 'auditoria', label: T('Auditoria', 'Audit'), make: () => makeAuditTab(CONTEST) },
   ] },
 ];

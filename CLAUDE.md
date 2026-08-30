@@ -597,6 +597,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   determinística** (a parte "decorrida" depende do relógio — é arredondada a minuto cheio e
   `window_minutes` a fixa, senão o mesmo `seed` dá placares diferentes e ninguém reproduz bug de
   telão). Receita fim a fim em `docs/WEBCAST.md`; teste: `smoke-contest-seed.sh`.
+- **Integração NUTELLABOOT (máquinas mlinux, 2026-08-30)** — doc completa em
+  `docs/NUTELLABOOT.md`. O essencial: chave por contest em
+  `contests/<c>/secrets/nutellaboot.key` (600; **nunca** no conf nem em argv — o curl da
+  `lib/nutella.sh` recebe o header por `-K <(printf …)`, molde do mojinho-api); coletor
+  `score/nutella-gen.sh` agrega POR SEDE + rollups pela árvore de regions.json (idioma do
+  stats-gen) em `var/nutella.cache.json`; rota `/contest/nutella` (GET escopado p/
+  `.cstaff`/`.staff`; POST config/collect/push-roster/command — **comando é fail-closed**:
+  staff sem escopo explícito = 403); view única `web/lib/mlinux-view.js` p/ painel
+  (Operação → mlinux), página avulsa `/contest/mlinux/` e o `mlinux.html` do relatório
+  (SEM MAC). Teste com mock: `smoke-contest-nutella.sh`. Comando novo se valida na
+  imagem de TESTE `26tete`, nunca numa sede real.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

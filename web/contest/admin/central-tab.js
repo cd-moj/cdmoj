@@ -32,6 +32,7 @@ const TARGET = {
   print: ['operacao', 'staff'], staff_filters: ['operacao', 'staff'],
   judges: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
   report: ['operacao', 'situacao'],   // postflight (encerrar evento)
+  mlinux: ['operacao', 'mlinux'],
 };
 
 export function makeCentralTab(CONTEST, opts = {}) {

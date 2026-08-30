@@ -100,6 +100,12 @@ rep_t(){ case "$LOC:$1" in
   pt:tab_clar) printf '💬 Clarifications';;       en:tab_clar) printf '💬 Clarifications';;
   pt:tab_stats) printf '📊 Estatísticas';;        en:tab_stats) printf '📊 Statistics';;
   pt:tab_docs) printf '📄 Documentos';;           en:tab_docs) printf '📄 Documents';;
+  pt:tab_mlinux) printf '🖥 Máquinas';;           en:tab_mlinux) printf '🖥 Machines';;
+  pt:page_mlinux) printf 'Máquinas mlinux (nutellaboot)';; en:page_mlinux) printf 'mlinux machines (nutellaboot)';;
+  pt:ml_all) printf '— geral —';;                 en:ml_all) printf '— overall —';;
+  pt:ml_sel) printf 'Recorte:';;                  en:ml_sel) printf 'Selection:';;
+  pt:ml_note) printf 'Coletado do nutellaboot em %s — specs, editores e comportamento das máquinas das sedes durante a prova.' "$2";;
+  en:ml_note) printf 'Collected from nutellaboot at %s — specs, editors and machine behaviour across sites during the contest.' "$2";;
   pt:tab_staff) printf '🖨️ Tarefas do staff';;    en:tab_staff) printf '🖨️ Staff tasks';;
   pt:tab_infra) printf '⚙️ Infra';;               en:tab_infra) printf '⚙️ Infra';;
   pt:tab_frozen) printf '❄ Placar congelado';;    en:tab_frozen) printf '❄ Frozen scoreboard';;
@@ -509,10 +515,13 @@ rep_head(){ # <título> <id-da-aba-ativa>
   tabs=""
   for t in "index.html:index:$(rep_t tab_score)" "runs.html:runs:$(rep_t tab_runs)" \
            "clarifications.html:clar:$(rep_t tab_clar)" "statistics.html:stats:$(rep_t tab_stats)" \
+           "mlinux.html:mlinux:$(rep_t tab_mlinux)" \
            "documentos.html:docs:$(rep_t tab_docs)" \
            "staff-tasks.html:staff:$(rep_t tab_staff)" "infra.html:infra:$(rep_t tab_infra)"; do
     IFS=: read -r fn id label <<< "$t"
     [[ "$id" == docs && ! -f "$OUTD/documentos.html" && "$active" != docs ]] && continue
+    # a aba mlinux é CONDICIONAL: só quando a integração nutellaboot foi coletada
+    [[ "$id" == mlinux && ! -f "$OUTD/mlinux.html" && "$active" != mlinux ]] && continue
     tabs+="<a href=\"$fn\"$([[ "$id" == "$active" ]] && printf ' class="on"')>$label</a>"
   done
   [[ -f "$OUTD/score-frozen.html" || "$active" == frozen ]] && \
@@ -1147,6 +1156,71 @@ if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON"
     } > "$OUTD/documentos.html"
   fi
 fi
+
+# --- mlinux.html (nutellaboot) — SÓ quando a integração foi coletada ---------------------
+# Gerada AQUI, antes das outras páginas, pelo mesmo motivo do documentos.html: a aba só
+# entra na nav das páginas escritas DEPOIS de o arquivo existir. Mesma doutrina do
+# statistics.html: inlina dom.js + charts.js + mlinux-view.js (a MESMA view do painel) com
+# os dados como literal. PRIVACIDADE: as listas por máquina (MAC) e os bindings ficam FORA
+# do relatório — só agregados, ranks e séries por sede/nó.
+NBC="$CDIR/var/nutella.cache.json"
+if [[ -s "$NBC" ]] && jq -e '.global' "$NBC" >/dev/null 2>&1; then
+  rt_ml='[]'
+  if [[ -s "$CDIR/regions.json" ]]; then
+    rt_ml="$(jq -c 'def strip: map({name: (.name // ""), subregions: ((.subregions // []) | strip)}); strip' \
+             "$CDIR/regions.json" 2>/dev/null)"
+    [[ -n "$rt_ml" ]] || rt_ml='[]'
+  fi
+  {
+    rep_head "$(rep_t page_mlinux)" mlinux
+    printf '<p class="note">%s</p>\n' "$(esc "$(rep_t ml_note "$(fmt_dt "$(jq -r '.collected_at // 0' "$NBC")")")")"
+    printf '<div class="fbar"><label>%s <select id="mlSel"></select></label></div>\n' "$(esc "$(rep_t ml_sel)")"
+    printf '<div id="ml"></div>\n'
+    printf '<script>\n'
+    printf 'const LANG=%s;\nfunction T(pt,en){return LANG==="en"?en:pt}\n' \
+      "$([[ "${LOCALE:-pt}" == en ]] && printf '"en"' || printf '"pt"')"
+    for _mlf in "$MOJ_WEB/shared/dom.js" "$MOJ_WEB/lib/charts.js" "$MOJ_WEB/lib/mlinux-view.js"; do
+      [[ -s "$_mlf" ]] || continue
+      sed -E '/^import /d; s/^export (function|const|let|class) /\1 /; /^export \{/d' "$_mlf"
+    done
+    printf 'const NBDATA=\n'
+    jq 'del(.sedes[].machines, .sedes[].bindings)' "$NBC"
+    printf ';\nconst RTREE=%s;\n' "$rt_ml"
+    cat <<'MLEOF'
+(function(){
+  var host=document.getElementById('ml'), sel=document.getElementById('mlSel');
+  var st=document.createElement('style'); st.textContent=MLINUX_CSS; document.head.appendChild(st);
+  var d=NBDATA, have=d.by_node||{}, sedeSet={};
+  (d.sedes||[]).forEach(function(s){ sedeSet[s.name.toLowerCase()]=1; });
+  // seletor = a ÁRVORE de regions.json (ordem/indentação do placar), só nós com dado;
+  // sedes fora da árvore no fim, ordenadas — o MESMO idioma do painel (mlinux-tab.js)
+  var opts=[], seen={};
+  function walk(list, depth){ (list||[]).forEach(function(r){
+    if(r.name){ var lo=r.name.toLowerCase();
+      if(sedeSet[lo]){ opts.push({kind:'s', key:r.name, depth:depth}); seen[lo]=1; }
+      else if(Object.prototype.hasOwnProperty.call(have, r.name)){ opts.push({kind:'n', key:r.name, depth:depth}); seen[lo]=1; } }
+    if(r.subregions && r.subregions.length) walk(r.subregions, depth+1); }); }
+  walk(RTREE, 0);
+  (d.sedes||[]).map(function(s){return s.name}).sort().forEach(function(n){
+    if(!seen[n.toLowerCase()]) opts.push({kind:'s', key:n, depth:0}); });
+  var o0=document.createElement('option'); o0.value='g|'; o0.textContent=T('— geral —','— overall —'); sel.add(o0);
+  opts.forEach(function(o){ var e=document.createElement('option'); e.value=o.kind+'|'+o.key;
+    e.textContent=new Array(o.depth+1).join('  ')+o.key; sel.add(e); });
+  function agg(){ var v=sel.value.split('|'), kind=v[0], key=v.slice(1).join('|');
+    if(kind==='n') return have[key]||d.global;
+    if(kind==='s'){ var s=(d.sedes||[]).filter(function(x){return x.name===key})[0]; return s||d.global; }
+    return d.global; }
+  function render(){ host.innerHTML='';
+    try{ mlinuxSections(agg(), {window:d.window}).forEach(function(x){ host.append(x) }); }
+    catch(e){ host.innerHTML='<p class="note">'+String(e)+'</p>'; } }
+  sel.addEventListener('change', render); render();
+})();
+MLEOF
+    printf '</script>\n'
+    rep_foot
+  } > "$OUTD/mlinux.html"
+fi
+# ⚠ o fi acima fecha ANTES da página seguinte — sem nutellaboot o relatório segue inteiro
 
 # --- index.html ------------------------------------------------------------------------
 # ⚠ FORA do if dos documentos: com o `fi` no fim deste bloco (era o caso), contest SEM

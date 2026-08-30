@@ -415,6 +415,19 @@ else
   add docs ok "Documentos da prova" "$ndoc gerado(s), $npub publicado(s) p/ a sede"
 fi
 
+# --- integração nutellaboot (mlinux) -----------------------------------------------------
+# Só entra QUANDO CONFIGURADA (contest sem mlinux não ganha aviso eterno). Checa que a
+# chave abre a API (curl -m 5 — a Central é do admin e abre pouco).
+source "$_LIBDIR/nutella.sh"
+if nb_configured "$contest"; then
+  _nbr="$(nb_curl "$contest" GET /whoami)"
+  if [[ "$(nb_status "$_nbr")" == 200 ]]; then
+    add mlinux ok "Integração nutellaboot" "chave válida; panorama/coleta em Operação → mlinux"
+  else
+    add mlinux warn "nutellaboot não responde" "chave inválida ou serviço fora (HTTP $(nb_status "$_nbr")) — Operação → mlinux"
+  fi
+fi
+
 ok_json '{checks:$c, summary:{ok:($c|map(select(.level=="ok"))|length),
                               warn:($c|map(select(.level=="warn"))|length),
                               fail:($c|map(select(.level=="fail"))|length)}}' \

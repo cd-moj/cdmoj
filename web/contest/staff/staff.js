@@ -24,6 +24,7 @@ const STATUS = {
 };
 
 let queue = [];            // último estado da fila
+const MLINUX_LINK = el('span', {});   // vira o link 🖥 quando o nutellaboot está configurado
 let autoMode = false;      // modo automático
 let busy = false;          // processando uma tarefa (evita diálogos sobrepostos)
 const seen = new Set();    // ids já auto-processados nesta sessão (não reimprimir)
@@ -196,6 +197,7 @@ function render() {
     el('div', { class: 'section' }, RO ? '' : autoBox,
       el('div', { class: 'row', style: 'margin:.2rem 0' }, statusBar, el('div', { class: 'spacer' }),
         CAN_BADGES ? el('a', { class: 'btn ghost', href: '/contest/badges/?c=' + enc(CONTEST) }, T('🏷️ Etiquetas', '🏷️ Badges')) : '',
+        MLINUX_LINK, // preenchido quando a integração nutellaboot está configurada
         el('button', { class: 'btn ghost', onclick: loadQueue }, T('↻ atualizar', '↻ refresh'))),
       el('div', { class: 'chart-wrap' }, table)));
   loadQueue(); schedulePoll();
@@ -220,5 +222,13 @@ async function boot() {
   CAN_BADGES = !!(st.is_cstaff || st.is_admin);
   autoMode = !RO && localStorage.getItem(AUTOKEY) === '1';
   render();
+  // link p/ o panorama/comandos das máquinas mlinux — só quando a integração existe
+  // (sonda barata; a página avulsa se linka daqui, doutrina do animeitor)
+  apiGet('/contest/nutella?contest=' + enc(CONTEST), G).then((r) => {
+    if (r && r.configured) {
+      MLINUX_LINK.append(el('a', { class: 'btn ghost', href: '/contest/mlinux/?c=' + enc(CONTEST) },
+        T('🖥 Máquinas', '🖥 Machines')));
+    }
+  }).catch(() => { /* sem integração/permissão: sem link */ });
 }
 boot();
