@@ -61,3 +61,10 @@ Conclusão do spike: **builtin compilado (jqb) descartado com números** — o c
 captura ≥98% do ganho sem C/ABI/binário duplo; o gargalo real da prova é o ACOPLAMENTO
 (tier web forkando + esteira serial no mesmo box), que o rig `prova` reproduz.
 Avaliação completa: `AVALIACAO-CPU.md`.
+
+## linguagens/ — o mesmo ingest em awk/perl/lua/ruby/C
+
+`linguagens/teto-lang.sh <label> <cmd>` monta a fixture dos tetos (2.000 results, 300
+users) e mede qualquer drain que respeite RUNDIR/CONTESTSDIR, CONFERINDO o resultado.
+Implementações em `linguagens/ingest.{awk,pl,lua,rb,c}` (+ `drain-awk.sh` que embrulha o
+awk com find/xargs). Números e leitura: seção "awk, make e a casinha" do AVALIACAO-CPU.md.

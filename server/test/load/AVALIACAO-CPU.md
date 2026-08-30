@@ -84,7 +84,87 @@ em bash?* Respondida com a BANCADA local (ver `BANCADA.md`) — **nada foi a pro
 Leitura honesta: o Python já opera a **35% do piso físico** da arquitetura de arquivos —
 acima dele a linguagem DEIXA de importar (o desenho é filesystem-bound; uma compilada
 compraria ≤3× sobre o Python). A distância bash→Python (~180×) é o preço do
-processo-por-operação, não do algoritmo.
+processo-por-operação, não do algoritmo. **Bench completo com awk/perl/lua/ruby/C/make na
+mesma fixture: seção "awk, make e a casinha" abaixo (fontes em `linguagens/`).**
+
+## awk, make e a casinha — o MESMO ingest em 7 linguagens (bench `linguagens/`)
+
+Cada implementação replica o `ingest-drain.py` na MESMA fixture (2.000 results, 300
+users), com o harness CONFERINDO o resultado. Duas rodadas, variação <3%:
+
+| implementação | µs/veredicto | veredictos/min | semântica |
+|---|---|---|---|
+| **C** (gcc -O2, strstr) | **82** | 731.707 | = o piso físico (78 µs) — confirma: filesystem-bound |
+| **Lua 5.4** (pattern) | 113 | 528.634 | atômico ✓; parse por pattern; sem listdir (find via popen) |
+| **gawk** | **130** | 459.770 | **1,6× MAIS RÁPIDO que o python** — mas SEM rename (grava direto) e parse por regex |
+| **ruby** (JSON em C) | 142 | 421.052 | semântica COMPLETA — parser real + rename ✓ |
+| python (o drain real) | 213 | 281.690 | semântica completa (a régua) |
+| busybox awk | 260 | 230.326 | idem gawk, interpretador 2× mais lento |
+| perl (JSON::PP) | 302 | 198.347 | completa; perde porque JSON::PP é puro-perl (JSON::XS ≈ python, não instalado) |
+| bash dietado | 40.000 | 1.500 | a esteira de hoje |
+
+**make** (2.000 targets): 1,2 ms/target de fork por recipe (2,4 ms se a recipe tem
+metachar ⇒ /bin/sh) ⇒ como "esteira" daria ~50k/min — 33× o bash, 10× pior que gawk. Mas
+**115 µs/target no incremental** (nada a fazer): o superpoder do make é DECIDIR o que não
+fazer (DAG+stat), não executar trabalho por item.
+
+**A leitura honesta do quadro:**
+1. **Todas as linguagens ≥130× o bash.** Acima do python a diferença é ±2-3× e o teto é o
+   filesystem (o C EMPATA com o piso físico). A escolha entre elas é semântica e
+   manutenção, nunca vazão — qualquer uma drena a fila da Maratona em <1 s.
+2. **O que o awk não tem desqualifica o awk como ESCRITOR**: sem `rename()` (atomicidade
+   do history — inegociável no escritor único), sem mkdir, sem flock, sem listdir, sem
+   base64/JSON de verdade. O ingest.awk só fecha o ciclo com `find` na frente e `xargs mv`
+   atrás — um awk-daemon exigiria um shim em C p/ as syscalls, que é o jqb de novo (a
+   mesma conclusão: não paga). **awk no lugar certo é TRANSFORMADOR de fluxo de texto** —
+   exatamente onde o MOJ já o usa (updatescore, sc_cells, stats-gen, os placares) — e lá
+   ele fica.
+3. **A "mais legal que python" que fecha semântica completa é ruby (142 µs)** — 1,5× o
+   python, mesmo modelo. Lua é a mais rápida das leves e a melhor candidata SE um dia
+   houver embutir (lua embarca em C em 200 KB) — mas parse JSON real vira dependência.
+   Nada disso muda a decisão: o drain python EXISTE, está provado em prova, e a diferença
+   python→X não compra nada que o gargalo real (desenho serial) não domine.
+
+## SAT / pseudo-boolean / PDDL — onde MODELAR pagaria (e onde não)
+
+O problema quente (o claim) formulado como otimização: matching bipartido jobs×slots com
+gates booleanos — variáveis x(j,h), at-most-s por juiz, at-most-1 por job, objetivo
+lexicográfico banda ≻ FIFO ≻ cache-hit. Instância da Maratona: Q=2.000 × H=24 slots =
+48k vars, ~100k cláusulas PB — **qualquer solver moderno resolve em <1 s**. E mesmo assim
+NÃO compensa, por três razões que não são de desempenho:
+
+1. **O guloso já realiza o ótimo do objetivo real.** Banda ≻ FIFO é exatamente a varredura
+   ordenada; o único termo "otimizável" é o cache-hit, e o valor total dele é minúsculo:
+   miss = 1 download de pacote, no MÁXIMO P×H ≈ 13×4 = 52 misses NA PROVA INTEIRA
+   (minutos agregados). O COLD_GRACE já captura quase tudo com uma espera limitada.
+2. **O problema é ONLINE** (heartbeats a cada ~2 s, chegadas contínuas): a solução ótima
+   de um instante está obsoleta no seguinte; garantias offline não transferem, e guloso
+   com prioridades é o que a teoria de matching online recomenda para chegadas
+   adversariais.
+3. **Explicabilidade operacional**: às 14h da prova, "por que o job X não saiu?" precisa
+   de resposta em 10 s — posição na fila + 4 gates. Um certificado de otimalidade de
+   solver não é resposta.
+
+**Onde modelagem PAGARIA no MOJ** (ranqueado com honestidade):
+- **Recalibração em massa** (P||Cmax, juízes heterogêneos, tempos conhecidos das
+  calibrações passadas): NP-difícil de verdade, CP-SAT/PB acharia o ótimo p/ 1.400
+  problemas × 4 juízes em segundos; LPT guloso já dá 4/3-aprox em 10 linhas de awk.
+  Ganho: ~20-30% do makespan de uma noite de recalibração geral — que roda ~2× por ano.
+- **Montagem de prova** (seleção ~13 de ~1.400 cobrindo tópicos×dificuldade×autoria):
+  set-cover pequeno, PB acha o ótimo E enumera alternativas — ferramenta de AUTORIA
+  divertida (casa com eda2-provas/aed1-provas), não infra.
+- **Coerência de TL entre linguagens**: conjunto mínimo de TLOVERRIDEs t.q. nenhuma
+  solução do autor vira TLE = hitting set minúsculo; hoje heurística + auditoria dão conta.
+- **PDDL**: planejamento pede ações com precondições/efeitos e ESCOLHA de ordem; o
+  pipeline do MOJ é uma linha reta, e o único fluxo com pré-condições encadeadas (promoção
+  de rodada) tem UM plano válido, já codificado. Não há busca a fazer.
+
+**E o shard não tem problema de otimização nenhum**: os dados são independentes por
+usuário; qualquer partição balanceada serve e hash uniforme é ótimo em expectativa — não
+há o que modelar, é só particionar. Conclusão de professor p/ professor: o gargalo do MOJ
+é vazão de I/O serial, não combinatória — as decisões combinatórias ou são rasas (matching
+com preferências fracas) ou são raras e offline (recalibração, montagem de prova), e é
+NESSAS que SAT/PB entram bem, como ferramenta, quando a vontade bater.
 
 ## Análise de COMPLEXIDADE — onde o algoritmo segura (além do fork)
 
