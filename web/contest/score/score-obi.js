@@ -50,13 +50,22 @@ export function renderOBI(parsed, opts) {
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
+  // filtro ativo renumera (R1): nº grande = posição no recorte (ordem do parse),
+  // .plg = a posição geral; genPlace (coorte×geral) só sem filtro — nunca 3 números
+  const filtered = !!(searchTerm && searchTerm.trim()) || !!regionFn;
+  const sliceMap = new Map();
+  if (filtered) {
+    teams.slice().sort((a, b) => (a.place || 0) - (b.place || 0))
+      .forEach((t, i) => sliceMap.set(t.username, i + 1));
+  }
+
   const table = el('table', { class: 'score m-obi' });
   table.dataset.shown = String(teams.length);          // contador da barra de filtros
   table.dataset.total = String(parsed.teams.length);
   // larguras por <colgroup> (table-layout:fixed) — o placar não rola para o lado
   scoreCols(table, parsed.probShorts.length, { flag: !!parsed.hasFlag, penalty: false });
   const headRow = el('tr', {}, el('th', {}, '#',
-    genPlace ? el('span', { class: 'plg' }, T('Geral', 'Overall')) : null));
+    (filtered || genPlace) ? el('span', { class: 'plg' }, T('Geral', 'Overall')) : null));
   if (parsed.hasFlag) headRow.append(el('th', { title: T('Bandeira', 'Flag') }, ''));
   headRow.append(el('th', {}, T('Equipe', 'Team')));
   const sonic = sonicEnabled(parsed.balloons);
@@ -69,10 +78,16 @@ export function renderOBI(parsed, opts) {
   const tb = el('tbody');
   teams.forEach(t => {
     const tr = el('tr', { id: 'tr-team-' + t.username.replace(/\W/g, '_') });
-    const gp = genPlace ? genPlace[t.username] : null;
-    tr.append(el('td', { class: 'cl-place' }, String(t.place),
-      gp != null ? el('span', { class: 'plg',
-        title: T('Posição no placar geral', 'Position in the overall scoreboard') }, String(gp)) : null));
+    if (filtered) {
+      tr.append(el('td', { class: 'cl-place' }, String(sliceMap.get(t.username) || ''),
+        el('span', { class: 'plg',
+          title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)') }, String(t.place))));
+    } else {
+      const gp = genPlace ? genPlace[t.username] : null;
+      tr.append(el('td', { class: 'cl-place' }, String(t.place),
+        gp != null ? el('span', { class: 'plg',
+          title: T('Posição no placar geral', 'Position in the overall scoreboard') }, String(gp)) : null));
+    }
     if (parsed.hasFlag) {
       const flagTd = el('td', {});
       if (t.flag) { const fi = flagEl(t.flag, { height: 18, title: t.flagTitle || t.flag }); if (fi) flagTd.append(fi); }

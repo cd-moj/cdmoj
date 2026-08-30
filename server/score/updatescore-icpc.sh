@@ -4,18 +4,27 @@
 #
 # ICPC scoreboard generator. Prints ONE TXT to stdout:
 #
-#   icpc
+#   icpc s
 #   desc:asc:flag:username:univ short:team name:univ full:A:B:...:Total:Penalty:LastAC
 #   <rows, already sorted: solved desc, penalty asc, last-AC-minute asc>
+#
+# A flag `s` na linha 1 (2026-08-30, R6) diz que a CÉLULA carrega SEGUNDOS: os clientes
+# exibem floor(seg/60) — idêntico ao placar de sempre — e usam o segundo exato p/
+# recalcular a estrela de first-to-solve DENTRO de um recorte (filtro de sede/país/etc.)
+# sem empate artificial de minuto. TXT sem a flag (placares ARQUIVADOS de rodadas) segue
+# sendo lido como minutos por todos os parsers.
 #
 # Total = resolvidos; Penalty = SOMA das penalidades (visível no placar); LastAC = minuto de
 # prova do ÚLTIMO problema resolvido — coluna de SISTEMA (a UI usa p/ empate exato, não exibe).
 # Classificação: 1º resolvidos (desc), 2º penalidade (asc), 3º último AC (asc).
+# ⚠ A MUDANÇA DE UNIDADE É SÓ NA CÉLULA: ordenação, Total, Penalty e LastAC continuam em
+# MINUTOS ICPC — o placar renderizado é byte-idêntico ao de antes aos olhos de todos.
 #
 # Per team / per problem the cell is:
 #   ""              untried
-#   tries/minutes   solved (minutes from CONTEST_START; painted by balloon color)
-#   tries/minutes*  solved FIRST-TO-SOLVE (menor first_ac_epoch do problema ENTRE os
+#   tries/seconds   solved (seconds from CONTEST_START; painted by balloon color;
+#                   clients DISPLAY floor(seconds/60))
+#   tries/seconds*  solved FIRST-TO-SOLVE (menor first_ac_epoch do problema ENTRE os
 #                   times do placar, na MESMA visão frozen/full — o front destaca com ★)
 #   tries/-         tried but unsolved
 #
@@ -37,7 +46,7 @@ START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 
 # --- header ----------------------------------------------------------------
 {
-  printf 'icpc\n'
+  printf 'icpc s\n'   # `s` = células em segundos (ver o cabeçalho deste arquivo)
   printf 'desc:asc:flag:username:univ short:team name:univ full'
   for ((p=0; p<SC_NPROB; p++)); do printf ':%s' "${SC_SHORT[p]}"; done
   printf ':Total:Penalty:LastAC'
@@ -118,13 +127,14 @@ done
       if (( tent == 0 && pend == 0 )); then
         cells+=":"                       # untried -> empty cell
       elif (( sol == 1 )); then
-        min=$(( (fac - START) / 60 )); (( min < 0 )) && min=0
+        sec=$(( fac - START )); (( sec < 0 )) && sec=0
+        min=$(( sec / 60 ))              # penalidade/ordenação SEGUEM em minutos ICPC
         (( solved++ ))
         (( penalty += (tent-1)*PENALTYCOST + min ))
         (( min > lastmin )) && lastmin=$min
         fts=""
         [[ -n "${FTSMIN[${SC_CANON[p]}]:-}" ]] && (( fac == FTSMIN[${SC_CANON[p]}] )) && fts="*"
-        cells+=":${tent}/${min}${fts}"   # solved (* = first to solve)
+        cells+=":${tent}/${sec}${fts}"   # solved em SEGUNDOS (* = first to solve)
       else
         cells+=":${tent}/-"              # tried, unsolved
       fi

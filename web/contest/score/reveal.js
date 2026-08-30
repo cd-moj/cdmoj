@@ -151,7 +151,10 @@ async function main() {
     ]);
   } catch (e) { app.textContent = T('Falha ao carregar o placar: ', 'Failed to load the scoreboard: ') + (e.message || T('erro', 'error')); return; }
   const fl = frozenTxt.split('\n'), ul = fullTxt.split('\n');
-  if ((fl[0] || '').trim() !== 'icpc' || (ul[0] || '').trim() !== 'icpc') {
+  // linha 1 pode trazer a flag `s` (célula em SEGUNDOS, R6) — o parseICPC converte a
+  // exibição p/ minutos, então daqui p/ baixo nada muda (penalidade/ordem em minutos ICPC)
+  const modeWords = (s) => (s || '').trim().toLowerCase().split(/\s+/);
+  if (modeWords(fl[0])[0] !== 'icpc' || modeWords(ul[0])[0] !== 'icpc') {
     app.textContent = T('A cerimônia é só para contests em modo icpc.', 'The ceremony is only for contests in icpc mode.'); return;
   }
   try { balloons = await apiGet('/contest/balloons?contest=' + enc(CONTEST), G); } catch { balloons = {}; }
@@ -167,7 +170,8 @@ async function main() {
     try { const b = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);
           if (Number.isInteger(b.penalty_minutes)) PEN = b.penalty_minutes; } catch { /* fallback 20 */ }
   }
-  const frozen = parseICPC(fl.slice(1), balloons), full = parseICPC(ul.slice(1), balloons);
+  const frozen = parseICPC(fl.slice(1), balloons, modeWords(fl[0]).includes('s'));
+  const full = parseICPC(ul.slice(1), balloons, modeWords(ul[0]).includes('s'));
   if (!frozen || !full) { app.textContent = T('Placar vazio.', 'Empty scoreboard.'); return; }
   probShorts = full.probShorts;
   const fmap = {}; full.teams.forEach(t => { fmap[t.username] = t; });

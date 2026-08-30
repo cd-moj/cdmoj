@@ -38,7 +38,7 @@ hdr(){ printf '%s' "$BODY" | sed -n 2p; }
 
 echo "== antes do início: vitrine sem colunas de problema =="
 call /contest/score
-ck "modo icpc"                        '[[ "$(printf "%s" "$BODY" | sed -n 1p)" == icpc ]]'
+ck "modo icpc"                        '[[ "$(printf "%s" "$BODY" | sed -n 1p)" == icpc* ]]'
 ck "header SEM W1/W2"                 '[[ "$(hdr)" != *:W1:* && "$(hdr)" != *:W2:* ]]'
 ck "header ainda tem Total"           '[[ "$(hdr)" == *:Total:* ]]'
 ck "time listado (vitrine)"           '[[ "$BODY" == *macacos* ]]'

@@ -312,8 +312,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **A BARRA DE FILTROS também é a mesma nos dois** (coorte, bandeira, universidade, sede, busca,
   contador, limpar): CSS `.fbar` + `.plg` no `ui.css`, mesmos `id` (`fView`/`fFlag`/`fUniv`/
   `fRegion`/`fQ`/`fCount`), e só a COORTE fala com o servidor (`?view=`, aceito também na URL da
-  página) — o resto recorta linhas e **nunca renumera** (o contador é quem denuncia o filtro).
-  Detalhes em `docs/SCOREBOARD.md`.
+  página) — o resto recorta linhas e **RENUMERA o recorte** (2026-08-30, revoga o "nunca
+  renumera"): nº grande = posição no recorte, `.plg` = a do placar completo, e no ICPC a ★ vira
+  a do recorte (menor SEGUNDO de AC entre os visíveis — o TXT carrega segundos desde a flag
+  `icpc s` da linha 1; exibição segue em minutos). Detalhes em `docs/SCOREBOARD.md`.
 - **Coluna NUMÉRICA em tabela = `class="n"` no `<td>` E no `<th>`** (`ui.css`: alinha à direita,
   `tabular-nums`, largura do conteúdo). Marcar só o `td` foi bug real: com `width:100%` o
   cabeçalho ficava à esquerda e o número a meia tela dele, parecendo pertencer à coluna

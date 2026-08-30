@@ -56,6 +56,12 @@ BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:2/40:1/55::3/68::4:213:68
 ```
 
 - Campos separados por `:`. **O placar já vem ordenado** — o front só renderiza na ordem.
+- **A linha 1 (modo) pode trazer FLAGS** depois do nome do modo. Hoje só existe a **`s`** do
+  ICPC (`icpc s`, 2026-08-30): a célula resolvida carrega o tempo em **SEGUNDOS** desde o
+  início, e o cliente **exibe** `floor(seg/60)` — o placar renderizado é o mesmo de sempre; o
+  segundo exato serve p/ recalcular a estrela de first-to-solve DENTRO de um recorte de filtro
+  sem empate artificial de minuto. TXT **sem** a flag (placares arquivados de rodadas antigas)
+  continua sendo lido como minutos — todo parser trata os dois.
 - O cabeçalho pode começar com colunas-marcador `desc`/`asc` (campos de ordenação já aplicados):
   **o renderizador deve descartar TODAS as colunas iniciais cujo valor seja `desc` ou `asc`.**
 - Colunas: `flag` (ISO), `username`, `univ short`, `team name`, `univ full` (as de univ são opcionais),
@@ -66,7 +72,7 @@ BR:br-df-alfa:UNB:ALFA:Universidade de Brasília:1/30:2/40:1/55::3/68::4:213:68
 ### Células por modo
 | Modo | Célula de problema | Ordenação | Cor |
 |---|---|---|---|
-| `icpc` | vazio=não tentou · `tentativas/minuto`=resolveu · `tentativas/minuto*`=**first to solve** (★ + contorno; menor `first_ac_epoch` do problema entre os times do placar, na mesma visão frozen/full) · `tentativas/-`=tentou | **1º** acertos↓ · **2º** penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20) · **3º** minuto do ÚLTIMO problema resolvido↑ (`LastAC`) | ver **Balão × visibilidade** abaixo |
+| `icpc` | vazio=não tentou · `tentativas/tempo`=resolveu (tempo em SEGUNDOS com a flag `s` na linha 1, exibido em minutos; em minutos no legado) · `tentativas/tempo*`=**first to solve** (★ + contorno; menor `first_ac_epoch` do problema entre os times do placar, na mesma visão frozen/full) · `tentativas/-`=tentou | **1º** acertos↓ · **2º** penalidade↑ (penalidade=(tent−1)·`PENALTY_MINUTES`+minuto; default 20 — SEMPRE em minutos ICPC, mesmo com célula em segundos) · **3º** minuto do ÚLTIMO problema resolvido↑ (`LastAC`) | ver **Balão × visibilidade** abaixo |
 | `obi` | pontos (0–100) | Total↓ | — |
 | `treino` | resolvidos / tentativas | resolvidos↓ | — |
 | `heuristic` | melhor Score | Score↓ (Score Ajustado como desempate) | — |
@@ -149,9 +155,15 @@ universidade · sede · busca · contador · limpar): mesmos rótulos, mesmos `i
 que o relatório inlina). Ao vivo ela é montada por `renderFilters()` (`web/contest/score/score.js`)
 com as opções dos times PRESENTES no placar exibido; a sede vem da árvore do `regions.json` mais
 as sedes que aparecem no placar. Trocar de coorte é o único controle que fala com o servidor
-(`?view=`); os outros recortam linhas no cliente e **nunca renumeram** — quem diz que há filtro
-ativo é o contador ("Mostrando N de M times"). `/contest/score/?c=<c>&view=<coorte>` abre direto
-num placar paralelo (link compartilhável). ⚠ O casamento é **estrito**: quem não tem o dado não
+(`?view=`); os outros recortam linhas no cliente e **RENUMERAM o recorte** (R1, 2026-08-30 —
+revoga o "nunca renumera" que valeu até a Maratona): com QUALQUER filtro ativo
+(bandeira/universidade/sede/busca) o número grande da coluna `#` vira a **posição no recorte**
+e o `.plg` mostra a posição no placar completo; a dupla coorte×geral (`genPlace`) só aparece
+SEM filtro — nunca três números. No ICPC a **★ vira a do recorte** (menor tempo de AC entre os
+times visíveis, em SEGUNDOS pela flag `s` — exata; no TXT legado a precisão é o minuto e um
+empate pode dar mais de uma ★, deliberado) e o contador avisa ("· ★ = 1º do recorte"). Quem diz
+que há filtro ativo é o contador ("Mostrando N de M times").
+`/contest/score/?c=<c>&view=<coorte>` abre direto num placar paralelo (link compartilhável). ⚠ O casamento é **estrito**: quem não tem o dado não
 casa — o `t._country !== undefined` de antes fazia time sem bandeira aparecer em QUALQUER filtro
 de bandeira.
 

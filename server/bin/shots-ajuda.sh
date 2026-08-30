@@ -157,7 +157,11 @@ bkp time-alfa bk03 "carpet-brute-force.py"   1160  900
 
 # --- placar (TXT cru, como o build.sh gera): cabeçalho + 6 linhas
 # FORMATO REAL do placar (updatescore-icpc.sh): 1ª linha = modo; 2ª = header com os DOIS
-# marcadores desc:asc na frente; dados separados por ':' e SEM os marcadores. Célula:
+# marcadores desc:asc na frente; dados separados por ':' e SEM os marcadores.
+# ⚠ Este fixture fica DE PROPÓSITO no formato LEGADO (`icpc` sem a flag `s`, célula em
+# MINUTOS): desde 2026-08-30 o gerador real emite `icpc s` com a célula em SEGUNDOS, e o
+# parser lê os dois — as fotos provam que o caminho legado (placares arquivados de rodada)
+# continua rendendo o mesmo placar. Célula:
 # vazia=não tentou · 3/187=resolveu na 3ª tentativa no minuto 187 · 3/-=tentou e não resolveu
 # · o `*` final é o FIRST-TO-SOLVE (updatescore-icpc.sh:97 = menor minuto do problema ENTRE os
 # times DAQUELE placar), que o score-icpc.js pinta como ★ — o tutorial do competidor explica a

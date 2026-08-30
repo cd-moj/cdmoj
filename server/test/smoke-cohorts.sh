@@ -79,8 +79,9 @@ ls "$C/var/" | grep placar | sed 's/^/    /'
 echo "== PLACAR PÚBLICO (não pode ter linha de convidado):"
 cat "$C/var/placar.txt" | sed 's/^/    /'
 grep -qE '^[^:]*:ccl' "$C/var/placar.txt" && no "convidado apareceu no placar público" || ok "nenhum convidado no placar público"
-# a estrela do Alfa tem de ser do of1 (900), não do convidado (600)
-if awk -F: 'NR>2 && $2=="of1"' "$C/var/placar.txt" | grep -q '1/15\*\|2/15\*'; then
+# a estrela do Alfa tem de ser do of1 (900), não do convidado (600) — célula em SEGUNDOS
+# desde a flag `s` da linha 1 (R6, 2026-08-30): 900 s = min 15 de antes
+if awk -F: 'NR>2 && $2=="of1"' "$C/var/placar.txt" | grep -q '1/900\*\|2/900\*'; then
   ok "estrela do Alfa ficou com o OFICIAL no placar público"
 else no "estrela do placar público está errada"; fi
 grep -q ':guest' "$C/var/placar.txt" && no "placar público não deveria ter coluna guest" || ok "placar público sem coluna guest"

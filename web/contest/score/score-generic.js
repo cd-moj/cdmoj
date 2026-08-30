@@ -35,12 +35,17 @@ export function renderGeneric(parsed, opts) {
     rows = rows.filter(r => regionFn({ username: r[parsed.iUser] || '' }));
   }
 
+  // filtro ativo renumera (R1): nº grande = posição no recorte, .plg = a geral
+  const filtered = !!q || !!(regionFn && parsed.iUser >= 0);
+  if (filtered) rows.forEach((r, i) => { r._slice = i + 1; });
+
   const table = el('table', { class: 'score m-generic' });
   table.dataset.shown = String(rows.length);           // contador da barra de filtros
   table.dataset.total = String(parsed.rows.length);
   // larguras por <colgroup> (table-layout:fixed) — o placar não rola para o lado
   scoreColsGeneric(table, parsed.header, { iFlag: parsed.iFlag, iUser: parsed.iUser, iTeam: parsed.iTeam });
-  const headRow = el('tr', {}, el('th', {}, '#'));
+  const headRow = el('tr', {}, el('th', {}, '#',
+    filtered ? el('span', { class: 'plg' }, T('Geral', 'Overall')) : null));
   parsed.header.forEach((h, i) => {
     if (i === parsed.iFlag) { headRow.append(el('th', { title: T('Bandeira', 'Flag') }, '')); return; }
     headRow.append(el('th', {}, h));
@@ -50,7 +55,9 @@ export function renderGeneric(parsed, opts) {
   const tb = el('tbody');
   rows.forEach(r => {
     const tr = el('tr', {});
-    tr.append(el('td', { class: 'cl-place' }, String(r._place)));
+    tr.append(el('td', { class: 'cl-place' }, String(filtered ? r._slice : r._place),
+      filtered ? el('span', { class: 'plg',
+        title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)') }, String(r._place)) : null));
     parsed.header.forEach((_, i) => {
       const val = r[i] != null ? r[i] : '';
       if (i === parsed.iFlag) {

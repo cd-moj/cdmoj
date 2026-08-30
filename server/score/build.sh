@@ -135,7 +135,8 @@ gen_one() {
        MOJ_PRESTART="${MOJ_PRESTART:-}" MOJ_SC_USERS_DIR="$SC_MEMO_DIR" \
        bash "$GEN" "$CONTEST" > "$tmp"; then rm -f "$tmp"; die "generator failed: $GEN $CONTEST"; fi
   first="$(head -1 "$tmp")"
-  [[ "$first" == "$MODE" ]] || { rm -f "$tmp"; die "generator '$GEN' line 1 was '$first', expected '$MODE'"; }
+  # a linha 1 pode trazer flags depois do modo (ex.: `icpc s` = células em segundos, R6)
+  [[ "$first" == "$MODE" || "$first" == "$MODE "* ]] || { rm -f "$tmp"; die "generator '$GEN' line 1 was '$first', expected '$MODE'"; }
   mv "$tmp" "$out" || { rm -f "$tmp"; die "cannot install board to $out"; }
   # VERSÃO COMPRIMIDA ao lado. O placar de 2000 times tem ~175 KB e é o corpo mais servido do
   # dia; sem isto o nginx recomprime o MESMO conteúdo a cada requisição (medido: 7% da vazão

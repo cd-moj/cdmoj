@@ -273,14 +273,16 @@ function renderFilters() {
   bar.append(el('span', { class: 'fcount', id: 'fCount' }, ''));
 }
 function flagLabel(c) { return flagNames[String(c).toLowerCase()] || String(c).toUpperCase(); }
-// contador: quantos times a seleção deixou visíveis (o placar NÃO renumera — a posição é a
-// oficial, então o contador é o que diz que há um filtro ativo).
-function updateCount(shown, total) {
+// contador: quantos times a seleção deixou visíveis. Com filtro ativo o placar RENUMERA
+// (R1, 2026-08-30 — revoga o "nunca renumera"): nº grande = posição no recorte, .plg = a
+// geral; no ICPC a ★ passa a ser a do recorte, e o contador avisa.
+function updateCount(shown, total, filtered) {
   const c = document.getElementById('fCount');
   if (!c) return;
-  c.textContent = (shown === total)
+  c.textContent = (shown === total && !filtered)
     ? T(`${total} times`, `${total} teams`)
-    : T(`Mostrando ${shown} de ${total} times`, `Showing ${shown} of ${total} teams`);
+    : T(`Mostrando ${shown} de ${total} times`, `Showing ${shown} of ${total} teams`)
+      + (filtered && parsed && parsed.mode === 'icpc' ? T(' · ★ = 1º do recorte', ' · ★ = 1st in selection') : '');
 }
 
 // ---- placar anônimo (agregado: distribuição + quartis, sem nomes) ------------
@@ -335,7 +337,8 @@ function reRender() {
   // .board-wrap (e NÃO .chart-wrap): o placar não rola para o lado — as larguras do
   // <colgroup> já garantem que tudo cabe, quebrando linha quando precisa.
   box.append(el('div', { class: 'board-wrap' }, table));
-  updateCount(Number(table.dataset.shown || 0), Number(table.dataset.total || 0));
+  updateCount(Number(table.dataset.shown || 0), Number(table.dataset.total || 0),
+    !!((searchTerm && searchTerm.trim()) || opts.regionFn));
   animateMoves();
 }
 
@@ -374,7 +377,7 @@ async function fetchGenPlace() {
   const data = lines.slice(1).filter(Boolean);
   if (!data.length) return;
   let p = null;
-  if (/^icpc/.test(mode)) p = parseICPC(data, BALLOONS);
+  if (/^icpc/.test(mode)) p = parseICPC(data, BALLOONS, mode.split(/\s+/).includes('s'));
   else if (/^obi/.test(mode)) p = parseOBI(data);
   if (!p) return;
   const m = {};
@@ -426,7 +429,8 @@ async function pollScore() {
     parsed = null;
     document.getElementById('scoreContainer').innerHTML = `<span class="muted">${T('Placar ainda não gerado.', 'Scoreboard not generated yet.')}</span>`;
   } else if (/^icpc/.test(mode)) {
-    parsed = parseICPC(dataLines, BALLOONS);
+    // flag `s` na linha do modo = células em SEGUNDOS (R6) — o parse exibe minutos
+    parsed = parseICPC(dataLines, BALLOONS, mode.split(/\s+/).includes('s'));
   } else if (/^obi/.test(mode)) {
     parsed = parseOBI(dataLines);
   } else {

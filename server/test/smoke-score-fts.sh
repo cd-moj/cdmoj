@@ -43,6 +43,8 @@ printf '15:p#a:c:Accepted,100p:%s:b1\n' $(( START + 900 )) > "$C/users/bob/histo
 
 echo "== run mais antiga AINDA NA FILA: ninguém leva a estrela =="
 pend; build
+ck "linha 1 = 'icpc s' (célula em segundos, R6)" '[[ "$(head -1 "$C/var/placar.txt")" == "icpc s" ]]'
+ck "célula de bob em SEGUNDOS (900, não 15)"     '[[ "$(cell bob)" == "1/900" ]]'
 ck "bob resolveu"                  '[[ -n "$(cell bob)" && "$(cell bob)" != "" ]]'
 ck "bob NÃO ganha a estrela"       '! star bob'
 ck "alice também não"              '! star alice'
