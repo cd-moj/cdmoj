@@ -240,6 +240,8 @@ rd_machines(){
   jq -sc --slurpfile users "$tmpu" --slurpfile prev "$tmpp" --slurpfile exp "$tmpe" \
      --arg round "$s" --arg prev_round "$prev" --argjson cs "$cs" --argjson ce "$ce" '
     ($users[0] // {}) as $U | ($prev[0] // {}) as $P | ($exp[0] // {}) as $E
+    # UA decodificado UMA vez por valor único (eram ~179 únicos re-decodificados por login)
+    | ([ .[] | .ua64 ] | unique | map({key:., value:(. | @base64d | ascii_downcase)}) | from_entries) as $DEC
     | (group_by(.login) | map({
         login: .[0].login,
         name:  (($U[.[0].login].name) // .[0].login),
@@ -255,17 +257,17 @@ rd_machines(){
         ua_expected: ($E[$l] // ""),
         # o time casa o esperado se ALGUM dos UAs vistos contém a substring (case-insensitive)
         ua_match: (($E[$l] // "") == "" or
-                   any(.uas[]; (. | @base64d | ascii_downcase)
+                   any(.uas[]; ($DEC[.] // "")
                        | contains(($E[$l] // "") | ascii_downcase))),
         multi_ip: ((.ips|length) > 1),
         changed: ( ($P[$l] != null) and
                    (((.ips - ($P[$l].ips // [])) | length) > 0 or
                     ((.uas - ($P[$l].uas // [])) | length) > 0) )
       })) as $BY2
-    | ([ .[] | .ip ] | unique | map(. as $ip | {
-         ip: $ip,
-         logins: ([ $BY2[] | select(.ips | index($ip)) | .login ] | unique)
-       }) | map(. + {shared: ((.logins|length) > 1)})) as $BYIP
+    # por-IP em UMA passada (group_by): o mapa antigo era O(IPs × logins) — 1.215 × 2.169
+    # ≈ 2,6 M seleções, os ~3 s que sobravam na aba (medido 31/08)
+    | (group_by(.ip) | map({ip: .[0].ip, logins: (map(.login) | unique)})
+       | map(. + {shared: ((.logins|length) > 1)})) as $BYIP
     | { round: $round, prev_round: $prev_round, window: {start:$cs, end:$ce},
         by_login: ($BY2 | sort_by(.name)),
         by_ip: $BYIP,
