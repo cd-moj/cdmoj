@@ -206,14 +206,16 @@ rd_machines(){
         printf "{\"t\":%d,\"login\":\"%s\",\"ip\":\"%s\",\"ua64\":\"%s\"}\n", $1, $2, $3, $4 }' \
       "$log" > "$tmpj"
   fi
-  # identidade dos times (nome + sede) p/ o painel não mostrar só login
+  # identidade dos times (nome + sede) p/ o painel não mostrar só login.
+  # ⚠ UMA varredura (find|xargs jq, login pelo input_filename — molde do sc_cells): o laço
+  # antigo fazia jq+basename POR CONTA (2 forks × 2.355 contas = os 21 s da aba no treino,
+  # medidos 31/08). Listagem de muitos usuários NUNCA é um processo por conta.
   local tmpu; tmpu="$(mktemp)" || { rm -f "$tmpj"; return 1; }
-  { local d af; d="$(users_dir "$c")"
-    ( set +o noglob; shopt -s nullglob
-      for af in "$d"/*/account.json; do
-        jq -c --arg l "$(basename "$(dirname "$af")")" \
-          '{key:$l, value:{name:(.fullname // .team.name // $l), region:((.team.region) // "")}}' "$af" 2>/dev/null
-      done ); } | jq -cs 'from_entries' > "$tmpu"
+  local d; d="$(users_dir "$c")"
+  find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+    | xargs -0 -r jq -c '((input_filename | split("/"))[-2]) as $l
+        | {key:$l, value:{name:(.fullname // .team.name // $l), region:((.team.region) // "")}}' 2>/dev/null \
+    | jq -cs 'from_entries' > "$tmpu"
   [[ -s "$tmpu" ]] || printf '{}' > "$tmpu"
 
   # rodada anterior (a última arquivada) p/ marcar quem MUDOU de máquina
@@ -230,7 +232,7 @@ rd_machines(){
   # aquecimento, antes de o gate barrar alguém na prova.
   local tmpe; tmpe="$(mktemp)"; printf '{}' > "$tmpe"
   if declare -F ug_expected_map >/dev/null; then
-    ug_expected_map "$c" "$(jq -rc '[.[].login] | unique' <<<"$(jq -sc '.' "$tmpj" 2>/dev/null || echo '[]')" 2>/dev/null || echo '[]')" \
+    ug_expected_map "$c" "$(jq -sc '[.[].login] | unique' "$tmpj" 2>/dev/null || echo '[]')" \
       "$(jq -c 'with_entries(.value |= .region)' "$tmpu" 2>/dev/null || echo '{}')" > "$tmpe" 2>/dev/null \
       || printf '{}' > "$tmpe"
     [[ -s "$tmpe" ]] || printf '{}' > "$tmpe"
