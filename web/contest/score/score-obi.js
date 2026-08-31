@@ -41,7 +41,12 @@ export function parseOBI(lines) {
     probIdx.forEach((ci, k) => { t.probs[probShorts[k]] = v[ci] || ''; });
     return t;
   });
-  teams.forEach((t, i) => { t.place = i + 1; });
+  // ranking de competição: empate (mesmo total) compartilha a posição e CONSOME —
+  // N empatados em P ⇒ o próximo é P+N (regra única com o placar ICPC, 2026-08-31)
+  teams.forEach((t, i) => {
+    const prev = i > 0 ? teams[i - 1] : null;
+    t.place = (prev && prev.total === t.total) ? prev.place : i + 1;
+  });
   return { mode: 'obi', probShorts, teams, hasFlag: iFlag >= 0, hasUnivShort: iUnivS >= 0, hasUnivFull: iUnivF >= 0 };
 }
 

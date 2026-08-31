@@ -76,14 +76,17 @@ export function parseICPC(lines, balloons, secs) {
 
   // colocações com empates (placar já vem ORDENADO; só numera). Empate REAL = os três
   // critérios iguais: resolvidos + penalidade + minuto do último AC.
+  // RANKING DE COMPETIÇÃO (2026-08-31, achado do Carlos na LATAM): empatado COMPARTILHA a
+  // posição e CONSOME — N empatados em 1106 ⇒ o próximo é 1106+N, nunca 1107 (a numeração
+  // era DENSA: o grupo inteiro consumia uma posição só).
   // CONVIDADO (coluna `guest`) aparece na linha certa pelo desempenho mas NÃO consome posição:
   // a numeração oficial pula ele, então o pódio combinado bate com o placar oficial.
-  let place = 0, prev = null;
+  let seen = 0, prev = null;
   teams.forEach((t) => {
     if (t.guest) { t.place = null; return; }
-    if (prev && prev.total === t.total && prev.penalty === t.penalty && prev.lastac === t.lastac) {
-      t.place = prev.place;
-    } else { place++; t.place = place; }
+    seen++;
+    t.place = (prev && prev.total === t.total && prev.penalty === t.penalty && prev.lastac === t.lastac)
+      ? prev.place : seen;
     prev = t;
   });
 
@@ -97,10 +100,13 @@ export function slicePlaces(teams) {
   const vis = teams.filter((t) => !t.guest && t.place != null)
     .slice().sort((a, b) => a.place - b.place);
   const m = new Map();
-  let sp = 0; let prev = null;
+  // ranking de competição também no recorte: todo visível consome; empatado herda a
+  // posição do primeiro do grupo (mesma regra da numeração geral)
+  let sp = 0, cur = 0, prev = null;
   vis.forEach((t) => {
-    if (!(prev && prev.total === t.total && prev.penalty === t.penalty && prev.lastac === t.lastac)) sp++;
-    m.set(t.username, sp);
+    sp++;
+    if (!(prev && prev.total === t.total && prev.penalty === t.penalty && prev.lastac === t.lastac)) cur = sp;
+    m.set(t.username, cur);
     prev = t;
   });
   return m;

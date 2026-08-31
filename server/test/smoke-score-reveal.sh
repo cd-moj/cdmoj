@@ -30,13 +30,13 @@ alicecells(){ grep ":alice:" <<<"$BODY" | head -1; }
 
 echo "== admin: default = full; view=public = congelado =="
 call /contest/score t-adm 'contest=rev'
-ck "full mostra A e B resolvidos"  '[[ "$(alicecells)" == *"1/10"*"1/61"* ]]'
+ck "full mostra A e B resolvidos"  '[[ "$(alicecells)" == *"1/600"*"1/3660"* ]]'   # células em SEGUNDOS (flag `icpc s`)
 call /contest/score t-adm 'contest=rev&view=public'
-ck "frozen mostra A resolvido"     '[[ "$(alicecells)" == *"1/10"* ]]'
-ck "frozen NÃO mostra o AC de B"   '[[ "$(alicecells)" != *"1/61"* ]]'
+ck "frozen mostra A resolvido"     '[[ "$(alicecells)" == *"1/600"* ]]'
+ck "frozen NÃO mostra o AC de B"   '[[ "$(alicecells)" != *"1/3660"* ]]'
 
 echo "== competidor: view=public não muda nada (já era o congelado) =="
 call /contest/score t-a 'contest=rev&view=public'
-ck "alice vê o congelado"          '[[ "$(alicecells)" != *"1/61"* ]]'
+ck "alice vê o congelado"          '[[ "$(alicecells)" != *"1/3660"* ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

@@ -312,6 +312,14 @@ revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
   preenche bandeira/universidade/logo só no que o por-usuário e a coluna não trouxeram, e
   habilita **filtro por país/escola**. O logo é um data-URL embutido (offline). Editável na
   criação e no admin do contest.
+- **Empate compartilha a posição e CONSOME (ranking de competição, 2026-08-31)**: N times
+  empatados (icpc: total+penalty+lastac; obi: mesmo total; cerimônia: solved+penalty)
+  mostram a MESMA posição e o próximo classificado vem N abaixo (1-2-2-4, nunca 1-2-2-3 —
+  era a numeração DENSA que o Carlos flagrou na LATAM: grupo em 1106 e o seguinte em 1107).
+  Vale na numeração geral, no `.plg`, no recorte renumerado (slicePlaces + o JS inline do
+  relatório) e no `data-place` do relatório offline; convidado segue SEM consumir posição.
+  Modo genérico (colunas livres, sem tupla de desempate estruturada) fica sequencial.
+  Teste: `smoke-score-ties.sh`.
 - **Desclassificação (`.disqualified=true` no account.json, via `/contest/admin/user-disqualify`)**:
   o time some do placar (`sc_users` não o emite — fora do rank, da ★ de first-to-solve e das
   coortes por construção) E da estatística (o stats-gen pula o login por inteiro) — as duas

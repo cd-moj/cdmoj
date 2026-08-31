@@ -682,8 +682,11 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       if (MODE=="icpc") {
         tot=(itot? trim($(itot)) : ""); pen=(ipen? trim($(ipen)) : ""); lac=(ilast? trim($(ilast)) : "")
         if (!isguest) {
-          if (nseen>0 && tot==prevtot && pen==prevpen && lac==prevlac) place=prevplace
-          else { nseen++; place=nseen }
+          # ranking de COMPETIÇÃO (2026-08-31): empatado compartilha a posição e CONSOME —
+          # N empatados em P ⇒ o próximo é P+N (a numeração era densa: P+1)
+          nseen++
+          if (nseen>1 && tot==prevtot && pen==prevpen && lac==prevlac) place=prevplace
+          else place=nseen
           prevtot=tot; prevpen=pen; prevlac=lac; prevplace=place; pnum=place
         }
       } else if (!isguest) { nseen++; pnum=nseen }
@@ -992,14 +995,15 @@ rep_filter_js(){
       b.classList.add('flt');
       // renumera: mesma regra de empate do gerador (data-tie); convidado (data-place vazio)
       // mantém o "–"; o número original vai p/ o .plg
-      var sp=0, ptie=null;
+      var sp=0, cur=0, ptie=null;
       visRows.forEach(function(r){
         var op=r.getAttribute('data-place'); if(!op) return;
         var tie=r.getAttribute('data-tie')||'';
-        if(!(ptie!==null && tie!=='' && tie===ptie)) sp++;
+        sp++;                                       // ranking de competição: todo visível consome
+        if(!(ptie!==null && tie!=='' && tie===ptie)) cur=sp;
         ptie=tie;
         var td=r.cells[0]; if(r._pl==null) r._pl=td.innerHTML;
-        td.textContent=String(sp);
+        td.textContent=String(cur);
         var sm=document.createElement('span'); sm.className='plg'; sm.title=sliceT;
         sm.textContent=op; td.appendChild(sm);
       });

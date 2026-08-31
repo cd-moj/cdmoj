@@ -20,6 +20,8 @@ export function parseGeneric(lines, mode) {
     const v = line.split(':');
     return header.map((_, i) => v[i] != null ? v[i] : '');
   });
+  // modo genérico: colunas livres (sem tupla de desempate estruturada) ⇒ numeração
+  // sequencial; a partilha de posição em empate vale nos modos icpc/obi/reveal
   rows.forEach((r, i) => { r._place = i + 1; });
   return { mode, header, rows, iFlag, iUser, iTeam };
 }

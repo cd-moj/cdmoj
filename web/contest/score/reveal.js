@@ -60,11 +60,18 @@ function render(highlight) {
   hr.append(el('th', {}, 'Total'), el('th', {}, T('Penal.', 'Pen.')));
   table.append(el('thead', {}, hr));
   const tb = el('tbody');
+  // ranking de competição na cerimônia: empatados (solved+penalty — a tupla do
+  // standingsSort daqui) mostram a MESMA posição; o seguinte pula N (2026-08-31)
+  const places = [];
+  ordered.forEach((t, i) => {
+    const prev = i > 0 ? ordered[i - 1] : null;
+    places[i] = (prev && prev.solved === t.solved && prev.penalty === t.penalty) ? places[i - 1] : i + 1;
+  });
   ordered.forEach((t, i) => {
     const tr = el('tr', {});
     if (i === cursor && !finished) tr.style.outline = '3px solid #1e57c4';
     if (highlight && highlight.user === t.username) tr.classList.add(highlight.up ? 'placing-up' : 'placing-down');
-    tr.append(el('td', { class: 'cl-place' }, String(i + 1)));
+    tr.append(el('td', { class: 'cl-place' }, String(places[i])));
     const ftd = el('td', {}); if (t.flag) { const fi = flagEl(t.flag, { height: 16 }); if (fi) ftd.append(fi); }
     tr.append(ftd);
     tr.append(el('td', { class: 'team', title: [t.univFull || '', t.username].filter(Boolean).join(' · ') },
