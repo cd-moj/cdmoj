@@ -203,8 +203,9 @@ export function renderICPC(parsed, opts) {
     if (cinfo) {
       const viaT = { regra1: T('regra 1', 'rule 1'), regra2: T('regra 2', 'rule 2'),
                      regra4: T('regra 4', 'rule 4'), comite: T('comitê', 'committee') }[cinfo.via] || cinfo.via;
-      teamTd.append(' ', el('span', { class: 'qual-chip',
-        title: T('Classificado — ', 'Qualified — ') + (cinfo.stage || '') +
+      teamTd.append(' ', el('span', { class: 'qual-chip' + (cinfo.draft ? ' draft' : ''),
+        title: (cinfo.draft ? T('(RASCUNHO — só o admin vê) ', '(DRAFT — admin only) ') : '') +
+               T('Classificado — ', 'Qualified — ') + (cinfo.stage || '') +
                ' (' + viaT + (cinfo.sede ? ' · ' + cinfo.sede : '') + ')' }, '↑BR'));
     }
     if (logoImg) { teamTd.prepend(logoImg, ' '); setMediaSrc(logoImg, safeLogo, { lazy: true, onerror: () => logoImg.remove() }); }

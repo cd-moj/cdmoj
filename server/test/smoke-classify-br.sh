@@ -122,5 +122,27 @@ bash "$ROOT/score/report-gen.sh" cb "$REP2" >/dev/null 2>&1
 grep -q '&#8593;BR' "$REP2/index.html" 2>/dev/null && { FAIL=$((FAIL+1)); echo "FALHOU: chip vazou com stage em RASCUNHO" >&2; } || PASS=$((PASS+1))
 [[ -f "$REP2/classificados.html" ]] && { FAIL=$((FAIL+1)); echo "FALHOU: página vazou em rascunho" >&2; } || PASS=$((PASS+1))
 
+# ---- parte 3: /contest/classification — rascunho SÓ p/ o admin (marcado draft) ----------
+ROUTER="$ROOT/api/v1/router.sh"; SESS="$(mktemp -d)"; trap 'rm -rf "$FIX" "$SESS"' EXIT
+mkdir -p "$C/users/cb.admin"
+jq -cn '{login:"cb.admin", fullname:"Admin", password:"x"}' > "$C/users/cb.admin/account.json"
+NOWE=$(date +%s)
+mktok(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' cb "$1" "$1" "$NOWE" > "$SESS/$2"; }
+mktok cb.admin t-adm; mktok teamsp01 t-team
+callc(){ PATH_INFO=/contest/classification REQUEST_METHOD=GET QUERY_STRING="contest=cb" \
+    HTTP_AUTHORIZATION="${1:+Bearer $1}" \
+    CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>/dev/null | awk 'f{print} /^\r?$/{f=1}'; }
+# estado atual do fixture: stage em DRAFT (parte 2 terminou assim)
+B_ANON="$(callc "")"; B_TEAM="$(callc t-team)"; B_ADM="$(callc t-adm)"
+jq -e '.stages == []' <<<"$B_ANON" >/dev/null && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU: anônimo viu rascunho" >&2; }
+jq -e '.stages == []' <<<"$B_TEAM" >/dev/null && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU: competidor viu rascunho" >&2; }
+jq -e '.stages[0].draft == true and (.stages[0].teams | length) == 10' <<<"$B_ADM" >/dev/null \
+  && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU: admin não viu o rascunho marcado ($B_ADM)" >&2; }
+# publicado: todos veem, SEM flag draft
+jq -c '.stages[0].status="published"' "$C/classification.json" > "$C/cl.tmp" && mv "$C/cl.tmp" "$C/classification.json"
+B_ANON2="$(callc "")"
+jq -e '(.stages[0].draft // false) == false and (.stages[0].teams | length) == 10' <<<"$B_ANON2" >/dev/null \
+  && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU: publicado não chegou ao anônimo" >&2; }
+
 echo "smoke-classify-br: PASS=$PASS FAIL=$FAIL"
 (( FAIL == 0 ))

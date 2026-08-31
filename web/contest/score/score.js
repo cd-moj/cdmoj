@@ -542,7 +542,8 @@ async function boot() {
   if (cls && Array.isArray(cls.stages) && cls.stages.length) {
     classified = {};
     cls.stages.forEach(st2 => Object.entries(st2.teams || {}).forEach(([lg, v]) =>
-      { classified[lg] = { via: v.via || '', sede: v.sede || '', stage: [st2.name, st2.venue].filter(Boolean).join(', ') + (st2.when ? ' — ' + st2.when : '') }; }));
+      { classified[lg] = { via: v.via || '', sede: v.sede || '', draft: !!st2.draft,
+          stage: [st2.name, st2.venue].filter(Boolean).join(', ') + (st2.when ? ' — ' + st2.when : '') }; }));
     if (!Object.keys(classified).length) classified = null;
   }
   (mani.countries || []).forEach(c => { flagNames[c.code] = c.name; });
