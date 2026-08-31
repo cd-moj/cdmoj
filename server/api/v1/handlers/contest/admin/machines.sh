@@ -62,5 +62,8 @@ out="$(jq -c --rawfile uas "$uas_file" --arg sug "$sug" '
 rm -f "$uas_file"
 [[ -n "$out" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
 audit_log_to "$contest" machines-view "round=${round:-ativa}"
-emit_json 200 OK
-jq -cn --argjson m "$out" '{success:true} + $m'
+# resposta por --slurpfile (ok_json_slurp): o mapa cresce com o EVENTO (logins×IP×UA) e
+# estourou os 128 KiB POR ARGUMENTO no treino (31/08: "jq: Argument list too long" na jq
+# final, DEPOIS do emit_json ⇒ 200 com corpo VAZIO — as duas armadilhas documentadas da
+# casa, juntas). Agregado nunca por --argjson; corpo antes do cabeçalho.
+ok_json_slurp '$m[0]' m "$out"
