@@ -312,6 +312,11 @@ revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
   preenche bandeira/universidade/logo só no que o por-usuário e a coluna não trouxeram, e
   habilita **filtro por país/escola**. O logo é um data-URL embutido (offline). Editável na
   criação e no admin do contest.
+- **Desclassificação (`.disqualified=true` no account.json, via `/contest/admin/user-disqualify`)**:
+  o time some do placar (`sc_users` não o emite — fora do rank, da ★ de first-to-solve e das
+  coortes por construção) E da estatística (o stats-gen pula o login por inteiro) — as duas
+  telas sempre contam a MESMA população. Desabilitar (`user-disable`) só bloqueia o login e
+  NÃO tira do placar.
 - **Nó de RECORTE no `regions.json`** (`"view": true`): supersedes e recortes transversais
   (ex.: times femininos) repetem times que já estão nas sedes — a flag marca a fatia na
   estatística (`by_region[...].view:true`) e a UI avisa que somar recortes com sedes conta

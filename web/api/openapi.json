@@ -5775,6 +5775,16 @@
         }
       }
     },
+    "/contest/admin/user-disqualify": {
+      "post": {
+        "tags": ["contest-admin"],
+        "summary": "Desclassifica o time (some do placar e da estatística; undo reverte)",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["login"], "properties": {"login": {"type": "string"}, "undo": {"type": "boolean"}}}}}},
+        "responses": {"200": {"description": "{disqualified, login}. Seta .disqualified=true no account.json: fora do placar (sc_users) e da estatística (stats-gen) — mesma população nas duas telas. Não mexe em senha/sessões."}},
+        "security": [{"bearer": []}]
+      }
+    },
     "/contest/admin/users-set-password": {
       "post": {
         "tags": [

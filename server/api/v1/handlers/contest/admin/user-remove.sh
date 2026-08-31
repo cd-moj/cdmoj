@@ -14,5 +14,6 @@ valid_id "$login" || fail 422 "login inválido" "login_invalid"
 user_exists "$contest" "$login" || fail 404 "Usuário não encontrado" "notfound"
 trash="$CONTESTSDIR/$contest/.removed-users"; mkdir -p "$trash"
 mv "$(user_dir "$contest" "$login")" "$trash/$login-$EPOCHSECONDS" || fail 500 "Falha ao remover" "write_fail"
+touch "$CONTESTSDIR/$contest/var/.score-dirty" 2>/dev/null   # o placar tem de esquecê-lo sozinho
 audit_log_to "$contest" user-remove "login=$login"
 ok_json '{removed:true, login:$l}' --arg l "$login"

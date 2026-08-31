@@ -64,7 +64,8 @@ trap 'rm -f "$TMP" "${_HT:-}" "${MAPF:-}" "${RGF:-}"' EXIT
 find "$CONTESTSDIR/$C/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
   | xargs -0 -r jq -r '[ (((input_filename | split("/"))[-2]) // ""),
                          ((.team.region // "") | gsub("[\t\n]"; " ")),
-                         ((.team.flag // "") | ascii_downcase | gsub("[^a-z0-9-]"; "") | (split("-") | .[0])) ] | @tsv' \
+                         ((.team.flag // "") | ascii_downcase | gsub("[^a-z0-9-]"; "") | (split("-") | .[0])),
+                         (if .disqualified == true then "1" else "0" end) ] | @tsv' \
       2>/dev/null > "$MAPF"
 
 # Nós da ÁRVORE de regions.json (país › região/supersede › sede): a estatística oferece o
@@ -118,7 +119,10 @@ BEGIN{
   # mapa login\tsede\tpaís lido por getline (nunca NR==FNR: arquivo VAZIO deslocaria tudo)
   while ((getline mline < MF) > 0) {
     n = split(mline, ma, "\t")
-    if (n >= 1 && ma[1] != "") { reg[ma[1]] = (n >= 2 ? ma[2] : ""); cty[ma[1]] = (n >= 3 ? ma[3] : "") }
+    if (n >= 1 && ma[1] != "") {
+      reg[ma[1]] = (n >= 2 ? ma[2] : ""); cty[ma[1]] = (n >= 3 ? ma[3] : "")
+      if (n >= 4 && ma[4] == "1") dsq[ma[1]] = 1   # desclassificado: fora de TUDO (como no placar)
+    }
   }
   close(MF)
   # nós da árvore de regions.json: nome \t regex \t view (regex já validada pelo gerador)
@@ -135,6 +139,7 @@ BEGIN{
   # estatística. Todo login NÃO-privilegiado do mapa de contas conta como INSCRITO em cada
   # escopo dele; o END soma os ausentes (enr-nu) no bucket 0 e emite enrolled no G.
   for (u_ in reg) {
+    if (u_ in dsq) continue
     if (u_ ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) continue
     calc_scopes(u_)
     for (si_ = 1; si_ <= uscn[u_]; si_++) enr[us_[u_, si_]]++
@@ -143,6 +148,7 @@ BEGIN{
 {
   # estatísticas só de usuários normais: descarta privilegiados (.admin/.judge/.cjudge/.staff/.cstaff/.mon)
   if($2 ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) next;
+  if($2 in dsq) next;   # desclassificado: submissões fora da estatística (mesma população do placar)
   # tempo RELATIVO ao início: usa o sub_epoch (penúltimo campo, sempre EPOCH absoluto) menos
   # CONTEST_START. mn = minutos relativos; secs = segundos (p/ desempate do 1º a resolver).
   secs=$(NF-1)-START; if(secs<0)secs=0; mn=int(secs/60);

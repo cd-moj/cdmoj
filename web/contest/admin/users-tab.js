@@ -31,9 +31,20 @@ export function makeUsersTab(CONTEST) {
     const acts = el('div', { class: 'row-actions' });
     acts.append(el('button', { class: 'btn ghost', title: T('encerrar sessões', 'end sessions'), onclick: async () => { try { await call('logout-user', { login: u.login }); } catch (e) { alert(e.message); } } }, T('deslogar', 'log out')));
     if (!u.admin && !u.disabled) acts.append(el('button', { class: 'btn ghost', onclick: async () => { if (!confirm(T('Desabilitar ', 'Disable ') + u.login + '?')) return; try { await call('user-disable', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, T('desabilitar', 'disable')));
+    // desclassificar ≠ desabilitar: a conta continua existindo/logando, mas some do
+    // placar E da estatística (flag .disqualified — mesma população nas duas telas)
+    if (!u.admin) acts.append(el('button', { class: 'btn ghost', onclick: async () => {
+      const undo = !!u.disqualified;
+      const msg = undo ? T('Reverter a desclassificação de ', 'Undo disqualification of ')
+                       : T('Desclassificar ', 'Disqualify ');
+      if (!confirm(msg + u.login + (undo ? '?' : T('? (some do placar e da estatística)', '? (removed from scoreboard and statistics)')))) return;
+      try { await call('user-disqualify', { login: u.login, undo }); loadList(); } catch (e) { alert(e.message); }
+    } }, u.disqualified ? T('reclassificar', 'requalify') : T('desclassificar', 'disqualify')));
     acts.append(el('button', { class: 'btn danger', onclick: async () => { if (!confirm(T('Remover ', 'Remove ') + u.login + '?')) return; try { await call('user-remove', { login: u.login }); loadList(); } catch (e) { alert(e.message); } } }, T('remover', 'remove')));
     return el('tr', {},
-      el('td', {}, u.login, u.admin ? el('span', { class: 'small muted' }, ' (admin)') : '', u.disabled ? el('span', { class: 'flag-anom small' }, T(' (desabilitado)', ' (disabled)')) : ''),
+      el('td', {}, u.login, u.admin ? el('span', { class: 'small muted' }, ' (admin)') : '',
+        u.disabled ? el('span', { class: 'flag-anom small' }, T(' (desabilitado)', ' (disabled)')) : '',
+        u.disqualified ? el('span', { class: 'flag-anom small', style: 'font-weight:600' }, T(' (desclassificado)', ' (disqualified)')) : ''),
       el('td', {}, u.fullname || ''), el('td', { class: 'small' }, u.email || ''), el('td', {}, acts));
   }
   function renderList() {

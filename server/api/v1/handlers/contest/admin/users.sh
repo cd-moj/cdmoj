@@ -14,7 +14,8 @@ if [[ -d "$d" ]]; then
   users="$(find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
     | xargs -0 -r jq -c '{login:(.login//""), fullname:(.fullname//""), email:(.email//""),
                           admin:((.login//"")|endswith(".admin")),
-                          disabled:((.password//"")|startswith("!"))}' \
+                          disabled:((.password//"")|startswith("!")),
+                          disqualified:(.disqualified == true)}' \
     | jq -cs 'map(select(.login != "")) | sort_by(.login)')"
   [[ -n "$users" ]] || users='[]'
 fi

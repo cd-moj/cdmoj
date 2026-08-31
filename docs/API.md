@@ -285,10 +285,11 @@ servidor commita no repo git LOCAL de cada problema (`MOJ_PROBLEMS_DIR/<org>/<pr
 |---|---|---|
 | `/contest/admin/config?contest=<c>` | GET | `{name,mode,start,end,letters[],colors,regions,teams_meta,basic:{locale,login_start,login_enabled,freeze}}` |
 | `/contest/admin/config?contest=<c>` | POST | `{colors?,regions?,teams_meta?,basic?}` → grava `balloons.json`/`regions.json`/`teams-meta.json` + vars `basic` no conf (vazio = reseta) |
-| `/contest/admin/users?contest=<c>` | GET | `{users:[{login,fullname,email,admin}],shared}` (sem senha) |
+| `/contest/admin/users?contest=<c>` | GET | `{users:[{login,fullname,email,admin,disabled,disqualified}],shared}` (sem senha) |
 | `/contest/admin/user-add?contest=<c>` | POST | `{login,password?,fullname?,email?, univ_short?,univ_full?,country?,region?}` → adiciona/reseta, devolve a credencial. **`fullname` é o nome do time** (campo único — usuário de contest É o time); os campos de TIME mesclam no `.team` do account.json |
 | `/contest/admin/users-bulk?contest=<c>` | POST | **carga em lote** `{users:[{login,password?,fullname?,email?, univ_short?,univ_full?,country?,region?}], on_existing?:skip\|update}` (default `skip`; ≤5000; senha vazia = gerada). **`fullname` é o nome do time** (campo único); os campos de TIME (opcionais) gravam o `.team{univ_short,univ_full,flag,region}` — **carga única** de credenciais+país+sede+universidade (a UI aceita CSV com cabeçalho: `login,senha,nome,pais,sede,univ,univ_nome`, ordem livre — `time`/`equipe` são aliases de `nome`). `update`: senha vazia = **regenerada** (semântica de reset em massa); **nome/email só sobrescrevem se vierem na linha** (linha parcial de enriquecimento — ex.: login+sede — não clobbera o nome do time) e os campos de time **mesclam**; conta privilegiada existente (`.admin/.judge/.cjudge/.staff/.mon`) nunca é tocada (skip `privileged`); criar privilegiada nova é permitido. → `{created:[{login,password,fullname,email}],updated:[…],skipped:[{login,reason:exists\|privileged\|invalid\|duplicate}],counts}`. Auditado `users-bulk` |
-| `/contest/admin/user-remove?contest=<c>` | POST | `{login}` → remove (não pode remover a si mesmo) |
+| `/contest/admin/user-remove?contest=<c>` | POST | `{login}` → remove (mv p/ `.removed-users/`, dados preservados; toca `.score-dirty` — o placar o esquece sozinho; não pode remover a si mesmo) |
+| `/contest/admin/user-disqualify?contest=<c>` | POST | `{login, undo?}` → **DESCLASSIFICA** (`.disqualified=true` no account.json): a conta continua existindo/logando, mas some do **placar** (sc_users) **e da estatística** (stats-gen pula o login por inteiro — placar e estatística sempre contam a MESMA população). `undo:true` reverte. Não mexe em senha/sessões (desclassificar ≠ desabilitar). Auditado `user-disqualify` |
 
 > Reusa os editores de `web/shared/contest-config/` (os mesmos da criação). Bandeiras **locais/offline** em `/shared/flags/` (271 países + 27 estados); GIFs do Sonic em `/shared/assets/sonic/`. `USERS_FROM=<contest>` no conf faz o login cair no `passwd` compartilhado (ex.: treino), mantendo o `.admin` próprio.
 
@@ -402,7 +403,7 @@ Acessado por `<id>.moj.<base>` (subdomínio): o nginx injeta `CONTEST_HOST`; a A
 | `/contest/admin/jplag-match?contest=<c>&run=&i=` | GET | admin | HTML lado-a-lado da comparação |
 | `/contest/userinfo?contest=<c>` | GET | Bearer | + `show_editor/show_log/show_code/is_mon/is_chief` |
 | `/contest/admin/logout-user?contest=<c>` | POST | admin | `{login}` → encerra sessões do usuário |
-| `/contest/admin/user-disable?contest=<c>` | POST | admin | `{login}` → bloqueia (senha `!…`) + desloga (reabilita via user-add). Conta privilegiada (`.admin/.judge/.cjudge/.staff/.cstaff/.mon`) → 403 |
+| `/contest/admin/user-disable?contest=<c>` | POST | admin | `{login}` → bloqueia (senha `!…`) + desloga (reabilita via user-add) — **NÃO tira do placar** (p/ isso: `user-disqualify` ou `user-remove`). Conta privilegiada (`.admin/.judge/.cjudge/.staff/.cstaff/.mon`) → 403 |
 | `/contest/admin/users-set-password?contest=<c>` | POST | admin | `{password,include_disabled?}` → senha única p/ todos os não-privilegiados (prova; pula `.admin/.judge/.cjudge/.staff/.cstaff/.mon`). **Recusa `contest=treino`** (400 `treino_forbidden` — resetaria a plataforma inteira) |
 | `/contest/admin/logout-mismatch?contest=<c>` | POST | admin | desloga sessões cujo UA ≠ `LOGIN_UA_SUBSTRING` (preserva contas privilegiadas, incl. `.cjudge`) |
 

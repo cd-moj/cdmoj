@@ -176,6 +176,7 @@ _sc_users_compute() {
     [[ -n "$CH_JSON" ]] || CH_JSON='{"cohorts":[]}'
   fi
   local ACCT_JQ='(.login // "") as $l
+    | select(.disqualified != true)   # DESCLASSIFICADO some do placar (flag de 1ª classe)
     | [$l, .fullname//"", (.team.name // .fullname // ""),
        (.team.univ_short//""), (.team.univ_full//""), (.team.flag//""),
        ((.team.cohort // "") as $c
