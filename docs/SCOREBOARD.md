@@ -312,6 +312,11 @@ revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
   preenche bandeira/universidade/logo só no que o por-usuário e a coluna não trouxeram, e
   habilita **filtro por país/escola**. O logo é um data-URL embutido (offline). Editável na
   criação e no admin do contest.
+- **Nó de RECORTE no `regions.json`** (`"view": true`): supersedes e recortes transversais
+  (ex.: times femininos) repetem times que já estão nas sedes — a flag marca a fatia na
+  estatística (`by_region[...].view:true`) e a UI avisa que somar recortes com sedes conta
+  em dobro. Sem a flag o nó se comporta como sempre (a LATAM 2026 tinha 307 times em ≥2
+  fatias e a soma "sede a sede" dava 1.272 onde havia 965).
 - **Filtro por região** (`regions.json`, `GET /contest/regions`): árvore hierárquica; cada
   entrada casa por **nome** (igualdade com a sede `.team.region` do time) **ou** pelo `regex`
   no login (clássico).

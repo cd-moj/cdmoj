@@ -4889,7 +4889,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{totals,problems,languages,verdicts,timeline, by_region:{<sede>:{...mesmo shape}}, by_country:{<flag>:{...mesmo shape}}}"
+            "description": "{totals,problems,languages,verdicts,timeline, by_region:{<sede>:{...mesmo shape}}, by_country:{<flag>:{...mesmo shape}}}. totals inclui enrolled (inscritos), users (submeteram) e absent; bucket 0 do problems_solved_dist inclui ausentes; fatia de regions.json com view:true sai marcada (recorte sobreposto)"
           }
         }
       }

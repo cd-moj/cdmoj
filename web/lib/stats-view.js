@@ -42,9 +42,18 @@ function highlights(s, shortOf) {
 
 function totalsCards(t) {
   const card = (big, sub) => el('div', { class: 'stat-card' }, el('div', { class: 'big-num' }, String(big)), el('div', { class: 'big-sub' }, sub));
+  // enrolled/absent (2026-08-31): a página contava só quem SUBMETEU e os zeros do placar
+  // "sumiam" (relato da LATAM). Cache novo traz inscritos + ausentes; cache antigo (sem os
+  // campos) mantém os 4 cartões de sempre.
+  const extra = (t.enrolled != null)
+    ? [card(t.enrolled || 0, T('inscritos', 'enrolled')),
+       card(t.absent || 0, T('ausentes (sem submissão)', 'absent (no submissions)'))]
+    : [];
   return el('div', { class: 'stat-cards' },
+    ...extra,
+    card(t.users || 0, T('participantes ativos', 'active participants')),
     card(t.submissions || 0, T('submissões', 'submissions')), card(t.accepted || 0, T('aceitas', 'accepted')),
-    card(t.users || 0, T('participantes ativos', 'active participants')), card(t.problems_solved || 0, T('problemas resolvidos', 'problems solved')));
+    card(t.problems_solved || 0, T('problemas resolvidos', 'problems solved')));
 }
 
 function problemsTable(ps, shortOf) {
@@ -111,6 +120,16 @@ export function statsSections(s, opts = {}) {
   const shortOf = (pid) => probMap[pid] || pid;
   const out = [];
 
+  // fatia de RECORTE (view:true no regions.json — supersede/femininos): sobrepõe as sedes
+  // de propósito; quem soma fatia a fatia contaria times em dobro. O aviso viaja com o
+  // módulo (página de estatísticas E relatório offline).
+  if (s.view) {
+    out.push(el('div', { class: 'section', style: 'background:var(--card-bg,#f5f7fb);border-left:4px solid var(--warn,#a66a00);padding:.5rem .8rem' },
+      el('b', {}, T('◈ Recorte sobreposto', '◈ Overlapping view')),
+      el('span', { class: 'small' },
+        T(' — esta fatia agrega times que também aparecem nas sedes; não some recortes com sedes (times contariam em dobro).',
+          ' — this slice aggregates teams that also appear under their sites; do not add views to sites (teams would be double-counted).'))));
+  }
   out.push(totalsCards(s.totals || {}));
   out.push(highlights(s, shortOf));
 

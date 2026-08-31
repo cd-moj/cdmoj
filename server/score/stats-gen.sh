@@ -26,7 +26,7 @@ mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "stats-gen: mktemp falhou" >&2; exit 1; }
 trap 'rm -f "$TMP" "${_HT:-}"' EXIT
 
-empty='{"success":true,"totals":{"submissions":0,"accepted":0,"users":0,"problems_solved":0},"problems":[],"languages":[],"verdicts":[],"timeline":[],"problems_solved_dist":[],"attempts_dist":[],"verdict_by_problem":[],"by_region":{},"by_country":{}}'
+empty='{"success":true,"totals":{"submissions":0,"accepted":0,"users":0,"problems_solved":0,"enrolled":0,"absent":0},"problems":[],"languages":[],"verdicts":[],"timeline":[],"problems_solved_dist":[],"attempts_dist":[],"verdict_by_problem":[],"by_region":{},"by_country":{}}'
 if [[ ! -f "$hist" ]]; then
   printf '%s\n' "$empty" > "$TMP"; mv "$TMP" "$OUT"; trap - EXIT; exit 0
 fi
@@ -73,14 +73,18 @@ find "$CONTESTSDIR/$C/users" -mindepth 2 -maxdepth 2 -name account.json -print0 
 # recorte `r:<nome>` em by_region. Regex inválida p/ ERE é descartada (o placar a ignora
 # igual, via safeRe). Sem regions.json = só as sedes do .team.region, como antes.
 if [[ -s "$CONTESTSDIR/$C/regions.json" ]]; then
-  jq -r 'def flat: .[]? | ([(.name // ""), (.regex // "")] | @tsv), ((.subregions // []) | flat); flat' \
+  # 3ª coluna: a flag `view` do nó (recorte SOBREPOSTO — supersede/femininos): a fatia
+  # existe p/ VISUALIZAR, e somá-la com as sedes conta times em dobro. O flag viaja até o
+  # by_region (campo `view:true`) e a UI avisa. ⚠ fatias são chaveadas por NOME: nó-view
+  # com o MESMO nome de um nó real marcaria os dois — dê nomes próprios aos recortes.
+  jq -r 'def flat: .[]? | ([(.name // ""), (.regex // ""), ((.view // false)|tostring)] | @tsv), ((.subregions // []) | flat); flat' \
       "$CONTESTSDIR/$C/regions.json" 2>/dev/null \
-  | while IFS=$'\t' read -r _nm _re; do
+  | while IFS=$'\t' read -r _nm _re _vw; do
       [[ -n "$_nm" ]] || continue
       if [[ -n "$_re" ]]; then
         printf '' | grep -qE -- "$_re" 2>/dev/null; (( $? == 2 )) && continue
       fi
-      printf '%s\t%s\n' "$_nm" "$_re"
+      printf '%s\t%s\t%s\n' "$_nm" "$_re" "$_vw"
     done > "$RGF"
 fi
 
@@ -94,6 +98,22 @@ function sid(kind, val,   k) {
   if (!(k in sidx)) { sidx[k] = ++nsc; skind[nsc] = kind; sval[nsc] = val }
   return sidx[k]
 }
+# escopos de UM login (g/r/c + nós da árvore), memoizados em us_/uscn — usados pela
+# passada de INSCRITOS (BEGIN) e pelo corpo por-submissão (o cache é compartilhado)
+function calc_scopes(user,   r_, s_, i_, hit, useen) {
+  split("", useen)
+  n_u = 0; us_[user, ++n_u] = sid("g", "")
+  r_ = reg[user]
+  if (r_ != "") { s_ = sid("r", r_); useen[s_] = 1; us_[user, ++n_u] = s_ }
+  if (cty[user] != "") us_[user, ++n_u] = sid("c", cty[user])
+  for (i_ = 1; i_ <= nrg; i_++) {
+    hit = 0
+    if (rgre[i_] != "" && user ~ rgre[i_]) hit = 1
+    else if (r_ != "" && tolower(rgname[i_]) == tolower(r_)) hit = 1
+    if (hit) { s_ = sid("r", rgname[i_]); if (!(s_ in useen)) { useen[s_] = 1; us_[user, ++n_u] = s_ } }
+  }
+  uscn[user] = n_u
+}
 BEGIN{
   # mapa login\tsede\tpaís lido por getline (nunca NR==FNR: arquivo VAZIO deslocaria tudo)
   while ((getline mline < MF) > 0) {
@@ -101,12 +121,24 @@ BEGIN{
     if (n >= 1 && ma[1] != "") { reg[ma[1]] = (n >= 2 ? ma[2] : ""); cty[ma[1]] = (n >= 3 ? ma[3] : "") }
   }
   close(MF)
-  # nós da árvore de regions.json: nome \t regex (regex já validada pelo gerador)
+  # nós da árvore de regions.json: nome \t regex \t view (regex já validada pelo gerador)
   while ((getline mline < RF) > 0) {
     n = split(mline, ma, "\t")
-    if (n >= 1 && ma[1] != "") { nrg++; rgname[nrg] = ma[1]; rgre[nrg] = (n >= 2 ? ma[2] : "") }
+    if (n >= 1 && ma[1] != "") {
+      nrg++; rgname[nrg] = ma[1]; rgre[nrg] = (n >= 2 ? ma[2] : "")
+      if (n >= 3 && ma[3] == "true") viewname[ma[1]] = 1
+    }
   }
   close(RF)
+  # PASSADA DE INSCRITOS (2026-08-31, relato do Carlos na LATAM): a página contava só quem
+  # SUBMETEU (users[] nasce de linha de history) — 43 zeros no placar viravam 2 na
+  # estatística. Todo login NÃO-privilegiado do mapa de contas conta como INSCRITO em cada
+  # escopo dele; o END soma os ausentes (enr-nu) no bucket 0 e emite enrolled no G.
+  for (u_ in reg) {
+    if (u_ ~ /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/) continue
+    calc_scopes(u_)
+    for (si_ = 1; si_ <= uscn[u_]; si_++) enr[us_[u_, si_]]++
+  }
 }
 {
   # estatísticas só de usuários normais: descarta privilegiados (.admin/.judge/.cjudge/.staff/.cstaff/.mon)
@@ -119,20 +151,7 @@ BEGIN{
   vc=v; sub(/,.*/,"",vc); sub(/ *\(.*/,"",vc); gsub(/^ +| +$/,"",vc); if(vc=="")vc="?";
   # escopos POR USUÁRIO, computados uma vez (regex de cada nó da árvore contra o login —
   # como o regionMatch do placar; dedup: nó com o mesmo nome da sede não conta duas vezes)
-  if (!(user in uscn)) {
-    split("", useen)
-    n_u = 0; us_[user, ++n_u] = sid("g", "")
-    r_ = reg[user]
-    if (r_ != "") { s_ = sid("r", r_); useen[s_] = 1; us_[user, ++n_u] = s_ }
-    if (cty[user] != "") us_[user, ++n_u] = sid("c", cty[user])
-    for (i_ = 1; i_ <= nrg; i_++) {
-      hit = 0
-      if (rgre[i_] != "" && user ~ rgre[i_]) hit = 1
-      else if (r_ != "" && tolower(rgname[i_]) == tolower(r_)) hit = 1
-      if (hit) { s_ = sid("r", rgname[i_]); if (!(s_ in useen)) { useen[s_] = 1; us_[user, ++n_u] = s_ } }
-    }
-    uscn[user] = n_u
-  }
+  if (!(user in uscn)) calc_scopes(user)   # inscrito já vem memoizado da passada do BEGIN
   for (si=1; si<=uscn[user]; si++) {
     s=us_[user, si]; tot[s]++;
     puk=s SUBSEP prob SUBSEP user;
@@ -164,13 +183,21 @@ END{
     printf "%s\t%s\tT\t%d\t%d\t%d\n", skind[sn], sval[sn], i*10, tl[sn SUBSEP i], tla[sn SUBSEP i]+0 }
   for(k in solvedAt){ split(k,aa,SUBSEP); usolv[aa[1] SUBSEP aa[3]]++; adist[aa[1] SUBSEP solvedAt[k]]++ }
   for(k in users){ split(k,uu,SUBSEP); sdist[uu[1] SUBSEP (usolv[k]+0)]++; nu[uu[1]]++ }
+  # ausentes (inscritos sem submissão) entram no bucket 0 — a distribuição casa com o placar
+  for(sn=1; sn<=nsc; sn++){ miss = enr[sn]+0 - nu[sn]+0; if (miss > 0) sdist[sn SUBSEP 0] += miss }
   for(k in sdist){ split(k,dd,SUBSEP); printf "%s\t%s\tD\t%d\t%d\n", skind[dd[1]], sval[dd[1]], dd[2], sdist[k] }
   for(k in adist){ split(k,ad,SUBSEP); printf "%s\t%s\tA\t%d\t%d\n", skind[ad[1]], sval[ad[1]], ad[2], adist[k] }
   for(k in solved){ split(k,ss,SUBSEP); nsv[ss[1]]++ }
-  for(sn=1; sn<=nsc; sn++) printf "%s\t%s\tG\t%d\t%d\t%d\t%d\n", skind[sn], sval[sn], tot[sn]+0, acc[sn]+0, nu[sn]+0, nsv[sn]+0;
+  for(sn=1; sn<=nsc; sn++) printf "%s\t%s\tG\t%d\t%d\t%d\t%d\t%d\n", skind[sn], sval[sn], tot[sn]+0, acc[sn]+0, nu[sn]+0, nsv[sn]+0, enr[sn]+0;
+  for(sn=1; sn<=nsc; sn++) if (skind[sn]=="r" && (sval[sn] in viewname)) printf "r\t%s\tW\t1\n", sval[sn];
 }' "$hist" | jq -R -s --argjson pm "$probmeta" '
   def assemble($r):
-    { totals: ( ([ $r[] | select(.[0]=="G") ][0]) as $g | if $g then {submissions:($g[1]|tonumber), accepted:($g[2]|tonumber), users:($g[3]|tonumber), problems_solved:($g[4]|tonumber)} else {submissions:0,accepted:0,users:0,problems_solved:0} end),
+    { totals: ( ([ $r[] | select(.[0]=="G") ][0]) as $g | if $g then
+          (($g[3]|tonumber)) as $u | (($g[5]|tonumber? // 0)) as $e
+          | {submissions:($g[1]|tonumber), accepted:($g[2]|tonumber), users:$u, problems_solved:($g[4]|tonumber),
+             enrolled:(if $e > $u then $e else $u end), absent:(if $e > $u then ($e - $u) else 0 end)}
+        else {submissions:0,accepted:0,users:0,problems_solved:0,enrolled:0,absent:0} end),
+      view: (([ $r[] | select(.[0]=="W") ] | length) > 0),
       problems: ([ $r[] | select(.[0]=="P") | (.[1]) as $pid | ($pm | map(select(.off==$pid or .raw==$pid or .dot==$pid or .hash==$pid)) | .[0]) as $m | {problem_id:$pid, short_name:($m.short // $pid), full_name:($m.full // ""), submissions:(.[2]|tonumber), attempted:(.[3]|tonumber), solved:(.[4]|tonumber), accepted_subs:(.[7]|tonumber? // 0), first_solver:.[5], first_minute:(.[6]|tonumber), first_seconds:(.[8]|tonumber? // -1), accept_rate:(if (.[3]|tonumber)>0 then ((.[4]|tonumber)/(.[3]|tonumber)) else 0 end), avg_subs:(if (.[3]|tonumber)>0 then (((.[2]|tonumber)/(.[3]|tonumber)*100)|floor)/100 else 0 end)} ] | sort_by(.short_name)),
       languages: ([ $r[] | select(.[0]=="L") | {lang:.[1], submissions:(.[2]|tonumber), accepted:(.[3]|tonumber), solvers:(.[4]|tonumber)} ] | sort_by([-.submissions, .lang])),
       verdicts: ([ $r[] | select(.[0]=="V") | {verdict:.[1], count:(.[2]|tonumber)} ] | sort_by([-.count, .verdict])),
