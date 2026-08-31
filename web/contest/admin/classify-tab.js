@@ -60,8 +60,8 @@ const VIA_T = () => ({
 
 export function makeClassifyTab(CONTEST) {
   const panel = el('div', { class: 'section' });
-  const G = () => ({ contest: CONTEST });
-  const call = (body) => apiPost('/contest/admin/classify?contest=' + enc(CONTEST), body, G());
+  const G = { contest: CONTEST, auth: true };   // auth:true = manda o Bearer (padrão das abas)
+  const call = (body) => apiPost('/contest/admin/classify?contest=' + enc(CONTEST), body, G);
 
   const head = el('h2', {}, T('🎓 Classificação — próxima fase', '🎓 Qualification — next stage'));
   const stageBox = el('div', {});
@@ -123,7 +123,7 @@ export function makeClassifyTab(CONTEST) {
   async function load() {
     stageBox.innerHTML = ''; cfgBox.innerHTML = ''; prevBox.innerHTML = '';
     let st = null;
-    try { st = await apiGet('/contest/admin/classify?contest=' + enc(CONTEST), G()); }
+    try { st = await apiGet('/contest/admin/classify?contest=' + enc(CONTEST), G); }
     catch (e) { stageBox.append(el('div', { class: 'error-box' }, e.message || 'erro')); return; }
     const stage = (st.stages || []).find((s) => s.id === 'final-br') || null;
 
