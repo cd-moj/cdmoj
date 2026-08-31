@@ -638,7 +638,8 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       # rodadas intercepta o <a href> e abre via blob, e em file:// o relativo resolve
       if(un in pho) lbl=lbl " <a class=\"tphoto\" href=\"fotos/" un ".webp\" title=\"" esc(T_PHOTO) "\" style=\"text-decoration:none\">&#128247;</a>"
       if(g) lbl=lbl " <span class=\"pill\" title=\"" esc(T_GUESTT) "\">" esc(T_GUEST) "</span>"
-      if(un in qual) lbl=lbl " <span class=\"qual-chip\" title=\"" esc(qual[un]) "\">&#8593;BR</span>"
+      if(un in qual) lbl=lbl " <span class=\"qual-chip\" title=\"" esc(qual[un]) "\">&#127891; " esc(qshort[un]) "</span>" \
+                            "<span class=\"qual-sub\">&#127942; " esc(qual[un]) "</span>"
       # o LOGIN saiu da célula (era o que mais gastava largura) e vive no title, junto da
       # universidade — a coluna do time agora divide espaço com todas as de problema.
       ttl = (uf!=""?uf:us)
@@ -658,7 +659,9 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       # sede (.team.region) só existe na conta, não no TXT do placar: 6º campo do names.tsv.
       while ((getline l < NF_) > 0) { n=split(l,a,"\t"); if(n>=6 && a[1]!="") reg[a[1]]=a[6] }
       close(NF_)
-      while ((getline ql < QF) > 0) { nq=split(ql, qa, "\t"); if (nq>=7) qual[qa[1]]=qa[7] }
+      while ((getline ql < QF) > 0) { nq=split(ql, qa, "\t")
+        if (nq>=7) { qual[qa[1]]=qa[7]
+          qshort[qa[1]] = (index(qa[4], "Brasileira") ? "Final BR" : substr(qa[4], 1, index(qa[4] ",", ",")-1)) } }
       close(QF)
       # posição no placar GERAL, por login (vazio = este É o placar geral)
       while ((getline l < GP) > 0) { n=split(l,a,"\t"); if(n>=2 && a[1]!=""){ gpl[a[1]]=a[2]; hasgp=1 } }
@@ -750,6 +753,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       # renumeração do recorte (R1): posição original + chave de empate (a MESMA regra do
       # pnum acima) — o rep_filter_js renumera os visíveis e restaura ao limpar
       attrs=attrs " data-place=\"" (isguest? "" : pnum) "\""
+      if ((iuser? trim($(iuser)) : "") in qual) attrs=attrs " class=\"qual-row\""
       if (MODE=="icpc" && !isguest) attrs=attrs " data-tie=\"" esc(tot "|" pen "|" lac) "\""
       gtxt=""
       if (hasgp && !isguest && (un in gpl)) gtxt="<span class=\"plg\" title=\"" esc(T_GENT) "\">" esc(gpl[un]) "</span>"

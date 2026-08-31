@@ -109,7 +109,9 @@ jq -c '{version:1, stages:[{id:"final-br", status:"published",
 REP="$FIX/rep"
 bash "$ROOT/score/report-gen.sh" cb "$REP" >/dev/null 2>&1 || { echo "report-gen falhou"; exit 1; }
 rk(){ if grep -q "$1" "$2" 2>/dev/null; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "FALHOU: $3" >&2; fi }
-rk '&#8593;BR' "$REP/index.html" "chip ↑BR no placar do relatório"
+rk 'class="qual-row"' "$REP/index.html" "linha destacada no placar do relatório"
+rk '&#127891;' "$REP/index.html" "pill 🎓 no placar do relatório"
+rk 'qual-sub' "$REP/index.html" "sub-linha PDA-style no relatório"
 rk 'classificados.html' "$REP/index.html" "aba Classificados na nav"
 [[ -s "$REP/classificados.html" ]] && PASS=$((PASS+1)) || { FAIL=$((FAIL+1)); echo "FALHOU: classificados.html ausente" >&2; }
 rk 'Regra 1' "$REP/classificados.html" "seção regra 1"
@@ -119,7 +121,7 @@ rk 'Uberl' "$REP/classificados.html" "nome/venue do stage na nota"
 jq -c '.stages[0].status="draft"' "$C/classification.json" > "$C/cl.tmp" && mv "$C/cl.tmp" "$C/classification.json"
 REP2="$FIX/rep2"
 bash "$ROOT/score/report-gen.sh" cb "$REP2" >/dev/null 2>&1
-grep -q '&#8593;BR' "$REP2/index.html" 2>/dev/null && { FAIL=$((FAIL+1)); echo "FALHOU: chip vazou com stage em RASCUNHO" >&2; } || PASS=$((PASS+1))
+grep -q 'class="qual-row"' "$REP2/index.html" 2>/dev/null && { FAIL=$((FAIL+1)); echo "FALHOU: marcação vazou com stage em RASCUNHO" >&2; } || PASS=$((PASS+1))
 [[ -f "$REP2/classificados.html" ]] && { FAIL=$((FAIL+1)); echo "FALHOU: página vazou em rascunho" >&2; } || PASS=$((PASS+1))
 
 # ---- parte 3: /contest/classification — rascunho SÓ p/ o admin (marcado draft) ----------

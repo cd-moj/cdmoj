@@ -470,12 +470,24 @@ table.score .flag-mini { max-width:100%; }
 /* posição no placar GERAL, dentro da coluna # do placar de coorte (o número grande é a posição
    na coorte). No celular o rótulo do cabeçalho sai — o dado continua, com title. */
 .plg { display:block; font-size:.7em; font-weight:600; color:var(--muted); line-height:1.1; }
-/* chip de CLASSIFICADO p/ a próxima fase (↑BR) — discreto, não quebra o layout fixo */
-.qual-chip { display:inline-block; font-size:.68em; font-weight:700; letter-spacing:.02em;
-  padding:.05em .35em; border-radius:.6em; vertical-align:middle; cursor:help;
-  color:#1a6b2f; background:#e4f6e9; border:1px solid #9ed3ac; }
-.qual-chip.draft { color:#7a6a1f; background:#fbf4d9; border-style:dashed; border-color:#d3c27a; }
-@media (max-width:640px) { table.score .qual-chip { padding:.05em .2em; } }
+/* CLASSIFICADO p/ a próxima fase — 3 camadas (pedido de 31/08: claro E elegante):
+   linha tintada + barra de acento, pill 🎓 com rótulo, e sub-linha estilo PDA sob o nome.
+   Rascunho (só admin) = âmbar tracejado. Classes próprias (não reusar .pill — cascata). */
+table.score tr.qual-row td { background:#f0faf2; }
+table.score tr.qual-row td:first-child { border-left:3px solid #2f9e50; }
+table.score tr.qual-row.draft td { background:#fdf7e3; }
+table.score tr.qual-row.draft td:first-child { border-left:3px dashed #c9a227; }
+.qual-chip { display:inline-block; font-size:.72em; font-weight:700; letter-spacing:.02em;
+  padding:.12em .5em; border-radius:.8em; vertical-align:middle; cursor:help; white-space:nowrap;
+  color:#fff; background:#2f9e50; border:1px solid #27853f; }
+.qual-chip.draft { color:#6b5a10; background:#f5e8b8; border:1px dashed #c9a227; }
+.qual-sub { display:block; font-size:.72em; font-weight:600; color:#237a3e; line-height:1.25;
+  margin-top:.1em; }
+tr.qual-row.draft .qual-sub { color:#8a7420; }
+@media (max-width:640px) {
+  table.score .qual-chip { padding:.05em .3em; }
+  table.score .qual-sub { display:none; }   /* no celular: pill + tooltip bastam */
+}
 @media (max-width:640px) { table.score th .plg { display:none; } }
 /* telas médias: aperta espaçamento e fonte antes de mexer no conteúdo */
 @media (max-width:1100px) {
