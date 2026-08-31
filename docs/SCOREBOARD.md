@@ -312,6 +312,10 @@ revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
   preenche bandeira/universidade/logo só no que o por-usuário e a coluna não trouxeram, e
   habilita **filtro por país/escola**. O logo é um data-URL embutido (offline). Editável na
   criação e no admin do contest.
+- **Chip ↑BR (classificação p/ a próxima fase)**: time em stage **published** do
+  `classification.json` ganha o chip ao lado do nome (tooltip: etapa · regra · sede) no
+  placar ao vivo E no relatório (que também gera `classificados.html` com a relação por
+  regra). Rascunho não aparece em lugar nenhum. Ver `docs/CLASSIFICACAO.md`.
 - **Empate compartilha a posição e CONSOME (ranking de competição, 2026-08-31)**: N times
   empatados (icpc: total+penalty+lastac; obi: mesmo total; cerimônia: solved+penalty)
   mostram a MESMA posição e o próximo classificado vem N abaixo (1-2-2-4, nunca 1-2-2-3 —

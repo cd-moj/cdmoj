@@ -37,6 +37,7 @@ let noAnim = false;
 // p/ "o placar dos individuais"); o servidor valida o valor, aqui é só a preferência inicial.
 let cohortView = (qs.get('view') || '').replace(/[^a-z0-9_-]/gi, '');
 let genPlace = null;        // login -> posição no placar GERAL (só em placar de coorte)
+let classified = null;      // login -> {via, sede, stage} — classificação PUBLICADA p/ a próxima fase (chip ↑BR)
 let frozenView = false;     // ESTE espectador recebeu o placar congelado (X-MOJ-Frozen) —
                             // gateia o 📷: foto só aparece com o placar aberto (R4, 2026-08-30)
 let lastOrder = []; // usernames na ordem anterior (p/ animação)
@@ -381,7 +382,7 @@ function reRender() {
   const fb = document.getElementById('scoreFilters');
   if (fb) fb.classList.toggle('hidden', !!anonMode);
   if (anonMode) { renderAnon(parsed); return; }
-  const opts = { searchTerm, regionFn: combinedFilterFn(), genPlace,
+  const opts = { searchTerm, regionFn: combinedFilterFn(), genPlace, classified,
     showPhotos: !frozenView,   // 📷 só com o placar ABERTO (R4)
     style: (basic && basic.balloon_style) === 'fill' ? 'fill' : 'icon' };
   let table;
@@ -522,19 +523,28 @@ async function boot() {
   document.getElementById('publicNotice').classList.toggle('hidden', isAuth);
 
   // nav + balões + regiões + times (auth quando possível; tolerante a falha)
-  const [nav, bc, rg, tm, td, mani] = await Promise.all([
+  const [nav, bc, rg, tm, td, mani, cls] = await Promise.all([
     apiGet('/contest/navbuttons?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     apiGet('/contest/balloons?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     apiGet('/contest/regions?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     apiGet('/contest/teams-meta?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     apiGet('/contest/teams?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
     flagManifest().catch(() => ({ countries: [], br_states: [] })),
+    apiGet('/contest/classification?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: isAuth }).catch(() => null),
   ]);
   if (nav) { const buttons = Array.isArray(nav) ? nav : (nav.buttons || []); if (buttons.length) renderNav(buttons); }
   BALLOONS = bc ? (bc.balloons || bc) : {};
   regions = rg ? (Array.isArray(rg) ? rg : (rg.regions || [])) : [];
   teamsMeta = tm ? (tm.rules || (Array.isArray(tm) ? tm : [])) : [];
   teamsDir = (td && td.teams) || {};
+  // classificação p/ a próxima fase (chip ↑BR): só o PUBLICADO chega aqui
+  classified = null;
+  if (cls && Array.isArray(cls.stages) && cls.stages.length) {
+    classified = {};
+    cls.stages.forEach(st2 => Object.entries(st2.teams || {}).forEach(([lg, v]) =>
+      { classified[lg] = { via: v.via || '', sede: v.sede || '', stage: [st2.name, st2.venue].filter(Boolean).join(', ') + (st2.when ? ' — ' + st2.when : '') }; }));
+    if (!Object.keys(classified).length) classified = null;
+  }
   (mani.countries || []).forEach(c => { flagNames[c.code] = c.name; });
   (mani.br_states || []).forEach(s => { flagNames['br-' + s.code] = s.name; });
 

@@ -5785,6 +5785,31 @@
         "security": [{"bearer": []}]
       }
     },
+    "/contest/classification": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Classificação PUBLICADA p/ a próxima fase (chip ↑BR do placar)",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "{stages:[{id,name,venue,when,teams:{login:{via,sede}}}]} — só stages published; vazio sem publicação. Gate de contest secreto igual ao do placar."}}
+      }
+    },
+    "/contest/admin/classify": {
+      "post": {
+        "tags": ["contest-admin"],
+        "summary": "Motor de classificação da próxima fase (preview/apply/publish/add/remove)",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["preview","apply","publish","unpublish","add","remove"]}, "stage": {"type": "string"}, "config": {"type": "object"}, "name": {"type": "string"}, "venue": {"type": "string"}, "when": {"type": "string"}, "login": {"type": "string"}, "note": {"type": "string"}}}}}},
+        "responses": {"200": {"description": "preview roda o motor sem gravar; apply grava rascunho (promoções comite preservadas); publish/unpublish trocam a visibilidade; add/remove mexem nos times. Auditado. Ver docs/CLASSIFICACAO.md"}},
+        "security": [{"bearer": []}]
+      },
+      "get": {
+        "tags": ["contest-admin"],
+        "summary": "Estado da classificação (classification.json inteiro)",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "{stages:[...]} — inclui rascunhos/config/notas (admin)"}},
+        "security": [{"bearer": []}]
+      }
+    },
     "/contest/admin/users-set-password": {
       "post": {
         "tags": [

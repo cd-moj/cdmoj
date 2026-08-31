@@ -258,6 +258,19 @@ rep_t(){ case "$LOC:$1" in
   pt:view_all) printf 'Todos, com convidados';;   en:view_all) printf 'Everyone, incl. guests';;
   pt:view_of) printf 'Visão da coorte %s' "$2";;  en:view_of) printf 'As seen by cohort %s' "$2";;
   pt:gen_place) printf 'Geral';;                  en:gen_place) printf 'Overall';;
+  pt:tab_qual) printf 'Classificados';;           en:tab_qual) printf 'Qualified';;
+  pt:qual_title) printf '🎓 Classificados — próxima fase';; en:qual_title) printf '🎓 Qualified — next stage';;
+  pt:qual_note) printf 'Times classificados para <b>%s</b> pelas regras da 1ª fase (chip ↑BR no placar). Vagas do comitê podem ser adicionadas depois.' "$2";; en:qual_note) printf 'Teams qualified to <b>%s</b> by the first-phase rules (↑BR chip on the scoreboard). Committee slots may be added later.' "$2";;
+  pt:qual_chip) printf 'Classificado';;           en:qual_chip) printf 'Qualified';;
+  pt:via_regra1) printf 'Regra 1 — melhores gerais';; en:via_regra1) printf 'Rule 1 — best overall';;
+  pt:via_regra2) printf 'Regra 2 — vagas por sede';;  en:via_regra2) printf 'Rule 2 — site slots';;
+  pt:via_regra4) printf 'Regra 4 — participação feminina';; en:via_regra4) printf 'Rule 4 — female participation';;
+  pt:via_comite) printf 'Comitê (regra 3 / promoções)';;    en:via_comite) printf 'Committee (rule 3 / promotions)';;
+  pt:q_place) printf 'Posição';;                  en:q_place) printf 'Place';;
+  pt:q_team) printf 'Time';;                      en:q_team) printf 'Team';;
+  pt:q_school) printf 'Escola';;                  en:q_school) printf 'School';;
+  pt:q_sede) printf 'Sede';;                      en:q_sede) printf 'Site';;
+  pt:q_detail) printf 'Detalhe';;                 en:q_detail) printf 'Detail';;
   pt:gen_place_t) printf 'Posição no placar geral';; en:gen_place_t) printf 'Position in the overall scoreboard';;
   pt:cohort_note) printf 'Placar da coorte <b>%s</b>: a posição grande é dentro dela; o número menor, cinza, é a posição no placar geral.' "$2";;
   en:cohort_note) printf 'Cohort <b>%s</b> scoreboard: the large number is the position within it; the smaller grey one is the position in the overall scoreboard.' "$2";;
@@ -510,6 +523,28 @@ footer{color:var(--muted);font-size:.78rem;margin:2rem 0 .6rem}
 CSSEOF
 }
 
+# --- classificação PUBLICADA p/ a próxima fase (chip ↑BR + página classificados.html) ---
+# qual.tsv: login \t via \t sede \t rótulo-do-stage \t place \t detalhe/nota \t title-pronto
+QUALF="$W/qual.tsv"; : > "$QUALF"
+QUAL_STAGE_LABEL=""
+if [[ -s "$CDIR/classification.json" ]]; then
+  jq -r '(.stages // [])[] | select(.status=="published")
+    | (([.name // "", .venue // ""] | map(select(. != "")) | join(", "))
+       + (if (.when // "") != "" then " — " + .when else "" end)) as $lbl
+    | (.teams // {}) | to_entries[]
+    | [.key, (.value.via // ""), ((.value.sede // "")|gsub("[\t\n]";" ")), $lbl,
+       ((.value.place // "")|tostring), ((.value.detail // .value.note // "")|gsub("[\t\n]";" "))]
+    | @tsv' "$CDIR/classification.json" 2>/dev/null   | while IFS=$'\t' read -r _l _v _s _st _p _d; do
+      case "$_v" in regra1) _vl="$(rep_t via_regra1)";; regra2) _vl="$(rep_t via_regra2)";;
+                    regra4) _vl="$(rep_t via_regra4)";; comite) _vl="$(rep_t via_comite)";;
+                    *) _vl="$_v";; esac
+      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$_l" "$_v" "$_s" "$_st" "$_p" "$_d" \
+        "$(rep_t qual_chip) — $_st (${_vl%% —*}${_s:+ · $_s})"
+    done > "$QUALF"
+  QUAL_STAGE_LABEL="$(jq -r '[(.stages // [])[] | select(.status=="published")
+    | ([.name // "", .venue // ""] | map(select(. != "")) | join(", "))] | first // ""'     "$CDIR/classification.json" 2>/dev/null)"
+fi
+
 rep_head(){ # <título> <id-da-aba-ativa>
   local title="$1" active="$2" tabs t fn id label
   tabs=""
@@ -517,11 +552,14 @@ rep_head(){ # <título> <id-da-aba-ativa>
            "clarifications.html:clar:$(rep_t tab_clar)" "statistics.html:stats:$(rep_t tab_stats)" \
            "mlinux.html:mlinux:$(rep_t tab_mlinux)" \
            "documentos.html:docs:$(rep_t tab_docs)" \
+           "classificados.html:qual:$(rep_t tab_qual)" \
            "staff-tasks.html:staff:$(rep_t tab_staff)" "infra.html:infra:$(rep_t tab_infra)"; do
     IFS=: read -r fn id label <<< "$t"
     [[ "$id" == docs && ! -f "$OUTD/documentos.html" && "$active" != docs ]] && continue
     # a aba mlinux é CONDICIONAL: só quando a integração nutellaboot foi coletada
     [[ "$id" == mlinux && ! -f "$OUTD/mlinux.html" && "$active" != mlinux ]] && continue
+    # classificados: só quando há classificação PUBLICADA
+    [[ "$id" == qual && ! -s "${QUALF:-}" && "$active" != qual ]] && continue
     tabs+="<a href=\"$fn\"$([[ "$id" == "$active" ]] && printf ' class="on"')>$label</a>"
   done
   [[ -f "$OUTD/score-frozen.html" || "$active" == frozen ]] && \
@@ -578,7 +616,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       -v GP="$gp" -v PHF="$ph" -v T_GEN="$(rep_t gen_place)" -v T_GENT="$(rep_t gen_place_t)" \
       -v T_TEAM="$(rep_t team_col)" -v T_TOTAL="$(rep_t total)" -v T_PEN="$(rep_t pen_col)" \
       -v T_GUEST="$(rep_t guest)" -v T_GUESTT="$(rep_t guest_title)" -v T_FTS="$(rep_t fts)" \
-      -v T_PHOTO="$(rep_t photo_t)" '
+      -v T_PHOTO="$(rep_t photo_t)" -v QF="$QUALF" '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); gsub(/"/,"\\&quot;",s); return s }
     function issys(h){ return (h=="flag"||h=="username"||h=="univ short"||h=="team name"||h=="univ full"||h=="total"||h=="penalty"||h=="lastac"||h=="guest") }
@@ -600,6 +638,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       # rodadas intercepta o <a href> e abre via blob, e em file:// o relativo resolve
       if(un in pho) lbl=lbl " <a class=\"tphoto\" href=\"fotos/" un ".webp\" title=\"" esc(T_PHOTO) "\" style=\"text-decoration:none\">&#128247;</a>"
       if(g) lbl=lbl " <span class=\"pill\" title=\"" esc(T_GUESTT) "\">" esc(T_GUEST) "</span>"
+      if(un in qual) lbl=lbl " <span class=\"qual-chip\" title=\"" esc(qual[un]) "\">&#8593;BR</span>"
       # o LOGIN saiu da célula (era o que mais gastava largura) e vive no title, junto da
       # universidade — a coluna do time agora divide espaço com todas as de problema.
       ttl = (uf!=""?uf:us)
@@ -619,6 +658,8 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       # sede (.team.region) só existe na conta, não no TXT do placar: 6º campo do names.tsv.
       while ((getline l < NF_) > 0) { n=split(l,a,"\t"); if(n>=6 && a[1]!="") reg[a[1]]=a[6] }
       close(NF_)
+      while ((getline ql < QF) > 0) { nq=split(ql, qa, "\t"); if (nq>=7) qual[qa[1]]=qa[7] }
+      close(QF)
       # posição no placar GERAL, por login (vazio = este É o placar geral)
       while ((getline l < GP) > 0) { n=split(l,a,"\t"); if(n>=2 && a[1]!=""){ gpl[a[1]]=a[2]; hasgp=1 } }
       close(GP)
@@ -806,8 +847,9 @@ rep_place_map(){
       g=(iguest? trim($(iguest)) : "")
       if (g!="" && g!="0" && tolower(g)!="false" && tolower(g)!="no") next
       tot=(itot? trim($(itot)) : ""); pen=(ipen? trim($(ipen)) : ""); lac=(ilast? trim($(ilast)) : "")
-      if (n_>0 && tot==pt_ && pen==pp_ && lac==pl_) place=pc_
-      else { n_++; place=n_ }
+      n_++
+      if (n_>1 && tot==pt_ && pen==pp_ && lac==pl_) place=pc_
+      else place=n_
       pt_=tot; pp_=pen; pl_=lac; pc_=place
       if (iuser && trim($(iuser))!="") printf "%s\t%s\n", trim($(iuser)), place
     }' "$1"
@@ -1118,6 +1160,43 @@ if (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" ]]; then
     rep_foot
   } > "$OUTD/score-frozen.html"
   FROZEN_NOTE="<p class=\"note\">$(rep_t open_note "$fmin") <a href=\"score-frozen.html\">$(rep_t frozen_title)</a>.</p>"
+fi
+
+# --- classificados.html: a relação da PRÓXIMA FASE (pedido de 31/08) --------------------
+if [[ -s "$QUALF" ]]; then
+  {
+    rep_head "$(rep_t qual_title)" qual
+    printf '<p class="note">%s</p>\n' "$(rep_t qual_note "$(esc "$QUAL_STAGE_LABEL")")"
+    # tabelas por VIA (ordem das regras), juntando nome/escola do names.tsv
+    awk -F'\t' -v NF_="$W/names.tsv" \
+        -v H1="$(rep_t via_regra1)" -v H2="$(rep_t via_regra2)" \
+        -v H4="$(rep_t via_regra4)" -v HC="$(rep_t via_comite)" \
+        -v CP="$(rep_t q_place)" -v CT="$(rep_t q_team)" -v CS="$(rep_t q_school)" \
+        -v CSD="$(rep_t q_sede)" -v CD="$(rep_t q_detail)" '
+      function esc(x){ gsub(/&/,"\\&amp;",x); gsub(/</,"\\&lt;",x); gsub(/>/,"\\&gt;",x); return x }
+      BEGIN{
+        while ((getline l < NF_) > 0) { n=split(l, a, "\t"); if (n>=3) { tname[a[1]]=a[2]; tuniv[a[1]]=a[3] } }
+        close(NF_)
+        order[1]="regra1"; order[2]="regra2"; order[3]="regra4"; order[4]="comite"
+        head["regra1"]=H1; head["regra2"]=H2; head["regra4"]=H4; head["comite"]=HC
+      }
+      { i=++n; via[i]=$2; login[i]=$1; sede[i]=$3; place[i]=$5+0; det[i]=$6 }
+      END{
+        for (o=1; o<=4; o++) {
+          v=order[o]; first=1
+          for (i=1; i<=n; i++) {
+            if (via[i] != v) continue
+            if (first) {
+              printf "<h3>%s</h3><div class=\"chart-wrap\"><table class=\"moj narrow\"><thead><tr><th class=\"n\">%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead><tbody>\n", esc(head[v]), esc(CP), esc(CT), esc(CS), esc(CSD), esc(CD)
+              first=0
+            }
+            printf "<tr><td class=\"n\">%s</td><td>%s</td><td>%s</td><td>%s</td><td class=\"small\">%s</td></tr>\n", (place[i]>0?place[i]:"—"), esc(tname[login[i]]!=""?tname[login[i]]:login[i]), esc(tuniv[login[i]]), esc(sede[i]), esc(det[i])
+          }
+          if (!first) printf "</tbody></table></div>\n"
+        }
+      }' <(sort -t$'\t' -k5,5n "$QUALF")
+    rep_foot
+  } > "$OUTD/classificados.html"
 fi
 
 # --- documentos.html: os documentos PUBLICADOS da prova, dentro do pacote ---------------

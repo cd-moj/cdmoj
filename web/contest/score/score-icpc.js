@@ -130,7 +130,7 @@ function cellSolved(v) { return /^\d+\/\d+\/?\*?$/.test(v); }  // tries/minutes[
 function cellWait(v) { return /^\d+\/-/.test(v); }             // tries/-
 
 export function renderICPC(parsed, opts) {
-  const { searchTerm = '', regionFn = null, genPlace = null, style = 'icon', showPhotos = false } = opts || {};
+  const { searchTerm = '', regionFn = null, genPlace = null, style = 'icon', showPhotos = false, classified = null } = opts || {};
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
@@ -198,6 +198,15 @@ export function renderICPC(parsed, opts) {
     const label = (t.univShort ? `[${escapeHtml(t.univShort)}] ` : '') + escapeHtml(t.teamName || t.username);
     const teamTd = el('td', { class: 'team',
       title: [t.univFull || t.univShort || '', t.username].filter(Boolean).join(' · '), html: label });
+    // chip ↑BR: classificado p/ a PRÓXIMA FASE (só o publicado chega no `classified`)
+    const cinfo = classified && classified[t.username];
+    if (cinfo) {
+      const viaT = { regra1: T('regra 1', 'rule 1'), regra2: T('regra 2', 'rule 2'),
+                     regra4: T('regra 4', 'rule 4'), comite: T('comitê', 'committee') }[cinfo.via] || cinfo.via;
+      teamTd.append(' ', el('span', { class: 'qual-chip',
+        title: T('Classificado — ', 'Qualified — ') + (cinfo.stage || '') +
+               ' (' + viaT + (cinfo.sede ? ' · ' + cinfo.sede : '') + ')' }, '↑BR'));
+    }
     if (logoImg) { teamTd.prepend(logoImg, ' '); setMediaSrc(logoImg, safeLogo, { lazy: true, onerror: () => logoImg.remove() }); }
     // 📷 = foto do time, SÓ com o placar aberto (opts.showPhotos = !frozen — R4, 2026-08-30;
     // a rota team-photo é pública, o gate aqui é de PRODUTO: freeze não denuncia presença)

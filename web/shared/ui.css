@@ -470,6 +470,11 @@ table.score .flag-mini { max-width:100%; }
 /* posição no placar GERAL, dentro da coluna # do placar de coorte (o número grande é a posição
    na coorte). No celular o rótulo do cabeçalho sai — o dado continua, com title. */
 .plg { display:block; font-size:.7em; font-weight:600; color:var(--muted); line-height:1.1; }
+/* chip de CLASSIFICADO p/ a próxima fase (↑BR) — discreto, não quebra o layout fixo */
+.qual-chip { display:inline-block; font-size:.68em; font-weight:700; letter-spacing:.02em;
+  padding:.05em .35em; border-radius:.6em; vertical-align:middle; cursor:help;
+  color:#1a6b2f; background:#e4f6e9; border:1px solid #9ed3ac; }
+@media (max-width:640px) { table.score .qual-chip { padding:.05em .2em; } }
 @media (max-width:640px) { table.score th .plg { display:none; } }
 /* telas médias: aperta espaçamento e fonte antes de mexer no conteúdo */
 @media (max-width:1100px) {

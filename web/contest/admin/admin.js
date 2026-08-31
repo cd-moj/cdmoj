@@ -27,6 +27,7 @@ import { makeTasksTab } from './tasks.js';
 import { makeJudgesTab } from './judges-tab.js';
 import { makeAuditTab } from './audit-tab.js';
 import { makeMlinuxTab } from './mlinux-tab.js';
+import { makeClassifyTab } from './classify-tab.js';
 import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
@@ -46,6 +47,7 @@ const GROUPS = () => [
     { id: 'rodadas', label: T('Rodadas', 'Rounds'), make: () => makeRoundsTab(CONTEST) },
     { id: 'documentos', label: T('Documentos', 'Documents'), make: () => makeDocsTab(CONTEST) },
     { id: 'baloes', label: T('Balões', 'Balloons'), make: () => makeBalloonsTab(CONTEST) },
+    { id: 'classificacao', label: T('Classificação', 'Qualification'), make: () => makeClassifyTab(CONTEST) },
   ] },
   { id: 'pessoas', label: T('👥 Pessoas', '👥 People'), panels: [
     { id: 'contas', label: T('Contas', 'Accounts'), make: () => makeUsersTab(CONTEST) },
