@@ -46,6 +46,7 @@ PKG="$FIX/probs"; mkdir -p "$PKG/col/pa"
 printf 'Bruno Ribas\nMaria da Silva\n' > "$PKG/col/pa/author"
 mkdir -p "$C/docs"
 printf '%%PDF-1.4 caderno\n' > "$C/docs/contest.pt.pdf"
+printf '%%PDF-1.4 CADERNO_ENVIADO_TRADUZIDO\n' > "$C/docs/contest.pt.uploaded.pdf"
 printf '%%PDF-1.4 SEGREDO_DOC_NAO_PUBLICADO\n' > "$C/docs/editorial.pt.pdf"
 jq -cn '{caderno_version:"v1.0",published:["contest.pt"]}' > "$C/docs/config.json"
 m(){ echo $(( T0 + $1*60 )); }
@@ -88,7 +89,7 @@ tail -c +$(( off + 1 )) "$RESP" > "$FIX/rel.tar.gz"
 ck "tar.gz íntegro"          'tar -tzf "$FIX/rel.tar.gz" >/dev/null 2>&1'
 tar -xzf "$FIX/rel.tar.gz" -C "$EXT" 2>/dev/null
 R="$EXT/relatorio-rp"
-for p in index.html runs.html score-frozen.html clarifications.html statistics.html staff-tasks.html infra.html statements/A.html; do
+for p in index.html runs.html score-frozen.html clarifications.html statistics.html staff-tasks.html statements/A.html; do
   ck "página $p" '[[ -s "$R/'"$p"'" ]]'
 done
 ck "index: placar ABERTO mostra AC pós-freeze (1/70)"  'grep -q "1/70" "$R/index.html"'
@@ -143,7 +144,7 @@ ck "recorte: ★ global com classe gfts"     'grep -q "fts gfts" "$R/index.html"
 ck "estatísticas: selects sede/país"       'grep -q "id=\"sRegion\"" "$R/statistics.html" && grep -q "id=\"sFlag\"" "$R/statistics.html"'
 ck "estatísticas: recortes embutidos"      'grep -q "by_region" "$R/statistics.html"'
 ck "estatísticas: árvore de sedes (RTREE, com nó agregador)" \
-  'grep -q "const RTREE=\[{\"n\":\"Brasil\",\"d\":0}" "$R/statistics.html"'
+  'grep -q "const RTREE=\[{\"n\":\"Brasil\",\"d\":0,\"r\":" "$R/statistics.html"'
 # --- mlinux.html (nutellaboot) ---
 ck "mlinux: página gerada do cache"        '[[ -s "$R/mlinux.html" ]]'
 ck "mlinux: entra na NAV das outras"       'grep -q "mlinux.html" "$R/index.html"'
@@ -171,6 +172,13 @@ ck "filtro: script DEPOIS dos placares"   '[[ "$(grep -n "</section>" "$R/index.
 ck "sem coorte: um placar, sem seletor"   '[[ "$(grep -c "class=\"board-view\"" "$R/index.html")" == 1 ]] && ! grep -q "id=\"fView\"" "$R/index.html" && ! grep -q "class=\"plg\"" "$R/index.html"'
 ck "documentos: link na navegação"        'grep -q "documentos.html" "$R/index.html" && grep -q "documentos.html" "$R/statistics.html"'
 ck "documentos: NÃO leva o não-publicado"  '[[ ! -e "$R/documentos/editorial.pt.pdf" ]] && ! grep -rq "SEGREDO_DOC_NAO_PUBLICADO" "$R"'
+# 2026-08-31: o que o TIME viu — o PDF ENVIADO vence o gerado na cópia do report
+ck "documentos: leva o PDF ENVIADO (uploaded vence)" 'grep -q "CADERNO_ENVIADO_TRADUZIDO" "$R/documentos/contest.pt.pdf"'
+ck "index: bloco de documentos ACIMA dos problemas"  'grep -q "doclist" "$R/index.html"'
+ck "infra: aba REMOVIDA (página e nav)"    '[[ ! -e "$R/infra.html" ]] && ! grep -q "infra.html" "$R/index.html"'
+ck "placar: data-login + árvore RTREE embutida" 'grep -q "data-login=" "$R/index.html" && grep -q "var RTREE=" "$R/index.html"'
+ck "runs: filtro de sede (frg) + data-login"    'grep -q "id=\"frg\"" "$R/runs.html" && grep -q "data-login=" "$R/runs.html" && grep -q "var RTREE=" "$R/runs.html"'
+ck "staff: filtro de sede (srg)"           'grep -q "id=\"srg\"" "$R/staff-tasks.html" && grep -q "var RTREE=" "$R/staff-tasks.html"'
 # --- gates ---
 callf /contest/admin/report usr 'contest=rp' "$FIX/r2.bin"
 ck "não-admin → 403" 'head -c 100 "$FIX/r2.bin" | grep -q "Status: 403"'
@@ -186,7 +194,7 @@ EN="$FIX/ren"; CONTESTSDIR="$FIX" MOJ_PROBLEMS_DIR="$PKG" bash "$ROOT/score/repo
 ck "EN: chrome traduzido"        'grep -q ">🏆 Scoreboard<" "$EN/index.html" && grep -q ">📊 Statistics<" "$EN/index.html"'
 ck "EN: índice traduzido"        'grep -q "<dt>Contest</dt>" "$EN/index.html" && grep -q "<th>Author</th>" "$EN/index.html"'
 ck "EN: placar traduzido"        'grep -q "<th>Team</th>" "$EN/index.html" && grep -q "<th>Pen.</th>" "$EN/index.html"'
-ck "EN: runs/clar/staff/infra"   'grep -q "<th>Verdict</th>" "$EN/runs.html" && grep -q "<th>Type</th>" "$EN/staff-tasks.html" && grep -q "Judging infrastructure" "$EN/infra.html"'
+ck "EN: runs/clar/staff"         'grep -q "<th>Verdict</th>" "$EN/runs.html" && grep -q "<th>Type</th>" "$EN/staff-tasks.html"'
 ck "EN: documentos traduzidos"   'grep -q "Problem set" "$EN/documentos.html" && grep -q "<th>Language</th>" "$EN/documentos.html"'
 ck "EN: html lang=en"            'grep -q "<html lang=\"en\">" "$EN/index.html"'
 ck "EN: filtros traduzidos"      'grep -q "<label>Flag: <select id=\"fFlag\">" "$EN/index.html" && grep -q "<label>Site: <select id=\"fRegion\">" "$EN/index.html" && grep -q "data-tpl=\"Showing %s of %s teams\"" "$EN/index.html"'
@@ -210,5 +218,14 @@ ck "coorte: posição na coorte + geral" 'grep -q "#<span class=\"plg\">Geral</s
 ck "coorte: placar geral sem 2ª posição" 'awk "/data-view=\"public\"/,/<\/section>/" "$CO/index.html" | grep -q "<td class=\"place\">1</td>"'
 ck "coorte: congelado também tem visões" '[[ "$(grep -c "class=\"board-view\"" "$CO/score-frozen.html")" == 3 ]]'
 ck "coorte: segue offline"            '! grep -rqE "<script src=|import |fetch\(" "$CO"'
+
+# --- freeze preservado (2026-08-31): finish zera o conf; o report cai no freeze-final ---
+mkdir -p "$C/var/frozen-final"
+cp "$C"/var/placar*.txt "$C/var/frozen-final/" 2>/dev/null   # o que o finish NOVO preserva
+sed -i '/^FREEZE_TIME=/d' "$C/conf"
+jq -cn --argjson f "$FZ" '{freeze:$f, cleared_at:0, by:"smoke"}' > "$C/var/freeze-final.json"
+FR="$FIX/rfz"; CONTESTSDIR="$FIX" MOJ_PROBLEMS_DIR="$PKG" bash "$ROOT/score/report-gen.sh" rp "$FR" >/dev/null 2>&1
+ck "freeze-final: score-frozen.html volta com o conf zerado" '[[ -s "$FR/score-frozen.html" ]]'
+ck "freeze-final: index anota o congelamento"  'grep -q "score-frozen.html" "$FR/index.html"'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

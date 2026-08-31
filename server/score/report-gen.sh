@@ -14,7 +14,6 @@
 #   clarifications.html   perguntas e respostas (asker ANÔNIMO)
 #   statistics.html       estatísticas agregadas (statistics.cache.json renderizado)
 #   staff-tasks.html      tarefas do .staff (impressão + balões; só metadados/status)
-#   infra.html            situação: juízes, tempos de resposta, fila, timeline
 #
 # PRIVACIDADE — o que NUNCA entra no relatório:
 #   - users/<l>/submissions/ (código-fonte) e mojlog/ (report do juiz expõe testes);
@@ -81,6 +80,21 @@ MODE="$(contest_score_mode "$C")"
 START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 END="${CONTEST_END:-0}";     [[ "$END"   =~ ^[0-9]+$ ]] || END=0
 FREEZE="${FREEZE_TIME:-0}";  [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0
+# o finish.sh ZERA o FREEZE_TIME do conf ao encerrar — mas o relatório é histórico e tem
+# de contar o congelamento (LATAM 2026: freeze 18h sumiu do report). Fallback:
+# var/freeze-final.json (gravado pelo finish) e, por último, o freeze da rodada ativa.
+if (( FREEZE == 0 )) && [[ -s "$CDIR/var/freeze-final.json" ]]; then
+  FREEZE="$(jq -r '.freeze // 0' "$CDIR/var/freeze-final.json" 2>/dev/null)"
+  [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0
+fi
+if (( FREEZE == 0 )) && [[ -s "$CDIR/rounds.json" ]]; then
+  FREEZE="$(jq -r 'first((.rounds // [])[] | select(.state == "active") | .freeze) // 0' "$CDIR/rounds.json" 2>/dev/null)"
+  [[ "$FREEZE" =~ ^[0-9]+$ ]] || FREEZE=0
+fi
+# pós-finish os TXT vivos são o placar COMPLETO — o CONGELADO só existe se o finish o
+# preservou (var/frozen-final/, cópia dos placar*.txt do instante do encerramento)
+FROZEN_DIR=""
+[[ -s "$CDIR/var/frozen-final/placar.txt" ]] && FROZEN_DIR="$CDIR/var/frozen-final"
 # como pintar a célula resolvida — o MESMO modo do placar ao vivo (/contest/basic balloon_style),
 # p/ o relatório não contar uma história diferente do que as pessoas viram na prova
 BSTYLE="${SCORE_BALLOON_STYLE:-icon}"; [[ "$BSTYLE" == fill ]] || BSTYLE=icon
@@ -107,7 +121,7 @@ rep_t(){ case "$LOC:$1" in
   pt:ml_note) printf 'Coletado do nutellaboot em %s — specs, editores e comportamento das máquinas das sedes durante a prova.' "$2";;
   en:ml_note) printf 'Collected from nutellaboot at %s — specs, editors and machine behaviour across sites during the contest.' "$2";;
   pt:tab_staff) printf '🖨️ Tarefas do staff';;    en:tab_staff) printf '🖨️ Staff tasks';;
-  pt:tab_infra) printf '⚙️ Infra';;               en:tab_infra) printf '⚙️ Infra';;
+  pt:docs_top) printf 'Documentos da prova';;     en:docs_top) printf 'Contest documents';;
   pt:tab_frozen) printf '❄ Placar congelado';;    en:tab_frozen) printf '❄ Frozen scoreboard';;
   pt:subtitle) printf 'relatório da competição';; en:subtitle) printf 'contest report';;
   pt:footer) printf 'Gerado em';;                 en:footer) printf 'Generated on';;
@@ -196,8 +210,7 @@ rep_t(){ case "$LOC:$1" in
   pt:printing) printf 'impressão';;               en:printing) printf 'printing';;
   pt:pages_sfx) printf 'pág.';;                   en:pages_sfx) printf 'pages';;
   pt:none_tasks) printf 'Nenhuma tarefa registrada.';; en:none_tasks) printf 'No tasks recorded.';;
-  # infra
-  pt:page_infra) printf 'Infra';;                 en:page_infra) printf 'Infra';;
+
   pt:snapshot) printf 'Snapshot no momento da geração do relatório (%s) + métricas de resposta da prova inteira.' "$2";;
   en:snapshot) printf 'Snapshot taken when the report was generated (%s) + response metrics for the whole contest.' "$2";;
   pt:avg_wait) printf 'espera média';;            en:avg_wait) printf 'average wait';;
@@ -481,6 +494,10 @@ table.moj.narrow th.n, table.moj.narrow td.n{width:auto}
 /* o placar (largura por colgroup, quebra de linha, marca no celular) vem do ui.css inlinado:
    aqui NÃO pode voltar `white-space:nowrap` nem `min-width` — era o que forçava a rolagem. */
 td.place{text-align:right}
+.doclist{list-style:none;padding:0;margin:.3rem 0 .8rem}
+.doclist li{margin:.25rem 0}
+.btn-doc{display:inline-block;padding:.15em .6em;margin:0 .15em;border:1px solid var(--line,#c9d2e0);
+  border-radius:.5em;text-decoration:none;font-size:.85em;font-weight:600}
 tr.guest-row td{background:#fbfbfd;color:var(--muted)}
 .v-ac{color:var(--ok);font-weight:700}
 .v-rej{color:var(--err)}
@@ -523,6 +540,18 @@ footer{color:var(--muted);font-size:.78rem;margin:2rem 0 .6rem}
 CSSEOF
 }
 
+# --- árvore de sedes ACHATADA [{n,d,r}] na ordem do documento (regions.json) --------------
+# UMA construção p/ TODOS os consumidores: filtro de sede do placar/runs/staff (novo,
+# 31/08 — "mesma hierarquia do placar"), select da estatística e do mlinux. `r` = regex do
+# nó (nó de cima casa times por regex de login, como o regionMatch do placar ao vivo).
+RTREE_JSON='[]'
+if [[ -s "$CDIR/regions.json" ]]; then
+  RTREE_JSON="$(jq -c 'def flat($d): .[]? | {n:(.name // ""), d:$d, r:(.regex // "")},
+                                     ((.subregions // []) | flat($d+1));
+               [flat(0)] | map(select(.n != ""))' "$CDIR/regions.json" 2>/dev/null)"
+  [[ -n "$RTREE_JSON" ]] || RTREE_JSON='[]'
+fi
+
 # --- classificação PUBLICADA p/ a próxima fase (chip ↑BR + página classificados.html) ---
 # qual.tsv: login \t via \t sede \t rótulo-do-stage \t place \t detalhe/nota \t title-pronto
 QUALF="$W/qual.tsv"; : > "$QUALF"
@@ -553,7 +582,7 @@ rep_head(){ # <título> <id-da-aba-ativa>
            "mlinux.html:mlinux:$(rep_t tab_mlinux)" \
            "documentos.html:docs:$(rep_t tab_docs)" \
            "classificados.html:qual:$(rep_t tab_qual)" \
-           "staff-tasks.html:staff:$(rep_t tab_staff)" "infra.html:infra:$(rep_t tab_infra)"; do
+           "staff-tasks.html:staff:$(rep_t tab_staff)"; do
     IFS=: read -r fn id label <<< "$t"
     [[ "$id" == docs && ! -f "$OUTD/documentos.html" && "$active" != docs ]] && continue
     # a aba mlinux é CONDICIONAL: só quando a integração nutellaboot foi coletada
@@ -750,6 +779,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       if(uf!="")    attrs=attrs " data-ufull=\"" esc(uf) "\""
       if(rg!="")    attrs=attrs " data-region=\"" esc(rg) "\""
       attrs=attrs " data-search=\"" esc(tolower(tn " " us " " uf " " un)) "\""
+      attrs=attrs " data-login=\"" esc(un) "\""
       # renumeração do recorte (R1): posição original + chave de empate (a MESMA regra do
       # pnum acima) — o rep_filter_js renumera os visíveis e restaura ao limpar
       attrs=attrs " data-place=\"" (isguest? "" : pnum) "\""
@@ -882,6 +912,11 @@ rep_score_boards(){
       f="$(ch_view_file "$C" "$v" full)"; [[ -s "$f" ]] || f="$(ch_view_file "$C" "$v")"
     else
       f="$(ch_view_file "$C" "$v")"
+      # conf já descongelado (finish): o TXT vivo é o completo — o congelado preservado
+      # mora em var/frozen-final/ com os MESMOS nomes de arquivo
+      if [[ "$kind" == frozen && -n "$FROZEN_DIR" && -s "$FROZEN_DIR/${f##*/}" ]]; then
+        f="$FROZEN_DIR/${f##*/}"
+      fi
     fi
     [[ -s "$f" ]] || continue
     # placares idênticos (no esquenta `public` e `all` são a mesma coisa, porque toda coorte é
@@ -959,8 +994,8 @@ rep_filter_bar(){
 # rep_filter_js — vai DEPOIS dos placares: script inline roda na hora em que é parseado, e antes
 # das <section> existirem o querySelectorAll voltava vazio (a barra ficava decorativa).
 rep_filter_js(){
+  printf '<script>var RTREE=%s;\n' "${RTREE_JSON:-[]}"
   cat <<'FBAREOF'
-<script>
 (function(){
   var bar=document.getElementById('fbar'); if(!bar) return;
   var boards=[].slice.call(document.querySelectorAll('.board-view')); if(!boards.length) return;
@@ -1008,10 +1043,38 @@ rep_filter_js(){
     selF.value = seen[cur]?cur:'';
     if(selF.parentNode) selF.parentNode.style.display = opts.length?'':'none';
   }
+  // SEDE = a ÁRVORE do regions.json (mesma hierarquia/ordem/indentação do placar ao vivo):
+  // nó de cima casa o time por REGEX no data-login; folha também casa por nome == data-region.
+  // Sede vista nas linhas e fora da árvore entra no fim (valor "x:<nome>").
+  function safeRe(x){ try{ return x?new RegExp(x):null }catch(e){ return null } }
+  var RT=(typeof RTREE!=='undefined'&&RTREE)?RTREE:[], RTRE=RT.map(function(t){ return safeRe(t.r) });
+  function regionOk(r,g){
+    if(!g) return true;
+    if(g.slice(0,2)==='x:') return r.getAttribute('data-region')===g.slice(2);
+    var i=+g, t=RT[i]; if(!t) return true;
+    var lg=r.getAttribute('data-login')||'';
+    if(RTRE[i]&&RTRE[i].test(lg)) return true;
+    return (r.getAttribute('data-region')||'').toLowerCase()===t.n.toLowerCase();
+  }
+  function fillRegion(){
+    if(!selR) return;
+    var cur=selR.value, opts=[], have={}, extra={};
+    rows(board()).forEach(function(r){ var v=r.getAttribute('data-region'); if(v) extra[v]=1; });
+    RT.forEach(function(t,i){
+      var pad=new Array((t.d||0)+1).join('\u2007\u2007');
+      opts.push([String(i), pad+t.n]); have[t.n.toLowerCase()]=1;
+    });
+    Object.keys(extra).sort().forEach(function(n){ if(!have[n.toLowerCase()]) opts.push(['x:'+n, n]); });
+    while(selR.options.length>1) selR.remove(1);
+    var seen={};
+    opts.forEach(function(o){ seen[o[0]]=1; var e=document.createElement('option'); e.value=o[0]; e.textContent=o[1]; selR.add(e); });
+    selR.value = seen[cur]?cur:'';
+    if(selR.parentNode) selR.parentNode.style.display = opts.length?'':'none';
+  }
   function refill(){
     fillFlag();
     fill(selU,'data-univ',function(r,v){ var f=r.getAttribute('data-ufull'); return f?(v+' — '+f):v });
-    fill(selR,'data-region',function(r,v){ return v });
+    fillRegion();
   }
   // Filtro ativo RENUMERA o recorte (R1, 2026-08-30) e re-estrela por data-sec (R6) —
   // tudo idempotente: cada apply() restaura o DOM original antes de reaplicar.
@@ -1032,7 +1095,7 @@ rep_filter_js(){
       var okF=!f || (f.indexOf('-')>=0 ? r.getAttribute('data-flag')===f
                                        : r.getAttribute('data-country')===f);
       var ok=okF && (!u||r.getAttribute('data-univ')===u)
-          && (!g||r.getAttribute('data-region')===g)
+          && regionOk(r,g)
           && (!s||(r.getAttribute('data-search')||'').indexOf(s)>=0);
       r.style.display=ok?'':'none'; if(ok){ vis++; visRows.push(r); }
     });
@@ -1154,7 +1217,7 @@ done < "$W/probs.tsv" >> "$W/stmt.tsv"
 
 # --- placares: aberto (index) + congelado (se houver freeze) ---------------------------
 FROZEN_NOTE=""
-if (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" ]]; then
+if (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" || -n "$FROZEN_DIR" ]]; then
   fmin=$(( (FREEZE - START) / 60 ))
   {
     rep_head "$(rep_t frozen_title)" frozen
@@ -1216,6 +1279,9 @@ if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON"
     dt="${BASH_REMATCH[1]}"; dl="${BASH_REMATCH[2]}"
     for fmt in pdf html; do
       src="$CDIR/docs/$dt.$dl.$fmt"
+      # o que o TIME viu: PDF enviado (uploaded) vence o gerado — mesma regra do
+      # doc_pdf_served (a LATAM publicou PDFs enviados e o report levava o gerado)
+      [[ "$fmt" == pdf && -s "$CDIR/docs/$dt.$dl.uploaded.pdf" ]] && src="$CDIR/docs/$dt.$dl.uploaded.pdf"
       [[ -s "$src" ]] || continue
       cp -f "$src" "$OUTD/documentos/$dt.$dl.$fmt" 2>/dev/null || continue
       printf '%s\t%s\t%s\t%s\n' "$dt" "$dl" "$fmt" "$(stat -c%s "$src" 2>/dev/null || echo 0)" >> "$W/docs.tsv"
@@ -1332,6 +1398,28 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
   printf '<dt>%s</dt><dd>%s (<a href="runs.html">runs</a>)</dd>\n' "$(rep_t subs)" "$RUNS_N"
   printf '</dl></div>\n'
 
+  # documentos PUBLICADOS no topo do placar (pedido 31/08): o que o TIME viu na aba da
+  # competição — caderno/info-sheet/times/editorial, PDF enviado vencendo o gerado
+  if [[ -s "$W/docs.tsv" ]]; then
+    printf '<h2>📄 %s</h2>\n<ul class="doclist">\n' "$(rep_t docs_top)"
+    while IFS= read -r _dt; do
+      case "$_dt" in
+        contest)    _lbl="$(rep_t doc_contest)";;
+        times)      _lbl="$(rep_t doc_times)";;
+        info-sheet) _lbl="$(rep_t doc_info)";;
+        editorial)  _lbl="$(rep_t doc_editorial)";;
+        *)          _lbl="$_dt";;
+      esac
+      _links=""
+      while IFS=$'\t' read -r _d _dl _fmt _sz; do
+        [[ "$_d" == "$_dt" ]] || continue
+        _links+="<a class=\"btn-doc\" href=\"documentos/$_d.$_dl.$_fmt\">${_fmt^^} · ${_dl}</a> "
+      done < "$W/docs.tsv"
+      printf '<li>📄 <b>%s</b> %s</li>\n' "$(esc "$_lbl")" "$_links"
+    done < <(cut -f1 "$W/docs.tsv" | awk '!s[$0]++')
+    printf '</ul>\n'
+  fi
+
   printf '<h2>%s</h2>\n<div class="tblwrap"><table class="moj">\n<thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
     "$(rep_t problems)" "$(rep_t letter)" "$(rep_t problem)" "$(rep_t author)" "$(rep_t statement)"
   while IFS=$'\t' read -r Ls pfull hh hp url pauthor; do
@@ -1352,15 +1440,55 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
   rep_foot
 } > "$OUTD/index.html"
 
+# rep_tree_core_js — funções compartilhadas do filtro de SEDE por árvore (runs/staff).
+# Emite <script> com RTREE + treeFilterInit(tableId, selectId, countId): popula o select
+# (indentado, ordem do regions.json; sedes fora da árvore no fim) e devolve matcher(row).
+rep_tree_core_js(){
+  printf '<script>var RTREE=%s;\n' "${RTREE_JSON:-[]}"
+  cat <<'TREEEOF'
+function treeFilterInit(tid, sid, apply){
+  var t=document.getElementById(tid), sel=document.getElementById(sid);
+  if(!t||!sel) return function(){ return true };
+  function safeRe(x){ try{ return x?new RegExp(x):null }catch(e){ return null } }
+  var RT=RTREE||[], RTRE=RT.map(function(x){ return safeRe(x.r) });
+  var extra={}, have={};
+  Array.prototype.forEach.call(t.tBodies[0].rows,function(r){
+    var v=r.getAttribute('data-region'); if(v) extra[v]=1; });
+  RT.forEach(function(x,i){
+    var pad=new Array((x.d||0)+1).join('  ');
+    var e=document.createElement('option'); e.value=String(i); e.textContent=pad+x.n; sel.add(e);
+    have[x.n.toLowerCase()]=1; });
+  Object.keys(extra).sort().forEach(function(n){ if(!have[n.toLowerCase()]){
+    var e=document.createElement('option'); e.value='x:'+n; e.textContent=n; sel.add(e); } });
+  function ok(r){
+    var g=sel.value; if(!g) return true;
+    if(g.slice(0,2)==='x:') return r.getAttribute('data-region')===g.slice(2);
+    var i=+g, x=RT[i]; if(!x) return true;
+    var lg=r.getAttribute('data-login')||'';
+    if(RTRE[i]&&RTRE[i].test(lg)) return true;
+    return (r.getAttribute('data-region')||'').toLowerCase()===x.n.toLowerCase();
+  }
+  sel.addEventListener('change', apply);
+  return ok;
+}
+TREEEOF
+  printf '</script>\n'
+}
+
 # --- runs.html ---------------------------------------------------------------------------
 {
   rep_head "$(rep_t page_runs)" runs
   printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'All submissions (no source code, no judge logs; canonical verdict). Click a header to sort.' || printf 'Todas as submissões da prova (sem código-fonte e sem logs do juiz; veredicto canônico). Clique num cabeçalho para ordenar.')"
+  printf '<label>%s <select id="frg"><option value="">%s</option></select></label> ' \
+    "$(esc "$(rep_t f_region)")" "$(esc "$(rep_t f_region_all)")"
   printf '<input class="filter" id="fq" type="search" placeholder="%s">\n' "$(rep_t filter_ph)"
   printf '<div class="tblwrap"><table class="moj" id="runs">\n<thead><tr><th class="n">#</th><th class="n">%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
     "$(rep_t minute)" "$(rep_t hour)" "$(rep_t team)" "$(rep_t univ)" "$(rep_t prob)" "$(rep_t lang)" "$(rep_t verdict)"
-  awk -F'\t' -v START="$START" -v DTFMT="$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
+  awk -F'\t' -v START="$START" -v NF_="$W/names.tsv" \
+      -v DTFMT="$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); gsub(/"/,"\\&quot;",s); return s }
+    BEGIN{ while ((getline l < NF_) > 0) { n=split(l,a,"\t"); if(n>=6 && a[1]!="") reg[a[1]]=a[6] }
+           close(NF_) }
     {
       se=$1+0; login=$2; letter=$3; lang=$4; v=$5; sid=$6; tn=$7; us=$8; uf=$9
       mn=(START>0)? int((se-START)/60) : ""
@@ -1371,19 +1499,24 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
       team=(tn!="")? tn : login
       lbl=esc(team) " <span class=\"u\">[" esc(login) "]</span>"
       univ=(us!="")? us : uf
-      printf "<tr><td class=\"place\" title=\"%s\">%d</td><td class=\"n\">%s</td><td>%s</td><td class=\"team\">%s</td><td>%s</td><td><b>%s</b></td><td>%s</td><td class=\"%s\">%s</td></tr>\n", \
-        esc(sid), NR, mn, hora, lbl, esc(univ), esc(letter), esc(lang), cls, esc(v)
+      printf "<tr data-login=\"%s\" data-region=\"%s\"><td class=\"place\" title=\"%s\">%d</td><td class=\"n\">%s</td><td>%s</td><td class=\"team\">%s</td><td>%s</td><td><b>%s</b></td><td>%s</td><td class=\"%s\">%s</td></tr>\n", \
+        esc(login), esc(login in reg ? reg[login] : ""), esc(sid), NR, mn, hora, lbl, esc(univ), esc(letter), esc(lang), cls, esc(v)
     }' "$W/runs.tsv"
   printf '</tbody></table></div>\n'
+  rep_tree_core_js
   cat <<'EOF'
 <script>
 (function(){
   var t=document.getElementById('runs'); if(!t) return;
   var q=document.getElementById('fq');
-  if(q) q.addEventListener('input',function(){
-    var v=q.value.toLowerCase();
+  var regionOk=treeFilterInit('runs','frg',apply);
+  function apply(){
+    var v=(q?q.value:'').toLowerCase();
     Array.prototype.forEach.call(t.tBodies[0].rows,function(r){
-      r.style.display=r.textContent.toLowerCase().indexOf(v)>=0?'':'none';});});
+      var ok=regionOk(r) && (!v || r.textContent.toLowerCase().indexOf(v)>=0);
+      r.style.display=ok?'':'none';});
+  }
+  if(q) q.addEventListener('input',apply);
   Array.prototype.forEach.call(t.tHead.rows[0].cells,function(th,i){
     th.style.cursor='pointer';
     th.addEventListener('click',function(){
@@ -1448,12 +1581,7 @@ rep_stats_bundle(){
   [[ -n "$cn" ]] || cn='{}'
   # árvore de regions.json achatada [{n,d}] na ORDEM do documento — o select de Sede da
   # estatística espelha o do placar (país › região/supersede › sede, indentado)
-  rt='[]'
-  if [[ -s "$CDIR/regions.json" ]]; then
-    rt="$(jq -c 'def flat($d): .[]? | {n:(.name // ""), d:$d}, ((.subregions // []) | flat($d+1));
-                 [flat(0)] | map(select(.n != ""))' "$CDIR/regions.json" 2>/dev/null)"
-    [[ -n "$rt" ]] || rt='[]'
-  fi
+  rt="$RTREE_JSON"
   # barra de recorte (R2, 2026-08-30): Sede × País, mutuamente exclusivos — o cache já traz
   # by_region/by_country prontos (mesmo shape do global) e o JS só escolhe o sub-objeto.
   # Sem dimensão nenhuma (cache antigo/contest sem .team) o JS esconde a barra.
@@ -1578,11 +1706,18 @@ STEOF
   PRD="$CDIR/print-requests"
   nst=0
   if [[ -d "$PRD" ]]; then
-    printf '<div class="tblwrap"><table class="moj">\n<thead><tr><th class="n">#</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
+    # mapa login→sede (names.tsv campo 6) p/ o filtro por árvore
+    awk -F'\t' 'NF>=6 && $1!="" { printf "%s\t%s\n", $1, $6 }' "$W/names.tsv" \
+      | jq -Rn '[inputs | split("\t") | select(length>=2) | {key:.[0], value:.[1]}] | from_entries' \
+      > "$W/regmap.json" 2>/dev/null
+    [[ -s "$W/regmap.json" ]] || printf '{}' > "$W/regmap.json"
+    printf '<label>%s <select id="srg"><option value="">%s</option></select></label>\n' \
+      "$(esc "$(rep_t f_region)")" "$(esc "$(rep_t f_region_all)")"
+    printf '<div class="tblwrap"><table class="moj" id="stafftb">\n<thead><tr><th class="n">#</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th></tr></thead>\n<tbody>\n' \
       "$(rep_t type)" "$(rep_t hour)" "$(rep_t team)" "$(rep_t univ)" "$(rep_t detail)" "$(rep_t status)" "$(rep_t service)"
     find "$PRD" -maxdepth 1 -name '*.json' ! -name badges.json ! -name staff-filters.json -print0 2>/dev/null \
       | xargs -0 -r jq -c 'select((.seq? // null) != null)' 2>/dev/null \
-      | jq -rs --arg t_balloon "$(rep_t balloon)" --arg t_print "$(rep_t printing)" --arg t_pages "$(rep_t pages_sfx)" \
+      | jq -rs --slurpfile rm "$W/regmap.json" --arg t_balloon "$(rep_t balloon)" --arg t_print "$(rep_t printing)" --arg t_pages "$(rep_t pages_sfx)" \
              --arg t_prob "$([[ "$LOC" == en ]] && printf 'problem' || printf 'problema')" \
              --arg t_deliv "$([[ "$LOC" == en ]] && printf 'delivered' || printf 'entregue')" \
              --arg t_proc "$([[ "$LOC" == en ]] && printf 'processed' || printf 'processada')" \
@@ -1599,102 +1734,31 @@ STEOF
              else "<span class=\"badge st-pending\">" + $t_pend + "</span>" end) as $st
           | ((if (.processed_at // 0) > 0 then $t_proc + " \((.processed_at)|strflocaltime("%H:%M")) " + $t_by + " \((.processed_by // "")|@html)" else "" end)
              + (if (.delivered_at // 0) > 0 then " · " + $t_deliv + " \((.delivered_at)|strflocaltime("%H:%M")) " + $t_by + " \((.delivered_by // "")|@html)" else "" end)) as $att
-          | "<tr><td class=\"place\">\(.seq)</td><td>\(if $k=="balloon" then $t_balloon else $t_print end)</td><td>\($h)</td>"
+          | ($rm[0] // {}) as $RM
+          | "<tr data-login=\"\((.login // "")|@html)\" data-region=\"\(($RM[.login // ""] // "")|@html)\"><td class=\"place\">\(.seq)</td><td>\(if $k=="balloon" then $t_balloon else $t_print end)</td><td>\($h)</td>"
             + "<td class=\"team\">\((.fullname // .team // "")|@html) <span class=\"u\">[\((.login // "")|@html)]</span></td>"
             + "<td>\((.univ // "")|@html)</td><td>\($det)</td><td>\($st)</td><td class=\"meta\">\(if ($att|length)>0 then $att else "—" end)</td></tr>"'
     printf '</tbody></table></div>\n'
+    rep_tree_core_js
+    cat <<'STFEOF'
+<script>
+(function(){
+  var t=document.getElementById('stafftb'); if(!t) return;
+  var regionOk=treeFilterInit('stafftb','srg',apply);
+  function apply(){
+    Array.prototype.forEach.call(t.tBodies[0].rows,function(r){
+      r.style.display=regionOk(r)?'':'none';});
+  }
+})();
+</script>
+STFEOF
     nst="$(find "$PRD" -maxdepth 1 -name '*.json' ! -name badges.json ! -name staff-filters.json 2>/dev/null | wc -l | tr -d '[:space:]')"
   fi
   [[ "${nst:-0}" == 0 ]] && printf '<p class="note">%s</p>\n' "$(rep_t none_tasks)"
   rep_foot
 } > "$OUTD/staff-tasks.html"
 
-# --- infra.html (dados da aba Situação, janela = prova inteira) -----------------------------
-{
-  rep_head "$([[ "$LOC" == en ]] && printf 'Judging infrastructure' || printf 'Infraestrutura de julgamento')" infra
-  printf '<p class="note">%s</p>\n' "$(rep_t snapshot "$(fmt_dt "$NOW")")"
-
-  # métricas de resposta: espera = finalized_at - sub_epoch (results por-usuário)
-  find "$CDIR/users" -mindepth 3 -maxdepth 3 -path '*/results/*.json' -print0 2>/dev/null \
-    | xargs -0 -r jq -r '[(.id // ""), (.finalized_at // 0), (.duration_s // 0), (.host // "")] | @tsv' 2>/dev/null \
-    > "$W/results.tsv"
-  awk -F'\t' -v RES="$W/results.tsv" -v OUTW="$W/waits.tsv" '
-    BEGIN{ while ((getline l < RES) > 0) { n=split(l,a,"\t"); if(n>=4 && a[1]!=""){ fin[a[1]]=a[2]+0; dur[a[1]]=a[3]+0; hst[a[1]]=a[4] } } close(RES) }
-    {
-      se=$1+0; letter=$3; sid=$6; total++
-      if (sid in fin && fin[sid]>0 && fin[sid]>=se) {
-        w=fin[sid]-se; joined++
-        printf "%d\t%s\t%s\t%d\t%d\n", w, letter, hst[sid], dur[sid], se > OUTW
-      }
-    }
-    END{ printf "%d\t%d\n", total+0, joined+0 }
-  ' "$W/runs.tsv" > "$W/cover.tsv"
-  read -r RTOT RJOIN < "$W/cover.tsv" || { RTOT=0; RJOIN=0; }
-  touch "$W/waits.tsv"
-
-  sort -n -k1,1 "$W/waits.tsv" -o "$W/waits.tsv"
-  awk -F'\t' -v T_MEAS="$([[ "$LOC" == en ]] && printf 'measured responses' || printf 'respostas medidas')" \
-      -v T_AVG="$(rep_t avg_wait)" -v T_MED="$([[ "$LOC" == en ]] && printf 'median' || printf 'mediana')" \
-      -v T_MAX="$(rep_t max_w)" '
-    { w[NR]=$1+0; s+=$1 }
-    END{
-      n=NR
-      if(n==0){ printf "<div class=\"cards\"><div class=\"card\"><div class=\"n\">0</div><div class=\"l\">%s</div></div></div>\n", T_MEAS; exit }
-      p50=w[int((n-1)*0.5)+1]; p95=w[int((n-1)*0.95)+1]
-      printf "<div class=\"cards\">"
-      printf "<div class=\"card\"><div class=\"n\">%d</div><div class=\"l\">%s</div></div>", n, T_MEAS
-      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">%s</div></div>", s/n, T_AVG
-      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">%s (p50)</div></div>", p50, T_MED
-      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">p95</div></div>", p95
-      printf "<div class=\"card\"><div class=\"n\">%ds</div><div class=\"l\">%s</div></div>", w[n], T_MAX
-      printf "</div>\n"
-    }' "$W/waits.tsv"
-  printf '<p class="note">%s</p>\n' "$(rep_t coverage "$RJOIN" "$RTOT")"
-
-  printf '<h2>%s</h2>\n<div class="tblwrap"><table class="moj narrow"><thead><tr><th>%s</th><th class="n">%s</th><th class="n">%s</th><th class="n">%s</th></tr></thead><tbody>\n' \
-    "$(rep_t wait_by_prob)" "$(rep_t prob)" "$(rep_t judged)" "$(rep_t avg_wait)" "$(rep_t max_w)"
-  awk -F'\t' '{ c[$2]++; s[$2]+=$1; if($1+0>mx[$2]) mx[$2]=$1+0 }
-    END{ for(p in c) printf "%s\t%d\t%d\t%d\n", p, c[p], s[p]/c[p], mx[p] }' "$W/waits.tsv" \
-    | sort | awk -F'\t' '{ printf "<tr><td><b>%s</b></td><td class=\"n\">%s</td><td class=\"n\">%ss</td><td class=\"n\">%ss</td></tr>\n", $1, $2, $3, $4 }'
-  printf '</tbody></table></div>\n'
-
-  printf '<h2>%s</h2>\n<div class="tblwrap"><table class="moj narrow"><thead><tr><th>%s</th><th class="n">%s</th><th class="n">%s</th></tr></thead><tbody>\n' \
-    "$(rep_t by_judge)" "$(rep_t judge_host)" "$(rep_t judgements)" "$(rep_t avg_dur)"
-  awk -F'\t' '$3!=""{ c[$3]++; s[$3]+=$4 } END{ for(h in c) printf "<tr><td>%s</td><td class=\"n\">%d</td><td class=\"n\">%.1fs</td></tr>\n", h, c[h], s[h]/c[h] }' "$W/waits.tsv" | sort
-  printf '</tbody></table></div>\n'
-
-  printf '<h2>%s</h2>\n<div class="tblwrap"><table class="moj"><thead><tr><th class="n">%s</th><th class="n">%s</th><th class="n">%s</th><th style="width:45%%"></th></tr></thead><tbody>\n' \
-    "$([[ "$LOC" == en ]] && printf 'Wait over the contest (10-min windows)' || printf 'Espera ao longo da prova (janelas de 10 min)')" \
-    "$(rep_t minute)" "$(rep_t judged)" "$(rep_t avg_wait)"
-  awk -F'\t' -v START="$START" -v DTFMT="$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
-    { b=int((($5+0)-START)/600); if(b<0)b=0; c[b]++; s[b]+=$1; if(b>mb)mb=b }
-    END{
-      mxa=0; for(i=0;i<=mb;i++) if(c[i] && s[i]/c[i]>mxa) mxa=s[i]/c[i]
-      for(i=0;i<=mb;i++) if(c[i]) printf "<tr><td class=\"n\">%d</td><td class=\"n\">%d</td><td class=\"n\">%ds</td><td><span class=\"tbar\" style=\"width:%d%%\"></span></td></tr>\n", i*10, c[i], s[i]/c[i], (mxa>0? int(s[i]/c[i]*100/mxa) : 0)
-    }' "$W/waits.tsv"
-  printf '</tbody></table></div>\n'
-
-  # snapshot do cluster (registry) — pode estar vazio/for a do ar após a prova
-  printf '<h2>%s</h2>\n' "$(rep_t registered)"
-  if source "$HERE/../judge-gw/sched-lib.sh" 2>/dev/null && [[ -d "${REGISTRYDIR:-}" ]]; then
-    qd="$(find "${QUEUEDIR:-/nonexistent}" -mindepth 2 -maxdepth 2 -name '*.json' 2>/dev/null | wc -l | tr -d '[:space:]')"
-    printf '<p class="note">%s</p>\n' "$(rep_t queue_now "${qd:-0}")"
-    printf '<div class="tblwrap"><table class="moj"><thead><tr><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th>%s</th><th class="n">%s</th></tr></thead><tbody>\n' \
-      "$(rep_t host)" "$(rep_t state)" "$(rep_t online)" "$(rep_t last_hb)" "$(rep_t langs)" "$(rep_t cached)"   # cached = numérico (th.n abaixo)
-    find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null | sort | while IFS= read -r jf; do
-      jq -r --argjson now "$NOW" --argjson ttl "${REG_TTL:-30}" \
-         --arg dtfmt "$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M:%%S' || printf '%%d/%%m %%H:%%M:%%S')" '
-        "<tr><td>\(.host // "?" | @html)</td><td>\(.state // "?" | @html)</td>"
-        + "<td>\(if ((.last_seen//0) >= ($now - $ttl)) then "✅" else "—" end)</td>"
-        + "<td>\(if (.last_seen//0) > 0 then ((.last_seen)|strflocaltime($dtfmt)) else "—" end)</td>"
-        + "<td>\((.langs // []) | join(", ") | @html)</td>"
-        + "<td class=\"n\">\(.problems_count // ((.problems//{})|length))</td></tr>"' "$jf" 2>/dev/null
-    done
-    printf '</tbody></table></div>\n'
-  else
-    printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'No judge registry available when the report was generated.' || printf 'Sem registro de juízes disponível no momento da geração.')"
-  fi
-  rep_foot
-} > "$OUTD/infra.html"
+# (aba infra removida do relatório em 2026-08-31 a pedido — dados operacionais não
+# pertencem ao pacote público do evento)
 
 echo "$OUTD"

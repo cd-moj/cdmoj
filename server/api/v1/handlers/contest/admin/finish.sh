@@ -119,6 +119,19 @@ _skip(){ skipped="$(jq -c --arg i "$1" --arg r "$2" '. + [{item:$i, reason:$r}]'
 
 # 1) placar: descongela (idempotente — sem freeze só registra que já estava aberto)
 if [[ "${FREEZE_TIME:-0}" =~ ^[0-9]+$ ]] && (( FREEZE_TIME > 0 )); then
+  # PRESERVA o freeze antes de zerar (2026-08-31): o relatório estático é histórico e tem
+  # de contar o congelamento — sem isto, a LATAM perdeu o freeze das 18h no report
+  # os placar*.txt DESTE instante são o placar CONGELADO — a cópia é o que permite ao
+  # relatório histórico mostrar o freeze depois que o build regravar tudo completo
+  mkdir -p "$CONTESTSDIR/$contest/var/frozen-final" 2>/dev/null
+  ( set +o noglob 2>/dev/null; shopt -s nullglob
+    for _pf in "$CONTESTSDIR/$contest/var"/placar*.txt; do
+      cp -f "$_pf" "$CONTESTSDIR/$contest/var/frozen-final/${_pf##*/}" 2>/dev/null
+    done )
+  _fftmp="$CONTESTSDIR/$contest/var/.freeze-final.tmp.${BASHPID}"
+  jq -cn --argjson f "$FREEZE_TIME" --argjson at "$EPOCHSECONDS" --arg by "$SESSION_LOGIN" \
+    '{freeze:$f, cleared_at:$at, by:$by}' > "$_fftmp" 2>/dev/null \
+    && mv -f "$_fftmp" "$CONTESTSDIR/$contest/var/freeze-final.json" || rm -f "$_fftmp"
   cc_set_conf_var "$contest" FREEZE_TIME 0 && _done placar "placar descongelado (resultado final público)" \
     || _skip placar "falha ao gravar o conf"
   # score_kick_rebuild, não touch solto: um build EM VOO terminaria depois desta escrita e

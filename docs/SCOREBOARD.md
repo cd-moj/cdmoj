@@ -312,6 +312,12 @@ revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
   preenche bandeira/universidade/logo só no que o por-usuário e a coluna não trouxeram, e
   habilita **filtro por país/escola**. O logo é um data-URL embutido (offline). Editável na
   criação e no admin do contest.
+- **Relatório estático (31/08)**: o placar, o runs e o staff do relatório filtram por
+  sede com a MESMA árvore do placar ao vivo (`RTREE` com regex; nó de cima casa por login);
+  os documentos levados são os PUBLICADOS com o PDF ENVIADO vencendo o gerado e aparecem
+  também no topo do index; a aba infra saiu. O FREEZE sobrevive ao encerramento: o
+  `finish` grava `var/freeze-final.json` + copia os `placar*.txt` congelados p/
+  `var/frozen-final/`, e o relatório cai nesses fallbacks quando o conf já foi zerado.
 - **Chip ↑BR (classificação p/ a próxima fase)**: time em stage **published** do
   `classification.json` ganha o chip ao lado do nome (tooltip: etapa · regra · sede) no
   placar ao vivo E no relatório (que também gera `classificados.html` com a relação por
