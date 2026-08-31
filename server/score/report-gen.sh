@@ -320,19 +320,20 @@ ACCT_JQ='[.login//"", ((.team.name // .fullname // "")|gsub("[:\t\n]";" ")),
   fi
 } > "$W/names.tsv"
 
-# --- fotos dos times: MINIATURAS em fotos/<login>.webp (R5, 2026-08-30) -----------------
-# tp_thumb gera/cacheia a thumb 320px (~7KB) no store; aqui só copiamos. Login validado
-# (vira nome de arquivo) e cap de 300KB: em dev sem `convert` o tp_thumb degrada p/ a foto
-# CHEIA — o cap impede o pacote de inchar. photos.tsv alimenta o 📷 do rep_score_html.
+# --- fotos dos times em fotos/<login>.webp: QUALIDADE ORIGINAL (31/08) ------------------
+# O R5 embarcava a miniatura 320px; o pedido é a foto CHEIA (LATAM: 342 fotos, 17 MB —
+# cabe no pacote). Copia o photo.webp do store (fallback: a thumb, se só ela existir);
+# cap de sanidade de 2 MB por foto. Login validado (vira nome de arquivo).
 source "$HERE/../api/v1/lib/team-photo.sh"
 : > "$W/photos.tsv"
 mkdir -p "$OUTD/fotos"
 while IFS=$'\t' read -r _lg _rest; do
   [[ -n "$_lg" && "$_lg" != *[!A-Za-z0-9._@-]* ]] || continue
-  _th="$(tp_thumb "$C" "$_lg" 2>/dev/null)"
-  [[ -s "$_th" ]] || continue
-  _sz="$(stat -c%s "$_th" 2>/dev/null)"; [[ "$_sz" =~ ^[0-9]+$ ]] && (( _sz <= 307200 )) || continue
-  cp -f "$_th" "$OUTD/fotos/$_lg.webp" 2>/dev/null || continue
+  _ph="$CDIR/users/$_lg/photo.webp"
+  [[ -s "$_ph" ]] || _ph="$(tp_thumb "$C" "$_lg" 2>/dev/null)"
+  [[ -s "$_ph" ]] || continue
+  _sz="$(stat -c%s "$_ph" 2>/dev/null)"; [[ "$_sz" =~ ^[0-9]+$ ]] && (( _sz <= 2097152 )) || continue
+  cp -f "$_ph" "$OUTD/fotos/$_lg.webp" 2>/dev/null || continue
   printf '%s\n' "$_lg"
 done < "$W/names.tsv" > "$W/photos.tsv"
 rmdir "$OUTD/fotos" 2>/dev/null || true   # sem foto nenhuma = sem diretório
