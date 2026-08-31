@@ -1277,11 +1277,12 @@ if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON"
   while IFS= read -r key; do
     [[ "$key" =~ ^([a-z-]+)\.(pt|en)$ ]] || continue
     dt="${BASH_REMATCH[1]}"; dl="${BASH_REMATCH[2]}"
-    for fmt in pdf html; do
+    # SÓ PDF (31/08): o HTML não tem versão enviada — copiá-lo levava o GERADO mesmo
+    # quando o publicado era um PDF enviado. O que o time viu = o PDF servido.
+    for fmt in pdf; do
       src="$CDIR/docs/$dt.$dl.$fmt"
-      # o que o TIME viu: PDF enviado (uploaded) vence o gerado — mesma regra do
-      # doc_pdf_served (a LATAM publicou PDFs enviados e o report levava o gerado)
-      [[ "$fmt" == pdf && -s "$CDIR/docs/$dt.$dl.uploaded.pdf" ]] && src="$CDIR/docs/$dt.$dl.uploaded.pdf"
+      # PDF enviado (uploaded) vence o gerado — mesma regra do doc_pdf_served
+      [[ -s "$CDIR/docs/$dt.$dl.uploaded.pdf" ]] && src="$CDIR/docs/$dt.$dl.uploaded.pdf"
       [[ -s "$src" ]] || continue
       cp -f "$src" "$OUTD/documentos/$dt.$dl.$fmt" 2>/dev/null || continue
       printf '%s\t%s\t%s\t%s\n' "$dt" "$dl" "$fmt" "$(stat -c%s "$src" 2>/dev/null || echo 0)" >> "$W/docs.tsv"
