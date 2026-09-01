@@ -235,8 +235,12 @@ function observations(a, cx, opts) {
   if (kids.length >= 2) {
     const byRam = kids.slice().sort((x, y) => ramAvg(x.agg) - ramAvg(y.agg));
     const lo = byRam[0], hi = byRam[byRam.length - 1];
-    li.push(T(`Menos RAM média: ${lo.name} (${GB(ramAvg(lo.agg))} GB). Mais RAM média: ${hi.name} (${GB(ramAvg(hi.agg))} GB).`,
-      `Least average RAM: ${lo.name} (${GB(ramAvg(lo.agg))} GB). Most average RAM: ${hi.name} (${GB(ramAvg(hi.agg))} GB).`));
+    if (GB(ramAvg(lo.agg)) === GB(ramAvg(hi.agg))) {
+      li.push(T(`Os recortes têm RAM média parecida (${GB(ramAvg(lo.agg))} GB).`, `The selections have similar average RAM (${GB(ramAvg(lo.agg))} GB).`));
+    } else {
+      li.push(T(`Menos RAM média: ${lo.name} (${GB(ramAvg(lo.agg))} GB). Mais RAM média: ${hi.name} (${GB(ramAvg(hi.agg))} GB).`,
+        `Least average RAM: ${lo.name} (${GB(ramAvg(lo.agg))} GB). Most average RAM: ${hi.name} (${GB(ramAvg(hi.agg))} GB).`));
+    }
     const ages = kids.map((k) => ({ k, s: cpuStats(k.agg.cpu_tm || k.agg.cpu, cx.ref) })).filter((x) => x.s.meanAge != null)
       .sort((x, y) => y.s.meanAge - x.s.meanAge);
     if (ages.length >= 2) li.push(T(`Os processadores mais antigos estão em ${ages[0].k.name} (idade média ${r1(ages[0].s.meanAge)} anos).`,
