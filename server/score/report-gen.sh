@@ -1607,9 +1607,27 @@ rep_stats_bundle(){
   cat <<'STEOF'
 (function(){
   var host=document.getElementById('stats'); if(!host) return;
-  function render(s){
+  // analytics do RECORTE (01/09): corrida/comparação/desempenho saem dos ac_events
+  // GLOBAIS filtrados — região casa pela regex do nó do RTREE no login OU por
+  // teams_idx[login].r; país por teams_idx[login].c (paridade com a página ao vivo).
+  var AIDX=STATS.teams_idx||{}, AUNR=null;
+  try{ AUNR=STATS.unranked_regex?new RegExp(STATS.unranked_regex):null }catch(e){ AUNR=null }
+  function anFor(kind,key){
+    if(!STATS.ac_events) return null;
+    var filter=null;
+    if(kind==='r'){
+      var rx=null, t=(RTREE||[]).filter(function(x){ return x.n===key && x.r })[0];
+      try{ rx=t?new RegExp(t.r):null }catch(e){ rx=null }
+      var kl=String(key).toLowerCase();
+      filter=function(lg){ return (rx&&rx.test(lg)) || String((AIDX[lg]&&AIDX[lg].r)||'').toLowerCase()===kl };
+    } else if(kind==='c'){
+      filter=function(lg){ return ((AIDX[lg]&&AIDX[lg].c)||'')===key };
+    }
+    return {events:STATS.ac_events, idx:AIDX, pen:STATS.penalty_minutes||20, unrankedRe:AUNR, filter:filter};
+  }
+  function render(s,kind,key){
     host.innerHTML='';
-    try{ statsSections(s).forEach(function(x){ host.append(x) }) }
+    try{ statsSections(s,{analytics:anFor(kind,key)}).forEach(function(x){ host.append(x) }) }
     catch(e){ host.innerHTML='<p class="note">'+String(e)+'</p>' }
   }
   var bar=document.getElementById('sbar'), selR=document.getElementById('sRegion'),
@@ -1625,7 +1643,7 @@ rep_stats_bundle(){
   });
   var ctys=Object.keys(STATS.by_country||{}).sort(function(a,b){
     return String(CNAMES[a]||a).localeCompare(String(CNAMES[b]||b)) });
-  if(!bar || (!regs.length && !ctys.length)){ render(STATS); return; }
+  if(!bar || (!regs.length && !ctys.length)){ render(STATS,'',''); return; }
   bar.hidden=false;
   regs.forEach(function(r){ var o=document.createElement('option'); o.value=r.n;
     o.textContent=new Array((r.d||0)+1).join('  ')+r.n; selR.add(o) });
@@ -1634,12 +1652,12 @@ rep_stats_bundle(){
   if(selR.options.length<2) selR.parentNode.style.display='none';
   if(selC.options.length<2) selC.parentNode.style.display='none';
   function pick(){
-    if(selR.value) return {s:(STATS.by_region||{})[selR.value]||STATS, nm:selR.value};
-    if(selC.value) return {s:(STATS.by_country||{})[selC.value]||STATS, nm:(CNAMES[selC.value]||selC.value.toUpperCase())};
-    return {s:STATS, nm:''};
+    if(selR.value) return {s:(STATS.by_region||{})[selR.value]||STATS, nm:selR.value, k:'r', key:selR.value};
+    if(selC.value) return {s:(STATS.by_country||{})[selC.value]||STATS, nm:(CNAMES[selC.value]||selC.value.toUpperCase()), k:'c', key:selC.value};
+    return {s:STATS, nm:'', k:'', key:''};
   }
   function upd(){
-    var p=pick(); render(p.s);
+    var p=pick(); render(p.s,p.k,p.key);
     if(!cnt) return;
     if(p.nm){ cnt.textContent=(bar.getAttribute('data-sel')||'%s %s %s')
         .replace('%s',p.nm).replace('%s',p.s.totals.users).replace('%s',STATS.totals.users); }

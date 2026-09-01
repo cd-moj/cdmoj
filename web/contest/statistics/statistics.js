@@ -92,11 +92,36 @@ function filterBar() {
   return bar;
 }
 
+// analytics da SELEÇÃO (01/09): corrida/comparação/desempenho computam dos ac_events
+// GLOBAIS filtrados pelo recorte — nó da árvore casa por regex no login OU por
+// idx[login].r == nome; país casa por idx[login].c (paridade com o stats-gen).
+function nodeRegex(list, name) {
+  for (const r of list || []) {
+    if ((r.name || '') === name && r.regex) return r.regex;
+    const sub = nodeRegex(r.subregions, name);
+    if (sub) return sub;
+  }
+  return null;
+}
+function analyticsFor() {
+  if (!statsAll.ac_events) return null;
+  const idx = statsAll.teams_idx || {};
+  let unr = null; try { unr = statsAll.unranked_regex ? new RegExp(statsAll.unranked_regex) : null; } catch { unr = null; }
+  let filter = null;
+  if (dim.kind === 'r') {
+    let re = null; try { const rx = nodeRegex(regionsTree, dim.key); re = rx ? new RegExp(rx) : null; } catch { re = null; }
+    const key = dim.key.toLowerCase();
+    filter = (lg) => (re && re.test(lg)) || (((idx[lg] && idx[lg].r) || '').toLowerCase() === key);
+  } else if (dim.kind === 'c') {
+    filter = (lg) => ((idx[lg] && idx[lg].c) || '') === dim.key;
+  }
+  return { events: statsAll.ac_events, idx, pen: statsAll.penalty_minutes || 20, unrankedRe: unr, filter };
+}
 function render() {
   app.innerHTML = '';
   const bar = filterBar();
   if (bar) app.append(bar);
-  statsSections(currentStats(), { probMap }).forEach((sec) => app.append(sec));
+  statsSections(currentStats(), { probMap, analytics: analyticsFor() }).forEach((sec) => app.append(sec));
 }
 
 async function boot() {

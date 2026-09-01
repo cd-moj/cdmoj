@@ -207,6 +207,9 @@ END{
     upen[u_] += evm[k] + PEN * (evt[k] - 1)
     if (!(u_ in ufst) || evm[k] < ufst[u_]) ufst[u_] = evm[k]
   }
+  # NM (não T: T é a timeline!): identidade de TODO time com AC, convidado incluso
+  for(u_ in usolv2)
+    printf "g\t\tNM\t%s\t%s\t%s\t%s\n", u_, (u_ in tnm ? tnm[u_] : u_), cty[u_], reg[u_]
   for(u_ in usolv2){
     if (UNRX != "" && u_ ~ UNRX) continue   # convidado (coorte unranked) fora do ranking oficial
     printf "g\t\tU\t%s\t%d\t%d\t%d\t%s\n", u_, usolv2[u_], upen[u_], ufst[u_], (u_ in tnm ? tnm[u_] : u_)
@@ -225,7 +228,7 @@ END{
   for(k in solved){ split(k,ss,SUBSEP); nsv[ss[1]]++ }
   for(sn=1; sn<=nsc; sn++) printf "%s\t%s\tG\t%d\t%d\t%d\t%d\t%d\n", skind[sn], sval[sn], tot[sn]+0, acc[sn]+0, nu[sn]+0, nsv[sn]+0, enr[sn]+0;
   for(sn=1; sn<=nsc; sn++) if (skind[sn]=="r" && (sval[sn] in viewname)) printf "r\t%s\tW\t1\n", sval[sn];
-}' "$hist" | jq -R -s --argjson pm "$probmeta" '
+}' "$hist" | jq -R -s --argjson pm "$probmeta" --argjson penm "${PENALTY_MINUTES:-20}" --arg unrx "$UNRX" '
   def assemble($r):
     { totals: ( ([ $r[] | select(.[0]=="G") ][0]) as $g | if $g then
           (($g[3]|tonumber)) as $u | (($g[5]|tonumber? // 0)) as $e
@@ -263,7 +266,10 @@ END{
   | ({success:true} + assemble($g))
     + { by_region: (dim($all; "r")), by_country: (dim($all; "c")),
         ac_events: $EV,
-        teams_idx: ($UU | map({key:.login, value:.name}) | from_entries),
+        penalty_minutes: $penm,
+        unranked_regex: $unrx,
+        teams_idx: ([ $g[] | select(.[0]=="NM")
+                    | {key:.[1], value:{n:(.[2] // .[1]), c:(.[3] // ""), r:(.[4] // "")}} ] | from_entries),
         top_teams: ($UU | sort_by([-.solved, .penalty]) | .[:10] | map({login, name, solved, penalty})),
         performance: (if ($UU|length)==0 then null else
           { teams_with_ac: ($UU|length),
