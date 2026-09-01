@@ -44,5 +44,12 @@ ck '(.by_region["Sede A"].view // false) == false' "sede real sem flag"
 ck '.by_region["Recorte X"].view == true'      "fatia view marcada"
 ck '(.by_region["Sede A"].problems_solved_dist[] | select(.solved==0) | .users) == 2' "sede: bucket 0 com ausente"
 
+# --- Estatísticas 2.0 (01/09): eventos, desempenho, dirt, línguas ---
+ck '(.ac_events | length) == 1 and .ac_events[0][0] == "u-solve"' "ac_events com o 1º AC"
+ck '.teams_idx["u-solve"] != null' "teams_idx presente"
+ck '.top_teams[0].login == "u-solve" and .top_teams[0].solved == 1' "top_teams"
+ck '.performance.teams_with_ac == 1 and .performance.solved.median == 1' "performance global"
+ck '(.problems[0].tries_per_ac != null) and (.problems[0].ac_langs | length) >= 1' "por-problema: tentativas e língua"
+
 echo "smoke-stats-enrolled: PASS=$PASS FAIL=$FAIL"
 (( FAIL == 0 ))

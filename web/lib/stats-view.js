@@ -9,7 +9,7 @@
 // Só depende de dom.js (sem rede) e charts.js. Recebe o objeto do
 // /contest/statistics (= var/statistics.cache.json) e devolve um ARRAY de elementos.
 import { el } from '/shared/dom.js';
-import { barChart, hBarChart, lineChart } from '/lib/charts.js';
+import { barChart, hBarChart, lineChart, multiLineChart } from '/lib/charts.js';
 import { T } from '/shared/i18n.js';
 
 const pct = (x) => Math.round((x || 0) * 100) + '%';
@@ -66,12 +66,24 @@ function problemsTable(ps, shortOf) {
     el('td', { class: 'n' }, String(p.solved)),
     el('td', { class: 'n' }, pct(p.accept_rate)),
     el('td', { class: 'n' }, p.avg_subs != null ? p.avg_subs.toFixed(1) : '—'),
+    el('td', { class: 'n' }, p.avg_ac_min != null ? p.avg_ac_min + 'm' : '—'),
+    el('td', { class: 'n' }, p.tries_per_ac != null ? String(p.tries_per_ac) : '—'),
+    el('td', { class: 'n' }, p.dirt != null ? pct(p.dirt) : '—'),
+    el('td', { class: 'small' }, (() => {
+      const l = Object.entries(p.ac_langs || {}).sort((a, b) => b[1] - a[1]);
+      if (!l.length) return '—';
+      return l.slice(0, 2).map(([k, n]) => k + '×' + n).join(' ') + (l.length > 2 ? ' …' : '');
+    })()),
     el('td', {}, p.first_solver ? (who(p.first_solver, p.first_solver_name) + ' · ' + p.first_minute + 'min' + (p.first_seconds >= 0 ? ' (' + p.first_seconds + 's)' : '')) : '—'))));
   return el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
     el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem')),
       el('th', { class: 'n' }, 'Subs'), el('th', { class: 'n' }, T('Aceitas', 'Accepted')),
       el('th', { class: 'n' }, T('Tentaram', 'Attempted')), el('th', { class: 'n' }, T('Resolveram', 'Solved')),
       el('th', { class: 'n' }, T('Taxa', 'Rate')), el('th', { class: 'n' }, T('Subs/pessoa', 'Subs/person')),
+      el('th', { class: 'n', title: T('minuto médio do AC', 'average AC minute') }, T('AC médio', 'Avg AC')),
+      el('th', { class: 'n', title: T('submissões até o AC (média de quem resolveu)', 'submissions until AC (avg of solvers)') }, T('Tent./AC', 'Tries/AC')),
+      el('th', { class: 'n', title: T('% de submissões ERRADAS entre quem RESOLVEU — a métrica dirt do resolver ICPC', '% of WRONG submissions among SOLVERS — the ICPC resolver dirt metric') }, 'Dirt'),
+      el('th', { title: T('linguagem dos ACs', 'language of the ACs') }, T('Língua', 'Language')),
       el('th', {}, T('1º a resolver', 'First to solve')))), tb));
 }
 
@@ -111,6 +123,99 @@ function langTable(ls) {
       el('th', { class: 'n' }, T('Aceitas', 'Accepted')), el('th', { class: 'n' }, T('Resolvedores', 'Solvers')))), tb));
 }
 
+// ---- Estatísticas 2.0 (01/09): corrida dos problemas, comparação de times, desempenho ---
+function contestDur(s) {
+  return Math.max(1, ...((s.timeline || []).map((t) => t.minute)), ...((s.ac_events || []).map((e) => e[2])));
+}
+// 🏁 ACs acumulados por problema (a curva de progressão canônica do ICPC)
+function problemRace(s, shortOf) {
+  const ev = s.ac_events || [];
+  if (!ev.length) return null;
+  const by = {};
+  ev.forEach((e) => { (by[e[1]] = by[e[1]] || []).push(e[2]); });
+  const series = Object.keys(by).sort((a, b) => shortOf(a).localeCompare(shortOf(b))).map((pid) => {
+    let c = 0;
+    return { label: shortOf(pid), points: by[pid].sort((x, y) => x - y).map((m) => ({ x: m, y: ++c })) };
+  });
+  return el('div', { class: 'section' },
+    el('h2', {}, T('🏁 Corrida dos problemas', '🏁 Problem race')),
+    el('p', { class: 'muted small' }, T('ACs acumulados por problema ao longo da prova — a ordem real de dificuldade e os destravamentos.',
+      'Cumulative ACs per problem over the contest — the real difficulty order and the breakthroughs.')),
+    multiLineChart(series, { xMax: contestDur(s) }));
+}
+// 🆚 comparação de times na timeline (resolvidos × minuto, degraus)
+function teamCompare(s) {
+  const ev = s.ac_events || [], idx = s.teams_idx || {};
+  if (!ev.length) return null;
+  const byTeam = {};
+  ev.forEach((e) => { (byTeam[e[0]] = byTeam[e[0]] || []).push({ m: e[2], tries: e[3] }); });
+  const box = el('div', { class: 'section' });
+  const chartBox = el('div', {});
+  const chosen = [];
+  const chips = el('div', { style: 'display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0' });
+  const dl = el('datalist', { id: 'cmp-teams' });
+  Object.keys(byTeam).forEach((lg) => dl.append(el('option', { value: who(lg, idx[lg]) })));
+  const inp = el('input', { list: 'cmp-teams', placeholder: T('adicionar time (nome ou login)…', 'add team (name or login)…'), style: 'min-width:240px' });
+  function loginOf(text) {
+    const t = String(text || '').trim();
+    if (byTeam[t]) return t;
+    const m = t.match(/\(([^)]+)\)\s*$/); if (m && byTeam[m[1]]) return m[1];
+    const lower = t.toLowerCase();
+    return Object.keys(byTeam).find((lg) => (idx[lg] || '').toLowerCase() === lower) || null;
+  }
+  function render() {
+    chips.innerHTML = ''; chartBox.innerHTML = '';
+    chosen.forEach((lg, i) => chips.append(el('span', { class: 'small', style: 'padding:.15em .5em;border:1px solid var(--line,#c9d2e0);border-radius:1em;cursor:pointer', title: T('remover', 'remove'),
+      onclick: () => { chosen.splice(i, 1); render(); } }, who(lg, idx[lg]) + ' ✕')));
+    if (!chosen.length) { chartBox.append(el('p', { class: 'muted small' }, T('escolha times acima (ou um preset) para ver a corrida', 'pick teams above (or a preset) to see the race'))); return; }
+    const series = chosen.map((lg) => {
+      let c = 0;
+      const pts = byTeam[lg].slice().sort((a, b) => a.m - b.m).map((e) => ({ x: e.m, y: ++c }));
+      return { label: who(lg, idx[lg]), points: pts };
+    });
+    chartBox.append(multiLineChart(series, { xMax: contestDur(s) }));
+  }
+  function add(lg) { if (lg && chosen.indexOf(lg) < 0) { chosen.push(lg); render(); } }
+  inp.addEventListener('change', () => { const lg = loginOf(inp.value); if (lg) { inp.value = ''; add(lg); } });
+  const presets = el('div', { class: 'toolbar' }, inp,
+    el('button', { class: 'btn ghost', onclick: () => { chosen.length = 0; (s.top_teams || []).slice(0, 3).forEach((t) => chosen.push(t.login)); render(); } }, 'top 3'),
+    el('button', { class: 'btn ghost', onclick: () => { chosen.length = 0; (s.top_teams || []).slice(0, 10).forEach((t) => chosen.push(t.login)); render(); } }, 'top 10'),
+    el('button', { class: 'btn ghost', onclick: () => { chosen.length = 0; render(); } }, T('limpar', 'clear')));
+  box.append(el('h2', {}, T('🆚 Comparar times na prova', '🆚 Compare teams over the contest')),
+    el('p', { class: 'muted small' }, T('problemas resolvidos minuto a minuto dos times escolhidos.', 'problems solved minute by minute for the chosen teams.')),
+    presets, dl, chips, chartBox);
+  render();
+  return box;
+}
+// 🏆 desempenho da população + top teams
+function performanceSection(s) {
+  const pf = s.performance, tt = s.top_teams || [];
+  if (!pf && !tt.length && s.dirt == null) return null;
+  const sec = el('div', { class: 'section' }, el('h2', {}, T('🏆 Desempenho e top teams', '🏆 Performance and top teams')));
+  const card = (big, sub) => el('div', { class: 'stat-card' }, el('div', { class: 'big-num' }, String(big)), el('div', { class: 'big-sub' }, sub));
+  if (pf) {
+    sec.append(el('div', { class: 'stat-cards' },
+      card(pf.solved.mean, T('média de resolvidos (quem tem AC)', 'avg solved (teams with AC)')),
+      card(pf.solved.median + ' · ' + pf.solved.q1 + '–' + pf.solved.q3, T('mediana · quartis (resolvidos)', 'median · quartiles (solved)')),
+      card('≥' + pf.solved.p90, T('top 10% resolveu', 'top 10% solved')),
+      card(pf.penalty.median, T('penalidade mediana', 'median penalty')),
+      card(pf.first_ac_median + 'm', T('1º AC mediano', 'median first AC')),
+      s.dirt != null ? card(pct(s.dirt), T('dirt global (erros de quem resolve)', 'global dirt (solvers’ wrong subs)')) : null));
+  }
+  if (tt.length) {
+    const tb = el('tbody');
+    tt.forEach((t, i) => tb.append(el('tr', {},
+      el('td', { class: 'n' }, String(i + 1)),
+      el('td', {}, who(t.login, t.name)),
+      el('td', { class: 'n' }, String(t.solved)),
+      el('td', { class: 'n' }, String(t.penalty)))));
+    sec.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj narrow' },
+      el('thead', {}, el('tr', {}, el('th', { class: 'n' }, '#'), el('th', {}, T('Time', 'Team')),
+        el('th', { class: 'n' }, T('Resolvidos', 'Solved')), el('th', { class: 'n' }, T('Penalidade', 'Penalty')))), tb)));
+  }
+  return sec;
+}
+
 // statsSections(s, opts) -> [elementos] na ordem da página.
 // opts.probMap: {problem_id: letra} opcional (o cache já traz short_name; o mapa só cobre
 // contest legado cujo history guarda o offset interno).
@@ -141,6 +246,7 @@ export function statsSections(s, opts = {}) {
       el('div', {}, el('div', { class: 'chart-title' }, T('Resolvedores por problema', 'Solvers by problem')),
         barChart((s.problems || []).map((p) => ({ label: shortOf(p.problem_id), value: p.solved })), { rotateLabels: true })))));
 
+  const race = problemRace(s, shortOf); if (race) out.push(race);
   out.push(balloonsSection(s.problems, shortOf));
 
   const totSubs = (s.totals || {}).submissions || 0;
@@ -180,5 +286,7 @@ export function statsSections(s, opts = {}) {
     el('div', {}, el('div', { class: 'chart-title' }, T('Tentativas até resolver', 'Attempts until solved')),
       barChart((s.attempts_dist || []).map((d) => ({ label: String(d.attempts), value: d.count }))))));
   out.push(distSec);
+  const cmp = teamCompare(s); if (cmp) out.push(cmp);
+  const perf = performanceSection(s); if (perf) out.push(perf);
   return out;
 }

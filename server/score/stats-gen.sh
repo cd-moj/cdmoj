@@ -65,7 +65,8 @@ find "$CONTESTSDIR/$C/users" -mindepth 2 -maxdepth 2 -name account.json -print0 
   | xargs -0 -r jq -r '[ (((input_filename | split("/"))[-2]) // ""),
                          ((.team.region // "") | gsub("[\t\n]"; " ")),
                          ((.team.flag // "") | ascii_downcase | gsub("[^a-z0-9-]"; "") | (split("-") | .[0])),
-                         (if .disqualified == true then "1" else "0" end) ] | @tsv' \
+                         (if .disqualified == true then "1" else "0" end),
+                         ((.team.name // .fullname // "") | gsub("[\t\n]"; " ")) ] | @tsv' \
       2>/dev/null > "$MAPF"
 
 # Nós da ÁRVORE de regions.json (país › região/supersede › sede): a estatística oferece o
@@ -90,7 +91,7 @@ if [[ -s "$CONTESTSDIR/$C/regions.json" ]]; then
 fi
 
 START_VAL="${CONTEST_START:-0}"; [[ "$START_VAL" =~ ^[0-9]+$ ]] || START_VAL=0
-awk -F: -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" '
+awk -F: -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" -v PEN="${PENALTY_MINUTES:-20}" '
 # R2: cada submissão alimenta N ESCOPOS — g (global), r=<sede/nó da árvore>, c=<país> — e o
 # END emite as mesmas linhas de sempre prefixadas por "<kind>\t<val>\t". O escopo vira ID
 # inteiro (sid): a chave composta id SUBSEP x é separável no END mesmo com sede livre.
@@ -122,6 +123,7 @@ BEGIN{
     if (n >= 1 && ma[1] != "") {
       reg[ma[1]] = (n >= 2 ? ma[2] : ""); cty[ma[1]] = (n >= 3 ? ma[3] : "")
       if (n >= 4 && ma[4] == "1") dsq[ma[1]] = 1   # desclassificado: fora de TUDO (como no placar)
+      if (n >= 5) tnm[ma[1]] = ma[5]               # nome do time (teams_idx/top_teams)
     }
   }
   close(MF)
@@ -167,7 +169,13 @@ BEGIN{
     if(!(puk in patt)){ patt[puk]=1; pattn[s SUBSEP prob]++; }
     if(isac){
       acc[s]++; lacc[s SUBSEP lang]++; pacc[s SUBSEP prob]++;
-      if(!(puk in psol)){ psol[puk]=1; psoln[s SUBSEP prob]++; }
+      if(!(puk in psol)){ psol[puk]=1; psoln[s SUBSEP prob]++;
+        # Estatísticas 2.0 (01/09): o 1º AC do (time,problema) alimenta média de tempo,
+        # tentativas-até-AC, dirt (tentativas-1 = erros de quem resolve) e a língua do AC
+        acsum[s SUBSEP prob] += mn; trysum[s SUBSEP prob] += solvedAt[puk]
+        pl_[s SUBSEP prob SUBSEP lang]++
+        if (s == 1) { evm[prob SUBSEP user] = mn; evt[prob SUBSEP user] = solvedAt[puk] }
+      }
       luk=s SUBSEP lang SUBSEP user;
       if(!(luk in lsol)){ lsol[luk]=1; lsoln[s SUBSEP lang]++; }
       pk=s SUBSEP prob;
@@ -180,8 +188,20 @@ BEGIN{
 }
 END{
   for(k in psub){ split(k,kk,SUBSEP); pre=skind[kk[1]] "\t" sval[kk[1]] "\t"; p=kk[2];
-    printf "%sP\t%s\t%d\t%d\t%d\t%s\t%d\t%d\t%d\n", pre, p, psub[k], pattn[k]+0, psoln[k]+0, (k in fuser?fuser[k]:""), (k in fmin?fmin[k]:-1), pacc[k]+0, (k in fsec?fsec[k]:-1);
+    printf "%sP\t%s\t%d\t%d\t%d\t%s\t%d\t%d\t%d\t%d\t%d\n", pre, p, psub[k], pattn[k]+0, psoln[k]+0, (k in fuser?fuser[k]:""), (k in fmin?fmin[k]:-1), pacc[k]+0, (k in fsec?fsec[k]:-1), acsum[k]+0, trysum[k]+0;
   }
+  for(k in pl_){ split(k,pp,SUBSEP); printf "%s\t%s\tPL\t%s\t%s\t%d\n", skind[pp[1]], sval[pp[1]], pp[2], pp[3], pl_[k] }
+  # eventos de AC (SÓ global): base da corrida de problemas e da comparação de times
+  for(k in evm){ split(k,ee,SUBSEP);
+    printf "g\t\tE\t%s\t%s\t%d\t%d\n", ee[2], ee[1], evm[k], evt[k] }
+  # por-usuário global: resolvidos + penalidade ICPC + 1º AC (percentis/top teams)
+  for(k in evm){ split(k,ee,SUBSEP); u_=ee[2]
+    usolv2[u_]++
+    upen[u_] += evm[k] + PEN * (evt[k] - 1)
+    if (!(u_ in ufst) || evm[k] < ufst[u_]) ufst[u_] = evm[k]
+  }
+  for(u_ in usolv2)
+    printf "g\t\tU\t%s\t%d\t%d\t%d\t%s\n", u_, usolv2[u_], upen[u_], ufst[u_], (u_ in tnm ? tnm[u_] : u_)
   for(k in pv){ split(k,xx,SUBSEP); printf "%s\t%s\tPV\t%s\t%s\t%d\n", skind[xx[1]], sval[xx[1]], xx[2], xx[3], pv[k] }
   for(k in lsub){ split(k,ll,SUBSEP); printf "%s\t%s\tL\t%s\t%d\t%d\t%d\n", skind[ll[1]], sval[ll[1]], ll[2], lsub[k], lacc[k]+0, lsoln[k]+0 }
   for(k in vcl){ split(k,vv,SUBSEP); printf "%s\t%s\tV\t%s\t%d\n", skind[vv[1]], sval[vv[1]], vv[2], vcl[k] }
@@ -204,19 +224,43 @@ END{
              enrolled:(if $e > $u then $e else $u end), absent:(if $e > $u then ($e - $u) else 0 end)}
         else {submissions:0,accepted:0,users:0,problems_solved:0,enrolled:0,absent:0} end),
       view: (([ $r[] | select(.[0]=="W") ] | length) > 0),
-      problems: ([ $r[] | select(.[0]=="P") | (.[1]) as $pid | ($pm | map(select(.off==$pid or .raw==$pid or .dot==$pid or .hash==$pid)) | .[0]) as $m | {problem_id:$pid, short_name:($m.short // $pid), full_name:($m.full // ""), submissions:(.[2]|tonumber), attempted:(.[3]|tonumber), solved:(.[4]|tonumber), accepted_subs:(.[7]|tonumber? // 0), first_solver:.[5], first_minute:(.[6]|tonumber), first_seconds:(.[8]|tonumber? // -1), accept_rate:(if (.[3]|tonumber)>0 then ((.[4]|tonumber)/(.[3]|tonumber)) else 0 end), avg_subs:(if (.[3]|tonumber)>0 then (((.[2]|tonumber)/(.[3]|tonumber)*100)|floor)/100 else 0 end)} ] | sort_by(.short_name)),
+      problems: ((([ $r[] | select(.[0]=="PL") | {p:.[1], l:.[2], n:(.[3]|tonumber)} ]
+                 | group_by(.p) | map({key:.[0].p, value:(map({key:.l, value:.n}) | from_entries)}) | from_entries)) as $PL
+        | ([ $r[] | select(.[0]=="P") | (.[1]) as $pid | ($pm | map(select(.off==$pid or .raw==$pid or .dot==$pid or .hash==$pid)) | .[0]) as $m
+        | (.[4]|tonumber) as $slv | (.[9]|tonumber? // 0) as $acsum | (.[10]|tonumber? // 0) as $trysum
+        | {problem_id:$pid, short_name:($m.short // $pid), full_name:($m.full // ""), submissions:(.[2]|tonumber), attempted:(.[3]|tonumber), solved:$slv, accepted_subs:(.[7]|tonumber? // 0), first_solver:.[5], first_minute:(.[6]|tonumber), first_seconds:(.[8]|tonumber? // -1), accept_rate:(if (.[3]|tonumber)>0 then ($slv/(.[3]|tonumber)) else 0 end), avg_subs:(if (.[3]|tonumber)>0 then (((.[2]|tonumber)/(.[3]|tonumber)*100)|floor)/100 else 0 end),
+           avg_ac_min:(if $slv>0 then (($acsum/$slv)|floor) else null end),
+           tries_per_ac:(if $slv>0 then ((($trysum/$slv)*10)|floor/10) else null end),
+           dirt:(if $trysum>0 then (((($trysum-$slv)/$trysum)*1000)|floor/1000) else null end),
+           ac_langs:($PL[$pid] // {})} ] | sort_by(.short_name))),
       languages: ([ $r[] | select(.[0]=="L") | {lang:.[1], submissions:(.[2]|tonumber), accepted:(.[3]|tonumber), solvers:(.[4]|tonumber)} ] | sort_by([-.submissions, .lang])),
       verdicts: ([ $r[] | select(.[0]=="V") | {verdict:.[1], count:(.[2]|tonumber)} ] | sort_by([-.count, .verdict])),
       timeline: ([ $r[] | select(.[0]=="T") | {minute:(.[1]|tonumber), submissions:(.[2]|tonumber), accepted:(.[3]|tonumber)} ] | sort_by(.minute)),
       problems_solved_dist: ([ $r[] | select(.[0]=="D") | {solved:(.[1]|tonumber), users:(.[2]|tonumber)} ] | sort_by(.solved)),
       attempts_dist: ([ $r[] | select(.[0]=="A") | {attempts:(.[1]|tonumber), count:(.[2]|tonumber)} ] | sort_by(.attempts)),
-      verdict_by_problem: ([ $r[] | select(.[0]=="PV") | {problem:.[1], verdict:.[2], count:(.[3]|tonumber)} ] | sort_by([.problem, .verdict])) };
+      verdict_by_problem: ([ $r[] | select(.[0]=="PV") | {problem:.[1], verdict:.[2], count:(.[3]|tonumber)} ] | sort_by([.problem, .verdict])),
+      dirt: (([ $r[] | select(.[0]=="P") | (.[10]|tonumber? // 0) ] | add // 0) as $ts
+             | ([ $r[] | select(.[0]=="P") | (.[4]|tonumber) ] | add // 0) as $sv
+             | (if $ts>0 then (((($ts-$sv)/$ts)*1000)|floor/1000) else null end)) };
+  def pctl($a; $q): (if ($a|length)==0 then null else $a[(((($a|length)-1)*$q)|floor)] end);
   def dim($all; $kind):
     [ $all[] | select(.[0]==$kind) ] | group_by(.[1])
     | map({key:(.[0][1]), value:(assemble(map(.[2:])))}) | from_entries;
   [ split("\n")[] | select(length>0) | split("\t") ] as $all
-  | ({success:true} + assemble([ $all[] | select(.[0]=="g") | .[2:] ]))
-    + { by_region: (dim($all; "r")), by_country: (dim($all; "c")) }' \
+  | [ $all[] | select(.[0]=="g") | .[2:] ] as $g
+  | ([ $g[] | select(.[0]=="E") | [.[1], .[2], (.[3]|tonumber), (.[4]|tonumber)] ] | sort_by(.[2])) as $EV
+  | ([ $g[] | select(.[0]=="U") | {login:.[1], solved:(.[2]|tonumber), penalty:(.[3]|tonumber), first_ac:(.[4]|tonumber), name:(.[5] // .[1])} ]) as $UU
+  | ([ $UU[].solved ] | sort) as $SO | ([ $UU[].penalty ] | sort) as $PE | ([ $UU[].first_ac ] | sort) as $FA
+  | ({success:true} + assemble($g))
+    + { by_region: (dim($all; "r")), by_country: (dim($all; "c")),
+        ac_events: $EV,
+        teams_idx: ($UU | map({key:.login, value:.name}) | from_entries),
+        top_teams: ($UU | sort_by([-.solved, .penalty]) | .[:10] | map({login, name, solved, penalty})),
+        performance: (if ($UU|length)==0 then null else
+          { teams_with_ac: ($UU|length),
+            solved:  {mean:((([ $UU[].solved ]|add)/($UU|length)*100|floor)/100), median:pctl($SO; 0.5), q1:pctl($SO; 0.25), q3:pctl($SO; 0.75), p90:pctl($SO; 0.9)},
+            penalty: {mean:((([ $UU[].penalty ]|add)/($UU|length))|floor), median:pctl($PE; 0.5), q1:pctl($PE; 0.25), q3:pctl($PE; 0.75)},
+            first_ac_median: pctl($FA; 0.5) } end) }' \
   > "$TMP" 2>/dev/null || printf '%s\n' "$empty" > "$TMP"
 
 # --- nome de quem resolveu primeiro ------------------------------------------------------

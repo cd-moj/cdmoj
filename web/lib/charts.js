@@ -434,3 +434,60 @@ function hex(s) {
 }
 
 export { PALETTE };
+
+
+// multiLineChart — várias séries em DEGRAUS sobre a linha do tempo da prova (Estatísticas
+// 2.0, 01/09): a corrida dos problemas (ACs acumulados por problema) e a comparação de
+// times (resolvidos × minuto). series = [{label, points:[{x:minuto, y}], color?}];
+// opts: {width, height, xMax (minutos da prova), legend:true, yMax}
+export function multiLineChart(series, opts = {}) {
+  const W = opts.width || 760, H = opts.height || 280;
+  const padL = 36, padB = 24, padT = 12, padR = 10;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const svg = svgEl('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img' });
+  const all = (series || []).filter(s => (s.points || []).length);
+  const xMax = Math.max(1, opts.xMax || Math.max(...all.flatMap(s => s.points.map(p => p.x)), 1));
+  const yMax = Math.max(1, opts.yMax || Math.max(...all.flatMap(s => s.points.map(p => p.y)), 1));
+  const sx = (x) => padL + (x / xMax) * innerW;
+  const sy = (y) => padT + innerH - (y / yMax) * innerH;
+  for (let g = 0; g <= 2; g++) {
+    const val = Math.round(yMax * g / 2), y = sy(val);
+    svg.append(svgEl('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: '#e3e8f2', 'stroke-width': 1 }));
+    const tx = svgEl('text', { x: padL - 5, y: y + 3, 'text-anchor': 'end', 'font-size': 10, fill: '#5b6b7d' });
+    tx.textContent = val; svg.append(tx);
+  }
+  for (let g = 0; g <= 4; g++) {
+    const mx = Math.round(xMax * g / 4);
+    const tx = svgEl('text', { x: sx(mx), y: H - 8, 'text-anchor': 'middle', 'font-size': 10, fill: '#5b6b7d' });
+    tx.textContent = mx + 'm'; svg.append(tx);
+  }
+  all.forEach((s, i) => {
+    const color = s.color || colorAt(i);
+    // degraus: sobe no minuto do evento; termina no fim da prova
+    const pts = s.points.slice().sort((a, b) => a.x - b.x);
+    let d = 'M' + sx(0).toFixed(1) + ' ' + sy(0).toFixed(1), py = 0;
+    pts.forEach(p => {
+      d += ' L' + sx(p.x).toFixed(1) + ' ' + sy(py).toFixed(1);
+      d += ' L' + sx(p.x).toFixed(1) + ' ' + sy(p.y).toFixed(1);
+      py = p.y;
+    });
+    d += ' L' + sx(xMax).toFixed(1) + ' ' + sy(py).toFixed(1);
+    const path = svgEl('path', { d, fill: 'none', stroke: color, 'stroke-width': 2 });
+    if (s.label) { const t = svgEl('title', {}); t.textContent = s.label; path.append(t); }
+    svg.append(path);
+  });
+  if (opts.legend === false || !all.length) return svg;
+  const wrap = document.createElement('div');
+  wrap.append(svg);
+  const leg = document.createElement('div');
+  leg.style.cssText = 'display:flex;flex-wrap:wrap;gap:.3rem .8rem;font-size:.78rem;margin-top:.2rem';
+  all.forEach((s, i) => {
+    const it = document.createElement('span');
+    const sw = document.createElement('span');
+    sw.style.cssText = 'display:inline-block;width:.85em;height:.85em;border-radius:2px;margin-right:.3em;vertical-align:-1px;background:' + (s.color || colorAt(i));
+    it.append(sw, s.label || '');
+    leg.append(it);
+  });
+  wrap.append(leg);
+  return wrap;
+}

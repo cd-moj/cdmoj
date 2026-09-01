@@ -143,6 +143,8 @@ ck "recorte: JS renumera e re-estrela"     'grep -q "rfts" "$R/index.html" && gr
 ck "recorte: ★ global com classe gfts"     'grep -q "fts gfts" "$R/index.html"'
 ck "estatísticas: selects sede/país"       'grep -q "id=\"sRegion\"" "$R/statistics.html" && grep -q "id=\"sFlag\"" "$R/statistics.html"'
 ck "estatísticas: recortes embutidos"      'grep -q "by_region" "$R/statistics.html"'
+ck "estatísticas 2.0: ac_events/top_teams embutidos" \
+  'grep -q "ac_events" "$R/statistics.html" && grep -q "top_teams" "$R/statistics.html"'
 ck "estatísticas: árvore de sedes (RTREE, com nó agregador)" \
   'grep -q "const RTREE=\[{\"n\":\"Brasil\",\"d\":0,\"r\":" "$R/statistics.html"'
 # --- mlinux.html (nutellaboot) ---
