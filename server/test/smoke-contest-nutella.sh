@@ -34,25 +34,28 @@ done
 
 # --- fixtures do mock (shapes REAIS do nutellaboot, encolhidos) --------------------------
 M1=aa-bb-01; M2=aa-bb-02; M3=aa-bb-03
-# machine_id (32 hex) = o que o UA do navegador mlinux carrega — é o ELO máquina↔time
-MID1=0123456789abcdef0123456789abcdef; MID2=fedcba9876543210fedcba9876543210; MID3=00112233445566778899aabbccddeeff
+# machine_id (32 hex) = o que o UA do navegador mlinux carrega — é o ELO máquina↔time.
+# M1 e M2 têm o MESMO machine_id (imagem clonada, como Salvador/Goiânia na Maratona): só o
+# par machine_id/boot_id separa as duas. M3 tem id próprio.
+MID1=0123456789abcdef0123456789abcdef; MID2=$MID1; MID3=00112233445566778899aabbccddeeff
+BOOT1=1111111111; BOOT2=2222222222; BOOT3=3333333333
 jq -n '{images:[{id:"26tsca", fullname:"Cidade A", model:"m"}, {id:"26tscb", fullname:"Cidade B", model:"m"},
                {id:"26zzzz", fullname:"Outro Evento", model:"m"}]}' > "$MOCKD/images.json"
 jq -n '{roster:[{user_id:"alice", name:"Time Alice", country:"BRA"}, {user_id:"bob", name:"Time Bob", country:"BRA"}]}' > "$MOCKD/roster.26tsca.json"
 jq -n '{roster:[{user_id:"carol", name:"Time Carol", country:"BRA"}]}' > "$MOCKD/roster.26tscb.json"
 jq -n '{roster:[{user_id:"ninguem001", name:"X", country:"ARG"}]}' > "$MOCKD/roster.26zzzz.json"
-mkmach(){ jq -n --arg mac "$1" --argjson seen "$2" --arg cpu "$3" --argjson cores "$4" --argjson mem "$5" --argjson ed "$6" --arg mid "$7" \
+mkmach(){ jq -n --arg mac "$1" --argjson seen "$2" --arg cpu "$3" --argjson cores "$4" --argjson mem "$5" --argjson ed "$6" --arg mid "$7" --arg boot "$8" \
   '{mac:$mac, first_seen:($seen-3600), last_seen:$seen, online:false,
-    status:{hwinfo:{processor:$cpu, cores:$cores, memtotal_mb:$mem, machine_id:$mid, boot_id:"1", image:"26tsca"},
+    status:{hwinfo:{processor:$cpu, cores:$cores, memtotal_mb:$mem, machine_id:$mid, boot_id:$boot, image:"26tsca"},
             sysresources:{mem_pct:20, loadavg:[0.5,0.4,0.3]},
             sysdisk:{home_pct:10, root_free_mb:3000},
             operations:{firewall:true, screen_lock:false,
                         editors:[], editors_time:$ed}},
     binding:null, lock:{locked:false}, alerts:[]}'; }
-jq -n --argjson a "$(mkmach $M1 "$TE" "Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz" 6 7812 '{"code":120,"total":150}' "$MID1")" \
-      --argjson b "$(mkmach $M2 "$TE" "12th Gen Intel(R) Core(TM) i7-12700" 20 15624 '{"vim":30,"code":10,"total":45}' "$MID2")" \
+jq -n --argjson a "$(mkmach $M1 "$TE" "Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz" 6 7812 '{"code":120,"total":150}' "$MID1" "$BOOT1")" \
+      --argjson b "$(mkmach $M2 "$TE" "12th Gen Intel(R) Core(TM) i7-12700" 20 15624 '{"vim":30,"code":10,"total":45}' "$MID2" "$BOOT2")" \
       '{machines:[$a, $b]}' > "$MOCKD/machines.26tsca.json"
-jq -n --argjson a "$(mkmach $M3 "$TE" "AMD Ryzen 5 PRO 4650GE with Radeon Graphics" 12 31000 '{"gedit":5,"total":5}' "$MID3")" \
+jq -n --argjson a "$(mkmach $M3 "$TE" "AMD Ryzen 5 PRO 4650GE with Radeon Graphics" 12 31000 '{"gedit":5,"total":5}' "$MID3" "$BOOT3")" \
       '{machines:[$a]}' > "$MOCKD/machines.26tscb.json"
 jq -n '{machines:[]}' > "$MOCKD/machines.26zzzz.json"
 # séries: 40 pontos a cada 120 s desde o INÍCIO da prova (cadência 2 min ⇒ 1 ponto = 2 min de editor).
@@ -71,16 +74,18 @@ mksamp "$M1" "$T0" code   > "$MOCKD/samples.26tsca.$M1.json"
 mksamp "$M2" "$T0" vim30  > "$MOCKD/samples.26tsca.$M2.json"
 mksamp "$M3" "$T0" gedit6 > "$MOCKD/samples.26tscb.$M3.json"
 # access.log do contest (epoch \t login \t ip \t ua_b64 [\t ator]) — o UA do mlinux liga o login à máquina.
-# alice→M1 · bob→M2 · carol→M3 (com coluna de ator) · nt.admin em M1 DEPOIS (papel: não pode
-# roubar o elo) · alice com Firefox comum (ignorado) · bob em M3 FORA da janela (ignorado)
-ua(){ printf 'Mozilla/5.0 (MLinux/26tsca/%s/4104648619) Gecko/20100101 Firefox/148.0' "$1" | base64 -w0; }
-{ printf '%s\talice\t10.0.0.1\t%s\n'      "$((T0+600))"   "$(ua $MID1)"
-  printf '%s\tbob\t10.0.0.2\t%s\n'        "$((T0+100))"   "$(ua $MID2)"
-  printf '%s\tcarol\t10.0.0.3\t%s\tcarol\n' "$((T0+50))" "$(ua $MID3)"
-  printf '%s\tnt.admin\t10.0.0.9\t%s\n'   "$((T0+700))"   "$(ua $MID1)"
+# alice→M1 · bob→M2 (MESMO machine_id de M1; só o boot_id separa) · carol→M3 às 10h, ANTES da
+# janela, e fica logada (sessão não expira: tem de valer) · nt.admin em M1 DEPOIS (papel: não
+# pode roubar o elo) · alice com Firefox comum (ignorado) · dave nunca loga (ausente)
+ua(){ printf 'Mozilla/5.0 (MLinux/26tsca/%s/%s) Gecko/20100101 Firefox/148.0' "$1" "$2" | base64 -w0; }
+{ printf '%s\talice\t10.0.0.1\t%s\n'      "$((T0+600))"   "$(ua $MID1 $BOOT1)"
+  printf '%s\tbob\t10.0.0.2\t%s\n'        "$((T0+100))"   "$(ua $MID2 $BOOT2)"
+  printf '%s\tcarol\t10.0.0.3\t%s\tcarol\n' "$((T0-5000))" "$(ua $MID3 $BOOT3)"
+  printf '%s\tnt.admin\t10.0.0.9\t%s\n'   "$((T0+700))"   "$(ua $MID1 $BOOT1)"
   printf '%s\talice\t10.0.0.1\t%s\n'      "$((T0+800))"   "$(printf 'Mozilla/5.0 (X11; Linux x86_64) Firefox/148.0' | base64 -w0)"
-  printf '%s\tbob\t10.0.0.2\t%s\n'        "$((T0-90000))" "$(ua $MID3)"
 } > "$C/var/access.log"
+fx_user "$C" dave d "Time Dave"; fx_team dave "Sede A"
+jq -c '.roster += [{user_id:"dave", name:"Time Dave", country:"BRA"}]' "$MOCKD/roster.26tsca.json" > "$MOCKD/r.tmp" && mv "$MOCKD/r.tmp" "$MOCKD/roster.26tsca.json"
 # placar completo (posição = ordem; convidado zz sem posição)
 printf 'icpc s\ndesc:asc:flag:username:univ short:team name:univ full:P00:Total:Penalty:LastAC:guest\n' > "$C/var/placar-full.txt"
 printf 'br:alice:U:Time Alice::1/600:1:10:10:\nbr:bob:U:Time Bob::1/900:1:15:15:\nbr:carol:U:Time Carol::2/-:0:0:0:\nbr:zz:U:Guest::1/300:1:5:5:1\n' >> "$C/var/placar-full.txt"
@@ -134,8 +139,10 @@ ck "ranks geral e do país"            '[[ "$(CJ ".sedes[]|select(.name==\"Sede 
 echo "== relatório 2.0: janela, elo máquina↔time, derivação na prova =="
 ck "samples pedidos com since/until (a JANELA)" 'grep -q "samples?since=$((T0-3600))&until=" "$MOCKD/gets.log"'
 ck "version 2 + contest{start,end}"   '[[ "$(CJ .version)" == 2 && "$(CJ .contest.start)" == "$T0" && "$(CJ .contest.end)" == "$TE" ]]'
-ck "elo por UA: modo ua, 3 times vinculados, 100%" '[[ "$(CJ .link.mode)" == ua && "$(CJ .link.linked)" == 3 && "$(CJ .link.coverage)" == 100 ]]'
-ck "pop global: 3 vistas, 3 usadas, 3 vinculadas, 3 de time" '[[ "$(CJ ".global.pop|[.seen,.used,.linked,.chosen,.ranked,.tm,.teams]|join(\",\")")" == "3,3,3,3,3,3,3" ]]'
+ck "elo por UA: modo ua; 4 inscritos, 3 presentes, 3 vinculados = 100%" '[[ "$(CJ .link.mode)" == ua && "$(CJ ".link|[.teams,.present,.linked,.coverage]|join(\",\")")" == "4,3,3,100" ]]'
+ck "pop global: 3 vistas, 3 usadas, 3 vinculadas, 3 de time, 4 inscritos, 3 presentes" '[[ "$(CJ ".global.pop|[.seen,.used,.linked,.chosen,.ranked,.tm,.teams,.present]|join(\",\")")" == "3,3,3,3,3,3,4,3" ]]'
+ck "machine_id CLONADO: boot_id separa alice(M1) de bob(M2)" '[[ "$(CJ ".sedes[]|select(.name==\"Sede A\")|.machines[]|select(.mac==\"aa-bb-02\")|.team")" == bob ]]'
+ck "login ANTES da janela (sessão antiga) vincula (carol→M3)" '[[ "$(CJ ".sedes[]|select(.name==\"Sede B\")|.machines[0].team")" == carol ]]'
 ck "adoção ≥60 min NA PROVA: code=1 (M1), vim=1 (M2), gedit NÃO (12 min)" '[[ "$(CJ .global.ed_adopt.code)" == 1 && "$(CJ .global.ed_adopt.vim)" == 1 && "$(CJ ".global.ed_adopt.gedit // 0")" == 0 ]]'
 ck "grupos e nº de editores por time"  '[[ "$(CJ .global.ed_groups.vscode)" == 1 && "$(CJ .global.ed_groups.light)" == 1 && "$(CJ ".global.ed_count[\"1\"]")" == 2 && "$(CJ ".global.ed_count[\"0\"]")" == 1 ]]'
 ck "perfis puros: vscode/light/none"   '[[ "$(CJ ".global.profiles|[.vscode,.light,.none]|join(\",\")")" == "1,1,1" ]]'

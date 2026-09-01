@@ -179,7 +179,7 @@ export function makeMlinuxTab(CONTEST) {
       el('span', { class: 'fcount' },
         T(`coletado ${new Date((d.collected_at || 0) * 1000).toLocaleString()}`,
           `collected ${new Date((d.collected_at || 0) * 1000).toLocaleString()}`)
-        + (lk.mode === 'ua' ? T(` · vínculo máquina-time: ${lk.coverage}% dos times`, ` · machine-team link: ${lk.coverage}% of teams`)
+        + (lk.mode === 'ua' ? T(` · vínculo máquina-time: ${lk.linked}/${lk.present} times presentes (${lk.coverage}%)`, ` · machine-team link: ${lk.linked}/${lk.present} present teams (${lk.coverage}%)`)
           : d.version >= 2 ? T(' · sem vínculo máquina-time', ' · no machine-team link') : '')));
     const box = el('div', {});
     // a view recebe o cache INTEIRO + a árvore + o recorte: as tabelas "por recorte" comparam

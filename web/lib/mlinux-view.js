@@ -266,9 +266,11 @@ function observations(a, cx, opts) {
       `8 GB machines used ${s8} MB of swap on average. 16 GB machines, ${s16} MB.`));
   }
   if (opts.link && !isSite(a) && !(opts.sel && opts.sel.kind === 'n')) {
-    li.push(opts.link.mode === 'ua'
-      ? T(`O vínculo máquina-time cobriu ${opts.link.coverage}% dos times, pelo login no navegador do mlinux.`,
-        `The machine-team link covered ${opts.link.coverage}% of teams, via the login from the mlinux browser.`)
+    const L = opts.link, absent = Math.max(0, (L.teams || 0) - (L.present || 0));
+    li.push(L.mode === 'ua'
+      ? T(`O vínculo máquina-time cobriu ${L.linked} de ${L.present} times presentes (${L.coverage}%), pelo login no navegador do mlinux.`,
+        `The machine-team link covered ${L.linked} of ${L.present} present teams (${L.coverage}%), via the login from the mlinux browser.`)
+        + (absent ? ' ' + T(`${absent} times inscritos não fizeram login.`, `${absent} registered teams never logged in.`) : '')
       : T('Sem vínculo suficiente máquina-time. As máquinas de time são as máquinas usadas na prova.',
         'Not enough machine-team links. Team machines are the machines used in the contest.'));
   }
@@ -562,8 +564,8 @@ function legend(opts) {
       li(T('Vista na prova', 'Seen in the contest'), T('máquina que reportou ao nutellaboot na janela da coleta (prova mais uma hora antes e depois).',
         'machine that reported to nutellaboot within the collection window (the contest plus one hour before and after).')),
       li(T('Máquina de time', 'Team machine'), mode === 'ua'
-        ? T('a máquina em que o time fez login pelo navegador do mlinux (o navegador informa a máquina). Um time com duas máquinas conta a de mais amostras na prova. Máquinas usadas sem login vinculado também entram.',
-          'the machine where the team logged in through the mlinux browser (the browser reports the machine). A team with two machines counts the one with more samples in the contest. Machines used without a linked login also count.')
+        ? T('a máquina em que o time fez login pelo navegador do mlinux (o navegador informa a máquina e o boot). Vale o último login de cada máquina até o fim da coleta. Um time com duas máquinas conta a de mais amostras na prova. Máquinas usadas sem login vinculado também entram.',
+          'the machine where the team logged in through the mlinux browser (the browser reports the machine and the boot). The last login on each machine up to the end of the collection counts. A team with two machines counts the one with more samples in the contest. Machines used without a linked login also count.')
         : T('máquina com algum editor aberto por 10 minutos ou mais durante a prova. Nesta coleta o vínculo pelo login não cobriu times suficientes.',
           'machine with some editor open for 10 minutes or more during the contest. In this collection the login link did not cover enough teams.')),
       li(T('Editor usado', 'Editor used'), T('aberto por 60 minutos ou mais durante a prova, medido nas amostras da máquina (cerca de uma por minuto). O tempo acumulado desde a instalação não entra.',

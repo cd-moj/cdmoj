@@ -60,9 +60,15 @@ máquina↔time** (roster/binding).
   geany/emacs) em ≥ 60 % dos pontos (leve exige pesado ≤ 10 %; senão `mixed`/`none`), faixa de
   RAM, memória/swap/load (média, 1ª meia hora, última hora, janelas de 30 min).
   **Elo máquina↔time**: `binding` do serviço vem vazio; o coletor casa
-  `status.hwinfo.machine_id` com o `machine_id` do UA gravado em `var/access.log` pelo login
-  (1 jq com `@base64d`; janela da coleta; contas de papel fora; último login vence; time com
-  2 máquinas fica com a de mais pontos — `chosen`). Posição no placar via `sc_place_map`
+  `status.hwinfo.machine_id/boot_id` com o par `machine_id/boot_id` do UA gravado em
+  `var/access.log` pelo login (1 jq com `@base64d`; TODO login até o fim da janela — sessão
+  não expira, quem logou às 10h é dono da máquina na prova; contas de papel fora; último
+  login vence; time com 2 máquinas fica com a de mais pontos — `chosen`). ⚠ O `boot_id` é
+  obrigatório na chave: na Maratona 2026, 62 `machine_id` eram CLONADOS (Salvador: 24
+  máquinas com o mesmo `/etc/machine-id`; Goiânia: 25; Rio: 39 pares) — só o `machine_id`
+  dava todas ao último time. Fallback por `machine_id` sozinho só quando ele é único na
+  frota (`dupmids`). `link.present` = times que logaram até o fim da janela; a cobertura é
+  `linked/present` (quem nunca logou é ausente, não "sem vínculo"). Posição no placar via `sc_place_map`
   (score-common.sh; prefere `placar-view-all-full` › `placar-full` › `placar`; convidado sem
   posição). `link.mode`: `ua` quando o elo cobre ≥ 50 % dos times das sedes mantidas (população
   "máquina de time" = a escolhida de cada time + usadas sem elo), senão `proxy` (= usadas).
@@ -75,8 +81,8 @@ máquina↔time** (roster/binding).
   sw_max, mem0_*, mem4_*, series[{t (s desde o início, bins de 30 min), …}]}}`,
   `rank_ed{n, all|top30|q1|p10: {n, ed{}, grp{}, prof{}}}` (editores × colocação DO RECORTE:
   re-rank pela posição global; a view só mostra com ≥ 30). `series[]` (10 min) ganhou
-  `sw_sum/sw_n/fw_off`. Topo: `version:2`, `contest{start,end}`, `link{mode,linked,teams,
-  coverage}`. Linhas por time (`_rows`) existem SÓ dentro do coletor e morrem antes de gravar.
+  `sw_sum/sw_n/fw_off`. Topo: `version:2`, `contest{start,end}`, `link{mode,linked,teams,present,
+  coverage}`; `pop` ganha `present` por sede. Linhas por time (`_rows`) existem SÓ dentro do coletor e morrem antes de gravar.
   A **view** (`web/lib/mlinux-view.js`) infere fabricante/família/ano do modelo de CPU
   (`cpuInfo`, tabelas de ano dos scripts do artigo da Revista Maratona) e escreve as
   observações automáticas em STE pt/en. **Ranks** por sede: posição no país e no geral em RAM

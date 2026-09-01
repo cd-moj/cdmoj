@@ -181,23 +181,42 @@ prog "agregando" 0 "$NKEPT"
 
 # --- 4b. ELO máquina↔time: access.log (login grava o UA em base64) -----------------------
 # UA do mlinux: "Mozilla/5.0 (MLinux/<imagem>/<machine_id>/<boot_id>) …". Um jq p/ o arquivo
-# inteiro (@base64d), janela = a da coleta, contas de PAPEL fora, ÚLTIMO login da máquina
-# vence. Saída: {"<machine_id>": "<login>"}.
-printf '{}' > "$W/link.json"
+# inteiro (@base64d), contas de PAPEL fora, ÚLTIMO login vence. TODO login até o fim da
+# janela conta (sessão do MOJ não expira: quem logou às 10h e ficou logado é dono da máquina
+# na prova). Duas chaves: `k` = machine_id/boot_id (a que vale — em sedes com imagem CLONADA
+# dezenas de máquinas têm o MESMO /etc/machine-id, e o boot_id as separa) e `m` = machine_id
+# sozinho (fallback SÓ quando o id é único na frota; ver dupmids).
+printf '{"k":{},"m":{}}' > "$W/link.json"
 if [[ -s "$CDIR/var/access.log" ]]; then
-  jq -Rn --argjson a "$WSTART" --argjson b "$WEND" '
+  jq -Rn --argjson b "$WEND" '
     [ inputs | split("\t") | select(length >= 4)
       | (.[0] | tonumber? // 0) as $t
-      | select($t >= $a and $t <= $b)
+      | select($t <= $b)
       | .[1] as $lg
       | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
-      | ((.[3] | try @base64d catch "") | capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/")? // null) as $m
+      | ((.[3] | try @base64d catch "") | capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/(?<boot>[0-9]+)")? // null) as $m
       | select($m != null)
-      | {t: $t, lg: $lg, mid: $m.mid} ]
+      | {t: $t, lg: $lg, mid: $m.mid, boot: $m.boot} ]
     | sort_by(.t)
-    | reduce .[] as $e ({}; .[$e.mid] = $e.lg)' "$CDIR/var/access.log" > "$W/link.json" 2>/dev/null \
-    || printf '{}' > "$W/link.json"
-  [[ -s "$W/link.json" ]] || printf '{}' > "$W/link.json"
+    | { k: (reduce .[] as $e ({}; .[$e.mid + "/" + $e.boot] = $e.lg)),
+        m: (reduce .[] as $e ({}; .[$e.mid] = $e.lg)) }' "$CDIR/var/access.log" > "$W/link.json" 2>/dev/null \
+    || printf '{"k":{},"m":{}}' > "$W/link.json"
+  jq -e '.k | type == "object"' "$W/link.json" >/dev/null 2>&1 || printf '{"k":{},"m":{}}' > "$W/link.json"
+fi
+# machine_ids DUPLICADOS na frota mantida (imagem clonada): com eles só o par mid/boot vale
+: > "$W/mlist.txt"; while IFS=$'\t' read -r id _r; do printf '%s\n' "$W/machines.$id.json"; done < "$W/kept.tsv" > "$W/mlist.txt"
+xargs -a "$W/mlist.txt" jq -c '.machines[]? | .status.hwinfo.machine_id // empty' 2>/dev/null \
+  | jq -sc 'group_by(.) | map(select(length > 1) | {key: .[0], value: true}) | from_entries' > "$W/dupmids.json" 2>/dev/null
+jq -e 'type == "object"' "$W/dupmids.json" >/dev/null 2>&1 || printf '{}' > "$W/dupmids.json"
+# times PRESENTES = logaram alguma vez até o fim da janela (qualquer navegador) — é o
+# denominador honesto da cobertura do elo; quem nunca logou é ausente, não "sem vínculo"
+printf '{}' > "$W/present.json"
+if [[ -s "$CDIR/var/access.log" ]]; then
+  jq -Rn --argjson b "$WEND" '
+    [ inputs | split("\t") | select(length >= 2) | select((.[0] | tonumber? // 0) <= $b) | .[1] ]
+    | unique | map({key: ., value: true}) | from_entries' "$CDIR/var/access.log" > "$W/present.json" 2>/dev/null \
+    || printf '{}' > "$W/present.json"
+  jq -e 'type == "object"' "$W/present.json" >/dev/null 2>&1 || printf '{}' > "$W/present.json"
 fi
 # posição no placar geral (login → posição); convidado (guest) não tem. Prefere o placar
 # COMPLETO (nunca o congelado) e, com coortes, a visão `all` (mesma escolha do relatório).
@@ -217,10 +236,12 @@ fi
 while IFS=$'\t' read -r id _r; do cat "$W/teams.$id.txt"; done < "$W/kept.tsv" | sort -u > "$W/allteams.txt"
 NTEAMS="$(wc -l < "$W/allteams.txt" | tr -d '[:space:]')"; NTEAMS="${NTEAMS:-0}"
 # times VINCULADOS = logins do elo que são times das sedes mantidas (o access.log tem o contest
-# inteiro; o elo de uma sede sem nutellaboot não conta)
-NLINK="$(jq -r '[ .[] ] | unique | .[]' "$W/link.json" 2>/dev/null | sort -u | comm -12 - "$W/allteams.txt" | wc -l | tr -d '[:space:]')"
+# inteiro; o elo de uma sede sem nutellaboot não conta); PRESENTES = idem p/ quem logou
+NLINK="$(jq -r '[ .k[], .m[] ] | unique | .[]' "$W/link.json" 2>/dev/null | sort -u | comm -12 - "$W/allteams.txt" | wc -l | tr -d '[:space:]')"
 NLINK="${NLINK//[^0-9]/}"; NLINK="${NLINK:-0}"
-MODE=proxy; (( NTEAMS > 0 && NLINK * 2 >= NTEAMS )) && MODE=ua
+NPRES="$(jq -r 'keys[]' "$W/present.json" 2>/dev/null | sort -u | comm -12 - "$W/allteams.txt" | wc -l | tr -d '[:space:]')"
+NPRES="${NPRES//[^0-9]/}"; NPRES="${NPRES:-0}"
+MODE=proxy; (( NPRES > 0 && NLINK * 2 >= NPRES )) && MODE=ua
 
 # --- 5. agregado POR IMAGEM (um jq por sede: máquinas + séries mergeáveis) ---------------
 # Tudo que precisa virar média em rollup é guardado como SOMA+N (merge exato depois).
@@ -271,6 +292,8 @@ AGG_JQ='
   ($spf[0]) as $sp
   | ($tf[0]) as $teams
   | ($lk[0]) as $link
+  | ($dm[0]) as $dups
+  | ($pr[0]) as $present
   | ($pl[0]) as $place
   | ($m[0].machines // []) as $ms
   | [ $ms[] | select((.last_seen // 0) >= $ws) ] as $seen
@@ -279,7 +302,10 @@ AGG_JQ='
   # ---- por máquina + dedupe de time (um time = a máquina com mais pontos na prova) -------
   | ([ $seen[] | . as $x
        | ($x.status.hwinfo.machine_id // "") as $mid
-       | (if $mid != "" then ($link[$mid] // null) else null end) as $team
+       | (($x.status.hwinfo.boot_id // "") | tostring) as $boot
+       | (if $mid == "" then null
+          else ($link.k[$mid + "/" + $boot]
+                // (if ($dups[$mid] // false) == true then null else ($link.m[$mid] // null) end)) end) as $team
        | derive(($cpts[$x.mac] // []); $cs; $ce)
          + { mac: $x.mac, online: ($x.online // false),
              processor: ($x.status.hwinfo.processor // "?"),
@@ -312,7 +338,8 @@ AGG_JQ='
              linked: ([ $mx[] | select(.team != null) ] | length),
              chosen: ([ $mx[] | select(.chosen) ] | length),
              ranked: ([ $mx[] | select(.rank != null) ] | length),
-             tm: ($tm | length), teams: ($teams | length) },
+             tm: ($tm | length), teams: ($teams | length),
+             present: ([ $teams[] | select(($present[.] // false) == true) ] | length) },
       ram_total_mb: (sum($seen[].status.hwinfo.memtotal_mb // 0)),
       cores_total: (sum($seen[].status.hwinfo.cores // 0)),
       ram_sum_tm: (sum($tm[].mem_mb)), ram_n_tm: ($tm | length),
@@ -371,6 +398,8 @@ while IFS=$'\t' read -r id sede pais fullname; do
      --slurpfile spf "$W/spl.$id.json" \
      --slurpfile tf "$W/tf.$id.json" \
      --slurpfile lk "$W/link.json" \
+     --slurpfile dm "$W/dupmids.json" \
+     --slurpfile pr "$W/present.json" \
      --slurpfile pl "$W/place.json" \
      "$AGG_JQ" \
     >> "$W/aggs.jsonl" 2>>"$W/agg.err" || echo "$id" >> "$W/skipped.txt"
@@ -402,7 +431,7 @@ jq -Rcs '[ split("\n")[] | select(length > 0) | split("\t") | {id: .[0], node: .
 # sem login/MAC) das sedes do nó, re-ranqueadas pela posição global; top 30 / quartil / 10 %.
 # As `_rows` morrem aqui (del) — nunca vão ao cache.
 jq -cs --argjson ws "$WSTART" --argjson we "$WEND" --argjson cs "$CS" --argjson ce "$CE" \
-   --argjson now "$EPOCHSECONDS" --arg mode "$MODE" --argjson nlink "$NLINK" --argjson nteams "$NTEAMS" \
+   --argjson now "$EPOCHSECONDS" --arg mode "$MODE" --argjson nlink "$NLINK" --argjson nteams "$NTEAMS" --argjson npres "$NPRES" \
    --slurpfile nmf "$W/nodemap.json" \
    --rawfile skipped <(cat "$W/skipped.txt" 2>/dev/null || printf '') '
   def madd($a; $b): reduce ($b | to_entries[]) as $e ($a; .[$e.key] = ((.[$e.key] // 0) + $e.value));
@@ -498,8 +527,8 @@ jq -cs --argjson ws "$WSTART" --argjson we "$WEND" --argjson cs "$CS" --argjson 
   | { version: 2, collected_at: $now,
       window: {start: $ws, end: $we},
       contest: {start: $cs, end: $ce},
-      link: { mode: $mode, linked: $nlink, teams: $nteams,
-              coverage: (if $nteams > 0 then (($nlink * 100 / $nteams) | floor) else 0 end) },
+      link: { mode: $mode, linked: $nlink, teams: $nteams, present: $npres,
+              coverage: (if $npres > 0 then (($nlink * 100 / $npres) | floor) else 0 end) },
       skipped: ($skipped | split("\n") | map(select(length > 0))),
       global: (roll($aggs)),
       by_node: (reduce ([ $nm[].node ] | unique)[] as $node ({};
