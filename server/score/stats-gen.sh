@@ -91,7 +91,14 @@ if [[ -s "$CONTESTSDIR/$C/regions.json" ]]; then
 fi
 
 START_VAL="${CONTEST_START:-0}"; [[ "$START_VAL" =~ ^[0-9]+$ ]] || START_VAL=0
-awk -F: -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" -v PEN="${PENALTY_MINUTES:-20}" '
+# convidados (coortes unranked, ex.: CCL): competem e aparecem nos eventos/comparação,
+# mas NÃO entram em top_teams/performance — população oficial, como no placar
+UNRX=""
+if [[ -s "$CONTESTSDIR/$C/cohorts.json" ]]; then
+  UNRX="$(jq -r '[(.cohorts // [])[] | select(.unranked == true) | .regex | select(. != "")] | join("|")' \
+    "$CONTESTSDIR/$C/cohorts.json" 2>/dev/null)"
+fi
+awk -F: -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" -v PEN="${PENALTY_MINUTES:-20}" -v UNRX="$UNRX" '
 # R2: cada submissão alimenta N ESCOPOS — g (global), r=<sede/nó da árvore>, c=<país> — e o
 # END emite as mesmas linhas de sempre prefixadas por "<kind>\t<val>\t". O escopo vira ID
 # inteiro (sid): a chave composta id SUBSEP x é separável no END mesmo com sede livre.
@@ -200,8 +207,10 @@ END{
     upen[u_] += evm[k] + PEN * (evt[k] - 1)
     if (!(u_ in ufst) || evm[k] < ufst[u_]) ufst[u_] = evm[k]
   }
-  for(u_ in usolv2)
+  for(u_ in usolv2){
+    if (UNRX != "" && u_ ~ UNRX) continue   # convidado (coorte unranked) fora do ranking oficial
     printf "g\t\tU\t%s\t%d\t%d\t%d\t%s\n", u_, usolv2[u_], upen[u_], ufst[u_], (u_ in tnm ? tnm[u_] : u_)
+  }
   for(k in pv){ split(k,xx,SUBSEP); printf "%s\t%s\tPV\t%s\t%s\t%d\n", skind[xx[1]], sval[xx[1]], xx[2], xx[3], pv[k] }
   for(k in lsub){ split(k,ll,SUBSEP); printf "%s\t%s\tL\t%s\t%d\t%d\t%d\n", skind[ll[1]], sval[ll[1]], ll[2], lsub[k], lacc[k]+0, lsoln[k]+0 }
   for(k in vcl){ split(k,vv,SUBSEP); printf "%s\t%s\tV\t%s\t%d\n", skind[vv[1]], sval[vv[1]], vv[2], vcl[k] }
