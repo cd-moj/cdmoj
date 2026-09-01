@@ -439,8 +439,11 @@ export { PALETTE };
 // multiLineChart — várias séries em DEGRAUS sobre a linha do tempo da prova (Estatísticas
 // 2.0, 01/09): a corrida dos problemas (ACs acumulados por problema) e a comparação de
 // times (resolvidos × minuto). series = [{label, points:[{x:minuto, y}], color?}];
-// opts: {width, height, xMax (minutos da prova), legend:true, yMax}
+// opts: {width, height, xMax (minutos da prova), legend:true, yMax, step:false (linha
+// contínua ponto a ponto — memória/swap do mlinux, que são MÉDIAS e não acumulados),
+// yUnit ('%' / ' MB' — sufixo dos ticks do eixo y)}
 export function multiLineChart(series, opts = {}) {
+  const step = opts.step !== false;
   const W = opts.width || 760, H = opts.height || 280;
   const padL = 36, padB = 24, padT = 12, padR = 10;
   const innerW = W - padL - padR, innerH = H - padT - padB;
@@ -454,7 +457,7 @@ export function multiLineChart(series, opts = {}) {
     const val = Math.round(yMax * g / 2), y = sy(val);
     svg.append(svgEl('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: '#e3e8f2', 'stroke-width': 1 }));
     const tx = svgEl('text', { x: padL - 5, y: y + 3, 'text-anchor': 'end', 'font-size': 10, fill: '#5b6b7d' });
-    tx.textContent = val; svg.append(tx);
+    tx.textContent = val + (opts.yUnit || ''); svg.append(tx);
   }
   for (let g = 0; g <= 4; g++) {
     const mx = Math.round(xMax * g / 4);
@@ -465,13 +468,19 @@ export function multiLineChart(series, opts = {}) {
     const color = s.color || colorAt(i);
     // degraus: sobe no minuto do evento; termina no fim da prova
     const pts = s.points.slice().sort((a, b) => a.x - b.x);
-    let d = 'M' + sx(0).toFixed(1) + ' ' + sy(0).toFixed(1), py = 0;
-    pts.forEach(p => {
-      d += ' L' + sx(p.x).toFixed(1) + ' ' + sy(py).toFixed(1);
-      d += ' L' + sx(p.x).toFixed(1) + ' ' + sy(p.y).toFixed(1);
-      py = p.y;
-    });
-    d += ' L' + sx(xMax).toFixed(1) + ' ' + sy(py).toFixed(1);
+    let d;
+    if (step) {
+      d = 'M' + sx(0).toFixed(1) + ' ' + sy(0).toFixed(1); let py = 0;
+      pts.forEach(p => {
+        d += ' L' + sx(p.x).toFixed(1) + ' ' + sy(py).toFixed(1);
+        d += ' L' + sx(p.x).toFixed(1) + ' ' + sy(p.y).toFixed(1);
+        py = p.y;
+      });
+      d += ' L' + sx(xMax).toFixed(1) + ' ' + sy(py).toFixed(1);
+    } else {
+      // linha contínua: começa no 1º ponto (não na origem) e termina no último
+      d = pts.map((p, k) => (k ? ' L' : 'M') + sx(p.x).toFixed(1) + ' ' + sy(p.y).toFixed(1)).join('');
+    }
     const path = svgEl('path', { d, fill: 'none', stroke: color, 'stroke-width': 2 });
     if (s.label) { const t = svgEl('title', {}); t.textContent = s.label; path.append(t); }
     svg.append(path);

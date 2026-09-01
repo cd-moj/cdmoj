@@ -174,12 +174,18 @@ export function makeMlinuxTab(CONTEST) {
       const [k, ...rest] = selN.value.split('|');
       sel = { kind: k, key: rest.join('|') }; render();
     });
+    const lk = d.link || {};
     bar.append(el('label', {}, T('Recorte: ', 'Selection: '), selN),
       el('span', { class: 'fcount' },
         T(`coletado ${new Date((d.collected_at || 0) * 1000).toLocaleString()}`,
-          `collected ${new Date((d.collected_at || 0) * 1000).toLocaleString()}`)));
+          `collected ${new Date((d.collected_at || 0) * 1000).toLocaleString()}`)
+        + (lk.mode === 'ua' ? T(` · vínculo máquina-time: ${lk.coverage}% dos times`, ` · machine-team link: ${lk.coverage}% of teams`)
+          : d.version >= 2 ? T(' · sem vínculo máquina-time', ' · no machine-team link') : '')));
     const box = el('div', {});
-    mlinuxSections(currentAgg(), { showMachines: sel.kind === 's', window: d.window })
+    // a view recebe o cache INTEIRO + a árvore + o recorte: as tabelas "por recorte" comparam
+    // os filhos do nó (subregiões com dado, ou as sedes dele) — mesmo contrato do relatório
+    mlinuxSections(currentAgg(), { showMachines: sel.kind === 's', window: d.window, contest: d.contest,
+      link: d.link, data: d, tree: RTREE, sel })
       .forEach((s) => box.append(s));
     return el('div', {}, bar, box);
   }

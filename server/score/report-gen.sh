@@ -38,6 +38,7 @@ export CONTESTSDIR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/../api/v1/lib/users.sh"
+source "$HERE/score-common.sh"   # sc_place_map (posição no placar geral)
 source "$HERE/../api/v1/lib/verdict.sh"
 # COORTES: o relatório serve UM placar por visão (o build.sh já gerou cada TXT com a posição e a
 # estrela certas dentro dela) — filtrar o TXT pronto daria estrela errada, ver lib/cohorts.sh.
@@ -865,30 +866,9 @@ rep_view_label(){
 
 # rep_place_map <placar.txt> -> "login \t posição" (só quem tem posição; convidado não tem)
 # ⚠ MESMA regra de empate do rep_score_html (resolvidos + penalidade + minuto do último AC):
-# se mudar lá, mude aqui — é o número que aparece como "posição no placar geral".
-rep_place_map(){
-  awk -F: '
-    function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
-    NR==1{ next }
-    NR==2{ n=split($0,H,":"); s=1
-      while (s<=n) { h=trim(tolower(H[s])); if (h=="desc"||h=="asc") s++; else break }
-      ncol=0; for(i=s;i<=n;i++){ ncol++; hdr[ncol]=H[i] }
-      for(i=1;i<=ncol;i++){ h=trim(tolower(hdr[i]))
-        if(h=="username")iuser=i; else if(h=="total")itot=i; else if(h=="penalty")ipen=i
-        else if(h=="lastac")ilast=i; else if(h=="guest")iguest=i }
-      next }
-    NF==0{ next }
-    {
-      g=(iguest? trim($(iguest)) : "")
-      if (g!="" && g!="0" && tolower(g)!="false" && tolower(g)!="no") next
-      tot=(itot? trim($(itot)) : ""); pen=(ipen? trim($(ipen)) : ""); lac=(ilast? trim($(ilast)) : "")
-      n_++
-      if (n_>1 && tot==pt_ && pen==pp_ && lac==pl_) place=pc_
-      else place=n_
-      pt_=tot; pp_=pen; pl_=lac; pc_=place
-      if (iuser && trim($(iuser))!="") printf "%s\t%s\n", trim($(iuser)), place
-    }' "$1"
-}
+# o awk mora em score-common.sh (`sc_place_map`) porque o coletor mlinux (nutella-gen)
+# precisa do MESMO número — é a "posição no placar geral" dos dois.
+rep_place_map(){ sc_place_map "$1"; }
 
 # rep_score_boards <open|frozen> — a barra de filtros + um <section> por visão
 rep_score_boards(){
@@ -1316,13 +1296,15 @@ fi
 # Gerada AQUI, antes das outras páginas, pelo mesmo motivo do documentos.html: a aba só
 # entra na nav das páginas escritas DEPOIS de o arquivo existir. Mesma doutrina do
 # statistics.html: inlina dom.js + charts.js + mlinux-view.js (a MESMA view do painel) com
-# os dados como literal. PRIVACIDADE: as listas por máquina (MAC) e os bindings ficam FORA
-# do relatório — só agregados, ranks e séries por sede/nó.
+# os dados como literal. PRIVACIDADE: as listas por máquina (MAC/time), os bindings, os
+# logins do roster (`teams`) e qualquer resíduo por time (`_rows`) ficam FORA do relatório —
+# só agregados, ranks e séries por sede/nó (o "editores × colocação" é contagem por recorte).
 NBC="$CDIR/var/nutella.cache.json"
 if [[ -s "$NBC" ]] && jq -e '.global' "$NBC" >/dev/null 2>&1; then
   rt_ml='[]'
   if [[ -s "$CDIR/regions.json" ]]; then
-    rt_ml="$(jq -c 'def strip: map({name: (.name // ""), subregions: ((.subregions // []) | strip)}); strip' \
+    # name + view (nó que agrega times já contados nas sedes; a view não o compara) — sem regex
+    rt_ml="$(jq -c 'def strip: map({name: (.name // ""), view: (.view == true), subregions: ((.subregions // []) | strip)}); strip' \
              "$CDIR/regions.json" 2>/dev/null)"
     [[ -n "$rt_ml" ]] || rt_ml='[]'
   fi
@@ -1339,7 +1321,7 @@ if [[ -s "$NBC" ]] && jq -e '.global' "$NBC" >/dev/null 2>&1; then
       sed -E '/^import /d; s/^export (function|const|let|class) /\1 /; /^export \{/d' "$_mlf"
     done
     printf 'const NBDATA=\n'
-    jq 'del(.sedes[].machines, .sedes[].bindings)' "$NBC"
+    jq 'del(.sedes[].machines, .sedes[].bindings, .sedes[].teams, .sedes[]._rows)' "$NBC"
     printf ';\nconst RTREE=%s;\n' "$rt_ml"
     cat <<'MLEOF'
 (function(){
@@ -1361,12 +1343,15 @@ if [[ -s "$NBC" ]] && jq -e '.global' "$NBC" >/dev/null 2>&1; then
   var o0=document.createElement('option'); o0.value='g|'; o0.textContent=T('— geral —','— overall —'); sel.add(o0);
   opts.forEach(function(o){ var e=document.createElement('option'); e.value=o.kind+'|'+o.key;
     e.textContent=new Array(o.depth+1).join('  ')+o.key; sel.add(e); });
-  function agg(){ var v=sel.value.split('|'), kind=v[0], key=v.slice(1).join('|');
-    if(kind==='n') return have[key]||d.global;
-    if(kind==='s'){ var s=(d.sedes||[]).filter(function(x){return x.name===key})[0]; return s||d.global; }
+  function cur(){ var v=sel.value.split('|'); return {kind:v[0], key:v.slice(1).join('|')}; }
+  function agg(){ var c=cur();
+    if(c.kind==='n') return have[c.key]||d.global;
+    if(c.kind==='s'){ var s=(d.sedes||[]).filter(function(x){return x.name===c.key})[0]; return s||d.global; }
     return d.global; }
+  // mesmo contrato do painel (mlinux-tab.js): cache inteiro + árvore + recorte
   function render(){ host.innerHTML='';
-    try{ mlinuxSections(agg(), {window:d.window}).forEach(function(x){ host.append(x) }); }
+    try{ mlinuxSections(agg(), {window:d.window, contest:d.contest, link:d.link, data:d, tree:RTREE, sel:cur()})
+           .forEach(function(x){ host.append(x) }); }
     catch(e){ host.innerHTML='<p class="note">'+String(e)+'</p>'; } }
   sel.addEventListener('change', render); render();
 })();

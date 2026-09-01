@@ -217,3 +217,31 @@ _sc_users_compute() {
     done
   }
 }
+
+# sc_place_map <placar.txt> -> "login \t posição" (só quem tem posição; convidado não tem).
+# Fonte ÚNICA da posição no placar geral p/ os consumidores fora do placar (relatório
+# offline, coletor mlinux): MESMA regra de empate do rep_score_html do report-gen —
+# resolvidos + penalidade + minuto do último AC; linha 1 = flag de modo, linha 2 = cabeçalho.
+sc_place_map(){
+  awk -F: '
+    function trim(s){ gsub(/^[ \t]+|[ \t]+$/,"",s); return s }
+    NR==1{ next }
+    NR==2{ n=split($0,H,":"); s=1
+      while (s<=n) { h=trim(tolower(H[s])); if (h=="desc"||h=="asc") s++; else break }
+      ncol=0; for(i=s;i<=n;i++){ ncol++; hdr[ncol]=H[i] }
+      for(i=1;i<=ncol;i++){ h=trim(tolower(hdr[i]))
+        if(h=="username")iuser=i; else if(h=="total")itot=i; else if(h=="penalty")ipen=i
+        else if(h=="lastac")ilast=i; else if(h=="guest")iguest=i }
+      next }
+    NF==0{ next }
+    {
+      g=(iguest? trim($(iguest)) : "")
+      if (g!="" && g!="0" && tolower(g)!="false" && tolower(g)!="no") next
+      tot=(itot? trim($(itot)) : ""); pen=(ipen? trim($(ipen)) : ""); lac=(ilast? trim($(ilast)) : "")
+      n_++
+      if (n_>1 && tot==pt_ && pen==pp_ && lac==pl_) place=pc_
+      else place=n_
+      pt_=tot; pp_=pen; pl_=lac; pc_=place
+      if (iuser && trim($(iuser))!="") printf "%s\t%s\n", trim($(iuser)), place
+    }' "$1"
+}

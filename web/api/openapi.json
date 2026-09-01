@@ -2042,7 +2042,7 @@
         "summary": "Panorama das máquinas mlinux (nutellaboot) — admin/chefe tudo; .cstaff/.staff a própria sede; ?catalog=<image> = catálogo de comandos",
         "responses": {
           "200": {
-            "description": "{configured, url, status, can_admin, scoped, data:{global, by_node, sedes[]}} — ver docs/NUTELLABOOT.md"
+            "description": "{configured, url, status, can_admin, scoped, data:{version:2, contest, link, global, by_node, sedes[]}} — agregados por recorte (pop, ram_bands, ed_adopt/ed_groups/ed_count/profiles, pressure, rank_ed, series); ver docs/NUTELLABOOT.md"
           },
           "403": {
             "description": "role_required"

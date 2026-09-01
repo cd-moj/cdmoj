@@ -24,20 +24,38 @@ convert -size 40x40 xc:red "$C/users/alice/photo.png" 2>/dev/null || printf 'x' 
 # árvore de sedes: o select de Sede da ESTATÍSTICA espelha o do placar (RTREE embutido)
 jq -n '[{name:"Brasil", regex:"^(alice|bob)$", subregions:[{name:"Rio", regex:"^alice$"}]}]' > "$C/regions.json"
 # cache do nutellaboot (mínimo): a página mlinux.html do relatório nasce dele — SEM MACs
-jq -n '{collected_at:1788000000, window:{start:1787990000, end:1788010000}, skipped:[],
+# shape do relatório 2.0 (pop/ram_bands/ed_*/profiles/pressure/rank_ed); `teams`, `machines`,
+# `_rows` na sede são ISCA: nenhum pode vazar p/ o mlinux.html
+jq -n '{version:2, collected_at:1788000000, window:{start:1787990000, end:1788010000},
+  contest:{start:1787993600, end:1788007000}, link:{mode:"ua", linked:1, teams:1, coverage:100}, skipped:[],
   global:{machines_total:2, seen:2, firewall_off:0, screen_lock:0, alerts:0, disk_high:0, bound:0,
-    ram_total_mb:23436, cores_total:12, cpu:{"Intel i5":1,"Intel i7":1}, ram_buckets:{"8":1,"16":1},
+    pop:{seen:2, used:2, linked:1, chosen:1, ranked:1, tm:2, teams:1},
+    ram_total_mb:23436, cores_total:12, ram_sum_tm:23436, ram_n_tm:2, ram_avg_sites:11718,
+    cpu:{"Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz":1,"12th Gen Intel(R) Core(TM) i7-12700":1}, cpu_tm:{"Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz":1,"12th Gen Intel(R) Core(TM) i7-12700":1},
+    ram_bands:{"8":1,"16":1}, ram_bands_all:{"8":1,"16":1},
     editors:{code:130}, editors_total_min:195, editors_machines:{code:2},
-    series:[{t:1787990400, act:2, mem_sum:40, mem_n:2, ld_sum:1.0, ld_n:2, ld_max:0.7, ed:{code:1}}]},
-  by_node:{Brasil:{machines_total:2, seen:2, ram_total_mb:23436, cores_total:12,
-    cpu:{"Intel i5":1,"Intel i7":1}, ram_buckets:{"8":1,"16":1}, editors:{code:130},
-    editors_total_min:195, editors_machines:{code:2}, series:[]}},
+    ed_min:{code:150}, ed_min_total:150, ed_adopt:{code:2}, ed_groups:{vscode:2}, ed_count:{"1":2}, profiles:{vscode:2},
+    ld_sum:40, ld_n:80, ld_max:1.2, mem_sum:3200, mem_n:80, sw_sum:8000, sw_n:80,
+    pressure:{"8|vscode":{n:1, mem_sum:2000, mem_n:40, sw_sum:8000, sw_n:40, sw_max:400, mem0_sum:450, mem0_n:10, mem4_sum:600, mem4_n:10,
+                          series:[{t:0, mem_sum:900, mem_n:20, sw_sum:3000, sw_n:20},{t:1800, mem_sum:1100, mem_n:20, sw_sum:5000, sw_n:20}]}},
+    rank_ed:{n:1, all:{n:1, ed:{code:1}, grp:{vscode:1}, prof:{vscode:1}}, top30:{n:1, ed:{code:1}, grp:{vscode:1}, prof:{vscode:1}},
+             q1:{n:1, ed:{code:1}, grp:{vscode:1}, prof:{vscode:1}}, p10:{n:1, ed:{code:1}, grp:{vscode:1}, prof:{vscode:1}}},
+    series:[{t:1787990400, act:2, mem_sum:40, mem_n:2, ld_sum:1.0, ld_n:2, ld_max:0.7, sw_sum:100, sw_n:2, fw_off:0, ed:{code:1}}]},
+  by_node:{Brasil:{machines_total:2, seen:2, ram_total_mb:23436, cores_total:12, pop:{seen:2, used:2, linked:1, chosen:1, ranked:1, tm:2, teams:1},
+    ram_sum_tm:23436, ram_n_tm:2, ram_avg_sites:11718,
+    cpu:{"Intel i5":1,"Intel i7":1}, cpu_tm:{"Intel i5":1,"Intel i7":1}, ram_bands:{"8":1,"16":1}, ram_bands_all:{"8":1,"16":1}, editors:{code:130},
+    editors_total_min:195, editors_machines:{code:2}, ed_adopt:{code:2}, ed_groups:{vscode:2}, ed_count:{"1":2}, profiles:{vscode:2},
+    pressure:{}, rank_ed:{n:1, all:{n:1,ed:{},grp:{},prof:{}}, top30:{n:1,ed:{},grp:{},prof:{}}, q1:{n:1,ed:{},grp:{},prof:{}}, p10:{n:1,ed:{},grp:{},prof:{}}}, series:[]}},
   sedes:[{id:"26brxrio", name:"Rio", country:"br", fullname:"Rio", teams:["alice"],
     machines_total:2, seen:2, firewall_off:0, screen_lock:0, alerts:0, disk_high:0, bound:0,
-    ram_total_mb:23436, cores_total:12, ram_avg_mb:11718, cores_avg:6,
-    cpu:{"Intel i5":1,"Intel i7":1}, ram_buckets:{"8":1,"16":1}, editors:{code:130},
-    editors_total_min:195, editors_machines:{code:2},
-    machines:[{mac:"de-ad-be-ef-00-01", processor:"Intel i5", cores:4, mem_mb:7812,
+    pop:{seen:2, used:2, linked:1, chosen:1, ranked:1, tm:2, teams:1},
+    ram_total_mb:23436, cores_total:12, ram_avg_mb:11718, cores_avg:6, ram_sum_tm:23436, ram_n_tm:2,
+    cpu:{"Intel i5":1,"Intel i7":1}, cpu_tm:{"Intel i5":1,"Intel i7":1}, ram_bands:{"8":1,"16":1}, ram_bands_all:{"8":1,"16":1}, editors:{code:130},
+    editors_total_min:195, editors_machines:{code:2}, ed_adopt:{code:2}, ed_groups:{vscode:2}, ed_count:{"1":2}, profiles:{vscode:2},
+    pressure:{}, rank_ed:{n:1, all:{n:1,ed:{code:1},grp:{vscode:1},prof:{vscode:1}}, top30:{n:1,ed:{code:1},grp:{vscode:1},prof:{vscode:1}},
+                          q1:{n:1,ed:{code:1},grp:{vscode:1},prof:{vscode:1}}, p10:{n:1,ed:{code:1},grp:{vscode:1},prof:{vscode:1}}},
+    _rows:[{l:"alice", pts:40, rank:1, eds:["code"], band:"8", prof:"vscode"}],
+    machines:[{mac:"de-ad-be-ef-00-01", processor:"Intel i5", cores:4, mem_mb:7812, team:"alice", chosen:true, used:true,
                editors_time:{code:120,total:150}, fw:true, sl:false, home_pct:10, binding:null}],
     bindings:[], series:[],
     ranks:{geral:{ram:1,cpu:1,ed:1,n:1}, pais:{ram:1,cpu:1,ed:1,n:1}}}]}' > "$C/var/nutella.cache.json"
@@ -153,6 +171,9 @@ ck "mlinux: entra na NAV das outras"       'grep -q "mlinux.html" "$R/index.html
 ck "mlinux: view + dados embutidos"        'grep -q "mlinuxSections" "$R/mlinux.html" && grep -q "NBDATA" "$R/mlinux.html"'
 ck "mlinux: hierarquia (RTREE) presente"   'grep -q "const RTREE=" "$R/mlinux.html"'
 ck "mlinux: SEM MAC no relatório"          '! grep -q "de-ad-be-ef" "$R/mlinux.html"'
+ck "mlinux 2.0: rank_ed/pressure/link e a view nova (cpuInfo) embutidos" 'grep -q "\"rank_ed\"" "$R/mlinux.html" && grep -q "\"pressure\"" "$R/mlinux.html" && grep -q "\"link\"" "$R/mlinux.html" && grep -q "function cpuInfo" "$R/mlinux.html" && grep -q "function multiLineChart" "$R/mlinux.html"'
+ck "mlinux 2.0: NADA por time vaza (teams/_rows/machines)" '! grep -q "_rows" "$R/mlinux.html" && ! grep -q "alice" "$R/mlinux.html"'
+ck "mlinux 2.0: árvore com view (nós que agregam ficam fora da comparação)" 'grep -q "\"view\":" "$R/mlinux.html"'
 ck "mlinux: sem script externo (invariante)" '! grep -qE "<script src=|import |fetch\(" "$R/mlinux.html"'
 ck "estatísticas: nó Brasil TEM recorte (agregado por regex)" \
   'grep -qE "\"Brasil\": *\{" "$R/statistics.html"'

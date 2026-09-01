@@ -615,8 +615,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `.cstaff`/`.staff`; POST config/collect/push-roster/command — **comando é fail-closed**:
   staff sem escopo explícito = 403); view única `web/lib/mlinux-view.js` p/ painel
   (Operação → mlinux), página avulsa `/contest/mlinux/` e o `mlinux.html` do relatório
-  (SEM MAC). Teste com mock: `smoke-contest-nutella.sh`. Comando novo se valida na
-  imagem de TESTE `26tete`, nunca numa sede real.
+  (SEM MAC/teams/_rows). **Relatório 2.0 (01/09)**: o coletor deriva POR MÁQUINA só dos
+  pontos DENTRO da prova (samples com `since/until`; bruto em `var/nutella-raw/` +
+  `--reaggregate`), casa máquina↔time pelo `machine_id` do UA do login (`var/access.log`)
+  e guarda por sede só somas/contagens (`pop`, `ram_bands`, `ed_adopt`, `profiles`,
+  `pressure`, `rank_ed`); `sc_place_map` (score-common) é a posição no placar dos dois
+  consumidores (relatório e coletor). O jq do coletor mora em VARIÁVEIS — o
+  `jq-portability.sh` não o compila: rode os smokes com o jq 1.7 antes de deployar. Teste
+  com mock: `smoke-contest-nutella.sh`. Comando novo se valida na imagem de TESTE `26tete`,
+  nunca numa sede real.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

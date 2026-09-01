@@ -3,7 +3,8 @@
 
 Serve fixtures de um diretório e REGISTRA todo POST/PUT em <dir>/posts.log
 (uma linha JSON: {method, path, body}) — é assim que o smoke prova que o
-comando/roster chegou com o shape certo. Exige `Authorization: Bearer $NB_MOCK_KEY`
+comando/roster chegou com o shape certo. O GET de samples vai a <dir>/gets.log COM a
+query string (prova do since/until da janela). Exige `Authorization: Bearer $NB_MOCK_KEY`
 (401 sem ela — cobre o caminho de chave inválida).
 
 Uso: nutella-mock.py <fixdir> <portfile>   (escuta em 127.0.0.1:0 e grava a porta)
@@ -64,6 +65,9 @@ class H(BaseHTTPRequestHandler):
             return self._file(f"machines.{m.group(1)}.json")
         m = re.fullmatch(r"/api/v1/site-images/([\w.-]+)/machines/([\w:-]+)/samples", path)
         if m:
+            # o smoke prova que o coletor pede a JANELA (since/until): o GET vai ao log com a query
+            with open(os.path.join(FIX, "gets.log"), "a") as f:
+                f.write(json.dumps({"method": "GET", "path": self.path}) + "\n")
             return self._file(f"samples.{m.group(1)}.{m.group(2)}.json")
         m = re.fullmatch(r"/api/v1/site-images/([\w.-]+)/commands", path)
         if m:
