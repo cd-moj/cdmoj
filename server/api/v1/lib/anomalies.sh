@@ -158,29 +158,35 @@ an_build(){
         --slurpfile nut "$W/nut.json" --slurpfile sl "$W/sl.json" \
         --arg mode "$mode" --arg single "$single" --arg round "$s" \
         --argjson cs "$cs" --argjson ce "$ce" --argjson ws "$ws" --argjson now "$EPOCHSECONDS" '
-    def role($l): ($l | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$"));
-    def mkey($ip; $ua):
+    # sem regex nos caminhos quentes: jq recompila a regex a CADA chamada (test ≈ 6 µs, capture
+    # ≈ 17 µs; eram ~30 mil chamadas por apuração na LATAM = metade do jq final)
+    def role($l): ($l | (endswith(".admin") or endswith(".judge") or endswith(".cjudge") or endswith(".staff")
+                         or endswith(".cstaff") or endswith(".mon") or endswith(".animeitor")));
+    # chave de máquina do UA (null se não é mlinux); o fallback "ip:<ip>" é do mk() abaixo
+    def mkey($ua):
       ((($ua | capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/(?<boot>[0-9]+)")) // null) as $m
-       | if $m != null then ("m:" + $m.mid + "/" + $m.boot) else ("ip:" + $ip) end);
+       | if $m != null then ("m:" + $m.mid + "/" + $m.boot) else null end);
     def mid($k): (if (($k // "") | startswith("m:")) then ($k[2:] | split("/")[0]) else null end);
     def ism($k): (($k // "") | startswith("m:"));
     def short($ua): ($ua | if length > 60 then (.[0:57] + "…") else . end);
     # canal do pedido pelo UA: a CLI se marca "moj-<tool>/<build>" (moj-cli/lib/core.sh); navegador
     # começa por "Mozilla/"; o resto (curl cru, scripts) é "other"
-    def chan($ua): (if ($ua | test("moj(-comp|-contest|-judges)?/")) then "cli"
+    def chan($ua): (if ($ua | (contains("moj/") or contains("moj-comp/") or contains("moj-contest/") or contains("moj-judges/"))) then "cli"
                     elif ($ua | startswith("Mozilla/")) then "web" else "other" end);
     ($users[0] // {}) as $U
     | ($exp[0] // {}) as $E
     | ($nut[0] // null) as $N
     | ([ $acc[].ua64, $sess[].ua64, $sub[].ua64, $sub[].sua64 ] | map(select(. != null and . != "")) | unique
        | map({key:., value:(try (. | @base64d) catch "?")}) | from_entries) as $DEC
-    | ([ $acc[] | select(role(.login) | not)
-         | . + {ua:($DEC[.ua64] // ""), key:(mkey(.ip; ($DEC[.ua64] // ""))), in:(.t >= $cs)} ]) as $A
+    | ($DEC | with_entries(.value |= (if contains("MLinux/") then mkey(.) else null end))) as $MKM
+    | def mk($ip; $u64): ($MKM[$u64 // ""] // ("ip:" + $ip));   # (após um def vem um termo, sem "|")
+      ([ $acc[] | select(role(.login) | not)
+         | . + {ua:($DEC[.ua64] // ""), key:(mk(.ip; .ua64)), in:(.t >= $cs)} ]) as $A
     | ([ $sess[] | select(role(.login) | not)
-         | . + {ua:($DEC[.ua64] // ""), key:(if (.mkey // "") != "" then .mkey else (mkey(.ip; ($DEC[.ua64] // ""))) end)} ]) as $S
-    | ([ $sub[] | . + {ua:($DEC[.ua64] // ""), key:(mkey(.ip; ($DEC[.ua64] // "")))}
+         | . + {ua:($DEC[.ua64] // ""), key:(if (.mkey // "") != "" then .mkey else (mk(.ip; .ua64)) end)} ]) as $S
+    | ([ $sub[] | . + {ua:($DEC[.ua64] // ""), key:(mk(.ip; .ua64))}
          | . + {skey:(if (.smkey // "") != "" then .smkey
-                      elif (.sua64 // "") != "" then (mkey(.sip; ($DEC[.sua64] // ""))) else "" end)} ]) as $B
+                      elif (.sua64 // "") != "" then (mk(.sip; .sua64)) else "" end)} ]) as $B
     | (($mode == "enforce") and (([ $E | to_entries[] | select((.value // "") != "") ] | length) > 0)) as $active
     # canais na janela da PROVA: logins (access.log) e submissões (submit-origin; offline = sessão vazia)
     | { logins: (reduce ($A[] | select(.in) | chan(.ua)) as $c ({web:0, cli:0, other:0}; .[$c] += 1)),
@@ -245,8 +251,8 @@ an_build(){
         # sessões por CLASSE (todas as do contest, papéis inclusos): é o que a caixa "sair em
         # massa" mostra — sem varrer o diretório global de sessões (20 mil arquivos na produção)
         session_classes: { competitors: ([ $sess[] | select(role(.login) | not) ] | length),
-                           staff: ([ $sess[] | select(.login | test("\\.(staff|cstaff)$")) ] | length),
-                           privileged: ([ $sess[] | select(.login | test("\\.(admin|judge|cjudge|mon|animeitor)$")) ] | length) },
+                           staff: ([ $sess[] | select(.login | (endswith(".staff") or endswith(".cstaff"))) ] | length),
+                           privileged: ([ $sess[] | select(.login | (endswith(".admin") or endswith(".judge") or endswith(".cjudge") or endswith(".mon") or endswith(".animeitor"))) ] | length) },
         counts: { sessions: ($S | length), teams_live: ($SESS | length),
                   multi_session: ([ $AN[] | select(.kind == "multi_session") ] | length),
                   machine_shared: ([ $AN[] | select(.kind == "machine_shared") ] | length),
