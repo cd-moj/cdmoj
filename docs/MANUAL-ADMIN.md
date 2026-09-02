@@ -403,6 +403,11 @@ avisa e mostra só as sessões e o log de acessos.
 - **Times**: só os com alguma anomalia (ou todos com sessão): sessões vivas e em quantas máquinas,
   as máquinas usadas na prova em ordem, a última submissão (✓ veio da máquina da sessão; ✗ não) e as
   anomalias como etiquetas.
+- **🚪 Sair em massa e trava de login**: a troca de rodada em três cliques — **fechar o login**
+  (competidor recebe 403 `login_disabled`; a organização entra), **deslogar competidores**, **staff e
+  chefes de sede** ou os dois (nunca admin, juízes, chefe, monitor nem telão), promover a rodada em
+  Prova › Rodadas, e **reabrir o login** quando os times puderem entrar. Cada sessão derrubada vira
+  evento na linha do tempo; a ação vai ao audit (`logout-all`).
 - **🔒 Trava de sede**: os IPs presos a esta prova (logins, bloqueios, até quando), os bloqueios
   registrados (quando, IP, alvo, rota, sessão) e os botões **soltar** e **prender IPs já vistos**.
   O cartão "bloqueios da trava" e os eventos 🔒 da linha do tempo vêm do audit. A seção 7 explica.

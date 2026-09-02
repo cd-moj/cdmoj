@@ -49,7 +49,7 @@ const mkText = (k) => (k || '').split(' → ').map((x) => x.startsWith('m:') ? x
 export function makeSessionsTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };
   const panel = el('div', {});
-  let DATA = null, SLOCK = null, timer = null;
+  let DATA = null, SLOCK = null, LOGALL = null, timer = null;
   let filterKind = '', filterText = '', showAll = false;
 
   // --- ações ------------------------------------------------------------------------------
@@ -94,6 +94,46 @@ export function makeSessionsTab(CONTEST) {
       el('div', { class: 'dash-cards' },
         cell(L.web, T('logins web', 'web logins')), cell(L.cli, T('logins CLI', 'CLI logins')), cell(L.other, T('logins outros', 'other logins')),
         cell(S.web, T('submissões web', 'web submissions')), cell(S.cli, T('submissões CLI', 'CLI submissions')), cell(S.offline, T('pacotes offline', 'offline packets'))));
+  }
+
+  // --- 1c. sair em massa + trava de login (troca de rodada) --------------------------------
+  function massLogout(d) {
+    const st = LOGALL || {};
+    const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' });
+    const open = st.login_enabled !== false;
+    const msg = el('span', { class: 'small' });
+    const closeChk = el('input', { type: 'checkbox', checked: true });
+    const run = async (body, label) => {
+      if (!confirm(label)) return;
+      msg.textContent = '…';
+      try {
+        const r = await apiPost('/contest/admin/logout-all?contest=' + enc(CONTEST), body, G);
+        msg.textContent = T(`✓ ${r.competitors || 0} competidor(es) e ${r.staff || 0} staff deslogado(s); login ${r.login_enabled ? 'aberto' : 'FECHADO'}`,
+          `✓ ${r.competitors || 0} competitor(s) and ${r.staff || 0} staff logged out; login ${r.login_enabled ? 'open' : 'CLOSED'}`);
+        await load();
+      } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+    };
+    const scopeBtn = (scope, label, hint) => el('button', { class: 'btn danger', title: hint, onclick: () => run(
+      Object.assign({ scope }, closeChk.checked ? { close_login: true } : {}),
+      T(`Deslogar ${label} agora${closeChk.checked ? ' e FECHAR o login' : ''}? Eles voltam só quando o login estiver aberto.`,
+        `Log out ${label} now${closeChk.checked ? ' and CLOSE login' : ''}? They come back only once login is open.`)) }, label);
+    box.append(el('h3', { style: 'margin:.1rem 0 .3rem' }, T('🚪 Sair em massa e trava de login', '🚪 Mass logout and login lock')),
+      el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
+        T('A troca de rodada: feche o login, derrube todo mundo, promova a rodada (Prova › Rodadas) e reabra quando os times puderem entrar. Nunca derruba admin, juízes, chefe, monitor nem telão. Cada sessão derrubada vira evento; a ação vai ao audit.',
+          'The round switch: close login, log everyone out, promote the round (Contest › Rounds) and reopen once teams may enter. Never logs out admin, judges, chief, monitor or the big screen. Each dropped session becomes an event; the action goes to the audit.')),
+      el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap' },
+        el('span', { class: 'pill ' + (open ? 'ok' : 'bad') }, open ? T('login ABERTO', 'login OPEN') : T('login FECHADO', 'login CLOSED')),
+        el('span', { class: 'small muted' }, T(`sessões: ${(st.sessions || {}).competitors || 0} competidores · ${(st.sessions || {}).staff || 0} staff/cstaff · ${(st.sessions || {}).privileged || 0} organização`,
+          `sessions: ${(st.sessions || {}).competitors || 0} competitors · ${(st.sessions || {}).staff || 0} staff/cstaff · ${(st.sessions || {}).privileged || 0} organization`)),
+        open ? el('button', { class: 'btn ghost', onclick: () => run({ close_login: true }, T('Fechar o login (sem derrubar ninguém)?', 'Close login (without logging anyone out)?')) }, T('🔒 Fechar login', '🔒 Close login'))
+          : el('button', { class: 'btn', onclick: () => run({ open_login: true }, T('Reabrir o login para os times?', 'Reopen login for the teams?')) }, T('🔓 Reabrir login', '🔓 Reopen login'))),
+      el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:.4rem' },
+        scopeBtn('competitors', T('competidores', 'competitors'), T('toda conta que não é de papel', 'every non-role account')),
+        scopeBtn('staff', T('staff e chefes de sede', 'staff and site chiefs'), '.staff + .cstaff'),
+        scopeBtn('all', T('competidores + staff', 'competitors + staff'), ''),
+        el('label', { class: 'small', style: 'display:inline-flex;gap:.3rem;align-items:center' }, closeChk, T('e fechar o login junto', 'and close login as well')),
+        msg));
+    return box;
   }
 
   // --- 2. cartões -------------------------------------------------------------------------
@@ -343,23 +383,24 @@ export function makeSessionsTab(CONTEST) {
     if (!DATA) { panel.append(el('p', { class: 'muted' }, T('Carregando…', 'Loading…'))); return; }
     const d = DATA;
     panel.append(el('div', { class: 'section' }, el('h2', {}, T('🛡 Sessões & anomalias', '🛡 Sessions & anomalies')), stateBar(d),
-      d.gate && d.gate.active ? cards(d) : null, channels(d)));
+      d.gate && d.gate.active ? cards(d) : null, channels(d), massLogout(d)));
     if (d.gate && d.gate.active) { panel.append(timeline(d)); panel.append(teamsTable(d)); }
     const slb = siteLockSection(); if (slb) panel.append(slb);
     panel.append(sessionsSection(), accessSection(), legend());
   }
   async function load() {
     try {
-      [DATA, SLOCK] = await Promise.all([
+      [DATA, SLOCK, LOGALL] = await Promise.all([
         apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G),
         apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null),
+        apiGet('/contest/admin/logout-all?contest=' + enc(CONTEST), G).catch(() => null),
       ]);
     } catch (e) { panel.innerHTML = ''; panel.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load'))); return; }
     render();
     if (timer) clearInterval(timer);
     timer = setInterval(async () => {
       if (panel.hidden || !panel.isConnected) return;
-      try { [DATA, SLOCK] = await Promise.all([apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G), apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null)]); render(); } catch { /* mantém o último */ }
+      try { [DATA, SLOCK, LOGALL] = await Promise.all([apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G), apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null), apiGet('/contest/admin/logout-all?contest=' + enc(CONTEST), G).catch(() => null)]); render(); } catch { /* mantém o último */ }
     }, REFRESH_MS);
   }
   return { panel, load };

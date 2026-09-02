@@ -5733,6 +5733,20 @@
         }
       }
     },
+    "/contest/admin/logout-all": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Sair em massa + trava de login (admin): estado do login e sessões por classe",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "{login_enabled, sessions:{competitors,staff,privileged}}"}, "403": {"description": "admin_required"}}
+      },
+      "post": {
+        "tags": ["contest"],
+        "summary": "{scope:competitors|staff|all, close_login?, open_login?} — derruba as sessões do escopo (nunca admin/juiz/chefe/monitor/telão) e/ou fecha/reabre o login; auditado",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "{logged_out, scope, competitors, staff, login_enabled}"}, "403": {"description": "admin_required"}, "422": {"description": "scope_invalid | conflict"}}
+      }
+    },
     "/contest/admin/logout-user": {
       "post": {
         "tags": [

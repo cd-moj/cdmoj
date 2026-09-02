@@ -42,7 +42,11 @@ export function makeRoundsTab(CONTEST, opts = {}) {
     const pr = DATA.promote_ready || { ok: false, blockers: [] };
     const next = DATA.next || '';
     const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' },
-      el('h3', { style: 'margin:.1rem 0 .4rem' }, T('🚀 Promover para a próxima rodada', '🚀 Promote to the next round')));
+      el('h3', { style: 'margin:.1rem 0 .4rem' }, T('🚀 Promover para a próxima rodada', '🚀 Promote to the next round')),
+      el('p', { class: 'small muted', style: 'margin:0 0 .4rem' },
+        T('Antes: feche o login e derrube competidores e staff em ', 'Before: close login and log out competitors and staff in '),
+        el('a', { href: '#pessoas/sessoes' }, T('Pessoas › Sessões & anomalias › 🚪 Sair em massa', 'People › Sessions & anomalies › 🚪 Mass logout')),
+        T('; depois de promover, reabra o login lá.', '; after promoting, reopen login there.')));
     if (!next) {
       box.append(el('p', { class: 'small muted' },
         T('Crie a próxima rodada (abaixo) para poder promover.', 'Create the next round (below) to be able to promote.')));

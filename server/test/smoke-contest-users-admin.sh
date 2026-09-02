@@ -19,7 +19,7 @@ printf 'CONTEST=uc\nLOGIN=uc.admin\nLOGINAT=1\n' > "$SESS/adm"
 mkses dave dave "Moz MOJBOX dave"
 mkses a1 alice "Moz MOJBOX 1"; mkses a2 alice "Moz MOJBOX 2"; mkses b1 bob "other"; mkses c1 carol "badUA"
 mkses cj1 cj.cjudge "badUA"   # privilegiado com UA ruim: logout-mismatch NÃO pode derrubar
-call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-adm}" \
+call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-adm}" HTTP_USER_AGENT="${6:-}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:160}"; ((fail++)); fi; }
 
@@ -58,6 +58,32 @@ ck "sessão da alice (UA bom) ficou" '[[ -f "$SESS/a3" ]]'
 ck "sessão da carol (UA ruim) saiu" '[[ ! -f "$SESS/c1" ]]'
 ck "sessão do .cjudge (privilegiado) ficou" '[[ -f "$SESS/cj1" ]]'
 ck "trilha: mismatch-logout da carol"  'grep -q "	carol	mismatch-logout	" "$C/var/session-events.log"'
+
+echo "== sair em massa + trava de login (logout-all) =="
+fx_user "$C" s1.staff x "Staff 1"; fx_user "$C" cs.cstaff x "Chefe de sede"; fx_user "$C" tv.animeitor x "Telão"; fx_user "$C" mo.mon x "Monitor"
+mkses st1 s1.staff "Moz"; mkses cs1 cs.cstaff "Moz"; mkses tv1 tv.animeitor "Moz"; mkses mo1 mo.mon "Moz"; mkses jx1 jx.judge "Moz"
+mkses a4 alice "Moz"; mkses d2 dave "Moz"
+call /contest/admin/logout-all GET '' adm 'contest=uc'
+ck "GET: login aberto, contagens por classe" '[[ "$(jq -r .login_enabled <<<"$BODY")" == true && "$(jq -r .sessions.staff <<<"$BODY")" == 2 && "$(jq -r .sessions.competitors <<<"$BODY")" -ge 2 ]]'
+call /contest/admin/logout-all POST '{"scope":"competitors","close_login":true}' adm 'contest=uc'
+ck "competidores fora, staff e privilegiados FICAM, login fechado" '[[ "$(jq -r .competitors <<<"$BODY")" -ge 2 && "$(jq -r .staff <<<"$BODY")" == 0 && "$(jq -r .login_enabled <<<"$BODY")" == false && ! -f "$SESS/a4" && ! -f "$SESS/d2" && -f "$SESS/st1" && -f "$SESS/cs1" && -f "$SESS/tv1" && -f "$SESS/mo1" && -f "$SESS/jx1" && -f "$SESS/cj1" && -f "$SESS/adm" ]]'
+ck "LOGIN_ENABLED=n no conf; audit logout-all" 'grep -q "^LOGIN_ENABLED=n$" "$C/conf" && grep -q "	logout-all	scope=competitors competitors=" "$C/var/admin-audit.log" && grep -q "login=closed" "$C/var/admin-audit.log"'
+ck "trilha: eventos logout com quem mandou" 'grep -q "	alice	logout	" "$C/var/session-events.log" && grep -q "	uc.admin$" "$C/var/session-events.log"'
+call /auth/login POST '{"username":"alice","password":"secreta"}' none 'contest=uc' 'Moz MOJBOX'
+ck "login fechado: competidor → 403 login_disabled" '[[ "$OUT" == *"Status: 403"* && "$(jq -r .error.code <<<"$BODY")" == login_disabled ]]'
+call /auth/login POST '{"username":"uc.admin","password":"p"}' none 'contest=uc' 'Moz MOJBOX'
+ck "login fechado: papel entra"  '[[ "$(jq -r .logged_in <<<"$BODY")" == true ]]'
+call /contest/admin/logout-all POST '{"scope":"staff"}' adm 'contest=uc'
+ck "scope staff: .staff e .cstaff fora; monitor/telão/juiz ficam" '[[ "$(jq -r .staff <<<"$BODY")" == 2 && ! -f "$SESS/st1" && ! -f "$SESS/cs1" && -f "$SESS/tv1" && -f "$SESS/mo1" && -f "$SESS/jx1" ]]'
+call /contest/admin/logout-all POST '{"open_login":true}' adm 'contest=uc'
+ck "reabrir login apaga LOGIN_ENABLED"  '[[ "$(jq -r .login_enabled <<<"$BODY")" == true ]] && ! grep -q "^LOGIN_ENABLED=" "$C/conf"'
+call /auth/login POST '{"username":"alice","password":"secreta"}' none 'contest=uc' 'Moz MOJBOX'
+ck "login reaberto: competidor entra"   '[[ "$(jq -r .logged_in <<<"$BODY")" == true ]]'
+call /contest/admin/logout-all POST '{"scope":"tudo"}' adm 'contest=uc'
+ck "scope inválido → 422"               '[[ "$OUT" == *"Status: 422"* ]]'
+call /contest/admin/logout-all POST '{"scope":"all"}' cj1 'contest=uc'
+ck "chefe (não-admin) → 403"            '[[ "$OUT" == *"Status: 403"* ]]'
+mkses dave dave "Moz MOJBOX dave"   # os testes seguintes usam a sessão do dave (derrubada acima)
 
 echo "== carga em lote (users-bulk, legado) =="
 call /contest/admin/users-bulk POST '{"users":[{"login":"nova1","fullname":"Nova Um"},{"login":"nova2","password":"pw2","fullname":"Nova Dois","email":"n2@x.com"},{"login":"alice","fullname":"Alice X"},{"login":"jx.judge","fullname":"Hack"},{"login":"inv@lido!","fullname":"X"},{"login":"nova1","fullname":"dup"}]}' adm 'contest=uc'
