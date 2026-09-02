@@ -4610,7 +4610,7 @@
           {"name": "round", "in": "query", "required": false, "schema": {"type": "string"}}
         ],
         "responses": {
-          "200": {"description": "{gate:{mode,single_session,active}, round, window, computed_at, counts, anomalies[], events[], teams[], machines[], sites[], nutella_at} — ver docs/API.md"},
+          "200": {"description": "{gate:{mode,single_session,active}, round, window, computed_at, session_classes:{competitors,staff,privileged}, counts, anomalies[], events[], teams[], machines[], sites[], nutella_at} — ver docs/API.md"},
           "400": {"description": "round_invalid"},
           "403": {"description": "admin_required"},
           "404": {"description": "round_notfound"}

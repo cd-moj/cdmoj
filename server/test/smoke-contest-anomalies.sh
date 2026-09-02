@@ -96,6 +96,7 @@ ck "teams: 004 só de manhã, sem troca"  '[[ "$(J ".teams[]|select(.login==\"te
 ck "machines: M3 compartilhada e viva"  '[[ "$(J ".machines[]|select(.key==\"m:$MIDC/3003\")|.shared")" == true ]]'
 ck "papéis fora de tudo"              '[[ "$(J "[.teams[].login]|index(\"an.admin\")")" == null ]]'
 ck "cache de resposta gravado"        '[[ -s "$C/var/.anomalies-cache.active.json" ]]'
+ck "session_classes: 6 competidores, 0 staff, 2 organização" '[[ "$(J ".session_classes|[.competitors,.staff,.privileged]|join(\",\")")" == "6,0,2" ]]'
 ck "canais: logins web=5 cli=1 other=2 (NAT/Chrome); submissões web=3 cli=1 offline=1" \
    '[[ "$(J ".channels.logins|[.web,.cli,.other]|join(\",\")")" == "5,1,2" && "$(J ".channels.submissions|[.web,.cli,.offline]|join(\",\")")" == "3,1,1" ]]'
 ck "CLI com o UA da máquina tem a MESMA chave (sem troca falsa p/ 004)" '[[ "$(K switched .login)" != *teamaa004* ]]'
@@ -119,5 +120,8 @@ for i in $(seq 1 1500); do printf '%s\tteamzz%04d\t10.1.%d.%d\t%s\n' "$((CS+i))"
 for i in $(seq 1 1500); do fx_user "$C" "$(printf 'teamzz%04d' $i)" x "Z $i" >/dev/null; done
 call /contest/admin/anomalies GET '' adm 'contest=an'
 ck "1500 logins (access.log >128 KiB): corpo válido e contagens intactas" '[[ "$(J .success)" == true && "$(stat -c %s "$C/var/access.log")" -gt 131072 && "$(J .counts.multi_session)" == 1 && "$(J .counts.teams_live)" == 5 ]]'
+
+call /contest/admin/logout-all GET '' adm 'contest=an'
+ck "logout-all GET pelo ÍNDICE (semeado) bate com as classes" '[[ "$(J ".sessions|[.competitors,.staff,.privileged]|join(\",\")")" == "6,0,2" && "$(J .login_enabled)" == true ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

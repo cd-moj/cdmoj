@@ -104,20 +104,34 @@ an_build(){
           | {login:.[0], tok8:.[1], ip:.[2], ua64:.[3], at:(.[4]|tonumber? // 0), mkey:.[5]}' \
     "$W/sess.txt" > "$W/sess.json" 2>/dev/null || : > "$W/sess.json"
   # --- identidade dos times (UMA varredura, molde do rd_machines) ---------------------------
-  find "$(users_dir "$c")" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-    | xargs -0 -r jq -c '((input_filename | split("/"))[-2]) as $l
-        | {key:$l, value:{name:(.fullname // .team.name // $l), region:((.team.region) // "")}}' 2>/dev/null \
-    | jq -cs 'from_entries' > "$W/users.json"
+  # Cache de 5 min (var/.an-users.json): 2.300 account.json por chamada eram ~0,4 s dos 1,4 s da
+  # rota na LATAM; nome/sede mudam raramente e 5 min de atraso num rótulo é inofensivo.
+  local ucache="$cdir/var/.an-users.json"
+  if resp_cache_fresh "$ucache" 300; then cp -f "$ucache" "$W/users.json"
+  else
+    find "$(users_dir "$c")" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
+      | xargs -0 -r jq -c '((input_filename | split("/"))[-2]) as $l
+          | {key:$l, value:{name:(.fullname // .team.name // $l), region:((.team.region) // "")}}' 2>/dev/null \
+      | jq -cs 'from_entries' > "$W/users.json"
+    [[ -s "$W/users.json" ]] && resp_cache_store "$ucache" "$(cat "$W/users.json")"
+  fi
   [[ -s "$W/users.json" ]] || printf '{}' > "$W/users.json"
   # --- gate: modo + esperado por login (lote) -----------------------------------------------
+  # Cache de 5 min invalidado por ua-gate.json/regions.json (o conjunto de logins muda pouco;
+  # um login novo entra no esperado na próxima regeração — ua_mismatch tolera 5 min).
   local gj mode single; gj="$(ug_get "$c")"
   mode="$(jq -r '.mode' <<<"$gj")"; single="$(jq -r '.single_session' <<<"$gj")"
   printf '{}' > "$W/exp.json"
   if [[ "$mode" == enforce ]]; then
-    jq -sc '[ .[].login ] | unique' "$W/acc.json" "$W/sess.json" 2>/dev/null > "$W/logins.json" || printf '[]' > "$W/logins.json"
-    ug_expected_map "$c" "$(cat "$W/logins.json")" \
-      "$(jq -c 'with_entries(.value |= .region)' "$W/users.json" 2>/dev/null || echo '{}')" > "$W/exp.json" 2>/dev/null \
-      || printf '{}' > "$W/exp.json"
+    local ecache="$cdir/var/.an-exp.json"
+    if resp_cache_fresh "$ecache" 300 "$cdir/ua-gate.json" "$cdir/regions.json" "$cdir/var/access.log"; then cp -f "$ecache" "$W/exp.json"
+    else
+      jq -sc '[ .[].login ] | unique' "$W/acc.json" "$W/sess.json" 2>/dev/null > "$W/logins.json" || printf '[]' > "$W/logins.json"
+      ug_expected_map "$c" "$(cat "$W/logins.json")" \
+        "$(jq -c 'with_entries(.value |= .region)' "$W/users.json" 2>/dev/null || echo '{}')" > "$W/exp.json" 2>/dev/null \
+        || printf '{}' > "$W/exp.json"
+      [[ -s "$W/exp.json" ]] && resp_cache_store "$ecache" "$(cat "$W/exp.json")"
+    fi
     [[ -s "$W/exp.json" ]] || printf '{}' > "$W/exp.json"
   fi
   # --- nutellaboot (sedes × máquinas), se houver coleta ----------------------------------------
@@ -215,6 +229,11 @@ an_build(){
         gate: {mode:$mode, single_session:($single == "true"), active:$active},
         round: $round, window: {start:$cs, end:$ce, since:$ws}, computed_at: $now,
         # contagens saem de $AN: com o gate inativo tudo zera (as sessões e a trilha ficam)
+        # sessões por CLASSE (todas as do contest, papéis inclusos): é o que a caixa "sair em
+        # massa" mostra — sem varrer o diretório global de sessões (20 mil arquivos na produção)
+        session_classes: { competitors: ([ $sess[] | select(role(.login) | not) ] | length),
+                           staff: ([ $sess[] | select(.login | test("\\.(staff|cstaff)$")) ] | length),
+                           privileged: ([ $sess[] | select(.login | test("\\.(admin|judge|cjudge|mon|animeitor)$")) ] | length) },
         counts: { sessions: ($S | length), teams_live: ($SESS | length),
                   multi_session: ([ $AN[] | select(.kind == "multi_session") ] | length),
                   machine_shared: ([ $AN[] | select(.kind == "machine_shared") ] | length),

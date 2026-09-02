@@ -98,7 +98,7 @@ export function makeSessionsTab(CONTEST) {
 
   // --- 1c. sair em massa + trava de login (troca de rodada) --------------------------------
   function massLogout(d) {
-    const st = LOGALL || {};
+    const st = Object.assign({}, LOGALL || {}, { sessions: (d && d.session_classes) || (LOGALL && LOGALL.sessions) || {} });
     const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' });
     const open = st.login_enabled !== false;
     const msg = el('span', { class: 'small' });
@@ -214,8 +214,11 @@ export function makeSessionsTab(CONTEST) {
     const f = filterText.trim().toLowerCase();
     const rows = items.filter((x) => (!filterKind || x.kind === filterKind)
       && (!f || [x.login, x.name, x.region, x.machine, JSON.stringify(x.detail || {})].join(' ').toLowerCase().includes(f)));
-    const fText = el('input', { type: 'search', value: filterText, placeholder: T('time, sede, máquina…', 'team, site, machine…'), style: 'min-width:220px' });
-    fText.addEventListener('input', () => { filterText = fText.value; renderBody(); });
+    if (!SK.fText) {
+      SK.fText = el('input', { type: 'search', value: filterText, placeholder: T('time, sede, máquina…', 'team, site, machine…'), style: 'min-width:220px' });
+      SK.fText.addEventListener('input', () => { filterText = SK.fText.value; if (SK.tlBody) SK.tlBody(); });
+    }
+    const fText = SK.fText;
     const chips = el('div', { class: 'row', style: 'gap:.3rem;flex-wrap:wrap' },
       ...Object.keys(K).map((k) => el('button', { class: 'btn ghost small' + (filterKind === k ? ' active' : ''),
         style: filterKind === k ? 'outline:2px solid #1e57c4' : '', title: K[k].hint,
@@ -262,7 +265,7 @@ export function makeSessionsTab(CONTEST) {
       body.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
         el('th', {}, T('Quando', 'When')), el('th', {}, T('Tipo', 'Type')), el('th', {}, T('Time', 'Team')), el('th', {}, T('Máquina', 'Machine')), el('th', {}, T('Detalhe', 'Detail')), el('th', {}, ''))), tb)));
     }
-    renderBody();
+    renderBody(); SK.tlBody = renderBody;
     box.append(el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.4rem' }, fText, dl), chips, body);
     return box;
   }
@@ -378,29 +381,57 @@ export function makeSessionsTab(CONTEST) {
   }
 
   // --- render ------------------------------------------------------------------------------
-  function render() {
+  // ATUALIZAÇÃO EM LUGAR (regra da casa, cdmoj/CLAUDE.md › Frontend): o esqueleto do painel é
+  // construído UMA vez; cada tick de 30 s só troca o conteúdo dos contêineres dinâmicos, e só
+  // quando o dado mudou. Refazer o painel inteiro a cada tick fechava os <details> (sessões,
+  // log, "como ler"), zerava filtro e foco e dava a impressão de página recarregando.
+  const SK = {};            // esqueleto: nós persistentes
+  let lastSig = '';
+  function skeleton() {
+    SK.hdr = el('div', { class: 'section' }, el('h2', {}, T('🛡 Sessões & anomalias', '🛡 Sessions & anomalies')));
+    SK.state = el('div', {}); SK.cards = el('div', {}); SK.channels = el('div', {}); SK.mass = el('div', {});
+    SK.hdr.append(SK.state, SK.cards, SK.channels, SK.mass);
+    SK.tl = el('div', { class: 'section', hidden: true }); SK.teams = el('div', { class: 'section', hidden: true });
+    SK.sl = el('div', {});
+    SK.sess = sessionsSection(); SK.acc = accessSection(); SK.legend = legend();   // estáticos: uma vez
     panel.innerHTML = '';
-    if (!DATA) { panel.append(el('p', { class: 'muted' }, T('Carregando…', 'Loading…'))); return; }
-    const d = DATA;
-    panel.append(el('div', { class: 'section' }, el('h2', {}, T('🛡 Sessões & anomalias', '🛡 Sessions & anomalies')), stateBar(d),
-      d.gate && d.gate.active ? cards(d) : null, channels(d), massLogout(d)));
-    if (d.gate && d.gate.active) { panel.append(timeline(d)); panel.append(teamsTable(d)); }
-    const slb = siteLockSection(); if (slb) panel.append(slb);
-    panel.append(sessionsSection(), accessSection(), legend());
+    panel.append(SK.hdr, SK.tl, SK.teams, SK.sl, SK.sess, SK.acc, SK.legend);
+  }
+  const swap = (box, node) => { box.innerHTML = ''; if (node) box.append(node); };
+  function render() {
+    if (!DATA) return;
+    if (!SK.hdr) skeleton();
+    const d = DATA, active = !!(d.gate && d.gate.active);
+    swap(SK.state, stateBar(d));
+    swap(SK.cards, active ? cards(d) : null);
+    swap(SK.channels, channels(d));
+    swap(SK.mass, massLogout(d));
+    SK.tl.hidden = !active; SK.teams.hidden = !active;
+    if (active) { swap(SK.tl, timeline(d)); swap(SK.teams, teamsTable(d)); }
+    swap(SK.sl, siteLockSection());
+  }
+  // assinatura do que aparece na tela: computed_at muda a cada 15 s sem nada ter mudado, fica fora
+  const sig = () => JSON.stringify([DATA && [DATA.gate, DATA.counts, DATA.anomalies, DATA.events, DATA.teams, DATA.machines, DATA.sites, DATA.channels, DATA.session_classes],
+    SLOCK && [SLOCK.enabled, SLOCK.grace, SLOCK.claims, SLOCK.blocks], LOGALL && LOGALL.login_enabled]);
+  async function fetchAll() {
+    [DATA, SLOCK, LOGALL] = await Promise.all([
+      apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G),
+      apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null),
+      apiGet('/contest/admin/logout-all?contest=' + enc(CONTEST), G).catch(() => null),
+    ]);
   }
   async function load() {
-    try {
-      [DATA, SLOCK, LOGALL] = await Promise.all([
-        apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G),
-        apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null),
-        apiGet('/contest/admin/logout-all?contest=' + enc(CONTEST), G).catch(() => null),
-      ]);
-    } catch (e) { panel.innerHTML = ''; panel.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load'))); return; }
-    render();
+    if (!SK.hdr) { panel.innerHTML = ''; panel.append(el('p', { class: 'muted' }, T('Carregando…', 'Loading…'))); }
+    try { await fetchAll(); }
+    catch (e) { if (!SK.hdr) { panel.innerHTML = ''; panel.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load'))); } return; }
+    const sg = sig();
+    if (sg !== lastSig || !SK.hdr) { lastSig = sg; render(); }
     if (timer) clearInterval(timer);
     timer = setInterval(async () => {
       if (panel.hidden || !panel.isConnected) return;
-      try { [DATA, SLOCK, LOGALL] = await Promise.all([apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G), apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null), apiGet('/contest/admin/logout-all?contest=' + enc(CONTEST), G).catch(() => null)]); render(); } catch { /* mantém o último */ }
+      try { await fetchAll(); } catch { return; }   // mantém o último quadro
+      const s2 = sig(); if (s2 === lastSig) return;  // nada mudou: DOM intacto
+      lastSig = s2; render();
     }, REFRESH_MS);
   }
   return { panel, load };

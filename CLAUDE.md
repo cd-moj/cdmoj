@@ -933,6 +933,15 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   Tag que não comece por `pt` cai em `en` (mesma regra do navegador), então `?lang=es` abre em
   inglês — que é o que existe. **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
   volta), enunciados, **títulos de problema/nomes de contest/time**, corpo de notícias, tags.
+- **AUTO-REFRESH É EM LUGAR — a página NUNCA pode parecer que recarregou** (regra do Ribas,
+  2026-09-02; já tinha acontecido antes e voltou no painel Sessões & anomalias, que fechava os
+  `<details>` a cada 30 s). Painel com timer constrói o ESQUELETO uma vez e, no tick, só troca o
+  conteúdo dos contêineres dinâmicos; `<details>`, inputs de filtro, foco, caret e scroll ficam
+  nos MESMOS nós; e se o dado não mudou (compare uma assinatura do que aparece — sem
+  `computed_at`/relógio), **não toque no DOM**. `panel.innerHTML = ''` só no primeiro carregamento
+  e no erro inicial. Moldes: `sessions-tab.js` (`skeleton()`/`swap()`/`sig()`), `central-tab.js`
+  (só a caixa "Ao vivo" se refaz). Teste no harness gjs: `load()` duas vezes com o mesmo dado
+  tem de manter a identidade dos nós.
 - **Toda tela/string nova NASCE nos DOIS idiomas** (`T('pt','en')` no JS, `data-en` no HTML) — deixar
   só em PT é **bug**, igual doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`.
 - ⚠️ **Campo de data/hora: SEMPRE o par `toLocalDT`/`dtToEpoch`** (`shared/contest-config/util.js`),

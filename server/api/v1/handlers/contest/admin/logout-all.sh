@@ -22,12 +22,24 @@ _login_enabled(){ [[ "$(conf_value "$contest" LOGIN_ENABLED)" != n ]]; }
 if [[ "$REQUEST_METHOD" == GET ]]; then
   nc=0; ns=0; np=0
   set +o noglob; shopt -s nullglob
-  for f in "$SESSIONDIR"/*; do
-    [[ -f "$f" ]] || continue
-    CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
-    [[ "$CONTEST" == "$contest" && -n "$LOGIN" ]] || continue
-    case "$(_cls "$LOGIN")" in competitor) nc=$((nc+1));; staff) ns=$((ns+1));; *) np=$((np+1));; esac
-  done
+  if sess_index_seeded "$contest"; then
+    # índice por login (lib/session-index.sh): só os tokens DESTE contest — a varredura global
+    # (20 mil arquivos na produção) era o que deixava o painel lento a cada 30 s
+    for f in "$(_sidx_dir "$contest")"/*; do
+      [[ -f "$f" && "$f" != *.lock ]] || continue
+      LOGIN="${f##*/}"; n=0
+      while IFS= read -r t; do [[ -n "$t" ]] && valid_id "$t" && [[ -f "$SESSIONDIR/$t" ]] && n=$((n+1)); done < "$f"
+      (( n )) || continue
+      case "$(_cls "$LOGIN")" in competitor) nc=$((nc+n));; staff) ns=$((ns+n));; *) np=$((np+n));; esac
+    done
+  else
+    for f in "$SESSIONDIR"/*; do
+      [[ -f "$f" ]] || continue
+      CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
+      [[ "$CONTEST" == "$contest" && -n "$LOGIN" ]] || continue
+      case "$(_cls "$LOGIN")" in competitor) nc=$((nc+1));; staff) ns=$((ns+1));; *) np=$((np+1));; esac
+    done
+  fi
   shopt -u nullglob
   le=false; _login_enabled && le=true
   ok_json '{login_enabled:$le, sessions:{competitors:$c, staff:$s, privileged:$p}}' \
