@@ -14,6 +14,10 @@
 # CHAVE DE MÁQUINA (`mkey`, o MESMO da lib/session-index.sh): UA do mlinux
 # `MLinux/<img>/<machine_id>/<boot_id>` ⇒ "m:<mid>/<boot>" (o boot_id separa machine_id
 # CLONADO); senão "ip:<ip>". Mesmo mid com boot diferente = a mesma máquina reiniciada (info).
+# ⚠ Só a chave "m:" identifica uma MÁQUINA. "ip:" numa sede atrás de NAT é a sede inteira
+# (na LATAM, 300 times mexicanos com Chrome caíam numa "máquina compartilhada" só): as
+# anomalias de máquina (multi_session, machine_shared, sub_other_machine, switched) só olham
+# chaves "m:"; login sem chave do mlinux só aparece em ua_mismatch e na lista de sessões.
 #
 # TIPOS (kind → severidade):
 #   multi_session     bad   login com 2+ sessões vivas em chaves diferentes (com sessão única
@@ -126,6 +130,7 @@ an_build(){
       ((($ua | capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/(?<boot>[0-9]+)")) // null) as $m
        | if $m != null then ("m:" + $m.mid + "/" + $m.boot) else ("ip:" + $ip) end);
     def mid($k): (if (($k // "") | startswith("m:")) then ($k[2:] | split("/")[0]) else null end);
+    def ism($k): (($k // "") | startswith("m:"));
     def short($ua): ($ua | if length > 60 then (.[0:57] + "…") else . end);
     ($users[0] // {}) as $U
     | ($exp[0] // {}) as $E
@@ -148,14 +153,14 @@ an_build(){
                                       n: length, in: ([ .[] | select(.in) ] | length)})
                 | sort_by(.first)) }) | from_entries) as $MACH
     | ($S | group_by(.login) | map({key: .[0].login, value: (map({key, ip, ua: (short(.ua)), at, tok8}) | sort_by(.at))}) | from_entries) as $SESS
-    | ([ $S[] | .key ] | unique) as $LIVEKEYS
-    | ($S | group_by(.key) | map({key: .[0].key, value: (map(.login) | unique)}) | from_entries) as $LIVEBY
+    | ([ $S[] | select(ism(.key)) | .key ] | unique) as $LIVEKEYS
+    | ($S | map(select(ism(.key))) | group_by(.key) | map({key: .[0].key, value: (map(.login) | unique)}) | from_entries) as $LIVEBY
     # --- anomalias -------------------------------------------------------------------------
-    | ([ $SESS | to_entries[] | select((.value | map(.key) | unique | length) > 1)
+    | ([ $SESS | to_entries[] | select((.value | map(select(ism(.key)) | .key) | unique | length) > 1)
          | {kind:"multi_session", severity:"bad", at:(.value | map(.at) | max), login:.key, name:(nm(.key)), region:(rg(.key)),
-            machine:(.value | map(.key) | unique | join(" · ")),
-            detail:{keys:(.value | map(.key) | unique), sessions:(.value | length)}} ]) as $MS
-    | ([ $A[] | select(.in) ] | group_by(.key)
+            machine:(.value | map(select(ism(.key)) | .key) | unique | join(" · ")),
+            detail:{keys:(.value | map(select(ism(.key)) | .key) | unique), sessions:(.value | length)}} ]) as $MS
+    | ([ $A[] | select(.in and ism(.key)) ] | group_by(.key)
        | map(select((map(.login) | unique | length) > 1))
        | map(. as $g | ($g | map(.login) | unique) as $ls
              | (([ $ls[] | . as $l | select((($LIVEBY[$g[0].key] // []) | index($l)) != null) ] | length) >= 2) as $both
@@ -165,17 +170,17 @@ an_build(){
                                                       last:([ $g[] | select(.login == $l) | .t ] | max), n:([ $g[] | select(.login == $l) ] | length),
                                                       live:((($LIVEBY[$g[0].key] // []) | index($l)) != null)})),
                         live_both:$both}})) as $SH
-    | ([ $B[] | select((.skey // "") != "" and .key != .skey)
+    | ([ $B[] | select((.skey // "") != "" and .key != .skey and ism(.key) and ism(.skey))
          | (mid(.key) != null and mid(.key) == mid(.skey)) as $reboot
          | {kind:"sub_other_machine", severity:(if $reboot then "info" else "bad" end), at:.t, login:.login, name:(nm(.login)), region:(rg(.login)),
             machine:.key, detail:{subid:.id, session_key:.skey, request_key:.key, reboot:$reboot, tok8:.tok8}} ]) as $SO
     | ([ $S[] | ($E[.login] // "") as $e | select($e != "" and (((.ua | ascii_downcase) | contains($e | ascii_downcase)) | not))
          | {kind:"ua_mismatch", severity:"warn", at:.at, login:.login, name:(nm(.login)), region:(rg(.login)), machine:.key,
             detail:{expected:$e, ua:(short(.ua)), tok8:.tok8}} ]) as $UM
-    | ([ $MACH | to_entries[] | select(([ .value[] | select(.in > 0) ] | length) > 1) | .key as $tl
-         | {kind:"switched", severity:"info", at:([ .value[] | select(.in > 0) | .first ] | max), login:$tl, name:(nm($tl)), region:(rg($tl)),
-            machine:([ .value[] | select(.in > 0) | .key ] | join(" → ")),
-            detail:{machines:([ .value[] | select(.in > 0) ]),
+    | ([ $MACH | to_entries[] | select(([ .value[] | select(.in > 0 and ism(.key)) ] | length) > 1) | .key as $tl
+         | {kind:"switched", severity:"info", at:([ .value[] | select(.in > 0 and ism(.key)) | .first ] | max), login:$tl, name:(nm($tl)), region:(rg($tl)),
+            machine:([ .value[] | select(.in > 0 and ism(.key)) | .key ] | join(" → ")),
+            detail:{machines:([ .value[] | select(.in > 0 and ism(.key)) ]),
                     revoked:([ $ev[] | select(.login == $tl and .event == "revoke") ] | length)}} ]) as $SW
     | ([ ($N.sedes // [])[] | select(((.present // 0) > .seen) or ((.teams // 0) > .machines_total))
          | {kind:"site_short", severity:"warn", at:($N.collected_at // 0), login:"", name:.name, region:.name, machine:"",
@@ -214,7 +219,7 @@ an_build(){
                 | sort_by(-(.flags | length), .login)),
         # ⚠ arg de função jq avalia contra o INPUT: `$LIVEKEYS | index(.[0].key)` leria `.key` de
         # uma string — a chave é bindada ANTES (armadilha documentada no repo)
-        machines: ($A | group_by(.key) | map(.[0].key as $k
+        machines: ($A | map(select(ism(.key))) | group_by(.key) | map(.[0].key as $k
                     | {key:$k, logins:(group_by(.login) | map({login:.[0].login, first:(map(.t)|min), last:(map(.t)|max), n:length, in:([ .[] | select(.in) ] | length)})),
                        shared:(([ .[] | select(.in) | .login ] | unique | length) > 1),
                        live:(($LIVEKEYS | index($k)) != null)}) | map(select(.shared or .live))),

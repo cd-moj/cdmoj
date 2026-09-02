@@ -28,7 +28,11 @@ UA_M1="$(ua $MID1 1001)"; UA_M2="$(ua $MID2 2002)"; UA_M3="$(ua $MIDC 3003)"; UA
   printf '%s\tteamaa004\t10.0.0.4\t%s\n' "$((CS-3000))" "$(b64 "$UA_M4")"
   printf '%s\tteamaa005\t10.0.0.5\t%s\n' "$((CS+200))"  "$(b64 "$UA_M5")"
   printf '%s\tan.admin\t10.0.0.9\t%s\n'  "$((CS+10))"   "$(b64 'Mozilla Chrome')"
+  # sede atrás de NAT sem UA do mlinux: mesmo IP p/ dois times NÃO é máquina compartilhada
+  printf '%s\tteamnn001\t10.9.9.9\t%s\n' "$((CS+300))" "$(b64 'Mozilla Chrome NAT')"
+  printf '%s\tteamnn002\t10.9.9.9\t%s\n' "$((CS+310))" "$(b64 'Mozilla Chrome NAT')"
 } > "$C/var/access.log"
+fx_user "$C" teamnn001 x "NAT 1"; fx_user "$C" teamnn002 x "NAT 2"
 mkses(){ printf 'CONTEST=an\nLOGIN=%q\nUSERFULLNAME=x\nLOGINAT=%q\nIP=%q\nUA_B64=%q\n%s' "$2" "$3" "$4" "$(b64 "$5")" "${6:+MKEY=$6
 }" > "$SESS/$1"; }
 mkses s1 teamaa001 "$((CS+60))"  10.0.0.1 "$UA_M1"           # 001: DUAS sessões vivas em máquinas diferentes
@@ -70,6 +74,7 @@ ck "contagens: 1 multi-sessão, 1 compartilhada, 1 sub de outra máquina, 1 rebo
 ck "multi_session: teamaa001, bad, 2 chaves"  '[[ "$(K multi_session .login)" == teamaa001 && "$(K multi_session .severity)" == bad && "$(K multi_session ".detail.keys|length")" == 2 ]]'
 ck "machine_shared: 002+003 vivos na mesma ⇒ bad" '[[ "$(K machine_shared .severity)" == bad && "$(K machine_shared ".detail.logins|length")" == 2 && "$(K machine_shared .detail.live_both)" == true ]]'
 ck "clone com boot diferente NÃO é compartilhada (005 fora)" '[[ "$(K machine_shared .login)" != *teamaa005* ]]'
+ck "mesmo IP sem UA mlinux (NAT) NÃO é máquina compartilhada" '[[ "$(K machine_shared .login)" != *teamnn* && "$(J .counts.machine_shared)" == 1 ]]'
 ck "sub_other_machine: sub1 de 001 bad; sub2 de 002 = reboot info" \
    '[[ "$(K sub_other_machine "select(.severity==\"bad\")|.detail.subid")" == sub1 && "$(K sub_other_machine "select(.severity==\"info\")|.detail.subid")" == sub2 && "$(K sub_other_machine "select(.severity==\"info\")|.detail.reboot")" == true ]]'
 ck "ua_mismatch: 004 (Chrome vs esperado aa)"  '[[ "$(K ua_mismatch .login)" == teamaa004 && "$(K ua_mismatch .detail.expected)" == aa ]]'

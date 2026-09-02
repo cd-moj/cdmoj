@@ -377,8 +377,10 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
 
 Na Maratona 2026 só deu para responder "algum time usou duas máquinas?" depois da prova, cruzando
 logs à mão. Este painel responde **durante** a prova. Ele só vale com o **gate de UA ligado**: é o
-navegador da imagem do mlinux que identifica a máquina (`machine_id/boot_id`; sem ele, vale o IP).
-Com o gate desligado o painel avisa e mostra só as sessões e o log de acessos.
+navegador da imagem do mlinux que identifica a máquina (`machine_id/boot_id`). Login de navegador
+comum só tem o IP, e atrás de NAT o IP é a sede inteira: esses logins ficam fora das anomalias de
+máquina (aparecem só em "UA fora da sede" e na lista de sessões). Com o gate desligado o painel
+avisa e mostra só as sessões e o log de acessos.
 
 - **Cartões** (clique = filtro): sessões ativas, 👥 **2 sessões vivas** (o mesmo time em duas
   máquinas — com a sessão única ligada isso só acontece por token copiado), 🖥 **máquina
