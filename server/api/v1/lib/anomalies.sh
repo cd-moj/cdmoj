@@ -62,6 +62,12 @@ an_build(){
       for(i=2;i<=7;i++) gsub(/["\\]/,"",$i)
       printf "{\"t\":%d,\"login\":\"%s\",\"event\":\"%s\",\"old\":\"%s\",\"new\":\"%s\",\"tok8\":\"%s\",\"who\":\"%s\"}\n", $1,$2,$3,$4,$5,$6,$7 }' \
     "$cdir/var/session-events.log" > "$W/ev.json"
+  # --- trava de sede (audit: site-lock-claim / site-lock-block) → NDJSON --------------------
+  : > "$W/sl.json"
+  [[ -s "$cdir/var/admin-audit.log" ]] && awk -F'\t' -v a="$ws" -v b="$ce" 'NF>=4 && $1+0>=a && $1+0<=b && $3 ~ /^site-lock-(claim|block)$/ {
+      gsub(/["\\]/,"",$2); gsub(/["\\]/,"",$4)
+      printf "{\"t\":%d,\"who\":\"%s\",\"action\":\"%s\",\"detail\":\"%s\"}\n", $1, $2, $3, $4 }' \
+    "$cdir/var/admin-audit.log" > "$W/sl.json"
   # --- sessões VIVAS do contest -------------------------------------------------------------
   # Pelo índice (barato: só os tokens deste contest). Sem índice semeado: varredura completa,
   # que semeia (só apêndice, flock -n) — a mesma doutrina do sessions.sh.
@@ -122,7 +128,7 @@ an_build(){
   # --- o jq único ----------------------------------------------------------------------------
   jq -n --slurpfile acc "$W/acc.json" --slurpfile sess "$W/sess.json" --slurpfile sub "$W/sub.json" \
         --slurpfile ev "$W/ev.json" --slurpfile users "$W/users.json" --slurpfile exp "$W/exp.json" \
-        --slurpfile nut "$W/nut.json" \
+        --slurpfile nut "$W/nut.json" --slurpfile sl "$W/sl.json" \
         --arg mode "$mode" --arg single "$single" --arg round "$s" \
         --argjson cs "$cs" --argjson ce "$ce" --argjson ws "$ws" --argjson now "$EPOCHSECONDS" '
     def role($l): ($l | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$"));
@@ -195,7 +201,12 @@ an_build(){
             detail:{teams:.teams, present:.present, machines_total:.machines_total, seen:.seen}} ]) as $SS
     | ([ $ev[] | {kind:"session_event", severity:"info", at:.t, login:.login, name:(nm(.login)), region:(rg(.login)),
                   machine:(if .event == "revoke" then (.old + " → " + .new) else .old end),
-                  detail:{event:.event, old:.old, new:.new, tok8:.tok8, who:.who}} ]) as $EV
+                  detail:{event:.event, old:.old, new:.new, tok8:.tok8, who:.who}} ]
+       + [ $sl[] | (.detail | split(" ") | map(select(contains("="))) | map(split("=") | {key:.[0], value:(.[1:] | join("="))}) | from_entries) as $d
+           | {kind:"site_lock", severity:(if .action == "site-lock-block" then "bad" else "info" end), at:.t,
+              login:(($d.login // "-") | if . == "-" then "" else . end), name:(nm(($d.login // "") | if . == "-" then "" else . end)), region:"",
+              machine:("ip:" + ($d.ip // "")),
+              detail:{event:.action, ip:($d.ip // ""), target:($d.target // ""), route:($d.route // ""), until:($d.until // "")}} ]) as $EV
     | (if $active then ($MS + $SH + $SO + $UM + $SW + $SS) else [] end) as $AN
     | (($AN | map(.login) | map(split(", ")[]) | unique) + ($SESS | keys)) as $TL
     # --- última submissão por login ----------------------------------------------------------
@@ -212,7 +223,9 @@ an_build(){
                   ua_mismatch: ([ $AN[] | select(.kind == "ua_mismatch") ] | length),
                   site_short: ([ $AN[] | select(.kind == "site_short") ] | length),
                   switched: ([ $AN[] | select(.kind == "switched") ] | length),
-                  revoked: ([ $ev[] | select(.event == "revoke") ] | length), events: ($ev | length) },
+                  revoked: ([ $ev[] | select(.event == "revoke") ] | length), events: ($ev | length),
+                  site_lock_blocks: ([ $sl[] | select(.action == "site-lock-block") ] | length),
+                  site_lock_claims: ([ $sl[] | select(.action == "site-lock-claim") ] | length) },
         anomalies: ($AN | sort_by(-.at)),
         events: ($EV | sort_by(-.at) | .[0:500]),
         teams: ([ $TL | unique[] | select(. != "" and (role(.) | not)) | . as $l

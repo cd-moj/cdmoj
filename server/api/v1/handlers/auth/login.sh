@@ -92,6 +92,9 @@ if (( _single )) && [[ -n "$_sfd" ]]; then
   sess_unlock "$_sfd"
 fi
 _revoked="${_revoked//[^0-9]/}"; _revoked="${_revoked:-0}"
+# TRAVA DE SEDE POR IP (SITE_LOCK no conf): este login reivindica o IP de origem p/ o contest
+# até o fim da prova (+folga) — lib/site-lock.sh; a 1ª reivindicação do IP vai ao audit
+_slc="$(sl_claim "$contest" "$(client_ip)" "$u")"
 # log de acesso (tab-sep: epoch, login, ip, ua_b64[, ator]) — a 5ª coluna só existe em sessão
 # de time; os leitores (access-log, machines, audit) cortam em $1..$4 e a ignoram.
 mkdir -p "$CONTESTSDIR/$contest/var"

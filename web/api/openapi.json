@@ -4587,6 +4587,20 @@
         }
       }
     },
+    "/contest/admin/site-lock": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Trava de sede por IP (admin/chefe): IPs presos a este contest, bloqueios e reivindicações auditadas",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "{enabled, grace, claims[], blocks[], claims_audit[]}"}, "403": {"description": "admin_required"}}
+      },
+      "post": {
+        "tags": ["contest"],
+        "summary": "Trava de sede: {action:set,enabled,grace?} | {action:release,ip} | {action:claim-seen} (só admin; auditado)",
+        "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "{saved|released|claimed}"}, "403": {"description": "admin_required"}, "409": {"description": "site_lock_off"}, "422": {"description": "grace_invalid"}}
+      }
+    },
     "/contest/admin/anomalies": {
       "get": {
         "tags": ["contest"],

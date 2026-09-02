@@ -32,6 +32,8 @@ const KINDS = () => ({
     hint: T('o time fez login em mais de uma máquina durante a prova (normal quando a máquina falha)', 'the team logged in on more than one machine during the contest (normal when a machine fails)') },
   session_event: { icon: '🧾', label: T('sessão derrubada', 'session ended'),
     hint: T('revogação pela sessão única, deslogar do admin ou deslogar UA divergente', 'revocation by single-session, admin logout or mismatched-UA logout') },
+  site_lock: { icon: '🔒', label: T('trava de sede', 'site lock'),
+    hint: T('IP da sede preso a este contest (reivindicação no login) ou pedido daquele IP a outro alvo bloqueado (403 site_locked)', 'site IP pinned to this contest (claim at login) or a request from that IP to another target blocked (403 site_locked)') },
 });
 const SEV = () => ({ bad: T('grave', 'severe'), warn: T('atenção', 'attention'), info: T('info', 'info') });
 const sevPill = (s) => el('span', { class: 'pill ' + (s === 'bad' ? 'bad' : s === 'warn' ? 'warn' : '') }, SEV()[s] || s);
@@ -47,7 +49,7 @@ const mkText = (k) => (k || '').split(' → ').map((x) => x.startsWith('m:') ? x
 export function makeSessionsTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };
   const panel = el('div', {});
-  let DATA = null, timer = null;
+  let DATA = null, SLOCK = null, timer = null;
   let filterKind = '', filterText = '', showAll = false;
 
   // --- ações ------------------------------------------------------------------------------
@@ -110,7 +112,57 @@ export function makeSessionsTab(CONTEST) {
       card(c.ua_mismatch || 0, K.ua_mismatch.label, 'ua_mismatch', true),
       card(c.site_short || 0, K.site_short.label, 'site_short', true),
       card(c.switched || 0, K.switched.label, 'switched', false),
-      card(c.revoked || 0, T('revogações', 'revocations'), 'session_event', false));
+      card(c.revoked || 0, T('revogações', 'revocations'), 'session_event', false),
+      card(c.site_lock_blocks || 0, T('bloqueios da trava', 'lock blocks'), 'site_lock', true));
+  }
+
+  // --- 2b. trava de sede por IP (GET /contest/admin/site-lock) — vale sem gate --------------
+  function siteLockSection() {
+    const sl = SLOCK; if (!sl) return null;
+    const claims = sl.claims || [], blocks = sl.blocks || [];
+    if (!sl.enabled && !claims.length && !blocks.length) return null;
+    const box = el('div', { class: 'section' }, el('h2', {}, T('🔒 Trava de sede por IP', '🔒 Per-site IP lock')));
+    box.append(el('p', { class: 'ml-note' },
+      sl.enabled
+        ? T(`Ligada: cada login de competidor prende o IP de origem a este contest até o fim + ${sl.grace}s. Daquele IP, treino, índice e outros contests respondem 403 site_locked. Toda reivindicação e todo bloqueio estão no audit; abaixo, o resumo.`,
+          `On: each competitor login pins the source IP to this contest until the end + ${sl.grace}s. From that IP, training, index and other contests answer 403 site_locked. Every claim and every block is in the audit; the summary is below.`)
+        : T('Desligada (ligue em Máquinas & gate › 🔒). IPs presos anteriormente continuam até vencer.', 'Off (turn on in Machines & gate › 🔒). Previously pinned IPs stay until they expire.')));
+    const msg = el('span', { class: 'small' });
+    const actions = el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin:.3rem 0' },
+      sl.enabled ? el('button', { class: 'btn ghost', title: T('prende desde já os IPs de competidores vistos na janela da rodada (aquecimento incluso)', 'pins right away the competitor IPs seen in the round window (warm-up included)'),
+        onclick: async () => {
+          if (!confirm(T('Prender agora todos os IPs de competidores vistos nesta rodada?', 'Pin now every competitor IP seen in this round?'))) return;
+          try { const r = await apiPost('/contest/admin/site-lock?contest=' + enc(CONTEST), { action: 'claim-seen' }, G); msg.textContent = T(`✓ ${r.claimed} IP(s) novo(s) preso(s)`, `✓ ${r.claimed} new IP(s) pinned`); await load(); }
+          catch (e) { msg.textContent = e.message || T('falha', 'failed'); }
+        } }, T('🔒 Prender IPs já vistos', '🔒 Pin IPs already seen')) : null,
+      msg);
+    const tb = el('tbody');
+    claims.forEach((c) => tb.append(el('tr', { class: c.blocked ? 'flag-row-bad' : '' },
+      el('td', {}, el('code', {}, c.ip), c.active ? '' : el('span', { class: 'small muted' }, ' ' + T('(vencida)', '(expired)'))),
+      el('td', { class: 'small' }, fmtClock(c.first) + ' → ' + fmtClock(c.last)),
+      el('td', { class: 'n' }, String(c.logins)),
+      el('td', { class: 'n' }, el('span', { class: c.blocked ? 'flag-anom' : '' }, String(c.blocked))),
+      el('td', { class: 'small' }, c.blocked ? fmtClock(c.last_block) + (c.last_target && c.last_target !== '-' ? ' → ' + c.last_target : ' → ' + T('treino/índice', 'training/index')) : '—'),
+      el('td', { class: 'small' }, fmtDate(c.until)),
+      el('td', {}, el('button', { class: 'btn ghost small', onclick: async () => {
+        if (!confirm(T(`Soltar ${c.ip}? Daquele IP o treino e outros contests voltam a responder.`, `Release ${c.ip}? From that IP training and other contests answer again.`))) return;
+        try { await apiPost('/contest/admin/site-lock?contest=' + enc(CONTEST), { action: 'release', ip: c.ip }, G); await load(); } catch (e) { alert(e.message); }
+      } }, T('soltar', 'release'))))));
+    box.append(actions, el('div', { class: 'small muted' }, claims.length + T(' IP(s) preso(s).', ' pinned IP(s).')),
+      el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
+        el('th', {}, 'IP'), el('th', {}, T('Logins (1º → último)', 'Logins (first → last)')), el('th', { class: 'n' }, T('Logins', 'Logins')),
+        el('th', { class: 'n' }, T('Bloqueios', 'Blocks')), el('th', {}, T('Último bloqueio', 'Last block')), el('th', {}, T('Preso até', 'Pinned until')), el('th', {}, ''))), tb)));
+    if (blocks.length) {
+      const tb2 = el('tbody');
+      blocks.slice(0, 100).forEach((b) => tb2.append(el('tr', { class: 'flag-row-bad' },
+        el('td', { class: 'small' }, fmtDate(b.at)), el('td', {}, el('code', {}, b.ip)),
+        el('td', {}, b.target && b.target !== '-' ? b.target : el('span', { class: 'muted' }, T('treino/índice', 'training/index'))),
+        el('td', { class: 'small' }, el('code', {}, b.route)), el('td', {}, b.login && b.login !== '-' ? b.login : el('span', { class: 'muted' }, T('sem sessão', 'no session'))))));
+      box.append(el('h3', {}, T(`Bloqueios registrados (${blocks.length}; 1 linha por IP e alvo a cada 5 min)`, `Recorded blocks (${blocks.length}; 1 line per IP and target every 5 min)`)),
+        el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' }, el('thead', {}, el('tr', {},
+          el('th', {}, T('Quando', 'When')), el('th', {}, 'IP'), el('th', {}, T('Alvo', 'Target')), el('th', {}, T('Rota', 'Route')), el('th', {}, T('Sessão', 'Session')))), tb2)));
+    }
+    return box;
   }
 
   // --- 3. linha do tempo ------------------------------------------------------------------
@@ -144,6 +196,9 @@ export function makeSessionsTab(CONTEST) {
         case 'site_short': return T(`${dd.present ?? dd.teams} times presentes, ${dd.seen} máquinas vistas (${dd.machines_total} cadastradas)`, `${dd.present ?? dd.teams} present teams, ${dd.seen} machines seen (${dd.machines_total} registered)`);
         case 'switched': return (dd.machines || []).map((m) => mkText(m.key) + ' ' + fmtClock(m.first)).join(' → ') + (dd.revoked ? T(` · ${dd.revoked} sessão(ões) revogada(s)`, ` · ${dd.revoked} session(s) revoked`) : '');
         case 'session_event': return ({ revoke: T('revogada pela sessão única (login novo em outra máquina)', 'revoked by single-session (new login on another machine)'), logout: T('deslogado pelo admin', 'logged out by the admin'), 'mismatch-logout': T('deslogar UA divergente', 'mismatched-UA logout') }[dd.event] || dd.event) + (dd.who ? ' · ' + dd.who : '');
+      case 'site_lock': return dd.event === 'site-lock-block'
+        ? T(`BLOQUEADO: pedido a "${dd.target && dd.target !== '-' ? dd.target : 'treino/índice'}" (${dd.route}) de IP preso a este contest`, `BLOCKED: request to "${dd.target && dd.target !== '-' ? dd.target : 'training/index'}" (${dd.route}) from an IP pinned to this contest`)
+        : T(`IP preso a este contest até ${fmtClock(+dd.until || 0)}`, `IP pinned to this contest until ${fmtClock(+dd.until || 0)}`);
         default: return JSON.stringify(dd);
       }
     }
@@ -160,7 +215,7 @@ export function makeSessionsTab(CONTEST) {
           el('td', { class: 'small' }, fmtDate(x.at)),
           el('td', {}, sevPill(x.severity), ' ', el('span', { class: 'small' }, k.icon + ' ' + k.label)),
           el('td', {}, x.login ? el('span', { class: x.severity === 'bad' ? 'flag-anom' : '' }, x.login) : (x.name || ''), x.name && x.login && x.name !== x.login ? el('div', { class: 'small muted' }, x.name) : null, x.region ? el('div', { class: 'small muted' }, x.region) : null),
-          el('td', { class: 'small' }, x.kind === 'switched' || x.kind === 'session_event' ? el('code', {}, mkText(x.machine)) : mk(x.machine)),
+          el('td', { class: 'small' }, x.kind === 'switched' || x.kind === 'session_event' ? el('code', {}, mkText(x.machine)) : x.kind === 'site_lock' ? el('code', {}, (x.machine || '').replace(/^ip:/, '')) : mk(x.machine)),
           el('td', { class: 'small' }, detailText(x)),
           el('td', {}, x.login && !x.login.includes(',') && x.kind !== 'site_short' ? el('button', { class: 'btn ghost small', onclick: () => logoutUser(x.login) }, T('deslogar', 'log out')) : '')));
       });
@@ -278,6 +333,7 @@ export function makeSessionsTab(CONTEST) {
         li(T('Sessão única', 'Single session'), T('com o gate ligado, um login em outra máquina derruba a sessão anterior do time. Recarregar a página na mesma máquina não derruba nada. Cada queda vira um evento.', 'with the gate on, a login on another machine ends the team\'s previous session. Reloading the page on the same machine ends nothing. Each drop becomes an event.')),
         ...Object.keys(K).map((k) => li(K[k].icon + ' ' + K[k].label, K[k].hint)),
         li(T('Última submissão', 'Last submission'), T('✓ = veio da máquina da sessão e da máquina do último login; ✗ = veio de outra.', '✓ = came from the session\'s machine and the last login machine; ✗ = came from another one.')),
+        li(T('🔒 Trava de sede', '🔒 Site lock'), T('com a trava ligada (Máquinas & gate), o login de competidor prende o IP de origem a este contest até o fim + folga; daquele IP qualquer outro alvo leva 403 site_locked. Reivindicações e bloqueios ficam no audit e aqui.', 'with the lock on (Machines & gate), a competitor login pins the source IP to this contest until the end + grace; from that IP any other target gets 403 site_locked. Claims and blocks are in the audit and here.')),
         li(T('Sem gate', 'Without the gate'), T('nada disto vale: o painel mostra só as sessões e o log de acessos.', 'none of this applies: the panel shows only the sessions and the access log.'))));
   }
 
@@ -289,16 +345,21 @@ export function makeSessionsTab(CONTEST) {
     panel.append(el('div', { class: 'section' }, el('h2', {}, T('🛡 Sessões & anomalias', '🛡 Sessions & anomalies')), stateBar(d),
       d.gate && d.gate.active ? cards(d) : null, channels(d)));
     if (d.gate && d.gate.active) { panel.append(timeline(d)); panel.append(teamsTable(d)); }
+    const slb = siteLockSection(); if (slb) panel.append(slb);
     panel.append(sessionsSection(), accessSection(), legend());
   }
   async function load() {
-    try { DATA = await apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G); }
-    catch (e) { panel.innerHTML = ''; panel.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load'))); return; }
+    try {
+      [DATA, SLOCK] = await Promise.all([
+        apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G),
+        apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null),
+      ]);
+    } catch (e) { panel.innerHTML = ''; panel.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load'))); return; }
     render();
     if (timer) clearInterval(timer);
     timer = setInterval(async () => {
       if (panel.hidden || !panel.isConnected) return;
-      try { DATA = await apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G); render(); } catch { /* mantém o último */ }
+      try { [DATA, SLOCK] = await Promise.all([apiGet('/contest/admin/anomalies?contest=' + enc(CONTEST), G), apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null)]); render(); } catch { /* mantém o último */ }
     }, REFRESH_MS);
   }
   return { panel, load };

@@ -368,6 +368,15 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
   alguém na prova.
 - Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (Pessoas › Sessões &
   anomalias), que compara cada sessão com o esperado **daquele** time.
+- **Trava de sede por IP** (chave na mesma seção 🔒, DESLIGADA por padrão — ligue na prova): o gate
+  e o isolamento por subdomínio não seguram `curl --resolve moj…:443:<IP>` da máquina de prova ao
+  site base (treino, backups que o aluno subiu antes, outro contest). Com a trava, cada login de
+  competidor **prende o IP de origem** (a saída da sede) a esta prova até o fim + folga; daquele IP
+  qualquer outro alvo responde **403 `site_locked`**, inclusive sessão do treino aberta antes. Contas
+  de papel são isentas. **Toda reivindicação e todo bloqueio vão ao audit** (`site-lock-claim`,
+  `site-lock-block`) e aparecem em Pessoas › Sessões & anomalias, com "soltar" por IP e "prender IPs
+  já vistos" (útil na manhã da prova). Efeito colateral aceito: durante a janela, todo mundo atrás
+  daquele IP público perde o treino.
 - **Sessão única por time** (chave na mesma seção 🔒, ligada por padrão): com o gate valendo, um
   login novo em **outra máquina derruba a sessão anterior** do time. Trocar de máquina por defeito
   continua funcionando (o time loga na nova e a velha perde a sessão); recarregar a página na mesma
@@ -394,6 +403,9 @@ avisa e mostra só as sessões e o log de acessos.
 - **Times**: só os com alguma anomalia (ou todos com sessão): sessões vivas e em quantas máquinas,
   as máquinas usadas na prova em ordem, a última submissão (✓ veio da máquina da sessão; ✗ não) e as
   anomalias como etiquetas.
+- **🔒 Trava de sede**: os IPs presos a esta prova (logins, bloqueios, até quando), os bloqueios
+  registrados (quando, IP, alvo, rota, sessão) e os botões **soltar** e **prender IPs já vistos**.
+  O cartão "bloqueios da trava" e os eventos 🔒 da linha do tempo vêm do audit. A seção 7 explica.
 - **Canais**: quantos logins e submissões da prova vieram da **web**, da **CLI** (`moj-comp`) e de
   **pacotes offline**. Vale mesmo sem gate. A CLI se identifica no User-Agent (`moj-comp/<build>`) e,
   na máquina de prova, manda na frente o **mesmo User-Agent do navegador da imagem** (lido de

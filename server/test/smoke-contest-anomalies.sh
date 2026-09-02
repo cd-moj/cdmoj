@@ -54,6 +54,9 @@ mkses comp teamaa005 "$((CS+200))" 10.0.0.5 "$UA_M5" "m:$MIDC/5005"   # competid
   printf '%s\tsub5\tteamaa005\t10.0.0.5\t%s\t\t\t\tabcdef05\n' "$((CS+980))" "$(b64 "$UA_M5 moj-comp/abc123-20260902")"
 } > "$C/var/submit-origin.log"
 printf '%s\tteamaa001\trevoke\tm:%s/1001\tm:%s/2002\tdeadbeef\n' "$((CS+600))" "$MID1" "$MID2" > "$C/var/session-events.log"
+# trava de sede: 1 reivindicação e 1 bloqueio no audit (formato do lib/site-lock.sh)
+printf '%s\t?\tsite-lock-claim\tip=10.0.0.1 login=teamaa001 until=%s\n' "$((CS+65))" "$((CE+3600))" >> "$C/var/admin-audit.log"
+printf '%s\t?\tsite-lock-block\tip=10.0.0.1 target=treino route=/auth/login login=-\n' "$((CS+1200))" >> "$C/var/admin-audit.log"
 jq -n '{collected_at:1, sedes:[{name:"Sede A", machines_total:2, seen:1, teams:["teamaa001","teamaa002","teamaa003"], pop:{teams:3, present:3}},
                                 {name:"Sede B", machines_total:9, seen:9, teams:["teamaa004"], pop:{teams:1, present:1}}]}' > "$C/var/nutella.cache.json"
 
@@ -85,7 +88,8 @@ ck "sub_other_machine: sub1 de 001 bad; sub2 de 002 = reboot info" \
 ck "ua_mismatch: 004 (Chrome vs esperado aa)"  '[[ "$(K ua_mismatch .login)" == teamaa004 && "$(K ua_mismatch .detail.expected)" == aa ]]'
 ck "site_short: Sede A (1 máquina vista p/ 3 presentes)" '[[ "$(K site_short .name)" == "Sede A" && "$(J ".sites|length")" == 1 ]]'
 ck "switched: 001 (M1 → M2)"          '[[ "$(K switched .login)" == teamaa001 && "$(K switched ".detail.machines|length")" == 2 ]]'
-ck "evento de revogação na trilha"    '[[ "$(J ".events[0].detail.event")" == revoke && "$(J ".events[0].login")" == teamaa001 ]]'
+ck "evento de revogação na trilha"    '[[ "$(J ".events[]|select(.kind==\"session_event\")|.detail.event")" == revoke ]]'
+ck "trava de sede na trilha: 1 reivindicação (info) + 1 bloqueio (bad), contados" '[[ "$(J ".events[]|select(.kind==\"site_lock\" and .severity==\"bad\")|.detail.target")" == treino && "$(J ".counts.site_lock_blocks")" == 1 && "$(J ".counts.site_lock_claims")" == 1 ]]'
 ck "teams: 001 com flags multi_session+switched+sub_other_machine" '[[ "$(J ".teams[]|select(.login==\"teamaa001\")|.flags|join(\",\")")" == *multi_session* && "$(J ".teams[]|select(.login==\"teamaa001\")|.flags|join(\",\")")" == *switched* && "$(J ".teams[]|select(.login==\"teamaa001\")|.flags|join(\",\")")" == *sub_other_machine* ]]'
 ck "teams: 001 tem 2 sessões e 2 máquinas; última sub NÃO da sessão" '[[ "$(J ".teams[]|select(.login==\"teamaa001\")|.sessions|length")" == 2 && "$(J ".teams[]|select(.login==\"teamaa001\")|.last_sub.same_as_session")" == false ]]'
 ck "teams: 004 só de manhã, sem troca"  '[[ "$(J ".teams[]|select(.login==\"teamaa004\")|.flags|join(\",\")")" == ua_mismatch ]]'

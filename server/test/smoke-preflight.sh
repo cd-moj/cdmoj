@@ -114,6 +114,10 @@ check "mode:off => sessão única nem aparece" '[[ "$(lvl session_single)" == "(
 echo "== sessão única por time (com gate ligado) =="
 jq -c '.mode="enforce" | .from_login.regex="^team([a-z]{6})[0-9]{3}$" | .from_login.expect="\\1"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
 check "gate ok + sessão única (default) => ok" '[[ "$(lvl session_single)" == ok ]]'
+check "gate ok SEM trava de sede => warn"      '[[ "$(lvl site_lock)" == warn ]]'
+printf 'SITE_LOCK=1\n' >> "$C/conf"; run
+check "trava ligada => ok (0 IPs presos)"      '[[ "$(lvl site_lock)" == ok && "$(det site_lock)" == *"0 IP(s)"* ]]'
+sed -i '/^SITE_LOCK=/d' "$C/conf"; run
 jq -c '.single_session=false' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
 check "single_session:false => warn"   '[[ "$(lvl session_single)" == warn ]]'
 check "detalhe aponta o painel"        '[[ "$(det session_single)" == *"Sessões & anomalias"* ]]'

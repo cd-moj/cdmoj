@@ -102,6 +102,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   anomalias: `lib/anomalies.sh` (um jq; `mkey` em jq = a MESMA regra do bash — mexeu numa, mexa na
   outra; o jq vive em VARIÁVEL, fora do `jq-portability.sh`: rode `smoke-contest-anomalies.sh` com
   o jq 1.7). Painel: Pessoas › Sessões & anomalias (`sessions-tab.js`), só com gate ativo.
+- **Trava de sede por IP (`lib/site-lock.sh`, 2026-09-02)**: o isolamento por subdomínio só vale
+  p/ quem entra pelo subdomínio — `curl --resolve` da máquina de prova chega ao site base pelo
+  mesmo IP. Com `SITE_LOCK=1` no conf, login de competidor reivindica o IP de origem
+  (`run/site-lock/<ip>`, TSV uma linha por contest, flock por IP) até `CONTEST_END+grace`; o
+  `router.sh` responde 403 `site_locked` a outro alvo (papel isento; `auth/logout` passa) — custo
+  `[[ -f ]]` p/ IP não preso. **Toda reivindicação nova e todo bloqueio vão ao audit** (com teto de
+  1 linha/5 min por ip+alvo) e ao painel Sessões & anomalias. Rota `/contest/admin/site-lock`.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
   `printf %q` (é *sourced*). **A sessão vale enquanto a CONTA existir** (`_session_account_alive`
   no `load_session`): sessão do MOJ não expira por tempo, então a conferência do `account.json` é

@@ -25,7 +25,7 @@ function download(name, text) {
 export function makeMachinesTab(CONTEST) {
   const panel = el('div', { class: 'section' });
   const G = { contest: CONTEST, auth: true };
-  let DATA = null, ROUNDS = [], GATE = null, round = '', filter = '', view = 'login';
+  let DATA = null, ROUNDS = [], GATE = null, SLOCK = null, round = '', filter = '', view = 'login';
 
   const msg = el('div', { class: 'small', style: 'margin:.4rem 0' });
   const setMsg = (t, cls) => { msg.className = 'small ' + (cls || ''); msg.textContent = t; };
@@ -83,6 +83,28 @@ export function makeMachinesTab(CONTEST) {
         el('span', { class: 'small muted' },
           T('login em outra máquina derruba a sessão anterior (troca por defeito continua funcionando). As quedas aparecem em Pessoas › Sessões & anomalias.',
             'a login on another machine ends the previous session (switching after a failure still works). Drops show up in People › Sessions & anomalies.')))));
+    // TRAVA DE SEDE POR IP (lib/site-lock.sh): conf SITE_LOCK, própria rota — o gate de UA e a
+    // sessão única não seguram `curl --resolve` da máquina de prova ao treino; o IP de origem sim
+    const sl = SLOCK || {};
+    const slChk = el('input', { type: 'checkbox', checked: !!sl.enabled });
+    const slMsg = el('span', { class: 'small' });
+    const nAct = ((sl.claims || []).filter((c) => c.active)).length;
+    slChk.addEventListener('change', async () => {
+      slMsg.textContent = '…';
+      try {
+        await apiPost('/contest/admin/site-lock?contest=' + enc(CONTEST), { action: 'set', enabled: slChk.checked }, G);
+        slMsg.textContent = slChk.checked ? T('✓ trava ligada: o próximo login de competidor prende o IP da sede', '✓ lock on: the next competitor login pins the site IP')
+          : T('✓ trava desligada (IPs já presos continuam até vencer; solte-os em Sessões & anomalias)', '✓ lock off (already pinned IPs stay until expiry; release them in Sessions & anomalies)');
+      } catch (e) { slMsg.className = 'small error-box'; slMsg.textContent = e.message || T('falha', 'failed'); }
+    });
+    box.append(el('div', { class: sl.enabled ? 'alert' : '', style: 'margin:.3rem 0' },
+      el('label', { class: 'row', style: 'gap:.5rem;align-items:center' }, slChk,
+        el('b', {}, T('Trava de sede por IP', 'Per-site IP lock')),
+        el('span', { class: 'small muted' },
+          T('cada login de competidor prende o IP de origem (a saída da sede) a ESTA prova até o fim + folga: daquele IP, treino, índice e outros contests respondem 403 site_locked (curl --resolve não escapa). Contas de papel ficam isentas. Toda reivindicação e todo bloqueio vão ao audit e a Pessoas › Sessões & anomalias.',
+            'each competitor login pins the source IP (the site egress) to THIS contest until the end + grace: from that IP, training, index and other contests answer 403 site_locked (curl --resolve does not escape). Role accounts are exempt. Every claim and every block goes to the audit and to People › Sessions & anomalies.'))),
+      sl.enabled ? el('div', { class: 'small', style: 'margin-top:.2rem' }, T(`${nAct} IP(s) preso(s) agora`, `${nAct} IP(s) pinned now`), ' · ', el('a', { href: '#pessoas/sessoes' }, T('ver em Sessões & anomalias', 'see in Sessions & anomalies'))) : null,
+      slMsg));
     const rx = el('input', { value: (g.from_login && g.from_login.regex) || '', placeholder: '^team([a-z]{6})[0-9]{3}$', style: 'width:16rem;font-family:var(--mono)' });
     const ex = el('input', { value: (g.from_login && g.from_login.expect) || '\\1', placeholder: '\\1', style: 'width:7rem;font-family:var(--mono)' });
     const someLogin = ((DATA && DATA.by_login) || []).map((r) => r.login).find((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/.test(l)) || '';
@@ -276,12 +298,13 @@ export function makeMachinesTab(CONTEST) {
 
   async function load() {
     try {
-      const [m, rj, ug] = await Promise.all([
+      const [m, rj, ug, sl] = await Promise.all([
         apiGet('/contest/admin/machines?contest=' + enc(CONTEST) + (round ? '&round=' + enc(round) : ''), G),
         apiGet('/contest/admin/rounds?contest=' + enc(CONTEST), G).catch(() => ({ rounds: [] })),
         apiGet('/contest/admin/ua-gate?contest=' + enc(CONTEST), G).catch(() => null),
+      apiGet('/contest/admin/site-lock?contest=' + enc(CONTEST), G).catch(() => null),
       ]);
-      DATA = m; ROUNDS = (rj.rounds || []).filter((r) => r.state !== 'pending'); GATE = ug;
+      DATA = m; ROUNDS = (rj.rounds || []).filter((r) => r.state !== 'pending'); GATE = ug; SLOCK = sl;
       render();
     } catch (e) {
       panel.innerHTML = '';

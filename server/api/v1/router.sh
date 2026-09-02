@@ -64,6 +64,27 @@ if [[ -n "${CONTEST_HOST:-}" ]] && valid_id "$CONTEST_HOST"; then
   [[ -z "$_qc" || "$_qc" == "$CONTEST_HOST" ]] || fail 403 "Acesso a outro contest bloqueado" "contest_mismatch"
 fi
 
+# TRAVA DE SEDE POR IP (lib/site-lock.sh): a máquina de prova só enxerga o IP do MOJ, mas
+# `curl --resolve` chega ao site base pelo mesmo IP — o subdomínio o cliente escolhe. Se o
+# IP de origem foi reivindicado por um contest com SITE_LOCK (login de competidor de lá),
+# qualquer pedido a OUTRO alvo leva 403 site_locked, exceto sessão de conta de PAPEL e o
+# logout. Custa um [[ -f ]] p/ IP não preso; auditado (com teto) quando bloqueia.
+_slip="$(client_ip)"
+if [[ -n "$_slip" && -f "$(sl_file "$_slip")" ]]; then
+  _sltgt="${CONTEST_HOST:-${PARAMS[contest]:-}}"
+  _slby="$(sl_check "$_slip" "$_sltgt")"
+  if [[ -n "$_slby" && "${_seg[0]}/${_seg[1]:-}" != auth/logout ]]; then
+    _sllg=""; _sltok="$(_bearer_token)"
+    if [[ -n "$_sltok" ]] && valid_id "$_sltok" && [[ -f "$SESSIONDIR/$_sltok" ]]; then
+      _sllg="$( LOGIN=""; source "$SESSIONDIR/$_sltok" 2>/dev/null; printf '%s' "$LOGIN" )"
+    fi
+    if ! is_reserved_role_login "$_sllg"; then
+      sl_record_block "$_slby" "$_slip" "$_sltgt" "${PATH_INFO:-}" "$_sllg"
+      fail 403 "Esta rede está presa ao contest '$_slby' durante a prova (só ele é acessível daqui)" "site_locked"
+    fi
+  fi
+fi
+
 handler="$HANDLERS$_safe.sh"
 [[ -f "$handler" ]] || fail 404 "No such route: $route" "route_notfound"
 source "$handler"

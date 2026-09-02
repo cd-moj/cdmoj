@@ -10,6 +10,7 @@ source "$_DIR/lib/spool-shard.sh"
 source "$_DIR/lib/params.sh"
 source "$_DIR/lib/auth.sh"
 source "$_DIR/lib/session-index.sh"   # índice por login + chave de máquina + sessão única
+source "$_DIR/lib/site-lock.sh"       # trava de sede por IP (403 site_locked fora do contest dono)
 source "$_DIR/lib/worker-auth.sh"
 source "$_DIR/lib/bot-auth.sh"
 source "$_DIR/lib/profile.sh"

@@ -380,6 +380,14 @@ else
   else
     add ua_gate ok "Gate de navegador por sede" "$ng time(s) presos à imagem da sede$( (( nx > 0 )) && echo ", $nx isento(s) por escolha")"
   fi
+  # trava de sede por IP (lib/site-lock.sh): com gate, sem trava, `curl --resolve` da máquina
+  # de prova ainda chega ao treino/outro contest pelo mesmo IP
+  if sl_enabled "$contest"; then
+    _nsl="$(sl_list "$contest" | jq -r '[.[] | select(.active)] | length' 2>/dev/null)"; _nsl="${_nsl//[^0-9]/}"; _nsl="${_nsl:-0}"
+    add site_lock ok "Trava de sede por IP" "ligada: $_nsl IP(s) preso(s) a este contest agora; reivindicações e bloqueios ficam no audit e em Pessoas → Sessões & anomalias"
+  else
+    add site_lock warn "Trava de sede por IP DESLIGADA" "da máquina de prova, curl --resolve chega ao treino e a outros contests pelo mesmo IP do MOJ — ligue em Pessoas → Máquinas & gate (seção 🔒)"
+  fi
   # sessão única por time (lib/session-index.sh): com gate ligado, login em outra máquina
   # derruba a anterior — desligar isso é escolha, mas merece aviso (time em 2 máquinas passa)
   if [[ "$(jq -r '.single_session' <<<"$ugj")" == false ]]; then
