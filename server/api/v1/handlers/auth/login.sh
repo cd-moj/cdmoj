@@ -24,8 +24,15 @@ _mexp="$(account_field "$contest" "$u" '.managed.expires_at')"; _mexp="${_mexp//
 # lib/ua-gate.sh resolve tudo e cai no LOGIN_UA_SUBSTRING legado quando não há ua-gate.json.
 # Papéis privilegiados seguem isentos (precisam entrar para configurar).
 source "$_LIBDIR/ua-gate.sh"
-ug_ok "$contest" "$u" "${HTTP_USER_AGENT:-}" \
-  || fail 403 "Login bloqueado: este navegador/máquina não está autorizado para o contest (sede errada?)" "ua_gate"
+# o esperado é capturado UMA vez: é o teste do gate (ug_ok inline) e, depois do alias, o critério
+# "este login está sujeito ao gate" da sessão única (vazio = sem gate p/ ele: off, isento, papel
+# ou sem regra — NUNCA use o `mode`, que é enforce por default sem arquivo)
+_ugexp="$(ug_expected "$contest" "$u")"
+if [[ -n "$_ugexp" ]]; then
+  _ua="${HTTP_USER_AGENT:-}"
+  [[ "${_ua,,}" == *"${_ugexp,,}"* ]] \
+    || fail 403 "Login bloqueado: este navegador/máquina não está autorizado para o contest (sede errada?)" "ua_gate"
+fi
 
 # --- A PORTA DO CONTEST (é a API que corta; o countdown do front é só conveniência) ------
 # LOGIN_ENABLED/LOGIN_START_TIME existiam só no conf e no desenho da tela — quem chamasse a
@@ -63,7 +70,28 @@ if reg_enabled "$contest"; then
 fi
 
 name="$(user_fullname "$contest" "$u")"
+# --- SESSÃO ÚNICA POR TIME (só com gate p/ este login + single_session) ------------------
+# Login novo em MÁQUINA diferente derruba a sessão anterior do time (troca por defeito
+# continua funcionando; recarga na mesma máquina não derruba nada). Criação + revogação sob o
+# lock por (contest,login) — dois logins simultâneos não se revogam mutuamente. O índice só
+# vale semeado; sem marcador, a 1ª vez semeia (flock -n: quem não pegar segue sem revogar).
+_revoked=0; _sfd=""
+_single=0
+if [[ -n "$_ugexp" ]] && ! is_reserved_role_login "$u"; then
+  jq -e '.single_session != false' <<<"$(ug_get "$contest")" >/dev/null 2>&1 && _single=1
+fi
+if (( _single )); then
+  sess_index_seeded "$contest" || sess_seed_index "$contest" || _single=0
+fi
+if (( _single )); then
+  _sfd="$(sess_lock "$contest" "$u")" || _sfd=""
+fi
 tok="$(create_session "$contest" "$u" "$name" "$actor")"
+if (( _single )) && [[ -n "$_sfd" ]]; then
+  _revoked="$(sess_revoke_others "$contest" "$u" "$tok" "$(sess_machine_key "$(client_ip)" "${HTTP_USER_AGENT:-}")")"
+  sess_unlock "$_sfd"
+fi
+_revoked="${_revoked//[^0-9]/}"; _revoked="${_revoked:-0}"
 # log de acesso (tab-sep: epoch, login, ip, ua_b64[, ator]) — a 5ª coluna só existe em sessão
 # de time; os leitores (access-log, machines, audit) cortam em $1..$4 e a ignoram.
 mkdir -p "$CONTESTSDIR/$contest/var"
@@ -81,15 +109,16 @@ if [[ "$contest" != treino ]]; then
   [[ -n "$_opub" ]] && _obeacon="$(SESSION_LOGIN="$u" offline_beacon "$contest" "$u" 2>/dev/null)"
   if [[ -n "$_opub" && -n "$_obeacon" ]]; then
     ok_json '{token:$t, logged_in:true, username:$u, name:$n, contest:$c,
-              server_utc:$st, offline_pubkey_pem:$pk, beacon:$b}
+              server_utc:$st, offline_pubkey_pem:$pk, beacon:$b, revoked:$rv}
              + (if $ac == "" then {} else {actor:$ac, is_team:true} end)' \
       --arg t "$tok" --arg u "$u" --arg n "$name" --arg c "$contest" --arg ac "$actor" \
-      --argjson st "$EPOCHSECONDS" --arg pk "$_opub" --arg b "$_obeacon"
+      --argjson st "$EPOCHSECONDS" --arg pk "$_opub" --arg b "$_obeacon" --argjson rv "$_revoked"
     exit 0
   fi
 fi
 # `actor` só aparece em sessão de TIME: o cliente mostra "fulano · competindo por <time>"
-ok_json '{token:$t, logged_in:true, username:$u, name:$n, contest:$c, server_utc:$st}
+# `revoked` = sessões do MESMO time em OUTRA máquina derrubadas por este login (sessão única)
+ok_json '{token:$t, logged_in:true, username:$u, name:$n, contest:$c, server_utc:$st, revoked:$rv}
          + (if $ac == "" then {} else {actor:$ac, is_team:true} end)' \
   --arg t "$tok" --arg u "$u" --arg n "$name" --arg c "$contest" --arg ac "$actor" \
-  --argjson st "$EPOCHSECONDS"
+  --argjson st "$EPOCHSECONDS" --argjson rv "$_revoked"

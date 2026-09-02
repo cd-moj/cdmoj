@@ -21,7 +21,8 @@
 #     users/<login>/{history,metrics.json,submissions,mojlog,results}
 #     review/ print-requests/ clarifications/ news.json news-files/ backups/ jplag/ docs/
 #     placar*.txt statistics.cache.json time-overrides.json resources.json
-#     access.log admin-audit.log editor-log offline-log   (CÓPIAS: append-only, precisam continuar)
+#     access.log admin-audit.log editor-log offline-log submit-origin.log session-events.log
+#                                               (CÓPIAS: append-only, precisam continuar)
 #     conf.snapshot machines.json meta.json
 #
 # Requer: lib/users.sh, lib/contest-create.sh, lib/print.sh (balões), lib/contest-gate.sh.
@@ -366,7 +367,7 @@ rd_promote(){
     for f in "$cdir"/var/placar-view-*.txt; do mv -f "$f" "$ad/${f##*/}" 2>/dev/null; done )
   # append-only: COPIA (a trilha do contest precisa continuar; o access.log é a fonte do
   # mapa de máquinas e tem de atravessar as rodadas)
-  for x in access.log admin-audit.log editor-log offline-log; do
+  for x in access.log admin-audit.log editor-log offline-log submit-origin.log session-events.log; do
     [[ -e "$cdir/var/$x" ]] && cp -f "$cdir/var/$x" "$ad/$x" 2>/dev/null
   done
   rm -f "$cdir/var/.metrics-stamp" "$cdir/var/.pending-count" "$cdir/var/round-report.err" 2>/dev/null

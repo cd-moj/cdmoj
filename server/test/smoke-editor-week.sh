@@ -23,6 +23,7 @@ ck "submit 200" '[[ "$OUT" == *"Status: 200"* ]]'
 call /submit POST '{"problem_id":"p1","filename":"ac.c","code_b64":"YWJj","source":"file"}' tok 'contest=treino'
 call /submit POST '{"problem_id":"p1","filename":"solution.py","code_b64":"YWJj"}' tok 'contest=treino'
 ck "editor-log com 3 linhas" '[[ "$(wc -l < "$T/var/editor-log")" == 3 ]]'
+ck "submit-origin.log: 3 linhas, 9 campos TSV (epoch subid login ip ua sess_ip sess_ua sess_mkey tok8)" '[[ "$(wc -l < "$T/var/submit-origin.log")" == 3 && "$(awk -F"\t" "NF!=9" "$T/var/submit-origin.log" | wc -l)" == 0 ]]'
 ck "editores = web,vim,web" '[[ "$(awk -F: "{print \$4}" "$T/var/editor-log" | paste -sd,)" == "web,vim,web" ]]'
 
 echo "== open_training: most_used_editor_prev_week =="

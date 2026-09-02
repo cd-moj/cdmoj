@@ -24,12 +24,13 @@ removed=0
 set +o noglob; shopt -s nullglob
 for f in "$SESSIONDIR"/*; do
   [[ -f "$f" ]] || continue
-  CONTEST=""; LOGIN=""; UA_B64=""; source "$f" 2>/dev/null
+  CONTEST=""; LOGIN=""; UA_B64=""; MKEY=""; source "$f" 2>/dev/null
   [[ "$CONTEST" == "$contest" ]] || continue
   is_reserved_role_login "$LOGIN" && continue
   ua="$(printf '%s' "$UA_B64" | base64 -d 2>/dev/null)"
   ug_ok "$contest" "$LOGIN" "$ua" && continue
   rm -f "$f"; ((removed++))
+  sess_event "$contest" "$LOGIN" mismatch-logout "$MKEY" "" "${f##*/}" "$SESSION_LOGIN"
 done
 shopt -u nullglob
 audit_log_to "$contest" logout-mismatch "por-sede removed=$removed"

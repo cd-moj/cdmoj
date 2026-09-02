@@ -11,6 +11,11 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 login="$(jq -r '.login // empty' <<<"$body")"
 [[ -n "$login" ]] || fail 400 "Informe o login" "missing"
 valid_id "$login" || fail 422 "login inválido" "login_invalid"
-removed="$(remove_contest_sessions "$contest" "$login")"
+# uma linha de evento por sessão removida (trilha do painel Sessões & anomalias)
+removed=0
+while IFS=$'\t' read -r _tok _lg _mk; do
+  [[ -n "$_tok" ]] || continue
+  ((removed++)); sess_event "$contest" "${_lg:-$login}" logout "$_mk" "" "${_tok:0:8}" "$SESSION_LOGIN"
+done < <(remove_contest_sessions_v "$contest" "$login")
 audit_log_to "$contest" logout-user "login=$login removed=$removed"
 ok_json '{logged_out:true, login:$l, sessions_removed:$n}' --arg l "$login" --argjson n "${removed:-0}"

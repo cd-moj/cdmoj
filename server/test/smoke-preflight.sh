@@ -109,6 +109,26 @@ check "1 time sem regra => warn"       '[[ "$(lvl ua_gate)" == warn ]]'
 check "detalhe conta quem ficou fora"  '[[ "$(det ua_gate)" == *"1 sem regra"* ]]'
 jq -c '.mode="off"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
 check "mode:off => ok"                 '[[ "$(lvl ua_gate)" == ok ]]'
+check "mode:off => sessão única nem aparece" '[[ "$(lvl session_single)" == "(ausente)" ]]'
+
+echo "== sessão única por time (com gate ligado) =="
+jq -c '.mode="enforce" | .from_login.regex="^team([a-z]{6})[0-9]{3}$" | .from_login.expect="\\1"' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
+check "gate ok + sessão única (default) => ok" '[[ "$(lvl session_single)" == ok ]]'
+jq -c '.single_session=false' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
+check "single_session:false => warn"   '[[ "$(lvl session_single)" == warn ]]'
+check "detalhe aponta o painel"        '[[ "$(det session_single)" == *"Sessões & anomalias"* ]]'
+jq -c 'del(.single_session)' "$C/ua-gate.json" > "$C/x" && mv "$C/x" "$C/ua-gate.json"; run
+
+echo "== sede com menos máquinas que times (nutellaboot) =="
+check "sem integração => item ausente" '[[ "$(lvl site_short)" == "(ausente)" ]]'
+mkdir -p "$C/secrets"; printf 'nb3a_fakekeyfortest\n' > "$C/secrets/nutellaboot.key"; chmod 600 "$C/secrets/nutellaboot.key"
+printf 'NUTELLABOOT_URL=http://127.0.0.1:9/\n' >> "$C/conf"
+jq -n '{sedes:[{name:"Sorocaba", machines_total:1, seen:1, teams:["teambrspso001","teambrspso002"], pop:{teams:2, present:2}}]}' > "$C/var/nutella.cache.json"; run
+check "1 máquina p/ 2 times => warn"   '[[ "$(lvl site_short)" == warn ]]'
+check "detalhe cita a sede"            '[[ "$(det site_short)" == *"Sorocaba"* ]]'
+jq -c '.sedes[0].machines_total=3 | .sedes[0].seen=3' "$C/var/nutella.cache.json" > "$C/x" && mv "$C/x" "$C/var/nutella.cache.json"; run
+check "3 máquinas p/ 2 times => ok"    '[[ "$(lvl site_short)" == ok ]]'
+rm -f "$C/var/nutella.cache.json" "$C/secrets/nutellaboot.key"; sed -i '/^NUTELLABOOT_URL=/d' "$C/conf"; run
 
 echo "== rodada seguinte =="
 check "rodada pendente aparece"        '[[ "$(lvl next_round)" == warn || "$(lvl next_round)" == ok ]]'

@@ -26,6 +26,7 @@ const TARGET = {
   problems: ['prova', 'problemas'], pool_problems: ['prova', 'problemas'], pool: ['prova', 'problemas'],
   next_round: ['prova', 'rodadas'], docs: ['prova', 'documentos'], balloons: ['prova', 'baloes'],
   users: ['pessoas', 'contas'], cohorts: ['pessoas', 'coortes'], ua_gate: ['pessoas', 'maquinas'],
+  session_single: ['pessoas', 'maquinas'], site_short: ['operacao', 'mlinux'],
   registration: ['pessoas', 'inscricoes'], reg_invites: ['pessoas', 'inscricoes'],
   reg_source: ['pessoas', 'inscricoes'], reg_cohorts: ['pessoas', 'coortes'],
   reg_warmup: ['prova', 'rodadas'],

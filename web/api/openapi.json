@@ -4587,12 +4587,28 @@
         }
       }
     },
+    "/contest/admin/anomalies": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Anomalias de uso de máquina durante a prova (admin ou juiz-chefe): 2 sessões vivas, máquina compartilhada, submissão de outra máquina, UA fora da sede, sede sem máquina por time, trocas, trilha da sessão única — só com gate de UA ligado",
+        "parameters": [
+          {"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}},
+          {"name": "round", "in": "query", "required": false, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "{gate:{mode,single_session,active}, round, window, computed_at, counts, anomalies[], events[], teams[], machines[], sites[], nutella_at} — ver docs/API.md"},
+          "400": {"description": "round_invalid"},
+          "403": {"description": "admin_required"},
+          "404": {"description": "round_notfound"}
+        }
+      }
+    },
     "/contest/admin/sessions": {
       "get": {
         "tags": [
           "contest-admin"
         ],
-        "summary": "Sessões ativas + alerta UA/IP",
+        "summary": "Sessões ativas + alerta UA/IP (com mkey = chave de máquina); semeia o índice de sessões por login",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

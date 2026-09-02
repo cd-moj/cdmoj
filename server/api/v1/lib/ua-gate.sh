@@ -8,6 +8,7 @@
 #
 #   contests/<c>/ua-gate.json   (ausente ⇒ cai no LOGIN_UA_SUBSTRING de sempre)
 #   { "mode": "enforce",                                  // enforce | off
+#     "single_session": true,                             // login em outra máquina derruba a anterior
 #     "from_login": {"regex":"^team([a-z]{6})[0-9]{3}$", "expect":"\\1"},
 #     "by_region":  {"Sorocaba":"brspso", "Campinas":"brspcp"},
 #     "by_regex":   [{"regex":"^conv","expect":"convidado"}],
@@ -42,10 +43,13 @@ ug_get(){
             by_regex:[ (.by_regex // [])[] | select((.regex // "") != "" and (.expect // "") != "")
                        | {regex, expect} ],
             exempt:[ (.exempt // [])[] | tostring | select(length > 0) ],
-            fallback:((.fallback // "") | tostring)}' "$f" 2>/dev/null \
-      || printf '{"mode":"enforce","from_login":null,"by_region":{},"by_regex":[],"exempt":[],"fallback":""}'
-  else printf '{"mode":"enforce","from_login":null,"by_region":{},"by_regex":[],"exempt":[],"fallback":""}'; fi
+            fallback:((.fallback // "") | tostring),
+            single_session:(if .single_session == false then false else true end)}' "$f" 2>/dev/null \
+      || printf '{"mode":"enforce","from_login":null,"by_region":{},"by_regex":[],"exempt":[],"fallback":"","single_session":true}'
+  else printf '{"mode":"enforce","from_login":null,"by_region":{},"by_regex":[],"exempt":[],"fallback":"","single_session":true}'; fi
 }
+# single_session (default true): com o gate ligado p/ um login, um login NOVO em outra máquina
+# revoga a sessão anterior dele (lib/session-index.sh). `false` desliga só isso, mantendo o gate.
 ug_save(){ local f; f="$(ug_file "$1")"; printf '%s\n' "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"; }
 
 # ug_legacy <c> -> LOGIN_UA_SUBSTRING do conf (lido por grep: o caminho de auth nunca sourceia

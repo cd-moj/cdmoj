@@ -380,6 +380,13 @@ else
   else
     add ua_gate ok "Gate de navegador por sede" "$ng time(s) presos à imagem da sede$( (( nx > 0 )) && echo ", $nx isento(s) por escolha")"
   fi
+  # sessão única por time (lib/session-index.sh): com gate ligado, login em outra máquina
+  # derruba a anterior — desligar isso é escolha, mas merece aviso (time em 2 máquinas passa)
+  if [[ "$(jq -r '.single_session' <<<"$ugj")" == false ]]; then
+    add session_single warn "Sessão única por time DESLIGADA" "com o gate ligado, o time pode ficar logado em várias máquinas — ligue em Pessoas → Máquinas & gate; as anomalias aparecem em Pessoas → Sessões & anomalias"
+  else
+    add session_single ok "Sessão única por time" "login em outra máquina derruba a sessão anterior; anomalias em Pessoas → Sessões & anomalias"
+  fi
 fi
 
 # --- rodada seguinte (aquecimento → prova) ------------------------------------------------
@@ -425,6 +432,20 @@ if nb_configured "$contest"; then
     add mlinux ok "Integração nutellaboot" "chave válida; panorama/coleta em Operação → mlinux"
   else
     add mlinux warn "nutellaboot não responde" "chave inválida ou serviço fora (HTTP $(nb_status "$_nbr")) — Operação → mlinux"
+  fi
+  # sede com MENOS máquinas do que times (auditoria da Maratona 2026: Trinidad 1 máquina p/ 4
+  # times, Tupiza 3 p/ 5 — os times se revezaram numa máquina). Lê o cache da última coleta.
+  _nbc="$cdir/var/nutella.cache.json"
+  if [[ -s "$_nbc" ]]; then
+    _short="$(jq -r '[ .sedes[]? | select((.pop.teams // (.teams|length)) > .machines_total)
+                       | "\(.name) (\(.machines_total) máq. p/ \(.pop.teams // (.teams|length)) times)" ] | .[0:6] | join(", ")' "$_nbc" 2>/dev/null)"
+    _nshort="$(jq -r '[ .sedes[]? | select((.pop.teams // (.teams|length)) > .machines_total) ] | length' "$_nbc" 2>/dev/null)"
+    _nshort="${_nshort//[^0-9]/}"; _nshort="${_nshort:-0}"
+    if (( _nshort > 0 )); then
+      add site_short warn "$_nshort sede(s) com menos máquinas que times" "$_short — os times vão se revezar numa máquina; confira com a sede (Operação → mlinux)"
+    else
+      add site_short ok "Máquinas por sede" "toda sede tem pelo menos uma máquina mlinux por time (última coleta)"
+    fi
   fi
 fi
 

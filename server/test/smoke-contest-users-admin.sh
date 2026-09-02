@@ -26,6 +26,7 @@ pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo 
 echo "== deslogar usuário =="
 call /contest/admin/logout-user POST '{"login":"alice"}' adm 'contest=uc'
 ck "removeu 2 sessões da alice" '[[ "$(jq -r .sessions_removed <<<"$BODY")" == 2 ]]'
+ck "trilha: 2 eventos logout da alice, com quem deslogou" '[[ "$(grep -c "	alice	logout	" "$C/var/session-events.log")" == 2 ]] && grep -q "	uc.admin$" "$C/var/session-events.log"'
 
 echo "== desabilitar =="
 call /contest/admin/user-disable POST '{"login":"bob"}' adm 'contest=uc'
@@ -56,6 +57,7 @@ ck "removeu só os de UA ruim (carol)" '[[ "$(jq -r .sessions_removed <<<"$BODY"
 ck "sessão da alice (UA bom) ficou" '[[ -f "$SESS/a3" ]]'
 ck "sessão da carol (UA ruim) saiu" '[[ ! -f "$SESS/c1" ]]'
 ck "sessão do .cjudge (privilegiado) ficou" '[[ -f "$SESS/cj1" ]]'
+ck "trilha: mismatch-logout da carol"  'grep -q "	carol	mismatch-logout	" "$C/var/session-events.log"'
 
 echo "== carga em lote (users-bulk, legado) =="
 call /contest/admin/users-bulk POST '{"users":[{"login":"nova1","fullname":"Nova Um"},{"login":"nova2","password":"pw2","fullname":"Nova Dois","email":"n2@x.com"},{"login":"alice","fullname":"Alice X"},{"login":"jx.judge","fullname":"Hack"},{"login":"inv@lido!","fullname":"X"},{"login":"nova1","fullname":"dup"}]}' adm 'contest=uc'

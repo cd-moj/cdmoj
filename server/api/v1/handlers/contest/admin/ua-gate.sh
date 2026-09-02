@@ -106,7 +106,15 @@ if jq -e 'has("fallback")' "$bodyf" >/dev/null 2>&1; then
   (( ${#fb} <= 200 )) || fail 422 "fallback muito longo" "fallback_long"
   g="$(jq -c --arg v "$fb" '.fallback=$v' <<<"$g")"
 fi
+# sessão única por time (lib/session-index.sh): booleano; só tem efeito com mode:enforce
+if jq -e 'has("single_session")' "$bodyf" >/dev/null 2>&1; then
+  if jq -e '.single_session == false' "$bodyf" >/dev/null 2>&1; then
+    g="$(jq -c '.single_session=false' <<<"$g")"
+  else
+    g="$(jq -c '.single_session=true' <<<"$g")"
+  fi
+fi
 
 ug_save "$contest" "$g"
-audit_log_to "$contest" ua-gate-set "mode=$(jq -r '.mode' <<<"$g") sedes=$(jq -r '.by_region|length' <<<"$g") isentos=$(jq -r '.exempt|length' <<<"$g")"
+audit_log_to "$contest" ua-gate-set "mode=$(jq -r '.mode' <<<"$g") single_session=$(jq -r '.single_session' <<<"$g") sedes=$(jq -r '.by_region|length' <<<"$g") isentos=$(jq -r '.exempt|length' <<<"$g")"
 ok_json '{saved:true, gate:$g}' --argjson g "$g"

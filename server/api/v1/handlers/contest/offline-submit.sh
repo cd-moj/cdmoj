@@ -131,6 +131,11 @@ while (( i < NP )); do
   # marcador p/ o organizador: var/offline-log (arrival:claimed:beacon_t:login:id:sha) + audit
   printf '%s:%s:%s:%s:%s:%s\n' "$NOW" "$claimed" "$bt" "$SESSION_LOGIN" "$ID" "$sha" \
     >> "$CDIR/var/offline-log" 2>/dev/null || true
+  # origem (mesmo TSV do /submit): aqui é quem ENTREGOU o pacote; a sessão do login fica vazia
+  # de propósito — o pacote pode ter sido gerado noutra máquina, e isso não é anomalia
+  printf '%s\t%s\t%s\t%s\t%s\t\t\t\t%s\n' "$claimed" "$ID" "$SESSION_LOGIN" "$(client_ip)" \
+    "$(printf '%s' "${HTTP_USER_AGENT:-}" | base64 -w0)" "${SESSION_TOKEN:0:8}" \
+    >> "$CDIR/var/submit-origin.log" 2>/dev/null || true
   audit_log_to "$contest" offline-submit \
     "login=$SESSION_LOGIN id=$ID prob=$problem claimed=$claimed beacon=$bt arrival=$NOW gap_beacon=$((claimed-bt)) gap_arrival=$((NOW-claimed))${chainnote}"
 

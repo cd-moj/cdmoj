@@ -13,24 +13,35 @@ require_contest "$contest"
 require_auth_contest "$contest"
 is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 
+# Esta varredura completa é também quem SEMEIA o índice por login (lib/session-index.sh)
+# quando ele ainda não foi semeado neste contest — só apêndice, sob flock -n; se outro
+# processo está semeando, não repete. Depois disso o login usa o índice (sessão única).
+_seed=0; _sfd=""
+if ! sess_index_seeded "$contest"; then
+  _sd="$(_sidx_dir "$contest")"; mkdir -p "$_sd" 2>/dev/null; chmod 700 "$_sd" 2>/dev/null
+  if exec {_sfd}>"$_sd/.seed.lock" 2>/dev/null && flock -n "$_sfd" 2>/dev/null; then _seed=1; fi
+fi
 set +o noglob; shopt -s nullglob
 tmpf="$(mktemp)"
 for f in "$SESSIONDIR"/*; do
   [[ -f "$f" ]] || continue
-  CONTEST=""; LOGIN=""; USERFULLNAME=""; LOGINAT=""; IP=""; UA_B64=""
+  CONTEST=""; LOGIN=""; USERFULLNAME=""; LOGINAT=""; IP=""; UA_B64=""; MKEY=""
   source "$f" 2>/dev/null
   [[ "$CONTEST" == "$contest" && -n "$LOGIN" ]] || continue
   [[ "$LOGINAT" =~ ^[0-9]+$ ]] || LOGINAT=0
-  printf '%s\x01%s\x01%s\x01%s\x01%s\n' "$LOGIN" "$USERFULLNAME" "$IP" "$UA_B64" "$LOGINAT" >> "$tmpf"
+  (( _seed )) && valid_id "$LOGIN" && printf '%s\n' "${f##*/}" >> "$_sd/$LOGIN" 2>/dev/null
+  printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' "$LOGIN" "$USERFULLNAME" "$IP" "$UA_B64" "$LOGINAT" "$MKEY" >> "$tmpf"
 done
 shopt -u nullglob
+if (( _seed )); then : > "$_sd/.seeded"; fi
+[[ -n "$_sfd" ]] && eval "exec ${_sfd}>&-"
 
 # corpo ANTES do cabeçalho (regra da casa): jq falhou ⇒ 500 com rastro, nunca 200 vazio.
 body="$(jq -Rcs '
   [ split("\n")[] | select(length>0) | split("\u0001")
     | {login:.[0], name:.[1], ip:.[2],
        user_agent:(.[3] | if length>0 then (try @base64d catch "?") else "" end),
-       login_at:(.[4]|tonumber? // 0)} ] as $all
+       login_at:(.[4]|tonumber? // 0), mkey:(.[5] // "")} ] as $all
   | ($all | group_by(.login)
         | map({login:.[0].login, nip:(map(.ip)|unique|length), nua:(map(.user_agent)|unique|length)})
         | INDEX(.login)) as $g

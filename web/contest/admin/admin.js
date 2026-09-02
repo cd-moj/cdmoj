@@ -56,7 +56,7 @@ const GROUPS = () => [
     { id: 'coortes', label: T('Coortes', 'Cohorts'), make: () => makeCohortsTab(CONTEST) },
     { id: 'sedes', label: T('Sedes & escolas', 'Sites & schools'), make: () => makeSitesTab(CONTEST) },
     { id: 'maquinas', label: T('Máquinas & gate', 'Machines & gate'), make: () => makeMachinesTab(CONTEST) },
-    { id: 'sessoes', label: T('Sessões', 'Sessions'), make: () => makeSessionsTab(CONTEST) },
+    { id: 'sessoes', label: T('Sessões & anomalias', 'Sessions & anomalies'), make: () => makeSessionsTab(CONTEST) },
   ] },
   { id: 'operacao', label: T('🎛️ Operação', '🎛️ Operations'), panels: [
     { id: 'situacao', label: T('Situação', 'Status'), make: () => makeStatusTab(CONTEST) },

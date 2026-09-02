@@ -75,6 +75,14 @@ export function makeMachinesTab(CONTEST) {
           ? T('(ativo — o login devolve 403 ua_gate)', '(active — login returns 403 ua_gate)')
           : T('(desligado — a configuração fica guardada)', '(off — the configuration is kept)')))));
 
+    // sessão única por time (lib/session-index.sh): só tem efeito com o gate ligado
+    const single = el('input', { type: 'checkbox', checked: g.single_session !== false });
+    box.append(el('div', { style: 'margin:.3rem 0' },
+      el('label', { class: 'row', style: 'gap:.5rem;align-items:center' }, single,
+        el('b', {}, T('Sessão única por time', 'Single session per team')),
+        el('span', { class: 'small muted' },
+          T('login em outra máquina derruba a sessão anterior (troca por defeito continua funcionando). As quedas aparecem em Pessoas › Sessões & anomalias.',
+            'a login on another machine ends the previous session (switching after a failure still works). Drops show up in People › Sessions & anomalies.')))));
     const rx = el('input', { value: (g.from_login && g.from_login.regex) || '', placeholder: '^team([a-z]{6})[0-9]{3}$', style: 'width:16rem;font-family:var(--mono)' });
     const ex = el('input', { value: (g.from_login && g.from_login.expect) || '\\1', placeholder: '\\1', style: 'width:7rem;font-family:var(--mono)' });
     const someLogin = ((DATA && DATA.by_login) || []).map((r) => r.login).find((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/.test(l)) || '';
@@ -159,9 +167,10 @@ export function makeMachinesTab(CONTEST) {
           from_login: rx.value.trim() ? { regex: rx.value.trim(), expect: ex.value.trim() || '\\1' } : null,
           by_region: Object.fromEntries(byRegion.get().map((o) => [o.k, o.v])),
           by_regex: byRegex.get(), exempt: exempt.get(), fallback: fb.value.trim(),
+          single_session: single.checked,
         }, G);
-        setMsg(T('✓ gate salvo. Quem já está logado continua — use "deslogar divergentes" na aba Usuários & sessões.',
-          '✓ gate saved. Already-logged-in users stay — use "log out mismatched" in the Users & sessions tab.'));
+        setMsg(T('✓ gate salvo. Quem já está logado continua — use "Deslogar UA divergente" em Pessoas › Sessões & anomalias.',
+          '✓ gate saved. Already-logged-in users stay — use "Log out mismatched UA" in People › Sessions & anomalies.'));
         await load();
       } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
     };

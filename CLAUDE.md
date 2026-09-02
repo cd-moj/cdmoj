@@ -86,6 +86,22 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   "Resposta inválida do servidor" na tela, sem NADA no log — hoje o `ok_json` monta o corpo
   antes do cabeçalho e uma falha do jq vira `500 build_fail` com o stderr no error.log.
   Teste que fecha a porta: caso *oversized* (>128 KiB) no smoke — ver `smoke-contest-jplag.sh`.
+- **Sessão única por time + índice de sessões (`lib/session-index.sh`, 2026-09-02)**: a sessão
+  grava `MKEY` (chave de máquina: `m:<machine_id>/<boot_id>` do UA do mlinux — o boot_id é
+  OBRIGATÓRIO porque o machine_id vem CLONADO em sedes inteiras —, senão `ip:<ip>`) e é indexada
+  em `run/sessions/.idx/<c>/<login>` (um token por linha; dotdir invisível ao glob dos varredores,
+  entrada órfã podada na leitura). Com o gate de UA valendo p/ o login e `single_session` (ua-gate.json,
+  default true), o `/auth/login` REVOGA as sessões do mesmo time em OUTRA chave (sob flock por
+  (contest,login) com fd dinâmico; recarga na mesma máquina não derruba; papel nunca) e responde
+  `revoked:<n>`. O índice só vale SEMEADO (`.seeded`): quem semeia é a varredura completa
+  (`sessions.sh`, `anomalies.sh`, o 1º login gateado, `bin/session-index-seed.sh`), só por apêndice.
+  `remove_contest_sessions` continua sendo a varredura autoritativa (`_v` ecoa token/login/mkey p/
+  o evento). Trilhas: `var/session-events.log` (revoke/logout/mismatch-logout) e
+  `var/submit-origin.log` (IP/UA da requisição × da sessão, por submissão) — **log novo por
+  contest ENTRA na lista de cópia do arquivamento de rodada** (`contest-rounds.sh`). Motor de
+  anomalias: `lib/anomalies.sh` (um jq; `mkey` em jq = a MESMA regra do bash — mexeu numa, mexa na
+  outra; o jq vive em VARIÁVEL, fora do `jq-portability.sh`: rode `smoke-contest-anomalies.sh` com
+  o jq 1.7). Painel: Pessoas › Sessões & anomalias (`sessions-tab.js`), só com gate ativo.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
   `printf %q` (é *sourced*). **A sessão vale enquanto a CONTA existir** (`_session_account_alive`
   no `load_session`): sessão do MOJ não expira por tempo, então a conferência do `account.json` é

@@ -70,7 +70,7 @@ links antigos (`#settings`, `#users`, `#machines`…) continuam funcionando, red
 | **Coortes** | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
 | **Sedes & escolas** | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas, **as fotos/músicas que cada chefe de sede gere no telão** e o gate por sede — e as regras de país/escola por regex. |
 | **Máquinas & gate** | De onde cada time logou (IP e navegador) em cada rodada, com CSV, **e a configuração do gate de navegador por sede** (esperado × visto por time). A seção 7 explica. |
-| **Sessões** | Sessões ativas com alerta de multi-IP/UA, deslogar, **deslogar UA divergente** e o log de acessos por dia (CSV). |
+| **Sessões & anomalias** | O que está fora do lugar no uso das máquinas **durante a prova** (só com o gate de UA ligado): time com 2 sessões vivas, máquina compartilhada por 2 times, submissão vinda de outra máquina, UA fora da sede, sede com menos máquinas que times, trocas de máquina e a trilha da **sessão única**. Linha do tempo, tabela por time, CSV, deslogar, **deslogar UA divergente**, sessões ativas e o log de acessos por dia. A seção 7½ explica. |
 
 ### 🎛️ Operação — o dia da prova
 
@@ -366,8 +366,35 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
 - O painel Máquinas & gate mostra **UA esperado × UA visto** por time e conta quantos estão fora da
   imagem da sede: é assim que se conserta a sala **no aquecimento**, antes de o gate barrar
   alguém na prova.
-- Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (Pessoas › Sessões),
-  que agora compara cada sessão com o esperado **daquele** time.
+- Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (Pessoas › Sessões &
+  anomalias), que compara cada sessão com o esperado **daquele** time.
+- **Sessão única por time** (chave na mesma seção 🔒, ligada por padrão): com o gate valendo, um
+  login novo em **outra máquina derruba a sessão anterior** do time. Trocar de máquina por defeito
+  continua funcionando (o time loga na nova e a velha perde a sessão); recarregar a página na mesma
+  máquina não derruba nada. Cada queda vira um evento em Sessões & anomalias.
+
+## 7½. Sessões & anomalias (Pessoas › Sessões & anomalias)
+
+Na Maratona 2026 só deu para responder "algum time usou duas máquinas?" depois da prova, cruzando
+logs à mão. Este painel responde **durante** a prova. Ele só vale com o **gate de UA ligado**: é o
+navegador da imagem do mlinux que identifica a máquina (`machine_id/boot_id`; sem ele, vale o IP).
+Com o gate desligado o painel avisa e mostra só as sessões e o log de acessos.
+
+- **Cartões** (clique = filtro): sessões ativas, 👥 **2 sessões vivas** (o mesmo time em duas
+  máquinas — com a sessão única ligada isso só acontece por token copiado), 🖥 **máquina
+  compartilhada** (2+ times logaram na mesma máquina na prova; grave se os dois estão vivos nela),
+  📤 **submissão de outra máquina** (a submissão veio de uma máquina diferente da que fez o login;
+  mesma máquina reiniciada aparece como *info*), 🧭 **UA fora da sede**, 🏫 **sede sem máquina por
+  time** (da última coleta do nutellaboot), 🔁 **trocou de máquina** (info: normal quando a máquina
+  falha) e as **revogações** da sessão única.
+- **Linha do tempo**: cada evento com hora, tipo, time, máquina e detalhe; filtros por tipo e texto;
+  CSV; botão **deslogar** o time.
+- **Times**: só os com alguma anomalia (ou todos com sessão): sessões vivas e em quantas máquinas,
+  as máquinas usadas na prova em ordem, a última submissão (✓ veio da máquina da sessão; ✗ não) e as
+  anomalias como etiquetas.
+- Atualiza sozinho a cada 30 s. A submissão grava a origem (IP, navegador e a sessão usada) em
+  `var/submit-origin.log`; os logins em `var/access.log`; as quedas de sessão em
+  `var/session-events.log` — os três atravessam as rodadas e entram no arquivo.
 
 ## 8. Times convidados (coortes de placar)
 

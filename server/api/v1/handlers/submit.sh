@@ -105,5 +105,14 @@ printf '%s:%s:%s:%s\n' "$AGORA" "$ID" "$SESSION_LOGIN" "$editor" \
 # QUEM estava no teclado — nem o history nem o results carregam isso.
 [[ -n "${SESSION_ACTOR:-}" ]] && printf '%s:%s:%s:%s\n' "$AGORA" "$ID" "$SESSION_LOGIN" "$SESSION_ACTOR" \
   >> "$CONTESTSDIR/$contest/var/actor-log" 2>/dev/null || true
+# ORIGEM da submissão (auditoria de máquinas, 02/09/2026): de que IP/navegador veio a requisição
+# e de onde era a SESSÃO usada. Requisição em máquina diferente da do login = token levado p/
+# outra máquina — é o "submeteu de duas máquinas" que a auditoria da Maratona não conseguia
+# responder. TSV: epoch subid login ip ua_b64 sess_ip sess_ua_b64 sess_mkey tok8. Lido pelo
+# motor de anomalias (lib/anomalies.sh); entra no arquivamento de rodada.
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$AGORA" "$ID" "$SESSION_LOGIN" "$(client_ip)" \
+  "$(printf '%s' "${HTTP_USER_AGENT:-}" | base64 -w0)" "${SESSION_IP:-}" "${SESSION_UA_B64:-}" \
+  "${SESSION_MKEY:-}" "${SESSION_TOKEN:0:8}" \
+  >> "$CONTESTSDIR/$contest/var/submit-origin.log" 2>/dev/null || true
 
 ok_json '{submission_id:$id, status:"queued"}' --arg id "$ID"

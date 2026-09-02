@@ -14,6 +14,7 @@ SESSION_TOKEN=""; SESSION_CONTEST=""; SESSION_LOGIN=""; SESSION_NAME=""; SESSION
 # SESSION_LOGIN é o time (é o competidor: placar, balões, impressão) e SESSION_ACTOR é quem
 # estava no teclado. Vazio = sessão comum.
 SESSION_ACTOR=""
+SESSION_IP=""; SESSION_UA_B64=""; SESSION_MKEY=""
 
 # _session_account_alive <contest> <login> — a conta da sessão ainda EXISTE?
 # Sessão do MOJ não expira, então sem este teste ela continua autenticada como um login que
@@ -40,10 +41,13 @@ load_session() {
   valid_id "$SESSION_TOKEN" || return 1
   local f="$SESSIONDIR/$SESSION_TOKEN"
   [[ -f "$f" ]] || return 1
-  local CONTEST="" LOGIN="" USERFULLNAME="" LOGINAT="" ACTOR=""
+  local CONTEST="" LOGIN="" USERFULLNAME="" LOGINAT="" ACTOR="" IP="" UA_B64="" MKEY=""
   source "$f"
   SESSION_CONTEST="$CONTEST"; SESSION_LOGIN="$LOGIN"
   SESSION_NAME="$USERFULLNAME"; SESSION_AT="$LOGINAT"; SESSION_ACTOR="$ACTOR"
+  # origem da sessão (IP/UA/chave de máquina do LOGIN): o /submit compara com a origem da
+  # requisição p/ a trilha de "submissão de outra máquina" (lib/session-index.sh)
+  SESSION_IP="$IP"; SESSION_UA_B64="$UA_B64"; SESSION_MKEY="$MKEY"
   [[ -n "$SESSION_LOGIN" ]] || return 1
   _session_account_alive "$SESSION_CONTEST" "$SESSION_LOGIN"
 }
@@ -124,12 +128,15 @@ client_ip(){
 # create_session <contest> <login> <name> [actor] -> ecoa o token (uuid)
 # <actor> só é gravado quando a sessão é de um TIME (o membro que autenticou) — ver
 # SESSION_ACTOR acima e o alias em handlers/auth/login.sh.
+# Grava também MKEY (chave de máquina do UA/IP — lib/session-index.sh) e indexa o token por
+# login (é o que permite "sessão única por time" sem varrer o diretório no login).
 create_session() {
   mkdir -p "$SESSIONDIR"; chmod 700 "$SESSIONDIR" 2>/dev/null
   local uuid; uuid="$(</proc/sys/kernel/random/uuid)"
-  local ip ua
+  local ip ua mk
   ip="$(client_ip)"
   ua="$(printf '%s' "${HTTP_USER_AGENT:-}" | base64 -w0)"   # b64 p/ não injetar no source
+  mk="$(sess_machine_key "$ip" "${HTTP_USER_AGENT:-}")"
   ( umask 077
     {
       printf 'CONTEST=%q\n'      "$1"
@@ -138,27 +145,36 @@ create_session() {
       printf 'LOGINAT=%q\n'      "$EPOCHSECONDS"
       printf 'IP=%q\n'           "$ip"
       printf 'UA_B64=%q\n'       "$ua"
+      printf 'MKEY=%q\n'         "$mk"
       [[ -n "${4:-}" ]] && printf 'ACTOR=%q\n' "$4"
     } > "$SESSIONDIR/$uuid"
   )
+  sess_index_add "$1" "$2" "$uuid"
   printf '%s' "$uuid"
 }
 destroy_session(){ [[ -n "${1:-}" ]] && valid_id "$1" && rm -f "$SESSIONDIR/$1"; }
 
 # remove_contest_sessions <contest> [login] -> ecoa o nº de sessões removidas.
 # Sem <login>, remove todas do contest. Usado por deslogar/desabilitar usuário.
+# É a varredura COMPLETA (autoritativa) — o índice de lib/session-index.sh é só o atalho do
+# login; a entrada dele que ficar órfã é podada na leitura.
 remove_contest_sessions(){
-  local c="$1" want="${2:-}" n=0 f CONTEST LOGIN
+  local n; n="$(remove_contest_sessions_v "$1" "${2:-}" | wc -l | tr -d '[:space:]')"
+  printf '%s' "${n:-0}"
+}
+# remove_contest_sessions_v <contest> [login] -> uma linha por sessão removida:
+# token \t login \t mkey  (p/ quem precisa registrar o evento — logout-user, logout-mismatch)
+remove_contest_sessions_v(){
+  local c="$1" want="${2:-}" f CONTEST LOGIN MKEY
   set +o noglob; shopt -s nullglob
   for f in "$SESSIONDIR"/*; do
     [[ -f "$f" ]] || continue
-    CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
+    CONTEST=""; LOGIN=""; MKEY=""; source "$f" 2>/dev/null
     [[ "$CONTEST" == "$c" ]] || continue
     [[ -z "$want" || "$LOGIN" == "$want" ]] || continue
-    rm -f "$f"; ((n++))
+    rm -f "$f" && printf '%s\t%s\t%s\n' "${f##*/}" "$LOGIN" "$MKEY"
   done
   shopt -u nullglob
-  printf '%s' "$n"
 }
 
 # rename_contest_sessions <contest> <old> <new> -> ecoa o nº de sessões reescritas.
@@ -191,6 +207,9 @@ rename_contest_sessions(){
              {print}' \
            "$f" > "$tmp" 2>/dev/null; then
         chmod 600 "$tmp" 2>/dev/null; mv -f "$tmp" "$f" && ((n++))
+        # o índice por login (lib/session-index.sh) é chaveado pelo LOGIN: o token passa a
+        # existir sob o nome novo (a entrada velha é podada na leitura, porque LOGIN difere)
+        (( dol )) && sess_index_add "$CONTEST" "$new" "${f##*/}"
       else rm -f "$tmp"; fi
     done
     printf '%s' "$n" )
