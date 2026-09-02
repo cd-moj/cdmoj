@@ -20,13 +20,18 @@
 #   problems <busca> · statement <org#slug> · submit <org#slug> <arquivo> · subs
 # Config: MOJ_URL (default https://moj.naquadah.com.br), MOJ_CONTEST (= -c). Requisitos:
 # bash, curl, jq, openssl. Sem root, sem instalação: um arquivo.
+# PROVA COM GATE DE NAVEGADOR: rode a CLI na máquina de prova — ela manda o mesmo User-Agent
+# do navegador da imagem (lido de /etc/moj/user-agent; MOJ_UA_FILE/MOJ_USER_AGENT mudam),
+# marcado como "moj-comp/<build>" (a organização vê o que veio da CLI e o que veio da web).
 
 # moj-cli/lib/core.sh — núcleo COMPARTILHADO das CLIs do MOJ (moj, moj-contest, camadas
 # futuras). SOURCED pelos scripts no repo (dev) e EMBUTIDO nos artefatos de 1 arquivo pelo
 # mkdist.sh (instalação por curl continua de arquivo único) — por isso SEM shebang e SEM set.
 #
 # Config por ambiente: MOJ_URL (default https://moj.naquadah.com.br), MOJ_CONTEST (contest da
-# sessão; default treino), MOJ_CONFIG_DIR, MOJ_HOST (header Host p/ teste local), MOJ_NO_CACHE.
+# sessão; default treino), MOJ_CONFIG_DIR, MOJ_HOST (header Host p/ teste local), MOJ_NO_CACHE,
+# MOJ_UA_FILE (default /etc/moj/user-agent — o UA do navegador da máquina de prova) e
+# MOJ_USER_AGENT (força o UA base). Ver o bloco USER-AGENT abaixo.
 # O chamador pode definir MOJ_TOOL (nome exibido nos erros) ANTES de sourcear.
 #
 # TOKEN POR CONTEST: $CFG/token-<contest> — o moj-contest loga em vários contests sem
@@ -35,7 +40,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="b8c0f27-20260830"
+MOJ_CLI_BUILD="522b81a-20260902"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -44,6 +49,27 @@ CONTEST="${MOJ_CONTEST:-treino}"
 CFG="${MOJ_CONFIG_DIR:-$HOME/.config/moj}"
 ED="${EDITOR:-${VISUAL:-}}"; [[ -n "$ED" ]] || { command -v nano >/dev/null && ED=nano || ED=vi; }
 HDR=(); [[ -n "${MOJ_HOST:-}" ]] && HDR=(-H "Host: $MOJ_HOST")
+# USER-AGENT — duas funções: (1) identificar a CLI (o servidor separa pedidos web × CLI no
+# relatório de sessões/submissões) e (2) na MÁQUINA DE PROVA, carregar o MESMO User-Agent do
+# navegador da imagem da sede — é ele que passa no gate de UA por sede e que dá a CHAVE DE
+# MÁQUINA (MLinux/<imagem>/<machine_id>/<boot_id>): browser e CLI na mesma máquina viram a mesma
+# sessão-máquina, e a sessão única não derruba uma pela outra. A imagem grava o UA em
+# /etc/moj/user-agent (1ª linha; MOJ_UA_FILE muda o caminho); MOJ_USER_AGENT força um valor.
+# Sem nada disso a CLI se apresenta só como "<tool>/<build>" — e um contest com gate a barra
+# (403 ua_gate), de propósito: fora da máquina de prova ninguém entra.
+_moj_base_ua(){
+  if [[ -n "${MOJ_USER_AGENT:-}" ]]; then printf '%s' "$MOJ_USER_AGENT"; return 0; fi
+  local f="${MOJ_UA_FILE:-/etc/moj/user-agent}"
+  [[ -r "$f" ]] && head -n1 "$f" 2>/dev/null | tr -d '\r\n'
+  return 0
+}
+MOJ_UA_BASE="$(_moj_base_ua)"
+# o nome da ferramenta no UA sai do PRÓPRIO script (BASH_SOURCE[-1]): no artefato de 1 arquivo a
+# lib está embutida ANTES do `MOJ_TOOL=<tool>` do script, e "moj-comp" viraria "moj" aqui.
+_ua_tool="$(basename -- "${BASH_SOURCE[-1]:-$0}")"
+case "$_ua_tool" in moj|moj-comp|moj-contest|moj-judges) ;; *) _ua_tool="${MOJ_TOOL:-moj}";; esac
+MOJ_UA="${MOJ_UA_BASE:+$MOJ_UA_BASE }$_ua_tool/$MOJ_CLI_BUILD"
+HDR+=(-A "$MOJ_UA")
 have(){ command -v "$1" >/dev/null 2>&1; }
 have jq || die "preciso do 'jq'."; have curl || die "preciso do 'curl'."
 
@@ -160,6 +186,12 @@ auth_hdr_file(){ local c tf h; c="${1:-$CONTEST}"; tf="$(token_file "$c")"; h="$
 _api_fail(){
   local code="$1" out="$2" msg
   msg="$(jq -r '.error.message // .message // empty' <<<"$out" 2>/dev/null || true)"
+  # gate de navegador por sede: a CLI só entra na MÁQUINA DE PROVA (lê /etc/moj/user-agent)
+  if [[ "$(jq -r '.error.code // empty' <<<"$out" 2>/dev/null || true)" == ua_gate ]]; then
+    msg="$msg
+  este contest só aceita o navegador da imagem da sede. Rode a CLI NA MÁQUINA DE PROVA (ela lê o
+  User-Agent da imagem em ${MOJ_UA_FILE:-/etc/moj/user-agent}; UA em uso: $MOJ_UA) ou peça isenção à organização."
+  fi
   if [[ -z "$msg" ]]; then
     case "$code" in
       504|502) msg="o servidor passou do tempo-limite — o pedido PODE ter sido aplicado pela metade; confira com '$MOJ_TOOL info <id>' antes de repetir";;
@@ -616,6 +648,9 @@ cmd_doctor(){ local bad=0 srv
     || echo "✓ build $( [[ -n "$srv" ]] && echo "ok (servidor: $srv)" || echo "$MOJ_CLI_BUILD (servidor indisponível)")"
   have jq || { echo "✗ jq AUSENTE"; bad=1; }
   have curl || { echo "✗ curl AUSENTE"; bad=1; }
+  # o UA que vai nas requisições: com o da máquina de prova na frente, a CLI passa no gate da sede
+  if [[ -n "$MOJ_UA_BASE" ]]; then echo "✓ User-Agent da máquina de prova: $MOJ_UA"
+  else echo "· User-Agent: $MOJ_UA (sem ${MOJ_UA_FILE:-/etc/moj/user-agent}: em prova com gate de navegador, só entra da máquina de prova)"; fi
   if have openssl; then echo "✓ openssl $(openssl version 2>/dev/null | awk '{print $2}') — modo offline disponível"
   else echo "✗ openssl AUSENTE — o modo offline (queda de Internet) NÃO funciona"; bad=1; fi
   if [[ "$CONTEST_SET" == 1 && -f "$(token_file)" ]]; then echo "✓ sessão: $CONTEST"
