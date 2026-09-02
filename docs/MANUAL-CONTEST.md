@@ -13,7 +13,9 @@ Este manual é para você que vai participar de uma maratona ou prova no MOJ (o 
 > cartão no alto da página da prova. Os outros papéis (equipe de sala, telão, juiz) têm o deles
 > em [/contest/ajuda/](/contest/ajuda/).
 
-> **Prefere o terminal?** Existe a CLI do competidor, **`moj-comp`** — envia soluções, acompanha
+> **Prefere o terminal?** (Em prova com gate de navegador por sede, a CLI só entra **na máquina de
+> prova**: ela lê o User-Agent da imagem em `/etc/moj/user-agent` e o manda junto do seu — web e CLI
+> na mesma máquina são a mesma sessão-máquina.) Existe a CLI do competidor, **`moj-comp`** — envia soluções, acompanha
 > veredictos e placar, e tem o modo emergencial de **queda de Internet** (a submissão fica
 > guardada cifrada com o horário e conta certo quando a rede volta). Guia completo:
 > [/contest/cli.html](/contest/cli.html).

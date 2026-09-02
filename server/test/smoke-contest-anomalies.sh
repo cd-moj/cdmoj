@@ -28,6 +28,8 @@ UA_M1="$(ua $MID1 1001)"; UA_M2="$(ua $MID2 2002)"; UA_M3="$(ua $MIDC 3003)"; UA
   printf '%s\tteamaa004\t10.0.0.4\t%s\n' "$((CS-3000))" "$(b64 "$UA_M4")"
   printf '%s\tteamaa005\t10.0.0.5\t%s\n' "$((CS+200))"  "$(b64 "$UA_M5")"
   printf '%s\tan.admin\t10.0.0.9\t%s\n'  "$((CS+10))"   "$(b64 'Mozilla Chrome')"
+  # CLI na máquina de prova: mesmo UA da imagem + marcador moj-comp/<build> ⇒ canal cli, mesma chave
+  printf '%s\tteamaa004\t10.0.0.4\t%s\n' "$((CS+400))" "$(b64 "$UA_M4 moj-comp/abc123-20260902")"
   # sede atrás de NAT sem UA do mlinux: mesmo IP p/ dois times NÃO é máquina compartilhada
   printf '%s\tteamnn001\t10.9.9.9\t%s\n' "$((CS+300))" "$(b64 'Mozilla Chrome NAT')"
   printf '%s\tteamnn002\t10.9.9.9\t%s\n' "$((CS+310))" "$(b64 'Mozilla Chrome NAT')"
@@ -47,6 +49,9 @@ mkses comp teamaa005 "$((CS+200))" 10.0.0.5 "$UA_M5" "m:$MIDC/5005"   # competid
 { printf '%s\tsub1\tteamaa001\t10.0.0.2\t%s\t10.0.0.1\t%s\tm:%s/1001\tabcdef01\n' "$((CS+900))" "$(b64 "$UA_M2")" "$(b64 "$UA_M1")" "$MID1"
   printf '%s\tsub2\tteamaa002\t10.0.0.3\t%s\t10.0.0.3\t%s\tm:%s/3003\tabcdef02\n' "$((CS+950))" "$(b64 "$UA_M3b")" "$(b64 "$UA_M3")" "$MIDC"
   printf '%s\tsub3\tteamaa003\t10.0.0.3\t%s\t10.0.0.3\t%s\tm:%s/3003\tabcdef03\n' "$((CS+960))" "$(b64 "$UA_M3")" "$(b64 "$UA_M3")" "$MIDC"
+  # pela CLI (UA da máquina + moj-comp/) e um pacote OFFLINE (sessão vazia, como o offline-submit grava)
+  printf '%s\tsub4\tteamaa004\t10.0.0.4\t%s\t10.0.0.4\t%s\tm:%s/4004\tabcdef04\n' "$((CS+970))" "$(b64 "$UA_M4 moj-comp/abc123-20260902")" "$(b64 "$UA_M4 moj-comp/abc123-20260902")" "$MID4"
+  printf '%s\tsub5\tteamaa005\t10.0.0.5\t%s\t\t\t\tabcdef05\n' "$((CS+980))" "$(b64 "$UA_M5 moj-comp/abc123-20260902")"
 } > "$C/var/submit-origin.log"
 printf '%s\tteamaa001\trevoke\tm:%s/1001\tm:%s/2002\tdeadbeef\n' "$((CS+600))" "$MID1" "$MID2" > "$C/var/session-events.log"
 jq -n '{collected_at:1, sedes:[{name:"Sede A", machines_total:2, seen:1, teams:["teamaa001","teamaa002","teamaa003"], pop:{teams:3, present:3}},
@@ -87,6 +92,9 @@ ck "teams: 004 só de manhã, sem troca"  '[[ "$(J ".teams[]|select(.login==\"te
 ck "machines: M3 compartilhada e viva"  '[[ "$(J ".machines[]|select(.key==\"m:$MIDC/3003\")|.shared")" == true ]]'
 ck "papéis fora de tudo"              '[[ "$(J "[.teams[].login]|index(\"an.admin\")")" == null ]]'
 ck "cache de resposta gravado"        '[[ -s "$C/var/.anomalies-cache.active.json" ]]'
+ck "canais: logins web=5 cli=1 other=2 (NAT/Chrome); submissões web=3 cli=1 offline=1" \
+   '[[ "$(J ".channels.logins|[.web,.cli,.other]|join(\",\")")" == "5,1,2" && "$(J ".channels.submissions|[.web,.cli,.offline]|join(\",\")")" == "3,1,1" ]]'
+ck "CLI com o UA da máquina tem a MESMA chave (sem troca falsa p/ 004)" '[[ "$(K switched .login)" != *teamaa004* ]]'
 
 echo "== índice semeado pela varredura =="
 ck "marcador .seeded + tokens de 001" '[[ -e "$SESS/.idx/an/.seeded" && "$(sort -u "$SESS/.idx/an/teamaa001" | wc -l)" == 2 ]]'

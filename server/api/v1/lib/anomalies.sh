@@ -132,6 +132,10 @@ an_build(){
     def mid($k): (if (($k // "") | startswith("m:")) then ($k[2:] | split("/")[0]) else null end);
     def ism($k): (($k // "") | startswith("m:"));
     def short($ua): ($ua | if length > 60 then (.[0:57] + "…") else . end);
+    # canal do pedido pelo UA: a CLI se marca "moj-<tool>/<build>" (moj-cli/lib/core.sh); navegador
+    # começa por "Mozilla/"; o resto (curl cru, scripts) é "other"
+    def chan($ua): (if ($ua | test("moj(-comp|-contest|-judges)?/")) then "cli"
+                    elif ($ua | startswith("Mozilla/")) then "web" else "other" end);
     ($users[0] // {}) as $U
     | ($exp[0] // {}) as $E
     | ($nut[0] // null) as $N
@@ -145,6 +149,10 @@ an_build(){
          | . + {skey:(if (.smkey // "") != "" then .smkey
                       elif (.sua64 // "") != "" then (mkey(.sip; ($DEC[.sua64] // ""))) else "" end)} ]) as $B
     | (($mode == "enforce") and (([ $E | to_entries[] | select((.value // "") != "") ] | length) > 0)) as $active
+    # canais na janela da PROVA: logins (access.log) e submissões (submit-origin; offline = sessão vazia)
+    | { logins: (reduce ($A[] | select(.in) | chan(.ua)) as $c ({web:0, cli:0, other:0}; .[$c] += 1)),
+        submissions: (reduce ($B[] | (if (.sua64 // "") == "" and (.smkey // "") == "" then "offline" else chan(.ua) end)) as $c
+                        ({web:0, cli:0, other:0, offline:0}; .[$c] += 1)) } as $CH
     | def nm($l): (($U[$l] // {}).name // $l);
       def rg($l): (($U[$l] // {}).region // "");
     # --- máquinas por login (toda a janela) e sessões por login ----------------------------
@@ -224,6 +232,7 @@ an_build(){
                        shared:(([ .[] | select(.in) | .login ] | unique | length) > 1),
                        live:(($LIVEKEYS | index($k)) != null)}) | map(select(.shared or .live))),
         sites: ($SS | map(.detail + {name:.name})),
+        channels: $CH,
         nutella_at: ($N.collected_at // null)
       }' > "$out" 2>"$W/err" || { cat "$W/err" >&2; [[ -n "${AN_KEEP_W:-}" ]] && echo "W=$W" >&2 || rm -rf "$W"; return 1; }
   [[ -n "${AN_KEEP_W:-}" ]] && echo "W=$W" >&2 || rm -rf "$W"

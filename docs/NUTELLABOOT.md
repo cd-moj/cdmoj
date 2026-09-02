@@ -105,6 +105,10 @@ máquina↔time** (roster/binding).
   existir; `POST {action:"push-roster"}` PUBLICA o roster do STORE nas imagens
   (user_id=login, nome do time, universidade, país) — sem `force` ele NUNCA atropela
   roster já povoado (o da Maratona veio do ICPC).
+- **Para a IMAGEM (mlinux)**: além do UA do navegador (`MLinux/<imagem>/<machine_id>/<boot_id>`),
+  gravar o MESMO UA em **`/etc/moj/user-agent`** (uma linha, legível por todos). É de lá que a
+  `moj-comp` (e as outras CLIs) o lê e o manda na frente do seu marcador `moj-comp/<build>` —
+  passa no gate por sede, herda a chave de máquina do browser e o servidor separa web × CLI.
 - **Quando coletar**: logo depois da prova (o serviço reamostra 400 pontos sobre a janela
   pedida, então a resolução não depende de quando; mas máquinas religadas muito depois podem
   perder histórico). Recoletar é barato; o bruto fica guardado p/ `--reaggregate`.

@@ -394,6 +394,12 @@ avisa e mostra só as sessões e o log de acessos.
 - **Times**: só os com alguma anomalia (ou todos com sessão): sessões vivas e em quantas máquinas,
   as máquinas usadas na prova em ordem, a última submissão (✓ veio da máquina da sessão; ✗ não) e as
   anomalias como etiquetas.
+- **Canais**: quantos logins e submissões da prova vieram da **web**, da **CLI** (`moj-comp`) e de
+  **pacotes offline**. Vale mesmo sem gate. A CLI se identifica no User-Agent (`moj-comp/<build>`) e,
+  na máquina de prova, manda na frente o **mesmo User-Agent do navegador da imagem** (lido de
+  `/etc/moj/user-agent`, gravado pela imagem): é assim que ela passa no gate por sede e fica com a
+  mesma chave de máquina do browser — usar as duas na mesma máquina não derruba a sessão. Fora da
+  máquina de prova a CLI é barrada pelo gate (403), de propósito.
 - Atualiza sozinho a cada 30 s. A submissão grava a origem (IP, navegador e a sessão usada) em
   `var/submit-origin.log`; os logins em `var/access.log`; as quedas de sessão em
   `var/session-events.log` — os três atravessam as rodadas e entram no arquivo.

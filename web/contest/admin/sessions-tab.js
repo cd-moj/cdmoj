@@ -81,6 +81,19 @@ export function makeSessionsTab(CONTEST) {
     return bar;
   }
 
+  // --- 1b. canais: web × CLI × offline na janela (vale mesmo sem gate) ----------------------
+  function channels(d) {
+    const c = d.channels; if (!c) return null;
+    const L = c.logins || {}, S = c.submissions || {};
+    const cell = (v, lbl) => el('div', { class: 'dash-card' }, el('div', { class: 'dash-val' }, String(v || 0)), el('div', { class: 'dash-lbl' }, lbl));
+    return el('div', {},
+      el('div', { class: 'small muted', style: 'margin:.4rem 0 .1rem' },
+        T('Canal dos pedidos na prova (pelo User-Agent: a CLI se marca "moj-comp/<build>")', 'Request channel in the contest (by User-Agent: the CLI marks itself "moj-comp/<build>")')),
+      el('div', { class: 'dash-cards' },
+        cell(L.web, T('logins web', 'web logins')), cell(L.cli, T('logins CLI', 'CLI logins')), cell(L.other, T('logins outros', 'other logins')),
+        cell(S.web, T('submissões web', 'web submissions')), cell(S.cli, T('submissões CLI', 'CLI submissions')), cell(S.offline, T('pacotes offline', 'offline packets'))));
+  }
+
   // --- 2. cartões -------------------------------------------------------------------------
   function cards(d) {
     const c = d.counts || {}, K = KINDS();
@@ -274,7 +287,7 @@ export function makeSessionsTab(CONTEST) {
     if (!DATA) { panel.append(el('p', { class: 'muted' }, T('Carregando…', 'Loading…'))); return; }
     const d = DATA;
     panel.append(el('div', { class: 'section' }, el('h2', {}, T('🛡 Sessões & anomalias', '🛡 Sessions & anomalies')), stateBar(d),
-      d.gate && d.gate.active ? cards(d) : null));
+      d.gate && d.gate.active ? cards(d) : null, channels(d)));
     if (d.gate && d.gate.active) { panel.append(timeline(d)); panel.append(teamsTable(d)); }
     panel.append(sessionsSection(), accessSection(), legend());
   }
