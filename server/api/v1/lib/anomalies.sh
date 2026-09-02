@@ -75,16 +75,21 @@ an_build(){
   local f t CONTEST LOGIN IP UA_B64 LOGINAT MKEY
   if sess_index_seeded "$c"; then
     local idxd; idxd="$(_sidx_dir "$c")"
-    ( set +o noglob; shopt -s nullglob
-      for f in "$idxd"/*; do
-        [[ -f "$f" && "$f" != *.lock ]] || continue
-        while IFS= read -r t; do
-          [[ -n "$t" ]] && valid_id "$t" && [[ -f "$SESSIONDIR/$t" ]] || continue
-          CONTEST=""; LOGIN=""; IP=""; UA_B64=""; LOGINAT=""; MKEY=""; source "$SESSIONDIR/$t" 2>/dev/null
-          [[ "$CONTEST" == "$c" && "$LOGIN" == "${f##*/}" ]] || continue
-          printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' "$LOGIN" "${t:0:8}" "$IP" "$UA_B64" "${LOGINAT:-0}" "$MKEY"
-        done < "$f"
-      done ) | sort -u > "$W/sess.txt"
+    # Leitura pura do índice (sem lock nem poda) → UM grep sobre os arquivos de sessão + awk
+    # monta as linhas. Os arquivos são `KEY=%q` e os campos lidos (ids, IP, base64, chave de
+    # máquina) saem do %q sem aspas. 2.262 `source` (um por sessão) eram ~0,4 s na LATAM.
+    # Token que sumiu = grep cala (2>/dev/null); LOGIN/CONTEST do arquivo são a verdade.
+    find "$idxd" -maxdepth 1 -type f ! -name '*.lock' ! -name '.*' -print0 2>/dev/null \
+      | xargs -0 -r cat 2>/dev/null | grep -E '^[A-Za-z0-9._@#+-]+$' | sort -u \
+      | sed "s|^|$SESSIONDIR/|" \
+      | xargs -d '\n' -r grep -H -E '^(CONTEST|LOGIN|IP|UA_B64|LOGINAT|MKEY)=' 2>/dev/null \
+      | awk -v c="$c" 'function flush(){ if (tok != "" && r["CONTEST"] == c && r["LOGIN"] != "")
+                 printf "%s\001%s\001%s\001%s\001%s\001%s\n", r["LOGIN"], substr(tok,1,8), r["IP"], r["UA_B64"], (r["LOGINAT"] == "" ? 0 : r["LOGINAT"]), r["MKEY"]
+               delete r; tok = "" }
+             { i = index($0, ":"); if (i == 0) next; p = substr($0, 1, i-1); rest = substr($0, i+1)
+               n = split(p, a, "/"); t = a[n]; if (t != tok) { flush(); tok = t }
+               j = index(rest, "="); if (j > 0) r[substr(rest, 1, j-1)] = substr(rest, j+1) }
+             END { flush() }' > "$W/sess.txt"
   else
     local sd sfd seed=0; sd="$(_sidx_dir "$c")"; mkdir -p "$sd" 2>/dev/null; chmod 700 "$sd" 2>/dev/null
     if exec {sfd}>"$sd/.seed.lock" 2>/dev/null && flock -n "$sfd" 2>/dev/null; then seed=1; fi
@@ -135,9 +140,17 @@ an_build(){
     [[ -s "$W/exp.json" ]] || printf '{}' > "$W/exp.json"
   fi
   # --- nutellaboot (sedes × máquinas), se houver coleta ----------------------------------------
+  # (extrato guardado em var/.an-sites.json, invalidado pelo próprio cache: ler 2,5 MB custava 0,1 s)
   printf 'null' > "$W/nut.json"
-  [[ -s "$cdir/var/nutella.cache.json" ]] && jq -c '{collected_at, sedes: [ .sedes[]? | {name, machines_total, seen, teams:(.pop.teams // (.teams|length)), present:(.pop.present // null)} ]}' \
-    "$cdir/var/nutella.cache.json" > "$W/nut.json" 2>/dev/null
+  local ncache="$cdir/var/.an-sites.json"
+  if [[ -s "$cdir/var/nutella.cache.json" ]]; then
+    if resp_cache_fresh "$ncache" 0 "$cdir/var/nutella.cache.json"; then cp -f "$ncache" "$W/nut.json"
+    else
+      jq -c '{collected_at, sedes: [ .sedes[]? | {name, machines_total, seen, teams:(.pop.teams // (.teams|length)), present:(.pop.present // null)} ]}' \
+        "$cdir/var/nutella.cache.json" > "$W/nut.json" 2>/dev/null && resp_cache_store "$ncache" "$(cat "$W/nut.json")"
+    fi
+    [[ -s "$W/nut.json" ]] || printf 'null' > "$W/nut.json"
+  fi
 
   # --- o jq único ----------------------------------------------------------------------------
   jq -n --slurpfile acc "$W/acc.json" --slurpfile sess "$W/sess.json" --slurpfile sub "$W/sub.json" \
@@ -247,7 +260,8 @@ an_build(){
                   site_lock_claims: ([ $sl[] | select(.action == "site-lock-claim") ] | length) },
         anomalies: ($AN | sort_by(-.at)),
         events: ($EV | sort_by(-.at) | .[0:500]),
-        teams: ([ $TL | unique[] | select(. != "" and (role(.) | not)) | . as $l
+        # sem gate o painel esconde a tabela de times: não mandar 1.900 linhas (1,3 MB na LATAM)
+        teams: (if ($active | not) then [] else [ $TL | unique[] | select(. != "" and (role(.) | not)) | . as $l
                   | ($LASTSUB[$l] // null) as $ls
                   | ([ ($MACH[$l] // [])[] | select(.in > 0) | .key ] | last) as $curkey
                   | { login:$l, name:(nm($l)), region:(rg($l)),
@@ -256,7 +270,7 @@ an_build(){
                                  {at:$ls.t, key:$ls.key, same_as_session:(($ls.skey // "") == "" or $ls.key == $ls.skey),
                                   same_as_login_machine:($curkey == null or $ls.key == $curkey)} end),
                       flags:([ $AN[] | select((.login | split(", ")) | index($l) != null) | .kind ] | unique) } ]
-                | sort_by(-(.flags | length), .login)),
+                | sort_by(-(.flags | length), .login) end),
         # ⚠ arg de função jq avalia contra o INPUT: `$LIVEKEYS | index(.[0].key)` leria `.key` de
         # uma string — a chave é bindada ANTES (armadilha documentada no repo)
         machines: ($A | map(select(ism(.key))) | group_by(.key) | map(.[0].key as $k
