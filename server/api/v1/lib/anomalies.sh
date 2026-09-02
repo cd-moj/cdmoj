@@ -201,6 +201,7 @@ an_build(){
                 | sort_by(.first)) }) | from_entries) as $MACH
     | ($S | group_by(.login) | map({key: .[0].login, value: (map({key, ip, ua: (short(.ua)), at, tok8}) | sort_by(.at))}) | from_entries) as $SESS
     | ([ $S[] | select(ism(.key)) | .key ] | unique) as $LIVEKEYS
+    | ($LIVEKEYS | map({key: ., value: true}) | from_entries) as $LIVEMAP   # busca O(1): `index` num array de 1.900 chaves × 1.900 máquinas era O(n²)
     | ($S | map(select(ism(.key))) | group_by(.key) | map({key: .[0].key, value: (map(.login) | unique)}) | from_entries) as $LIVEBY
     # --- anomalias -------------------------------------------------------------------------
     | ([ $SESS | to_entries[] | select((.value | map(select(ism(.key)) | .key) | unique | length) > 1)
@@ -282,7 +283,7 @@ an_build(){
         machines: ($A | map(select(ism(.key))) | group_by(.key) | map(.[0].key as $k
                     | {key:$k, logins:(group_by(.login) | map({login:.[0].login, first:(map(.t)|min), last:(map(.t)|max), n:length, in:([ .[] | select(.in) ] | length)})),
                        shared:(([ .[] | select(.in) | .login ] | unique | length) > 1),
-                       live:(($LIVEKEYS | index($k)) != null)}) | map(select(.shared or .live))),
+                       live:($LIVEMAP[$k] // false)}) | map(select(.shared or .live))),
         sites: ($SS | map(.detail + {name:.name})),
         channels: $CH,
         nutella_at: ($N.collected_at // null)
