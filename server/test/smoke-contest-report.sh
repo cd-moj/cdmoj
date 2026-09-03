@@ -286,8 +286,23 @@ ck "site publicado: nav consistente também"       '[[ "$(grep -o "<nav class=\"
 J="$(callj /index/contests GET '' 'all=1')"
 ck "/index/contests: report_url do rp"            '[[ "$(jq -r "[.open[], .upcoming[], .closed.items[]] | .[] | select(.id==\"rp\") | .report_url" <<<"$J")" == "/relatorio/rp/" ]]'
 ck "audit: report-publish"                        'grep -q "report-publish" "$C/var/admin-audit.log"'
+# rodada ARQUIVADA com relatório (fixture mínimo): publicar/despublicar o relatório dela (symlink)
+mkdir -p "$C/rounds/aq/relatorio"; printf '<!DOCTYPE html><html><body>aq</body></html>\n' > "$C/rounds/aq/relatorio/index.html"
+jq -cn '{active:"oficial", rounds:[{slug:"aq", name:"Aquecimento", kind:"warmup", start:1, end:2, state:"archived", published:false},
+                                    {slug:"oficial", name:"Prova", kind:"official", start:3, end:4, state:"active", published:false}]}' > "$C/rounds.json"
+J="$(callj /contest/admin/report-publish GET adm 'contest=rp')"
+ck "GET lista a rodada arquivada com relatório (public=false)" '[[ "$(jq -c ".rounds | map({slug, public})" <<<"$J")" == "[{\"slug\":\"aq\",\"public\":false}]" ]]'
+J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish-round","round":"oficial"}')"
+ck "rodada ativa não é publicável (409)"           '[[ "$(jq -r .error.code <<<"$J")" == not_archived ]]'
+J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish-round","round":"aq"}')"
+ck "publish-round: symlink relatorio-rodadas/aq → rounds/aq/relatorio" '[[ "$(jq -r ".rounds[0].public" <<<"$J")" == true && -L "$C/relatorio-rodadas/aq" && "$(cat "$C/relatorio-rodadas/aq/index.html")" == *aq* ]]'
+ck "audit: report-publish-round"                    'grep -q "report-publish-round	slug=aq" "$C/var/admin-audit.log"'
 J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"publish"}')"
 ck "republicar: troca atômica, continua publicado" '[[ "$(jq -r .published <<<"$J")" == true && -s "$C/relatorio/index.html" && ! -e "$C/relatorio.old" ]]'
+ck "index publicada linka a rodada pública (rodada/aq/)" 'grep -q "href=\"rodada/aq/\">Aquecimento</a>" "$C/relatorio/index.html"'
+ck "tar.gz offline NÃO linka rodada (sem destino)"   '! grep -q "rodada/aq/" "$R/index.html"'
+J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"unpublish-round","round":"aq"}')"
+ck "unpublish-round: symlink some, arquivo da rodada fica" '[[ "$(jq -r ".rounds[0].public" <<<"$J")" == false && ! -e "$C/relatorio-rodadas/aq" && -s "$C/rounds/aq/relatorio/index.html" ]]'
 J="$(callj /contest/admin/report-publish POST adm 'contest=rp' '{"action":"unpublish"}')"
 ck "unpublish: site, carimbo e conf somem"        '[[ "$(jq -r .published <<<"$J")" == false && ! -e "$C/relatorio" && ! -e "$C/var/report-published.json" ]] && ! grep -q "^REPORT_PUBLISHED=" "$C/conf"'
 J="$(callj /index/contests GET '' 'all=1')"

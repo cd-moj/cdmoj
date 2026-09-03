@@ -3,6 +3,10 @@
 # POST {action:"publish"}   destaca score/report-publish.sh (setsid; ~100 s numa prova grande)
 #                           -> {started:true, job:{state:"running",…}}; 409 se já há um rodando
 # POST {action:"unpublish"} remove contests/<c>/relatorio/ + carimbo + REPORT_PUBLISHED (síncrono)
+# POST {action:"publish-round"|"unpublish-round", round:"<slug>"}  rodada ARQUIVADA: liga/desliga o
+#   symlink contests/<c>/relatorio-rodadas/<slug> → rounds/<slug>/relatorio (o nginx serve em
+#   /relatorio/<c>/rodada/<slug>/); o GET lista `rounds:[{slug,name,kind,public,url}]` (só as
+#   arquivadas com relatório). Independe do "publicada p/ os times" do rounds.json.
 #
 # PUBLICAR = deixar o relatório estático (o MESMO tar.gz do /contest/admin/report) acessível a
 # qualquer pessoa em /relatorio/<c>/ (nginx serve contests/<c>/relatorio/ por alias) e listado
@@ -17,8 +21,21 @@ require_auth_contest "$contest"
 is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 CD="$CONTESTSDIR/$contest"; STAMP="$CD/var/report-published.json"; ST="$CD/var/report-publish.status.json"
 
+source "$_DIR/lib/users.sh"; source "$_DIR/lib/contest-create.sh"; source "$_DIR/lib/contest-rounds.sh"
+_rounds_json(){   # rodadas ARQUIVADAS com relatório: pública = symlink existe (o portão do nginx)
+  local rj sl nm kd pub
+  rj="$(rd_get "$contest" 2>/dev/null)"; [[ -n "$rj" ]] || rj='{}'
+  jq -r '(.rounds // [])[] | select(.state == "archived") | [.slug, (.name // .slug), (.kind // "")] | @tsv' <<<"$rj" 2>/dev/null \
+  | while IFS=$'\t' read -r sl nm kd; do
+      rd_valid_slug "$sl" || continue
+      [[ -s "$CD/rounds/$sl/relatorio/index.html" ]] || continue
+      pub=false; [[ -L "$CD/relatorio-rodadas/$sl" && -s "$CD/relatorio-rodadas/$sl/index.html" ]] && pub=true
+      jq -cn --arg s "$sl" --arg n "$nm" --arg k "$kd" --argjson p "$pub" --arg u "/relatorio/$contest/rodada/$sl/" \
+        '{slug:$s, name:$n, kind:$k, public:$p, url:$u}'
+    done | jq -cs '.'
+}
 _pub_state(){
-  local pub=false stamp job
+  local pub=false stamp job rounds
   [[ -s "$CD/relatorio/index.html" && -s "$STAMP" ]] && pub=true
   stamp="$(cat "$STAMP" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$stamp" || stamp='{}'
   job="$(cat "$ST" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$job" || job=null
@@ -28,8 +45,9 @@ _pub_state(){
       job="$(jq -c '.state="error" | .error="geração interrompida"' <<<"$job")"
     fi
   fi
-  ok_json '{published:$p, url:$u, at:($s.at // null), by:($s.by // null), pages:($s.pages // null), bytes:($s.bytes // null), job:$j}' \
-    --argjson p "$pub" --arg u "/relatorio/$contest/" --argjson s "$stamp" --argjson j "$job"
+  rounds="$(_rounds_json)"; [[ -n "$rounds" ]] || rounds='[]'
+  ok_json '{published:$p, url:$u, at:($s.at // null), by:($s.by // null), pages:($s.pages // null), bytes:($s.bytes // null), job:$j, rounds:$r}' \
+    --argjson p "$pub" --arg u "/relatorio/$contest/" --argjson s "$stamp" --argjson j "$job" --argjson r "$rounds"
 }
 
 if [[ "$REQUEST_METHOD" == GET ]]; then _pub_state; exit 0; fi
@@ -58,5 +76,19 @@ case "$action" in
       || fail 500 "Falha ao despublicar" "unpublish_failed"
     audit_log_to "$contest" report-unpublish "by=$SESSION_LOGIN"
     _pub_state ;;
-  *) fail 400 "action inválida (publish|unpublish)" "bad_action" ;;
+  publish-round|unpublish-round)
+    slug="$(jq -r '.round // empty' <<<"$body" 2>/dev/null)"
+    rd_valid_slug "$slug" || fail 400 "round inválido" "round_invalid"
+    r="$(rd_round "$contest" "$slug")"; [[ -n "$r" ]] || fail 404 "Rodada não encontrada" "round_notfound"
+    [[ "$(jq -r '.state' <<<"$r")" == archived ]] || fail 409 "só rodada arquivada tem relatório publicável" "not_archived"
+    if [[ "$action" == publish-round ]]; then
+      [[ -s "$CD/rounds/$slug/relatorio/index.html" ]] || fail 404 "Rodada sem relatório arquivado" "no_report"
+      bash "$SCOREDIR/report-publish.sh" "$contest" "$SESSION_LOGIN" --round "$slug" >/dev/null 2>&1 || fail 500 "Falha ao publicar a rodada" "round_publish_failed"
+      audit_log_to "$contest" report-publish-round "slug=$slug by=$SESSION_LOGIN"
+    else
+      bash "$SCOREDIR/report-publish.sh" "$contest" "$SESSION_LOGIN" --unround "$slug" >/dev/null 2>&1 || fail 500 "Falha ao despublicar a rodada" "round_unpublish_failed"
+      audit_log_to "$contest" report-unpublish-round "slug=$slug by=$SESSION_LOGIN"
+    fi
+    _pub_state ;;
+  *) fail 400 "action inválida (publish|unpublish|publish-round|unpublish-round)" "bad_action" ;;
 esac

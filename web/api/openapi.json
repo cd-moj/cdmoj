@@ -2134,9 +2134,9 @@
     },
     "/contest/admin/report-publish": {
       "get": {"tags": ["contest-admin"], "summary": "Estado do relatório estático PUBLICADO (histórico em /relatorio/<c>/)", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/contest"}],
-        "responses": {"200": {"description": "{published, url, at, by, pages, bytes, job:{state:running|done|error, by, started, updated, error?}|null}"}}},
+        "responses": {"200": {"description": "{published, url, at, by, pages, bytes, job:{state:running|done|error, by, started, updated, error?}|null, rounds:[{slug,name,kind,public,url}]}"}}},
       "post": {"tags": ["contest-admin"], "summary": "Publica (job destacado; gera + troca atômica + REPORT_PUBLISHED no conf) ou despublica o relatório estático", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/contest"}],
-        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"action": {"type": "string", "enum": ["publish", "unpublish"]}}, "required": ["action"]}}}},
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"action": {"type": "string", "enum": ["publish", "unpublish", "publish-round", "unpublish-round"]}, "round": {"type": "string", "description": "slug da rodada ARQUIVADA (publish-round/unpublish-round): liga o symlink relatorio-rodadas/<slug> servido em /relatorio/<c>/rodada/<slug>/"}}, "required": ["action"]}}}},
         "responses": {"200": {"description": "mesmo corpo do GET (com job.state=running logo após publish)"}, "409": {"description": "busy — geração em andamento"}}}
     },
     "/contest/admin/report": {

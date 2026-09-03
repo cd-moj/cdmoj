@@ -319,7 +319,11 @@ ganha o botão **📑 Relatório** — é o **histórico** do evento. A geraçã
 É público: o relatório não carrega código-fonte, log de juiz nem senha, e as clarifications
 saem anônimas, mas mostra nomes de times, runs e estatísticas — publique quando tudo já foi
 divulgado. **Republicar** gera de novo e troca o site inteiro de uma vez (quem estiver lendo
-não vê meio-caminho); **Despublicar** apaga o endereço e o botão dos cards.
+não vê meio-caminho); **Despublicar** apaga o endereço e o botão dos cards. As **rodadas
+arquivadas** (aquecimento, por exemplo) têm o próprio botão em Prova › Rodadas: **🌐 publicar
+relatório (público)** coloca o relatório gerado na promoção em
+`/relatorio/<contest>/rodada/<slug>/` — e a página inicial do relatório principal, ao ser
+(re)publicada, passa a linkar as rodadas públicas em "Rodadas anteriores deste evento".
 
 ## 7. Máquinas dos times (Pessoas › Máquinas & gate)
 

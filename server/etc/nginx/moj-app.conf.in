@@ -158,6 +158,13 @@ location /docs/ { alias @WORKROOT@/cdmoj/docs/html/; autoindex on; }
 # Situação › Publicar relatório; POST /contest/admin/report-publish). Só existe quando
 # publicado — o alias serve direto (o worker do nginx está no grupo do dono do workspace;
 # os arquivos nascem 660/770 do container). O /index/contests aponta p/ cá (report_url).
+# Rodadas ARQUIVADAS publicadas: relatorio-rodadas/<slug> é um SYMLINK p/ rounds/<slug>/relatorio
+# criado pelo publish-round (sem symlink = 404). Regex ANTES do genérico (nginx pega o 1º que casa).
+location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)/rodada/([a-z0-9][a-z0-9_-]*)$ { return 301 $uri/; }
+location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)/rodada/([a-z0-9][a-z0-9_-]*)/(.*)$ {
+    alias @WORKROOT@/contests/$1/relatorio-rodadas/$2/$3;
+    index index.html;
+}
 location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)$ { return 301 $uri/; }
 location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)/(.*)$ {
     alias @WORKROOT@/contests/$1/relatorio/$2;

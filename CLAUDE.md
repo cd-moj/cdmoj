@@ -301,6 +301,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   cache do `/index/contests`, que devolve `report_url`); o nginx serve `/relatorio/<c>/` por alias
   (bloco em `server/etc/nginx/moj-app.conf.in` — o worker está no grupo do dono, os arquivos
   nascem 660/770). Rota `admin/report-publish` (job destacado; `MOJ_JOBS_SYNC=1` nos testes).
+  **Rodadas arquivadas** publicam por SYMLINK (`relatorio-rodadas/<slug>` → `rounds/<slug>/relatorio`,
+  o site gerado na promoção — auditoria, não se regenera), servido em `/relatorio/<c>/rodada/<slug>/`
+  (regex do nginx ANTES da genérica); a index principal só linka rodadas quando gerada com
+  `REPORT_PUBLISH=1` (no tar.gz offline o link não teria destino).
   **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
   do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).

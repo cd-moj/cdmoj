@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 #
-# report-publish.sh <contest> <by>              publica o relatório estático (histórico)
-# report-publish.sh <contest> <by> --unpublish  despublica
+# report-publish.sh <contest> <by>                         publica o relatório estático (histórico)
+# report-publish.sh <contest> <by> --unpublish             despublica
+# report-publish.sh <contest> <by> --round <slug>          publica o relatório ARQUIVADO da rodada
+# report-publish.sh <contest> <by> --unround <slug>        despublica o da rodada
+#
+# RODADAS: o site da rodada arquivada já existe (rounds/<slug>/relatorio/, gerado na promoção; é
+# auditoria e não se regenera). Publicar = criar o symlink contests/<c>/relatorio-rodadas/<slug>
+# → ../rounds/<slug>/relatorio — é o PORTÃO que o nginx enxerga em /relatorio/<c>/rodada/<slug>/
+# (alias p/ relatorio-rodadas/; sem symlink = 404). Independe do relatório principal (que é
+# trocado inteiro a cada republicação) — e o principal, quando gerado p/ publicação
+# (REPORT_PUBLISH=1), linka as rodadas publicadas na sua página inicial.
 #
 # PUBLICAR = gerar o site do report-gen em contests/<c>/relatorio.tmp/, trocar ATOMICAMENTE
 # por contests/<c>/relatorio/ (o que o nginx serve em /relatorio/<c>/), carimbar
@@ -33,12 +42,20 @@ if [[ "$MODE" == --unpublish ]]; then
   rm -rf "$DST" "$DST.old" "$TMP"; rm -f "$STAMP"; conf_del REPORT_PUBLISHED
   status done; exit 0
 fi
+if [[ "$MODE" == --round || "$MODE" == --unround ]]; then
+  SLUG="${4:-}"; [[ "$SLUG" =~ ^[a-z0-9][a-z0-9_-]{0,31}$ ]] || { echo "report-publish: slug inválido" >&2; exit 1; }
+  RD="$CD/relatorio-rodadas"; mkdir -p "$RD" 2>/dev/null
+  if [[ "$MODE" == --unround ]]; then rm -f "$RD/$SLUG"; exit 0; fi
+  [[ -s "$CD/rounds/$SLUG/relatorio/index.html" ]] || { echo "report-publish: rodada sem relatório arquivado" >&2; exit 4; }
+  ln -sfn "../rounds/$SLUG/relatorio" "$RD/$SLUG.tmp.$$" && mv -Tf "$RD/$SLUG.tmp.$$" "$RD/$SLUG"
+  exit 0
+fi
 
 exec 9>"$CD/var/.report.lock"
 flock -n 9 || { status error "já existe uma geração em andamento"; exit 3; }
 status running
 rm -rf "$TMP"
-if ! bash "$HERE/report-gen.sh" "$C" "$TMP" >/dev/null 2>"$CD/var/report-gen.err"; then
+if ! REPORT_PUBLISH=1 bash "$HERE/report-gen.sh" "$C" "$TMP" >/dev/null 2>"$CD/var/report-gen.err"; then
   status error "report-gen falhou: $(head -c 300 "$CD/var/report-gen.err" 2>/dev/null)"; rm -rf "$TMP"; exit 2
 fi
 rm -f "$CD/var/report-gen.err"

@@ -151,6 +151,7 @@ rep_t(){ case "$LOC:$1" in
   pt:final_score) printf 'Placar final (aberto)';; en:final_score) printf 'Final scoreboard (open)';;
   pt:no_score) printf 'Sem placar gerado.';;      en:no_score) printf 'No scoreboard generated.';;
   pt:frozen_title) printf 'Placar congelado';;    en:frozen_title) printf 'Frozen scoreboard';;
+  pt:rounds_note) printf '📚 Rodadas anteriores deste evento:';; en:rounds_note) printf '📚 Earlier rounds of this event:';;
   pt:frozen_note) printf 'Visão CONGELADA aos %s min (%s) — é o placar que o público viu durante a prova. O placar final aberto está na aba' "$2" "$3";;
   en:frozen_note) printf 'FROZEN view at %s min (%s) — this is what the public saw during the contest. The final open scoreboard is in the tab' "$2" "$3";;
   pt:open_note) printf 'O placar abaixo está ABERTO (sem congelamento). A visão congelada aos %s min está em' "$2";;
@@ -1213,6 +1214,21 @@ done < "$W/probs.tsv" >> "$W/stmt.tsv"
 
 # --- placares: aberto (index) + congelado (se houver freeze) ---------------------------
 FROZEN_NOTE=""
+# rodadas ARQUIVADAS com relatório PUBLICADO (symlink em relatorio-rodadas/<slug>; ver
+# report-publish.sh): linkadas na página inicial SÓ quando o relatório está sendo gerado p/
+# PUBLICAÇÃO (REPORT_PUBLISH=1) — no tar.gz offline o link não teria destino.
+ROUNDS_NOTE=""
+if [[ "${REPORT_PUBLISH:-}" == 1 && -d "$CDIR/relatorio-rodadas" ]]; then
+  _rl=""
+  for _rd in "$CDIR"/relatorio-rodadas/*; do
+    [[ -L "$_rd" && -s "$_rd/index.html" ]] || continue
+    _sl="${_rd##*/}"; [[ "$_sl" =~ ^[a-z0-9][a-z0-9_-]{0,31}$ ]] || continue
+    _nm="$(jq -r --arg s "$_sl" 'first((.rounds // [])[] | select(.slug == $s) | .name) // $s' "$CDIR/rounds.json" 2>/dev/null)"
+    [[ -n "$_nm" ]] || _nm="$_sl"
+    _rl+="${_rl:+ · }<a href=\"rodada/$_sl/\">$(esc "$_nm")</a>"
+  done
+  [[ -n "$_rl" ]] && ROUNDS_NOTE="<p class=\"note\">$(rep_t rounds_note) $_rl</p>"
+fi
 if (( NAV_FROZEN )); then
   fmin=$(( (FREEZE - START) / 60 ))
   {
@@ -1438,6 +1454,7 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
 
   printf '<h2>%s</h2>\n' "$(rep_t final_score)"
   printf '%s\n' "$FROZEN_NOTE"
+  [[ -n "$ROUNDS_NOTE" ]] && printf '%s\n' "$ROUNDS_NOTE"
   rep_score_boards open
   rep_foot
 } > "$OUTD/index.html"

@@ -24,7 +24,8 @@ export function makeRoundsTab(CONTEST, opts = {}) {
   const readOnly = !!opts.readOnly;           // juiz-chefe: acompanha, não promove
   const panel = el('div', { class: 'section' });
   const G = { contest: CONTEST, auth: true };
-  let DATA = null, editing = '';
+  let DATA = null, PUB = null, editing = '';   // PUB = GET admin/report-publish (relatórios PÚBLICOS das rodadas)
+  const PUBURL = '/contest/admin/report-publish?contest=' + enc(CONTEST);
 
   const msg = el('div', { class: 'small', style: 'margin:.4rem 0' });
   const setMsg = (t, cls) => { msg.className = 'small ' + (cls || ''); msg.textContent = t; };
@@ -192,6 +193,20 @@ export function makeRoundsTab(CONTEST, opts = {}) {
         } }, T('⇣ arquivo bruto (tar.gz)', '⇣ raw archive (tar.gz)')));
       }
       if (r.published) acts.append(el('span', { class: 'pill ok' }, T('visível p/ os times', 'visible to teams')));
+      // relatório PÚBLICO da rodada (histórico): symlink relatorio-rodadas/<slug> servido pelo nginx em
+      // /relatorio/<c>/rodada/<slug>/ e linkado na página inicial do relatório principal publicado
+      const pr = ((PUB && PUB.rounds) || []).find((x) => x.slug === r.slug);
+      if (pr) {
+        if (pr.public) acts.append(el('a', { class: 'btn ghost', target: '_blank', href: pr.url }, T('📑 relatório público', '📑 public report')));
+        if (!readOnly) acts.append(el('button', { class: 'btn ghost', onclick: async () => {
+          const on = !pr.public;
+          if (on && !confirm(T(`Publicar o relatório da rodada “${r.name}” em ${pr.url}? Fica PÚBLICO (placar, runs, estatísticas).`,
+                              `Publish the “${r.name}” round report at ${pr.url}? It becomes PUBLIC (scoreboard, runs, statistics).`))) return;
+          try { PUB = await apiPost(PUBURL, { action: on ? 'publish-round' : 'unpublish-round', round: r.slug }, G);
+                setMsg(on ? T('✓ relatório da rodada publicado', '✓ round report published') : T('✓ relatório da rodada despublicado', '✓ round report unpublished')); render(); }
+          catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
+        } }, pr.public ? T('🌐 despublicar relatório', '🌐 unpublish report') : T('🌐 publicar relatório (público)', '🌐 publish report (public)')));
+      }
     } else if (!readOnly) {
       acts.append(el('button', { class: 'btn ghost', onclick: () => { editing = (editing === r.slug ? '' : r.slug); render(); } },
         editing === r.slug ? T('fechar', 'close') : T('✎ editar', '✎ edit')));
@@ -249,7 +264,7 @@ export function makeRoundsTab(CONTEST, opts = {}) {
   }
 
   async function load() {
-    try { DATA = await api(); render(); }
+    try { [DATA, PUB] = await Promise.all([api(), apiGet(PUBURL, G).catch(() => null)]); render(); }
     catch (e) {
       panel.innerHTML = '';
       panel.append(el('h2', {}, T('🔁 Rodadas da prova', '🔁 Contest rounds')),
