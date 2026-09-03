@@ -14,15 +14,15 @@ T0=$(( $(date +%s) - 7200 )); TE=$(( T0 + 18000 )); FZ=$(( T0 + 3600 ))
   printf "PROBS=( x col#pa Alfa A col#pa x col#pb Beta B col#pb )\n"; } > "$C/conf"
 fx_user "$C" rp.admin p "Admin"
 fx_user "$C" alice a "Time Alice"
-fx_user "$C" bob b "Time Bob"
+fx_user "$C" bob b '<script>alert(1)</script> Bob'   # nome HOSTIL (LATAM 2026 teve um assim): tem de sair escapado em HTML e nunca fechar um <script>
 fx_user "$C" rp.cstaff s "Chefe de Sede"
 # bandeira de ESTADO (br-rj): o código que o relatório antigo imprimia como TEXTO
 jq -c '.team={name:"Time Alice",univ_short:"UFRJ",univ_full:"Univ Federal do RJ",flag:"br-rj",region:"Rio"}' "$C/users/alice/account.json" > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/alice/account.json"
-jq -c '.team={name:"Time Bob",univ_short:"UFSC",univ_full:"Univ Federal de SC",flag:"br-sc",region:"Floripa"}'  "$C/users/bob/account.json"   > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/bob/account.json"
+jq -c '.team={name:"<script>alert(1)</script> Bob",univ_short:"UFSC",univ_full:"Univ Federal de SC",flag:"br-sc",region:"Floripa </script>"}'  "$C/users/bob/account.json"   > "$C/u.tmp" && mv "$C/u.tmp" "$C/users/bob/account.json"
 # foto de time (R5): entra como MINIATURA em fotos/<login>.webp — só no placar ABERTO
 convert -size 40x40 xc:red "$C/users/alice/photo.png" 2>/dev/null || printf 'x' > /dev/null
 # árvore de sedes: o select de Sede da ESTATÍSTICA espelha o do placar (RTREE embutido)
-jq -n '[{name:"Brasil", regex:"^(alice|bob)$", subregions:[{name:"Rio", regex:"^alice$"}]}]' > "$C/regions.json"
+jq -n '[{name:"Brasil", regex:"^(alice|bob)$", subregions:[{name:"Rio", regex:"^alice$"}, {name:"Floripa </script>", regex:"^bob$"}]}]' > "$C/regions.json"   # sede com "</script>" no nome
 # cache do nutellaboot (mínimo): a página mlinux.html do relatório nasce dele — SEM MACs
 # shape do relatório 2.0 (pop/ram_bands/ed_*/profiles/pressure/rank_ed); `teams`, `machines`,
 # `_rows` na sede são ISCA: nenhum pode vazar p/ o mlinux.html
@@ -141,6 +141,14 @@ ck "estatísticas: mesmas seções do painel" 'grep -q "statsSections" "$R/stati
 ck "estatísticas: fallback sem JS"         'grep -q "<noscript>" "$R/statistics.html"'
 ck "estatísticas: nome do 1º a resolver"   'grep -q "first_solver_name" "$R/statistics.html"'
 ck "bundle inlinado sem import/export"     '! grep -qE "^(import|export) " "$R/statistics.html"'
+# --- nomes hostis dentro de <script>: o parser de HTML fecha o script no 1º "</script>" ---
+ck "nome hostil: escapado no HTML do placar (não executa)" 'grep -q "&lt;script&gt;alert(1)&lt;/script&gt;" "$R/index.html" && ! grep -q "<script>alert(1)" "$R/index.html"'
+ck "sede hostil: no RTREE vai como \\u003c (não fecha o script)" 'grep -qF "Floripa \\u003c/script>" "$R/statistics.html" && ! grep -qF "Floripa </script>" "$R/statistics.html"'
+# "</script>" em QUALQUER lugar (até num comentário JS ou numa string) fecha o script no parser de
+# HTML: o total de "</script>" tem de ser igual ao de tags <script reais (o gerador as põe no
+# início da linha; "<script" no meio de comentário dos .js inlinados não abre nada).
+_bad=(); for _p in "$R"/*.html; do [[ "$(grep -c "^<script" "$_p")" == "$(grep -o "</script>" "$_p" | wc -l)" ]] || _bad+=("${_p##*/}"); done
+ck "toda página: cada </script> fecha uma tag <script real (${_bad[*]:-ok})" '[[ ${#_bad[@]} -eq 0 ]]'
 ck "documentos: aba com o PUBLICADO"       '[[ -s "$R/documentos.html" ]] && [[ -s "$R/documentos/contest.pt.pdf" ]]'
 # a aba só entra na nav se documentos.html já existir quando as outras páginas são escritas
 # --- placar não rola para o lado (colgroup + fixed) ---
@@ -187,7 +195,7 @@ ck "placar: CSS sem nowrap/min-width"     '! grep -qE "table.score td.cell\{[^}]
 ck "placar: penalidade sobrevive no celular" 'grep -q "td.cell:not(.tot):not(.pen) .pv { display:none" "$R/index.html" && ! grep -q "table.score td.cell .pv { display:none" "$R/index.html"'
 ck "placar: login do time no title"       'grep -q "class=\"team\" title=\"[^\"]*·[^\"]*\"" "$R/index.html" && ! grep -q "<span class=\"u\">" "$R/index.html"'
 # --- filtros do placar (bandeira, universidade, sede, busca) ---
-ck "filtro: dado na própria linha"        'grep -q "data-flag=\"br-sc\"" "$R/index.html" && grep -q "data-fname=\"Santa Catarina\"" "$R/index.html" && grep -q "data-univ=\"UFSC\"" "$R/index.html" && grep -q "data-region=\"Floripa\"" "$R/index.html" && grep -q "data-search=\"time bob ufsc" "$R/index.html"'
+ck "filtro: dado na própria linha"        'grep -q "data-flag=\"br-sc\"" "$R/index.html" && grep -q "data-fname=\"Santa Catarina\"" "$R/index.html" && grep -q "data-univ=\"UFSC\"" "$R/index.html" && grep -q "data-region=\"Floripa &lt;/script&gt;\"" "$R/index.html" && grep -q "data-search=\"&lt;script&gt;alert(1)&lt;/script&gt; bob ufsc" "$R/index.html"'
 ck "filtro: os 4 controles + contador"    'grep -q "id=\"fFlag\"" "$R/index.html" && grep -q "id=\"fUniv\"" "$R/index.html" && grep -q "id=\"fRegion\"" "$R/index.html" && grep -q "id=\"fQ\"" "$R/index.html" && grep -q "id=\"fCount\"" "$R/index.html"'
 ck "filtro: fallback sem JS"              'grep -q "<noscript><style>.fbar{display:none}" "$R/index.html"'
 # script inline roda no parse: antes das <section> o querySelectorAll voltava vazio

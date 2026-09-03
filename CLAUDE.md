@@ -287,6 +287,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `import`/`export` saem no `sed`) — **o mesmo módulo que a página do admin usa**, senão as
   duas telas divergem. ⚠ Ao criar classe CSS no relatório, cuidado com colisão com o `ui.css`
   (um `.bar{height:14px}` local achatou a topbar inteira: `.bar` é o contêiner dela).
+  **JSON embutido num `<script>` passa por `rep_js_json`** (todo `<` vira `\u003c`; U+2028/9
+  escapados): o parser de HTML fecha o script no PRIMEIRO `</script>` que vê, mesmo dentro de
+  uma string — um time chamado `<script>alert(1)</script>` (LATAM 2026) quebrou `statistics.html`
+  inteiro ("literal not terminated before end of script"). Vale p/ `STATS`, `NBDATA`, `RTREE`,
+  `CNAMES` e qualquer literal novo; o smoke confere que cada `</script>` fecha uma tag real.
   **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
   do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).
