@@ -995,6 +995,11 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
 - **Documentação junto com o código** (doc atrasada = bug): rota/campo novo → `docs/API.md` **e**
   `web/api/openapi.json` (manter os dois em sincronia); arquitetura/fluxo → `docs/OVERVIEW.md`/`docs/FLOW.md`.
   `bash docs/build-html.sh` p/ refazer o HTML.
+- **Aviso de CLI desatualizada é do SERVIDOR** (`lib/cli-version.sh`, 2026-09-03): toda resposta a
+  uma CLI leva `X-Moj-Cli-Status`/`X-Moj-Cli-Latest` (referência `web/moj.build`, regenerado pelo
+  `make cli-dist`); CLI ANTIGA (UA `curl/*` + Bearer, sem marcador) ganha a dica "rode moj update"
+  ANEXADA à `error.message` — é o único canal que alcança quem nunca atualizou (caso Edson
+  02/09: create 400 mascarado como 404 por CLI de antes de agosto). Teste: `smoke-cli-version.sh`.
 - **API mudou ⇒ ressincronizar `web/` E `moj-cli/` no MESMO commit** (não só a doc). Os dois são
   clientes do contrato da API. Antes de fechar, VERIFIQUE de fato: a home carrega, o login funciona,
   `moj login`/`moj whoami` funcionam contra a base real. Regressão de API costuma se manifestar como

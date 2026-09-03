@@ -1,6 +1,8 @@
 # MOJ — API v1 (referência)
 
 Base: `/api/v1`. Roteador único: `server/api/v1/router.sh` → `handlers/<rota>.sh`.
+**Aviso de CLI desatualizada** (`lib/cli-version.sh`): toda resposta a uma CLI (UA `moj[-tool]/<build>`) leva `X-Moj-Cli-Status: current|outdated|dev` e `X-Moj-Cli-Latest: <build>` (referência = `web/moj.build`, o mesmo do `moj version`; build = `<git-short>-<AAAAMMDD>`, comparada pela data); CLI ANTIGA (UA `curl/*` + Bearer, sem marcador — não lê cabeçalho) recebe `X-Moj-Cli-Status: legacy` e a dica "rode moj update" ANEXADA à `error.message`. Navegador e curl cru: nada. A CLI avisa no stderr uma vez por dia.
+
 Auth: `Authorization: Bearer <token>`. Respostas JSON com envelope `{success:true, …}` ou
 `{success:false, error:{message,code}}` + status HTTP correto. Histórico e placar são **TXT** cru.
 Horários em **EPOCH**. IDs validados contra path-traversal.

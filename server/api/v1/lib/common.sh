@@ -67,6 +67,7 @@ daemon_judged_alive() {
 respond() {  # respond <code> <reason> <content-type>
   printf 'Status: %s %s\r\n' "${1:-200}" "${2:-OK}"
   printf 'Content-Type: %s\r\n' "${3:-application/json; charset=utf-8}"
+  type cli_headers &>/dev/null && cli_headers   # X-Moj-Cli-* só p/ requisição de CLI (lib/cli-version.sh)
   printf '\r\n'
 }
 emit_json(){ respond "${1:-200}" "${2:-OK}" "application/json; charset=utf-8"; }
@@ -86,6 +87,8 @@ _reason() {
 # fail <http-status> <message> [error-code] — envelope de erro + encerra.
 fail() {
   local code="${1:-400}" msg="$2" ecode="${3:-$1}"
+  # CLI ANTIGA (sem marcador no UA, não lê cabeçalho): a dica "rode moj update" vai NA mensagem
+  type cli_status_compute &>/dev/null && { cli_status_compute; msg="$msg${CLI_HINT:-}"; }
   emit_json "$code" "$(_reason "$code")"
   jq -cn --arg m "$msg" --arg c "$ecode" '{success:false, error:{message:$m, code:$c}}'
   exit 0

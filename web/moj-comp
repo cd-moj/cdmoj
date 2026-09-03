@@ -40,7 +40,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="522b81a-20260902"
+MOJ_CLI_BUILD="985da91-20260903"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -203,12 +203,28 @@ _api_fail(){
   [[ "${API_SOFT:-0}" == 1 ]] && return 1
   die "$msg${code:+ ($code)}"
 }
+# AVISO DE CLI DESATUALIZADA: o servidor manda X-Moj-Cli-Status (current|outdated|dev|legacy) e
+# X-Moj-Cli-Latest em toda resposta a uma CLI (cdmoj lib/cli-version.sh; referência = /moj.build).
+# "outdated" vira UM aviso por dia no stderr (stamp em $CFG) e nunca interrompe o comando. As
+# funções de rede gravam os cabeçalhos com `-D` ao lado do corpo e passam por aqui.
+_cli_hdr_check(){ local f="${1:-}" st="" lt="" k v stamp
+  [[ -s "$f" ]] || return 0
+  while IFS=: read -r k v; do
+    case "${k,,}" in x-moj-cli-status) st="${v//[[:space:]]/}";; x-moj-cli-latest) lt="${v//[[:space:]]/}";; esac
+  done < "$f"
+  [[ "$st" == outdated ]] || return 0
+  stamp="$CFG/.update-warned"
+  [[ -f "$stamp" ]] && (( $(date +%s) - $(_mtime "$stamp") < 86400 )) && return 0
+  ( umask 077; mkdir -p "$CFG" && : > "$stamp" ) 2>/dev/null
+  printf '%s: ⚠ há uma versão nova da CLI (sua build %s; servidor %s) — rode: %s update\n' "$MOJ_TOOL" "$MOJ_CLI_BUILD" "${lt:-?}" "$MOJ_TOOL" >&2
+  return 0
+}
 api(){ # api METHOD PATH [json] -> corpo JSON (erro -> die). Token resolvido POR CHAMADA.
   local m="$1" p="$2" data="${3:-}" auth=() out code tmp hf; tmp="$(mktemp)"
   hf="$(auth_hdr_file 2>/dev/null || true)"; [[ -n "$hf" ]] && auth=(-H "@$hf")
-  if [[ -n "$data" ]]; then code="$(printf '%s' "$data" | curl -sS -o "$tmp" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X "$m" -H 'Content-Type: application/json' --data-binary @- "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
-  else code="$(curl -sS -o "$tmp" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X "$m" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"; fi
-  out="$(cat "$tmp")"; rm -f "$tmp"
+  if [[ -n "$data" ]]; then code="$(printf '%s' "$data" | curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X "$m" -H 'Content-Type: application/json' --data-binary @- "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+  else code="$(curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X "$m" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"; fi
+  out="$(cat "$tmp")"; _cli_hdr_check "$tmp.h"; rm -f "$tmp" "$tmp.h"
   [[ "$code" =~ ^2 ]] && { printf '%s' "$out"; return 0; }
   _api_fail "$code" "$out"
 }
@@ -230,17 +246,19 @@ api_post_file(){ # api_post_file PATH BODYFILE -> POST grande (corpo via arquivo
   # ponta sai 0 e o push FALHAVA COM rc=0 — script nenhum detectava. Use `resp="$(api_post_file …)"`.
   local p="$1" f="$2" auth=() out code tmp hf; tmp="$(mktemp)"
   hf="$(auth_hdr_file 2>/dev/null || true)"; [[ -n "$hf" ]] && auth=(-H "@$hf")
-  code="$(curl -sS -o "$tmp" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X POST -H 'Content-Type: application/json' --data-binary @"$f" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
-  out="$(cat "$tmp")"; rm -f "$tmp"
+  code="$(curl -sS -o "$tmp" -D "$tmp.h" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" -X POST -H 'Content-Type: application/json' --data-binary @"$f" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+  out="$(cat "$tmp")"; _cli_hdr_check "$tmp.h"; rm -f "$tmp" "$tmp.h"
   API_LAST_CODE="$code"
   API_LAST_BODY="$out"   # com API_SOFT=1 o _api_fail não imprime: o chamador lê a msg daqui
   [[ "$code" =~ ^2 ]] && { printf '%s' "$out"; return 0; }
   _api_fail "$code" "$out"
 }
 # download autenticado p/ arquivo: api_get_to_file PATH DESTFILE (falha -> die)
-api_get_to_file(){ local p="$1" dest="$2" auth=() code hf
+api_get_to_file(){ local p="$1" dest="$2" auth=() code hf hdr
   hf="$(auth_hdr_file 2>/dev/null || true)"; [[ -n "$hf" ]] && auth=(-H "@$hf")
-  code="$(curl -sS -o "$dest" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+  hdr="$(mktemp)"
+  code="$(curl -sS -o "$dest" -D "$hdr" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" "$MOJ_URL/api/v1$p" 2>/dev/null || true)"
+  _cli_hdr_check "$hdr"; rm -f "$hdr"
   [[ "$code" =~ ^2 ]] || { [[ -f "$dest" ]] && rm -f "$dest"; die "download falhou${code:+ ($code)}"; }
 }
 enc(){ jq -rn --arg s "$1" '$s|@uri'; }

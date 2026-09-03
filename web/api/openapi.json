@@ -3,7 +3,7 @@
   "info": {
     "title": "MOJ API",
     "version": "v1",
-    "description": "API REST do MOJ (Melhor Online Judge). Backend bash atrás de nginx+fcgiwrap. Auth via `Authorization: Bearer <token>`. Histórico e placar são TXT; o resto é JSON com envelope `{success:true,…}` ou `{success:false,error:{message,code}}`. Horários em EPOCH."
+    "description": "API REST do MOJ (Melhor Online Judge). Backend bash atrás de nginx+fcgiwrap. Auth via `Authorization: Bearer <token>`. Histórico e placar são TXT; o resto é JSON com envelope `{success:true,…}` ou `{success:false,error:{message,code}}`. Horários em EPOCH. Aviso de CLI desatualizada: resposta a uma CLI (UA `moj[-tool]/<build>`) leva `X-Moj-Cli-Status: current|outdated|dev|legacy` e `X-Moj-Cli-Latest: <build servida>`; CLI antiga sem marcador (curl/* + Bearer) recebe a dica \"rode moj update\" anexada à error.message."
   },
   "servers": [
     {
