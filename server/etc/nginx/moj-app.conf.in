@@ -153,5 +153,16 @@ location /api/v1/problems/ {
 location = /docs { return 301 /docs/; }
 location /docs/ { alias @WORKROOT@/cdmoj/docs/html/; autoindex on; }
 
+# --- relatórios PUBLICADOS (histórico dos eventos) ---------------------------------
+# contests/<id>/relatorio/ = site estático do report-gen que o admin publicou (Operação ›
+# Situação › Publicar relatório; POST /contest/admin/report-publish). Só existe quando
+# publicado — o alias serve direto (o worker do nginx está no grupo do dono do workspace;
+# os arquivos nascem 660/770 do container). O /index/contests aponta p/ cá (report_url).
+location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)$ { return 301 $uri/; }
+location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)/(.*)$ {
+    alias @WORKROOT@/contests/$1/relatorio/$2;
+    index index.html;
+}
+
 # --- frontend estático (ESM, sem build) --------------------------------------------
 location / { try_files $uri $uri/ =404; }

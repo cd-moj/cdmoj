@@ -292,6 +292,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   uma string — um time chamado `<script>alert(1)</script>` (LATAM 2026) quebrou `statistics.html`
   inteiro ("literal not terminated before end of script"). Vale p/ `STATS`, `NBDATA`, `RTREE`,
   `CNAMES` e qualquer literal novo; o smoke confere que cada `</script>` fecha uma tag real.
+  **A nav é decidida UMA vez, pelos DADOS** (`NAV_FROZEN/NAV_QUAL/NAV_DOCS/NAV_ML`, antes de
+  qualquer página): `rep_head` testava "o arquivo já existe?" e as páginas escritas antes de
+  `mlinux.html` saíam sem a aba Máquinas (relato de 03/09). Toda aba tem emoji; o smoke compara
+  a nav de TODAS as páginas. **Publicação (histórico)**: `score/report-publish.sh` gera em
+  `contests/<c>/relatorio.tmp/`, troca atômica p/ `contests/<c>/relatorio/`, carimba
+  `var/report-published.json` e grava `REPORT_PUBLISHED=<epoch>` no conf (mtime = invalida o
+  cache do `/index/contests`, que devolve `report_url`); o nginx serve `/relatorio/<c>/` por alias
+  (bloco em `server/etc/nginx/moj-app.conf.in` — o worker está no grupo do dono, os arquivos
+  nascem 660/770). Rota `admin/report-publish` (job destacado; `MOJ_JOBS_SYNC=1` nos testes).
   **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
   do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).

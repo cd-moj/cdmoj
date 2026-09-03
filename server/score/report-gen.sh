@@ -272,7 +272,7 @@ rep_t(){ case "$LOC:$1" in
   pt:view_all) printf 'Todos, com convidados';;   en:view_all) printf 'Everyone, incl. guests';;
   pt:view_of) printf 'Visão da coorte %s' "$2";;  en:view_of) printf 'As seen by cohort %s' "$2";;
   pt:gen_place) printf 'Geral';;                  en:gen_place) printf 'Overall';;
-  pt:tab_qual) printf 'Classificados';;           en:tab_qual) printf 'Qualified';;
+  pt:tab_qual) printf '🏅 Classificados';;        en:tab_qual) printf '🏅 Qualified';;
   pt:qual_title) printf '🎓 Classificados — próxima fase';; en:qual_title) printf '🎓 Qualified — next stage';;
   pt:qual_note) printf 'Times classificados para <b>%s</b> pelas regras da 1ª fase (chip ↑BR no placar). Vagas do comitê podem ser adicionadas depois.' "$2";; en:qual_note) printf 'Teams qualified to <b>%s</b> by the first-phase rules (↑BR chip on the scoreboard). Committee slots may be added later.' "$2";;
   pt:qual_chip) printf 'Classificado';;           en:qual_chip) printf 'Qualified';;
@@ -583,6 +583,16 @@ if [[ -s "$CDIR/classification.json" ]]; then
     | ([.name // "", .venue // ""] | map(select(. != "")) | join(", "))] | first // ""'     "$CDIR/classification.json" 2>/dev/null)"
 fi
 
+# --- abas do relatório: decididas UMA vez, pelos DADOS ------------------------------------
+# rep_head testava `-f $OUTD/<página>.html` a cada chamada: página escrita ANTES de
+# mlinux.html/documentos.html nascia sem essas abas (Classificados e Congelado saíam sem
+# "Máquinas"). Toda página mostra a MESMA nav; os blocos que geram as páginas usam as MESMAS
+# flags (o smoke compara a nav de todas as páginas).
+NAV_FROZEN=0; (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" || -n "$FROZEN_DIR" ]] && NAV_FROZEN=1
+NAV_QUAL=0;   [[ -s "$QUALF" ]] && NAV_QUAL=1
+NAV_DOCS=0;   [[ -s "$CDIR/docs/config.json" ]] && jq -e '(.published // []) | length > 0' "$CDIR/docs/config.json" >/dev/null 2>&1 && NAV_DOCS=1
+NAV_ML=0;     [[ -s "$CDIR/var/nutella.cache.json" ]] && jq -e '.global' "$CDIR/var/nutella.cache.json" >/dev/null 2>&1 && NAV_ML=1
+
 rep_head(){ # <título> <id-da-aba-ativa>
   local title="$1" active="$2" tabs t fn id label
   tabs=""
@@ -593,14 +603,12 @@ rep_head(){ # <título> <id-da-aba-ativa>
            "classificados.html:qual:$(rep_t tab_qual)" \
            "staff-tasks.html:staff:$(rep_t tab_staff)"; do
     IFS=: read -r fn id label <<< "$t"
-    [[ "$id" == docs && ! -f "$OUTD/documentos.html" && "$active" != docs ]] && continue
-    # a aba mlinux é CONDICIONAL: só quando a integração nutellaboot foi coletada
-    [[ "$id" == mlinux && ! -f "$OUTD/mlinux.html" && "$active" != mlinux ]] && continue
-    # classificados: só quando há classificação PUBLICADA
-    [[ "$id" == qual && ! -s "${QUALF:-}" && "$active" != qual ]] && continue
+    [[ "$id" == docs && ! $NAV_DOCS -eq 1 ]] && continue      # só com documento publicado
+    [[ "$id" == mlinux && ! $NAV_ML -eq 1 ]] && continue      # só com coleta do nutellaboot
+    [[ "$id" == qual && ! $NAV_QUAL -eq 1 ]] && continue      # só com classificação PUBLICADA
     tabs+="<a href=\"$fn\"$([[ "$id" == "$active" ]] && printf ' class="on"')>$label</a>"
   done
-  [[ -f "$OUTD/score-frozen.html" || "$active" == frozen ]] && \
+  (( NAV_FROZEN )) && \
     tabs+="<a href=\"score-frozen.html\"$([[ "$active" == frozen ]] && printf ' class="on"')>$(rep_t tab_frozen)</a>"
   cat <<EOF
 <!DOCTYPE html>
@@ -1205,7 +1213,7 @@ done < "$W/probs.tsv" >> "$W/stmt.tsv"
 
 # --- placares: aberto (index) + congelado (se houver freeze) ---------------------------
 FROZEN_NOTE=""
-if (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" || -n "$FROZEN_DIR" ]]; then
+if (( NAV_FROZEN )); then
   fmin=$(( (FREEZE - START) / 60 ))
   {
     rep_head "$(rep_t frozen_title)" frozen
@@ -1218,7 +1226,7 @@ if (( FREEZE > 0 )) && [[ -f "$CDIR/var/placar-full.txt" || -n "$FROZEN_DIR" ]];
 fi
 
 # --- classificados.html: a relação da PRÓXIMA FASE (pedido de 31/08) --------------------
-if [[ -s "$QUALF" ]]; then
+if (( NAV_QUAL )); then
   {
     rep_head "$(rep_t qual_title)" qual
     printf '<p class="note">%s</p>\n' "$(rep_t qual_note "$(esc "$QUAL_STAGE_LABEL")")"
@@ -1259,7 +1267,7 @@ fi
 # sheet e o editorial viajarem junto com o relatório. Entram só os PUBLICADOS (o que os
 # times viram) — rascunho gerado e não publicado não vaza aqui.
 DOCS_JSON="$CDIR/docs/config.json"
-if [[ -s "$DOCS_JSON" ]] && jq -e '(.published // []) | length > 0' "$DOCS_JSON" >/dev/null 2>&1; then
+if (( NAV_DOCS )); then
   mkdir -p "$OUTD/documentos"
   : > "$W/docs.tsv"
   while IFS= read -r key; do
@@ -1307,7 +1315,7 @@ fi
 # logins do roster (`teams`) e qualquer resíduo por time (`_rows`) ficam FORA do relatório —
 # só agregados, ranks e séries por sede/nó (o "editores × colocação" é contagem por recorte).
 NBC="$CDIR/var/nutella.cache.json"
-if [[ -s "$NBC" ]] && jq -e '.global' "$NBC" >/dev/null 2>&1; then
+if (( NAV_ML )); then
   rt_ml='[]'
   if [[ -s "$CDIR/regions.json" ]]; then
     # name + view (nó que agrega times já contados nas sedes; a view não o compara) — sem regex

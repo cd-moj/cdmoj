@@ -3,7 +3,7 @@
 // /contest/admin/sessions e /contest/staff/queue — e transforma o que está fora do lugar em
 // AÇÕES SUGERIDAS (juiz offline, pool inteiro fora, pendência esperando, conta compartilhada).
 import { el } from '/shared/ui.js';
-import { apiGet } from '/shared/api.js';
+import { apiGet, apiPost } from '/shared/api.js';
 import { fmtS, fmtClock, vClass, downloadAuthed } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 
@@ -15,6 +15,48 @@ export function makeStatusTab(CONTEST) {
   let timer = null;
   const card = (label, val, warn) => el('div', { class: 'dash-card' + (warn ? ' warn' : '') },
     el('div', { class: 'dash-val' }, String(val)), el('div', { class: 'dash-lbl' }, label));
+
+  // --- relatório PUBLICADO (histórico em /relatorio/<c>/, listado na home e no /contests/) ---
+  // Caixa PERSISTENTE (criada uma vez, movida p/ o <h2> a cada refresh) e atualizada EM LUGAR:
+  // GET admin/report-publish; enquanto o job roda, poll de 5 s só nesta caixa.
+  const pubBox = el('span', { style: 'margin-left:.5rem;font-size:.85rem;display:inline-flex;gap:.4rem;align-items:center;flex-wrap:wrap' });
+  let pubTimer = null;
+  const PUB = '/contest/admin/report-publish?contest=' + enc(CONTEST);
+  const fmtAt = (t) => t ? new Date(t * 1000).toLocaleString() : '';
+  function pubRender(p) {
+    pubBox.innerHTML = '';
+    const job = (p && p.job) || null;
+    if (job && job.state === 'running') {
+      pubBox.append(el('span', { class: 'muted' }, T('⏳ publicando relatório…', '⏳ publishing report…')));
+      if (!pubTimer) pubTimer = setInterval(pubRefresh, 5000);
+      return;
+    }
+    if (pubTimer) { clearInterval(pubTimer); pubTimer = null; }
+    if (job && job.state === 'error') pubBox.append(el('span', { class: 'pill bad', title: job.error || '' }, T('falha ao publicar', 'publish failed')));
+    const act = async (action, msg) => {
+      if (msg && !confirm(msg)) return;
+      pubBox.append(el('span', { class: 'muted' }, '…'));
+      try { pubRender(await apiPost(PUB, { action }, G)); }
+      catch (e) { alert(e.message || T('falha', 'failed')); pubRefresh(); }
+    };
+    if (p && p.published) {
+      pubBox.append(el('a', { class: 'btn ghost', href: p.url, target: '_blank', style: 'font-size:.85rem' }, T('📑 Relatório publicado', '📑 Published report')),
+        el('span', { class: 'muted small' }, fmtAt(p.at) + (p.by ? ' · ' + p.by : '')),
+        el('button', { class: 'btn ghost', style: 'font-size:.8rem', title: T('gera de novo e troca o site publicado', 'regenerate and replace the published site'),
+          onclick: () => act('publish') }, T('🔄 Republicar', '🔄 Republish')),
+        el('button', { class: 'btn ghost', style: 'font-size:.8rem',
+          onclick: () => act('unpublish', T('Despublicar o relatório? O endereço /relatorio/' + CONTEST + '/ deixa de existir.',
+                                            'Unpublish the report? /relatorio/' + CONTEST + '/ will stop existing.')) }, T('Despublicar', 'Unpublish')));
+    } else {
+      pubBox.append(el('button', { class: 'btn ghost', style: 'font-size:.85rem',
+        title: T('publica o relatório estático em /relatorio/<contest>/ e o lista na home e no /contests/ (histórico)',
+                 'publishes the static report at /relatorio/<contest>/ and lists it on the home page and /contests/ (history)'),
+        onclick: () => act('publish', T('Publicar o relatório estático em /relatorio/' + CONTEST + '/? Fica PÚBLICO (placar, runs, estatísticas, clarifications anônimas) e listado na home.',
+                                       'Publish the static report at /relatorio/' + CONTEST + '/? It becomes PUBLIC (scoreboard, runs, statistics, anonymous clarifications) and listed on the home page.')) },
+        T('📢 Publicar relatório', '📢 Publish report')));
+    }
+  }
+  async function pubRefresh() { try { pubRender(await apiGet(PUB, G)); } catch { pubRender(null); } }
 
   async function refresh() {
     let d, sess, tq;
@@ -65,7 +107,8 @@ export function makeStatusTab(CONTEST) {
             b.disabled = true; b.textContent = T('⏳ gerando…', '⏳ generating…');
             try { await downloadAuthed(CONTEST, '/contest/admin/report?contest=' + enc(CONTEST), 'relatorio-' + CONTEST + '.tar.gz'); }
             finally { b.disabled = false; b.textContent = old; }
-          } }, T('📦 Relatório estático', '📦 Static report'))),
+          } }, T('📦 Relatório estático', '📦 Static report')),
+        pubBox),
       el('div', { class: 'dash-cards' },
         card(T('Logados', 'Logged in'), online),
         card(T('Juízes online', 'Judges online'), (j.online || 0) + '/' + (j.total || 0), (j.total || 0) > 0 && (j.online || 0) === 0),
@@ -220,6 +263,7 @@ export function makeStatusTab(CONTEST) {
   }
 
   async function load() {
+    pubRefresh();
     await refresh();
     clearInterval(timer); timer = setInterval(() => { if (!panel.hidden && panel.isConnected) refresh(); }, 12000);
   }

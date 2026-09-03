@@ -312,6 +312,14 @@ segunda vez ele não faz nada.
 Fecha o ciclo com o **relatório final** (Operação › Situação): o `tar.gz` navegável leva o
 placar aberto, as submissões, as estatísticas completas, os enunciados **e** os documentos
 publicados — é o pacote que se manda para os participantes e para o arquivo do evento.
+Ao lado do download há **📢 Publicar relatório**: o mesmo site passa a existir em
+`https://moj…/relatorio/<contest>/` e o card do contest na página inicial e no `/contests/`
+ganha o botão **📑 Relatório** — é o **histórico** do evento. A geração roda em segundo plano
+(~1–2 min numa prova grande; o painel mostra "publicando…" e troca sozinho quando termina).
+É público: o relatório não carrega código-fonte, log de juiz nem senha, e as clarifications
+saem anônimas, mas mostra nomes de times, runs e estatísticas — publique quando tudo já foi
+divulgado. **Republicar** gera de novo e troca o site inteiro de uma vez (quem estiver lendo
+não vê meio-caminho); **Despublicar** apaga o endereço e o botão dos cards.
 
 ## 7. Máquinas dos times (Pessoas › Máquinas & gate)
 

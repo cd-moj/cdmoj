@@ -375,7 +375,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{open,upcoming,closed:{items,page,pages}}"
+            "description": "{open,upcoming,closed:{items,page,pages}} — item ganha report_url (/relatorio/<id>/) quando o relatório estático foi publicado"
           }
         }
       }
@@ -2131,6 +2131,13 @@
           }
         }
       }
+    },
+    "/contest/admin/report-publish": {
+      "get": {"tags": ["contest-admin"], "summary": "Estado do relatório estático PUBLICADO (histórico em /relatorio/<c>/)", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/contest"}],
+        "responses": {"200": {"description": "{published, url, at, by, pages, bytes, job:{state:running|done|error, by, started, updated, error?}|null}"}}},
+      "post": {"tags": ["contest-admin"], "summary": "Publica (job destacado; gera + troca atômica + REPORT_PUBLISHED no conf) ou despublica o relatório estático", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/contest"}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"action": {"type": "string", "enum": ["publish", "unpublish"]}}, "required": ["action"]}}}},
+        "responses": {"200": {"description": "mesmo corpo do GET (com job.state=running logo após publish)"}, "409": {"description": "busy — geração em andamento"}}}
     },
     "/contest/admin/report": {
       "get": {
