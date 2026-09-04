@@ -15,7 +15,8 @@
 #   7. move o arquivo de spool p/ $SPOOLDONEDIR.
 # Arquivos ":rejulgar:" são tratados igual (re-julga + atualiza).
 #
-# Sem inotifywait? cai p/ um loop de polling. --once processa 1 arquivo e sai
+# (inotifywait -m PERSISTENTE via coproc: evento durante o dreno não se perde; re-drain de
+# WATCH_REDRAIN_SECS=10 s é só rede de segurança.) Sem inotifywait? loop de polling. --once processa 1 arquivo e sai
 # (testabilidade). Aditivo e file-based: NÃO altera api/** nem mojtools/**.
 #
 # Uso:
@@ -803,17 +804,21 @@ reconcile_stale_pending() {
 }
 
 # loop principal: inotify (push) com fallback p/ polling.
-# IMPORTANTE: o padrão é DRENA-então-ESPERA-UM-evento (inotifywait sem -m, com -t de
-# re-drain). Todo giro drena TODO o spool no topo; então o inotifywait espera UM evento
-# ou o timeout de re-drain e sai — e o loop re-drena. Assim um evento perdido (ex.: escritor
-# num OUTRO container/namespace, ou race entre sair e re-armar) NÃO trava o julgamento: no
-# pior caso o re-drain o pega em WATCH_REDRAIN_SECS. (O `-m` contínuo antigo bloqueava p/
-# sempre se um evento não chegasse — sem rede de segurança.)
+# HISTÓRICO: até 03/09/2026 era DRENA-então-ESPERA-UM-evento (inotifywait SEM -m, um exec por
+# giro). Medido em produção: ~15% das submissões E ~15% dos results esperavam o re-drain de
+# 30 s — o `.in.*` do escritor atômico (cp) acordava o laço, o dreno não achava nada elegível,
+# e o `mv` final caía no buraco entre o fim do dreno e o novo exec do inotifywait. Era o "piso
+# de 30 s" do veredicto (p50 33 s com juiz de 9 s).
+# AGORA: UM inotifywait -m PERSISTENTE (coproc) alimenta um pipe; o laço drena e depois faz
+# `read -t` no pipe. Evento que chega DURANTE o dreno fica no pipe — nada se perde; o timeout
+# (WATCH_REDRAIN_SECS, agora 10 s) é só rede de segurança (escritor noutro namespace, watcher
+# morto). Se o inotifywait morrer (EOF no pipe), é re-sobe com 1 s de backoff.
 # heartbeat: a API precisa saber que o daemon está vivo, mas o `pgrep` dela NÃO enxerga este
 # processo quando ela roda em OUTRO container (PID namespace separado — que é justamente o
 # deploy recomendado: moj-api + moj-judged). Batemos num arquivo do $RUNDIR (volume
 # compartilhado) a cada giro do laço; quem lê é o daemon_judged_alive() do lib/common.sh.
 : "${JUDGED_ALIVE_FILE:=$RUNDIR/judged.alive}"
+: "${WATCH_REDRAIN_SECS:=10}"
 # com shards: TODO worker bate o alive global (qualquer um vivo = daemon vivo p/ a API) e o
 # próprio judged.alive.s<k> — é o que permite alertar shard morto individualmente.
 beat(){
@@ -821,11 +826,39 @@ beat(){
   [[ -n "${JUDGED_SHARD:-}" ]] && { : > "$JUDGED_ALIVE_FILE.s$JUDGED_SHARD" 2>/dev/null || true; }
 }
 
+# watcher persistente: coproc com inotifywait -m; INW_FD = ponta de leitura; INW_PID é do bash
+# (ele o APAGA — e fecha os fds — quando colhe o coproc morto; por isso toda referência é
+# ${INW_PID:-}). Não fechamos fd algum "à mão": redirect que falha num `exec` ENCERRA o shell
+# em silêncio (foi assim que a 1ª versão morria ao re-subir o watcher).
+INW_FD=""
+inw_start() {
+  local _p="${INW_PID:-}"
+  [[ -n "$_p" ]] && { kill "$_p" 2>/dev/null; wait "$_p" 2>/dev/null; }
+  coproc INW { exec inotifywait -m -q -e create -e moved_to --format '%f' "$MY_SPOOL" 2>/dev/null; }
+  INW_FD="${INW[0]}"
+  return 0
+}
+# inw_wait: espera UM evento (ou o re-drain) e esvazia os que já estão no pipe. rc 0 = evento
+# ou timeout (drena de novo); rc 1 = watcher morreu (re-subir).
+inw_wait() {
+  local ev rc
+  [[ -n "${INW_PID:-}" ]] || return 1          # o bash já colheu o coproc: morreu
+  IFS= read -r -t "$WATCH_REDRAIN_SECS" -u "$INW_FD" ev 2>/dev/null; rc=$?
+  if (( rc == 0 )); then
+    # rajada: consome o que já está no pipe — o dreno que vem a seguir vê TODOS os arquivos
+    while IFS= read -r -t 0.01 -u "$INW_FD" ev 2>/dev/null; do :; done
+    return 0
+  fi
+  (( rc > 128 )) && return 0          # timeout: re-drain de segurança
+  return 1                            # EOF/fd fechado: inotifywait caiu
+}
+
 watch_loop() {
-  local f rc
+  local f
   beat
   if command -v inotifywait >/dev/null 2>&1; then
-    log "watch: inotifywait em $MY_SPOOL (shard ${JUDGED_SHARD:-0}/${JUDGED_SHARDS:-1}; re-drena a cada ${WATCH_REDRAIN_SECS:-30}s)"
+    log "watch: inotifywait -m persistente em $MY_SPOOL (shard ${JUDGED_SHARD:-0}/${JUDGED_SHARDS:-1}; re-drena a cada ${WATCH_REDRAIN_SECS}s)"
+    inw_start
     while true; do
       beat
       # beat POR ARQUIVO: um dreno de backlog longo (Maratona 29/08: 2.000+ no spool) passava
@@ -835,10 +868,10 @@ watch_loop() {
       reconcile_stale_pending
       spool_done_gc
       if (( ${JUDGED_SHARDS:-1} > 1 )) && [[ "${JUDGED_SHARD:-0}" == 0 ]]; then sweep_orphan_shards; fi
-      inotifywait -q -e create -e moved_to -t "${WATCH_REDRAIN_SECS:-30}" "$MY_SPOOL" >/dev/null 2>&1
-      rc=$?
-      # rc 0=evento, 2=timeout (re-drena no topo). Erro real (1/outros): evita busy-loop.
-      (( rc == 0 || rc == 2 )) || sleep 1
+      if ! inw_wait; then
+        log "watch: inotifywait terminou — re-subindo em 1s (o re-drain segurou a fila)"
+        sleep 1; inw_start
+      fi
     done
   else
     log "watch: inotifywait AUSENTE — fallback p/ polling (1s)"

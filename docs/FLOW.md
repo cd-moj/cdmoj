@@ -71,8 +71,13 @@ entregam o formato global de 7 campos `tempo:login:problemid:lang:verdict:epoch:
 
 ## 2. Daemon de julgamento — `server/daemons/judged.sh`
 
-Serviço systemd **`moj-judged`**. Observa o spool com `inotifywait -m -e create -e moved_to`
-(fallback: poll de 1s). Para cada arquivo: lê o JSON, chama `judge_run`, e aplica o
+Serviço systemd **`moj-judged`**. Observa o spool com UM `inotifywait -m -e create -e moved_to`
+**persistente** (coproc): o laço drena o spool e faz `read -t` no pipe de eventos, então um
+evento que chega durante o dreno fica no pipe e nada se perde; o re-drain (`WATCH_REDRAIN_SECS`,
+10 s) é só rede de segurança e o watcher morto é re-subido. (Até 03/09/2026 era um `inotifywait`
+por giro, sem `-m`: o `.in.*` do escritor atômico acordava o laço e o `mv` final caía no buraco
+do rearme — ~15 % das submissões e dos results esperavam o re-drain de 30 s, o "piso de 30 s" do
+veredicto.) Fallback sem inotify-tools: poll de 1 s. Para cada arquivo: lê o JSON, chama `judge_run`, e aplica o
 veredicto reescrevendo **só a linha com sufixo `:<id>`** no `history` do usuário (casamento
 seguro, reescrita atômica via `mv`), recomputa `users/<login>/metrics.json`, arquiva o fonte
 decodificado, e dispara `server/score/build.sh <contest>` para recalcular o placar. Por fim

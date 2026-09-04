@@ -445,7 +445,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   **escritor único** via o consumidor `setverdict` do daemon. O **voto é permanente e libera o juiz**
   (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo
   `auth.status` → segue o chief/admin em qualquer página); o painel **Operação › Situação** traz estatística por juiz
-  (`review/stats`, derivada do `admin-audit.log`). **Mexeu no `judged.sh` → reinicie o
+  (`review/stats`, derivada do `admin-audit.log`). **Watch do spool = `inotifywait -m`
+  PERSISTENTE (coproc) + `read -t`** (03/09/2026): nunca volte ao `inotifywait` de um evento por
+  giro — o `.in.*` do escritor atômico acordava o laço e o `mv` caía no buraco do rearme (~15 %
+  das submissões/results esperavam o re-drain de 30 s: piso de 30 s no veredicto). Não feche fd de
+  coproc com `exec {var}>&-` (redirect que falha num `exec` encerra o shell em silêncio) e trate
+  `INW_PID` como `${INW_PID:-}` (o bash o apaga ao colher o coproc). Smoke: `smoke-judged-watch.sh`
+  (inotifywait falso no PATH). **Mexeu no `judged.sh` → reinicie o
   daemon** (mantendo `INTAKE_MODE`/`JUDGE_BACKEND`); handlers/score são frescos por requisição.
 - **SHARDS do escritor (`JUDGED_SHARDS=K`, default 1)**: o judged particiona em K workers por
   `hash(login) % K` (`lib/spool-shard.sh` — a MESMA lib nos handlers e no daemon), porque o
