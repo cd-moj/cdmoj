@@ -885,10 +885,19 @@ function renderSubmitInline(p) {
 
   async function mountEditor() {
     if (editor) return;
-    editor = await createEditor(editorMount, { doc: '', cm: langById(sel.value).cm });
+    // esqueleto por linguagem (mesmo campo que /treino/ajuda/ documenta) -- primeira
+    // abertura sempre começa do template, nunca vazio.
+    let prevLang = sel.value;
+    editor = await createEditor(editorMount, { doc: langById(prevLang).template || '', cm: langById(prevLang).cm });
     sel.addEventListener('change', async () => {
       const cur = editor.getValue(); editorMount.innerHTML = '';
-      editor = await createEditor(editorMount, { doc: cur, cm: langById(sel.value).cm });
+      // só troca pelo esqueleto novo se o editor ainda não foi editado (vazio ou == o
+      // esqueleto da linguagem anterior) -- senão preservar o código já digitado.
+      const prevTemplate = langById(prevLang).template || '';
+      const nextTemplate = langById(sel.value).template || '';
+      const doc = (cur.trim() === '' || cur === prevTemplate) ? nextTemplate : cur;
+      editor = await createEditor(editorMount, { doc, cm: langById(sel.value).cm });
+      prevLang = sel.value;
     });
     setTimeout(refreshEd, 50);
   }
