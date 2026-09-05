@@ -9,6 +9,15 @@
 #   add      {login, note?}      -> promove time MANUAL (comitê/regra 3): via:"comite"
 #   remove   {login}             -> tira o time (qualquer via)
 # Etapas futuras (PDA/Mundial) já cabem no shape (stages[] + next_stage) — sem regras hoje.
+#
+# ALGORITMOS: config.algorithm escolhe o MOTOR por allowlist (id → script em score/). Hoje só
+# `sbc-fase1` (classify-br.sh: regras 0–4 da 1ª fase → Final Brasileira). A regra da PDA entra
+# como `score/classify-pda.sh` + uma linha em CL_ENGINES + entrada no catálogo + smoke — o painel
+# (Classificação) já mostra o seletor a partir de `algorithms` do GET.
+declare -A CL_ENGINES=( [sbc-fase1]="classify-br.sh" )
+cl_catalog(){ jq -cn '[{id:"sbc-fase1", name:"SBC 1ª fase → Final Brasileira",
+  desc:"regra 1: melhores gerais (≤2 por escola) · regra 2: vagas por sede e supersede (≤1 por escola) · regra 4: participação feminina · regra 3/comitê: manual"}]'; }
+cl_engine(){ local a="${1:-sbc-fase1}"; [[ -n "${CL_ENGINES[$a]:-}" ]] || return 1; printf '%s' "${CL_ENGINES[$a]}"; }
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -17,8 +26,8 @@ is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 CF="$CONTESTSDIR/$contest/classification.json"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
-  if [[ -s "$CF" ]]; then ok_json_slurp '{stages:($f[0].stages // [])}' f "$(cat "$CF")"
-  else ok_json '{stages:[]}'; fi
+  if [[ -s "$CF" ]]; then ok_json_slurp '{stages:($f[0].stages // []), algorithms:$a}' f "$(cat "$CF")" --argjson a "$(cl_catalog)"
+  else ok_json '{stages:[], algorithms:$a}' --argjson a "$(cl_catalog)"; fi
   exit 0
 fi
 
@@ -46,7 +55,9 @@ case "$action" in
     cfg="$(jq -c '.config // {}' <<<"$body")"
     W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
     printf '%s' "$cfg" > "$W/cfg.json"
-    if ! bash "$_DIR/../../score/classify-br.sh" "$contest" "$W/cfg.json" "$W/out.json" 2>"$W/err"; then
+    alg="$(jq -r '.algorithm // "sbc-fase1"' <<<"$cfg")"
+    eng="$(cl_engine "$alg")" || fail 422 "Algoritmo de classificação desconhecido: $alg" "algorithm_invalid"
+    if ! bash "$_DIR/../../score/$eng" "$contest" "$W/cfg.json" "$W/out.json" 2>"$W/err"; then
       fail 422 "Motor falhou: $(head -c 200 "$W/err")" "engine_failed"
     fi
     if [[ "$action" == preview ]]; then

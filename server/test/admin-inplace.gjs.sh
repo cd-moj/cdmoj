@@ -46,8 +46,13 @@ EOF
 strip "$W/shared/dom.js"; strip "$W/shared/admin-ui.js"; }
 
 check(){ if [[ "$1" == "$2" ]]; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "FALHOU: $3 (got '$1', want '$2')" >&2; fi; }
-run(){ # <nome> <módulo> <corpo js> -> imprime as linhas "k=v" do corpo
-  { prelude; strip "$W/contest/admin/$2"; printf '%s\n' "$3"; } > "$T/$1.js"
+run(){ # <nome> <módulo> <corpo js> [módulos extras…] -> imprime as linhas "k=v" do corpo
+  local nome="$1" mod="$2" body="$3"; shift 3
+  { prelude
+    # módulos irmãos que o painel importa (ex.: sessions-common.js): entram antes, sem o `const enc` duplicado
+    for x in "$@"; do strip "$W/contest/admin/$x" | sed '/^const enc = encodeURIComponent;$/d'; done
+    strip "$W/contest/admin/$mod"; printf '%s\n' "$body"; } > "$T/$nome.js"
+  set -- "$nome"
   gjs "$T/$1.js" 2>"$T/$1.err" || { echo "gjs falhou em $1:" >&2; tail -5 "$T/$1.err" >&2; }
 }
 kv(){ grep "^$2=" "$T/$1.out" | cut -d= -f2-; }
@@ -112,6 +117,56 @@ check "$(kv mlinux cmd_kept)" true "mlinux: formulário de comando ficou"
 check "$(kv mlinux pan_kept)" true "mlinux: panorama ficou durante a coleta"
 check "$(kv mlinux pan_rebuilt_after_collect)" true "mlinux: panorama trocou quando a coleta terminou"
 check "$(kv mlinux cmd_kept2)" true "mlinux: comando ficou mesmo com coleta nova"
+
+# ------------------------------------------------------------ Sessões (sessions-tab, slim) -------
+run sessions sessions-tab.js '
+let LA={login_enabled:true,sessions:{competitors:2,staff:0,privileged:1}};
+let SE={sessions:[{login:"t1",ip:"10.0.0.1",mkey:"m:abcdef0123/b1",user_agent:"mlinux",login_at:100},{login:"t2",ip:"10.0.0.2",mkey:"ip:10.0.0.2",user_agent:"ff",login_at:200}]};
+async function apiGet(p){ if(p.includes("logout-all")) return JSON.parse(JSON.stringify(LA)); if(p.includes("/sessions")) return JSON.parse(JSON.stringify(SE)); return {}; }
+(async()=>{ const tab=makeSessionsTab("c",{has:()=>false}); await tab.load(); const k0=[...tab.panel.children];
+  const mass0=k0[0].children[3].children[0]; const list0=k0[1].children[2].children[0]; const acc=k0[2]; acc.open=true;
+  await tab.load(); const k1=[...tab.panel.children];
+  print("same_skeleton="+k0.every((n,i)=>n===k1[i])); print("mass_kept="+(k1[0].children[3].children[0]===mass0)); print("list_kept="+(k1[1].children[2].children[0]===list0)); print("details_open="+k1[2].open);
+  print("no_rounds_hint="+!mass0.textContent.includes("Rodadas"));
+  LA.login_enabled=false; await tab.load(); const k2=[...tab.panel.children];
+  print("mass_rebuilt="+(k2[0].children[3].children[0]!==mass0)); print("list_kept2="+(k2[1].children[2].children[0]===list0));
+  SE.sessions.push({login:"t3",ip:"10.0.0.3",mkey:"ip:10.0.0.3",user_agent:"ff",login_at:300}); await tab.load(); const k3=[...tab.panel.children];
+  print("list_rebuilt="+(k3[1].children[2].children[0]!==list0)); print("skeleton_stable="+k0.every((n,i)=>n===k3[i]));
+})().catch(e=>print("ERRO "+e+"\n"+e.stack));' sessions-common.js > "$T/sessions.out"
+check "$(kv sessions same_skeleton)" true "sessions: esqueleto idêntico no 2º load"
+check "$(kv sessions mass_kept)" true "sessions: caixa sair-em-massa não refeita sem mudança"
+check "$(kv sessions list_kept)" true "sessions: lista não refeita sem mudança"
+check "$(kv sessions details_open)" true "sessions: <details> do log ficou aberto"
+check "$(kv sessions no_rounds_hint)" true "sessions: sem módulo rodadas, sem dica de promover rodada"
+check "$(kv sessions mass_rebuilt)" true "sessions: caixa trocou quando o login fechou"
+check "$(kv sessions list_kept2)" true "sessions: lista ficou quando só o login mudou"
+check "$(kv sessions list_rebuilt)" true "sessions: lista trocou com sessão nova"
+check "$(kv sessions skeleton_stable)" true "sessions: esqueleto idêntico após 4 loads"
+
+# ------------------------------------------------------------ Anomalias (anomalies-tab) ---------
+run anomalies anomalies-tab.js '
+let D={gate:{mode:"enforce",active:true,single_session:true},window:{start:1,end:2},computed_at:10,round:"r",counts:{sessions:2,teams_live:2,multi_session:1},
+  anomalies:[{kind:"multi_session",severity:"bad",at:5,login:"t1",name:"T1",region:"X",machine:"m:a/1",detail:{sessions:2,keys:["m:a/1","m:b/2"]}}],events:[],teams:[{login:"t1",name:"T1",sessions:[{key:"m:a/1"},{key:"m:b/2"}],machines:[{key:"m:a/1",first:1,in:1}],flags:["multi_session"]}],machines:[],sites:[],channels:{logins:{web:1,cli:0,other:0},submissions:{web:1,cli:0,offline:0}}};
+async function apiGet(p){ const d=JSON.parse(JSON.stringify(D)); d.computed_at=Date.now(); return d; }
+(async()=>{ const tab=makeAnomaliesTab("c"); await tab.load(); const k0=[...tab.panel.children];
+  const state0=k0[0].children[2].children[0], cards0=k0[0].children[3].children[0], tl0=k0[1].children[1].children[0], teams0=k0[2].children[1].children[0];
+  await tab.load(); const k1=[...tab.panel.children];
+  print("same_skeleton="+k0.every((n,i)=>n===k1[i])); print("state_kept="+(k1[0].children[2].children[0]===state0)); print("cards_kept="+(k1[0].children[3].children[0]===cards0));
+  print("tl_kept="+(k1[1].children[1].children[0]===tl0)); print("teams_kept="+(k1[2].children[1].children[0]===teams0)); print("tl_visible="+!k1[1].hidden);
+  D.counts.multi_session=2; D.anomalies.push({kind:"multi_session",severity:"bad",at:6,login:"t2",machine:"m:c/3",detail:{sessions:2,keys:["m:c/3","m:d/4"]}}); await tab.load(); const k2=[...tab.panel.children];
+  print("cards_rebuilt="+(k2[0].children[3].children[0]!==cards0)); print("skeleton_stable="+k0.every((n,i)=>n===k2[i]));
+  D.gate.active=false; await tab.load(); const k3=[...tab.panel.children]; print("tl_hidden_without_gate="+k3[1].hidden); print("skeleton_stable2="+k0.every((n,i)=>n===k3[i]));
+})().catch(e=>print("ERRO "+e+"\n"+e.stack));' sessions-common.js > "$T/anomalies.out"
+check "$(kv anomalies same_skeleton)" true "anomalies: esqueleto idêntico no 2º load"
+check "$(kv anomalies state_kept)" true "anomalies: barra de estado não refeita (computed_at fora da assinatura)"
+check "$(kv anomalies cards_kept)" true "anomalies: cards não refeitos sem mudança"
+check "$(kv anomalies tl_kept)" true "anomalies: linha do tempo não refeita sem mudança"
+check "$(kv anomalies teams_kept)" true "anomalies: tabela de times não refeita sem mudança"
+check "$(kv anomalies tl_visible)" true "anomalies: linha do tempo visível com gate ativo"
+check "$(kv anomalies cards_rebuilt)" true "anomalies: cards trocaram com anomalia nova"
+check "$(kv anomalies skeleton_stable)" true "anomalies: esqueleto idêntico após dado novo"
+check "$(kv anomalies tl_hidden_without_gate)" true "anomalies: linha do tempo escondida sem gate"
+check "$(kv anomalies skeleton_stable2)" true "anomalies: esqueleto idêntico ao desligar o gate"
 
 grep -h "^ERRO" "$T"/*.out >&2 || true
 echo "admin-inplace: PASS=$PASS FAIL=$FAIL"; exit $(( FAIL>0 ))

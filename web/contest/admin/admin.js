@@ -22,12 +22,14 @@ import { makeRegistrationsTab } from './registrations-tab.js';
 import { makeSitesTab } from './sites-tab.js';
 import { makeMachinesTab } from './machines-tab.js';
 import { makeSessionsTab } from './sessions-tab.js';
+import { makeAnomaliesTab } from './anomalies-tab.js';
 import { makeStatusTab } from './status-tab.js';
 import { makeTasksTab } from './tasks.js';
 import { makeJudgesTab } from './judges-tab.js';
 import { makeAuditTab } from './audit-tab.js';
 import { makeMlinuxTab } from './mlinux-tab.js';
 import { makeClassifyTab } from './classify-tab.js';
+import { makeReportTab } from './report-tab.js';
 import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
@@ -44,6 +46,7 @@ const GROUPS = () => [
   ] },
   { id: 'prova', label: T('🧩 Prova', '🧩 Contest'), panels: [
     { id: 'problemas', label: T('Problemas', 'Problems'), make: () => makeProblemsTab(CONTEST) },
+    { id: 'relatorio', label: T('Relatório', 'Report'), make: () => makeReportTab(CONTEST) },
     { id: 'rodadas', label: T('Rodadas', 'Rounds'), make: () => makeRoundsTab(CONTEST) },
     { id: 'documentos', label: T('Documentos', 'Documents'), make: () => makeDocsTab(CONTEST) },
     { id: 'baloes', label: T('Balões', 'Balloons'), make: () => makeBalloonsTab(CONTEST) },
@@ -56,7 +59,8 @@ const GROUPS = () => [
     { id: 'coortes', label: T('Coortes', 'Cohorts'), make: () => makeCohortsTab(CONTEST) },
     { id: 'sedes', label: T('Sedes & escolas', 'Sites & schools'), make: () => makeSitesTab(CONTEST) },
     { id: 'maquinas', label: T('Máquinas & gate', 'Machines & gate'), make: () => makeMachinesTab(CONTEST) },
-    { id: 'sessoes', label: T('Sessões & anomalias', 'Sessions & anomalies'), make: () => makeSessionsTab(CONTEST) },
+    { id: 'sessoes', label: T('Sessões', 'Sessions'), make: () => makeSessionsTab(CONTEST) },
+    { id: 'anomalias', label: T('Anomalias', 'Anomalies'), make: () => makeAnomaliesTab(CONTEST) },
   ] },
   { id: 'operacao', label: T('🎛️ Operação', '🎛️ Operations'), panels: [
     { id: 'situacao', label: T('Situação', 'Status'), make: () => makeStatusTab(CONTEST) },

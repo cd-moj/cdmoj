@@ -32,7 +32,7 @@ const TARGET = {
   reg_warmup: ['prova', 'rodadas'],
   print: ['operacao', 'staff'], staff_filters: ['operacao', 'staff'],
   judges: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
-  report: ['operacao', 'situacao'],   // postflight (encerrar evento)
+  report: ['prova', 'relatorio'],   // postflight (encerrar evento)
   mlinux: ['operacao', 'mlinux'],
 };
 
@@ -188,9 +188,9 @@ export function makeCentralTab(CONTEST, opts = {}) {
             : T(`próxima: ${next} — pronta para promover`, `next: ${next} — ready to promote`))
             : T('nenhuma rodada planejada (aquecimento → prova no mesmo contest)', 'no round planned (warm-up → contest in the same contest)'),
           el('button', { class: 'btn' + (blk.length || !next ? ' ghost' : ''), onclick: () => go('prova', 'rodadas') }, T('abrir', 'open'))),
-        gcard(T('📦 Relatório final', '📦 Final report'),
-          T('tar.gz navegável: placar aberto, runs, clarifications, staff', 'browsable tar.gz: open scoreboard, runs, clarifications, staff'),
-          el('button', { class: 'btn ghost', onclick: () => go('operacao', 'situacao') }, T('em Situação →', 'in Status →'))),
+        gcard(T('📑 Relatório da prova', '📑 Contest report'),
+          T('tar.gz navegável e publicação como histórico (/relatorio/<contest>/)', 'browsable tar.gz and publication as history (/relatorio/<contest>/)'),
+          el('button', { class: 'btn', onclick: () => go('prova', 'relatorio') }, T('abrir', 'open'))),
         gcard(T('🏆 Cerimônia de revelação', '🏆 Reveal ceremony'),
           T('placar congelado → aberto, de baixo para cima', 'frozen → open scoreboard, bottom-up'),
           el('a', { class: 'btn', target: '_blank', href: '/contest/score/reveal.html?c=' + enc(CONTEST) }, T('abrir', 'open'))),

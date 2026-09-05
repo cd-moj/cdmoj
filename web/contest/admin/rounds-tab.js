@@ -196,17 +196,9 @@ export function makeRoundsTab(CONTEST, opts = {}) {
       // relatório PÚBLICO da rodada (histórico): symlink relatorio-rodadas/<slug> servido pelo nginx em
       // /relatorio/<c>/rodada/<slug>/ e linkado na página inicial do relatório principal publicado
       const pr = ((PUB && PUB.rounds) || []).find((x) => x.slug === r.slug);
-      if (pr) {
-        if (pr.public) acts.append(el('a', { class: 'btn ghost', target: '_blank', href: pr.url }, T('📑 relatório público', '📑 public report')));
-        if (!readOnly) acts.append(el('button', { class: 'btn ghost', onclick: async () => {
-          const on = !pr.public;
-          if (on && !confirm(T(`Publicar o relatório da rodada “${r.name}” em ${pr.url}? Fica PÚBLICO (placar, runs, estatísticas).`,
-                              `Publish the “${r.name}” round report at ${pr.url}? It becomes PUBLIC (scoreboard, runs, statistics).`))) return;
-          try { PUB = await apiPost(PUBURL, { action: on ? 'publish-round' : 'unpublish-round', round: r.slug }, G);
-                setMsg(on ? T('✓ relatório da rodada publicado', '✓ round report published') : T('✓ relatório da rodada despublicado', '✓ round report unpublished')); render(); }
-          catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
-        } }, pr.public ? T('🌐 despublicar relatório', '🌐 unpublish report') : T('🌐 publicar relatório (público)', '🌐 publish report (public)')));
-      }
+      // (ligar/desligar a publicação mora em Prova › Relatório — aqui só o atalho)
+      if (pr && pr.public) acts.append(el('a', { class: 'btn ghost', target: '_blank', href: pr.url }, T('📑 relatório público', '📑 public report')));
+      else if (pr && !readOnly) acts.append(el('a', { class: 'small', href: '#prova/relatorio' }, T('publicar o relatório em Prova › Relatório →', 'publish the report in Contest › Report →')));
     } else if (!readOnly) {
       acts.append(el('button', { class: 'btn ghost', onclick: () => { editing = (editing === r.slug ? '' : r.slug); render(); } },
         editing === r.slug ? T('fechar', 'close') : T('✎ editar', '✎ edit')));
