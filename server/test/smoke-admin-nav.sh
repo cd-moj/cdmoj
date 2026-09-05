@@ -91,7 +91,7 @@ fi
 
 echo "== 7. higiene dos painéis =="
 # igual nas duas línguas é aceitável p/ identificador (id…), sigla/símbolo (sem minúscula) e nome próprio (allowlist)
-SAME="$(grep -nE "T\('([^']+)', *'\1'\)" "$A"/*.js | grep -vE "T\('(id\b[^']*|[^a-z']*|📖 Manual|individual|extra|Logins|mlinux|Staff|Login|jplag|Brasil|E-mail|Email|ok)', " || true)"
+SAME="$(grep -nE "T\('([^']+)', *'\1'\)" "$A"/*.js | grep -vE "T\('(id\b[^']*|[^a-z']*|📖 Manual|individual|extra|info|item|seq|univ|Logins|mlinux|Staff|Login|jplag|Brasil|E-mail|Email|ok)', " || true)"
 ck "nenhum T('x','x') nos painéis (tradução esquecida)" '[[ -z "$SAME" ]]' "$(head -3 <<<"$SAME")"
 badT=""
 for f in "$A"/*.js; do
