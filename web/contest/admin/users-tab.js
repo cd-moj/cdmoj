@@ -5,11 +5,10 @@
 import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { parseUsers, parseRichCsv, downloadCsv } from '/shared/users-batch.js';
-import { mkBool } from '/shared/admin-ui.js';
+import { mkBool, PRIV_RE as PRIV } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
-const PRIV = /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/;
 
 export function makeUsersTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };

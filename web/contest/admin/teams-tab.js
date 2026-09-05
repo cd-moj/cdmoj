@@ -13,11 +13,11 @@ import { flagEl, flagManifest } from '/shared/flags.js';
 import { parseRichCsv } from '/shared/users-batch.js';
 import { T } from '/shared/i18n.js';
 import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
+import { PRIV_RE } from '/shared/admin-ui.js';
 
 const enc = encodeURIComponent;
 // lista CANÔNICA de sufixos de papel (a mesma de users-tab/sites-tab/machines-tab/cohorts-tab):
 // esquecer um faz a conta de papel virar "time" nesta tabela, com nome/bandeira/foto editáveis.
-const PRIV_RE = /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/;
 const FIELDS = ['fullname', 'country', 'region', 'univ_short', 'univ_full'];
 
 export function makeTeamsTab(CONTEST) {

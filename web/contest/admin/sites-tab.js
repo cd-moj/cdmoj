@@ -8,9 +8,9 @@ import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { makeRegionsEditor, makeTeamsEditor } from '/shared/contest-config/index.js';
 import { T } from '/shared/i18n.js';
+import { PRIV_RE as PRIV } from '/shared/admin-ui.js';
 
 const enc = encodeURIComponent;
-const PRIV = /\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/;
 
 export function makeSitesTab(CONTEST) {
   const G = { contest: CONTEST, auth: true };

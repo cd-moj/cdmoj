@@ -9,9 +9,9 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { makeBankPanel, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { T } from '/shared/i18n.js';
+import { fmtEpoch as fmt } from '/shared/admin-ui.js';
 
 const enc = encodeURIComponent;
-const fmt = (e) => (+e ? new Date(+e * 1000).toLocaleString() : '—');
 // funções, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
 const KIND = (k) => ({ warmup: T('aquecimento', 'warm-up'), official: T('prova oficial', 'official contest'), extra: T('extra', 'extra') }[k]);
 const STATE = (k) => ({

@@ -1,13 +1,19 @@
-// contest/admin/mlinux-tab.js — painel 🖥 mlinux (nutellaboot): panorama das máquinas das
+// contest/admin/mlinux-tab.js — painel 🖥️ mlinux (nutellaboot): panorama das máquinas das
 // sedes (specs, editores, série da prova), coleta, configuração da chave e COMANDOS.
 //
-// É usado em DOIS lugares: o painel do admin (Operação › mlinux) e a página avulsa
+// É usado em DOIS lugares: o painel do admin (Máquinas › mlinux) e a página avulsa
 // /contest/mlinux/ (cstaff/staff — o servidor já entrega `sedes[]` recortado ao escopo
 // e `can_admin:false` esconde config/coleta/frota; a trava de verdade é a API).
 // As SEÇÕES do panorama moram em web/lib/mlinux-view.js (compartilhadas com o relatório).
+//
+// ATUALIZAÇÃO EM LUGAR (regra da casa): quatro caixas fixas (config, coleta, comandos,
+// panorama); cada uma troca só quando a sua assinatura muda. Durante a coleta o poll de 3 s
+// mexe SÓ na caixa de coleta — até 05/09 ele refazia o painel inteiro (recorte e formulário de
+// comando iam junto).
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { swapIf, sigOf } from '/shared/admin-ui.js';
 import { mlinuxSections, MLINUX_CSS } from '/lib/mlinux-view.js';
 
 const enc = encodeURIComponent;
@@ -19,6 +25,7 @@ export function makeMlinuxTab(CONTEST) {
   let RTREE = [];           // árvore de regions.json (mesma hierarquia do placar)
   let sel = { kind: 'g', key: '' };   // g=global · n=nó da árvore · s=sede
   let pollT = null;
+  const SK = {};            // esqueleto: style, cfg, collect, cmd, pan, err
 
   // -- hierarquia: árvore (ordem/indentação do placar) + sedes fora dela no fim ---------
   function nodeOpts() {
@@ -68,7 +75,7 @@ export function makeMlinuxTab(CONTEST) {
       } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
     };
     return el('div', { class: 'section' },
-      el('h2', {}, T('⚙ Integração', '⚙ Integration'),
+      el('h2', {}, T('⚙️ Integração', '⚙️ Integration'),
         ' ', RESP && RESP.configured ? el('span', { class: 'pill ok' }, T('configurada', 'configured'))
           : el('span', { class: 'pill' }, T('sem chave', 'no key'))),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center' },
@@ -93,9 +100,8 @@ export function makeMlinuxTab(CONTEST) {
         try { await apiPost('/contest/nutella?contest=' + enc(CONTEST), { action: 'collect' }, G); msg.textContent = ''; load(); }
         catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
       } }, T('📥 Coletar agora', '📥 Collect now'));
-    if (st && st.running && !pollT) pollT = setTimeout(() => { pollT = null; if (!panel.hidden) load(); }, 3000);
     return el('div', { class: 'section' },
-      el('h2', {}, T('Coleta', 'Collection')),
+      el('h2', {}, T('📥 Coleta', '📥 Collection')),
       el('div', { class: 'row', style: 'gap:.6rem;align-items:center' }, btn,
         el('span', { class: 'small muted' }, stTxt), msg));
   }
@@ -145,7 +151,7 @@ export function makeMlinuxTab(CONTEST) {
       } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
     } }, T('▶ Enviar comando', '▶ Send command'));
     return el('div', { class: 'section' },
-      el('h2', {}, T('🕹 Comandos nas máquinas', '🕹 Machine commands')),
+      el('h2', {}, T('🕹️ Comandos nas máquinas', '🕹️ Machine commands')),
       el('div', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
         T('O comando entra na fila do nutellaboot e a máquina executa no próximo contato. Tudo é auditado.',
           'The command is queued in nutellaboot and runs on the machine\'s next contact. Everything is audited.')),
@@ -167,7 +173,7 @@ export function makeMlinuxTab(CONTEST) {
     const bar = el('div', { class: 'fbar' });
     const selN = el('select', { id: 'fRegion' }, el('option', { value: 'g|' }, T('— geral —', '— overall —')),
       ...opts.map((o) => el('option', { value: o.kind + '|' + o.key },
-        '  '.repeat(o.depth) + o.key)));
+        '  '.repeat(o.depth) + o.key)));
     selN.value = sel.kind === 'g' ? 'g|' : sel.kind + '|' + sel.key;
     if (selN.selectedIndex < 0) { sel = { kind: 'g', key: '' }; selN.value = 'g|'; }
     selN.addEventListener('change', () => {
@@ -190,17 +196,25 @@ export function makeMlinuxTab(CONTEST) {
     return el('div', {}, bar, box);
   }
 
-  function render() {
+  function skeleton() {
+    SK.style = el('style', {}, MLINUX_CSS);
+    SK.err = el('div', {}); SK.cfg = el('div', {}); SK.collect = el('div', {}); SK.cmd = el('div', {}); SK.pan = el('div', {});
     panel.innerHTML = '';
-    panel.append(el('style', {}, MLINUX_CSS));
-    if (RESP && RESP.can_admin) { panel.append(configCard()); panel.append(collectCard()); }
-    const cc = commandCard(); if (cc) panel.append(cc);
-    panel.append(panorama());
+    panel.append(SK.style, SK.err, SK.cfg, SK.collect, SK.cmd, SK.pan);
+  }
+
+  // cada caixa troca só quando a SUA assinatura muda; a coleta em andamento só mexe na dela
+  function render() {
+    const d = (RESP && RESP.data) || null, adm = !!(RESP && RESP.can_admin), st = (RESP && RESP.status) || null;
+    swapIf(SK.cfg, sigOf(adm, RESP && RESP.configured, RESP && RESP.url), () => (adm ? configCard() : null));
+    swapIf(SK.collect, sigOf(adm, RESP && RESP.configured, st), () => (adm ? collectCard() : null));
+    swapIf(SK.cmd, sigOf(adm, d && (d.sedes || []).map((s) => [s.id, s.name, s.seen, ((s.machines || []).map((m) => m.mac))])), () => commandCard());
+    swapIf(SK.pan, sigOf(RESP && RESP.configured, d && d.collected_at, d && d.version, d && d.link, d && d.window, sel, RTREE), () => panorama());
+    if (st && st.running && !pollT) pollT = setTimeout(() => { pollT = null; if (!panel.hidden) load(); }, 3000);
   }
 
   async function load() {
-    panel.innerHTML = '';
-    panel.append(el('p', { class: 'muted' }, T('Carregando…', 'Loading…')));
+    if (!SK.style) { skeleton(); SK.pan.append(el('p', { class: 'muted' }, T('Carregando…', 'Loading…'))); }
     try {
       const [r, rg] = await Promise.all([
         apiGet('/contest/nutella?contest=' + enc(CONTEST), G),
@@ -208,10 +222,11 @@ export function makeMlinuxTab(CONTEST) {
       ]);
       RESP = r;
       RTREE = rg ? (Array.isArray(rg) ? rg : (rg.regions || [])) : [];
+      SK.err.innerHTML = '';
       render();
     } catch (e) {
-      panel.innerHTML = '';
-      panel.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load')));
+      SK.err.innerHTML = '';
+      SK.err.append(el('div', { class: 'error-box' }, e.message || T('falha ao carregar', 'failed to load')));
     }
   }
   return { panel, load };

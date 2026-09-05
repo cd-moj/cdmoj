@@ -11,12 +11,11 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { T } from '/shared/i18n.js';
+import { fmtEpoch as fmtDate, fmtKB } from '/shared/admin-ui.js';
 
 const enc = encodeURIComponent;
 const LANGS = ['pt', 'en', 'es'];           // idioma dos DOCUMENTOS (a interface segue pt/en)
 const PDF_MAX_MB = 60;                       // o mesmo teto do handler (DOC_PDF_MAX_MB)
-const fmtDate = (e) => (+e ? new Date(+e * 1000).toLocaleString() : '—');
-const fmtKB = (n) => (!n ? '—' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
 
 const TYPES = [
   { id: 'info-sheet', pt: 'Informações do ambiente', en: 'Testing environment',

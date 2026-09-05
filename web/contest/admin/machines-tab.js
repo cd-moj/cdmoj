@@ -11,16 +11,9 @@
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { fmtEpoch as fmt, toCsv, downloadText, PRIV_RE } from '/shared/admin-ui.js';
 
 const enc = encodeURIComponent;
-const fmt = (e) => (+e ? new Date(+e * 1000).toLocaleString() : '—');
-const csvCell = (v) => { const s = String(v == null ? '' : v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-const toCsv = (rows) => rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
-function download(name, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
-  const a = el('a', { href: url, download: name }); document.body.append(a); a.click();
-  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 0);
-}
 
 export function makeMachinesTab(CONTEST) {
   const panel = el('div', { class: 'section' });
@@ -107,7 +100,7 @@ export function makeMachinesTab(CONTEST) {
       slMsg));
     const rx = el('input', { value: (g.from_login && g.from_login.regex) || '', placeholder: '^team([a-z]{6})[0-9]{3}$', style: 'width:16rem;font-family:var(--mono)' });
     const ex = el('input', { value: (g.from_login && g.from_login.expect) || '\\1', placeholder: '\\1', style: 'width:7rem;font-family:var(--mono)' });
-    const someLogin = ((DATA && DATA.by_login) || []).map((r) => r.login).find((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/.test(l)) || '';
+    const someLogin = ((DATA && DATA.by_login) || []).map((r) => r.login).find((l) => !PRIV_RE.test(l)) || '';
     const chkIn = el('input', { value: someLogin, placeholder: T('login do time', 'team login'), style: 'width:11rem;font-family:var(--mono)' });
     const chkOut = el('span', { class: 'small' }, '—');
     const doCheck = async () => {
@@ -284,7 +277,7 @@ export function makeMachinesTab(CONTEST) {
           r.login, r.name, r.region, p.ip, p.ua, r.ua_expected || '',
           r.ua_expected ? (r.ua_match === false ? 'nao' : 'sim') : '',
           p.n, fmt(p.first), fmt(p.last), r.changed ? 'sim' : ''])));
-        download('maquinas-' + CONTEST + '-' + (DATA.round || '') + '.csv', toCsv(rows));
+        downloadText('maquinas-' + CONTEST + '-' + (DATA.round || '') + '.csv', toCsv(rows), 'text/csv');
       } }, T('⇣ CSV', '⇣ CSV'))));
     panel.append(el('div', { class: 'small muted' },
       T(`${t.logins || 0} conta(s) · ${t.ips || 0} IP(s) · ${t.changed || 0} trocaram de máquina · ${t.shared_ips || 0} IP(s) compartilhado(s) · ${t.ua_mismatch || 0} fora da imagem da sede`,

@@ -6,6 +6,7 @@
 import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { T } from '/shared/i18n.js';
+import { PRIV_RE } from '/shared/admin-ui.js';
 
 const enc = encodeURIComponent;
 
@@ -157,7 +158,7 @@ export function makeCohortsTab(CONTEST) {
         apiGet('/contest/admin/users?contest=' + enc(CONTEST), G).catch(() => ({ users: [] })),
       ]);
     } catch (e) { panel.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ') + (e.message || T('erro', 'error')))); return; }
-    DATA = d; LOGINS = ((u && u.users) || []).map((x) => x.login).filter((l) => !/\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/.test(l));
+    DATA = d; LOGINS = ((u && u.users) || []).map((x) => x.login).filter((l) => !PRIV_RE.test(l));
     const all = DATA.cohorts || [];
 
     panel.append(releaseBox());
