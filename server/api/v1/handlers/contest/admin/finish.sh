@@ -64,7 +64,8 @@ if [[ "$REQUEST_METHOD" != POST ]]; then
     add freeze ok "Placar aberto" "sem congelamento em vigor"
   fi
   pend="$(_docs_pending_json)"; npend="$(jq -r 'length' <<<"$pend")"
-  if (( npend > 0 )); then
+  if ! mod_on "$contest" documentos; then :   # módulo desligado: nada a publicar aqui
+  elif (( npend > 0 )); then
     add docs fail "$npend documento(s) gerado(s) sem publicar" \
       "$(jq -r 'map(.type + "." + .lang) | join(", ")' <<<"$pend")"
   else
@@ -83,7 +84,7 @@ if [[ "$REQUEST_METHOD" != POST ]]; then
     add show_code warn "Cada time vê só o próprio código" "libere em ⚙️ Regras se quiser abrir as soluções"
   fi
   source "$_LIBDIR/cohorts.sh" 2>/dev/null || true
-  if declare -F ch_released >/dev/null 2>&1 && ! ch_released "$contest"; then
+  if mod_on "$contest" coortes && declare -F ch_released >/dev/null 2>&1 && ! ch_released "$contest"; then
     add cohorts warn "Coortes não liberadas" "convidados/extra-oficiais seguem fora do placar público (Pessoas › Coortes)"
   fi
   add report ok "Relatório final" "baixe o pacote offline em Operação › Situação"

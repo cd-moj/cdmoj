@@ -27,7 +27,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
-            balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty}' \
+            balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods}' \
+    --argjson mods "$(mod_list_json "$contest")" \
     --arg bsty "$([[ "$SCORE_BALLOON_STYLE" == fill ]] && echo fill || echo icon)" \
     --argjson bdf "$([[ "$BALLOONS_DURING_FREEZE" == 1 ]] && echo true || echo false)" \
     --argjson bfz "$BLN_FROZEN" \

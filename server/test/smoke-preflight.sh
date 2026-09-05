@@ -27,6 +27,8 @@ done
 { printf 'CONTEST_ID=%s\nCONTEST_NAME="Prova"\nCONTEST_TYPE=icpc\n' "$CONTEST"
   printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\nUSER_STORE=v2\nLANGUAGES="c"\n' \
     "$((NOW-3600))" "$((NOW+3600))" "$((NOW+1800))"
+  # MÓDULOS (lib/modules.sh): as checagens de evento abaixo só rodam com o módulo ligado
+  printf 'CONTEST_MODULES=sedes,maquinas,rodadas,documentos,baloes,coortes,inscricoes,telao,classificacao\n'
   printf 'PROBS=(%s)\n' "$probs"; } > "$C/conf"
 
 fx_user "$C" "$ADMIN" adm "Chefe"
@@ -179,6 +181,18 @@ printf '{"version":1,"teams":{"time-x":{"name":"X","captain":"a","members":["a"]
 check "com inscrito => ok"               '[[ "$(lvl registration)" == ok ]]'
 check "convites pendentes => warn"       '[[ "$(lvl reg_invites)" == warn && "$(det reg_invites)" == *"NÃO entra"* ]]'
 rm -f "$C/registrations.json"
+
+echo "== módulos (lib/modules.sh): checagem só com o módulo ligado =="
+run
+check "todos ligados => modules ok lista os ids" '[[ "$(lvl modules)" == ok && "$(det modules)" == *"coortes"* ]]'
+sed -i 's/^CONTEST_MODULES=.*/CONTEST_MODULES=sedes,maquinas,rodadas,documentos,baloes,inscricoes,telao,classificacao/' "$C/conf"; run
+check "coortes DESLIGADO com cohorts.json => modules warn cita coortes" '[[ "$(lvl modules)" == warn && "$(det modules)" == *"coortes (cohorts.json)"* ]]'
+check "coortes desligado => checagem cohorts OMITIDA"                   '[[ "$(lvl cohorts)" == "(ausente)" ]]'
+check "os outros módulos seguem checados (ua_gate presente)"            '[[ -n "$(lvl ua_gate)" ]]'
+sed -i '/^CONTEST_MODULES=/d' "$C/conf"; run
+check "nenhum módulo => só o básico: sem ua_gate/docs/next_round/balloons/tov" '[[ "$(lvl ua_gate)$(lvl docs)$(lvl next_round)$(lvl balloons)$(lvl tov)$(lvl staff_filters)" == "(ausente)(ausente)(ausente)(ausente)(ausente)(ausente)" ]]'
+check "nenhum módulo => mode não cobra icpc (ok) e modules avisa os dados existentes" '[[ "$(lvl mode)" == ok && "$(lvl modules)" == warn ]]'
+sed -i '1a CONTEST_MODULES=sedes,maquinas,rodadas,documentos,baloes,coortes,inscricoes,telao,classificacao' "$C/conf"
 
 echo ""; echo "RESULT: $pass passed, $fail failed"
 exit $(( fail > 0 ? 1 : 0 ))

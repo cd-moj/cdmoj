@@ -71,6 +71,13 @@ cc_settings_conf_lines(){
   # para o `/contest/admin/seed` (dados sintéticos) poder recusar QUALQUER contest que não seja
   # de demonstração — uma prova de verdade nunca pode ser semeada, nem por engano.
   v="$(jq -r '.demo' <<<"$spec")";           [[ "$v" == true ]] && printf 'DEMO=%q\n' 1
+  # MÓDULOS (lib/modules.sh): spec.modules = {id:true} ou {id:{…seção…}} (seção presente = ligado,
+  # salvo on:false). Compat com spec ANTIGO: regions/teams_meta no topo ligam `sedes`; colors liga
+  # `baloes`. Ids desconhecidos são ignorados (mod_normalize).
+  v="$(jq -r '[ ((.modules // {}) | to_entries[] | select(if (.value|type) == "object" then ((.value | if has("on") then .on else true end) != false) else (.value == true) end) | .key),
+               (if ((.regions // []) | length) > 0 or ((.teams_meta // .teams_meta_rules // []) | length) > 0 then "sedes" else empty end),
+               (if ((.colors // {}) | length) > 0 then "baloes" else empty end) ] | unique | join(",")' <<<"$spec" 2>/dev/null)"
+  v="$(mod_normalize "$v")"; [[ -n "$v" ]] && printf 'CONTEST_MODULES=%q\n' "$v"
   v="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; v="${v//$'\n'/}"
   [[ -n "$v" ]] && printf 'LOGIN_UA_SUBSTRING=%q\n' "$v"
   v="$(jq -r '(.score_full_users // []) | map(select(type=="string" and test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"
@@ -520,7 +527,7 @@ cc_tpl_relativize(){
             "allow_backup","allow_print","score_anon","manual_verdict","allow_late","secret",
             "login_ua_substring","score_full_users","locale","login_enabled",
             "penalty_minutes","penalty_verdicts",
-            "colors","regions","teams_meta"])
+            "colors","regions","teams_meta","modules"])
     + (if $st > 0 and $en > $st then {duration:($en-$st)} else {} end)
     + (if $ls > 0 and $st > $ls then {login_lead:($st-$ls)} else {} end)
     + (if $fz > 0 and $en > $fz then {freeze_before_end:($en-$fz)} else {} end)
@@ -543,7 +550,7 @@ cc_export_spec(){
     LANGUAGES=""; SHOWCODE=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
     FREEZE_TIME=""; ALLOWLATEUSER=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
-    PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""
+    PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""; CONTEST_MODULES=""
     . "$cdir/conf" 2>/dev/null
     jq -cn \
       --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
@@ -554,8 +561,9 @@ cc_export_spec(){
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
       --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
       --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" \
-      --arg jdg "$CONTEST_JUDGES" '
+      --arg jdg "$CONTEST_JUDGES" --arg mods "$CONTEST_MODULES" '
       {name:$name, mode:(if $mode=="" then "icpc" else $mode end)}
+      + (if $mods != "" then {modules:($mods | split(",") | map(select(length>0)) | map({key:., value:true}) | from_entries)} else {} end)
       + (if $prio != "" then {priority:$prio} else {} end)
       + (if ($start|tonumber?) then {start:($start|tonumber)} else {} end)
       + (if ($end|tonumber?) then {end:($end|tonumber)} else {} end)

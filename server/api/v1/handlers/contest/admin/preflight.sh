@@ -26,6 +26,21 @@ CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; FREEZE_TIME=""; LANGUAGES=""
 SHOWCODE=0; PRINT=""; MANUAL_VERDICT=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""
 load_contest_conf "$contest"
 mode="$(contest_score_mode "$contest")"
+# MÓDULOS (lib/modules.sh): checagem de feature de evento só roda com o módulo LIGADO — contest
+# sem o módulo não ganha aviso eterno sobre coisa que não usa. Feature configurada com módulo
+# desligado vira UM aviso (`modules`, abaixo), que aponta p/ Central › Módulos.
+_mods_off_with_data=""
+for _m in "${MODULES[@]}"; do
+  mod_on "$contest" "$_m" && continue
+  _r="$(mod_detect "$contest" "$_m")" && _mods_off_with_data="${_mods_off_with_data:+$_mods_off_with_data, }$_m ($_r)"
+done
+if [[ -n "$_mods_off_with_data" ]]; then
+  add modules warn "Módulo desligado com dados existentes" "$_mods_off_with_data — se a prova usa isso, ligue em Central › Módulos (desligado só esconde os painéis; nada foi apagado)"
+elif mod_any "$contest"; then
+  add modules ok "Módulos ligados" "$(mod_raw "$contest" | tr ',' ' ')"
+else
+  add modules ok "Sem módulos de evento" "só o básico (problemas, contas, placar); ligue módulos em Central › Módulos quando precisar"
+fi
 
 # --- demonstração -----------------------------------------------------------
 # Contest de demo é indistinguível de uma prova de verdade na tela do admin — e ele aceita
@@ -68,7 +83,7 @@ fi
 # --- balão × freeze -----------------------------------------------------------
 # Só faz sentido com freeze configurado. Nunca `fail`: as duas políticas são legítimas — a
 # padrão (retém) protege o placar congelado, e liberar é escolha deliberada do admin.
-if (( fz > 0 )); then
+if (( fz > 0 )) && mod_on "$contest" baloes; then   # módulo baloes
   bdf=0; grep -qE '^[[:space:]]*BALLOONS_DURING_FREEZE=1?\b' "$cdir/conf" 2>/dev/null && bdf=1
   nfz=0
   if [[ -f "$cdir/print-requests/.balloon-frozen" ]]; then
@@ -197,6 +212,7 @@ fi
 # --- escopo do staff/chefe de sede -------------------------------------------------
 # Sem staff-filters.json (ou com lista vazia), staff_can_see devolve TRUE p/ todo mundo: cada
 # chefe de sede imprime as ETIQUETAS COM SENHA de TODOS os times, não só da sede dele.
+if mod_on "$contest" sedes; then   # escopo por sede é do módulo sedes
 sfj="$cdir/print-requests/staff-filters.json"
 cstaff_n="$(find "$cdir/users" -maxdepth 1 -type d -name '*.cstaff' 2>/dev/null | wc -l | tr -d '[:space:]')"
 cstaff_n="${cstaff_n//[^0-9]/}"; cstaff_n="${cstaff_n:-0}"
@@ -216,11 +232,13 @@ else
     add staff_filters warn "Staff sem escopo de sede" "$(( cstaff_n + staff_n - scoped )) de $(( cstaff_n + staff_n )) conta(s) .staff/.cstaff sem filtro: veem a fila e as ETIQUETAS COM SENHA de todos os times (Operação → Staff)"
   fi
 fi
+fi   # módulo sedes
 
 # --- balões: cor por letra -----------------------------------------------------------
 # Sem balloons.json a cor é o default ICPC A–O (pr_balloon_color); da letra P em diante todo
 # balão sai CINZA — em prova com mais de 15 problemas isso é um problema de verdade no balcão.
-if [[ -s "$cdir/balloons.json" ]]; then
+if ! mod_on "$contest" baloes; then :   # módulo baloes desligado
+elif [[ -s "$cdir/balloons.json" ]]; then
   nbc="$(jq -r 'length' "$cdir/balloons.json" 2>/dev/null)"; nbc="${nbc//[^0-9]/}"
   add balloons ok "Cores dos balões" "${nbc:-0} letra(s) com cor definida"
 elif (( nprob > 15 )); then
@@ -250,12 +268,19 @@ else
 fi
 
 # --- informativos ---------------------------------------------------------------------
-add mode "$([[ "$mode" == icpc ]] && echo ok || echo warn)" "Modo do placar" "$mode$([[ "$mode" != icpc ]] && echo ' — prova ICPC usa CONTEST_TYPE=icpc')"
+# `mode` só cobra icpc quando o contest tem cara de evento (algum módulo ligado): lista de
+# treino em modo treino não é erro.
+if mod_any "$contest"; then
+  add mode "$([[ "$mode" == icpc ]] && echo ok || echo warn)" "Modo do placar" "$mode$([[ "$mode" != icpc ]] && echo ' — prova ICPC usa CONTEST_TYPE=icpc')"
+else
+  add mode ok "Modo do placar" "$mode"
+fi
 [[ "${MANUAL_VERDICT:-}" == 1 ]] && add manual ok "Veredicto manual LIGADO" "2 juízes decidem cada submissão" \
                                  || add manual ok "Veredicto manual desligado" "veredicto automático direto ao aluno"
 tov="$cdir/time-overrides.json"
 ntov=0; [[ -s "$tov" ]] && ntov="$(jq -r 'length' "$tov" 2>/dev/null)"; ntov="${ntov//[^0-9]/}"; ntov="${ntov:-0}"
-if (( ntov > 0 )); then
+if ! mod_on "$contest" sedes; then :   # prorrogação por sede é do módulo sedes
+elif (( ntov > 0 )); then
   # o freeze vale p/ TODO mundo, inclusive quem tem prorrogação: se o fim prorrogado passa do
   # freeze, aquele grupo joga a última parte com placar congelado (às vezes é o que se quer —
   # mas tem de ser escolha, não surpresa).
@@ -271,7 +296,8 @@ fi
 source "$_LIBDIR/cohorts.sh"
 chj="$(ch_get "$contest")"
 nch="$(jq -r '(.cohorts // []) | length' <<<"$chj" 2>/dev/null)"; nch="${nch//[^0-9]/}"; nch="${nch:-0}"
-if (( nch == 0 )); then
+if ! mod_on "$contest" coortes; then :   # módulo coortes desligado
+elif (( nch == 0 )); then
   add cohorts ok "Sem coortes" "um placar só, todos oficiais"
 else
   npriv="$(jq -r '[(.cohorts // [])[] | select(.public == false)] | length' <<<"$chj")"; npriv="${npriv//[^0-9]/}"
@@ -287,7 +313,7 @@ fi
 # prova isso vira fila no balcão. Aqui o organizador vê quantos entraram, quantos convites
 # ficaram pendentes (esses NÃO entram) e se a janela está coerente com o início.
 source "$_LIBDIR/registration.sh"
-if reg_enabled "$contest"; then
+if mod_on "$contest" inscricoes && reg_enabled "$contest"; then
   regj="$(reg_get "$contest")"
   rp="$(jq -r '.entries | length' <<<"$regj")"; rp="${rp//[^0-9]/}"; rp="${rp:-0}"
   rt="$(jq -r '.teams | length' <<<"$regj")"; rt="${rt//[^0-9]/}"; rt="${rt:-0}"
@@ -331,11 +357,12 @@ if reg_enabled "$contest"; then
   fi
   # coortes: o placar separado depende delas existirem (a semeadura pula quando o contest já
   # tinha coortes configuradas)
-  jq -e 'any(.cohorts[]; .id == "times") and any(.cohorts[]; .id == "individual")' <<<"$chj" >/dev/null 2>&1 \
-    || add reg_cohorts warn "Coortes de inscrição ausentes" "sem as coortes 'individual' e 'times' o placar não separa times de individuais (Pessoas → Coortes)"
+  mod_on "$contest" coortes && ! jq -e 'any(.cohorts[]; .id == "times") and any(.cohorts[]; .id == "individual")' <<<"$chj" >/dev/null 2>&1 \
+    && add reg_cohorts warn "Coortes de inscrição ausentes" "sem as coortes 'individual' e 'times' o placar não separa times de individuais (Pessoas → Coortes)"
 fi
 
 # --- gate de navegador por sede ---------------------------------------------------------
+if mod_on "$contest" maquinas; then   # gate/trava/sessão única são do módulo maquinas
 source "$_LIBDIR/ua-gate.sh"
 ugj="$(ug_get "$contest")"
 # SEM CONFIGURAÇÃO NENHUMA = gate desligado de fato. O ug_get default é mode:enforce (p/ o
@@ -396,11 +423,12 @@ else
     add session_single ok "Sessão única por time" "login em outra máquina derruba a sessão anterior; anomalias em Pessoas → Sessões & anomalias"
   fi
 fi
+fi   # módulo maquinas
 
 # --- rodada seguinte (aquecimento → prova) ------------------------------------------------
 # Só carrega o motor de rodadas quando HÁ rodada planejada: contest sem rodadas (a maioria) não
 # paga nada, e rd_promote_blockers precisa de users.sh + contest-create.sh (cc_probs_json).
-if [[ -s "$cdir/rounds.json" ]]; then
+if mod_on "$contest" rodadas && [[ -s "$cdir/rounds.json" ]]; then
   nxt="$(jq -r 'first((.rounds // [])[] | select(.state == "pending") | .slug) // ""' "$cdir/rounds.json" 2>/dev/null)"
   if [[ -z "$nxt" ]]; then
     add next_round ok "Sem rodada planejada" "a rodada no ar é a última do plano"
@@ -422,7 +450,8 @@ source "$_LIBDIR/contest-docs.sh"
 docs_j="$(doc_index "$contest")"; [[ -n "$docs_j" ]] || docs_j='[]'
 ndoc="$(jq -r 'length' <<<"$docs_j")"; ndoc="${ndoc//[^0-9]/}"; ndoc="${ndoc:-0}"
 npub="$(jq -r '[.[] | select(.published)] | length' <<<"$docs_j")"; npub="${npub//[^0-9]/}"; npub="${npub:-0}"
-if (( ndoc == 0 )); then
+if ! mod_on "$contest" documentos; then :   # módulo documentos desligado
+elif (( ndoc == 0 )); then
   add docs warn "Nenhum documento gerado" "info sheet, caderno e folha de time limits saem de Prova → Documentos"
 elif (( npub == 0 )); then
   add docs warn "Documentos gerados mas não publicados" "$ndoc arquivo(s) só visíveis ao admin/chefe"
@@ -434,7 +463,7 @@ fi
 # Só entra QUANDO CONFIGURADA (contest sem mlinux não ganha aviso eterno). Checa que a
 # chave abre a API (curl -m 5 — a Central é do admin e abre pouco).
 source "$_LIBDIR/nutella.sh"
-if nb_configured "$contest"; then
+if mod_on "$contest" maquinas && nb_configured "$contest"; then
   _nbr="$(nb_curl "$contest" GET /whoami)"
   if [[ "$(nb_status "$_nbr")" == 200 ]]; then
     add mlinux ok "Integração nutellaboot" "chave válida; panorama/coleta em Operação → mlinux"

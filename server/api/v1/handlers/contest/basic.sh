@@ -100,7 +100,8 @@ ok_json '{contest_id:$id, contest_name:$name, start_time:$start, end_time:$end,
           login_start_time:$lst, locale:$loc, login_enabled:$le, freeze_time:$fz, score_anon:$sa,
           penalty_minutes:$pen,
           languages:$langs, secret:$sec, round:$round, cohort:$cohort, score_views:$sv,
-          balloon_style:$bstyle}' \
+          balloon_style:$bstyle, modules:$mods}' \
+  --argjson mods "$(mod_list_json "$contest")" \
   --arg bstyle "$([[ "$SCORE_BALLOON_STYLE" == fill ]] && echo fill || echo icon)" \
   --argjson round "$round_json" --argjson cohort "$cohort_json" --argjson sv "$score_views_json" \
   --arg id "$CONTEST_ID" --arg name "$CONTEST_NAME" \
