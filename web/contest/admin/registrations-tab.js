@@ -249,7 +249,7 @@ export function makeRegistrationsTab(CONTEST) {
         }, T('Time criado.', 'Team created.')) }, T('Criar time', 'Create team'))),
       el('div', { class: 'row', style: 'margin-top:.6rem' },
         el('button', { class: 'btn ghost', onclick: () => {
-          const rows = [[T('tipo', 'kind'), 'login', T('nome', 'name'), T('membros', 'members'), T('coorte', 'cohort'), T('univ', 'univ'), 'IA', T('bandeira', 'flag'), T('foto', 'photo')]];
+          const rows = [[T('tipo', 'kind'), 'login', T('nome', 'name'), T('membros', 'members'), T('coorte', 'cohort'), 'univ', 'IA', T('bandeira', 'flag'), T('foto', 'photo')]];
           (DATA.teams || []).forEach((x) => rows.push(['time', x.login, x.name, (x.members || []).join(' '), x.cohort || '', x.univ || '', x.ai === true ? 'sim' : x.ai === false ? 'nao' : '', x.flag || '', x.has_photo ? 'sim' : '']));
           (DATA.individuals || []).forEach((x) => rows.push(['individual', x.login, '', '', x.cohort || '', x.univ || '', x.ai === true ? 'sim' : x.ai === false ? 'nao' : '', x.flag || '', '']));
           downloadText(`inscricoes-${CONTEST}.csv`, toCsv(rows));
