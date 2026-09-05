@@ -580,6 +580,9 @@ details.fgroup[open] > summary::before { content:'▾ '; }
   border:1px solid transparent; background:transparent; color:var(--ink); cursor:pointer; }
 .groupbar button:hover { background:var(--blue-soft); }
 .groupbar button.active { background:var(--blue); color:#fff; }
+/* separador entre os grupos comuns e os de EVENTO (Evento, Máquinas — só com módulo ligado) */
+.groupbar .groupbar-sep { width:1px; height:1.6rem; background:var(--line); margin:0 .3rem; }
+.gen-card.off { opacity:.72; }
 .subnav { display:flex; gap:.3rem; flex-wrap:wrap; margin:.5rem 0 .8rem;
   border-bottom:1px solid var(--line); padding-bottom:.4rem; }
 .subnav button { font-size:.9rem; padding:.3rem .7rem; border-radius:8px; border:1px solid var(--line);

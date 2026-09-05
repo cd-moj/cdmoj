@@ -87,7 +87,7 @@ export function makeMachinesTab(CONTEST) {
       try {
         await apiPost('/contest/admin/site-lock?contest=' + enc(CONTEST), { action: 'set', enabled: slChk.checked }, G);
         slMsg.textContent = slChk.checked ? T('✓ trava ligada: o próximo login de competidor prende o IP da sede', '✓ lock on: the next competitor login pins the site IP')
-          : T('✓ trava desligada (IPs já presos continuam até vencer; solte-os em Sessões & anomalias)', '✓ lock off (already pinned IPs stay until expiry; release them in Sessions & anomalies)');
+          : T('✓ trava desligada (IPs já presos continuam até vencer; solte-os na trava abaixo)', '✓ lock off (already pinned IPs stay until expiry; release them in the lock below)');
       } catch (e) { slMsg.className = 'small error-box'; slMsg.textContent = e.message || T('falha', 'failed'); }
     });
     box.append(el('div', { class: sl.enabled ? 'alert' : '', style: 'margin:.3rem 0' },

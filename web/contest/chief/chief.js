@@ -68,19 +68,21 @@ function optionsTab() { const panel = el('div', {}); function load() { panel.inn
 function autoTab() { const panel = el('div', {}); function load() { panel.innerHTML = ''; panel.append(makeAutoVerdictEditor(CONTEST)); } return { panel, load }; }
 
 // função, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
+let MODS = new Set();   // módulos ligados do contest (basic.modules) — Documentos/Rodadas só com o seu
 const TABS = () => [
   { id: 'sit', label: T('📊 Situação', '📊 Status'), make: situacaoTab },
   { id: 'conf', label: T('⚖️ Conflitos', '⚖️ Conflicts'), make: conflitosTab },
   { id: 'opts', label: T('🏷️ Opções', '🏷️ Options'), make: optionsTab },
   { id: 'auto', label: T('⚙️ Auto-veredicto', '⚙️ Auto-verdict'), make: autoTab },
-  { id: 'docs', label: T('📄 Documentos', '📄 Documents'), make: () => makeDocsTab(CONTEST) },
-  { id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds'), make: () => makeRoundsTab(CONTEST, { readOnly: true }) },
+  ...(MODS.has('documentos') ? [{ id: 'docs', label: T('📄 Documentos', '📄 Documents'), make: () => makeDocsTab(CONTEST) }] : []),
+  ...(MODS.has('rodadas') ? [{ id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds'), make: () => makeRoundsTab(CONTEST, { readOnly: true }) }] : []),
 ];
 const MANUAL_LINK = () => ({ href: '/docs/MANUAL-ADMIN.html', label: T('📖 Manual do organizador', "📖 Organizer's manual") });
 
 async function boot() {
   if (!CONTEST) { app.innerHTML = '<div class="error-box">' + T('Contest não informado.', 'Contest not specified.') + '</div>'; return; }
-  const { st } = await initContestShell(CONTEST);
+  const { st, basic } = await initContestShell(CONTEST);
+  MODS = new Set((basic && basic.modules) || []);
   if (!st || !st.logged_in) { app.innerHTML = ''; app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest')), el('a', { class: 'btn', href: '/contest/?c=' + enc(CONTEST) }, T('Ir para o contest', 'Go to the contest')))); return; }
   if (!st.is_chief && !st.is_admin) { app.innerHTML = ''; app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access')), el('p', { class: 'muted' }, T('Área do juiz-chefe (.cjudge) e do admin.', 'Chief judge (.cjudge) and admin area.')))); return; }
   app.innerHTML = '';

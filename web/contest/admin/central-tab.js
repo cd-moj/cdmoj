@@ -14,31 +14,38 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { field } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
+import { MODULES } from './modules.js';
 
 const enc = encodeURIComponent;
 const ICON = { ok: '🟢', warn: '🟡', fail: '🔴' };
 // id da checagem do preflight -> [grupo, painel] onde ela se resolve
+// (o botão "resolver →" só aparece se o painel-alvo está visível — módulo ligado; ver nav.js)
 const TARGET = {
-  window: ['central', 'regras'], show_log: ['central', 'regras'], show_code: ['central', 'regras'],
+  window: ['central', 'regras'], fim: ['central', 'regras'], show_log: ['central', 'regras'], show_code: ['central', 'regras'],
   freeze: ['central', 'regras'], mode: ['central', 'regras'], langs: ['central', 'regras'],
   balloons_freeze: ['central', 'regras'],
-  tov: ['central', 'regras'],
+  modules: ['central', 'modulos'],
   problems: ['prova', 'problemas'], pool_problems: ['prova', 'problemas'], pool: ['prova', 'problemas'],
-  next_round: ['prova', 'rodadas'], docs: ['prova', 'documentos'], balloons: ['prova', 'baloes'],
-  users: ['pessoas', 'contas'], cohorts: ['pessoas', 'coortes'], ua_gate: ['pessoas', 'maquinas'],
-  session_single: ['pessoas', 'maquinas'], site_short: ['operacao', 'mlinux'],
-  registration: ['pessoas', 'inscricoes'], reg_invites: ['pessoas', 'inscricoes'],
-  reg_source: ['pessoas', 'inscricoes'], reg_cohorts: ['pessoas', 'coortes'],
-  reg_warmup: ['prova', 'rodadas'],
+  report: ['prova', 'relatorio'],   // postflight (encerrar evento)
+  users: ['pessoas', 'contas'],
+  registration: ['pessoas', 'inscricoes'], reg_invites: ['pessoas', 'inscricoes'], reg_source: ['pessoas', 'inscricoes'],
   print: ['operacao', 'staff'], staff_filters: ['operacao', 'staff'],
   judges: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
-  report: ['prova', 'relatorio'],   // postflight (encerrar evento)
-  mlinux: ['operacao', 'mlinux'],
+  // módulos de evento
+  next_round: ['evento', 'rodadas'], reg_warmup: ['evento', 'rodadas'],
+  docs: ['evento', 'documentos'], balloons: ['evento', 'baloes'],
+  cohorts: ['evento', 'coortes'], reg_cohorts: ['evento', 'coortes'],
+  tov: ['evento', 'sedes'], classificacao: ['evento', 'classificacao'],
+  ua_gate: ['maquinas', 'gate'], session_single: ['maquinas', 'gate'], site_lock: ['maquinas', 'gate'],
+  site_short: ['maquinas', 'mlinux'], mlinux: ['maquinas', 'mlinux'],
 };
 
 export function makeCentralTab(CONTEST, opts = {}) {
   const G = { contest: CONTEST, auth: true };
   const go = opts.go || (() => {});
+  const has = typeof opts.has === 'function' ? opts.has : () => true;          // módulo ligado?
+  const visible = typeof opts.visible === 'function' ? opts.visible : () => true; // painel visível?
+  const mods = typeof opts.mods === 'function' ? opts.mods : () => [];
   const panel = el('div', {});
   let timer = null;
 
@@ -53,7 +60,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
       el('div', { class: 'dash-val' }, val), el('div', { class: 'dash-lbl' }, label));
     box.innerHTML = '';
     box.append(el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },
-      el('h2', { style: 'margin:.1rem 0' }, T('Ao vivo', 'Live')),
+      el('h2', { style: 'margin:.1rem 0' }, T('📡 Ao vivo', '📡 Live')),
       el('span', { style: 'flex:1' }),
       el('button', { class: 'btn ghost', onclick: () => go('operacao', 'situacao') }, T('ver tudo →', 'see all →'))),
       el('div', { class: 'dash-cards' },
@@ -69,7 +76,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
     return el('div', { class: 'ck' },
       el('span', { class: 'ico' }, ICON[c.level] || '•'),
       el('span', { class: 'txt' }, el('b', {}, c.label), el('span', { class: 'small muted' }, c.detail || '')),
-      t ? el('button', { class: 'btn ghost', onclick: () => go(t[0], t[1]) }, T('resolver →', 'fix →')) : null);
+      t && visible(t[1]) ? el('button', { class: 'btn ghost', onclick: () => go(t[0], t[1]) }, T('resolver →', 'fix →')) : null);
   }
 
   async function load() {
@@ -94,7 +101,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
           : el('span', { class: 'pill ok' }, T('tudo pronto', 'all clear'));
     const box1 = el('div', { class: 'section' },
       el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },
-        el('h2', { style: 'margin:.1rem 0' }, T('Falta para começar', 'Before you start')), head,
+        el('h2', { style: 'margin:.1rem 0' }, T('🚦 Falta para começar', '🚦 Before you start')), head,
         el('span', { style: 'flex:1' }),
         el('button', { class: 'btn ghost', title: T('rodar de novo', 'run again'), onclick: load }, '↻')));
     const bad = checks.filter((c) => c.level === 'fail').concat(checks.filter((c) => c.level === 'warn'));
@@ -114,7 +121,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
     const postEnd = !st || !st.end || Math.floor(Date.now() / 1000) > st.end;
     if (fin && fin._err) {
       if (postEnd) panel.append(el('div', { class: 'section' },
-        el('h2', { style: 'margin:.1rem 0' }, T('Depois da prova', 'After the contest')),
+        el('h2', { style: 'margin:.1rem 0' }, T('🏁 Depois da prova', '🏁 After the contest')),
         el('div', { class: 'small error-box' },
           T('Não foi possível consultar o encerramento: ', 'Could not load the finish checklist: ') + fin._err)));
     } else if (fin && (fin.can_finish || postEnd)) {
@@ -128,7 +135,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
       const btn = el('button', { class: 'btn' + (fs.fail ? '' : ' ghost') }, T('🏁 Encerrar evento', '🏁 Finish event'));
       const box = el('div', { class: 'section' },
         el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },
-          el('h2', { style: 'margin:.1rem 0' }, T('Depois da prova', 'After the contest')),
+          el('h2', { style: 'margin:.1rem 0' }, T('🏁 Depois da prova', '🏁 After the contest')),
           !fin.can_finish ? el('span', { class: 'pill' }, T('aguardando o fim em todas as sedes', 'waiting for every site to finish'))
             : fs.fail > 0 ? el('span', { class: 'pill bad' }, T(`${fs.fail} item(ns) ainda fechado(s)`, `${fs.fail} item(s) still closed`))
               : el('span', { class: 'pill ok' }, T('resultado liberado', 'results released'))),
@@ -174,27 +181,28 @@ export function makeCentralTab(CONTEST, opts = {}) {
     const next = rd ? (rd.next || '') : '';
     const blk = (rd && rd.promote_ready && rd.promote_ready.blockers) || [];
     panel.append(el('div', { class: 'section' },
-      el('h2', { style: 'margin:.1rem 0 .5rem' }, T('Gerar', 'Generate')),
+      el('h2', { style: 'margin:.1rem 0 .5rem' }, T('🧰 Gerar', '🧰 Generate')),
+      // cartões de módulo só com o módulo ligado (documentos, rodadas, telão); os comuns sempre
       el('div', { class: 'tcards' },
-        gcard(T('📄 Documentos da prova', '📄 Contest documents'),
+        !has('documentos') ? null : gcard(T('📄 Documentos da prova', '📄 Contest documents'),
           nd ? T(`${nd} gerado(s) · ${npub} publicado(s)`, `${nd} generated · ${npub} published`)
             : T('info sheet, caderno e folha de time limits (PDF+HTML, pt/en)', 'info sheet, booklet and time-limits sheet (PDF+HTML, pt/en)'),
-          el('button', { class: 'btn', onclick: () => go('prova', 'documentos') }, T('abrir', 'open'))),
+          el('button', { class: 'btn', onclick: () => go('evento', 'documentos') }, T('abrir', 'open'))),
         gcard(T('🏷️ Etiquetas de credenciais', '🏷️ Credential badges'),
           T('folhas Pimaco A4 com login e senha', 'Pimaco A4 sheets with login and password'),
           el('a', { class: 'btn', target: '_blank', href: '/contest/badges/?c=' + enc(CONTEST) }, T('abrir', 'open'))),
-        gcard(T('🔁 Promover rodada', '🔁 Promote round'),
+        !has('rodadas') ? null : gcard(T('🔁 Promover rodada', '🔁 Promote round'),
           next ? (blk.length ? T(`próxima: ${next} — ${blk.length} bloqueador(es)`, `next: ${next} — ${blk.length} blocker(s)`)
             : T(`próxima: ${next} — pronta para promover`, `next: ${next} — ready to promote`))
             : T('nenhuma rodada planejada (aquecimento → prova no mesmo contest)', 'no round planned (warm-up → contest in the same contest)'),
-          el('button', { class: 'btn' + (blk.length || !next ? ' ghost' : ''), onclick: () => go('prova', 'rodadas') }, T('abrir', 'open'))),
+          el('button', { class: 'btn' + (blk.length || !next ? ' ghost' : ''), onclick: () => go('evento', 'rodadas') }, T('abrir', 'open'))),
         gcard(T('📑 Relatório da prova', '📑 Contest report'),
           T('tar.gz navegável e publicação como histórico (/relatorio/<contest>/)', 'browsable tar.gz and publication as history (/relatorio/<contest>/)'),
           el('button', { class: 'btn', onclick: () => go('prova', 'relatorio') }, T('abrir', 'open'))),
-        gcard(T('🏆 Cerimônia de revelação', '🏆 Reveal ceremony'),
+        !has('telao') ? null : gcard(T('🏆 Cerimônia de revelação', '🏆 Reveal ceremony'),
           T('placar congelado → aberto, de baixo para cima', 'frozen → open scoreboard, bottom-up'),
           el('a', { class: 'btn', target: '_blank', href: '/contest/score/reveal.html?c=' + enc(CONTEST) }, T('abrir', 'open'))),
-        gcard(T('🎥 Telão (Animeitor)', '🎥 Big screen (Animeitor)'),
+        !has('telao') ? null : gcard(T('🎥 Telão (Animeitor)', '🎥 Big screen (Animeitor)'),
           T('fotos e músicas dos times, pacote .zip e as chaves do webcast',
             'team photos and music, .zip package and the webcast keys'),
           el('a', { class: 'btn ghost', target: '_blank', href: '/contest/animeitor/?c=' + enc(CONTEST) }, T('abrir', 'open'))),
@@ -238,13 +246,18 @@ export function makeCentralTab(CONTEST, opts = {}) {
         save.disabled = false;
       });
       panel.append(el('div', { class: 'section' },
-        el('h2', { style: 'margin:.1rem 0 .4rem' }, T('Regras da prova', 'Contest rules')),
+        el('h2', { style: 'margin:.1rem 0 .4rem' }, T('⏱️ Regras da prova', '⏱️ Contest rules')),
         el('div', { class: 'row', style: 'gap:.7rem;flex-wrap:wrap;align-items:flex-end' },
           field(T('início', 'start'), ini), field(T('fim', 'end'), fim), field(T('freeze do placar', 'scoreboard freeze'), fz)),
         el('div', { class: 'small muted', style: 'margin:.2rem 0' },
           T('modo: ', 'mode: '), el('span', { class: 'pill' }, (st.mode || 'icpc').toUpperCase()),
           T(' (definido na criação) · linguagens: ', ' (set at creation) · languages: '),
           (st.languages || []).join(', ') || T('todas', 'all')),
+        el('div', { class: 'small muted', style: 'margin:.2rem 0' },
+          T('módulos: ', 'modules: '),
+          ...(mods().length ? MODULES().filter((m) => mods().includes(m.id)).map((m) => el('span', { class: 'pill', style: 'margin-right:.25rem' }, m.icon + ' ' + m.name))
+            : [el('span', { class: 'pill' }, T('nenhum (prova comum)', 'none (plain contest)'))]),
+          ' ', el('a', { href: '#central/modulos', class: 'small' }, T('ligar/desligar →', 'turn on/off →'))),
         el('div', { class: 'row', style: 'gap:.5rem;margin-top:.3rem' }, save, msg,
           el('span', { style: 'flex:1' }),
           el('button', { class: 'btn ghost', onclick: () => go('central', 'regras') }, T('⚙ todas as configurações…', '⚙ all settings…')))));

@@ -1,4 +1,4 @@
-// contest/admin/sites-tab.js — "Pessoas › Sedes & escolas": as SEDES (regiões) do contest e as
+// contest/admin/sites-tab.js — "Evento › Sedes & escolas" (módulo `sedes`): as SEDES (regiões) do contest e as
 // regras de país/escola por regex no login. Antes viviam na aba "Aparência", junto das cores de
 // balão — nada a ver: sede é a espinha do gate de UA, do escopo do staff, das etiquetas e do
 // filtro do placar. Salva só as chaves `regions` e `teams_meta` do POST /contest/admin/config.
@@ -9,6 +9,7 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { makeRegionsEditor, makeTeamsEditor } from '/shared/contest-config/index.js';
 import { T } from '/shared/i18n.js';
 import { PRIV_RE as PRIV } from '/shared/admin-ui.js';
+import { timeOverridesPanel } from './settings-tab.js';
 
 const enc = encodeURIComponent;
 
@@ -53,6 +54,8 @@ export function makeSitesTab(CONTEST) {
           'Fills flag/university for matching teams — a bulk convenience; the per-team value can be edited in 👥 Teams.')),
       teamsEd.el,
       el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
+    // ⏱ prorrogação de vigência por sede/grupo: é decisão de SEDE (estava em Regras até 05/09)
+    panel.append(await timeOverridesPanel(CONTEST, G));
   }
   return { panel, load };
 }

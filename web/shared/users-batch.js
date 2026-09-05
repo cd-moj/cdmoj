@@ -1,5 +1,5 @@
 // shared/users-batch.js — utilidades de LOTE de usuários, compartilhadas entre a criação de
-// contest (web/treino/criar) e a aba Usuários & sessões do admin. Módulo sem side effects
+// contest (web/treino/criar) e o painel Pessoas › Contas do admin. Módulo sem side effects
 // (o admin não pode importar de criar.js, que é módulo de página).
 import { T } from '/shared/i18n.js';
 

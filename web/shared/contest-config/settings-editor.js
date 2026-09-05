@@ -52,6 +52,9 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     el('option', { value: 'fill' }, T('Célula pintada com a cor do balão', 'Cell filled with the balloon colour')));
   blnStyle.value = s.balloon_style === 'fill' ? 'fill' : 'icon';
   const ua = el('input', { value: s.login_ua_substring || '', placeholder: T('substring do UA (vazio = sem gate)', 'UA substring (empty = no gate)') });
+  // data-k: o settings-tab esconde este campo sem o módulo `maquinas` (por chave, não por índice)
+  const uaField = field(T('Gate de login por substring de UA (só não-privilegiados)', 'Login gate by UA substring (only non-privileged)'), ua);
+  uaField.dataset.k = 'login_ua_substring';
   const penMin = el('input', { type: 'number', min: '0', step: '1', style: 'max-width:100px',
     value: String(Number.isInteger(s.penalty_minutes) ? s.penalty_minutes : 20) });
   // quórum da correção manual: quantos juízes validam cada veredicto (1..5; default 2)
@@ -113,7 +116,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     field(T('Nº de juízes que validam cada veredicto (1–5; 1 = revisão simples)', 'Judges required to validate each verdict (1–5; 1 = single review)'), revJudges),
     chk(T('Placar anônimo (esconde desempenho individual)', 'Anonymous scoreboard (hides individual performance)'), scoreAnon),
     chk(T('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', '🕵️ SUPER SECRET — off the home/archive/status; scoreboard and view require login (the login screen still works for whoever has the link)'), secret),
-    field(T('Gate de login por substring de UA (só não-privilegiados)', 'Login gate by UA substring (only non-privileged)'), ua),
+    uaField,
     penaltySec,
     el('h3', { style: 'margin:1rem 0 .3rem' }, T('💻 Linguagens permitidas no contest', '💻 Languages allowed in the contest')),
     el('p', { class: 'muted small' }, T('Marque as permitidas. Nenhuma marcada = todas. (Pode ser refinado por problema na aba Problemas.)', 'Check the allowed ones. None checked = all. (Can be refined per problem in the Problems tab.)')),

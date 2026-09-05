@@ -14,7 +14,8 @@ import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
 
-export function makeStatusTab(CONTEST) {
+export function makeStatusTab(CONTEST, opts = {}) {
+  const has = typeof opts.has === 'function' ? opts.has : () => true;   // módulo ligado?
   const G = { contest: CONTEST, auth: true };
   const panel = el('div', { class: 'section' });
   let stopTimer = null;
@@ -49,9 +50,9 @@ export function makeStatusTab(CONTEST) {
     const bFirst = tasks.filter((t) => t.kind === 'balloon' && t.first_site).length;
     const taskCards = (tasks.length || bFrozen) ? [
       card(T('🖨️ impressões pend.', '🖨️ pending prints'), tPend.filter((t) => t.kind !== 'balloon').length, tOld > 600),
-      card(T('🎈 balões pend.', '🎈 pending balloons'), tPend.filter((t) => t.kind === 'balloon').length, tOld > 600),
-      ...(bFirst ? [card(T('★ primeiros da sede', '★ first-to-solve (site)'), bFirst, false)] : []),
-      ...(bFrozen ? [card(T('🧊 balões retidos (freeze)', '🧊 balloons held (freeze)'), bFrozen, false)] : []),
+      ...(has('baloes') ? [card(T('🎈 balões pend.', '🎈 pending balloons'), tPend.filter((t) => t.kind === 'balloon').length, tOld > 600)] : []),
+      ...(has('baloes') && bFirst ? [card(T('★ primeiros da sede', '★ first-to-solve (site)'), bFirst, false)] : []),
+      ...(has('baloes') && bFrozen ? [card(T('🧊 balões retidos (freeze)', '🧊 balloons held (freeze)'), bFrozen, false)] : []),
     ] : [];
     return el('div', { class: 'dash-cards' },
       card(T('Logados', 'Logged in'), online),
@@ -239,7 +240,7 @@ export function makeStatusTab(CONTEST) {
     const tasks = (tq && tq.requests) || [];
     const tSig = tasks.map((t) => [t.status, t.kind, t.time, !!t.first_site]);
     swapIf(SK.cards, sigOf(sub.pending, sub.max_wait_s, sub.response, j.online, j.total, j.busy, j.queue_depth, j.assigned,
-      sess ? (sess.sessions || []).length : null, tSig, tq && tq.balloons_frozen), () => buildCards(d, sess, tq));
+      sess ? (sess.sessions || []).length : null, tSig, tq && tq.balloons_frozen, has('baloes')), () => buildCards(d, sess, tq));
     swapIf(SK.routing, sigOf(d.routing || null), () => buildRouting(d.routing || null));
     swapIf(SK.review, sigOf(d.review || {}), () => buildReview(d.review || {}));
     const actions = computeActions(d, sess, tq);

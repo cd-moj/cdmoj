@@ -139,7 +139,7 @@ export function makeTeamsTab(CONTEST) {
       // contest com USERS_FROM, mas as rotas do .animeitor aceitam (foto/música são asset LOCAL).
       panel.append(el('div', { class: 'error-box' },
         T('Este contest usa usuários COMPARTILHADOS (users_from) — a gerência de times por-usuário não se aplica. ', 'This contest uses SHARED users (users_from) — per-user team management does not apply. '),
-        T('Use as regras por regex em Aparência (teams-meta/regiões).', 'Use the regex rules in Appearance (teams-meta/regions).')));
+        T('Use as regras por regex em Evento › Sedes & escolas (teams-meta/regiões).', 'Use the regex rules in Event › Sites & schools (teams-meta/regions).')));
       panel.append(el('p', { class: 'note' },
         T('As fotos e músicas dos times continuam sendo geridas na mesa do telão: ',
           'Team photos and music are still managed from the big-screen desk: '),
@@ -194,7 +194,7 @@ export function makeTeamsTab(CONTEST) {
     // materializar matches (regex teams-meta/regions -> campos vazios, de uma vez)
     const mat = el('button', { class: 'btn ghost' }, T('🪄 Materializar matches', '🪄 Materialize matches'));
     mat.addEventListener('click', async () => {
-      if (!confirm(T('Aplicar as regras por regex (Aparência: teams-meta + regiões) aos campos VAZIOS de cada time? Campos já preenchidos não mudam.', 'Apply the regex rules (Appearance: teams-meta + regions) to the EMPTY fields of each team? Already-filled fields do not change.'))) return;
+      if (!confirm(T('Aplicar as regras por regex (Evento › Sedes & escolas: teams-meta + regiões) aos campos VAZIOS de cada time? Campos já preenchidos não mudam.', 'Apply the regex rules (Event › Sites & schools: teams-meta + regions) to the EMPTY fields of each team? Already-filled fields do not change.'))) return;
       mat.disabled = true; msg.className = 'small'; msg.textContent = T('Materializando…', 'Materializing…');
       try {
         const r = await apiPost('/contest/admin/teams?contest=' + enc(CONTEST), { action: 'materialize' }, G);
@@ -243,7 +243,7 @@ export function makeTeamsTab(CONTEST) {
       el('p', { class: 'muted small' },
         T('O NOME é um só: é o nome do time (ou do aluno — usuário de contest É o time). ', 'The NAME is a single one: it is the team name (or the student — a contest user IS the team). '),
         T('Cada linha é a identidade no account.json (placar, crachás e impressão leem daqui; ', 'Each row is the identity in account.json (scoreboard, badges and printing read from here; '),
-        T('o que faltar continua sendo completado pelas regras regex da aba Aparência). ', 'whatever is missing keeps being completed by the regex rules in the Appearance tab). '),
+        T('o que faltar continua sendo completado pelas regras regex de Evento › Sedes & escolas). ', 'whatever is missing keeps being completed by the regex rules in Event › Sites & schools). '),
         T('Fotos/brasões em lote: cada arquivo se chama <login>.<ext>.', 'Photos/logos in bulk: each file is named <login>.<ext>.')),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem' },
         save, mat,
@@ -252,7 +252,7 @@ export function makeTeamsTab(CONTEST) {
         el('button', { class: 'btn ghost', onclick: () => lgInp.click() }, T('🛡️ Brasões em lote', '🛡️ Logos in bulk')), lgInp,
         msg),
       flagsDl, regionsDl, table);
-    if (!ROWS.length) panel.append(el('div', { class: 'muted', style: 'margin-top:.5rem' }, T('Nenhum competidor ainda — crie as contas na aba Usuários & sessões.', 'No competitor yet — create the accounts in the Users & sessions tab.')));
+    if (!ROWS.length) panel.append(el('div', { class: 'muted', style: 'margin-top:.5rem' }, T('Nenhum competidor ainda — crie as contas em Pessoas › Contas.', 'No competitor yet — create the accounts in People › Accounts.')));
   }
 
   return { panel, load };

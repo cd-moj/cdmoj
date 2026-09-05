@@ -13,8 +13,9 @@ import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
 
-export function makeSettingsTab(CONTEST) {
+export function makeSettingsTab(CONTEST, opts = {}) {
   const G = { contest: CONTEST, auth: true };
+  const has = typeof opts.has === 'function' ? opts.has : () => true;
   const panel = el('div', { class: 'section' });
 
   // rótulo + índices dos filhos do editor (modo admin) + começa aberta?
@@ -49,9 +50,13 @@ export function makeSettingsTab(CONTEST) {
       panel.append(el('details', { class: 'fgroup', open: true },
         el('summary', {}, T('Outras opções', 'Other options')), ed.el));
     }
-    panel.append(el('div', { class: 'small muted', style: 'margin:.4rem 0' },
-      T('O "gate de login por substring de UA" fica em Acesso só por compatibilidade: quem configura o gate por sede é Pessoas › Máquinas & gate, que enxerga o esperado × visto de cada time.',
-        'The "login gate by UA substring" stays under Access only for compatibility: the per-site gate is configured in People › Machines & gate, which shows expected × seen per team.')));
+    // o campo LEGADO do gate por substring de UA é do módulo `maquinas`: sem ele, nem o campo nem
+    // a nota aparecem (o nó fica no editor — getValue() continua lendo o valor salvo)
+    const uaField = panel.querySelector('[data-k="login_ua_substring"]');
+    if (uaField) uaField.hidden = !has('maquinas');
+    if (has('maquinas')) panel.append(el('div', { class: 'small muted', style: 'margin:.4rem 0' },
+      T('O "gate de login por substring de UA" fica em Acesso só por compatibilidade: quem configura o gate por sede é Máquinas › Gate & trava, que enxerga o esperado × visto de cada time.',
+        'The "login gate by UA substring" stays under Access only for compatibility: the per-site gate is configured in Machines › Gate & lock, which shows expected × seen per team.')));
 
     const msg = el('div', { class: 'small' });
     const save = el('button', { class: 'btn' }, T('Salvar configurações', 'Save settings'));
@@ -71,7 +76,7 @@ export function makeSettingsTab(CONTEST) {
       save.disabled = false;
     });
     panel.append(el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
-    panel.append(await timeOverridesPanel(CONTEST, G));
+    // (a ⏱ prorrogação por sede/grupo mora em Evento › Sedes & escolas — módulo `sedes`)
   }
   return { panel, load };
 }
