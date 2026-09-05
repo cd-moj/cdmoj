@@ -42,7 +42,7 @@
   <main class="container">
     <div class="section">
       <h1 data-en="moj-comp on open training — pick, read, solve and submit without leaving the terminal">moj-comp no treino livre — escolha, leia, resolva e envie sem sair do terminal</h1>
-      <p class="small muted" data-en="The same CLI used in contests, in training mode: search the public problem bank, download a statement, submit and get the verdict right there. Your site account, your usual $EDITOR, zero clicking.">A mesma CLI usada nos contests, no modo treino: busque no banco público, baixe o enunciado, envie e receba o veredicto ali mesmo. Sua conta do site, seu <code>$EDITOR</code> de sempre, zero clique.</p>
+      <p class="small muted" data-en="This is the same CLI used in contests, in training mode. Search the public problem bank, download a statement, submit and get the verdict in the terminal. Use your site account and your usual $EDITOR.">Esta é a mesma CLI usada nos contests, no modo treino. Busque no banco público, baixe o enunciado, envie e receba o veredicto no terminal. Use a sua conta do site e o seu <code>$EDITOR</code> de sempre.</p>
     </div>
 
     <div class="section tlayout">
@@ -59,13 +59,13 @@
         <h2 id="comecar" data-en="1. Install and log in (one minute)">1. Instalar e entrar (um minuto)</h2>
         <pre id="dl-cmd">curl -fsSL https://moj.naquadah.com.br/moj-comp -o ~/.local/bin/moj-comp &amp;&amp; chmod +x ~/.local/bin/moj-comp
 moj-comp login treino           # a MESMA conta que você usa no site</pre>
-        <p data-en="Requirements: bash, curl, jq — any Linux/macOS has them; no root, no install, one file. After login the CLI remembers you're on training: no extra flags on the next commands.">Requisitos: <code>bash</code>, <code>curl</code>, <code>jq</code> — qualquer Linux/macOS tem; sem root, sem instalação, um arquivo. Depois do login a CLI lembra que você está no treino: nenhuma flag extra nos próximos comandos.</p>
+        <p data-en="Requirements: bash, curl and jq. Every Linux or macOS has these programs. You do not need root. You do not install anything. The CLI is one file. After login, the CLI remembers that you are on training. The next commands need no extra flags.">Requisitos: <code>bash</code>, <code>curl</code> e <code>jq</code>. Todo Linux ou macOS tem esses programas. Não precisa de root. Não precisa instalar nada. A CLI é um arquivo só. Depois do login, a CLI lembra que você está no treino. Os próximos comandos não precisam de flags extras.</p>
 
         <h2 id="achar" data-en="2. Find a problem">2. Achar um problema</h2>
         <pre>moj-comp problems vetores       # busca por id/título
 moj-comp problems fibonacci
 # moj-problems#fibonacci-memoizacao   Fibonacci   13 resolveram</pre>
-        <p data-en="Each problem has an id in the org#slug form (e.g. apc#vetor1) — that id is what you use to read and to submit. Browsing by collection and tags is nicer on the site (/treino); the CLI shines at the submit loop.">Cada problema tem um id na forma <code>org#slug</code> (ex.: <code>apc#vetor1</code>) — é esse id que você usa p/ ler e p/ enviar. Navegar por coleções e tags é mais gostoso no site (<a href="/treino/">/treino</a>); a CLI brilha no ciclo de envio.</p>
+        <p data-en="Each problem has an id in the form org#slug (for example apc#vetor1). Use this id to read and to submit. To browse by collection and tags, use the site (/treino). Use the CLI for the submit loop.">Cada problema tem um id na forma <code>org#slug</code> (por exemplo <code>apc#vetor1</code>). Use esse id para ler e para enviar. Para navegar por coleções e tags, use o site (<a href="/treino/">/treino</a>). Use a CLI para o ciclo de envio.</p>
 
         <h2 id="resolver" data-en="3. Read, solve, submit — the loop">3. Ler, resolver, enviar — o ciclo</h2>
         <pre>moj-comp statement apc#vetor1   # salva ./vetor1.html — abra no navegador
@@ -74,8 +74,8 @@ moj-comp submit apc#vetor1 sol.c
 # enviada (apc#vetor1, sol.c) — id 54ada0…. aguardando veredicto…
 # veredicto: Accepted
 moj-comp subs                   # seu histórico de envios e veredictos</pre>
-        <p data-en="The language comes from the file extension (sol.c, sol.cpp, sol.py, Main.java…). submit waits for the verdict and prints it — the whole practice loop stays in one terminal.">A linguagem vem da extensão (<code>sol.c</code>, <code>sol.cpp</code>, <code>sol.py</code>, <code>Main.java</code>…). O <code>submit</code> espera o veredicto e imprime — o ciclo inteiro de prática fica num terminal só.</p>
-        <div class="tip" data-en="Wrong Answer? The submission page on the site shows the full report (test by test). The CLI gets you the verdict fast; the site gives you the forensic detail.">Deu Wrong Answer? A página da submissão no site mostra o relatório completo (teste a teste). A CLI te dá o veredicto rápido; o site, o detalhe forense.</div>
+        <p data-en="The language comes from the file extension (sol.c, sol.cpp, sol.py, Main.java). submit waits for the verdict and prints it. The whole practice loop stays in one terminal.">A linguagem vem da extensão do arquivo (<code>sol.c</code>, <code>sol.cpp</code>, <code>sol.py</code>, <code>Main.java</code>). O <code>submit</code> espera o veredicto e imprime o resultado. O ciclo inteiro de prática fica em um terminal só.</p>
+        <div class="tip" data-en="Did you get Wrong Answer? Open the submission page on the site. It shows the full report, test by test. The CLI gives you the verdict fast. The site gives you the detail.">Recebeu Wrong Answer? Abra a página da submissão no site. Ela mostra o relatório completo, teste a teste. A CLI dá o veredicto rápido. O site dá o detalhe.</div>
 
         <h2 id="comandos" data-en="4. Quick commands">4. ⚡ Comandos rápidos</h2>
         <table class="cheat">
@@ -90,9 +90,9 @@ moj-comp subs                   # seu histórico de envios e veredictos</pre>
 
         <h2 id="dicas" data-en="5. Tips">5. 💡 Dicas</h2>
         <ul>
-          <li data-en="Going to compete? The SAME CLI runs contests (scoreboard, clarifications and more) — guide at /contest/cli.html.">Vai competir? A MESMA CLI opera contests (placar, clarifications e mais) — guia em <a href="/contest/cli.html">/contest/cli.html</a>.</li>
-          <li data-en="moj-comp update keeps it fresh; moj-comp doctor diagnoses anything odd.">O <code>moj-comp update</code> mantém a CLI em dia; <code>moj-comp doctor</code> diagnostica qualquer esquisitice.</li>
-          <li data-en="Scripts welcome: it's plain bash+curl+jq — loop over your exercise list and submit as you go.">Script é bem-vindo: é bash+curl+jq puro — faça loop na sua lista de exercícios e envie conforme resolve.</li>
+          <li data-en="Are you going to compete? The same CLI works in contests: scoreboard, clarifications and more. Read the guide at /contest/cli.html.">Vai competir? A mesma CLI funciona nos contests: placar, clarifications e mais. Leia o guia em <a href="/contest/cli.html">/contest/cli.html</a>.</li>
+          <li data-en="moj-comp update keeps the CLI up to date. moj-comp doctor diagnoses problems in your environment. The CLI also warns you when it is out of date.">O <code>moj-comp update</code> mantém a CLI atualizada. O <code>moj-comp doctor</code> diagnostica problemas no seu ambiente. A CLI também avisa sozinha quando está desatualizada.</li>
+          <li data-en="You can use the CLI in scripts. It is plain bash, curl and jq. Loop over your exercise list and submit each solution.">Você pode usar a CLI em scripts. Ela é bash, curl e jq puros. Faça um loop na sua lista de exercícios e envie cada solução.</li>
         </ul>
         <p>
           <a href="/treino/" data-en="← back to the problem list">← voltar à lista de problemas</a> ·

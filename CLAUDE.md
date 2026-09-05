@@ -101,14 +101,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   contest ENTRA na lista de cópia do arquivamento de rodada** (`contest-rounds.sh`). Motor de
   anomalias: `lib/anomalies.sh` (um jq; `mkey` em jq = a MESMA regra do bash — mexeu numa, mexa na
   outra; o jq vive em VARIÁVEL, fora do `jq-portability.sh`: rode `smoke-contest-anomalies.sh` com
-  o jq 1.7). Painel: Pessoas › Sessões & anomalias (`sessions-tab.js`), só com gate ativo.
+  o jq 1.7). Painel: **Máquinas › Anomalias** (`anomalies-tab.js`, módulo `maquinas`), só com gate
+  ativo; sessões ativas + sair em massa + log de acessos ficam em **Pessoas › Sessões**
+  (`sessions-tab.js`, todo contest); o comum aos dois em `sessions-common.js`.
 - **Trava de sede por IP (`lib/site-lock.sh`, 2026-09-02)**: o isolamento por subdomínio só vale
   p/ quem entra pelo subdomínio — `curl --resolve` da máquina de prova chega ao site base pelo
   mesmo IP. Com `SITE_LOCK=1` no conf, login de competidor reivindica o IP de origem
   (`run/site-lock/<ip>`, TSV uma linha por contest, flock por IP) até `CONTEST_END+grace`; o
   `router.sh` responde 403 `site_locked` a outro alvo (papel isento; `auth/logout` passa) — custo
   `[[ -f ]]` p/ IP não preso. **Toda reivindicação nova e todo bloqueio vão ao audit** (com teto de
-  1 linha/5 min por ip+alvo) e ao painel Sessões & anomalias. Rota `/contest/admin/site-lock`.
+  1 linha/5 min por ip+alvo) e aos painéis Máquinas › Gate & trava (reivindicações/soltar/prender)
+  e Máquinas › Anomalias (bloqueios). Rota `/contest/admin/site-lock`.
 - **Auth**: `Authorization: Bearer <token>` → sessão em `run/sessions/` (700), gravada com
   `printf %q` (é *sourced*). **A sessão vale enquanto a CONTA existir** (`_session_account_alive`
   no `load_session`): sessão do MOJ não expira por tempo, então a conferência do `account.json` é
@@ -554,12 +557,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `ug_expected` resolve na ordem isentos › papel › `by_regex` › `by_region` › `from_login`
   (captura `\1`) › `fallback`/`LOGIN_UA_SUBSTRING` legado; `ug_ok` é o match (substring,
   case-insensitive) e `login.sh`/`logout-mismatch.sh` usam os dois. **`ug_expected_map` é o MESMO
-  programa jq em lote** (`UG_JQ`) — o painel **Pessoas › Máquinas & gate** precisa do esperado por time e não pode
+  programa jq em lote** (`UG_JQ`) — o painel **Máquinas › Gate & trava** precisa do esperado por time e não pode
   forkar por login; se mudar a ordem, mude nos dois. Armadilhas jq que isto pisou: `first()` de
   stream vazio e **`match()` SEM casamento** devolvem VAZIO, e `vazio as $v | …` anula a
   expressão inteira (use `// null`); `sub()` **não entende `\1`** — as capturas vêm do `match`.
 - **Coortes de placar** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh`, UI no painel
-  **Pessoas › Coortes** = `web/contest/admin/cohorts-tab.js`): times oficiais ×
+  **Evento › Coortes** = `web/contest/admin/cohorts-tab.js`, módulo `coortes`): times oficiais ×
   **convidados** (extra-oficiais/"CCL"). Coorte privada não aparece no placar público nem no
   `/contest/teams`; os convidados veem todos; `results_released` libera. O corte **sobe até
   `sc_users`** (`score/score-common.sh`, env `MOJ_COHORTS`) porque a ESTRELA de first-to-solve é
@@ -589,7 +592,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `cc_build_probs`) existe para a troca não re-baixar o enunciado do banco por cima do que o
   admin subiu à mão.
 - **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, painel
-  **Prova › Documentos** do admin e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados), folha de
+  **Evento › Documentos** do admin (módulo `documentos`) e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados), folha de
   time limits e **EDITORIAL** (o `docs/solucao.md` do PACOTE de cada problema, via `pkg_path` —
   o campo que nunca vai ao aluno), em **PDF+HTML × pt/en/es** (`DOC_LANGS`; a INTERFACE segue pt/en —
   são eixos diferentes), tudo derivado do que o contest já tem (conf, `PROBS`, `enunciados/`,
@@ -630,7 +633,29 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `server/test/smoke-preflight.sh`. `fail` significa BLOQUEIA a prova — use `warn` p/ escolha
   legítima (isento de gate declarado, coorte privada) e nunca transforme configuração
   deliberada em aviso eterno. Libs pesadas (rodadas) só são `source`adas dentro do `if` que
-  precisa delas: o handler roda a cada abertura da Central.
+  precisa delas: o handler roda a cada abertura da Central. **Checagem de MÓDULO só roda com o
+  módulo ligado** (`mod_on`: `ua_gate site_lock session_single mlinux site_short`=maquinas,
+  `next_round reg_warmup`=rodadas, `docs`=documentos, `balloons balloons_freeze`=baloes,
+  `cohorts reg_cohorts`=coortes, `registration reg_*`=inscricoes, `tov`=sedes) e a checagem
+  `modules` avisa módulo DESLIGADO com dados (`mod_detect`). Checagem nova de módulo entra
+  dentro do `if mod_on`, e o fixture do `smoke-preflight.sh` liga todos.
+- **MÓDULOS DO CONTEST (`lib/modules.sh`, 2026-09-05)** — grupos de recursos que o admin LIGA por
+  contest (`CONTEST_MODULES=a,b` no conf, `%q` escapa a vírgula ⇒ `mod_raw` tira as barras; ausente
+  = nenhum). Catálogo ÚNICO `MODULES=(sedes maquinas rodadas documentos baloes coortes inscricoes
+  telao classificacao)`, espelhado em `web/contest/admin/modules.js` (paridade testada em
+  `smoke-admin-nav.sh`); `mod_on/mod_any/mod_list_json/mod_set/mod_detect`. O gate é **UX** (decide
+  nav/painéis/checagens/cartões); **o acesso continua cortado em cada rota**. **Desligar nunca apaga
+  dado** (o painel avisa; `detected` mostra que há arquivo). Rota `admin/modules` GET/POST; `basic` e
+  `settings` expõem `modules[]`. **Spec UNIFICADO** (`cc_apply_modules_spec`/`cc_modules_spec` em
+  `lib/contest-create.sh`): `spec.modules = {id: true | {on?, …seção…}}` — cada seção grava pelo
+  MESMO arquivo/conf que o painel edita (formato no cabeçalho da função); export devolve só módulos
+  ligados, dados reeditáveis, NUNCA segredo (chave nutellaboot, chaves de webcast → o create gera
+  chaves NOVAS a partir de `views`); template tira `rounds/active/time_overrides`; duplicate desloca
+  o plano de rodadas pelo delta das datas. Compat: `colors/regions/teams_meta` no topo seguem
+  aceitos. Contests antigos: `server/bin/contest-modules-detect.sh [--apply]` (uma vez).
+  **Classificação por catálogo**: `admin/classify.sh` despacha `config.algorithm` por allowlist
+  `CL_ENGINES` (`sbc-fase1` → `score/classify-br.sh`); a PDA = motor novo + 1 linha + smoke.
+  Testes: `smoke-contest-modules.sh` (57), `smoke-preflight.sh`, `smoke-contest-create.sh`.
 - **FUSO (2026-08-06)**: a imagem é debian-slim **sem TZ** ⇒ o servidor rodava em UTC e TUDO que
   ele escrevia p/ humano saía 3 h adiantado (DM do convite, preflight, caderno, relatório). Hoje
   `lib/common.sh` faz `export TZ="$MOJ_TZ"` (default `America/Sao_Paulo`, em `etc/common.conf`) e
@@ -661,7 +686,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   stats-gen) em `var/nutella.cache.json`; rota `/contest/nutella` (GET escopado p/
   `.cstaff`/`.staff`; POST config/collect/push-roster/command — **comando é fail-closed**:
   staff sem escopo explícito = 403); view única `web/lib/mlinux-view.js` p/ painel
-  (Operação → mlinux), página avulsa `/contest/mlinux/` e o `mlinux.html` do relatório
+  (Máquinas › mlinux, módulo `maquinas`), página avulsa `/contest/mlinux/` e o `mlinux.html` do relatório
   (SEM MAC/teams/_rows). **Relatório 2.0 (01/09)**: o coletor deriva POR MÁQUINA só dos
   pontos DENTRO da prova (samples com `since/until`; bruto em `var/nutella-raw/` +
   `--reaggregate`), casa máquina↔time pelo `machine_id` do UA do login (`var/access.log`)
@@ -963,9 +988,14 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   conteúdo dos contêineres dinâmicos; `<details>`, inputs de filtro, foco, caret e scroll ficam
   nos MESMOS nós; e se o dado não mudou (compare uma assinatura do que aparece — sem
   `computed_at`/relógio), **não toque no DOM**. `panel.innerHTML = ''` só no primeiro carregamento
-  e no erro inicial. Moldes: `sessions-tab.js` (`skeleton()`/`swap()`/`sig()`), `central-tab.js`
-  (só a caixa "Ao vivo" se refaz). Teste no harness gjs: `load()` duas vezes com o mesmo dado
-  tem de manter a identidade dos nós.
+  e no erro inicial. Helpers em `shared/admin-ui.js`: `swap(box,node)`, `swapIf(box, sig, build)`
+  (assinatura em `box.dataset.sig`), `sigOf(...)`, `everyVisible(panel, ms, fn)`. Moldes:
+  `status-tab.js` (esqueleto + `swapIf` por seção), `anomalies-tab.js` (`sig()` sem `computed_at`),
+  `tasks.js` (ADIA o re-render enquanto um textarea está sujo/focado), `mlinux-tab.js` (na coleta só
+  a caixa da coleta troca), `central-tab.js` (só "Ao vivo" se refaz). O `review-board.js` (12 s)
+  ainda refaz o DOM — pendente. **Teste**: `server/test/admin-inplace.gjs.sh` (FakeNode + dom.js +
+  admin-ui.js + o painel sem imports; `load()` 2× com o mesmo dado mantém a identidade dos nós,
+  `<details>` aberto e o texto digitado) — painel novo com timer ganha um caso lá.
 - **Toda tela/string nova NASCE nos DOIS idiomas** (`T('pt','en')` no JS, `data-en` no HTML) — deixar
   só em PT é **bug**, igual doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`.
 - ⚠️ **Campo de data/hora: SEMPRE o par `toLocalDT`/`dtToEpoch`** (`shared/contest-config/util.js`),
@@ -985,17 +1015,30 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   **Botão novo no `navbuttons.sh` ⇒ linha nova no mapa do `nav-i18n.js`** (sem a linha ele cai no
   label PT do servidor — não some, mas vira string só-PT, que é bug). Datas: `toLocaleString()` SEM
   `'pt-BR'` fixo (o formato segue `document.documentElement.lang`, que o `applyHtmlLang` ajusta).
-- **Painel de admin do contest = SHELL + módulos.** `web/contest/admin/admin.js` só navega: 4 grupos
-  (`central|prova|pessoas|operacao`) × painéis, hash **`#grupo/painel`** e o mapa `ALIAS` com TODOS
-  os hashes antigos (link salvo/manual não pode quebrar — ao renomear um painel, ATUALIZE o ALIAS).
-  Cada painel é um `web/contest/admin/<nome>-tab.js` exportando `make<Nome>Tab(CONTEST)` →
-  **`{panel, load}`** (construído uma vez e escondido: mantém filtros/timers; `load()` roda de novo
-  a cada volta ao painel). Helpers compartilhados (CSV, `downloadAuthed`, `fmtS/fmtDate`,
-  `field/chk/mkBool`) em **`shared/admin-ui.js`** — não recrie a 4ª cópia. A **Central**
-  (`central-tab.js`) renderiza o `preflight` como lista acionável: o mapa `TARGET` (id da checagem →
-  `[grupo, painel]`) mora no FRONT, então checagem nova do servidor aparece sozinha e só ganha botão
-  quando entrar no mapa. `settings-tab.js` REALOCA os nós vivos do `makeSettingsEditor` em 5
-  `<details>` por ÍNDICE — mudou a ordem dos campos no editor? Ajuste o `GROUPS` de lá.
+- **Painel de admin do contest = SHELL + nav por MÓDULOS + painéis.** `web/contest/admin/admin.js`
+  só renderiza; a navegação vive em **`nav.js`** (puro, testável em gjs): `GROUPS()` (4 grupos
+  comuns `central|prova|pessoas|operacao` + os de EVENTO `evento|maquinas`, que só aparecem com
+  módulo ligado, depois de `span.groupbar-sep`), `PANEL_MODULE` (painel → módulo que o liga; ids de
+  painel são ÚNICOS no painel inteiro), `ALIAS` com TODOS os hashes antigos — 1ª geração (13 abas)
+  e 2ª (4 grupos de agosto: `pessoas/maquinas`→`maquinas/gate`, `prova/rodadas`→`evento/rodadas`…) —
+  e `resolveHash(hash, mods)`, que resolve pelo ID em qualquer grupo visível e manda painel de
+  módulo desligado p/ **Central › Módulos** com aviso (`inst.notice(texto)`). Renomeou/moveu painel?
+  ATUALIZE o ALIAS e o `TARGET` da Central. Os módulos vêm de `basic.modules`; o painel Módulos
+  dispara `moj:modules` e o shell re-renderiza. Cada painel é um `<nome>-tab.js` exportando
+  `make<Nome>Tab(CONTEST, opts)` → **`{panel, load}`** (construído uma vez e escondido: mantém
+  filtros/timers; `load()` roda de novo a cada volta) e recebe **`opts.has(mod)`** p/ gatear as
+  próprias seções (Staff: balões; Situação: cards de balão; Sessões: dica de rodada; Relatório:
+  rodadas; Regras: campo legado do gate). Helpers compartilhados (CSV, `downloadAuthed`,
+  `fmtS/fmtDate/fmtEpoch`, `PRIV_RE`, `field/chk/mkBool`, `swap/swapIf/sigOf/everyVisible`) em
+  **`shared/admin-ui.js`** — não recrie a 4ª cópia. A **Central** (`central-tab.js`) renderiza o
+  `preflight` como lista acionável: o mapa `TARGET` (id da checagem → `[grupo, painel]`) mora no
+  FRONT (checagem nova aparece sozinha e só ganha botão quando entrar no mapa — e só se
+  `opts.visible(painel)`); cartões "Gerar" de módulo (documentos/rodadas/telão) só com o módulo.
+  `settings-tab.js` REALOCA os nós vivos do `makeSettingsEditor` em 5 `<details>` por ÍNDICE —
+  mudou a ordem dos campos no editor? Ajuste o `GROUPS` de lá (campo que precisa ser achado por
+  nome leva `data-k`, como o `login_ua_substring`). Raiz do painel: uma caixa = raiz `.section`;
+  várias caixas/esqueleto = raiz `div` + caixas `.section`. Botão destrutivo: com texto `btn
+  danger`; ícone em linha `btn ghost danger` (+ `small` só de tamanho).
 
 ## Testar / rodar
 

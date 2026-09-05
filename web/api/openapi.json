@@ -1493,7 +1493,7 @@
           "contest"
         ],
         "summary": "Info pública (nome, horários, login_start_time)",
-        "description": "Traz também balloon_style (icon|fill, default icon): como o placar pinta a célula de quem resolveu. icon = fundo neutro igual para todos + um ponto com a cor do balão, de modo que \"resolvido\" não dependa de enxergar a cor — a paleta ICPC dá o problema A BRANCO, e branco sobre o fundo branco do placar é o mesmo pixel (1,00:1), então o acerto sumia. fill = o clássico, cor do balão no fundo, mais um contorno derivado da própria cor para as claras não sumirem. Vale para o placar ao vivo, a cerimônia de revelação e o relatório offline. Ver docs/SCOREBOARD.md.",
+        "description": "Traz também balloon_style (icon|fill, default icon): como o placar pinta a célula de quem resolveu. icon = fundo neutro igual para todos + um ponto com a cor do balão, de modo que \"resolvido\" não dependa de enxergar a cor — a paleta ICPC dá o problema A BRANCO, e branco sobre o fundo branco do placar é o mesmo pixel (1,00:1), então o acerto sumia. fill = o clássico, cor do balão no fundo, mais um contorno derivado da própria cor para as claras não sumirem. Vale para o placar ao vivo, a cerimônia de revelação e o relatório offline. Ver docs/SCOREBOARD.md. Traz modules[] (ids dos módulos ligados — CONTEST_MODULES; UX da nav do admin/chefe).",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -3104,7 +3104,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Cria e publica o contest (no ar na hora)",
+        "summary": "Cria e publica o contest (no ar na hora) SPEC UNIFICADO (2026-09-05): modules:{<id>: true | {on?, …seção…}} leva os DADOS de cada módulo — sedes{regions,teams_meta,time_overrides}, baloes{colors,during_freeze}, coortes{cohorts}, maquinas{ua_gate,site_lock{enabled,grace},nutella_url}, rodadas{active,rounds}, documentos{config}, inscricoes{enabled,window}, telao{views} (chaves NOVAS de webcast), classificacao{algorithm,config}. Seção presente = módulo ligado (salvo on:false); tipo errado = 422 modules_spec_invalid; segredo nunca entra. colors/regions/teams_meta no topo continuam aceitos (compat).",
         "requestBody": {
           "required": true,
           "content": {
@@ -3589,7 +3589,7 @@
         "tags": [
           "contest-create"
         ],
-        "summary": "Exporta o spec JSON de um contest (round-trip com o create; nunca exporta passwd/users/senhas)",
+        "summary": "Exporta o spec JSON de um contest (round-trip com o create; nunca exporta passwd/users/senhas) Traz modules{} dos módulos ligados com os dados reeditáveis (sem segredo); nada de regions/colors/teams_meta no topo.",
         "parameters": [
           {
             "name": "id",
@@ -5844,13 +5844,31 @@
         "responses": {"200": {"description": "{stages:[{id,name,venue,when,teams:{login:{via,sede}}}]} — só stages published; vazio sem publicação. Gate de contest secreto igual ao do placar."}}
       }
     },
+    "/contest/admin/modules": {
+      "get": {
+        "tags": ["contest-admin"],
+        "summary": "Módulos do contest (grupos de recursos ligáveis): catálogo, ligado/desligado, dados presentes",
+        "description": "Catálogo ÚNICO em lib/modules.sh (espelho em web/contest/admin/modules.js): sedes, maquinas, rodadas, documentos, baloes, coortes, inscricoes, telao, classificacao. detected = há artefato do módulo no contest (regions.json, ua-gate.json/SITE_LOCK/chave nutellaboot, rounds.json, docs/config.json, balloons.json, cohorts.json, registrations.json, webcast.json/fotos, classification.json) e reason diz qual. É UX: decide o que o painel do admin/chefe mostra; o acesso continua cortado em cada rota. Contests anteriores a 2026-09-05: server/bin/contest-modules-detect.sh [--apply].",
+        "parameters": [{"$ref": "#/components/parameters/contest"}],
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{modules:[{id,on,detected,reason}], enabled:[…]}"}}
+      },
+      "post": {
+        "tags": ["contest-admin"],
+        "summary": "Liga/desliga módulos (CONTEST_MODULES no conf). Desligar NUNCA apaga dado",
+        "parameters": [{"$ref": "#/components/parameters/contest"}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"on": {"type": "array", "items": {"type": "string"}}, "off": {"type": "array", "items": {"type": "string"}}}}}}},
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{modules:[…], enabled:[…]}. Auditado modules-set"}, "422": {"description": "module_invalid — id fora do catálogo"}}
+      }
+    },
     "/contest/admin/classify": {
       "post": {
         "tags": ["contest-admin"],
-        "summary": "Motor de classificação da próxima fase (preview/apply/publish/add/remove)",
+        "summary": "Motor de classificação da próxima fase (preview/apply/publish/add/remove) — motor escolhido por config.algorithm (catálogo; fora da allowlist = 422 algorithm_invalid)",
         "parameters": [{"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}}],
         "requestBody": {"content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["preview","apply","publish","unpublish","add","remove"]}, "stage": {"type": "string"}, "config": {"type": "object"}, "name": {"type": "string"}, "venue": {"type": "string"}, "when": {"type": "string"}, "login": {"type": "string"}, "note": {"type": "string"}}}}}},
-        "responses": {"200": {"description": "preview roda o motor sem gravar; apply grava rascunho (promoções comite preservadas); publish/unpublish trocam a visibilidade; add/remove mexem nos times. Auditado. Ver docs/CLASSIFICACAO.md"}},
+        "responses": {"200": {"description": "preview roda o motor sem gravar; apply grava rascunho (promoções comite preservadas); publish/unpublish trocam a visibilidade; add/remove mexem nos times. Auditado. Ver docs/CLASSIFICACAO.md GET devolve {stages[], algorithms:[{id,name,desc}]} — o catálogo de motores (select do painel Evento › Classificação); config.algorithm default sbc-fase1 → score/classify-br.sh."}},
         "security": [{"bearer": []}]
       },
       "get": {

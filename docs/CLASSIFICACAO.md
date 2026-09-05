@@ -26,7 +26,20 @@ fase, aplicadas EM ORDEM (config define vagas; tudo editável no painel):
   conta p/ limite de escola.
 - Vagas não usadas saem em `unused{}` p/ o comitê redistribuir (manual).
 
-## Fluxo no painel (Prova › Classificação)
+## Algoritmos (o motor é escolhido por CATÁLOGO)
+
+`config.algorithm` diz qual motor roda; o handler (`admin/classify.sh`) despacha por
+**allowlist** `CL_ENGINES` (`id → score/classify-<x>.sh`) e o `GET` devolve `algorithms[]`
+(`{id,name,desc}`) — é o `select` "Algoritmo" do painel. Hoje só `sbc-fase1` (as regras
+acima). **Como entra a regra da PDA** (Final Brasileira → Programadores da América):
+`score/classify-pda.sh <contest> <config.json> [out]` com o MESMO contrato de saída
+(`{classified:[{login,via,sede,place,total,detail}], unused{}, region}`), uma linha em
+`CL_ENGINES`, uma entrada em `cl_catalog` e o smoke (`smoke-classify-br.sh` é o molde). Nada
+mais muda: o painel, o placar (chip ↑BR) e o relatório leem o stage, não o motor. Id fora da
+lista = 422 `algorithm_invalid`. A classificação é o módulo `classificacao` do contest
+(Central › Módulos); o spec de criação leva `modules.classificacao{algorithm,config}`.
+
+## Fluxo no painel (Evento › Classificação — módulo `classificacao`)
 
 👁 Prever (mostra a relação por regra, com unused) → ✔ Aplicar rascunho (promoções
 manuais `comite` são PRESERVADAS no re-apply) → 📢 Publicar. Auditado (`classify`).

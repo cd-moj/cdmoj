@@ -321,15 +321,15 @@ export function makeMachinesTab(CONTEST) {
       el('button', { class: 'btn ghost', onclick: () => { view = (view === 'login' ? 'ip' : 'login'); renderBody(); } },
         T('↔ ver por IP / por time', '↔ view by IP / by team')),
       el('button', { class: 'btn ghost', onclick: () => {
-        const rows = [[T('login', 'login'), T('time', 'team'), T('sede', 'site'), 'ip', 'user_agent',
+        const rows = [['login', T('time', 'team'), T('sede', 'site'), 'ip', 'user_agent',
           T('ua_esperado', 'ua_expected'), T('ua_bate', 'ua_match'),
-          T('logins', 'logins'), T('primeiro', 'first'), T('ultimo', 'last'), T('trocou', 'changed')]];
+          'logins', T('primeiro', 'first'), T('ultimo', 'last'), T('trocou', 'changed')]];
         (DATA.by_login || []).forEach((r) => (r.pairs || []).forEach((p) => rows.push([
           r.login, r.name, r.region, p.ip, p.ua, r.ua_expected || '',
           r.ua_expected ? (r.ua_match === false ? 'nao' : 'sim') : '',
           p.n, fmt(p.first), fmt(p.last), r.changed ? 'sim' : ''])));
         downloadText('maquinas-' + CONTEST + '-' + (DATA.round || '') + '.csv', toCsv(rows), 'text/csv');
-      } }, T('⇣ CSV', '⇣ CSV'))));
+      } }, '⇣ CSV')));
     panel.append(el('div', { class: 'small muted' },
       T(`${t.logins || 0} conta(s) · ${t.ips || 0} IP(s) · ${t.changed || 0} trocaram de máquina · ${t.shared_ips || 0} IP(s) compartilhado(s) · ${t.ua_mismatch || 0} fora da imagem da sede`,
         `${t.logins || 0} account(s) · ${t.ips || 0} IP(s) · ${t.changed || 0} changed machine · ${t.shared_ips || 0} shared IP(s) · ${t.ua_mismatch || 0} off the site image`)),

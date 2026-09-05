@@ -329,10 +329,15 @@ tem **prorrogação por sede/grupo** (`time-overrides.json`, regras regex no log
 `lib/contest-gate.sh` vale no `/submit` e no countdown do `/contest/basic` autenticado; editável
 na aba Configurações do admin e por `moj-contest extend --group`, auditado). Telas internas:
 
-- **`/contest/admin/`** — o painel do organizador. O `admin.js` é só o **SHELL** (~130 linhas):
-  **4 grupos** (🏁 Central · 🧩 Prova · 👥 Pessoas · 🎛️ Operação) × painéis, hash `#grupo/painel`,
-  `ALIAS` de TODOS os hashes antigos das 13 abas planas (`#settings`→`central/regras`,
-  `#log`→`pessoas/sessoes`, `#backups`→`operacao/auditoria`, …) e a guarda de admin. Cada painel é
+- **`/contest/admin/`** — o painel do organizador. O `admin.js` é só o **SHELL**; a navegação
+  vive em **`nav.js`** (puro, testável): **4 grupos comuns** (🏁 Central · 🧩 Prova · 👥 Pessoas ·
+  🎛️ Operação) sempre, e os grupos de EVENTO (🏟️ Evento · 🖥️ Máquinas) só quando o contest liga
+  o **MÓDULO** correspondente (`basic.modules` ← `CONTEST_MODULES` do conf; catálogo em
+  `lib/modules.sh` ⇄ `modules.js`; painel **Central › Módulos**; spec de criação `modules{}`).
+  Hash `#grupo/painel` resolve pelo id do painel em qualquer grupo visível; `ALIAS` cobre TODOS os
+  hashes antigos (13 abas planas E os 4 grupos de agosto: `#settings`→`central/regras`,
+  `#pessoas/maquinas`→`maquinas/gate`, `#prova/rodadas`→`evento/rodadas`, …); painel de módulo
+  desligado cai em Central › Módulos com aviso. Cada painel é
   um módulo `web/contest/admin/<nome>-tab.js` com o MESMO contrato **`{panel, load}`** — construído
   uma vez e só escondido (mantém filtros e timers), e reusável fora do painel (o `chief.js` monta
   Documentos e Rodadas assim). Helpers comuns (CSV, download autenticado, formatação, `field/chk`)
