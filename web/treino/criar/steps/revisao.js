@@ -1,8 +1,9 @@
-// steps/revisao.js — passo 7: resumo do spec, validações, Criar / Criar vazio, e
+// steps/revisao.js — passo 8: resumo do spec, validações, Criar / Criar vazio, e
 // "salvar como template" (o servidor relativiza datas e aplica a whitelist).
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { MODE_LABEL } from '../criar.js';
+import { MODULES } from '/contest/admin/modules.js';
 
 const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
 
@@ -44,7 +45,16 @@ export function makeStepRevisao(ctx) {
     row(T('Usuários', 'Users'), users),
     row(T('Admin', 'Admin'), (spec.admin.login || '—') + (spec.admin.password ? T(' (senha definida)', ' (password set)') : T(' (senha gerada)', ' (password generated)'))),
     row(T('Opções', 'Options'), optsBits.length ? optsBits.join(' · ') : T('(padrões)', '(defaults)')),
-    row(T('Visual', 'Appearance'), [Object.keys(spec.colors || {}).length && T('cores', 'colors'), (spec.teams_meta || []).length && T('países/escolas', 'countries/schools'), (spec.regions || []).length && T('regiões', 'regions')].filter(Boolean).join(' · ') || T('(nenhum)', '(none)'))));
+    row(T('Módulos', 'Modules'), (() => {
+      const ms = spec.modules || {};
+      const on = MODULES().filter((m) => ms[m.id] === true || (ms[m.id] && ms[m.id].on !== false));
+      return on.length ? on.map((m) => m.icon + ' ' + m.name).join(' · ') : T('(nenhum — prova comum)', '(none — plain contest)');
+    })()),
+    row(T('Visual', 'Appearance'), (() => {
+      const ms = spec.modules || {};
+      const colors = (ms.baloes && ms.baloes.colors) || {}, sedes = ms.sedes || {};
+      return [Object.keys(colors).length && T('cores', 'colors'), (sedes.teams_meta || []).length && T('países/escolas', 'countries/schools'), (sedes.regions || []).length && T('regiões', 'regions')].filter(Boolean).join(' · ') || T('(nenhum)', '(none)');
+    })())));
 
   const createBtn = el('button', { class: 'btn', onclick: () => ctx.submit(false, msg) }, T('🚀 Criar contest', '🚀 Create contest'));
   const emptyBtn = el('button', { class: 'btn ghost', onclick: () => ctx.submit(true, msg) }, T('Criar vazio (configuro depois)', 'Create empty (configure later)'));
@@ -62,7 +72,7 @@ export function makeStepRevisao(ctx) {
   } }, T('💾 Salvar como template', '💾 Save as template'));
 
   const root = el('div', { class: 'section' },
-    el('h2', {}, T('7 · Revisão', '7 · Review')),
+    el('h2', {}, T('8 · Revisão', '8 · Review')),
     issues.length ? el('div', { class: 'warn-box', style: 'margin:.5rem 0' },
       el('b', {}, T('Pendências: ', 'Pending items: ')), el('ul', { style: 'margin:.2rem 0 0; padding-left:1.2rem' }, ...issues.map((x) => el('li', {}, x)))) : '',
     el('div', { class: 'chart-wrap' }, table),

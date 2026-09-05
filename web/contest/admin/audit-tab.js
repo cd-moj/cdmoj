@@ -23,7 +23,7 @@ export function makeAuditTab(CONTEST) {
     const body = el('div', {});
     let lastEvents = [];
     const dl = el('button', { class: 'btn ghost', title: T('Baixar (CSV) para auditoria externa', 'Download (CSV) for external audit'), onclick: () => {
-      const rows = [['epoch', 'datahora', 'tipo', 'quem', 'acao', 'detalhes'],
+      const rows = [['epoch', T('datahora', 'datetime'), T('tipo', 'kind'), T('quem', 'who'), T('acao', 'action'), T('detalhes', 'details')],
         ...lastEvents.map((x) => [x.time, new Date(x.time * 1000).toISOString(), x.kind, x.who || '', x.action || '', x.details || ''])];
       downloadText('auditoria-' + CONTEST + '-' + stamp() + '.csv', toCsv(rows), 'text/csv');
     } }, '⬇ CSV');

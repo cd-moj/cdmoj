@@ -580,6 +580,14 @@ details.fgroup[open] > summary::before { content:'▾ '; }
   border:1px solid transparent; background:transparent; color:var(--ink); cursor:pointer; }
 .groupbar button:hover { background:var(--blue-soft); }
 .groupbar button.active { background:var(--blue); color:#fff; }
+/* cartões de número (Situação, Central › Ao vivo, Anomalias, chefe) — FONTE ÚNICA: o admin e o
+   chefe tinham cópias divergentes em <style> local */
+.dash-cards { display:flex; gap:.6rem; flex-wrap:wrap; margin:.4rem 0 .8rem }
+.dash-card { background:#fff; border:1px solid #d7dee8; border-radius:10px; padding:.5rem .9rem; min-width:110px; text-align:center }
+.dash-card.warn { border-color:#f3c08e; background:#fff7ec }
+.dash-val { font-size:1.5rem; font-weight:800; color:var(--blue); }
+.dash-card.warn .dash-val { color:#b3261e }
+.dash-lbl { font-size:.78rem; color:#64748b }
 /* separador entre os grupos comuns e os de EVENTO (Evento, Máquinas — só com módulo ligado) */
 .groupbar .groupbar-sep { width:1px; height:1.6rem; background:var(--line); margin:0 .3rem; }
 .gen-card.off { opacity:.72; }

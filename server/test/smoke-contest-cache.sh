@@ -40,7 +40,7 @@ placar="$C/var/placar.txt"
 ck "placar não existe antes" '[[ ! -f "$placar" ]]'
 call /contest/score GET '' '' 'contest=lazy'
 ck "score 200" '[[ "$OUT" == *"Status: 200"* ]]'
-ck "1ª linha = modo icpc" '[[ "$(head -1 <<<"$BODY")" == icpc ]]'
+ck "1ª linha = modo icpc (+ flag s = segundos)" '[[ "$(head -1 <<<"$BODY")" == icpc* ]]'
 ck "placar foi gerado na hora" '[[ -s "$placar" ]]'
 ck "tem ao menos uma linha de equipe (alice)" '[[ "$BODY" == *alice* ]]'
 

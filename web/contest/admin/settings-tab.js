@@ -107,7 +107,7 @@ export async function timeOverridesPanel(CONTEST, G) {
       en.addEventListener('input', () => { r.end = dtToEpoch(en.value); });
       rs.addEventListener('input', () => { r.reason = rs.value; });
       list.append(el('div', { class: 'row', style: 'gap:.4rem;margin:.25rem 0;flex-wrap:wrap' }, rx, en, rs,
-        el('button', { class: 'btn danger ghost', title: T('remover', 'remove'), onclick: () => { rules.splice(i, 1); render(); } }, '✕')));
+        el('button', { class: 'btn ghost danger', title: T('remover', 'remove'), onclick: () => { rules.splice(i, 1); render(); } }, '✕')));
     });
     if (!rules.length) list.append(el('div', { class: 'muted small' }, T('Nenhuma regra ativa (todos seguem o fim normal).', 'No active rule (everyone follows the normal end).')));
   };

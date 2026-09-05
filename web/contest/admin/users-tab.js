@@ -150,7 +150,7 @@ export function makeUsersTab(CONTEST) {
       try { const r = await call('users-set-password', { password: bpw.value, include_disabled: binc.checked }); bmsg.className = 'small'; bmsg.textContent = '✓ ' + r.count + T(' usuário(s) atualizados', ' user(s) updated'); bulk.disabled = false; bpw.value = ''; loadList(); }
       catch (e) { bulk.disabled = false; bmsg.className = 'small error-box'; bmsg.textContent = e.message || T('falha', 'failed'); }
     } }, T('Trocar senha de todos', 'Change everyone\'s password'));
-    panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('Adicionar / resetar senha', 'Add / reset password')),
+    panel.append(el('h3', { style: 'margin:1rem 0 .3rem' }, T('➕ Adicionar / resetar senha', '➕ Add / reset password')),
       el('div', { class: 'row' }, li, pw, fn, em, add), amsg,
       makeBatchUsers(),
       el('h3', { style: 'margin:1rem 0 .3rem' }, T('🔑 Troca de senha geral (prova)', '🔑 Bulk password change (contest)')),

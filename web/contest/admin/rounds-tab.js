@@ -5,11 +5,11 @@
 // PROMOVER arquiva a rodada corrente (submissões, veredictos, placar, logs — auditoria posterior),
 // zera o placar e coloca a janela + os problemas da próxima no ar. O checklist vem do servidor:
 // se houver job em voo, veredicto pendente ou review aberto, ele RECUSA (e explica por quê).
-import { apiGet, apiPost, getToken } from '/shared/api.js';
+import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { makeBankPanel, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { T } from '/shared/i18n.js';
-import { fmtEpoch as fmt } from '/shared/admin-ui.js';
+import { fmtEpoch as fmt, downloadAuthed } from '/shared/admin-ui.js';
 
 const enc = encodeURIComponent;
 // funções, não const de módulo: T() no topo congela o idioma ANTES do setLang(LOCALE)
@@ -183,14 +183,9 @@ export function makeRoundsTab(CONTEST, opts = {}) {
           { action: 'publish', slug: r.slug, on: !r.published },
           r.published ? T('✓ despublicada', '✓ unpublished') : T('✓ publicada para os times', '✓ published to the teams')) },
           r.published ? T('despublicar', 'unpublish') : T('publicar p/ os times', 'publish to teams')));
-        acts.append(el('button', { class: 'btn ghost', onclick: async () => {
-          const r2 = await fetch('/api/v1/contest/admin/round-archive?contest=' + enc(CONTEST) + '&round=' + enc(r.slug),
-            { headers: { Authorization: 'Bearer ' + (getToken(CONTEST) || '') } });
-          if (!r2.ok) { setMsg(T('falha ao baixar o arquivo', 'failed to download the archive'), 'error-box'); return; }
-          const url = URL.createObjectURL(await r2.blob());
-          const a = el('a', { href: url, download: CONTEST + '-' + r.slug + '.tar.gz' });
-          document.body.append(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 0);
-        } }, T('⇣ arquivo bruto (tar.gz)', '⇣ raw archive (tar.gz)')));
+        acts.append(el('button', { class: 'btn ghost', onclick: () => downloadAuthed(CONTEST,
+          '/contest/admin/round-archive?contest=' + enc(CONTEST) + '&round=' + enc(r.slug), CONTEST + '-' + r.slug + '.tar.gz') },
+        T('⇣ arquivo bruto (tar.gz)', '⇣ raw archive (tar.gz)')));
       }
       if (r.published) acts.append(el('span', { class: 'pill ok' }, T('visível p/ os times', 'visible to teams')));
       // relatório PÚBLICO da rodada (histórico): symlink relatorio-rodadas/<slug> servido pelo nginx em

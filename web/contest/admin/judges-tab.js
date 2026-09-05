@@ -15,7 +15,7 @@ export function makeJudgesTab(CONTEST) {
   let timer = null;
   async function load() {
     panel.innerHTML = '';
-    panel.append(el('h2', {}, T('⚖️ Tarefas do judge', '⚖️ Judge tasks')),
+    panel.append(el('h2', {}, T('⚖️ Juízes — correção manual', '⚖️ Judges — manual review')),
       el('p', { class: 'muted small' },
         T('Fila da correção manual: quem pegou, votos e idade de cada submissão segurada. ', 'Manual grading queue: who claimed, votes and age of each held submission. '),
         T('"Decidir/Resolver" libera o veredicto AO ALUNO na hora (override auditado); o fluxo normal de votos fica na ', '"Decide/Resolve" releases the verdict TO THE STUDENT right away (audited override); the normal voting flow is in the '),

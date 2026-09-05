@@ -113,7 +113,7 @@ export function makeProblemsTab(CONTEST) {
         noQueryFilter: (items) => items.filter((it) => it.private),
         emptyHint: T('o dono do contest não tem problemas privados — digite para buscar no banco público', 'the contest owner has no private problems — type to search the public bank'),
       });
-      panel.append(list, el('h3', { style: 'margin:1rem 0 .3rem' }, T('Adicionar do banco', 'Add from bank')), bank.el);
+      panel.append(list, el('h3', { style: 'margin:1rem 0 .3rem' }, T('🏦 Adicionar do banco', '🏦 Add from bank')), bank.el);
     }
     await loadList();
   }

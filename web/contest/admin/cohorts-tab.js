@@ -178,7 +178,7 @@ export function makeCohortsTab(CONTEST) {
       panel.append(el('div', { class: 'chart-wrap' }, tb));
     }
     panel.append(newForm(all));
-    panel.append(el('h3', { style: 'margin:.9rem 0 .3rem' }, T('Atribuir times', 'Assign teams')), assignBox());
+    panel.append(el('h3', { style: 'margin:.9rem 0 .3rem' }, T('🎯 Atribuir times', '🎯 Assign teams')), assignBox());
     panel.append(el('div', { class: 'small muted', style: 'margin-top:.7rem' },
       T('Placares gerados: ', 'Generated scoreboards: '),
       ...(DATA.views || []).map((v) => el('span', { class: 'pill', style: 'margin-right:.3rem' }, v))),
