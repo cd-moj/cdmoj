@@ -85,6 +85,59 @@ ck "compat: regions/colors no topo ligam sedes,baloes" '[[ "$(confmods "$FIX/nov
 call /treino/contest-create/export GET '' tadm 'id=novo1'
 ck "export traz modules{maquinas,documentos}" '[[ "$(J ".modules|keys|join(\",\")")" == "documentos,maquinas" ]]'
 
+echo "== spec UNIFICADO: todas as seções gravam arquivo/conf e voltam no export (sem segredo) =="
+SPEC3="$(jq -cn --argjson s "$((NOW+600))" --argjson e "$((NOW+4200))" '{id:"novo3", name:"Novo 3", mode:"icpc", start:$s, end:$e, allow_empty:true,
+  modules:{
+    sedes:{regions:[{name:"Sorocaba",regex:"^teambrspso"}], teams_meta:[{regex:"^teambr",country:"BR"}], time_overrides:[{regex:"^teambrspso",end:($e+600),reason:"queda"}]},
+    baloes:{colors:{A:"FF0000"}, during_freeze:true},
+    coortes:{cohorts:[{id:"ccl",name:"Convidados",regex:"^ccl",public:false}]},
+    maquinas:{ua_gate:{mode:"enforce",from_login:{regex:"^team([a-z]{6})",expect:"\\1"}}, site_lock:{enabled:true,grace:1200}, nutella_url:"https://nb.example/api"},
+    rodadas:{active:"aq", rounds:[{slug:"aq",name:"Aquecimento",kind:"warmup",start:$s,end:$e,state:"active"},{slug:"prova",name:"Prova",kind:"official",start:($e+3600),end:($e+7200),state:"pending"}]},
+    documentos:{config:{caderno_version:"v2", cover_note:"nota", published:["x"]}},
+    inscricoes:{enabled:true, window:{open:($s-86400), close:$s, late_minutes:30, team_max:40, teams:false, warmup_open:true}},
+    telao:{views:[{view:"public",label:"telão"}]},
+    classificacao:{algorithm:"sbc-fase1", config:{r1:4, region:"Brasil"}}}}')"
+call /treino/contest-create/create POST "$SPEC3" tadm ''
+ck "create unificado: sucesso"               '[[ "$(J .success)" == true ]]'
+N3="$FIX/novo3"
+ck "conf: 9 módulos ligados"                 '[[ "$(confmods "$N3")" == "sedes,maquinas,rodadas,documentos,baloes,coortes,inscricoes,telao,classificacao" ]]'
+ck "conf: BALLOONS_DURING_FREEZE/SITE_LOCK/GRACE/NUTELLA/REG_*" 'grep -q "^BALLOONS_DURING_FREEZE=1" "$N3/conf" && grep -q "^SITE_LOCK=1" "$N3/conf" && grep -q "^SITE_LOCK_GRACE=1200" "$N3/conf" && grep -q "^NUTELLABOOT_URL=" "$N3/conf" && grep -q "^REG_LATE_MINUTES=30" "$N3/conf" && grep -q "^REG_TEAM_MAX=40" "$N3/conf" && grep -q "^REG_TEAMS=n" "$N3/conf" && grep -q "^REG_WARMUP_OPEN=y" "$N3/conf"'
+ck "arquivos: regions/teams-meta/time-overrides" '[[ "$(jq -r ".[0].name" "$N3/regions.json")" == Sorocaba && "$(jq -r ".rules[0].country" "$N3/teams-meta.json")" == BR && "$(jq -r ".[0].reason" "$N3/time-overrides.json")" == queda ]]'
+ck "arquivos: balloons/cohorts/ua-gate"      '[[ "$(jq -r ".A" "$N3/balloons.json")" == FF0000 && "$(jq -r ".cohorts[0].public" "$N3/cohorts.json")" == false && "$(jq -r ".from_login.regex" "$N3/ua-gate.json")" == "^team([a-z]{6})" ]]'
+ck "arquivos: rounds (ativa=aq, prova pending)" '[[ "$(jq -r ".active" "$N3/rounds.json")" == aq && "$(jq -r ".rounds[1].state" "$N3/rounds.json")" == pending ]]'
+ck "arquivos: docs/config sem published; registrations vazio" '[[ "$(jq -r ".caderno_version" "$N3/docs/config.json")" == v2 && "$(jq -r ".published|length" "$N3/docs/config.json")" == 0 && "$(jq -r ".entries|length" "$N3/registrations.json")" == 0 ]]'
+ck "arquivos: webcast com CHAVE NOVA (mojwc_) p/ a view" '[[ "$(jq -r ".keys[0].key" "$N3/webcast.json")" == mojwc_* && "$(jq -r ".keys[0].view" "$N3/webcast.json")" == public ]]'
+ck "arquivos: classification stage draft com algorithm" '[[ "$(jq -r ".stages[0].status" "$N3/classification.json")" == draft && "$(jq -r ".stages[0].config.algorithm" "$N3/classification.json")" == sbc-fase1 && "$(jq -r ".stages[0].config.r1" "$N3/classification.json")" == 4 ]]'
+call /treino/contest-create/export GET '' tadm 'id=novo3'
+ck "export: 9 seções"                        '[[ "$(J ".modules|length")" == 9 ]]'
+ck "export: sedes/baloes/coortes com dados"  '[[ "$(J ".modules.sedes.regions[0].name")" == Sorocaba && "$(J ".modules.sedes.time_overrides|length")" == 1 && "$(J ".modules.baloes.colors.A")" == FF0000 && "$(J ".modules.baloes.during_freeze")" == true && "$(J ".modules.coortes.cohorts[0].id")" == ccl ]]'
+ck "export: maquinas com ua_gate/site_lock/nutella_url" '[[ "$(J ".modules.maquinas.ua_gate.mode")" == enforce && "$(J ".modules.maquinas.site_lock.grace")" == 1200 && "$(J ".modules.maquinas.nutella_url")" == "https://nb.example/api" ]]'
+ck "export: rodadas/documentos/inscricoes"   '[[ "$(J ".modules.rodadas.rounds|length")" == 2 && "$(J ".modules.documentos.config.caderno_version")" == v2 && "$(J ".modules.inscricoes.enabled")" == true && "$(J ".modules.inscricoes.window.team_max")" == 40 && "$(J ".modules.inscricoes.window.teams")" == false ]]'
+ck "export: telao só view/label — NENHUMA chave" '[[ "$(J ".modules.telao.views[0].view")" == public && "$(grep -c mojwc_ <<<"$BODY")" == 0 ]]'
+ck "export: classificacao algorithm+config"  '[[ "$(J ".modules.classificacao.algorithm")" == sbc-fase1 && "$(J ".modules.classificacao.config.r1")" == 4 ]]'
+ck "export: nada de regions/colors no TOPO"  '[[ "$(J "has(\"regions\") or has(\"colors\") or has(\"teams_meta\")")" == false ]]'
+EXP3="$BODY"
+echo "== duplicate desloca rodadas; template tira o que é preso a data =="
+call /treino/contest-create/duplicate POST "$(jq -cn --argjson s "$((NOW+90000))" '{from:"novo3", id:"novo3b", start:$s}')" tadm ''
+ck "duplicate: sucesso"                      '[[ "$(J .success)" == true ]]'
+ck "duplicate: rounds deslocadas pelo delta (+89400)" '[[ "$(jq -r ".rounds[0].start" "$FIX/novo3b/rounds.json")" == "$((NOW+90000))" && "$(jq -r ".rounds[1].start" "$FIX/novo3b/rounds.json")" == "$((NOW+90000+3600+3600))" ]]'
+ck "duplicate: sem time-overrides; módulos iguais" '[[ ! -e "$FIX/novo3b/time-overrides.json" && "$(confmods "$FIX/novo3b")" == "$(confmods "$N3")" ]]'
+ck "duplicate: webcast com chave DIFERENTE"  '[[ "$(jq -r ".keys[0].key" "$FIX/novo3b/webcast.json")" != "$(jq -r ".keys[0].key" "$N3/webcast.json")" ]]'
+call /treino/contest-create/templates POST '{"op":"save","name":"t3","from_contest":"novo3"}' tadm ''
+ck "template salvo"                          '[[ "$(J .success)" == true ]]'
+call /treino/contest-create/templates GET '' tadm 'name=t3'
+ck "template: modules presente, sem rounds/time_overrides/active" '[[ "$(J ".template.spec.modules|length")" == 9 && "$(J ".template.spec.modules.rodadas|has(\"rounds\")")" == false && "$(J ".template.spec.modules.sedes|has(\"time_overrides\")")" == false && "$(J ".template.spec.modules.baloes.colors.A")" == FF0000 ]]'
+call /treino/contest-create/create POST "$(jq -cn '{modules:{sedes:"sim"}, id:"ruim", name:"Ruim", mode:"icpc", end:9999999999, allow_empty:true}')" tadm ''
+ck "seção com tipo errado => 422 modules_spec_invalid" '[[ "$OUT" == *"Status: 422"* && "$(J .error.code)" == modules_spec_invalid ]]'
+ck "422 não deixa staging"                   '[[ -z "$(ls -d "$FIX"/.staging-ruim-* 2>/dev/null)" && ! -e "$FIX/ruim" ]]'
+echo "== classificação: catálogo de algoritmos =="
+printf 'CONTEST=novo3\nLOGIN=novo3.admin\nLOGINAT=1\n' > "$SESS/adm-novo3"
+fx_user "$N3" novo3.admin p Admin 2>/dev/null || true
+call /contest/admin/classify GET '' adm-novo3 'contest=novo3'
+ck "GET classify: algorithms[] com sbc-fase1" '[[ "$(J ".algorithms[0].id")" == sbc-fase1 && "$(J ".stages[0].config.algorithm")" == sbc-fase1 ]]'
+call /contest/admin/classify POST '{"action":"preview","config":{"algorithm":"pda-2030"}}' adm-novo3 'contest=novo3'
+ck "preview com algoritmo desconhecido => 422 algorithm_invalid" '[[ "$OUT" == *"Status: 422"* && "$(J .error.code)" == algorithm_invalid ]]'
+
 echo "== detector =="
 D="$ROOT/bin/contest-modules-detect.sh"
 out="$(CONTESTSDIR="$FIX" RUNDIR="$RUN" bash "$D" 2>"$FIX/det.err")"

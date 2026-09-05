@@ -78,6 +78,26 @@ cc_settings_conf_lines(){
                (if ((.regions // []) | length) > 0 or ((.teams_meta // .teams_meta_rules // []) | length) > 0 then "sedes" else empty end),
                (if ((.colors // {}) | length) > 0 then "baloes" else empty end) ] | unique | join(",")' <<<"$spec" 2>/dev/null)"
   v="$(mod_normalize "$v")"; [[ -n "$v" ]] && printf 'CONTEST_MODULES=%q\n' "$v"
+  # seções de módulo que viram VARIÁVEL de conf (o resto vira arquivo em cc_apply_modules_spec).
+  # Compat: `balloons_during_freeze` no topo (idioma do settings) também vale.
+  v="$(jq -r '(.modules.baloes.during_freeze // .balloons_during_freeze) == true' <<<"$spec" 2>/dev/null)"
+  [[ "$v" == true ]] && printf 'BALLOONS_DURING_FREEZE=%q\n' 1
+  v="$(jq -r '.modules.maquinas.site_lock.enabled == true' <<<"$spec" 2>/dev/null)"
+  if [[ "$v" == true ]]; then
+    printf 'SITE_LOCK=%q\n' 1
+    v="$(jq -r '.modules.maquinas.site_lock.grace // empty' <<<"$spec" 2>/dev/null)"
+    [[ "$v" =~ ^[0-9]+$ ]] && (( v <= 86400 )) && printf 'SITE_LOCK_GRACE=%q\n' "$v"
+  fi
+  v="$(jq -r '.modules.maquinas.nutella_url // ""' <<<"$spec" 2>/dev/null)"; v="${v//[$'\n\r']/}"
+  [[ "$v" =~ ^https?://[A-Za-z0-9._:/-]+$ ]] && printf 'NUTELLABOOT_URL=%q\n' "$v"
+  # janela de inscrição (mesmas chaves que admin/registrations grava)
+  local k key
+  for k in open:REG_OPEN close:REG_CLOSE late_minutes:REG_LATE_MINUTES team_max:REG_TEAM_MAX; do
+    key="${k#*:}"; v="$(jq -r ".modules.inscricoes.window.${k%%:*} // empty" <<<"$spec" 2>/dev/null)"
+    [[ "$v" =~ ^[0-9]+$ ]] && printf '%s=%q\n' "$key" "$v"
+  done
+  v="$(jq -r '.modules.inscricoes.window.teams' <<<"$spec" 2>/dev/null)";       [[ "$v" == false ]] && printf 'REG_TEAMS=%q\n' n
+  v="$(jq -r '.modules.inscricoes.window.warmup_open' <<<"$spec" 2>/dev/null)"; [[ "$v" == true ]] && printf 'REG_WARMUP_OPEN=%q\n' y
   v="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; v="${v//$'\n'/}"
   [[ -n "$v" ]] && printf 'LOGIN_UA_SUBSTRING=%q\n' "$v"
   v="$(jq -r '(.score_full_users // []) | map(select(type=="string" and test("^[A-Za-z0-9._@#+-]+$"))) | unique | join(" ")' <<<"$spec" 2>/dev/null)"
@@ -337,13 +357,16 @@ cc_create(){
   printf '%s\t%s\t%s\n' "$creator" "$EPOCHSECONDS" "$mode" > "$stg/created-by"
 
   # configs visuais opcionais (mesmo formato que o placar lê; reeditáveis depois pelo admin do contest)
+  # (spec UNIFICADO: a seção do módulo vence; `colors/regions/teams_meta` no topo = compat com
+  # templates/exports antigos e com o spec sem módulos)
   local colors_j regions_j teams_j
-  colors_j="$(jq -c '.colors // empty' <<<"$spec" 2>/dev/null)"
-  regions_j="$(jq -c '.regions // empty' <<<"$spec" 2>/dev/null)"
-  teams_j="$(jq -c '.teams_meta // empty' <<<"$spec" 2>/dev/null)"
+  colors_j="$(jq -c '.modules.baloes.colors // .colors // empty' <<<"$spec" 2>/dev/null)"
+  regions_j="$(jq -c '.modules.sedes.regions // .regions // empty' <<<"$spec" 2>/dev/null)"
+  teams_j="$(jq -c '.modules.sedes.teams_meta // .teams_meta // empty' <<<"$spec" 2>/dev/null)"
   [[ -n "$colors_j"  && "$colors_j"  != null ]] && printf '%s' "$colors_j"  > "$stg/balloons.json"
   [[ -n "$regions_j" && "$regions_j" != null ]] && printf '%s' "$regions_j" > "$stg/regions.json"
   [[ -n "$teams_j"   && "$teams_j"   != null ]] && jq -cn --argjson r "$teams_j" '{rules:$r}' > "$stg/teams-meta.json"
+  cc_apply_modules_spec "$spec" "$stg" "$creator" || { rm -rf "$stg"; fail 422 "Seção de módulo inválida no spec (${CC_MOD_ERR:-modules})" "modules_spec_invalid"; }
 
   mv -T "$stg" "$CONTESTSDIR/$id" 2>/dev/null || { rm -rf "$stg"; fail 500 "Falha ao publicar o contest (id pode ter sido criado em paralelo)" "publish_fail"; }
 
@@ -357,6 +380,140 @@ cc_create(){
       users_from:(if $shared=="" then null else $shared end),
       users:$users, users_count:($users|length),
       url:("/contest/?c="+$id), scoreboard_url:("/contest/score/?c="+$id)}')"
+}
+
+# --- SPEC UNIFICADO: seção `modules` ------------------------------------------------------------
+# spec.modules = { <id>: true | {on?:bool, …dados reeditáveis do módulo…} }. A presença da seção
+# liga o módulo (salvo on:false); os DADOS são gravados pelos MESMOS arquivos que os painéis
+# editam depois. Segredos (chave do nutellaboot, chaves do webcast) NUNCA entram no spec — o
+# export não os emite e o create não os aceita. Formato por módulo (export ⇄ create):
+#   sedes         {regions:[…], teams_meta:[{regex,country,school,school_full}], time_overrides:[…]}
+#   baloes        {colors:{A:"RRGGBB",…}, during_freeze:bool}
+#   coortes       {cohorts:[{id,name,regex,public,unranked,ranking,default,sees}]}
+#   maquinas      {ua_gate:{…ug_get…}, site_lock:{enabled,grace}, nutella_url}
+#   rodadas       {active:slug, rounds:[{slug,name,kind,start,end,freeze,problems,state}]}  (arquivadas nunca)
+#   documentos    {config:{caderno_version,cover_note,errata}}                (published: nunca)
+#   inscricoes    {enabled:bool, window:{open,close,late_minutes,team_max,teams,warmup_open}}
+#   telao         {views:[{view,label}]}   (create gera CHAVES NOVAS p/ cada view)
+#   classificacao {algorithm, config:{…regras/vagas…}}          (stage draft, sem times)
+# cc_apply_modules_spec <spec> <stg> <creator> — grava as seções em ARQUIVO no staging. rc 1 +
+# CC_MOD_ERR quando uma seção tem o tipo errado (o chamador vira 422 modules_spec_invalid).
+cc_apply_modules_spec(){
+  local spec="$1" stg="$2" creator="$3" v
+  CC_MOD_ERR=""
+  jq -e '(.modules // {}) | type == "object"' >/dev/null 2>&1 <<<"$spec" || { CC_MOD_ERR="modules não é objeto"; return 1; }
+  jq -e '(.modules // {}) | all(.[]; type == "boolean" or type == "object")' >/dev/null 2>&1 <<<"$spec" \
+    || { CC_MOD_ERR="cada módulo é true/false ou objeto {on?, …seção…}"; return 1; }
+  # cada seção: (caminho jq, tipo esperado, destino)
+  _sec(){ # <jq-path> <tipo> -> ecoa o valor compacto ou vazio; rc 1 se tipo errado
+    local val; val="$(jq -c "$1 // empty" <<<"$spec" 2>/dev/null)"
+    [[ -n "$val" ]] || return 0
+    jq -e "type == \"$2\"" >/dev/null 2>&1 <<<"$val" || { CC_MOD_ERR="$1 deve ser $2"; return 1; }
+    printf '%s' "$val"
+  }
+  # sedes.time_overrides -> time-overrides.json (regras {regex,end,reason})
+  v="$(_sec '.modules.sedes.time_overrides' array)" || return 1
+  [[ -n "$v" ]] && jq -c '[ .[] | select(type=="object" and (.regex // "") != "" and ((.end|tonumber?) // 0) > 0) | {regex, end:(.end|tonumber), reason:((.reason // "")|tostring)} ]' <<<"$v" > "$stg/time-overrides.json"
+  # coortes.cohorts -> cohorts.json (normalizado como ch_get lê)
+  v="$(_sec '.modules.coortes.cohorts' array)" || return 1
+  [[ -n "$v" ]] && jq -c '{version:1, results_released:false,
+      cohorts:[ .[] | select(type=="object" and (.id // "") != "") | {id, name:(.name // .id), regex:(.regex // ""),
+        public:(.public != false), unranked:(.unranked == true), ranking:(.ranking == true), default:(.default == true), sees:(.sees // [])} ]}' <<<"$v" > "$stg/cohorts.json"
+  # maquinas.ua_gate -> ua-gate.json (ug_get normaliza na leitura)
+  v="$(_sec '.modules.maquinas.ua_gate' object)" || return 1
+  [[ -n "$v" ]] && printf '%s\n' "$v" > "$stg/ua-gate.json"
+  # rodadas -> rounds.json (o PLANO; rd_sync_active espelha a ativa do conf na 1ª leitura)
+  v="$(_sec '.modules.rodadas.rounds' array)" || return 1
+  if [[ -n "$v" ]]; then
+    local act; act="$(jq -r '.modules.rodadas.active // ""' <<<"$spec")"
+    jq -c --arg a "$act" '{version:1, active:$a,
+      rounds:[ .[] | select(type=="object" and ((.slug // "") | test("^[a-z0-9][a-z0-9_-]{0,31}$")) and .state != "archived")
+               | del(.archived, .archived_at) | . + {state:(if .slug == $a then "active" else (.state // "pending") end)} ]}' <<<"$v" > "$stg/rounds.json"
+  fi
+  # documentos.config -> docs/config.json (published sempre vazio: publicação é estado do evento)
+  v="$(_sec '.modules.documentos.config' object)" || return 1
+  if [[ -n "$v" ]]; then
+    mkdir -p "$stg/docs"
+    jq -c '{caderno_version:((.caderno_version // "v1.0")|tostring), cover_note:((.cover_note // "")|tostring), errata:((.errata // "")|tostring), published:[]}' <<<"$v" > "$stg/docs/config.json"
+  fi
+  # inscricoes.enabled -> registrations.json vazio (existir = ligado, doutrina do cohorts.json)
+  v="$(jq -r '.modules.inscricoes.enabled == true' <<<"$spec" 2>/dev/null)"
+  [[ "$v" == true ]] && printf '{"version":1,"teams":{},"entries":{}}\n' > "$stg/registrations.json"
+  # telao.views -> webcast.json com CHAVES NOVAS (uma por view; a chave antiga nunca viaja)
+  v="$(_sec '.modules.telao.views' array)" || return 1
+  if [[ -n "$v" ]]; then
+    declare -F wc_newkey >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/webcast.sh"   # não está no prelúdio
+    local keys='[]' vw lb k
+    while IFS=$'\t' read -r vw lb; do
+      [[ -n "$vw" ]] || continue
+      k="$(wc_newkey)"
+      keys="$(jq -c --arg k "$k" --arg v "$vw" --arg l "$lb" --arg by "$creator" --argjson t "$EPOCHSECONDS" \
+        '. + [{id:($k[6:14]), key:$k, view:$v, label:$l, created_by:$by, created_at:$t, revoked_at:0, fetches:0, last_at:0, last_ip:""}]' <<<"$keys")"
+    done < <(jq -r '.[] | select(type=="object") | [(.view // "public"), (.label // "")] | @tsv' <<<"$v")
+    ( umask 077; jq -cn --argjson k "$keys" '{version:1, keys:$k}' > "$stg/webcast.json" )
+  fi
+  # classificacao -> classification.json com o stage final-br em RASCUNHO (config, sem times)
+  v="$(_sec '.modules.classificacao.config' object)" || return 1
+  if [[ -n "$v" ]]; then
+    local alg; alg="$(jq -r '.modules.classificacao.algorithm // .modules.classificacao.config.algorithm // "sbc-fase1"' <<<"$spec")"
+    [[ "$alg" =~ ^[a-z0-9-]{1,32}$ ]] || { CC_MOD_ERR="classificacao.algorithm inválido"; return 1; }
+    jq -c --arg a "$alg" '{version:1, stages:[{id:"final-br", status:"draft", teams:{}, config:(. + {algorithm:$a})}]}' <<<"$v" > "$stg/classification.json"
+  fi
+  return 0
+}
+
+# cc_modules_spec <cid> -> objeto `modules` do spec (só módulos LIGADOS; dados reeditáveis; sem
+# segredo). Lê os arquivos direto (as libs normalizam na leitura; aqui basta o que é reeditável).
+cc_modules_spec(){
+  local cid="$1" cdir="$CONTESTSDIR/$1" out='{}' m sec
+  local mods; mods="$(mod_raw "$cid")"
+  [[ -n "$mods" ]] || { printf '{}'; return 0; }
+  for m in ${mods//,/ }; do
+    sec='{"on":true}'
+    case "$m" in
+      sedes)
+        [[ -s "$cdir/regions.json" ]] && jq -e 'type=="array"' "$cdir/regions.json" >/dev/null 2>&1 \
+          && sec="$(jq -c --slurpfile r "$cdir/regions.json" '.regions=$r[0]' <<<"$sec")"
+        [[ -s "$cdir/teams-meta.json" ]] && sec="$(jq -c --slurpfile t "$cdir/teams-meta.json" '.teams_meta=($t[0].rules // (if ($t[0]|type)=="array" then $t[0] else [] end))' <<<"$sec" 2>/dev/null || printf '%s' "$sec")"
+        [[ -s "$cdir/time-overrides.json" ]] && jq -e 'type=="array" and length>0' "$cdir/time-overrides.json" >/dev/null 2>&1 \
+          && sec="$(jq -c --slurpfile o "$cdir/time-overrides.json" '.time_overrides=$o[0]' <<<"$sec")";;
+      baloes)
+        [[ -s "$cdir/balloons.json" ]] && jq -e 'type=="object"' "$cdir/balloons.json" >/dev/null 2>&1 \
+          && sec="$(jq -c --slurpfile c "$cdir/balloons.json" '.colors=$c[0]' <<<"$sec")"
+        [[ "$(conf_value "$cid" BALLOONS_DURING_FREEZE)" == 1 ]] && sec="$(jq -c '.during_freeze=true' <<<"$sec")";;
+      coortes)
+        [[ -s "$cdir/cohorts.json" ]] && sec="$(jq -c --slurpfile c "$cdir/cohorts.json" '.cohorts=[ ($c[0].cohorts // [])[] | select((.id // "") != "") | {id, name:(.name // .id), regex:(.regex // ""), public:(.public != false), unranked:(.unranked == true), ranking:(.ranking == true), default:(.default == true), sees:(.sees // [])} ]' <<<"$sec" 2>/dev/null || printf '%s' "$sec")";;
+      maquinas)
+        [[ -s "$cdir/ua-gate.json" ]] && jq -e 'type=="object"' "$cdir/ua-gate.json" >/dev/null 2>&1 \
+          && sec="$(jq -c --slurpfile g "$cdir/ua-gate.json" '.ua_gate=$g[0]' <<<"$sec")"
+        local slv slg; slv="$(conf_value "$cid" SITE_LOCK)"; slg="$(conf_value "$cid" SITE_LOCK_GRACE)"
+        [[ "$slv" == 1 || "$slv" == y || "$slv" == true ]] && sec="$(jq -c --argjson g "${slg:-3600}" '.site_lock={enabled:true, grace:$g}' <<<"$sec" 2>/dev/null || jq -c '.site_lock={enabled:true, grace:3600}' <<<"$sec")"
+        local nu; nu="$(conf_value "$cid" NUTELLABOOT_URL)"; nu="${nu//\\/}"
+        [[ -n "$nu" ]] && sec="$(jq -c --arg u "$nu" '.nutella_url=$u' <<<"$sec")";;
+      rodadas)
+        [[ -s "$cdir/rounds.json" ]] && sec="$(jq -c --slurpfile r "$cdir/rounds.json" '. + {active:($r[0].active // ""), rounds:[ ($r[0].rounds // [])[] | select(.state != "archived") | del(.archived, .archived_at) ]}' <<<"$sec" 2>/dev/null || printf '%s' "$sec")";;
+      documentos)
+        [[ -s "$cdir/docs/config.json" ]] && sec="$(jq -c --slurpfile d "$cdir/docs/config.json" '.config=($d[0] | {caderno_version, cover_note, errata} | with_entries(select(.value != null)))' <<<"$sec" 2>/dev/null || printf '%s' "$sec")";;
+      inscricoes)
+        local ro rc rl rm rt rw
+        ro="$(conf_value "$cid" REG_OPEN)"; rc="$(conf_value "$cid" REG_CLOSE)"; rl="$(conf_value "$cid" REG_LATE_MINUTES)"
+        rm="$(conf_value "$cid" REG_TEAM_MAX)"; rt="$(conf_value "$cid" REG_TEAMS)"; rw="$(conf_value "$cid" REG_WARMUP_OPEN)"
+        sec="$(jq -c --arg ro "$ro" --arg rc "$rc" --arg rl "$rl" --arg rm "$rm" --arg rt "$rt" --arg rw "$rw" --argjson en "$([[ -f "$cdir/registrations.json" ]] && echo true || echo false)" '
+          .enabled=$en | .window=({}
+            + (if ($ro|test("^[0-9]+$")) then {open:($ro|tonumber)} else {} end)
+            + (if ($rc|test("^[0-9]+$")) then {close:($rc|tonumber)} else {} end)
+            + (if ($rl|test("^[0-9]+$")) then {late_minutes:($rl|tonumber)} else {} end)
+            + (if ($rm|test("^[0-9]+$")) then {team_max:($rm|tonumber)} else {} end)
+            + (if $rt == "n" then {teams:false} else {} end)
+            + (if $rw == "y" then {warmup_open:true} else {} end))' <<<"$sec")";;
+      telao)
+        [[ -s "$cdir/webcast.json" ]] && sec="$(jq -c --slurpfile w "$cdir/webcast.json" '.views=[ ($w[0].keys // [])[] | select((.revoked_at // 0) == 0 and (.key // "") != "") | {view:(.view // "public"), label:(.label // "")} ]' <<<"$sec" 2>/dev/null || printf '%s' "$sec")";;
+      classificacao)
+        [[ -s "$cdir/classification.json" ]] && sec="$(jq -c --slurpfile c "$cdir/classification.json" '(first(($c[0].stages // [])[] | select(.id=="final-br")) // {}) as $st | .algorithm=($st.config.algorithm // "sbc-fase1") | .config=(($st.config // {}) | del(.algorithm))' <<<"$sec" 2>/dev/null || printf '%s' "$sec")";;
+    esac
+    out="$(jq -c --arg m "$m" --argjson s "$sec" '.[$m]=$s' <<<"$out")"
+  done
+  printf '%s' "$out"
 }
 
 # cc_problem_metrics_file — caminho de um cache {id:{total,accepted,solvers,acceptance}} por
@@ -531,7 +688,8 @@ cc_tpl_relativize(){
     + (if $st > 0 and $en > $st then {duration:($en-$st)} else {} end)
     + (if $ls > 0 and $st > $ls then {login_lead:($st-$ls)} else {} end)
     + (if $fz > 0 and $en > $fz then {freeze_before_end:($en-$fz)} else {} end)
-    + (if $kp == "1" then {problems:((.problems // []) | map(del(.statement_b64,.statement_pdf_b64,.statement_file,.statement_pdf_file)))} else {} end)'
+    + (if $kp == "1" then {problems:((.problems // []) | map(del(.statement_b64,.statement_pdf_b64,.statement_file,.statement_pdf_file)))} else {} end)
+    | (if (.modules|type) == "object" then .modules |= with_entries(.value |= (if type == "object" then del(.time_overrides, .rounds, .active) else . end)) else . end)'
 }
 
 # cc_export_spec <cid> <statements:auto|all|none> — ecoa o SPEC JSON (formato aceito pelo
@@ -561,9 +719,8 @@ cc_export_spec(){
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
       --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
       --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" \
-      --arg jdg "$CONTEST_JUDGES" --arg mods "$CONTEST_MODULES" '
+      --arg jdg "$CONTEST_JUDGES" '
       {name:$name, mode:(if $mode=="" then "icpc" else $mode end)}
-      + (if $mods != "" then {modules:($mods | split(",") | map(select(length>0)) | map({key:., value:true}) | from_entries)} else {} end)
       + (if $prio != "" then {priority:$prio} else {} end)
       + (if ($start|tonumber?) then {start:($start|tonumber)} else {} end)
       + (if ($end|tonumber?) then {end:($end|tonumber)} else {} end)
@@ -590,6 +747,9 @@ cc_export_spec(){
       + (if $jdg != "" then {judges:($jdg|split(" ")|map(select(length>0)))} else {} end)'
   )"
   [[ -n "$confjson" ]] || return 1
+  # seção `modules` (spec unificado): só módulos ligados, dados reeditáveis, nunca segredo
+  local modsj; modsj="$(cc_modules_spec "$cid")"
+  [[ -n "$modsj" && "$modsj" != "{}" ]] && confjson="$(jq -c --argjson m "$modsj" '. + {modules:$m}' <<<"$confjson")"
 
   local plf='{}'
   [[ -f "$cdir/problem-langs.json" ]] && plf="$(jq -c . "$cdir/problem-langs.json" 2>/dev/null)"
