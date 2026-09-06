@@ -151,4 +151,37 @@ ck "apply audita"                            'grep -q "	modules-detect	" "$E/var
 out2="$(CONTESTSDIR="$FIX" RUNDIR="$RUN" bash "$D" --apply 2>&1 >/dev/null)"
 ck "2º apply: 0 com módulo novo (idempotente)" '[[ "$out2" == *"com módulo novo: 0"* ]]'
 
-echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))
+echo ""; echo "== gravar dado de módulo pela API LIGA o módulo (mod_enable); desligar segue manual =="
+L="$FIX/lista"
+has_mod(){ [[ ",$(confmods "$1")," == *",$2,"* ]]; }
+ck "lista começa sem módulo"                 '[[ -z "$(confmods "$L")" ]]'
+call /contest/admin/rounds POST "$(jq -cn --argjson s "$((NOW+100))" --argjson e "$((NOW+200))" '{action:"add",slug:"aq",name:"Aq",start:$s,end:$e,kind:"warmup"}')" adm-lista 'contest=lista'
+ck "rounds add => rodadas"                   'has_mod "$L" rodadas'
+call /contest/admin/cohorts POST '{"action":"add","id":"ccl","name":"CCL","regex":"^ccl","public":false}' adm-lista 'contest=lista'
+ck "cohorts add => coortes"                  'has_mod "$L" coortes'
+call /contest/admin/ua-gate POST '{"action":"set","mode":"off"}' adm-lista 'contest=lista'
+ck "ua-gate mode=off NÃO liga maquinas"      '! has_mod "$L" maquinas'
+call /contest/admin/ua-gate POST '{"action":"set","mode":"enforce","from_login":{"regex":"^team([a-z]{6})","expect":"\\1"}}' adm-lista 'contest=lista'
+ck "ua-gate enforce => maquinas"             'has_mod "$L" maquinas'
+call /contest/admin/time-overrides POST "$(jq -cn --argjson e "$((FUT+600))" '{rules:[{regex:"^alice",end:$e,reason:"x"}]}')" adm-lista 'contest=lista'
+ck "time-overrides => sedes"                 'has_mod "$L" sedes'
+call /contest/admin/config POST '{"colors":{"A":"FF0000"}}' adm-lista 'contest=lista'
+ck "config colors => baloes"                 'has_mod "$L" baloes'
+call /contest/admin/docs POST '{"action":"config","caderno_version":"v3"}' adm-lista 'contest=lista'
+ck "docs config => documentos"               'has_mod "$L" documentos'
+call /contest/admin/registrations POST '{"action":"enable"}' adm-lista 'contest=lista'
+ck "registrations enable => inscricoes"      'has_mod "$L" inscricoes'
+call /contest/admin/classify POST '{"action":"add","login":"alice"}' adm-lista 'contest=lista'
+ck "classify add => classificacao"           'has_mod "$L" classificacao'
+call /contest/animeitor/webcast POST '{"action":"create","view":"public","label":"telão"}' adm-lista 'contest=lista'
+ck "webcast create => telao"                 'has_mod "$L" telao'
+ck "os 9 ligados, na ordem do catálogo"      '[[ "$(confmods "$L")" == "sedes,maquinas,rodadas,documentos,baloes,coortes,inscricoes,telao,classificacao" ]]'
+ck "audit modules-auto registra o que ligou" 'grep -q "	modules-auto	on=rodadas" "$L/var/admin-audit.log" && grep -q "	modules-auto	on=telao" "$L/var/admin-audit.log"'
+call /contest/admin/modules POST '{"off":["rodadas"]}' adm-lista 'contest=lista'
+call /contest/admin/rounds POST '{"action":"set","slug":"aq","name":"Aq2"}' adm-lista 'contest=lista'
+ck "editar rodada religa rodadas (desligar é manual, usar religa)" 'has_mod "$L" rodadas'
+call /contest/admin/modules POST '{"off":["rodadas"]}' adm-lista 'contest=lista'
+call /contest/admin/rounds GET '' adm-lista 'contest=lista'
+ck "GET não liga nada (só escrita liga)"     '! has_mod "$L" rodadas && [[ "$(J .success)" == true ]]'
+
+echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

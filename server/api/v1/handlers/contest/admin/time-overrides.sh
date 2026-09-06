@@ -48,5 +48,6 @@ done < <(jq -r '.[].regex' <<<"$clean")
 tmp="$tf.tmp"
 printf '%s\n' "$clean" > "$tmp" && mv -f "$tmp" "$tf"
 n="$(jq -r 'length' <<<"$clean")"
+if (( n > 0 )); then mod_enable "$contest" sedes; fi   # prorrogação por sede/grupo = módulo sedes
 audit_log_to "$contest" time-overrides "regras=$n $clean"
 ok_json '{saved:true, rules:$r}' --argjson r "$clean"

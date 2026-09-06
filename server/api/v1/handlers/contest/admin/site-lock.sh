@@ -39,7 +39,7 @@ action="$(jq -r '.action // "set"' <<<"$body")"
 source "$_DIR/lib/users.sh"; source "$_DIR/lib/contest-create.sh"
 case "$action" in
   set)
-    if jq -e '.enabled == true' <<<"$body" >/dev/null 2>&1; then cc_set_conf_var "$contest" SITE_LOCK 1
+    if jq -e '.enabled == true' <<<"$body" >/dev/null 2>&1; then cc_set_conf_var "$contest" SITE_LOCK 1; mod_enable "$contest" maquinas
     else cc_set_conf_var "$contest" SITE_LOCK 0; fi
     g="$(jq -r '.grace // empty' <<<"$body")"
     if [[ -n "$g" ]]; then [[ "$g" =~ ^[0-9]+$ ]] && (( g <= 86400 )) || fail 422 "grace inválida (0..86400 s)" "grace_invalid"; cc_set_conf_var "$contest" SITE_LOCK_GRACE "$g"; fi

@@ -108,6 +108,7 @@ case "$action" in
       || j="$(jq -c '.cohorts = ([.cohorts[0] + {default:true}] + .cohorts[1:])' <<<"$j")"
     ch_save "$contest" "$j"
     touch "$cdir/var/.score-dirty" 2>/dev/null || true   # o placar depende das coortes
+    mod_enable "$contest" coortes
     audit_log_to "$contest" "cohorts-$action" "id=$id"
     ok_json '{saved:true, cohorts:$c}' --argjson c "$(jq -c '.cohorts' <<<"$j")"
     ;;
@@ -142,6 +143,7 @@ case "$action" in
         || fail 500 "falha ao gravar" "write_fail"
     fi
     touch "$cdir/var/.score-dirty" 2>/dev/null || true
+    mod_enable "$contest" coortes
     audit_log_to "$contest" cohorts-assign "login=$login cohort=${co:-(regra)}"
     ok_json '{saved:true, login:$l, cohort:$c}' --arg l "$login" --arg c "$co"
     ;;

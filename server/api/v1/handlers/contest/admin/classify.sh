@@ -77,6 +77,7 @@ case "$action" in
                         value:{via, sede, place, total, detail, at:(now|floor)}}) | from_entries))}' \
       --slurpfile res "$W/out.json" --arg cfgj "$cfg" \
       --arg nm "$name" --arg vn "$venue" --arg wh "$when" --arg who "$SESSION_LOGIN"
+    mod_enable "$contest" classificacao
     audit_log_to "$contest" classify "apply stage=$stage n=$(jq -r '.total' "$W/out.json") by=$SESSION_LOGIN"
     ok_json_slurp '{applied:true, stage:$s, result:$f[0]}' f "$(cat "$W/out.json")" --arg s "$stage"
     ;;
@@ -93,6 +94,7 @@ case "$action" in
     user_exists "$contest" "$login" || fail 404 "Time não encontrado" "notfound"
     _stage_upsert '.teams[$l] = {via:"comite", note:$nt, at:(now|floor), by:$who}' \
       --arg l "$login" --arg nt "$note" --arg who "$SESSION_LOGIN"
+    mod_enable "$contest" classificacao
     audit_log_to "$contest" classify "add stage=$stage login=$login note=$note by=$SESSION_LOGIN"
     ok_json '{added:$l, stage:$s}' --arg l "$login" --arg s "$stage"
     ;;

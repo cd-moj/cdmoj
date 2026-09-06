@@ -5855,7 +5855,7 @@
       },
       "post": {
         "tags": ["contest-admin"],
-        "summary": "Liga/desliga módulos (CONTEST_MODULES no conf). Desligar NUNCA apaga dado",
+        "summary": "Liga/desliga módulos (CONTEST_MODULES no conf). Desligar NUNCA apaga dado. Gravar o dado de um módulo por qualquer rota da API (rounds, cohorts, ua-gate, docs, registrations, classify, config, time-overrides, webcast, team-assets) LIGA o módulo sozinho (auditado modules-auto)",
         "parameters": [{"$ref": "#/components/parameters/contest"}],
         "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"on": {"type": "array", "items": {"type": "string"}}, "off": {"type": "array", "items": {"type": "string"}}}}}}},
         "security": [{"bearerAuth": []}],

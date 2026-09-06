@@ -59,6 +59,7 @@ case "$action" in
         '.rounds = ((.rounds // []) + [{slug:$s, name:$n, kind:$k, start:$st, end:$en, freeze:$fz,
                                         state:"pending", published:false, problems:[]}])' <<<"$j")"
     rd_save "$contest" "$j"
+    mod_enable "$contest" rodadas
     audit_log_to "$contest" round-add "slug=$slug kind=$kd start=$st end=$en"
     ok_json '{saved:true, rounds:$r}' --argjson r "$(jq -c '.rounds' <<<"$j")"
     ;;
@@ -103,6 +104,7 @@ case "$action" in
     # a rodada ATIVA vive no conf: aplica na hora, a partir do OBJETO editado (passar pelo slug
     # releria via rd_sync_active, que re-espelha a janela do conf por cima — edição no-op)
     [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]] && { rd_apply_obj "$contest" "$cur" || fail 500 "Falha ao gravar no conf" "conf_write"; }
+    mod_enable "$contest" rodadas
     audit_log_to "$contest" round-set "slug=$slug"
     ok_json '{saved:true, round:$r}' --argjson r "$cur"
     ;;
@@ -132,6 +134,7 @@ case "$action" in
     rd_save "$contest" "$j"
     cur="$(jq -c --argjson p "$probs" '. + {problems:$p}' <<<"$cur")"
     [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]] && { rd_apply_obj "$contest" "$cur" || fail 422 "Falha ao gravar PROBS" "probs_write"; }
+    mod_enable "$contest" rodadas
     audit_log_to "$contest" round-problems "slug=$slug n=$(jq 'length' <<<"$probs")"
     ok_json '{saved:true, n:$n}' --argjson n "$(jq 'length' <<<"$probs")"
     ;;

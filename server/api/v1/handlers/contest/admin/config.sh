@@ -33,15 +33,15 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 
 if jq -e 'has("colors")' >/dev/null 2>&1 <<<"$body"; then
   c="$(jq -c '.colors' <<<"$body")"
-  if [[ "$(jq 'length' <<<"$c" 2>/dev/null)" -gt 0 ]]; then printf '%s' "$c" > "$cdir/balloons.json"; else rm -f "$cdir/balloons.json"; fi
+  if [[ "$(jq 'length' <<<"$c" 2>/dev/null)" -gt 0 ]]; then printf '%s' "$c" > "$cdir/balloons.json"; mod_enable "$contest" baloes; else rm -f "$cdir/balloons.json"; fi
 fi
 if jq -e 'has("regions")' >/dev/null 2>&1 <<<"$body"; then
   r="$(jq -c '.regions' <<<"$body")"
-  if [[ "$(jq 'length' <<<"$r" 2>/dev/null)" -gt 0 ]]; then printf '%s' "$r" > "$cdir/regions.json"; else rm -f "$cdir/regions.json"; fi
+  if [[ "$(jq 'length' <<<"$r" 2>/dev/null)" -gt 0 ]]; then printf '%s' "$r" > "$cdir/regions.json"; mod_enable "$contest" sedes; else rm -f "$cdir/regions.json"; fi
 fi
 if jq -e 'has("teams_meta")' >/dev/null 2>&1 <<<"$body"; then
   t="$(jq -c '.teams_meta' <<<"$body")"
-  if [[ "$(jq 'length' <<<"$t" 2>/dev/null)" -gt 0 ]]; then jq -cn --argjson r "$t" '{rules:$r}' > "$cdir/teams-meta.json"; else rm -f "$cdir/teams-meta.json"; fi
+  if [[ "$(jq 'length' <<<"$t" 2>/dev/null)" -gt 0 ]]; then jq -cn --argjson r "$t" '{rules:$r}' > "$cdir/teams-meta.json"; mod_enable "$contest" sedes; else rm -f "$cdir/teams-meta.json"; fi
 fi
 if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
   bl="$(jq -r '.basic.locale // empty' <<<"$body")"; [[ "$bl" =~ ^(pt|en)$ ]] && cc_set_conf_var "$contest" LOCALE "$bl"

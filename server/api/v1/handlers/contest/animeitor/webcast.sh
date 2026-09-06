@@ -41,6 +41,7 @@ if [[ "${REQUEST_METHOD:-GET}" == POST ]]; then
       label="$(jq -r '.label // ""' <<<"$body" | tr -d '\n\r\t' | cut -c1-60)"
       k="$(wc_create "$contest" "$view" "$label" "$SESSION_LOGIN")" \
         || fail 500 "Não consegui criar a chave" "create_failed"
+      mod_enable "$contest" telao
       audit_log_to "$contest" webcast-key "create view=$view id=${k:6:8} by=$SESSION_LOGIN"
       ok_json '{created:true, key:$k, view:$v}' --arg k "$k" --arg v "$view"
       exit 0;;

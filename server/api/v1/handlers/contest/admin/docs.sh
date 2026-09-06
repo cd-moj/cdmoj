@@ -94,6 +94,7 @@ case "$action" in
         [[ -s "$D/$fn" ]] || rm -f "$D/$fn"       # vazio = volta ao default embarcado
       fi
     done
+    mod_enable "$contest" documentos
     audit_log_to "$contest" docs-config ""
     ok_json '{saved:true}'
     ;;
@@ -121,6 +122,7 @@ case "$action" in
     [[ "$(file -b --mime-type "$f.tmp" 2>/dev/null)" == application/pdf ]] \
       || { rm -f "$f.tmp"; fail 400 "O arquivo enviado não é um PDF" "pdf_invalid"; }
     mv -f "$f.tmp" "$f"
+    mod_enable "$contest" documentos
     audit_log_to "$contest" docs-cover "$what lang=$lang bytes=$(stat -c%s "$f" 2>/dev/null)"
     ok_json '{saved:true, bytes:$b}' --argjson b "$(stat -c%s "$f" 2>/dev/null || echo 0)"
     ;;
@@ -142,6 +144,7 @@ case "$action" in
         fi
       done
     done
+    mod_enable "$contest" documentos
     audit_log_to "$contest" docs-generate "types=${types[*]} langs=${langs[*]}"
     ok_json '{generated:$d, failed:$f, counts:{ok:($d|length), fail:($f|length)}}' \
       --argjson d "$done_list" --argjson f "$failed"
@@ -194,6 +197,7 @@ case "$action" in
           && mv -f "$nj.tmp" "$nj" && news_created=true
       fi
     fi
+    [[ "$action" == publish ]] && mod_enable "$contest" documentos
     audit_log_to "$contest" "docs-$action" "type=$t lang=$l news=$news_created"
     ok_json '{ok:true, published:($cfgp), news:$n}' \
       --argjson cfgp "$(jq -c '.published // []' <<<"$cfg")" --argjson n "$news_created"

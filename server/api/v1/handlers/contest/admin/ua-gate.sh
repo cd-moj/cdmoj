@@ -116,5 +116,6 @@ if jq -e 'has("single_session")' "$bodyf" >/dev/null 2>&1; then
 fi
 
 ug_save "$contest" "$g"
+[[ "$(jq -r '.mode' <<<"$g")" == off ]] || mod_enable "$contest" maquinas   # gate armado = módulo maquinas
 audit_log_to "$contest" ua-gate-set "mode=$(jq -r '.mode' <<<"$g") single_session=$(jq -r '.single_session' <<<"$g") sedes=$(jq -r '.by_region|length' <<<"$g") isentos=$(jq -r '.exempt|length' <<<"$g")"
 ok_json '{saved:true, gate:$g}' --argjson g "$g"

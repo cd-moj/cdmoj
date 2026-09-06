@@ -39,6 +39,25 @@ mod_set(){
   local v; v="$(mod_normalize "$2")"
   if [[ -n "$v" ]]; then cc_set_conf_var "$1" CONTEST_MODULES "$v"; else cc_del_conf_var "$1" CONTEST_MODULES; fi
 }
+# mod_enable <c> <id>… — LIGA módulos (união, idempotente). É o que cada handler chama ao GRAVAR o
+# artefato do seu módulo (rodada, coorte, gate em enforce, trava, documento, inscrição, cor de
+# balão, sede/prorrogação, chave de webcast, foto de time, classificação): quem usa o recurso pela
+# API/CLI não precisa de um passo a mais p/ o painel aparecer. DESLIGAR é sempre manual
+# (admin/modules). Auditado `modules-auto` só quando muda algo.
+mod_enable(){
+  local c="$1"; shift; local cur new m added=""
+  cur="$(mod_raw "$c")"; new="$cur"
+  for m in "$@"; do
+    mod_valid "$m" || continue
+    [[ ",$new," == *",$m,"* ]] && continue
+    new="${new:+$new,}$m"; added="${added:+$added,}$m"
+  done
+  [[ -n "$added" ]] || return 0
+  declare -F cc_set_conf_var >/dev/null || source "${BASH_SOURCE[0]%/*}/contest-create.sh"
+  mod_set "$c" "$new"
+  declare -F audit_log_to >/dev/null && audit_log_to "$c" modules-auto "on=$added"
+  return 0
+}
 # mod_detect <c> <id> — rc 0 se há ARTEFATO da feature no contest (ecoa o motivo). É a base da
 # detecção única (bin/contest-modules-detect.sh), do pill "dados presentes" do painel e do aviso
 # do preflight "módulo desligado com dados existentes".

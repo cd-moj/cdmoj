@@ -75,5 +75,6 @@ else
     rm -f "$tmp" "$out.tmp"; fail 400 "Não foi possível processar a imagem" "img_bad"
   fi
 fi
+mod_enable "$contest" telao   # foto/brasão de time = coisa do telão/identidade
 audit_log_to "$contest" team-asset "upload kind=$kind login=$login bytes=$(stat -c %s "$out" 2>/dev/null)"
 ok_json '{saved:true, login:$l, kind:$k}' --arg l "$login" --arg k "$kind"

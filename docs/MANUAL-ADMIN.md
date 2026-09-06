@@ -134,7 +134,10 @@ correspondentes; **desligar esconde, sem apagar nada** — religar restaura tudo
 
 Onde se liga: **Central › Módulos** (presets que só pré-marcam), o passo **7 · Módulos** do
 [criar contest](/treino/criar/), `moj-contest -c <cid> modules on|off` ou a seção `modules{}` do
-spec de criação — um só JSON levanta o contest inteiro, com os dados de cada módulo (sedes,
+spec de criação. **E sozinho, ao usar o recurso**: criar uma rodada, uma coorte, ligar o gate,
+gerar um documento, ligar a inscrição, definir uma cor de balão, uma sede ou uma chave de webcast
+— pela web ou pela CLI — liga o módulo correspondente na hora (o audit registra `modules-auto`).
+Só desligar é manual. Também vale para o spec de criação — um só JSON levanta o contest inteiro, com os dados de cada módulo (sedes,
 cores, coortes, gate, rodadas, documentos, janela de inscrição, telão, classificação); o `export`
 devolve a mesma seção, sem segredos. Contests criados antes dos módulos são detectados uma vez
 pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).

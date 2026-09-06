@@ -96,6 +96,7 @@ config)
       ( umask 077; printf '%s\n' "$key" > "$tmpf" ) && mv -f "$tmpf" "$kf"
     fi
   fi
+  if [[ -n "$url" || -s "$(nb_keyfile "$contest")" ]]; then mod_enable "$contest" maquinas; fi
   audit_log_to "$contest" nutella-config "url=$([[ -n "$url" ]] && echo sim || echo nao) key=$(jq -r 'if has("key") then (if .key == "" then "removida" else "gravada" end) else "mantida" end' <<<"$body")"
   ok_json '{saved:true, configured:$c}' --argjson c "$(nb_configured "$contest" && echo true || echo false)"
   ;;

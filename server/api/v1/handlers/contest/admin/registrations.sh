@@ -112,6 +112,7 @@ flock 9
 case "$action" in
   enable)
     reg_enabled "$contest" || { reg_save "$contest" '{"version":1,"teams":{},"entries":{}}'; reg_seed_cohorts "$contest"; }
+    mod_enable "$contest" inscricoes
     audit_log_to "$contest" reg-enable "" ;;
   disable)
     [[ -f "$(reg_file "$contest")" ]] && mv -f "$(reg_file "$contest")" "$(reg_file "$contest").off"
@@ -144,6 +145,7 @@ case "$action" in
       false) cc_set_conf_var "$contest" REG_REMIND n ;;
       true)  cc_del_conf_var "$contest" REG_REMIND ;;
     esac
+    mod_enable "$contest" inscricoes
     audit_log_to "$contest" reg-window "$(jq -c '{open,close,late_minutes,team_max,teams,remind}' <<<"$body")" ;;
   add)
     login="$(jq -r '.login // empty' <<<"$body")"
@@ -152,6 +154,7 @@ case "$action" in
       || fail 404 "Conta não encontrada" "user_notfound"
     reg_enabled "$contest" || { reg_save "$contest" '{"version":1,"teams":{},"entries":{}}'; reg_seed_cohorts "$contest"; }
     out="$(reg_register_individual "$contest" "$login")" || fail 409 "Não deu p/ inscrever ($out)" "$out"
+    mod_enable "$contest" inscricoes
     audit_log_to "$contest" reg-add "login=$login" ;;
   rm)
     login="$(jq -r '.login // empty' <<<"$body")"
@@ -170,6 +173,7 @@ case "$action" in
       valid_id "$m" || continue
       reg_team_invite "$contest" "$cap" "$m" >/dev/null 2>&1 && reg_team_accept "$contest" "$m" "$t" >/dev/null 2>&1
     done
+    mod_enable "$contest" inscricoes
     audit_log_to "$contest" reg-team-add "team=$t membros=${_mem[*]}" ;;
   team-meta)
     t="$(jq -r '.team // empty' <<<"$body")"

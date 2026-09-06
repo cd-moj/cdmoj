@@ -645,7 +645,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   telao classificacao)`, espelhado em `web/contest/admin/modules.js` (paridade testada em
   `smoke-admin-nav.sh`); `mod_on/mod_any/mod_list_json/mod_set/mod_detect`. O gate é **UX** (decide
   nav/painéis/checagens/cartões); **o acesso continua cortado em cada rota**. **Desligar nunca apaga
-  dado** (o painel avisa; `detected` mostra que há arquivo). Rota `admin/modules` GET/POST; `basic` e
+  dado** (o painel avisa; `detected` mostra que há arquivo). **Gravar o artefato de um módulo LIGA o
+  módulo** (`mod_enable <c> <id>`, união idempotente, auditado `modules-auto`) — cada handler chama
+  no ponto de escrita (rounds/cohorts/ua-gate≠off/site-lock/nutella/docs/registrations/classify/
+  config/time-overrides/webcast/team-assets); GET nunca liga; desligar é sempre manual. Handler novo
+  de módulo ⇒ `mod_enable` ao gravar + asserção no `smoke-contest-modules.sh` (seção mod_enable). Rota `admin/modules` GET/POST; `basic` e
   `settings` expõem `modules[]`. **Spec UNIFICADO** (`cc_apply_modules_spec`/`cc_modules_spec` em
   `lib/contest-create.sh`): `spec.modules = {id: true | {on?, …seção…}}` — cada seção grava pelo
   MESMO arquivo/conf que o painel edita (formato no cabeçalho da função); export devolve só módulos
