@@ -703,6 +703,15 @@ cc_build_probs(){
   local tdir="$1" spec="$2" enun="${3:-}" probs="PROBS=(" i=0
   local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
   local p pid src pname letter bankid stmt_b64 stmt_file skey bf html
+  # Letras JÁ ocupadas explicitamente, colhidas numa pré-passada. A atribuição
+  # automática era pela POSIÇÃO (letterauto[$i]), o que colide com uma letra
+  # existente sempre que a sequência tem lacuna: remover o C e acrescentar outro
+  # problema dava DUAS entradas com a mesma letra. E a letra é a chave de
+  # rename/remove/reorder — com duplicata, renomear mexia nas duas, remover
+  # tirava as duas, e o reorder (que monta map({(.letter): .})) descartava uma
+  # em silêncio. Caso real em 2026-09-09 (contest atividade-ead-2).
+  local nb_usadas nb_cand
+  nb_usadas=" $(jq -r '[.[]? | .letter // empty] | join(" ")' <<<"$spec" 2>/dev/null) "
   mkdir -p "$tdir/enunciados"
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue
@@ -715,7 +724,13 @@ cc_build_probs(){
     [[ -n "$pid" ]] || { ((i++)); continue; }
     { [[ "$pid" =~ ^[A-Za-z0-9._/#@+-]+$ ]] && [[ "$pid" != *..* ]]; } || return 1
     [[ "$src" =~ ^[A-Za-z0-9._-]+$ ]] || return 1
-    [[ -z "$letter" ]] && letter="${letterauto[$i]:-$((i+1))}"
+    if [[ -z "$letter" ]]; then
+      for nb_cand in "${letterauto[@]}"; do
+        [[ "$nb_usadas" == *" $nb_cand "* ]] && continue
+        letter="$nb_cand"; nb_usadas+="$nb_cand "; break
+      done
+      [[ -n "$letter" ]] || letter="$((i+1))"
+    fi
     [[ "$letter" =~ ^[A-Za-z0-9]{1,3}$ ]] || return 1
     skey="${pid//\//#}"
     { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || return 1

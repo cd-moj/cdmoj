@@ -37,6 +37,14 @@ case "$action" in
     # um source forjado pularia o gate e ainda serviria jsons-private. Contest legado sem
     # owner => só público. Problema fora do índice passa (privados SEMPRE constam do índice
     # de owners). Negado: 404 p/ não vazar a existência.
+    # letra explícita não pode colidir: a letra é a CHAVE de rename/remove/reorder,
+    # e duas entradas com a mesma letra deixam o contest sem conserto pela interface
+    # (renomear mexe nas duas). O rename abaixo já valida isto; o add não validava.
+    NLADD="$(jq -r '.letter // empty' <<<"$prob")"
+    if [[ -n "$NLADD" ]]; then
+      jq -e --arg n "$NLADD" 'any(.[]; .letter == $n)' <<<"$cur" >/dev/null 2>&1 \
+        && fail 422 "Já existe um problema com esse identificador" "letter_taken"
+    fi
     cid_can="$(jq -r '(.bank_id // .problem_id // "")' <<<"$prob")"; cid_can="${cid_can//\//#}"
     cowner="$(head -1 "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
     source "$_LIBDIR/problems.sh"
