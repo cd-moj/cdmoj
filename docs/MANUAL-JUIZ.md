@@ -91,7 +91,8 @@ vaza, para a prova.
 | Pegar e reservar submissões (máx. 2 por submissão, 5 min). | Liberar um veredicto sem os dois votos. |
 | Ver referência, log, código e votar. | Editar a lista de veredictos ou o auto-veredicto. |
 | Pedir +5 min ou desistir. | Ver o painel de chefia. |
-| Ver o texto cru do veredicto. | Acessar administração, jplag, times, usuários. |
+| Ver o texto cru do veredicto. | Acessar administração, times, usuários. |
+| Ver o resultado do **jplag** (pares só com o login; sem nome do time). | Rodar o jplag. |
 
 ## Parte 2: `.cjudge` (juiz-chefe)
 
@@ -148,11 +149,10 @@ trocar de rodada.
 O juiz-chefe **não** é administrador pleno. Ele não tem:
 
 - a aba de **Administração**,
-- **jplag** (comparação de plágio),
 - **configurações** do contest,
 - gestão de **times** ou de **usuários**.
 
-Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas e estatística.
+Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas, estatística e o **jplag** (rodar e ver os pares com nome do time).
 
 ### Resumo do que o juiz-chefe pode
 
@@ -160,7 +160,8 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas e esta
 |---|---|
 | Ver o painel 📊 Situação e o desempenho por juiz. | Ser admin pleno. |
 | **Decidir/Resolver** liberando veredicto na hora (registrado). | Abrir a aba de Administração. |
-| Resolver **conflitos**. | Usar jplag. |
+| Resolver **conflitos**. | |
+| **Rodar o jplag** e ver os pares com nome do time (link `jplag` na barra). | |
 | Editar a lista de veredictos (🏷️ Opções). | Mudar configurações do contest. |
 | Editar o **auto-veredicto** (matriz problema x linguagem x veredicto). | Gerenciar times ou usuários. |
 | Ver **Todas as Submissões** com usuário/time e veredicto cru. | |

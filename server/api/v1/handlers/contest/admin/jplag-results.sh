@@ -1,9 +1,11 @@
-# GET /contest/admin/jplag-results?contest=<id>  (admin) -> status + resultados por problema/lang.
+# GET /contest/admin/jplag-results?contest=<id>  (juiz/chefe/admin) -> status + resultados
+# por problema/lang. O juiz COMUM vê os pares só com o login (sem nome do time/univ — a mesma
+# isonomia de "Todas as submissões" anônima); chefe e admin veem tudo (2026-09-14).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
-is_admin || fail 403 "Apenas o admin do contest" "admin_required"
+is_judge || fail 403 "Apenas juiz, juiz-chefe ou admin" "judge_required"
 
 jdir="$CONTESTSDIR/$contest/jplag"
 status="$( [[ -f "$jdir/status.json" ]] && jq -c . "$jdir/status.json" 2>/dev/null || echo '{"running":false,"message":"nunca executado"}')"
@@ -16,4 +18,7 @@ tmpres="$(mktemp)"; trap 'rm -f "$tmpres"' EXIT
   for f in "$jdir"/r-*.json; do [[ -f "$f" ]] && cat "$f"; done
 } | jq -cs 'sort_by(.problem, .lang)' > "$tmpres" 2>/dev/null
 [[ -s "$tmpres" ]] || printf '[]' > "$tmpres"
-ok_json '{status:$s, results:$r[0]}' --argjson s "$status" --slurpfile r "$tmpres"
+full=true; is_admin_or_chief || full=false
+ok_json '{status:$s, full:$full, can_run:$full,
+          results:(if $full then $r[0] else ($r[0] | map(.pairs |= map(del(.a_name, .a_univ, .b_name, .b_univ)))) end)}' \
+  --argjson s "$status" --argjson full "$full" --slurpfile r "$tmpres"

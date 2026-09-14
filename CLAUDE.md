@@ -601,6 +601,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `sc_load` — vale p/ todos os modos): os times da visão pública SEM coluna de problema;
   `is_judge` segue no completo. `/index/contests` emite `problems_count:0` p/ `upcoming` pela
   mesma regra. Teste: `smoke-score-prestart.sh`. Ver `docs/SCOREBOARD.md`.
+- **jplag** (`handlers/contest/admin/jplag-{run,results,match}.sh` + `server/score/jplag-run.sh`
+  + `web/contest/jplag/`): run = `is_admin_or_chief`; results/match = `is_judge` (juiz comum
+  recebe os pares SEM `*_name/*_univ` — o handler poda; chefe/admin `full:true`, `can_run:true`).
+  O runner segura `jplag/.lock` (flock -n) porque apaga os `r-*.json` na largada; o handler
+  devolve 429 `busy` com lock preso. A página tem barra de filtro (problema · linguagem ·
+  limiar, `localStorage` por contest) e atualiza EM LUGAR (nunca `app.innerHTML=''` no poll).
+  Link no nav de admin, chefe e juiz (`navbuttons.sh`). Teste: `smoke-contest-jplag.sh` (sem
+  java/jar roda os handlers sobre fixture sintética).
 - **Rodadas do contest** (`lib/contest-rounds.sh` + `handlers/contest/{admin/rounds,rounds,round,
   admin/round-archive}.sh`): **aquecimento → prova oficial NO MESMO contest** (mesma URL, mesmo
   login, config preservada). `rounds.json` é o plano; **a rodada ativa É o `conf`** — não torne

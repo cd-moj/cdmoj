@@ -5691,7 +5691,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Dispara jplag (background)",
+        "summary": "Dispara jplag (background) — admin ou juiz-chefe; 429 busy se já está rodando (lock do runner)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

@@ -13,6 +13,9 @@ contest="${1:?uso: jplag-run.sh <contest>}"
 : "${JPLAG_JAR:=/opt/moj/jplag/jplag-3.0.0-jar-with-dependencies.jar}"
 : "${JPLAG_MIN_TOKENS:=6}"
 cdir="$CONTESTSDIR/$contest"; jdir="$cdir/jplag"; mkdir -p "$jdir"
+# uma execução por vez (o rm dos r-*.json abaixo colidiria): lock do dir, molde nutella-gen.sh
+exec 9>"$jdir/.lock"
+flock -n 9 || { echo "jplag: já em execução ($contest)" >&2; exit 0; }
 
 status(){ jq -cn --argjson r "$1" --arg m "$2" --argjson t "$EPOCHSECONDS" \
   '{running:$r, message:$m, updated_at:$t}' > "$jdir/status.json.tmp" 2>/dev/null && mv -f "$jdir/status.json.tmp" "$jdir/status.json"; }
