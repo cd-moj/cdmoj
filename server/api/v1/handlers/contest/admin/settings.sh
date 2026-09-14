@@ -7,6 +7,7 @@ require_contest "$contest"
 require_auth_contest "$contest"
 is_admin || fail 403 "Apenas o admin do contest" "admin_required"
 source "$_LIBDIR/contest-create.sh"
+source "$_LIBDIR/contest-gate.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
@@ -27,7 +28,9 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
             show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
-            balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods}' \
+            balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods,
+            freeze_release_at:$fra}' \
+    --argjson fra "$(freeze_release_at "$contest")" \
     --argjson mods "$(mod_list_json "$contest")" \
     --arg bsty "$([[ "$SCORE_BALLOON_STYLE" == fill ]] && echo fill || echo icon)" \
     --argjson bdf "$([[ "$BALLOONS_DURING_FREEZE" == 1 ]] && echo true || echo false)" \
@@ -73,7 +76,10 @@ SCORE_WAS="$(score_snap)"
 if has name; then v="$(jq -r '.name' <<<"$body")"; { [[ -n "$v" ]] && (( ${#v} <= 160 )); } || fail 422 "nome inválido" "name_invalid"; setvar CONTEST_NAME "$v"; fi
 for pair in start:CONTEST_START end:CONTEST_END login_start:LOGIN_START_TIME freeze:FREEZE_TIME; do
   k="${pair%%:*}"; var="${pair#*:}"
-  has "$k" && { v="$(jq -r ".$k" <<<"$body")"; [[ "$v" =~ ^[0-9]+$ ]] || fail 422 "$k inválido" "int_invalid"; setvar "$var" "$v"; }
+  has "$k" && { v="$(jq -r ".$k" <<<"$body")"; [[ "$v" =~ ^[0-9]+$ ]] || fail 422 "$k inválido" "int_invalid"
+    # freeze -> 0 = DESCONGELAR (cerimônia, Central): só a partir do fim geral + 1 min
+    [[ "$k" == freeze && "$v" == 0 ]] && freeze_release_guard "$contest"
+    setvar "$var" "$v"; }
 done
 has locale && { v="$(jq -r '.locale' <<<"$body")"; [[ "$v" =~ ^(pt|en)$ ]] || fail 422 "locale inválido" "locale_invalid"; setvar LOCALE "$v"; }
 # FUSO da prova: governa TODA hora que o servidor escreve p/ gente sobre este contest (DM do

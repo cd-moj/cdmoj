@@ -109,6 +109,28 @@ owners_visible(){
        or (((.repo // (.id|split("#")[0])) as $r | $_orgs|index($r))|type=="number")))' \
     <<<"$m" 2>/dev/null
 }
+# problems_denied_for <login> <ids-json-array> — ecoa (csv) os ids que o LOGIN não pode usar num
+# contest: privado E (não dono E não colaborador E não membro da org do repo). É o MESMO predicado
+# de owners_visible, parametrizado pelo sujeito — os três portões de "problema entra no contest"
+# (wizard, Prova › Problemas, Evento › Rodadas) chamam ESTA função; antes eram três cópias de jq e
+# a das rodadas esquecia colaborador/org (relato do Ribas, 2026-09-14: privado compartilhado
+# entrava pela aba Problemas mas dava 403 na rodada planejada). Desconhecido no índice NÃO nega
+# (privado sempre consta do índice). rc 1 + stdout vazio = índice quebrado (quem chama vira 503
+# — dentro de `$(… | jq)` a falha viraria "nada negado", FAIL-OPEN). ids já canônicos (`#`).
+problems_denied_for(){
+  local login="$1" pids="$2" _om _orgs
+  [[ -n "$pids" && "$pids" != '[]' ]] || return 0
+  _om="$(owners_merged)" || return 1
+  _orgs="$(orgs_json_for "$login")"
+  jq -r --argjson pids "$pids" --arg me "$login" --argjson orgs "$_orgs" '
+    (.problems | map({key:.id, value:.}) | from_entries) as $by
+    | [ $pids[] | . as $id | ($by[$id]) as $p
+        | select($p != null and ($p.public|not)
+                 and ($me == "" or ($p.owner != $me
+                      and ((($p.collaborators // [])|index($me))|not)
+                      and (((($p.repo // ($id|split("#")[0])) as $r | $orgs|index($r))|type=="number")|not)))) | $id ]
+    | unique | join(", ")' <<<"$_om" 2>/dev/null
+}
 # owners_emit <jq-program> [jq-args...] — emite {success,...} aplicando o programa sobre o objeto JÁ
 # FILTRADO (com .problems só visíveis). Use $login/$name já passados via --arg pelos handlers.
 owners_emit(){

@@ -391,7 +391,8 @@ cc_create(){
 #   baloes        {colors:{A:"RRGGBB",…}, during_freeze:bool}
 #   coortes       {cohorts:[{id,name,regex,public,unranked,ranking,default,sees}]}
 #   maquinas      {ua_gate:{…ug_get…}, site_lock:{enabled,grace}, nutella_url}
-#   rodadas       {active:slug, rounds:[{slug,name,kind,start,end,freeze,problems,state}]}  (arquivadas nunca)
+#   rodadas       {active:slug, rounds:[{slug,name,kind,start,end,freeze,problems,colors?,state}]}  (arquivadas nunca;
+#                 colors = cores de balão da rodada, formato do balloons.json)
 #   documentos    {config:{caderno_version,cover_note,errata}}                (published: nunca)
 #   inscricoes    {enabled:bool, window:{open,close,late_minutes,team_max,teams,warmup_open}}
 #   telao         {views:[{view,label}]}   (create gera CHAVES NOVAS p/ cada view)
@@ -637,6 +638,25 @@ cc_build_probs(){
   done < <(jq -c '.[]' <<<"$spec")
   probs+=" )"
   printf '%s' "$probs"
+}
+
+# cc_balloons_write <contest> <json> / cc_balloons_clear <contest> — o ÚNICO escritor do
+# balloons.json (cores de balão + enableSonic da rodada NO AR). Grava, derruba o cache de
+# /contest/balloons (o frescor por presença também cobre, mas o explícito é grátis) e liga o
+# módulo `baloes`. Chamado por Evento › Balões (admin/config.sh) e pela troca de rodada
+# (rd_apply_obj, quando a rodada tem cores próprias).
+cc_balloons_write(){
+  local cdir="$CONTESTSDIR/$1"
+  jq -e 'type == "object" and length > 0' >/dev/null 2>&1 <<<"$2" || return 1
+  printf '%s' "$2" > "$cdir/balloons.json" || return 1
+  rm -f "$cdir/var/balloons-cache.json" "$cdir/var/balloons-cache.json.inputs" 2>/dev/null
+  declare -F mod_enable >/dev/null && mod_enable "$1" baloes
+  return 0
+}
+cc_balloons_clear(){
+  local cdir="$CONTESTSDIR/$1"
+  rm -f "$cdir/balloons.json" "$cdir/var/balloons-cache.json" "$cdir/var/balloons-cache.json.inputs" 2>/dev/null
+  return 0
 }
 
 # cc_set_probs <contest> <problems_json_array> — reescreve a linha PROBS= no conf.

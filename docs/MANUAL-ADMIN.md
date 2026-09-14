@@ -78,7 +78,7 @@ painel de módulo **desligado** cai em **Central › Módulos** com um aviso diz
 |---|---|
 | **Rodadas** (`rodadas`) | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
 | **Documentos** (`documentos`) | Gera, em PDF e HTML nos três idiomas (pt/en/es), os documentos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (só publica depois do FIM da prova). A seção 5 explica. |
-| **Balões** (`baloes`) | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). |
+| **Balões** (`baloes`) | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). São as cores da rodada no ar. Para dar cores próprias a outra rodada, use Evento › Rodadas. |
 | **Classificação** (`classificacao`) | Quem se classifica para a próxima fase, por **algoritmo** escolhido no painel (hoje: SBC 1ª fase → Final Brasileira; a regra da PDA entra como outro algoritmo): rascunho, revisão, promoção pelo comitê e publicação (chip ↑BR no placar). `docs/CLASSIFICACAO.md` explica. |
 | **Times** (`sedes` ou `telao`) | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
 | **Coortes** (`coortes`) | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
@@ -293,6 +293,13 @@ Problemas; as demais ficam planejadas até você promover.
 2. Em Evento › Rodadas, dê o nome certo à rodada no ar (`aquecimento`, tipo *aquecimento*) e
    **crie a próxima** (`oficial`): janela, freeze e a lista de problemas da prova de verdade.
    A lista fica guardada e só entra no ar na promoção — ninguém vê os problemas da prova antes.
+   Você pode usar qualquer problema que o dono do contest pode ver: público, seu, de
+   colaborador ou da sua org. A regra é a mesma de Prova › Problemas, na rodada no ar e na
+   planejada.
+   Cada rodada pode ter as **suas cores de balão**. Abra a rodada, vá em "🎈 Cores dos balões
+   desta rodada" e salve. As cores entram no ar quando a rodada for promovida. Uma rodada sem
+   cores próprias herda as cores em vigor. Na rodada no ar, esta seção e Evento › Balões editam
+   a mesma coisa.
 3. **Rode o aquecimento.** O time vê uma faixa fixa dizendo que é aquecimento e que aquele placar
    não é o da prova. Trate-o como **ensaio geral da operação inteira**: se o login abre no minuto
    do início (modelo ICPC), esse é o único momento em que cada papel toca as telas de verdade sem
@@ -309,7 +316,10 @@ Problemas; as demais ficam planejadas até você promover.
      em `rounds/<rodada>/`, mais um **relatório navegável** da rodada;
    - **zera** o placar e o histórico dos times, reinicia a numeração da impressão e limpa as
      prorrogações por sede;
-   - **aplica** a janela e os problemas da prova oficial.
+   - **aplica** a janela e os problemas da prova oficial, e as cores de balão dela, se ela tiver.
+   Atenção: com o placar congelado, a promoção só é aceita a partir do fim da prova para todas
+   as sedes + 1 minuto. O checklist mostra `freeze_locked` com a hora. A opção "ignorar os
+   bloqueadores" não passa por cima desta regra.
    Você digita o id do contest para confirmar. Tudo é auditado.
 
 **Registrei a PROVA primeiro — e agora?** Aconteceu de montar o contest já com a prova e só
@@ -366,7 +376,11 @@ passa a mostrar o bloco **"Depois da prova"** com o checklist do que ainda está
 botão **🏁 Encerrar evento**, que faz de uma vez as duas coisas que todo mundo esquece:
 
 1. **abre o placar** — tira o congelamento (`FREEZE_TIME=0`), então o resultado final fica
-   público (é o mesmo efeito do botão "🔓 Descongelar tudo" da cerimônia de revelação);
+   público (é o mesmo efeito do botão "🔓 Descongelar tudo" da cerimônia de revelação).
+   O MOJ só aceita descongelar a partir do **fim da prova para todas as sedes + 1 minuto**. A
+   prorrogação de uma sede conta. A regra vale para todos os caminhos: este botão, a cerimônia,
+   o campo de freeze na Central e a promoção de rodada. A tela mostra a hora a partir da qual o
+   botão fica disponível;
 2. **publica os documentos já gerados** que ainda não estavam publicados — caderno, folha de
    limites de tempo, info sheet e editorial passam a aparecer em "Arquivos & Recursos" para
    os times. (O editorial só pode ser publicado depois do fim; por isso ele entra aqui.)

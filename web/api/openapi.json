@@ -2078,7 +2078,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Checklist pós-prova (o que ainda está fechado) — admin ou juiz-chefe",
+        "summary": "Checklist pós-prova (o que ainda está fechado) — admin ou juiz-chefe; freeze_release_at = fim geral + 1 min (POST antes disso com freeze = 409 freeze_locked)",
         "responses": {
           "200": {
             "description": "{checks:[{id,level,label,detail}], summary:{ok,warn,fail}, can_finish, can_act (true só p/ o admin — o POST é dele), pending_docs:[{type,lang}]}"
@@ -4701,7 +4701,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false)",
+        "summary": "Configurações do contest (inclui mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5026,7 +5026,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Rodadas + checklist de promocao (admin ou juiz-chefe)",
+        "summary": "Rodadas + checklist de promocao (admin ou juiz-chefe). POST: problems segue a permissão do DONO do contest (público/dono/colaborador/org, 403 problem_denied); set aceita colors (cores de balão da rodada; null = herdar); promote recusa freeze_locked mesmo com force",
         "security": [
           {
             "bearerAuth": []
@@ -5709,7 +5709,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Status + pares de similaridade",
+        "summary": "Status + pares de similaridade — juiz, juiz-chefe ou admin; juiz comum recebe os pares só com o login (sem nome do time); full/can_run dizem o nível",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5727,7 +5727,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "HTML lado-a-lado",
+        "summary": "HTML lado-a-lado — juiz, juiz-chefe ou admin",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

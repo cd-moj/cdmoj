@@ -40,16 +40,11 @@ case "$action" in
     cid_can="$(jq -r '(.bank_id // .problem_id // "")' <<<"$prob")"; cid_can="${cid_can//\//#}"
     cowner="$(head -1 "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
     source "$_LIBDIR/problems.sh"
-    # acesso do DONO do contest ao problema privado: dono, colaborador ou MEMBRO da org
-    verdict="$(owners_merged | jq -r --arg id "$cid_can" --arg o "$cowner" \
-        --argjson oorgs "$(orgs_json_for "$cowner")" '
-      ([.problems[]? | select(.id==$id)] | first) as $p
-      | if $p == null then "unknown"
-        elif ($p.public == true) then "ok"
-        elif ($o != "" and ($p.owner == $o or ((($p.collaborators // [])|index($o)) != null)
-              or (((($p.repo // ($id|split("#")[0])) as $r | $oorgs|index($r)))|type=="number"))) then "ok"
-        else "deny" end' 2>/dev/null)"
-    [[ "$verdict" == deny ]] && fail 404 "Problema não encontrado" "notfound"
+    # acesso do DONO do contest ao problema privado: dono, colaborador ou MEMBRO da org —
+    # o predicado único problems_denied_for (o mesmo do wizard e de Evento › Rodadas)
+    denied="$(problems_denied_for "$cowner" "$(jq -cn --arg id "$cid_can" '[$id]')")" \
+      || fail 503 "Índice de problemas indisponível" "index_unavailable"
+    [[ -n "$denied" ]] && fail 404 "Problema não encontrado" "notfound"
     new="$(jq -cn --argjson cur "$cur" --argjson p "$prob" '$cur + [$p]')"
     ;;
   remove)

@@ -393,7 +393,13 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   prova). O arquivo `rounds/<slug>/` guarda tudo p/ auditoria — inclusive o **site estático do
   `report-gen`**, que segue navegável em `/contest/round` (publicável p/ os times) — e o `.seq`
   da impressão, os balões e a prorrogação por sede voltam ao zero. Config (contas, senhas,
-  sedes, `staff-filters.json`, cores, TL, templates de documento) **sobrevive**);
+  sedes, `staff-filters.json`, cores, TL, templates de documento) **sobrevive**. Uma rodada
+  pode ter `colors` próprias (formato do `balloons.json`): entram no ar na promoção via
+  `cc_balloons_write`, o escritor único de cores; sem `colors` herda. A guarda de problema da
+  rodada é `problems_denied_for` (dono do contest: público/dono/colaborador/org), a mesma de
+  Prova › Problemas e do wizard. Descongelar o placar — por qualquer caminho: `settings`,
+  `config`, `finish`, promoção — só a partir de `freeze_release_at` = fim geral + 60 s
+  (`lib/contest-gate.sh`; 409 `freeze_locked`, e o `force` da promoção não passa));
   **Coortes** (`lib/cohorts.sh` + `handlers/contest/admin/cohorts.sh` — times oficiais ×
   **CONVIDADOS** (extra-oficiais/"CCL"): coorte privada não entra no placar público nem no
   `/contest/teams`, os regulares não sabem que ela existe, os convidados veem todos, e `release`
@@ -451,7 +457,10 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   respostas/notícias já dadas. A página separa **abertas** (fila, mais antiga primeiro) de
   **respondidas + avisos**, repolá a cada 30 s em lugar e preserva quebras de linha.
 - **`/contest/judge/`** — área de **avaliação**. **`/contest/jplag/`** — similaridade das
-  soluções aceitas (roda o jar, mostra pares + comparação lado-a-lado).
+  soluções aceitas (roda o jar, mostra pares + comparação lado-a-lado). Abre p/ juiz (só vê,
+  pares com login), chefe e admin (rodam; `can_run`). A tela filtra por problema, linguagem e
+  **limiar** de similaridade (default 50 %, persistido por contest) e atualiza em lugar; o runner
+  tem `flock` (429 `busy`).
 - **`/contest/chief/`** — **painel do juiz-chefe (`.cjudge`)** e do admin: **Situação** da
   avaliação usa o **mesmo board** da aba "Tarefas do judge" do admin (`shared/review-board.js`:
   cards, fila completa com idade/quem pegou/votos, ação Decidir/Resolver e desempenho por juiz,

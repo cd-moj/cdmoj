@@ -6,9 +6,11 @@
 #          next, promote_ready:{ok, blockers:[{code,detail}]}}
 # POST {action}:
 #   add      {slug,name?,kind?,start,end,freeze?}   — cria rodada PLANEJADA
-#   set      {slug,new_slug?,name?,start?,end?,freeze?,kind?} — edita/renomeia (a ATIVA vai
-#              direto p/ o conf)
-#   problems {slug, problems:[{bank_id|problem_id,name?,letter?}]}
+#   set      {slug,new_slug?,name?,start?,end?,freeze?,kind?,colors?} — edita/renomeia (a ATIVA
+#              vai direto p/ o conf). colors = cores de balão DA RODADA (formato do balloons.json;
+#              null remove; {} não mexe; ausente na rodada = herda as cores em vigor ao promover)
+#   problems {slug, problems:[{bank_id|problem_id,name?,letter?}]} — só o que o DONO do contest
+#              pode usar (público, dono, colaborador ou membro da org: problems_denied_for)
 #   remove   {slug}            — só rodada planejada (arquivada é auditoria, nunca some)
 #   publish  {slug, on:bool}   — arquivo da rodada visível p/ os times
 #   promote  {to?, force?}     — arquiva a ativa e coloca a próxima no ar
@@ -99,6 +101,18 @@ case "$action" in
       [[ "$k" == kind ]] && { case "$v" in warmup|official|extra) ;; *) fail 422 "kind inválido" "kind_invalid";; esac; }
       cur="$(jq -c --arg k "$k" --arg v "$v" '.[$k]=$v' <<<"$cur")"
     done
+    # cores de balão POR RODADA (2026-09-14): objeto = grava na rodada (letra -> RRGGBB, enableSonic);
+    # null = a rodada volta a herdar as cores em vigor; {} = o editor não mexeu. Na rodada ATIVA o
+    # rd_apply_obj abaixo grava o balloons.json na hora (é o mesmo que Evento › Balões).
+    if jq -e 'has("colors")' "$bodyf" >/dev/null 2>&1; then
+      cl="$(jq -c '.colors' "$bodyf")"
+      if [[ "$cl" == null ]]; then cur="$(jq -c 'del(.colors)' <<<"$cur")"
+      elif [[ "$(jq 'if type=="object" then length else -1 end' <<<"$cl")" -gt 0 ]]; then
+        jq -e 'to_entries | all(.[]; (.key == "enableSonic" and (.value|type) == "boolean")
+                 or ((.key|test("^[A-Z][A-Z0-9]{0,2}$")) and ((.value|type) == "string") and (.value|test("^[0-9A-Fa-f]{6}$"))))'           <<<"$cl" >/dev/null 2>&1 || fail 422 "colors: chaves = letras (RRGGBB) e enableSonic (bool)" "colors_invalid"
+        cur="$(jq -c --argjson cl "$cl" '.colors=$cl' <<<"$cur")"
+      elif [[ "$cl" != '{}' ]]; then fail 422 "colors deve ser objeto ou null" "colors_invalid"; fi
+    fi
     j="$(jq -c --arg s "$slug" --argjson r "$cur" '.rounds = [ .rounds[] | if .slug == $s then $r else . end ]' <<<"$j")"
     rd_save "$contest" "$j"
     # a rodada ATIVA vive no conf: aplica na hora, a partir do OBJETO editado (passar pelo slug
@@ -116,17 +130,15 @@ case "$action" in
     probs="$(jq -c '.problems // []' "$bodyf")"
     jq -e 'type == "array"' <<<"$probs" >/dev/null 2>&1 || fail 422 "problems deve ser array" "problems_invalid"
     (( $(jq 'length' <<<"$probs") <= 200 )) || fail 422 "máximo de 200 problemas" "too_many"
-    # guarda de problema PRIVADO: mesma regra do wizard/admin (dono do contest ou público)
+    # guarda de problema PRIVADO: a MESMA de Prova › Problemas e do wizard (problems_denied_for):
+    # público, ou o DONO do contest é dono/colaborador/membro da org. Vale igual p/ rodada ativa e
+    # planejada (a planejada só tem esta porta). Negado: 403 com a lista (o admin precisa saber
+    # qual id tirar; a existência não vaza porque o bank já listou o que é adicionável).
     source "$_DIR/lib/problems.sh"
     pids="$(jq -c '[ .[] | (.bank_id // .problem_id // "") | gsub("/";"#") | select(. != "") ]' <<<"$probs")"
     if [[ "$pids" != '[]' ]]; then
-      owner="$(cat "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
-      _om="$(owners_merged)" || fail 503 "Índice de problemas indisponível" "index_unavailable"
-      denied="$(jq -r --argjson pids "$pids" --arg me "${owner:-}" '
-        (.problems | map({key:.id, value:.}) | from_entries) as $by
-        | [ $pids[] | . as $id | ($by[$id]) as $p
-            | select($p != null and $p.owner != $me and (($p.public|not))) | $id ]
-        | unique | join(", ")' <<<"$_om" 2>/dev/null)"
+      owner="$(head -1 "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
+      denied="$(problems_denied_for "${owner:-}" "$pids")" || fail 503 "Índice de problemas indisponível" "index_unavailable"
       [[ -n "$denied" ]] && fail 403 "Sem acesso a problema(s) privado(s): $denied" "problem_denied"
     fi
     j="$(jq -c --arg s "$slug" --argjson p "$probs" \
@@ -176,10 +188,11 @@ case "$action" in
       || fail 409 "a rodada '$to' não está planejada" "not_pending"
     force=false; jq -e '.force == true' "$bodyf" >/dev/null 2>&1 && force=true
     bl="$(rd_promote_blockers "$contest")"; [[ -n "$bl" ]] || bl='[]'
-    # `force` ignora tudo menos o que tornaria a promoção INCORRETA (sem rodada planejada).
+    # `force` ignora tudo menos o que tornaria a promoção INCORRETA (sem rodada planejada) ou
+    # descongelaria o placar antes da hora (freeze_locked: fim geral + 1 min, 2026-09-14).
     # `shared_users` saiu da lista: contest com USERS_FROM promove normalmente — o arquivamento
     # só mexe nos diretórios LOCAIS (ver lib/contest-rounds.sh).
-    hard="$(jq -c '[ .[] | select(.code == "no_next_round") ]' <<<"$bl")"
+    hard="$(jq -c '[ .[] | select(.code == "no_next_round" or .code == "freeze_locked") ]' <<<"$bl")"
     if [[ "$force" == true ]]; then blk="$hard"; else blk="$bl"; fi
     if [[ "$(jq 'length' <<<"$blk")" != 0 ]]; then
       emit_json 409 Conflict

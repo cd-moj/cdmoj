@@ -218,9 +218,23 @@ async function main() {
     autoBtn.textContent = T('⏸ Pausar', '⏸ Pause');
     timer = setInterval(() => { if (!step()) { clearInterval(timer); timer = null; autoBtn.textContent = '▶ Auto'; } }, 1400);
   });
-  // descongelar é POST admin-only — o botão só aparece p/ admin (juiz/cstaff não podem)
-  const unfreezeBtn = st.is_admin
-    ? el('button', { class: 'btn danger ghost', onclick: unfreezeAll }, T('🔓 Descongelar tudo (público)', '🔓 Unfreeze all (public)')) : '';
+  // descongelar é POST admin-only — o botão só aparece p/ admin (juiz/cstaff não podem).
+  // E só a partir do fim geral + 1 min (freeze_release_at do /contest/admin/settings; o
+  // servidor recusa com 409 freeze_locked de qualquer jeito — aqui é só p/ explicar a hora).
+  let unfreezeBtn = '';
+  if (st.is_admin) {
+    unfreezeBtn = el('button', { class: 'btn danger ghost', onclick: unfreezeAll }, T('🔓 Descongelar tudo (público)', '🔓 Unfreeze all (public)'));
+    try {
+      const cfg = await apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G);
+      const at = +(cfg && cfg.freeze_release_at) || 0;
+      if (at && Math.floor(Date.now() / 1000) < at) {
+        unfreezeBtn.disabled = true;
+        const hh = new Date(at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        unfreezeBtn.title = T('disponível a partir de ', 'available from ') + hh + T(' (fim para todas as sedes + 1 min)', ' (end for every site + 1 min)');
+        unfreezeBtn.textContent = T('🔒 Descongelar a partir de ', '🔒 Unfreeze from ') + hh;
+      }
+    } catch { /* sem leitura das configurações: o servidor decide */ }
+  }
   app.append(
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap' },
       stepBtn, autoBtn, unfreezeBtn,

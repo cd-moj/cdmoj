@@ -168,7 +168,11 @@ export function makeCentralTab(CONTEST, opts = {}) {
       } else {
         if (!fin.can_finish) {
           btn.disabled = true;
-          btn.title = T('disponível depois do fim para todas as sedes', 'available after every site finishes');
+          // can_finish também espera o fim geral + 1 min quando há freeze (freeze_release_at)
+          const at = +fin.freeze_release_at || 0;
+          btn.title = (at && Math.floor(Date.now() / 1000) < at)
+            ? T('disponível a partir de ', 'available from ') + new Date(at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + T(' (fim para todas as sedes + 1 min)', ' (end for every site + 1 min)')
+            : T('disponível depois do fim para todas as sedes', 'available after every site finishes');
         }
         box.append(el('div', { class: 'row', style: 'gap:.5rem;margin-top:.6rem;align-items:center' }, btn, fmsg));
       }
@@ -249,6 +253,9 @@ export function makeCentralTab(CONTEST, opts = {}) {
         el('h2', { style: 'margin:.1rem 0 .4rem' }, T('⏱️ Regras da prova', '⏱️ Contest rules')),
         el('div', { class: 'row', style: 'gap:.7rem;flex-wrap:wrap;align-items:flex-end' },
           field(T('início', 'start'), ini), field(T('fim', 'end'), fim), field(T('freeze do placar', 'scoreboard freeze'), fz)),
+        el('div', { class: 'small muted', style: 'margin:.2rem 0' },
+          T('Apagar o freeze descongela o placar. O MOJ só aceita isso a partir do fim da prova para todas as sedes + 1 min (prorrogações incluídas).',
+            'Clearing the freeze unfreezes the scoreboard. The MOJ only accepts this from the end of the contest for every site + 1 min (extensions included).')),
         el('div', { class: 'small muted', style: 'margin:.2rem 0' },
           T('modo: ', 'mode: '), el('span', { class: 'pill' }, (st.mode || 'icpc').toUpperCase()),
           T(' (definido na criação) · linguagens: ', ' (set at creation) · languages: '),

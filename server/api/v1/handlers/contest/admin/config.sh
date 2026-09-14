@@ -36,13 +36,12 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 # perdia as cores e desligava o módulo, relato de 2026-09-14); null = volta às cores padrão.
 # Toda escrita/remoção derruba o cache de /contest/balloons (o frescor por -nt não vê arquivo
 # apagado; a lista de presença em resp_cache_fresh também cobre, mas o explícito é grátis).
+# (escritor único: cc_balloons_write/clear em lib/contest-create.sh — a troca de rodada usa o mesmo)
 if jq -e 'has("colors")' >/dev/null 2>&1 <<<"$body"; then
   c="$(jq -c '.colors' <<<"$body")"
-  if [[ "$c" == null ]]; then
-    rm -f "$cdir/balloons.json" "$cdir/var/balloons-cache.json" "$cdir/var/balloons-cache.json.inputs"
+  if [[ "$c" == null ]]; then cc_balloons_clear "$contest"
   elif [[ "$(jq 'if type=="object" then length else 0 end' <<<"$c" 2>/dev/null)" -gt 0 ]]; then
-    printf '%s' "$c" > "$cdir/balloons.json"; rm -f "$cdir/var/balloons-cache.json" "$cdir/var/balloons-cache.json.inputs"
-    mod_enable "$contest" baloes
+    cc_balloons_write "$contest" "$c" || fail 500 "Falha ao gravar as cores" "colors_write"
   fi
 fi
 if jq -e 'has("regions")' >/dev/null 2>&1 <<<"$body"; then
@@ -58,6 +57,8 @@ if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
   bs="$(jq -r '.basic.login_start // empty' <<<"$body")"; [[ "$bs" =~ ^[0-9]+$ ]] && cc_set_conf_var "$contest" LOGIN_START_TIME "$bs"
   bf="$(jq -r '.basic.freeze // empty' <<<"$body")"
   if [[ "$bf" =~ ^[0-9]+$ ]] && [[ "$bf" != "$(conf_value "$contest" FREEZE_TIME)" ]]; then
+    # 0 = descongelar: só a partir do fim geral + 1 min (lib/contest-gate.sh)
+    if [[ "$bf" == 0 ]]; then source "$_LIBDIR/contest-gate.sh"; freeze_release_guard "$contest"; fi
     cc_set_conf_var "$contest" FREEZE_TIME "$bf"
     # freeze mudou ⇒ rebuild FORÇADO: o gatilho passivo "conf mais novo que .metrics-stamp"
     # perde p/ um build em voo (corrida de mtime, Maratona 29/08 — ver lib/common.sh).

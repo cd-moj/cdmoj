@@ -7,7 +7,7 @@
 // se houver job em voo, veredicto pendente ou review aberto, ele RECUSA (e explica por quê).
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
-import { makeBankPanel, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
+import { makeBankPanel, makeColorsEditor, toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
 import { T } from '/shared/i18n.js';
 import { fmtEpoch as fmt, downloadAuthed } from '/shared/admin-ui.js';
 
@@ -54,8 +54,8 @@ export function makeRoundsTab(CONTEST, opts = {}) {
       return box;
     }
     box.append(el('p', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
-      T(`A rodada no ar será ARQUIVADA (submissões, veredictos, placar e logs ficam guardados para auditoria) e “${next}” entra no ar com a janela e os problemas dela. Contas, senhas, sedes, cores de balão e time limits não mudam.`,
-        `The live round will be ARCHIVED (submissions, verdicts, scoreboard and logs are kept for audit) and “${next}” goes live with its own window and problems. Accounts, passwords, sites, balloon colours and time limits are untouched.`)));
+      T(`A rodada no ar será ARQUIVADA (submissões, veredictos, placar e logs ficam guardados para auditoria) e “${next}” entra no ar com a janela e os problemas dela. Contas, senhas, sedes e time limits não mudam. As cores de balão só mudam se “${next}” tiver cores próprias.`,
+        `The live round will be ARCHIVED (submissions, verdicts, scoreboard and logs are kept for audit) and “${next}” goes live with its own window and problems. Accounts, passwords, sites and time limits are untouched. Balloon colours only change if “${next}” has its own colours.`)));
     const ul = el('ul', { style: 'margin:.2rem 0 .5rem 1.1rem' });
     if (pr.ok) {
       ul.append(el('li', { class: 'small', style: 'color:#0a7' },
@@ -86,7 +86,7 @@ export function makeRoundsTab(CONTEST, opts = {}) {
     } }, T('🚀 Promover agora', '🚀 Promote now'));
     box.append(el('div', { class: 'row', style: 'gap:.6rem;align-items:center' }, go,
       el('label', { class: 'small row', style: 'gap:.25rem' }, force,
-        T('ignorar os bloqueadores (só em emergência)', 'ignore blockers (emergency only)'))));
+        T('ignorar os bloqueadores (só em emergência; não passa por cima do placar congelado)', 'ignore blockers (emergency only; does not override the frozen scoreboard)'))));
     return box;
   }
 
@@ -147,9 +147,38 @@ export function makeRoundsTab(CONTEST, opts = {}) {
     });
     box.append(el('h4', { style: 'margin:.6rem 0 .2rem' }, T('Problemas da rodada', 'Round problems')),
       el('p', { class: 'small muted', style: 'margin:.1rem 0 .3rem' },
-        T('A lista entra no ar quando esta rodada for promovida (na rodada no ar, salvar aplica na hora).',
-          'The list goes live when this round is promoted (on the live round, saving applies right away).')),
+        T('A lista entra no ar quando esta rodada for promovida (na rodada no ar, salvar aplica na hora). Você pode usar qualquer problema que o dono do contest pode ver: público, seu, de colaborador ou da sua org.',
+          'The list goes live when this round is promoted (on the live round, saving applies right away). You can use any problem the contest owner can see: public, own, as collaborator or from the org.')),
       plist, saveP, bank.el);
+
+    // cores de balão DESTA rodada (2026-09-14): a rodada no ar mostra o balloons.json (o mesmo de
+    // Evento › Balões); a planejada guarda as suas e as aplica quando for promovida. Sem cores
+    // próprias, a planejada herda as que estiverem em vigor na hora.
+    const letters = () => probs.map((p, i) => (p.letter || String.fromCharCode(65 + i)).toUpperCase());
+    const hasOwn = !!(r.colors && Object.keys(r.colors).length);
+    const ced = makeColorsEditor({ letters: letters(), initial: r.colors || {} });
+    const cmsg = el('span', { class: 'small muted' });
+    const saveC = el('button', { class: 'btn', onclick: () => {
+      const v = ced.getValue();
+      if (!Object.keys(v).length) { cmsg.textContent = T('nada mudou', 'nothing changed'); return; }
+      act({ action: 'set', slug: r.slug, colors: v }, T('✓ cores da rodada salvas', '✓ round colours saved'));
+    } }, T('salvar cores', 'save colours'));
+    const inherit = (r.state === 'active') ? null : el('button', { class: 'btn ghost', onclick: () => {
+      if (!confirm(T('Esta rodada passa a herdar as cores que estiverem em vigor quando for promovida. Continuar?',
+                     'This round will inherit the colours in force when it is promoted. Continue?'))) return;
+      act({ action: 'set', slug: r.slug, colors: null }, T('✓ a rodada herda as cores em vigor', '✓ the round inherits the colours in force'));
+    } }, T('herdar as cores em vigor', 'inherit the colours in force'));
+    box.append(el('h4', { style: 'margin:.8rem 0 .2rem' }, T('🎈 Cores dos balões desta rodada', '🎈 Balloon colours for this round')),
+      el('p', { class: 'small muted', style: 'margin:.1rem 0 .3rem' },
+        r.state === 'active'
+          ? T('Estas são as cores em vigor (as mesmas de Evento › Balões). Salvar aplica na hora.',
+              'These are the colours in force (the same as Event › Balloons). Saving applies right away.')
+          : (hasOwn
+            ? T('Esta rodada tem cores próprias. Elas entram no ar quando a rodada for promovida.',
+                'This round has its own colours. They go live when the round is promoted.')
+            : T('Esta rodada não tem cores próprias: ao ser promovida, herda as cores em vigor. Salve para dar cores próprias a ela.',
+                'This round has no colours of its own: when promoted, it inherits the colours in force. Save to give it its own colours.'))),
+      ced.el, el('div', { class: 'row', style: 'gap:.6rem;align-items:center;margin-top:.4rem' }, saveC, inherit, cmsg));
     return box;
   }
 
@@ -162,7 +191,9 @@ export function makeRoundsTab(CONTEST, opts = {}) {
       el('span', { class: 'small muted' }, KIND(r.kind) || r.kind || ''),
       el('span', { class: 'small muted' }, fmt(r.start) + ' → ' + fmt(r.end)),
       (r.problems || []).length ? el('span', { class: 'small muted' },
-        T(`${r.problems.length} problema(s)`, `${r.problems.length} problem(s)`)) : null);
+        T(`${r.problems.length} problema(s)`, `${r.problems.length} problem(s)`)) : null,
+      (r.colors && Object.keys(r.colors).length && r.state !== 'archived') ? el('span', { class: 'pill', title: T('esta rodada tem cores de balão próprias', 'this round has its own balloon colours') },
+        T('🎈 cores próprias', '🎈 own colours')) : null);
     if (r.stats) head.append(el('span', { class: 'small muted' },
       T(`· ${r.stats.submissions} submissões de ${r.stats.users} contas`, `· ${r.stats.submissions} submissions from ${r.stats.users} accounts`)));
     row.append(head);

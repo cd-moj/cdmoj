@@ -16,7 +16,10 @@ export function makeBalloonsTab(CONTEST) {
     panel.append(el('h2', {}, T('🎈 Balões', '🎈 Balloons')),
       el('p', { class: 'small muted' },
         T('Uma cor por letra: é o que sai desenhado na folha do balão que o staff entrega. Sem cores definidas, todos os balões saem cinza.',
-          'One colour per letter: it is what gets drawn on the balloon sheet the staff delivers. With no colours defined, every balloon comes out grey.')));
+          'One colour per letter: it is what gets drawn on the balloon sheet the staff delivers. With no colours defined, every balloon comes out grey.')),
+      el('p', { class: 'small muted' },
+        T('Estas são as cores da rodada no ar. Para dar cores próprias a outra rodada, use Evento › Rodadas.',
+          'These are the colours of the live round. To give another round its own colours, use Event › Rounds.')));
     let cfg;
     try { cfg = await apiGet('/contest/admin/config?contest=' + enc(CONTEST), G); }
     catch (e) { panel.append(el('div', { class: 'error-box' }, T('Falha: ', 'Failed: ') + (e.message || T('erro', 'error')))); return; }

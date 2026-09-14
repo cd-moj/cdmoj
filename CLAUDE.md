@@ -612,7 +612,25 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `.seq`, balões, `time-overrides.json` e `resources.json`. Ao mexer, mantenha a fronteira
   CONFIG × DADO DE RODADA documentada no topo da lib. `CC_KEEP_STATEMENTS=1` (em
   `cc_build_probs`) existe para a troca não re-baixar o enunciado do banco por cima do que o
-  admin subiu à mão.
+  admin subiu à mão. **Problema na rodada** (2026-09-14): a guarda é `problems_denied_for
+  <login> <ids>` (`lib/problems.sh`) com o **dono do contest** como sujeito — público, dono,
+  colaborador ou membro da org — a MESMA função de `admin/problems.sh` (404) e do wizard
+  (`SESSION_LOGIN`); nunca reescreva o predicado inline (a cópia das rodadas esquecia
+  colaborador/org). **Cores por rodada**: campo `colors` no objeto (formato do `balloons.json`);
+  `rd_apply_obj` grava via `cc_balloons_write` (escritor ÚNICO de `balloons.json`, também usado
+  por `admin/config.sh`; `cc_balloons_clear` apaga) só quando a rodada tem cores — ausente =
+  herda; `rd_sync_active` espelha o arquivo na ativa; a promoção arquiva `rounds/<slug>/balloons.json`.
+  Teste: `smoke-contest-rounds.sh`.
+- **Descongelar o placar só a partir do fim geral + 1 min** (`lib/contest-gate.sh`:
+  `freeze_release_at` = `contest_end_all` + `FREEZE_RELEASE_GRACE` (60 s), `freeze_release_ok`,
+  `freeze_release_guard` → 409 `freeze_locked`; pedido do Ribas, 2026-09-14). Vale p/ TODO
+  caminho que leva `FREEZE_TIME` de >0 a 0: `admin/settings.sh` (`freeze:0` — cerimônia e
+  Central), `admin/config.sh` (`basic.freeze:0`), `admin/finish.sh` (além de
+  `contest_over_for_all`; `can_finish` já considera) e `rd_promote_blockers` (`freeze_locked` é
+  bloqueador DURO junto de `no_next_round` — `force` não passa). Caminho novo que zere o freeze
+  chama `freeze_release_guard`. `settings`/`finish` GET expõem `freeze_release_at` p/ a UI
+  (reveal, Central, rodadas) explicar a hora. Teste: seção "guarda do freeze" do
+  `smoke-contest-rounds.sh`.
 - **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, painel
   **Evento › Documentos** do admin (módulo `documentos`) e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados), folha de
   time limits e **EDITORIAL** (o `docs/solucao.md` do PACOTE de cada problema, via `pkg_path` —
