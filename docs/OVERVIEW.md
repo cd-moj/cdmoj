@@ -266,7 +266,8 @@ vai com `group:false` p/ não vazar no grupo e `loud:true` p/ notificar) — é 
 (`lib/invite-notify.sh`; o poll do bot continua sendo o relógio, agora com stamp próprio).
 E carrega também a mensagem **só para o grupo** (`alert_group`: `chats:[]` + `group:true`) — é
 por ela que sai o **relatório de quartil** (`lib/relatorio.sh` + `POST /ops/relatorio`, comando
-`/relatorio` do bot, gate `.admin` pelo `telegram_id`): top-10 de contests por submissões no
+`/relatorio` do bot, gate `.admin` pelo `telegram_id`; destino = o grupo registrado por
+`/relatorio aqui`, entrega confirmada por ack do bot — `sent` só marca depois de entregue): top-10 de contests por submissões no
 semestre + treino + comparações com o ano anterior, automático ao vencer cada quartil.
 
 ### Criação de contest (`/treino/criar/`) — wizard multi-etapa

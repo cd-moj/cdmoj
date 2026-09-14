@@ -159,20 +159,67 @@ bcall /ops/relatorio POST "$AUTH" "$(J 999 '["status"]')"
 check "status -> 200 com quartis e pré-marcados" \
   'okstatus && [[ "$(html)" == *"pré-marcado"* && "$(html)" == *"Q4"* ]]'
 
-echo "== agendador (sweep no /ops/alerts) =="
+echo "== destino: /relatorio aqui (só em grupo), admin anônimo =="
+J2(){ jq -cn --argjson id "$1" --argjson a "${2:-[]}" --argjson c "$3" --arg t "$4" '{telegram_id:$id, args:$a, chat_id:$c, chat_type:$t}'; }
+bcall /ops/relatorio POST "$AUTH" "$(J2 999 '["aqui"]' 999 private)"
+check "aqui em DM -> 422 not_group" '[[ "$OUT" == *"Status: 422"* && "$OUT" == *not_group* ]]'
+bcall /ops/relatorio POST "$AUTH" "$(J2 999 '["aqui"]' -100123 supergroup)"
+check "aqui no grupo -> 200 e chat_id gravado" 'okstatus && jq -e ".chat_id==-100123 and .chat_set_by==\"x.admin\"" "$CJ" >/dev/null'
+bcall /ops/relatorio POST "$AUTH" "$(J 999 '["status"]')"
+check "status mostra o destino"        'okstatus && [[ "$(html)" == *"-100123"* ]]'
+bcall /ops/relatorio POST "$AUTH" "$(J2 1087968824 '[]' -100123 supergroup)"
+check "admin anônimo (GroupAnonymousBot) -> 403 anonymous_admin" '[[ "$OUT" == *"Status: 403"* && "$OUT" == *anonymous_admin* ]]'
+
+echo "== agendador (sweep no /ops/alerts): destino explícito, ack, inflight, refazer =="
 # config sintética: len=8000s, b1=now-2000 e b2=now vencidos, nada sent ⇒ devido = 2 (o MAIOR)
+jq -cn --argjson i "$(( now - 4000 ))" --argjson f "$(( now + 4000 ))" \
+   '{inicio:$i, fim:$f, configured_by:"x.admin", configured_at:$i, sent:{}, chat_id:-100123}' > "$CJ"
+bcall /ops/alerts GET "$AUTH"
+check "quartil vencido -> UM item p/ o grupo registrado (chats:[-100123], group:false, loud)" \
+  '(printf "%s" "$BODY" | jq -e "[.items[] | select(.text | contains(\"Relatório\"))] | length==1 and (.[0].chats==[-100123]) and (.[0].group==false) and (.[0].loud==true)" >/dev/null)'
+check "relatório do quartil 2/4 (o maior vencido; um só, não dois)" \
+  '(printf "%s" "$BODY" | jq -e "[.items[].text] | any(contains(\"quartil <b>2/4</b>\"))" >/dev/null)'
+RID="$(printf '%s' "$BODY" | jq -r '.items[] | select(.text | contains("Relatório")) | .id')"
+check "sent NÃO marcado antes do ack; last_auto queued com o id" \
+  'jq -e "(.sent|length)==0 and .last_auto.k==2 and .last_auto.outcome==\"queued\" and .last_auto.id==\"$RID\"" "$CJ" >/dev/null'
+check "item foi p/ inflight (não apagado)" '[[ -f "$RUN/alerts/inflight/$RID.json" ]]'
+check "relatorio.log tem o queued"       'grep -q "k=2 dest=-100123 id=$RID queued" "$RUN/alerts/relatorio.log"'
+bcall /ops/alerts GET "$AUTH"
+check "poll seguinte: sem repetição (item em voo)" \
+  '(printf "%s" "$BODY" | jq -e "[.items[].text // empty] | any(contains(\"Relatório\")) | not" >/dev/null)'
+bcall /ops/alerts POST "$AUTH" "$(jq -cn --arg id "$RID" '{ack:[{id:$id, ok:false, error:"chat not found"}]}')"
+check "ack ok:false -> inflight some, outcome failed, sent segue vazio" \
+  'okstatus && [[ ! -e "$RUN/alerts/inflight/$RID.json" ]] && jq -e "(.sent|length)==0 and (.last_auto.outcome|startswith(\"failed: chat not found\"))" "$CJ" >/dev/null'
+bcall /ops/alerts GET "$AUTH"
+check "falhou -> o sweep reenfileira (id novo)" \
+  '(printf "%s" "$BODY" | jq -e "[.items[] | select(.text | contains(\"Relatório\"))] | length==1" >/dev/null) && [[ "$(printf "%s" "$BODY" | jq -r ".items[0].id")" != "$RID" ]]'
+RID2="$(printf '%s' "$BODY" | jq -r '.items[] | select(.text | contains("Relatório")) | .id')"
+bcall /ops/alerts POST "$AUTH" "$(jq -cn --arg id "$RID2" '{ack:[{id:$id, ok:true}]}')"
+check "ack ok:true -> Q1 e Q2 marcados entregues, outcome delivered" \
+  'jq -e "(.sent[\"1\"]>0) and (.sent[\"2\"]>0) and .last_auto.outcome==\"delivered\"" "$CJ" >/dev/null && grep -q "id=$RID2 delivered" "$RUN/alerts/relatorio.log"'
+bcall /ops/alerts GET "$AUTH"
+check "entregue: nada mais na fila"      '(printf "%s" "$BODY" | jq -e "[.items[].text // empty] | any(contains(\"Relatório\")) | not" >/dev/null)'
+bcall /ops/relatorio POST "$AUTH" "$(J 999 '["status"]')"
+check "status: Q2 entregue + último envio delivered" '[[ "$(html)" == *"Q2"*"entregue"* && "$(html)" == *"delivered"* ]]'
+bcall /ops/relatorio POST "$AUTH" "$(J 999 '["refazer","2"]')"
+check "refazer 2 -> Q1 fica, Q2 sai"     'okstatus && jq -e "(.sent[\"1\"]>0) and (.sent|has(\"2\")|not) and (has(\"last_auto\")|not)" "$CJ" >/dev/null'
+bcall /ops/alerts GET "$AUTH"
+check "refazer -> reenfileirou o quartil 2" '(printf "%s" "$BODY" | jq -e "[.items[] | select(.text | contains(\"quartil <b>2/4</b>\"))] | length==1" >/dev/null)'
+RID3="$(printf '%s' "$BODY" | jq -r '.items[] | select(.text | contains("Relatório")) | .id')"
+touch -d '-20 minutes' "$RUN/alerts/inflight/$RID3.json"
+bcall /ops/alerts GET "$AUTH"
+check "inflight sem ack há 20 min volta ao outbox e é reentregue (mesmo id)" \
+  '[[ "$(printf "%s" "$BODY" | jq -r ".items[] | select(.text | contains(\"Relatório\")) | .id")" == "$RID3" ]]'
+bcall /ops/alerts POST "$AUTH" "$(jq -cn --arg id "$RID3" '{ack:[{id:$id, ok:true}]}')"
+
+echo "== sem chat_id: cai no grupo padrão do bot (alert_group) =="
 jq -cn --argjson i "$(( now - 4000 ))" --argjson f "$(( now + 4000 ))" \
    '{inicio:$i, fim:$f, configured_by:"x.admin", configured_at:$i, sent:{}}' > "$CJ"
 bcall /ops/alerts GET "$AUTH"
-check "quartil vencido -> UM item só-grupo (chats vazio, group:true, loud)" \
-  '(printf "%s" "$BODY" | jq -e "[.items[] | select(.text | contains(\"Relatório\"))] | length==1 and (.[0].chats==[]) and (.[0].group==true) and (.[0].loud==true)" >/dev/null)'
-check "relatório do quartil 2/4 (o maior vencido; um só, não dois)" \
-  '(printf "%s" "$BODY" | jq -e "[.items[].text] | any(contains(\"quartil <b>2/4</b>\"))" >/dev/null)'
-check "Q1 e Q2 marcados enviados (epoch, não 0)" \
-  'jq -e "(.sent[\"1\"]>0) and (.sent[\"2\"]>0)" "$CJ" >/dev/null'
-bcall /ops/alerts GET "$AUTH"
-check "poll seguinte: sem repetição" \
-  '(printf "%s" "$BODY" | jq -e "[.items[].text // empty] | any(contains(\"Relatório\")) | not" >/dev/null)'
+check "sem destino registrado -> item só-grupo (chats:[], group:true)" \
+  '(printf "%s" "$BODY" | jq -e "[.items[] | select(.text | contains(\"Relatório\"))] | length==1 and (.[0].chats==[]) and (.[0].group==true)" >/dev/null)'
+bcall /ops/alerts POST "$AUTH" "$(printf '%s' "$BODY" | jq -c '{ack:[.items[] | {id, ok:true}]}')"
+check "ack em lote marca entregue"       'jq -e ".sent[\"2\"]>0" "$CJ" >/dev/null'
 
 echo "== outbox: DM sem destino continua descartada =="
 jq -cn '{text:"dm perdida", chats:[], loud:false, group:false}' > "$RUN/alerts/outbox/1-dm-XXXX.json"

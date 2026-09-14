@@ -68,26 +68,54 @@ A API entrega no máximo `ALERT_CLAIM_MAX` (30) itens por poll e o bot dá `slee
 
 ## Relatório periódico (/relatorio)
 
-O ritual dos professores: a cada **quartil do semestre**, um painel no grupo com o top-10 de
-contests por submissões desde o início do semestre, o treino livre, usuários ativos e as
-comparações com o ano anterior. Tudo mora na API (`POST /ops/relatorio` + sweep no
-`GET /ops/alerts`); o bot só transporta:
+O relatório de quartil é um painel de submissões para o grupo dos professores. Ele mostra o
+top-10 de contests por submissões desde o início do semestre, o treino livre, os usuários ativos
+e a comparação com o ano anterior. A API faz tudo (`POST /ops/relatorio` e o sweep do
+`GET /ops/alerts`). O bot só transporta.
 
-- `/relatorio config 2026-03-16 2026-07-18` — grava o semestre (quartis JÁ vencidos ficam
-  pré-marcados: configurar no meio do semestre não dispara relatórios retroativos);
-- a partir daí o sweep (stamp próprio, `RELATORIO_SWEEP_THROTTLE`=1 h) envia o painel ao
-  grupo sozinho quando cada quartil vence (`alert_group`, com notificação);
-- `/relatorio` — painel na hora (período `[início, agora]`); `/relatorio 2026-01-01` —
-  override pontual; `/relatorio status` — config, quartis, o que já foi enviado.
+Para configurar, siga estes passos:
 
-**Quem pode**: só quem tem conta **`.admin` do treino com Telegram vinculado** (o mesmo
-conjunto que recebe alertas) — o gate é da API, pelo `telegram_id`; o comando funciona
-dentro do grupo (é o uso normal). Config em `contests/treino/var/relatorio.json`; cache do
-gerador em `var/relatorio-cache.json` (TTL 600 s).
+1. Entre no grupo que deve receber o relatório.
+2. Envie `/relatorio aqui`. O bot grava o id do grupo. Os envios automáticos vão para esse grupo.
+3. Envie `/relatorio config 2026-03-16 2026-07-18`. O bot grava o semestre. Quartis já vencidos
+   ficam pré-marcados. O bot não envia relatórios retroativos.
+4. Envie `/relatorio status`. Confira o destino, os quartis e o último envio.
 
-Com a base **fria** a varredura pode passar de 1 min: nesse caso a resposta vem na hora
-("⏳ … em segundo plano") e o painel sai no `/relatorio` seguinte (~1 min), do cache. O
-envio automático de quartil não sofre disso — gera em background e envia no sweep seguinte.
+Atenção: sem `/relatorio aqui`, o destino é o `ALERT_GROUP_CHAT` do `bot.conf`. Se esse id está
+errado, o relatório vai para o grupo errado.
+
+Comandos:
+
+| Comando | O que faz |
+|---|---|
+| `/relatorio` | Envia o painel agora, do início do semestre até agora. |
+| `/relatorio 2026-01-01` | Envia o painel de uma data até agora. |
+| `/relatorio aqui` | Registra este grupo como destino. Só funciona dentro de um grupo. |
+| `/relatorio config <início> <fim>` | Grava o semestre. |
+| `/relatorio refazer <k>` | Desmarca o quartil `k` e os seguintes. O próximo ciclo reenvia. |
+| `/relatorio status` | Mostra destino, quartis, último envio automático e cache. |
+
+Quem pode: só uma conta `.admin` do treino com Telegram vinculado. A API decide pelo
+`telegram_id`. Atenção: um admin no modo anônimo do grupo aparece como `GroupAnonymousBot`. O bot
+responde com um aviso. Desligue o modo anônimo ou envie o comando em DM.
+
+Como o envio automático funciona:
+
+1. O sweep do `GET /ops/alerts` roda no máximo uma vez por hora (`RELATORIO_SWEEP_THROTTLE`).
+2. Quando um quartil vence, a API gera o painel e enfileira um item para o destino.
+3. O bot entrega o item e confirma com `POST /ops/alerts {ack}`.
+4. A API marca o quartil como entregue só depois do ack. Sem ack em 10 minutos, a API reenvia.
+5. Se a entrega falha, o bot registra o motivo no log. `/relatorio status` mostra `failed: …`.
+
+A trilha fica em `run/alerts/relatorio.log`, uma linha por evento. O `tg_send` do bot escreve
+cada falha do Telegram no stderr, com o motivo. Um grupo que virou supergrupo aparece com o id
+novo na mensagem.
+
+Com a base fria, a geração pode passar de 1 minuto. O `/relatorio` responde "em segundo plano"
+e o painel sai no `/relatorio` seguinte. O envio automático gera em segundo plano e envia no
+sweep seguinte.
+
+Teste local do bot: `bash test/deliver.sh` (Telegram e API falsos).
 
 Os `.admin` recebem DM só depois de vincularem o Telegram na
 seção **📨 Telegram** do perfil (`/treino/perfil/` → botão "🔗 Vincular Telegram", deep-link de

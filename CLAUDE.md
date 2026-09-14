@@ -270,7 +270,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `.admin`), `*-dm-*.json` = **DM dirigida** (`alert_dm`: o produtor resolve o chat; `group:false` p/ não
   copiar no grupo, `loud:true` p/ notificar) e `*-grp-*.json` = **só grupo** (`alert_group`:
   `chats:[]` + `group:true`; o claim SÓ aceita chats vazio quando `group` — DM sem destino segue
-  descartada). O claim entrega no máx. `ALERT_CLAIM_MAX`(30) por poll
+  descartada). **Entrega com ACK (2026-09-14)**: item `.json` vai p/ `run/alerts/inflight/` no claim e o
+  bot confirma com `POST /ops/alerts {ack}`; sem ack em 10 min volta ao outbox. O relatório de
+  quartil marca `sent` SÓ no ack (`rel_ack`); destino = `chat_id` registrado por `/relatorio aqui`
+  (senão o `ALERT_GROUP_CHAT` do bot). O bug de 12/09 ("preso enviando p/ o grupo errado"): o
+  `rel_mark_sent` falhava mudo — `${BASHPID}` no alvo de redirect de um `jq` expande no FILHO, o
+  `mv` não achava o tmp — e o sweep reenfileirava a cada hora; hoje o tmp é resolvido em variável
+  ANTES do comando externo (regra p/ todo `> "$x.tmp.${BASHPID}"` de comando não-builtin) e o
+  sweep escreve em `run/alerts/relatorio.log`. O claim entrega no máx. `ALERT_CLAIM_MAX`(30) por poll
   (teto do Telegram) — o resto sai no seguinte. No bot, ler `group` com **`.group == false`**: o `//`
   do jq trata `false` como vazio e o grupo receberia a DM de todo mundo.
   Senha nova **só por DM** (nunca na web).

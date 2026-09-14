@@ -6,9 +6,17 @@
 # (rel_sched_check, com stamp/throttle no handler). On-demand via POST /ops/relatorio.
 #
 # Config em contests/treino/var/relatorio.json (JSON puro, escrita atômica, NUNCA
-# *sourced*): {inicio, fim, configured_by, configured_at, sent:{"1":E,…}}.
+# *sourced*): {inicio, fim, configured_by, configured_at, sent:{"1":E,…},
+#              chat_id?, chat_set_by?, chat_set_at?, last_auto?:{k,id,dest,at,outcome}}.
 # Em `sent`, valor 0 = quartil PRÉ-MARCADO ao configurar (já estava vencido; não houve
 # envio) — configurar no meio do semestre não dispara relatórios retroativos.
+# DESTINO (2026-09-14, relatório preso no grupo errado): `chat_id` é o grupo registrado por
+# `/relatorio aqui` DENTRO do grupo; com ele o envio automático vai só para lá (alert_dm com
+# chats:[chat_id], group:false). Sem `chat_id`, cai no ALERT_GROUP_CHAT do bot (alert_group),
+# que a API não enxerga. ENTREGA ≠ ENFILEIRAMENTO: `sent[k]` só é marcado quando o bot
+# confirma a entrega (POST /ops/alerts {ack}); enquanto o item está na fila/inflight,
+# `last_auto` = {k,id,dest,at,outcome:"queued"} e o sweep não duplica. Trilha em
+# run/alerts/relatorio.log (uma linha por evento) — o sweep deixou de ser mudo.
 #
 # Sourced sob demanda (padrão invite-notify.sh); defaults abaixo p/ teste isolado.
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
@@ -48,12 +56,51 @@ rel_conf_set(){
   for k in 1 2 3 4; do
     (( EPOCHSECONDS >= b[k-1] )) && sent="$(jq -c --arg k "$k" '. + {($k): 0}' <<<"$sent")"
   done
+  # ⚠ o nome do tmp é resolvido ANTES do jq: ${BASHPID} no alvo de redirect de comando EXTERNO
+  # expande no FILHO (pid diferente do mv) — o /relatorio config dava 500 "cannot stat" (bash 5.3)
   ( flock -w 5 9 || exit 1
+    tmp="$cf.tmp.$BASHPID"
     jq -cn --argjson i "$i" --argjson f "$f" --arg by "$by" \
        --argjson t "$EPOCHSECONDS" --argjson sent "$sent" \
-       '{inicio:$i, fim:$f, configured_by:$by, configured_at:$t, sent:$sent}' > "$cf.tmp.${BASHPID}" \
-      && mv -f "$cf.tmp.${BASHPID}" "$cf"
+       '{inicio:$i, fim:$f, configured_by:$by, configured_at:$t, sent:$sent}' > "$tmp" \
+      && mv -f "$tmp" "$cf"
   ) 9>"$cf.lock"
+}
+
+# rel_log <texto> — trilha do agendador/entrega (run/alerts/relatorio.log; append, nunca falha)
+rel_log(){ local d="${RUNDIR:-/home/ribas/moj/run}/alerts"; mkdir -p "$d" 2>/dev/null; printf '%s\t%s\n' "$EPOCHSECONDS" "$*" >> "$d/relatorio.log" 2>/dev/null || true; }
+# _rel_conf_edit <filtro-jq> [args…] — reescreve o relatorio.json sob flock (cria se não existe)
+_rel_conf_edit(){
+  local cf filt="$1"; shift; cf="$(rel_conf_file)"; mkdir -p "${cf%/*}" 2>/dev/null
+  ( flock -w 5 9 || exit 1
+    tmp="$cf.tmp.$BASHPID"
+    { [[ -s "$cf" ]] && cat "$cf" || printf '{}'; } | jq -c "$filt" "$@" > "$tmp" \
+      && mv -f "$tmp" "$cf"
+  ) 9>"$cf.lock"
+}
+# rel_chat_set <chat_id> <login> / rel_chat_get — grupo de destino do envio automático
+rel_chat_set(){ _rel_conf_edit '. + {chat_id:$c, chat_set_by:$by, chat_set_at:$t}' --argjson c "$1" --arg by "$2" --argjson t "$EPOCHSECONDS"; }
+rel_chat_get(){ jq -r '.chat_id // empty' <<<"$(rel_conf_get)"; }
+# rel_unmark <k> — desmarca sent[k..4] e o last_auto: o próximo sweep reenvia (/relatorio refazer)
+rel_unmark(){ local k="$1" j ks='[]'; for (( j=k; j<=4; j++ )); do ks="$(jq -c --arg j "$j" '. + [$j]' <<<"$ks")"; done
+  _rel_conf_edit '.sent = ((.sent // {}) | with_entries(select(.key as $k | ($ks | index($k)) == null))) | del(.last_auto)' --argjson ks "$ks"; }
+rel_set_last_auto(){ _rel_conf_edit '.last_auto = $o' --argjson o "$1"; }
+# rel_ack <id> <ok:true|false> <erro> — o bot confirmou (ou não) a entrega do item <id>:
+# entregue ⇒ sent[1..k] marcados; falhou ⇒ outcome "failed: …" e o quartil continua devido
+# (o próximo sweep reenfileira — quem conserta o destino é /relatorio aqui).
+rel_ack(){
+  local id="$1" ok="$2" err="${3:-}" la k j ks=()
+  la="$(jq -c '.last_auto // {}' <<<"$(rel_conf_get)")"
+  [[ "$(jq -r '.id // empty' <<<"$la")" == "$id" ]] || return 0
+  k="$(jq -r '.k' <<<"$la")"
+  if [[ "$ok" == true ]]; then
+    for (( j=1; j<=k; j++ )); do ks+=("$j"); done; rel_mark_sent "${ks[@]}"
+    _rel_conf_edit '.last_auto.outcome = "delivered" | .last_auto.delivered_at = $t' --argjson t "$EPOCHSECONDS"
+    rel_log "k=$k id=$id delivered"
+  else
+    _rel_conf_edit '.last_auto.outcome = ("failed: " + $e)' --arg e "$err"
+    rel_log "k=$k id=$id FAILED: $err"
+  fi
 }
 
 # rel_mark_sent <k>... — merge em .sent com o epoch de agora; NÃO sobrescreve marca existente.
@@ -63,8 +110,9 @@ rel_mark_sent(){
   add='{}'
   for k in "$@"; do add="$(jq -c --arg k "$k" --argjson t "$EPOCHSECONDS" '. + {($k): $t}' <<<"$add")"; done
   ( flock -w 5 9 || exit 1
-    jq -c --argjson add "$add" '.sent = ($add + (.sent // {}))' "$cf" > "$cf.tmp.${BASHPID}" \
-      && mv -f "$cf.tmp.${BASHPID}" "$cf"
+    tmp="$cf.tmp.$BASHPID"
+    jq -c --argjson add "$add" '.sent = ($add + (.sent // {}))' "$cf" > "$tmp" \
+      && mv -f "$tmp" "$cf"
   ) 9>"$cf.lock"
 }
 
@@ -203,23 +251,33 @@ rel_html(){
 }
 
 # rel_sched_check — chamado (throttled) pelo handler /ops/alerts: se um quartil venceu e
-# não foi enviado, gera o relatório [inicio, b_k], enfileira SÓ PARA O GRUPO (alert_group,
-# loud) e marca 1..k. `sent` só é marcado APÓS o enqueue OK (falha ⇒ retenta no próximo
-# sweep). Geração em background (rc 2, base fria) também retenta: a janela é de until
-# FIXO, então no sweep seguinte o cache fecha por igualdade exata e o envio sai.
-# Requer lib/alerts.sh já sourced (alert_group).
+# não foi ENTREGUE, gera o relatório [inicio, b_k] e enfileira p/ o destino (chat_id registrado
+# por /relatorio aqui, senão o grupo padrão do bot). `sent` é marcado pelo ACK do bot
+# (rel_ack), não aqui: enquanto o item enfileirado existe (outbox/inflight), o sweep não
+# duplica; item sumido sem ack (perdido) é reenfileirado. Geração em background (rc 2, base
+# fria) retenta no sweep seguinte (janela de until FIXO ⇒ cache fecha por igualdade exata).
+# rc: 0 ok/nada a fazer · 2 gerando · 1 falha. Requer lib/alerts.sh já sourced.
 rel_sched_check(){
-  local cj i f k b cache html j ks=()
+  local cj i f k b cache html la id d dest
   k="$(rel_due_quartil "$EPOCHSECONDS")"; [[ -n "$k" ]] || return 0
   cj="$(rel_conf_get)"
+  la="$(jq -c '.last_auto // {}' <<<"$cj")"
+  if [[ "$(jq -r '.k // empty' <<<"$la")" == "$k" && "$(jq -r '.outcome // empty' <<<"$la")" == queued ]]; then
+    id="$(jq -r '.id' <<<"$la")"; d="$(_alert_dir)"
+    [[ -e "$d/outbox/$id.json" || -e "$d/inflight/$id.json" ]] && return 0   # em voo: espera o ack
+    rel_log "k=$k id=$id sumiu sem ack — reenfileirando"
+  fi
   i="$(jq -r '.inicio' <<<"$cj")"; f="$(jq -r '.fim' <<<"$cj")"
   read -r -a b <<<"$(rel_quartil_bounds "$i" "$f")"
   cache="$(rel_cache_file_auto)"
   rel_generate "$i" "${b[k-1]}" "$cache"
-  case $? in 0) ;; 2) return 0 ;; *) return 1 ;; esac
+  case $? in 0) ;; 2) rel_log "k=$k gerando em background"; return 2 ;; *) rel_log "k=$k geração FALHOU"; return 1 ;; esac
   html="$(rel_html "$cache" "quartil <b>$k/4</b>")"
-  [[ -n "$html" ]] || return 1
-  alert_group "$html" loud >/dev/null || return 1
-  for (( j=1; j<=k; j++ )); do ks+=("$j"); done
-  rel_mark_sent "${ks[@]}"
+  [[ -n "$html" ]] || { rel_log "k=$k html vazio"; return 1; }
+  dest="$(rel_chat_get)"
+  if [[ -n "$dest" ]]; then id="$(alert_dm "$html" "$dest" loud)" || { rel_log "k=$k dest=$dest enqueue FALHOU"; return 1; }
+  else dest="grupo-padrao-do-bot"; id="$(alert_group "$html" loud)" || { rel_log "k=$k dest=$dest enqueue FALHOU"; return 1; }; fi
+  rel_set_last_auto "$(jq -cn --argjson k "$k" --arg id "$id" --arg d "$dest" --argjson t "$EPOCHSECONDS" '{k:$k, id:$id, dest:$d, at:$t, outcome:"queued"}')"
+  rel_log "k=$k dest=$dest id=$id queued"
+  return 0
 }

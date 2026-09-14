@@ -4,6 +4,14 @@
 # o bot só envia (+ o grupo configurado, que ele adiciona). Efeito colateral idempotente
 # (throttle por stamp): pode ser chamado com a frequência do poll do bot.
 require_bot
+# POST {ack:[{id,ok,error}]} — o bot confirma as entregas do poll anterior (ver alerts_ack)
+if [[ "$REQUEST_METHOD" == POST ]]; then
+  body="$(read_body)"
+  jq -e '.ack | type == "array"' >/dev/null 2>&1 <<<"$body" || fail 400 "esperado {ack:[…]}" "bad_json"
+  n="$(alerts_ack "$(jq -c '.ack' <<<"$body")")"
+  ok_json '{acked:$n}' --argjson n "${n:-0}"
+  exit 0
+fi
 # heartbeat do bot: mtime de bot.alive = último poll. É o que deixa a queda do CARTEIRO visível
 # (/index/status + página /status/). E a detecção do período fora TEM de ser AQUI, antes do
 # touch: o alerts_evaluate só roda no poll do bot — com o bot morto ninguém avalia nada, então
@@ -32,14 +40,17 @@ if (( EPOCHSECONDS - $(stat -c %Y "$_iv" 2>/dev/null || echo 0) >= ${INVITE_SWEE
   inv_sweep_all >/dev/null 2>&1 || true
 fi
 # RELATÓRIO DE QUARTIL (mojinho → grupo dos professores): mesmo relógio, stamp PRÓPRIO e
-# throttle largo (1h — a granularidade do agendamento é "o dia do quartil"). Stamp ANTES
-# do trabalho: a geração varre todos os history e não pode re-disparar em polls seguidos.
-# Antes do claim, p/ o relatório devido sair NESTE mesmo poll.
+# throttle largo (1h — a granularidade do agendamento é "o dia do quartil"). O stamp é
+# carimbado DEPOIS do trabalho e conforme o resultado: ok/gerando = 1 h; FALHA = tenta de
+# novo em 10 min (antes o stamp entrava antes e o erro sumia em >/dev/null por 1 h). O que
+# aconteceu fica em run/alerts/relatorio.log. Antes do claim, p/ o relatório sair NESTE poll.
 _rl="$RUNDIR/alerts/.relatorio-stamp"
-if (( EPOCHSECONDS - $(stat -c %Y "$_rl" 2>/dev/null || echo 0) >= ${RELATORIO_SWEEP_THROTTLE:-3600} )); then
-  : > "$_rl"
+_rt="${RELATORIO_SWEEP_THROTTLE:-3600}"
+if (( EPOCHSECONDS - $(stat -c %Y "$_rl" 2>/dev/null || echo 0) >= _rt )); then
   source "$_DIR/lib/relatorio.sh"
-  rel_sched_check >/dev/null 2>&1 || true
+  rel_sched_check 2>>"$RUNDIR/alerts/relatorio.log"; _rc=$?
+  if (( _rc == 1 )); then touch -d "-$(( _rt > 600 ? _rt - 600 : 0 )) seconds" "$_rl" 2>/dev/null || : > "$_rl"
+  else : > "$_rl"; fi
 fi
 items="$(alerts_claim)"
 [[ -n "$items" ]] || items='[]'

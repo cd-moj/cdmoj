@@ -66,7 +66,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
       bash jq git gawk sed grep findutils coreutils util-linux tar gzip zip unzip \
       rsync file bzip2 zstd xz-utils python3 python3-yaml \
-      curl ca-certificates \
+      curl ca-certificates tzdata \
       fcgiwrap \
       pandoc graphviz \
       inotify-tools socat \
@@ -109,6 +109,11 @@ RUN set -eux; \
     command -v fcgiwrap; \
     for b in rsync file bzip2 zstd xz unzip zip tar gzip jq git curl inotifywait socat \
              gs pdfinfo pdfunite qpdf paps ps2pdf iconv nl python3; do command -v "$b" >/dev/null || { echo "FALTA: $b" >&2; exit 1; }; done; \
+    # FUSO: lib/common.sh exporta TZ=America/Sao_Paulo e valida nomes contra o zoneinfo; sem tzdata
+    # o glibc cai MUDO em UTC e todo horário escrito p/ gente (quartil do relatório, DM, caderno)
+    # sai 3 h deslocado — a asserção é a capacidade, não o pacote.
+    [ -f /usr/share/zoneinfo/America/Sao_Paulo ] || { echo 'FALTA: tzdata (zoneinfo America/Sao_Paulo)' >&2; exit 1; }; \
+    [ "$(TZ=America/Sao_Paulo date -d @1757000000 +%H)" = "12" ] || { echo 'FALTA: TZ America/Sao_Paulo nao aplica (-3h)' >&2; exit 1; }; \
     # ⚠ BINÁRIO PRESENTE NÃO É CAPACIDADE PRESENTE. O `command -v paps` acima passou
     # durante meses enquanto TODA impressão de código-fonte saía só com a folha de rosto:
     # o código chamava `paps --format=pdf`, opção que só existe no paps >= 0.7, e esta

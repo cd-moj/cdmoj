@@ -177,9 +177,18 @@ alerts_evaluate(){
 # Ordem = nome do arquivo (o prefixo epoch dá FIFO) e TETO de ALERT_CLAIM_MAX por chamada: o bot
 # entrega em série e o Telegram corta acima de ~30 msg/s — o resto sai no poll seguinte (~25 s).
 # Item ilegível é descartado (rm antes de emitir) p/ não travar a fila para sempre.
+# ENTREGA COM ACK (2026-09-14): item .json sai do outbox p/ inflight/<id>.json em vez de ser
+# apagado; o bot confirma com POST /ops/alerts {ack:[{id,ok,error}]} (alerts_ack), que apaga o
+# inflight. Sem ack em ALERT_INFLIGHT_TTL (600 s — bot caiu entre o claim e o envio, resposta
+# HTTP perdida), o item VOLTA ao outbox e é reentregue. O .txt de incidente segue at-most-once
+# (rm no claim): alerta repetido é pior que alerta perdido; relatório perdido é o que doía.
 alerts_claim(){
-  local d; d="$(_alert_dir)"; local ob="$d/outbox"
+  local d; d="$(_alert_dir)"; local ob="$d/outbox" inf="$d/inflight"
   [[ -d "$ob" ]] || { echo '[]'; return; }
+  mkdir -p "$inf" 2>/dev/null
+  local stale
+  while IFS= read -r stale; do [[ -n "$stale" ]] && mv -f "$stale" "$ob/" 2>/dev/null; done \
+    < <(find "$inf" -maxdepth 1 -name '*.json' -mmin +"$(( ${ALERT_INFLIGHT_TTL:-600} / 60 ))" 2>/dev/null)
   local files=() chats_json="" first=1 n=0 f id out
   mapfile -t files < <( set +o noglob; shopt -s nullglob
                         for f in "$ob"/*.txt "$ob"/*.json; do printf '%s\n' "$f"; done | sort )
@@ -202,10 +211,23 @@ alerts_claim(){
       out="$(jq -cn --arg id "$id" --arg t "$(cat "$f")" --argjson c "$chats_json" \
               '{id:$id, text:$t, chats:$c, loud:false, group:true}')"
     fi
-    rm -f "$f"
+    if [[ "$f" == *.json && -n "$out" ]]; then mv -f "$f" "$inf/$id.json" 2>/dev/null || rm -f "$f"; else rm -f "$f"; fi
     [[ -n "$out" ]] || continue
     (( first )) || printf ','; first=0
     printf '%s' "$out"; n=$(( n + 1 ))
   done
   printf ']'
+}
+# alerts_ack <json-array [{id,ok,error}]> -> n confirmados. Apaga o inflight e avisa o relatório
+# (rel_ack marca sent/outcome). Id fora do padrão é ignorado (nome de arquivo).
+alerts_ack(){
+  local d n=0 id ok err; d="$(_alert_dir)"
+  declare -F rel_ack >/dev/null || source "${BASH_SOURCE[0]%/*}/relatorio.sh"
+  while IFS=$'\t' read -r id ok err; do
+    [[ "$id" =~ ^[0-9]+-[a-z]+-[A-Za-z0-9_-]+$ ]] || continue
+    rm -f "$d/inflight/$id.json" 2>/dev/null
+    rel_ack "$id" "$ok" "$err"
+    n=$(( n + 1 ))
+  done < <(jq -r '.[]? | select(type=="object") | [(.id // ""), (if .ok == true then "true" else "false" end), ((.error // "") | tostring | gsub("[\t\n]"; " "))] | @tsv' <<<"$1" 2>/dev/null)
+  printf '%s' "$n"
 }

@@ -75,13 +75,24 @@ tg_api() {  # tg_api <método-tg> <json> [timeout] -> resposta no stdout
     -K <(printf 'url = "%s/%s"\n' "$API_TG" "$path"); rc=$?
   rm -f "$bf"; return $rc
 }
-tg_send() {  # tg_send <chat_id> <json-msg-sem-chat_id> [loud]
+TG_LAST_ERROR=""
+tg_send() {  # tg_send <chat_id> <json-msg-sem-chat_id> [loud] -> rc 0 entregue; 1 falhou (TG_LAST_ERROR)
   # Silencioso por padrão (alerta de operação não acorda ninguém de madrugada). `loud` = com
   # notificação: é o caso do convite/lembrete, que precisa ser visto ANTES de a inscrição fechar.
-  local chat="$1" msg="$2" loud="${3:-}"
+  # A resposta do Telegram NÃO é mais jogada fora (2026-09-14: relatório "preso no grupo errado"
+  # sem uma linha de log): chat migrado (migrate_to_chat_id), "chat not found", bot removido do
+  # grupo e chat_id não numérico viram uma linha no stderr e rc 1 — o chamador decide.
+  local chat="$1" msg="$2" loud="${3:-}" out
+  TG_LAST_ERROR=""
+  [[ "$chat" =~ ^-?[0-9]+$ ]] || { TG_LAST_ERROR="chat_id não numérico: '$chat'"; echo "tg_send falhou: $TG_LAST_ERROR" >&2; return 1; }
   msg="$(jq -c --argjson id "$chat" --argjson q "$( [[ -n "$loud" ]] && echo false || echo true )" \
           '. + {chat_id:$id, disable_notification:$q}' <<<"$msg")"
-  tg_api sendMessage "$msg" >/dev/null
+  out="$(tg_api sendMessage "$msg")" || true
+  if [[ "$(jq -r '.ok' <<<"$out" 2>/dev/null)" == true ]]; then return 0; fi
+  TG_LAST_ERROR="$(jq -r '(.description // "sem resposta do Telegram") + (if .parameters.migrate_to_chat_id then " (o grupo virou supergrupo: chat_id novo " + (.parameters.migrate_to_chat_id|tostring) + ")" else "" end)' <<<"$out" 2>/dev/null)"
+  [[ -n "$TG_LAST_ERROR" ]] || TG_LAST_ERROR="sem resposta do Telegram"
+  echo "tg_send chat=$chat falhou: $TG_LAST_ERROR" >&2
+  return 1
 }
 tg_send_document() {  # <chat_id> <file> [caption]
   local chat="$1" file="$2" caption="$3"
@@ -177,13 +188,15 @@ status() {
 
 help() { set_text_html "Comandos: <b>/participar</b> (criar conta), <b>/trocarsenha</b> (recuperar senha), <b>/status</b> (saúde do MOJ), <b>/relatorio</b> (painel de submissões — admins), <b>/cantar</b> 🎵."; }
 
-# /relatorio [AAAA-MM-DD] | config <início> <fim> | status — painel de submissões
-# (top-10 do período + treino + comparações). SEM guarda de grupo de propósito: o ritual
-# é pedir DENTRO do grupo dos professores. Quem pode = a API decide (telegram_id → conta
-# .admin do treino); o bot só transporta.
+# /relatorio [AAAA-MM-DD] | config <início> <fim> | aqui | refazer <k> | status — painel de
+# submissões (top-10 do período + treino + comparações). SEM guarda de grupo de propósito: o
+# ritual é pedir DENTRO do grupo dos professores — e `/relatorio aqui` registra ESSE grupo
+# como destino do envio automático (por isso o chat_id/chat_type vão no corpo). Quem pode =
+# a API decide (telegram_id → conta .admin do treino); o bot só transporta.
 relatorio() {
   local body resp st html
-  body="$(jq -cn --argjson id "$FROM_ID" '{telegram_id:$id, args:$ARGS.positional}' --args "$@")"
+  body="$(jq -cn --argjson id "$FROM_ID" --argjson chat "${REPLYTO:-0}" --arg ct "${CHAT_TYPE:-}" \
+           '{telegram_id:$id, args:$ARGS.positional, chat_id:$chat, chat_type:$ct}' --args "$@")"
   resp="$(api_json POST /ops/relatorio "$body")"
   st="$(api_status "$resp")"; resp="$(api_body "$resp")"
   if [[ "$st" == "200" ]]; then
@@ -210,15 +223,20 @@ erro() { set_text_html "Não entendi. Envie <b>/help</b> para ver os comandos.";
 #   group:false — mensagem DIRIGIDA a uma pessoa (ex.: convite de time): NÃO copiar no grupo.
 #   loud:true   — entregar com notificação (o default do tg_send é silencioso).
 # ===========================================================================
+# ENTREGA COM ACK (2026-09-14): cada item tem `id`; depois de tentar todos os chats o bot manda
+# POST /ops/alerts {ack:[{id, ok, error}]} — ok = pelo menos um chat recebeu. É o ack que marca
+# o relatório de quartil como ENTREGUE (sem ack a API reentrega em 10 min). Item só-grupo sem
+# ALERT_GROUP_CHAT deixa de sumir em silêncio: vira ack ok:false + uma linha de log.
 deliver_alerts() {
   [[ -n "$BOT_TOKEN" ]] || return 0
-  local resp st n i text chats c loud nogroup
+  local resp st n i id text chats c loud nogroup acks='[]' ok err
   resp="$(api GET /ops/alerts)"
   st="$(api_status "$resp")"; resp="$(api_body "$resp")"
   [[ "$st" == "200" ]] || return 0
   n="$(jq -r '(.items // []) | length' <<<"$resp" 2>/dev/null)"; [[ "$n" =~ ^[0-9]+$ ]] || return 0
   for (( i=0; i<n; i++ )); do
     text="$(jq -r ".items[$i].text // empty" <<<"$resp")"
+    id="$(jq -r ".items[$i].id // empty" <<<"$resp")"
     [[ -n "$text" ]] || continue
     # ⚠ `.group // true` NÃO serve: o // do jq trata false como vazio e o grupo receberia a DM
     # de todo mundo. A pergunta tem de ser explícita.
@@ -228,13 +246,27 @@ deliver_alerts() {
     mapfile -t chats < <(jq -r ".items[$i].chats[]? // empty" <<<"$resp")
     [[ -n "$ALERT_GROUP_CHAT" && "$nogroup" != "true" ]] && chats+=("$ALERT_GROUP_CHAT")
     local msg; msg="$(jq -cn --arg t "$text" '{text:$t, parse_mode:"HTML"}')"
+    ok=false; err=""
+    if (( ${#chats[@]} == 0 )); then
+      err="sem destino: item só-grupo e ALERT_GROUP_CHAT vazio no bot.conf"
+      echo "deliver_alerts item=$id descartado: $err" >&2
+    fi
     for c in "${chats[@]}"; do
       [[ -n "$c" ]] || continue
       # `a && x || y` mandaria DUAS vezes se o envio falhasse (o || pega o rc do tg_send)
-      if [[ "$loud" == "true" ]]; then tg_send "$c" "$msg" loud; else tg_send "$c" "$msg"; fi
+      if [[ "$loud" == "true" ]]; then
+        if tg_send "$c" "$msg" loud; then ok=true; else err="$TG_LAST_ERROR"; fi
+      else
+        if tg_send "$c" "$msg"; then ok=true; else err="$TG_LAST_ERROR"; fi
+      fi
       sleep 0.05    # o Telegram corta acima de ~30 msg/s
     done
+    [[ -n "$id" ]] && acks="$(jq -c --arg id "$id" --argjson ok "$ok" --arg e "$err" '. + [{id:$id, ok:$ok, error:$e}]' <<<"$acks")"
   done
+  if [[ "$acks" != '[]' ]]; then
+    api_json POST /ops/alerts "$(jq -cn --argjson a "$acks" '{ack:$a}')" >/dev/null 2>&1 \
+      || echo "deliver_alerts: ack não chegou à API (itens serão reentregues)" >&2
+  fi
 }
 
 # ===========================================================================
@@ -252,6 +284,7 @@ process_update() {
   REPLYTO="$(jq -r '.chat.id // empty' <<<"$UPD" 2>/dev/null)"
   [[ -n "$REPLYTO" ]] || return 0
   FROM_ID="$(jq -r '.from.id // empty' <<<"$UPD" 2>/dev/null)"; [[ "$FROM_ID" =~ ^-?[0-9]+$ ]] || FROM_ID=0
+  CHAT_TYPE="$(jq -r '.chat.type // empty' <<<"$UPD" 2>/dev/null)"   # private | group | supergroup
   USERNAME="$(jq -r '.from.username // empty' <<<"$UPD" 2>/dev/null)"
   FIRST="$(jq -r '.from.first_name // empty' <<<"$UPD" 2>/dev/null | tr -d ':')"
   LAST="$(jq -r '.from.last_name // empty' <<<"$UPD" 2>/dev/null | tr -d ':')"
@@ -261,7 +294,7 @@ process_update() {
   [[ -z "${CMD[0]}" ]] && return 0
   SUBMITJSON=""
   if [[ "${ALLOWEDFUNCTIONS[${CMD[0]}]}" == "true" ]]; then "${CMD[@]}"; else erro; fi
-  [[ -n "$SUBMITJSON" ]] && tg_send "$REPLYTO" "$SUBMITJSON"
+  [[ -n "$SUBMITJSON" ]] && { tg_send "$REPLYTO" "$SUBMITJSON" || true; }
   unset SUBMITJSON
 }
 
