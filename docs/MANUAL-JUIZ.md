@@ -122,7 +122,7 @@ Em **qualquer página do contest**, o juiz-chefe recebe um **aviso vermelho pisc
 ### Outros poderes do chefe
 
 - Ver **Todas as Submissões** com usuário e time (o juiz comum a vê anônima), com o veredicto cru.
-- Responder **clarifications** (esclarecimentos). Você precisa **reservar** a pergunta antes de responder. O autor da pergunta é **anônimo** para você.
+- Responder **clarifications**. Reserve a pergunta antes de responder. Você não vê quem perguntou. O juiz-chefe e o administrador veem o login e o nome. Ninguém reserva uma pergunta que outro juiz já reservou. Quebras de linha na pergunta e na resposta são preservadas.
 - Editar **respostas e notícias** da prova.
 
 ### Aquecimento: o que só o chefe confere
@@ -164,7 +164,7 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas e esta
 | Editar a lista de veredictos (🏷️ Opções). | Mudar configurações do contest. |
 | Editar o **auto-veredicto** (matriz problema x linguagem x veredicto). | Gerenciar times ou usuários. |
 | Ver **Todas as Submissões** com usuário/time e veredicto cru. | |
-| Responder clarifications (reservando antes; autor anônimo). | |
+| Responder clarifications. Reserve antes. O autor fica anônimo para você. | Reservar uma pergunta que outro juiz já reservou. |
 | Editar respostas e notícias. | |
 | Receber o alerta piscante de conflito em qualquer página. | |
 

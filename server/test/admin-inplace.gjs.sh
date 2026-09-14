@@ -20,8 +20,10 @@ FakeNode.prototype.setAttribute=function(k,v){ this.attrs[k]=v; };
 FakeNode.prototype.addEventListener=function(){};
 FakeNode.prototype.remove=function(){};
 FakeNode.prototype.contains=function(n){ if(!n) return false; if(n===this) return true; return this.children.some(c=>c.nodeType===1 && c.contains(n)); };
-FakeNode.prototype.querySelector=function(){ return null; };
-FakeNode.prototype.querySelectorAll=function(){ return []; };
+// seletor mínimo: tags descendentes ("summary b"), uma tag ("textarea") ou [data-k="x"]
+FakeNode.prototype._all=function(){ const out=[]; for (const c of this.children) { if (c.nodeType===1) { out.push(c); out.push(...c._all()); } } return out; };
+FakeNode.prototype.querySelectorAll=function(sel){ const parts=sel.trim().split(/\s+/); let cand=[this]; for (const p of parts) { const next=[]; for (const n of cand) for (const d of n._all()) { const m=p.match(/^\[data-([a-z]+)="([^"]*)"\]$/); if (m ? d.dataset[m[1]]===m[2] : d.tagName===p) next.push(d); } cand=next; } return cand; };
+FakeNode.prototype.querySelector=function(sel){ return this.querySelectorAll(sel)[0] || null; };
 Object.defineProperty(FakeNode.prototype,'className',{set(v){this.attrs['class']=v},get(){return this.attrs['class']||''}});
 Object.defineProperty(FakeNode.prototype,'innerHTML',{set(v){this.children=[];this._html=v},get(){return this._html||''}});
 Object.defineProperty(FakeNode.prototype,'textContent',{ set(v){this._text=String(v); this.children=[];},
@@ -40,6 +42,8 @@ globalThis.confirm=()=>false; globalThis.alert=()=>{}; globalThis.setInterval=(f
 globalThis.setTimeout=(f)=>1; globalThis.clearTimeout=()=>{};
 globalThis.location={hash:'', search:'', hostname:'x'}; globalThis.URL={createObjectURL:()=>'blob:x', revokeObjectURL:()=>{}}; globalThis.Blob=function(){};
 globalThis.window={open:()=>null, addEventListener:()=>{}}; globalThis.fetch=async()=>({ok:false,status:500});
+globalThis.URLSearchParams=class { constructor(){} get(){ return null; } toString(){ return ''; } };
+document.getElementById=(id)=>new FakeNode('div');
 const getToken=()=>''; const apiPost=async()=>({}); const mlinuxSections=()=>[el('div',{},'sec')]; const MLINUX_CSS='';
 const initContestShell=async()=>({});
 EOF
@@ -51,7 +55,8 @@ run(){ # <nome> <módulo> <corpo js> [módulos extras…] -> imprime as linhas "
   { prelude
     # módulos irmãos que o painel importa (ex.: sessions-common.js): entram antes, sem o `const enc` duplicado
     for x in "$@"; do strip "$W/contest/admin/$x" | sed '/^const enc = encodeURIComponent;$/d'; done
-    strip "$W/contest/admin/$mod"; printf '%s\n' "$body"; } > "$T/$nome.js"
+    local modpath="$W/contest/admin/$mod"; [[ "$mod" == */* ]] && modpath="$W/$mod"
+    strip "$modpath"; printf '%s\n' "$body"; } > "$T/$nome.js"
   set -- "$nome"
   gjs "$T/$1.js" 2>"$T/$1.err" || { echo "gjs falhou em $1:" >&2; tail -5 "$T/$1.err" >&2; }
 }
@@ -167,6 +172,43 @@ check "$(kv anomalies cards_rebuilt)" true "anomalies: cards trocaram com anomal
 check "$(kv anomalies skeleton_stable)" true "anomalies: esqueleto idêntico após dado novo"
 check "$(kv anomalies tl_hidden_without_gate)" true "anomalies: linha do tempo escondida sem gate"
 check "$(kv anomalies skeleton_stable2)" true "anomalies: esqueleto idêntico ao desligar o gate"
+
+# ------------------------------------------------------------ Clarifications (página) ------------
+run clar contest/clarification/clarification.js '
+let D={can_answer:true,can_edit:true,me:"ch.cjudge",clarifications:[
+  {id:"a1",time:10,problem:"A",login:"alice",asker_name:"Alice",question:"linha1\nlinha2",public:false,answer:"",answered_by:"",answer_claim:null},
+  {id:"b2",time:20,problem:"general",login:"bob",asker_name:"Bob",question:"q2",public:true,answer:"resp",answered_by:"j.judge",answer_claim:null},
+  {id:"c3",time:30,problem:"B",login:"",question:"",public:true,broadcast:true,answer:"aviso",answered_by:"j.judge",answer_claim:null}]};
+async function apiGet(p){ if(p.includes("/clarifications")) return JSON.parse(JSON.stringify(D)); if(p.includes("/problems")) return {problems:[{short_name:"A"},{short_name:"B"}]}; return {}; }
+(async()=>{ await refresh(); const k0=[...listBody.children]; const secA=k0[2], secB=k0[3];
+  // respondidas vêm da mais nova p/ a mais antiga: c3 (aviso, t=30) antes de b2 (t=20)
+  const cardA0=secA.body.children[0], cardC0=secB.body.children[0], cardB0=secB.body.children[1];
+  print("open_first="+(secA.body.children.length===1 && cardA0.children[0].attrs["class"].startsWith("clar")));
+  print("done_count="+secB.body.children.length);
+  print("asker_shown="+cardA0.textContent.includes("alice"));
+  print("notice_no_title="+!cardC0.textContent.includes("P:"));
+  secB.open=false;
+  await refresh(); const k1=[...listBody.children];
+  print("same_skeleton="+k0.every((n,i)=>n===k1[i]));
+  print("cards_kept="+(secA.body.children[0]===cardA0 && secB.body.children[0]===cardC0 && secB.body.children[1]===cardB0));
+  print("details_kept="+(secB.open===false));
+  const inner0=cardA0.children[0];
+  D.clarifications[1].answer="resp2"; await refresh();
+  const innerC0=cardC0.children[0];
+  print("only_changed_rebuilt="+(cardA0.children[0]===inner0 && cardC0.children[0]===innerC0 && secB.body.children[1]===cardB0 && cardB0.textContent.includes("resp2")));
+  // a1 respondida: sai da fila e entra em respondidas (o nó do cartão é o MESMO, só muda de seção)
+  D.clarifications[0].answer="ok"; await refresh();
+  print("moved_same_node="+(secB.body.children.includes(cardA0) && secA.body.children.length===1 && secA.body.children[0].attrs["class"]==="muted small"));
+})().catch(e=>print("ERRO "+e+"\n"+e.stack));' > "$T/clar.out"
+check "$(kv clar open_first)" true "clar: abertas = só a sem resposta"
+check "$(kv clar done_count)" 2 "clar: respondidas + aviso = 2"
+check "$(kv clar asker_shown)" true "clar: chefe vê o login de quem perguntou"
+check "$(kv clar notice_no_title)" true "clar: aviso sem assunto não mostra P:"
+check "$(kv clar same_skeleton)" true "clar: esqueleto idêntico no 2º load"
+check "$(kv clar cards_kept)" true "clar: cartões não refeitos sem mudança"
+check "$(kv clar details_kept)" true "clar: <details> fechado ficou fechado"
+check "$(kv clar only_changed_rebuilt)" true "clar: só o cartão que mudou foi refeito"
+check "$(kv clar moved_same_node)" true "clar: cartão respondido muda de seção com o mesmo nó"
 
 grep -h "^ERRO" "$T"/*.out >&2 || true
 echo "admin-inplace: PASS=$PASS FAIL=$FAIL"; exit $(( FAIL>0 ))

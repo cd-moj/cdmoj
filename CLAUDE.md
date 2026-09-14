@@ -476,8 +476,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `GET /treino/admin/activity-log` (aba 📜 Atividade) unifica 6 fontes + `format=csv`.
   **Evento novo de leitura ⇒ instrumente com `activity_log`** (login/submit/verdict já são
   deriváveis de access.log/history/results — não duplique).
-- Clarifications: o **asker é anônimo** p/ os juízes (handler corta `.login`); responder exige
-  **reserva** (`clarification-claim`). Sempre auditar (`audit_log_to`) toda ação de juiz/chefe.
+- Clarifications: o **asker é anônimo** p/ `.judge`/`.mon` (handler corta `.login`); o
+  **juiz-chefe/admin veem `login` + `asker_name`** (mapa login→fullname em UMA varredura, por
+  `--slurpfile`; 2026-09-14) e o relatório público segue anônimo. Responder exige **reserva**
+  (`clarification-claim`): ninguém reserva por cima (409, chefe incluso); `release` de reserva
+  alheia só com `force:true` + chefe/admin (audit `forced_from`) — o "pegar sem querer" do chefe
+  era o release silencioso. Aviso oficial = `answer` obrigatório + `question` (assunto) opcional.
+  A página (`web/contest/clarification/`) separa abertas × respondidas, atualiza EM LUGAR a cada
+  30 s (cartão por id, adia se há resposta sendo digitada) e usa `white-space:pre-wrap` — o
+  relatório (`report-gen.sh`) já preservava a quebra de linha. Sempre auditar (`audit_log_to`)
+  toda ação de juiz/chefe. Teste: `smoke-contest-clar.sh`.
 - **FIRST-TO-SOLVE SÓ COM CERTEZA** (2026-08-25), no placar E no balão. O `*` do ICPC era o mínimo
   puro dos `first_ac_epoch` e ignorava run pendente: nascia no time errado e MIGRAVA quando o AC
   mais antigo era julgado. Hoje o `updatescore-icpc.sh` retira a estrela do problema enquanto

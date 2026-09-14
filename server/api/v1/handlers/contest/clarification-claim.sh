@@ -1,6 +1,9 @@
-# POST /contest/clarification-claim?contest=<id>  (admin/judge/mon)  {id, action:claim|release}
+# POST /contest/clarification-claim?contest=<id>  (admin/judge/mon)  {id, action:claim|release, force?}
 # Reserva uma clarification ABERTA p/ responder (evita que dois juízes peguem a mesma). A
 # reserva tem TTL (CLAR_TTL, 5 min) e é zerada preguiçosamente na leitura. Auditado.
+# Reserva ALHEIA: ninguém reserva por cima (409 clar_claimed, chefe incluso). O juiz-chefe/admin
+# só a libera com `force:true` explícito (o botão da UI pede confirmação) — antes o release
+# alheio era silencioso e o chefe "pegava sem querer" (relato do juiz-chefe, 2026-09-14).
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -12,6 +15,7 @@ body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 cid="$(jq -r '.id // empty' <<<"$body")"
 action="$(jq -r '.action // empty' <<<"$body")"
+force="$(jq -r 'if .force == true then "1" else "" end' <<<"$body")"
 [[ "$cid" =~ ^[0-9a-f]{32}$ ]] || fail 400 "id inválido" "id_invalid"
 case "$action" in claim|release) ;; *) fail 422 "ação inválida" "action_invalid";; esac
 
@@ -38,9 +42,14 @@ case "$action" in
     ok_json '{claimed:true, claimed_by:$by, expires_at:$ex}' --arg by "$me" --argjson ex "$((now+ttl))"
     ;;
   release)
-    [[ -z "$cur_by" || "$cur_by" == "$me" ]] || is_admin_or_chief || fail 409 "Reservada por $cur_by" "clar_claimed"
+    forced=""
+    if [[ -n "$cur_by" && "$cur_by" != "$me" ]]; then
+      { [[ -n "$force" ]] && is_admin_or_chief; } \
+        || fail 409 "Reservada por $cur_by — só o juiz-chefe/admin libera, e com force:true" "clar_claimed"
+      forced=" forced_from=$cur_by"
+    fi
     jq -c '.answer_claim=null' "$f" > "$tmp" && mv -f "$tmp" "$f"
-    audit_log_to "$contest" clar-release "id=$cid by=$me"
-    ok_json '{released:true}'
+    audit_log_to "$contest" clar-release "id=$cid by=$me$forced"
+    ok_json '{released:true, forced_from:$ff}' --arg ff "${forced#* forced_from=}"
     ;;
 esac

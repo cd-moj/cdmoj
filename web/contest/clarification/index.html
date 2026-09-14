@@ -13,7 +13,14 @@
     .field { margin:.5rem 0 }
     .clar { border:1px solid #e3e9f2; border-radius:9px; padding:.6rem .8rem; margin:.5rem 0; background:#fff }
     .clar.answered { border-color:#b6e7c6 }
+    .clar.notice { border-color:#f3df9e; background:#fffdf5 }
+    /* quebra de linha da pergunta/resposta é PRESERVADA (o relatório offline já fazia isso) */
+    .clar .q, .clar .ans { white-space:pre-wrap; overflow-wrap:anywhere }
+    .clar .q { margin-top:.2rem }
     .ans { background:#f1f8f3; border-radius:6px; padding:.35rem .55rem; margin-top:.35rem }
+    .clar .asker { color:#1e57c4; font-weight:600 }
+    .clar-sec { border:1px solid #e3e9f2; border-radius:9px; padding:.3rem .7rem; margin:.5rem 0; background:#fafcff }
+    .clar-sec > summary { cursor:pointer; padding:.25rem 0 }
   </style>
 </head>
 <body>

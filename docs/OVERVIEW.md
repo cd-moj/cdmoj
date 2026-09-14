@@ -441,10 +441,14 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
 - **`/contest/statistics/`** — estatísticas ricas (totais, por problema, quartis, distribuição,
   tentativas, veredicto×problema, balões, linha do tempo).
 - **`/contest/clarification/`** — perguntas (por problema/geral); admin/judge/mon respondem
-  (pública/privada) e publicam **notícias do contest**. O **asker é anônimo** p/ os juízes
-  (tratamento isonômico; recuperável só pelo admin via auditoria); responder exige **reserva**
-  (`clarification-claim`, TTL 5 min) p/ dois juízes não pegarem a mesma; o juiz manda **aviso
-  oficial** (Q+A público, autor oculto) e o **juiz-chefe/admin** editam respostas/notícias já dadas.
+  (pública/privada) e publicam **notícias do contest**. O **asker é anônimo** p/ `.judge`/`.mon`
+  (tratamento isonômico); o **juiz-chefe/admin veem login + nome** (`asker_name`; o relatório
+  público segue anônimo). Responder exige **reserva** (`clarification-claim`, TTL 5 min) p/ dois
+  juízes não pegarem a mesma — **ninguém reserva por cima de outro**; o chefe/admin só LIBERA a
+  reserva alheia com botão próprio + confirmação (`force:true`, auditado). O juiz manda **aviso
+  oficial** (texto público com assunto opcional, autor oculto) e o **juiz-chefe/admin** editam
+  respostas/notícias já dadas. A página separa **abertas** (fila, mais antiga primeiro) de
+  **respondidas + avisos**, repolá a cada 30 s em lugar e preserva quebras de linha.
 - **`/contest/judge/`** — área de **avaliação**. **`/contest/jplag/`** — similaridade das
   soluções aceitas (roda o jar, mostra pares + comparação lado-a-lado).
 - **`/contest/chief/`** — **painel do juiz-chefe (`.cjudge`)** e do admin: **Situação** da

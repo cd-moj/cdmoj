@@ -13,7 +13,7 @@ import { status } from '/shared/auth.js';
 import { el, verdictClass, isPending, renderAuthArea, resumoText, avatarEl, colorFromName } from '/shared/ui.js';
 import { editorLabel } from '/shared/editors.js';
 import { hBarChart, lineChart, heatmap, heatmapGrid, verdictColor } from '/lib/charts.js';
-import { langById } from '/shared/languages.js';
+import { langLabel } from '/shared/languages.js';
 import { logLink, srcLink } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 
@@ -54,13 +54,7 @@ function parseLine(line) {
 const pad2 = (n) => String(n).padStart(2, '0');
 const dayTag = (epoch) => { const d = new Date(epoch * 1000); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); };
 const dayTagD = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
-// rótulo amigável da linguagem a partir da EXTENSÃO gravada no history (py3/cc/bash/…);
-// desconhecida fica literal (não usar o fallback generoso do langByExt, que viraria "C")
-const LANG_ALIAS = { bash: 'sh', python: 'py', kts: 'kt', cc: 'cpp', cxx: 'cpp', py3: 'py', py2: 'py' };
-const langLabel = (id) => {
-  const e = String(id || '').toLowerCase();
-  return langById(LANG_ALIAS[e] || e).label;
-};
+// rótulo amigável da linguagem: langLabel de shared/languages.js (fonte única)
 const probURL = (pid) => '/treino/problema/?id=' + encodeURIComponent(pid);
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 

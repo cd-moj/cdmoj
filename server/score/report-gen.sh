@@ -1572,7 +1572,7 @@ EOF
           | ((.time // 0) | strflocaltime($dtfmt)) as $h
           | (if $start>0 and (.time//0)>0 then " (min \(((.time - $start)/60)|floor))" else "" end) as $mn
           | "<div class=\"qa\"><div class=\"meta\"><b>\($p|@html)</b> · \($h)\($mn) · \($b)</div>"
-            + "<div class=\"q\">\((.question // "")|@html)</div>"
+            + (if ((.question // "")|length) > 0 then "<div class=\"q\">\(.question|@html)</div>" else "" end)
             + (if ((.answer // "")|length) > 0
                then "<div class=\"a\">\(.answer|@html)</div>"
                else "<div class=\"a\" style=\"border-left-color:#c99\">" + $t_noans + "</div>" end)

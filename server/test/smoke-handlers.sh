@@ -155,7 +155,7 @@ check "regions 200 empty" 'okstatus && [[ "$BODY" == *\"regions\":\[\]* ]]'
 echo "== contest/score (TXT, mode line, gerado de users/*/metrics.json) =="
 call "/contest/score" GET "contest=$CONTEST" ""
 check "score 200 (TXT)" 'okstatus'
-check "score first line is a known mode" '[[ "$(printf "%s" "$BODY" | head -1)" =~ ^(icpc|obi|treino|heuristic|outro|custom)$ ]]'
+check "score first line is a known mode (+ flags, ex.: icpc s)" '[[ "$(printf "%s" "$BODY" | head -1)" =~ ^(icpc|obi|treino|heuristic|outro|custom)( [a-z]+)*$ ]]'
 check "score has alice row (metrics-driven)" '[[ "$BODY" == *alice* ]]'
 check "placar gerado em var/placar.txt" '[[ -s "$FIX/$CONTEST/var/placar.txt" ]]'
 
@@ -164,6 +164,7 @@ call "/contest/allsubmissions" GET "contest=$CONTEST" "$TOKEN"
 check "allsubmissions 200 (TXT)" 'okstatus'
 check "allsubmissions has >=9 colon-fields" '[[ -n "$BODY" ]] && [[ "$(printf "%s" "$BODY" | head -1 | awk -F: "{print NF}")" -ge 9 ]]'
 check "allsubmissions resolve fullname do account.json" '[[ "$BODY" == *"Alice Silva"* ]]'
+check "allsubmissions: campo 4 = linguagem (não vazio, id [a-z0-9+]) em toda linha" 'printf "%s\n" "$BODY" | awk -F: "\$4 !~ /^[A-Za-z0-9+#.-]+\$/ {bad=1} END {exit bad+0}"'
 
 echo "== contest/allsubmissions ANÔNIMA (.judge/.mon: sem login/fullname) =="
 call "/contest/allsubmissions" GET "contest=$CONTEST" "$JTOK"

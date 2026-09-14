@@ -234,24 +234,29 @@ Se o contest for secreto e você não estiver logado, é preciso entrar para con
 
 ## 6. Clarifications (`/contest/clarification/?c=<id>`)
 
-Para usar as clarifications você precisa estar logado.
+Uma clarification é uma pergunta aos juízes sobre um problema. Você precisa estar logado.
 
 Para fazer uma pergunta:
 
-1. Escolha o **problema** (ou selecione **Geral**).
-2. Escreva a sua pergunta — específica: *"no B, o labirinto pode ter mais de uma saída?"* é
-   respondível; *"não entendi o B"* não é.
+1. Escolha o **problema**. Para uma dúvida geral, escolha **Geral**.
+2. Escreva a pergunta. Seja específico. *"No B, o labirinto pode ter mais de uma saída?"* tem
+   resposta. *"Não entendi o B"* não tem.
 3. Clique em **Enviar pergunta**.
 
-A sua identidade fica **anônima para os juízes**.
+Quebras de linha na pergunta e na resposta são preservadas.
 
-Na lista você vê:
+Os juízes não veem quem perguntou. O juiz-chefe e o administrador veem o seu login e o seu nome.
+O relatório público da prova não mostra quem perguntou.
 
-- As suas perguntas, marcadas com **P:** (pergunta) e **R:** (resposta).
-- Os **avisos oficiais**, que são comunicados públicos da organização.
-- **Respostas públicas de perguntas que não são suas**: quando a dúvida serve à sala inteira, o
-  juiz publica a resposta para todos os times. É por isso que a lista tem respostas que você
-  não pediu.
+A página tem duas seções:
+
+- **Suas perguntas**. Cada pergunta mostra **P:** (pergunta) e **R:** (resposta). Uma pergunta
+  sem resposta fica no topo.
+- **Respostas públicas e avisos**. Aqui ficam os **avisos oficiais** da organização e as
+  respostas públicas de perguntas de outros times. Quando uma dúvida serve à sala inteira, o juiz
+  publica a resposta para todos. Por isso a lista tem respostas que você não pediu.
+
+A página atualiza sozinha a cada 30 segundos. Você pode filtrar por problema.
 
 O aviso no topo da página principal sinaliza quando uma dúvida sua foi respondida.
 

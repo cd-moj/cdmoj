@@ -4936,7 +4936,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Clarifications (role-aware)",
+        "summary": "Clarifications (role-aware). Quem perguntou (login + asker_name) só o juiz-chefe/admin recebe; judge/mon sem login",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4944,7 +4944,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{clarifications,can_answer}"
+            "description": "{clarifications, can_answer, can_edit, is_chief, me} — can_edit = juiz-chefe ou admin (edita resposta dada; libera reserva alheia com force)"
           }
         }
       }
@@ -4980,7 +4980,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{claimed_by,expires_at} — body {id,action:claim|release}; 409 clar_claimed/already_answered"
+            "description": "{claimed,claimed_by,expires_at} | {released,forced_from} — body {id,action:claim|release,force?}. Ninguém reserva por cima de outro (409 clar_claimed, chefe incluso); release de reserva alheia só com force:true e juiz-chefe/admin (auditado forced_from); 409 already_answered"
           }
         }
       }
@@ -4990,7 +4990,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Aviso oficial: Q+A público com autor oculto (admin/judge/mon)",
+        "summary": "Aviso oficial: texto público com autor oculto e assunto opcional (admin/judge/mon)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4998,7 +4998,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{broadcast,id} — body {problem?,question,answer}"
+            "description": "{broadcast,id} — body {problem?,question?,answer}: answer = texto do aviso (obrigatório, 422 answer_missing); question = assunto opcional (título)"
           }
         }
       }

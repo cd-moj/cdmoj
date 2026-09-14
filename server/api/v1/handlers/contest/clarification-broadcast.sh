@@ -1,7 +1,8 @@
-# POST /contest/clarification-broadcast?contest=<id>  (admin/judge/mon)  {problem?, question, answer}
-# "Clarification especial": a organização publica uma pergunta JÁ com a resposta que ela mesma
-# escreve, visível a todo o contest. O autor (juiz) fica oculto (login vazio; a UI mostra
-# "Aviso oficial / Organização"). Auditado.
+# POST /contest/clarification-broadcast?contest=<id>  (admin/judge/mon)  {problem?, question?, answer}
+# "Clarification especial" = AVISO OFICIAL: a organização publica um texto (`answer`) visível a
+# todo o contest, com um ASSUNTO opcional (`question`, que a UI mostra como título). O autor
+# (juiz) fica oculto (login vazio; a UI mostra "Organização"). Auditado. (Até 2026-09-14 o
+# assunto era obrigatório e a página nunca o mostrava — relato do juiz-chefe.)
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
@@ -14,8 +15,7 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 question="$(jq -r '.question // empty' <<<"$body")"
 answer="$(jq -r '.answer // empty' <<<"$body")"
 problem="$(jq -r '.problem // "general"' <<<"$body")"
-[[ -n "$question" ]] || fail 422 "Escreva a pergunta" "question_missing"
-[[ -n "$answer" ]] || fail 422 "Escreva a resposta" "answer_missing"
+[[ -n "$answer" ]] || fail 422 "Escreva o texto do aviso" "answer_missing"
 (( ${#question} <= 4000 )) || fail 422 "Pergunta muito longa" "question_long"
 (( ${#answer} <= 4000 )) || fail 422 "Resposta muito longa" "answer_long"
 [[ "$problem" == "general" || "$problem" =~ ^[A-Za-z0-9]{1,3}$ ]] || fail 422 "problema inválido" "problem_invalid"

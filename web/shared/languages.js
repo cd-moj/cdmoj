@@ -38,6 +38,11 @@ export const DEFAULT_SUBMIT_LANGUAGES = LANGUAGES.filter((l) => !l.optIn);
 // como label, sem realce/template — sem precisar de código novo. Só cai no LANGUAGES[0] p/ id vazio.
 export const langById = (id) =>
   LANGUAGES.find((l) => l.id === id) || (id ? { id, label: id, cm: null, template: '' } : LANGUAGES[0]);
+// rótulo amigável a partir do id/EXTENSÃO gravado no history (py3/cc/bash/…). Desconhecido fica
+// literal — NUNCA usar o fallback generoso do langByExt aqui, que viraria "C". Fonte única
+// (estatística do treino, todas as submissões do contest, juiz legado).
+export const LANG_ALIAS = { bash: 'sh', python: 'py', kts: 'kt', cc: 'cpp', cxx: 'cpp', py3: 'py', py2: 'py' };
+export const langLabel = (id) => { const e = String(id || '').toLowerCase(); return e ? langById(LANG_ALIAS[e] || e).label : ''; };
 // canon ESTRITO de extensão p/ conferir com a whitelist `languages` de um problema —
 // espelha o lib/langs.sh do servidor (que APLICA a whitelist no /submit). O langByExt
 // abaixo é p/ EXIBIÇÃO e tem fallbacks generosos (rb->py, desconhecido->c) que validariam

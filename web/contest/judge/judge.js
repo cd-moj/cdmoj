@@ -11,6 +11,7 @@ import { el, verdictClass, isPending, fmtDate } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
 import { logLink as _logLink, srcLink as _srcLink } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
+import { langLabel } from '/shared/languages.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -140,7 +141,7 @@ function renderLegacy() {
   if (!list.length) { box.innerHTML = '<span class="muted">' + T('Nenhuma submissão.', 'No submissions.') + '</span>'; return; }
   const head = el('thead', {}, el('tr', {}, el('th', {}, T('Quando', 'When')),
     ...(PRIV ? [el('th', {}, T('Usuário', 'User'))] : []),
-    el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Veredicto', 'Verdict')),
+    el('th', {}, T('Problema', 'Problem')), el('th', {}, T('Linguagem', 'Language')), el('th', {}, T('Veredicto', 'Verdict')),
     ...(PRIV ? [el('th', {}, T('Veredicto final', 'Final verdict'))] : []),
     el('th', {}, T('Ver', 'View'))));
   const tb = el('tbody');
@@ -154,6 +155,7 @@ function renderLegacy() {
     tb.append(el('tr', {}, el('td', {}, el('span', { class: 'small' }, fmtDate(s.epoch))),
       ...(PRIV ? [el('td', {}, s.username || '')] : []),
       el('td', {}, el('b', {}, shortOf(s.problem_id))),
+      el('td', { class: 'small' }, langLabel(s.lang)),
       el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, isPending(s.verdict) ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
       ...(PRIV ? [el('td', {}, sel, ' ', btn, ' ', msg)] : []),
       el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' }, logLink({ id: s.id, sub_epoch: s.epoch }), srcLink({ id: s.id, sub_epoch: s.epoch, lang: s.lang })))));
