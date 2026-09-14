@@ -75,7 +75,9 @@ def mtime_ns(path):
 
 
 def cache_fresh(cf, ttl, inputs):
-    """Espelho do resp_cache_fresh (lib/common.sh): entradas por -nt + teto de idade."""
+    """Espelho do resp_cache_fresh (lib/common.sh): entradas por -nt + presença + teto de idade.
+    <cf>.inputs (bitmap "1"/"0" por entrada, na MESMA ordem do bash) cobre entrada APAGADA — o
+    -nt não a enxerga (balloons.json removido deixava o Sonic ligado p/ sempre, 2026-09-14)."""
     try:
         st = os.stat(cf)
     except OSError:
@@ -86,6 +88,14 @@ def cache_fresh(cf, ttl, inputs):
         m = mtime_ns(inp)
         if m is not None and m > st.st_mtime_ns:
             return False
+    try:
+        with open(cf + ".inputs", "rb") as f:
+            have = f.read().decode("ascii", "replace").strip()
+        want = "".join("1" if os.path.exists(inp) else "0" for inp in inputs)
+        if have and have != want:
+            return False
+    except OSError:
+        pass
     if ttl > 0 and (time.time() - st.st_mtime) > ttl:
         return False
     return True

@@ -31,9 +31,19 @@ source "$_LIBDIR/contest-create.sh"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 
+# colors: objeto com chaves = grava (substitui o arquivo inteiro: o editor manda todas as letras +
+# enableSonic true/false); {} = NÃO MEXE (o editor devolve {} quando nada mudou — apagar aqui
+# perdia as cores e desligava o módulo, relato de 2026-09-14); null = volta às cores padrão.
+# Toda escrita/remoção derruba o cache de /contest/balloons (o frescor por -nt não vê arquivo
+# apagado; a lista de presença em resp_cache_fresh também cobre, mas o explícito é grátis).
 if jq -e 'has("colors")' >/dev/null 2>&1 <<<"$body"; then
   c="$(jq -c '.colors' <<<"$body")"
-  if [[ "$(jq 'length' <<<"$c" 2>/dev/null)" -gt 0 ]]; then printf '%s' "$c" > "$cdir/balloons.json"; mod_enable "$contest" baloes; else rm -f "$cdir/balloons.json"; fi
+  if [[ "$c" == null ]]; then
+    rm -f "$cdir/balloons.json" "$cdir/var/balloons-cache.json" "$cdir/var/balloons-cache.json.inputs"
+  elif [[ "$(jq 'if type=="object" then length else 0 end' <<<"$c" 2>/dev/null)" -gt 0 ]]; then
+    printf '%s' "$c" > "$cdir/balloons.json"; rm -f "$cdir/var/balloons-cache.json" "$cdir/var/balloons-cache.json.inputs"
+    mod_enable "$contest" baloes
+  fi
 fi
 if jq -e 'has("regions")' >/dev/null 2>&1 <<<"$body"; then
   r="$(jq -c '.regions' <<<"$body")"

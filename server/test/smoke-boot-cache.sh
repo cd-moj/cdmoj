@@ -99,5 +99,17 @@ sleep 1; printf '{"A":"123456"}' > "$C/balloons.json"
 call /contest/balloons time01
 ck "trocar a cor aparece na hora"  '[[ "$(jq -r ".balloons.A" <<<"$BODY")" == 123456 ]]'
 ck "e o resto da paleta continua"  '[[ "$(jq -r ".balloons.B" <<<"$BODY")" != null ]]'
+ck "bitmap de presença gravado (11)" '[[ "$(cat "$C/var/balloons-cache.json.inputs")" == 11 ]]'
+# ENTRADA APAGADA invalida (o -nt não vê arquivo que sumiu — era o Sonic que não desligava)
+rm -f "$C/balloons.json"
+call /contest/balloons time01
+ck "apagar o balloons.json volta à paleta padrão na hora" '[[ "$(jq -r ".balloons.A" <<<"$BODY")" == FFFFFF ]]'
+ck "bitmap agora 01"               '[[ "$(cat "$C/var/balloons-cache.json.inputs")" == 01 ]]'
+call /contest/balloons time01
+ck "e o cache vale de novo (mesmo corpo)" '[[ "$(jq -r ".balloons.A" <<<"$BODY")" == FFFFFF && -s "$C/var/balloons-cache.json" ]]'
+printf '{"A":"ABCDEF"}' > "$C/balloons.json"   # entrada que APARECE também invalida, mesmo sem ser mais nova
+touch -d '-10 seconds' "$C/balloons.json"
+call /contest/balloons time01
+ck "entrada nova (mais velha que o cache) invalida pela presença" '[[ "$(jq -r ".balloons.A" <<<"$BODY")" == ABCDEF ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

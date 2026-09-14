@@ -144,11 +144,20 @@ ok_json_slurp() {
 #      idade é a rede p/ o que não é arquivo daqui (TL de juiz, pacote no treino, relógio).
 #
 # resp_cache_fresh <arquivo> <ttl_s> <entrada>... -> 0 se pode servir do cache
+#   3. PRESENÇA DAS ENTRADAS — `-nt` não enxerga arquivo APAGADO (o balloons.json removido deixava
+#      o cache com enableSonic:true p/ sempre, 2026-09-14). resp_cache_store grava em `<cache>.inputs`
+#      um bitmap "1"/"0" por entrada, na ordem; aqui o bitmap atual é comparado (builtins, zero
+#      processos). Cache sem `.inputs` (escrito por chamador antigo) segue só pelo -nt.
+#      O porteiro (moj-porteiro.py cache_fresh) espelha a regra — mesma ORDEM de entradas.
 resp_cache_fresh(){
   local cf="$1" ttl="$2"; shift 2
   [[ -s "$cf" ]] || return 1
   local f
   for f in "$@"; do [[ -e "$f" && "$f" -nt "$cf" ]] && return 1; done
+  if [[ -s "$cf.inputs" ]]; then
+    local want="" have; for f in "$@"; do [[ -e "$f" ]] && want+=1 || want+=0; done
+    have="$(<"$cf.inputs")"; [[ "$have" == "$want" ]] || return 1
+  fi
   # ttl 0 = SEM teto de idade: só p/ rota cujas entradas cobrem 100% do que muda o corpo (e aí
   # o próprio arquivo do handler entra como entrada, p/ um deploy invalidar). O teto existe p/ o
   # que NÃO é arquivo deste contest — fase da prova pelo relógio, TL reportado por um juiz — e
@@ -157,10 +166,16 @@ resp_cache_fresh(){
   [[ -n "$(find "$cf" -newermt "-$ttl seconds" 2>/dev/null)" ]] || return 1
   return 0
 }
-# resp_cache_store <arquivo> <corpo> — grava por tmp+mv (leitor concorrente nunca vê pela metade)
+# resp_cache_store <arquivo> <corpo> [entrada]... — grava por tmp+mv (leitor concorrente nunca vê
+# pela metade). Com as entradas (as MESMAS e na MESMA ordem do resp_cache_fresh), grava também o
+# bitmap de presença em <arquivo>.inputs — ANTES do corpo (um leitor que veja o corpo já vê o bitmap).
 resp_cache_store(){
-  local cf="$1" body="$2"
+  local cf="$1" body="$2"; shift 2
   mkdir -p "${cf%/*}" 2>/dev/null
+  if (( $# )); then
+    local f bits=""; for f in "$@"; do [[ -e "$f" ]] && bits+=1 || bits+=0; done
+    printf '%s' "$bits" > "$cf.inputs.tmp.${BASHPID}" 2>/dev/null && mv -f "$cf.inputs.tmp.${BASHPID}" "$cf.inputs" 2>/dev/null
+  fi
   printf '%s' "$body" > "$cf.tmp.${BASHPID}" 2>/dev/null && mv -f "$cf.tmp.${BASHPID}" "$cf" 2>/dev/null \
     || rm -f "$cf.tmp.${BASHPID}" 2>/dev/null
   return 0

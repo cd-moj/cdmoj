@@ -12,7 +12,8 @@ export function makeColorsEditor(opts = {}) {
   const initial = opts.initial || {};
   const state = {};   // letter -> "RRGGBB"
   const sonic = el('input', { type: 'checkbox' });
-  sonic.checked = initial.enableSonic === true || initial.enableSonic === 'true';
+  const initialSonic = initial.enableSonic === true || initial.enableSonic === 'true';
+  sonic.checked = initialSonic;
 
   const rows = el('div', {});
   function rebuild() {
@@ -45,8 +46,13 @@ export function makeColorsEditor(opts = {}) {
           if (state[L] !== (norm(initial[L]) || PALETTE[L] || 'CCCCCC')) touched = true;
         }
       });
-      if (sonic.checked) { out.enableSonic = true; touched = true; }
-      return touched ? out : {};   // {} = não mexeu -> wizard/admin não grava balloons.json
+      // Sonic é um campo como outro qualquer: LIGAR e DESLIGAR são mudanças, e desligar sai como
+      // enableSonic:false explícito — antes "desligado" era só a ausência da chave, e sem mexer
+      // em cor o getValue devolvia {} (o servidor nunca sabia que o Sonic foi desligado — relato
+      // do Daniel Saad, 2026-09-14).
+      if (sonic.checked !== initialSonic) touched = true;
+      if (touched) out.enableSonic = sonic.checked;
+      return touched ? out : {};   // {} = não mexeu -> o servidor NÃO toca no balloons.json
     },
   };
 }

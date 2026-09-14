@@ -33,7 +33,14 @@ export function makeBalloonsTab(CONTEST) {
       catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
       save.disabled = false;
     });
-    panel.append(ed.el, el('div', { class: 'row', style: 'margin-top:.7rem' }, save, msg));
+    // voltar ao padrão = apagar o balloons.json (colors:null); o {} do editor não apaga mais nada
+    const reset = el('button', { class: 'btn ghost danger', title: T('apaga as cores personalizadas e desliga o Sonic', 'deletes the custom colours and turns Sonic off'), onclick: async () => {
+      if (!confirm(T('Voltar às cores padrão? As cores personalizadas são apagadas e o modo Sonic desligado.', 'Back to the default colours? Custom colours are deleted and Sonic mode is turned off.'))) return;
+      msg.className = 'small'; msg.textContent = '…';
+      try { await apiPost('/contest/admin/config?contest=' + enc(CONTEST), { colors: null }, G); await load(); }
+      catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+    } }, T('↺ Cores padrão', '↺ Default colours'));
+    panel.append(ed.el, el('div', { class: 'row', style: 'margin-top:.7rem;gap:.6rem' }, save, reset, msg));
   }
   return { panel, load };
 }

@@ -164,7 +164,9 @@ async function main() {
   if (modeWords(fl[0])[0] !== 'icpc' || modeWords(ul[0])[0] !== 'icpc') {
     app.textContent = T('A cerimônia é só para contests em modo icpc.', 'The ceremony is only for contests in icpc mode.'); return;
   }
-  try { balloons = await apiGet('/contest/balloons?contest=' + enc(CONTEST), G); } catch { balloons = {}; }
+  // .balloons do envelope (como score.js/contest.js) — guardar o envelope inteiro deixava a
+  // cerimônia sem cor nenhuma (balloons.A era undefined)
+  try { const bc = await apiGet('/contest/balloons?contest=' + enc(CONTEST), G); balloons = (bc && bc.balloons) || {}; } catch { balloons = {}; }
   // o modo de pintura vale p/ TODOS os papéis que abrem a cerimônia (a leitura de PEN abaixo é
   // só p/ não-cstaff); falhou = fica no default 'icon', que é o legível
   try { const bb = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);

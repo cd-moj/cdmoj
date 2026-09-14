@@ -31,5 +31,5 @@ else
   BBODY="$(jq -cn --argjson d "$DEFAULT" '{success:true, balloons:$d}')"
 fi
 [[ -n "$BBODY" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
-resp_cache_store "$BCF" "$BBODY"
+resp_cache_store "$BCF" "$BBODY" "$CONTESTSDIR/$contest/balloons.json" "${BASH_SOURCE[0]}"
 emit_json 200 OK; printf '%s' "$BBODY"
