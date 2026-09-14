@@ -67,6 +67,53 @@ ck "resolver de novo => 409"      '[[ "$OUT" == *"Status: 409"* ]]'
 call /contest/review/list GET '' adm 'contest=rv'
 ck "released some da fila"        '[[ "$(jq -r ".items|length" <<<"$BODY")" == 0 ]]'
 
+echo "== opções com 3 campos: classe das 6 + texto p/ o time (final-verdicts) =="
+call /contest/final-verdicts POST '{"options":[{"label":"1 - YES","verdict":"Accepted","team":"ignorado"},{"label":"7 - NO - Formato","verdict":"Wrong Answer","team":"Formato de saída errado"},{"label":"8 - NO - Lento","verdict":"Time Limit Exceeded"}]}' cj 'contest=rv'
+ck "chefe grava opções com team"  '[[ "$(jq -r .saved <<<"$BODY")" == true && "$(jq -r ".options[1].team" <<<"$BODY")" == "Formato de saída errado" ]]'
+ck "Accepted nunca leva team"     '[[ "$(jq -r ".options[0].team" <<<"$BODY")" == "" ]]'
+call /contest/final-verdicts POST '{"options":[{"label":"x","verdict":"Banana"}]}' cj 'contest=rv'
+ck "classe fora das 6 => 422 verdict_invalid" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == verdict_invalid ]]'
+call /contest/final-verdicts POST '{"options":[{"label":"x","verdict":"Wrong Answer","team":"com:dois pontos"}]}' cj 'contest=rv'
+ck "team com ':' => 422"          '[[ "$OUT" == *"Status: 422"* ]]'
+call /contest/final-verdicts GET '' j1 'contest=rv'
+ck "GET traz classes (6) e team"  '[[ "$(jq -r ".classes|length" <<<"$BODY")" == 6 && "$(jq -r ".options[1].team" <<<"$BODY")" == "Formato de saída errado" ]]'
+printf '[{"label":"6 - NO - Contact staff","verdict":"Contact staff"},"Presentation Error"]' > "$C/final-verdicts.json"
+call /contest/final-verdicts GET '' j1 'contest=rv'
+ck "arquivo LEGADO: verdict fora das 6 vira Wrong Answer + team" '[[ "$(jq -r ".options[0].verdict" <<<"$BODY")" == "Wrong Answer" && "$(jq -r ".options[0].team" <<<"$BODY")" == "Contact staff" && "$(jq -r ".options[1].team" <<<"$BODY")" == "Presentation Error" ]]'
+call /contest/final-verdicts POST '{"options":[{"label":"1 - YES","verdict":"Accepted"},{"label":"7 - NO - Formato","verdict":"Wrong Answer","team":"Formato de saída errado"}]}' cj 'contest=rv'
+mkrev r3
+call /contest/review/resolve POST '{"id":"r3","verdict":"7 - NO - Formato"}' cj 'contest=rv'
+ck "resolve com opção de texto => classe¦texto no released_verdict" '[[ "$(jq -r .released_verdict <<<"$BODY")" == "Wrong Answer¦Formato de saída errado" ]]'
+ck "spool leva classe¦texto"      'grep -l "Formato de saída errado" "$SPOOL"/*setverdict* >/dev/null'
+call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"Banana","username":"aluno1"}' cj 'contest=rv'
+ck "set-verdict legado NÃO aceita string livre (422)" '[[ "$OUT" == *"Status: 422"* ]]'
+call /contest/set-verdict POST '{"problem_id":"apc#p1","verdict":"7 - NO - Formato","username":"aluno1"}' cj 'contest=rv'
+ck "set-verdict legado pelo label => enfileirado" '[[ "$(jq -r .status <<<"$BODY")" == queued ]]'
+call /contest/auto-verdicts GET '' cj 'contest=rv'
+ck "auto-verdicts: vocabulário = as 6 classes" '[[ "$(jq -r ".verdicts|length" <<<"$BODY")" == 6 ]]'
+
+echo "== leitores: o TIME vê o texto; placar/estatística veem a classe =="
+ID9="99999999999999999999999999999999"; ID8="88888888888888888888888888888888"
+printf '%s:apc#p1:C:Wrong Answer¦Formato de saída errado:%s:%s\n' "$OLD" "$OLD" "$ID9" >> "$C/users/aluno1/history"
+printf '%s:apc#p1:C:Accepted,100p:%s:%s\n' "$((OLD+10))" "$((OLD+10))" "$ID8" >> "$C/users/aluno1/history"
+call /contest/history GET '' alu 'contest=rv'
+ck "history do time mostra o TEXTO (sem classe, sem ¦)" '[[ "$(grep ":$ID9$" <<<"$BODY" | cut -d: -f5)" == "Formato de saída errado" ]]'
+ck "e o Accepted canônico"        '[[ "$(grep ":$ID8$" <<<"$BODY" | cut -d: -f5)" == "Accepted" ]]'
+mkdir -p "$C/users/aluno1/results" "$C/users/aluno1/submissions"; : > "$C/users/aluno1/submissions/$ID9.c"
+printf '{"id":"%s","contest":"rv","problem_id":"apc#p1","login":"aluno1","lang":"C","verdict":"Wrong Answer¦Formato de saída errado","host":"manual"}' "$ID9" > "$C/users/aluno1/results/$ID9.json"
+printf 'SHOWLOG=1\n' >> "$C/conf"   # em icpc o summary do competidor é oculto sem SHOWLOG explícito (anti-leak)
+call /submission/summary GET '' alu "contest=rv&ids=$ID9"
+ck "summary do time: verdict=texto, verdict_canon=classe" '[[ "$(jq -r ".[\"$ID9\"].verdict" <<<"$BODY")" == "Formato de saída errado" && "$(jq -r ".[\"$ID9\"].verdict_canon" <<<"$BODY")" == "Wrong Answer" ]]'
+call /contest/allsubmissions GET '' adm 'contest=rv'
+ck "allsubmissions (juiz/admin) traz a string crua classe¦texto" '[[ "$BODY" == *"Wrong Answer¦Formato de saída errado"* ]]'
+( source "$ROOT/api/v1/lib/verdict.sh"
+  jq -rn "$VERDICT_CANON_JQ"'"Time Limit Exceeded¦Lento" | vcanon' ) > "$FIX/vc.txt"
+ck "vcanon classifica pela classe"  '[[ "$(cat "$FIX/vc.txt")" == "Time Limit Exceeded" ]]'
+( source "$ROOT/api/v1/lib/verdict.sh"; source "$ROOT/api/v1/lib/common.sh" 2>/dev/null; source "$ROOT/api/v1/lib/users.sh"
+  CONTESTSDIR="$FIX" metrics_recompute rv aluno1 >/dev/null 2>&1
+  jq -r '.by_verdict["Wrong Answer"] // 0, .accepted' "$C/users/aluno1/metrics.json" ) > "$FIX/m.txt" 2>/dev/null
+ck "metrics: by_verdict agrupa pela classe e conta o AC" '[[ "$(sed -n 1p "$FIX/m.txt")" == 1 && "$(sed -n 2p "$FIX/m.txt")" == 1 ]]'
+
 echo "== placar completo (sem freeze) p/ .cjudge =="
 printf 'icpc\nCONGELADO\n' > "$C/var/placar.txt"
 printf 'icpc\nCOMPLETO\n' > "$C/var/placar-full.txt"

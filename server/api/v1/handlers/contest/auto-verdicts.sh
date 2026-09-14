@@ -25,11 +25,9 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   vf="$CONTESTSDIR/$contest/final-verdicts.json"; optraw='[]'
   { [[ -f "$vf" ]] && jq -e . "$vf" >/dev/null 2>&1; } && optraw="$(cat "$vf")"
   emit_json 200 OK
-  jq -cn --argjson m "$matrix" --argjson p "$cids_json" --argjson o "$optraw" '
-    ($o | map(if type=="string" then . else (.verdict // .label // "") end)) as $ov
-    | (["Accepted","Wrong Answer","Time Limit Exceeded","Runtime Error","Compilation Error","Presentation Error","Memory Limit Exceeded","Output Limit Exceeded","Contact staff"] + $ov
-       | map(select(length>0)) | unique) as $voc
-    | {success:true, matrix:$m, problems:$p, verdicts:$voc}'
+  # a matriz casa pelo veredicto CANÔNICO do juiz (auto_allows/vcanon): só as 6 classes
+  jq -cn --argjson m "$matrix" --argjson p "$cids_json" --arg cls "$VERDICT_CLASSES" '
+    {success:true, matrix:$m, problems:$p, verdicts:($cls|split("|"))}'
   exit 0
 fi
 

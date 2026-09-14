@@ -78,7 +78,9 @@ function filteredSubs() {
 
 // head do veredicto: `Accepted,100p` e `Accepted,PE` viram "Accepted"; `Wrong,60p. Pontos | 30 |`
 // vira "Wrong". É o mesmo corte que o `by_verdict` das métricas usa (split na vírgula/ponto).
-function vHead(v) { return String(v || '').split(',')[0].split('.')[0].trim(); }
+// (`classe¦texto` do veredicto manual: filtra pela CLASSE; a célula mostra "classe ¦ texto")
+function vHead(v) { return String(v || '').split('¦')[0].split(',')[0].split('.')[0].trim(); }
+const vShow = (v) => String(v || '').replace('¦', ' ¦ ');
 
 // Repovoa os dois seletores preservando a escolha atual (o feed recarrega a cada poll).
 // O de problema sai do `/contest/problems` que a página já carrega (letra + título, na ordem da
@@ -137,7 +139,7 @@ function rowTable(items) {
       ] : []),
       el('td', {}, el('b', {}, shortOf(s.problem_id)), ' ', el('span', { class: 'small muted' }, fullOf(s.problem_id))),
       el('td', { class: 'small' }, langLabel(s.lang)),
-      el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict)),
+      el('td', {}, el('span', { class: 'verdict ' + verdictClass(s.verdict) }, pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : vShow(s.verdict))),
       el('td', {},
         el('a', { href: '#', title: T('ver código', 'view code'), onclick: (e) => { e.preventDefault(); openLogAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.submission_id)}&time=${encodeURIComponent(s.epoch)}`); } }, T('ver', 'view')),
         ' ',

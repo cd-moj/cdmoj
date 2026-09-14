@@ -452,7 +452,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   N = `REVIEW_JUDGES` do conf (1..5, default 2; settings `review_judges`; `rv_quorum` em
   `lib/review.sh` — N votos unânimes liberam, divergência = conflito p/ o chief)
   (`handlers/contest/review/*` + `lib/review.sh`, flock + TTL), e o veredicto vai ao aluno pelo
-  **escritor único** via o consumidor `setverdict` do daemon. O **voto é permanente e libera o juiz**
+  **escritor único** via o consumidor `setverdict` do daemon. **Opções com 3 campos (2026-09-14)**:
+  `final-verdicts.json` = `[{label, verdict, team}]` — `verdict` é a CLASSE (uma das 6 de
+  `VERDICT_CLASSES`, `verdict_class_ok`), `team` o texto que o time vê; `rv_canon_verdict` devolve
+  `classe¦team` e é isso que vai ao history. Regra de leitura em `lib/verdict.sh`: `canon`/`vcanon`
+  tiram o `¦…` ANTES de classificar (placar, metrics, stats, webcast, panorama, matriz auto);
+  `canon_team`/`vteam` devolvem o texto (history do time, summary, runs do relatório). Consumidor
+  novo de veredicto = decide em qual dos dois lados está. `set-verdict` legado só aceita label/classe
+  da lista. Teste: `smoke-contest-review.sh`. O **voto é permanente e libera o juiz**
   (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo
   `auth.status` → segue o chief/admin em qualquer página); o painel **Operação › Situação** traz estatística por juiz
   (`review/stats`, derivada do `admin-audit.log`). **Watch do spool = `inotifywait -m`

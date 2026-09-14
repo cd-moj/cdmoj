@@ -19,4 +19,4 @@ emit_text
 # o detalhe (testes/pontos) vem do /submission/summary, que é só do dono.
 emit_user_history treino "$user" | awk -F: "$VERDICT_CANON_AWK"'
 { v = $5; for (i = 6; i <= NF-2; i++) v = v ":" $i
-  print $1 ":" $2 ":" $3 ":" $4 ":" canon(v) ":" $(NF-1) ":" $NF }'
+  print $1 ":" $2 ":" $3 ":" $4 ":" canon_team(v) ":" $(NF-1) ":" $NF }'

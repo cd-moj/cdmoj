@@ -161,7 +161,7 @@ BEGIN{
   # tempo RELATIVO ao início: usa o sub_epoch (penúltimo campo, sempre EPOCH absoluto) menos
   # CONTEST_START. mn = minutos relativos; secs = segundos (p/ desempate do 1º a resolver).
   secs=$(NF-1)-START; if(secs<0)secs=0; mn=int(secs/60);
-  user=$2; prob=$3; lang=$4; v=$5;
+  user=$2; prob=$3; lang=$4; v=$5; sub(/¦.*$/, "", v);   # classe (o ¦texto do time não agrupa)
   isac=(v ~ /^Accepted/);
   vc=v; sub(/,.*/,"",vc); sub(/ *\(.*/,"",vc); gsub(/^ +| +$/,"",vc); if(vc=="")vc="?";
   # escopos POR USUÁRIO, computados uma vez (regex de cada nó da árvore contra o login —

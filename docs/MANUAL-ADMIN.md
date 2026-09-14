@@ -210,6 +210,17 @@ O fluxo, na aba **⚖️ Avaliar** (página do `.judge`):
 4. Votos **divergentes** viram **conflito**: o **juiz-chefe** (`.cjudge`) decide no painel dele
    (um alerta global avisa).
 
+**Opções de veredicto.** O juiz-chefe ou o admin edita a lista em **🏷️ Opções** (painel do
+juiz-chefe ou Operação › Juízes). Cada opção tem três campos:
+
+1. O texto que o **juiz** vê e escolhe. Exemplo: `5 - NO - Wrong answer`.
+2. A **classe**: uma das seis classes canônicas. A classe define a pontuação, a penalidade e a
+   cor no placar. Exemplo: `Wrong Answer`.
+3. O texto que o **time** vê. Exemplo: `Formato de saída errado`. Deixe vazio para mostrar a
+   classe. A classe `Accepted` não tem texto próprio.
+
+Assim cada contest personaliza o que o time lê sem mudar como o placar pontua.
+
 **Quantas pessoas você precisa?** No mínimo **N contas `.judge`** (o quórum) **+ 1 `.cjudge`**
 para conflitos — e recomendo **N+1 juízes** para a fila não travar quando alguém pausa.
 O `.admin` também vota (conta como juiz), mas em prova grande deixe o admin livre p/ operar.

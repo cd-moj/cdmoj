@@ -40,7 +40,7 @@ while IFS=$'\t' read -r _hk _oid; do [[ -n "$_hk" ]] && ALIASMAP["$_hk"]="$_oid"
 # 2) normaliza cada submissão -> "oid\tuser\tlangCanon\tverdictCanon\tcontest\tsub_epoch" em $NORM.
 #    verdict/lang canonicalizados como no handlers/treino/problem-stats.sh. Descarta privilegiados.
 norm_awk='
-  function vcanon(v,  x){ x=v; sub(/,.*/,"",x); sub(/ *\(.*/,"",x); gsub(/^ +| +$/,"",x);
+  function vcanon(v,  x){ x=v; sub(/¦.*$/,"",x); sub(/,.*/,"",x); sub(/ *\(.*/,"",x); gsub(/^ +| +$/,"",x);
     if(x ~ /^Accepted/) return "Accepted";
     if(x ~ /^Wrong/) return "Wrong Answer";
     if(x ~ /^Time Limit/) return "Time Limit Exceeded";

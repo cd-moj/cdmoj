@@ -17,4 +17,4 @@ emit_text
 # o verdict (campos 5..NF-2, pode conter ':') é remontado antes de canonizar.
 emit_user_history "$contest" "$SESSION_LOGIN" | awk -F: "$VERDICT_CANON_AWK"'
 { v = $5; for (i = 6; i <= NF-2; i++) v = v ":" $i
-  print $1 ":" $2 ":" $3 ":" $4 ":" canon(v) ":" $(NF-1) ":" $NF }'
+  print $1 ":" $2 ":" $3 ":" $4 ":" canon_team(v) ":" $(NF-1) ":" $NF }'

@@ -20,6 +20,9 @@ verdict="$(jq -r '.verdict // empty' <<<"$body")"
 username="$(jq -r '.username // empty' <<<"$body")"
 [[ -n "$problem" && -n "$verdict" && -n "$username" ]] \
   || fail 400 "Missing problem_id, verdict or username" "incomplete"
+# nada de string livre no history (2026-09-14): label OU classe da lista configurada
+source "$_LIBDIR/review.sh"
+verdict="$(rv_canon_verdict "$contest" "$verdict")" || fail 422 "Veredicto não está na lista configurada (final-verdicts)" "verdict_invalid"
 valid_id "$problem" || fail 400 "Invalid problem id" "problem_invalid"
 valid_id "$username" || fail 400 "Invalid username" "username_invalid"
 

@@ -3,26 +3,38 @@
 # contest está em MANUAL_VERDICT e o (problema,lang,veredicto) não está na matriz auto.
 # Espelha o padrão de claim/flock do lib/print.sh. TTL configurável (REVIEW_TTL, 5 min).
 
-RV_DEFAULT_OPTS='[{"label":"1 - YES","verdict":"Accepted"},{"label":"2 - NO - Compilation error","verdict":"Compilation Error"},{"label":"3 - NO - Runtime error","verdict":"Runtime Error"},{"label":"4 - NO - Time limit exceeded","verdict":"Time Limit Exceeded"},{"label":"5 - NO - Wrong answer","verdict":"Wrong Answer"},{"label":"6 - NO - Contact staff","verdict":"Contact staff"}]'
+# OPÇÕES DE VEREDICTO (final-verdicts.json) = [{label, verdict, team?}] — label = o que o JUIZ
+# escolhe; verdict = CLASSE canônica (uma das 6 de lib/verdict.sh: pontua/penaliza/colore);
+# team = texto que o TIME vê (ausente = a própria classe). Compat com arquivo antigo: verdict fora
+# das 6 (ex.: "Contact staff", "Presentation Error") vira {verdict:"Wrong Answer", team:<antigo>}.
+# A string gravada no history é `classe¦team` (rv_canon_verdict) — ver lib/verdict.sh.
+RV_DEFAULT_OPTS='[{"label":"1 - YES","verdict":"Accepted"},{"label":"2 - NO - Compilation error","verdict":"Compilation Error"},{"label":"3 - NO - Runtime error","verdict":"Runtime Error"},{"label":"4 - NO - Time limit exceeded","verdict":"Time Limit Exceeded"},{"label":"5 - NO - Wrong answer","verdict":"Wrong Answer"},{"label":"6 - NO - Contact staff","verdict":"Wrong Answer","team":"Contact staff"}]'
 
 rv_ttl() { printf '%s' "${REVIEW_TTL:-300}"; }
 rv_dir() { printf '%s' "$CONTESTSDIR/$1/review"; }
 rv_lock() { local d; d="$(rv_dir "$1")"; mkdir -p "$d"; printf '%s' "$d/.lock"; }
 
-# opções de veredicto configuradas (array de {label,verdict}; default = as 6 padrão)
+# opções de veredicto configuradas — sempre normalizadas a {label, verdict(classe), team}
 rv_options() {
   local c="$1" f="$CONTESTSDIR/$1/final-verdicts.json" raw="$RV_DEFAULT_OPTS"
   { [[ -f "$f" ]] && jq -e . "$f" >/dev/null 2>&1; } && raw="$(cat "$f")"
-  jq -c 'map(if type=="string" then {label:.,verdict:.}
-             else {label:((.label//.verdict//"")|tostring), verdict:((.verdict//.label//"")|tostring)} end)' <<<"$raw"
+  jq -c --arg cls "$VERDICT_CLASSES" '($cls | split("|")) as $C
+    | map(if type=="string" then {label:., verdict:.} else . end)
+    | map({label:((.label // .verdict // "")|tostring), verdict:((.verdict // .label // "")|tostring), team:((.team // "")|tostring)})
+    | map(.verdict as $v | if ($C | index($v)) == null then {label, verdict:"Wrong Answer", team:(if .team != "" then .team else $v end)} else . end)
+    | map(if .verdict == "Accepted" then .team = "" else . end)' <<<"$raw"
 }
 
-# rv_canon_verdict <c> <label> : resolve um label da lista p/ a string canônica do veredicto.
-# Aceita também receber já a própria string de veredicto. Falha (rc 1) se não casar nenhuma.
+# rv_canon_verdict <c> <label> : resolve um label da lista p/ a string do history —
+# `<classe>` ou `<classe>¦<texto do time>`. Aceita também a própria classe (ou uma string já
+# no formato classe¦texto que esteja na lista). Falha (rc 1) se não casar nenhuma.
 rv_canon_verdict() {
   local c="$1" label="$2" v
   v="$(rv_options "$c" | jq -r --arg l "$label" '
-    (map(select(.label==$l))[0].verdict) // (map(select(.verdict==$l))[0].verdict) // empty')"
+    def hist: if (.team // "") != "" and .team != .verdict then (.verdict + "¦" + .team) else .verdict end;
+    (map(select(.label==$l))[0] | select(. != null) | hist)
+    // (map(select(hist==$l))[0] | select(. != null) | hist)
+    // (map(select(.verdict==$l))[0] | select(. != null) | .verdict) // empty')"
   [[ -n "$v" ]] || return 1
   printf '%s' "$v"
 }

@@ -23,9 +23,14 @@ export function isPending(v) {
   return s.includes('not answered') || s.includes('queue') || s.includes('running');
 }
 // veredicto SEM o sufixo de score (",100p" / " (...)" / ". Pontos...") -> rótulo limpo p/ exibir.
+// `classe¦texto` (veredicto manual com texto p/ o time, lib/verdict.sh) -> o texto.
 export function verdictShort(v) {
-  return (v || '').replace(/,.*$/, '').replace(/\s*\(.*$/, '').trim();
+  const s = v || '';
+  if (s.includes('¦')) return s.slice(s.indexOf('¦') + 1).trim();
+  return s.replace(/,.*$/, '').replace(/\s*\(.*$/, '').trim();
 }
+// classe canônica de `classe¦texto` (o que pontua); string sem marcador volta inteira
+export const verdictClassOf = (v) => String(v || '').split('¦')[0];
 // score embutido no veredicto (o "<N>p") -> número, ou null se não houver. Fallback p/ o resumo.
 export function verdictScore(v) {
   const m = /(-?\d+)p(?:\b|\.|$)/.exec(v || '');

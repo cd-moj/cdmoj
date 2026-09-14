@@ -2489,7 +2489,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Opções de veredicto manual (judge): {verdicts:[labels], options:[{label,verdict}]}",
+        "summary": "Opções de veredicto manual (judge): {verdicts:[classes], classes:[as 6], options:[{label (juiz vê), verdict (classe canônica: pontua/penaliza), team (texto que o time vê)}]}; POST admin/chief valida a classe (422 verdict_invalid) — o history recebe classe¦team",
         "security": [
           {
             "bearerAuth": []

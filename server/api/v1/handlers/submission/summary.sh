@@ -62,6 +62,7 @@ jq -c --arg lvl "$lvl" "$VERDICT_CANON_JQ"'
     (input_filename | sub(".*/"; "") | sub("\\.json$"; "")) as $id
     | (.verdict // null) as $vraw
     | (.verdict_canon // ($vraw | vcanon)) as $vc
+    | (.verdict_team // ($vraw | vteam)) as $vt
     | (.groups // (
         if (($vraw // "") | test("Pontos \\|"))
         then ($vraw | capture("Pontos \\|(?<t>( *-?[0-9]+ *\\|)*)").t
@@ -79,11 +80,11 @@ jq -c --arg lvl "$lvl" "$VERDICT_CANON_JQ"'
           score:(.score // null), score_max:(.score_max // null), score_kind:(.score_kind // null),
           correct:(.correct // null), total:(.total_tests // .total // null), groups:$g } + $heur
       elif $lvl == "score" then
-        { id:$id, verdict:$vc, verdict_canon:$vc,
+        { id:$id, verdict:$vt, verdict_canon:$vc,
           score:(.score // null), score_max:(.score_max // null), score_kind:(.score_kind // null),
           correct:null, total:null, groups:$g } + $heur
       else
-        { id:$id, verdict:$vc, verdict_canon:$vc,
+        { id:$id, verdict:$vt, verdict_canon:$vc,
           score:null, score_max:null, score_kind:null, correct:null, total:null, groups:null }
       end' "${RF[@]}" 2>/dev/null \
   | jq -sc 'map({key:.id, value:(del(.id))}) | from_entries' 2>/dev/null || printf '{}\n'

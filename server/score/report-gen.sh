@@ -1160,7 +1160,7 @@ awk -F: -v NAMES="$W/names.tsv" -v PROBS="$W/probs.tsv" "$VERDICT_CANON_AWK"'
     v=$5; for(i=6;i<=NF-2;i++) v=v":"$i
     se=$(NF-1)+0; sid=$NF
     letter=(prob in L)? L[prob] : prob
-    printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", se, login, letter, lang, canon(v), sid, tname[login], tus[login], tuf[login]
+    printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", se, login, letter, lang, canon(v), sid, tname[login], tus[login], tuf[login], canon_team(v)
   }' "$W/hist.txt" | sort -n -k1,1 > "$W/runs.tsv"
 RUNS_N="$(wc -l < "$W/runs.tsv" | tr -d '[:space:]')"
 TEAMS_N="$(awk -F'\t' '$1!~/\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$/ && $1!="admin" && $1!=""' "$W/names.tsv" | sort -u | wc -l | tr -d '[:space:]')"
@@ -1509,7 +1509,7 @@ TREEEOF
     BEGIN{ while ((getline l < NF_) > 0) { n=split(l,a,"\t"); if(n>=6 && a[1]!="") reg[a[1]]=a[6] }
            close(NF_) }
     {
-      se=$1+0; login=$2; letter=$3; lang=$4; v=$5; sid=$6; tn=$7; us=$8; uf=$9
+      se=$1+0; login=$2; letter=$3; lang=$4; v=$5; sid=$6; tn=$7; us=$8; uf=$9; vt=(NF>=10 && $10!="")? $10 : v
       mn=(START>0)? int((se-START)/60) : ""
       hora=strftime(DTFMT, se)
       cls="v-rej"
@@ -1519,7 +1519,7 @@ TREEEOF
       lbl=esc(team) " <span class=\"u\">[" esc(login) "]</span>"
       univ=(us!="")? us : uf
       printf "<tr data-login=\"%s\" data-region=\"%s\"><td class=\"place\" title=\"%s\">%d</td><td class=\"n\">%s</td><td>%s</td><td class=\"team\">%s</td><td>%s</td><td><b>%s</b></td><td>%s</td><td class=\"%s\">%s</td></tr>\n", \
-        esc(login), esc(login in reg ? reg[login] : ""), esc(sid), NR, mn, hora, lbl, esc(univ), esc(letter), esc(lang), cls, esc(v)
+        esc(login), esc(login in reg ? reg[login] : ""), esc(sid), NR, mn, hora, lbl, esc(univ), esc(letter), esc(lang), cls, esc(vt)
     }' "$W/runs.tsv"
   printf '</tbody></table></div>\n'
   rep_tree_core_js

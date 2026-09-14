@@ -336,9 +336,11 @@ consume_setverdict() {
   IFS=: read -r tempo h_login h_prob h_lang _v sub_epoch h_id <<<"$line"
   [[ -n "$id" ]] || id="$h_id"
   record_verdict "$contest" "$h_login" "$tempo" "$h_prob" "$h_lang" "$verdict" "$sub_epoch" "$id"
+  # verdict_canon = a CLASSE (antes do ¦), verdict_team = o texto que o time vê (depois do ¦)
   local rjson; rjson="$(jq -cn --arg id "$id" --arg c "$contest" --arg p "$h_prob" --arg l "$h_login" \
     --arg lang "$h_lang" --arg v "$verdict" \
-    '{id:$id, contest:$c, problem_id:$p, login:$l, lang:$lang, verdict:$v, host:"manual"}')"
+    '{id:$id, contest:$c, problem_id:$p, login:$l, lang:$lang, verdict:$v, host:"manual",
+      verdict_canon:($v|split("¦")[0]), verdict_team:(if ($v|test("¦")) then ($v|split("¦")|.[1:]|join("¦")) else null end)}')"
   write_result_json "$contest" "$id" "$h_login" "$h_prob" "$rjson"
   local rf="$cdir/review/$id.json"
   if [[ -f "$rf" ]]; then

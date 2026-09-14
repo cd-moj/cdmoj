@@ -10,4 +10,4 @@ emit_text
 # O verdict (campos 5..NF-2) sai CANÔNICO (lib/verdict.sh) — o detalhe vem do /submission/summary.
 emit_user_history treino "$SESSION_LOGIN" | awk -F: -v p="$id" "$VERDICT_CANON_AWK"'
 $3 == p { v = $5; for (i = 6; i <= NF-2; i++) v = v ":" $i
-  print $1 ":" $2 ":" $3 ":" $4 ":" canon(v) ":" $(NF-1) ":" $NF }'
+  print $1 ":" $2 ":" $3 ":" $4 ":" canon_team(v) ":" $(NF-1) ":" $NF }'

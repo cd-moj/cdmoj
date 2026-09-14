@@ -221,7 +221,7 @@ metrics_recompute(){
     split("\n") | map(select(length>0)) | map(split(":"))
     | map({probid:.[1], lang:.[2], subid:.[-1],
            sub_epoch:((.[-2]|tonumber?) // 0),
-           verdict:(.[3:-2]|join(":"))})
+           verdict:((.[3:-2]|join(":")) | split("¦")[0])})   # classe: o ¦texto do time não pontua
     | map(. + {prov: (.verdict|test("Not Answered Yet|On queue|Running"; "i")),
                ac:   (.verdict|startswith("Accepted") and (test(" \\(Ignored\\)$")|not))})
     | map(. + {counts: ((.prov

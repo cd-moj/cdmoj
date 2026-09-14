@@ -477,7 +477,9 @@ competidor vê só `Not Answered Yet` (nenhuma mensagem de erro vaza); o juiz v�
 re-julga.
 Dois `.judge` **pegam** a submissão (máx 2, **1 ativa** por juiz, **TTL 5 min** com **+5**, ou
 **desistir**), veem **log + fonte + veredicto computado** (a tela **não recarrega** enquanto se avalia)
-e escolhem um veredicto de uma **lista configurável** (`final-verdicts.json`, `{label,verdict}`;
+e escolhem um veredicto de uma **lista configurável** (`final-verdicts.json`, `{label, verdict,
+team}` — rótulo do juiz, CLASSE canônica das 6 que pontua/penaliza, e o texto que o TIME vê; o
+history guarda `classe¦team` e `lib/verdict.sh` separa `canon` (classe) de `canon_team` (texto);
 default = as 6: 1-YES…6-Contact staff). O **voto é permanente e libera o juiz** na hora (ele já pode
 pegar outra submissão). **N votos unânimes → vai ao aluno**; **diferentes → conflito**, que **só o
 juiz-chefe resolve** (avisado pelo **alerta global** de conflito em qualquer página). A liberação enfileira `setverdict`, consumido pelo daemon e finalizado pelo

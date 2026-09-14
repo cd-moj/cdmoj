@@ -1,26 +1,31 @@
 // shared/contest-config/verdict-config.js — editores reusáveis (chief hub + admin) p/ a config
-// do veredicto manual: (1) opções de veredicto {label,verdict}; (2) matriz auto problema×lang×veredicto.
+// do veredicto manual: (1) opções de veredicto {label, verdict (classe), team}; (2) matriz auto
+// problema×lang×classe. As 6 CLASSES vêm do servidor (GET final-verdicts .classes) — é o
+// vocabulário de lib/verdict.sh: a classe pontua/penaliza/colore; o texto do time é livre.
 import { apiGet, apiPost } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 
-const CANON = ['Accepted', 'Wrong Answer', 'Time Limit Exceeded', 'Runtime Error', 'Compilation Error',
-  'Presentation Error', 'Memory Limit Exceeded', 'Output Limit Exceeded', 'Contact staff'];
+const CANON = ['Accepted', 'Wrong Answer', 'Time Limit Exceeded', 'Memory Limit Exceeded', 'Runtime Error', 'Compilation Error'];
 
-// ---- Opções de veredicto: lista de {label, verdict} ----
+// ---- Opções de veredicto: lista de {label, verdict, team} ----
 export function makeVerdictOptionsEditor(contest) {
   const G = { contest, auth: true };
   const enc = encodeURIComponent;
   const box = el('div', { class: 'section' }, el('h2', {}, T('🏷️ Opções de veredicto', '🏷️ Verdict options')));
   const rows = el('div', {});
   const msg = el('div', { class: 'small' });
-  const verdSel = (v) => { const s = el('select', {}, ...CANON.map(c => el('option', { value: c, selected: c === v ? 'selected' : null }, c))); if (v && !CANON.includes(v)) s.append(el('option', { value: v, selected: 'selected' }, v)); return s; };
+  let CLASSES = CANON;
+  const verdSel = (v) => el('select', {}, ...CLASSES.map(c => el('option', { value: c, selected: c === v ? 'selected' : null }, c)));
   function addRow(o) {
-    const label = el('input', { value: (o && o.label) || '', placeholder: T('texto (ex.: 5 - NO - Wrong answer)', 'text (e.g. 5 - NO - Wrong answer)'), style: 'width:46%' });
-    const verd = verdSel(o && o.verdict);
-    const rm = el('button', { class: 'btn ghost', type: 'button', onclick: () => row.remove() }, '✕');
-    const row = el('div', { class: 'row', style: 'gap:.4rem; margin:.2rem 0' }, label, el('span', { class: 'small muted' }, '→'), verd, rm);
-    row._get = () => ({ label: label.value.trim(), verdict: verd.value });
+    const label = el('input', { value: (o && o.label) || '', placeholder: T('o juiz escolhe (ex.: 5 - NO - Wrong answer)', 'the judge picks (e.g. 5 - NO - Wrong answer)'), style: 'width:30%' });
+    const verd = verdSel((o && o.verdict) || 'Wrong Answer');
+    const team = el('input', { value: (o && o.team) || '', placeholder: T('o time vê (vazio = a classe)', 'the team sees (empty = the class)'), style: 'width:30%' });
+    const sync = () => { team.disabled = verd.value === 'Accepted'; if (team.disabled) team.value = ''; };
+    verd.addEventListener('change', sync); sync();
+    const rm = el('button', { class: 'btn ghost danger', type: 'button', title: T('remover', 'remove'), onclick: () => row.remove() }, '✕');
+    const row = el('div', { class: 'row', style: 'gap:.4rem; margin:.2rem 0; flex-wrap:wrap' }, label, el('span', { class: 'small muted' }, '→'), verd, el('span', { class: 'small muted' }, '→'), team, rm);
+    row._get = () => ({ label: label.value.trim(), verdict: verd.value, team: team.value.trim() });
     rows.append(row);
   }
   const addBtn = el('button', { class: 'btn ghost', type: 'button', onclick: () => addRow() }, T('+ opção', '+ option'));
@@ -34,10 +39,14 @@ export function makeVerdictOptionsEditor(contest) {
   });
   (async () => {
     let r; try { r = await apiGet('/contest/final-verdicts?contest=' + enc(contest), G); } catch { r = null; }
+    if (r && Array.isArray(r.classes) && r.classes.length) CLASSES = r.classes;
     (r && r.options || []).forEach(addRow);
     if (!rows.children.length) addRow();
   })();
-  box.append(el('p', { class: 'muted small' }, T('O texto é o que o juiz vê; o veredicto é a string canônica enviada ao aluno (o "YES" deve ser Accepted).', 'The text is what the judge sees; the verdict is the canonical string sent to the student (the "YES" must be Accepted).')),
+  box.append(el('p', { class: 'muted small' },
+    T('Cada opção tem três campos. O primeiro é o que o juiz escolhe. O segundo é a classe: uma das seis classes canônicas. A classe define a pontuação, a penalidade e a cor no placar. O terceiro é o texto que o time vê. Deixe o texto vazio para mostrar a classe. A classe Accepted não tem texto próprio.',
+      'Each option has three fields. The first is what the judge picks. The second is the class: one of the six canonical classes. The class sets the score, the penalty and the colour on the scoreboard. The third is the text the team sees. Leave the text empty to show the class. The Accepted class has no custom text.')),
+    el('div', { class: 'row small muted', style: 'gap:.4rem' }, el('span', { style: 'width:30%' }, T('juiz vê', 'judge sees')), el('span', {}, ' '), el('span', {}, T('classe', 'class')), el('span', {}, ' '), el('span', { style: 'width:30%' }, T('time vê', 'team sees'))),
     rows, el('div', { class: 'row', style: 'margin-top:.5rem' }, addBtn, save, msg));
   return box;
 }
