@@ -9,7 +9,7 @@ import { el } from '/shared/ui.js';
 import { mountChrome } from '/lib/contest-chrome.js';
 import { statsSections } from '/lib/stats-view.js';
 import { T } from '/shared/i18n.js';
-import { flagManifest } from '/shared/flags.js';
+import { flagNamesReady, flagName } from '/shared/flags.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -17,11 +17,10 @@ const app = document.getElementById('app');
 const enc = encodeURIComponent;
 let probMap = {};
 let statsAll = null;
-let flagNames = {};
 let regionsTree = [];              // árvore do regions.json — MESMA curadoria do placar
 let dim = { kind: '', key: '' };   // ''=global, 'r'=sede, 'c'=país
 
-function flagLabel(c) { return flagNames[String(c).toLowerCase()] || String(c).toUpperCase(); }
+function flagLabel(c) { return flagName(c); }
 
 // opções de Sede = a ÁRVORE do regions.json (mesma ordem e indentação do seletor do
 // placar: país › região/supersede › sede), só com os nós que TÊM recorte computado
@@ -139,9 +138,7 @@ async function boot() {
   }
   try { const pr = await apiGet('/contest/problems?contest=' + enc(CONTEST), { contest: CONTEST, auth: true }); (pr.problems || []).forEach((p) => { probMap[p.problem_id] = p.short_name; }); } catch { /* sem map */ }
   try {
-    const mani = await flagManifest();
-    (mani.countries || []).forEach((c) => { flagNames[c.code] = c.name; });
-    (mani.br_states || []).forEach((st) => { flagNames['br-' + st.code] = st.name; });
+    await flagNamesReady();   // nome da bandeira = flagName (fonte única, issue #21)
   } catch { /* rótulo cai no código */ }
   try {
     const rg = await apiGet('/contest/regions?contest=' + enc(CONTEST), { contest: CONTEST, auth: true });

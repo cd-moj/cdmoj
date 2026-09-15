@@ -5,6 +5,8 @@ São **duas formas**, e elas diferem **só no nginx** (o resto — imagem, quadl
 | | **Produção** (máquina dedicada) | **Dev** (máquina de quem programa) |
 |---|---|---|
 | nginx | do **sistema** (root), **80/443**, TLS — `server/bin/install-nginx.sh` | **user-space**, como o próprio usuário, **8080/8443** — `~/nginx-proxy/` |
+
+Atenção: o `moj-app.conf.in` serve o estático com `Cache-Control: no-cache, must-revalidate` (issue #22: módulo ESM velho em cache depois de um deploy). Quando o `.conf.in` muda, reinstale ou recarregue o nginx no deploy seguinte.
 | API + judged | containers rootless (quadlets) da imagem podman | idem, ou os scripts à mão |
 | dono dos dados | um usuário de serviço (ex.: `moj`) | o seu usuário (`ribas`) |
 

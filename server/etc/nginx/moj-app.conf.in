@@ -172,4 +172,9 @@ location ~ ^/relatorio/([a-z0-9][a-z0-9._-]*)/(.*)$ {
 }
 
 # --- frontend estático (ESM, sem build) --------------------------------------------
-location / { try_files $uri $uri/ =404; }
+# no-cache = REVALIDA a cada uso (ETag/Last-Modified do nginx; 304 quando nada mudou). Sem
+# isto o navegador guardava os módulos pela heurística e um deploy deixava JS VELHO falando
+# com TXT NOVO: no evento de 29-30/08 o placar passou a células em segundos (`icpc s`) e o
+# score-icpc.js em cache mostrou "1/17029" como minutos (issue #22). Só aqui: /docs/ e
+# /relatorio/ têm location própria e a API já é dinâmica.
+location / { try_files $uri $uri/ =404; add_header Cache-Control "no-cache, must-revalidate"; }

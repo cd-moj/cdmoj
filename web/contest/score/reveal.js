@@ -13,7 +13,7 @@ import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { parseICPC } from './score-icpc.js';
 import { balloonColorHex, balloonDot, paintSolvedCell } from './score-colors.js';
-import { flagEl } from '/shared/flags.js';
+import { flagEl, flagName } from '/shared/flags.js';
 import { scoreCols, cellTitle } from './score-cols.js';
 
 const CONTEST = new URLSearchParams(location.search).get('c') || '';
@@ -72,7 +72,7 @@ function render(highlight) {
     if (i === cursor && !finished) tr.style.outline = '3px solid #1e57c4';
     if (highlight && highlight.user === t.username) tr.classList.add(highlight.up ? 'placing-up' : 'placing-down');
     tr.append(el('td', { class: 'cl-place' }, String(places[i])));
-    const ftd = el('td', {}); if (t.flag) { const fi = flagEl(t.flag, { height: 16 }); if (fi) ftd.append(fi); }
+    const ftd = el('td', {}); if (t.flag) { const fi = flagEl(t.flag, { height: 16, title: flagName(t.flag) }); if (fi) ftd.append(fi); }
     tr.append(ftd);
     tr.append(el('td', { class: 'team', title: [t.univFull || '', t.username].filter(Boolean).join(' · ') },
       (t.univShort ? '[' + t.univShort + '] ' : '') + (t.teamName || t.username)));

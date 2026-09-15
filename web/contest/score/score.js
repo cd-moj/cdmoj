@@ -4,7 +4,7 @@
 import { apiGet, apiGetText, apiGetTextMeta } from '/shared/api.js';
 import { status, logout } from '/shared/auth.js';
 import { el, fmtDate } from '/shared/ui.js';
-import { flagManifest } from '/shared/flags.js';
+import { flagManifest, flagName } from '/shared/flags.js';
 import { parseICPC, renderICPC } from './score-icpc.js';
 import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
@@ -18,7 +18,6 @@ let isAuth = false;
 let regions = [];
 let teamsMeta = [];      // regras regex -> país/escola
 let teamsDir = {};       // /contest/teams: login -> {team,univ_short,univ_full,flag,region,has_logo}
-let flagNames = {};      // code(lower) -> nome (p/ título da bandeira e rótulo do filtro)
 let activeCountry = '';
 let activeSchool = '';
 let anonMode = false;       // placar anônimo (agregado, sem desempenho individual)
@@ -148,14 +147,14 @@ function applyTeamsDir(p) {
   p.teams.forEach(t => {
     // o TXT do placar já traz bandeira e sigla: quem não está no diretório (time removido do
     // store, vindo de USERS_FROM…) precisa entrar nos filtros do mesmo jeito.
-    if (!t._country && t.flag) { t._country = t.flag; t.flagTitle = t.flagTitle || flagNames[String(t.flag).toLowerCase()] || t.flag; }
+    if (!t._country && t.flag) { t._country = t.flag; t.flagTitle = t.flagTitle || flagName(t.flag); }
     if (!t._school && t.univShort) t._school = t.univShort;
     const d = teamsDir[t.username || ''];
     if (!d) return;
     if (d.flag) {
       if (!t.flag) { t.flag = d.flag; anyFlag = true; }
       t._country = d.flag;
-      t.flagTitle = flagNames[String(d.flag).toLowerCase()] || d.flag;
+      t.flagTitle = flagName(d.flag);
     }
     if (d.univ_short && !t.univShort) t.univShort = d.univ_short;
     if (d.univ_full && !t.univFull) t.univFull = d.univ_full;
@@ -183,7 +182,7 @@ function applyTeamsMeta(p) {
     if (rule.country) {
       if (!t.flag) { t.flag = rule.country; anyFlag = true; }
       t._country = rule.country;
-      t.flagTitle = flagNames[String(rule.country).toLowerCase()] || rule.country;
+      t.flagTitle = flagName(rule.country);
     }
     if (rule.school && !t.univShort) t.univShort = rule.school;
     if (rule.school_full && !t.univFull) t.univFull = rule.school_full;
@@ -327,7 +326,7 @@ function renderFilters() {
   realBar.innerHTML = '';
   while (bar.firstChild) realBar.append(bar.firstChild);
 }
-function flagLabel(c) { return flagNames[String(c).toLowerCase()] || String(c).toUpperCase(); }
+function flagLabel(c) { return flagName(c); }
 // contador: quantos times a seleção deixou visíveis. Com filtro ativo o placar RENUMERA
 // (R1, 2026-08-30 — revoga o "nunca renumera"): nº grande = posição no recorte, .plg = a
 // geral; no ICPC a ★ passa a ser a do recorte, e o contador avisa.
@@ -546,8 +545,8 @@ async function boot() {
           stage: [st2.name, st2.venue].filter(Boolean).join(', ') + (st2.when ? ' — ' + st2.when : '') }; }));
     if (!Object.keys(classified).length) classified = null;
   }
-  (mani.countries || []).forEach(c => { flagNames[c.code] = c.name; });
-  (mani.br_states || []).forEach(s => { flagNames['br-' + s.code] = s.name; });
+  // (nome da bandeira: flagName de shared/flags.js — fonte única; o mapa manual daqui colidia
+  //  UF com país, issue #21)
 
   // controles (busca, bandeira, universidade, sede e coorte vivem na barra: renderFilters)
   document.getElementById('noAnim').addEventListener('change', (e) => { noAnim = e.target.checked; });

@@ -3,7 +3,7 @@
 // Se houver coluna "flag", mostra bandeira. Adiciona uma coluna "#" de posição.
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
-import { flagEl } from '/shared/flags.js';
+import { flagEl, flagName } from '/shared/flags.js';
 import { scoreColsGeneric } from './score-cols.js';
 
 export function parseGeneric(lines, mode) {
@@ -64,7 +64,7 @@ export function renderGeneric(parsed, opts) {
       const val = r[i] != null ? r[i] : '';
       if (i === parsed.iFlag) {
         const td = el('td', {});
-        if (val) { const fi = flagEl(val, { height: 18, title: String(val) }); if (fi) td.append(fi); }
+        if (val) { const fi = flagEl(val, { height: 18, title: flagName(val) }); if (fi) td.append(fi); }
         tr.append(td);
       } else if (i === parsed.iUser || i === parsed.iTeam) {
         tr.append(el('td', { class: 'team' }, val));

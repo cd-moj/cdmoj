@@ -708,10 +708,19 @@ function renderSubmitInline(p) {
   }
 
   // ---- linha sempre visível: upload rápido de arquivo ----
-  const fileInput = el('input', { type: 'file', style: 'max-width:170px' });
+  // O input nativo ficava com max-width:170px e mostrava "No…d" (issue #23): agora ele é
+  // escondido, o botão "Escolher arquivo" abre o seletor, o nome do arquivo aparece ao lado e o
+  // `accept` lista as extensões das linguagens DESTE problema (fonte: shared/languages.js).
+  const acceptLangs = (p.languages && p.languages.length) ? p.languages.map(langById)
+    : (LANGS === LANGUAGES ? DEFAULT_SUBMIT_LANGUAGES : LANGS);
+  const acceptExts = [...new Set(acceptLangs.flatMap((l) => (l.exts && l.exts.length) ? l.exts : [l.id]))].map((e) => '.' + e).join(',');
+  const fileInput = el('input', { type: 'file', style: 'display:none', accept: acceptExts });
+  const fileName = el('span', { class: 'small muted', style: 'max-width:12rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' });
+  const pick = el('button', { class: 'btn ghost', type: 'button', onclick: () => fileInput.click() }, T('Escolher arquivo', 'Choose file'));
+  fileInput.addEventListener('change', () => { fileName.textContent = (fileInput.files && fileInput.files[0]) ? fileInput.files[0].name : ''; fileName.title = fileName.textContent; });
   const steps = el('span', { class: 'submit-steps' });
   const btn = el('button', { class: 'btn', type: 'button' }, T('Enviar', 'Submit'));
-  const row = el('span', { class: 'prob-submit' }, fileInput, btn, steps);
+  const row = el('span', { class: 'prob-submit' }, fileInput, pick, fileName, btn, steps);
   btn.addEventListener('click', async () => {
     if (fileInput.files && fileInput.files[0]) {
       const f = fileInput.files[0];

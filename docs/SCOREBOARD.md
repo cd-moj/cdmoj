@@ -259,6 +259,16 @@ Geradores existentes (testados contra dados reais, batem com os placares legados
 `updatescore-icpc.sh`, `updatescore-obi.sh`, `updatescore-treino.sh`, `updatescore-heuristic.sh`,
 `updatescore-outro.sh`.
 
+## Módulos da web e o TXT: sem cache velho depois do deploy
+
+O TXT do placar mudou de formato em 30/08 (células em segundos, 1ª linha `icpc s`). O JS que
+lê o TXT mudou junto — mas o navegador de quem já estava no placar guardou o `score-icpc.js`
+antigo e mostrou os segundos como minutos ("1/17029", issue #22). Regra: o nginx serve TODO o
+estático de `web/` com `Cache-Control: no-cache, must-revalidate` (`server/etc/nginx/
+moj-app.conf.in`, `location /`): o navegador revalida a cada uso (304 quando nada mudou) e um
+deploy nunca deixa módulo velho falando com TXT novo. Depois de mudar o `.conf.in`, reinstale
+o nginx (`server/bin/install-nginx.sh` ou `~/nginx-proxy/proxy.sh reload`).
+
 ## Layout: o placar NUNCA rola para o lado
 
 Regra de produto: todas as colunas têm de ser visíveis em qualquer tela — pode quebrar linha,
@@ -291,6 +301,13 @@ revelação** e o placar do **relatório offline**, que inlina o mesmo CSS):
   células vazias, gastando largura sem informar a 1ª desempatadora.
 - O embrulho do placar é **`.board-wrap`** (sem `overflow-x`), nunca `.chart-wrap`/`.tblwrap` —
   esses rolam e são para as outras tabelas.
+
+### A estrela ★ não ocupa largura
+
+A ★ de first-to-solve é `position:absolute` no canto da célula (`ui.css`, `td.cell .fts`).
+Antes era um `span` inline antes do ponto do balão e do número: em coluna fixa de ~3,6% os três
+não cabiam e o número vazava para a coluna vizinha (issue #24). O número (`.pv`) continua
+inteiro e sem quebra; no celular a ★ some e a informação fica no `title`.
 
 ## Recursos do placar (web/contest/score/)
 

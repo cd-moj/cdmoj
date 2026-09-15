@@ -440,7 +440,11 @@ table.score .cl-place, table.score td.place { font-weight:800; color:var(--blue-
 /* o número é uma unidade: não quebra no meio (só a coluna encolhe a fonte) */
 table.score td.cell .pv { font-size:.78em; font-variant-numeric:tabular-nums;
   overflow-wrap:normal; word-break:keep-all; }
-table.score td.cell .fts { font-size:.7em; vertical-align:top; }
+/* ★ (primeiro a resolver) FORA DO FLUXO (issue #24, 2026-09-15): era um span inline antes do
+   ponto do balão e do número — em coluna fixa de ~3,6% os três não cabiam e o número vazava
+   para a coluna vizinha. Absoluta no canto, não ocupa largura; o número segue inteiro. */
+table.score td.cell { position:relative; }
+table.score td.cell .fts { position:absolute; top:.05em; left:.15em; font-size:.62em; line-height:1; pointer-events:none; }
 /* .bdot — o ponto da cor do balão na célula resolvida (modo 'icon' do placar, o padrão).
    A BORDA é a informação, não acabamento: sobre o verde de acerto um ponto branco dá 1,1:1.
    Ela vem do balloonEdge (score-colors.js) e chega por --bdot-edge. Ver docs/SCOREBOARD.md. */

@@ -609,6 +609,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   limiar, `localStorage` por contest) e atualiza EM LUGAR (nunca `app.innerHTML=''` no poll).
   Link no nav de admin, chefe e juiz (`navbuttons.sh`). Teste: `smoke-contest-jplag.sh` (sem
   java/jar roda os handlers sobre fixture sintética).
+- **Estático SEM cache velho** (issue #22, 2026-09-15): `moj-app.conf.in` `location /` manda
+  `Cache-Control: no-cache, must-revalidate` — módulo ESM revalida por ETag a cada uso. Sem isso
+  um deploy que muda o CONTRATO (TXT em segundos `icpc s`, 30/08) deixa JS velho no navegador do
+  time lendo dado novo. Mudou o `.conf.in` ⇒ reinstalar/recarregar o nginx no deploy.
+- **Nome de bandeira = `flagName()` de `web/shared/flags.js`** (issue #21): nunca remonte o mapa
+  do `index.json` à mão (UF só com prefixo `br-`; `sc` solto É Seychelles) e `flagEl` sem `title`
+  já mostra o nome. **★ do placar** é `position:absolute` na célula (issue #24) — não volte a
+  pô-la inline. **Seletor de arquivo do envio** é input escondido + botão + nome + `accept` das
+  linguagens do problema (issue #23) — o padrão das outras telas.
 - **Dificuldade e dirt de problema — FONTE ÚNICA** (issue #30, 2026-09-15): `lib/difficulty.sh`
   (`DIFF_JQ`: `diff_rate`/`diff_label`/`dirt_of`/`diff_bucket`) e o gêmeo `web/shared/difficulty.js`.
   Dificuldade = taxa POR USUÁRIO (resolveram ÷ tentaram) ≥.9 veasy ≥.7 easy ≥.5 med hard, `new`
