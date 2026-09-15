@@ -10,6 +10,7 @@ import { apiGet, apiGetText } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { el, renderAuthArea } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { DIFF_KEYS, DIFF_META, diffKeyOf, difficultyOf, userRateOf, dirtText, dirtTone, dirtHelp, difficultyHelp } from '/shared/difficulty.js';
 
 const CONTEST = 'treino';
 const PAGE = 50;
@@ -41,25 +42,11 @@ const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,
 const tagKey = (t) => norm(t).replace(/^#/, '');
 const $ = (id) => document.getElementById(id);
 
-// ---- dificuldade (derivada da taxa de acerto; sem attempted = "novo") ---------------------
-const DIFFS = [
-  { key: 'veasy', pt: 'muito fácil', en: 'very easy', cls: 'diff-easy' },
-  { key: 'easy',  pt: 'fácil',       en: 'easy',      cls: 'diff-easy' },
-  { key: 'med',   pt: 'médio',       en: 'medium',    cls: 'diff-med' },
-  { key: 'hard',  pt: 'difícil',     en: 'hard',      cls: 'diff-hard' },
-  { key: 'new',   pt: 'novo',        en: 'new',       cls: '' },
-];
-const diffByKey = (k) => DIFFS.find((d) => d.key === k);
-function diffKey(p) {
-  const s = p.solved_count || 0, a = p.attempted_count || 0;
-  if (a === 0) return 'new';
-  const rate = s / a;
-  return rate >= 0.9 ? 'veasy' : rate >= 0.7 ? 'easy' : rate >= 0.5 ? 'med' : 'hard';
-}
-function difficulty(p) {
-  const d = diffByKey(diffKey(p));
-  return { key: d.key, label: T(d.pt, d.en), cls: d.cls };
-}
+// ---- dificuldade e dirt: FONTE ÚNICA em shared/difficulty.js (issue #30) --------------------
+// O servidor manda `difficulty`/`user_rate`/`dirt` na lista; aqui só se LÊ e se pinta.
+const DIFFS = DIFF_KEYS.map((k) => ({ key: k, ...DIFF_META[k] }));
+const diffKey = (p) => diffKeyOf(p);
+const difficulty = (p) => difficultyOf(p);
 
 // ---- filtros ------------------------------------------------------------------------------
 function matchColl(p) {
@@ -100,9 +87,9 @@ function sortRows(rows) {
   if (SORT === 'az') return rows.sort(byTitle);
   if (SORT === 'new') return rows.sort((a, b) => (b.public_at || 0) - (a.public_at || 0) || byTitle(a, b));
   if (SORT === 'diff') return rows.sort((a, b) => {
-    const aa = a.attempted_count || 0, ba = b.attempted_count || 0;
-    if (!aa !== !ba) return aa ? -1 : 1;                     // "novo" (sem dados) por último
-    const r = (ba ? b.solved_count / ba : 0) - (aa ? a.solved_count / aa : 0);
+    const ra = userRateOf(a), rb = userRateOf(b);
+    if ((ra == null) !== (rb == null)) return ra == null ? 1 : -1;   // "novo" (sem dados) por último
+    const r = (rb || 0) - (ra || 0);
     return r || byTitle(a, b);
   });
   return rows.sort((a, b) => (b.solved_count || 0) - (a.solved_count || 0) || byTitle(a, b));
@@ -454,9 +441,8 @@ function renderHub() {
     }
     const lastAC = [...HIST].reverse().find((h) => /^Accepted/.test(h.verdict) && byId.has(h.probid));
     const cands = (base, why) => {
-      const c = base.filter((p) => !solved.has(p.id) && (p.attempted_count || 0) > 0)
-        .sort((a, b) => (b.solved_count / b.attempted_count) - (a.solved_count / a.attempted_count)
-          || (b.solved_count || 0) - (a.solved_count || 0));
+      const c = base.filter((p) => !solved.has(p.id) && userRateOf(p) != null)
+        .sort((a, b) => (userRateOf(b) - userRateOf(a)) || (b.solved_count || 0) - (a.solved_count || 0));
       return c.length ? { p: c[0], why } : null;
     };
     let sug = null;
@@ -634,7 +620,8 @@ function renderBrowse() {
       el('th', {}, T('Problema', 'Problem')),
       el('th', { class: 'hide-m' }, T('Coleções', 'Collections')),
       ...(showTags ? [el('th', { class: 'hide-m' }, 'Tags')] : []),
-      el('th', {}, T('Dificuldade', 'Difficulty')),
+      el('th', { title: difficultyHelp() }, T('Dificuldade', 'Difficulty')),
+      el('th', { class: 'hide-m n', title: dirtHelp() }, 'Dirt'),
       el('th', { class: 'hide-m' }, T('Resolvidos', 'Solved')))));
   const tb = el('tbody');
   slice.forEach((p) => {
@@ -654,6 +641,7 @@ function renderBrowse() {
       onclick: (e) => { e.preventDefault(); toggleTag(tagKey(t)); },
     }, t))));
     cells.push(el('td', {}, el('span', { class: 'diff ' + d.cls }, d.label)));
+    cells.push(el('td', { class: 'hide-m n ' + dirtTone(p.dirt), title: dirtHelp() }, dirtText(p.dirt)));
     cells.push(el('td', { class: 'hide-m' },
       p.attempted_count ? `${p.solved_count}/${p.attempted_count}` : '—'));
     tb.append(el('tr', { class: isS ? 'solvedrow' : '' }, ...cells));

@@ -141,6 +141,8 @@ table.moj tbody tr:last-child td { border-bottom:0; }
   padding:.15rem .65rem; font-size:.78rem; font-weight:600; margin:.12rem; transition:.12s; }
 .collection:hover { background:#e3dbff; text-decoration:none; transform:translateY(-1px); }
 .diff { font-weight:700; } .diff-easy{color:var(--ok);} .diff-med{color:var(--warn);} .diff-hard{color:var(--err);}
+/* dirt (shared/difficulty.js): baixo ≤20% · médio ≤50% · alto */
+.dirt-low{color:var(--ok);} .dirt-mid{color:var(--warn);} .dirt-high{color:var(--err);font-weight:700;}
 
 /* balloons (ICPC) */
 .balloon { position:relative; display:inline-block; width:18px; height:23px; border-radius:50% 50% 50% 50%/55% 55% 45% 45%;

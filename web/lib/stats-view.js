@@ -11,6 +11,7 @@
 import { el } from '/shared/dom.js';
 import { barChart, hBarChart, lineChart, multiLineChart } from '/lib/charts.js';
 import { T } from '/shared/i18n.js';
+import { diffLabel, diffClass, diffKeyFromRate, dirtTone } from '/shared/difficulty.js';
 
 const pct = (x) => Math.round((x || 0) * 100) + '%';
 
@@ -75,10 +76,12 @@ function problemsTable(ps, shortOf) {
     el('td', { class: 'n' }, String(p.attempted)),
     el('td', { class: 'n' }, String(p.solved)),
     el('td', { class: 'n' }, pct(p.accept_rate)),
+    // dificuldade = mesmo vocabulário do treino (shared/difficulty.js): rótulo pela taxa por time
+    (() => { const k = p.difficulty || (p.attempted ? diffKeyFromRate(p.accept_rate) : 'new'); return el('td', { class: 'diff ' + diffClass(k) }, diffLabel(k)); })(),
     el('td', { class: 'n' }, p.avg_subs != null ? p.avg_subs.toFixed(1) : '—'),
     el('td', { class: 'n' }, p.avg_ac_min != null ? p.avg_ac_min + 'm' : '—'),
     el('td', { class: 'n' }, p.tries_per_ac != null ? String(p.tries_per_ac) : '—'),
-    el('td', { class: 'n' }, p.dirt != null ? pct(p.dirt) : '—'),
+    el('td', { class: 'n ' + dirtTone(p.dirt) }, p.dirt != null ? pct(p.dirt) : '—'),
     el('td', { class: 'small' }, (() => {
       const l = Object.entries(p.ac_langs || {}).sort((a, b) => b[1] - a[1]);
       if (!l.length) return '—';
@@ -89,7 +92,9 @@ function problemsTable(ps, shortOf) {
     el('thead', {}, el('tr', {}, el('th', {}, T('Problema', 'Problem')),
       el('th', { class: 'n' }, 'Subs'), el('th', { class: 'n' }, T('Aceitas', 'Accepted')),
       el('th', { class: 'n' }, T('Tentaram', 'Attempted')), el('th', { class: 'n' }, T('Resolveram', 'Solved')),
-      el('th', { class: 'n' }, T('Taxa', 'Rate')), el('th', { class: 'n' }, T('Subs/pessoa', 'Subs/person')),
+      el('th', { class: 'n' }, T('Taxa', 'Rate')),
+      el('th', { title: T('rótulo pela taxa: ≥90% muito fácil · ≥70% fácil · ≥50% médio · <50% difícil (o mesmo do treino)', 'label by the rate: ≥90% very easy · ≥70% easy · ≥50% medium · <50% hard (same as the practice area)') }, T('Dificuldade', 'Difficulty')),
+      el('th', { class: 'n' }, T('Subs/pessoa', 'Subs/person')),
       el('th', { class: 'n', title: T('minuto médio do AC', 'average AC minute') }, T('AC médio', 'Avg AC')),
       el('th', { class: 'n', title: T('submissões até o AC (média de quem resolveu)', 'submissions until AC (avg of solvers)') }, T('Tent./AC', 'Tries/AC')),
       el('th', { class: 'n', title: T('parte das submissões de quem resolveu que estava errada (métrica do resolver ICPC)', 'the part of the solvers\u2019 submissions that was wrong (ICPC resolver metric)') }, 'Dirt'),
@@ -273,6 +278,7 @@ function problemsLegend() {
     el('summary', {}, T('Como ler a tabela', 'How to read the table')),
     el('ul', { style: 'margin:.2rem 0 0 1.1rem' },
       li(T('Taxa', 'Rate'), T('times que resolveram dividido por times que tentaram.', 'teams that solved divided by teams that tried.')),
+      li(T('Dificuldade', 'Difficulty'), T('rótulo pela Taxa: ≥90% muito fácil, ≥70% fácil, ≥50% médio, <50% difícil. É a mesma escala do Treino Livre.', 'label by the Rate: ≥90% very easy, ≥70% easy, ≥50% medium, <50% hard. It is the same scale as the practice area.')),
       li(T('Subs/pessoa', 'Subs/person'), T('submissões por time que tentou.', 'submissions per team that tried.')),
       li(T('AC médio', 'Avg AC'), T('minuto médio do primeiro AC de cada time.', 'average minute of the first AC of each team.')),
       li(T('Tent./AC', 'Tries/AC'), T('submissões até o AC, na média de quem resolveu.', 'submissions until the AC, on average, for solvers.')),

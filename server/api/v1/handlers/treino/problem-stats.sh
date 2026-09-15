@@ -7,6 +7,7 @@
 # SEMPRE (dado idêntico). Piso de 2 min segura o custo sob rajada de submissões; flock
 # serializa a regeneração (sem stampede num problema popular).
 id="$(param id)"
+source "$_DIR/lib/difficulty.sh"   # diff_label/dirt_of: fonte única da dificuldade (issue #30)
 [[ -n "$id" ]] || fail 400 "Missing problem id" "id_missing"
 valid_id "$id" || fail 400 "Invalid problem id" "id_invalid"
 T="$CONTESTSDIR/treino"
@@ -34,6 +35,7 @@ plines="$(emit_history_stream treino | awk -F: -v p="$id" '$3==p' 2>/dev/null)"
 # Uma passada só; buckets fixos saem prontos p/ o front.
 core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]//""), lang:(.[3]//"?"), verdict:(.[4]//""), epoch:((.[5]//"0")|(tonumber? // 0))}' \
   | jq -s '
+      '"$DIFF_JQ"'
       def vc: if startswith("Accepted") then "Accepted"
               elif startswith("Wrong") then "Wrong Answer"
               elif startswith("Time Limit") then "Time Limit Exceeded"
@@ -68,6 +70,12 @@ core="$(printf '%s\n' "$plines" | jq -R 'select(length>0)|split(":")|{user:(.[1]
           distinct_attempted: ($att|length),
           distinct_solved: ($solv|length),
           acceptance_rate: (if $total>0 then (($s|map(select(acc))|length)/$total) else 0 end),
+          # rótulo CANÔNICO (lib/difficulty.sh, issue #30): taxa POR USUÁRIO — a mesma da busca,
+          # da sugestão e do perfil. acceptance_rate (por submissão) fica só como número.
+          user_rate: diff_rate(($solv|length); ($att|length)),
+          difficulty: diff_label(($solv|length); ($att|length)),
+          # dirt = erros de quem resolveu até o 1º AC ÷ submissões de quem resolveu até o 1º AC
+          dirt: dirt_of(($si|map(.tries)|add // 0); ($si|length)),
           avg_submissions_per_user: (if ($att|length)>0 then ($total/($att|length)) else 0 end),
           verdicts: ($s|map(.verdict|vc)|group_by(.)|map({verdict:(.[0]), count:length})|sort_by(-.count)),
           by_language: ($s|group_by(.lang)|map({

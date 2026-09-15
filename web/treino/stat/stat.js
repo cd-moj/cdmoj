@@ -16,6 +16,7 @@ import { hBarChart, lineChart, heatmap, heatmapGrid, verdictColor } from '/lib/c
 import { langLabel } from '/shared/languages.js';
 import { logLink, srcLink } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
+import { DIFF_META, diffKeyOf } from '/shared/difficulty.js';
 
 const CONTEST = 'treino';
 const HPAGE = 25;
@@ -167,19 +168,9 @@ function computeStreaks(dayStats) {
   return { current: cur, longest };
 }
 
-// dificuldade derivada da taxa global do problema (mesmas faixas do /treino)
-function diffOf(p) {
-  const a = p.attempted_count || 0;
-  if (!a) return null;
-  const r = (p.solved_count || 0) / a;
-  return r >= 0.9 ? 'veasy' : r >= 0.7 ? 'easy' : r >= 0.5 ? 'med' : 'hard';
-}
-const DIFF_META = {
-  veasy: { pt: 'muito fácil', en: 'very easy', color: '#15803d' },
-  easy:  { pt: 'fácil', en: 'easy', color: '#4ca464' },
-  med:   { pt: 'médio', en: 'medium', color: '#9a6700' },
-  hard:  { pt: 'difícil', en: 'hard', color: '#be1241' },
-};
+// dificuldade do problema: a chave que o servidor manda na lista (shared/difficulty.js é a
+// fonte única — antes este arquivo tinha uma cópia da conta, issue #30); 'new' = sem dados
+function diffOf(p) { const k = diffKeyOf(p); return k === 'new' ? null : k; }
 
 // progresso por coleção: nome -> {total, mine}
 function collProgress(stats) {
@@ -355,7 +346,7 @@ function renderDashboard(stats) {
   dash.append(el('div', { class: 'duo' },
     chartCard(T('🧗 Dificuldade dos resolvidos', '🧗 Difficulty of solved'),
       el('p', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
-        T('derivada da taxa de acerto de cada problema', 'derived from each problem’s acceptance rate')),
+        T('pela taxa por usuário de cada problema (resolveram ÷ tentaram)', 'by each problem’s per-user rate (solved ÷ attempted)')),
       hBarChart(Object.entries(dcounts).filter(([, v]) => v > 0)
         .map(([k, v]) => ({ label: T(DIFF_META[k].pt, DIFF_META[k].en), value: v, color: DIFF_META[k].color })))),
     chartCard(T('📚 Progresso por coleção', '📚 Progress by collection'), collBox)));

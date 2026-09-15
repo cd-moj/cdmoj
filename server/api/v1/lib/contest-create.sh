@@ -4,6 +4,7 @@
 # (não-públicos), e/ou com enunciado custom. O conf é SOURCED -> tudo escrito com printf %q.
 : "${DEFAULT_SCORE_MODE:=icpc}"
 source "${BASH_SOURCE[0]%/*}/verdict.sh"   # penalty_codes_* (validação/normalização)
+source "${BASH_SOURCE[0]%/*}/difficulty.sh" # diff_label/diff_bucket: dificuldade do sorteio (fonte única, #30)
 
 cc_perms_file(){ printf '%s/treino/var/contest-perms.json' "$CONTESTSDIR"; }
 
@@ -523,13 +524,21 @@ cc_problem_metrics_file(){
   local f="$CONTESTSDIR/treino/var/problem-metrics.json"
   if [[ ! -s "$f" || -n "$(find "$f" -mmin +30 2>/dev/null)" ]]; then
     mkdir -p "$CONTESTSDIR/treino/var"
+    # attempters = tentantes DISTINTOS: a dificuldade do sorteio é a taxa POR USUÁRIO
+    # (solvers/attempters), a mesma da busca do treino (lib/difficulty.sh, issue #30)
     emit_history_stream treino \
-      | awk -F: '{tot[$3]++; if($5 ~ /^Accepted/){acc[$3]++; sol[$3 SUBSEP $2]=1}}
+      | awk -F: '{tot[$3]++; att[$3 SUBSEP $2]=1; if($5 ~ /^Accepted/){acc[$3]++; sol[$3 SUBSEP $2]=1}}
                END{for(k in sol){split(k,a,SUBSEP); ns[a[1]]++}
-                   for(p in tot) printf "%s\t%d\t%d\t%d\n", p, tot[p], acc[p]+0, ns[p]+0}' \
-      | jq -R -s 'split("\n")|map(select(length>0)|split("\t")
+                   for(k in att){split(k,a,SUBSEP); na[a[1]]++}
+                   for(p in tot) printf "%s\t%d\t%d\t%d\t%d\n", p, tot[p], acc[p]+0, ns[p]+0, na[p]+0}' \
+      | jq -R -s '
+          '"$DIFF_JQ"'
+          split("\n")|map(select(length>0)|split("\t")
                   |{key:.[0], value:{total:(.[1]|tonumber), accepted:(.[2]|tonumber), solvers:(.[3]|tonumber),
-                     acceptance:(if (.[1]|tonumber)>0 then ((.[2]|tonumber)/(.[1]|tonumber)) else 0 end)}})
+                     attempters:(.[4]|tonumber),
+                     acceptance:(if (.[1]|tonumber)>0 then ((.[2]|tonumber)/(.[1]|tonumber)) else 0 end),
+                     user_rate: diff_rate((.[3]|tonumber); (.[4]|tonumber)),
+                     difficulty: diff_label((.[3]|tonumber); (.[4]|tonumber))}})
                   |from_entries' > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f" || echo '{}' > "$f"
   fi
   printf '%s' "$f"
@@ -558,6 +567,7 @@ cc_bank_filter(){
   jq -e 'type=="array" and all(.[]; type=="string")' >/dev/null 2>&1 <<<"$colls" || colls='[]'
   MET="$(cc_problem_metrics_file)"
   jq -c --slurpfile m "$MET" --arg tags "$tags" --arg match "$match" --arg diff "$diff" --argjson colls "$colls" '
+    '"$DIFF_JQ"'
     ($tags|split(",")|map(ascii_downcase|gsub("^\\s+|\\s+$";""))|map(select(length>0))) as $T
     | ($m[0] // {}) as $M
     | [ .[]
@@ -570,11 +580,15 @@ cc_bank_filter(){
         | (if ($colls|length)==0 then true
            else ($colls | any(. as $c | ($pc|index($c)) != null)) end) as $collok
         | select($tagok and $collok)
-        | ($M[.id] // {total:0,accepted:0,solvers:0,acceptance:0}) as $mm
-        | (if $mm.total==0 then "unknown" elif $mm.acceptance>=0.5 then "easy" elif $mm.acceptance>=0.2 then "medium" else "hard" end) as $bucket
+        | ($M[.id] // {total:0,accepted:0,solvers:0,attempters:0,acceptance:0}) as $mm
+        # bucket pela DIFICULDADE canônica (taxa por usuário): easy = veasy+easy, medium = med
+        | (diff_label($mm.solvers; ($mm.attempters // 0))) as $lbl
+        | (diff_bucket($lbl)) as $bucket
         | select($diff=="any" or $diff==$bucket or ($diff=="known" and $bucket!="unknown"))
-        | {id, title, tags:$pt, collections:$pc, solvers:$mm.solvers, total:$mm.total,
-           acceptance:(($mm.acceptance*1000|floor)/1000), bucket:$bucket}
+        | {id, title, tags:$pt, collections:$pc, solvers:$mm.solvers, attempters:($mm.attempters // 0), total:$mm.total,
+           acceptance:(($mm.acceptance*1000|floor)/1000),
+           user_rate:(if ($mm.attempters // 0) > 0 then (($mm.solvers/$mm.attempters*1000|floor)/1000) else null end),
+           difficulty:$lbl, bucket:$bucket}
       ]' 2>/dev/null
 }
 

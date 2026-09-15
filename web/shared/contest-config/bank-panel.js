@@ -10,8 +10,11 @@
 //       emptyHint (texto quando a busca sem query não tem nada).
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { diffLabel } from '/shared/difficulty.js';
 
-const DIFF_LABEL = () => ({ any: T('qualquer', 'any'), easy: T('fáceis (≥50% AC)', 'easy (≥50% AC)'), medium: T('médios (20–50%)', 'medium (20–50%)'), hard: T('difíceis (<20%)', 'hard (<20%)'), known: T('com histórico', 'with history') });
+// buckets do sorteio = a dificuldade CANÔNICA (taxa POR USUÁRIO, shared/difficulty.js, #30):
+// fáceis = muito fácil + fácil (≥70% de quem tenta resolve) · médios = 50–70% · difíceis <50%
+const DIFF_LABEL = () => ({ any: T('qualquer', 'any'), easy: T('fáceis (≥70% resolvem)', 'easy (≥70% solve)'), medium: T('médios (50–70%)', 'medium (50–70%)'), hard: T('difíceis (<50% resolvem)', 'hard (<50% solve)'), known: T('com histórico', 'with history') });
 const debounce = (fn, ms) => { let h; return (...a) => { clearTimeout(h); h = setTimeout(() => fn(...a), ms); }; };
 let uid = 0;
 
@@ -80,8 +83,8 @@ export function makeBankPanel({ api, onAdd, searchLabel, searchPlaceholder, noQu
         el('a', { href: '#', onclick: (e) => { e.preventDefault(); doDraw(true); } }, T('↻ sortear de novo', '↻ draw again')), ' · ',
         el('a', { href: '#', onclick: (e) => { e.preventDefault(); r.problems.forEach((p2) => onAdd(p2)); } }, T('+ adicionar todos', '+ add all'))));
       r.problems.forEach((p2) => {
-        const info = p2.id + ' · ' + p2.bucket
-          + (p2.total ? (' · ' + Math.round(p2.acceptance * 100) + '% AC · ' + p2.solvers + T(' resolveram', ' solved')) : T(' · sem histórico', ' · no history'))
+        const info = p2.id + ' · ' + (p2.difficulty ? diffLabel(p2.difficulty) : p2.bucket)
+          + (p2.total ? (' · ' + (p2.user_rate != null ? Math.round(p2.user_rate * 100) + T('% resolvem · ', '% solve · ') : '') + p2.solvers + T(' resolveram', ' solved')) : T(' · sem histórico', ' · no history'))
           + ((p2.collections || []).length ? (' · 📁 ' + p2.collections.join(', ')) : '');
         out.append(itemRow(p2, info));
       });

@@ -609,6 +609,19 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   limiar, `localStorage` por contest) e atualiza EM LUGAR (nunca `app.innerHTML=''` no poll).
   Link no nav de admin, chefe e juiz (`navbuttons.sh`). Teste: `smoke-contest-jplag.sh` (sem
   java/jar roda os handlers sobre fixture sintética).
+- **Dificuldade e dirt de problema — FONTE ÚNICA** (issue #30, 2026-09-15): `lib/difficulty.sh`
+  (`DIFF_JQ`: `diff_rate`/`diff_label`/`dirt_of`/`diff_bucket`) e o gêmeo `web/shared/difficulty.js`.
+  Dificuldade = taxa POR USUÁRIO (resolveram ÷ tentaram) ≥.9 veasy ≥.7 easy ≥.5 med hard, `new`
+  sem tentantes; dirt = métrica do resolver ICPC (subs de quem resolveu até o 1º AC − ACs) ÷ essas
+  subs, do campo `tries_to_ac` do `metrics.json` (v3; v2 cai em `counted+1`). Quem CALCULA:
+  `treino-list-gen.sh` (→ `var/problems.json` `user_rate/difficulty/dirt`), `problem-stats.sh`,
+  `cc_problem_metrics_file`/`cc_bank_filter` (sorteio: bucket pela taxa por usuário, era por
+  submissão .5/.2), `stats-gen.sh` (`problems[].difficulty`). Quem MOSTRA só lê a chave
+  (`treino.js`, `stat.js`, `problema/stats`, `bank-panel`, `lib/stats-view` — este embutido no
+  relatório, então `difficulty.js` entra na lista do `report-gen.sh` ANTES dele). Nunca reescreva
+  faixa ou fórmula inline: era isso que dava "fácil" na busca e "difícil" na estatística
+  (`acceptance_rate` por submissão fica só como número). Pós-deploy: `touch contests/treino/conf`
+  força o recompute em massa dos metrics (ganha `tries_to_ac`).
 - **Rodadas do contest** (`lib/contest-rounds.sh` + `handlers/contest/{admin/rounds,rounds,round,
   admin/round-archive}.sh`): **aquecimento → prova oficial NO MESMO contest** (mesma URL, mesmo
   login, config preservada). `rounds.json` é o plano; **a rodada ativa É o `conf`** — não torne

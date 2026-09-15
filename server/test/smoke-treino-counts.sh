@@ -37,6 +37,12 @@ call /treino/problems
 ck "px: solved=5 attempted=9 (do json-count)" '[[ "$(qp ".[]|select(.id==\"moj-problems#px\")|.solved_count")" == 5 && "$(qp ".[]|select(.id==\"moj-problems#px\")|.attempted_count")" == 9 ]]'
 ck "py: 0/0 (sem json-count)" '[[ "$(qp ".[]|select(.id==\"moj-problems#py\")|.solved_count")" == 0 && "$(qp ".[]|select(.id==\"moj-problems#py\")|.attempted_count")" == 0 ]]'
 ck "ids preservados na forma '#'" '[[ "$(qp ".[].id" | grep -c "moj-problems#")" == 2 ]]'
+# dificuldade CANÔNICA (lib/difficulty.sh, issue #30): taxa por usuário 5/9 = .555 -> "med";
+# legado json-count não tem submissões até o AC -> dirt null; sem tentantes -> "new"
+ck "px: difficulty=med (5/9 por usuário)" '[[ "$(qp ".[]|select(.id==\"moj-problems#px\")|.difficulty")" == med ]]'
+ck "px: user_rate ~.555"      '[[ "$(qp ".[]|select(.id==\"moj-problems#px\")|(.user_rate*1000|floor)")" == 555 ]]'
+ck "px: dirt null (legado)"   '[[ "$(qp ".[]|select(.id==\"moj-problems#px\")|.dirt")" == null ]]'
+ck "py: difficulty=new (0/0)" '[[ "$(qp ".[]|select(.id==\"moj-problems#py\")|.difficulty")" == new ]]'
 
 echo "== /index/open_training: most_solved_prev_week =="
 call /index/open_training

@@ -398,7 +398,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Lista de problemas",
+        "summary": "Lista de problemas (com user_rate, difficulty = veasy|easy|med|hard|new pela taxa por usuário, e dirt — fonte única lib/difficulty.sh, issue #30)",
         "responses": {
           "200": {
             "description": "[{id,title,tags,collections,solved_count,attempted_count,public_at?}] (collections = .moj-meta.json do pacote; um problema pode estar em várias; public_at = epoch da 1ª publicação, ausente quando desconhecido)"
@@ -704,7 +704,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Estatísticas de um problema (cacheado)",
+        "summary": "Estatísticas de um problema (cacheado; difficulty/user_rate/dirt canônicos = a mesma conta da lista; acceptance_rate é a taxa por submissão, só número)",
         "parameters": [
           {
             "name": "id",
@@ -4918,7 +4918,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Estatísticas agregadas (admin/judge/mon)",
+        "summary": "Estatísticas agregadas (admin/judge/mon); problems[] traz dirt e difficulty (mesmo vocabulário do treino)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

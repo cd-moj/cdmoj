@@ -50,6 +50,7 @@ ck '.teams_idx["u-solve"].n != null and (.penalty_minutes == 20) and (.unranked_
 ck '.top_teams[0].login == "u-solve" and .top_teams[0].solved == 1' "top_teams"
 ck '.performance.teams_with_ac == 1 and .performance.solved.median == 1' "performance global"
 ck '(.problems[0].tries_per_ac != null) and (.problems[0].ac_langs | length) >= 1' "por-problema: tentativas e língua"
+ck '(.problems[0].dirt != null) and (.problems[0].difficulty | IN("veasy","easy","med","hard","new"))' "por-problema: dirt e dificuldade canônica (#30)"
 
 echo "smoke-stats-enrolled: PASS=$PASS FAIL=$FAIL"
 (( FAIL == 0 ))

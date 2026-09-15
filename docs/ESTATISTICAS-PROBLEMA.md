@@ -33,13 +33,17 @@ Livre**: submissões feitas em contests de turma não entram.
 | **submissões** | total de linhas de history do problema |
 | **tentaram** | usuários **distintos** com ≥1 submissão |
 | **resolveram** | usuários distintos com ≥1 submissão aceita |
-| **taxa de acerto** | submissões aceitas ÷ submissões totais (**por submissão**, não por usuário) |
+| **resolvem (por usuário)** | resolveram ÷ tentaram — a **taxa por usuário** |
+| **taxa por submissão** | submissões aceitas ÷ submissões totais — mede quanto se erra tentando; **não define a dificuldade** |
 | **subs / usuário** | submissões ÷ tentaram |
-| **dificuldade** | rótulo pela taxa de acerto por submissão: ≥90% muito fácil · ≥70% fácil · ≥50% médio · <50% difícil |
+| **dificuldade** | rótulo pela **taxa por usuário**: ≥90% muito fácil · ≥70% fácil · ≥50% médio · <50% difícil · sem tentantes = novo |
+| **dirt** | (submissões de quem resolveu até o 1º AC − ACs) ÷ (essas submissões). É a métrica do *resolver* do ICPC, a mesma das estatísticas do contest. Alto = o problema pune erros. |
 
-Note que há **duas taxas diferentes** na página: a do Resumo é por *submissão* (mede
-quanto se erra tentando); a do percentil abaixo é por *usuário* (mede quem tentou e
-conseguiu). Elas contam coisas distintas de propósito.
+A dificuldade tem **uma fonte só** no sistema (`lib/difficulty.sh` no servidor,
+`shared/difficulty.js` na web). A busca, a sugestão, o perfil, o sorteio de contest e esta
+página leem a mesma chave. Antes desta página rotular pela taxa por submissão, o mesmo
+problema saía "fácil" na busca e "difícil" aqui (issue #30). A taxa por submissão continua na
+página como número, com o nome certo.
 
 ## Percentil de dificuldade contra o acervo
 

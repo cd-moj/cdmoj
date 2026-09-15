@@ -35,6 +35,11 @@ ck "total submissions = 6 (ignora outro problema)" '[[ "$(J .total_submissions)"
 ck "distinct attempted = 4"   '[[ "$(J .distinct_attempted)" == 4 ]]'
 ck "distinct solved = 3"      '[[ "$(J .distinct_solved)" == 3 ]]'
 ck "acceptance ~0.667"        '[[ "$(J "(.acceptance_rate*1000|floor)")" == 666 ]]'
+# issue #30: o RÓTULO é pela taxa por usuário (3/4 = .75 -> easy), não pela de submissão (.667);
+# dirt = (subs até o 1º AC de quem resolveu − ACs) / subs: alice 2 + bob 1 + carol 1 = 4 -> 1/4
+ck "user_rate = .75"          '[[ "$(J "(.user_rate*1000|floor)")" == 750 ]]'
+ck "difficulty = easy (por usuário)" '[[ "$(J .difficulty)" == easy ]]'
+ck "dirt = .25"               '[[ "$(J .dirt)" == 0.25 ]]'
 ck "C: solvers distintos = 2" '[[ "$(J ".by_language[]|select(.lang==\"c\").solvers")" == 2 ]]'
 ck "C: submissões = 4"        '[[ "$(J ".by_language[]|select(.lang==\"c\").submissions")" == 4 ]]'
 ck "py (history .py3 legado): solvers distintos = 2" '[[ "$(J ".by_language[]|select(.lang==\"py\").solvers")" == 2 ]]'

@@ -21,6 +21,7 @@ case "$C" in *[!A-Za-z0-9._@#+-]* | "" | *..* ) echo "stats-gen: invalid contest
 conf="$CONTESTSDIR/$C/conf"
 # materializa o history no formato global (7 campos) num temp — awk abaixo inalterado.
 _SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$_SDIR/../api/v1/lib/users.sh"
+source "$_SDIR/../api/v1/lib/difficulty.sh"   # diff_label: mesmo vocabulário do treino (issue #30)
 _HT="$(mktemp)"; emit_history_stream "$C" > "$_HT"; hist="$_HT"
 mkdir -p "$(dirname "$OUT")" 2>/dev/null
 TMP="$(mktemp "$OUT.XXXXXX")" || { echo "stats-gen: mktemp falhou" >&2; exit 1; }
@@ -229,6 +230,7 @@ END{
   for(sn=1; sn<=nsc; sn++) printf "%s\t%s\tG\t%d\t%d\t%d\t%d\t%d\n", skind[sn], sval[sn], tot[sn]+0, acc[sn]+0, nu[sn]+0, nsv[sn]+0, enr[sn]+0;
   for(sn=1; sn<=nsc; sn++) if (skind[sn]=="r" && (sval[sn] in viewname)) printf "r\t%s\tW\t1\n", sval[sn];
 }' "$hist" | jq -R -s --argjson pm "$probmeta" --argjson penm "${PENALTY_MINUTES:-20}" --arg unrx "$UNRX" '
+  '"$DIFF_JQ"'
   def assemble($r):
     { totals: ( ([ $r[] | select(.[0]=="G") ][0]) as $g | if $g then
           (($g[3]|tonumber)) as $u | (($g[5]|tonumber? // 0)) as $e
@@ -244,6 +246,7 @@ END{
            avg_ac_min:(if $slv>0 then (($acsum/$slv)|floor) else null end),
            tries_per_ac:(if $slv>0 then ((($trysum/$slv)*10)|floor/10) else null end),
            dirt:(if $trysum>0 then (((($trysum-$slv)/$trysum)*1000)|floor/1000) else null end),
+           difficulty: diff_label($slv; (.[3]|tonumber)),
            ac_langs:($PL[$pid] // {})} ] | sort_by(.short_name))),
       languages: ([ $r[] | select(.[0]=="L") | {lang:.[1], submissions:(.[2]|tonumber), accepted:(.[3]|tonumber), solvers:(.[4]|tonumber)} ] | sort_by([-.submissions, .lang])),
       verdicts: ([ $r[] | select(.[0]=="V") | {verdict:.[1], count:(.[2]|tonumber)} ] | sort_by([-.count, .verdict])),

@@ -128,6 +128,7 @@ ck "draw por coleção no admin"  '[[ "$(jq -r .candidates <<<"$BODY")" == 1 && 
 call /contest/admin/draw GET '' cadm 'contest=ac-c&count=2&seed=42'
 D1="$(jq -rc '[.problems[].id]' <<<"$BODY")"
 call /contest/admin/draw GET '' cadm 'contest=ac-c&count=2&seed=42'
+ck "sorteio traz difficulty/bucket canônicos" '[[ "$(jq -r ".problems[0].difficulty" <<<"$BODY")" =~ ^(veasy|easy|med|hard|new)$ && "$(jq -r ".problems[0].bucket" <<<"$BODY")" =~ ^(easy|medium|hard|unknown)$ ]]'
 ck "draw reproduzível por seed" '[[ "$(jq -rc "[.problems[].id]" <<<"$BODY")" == "$D1" ]]'
 call /contest/admin/draw GET '' cuser 'contest=ac-c&count=2'
 ck "draw de aluno 403"          '[[ "$OUT" == *"Status: 403"* ]]'

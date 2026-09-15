@@ -45,14 +45,19 @@ jq -n '
 [[ -s "$tmpd/legacy" ]] || echo '{}' > "$tmpd/legacy"
 # store novo: 1 passada por users/*/metrics.json (find|xargs — ARG_MAX; lote de 200 p/ um
 # json corrompido não derrubar a agregação inteira). Cada usuário conta 1× por problema.
+# `tries` = submissões até o 1º AC de cada problema RESOLVIDO (metrics v3 `tries_to_ac`; v2
+# cai em counted+1) — soma por problema = base do DIRT (lib/difficulty.sh, issue #30).
 find "$T/users" -mindepth 2 -maxdepth 2 -name metrics.json -print0 2>/dev/null \
-  | { xargs -0 -r -n 200 jq -c '{solved:(.solved // []), attempted:(.attempted // [])}' 2>/dev/null || true; } \
+  | { xargs -0 -r -n 200 jq -c '{solved:(.solved // []), attempted:(.attempted // []),
+        tries:([ (.by_problem // {}) | to_entries[] | select(.value.solved == true)
+                 | {key, value:(.value.tries_to_ac // ((.value.counted // 0) + 1))} ] | from_entries)}' 2>/dev/null || true; } \
   | jq -sc '
       reduce .[] as $u ({};
         reduce ($u.attempted // [])[] as $p (.;
-          .[$p] = ((.[$p] // {solved_count:0, attempted_count:0}) | .attempted_count += 1))
+          .[$p] = ((.[$p] // {solved_count:0, attempted_count:0, tries_sum:0}) | .attempted_count += 1))
       | reduce ($u.solved // [])[] as $p (.;
-          .[$p] = ((.[$p] // {solved_count:0, attempted_count:0}) | .solved_count += 1)))
+          .[$p] = ((.[$p] // {solved_count:0, attempted_count:0, tries_sum:0}) | .solved_count += 1
+                   | .tries_sum += (($u.tries[$p] // 1) | tonumber))))
     ' > "$tmpd/store" 2>/dev/null
 [[ -s "$tmpd/store" ]] || echo '{}' > "$tmpd/store"
 jq -n --slurpfile a "$tmpd/legacy" --slurpfile b "$tmpd/store" \
@@ -70,11 +75,17 @@ jq '(.problems // []) | map(select(.public_at != null)
 # --- lista final (sidecars + contagens + public_at) -----------------------------------
 # `select(.public != false)`: 3ª camada anti-vazamento — a lista é ANÔNIMA; json legado sem
 # o campo passa, só o explicitamente privado é barrado. Ver mojtools/gen-problem-json.sh.
+# user_rate / difficulty / dirt: as defs de lib/difficulty.sh (fonte única — a web só LÊ)
+source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/difficulty.sh"
 body="$(jq -s --slurpfile c "$tmpd/counts" --slurpfile pa "$tmpd/pubat" '
+  '"$DIFF_JQ"'
   ($c[0] // {}) as $cnt | ($pa[0] // {}) as $pub
   | map(select(.public != false)
       | {id, title, tags: (.tags // []), collections: (.collections // [])}
-        + ($cnt[.id] // {solved_count:0, attempted_count:0})
+        + (($cnt[.id] // {solved_count:0, attempted_count:0}) | del(.tries_sum)
+           + {user_rate: (diff_rate(.solved_count; .attempted_count)),
+              difficulty: diff_label(.solved_count; .attempted_count),
+              dirt: dirt_of(.tries_sum; .solved_count)})
         + (if $pub[.id] then {public_at: $pub[.id]} else {} end))
 ' "$META"/*.json 2>/dev/null)"
 if [[ -z "$body" ]]; then

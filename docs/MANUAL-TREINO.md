@@ -166,8 +166,10 @@ A lista completa, sempre visível, com o **trilho de filtros** à esquerda:
 
 - **Filtrar por título:** digite parte do nome.
 - **Meu status** (só logado): Todos / A resolver / ✓ Resolvidos / … Tentados.
-- **Dificuldade:** muito fácil → difícil, **derivada da taxa de acerto** de cada problema
-  (“novo” = ainda sem dados). Cada opção mostra quantos problemas restam com ela.
+- **Dificuldade:** muito fácil → difícil, pela **taxa por usuário** de cada problema (quem
+  tenta consegue? resolveram ÷ tentaram: ≥90% muito fácil, ≥70% fácil, ≥50% médio, <50%
+  difícil; “novo” = ainda sem dados). É a mesma escala da página de estatística do problema, do
+  perfil e do sorteio de contest. Cada opção mostra quantos problemas restam com ela.
 - **Coleções:** a árvore com **caixas de seleção** — dá para marcar **várias ao mesmo
   tempo** (a lista mostra a **união**). Marcar um **grupo** (ex.: `obi`) pega todas as
   coleções dele de uma vez. O número à direita é o **seu progresso** (ex.: `20/140`).
@@ -183,7 +185,8 @@ resultados e a **ordenação**: **Mais resolvidos**, **A–Z**, **Dificuldade** 
 | **✓** | Se você resolveu (✓) ou tentou (…) — aparece quando logado |
 | **Problema** | O título, que é o **link** para abrir o problema |
 | **Coleções** | Clique numa coleção para **somá-la** ao filtro |
-| **Dificuldade** | A faixa derivada da taxa de acerto |
+| **Dificuldade** | A faixa pela taxa por usuário (resolveram ÷ tentaram) |
+| **Dirt** | Quanto se erra até acertar: parte das submissões de quem resolveu que estava errada. Alto = o problema pune erros. Verde ≤20%, amarelo ≤50%, vermelho acima. |
 | **Resolvidos** | Quantos usuários resolveram / tentaram |
 
 A lista vem em **páginas de 50**. Dica: a **URL guarda os seus filtros** — copie o link

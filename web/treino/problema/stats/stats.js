@@ -5,6 +5,7 @@ import { barChart, pieChart, hBarChart, lineChart, heatmap, heatmapGrid, verdict
 import { langById } from '/shared/languages.js';
 import { editorLabel } from '/shared/editors.js';
 import { T } from '/shared/i18n.js';
+import { diffKeyOf, diffLabel, diffClass, dirtText, dirtTone, dirtHelp, difficultyHelp } from '/shared/difficulty.js';
 
 const CONTEST = 'treino';
 const ID = new URLSearchParams(location.search).get('id') || '';
@@ -37,7 +38,7 @@ function cleanLangs(byLang) {
   return out.sort((a, b) => b.submissions - a.submissions);
 }
 
-function metric(v, l) { return el('div', { class: 'metric' }, el('div', { class: 'v' }, String(v)), el('div', { class: 'l' }, l)); }
+function metric(v, l) { return el('div', { class: 'metric' }, el('div', { class: 'v' }, (v && v.nodeType) ? v : String(v)), el('div', { class: 'l' }, l)); }
 function chartCard(title, node) {
   return el('div', { class: 'subcard' }, el('h3', { class: 'small', style: 'margin:.1rem 0 .6rem;color:var(--blue-dark)' }, title), node);
 }
@@ -65,7 +66,11 @@ async function boot() {
 
   // --- resumo ---
   const ar = s.acceptance_rate || 0;
-  const diff = ar >= 0.9 ? T('muito fácil', 'very easy') : ar >= 0.7 ? T('fácil', 'easy') : ar >= 0.5 ? T('médio', 'medium') : T('difícil', 'hard');
+  // dificuldade CANÔNICA (issue #30): a chave vem do servidor pela taxa POR USUÁRIO — a mesma
+  // da busca e da sugestão. A taxa por submissão continua como número, rotulada como tal.
+  const dk = s.difficulty || diffKeyOf(s);
+  const diffEl = el('span', { class: 'diff ' + diffClass(dk) }, diffLabel(dk));
+  const ur = typeof s.user_rate === 'number' ? s.user_rate : (s.distinct_attempted ? (s.distinct_solved || 0) / s.distinct_attempted : null);
   // percentil contra o acervo: X% dos problemas públicos têm taxa de sucesso por usuário MAIOR
   const dp = s.difficulty_percentile;
   let dpCard = null;
@@ -80,9 +85,12 @@ async function boot() {
       metric(s.total_submissions, T('submissões', 'submissions')),
       metric(s.distinct_attempted, T('tentaram', 'attempted')),
       metric(s.distinct_solved, T('resolveram', 'solved')),
-      metric(pct(ar), T('taxa de acerto', 'acceptance rate')),
+      Object.assign(metric(ur == null ? '—' : pct(ur), T('resolvem (por usuário)', 'solve it (per user)')), { title: difficultyHelp() }),
+      Object.assign(metric(pct(ar), T('taxa por submissão', 'per-submission rate')),
+        { title: T('submissões aceitas ÷ submissões totais — mede quanto se erra tentando, não define a dificuldade', 'accepted ÷ total submissions — measures how much people fail while trying; it does not define the difficulty') }),
       metric((s.avg_submissions_per_user || 0).toFixed(1), T('subs / usuário', 'subs / user')),
-      metric(diff, T('dificuldade', 'difficulty')),
+      Object.assign(metric(diffEl, T('dificuldade', 'difficulty')), { title: difficultyHelp() }),
+      Object.assign(metric(el('span', { class: dirtTone(s.dirt) }, dirtText(s.dirt)), 'dirt'), { title: dirtHelp() }),
       dpCard)));
 
   // --- fatos rápidos ---

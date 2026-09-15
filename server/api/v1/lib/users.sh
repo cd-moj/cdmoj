@@ -214,6 +214,9 @@ metrics_recompute(){
          first_ac_epoch: $fac,
          counted: (if $fac != null then ($cnt|map(select(.sub_epoch <= $fac))|length)
                    else ($cnt|length) end),
+         # submissões REAIS até o 1º AC inclusive (todo veredicto, CE também): é a base do
+         # DIRT (lib/difficulty.sh, issue #30) — igual à conta do stats-gen do contest
+         tries_to_ac: (if $fac != null then ($g|map(select((.prov|not) and .sub_epoch <= $fac))|length) else null end),
          best_score: (if ($real|length)==0 then null else ($real|map(.pts)|max) end),
          heur: (($real|map(select(.hs != null))) as $h
                 | if ($h|length)==0 then null
@@ -243,7 +246,7 @@ metrics_recompute(){
                ha:  (if (.prov|not) and (.verdict|test("Score Ajustado[ \t]+-?[0-9]+(\\.[0-9]+)?")) then
                        (.verdict|capture("Score Ajustado[ \t]+(?<n>-?[0-9]+(\\.[0-9]+)?)").n|tonumber)
                      else 0 end)})
-    | { version: 2,
+    | { version: 3,
         computed_at: $now,
         freeze_time: $freeze,
         submissions: length,

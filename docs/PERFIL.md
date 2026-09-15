@@ -18,7 +18,7 @@ da home e a **nuvem de avatares** nas estatísticas de um problema.
 | **📈 Resolvidos ao longo do tempo** | curva cumulativa de problemas distintos resolvidos | history (1º AC de cada problema) |
 | **🔥 Atividade + 🕐 Ritmo** | heatmap de 26 semanas + punchcard dia×hora | history |
 | **🎯 Veredictos / 💻 Linguagens** | barras horizontais + tabela por linguagem (subs/AC/taxa) | history (rótulo de linguagem via `shared/languages.js`, com alias p/ extensões `bash`/`python`/`py3`) |
-| **🧗 Dificuldade dos resolvidos** | muito fácil/fácil/médio/difícil — derivada da **taxa global** de cada problema (`solved_count/attempted_count` da lista), mesmas faixas do /treino (≥0.9 / ≥0.7 / ≥0.5 / resto) | history × `/treino/problems` |
+| **🧗 Dificuldade dos resolvidos** | muito fácil/fácil/médio/difícil — a chave `difficulty` que a lista já traz (taxa por usuário, `shared/difficulty.js` = fonte única; mesmas faixas em todo o sistema: ≥0.9 / ≥0.7 / ≥0.5 / resto) | history × `/treino/problems` |
 | **📚 Progresso por coleção** | top coleções por VOLUME resolvido, com barra e link p/ a busca do treino | history × `/treino/problems` |
 | **🏷️ Forças por tag / ⏳ Em aberto** | resolvidos por tag; tentados sem AC com última tentativa | history × `/treino/problems` |
 | **🏅 Conquistas** | badges do registro (ver §4) — travadas mostram o progresso | `/treino/achievements` + derivações |

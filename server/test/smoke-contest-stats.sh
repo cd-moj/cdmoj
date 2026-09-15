@@ -78,7 +78,7 @@ ck "br agrega alice(br)+bob(br-sc): 4 subs, 2 users" \
 ck "Curitiba: 4 subs, 2 users (zz.judge com sede NÃO contamina)" \
   '[[ "$(jq -r ".by_region[\"Curitiba\"].totals.submissions" <<<"$BODY")" == 4 && "$(jq -r ".by_region[\"Curitiba\"].totals.users" <<<"$BODY")" == 2 ]]'
 ck "ar: só a carol (1/1/1/1)" \
-  '[[ "$(jq -c ".by_country.ar.totals" <<<"$BODY")" == "{\"submissions\":1,\"accepted\":1,\"users\":1,\"problems_solved\":1}" ]]'
+  '[[ "$(jq -c ".by_country.ar.totals | [.submissions,.accepted,.users,.problems_solved]" <<<"$BODY")" == "[1,1,1,1]" ]]'
 ck "recorte tem o MESMO shape (timeline/languages/verdicts)" \
   '[[ "$(jq -r ".by_region[\"Curitiba\"] | (.timeline|length>=1) and (.languages|length>=1) and (.verdicts|length>=1)" <<<"$BODY")" == true ]]'
 ck "first_solver do recorte resolvido com NOME" \

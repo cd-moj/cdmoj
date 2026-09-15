@@ -1614,7 +1614,8 @@ rep_stats_bundle(){
   printf '<div id="stats"></div>\n'
   printf '<script>\n'
   printf 'const LANG=%s;\nfunction T(pt,en){return LANG==="en"?en:pt}\n' "$([[ "${LOCALE:-pt}" == en ]] && printf '"en"' || printf '"pt"')"
-  for f in "$MOJ_WEB/shared/dom.js" "$MOJ_WEB/lib/charts.js" "$MOJ_WEB/lib/stats-view.js"; do
+  # (difficulty.js ANTES do stats-view: ele importa dali; o T global de cima substitui o i18n)
+  for f in "$MOJ_WEB/shared/dom.js" "$MOJ_WEB/shared/difficulty.js" "$MOJ_WEB/lib/charts.js" "$MOJ_WEB/lib/stats-view.js"; do
     [[ -s "$f" ]] || return 1
     sed -E '/^import /d; s/^export (function|const|let|class) /\1 /; /^export \{/d' "$f"
   done
