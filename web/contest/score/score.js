@@ -181,8 +181,11 @@ function applyTeamsMeta(p) {
     t._country = t._country || ''; t._school = t._school || t.univShort || '';
     const rule = compiled.find(r => r._re && r._re.test(u));
     if (!rule) return;
-    if (rule.country) {
-      if (!t.flag) { t.flag = rule.country; anyFlag = true; }
+    // a regra é FALLBACK: a bandeira do próprio time (TXT/diretório) vence — a regra da sede
+    // "CA" (Central America no nome da sede, Canadá na ISO) punha "Canada" no tooltip de times
+    // com bandeira CR/GT/SV/NI (issue #21, LATAM 2026)
+    if (rule.country && !t.flag) {
+      t.flag = rule.country; anyFlag = true;
       t._country = rule.country;
       t.flagTitle = flagName(rule.country);
     }

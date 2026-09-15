@@ -644,7 +644,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   time lendo dado novo. Mudou o `.conf.in` ⇒ reinstalar/recarregar o nginx no deploy.
 - **Nome de bandeira = `flagName()` de `web/shared/flags.js`** (issue #21): nunca remonte o mapa
   do `index.json` à mão (UF só com prefixo `br-`; `sc` solto É Seychelles) e `flagEl` sem `title`
-  já mostra o nome. **★ do placar** é `position:absolute` na célula (issue #24) — não volte a
+  já mostra o nome. No placar a regra por regex do `teams-meta` (`country`) é **FALLBACK**: a bandeira do
+  próprio time vence (a regra da sede "CA" = Central America pôs "Canada" no tooltip de times CR/GT na LATAM 2026;
+  teste `smoke-score-flag-title.gjs.sh`). **★ do placar** é `position:absolute` na célula (issue #24) — não volte a
   pô-la inline. **Seletor de arquivo do envio** é input escondido + botão + nome + `accept` das
   linguagens do problema (issue #23) — o padrão das outras telas.
 - **Dificuldade e dirt de problema — FONTE ÚNICA** (issue #30, 2026-09-15): `lib/difficulty.sh`
