@@ -38,3 +38,5 @@ table.cheat{border-collapse:collapse;width:100%;font-size:.88rem;margin:.5rem 0}
 .rolenav a{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.2rem .6rem;text-decoration:none;color:inherit;opacity:.85}
 .rolenav a:hover{color:var(--accent,#5b8cff);opacity:1}
 .rolenav a.cur{border-color:var(--accent,#5b8cff);color:var(--accent,#5b8cff);opacity:1;font-weight:600}
+/* botões PT · EN no topbar dos tutoriais (shared/lang-toggle.js) */
+.topbar .navlinks .lang-toggle{margin-left:.6rem}

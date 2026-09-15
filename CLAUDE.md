@@ -1136,8 +1136,11 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   **precedência**: **LOCALE do contest** (explícito, via `setLang(loc)` sem persist nas páginas de
   contest — `basic.locale` de `/contest/basic`) **> `?lang=` na URL > seletor pt/en do usuário**
   (header do site, `setLang(l,{persist:true})`, localStorage `moj_lang`) **> idioma do browser**
-  (`navigator.language` não-pt ⇒ en). O seletor vive só no `site-header.js` (páginas públicas);
-  dentro do contest o `LOCALE` fixa o idioma. O **`?lang=`** (2026-08-24) é para o link que alguém
+  (`navigator.language` não-pt ⇒ en). Os botões PT · EN são **`shared/lang-toggle.js`** (fonte única): no
+  `site-header.js` recarregam a página; nos **tutoriais de papel** (`contest/ajuda/_tutorial.js`) trocam EM
+  LUGAR (o `i18n-dom.js` é reversível) — e o `?lang=` da URL acompanha o clique, senão um reload com
+  `?lang=en` na barra desfaria o PT escolhido (teste `smoke-lang-toggle.gjs.sh`). Dentro do contest o
+  `LOCALE` fixa o idioma e não há seletor. O **`?lang=`** (2026-08-24) é para o link que alguém
   MANDA — e-mail de convocação p/ sede de fora, tutorial passado adiante: sem ele quem escreve o
   e-mail não tem como garantir a versão que o destinatário vai abrir. Ele **grava** (senão o
   idioma se perderia no primeiro clique) e **perde para o LOCALE do contest**, igual ao seletor.

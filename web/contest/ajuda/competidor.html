@@ -307,6 +307,7 @@
           <li data-en-html="<b>Pick the problem</b> (or <i>General</i>, for something that is not about a specific problem) and write the question. Be specific: “in B, can the maze have more than one exit?” gets answered; “I don't understand B” does not."><b>Escolha o problema</b> (ou <i>General</i>, para algo que não é de um problema específico) e escreva a pergunta. Seja específico: “no B, o labirinto pode ter mais de uma saída?” é respondível; “não entendi o B” não é.</li>
           <li data-en-html="<b>The judges do not see who asked.</b> They see only the question. The chief judge and the administrator see your login and your name. The public report does not show who asked."><b>Os juízes não veem quem perguntou.</b> Eles veem só a pergunta. O juiz-chefe e o administrador veem o seu login e o seu nome. O relatório público não mostra quem perguntou.</li>
           <li data-en-html="<b>A public answer goes to everyone.</b> If your question is useful to the room, the answer appears for all teams; if it is only about your case, only you see it. That is why the list has answers you never asked for."><b>Resposta pública vai para todos.</b> Se a sua pergunta serve à sala, a resposta aparece para todos os times; se é só do seu caso, só você a vê. É por isso que a lista tem respostas que você não pediu.</li>
+          <li data-en-html="<b>Only while the contest is running.</b> Before the start and after the end the form is refused — the judges answer during the contest. Reading the notices and the answers stays open."><b>Só com a prova em andamento.</b> Antes do início e depois do fim o formulário é recusado — os juízes respondem durante a prova. Ler os avisos e as respostas continua aberto.</li>
           <li data-en-html="A common answer is <i>“read the statement”</i>, and it is a real answer: it means the information is already there."><i>“Leia o enunciado”</i> é uma resposta comum — e é resposta de verdade: quer dizer que a informação já está lá.</li>
         </ul>
         <p data-en="And this is what a notification looks like — you do not have to keep the page open to find out:">
@@ -398,12 +399,14 @@
         </div>
 
         <h3 data-en="Backup">Backup</h3>
-        <p data-en-html="The <b>Backup</b> tab is a drawer of your own on the server: pick a file, press <i>Store file</i>, and it stays there for you to download back whenever you want. It is for <b>not losing work</b> — the version that was working before you rewrote everything, the machine that decides to die at minute 150. It does <b>not</b> count as a submission and nobody else sees it.">
+        <p data-en-html="The <b>Backup</b> tab is a drawer of your own on the server: pick a file, press <i>Store file</i>, and it stays there for you to download back whenever you want. It is for <b>not losing work</b> — the version that was working before you rewrote everything, the machine that decides to die at minute 150. It does <b>not</b> count as a submission and nobody else sees it. <b>Storing works only while the contest is running</b>: before the start and after the end the server refuses the file; downloading what is already there always works.">
           A aba <b>Backup</b> é uma gaveta sua no servidor: escolha um arquivo, aperte
           <i>Store file</i>, e ele fica lá para você baixar de volta quando quiser. Serve
           para <b>não perder trabalho</b> — a versão que estava funcionando antes de você
           reescrever tudo, a máquina que resolve morrer no minuto 150. <b>Não</b> conta como
-          submissão e mais ninguém vê.
+          submissão e mais ninguém vê. <b>Guardar só funciona com a prova em andamento</b>: antes
+          do início e depois do fim o servidor recusa o arquivo; baixar o que já está lá funciona
+          sempre.
         </p>
         <figure class="shot">
           <img src="/contest/ajuda/img/comp-backup.png" alt="">
@@ -447,5 +450,6 @@
   </main>
 
   <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="/contest/ajuda/_tutorial.js"></script>
 </body>
 </html>

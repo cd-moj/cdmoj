@@ -9,7 +9,8 @@
 //   <script type="module" src="/shared/site-header.js"></script>
 // NÃO incluir nas páginas de contest (elas têm um topbar próprio).
 import { el } from '/shared/ui.js';
-import { T, getLang, setLang } from '/shared/i18n.js';
+import { T, getLang } from '/shared/i18n.js';
+import { mkLangToggle } from '/shared/lang-toggle.js';
 
 const NAV = [
   { key: 'home',     href: '/',          pt: 'Início',       en: 'Home' },
@@ -23,19 +24,7 @@ const NAV = [
   { key: 'docs',     href: '/docs/',     pt: 'Docs',         en: 'Docs' },
 ];
 
-// seletor pt/en (só aparece no header do site principal — nunca dentro de contest, que fixa
-// o idioma pelo LOCALE). Escolha do usuário: persiste e vale em todo o site.
-function mkLangToggle() {
-  const wrap = el('span', { class: 'lang-toggle', title: T('Idioma da interface', 'Interface language') });
-  ['pt', 'en'].forEach((l) => {
-    wrap.append(el('button', {
-      class: 'lang-opt' + (l === getLang() ? ' active' : ''),
-      'aria-pressed': l === getLang() ? 'true' : 'false',
-      onclick: () => { if (l !== getLang()) { setLang(l, { persist: true }); location.reload(); } },
-    }, l.toUpperCase()));
-  });
-  return wrap;
-}
+// seletor pt/en: shared/lang-toggle.js (fonte única; aqui RECARREGA, porque os módulos leem LANG no import)
 
 function activeFromPath() {
   const p = location.pathname;
