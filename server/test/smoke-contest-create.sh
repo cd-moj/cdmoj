@@ -32,7 +32,8 @@ printf '%s' '{"id":"apc#mat","title":"Matrizes","tags":["#matriz"],"collections"
 printf '%s' '{"problems":[
  {"id":"bankprob","title":"Banco Prob","owner":"someone","collaborators":[],"public":true},
  {"id":"apc#vet","title":"Vetores","owner":"someone","collaborators":[],"public":true},
- {"id":"apc#mat","title":"Matrizes","owner":"someone","collaborators":[],"public":true}
+ {"id":"apc#mat","title":"Matrizes","owner":"someone","collaborators":[],"public":true},
+ {"id":"priv#other2","title":"Privado alheio","owner":"someone","collaborators":[],"public":false}
 ]}' > "$T/var/problem-owners.json"
 
 NOW="$(date +%s)"; FUT=$(( NOW + 100000 )); PAST=$(( NOW - 100 ))
@@ -88,6 +89,18 @@ call /treino/contest-create/create POST "{\"name\":\"\",\"mode\":\"icpc\",\"end\
 ck "sem nome 422"           '[[ "$OUT" == *"Status: 422"* ]]'
 call /treino/contest-create/create POST "{\"name\":\"Y\",\"mode\":\"icpc\",\"end\":$PAST,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "fim no passado 422"     '[[ "$OUT" == *"Status: 422"* ]]'
+# privado alheio no TOPO e numa RODADA PLANEJADA do spec unificado: 404 (sem listar o id)
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"priv#other2\",\"name\":\"P\"}]}" reg
+ck "privado alheio no topo: 404 problem_denied" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied && "$BODY" != *"priv#other2"* ]]'
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"rodadas\":{\"rounds\":[{\"slug\":\"r2\",\"start\":$((FUT+10)),\"end\":$((FUT+100)),\"problems\":[{\"bank_id\":\"priv#other2\"}]}]}}}" reg
+ck "privado alheio numa rodada do spec: 404" '[[ "$OUT" == *"Status: 404"* && "$(jq -r .error.code <<<"$BODY")" == problem_denied ]]'
+ck "e o contest NÃO nasceu"  '[[ ! -d "$FIX/z" && -z "$(ls -d "$FIX"/*/ 2>/dev/null | xargs -n1 basename 2>/dev/null | grep -x z)" ]]'
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"foo\":true}}" reg
+ck "módulo desconhecido no spec: 422" '[[ "$OUT" == *"Status: 422"* ]]'
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"rodadas\":{\"rounds\":[{\"slug\":\"r2\",\"start\":$((FUT+100)),\"end\":$((FUT+10))}]}}}" reg
+ck "rodada do spec com fim antes do início: 422" '[[ "$OUT" == *"Status: 422"* ]]'
+call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"bankprob\",\"name\":\"B\"}],\"modules\":{\"coortes\":{\"cohorts\":[{\"id\":\"x\",\"regex\":\"[\"}]}}}" reg
+ck "coorte do spec com regex inválida: 422" '[[ "$OUT" == *"Status: 422"* ]]'
 call /treino/contest-create/create POST "{\"name\":\"Y\",\"mode\":\"zzz\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "modo inválido 422"      '[[ "$OUT" == *"Status: 422"* ]]'
 call /treino/contest-create/create POST "{\"name\":\"Z\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" nob

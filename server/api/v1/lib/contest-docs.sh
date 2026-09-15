@@ -489,7 +489,7 @@ _doc_html_infosheet(){
       -e "s|{{MEMLIMIT}}|${CMEM:-1024} MB|g" \
       -e "s|{{STACK_KB}}|${CSTACK:-131072}|g" \
       -e "s|{{STACK}}|$(( ${CSTACK:-131072} / 1024 )) MB|g" \
-      -e "s|{{OS}}|$(_doc_escs "$osname")|g" \
+      -e "s|{{OS}}|$(_doc_escs "$osname" | sed 's/[&|\\]/\\&/g')|g" \
       -e "s|{{SOURCE_MAX}}|${SUBMIT_MAX_KB:-1024} KB|g" \
       -e "s|{{OUTPUT_MAX}}|$(( ${CFSIZE:-256000} / 1024 )) MB|g" \
       -e "s|{{COMPILE_TL}}|${DOC_COMPILE_TL:-30}|g" \
@@ -802,6 +802,8 @@ doc_build(){
   local c="$1" t="$2" l="$3" d; d="$(doc_dir "$c")"
   mkdir -p "$d" 2>/dev/null
   local html="$d/$t.$l.html" pdf="$d/$t.$l.pdf" tmp="$d/.$t.$l.tmp.html"
+  # tmp dos enunciados materializados do banco (_doc_stmt_file); morre com o build
+  local _DOC_TMPD; _DOC_TMPD="$(mktemp -d)"
   case "$t" in
     info-sheet) _doc_html_infosheet "$c" "$l" > "$tmp" ;;
     times)      _doc_html_times "$c" "$l"    > "$tmp" ;;
@@ -822,6 +824,7 @@ doc_build(){
     rm -f "$mini"
     if [[ -s "$pdf.tmp" ]]; then mv -f "$pdf.tmp" "$pdf"; else rm -f "$pdf.tmp"; fi
   else _doc_html2pdf "$html" "$pdf.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"; fi
+  rm -rf "$_DOC_TMPD" 2>/dev/null
   jq -cn --arg t "$t" --arg l "$l" \
      --argjson bh "$(stat -c%s "$html" 2>/dev/null || echo 0)" \
      --argjson bp "$(stat -c%s "$pdf" 2>/dev/null || echo 0)" \

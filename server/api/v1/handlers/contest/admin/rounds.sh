@@ -113,6 +113,12 @@ case "$action" in
         cur="$(jq -c --argjson cl "$cl" '.colors=$cl' <<<"$cur")"
       elif [[ "$cl" != '{}' ]]; then fail 422 "colors deve ser objeto ou null" "colors_invalid"; fi
     fi
+    # a rodada ATIVA vive no conf: mexer no freeze dela é o 5º caminho de descongelar — mesma
+    # guarda dos outros quatro (fim geral + 1 min), ANTES de gravar qualquer coisa
+    if [[ "$(jq -r '.active' <<<"$j")" == "$slug" ]]; then
+      declare -F freeze_change_guard >/dev/null || source "$_LIBDIR/contest-gate.sh"
+      freeze_change_guard "$contest" "$fz"
+    fi
     j="$(jq -c --arg s "$slug" --argjson r "$cur" '.rounds = [ .rounds[] | if .slug == $s then $r else . end ]' <<<"$j")"
     rd_save "$contest" "$j"
     # a rodada ATIVA vive no conf: aplica na hora, a partir do OBJETO editado (passar pelo slug
@@ -132,14 +138,14 @@ case "$action" in
     (( $(jq 'length' <<<"$probs") <= 200 )) || fail 422 "máximo de 200 problemas" "too_many"
     # guarda de problema PRIVADO: a MESMA de Prova › Problemas e do wizard (problems_denied_for):
     # público, ou o DONO do contest é dono/colaborador/membro da org. Vale igual p/ rodada ativa e
-    # planejada (a planejada só tem esta porta). Negado: 403 com a lista (o admin precisa saber
-    # qual id tirar; a existência não vaza porque o bank já listou o que é adicionável).
+    # planejada (a planejada só tem esta porta). Negado: 404 SEM a lista — a existência de um
+    # privado alheio não vaza (o bank já listou o que é adicionável; id digitado = "não encontrado").
     source "$_DIR/lib/problems.sh"
     pids="$(jq -c '[ .[] | (.bank_id // .problem_id // "") | gsub("/";"#") | select(. != "") ]' <<<"$probs")"
     if [[ "$pids" != '[]' ]]; then
       owner="$(head -1 "$CONTESTSDIR/$contest/owner" 2>/dev/null)"
       denied="$(problems_denied_for "${owner:-}" "$pids")" || fail 503 "Índice de problemas indisponível" "index_unavailable"
-      [[ -n "$denied" ]] && fail 403 "Sem acesso a problema(s) privado(s): $denied" "problem_denied"
+      [[ -n "$denied" ]] && fail 404 "Problema não encontrado ou sem acesso ($(wc -w <<<"$denied") id(s))" "problem_denied"
     fi
     j="$(jq -c --arg s "$slug" --argjson p "$probs" \
         '.rounds = [ .rounds[] | if .slug == $s then (. + {problems:$p}) else . end ]' <<<"$j")"
@@ -192,7 +198,7 @@ case "$action" in
     # descongelaria o placar antes da hora (freeze_locked: fim geral + 1 min, 2026-09-14).
     # `shared_users` saiu da lista: contest com USERS_FROM promove normalmente — o arquivamento
     # só mexe nos diretórios LOCAIS (ver lib/contest-rounds.sh).
-    hard="$(jq -c '[ .[] | select(.code == "no_next_round" or .code == "freeze_locked") ]' <<<"$bl")"
+    hard="$(jq -c '[ .[] | select(.code == "no_next_round" or .code == "freeze_locked" or .code == "problem_denied") ]' <<<"$bl")"
     if [[ "$force" == true ]]; then blk="$hard"; else blk="$bl"; fi
     if [[ "$(jq 'length' <<<"$blk")" != 0 ]]; then
       emit_json 409 Conflict

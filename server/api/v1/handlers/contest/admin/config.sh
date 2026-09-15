@@ -57,8 +57,8 @@ if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
   bs="$(jq -r '.basic.login_start // empty' <<<"$body")"; [[ "$bs" =~ ^[0-9]+$ ]] && cc_set_conf_var "$contest" LOGIN_START_TIME "$bs"
   bf="$(jq -r '.basic.freeze // empty' <<<"$body")"
   if [[ "$bf" =~ ^[0-9]+$ ]] && [[ "$bf" != "$(conf_value "$contest" FREEZE_TIME)" ]]; then
-    # 0 = descongelar: só a partir do fim geral + 1 min (lib/contest-gate.sh)
-    if [[ "$bf" == 0 ]]; then source "$_LIBDIR/contest-gate.sh"; freeze_release_guard "$contest"; fi
+    # 0 = descongelar (ou freeze em vigor empurrado p/ o futuro): só a partir do fim geral + 1 min
+    source "$_LIBDIR/contest-gate.sh"; freeze_change_guard "$contest" "$bf"
     cc_set_conf_var "$contest" FREEZE_TIME "$bf"
     # freeze mudou ⇒ rebuild FORÇADO: o gatilho passivo "conf mais novo que .metrics-stamp"
     # perde p/ um build em voo (corrida de mtime, Maratona 29/08 — ver lib/common.sh).

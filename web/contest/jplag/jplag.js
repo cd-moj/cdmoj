@@ -14,6 +14,7 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { T } from '/shared/i18n.js';
+import { swapIf, sigOf } from '/shared/admin-ui.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -127,26 +128,33 @@ function renderFilters(force) {
   ui.selLang.value = F.lang;
 }
 
+// EM LUGAR: durante a análise o poll de 4 s só refaz a tabela de pares quando o CONJUNTO
+// visível muda (assinatura: filtros + pares) — o scroll e o foco do juiz ficam
 function renderList() {
   const st = DATA.status || {};
   const results = DATA.results || [];
-  ui.list.innerHTML = '';
+  const pairs = results.length ? visiblePairs() : [];
+  const sig = sigOf(F.prob, F.lang, F.thr, !!st.running, !!DATA.can_run, results.length,
+    pairs.slice(0, MAX_ROWS).map((p) => [p.run, p.index, p.similarity, p.a, p.b]));
+  swapIf(ui.list, sig, () => listBuild(st, results, pairs));
+}
+function listBuild(st, results, pairs) {
+  const wrap = el('div', {});
   if (!results.length) {
     ui.count.textContent = '';
-    ui.list.append(el('div', { class: 'muted' }, st.running
+    wrap.append(el('div', { class: 'muted' }, st.running
       ? T('Sem resultados ainda.', 'No results yet.')
       : (DATA.can_run ? T('Sem resultados. Clique em “Rodar jplag”.', 'No results. Click "Run jplag".')
         : T('Sem resultados. O admin ou o juiz-chefe precisa rodar o jplag.', 'No results. The admin or the chief judge has to run jplag.'))));
-    return;
+    return wrap;
   }
-  const pairs = visiblePairs();
   const total = (DATA.results || []).filter((r) => (!F.prob || r.problem === F.prob) && (!F.lang || r.lang === F.lang))
     .reduce((n, r) => n + (r.pairs || []).length, 0);
   ui.count.textContent = T(`${pairs.length} par(es) ≥ ${F.thr}% (de ${total})`, `${pairs.length} pair(s) ≥ ${F.thr}% (of ${total})`);
   if (!pairs.length) {
-    ui.list.append(el('div', { class: 'muted small', style: 'margin:.5rem 0' },
+    wrap.append(el('div', { class: 'muted small', style: 'margin:.5rem 0' },
       T('Nenhum par acima do limiar. Baixe o limiar para ver mais.', 'No pair above the threshold. Lower the threshold to see more.')));
-    return;
+    return wrap;
   }
   const showProb = !F.prob, showLang = !F.lang;
   const tb = el('tbody');
@@ -157,15 +165,16 @@ function renderList() {
     el('td', {}, who(p.b_name, p.b_login || p.b, p.b_univ)),
     el('td', { class: 'n ' + simClass(p.similarity) }, (p.similarity || 0).toFixed(1) + '%'),
     el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openMatch(p.run, p.index); } }, T('ver lado-a-lado', 'view side-by-side'))))));
-  ui.list.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+  wrap.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
     el('thead', {}, el('tr', {},
       showProb ? el('th', {}, T('Problema', 'Problem')) : null,
       showLang ? el('th', {}, T('Ling.', 'Lang.')) : null,
       el('th', {}, T('Solução A', 'Solution A')), el('th', {}, T('Solução B', 'Solution B')),
       el('th', { class: 'n' }, T('Similaridade', 'Similarity')), el('th', {}, ''))), tb)));
-  if (pairs.length > MAX_ROWS) ui.list.append(el('div', { class: 'small muted', style: 'margin:.4rem 0' },
+  if (pairs.length > MAX_ROWS) wrap.append(el('div', { class: 'small muted', style: 'margin:.4rem 0' },
     T(`mostrando ${MAX_ROWS} de ${pairs.length} — suba o limiar ou escolha um problema para ver o resto`,
       `showing ${MAX_ROWS} of ${pairs.length} — raise the threshold or pick a problem to see the rest`)));
+  return wrap;
 }
 
 function render() { renderStatus(); renderFilters(false); renderList(); }

@@ -239,6 +239,9 @@ fi
 resp_cache_store "$CF" "$BODY"
 # a versão comprimida é gravada DEPOIS da crua: se algo falhar aqui, o pior caso é o nginx
 # comprimir como antes — nunca servir .gz de um corpo diferente do .json
-printf '%s' "$BODY" | gzip -6 -c > "$CF.gz.tmp.${BASHPID}" 2>/dev/null && mv -f "$CF.gz.tmp.${BASHPID}" "$CF.gz" 2>/dev/null || rm -f "$CF.gz.tmp.${BASHPID}" 2>/dev/null
+# (tmp resolvido em VARIÁVEL: `> "…${BASHPID}"` como alvo do gzip expandia no filho e o mv nunca
+# achava o arquivo — o .gz nunca era gravado e sobrava lixo .gz.tmp.<pid> no var/)
+_gzt="$CF.gz.tmp.${BASHPID}"
+printf '%s' "$BODY" | gzip -6 -c > "$_gzt" 2>/dev/null && mv -f "$_gzt" "$CF.gz" 2>/dev/null || rm -f "$_gzt" 2>/dev/null
 emit_json 200 OK
 printf '%s' "$BODY"

@@ -711,7 +711,7 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
       if [[ "$T_HD" == 1 ]]; then
         if [[ -n "$T_ED" ]]; then printf '%s' "$T_ED" > "$pkg/docs/solucao.$tl.md"; else rm -f "$pkg/docs/solucao.$tl.md"; fi
       fi
-      [[ "$T_HT" == 1 ]] && TITLES_PATCH="$(jq -c --arg l "$tl" --arg t "$T_TT" '.[$l]=$t' <<<"$TITLES_PATCH")"
+      [[ "$T_HT" == 1 ]] && TITLES_PATCH="$(jq -c --arg l "$tl" --arg t "${T_TT:0:200}" '.[$l]=$t' <<<"$TITLES_PATCH")"
       if [[ "$T_HN" == 1 ]]; then
         _notes_rm_lang "$pkg" "$tl"
         jq --raw-output0 --arg l "$tl" "$JQNL"'.translations[$l].notes | to_entries[] | .key, (.value // "" | nl1)'           < "$bodyf" > "$_t/tn.nul" 2>/dev/null
@@ -725,7 +725,8 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
   fi
   # titles no topo do body (a CLI manda o .moj-id `titles`; o editor manda dentro de translations)
   if (( HAS_TITLES )); then
-    TITLES_PATCH="$(jq -c --slurpfile b "$bodyf" '. + (($b[0].titles // {}) | with_entries(select((.value|type)=="string")))' <<<"$TITLES_PATCH")"
+    TITLES_PATCH="$(jq -c --slurpfile b "$bodyf" --arg all "$(stmt_langs_all)" '. + (($b[0].titles // {})
+      | with_entries(select((.value|type)=="string" and .key != "pt" and (($all|split(" ")|index(.key)) != null)) | .value |= .[0:200]))' <<<"$TITLES_PATCH")"
   fi
   if [[ "$TITLES_PATCH" != '{}' ]]; then
     local _mf="$pkg/.moj-meta.json" _cur='{}' _mtmp
@@ -1119,7 +1120,8 @@ write_meta(){
     title="$(_derive_title "$pkg")"
   fi
   jq -e . >/dev/null 2>&1 <<<"${titles:-null}" || titles=""
-  local have_langs='[]' _l
+  (( ${#titles} > 4096 )) && titles=""     # titles é um mapa pequeno; maior que isso é lixo (e nunca argv >128K)
+  local have_langs='[]' _l _mtmp="$pkg/.moj-meta.json.tmp.${BASHPID}"
   for _l in $(stmt_langs_of "$pkg"); do [[ "$_l" == pt ]] || have_langs="$(jq -c --arg l "$_l" '. + [$l]' <<<"$have_langs")"; done
   jq -n --argjson cur "$cur" --arg o "$owner" --arg r "$repo" --arg pub "$pub" \
         --argjson colls "${colls:-null}" --arg title "$title" --argjson langs "${langs:-null}" \
@@ -1138,6 +1140,6 @@ write_meta(){
     + (if $title=="" then {} else {display_title:$title} end)
     # carimba a 1ª publicação (permanece ao despublicar); alimenta o heatmap "entrada de públicos"
     + (if $pub=="true" and (($cur.public_at // null)==null) then {public_at:$now} else {} end)
-  ' > "$pkg/.moj-meta.json"
+  ' > "$_mtmp" && [[ -s "$_mtmp" ]] && mv -f "$_mtmp" "$pkg/.moj-meta.json" || { rm -f "$_mtmp"; return 1; }   # tmp+mv: jq que falha não deixa o meta VAZIO
   chmod 644 "$pkg/.moj-meta.json" 2>/dev/null   # modo canônico (o fcgiwrap roda umask 007 -> 660)
 }

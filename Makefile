@@ -121,9 +121,8 @@ endif
 ## version-json — web/version.json (gitignored): a versão que o rodapé mostra (issue #20).
 ##   MOJ_CONTACT (e-mail ou URL) no ambiente do deploy vira o link "contato" do rodapé.
 version-json:
-	@printf '{"version":"%s","built_at":%s,"contact":"%s"}\n' \
-	  "$$(git describe --always --dirty --tags 2>/dev/null || git rev-parse --short HEAD)" \
-	  "$$(date +%s)" "$(MOJ_CONTACT)" > web/version.json
+	@jq -cn --arg v "$$(git describe --always --dirty --tags 2>/dev/null || git rev-parse --short HEAD)" \
+	  --argjson t "$$(date +%s)" --arg c "$(MOJ_CONTACT)" '{version:$$v, built_at:$$t, contact:$$c}' > web/version.json
 	@echo ">> web/version.json: $$(cat web/version.json)"
 
 ## restart / restart-judged — reinício independente

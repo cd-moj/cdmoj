@@ -17,7 +17,7 @@
 declare -A CL_ENGINES=( [sbc-fase1]="classify-br.sh" )
 cl_catalog(){ jq -cn '[{id:"sbc-fase1", name:"SBC 1ª fase → Final Brasileira",
   desc:"regra 1: melhores gerais (≤2 por escola) · regra 2: vagas por sede e supersede (≤1 por escola) · regra 4: participação feminina · regra 3/comitê: manual"}]'; }
-cl_engine(){ local a="${1:-sbc-fase1}"; [[ -n "${CL_ENGINES[$a]:-}" ]] || return 1; printf '%s' "${CL_ENGINES[$a]}"; }
+cl_engine(){ local a="${1:-sbc-fase1}"; [[ "$a" =~ ^[a-z0-9-]{1,32}$ ]] || return 1; [[ -n "${CL_ENGINES[$a]:-}" ]] || return 1; printf '%s' "${CL_ENGINES[$a]}"; }   # regex ANTES do índice: "@"/"*" expandiriam o array
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"

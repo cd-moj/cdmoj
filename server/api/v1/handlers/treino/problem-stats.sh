@@ -12,6 +12,9 @@ source "$_DIR/lib/difficulty.sh"   # diff_label/dirt_of: fonte única da dificul
 valid_id "$id" || fail 400 "Invalid problem id" "id_invalid"
 T="$CONTESTSDIR/treino"
 [[ -f "$T/var/jsons/$id.json" ]] || fail 404 "Problem not found" "problem_notfound"
+# 3ª camada anti-vazamento (a mesma do /treino/problem): json privado que reapareça em var/jsons/
+# não ganha título/agregados por aqui
+jq -e '.public != false' "$T/var/jsons/$id.json" >/dev/null 2>&1 || fail 404 "Problem not found" "problem_notfound"
 
 CACHE="$T/var/problem-stats/$id.json"
 DIRTY="$T/var/.score-dirty"

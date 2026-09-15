@@ -34,7 +34,7 @@ tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/docs" "$tmp/tests/input" "$tmp/tests/output"
 printf '%s' "$md" > "$tmp/docs/e.$fmt"
 
-# imagens do PACOTE (id + permissão de edição — sem permissão, 403 do require, nada vaza)
+# imagens do PACOTE (id + permissão de edição — sem permissão, 404 do require_problem_edit, nada vaza)
 if [[ -n "$pid" ]] && valid_id "$pid"; then
   require_problem_edit "$pid"
   _ppkg="$MOJ_PROBLEMS_DIR/${pid%%#*}/${pid##*#}"

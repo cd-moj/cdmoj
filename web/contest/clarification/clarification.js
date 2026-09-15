@@ -295,7 +295,7 @@ async function boot() {
   if (!st || !st.logged_in) {
     app.innerHTML = '';
     app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Enter the contest')),
-      el('a', { class: 'btn', href: '/contest/login/?c=' + enc(CONTEST) }, T('Contest login', 'Contest login'))));
+      el('a', { class: 'btn', href: '/contest/login/?c=' + enc(CONTEST) }, T('Entrar no contest', 'Contest login'))));
     return;
   }
   myLogin = st.login || '';

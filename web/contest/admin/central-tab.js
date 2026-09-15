@@ -12,7 +12,7 @@
 import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
 import { toLocalDT, dtToEpoch } from '/shared/contest-config/index.js';
-import { field } from '/shared/admin-ui.js';
+import { field, swapIf, sigOf } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 import { MODULES } from './modules.js';
 
@@ -54,11 +54,16 @@ export function makeCentralTab(CONTEST, opts = {}) {
     el('div', { class: 'row', style: 'gap:.35rem;flex-wrap:wrap' }, ...actions));
 
   const num = (n) => (n == null ? '—' : String(n));
+  // EM LUGAR: o tick de 15 s só refaz os cartões quando os NÚMEROS mudam (assinatura sem relógio)
   function renderLive(box, dash) {
     const j = (dash && dash.judges) || null, sub = (dash && dash.submissions) || null, rv = (dash && dash.review) || null;
+    const sig = sigOf(sub && sub.pending, sub && sub.total, j && j.online, j && j.total, sub && sub.response && sub.response.p95_s, rv && rv.pending_total, rv && rv.conflicts);
+    swapIf(box, sig, () => liveBuild(j, sub, rv));
+  }
+  function liveBuild(j, sub, rv) {
     const dc = (val, label, warn) => el('div', { class: 'dash-card' + (warn ? ' warn' : '') },
       el('div', { class: 'dash-val' }, val), el('div', { class: 'dash-lbl' }, label));
-    box.innerHTML = '';
+    const box = el('div', {});
     box.append(el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },
       el('h2', { style: 'margin:.1rem 0' }, T('📡 Ao vivo', '📡 Live')),
       el('span', { style: 'flex:1' }),
@@ -69,6 +74,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
         dc(j ? `${j.online || 0}/${j.total || 0}` : '—', T('juízes online', 'judges online'), j && j.total > 0 && !j.online),
         dc(num(sub && sub.response && sub.response.p95_s) + 's', T('resposta p95', 'p95 response'), sub && sub.response && sub.response.p95_s > 120),
         dc(num(rv && rv.pending_total), T('na correção manual', 'in manual review'), rv && rv.conflicts > 0)));
+    return box;
   }
 
   function checkEl(c) {

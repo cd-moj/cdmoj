@@ -883,12 +883,14 @@ pr_reconcile_balloons() {
     while IFS=$'\t' read -r sub_epoch login cid verdict; do
       [[ -n "$login" && -n "$cid" ]] || continue
       sub_epoch="${sub_epoch//[^0-9]/}"; sub_epoch="${sub_epoch:-0}"   # nunca deixe (( )) ver lixo
-      case "$verdict" in *Accepted*) ;; *) continue;; esac
+      # pela CLASSE (prefixo), nunca por substring: o texto do time (`¦…`, configurável) pode
+      # conter "Accepted" ("Not Accepted") — o awk abaixo já cortou o `¦…`
+      case "$verdict" in Accepted*) ;; *) continue;; esac
       case "$verdict" in *" (Ignored)") continue;; esac   # ignorada não conta no placar nem ganha balão
       case "$login" in *.admin|*.judge|*.cjudge|*.staff|*.cstaff|*.mon|*.animeitor) continue;; esac
       _bln_try "$login" "$cid" "$sub_epoch" || true
     done < <(emit_history_stream_since "$c" "$prev" \
-               | awk -F: 'NF>=7{ v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i;
+               | awk -F: 'NF>=7{ v=$5; for(i=6;i<=NF-2;i++) v=v ":" $i; sub(/¦.*$/, "", v);
                                  print $(NF-1) "\t" $2 "\t" $3 "\t" v }' \
                | sort -n -k1,1)
     # o que ficou esperando decisão volta para o arquivo de espera

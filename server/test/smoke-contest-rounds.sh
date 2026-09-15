@@ -58,23 +58,33 @@ ck "privado com dono colaborador entra" '[[ "$(J .n)" == 1 ]]'
 RD '{"action":"problems","slug":"prova","problems":[{"bank_id":"myorg#p","letter":"A"},{"problem_id":"priv/mine","letter":"B"}]}'
 ck "privado da ORG do dono entra (id com / também)" '[[ "$(J .n)" == 2 ]]'
 RD '{"action":"problems","slug":"prova","problems":[{"bank_id":"bankprob","letter":"A"},{"bank_id":"priv#other","letter":"B"}]}'
-ck "privado alheio: 403 problem_denied"  '[[ "$OUT" == *"Status: 403"* && "$(J .error.code)" == problem_denied ]]'
-ck "lista o id negado"             '[[ "$(J .error.message)" == *"priv#other"* ]]'
+ck "privado alheio: 404 problem_denied (existência não vaza)" '[[ "$OUT" == *"Status: 404"* && "$(J .error.code)" == problem_denied ]]'
+ck "e NÃO lista o id negado"       '[[ "$(J .error.message)" != *"priv#other"* ]]'
 call /contest/admin/rounds GET '' cadm "$Q"
 ck "rodada planejada ficou com os 2 (org + dono)" '[[ "$(J ".rounds[] | select(.slug==\"prova\") | .problems | length")" == 2 ]]'
+# privado alheio que entrou por OUTRA porta (spec unificado/duplicate/arquivo): a promoção barra,
+# e é DURO — o force não passa (é a última porta antes de materializar o enunciado do jsons-private)
+jq -c '.rounds |= map(if .slug=="prova" then .problems += [{"bank_id":"priv#other","letter":"Z"}] else . end)' "$C/rounds.json" > "$C/rounds.json.t" && mv -f "$C/rounds.json.t" "$C/rounds.json"
+call /contest/admin/rounds GET '' cadm "$Q"
+ck "promoção bloqueada por problem_denied" '[[ "$(J ".promote_ready.blockers | map(.code) | index(\"problem_denied\")")" != null ]]'
+RD '{"action":"promote","to":"prova","force":true}'
+ck "force NÃO passa por cima do problem_denied" '[[ "$OUT" == *"Status: 409"* && "$(J ".blockers | map(.code) | index(\"problem_denied\")")" != null ]]'
+ck "e nada foi materializado do privado alheio" '[[ ! -f "$C/enunciados/priv#other.html" ]]'
+jq -c '.rounds |= map(if .slug=="prova" then .problems |= map(select(.bank_id != "priv#other")) else . end)' "$C/rounds.json" > "$C/rounds.json.t" && mv -f "$C/rounds.json.t" "$C/rounds.json"
 
 echo "== rodada ATIVA: mesma regra, e vai pro conf =="
+call /contest/admin/rounds GET '' cadm "$Q"
 ACT="$(J .active)"
 ck "ativa é a implícita 'oficial'"  '[[ "$ACT" == oficial ]]'
 RD '{"action":"problems","slug":"oficial","problems":[{"bank_id":"myorg#p","name":"Org","letter":"A"},{"bank_id":"bankprob","name":"Pub","letter":"B"}]}'
 ck "org entra na ativa"            '[[ "$(J .n)" == 2 ]]'
 ck "PROBS do conf tem os dois"     'grep -q "myorg#p" "$C/conf" && grep -q "bankprob" "$C/conf"'
 RD '{"action":"problems","slug":"oficial","problems":[{"bank_id":"priv#other","letter":"A"}]}'
-ck "alheio na ativa: 403"          '[[ "$OUT" == *"Status: 403"* ]]'
+ck "alheio na ativa: 404"          '[[ "$OUT" == *"Status: 404"* ]]'
 ck "conf intacto"                  'grep -q "myorg#p" "$C/conf"'
 cp "$C/owner" "$C/owner.bak"; rm -f "$C/owner"
 RD '{"action":"problems","slug":"prova","problems":[{"bank_id":"priv#mine","letter":"A"}]}'
-ck "contest sem owner: privado 403" '[[ "$OUT" == *"Status: 403"* ]]'
+ck "contest sem owner: privado 404" '[[ "$OUT" == *"Status: 404"* ]]'
 RD '{"action":"problems","slug":"prova","problems":[{"bank_id":"bankprob","letter":"A"}]}'
 ck "contest sem owner: público ok" '[[ "$(J .n)" == 1 ]]'
 mv "$C/owner.bak" "$C/owner"
@@ -159,6 +169,16 @@ call /contest/admin/settings POST "{\"freeze\":$((NOW-1800))}" cadm "$Q"
 ck "mudar o freeze p/ outro >0 passa" '[[ "$(J .saved)" == true ]] && grep -q "^FREEZE_TIME=$((NOW-1800))$" "$C/conf"'
 call /contest/admin/config POST '{"basic":{"freeze":0}}' cadm "$Q"
 ck "config basic.freeze:0 -> 409"  '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == freeze_locked ]]'
+# 5º caminho: editar a rodada ATIVA com freeze:0 (ou "00", ou empurrar o freeze em vigor p/ o
+# futuro) é descongelar também — mesma guarda
+call /contest/admin/rounds GET '' cadm "$Q"; ACTS="$(J .active)"
+RD "{\"action\":\"set\",\"slug\":\"$ACTS\",\"freeze\":0}"
+ck "rounds set freeze:0 na ativa -> 409 freeze_locked" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == freeze_locked ]]'
+call /contest/admin/settings POST '{"freeze":"00"}' cadm "$Q"
+ck "settings freeze:\"00\" -> 409 (comparação numérica)" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == freeze_locked ]]'
+call /contest/admin/settings POST "{\"freeze\":$((NOW+600))}" cadm "$Q"
+ck "freeze em vigor empurrado p/ o futuro -> 409" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == freeze_locked ]]'
+ck "FREEZE_TIME intacto"           'grep -q "^FREEZE_TIME=$((NOW-1800))$" "$C/conf"'
 call /contest/admin/finish POST '{"action":"finish"}' cadm "$Q"
 ck "Encerrar evento -> 409 freeze_locked" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == freeze_locked ]]'
 call /contest/admin/finish GET '' cadm "$Q"

@@ -10,6 +10,7 @@
 import { apiGet, apiGetText, getToken } from '/shared/api.js';
 import { el, verdictClass, isPending, fmtDate, resumoText } from '/shared/ui.js';
 import { openHtmlReport } from '/shared/submission-links.js';
+import { swapIf, sigOf } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 
 // tempo:username:problemid:lang:verdict:epoch:subid  (verdict pode conter ':')
@@ -49,17 +50,30 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
     } catch { alert(T('Falha ao abrir o report.', 'Failed to open the report.')); }
   }
 
+  // EM LUGAR (regra da casa): o poll (5–10 s com pendente) só troca o DOM quando a ASSINATURA
+  // do que aparece muda — filtro/ordenação/linhas — senão o clique do time no chip ou no
+  // cabeçalho "pisca" e o scroll da tabela volta ao topo a cada tick
   function renderFilter() {
     if (!filterEl) return;
-    filterEl.innerHTML = '';
-    const mk = (label, val) => filterEl.append(el('span', { class: 'tag' + (subFilter === val ? ' active' : ''),
-      onclick: () => { subFilter = val; renderFilter(); renderTable(); } }, label));
-    mk(T('Todos', 'All'), 'ALL');
-    probs().forEach((p) => mk(p.short_name || p.problem_id, p.problem_id));
+    const sig = sigOf('f', subFilter, probs().map((p) => [p.problem_id, p.short_name]));
+    swapIf(filterEl, sig, () => {
+      const box = el('span', {});
+      const mk = (label, val) => box.append(el('span', { class: 'tag' + (subFilter === val ? ' active' : ''),
+        onclick: () => { subFilter = val; renderFilter(); renderTable(); } }, label));
+      mk(T('Todos', 'All'), 'ALL');
+      probs().forEach((p) => mk(p.short_name || p.problem_id, p.problem_id));
+      return box;
+    });
   }
 
   function renderTable() {
     if (!tableEl) return;
+    const canLog = !!(userinfo && (userinfo.show_log || userinfo.is_admin || userinfo.is_judge));
+    const sig = sigOf('t', subFilter, sortField, sortAsc, canLog, (basic && basic.start_time) || 0,
+      submissions.map((s) => [s.subid, s.verdict, s.epoch, s.problem, resumoText(subSumm[s.subid]) || '']));
+    swapIf(tableEl, sig, () => buildTable(canLog));
+  }
+  function buildTable(canLog) {
     let rows = submissions.filter((s) => subFilter === 'ALL' || s.problem === subFilter);
     rows = rows.slice().sort((a, b) => {
       if (sortField === 'epoch') return sortAsc ? a.epoch - b.epoch : b.epoch - a.epoch;
@@ -67,11 +81,9 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
       if (sortField === 'verdict') return sortAsc ? (a.verdict || '').localeCompare(b.verdict || '') : (b.verdict || '').localeCompare(a.verdict || '');
       return 0;
     });
-    tableEl.innerHTML = '';
-    if (!rows.length) { tableEl.innerHTML = `<span class="muted small">${T('Nenhuma submissão ainda.', 'No submissions yet.')}</span>`; return; }
+    if (!rows.length) return el('span', { class: 'muted small' }, T('Nenhuma submissão ainda.', 'No submissions yet.'));
     const arrow = (f) => sortField === f ? (sortAsc ? ' ▲' : ' ▼') : '';
     const th = (label, f) => el('th', { onclick: () => { sortAsc = (sortField === f) ? !sortAsc : false; sortField = f; renderTable(); } }, label + arrow(f));
-    const canLog = !!(userinfo && (userinfo.show_log || userinfo.is_admin || userinfo.is_judge));
     const head = el('thead', {}, el('tr', {},
       th(T('Tempo', 'Time'), 'epoch'), th(T('Problema', 'Problem'), 'problem'), el('th', {}, T('Arquivo', 'File')),
       th(T('Resultado', 'Result'), 'verdict'), el('th', {}, T('Data', 'Date')), canLog ? el('th', {}, 'Log') : null));
@@ -91,7 +103,7 @@ export function makeSubmissionsTable({ contest, basic, problems, userinfo, filte
         el('td', {}, el('b', {}, shortNameOf(s.problem)), ' ', el('span', { class: 'small muted' }, fullNameOf(s.problem))),
         el('td', {}, fileLink), vcell, el('td', {}, fmtDate(s.epoch)), logCell));
     });
-    tableEl.append(el('table', { class: 'moj' }, head, tb));
+    return el('table', { class: 'moj' }, head, tb);
   }
 
   async function load() {

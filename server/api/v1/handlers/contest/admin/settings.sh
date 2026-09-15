@@ -81,8 +81,9 @@ if has name; then v="$(jq -r '.name' <<<"$body")"; { [[ -n "$v" ]] && (( ${#v} <
 for pair in start:CONTEST_START end:CONTEST_END login_start:LOGIN_START_TIME freeze:FREEZE_TIME; do
   k="${pair%%:*}"; var="${pair#*:}"
   has "$k" && { v="$(jq -r ".$k" <<<"$body")"; [[ "$v" =~ ^[0-9]+$ ]] || fail 422 "$k inválido" "int_invalid"
-    # freeze -> 0 = DESCONGELAR (cerimônia, Central): só a partir do fim geral + 1 min
-    [[ "$k" == freeze && "$v" == 0 ]] && freeze_release_guard "$contest"
+    # freeze -> 0 = DESCONGELAR (cerimônia, Central), ou freeze em vigor empurrado p/ o futuro:
+    # só a partir do fim geral + 1 min (lib/contest-gate.sh, comparação numérica)
+    [[ "$k" == freeze ]] && freeze_change_guard "$contest" "$v"
     setvar "$var" "$v"; }
 done
 has locale && { v="$(jq -r '.locale' <<<"$body")"; [[ "$v" =~ ^(pt|en)$ ]] || fail 422 "locale inválido" "locale_invalid"; setvar LOCALE "$v"; }

@@ -186,9 +186,22 @@ alerts_claim(){
   local d; d="$(_alert_dir)"; local ob="$d/outbox" inf="$d/inflight"
   [[ -d "$ob" ]] || { echo '[]'; return; }
   mkdir -p "$inf" 2>/dev/null
-  local stale
-  while IFS= read -r stale; do [[ -n "$stale" ]] && mv -f "$stale" "$ob/" 2>/dev/null; done \
-    < <(find "$inf" -maxdepth 1 -name '*.json' -mmin +"$(( ${ALERT_INFLIGHT_TTL:-600} / 60 ))" 2>/dev/null)
+  # Reenfileira o inflight vencido. O `mv` PRESERVA o mtime: sem o `touch` na ida e na volta, um
+  # item que nunca recebe ack ficava "vencido" a cada poll (reentrega infinita a cada ~25 s).
+  # Teto ALERT_MAX_ATTEMPTS (5): depois disso o item é descartado com registro no log.
+  local stale att tmpj
+  while IFS= read -r stale; do
+    [[ -n "$stale" ]] || continue
+    att="$(jq -r '(.attempts // 1) + 1' "$stale" 2>/dev/null)"; [[ "$att" =~ ^[0-9]+$ ]] || att=99
+    if (( att > ${ALERT_MAX_ATTEMPTS:-5} )); then
+      printf '%s\tdrop\t%s\tsem ack após %s tentativas\n' "$EPOCHSECONDS" "${stale##*/}" "$(( att - 1 ))" >> "$d/relatorio.log" 2>/dev/null
+      rm -f "$stale"; continue
+    fi
+    tmpj="$stale.tmp.${BASHPID}"
+    if jq -c --argjson a "$att" '. + {attempts:$a}' "$stale" > "$tmpj" 2>/dev/null; then mv -f "$tmpj" "$ob/${stale##*/}" 2>/dev/null
+    else rm -f "$tmpj"; mv -f "$stale" "$ob/" 2>/dev/null; fi
+    touch "$ob/${stale##*/}" 2>/dev/null
+  done < <(find "$inf" -maxdepth 1 -name '*.json' -mmin +"$(( ${ALERT_INFLIGHT_TTL:-600} / 60 ))" 2>/dev/null)
   local files=() chats_json="" first=1 n=0 f id out
   mapfile -t files < <( set +o noglob; shopt -s nullglob
                         for f in "$ob"/*.txt "$ob"/*.json; do printf '%s\n' "$f"; done | sort )
@@ -211,7 +224,7 @@ alerts_claim(){
       out="$(jq -cn --arg id "$id" --arg t "$(cat "$f")" --argjson c "$chats_json" \
               '{id:$id, text:$t, chats:$c, loud:false, group:true}')"
     fi
-    if [[ "$f" == *.json && -n "$out" ]]; then mv -f "$f" "$inf/$id.json" 2>/dev/null || rm -f "$f"; else rm -f "$f"; fi
+    if [[ "$f" == *.json && -n "$out" ]]; then { mv -f "$f" "$inf/$id.json" && touch "$inf/$id.json"; } 2>/dev/null || rm -f "$f"; else rm -f "$f"; fi
     [[ -n "$out" ]] || continue
     (( first )) || printf ','; first=0
     printf '%s' "$out"; n=$(( n + 1 ))

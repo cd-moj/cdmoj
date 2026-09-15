@@ -27,8 +27,8 @@ for j in "$JD"/*.json; do
   [[ -f "$j" ]] || continue
   m="$META/${j##*/}"
   [[ -f "$m" && ! "$j" -nt "$m" ]] && continue
-  jq -c '{id, title, public, tags:(.tags // []), collections:(.collections // [])}' "$j" \
-    > "$m.tmp" 2>/dev/null && mv -f "$m.tmp" "$m" || rm -f "$m.tmp"
+  jq -c '{id, title, public, tags:(.tags // []), collections:(.collections // []), statement_langs:(.statement_langs // ["pt"])}' "$j" \
+    > "$m.tmp" 2>/dev/null && mv -f "$m.tmp" "$m" || rm -f "$m.tmp"   # mesmo sidecar do index_problem_now
 done
 for m in "$META"/*.json; do
   [[ -f "$m" && ! -f "$JD/${m##*/}" ]] && rm -f "$m"
@@ -46,11 +46,12 @@ jq -n '
 # store novo: 1 passada por users/*/metrics.json (find|xargs — ARG_MAX; lote de 200 p/ um
 # json corrompido não derrubar a agregação inteira). Cada usuário conta 1× por problema.
 # `tries` = submissões até o 1º AC de cada problema RESOLVIDO (metrics v3 `tries_to_ac`; v2
-# cai em counted+1) — soma por problema = base do DIRT (lib/difficulty.sh, issue #30).
+# cai em `counted`, que já INCLUI o AC — era `counted+1` e inflava o dirt de quem acertou de
+# primeira) — soma por problema = base do DIRT (lib/difficulty.sh, issue #30).
 find "$T/users" -mindepth 2 -maxdepth 2 -name metrics.json -print0 2>/dev/null \
   | { xargs -0 -r -n 200 jq -c '{solved:(.solved // []), attempted:(.attempted // []),
         tries:([ (.by_problem // {}) | to_entries[] | select(.value.solved == true)
-                 | {key, value:(.value.tries_to_ac // ((.value.counted // 0) + 1))} ] | from_entries)}' 2>/dev/null || true; } \
+                 | {key, value:(.value.tries_to_ac // ([(.value.counted // 1), 1] | max))} ] | from_entries)}' 2>/dev/null || true; } \
   | jq -sc '
       reduce .[] as $u ({};
         reduce ($u.attempted // [])[] as $p (.;

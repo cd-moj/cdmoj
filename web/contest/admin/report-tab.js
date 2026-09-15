@@ -7,7 +7,7 @@
 // artefato. A caixa de publicação é PERSISTENTE e atualiza em lugar.
 import { el } from '/shared/ui.js';
 import { apiGet, apiPost } from '/shared/api.js';
-import { fmtDate, downloadAuthed, swap } from '/shared/admin-ui.js';
+import { fmtDate, downloadAuthed, swap, swapIf, sigOf } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 
 const enc = encodeURIComponent;
@@ -42,7 +42,7 @@ export function makeReportTab(CONTEST, opts = {}) {
     pubBox.innerHTML = '';
     if (job && job.state === 'running') {
       pubBox.append(el('span', { class: 'muted' }, T('⏳ publicando… (gera o site e troca de uma vez; ~1–2 min numa prova grande)', '⏳ publishing… (builds the site and swaps it at once; ~1–2 min for a large contest)')));
-      if (!pubTimer) pubTimer = setInterval(pubRefresh, 5000);
+      if (!pubTimer) pubTimer = setInterval(() => { if (!panel.hidden && panel.isConnected) pubRefresh(); }, 5000);   // só com o painel visível
       return;
     }
     if (pubTimer) { clearInterval(pubTimer); pubTimer = null; }
@@ -67,12 +67,16 @@ export function makeReportTab(CONTEST, opts = {}) {
 
   // --- 3. rodadas arquivadas --------------------------------------------------------------
   const roundsBox = el('div', {});
+  // EM LUGAR: o poll de 5 s durante a publicação só refaz a tabela de rodadas se ela MUDOU
   function roundsRender() {
     const rounds = (P && P.rounds) || [];
-    roundsBox.innerHTML = '';
+    swapIf(roundsBox, sigOf(rounds.map((r) => [r.slug, r.name, r.kind, r.public, r.url, r.at, r.pages])), () => roundsBuild(rounds));
+  }
+  function roundsBuild(rounds) {
+    const wrap = el('div', {});
     if (!rounds.length) {
-      if (has('rodadas')) roundsBox.append(el('p', { class: 'muted small' }, T('Nenhuma rodada arquivada com relatório ainda (o relatório da rodada nasce na promoção, em Evento › Rodadas).', 'No archived round with a report yet (a round report is created at promotion, in Event › Rounds).')));
-      return;
+      if (has('rodadas')) wrap.append(el('p', { class: 'muted small' }, T('Nenhuma rodada arquivada com relatório ainda (o relatório da rodada nasce na promoção, em Evento › Rodadas).', 'No archived round with a report yet (a round report is created at promotion, in Event › Rounds).')));
+      return wrap;
     }
     const tb = el('tbody');
     rounds.forEach((r) => tb.append(el('tr', {},
@@ -82,10 +86,11 @@ export function makeReportTab(CONTEST, opts = {}) {
         r.public ? null : T(`Publicar o relatório da rodada “${r.name || r.slug}” em ${r.url}? Fica PÚBLICO (placar, runs, estatísticas).`,
                              `Publish the “${r.name || r.slug}” round report at ${r.url}? It becomes PUBLIC (scoreboard, runs, statistics).`), { round: r.slug }) },
         r.public ? T('despublicar', 'unpublish') : T('🌐 publicar', '🌐 publish'))))));
-    roundsBox.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+    wrap.append(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
       el('thead', {}, el('tr', {}, el('th', {}, T('Rodada', 'Round')), el('th', {}, T('Estado', 'State')), el('th', {}, ''))), tb)),
       el('p', { class: 'muted small' }, T('O relatório de uma rodada é o gerado na promoção (auditoria; não se regenera). Publicado, ele aparece em /relatorio/<contest>/rodada/<slug>/ e a página inicial do relatório principal o linka ao ser (re)publicada.',
         'A round report is the one generated at promotion (audit; it is not regenerated). Once published it lives at /relatorio/<contest>/rodada/<slug>/ and the main report links to it when it is (re)published.')));
+    return wrap;
   }
 
   function render() { pubRender(); roundsRender(); }

@@ -88,6 +88,21 @@ freeze_release_guard() {
   fail 409 "O placar só pode ser descongelado a partir de $(fmt_epoch "$(freeze_release_at "$1")" '%d/%m %H:%M' "$1") (fim da prova para todas as sedes + 1 min)" "freeze_locked"
 }
 
+# freeze_change_guard <contest> <novo-FREEZE_TIME> — p/ handlers que EDITAM o freeze: barra
+# (409 freeze_locked) toda mudança que DESCONGELA antes da hora — novo = 0 (apagar) ou, com o
+# freeze JÁ EM VIGOR (0 < atual <= agora), novo no futuro/no fim (o placar voltaria a mostrar o
+# que estava escondido). Mover o freeze ANTES de ele entrar em vigor segue livre. Comparação
+# numérica ("00" é zero). Sem freeze no conf: passa.
+freeze_change_guard() {
+  local cur new="${2:-0}"; cur="$(conf_value "$1" FREEZE_TIME)"; cur="${cur//[^0-9]/}"; new="${new//[^0-9]/}"
+  [[ -n "$cur" ]] && (( cur > 0 )) || return 0
+  [[ -n "$new" ]] || new=0
+  (( new == 0 )) && { freeze_release_guard "$1"; return 0; }
+  (( cur <= EPOCHSECONDS && new > EPOCHSECONDS )) || return 0     # não descongela: livre
+  freeze_release_ok "$1" && return 0
+  fail 409 "O placar está congelado e só pode ser descongelado a partir de $(fmt_epoch "$(freeze_release_at "$1")" '%d/%m %H:%M' "$1") (fim da prova para todas as sedes + 1 min) — mover o freeze para depois de agora o descongelaria" "freeze_locked"
+}
+
 # contest_phase <contest> -> ecoa: before | running | ended  (compara EPOCH com START e o
 # fim EFETIVO do login da sessão — prorrogação por sede vale aqui, e portanto no /submit;
 # START/END==0 = sem limite naquele extremo). Roda em subshell ao ser capturado, então o

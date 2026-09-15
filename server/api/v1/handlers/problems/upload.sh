@@ -91,7 +91,7 @@ owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
 tar_title=""; tar_colls=""; tar_langs=""; tar_titles=""
 if [[ -f "$src/.moj-meta.json" ]] && jq -e . "$src/.moj-meta.json" >/dev/null 2>&1; then
   tar_title="$(jq -r '.display_title // empty' "$src/.moj-meta.json" 2>/dev/null)"
-  tar_titles="$(jq -c '(.titles // {}) | with_entries(select((.value|type)=="string"))' "$src/.moj-meta.json" 2>/dev/null)"
+  tar_titles="$(jq -c '(.titles // {}) | with_entries(select((.value|type)=="string" and (.key|test("^(en|es)$"))) | .value |= .[0:200])' "$src/.moj-meta.json" 2>/dev/null)"
   [[ "$tar_titles" == "{}" ]] && tar_titles=""    # sem titles no tar => não mexe nos do servidor
   tar_colls="$(jq -c '[.collections[]? | select(type=="string")]' "$src/.moj-meta.json" 2>/dev/null)"
   [[ "$tar_colls" == "[]" ]] && tar_colls=""      # sem coleção no tar => não mexe nas do servidor

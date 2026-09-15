@@ -277,7 +277,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `rel_mark_sent` falhava mudo — `${BASHPID}` no alvo de redirect de um `jq` expande no FILHO, o
   `mv` não achava o tmp — e o sweep reenfileirava a cada hora; hoje o tmp é resolvido em variável
   ANTES do comando externo (regra p/ todo `> "$x.tmp.${BASHPID}"` de comando não-builtin) e o
-  sweep escreve em `run/alerts/relatorio.log`. O claim entrega no máx. `ALERT_CLAIM_MAX`(30) por poll
+  sweep escreve em `run/alerts/relatorio.log`. O inflight sem ack volta ao outbox com `touch`
+  (o `mv` preserva o mtime e o item ficava "vencido" a cada poll = reentrega infinita) e um
+  contador `attempts`: depois de `ALERT_MAX_ATTEMPTS` (5) o item é descartado com registro no
+  `relatorio.log` (revisão de 15/09). O claim entrega no máx. `ALERT_CLAIM_MAX`(30) por poll
   (teto do Telegram) — o resto sai no seguinte. No bot, ler `group` com **`.group == false`**: o `//`
   do jq trata `false` como vazio e o grupo receberia a DM de todo mundo.
   Senha nova **só por DM** (nunca na web).
@@ -458,7 +461,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `classe¦team` e é isso que vai ao history. Regra de leitura em `lib/verdict.sh`: `canon`/`vcanon`
   tiram o `¦…` ANTES de classificar (placar, metrics, stats, webcast, panorama, matriz auto);
   `canon_team`/`vteam` devolvem o texto (history do time, summary, runs do relatório). Consumidor
-  novo de veredicto = decide em qual dos dois lados está. `set-verdict` legado só aceita label/classe
+  novo de veredicto = decide em qual dos dois lados está. ⚠ O awk de `canon_team` corta com
+  `substr(v, t + length("¦"))` — a imagem roda em locale C (gawk em BYTES, `¦` tem 2 bytes) e o
+  `t+1` deixava um `\xA6` solto na frente do texto do time; o `smoke-contest-review.sh` só pega
+  isso rodado com `LC_ALL=C` (revisão de 15/09). O balão (`pr_reconcile_balloons`) decide pela
+  CLASSE (`Accepted*` depois de cortar o `¦…`), nunca por `*Accepted*` na string crua.
+  `set-verdict` legado só aceita label/classe
   da lista. Teste: `smoke-contest-review.sh`. O **voto é permanente e libera o juiz**
   (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo
   `auth.status` → segue o chief/admin em qualquer página); o painel **Operação › Situação** traz estatística por juiz
@@ -682,7 +690,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   <login> <ids>` (`lib/problems.sh`) com o **dono do contest** como sujeito — público, dono,
   colaborador ou membro da org — a MESMA função de `admin/problems.sh` (404) e do wizard
   (`SESSION_LOGIN`); nunca reescreva o predicado inline (a cópia das rodadas esquecia
-  colaborador/org). **Cores por rodada**: campo `colors` no objeto (formato do `balloons.json`);
+  colaborador/org). A recusa é **404 `problem_denied` SEM listar ids** em todas as portas
+  (rounds/create/duplicate — o 403 com a lista revelava a existência do privado alheio). O
+  spec unificado leva rodadas com `problems`: o `create`/`duplicate` checam `.problems` E
+  `.modules.rodadas.rounds[].problems`, e `rd_promote_blockers` repete a checagem como
+  bloqueador DURO `problem_denied` — a promoção era a porta que materializava o enunciado do
+  `jsons-private` sem ninguém conferir (revisão de 15/09). **Cores por rodada**: campo `colors` no objeto (formato do `balloons.json`);
   `rd_apply_obj` grava via `cc_balloons_write` (escritor ÚNICO de `balloons.json`, também usado
   por `admin/config.sh`; `cc_balloons_clear` apaga) só quando a rodada tem cores — ausente =
   herda; `rd_sync_active` espelha o arquivo na ativa; a promoção arquiva `rounds/<slug>/balloons.json`.
@@ -692,9 +705,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `freeze_release_guard` → 409 `freeze_locked`; pedido do Ribas, 2026-09-14). Vale p/ TODO
   caminho que leva `FREEZE_TIME` de >0 a 0: `admin/settings.sh` (`freeze:0` — cerimônia e
   Central), `admin/config.sh` (`basic.freeze:0`), `admin/finish.sh` (além de
-  `contest_over_for_all`; `can_finish` já considera) e `rd_promote_blockers` (`freeze_locked` é
-  bloqueador DURO junto de `no_next_round` — `force` não passa). Caminho novo que zere o freeze
-  chama `freeze_release_guard`. `settings`/`finish` GET expõem `freeze_release_at` p/ a UI
+  `contest_over_for_all`; `can_finish` já considera), `admin/rounds.sh` `set` na rodada ATIVA
+  (5º caminho, achado na revisão de 15/09) e `rd_promote_blockers` (`freeze_locked` é
+  bloqueador DURO junto de `no_next_round` e `problem_denied` — `force` não passa). Quem EDITA
+  o freeze usa **`freeze_change_guard <c> <novo>`** (contest-gate.sh): compara NUMERICAMENTE
+  (`"00"` é zero) e barra também **empurrar um freeze já em vigor para depois de agora** — é
+  descongelar com outro nome; mover o freeze antes de ele valer segue livre. `settings`/`finish` GET expõem `freeze_release_at` p/ a UI
   (reveal, Central, rodadas) explicar a hora. Teste: seção "guarda do freeze" do
   `smoke-contest-rounds.sh`.
 - **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, painel

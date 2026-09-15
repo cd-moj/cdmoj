@@ -409,27 +409,67 @@ cc_apply_modules_spec(){
   jq -e '(.modules // {}) | type == "object"' >/dev/null 2>&1 <<<"$spec" || { CC_MOD_ERR="modules não é objeto"; return 1; }
   jq -e '(.modules // {}) | all(.[]; type == "boolean" or type == "object")' >/dev/null 2>&1 <<<"$spec" \
     || { CC_MOD_ERR="cada módulo é true/false ou objeto {on?, …seção…}"; return 1; }
-  # cada seção: (caminho jq, tipo esperado, destino)
+  # id de módulo desconhecido = 422 (o admin/modules já recusava; aqui era descartado em silêncio)
+  local _mid
+  for _mid in $(jq -r '(.modules // {}) | keys[]' <<<"$spec" 2>/dev/null); do
+    mod_valid "$_mid" || { CC_MOD_ERR="módulo desconhecido: $_mid"; return 1; }
+  done
+  # cada seção: (caminho jq, tipo esperado, destino). Seção de módulo com `on:false` é IGNORADA
+  # (senão nascia dado com o módulo desligado — aviso eterno do preflight).
   _sec(){ # <jq-path> <tipo> -> ecoa o valor compacto ou vazio; rc 1 se tipo errado
-    local val; val="$(jq -c "$1 // empty" <<<"$spec" 2>/dev/null)"
+    local val mod; mod="$(cut -d. -f3 <<<"$1")"
+    [[ "$(jq -r --arg m "$mod" '.modules[$m].on // "" | tostring' <<<"$spec" 2>/dev/null)" == false ]] && return 0
+    val="$(jq -c "$1 // empty" <<<"$spec" 2>/dev/null)"
     [[ -n "$val" ]] || return 0
     jq -e "type == \"$2\"" >/dev/null 2>&1 <<<"$val" || { CC_MOD_ERR="$1 deve ser $2"; return 1; }
     printf '%s' "$val"
   }
-  # sedes.time_overrides -> time-overrides.json (regras {regex,end,reason})
+  # regex tem de COMPILAR (regra quebrada é engolida por try/catch nos gates = regra muda) e
+  # caber em 200 chars — a MESMA régua dos painéis (cohorts/time-overrides/ua-gate)
+  _rx_all(){ # <jq-filter que lista as regex> <rótulo>
+    local rx
+    while IFS= read -r rx; do
+      [[ -z "$rx" ]] && continue
+      (( ${#rx} <= 200 )) || { CC_MOD_ERR="$2: regex longa demais"; return 1; }
+      jq -n --arg r "$rx" '"x" | test($r)' >/dev/null 2>&1 || { CC_MOD_ERR="$2: regex inválida: $rx"; return 1; }
+    done < <(jq -r "$1" <<<"$spec" 2>/dev/null)
+    return 0
+  }
+  # sedes.time_overrides -> time-overrides.json (regras {regex,end,reason}; ≤50 regras)
   v="$(_sec '.modules.sedes.time_overrides' array)" || return 1
-  [[ -n "$v" ]] && jq -c '[ .[] | select(type=="object" and (.regex // "") != "" and ((.end|tonumber?) // 0) > 0) | {regex, end:(.end|tonumber), reason:((.reason // "")|tostring)} ]' <<<"$v" > "$stg/time-overrides.json"
-  # coortes.cohorts -> cohorts.json (normalizado como ch_get lê)
+  if [[ -n "$v" ]]; then
+    (( $(jq 'length' <<<"$v") <= 50 )) || { CC_MOD_ERR="sedes.time_overrides: máximo de 50 regras"; return 1; }
+    _rx_all '.modules.sedes.time_overrides[]? | .regex // empty' 'sedes.time_overrides' || return 1
+    jq -c '[ .[] | select(type=="object" and (.regex // "") != "" and ((.end|tonumber?) // 0) > 0) | {regex, end:(.end|tonumber), reason:((.reason // "")|tostring)} ]' <<<"$v" > "$stg/time-overrides.json"
+  fi
+  # coortes.cohorts -> cohorts.json (normalizado como ch_get lê; id e regex validados como o painel)
   v="$(_sec '.modules.coortes.cohorts' array)" || return 1
-  [[ -n "$v" ]] && jq -c '{version:1, results_released:false,
+  if [[ -n "$v" ]]; then
+    jq -e 'all(.[]; type=="object" and ((.id // "") | test("^[a-z0-9][a-z0-9_-]{0,23}$")))' >/dev/null 2>&1 <<<"$v" \
+      || { CC_MOD_ERR="coortes.cohorts: id inválido (minúsculas/dígitos/_-, até 24)"; return 1; }
+    _rx_all '.modules.coortes.cohorts[]? | .regex // empty' 'coortes.cohorts' || return 1
+    jq -c '{version:1, results_released:false,
       cohorts:[ .[] | select(type=="object" and (.id // "") != "") | {id, name:(.name // .id), regex:(.regex // ""),
         public:(.public != false), unranked:(.unranked == true), ranking:(.ranking == true), default:(.default == true), sees:(.sees // [])} ]}' <<<"$v" > "$stg/cohorts.json"
-  # maquinas.ua_gate -> ua-gate.json (ug_get normaliza na leitura)
+  fi
+  # maquinas.ua_gate -> ua-gate.json (ug_get normaliza na leitura; as regex têm de compilar)
   v="$(_sec '.modules.maquinas.ua_gate' object)" || return 1
-  [[ -n "$v" ]] && printf '%s\n' "$v" > "$stg/ua-gate.json"
-  # rodadas -> rounds.json (o PLANO; rd_sync_active espelha a ativa do conf na 1ª leitura)
+  if [[ -n "$v" ]]; then
+    _rx_all '.modules.maquinas.ua_gate | ((.by_regex // [])[]? | .regex // empty), (.from_login // empty), ((.by_region // {}) | .. | strings? | select(startswith("~")) | .[1:])' 'maquinas.ua_gate' || return 1
+    printf '%s\n' "$v" > "$stg/ua-gate.json"
+  fi
+  # rodadas -> rounds.json (o PLANO; rd_sync_active espelha a ativa do conf na 1ª leitura).
+  # Mesma validação do admin/rounds: epochs, fim > início, freeze 0 ou na janela, kind da lista.
   v="$(_sec '.modules.rodadas.rounds' array)" || return 1
   if [[ -n "$v" ]]; then
+    jq -e 'all(.[]; type=="object"
+      and ((.slug // "") | test("^[a-z0-9][a-z0-9_-]{0,31}$"))
+      and ((.start // 0) | type == "number" and . >= 0) and ((.end // 0) | type == "number" and . >= 0)
+      and ((.end // 0) > (.start // 0))
+      and ((.freeze // 0) | type == "number") and ((.freeze // 0) == 0 or ((.freeze // 0) > (.start // 0) and (.freeze // 0) < (.end // 0)))
+      and ((.kind // "official") | IN("warmup","official","extra")))' >/dev/null 2>&1 <<<"$v" \
+      || { CC_MOD_ERR="rodadas.rounds: slug (minúsculas), start/end em epoch com fim > início, freeze 0 ou dentro da janela, kind warmup|official|extra"; return 1; }
+    (( $(jq 'length' <<<"$v") <= 50 )) || { CC_MOD_ERR="rodadas.rounds: máximo de 50 rodadas"; return 1; }
     local act; act="$(jq -r '.modules.rodadas.active // ""' <<<"$spec")"
     jq -c --arg a "$act" '{version:1, active:$a,
       rounds:[ .[] | select(type=="object" and ((.slug // "") | test("^[a-z0-9][a-z0-9_-]{0,31}$")) and .state != "archived")
@@ -448,9 +488,13 @@ cc_apply_modules_spec(){
   v="$(_sec '.modules.telao.views' array)" || return 1
   if [[ -n "$v" ]]; then
     declare -F wc_newkey >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/webcast.sh"   # não está no prelúdio
+    # só visão que vai EXISTIR: `public` ou uma coorte do MESMO spec com placar próprio (ranking)
+    # ou privada — a mesma régua do webcast create (ch_views); chave p/ placar inexistente não nasce
+    local okviews; okviews="$(jq -r '["public"] + [ (.modules.coortes.cohorts // [])[]? | select(type=="object" and ((.public == false) or (.ranking == true))) | .id // empty ] | .[]' <<<"$spec" 2>/dev/null)"
     local keys='[]' vw lb k
     while IFS=$'\t' read -r vw lb; do
       [[ -n "$vw" ]] || continue
+      grep -qxF "$vw" <<<"$okviews" || { CC_MOD_ERR="telao.views: visão inexistente: $vw"; return 1; }
       k="$(wc_newkey)"
       keys="$(jq -c --arg k "$k" --arg v "$vw" --arg l "$lb" --arg by "$creator" --argjson t "$EPOCHSECONDS" \
         '. + [{id:($k[6:14]), key:$k, view:$v, label:$l, created_by:$by, created_at:$t, revoked_at:0, fetches:0, last_at:0, last_ip:""}]' <<<"$keys")"

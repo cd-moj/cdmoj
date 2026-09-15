@@ -72,7 +72,7 @@ VERDICT_TEAM_SEP='¦'
 verdict_class_ok(){ case "$1" in Accepted|"Wrong Answer"|"Time Limit Exceeded"|"Memory Limit Exceeded"|"Runtime Error"|"Compilation Error") return 0;; esac; return 1; }
 # Uso (awk): awk -F: "$VERDICT_CANON_AWK"'{ ... canon(v) ... canon_team(v) ... }'
 VERDICT_CANON_AWK='function canon_team(v,  t) {
-  t = index(v, "¦"); if (t > 0) return substr(v, t + 1)
+  t = index(v, "¦"); if (t > 0) return substr(v, t + length("¦"))   # length("¦") = 1 em UTF-8, 2 em locale C (a imagem)
   return canon(v)
 }
 function canon(v,  orig, ign, head) {

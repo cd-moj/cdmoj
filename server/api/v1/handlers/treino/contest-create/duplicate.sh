@@ -64,6 +64,17 @@ spec="$(jq -c --argjson probs "$probs" --argjson o "$body" --argjson now "$EPOCH
   | (if ((.problems // [])|length) == 0 then .allow_empty = true else . end)' <<<"$base")"
 [[ -n "$spec" ]] || fail 500 "Falha ao montar o spec" "spec_fail"
 
+# quem duplica precisa poder VER cada problema (topo E rodadas planejadas): um .admin do treino
+# copiando um contest alheio herdaria os privados do dono — mesma guarda do create
+source "$_LIBDIR/problems.sh"
+pids="$(jq -c '[ (.problems[]?, .modules.rodadas.rounds[]?.problems[]?)
+                 | (.bank_id // .problem_id // "") | gsub("/";"#") | select(.!="") ] | unique' <<<"$spec")"
+if [[ "$pids" != "[]" ]]; then
+  denied="$(problems_denied_for "$SESSION_LOGIN" "$pids")" \
+    || fail 503 "Índice de problemas indisponível — tente de novo em instantes" "index_unavailable"
+  [[ -n "$denied" ]] && fail 404 "Problema não encontrado ou sem acesso ($(wc -w <<<"$denied") id(s))" "problem_denied"
+fi
+
 cc_create "$spec" "$SESSION_LOGIN" "$SESSION_NAME" "$srcdir"
 audit_log contest-create "duplicate from=$from id=$(jq -r '.contest_id' <<<"$CC_RESULT")"
 ok_json '$r' --argjson r "$CC_RESULT"

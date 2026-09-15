@@ -141,6 +141,22 @@ rd_promote_blockers(){
   if [[ -n "$_fz" ]] && (( _fz > 0 )) && declare -F freeze_release_ok >/dev/null && ! freeze_release_ok "$c"; then
     _add freeze_locked "o placar está congelado e só pode ser descongelado a partir de $(fmt_epoch "$(freeze_release_at "$c")" '%d/%m %H:%M' "$c") (fim para todas as sedes + 1 min)"
   fi
+  # problema PRIVADO que o DONO do contest não pode ver na rodada planejada: DURO (o `force` não
+  # passa). É a última porta antes de `cc_build_probs` materializar o enunciado do jsons-private —
+  # a lista pode ter vindo do spec unificado (create/duplicate) sem passar pelo `rounds problems`.
+  # (a lib de problemas não está no prelúdio: carrega aqui — sem isso o `declare -F` falhava em
+  #  silêncio e a checagem era pulada no GET/promote)
+  declare -F problems_denied_for >/dev/null || source "${BASH_SOURCE[0]%/*}/problems.sh" 2>/dev/null || true
+  if [[ -n "$next" ]] && declare -F problems_denied_for >/dev/null; then
+    local _pids _den _owner
+    _pids="$(jq -c --arg s "$next" '(.rounds // [])[] | select(.slug == $s) | [ (.problems // [])[] | (.bank_id // .problem_id // "") | gsub("/";"#") | select(. != "") ]' <<<"$(rd_get "$c")" 2>/dev/null)"
+    if [[ -n "$_pids" && "$_pids" != '[]' ]]; then
+      _owner="$(head -1 "$CONTESTSDIR/$c/owner" 2>/dev/null)"
+      if _den="$(problems_denied_for "${_owner:-}" "$_pids")"; then
+        [[ -n "$_den" ]] && _add problem_denied "a rodada '$next' tem $(wc -w <<<"$_den") problema(s) privado(s) que o dono do contest não pode ver — tire-o(s) da rodada"
+      else _add problem_denied "índice de problemas indisponível — não dá para conferir o acesso aos problemas da rodada"; fi
+    fi
+  fi
   n="$(rd_jobs_in_flight "$c")"
   (( n > 0 )) && _add jobs_in_flight "$n job(s) deste contest no spool/fila do juiz — espere drenar"
   n="$(rd_review_pending "$c")"
