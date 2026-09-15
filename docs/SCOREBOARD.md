@@ -93,6 +93,13 @@ podem aparecer no placar público** e os times regulares não podem nem saber qu
 próprios convidados **veem todos**. Depois que a organização **libera os resultados**, todos
 aparecem juntos. Isso é uma **coorte com política**, não um caso especial no código.
 
+**Numeração dos convidados** (issue #25, 2026-09-15): por padrão o convidado sai com `–` no
+lugar da posição. Com `GUEST_NUMBERING=1` no `conf` (Pessoas › Coortes › "Numerar os
+convidados numa sequência própria") a 1ª linha do TXT da visão com convidados vira `icpc s g`, e
+o placar, a revelação e o relatório numeram os convidados na sequência DELES (mesma regra de
+empate), em itálico e com o tooltip "posição entre os convidados". A numeração oficial não
+muda. A cerimônia numerava convidado como oficial (bug): agora segue a mesma regra.
+
 `contests/<c>/cohorts.json` (ausente = comportamento clássico, custo zero):
 
 ```json

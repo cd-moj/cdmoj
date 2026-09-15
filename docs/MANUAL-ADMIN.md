@@ -543,6 +543,9 @@ Uma linha por coorte, com o que decide o comportamento: **id**, **nome**, **rege
 (a coorte sempre vê a si mesma). A coluna **times** conta quantos estão em cada uma.
 
 - **+ criar coorte**: nasce privada e extra-oficial vendo todas — que é o caso do CCL.
+- **Numerar os convidados numa sequência própria**: por padrão o convidado mostra `–` no lugar
+  da posição. Com a opção ligada, ele mostra a posição entre os convidados, em itálico, no
+  placar, na revelação e no relatório. A numeração oficial não muda.
 - **atribuir**: escolhe um time e a coorte dele (o campo vence a regex); "— pela regra —" solta o
   time de volta para o regex.
 - **📌 Materializar (N)**: carimba a coorte de quem hoje só casa por regex — depois disso, mudar o

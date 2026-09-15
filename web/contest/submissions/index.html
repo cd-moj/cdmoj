@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="My submissions — Contest — MOJ">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minhas submissões — Contest — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .contest-topbar-title { font-weight:800; font-size:1.25rem; }
+    .quicknav a.active { text-decoration:underline; }
+    .subfilter { display:flex; gap:.35rem; flex-wrap:wrap; margin:.4rem 0 .6rem; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar" style="flex-direction:column; align-items:stretch; gap:.4rem">
+      <div class="contest-topbar-title" id="contestTitle">…</div>
+      <div class="row" style="align-items:center">
+        <a class="brand" href="/" style="font-size:1rem"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+          <span class="badge-beta">BETA</span></a>
+        <div class="spacer"></div>
+        <span class="countdown" id="contestCountdown"></span>
+        <a class="btn ghost" id="backBtn" href="#">Contest</a>
+      </div>
+    </div>
+  </header>
+  <nav class="quicknav"><div class="bar" id="contestNav"></div></nav>
+  <main class="container">
+    <h1 style="margin:.2rem 0 .3rem" data-en="My submissions">Minhas submissões</h1>
+    <p class="muted small" style="margin:.1rem 0 .8rem" data-en="Every submission of your account in this contest, newest first. Click a column to sort. The list updates by itself while a verdict is pending.">Todas as submissões da sua conta neste contest, da mais recente para a mais antiga. Clique numa coluna para ordenar. A lista se atualiza sozinha enquanto há veredicto pendente.</p>
+    <div class="section">
+      <div class="subfilter" id="subFilter"></div>
+      <div id="submissionsTable"><span class="muted" data-en="Loading…">carregando…</span></div>
+    </div>
+  </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="./submissions.js"></script>
+</body>
+</html>

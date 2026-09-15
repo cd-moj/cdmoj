@@ -10,6 +10,9 @@ secrets/
 id_rsa*
 .env
 
+# rodapé: versão do deploy (make version-json; issue #20)
+/web/version.json
+
 # === estado de runtime (ancorado na raiz; não pegar dirs aninhados homônimos) ===
 /run/
 *.sock

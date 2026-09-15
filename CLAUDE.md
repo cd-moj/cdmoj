@@ -609,6 +609,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   limiar, `localStorage` por contest) e atualiza EM LUGAR (nunca `app.innerHTML=''` no poll).
   Link no nav de admin, chefe e juiz (`navbuttons.sh`). Teste: `smoke-contest-jplag.sh` (sem
   java/jar roda os handlers sobre fixture sintética).
+- **Rodapé** (`web/shared/site-footer.js`, issue #20): versão de `/version.json` (gravado por
+  `make deploy` → alvo `version-json`, gitignored; `MOJ_CONTACT` vira o link contato), repositório,
+  issues e atribuição das bandeiras; páginas do site carregam o módulo, as de contest chamam
+  `mountSiteFooter()` via `contest-shell`/`contest-chrome`/`contest.js`/`score.js`.
+  **Minhas submissões** (issue #26): a tabela do competidor é o módulo `web/contest/submissions-table.js`
+  (`makeSubmissionsTable`) usado pela página principal E por `/contest/submissions/` — nunca duplique.
+  **Convidados numerados** (issue #25): `GUEST_NUMBERING=1` (settings `guest_numbering`) ⇒ 1ª
+  linha do TXT `icpc s g` só na visão com coluna guest; `parseICPC(lines, balloons, secs, guestNum)`
+  dá `gplace` (sequência própria, mesma regra de empate); placar/revelação/relatório (awk `GNUM`)
+  mostram em itálico (`.gplace`). A revelação agora respeita convidado (antes numerava como oficial).
 - **Nav do contest SEM emoji** (issue #28, 2026-09-15): `navbuttons.sh` e `web/shared/nav-i18n.js`
   só texto ("Administração", "Avaliar", "Rodadas"…); emoji fica nos títulos de painel/seção e nas
   abas internas (chief, admin). Tutoriais/manuais citam os botões sem emoji. **Chip "Nome · login"**

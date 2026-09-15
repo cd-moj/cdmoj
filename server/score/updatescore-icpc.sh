@@ -46,7 +46,9 @@ START="${CONTEST_START:-0}"; [[ "$START" =~ ^[0-9]+$ ]] || START=0
 
 # --- header ----------------------------------------------------------------
 {
-  printf 'icpc s\n'   # `s` = células em segundos (ver o cabeçalho deste arquivo)
+  # `s` = células em segundos (ver o cabeçalho deste arquivo); `g` = convidados NUMERADOS na
+  # sequência própria (GUEST_NUMBERING=1 no conf e visão com coluna guest — issue #25)
+  if [[ "${MOJ_GUEST_NUMBERING:-}" == 1 && -n "${MOJ_UNRANKED:-}" ]]; then printf 'icpc s g\n'; else printf 'icpc s\n'; fi
   printf 'desc:asc:flag:username:univ short:team name:univ full'
   for ((p=0; p<SC_NPROB; p++)); do printf ':%s' "${SC_SHORT[p]}"; done
   printf ':Total:Penalty:LastAC'

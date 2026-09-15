@@ -19,9 +19,10 @@ import { scoreCols, cellTitle } from './score-cols.js';
 
 const SYS = ['flag', 'username', 'univ short', 'team name', 'univ full', 'total', 'penalty', 'lastac', 'guest'];
 
-// parse: recebe linhas (já split por \n, sem a 1ª linha do modo), o mapa de balões e a
-// flag `secs` (linha 1 era `icpc s` ⇒ célula em segundos; ausente ⇒ minutos, legado).
-export function parseICPC(lines, balloons, secs) {
+// parse: recebe linhas (já split por \n, sem a 1ª linha do modo), o mapa de balões, a
+// flag `secs` (linha 1 era `icpc s` ⇒ célula em segundos; ausente ⇒ minutos, legado) e a flag
+// `guestNum` (`g`: convidados numerados na SEQUÊNCIA PRÓPRIA — gplace; issue #25).
+export function parseICPC(lines, balloons, secs, guestNum) {
   if (lines.length < 1) return null;
   const headerRaw = lines[0].split(':');
   // remove TODAS as colunas-marcador de ordenação iniciais (desc/asc)
@@ -81,16 +82,25 @@ export function parseICPC(lines, balloons, secs) {
   // era DENSA: o grupo inteiro consumia uma posição só).
   // CONVIDADO (coluna `guest`) aparece na linha certa pelo desempenho mas NÃO consome posição:
   // a numeração oficial pula ele, então o pódio combinado bate com o placar oficial.
-  let seen = 0, prev = null;
+  let seen = 0, prev = null, gseen = 0, gprev = null;
   teams.forEach((t) => {
-    if (t.guest) { t.place = null; return; }
+    if (t.guest) {
+      t.place = null;
+      // numeração PRÓPRIA dos convidados (flag g): mesma regra de empate, sequência separada
+      if (guestNum) {
+        gseen++;
+        t.gplace = (gprev && gprev.total === t.total && gprev.penalty === t.penalty && gprev.lastac === t.lastac) ? gprev.gplace : gseen;
+        gprev = t;
+      } else t.gplace = null;
+      return;
+    }
     seen++;
     t.place = (prev && prev.total === t.total && prev.penalty === t.penalty && prev.lastac === t.lastac)
       ? prev.place : seen;
     prev = t;
   });
 
-  return { mode: 'icpc', probShorts, teams, balloons, secs: !!secs };
+  return { mode: 'icpc', probShorts, teams, balloons, secs: !!secs, guestNumbering: !!guestNum };
 }
 
 // posição RELATIVA AO RECORTE (R1, 2026-08-30): numera os times VISÍVEIS derivando da
@@ -170,15 +180,19 @@ export function renderICPC(parsed, opts) {
   teams.forEach(t => {
     const tr = el('tr', { id: 'tr-team-' + t.username.replace(/\W/g, '_'),
       class: t.guest ? 'guest-row' : '' });
-    // convidado não tem posição oficial: mostra "–" no lugar do número
+    // convidado não tem posição oficial: "–" — ou, com GUEST_NUMBERING (flag g), a posição na
+    // SEQUÊNCIA PRÓPRIA dos convidados, em itálico (issue #25)
+    const gcell = () => (t.gplace != null)
+      ? el('span', { class: 'gplace', title: T('posição entre os convidados (não conta na oficial)', 'position among guest teams (not in the official ranking)') }, String(t.gplace))
+      : '–';
     if (filtered) {
       const sp = !t.guest ? sliceMap.get(t.username) : null;
-      tr.append(el('td', { class: 'cl-place' }, sp != null ? String(sp) : '–',
+      tr.append(el('td', { class: 'cl-place' }, sp != null ? String(sp) : gcell(),
         !t.guest && t.place != null ? el('span', { class: 'plg',
           title: T('Posição no placar completo (sem o filtro)', 'Position in the full scoreboard (without the filter)') }, String(t.place)) : null));
     } else {
       const gp = genPlace && !t.guest ? genPlace[t.username] : null;
-      tr.append(el('td', { class: 'cl-place' }, t.guest ? '–' : String(t.place),
+      tr.append(el('td', { class: 'cl-place' }, t.guest ? gcell() : String(t.place),
         gp != null ? el('span', { class: 'plg',
           title: T('Posição no placar geral', 'Position in the overall scoreboard') }, String(gp)) : null));
     }

@@ -123,6 +123,27 @@ export function makeCohortsTab(CONTEST) {
           `${nrx} team(s) currently belong to a cohort only by regex — materializing turns the rule into data, so changing the regex later moves nobody.`)));
   }
 
+  // GUEST_NUMBERING (issue #25): convidado (unranked) sai com "–" no lugar; com a opção ligada
+  // ganha a posição na SEQUÊNCIA PRÓPRIA dos convidados (itálico), sem tocar na oficial.
+  function guestNumberingBox() {
+    const chk = el('input', { type: 'checkbox' });
+    const msg = el('span', { class: 'small muted' });
+    apiGet('/contest/admin/settings?contest=' + enc(CONTEST), G)
+      .then((s) => { chk.checked = s.guest_numbering === true; }).catch(() => {});
+    chk.addEventListener('change', async () => {
+      try { await apiPost('/contest/admin/settings?contest=' + enc(CONTEST), { guest_numbering: chk.checked }, G);
+        msg.textContent = T('✓ salvo — o placar refaz em segundos', '✓ saved — the scoreboard rebuilds in seconds'); }
+      catch (e) { msg.textContent = e.message || T('falha', 'failed'); chk.checked = !chk.checked; }
+    });
+    return el('div', { class: 'subcard', style: 'margin:.6rem 0' },
+      el('label', { class: 'row', style: 'gap:.4rem;align-items:center' }, chk,
+        T('Numerar os convidados numa sequência própria', 'Number guest teams in their own sequence')),
+      el('div', { class: 'small muted', style: 'margin-top:.2rem' },
+        T('Convidado (extra-oficial) não consome posição oficial. Com esta opção ele mostra a posição entre os convidados, em itálico, no placar, na revelação e no relatório.',
+          'A guest (unranked) team takes no official place. With this option it shows its position among the guest teams, in italics, on the scoreboard, in the reveal and in the report.')),
+      msg);
+  }
+
   function releaseBox() {
     const on = DATA.results_released === true;
     const btn = el('button', { class: on ? 'btn ghost' : 'btn danger' }, on
@@ -162,6 +183,7 @@ export function makeCohortsTab(CONTEST) {
     const all = DATA.cohorts || [];
 
     panel.append(releaseBox());
+    panel.append(guestNumberingBox());
     if (!all.length) {
       panel.append(el('div', { class: 'small muted', style: 'margin:.5rem 0' },
         T('Nenhuma coorte — o contest se comporta como sempre (um placar só, todos oficiais). Criar a primeira coorte é o que liga o mecanismo.',

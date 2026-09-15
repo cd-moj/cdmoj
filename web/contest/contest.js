@@ -8,6 +8,8 @@ import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared
 import { T, setLang, getLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
+import { makeSubmissionsTable } from '/contest/submissions-table.js';
+import { mountSiteFooter } from '/shared/site-footer.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 
@@ -61,10 +63,6 @@ let problems = [];
 let balloons = {};
 let userinfo = null;
 let submissions = [];
-let subSumm = {};   // subid -> resumo do /submission/summary (redigido por modo no servidor)
-let subFilter = 'ALL';
-let sortField = 'epoch', sortAsc = false;
-let pollTimer = null;
 let loginCountdownTimer = null, loginPollTimer = null;
 let preStartTimer = null, preStartPoll = null;
 
@@ -825,132 +823,17 @@ function renderSubmitInline(p) {
   return { row, editorBlock, mountEditor, refreshEd };
 }
 
-// minuto de prova de um instante: é o que a coluna "Tempo" significa (e o que o placar mostra
-// nas células, "1/12" = acertou na 1ª tentativa no minuto 12). Antes do início dá negativo —
-// e isso é informação, não erro: é submissão de juiz testando a prova.
-function minutoDeProva(epoch) {
-  const ini = (basic && basic.start_time) || 0;
-  if (!ini || !epoch) return '—';
-  return String(Math.floor((epoch - ini) / 60));
+// ---- submissões: a tabela é o módulo compartilhado contest/submissions-table.js (issue #26) ----
+// A página própria /contest/submissions/ usa o MESMO módulo; aqui ela vive na seção do fim e,
+// ao carregar, re-tinge os problemas resolvidos (onLoaded).
+let subsTable = null;
+function mountSubmissionsTable() {
+  if (subsTable) subsTable.stop();
+  subsTable = makeSubmissionsTable({ contest: CONTEST, basic, problems, userinfo,
+    filterEl: document.getElementById('subFilter'), tableEl: document.getElementById('submissionsTable'),
+    onLoaded: (list) => { submissions = list; retintProblems(); } });
 }
-
-// ---- submissões (tabela + filtro + ordenação + polling) --------------------
-function parseHistLine(line) {
-  const a = line.split(':');
-  if (a.length < 7) return null;
-  // tempo:username:problemid:lang:verdict:epoch:subid  (verdict pode conter ':')
-  // ⚠ o campo 0 ("tempo") NÃO é minuto de prova: a reforma do store passou a gravar o EPOCH
-  // nele (o submit.sh escreve `$AGORA` nos campos 0 e 4, e a migração fez `tempo := sub_epoch`
-  // porque o campo 0 do legado era lixo). Mostrá-lo cru punha um número de 10 dígitos numa
-  // coluna chamada "Tempo", ao lado de "Data" com o MESMO instante formatado. O minuto de
-  // prova — que é o que "Tempo" quer dizer no ICPC e o que o placar usa nas células — é
-  // calculado na hora de renderizar, a partir do início do contest.
-  return {
-    sinceStart: parseInt(a[0], 10) || 0,
-    user: a[1],
-    problem: a[2],
-    lang: a[3],
-    subid: a[a.length - 1],
-    epoch: parseInt(a[a.length - 2], 10) || 0,
-    verdict: a.slice(4, a.length - 2).join(':'),
-  };
-}
-
-function renderSubFilter() {
-  const bar = document.getElementById('subFilter');
-  bar.innerHTML = '';
-  const mk = (label, val) => {
-    const t = el('span', { class: 'tag' + (subFilter === val ? ' active' : ''), onclick: () => { subFilter = val; renderSubFilter(); renderSubmissions(); } }, label);
-    bar.append(t);
-  };
-  mk(T('Todos', 'All'), 'ALL');
-  problems.filter(p => p.show !== false).forEach(p => mk(p.short_name || p.problem_id, p.problem_id));
-}
-
-function shortNameOf(pid) {
-  const p = problems.find(x => x.problem_id === pid);
-  return p ? (p.short_name || pid) : pid;
-}
-function fullNameOf(pid) {
-  const p = problems.find(x => x.problem_id === pid);
-  return p ? (p.full_name || '') : '';
-}
-
-function renderSubmissions() {
-  const box = document.getElementById('submissionsTable');
-  let rows = submissions.filter(s => subFilter === 'ALL' ? true : s.problem === subFilter);
-  rows = rows.slice().sort((a, b) => {
-    if (sortField === 'epoch') return sortAsc ? a.epoch - b.epoch : b.epoch - a.epoch;
-    if (sortField === 'problem') {
-      const sa = shortNameOf(a.problem), sb = shortNameOf(b.problem);
-      return sortAsc ? sa.localeCompare(sb) : sb.localeCompare(sa);
-    }
-    if (sortField === 'verdict') return sortAsc ? (a.verdict || '').localeCompare(b.verdict || '') : (b.verdict || '').localeCompare(a.verdict || '');
-    return 0;
-  });
-
-  box.innerHTML = '';
-  if (!rows.length) { box.innerHTML = `<span class="muted small">${T('Nenhuma submissão ainda.', 'No submissions yet.')}</span>`; return; }
-
-  const arrow = (f) => sortField === f ? (sortAsc ? ' ▲' : ' ▼') : '';
-  const th = (label, f) => el('th', { onclick: () => { sortAsc = (sortField === f) ? !sortAsc : false; sortField = f; renderSubmissions(); } }, label + arrow(f));
-  const canLog = !!(userinfo && (userinfo.show_log || userinfo.is_admin || userinfo.is_judge));
-
-  const head = el('thead', {}, el('tr', {},
-    th(T('Tempo', 'Time'), 'epoch'),
-    th(T('Problema', 'Problem'), 'problem'),
-    el('th', {}, T('Arquivo', 'File')),
-    th(T('Resultado', 'Result'), 'verdict'),
-    el('th', {}, T('Data', 'Date')),
-    canLog ? el('th', {}, 'Log') : null));
-
-  const tb = el('tbody');
-  rows.forEach(s => {
-    const pending = isPending(s.verdict);
-    const fileLink = el('a', {
-      href: '#', onclick: (e) => { e.preventDefault(); downloadAuthed(`/submission/source?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.subid)}&time=${encodeURIComponent(s.epoch)}`, s.subid + '.' + (s.lang || 'txt').toLowerCase()); },
-    }, T('cód', 'src'));
-    // detalhe sob o veredicto canônico (pontos/grupos/heurístico): o servidor redige por
-    // modo — em contest binário (icpc) o summary vem null e a linha simplesmente não existe.
-    const rtxt = pending ? '' : resumoText(subSumm[s.subid]);
-    const vcell = el('td', {}, el('span', { class: 'verdict ' + vClass(s.verdict) },
-      pending ? el('span', {}, el('span', { class: 'spin' }), ' ' + s.verdict) : s.verdict),
-      rtxt ? el('div', { class: 'small muted', style: 'margin-top:.15rem' }, rtxt) : '');
-    const logCell = canLog ? el('td', {},
-      el('a', { href: '#', onclick: (e) => { e.preventDefault(); openReportAuthed(`/submission/log?contest=${encodeURIComponent(CONTEST)}&id=${encodeURIComponent(s.subid)}&time=${encodeURIComponent(s.epoch)}`); } }, 'log')) : null;
-    tb.append(el('tr', {},
-      el('td', {}, minutoDeProva(s.epoch)),
-      el('td', {}, el('b', {}, shortNameOf(s.problem)), ' ', el('span', { class: 'small muted' }, fullNameOf(s.problem))),
-      el('td', {}, fileLink),
-      vcell,
-      el('td', {}, fmtDate(s.epoch)),
-      logCell));
-  });
-
-  box.append(el('table', { class: 'moj' }, head, tb));
-}
-
-async function loadSubmissions() {
-  let txt;
-  try { txt = await apiGetText('/contest/history?contest=' + encodeURIComponent(CONTEST), { contest: CONTEST, auth: true }); }
-  catch { return; }
-  submissions = txt.split('\n').map(s => s.trim()).filter(Boolean).map(parseHistLine).filter(Boolean);
-  // resumo (pontos/grupos/heurístico) das já julgadas — em lotes de 100 (URL curta), best-effort;
-  // o servidor redige por modo (icpc devolve tudo null e nada é mostrado).
-  const done = submissions.filter(s => !isPending(s.verdict)).map(s => s.subid).filter(id => !(id in subSumm));
-  for (let i = 0; i < done.length; i += 100) {
-    try { Object.assign(subSumm, await apiGet('/submission/summary?contest=' + encodeURIComponent(CONTEST) + '&ids=' + done.slice(i, i + 100).join(','), { contest: CONTEST, auth: true }) || {}); }
-    catch { /* best-effort */ }
-  }
-  renderSubFilter();
-  renderSubmissions();
-  retintProblems(); // re-tinge problemas que viraram accepted (sem reconstruir a lista)
-
-  clearTimeout(pollTimer);
-  if (submissions.some(s => isPending(s.verdict))) {
-    pollTimer = setTimeout(loadSubmissions, 5000 + Math.random() * 5000); // 5–10s
-  }
-}
+async function loadSubmissions() { if (!subsTable) mountSubmissionsTable(); return subsTable.load(); }
 
 // Faixa da RODADA: um contest pode rodar aquecimento (ensaio) antes da prova oficial, no mesmo
 // endereço e com o mesmo login. O time não pode confundir os dois — então, quando a rodada no ar
@@ -1048,7 +931,7 @@ async function loadContestBody() {
     problems = [];
   }
   renderProblems();
-  renderSubFilter();
+  mountSubmissionsTable();
   await loadSubmissions();
 
   // notificações (notícias + clarifications respondidas): poll leve a cada 30s
@@ -1125,6 +1008,7 @@ async function boot() {
   }
   // quem está logado aparece no cabeçalho em TODA página do contest (issue #29)
   if (st.logged_in && !EDITOR_ONLY) mountContestUserChip(st);
+  if (!EDITOR_ONLY) mountSiteFooter().catch(() => {});
   if (st.logged_in) { if (EDITOR_ONLY) await bootEditorOnly(); else await bootMain(); }
   else bootLogin();
 }

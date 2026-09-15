@@ -169,6 +169,10 @@ Para enviar uma solução:
 
 ## 4. Minhas submissões
 
+A tabela fica no fim da página do contest e também tem uma **página própria**: o botão
+**Minhas submissões** na barra abre `/contest/submissions/`, só com a tabela, o filtro por
+problema e a ordenação por coluna. A lista se atualiza sozinha enquanto há veredicto pendente.
+
 Logo abaixo da lista de problemas há um filtro por problema e uma tabela com as suas submissões. As colunas são:
 
 | Coluna | O que mostra |

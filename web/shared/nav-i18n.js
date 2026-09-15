@@ -11,6 +11,7 @@ const MAP = {
   '/contest/score/reveal.html': ['Revelação', 'Reveal'],
   '/contest/admin/':            ['Administração', 'Administration'],
   '/contest/allsubmissions/':   ['Todas Submissões', 'All Submissions'],
+  '/contest/submissions/':      ['Minhas submissões', 'My submissions'],
   '/contest/statistics/':       ['Estatísticas', 'Statistics'],
   '/contest/rounds/':           ['Rodadas', 'Rounds'],
   '/contest/judge/':            ['Avaliar', 'Judge'],

@@ -552,6 +552,14 @@ tr.qual-row.draft .qual-sub { color:#8a7420; }
 }
 table.score tr.guest-row { background: rgba(120,120,120,.07) }
 table.score tr.guest-row .cl-place { color: var(--muted, #777); font-style: italic }
+/* numeração PRÓPRIA dos convidados (GUEST_NUMBERING, flag g do TXT — issue #25) */
+.gplace { font-style: italic; color: var(--muted, #777); font-weight: 600; }
+/* rodapé do site e das páginas de contest (shared/site-footer.js — issue #20) */
+.sitefoot { margin-top: 2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; background: transparent; }
+.sitefoot-in { display: flex; flex-wrap: wrap; gap: .4rem .7rem; align-items: center; padding: .8rem 0; }
+.sitefoot-in a { color: var(--muted); text-decoration: underline; }
+.sitefoot-credits { margin-left: auto; }
+@media (max-width: 640px) { .sitefoot-credits { margin-left: 0; } }
 @media (prefers-color-scheme: dark) { table.score tr.guest-row { background: rgba(255,255,255,.05) } }
 
 /* ---- primitivas de painel (admin de contest e afins) ----

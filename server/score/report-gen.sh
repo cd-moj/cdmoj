@@ -140,6 +140,7 @@ rep_t(){ case "$LOC:$1" in
   pt:freeze_none) printf 'sem congelamento';;     en:freeze_none) printf 'no freeze';;
   pt:freeze_at) printf 'aos';;                    en:freeze_at) printf 'at';;
   pt:min_w) printf 'min';;                        en:min_w) printf 'min';;
+  pt:guest_pos) printf 'posição entre os convidados (não conta na oficial)';; en:guest_pos) printf 'position among guest teams (not in the official ranking)';;
   pt:teams) printf 'Times';;                      en:teams) printf 'Teams';;
   pt:subs) printf 'Submissões';;                  en:subs) printf 'Submissions';;
   pt:problems) printf 'Problemas';;               en:problems) printf 'Problems';;
@@ -507,7 +508,7 @@ td.place{text-align:right}
 .doclist li{margin:.25rem 0}
 .btn-doc{display:inline-block;padding:.15em .6em;margin:0 .15em;border:1px solid var(--line,#c9d2e0);
   border-radius:.5em;text-decoration:none;font-size:.85em;font-weight:600}
-tr.guest-row td{background:#fbfbfd;color:var(--muted)}
+tr.guest-row td{background:#fbfbfd;color:var(--muted)} i.gplace{font-style:italic;font-weight:600}
 .v-ac{color:var(--ok);font-weight:700}
 .v-rej{color:var(--err)}
 .v-pend{color:var(--muted);font-style:italic}
@@ -661,6 +662,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
   [[ -n "$ph" && -s "$ph" ]] || ph=/dev/null
   awk -F: -v MODE="$MODE" -v BSTYLE="$BSTYLE" -v BF="$W/balloons.tsv" -v FF="$W/flags.tsv" -v NF_="$W/names.tsv" \
       -v GP="$gp" -v PHF="$ph" -v T_GEN="$(rep_t gen_place)" -v T_GENT="$(rep_t gen_place_t)" \
+      -v T_GUESTPOS="$(rep_t guest_pos)" \
       -v T_TEAM="$(rep_t team_col)" -v T_TOTAL="$(rep_t total)" -v T_PEN="$(rep_t pen_col)" \
       -v T_GUEST="$(rep_t guest)" -v T_GUESTT="$(rep_t guest_title)" -v T_FTS="$(rep_t fts)" \
       -v T_PHOTO="$(rep_t photo_t)" -v QF="$QUALF" '
@@ -714,7 +716,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       while ((getline l < GP) > 0) { n=split(l,a,"\t"); if(n>=2 && a[1]!=""){ gpl[a[1]]=a[2]; hasgp=1 } }
       close(GP)
     }
-    NR==1{ nw=split($0, MW, /[ \t]+/); for(wi=2; wi<=nw; wi++) if(MW[wi]=="s") SECS=1; next }
+    NR==1{ nw=split($0, MW, /[ \t]+/); for(wi=2; wi<=nw; wi++){ if(MW[wi]=="s") SECS=1; if(MW[wi]=="g") GNUM=1 }; next }
     NR==2{
       n=split($0, H, ":"); s=1
       while (s<=n) { h=trim(tolower(H[s])); if (h=="desc"||h=="asc") s++; else break }
@@ -769,9 +771,16 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       # posição: aparece na linha do desempenho dele, com "–" no lugar do número.
       guest=(iguest ? trim($(iguest)) : "")
       isguest=(guest!="" && guest!="0" && tolower(guest)!="false" && tolower(guest)!="no")
-      pnum=""
+      pnum=""; gnum=""
       if (MODE=="icpc") {
         tot=(itot? trim($(itot)) : ""); pen=(ipen? trim($(ipen)) : ""); lac=(ilast? trim($(ilast)) : "")
+        # convidado com a flag g: NUMERAÇÃO PRÓPRIA (mesma regra de empate), em itálico (issue #25)
+        if (isguest && GNUM) {
+          gseen++
+          if (gseen>1 && tot==gprevtot && pen==gprevpen && lac==gprevlac) gplace=gprevplace
+          else gplace=gseen
+          gprevtot=tot; gprevpen=pen; gprevlac=lac; gprevplace=gplace; gnum=gplace
+        }
         if (!isguest) {
           # ranking de COMPETIÇÃO (2026-08-31): empatado compartilha a posição e CONSOME —
           # N empatados em P ⇒ o próximo é P+N (a numeração era densa: P+1)
@@ -805,7 +814,7 @@ rep_score_html(){ # <placar.txt> [genplace.tsv] [photos.tsv]
       if (MODE=="icpc" && !isguest) attrs=attrs " data-tie=\"" esc(tot "|" pen "|" lac) "\""
       gtxt=""
       if (hasgp && !isguest && (un in gpl)) gtxt="<span class=\"plg\" title=\"" esc(T_GENT) "\">" esc(gpl[un]) "</span>"
-      printf "<tr%s><td class=\"place\">%s%s</td>", attrs, (isguest?"–":pnum ""), gtxt
+      printf "<tr%s><td class=\"place\">%s%s</td>", attrs, (isguest? (gnum!="" ? "<i class=\"gplace\" title=\"" esc(T_GUESTPOS) "\">" gnum "</i>" : "–") : pnum ""), gtxt
       if (MODE=="icpc" || MODE=="obi") {
         if(iflag) printf "<td>%s</td>", flag_html(trim($(iflag)))
         printf "%s", team_html((ius?trim($(ius)):""), (iteam?trim($(iteam)):""), (iuf?trim($(iuf)):""), (iuser?trim($(iuser)):""), isguest)

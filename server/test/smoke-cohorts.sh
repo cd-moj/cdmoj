@@ -97,6 +97,15 @@ awk -F: 'NR>2 && $2 !~ /^ccl/ {print $NF}' "$C/var/placar-view-ccl.txt" | grep -
 awk -F: 'NR>2 && $2=="ccl1"' "$C/var/placar-view-ccl.txt" | grep -q '\*' \
   && ok "estrela do Alfa é do convidado na visão dele" || no "estrela da visão ccl errada"
 
+echo "== GUEST_NUMBERING (issue #25): flag g na 1ª linha SÓ da visão com convidados =="
+head -1 "$C/var/placar-view-ccl.txt" | grep -qx 'icpc s' && ok "sem a opção: 'icpc s'" || no "1ª linha inesperada: $(head -1 "$C/var/placar-view-ccl.txt")"
+printf 'GUEST_NUMBERING=1\n' >> "$C/conf"
+bash "$SC/build.sh" prova >/dev/null 2>&1 || no "build (guest numbering) falhou"
+head -1 "$C/var/placar-view-ccl.txt" | grep -qx 'icpc s g' && ok "com a opção: 'icpc s g' na visão ccl" || no "flag g ausente: $(head -1 "$C/var/placar-view-ccl.txt")"
+head -1 "$C/var/placar.txt" | grep -qx 'icpc s' && ok "placar público (sem convidado) segue 'icpc s'" || no "flag g vazou p/ o placar público"
+sed -i '/^GUEST_NUMBERING=/d' "$C/conf"
+bash "$SC/build.sh" prova >/dev/null 2>&1 || no "build (volta) falhou"
+
 echo "== LIBERAÇÃO dos resultados (public passa a ser o combinado):"
 jq -c '.results_released=true' "$C/cohorts.json" > "$C/cohorts.json.t" && mv "$C/cohorts.json.t" "$C/cohorts.json"
 bash "$SC/build.sh" prova >/dev/null 2>&1

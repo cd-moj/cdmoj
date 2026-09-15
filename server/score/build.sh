@@ -132,6 +132,7 @@ gen_one() {
   local out="$1" nofreeze="$2" tmp first
   tmp="$(mktemp "$out.XXXXXX")" || die "cannot create temp file next to $out"
   if ! MOJ_NOFREEZE="$nofreeze" MOJ_COHORTS="${VIEW_COHORTS:-}" MOJ_UNRANKED="${VIEW_UNRANKED:-}" \
+       MOJ_GUEST_NUMBERING="$(sed -n 's/^[[:space:]]*GUEST_NUMBERING=//p' "$CONF" | tail -1 | tr -cd '0-9')" \
        MOJ_PRESTART="${MOJ_PRESTART:-}" MOJ_SC_USERS_DIR="$SC_MEMO_DIR" \
        bash "$GEN" "$CONTEST" > "$tmp"; then rm -f "$tmp"; die "generator failed: $GEN $CONTEST"; fi
   first="$(head -1 "$tmp")"

@@ -25,7 +25,8 @@ let PEN = 20;                 // PENALTY_MINUTES (vem do /contest/basic; fallbac
 let BSTYLE = 'icon';          // como pintar a célula resolvida (/contest/basic; ver score-colors.js)
 let balloons = {};
 let probShorts = [];
-let teams = [];               // [{username, teamName, univShort, flag, cells:{sn:v}, fullCells:{sn:v}}]
+let teams = [];               // [{username, teamName, univShort, flag, guest, cells:{sn:v}, fullCells:{sn:v}}]
+let GUEST_NUM = false;        // flag `g` do TXT: convidados numerados na sequência própria (#25)
 let cursor = -1;              // índice na ordem ATUAL (de baixo p/ cima)
 let finished = false;
 let timer = null;
@@ -62,16 +63,26 @@ function render(highlight) {
   const tb = el('tbody');
   // ranking de competição na cerimônia: empatados (solved+penalty — a tupla do
   // standingsSort daqui) mostram a MESMA posição; o seguinte pula N (2026-08-31)
-  const places = [];
+  // CONVIDADO (coorte unranked) não consome posição — a cerimônia numerava todo mundo (bug
+  // apontado na issue #25); com a flag g ele ganha a sequência própria, em itálico
+  const places = [], gplaces = [];
+  let seen = 0, prev = null, gseen = 0, gprev = null;
   ordered.forEach((t, i) => {
-    const prev = i > 0 ? ordered[i - 1] : null;
-    places[i] = (prev && prev.solved === t.solved && prev.penalty === t.penalty) ? places[i - 1] : i + 1;
+    if (t.guest) {
+      places[i] = null;
+      if (GUEST_NUM) { gseen++; gplaces[i] = (gprev && gprev.solved === t.solved && gprev.penalty === t.penalty) ? gplaces[gprev.i] : gseen; gprev = { ...t, i }; }
+      return;
+    }
+    seen++;
+    places[i] = (prev && prev.solved === t.solved && prev.penalty === t.penalty) ? places[prev.i] : seen;
+    prev = { ...t, i };
   });
   ordered.forEach((t, i) => {
     const tr = el('tr', {});
     if (i === cursor && !finished) tr.style.outline = '3px solid #1e57c4';
     if (highlight && highlight.user === t.username) tr.classList.add(highlight.up ? 'placing-up' : 'placing-down');
-    tr.append(el('td', { class: 'cl-place' }, String(places[i])));
+    tr.append(el('td', { class: 'cl-place' }, places[i] != null ? String(places[i])
+      : (gplaces[i] != null ? el('span', { class: 'gplace', title: T('posição entre os convidados', 'position among guest teams') }, String(gplaces[i])) : '–')));
     const ftd = el('td', {}); if (t.flag) { const fi = flagEl(t.flag, { height: 16, title: flagName(t.flag) }); if (fi) ftd.append(fi); }
     tr.append(ftd);
     tr.append(el('td', { class: 'team', title: [t.univFull || '', t.username].filter(Boolean).join(' · ') },
@@ -179,14 +190,14 @@ async function main() {
     try { const b = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);
           if (Number.isInteger(b.penalty_minutes)) PEN = b.penalty_minutes; } catch { /* fallback 20 */ }
   }
-  const frozen = parseICPC(fl.slice(1), balloons, modeWords(fl[0]).includes('s'));
-  const full = parseICPC(ul.slice(1), balloons, modeWords(ul[0]).includes('s'));
+  const frozen = parseICPC(fl.slice(1), balloons, modeWords(fl[0]).includes('s'), modeWords(fl[0]).includes('g'));
+  const full = parseICPC(ul.slice(1), balloons, modeWords(ul[0]).includes('s'), modeWords(ul[0]).includes('g'));
   if (!frozen || !full) { app.textContent = T('Placar vazio.', 'Empty scoreboard.'); return; }
-  probShorts = full.probShorts;
+  probShorts = full.probShorts; GUEST_NUM = !!full.guestNumbering;
   const fmap = {}; full.teams.forEach(t => { fmap[t.username] = t; });
   teams = frozen.teams.map(t => ({
     username: t.username, teamName: t.teamName, univShort: t.univShort, univFull: t.univFull,
-    flag: t.flag, cells: { ...t.probs }, fullCells: { ...(fmap[t.username]?.probs || t.probs) },
+    flag: t.flag, guest: !!t.guest, cells: { ...t.probs }, fullCells: { ...(fmap[t.username]?.probs || t.probs) },
   }));
   // times que só aparecem no full (ex.: 1ª submissão pós-freeze com placar por atividade)
   full.teams.forEach(t => {

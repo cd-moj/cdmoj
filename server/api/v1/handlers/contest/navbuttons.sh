@@ -96,7 +96,9 @@ staff)
       {label:\"Todas Submissões\", url:\"/contest/allsubmissions/\"},
       {label:\"Estatísticas\",     url:\"/contest/statistics/\"}]" ;;
   *)
-    # usuário comum (não-privilegiado): página de backup só se o admin não desabilitou (BACKUP!=0)
+    # usuário comum (não-privilegiado): página própria das submissões (issue #26) + backup só se o
+    # admin não desabilitou (BACKUP!=0)
+    buttons="$buttons + [{label:\"Minhas submissões\", url:\"/contest/submissions/\"}]"
     if [[ "$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${BACKUP:-}")" != 0 ]]; then
       buttons="$buttons + [{label:\"Backup\", url:\"/contest/backup/\"}]"
     fi

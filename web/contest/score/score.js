@@ -6,6 +6,7 @@ import { status, logout } from '/shared/auth.js';
 import { el, fmtDate } from '/shared/ui.js';
 import { flagManifest, flagName } from '/shared/flags.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
+import { mountSiteFooter } from '/shared/site-footer.js';
 import { parseICPC, renderICPC } from './score-icpc.js';
 import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
@@ -433,7 +434,7 @@ async function fetchGenPlace() {
   const data = lines.slice(1).filter(Boolean);
   if (!data.length) return;
   let p = null;
-  if (/^icpc/.test(mode)) p = parseICPC(data, BALLOONS, mode.split(/\s+/).includes('s'));
+  if (/^icpc/.test(mode)) p = parseICPC(data, BALLOONS, mode.split(/\s+/).includes('s'), mode.split(/\s+/).includes('g'));
   else if (/^obi/.test(mode)) p = parseOBI(data);
   if (!p) return;
   const m = {};
@@ -487,7 +488,7 @@ async function pollScore() {
     document.getElementById('scoreContainer').innerHTML = `<span class="muted">${T('Placar ainda não gerado.', 'Scoreboard not generated yet.')}</span>`;
   } else if (/^icpc/.test(mode)) {
     // flag `s` na linha do modo = células em SEGUNDOS (R6) — o parse exibe minutos
-    parsed = parseICPC(dataLines, BALLOONS, mode.split(/\s+/).includes('s'));
+    parsed = parseICPC(dataLines, BALLOONS, mode.split(/\s+/).includes('s'), mode.split(/\s+/).includes('g'));
   } else if (/^obi/.test(mode)) {
     parsed = parseOBI(dataLines);
   } else {
@@ -521,6 +522,7 @@ async function boot() {
   const st = await status(CONTEST);
   isAuth = !!st.logged_in;
   mountContestUserChip(st);   // nome · login no cabeçalho, como nas outras páginas (issue #29)
+  mountSiteFooter().catch(() => {});
   document.getElementById('publicNotice').classList.toggle('hidden', isAuth);
 
   // nav + balões + regiões + times (auth quando possível; tolerante a falha)

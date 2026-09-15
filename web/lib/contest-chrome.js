@@ -6,6 +6,7 @@ import { el } from '/shared/ui.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
 import { T, setLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
+import { mountSiteFooter } from '/shared/site-footer.js';
 
 function fmtLeft(sec) {
   if (sec < 0) sec = 0;
@@ -76,6 +77,7 @@ export async function mountChrome(contest, basic, { auth = true } = {}) {
     paint();
     document.addEventListener('moj:lang', paint);
   }
+  mountSiteFooter().catch(() => {});   // rodapé (issue #20)
   return { locale, T };
 }
 

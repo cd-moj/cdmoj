@@ -5,6 +5,7 @@ import { status, logout } from '/shared/auth.js';
 import { el, avatarEl } from '/shared/ui.js';
 import { T, setLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
+import { mountSiteFooter } from '/shared/site-footer.js';
 
 // chip do usuário logado do contest no topbar (avatar + nome) — consistência com o
 // site principal. Inserido à esquerda do botão "Contest"/countdown; idempotente.
@@ -70,5 +71,6 @@ export async function initContestShell(contest) {
     const nav = await apiGet('/contest/navbuttons?contest=' + encodeURIComponent(contest), { contest, auth: isAuth });
     renderNav(Array.isArray(nav) ? nav : (nav.buttons || []), contest);
   } catch { /* sem nav */ }
+  mountSiteFooter().catch(() => {});   // rodapé (versão, repositório, contato — issue #20)
   return { basic, isAuth, st };
 }

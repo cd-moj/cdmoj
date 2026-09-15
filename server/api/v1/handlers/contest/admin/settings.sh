@@ -12,7 +12,7 @@ source "$_LIBDIR/contest-gate.sh"
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
   FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
-  PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"
+  PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; GUEST_NUMBERING=""
   load_contest_conf "$contest"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
   jdg_json='[]'; [[ -n "$CONTEST_JUDGES" ]] && jdg_json="$(printf '%s\n' $CONTEST_JUDGES | grep -v '^$' | jq -R . | jq -cs .)"
@@ -29,7 +29,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
             balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods,
-            freeze_release_at:$fra}' \
+            freeze_release_at:$fra, guest_numbering:$gnum}' \
+    --argjson gnum "$([[ "$GUEST_NUMBERING" == 1 ]] && echo true || echo false)" \
     --argjson fra "$(freeze_release_at "$contest")" \
     --argjson mods "$(mod_list_json "$contest")" \
     --arg bsty "$([[ "$SCORE_BALLOON_STYLE" == fill ]] && echo fill || echo icon)" \
@@ -124,6 +125,12 @@ bset allow_print PRINT _
 bset manual_verdict MANUAL_VERDICT 1
 bset secret      SECRET 1
 bset balloons_during_freeze BALLOONS_DURING_FREEZE 1
+# convidados (coorte unranked) com NUMERAÇÃO PRÓPRIA no placar (issue #25): a 1ª linha do TXT
+# ganha a flag `g` e o JS/relatório numeram os convidados na sequência deles (C1, C2…), sem
+# tocar na oficial. Muda o TXT ⇒ rebuild forçado.
+GN_WAS="$(conf_value "$contest" GUEST_NUMBERING)"
+bset guest_numbering GUEST_NUMBERING 1
+if has guest_numbering && [[ "$(conf_value "$contest" GUEST_NUMBERING)" != "$GN_WAS" ]]; then score_kick_rebuild "$contest"; fi
 # como o placar pinta a célula resolvida: 'icon' (default, neutro + ponto da cor) | 'fill'
 # (cor do balão no fundo + contorno). Ver docs/SCOREBOARD.md.
 if has balloon_style; then
