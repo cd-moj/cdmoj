@@ -374,7 +374,8 @@ rd_promote(){
   if [[ -d "$ad/docs" ]]; then
     mkdir -p "$cdir/docs"
     ( set +o noglob; shopt -s nullglob
-      for f in "$ad/docs"/*.md "$ad/docs"/cover.*.pdf; do cp -f "$f" "$cdir/docs/" 2>/dev/null; done )
+      # (o PDF ENVIADO pelo admin também é config feita à mão: volta — 2026-09-14)
+      for f in "$ad/docs"/*.md "$ad/docs"/cover.*.pdf "$ad/docs"/*.uploaded.pdf; do cp -f "$f" "$cdir/docs/" 2>/dev/null; done )
     [[ -f "$ad/docs/config.json" ]] && jq -c 'del(.published)' "$ad/docs/config.json" \
       > "$cdir/docs/config.json" 2>/dev/null
   fi

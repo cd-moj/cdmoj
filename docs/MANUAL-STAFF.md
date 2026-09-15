@@ -161,7 +161,7 @@ Aqui ficam os documentos que a organização **publicou**, prontos para você ba
 
 | Documento | O que é |
 |---|---|
-| **Informações do ambiente** | O *info sheet*: versões de compilador, limite de memória e de pilha, linguagens aceitas e o tempo limite de cada problema. Costuma ser afixado na sala ou entregue com o caderno. |
+| **Ambiente de julgamento** | O *info sheet*: sistema e versões de compilador, linguagens aceitas, limites, linhas de compilação e execução, veredictos e penalidade. Costuma ser afixado na sala ou entregue com o caderno. |
 | **Caderno da prova** | Capa + todos os enunciados. É o que vai impresso na mesa de cada time. |
 | **Folha de time limits** | A tabela `letra · nome · tempo limite` (com errata, se houver). |
 

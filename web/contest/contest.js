@@ -356,7 +356,7 @@ function openAuthed(url) {
 // DOCUMENTO e traz o sufixo " (pt)" — aqui o idioma virou chip, o rótulo é do tipo)
 const DOC_NAME = {
   'contest':    () => T('📘 Caderno de problemas', '📘 Problem set'),
-  'info-sheet': () => T('📋 Informações do ambiente', '📋 Testing environment'),
+  'info-sheet': () => T('📋 Ambiente de julgamento', '📋 Judging environment'),
   'times':      () => T('⏱️ Limites de tempo', '⏱️ Time limits'),
   'editorial':  () => T('📝 Editorial', '📝 Editorial'),
 };

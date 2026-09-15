@@ -5530,7 +5530,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Documentos da prova: estado, textos, capa e PDF PRONTO enviado (admin ou juiz-chefe); pt/en/es",
+        "summary": "Documentos da prova: estado, textos, capa e PDF PRONTO enviado (admin ou juiz-chefe); pt/en/es. upload {type,lang,pdf_b64|remove_upload} = PDF pronto que vence o gerado e publica sem gerar (listado mesmo sem index.json). info-sheet = Ambiente de julgamento e submissão (padrão SBC); editorial = capa + um problema por página",
         "security": [
           {
             "bearerAuth": []
@@ -5581,6 +5581,7 @@
                       "config",
                       "cover",
                       "generate",
+                      "upload",
                       "publish",
                       "unpublish"
                     ]

@@ -453,7 +453,7 @@ ndoc="$(jq -r 'length' <<<"$docs_j")"; ndoc="${ndoc//[^0-9]/}"; ndoc="${ndoc:-0}
 npub="$(jq -r '[.[] | select(.published)] | length' <<<"$docs_j")"; npub="${npub//[^0-9]/}"; npub="${npub:-0}"
 if ! mod_on "$contest" documentos; then :   # módulo documentos desligado
 elif (( ndoc == 0 )); then
-  add docs warn "Nenhum documento gerado" "info sheet, caderno e folha de time limits saem de Prova → Documentos"
+  add docs warn "Nenhum documento gerado ou enviado" "ambiente de julgamento, caderno e folha de time limits saem de Evento › Documentos (gere ou envie um PDF pronto)"
 elif (( npub == 0 )); then
   add docs warn "Documentos gerados mas não publicados" "$ndoc arquivo(s) só visíveis ao admin/chefe"
 else

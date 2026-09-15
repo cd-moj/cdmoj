@@ -18,8 +18,9 @@ const LANGS = ['pt', 'en', 'es'];           // idioma dos DOCUMENTOS (a interfac
 const PDF_MAX_MB = 60;                       // o mesmo teto do handler (DOC_PDF_MAX_MB)
 
 const TYPES = [
-  { id: 'info-sheet', pt: 'Informações do ambiente', en: 'Testing environment',
-    hpt: 'Compiladores, limites de memória/tempo e linguagens aceitas.', hen: 'Compilers, memory/time limits and accepted languages.' },
+  { id: 'info-sheet', pt: 'Ambiente de julgamento', en: 'Judging environment',
+    hpt: 'Sistema, compiladores, linguagens, limites, linhas de compilação e execução, veredictos e penalidade. Envie um PDF pronto ou gere.',
+    hen: 'System, compilers, languages, limits, compile and run lines, verdicts and penalty. Upload a ready PDF or generate.' },
   { id: 'contest', pt: 'Caderno da prova', en: 'Problem set',
     hpt: 'Capa + enunciados (usa o PDF do problema quando existir).', hen: 'Cover + statements (uses each problem PDF when present).' },
   { id: 'times', pt: 'Folha de time limits', en: 'Time limits sheet',
@@ -68,10 +69,13 @@ export function makeDocsTab(CONTEST, opts = {}) {
       const line = el('div', { class: 'row', style: 'gap:.5rem;margin-top:.35rem;align-items:center' },
         el('span', { class: 'pill' }, lang.toUpperCase()));
       if (d) {
-        // PDF ENVIADO vence o gerado no que o mundo baixa — a linha diz qual é qual
+        // PDF ENVIADO vence o gerado no que o mundo baixa — a linha diz qual é qual. Enviado
+        // e ainda não publicado = "pronto para publicar": o PDF pronto é um documento completo,
+        // não precisa gerar a versão do MOJ (o servidor sempre aceitou; a lista é que o escondia).
         line.append(d.uploaded
           ? el('span', { class: 'small' }, el('b', {}, T('enviado', 'uploaded')),
               ` · PDF ${fmtKB(d.uploaded_bytes)}`,
+              d.published ? '' : el('span', { class: 'muted' }, T(' · pronto para publicar', ' · ready to publish')),
               d.pdf_bytes ? el('span', { class: 'muted' }, T(' (o gerado está guardado)', ' (generated copy kept)')) : '')
           : el('span', { class: 'small muted' }, `${T('gerado', 'generated')} ${fmtDate(d.generated_at)} · PDF ${fmtKB(d.pdf_bytes)} · HTML ${fmtKB(d.html_bytes)}`),
           el('button', { class: 'btn ghost', onclick: () => download(t.id, lang, 'pdf') }, 'PDF'));
@@ -81,7 +85,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
       } else {
         line.append(el('span', { class: 'small muted' }, readOnly
           ? T('ainda não disponível', 'not available yet')
-          : T('ainda não gerado', 'not generated yet')));
+          : T('sem documento — gere ou envie um PDF', 'no document — generate or upload a PDF')));
       }
       if (!readOnly) {
         line.append(el('span', { style: 'flex:1' }));

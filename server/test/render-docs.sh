@@ -9,8 +9,10 @@
 #   (1) toda página em A4;  (2) Latin Modern EMBARCADA no PDF;  (3) o texto sai mesmo
 #   (pdftotext não-vazio, com os rótulos no idioma pedido, inclusive es).
 #
-# ⚠ Precisa de pandoc + soffice + poppler: NÃO roda no checkout de desenvolvimento.
-#    Rode DENTRO da imagem:  podman exec <container> bash /opt/moj/cdmoj/server/test/render-docs.sh
+# Precisa de pandoc + soffice + poppler (o dev tem; senão SKIP). Também roda DENTRO da imagem:
+#    podman exec <container> bash /opt/moj/cdmoj/server/test/render-docs.sh
+# Cobre também o EDITORIAL (2026-09-14): capa na página 1, UM problema por página, e o título
+# interno da solução (`# Ideia`) NÃO abre página.
 set -u
 # ROOT pelo caminho do script — mas o jeito de rodar isto é copiando o arquivo para dentro da
 # imagem (`podman cp … :/tmp/`), e aí o caminho derivado não acha as libs: cai no /opt do container.
@@ -26,7 +28,7 @@ NOW="$EPOCHSECONDS"
 C="$FIX/rd"; mkdir -p "$C/docs" "$C/enunciados" "$C/var"
 { printf 'CONTEST_ID=rd\nCONTEST_NAME=Prova\\ de\\ Renderização\nCONTEST_TYPE=icpc\n'
   printf 'CONTEST_START=%s\nCONTEST_END=%s\nMEMLIMITMB=1024\n' "$((NOW-3600))" "$((NOW+3600))"
-  printf "PROBS=( x col#pa 'Soma Simples' A col#pa )\n"; } > "$C/conf"
+  printf "PROBS=( x col#pa 'Soma Simples' A col#pa x col#pb 'Subtração' B col#pb )\n"; } > "$C/conf"
 # um enunciado com os elementos que denunciam tipografia: itálico, negrito, código e tabela
 cat > "$C/enunciados/col#pa.html" <<'HTML'
 <!DOCTYPE html><html><head><meta charset="utf-8"><title>Soma</title></head><body>
@@ -41,6 +43,12 @@ com pelo menos três linhas de corpo em A4.</p>
 </body></html>
 HTML
 
+# pacotes com docs/solucao.md (editorial) — pkg_path lê MOJ_PROBLEMS_DIR
+export MOJ_PROBLEMS_DIR="$FIX/problems"
+for p in pa pb; do mkdir -p "$FIX/problems/col/$p/docs"; done
+printf '# Ideia\n\nSome os dois números.\n\n## Complexidade\n\nO(1).\n' > "$FIX/problems/col/pa/docs/solucao.md"
+printf 'Subtraia. Texto sem título interno.\n' > "$FIX/problems/col/pb/docs/solucao.md"
+printf '{"published":[], "editorial_note":"Nota do editorial."}' > "$C/docs/config.json"
 source "$ROOT/api/v1/lib/common.sh" 2>/dev/null || true
 source "$ROOT/api/v1/lib/contest-create.sh" 2>/dev/null || true
 source "$ROOT/api/v1/lib/tl-store.sh" 2>/dev/null || true
@@ -54,7 +62,7 @@ pages_a4(){ pdfinfo "$1" 2>/dev/null | grep -m1 '^Page size:' | grep -qi '(a4)';
 
 for l in pt en es; do
   echo "== $l =="
-  for t in info-sheet times contest; do
+  for t in info-sheet times contest editorial; do
     e="$(doc_build rd "$t" "$l" 2>/dev/null)"
     p="$(doc_file rd "$t" "$l" pdf)"
     ck "$t/$l gera PDF"        '[[ -s "$p" ]]'
@@ -77,5 +85,27 @@ done
 echo "== caderno: capa + problema no mesmo tamanho de página =="
 sizes="$(pdfinfo -l 99 "$(doc_file rd contest pt pdf)" 2>/dev/null | grep -c 'x 792 pts')"
 ck "nenhuma página em Letter" '[[ "${sizes:-0}" == 0 ]]'
+
+echo "== editorial: capa + um problema por página =="
+EP="$(doc_file rd editorial pt pdf)"
+pg(){ pdftotext -f "$2" -l "$2" -layout "$1" - 2>/dev/null; }
+ck "3 páginas (capa, A, B)"          '[[ "$(pdfinfo "$EP" | awk "/^Pages:/{print \$2}")" == 3 ]]'
+ck "pág. 1 = capa com nota e índice"  'pg "$EP" 1 | grep -q "Editorial" && pg "$EP" 1 | grep -q "Nota do editorial" && pg "$EP" 1 | grep -q "Subtração"'
+ck "pág. 2 = problema A inteiro"      'pg "$EP" 2 | grep -q "Problema A" && pg "$EP" 2 | grep -q "Ideia" && pg "$EP" 2 | grep -q "Complexidade"'
+ck "pág. 3 = problema B"              'pg "$EP" 3 | grep -q "Problema B"'
+ck "título interno NÃO abre página"   '! pg "$EP" 3 | grep -q "Ideia"'
+
+echo "== ambiente de julgamento: título novo, linhas de compilação, veredictos, penalidade =="
+IP="$(doc_file rd info-sheet en pdf)"; IT="$(pdftotext -layout "$IP" - 2>/dev/null)"
+ck "título Judging environment"       'grep -q "Judging environment" <<<"$IT"'
+ck "linha do g++ com -std=gnu++20"    'grep -q "g++ -lm -O2 -static -std=gnu++20" <<<"$IT"'
+ck "linha do java com -Xmx1024m"      'grep -q "Xmx1024m" <<<"$IT"'
+ck "lista de veredictos"              'grep -q "Compilation Error" <<<"$IT" && grep -q "Not Answered Yet" <<<"$IT"'
+ck "penalidade 20 min, CE sem"        'grep -q "20 minutes" <<<"$IT" && grep -A1 "without penalty" <<<"$IT" | grep -q "Compilation Error"'
+ck "outros limites"                   'grep -q "1024 KB" <<<"$IT" && grep -q "250 MB" <<<"$IT"'
+ck "sem marcador cru"                 '! grep -q "{{" <<<"$IT"'
+TT="$(pdftotext -layout "$(doc_file rd times en pdf)" - 2>/dev/null)"
+ck "times: nota de linguagem"         'grep -q "do not depend on the programming language" <<<"$TT"'
+ck "times: em segundos"               'grep -q "Times are given in seconds" <<<"$TT"'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

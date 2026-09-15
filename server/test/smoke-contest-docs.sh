@@ -125,6 +125,25 @@ ck "agora vem o gerado"               '[[ "$OUT" == *"PDF-gerado-diferente"* ]]'
 adm "{\"action\":\"upload\",\"type\":\"times\",\"lang\":\"es\",\"pdf_b64\":\"$(printf 'nao sou pdf' | base64 -w0)\"}"
 ck "não-PDF recusado"                 '[[ "$BODY" == *pdf_invalid* ]]'
 
+echo "== PDF ENVIADO num contest que NUNCA gerou nada (sem index.json) aparece e publica =="
+# relato do Ribas (2026-09-14): "enviei o PDF inteiro e não deixa publicar" — o doc_index saía
+# antes de varrer os enviados quando o index.json não existia; a UI não via a linha e não
+# desenhava o botão. O servidor sempre aceitou o publish; a lista é que escondia.
+mv "$C/docs/index.json" "$C/docs/index.json.bak"
+adm "{\"action\":\"upload\",\"type\":\"editorial\",\"lang\":\"en\",\"pdf_b64\":\"$PDF64\"}"
+ck "upload sem index.json aceito"     '[[ "$(J .saved)" == true ]]'
+call /contest/admin/docs GET '' tok-adm
+ck "lista mostra o enviado (uploaded)" '[[ "$(J "[.docs[]|select(.type==\"editorial\" and .lang==\"en\")|.uploaded]|first")" == true ]]'
+ck "e nada mais (index inexistente)"  '[[ "$(J ".docs|length")" == 1 ]]'
+conf "$((NOW-10800))" "$((NOW-3600))"        # editorial só publica depois do fim
+adm '{"action":"publish","type":"editorial","lang":"en"}'
+ck "publica sem index.json"           '[[ "$(J .ok)" == true ]]'
+call /contest/doc GET '' tok-cstaff
+ck "organização lista o enviado"      '[[ "$(J "[.docs[]|select(.type==\"editorial\" and .lang==\"en\" and .published==true)]|length")" == 1 ]]'
+adm '{"action":"unpublish","type":"editorial","lang":"en"}'
+adm '{"action":"upload","type":"editorial","lang":"en","remove_upload":true}'
+mv "$C/docs/index.json.bak" "$C/docs/index.json"
+
 echo "== resources.json: type/lang + gate de fase (a aba Contest agrupa por documento) =="
 call /contest/resources GET '' tok-adm
 ck "documento traz type e lang"       '[[ "$(J "[.items[]|select(.type==\"contest\" and .lang==\"pt\")]|length")" == 1 ]]'

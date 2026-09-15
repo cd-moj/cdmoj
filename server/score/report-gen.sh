@@ -244,7 +244,7 @@ rep_t(){ case "$LOC:$1" in
   pt:size) printf 'Tamanho';;                     en:size) printf 'Size';;
   pt:doc_contest) printf '📕 Caderno de problemas';; en:doc_contest) printf '📕 Problem set';;
   pt:doc_times) printf '⏱ Limites de tempo';;     en:doc_times) printf '⏱ Time limits';;
-  pt:doc_info) printf 'ℹ️ Informações do ambiente';; en:doc_info) printf 'ℹ️ Testing environment';;
+  pt:doc_info) printf 'ℹ️ Ambiente de julgamento';; en:doc_info) printf 'ℹ️ Judging environment';;
   pt:doc_editorial) printf '📝 Editorial (soluções)';; en:doc_editorial) printf '📝 Editorial (solutions)';;
   # filtros do placar (coorte, bandeira, universidade, sede, busca)
   pt:f_board) printf 'Placar:';;                  en:f_board) printf 'Board:';;

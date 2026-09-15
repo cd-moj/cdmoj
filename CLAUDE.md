@@ -648,15 +648,30 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   ternário `[[ $l == pt ]] && … || …` solto é o que travava um 3º idioma.
   **PDF PRONTO enviado** (`action:upload` → `docs/<tipo>.<lang>.uploaded.pdf`) **vence o gerado**
   em tudo que é servido (`doc_pdf_served`), deixa publicar sem nunca ter gerado, e `remove_upload`
-  volta ao gerado — que nunca é apagado. É como entra prova traduzida por fora.
+  volta ao gerado — que nunca é apagado. É como entra prova traduzida por fora. ⚠ `doc_index`
+  tem de listar o enviado MESMO SEM `index.json` (2026-09-14: o early-return escondia o PDF
+  num contest que nunca gerou nada e a UI não oferecia "publicar"); a promoção de rodada
+  restaura `*.uploaded.pdf` (config feita à mão). **Info sheet = "Ambiente de julgamento e
+  submissão"** (`env_title`; era "Testing environment"), templates `server/etc/info-sheet.*.md`
+  no padrão da folha da SBC com blocos condicionais `{{#LANG c cpp}}…{{/LANG}}`
+  (`_doc_lang_blocks`, filtrados pela whitelist) e marcadores `{{OS}}` (campo `os` do registry,
+  reportado pelo agente), `{{TOOLCHAIN}}`, `{{SOURCE_MAX}}`/`{{OUTPUT_MAX}}`/`{{COMPILE_TL}}`,
+  `{{MEMLIMIT_MB}}`/`{{STACK_KB}}` (os `-Xmx/-Xss` do juiz), `{{VERDICTS}}`, `{{PENALTY}}`/
+  `{{PENALTY_EXCEPTIONS}}` — as linhas de compilação/execução dos templates ESPELHAM
+  `mojtools/lang/*/{compile,run}.sh`: mudou flag lá, mude aqui. **Editorial = capa + UM
+  problema por página**: `<h1 style="page-break-before:always">` inline (o importador do Writer
+  ignora a regra em `div`), Heading 1 do reference.odt quebra na rota ODT, e os títulos do
+  `solucao.md` são rebaixados (`_doc_demote_headings`) — senão `# Ideia` abria página. **Folha de
+  TL**: `_doc_tl_matrix` + tabela com uma coluna por linguagem só quando o TL difere.
+  `render-docs.sh` roda no dev (tem pandoc/soffice) e afirma tudo isso.
   ⚠ **Tipografia**: `server/etc/contest-doc.css` (rota HTML→soffice) e `server/etc/caderno-reference.odt`
   (rota pandoc→ODT, que IGNORA CSS) descrevem o MESMO documento por caminhos diferentes — mexeu num,
   confira o outro. Ambos em **A4 + Latin Modern** (a cara de LaTeX; `fonts-lmodern` é asserção de
   build). Antes divergiam: capa A4 + miolo US Letter no mesmo caderno, `Heading 1` menor que o
   `Heading 2` e itálico SINTÉTICO (o DejaVu da imagem não tem itálico). Regenerar o ODT: receita no
   cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO recusa calado.
-  Renderização real (pandoc+soffice) só é exercida por `server/test/render-docs.sh`, que roda
-  DENTRO da imagem (A4 em toda página, Latin Modern embarcada, texto extraído). **Gates de FASE no `/contest/doc`**
+  Renderização real (pandoc+soffice) só é exercida por `server/test/render-docs.sh` (dev ou
+  DENTRO da imagem; A4 em toda página, Latin Modern embarcada, texto extraído, páginas do editorial). **Gates de FASE no `/contest/doc`**
   (quem não é organização): `contest`/`times` publicados só a partir do INÍCIO (`contest_phase`),
   `editorial` só com `contest_over_for_all` — que também trava o **publish** do editorial; `news:true`
   de caderno/times antes do início = 409 (a notícia anexa o PDF por fora do gate). Teste:

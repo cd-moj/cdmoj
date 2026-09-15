@@ -40,6 +40,7 @@ reg="$(jq -c --argjson now "$EPOCHSECONDS" '
     problems_count: ((.problems // {}) | length),
     langs:   (.langs   // []),
     toolchain:(.toolchain // {}),
+    os:      (.os // null),          # PRETTY_NAME da rootfs (agente novo); a folha de ambiente lê
     cage_root:(.cage_root // null),
     cache_bytes:(.cache_bytes // 0),
     inv_hash:(.inv_hash// null),

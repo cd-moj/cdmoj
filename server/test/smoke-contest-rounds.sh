@@ -119,8 +119,10 @@ sed -i "s/^CONTEST_END=.*/CONTEST_END=$((NOW-7200))/" "$C/conf"
 grep -q '^CONTEST_END=' "$C/conf" || printf 'CONTEST_END=%s\n' "$((NOW-7200))" >> "$C/conf"
 : > "$RUN/judged.alive"
 RD '{"action":"set","slug":"prova","colors":{"A":"AA0000","enableSonic":false}}'
+mkdir -p "$C/docs"; printf '%%PDF-enviado' > "$C/docs/info-sheet.pt.uploaded.pdf"; printf '%%PDF-gerado' > "$C/docs/info-sheet.pt.pdf"
 RD '{"action":"promote","to":"prova"}'
 ck "promoveu"                      '[[ "$(J .promoted)" == true ]]'
+ck "PDF ENVIADO (config à mão) volta após a promoção; o gerado fica só no arquivo" '[[ -f "$C/docs/info-sheet.pt.uploaded.pdf" && ! -f "$C/docs/info-sheet.pt.pdf" && -f "$C/rounds/oficial/docs/info-sheet.pt.pdf" ]]'
 ck "balloons.json = cores da rodada que entrou" '[[ "$(jq -r .A "$C/balloons.json")" == AA0000 ]]'
 ck "arquivo da rodada que saiu guardou as cores dela" '[[ "$(jq -r .A "$C/rounds/oficial/balloons.json")" == 0000FF ]]'
 call /contest/balloons GET '' cadm "$Q"

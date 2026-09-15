@@ -117,8 +117,9 @@ encerradas** em *Arquivos & Recursos*), quando a organização os publica.
 
 Quando existirem, aparecem também as seções **Informações & Notícias** e **Arquivos & Recursos**.
 Em **Arquivos & Recursos** é onde a organização publica os documentos da prova quando quer que
-você os tenha em mãos. São até quatro: as **informações do ambiente** (versões de compilador,
-limites de memória e de tempo), o **caderno da prova**, a **folha de time limits** e o
+você os tenha em mãos. São até quatro: o **ambiente de julgamento** (sistema, versões de
+compilador, limites, linhas de compilação e execução, veredictos e penalidade), o **caderno da
+prova**, a **folha de time limits** e o
 **editorial** (as soluções — esse só aparece depois que a prova acaba para *todas* as sedes).
 
 Cada documento é uma linha com o nome à esquerda e os **idiomas como botões**: `PT`, `EN`, `ES`.

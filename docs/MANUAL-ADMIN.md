@@ -234,10 +234,10 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
 
 | Documento | O que sai | De onde vêm os dados |
 |---|---|---|
-| **Informações do ambiente** (*info sheet*) | Versões de compilador de cada linguagem, limite de memória, tamanho de pilha, tempo limite por teste de cada problema e a tabela de linguagens aceitas. | Texto editável (Markdown) + dados vivos: `run/registry` (o que os juízes reportam), o `conf` do contest e o TL calibrado. |
+| **Ambiente de julgamento** (*info sheet*; era "Informações do ambiente") | No padrão da folha da Maratona SBC: sistema operacional e versões dos compiladores, linguagens aceitas com as extensões, limites de memória, tempo, tamanho de fonte, saída e compilação, as **linhas de compilação e execução** de cada linguagem (as mesmas do juiz), os veredictos, as notas de julgamento, a penalidade e os tempos de resposta. | Texto editável (Markdown) + dados vivos: `run/registry` (o que os juízes reportam), o `conf` do contest e o TL calibrado. |
 | **Caderno da prova** | Capa + um enunciado por problema, na ordem das letras. Onde o problema tem **PDF próprio** no contest, é esse PDF que entra (diagramação preservada); senão o enunciado é renderizado. | `PROBS` do contest, `enunciados/<chave>.{pdf,html}` e, se faltar, o enunciado do banco. |
-| **Folha de time limits** | Tabela `letra · nome · tempo limite`, com quebra por linguagem quando o TL difere entre elas, mais a **errata** que você escrever. | O TL **calibrado e servido** aos juízes (`run/tl`). |
-| **Editorial** | A **solução** de cada problema, na ordem das letras, com uma nota introdutória opcional. Gere e revise quando quiser; o servidor **só deixa PUBLICAR depois do fim da prova** (contando prorrogações por sede) — e o time só o baixa com a prova encerrada. | O `docs/solucao.md` do **pacote** de cada problema (o texto que o autor escreveu e que nunca vai ao aluno). |
+| **Folha de time limits** | Tabela `letra · nome · tempo limite por teste`. Se o limite é o mesmo em todas as linguagens, sai uma coluna e a nota "não depende da linguagem". Se difere, sai uma coluna por linguagem. Mais a **errata** que você escrever. | O TL **calibrado e servido** aos juízes (`run/tl`). |
+| **Editorial** | Uma capa (título, data, nota introdutória e índice dos problemas) e a **solução** de cada problema, na ordem das letras, cada problema em uma página nova. Gere e revise quando quiser; o servidor **só deixa PUBLICAR depois do fim da prova** (contando prorrogações por sede) — e o time só o baixa com a prova encerrada. | O `docs/solucao.md` do **pacote** de cada problema (o texto que o autor escreveu e que nunca vai ao aluno). |
 
 **Fluxo, do começo ao fim**
 
@@ -251,8 +251,11 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
 3. **Ajuste o texto do info sheet**, se quiser (📝): também Markdown, com os marcadores
    `{{TOOLCHAIN}}`, `{{TL_TABLE}}`, `{{LANGS_TABLE}}`, `{{MEMLIMIT}}`, `{{STACK}}`,
    `{{CONTEST_NAME}}` e `{{DATE}}`. Apagar o texto volta ao padrão embarcado.
-4. **Gere** (botão de cada linha, ou *Gerar todos (pt+en+es)*). Converter os PDFs leva alguns
-   segundos — o caderno é o mais demorado, porque junta um PDF por problema.
+4. **Gere** (botão de cada linha, ou *Gerar todos (pt+en+es)*), **ou envie um PDF pronto**
+   (botão *subir PDF* da linha). O PDF enviado é um documento completo: ele vence o gerado em
+   tudo que o MOJ serve e pode ser publicado sem gerar. *Voltar ao gerado* apaga só o enviado.
+   Converter os PDFs leva alguns segundos — o caderno é o mais demorado, porque junta um PDF
+   por problema.
 5. **Confira**: cada linha tem **PDF**, **HTML** e **abrir**. Reveja antes de publicar.
 6. **Publique** o que a sede pode ver. Publicar faz duas coisas: o documento passa a aparecer na
    seção **Prova** da página do contest e **toda a organização** (`.judge`, `.staff`, `.cstaff`, `.mon`) consegue baixá-lo em **📄 Documentos**, inclusive antes do início — o TIME é que espera a fase.
