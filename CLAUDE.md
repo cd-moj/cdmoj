@@ -745,8 +745,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `Heading 2` e itálico SINTÉTICO (o DejaVu da imagem não tem itálico). Regenerar o ODT: receita no
   cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO recusa calado.
   Renderização real (pandoc+soffice) só é exercida por `server/test/render-docs.sh` (dev ou
-  DENTRO da imagem; A4 em toda página, Latin Modern embarcada, texto extraído, páginas do editorial). **Gates de FASE no `/contest/doc`**
-  (quem não é organização): `contest`/`times` publicados só a partir do INÍCIO (`contest_phase`),
+  DENTRO da imagem; A4 em toda página, Latin Modern embarcada, texto extraído, páginas do editorial). **Gates de FASE no `/contest/doc`** (e no `/contest/resources`)
+  — organização = SÓ admin/chefe/juiz; `.staff`/`.cstaff`/`.mon` esperam a fase como o time
+  (decisão do Ribas, 2026-09-15: a sede não recebe o caderno antes da prova — é a mesma regra do
+  `can_see_problems`): `contest`/`times` publicados só a partir do INÍCIO (`contest_phase`),
   `editorial` só com `contest_over_for_all` — que também trava o **publish** do editorial; `news:true`
   de caderno/times antes do início = 409 (a notícia anexa o PDF por fora do gate). Teste:
   `smoke-contest-docs.sh`. **PDF só por `soffice --headless

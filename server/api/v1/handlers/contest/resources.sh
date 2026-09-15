@@ -18,7 +18,7 @@ fi
 
 # organização vê tudo; time vê só o que a fase libera (mesma regra do handlers/contest/doc.sh)
 _res_org=false
-{ is_admin_or_chief || is_judge || is_staff || is_cstaff || is_mon; } && _res_org=true
+{ is_admin_or_chief || is_judge; } && _res_org=true   # sede/.mon/time esperam a fase (caderno antes do início = prova vazada; 2026-09-15)
 if [[ "$_res_org" == true ]]; then
   emit_json 200 OK; jq -c '{success:true, items:.}' "$f"; exit 0
 fi

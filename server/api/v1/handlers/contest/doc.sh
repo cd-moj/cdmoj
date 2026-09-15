@@ -3,10 +3,11 @@
 # COM `type`  -> baixa o arquivo.
 # ACESSO (cortado AQUI, nunca só na UI):
 #   admin / juiz-chefe               -> sempre (mesmo antes de publicar; é a revisão deles)
-#   ORGANIZAÇÃO (.judge/.staff/.cstaff/.mon) -> se PUBLICADO (a sede imprime ANTES da prova)
-#   TIMES / demais -> publicado E, para `contest`/`times`, só a partir do INÍCIO
-#     (contest_phase != before — publicar p/ a sede não pode vazar a prova p/ time logado
-#     no aquecimento); para `editorial`, só depois do FIM p/ TODOS (contest_over_for_all —
+#   .judge                           -> se PUBLICADO (o juiz vê enunciado sempre)
+#   .staff/.cstaff/.mon e TIMES      -> publicado E, para `contest`/`times`, só a partir do INÍCIO
+#     (contest_phase != before — o caderno é conteúdo de PROVA: a sede NÃO o recebe antes,
+#     decisão do Ribas em 2026-09-15; a mesma regra do `can_see_problems`, onde .staff/.cstaff
+#     nunca veem enunciado); para `editorial`, só depois do FIM p/ TODOS (contest_over_for_all —
 #     sede prorrogada segura o editorial). `info-sheet` é logística: publicado = visível.
 require_auth_contest "$(param contest)"
 contest="$(param contest)"
@@ -15,9 +16,10 @@ require_contest "$contest"
 source "$_DIR/lib/contest-docs.sh"
 source "$_DIR/lib/contest-gate.sh"
 
-# organização = vê publicado ANTES do início (impressão/entrega); time espera a fase
+# organização que julga = vê publicado ANTES do início; sede (.staff/.cstaff), .mon e time
+# esperam a fase — o caderno antes do início é a prova vazada, não importa o papel da sala
 _doc_org=false
-{ is_admin_or_chief || is_judge || is_staff || is_cstaff || is_mon; } && _doc_org=true
+{ is_admin_or_chief || is_judge; } && _doc_org=true
 # _doc_phase_ok <type> -> 0 se ESTE login pode ver o tipo AGORA (fase; publicação à parte)
 _doc_phase_ok(){
   [[ "$_doc_org" == true ]] && return 0

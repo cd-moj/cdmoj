@@ -272,11 +272,16 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
    Converter os PDFs leva alguns segundos — o caderno é o mais demorado, porque junta um PDF
    por problema.
 5. **Confira**: cada linha tem **PDF**, **HTML** e **abrir**. Reveja antes de publicar.
-6. **Publique** o que a sede pode ver. Publicar faz duas coisas: o documento passa a aparecer na
-   seção **Prova** da página do contest e **toda a organização** (`.judge`, `.staff`, `.cstaff`, `.mon`) consegue baixá-lo em **Documentos**, inclusive antes do início — o TIME é que espera a fase.
-   **Times NÃO veem caderno/time limits publicados antes do INÍCIO da prova** — publicar cedo
-   serve para a sede imprimir, sem vazar nada (o `+ notícia` desses dois é recusado antes do
-   início, porque a notícia anexa o PDF). O **editorial** só publica depois do fim.
+6. **Publique**. Publicar faz duas coisas: o documento passa a aparecer na seção **Prova** da
+   página do contest e em **Documentos**. Quem vê o quê:
+   - **Ambiente de julgamento**: publicado = visível para todos os papéis (é logística).
+   - **Caderno e folha de time limits**: antes do INÍCIO da prova só `.admin`, `.cjudge` e
+     `.judge` baixam. **A sede (`.staff`, `.cstaff`), o `.mon` e os times só a partir do início**
+     — o caderno na mão de alguém antes da prova é a prova vazada, não importa o papel. A sede
+     imprime a partir do início (o `+ notícia` desses dois é recusado antes do início, porque a
+     notícia anexa o PDF).
+   - **Editorial**: só publica depois do fim, e só os juízes o baixam antes de a prova acabar
+     para TODAS as sedes.
    Marcando **+ notícia**, o MOJ ainda cria uma notícia com o PDF anexado.
    **Despublicar** desfaz (o link some; a notícia, se criada, continua — apague-a na aba de
    notícias se for o caso).
@@ -292,9 +297,9 @@ imprimiu ficou com a versão velha (é para isso que serve o campo *versão do c
 > problema sai traduzido quando o pacote tem o título naquele idioma. Prova bilíngue com
 > enunciado pronto por fora continua entrando pelo **PDF enviado**.
 
-> 🔒 **Antes de publicar, o caderno é conteúdo de prova**: só `.admin` e `.cjudge` conseguem
-> baixá-lo. Para todo o resto (inclusive `.cstaff` e times) a API responde **404** — não é uma
-> trava de interface.
+> 🔒 **O caderno é conteúdo de prova.** Antes de publicar, só `.admin` e `.cjudge` o baixam.
+> Publicado, antes do início só os juízes (`.judge`) somam-se a eles. Para a sede e os times a
+> API responde **404** até o início — não é uma trava de interface.
 
 ## 6. Rodadas: aquecimento e prova oficial (Evento › Rodadas — módulo `rodadas`)
 
