@@ -678,7 +678,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (chips, `pickStmtLang` = `?lang=` › `moj_stmt_lang` › default do servidor › interface), treino
   (`problema.js`), sanfona (`contest.js`, troca EM LUGAR em toda sanfona aberta), painel
   `admin/statement-langs-panel.js` (Prova › Problemas e aba 🌐 do chefe), editor (chips PT·EN·ES,
-  título/editor/notas por idioma, Pré-visualizar por idioma e do editorial `kind:"editorial"`).
+  título/editor/notas por idioma, **✂ Separar em seções por idioma** — `SEC_HEAD` escreve `## Input/Output/Notes`,
+  `## Entrada/Salida/Observaciones`; `statementOf(l)` é a fonte única do texto —, Pré-visualizar por idioma e do
+  editorial `kind:"editorial"`).
   Teste: `smoke-statement-langs.sh` (69) + `smoke-statement-chips.gjs.sh` (os chips VOLTAM ao idioma de partida — o clique lê o ativo do DOM, nunca do parâmetro inicial). Regra: **idioma sem tradução cai no PT** em toda ponta;
   a CLI nunca adivinha idioma — só pede o que `statement_langs` listou.
 - **Rodadas do contest** (`lib/contest-rounds.sh` + `handlers/contest/{admin/rounds,rounds,round,

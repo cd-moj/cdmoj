@@ -15,8 +15,12 @@ const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
 let langPicker = null;                                       // restrição de linguagem de submissão por-problema
 let enunEd = null, editEd = null;                            // enunciado (modo single) + resolução/editorial
-let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modulares (lazy, modo "separado")
-let stmtMode = 'single';                                      // 'single' | 'modular'
+// modo "separado" (Descrição/Entrada/Saída/Observações) é POR IDIOMA (pedido do Ribas, 15/09): o PT usa
+// os mounts fixos do HTML (#enunModular); cada tradução ganha o seu bloco, criado ao separar.
+let stmtModeOf = {};                                          // lang -> 'single' | 'modular' (ausente = single)
+let modEds = {};                                              // lang -> {descricao, entrada, saida, observacoes} (CodeMirror)
+let modBoxes = {};                                            // lang -> contêiner das 4 seções (pt = #enunModular)
+let transSingle = {};                                         // lang -> mount do editor único da tradução
 let PENDING_EDITORIAL = '';                                  // editorial carregado, aplicado quando a aba Resolução abre
 // TRADUÇÕES do enunciado/editorial (docs/enunciado.<lang>.md, docs/solucao.<lang>.md, docs/notes/<sample>.<lang>.md,
 // titles{<lang>} no meta): TRANS[lang] = {title, enunciado_md, editorial_md, notes:{sampleN: md}}; a nota
@@ -111,11 +115,16 @@ function showTab(name) {
   if (name === 'hist') loadHistory();        // histórico git é carregado ao abrir a aba
 }
 
-// ---- enunciado: um editor só (padrão) ou seções separadas (opt-in) ------------------------
+// ---- enunciado: um editor só (padrão) ou seções separadas (opt-in), em QUALQUER idioma ---------
 // Template de problema NOVO: já vem com as seções esperadas pelo portão de validação.
 const STMT_TEMPLATE = '(descreva o problema)\n\n## Entrada\n\n(descreva a entrada)\n\n## Saída\n\n(descreva a saída)\n\n## Observações\n\n(restrições e limites)\n';
+// cabeçalhos que cada idioma escreve ao juntar (o validador aceita entrada|input e saída|salida|output)
+const SEC_HEAD = { pt: { entrada: 'Entrada', saida: 'Saída', observacoes: 'Observações' },
+                   en: { entrada: 'Input', saida: 'Output', observacoes: 'Notes' },
+                   es: { entrada: 'Entrada', saida: 'Salida', observacoes: 'Observaciones' } };
+const SEC_KEYS = ['descricao', 'entrada', 'saida', 'observacoes'];
 const noAccent = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
-// divide um enunciado em {descrição, entrada, saída, observações} por cabeçalhos `## ` reconhecidos
+// divide um enunciado em {descrição, entrada, saída, observações} por cabeçalhos `## ` reconhecidos (pt/en/es)
 function splitStatement(md) {
   md = String(md || '').replace(/^\s*%[^\n]*\n?/, '');     // remove "% Título" legado
   const sec = { descricao: [], entrada: [], saida: [], observacoes: [] };
@@ -126,7 +135,7 @@ function splitStatement(md) {
       const t = noAccent(m[1]).toLowerCase();
       let k = null;
       if (/^(entrada|input)\b/.test(t)) k = 'entrada';
-      else if (/^(saida|output)\b/.test(t)) k = 'saida';
+      else if (/^(saida|salida|output)\b/.test(t)) k = 'saida';
       else if (/^(observ|notas|restri|note|constraint)/.test(t)) k = 'observacoes';
       if (k) { cur = k; continue; }    // cabeçalho reconhecido troca de seção (descarta a linha do '##')
     }
@@ -135,41 +144,78 @@ function splitStatement(md) {
   const j = (a) => a.join('\n').replace(/^\n+|\n+$/g, '');
   return { descricao: j(sec.descricao), entrada: j(sec.entrada), saida: j(sec.saida), observacoes: j(sec.observacoes) };
 }
-// recombina os 4 campos num enunciado canônico (omite seções vazias; SEM `% Título`)
-function combineStatement(s) {
-  const p = [];
+// recombina os 4 campos num enunciado canônico no idioma (omite seções vazias; SEM `% Título`)
+function combineStatement(s, lang) {
+  const H = SEC_HEAD[lang] || SEC_HEAD.pt; const p = [];
   if ((s.descricao || '').trim()) p.push(s.descricao.trim());
-  if ((s.entrada || '').trim()) p.push('## Entrada\n\n' + s.entrada.trim());
-  if ((s.saida || '').trim()) p.push('## Saída\n\n' + s.saida.trim());
-  if ((s.observacoes || '').trim()) p.push('## Observações\n\n' + s.observacoes.trim());
+  if ((s.entrada || '').trim()) p.push(`## ${H.entrada}\n\n` + s.entrada.trim());
+  if ((s.saida || '').trim()) p.push(`## ${H.saida}\n\n` + s.saida.trim());
+  if ((s.observacoes || '').trim()) p.push(`## ${H.observacoes}\n\n` + s.observacoes.trim());
   return p.length ? p.join('\n\n') + '\n' : '';
 }
-// enunciado atual conforme o modo — fonte única p/ save, preview e prontidão
-const currentStatement = () => stmtMode === 'modular'
-  ? combineStatement({ descricao: descEd ? descEd.getValue() : '', entrada: entEd ? entEd.getValue() : '',
-                       saida: saiEd ? saiEd.getValue() : '', observacoes: obsEd ? obsEd.getValue() : '' })
-  : (enunEd ? enunEd.getValue() : '');
-async function ensureModularEditors() {
-  if (!descEd) descEd = await createEditor($('descMount'), { doc: '', cm: 'markdown', images: true });
-  if (!entEd) entEd = await createEditor($('entMount'), { doc: '', cm: 'markdown' });
-  if (!saiEd) saiEd = await createEditor($('saiMount'), { doc: '', cm: 'markdown' });
-  if (!obsEd) obsEd = await createEditor($('obsMount'), { doc: '', cm: 'markdown' });
-  ['descMount', 'entMount', 'saiMount', 'obsMount'].forEach(id => $(id).addEventListener('input', updateReady));
+const stmtModeOfLang = (l) => stmtModeOf[l] || 'single';
+// enunciado atual de um idioma conforme o modo — fonte única p/ save, preview, árvore e prontidão
+function statementOf(l) {
+  if (stmtModeOfLang(l) === 'modular' && modEds[l]) {
+    const e = modEds[l]; const s = {}; SEC_KEYS.forEach(k => { s[k] = e[k].getValue(); });
+    return combineStatement(s, l);
+  }
+  if (l === 'pt') return enunEd ? enunEd.getValue() : '';
+  return transEd[l] ? transEd[l].getValue() : (TRANS[l] ? TRANS[l].enunciado_md || '' : '');
+}
+const currentStatement = () => statementOf('pt');
+const transStatement = (l) => statementOf(l);
+// cria (uma vez) os 4 editores do idioma: PT nos mounts fixos do HTML; tradução num bloco próprio
+async function ensureModular(l) {
+  if (modEds[l]) return;
+  let box; const mounts = {};
+  if (l === 'pt') {
+    box = $('enunModular');
+    Object.assign(mounts, { descricao: $('descMount'), entrada: $('entMount'), saida: $('saiMount'), observacoes: $('obsMount') });
+  } else {
+    const H = SEC_HEAD[l] || SEC_HEAD.pt;
+    const field = (k, label, sec) => { mounts[k] = el('div', { class: 'editor-mount' + (sec ? ' sec' : '') }); return el('div', { class: 'field' }, el('label', {}, label), mounts[k]); };
+    box = el('div', {},
+      field('descricao', T('Descrição', 'Description')),
+      field('entrada', T(`Entrada (vira ## ${H.entrada})`, `Input (becomes ## ${H.entrada})`), true),
+      field('saida', T(`Saída (vira ## ${H.saida})`, `Output (becomes ## ${H.saida})`), true),
+      field('observacoes', T(`Observações (vira ## ${H.observacoes}) — opcional`, `Notes (becomes ## ${H.observacoes}) — optional`), true));
+    box.style.display = 'none';
+    (transWrap(l) || $('transEdMounts')).append(box);
+  }
+  modBoxes[l] = box; modEds[l] = {};
+  for (const k of SEC_KEYS) {
+    modEds[l][k] = await createEditor(mounts[k], { doc: '', cm: 'markdown', images: k === 'descricao' });
+    mounts[k].addEventListener('input', l === 'pt' ? updateReady : updatePkgInfo);
+  }
+}
+// mostra o editor certo do idioma ativo (único × separado) e o rótulo do botão
+function showStmtEditors() {
+  const l = curStmtLang, mod = stmtModeOfLang(l) === 'modular', pt = l === 'pt';
+  $('enunMount').style.display = (pt && !mod) ? '' : 'none';
+  $('enunModular').style.display = (pt && mod) ? '' : 'none';
+  if (!pt) {
+    [...$('transEdMounts').children].forEach(d => { d.style.display = d.dataset.lang === l ? '' : 'none'; });
+    if (transSingle[l]) transSingle[l].style.display = mod ? 'none' : '';
+    if (modBoxes[l]) modBoxes[l].style.display = mod ? '' : 'none';
+  }
+  const btn = $('stmtToggle');
+  if (btn) btn.textContent = mod ? T('⊟ Juntar num só', '⊟ Merge into one') : T('✂ Separar em seções', '✂ Split into sections');
 }
 async function toggleStmtMode() {
-  const btn = $('stmtToggle');
-  if (stmtMode === 'single') {
-    await ensureModularEditors();
-    const s = splitStatement(enunEd ? enunEd.getValue() : '');
-    descEd.setValue(s.descricao); entEd.setValue(s.entrada); saiEd.setValue(s.saida); obsEd.setValue(s.observacoes);
-    $('enunMount').style.display = 'none'; $('enunModular').style.display = '';
-    stmtMode = 'modular'; if (btn) btn.textContent = T('⊟ Juntar num só', '⊟ Merge into one');
+  const l = curStmtLang;
+  if (l !== 'pt' && !transEd[l]) return;
+  if (stmtModeOfLang(l) === 'single') {
+    const s = splitStatement(statementOf(l));            // ainda único: lê o texto inteiro
+    await ensureModular(l);
+    SEC_KEYS.forEach(k => modEds[l][k].setValue(s[k]));
+    stmtModeOf[l] = 'modular';
   } else {
-    if (enunEd) enunEd.setValue(currentStatement());   // ainda modo modular -> combina os 4
-    $('enunModular').style.display = 'none'; $('enunMount').style.display = '';
-    stmtMode = 'single'; if (btn) btn.textContent = T('✂ Separar em seções', '✂ Split into sections');
+    const md = statementOf(l);                            // ainda separado: combina os 4
+    (l === 'pt' ? enunEd : transEd[l]).setValue(md);
+    stmtModeOf[l] = 'single';
   }
-  updateReady();
+  showStmtEditors(); updateReady(); updatePkgInfo();
 }
 async function ensureEditorial() {
   if (!editEd) editEd = await createEditor($('editMount'), { doc: PENDING_EDITORIAL || '', cm: 'markdown', images: true });
@@ -199,7 +245,7 @@ function removeTransLang(l) {
   if (!TRANS[l]) return;
   if (!confirm(T(`Remover a tradução ${STMT_SHORT[l]} (enunciado, editorial, explicações e título)? Efetiva ao salvar.`, `Remove the ${STMT_SHORT[l]} translation (statement, editorial, explanations and title)? Applied on save.`))) return;
   delete TRANS[l]; TRANS_REMOVED.add(l);
-  delete transEd[l]; delete transEdEd[l];
+  delete transEd[l]; delete transEdEd[l]; delete modEds[l]; delete modBoxes[l]; delete transSingle[l]; delete stmtModeOf[l];
   [...$('transEdMounts').children].forEach(d => { if (d.dataset.lang === l) d.remove(); });
   [...$('transEdEdMounts').children].forEach(d => { if (d.dataset.lang === l) d.remove(); });
   if (curEdLang === l) curEdLang = 'pt';
@@ -211,23 +257,23 @@ async function switchStmtLang(l) {
   if (curStmtLang !== 'pt' && TRANS[curStmtLang]) TRANS[curStmtLang].title = $('transTitle').value;
   curStmtLang = l; renderStmtLangBar();
   const pt = l === 'pt';
-  $('enunMount').style.display = (pt && stmtMode !== 'modular') ? '' : 'none';
-  $('enunModular').style.display = (pt && stmtMode === 'modular') ? '' : 'none';
-  $('stmtToggle').style.display = pt ? '' : 'none';
   $('transMount').style.display = pt ? 'none' : '';
   $('transHint').style.display = pt ? 'none' : '';
-  if (pt) return;
-  $('transTitle').value = TRANS[l].title || '';
-  $('transTitle').placeholder = $('ptitle').value || 'Hello World';
-  [...$('transEdMounts').children].forEach(d => { d.style.display = d.dataset.lang === l ? '' : 'none'; });
-  if (!transEd[l]) {
-    const m = el('div', { class: 'editor-mount' }); m.dataset.lang = l; m.style.height = '36rem'; m.style.minHeight = '36rem';
-    $('transEdMounts').append(m);
-    transEd[l] = await createEditor(m, { doc: TRANS[l].enunciado_md || '', cm: 'markdown', images: true });
-    m.addEventListener('input', updatePkgInfo);
+  if (!pt) {
+    $('transTitle').value = TRANS[l].title || '';
+    $('transTitle').placeholder = $('ptitle').value || 'Hello World';
+    if (!transEd[l]) {
+      // um EMBRULHO por idioma (dataset.lang): dentro, o editor único e, ao separar, o bloco das 4 seções
+      const wrap = el('div', {}); wrap.dataset.lang = l;
+      const m = el('div', { class: 'editor-mount' }); m.style.height = '36rem'; m.style.minHeight = '36rem';
+      wrap.append(m); $('transEdMounts').append(wrap); transSingle[l] = m;
+      transEd[l] = await createEditor(m, { doc: TRANS[l].enunciado_md || '', cm: 'markdown', images: true });
+      m.addEventListener('input', updatePkgInfo);
+    }
   }
+  showStmtEditors();
 }
-const transStatement = (l) => (transEd[l] ? transEd[l].getValue() : (TRANS[l] ? TRANS[l].enunciado_md || '' : ''));
+const transWrap = (l) => [...$('transEdMounts').children].find(d => d.dataset.lang === l) || null;
 const transEditorial = (l) => (transEdEd[l] ? transEdEd[l].getValue() : (TRANS[l] ? TRANS[l].editorial_md || '' : ''));
 // nota traduzida de cada exemplo: um textarea por idioma dentro do exemplo (aba Testes); a chave é
 // a POSIÇÃO (sampleN), a mesma que o servidor dá aos exemplos ao salvar
@@ -679,7 +725,7 @@ function buildTree() {
     ];
     scrNode = dirNode('scripts/', ...scrKids);
   }
-  const docsKids = [leaf('enunciado.md', stmtMode === 'modular' ? $('descMount') : $('enunMount'), () => switchStmtLang('pt'))];
+  const docsKids = [leaf('enunciado.md', stmtModeOfLang('pt') === 'modular' ? $('descMount') : $('enunMount'), () => switchStmtLang('pt'))];
   transLangs().forEach(l => docsKids.push(leaf(`enunciado.${l}.md`, $('transMount'), () => { showTab('enun'); switchStmtLang(l); })));
   // notas: docs/notes/<sample>.md (PT) e <sample>.<lang>.md (traduzidas) — o formato de autoria (não há mais JSON)
   const noteKids = [];
@@ -741,12 +787,12 @@ async function renderForm(d) {
   // automaticamente pois itera LANGUAGES). Picker vazio no save = [] = irrestrito.
   langPicker = makeLangPicker(d.languages || []);
   $('plangs').innerHTML = ''; $('plangs').append(langPicker.el);
-  // enunciado: volta sempre p/ o modo "um editor só"; problema NOVO já vem com o template de seções
-  stmtMode = 'single';
+  // enunciado: volta sempre p/ o modo "um editor só" (em todo idioma); problema NOVO já vem com o
+  // template de seções. Os editores PT das seções ficam (mounts fixos); os das traduções vão com o DOM.
+  stmtModeOf = {}; Object.keys(modEds).forEach(l => { if (l !== 'pt') { delete modEds[l]; delete modBoxes[l]; } }); transSingle = {};
   $('enunMount').style.display = ''; $('enunModular').style.display = 'none';
   if ($('stmtToggle')) $('stmtToggle').textContent = T('✂ Separar em seções', '✂ Split into sections');
-  ['descMount', 'entMount', 'saiMount', 'obsMount'].forEach(id => { $(id).innerHTML = ''; });
-  descEd = entEd = saiEd = obsEd = null;
+  if (modEds.pt) SEC_KEYS.forEach(k => modEds.pt[k].setValue(''));
   const initMd = (d.enunciado_md && d.enunciado_md.trim()) ? d.enunciado_md : (MODE === 'new' ? STMT_TEMPLATE : '');
   $('enunMount').innerHTML = '';
   enunEd = await createEditor($('enunMount'), { doc: initMd, cm: 'markdown', images: true });
