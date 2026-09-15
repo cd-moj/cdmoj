@@ -39,7 +39,8 @@ function renderTabela() {
       el('th', { style: 'width:9rem' }, T('Linguagem', 'Language')),
       el('th', {}, T('Observação', 'Notes')))),
     el('tbody', {}, ...DEFAULT_SUBMIT_LANGUAGES.map((l) => el('tr', {},
-      el('td', {}, el('code', {}, l.id)),
+      el('td', {}, el('code', {}, l.id), ...((l.exts || []).length > 1
+        ? [el('div', { class: 'small muted' }, (l.exts || []).map((e) => '.' + e).join(', '))] : [])),
       el('td', {}, l.label),
       el('td', {}, nota[l.id] || '')))));
   document.getElementById('langTable').append(tb);

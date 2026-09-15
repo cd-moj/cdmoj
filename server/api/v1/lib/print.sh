@@ -289,7 +289,7 @@ _pr_text2pdf() {  # <src> <out.pdf> <nome-do-arquivo> <rodapé> <workdir> [<err>
   # ⚠ CURTO: a data que o paps escreve à esquerda come metade da linha, a fonte do cabeçalho é
   # FIXA (não acompanha o `--font`) e um título de mais de ~14 caracteres SOBREPÕE a data —
   # medido. Por isso o login do time não cabe aqui: ele vai no rodapé, logo abaixo.
-  name="$(basename -- "${name:-arquivo}" | tr -cd 'A-Za-z0-9._-')"; [[ -n "$name" ]] || name=arquivo
+  name="$(basename -- "${name:-arquivo}" | tr -cd 'A-Za-z0-9._+-')"; [[ -n "$name" ]] || name=arquivo   # + p/ sol.c++
   enc="$(file -b --mime-encoding "$src" 2>/dev/null)"
   { case "$enc" in
       utf-8|us-ascii|'') cat "$src" ;;

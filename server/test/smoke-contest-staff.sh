@@ -72,6 +72,8 @@ ck "nada de traversal na etiqueta"                 '[[ "$(prname "../../etc/pass
 ck "nome que zera não fica vazio"                  '[[ "$(prname "()")" == "arquivo" ]]'
 call /contest/staff/queue GET '' adm 'contest=sc'
 ck "os quatro entram na fila (+ o pr1 do fixture)" '[[ "$(jq -r "[.requests[]|select(.login==\"aluno2\" and .kind==\"print\")]|length" <<<"$BODY")" == 5 ]]'
+ck "sol.c++ mantém o + na etiqueta"                '[[ "$(prname "sol.c++")" == "sol.c++" ]]'
+call /contest/staff/queue GET '' adm 'contest=sc'
 # o anexo cru volta com o nome na Content-Disposition — espaço dentro de aspas é válido (RFC 6266)
 PRID="$(jq -r '[.requests[]|select(.filename=="minha sol 2.cpp")][0].id' <<<"$BODY")"
 RAW="$(PATH_INFO=/contest/print-file REQUEST_METHOD=GET QUERY_STRING="contest=sc&id=$PRID" \

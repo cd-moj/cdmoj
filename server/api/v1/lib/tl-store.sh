@@ -30,7 +30,7 @@ _TL_SUM_PROG='{
    at:(.updated_at // null), checksum:(.checksum // ""),
    tl:([.hosts[].tl // {}]
        | reduce (.[]|to_entries[]) as $e ({};
-           ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+           ($e.key | if .=="py3" or .=="py2" then "py" elif .=="cc" or .=="cxx" or .=="c++" or .=="hpp" then "cpp" elif .=="h" then "c" else . end) as $k
            | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max))
        | with_entries(.value|=tostring)) }'
 _VAL_SUM_PROG='{ok:.ok, checks:(.checks // []), at:(.at // null),
@@ -155,7 +155,7 @@ tl_store_record(){
   ( umask 077; jq -n --argjson cur "$cur" --arg id "$id" --arg h "$host" \
       --arg cks "$cks" --argjson tl "$tl" --argjson now "$EPOCHSECONDS" '
       ($tl | reduce to_entries[] as $e ({};
-         ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+         ($e.key | if .=="py3" or .=="py2" then "py" elif .=="cc" or .=="cxx" or .=="c++" or .=="hpp" then "cpp" elif .=="h" then "c" else . end) as $k
          | .[$k] = (if has($k) and ((.[$k]|tonumber? // 0) >= ($e.value|tonumber? // 0))
                     then .[$k] else $e.value end))) as $ntl
       | ($cur.checksum // "") as $old
@@ -176,7 +176,7 @@ tl_store_served_for(){
     if (.checksum // "") != $cks or ((.hosts // {})|length)==0 then {}
     else [ .hosts[].tl // {} ]
          | reduce (.[]|to_entries[]) as $e ({};
-             ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+             ($e.key | if .=="py3" or .=="py2" then "py" elif .=="cc" or .=="cxx" or .=="c++" or .=="hpp" then "cpp" elif .=="h" then "c" else . end) as $k
              | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max))
          | with_entries(.value |= tostring)
     end' "$f" 2>/dev/null || echo '{}'
@@ -193,7 +193,7 @@ tl_store_served_hosts(){
     | if (.checksum // "") != $cks then {}
       else [ (.hosts // {}) | to_entries[] | select(.key as $h | $want|index($h)) | .value.tl // {} ]
            | reduce (.[]|to_entries[]) as $e ({};
-               ($e.key | if .=="py3" or .=="py2" then "py" else . end) as $k
+               ($e.key | if .=="py3" or .=="py2" then "py" elif .=="cc" or .=="cxx" or .=="c++" or .=="hpp" then "cpp" elif .=="h" then "c" else . end) as $k
                | .[$k]=([(.[$k]//0),($e.value|tonumber? // 0)]|max))
            | with_entries(.value |= tostring)
       end' "$f" 2>/dev/null || echo '{}'
@@ -214,7 +214,7 @@ tl_conf_overrides(){
   sed -nE 's/^[[:space:]]*TLOVERRIDE\[([A-Za-z0-9]{1,16})\]=([0-9]+\.?[0-9]*|\.[0-9]+)[[:space:]]*(#.*)?$/\1\t\2/p' \
       "$conf" 2>/dev/null \
     | jq -Rnc '[inputs | split("\t") | select(length==2)
-                | {((.[0] | if .=="py3" or .=="py2" then "py" else . end)): .[1]}]
+                | {((.[0] | if .=="py3" or .=="py2" then "py" elif .=="cc" or .=="cxx" or .=="c++" or .=="hpp" then "cpp" elif .=="h" then "c" else . end)): .[1]}]
                | add // {}'
 }
 # tl_override_apply <tl-json> <ov-json> -> TL efetivo: p/ cada linguagem (união das chaves),

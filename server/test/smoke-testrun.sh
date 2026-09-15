@@ -38,6 +38,8 @@ call /problems/test-run POST out "" "{\"id\":\"col#pa\",\"filename\":\"a.c\",\"c
 ck "não-membro: 404 opaco"          'grep -q "not_found" <<<"$BODY"'
 call /problems/test-run POST aut "" "{\"id\":\"col#pa\",\"filename\":\"a.exe\",\"code_b64\":\"$B64\"}"
 ck ".exe recusado (plataforma)"     'grep -q "lang_not_allowed" <<<"$BODY"'
+call /problems/test-run POST aut "" "{\"id\":\"col#pa\",\"filename\":\"a.cc\",\"code_b64\":\"$B64\"}"
+ck ".cc aceito (C++ canônico)"      '! grep -q "lang_not_allowed" <<<"$BODY"'
 
 echo "== POST: registro + job na banda lista-privada com sentinela _testrun =="
 call /problems/test-run POST aut "" "{\"id\":\"col#pa\",\"filename\":\"a.c\",\"code_b64\":\"$B64\"}"

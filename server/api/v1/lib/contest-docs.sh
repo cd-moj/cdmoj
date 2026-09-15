@@ -286,8 +286,10 @@ _doc_langs_table(){
   for x in $langs; do arr+=( "$x" ); done
   for i in "${!arr[@]}"; do
     st="$_DOC_TD"; (( i == ${#arr[@]} - 1 )) && st="$_DOC_TD_LAST"
-    printf '<tr><td %s>%s</td><td %s><code>.%s</code></td></tr>' \
-      "$st" "$(_doc_escs "$(_doc_lang_name "${arr[$i]}")")" "$st" "$(_doc_escs "${arr[$i]}")"
+    # C++ aceita quatro extensões (2026-09-14): a folha diz ao time o que pode mandar
+    local _exts=".${arr[$i]}"; [[ "${arr[$i]}" == cpp ]] && _exts=".cpp, .cc, .cxx, .c++"
+    printf '<tr><td %s>%s</td><td %s><code>%s</code></td></tr>' \
+      "$st" "$(_doc_escs "$(_doc_lang_name "${arr[$i]}")")" "$st" "$(_doc_escs "$_exts")"
   done
   printf '</tbody></table>'
 }

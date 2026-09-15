@@ -5,7 +5,11 @@
 # o filtro do dropdown na web é só conveniência.
 
 # _lang_canon <token> -> id canônico minúsculo (mesma tabela do acervo: problem-stats,
-# write_meta): variantes de C++ fundem em cpp, H em c, PY3/PY2 legado em py.
+# write_meta; gêmea de mojtools/lang-canon.sh): variantes de C++ (cc, cxx, c++, hpp) fundem em
+# cpp, H em c, PY3/PY2 legado em py. `lang_canon_ext` é o nome público: a PORTA (/submit,
+# offline-submit, test-run) grava no spool/history a linguagem CANÔNICA, não a extensão crua —
+# antes `sol.cc` entrava como lang "CC", nenhum juiz anunciava `cc` (90 s de LANG_GRACE) e o
+# julgador morria em "Language 'cc' not availale" (pedido do Ribas, 2026-09-14).
 _lang_canon(){ local t; t="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
   case "$t" in
     c++|cc|cxx|hpp) printf 'cpp';;
@@ -13,6 +17,7 @@ _lang_canon(){ local t; t="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
     py3|py2)        printf 'py';;
     *)              printf '%s' "$t";;
   esac; }
+lang_canon_ext(){ _lang_canon "$1"; }
 
 # PLATFORM_LANGS — as linguagens que a PLATAFORMA roda (espelho de mojtools/lang/, menos o
 # alias py3). É o CHÃO da whitelist: lista efetiva vazia significa "estas", nunca "qualquer

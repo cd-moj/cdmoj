@@ -41,7 +41,7 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 fn="$(jq -r '.filename // empty' <<<"$body")"
 fb="$(jq -r '.file_b64 // empty' <<<"$body")"
 [[ -n "$fn" && -n "$fb" ]] || fail 422 "Informe filename e file_b64" "missing"
-safe="$(basename "$fn" | tr -cd 'A-Za-z0-9._ -')"; safe="${safe## }"; [[ -n "$safe" ]] || safe="arquivo"
+safe="$(basename "$fn" | tr -cd 'A-Za-z0-9._+ -')"; safe="${safe## }"; [[ -n "$safe" ]] || safe="arquivo"   # + p/ sol.c++
 
 mkdir -p "$dir"
 id="$(printf '%s%s%s' "$EPOCHSECONDS" "$RANDOM" "$login" | md5sum | cut -c1-20)"

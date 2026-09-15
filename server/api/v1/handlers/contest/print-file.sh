@@ -24,7 +24,7 @@ if [[ "$owner" != "$SESSION_LOGIN" ]]; then
 fi
 
 name="$(jq -r '.filename // "arquivo"' "$meta" 2>/dev/null)"
-safe="$(basename "$name" | tr -cd 'A-Za-z0-9._ -')"; [[ -n "$safe" ]] || safe="arquivo"
+safe="$(basename "$name" | tr -cd 'A-Za-z0-9._+ -')"; [[ -n "$safe" ]] || safe="arquivo"
 mime="$(jq -r '.mime // "application/octet-stream"' "$meta" 2>/dev/null)"
 
 audit_log_to "$contest" print-download "seq=$seq by=$SESSION_LOGIN owner=$owner id=$id"

@@ -95,10 +95,10 @@ while (( i < NP )); do
   chainnote=""
   [[ -n "$lastsha" && "$prevsha" != "$lastsha" ]] && chainnote=" chain_mismatch"
 
-  # extensão -> tipo (como no submit.sh)
+  # extensão -> linguagem CANÔNICA em maiúsculas (como no submit.sh: .cc/.cxx/.c++ -> CPP)
   ext="${filename##*.}"
   if [[ "$ext" == "$filename" || -z "$ext" ]]; then FILETYPE="TXT"
-  else FILETYPE="$(printf '%s' "$ext" | tr '[:lower:]' '[:upper:]')"; fi
+  else FILETYPE="$(lang_canon_ext "$ext" | tr '[:lower:]' '[:upper:]')"; fi
 
   ID="$(printf '%s%s%s%s%s' "$contest" "$claimed" "$SESSION_LOGIN" "$problem" "$RANDOM" | md5sum | cut -d' ' -f1)"
   mkdir -p "$SPOOLDIR"

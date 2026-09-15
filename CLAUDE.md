@@ -981,6 +981,14 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   ÚNICA em **`lib/langs.sh`** (`effective_problem_langs`/`lang_allowed`) e é **FORÇADA no
   `/submit` e no `/contest/offline-submit`** (`400 lang_not_allowed`, extensão canonicalizada
   py3→py/cc→cpp) — a listagem `contest/problems.sh` usa a mesma função; o dropdown é só
+  conveniência. **A PORTA grava a linguagem CANÔNICA** (`lang_canon_ext`, 2026-09-14): `/submit`,
+  `offline-submit` e `test-run` mandam `lang:"CPP"` p/ `.cpp/.cc/.cxx/.c++` (e `.hpp`), `C` p/
+  `.h`, `PY` p/ `.py3` — spool, history, archive, TL, auto-verdicts e roteamento por linguagem
+  veem só o canônico (antes `lang:"CC"` não casava juiz nenhum e morria em "Language 'cc' not
+  availale"). O `filename` do aluno fica intacto; quem renomeia a cópia de trabalho é o
+  `mojtools/build-and-test.sh` (gêmeo `mojtools/lang-canon.sh`). Normalizadores de chave de TL
+  (`tl-store.sh`, `calib.sh`, `preflight.sh`) usam a mesma função. Teste: seção "C++" do
+  `smoke-submit-pipeline.sh`. Era assim (2026-07-22): o dropdown é só
   conveniência (2026-07-22; antes era decorativa e trocar a extensão burlava o ban de função). **Linguagens EXÓTICAS/custom** (`pddl`, `grepe` do curso de compiladores,
   `sas`/`l`/`lpp`/`downward`, …) são **opt-in** em `web/shared/languages.js` (flag `optIn`): NÃO
   aparecem no dropdown por padrão — só quando o problema as **declara** em `languages`. Um id

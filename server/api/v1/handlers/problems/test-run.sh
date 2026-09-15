@@ -53,7 +53,7 @@ if [[ "${REQUEST_METHOD:-GET}" == POST ]]; then
   source "$_DIR/lib/langs.sh"
   ext="${filename##*.}"
   if [[ "$ext" == "$filename" || -z "$ext" ]]; then FILETYPE="TXT"
-  else FILETYPE="$(printf '%s' "$ext" | tr '[:lower:]' '[:upper:]')"; fi
+  else FILETYPE="$(lang_canon_ext "$ext" | tr '[:lower:]' '[:upper:]')"; fi   # .cc/.cxx/.c++ -> CPP
   pkg_langs="$(jq -c '.languages // []' "$pkg/.moj-meta.json" 2>/dev/null)"
   [[ -n "$pkg_langs" ]] || pkg_langs='[]'
   allowed="$(jq -cn --argjson a "$(platform_langs_json)" --argjson b "$pkg_langs" '($a + $b) | unique')"

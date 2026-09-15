@@ -12,7 +12,8 @@ A página ensina o mesmo que este arquivo ensinava, e é onde o conteúdo passa 
 
 1. **Entrada e saída**: o programa lê do stdin, escreve no stdout e nunca abre arquivo.
 2. **A extensão é a linguagem**: pelo editor, o menu decide (o código vira `solution.<ext>`); por
-   arquivo, a extensão do arquivo decide e o menu é ignorado.
+   arquivo, a extensão do arquivo decide e o menu é ignorado. C++ aceita `.cpp`, `.cc`, `.cxx` e
+   `.c++`. O MOJ grava a linguagem canônica (`cpp`) e mantém o nome do seu arquivo.
 3. **Tabela de linguagens**, com o `id` (que é a extensão) e a observação de cada uma.
 4. **Template de código de cada linguagem**: o esqueleto que o editor entrega e uma solução completa,
    com botão de copiar.

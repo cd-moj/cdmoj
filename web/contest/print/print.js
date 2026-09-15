@@ -52,7 +52,7 @@ async function loadList() {
 
 function render() {
   app.innerHTML = '';
-  const fileInput = el('input', { type: 'file', accept: '.pdf,.txt,.c,.cpp,.cc,.py,.java,.js,.png,.jpg,.jpeg,.gif,image/*,text/*,application/pdf' });
+  const fileInput = el('input', { type: 'file', accept: '.pdf,.txt,.c,.cpp,.cc,.cxx,.c++,.py,.java,.js,.png,.jpg,.jpeg,.gif,image/*,text/*,application/pdf' });
   const msg = el('span', { class: 'submit-steps' });
   const btn = el('button', { class: 'btn', type: 'button' }, T('Pedir impressão', 'Request printing'));
   btn.addEventListener('click', async () => {

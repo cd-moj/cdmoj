@@ -30,9 +30,10 @@ fi
 # da API vale aqui -> uso find, não glob.
 pkg="$(pkg_path "$id")"; goodlangs='[]'
 if [[ -n "$pkg" && -d "$pkg/sols/good" ]]; then
-  # extensões py2/py3 legadas contam como 'py' (python unificado)
+  # extensão -> linguagem canônica (lang_canon_ext: py2/py3 = py, cc/cxx/c++ = cpp), a chave do TL
+  declare -F lang_canon_ext >/dev/null || source "$_LIBDIR/langs.sh"
   goodlangs="$(find "$pkg/sols/good" -maxdepth 1 -type f 2>/dev/null \
-    | while IFS= read -r gf; do e="${gf##*.}"; case "$e" in py2|py3) e=py;; esac; [[ "$e" != "$gf" ]] && echo "$e"; done \
+    | while IFS= read -r gf; do e="${gf##*.}"; [[ "$e" != "$gf" ]] && { lang_canon_ext "$e"; echo; }; done \
     | LC_ALL=C sort -u | jq -Rsc 'split("\n")|map(select(length>0))')"
   [[ -n "$goodlangs" ]] || goodlangs='[]'
 fi

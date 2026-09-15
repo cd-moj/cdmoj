@@ -12,6 +12,7 @@ is_admin_or_chief || fail 403 "Apenas o admin ou o juiz-chefe" "admin_required"
 source "$_DIR/../../judge-gw/sched-lib.sh"
 source "$_DIR/lib/tl-store.sh"
 source "$_LIBDIR/contest-gate.sh"
+source "$_LIBDIR/langs.sh"          # lang_canon_ext (cc/cxx/c++ = cpp, py3 = py) p/ a whitelist
 
 now="$EPOCHSECONDS"
 cdir="$CONTESTSDIR/$contest"
@@ -151,7 +152,7 @@ langs_lc="$(printf '%s' "${LANGUAGES:-}" | tr '[:upper:]' '[:lower:]')"
 if [[ -n "$langs_lc" ]]; then
   missing=""
   # confs antigos podem ter py3/py2 na whitelist; os juízes anunciam 'py' (python unificado)
-  langs_lc="$(printf '%s\n' $langs_lc | sed 's/^py[23]$/py/' | sort -u | paste -sd' ' -)"
+  langs_lc="$(for _l in $langs_lc; do lang_canon_ext "$_l"; echo; done | sort -u | paste -sd' ' -)"
   for l in $langs_lc; do
     jq -e --arg l "$l" 'any(.[]; .langs | index($l))' >/dev/null 2>&1 <<<"$judges_eff" || missing+=" $l"
   done

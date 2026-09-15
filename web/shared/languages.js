@@ -6,7 +6,7 @@
 // As normais (sem optIn) formam DEFAULT_SUBMIT_LANGUAGES, oferecidas p/ todo problema irrestrito.
 export const LANGUAGES = [
   { id: 'c',     label: 'C',            cm: 'cpp',        template: '#include <stdio.h>\n\nint main(void) {\n    \n    return 0;\n}\n' },
-  { id: 'cpp',   label: 'C++',          cm: 'cpp',        template: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n' },
+  { id: 'cpp',   label: 'C++',          cm: 'cpp',        exts: ['cpp', 'cc', 'cxx', 'c++'], template: '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    \n    return 0;\n}\n' },
   { id: 'py',    label: 'Python',       cm: 'python',     template: 'import sys\ninput = sys.stdin.readline\n\ndef main():\n    pass\n\nif __name__ == "__main__":\n    main()\n' },
   { id: 'java',  label: 'Java',         cm: 'java',       template: 'import java.util.*;\nimport java.io.*;\n\nclass Main {\n    public static void main(String[] args) {\n        \n    }\n}\n' },
   { id: 'kt',    label: 'Kotlin',       cm: 'kotlin',     template: 'import java.io.BufferedReader\nimport java.io.InputStreamReader\n\nfun main() {\n    val br = BufferedReader(InputStreamReader(System.`in`))\n    \n}\n' },
@@ -41,7 +41,7 @@ export const langById = (id) =>
 // rótulo amigável a partir do id/EXTENSÃO gravado no history (py3/cc/bash/…). Desconhecido fica
 // literal — NUNCA usar o fallback generoso do langByExt aqui, que viraria "C". Fonte única
 // (estatística do treino, todas as submissões do contest, juiz legado).
-export const LANG_ALIAS = { bash: 'sh', python: 'py', kts: 'kt', cc: 'cpp', cxx: 'cpp', py3: 'py', py2: 'py' };
+export const LANG_ALIAS = { bash: 'sh', python: 'py', kts: 'kt', cc: 'cpp', cxx: 'cpp', 'c++': 'cpp', hpp: 'cpp', h: 'c', py3: 'py', py2: 'py' };
 export const langLabel = (id) => { const e = String(id || '').toLowerCase(); return e ? langById(LANG_ALIAS[e] || e).label : ''; };
 // canon ESTRITO de extensão p/ conferir com a whitelist `languages` de um problema —
 // espelha o lib/langs.sh do servidor (que APLICA a whitelist no /submit). O langByExt

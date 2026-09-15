@@ -66,6 +66,23 @@ ck "sem traversal no nome"         '[[ "$(spname "$(subid)")" == "passwd.c" ]]'
 call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"Solução.c\",\"code_b64\":\"$B64C\"}"
 ck "acento sobrevive"              '[[ "$(spname "$(subid)")" == "Solução.c" ]]'
 
+echo "== C++ = .cpp, .cc, .cxx, .c++ (linguagem CANÔNICA no spool; nome do aluno intacto) =="
+splang(){ SPN="$(ls -t "$SPOOLDIR" | grep ":$1:" | head -1)"; jq -r '.lang' "$SPOOLDIR/$SPN" 2>/dev/null; }
+printf '%s' '{"col#pa":["cpp"]}' > "$C/problem-langs.json"
+for e in cpp cc cxx c++ CPP; do
+  call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"sol.$e\",\"code_b64\":\"$B64C\"}"
+  ck ".$e aceito com lista [cpp]"   'grep -q "\"success\":true" <<<"$BODY"'
+  ck ".$e -> lang CPP no spool"      '[[ "$(splang "$(subid)")" == CPP ]]'
+  ck ".$e mantém o nome sol.$e"      '[[ "$(spname "$(subid)")" == "sol.$e" ]]'
+done
+ck "spool name leva CPP (roteia p/ juiz cpp)" '[[ "$(ls -t "$SPOOLDIR" | grep ":$(subid):" | head -1)" == *:CPP ]]'
+printf '%s' '{"col#pa":["c"]}' > "$C/problem-langs.json"
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"sol.cc\",\"code_b64\":\"$B64C\"}"
+ck "lista [c] recusa .cc"          'grep -q "lang_not_allowed" <<<"$BODY" && grep -q "\.cc" <<<"$BODY"'
+call /submit POST "{\"problem_id\":\"col#pa\",\"filename\":\"sol.h\",\"code_b64\":\"$B64C\"}"
+ck ".h entra como C"               '[[ "$(splang "$(subid)")" == C ]]'
+rm -f "$C/problem-langs.json"
+
 echo "== ARG_MAX: fonte de 200 KiB tem de virar spool VÁLIDO (a regressão do incidente) =="
 { printf '// fonte grande\nint main(){return 0;}\n'; head -c 204800 /dev/zero | tr '\0' 'x'; } > "$FIX/big.c"
 B64BIG="$(base64 -w0 "$FIX/big.c")"
