@@ -629,7 +629,12 @@ function renderBrowse() {
     const isS = solved.has(p.id), isA = attempted.has(p.id) && !isS;
     const cells = [
       el('td', { class: 'stc' + (isS ? ' v-ok' : isA ? ' v-warn' : '') }, isS ? '✓' : (isA ? '…' : '')),
-      el('td', {}, el('a', { href: probURL(p.id) }, p.title || p.id)),
+      el('td', {}, el('a', { href: probURL(p.id) }, p.title || p.id),
+        // enunciado em mais de um idioma: selo discreto "EN ES" (o idioma se escolhe na página do problema)
+        (Array.isArray(p.statement_langs) && p.statement_langs.length > 1)
+          ? el('span', { class: 'stmt-badge', title: T('Enunciado também em: ', 'Statement also in: ') + p.statement_langs.filter((l) => l !== 'pt').join(', ') },
+              p.statement_langs.filter((l) => l !== 'pt').map((l) => l.toUpperCase()).join(' '))
+          : null),
       el('td', { class: 'hide-m' }, (p.collections || []).map((c) => el('a', {
         class: 'collection', href: '?searchcol=' + encodeURIComponent(String(c)),
         onclick: (e) => { e.preventDefault(); addCollByName(c); },

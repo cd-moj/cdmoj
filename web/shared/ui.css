@@ -176,6 +176,16 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 
 /* time limits (chips) na página do problema */
 .tl-block { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-top:.7rem; }
+/* chips de IDIOMA DO ENUNCIADO (shared/statement-langs.js): treino, sanfona do contest, editor.
+   Ativo = cheio; os outros = contorno. Vazio quando o problema tem um idioma só. */
+.stmt-chips { display:inline-flex; gap:.3rem; align-items:center; flex-wrap:wrap; }
+.stmt-chip { border:1px solid var(--blue-dark); background:#fff; color:var(--blue-dark); font-weight:700;
+  font-size:.74rem; letter-spacing:.03em; padding:.08rem .55rem; border-radius:999px; cursor:pointer; line-height:1.5; }
+.stmt-chip:hover { background:var(--blue-soft); }
+.stmt-chip.active { background:var(--blue-dark); color:#fff; cursor:default; }
+.stmt-chip.add { border-style:dashed; font-weight:600; }
+.stmt-badge { display:inline-block; margin-left:.4rem; font-size:.68rem; font-weight:700; letter-spacing:.04em;
+  color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 .3rem; vertical-align:middle; }
 .tl-label { font-size:.82rem; font-weight:700; color:var(--blue-dark); margin-right:.15rem; }
 .tl-chip { display:inline-flex; align-items:center; gap:.45rem; background:#fafcff; border:1px solid var(--line);
   border-radius:999px; padding:.18rem .65rem; font-size:.82rem; }

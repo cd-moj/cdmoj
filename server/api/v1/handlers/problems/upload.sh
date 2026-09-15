@@ -88,9 +88,11 @@ owner="$(problem_owner "$id")"; [[ -n "$owner" ]] || owner="$SESSION_LOGIN"
 # PASTA, sem coleção e SEM WHITELIST de linguagem (languages [] = todas — furava o ban de função):
 # o write_meta só PRESERVA o que o servidor já tem, e problema novo não tem nada — e o
 # .moj-meta.json do tar, que traz os valores certos, tinha acabado de ser descartado pelo --exclude.
-tar_title=""; tar_colls=""; tar_langs=""
+tar_title=""; tar_colls=""; tar_langs=""; tar_titles=""
 if [[ -f "$src/.moj-meta.json" ]] && jq -e . "$src/.moj-meta.json" >/dev/null 2>&1; then
   tar_title="$(jq -r '.display_title // empty' "$src/.moj-meta.json" 2>/dev/null)"
+  tar_titles="$(jq -c '(.titles // {}) | with_entries(select((.value|type)=="string"))' "$src/.moj-meta.json" 2>/dev/null)"
+  [[ "$tar_titles" == "{}" ]] && tar_titles=""    # sem titles no tar => não mexe nos do servidor
   tar_colls="$(jq -c '[.collections[]? | select(type=="string")]' "$src/.moj-meta.json" 2>/dev/null)"
   [[ "$tar_colls" == "[]" ]] && tar_colls=""      # sem coleção no tar => não mexe nas do servidor
   tar_langs="$(jq -c '[.languages[]? | select(type=="string")]' "$src/.moj-meta.json" 2>/dev/null)"
@@ -103,7 +105,7 @@ if [[ -n "$tar_colls" ]]; then
     coll_exists "$cn" || fail 400 "Coleção '$cn' não existe — crie antes (moj collection create)" "coll_unknown"
   done < <(jq -r '.[]?' <<<"$tar_colls")
 fi
-write_meta "$pdir" "$owner" "$org" "$pub_srv" "$tar_colls" "$tar_title" "$tar_langs"   # public: o do SERVIDOR
+write_meta "$pdir" "$owner" "$org" "$pub_srv" "$tar_colls" "$tar_title" "$tar_langs" "$tar_titles"   # public: o do SERVIDOR
 _pkg_canon_modes "$pdir"   # 644/755 — o mesmo modo do caminho do push (o tl-checksum inclui o modo)
 [[ -f "$pdir/problem.yaml" ]] || bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true
 

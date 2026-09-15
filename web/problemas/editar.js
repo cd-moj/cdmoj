@@ -9,6 +9,7 @@ import { createEditor } from '/shared/editor.js';
 import { makeLangPicker } from '/shared/contest-config/lang-picker.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
+import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
@@ -17,6 +18,12 @@ let enunEd = null, editEd = null;                            // enunciado (modo 
 let descEd = null, entEd = null, saiEd = null, obsEd = null;  // editores modulares (lazy, modo "separado")
 let stmtMode = 'single';                                      // 'single' | 'modular'
 let PENDING_EDITORIAL = '';                                  // editorial carregado, aplicado quando a aba Resolução abre
+// TRADUÇÕES do enunciado/editorial (docs/enunciado.<lang>.md, docs/solucao.<lang>.md, docs/notes/<sample>.<lang>.md,
+// titles{<lang>} no meta): TRANS[lang] = {title, enunciado_md, editorial_md, notes:{sampleN: md}}; a nota
+// traduzida vive no DOM do exemplo (.exexpl-l[data-lang]) e é colhida no save; idioma removido vai como null.
+let TRANS = {}; const TRANS_REMOVED = new Set();
+let curStmtLang = 'pt', curEdLang = 'pt';                     // idioma ativo na aba Enunciado / Resolução
+let transEd = {}, transEdEd = {};                             // lang -> CodeMirror (enunciado / editorial traduzidos)
 let scrEntries = [];   // scripts/ (correção especial) — EDITÁVEL na sub-aba "⚙ correção" (Soluções & Correção) via `scripts_files` (round-trip completo: conteúdo/exec/symlink; binário preservado)
 let SCR_TEMPLATES = null;   // cache de GET /problems/script-templates (carrega 1x)
 let COLLS = [];
@@ -100,7 +107,7 @@ function setupTabs() {
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   document.querySelectorAll('.tabpane').forEach(p => { p.hidden = (p.dataset.pane !== name); });
-  if (name === 'resol') ensureEditorial();   // editor da resolução é carregado ao abrir a aba
+  if (name === 'resol') { ensureEditorial(); renderEdLangBar(); }   // editor da resolução é carregado ao abrir a aba
   if (name === 'hist') loadHistory();        // histórico git é carregado ao abrir a aba
 }
 
@@ -168,6 +175,125 @@ async function ensureEditorial() {
   if (!editEd) editEd = await createEditor($('editMount'), { doc: PENDING_EDITORIAL || '', cm: 'markdown', images: true });
 }
 
+// ---- idiomas do enunciado (traduções) --------------------------------------------------------
+const transLangs = () => STMT_LANGS.filter(l => l !== 'pt' && TRANS[l]);
+function stmtChip(l, active, onclick, add) {
+  const b = el('button', { type: 'button', class: 'stmt-chip' + (active ? ' active' : '') + (add ? ' add' : ''),
+    title: add ? T('adicionar ', 'add ') + stmtName(l) : stmtName(l), onclick }, (add ? '+ ' : '') + STMT_SHORT[l]);
+  return b;
+}
+function renderStmtLangBar() {
+  const bar = $('stmtLangBar'); if (!bar) return; bar.innerHTML = '';
+  bar.append(stmtChip('pt', curStmtLang === 'pt', () => switchStmtLang('pt')));
+  STMT_LANGS.filter(l => l !== 'pt').forEach(l => {
+    if (TRANS[l]) bar.append(stmtChip(l, curStmtLang === l, () => switchStmtLang(l)));
+    else bar.append(stmtChip(l, false, () => { addTransLang(l); switchStmtLang(l); }, true));
+  });
+}
+function addTransLang(l) {
+  if (TRANS[l]) return;
+  TRANS[l] = { title: '', enunciado_md: '', editorial_md: '', notes: {} }; TRANS_REMOVED.delete(l);
+  refreshExampleTrans(); renderEdLangBar(); updatePkgInfo();
+}
+function removeTransLang(l) {
+  if (!TRANS[l]) return;
+  if (!confirm(T(`Remover a tradução ${STMT_SHORT[l]} (enunciado, editorial, explicações e título)? Efetiva ao salvar.`, `Remove the ${STMT_SHORT[l]} translation (statement, editorial, explanations and title)? Applied on save.`))) return;
+  delete TRANS[l]; TRANS_REMOVED.add(l);
+  delete transEd[l]; delete transEdEd[l];
+  [...$('transEdMounts').children].forEach(d => { if (d.dataset.lang === l) d.remove(); });
+  [...$('transEdEdMounts').children].forEach(d => { if (d.dataset.lang === l) d.remove(); });
+  if (curEdLang === l) curEdLang = 'pt';
+  switchStmtLang('pt'); refreshExampleTrans(); renderEdLangBar(); updatePkgInfo();
+}
+async function switchStmtLang(l) {
+  if (l !== 'pt' && !TRANS[l]) l = 'pt';
+  // guarda o título do idioma que sai (o campo é compartilhado)
+  if (curStmtLang !== 'pt' && TRANS[curStmtLang]) TRANS[curStmtLang].title = $('transTitle').value;
+  curStmtLang = l; renderStmtLangBar();
+  const pt = l === 'pt';
+  $('enunMount').style.display = (pt && stmtMode !== 'modular') ? '' : 'none';
+  $('enunModular').style.display = (pt && stmtMode === 'modular') ? '' : 'none';
+  $('stmtToggle').style.display = pt ? '' : 'none';
+  $('transMount').style.display = pt ? 'none' : '';
+  $('transHint').style.display = pt ? 'none' : '';
+  if (pt) return;
+  $('transTitle').value = TRANS[l].title || '';
+  $('transTitle').placeholder = $('ptitle').value || 'Hello World';
+  [...$('transEdMounts').children].forEach(d => { d.style.display = d.dataset.lang === l ? '' : 'none'; });
+  if (!transEd[l]) {
+    const m = el('div', { class: 'editor-mount' }); m.dataset.lang = l; m.style.height = '36rem'; m.style.minHeight = '36rem';
+    $('transEdMounts').append(m);
+    transEd[l] = await createEditor(m, { doc: TRANS[l].enunciado_md || '', cm: 'markdown', images: true });
+    m.addEventListener('input', updatePkgInfo);
+  }
+}
+const transStatement = (l) => (transEd[l] ? transEd[l].getValue() : (TRANS[l] ? TRANS[l].enunciado_md || '' : ''));
+const transEditorial = (l) => (transEdEd[l] ? transEdEd[l].getValue() : (TRANS[l] ? TRANS[l].editorial_md || '' : ''));
+// nota traduzida de cada exemplo: um textarea por idioma dentro do exemplo (aba Testes); a chave é
+// a POSIÇÃO (sampleN), a mesma que o servidor dá aos exemplos ao salvar
+function refreshExampleTrans() {
+  const langs = transLangs();
+  [...$('examples').querySelectorAll('.ex')].forEach((row, i) => {
+    let box = row.querySelector('.exexpl-trans');
+    if (!box) { box = el('div', { class: 'exexpl-trans' }); const btn = row.querySelector('button'); if (btn) btn.before(box); else row.append(box); }
+    const have = {}; [...box.querySelectorAll('textarea.exexpl-l')].forEach(t => { have[t.dataset.lang] = t.value; });
+    box.innerHTML = '';
+    langs.forEach(l => {
+      const initial = have[l] !== undefined ? have[l] : ((TRANS[l].notes || {})['sample' + (i + 1)] || '');
+      const ta = el('textarea', { class: 'exexpl-l', placeholder: T('vazio = mostra a explicação em português', 'empty = shows the Portuguese explanation'), oninput: updatePkgInfo }, initial);
+      ta.dataset.lang = l;
+      box.append(el('div', {}, el('label', { class: 'small' }, T('explicação em ', 'explanation in ') + STMT_SHORT[l] + ' (' + stmtName(l) + ')'), ta));
+    });
+  });
+}
+function collectTransNotes(l) {
+  const out = {};
+  [...$('examples').querySelectorAll('.ex')].forEach((row, i) => {
+    const ta = row.querySelector(`textarea.exexpl-l[data-lang="${l}"]`);
+    if (ta && ta.value.trim()) out['sample' + (i + 1)] = ta.value;
+  });
+  return out;
+}
+const collectTranslations = () => {
+  const out = {};
+  transLangs().forEach(l => { out[l] = { title: (curStmtLang === l ? $('transTitle').value : TRANS[l].title || '').trim(),
+    enunciado_md: transStatement(l), editorial_md: transEditorial(l), notes: collectTransNotes(l) }; });
+  TRANS_REMOVED.forEach(l => { if (!TRANS[l]) out[l] = null; });
+  return out;
+};
+// editorial por idioma (aba Resolução): PT = editMount; traduções = um mount por idioma
+function renderEdLangBar() {
+  const bar = $('edLangBar'); if (!bar) return; bar.innerHTML = '';
+  const langs = transLangs(); if (!langs.length) { curEdLang = 'pt'; switchEdLang('pt'); return; }
+  bar.append(stmtChip('pt', curEdLang === 'pt', () => switchEdLang('pt')));
+  langs.forEach(l => bar.append(stmtChip(l, curEdLang === l, () => switchEdLang(l))));
+}
+async function switchEdLang(l) {
+  if (l !== 'pt' && !TRANS[l]) l = 'pt';
+  curEdLang = l; renderEdLangBar();
+  $('editMount').style.display = l === 'pt' ? '' : 'none';
+  [...$('transEdEdMounts').children].forEach(d => { d.style.display = d.dataset.lang === l ? '' : 'none'; });
+  if (l === 'pt') return;
+  if (!transEdEd[l]) {
+    const m = el('div', { class: 'editor-mount' }); m.dataset.lang = l; $('transEdEdMounts').append(m);
+    transEdEd[l] = await createEditor(m, { doc: TRANS[l].editorial_md || '', cm: 'markdown', images: true });
+    m.addEventListener('input', updatePkgInfo);
+  }
+}
+async function edPreview() {
+  const btn = $('edPreview'); btn.disabled = true; setMsg(T('Renderizando…', 'Rendering…'));
+  try {
+    const md = curEdLang === 'pt' ? (editEd ? editEd.getValue() : PENDING_EDITORIAL) : transEditorial(curEdLang);
+    const pbody = { kind: 'editorial', markdown: md, lang: curEdLang };
+    if (ID) pbody.id = ID;
+    const j = await apiPost('/problems/preview', pbody, { contest: CONTEST, auth: true });
+    const html = b64ToUtf8(j.html_b64 || ''); const pb = $('previewBody');
+    try { const d = new DOMParser().parseFromString(html, 'text/html'); pb.innerHTML = d.body ? d.body.innerHTML : html; } catch { pb.innerHTML = html; }
+    $('previewModal').style.display = ''; setMsg('');
+  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao renderizar', 'Failed to render')), 'error'); }
+  finally { btn.disabled = false; }
+}
+
 // ---- barra de prontidão -------------------------------------------------------------------
 const scoreSum = () => SCORE.groups.reduce((s, g) => s + (g.weight || 0), 0);
 function readyItems() {
@@ -211,7 +337,7 @@ function exampleRow(input = '', output = '', explanation = '') {
     el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); updatePkgInfo(); } }, T('remover exemplo', 'remove sample')));
   return row;
 }
-const addExample = (i = '', o = '', x = '') => { $('examples').append(exampleRow(i, o, x)); updatePkgInfo(); };
+const addExample = (i = '', o = '', x = '') => { $('examples').append(exampleRow(i, o, x)); refreshExampleTrans(); updatePkgInfo(); };
 const collectExamples = () => [...$('examples').querySelectorAll('.ex')].map(r => ({
   input: r.querySelector('.exin').value, output: r.querySelector('.exout').value,
   explanation: r.querySelector('.exexpl') ? r.querySelector('.exexpl').value : '' })).filter(e => e.input !== '' || e.output !== '');
@@ -553,9 +679,17 @@ function buildTree() {
     ];
     scrNode = dirNode('scripts/', ...scrKids);
   }
-  const docsKids = [leaf('enunciado.md', stmtMode === 'modular' ? $('descMount') : $('enunMount'))];
-  if (exRows.some(r => r.querySelector('.exexpl') && r.querySelector('.exexpl').value.trim())) docsKids.push(leaf('sample-notes.json', $('examples'), () => showTab('tests')));
-  if (editEd ? editEd.getValue().trim() : (PENDING_EDITORIAL || '').trim()) docsKids.push(leaf('solucao.md', $('editMount'), () => showTab('resol')));
+  const docsKids = [leaf('enunciado.md', stmtMode === 'modular' ? $('descMount') : $('enunMount'), () => switchStmtLang('pt'))];
+  transLangs().forEach(l => docsKids.push(leaf(`enunciado.${l}.md`, $('transMount'), () => { showTab('enun'); switchStmtLang(l); })));
+  // notas: docs/notes/<sample>.md (PT) e <sample>.<lang>.md (traduzidas) — o formato de autoria (não há mais JSON)
+  const noteKids = [];
+  exRows.forEach((r, i) => {
+    const ta = r.querySelector('.exexpl'); if (ta && ta.value.trim()) noteKids.push(leaf(`sample${i + 1}.md`, r, () => showTab('tests')));
+    [...r.querySelectorAll('textarea.exexpl-l')].forEach(t => { if (t.value.trim()) noteKids.push(leaf(`sample${i + 1}.${t.dataset.lang}.md`, r, () => showTab('tests'))); });
+  });
+  if (noteKids.length) docsKids.push(dirNode('notes/', ...noteKids));
+  if (editEd ? editEd.getValue().trim() : (PENDING_EDITORIAL || '').trim()) docsKids.push(leaf('solucao.md', $('editMount'), () => { showTab('resol'); switchEdLang('pt'); }));
+  transLangs().forEach(l => { if (transEditorial(l).trim()) docsKids.push(leaf(`solucao.${l}.md`, $('transEdEdMounts'), () => { showTab('resol'); switchEdLang(l); })); });
   const tree = ul(
     dirNode('docs/', ...docsKids),
     leaf('conf', $('confRaw'), () => { const d = $('confRaw').closest('details'); if (d) d.open = true; }),
@@ -620,8 +754,16 @@ async function renderForm(d) {
   PENDING_EDITORIAL = d.editorial_md || '';
   renderScripts(d.scripts_files || []);
   $('editMount').innerHTML = ''; editEd = null;
+  // traduções: o servidor manda translations{<lang>:{title,enunciado_md,editorial_md?,notes?}}
+  TRANS = {}; TRANS_REMOVED.clear(); transEd = {}; transEdEd = {}; curStmtLang = 'pt'; curEdLang = 'pt';
+  $('transEdMounts').innerHTML = ''; $('transEdEdMounts').innerHTML = '';
+  Object.entries(d.translations || {}).forEach(([l, t]) => {
+    if (!STMT_LANGS.includes(l) || l === 'pt' || !t) return;
+    TRANS[l] = { title: t.title || '', enunciado_md: t.enunciado_md || '', editorial_md: t.editorial_md || '', notes: t.notes || {} };
+  });
   $('examples').innerHTML = ''; (d.examples || []).forEach(e => $('examples').append(exampleRow(e.input, e.output, e.explanation)));
   if (!(d.examples || []).length) $('examples').append(exampleRow());
+  refreshExampleTrans(); renderStmtLangBar(); switchStmtLang('pt'); renderEdLangBar();
   // pontuação (antes dos testes, p/ os seletores de grupo já terem opções)
   $('scoreGroups').innerHTML = '';
   const sc = d.score || { enabled: false, groups: [] };
@@ -644,6 +786,7 @@ const collectFields = () => {
     languages: langPicker ? langPicker.get() : [],
     enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(),
     editorial_md: editEd ? editEd.getValue() : PENDING_EDITORIAL,
+    ...((transLangs().length || TRANS_REMOVED.size) ? { translations: collectTranslations() } : {}),   // ausente = não mexe
     tests: collectTests(), sols: collectSols(), conf_text: $('confRaw').value,
     score: { enabled, groups: enabled ? collectGroups() : [] },
     scripts_files: collectScripts(),   // correção especial — substitui scripts/ inteiro (round-trip)
@@ -655,7 +798,12 @@ async function preview() {
   try {
     // id junto: o servidor semeia as IMAGENS de docs/ do pacote no render — `![](fig.png)`
     // aparece no preview igual ao servido (imagem colada é data:URI e nunca dependeu disso)
-    const pbody = { enunciado_md: currentStatement(), enunciado_format: FMT, examples: collectExamples(), title: $('ptitle').value.trim() };
+    // idioma ativo: texto, título e explicações traduzidas (ausente = a PT, como o servido faz)
+    const l = curStmtLang; const exs = collectExamples();
+    if (l !== 'pt') { const nt = collectTransNotes(l); exs.forEach((e, i) => { if (nt['sample' + (i + 1)]) e.explanation = nt['sample' + (i + 1)]; }); }
+    const pbody = l === 'pt'
+      ? { enunciado_md: currentStatement(), enunciado_format: FMT, examples: exs, title: $('ptitle').value.trim(), lang: 'pt' }
+      : { enunciado_md: transStatement(l), enunciado_format: 'md', examples: exs, title: ($('transTitle').value || $('ptitle').value).trim(), lang: l };
     if (ID) pbody.id = ID;
     const j = await apiPost('/problems/preview', pbody, { contest: CONTEST, auth: true });
     const html = b64ToUtf8(j.html_b64 || ''); const pb = $('previewBody');   // .statement-content (CSS unificado), não iframe
@@ -1236,6 +1384,9 @@ function bindHandlers() {
   $('newdir').onclick = newDir;
   if ($('moveorg')) $('moveorg').onclick = moveProblem;
   $('preview').onclick = preview;
+  $('edPreview').onclick = edPreview;
+  $('transTitle').addEventListener('input', () => { if (TRANS[curStmtLang]) TRANS[curStmtLang].title = $('transTitle').value; });
+  $('transRemove').onclick = () => removeTransLang(curStmtLang);
   $('previewClose').onclick = () => { $('previewModal').style.display = 'none'; $('previewBody').innerHTML = ''; };
   $('download').onclick = download;
   $('uploadTar').addEventListener('change', (e) => { uploadTar(e.target.files[0]); e.target.value = ''; });

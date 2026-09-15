@@ -48,6 +48,22 @@ export MOJ_PROBLEMS_DIR="$FIX/problems"
 for p in pa pb; do mkdir -p "$FIX/problems/col/$p/docs"; done
 printf '# Ideia\n\nSome os dois números.\n\n## Complexidade\n\nO(1).\n' > "$FIX/problems/col/pa/docs/solucao.md"
 printf 'Subtraia. Texto sem título interno.\n' > "$FIX/problems/col/pb/docs/solucao.md"
+# IDIOMAS (2026-09-15): o problema A tem tradução EN — enunciado no contest (<skey>.en.html), editorial
+# no pacote (solucao.en.md) e título no banco (statements.en.title); o B só PT. O caderno/editorial
+# EN tem de trazer o texto EN de A e o PT de B; ES (sem tradução) cai no PT inteiro.
+printf '# Idea\n\nAdd the two numbers.\n' > "$FIX/problems/col/pa/docs/solucao.en.md"
+cat > "$C/enunciados/col#pa.en.html" <<'HTML'
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Simple Sum</title></head><body>
+<h1 class="moj-title">Simple Sum</h1>
+<p>Given two integers <em>a</em> and <em>b</em>, write their sum. ENGLISHTEXT.</p>
+<h2>Input</h2><p>One line with <em>a</em> and <em>b</em>.</p>
+<h2>Output</h2><p>One line with the sum.</p>
+</body></html>
+HTML
+mkdir -p "$FIX/treino/var/jsons"
+jq -cn --arg h "$(base64 -w0 < "$C/enunciados/col#pa.html")" --arg e "$(base64 -w0 < "$C/enunciados/col#pa.en.html")" \
+  '{id:"col#pa", title:"Soma Simples", public:true, statement_html_b64:$h, statement_langs:["pt","en"], statements:{en:{title:"Simple Sum", html_b64:$e}}}' \
+  > "$FIX/treino/var/jsons/col#pa.json"
 printf '{"published":[], "editorial_note":"Nota do editorial."}' > "$C/docs/config.json"
 source "$ROOT/api/v1/lib/common.sh" 2>/dev/null || true
 source "$ROOT/api/v1/lib/contest-create.sh" 2>/dev/null || true
@@ -94,6 +110,21 @@ ck "pág. 1 = capa com nota e índice"  'pg "$EP" 1 | grep -q "Editorial" && pg 
 ck "pág. 2 = problema A inteiro"      'pg "$EP" 2 | grep -q "Problema A" && pg "$EP" 2 | grep -q "Ideia" && pg "$EP" 2 | grep -q "Complexidade"'
 ck "pág. 3 = problema B"              'pg "$EP" 3 | grep -q "Problema B"'
 ck "título interno NÃO abre página"   '! pg "$EP" 3 | grep -q "Ideia"'
+
+echo "== idiomas: caderno/editorial EN usam a tradução; ES cai no PT =="
+CT_EN="$(pdftotext -layout "$(doc_file rd contest en pdf)" - 2>/dev/null)"
+ck "caderno EN: texto EN do A"          'grep -q "ENGLISHTEXT" <<<"$CT_EN"'
+ck "caderno EN: título EN do A"         'grep -q "Simple Sum" <<<"$CT_EN"'
+ck "caderno EN: B (sem tradução) em PT" 'grep -q "Subtra" <<<"$CT_EN"'
+CT_ES="$(pdftotext -layout "$(doc_file rd contest es pdf)" - 2>/dev/null)"
+ck "caderno ES: cai no PT (sem texto EN)" '! grep -q "ENGLISHTEXT" <<<"$CT_ES" && grep -q "Soma Simples" <<<"$CT_ES"'
+CT_PT="$(pdftotext -layout "$(doc_file rd contest pt pdf)" - 2>/dev/null)"
+ck "caderno PT: PT (sem texto EN)"      '! grep -q "ENGLISHTEXT" <<<"$CT_PT"'
+ED_EN="$(pdftotext -layout "$(doc_file rd editorial en pdf)" - 2>/dev/null)"
+ck "editorial EN: solucao.en.md do A"   'grep -q "Add the two numbers" <<<"$ED_EN" && ! grep -q "Some os dois" <<<"$ED_EN"'
+ck "editorial EN: B cai no PT"          'grep -q "Subtraia" <<<"$ED_EN"'
+TL_EN="$(pdftotext -layout "$(doc_file rd times en pdf)" - 2>/dev/null)"
+ck "folha de TL EN: nome do A traduzido" 'grep -q "Simple Sum" <<<"$TL_EN"'
 
 echo "== ambiente de julgamento: título novo, linhas de compilação, veredictos, penalidade =="
 IP="$(doc_file rd info-sheet en pdf)"; IT="$(pdftotext -layout "$IP" - 2>/dev/null)"

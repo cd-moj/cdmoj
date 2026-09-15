@@ -6,6 +6,8 @@ import { apiGet, apiPost } from '/shared/api.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { makeLangPicker, makeJudgePicker, makeBankPanel } from '/shared/contest-config/index.js';
 import { T } from '/shared/i18n.js';
+import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
+import { makeStatementLangsPanel } from '/contest/admin/statement-langs-panel.js';
 
 const enc = encodeURIComponent;
 
@@ -63,7 +65,10 @@ export function makeProblemsTab(CONTEST) {
     const sMsg = el('div', { class: 'small' });
     const htmlIn = el('input', { type: 'file', accept: '.html,.htm,text/html', style: 'max-width:200px' });
     const pdfIn = el('input', { type: 'file', accept: '.pdf,application/pdf', style: 'max-width:200px' });
-    const sendStmt = async (payload) => postProb({ action: 'statement', letter: p.letter, ...payload }, sMsg, false);
+    // idioma do arquivo enviado/removido: <skey>.html (PT) ou <skey>.<lang>.html
+    const langSel = el('select', { title: T('Idioma do arquivo', 'File language') },
+      ...STMT_LANGS.map((l) => el('option', { value: l }, STMT_SHORT[l] + ' — ' + stmtName(l))));
+    const sendStmt = async (payload) => postProb({ action: 'statement', letter: p.letter, lang: langSel.value, ...payload }, sMsg, false);
 
     body.append(
       el('div', { class: 'row', style: 'margin:.3rem 0; flex-wrap:wrap' },
@@ -76,7 +81,8 @@ export function makeProblemsTab(CONTEST) {
         jPicker.el, el('div', { class: 'row' }, el('button', { class: 'btn', onclick: () => postProb({ action: 'judges', letter: p.letter, judges: jPicker.get() }, jMsg, false) }, T('Salvar máquinas', 'Save machines')), jMsg)),
       el('div', { style: 'margin:.5rem 0' }, el('div', { class: 'small muted' }, T('📄 Enunciado:', '📄 Statement:')),
         el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.4rem' },
-          el('button', { class: 'btn ghost', title: T('Re-buscar do banco de problemas (regenera o enunciado)', 'Re-fetch from the problem bank (regenerates the statement)'), onclick: () => sendStmt({ refresh: true }).then(loadList) }, T('↻ Atualizar do banco', '↻ Refresh from bank')),
+          el('button', { class: 'btn ghost', title: T('Re-buscar do banco de problemas (regenera o enunciado em todos os idiomas)', 'Re-fetch from the problem bank (regenerates the statement in every language)'), onclick: () => sendStmt({ refresh: true }).then(loadList) }, T('↻ Atualizar do banco', '↻ Refresh from bank')),
+          el('span', { class: 'small muted' }, T('Idioma:', 'Language:')), langSel,
           el('span', { class: 'small muted' }, 'HTML:'), htmlIn,
           el('button', { class: 'btn ghost', onclick: async () => { if (!htmlIn.files[0]) { sMsg.className = 'small error-box'; sMsg.textContent = T('Escolha um .html', 'Choose a .html'); return; } sendStmt({ html_b64: await fileToBase64(htmlIn.files[0]) }); } }, T('Enviar HTML', 'Send HTML')),
           el('span', { class: 'small muted' }, 'PDF:'), pdfIn,
@@ -96,6 +102,7 @@ export function makeProblemsTab(CONTEST) {
 
   // painel compartilhado de busca+sorteio: busca = públicos + PRIVADOS do dono do contest
   // (mesmo sujeito do gate de add — a busca lista exatamente o que pode entrar)
+  const stmtLangs = makeStatementLangsPanel(CONTEST);   // lista de idiomas oferecidos + disponibilidade
   const bankApi = {
     meta: () => apiGet('/contest/admin/bank?contest=' + enc(CONTEST) + '&meta=1', G),
     draw: (p) => apiGet('/contest/admin/draw?contest=' + enc(CONTEST) + '&' + new URLSearchParams(p).toString(), G),
@@ -113,9 +120,9 @@ export function makeProblemsTab(CONTEST) {
         noQueryFilter: (items) => items.filter((it) => it.private),
         emptyHint: T('o dono do contest não tem problemas privados — digite para buscar no banco público', 'the contest owner has no private problems — type to search the public bank'),
       });
-      panel.append(list, el('h3', { style: 'margin:1rem 0 .3rem' }, T('🏦 Adicionar do banco', '🏦 Add from bank')), bank.el);
+      panel.append(list, stmtLangs.el, el('h3', { style: 'margin:1rem 0 .3rem' }, T('🏦 Adicionar do banco', '🏦 Add from bank')), bank.el);
     }
-    await loadList();
+    await Promise.all([loadList(), stmtLangs.load()]);
   }
   return { panel, load };
 }

@@ -109,12 +109,13 @@ Além das abas do juiz, o juiz-chefe vê:
 
 ### O painel do chefe
 
-O painel fica em `/contest/chief/` e tem 4 abas:
+O painel fica em `/contest/chief/` e tem estas abas:
 
 1. **📊 Situação.** Mostra cartões de resumo, a **fila completa** (com filtros e mostrando os votos dos outros juízes) e uma tabela **"Desempenho por juiz"** com: votos dados, tempo médio entre pegar e votar, concordâncias e conflitos. Cada linha da fila traz um botão **Decidir/Resolver**, que libera o veredicto **na hora**, sem esperar os dois votos (essa decisão fica registrada).
 2. **⚖️ Conflitos.** Lista as submissões em conflito, mostrando os **dois votos** que divergiram, o log e a fonte, com um botão para resolver cada uma.
 3. **🏷️ Opções.** Edita a lista de veredictos que os juízes escolhem ao votar. Cada opção tem três campos. O primeiro é o texto que o juiz vê. O segundo é a classe: uma das seis classes canônicas (Accepted, Wrong Answer, Time Limit Exceeded, Memory Limit Exceeded, Runtime Error, Compilation Error). A classe define a pontuação, a penalidade e a cor no placar. O terceiro é o texto que o time vê. Deixe o terceiro campo vazio para mostrar a classe. A classe Accepted não tem texto próprio.
 4. **⚙️ Auto-veredicto.** Edita a **matriz** (problema x linguagem x veredicto) que decide quais veredictos calculados pela máquina **pulam** a revisão manual e vão direto ao competidor.
+5. **🌐 Idiomas.** Marca os idiomas do enunciado que a sanfona oferece ao competidor (português, inglês, espanhol). A tabela mostra, por problema, quais traduções existem. Um idioma marcado sem tradução em um problema mostra o português nesse problema. O admin tem o mesmo painel em Prova › Problemas.
 
 ### Alerta de conflito
 

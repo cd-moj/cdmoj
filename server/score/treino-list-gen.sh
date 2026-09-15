@@ -81,7 +81,8 @@ body="$(jq -s --slurpfile c "$tmpd/counts" --slurpfile pa "$tmpd/pubat" '
   '"$DIFF_JQ"'
   ($c[0] // {}) as $cnt | ($pa[0] // {}) as $pub
   | map(select(.public != false)
-      | {id, title, tags: (.tags // []), collections: (.collections // [])}
+      | {id, title, tags: (.tags // []), collections: (.collections // []),
+         statement_langs: (.statement_langs // ["pt"])}
         + (($cnt[.id] // {solved_count:0, attempted_count:0}) | del(.tries_sum)
            + {user_rate: (diff_rate(.solved_count; .attempted_count)),
               difficulty: diff_label(.solved_count; .attempted_count),

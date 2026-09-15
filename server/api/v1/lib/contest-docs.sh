@@ -10,8 +10,12 @@
 # total real de páginas (pdfinfo).
 #
 # Idioma: PT/EN/ES vale para o CHROME do documento (capa, títulos, tabelas, info sheet) — a
-# tabela é o `_doc_t`. O corpo do ENUNCIADO sai no idioma em que foi escrito: o MOJ não traduz
-# enunciado (para isso existe o PDF ENVIADO, abaixo).
+# tabela é o `_doc_t` — E, desde 2026-09-15, para o CORPO: o caderno em <lang> usa o enunciado
+# `enunciados/<skey>.<lang>.html|pdf` (ou a tradução do banco, `statements[<lang>]`), o editorial
+# usa `docs/solucao.<lang>.md` do pacote, e o título do problema vem de `titles[<lang>]`
+# (`_doc_stmt_file`/`_doc_probs_l`, sobre lib/contest-statement.sh). Idioma sem tradução CAI NO
+# PT — o documento nunca sai só com a capa localizada e o miolo em branco. O PDF ENVIADO
+# (abaixo) continua sendo a via p/ prova traduzida por fora.
 #
 # PDF ENVIADO: o admin pode subir o documento PRONTO de um tipo+idioma
 # (docs/<tipo>.<lang>.uploaded.pdf). Ele VENCE o gerado em tudo que é servido (doc_pdf_served) e
@@ -29,6 +33,46 @@
 declare -F effective_problem_langs >/dev/null || source "$_DIR/lib/langs.sh" 2>/dev/null || true
 # pkg_path (editorial lê docs/solucao.md do PACOTE do problema)
 declare -F pkg_path >/dev/null || source "$_DIR/lib/tl-store.sh" 2>/dev/null || true
+# idiomas do enunciado no contest (cs_file/cs_bank_json/cs_bank_title)
+declare -F cs_file >/dev/null || source "$_DIR/lib/contest-statement.sh"
+
+# _doc_probs_l <c> <lang> — cc_probs_json com o NOME do problema no idioma do documento
+# (titles[<lang>] do banco quando a tradução existe; senão o nome do conf). Toda função de
+# documento que lista problemas usa isto, e não cc_probs_json direto.
+_doc_probs_l(){
+  local c="$1" l="${2:-pt}" probs n i skey t
+  probs="$(cc_probs_json "$c")"
+  [[ "$l" == pt ]] && { printf '%s' "$probs"; return 0; }
+  n="$(jq -r 'length' <<<"$probs" 2>/dev/null)"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
+  for ((i=0; i<n; i++)); do
+    skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
+    [[ -n "$skey" ]] || continue
+    t=""; bf="$(cs_bank_json "$skey" 2>/dev/null)" && t="$(cs_bank_title "$bf" "$l")"
+    [[ -n "$t" ]] && probs="$(jq -c --argjson i "$i" --arg t "$t" '.[$i].name=$t' <<<"$probs")"
+  done
+  printf '%s' "$probs"
+}
+# _doc_stmt_file <c> <skey> <lang> -> caminho de um HTML do enunciado NO idioma (ou PT):
+# arquivo do contest no idioma › tradução do banco (materializada em tmp) › arquivo PT do
+# contest › PT do banco. rc 1 = nenhum. Os tmp ficam em $_DOC_TMPD (o chamador apaga).
+_doc_stmt_file(){
+  local c="$1" skey="$2" l="${3:-pt}" f bf tmpf
+  : "${_DOC_TMPD:=$(mktemp -d)}"
+  if [[ "$l" != pt && -f "$CONTESTSDIR/$c/enunciados/$skey.$l.html" ]]; then printf '%s' "$CONTESTSDIR/$c/enunciados/$skey.$l.html"; return 0; fi
+  bf="$(cs_bank_json "$skey" 2>/dev/null)" || bf=""
+  if [[ "$l" != pt && -n "$bf" ]] && jq -e --arg l "$l" '(.statements[$l].html_b64 // "") != ""' "$bf" >/dev/null 2>&1; then
+    tmpf="$_DOC_TMPD/s.$skey.$l.html"
+    jq -r --arg l "$l" '.statements[$l].html_b64' "$bf" 2>/dev/null | base64 -d > "$tmpf" 2>/dev/null
+    [[ -s "$tmpf" ]] && { printf '%s' "$tmpf"; return 0; }
+  fi
+  if f="$(cs_file "$c" "$skey" pt html)"; then printf '%s' "$f"; return 0; fi
+  if [[ -n "$bf" ]]; then
+    tmpf="$_DOC_TMPD/s.$skey.pt.html"
+    jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d > "$tmpf" 2>/dev/null
+    [[ -s "$tmpf" ]] && { printf '%s' "$tmpf"; return 0; }
+  fi
+  return 1
+}
 
 doc_dir(){ printf '%s/%s/docs' "$CONTESTSDIR" "$1"; }
 doc_file(){ printf '%s/%s.%s.%s' "$(doc_dir "$1")" "$2" "$3" "$4"; }   # <c> <tipo> <lang> <fmt>
@@ -276,7 +320,7 @@ _doc_pool(){
 
 # doc_tl_rows <c> -> TSV: letra \t nome \t tl_texto  (tl vazio = não calibrado)
 doc_tl_rows(){
-  local c="$1" probs; probs="$(cc_probs_json "$c")"
+  local c="$1" probs; probs="$(_doc_probs_l "$c" "${2:-pt}")"
   local n i letter name pid tl allow
   n="$(jq -r 'length' <<<"$probs" 2>/dev/null)"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
   for ((i=0; i<n; i++)); do
@@ -358,7 +402,7 @@ _doc_langs_table(){
 # é o que deixa a tabela decidir entre "um número" e "uma coluna por linguagem".
 _doc_tl_matrix(){
   local c="$1" probs n i letter name pid tl allow out='[]'
-  probs="$(cc_probs_json "$c")"
+  probs="$(_doc_probs_l "$c" "${2:-pt}")"
   n="$(jq -r 'length' <<<"$probs" 2>/dev/null)"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
   for ((i=0; i<n; i++)); do
     letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
@@ -389,7 +433,7 @@ _DOC_TD='style="padding:.3em .9em .3em 0"'
 
 _doc_tl_table(){
   local c="$1" l="$2" m langs
-  m="$(_doc_tl_matrix "$c")"
+  m="$(_doc_tl_matrix "$c" "$l")"
   langs="$( . "$CONTESTSDIR/$c/conf" 2>/dev/null; printf '%s' "${LANGUAGES:-}" )"
   # a tabela inteira sai do jq (@html escapa nome de problema — nunca conteúdo de usuário como
   # FORMATO do printf); o filete de baixo vai na ÚLTIMA linha (o importador do Writer ignora
@@ -532,24 +576,15 @@ _doc_html_cover(){
 # _doc_html_contest <c> <lang> — caderno inteiro em HTML (capa + enunciados embutidos)
 _doc_html_contest(){
   local c="$1" l="$2" probs n i letter name skey f
-  probs="$(cc_probs_json "$c")"; n="$(jq -r 'length' <<<"$probs")"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
+  probs="$(_doc_probs_l "$c" "$l")"; n="$(jq -r 'length' <<<"$probs")"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
   _doc_html_cover "$c" "$l" "$n" ""
   for ((i=0; i<n; i++)); do
     letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
     name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
     skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
     printf '<div class="prob"><h1>%s %s — %s</h1>\n' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
-    f="$CONTESTSDIR/$c/enunciados/$skey.html"
-    if [[ ! -f "$f" ]]; then
-      local jf="$CONTESTSDIR/treino/var/jsons/$skey.json"
-      [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"
-      if [[ -f "$jf" ]]; then
-        local tmpf; tmpf="$(mktemp)"
-        jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null | base64 -d > "$tmpf" 2>/dev/null
-        [[ -s "$tmpf" ]] && f="$tmpf" || rm -f "$tmpf"
-      fi
-    fi
-    if [[ -f "$f" ]]; then
+    f="$(_doc_stmt_file "$c" "$skey" "$l")" || f=""
+    if [[ -n "$f" && -f "$f" ]]; then
       # só o miolo do <body>, sem o h1 do próprio enunciado (o cabeçalho já é nosso)
       _doc_body_inner "$f"
     else
@@ -579,9 +614,9 @@ for n in (5,4,3,2,1):
 sys.stdout.write(s)' 2>/dev/null || cat
 }
 _doc_html_editorial(){
-  local c="$1" l="$2" probs n i letter name skey pkg note
+  local c="$1" l="$2" probs n i letter name skey pkg note solf
   _doc_meta "$c"
-  probs="$(cc_probs_json "$c")"; n="$(jq -r 'length' <<<"$probs")"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
+  probs="$(_doc_probs_l "$c" "$l")"; n="$(jq -r 'length' <<<"$probs")"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
   _doc_html_head "$(_doc_t "$l" editorial) — $CNAME"
   # capa: título + data + nota + índice
   printf '<div class="cover"><h1 class="title">%s — %s</h1><div class="sub">%s</div>\n' \
@@ -605,8 +640,14 @@ _doc_html_editorial(){
     skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
     printf '<div class="prob"><h1 style="page-break-before:always">%s %s — %s</h1>\n' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
     pkg=""; declare -F pkg_path >/dev/null && pkg="$(pkg_path "$skey" 2>/dev/null)"
-    if [[ -n "$pkg" && -s "$pkg/docs/solucao.md" ]]; then
-      render_markdown_html < "$pkg/docs/solucao.md" | _doc_demote_headings
+    # editorial no idioma do documento (docs/solucao.<lang>.md), senão o PT
+    solf=""
+    if [[ -n "$pkg" ]]; then
+      [[ "$l" != pt && -s "$pkg/docs/solucao.$l.md" ]] && solf="$pkg/docs/solucao.$l.md"
+      [[ -z "$solf" && -s "$pkg/docs/solucao.md" ]] && solf="$pkg/docs/solucao.md"
+    fi
+    if [[ -n "$solf" ]]; then
+      render_markdown_html < "$solf" | _doc_demote_headings
     else
       printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_solution)"
     fi
@@ -679,11 +720,12 @@ _doc_body_inner(){
 # como renumerar (não temos pdftk/cpdf na imagem): volta ao caminho por-problema.
 _doc_pdf_contest(){
   local c="$1" l="$2" out="$3" probs n i skey work parts=() pdf tot=0 custom=""
-  work="$(mktemp -d)"; probs="$(cc_probs_json "$c")"; n="$(jq -r 'length' <<<"$probs")"
+  work="$(mktemp -d)"; probs="$(_doc_probs_l "$c" "$l")"; n="$(jq -r 'length' <<<"$probs")"
   [[ "$n" =~ ^[0-9]+$ ]] || n=0
+  local _DOC_TMPD="$work"   # os HTML do banco materializados por _doc_stmt_file morrem com o work
   for ((i=0; i<n; i++)); do
     skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
-    [[ -f "$CONTESTSDIR/$c/enunciados/$skey.pdf" ]] && { custom=1; break; }
+    cs_file "$c" "$skey" "$l" pdf >/dev/null 2>&1 && { custom=1; break; }
   done
   if [[ -z "$custom" && "$n" -gt 0 ]]; then
     # --- caminho normal: um ODT com todos os enunciados (numeração contínua) ---
@@ -693,14 +735,9 @@ _doc_pdf_contest(){
         skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
         letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
         name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
-        f="$CONTESTSDIR/$c/enunciados/$skey.html"
-        if [[ ! -f "$f" ]]; then
-          local jf="$CONTESTSDIR/treino/var/jsons/$skey.json"
-          [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"
-          [[ -f "$jf" ]] && { jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null | base64 -d > "$work/s$i.html" 2>/dev/null; [[ -s "$work/s$i.html" ]] && f="$work/s$i.html"; }
-        fi
+        f="$(_doc_stmt_file "$c" "$skey" "$l")" || f=""
         printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
-        if [[ -f "$f" ]]; then _doc_body_inner "$f"; else printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)"; fi
+        if [[ -n "$f" && -f "$f" ]]; then _doc_body_inner "$f"; else printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)"; fi
       done
       printf '</body></html>'; } > "$allf"
     if _doc_html2pdf_odt "$allf" "$work/body.pdf" && [[ -s "$work/body.pdf" ]]; then
@@ -713,22 +750,17 @@ _doc_pdf_contest(){
   # --- caminho por-problema (só quando há PDF próprio de enunciado, ou o pandoc falhou) ---
   [[ -n "$custom" ]] && for ((i=0; i<n; i++)); do
     skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
-    pdf="$CONTESTSDIR/$c/enunciados/$skey.pdf"
-    if [[ -f "$pdf" ]]; then
+    pdf="$(cs_file "$c" "$skey" "$l" pdf 2>/dev/null)" || pdf=""
+    if [[ -n "$pdf" && -f "$pdf" ]]; then
       cp -f "$pdf" "$work/p$i.pdf"
     else
       # renderiza SÓ este problema (capa fica de fora) e converte
       local letter name f bodyf="$work/b$i.html" okpdf=""
       letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
       name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
-      f="$CONTESTSDIR/$c/enunciados/$skey.html"
-      if [[ ! -f "$f" ]]; then
-        local jf="$CONTESTSDIR/treino/var/jsons/$skey.json"
-        [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"
-        [[ -f "$jf" ]] && { jq -r '.statement_html_b64 // ""' "$jf" 2>/dev/null | base64 -d > "$work/s$i.html" 2>/dev/null; [[ -s "$work/s$i.html" ]] && f="$work/s$i.html"; }
-      fi
+      f="$(_doc_stmt_file "$c" "$skey" "$l")" || f=""
       # miolo do <body> do enunciado (HTML standalone com <head> próprio)
-      if [[ -f "$f" ]]; then
+      if [[ -n "$f" && -f "$f" ]]; then
         _doc_body_inner "$f" > "$bodyf"
       else
         printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)" > "$bodyf"

@@ -424,7 +424,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Problema (enunciado b64, autor, time limits, tags, coleções)",
+        "summary": "Problema (enunciado b64, autor, time limits, tags, coleções, statement_langs + statements{<lang>:{title,html_b64}} das traduções)",
         "parameters": [
           {
             "name": "id",
@@ -1561,13 +1561,14 @@
         "parameters": [
           {"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}},
           {"name": "problem", "in": "query", "required": true, "description": "letra (short_name) ou problem_id canonico", "schema": {"type": "string"}},
-          {"name": "format", "in": "query", "description": "html (default) ou pdf", "schema": {"type": "string", "enum": ["html", "pdf"]}}
+          {"name": "format", "in": "query", "description": "html (default) ou pdf", "schema": {"type": "string", "enum": ["html", "pdf"]}},
+          {"name": "lang", "in": "query", "description": "idioma do enunciado (default = default_statement_lang do contest). Fora da allowlist = 400 lang_invalid; idioma que a prova nao OFERECE (STATEMENT_LANGS) = 404; oferecido sem arquivo = serve o PT. Arquivo enunciados/<skey>.<lang>.<fmt> > <skey>.<fmt>; header X-MOJ-Statement-Lang = idioma servido", "schema": {"type": "string", "enum": ["pt", "en", "es"]}}
         ],
         "responses": {
-          "200": {"description": "o enunciado (text/html; charset=utf-8 ou application/pdf)"},
+          "200": {"description": "o enunciado (text/html; charset=utf-8 ou application/pdf); X-MOJ-Statement-Lang = idioma do arquivo servido"},
           "304": {"description": "If-None-Match casou o ETag — corpo vazio"},
-          "400": {"description": "problem ausente ou format invalido"},
-          "404": {"description": "sem permissao de ver, problema inexistente ou sem esse formato"}
+          "400": {"description": "problem ausente, format invalido ou lang fora de pt|en|es"},
+          "404": {"description": "sem permissao de ver, problema inexistente, sem esse formato ou idioma nao oferecido pela prova"}
         }
       }
     },
@@ -1590,7 +1591,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems:[{short_name,full_name,problem_id,statement_html_b64,statement_pdf_b64,time_limits,languages}]} (time_limits = MAX entre juízes; com pool de juízes definido — problem-judges.json -> CONTEST_JUDGES — só entre os hosts do pool efetivo. languages = ids permitidos: override por-problema-no-contest -> whitelist do contest -> default do próprio pacote (.moj-meta.json) -> [] (todas))"
+            "description": "{problems:[{short_name,full_name,problem_id,has_statement_html,has_statement_pdf,statement_langs,time_limits,languages}], statement_langs, default_statement_lang} (statement_langs do envelope = idiomas que a prova OFERECE, conf STATEMENT_LANGS via /contest/admin/statement-langs, ausente = [pt]; default_statement_lang = LOCALE se oferecido, senao o 1o; statement_langs por problema = oferecidos com arquivo ou traducao no banco; time_limits = MAX entre juízes; com pool de juízes definido — problem-judges.json -> CONTEST_JUDGES — só entre os hosts do pool efetivo. languages = ids permitidos: override por-problema-no-contest -> whitelist do contest -> default do próprio pacote (.moj-meta.json) -> [] (todas))"
           }
         }
       }
@@ -4701,7 +4702,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT)",
+        "summary": "Configurações do contest (inclui statement_langs/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -4881,7 +4882,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Lista problemas (inclui languages e judges por problema)",
+        "summary": "Lista problemas (inclui languages e judges por problema). POST action=statement aceita lang (pt|en|es, default pt): html_b64/pdf_b64/remove_* em enunciados/<skey>[.<lang>].html|pdf; refresh apaga o PT e todas as traducoes cacheadas",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5685,6 +5686,25 @@
             "description": "{items}"
           }
         }
+      }
+    },
+    "/contest/admin/statement-langs": {
+      "get": {
+        "tags": ["contest-admin"],
+        "summary": "Idiomas do enunciado que a sanfona OFERECE (conf STATEMENT_LANGS) — admin ou juiz-chefe",
+        "description": "GET -> {langs:[oferecidos], default, all:[pt,en,es], locale, available:{<letra>:{<lang>:true}}} (available = idioma com arquivo no contest ou traducao no banco). default = LOCALE se oferecido, senao o 1o.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/contest"}],
+        "responses": {"200": {"description": "{langs, default, all, locale, available}"}, "403": {"description": "nem admin nem .cjudge"}}
+      },
+      "post": {
+        "tags": ["contest-admin"],
+        "summary": "Define os idiomas oferecidos: {langs:[pt,en,…]} — admin ou juiz-chefe",
+        "description": "Allowlist pt/en/es (422 lang_invalid); lista vazia = so pt (apaga a var). Materializa do banco as traducoes que faltam (enunciados/<skey>.<lang>.html), toca var/.problems-dirty e audita statement-langs.",
+        "security": [{"bearerAuth": []}],
+        "parameters": [{"$ref": "#/components/parameters/contest"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "properties": {"langs": {"type": "array", "items": {"type": "string", "enum": ["pt", "en", "es"]}}}, "required": ["langs"]}}}},
+        "responses": {"200": {"description": "{saved, langs, default}"}, "400": {"description": "langs nao e lista"}, "403": {"description": "nem admin nem .cjudge"}, "422": {"description": "idioma fora de pt/en/es"}}
       }
     },
     "/contest/admin/jplag-run": {
@@ -6689,7 +6709,7 @@
           "problems"
         ],
         "summary": "Source do pacote inteiro (só dono/colaborador)",
-        "description": "Source completo: enunciado + testes OCULTOS + SOLUÇÕES + editorial. Acesso garantido NA API: só dono/colaborador; não-autorizado recebe 404 (sem read-only, sem atalho de .admin). Inclui title, collections, languages (ids de submissão permitidos, [] = todas), examples[].explanation, sols por categoria, score, score_text (tests/score cru), editorial_md, scripts (caminhos, árvore do editor) e scripts_files (round-trip da correção especial: [{path,content_b64,exec}|{path,symlink}]). docs_files = round-trip das imagens de docs/ ([{name,content_b64}]); examples[].explanation vive em docs/notes/<sample>.md (legado sample-notes.json só leitura).",
+        "description": "Source completo: enunciado + testes OCULTOS + SOLUÇÕES + editorial + TRADUÇÕES. Acesso garantido NA API: só dono/colaborador; não-autorizado recebe 404 (sem read-only, sem atalho de .admin). Inclui translations {<lang>:{title,enunciado_md,editorial_md?,notes?}} (docs/enunciado.<lang>.md, solucao.<lang>.md, notes/<sample>.<lang>.md), titles {<lang>:título} e statement_langs [pt,…]; title, collections, languages (ids de submissão permitidos, [] = todas), examples[].explanation, sols por categoria, score, score_text (tests/score cru), editorial_md, scripts (caminhos, árvore do editor) e scripts_files (round-trip da correção especial: [{path,content_b64,exec}|{path,symlink}]). docs_files = round-trip das imagens de docs/ ([{name,content_b64}]); examples[].explanation vive em docs/notes/<sample>.md (legado sample-notes.json só leitura).",
         "security": [
           {
             "bearerAuth": []
@@ -6747,8 +6767,8 @@
         "tags": [
           "problems"
         ],
-        "summary": "Pré-visualização HTML do enunciado",
-        "description": "Usa o renderizador único (render-statement.sh) — idêntico ao HTML servido ao aluno. Injeta o título (h1) e os exemplos (cada um com explanation opcional). Aceita id (semeia as imagens de docs/ do pacote no render; exige permissão de edição) e images:[{name,content_b64}] p/ figuras ainda não enviadas.",
+        "summary": "Pré-visualização HTML do enunciado (por idioma) ou do editorial",
+        "description": "Usa o renderizador único (render-statement.sh) — idêntico ao HTML servido ao aluno. Injeta o título (h1) e os exemplos (cada um com explanation opcional; o HTML deles sai do stmt_samples_html do mojtools, o MESMO do índice, com rótulos no idioma `lang`). Aceita id (semeia as imagens de docs/ do pacote no render; exige permissão de edição) e images:[{name,content_b64}] p/ figuras ainda não enviadas. kind=editorial renderiza só o markdown. Resposta {html_b64, lang, kind}.",
         "security": [
           {
             "bearerAuth": []
@@ -6785,11 +6805,22 @@
                     "items": {
                       "$ref": "#/components/schemas/ProblemExample"
                     }
+                  },
+                  "lang": {
+                    "type": "string",
+                    "enum": ["pt", "en", "es"],
+                    "description": "idioma dos rótulos dos exemplos e do <html lang> (default pt; 400 lang_invalid). O cliente manda texto e explicações já no idioma."
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": ["statement", "editorial"],
+                    "description": "editorial = renderiza só `markdown`, sem exemplos e sem h1 (botão Pré-visualizar da aba Resolução)"
+                  },
+                  "markdown": {
+                    "type": "string",
+                    "description": "o texto do editorial quando kind=editorial"
                   }
-                },
-                "required": [
-                  "enunciado_md"
-                ]
+                }
               }
             }
           }
@@ -7043,7 +7074,7 @@
         "tags": [
           "problems"
         ],
-        "summary": "Edita problema (só os campos presentes; commit+push autorado). Aceita languages (ids de submissão permitidos; ausente = não toca, [] = todas), scripts_files (SUBSTITUI scripts/ inteiro: paths validados sem '..', exec vira +x, symlink confinado a scripts/; ausente = não toca) e score_text (tests/score verbatim; '' remove)",
+        "summary": "Edita problema (só os campos presentes; commit+push autorado). Aceita translations ({<lang>:{title?,enunciado_md?,editorial_md?,notes?}|null} — ausente = intocado, null = apaga o idioma; só en/es) e titles ({<lang>:título}); languages (ids de submissão permitidos; ausente = não toca, [] = todas), scripts_files (SUBSTITUI scripts/ inteiro: paths validados sem '..', exec vira +x, symlink confinado a scripts/; ausente = não toca) e score_text (tests/score verbatim; '' remove)",
         "security": [
           {
             "bearerAuth": []

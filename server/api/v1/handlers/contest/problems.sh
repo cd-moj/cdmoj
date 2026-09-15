@@ -1,6 +1,10 @@
 # GET /contest/problems?contest=<id>   (Bearer)
 # Lista de problemas da prova a partir de PROBS (5-tuplas) + enunciados/<key>.{html,pdf}.
-# [{short_name, full_name, problem_id, has_statement_html, has_statement_pdf, time_limits, show}]
+# {problems:[{short_name, full_name, problem_id, has_statement_html, has_statement_pdf, statement_langs, time_limits, show}],
+#  statement_langs, default_statement_lang}
+# IDIOMAS (2026-09-15): `statement_langs` de cada problema = STATEMENT_LANGS do conf ∩ idiomas com
+# arquivo (enunciados/<skey>[.<lang>].html|pdf) ou com tradução no banco (materializada aqui, como o
+# PT); `default_statement_lang` = LOCALE se oferecido, senão o 1º (lib/contest-statement.sh).
 #
 # O ENUNCIADO NÃO VEM AQUI (2026-08-20). Vinha, em base64 — e num contest de PDF isso é 3,8 MB
 # crus / 2,5 MB comprimidos POR TIME (base64 de PDF não comprime: o PDF já é comprimido).
@@ -23,8 +27,10 @@ if ! can_see_problems "$contest"; then
   exit 0
 fi
 
-CONTEST_ID="$contest"; PROBS=(); LANGUAGES=""; SHOWTL=""; CONTEST_JUDGES=""
+CONTEST_ID="$contest"; PROBS=(); LANGUAGES=""; SHOWTL=""; CONTEST_JUDGES=""; STATEMENT_LANGS=""
 load_contest_conf "$contest"
+source "$_LIBDIR/contest-statement.sh"
+OFFERED="$(cs_norm "$STATEMENT_LANGS")"; DEF_LANG="$(cs_default "$contest" "$OFFERED")"
 # tempo-limite por problema (do store run/tl/<id>.json), salvo se o conf ocultar (SHOWTL=0).
 source "$_DIR/lib/tl-store.sh"
 SHOW_TL=true; [[ "$SHOWTL" == 0 ]] && SHOW_TL=false
@@ -170,14 +176,30 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
     # fallback: enunciado gerado DEPOIS (problema privado validado -> jsons-private).
     # Aparece automaticamente assim que o juiz indexa; materializa no contest na 1ª vez, e daí
     # em diante é o arquivo do contest que o /contest/statement serve.
-    jf="$CONTESTSDIR/treino/var/jsons/$STATEMENT.json"; [[ -f "$jf" ]] || jf="$CONTESTSDIR/treino/var/jsons-private/$STATEMENT.json"
-    if [[ -f "$jf" ]] && jq -e '(.statement_html_b64 // "") != ""' "$jf" >/dev/null 2>&1; then
-      if ( mkdir -p "$ENUN" && jq -r '.statement_html_b64 // ""' "$jf" | base64 -d > "$ENUN/$STATEMENT.html.tmp.${BASHPID}" \
-           && mv -f "$ENUN/$STATEMENT.html.tmp.${BASHPID}" "$ENUN/$STATEMENT.html" ) 2>/dev/null
-      then HAS_HTML=true; else rm -f "$ENUN/$STATEMENT.html.tmp.${BASHPID}" 2>/dev/null; fi
+    # (cs_bank_write, lib/contest-statement.sh — o tmp é resolvido em variável ANTES do jq: o
+    # `> "…tmp.${BASHPID}"` de antes expandia no FILHO e o mv nunca achava o arquivo, então a
+    # materialização preguiçosa falhava MUDA e o problema ficava sem enunciado até um refresh)
+    if jf="$(cs_bank_json "$STATEMENT" 2>/dev/null)" && jq -e '(.statement_html_b64 // "") != ""' "$jf" >/dev/null 2>&1; then
+      cs_bank_write "$jf" "$CONTESTSDIR/$contest" "$STATEMENT" pt 2>/dev/null
+      [[ -s "$ENUN/$STATEMENT.html" ]] && HAS_HTML=true
     fi
   fi
-  filt+=", has_statement_html:$HAS_HTML, has_statement_pdf:$HAS_PDF"
+  # idiomas oferecidos NESTE problema: os do conf que têm arquivo (ou tradução no banco, que é
+  # materializada na 1ª vez como o PT acima). PT = existe html/pdf/url.
+  SL='[]'; BJF="$(cs_bank_json "$STATEMENT" 2>/dev/null)" || BJF=""
+  for _l in $OFFERED; do
+    if [[ "$_l" == pt ]]; then
+      { [[ "$HAS_HTML" == true || "$HAS_PDF" == true || "$STATEMENT" == *http* ]]; } && SL="$(jq -c '. + ["pt"]' <<<"$SL")"
+      continue
+    fi
+    if [[ ! -f "$ENUN/$STATEMENT.$_l.html" && ! -f "$ENUN/$STATEMENT.$_l.pdf" && -n "$BJF" ]] \
+       && jq -e --arg l "$_l" '(.statements[$l].html_b64 // "") != ""' "$BJF" >/dev/null 2>&1; then
+      CC_KEEP_STATEMENTS=1 cs_bank_write "$BJF" "$CONTESTSDIR/$contest" "$STATEMENT" langs 2>/dev/null
+    fi
+    [[ -f "$ENUN/$STATEMENT.$_l.html" || -f "$ENUN/$STATEMENT.$_l.pdf" ]] && SL="$(jq -c --arg l "$_l" '. + [$l]' <<<"$SL")"
+  done
+  args+=( --argjson sl "$SL" )
+  filt+=", has_statement_html:$HAS_HTML, has_statement_pdf:$HAS_PDF, statement_langs:\$sl"
   # enunciado pode ser uma URL externa
   if [[ "$STATEMENT" == *http* ]]; then
     args+=( --arg url "$STATEMENT" ); filt+=", url:\$url"
@@ -206,10 +228,11 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
       --arg full "$FULLNAME" "${args[@]}" "$filt")" )
 done
 
+SLJ="$(jq -cn --arg s "$OFFERED" '$s|split(" ")')"
 if (( ${#ITEMS[@]} == 0 )); then
-  BODY="$(jq -cn '{success:true, problems:[]}')"
+  BODY="$(jq -cn --argjson sl "$SLJ" --arg dl "$DEF_LANG" '{success:true, problems:[], statement_langs:$sl, default_statement_lang:$dl}')"
 else
-  BODY="$(printf '%s\n' "${ITEMS[@]}" | jq -cs '{success:true, problems:.}')"
+  BODY="$(printf '%s\n' "${ITEMS[@]}" | jq -cs --argjson sl "$SLJ" --arg dl "$DEF_LANG" '{success:true, problems:., statement_langs:$sl, default_statement_lang:$dl}')"
 fi
 [[ -n "$BODY" ]] || fail 500 "Falha ao montar a resposta" "build_fail"
 # grava por tmp+mv: leitor concorrente nunca vê arquivo pela metade

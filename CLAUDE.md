@@ -646,6 +646,27 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   faixa ou fórmula inline: era isso que dava "fácil" na busca e "difícil" na estatística
   (`acceptance_rate` por submissão fica só como número). Pós-deploy: `touch contests/treino/conf`
   força o recompute em massa dos metrics (ganha `tries_to_ac`).
+- **ENUNCIADO EM VÁRIOS IDIOMAS (2026-09-15)** — é OUTRO eixo que o `i18n.js` (interface pt|en):
+  o eixo dos DOCUMENTOS (pt/en/es). Fonte única da descoberta de arquivo: `mojtools/statement-langs.sh`
+  (`stmt_file`/`stmt_langs_of`/`stmt_note_file`/`stmt_samples_html` — o ÚNICO gerador do HTML dos
+  exemplos, usado pelo `gen-problem-json` E pelo `problems/preview`); pacote em `docs/PACOTE.md`
+  "Idiomas". Servidor: `lib/problems.sh` lê/grava `translations{<lang>:{title,enunciado_md,
+  editorial_md,notes}}` + `titles` (write_meta poda idioma sem arquivo; salvar as notas PT NUNCA
+  apaga as traduzidas — `_notes_rm_lang`, com `find`, porque a API roda `noglob`); o índice serve
+  `statement_langs` + `statements{<lang>}`. Contest: `lib/contest-statement.sh` (`cs_langs` = conf
+  `STATEMENT_LANGS`, ausente = pt; `cs_default` = LOCALE se oferecido senão o 1º; `cs_file` = arquivo
+  do idioma › PT; `cs_bank_write` materializa PT e traduções do banco — o tmp é resolvido em variável
+  ANTES do jq, o `${BASHPID}` no alvo do redirect expandia no FILHO e a materialização preguiçosa do
+  `/contest/problems` falhava MUDA), handler `admin/statement-langs.sh` (**`is_admin_or_chief`**: o
+  `.cjudge` também define), `/contest/statement?lang=` (400 fora da allowlist, **404** se a prova não
+  oferece, PT se oferece sem arquivo; `X-MOJ-Statement-Lang`), `/contest/problems` com
+  `statement_langs` por problema + `default_statement_lang`. Web: `shared/statement-langs.js`
+  (chips, `pickStmtLang` = `?lang=` › `moj_stmt_lang` › default do servidor › interface), treino
+  (`problema.js`), sanfona (`contest.js`, troca EM LUGAR em toda sanfona aberta), painel
+  `admin/statement-langs-panel.js` (Prova › Problemas e aba 🌐 do chefe), editor (chips PT·EN·ES,
+  título/editor/notas por idioma, Pré-visualizar por idioma e do editorial `kind:"editorial"`).
+  Teste: `smoke-statement-langs.sh` (59). Regra: **idioma sem tradução cai no PT** em toda ponta;
+  a CLI nunca adivinha idioma — só pede o que `statement_langs` listou.
 - **Rodadas do contest** (`lib/contest-rounds.sh` + `handlers/contest/{admin/rounds,rounds,round,
   admin/round-archive}.sh`): **aquecimento → prova oficial NO MESMO contest** (mesma URL, mesmo
   login, config preservada). `rounds.json` é o plano; **a rodada ativa É o `conf`** — não torne
@@ -723,7 +744,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos) — receita de
   regeneração comentada no `contest-docs.sh`. O caderno prefere o **PDF próprio** do problema; a **capa** tem 3 modos (PDF enviado ›
   markdown editado com marcadores `{{…}}` › gerada) e é **regerada no fim** com o total real de
-  páginas. **PT/EN é só o chrome** — o MOJ não tem enunciado bilíngue; diga isso na UI, não finja.
+  páginas. **O corpo TAMBÉM segue o idioma do documento** (2026-09-15, revoga o "PT/EN é só o
+  chrome"): `_doc_probs_l`/`_doc_stmt_file` pegam `enunciados/<skey>.<lang>.html|pdf` › tradução do
+  banco › PT, o editorial lê `docs/solucao.<lang>.md` › `solucao.md`, o título vem de
+  `titles[<lang>]` — idioma sem tradução CAI NO PT, nunca sai só a capa localizada.
   `publish` escreve `resources.json` (seção "Prova") e opcionalmente a notícia com anexo; o gate
   de download é do handler (`/contest/doc`: não publicado ⇒ **404** p/ quem não é admin/chefe).
 - **Checklist pré-prova** (`handlers/contest/admin/preflight.sh`): a lista que a **🏁 Central**

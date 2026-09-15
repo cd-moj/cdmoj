@@ -12,6 +12,7 @@ import { makeSubmissionsTable } from '/contest/submissions-table.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
+import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -477,14 +478,30 @@ async function uiCssText() {
 // lista, e num contest de PDF isso é 3,8 MB por time no segundo da abertura. Guarda a PROMESSA
 // (não o texto): dois cliques rápidos no mesmo problema fazem uma requisição só.
 const _stmt = new Map();
-function statementUrl(p, fmt) {
-  return '/contest/statement?contest=' + encodeURIComponent(CONTEST)
-    + '&problem=' + encodeURIComponent(p.short_name) + '&format=' + fmt;
+// IDIOMA DO ENUNCIADO (2026-09-15): o contest OFERECE uma lista (`statement_langs` da resposta de
+// /contest/problems, decidida pelo admin/chefe) e um default (`default_statement_lang`, o LOCALE
+// se estiver na lista). A escolha do time fica em localStorage (moj_stmt_lang) e vale p/ todos os
+// problemas; um problema que não tem o idioma escolhido cai no 1º dele. Chips só quando há >1.
+let STMT_OFFERED = ['pt'], STMT_DEFAULT = 'pt', stmtLang = 'pt';
+const _stmtRefresh = new Map();   // problem_id -> fn(lang) que troca o corpo da sanfona já aberta
+function stmtLangFor(p) {
+  const av = (Array.isArray(p.statement_langs) && p.statement_langs.length) ? p.statement_langs : ['pt'];
+  return av.includes(stmtLang) ? stmtLang : av[0];
 }
-function statementHtml(p) {
-  const k = p.short_name + ':html';
+function setStmtLang(l) {
+  stmtLang = l; rememberStmtLang(l);
+  _stmtRefresh.forEach((fn) => fn());   // toda sanfona aberta troca em lugar
+}
+function statementUrl(p, fmt, lang) {
+  return '/contest/statement?contest=' + encodeURIComponent(CONTEST)
+    + '&problem=' + encodeURIComponent(p.short_name) + '&format=' + fmt
+    + '&lang=' + encodeURIComponent(lang || stmtLangFor(p));
+}
+function statementHtml(p, lang) {
+  const l = lang || stmtLangFor(p);
+  const k = p.short_name + ':' + l + ':html';
   if (!_stmt.has(k)) {
-    _stmt.set(k, apiGetText(statementUrl(p, 'html'), { contest: CONTEST, auth: true })
+    _stmt.set(k, apiGetText(statementUrl(p, 'html', l), { contest: CONTEST, auth: true })
       .catch((e) => { _stmt.delete(k); throw e; }));   // erro não fica grudado no cache
   }
   return _stmt.get(k);
@@ -504,7 +521,8 @@ function openTabThen(fill) {
   });
 }
 async function openStatementNewTab(p) {
-  const html = await statementHtml(p);
+  const lang = stmtLangFor(p);
+  const html = await statementHtml(p, lang);
   // MESMA cara da sanfona/Treino Livre: miolo do body em .statement-content com o ui.css
   // INLINE (num documento blob: nem <link href="/shared/ui.css"> resolve — base URL opaca;
   // e o <style> próprio do renderer tem OUTRAS cores, divergia do enunciado embutido)
@@ -514,7 +532,7 @@ async function openStatementNewTab(p) {
     if (doc.body && doc.body.innerHTML.trim()) body = doc.body.innerHTML;
   } catch {}
   const css = await uiCssText();
-  const full = `<!DOCTYPE html><html lang="${getLang() === 'en' ? 'en' : 'pt-br'}"><head>
+  const full = `<!DOCTYPE html><html lang="${stmtHtmlLang(lang)}"><head>
     <meta charset="utf-8"><title>${(p.short_name || '') + ' — ' + (p.full_name || '')}</title>
     <style>${css}</style>
     <style>body{padding:1.4rem;max-width:900px;margin:auto}</style></head>
@@ -531,7 +549,7 @@ function openHtmlTab(p) {
 }
 function openPdfTab(p) {
   return openTabThen(async (w) => {
-    const blob = await apiGetBlob(statementUrl(p, 'pdf'), { contest: CONTEST, auth: true });
+    const blob = await apiGetBlob(statementUrl(p, 'pdf', stmtLangFor(p)), { contest: CONTEST, auth: true });
     const url = URL.createObjectURL(blob);
     if (w) w.location.replace(url); else window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -648,15 +666,26 @@ function toggleDetail(p, item, toggle, submitWrap) {
       const stmtDiv = el('div', { class: 'statement-content' },
         el('span', { class: 'muted' }, T('carregando o enunciado…', 'loading the statement…')));
       stmtCol = el('div', { class: 'prob-statement-col' }, stmtDiv);
-      statementHtml(p).then((html) => {
-        stmtDiv.innerHTML = (() => {
-          try { const d = new DOMParser().parseFromString(html, 'text/html'); return d.body ? d.body.innerHTML : html; }
-          catch { return html; }
-        })();
-      }).catch(() => {
-        stmtDiv.textContent = T('não deu para carregar o enunciado — recarregue a página.',
-                               'could not load the statement — reload the page.');
-      });
+      // chips de idioma (só quando ESTE problema oferece mais de um); a troca vale p/ a prova toda
+      const av = (Array.isArray(p.statement_langs) && p.statement_langs.length) ? p.statement_langs : ['pt'];
+      const chips = makeStmtLangChips(av, stmtLangFor(p), (l) => setStmtLang(l));
+      if (av.length > 1) stmtCol.prepend(el('div', { class: 'row', style: 'align-items:center;gap:.5rem;margin-bottom:.4rem' },
+        el('span', { class: 'small muted' }, T('Idioma:', 'Language:')), chips));
+      const fill = () => {
+        const l = stmtLangFor(p); setChipsActive(chips, l);
+        statementHtml(p, l).then((html) => {
+          stmtDiv.innerHTML = (() => {
+            try { const d = new DOMParser().parseFromString(html, 'text/html'); return d.body ? d.body.innerHTML : html; }
+            catch { return html; }
+          })();
+          stmtDiv.setAttribute('lang', stmtHtmlLang(l));
+        }).catch(() => {
+          stmtDiv.textContent = T('não deu para carregar o enunciado — recarregue a página.',
+                                 'could not load the statement — reload the page.');
+        });
+      };
+      _stmtRefresh.set(p.problem_id, fill);
+      fill();
     }
     if (editorOn) {
       const edCol = el('div', { class: 'prob-editor-col' }, submitWrap.editorBlock);
@@ -926,6 +955,10 @@ async function loadContestBody() {
   }
   if (j) {
     problems = Array.isArray(j) ? j : (j.problems || []);
+    STMT_OFFERED = (j && Array.isArray(j.statement_langs) && j.statement_langs.length) ? j.statement_langs : ['pt'];
+    STMT_DEFAULT = (j && j.default_statement_lang) || STMT_OFFERED[0];
+    stmtLang = pickStmtLang(STMT_OFFERED, STMT_DEFAULT);
+    _stmtRefresh.clear();
   } else {
     if (lista) lista.innerHTML = `<span class="error-box">${T('Falha ao carregar problemas. Recarregue a página.', 'Failed to load problems. Reload the page.')}</span>`;
     problems = [];

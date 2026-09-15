@@ -9,6 +9,7 @@ import { makeVerdictOptionsEditor, makeAutoVerdictEditor } from '/shared/contest
 import { makeReviewBoard } from '/shared/review-board.js';
 import { makeDocsTab } from '/contest/admin/docs-tab.js';
 import { makeRoundsTab } from '/contest/admin/rounds-tab.js';
+import { makeStatementLangsPanel } from '/contest/admin/statement-langs-panel.js';
 import { T } from '/shared/i18n.js';
 
 const qs = new URLSearchParams(location.search);
@@ -74,6 +75,8 @@ const TABS = () => [
   { id: 'conf', label: T('⚖️ Conflitos', '⚖️ Conflicts'), make: conflitosTab },
   { id: 'opts', label: T('🏷️ Opções', '🏷️ Options'), make: optionsTab },
   { id: 'auto', label: T('⚙️ Auto-veredicto', '⚙️ Auto-verdict'), make: autoTab },
+  // idiomas do enunciado que a sanfona oferece — o chefe prepara a prova junto com o admin
+  { id: 'langs', label: T('🌐 Idiomas', '🌐 Languages'), make: () => makeStatementLangsPanel(CONTEST) },
   ...(MODS.has('documentos') ? [{ id: 'docs', label: T('📄 Documentos', '📄 Documents'), make: () => makeDocsTab(CONTEST) }] : []),
   ...(MODS.has('rodadas') ? [{ id: 'rounds', label: T('🔁 Rodadas', '🔁 Rounds'), make: () => makeRoundsTab(CONTEST, { readOnly: true }) }] : []),
 ];

@@ -139,6 +139,11 @@ A lista de problemas é um acordeão. Cada linha tem:
 Ao abrir um problema, a primeira linha é o **tempo-limite**, um chip por linguagem (as mais
 lentas ganham mais tempo, medido na máquina do juiz). Depois vem o enunciado e, se a organização
 habilitou o editor, ele ao lado — com as opções **Lado a lado**, **Só enunciado** e **Só editor**.
+
+> **Enunciado em mais de um idioma.** Quando a organização oferece o enunciado em outros
+> idiomas, aparecem os chips **PT · EN · ES** acima do enunciado. Clique para trocar. A troca
+> vale para todos os problemas da prova, e o MOJ lembra a sua escolha. Os links **HTML** e
+> **PDF** abrem no idioma escolhido. Um problema sem tradução mostra o português.
 O MOJ lembra a sua escolha no próximo problema que você abrir. Abrir um problema não fecha os
 outros: dá para deixar dois abertos ao mesmo tempo.
 

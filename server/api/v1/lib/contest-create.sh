@@ -5,6 +5,7 @@
 : "${DEFAULT_SCORE_MODE:=icpc}"
 source "${BASH_SOURCE[0]%/*}/verdict.sh"   # penalty_codes_* (validação/normalização)
 source "${BASH_SOURCE[0]%/*}/difficulty.sh" # diff_label/diff_bucket: dificuldade do sorteio (fonte única, #30)
+source "${BASH_SOURCE[0]%/*}/contest-statement.sh"   # idiomas do enunciado no contest (cs_*), 2026-09-15
 
 cc_perms_file(){ printf '%s/treino/var/contest-perms.json' "$CONTESTSDIR"; }
 
@@ -229,6 +230,8 @@ cc_create(){
       [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
     fi
     [[ -n "$html" ]] && printf '%s' "$html" > "$stg/enunciados/$skey.html"
+    # traduções do banco (statements{<lang>}) -> enunciados/<skey>.<lang>.html (lib/contest-statement.sh)
+    if [[ -z "$stmt_b64" && -z "$stmt_file" ]] && bf="$(cs_bank_json "${bankid:-$skey}")"; then cs_bank_write "$bf" "$stg" "$skey" langs; fi
     # PDF opcional do enunciado (espelha o admin: enunciados/<skey>.pdf)
     if [[ -n "$pdf_b64" ]]; then
       printf '%s' "$pdf_b64" | base64 -d > "$stg/enunciados/$skey.pdf" 2>/dev/null \
@@ -647,6 +650,8 @@ cc_build_probs(){
     elif [[ -n "$bankid" ]]; then bf="$CONTESTSDIR/treino/var/jsons/$bankid.json"; [[ -f "$bf" ]] || bf="$CONTESTSDIR/treino/var/jsons-private/$bankid.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"
     else bf="$CONTESTSDIR/treino/var/jsons/$skey.json"; [[ -f "$bf" ]] || bf="$CONTESTSDIR/treino/var/jsons-private/$skey.json"; [[ -f "$bf" ]] && html="$(jq -r '.statement_html_b64 // ""' "$bf" 2>/dev/null | base64 -d 2>/dev/null)"; fi
     [[ -n "$html" ]] && printf '%s' "$html" > "$tdir/enunciados/$skey.html"
+    # traduções do banco -> <skey>.<lang>.html (CC_KEEP_STATEMENTS preserva as que já estão no disco)
+    if [[ -z "$stmt_b64" && -z "$stmt_file" ]] && bf="$(cs_bank_json "${bankid:-$skey}")"; then cs_bank_write "$bf" "$tdir" "$skey" langs; fi
     probs+=" $(printf '%q' "$src") $(printf '%q' "$pid") $(printf '%q' "$pname") $(printf '%q' "$letter") $(printf '%q' "$skey")"
     ((i++))
   done < <(jq -c '.[]' <<<"$spec")

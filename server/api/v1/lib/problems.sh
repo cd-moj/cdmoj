@@ -510,6 +510,28 @@ problem_owner(){
 # mesmo resultado byte-a-byte e sem um fork por arquivo. Fica p/ quem grava 1 arquivo avulso.
 _putfile(){ local f="$1" c; c="$(cat)"; if [[ -n "$c" ]]; then printf '%s\n' "$c" > "$f"; else : > "$f"; fi; }
 
+# IDIOMAS DO ENUNCIADO (2026-09-15): a descoberta de arquivo por idioma (docs/enunciado.<lang>.md,
+# docs/notes/<sample>.<lang>.md, docs/solucao.<lang>.md, titles do meta) é a do
+# mojtools/statement-langs.sh — a MESMA que o gen-problem-json/validate usam. Nunca reescreva o glob.
+declare -F stmt_langs_all >/dev/null || source "${MOJTOOLS_DIR:-/home/ribas/moj/mojtools}/statement-langs.sh"
+# _notes_rm_lang <pkg> <lang|pt> — apaga só as notas DO idioma (pt = <sample>.md sem sufixo de
+# idioma; outro = <sample>.<lang>.md). Substitui o `rm -rf docs/notes` que levava as traduções junto.
+_notes_rm_lang(){
+  local pkg="$1" lang="$2" f b
+  [[ -d "$pkg/docs/notes" ]] || return 0
+  # find, não glob: a API roda com `set -o noglob` (o `*.md` viria literal e nada seria apagado)
+  while IFS= read -r f; do
+    b="${f##*/}"; b="${b%.md}"
+    if [[ "$lang" == pt ]]; then
+      { [[ "$b" == *.* ]] && stmt_lang_ok "${b##*.}"; } && continue   # nota traduzida: fica
+      rm -f "$f"
+    else
+      [[ "$b" == *".$lang" ]] && rm -f "$f"
+    fi
+  done < <(find "$pkg/docs/notes" -maxdepth 1 -type f -name '*.md' 2>/dev/null)
+  rmdir "$pkg/docs/notes" 2>/dev/null || true
+}
+
 # _pkg_canon_modes <pkgdir> — MODO CANÔNICO do pacote: 644 (arquivo), 755 (dir e arquivo com +x).
 # INDEPENDENTE do umask do processo. O fcgiwrap roda com `umask 007` (p/ o socket unix nascer 0770,
 # senão o nginx do sistema toma EACCES), e sem isto TODO arquivo gravado pela API saía 660 enquanto
@@ -553,7 +575,7 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
   # ---------- 1 passada: TODAS as sondas + os escalares curtos (antes: ~36 re-parses) ----------
   local HAS_ENUN=0 HAS_AUTHOR=0 HAS_TAGS=0 HAS_CONF=0 HAS_EXAMPLES=0 HAS_NOTES=0 HAS_TESTS=0 \
         HAS_SCORE=0 SCORE_ENABLED=0 HAS_SOLS=0 HAS_GOODSOL=0 HAS_SCRIPTS=0 HAS_SCORETXT=0 \
-        HAS_EDITORIAL=0 HAS_DOCSFILES=0 EFMT='' GOODSOL_FN='' SOLS_CATS=''
+        HAS_EDITORIAL=0 HAS_DOCSFILES=0 HAS_TRANS=0 HAS_TITLES=0 EFMT='' GOODSOL_FN='' SOLS_CATS=''
   _man="$(jq -r '
       def b(x): (if x then "1" else "0" end);
       "HAS_ENUN=\(b(has("enunciado_md")))",
@@ -571,6 +593,8 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
       "HAS_DOCSFILES=\(b(has("docs_files")))",
       "HAS_SCORETXT=\(b(has("score_text")))",
       "HAS_EDITORIAL=\(b(has("editorial_md")))",
+      "HAS_TRANS=\(b((.translations|type)=="object"))",
+      "HAS_TITLES=\(b((.titles|type)=="object"))",
       "EFMT=\((.enunciado_format // "") | @sh)",
       "GOODSOL_FN=\((.good_sol.filename // "sol.cpp") | @sh)",
       "SOLS_CATS=\(((.sols // {}) | keys | join(" ")) | @sh)"
@@ -600,6 +624,7 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
     local e
     if [[ -z "$EFMT" ]]; then for e in md org tex; do [[ -f "$pkg/docs/enunciado.$e" ]] && { EFMT="$e"; break; }; done; fi
     [[ "$EFMT" =~ ^(md|org|tex)$ ]] || EFMT=md
+    # só os formatos PT (enunciado.md|org|tex) — as traduções enunciado.<lang>.md NUNCA entram aqui
     for e in md org tex; do [[ "$e" != "$EFMT" && -f "$pkg/docs/enunciado.$e" ]] && rm -f "$pkg/docs/enunciado.$e"; done
     printf '%s' "$S_ENUN" > "$pkg/docs/enunciado.$EFMT"
   fi
@@ -632,7 +657,8 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
     # sample-notes.json (fonte única). Só mexe se o cliente for "ciente de explicação"
     # (algum exemplo traz a chave); cliente antigo não apaga as notas de ninguém.
     if (( HAS_NOTES )); then
-      rm -rf "$pkg/docs/notes"; rm -f "$pkg/docs/sample-notes.json"
+      # só as notas PT (<sample>.md): as traduzidas (<sample>.<lang>.md) são do bloco `translations`
+      _notes_rm_lang "$pkg" pt; rm -f "$pkg/docs/sample-notes.json"
       if [[ "$(jq -r 'map(select(.!=""))|length' <<<"$S_NOTES" 2>/dev/null)" -gt 0 ]]; then
         mkdir -p "$pkg/docs/notes"
         printf '%s' "$S_NOTES" > "$_t/notes.json"
@@ -651,6 +677,63 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
   # ---- resolução/editorial (só p/ setters; docs/solucao.md; não vai p/ o aluno) -------------
   if (( HAS_EDITORIAL )); then
     if [[ -n "$S_EDIT" ]]; then printf '%s' "$S_EDIT" > "$pkg/docs/solucao.md"; else rm -f "$pkg/docs/solucao.md"; fi
+  fi
+
+  # ---- TRADUÇÕES: translations = {"<lang>": {title?, enunciado_md?, editorial_md?, notes?:{<sample>:md}} | null}
+  # Idioma AUSENTE do objeto = intocado; `null` = apaga o idioma inteiro (enunciado, editorial, notas
+  # e o título); dentro do idioma, campo ausente = intocado, "" = apaga. `notes` presente SUBSTITUI
+  # as notas daquele idioma (as PT ficam). Título vai p/ .moj-meta.json `titles` (write_meta poda
+  # os idiomas sem arquivo). Só idiomas da allowlist (statement-langs.sh) e só .md.
+  local TITLES_PATCH='{}'
+  if (( HAS_TRANS )); then
+    local tl tk tv
+    while IFS= read -r tl; do
+      [[ -n "$tl" && "$tl" != pt ]] || continue
+      stmt_lang_ok "$tl" || continue
+      if [[ "$(jq -r --arg l "$tl" '.translations[$l] | type' < "$bodyf" 2>/dev/null)" == null ]]; then
+        rm -f "$pkg/docs/enunciado.$tl.md" "$pkg/docs/solucao.$tl.md"; _notes_rm_lang "$pkg" "$tl"
+        TITLES_PATCH="$(jq -c --arg l "$tl" '.[$l]=""' <<<"$TITLES_PATCH")"
+        continue
+      fi
+      jq --raw-output0 --arg l "$tl" "$JQNL"'
+          .translations[$l]
+          | (if has("enunciado_md") then "1" else "0" end), (.enunciado_md // "" | nl1),
+            (if has("editorial_md") then "1" else "0" end), (.editorial_md // "" | rtrim),
+            (if has("title") then "1" else "0" end), (.title // ""),
+            (if (.notes|type)=="object" then "1" else "0" end)
+        ' < "$bodyf" > "$_t/tr.nul" 2>/dev/null
+      local T_HE='' T_EN='' T_HD='' T_ED='' T_HT='' T_TT='' T_HN=''
+      { IFS= read -r -d '' T_HE; IFS= read -r -d '' T_EN; IFS= read -r -d '' T_HD; IFS= read -r -d '' T_ED
+        IFS= read -r -d '' T_HT; IFS= read -r -d '' T_TT; IFS= read -r -d '' T_HN; } < "$_t/tr.nul" 2>/dev/null
+      if [[ "$T_HE" == 1 ]]; then
+        if [[ -n "$T_EN" ]]; then printf '%s' "$T_EN" > "$pkg/docs/enunciado.$tl.md"; else rm -f "$pkg/docs/enunciado.$tl.md"; fi
+      fi
+      if [[ "$T_HD" == 1 ]]; then
+        if [[ -n "$T_ED" ]]; then printf '%s' "$T_ED" > "$pkg/docs/solucao.$tl.md"; else rm -f "$pkg/docs/solucao.$tl.md"; fi
+      fi
+      [[ "$T_HT" == 1 ]] && TITLES_PATCH="$(jq -c --arg l "$tl" --arg t "$T_TT" '.[$l]=$t' <<<"$TITLES_PATCH")"
+      if [[ "$T_HN" == 1 ]]; then
+        _notes_rm_lang "$pkg" "$tl"
+        jq --raw-output0 --arg l "$tl" "$JQNL"'.translations[$l].notes | to_entries[] | .key, (.value // "" | nl1)'           < "$bodyf" > "$_t/tn.nul" 2>/dev/null
+        while IFS= read -r -d '' tk && IFS= read -r -d '' tv; do
+          [[ "$tk" =~ ^[A-Za-z0-9_-]+$ ]] || continue          # nome de sample: sem ponto/barra
+          [[ -n "$(tr -d '[:space:]' <<<"$tv")" ]] || continue
+          mkdir -p "$pkg/docs/notes"; printf '%s' "$tv" > "$pkg/docs/notes/$tk.$tl.md"
+        done < "$_t/tn.nul"
+      fi
+    done < <(jq -r '.translations | keys[]' < "$bodyf" 2>/dev/null)
+  fi
+  # titles no topo do body (a CLI manda o .moj-id `titles`; o editor manda dentro de translations)
+  if (( HAS_TITLES )); then
+    TITLES_PATCH="$(jq -c --slurpfile b "$bodyf" '. + (($b[0].titles // {}) | with_entries(select((.value|type)=="string")))' <<<"$TITLES_PATCH")"
+  fi
+  if [[ "$TITLES_PATCH" != '{}' ]]; then
+    local _mf="$pkg/.moj-meta.json" _cur='{}' _mtmp
+    [[ -f "$_mf" ]] && _cur="$(cat "$_mf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$_cur" || _cur='{}'
+    _mtmp="$_mf.tmp.${BASHPID}"   # expandido ANTES do jq (no alvo de redirect expandiria no FILHO)
+    jq -c --argjson p "$TITLES_PATCH" '. + {titles: (((.titles // {}) + $p) | with_entries(select(.value != "")))}
+      | if (.titles|length)==0 then del(.titles) else . end' <<<"$_cur" > "$_mtmp" \
+      && mv -f "$_mtmp" "$_mf" || rm -f "$_mtmp"
   fi
 
   # ---- pontuação por grupos (subtasks) ----------------------------------------
@@ -878,10 +961,9 @@ _read_score(){
 # symlinks — round-trip do moj push/clone via apply_problem_fields). tests/score sai cru em
 # `score_text` (além do estruturado `score` do editor web).
 read_problem_source(){
-  local pkg="$1" enunf="" fmt="md" ef
-  for ef in docs/enunciado.md enunciado.md docs/enunciado.org docs/enunciado.tex; do
-    [[ -f "$pkg/$ef" ]] && { enunf="$pkg/$ef"; [[ "$ef" == *.org ]] && fmt=org; [[ "$ef" == *.tex ]] && fmt=tex; break; }
-  done
+  local pkg="$1" enunf="" fmt="md"
+  enunf="$(stmt_file "$pkg" pt)" || enunf=""
+  [[ -n "$enunf" ]] && fmt="$(stmt_fmt "$enunf")"
   local te ta tc ted; te="$(mktemp)"; ta="$(mktemp)"; tc="$(mktemp)"; ted="$(mktemp)"
   [[ -n "$enunf" ]] && cat "$enunf" > "$te"
   [[ -f "$pkg/author" ]] && cat "$pkg/author" > "$ta"
@@ -925,6 +1007,27 @@ read_problem_source(){
        '($nn[0] // []) as $n | $all | to_entries[] | .value + {explanation: ($n[.key] // "")}' \
        > "$d/exs2" 2>/dev/null && mv -f "$d/exs2" "$d/exs"
   fi
+  # TRADUÇÕES (translations): um objeto por idioma com arquivo (enunciado, editorial ou nota):
+  # {title (titles[lang] do meta), enunciado_md, editorial_md?, notes:{<sample>:md}}. Conteúdo por
+  # --rawfile (nunca argv). PT segue nos campos de sempre.
+  : > "$d/trans"
+  local _tl _tf _nf _ns _targs _tfilt
+  for _tl in $(stmt_langs_all); do
+    [[ "$_tl" == pt ]] && continue
+    _targs=(); _tfilt='{title:($meta.titles[$l] // "")}'
+    if _tf="$(stmt_file "$pkg" "$_tl")"; then _targs+=( --rawfile e "$_tf" ); _tfilt+=' + {enunciado_md:$e}'; fi
+    if [[ -f "$pkg/docs/solucao.$_tl.md" ]]; then _targs+=( --rawfile s "$pkg/docs/solucao.$_tl.md" ); _tfilt+=' + {editorial_md:($s|rtrimstr("\n"))}'; fi
+    : > "$d/tnotes"
+    ( set +o noglob; shopt -s nullglob
+      for _nf in "$pkg/docs/notes"/*."$_tl".md; do
+        _ns="${_nf##*/}"; _ns="${_ns%."$_tl".md}"
+        jq -nc --arg n "$_ns" --rawfile v "$_nf" '{key:$n, value:($v|rtrimstr("\n"))}'
+      done ) >> "$d/tnotes"
+    [[ -s "$d/tnotes" ]] && { _targs+=( --slurpfile nn "$d/tnotes" ); _tfilt+=' + {notes:($nn|from_entries)}'; }
+    (( ${#_targs[@]} )) || continue
+    jq -nc --arg l "$_tl" --argjson meta "$meta" "${_targs[@]}" \
+      "{key:\$l, value:($_tfilt)}" >> "$d/trans"
+  done
   # imagens de docs/ (docs_files) — round-trip do clone/push
   : > "$d/docsf"
   ( set +o noglob; shopt -s nullglob
@@ -938,12 +1041,14 @@ read_problem_source(){
         --rawfile scr "$tscr" --rawfile scoretxt "$tsct" \
         --argjson tags "$tags" --argjson meta "$meta" --argjson score "$score" --arg fmt "$fmt" \
         --slurpfile exs "$d/exs" --slurpfile tss "$d/tss" --slurpfile scf "$d/scf" \
-        --slurpfile dfl "$d/docsf" \
+        --slurpfile dfl "$d/docsf" --slurpfile trs "$d/trans" \
         --slurpfile sg "$d/sg" --slurpfile ss "$d/ss" --slurpfile sw "$d/sw" --slurpfile sp "$d/sp" --slurpfile su "$d/su" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
       languages:($meta.languages // []),
-      title:($meta.display_title // ""), examples:$exs, tests:$tss, score:$score,
+      title:($meta.display_title // ""), titles:($meta.titles // {}),
+      statement_langs:(["pt"] + ($trs | map(.key))), translations:($trs | from_entries),
+      examples:$exs, tests:$tss, score:$score,
       tests_omitted:($tss | any(.omitted == true)),
       score_text:$scoretxt,
       scripts:($scr | split("\n") | map(select(. != ""))),
@@ -997,7 +1102,7 @@ _derive_title(){
   printf '%s' "$t"
 }
 
-# write_meta <pkgdir> <owner> <repo> [public:true|false|""] [collections-json|""] [display_title] [languages-json|""]
+# write_meta <pkgdir> <owner> <repo> [public:true|false|""] [collections-json|""] [display_title] [languages-json|""] [titles-json|""]
 # BLINDAGEM: display_title nunca fica ausente — se não veio título E o meta ainda não tem um,
 # deriva do enunciado/slug (_derive_title). Assim o editor nunca vem em branco e as 3 telas (editor,
 # treino, gestão) ficam consistentes. Meta que já tem título não muda (o merge $cur+{} preserva).
@@ -1005,16 +1110,25 @@ _derive_title(){
 # = todas). "" (ou omitido) = não mexe (preserva o que já houver); [] = limpa (volta a irrestrito).
 # Normalização espelha a whitelist de contest (contest/admin/settings.sh): sem lista de ids
 # hardcoded (não duplicar a lista JS em bash — forward-compat), só saneamento de forma.
+# titles: {"<lang>": "título da tradução"} — MESCLA no `titles` do meta ("" apaga a chave) e, sempre,
+# PODA os idiomas sem docs/enunciado.<lang>.md (o título só existe junto do arquivo; ver PACOTE.md).
 write_meta(){
-  local pkg="$1" owner="$2" repo="$3" pub="${4:-}" colls="${5:-}" title="${6:-}" langs="${7:-}" cur='{}'
+  local pkg="$1" owner="$2" repo="$3" pub="${4:-}" colls="${5:-}" title="${6:-}" langs="${7:-}" titles="${8:-}" cur='{}'
   [[ -f "$pkg/.moj-meta.json" ]] && cur="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
   if [[ -z "$title" && -z "$(jq -r '.display_title // empty' <<<"$cur" 2>/dev/null)" ]]; then
     title="$(_derive_title "$pkg")"
   fi
+  jq -e . >/dev/null 2>&1 <<<"${titles:-null}" || titles=""
+  local have_langs='[]' _l
+  for _l in $(stmt_langs_of "$pkg"); do [[ "$_l" == pt ]] || have_langs="$(jq -c --arg l "$_l" '. + [$l]' <<<"$have_langs")"; done
   jq -n --argjson cur "$cur" --arg o "$owner" --arg r "$repo" --arg pub "$pub" \
         --argjson colls "${colls:-null}" --arg title "$title" --argjson langs "${langs:-null}" \
+        --argjson titles "${titles:-null}" --argjson have "$have_langs" \
         --argjson now "$EPOCHSECONDS" '
-    $cur + {owner:$o}
+    ($cur + {owner:$o})
+    | .titles = ((($cur.titles // {}) + (if ($titles|type)=="object" then $titles else {} end))
+                 | with_entries(select((.value|type)=="string" and .value != "" and ((.key as $k | $have | index($k)) != null))))
+    | (if (.titles|length)==0 then del(.titles) else . end)
     + (if $pub=="" then {} elif $pub=="true" then {public:true} else {public:false} end)
     + (if $colls==null then {} else {collections:$colls} end)
     + (if $langs==null then {} else

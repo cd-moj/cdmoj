@@ -12,8 +12,9 @@ source "$_LIBDIR/contest-gate.sh"
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
   FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
-  PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; GUEST_NUMBERING=""
+  PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; GUEST_NUMBERING=""; STATEMENT_LANGS=""
   load_contest_conf "$contest"
+  source "$_LIBDIR/contest-statement.sh"
   langs_json='[]'; [[ -n "$LANGUAGES" ]] && langs_json="$(printf '%s\n' $LANGUAGES | grep -v '^$' | jq -R . | jq -cs .)"
   jdg_json='[]'; [[ -n "$CONTEST_JUDGES" ]] && jdg_json="$(printf '%s\n' $CONTEST_JUDGES | grep -v '^$' | jq -R . | jq -cs .)"
   sfu_json='[]'; [[ -n "$SCORE_FULL_USERS" ]] && sfu_json="$(printf '%s\n' $SCORE_FULL_USERS | grep -v '^$' | jq -R . | jq -cs .)"
@@ -29,7 +30,9 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
             balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods,
-            freeze_release_at:$fra, guest_numbering:$gnum}' \
+            freeze_release_at:$fra, guest_numbering:$gnum, statement_langs:$slangs, default_statement_lang:$sdef}' \
+    --argjson slangs "$(jq -cn --arg s "$(cs_norm "$STATEMENT_LANGS")" '$s|split(" ")')" \
+    --arg sdef "$(cs_default "$contest" "$(cs_norm "$STATEMENT_LANGS")")" \
     --argjson gnum "$([[ "$GUEST_NUMBERING" == 1 ]] && echo true || echo false)" \
     --argjson fra "$(freeze_release_at "$contest")" \
     --argjson mods "$(mod_list_json "$contest")" \

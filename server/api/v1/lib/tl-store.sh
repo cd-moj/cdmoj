@@ -302,7 +302,8 @@ index_problem_now(){
   local md="$CONTESTSDIR/treino/var/jsons-meta/$id.json"
   if [[ -f "$jd" ]]; then
     mkdir -p "${md%/*}" 2>/dev/null
-    jq -c '{id, title, public, tags:(.tags // []), collections:(.collections // [])}' \
+    jq -c '{id, title, public, tags:(.tags // []), collections:(.collections // []),
+            statement_langs:(.statement_langs // ["pt"])}' \
       "$jd" > "$md.tmp" 2>/dev/null && mv -f "$md.tmp" "$md" || rm -f "$md.tmp"
   else
     rm -f "$md" 2>/dev/null   # o gerador decidiu privado/inválido: sai da lista junto

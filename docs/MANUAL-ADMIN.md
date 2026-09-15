@@ -52,7 +52,22 @@ painel de módulo **desligado** cai em **Central › Módulos** com um aviso diz
 
 | Painel | O que faz |
 |---|---|
-| **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF), e **🏦 Adicionar do banco** (busca e sorteio). |
+| **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF, **por idioma**), o painel **🌐 Idiomas do enunciado** (abaixo) e **🏦 Adicionar do banco** (busca e sorteio). |
+
+**🌐 Idiomas do enunciado.** Um problema do banco pode ter o enunciado em português, inglês e
+espanhol (o autor escreve `docs/enunciado.en.md` e `docs/enunciado.es.md` no pacote). A prova
+**não** mostra todos os idiomas sozinha: você marca, no painel Prova › Problemas, os idiomas que
+a sanfona oferece. O juiz-chefe tem o mesmo painel na aba **🌐 Idiomas** do painel dele. Regras:
+
+- Sem marcar nada, a prova é só em português.
+- A sanfona abre no idioma do contest (`LOCALE`) se ele estiver marcado; senão, no primeiro
+  marcado. O competidor troca com os chips **PT · EN · ES** e o MOJ lembra a escolha dele.
+- Um idioma marcado sem tradução em um problema mostra o português nesse problema. A tabela do
+  painel mostra, por letra, o que existe.
+- Enviar um HTML ou PDF próprio para um idioma: escolha o idioma no seletor ao lado dos botões
+  **Enviar HTML** / **Enviar PDF**. O arquivo vale só para aquele idioma.
+- O caderno e o editorial em EN/ES usam a tradução de cada problema. Um problema sem tradução sai
+  em português no caderno. O título do problema também sai traduzido.
 | **Relatório** | O relatório estático da prova num lugar só: baixar o `tar.gz` navegável, **publicar como histórico** em `/relatorio/<contest>/` (republicar, despublicar) e publicar o relatório de cada rodada arquivada. A seção 6½ explica. |
 
 ### 👥 Pessoas — quem entra, quem é quem
@@ -270,10 +285,12 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
 então gerar de novo já entrega a versão nova a quem baixar. Mas **avise a sede**: quem já
 imprimiu ficou com a versão velha (é para isso que serve o campo *versão do caderno* na capa).
 
-> ⚠️ **Enunciado não é traduzido.** PT/EN vale para a capa, os títulos, as tabelas e o info
-> sheet. O corpo do enunciado sai no idioma em que foi escrito — o MOJ guarda um enunciado por
-> problema, não dois. Prova bilíngue continua exigindo dois problemas (ou um enunciado que já
-> traga as duas versões).
+> 🌐 **O caderno e o editorial saem no idioma do documento.** O caderno em inglês usa o
+> `enunciado.en.md` de cada problema (ou o HTML/PDF em inglês que você enviou no painel de
+> Problemas), e o editorial em inglês usa o `solucao.en.md`. Um problema sem tradução sai em
+> português no meio do caderno — o documento nunca fica só com a capa traduzida. O título do
+> problema sai traduzido quando o pacote tem o título naquele idioma. Prova bilíngue com
+> enunciado pronto por fora continua entrando pelo **PDF enviado**.
 
 > 🔒 **Antes de publicar, o caderno é conteúdo de prova**: só `.admin` e `.cjudge` conseguem
 > baixá-lo. Para todo o resto (inclusive `.cstaff` e times) a API responde **404** — não é uma

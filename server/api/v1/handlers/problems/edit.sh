@@ -1,5 +1,6 @@
 # POST /problems/edit   (Bearer)   body: {id, enunciado_md?, author?, tags?, conf_text?,
-#                                          examples?, tests?, good_sol?, title?, collections?, languages?}
+#                                          examples?, tests?, good_sol?, title?, collections?, languages?,
+#                                          translations?, titles?}   (idiomas: ver docs/PACOTE.md)
 # Edita um problema existente (repo git LOCAL da org). Commit autorado pelo login (sem Gitea).
 #
 # O CORPO VEM EM ARQUIVO (read_body_file), nunca em variável: um pacote de 84 MB vira ~100 MB de JSON,

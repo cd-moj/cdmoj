@@ -6,6 +6,7 @@ import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
+import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 
 const CONTEST = 'treino';
 const qs = new URLSearchParams(location.search);
@@ -132,9 +133,27 @@ async function loadProblem() {
       el('a', { class: 'btn ghost', style: 'padding:.32rem .7rem;font-size:.85rem',
                 href: '/treino/problema/stats/?id=' + encodeURIComponent(ID) }, T('📊 Estatísticas deste problema', '📊 Statistics for this problem'))));
 
-  const html = b64utf8(p.statement_html_b64 || '');
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  document.getElementById('statement').innerHTML = doc.body ? doc.body.innerHTML : html;
+  // IDIOMA DO ENUNCIADO: `statement_langs` + `statements{<lang>}` (PT segue em statement_html_b64).
+  // Chips acima do enunciado só quando há mais de um; a troca é em lugar (título + corpo).
+  const langs = Array.isArray(p.statement_langs) && p.statement_langs.length ? p.statement_langs : ['pt'];
+  const stmtEl = document.getElementById('statement');
+  const showStatement = (lang) => {
+    const tr = (lang !== 'pt' && p.statements && p.statements[lang]) || null;
+    const html = b64utf8((tr && tr.html_b64) || p.statement_html_b64 || '');
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    stmtEl.innerHTML = doc.body ? doc.body.innerHTML : html;
+    stmtEl.setAttribute('lang', stmtHtmlLang(tr ? lang : 'pt'));
+    const title = (tr && tr.title) || p.title || ID;
+    document.getElementById('ptitle').textContent = title; document.title = title + ' — MOJ';
+  };
+  let cur = pickStmtLang(langs, 'pt');
+  const chips = makeStmtLangChips(langs, cur, (l) => { cur = l; rememberStmtLang(l); setChipsActive(chips, l); showStatement(l); });
+  if (langs.length > 1) {
+    const bar = el('div', { class: 'row', style: 'justify-content:space-between;align-items:center;margin:0 0 .5rem' },
+      el('span', { class: 'small muted' }, T('Idioma do enunciado:', 'Statement language:')), chips);
+    stmtEl.before(bar);
+  }
+  showStatement(cur);
 }
 
 async function downloadAuthed(path, filename) {

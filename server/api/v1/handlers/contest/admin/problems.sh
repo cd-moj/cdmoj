@@ -140,23 +140,30 @@ case "$action" in
     { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || fail 422 "chave de enunciado inválida" "skey_invalid"
     cid="$(jq -r --arg l "$L" '[.[]|select(.letter==$l)][0] | (if ((.statement_key//"")|test("#")) then .statement_key else ((.problem_id//"")|gsub("/";"#")) end) // empty' <<<"$cur")"
     edir="$CONTESTSDIR/$contest/enunciados"; mkdir -p "$edir"
+    # IDIOMA do arquivo (2026-09-15): `lang` pt|en|es (default pt) -> <skey>.html | <skey>.<lang>.html
+    source "$_LIBDIR/contest-statement.sh"
+    slang="$(jq -r '.lang // "pt"' <<<"$body")"
+    stmt_lang_ok "$slang" || fail 400 "lang inválido ($(stmt_langs_all))" "lang_invalid"
+    sfx=""; [[ "$slang" != pt ]] && sfx=".$slang"
     did=""
     hb="$(jq -r '.html_b64 // empty' <<<"$body")"
     if [[ -n "$hb" ]]; then
-      printf '%s' "$hb" | base64 -d > "$edir/$skey.html.tmp" 2>/dev/null && mv -f "$edir/$skey.html.tmp" "$edir/$skey.html" \
-        || { rm -f "$edir/$skey.html.tmp"; fail 422 "HTML inválido (base64)" "html_b64"; }
-      did="html"
+      printf '%s' "$hb" | base64 -d > "$edir/$skey$sfx.html.tmp" 2>/dev/null && mv -f "$edir/$skey$sfx.html.tmp" "$edir/$skey$sfx.html" \
+        || { rm -f "$edir/$skey$sfx.html.tmp"; fail 422 "HTML inválido (base64)" "html_b64"; }
+      did="html$sfx"
     fi
     pb="$(jq -r '.pdf_b64 // empty' <<<"$body")"
     if [[ -n "$pb" ]]; then
-      printf '%s' "$pb" | base64 -d > "$edir/$skey.pdf.tmp" 2>/dev/null && mv -f "$edir/$skey.pdf.tmp" "$edir/$skey.pdf" \
-        || { rm -f "$edir/$skey.pdf.tmp"; fail 422 "PDF inválido (base64)" "pdf_b64"; }
-      did="$did pdf"
+      printf '%s' "$pb" | base64 -d > "$edir/$skey$sfx.pdf.tmp" 2>/dev/null && mv -f "$edir/$skey$sfx.pdf.tmp" "$edir/$skey$sfx.pdf" \
+        || { rm -f "$edir/$skey$sfx.pdf.tmp"; fail 422 "PDF inválido (base64)" "pdf_b64"; }
+      did="$did pdf$sfx"
     fi
-    [[ "$(jq -r '.remove_html // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey.html"; did="$did -html"; }
-    [[ "$(jq -r '.remove_pdf  // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey.pdf";  did="$did -pdf"; }
+    [[ "$(jq -r '.remove_html // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey$sfx.html"; did="$did -html$sfx"; }
+    [[ "$(jq -r '.remove_pdf  // false' <<<"$body")" == true ]] && { rm -f "$edir/$skey$sfx.pdf";  did="$did -pdf$sfx"; }
     if [[ "$(jq -r '.refresh // false' <<<"$body")" == true && -n "$cid" ]]; then
-      rm -f "$edir/$skey.html"   # remove o cache -> /contest/problems volta a buscar/cachear do banco
+      # remove o cache (PT e TODAS as traduções) -> /contest/problems volta a buscar/cachear do banco
+      rm -f "$edir/$skey.html"
+      for _l in $(stmt_langs_all); do [[ "$_l" == pt ]] || rm -f "$edir/$skey.$_l.html"; done
       # reindexa NO SERVIDOR (o antigo idx_request enfileirava kind=index p/ o juiz, que responde
       # "legado, nada a fazer" — era no-op e o "refresh" não refrescava nada).
       source "$_DIR/lib/tl-store.sh" 2>/dev/null || true
@@ -164,8 +171,9 @@ case "$action" in
       did="$did refresh"
     fi
     [[ -n "$did" ]] || fail 422 "Nada a fazer (envie html_b64/pdf_b64, remove_*, ou refresh)" "noop"
-    audit_log_to "$contest" problems-statement "letter=$L skey=$skey op=$did"
-    ok_json '{saved:true, statement_key:$k, did:$d}' --arg k "$skey" --arg d "$did"
+    audit_log_to "$contest" problems-statement "letter=$L skey=$skey lang=$slang op=$did"
+    mkdir -p "$CONTESTSDIR/$contest/var" 2>/dev/null; touch "$CONTESTSDIR/$contest/var/.problems-dirty" 2>/dev/null
+    ok_json '{saved:true, statement_key:$k, lang:$l, did:$d}' --arg k "$skey" --arg l "$slang" --arg d "$did"
     exit 0
     ;;
   *) fail 400 "action inválida (add|remove|reorder|rename|langs|judges|statement)" "action_invalid" ;;

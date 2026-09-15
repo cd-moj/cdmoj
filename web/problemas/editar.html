@@ -79,6 +79,8 @@
     .ex{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.5rem;margin:.4rem 0}
     .ex .grid2 textarea{min-height:4rem}
     .ex .exexpl{width:100%;box-sizing:border-box;min-height:2.6rem;margin-top:.2rem}
+    .ex .exexpl-trans textarea.exexpl-l{width:100%;box-sizing:border-box;min-height:2.6rem;margin-top:.2rem}
+    .ex .exexpl-trans label{display:block;margin-top:.3rem}
     .pill{display:inline-block;padding:.05rem .5rem;border-radius:999px;font-size:.78rem}
     .pill.ok{background:#173d23;color:#7ee2a0} .pill.no{background:#3d1717;color:#ffb0b0} .pill.mut{background:#22262e;color:#9fb0c8}
     #msg{min-height:1.2rem}
@@ -202,11 +204,14 @@
         <div class="section">
           <div class="row" style="justify-content:space-between;align-items:center">
             <h3 style="margin:0" data-en="Statement (Markdown)">Enunciado (Markdown)</h3>
-            <div class="row" style="gap:.4rem">
+            <div class="row" style="gap:.4rem;align-items:center">
+              <!-- idiomas do enunciado: PT é o texto principal (docs/enunciado.md); EN/ES viram docs/enunciado.<lang>.md -->
+              <div id="stmtLangBar" class="stmt-chips" title="Idioma do enunciado" data-en-title="Statement language"></div>
               <button id="stmtToggle" class="btn ghost" type="button" title="Editar Descrição/Entrada/Saída/Observações em campos separados (ou voltar a um só)" data-en-title="Edit Description/Input/Output/Notes in separate fields (or back to one)">✂ Separar em seções</button>
               <button id="preview" class="btn ghost" type="button" data-en="👁 Preview">👁 Pré-visualizar</button>
             </div>
           </div>
+          <p id="transHint" class="small muted" style="display:none"><span data-en="Translation of the statement. Portuguese is the main text and is required. The translated title goes in the field below. The explanation of each sample has a field per language in the Tests tab. A sample without a translated explanation shows the Portuguese one. The examples come from the tests, in every language.">Tradução do enunciado. O português é o texto principal e é obrigatório. O título traduzido vai no campo abaixo. A explicação de cada exemplo tem um campo por idioma na aba Testes. Exemplo sem explicação traduzida mostra a explicação em português. Os exemplos vêm dos testes, em todos os idiomas.</span></p>
           <p class="small muted"><span data-en="Problem description +">Descrição do problema +</span> <code>## Entrada</code>, <code>## Saída</code>,
             <code>## Observações</code><span data-en=". The">. O</span> <b data-en="title">título</b> <span data-en="comes from the field above (do not write it in the text). The">vem do campo lá em cima (não escreva no texto). Os</span>
             <b data-en="examples">exemplos</b> <span data-en="come from the list below (do not write them here).">vêm da lista abaixo (não os escreva aqui).</span> <b data-en="Images">Imagens</b><span data-en=": paste or drag into the editor.">: cole ou arraste no editor.</span></p>
@@ -216,6 +221,14 @@
             <div class="field"><label><span data-en="Input (becomes">Entrada (vira</span> <code>## Entrada</code>)</label><div id="entMount" class="editor-mount sec"></div></div>
             <div class="field"><label><span data-en="Output (becomes">Saída (vira</span> <code>## Saída</code>)</label><div id="saiMount" class="editor-mount sec"></div></div>
             <div class="field"><label><span data-en="Notes (becomes">Observações (vira</span> <code>## Observações</code><span data-en=") — optional">) — opcional</span></label><div id="obsMount" class="editor-mount sec"></div></div>
+          </div>
+          <!-- enunciado TRADUZIDO (um editor por idioma, criado ao abrir o chip) -->
+          <div id="transMount" style="display:none">
+            <div class="field"><label><span data-en="Title in this language">Título neste idioma</span></label><input id="transTitle" type="text" placeholder="Hello World"></div>
+            <div id="transEdMounts"></div>
+            <div class="row" style="justify-content:flex-end;margin-top:.4rem">
+              <button id="transRemove" class="btn ghost danger" type="button" data-en="✕ remove this language">✕ remover este idioma</button>
+            </div>
           </div>
         </div>
       </section>
@@ -300,10 +313,18 @@
       <!-- ================= ABA: RESOLUÇÃO (editorial — só setters) ================= -->
       <section class="tabpane" data-pane="resol" hidden>
         <div class="section">
-          <h3 data-en="Editorial">Resolução (editorial)</h3>
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h3 style="margin:0" data-en="Editorial">Resolução (editorial)</h3>
+            <div class="row" style="gap:.4rem;align-items:center">
+              <!-- os mesmos idiomas do enunciado: docs/solucao.md (PT) e docs/solucao.<lang>.md -->
+              <div id="edLangBar" class="stmt-chips" title="Idioma do editorial" data-en-title="Editorial language"></div>
+              <button id="edPreview" class="btn ghost" type="button" data-en="👁 Preview">👁 Pré-visualizar</button>
+            </div>
+          </div>
           <p class="small muted"><span data-en="Explanation of the problem's solution, in Markdown.">Explicação da resolução do problema, em Markdown.</span> <b data-en="Setters only">Só para setters</b> <span data-en="— does not appear in the student's statement.">— não
-            aparece no enunciado do aluno.</span> <b data-en="Optional">Opcional</b><span data-en=": not required to release the problem.">: não é exigida para liberar o problema.</span></p>
+            aparece no enunciado do aluno.</span> <b data-en="Optional">Opcional</b><span data-en=": not required to release the problem.">: não é exigida para liberar o problema.</span> <span data-en="The contest editorial document uses the language of the document; a language without an editorial falls back to Portuguese.">O documento de editorial do contest usa o idioma do documento; idioma sem editorial cai no português.</span></p>
           <div id="editMount" class="editor-mount"></div>
+          <div id="transEdEdMounts"></div>
         </div>
       </section>
 

@@ -85,10 +85,13 @@ moj-problems/<org>/<prob>/
 ├── tags                      assuntos, uma tag por linha                    453
 ├── conf                      limites e ajustes de execução                  453
 ├── docs/
-│   ├── enunciado.md          o enunciado (também aceita .org e .tex)        453  (obrigatório)
+│   ├── enunciado.md          o enunciado em português (também .org e .tex)  453  (obrigatório)
+│   ├── enunciado.en.md       o enunciado em inglês (idem enunciado.es.md)   opcional
 │   ├── notes/sample1.md      explicação de cada exemplo (markdown; 1/sample) opcional
+│   ├── notes/sample1.en.md   a explicação traduzida (cai na PT se faltar)   opcional
 │   ├── <figura>.png          imagens do enunciado/notas (o render embute)   opcional
-│   └── solucao.md            editorial, só para o autor                     opcional
+│   ├── solucao.md            editorial, só para o autor                     opcional
+│   └── solucao.en.md         o editorial traduzido (idem solucao.es.md)     opcional
 ├── tests/
 │   ├── input/sample1         exemplo (aparece no enunciado)                 obrigatório, >= 1
 │   ├── output/sample1        resposta do exemplo
@@ -173,7 +176,38 @@ antigos, mas **nunca mais é escrito** — qualquer salvamento converte para `do
 
 Opcional. É o **editorial**: a explicação da ideia da solução, para o autor e para quem for reusar o
 problema. **O aluno nunca vê este arquivo.** O `gen-problem-json.sh` o ignora de propósito. É o
-lugar certo para escrever "a solução é uma DP em O(n log n)" sem medo.
+lugar certo para escrever "a solução é uma DP em O(n log n)" sem medo. O documento de editorial
+de um contest lê este arquivo (ou a tradução `solucao.<lang>.md`, abaixo).
+
+### Idiomas: `enunciado.<lang>.md`, `notes/<sample>.<lang>.md`, `solucao.<lang>.md`
+
+Um problema pode ter o enunciado em mais de um idioma. As regras são simples:
+
+| Arquivo | O que é | Se faltar |
+|---|---|---|
+| `docs/enunciado.md` | o enunciado em **português**. É o texto principal e é obrigatório | o problema não valida |
+| `docs/enunciado.<lang>.md` | a tradução. `<lang>` é `en` ou `es`. Só markdown | o problema tem um idioma só |
+| `docs/notes/<sample>.<lang>.md` | a explicação traduzida do exemplo | o exemplo mostra a explicação em português |
+| `docs/solucao.<lang>.md` | o editorial traduzido | o documento de editorial usa o português |
+| `titles` no `.moj-meta.json` | o título de cada tradução (seção 5) | o título em português |
+
+Os exemplos vêm dos testes e aparecem em todos os idiomas, com os rótulos do idioma
+(Exemplos/Entrada/Saída/Explicação · Examples/Input/Output/Explanation ·
+Ejemplos/Entrada/Salida/Explicación). As figuras ficam em `docs/` e servem a todos os idiomas.
+
+A validação trata cada tradução como o português: ela tem de renderizar e tem de ter as seções de
+entrada e de saída (`## Input`/`## Output`, `## Entrada`/`## Salida`). Uma tradução sem a
+explicação de um exemplo gera o aviso `nota-sem-traducao(<sample>,<lang>)`. O aviso não bloqueia.
+
+O índice do treino (`var/jsons/<id>.json`) leva `statement_langs` (a lista, português primeiro) e
+`statements{<lang>:{title,html_b64}}`. O português continua em `title` e `statement_html_b64`,
+como sempre. A página do problema mostra um chip por idioma. Em um contest, o admin ou o
+juiz-chefe escolhe os idiomas que a sanfona oferece (`STATEMENT_LANGS`; ver `API.md`).
+
+Na API de autoria, as traduções viajam no campo `translations` de `/problems/source` e
+`/problems/edit`: `{"<lang>": {title, enunciado_md, editorial_md, notes:{"<sample>": md}}}`.
+Idioma ausente do objeto fica como está. Idioma com valor `null` é apagado por inteiro. A CLI
+(`moj clone`/`push`) e o editor web usam esse campo; você só edita os arquivos.
 
 Não confundir com a mecânica da correção especial, que é assunto do `scripts/` e está documentada em
 `mojtools/docs/correcao-especial.md`.
@@ -413,6 +447,7 @@ Campo a campo:
 | Campo | Tipo | O que é |
 |---|---|---|
 | `display_title` | texto | **O título do problema.** É a fonte única. Se o autor não mandar um título e o campo ainda não existir, o servidor **deriva** um (do `%` do enunciado, do `#+title:` do org, do `\section{}` do tex, ou, em último caso, do nome do diretório). Por isso o campo nunca fica vazio |
+| `titles` | objeto `{"en": texto, "es": texto}` | o título de cada **tradução** do enunciado (seção 4, "Idiomas"). O servidor só guarda o idioma que tem `docs/enunciado.<lang>.md`. Idioma sem título usa o `display_title`. Na CLI é o campo `titles` do `.moj-id` (`moj title --lang en "Hello World"`) |
 | `owner` | login | o dono do problema |
 | `public` | booleano | se `true`, o problema entra no treino livre. Publicar exige que a **org** permita (seção 7) |
 | `collections` | lista de textos | as coleções em que o problema está (seção 8). Pode estar em várias |
@@ -451,6 +486,8 @@ ida e volta. O `moj push` **exclui** este arquivo do que sobe.
 |---|---|
 | `id`, `repo`, `prob` | qual problema este diretório é (`<org>#<prob>`) |
 | `title` | espelho local do `display_title`. Editar aqui e dar `push` muda o título no servidor. O `push` **recusa** enviar com o título vazio |
+| `titles` | espelho local do `titles` do meta: o título de cada tradução (`{"en": "Hello World"}`). `moj title <dir> --lang en "…"` edita |
+| `trans_rt` | `true` em clone que **conhece** as traduções: o `push` manda `translations` com todos os idiomas, e idioma sem arquivo local vira `null` (apaga no servidor). Clone antigo não apaga a tradução de ninguém |
 | `format` | `md`, `org` ou `tex`, o formato do enunciado deste clone |
 | `collections`, `languages`, `public` | espelhos locais dos campos do `.moj-meta.json`, com ida e volta pelo `push` (e o `moj upload` de diretório leva título/coleções/languages num meta **sintetizado** a partir daqui; `public` nunca sobe). `moj languages <dir>` edita a whitelist sem abrir o arquivo |
 | `scripts_rt` | marca que este clone sabe fazer ida e volta de `scripts/` e `tests/score`. Sem essa marca, o `push` não tem permissão de **apagar** esses arquivos no servidor (protege clones antigos de destruir a correção especial sem querer) |
@@ -603,7 +640,8 @@ as checagens abaixo precisam passar (não existe checagem "opcional" que reprove
 | `has_statement` | existe `docs/enunciado.{md,org,tex}` |
 | `html_builds` | o pandoc consegue renderizar o enunciado |
 | `secao_entrada` | o enunciado tem `## Entrada` |
-| `secao_saida` | o enunciado tem `## Saída` |
+| `secao_saida` | o enunciado tem `## Saída` (aceita `Output` e `Salida`) |
+| `html_builds_<lang>`, `secao_entrada_<lang>`, `secao_saida_<lang>` | o mesmo, para cada tradução `docs/enunciado.<lang>.md` presente |
 | `examples_present` | existe pelo menos um par input/output |
 | `tests_paired` | todo input tem seu output, e vice-versa |
 | `has_good_sol` | existe pelo menos uma solução em `sols/good/` |
@@ -689,7 +727,13 @@ de testlib em `mojtools/docs/checker-testlib.md`.
 É a submissão de função: `scripts/<lang>/compile.sh`. Mesmo guia.
 
 **Editei o enunciado. Preciso recalibrar?**
-Não. O enunciado não entra no checksum.
+Não. O enunciado não entra no checksum. Tradução também não.
+
+**Como traduzo um problema?**
+Crie `docs/enunciado.en.md` (ou `.es.md`) ao lado do `docs/enunciado.md`. Traduza a explicação de
+cada exemplo em `docs/notes/<sample>.en.md` e o editorial em `docs/solucao.en.md`. Dê o título com
+`moj title . --lang en "Hello World"`. No editor web, use os chips PT · EN · ES da aba Enunciado. O
+português continua obrigatório.
 
 **Onde fica a dificuldade do problema?**
 Em lugar nenhum do pacote. Ela é calculada da taxa de acerto real dos alunos.

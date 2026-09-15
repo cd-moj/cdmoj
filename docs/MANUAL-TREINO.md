@@ -212,6 +212,11 @@ No **topo do enunciado** você encontra:
 - o **tempo-limite por linguagem**;
 - um **botão de estatísticas** do problema.
 
+Quando o problema tem o enunciado em mais de um idioma, aparecem os chips **PT · EN · ES** acima
+do texto. Clique para trocar. O título muda junto. O MOJ lembra a sua escolha para os próximos
+problemas. Na lista de problemas, o selo **EN ES** ao lado do título mostra quais problemas têm
+tradução.
+
 ### Como enviar sua solução
 
 Você precisa estar **logado** para enviar. No painel **Enviar solução**:
