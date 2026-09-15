@@ -145,8 +145,8 @@ de donos (`contests/treino/var/problem-owners.json`), o json servível
 (`var/jsons{,-private}/<id>.json`, que já traz enunciado renderizado — em cada idioma do pacote,
 `statement_langs` + `statements{<lang>}` —, autor completo, tags, linguagens e o TL com
 `TLOVERRIDE` aplicado), o `run/tl/`, e os enunciados do próprio contest
-(`contests/<c>/enunciados/<skey>[.<lang>].html|pdf`; o admin/chefe escolhe os idiomas oferecidos
-em `STATEMENT_LANGS`, lib `contest-statement.sh`). Rota de prova não abre pacote por três motivos: **latência** (é I/O
+(`contests/<c>/enunciados/<skey>[.<lang>].html|pdf`; conf `STATEMENT_LANGS` ausente = automático — cada
+problema oferece o que tem —, ou lista fixa escolhida pelo admin/chefe; lib `contest-statement.sh`). Rota de prova não abre pacote por três motivos: **latência** (é I/O
 de gigabytes no caminho mais polado do dia), **contenção** (autores commitam durante a prova) e
 **acoplamento** ao formato interno, que é da gestão e muda por conta dela.
 

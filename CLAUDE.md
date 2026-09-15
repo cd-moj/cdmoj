@@ -668,7 +668,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   editorial_md,notes}}` + `titles` (write_meta poda idioma sem arquivo; salvar as notas PT NUNCA
   apaga as traduzidas — `_notes_rm_lang`, com `find`, porque a API roda `noglob`); o índice serve
   `statement_langs` + `statements{<lang>}`. Contest: `lib/contest-statement.sh` (`cs_langs` = conf
-  `STATEMENT_LANGS`, ausente = pt; `cs_default` = LOCALE se oferecido senão o 1º; `cs_file` = arquivo
+  `STATEMENT_LANGS`; **ausente = AUTOMÁTICO** — todo idioma que cada problema tem, e o envelope do `/contest/problems` lista a união do que existe; lista fixa `pt\ en`, `pt` sozinho = só PT; `cs_mode` auto|list; `cs_default` = LOCALE se oferecido senão o 1º; `cs_file` = arquivo
   do idioma › PT; `cs_bank_write` materializa PT e traduções do banco — o tmp é resolvido em variável
   ANTES do jq, o `${BASHPID}` no alvo do redirect expandia no FILHO e a materialização preguiçosa do
   `/contest/problems` falhava MUDA), handler `admin/statement-langs.sh` (**`is_admin_or_chief`**: o
@@ -679,7 +679,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`problema.js`), sanfona (`contest.js`, troca EM LUGAR em toda sanfona aberta), painel
   `admin/statement-langs-panel.js` (Prova › Problemas e aba 🌐 do chefe), editor (chips PT·EN·ES,
   título/editor/notas por idioma, Pré-visualizar por idioma e do editorial `kind:"editorial"`).
-  Teste: `smoke-statement-langs.sh` (59) + `smoke-statement-chips.gjs.sh` (os chips VOLTAM ao idioma de partida — o clique lê o ativo do DOM, nunca do parâmetro inicial). Regra: **idioma sem tradução cai no PT** em toda ponta;
+  Teste: `smoke-statement-langs.sh` (69) + `smoke-statement-chips.gjs.sh` (os chips VOLTAM ao idioma de partida — o clique lê o ativo do DOM, nunca do parâmetro inicial). Regra: **idioma sem tradução cai no PT** em toda ponta;
   a CLI nunca adivinha idioma — só pede o que `statement_langs` listou.
 - **Rodadas do contest** (`lib/contest-rounds.sh` + `handlers/contest/{admin/rounds,rounds,round,
   admin/round-archive}.sh`): **aquecimento → prova oficial NO MESMO contest** (mesma URL, mesmo

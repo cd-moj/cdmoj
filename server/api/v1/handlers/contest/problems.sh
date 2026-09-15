@@ -3,6 +3,9 @@
 # {problems:[{short_name, full_name, problem_id, has_statement_html, has_statement_pdf, statement_langs, time_limits, show}],
 #  statement_langs, default_statement_lang}
 # IDIOMAS (2026-09-15): `statement_langs` de cada problema = STATEMENT_LANGS do conf ∩ idiomas com
+# arquivo/tradução; conf AUSENTE = AUTOMÁTICO (todos os idiomas que existem) e aí o `statement_langs`
+# do ENVELOPE é a união do que os problemas têm (pt sempre) — nunca "pt en es" fixo sem tradução.
+# Nota:
 # arquivo (enunciados/<skey>[.<lang>].html|pdf) ou com tradução no banco (materializada aqui, como o
 # PT); `default_statement_lang` = LOCALE se oferecido, senão o 1º (lib/contest-statement.sh).
 #
@@ -31,6 +34,8 @@ CONTEST_ID="$contest"; PROBS=(); LANGUAGES=""; SHOWTL=""; CONTEST_JUDGES=""; STA
 load_contest_conf "$contest"
 source "$_LIBDIR/contest-statement.sh"
 OFFERED="$(cs_norm "$STATEMENT_LANGS")"; DEF_LANG="$(cs_default "$contest" "$OFFERED")"
+STMT_AUTO=0; { [[ -z "${STATEMENT_LANGS//[\\ ]/}" ]] || [[ "${STATEMENT_LANGS,,}" == *auto* ]]; } && STMT_AUTO=1
+UNION=pt   # modo automático: união dos idiomas que os problemas de fato têm
 # tempo-limite por problema (do store run/tl/<id>.json), salvo se o conf ocultar (SHOWTL=0).
 source "$_DIR/lib/tl-store.sh"
 SHOW_TL=true; [[ "$SHOWTL" == 0 ]] && SHOW_TL=false
@@ -196,7 +201,9 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
        && jq -e --arg l "$_l" '(.statements[$l].html_b64 // "") != ""' "$BJF" >/dev/null 2>&1; then
       CC_KEEP_STATEMENTS=1 cs_bank_write "$BJF" "$CONTESTSDIR/$contest" "$STATEMENT" langs 2>/dev/null
     fi
-    [[ -f "$ENUN/$STATEMENT.$_l.html" || -f "$ENUN/$STATEMENT.$_l.pdf" ]] && SL="$(jq -c --arg l "$_l" '. + [$l]' <<<"$SL")"
+    if [[ -f "$ENUN/$STATEMENT.$_l.html" || -f "$ENUN/$STATEMENT.$_l.pdf" ]]; then
+      SL="$(jq -c --arg l "$_l" '. + [$l]' <<<"$SL")"; [[ " $UNION " == *" $_l "* ]] || UNION+=" $_l"
+    fi
   done
   args+=( --argjson sl "$SL" )
   filt+=", has_statement_html:$HAS_HTML, has_statement_pdf:$HAS_PDF, statement_langs:\$sl"
@@ -228,6 +235,10 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
       --arg full "$FULLNAME" "${args[@]}" "$filt")" )
 done
 
+if (( STMT_AUTO )); then   # o envelope diz o que EXISTE, na ordem da allowlist (pt en es)
+  OFFERED="$(for _l in $OFFERED; do [[ " $UNION " == *" $_l "* ]] && printf '%s ' "$_l"; done)"; OFFERED="${OFFERED% }"
+  DEF_LANG="$(cs_default "$contest" "$OFFERED")"
+fi
 SLJ="$(jq -cn --arg s "$OFFERED" '$s|split(" ")')"
 if (( ${#ITEMS[@]} == 0 )); then
   BODY="$(jq -cn --argjson sl "$SLJ" --arg dl "$DEF_LANG" '{success:true, problems:[], statement_langs:$sl, default_statement_lang:$dl}')"

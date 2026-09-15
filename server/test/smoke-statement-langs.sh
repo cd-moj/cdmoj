@@ -120,10 +120,27 @@ for u in sl.admin sl.cjudge sl.judge time01; do
   printf 'CONTEST=sl\nLOGIN=%s\nUSERFULLNAME=X\nLOGINAT=1\n' "$u" > "$SESS/$u"
 done
 call /contest/problems GET time01 "contest=sl"
-ck "sem conf: statement_langs [pt] e default pt" '[[ "$(jq -c ".statement_langs, .default_statement_lang, .problems[0].statement_langs" <<<"$BODY" | paste -sd" ")" == "[\"pt\"] \"pt\" [\"pt\"]" ]]'
+ck "sem conf = AUTOMÁTICO: envelope [pt,en] (o que existe), default en (LOCALE), A tem [pt,en]" '[[ "$(jq -c ".statement_langs, .default_statement_lang, .problems[0].statement_langs" <<<"$BODY" | paste -sd" ")" == "[\"pt\",\"en\"] \"en\" [\"pt\",\"en\"]" ]]'
 ck "PT materializado do banco"           '[[ -s "$C/enunciados/col#pa.html" ]]'
+ck "…e a tradução EN também (automático)" '[[ -s "$C/enunciados/col#pa.en.html" ]]'
+call /contest/statement GET time01 "contest=sl&problem=A&lang=en"
+ck "automático: lang=en serve o EN"      '[[ "$(code)" == "200 OK" ]] && grep -q "Read N" <<<"$BODY"'
+call /contest/admin/statement-langs GET sl.admin "contest=sl"
+ck "GET sem conf: mode auto, langs = allowlist inteira" '[[ "$(jq -c ".mode, .langs" <<<"$BODY" | paste -sd" ")" == "\"auto\" [\"pt\",\"en\",\"es\"]" ]]'
+call /contest/admin/statement-langs POST sl.admin "contest=sl" '{"langs":["pt"]}'
+ck "lista só pt: conf STATEMENT_LANGS=pt (explícito)" '[[ "$(code)" == "200 OK" ]] && grep -q "^STATEMENT_LANGS=pt$" "$C/conf" && [[ "$(jq -r .mode <<<"$BODY")" == list ]]'
+call /contest/problems GET time01 "contest=sl"
+ck "só pt: envelope [pt], A só [pt]"     '[[ "$(jq -c ".statement_langs, .problems[0].statement_langs" <<<"$BODY" | paste -sd" ")" == "[\"pt\"] [\"pt\"]" ]]'
 call /contest/statement GET time01 "contest=sl&problem=A&lang=en"
 ck "en fora da lista oferecida = 404"    '[[ "$(code)" == "404 Not Found" ]]'
+call /contest/admin/statement-langs POST sl.admin "contest=sl" '{"mode":"auto"}'
+ck "mode auto: apaga a var do conf"      '[[ "$(code)" == "200 OK" ]] && ! grep -q STATEMENT_LANGS "$C/conf" && [[ "$(jq -c ".mode, .langs" <<<"$BODY" | paste -sd" ")" == "\"auto\" [\"pt\",\"en\",\"es\"]" ]]'
+call /contest/statement GET time01 "contest=sl&problem=A&lang=en"
+ck "auto de novo: en volta a ser servido" '[[ "$(code)" == "200 OK" ]]'
+call /contest/admin/statement-langs POST sl.admin "contest=sl" '{"langs":[]}'
+ck "lista vazia = só pt"                 '[[ "$(code)" == "200 OK" ]] && grep -q "^STATEMENT_LANGS=pt$" "$C/conf"'
+call /contest/admin/statement-langs POST sl.admin "contest=sl" '{"nada":1}'
+ck "sem mode nem langs = 400"            '[[ "$(code)" == "400 Bad Request" ]]'
 call /contest/admin/statement-langs POST sl.judge "contest=sl" '{"langs":["pt","en"]}'
 ck ".judge não define (403)"             '[[ "$(code)" == "403 Forbidden" ]]'
 call /contest/admin/statement-langs POST sl.cjudge "contest=sl" '{"langs":["pt","en","es"]}'
@@ -170,7 +187,7 @@ ck "…e a lista re-materializa PT e EN do banco" '[[ -s "$C/enunciados/col#pa.h
 
 echo "== tirar o idioma da lista fecha a porta na hora (cache invalidado) =="
 call /contest/admin/statement-langs POST sl.admin "contest=sl" '{"langs":["pt"]}'
-ck "só pt: conf sem STATEMENT_LANGS"     '! grep -q STATEMENT_LANGS "$C/conf"'
+ck "só pt: conf STATEMENT_LANGS=pt"      'grep -q "^STATEMENT_LANGS=pt$" "$C/conf"'
 call /contest/problems GET time01 "contest=sl"
 ck "lista: default pt, A só [pt]"        '[[ "$(jq -c ".default_statement_lang, .problems[0].statement_langs" <<<"$BODY" | paste -sd" ")" == "\"pt\" [\"pt\"]" ]]'
 call /contest/statement GET time01 "contest=sl&problem=A&lang=en"
@@ -179,7 +196,7 @@ ck "lang=en agora 404 (arquivo existe, mas não é oferecido)" '[[ "$(code)" == 
 echo "== settings GET expõe statement_langs =="
 conf "pt\\ en"
 call /contest/admin/settings GET sl.admin "contest=sl"
-ck "settings: statement_langs [pt,en], default en" '[[ "$(jq -c ".statement_langs, .default_statement_lang" <<<"$BODY" | paste -sd" ")" == "[\"pt\",\"en\"] \"en\"" ]]'
+ck "settings: statement_langs [pt,en], mode list, default en" '[[ "$(jq -c ".statement_langs, .statement_langs_mode, .default_statement_lang" <<<"$BODY" | paste -sd" ")" == "[\"pt\",\"en\"] \"list\" \"en\"" ]]'
 
 echo "== documentos: caderno/editorial no idioma (HTML, sem soffice) =="
 export _DIR="$ROOT/api/v1" SESSION_LOGIN=sl.admin

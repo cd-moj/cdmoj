@@ -55,14 +55,17 @@ painel de módulo **desligado** cai em **Central › Módulos** com um aviso diz
 | **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF, **por idioma**), o painel **🌐 Idiomas do enunciado** (abaixo) e **🏦 Adicionar do banco** (busca e sorteio). |
 
 **🌐 Idiomas do enunciado.** Um problema do banco pode ter o enunciado em português, inglês e
-espanhol (o autor escreve `docs/enunciado.en.md` e `docs/enunciado.es.md` no pacote). A prova
-**não** mostra todos os idiomas sozinha: você marca, no painel Prova › Problemas, os idiomas que
-a sanfona oferece. O juiz-chefe tem o mesmo painel na aba **🌐 Idiomas** do painel dele. Regras:
+espanhol (o autor escreve `docs/enunciado.en.md` e `docs/enunciado.es.md` no pacote). O painel
+**🌐 Idiomas do enunciado** (Prova › Problemas; o juiz-chefe tem o mesmo na aba **🌐 Idiomas** do
+painel dele) tem dois modos:
 
-- Sem marcar nada, a prova é só em português.
-- A sanfona abre no idioma do contest (`LOCALE`) se ele estiver marcado; senão, no primeiro
-  marcado. O competidor troca com os chips **PT · EN · ES** e o MOJ lembra a escolha dele.
-- Um idioma marcado sem tradução em um problema mostra o português nesse problema. A tabela do
+- **Automático** (o padrão, sem configurar nada): cada problema oferece na sanfona todos os idiomas
+  que ele tem. Um problema só em português não mostra chips.
+- **Só estes idiomas**: marque a lista. Só PT marcado = prova só em português, mesmo que o problema
+  tenha tradução.
+- A sanfona abre no idioma do contest (`LOCALE`) se ele for oferecido; senão, no primeiro. O
+  competidor troca com os chips **PT · EN · ES** e o MOJ lembra a escolha dele.
+- Um idioma oferecido sem tradução em um problema mostra o português nesse problema. A tabela do
   painel mostra, por letra, o que existe.
 - Enviar um HTML ou PDF próprio para um idioma: escolha o idioma no seletor ao lado dos botões
   **Enviar HTML** / **Enviar PDF**. O arquivo vale só para aquele idioma.

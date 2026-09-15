@@ -115,7 +115,7 @@ O painel fica em `/contest/chief/` e tem estas abas:
 2. **⚖️ Conflitos.** Lista as submissões em conflito, mostrando os **dois votos** que divergiram, o log e a fonte, com um botão para resolver cada uma.
 3. **🏷️ Opções.** Edita a lista de veredictos que os juízes escolhem ao votar. Cada opção tem três campos. O primeiro é o texto que o juiz vê. O segundo é a classe: uma das seis classes canônicas (Accepted, Wrong Answer, Time Limit Exceeded, Memory Limit Exceeded, Runtime Error, Compilation Error). A classe define a pontuação, a penalidade e a cor no placar. O terceiro é o texto que o time vê. Deixe o terceiro campo vazio para mostrar a classe. A classe Accepted não tem texto próprio.
 4. **⚙️ Auto-veredicto.** Edita a **matriz** (problema x linguagem x veredicto) que decide quais veredictos calculados pela máquina **pulam** a revisão manual e vão direto ao competidor.
-5. **🌐 Idiomas.** Marca os idiomas do enunciado que a sanfona oferece ao competidor (português, inglês, espanhol). A tabela mostra, por problema, quais traduções existem. Um idioma marcado sem tradução em um problema mostra o português nesse problema. O admin tem o mesmo painel em Prova › Problemas.
+5. **🌐 Idiomas.** Decide os idiomas do enunciado que a sanfona oferece ao competidor. **Automático** (padrão): cada problema oferece todos os idiomas que tem. **Só estes idiomas**: marque a lista (português, inglês, espanhol); só PT = prova só em português. A tabela mostra, por problema, quais traduções existem. Um idioma oferecido sem tradução em um problema mostra o português nesse problema. O admin tem o mesmo painel em Prova › Problemas.
 
 ### Alerta de conflito
 

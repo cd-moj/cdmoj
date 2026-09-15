@@ -4702,7 +4702,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Configurações do contest (inclui statement_langs/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT)",
+        "summary": "Configurações do contest (inclui statement_langs/statement_langs_mode/default_statement_lang só leitura — muda-se em /contest/admin/statement-langs; mode read-only, tz = fuso IANA da prova (CONTEST_TZ; vazio = MOJ_TZ da instalação), judges[] = pool de juízes do contest, e a penalidade ICPC: penalty_minutes, penalty_verdicts; show_log é o valor EFETIVO — em modo icpc, SHOWLOG ausente = false; freeze_release_at = quando pode descongelar; POST freeze:0 antes disso = 409 freeze_locked; guest_numbering = convidados numerados na sequência própria, flag g no TXT)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5692,19 +5692,19 @@
       "get": {
         "tags": ["contest-admin"],
         "summary": "Idiomas do enunciado que a sanfona OFERECE (conf STATEMENT_LANGS) — admin ou juiz-chefe",
-        "description": "GET -> {langs:[oferecidos], default, all:[pt,en,es], locale, available:{<letra>:{<lang>:true}}} (available = idioma com arquivo no contest ou traducao no banco). default = LOCALE se oferecido, senao o 1o.",
+        "description": "GET -> {mode:auto|list, langs:[oferecidos], default, all:[pt,en,es], locale, available:{<letra>:{<lang>:true}}} (available = idioma com arquivo no contest ou traducao no banco). mode auto (conf ausente, o DEFAULT) = todo idioma que cada problema tem entra na sanfona. default = LOCALE se oferecido, senao o 1o.",
         "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/contest"}],
         "responses": {"200": {"description": "{langs, default, all, locale, available}"}, "403": {"description": "nem admin nem .cjudge"}}
       },
       "post": {
         "tags": ["contest-admin"],
-        "summary": "Define os idiomas oferecidos: {langs:[pt,en,…]} — admin ou juiz-chefe",
-        "description": "Allowlist pt/en/es (422 lang_invalid); lista vazia = so pt (apaga a var). Materializa do banco as traducoes que faltam (enunciados/<skey>.<lang>.html), toca var/.problems-dirty e audita statement-langs.",
+        "summary": "Define os idiomas oferecidos: {mode:\"auto\"} (automatico, default) ou {langs:[pt,en,…]} (lista fixa) — admin ou juiz-chefe",
+        "description": "{mode:\"auto\"} apaga a var (ausente = automatico: todo idioma que cada problema tem). {langs:[…]}: allowlist pt/en/es (422 lang_invalid); lista vazia ou so pt = prova so em PT (grava STATEMENT_LANGS=pt). Sem mode nem langs = 400. Os dois materializam do banco as traducoes que faltam (enunciados/<skey>.<lang>.html), tocam var/.problems-dirty e auditam statement-langs.",
         "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/contest"}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "properties": {"langs": {"type": "array", "items": {"type": "string", "enum": ["pt", "en", "es"]}}}, "required": ["langs"]}}}},
-        "responses": {"200": {"description": "{saved, langs, default}"}, "400": {"description": "langs nao e lista"}, "403": {"description": "nem admin nem .cjudge"}, "422": {"description": "idioma fora de pt/en/es"}}
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "properties": {"mode": {"type": "string", "enum": ["auto"], "description": "automatico (default): ignora langs"}, "langs": {"type": "array", "items": {"type": "string", "enum": ["pt", "en", "es"]}, "description": "lista fixa (sem mode)"}}}}}},
+        "responses": {"200": {"description": "{saved, mode, langs, default}"}, "400": {"description": "sem mode:auto nem langs (lista)"}, "403": {"description": "nem admin nem .cjudge"}, "422": {"description": "idioma fora de pt/en/es"}}
       }
     },
     "/contest/admin/jplag-run": {

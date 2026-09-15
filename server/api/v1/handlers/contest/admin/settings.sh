@@ -30,7 +30,8 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
             balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods,
-            freeze_release_at:$fra, guest_numbering:$gnum, statement_langs:$slangs, default_statement_lang:$sdef}' \
+            freeze_release_at:$fra, guest_numbering:$gnum, statement_langs:$slangs, statement_langs_mode:$smode, default_statement_lang:$sdef}' \
+    --arg smode "$(cs_mode "$contest")" \
     --argjson slangs "$(jq -cn --arg s "$(cs_norm "$STATEMENT_LANGS")" '$s|split(" ")')" \
     --arg sdef "$(cs_default "$contest" "$(cs_norm "$STATEMENT_LANGS")")" \
     --argjson gnum "$([[ "$GUEST_NUMBERING" == 1 ]] && echo true || echo false)" \
