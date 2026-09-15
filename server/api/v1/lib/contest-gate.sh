@@ -124,6 +124,18 @@ can_see_problems() {
   [[ "$(contest_phase "$1")" != before ]]   # demais: só após o início
 }
 
+# competitor_write_guard <contest> <o-que> — p/ handlers de ESCRITA do competidor que não são
+# submissão mas seguem a MESMA janela (backup, clarification; decisão do Ribas, 2026-09-15):
+# .admin/.judge/.cjudge sempre; .staff/.cstaff/.animeitor nunca (403 role_forbidden); time e
+# .mon SÓ durante a janela (fim EFETIVO da sessão: sede prorrogada segue escrevendo) — antes
+# 403 contest_not_started, depois 403 contest_ended. Mesmos códigos do /submit.
+competitor_write_guard() {
+  can_submit "$1" && return 0
+  { is_staff || is_cstaff || is_animeitor; } && fail 403 "Conta de sala/telão não ${2:-escreve} neste contest" "role_forbidden"
+  [[ "$(contest_phase "$1")" == before ]] && fail 403 "A competição ainda não começou — ${2:-a operação} só vale durante a prova" "contest_not_started"
+  fail 403 "A competição já terminou — ${2:-a operação} só vale durante a prova" "contest_ended"
+}
+
 # can_submit <contest> : 0 se o usuário logado pode submeter AGORA.
 can_submit() {
   is_judge && return 0                       # .admin/.judge: sempre

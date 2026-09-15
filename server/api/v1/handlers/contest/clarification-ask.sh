@@ -1,10 +1,15 @@
 # POST /contest/clarification-ask?contest=<id>  (Bearer) {problem?, question}
-# Qualquer usuário logado no contest pergunta. problem = letra do problema ou "general".
+# problem = letra do problema ou "general". GATE (na API): a MESMA janela da submissão —
+# time/.mon só DURANTE a prova (antes 403 contest_not_started, depois 403 contest_ended; fim
+# efetivo da sessão, prorrogação por sede conta); .staff/.cstaff/.animeitor nunca (403
+# role_forbidden); admin/juiz/chefe sempre. Decisão do Ribas (2026-09-15).
 require_method POST
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
 require_auth_contest "$contest"
+source "$_LIBDIR/contest-gate.sh"
+competitor_write_guard "$contest" "perguntar"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 question="$(jq -r '.question // empty' <<<"$body")"

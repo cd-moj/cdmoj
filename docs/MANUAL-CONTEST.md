@@ -244,6 +244,10 @@ Se o contest for secreto e você não estiver logado, é preciso entrar para con
 
 ## 6. Clarifications (`/contest/clarification/?c=<id>`)
 
+> **Só durante a prova.** Antes do início e depois do fim, o MOJ não aceita perguntas de time. A
+> API responde "A competição ainda não começou" ou "A competição já terminou". Uma sede com o
+> tempo prorrogado continua perguntando até o fim dela.
+
 Uma clarification é uma pergunta aos juízes sobre um problema. Você precisa estar logado.
 
 Para fazer uma pergunta:
@@ -288,6 +292,9 @@ acha o caminho de volta até a sua mesa.
 Em **Meus pedidos** você acompanha o status de cada pedido: pendente, processada ou entregue.
 
 ## 8. Backup (`/contest/backup/?c=<id>`)
+
+> **Gravar só durante a prova.** Antes do início e depois do fim, o MOJ não guarda arquivo novo.
+> Você continua vendo, baixando e apagando os arquivos que já guardou.
 
 O backup é um espaço privado para você guardar versões das suas soluções.
 

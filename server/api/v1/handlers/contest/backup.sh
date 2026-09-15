@@ -1,6 +1,7 @@
 # /contest/backup?contest=<id>   (Bearer)
 #   GET                          -> lista os backups do PRÓPRIO usuário
 #   POST {filename, file_b64}    -> guarda um backup (versão de solução; não perde trabalho)
+#                                   SÓ durante a prova (competitor_write_guard: 403 antes/depois)
 #   POST {action:"delete", id}   -> remove um backup próprio
 # Armazenamento: contests/<c>/backups/<login>/<id> (conteúdo) + <id>.meta ({name,size,time}).
 contest="$(param contest)"
@@ -45,6 +46,11 @@ case "$action" in
     ok_json '{deleted:true, id:$id}' --arg id "$id"
     ;;
   *)
+    # GRAVAR só durante a janela da prova (a mesma do /submit; decisão do Ribas, 2026-09-15):
+    # antes do início e depois do fim o time não guarda arquivo — listar/baixar/apagar seguem
+    # livres (é o trabalho dele, ele leva de volta). Admin/juiz/chefe gravam sempre.
+    source "$_LIBDIR/contest-gate.sh"
+    competitor_write_guard "$contest" "gravar backup"
     fn="$(jq -r '.filename // empty' <<<"$body")"
     fb="$(jq -r '.file_b64 // empty' <<<"$body")"
     [[ -n "$fn" && -n "$fb" ]] || fail 422 "Informe filename e file_b64" "missing"

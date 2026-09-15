@@ -498,6 +498,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `GET /treino/admin/activity-log` (aba 📜 Atividade) unifica 6 fontes + `format=csv`.
   **Evento novo de leitura ⇒ instrumente com `activity_log`** (login/submit/verdict já são
   deriváveis de access.log/history/results — não duplique).
+- **Escrita do competidor fora da submissão (backup, clarification) segue a JANELA do `/submit`**
+  (`competitor_write_guard` em `lib/contest-gate.sh`, 2026-09-15): time/`.mon` só durante a prova
+  (403 `contest_not_started`/`contest_ended`, fim efetivo da sessão), `.staff`/`.cstaff`/`.animeitor`
+  nunca (403 `role_forbidden`), admin/juiz/chefe sempre. Rota nova de escrita do competidor chama
+  a guarda. Leitura (listar/baixar backup, ler clarifications) segue livre. Testes:
+  `smoke-contest-backup.sh`, seção "janela" do `smoke-contest-clar.sh`.
 - Clarifications: o **asker é anônimo** p/ `.judge`/`.mon` (handler corta `.login`); o
   **juiz-chefe/admin veem `login` + `asker_name`** (mapa login→fullname em UMA varredura, por
   `--slurpfile`; 2026-09-14) e o relatório público segue anônimo. Responder exige **reserva**

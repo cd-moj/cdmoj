@@ -13,11 +13,33 @@ fx_user "$C" ch.cjudge p Chief
 fx_user "$C" m.mon     p Mon
 fx_user "$C" alice     a Alice
 fx_user "$C" bob       b Bob
-for s in "adm cl.admin" "jdg jdg.judge" "jd2 jd2.judge" "ch ch.cjudge" "mon m.mon" "alice alice" "bob bob"; do
+fx_user "$C" sala.staff s Sala
+for s in "adm cl.admin" "jdg jdg.judge" "jd2 jd2.judge" "ch ch.cjudge" "mon m.mon" "alice alice" "bob bob" "sala sala.staff"; do
   set -- $s; printf 'CONTEST=cl\nLOGIN=%s\nLOGINAT=1\n' "$2" > "$SESS/$1"; done
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-adm}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1 :: ${BODY:0:200}"; ((fail++)); fi; }
+
+echo "== perguntar: só DURANTE a prova (time/.mon); staff nunca; juiz/admin sempre =="
+NOW="$EPOCHSECONDS"
+printf 'CONTEST_ID=cl\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW+3600))" "$((NOW+7200))" > "$C/conf"
+call /contest/clarification-ask POST '{"question":"cedo"}' alice 'contest=cl'
+ck "antes do início: time -> 403 contest_not_started" '[[ "$OUT" == *"Status: 403"* && "$(jq -r .error.code <<<"$BODY")" == contest_not_started ]]'
+call /contest/clarification-ask POST '{"question":"cedo"}' mon 'contest=cl'
+ck "antes do início: .mon -> 403"       '[[ "$OUT" == *"Status: 403"* ]]'
+call /contest/clarification-ask POST '{"question":"cedo"}' jdg 'contest=cl'
+ck "juiz pergunta antes do início"      '[[ "$(jq -r .asked <<<"$BODY")" == true ]]'
+rm -f "$C"/clarifications/*.json
+printf 'CONTEST_ID=cl\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-7200))" "$((NOW-3600))" > "$C/conf"
+call /contest/clarification-ask POST '{"question":"tarde"}' alice 'contest=cl'
+ck "depois do fim: time -> 403 contest_ended" '[[ "$OUT" == *"Status: 403"* && "$(jq -r .error.code <<<"$BODY")" == contest_ended ]]'
+printf '[{"regex":"^alice$","end":%s,"reason":"sede prorrogada"}]' "$((NOW+1800))" > "$C/time-overrides.json"
+call /contest/clarification-ask POST '{"question":"prorrogada"}' alice 'contest=cl'
+ck "sede prorrogada segue perguntando"  '[[ "$(jq -r .asked <<<"$BODY")" == true ]]'
+rm -f "$C/time-overrides.json" "$C"/clarifications/*.json
+printf 'CONTEST_ID=cl\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-3600))" "$((NOW+3600))" > "$C/conf"
+call /contest/clarification-ask POST '{"question":"staff"}' sala 'contest=cl'
+ck "staff nunca pergunta -> 403 role_forbidden" '[[ "$OUT" == *"Status: 403"* && "$(jq -r .error.code <<<"$BODY")" == role_forbidden ]]'
 
 echo "== perguntar =="
 call /contest/clarification-ask POST '{"problem":"A","question":"Como ler a entrada?"}' alice 'contest=cl'
