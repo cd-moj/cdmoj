@@ -60,6 +60,16 @@ require_auth_contest() {  # require_auth_contest <contest>
 
 # papéis por substring no username (convenção do MOJ)
 is_admin(){ [[ "$SESSION_LOGIN" == *.admin ]]; }
+# SUPER-ADMINS (2026-09-15): lista `SUPERADMINS` no conf do TREINO (logins separados por espaço; só
+# quem tem o servidor edita — bootstrap deliberado, sem UI). É `.admin` E está na lista. Poderes:
+# vê/remove/duplica contest de QUALQUER dono na aba Contests do painel do treino (o `.admin` comum
+# vê os seus e os de criadores sem papel de admin) e é o único que cria contest com id `icpc*`.
+superadmin_login(){ # <login>
+  local l="$1" list; [[ "$l" == *.admin ]] || return 1
+  list="$(conf_value treino SUPERADMINS)"; list="${list//\\/}"; list="${list//,/ }"
+  [[ " $list " == *" $l "* ]]
+}
+is_superadmin(){ superadmin_login "$SESSION_LOGIN"; }
 # .cjudge (juiz-chefe) HERDA os poderes de juiz; .admin também é juiz.
 is_judge(){ [[ "$SESSION_LOGIN" == *.judge || "$SESSION_LOGIN" == *.cjudge || "$SESSION_LOGIN" == *.admin ]]; }
 is_chief(){ [[ "$SESSION_LOGIN" == *.cjudge ]]; }

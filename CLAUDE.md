@@ -852,6 +852,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `jq-portability.sh` não o compila: rode os smokes com o jq 1.7 antes de deployar. Teste
   com mock: `smoke-contest-nutella.sh`. Comando novo se valida na imagem de TESTE `26tete`,
   nunca numa sede real.
+- **Painel do treino › Contests (2026-09-15)**: `SUPERADMINS` no conf do TREINO (logins; sem UI de
+  propósito) ⇒ `superadmin_login`/`is_superadmin` (`lib/auth.sh`). **`cc_contest_visible_to <viewer>
+  <owner>`** (`lib/contest-create.sh`) é a FONTE ÚNICA de "quem vê o contest de quem" — super-admin
+  tudo; `.admin` comum os seus + os de criadores sem papel de admin; nunca o de outro `.admin` — usada
+  em `admin/contests`, `admin/contest-remove` (404), `contest-create/{duplicate,export}`.
+  `cc_list_created <viewer> [mine]` é a leitura única da lista (admin e `mine`). Id **`icpc*`** só
+  super-admin cria (`cc_create` 403 `id_prefix_reserved`; `permission` expõe `is_superadmin` +
+  `reserved_id_prefixes`). `contest-perms.json` ganhou `allow_meta`/`deny_meta` `{login:{by,at,note}}`
+  (a trilha); `allow`/`deny` seguem listas de login p/ todo leitor. Teste: `smoke-treino-admin-contests.sh`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

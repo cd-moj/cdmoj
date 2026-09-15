@@ -3066,7 +3066,7 @@
         "summary": "O usuário pode criar contest?",
         "responses": {
           "200": {
-            "description": "{can_create,is_admin,reason,solved_count,threshold,in_allow,in_deny,allowed_modes}"
+            "description": "{can_create,is_admin,is_superadmin,reserved_id_prefixes:[icpc],reason,solved_count,threshold,in_allow,in_deny,allowed_modes,login,name}. is_superadmin = login em SUPERADMINS (conf do treino); so ele cria id icpc* (create/duplicate: 403 id_prefix_reserved)"
           }
         }
       }
@@ -3399,10 +3399,10 @@
         "tags": [
           "admin"
         ],
-        "summary": "Lê permissões de criação de contest",
+        "summary": "Lê permissões de criação de contest (com trilha: quem liberou, quando)",
         "responses": {
           "200": {
-            "description": "{perms:{threshold,allow[],deny[]}}"
+            "description": "{perms:{threshold,allow[],deny[],allow_meta{},deny_meta{}}, allow_info:[{login,name,has_photo,by,by_name,at,note}], deny_info:[...], me}"
           }
         }
       },
@@ -3410,7 +3410,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Define permissões de criação de contest",
+        "summary": "Define permissões de criação de contest: por acao {action:add|remove|threshold, list:allow|deny, login, note?} (add: 404 unknown_login, 422 already_admin; carimba by/at) ou legado {threshold,allow[],deny[]} (substituicao total)",
         "requestBody": {
           "required": true,
           "content": {
@@ -3418,6 +3418,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "action": {"type": "string", "enum": ["add", "remove", "threshold"]},
+                  "list": {"type": "string", "enum": ["allow", "deny"]},
+                  "login": {"type": "string"},
+                  "note": {"type": "string", "maxLength": 200},
                   "threshold": {
                     "type": "integer"
                   },
@@ -3450,10 +3454,10 @@
         "tags": [
           "admin"
         ],
-        "summary": "Lista contests criados pela interface",
+        "summary": "Lista contests criados pela interface que ESTE admin pode ver (super-admin = todos; .admin comum = os seus + os de criadores sem papel de admin)",
         "responses": {
           "200": {
-            "description": "{contests:[{id,name,owner,created_at,mode}],count}"
+            "description": "{contests:[{id,name,mode,owner,owner_name,owner_has_photo,owner_is_admin,created_at,start,end,problems_count}],count,scope:all|admin,me,is_superadmin}"
           }
         }
       }
@@ -3463,7 +3467,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "Move um contest criado pela interface p/ lixeira",
+        "summary": "Move um contest criado pela interface p/ lixeira (contest fora do escopo do admin = 404)",
         "requestBody": {
           "required": true,
           "content": {

@@ -11,7 +11,7 @@ id="$(param id)"
 { [[ -n "$id" ]] && valid_id "$id"; } || fail 400 "Informe o id" "id_missing"
 cdir="$CONTESTSDIR/$id"
 cowner="$(head -1 "$cdir/owner" 2>/dev/null)"
-{ [[ -f "$cdir/created-by" && -f "$cdir/conf" ]] && { is_admin || [[ -n "$cowner" && "$cowner" == "$SESSION_LOGIN" ]]; }; } \
+{ [[ -f "$cdir/created-by" && -f "$cdir/conf" ]] && cc_contest_visible_to "$SESSION_LOGIN" "$cowner"; } \
   || fail 404 "Contest não encontrado" "notfound"
 mode=auto; [[ "$(param full_statements)" == 1 ]] && mode=all
 spec="$(cc_export_spec "$id" "$mode")"

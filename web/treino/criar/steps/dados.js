@@ -11,7 +11,16 @@ export function makeStepDados(ctx) {
   const name = el('input', { placeholder: T('Ex.: Maratona de Treino 2026', 'E.g.: Training Marathon 2026'), value: d.name || '' });
   name.addEventListener('input', () => { d.name = name.value; });
   const cid = el('input', { placeholder: T('(gerado do nome se vazio) — a-z 0-9 . _ -', '(generated from the name if empty) — a-z 0-9 . _ -'), value: d.id || '' });
-  cid.addEventListener('input', () => { d.id = cid.value; });
+  // prefixos reservados (`icpc*` = só super-admin): a API recusa com 403; aqui só avisa antes
+  const reserved = Array.isArray(ctx.perm.reserved_id_prefixes) ? ctx.perm.reserved_id_prefixes : ['icpc'];
+  const idWarn = el('div', { class: 'small error-box', style: 'display:none;margin-top:.3rem' });
+  const checkId = () => {
+    const v = (cid.value || '').trim().toLowerCase();
+    const hit = !ctx.perm.is_superadmin && reserved.find((pfx) => v.startsWith(pfx));
+    idWarn.style.display = hit ? '' : 'none';
+    if (hit) idWarn.textContent = T(`Ids que começam por "${hit}" são da organização: só um super-admin cria. Escolha outro id.`, `Ids starting with "${hit}" belong to the organization: only a super-admin can create them. Pick another id.`);
+  };
+  cid.addEventListener('input', () => { d.id = cid.value; checkId(); }); checkId();
   const mode = el('select', {}, ...modes.map((m) => el('option', { value: m }, MODE_LABEL[m] || m)));
   if (modes.includes(d.mode)) mode.value = d.mode;
   d.mode = mode.value;
@@ -29,7 +38,7 @@ export function makeStepDados(ctx) {
     el('h2', {}, T('1 · Dados do contest', '1 · Contest details')),
     el('div', { class: 'field' }, el('label', {}, T('Nome', 'Name')), name),
     el('div', { class: 'grid2' },
-      el('div', { class: 'field' }, el('label', {}, T('ID (opcional)', 'ID (optional)')), cid),
+      el('div', { class: 'field' }, el('label', {}, T('ID (opcional)', 'ID (optional)')), cid, idWarn),
       el('div', { class: 'field' }, el('label', {}, T('Modo / placar', 'Mode / scoreboard')), mode)),
     el('div', { class: 'grid2' },
       el('div', { class: 'field' }, el('label', {}, T('Início', 'Start')), start),

@@ -14,7 +14,7 @@ from="$(jq -r '.from // empty' <<<"$body")"
 { [[ -n "$from" ]] && valid_id "$from"; } || fail 400 "Informe from" "from_missing"
 cdir="$CONTESTSDIR/$from"
 cowner="$(head -1 "$cdir/owner" 2>/dev/null)"
-{ [[ -f "$cdir/created-by" && -f "$cdir/conf" ]] && { is_admin || [[ -n "$cowner" && "$cowner" == "$SESSION_LOGIN" ]]; }; } \
+{ [[ -f "$cdir/created-by" && -f "$cdir/conf" ]] && cc_contest_visible_to "$SESSION_LOGIN" "$cowner"; } \
   || fail 404 "Contest não encontrado" "notfound"
 
 base="$(cc_export_spec "$from" none)"

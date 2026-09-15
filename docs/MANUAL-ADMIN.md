@@ -699,6 +699,35 @@ monitor1.mon     Monitor (responde clarifications)
 Depois: ligue **Veredicto manual** (e ajuste o **Nº de juízes**) em Central › Regras; distribua
 as senhas geradas; cada pessoa loga na MESMA tela do contest e vê os botões do seu papel.
 
+## 9½. Painel do treino › Contests e quem pode criar
+
+O painel administrativo do Treino Livre (`/treino/admin/`, conta `.admin`) tem a aba **🏆 Contests**.
+Ela lista os contests criados pela interface e controla quem pode criar contests e problemas.
+
+**Quem vê o quê.** A regra vale na API, não só na tela.
+
+- **Super-admin** vê e opera os contests de todos. Super-admin é uma conta `.admin` listada em
+  `SUPERADMINS` no arquivo `contests/treino/conf` (logins separados por espaço). Só quem tem acesso
+  ao servidor edita essa lista. Não há tela para isso.
+- **Admin comum** vê os próprios contests e os contests de criadores sem papel de admin (alunos e
+  monitores liberados). Não vê o contest de outro administrador. Remover, duplicar e exportar seguem
+  a mesma regra: um contest fora do seu escopo responde "não encontrado".
+
+**Filtros da lista.** Busque por nome, id ou dono. Filtre por dono, modo e situação (por vir, em
+andamento, encerrado). Ordene por data de criação, início, nome ou dono. Marque **só os meus** para
+ver apenas o que você criou. O dono aparece com foto, nome e link para o perfil.
+
+**Id reservado.** Um id que começa por `icpc` é da organização da Maratona. Só um super-admin cria
+um contest com esse id. O assistente avisa antes e a API recusa.
+
+**Quem pode criar contests e problemas.** A mesma permissão vale para criar contests e para criar
+problemas e coleções na Gestão de Problemas. Contas `.admin` sempre podem. Para as demais:
+
+- **Liberados**: digite o login e uma nota opcional e clique em **Liberar**. A conta precisa existir
+  no treino. Cada linha mostra a pessoa, quem liberou e quando.
+- **Bloqueados**: mesma coisa com **Bloquear**. Um bloqueio vence o limite automático.
+- **Limite automático**: quem resolveu pelo menos N problemas pode criar. Zero desativa.
+
 ## 10. Referências
 
 - [Manual do juiz humano](MANUAL-JUIZ.md) — a operação da aba Avaliar e do juiz-chefe.

@@ -65,6 +65,8 @@ export function makeStepInicio(ctx) {
     const id = dupSel.value; if (!id) return;
     const nid = dupId.value.trim().toLowerCase();
     if (nid && !/^[a-z0-9][a-z0-9-]*$/.test(nid)) { say(T('id inválido: minúsculas, números e hífen (vira subdomínio)', 'invalid id: lowercase, digits and hyphen (it becomes a subdomain)'), true); return; }
+    const rsv = (Array.isArray(ctx.perm.reserved_id_prefixes) ? ctx.perm.reserved_id_prefixes : ['icpc']).find((pfx) => nid.startsWith(pfx));
+    if (rsv && !ctx.perm.is_superadmin) { say(T(`ids que começam por "${rsv}" são da organização: só um super-admin cria`, `ids starting with "${rsv}" belong to the organization: only a super-admin can create them`), true); return; }
     if (!confirm(T('Criar AGORA uma cópia fiel de "', 'Create a faithful copy of "') + id + T('"?\n\nProblemas, enunciados enviados à mão, opções e visual são copiados. Usuários e submissões NÃO.', '"NOW?\n\nProblems, hand-uploaded statements, options and appearance are copied. Users and submissions are NOT.'))) return;
     dupNow.disabled = true; say(T('duplicando ', 'duplicating ') + id + '…');
     try {

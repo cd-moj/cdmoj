@@ -9,15 +9,38 @@ source "${BASH_SOURCE[0]%/*}/contest-statement.sh"   # idiomas do enunciado no c
 
 cc_perms_file(){ printf '%s/treino/var/contest-perms.json' "$CONTESTSDIR"; }
 
-# JSON de permissões com defaults: {threshold:int, allow:[], deny:[]}
+# JSON de permissões com defaults: {threshold:int, allow:[], deny:[], allow_meta:{}, deny_meta:{}}.
+# `allow`/`deny` seguem LISTAS DE LOGIN (todo leitor — cc_can_create, permission, problems/orgs — lê
+# só elas); a trilha "quem liberou e quando" mora em `allow_meta`/`deny_meta` = {login:{by,at,note}}
+# (2026-09-15, pedido do Ribas). Arquivo antigo sem meta continua válido.
 cc_perms_json(){
   local f; f="$(cc_perms_file)"
   if [[ -f "$f" ]]; then
-    jq -c '{threshold:((.threshold//0)|floor), allow:(.allow//[]), deny:(.deny//[])}' "$f" 2>/dev/null \
-      || echo '{"threshold":0,"allow":[],"deny":[]}'
+    jq -c '{threshold:((.threshold//0)|floor), allow:(.allow//[]), deny:(.deny//[]), allow_meta:(.allow_meta//{}), deny_meta:(.deny_meta//{})}' "$f" 2>/dev/null \
+      || echo '{"threshold":0,"allow":[],"deny":[],"allow_meta":{},"deny_meta":{}}'
   else
-    echo '{"threshold":0,"allow":[],"deny":[]}'
+    echo '{"threshold":0,"allow":[],"deny":[],"allow_meta":{},"deny_meta":{}}'
   fi
+}
+# cc_perms_write <json> — escrita atômica do contest-perms.json
+cc_perms_write(){ local f; f="$(cc_perms_file)"; mkdir -p "${f%/*}"; printf '%s' "$1" > "$f.tmp" && mv -f "$f.tmp" "$f"; }
+
+# cc_contest_visible_to <viewer> <owner> — FONTE ÚNICA de "quem vê/opera o contest de quem" no painel
+# do treino (lista, remover, duplicar, exportar). Super-admin: tudo. `.admin` comum: os seus e os de
+# criadores SEM papel de admin (professor não vê prova de outro professor). Outros: só os seus.
+cc_contest_visible_to(){
+  local viewer="$1" owner="$2"
+  [[ -n "$viewer" ]] || return 1
+  superadmin_login "$viewer" && return 0
+  [[ "$owner" == "$viewer" ]] && return 0
+  [[ "$viewer" == *.admin && -n "$owner" && "$owner" != *.admin ]] && return 0
+  return 1
+}
+# cc_contest_owner <id> — dono: arquivo `owner` (o que os gates de problema usam) › created-by
+cc_contest_owner(){
+  local o; o="$(head -1 "$CONTESTSDIR/$1/owner" 2>/dev/null)"
+  [[ -n "$o" ]] || { IFS=$'\t' read -r o _ _ < "$CONTESTSDIR/$1/created-by" 2>/dev/null; }
+  printf '%s' "$o"
 }
 
 # nº de problemas distintos resolvidos por um usuário no treino livre (O(1) via metrics)
@@ -178,6 +201,9 @@ cc_create(){
   fi
   [[ "$id" =~ ^[a-z0-9][a-z0-9._-]{1,48}$ ]] || fail 422 "id inválido (use a-z, 0-9, . _ -)" "id_invalid"
   case "$id" in treino|admin|api|www|status|docs|shared|index|new|old|run|server|web) fail 409 "id reservado" "id_reserved";; esac
+  # ids `icpc*` são da organização da Maratona: só SUPER-ADMIN cria (decisão do Ribas, 2026-09-15);
+  # vale p/ create, duplicate e todo caminho que passa por aqui (o creator é quem pede)
+  [[ "$id" == icpc* ]] && ! superadmin_login "$creator" && fail 403 "ids que começam por 'icpc' são da organização — peça a um super-admin" "id_prefix_reserved"
   [[ -e "$CONTESTSDIR/$id" ]] && fail 409 "Já existe um contest com o id '$id'" "id_taken"
 
   local np allow_empty
@@ -873,17 +899,33 @@ cc_export_spec(){
   return $rc
 }
 
-# lista contests criados pela interface (têm marcador created-by)
+# cc_list_created <viewer> [mine] — contests criados pela interface (marcador created-by) que o
+# VIEWER pode ver (cc_contest_visible_to; `mine` = só os dele), com o que a tela precisa filtrar:
+# {id,name,mode,owner,owner_name,owner_has_photo,owner_is_admin,created_at,start,end,problems_count}.
+# Uma leitura só, compartilhada por /treino/admin/contests e /treino/contest-create/mine.
 cc_list_created(){
+  local viewer="${1:-}" only="${2:-}" d cdir cid owner at _m line arr=() oname ophoto oadm
   set +o noglob; shopt -s nullglob
-  local d cid owner at mode nm arr=()
   for d in "$CONTESTSDIR"/*/created-by; do
-    cid="${d%/created-by}"; cid="${cid##*/}"
-    IFS=$'\t' read -r owner at mode < "$d" 2>/dev/null
-    [[ "$at" =~ ^[0-9]+$ ]] || at=0
-    nm="$( . "$CONTESTSDIR/$cid/conf" 2>/dev/null; printf '%s' "${CONTEST_NAME:-$cid}" )"
-    arr+=("$(jq -cn --arg id "$cid" --arg nm "$nm" --arg o "${owner:-?}" --argjson at "$at" --arg m "${mode:-}" \
-      '{id:$id,name:$nm,owner:$o,created_at:$at,mode:$m}')")
+    cdir="${d%/created-by}"; cid="${cdir##*/}"
+    owner="$(cc_contest_owner "$cid")"
+    if [[ "$only" == mine ]]; then [[ -n "$owner" && "$owner" == "$viewer" ]] || continue
+    else cc_contest_visible_to "$viewer" "$owner" || continue; fi
+    IFS=$'\t' read -r _ at _m < "$d" 2>/dev/null; [[ "$at" =~ ^[0-9]+$ ]] || at=0
+    oname="$(user_fullname_of treino "$owner")"; ophoto=false; [[ -f "$CONTESTSDIR/treino/users/$owner/photo.png" ]] && ophoto=true
+    oadm=false; [[ "$owner" == *.admin ]] && oadm=true
+    line="$(
+      CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; PROBS=()
+      . "$cdir/conf" 2>/dev/null
+      [[ "${CONTEST_START:-0}" =~ ^[0-9]+$ ]] || CONTEST_START=0; [[ "${CONTEST_END:-0}" =~ ^[0-9]+$ ]] || CONTEST_END=0
+      jq -cn --arg id "$cid" --arg nm "${CONTEST_NAME:-$cid}" --arg m "${CONTEST_TYPE:-${_m:-}}" \
+         --arg o "${owner:-?}" --arg on "$oname" --argjson op "$ophoto" --argjson oa "$oadm" \
+         --argjson at "$at" --argjson st "${CONTEST_START:-0}" --argjson en "${CONTEST_END:-0}" \
+         --argjson np "$(( ${#PROBS[@]} / 5 ))" \
+         '{id:$id, name:$nm, mode:$m, owner:$o, owner_name:(if $on=="" then null else $on end), owner_has_photo:$op, owner_is_admin:$oa,
+           created_at:$at, start:$st, end:$en, problems_count:$np}'
+    )"
+    [[ -n "$line" ]] && arr+=("$line")
   done
   shopt -u nullglob
   ((${#arr[@]})) && printf '%s\n' "${arr[@]}" | jq -cs 'sort_by(-.created_at)' || echo '[]'
