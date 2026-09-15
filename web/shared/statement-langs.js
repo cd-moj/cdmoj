@@ -33,7 +33,10 @@ export function makeStmtLangChips(avail, cur, onPick) {
   list.forEach((l) => {
     const b = el('button', { type: 'button', class: 'stmt-chip' + (l === cur ? ' active' : ''), title: stmtName(l), lang: stmtHtmlLang(l) }, STMT_SHORT[l] || l.toUpperCase());
     b.dataset.lang = l;
-    b.addEventListener('click', () => { if (l === cur) return; onPick(l); });
+    // O ativo é lido do DOM na hora do clique — `cur` é só o estado INICIAL. Comparar com o
+    // parâmetro congelava o idioma de partida: depois de PT→ES o chip PT "já estava ativo" e o
+    // clique morria (relato do Ribas, 15/09).
+    b.addEventListener('click', () => { if (b.classList.contains('active')) return; onPick(l); });
     box.append(b);
   });
   return box;
