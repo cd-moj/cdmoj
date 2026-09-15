@@ -91,6 +91,11 @@ ck "ES ficou e PT foi regravado"         '[[ -f "$P/docs/enunciado.es.md" && -f 
 # devolve o EN p/ o resto do teste
 call /problems/edit POST aut "" '{"id":"col#pa","translations":{"en":{"title":"Echo","enunciado_md":"Read N and print N.\n\n## Input\n\nOne integer.\n\n## Output\n\nThe same integer.\n","editorial_md":"# Idea\n\nPrint it.","notes":{"sample1":"EN note of one."}}}}'
 ck "EN de volta"                         '[[ -f "$P/docs/enunciado.en.md" && "$(jq -r .titles.en "$P/.moj-meta.json")" == Echo ]]'
+# `titles` no TOPO do body (é o que o `moj push` manda, junto do translations) — regressão de
+# produção 15/09: o filtro do jq indexava a lista com `.key` dentro do pipe e o patch inteiro sumia
+call /problems/edit POST aut "" '{"id":"col#pa","titles":{"en":"Echo!","es":"Eco ES!","fr":"x","pt":"y"},"translations":{"en":{"title":"Echo!"},"es":{"title":"Eco ES!"}}}'
+BODY="$(jq -c . "$P/.moj-meta.json")"; ck "titles no topo: en/es gravados, fr/pt ignorados" '[[ "$(jq -cS .titles "$P/.moj-meta.json")" == "{\"en\":\"Echo!\",\"es\":\"Eco ES!\"}" ]]'
+call /problems/edit POST aut "" '{"id":"col#pa","translations":{"en":{"title":"Echo"},"es":{"title":"Eco ES"}}}'
 
 echo "== /problems/preview: lang=es (rótulos) e kind:editorial (sem exemplos, sem h1) =="
 call /problems/preview POST aut "" '{"enunciado_md":"Hola.\n\n## Entrada\n\nx\n\n## Salida\n\ny","title":"Hola Mundo","lang":"es","examples":[{"input":"1\n","output":"1\n","explanation":"nota"}]}'

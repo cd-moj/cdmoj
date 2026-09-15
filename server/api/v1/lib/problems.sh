@@ -725,8 +725,11 @@ apply_problem_fields(){  # <pkgdir> <body-json-FILE>
   fi
   # titles no topo do body (a CLI manda o .moj-id `titles`; o editor manda dentro de translations)
   if (( HAS_TITLES )); then
-    TITLES_PATCH="$(jq -c --slurpfile b "$bodyf" --arg all "$(stmt_langs_all)" '. + (($b[0].titles // {})
-      | with_entries(select((.value|type)=="string" and .key != "pt" and (($all|split(" ")|index(.key)) != null)) | .value |= .[0:200]))' <<<"$TITLES_PATCH")"
+    # `.key as $k` ANTES do index: dentro do pipe `$all|split|index(.key)` o `.` já é a lista
+    # (armadilha do jq — foi o que apagou os títulos traduzidos no 1º push p/ produção, 15/09)
+    TITLES_PATCH="$(jq -c --slurpfile b "$bodyf" --arg all "$(stmt_langs_all)" '($all|split(" ")) as $ok | . + (($b[0].titles // {})
+      | with_entries(.key as $k | select((.value|type)=="string" and $k != "pt" and (($ok|index($k)) != null)) | .value |= .[0:200]))' <<<"$TITLES_PATCH")"
+    [[ -n "$TITLES_PATCH" ]] || TITLES_PATCH='{}'   # jq mudo nunca vira patch vazio-string
   fi
   if [[ "$TITLES_PATCH" != '{}' ]]; then
     local _mf="$pkg/.moj-meta.json" _cur='{}' _mtmp

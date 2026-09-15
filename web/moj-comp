@@ -1,28 +1,32 @@
 #!/usr/bin/env bash
-# moj-comp — CLI do COMPETIDOR do MOJ (camada 'comp'; `moj comp …` delega aqui).
-# Enviar soluções, acompanhar veredictos, placar e clarifications — e o modo EMERGENCIAL:
-# caiu a Internet, a CLI empacota a submissão CIFRADA com a hora UTC corrente e reenvia
-# quando a rede volta; a submissão conta NO HORÁRIO em que você a criou (penalidade justa).
+# moj-comp — CLI do competidor do MOJ (camada 'comp'; `moj comp …` delega aqui).
+# Envie soluções, acompanhe veredictos, veja o placar e faça perguntas. Se a Internet cair, a CLI
+# empacota a submissão com a hora UTC corrente e reenvia quando a rede voltar. A submissão conta
+# no horário em que você a criou.
 #
-#   moj-comp login <cid|url> [-u login]   (credenciais entregues pela organização)
-#   moj-comp logout | whoami | time       (time = seu relógio × o do servidor)
-#   moj-comp fetch                        (baixa TODOS os enunciados p/ ./<cid>-prova/ — RODE NO COMEÇO)
-#   moj-comp problems                     moj-comp score
-#   moj-comp submit <letra> <arquivo>     (envia e espera o veredicto; sem rede -> empacota sozinho)
-#   moj-comp subs                         (suas submissões e veredictos)
-#   moj-comp clar ls | ask <letra|geral> <pergunta>
-#   moj-comp news
-#   moj-comp outbox | sync                (fila offline | reenviar agora)
-#   moj-comp monitor                      (DEIXE RODANDO na queda: mostra a fila, reenvia
-#                                          sozinho e acompanha os veredictos quando voltar)
-#   moj-comp version | update | doctor
-# TREINO LIVRE (mesma CLI, subconjunto): moj-comp login treino (sua conta do site);
+#   moj-comp login <cid|url> [-u login]   Entra no contest com as credenciais da organização.
+#   moj-comp logout | whoami              Sai. Mostra quem você é.
+#   moj-comp time                         Compara o seu relógio com o do servidor.
+#   moj-comp fetch                        Baixa todos os enunciados para ./<cid>-prova/. Rode no começo.
+#                                         Baixa todos os idiomas que a prova oferece (A.html, A.en.html…).
+#   moj-comp problems                     Lista os problemas (e os idiomas do enunciado de cada um).
+#   moj-comp statement <letra> [--lang en|es]   Baixa um enunciado. Sem --lang, todos os idiomas.
+#   moj-comp score                        Mostra o placar.
+#   moj-comp submit <letra> <arquivo>     Envia e espera o veredicto. Sem rede, empacota sozinho.
+#   moj-comp subs                         Lista as suas submissões e veredictos.
+#   moj-comp clar ls | ask <letra|geral> <pergunta>   Lista e faz perguntas.
+#   moj-comp news                         Mostra os avisos da organização.
+#   moj-comp outbox | sync                Mostra a fila offline. Reenvia agora.
+#   moj-comp monitor                      Deixe rodando na queda de rede. Mostra a fila, reenvia
+#                                         sozinho e acompanha os veredictos quando a rede voltar.
+#   moj-comp version | update | doctor    Compara o build. Atualiza. Diagnostica o ambiente.
+# Treino livre (a mesma CLI, sem o modo offline): moj-comp login treino (conta do site);
 #   problems <busca> · statement <org#slug> · submit <org#slug> <arquivo> · subs
-# Config: MOJ_URL (default https://moj.naquadah.com.br), MOJ_CONTEST (= -c). Requisitos:
-# bash, curl, jq, openssl. Sem root, sem instalação: um arquivo.
-# PROVA COM GATE DE NAVEGADOR: rode a CLI na máquina de prova — ela manda o mesmo User-Agent
-# do navegador da imagem (lido de /etc/moj/user-agent; MOJ_UA_FILE/MOJ_USER_AGENT mudam),
-# marcado como "moj-comp/<build>" (a organização vê o que veio da CLI e o que veio da web).
+# Config: MOJ_URL (default https://moj.naquadah.com.br), MOJ_CONTEST (= -c).
+# Requisitos: bash, curl, jq, openssl. Sem root. Sem instalação. Um arquivo só.
+# Prova com gate de navegador: rode a CLI na máquina de prova. Ela manda o User-Agent do
+# navegador da imagem (lido de /etc/moj/user-agent; MOJ_UA_FILE e MOJ_USER_AGENT mudam) com a
+# marca "moj-comp/<build>". A organização vê o que veio da CLI e o que veio da web.
 
 # moj-cli/lib/core.sh — núcleo COMPARTILHADO das CLIs do MOJ (moj, moj-contest, camadas
 # futuras). SOURCED pelos scripts no repo (dev) e EMBUTIDO nos artefatos de 1 arquivo pelo
@@ -40,7 +44,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="985da91-20260903"
+MOJ_CLI_BUILD="fcbbef3-20260915"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -186,6 +190,11 @@ auth_hdr_file(){ local c tf h; c="${1:-$CONTEST}"; tf="$(token_file "$c")"; h="$
 _api_fail(){
   local code="$1" out="$2" msg
   msg="$(jq -r '.error.message // .message // empty' <<<"$out" 2>/dev/null || true)"
+  # 409 com `blockers` (promoção de rodada): mostra cada bloqueador — sem isso a CLI só dizia
+  # "não está pronta" e o admin não sabia o quê resolver
+  local _bl; _bl="$(jq -r '.blockers[]? | "  ⛔ \(.code): \(.detail)"' <<<"$out" 2>/dev/null || true)"
+  [[ -n "$_bl" ]] && msg="$msg
+$_bl"
   # gate de navegador por sede: a CLI só entra na MÁQUINA DE PROVA (lê /etc/moj/user-agent)
   if [[ "$(jq -r '.error.code // empty' <<<"$out" 2>/dev/null || true)" == ua_gate ]]; then
     msg="$msg
@@ -394,18 +403,34 @@ cmd_time(){ need_contest
 _load_problems(){ # atualiza o mapa local letra→id (o submit OFFLINE depende dele)
   local r; r="$(_api_net GET "/contest/problems$(qc)")" || return 1
   mkdir -p "$(_cdir)" 2>/dev/null
-  jq -r '.problems[]? | [.short_name, .problem_id, .full_name] | @tsv' <<<"$r" > "$(_cdir)/problems.tsv" 2>/dev/null
+  # 4ª coluna = idiomas do enunciado deste problema ("pt,en") — a CLI NUNCA adivinha idioma:
+  # só pede o que o servidor listou (statement_langs por problema; default_statement_lang no envelope)
+  jq -r '.problems[]? | [.short_name, .problem_id, .full_name, ((.statement_langs // ["pt"]) | join(","))] | @tsv' <<<"$r" > "$(_cdir)/problems.tsv" 2>/dev/null
+  jq -r '.default_statement_lang // "pt"' <<<"$r" > "$(_cdir)/stmt-default" 2>/dev/null
   printf '%s' "$r"
 }
 _letter2id(){ awk -F'\t' -v l="$1" 'toupper($1)==toupper(l){print $2; exit}' "$(_cdir)/problems.tsv" 2>/dev/null; }
+_letter_langs(){ local v; v="$(awk -F'\t' -v l="$1" 'toupper($1)==toupper(l){print $4; exit}' "$(_cdir)/problems.tsv" 2>/dev/null)"; printf '%s' "${v:-pt}"; }
+# _stmt_all <letra> <base> [lang] — baixa html+pdf de UM idioma (ou de todos os oferecidos):
+# PT = <base>.html|pdf; outro = <base>.<lang>.html|pdf. Ecoa os arquivos gravados.
+_stmt_all(){ local letter="$1" base="$2" only="${3:-}" langs l sfx got=""
+  langs="$(_letter_langs "$letter")"; langs="${langs//,/ }"
+  if [[ -n "$only" ]]; then [[ " $langs " == *" $only "* ]] || return 1; langs="$only"; fi
+  for l in $langs; do
+    [[ "$l" =~ ^(pt|en|es)$ ]] || continue          # o idioma vira NOME DE ARQUIVO: só a allowlist
+    sfx=""; [[ "$l" != pt ]] && sfx=".$l"
+    _stmt_get "$letter" html "$base$sfx.html" "$l" && got="${got:+$got }$base$sfx.html"
+    _stmt_get "$letter" pdf  "$base$sfx.pdf"  "$l" && got="${got:+$got }$base$sfx.pdf"
+  done
+  printf '%s' "$got"; }
 # _stmt_get <letra> <html|pdf> <arquivo-destino> — baixa UM enunciado.
 # A lista NÃO traz mais o corpo em base64 (era 3,8 MB por time num contest de PDF): cada
 # enunciado vem do /contest/statement. Vai direto p/ arquivo — PDF é binário e `$( )` come
 # byte nulo. 404 = não existe naquele formato, e isso é normal (nem todo problema tem PDF).
-_stmt_get(){ local letter="$1" fmt="$2" out="$3" hf auth=() code
+_stmt_get(){ local letter="$1" fmt="$2" out="$3" lang="${4:-}" hf auth=() code
   hf="$(auth_hdr_file 2>/dev/null || true)"; [[ -n "$hf" ]] && auth=(-H "@$hf")
   code="$(curl -sS --max-time 30 -o "$out" -w '%{http_code}' "${HDR[@]}" "${auth[@]}" \
-      "$MOJ_URL/api/v1/contest/statement$(qc)&problem=$(enc "$letter")&format=$fmt" 2>/dev/null || true)"
+      "$MOJ_URL/api/v1/contest/statement$(qc)&problem=$(enc "$letter")&format=$fmt${lang:+&lang=$lang}" 2>/dev/null || true)"
   [[ "$code" == 200 && -s "$out" ]] && return 0
   rm -f "$out"; return 1
 }
@@ -420,45 +445,64 @@ cmd_problems(){ need_contest; local filtro="${1:-}"
   need_login
   local r; r="$(_load_problems)" || die "sem rede — use os enunciados do '$MOJ_TOOL fetch' e o '$MOJ_TOOL monitor' p/ enviar."
   _anchor >/dev/null 2>&1 &
-  jq -r '.problems[]? | "\(.short_name)  \(.full_name)\(if .time_limits then "   [TL " + ([.time_limits[]?|tostring]|join("/")) + "s]" else "" end)"' <<<"$r"; wait; }
+  # idiomas do enunciado só quando algum problema tem mais de um (senão é ruído)
+  jq -r '(.problems // [] | any((.statement_langs // []) | length > 1)) as $ml
+    | .problems[]? | "\(.short_name)  \(.full_name)\(if .time_limits then "   [TL " + ([.time_limits[]?|tostring]|join("/")) + "s]" else "" end)\(if $ml then "   [" + ((.statement_langs // ["pt"]) | join("/")) + "]" else "" end)"' <<<"$r"
+  jq -e '(.statement_langs // []) | length > 1' >/dev/null 2>&1 <<<"$r" \
+    && echo "idiomas do enunciado: $(jq -r '.statement_langs | join(", ")' <<<"$r") (padrão: $(jq -r '.default_statement_lang // "pt"' <<<"$r")) — '$MOJ_TOOL statement <letra> --lang en' baixa um só"
+  wait; }
 # statement <id|letra> — baixa UM enunciado (treino: /treino/problem?id=; contest: do fetch)
-cmd_statement(){ need_contest; local ref="${1:-}"
-  [[ -n "$ref" ]] || die "uso: $MOJ_TOOL statement <id do problema$( _is_treino || echo '|letra')>"
+# statement <id|letra> [--lang pt|en|es] — baixa UM enunciado em TODOS os idiomas oferecidos
+# (ou só o de --lang): treino = /treino/problem (statements{<lang>}); contest = /contest/statement?lang=.
+cmd_statement(){ need_contest; local ref="" only=""
+  while [[ $# -gt 0 ]]; do case "$1" in --lang) only="${2:-}"; shift 2;; *) ref="$1"; shift;; esac; done
+  [[ -n "$ref" ]] || die "uso: $MOJ_TOOL statement <id do problema$( _is_treino || echo '|letra')> [--lang pt|en|es]"
+  [[ -z "$only" || "$only" =~ ^(pt|en|es)$ ]] || die "--lang aceita pt, en ou es"
   if _is_treino; then
-    local r out rc=0
+    local r rc=0 langs l sfx got="" slug="${ref##*#}"
     r="$(_api_net GET "/treino/problem?id=$(enc "$ref")")" && rc=0 || rc=$?
     [[ $rc -eq 7 ]] && die "sem rede."
     [[ $rc -ne 0 ]] && die "problema '$ref' não achado (o id é org#slug — busque com: $MOJ_TOOL problems <busca>)"
     jq -e '.statement_html_b64 // empty | length > 0' >/dev/null 2>&1 <<<"$r" || die "problema '$ref' sem enunciado servível"
-    out="./${ref##*#}.html"
-    jq -r '.statement_html_b64' <<<"$r" | _b64dec > "$out"
-    echo "enunciado: $out  ($(jq -r '.title // ""' <<<"$r"))  — abra no navegador"
+    langs="$(jq -r '(.statement_langs // ["pt"]) | join(" ")' <<<"$r")"
+    if [[ -n "$only" ]]; then
+      [[ " $langs " == *" $only "* ]] || die "o problema '$ref' não tem enunciado em '$only' — idiomas disponíveis: ${langs// /, }"
+      langs="$only"
+    fi
+    for l in $langs; do
+      sfx=""; [[ "$l" != pt ]] && sfx=".$l"
+      if [[ "$l" == pt ]]; then jq -r '.statement_html_b64' <<<"$r" | _b64dec > "./$slug$sfx.html"
+      else jq -r --arg l "$l" '.statements[$l].html_b64 // empty' <<<"$r" | _b64dec > "./$slug$sfx.html"; fi
+      [[ -s "./$slug$sfx.html" ]] && got="${got:+$got }./$slug$sfx.html" || rm -f "./$slug$sfx.html"
+    done
+    echo "enunciado: $got  ($(jq -r '.title // ""' <<<"$r"))  — abra no navegador"
     return 0
   fi
   # contest: um enunciado só, sem baixar o kit inteiro
   need_login; _load_problems >/dev/null || die "sem rede — não deu p/ baixar agora."
-  local base="./${ref}" got=""
-  _stmt_get "$ref" html "$base.html" && got="$base.html"
-  _stmt_get "$ref" pdf  "$base.pdf"  && got="${got:+$got e }$base.pdf"
+  [[ -n "$(_letter2id "$ref")" ]] || die "problema '$ref' não existe (confira a letra com: $MOJ_TOOL problems)"
+  if [[ -n "$only" ]]; then local av; av="$(_letter_langs "$ref")"
+    [[ ",$av," == *",$only,"* ]] || die "o problema '$ref' não é oferecido em '$only' — idiomas disponíveis: ${av//,/, }"
+  fi
+  local got; got="$(_stmt_all "$ref" "./${ref}" "$only")"
   [[ -n "$got" ]] || die "problema '$ref' sem enunciado servível (confira a letra com: $MOJ_TOOL problems)"
-  echo "enunciado: $got  — abra no navegador"; }
+  echo "enunciado: ${got// / e }  — abra no navegador"; }
 _contest_only(){ _is_treino && die "'$1' é de CONTEST — no treino livre use: problems <busca> · statement <id> · submit <id> <arq> · subs"; return 0; }
 cmd_fetch(){ need_contest; _contest_only fetch; need_login
   local d="./${CONTEST}-prova" r n=0
   r="$(_load_problems)" || die "sem rede — não deu p/ baixar agora."
   mkdir -p "$d"
-  # um GET por enunciado (a lista só diz quais existem) — o kit continua saindo completo
-  while IFS=$'\t' read -r letter pid name; do
-    local base="$d/${letter}"
-    jq -e --arg l "$letter" '.problems[] | select(.short_name==$l) | .has_statement_html == true' >/dev/null 2>&1 <<<"$r" \
-      && _stmt_get "$letter" html "$base.html"
-    jq -e --arg l "$letter" '.problems[] | select(.short_name==$l) | .has_statement_pdf == true' >/dev/null 2>&1 <<<"$r" \
-      && _stmt_get "$letter" pdf "$base.pdf"
+  # um GET por enunciado e por idioma (a lista só diz quais existem) — o kit continua saindo
+  # completo: A.html (PT), A.en.html, A.es.html… conforme o que a prova OFERECE
+  local letter pid name langs
+  while IFS=$'\t' read -r letter pid name langs; do
+    _stmt_all "$letter" "$d/${letter}" >/dev/null || true
     n=$((n+1))
   done < "$(_cdir)/problems.tsv"
-  jq -r '.problems[]? | "\(.short_name)\t\(.full_name)"' <<<"$r" > "$d/problemas.txt"
+  jq -r '.problems[]? | "\(.short_name)\t\(.full_name)\t\((.statement_langs // ["pt"]) | join(","))"' <<<"$r" > "$d/problemas.txt"
   _anchor >/dev/null 2>&1 || true
-  echo "kit da prova em $d/ ($n problema(s), enunciados html/pdf) — dá p/ ler SEM rede."; }
+  local dl; dl="$(cat "$(_cdir)/stmt-default" 2>/dev/null || echo pt)"
+  echo "kit da prova em $d/ ($n problema(s), enunciados html/pdf; idiomas: $(jq -r '(.statement_langs // ["pt"]) | join(", ")' <<<"$r"), padrão $dl) — dá p/ ler SEM rede."; }
 
 # ---- submissão ----------------------------------------------------------------------------
 _pkg_offline(){ # <letra> <arquivo> — cifra e enfileira; ecoa o caminho do pacote
@@ -589,7 +633,7 @@ cmd_news(){ need_contest; _contest_only news; need_login
 cmd_clar(){ need_contest; _contest_only clar; need_login
   local sub="${1:-ls}"; shift || true
   case "$sub" in
-    ls) api GET "/contest/clarifications$(qc)" | jq -r '.clarifications[]? | "[\(.problem // "geral")] \(.question)\n  ↳ \(.answer // "(sem resposta ainda)")\n"';;
+    ls) api GET "/contest/clarifications$(qc)" | jq -r '.clarifications[]? | "[\(.problem // "geral")] \(if .broadcast == true then "📣 aviso oficial" + (if (.question // "") != "" then ": " + .question else "" end) else .question end)\n  ↳ \(.answer // "(sem resposta ainda)")\n"';;
     ask) local prob="${1:-}"; shift || true; local q="$*"
          [[ -n "$prob" && -n "$q" ]] || die "uso: $MOJ_TOOL clar ask <letra|geral> <pergunta>"
          [[ "$prob" == geral ]] && prob=general
