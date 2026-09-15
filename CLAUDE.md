@@ -609,6 +609,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   limiar, `localStorage` por contest) e atualiza EM LUGAR (nunca `app.innerHTML=''` no poll).
   Link no nav de admin, chefe e juiz (`navbuttons.sh`). Teste: `smoke-contest-jplag.sh` (sem
   java/jar roda os handlers sobre fixture sintética).
+- **Nav do contest SEM emoji** (issue #28, 2026-09-15): `navbuttons.sh` e `web/shared/nav-i18n.js`
+  só texto ("Administração", "Avaliar", "Rodadas"…); emoji fica nos títulos de painel/seção e nas
+  abas internas (chief, admin). Tutoriais/manuais citam os botões sem emoji. **Chip "Nome · login"**
+  (`mountContestUserChip`, issue #29) em TODA página de contest: `contest-chrome.js` e
+  `contest-shell.js` já montam; página principal e placar chamam explicitamente.
 - **Estático SEM cache velho** (issue #22, 2026-09-15): `moj-app.conf.in` `location /` manda
   `Cache-Control: no-cache, must-revalidate` — módulo ESM revalida por ETag a cada uso. Sem isso
   um deploy que muda o CONTRATO (TXT em segundos `icpc s`, 30/08) deixa JS velho no navegador do

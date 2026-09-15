@@ -8,7 +8,7 @@ juízes** — incluindo quantas pessoas você precisa.
 > Criar o contest (wizard, problemas, contas) é o outro guia: o
 > [tutorial do organizador](/treino/criar/tutorial.html). Aqui é a OPERAÇÃO, do dia da prova.
 
-Você chega ao painel logando com a conta `.admin` do contest e clicando em **⚙ Administração**
+Você chega ao painel logando com a conta `.admin` do contest e clicando em **Administração**
 na barra do topo.
 
 ## 1. O painel: a Central, os grupos e os MÓDULOS
@@ -59,7 +59,7 @@ painel de módulo **desligado** cai em **Central › Módulos** com um aviso diz
 
 | Painel | O que faz |
 |---|---|
-| **Contas** | Criar/resetar/desabilitar/remover contas (individual e em lote por .txt/.csv), trocar a senha de todos e o atalho das **🏷️ Etiquetas de credenciais**. É AQUI que você cria as contas de papel (seção 3). |
+| **Contas** | Criar/resetar/desabilitar/remover contas (individual e em lote por .txt/.csv), trocar a senha de todos e o atalho das **Etiquetas de credenciais**. É AQUI que você cria as contas de papel (seção 3). |
 | **Inscrições** (módulo `inscricoes`) | O **roster** do contest (só inscrito entra) e a **janela**: quando abre, quando fecha (default: o início da prova) e quantos minutos de entrada atrasada. Lista times e individuais, dissolve time, inscreve à mão, **cutuca convite pendente por DM** (🔔) e exporta CSV. A seção 8½ explica. |
 | **Sessões** | Quem está logado agora, com deslogar; **🚪 sair em massa e trava de login** (fechar o login, derrubar todo mundo, reabrir — é o fim de uma prova de sala e a troca de rodada); e o log de acessos por dia. Vale para qualquer contest. |
 
@@ -187,10 +187,10 @@ operações em massa (reset de senha, desabilitar) **pulam** contas privilegiada
 | Papel | Sufixo | Pode | Não pode |
 |---|---|---|---|
 | **Administrador** | `.admin` | Tudo: painel ⚙, submeter a qualquer hora, ver problemas antes da largada, placar sem freeze, votar como juiz, resolver conflitos, responder clarifications. | Aparecer no placar (nenhum papel aparece). |
-| **Juiz (humano)** | `.judge` | Aba **⚖️ Avaliar** (correção manual), submeter/ver problemas a qualquer hora (testar a prova!), placar sem freeze, responder clarifications, Estatísticas. | Resolver conflitos; painel admin. |
-| **Juiz-chefe** | `.cjudge` | Tudo do `.judge` **+** painel **👑 Juiz-chefe**: resolver conflitos de votos, editar respostas de clarification já dadas, ver o login e o nome de quem perguntou, liberar a reserva de outro juiz (botão próprio, com confirmação), opções e auto-veredicto. | Painel admin (Configurações etc.). Reservar uma clarification que outro juiz já reservou. |
+| **Juiz (humano)** | `.judge` | Aba **Avaliar** (correção manual), submeter/ver problemas a qualquer hora (testar a prova!), placar sem freeze, responder clarifications, Estatísticas. | Resolver conflitos; painel admin. |
+| **Juiz-chefe** | `.cjudge` | Tudo do `.judge` **+** painel **Juiz-chefe**: resolver conflitos de votos, editar respostas de clarification já dadas, ver o login e o nome de quem perguntou, liberar a reserva de outro juiz (botão próprio, com confirmação), opções e auto-veredicto. | Painel admin (Configurações etc.). Reservar uma clarification que outro juiz já reservou. |
 | **Staff** | `.staff` | Fila de **🖨️ impressão e balões** (pegar/imprimir/entregar, modo automático de quiosque). | Ver problemas ou submeter (nunca); etiquetas; placar sem freeze. |
-| **Chefe de sede** | `.cstaff` | Observar a fila do staff da sua sede (somente leitura), **🏷️ Etiquetas** de credenciais dos competidores e do **`.staff`** da sua sede (com senha — exceto em contest que usa contas do treino, onde a senha é pessoal e não sai na etiqueta; a credencial do próprio chefe também não sai em etiqueta), o **🎥 telão** da sede e a **🏆 revelação por sede** depois do fim. | Agir na fila de impressão; ver problemas/submeter; não herda `.staff`. |
+| **Chefe de sede** | `.cstaff` | Observar a fila do staff da sua sede (somente leitura), **Etiquetas** de credenciais dos competidores e do **`.staff`** da sua sede (com senha — exceto em contest que usa contas do treino, onde a senha é pessoal e não sai na etiqueta; a credencial do próprio chefe também não sai em etiqueta), o **🎥 telão** da sede e a **🏆 revelação por sede** depois do fim. | Agir na fila de impressão; ver problemas/submeter; não herda `.staff`. |
 | **Monitor** | `.mon` | Submeter DURANTE a prova (sem aparecer no placar), **responder clarifications**, Todas as Submissões e Estatísticas. | Ver problemas antes da largada; correção manual. |
 
 Regra de ouro: **nenhuma conta com sufixo de papel entra no placar ou nas estatísticas** —
@@ -201,7 +201,7 @@ crie quantas precisar sem medo de sujar o resultado.
 Com **Veredicto manual** ligado, o julgamento automático continua rodando, mas o veredicto
 fica **retido**: o aluno vê a submissão pendente até juízes humanos validarem.
 
-O fluxo, na aba **⚖️ Avaliar** (página do `.judge`):
+O fluxo, na aba **Avaliar** (página do `.judge`):
 
 1. O juiz **pega** uma submissão da fila (reserva com prazo; máx. N juízes na mesma).
 2. Vê o veredicto computado, o log e o código, e **vota** (confirmar ou trocar o rótulo).
@@ -258,7 +258,7 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
    por problema.
 5. **Confira**: cada linha tem **PDF**, **HTML** e **abrir**. Reveja antes de publicar.
 6. **Publique** o que a sede pode ver. Publicar faz duas coisas: o documento passa a aparecer na
-   seção **Prova** da página do contest e **toda a organização** (`.judge`, `.staff`, `.cstaff`, `.mon`) consegue baixá-lo em **📄 Documentos**, inclusive antes do início — o TIME é que espera a fase.
+   seção **Prova** da página do contest e **toda a organização** (`.judge`, `.staff`, `.cstaff`, `.mon`) consegue baixá-lo em **Documentos**, inclusive antes do início — o TIME é que espera a fase.
    **Times NÃO veem caderno/time limits publicados antes do INÍCIO da prova** — publicar cedo
    serve para a sede imprimir, sem vazar nada (o `+ notícia` desses dois é recusado antes do
    início, porque a notícia anexa o PDF). O **editorial** só publica depois do fim.
@@ -338,7 +338,7 @@ prova, vazia), e arquivo é imutável. O certo é **inverter editando as duas ro
    salvar **aplica na hora**.
 3. Confira em Central › Regras que a janela vigente é a do aquecimento — e siga o roteiro
    normal a partir do passo 3.
-5. **Depois**: o placar e as submissões do aquecimento continuam legíveis em 🔁 Rodadas (e você
+5. **Depois**: o placar e as submissões do aquecimento continuam legíveis em Rodadas (e você
    pode **publicar** a rodada para os times verem). O **arquivo bruto** em `.tar.gz` — com
    código-fonte — sai por um clique, para a auditoria posterior.
 
@@ -570,7 +570,7 @@ A coorte casa por **regex no login** e/ou pelo campo `.team.cohort` de cada time
 Quem não casa nada cai na coorte **default** (a dos oficiais).
 
 **O que continua completo, de propósito** — são papéis privilegiados, e você precisa deles:
-**⚖️ Todas as Submissões**, **📊 Estatísticas** (inclusive quem resolveu primeiro), a **fila do
+**Todas as Submissões**, **Estatísticas** (inclusive quem resolveu primeiro), a **fila do
 staff** (o balão do convidado tem de ser entregue) e o **relatório final**. Duas consequências
 práticas:
 
@@ -673,7 +673,7 @@ as senhas geradas; cada pessoa loga na MESMA tela do contest e vê os botões do
 
 ## 10. Referências
 
-- [Manual do juiz humano](MANUAL-JUIZ.md) — a operação da aba ⚖️ Avaliar e do juiz-chefe.
+- [Manual do juiz humano](MANUAL-JUIZ.md) — a operação da aba Avaliar e do juiz-chefe.
 - [Manual do staff](MANUAL-STAFF.md) — impressão, balões, etiquetas, revelação por sede.
 - [Manual do competidor](MANUAL-CONTEST.md) — o que o aluno vê (distribua com as senhas).
 - [Tutorial do organizador](/treino/criar/tutorial.html) — criar o contest (wizard e CLI).

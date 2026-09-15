@@ -14,8 +14,11 @@ export function mountContestUserChip(st) {
   const anchor = document.getElementById('backBtn') || document.getElementById('contestCountdown');
   if (!anchor || !anchor.parentNode) return;
   anchor.parentNode.insertBefore(
-    el('span', { id: 'contestUserChip', class: 'user-chip small', style: 'margin-right:.3rem', title: st.login },
-      avatarEl(st.login, st.name, 22, st.has_photo), el('span', {}, st.name || st.login)),
+    // NOME · login, sempre (issue #29): várias telas não mostravam quem está logado, e o login é
+    // o que a sede/o juiz precisam ler — o nome sozinho não identifica a conta.
+    el('span', { id: 'contestUserChip', class: 'user-chip small', style: 'margin-right:.3rem', title: (st.name ? st.name + ' · ' : '') + st.login },
+      avatarEl(st.login, st.name, 22, st.has_photo), el('span', {}, st.name || st.login),
+      (st.name && st.name !== st.login) ? el('span', { class: 'muted', style: 'margin-left:.3rem' }, st.login) : null),
     anchor);
 }
 

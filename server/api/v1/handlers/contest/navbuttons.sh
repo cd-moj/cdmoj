@@ -35,9 +35,9 @@ animeitor)
   # que conduz a revelação), as estatísticas, e a página dele: fotos dos times + as chaves do
   # webcast que alimentam o sistema Animeitor.
   buttons='[{label:"Score", url:"/contest/score/"},
-            {label:"🎥 Animeitor", url:"/contest/animeitor/"},
-            {label:"📊 Estatísticas", url:"/contest/statistics/"},
-            {label:"🏆 Revelação", url:"/contest/score/reveal.html"}]' ;;
+            {label:"Animeitor", url:"/contest/animeitor/"},
+            {label:"Estatísticas", url:"/contest/statistics/"},
+            {label:"Revelação", url:"/contest/score/reveal.html"}]' ;;
 cstaff)
   # .cstaff (chefe de sede): NÃO submete. Vê o placar (congelado, como usuário normal), a
   # fila de impressão em modo leitura, as ETIQUETAS de credenciais da sede e o TELÃO com as
@@ -45,13 +45,13 @@ cstaff)
   # nem o padrão do contest). O botão da cerimônia (🏆) só aparece quando o contest terminou p/
   # TODAS as sedes — mesmo gate que libera o placar full na API (a UI é só conveniência).
   buttons='[{label:"Score", url:"/contest/score/"},
-            {label:"🖨️ Impressão", url:"/contest/staff/"},
-            {label:"🏷️ Etiquetas", url:"/contest/badges/"},
-            {label:"🎥 Animeitor", url:"/contest/animeitor/"},
-            {label:"📄 Documentos", url:"/contest/docs/"},
-            {label:"🔁 Rodadas", url:"/contest/rounds/"}]'
+            {label:"Impressão", url:"/contest/staff/"},
+            {label:"Etiquetas", url:"/contest/badges/"},
+            {label:"Animeitor", url:"/contest/animeitor/"},
+            {label:"Documentos", url:"/contest/docs/"},
+            {label:"Rodadas", url:"/contest/rounds/"}]'
   if contest_over_for_all "$contest"; then
-    buttons="$buttons + [{label:\"🏆 Revelação\", url:\"/contest/score/reveal.html\"}]"
+    buttons="$buttons + [{label:\"Revelação\", url:\"/contest/score/reveal.html\"}]"
   fi ;;
 staff)
   # .staff: NÃO submete (sem Contest/Clarification). Vê o placar (congela no freeze, como
@@ -59,10 +59,10 @@ staff)
   # SOMENTE LEITURA (olha e ouve foto/música do escopo; não sobe, não baixa pacote). Etiquetas de
   # credenciais são do .cstaff/admin — o .staff não as vê.
   buttons='[{label:"Score", url:"/contest/score/"},
-            {label:"🖨️ Impressão", url:"/contest/staff/"},
-            {label:"🎥 Animeitor", url:"/contest/animeitor/"},
-            {label:"📄 Documentos", url:"/contest/docs/"},
-            {label:"🔁 Rodadas", url:"/contest/rounds/"}]' ;;
+            {label:"Impressão", url:"/contest/staff/"},
+            {label:"Animeitor", url:"/contest/animeitor/"},
+            {label:"Documentos", url:"/contest/docs/"},
+            {label:"Rodadas", url:"/contest/rounds/"}]' ;;
 *)
   # base comum a usuário/monitor/judge/chefe/admin
   buttons='[{label:"Contest", url:"/"},
@@ -71,23 +71,23 @@ staff)
   case "$NBROLE" in
   admin)
     buttons="$buttons + [
-      {label:\"⚙ Administração\",  url:\"/contest/admin/\"},
+      {label:\"Administração\",  url:\"/contest/admin/\"},
       {label:\"Todas Submissões\", url:\"/contest/allsubmissions/\"},
       {label:\"Estatísticas\",     url:\"/contest/statistics/\"},
       {label:\"jplag\",            url:\"/contest/jplag/\"},
-      {label:\"🔁 Rodadas\",        url:\"/contest/rounds/\"}]" ;;
+      {label:\"Rodadas\",        url:\"/contest/rounds/\"}]" ;;
   chief)
     buttons="$buttons + [
-      {label:\"⚖️ Avaliar\",        url:\"/contest/judge/\"},
-      {label:\"👑 Juiz-chefe\",     url:\"/contest/chief/\"},
-      {label:\"🔁 Rodadas\",        url:\"/contest/rounds/\"},
+      {label:\"Avaliar\",        url:\"/contest/judge/\"},
+      {label:\"Juiz-chefe\",     url:\"/contest/chief/\"},
+      {label:\"Rodadas\",        url:\"/contest/rounds/\"},
       {label:\"Todas Submissões\",  url:\"/contest/allsubmissions/\"},
       {label:\"Estatísticas\",      url:\"/contest/statistics/\"},
       {label:\"jplag\",             url:\"/contest/jplag/\"}]" ;;
   judge)
     # juiz puro avalia pela página Avaliar; "Todas Submissões" vem ANÔNIMA (sem user/team)
     buttons="$buttons + [
-      {label:\"⚖️ Avaliar\",            url:\"/contest/judge/\"},
+      {label:\"Avaliar\",            url:\"/contest/judge/\"},
       {label:\"Todas Submissões\",     url:\"/contest/allsubmissions/\"},
       {label:\"Estatísticas\",         url:\"/contest/statistics/\"},
       {label:\"jplag\",                url:\"/contest/jplag/\"}]" ;;
@@ -98,11 +98,11 @@ staff)
   *)
     # usuário comum (não-privilegiado): página de backup só se o admin não desabilitou (BACKUP!=0)
     if [[ "$(. "$CONTESTSDIR/$contest/conf" 2>/dev/null; printf '%s' "${BACKUP:-}")" != 0 ]]; then
-      buttons="$buttons + [{label:\"💾 Backup\", url:\"/contest/backup/\"}]"
+      buttons="$buttons + [{label:\"Backup\", url:\"/contest/backup/\"}]"
     fi
     # página de impressão só quando há staff no contest E a impressão está habilitada
     if staff_exists "$contest" && print_enabled "$contest"; then
-      buttons="$buttons + [{label:\"🖨️ Impressão\", url:\"/contest/print/\"}]"
+      buttons="$buttons + [{label:\"Impressão\", url:\"/contest/print/\"}]"
     fi ;;
   esac ;;
 esac

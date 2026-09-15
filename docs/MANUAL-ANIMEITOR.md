@@ -27,14 +27,14 @@ essa é a **única** porta para subir foto/música.
 | Aba | Para que serve |
 |---|---|
 | **Score** | O placar, **sempre descongelado** — inclusive antes de a prova começar. É o sentido do papel: quem anima a virada precisa ver a classificação real. |
-| **🎥 Animeitor** | A sua mesa: chaves de streaming + fotos e músicas dos times. |
-| **📊 Estatísticas** | Números da prova (submissões por problema, linguagens, linha do tempo) — bom material de intervalo. |
-| **🏆 Revelação** | A cerimônia **experimental do MOJ** (ver o aviso abaixo). Disponível a **qualquer** momento para você, para ensaiar antes da plateia chegar. |
+| **Animeitor** | A sua mesa: chaves de streaming + fotos e músicas dos times. |
+| **Estatísticas** | Números da prova (submissões por problema, linguagens, linha do tempo) — bom material de intervalo. |
+| **Revelação** | A cerimônia **experimental do MOJ** (ver o aviso abaixo). Disponível a **qualquer** momento para você, para ensaiar antes da plateia chegar. |
 | **Sair** | Encerra a sessão. |
 
 ## ⚠ A cerimônia oficial é o Animeitor, não a página do MOJ
 
-A página `/contest/score/reveal.html` (botão **🏆 Revelação**) é **EXPERIMENTAL**: serve para
+A página `/contest/score/reveal.html` (botão **Revelação**) é **EXPERIMENTAL**: serve para
 ensaio, para uma sede pequena, ou como plano B se não der para montar o Animeitor. A cerimônia
 oficial de um evento é conduzida pelo **Animeitor, de Emílio Wuerges** — o sistema que este papel
 inteiro existe para alimentar.

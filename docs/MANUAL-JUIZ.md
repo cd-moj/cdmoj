@@ -26,7 +26,7 @@ Como juiz, sua barra de navegação tem estas abas:
 | **Contest** | O enunciado da prova e os problemas. |
 | **Score** | O placar. |
 | **Clarification** | Perguntas e respostas (esclarecimentos). |
-| **⚖️ Avaliar** | A sua fila de avaliação. É aqui que você trabalha. |
+| **Avaliar** | A sua fila de avaliação. É aqui que você trabalha. |
 | **Todas as Submissões** | O feed completo da prova, **anônimo**: você vê horário, problema, veredicto cru, código e log — mas **não** vê usuário nem time (nem a API revela; quem submeteu é irrelevante para avaliar). |
 | **Estatísticas** | Números da prova. |
 | **Sair** | Encerra a sessão. |
@@ -35,7 +35,7 @@ Uma diferença importante em relação a um competidor: você, juiz, também enx
 
 ### A fila de avaliação
 
-A fila fica na aba **⚖️ Avaliar** (URL `/contest/judge/`). No topo da página há quatro contadores que resumem o estado geral:
+A fila fica na aba **Avaliar** (URL `/contest/judge/`). No topo da página há quatro contadores que resumem o estado geral:
 
 | Contador | Significa |
 |---|---|
@@ -104,7 +104,7 @@ Além das abas do juiz, o juiz-chefe vê:
 
 | Aba | Para quê |
 |---|---|
-| **👑 Juiz-chefe** | O painel de chefia (detalhado abaixo). |
+| **Juiz-chefe** | O painel de chefia (detalhado abaixo). |
 | **Todas as Submissões** | A lista completa **com usuário e time** (o juiz comum a vê anônima), com o veredicto cru. |
 
 ### O painel do chefe

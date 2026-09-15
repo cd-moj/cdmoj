@@ -546,12 +546,12 @@ auto-verdicts-set`, `review-claim/extend/giveup/vote/agree/conflict/resolve`, `v
   - **Chefe de sede (`.cstaff`)**: papel de supervisão da sede. Usa a **mesma página** da fila em
     modo **somente leitura** (acompanha o escopo dele; sem pegar/imprimir/entregar — a API corta
     `print-action`/`print-pdf`/`print-file` com 403) e é o **único papel além do admin** que vê as
-    **🏷️ Etiquetas de credenciais** (`/contest/badges`, senha **sempre** presente — o `.staff`
+    **Etiquetas de credenciais** (`/contest/badges`, senha **sempre** presente — o `.staff`
     perdeu o acesso e o antigo toggle `staff_password` foi extinto). Vê o placar **congelado** como
     usuário normal (admin libera o completo via `SCORE_FULL_USERS`) e, pós-fim p/ todas as sedes,
     abre a **cerimônia de revelação da sede** (navbutton 🏆). O escopo (mesmo `staff-filters.json`,
     entradas `region:<nome>`/regex) governa fila, etiquetas e cerimônia — **configure-o sempre**
-    (vazio = vê tudo, inclusive todas as senhas). Baixa também os **📄 Documentos publicados**
+    (vazio = vê tudo, inclusive todas as senhas). Baixa também os **Documentos publicados**
     da prova (`/contest/docs/`) para imprimir na sede.
 
 - **`/contest/docs/`** — **Documentos da prova (só-leitura)**: a mesma aba do admin em modo

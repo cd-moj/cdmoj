@@ -36,7 +36,7 @@ rotas do telão não (foto e música são asset LOCAL do contest).
 
 ### A sede (`.cstaff` e `.staff`) — a mesma tela, recortada
 
-Os dois papéis de sede abrem `/contest/animeitor/` (botão **🎥 Animeitor** na barra deles) e veem
+Os dois papéis de sede abrem `/contest/animeitor/` (botão **Animeitor** na barra deles) e veem
 **só os times do escopo deles**. A diferença é o que podem fazer com eles:
 
 | | `.cstaff` (chefe) | `.staff` (voluntário) |

@@ -5,6 +5,7 @@ import { apiGet, apiGetText, apiGetTextMeta } from '/shared/api.js';
 import { status, logout } from '/shared/auth.js';
 import { el, fmtDate } from '/shared/ui.js';
 import { flagManifest, flagName } from '/shared/flags.js';
+import { mountContestUserChip } from '/shared/contest-shell.js';
 import { parseICPC, renderICPC } from './score-icpc.js';
 import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
@@ -519,6 +520,7 @@ async function boot() {
 
   const st = await status(CONTEST);
   isAuth = !!st.logged_in;
+  mountContestUserChip(st);   // nome · login no cabeçalho, como nas outras páginas (issue #29)
   document.getElementById('publicNotice').classList.toggle('hidden', isAuth);
 
   // nav + balões + regiões + times (auth quando possível; tolerante a falha)

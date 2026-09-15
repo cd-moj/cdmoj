@@ -7,6 +7,7 @@ import { createEditor } from '/shared/editor.js';
 import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared/languages.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
 import { navLabel } from '/shared/nav-i18n.js';
+import { mountContestUserChip } from '/shared/contest-shell.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 
@@ -1122,6 +1123,8 @@ async function boot() {
     location.replace('/contest/animeitor/?c=' + encodeURIComponent(CONTEST));
     return;
   }
+  // quem está logado aparece no cabeçalho em TODA página do contest (issue #29)
+  if (st.logged_in && !EDITOR_ONLY) mountContestUserChip(st);
   if (st.logged_in) { if (EDITOR_ONLY) await bootEditorOnly(); else await bootMain(); }
   else bootLogin();
 }

@@ -5,7 +5,7 @@
 # vez de esperar — então são as rotas mais repetidas do dia. Duas delas só podem ser cacheadas
 # com uma trava, e é ISSO que este teste guarda:
 #
-#   navbuttons — a variante é POR PAPEL. Um GET do admin enche o cache com "⚙ Administração",
+#   navbuttons — a variante é POR PAPEL. Um GET do admin enche o cache com "Administração",
 #                "jplag", "Todas Submissões"; o competidor não pode receber esse corpo (nem
 #                deve saber que esses caminhos existem). Testado nas DUAS ordens.
 #   basic      — COM sessão o corpo é PESSOAL (fim prorrogado por sede, coorte do login). Só o
