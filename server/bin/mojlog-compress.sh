@@ -18,6 +18,8 @@ while [[ $# -gt 0 ]]; do case "$1" in
 say(){ printf '%s\n' "$*" >&2; }
 mode="DRY-RUN"; (( APPLY )) && mode="APPLY"
 say "== mojlog-compress ($mode) =="
+# resto de uma rodada interrompida no meio de um gzip
+(( APPLY )) && find "$CONTESTSDIR" -path '*/mojlog/*.html.gz.tmp' -type f -delete 2>/dev/null
 tot=0; ntot=0; saved=0
 for cdir in "$CONTESTSDIR"/*/; do
   c="${cdir%/}"; c="${c##*/}"
@@ -31,7 +33,9 @@ for cdir in "$CONTESTSDIR"/*/; do
   (( APPLY )) || continue
   for f in "${files[@]}"; do
     [[ -e "$f.gz" ]] && continue
-    if nice -n 10 ionice -c3 gzip -6 -c "$f" > "$f.gz.tmp" 2>/dev/null && [[ -s "$f.gz.tmp" ]]; then
+    # ionice best-effort baixo (-c2 -n7), NÃO idle (-c3): com a API lendo disco o tempo todo a classe
+    # idle nunca era servida — 8 arquivos em 10 min (16/09); gzip é CPU, o nice basta p/ não atrapalhar
+    if nice -n 10 ionice -c2 -n7 gzip -6 -c "$f" > "$f.gz.tmp" 2>/dev/null && [[ -s "$f.gz.tmp" ]]; then
       mv -f "$f.gz.tmp" "$f.gz" && { g=$(stat -c%s "$f.gz"); s=$(stat -c%s "$f"); saved=$((saved+s-g)); rm -f "$f"; }
     else rm -f "$f.gz.tmp"; fi
   done
