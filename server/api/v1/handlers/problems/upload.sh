@@ -72,7 +72,11 @@ pub_srv=false
 keep_tags=0; [[ ! -f "$src/tags" && -f "$pdir/tags" ]] && keep_tags=1
 if command -v rsync >/dev/null 2>&1; then
   rs_ex=(--exclude='.git' --exclude='.moj-meta.json'); (( keep_tags )) && rs_ex+=(--exclude='/tags')
-  rsync -a --delete "${rs_ex[@]}" "$src"/ "$pdir"/ \
+  # --checksum (2026-09-16): sem ele o rsync PULA arquivo de mesmo tamanho E mesmo mtime sem olhar
+  # o conteúdo — e o tar do cliente preserva o mtime. Caso real: tests/output/x mudou de "3000" p/
+  # "1234" (4 bytes, mtime de 2019) e o servidor ficou com o velho p/ sempre, WA na referência, nem
+  # re-upload limpo resolvia. O -c só hasheia quem tem o mesmo tamanho; o resto já transfere.
+  rsync -a --checksum --delete "${rs_ex[@]}" "$src"/ "$pdir"/ \
     || fail 500 "Falha ao gravar o pacote (rsync)" "pkg_write_failed"
 else
   fd_ex=(); (( keep_tags )) && fd_ex=(! -name tags)
