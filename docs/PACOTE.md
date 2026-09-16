@@ -204,6 +204,11 @@ O índice do treino (`var/jsons/<id>.json`) leva `statement_langs` (a lista, por
 como sempre. A página do problema mostra um chip por idioma. Em um contest, o admin ou o
 juiz-chefe escolhe os idiomas que a sanfona oferece (`STATEMENT_LANGS`; ver `API.md`).
 
+O índice leva também **`samples`**: `[{name, input, output}]`, o texto dos exemplos. A seleção é a
+MESMA do HTML do enunciado (`stmt_sample_names` em `mojtools/statement-langs.sh`: arquivo `samples`,
+senão `tests/input/sample*`). Um teste oculto nunca entra nesse campo. É o que alimenta o botão
+**⬇ Exemplos** e o `moj-comp samples`/`fetch`, pela rota `/treino/problem` e pela `/contest/samples`.
+
 Na API de autoria, as traduções viajam no campo `translations` de `/problems/source` e
 `/problems/edit`: `{"<lang>": {title, enunciado_md, editorial_md, notes:{"<sample>": md}}}`.
 Idioma ausente do objeto fica como está. Idioma com valor `null` é apagado por inteiro. A CLI

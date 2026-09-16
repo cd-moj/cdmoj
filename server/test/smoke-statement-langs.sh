@@ -41,6 +41,8 @@ printf 'Leia N e imprima N.\n\n## Entrada\n\nUm inteiro.\n\n## Saída\n\nO mesmo
 printf 'Read N and print N.\n\n## Input\n\nOne integer.\n\n## Output\n\nThe same integer.\n' > "$P/docs/enunciado.en.md"
 printf '3\n' > "$P/tests/input/sample1"; printf '3\n' > "$P/tests/output/sample1"
 printf '7\n' > "$P/tests/input/sample2"; printf '7\n' > "$P/tests/output/sample2"
+# teste OCULTO: jamais pode aparecer no campo `samples` nem no HTML (anti-vazamento)
+printf 'SEGREDO 99\n' > "$P/tests/input/hidden1"; printf 'SEGREDO 99\n' > "$P/tests/output/hidden1"
 printf 'Nota PT do um.\n' > "$P/docs/notes/sample1.md"; printf 'EN note of one.\n' > "$P/docs/notes/sample1.en.md"
 printf 'Nota PT do dois.\n' > "$P/docs/notes/sample2.md"
 printf '# Ideia\n\nImprima.\n' > "$P/docs/solucao.md"; printf '# Idea\n\nPrint it.\n' > "$P/docs/solucao.en.md"
@@ -60,6 +62,11 @@ ck "EN: nota do sample2 cai no PT"       'grep -q "Nota PT do dois" <<<"$EN"'
 ck "EN: <html lang=en> e h1 Echo"        'grep -q "<html lang=\"en\"" <<<"$EN" && grep -q "moj-title\">Echo" <<<"$EN"'
 ck "PT: intacto (Exemplos/Entrada/Saída, lang pt-BR)" 'grep -q "<h2>Exemplos</h2>" <<<"$PT" && grep -q "<h3>Saída</h3>" <<<"$PT" && grep -q "<html lang=\"pt-BR\"" <<<"$PT" && ! grep -q "EN note" <<<"$PT"'
 ck "editorial NÃO vai ao aluno"          '! grep -q "Print it" <<<"$EN" && ! grep -q "Imprima" <<<"$PT"'
+echo "== samples como DADO no json servível (a MESMA seleção do HTML; oculto nunca entra) =="
+ck "samples = [sample1, sample2] e bytes exatos" '[[ "$(jq -c "[.samples[].name]" "$J")" == "[\"sample1\",\"sample2\"]" && "$(jq -r ".samples[1].input" "$J")" == "7" && "$(jq -j ".samples[1].input" "$J" | od -c | head -1)" == *"7  \\n"* ]]'
+ck "hidden1 NÃO está no json nem no HTML"  '! grep -q SEGREDO "$J" && ! grep -q SEGREDO <<<"$PT" && ! grep -q SEGREDO <<<"$EN"'
+ck "data-sample/data-kind nos <pre> do HTML" 'grep -q "<pre data-sample=\"sample1\" data-kind=\"input\">" <<<"$PT" && grep -q "data-sample=\"sample2\" data-kind=\"output\"" <<<"$EN"'
+ck "nomes do json == data-sample do HTML"   '[[ "$(grep -o "data-sample=\"[^\"]*\" data-kind=\"input\"" <<<"$PT" | sed "s/.*=\"\([^\"]*\)\" data.*/\1/" | paste -sd,)" == "$(jq -r "[.samples[].name]|join(\",\")" "$J")" ]]'
 
 echo "== validador: traduções são checks duros, nota sem tradução é aviso =="
 VALIDATE_RUN_SOLS=0 TREINO_JSONS="$FIX/treino/var/jsons" bash "$MOJTOOLS_DIR/validate-problem.sh" "$P" "col#pa" >/dev/null 2>&1
@@ -168,6 +175,20 @@ call /contest/statement GET time01 "contest=sl&problem=A&lang=xx"
 ck "lang=xx: 400 lang_invalid"           '[[ "$(code)" == "400 Bad Request" ]] && grep -q lang_invalid <<<"$BODY"'
 call /contest/statement GET sl.judge "contest=sl&problem=A&lang=en"
 ck "juiz também pega o EN"               'grep -q "Read N and print N" <<<"$BODY"'
+
+echo "== /contest/samples: o mesmo conjunto do enunciado, pelo gate do enunciado =="
+call /contest/samples GET time01 "contest=sl&problem=A"
+ck "time: 200 com 2 samples e bytes exatos" '[[ "$(code)" == "200 OK" && "$(jq -c "[.problem, .problem_id, (.samples|length), .samples[0].input]" <<<"$BODY")" == "[\"A\",\"col#pa\",2,\"3\\n\"]" ]]'
+ck "só name/input/output (nada a mais)"    '[[ "$(jq -c ".samples[0]|keys" <<<"$BODY")" == "[\"input\",\"name\",\"output\"]" ]]'
+ck "nada de oculto"                        '! grep -q SEGREDO <<<"$BODY"'
+call /contest/samples GET time01 "contest=sl&problem=col%23pa"
+ck "aceita o problem_id"                   '[[ "$(jq -r ".samples|length" <<<"$BODY")" == 2 ]]'
+call /contest/samples GET time01 "contest=sl&problem=Z"
+ck "letra inexistente: 404"                '[[ "$(code)" == "404 Not Found" ]]'
+call /contest/samples GET time01 "contest=sl&problem=../../etc/passwd"
+ck "traversal: 404"                        '[[ "$(code)" == "404 Not Found" ]]'
+call /contest/samples GET sl.judge "contest=sl&problem=A"
+ck "juiz também pega"                      '[[ "$(code)" == "200 OK" ]]'
 
 echo "== admin envia HTML PRÓPRIO em ES; refresh limpa todos os idiomas =="
 call /contest/admin/problems POST sl.admin "contest=sl" "{\"action\":\"statement\",\"letter\":\"A\",\"lang\":\"es\",\"html_b64\":\"$(printf '<html><body><p>Lea N. PROPIO</p></body></html>' | base64 -w0)\"}"

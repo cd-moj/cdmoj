@@ -424,7 +424,7 @@
         "tags": [
           "treino"
         ],
-        "summary": "Problema (enunciado b64, autor, time limits, tags, coleções, statement_langs + statements{<lang>:{title,html_b64}} das traduções)",
+        "summary": "Problema (enunciado b64, autor, time limits, tags, coleções, samples[{name,input,output}], statement_langs + statements{<lang>:{title,html_b64}} das traduções)",
         "parameters": [
           {
             "name": "id",
@@ -1549,6 +1549,23 @@
           "200": {
             "description": "[{label,url}]"
           }
+        }
+      }
+    },
+    "/contest/samples": {
+      "get": {
+        "tags": ["contest"],
+        "summary": "Os exemplos do enunciado como dado: {problem, problem_id, samples:[{name,input,output}]}",
+        "description": "Anti-vazamento de teste secreto: a UNICA fonte e o json servivel do banco (.samples, gerado pela MESMA selecao do HTML — stmt_sample_names); a rota nunca abre o pacote; enunciado enviado a mao => samples:[] (200). Gate = o do enunciado (can_see_problems => 404; chave do PROBS, nunca do parametro). Alimenta o link Exemplos da sanfona e o moj-comp samples/fetch (2026-09-16).",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "contest", "in": "query", "required": true, "schema": {"type": "string"}},
+          {"name": "problem", "in": "query", "required": true, "description": "letra (short_name) ou problem_id canonico", "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "{success, problem, problem_id, samples:[{name,input,output}]} — samples vazio quando o banco nao tem o json do problema"},
+          "400": {"description": "problem ausente"},
+          "404": {"description": "sem permissao de ver (staff, pre-inicio…) ou problema fora do conf"}
         }
       }
     },

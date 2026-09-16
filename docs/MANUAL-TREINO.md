@@ -210,7 +210,11 @@ No **topo do enunciado** você encontra:
 - as **coleções** a que ele pertence;
 - as **tags** (elas começam **borradas**, com um link para **mostrar/ocultar**);
 - o **tempo-limite por linguagem**;
-- um **botão de estatísticas** do problema.
+- um **botão de estatísticas** do problema;
+- o botão **⬇ Exemplos**, que baixa a entrada e a saída de cada exemplo como arquivos, num zip.
+
+Cada bloco de exemplo do enunciado tem um botão **Copiar** no título. Um clique copia o bloco
+inteiro, com a quebra de linha final.
 
 Quando o problema tem o enunciado em mais de um idioma, aparecem os chips **PT · EN · ES** acima
 do texto. Clique para trocar. O título muda junto. O MOJ lembra a sua escolha para os próximos

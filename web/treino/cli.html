@@ -69,6 +69,7 @@ moj-comp problems fibonacci
 
         <h2 id="resolver" data-en="3. Read, solve, submit — the loop">3. Ler, resolver, enviar — o ciclo</h2>
         <pre>moj-comp statement apc#vetor1   # salva ./vetor1.html — abra no navegador
+moj-comp samples apc#vetor1     # salva os exemplos em ./samples/vetor1/sample1.in e .out
 $EDITOR sol.c                   # resolva no seu canto
 moj-comp submit apc#vetor1 sol.c
 # enviada (apc#vetor1, sol.c) — id 54ada0…. aguardando veredicto…
@@ -83,6 +84,7 @@ moj-comp subs                   # seu histórico de envios e veredictos</pre>
           <tr><td>moj-comp login treino</td><td data-en="log in with your site account (remembered afterwards)">entra com a sua conta do site (fica lembrado)</td></tr>
           <tr><td>moj-comp problems &lt;busca&gt;</td><td data-en="search the public bank (id, title, solve count)">busca no banco público (id, título, quantos resolveram)</td></tr>
           <tr><td>moj-comp statement &lt;org#slug&gt; [--lang en|es]</td><td data-en="download the statement as HTML. A problem with translations gives slug.html (Portuguese) and slug.en.html. --lang downloads one language">baixa o enunciado em HTML. Problema com tradução dá <code>slug.html</code> (português) e <code>slug.en.html</code>. <code>--lang</code> baixa um idioma só</td></tr>
+          <tr><td>moj-comp samples &lt;org#slug&gt;</td><td data-en="the samples of the problem as files (samples/&lt;slug&gt;/&lt;name&gt;.in and .out) — test locally before submitting">os exemplos do problema como arquivos (samples/&lt;slug&gt;/&lt;nome&gt;.in e .out) — teste local antes de enviar</td></tr>
           <tr><td>moj-comp submit &lt;org#slug&gt; &lt;arquivo&gt;</td><td data-en="submit and wait for the verdict">envia e espera o veredicto</td></tr>
           <tr><td>moj-comp subs</td><td data-en="your submissions and verdicts">seus envios e veredictos</td></tr>
           <tr><td>moj-comp doctor · update</td><td data-en="environment check · self-update">diagnóstico · auto-atualização</td></tr>

@@ -7,6 +7,7 @@ import { LANGUAGES, DEFAULT_SUBMIT_LANGUAGES, langById, extCanon } from '/shared
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
+import { decorateSamples, downloadSamplesZip } from '/shared/statement-samples.js';
 
 const CONTEST = 'treino';
 const qs = new URLSearchParams(location.search);
@@ -142,6 +143,7 @@ async function loadProblem() {
     const html = b64utf8((tr && tr.html_b64) || p.statement_html_b64 || '');
     const doc = new DOMParser().parseFromString(html, 'text/html');
     stmtEl.innerHTML = doc.body ? doc.body.innerHTML : html;
+    decorateSamples(stmtEl);   // botão "Copiar" em cada bloco de exemplo (idempotente; roda a cada idioma)
     stmtEl.setAttribute('lang', stmtHtmlLang(tr ? lang : 'pt'));
     const title = (tr && tr.title) || p.title || ID;
     document.getElementById('ptitle').textContent = title; document.title = title + ' — MOJ';
@@ -152,6 +154,15 @@ async function loadProblem() {
     const bar = el('div', { class: 'row', style: 'justify-content:space-between;align-items:center;margin:0 0 .5rem' },
       el('span', { class: 'small muted' }, T('Idioma do enunciado:', 'Statement language:')), chips);
     stmtEl.before(bar);
+  }
+  // ⬇ Exemplos: todos os pares de exemplo num zip (p.samples vem do /treino/problem — o MESMO
+  // conjunto que o enunciado mostra; problema sem samples como dado não ganha o botão)
+  if (Array.isArray(p.samples) && p.samples.length) {
+    const slug = (ID.split('#')[1] || ID).replace(/[^A-Za-z0-9._-]/g, '_');
+    const dl = el('button', { class: 'btn ghost small', type: 'button', title: T('Baixa entrada e saída de cada exemplo (.in/.out) num zip', 'Downloads each sample input and output (.in/.out) in a zip'),
+      onclick: () => downloadSamplesZip(p.samples, slug, slug + '-exemplos.zip') },
+      T(`⬇ Exemplos (${p.samples.length})`, `⬇ Samples (${p.samples.length})`));
+    stmtEl.before(el('div', { class: 'row', style: 'justify-content:flex-end;margin:0 0 .4rem' }, dl));
   }
   showStatement(cur);
 }

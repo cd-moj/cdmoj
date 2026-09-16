@@ -11,6 +11,8 @@
 #                                         Baixa todos os idiomas que a prova oferece (A.html, A.en.html…).
 #   moj-comp problems                     Lista os problemas (e os idiomas do enunciado de cada um).
 #   moj-comp statement <letra> [--lang en|es]   Baixa um enunciado. Sem --lang, todos os idiomas.
+#   moj-comp samples <letra> [--dir D]    Baixa os exemplos do problema como arquivos: ./samples/<letra>/<nome>.in e .out.
+#                                         `fetch` já faz isso para todos os problemas (pasta samples/ do kit).
 #   moj-comp score                        Mostra o placar.
 #   moj-comp submit <letra> <arquivo>     Envia e espera o veredicto. Sem rede, empacota sozinho.
 #   moj-comp subs                         Lista as suas submissões e veredictos.
@@ -21,7 +23,7 @@
 #                                         sozinho e acompanha os veredictos quando a rede voltar.
 #   moj-comp version | update | doctor    Compara o build. Atualiza. Diagnostica o ambiente.
 # Treino livre (a mesma CLI, sem o modo offline): moj-comp login treino (conta do site);
-#   problems <busca> · statement <org#slug> · submit <org#slug> <arquivo> · subs
+#   problems <busca> · statement <org#slug> · samples <org#slug> · submit <org#slug> <arquivo> · subs
 # Config: MOJ_URL (default https://moj.naquadah.com.br), MOJ_CONTEST (= -c).
 # Requisitos: bash, curl, jq, openssl. Sem root. Sem instalação. Um arquivo só.
 # Prova com gate de navegador: rode a CLI na máquina de prova. Ela manda o User-Agent do
@@ -44,7 +46,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="fcbbef3-20260915"
+MOJ_CLI_BUILD="dda1eb6-20260916"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -487,6 +489,41 @@ cmd_statement(){ need_contest; local ref="" only=""
   local got; got="$(_stmt_all "$ref" "./${ref}" "$only")"
   [[ -n "$got" ]] || die "problema '$ref' sem enunciado servível (confira a letra com: $MOJ_TOOL problems)"
   echo "enunciado: ${got// / e }  — abra no navegador"; }
+# _samples_write <json-array> <dir> — grava <dir>/<nome>.in e <nome>.out de [{name,input,output}]
+# (bytes como vieram: jq -j não põe quebra; o servidor já manda a quebra final do arquivo). Ecoa n.
+_samples_write(){ local arr="$1" d="$2" n=0 name
+  while IFS= read -r name; do
+    [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || continue          # o nome vira ARQUIVO: só o alfabeto seguro
+    mkdir -p "$d" 2>/dev/null || return 1
+    jq -rj --arg n "$name" 'first(.[] | select(.name==$n)) | .input // ""' <<<"$arr" > "$d/$name.in"
+    jq -rj --arg n "$name" 'first(.[] | select(.name==$n)) | .output // ""' <<<"$arr" > "$d/$name.out"
+    n=$((n+1))
+  done < <(jq -r '.[]?.name // empty' <<<"$arr" 2>/dev/null)
+  printf '%s' "$n"; }
+# samples <letra|org#slug> [--dir D] — os exemplos do enunciado como arquivos (o MESMO conjunto
+# que o enunciado mostra; o servidor nunca expõe teste oculto). Contest: /contest/samples; treino:
+# o campo `samples` do /treino/problem. Sem exemplos como dado (enunciado enviado pronto) = aviso, rc 0.
+cmd_samples(){ need_contest; local ref="" root="./samples"
+  while [[ $# -gt 0 ]]; do case "$1" in --dir) root="${2:-./samples}"; shift 2;; *) ref="$1"; shift;; esac; done
+  [[ -n "$ref" ]] || die "uso: $MOJ_TOOL samples <$( _is_treino && echo 'org#slug' || echo 'letra')> [--dir pasta]"
+  local r rc=0 arr n sub
+  if _is_treino; then
+    r="$(_api_net GET "/treino/problem?id=$(enc "$ref")")" && rc=0 || rc=$?
+    [[ $rc -eq 7 ]] && die "sem rede."
+    [[ $rc -ne 0 ]] && die "problema '$ref' não achado (o id é org#slug — busque com: $MOJ_TOOL problems <busca>)"
+    sub="${ref##*#}"
+  else
+    need_login; _load_problems >/dev/null || die "sem rede — não deu p/ baixar agora."
+    [[ -n "$(_letter2id "$ref")" ]] || die "problema '$ref' não existe (confira a letra com: $MOJ_TOOL problems)"
+    r="$(_api_net GET "/contest/samples$(qc)&problem=$(enc "$ref")")" && rc=0 || rc=$?
+    [[ $rc -eq 7 ]] && die "sem rede."
+    [[ $rc -ne 0 ]] && die "não deu para pegar os exemplos de '$ref' (a prova já começou? a letra existe?)"
+    sub="$ref"
+  fi
+  arr="$(jq -c '.samples // []' <<<"$r")"
+  n="$(_samples_write "$arr" "$root/$sub")" || die "não consegui gravar em $root/$sub"
+  if [[ "${n:-0}" == 0 ]]; then echo "'$ref': sem exemplos como arquivo (o enunciado foi enviado pronto) — copie os exemplos do enunciado."; return 0; fi
+  echo "exemplos de $ref: $n par(es) em $root/$sub/ ($(ls "$root/$sub" | tr '\n' ' ' | sed 's/ $//'))"; }
 _contest_only(){ _is_treino && die "'$1' é de CONTEST — no treino livre use: problems <busca> · statement <id> · submit <id> <arq> · subs"; return 0; }
 cmd_fetch(){ need_contest; _contest_only fetch; need_login
   local d="./${CONTEST}-prova" r n=0
@@ -494,15 +531,21 @@ cmd_fetch(){ need_contest; _contest_only fetch; need_login
   mkdir -p "$d"
   # um GET por enunciado e por idioma (a lista só diz quais existem) — o kit continua saindo
   # completo: A.html (PT), A.en.html, A.es.html… conforme o que a prova OFERECE
-  local letter pid name langs
+  local letter pid name langs ns=0 sr sn
   while IFS=$'\t' read -r letter pid name langs; do
     _stmt_all "$letter" "$d/${letter}" >/dev/null || true
+    # exemplos como arquivo (samples/<letra>/<nome>.in|.out) — 1 GET por problema; sem dado = pula
+    if sr="$(_api_net GET "/contest/samples$(qc)&problem=$(enc "$letter")" 2>/dev/null)"; then
+      sn="$(_samples_write "$(jq -c '.samples // []' <<<"$sr")" "$d/samples/$letter")" || sn=0
+      [[ "${sn:-0}" == 0 ]] && { rmdir "$d/samples/$letter" 2>/dev/null || true; }   # set -e: rmdir de dir inexistente não pode matar o fetch
+      ns=$((ns+${sn:-0}))
+    fi
     n=$((n+1))
   done < "$(_cdir)/problems.tsv"
   jq -r '.problems[]? | "\(.short_name)\t\(.full_name)\t\((.statement_langs // ["pt"]) | join(","))"' <<<"$r" > "$d/problemas.txt"
   _anchor >/dev/null 2>&1 || true
   local dl; dl="$(cat "$(_cdir)/stmt-default" 2>/dev/null || echo pt)"
-  echo "kit da prova em $d/ ($n problema(s), enunciados html/pdf; idiomas: $(jq -r '(.statement_langs // ["pt"]) | join(", ")' <<<"$r"), padrão $dl) — dá p/ ler SEM rede."; }
+  echo "kit da prova em $d/ ($n problema(s), enunciados html/pdf; idiomas: $(jq -r '(.statement_langs // ["pt"]) | join(", ")' <<<"$r"), padrão $dl; exemplos: $ns par(es) em samples/) — dá p/ ler SEM rede."; }
 
 # ---- submissão ----------------------------------------------------------------------------
 _pkg_offline(){ # <letra> <arquivo> — cifra e enfileira; ecoa o caminho do pacote
@@ -728,6 +771,7 @@ case "$cmd" in
   fetch|baixar) cmd_fetch "$@";;
   problems|problemas) cmd_problems "$@";;
   statement|enunciado) cmd_statement "$@";;
+  samples|exemplos) cmd_samples "$@";;
   submit|enviar) cmd_submit "$@";;
   subs|status) cmd_subs "$@";;
   score|placar) cmd_score "$@";;

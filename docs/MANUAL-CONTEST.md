@@ -134,7 +134,12 @@ A lista de problemas é um acordeão. Cada linha tem:
 - Um **triângulo** para abrir e fechar o problema.
 - Um **balão** que fica colorido quando você resolve aquele problema.
 - O nome curto e o nome completo do problema.
-- À direita, os links do enunciado (**Enunciado**, **HTML**, **PDF**) e um **envio rápido** por arquivo.
+- À direita, os links do enunciado (**Enunciado**, **HTML**, **PDF**), o link **Exemplos** (baixa a
+  entrada e a saída de cada exemplo como arquivos, num zip) e um **envio rápido** por arquivo.
+
+Cada bloco de exemplo do enunciado tem um botão **Copiar** no título. Um clique copia o bloco
+inteiro, com a quebra de linha final. Na CLI, `moj-comp fetch` grava os exemplos de todos os
+problemas na pasta `samples/` do kit.
 
 Ao abrir um problema, a primeira linha é o **tempo-limite**, um chip por linguagem (as mais
 lentas ganham mais tempo, medido na máquina do juiz). Depois vem o enunciado e, se a organização

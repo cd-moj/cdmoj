@@ -6,6 +6,7 @@ import { status, fileToBase64 } from '/shared/auth.js';
 import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { hBarChart } from '/lib/charts.js';
 import { T } from '/shared/i18n.js';
+import { decorateSamples } from '/shared/statement-samples.js';
 
 async function downloadAuthed(path, filename) {
   try {
@@ -506,6 +507,7 @@ async function openDetail(id) {
     // do tema) — NÃO usa iframe (que mostrava o CSS embutido do pandoc, divergente)
     const sc = el('div', { class: 'statement-content' });
     try { const d = new DOMParser().parseFromString(html, 'text/html'); sc.innerHTML = d.body ? d.body.innerHTML : html; } catch { sc.innerHTML = html; }
+    decorateSamples(sc);
     stmt.append(el('h4', { style: 'margin:.4rem 0' }, T('Enunciado', 'Statement')), sc);
   } else {
     stmt.append(el('div', { class: 'small muted' }, T('Sem HTML publicado ainda (não está no treino).', 'No HTML published yet (not in training).')));

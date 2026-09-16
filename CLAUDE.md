@@ -951,6 +951,14 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   commit: `web/contest/contest.js` (busca ao abrir a sanfona/clicar; abre a aba ANTES da rede,
   senão o navegador bloqueia como pop-up) e o **`moj-comp`** (`_stmt_get`, um GET por enunciado —
   o `fetch` continua baixando o kit completo). Teste: `smoke-contest-statement.sh`.
+  **Exemplos como DADO (2026-09-16)**: `/contest/samples?contest&problem` devolve `samples:[{name,input,
+  output}]` lendo SÓ o json servível do banco (`cs_bank_json` → `.samples`, que o `gen-problem-json.sh`
+  gera com a MESMA seleção do HTML — `stmt_sample_names`; teste oculto nunca entra), gate do enunciado
+  (404), chave do `PROBS`. Alimenta o link **Exemplos** da sanfona (zip store-only feito à mão em
+  `web/shared/statement-samples.js`, que também põe o botão **Copiar** em cada `h3+pre` dos
+  `.moj-exemplo` — decorador idempotente chamado após cada `innerHTML` do enunciado) e o
+  `moj-comp samples`/`fetch`. Testes: `smoke-statement-langs.sh` (campo + rota + hidden),
+  `smoke-contest-statement.sh` (gates), `smoke-statement-samples.gjs.sh` (decorador + zip validado pelo python).
 - **`/contest/problems` tem CACHE POR VARIANTE** (2026-08-20): a rota monta o mesmo payload p/ todo
   time (~79 processos com 12 problemas) e 2000 deles a pedem no segundo em que a prova abre. O
   cache é `var/problems-cache.<author|noauthor>.json`, e a **variante é regra de segurança**: o

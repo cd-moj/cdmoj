@@ -67,6 +67,17 @@ sleep 1; printf '<html><body>CORRIGIDO</body></html>' > "$C/enunciados/col#pa.ht
 OUT="$(hit statement time01 'problem=A&format=html' "$ET")"
 ck "enunciado novo NÃO dá 304"   '[[ "$(code)" == "200 OK" ]] && grep -q CORRIGIDO <<<"$OUT"'
 
+echo "== /contest/samples segue o MESMO gate (fixture SEM json do banco: samples vazio, nunca pacote) =="
+smp(){ OUT="$(hit samples "$1" "$2")"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+smp time01 'problem=A'
+ck "competidor: 200 e samples:[] (enunciado enviado à mão)" '[[ "$(code)" == "200 OK" && "$(jq -c ".samples" <<<"$BODY")" == "[]" ]]'
+smp st.staff 'problem=A'
+ck "samples: staff => 404"       '[[ "$(code)" == "404 Not Found" ]]'
+smp st.cstaff 'problem=A'
+ck "samples: cstaff => 404"      '[[ "$(code)" == "404 Not Found" ]]'
+smp time01 'problem=Q'
+ck "samples: problema fora do conf => 404" '[[ "$(code)" == "404 Not Found" ]]'
+
 echo "== GATE: o .staff NUNCA vê enunciado (nem que ele existe) =="
 st st.staff 'problem=A&format=html'
 ck "staff => 404"                '[[ "$(code)" == "404 Not Found" ]]'
@@ -78,6 +89,8 @@ echo "== GATE: antes do início, o competidor não pega (e o juiz pega) =="
 conf "$(( $(date +%s) + 3600 ))"
 st time01 'problem=A&format=html'
 ck "pré-início => 404"           '[[ "$(code)" == "404 Not Found" ]]'
+smp time01 'problem=A'
+ck "samples pré-início => 404"   '[[ "$(code)" == "404 Not Found" ]]'
 ck "nada do enunciado vaza"      '! grep -q CORRIGIDO <<<"$BODY"'
 st st.judge 'problem=A&format=html'
 ck "juiz pega antes do início"   '[[ "$(code)" == "200 OK" ]] && grep -q CORRIGIDO <<<"$BODY"'

@@ -13,6 +13,7 @@ import { mountSiteFooter } from '/shared/site-footer.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { balloonColorHex, balloonSVG, balloonEdge, balloonTint } from '/contest/score/score-colors.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
+import { decorateSamples, downloadSamplesZip, SAMPLES_TAB_SCRIPT } from '/shared/statement-samples.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -529,6 +530,7 @@ async function openStatementNewTab(p) {
   let body = html;
   try {
     const doc = new DOMParser().parseFromString(html, 'text/html');
+    decorateSamples(doc.body);   // os botões "Copiar" já vão no HTML; o clique é o script inline abaixo
     if (doc.body && doc.body.innerHTML.trim()) body = doc.body.innerHTML;
   } catch {}
   const css = await uiCssText();
@@ -536,8 +538,28 @@ async function openStatementNewTab(p) {
     <meta charset="utf-8"><title>${(p.short_name || '') + ' — ' + (p.full_name || '')}</title>
     <style>${css}</style>
     <style>body{padding:1.4rem;max-width:900px;margin:auto}</style></head>
-    <body><div class="statement-content">${body}</div></body></html>`;
+    <body><div class="statement-content">${body}</div><script>${SAMPLES_TAB_SCRIPT}</script></body></html>`;
   return full;
+}
+const _samples = new Map();   // problem_id -> Promise([{name,input,output}])
+function fetchSamples(p) {
+  const k = p.problem_id || p.short_name;
+  if (!_samples.has(k)) {
+    _samples.set(k, apiGet('/contest/samples?contest=' + encodeURIComponent(CONTEST) + '&problem=' + encodeURIComponent(p.short_name), { contest: CONTEST, auth: true })
+      .then((j) => (j && Array.isArray(j.samples)) ? j.samples : []).catch((e) => { _samples.delete(k); throw e; }));
+  }
+  return _samples.get(k);
+}
+async function downloadSamples(p, link) {
+  const before = link ? link.textContent : '';
+  if (link) link.textContent = '…';
+  try {
+    const s = await fetchSamples(p);
+    if (!s.length) { alert(T('Este problema não tem exemplos como arquivo (o enunciado foi enviado pronto). Copie os exemplos do texto.', 'This problem has no samples as files (the statement was uploaded ready-made). Copy the samples from the text.')); return; }
+    const L = String(p.short_name || 'X').replace(/[^A-Za-z0-9._-]/g, '_');
+    downloadSamplesZip(s, L, L + '-exemplos.zip');
+  } catch (e) { alert(T('Não deu para baixar os exemplos: ', 'Could not download the samples: ') + (e.message || '')); }
+  finally { if (link) link.textContent = before; }
 }
 function openHtmlTab(p) {
   return openTabThen(async (w) => {
@@ -588,6 +610,9 @@ function renderProblems() {
     if (p.url) linksWrap.append(el('a', { href: p.url, target: '_blank' }, T('Enunciado', 'Statement')));
     if (p.has_statement_html) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openHtmlTab(p); } }, 'HTML'));
     if (p.has_statement_pdf) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openPdfTab(p); } }, 'PDF'));
+    // ⬇ Exemplos: /contest/samples (o MESMO conjunto que o enunciado mostra; gate do enunciado) num zip
+    if (p.has_statement_html || p.has_statement_pdf) linksWrap.append(el('a', { href: '#', title: T('Baixa entrada e saída de cada exemplo (.in/.out) num zip', 'Downloads each sample input and output (.in/.out) in a zip'),
+      onclick: (e) => { e.preventDefault(); downloadSamples(p, e.currentTarget); } }, T('Exemplos', 'Samples')));
 
     // form de submit ao lado (editor abre no detalhe; aqui só upload rápido + botão)
     const submitWrap = renderSubmitInline(p);
@@ -678,6 +703,7 @@ function toggleDetail(p, item, toggle, submitWrap) {
             try { const d = new DOMParser().parseFromString(html, 'text/html'); return d.body ? d.body.innerHTML : html; }
             catch { return html; }
           })();
+          decorateSamples(stmtDiv);   // botão "Copiar" por bloco de exemplo (idempotente; troca de idioma refaz)
           stmtDiv.setAttribute('lang', stmtHtmlLang(l));
         }).catch(() => {
           stmtDiv.textContent = T('não deu para carregar o enunciado — recarregue a página.',

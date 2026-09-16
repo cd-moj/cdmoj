@@ -10,6 +10,7 @@ import { makeLangPicker } from '/shared/contest-config/lang-picker.js';
 import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
+import { decorateSamples } from '/shared/statement-samples.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
@@ -335,6 +336,7 @@ async function edPreview() {
     const j = await apiPost('/problems/preview', pbody, { contest: CONTEST, auth: true });
     const html = b64ToUtf8(j.html_b64 || ''); const pb = $('previewBody');
     try { const d = new DOMParser().parseFromString(html, 'text/html'); pb.innerHTML = d.body ? d.body.innerHTML : html; } catch { pb.innerHTML = html; }
+    decorateSamples(pb);   // o preview é o HTML servido: os botões "Copiar" aparecem como para o aluno
     $('previewModal').style.display = ''; setMsg('');
   } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao renderizar', 'Failed to render')), 'error'); }
   finally { btn.disabled = false; }
@@ -854,6 +856,7 @@ async function preview() {
     const j = await apiPost('/problems/preview', pbody, { contest: CONTEST, auth: true });
     const html = b64ToUtf8(j.html_b64 || ''); const pb = $('previewBody');   // .statement-content (CSS unificado), não iframe
     try { const d = new DOMParser().parseFromString(html, 'text/html'); pb.innerHTML = d.body ? d.body.innerHTML : html; } catch { pb.innerHTML = html; }
+    decorateSamples(pb);   // o preview é o HTML servido: os botões "Copiar" aparecem como para o aluno
     $('previewModal').style.display = ''; setMsg('');
   } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao renderizar', 'Failed to render')), 'error'); }
   finally { btn.disabled = false; }

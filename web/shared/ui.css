@@ -212,6 +212,13 @@ table.moj tbody tr:last-child td { border-bottom:0; }
 .statement-content .moj-exemplos h2 { margin-top:1.3rem; }
 .statement-content .moj-exemplo { border:1px solid var(--border,#d0d7de); border-radius:8px; padding:.2rem .85rem; margin:.7rem 0; }
 .statement-content .moj-exemplo h3,.statement-content .moj-exemplo h4 { margin:.5rem 0 .2rem; color:var(--blue-dark); }
+/* botão "Copiar" de cada bloco de exemplo (shared/statement-samples.js): o h3 vira uma linha flex
+   com o botão à direita; sempre visível (celular não tem hover) */
+.statement-content .moj-exemplo h3.sample-head { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+.sample-copy { font:600 .72rem/1.4 inherit; font-family:inherit; padding:.1rem .6rem; border:1px solid var(--border,#d0d7de);
+  border-radius:999px; background:#fff; color:var(--blue-dark); cursor:pointer; white-space:nowrap; }
+.sample-copy:hover { background:#eef3fb; }
+.sample-copy.ok { border-color:#2e7d32; color:#2e7d32; }
 .statement-content .moj-exemplo-nota { margin:.1rem 0 .6rem; color:var(--muted); }
 
 /* utils */
