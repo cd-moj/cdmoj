@@ -407,7 +407,8 @@ resolve_submission(){
   SUB_OWNER=""; SUB_SRC=""; SUB_LOG=""; SUB_RESULT=""
   d="$(users_dir "$c")"
   for f in "$d"/*/submissions/"$sid".*;   do SUB_SRC="$f"; break; done
-  for f in "$d"/*/mojlog/"$sid".html "$d"/*/mojlog/"$sid"; do SUB_LOG="$f"; break; done
+  # .html.gz é o formato atual (2026-09-16); .html e sem extensão = legado
+  for f in "$d"/*/mojlog/"$sid".html.gz "$d"/*/mojlog/"$sid".html "$d"/*/mojlog/"$sid"; do SUB_LOG="$f"; break; done
   for f in "$d"/*/results/"$sid".json;    do SUB_RESULT="$f"; break; done
   any="${SUB_SRC:-${SUB_RESULT:-$SUB_LOG}}"
   if [[ -n "$any" ]]; then any="${any%/submissions/*}"; any="${any%/mojlog/*}"; any="${any%/results/*}"; SUB_OWNER="${any##*/}"; fi

@@ -173,7 +173,7 @@ ID4="feedfeedfeedfeedfeedfeedfeedfeed"
 printf '%s:col#pa:C:Not Answered Yet:%s:%s\n' "$((NOW-1200))" "$((NOW-1200))" "$ID4" >> "$T/users/joana/history"
 mkdir -p "$T/users/joana/submissions" "$T/users/joana/mojlog"
 printf 'int main(){}' > "$T/users/joana/submissions/$ID4.c"
-printf '<html>log da joana</html>' > "$T/users/joana/mojlog/$ID4.html"
+printf '<html>log da joana</html>' | gzip -6 > "$T/users/joana/mojlog/$ID4.html.gz"   # formato atual
 
 qcall(){ OUT="$(PATH_INFO=/treino/admin/queue REQUEST_METHOD="${1:-GET}" QUERY_STRING="${2:-}" \
     HTTP_AUTHORIZATION="Bearer ${4:-tadm}" bash "$ROUTER" <<<"${3:-}" 2>/dev/null)"
@@ -183,7 +183,7 @@ ck "details lista a pendente"     '[[ "$(jq -r "[.pending_details[]|select(.id==
 ck "com idade e estado"           '[[ "$(jq -r ".pending_details[]|select(.id==\"$ID4\")|.age_s" <<<"$BODY")" -ge 1200 ]] && grep -q "sem-rastro" <<<"$BODY"'
 ck "e has_source"                 '[[ "$(jq -r ".pending_details[]|select(.id==\"$ID4\")|.has_source" <<<"$BODY")" == true ]]'
 qcall GET "sub=treino:joana:$ID4"
-ck "dossiê traz history+mojlog"   'grep -q "Not Answered Yet" <<<"$BODY" && grep -q "log da joana" <<<"$BODY"'
+ck "dossiê traz history+mojlog (lido do .gz, bytes descomprimidos)" 'grep -q "Not Answered Yet" <<<"$BODY" && grep -q "log da joana" <<<"$BODY" && [[ "$(jq -r .mojlog_bytes <<<"$BODY")" == 25 ]]'
 qcall POST '' "{\"action\":\"requeue\",\"contest\":\"treino\",\"login\":\"joana\",\"id\":\"$ID4\"}"
 ck "requeue cria o marcador"      '[[ "$(jq -r .requeued <<<"$BODY")" == true ]] && ls "$SPOOLDIR" | grep -q ":$ID4:joana:rejulgar:"'
 ID5="f00df00df00df00df00df00df00df00d"

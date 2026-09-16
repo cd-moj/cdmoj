@@ -17,6 +17,7 @@ import re
 import sys
 import time
 import base64
+import gzip
 
 RUNDIR = os.environ.get("RUNDIR", "/data/run")
 CONTESTS = os.environ.get("CONTESTSDIR", "/data/contests")
@@ -147,15 +148,16 @@ def process(base):
             os.makedirs(mdir, exist_ok=True)
             raw = base64.b64decode(hb)
             mt = os.path.join(mdir, ".%s.tmp" % sid)
-            with open(mt, "wb") as o:
+            # mojlog em repouso e GZIP (espelho do write_report_gz do bash, 2026-09-16)
+            with gzip.open(mt, "wb", compresslevel=6) as o:
                 o.write(raw)
-            os.replace(mt, os.path.join(mdir, "%s.html" % sid))
+            os.replace(mt, os.path.join(mdir, "%s.html.gz" % sid))
         except Exception:
             pass               # espelho do bash: report ruim não bloqueia o veredicto
     res = {k: v for k, v in j.items() if k != "report_html_b64"}
     res.setdefault("login", login)
     res.setdefault("problem_id", prob)
-    res["report_html"] = "mojlog/%s.html" % sid
+    res["report_html"] = "mojlog/%s.html.gz" % sid
     res["finalized_at"] = int(time.time())
     rdir = os.path.join(udir, "results")
     os.makedirs(rdir, exist_ok=True)
@@ -180,7 +182,15 @@ def process(base):
                         pass
         except OSError:
             pass
-    os.replace(path, os.path.join(DONE, os.path.basename(base)))
+    # done/ sem o report_html_b64 (o mojlog ja esta no store): grava o `res` enxuto e remove o gordo
+    dt = os.path.join(DONE, "." + os.path.basename(base) + ".tmp")
+    try:
+        with open(dt, "w") as o:
+            o.write(json.dumps(res, separators=(",", ":")))
+        os.replace(dt, os.path.join(DONE, os.path.basename(base)))
+        os.unlink(path)
+    except OSError:
+        os.replace(path, os.path.join(DONE, os.path.basename(base)))
     return ("ok", c, login)
 
 

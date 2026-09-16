@@ -111,13 +111,24 @@ sweep_orphan_shards() {
 : "${INTAKE_MODE:=legacy}"
 
 # ---- helpers de write-path (store por-usuário) ----------------------------
-# report_out_path <c> <login> <problem> <id> : caminho absoluto do report .html.
+# mojlog em REPOUSO é GZIP (2026-09-16: 54 GB de report.html em produção, comprime a 29 %).
+# Leitores aceitam .html.gz e .html legado (resolve_submission; submission/log.sh serve com
+# Content-Encoding). Escrita ATÔMICA (tmp+mv): o leitor nunca vê gz pela metade.
+# report_out_path <c> <login> <problem> <id> : caminho absoluto do report .html.gz.
 report_out_path() {
-  printf '%s/mojlog/%s.html' "$(user_dir "$1" "$2")" "$4"
+  printf '%s/mojlog/%s.html.gz' "$(user_dir "$1" "$2")" "$4"
 }
 # report_html_rel <c> <login> <problem> <id> : caminho relativo gravado no result/review json.
 report_html_rel() {
-  printf 'mojlog/%s.html' "$4"
+  printf 'mojlog/%s.html.gz' "$4"
+}
+# write_report_gz <b64> <destino .html.gz> : decodifica e grava comprimido, atômico (vazio = nada).
+write_report_gz() {
+  local b64="$1" out="$2" tmp; [[ -n "$b64" ]] || return 0
+  [[ -d "${out%/*}" ]] || mkdir -p "${out%/*}" 2>/dev/null
+  tmp="${out%/*}/.${out##*/}.tmp.${BASHPID}"
+  if printf '%s' "$b64" | base64 -d 2>/dev/null | gzip -6 > "$tmp" 2>/dev/null && [[ -s "$tmp" ]]; then mv -f "$tmp" "$out"; else rm -f "$tmp"; fi
+  return 0
 }
 # record_verdict <c> <login> <tempo> <problem> <lang> <verdict> <sub_epoch> <id> : finaliza no history.
 record_verdict() {
@@ -434,18 +445,14 @@ ingest_result() {
   [[ -n "$tempo" ]] || tempo="$sub_epoch"
   # MODO VEREDICTO MANUAL: segura o veredicto computado p/ revisão de 2 juízes (não finaliza).
   if should_hold "$contest" "$h_login" "$h_prob" "$h_lang" "$verdict" "$vcanon"; then
-    local hb hout; hb="$hb_all"
-    hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; [[ -d "${hout%/*}" ]] || mkdir -p "${hout%/*}" 2>/dev/null
-    [[ -n "$hb" ]] && printf '%s' "$hb" | base64 -d > "$hout" 2>/dev/null
+    write_report_gz "$hb_all" "$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"
     write_review_item "$contest" "$id" "$h_login" "$h_prob" "$h_lang" "$sub_epoch" "$verdict"
     [[ -n "$host" ]] && q_done "$host" "$id"
     log "veredicto SEGURADO p/ revisão id=$id contest=$contest verdict=$verdict"
     return 0
   fi
   record_verdict "$contest" "$h_login" "$tempo" "$h_prob" "$h_lang" "$verdict" "$sub_epoch" "$id"
-  local html_b64 hout; html_b64="$hb_all"
-  hout="$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"; [[ -d "${hout%/*}" ]] || mkdir -p "${hout%/*}" 2>/dev/null
-  [[ -n "$html_b64" ]] && printf '%s' "$html_b64" | base64 -d > "$hout" 2>/dev/null
+  write_report_gz "$hb_all" "$(report_out_path "$contest" "$h_login" "$h_prob" "$id")"
   write_result_json "$contest" "$id" "$h_login" "$h_prob" "$json"
   [[ -n "$host" ]] && q_done "$host" "$id"
   schedule_score_rebuild "$contest"
@@ -533,7 +540,12 @@ process_spool_file() {
   # ---- comando "result": ingestão do veredicto vindo do worker (modelo pull) ----
   if [[ "$comando" == result ]]; then
     ingest_result "$json"
-    mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null
+    # done/ guarda o result SEM o report_html_b64 (o mojlog já foi persistido no store do time):
+    # com ele, um mês da Maratona eram 72 GB de cópia redundante (2026-09-16). Ninguém relê o
+    # conteúdo de done/ — só existência/contagem/mtime.
+    if jq -c 'del(.report_html_b64)' "$f" > "$SPOOLDONEDIR/.$base.tmp" 2>/dev/null; then
+      mv -f "$SPOOLDONEDIR/.$base.tmp" "$SPOOLDONEDIR/$base" 2>/dev/null && rm -f "$f"
+    else rm -f "$SPOOLDONEDIR/.$base.tmp"; mv -f "$f" "$SPOOLDONEDIR/$base" 2>/dev/null; fi
     return 0
   fi
 
@@ -717,9 +729,11 @@ _recon_tried_dir="$RUNDIR/.reconciled"   # ids já re-enfileirados (1 tentativa 
 # o relatório inteiro em base64. Nunca era limpo: em 24/08/2026 eram **7,4 GB** em 6.789
 # arquivos, o mais antigo de 12 de ABRIL (37 passavam de 50 MB; o maior tinha 200 MB).
 # É evidência de incidente — foi lendo isto que se explicou a fila travada de julho —, então a
-# retenção é generosa e a varredura é preguiçosa, no molde do `run/testrun/`.
-# `SPOOL_DONE_KEEP_DAYS=0` desliga. Apaga só o que JÁ SAIU do pipeline: nunca toca em $SPOOLDIR.
-: "${SPOOL_DONE_KEEP_DAYS:=30}"
+# varredura é preguiçosa, no molde do `run/testrun/`. Retenção: 30 → **7 dias** (2026-09-16: com
+# 30 dias e o report dentro do result, agosto deixou 76 GB em done/; hoje o result entra SEM o
+# report, e 7 dias bastam p/ a evidência de incidente). `SPOOL_DONE_KEEP_DAYS=0` desliga.
+# Apaga só o que JÁ SAIU do pipeline: nunca toca em $SPOOLDIR.
+: "${SPOOL_DONE_KEEP_DAYS:=7}"
 : "${SPOOL_GC_EVERY_S:=3600}"
 _SPOOL_GC_LAST=0
 

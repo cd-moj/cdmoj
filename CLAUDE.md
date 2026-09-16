@@ -175,7 +175,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`account.json` autoritativo — inclui perfil `university`/`favorite_editor`/`public`/
   `uname_changes` e time `.team{name,univ_short,univ_full,flag}`; `history` próprio de 6 campos
   `tempo:probid:lang:verdict:sub_epoch:subid`, login implícito; `metrics.json`;
-  `submissions/<subid>.<ext>`, `mojlog/<subid>.html`, `results/<subid>.json`, `photo.png` — **sem
+  `submissions/<subid>.<ext>`, `mojlog/<subid>.html.gz` (gzip em repouso desde 2026-09-16; `.html` = legado,
+  os dois aceitos por `resolve_submission`), `results/<subid>.json`, `photo.png` — **sem
   login no nome**). **NÃO existe `passwd`**: auth (`verify_password`), placar (`sc_users`),
   perfis e listagens leem os `account.json` direto (agregações SEMPRE por `find|xargs jq` —
   ARG_MAX); `USERS_FROM=<src>` cai p/ o `users/` do contest-fonte (participante compartilhado tem
@@ -864,6 +865,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   super-admin cria (`cc_create` 403 `id_prefix_reserved`; `permission` expõe `is_superadmin` +
   `reserved_id_prefixes`). `contest-perms.json` ganhou `allow_meta`/`deny_meta` `{login:{by,at,note}}`
   (a trilha); `allow`/`deny` seguem listas de login p/ todo leitor. Teste: `smoke-treino-admin-contests.sh`.
+- **Espaço em disco (2026-09-16, 185 GB usados)**: `done/` guarda o result SEM `report_html_b64`
+  (`judged.sh` ramo result + `ingest-drain.py`) e o GC apaga com > 7 d (`SPOOL_DONE_KEEP_DAYS`); mojlog
+  é `.html.gz` (escrita `write_report_gz`, leitura em `submission/log.sh` com `Content-Encoding` e em
+  `treino/admin/queue.sh`); `gen-report.sh` corta cada bloco em `REPORT_MAX_BYTES` (64 KB); sample de
+  enunciado > 256 KB é truncado no HTML e > 4 MB vira `too_big` no json; json público é HARDLINK do
+  privado. Ferramentas dry-run: `bin/mojlog-compress.sh`, `bin/cache-purge.sh`, `bin/mojlog-prune.sh`
+  (destrutivo — só com OK). Testes: `smoke-report-caps.sh`, `smoke-judged-watch.sh`, `smoke-handlers.sh`
+  (gzip), `smoke-statement-langs.sh` (tetos). Doc: `docs/ADMIN.md` §9.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

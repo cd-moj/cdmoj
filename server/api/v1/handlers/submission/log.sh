@@ -30,5 +30,21 @@ fi
 
 shopt -u nullglob
 activity_log log-view "c=$contest sid=$sid owner=${owner:-?}"
-emit_html
-if [[ -n "$SUB_LOG" && -f "$SUB_LOG" ]]; then cat "$SUB_LOG"; else printf '<!doctype html><meta charset="utf-8"><p style="font:16px sans-serif;color:#64748b;padding:1rem">Report indisponível para esta submissão.</p>\n'; fi
+# mojlog em repouso é .html.gz (2026-09-16): com Accept-Encoding gzip vai como está (o nginx não
+# recomprime resposta que já traz Content-Encoding — molde de contest/problems.sh); sem Accept,
+# descomprime. Report ausente com results/<id>.json presente = removido pela política de retenção.
+if [[ -n "$SUB_LOG" && -f "$SUB_LOG" ]]; then
+  if [[ "$SUB_LOG" == *.gz ]]; then
+    if [[ "${HTTP_ACCEPT_ENCODING:-}" == *gzip* ]]; then
+      printf 'Status: 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Encoding: gzip\r\nVary: Accept-Encoding\r\n\r\n'
+      cat "$SUB_LOG"
+    else emit_html; gzip -dc "$SUB_LOG"; fi
+  else emit_html; cat "$SUB_LOG"; fi
+else
+  emit_html
+  if [[ -n "$SUB_RESULT" && -f "$SUB_RESULT" ]]; then
+    printf '<!doctype html><meta charset="utf-8"><p style="font:16px sans-serif;color:#64748b;padding:1rem">Report removido pela política de retenção do MOJ; o veredicto e o código-fonte continuam disponíveis. / Report removed by the MOJ retention policy; the verdict and the source code remain available.</p>\n'
+  else
+    printf '<!doctype html><meta charset="utf-8"><p style="font:16px sans-serif;color:#64748b;padding:1rem">Report indisponível para esta submissão. / Report unavailable for this submission.</p>\n'
+  fi
+fi

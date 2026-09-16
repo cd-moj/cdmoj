@@ -299,6 +299,29 @@ curl -s -H "$H" $B/api/v1/            # {"success":true,"name":"MOJ API","versio
       confere que a API responde e o `/index/status` está são.)
 - [ ] Um **juiz** aparece online (`/api/v1/judge/list` ou o painel `/treino/admin/`).
 
+## 9. Retenção e espaço em disco
+
+O que cresce em produção (medição de 16/09/2026: 185 GB usados de 290):
+
+| O que | Onde | Quem controla |
+|---|---|---|
+| Resultados processados | `run/spool/submissions-done/` | o `judged` guarda o result **sem** o report (`report_html_b64` sai na hora de mover) e apaga o que tem mais de **7 dias** (`SPOOL_DONE_KEEP_DAYS`, default 7; `0` desliga). |
+| Reports de julgamento | `contests/<c>/users/<login>/mojlog/<id>.html.gz` | gravados **comprimidos** (gzip) desde 16/09/2026; o servidor entrega com `Content-Encoding: gzip`. Cada bloco do report tem teto de **64 KB** (`REPORT_MAX_BYTES`, no juiz). |
+| Índice de problemas | `contests/treino/var/jsons{,-private}/<id>.json` | a cópia pública é **hardlink** da privada; exemplo do enunciado acima de 256 KB entra truncado no HTML (`STMT_SAMPLE_MAX_BYTES`) e acima de 4 MB não vai como dado (`STMT_SAMPLE_JSON_MAX_BYTES`). |
+| PDFs da impressão, lixeira | `print-requests/*.combined.pdf`, `contests/.trash/` | caches regeneráveis: `cache-purge.sh`. |
+
+Ferramentas (todas **dry-run por padrão**; `--apply` executa):
+
+- `server/bin/mojlog-compress.sh --all --apply` — comprime reports antigos que ainda estão em `.html`
+  (lossless; pode rodar a qualquer hora, com `nice`). Em produção rode dentro do container da API.
+- `server/bin/cache-purge.sh --apply` — apaga PDFs da impressão de contests encerrados há mais de 7 dias
+  (`--pdf-days`), entradas da lixeira com mais de 60 dias (`--trash-days`) e tmp órfãos. O PDF volta
+  sozinho na próxima impressão.
+- `server/bin/mojlog-prune.sh --ended-days N [--contest <c>] --apply` — **apaga** os reports de contests
+  encerrados há mais de N dias. Veredicto, `results/<id>.json` e o código-fonte ficam; a web passa a
+  dizer "report removido pela política de retenção". É destrutivo: rode por contest e só com decisão
+  do responsável. Nunca toca no treino (ele não tem `CONTEST_END` numérico) nem na lixeira.
+
 ## Ponteiros
 
 Arquitetura: [`OVERVIEW.md`](OVERVIEW.md) · Fluxo de submissão: [`FLOW.md`](FLOW.md) · Rotas:

@@ -74,16 +74,20 @@ if [[ -n "$subq" ]]; then
   [[ -n "$hline" ]] || fail 404 "Submissão não está no history" "sub_notfound"
   lang="$(awk -F: '{print $3}' <<<"$hline")"; llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
   src="$(user_dir "$c" "$login")/submissions/$id.${llang:-txt}"
-  mlog="$(user_dir "$c" "$login")/mojlog/$id.html"
+  mlog="$(user_dir "$c" "$login")/mojlog/$id.html"; mlb=0
   W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
-  # mojlog vai por ARQUIVO (--rawfile): pode ser grande, e argv tem teto de 128 KiB
-  if [[ -s "$mlog" ]]; then head -c 262144 "$mlog" > "$W/log"; else : > "$W/log"; fi
+  # mojlog vai por ARQUIVO (--rawfile): pode ser grande, e argv tem teto de 128 KiB.
+  # .html.gz é o formato atual (2026-09-16); mojlog_bytes = tamanho DESCOMPRIMIDO
+  if [[ -s "$mlog.gz" ]]; then gzip -dc "$mlog.gz" 2>/dev/null | head -c 262144 > "$W/log"; mlb="$(gzip -l "$mlog.gz" 2>/dev/null | awk 'NR==2{print $2}')"
+  elif [[ -s "$mlog" ]]; then head -c 262144 "$mlog" > "$W/log"; mlb="$(stat -c%s "$mlog" 2>/dev/null || echo 0)"
+  else : > "$W/log"; fi
+  [[ "$mlb" =~ ^[0-9]+$ ]] || mlb=0
   printf '%s' "$hline" > "$W/hline"
   ok_json '{history_line:$h, state:$st, has_source:$hs, source_bytes:$sb, mojlog:$lg, mojlog_bytes:$lb}' \
     --rawfile h "$W/hline" --arg st "$(_sub_state "$id")" \
     --argjson hs "$([[ -s "$src" ]] && echo true || echo false)" \
     --argjson sb "$(stat -c%s "$src" 2>/dev/null || echo 0)" \
-    --rawfile lg "$W/log" --argjson lb "$(stat -c%s "$mlog" 2>/dev/null || echo 0)"
+    --rawfile lg "$W/log" --argjson lb "$mlb"
   exit 0
 fi
 

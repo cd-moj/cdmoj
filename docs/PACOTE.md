@@ -204,6 +204,10 @@ O índice do treino (`var/jsons/<id>.json`) leva `statement_langs` (a lista, por
 como sempre. A página do problema mostra um chip por idioma. Em um contest, o admin ou o
 juiz-chefe escolhe os idiomas que a sanfona oferece (`STATEMENT_LANGS`; ver `API.md`).
 
+Um exemplo com mais de **256 KB** entra truncado no HTML do enunciado (só o começo, com o aviso
+"Exemplo grande"); com mais de **4 MB** ele não vai como dado (`{name, size, too_big:true}`). Exemplo é
+para ler: teste grande é teste oculto.
+
 O índice leva também **`samples`**: `[{name, input, output}]`, o texto dos exemplos. A seleção é a
 MESMA do HTML do enunciado (`stmt_sample_names` em `mojtools/statement-langs.sh`: arquivo `samples`,
 senão `tests/input/sample*`). Um teste oculto nunca entra nesse campo. É o que alimenta o botão

@@ -87,11 +87,13 @@ export function downloadBlob(blob, filename) {
 }
 // downloadSamplesZip(samples, prefix, zipName): samples = [{name,input,output}] (da API);
 // arquivos <prefix>/<name>.in e .out, com a quebra final garantida. Devolve o nº de exemplos.
+export const downloadableSamples = (samples) => (Array.isArray(samples) ? samples.filter((s) => s && !s.too_big) : []);
 export function downloadSamplesZip(samples, prefix, zipName) {
   const nl = (t) => (t && !t.endsWith('\n') ? t + '\n' : (t || ''));
   const safe = (s) => String(s || 'sample').replace(/[^A-Za-z0-9._-]/g, '_');
   const files = [];
-  (samples || []).forEach((s) => { files.push({ name: `${prefix}/${safe(s.name)}.in`, text: nl(s.input) }, { name: `${prefix}/${safe(s.name)}.out`, text: nl(s.output) }); });
+  // too_big (2026-09-16): o servidor não manda os bytes de um exemplo acima do teto — sai do zip
+  (samples || []).filter((s) => s && !s.too_big).forEach((s) => { files.push({ name: `${prefix}/${safe(s.name)}.in`, text: nl(s.input) }, { name: `${prefix}/${safe(s.name)}.out`, text: nl(s.output) }); });
   if (!files.length) return 0;
   downloadBlob(new Blob([samplesZip(files)], { type: 'application/zip' }), zipName);
   return files.length / 2;

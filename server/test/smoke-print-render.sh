@@ -142,6 +142,10 @@ touch -d '2020-01-01' "$C/print-requests/$id.src" "$cache"
 out="$(pr_build_pdf pr "$id")"
 ck "cache mais velho que a lib foi refeito" '[[ "$(stat -c %Y "$cache")" -gt "$(date -d 2020-01-02 +%s)" ]]'
 
+echo "== cache: PDF apagado (cache-purge.sh) é reconstruído do .src/.json =="
+rm -f "$cache"; out="$(pr_build_pdf pr "$id")"
+ck "PDF reconstruído após purga"        '[[ $? -eq 0 && -s "$cache" && "$out" == "$cache" ]]'
+
 echo "== cache: build bom é reusado (build-once) =="
 touch -d '1 hour ago' "$C/print-requests/$id.src"
 m1="$(stat -c %Y "$cache")"; sleep 1; pr_build_pdf pr "$id" >/dev/null

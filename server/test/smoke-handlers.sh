@@ -30,7 +30,7 @@ fx_user "$C" hands.judge j "Juiz Um"
 fx_user "$C" hands.mon   m "Monitor Um"
 printf '5:col#pa:C:Accepted,100p:1718000000:%s\n' "$SID" > "$C/users/alice/history"
 printf 'int main(){return 0;}\n' > "$C/users/alice/submissions/$SID.c"
-printf '<html>report</html>\n'   > "$C/users/alice/mojlog/$SID.html"
+printf '<html>report</html>\n' | gzip -6 > "$C/users/alice/mojlog/$SID.html.gz"   # formato atual (.gz)
 
 # treino mínimo p/ /index/open_training
 T="$FIX/treino"; mkdir -p "$T/var"
@@ -199,7 +199,12 @@ check "source bad id -> 400" '[[ "$OUT" == *"Status: 400"* ]]'
 
 echo "== submission/log (Bearer) =="
 call "/submission/log" GET "contest=$CONTEST&time=1718000000&id=$SID" "$TOKEN"
-check "log 200 returns report" 'okstatus && [[ "$BODY" == *report* ]]'
+check "log 200 returns report (gz descomprimido sem Accept-Encoding)" 'okstatus && [[ "$BODY" == *report* ]] && [[ "$OUT" != *"Content-Encoding: gzip"* ]]'
+# corpo BINÁRIO (gzip): vai p/ arquivo — $(…) engole NUL; o python separa cabeçalho/corpo em bytes
+HTTP_ACCEPT_ENCODING="gzip, br" PATH_INFO=/submission/log REQUEST_METHOD=GET QUERY_STRING="contest=$CONTEST&time=1718000000&id=$SID" HTTP_AUTHORIZATION="Bearer $TOKEN" \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" NEWSDIR="$NEWS" RUNDIR="$FIX/run" bash "$ROUTER" </dev/null > "$FIX/log.raw" 2>/dev/null
+OUT="$(head -c 400 "$FIX/log.raw" | tr -d '\0')"
+check "log com Accept-Encoding gzip: Content-Encoding e corpo comprimido" '[[ "$OUT" == *"Content-Encoding: gzip"* ]] && [[ "$(python3 -c "import sys;d=open(sys.argv[1],\"rb\").read();i=d.find(b\"\\r\\n\\r\\n\");sys.stdout.buffer.write(d[i+4:])" "$FIX/log.raw" | gzip -dc 2>/dev/null)" == *report* ]]'
 
 echo "== admin/adduser + passwd (POST admin) — uses temp contest copy =="
 TMPC="$(mktemp -d)"

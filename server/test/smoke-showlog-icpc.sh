@@ -18,7 +18,7 @@ mkc(){ # <id> <type> [linha extra de conf]
   fx_user "$C" alice a "Alice"
   printf '5:col#pa:C:Accepted,100p:1718000000:%s\n' "$SID" > "$C/users/alice/history"
   printf 'int main(){return 0;}\n' > "$C/users/alice/submissions/$SID.c"
-  printf '<html>report</html>\n'   > "$C/users/alice/mojlog/$SID.html"
+  printf '<html>report</html>\n' | gzip -6 > "$C/users/alice/mojlog/$SID.html.gz"   # formato atual (.gz)
 }
 mktok(){ printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' "$1" "$2" "$2" "$EPOCHSECONDS" > "$SESS/$3"; }
 

@@ -38,7 +38,7 @@ const mk=(tag,cls,txt)=>{ const n=new FakeNode(tag); if(cls) n.setAttribute('cla
 const root=mk('div','statement-content'); const sec=mk('section','moj-exemplos'); root.append(sec);
 const ex1=mk('div','moj-exemplo'); ex1.append(mk('h3',null,'Entrada'), mk('pre',null,'3'), mk('h3',null,'Saída'), mk('pre',null,'3\n'));
 const nota=mk('div','moj-exemplo-nota'); nota.append(mk('h3',null,'Explicação'), mk('p',null,'porque sim')); ex1.append(nota);
-const ex2=mk('div','moj-exemplo'); ex2.append(mk('h3',null,'Entrada'), mk('pre',null,'7 8'), mk('h3',null,'Saída'), mk('pre',null,'15'));
+const ex2=mk('div','moj-exemplo'); ex2.append(mk('h3',null,'Entrada'), mk('pre',null,'7 8'), mk('p','moj-exemplo-trunc','Exemplo grande: mostrando 256 KB de 2 MB'), mk('h3',null,'Saída'), mk('pre',null,'15'));
 sec.append(ex1, ex2);
 const n1=decorateSamples(root), n2=decorateSamples(root);
 const btns=root.querySelectorAll('sample-copy');
@@ -53,21 +53,23 @@ print('n1=' + n1 + ' n2=' + n2 + ' btns=' + btns.length + ' heads=' + root.query
   const zip = samplesZip([{name:'A/sample1.in', text:'3\n'}, {name:'A/sample1.out', text:'3\n'}, {name:'A/sample2.in', text:'7 8\n'}]);
   let hx=''; for (let i=0;i<zip.length;i++) hx+=zip[i].toString(16).padStart(2,'0');
   print('zip_hex=' + hx);
-  print('dl=' + downloadSamplesZip([{name:'sample1',input:'3',output:'3\n'}], 'A', 'A-exemplos.zip'));
+  print('dl=' + downloadSamplesZip([{name:'sample1',input:'3',output:'3\n'}, {name:'sample9', size:5000000, too_big:true}], 'A', 'A-exemplos.zip'));
+  print('dlable=' + downloadableSamples([{name:'a',input:'1',output:'1'},{name:'b',too_big:true}]).length);
 })().catch(e=>print('ERRO '+e+'\n'+e.stack));
 JS
 } > "$T/s.js"
 out="$(timeout 60 gjs "$T/s.js" 2>&1)" || { echo "$out" >&2; echo "statement-samples: gjs falhou"; exit 1; }
 grep -q '^ERRO' <<<"$out" && { echo "$out" >&2; exit 1; }
 kv(){ sed -n "s/^.*\b$1=\([^ ]*\).*$/\1/p" <<<"$out" | head -1; }
-check "$(kv n1)" 4 "4 botões (2 exemplos × entrada/saída); a nota não ganha botão"
+check "$(kv n1)" 4 "4 botões (2 exemplos × entrada/saída); nota e aviso de truncagem não ganham botão"
 check "$(kv n2)" 0 "2ª chamada é idempotente"
 check "$(kv btns)" 4 "botões no DOM"
 check "$(kv heads)" 4 "h3 marcados"
 check "$(sed -n 's/^copied0=\(.*\)$/\1/p' <<<"$out")" '"3\n"' "copia com a quebra final reposta"
 check "$(sed -n 's/^copied1=\(.*\)$/\1/p' <<<"$out")" '"3\n"' "não duplica a quebra quando já existe"
 check "$(kv fallback_selected)" 1 "sem clipboard: seleciona o bloco"
-check "$(kv dl)" 1 "downloadSamplesZip devolve o nº de exemplos"
+check "$(kv dl)" 1 "downloadSamplesZip devolve o nº de exemplos (too_big fica fora)"
+check "$(kv dlable)" 1 "downloadableSamples filtra too_big"
 if command -v python3 >/dev/null 2>&1; then
   sed -n 's/^zip_hex=//p' <<<"$out" | xxd -r -p > "$T/a.zip"
   res="$(python3 - "$T/a.zip" <<'PY'

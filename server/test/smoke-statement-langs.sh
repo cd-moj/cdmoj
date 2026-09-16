@@ -41,6 +41,10 @@ printf 'Leia N e imprima N.\n\n## Entrada\n\nUm inteiro.\n\n## Saída\n\nO mesmo
 printf 'Read N and print N.\n\n## Input\n\nOne integer.\n\n## Output\n\nThe same integer.\n' > "$P/docs/enunciado.en.md"
 printf '3\n' > "$P/tests/input/sample1"; printf '3\n' > "$P/tests/output/sample1"
 printf '7\n' > "$P/tests/input/sample2"; printf '7\n' > "$P/tests/output/sample2"
+# sample3: 300 KB (> STMT_SAMPLE_MAX_BYTES 256 KB) — HTML mostra só o começo + aviso; json completo
+head -c 300000 /dev/zero | tr '\0' 'a' > "$P/tests/input/sample3"; printf '\n' >> "$P/tests/input/sample3"; printf 'A\n' > "$P/tests/output/sample3"
+# sample4: 5 MB (> STMT_SAMPLE_JSON_MAX_BYTES 4 MB) — json leva {name,size,too_big} SEM os bytes
+head -c 5000000 /dev/zero | tr '\0' 'b' > "$P/tests/input/sample4"; printf '\n' >> "$P/tests/input/sample4"; printf 'B\n' > "$P/tests/output/sample4"
 # teste OCULTO: jamais pode aparecer no campo `samples` nem no HTML (anti-vazamento)
 printf 'SEGREDO 99\n' > "$P/tests/input/hidden1"; printf 'SEGREDO 99\n' > "$P/tests/output/hidden1"
 printf 'Nota PT do um.\n' > "$P/docs/notes/sample1.md"; printf 'EN note of one.\n' > "$P/docs/notes/sample1.en.md"
@@ -63,10 +67,14 @@ ck "EN: <html lang=en> e h1 Echo"        'grep -q "<html lang=\"en\"" <<<"$EN" &
 ck "PT: intacto (Exemplos/Entrada/Saída, lang pt-BR)" 'grep -q "<h2>Exemplos</h2>" <<<"$PT" && grep -q "<h3>Saída</h3>" <<<"$PT" && grep -q "<html lang=\"pt-BR\"" <<<"$PT" && ! grep -q "EN note" <<<"$PT"'
 ck "editorial NÃO vai ao aluno"          '! grep -q "Print it" <<<"$EN" && ! grep -q "Imprima" <<<"$PT"'
 echo "== samples como DADO no json servível (a MESMA seleção do HTML; oculto nunca entra) =="
-ck "samples = [sample1, sample2] e bytes exatos" '[[ "$(jq -c "[.samples[].name]" "$J")" == "[\"sample1\",\"sample2\"]" && "$(jq -r ".samples[1].input" "$J")" == "7" && "$(jq -j ".samples[1].input" "$J" | od -c | head -1)" == *"7  \\n"* ]]'
+ck "samples = [sample1..4] e bytes exatos" '[[ "$(jq -c "[.samples[].name]" "$J")" == "[\"sample1\",\"sample2\",\"sample3\",\"sample4\"]" && "$(jq -r ".samples[1].input" "$J")" == "7" && "$(jq -j ".samples[1].input" "$J" | od -c | head -1)" == *"7  \\n"* ]]'
+ck "sample3 (300 KB): json completo, HTML com 256 KB + aviso DEPOIS do </pre>" '[[ "$(jq -r ".samples[2].input|length" "$J")" == 300001 ]] && grep -q "</pre><p class=\"moj-exemplo-trunc\">Exemplo grande: mostrando 256 KB de 292 KB" <<<"$PT" && grep -q "Large sample: showing 256 KB of 292 KB" <<<"$EN"'
+ck "sample4 (5 MB): too_big sem bytes; HTML truncado" '[[ "$(jq -c ".samples[3]|{name,too_big,has_in:has(\"input\")}" "$J")" == "{\"name\":\"sample4\",\"too_big\":true,\"has_in\":false}" ]] && [[ $(stat -c%s "$J") -lt 3000000 ]]'
+ck "o aviso não entra no <pre> (Copiar copia só o bloco)" '! grep -q "Exemplo grande[^<]*</pre>" <<<"$PT"'
 ck "hidden1 NÃO está no json nem no HTML"  '! grep -q SEGREDO "$J" && ! grep -q SEGREDO <<<"$PT" && ! grep -q SEGREDO <<<"$EN"'
 ck "data-sample/data-kind nos <pre> do HTML" 'grep -q "<pre data-sample=\"sample1\" data-kind=\"input\">" <<<"$PT" && grep -q "data-sample=\"sample2\" data-kind=\"output\"" <<<"$EN"'
 ck "nomes do json == data-sample do HTML"   '[[ "$(grep -o "data-sample=\"[^\"]*\" data-kind=\"input\"" <<<"$PT" | sed "s/.*=\"\([^\"]*\)\" data.*/\1/" | paste -sd,)" == "$(jq -r "[.samples[].name]|join(\",\")" "$J")" ]]'
+ck "jsons/ e jsons-private/ são o MESMO inode (hardlink)" '[[ "$(stat -c%i "$J")" == "$(stat -c%i "$FIX/treino/var/jsons-private/col#pa.json")" ]]'
 
 echo "== validador: traduções são checks duros, nota sem tradução é aviso =="
 VALIDATE_RUN_SOLS=0 TREINO_JSONS="$FIX/treino/var/jsons" bash "$MOJTOOLS_DIR/validate-problem.sh" "$P" "col#pa" >/dev/null 2>&1
@@ -178,11 +186,12 @@ ck "juiz também pega o EN"               'grep -q "Read N and print N" <<<"$BOD
 
 echo "== /contest/samples: o mesmo conjunto do enunciado, pelo gate do enunciado =="
 call /contest/samples GET time01 "contest=sl&problem=A"
-ck "time: 200 com 2 samples e bytes exatos" '[[ "$(code)" == "200 OK" && "$(jq -c "[.problem, .problem_id, (.samples|length), .samples[0].input]" <<<"$BODY")" == "[\"A\",\"col#pa\",2,\"3\\n\"]" ]]'
+ck "time: 200 com 4 samples e bytes exatos" '[[ "$(code)" == "200 OK" && "$(jq -c "[.problem, .problem_id, (.samples|length), .samples[0].input]" <<<"$BODY")" == "[\"A\",\"col#pa\",4,\"3\\n\"]" ]]'
 ck "só name/input/output (nada a mais)"    '[[ "$(jq -c ".samples[0]|keys" <<<"$BODY")" == "[\"input\",\"name\",\"output\"]" ]]'
+ck "too_big repassado sem bytes"           '[[ "$(jq -c ".samples[3]|keys" <<<"$BODY")" == "[\"name\",\"size\",\"too_big\"]" ]]'
 ck "nada de oculto"                        '! grep -q SEGREDO <<<"$BODY"'
 call /contest/samples GET time01 "contest=sl&problem=col%23pa"
-ck "aceita o problem_id"                   '[[ "$(jq -r ".samples|length" <<<"$BODY")" == 2 ]]'
+ck "aceita o problem_id"                   '[[ "$(jq -r ".samples|length" <<<"$BODY")" == 4 ]]'
 call /contest/samples GET time01 "contest=sl&problem=Z"
 ck "letra inexistente: 404"                '[[ "$(code)" == "404 Not Found" ]]'
 call /contest/samples GET time01 "contest=sl&problem=../../etc/passwd"
@@ -219,6 +228,11 @@ conf "pt\\ en"
 call /contest/admin/settings GET sl.admin "contest=sl"
 ck "settings: statement_langs [pt,en], mode list, default en" '[[ "$(jq -c ".statement_langs, .statement_langs_mode, .default_statement_lang" <<<"$BODY" | paste -sd" ")" == "[\"pt\",\"en\"] \"list\" \"en\"" ]]'
 
+# O ES sai do pacote e o json é regerado SÍNCRONO: o reindex em background das edições acima
+# podia (ou não) ter chegado até aqui — era o que fazia "caderno ES cai no PT" oscilar (16/09).
+call /problems/edit POST aut "" '{"id":"col#pa","translations":{"es":null}}'
+rm -f "$C/enunciados/col#pa.es.html"
+TREINO_JSONS="$FIX/treino/var/jsons" MOJ_TL_STORE="$RUN/tl" bash "$MOJTOOLS_DIR/gen-problem-json.sh" "$P" "col#pa" >/dev/null 2>&1
 echo "== documentos: caderno/editorial no idioma (HTML, sem soffice) =="
 export _DIR="$ROOT/api/v1" SESSION_LOGIN=sl.admin
 source "$ROOT/api/v1/lib/common.sh" 2>/dev/null || true

@@ -39,7 +39,9 @@ done
 if bf="$(cs_bank_json "$STATEMENT" 2>/dev/null)"; then
   out="$(jq -c --arg sn "$SHORT" --arg pid "$PID" \
     '{success:true, problem:$sn, problem_id:$pid,
-      samples:((.samples // []) | map(select(type=="object")) | map({name:(.name // ""), input:(.input // ""), output:(.output // "")}))}' "$bf" 2>/dev/null)"
+      samples:((.samples // []) | map(select(type=="object"))
+               | map(if .too_big == true then {name:(.name // ""), size:(.size // 0), too_big:true}
+                     else {name:(.name // ""), input:(.input // ""), output:(.output // "")} end))}' "$bf" 2>/dev/null)"
 fi
 [[ -n "${out:-}" ]] || out="$(jq -cn --arg sn "$SHORT" --arg pid "$PID" '{success:true, problem:$sn, problem_id:$pid, samples:[]}')"
 printf 'Status: 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nCache-Control: private, max-age=60\r\n\r\n%s\n' "$out"

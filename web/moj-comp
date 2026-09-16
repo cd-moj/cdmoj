@@ -46,7 +46,7 @@
 MOJ_TOOL="${MOJ_TOOL:-moj}"
 # carimbo de build: "dev" no repo; o mkdist.sh troca pelo <git-short>-<data> nos artefatos
 # distribuídos (é o que `moj version`/`doctor` comparam com o /moj.build do servidor)
-MOJ_CLI_BUILD="da67a56-20260916"
+MOJ_CLI_BUILD="2580327-20260916"
 die(){ printf '%s: %s\n' "$MOJ_TOOL" "$*" >&2; exit 1; }
 # bash>=4 ANTES de qualquer bashismo (mapfile, read -i, ${x^^}): o /bin/bash do macOS é 3.2
 [ "${BASH_VERSINFO[0]:-0}" -ge 4 ] || die "preciso de bash >= 4 (macOS: brew install bash e rode com ele)"
@@ -494,6 +494,9 @@ cmd_statement(){ need_contest; local ref="" only=""
 _samples_write(){ local arr="$1" d="$2" n=0 name
   while IFS= read -r name; do
     [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || continue          # o nome vira ARQUIVO: só o alfabeto seguro
+    # too_big: o servidor não manda os bytes de exemplo acima do teto (só o começo aparece no enunciado)
+    if jq -e --arg n "$name" 'first(.[] | select(.name==$n)) | .too_big == true' >/dev/null 2>&1 <<<"$arr"; then
+      echo "  (exemplo '$name' é grande demais para baixar como arquivo — veja o começo no enunciado)" >&2; continue; fi
     mkdir -p "$d" 2>/dev/null || return 1
     jq -rj --arg n "$name" 'first(.[] | select(.name==$n)) | .input // ""' <<<"$arr" > "$d/$name.in"
     jq -rj --arg n "$name" 'first(.[] | select(.name==$n)) | .output // ""' <<<"$arr" > "$d/$name.out"

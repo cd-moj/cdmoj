@@ -60,6 +60,14 @@ for i in $(seq -w 1 15); do mkresult "id0$i"; sleep 0.3; done
 check 'waitfor 15 10' "15 results não ingeridos em 10 s (só $(nwa)) — evento perdido, esperaria o re-drain"
 check '[[ ! -s "$SPOOLDIR/sz:$NOW:id001:mockj:result:pa" ]]' "arquivo de result ficou no spool"
 check '[[ -f "$RUN/judged.alive" ]]' "judged.alive não batido"
+# 1b. o que fica em done/ é o result SEM o report (72 GB de cópia redundante em agosto/2026)
+check '[[ -s "$RUN/spool/submissions-done/sz:$NOW:id001:mockj:result:pa" ]]' "result não foi para done/"
+check '! grep -q report_html_b64 "$RUN/spool/submissions-done/sz:$NOW:id001:mockj:result:pa"' "done/ ainda carrega report_html_b64"
+check '[[ "$(jq -r .verdict "$RUN/spool/submissions-done/sz:$NOW:id001:mockj:result:pa")" == "Wrong Answer" ]]' "done/ perdeu os metadados do result"
+# 1c. mojlog em repouso é .html.gz, atômico e legível
+check '[[ -s "$C/users/u1/mojlog/id001.html.gz" && ! -e "$C/users/u1/mojlog/id001.html" ]]' "mojlog não saiu como .html.gz"
+check '[[ "$(gzip -dc "$C/users/u1/mojlog/id001.html.gz")" == "<h1>mock</h1>" ]]' "conteúdo do mojlog .gz errado"
+check '[[ "$(jq -r .report_html "$C/users/u1/results/id001.json")" == "mojlog/id001.html.gz" ]]' "results/*.json não aponta p/ o .gz"
 
 # 2. watcher morre — o daemon re-sobe e continua
 pkill -f "$BIN/inotifywait"; sleep 2

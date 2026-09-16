@@ -29,7 +29,7 @@ o modelo **pull** (os juízes puxam o job no heartbeat — sem master, sem push 
       4. recomputa users/<login>/metrics.json (fonte do placar)
       5. arquiva o fonte em users/<login>/submissions/<id>.<ext>
       6. roda server/score/build.sh <c>  ──▶  reescreve var/placar.txt
-      7. move o arquivo de spool p/ run/spool/submissions-done/
+      7. grava o result SEM o report_html_b64 em run/spool/submissions-done/ (retenção 7 dias)
       (+ spool de submit INVÁLIDO vira "Judge Error" na linha do history — nunca descarte mudo;
        e o reconciliador resolve pendência órfã >15 min: com fonte re-enfileira 1×, sem fonte
        Judge Error — incidente 2026-08-19)
@@ -81,7 +81,8 @@ veredicto.) Fallback sem inotify-tools: poll de 1 s. Para cada arquivo: lê o JS
 veredicto reescrevendo **só a linha com sufixo `:<id>`** no `history` do usuário (casamento
 seguro, reescrita atômica via `mv`), recomputa `users/<login>/metrics.json`, arquiva o fonte
 decodificado, e dispara `server/score/build.sh <contest>` para recalcular o placar. Por fim
-move o arquivo para `run/spool/submissions-done/`.
+grava em `run/spool/submissions-done/` o result **sem** o `report_html_b64` (o mojlog já está em
+`users/<login>/mojlog/<id>.html.gz`, comprimido) — o GC do daemon apaga o que tem mais de 7 dias.
 
 **Shards do escritor** (`JUDGED_SHARDS=K`, default 1 — `api/v1/lib/spool-shard.sh`): com
 K>1 o daemon vira K workers, cada um dono dos logins com `hash(login) % K == k`. O teto

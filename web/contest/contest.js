@@ -554,7 +554,7 @@ async function downloadSamples(p, link) {
   const before = link ? link.textContent : '';
   if (link) link.textContent = '…';
   try {
-    const s = await fetchSamples(p);
+    const s = (await fetchSamples(p)).filter((x) => x && !x.too_big);   // too_big: acima do teto, sem bytes
     if (!s.length) { alert(T('Este problema não tem exemplos como arquivo (o enunciado foi enviado pronto). Copie os exemplos do texto.', 'This problem has no samples as files (the statement was uploaded ready-made). Copy the samples from the text.')); return; }
     const L = String(p.short_name || 'X').replace(/[^A-Za-z0-9._-]/g, '_');
     downloadSamplesZip(s, L, L + '-exemplos.zip');
