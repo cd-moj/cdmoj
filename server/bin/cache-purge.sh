@@ -25,8 +25,9 @@ for cdir in "$CONTESTSDIR"/*/; do
   c="${cdir%/}"; c="${c##*/}"; [[ -f "$cdir/conf" ]] || continue
   end="$(sed -n 's/^CONTEST_END=//p' "$cdir/conf" | head -1 | tr -d '"'"'"'')"
   [[ "$end" =~ ^[0-9]+$ ]] && (( end < now - PDF_DAYS*86400 )) || continue
-  find "$cdir/print-requests" "$cdir"/rounds/*/print-requests -maxdepth 1 -name '*.combined.pdf' -type f -print0 2>/dev/null | rmlist "$c: PDFs de impressão"
+  # process substitution, não pipe: o `tot` acumulado dentro de um pipe morre com o subshell
+  rmlist "$c: PDFs de impressão" < <(find "$cdir/print-requests" "$cdir"/rounds/*/print-requests -maxdepth 1 -name '*.combined.pdf' -type f -print0 2>/dev/null)
 done
-find "$CONTESTSDIR/.trash" -mindepth 1 -maxdepth 1 -mtime "+$TRASH_DAYS" -print0 2>/dev/null | rmlist ".trash (> $TRASH_DAYS d)"
-find "$CONTESTSDIR" -path '*/var/problems-cache.*.tmp.*' -type f -print0 2>/dev/null | rmlist "tmp órfãos do cache de problems"
+rmlist ".trash (> $TRASH_DAYS d)" < <(find "$CONTESTSDIR/.trash" -mindepth 1 -maxdepth 1 -mtime "+$TRASH_DAYS" -print0 2>/dev/null)
+rmlist "tmp órfãos do cache de problems" < <(find "$CONTESTSDIR" -path '*/var/problems-cache.*.tmp.*' -type f -print0 2>/dev/null)
 say ">> total: $((tot/1048576)) MB$( (( APPLY )) && echo " removidos" || echo " (use --apply)")"
