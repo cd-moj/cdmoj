@@ -870,8 +870,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   é `.html.gz` (escrita `write_report_gz`, leitura em `submission/log.sh` com `Content-Encoding` e em
   `treino/admin/queue.sh`); `gen-report.sh` corta cada bloco em `REPORT_MAX_BYTES` (64 KB); sample de
   enunciado > 256 KB é truncado no HTML e > 4 MB vira `too_big` no json; json público é HARDLINK do
-  privado. Ferramentas dry-run: `bin/mojlog-compress.sh`, `bin/cache-purge.sh`, `bin/mojlog-prune.sh`
-  (destrutivo — só com OK). Testes: `smoke-report-caps.sh`, `smoke-judged-watch.sh`, `smoke-handlers.sh`
+  privado. Ferramentas dry-run: `bin/mojlog-compress.sh` (`--jobs N`; rodar no HOST), `bin/cache-purge.sh`,
+  `bin/mojlog-prune.sh`. **Política automática**: `etc/systemd/moj-housekeeping.{service,timer}`
+  (`install-housekeeping.sh`, root) roda diário prune `--ended-days 180` + cache-purge — reports de
+  contest encerrado há > 6 meses SOMEM (decisão do Ribas, 16/09). Testes: `smoke-report-caps.sh`, `smoke-judged-watch.sh`, `smoke-handlers.sh`
   (gzip), `smoke-statement-langs.sh` (tetos). Doc: `docs/ADMIN.md` §9.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
