@@ -57,6 +57,10 @@ mkdir -p "$C/var" "$C/users" "$C/print-requests" "$C/review" "$C/enunciados"
   # abaixo é o que faz a tela parecer a de uma prova de verdade
   printf 'SCORE_BALLOON_STYLE=fill\n'
   printf 'ROUND=oficial\nROUND_NAME=%q\n' "Main round"
+  # MÓDULOS ligados (2026-09-05): sem eles a aba Documentos do chefe, o botão Rodadas, os balões
+  # da fila e a página do telão NÃO EXISTEM — o `?click=Documents` não achava nada e a foto saía
+  # na aba Situação, em silêncio (descoberto em 16/09). Lista = ids de lib/modules.sh.
+  printf 'CONTEST_MODULES=%q\n' "sedes,rodadas,documentos,baloes,telao"
   # PROBS = tuplas de CINCO campos: <source> <problem_id> <nome> <letra> <chave-do-enunciado>
   # OITO problemas, como uma prova de verdade — é o que dá sentido à paleta oficial (A..H) e o
   # que faz o placar ter a largura que ele tem no dia.
@@ -269,12 +273,14 @@ mkrev(){ # <id> <login> <cid> <lang> <verdict-computado> <idade> [label1] [v1] [
 }
 mkrev r1 time-alfa  demo#labirinto C    "Wrong Answer" 300
 mkrev r2 time-delta demo#somatorio C++  "Accepted"     180
-# r5 está RESERVADA pelo juri.judge (claimants com expires_at no futuro) — é o que faz o
-# /contest/review/list devolver my_active e a página abrir o PAINEL DE AVALIAÇÃO
+# r5 nasce LIVRE (a foto da FILA precisa ver a fila); a reserva pelo juri.judge é gravada entre as
+# duas fotos do juiz (ver `claim_r5` na captura) — com claimants o /contest/review/list devolve
+# my_active e a página abre o PAINEL DE AVALIAÇÃO no lugar da fila. Antes as duas fotos saíam
+# iguais (painel), porque a reserva já estava no fixture.
 mkrev r5 time-epsilon demo#tapete Py "Time Limit Exceeded" 120
-jq -c --argjson exp "$((NOW+240))" \
+claim_r5(){ jq -c --argjson exp "$((NOW+240))" \
   '.claimants=[{by:"juri.judge", at:('"$NOW"'-60), expires_at:$exp}] | .status="claimed"' \
-  "$C/review/r5.json" > "$C/review/r5.tmp" && mv "$C/review/r5.tmp" "$C/review/r5.json"
+  "$C/review/r5.json" > "$C/review/r5.tmp" && mv "$C/review/r5.tmp" "$C/review/r5.json"; }
 mkrev r3 time-gama  demo#cofre     Java "Accepted"     900 "1 - YES" "Accepted"
 mkrev r4 time-beta  demo#cofre     C    "Accepted"     600 "1 - YES" "Accepted" "5 - NO - Wrong answer" "Wrong Answer"
 # opções de veredicto do contest (as 6 padrão do RV_DEFAULT_OPTS)
@@ -298,12 +304,16 @@ mkclar(){ # <id> <login> <problema> <idade> <pergunta> [resposta] [public] [broa
       answered_at:(if $a=="" then null else $t+120 end), answer_claim:null}' \
     > "$C/clarifications/$1.json"
 }
-mkclar c1 time-beta B 900 \
+# c1 é do time-alfa (o "papel" das fotos do competidor): a foto dele mostra a própria pergunta
+# aberta em "Suas perguntas" — com outro time ali a seção saía vazia (16/09)
+mkclar c1 time-alfa B 900 \
   "In problem B, can the maze have more than one exit? The statement does not say."
 mkclar c2 time-gama A 1800 \
   "Does the N of the input fit in 32 bits?" \
   "Yes — see the bound in the Input section of the statement." true
-mkclar c3 time-alfa general 600 \
+# aviso oficial nasce com login VAZIO (clarification-broadcast.sh) — com um time no campo, a foto do
+# competidor o punha em "Suas perguntas" e a do chefe mostrava o time como autor (16/09)
+mkclar c3 "" general 600 \
   "Has the contest been extended?" \
   "The São Paulo site was given 20 extra minutes after a power outage. All other sites keep the original schedule." \
   true true
@@ -339,17 +349,26 @@ jq -cn --arg c demo '[
 for k in somatorio labirinto cofre tapete estadio bandejao metro astrolabio; do
   printf '%%PDF-1.4\n' > "$C/enunciados/demo#$k.pdf"
 done
-mkstmt(){ # <chave> <título> <corpo-html>
-  cat > "$C/enunciados/demo#$1.html" <<HTML
-<html><body>
+mkstmt(){ # <chave> <título> <corpo-html> [lang]  — lang vazio = o arquivo PT (`<skey>.html`);
+  # en/es grava `<skey>.<lang>.html`, a tradução que a sanfona oferece nos chips PT · EN · ES.
+  # (Só o A ganha tradução: é o caso "esta prova oferece o enunciado em vários idiomas" da foto
+  # comp-idiomas; os outros sete continuam com um enunciado só, que é o caso normal.)
+  local l="${4:-}" f="$C/enunciados/demo#$1${4:+.$4}.html" h_in h_out h_ex t_in t_out
+  case "$l" in
+    es) h_in=Entrada; h_out=Salida; h_ex=Ejemplos; t_in="La primera línea contiene un entero <em>N</em> (1 &le; <em>N</em> &le; 10<sup>5</sup>)."; t_out="Imprima una sola línea con la respuesta.";;
+    en) h_in=Input; h_out=Output; h_ex=Examples; t_in="The first line contains one integer <em>N</em> (1 &le; <em>N</em> &le; 10<sup>5</sup>)."; t_out="Print a single line with the answer.";;
+    *)  h_in=Input; h_out=Output; h_ex=Examples; t_in="The first line contains one integer <em>N</em> (1 &le; <em>N</em> &le; 10<sup>5</sup>)."; t_out="Print a single line with the answer.";;
+  esac
+  cat > "$f" <<HTML
+<html lang="${l:-pt-BR}"><body>
 <h1 class="moj-title">$2</h1>
 $3
-<h2>Input</h2>
-<p>The first line contains one integer <em>N</em> (1 &le; <em>N</em> &le; 10<sup>5</sup>).</p>
-<h2>Output</h2>
-<p>Print a single line with the answer.</p>
-<h2>Examples</h2>
-<table class="samples"><tr><th>Input</th><th>Output</th></tr>
+<h2>$h_in</h2>
+<p>$t_in</p>
+<h2>$h_out</h2>
+<p>$t_out</p>
+<h2>$h_ex</h2>
+<table class="samples"><tr><th>$h_in</th><th>$h_out</th></tr>
 <tr><td><pre>10</pre></td><td><pre>23</pre></td></tr>
 <tr><td><pre>3</pre></td><td><pre>3</pre></td></tr></table>
 </body></html>
@@ -357,6 +376,10 @@ HTML
 }
 mkstmt somatorio "A curious sum" \
   "<p>Given an integer <em>N</em>, add up every multiple of 3 or of 5 that is at most <em>N</em>. For example, for <em>N</em> = 10 the multiples are 3, 5, 6, 9 and 10 — adding up to 33.</p><p>Mind the size of the answer: it may not fit in a 32-bit integer.</p>"
+mkstmt somatorio "A curious sum" \
+  "<p>Given an integer <em>N</em>, add up every multiple of 3 or of 5 that is at most <em>N</em>. For example, for <em>N</em> = 10 the multiples are 3, 5, 6, 9 and 10 — adding up to 33.</p>" en
+mkstmt somatorio "Una suma curiosa" \
+  "<p>Dado un entero <em>N</em>, sume todos los múltiplos de 3 o de 5 que sean como máximo <em>N</em>. Por ejemplo, para <em>N</em> = 10 los múltiplos son 3, 5, 6, 9 y 10, que suman 33.</p>" es
 mkstmt labirinto "Mirror maze" \
   "<p>A ray of light enters the top-left corner of a grid room full of mirrors. Tell which wall it leaves through.</p>"
 mkstmt cofre "The dean's safe" \
@@ -462,11 +485,13 @@ done
 shot(){
   local name="$1" role="$2" path="$3" h="${4:-$SHOT_H}"
   [[ -n "$ONLY" && "$role" != "$ONLY" && "$role" != s_"$ONLY"* ]] && return 0
+  # `#aba` no caminho: a query vai ANTES do hash (chief.js abre a aba pelo location.hash)
+  local hash=""; [[ "$path" == *#* ]] && { hash="#${path#*#}"; path="${path%%#*}"; }
   local out="$OUT/$name" sep='?'; [[ "$path" == *\?* ]] && sep='&'
   rm -rf "$PROF"; mkdir -p "$PROF"   # perfil limpo: sem --profile o firefox serve do CACHE
   MOZ_HEADLESS=1 timeout 120 firefox --headless --profile "$PROF" \
     --window-size "$SHOT_W,$h" --screenshot "$out" \
-    "http://127.0.0.1:$PORT${path}${sep}c=demo&sess=$role" >/dev/null 2>&1
+    "http://127.0.0.1:$PORT${path}${sep}c=demo&sess=$role${hash}" >/dev/null 2>&1
   local sz; sz="$(stat -c%s "$out" 2>/dev/null || echo 0)"
   printf '  %-32s %8s bytes\n' "$name" "$sz"
   (( sz > 8000 )) || echo "    ⚠ pequena demais — a tela provavelmente não renderizou"
@@ -496,10 +521,15 @@ SO_H='%23problemList%20.prob-item%3Anth-child(-n%2B7)'
 CLICK_H='%23problemList%20.prob-item%3Anth-child(8)%20.prob-left'
 shot comp-problemas.png    s_comp    "/contest/?hide=$OCULTA,$CROMO"               720
 shot comp-sanfona.png      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 840
+# o A tem tradução EN/ES no fixture: a sanfona abre em EN (LOCALE) com os chips PT · EN · ES em
+# cima do enunciado — recorte mais baixo, só p/ mostrar os chips (a tela inteira é a de cima)
+shot comp-idiomas.png      s_comp    "/contest/?clickcss=.prob-left&times=1&hide=$OCULTA,$CROMO,$SO_A" 520
 # a MESMA sanfona num problema que só tem PDF (o H): abre com o tempo limite e o editor, e o
 # enunciado sai pelo link PDF. É a prova que distribui só o caderno — a maioria das maratonas.
 shot comp-sanfona-pdf.png  s_comp    "/contest/?clickcss=$CLICK_H&times=1&hide=$OCULTA,$CROMO,$SO_H" 640
 shot comp-submissoes.png   s_comp    "/contest/?hide=%23newsSection,%23resourcesSection,%23problemsSection,%23userSection,$CROMO" 740
+# a página própria "My submissions" (issue #26): a mesma tabela do fim da página da prova
+shot comp-minhas-submissoes.png s_comp /contest/submissions/                        700
 shot comp-placar.png       s_comp    /contest/score/                               700
 shot comp-clarification.png s_comp   /contest/clarification/                       960
 # as duas telas de serviço do competidor: pedir impressão do código e guardar arquivo no servidor
@@ -527,6 +557,8 @@ shot animeitor-telao.png   s_anim    /contest/animeitor/       1250
 shot animeitor-placar.png  s_anim    /contest/score/
 shot animeitor-cerimonia.png s_anim  "/contest/score/reveal.html?click=Step&times=4" 1000
 shot judge-fila.png        s_judge   /contest/judge/
+# agora o juri.judge RESERVA a r5: a mesma URL abre o painel de avaliação em vez da fila
+[[ -z "$ONLY" || "s_$ONLY" == s_judge || "$ONLY" == s_judge ]] && claim_r5
 shot judge-avaliando.png   s_judge   /contest/judge/
 shot judge-todas.png       s_judge   /contest/allsubmissions/  1000
 shot judge-clarification.png s_judge /contest/clarification/   1250
@@ -535,7 +567,9 @@ shot cjudge-todas.png      s_cjudge  /contest/allsubmissions/  1000
 # rótulo em português aqui = clique que não acontece e foto da tela errada, em silêncio.
 shot cjudge-clarification.png s_cjudge "/contest/clarification/?click=edit answer&times=1" 1500
 shot cjudge-painel.png     s_cjudge  /contest/chief/           1100
-shot cjudge-docs.png       s_cjudge  "/contest/chief/?click=Documents&times=2" 1000
+# abas do chefe pelo HASH nativo (chief.js lê location.hash) — não depende do texto do botão
+shot cjudge-docs.png       s_cjudge  "/contest/chief/#docs"    1000
+shot cjudge-idiomas.png    s_cjudge  "/contest/chief/#langs"   900
 shot rodadas.png           s_staff   /contest/rounds/                              560
 
 # ---------------------------------------------------------------- PDFs de exemplo

@@ -115,6 +115,9 @@ class H(BaseHTTPRequestHandler):
 
         if path == "/__ping":
             return self._send(200, "text/plain", b"ok")
+        if path == "/version.json":                  # rodapé (site-footer.js): sem ele diria "dev"
+            return self._send(200, "application/json",
+                              b'{"version":"2026.09-demo","built_at":0,"contact":"moj@naquadah.com.br"}')
         if path == "/__delay":                       # segura o evento `load` do firefox
             time.sleep(DELAY_MS / 1000.0)
             return self._send(200, "image/gif",
