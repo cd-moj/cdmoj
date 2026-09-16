@@ -264,7 +264,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   próprio (`ch_views`/`build.sh`, seletor no `/contest/score/`). O **bot** (`mojinho-bot/mojinho-api.sh`) é transporte fino:
   autentica com **bot-token** `mojb_…` (`lib/bot-auth.sh` `require_bot`, `run/secrets/bot.token`) — não
   loga como `.admin`, sem GODS. Em produção roda **ENJAULADO** (`mojinho-bot/run-caged.sh`: bwrap
-  sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
+  sem /home/workspace/contests/run; segredos só no dir vivo `~/mojinho-live`, nunca no repo). ⚠ **A jaula COPIA o código do bot na largada** (tmpfs `/bot`): mudou
+  `mojinho-bot/*.sh` ⇒ `systemctl --user restart moj-bot` no servidor, senão o processo segue com o código
+  antigo (16/09: o bot de 26/08 não mandava `chat_type` e o `/relatorio aqui` respondia `not_group`). O
+  Bearer `mojb_…` do bot NUNCA recebe a dica de "CLI antiga" (`cli-version.sh`). **Alertas**: `lib/alerts.sh` + `GET /ops/alerts` (a API avalia com
   histerese/cooldown e enfileira no outbox `run/alerts/`; o bot drena e entrega a `.admin` vinculados
   + grupo). O outbox tem **TRÊS formatos**: `*.txt` = incidente (destino resolvido no claim = os
   `.admin`), `*-dm-*.json` = **DM dirigida** (`alert_dm`: o produtor resolve o chat; `group:false` p/ não

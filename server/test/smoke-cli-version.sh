@@ -36,6 +36,11 @@ ck "legacy no cabeçalho"                                '[[ "$(st)" == legacy &
 ck "dica anexada à mensagem: update + build servida + URL do /moj" '[[ "$(msg)" == *"moj update"* && "$(msg)" == *"$LATEST"* && "$(msg)" == *"https://moj.test/moj"* ]]'
 ck "corpo continua JSON válido com success:false"       '[[ "$(jq -r .success <<<"$BODY")" == false ]]'
 
+echo "== bot (Bearer mojb_… com curl cru) NÃO é CLI antiga =="
+call /rota-que-nao-existe "curl/8.5.0" "Bearer mojb_segredo"
+ck "bot: sem cabeçalho de CLI"                          '[[ -z "$(st)" ]]'
+ck "bot: mensagem sem a dica de update"                 '[[ "$(msg)" != *"moj update"* ]]'
+
 echo "== quem não é CLI: nada muda =="
 call /rota-que-nao-existe "Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/148.0"
 ck "navegador: sem X-Moj-Cli, sem dica"                 '[[ -z "$(st)" && "$(msg)" != *"moj update"* ]]'

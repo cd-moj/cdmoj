@@ -17,7 +17,8 @@ cli_status_compute(){
   [[ -n "${_CLI_STATUS_DONE:-}" ]] && return 0; _CLI_STATUS_DONE=1
   local ua="${HTTP_USER_AGENT:-}" b=""
   if [[ "$ua" =~ (^|[[:space:]])moj(-comp|-contest|-judges)?/([^[:space:]]+) ]]; then b="${BASH_REMATCH[3]}"
-  elif [[ "$ua" == curl/* && "${HTTP_AUTHORIZATION:-}" == Bearer\ * ]]; then CLI_STATUS=legacy
+  # Bearer mojb_… é o BOT (mojinho-api.sh, curl cru): não é CLI — nunca ganha a dica (2026-09-16)
+  elif [[ "$ua" == curl/* && "${HTTP_AUTHORIZATION:-}" == Bearer\ * && "${HTTP_AUTHORIZATION:-}" != "Bearer mojb_"* ]]; then CLI_STATUS=legacy
   else return 0; fi
   if [[ -r "$MOJ_CLI_BUILD_FILE" ]]; then IFS= read -r CLI_LATEST < "$MOJ_CLI_BUILD_FILE" || true; fi
   CLI_LATEST="${CLI_LATEST//[[:space:]]/}"
