@@ -1,0 +1,17 @@
+# Limpeza diária de espaço (2026-09-16, decisão do Ribas): reports de julgamento de contests
+# ENCERRADOS há mais de 6 meses são apagados (mojlog-prune.sh --ended-days 180 --apply — veredicto,
+# results/*.json e fonte ficam) e os caches regeneráveis são purgados (cache-purge.sh --apply: PDFs
+# de impressão de contest encerrado, lixeira > 60 d, tmp órfãos). Roda como o usuário do servidor.
+# Instalado por server/bin/install-housekeeping.sh; disparado pelo moj-housekeeping.timer.
+[Unit]
+Description=MOJ: limpeza diaria (reports > 6 meses, caches)
+
+[Service]
+Type=oneshot
+User=moj
+Environment=CONTESTSDIR=/home/moj/moj/contests
+ExecStart=/bin/bash /home/moj/moj/cdmoj/server/bin/mojlog-prune.sh --ended-days 180 --apply
+ExecStart=/bin/bash /home/moj/moj/cdmoj/server/bin/cache-purge.sh --apply
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

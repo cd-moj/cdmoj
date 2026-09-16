@@ -272,3 +272,8 @@ curl -s -H "$H" -H "Authorization: Bearer $TOK" "$B/api/v1/contest/history?conte
 ```
 
 > Para ver o veredicto aparecer no navegador (treino ou contest), deixe `judged.sh` rodando. Com `JUDGE_BACKEND=mock` toda submissão vira `Accepted,100p` (bom p/ demo, mas grava no histórico do contest submetido — prefira `zzdemo`). `JUDGE_BACKEND=local` usa `mojtools` (bubblewrap) com pacotes de problema locais. Em produção o daemon roda `INTAKE_MODE=queue JUDGE_BACKEND=queue` (pull): enfileira e os juízes (`judge/`) puxam o job.
+
+## Limpeza diária (timer no host)
+
+`sudo bash server/bin/install-housekeeping.sh` instala o `moj-housekeeping.timer` (03:30): apaga reports de
+julgamento de contests encerrados há mais de 6 meses e purga caches regeneráveis. Ver `ADMIN.md` §9.

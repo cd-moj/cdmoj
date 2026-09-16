@@ -1,0 +1,11 @@
+# Diário, de madrugada (03:30 do fuso do host); Persistent recupera a rodada perdida num reboot.
+[Unit]
+Description=MOJ: timer da limpeza diaria
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

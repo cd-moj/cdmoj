@@ -319,8 +319,15 @@ Ferramentas (todas **dry-run por padrão**; `--apply` executa):
   sozinho na próxima impressão.
 - `server/bin/mojlog-prune.sh --ended-days N [--contest <c>] --apply` — **apaga** os reports de contests
   encerrados há mais de N dias. Veredicto, `results/<id>.json` e o código-fonte ficam; a web passa a
-  dizer "report removido pela política de retenção". É destrutivo: rode por contest e só com decisão
-  do responsável. Nunca toca no treino (ele não tem `CONTEST_END` numérico) nem na lixeira.
+  dizer "report removido pela política de retenção". Nunca toca no treino (ele não tem `CONTEST_END`
+  numérico) nem na lixeira.
+
+**Política automática (decisão de 16/09/2026):** o timer `moj-housekeeping.timer` roda todo dia às
+03:30 `mojlog-prune.sh --ended-days 180 --apply` (reports de contests encerrados há mais de **6
+meses**) e `cache-purge.sh --apply`. Instale no host, como root: `bash server/bin/install-housekeeping.sh`
+(idempotente; `journalctl -u moj-housekeeping` mostra cada rodada; cada contest atingido ganha uma
+linha em `var/admin-audit.log`). Para preservar os reports de um contest específico além do prazo,
+mantenha uma cópia (`contest-backup`) antes da data.
 
 ## Ponteiros
 
