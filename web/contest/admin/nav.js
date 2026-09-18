@@ -15,7 +15,7 @@ import { T } from '/shared/i18n.js';
 // painel -> módulo(s) que o liga (qualquer um basta). Ausente = comum a todo contest.
 export const PANEL_MODULE = {
   inscricoes: ['inscricoes'],
-  rodadas: ['rodadas'], documentos: ['documentos'], baloes: ['baloes'], classificacao: ['classificacao'],
+  rodadas: ['rodadas'], documentos: ['documentos'], baloes: ['baloes'], classificacao: ['classificacao'], virtual: ['virtual'],
   times: ['sedes', 'telao'], coortes: ['coortes'], sedes: ['sedes'],
   gate: ['maquinas'], anomalias: ['maquinas'], mlinux: ['maquinas'],
 };
@@ -48,6 +48,7 @@ export const GROUPS = () => [
     { id: 'documentos', label: T('Documentos', 'Documents') },
     { id: 'baloes', label: T('Balões', 'Balloons') },
     { id: 'classificacao', label: T('Classificação', 'Qualification') },
+    { id: 'virtual', label: 'Virtual' },
     { id: 'times', label: T('Times', 'Teams') },
     { id: 'coortes', label: T('Coortes', 'Cohorts') },
     { id: 'sedes', label: T('Sedes & escolas', 'Sites & schools') },

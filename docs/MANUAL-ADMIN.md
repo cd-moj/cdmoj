@@ -149,6 +149,7 @@ correspondentes; **desligar esconde, sem apagar nada** — religar restaura tudo
 | `inscricoes` | Pessoas › Inscrições | `registrations.json` |
 | `telao` | cartões Revelação e Telão; Evento › Times (fotos) | `webcast.json`, fotos de time |
 | `classificacao` | Evento › Classificação (seletor de algoritmo) | `classification.json` |
+| `virtual` | Evento › Virtual; botão **Virtual** no card do contest encerrado; link no placar (ver §6¾) | `virtual/runs/` |
 
 Onde se liga: **Central › Módulos** (presets que só pré-marcam), o passo **7 · Módulos** do
 [criar contest](/treino/criar/), `moj-contest -c <cid> modules on|off` ou a seção `modules{}` do
@@ -435,6 +436,35 @@ arquivadas** (aquecimento, por exemplo) têm o próprio botão em Prova › Rela
 relatório (público)** coloca o relatório gerado na promoção em
 `/relatorio/<contest>/rodada/<slug>/` — e a página inicial do relatório principal, ao ser
 (re)publicada, passa a linkar as rodadas públicas em "Rodadas anteriores deste evento".
+
+## 6¾. Participação virtual (Evento › Virtual — módulo `virtual`)
+
+Com a prova encerrada, qualquer conta do Treino Livre pode **refazer o contest uma vez**, no próprio
+tempo, contra o placar oficial. O placar oficial **não muda**. Referência completa: `docs/VIRTUAL.md`.
+
+**Para ligar:** Central › Módulos › **Participação virtual**. O módulo só liga quando:
+
+1. o contest **não é secreto**;
+2. o modo é **ICPC**;
+3. **todos os problemas já são públicos no treino**. Se algum não for, a resposta é um erro que diz
+   quantos faltam. Publique os problemas primeiro (gestão de problemas) e ligue de novo.
+
+Você pode ligar o módulo antes do fim da prova. Ele fica **inerte** e abre sozinho quando a prova
+termina para todas as sedes **e** o placar é descongelado (botão **Encerrar evento**).
+
+**Atenção:** ligar este módulo torna o placar final e a lista de problemas visíveis para contas do
+treino. Um contest que não pode ser visto por fora não deve ligar o módulo.
+
+**O painel Evento › Virtual mostra:**
+
+- as **condições**, uma por linha, com ✅ ou ⛔ — o público só vê "indisponível"; você vê o que falta;
+- o **link** da página (`/treino/virtual/?c=<contest>`);
+- as **participações gravadas**, com resolvidos e penalidade. O botão **tirar do placar** remove uma
+  linha do placar virtual (o registro fica guardado; **devolver** desfaz). A ação é auditada.
+
+**Regra do participante** (ele a lê antes de largar): uma participação por conta; pode desistir sem
+gravar nos primeiros 15 minutos ou enquanto não tiver nenhum aceito, no máximo 2 vezes; a 3ª largada
+é definitiva.
 
 ## 7. Máquinas dos times (Máquinas › Gate & trava — módulo `maquinas`)
 

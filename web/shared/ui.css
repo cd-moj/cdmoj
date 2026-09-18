@@ -569,6 +569,11 @@ tr.qual-row.draft .qual-sub { color:#8a7420; }
 }
 table.score tr.guest-row { background: rgba(120,120,120,.07) }
 table.score tr.guest-row .cl-place { color: var(--muted, #777); font-style: italic }
+/* PARTICIPAÇÃO VIRTUAL (treino/virtual): linha virtual é um convidado com marca própria; `you` = quem olha */
+table.score tr.virtual-row { background: rgba(52,120,246,.07) }
+table.score tr.you-row { background: rgba(52,120,246,.18); outline: 2px solid rgba(52,120,246,.55); outline-offset: -2px }
+.pill.virtual { background: rgba(52,120,246,.15); color: #1f4fa8; border-color: rgba(52,120,246,.45) }
+@media (prefers-color-scheme: dark) { .pill.virtual { color: #9cc0ff } table.score tr.virtual-row { background: rgba(90,150,255,.10) } }
 /* numeração PRÓPRIA dos convidados (GUEST_NUMBERING, flag g do TXT — issue #25) */
 .gplace { font-style: italic; color: var(--muted, #777); font-weight: 600; }
 /* rodapé do site e das páginas de contest (shared/site-footer.js — issue #20) */

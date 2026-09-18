@@ -49,6 +49,11 @@
       🧊 <b data-en="Scoreboard frozen.">Placar congelado.</b>
       <span data-en=" From this point on the results stop appearing — everyone sees the standings as they were at ">A partir daqui os resultados deixam de aparecer — todos veem a classificação como estava às </span><b id="freezeSince"></b><span data-en=". Keep solving: your submissions are still being judged normally.">. Continue resolvendo: suas submissões seguem sendo julgadas normalmente.</span>
     </div>
+    <!-- participação virtual (módulo `virtual`): aparece com a prova ENCERRADA; a página mora no
+         site principal (o token do treino é de outra origem) — quem decide se vale é a API de lá -->
+    <div class="section notice hidden" id="virtualNotice">
+      🕹️ <span data-en="This contest is over. You can redo it against this scoreboard, in your own time: ">Esta prova acabou. Dá para refazê-la contra este placar, no seu tempo: </span><a id="virtualLink" href="#" data-en="virtual participation / replay →">participação virtual / replay →</a>
+    </div>
     <div class="section">
       <div class="row" style="margin-bottom:.6rem">
         <label class="small"><input type="checkbox" id="noAnim"> <span data-en="Disable animation">Desabilitar animação</span></label>

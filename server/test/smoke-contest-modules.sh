@@ -31,7 +31,7 @@ pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo 
 
 echo "== catálogo e detecção =="
 call /contest/admin/modules GET '' adm-ev 'contest=ev'
-ck "GET: 9 módulos, nenhum ligado"           '[[ "$(J ".modules|length")" == 9 && "$(J ".enabled|length")" == 0 ]]'
+ck "GET: 10 módulos, nenhum ligado"          '[[ "$(J ".modules|length")" == 10 && "$(J ".enabled|length")" == 0 ]]'
 ck "detected: coortes/maquinas/rodadas/sedes true, baloes false" '[[ "$(J "[.modules[]|select(.detected)|.id]|join(\",\")")" == "sedes,maquinas,rodadas,coortes" ]]'
 ck "reason cita o artefato"                  '[[ "$(J ".modules[]|select(.id==\"maquinas\")|.reason")" == "ua-gate.json" ]]'
 call /contest/admin/modules GET '' usr-ev 'contest=ev'

@@ -20,6 +20,7 @@ navegação), rode `bash docs/build-html.sh` e abra `docs/html/index.html`.
   (enunciado, `tests/`, `sols/`, `scripts/`, `conf`), os metadados (`.moj-meta.json` e `.moj-id`), o
   que são **orgs** (acesso) e **coleções** (agrupamento), e o ciclo validar → calibrar → publicar.
   O roteiro prático de montar um pacote fica no `README.md` do **mojtools**.
+- **[VIRTUAL.md](VIRTUAL.md)** — participação virtual: refazer um contest encerrado contra o placar oficial (portão, regra de desistência, feed, motor do placar)
 - **[SCOREBOARD.md](SCOREBOARD.md)** — formato do TXT de placar e como adicionar um modo
   (`updatescore-<modo>.sh` + `score-<modo>.js`).
 - **[DEPLOY.md](DEPLOY.md)** — nginx + fcgiwrap + units systemd (daemon `judged`, bot) + juízes

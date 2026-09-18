@@ -521,6 +521,14 @@ async function boot() {
   document.getElementById('contestTitle').textContent = basic.contest_name || 'Contest';
   document.getElementById('backBtn').href = '/contest/?c=' + encodeURIComponent(CONTEST);
   startCountdown();
+  // PARTICIPAÇÃO VIRTUAL: prova encerrada + módulo ligado ⇒ link p/ a página (no site PRINCIPAL:
+  // por subdomínio o token do treino não existe aqui). Conveniência — quem decide é a API de lá.
+  if ((basic.modules || []).includes('virtual') && basic.end_time && Date.now() / 1000 > basic.end_time) {
+    const sub = location.host.toLowerCase().startsWith(String(CONTEST).toLowerCase() + '.');
+    const base = sub ? location.protocol + '//' + location.host.replace(/^[^.]+\./, '') : '';
+    document.getElementById('virtualLink').href = base + '/treino/virtual/?c=' + encodeURIComponent(CONTEST);
+    document.getElementById('virtualNotice').classList.remove('hidden');
+  }
 
   const st = await status(CONTEST);
   isAuth = !!st.logged_in;

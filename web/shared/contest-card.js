@@ -31,6 +31,8 @@ export function contestCard(c, status) {
   actions.push(el('a', { class: 'btn ghost', href: score, style: bs }, T('Placar', 'Scoreboard')));
   // relatório estático PUBLICADO pelo admin (histórico do evento): /relatorio/<id>/
   if (c.report_url) actions.push(el('a', { class: 'btn ghost', href: c.report_url, style: bs }, T('📑 Relatório', '📑 Report')));
+  // participação virtual: refazer a prova encerrada contra o placar oficial (treino/virtual)
+  if (c.virtual_url) actions.push(el('a', { class: 'btn ghost', href: c.virtual_url, title: T('Refazer esta prova contra o placar oficial, no seu tempo', 'Redo this contest against the official scoreboard, in your own time') }, '🕹️ Virtual'));
 
   // INSCRIÇÃO: o contest só deixa entrar quem se inscreveu ANTES (roster + janela). O estado
   // sai do relógio do cliente a partir das datas — a regra em bash é a do lib/registration.sh.

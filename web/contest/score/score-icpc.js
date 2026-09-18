@@ -178,12 +178,15 @@ export function renderICPC(parsed, opts) {
 
   const tb = el('tbody');
   teams.forEach(t => {
+    // linha VIRTUAL (shared/virtual-board.js): é um convidado com marca própria; `you` = quem está olhando
     const tr = el('tr', { id: 'tr-team-' + t.username.replace(/\W/g, '_'),
-      class: t.guest ? 'guest-row' : '' });
+      class: (t.guest ? 'guest-row' : '') + (t.virtual ? ' virtual-row' : '') + (t.you ? ' you-row' : '') });
     // convidado não tem posição oficial: "–" — ou, com GUEST_NUMBERING (flag g), a posição na
     // SEQUÊNCIA PRÓPRIA dos convidados, em itálico (issue #25)
     const gcell = () => (t.gplace != null)
-      ? el('span', { class: 'gplace', title: T('posição entre os convidados (não conta na oficial)', 'position among guest teams (not in the official ranking)') }, String(t.gplace))
+      ? el('span', { class: 'gplace', title: t.virtual
+          ? T('posição que esta participação virtual ocuparia (não conta na oficial)', 'place this virtual participation would take (not in the official ranking)')
+          : T('posição entre os convidados (não conta na oficial)', 'position among guest teams (not in the official ranking)') }, String(t.gplace))
       : '–';
     if (filtered) {
       const sp = !t.guest ? sliceMap.get(t.username) : null;
@@ -239,7 +242,10 @@ export function renderICPC(parsed, opts) {
     }
     // 🤖 = o time DECLAROU na inscrição que usa IA (transparência, não julgamento)
     if (t.aiDeclared) teamTd.append(' ', el('span', { title: T('Este time declarou que usa IA', 'This team declared AI use'), style: 'cursor:default' }, '🤖'));
-    if (t.guest) teamTd.append(' ', el('span', { class: 'pill',
+    if (t.virtual) teamTd.append(' ', el('span', { class: 'pill virtual',
+      title: T('Participação virtual: refez a prova depois de encerrada, no próprio tempo.', 'Virtual participation: redid the contest after it ended, in their own time.') },
+      t.you ? T('virtual · você', 'virtual · you') : 'virtual'));
+    else if (t.guest) teamTd.append(' ', el('span', { class: 'pill',
       title: T('Time convidado (extra-oficial): não entra na classificação oficial.',
                'Guest team (unofficial): does not enter the official ranking.') },
       T('convidado', 'guest')));

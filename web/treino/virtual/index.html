@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-en-doctitle="Virtual participation — MOJ">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Participação virtual — MOJ</title>
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="icon" type="image/svg+xml" href="/shared/assets/logo_moj.svg">
+  <style>
+    .vr-head { display:flex; flex-wrap:wrap; gap:.6rem 1.2rem; align-items:center }
+    .vr-head h1 { margin:0; font-size:1.35rem }
+    .vr-clock { font-variant-numeric:tabular-nums; font-size:1.6rem; font-weight:700; letter-spacing:.02em }
+    .vr-clock.low { color:#c0392b }
+    .vr-stat { display:flex; gap:1rem; flex-wrap:wrap; font-variant-numeric:tabular-nums }
+    .vr-stat b { font-size:1.15rem }
+    .vr-rules li { margin:.25rem 0 }
+    .vr-prob > summary { cursor:pointer; padding:.45rem .2rem; font-weight:600 }
+    .vr-prob > summary .lt { display:inline-block; min-width:1.6em; text-align:center; border-radius:4px; border:1px solid var(--border,#ccc); margin-right:.4rem }
+    .vr-prob > summary .ok { color:#1e8449 } .vr-prob > summary .no { color:#c0392b }
+    .vr-send { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0 }
+    .vr-replay { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin:.4rem 0 .8rem }
+    .vr-replay input[type=range] { flex:1 1 240px }
+    @media (max-width: 820px) { .vr-clock { font-size:1.3rem } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="bar">
+      <a class="brand" href="/"><img src="/shared/assets/logo_moj.svg" alt="MOJ"> MOJ
+        <span class="slogan">Melhor Online Judge</span> <span class="badge-beta">BETA</span></a>
+      <div class="spacer"></div>
+      <nav class="navlinks">
+        <a href="/" data-en="Home">Página Inicial</a>
+        <a href="/treino/" data-en="Free Training">Treino Livre</a>
+        <a href="/contests/" data-en="Contests">Contests</a>
+        <span id="authArea" class="row"></span>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <div id="vhead" class="section"><span class="muted" data-en="loading…">carregando…</span></div>
+    <div id="vstart" class="section hidden"></div>
+    <div id="varena" class="hidden">
+      <div class="section"><h2 data-en="Problems">Problemas</h2><div id="vprobs"></div></div>
+      <div class="section"><h2 data-en="My submissions">Minhas submissões</h2><div id="vsubs"></div></div>
+    </div>
+    <div id="vboardsec" class="section hidden">
+      <h2 id="vboardtitle" data-en="Scoreboard">Placar</h2>
+      <div id="vreplay" class="vr-replay hidden"></div>
+      <div id="vboard"></div>
+    </div>
+  </main>
+  <script type="module" src="/shared/i18n-dom.js"></script>
+  <script type="module" src="/shared/site-header.js"></script>
+  <script type="module" src="/shared/site-footer.js"></script>
+  <script type="module" src="./virtual.js"></script>
+</body>
+</html>

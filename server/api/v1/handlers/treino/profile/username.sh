@@ -64,6 +64,9 @@ orgs_rename_login "$old" "$new" || true
 # em que estava inscrita ao trocar de handle. Ver lib/registration.sh.
 source "$_DIR/lib/registration.sh"
 reg_rename_login "$old" "$new" || true
+# PARTICIPAÇÕES VIRTUAIS seguem o rename: o estado mora no dir do usuário (já foi no mv), mas o
+# snapshot publicado fica no contest, chaveado pelo login (lib/virtual.sh)
+source "$_LIBDIR/virtual.sh" 2>/dev/null && vr_rename_login "$old" "$new" || true
 
 # TODAS as sessões do login seguem o novo nome — não só a que pediu a troca. A sessão da outra
 # aba/computador e o token do moj-cli continuavam valendo com o login VELHO: como a conta é um

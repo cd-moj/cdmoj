@@ -1198,6 +1198,299 @@
         }
       }
     },
+    "/treino/virtual/info": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Participação virtual (docs/VIRTUAL.md): dados da prova encerrada e o estado da run deste login. Portão único por requisição: módulo virtual, não-secreto, ICPC, encerrado p/ todas as sedes, placar descongelado e TODOS os problemas públicos no treino",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{contest,title,start_time,duration,penalty_minutes,problems_count,rules:{grace_s,max_discards,schedule_max_s},me}"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/treino/virtual/run": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Estado da participação virtual + runs derivadas do history do treino (submissões etiquetadas ∩ janela). Aplica as transições preguiçosas: fim do tempo finaliza (snapshot) ou descarta (0 AC)",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{contest,duration,penalty_minutes,me:{state,start,end,final,discards,discards_left,can_discard,official,result,runs,solved,penalty,pending,now}}"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Ações da participação virtual: start {accept:true,at?} (uma vez por conta; agenda até 7 dias), cancel (só agendada), discard (≤15 min OU 0 AC; máx. 2 — a 3ª largada é definitiva), finish (0 AC e não-definitiva vira discard)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "contest",
+                  "action"
+                ],
+                "properties": {
+                  "contest": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "start",
+                      "cancel",
+                      "discard",
+                      "finish"
+                    ]
+                  },
+                  "accept": {
+                    "type": "boolean"
+                  },
+                  "at": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "mesmo corpo do GET"
+          },
+          "403": {
+            "description": "role_forbidden"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          },
+          "409": {
+            "description": "virtual_already | virtual_not_scheduled | virtual_locked | virtual_not_running"
+          },
+          "422": {
+            "description": "terms_required | virtual_at_invalid"
+          }
+        }
+      }
+    },
+    "/treino/virtual/problems": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Problemas da prova p/ a participação virtual (letra, id, nome, linguagens do CONTEST, idiomas). O enunciado vem da rota pública /treino/problem",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{contest,problems:[{letter,id,name,languages,statement_langs}]}"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          },
+          "403": {
+            "description": "virtual_not_started"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/treino/virtual/feed": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Feed dos fantasmas: times do placar público FINAL e todas as runs (segundo, time, problema, Y|N|X|?) p/ o cliente reconstruir o placar em qualquer instante. Anônimo; pré-gzipado; o portão roda antes do cache",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{version,contest,title,duration,penalty_minutes,problems,teams,runs}"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          },
+          "503": {
+            "description": "virtual_feed_unavailable"
+          }
+        }
+      }
+    },
+    "/treino/virtual/board": {
+      "get": {
+        "tags": [
+          "treino"
+        ],
+        "summary": "Participações virtuais FINALIZADAS do contest (snapshots). Anônimo; com Bearer do treino marca `you`",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{contest,virtuals:[{login,name,univ,flag,start,used,solved,penalty,official,runs,you}]}"
+          },
+          "404": {
+            "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
+          }
+        }
+      }
+    },
+    "/contest/admin/virtual": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Painel da participação virtual: portão aberto em partes, link e participações gravadas",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{enabled,eligible,reason,checks:[{id,ok,detail}],url,virtuals}"
+          },
+          "403": {
+            "description": "admin_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Moderação: remove|restore uma linha do placar virtual (auditado)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "remove",
+                      "restore"
+                    ]
+                  },
+                  "login": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "mesmo corpo do GET"
+          },
+          "404": {
+            "description": "virtual_run_notfound"
+          }
+        }
+      }
+    },
     "/treino/contest-registration": {
       "get": {
         "tags": [
@@ -1329,7 +1622,7 @@
         "tags": [
           "submission"
         ],
-        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar). Whitelist de linguagens FORÇADA (400 lang_not_allowed): extensão canonicalizada tem de estar na lista efetiva do problema (override do contest -> LANGUAGES -> pacote -> todas); a linguagem gravada é a CANÔNICA (C++ = .cpp/.cc/.cxx/.c++ -> CPP; .h -> C; .py3 -> PY) Teto SUBMIT_MAX_KB (1024) -> 413 source_too_large; whitelist vazia = as linguagens da PLATAFORMA (.exe -> 400); fail-closed: spool validado antes do OK (500 spool_write_failed, sem pendente fantasma). No TREINO o problema tem de ser visível ao login (público, ou privado de dono/colaborador/membro da org): senão 404 problem_notfound, idêntico a id inexistente.",
+        "summary": "Submeter solução (assíncrono). Gate por fase+papel: admin/judge sempre; staff nunca (403 submit_forbidden); normal e mon só durante a janela (403 contest_not_started / contest_ended; mon fica fora do placar). Whitelist de linguagens FORÇADA (400 lang_not_allowed): extensão canonicalizada tem de estar na lista efetiva do problema (override do contest -> LANGUAGES -> pacote -> todas); a linguagem gravada é a CANÔNICA (C++ = .cpp/.cc/.cxx/.c++ -> CPP; .h -> C; .py3 -> PY) Teto SUBMIT_MAX_KB (1024) -> 413 source_too_large; whitelist vazia = as linguagens da PLATAFORMA (.exe -> 400); fail-closed: spool validado antes do OK (500 spool_write_failed, sem pendente fantasma). Campo opcional virtual:<cid> (só no treino; docs/VIRTUAL.md): etiqueta a submissão na participação virtual do login — 404 virtual_unavailable, 400 virtual_problem, 403 virtual_not_running; a whitelist de linguagem passa a ser a do contest. No TREINO o problema tem de ser visível ao login (público, ou privado de dono/colaborador/membro da org): senão 404 problem_notfound, idêntico a id inexistente.",
         "security": [
           {
             "bearerAuth": []

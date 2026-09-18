@@ -7,7 +7,7 @@
 // Módulo novo: id aqui + no bash (MODULES, mod_detect) + painel em nav.js (PANEL_MODULE) + doc.
 import { T } from '/shared/i18n.js';
 
-export const MODULE_IDS = ['sedes', 'maquinas', 'rodadas', 'documentos', 'baloes', 'coortes', 'inscricoes', 'telao', 'classificacao'];
+export const MODULE_IDS = ['sedes', 'maquinas', 'rodadas', 'documentos', 'baloes', 'coortes', 'inscricoes', 'telao', 'classificacao', 'virtual'];
 
 // fábrica preguiçosa: T() no topo congelaria o idioma antes do LOCALE do contest
 export const MODULES = () => [
@@ -47,6 +47,10 @@ export const MODULES = () => [
     desc: T('Promoção à próxima fase por algoritmo (SBC 1ª fase hoje; PDA depois): rascunho, revisão e publicação no placar.',
       'Promotion to the next stage by algorithm (SBC stage 1 today; PDA later): draft, review and publication on the scoreboard.'),
     panels: [T('Evento › Classificação', 'Event › Qualification')] },
+  { id: 'virtual', icon: '🕹️', name: T('Participação virtual', 'Virtual participation'),
+    desc: T('Depois de encerrada, a prova pode ser refeita por qualquer conta do treino, contra o placar oficial no tempo do participante. Só liga se TODOS os problemas já forem públicos no treino; contest secreto nunca.',
+      'After it ends, any training account can redo the contest against the official scoreboard, in the participant\'s own time. It only turns on if ALL problems are already public in training; a secret contest never.'),
+    panels: [T('Evento › Virtual', 'Event › Virtual')] },
 ];
 
 // presets só PRÉ-MARCAM as caixas do painel Módulos — o admin ainda salva
@@ -57,6 +61,6 @@ export const PRESETS = () => [
     hint: T('o comum + gate de máquina, sessão única e anomalias', 'the common part + machine gate, single session and anomalies') },
   { id: 'seletiva', name: T('Seletiva / prova com inscrição', 'Selection / contest with registration'), mods: ['inscricoes', 'documentos', 'baloes', 'telao'],
     hint: T('inscrição, caderno, balões e cerimônia — uma sede', 'registration, booklet, balloons and ceremony — one site') },
-  { id: 'maratona', name: T('Maratona / ICPC (várias sedes)', 'Maratona / ICPC (multi-site)'), mods: MODULE_IDS.slice(),
+  { id: 'maratona', name: T('Maratona / ICPC (várias sedes)', 'Maratona / ICPC (multi-site)'), mods: MODULE_IDS.filter((m) => m !== 'virtual'),   // virtual é decisão de DEPOIS da prova (exige problemas públicos)
     hint: T('tudo ligado', 'everything on') },
 ];

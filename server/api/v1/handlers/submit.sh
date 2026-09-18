@@ -87,6 +87,26 @@ if ! lang_allowed "$_wl" "$FILETYPE"; then
   fail 400 "Linguagem .${ext,,} não aceita neste problema (aceitas: ${_wll:-?})" "lang_not_allowed"
 fi
 
+# PARTICIPAÇÃO VIRTUAL (lib/virtual.sh): `virtual:"<cid>"` etiqueta ESTA submissão do treino como
+# parte da run virtual do login naquele contest. Custo zero sem o campo. Mesmo portão das rotas do
+# virtual (404 idêntico a inexistente), problema tem de ser DA prova, run tem de estar RODANDO, e a
+# whitelist de linguagem passa a ser a do CONTEST. Problema privado nunca chega aqui: o portão
+# exige todos públicos, e o gate de visibilidade acima já rodou.
+virtual_cid="$(jq -r '.virtual // empty' <<<"$body")"
+if [[ -n "$virtual_cid" ]]; then
+  [[ "$contest" == treino ]] || fail 400 "virtual só vale no treino" "virtual_invalid"
+  source "$_LIBDIR/virtual.sh"
+  vr_load "$virtual_cid" || fail 404 "Not found" "virtual_unavailable"
+  vr_pidx "$problem" >/dev/null || fail 400 "Problema não pertence a este contest" "virtual_problem"
+  [[ "$(vr_effective "$(vr_state "$SESSION_LOGIN" "$virtual_cid")")" == running ]] \
+    || fail 403 "Sua participação virtual não está em andamento" "virtual_not_running"
+  _wl="$(effective_problem_langs "$virtual_cid" "$problem")"
+  if ! lang_allowed "$_wl" "$FILETYPE"; then
+    [[ -z "$_wl" || "$_wl" == '[]' ]] && _wl="$(platform_langs_json)"
+    fail 400 "Linguagem .${ext,,} não aceita neste problema da prova (aceitas: $(jq -r 'join(", ")' <<<"$_wl" 2>/dev/null))" "lang_not_allowed"
+  fi
+fi
+
 AGORA="$EPOCHSECONDS"
 ID="$(printf '%s%s%s%s%s' "$contest" "$AGORA" "$SESSION_LOGIN" "$problem" "$RANDOM" | md5sum | cut -d' ' -f1)"
 
@@ -111,6 +131,9 @@ mv -f "$tmp" "$_sd/$spoolname"   # atômico: só aparece pronto p/ o daemon (no 
 mkdir -p "$(user_dir "$contest" "$SESSION_LOGIN")" 2>/dev/null
 user_history_append "$contest" "$SESSION_LOGIN" \
   "$AGORA:$problem:$FILETYPE:Not Answered Yet:$AGORA:$ID"
+# etiqueta da run virtual: uma linha < PIPE_BUF em O_APPEND é atômica; a janela é conferida de
+# novo na leitura (sub_epoch < end), então corrida com o fim da run não conta submissão tardia
+[[ -n "$virtual_cid" ]] && printf '%s\n' "$ID" >> "$(vr_subs "$SESSION_LOGIN" "$virtual_cid")"
 # metrics carregam o PENDING que o placar (gerado só de metrics) mostra na hora
 metrics_recompute "$contest" "$SESSION_LOGIN"
 

@@ -333,6 +333,28 @@ Dica: quer aparecer nesse ranking? **Declare o seu editor** na seção **Dados**
 
 ---
 
+## 9½. Participação virtual: refazer uma prova encerrada
+
+Alguns contests encerrados têm o botão **🕹️ Virtual** no card (página inicial e arquivo de
+contests). Ele abre a **participação virtual**: você refaz a prova inteira, com relógio, contra o
+placar oficial. Os times oficiais resolvem os problemas no mesmo minuto em que resolveram na prova real.
+
+1. **Leia as regras e marque o aceite.** Não participe se já viu os problemas. Faça a prova inteira.
+2. Escolha **Começar agora** ou **Agendar** (até 7 dias; o agendamento pode ser cancelado).
+3. Na arena: abra um problema, escolha o arquivo e envie. O veredicto aparece em **Minhas submissões**.
+   O placar mostra a sua linha em destaque, com a posição que você ocuparia.
+4. **Encerrar agora** termina antes do tempo.
+
+**Desistir sem gravar:** o botão **Desistir** existe nos primeiros **15 minutos**, ou enquanto você
+não tiver **nenhum problema aceito**. Desistir devolve a tentativa, no máximo **2 vezes**. Depois
+disso a largada é definitiva. Terminar o tempo sem nenhum aceito conta como desistência.
+
+**Depois:** a sua linha fica no placar virtual da prova, marcada como **virtual**. Cada conta faz a
+participação virtual de uma prova **uma vez**. As submissões ficam no seu histórico do treino.
+
+Sem entrar na conta, a mesma página mostra o **Replay**: arraste o controle de tempo para ver o
+placar em qualquer minuto da prova.
+
 ## 10. Para saber mais
 
 - Para os detalhes de **como enviar em cada linguagem** e de como funciona a **entrada e

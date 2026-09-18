@@ -6,7 +6,7 @@ frontend estático modular, lendo o **mesmo `contests/<id>/`** de sempre (sem mi
 
 > Fluxo de submissão/julgamento e como os daemons conversam: ver **[FLOW.md](FLOW.md)**.
 > Contrato de rotas: **[API.md](API.md)** (+ `web/api/openapi.json`). Formato do pacote de problema
-> (orgs, coleções, metadados): **[PACOTE.md](PACOTE.md)**. Placar: **[SCOREBOARD.md](SCOREBOARD.md)**.
+> (orgs, coleções, metadados): **[PACOTE.md](PACOTE.md)**. Placar: **[SCOREBOARD.md](SCOREBOARD.md)**. Participação virtual (refazer contest encerrado): **[VIRTUAL.md](VIRTUAL.md)**.
 > Deploy: **[DEPLOY.md](DEPLOY.md)**. Plano original: **[PLAN.md](PLAN.md)**.
 
 > **Convenção de commit:** mensagens em português, no presente, prefixadas pelo componente

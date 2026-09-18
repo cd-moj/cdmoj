@@ -36,7 +36,7 @@ pairs=re.findall(r"(\w+): \['([a-z]+)', '([a-z]+)'\]", body)
 print("const TARGET = {" + ",".join(f"{k}:['{g}','{p}']" for k,g,p in pairs) + "};")
 PY
     cat <<'JS'
-const ALL = new Set(['sedes','maquinas','rodadas','documentos','baloes','coortes','inscricoes','telao','classificacao']);
+const ALL = new Set(['sedes','maquinas','rodadas','documentos','baloes','coortes','inscricoes','telao','classificacao','virtual']);
 const NONE = new Set();
 const ids = GROUPS().flatMap(g => g.panels.map(p => p.id));
 print('unique_ids=' + (new Set(ids).size === ids.length));

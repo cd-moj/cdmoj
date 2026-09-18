@@ -228,7 +228,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`orgs_rename_login` em lib/orgs.sh — sem isso a conta renomeada ficava órfã de TODAS as orgs;
   o nome da org e o `owner` histórico dos problemas não mudam: acesso vem da membership)
   **e as SESSÕES também** (`rename_contest_sessions`, resposta `sessions_updated`) **e as
-  INSCRIÇÕES** (`reg_rename_login`). Item novo na cascata de rename ⇒ entra aqui, no
+  INSCRIÇÕES** (`reg_rename_login`) **e os snapshots de participação virtual** (`vr_rename_login`). Item novo na cascata de rename ⇒ entra aqui, no
   `username.sh` E no `smoke-profile.sh`.
 - **Inscrição em contest (`lib/registration.sh`)**: `contests/<c>/registrations.json` — **existir =
   ligado** (doutrina do `cohorts.json`: ausente = comportamento de sempre, custo zero). Vale só p/
@@ -798,7 +798,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **MÓDULOS DO CONTEST (`lib/modules.sh`, 2026-09-05)** — grupos de recursos que o admin LIGA por
   contest (`CONTEST_MODULES=a,b` no conf, `%q` escapa a vírgula ⇒ `mod_raw` tira as barras; ausente
   = nenhum). Catálogo ÚNICO `MODULES=(sedes maquinas rodadas documentos baloes coortes inscricoes
-  telao classificacao)`, espelhado em `web/contest/admin/modules.js` (paridade testada em
+  telao classificacao virtual)`, espelhado em `web/contest/admin/modules.js` (paridade testada em
   `smoke-admin-nav.sh`); `mod_on/mod_any/mod_list_json/mod_set/mod_detect`. O gate é **UX** (decide
   nav/painéis/checagens/cartões); **o acesso continua cortado em cada rota**. **Desligar nunca apaga
   dado** (o painel avisa; `detected` mostra que há arquivo). **Gravar o artefato de um módulo LIGA o
@@ -875,6 +875,26 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`install-housekeeping.sh`, root) roda diário prune `--ended-days 180` + cache-purge — reports de
   contest encerrado há > 6 meses SOMEM (decisão do Ribas, 16/09). Testes: `smoke-report-caps.sh`, `smoke-judged-watch.sh`, `smoke-handlers.sh`
   (gzip), `smoke-statement-langs.sh` (tetos). Doc: `docs/ADMIN.md` §9.
+- **PARTICIPAÇÃO VIRTUAL (`lib/virtual.sh`, módulo `virtual`, 2026-09-18)** — conta do treino refaz um
+  contest ENCERRADO contra o placar oficial, no próprio tempo; doc em `docs/VIRTUAL.md`. Invariantes:
+  (1) **a submissão virtual É submissão do TREINO etiquetada** (`/submit … virtual:<cid>` anexa o
+  subid em `treino/users/<l>/virtual/<cid>.subs`); o resultado é DERIVADO do history — spool, judged,
+  metrics e placar não sabem do virtual, e **nada é escrito em `contests/<c>/users/`** (doutrina das
+  rodadas: não tornar o caminho quente ciente de janela); (2) **portão ÚNICO `vr_load`, fail-closed,
+  a CADA requisição e ANTES de qualquer cache**: módulo ∧ não-SECRET ∧ icpc ∧ `contest_over_for_all`
+  ∧ `FREEZE_TIME=0` ∧ **todo problema PÚBLICO no treino** — falhou = **404 `virtual_unavailable`
+  byte-idêntico a contest inexistente** e os caches do virtual são APAGADOS; nada lê `jsons-private/`
+  nem o pacote, e o enunciado vem da rota pública `/treino/problem` (o virtual não cria caminho novo
+  até conteúdo de problema); `VR_IGNORE` existe SÓ p/ o painel do dono ("dá p/ ligar?") — nunca use
+  em rota que serve dado; (3) regra de desistência (≤15 min OU 0 AC; máx. 2; 3ª largada definitiva;
+  0 AC no fim = descarte) mora em `vr_can_discard`/`vr_refresh`; (4) **duas implementações da regra
+  ICPC** — `VR_FLAG_JQ` espelha o `counts` de `metrics_recompute` e `web/shared/virtual-board.js`
+  espelha `updatescore-icpc.sh`: mexeu numa, rode o **diferencial** `smoke-virtual-board.gjs.sh`
+  (motor em t=∞ == `placar.txt`); (5) times do feed = as LINHAS do `placar.txt` público final (truque
+  do webcast-gen: coorte/desclassificado/papel já filtrados); (6) rename de conta leva o snapshot
+  (`vr_rename_login`, com `find` — a API roda `noglob`). Rota nova do virtual ⇒ `vr_gate` na 1ª linha
+  **e** uma linha na matriz `smoke-virtual-leak.sh`. Testes: `smoke-virtual{,-leak}.sh`,
+  `smoke-virtual-board.gjs.sh`. Fora do v1: times, OBI, rodadas arquivadas, `moj-comp --virtual`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

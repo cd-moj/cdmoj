@@ -219,6 +219,24 @@ O mesmo mecanismo (API → spool → daemon) serve comandos administrativos vind
 dispara `server/score/jplag-run.sh` em background, que junta as soluções aceitas, roda o jar
 e grava os pares de similaridade em `contests/<c>/jplag/`.
 
+## 8½. Participação virtual (contest encerrado, refeito a partir do treino)
+
+A submissão virtual **é uma submissão normal do treino** e segue o caminho das seções 1 a 7 sem
+mudança. A diferença está só na porta e na leitura (`lib/virtual.sh`, `docs/VIRTUAL.md`):
+
+1. `POST /submit?contest=treino` com `virtual:"<cid>"`. A porta confere o **portão** do virtual
+   (contest encerrado, descongelado, não-secreto, todos os problemas públicos), a run **rodando**, o
+   problema **da prova** e a linguagem **do contest**. Depois anexa o subid em
+   `treino/users/<login>/virtual/<cid>.subs`.
+2. Spool, daemon, juiz, history, metrics e placar **do treino**: iguais.
+3. `GET /treino/virtual/run` **deriva** o resultado: history do treino ∩ subids etiquetados ∩ janela.
+4. No fim do tempo, a primeira leitura **finaliza**: grava o snapshot em
+   `contests/<cid>/virtual/runs/<login>.json` (ou descarta, se 0 aceito).
+5. O placar é montado no **navegador**: `GET /treino/virtual/feed` (times do `placar.txt` final +
+   todas as runs) + `web/shared/virtual-board.js`.
+
+Nada é escrito em `contests/<cid>/users/`: o placar oficial do contest não muda.
+
 ## Troca de rodada (aquecimento → prova oficial)
 
 O mesmo contest roda o aquecimento e depois a prova. A rodada ATIVA é o `conf`
