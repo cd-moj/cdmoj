@@ -1,7 +1,7 @@
 # GET /submission/log?contest=<id>&id=<hash>[&time=<epoch>]   (Bearer) -> HTML
 # Report do julgamento (report.html auto-contido), localizado pelo HASH
 # (mojlog/*<hash>*). Se não houver report (ex.: submissão mock), responde uma nota
-# amigável. Visível se dono/admin/judge/SHOWCODE.
+# amigável. Visível SÓ ao dono e a admin/judge (a opção SHOWCODE foi removida em 2026-09-18).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -15,12 +15,10 @@ sid="$(param id)"
 set +o noglob; shopt -s nullglob
 resolve_submission "$contest" "$sid"     # store-v2 ou legado
 owner="$SUB_OWNER"
-SHOWCODE=0
-load_contest_conf "$contest"
 # juiz/admin sempre veem; dono vê conforme o SHOWLOG efetivo (showlog_effective em
 # lib/verdict.sh: explícito manda; ausente = oculto em modo icpc — o report expõe os testes).
 if ! is_judge; then
-  if [[ -n "$owner" && "$owner" != "$SESSION_LOGIN" && "${SHOWCODE:-0}" != 1 ]]; then
+  if [[ -n "$owner" && "$owner" != "$SESSION_LOGIN" ]]; then
     shopt -u nullglob; fail 403 "Log not visible" "log_forbidden"
   fi
   if [[ "$(showlog_effective "$contest")" == 0 ]]; then

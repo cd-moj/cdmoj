@@ -19,15 +19,16 @@ export function makeSettingsTab(CONTEST, opts = {}) {
   const panel = el('div', { class: 'section' });
 
   // rótulo + índices dos filhos do editor (modo admin) + começa aberta?
+  // (2026-09-18: a caixa "mostrar o código a todos" — antigo índice 6 — foi REMOVIDA; tudo acima dele desceu 1)
   const GROUPS = () => [
-    // 28,29,30 = o bloco do FUSO da prova, acrescentado no fim do editor (ver a nota lá:
+    // 27,28,29 = o bloco do FUSO da prova, acrescentado no fim do editor (ver a nota lá:
     // campo novo entra no fim justamente para não deslocar estes índices)
-    { label: T('🕒 Identidade e janela', '🕒 Identity and window'), idx: [0, 1, 2, 3, 28, 29, 30], open: true },
-    { label: T('👁 O que o time vê durante a prova', '👁 What the team sees during the contest'), idx: [6, 7, 8, 9, 10, 11, 12] },
-    { label: T('⚖️ Julgamento (linguagens, pool, veredicto manual)', '⚖️ Judging (languages, pool, manual verdict)'), idx: [13, 14, 19, 20, 21, 22, 23, 24] },
-    // 31,32,33 = o bloco "balões durante o freeze", também acrescentado no fim do editor
-    { label: T('🏅 Placar, freeze e penalidade', '🏅 Scoreboard, freeze and penalty'), idx: [15, 18, 25, 26, 27, 31, 32, 33, 34, 35, 36] },
-    { label: T('🔒 Acesso ao contest', '🔒 Contest access'), idx: [4, 5, 16, 17] },
+    { label: T('🕒 Identidade e janela', '🕒 Identity and window'), idx: [0, 1, 2, 3, 27, 28, 29], open: true },
+    { label: T('👁 O que o time vê durante a prova', '👁 What the team sees during the contest'), idx: [6, 7, 8, 9, 10, 11] },
+    { label: T('⚖️ Julgamento (linguagens, pool, veredicto manual)', '⚖️ Judging (languages, pool, manual verdict)'), idx: [12, 13, 18, 19, 20, 21, 22, 23] },
+    // 30,31,32 = o bloco "balões durante o freeze", também acrescentado no fim do editor
+    { label: T('🏅 Placar, freeze e penalidade', '🏅 Scoreboard, freeze and penalty'), idx: [14, 17, 24, 25, 26, 30, 31, 32, 33, 34, 35] },
+    { label: T('🔒 Acesso ao contest', '🔒 Contest access'), idx: [4, 5, 15, 16] },
   ];
 
   async function load() {

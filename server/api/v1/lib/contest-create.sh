@@ -147,7 +147,7 @@ cc_create(){
   local spec="$1" creator="$2" cname="$3" enun="${4:-}"
   jq -e . >/dev/null 2>&1 <<<"$spec" || fail 400 "Spec JSON inválido" "bad_spec"
 
-  local name mode start end langs showcode priority
+  local name mode start end langs priority
   name="$(jq -r '.name // ""' <<<"$spec")"
   mode="$(jq -r '.mode // "icpc"' <<<"$spec")"
   start="$(jq -r '.start // empty' <<<"$spec")"
@@ -160,7 +160,7 @@ cc_create(){
   else
     langs="$(jq -r '.languages // ""' <<<"$spec")"
   fi
-  showcode="$(jq -r 'if .showcode==true then 1 else 0 end' <<<"$spec")"
+  # (`showcode` do spec é IGNORADO: a opção SHOWCODE foi removida em 2026-09-18 — spec antigo segue aceito)
   # prioridade no escalonador (SEPARADA do modo/CONTEST_TYPE): super>prova>lista-privada>lista-publica
   priority="$(jq -r '.priority // "lista-publica"' <<<"$spec")"
 
@@ -373,7 +373,6 @@ cc_create(){
     printf 'CONTEST_END=%q\n'   "$end"
     printf '%s\n' "$probs"
     [[ -n "$langs" ]] && printf 'LANGUAGES=%q\n' "$langs"
-    printf 'SHOWCODE=%q\n' "$showcode"
     [[ -n "$shared" ]] && printf 'USERS_FROM=%q\n' "$shared"
     [[ "$b_locale" =~ ^(pt|en)$ ]] && printf 'LOCALE=%q\n' "$b_locale"
     [[ "$b_lstart" =~ ^[0-9]+$ ]] && printf 'LOGIN_START_TIME=%q\n' "$b_lstart"
@@ -789,7 +788,7 @@ cc_tpl_relativize(){
     def pick($keys): with_entries(select(.key as $k | $keys | index($k)));
     (.start|tonumber? // 0) as $st | (.end|tonumber? // 0) as $en
     | (.login_start|tonumber? // 0) as $ls | (.freeze|tonumber? // 0) as $fz
-    | pick(["mode","priority","languages","showcode","show_log","show_editor","show_tl",
+    | pick(["mode","priority","languages","show_log","show_editor","show_tl",
             "allow_backup","allow_print","score_anon","manual_verdict","allow_late","secret",
             "login_ua_substring","score_full_users","locale","login_enabled",
             "penalty_minutes","penalty_verdicts",
@@ -814,7 +813,7 @@ cc_export_spec(){
   local confjson
   confjson="$(
     CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_PRIORITY=""; CONTEST_START=""; CONTEST_END=""
-    LANGUAGES=""; SHOWCODE=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
+    LANGUAGES=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
     FREEZE_TIME=""; ALLOWLATEUSER=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
     PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""; CONTEST_MODULES=""
@@ -822,7 +821,7 @@ cc_export_spec(){
     jq -cn \
       --arg name "$CONTEST_NAME" --arg mode "$CONTEST_TYPE" --arg prio "$CONTEST_PRIORITY" \
       --arg start "$CONTEST_START" --arg end "$CONTEST_END" --arg langs "$LANGUAGES" \
-      --arg showcode "$SHOWCODE" --arg users_from "$USERS_FROM" --arg locale "$LOCALE" \
+      --arg users_from "$USERS_FROM" --arg locale "$LOCALE" \
       --arg lstart "$LOGIN_START_TIME" --arg lenabled "$LOGIN_ENABLED" --arg freeze "$FREEZE_TIME" \
       --arg late "$ALLOWLATEUSER" --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
@@ -834,7 +833,6 @@ cc_export_spec(){
       + (if ($start|tonumber?) then {start:($start|tonumber)} else {} end)
       + (if ($end|tonumber?) then {end:($end|tonumber)} else {} end)
       + (if $langs != "" then {languages:($langs|split(" ")|map(select(length>0)))} else {} end)
-      + {showcode:($showcode=="1")}
       + (if $users_from != "" then {users_from:$users_from} else {} end)
       + (if $locale != "" then {locale:$locale} else {} end)
       + (if (($lstart|tonumber?) // 0) > 0 then {login_start:($lstart|tonumber)} else {} end)

@@ -41,7 +41,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const PL = PRIORITY_LABEL();
   const priority = el('select', {}, ...prios.map((p) => el('option', { value: p }, PL[p] || p)));
   priority.value = prios.includes(s.priority) ? s.priority : 'lista-publica';
-  const loginEnabled = mkBool(s.login_enabled !== false), showCode = mkBool(s.show_code ?? s.showcode),
+  const loginEnabled = mkBool(s.login_enabled !== false),
     showLog = mkBool(s.show_log !== false), showEditor = mkBool(s.show_editor !== false),
     allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
     showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
@@ -105,7 +105,6 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     isCreate ? el('div', { class: 'grid2' }, field(T('Idioma', 'Language'), locale), field(T('Prioridade no julgamento', 'Judging priority'), priority)) : field(T('Idioma', 'Language'), locale),
     chk(T('Login habilitado', 'Login enabled'), loginEnabled),
     chk(T('Permitir auto-cadastro de novos usuários (late users)', 'Allow self-registration of new users (late users)'), allowLate),
-    chk(T('Mostrar o código das submissões (a todos)', "Show submissions' code (to everyone)"), showCode),
     chk(T('Usuário pode ver o log de julgamento', 'User can see the judging log'), showLog),
     showLogHint,
     chk(T('Editor de código no browser disponível', 'In-browser code editor available'), showEditor),
@@ -161,7 +160,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       // DESCONGELAR. Omitir a chave fazia o salvar responder ✓ sem tirar o freeze.
       freeze: freeze.value ? dtToEpoch(freeze.value) : 0,
       locale: locale.value, tz: tz.value.trim(), login_enabled: loginEnabled.checked,
-      show_code: showCode.checked, show_log: showLog.checked, show_editor: showEditor.checked,
+      show_log: showLog.checked, show_editor: showEditor.checked,
       allow_late: allowLate.checked, score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
       manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,

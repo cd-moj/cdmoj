@@ -909,6 +909,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   a tentativa (estado posto de lado, não apagado). Rota nova do virtual ⇒ `vr_gate` na 1ª linha
   **e** uma linha na matriz `smoke-virtual-leak.sh`. Testes: `smoke-virtual{,-leak}.sh`,
   `smoke-virtual-board.gjs.sh`. Fora do v1: times, OBI, rodadas arquivadas, `moj-comp --virtual`.
+- **FONTE, REPORT e RESUMO de uma submissão = DONO ou JUIZ/ADMIN, sempre** (`submission/{source,log,summary}.sh`).
+  A opção `SHOWCODE`/`show_code` ("mostrar o código das submissões a todos") foi **REMOVIDA em 2026-09-18**:
+  abria, só pela API, fonte+report+resumo de TODO MUNDO a qualquer login do contest; ninguém soube dizer
+  quando isso era desejável, e quem a ligava (relato do Daniel Saad) achava que ela liberava o PRÓPRIO
+  código — que sempre foi visível. Linha `SHOWCODE` em conf antigo é morta (o settings POST a apaga e
+  aceita-e-ignora a chave; spec de criação com `showcode` idem). Não reintroduza um "abrir soluções" sem
+  um pedido explícito. ⚠ A tela **Regras** agrupa os campos do `settings-editor.js` por ÍNDICE: tirar um
+  campo do MEIO desloca −1 todos os seguintes no `GROUPS` de `settings-tab.js`. Teste:
+  `smoke-submission-access.sh` (parte do conf LEGADO com `SHOWCODE=1`).
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

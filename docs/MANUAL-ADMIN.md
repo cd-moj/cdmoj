@@ -415,7 +415,7 @@ botão **🏁 Encerrar evento**, que faz de uma vez as duas coisas que todo mund
    os times. (O editorial só pode ser publicado depois do fim; por isso ele entra aqui.)
 
 O botão **não** mexe no resto: liberar o **relatório de correção** para os times (`SHOWLOG`),
-abrir o **código das outras equipes** (`SHOWCODE`), mostrar os **limites de tempo** e
+mostrar os **limites de tempo** e
 **liberar as coortes** (convidados) continuam sendo escolha sua — cada um aparece no
 checklist com o atalho "resolver →" para a tela certa. Só roda depois que a prova terminou
 **para todas as sedes** (prorrogação por sede conta) e pode ser repetido à vontade: na
@@ -634,8 +634,8 @@ Quem não casa nada cai na coorte **default** (a dos oficiais).
 staff** (o balão do convidado tem de ser entregue) e o **relatório final**. Duas consequências
 práticas:
 
-- **não** ligue "ver código das submissões" (`SHOWCODE`) numa prova com convidados: ela abre o
-  fonte de qualquer submissão para qualquer login;
+- o **código de uma submissão** é visto só pelo time que a enviou e por juiz/admin. A opção antiga
+  "mostrar o código das submissões a todos" (`SHOWCODE`) foi **removida** em 2026-09-18;
 - **publicar o arquivo de uma rodada** (Evento › Rodadas) exige os resultados liberados quando há
   coorte privada — o relatório da rodada traz o placar aberto com todos.
 

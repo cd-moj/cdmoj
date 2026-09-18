@@ -11,7 +11,7 @@ source "$_LIBDIR/contest-gate.sh"
 
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   CONTEST_NAME=""; CONTEST_START=0; CONTEST_END=0; LOGIN_START_TIME=""; LOGIN_ENABLED=""; CONTEST_TZ=""
-  FREEZE_TIME=""; LOCALE=""; SHOWCODE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
+  FREEZE_TIME=""; LOCALE=""; SHOWLOG=""; SHOWEDITOR=""; ALLOWLATEUSER=""; LOGIN_UA_SUBSTRING=""; SCORE_ANON=""; SHOWTL=""; LANGUAGES=""; SCORE_FULL_USERS=""; BACKUP=""; PRINT=""; MANUAL_VERDICT=""; SECRET=""; CONTEST_JUDGES=""; BALLOONS_DURING_FREEZE=""; SCORE_BALLOON_STYLE=""
   PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; GUEST_NUMBERING=""; STATEMENT_LANGS=""
   load_contest_conf "$contest"
   source "$_LIBDIR/contest-statement.sh"
@@ -26,7 +26,7 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   source "$_LIBDIR/print.sh"; BLN_FROZEN="$(pr_balloons_frozen_count "$contest")"
   BLN_FROZEN="${BLN_FROZEN//[^0-9]/}"; BLN_FROZEN="${BLN_FROZEN:-0}"
   ok_json '{name:$nm, start:$st, end:$en, login_start:$ls, login_enabled:$le, freeze:$fz, locale:$loc, tz:$tz,
-            show_code:$sc, show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
+            show_log:$sl, show_editor:$se, allow_late:$al, login_ua_substring:$ua, score_anon:$sa,
             show_tl:$stl, languages:$langs, judges:$jdg, score_full_users:$sfu, allow_backup:$ab, allow_print:$ap, manual_verdict:$mv,
             secret:$sec, mode:$mode, penalty_minutes:$pm, penalty_verdicts:$pvd, review_judges:$rj,
             balloons_during_freeze:$bdf, balloons_frozen:$bfz, balloon_style:$bsty, modules:$mods,
@@ -47,7 +47,6 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
     --argjson ls "${LOGIN_START_TIME:-0}" --argjson fz "${FREEZE_TIME:-0}" --arg loc "${LOCALE:-pt}" \
     --arg tz "$(contest_tz "$contest")" \
     --argjson le "$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)" \
-    --argjson sc "$([[ "$SHOWCODE" == 1 ]] && echo true || echo false)" \
     --argjson sl "$([[ "$(showlog_effective "$contest")" == 0 ]] && echo false || echo true)" \
     --argjson se "$([[ "$SHOWEDITOR" == 0 ]] && echo false || echo true)" \
     --argjson al "$([[ "$ALLOWLATEUSER" == y ]] && echo true || echo false)" \
@@ -118,7 +117,10 @@ bset(){ # <jsonkey> <VAR> <on-value-p/-positivos>
     case "$2" in LOGIN_ENABLED) setvar LOGIN_ENABLED n;; SHOWLOG) setvar SHOWLOG 0;; SHOWEDITOR) setvar SHOWEDITOR 0;; SHOWTL) setvar SHOWTL 0;; BACKUP) setvar BACKUP 0;; PRINT) setvar PRINT 0;; *) delvar "$2";; esac
   fi
 }
-bset show_code   SHOWCODE 1
+# `show_code` (SHOWCODE) foi REMOVIDO em 2026-09-18: fonte/report/resumo alheios = só juiz/admin. A chave
+# é ACEITA E IGNORADA (cliente/CLI antigos mandam o formulário inteiro — 422 quebraria o Salvar) e a
+# linha morta sai do conf no primeiro save.
+grep -q '^SHOWCODE=' "$CONTESTSDIR/$contest/conf" 2>/dev/null && delvar SHOWCODE
 bset allow_late  ALLOWLATEUSER y
 bset score_anon  SCORE_ANON 1
 bset login_enabled LOGIN_ENABLED _

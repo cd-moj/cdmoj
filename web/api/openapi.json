@@ -2266,7 +2266,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{checks:[{id,level:ok|warn|fail,label,detail}], summary:{ok,warn,fail}} — ids: window, show_log, show_code, freeze, judges, pool, langs, problems, pool_problems, print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs"
+            "description": "{checks:[{id,level:ok|warn|fail,label,detail}], summary:{ok,warn,fail}} — ids: window, show_log, freeze, judges, pool, langs, problems, pool_problems, print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs"
           }
         }
       }
@@ -3491,9 +3491,6 @@
                       "type": "string"
                     },
                     "description": "pool de juízes do contest (hostnames do registro; vazio = qualquer juiz online) — vira CONTEST_JUDGES; escalonador ESTRITO"
-                  },
-                  "showcode": {
-                    "type": "boolean"
                   },
                   "show_log": {
                     "type": "boolean"

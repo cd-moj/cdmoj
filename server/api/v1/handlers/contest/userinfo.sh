@@ -5,9 +5,9 @@ contest="$(param contest)"
 require_contest "$contest"
 require_auth_contest "$contest"
 
-# Toggles do conf: SHOWEDITOR default LIGADO (só "0" desliga); SHOWCODE default desligado;
+# Toggles do conf: SHOWEDITOR default LIGADO (só "0" desliga);
 # SHOWLOG efetivo via showlog_effective (lib/verdict.sh — em modo icpc, ausente = oculto).
-SHOWCODE=0; SHOWEDITOR=""
+SHOWEDITOR=""
 load_contest_conf "$contest"
 
 # fullname canônico do passwd (cai p/ SESSION_NAME se vazio)
@@ -16,11 +16,10 @@ NAME="$(user_fullname "$contest" "$SESSION_LOGIN")"
 
 show_log=true;    [[ "$(showlog_effective "$contest")" == 0 ]] && show_log=false
 show_editor=true; [[ "$SHOWEDITOR" == 0 ]] && show_editor=false
-show_code=false;  [[ "${SHOWCODE:-0}" == 1 ]] && show_code=true
 
 # sessão de TIME: `actor` é a pessoa que autenticou (a UI mostra "fulano · competindo por X")
 ok_json '{login:$l, name:$n, contest:$c, is_admin:$a, is_judge:$j, is_staff:$s, is_cstaff:$cs, is_mon:$m, is_chief:$ch,
-          is_animeitor:$an, show_log:$sl, show_code:$sc, show_editor:$se}
+          is_animeitor:$an, show_log:$sl, show_editor:$se}
          + (if $ac == "" then {} else {actor:$ac, is_team:true} end)' \
   --arg l "$SESSION_LOGIN" --arg n "$NAME" --arg c "$contest" --arg ac "${SESSION_ACTOR:-}" \
   --argjson a "$(is_admin && echo true || echo false)" \
@@ -30,4 +29,4 @@ ok_json '{login:$l, name:$n, contest:$c, is_admin:$a, is_judge:$j, is_staff:$s, 
   --argjson m "$(is_mon && echo true || echo false)" \
   --argjson ch "$(is_chief && echo true || echo false)" \
   --argjson an "$(is_animeitor && echo true || echo false)" \
-  --argjson sl "$show_log" --argjson sc "$show_code" --argjson se "$show_editor"
+  --argjson sl "$show_log" --argjson se "$show_editor"

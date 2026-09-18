@@ -1,7 +1,10 @@
 # GET /submission/source?contest=<id>&id=<hash>[&time=<epoch>]   (Bearer) -> TXT
 # Localiza o fonte pelo HASH da submissão (chave única), aceitando os dois padrões de
 # nome: legado "<time>:<hash>-<login>-<prob>.<ext>" e novo "<hash>-<login>-<prob>.<ext>".
-# Visível se: dono da submissão, OU admin/judge, OU SHOWCODE=1.
+# Visível SÓ ao dono da submissão e a admin/judge. (Existia a opção SHOWCODE, que abria o fonte de
+# todo mundo a qualquer login do contest; foi REMOVIDA em 2026-09-18 — ninguém sabia dizer quando
+# isso era desejável, e quem a ligava achava que ela liberava o PRÓPRIO código, que sempre foi
+# visível. Linha SHOWCODE em conf antigo é morta. Teste: smoke-submission-access.sh.)
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -18,9 +21,7 @@ shopt -u nullglob
 [[ -n "$SUB_SRC" && -f "$SUB_SRC" ]] || fail 404 "Submission source not found" "source_notfound"
 src="$SUB_SRC"; owner="$SUB_OWNER"
 
-SHOWCODE=0
-load_contest_conf "$contest"
-if [[ "$owner" != "$SESSION_LOGIN" ]] && ! is_judge && [[ "${SHOWCODE:-0}" != 1 ]]; then
+if [[ "$owner" != "$SESSION_LOGIN" ]] && ! is_judge; then
   fail 403 "Source not visible" "source_forbidden"
 fi
 

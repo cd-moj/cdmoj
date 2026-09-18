@@ -21,7 +21,7 @@ const ICON = { ok: '🟢', warn: '🟡', fail: '🔴' };
 // id da checagem do preflight -> [grupo, painel] onde ela se resolve
 // (o botão "resolver →" só aparece se o painel-alvo está visível — módulo ligado; ver nav.js)
 const TARGET = {
-  window: ['central', 'regras'], fim: ['central', 'regras'], show_log: ['central', 'regras'], show_code: ['central', 'regras'],
+  window: ['central', 'regras'], fim: ['central', 'regras'], show_log: ['central', 'regras'],
   freeze: ['central', 'regras'], mode: ['central', 'regras'], langs: ['central', 'regras'],
   balloons_freeze: ['central', 'regras'],
   modules: ['central', 'modulos'],

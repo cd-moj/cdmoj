@@ -33,7 +33,7 @@ source "$_LIBDIR/contest-docs.sh"
 
 cdir="$CONTESTSDIR/$contest"
 now="$EPOCHSECONDS"
-FREEZE_TIME=""; SHOWLOG=""; SHOWCODE=""; CONTEST_END=0
+FREEZE_TIME=""; SHOWLOG=""; CONTEST_END=0
 load_contest_conf "$contest"
 
 _docs_pending_json(){   # [{type,lang}] dos gerados-e-não-publicados
@@ -81,11 +81,6 @@ if [[ "$REQUEST_METHOD" != POST ]]; then
     add show_log ok "Times veem o relatório de correção" "SHOWLOG ligado"
   else
     add show_log warn "Times NÃO veem o relatório de correção" "em modo prova é o padrão; depois costuma-se liberar em ⚙️ Regras"
-  fi
-  if [[ "${SHOWCODE:-0}" == 1 ]]; then
-    add show_code ok "Código visível entre os times" "SHOWCODE ligado"
-  else
-    add show_code warn "Cada time vê só o próprio código" "libere em ⚙️ Regras se quiser abrir as soluções"
   fi
   source "$_LIBDIR/cohorts.sh" 2>/dev/null || true
   if mod_on "$contest" coortes && declare -F ch_released >/dev/null 2>&1 && ! ch_released "$contest"; then

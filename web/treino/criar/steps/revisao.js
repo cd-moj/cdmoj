@@ -27,7 +27,6 @@ export function makeStepRevisao(ctx) {
   if (spec.login_start) optsBits.push(T('login abre ', 'login opens ') + fmtDate(spec.login_start));
   if (spec.show_log === false) optsBits.push(T('sem log', 'no log'));
   if (spec.show_editor === false) optsBits.push(T('sem editor', 'no editor'));
-  if (spec.showcode) optsBits.push(T('código visível', 'code visible'));
 
   const issues = [];
   if (!(spec.name || '').trim()) issues.push(T('Falta o nome (passo 1).', 'Name is missing (step 1).'));

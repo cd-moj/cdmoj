@@ -173,7 +173,6 @@ async function boot() {
       locale: o.locale, login_enabled: o.login_enabled,
       ...(o.login_start ? { login_start: o.login_start } : {}),
       ...(o.freeze ? { freeze: o.freeze } : {}),
-      showcode: !!o.show_code,
       show_log: o.show_log !== false, show_editor: o.show_editor !== false, show_tl: o.show_tl !== false,
       allow_backup: o.allow_backup !== false, allow_print: o.allow_print !== false,
       score_anon: !!o.score_anon, manual_verdict: !!o.manual_verdict,
@@ -229,8 +228,6 @@ async function boot() {
     ['priority', 'locale', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
       'allow_print', 'score_anon', 'manual_verdict', 'allow_late', 'login_ua_substring',
       'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
-    if (spec.showcode !== undefined) o.show_code = spec.showcode;
-    if (spec.show_code !== undefined) o.show_code = spec.show_code;
     if (spec.login_lead) o.login_start = st - spec.login_lead;
     if (spec.freeze_before_end) o.freeze = d.end - spec.freeze_before_end;
     d.opts = o;
@@ -252,7 +249,6 @@ async function boot() {
     ['priority', 'locale', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
       'allow_print', 'score_anon', 'manual_verdict', 'allow_late', 'login_ua_substring',
       'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
-    if (spec.showcode !== undefined) o.show_code = spec.showcode;
     if (spec.login_start && spec.start && spec.start > spec.login_start) o.login_start = st - (spec.start - spec.login_start);
     if (spec.freeze && spec.end && spec.end > spec.freeze) o.freeze = d.end - (spec.end - spec.freeze);
     d.opts = o;

@@ -24,7 +24,7 @@ add(){ # add <id> <level> <label> <detail>
 
 # conf num subshell-safe: só os campos que precisamos
 CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; FREEZE_TIME=""; LANGUAGES=""
-SHOWCODE=0; PRINT=""; MANUAL_VERDICT=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""
+PRINT=""; MANUAL_VERDICT=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""
 load_contest_conf "$contest"
 mode="$(contest_score_mode "$contest")"
 # MÓDULOS (lib/modules.sh): checagem de feature de evento só roda com o módulo LIGADO — contest
@@ -64,11 +64,6 @@ if [[ "$(showlog_effective "$contest")" == 0 ]]; then
 else
   lv=warn; [[ "$mode" == icpc ]] && lv=fail
   add show_log "$lv" "Log de julgamento VISÍVEL" "o report.html expõe input+diff de TODOS os testes — desligue em Configurações (show_log)"
-fi
-if [[ "${SHOWCODE:-0}" == 1 ]]; then
-  add show_code warn "Código das submissões PÚBLICO" "show_code ligado: qualquer um vê o fonte dos outros"
-else
-  add show_code ok "Código das submissões restrito" "só dono/juiz/admin"
 fi
 
 # --- freeze -------------------------------------------------------------------

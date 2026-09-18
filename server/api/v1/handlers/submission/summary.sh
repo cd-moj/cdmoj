@@ -17,7 +17,6 @@ require_auth_contest "$contest"
 idsraw="$(param ids)"
 [[ -n "$idsraw" ]] || fail 400 "Missing ids" "ids_missing"
 
-SHOWCODE=0
 load_contest_conf "$contest"
 isjudge=0; is_judge && isjudge=1
 # SHOWLOG efetivo (showlog_effective, lib/verdict.sh — em icpc, ausente = oculto) esconde o
@@ -46,7 +45,7 @@ for sid in "${IDS[@]}"; do
   [[ -n "$rf" && -f "$rf" ]] || continue
   if [[ "$isjudge" == 0 ]]; then
     (( hidden )) && continue
-    [[ "$SUB_OWNER" == "$SESSION_LOGIN" || "${SHOWCODE:-0}" == 1 ]] || continue
+    [[ "$SUB_OWNER" == "$SESSION_LOGIN" ]] || continue      # resumo alheio: só juiz/admin (SHOWCODE removido)
   fi
   RF+=("$rf")
 done

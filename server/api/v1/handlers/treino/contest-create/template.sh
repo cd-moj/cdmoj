@@ -21,7 +21,6 @@ cat <<'JSON'
   "end": 0,
   "languages": ["c", "cpp", "py"],
   "_languages": "whitelist de linguagens do contest (ids canonicos minusculos; [] ou omitido = todas). String legada tipo \"C CPP\" tambem e aceita",
-  "showcode": false,
   "_toggles": "os campos abaixo espelham /contest/admin/settings; so mande o que quer MUDAR do default",
   "show_log": true,
   "show_editor": true,
