@@ -96,7 +96,11 @@ done
 
 echo "== contest elegível funciona — e DEIXA de funcionar quando algo muda =="
 rm -f "$FIX/vok/var/"virtual-*; rm -rf "$FIX/vok/virtual"
+# COORTE PRIVADA (convidados ocultos do placar público): nem o time, nem o NOME da coorte saem no feed
+printf '{"version":1,"cohorts":[{"id":"oficial","name":"Oficiais","default":true,"public":true},{"id":"segredo","name":"SEGREDOCOORTE","regex":"^oculto","public":false,"unranked":true}]}' > "$FIX/vok/cohorts.json"
+fx_user "$FIX/vok" ocultotime s "SEGREDOOCULTO"; printf '%s:col#pa:C:Accepted:%s:zz9\n' "$((NOW-8000))" "$((NOW-8000))" > "$FIX/vok/users/ocultotime/history"
 call - /treino/virtual/feed GET contest=vok; ck "vok: feed 200" '[[ "$OUT" == *"Status: 200"* && "$(jq -r ".runs|length" <<<"$BODY")" == 1 ]]'
+ck "vok: coorte PRIVADA fora do feed (time, nome e runs)" '[[ "$OUT" != *ocultotime* && "$OUT" != *SEGREDOCOORTE* && "$OUT" != *SEGREDOOCULTO* && "$(jq -r ".teams|length" <<<"$BODY")" == 1 ]]'
 ck "vok: cache do feed criado"                '[[ -s "$FIX/vok/var/virtual-feed.json" ]]'
 jq -c '.public=false' "$T/var/jsons/col#pa.json" > "$T/var/jsons/x" && mv "$T/var/jsons/x" "$T/var/jsons/col#pa.json"
 call - /treino/virtual/feed GET contest=vok

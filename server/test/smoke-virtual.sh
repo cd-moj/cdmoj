@@ -138,6 +138,17 @@ call adm /contest/admin/virtual POST contest=v1 '{"action":"remove","login":"bet
 call - /treino/virtual/board GET contest=v1;  ck "removido some do board" '[[ "$(jq -r "[.virtuals[].login]|join(\",\")" <<<"$BODY")" == ana ]]'
 ck "…e foi auditado"                          'grep -q "virtual-remove" "$C/var/admin-audit.log" 2>/dev/null || grep -rq "virtual-remove" "$C" 2>/dev/null'
 
+echo "== dono DEVOLVE a tentativa (testador / quem teve problema) =="
+call adm /contest/admin/virtual POST contest=v1 '{"action":"reset","login":"beto"}'
+ck "reset: linha some do painel"               '[[ "$(jq -r "[.virtuals[].login]|index(\"beto\")" <<<"$BODY")" == null ]] && [[ ! -e "$C/virtual/runs/beto.json" ]]'
+ck "…auditado"                                 'grep -rq "virtual-reset" "$C/var" 2>/dev/null'
+call beto /treino/virtual/info GET contest=v1
+ck "conta volta ao zero (sem run, 2 desistências)" '[[ "$(jq -r .me.state <<<"$BODY")" == none && "$(jq -r .me.discards_left <<<"$BODY")" == 2 ]]'
+call beto /treino/virtual/run POST "" '{"contest":"v1","action":"start","accept":true}'
+ck "…e pode largar de novo, não-definitiva"    '[[ "$(st)" == running && "$(jq -r .me.final <<<"$BODY")" == false ]]'
+call adm /contest/admin/virtual POST contest=v1 '{"action":"reset","login":"ninguem"}'; ck "reset de quem não tem nada: 404" '[[ "$OUT" == *"Status: 404"* ]]'
+call ana /contest/admin/virtual POST contest=v1 '{"action":"reset","login":"beto"}';   ck "reset por não-admin: recusa" '[[ "$OUT" == *"Status: 403"* || "$OUT" == *"Status: 401"* ]]'
+
 echo "== rename do login leva o snapshot =="
 ( _LIBDIR="$ROOT/api/v1/lib"; source "$_LIBDIR/common.sh" 2>/dev/null; source "$_LIBDIR/virtual.sh"
   mv "$T/users/ana" "$T/users/ana2"; vr_rename_login ana ana2 )

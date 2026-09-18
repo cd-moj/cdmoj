@@ -2,7 +2,7 @@
 # smoke-score-flag-title.gjs.sh — no placar, a bandeira do PRÓPRIO time vence a regra por regex do
 # teams-meta (issue #21, LATAM 2026: a regra da sede "CA" = Central America no nome da sede, Canadá
 # na ISO, punha "Canada" no tooltip de times com bandeira CR/GT/SV/NI). A regra segue valendo p/
-# quem NÃO tem bandeira. Extrai applyTeamsDir/applyTeamsMeta do score.js real e roda no gjs.
+# quem NÃO tem bandeira. Extrai applyTeamsDir/applyTeamsMeta do score-filters.js real e roda no gjs.
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"
 W="$ROOT/web"; T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
@@ -17,15 +17,15 @@ const CONTEST = 'latam';
 const teamsDir = { cclcaadsi001: { flag: 'CR', univ_short: 'TEC', region: 'CCL - Central America' }, cclmxmast001: {} };
 const teamsMeta = [{ regex: '^cclcaadsi[0-9]', country: 'CA' }, { regex: '^cclmxmast[0-9]', country: 'MX' }];
 JS
-  sed -n '/^function applyTeamsDir(p) {/,/^}/p' "$W/contest/score/score.js"
-  sed -n '/^function applyTeamsMeta(p) {/,/^}/p' "$W/contest/score/score.js"
+  # a lógica mora em score-filters.js (fonte única com a Participação Virtual); o estado entra por parâmetro
+  sed -n '/^export function applyTeamsDir(/,/^}/p; /^export function applyTeamsMeta(/,/^}/p' "$W/contest/score/score-filters.js" | sed 's/^export //'
   cat <<'JS'
 const p = { mode: 'icpc', teams: [
   { username: 'cclcaadsi001', flag: 'CR' },          // tem bandeira própria (TXT + diretório)
   { username: 'cclcaadsi002', flag: '' },            // sem bandeira: a regra da sede vale
   { username: 'cclmxmast001', flag: '' },
 ] };
-applyTeamsDir(p); applyTeamsMeta(p);
+applyTeamsDir(p, teamsDir, CONTEST); applyTeamsMeta(p, teamsMeta);
 const t = (u) => p.teams.find(x => x.username === u);
 print('cr_flag=' + t('cclcaadsi001').flag + ' cr_title=' + t('cclcaadsi001').flagTitle + ' cr_country=' + t('cclcaadsi001')._country);
 print('noflag_flag=' + t('cclcaadsi002').flag + ' noflag_title=' + t('cclcaadsi002').flagTitle);

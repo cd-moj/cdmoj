@@ -892,7 +892,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   espelha `updatescore-icpc.sh`: mexeu numa, rode o **diferencial** `smoke-virtual-board.gjs.sh`
   (motor em t=∞ == `placar.txt`); (5) times do feed = as LINHAS do `placar.txt` público final (truque
   do webcast-gen: coorte/desclassificado/papel já filtrados); (6) rename de conta leva o snapshot
-  (`vr_rename_login`, com `find` — a API roda `noglob`). Rota nova do virtual ⇒ `vr_gate` na 1ª linha
+  (`vr_rename_login`, com `find` — a API roda `noglob`); (7) **os filtros do placar virtual SÃO os do
+  placar oficial**: a lógica (enriquecer times, casar bandeira/sede/escola, opções de sede) mora em
+  `web/contest/score/score-filters.js`, sem estado, e tanto `score.js` quanto `treino/virtual/virtual.js`
+  a importam — mudou regra de filtro, mude LÁ (o gêmeo inevitável segue sendo o script inline do
+  relatório); COORTE recorta no MOTOR (`teamOk`: posição e ★ = as do placar próprio da visão; diferencial
+  contra `placar-view-<id>.txt`), bandeira/universidade/sede/busca recortam LINHA no renderizador, a
+  virtual acompanha via `sliceVirtualPlaces` e NUNCA leva ★ (nem a do recorte — `sliceFts` a pula);
+  o feed (v2) só traz coorte PÚBLICA com time no placar público; (8) `reset` no painel do dono devolve
+  a tentativa (estado posto de lado, não apagado). Rota nova do virtual ⇒ `vr_gate` na 1ª linha
   **e** uma linha na matriz `smoke-virtual-leak.sh`. Testes: `smoke-virtual{,-leak}.sh`,
   `smoke-virtual-board.gjs.sh`. Fora do v1: times, OBI, rodadas arquivadas, `moj-comp --virtual`.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve

@@ -239,6 +239,8 @@ vr_feed_fresh(){
   local f; f="$(vr_feed_file "$1")"; local d="$CONTESTSDIR/$1"
   [[ -s "$f" && -s "$f.gz" ]] || return 1
   [[ "$d/conf" -nt "$f" || "$d/var/.score-dirty" -nt "$f" || "$d/var/placar.txt" -nt "$f" ]] && return 1
+  # o FORMATO do feed mora nesta lib: deploy que a muda invalida os feeds antigos (e cohorts.json é entrada)
+  [[ "${BASH_SOURCE[0]}" -nt "$f" || "$d/cohorts.json" -nt "$f" ]] && return 1
   return 0
 }
 vr_feed_build(){
@@ -248,7 +250,8 @@ vr_feed_build(){
   if vr_feed_fresh "$cid"; then exec 7>&-; return 0; fi
   vr_load "$cid" || { exec 7>&-; return 1; }        # re-checa o portão DENTRO do lock
   source "$_LIBDIR/users.sh" 2>/dev/null
-  if [[ ! -s "$d/var/placar.txt" || "$d/var/.score-dirty" -nt "$d/var/placar.txt" ]]; then
+  if [[ ! -s "$d/var/placar.txt" || "$d/var/.score-dirty" -nt "$d/var/placar.txt" \
+        || "$d/cohorts.json" -nt "$d/var/placar.txt" || "$d/conf" -nt "$d/var/placar.txt" ]]; then
     bash "$SCOREDIR/build.sh" "$cid" >/dev/null 2>&1
   fi
   [[ -s "$d/var/placar.txt" ]] || { exec 7>&-; return 1; }
@@ -258,7 +261,24 @@ vr_feed_build(){
            NR>2 && NF { g=(("guest" in H) ? $(H["guest"]) : "");
              printf "%s\001%s\001%s\001%s\001%s\001%s\n", $(H["username"]), $(H["flag"]), $(H["univ short"]), $(H["team name"]), $(H["univ full"]), g }' \
     "$d/var/placar.txt" > "$w/teams"
-  jq -Rc 'split("\u0001") | [.[0], .[1], .[2], .[3], .[4], (.[5]=="1")]' "$w/teams" | jq -cs . > "$w/teams.json"
+  # COORTE por time (7º campo) + `views` — p/ o filtro "Placar:" da página, igual ao do placar oficial.
+  # Só entra o que JÁ é público: os times são os do placar público, e uma coorte só vira opção se
+  # algum desses times pertence a ela (nome de coorte privada nunca sai daqui). A coorte vem do
+  # MESMO sc_users que o gerador do placar usa (campo .team.cohort › regex › default).
+  printf '{}' > "$w/coh.json"; printf '[]' > "$w/views.json"
+  source "$_LIBDIR/cohorts.sh" 2>/dev/null
+  if declare -F ch_enabled >/dev/null && ch_enabled "$cid"; then
+    ( source "$SCOREDIR/score-common.sh" && sc_load "$cid" >/dev/null 2>&1 \
+        && MOJ_COHORTS="$(ch_cohorts_of_view "$cid" public)" sc_users ) 2>/dev/null \
+      | awk -F'\001' 'NF>=7 && $7!="" {print $1 "\001" $7}' \
+      | jq -Rn '[inputs | split("\u0001") | {key:.[0], value:.[1]}] | from_entries' > "$w/coh.json" 2>/dev/null \
+      || printf '{}' > "$w/coh.json"
+    ch_get "$cid" | jq -c --slurpfile m "$w/coh.json" '($m[0]|[.[]]|unique) as $used
+        | [.cohorts[] | select(.id as $i | $used|index($i)) | {id, name:(.name // .id), unranked:(.unranked == true)}]' \
+      > "$w/views.json" 2>/dev/null || printf '[]' > "$w/views.json"
+  fi
+  jq -Rc --slurpfile m "$w/coh.json" 'split("\u0001") | [.[0], .[1], .[2], .[3], .[4], (.[5]=="1"), ($m[0][.[0]] // "")]' "$w/teams" \
+    | jq -cs . > "$w/teams.json"
   printf '%s\n' "${VR_CANON[@]}" | jq -Rc . | jq -cs . > "$w/pj.json"
   vr_problems_json > "$w/problems.json"
   emit_history_stream "$cid" > "$w/hist" 2>/dev/null
@@ -278,8 +298,10 @@ vr_feed_build(){
     > "$w/runs.json" || { rm -rf "$w"; exec 7>&-; return 1; }
   jq -cn --arg c "$cid" --arg t "$VR_TITLE" --argjson dur "$VR_DUR" --argjson pen "$VR_PEN" \
      --slurpfile teams "$w/teams.json" --slurpfile runs "$w/runs.json" --slurpfile probs "$w/problems.json" \
-     '{success:true, version:1, contest:$c, title:$t, duration:$dur, penalty_minutes:$pen,
-       problems:($probs[0]|map({letter, name})), teams:$teams[0], runs:$runs[0]}' > "$ft" \
+     --slurpfile views "$w/views.json" \
+     '{success:true, version:2, contest:$c, title:$t, duration:$dur, penalty_minutes:$pen,
+       problems:($probs[0]|map({letter, name})), views:(if ($views[0]|length) > 1 then $views[0] else [] end),
+       teams:$teams[0], runs:$runs[0]}' > "$ft" \
     && gzip -9 -c "$ft" > "$ft.gz" && mv -f "$ft" "$f" && mv -f "$ft.gz" "$f.gz"
   local rc=$?; rm -rf "$w" "$ft" "$ft.gz"; exec 7>&-; return $rc
 }

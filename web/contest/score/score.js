@@ -8,6 +8,9 @@ import { flagManifest, flagName } from '/shared/flags.js';
 import { mountContestUserChip } from '/shared/contest-shell.js';
 import { mountSiteFooter } from '/shared/site-footer.js';
 import { parseICPC, renderICPC } from './score-icpc.js';
+// a LÓGICA dos filtros (enriquecer times, casar bandeira/sede/escola) mora em score-filters.js —
+// fonte única com a Participação Virtual; aqui ficam só o ESTADO da página e a barra
+import * as F from './score-filters.js';
 import { parseOBI, renderOBI } from './score-obi.js';
 import { parseGeneric, renderGeneric } from './score-generic.js';
 import { T, setLang, getLang } from '/shared/i18n.js';
@@ -105,13 +108,7 @@ function startCountdown() {
 // ---- regiões -----------------------------------------------------------------
 // t casa com a região ativa? Por NOME (t._region, vindo do /contest/teams, == sede
 // explícita do time) OU pelo regex no login (clássico) — qualquer um serve.
-function regionMatch(t) {
-  if (!activeRegion) return true;
-  if (activeRegion.regex) { const re = safeRe(activeRegion.regex); if (re && re.test(t.username || '')) return true; }
-  if (activeRegion.name && (t._region || '') &&
-      String(t._region).toLowerCase() === String(activeRegion.name).toLowerCase()) return true;
-  return false;
-}
+function regionMatch(t) { return F.regionMatch(t, activeRegion); }
 function setRegion(r) {
   activeRegion = (r && (r.name || r.regex)) ? { name: r.name || '', regex: r.regex || '' } : null;
   if (activeRegion) localStorage.setItem('moj_score_region_' + CONTEST, JSON.stringify(activeRegion));
@@ -120,97 +117,26 @@ function setRegion(r) {
 }
 // sedes para o <select>: a ÁRVORE do regions.json (achatada, subregião indentada — é a curadoria
 // do organizador e pode filtrar por regex) mais as sedes que aparecem no placar e não estão lá.
-function regionOptions() {
-  const out = [];
-  const walk = (list, depth) => (list || []).forEach(r => {
-    if (r.regex || r.name) out.push({ name: r.name || '', regex: r.regex || '', depth });
-    if (Array.isArray(r.subregions) && r.subregions.length) walk(r.subregions, depth + 1);
-  });
-  walk(regions, 0);
-  const seen = new Set(out.map(o => (o.name || '').toLowerCase()));
-  ((parsed && parsed.teams) || []).forEach(t => {
-    const n = t._region || ''; if (!n || seen.has(n.toLowerCase())) return;
-    seen.add(n.toLowerCase()); out.push({ name: n, regex: '', depth: 0 });
-  });
-  return out;
-}
+function regionOptions() { return F.regionOptions(regions, (parsed && parsed.teams) || []); }
 
 // ---- país / escola (teams-meta) ---------------------------------------------
-function safeRe(rx) { try { return new RegExp(rx, 'i'); } catch { return null; } }
 // EXPLÍCITO primeiro (/contest/teams — o `.team` por-usuário + assets): preenche o que o
 // TXT não trouxe, marca a sede (t._region, filtro por nome) e aponta o BRASÃO p/ a rota
 // team-logo. O teams-meta (regex) roda depois, só nos vazios.
 // O 📷 VOLTOU (R4, 2026-08-30 — revoga a decisão de 2026-08-24 de tirá-lo): photoUrl é
 // preenchido de has_photo e o render só o mostra com o placar ABERTO (opts.showPhotos =
 // !frozenView) — durante o freeze a foto denunciaria quem está presente/ativo.
-function applyTeamsDir(p) {
-  if (!p || !(p.mode === 'icpc' || p.mode === 'obi')) return;
-  let anyFlag = false;
-  p.teams.forEach(t => {
-    // o TXT do placar já traz bandeira e sigla: quem não está no diretório (time removido do
-    // store, vindo de USERS_FROM…) precisa entrar nos filtros do mesmo jeito.
-    if (!t._country && t.flag) { t._country = t.flag; t.flagTitle = t.flagTitle || flagName(t.flag); }
-    if (!t._school && t.univShort) t._school = t.univShort;
-    const d = teamsDir[t.username || ''];
-    if (!d) return;
-    if (d.flag) {
-      if (!t.flag) { t.flag = d.flag; anyFlag = true; }
-      t._country = d.flag;
-      t.flagTitle = flagName(d.flag);
-    }
-    if (d.univ_short && !t.univShort) t.univShort = d.univ_short;
-    if (d.univ_full && !t.univFull) t.univFull = d.univ_full;
-    if (d.region) t._region = d.region;
-    t._school = t._school || t.univShort || '';
-    if (d.has_logo && !t.schoolLogo) {
-      t.schoolLogo = '/api/v1/contest/team-logo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
-    }
-    if (d.has_photo) {
-      t.photoUrl = '/api/v1/contest/team-photo?contest=' + encodeURIComponent(CONTEST) + '&user=' + encodeURIComponent(t.username || '');
-    }
-    if (d.ai) t.aiDeclared = true;
-  });
-  if (anyFlag && p.mode === 'obi') p.hasFlag = true;
-}
-function applyTeamsMeta(p) {
-  if (!p || !(p.mode === 'icpc' || p.mode === 'obi') || !teamsMeta.length) return;
-  let anyFlag = false;
-  const compiled = teamsMeta.map(r => ({ ...r, _re: safeRe(r.regex || '') }));
-  p.teams.forEach(t => {
-    const u = t.username || '';
-    t._country = t._country || ''; t._school = t._school || t.univShort || '';
-    const rule = compiled.find(r => r._re && r._re.test(u));
-    if (!rule) return;
-    // a regra é FALLBACK: a bandeira do próprio time (TXT/diretório) vence — a regra da sede
-    // "CA" (Central America no nome da sede, Canadá na ISO) punha "Canada" no tooltip de times
-    // com bandeira CR/GT/SV/NI (issue #21, LATAM 2026)
-    if (rule.country && !t.flag) {
-      t.flag = rule.country; anyFlag = true;
-      t._country = rule.country;
-      t.flagTitle = flagName(rule.country);
-    }
-    if (rule.school && !t.univShort) t.univShort = rule.school;
-    if (rule.school_full && !t.univFull) t.univFull = rule.school_full;
-    if (rule.logo && !t.schoolLogo) t.schoolLogo = rule.logo;   // brasão por-time (teamsDir) vence
-    t._school = rule.school || t.univShort || '';
-  });
-  if (anyFlag && p.mode === 'obi') p.hasFlag = true;
-}
+function applyTeamsDir(p) { F.applyTeamsDir(p, teamsDir, CONTEST); }
+function applyTeamsMeta(p) { F.applyTeamsMeta(p, teamsMeta); }
 // casamento ESTRITO (igual ao do relatório): quem não tem o dado NÃO casa. Era
 // `t._country !== undefined && …`, então time sem bandeira aparecia em QUALQUER filtro de
 // bandeira — pedir "Santa Catarina" trazia de volta todo mundo sem bandeira.
-const eqi = (a, b) => String(a || '').toLowerCase() === String(b || '').toLowerCase();
+const eqi = F.eqi;
 // Bandeira casa por HIERARQUIA (2026-08-30): valor sem hífen é PAÍS e agrega os estados
 // (br casa br E br-*) — time brasileiro declara bandeira de ESTADO e "filtrar o Brasil"
 // tem de juntá-los; valor com hífen (br-pr) segue exato. Mesma regra do by_country das
 // estatísticas (prefixo) e do filtro do relatório.
-function countryMatch(t) {
-  if (!activeCountry) return true;
-  const c = String(t._country || '').toLowerCase();
-  if (!c) return false;
-  if (activeCountry.includes('-')) return c === activeCountry;
-  return c === activeCountry || c.startsWith(activeCountry + '-');
-}
+function countryMatch(t) { return F.countryMatch(t, activeCountry); }
 function combinedFilterFn() {
   if (!activeRegion && !activeCountry && !activeSchool) return null;
   return (t) => {

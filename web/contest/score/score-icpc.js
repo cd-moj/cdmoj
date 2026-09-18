@@ -128,6 +128,7 @@ export function slicePlaces(teams) {
 export function sliceFts(teams, probShorts) {
   const best = {};
   teams.forEach((t) => {
+    if (t.virtual) return;   // participação virtual nunca disputa a ★ (nem a do recorte)
     probShorts.forEach((sn) => {
       const s = t.probSecs && t.probSecs[sn];
       if (typeof s === 'number' && (best[sn] === undefined || s < best[sn])) best[sn] = s;
@@ -257,7 +258,7 @@ export function renderICPC(parsed, opts) {
         // com filtro ativo a estrela exibida é SEMPRE a do recorte (menor segundo entre os
         // times visíveis); sem filtro, a global que veio do TXT (com a certeza do gerador)
         const fts = filtered
-          ? (relFts[sn] !== undefined && t.probSecs && t.probSecs[sn] === relFts[sn])
+          ? (!t.virtual && relFts[sn] !== undefined && t.probSecs && t.probSecs[sn] === relFts[sn])
           : v.endsWith('*');
         const shown = v.endsWith('*') ? v.slice(0, -1) : v;
         const color = balloonColorHex(parsed.balloons, sn);

@@ -30,7 +30,9 @@ export function makeVirtualTab(CONTEST) {
   let built = false;
 
   async function act(action, login) {
-    const msg = action === 'remove'
+    const msg = action === 'reset'
+      ? T('Devolver a tentativa de ' + login + '? A linha gravada some do placar virtual e a conta pode largar de novo neste contest. As submissões continuam no histórico do treino.', 'Give ' + login + ' the attempt back? The recorded row leaves the virtual scoreboard and the account may start again in this contest. The submissions stay in the training history.')
+      : action === 'remove'
       ? T('Tirar ' + login + ' do placar virtual? O registro fica guardado e pode ser devolvido.', 'Remove ' + login + ' from the virtual scoreboard? The record is kept and can be restored.')
       : T('Devolver ' + login + ' ao placar virtual?', 'Restore ' + login + ' to the virtual scoreboard?');
     if (!confirm(msg)) return;
@@ -77,7 +79,9 @@ export function makeVirtualTab(CONTEST) {
             el('td', {}, fmtEpoch(v.start)),
             el('td', {}, v.removed
               ? el('button', { class: 'btn ghost small', onclick: () => act('restore', v.login) }, T('devolver', 'restore'))
-              : el('button', { class: 'btn ghost danger small', onclick: () => act('remove', v.login) }, T('tirar do placar', 'remove from board')))))))));
+              : el('button', { class: 'btn ghost danger small', onclick: () => act('remove', v.login) }, T('tirar do placar', 'remove from board')),
+              ' ', el('button', { class: 'btn ghost small', title: T('Apaga a linha e deixa a conta largar de novo (testador, ou quem teve problema)', 'Deletes the row and lets the account start again (tester, or someone who had a problem)'),
+                onclick: () => act('reset', v.login) }, T('devolver tentativa', 'give attempt back')))))))));
   }
   return { panel, load };
 }

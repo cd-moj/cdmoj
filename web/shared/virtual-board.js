@@ -62,15 +62,21 @@ export function runsUpTo(idx, t) {
   return lo;
 }
 
-export function boardAt(feed, idx, virtuals, t, balloons) {
+// opts.teamOk(tm, ti) — recorte de COORTE ("Placar: Oficial / só convidados…"): time recusado fica
+// FORA do cálculo, então posição e ★ saem como no placar próprio daquela visão no servidor
+// (filtrar linha depois daria ★ errada — lib/cohorts.sh). Bandeira/universidade/sede/busca NÃO
+// passam por aqui: são recorte de LINHA no renderizador, que renumera e mostra a posição geral.
+export function boardAt(feed, idx, virtuals, t, balloons, opts) {
+  const teamOk = (opts && opts.teamOk) || null;
   const pen = Number(feed.penalty_minutes) || 20;
   const letters = feed.problems.map((p) => p.letter);
   const rows = [];
 
   feed.teams.forEach((tm, ti) => {
+    if (teamOk && !teamOk(tm, ti)) return;
     const cells = idx.by[ti].map((rs) => cellOf(rs, t));
     rows.push({ id: tm[0], flag: tm[1] || '', univShort: tm[2] || '', teamName: tm[3] || '', univFull: tm[4] || '',
-      guest: !!tm[5], virtual: false, you: false, order: ti, cells, ...rowOf(cells, pen) });
+      guest: !!tm[5], cohort: tm[6] || '', virtual: false, you: false, order: ti, cells, ...rowOf(cells, pen) });
   });
 
   // ★ com CERTEZA: mínimo entre os times do feed; pendente mais antigo (ou igual) segura a estrela
@@ -121,10 +127,21 @@ export function boardAt(feed, idx, virtuals, t, balloons) {
     });
     return { flag: r.flag, username: r.id, univShort: r.univShort, teamName: r.teamName, univFull: r.univFull,
       total: String(r.solved), penalty: String(r.penalty), lastac: String(r.lastmin),
-      guest: r.guest, virtual: r.virtual, you: r.you, place: r.place, gplace: r.gplace, probs, probSecs };
+      guest: r.guest, cohort: r.cohort || '', virtual: r.virtual, you: r.you, place: r.place, gplace: r.gplace, probs, probSecs };
   });
   return { mode: 'icpc', probShorts: letters, teams, balloons: balloons || {}, secs: true, guestNumbering: true };
 }
 
 // a linha de quem está olhando (p/ o cabeçalho "você está em Nº")
 export const myRow = (parsed) => (parsed.teams.find((x) => x.you) || null);
+
+// Com filtro de LINHA ativo (bandeira/universidade/sede/busca) o renderizador renumera os oficiais
+// dentro do recorte; a linha virtual tem de acompanhar: a posição que ela ocuparia ENTRE OS VISÍVEIS.
+// `keep(t)` = o mesmo predicado entregue ao renderizador. Sem filtro, devolve ao valor do placar inteiro.
+export function sliceVirtualPlaces(parsed, keep) {
+  const key = (x) => [-Number(x.total), Number(x.penalty), Number(x.lastac)];
+  const lt = (a, b) => { const ka = key(a), kb = key(b); for (let i = 0; i < 3; i++) if (ka[i] !== kb[i]) return ka[i] < kb[i]; return false; };
+  const off = parsed.teams.filter((x) => !x.guest && (!keep || keep(x)));
+  parsed.teams.forEach((v) => { if (v.virtual) v.gplace = off.filter((o) => lt(o, v)).length + 1; });
+  return parsed;
+}

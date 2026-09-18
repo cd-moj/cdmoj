@@ -5,6 +5,8 @@
 #   `checks` é o portão aberto em partes, p/ o dono ver O QUE falta (o público só vê 404).
 # POST {action:"remove"|"restore", login} -> moderação: tira/devolve uma linha do placar virtual
 #   (o snapshot fica, marcado `removed`). Auditado.
+# POST {action:"reset", login} -> DEVOLVE A TENTATIVA: apaga a linha gravada e põe de lado o estado da
+#   conta neste contest (desistências inclusas) — ela pode largar de novo. Auditado (`virtual-reset`).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -16,7 +18,24 @@ RD="$CONTESTSDIR/$contest/virtual/runs"
 if [[ "${REQUEST_METHOD:-GET}" == POST ]]; then
   body="$(read_body)"; jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
   action="$(jq -r '.action // empty' <<<"$body")"; login="$(jq -r '.login // empty' <<<"$body")"
-  valid_id "$login" && [[ -f "$RD/$login.json" ]] || fail 404 "Participação não encontrada" "virtual_run_notfound"
+  valid_id "$login" || fail 404 "Participação não encontrada" "virtual_run_notfound"
+  if [[ "$action" == reset ]]; then
+    # DEVOLVER A TENTATIVA (testador, ou quem teve problema): some a linha gravada e o estado da conta
+    # NESTE contest — inclusive as desistências — e ela pode largar de novo. A regra "uma vez" segue
+    # valendo p/ todo o resto; é decisão do dono, auditada. O estado sai de lado (não é apagado) e as
+    # submissões continuam no histórico do treino.
+    SF="$(vr_file "$login" "$contest")"
+    [[ -f "$SF" || -f "$RD/$login.json" ]] || fail 404 "Participação não encontrada" "virtual_run_notfound"
+    vr_lock "$login" || fail 503 "Tente de novo" "virtual_busy"
+    [[ -f "$SF" ]] && mv -f "$SF" "$SF.reset.$EPOCHSECONDS"
+    SB="$(vr_subs "$login" "$contest")"; [[ -f "$SB" ]] && mv -f "$SB" "$SB.reset.$EPOCHSECONDS"
+    vr_unlock
+    rm -f "$RD/$login.json"; [[ -d "$RD" ]] && touch "$RD"; rm -f "$CONTESTSDIR/$contest/var/virtual-board.json"
+    audit_log_to "$contest" "virtual-reset" "login=$login"
+    action=""     # segue p/ o corpo do GET
+  fi
+  if [[ -n "$action" ]]; then
+  [[ -f "$RD/$login.json" ]] || fail 404 "Participação não encontrada" "virtual_run_notfound"
   case "$action" in remove) v=true;; restore) v=false;; *) fail 400 "Ação inválida" "action_invalid";; esac
   t="$RD/$login.json.tmp.$BASHPID"
   jq -c --argjson v "$v" --arg by "$SESSION_LOGIN" --argjson now "$EPOCHSECONDS" \
@@ -24,6 +43,7 @@ if [[ "${REQUEST_METHOD:-GET}" == POST ]]; then
     || { rm -f "$t"; fail 500 "Falha ao gravar" "save_fail"; }
   touch "$RD"; rm -f "$CONTESTSDIR/$contest/var/virtual-board.json"
   audit_log_to "$contest" "virtual-$action" "login=$login"
+  fi
 fi
 
 enabled=false; mod_on "$contest" virtual && enabled=true

@@ -461,6 +461,8 @@ treino. Um contest que não pode ser visto por fora não deve ligar o módulo.
 - o **link** da página (`/treino/virtual/?c=<contest>`);
 - as **participações gravadas**, com resolvidos e penalidade. O botão **tirar do placar** remove uma
   linha do placar virtual (o registro fica guardado; **devolver** desfaz). A ação é auditada.
+  O botão **devolver tentativa** apaga a linha e deixa aquela conta largar de novo neste contest. Use
+  para um testador, ou para quem teve problema durante a prova. A ação também é auditada.
 
 **Regra do participante** (ele a lê antes de largar): uma participação por conta; pode desistir sem
 gravar nos primeiros 15 minutos ou enquanto não tiver nenhum aceito, no máximo 2 vezes; a 3ª largada

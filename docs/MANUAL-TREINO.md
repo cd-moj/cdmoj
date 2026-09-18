@@ -345,6 +345,11 @@ placar oficial. Os times oficiais resolvem os problemas no mesmo minuto em que r
    O placar mostra a sua linha em destaque, com a posição que você ocuparia.
 4. **Encerrar agora** termina antes do tempo.
 
+**Filtros do placar.** A barra é a mesma do placar do contest: **Placar** (por exemplo, só os times
+oficiais, sem convidados), **Bandeira**, **Universidade**, **Sede** e a busca. Com filtro ativo, o
+número grande é a posição no recorte e o pequeno é a posição geral. A sua linha aparece sempre.
+O seletor **Virtuais** escolhe entre todos os participantes virtuais, só você, ou nenhum.
+
 **Desistir sem gravar:** o botão **Desistir** existe nos primeiros **15 minutos**, ou enquanto você
 não tiver **nenhum problema aceito**. Desistir devolve a tentativa, no máximo **2 vezes**. Depois
 disso a largada é definitiva. Terminar o tempo sem nenhum aceito conta como desistência.

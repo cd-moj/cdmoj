@@ -87,6 +87,19 @@ velho que isso não segura a finalização).
   objeto** que `parseICPC`; o renderizador do placar oficial o desenha.
 - Linha virtual: intercalada pelo desempenho, **não consome posição oficial**, mostra em itálico a
   posição que **ocuparia**, nunca recebe ★.
+- **Filtros: os mesmos do placar oficial.** A barra tem Placar (coorte), Bandeira, Universidade, Sede,
+  busca, contador e "limpar". A lógica é a de `web/contest/score/score-filters.js`, fonte única com o
+  placar ao vivo. Os dados vêm das rotas públicas `/contest/teams`, `/contest/teams-meta` e
+  `/contest/regions`. A escolha fica lembrada no navegador, por contest.
+  - **Coorte** recorta no **motor** (`boardAt … {teamOk}`): posição e ★ saem iguais às do placar
+    próprio daquela visão no servidor. O feed traz `views[]` e a coorte de cada time — só coortes
+    **públicas** com time no placar público.
+  - **Bandeira, universidade, sede e busca** recortam **linhas**: o número grande é a posição no
+    recorte, o pequeno é a geral, e a ★ é a do recorte. A linha virtual acompanha
+    (`sliceVirtualPlaces`) e nunca recebe ★.
+  - **Virtuais: todos | só o meu | nenhum.** A linha de quem está com a run em andamento aparece
+    sempre. Os outros virtuais obedecem aos filtros de bandeira, universidade e busca; com filtro de
+    sede eles somem (conta do treino não tem sede).
 - Sem run (ou depois dela) a página oferece o **Replay**: um controle de tempo sobre o mesmo motor.
 - Duas implementações da regra ICPC (bash e JS) ⇒ teste **diferencial**
   `smoke-virtual-board.gjs.sh`: motor em `t=∞` == `placar.txt`; motor em `t=T` == placar de history truncado.
@@ -96,6 +109,11 @@ velho que isso não segura a finalização).
 **Evento › Virtual**: mostra o portão aberto em partes (o que falta), o link da página e as
 participações gravadas. `remove`/`restore` tiram ou devolvem uma linha (auditado). Rota:
 `/contest/admin/virtual`.
+
+**Devolver a tentativa** (`reset`): para um testador, ou para quem teve problema. A ação apaga a linha
+gravada e põe de lado o estado da conta **naquele contest** (as desistências também). A conta pode
+largar de novo. A regra "uma vez por conta" continua para todos os outros. As submissões ficam no
+histórico do treino. A ação é auditada (`virtual-reset`).
 
 ## 7. Fora da versão 1
 

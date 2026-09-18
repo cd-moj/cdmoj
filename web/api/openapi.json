@@ -1373,7 +1373,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{version,contest,title,duration,penalty_minutes,problems,teams,runs}"
+            "description": "{version:2,contest,title,duration,penalty_minutes,problems,views:[{id,name,unranked}],teams:[[login,flag,univ_short,nome,univ_full,guest,cohort]],runs} — views/cohort só de coortes PÚBLICAS com time no placar público"
           },
           "404": {
             "description": "virtual_unavailable — contest não elegível; corpo idêntico ao de contest inexistente"
@@ -1444,7 +1444,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Moderação: remove|restore uma linha do placar virtual (auditado)",
+        "summary": "Moderação: remove|restore uma linha do placar virtual; reset DEVOLVE a tentativa (apaga a linha e o estado da conta neste contest — ela pode largar de novo). Tudo auditado",
         "security": [
           {
             "bearerAuth": []
@@ -1470,7 +1470,8 @@
                     "type": "string",
                     "enum": [
                       "remove",
-                      "restore"
+                      "restore",
+                      "reset"
                     ]
                   },
                   "login": {

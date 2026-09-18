@@ -11,8 +11,10 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { status, fileToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
-import { indexFeed, runsUpTo, boardAt, myRow } from '/shared/virtual-board.js';
+import { indexFeed, runsUpTo, boardAt, myRow, sliceVirtualPlaces } from '/shared/virtual-board.js';
 import { renderICPC } from '/contest/score/score-icpc.js';
+import * as F from '/contest/score/score-filters.js';   // a MESMA lógica de filtro do placar oficial
+import { flagName, flagNamesReady } from '/shared/flags.js';
 import { pickStmtLang, makeStmtLangChips, setChipsActive, rememberStmtLang, stmtHtmlLang } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
 import { langById } from '/shared/languages.js';
@@ -27,6 +29,13 @@ let info = null, me = null, feed = null, idx = null, virtuals = [], balloons = {
 let skew = 0;                 // relógio do servidor − o daqui (ms)
 let lastSig = '', replayT = Infinity, playing = null;
 let lastPaint = 0, lastMine = '';
+// ---- filtros do placar: os MESMOS do placar oficial (coorte, bandeira, universidade, sede, busca)
+// + "Virtuais" (todos | só o meu | nenhum). Estado lembrado por contest no navegador.
+let regions = [], teamsMeta = [], teamsDir = {};
+const FKEY = 'moj_virtual_flt_' + CID;
+let flt = { view: '', country: '', school: '', region: null, q: '', virt: 'all' };
+try { flt = { ...flt, ...(JSON.parse(localStorage.getItem(FKEY) || '{}')) }; } catch { /* storage indisponível */ }
+const saveFlt = () => { try { localStorage.setItem(FKEY, JSON.stringify(flt)); } catch { /* idem */ } };
 function mineChanged(vs) { const m = vs.find((v) => v.you); const k = m ? JSON.stringify((m.runs || []).map((r) => [r[1], r[2]])) : ''; const ch = k !== lastMine; lastMine = k; return ch; }
 const srvNow = () => (Date.now() + skew) / 1000;
 
@@ -233,9 +242,10 @@ function paintBoard(force) {
   if (!feed) return;
   const t = curT();
   const live = me && (me.state === 'running' || me.state === 'judging');
-  const vs = virtuals.filter((v) => !(live && v.you)).slice();
+  // "Virtuais:" todos | só o meu | nenhum — a linha de uma run AO VIVO aparece sempre
+  const vs = (flt.virt === 'none' ? [] : virtuals.filter((v) => !(live && v.you) && (flt.virt === 'all' || v.you))).slice();
   if (live) vs.push({ login: who || T('você', 'you'), name: whoName || who || T('você', 'you'), runs: me.runs || [], you: true });
-  const sig = runsUpTo(idx, t) + '|' + vs.map((v) => v.login + ':' + (v.runs || []).filter((r) => r[0] <= t).map((r) => r[1] + r[2]).join('')).join(',') + '|' + (t === Infinity);
+  const sig = JSON.stringify(flt) + '|' + runsUpTo(idx, t) + '|' + vs.map((v) => v.login + ':' + (v.runs || []).filter((r) => r[0] <= t).map((r) => r[1] + r[2]).join('')).join(',') + '|' + (t === Infinity);
   if (!force && sig === lastSig) return;
   // placar de 2000 times = tabela de 2000 linhas: o MOTOR custa ~8 ms, o DOM é que pesa. No pico de
   // uma prova grande "acontece" uma run por segundo — redesenha no máximo a cada 5 s (o relógio e a
@@ -243,12 +253,87 @@ function paintBoard(force) {
   const nowMs = Date.now();
   if (!force && playing === null && nowMs - lastPaint < 5000 && !mineChanged(vs)) return;
   lastPaint = nowMs; lastSig = sig;
-  const parsed = boardAt(feed, idx, vs, t, balloons);
-  const table = renderICPC(parsed, { style: 'icon' });
+  const parsed = boardAt(feed, idx, vs, t, balloons, { teamOk: viewFn() });
+  F.applyTeamsDir(parsed, teamsDir, CID); F.applyTeamsMeta(parsed, teamsMeta);   // sede, brasão, bandeira por regra
+  const keep = keepFn();
+  if (keep) sliceVirtualPlaces(parsed, keep);      // a virtual acompanha a renumeração do recorte
+  const table = renderICPC(parsed, { style: 'icon', regionFn: keep });
+  const cnt = $('fCount');
+  if (cnt) { const sh = Number(table.dataset.shown || 0), tot = Number(table.dataset.total || 0);
+    cnt.textContent = (sh === tot && !keep) ? T(`${tot} linhas`, `${tot} rows`) : T(`Mostrando ${sh} de ${tot}`, `Showing ${sh} of ${tot}`) + (keep ? T(' · ★ = 1º do recorte', ' · ★ = 1st in selection') : ''); }
   const box = $('vboard'); const y = window.scrollY;
   box.replaceChildren(el('div', { class: 'board-wrap' }, table));
   window.scrollTo(0, y);
   paintStat(parsed);
+}
+// COORTE recorta no MOTOR (posição e ★ saem como no placar próprio da visão); o resto é recorte de LINHA
+function viewFn() {
+  if (!flt.view) return null;
+  if (flt.view === '!guests') return (tm) => !tm[5];
+  return (tm) => (tm[6] || '') === flt.view;
+}
+// predicado de linha: bandeira/universidade/sede (score-filters) + busca. A MINHA linha fica sempre;
+// os outros virtuais obedecem ao que têm (bandeira/universidade/busca) — sede eles não têm.
+function keepFn() {
+  const rf = F.rowFilter({ region: flt.region, country: flt.country, school: flt.school });
+  const q = (flt.q || '').trim().toLowerCase();
+  if (!rf && !q) return null;
+  const hit = (t) => !q || [t.username, t.teamName, t.univShort, t.univFull].some((x) => String(x || '').toLowerCase().includes(q));
+  return (t) => t.you || ((!rf || rf(t)) && hit(t));
+}
+function renderFilters() {
+  const bar = $('vfilters'); if (!bar || !feed) return; bar.classList.remove('hidden');
+  if (bar.dataset.built) return; bar.dataset.built = '1'; bar.innerHTML = '';
+  const lab = (txt, ctl) => el('label', {}, txt, ctl);
+  const on = (sel, fn) => sel.addEventListener('change', () => { fn(sel.value); saveFlt(); paintBoard(true); });
+  // opções vêm do placar FINAL inteiro, já enriquecido (mesma fonte dos filtros do placar oficial)
+  const full = boardAt(feed, idx, virtuals, Infinity, balloons);
+  F.applyTeamsDir(full, teamsDir, CID); F.applyTeamsMeta(full, teamsMeta);
+  const views = feed.views || [], hasGuests = feed.teams.some((tm) => tm[5]);
+  if (views.length > 1 || hasGuests) {
+    const sel = el('select', { id: 'fView' }, el('option', { value: '' }, T('Geral (todos)', 'Overall (everyone)')),
+      ...(views.length > 1 ? views.map((v) => el('option', { value: v.id }, v.name || v.id))
+        : [el('option', { value: '!guests' }, T('Oficial (sem convidados)', 'Official (no guests)'))]));
+    if (![...sel.options].some((o) => o.value === flt.view)) flt.view = '';
+    sel.value = flt.view; on(sel, (v) => { flt.view = v; }); bar.append(lab(T('Placar:', 'Board:'), sel));
+  } else flt.view = '';
+  const flags = [...new Set(full.teams.map((t) => String(t._country || '').toLowerCase()).filter(Boolean))];
+  if (flags.length) {
+    const byC = new Map();
+    flags.forEach((c) => { const cc = c.split('-')[0]; if (!byC.has(cc)) byC.set(cc, []); if (c !== cc) byC.get(cc).push(c); });
+    const sel = el('select', { id: 'fFlag' }, el('option', { value: '' }, T('todas', 'all')));
+    [...byC.keys()].sort((a, b) => flagName(a).localeCompare(flagName(b))).forEach((cc) => {
+      sel.append(el('option', { value: cc }, flagName(cc)));
+      byC.get(cc).sort((a, b) => flagName(a).localeCompare(flagName(b))).forEach((stt) => sel.append(el('option', { value: stt }, '\u00a0\u00a0' + flagName(stt))));
+    });
+    if (![...sel.options].some((o) => o.value === flt.country)) flt.country = '';
+    sel.value = flt.country; on(sel, (v) => { flt.country = v; }); bar.append(lab(T('Bandeira:', 'Flag:'), sel));
+  } else flt.country = '';
+  const schools = [...new Set(full.teams.map((t) => t._school).filter(Boolean))].sort();
+  if (schools.length) {
+    const sel = el('select', { id: 'fUniv' }, el('option', { value: '' }, T('todas', 'all')), ...schools.map((x) => el('option', { value: x }, x)));
+    if (!schools.includes(flt.school)) flt.school = '';
+    sel.value = flt.school; on(sel, (v) => { flt.school = v; }); bar.append(lab(T('Universidade:', 'University:'), sel));
+  } else flt.school = '';
+  const rops = F.regionOptions(regions, full.teams);
+  if (rops.length) {
+    const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all')),
+      ...rops.map((r, i) => el('option', { value: String(i) }, '\u00a0'.repeat(r.depth * 2) + (r.name || r.regex))));
+    const cur = rops.findIndex((r) => flt.region && (r.name || '') === (flt.region.name || '') && (r.regex || '') === (flt.region.regex || ''));
+    if (cur < 0) flt.region = null;
+    sel.value = cur >= 0 ? String(cur) : '';
+    on(sel, (v) => { flt.region = v === '' ? null : { name: rops[Number(v)].name, regex: rops[Number(v)].regex }; });
+    bar.append(lab(T('Sede:', 'Site:'), sel));
+  } else flt.region = null;
+  const vsel = el('select', { id: 'fVirt' }, el('option', { value: 'all' }, T('todos', 'all')),
+    el('option', { value: 'mine' }, T('só o meu', 'only mine')), el('option', { value: 'none' }, T('nenhum', 'none')));
+  if (!['all', 'mine', 'none'].includes(flt.virt)) flt.virt = 'all';
+  vsel.value = flt.virt; on(vsel, (v) => { flt.virt = v; }); bar.append(lab(T('Virtuais:', 'Virtuals:'), vsel));
+  const q = el('input', { id: 'fQ', class: 'filter', type: 'search', placeholder: T('buscar time, universidade, login…', 'search team, university, login…') });
+  q.value = flt.q || ''; q.addEventListener('input', () => { flt.q = q.value; saveFlt(); paintBoard(true); });
+  bar.append(q, el('button', { id: 'fClear', type: 'button', onclick: () => {
+    flt = { view: '', country: '', school: '', region: null, q: '', virt: 'all' }; saveFlt(); bar.dataset.built = ''; renderFilters(); paintBoard(true);
+  } }, T('limpar filtros', 'clear filters')), el('span', { class: 'fcount', id: 'fCount' }, ''));
 }
 function renderReplay() {
   const box = $('vreplay'); box.classList.remove('hidden'); if (box.dataset.built) return; box.dataset.built = '1';
@@ -295,6 +380,7 @@ async function enter() {
   else if (st === 'none' || st === 'discarded' || st === 'forbidden' || st === 'anon') renderStart();
   if (st !== 'running' && st !== 'scheduled') { replayT = Infinity; renderReplay(); }
   $('vboardtitle').textContent = st === 'running' ? T('Placar no seu tempo de prova', 'Scoreboard at your contest time') : T('Placar — oficial + participações virtuais', 'Scoreboard — official + virtual participations');
+  $('vfilters').dataset.built = ''; renderFilters();
   paintHead(); paintBoard(true);
 }
 
@@ -309,6 +395,18 @@ async function boot() {
   }
   idx = indexFeed(feed);
   info = { title: feed.title, duration: feed.duration, penalty_minutes: feed.penalty_minutes, problems_count: feed.problems.length, rules: { grace_s: 900, max_discards: 2 } };
+  // dados dos filtros: as MESMAS rotas públicas que o placar oficial usa (contest elegível nunca é secreto)
+  Promise.all([
+    flagNamesReady().catch(() => null),   // nomes das bandeiras p/ o seletor (senão sai o código cru)
+    apiGet('/contest/regions?contest=' + enc(CID), {}).catch(() => null),
+    apiGet('/contest/teams-meta?contest=' + enc(CID), {}).catch(() => null),
+    apiGet('/contest/teams?contest=' + enc(CID), {}).catch(() => null),
+  ]).then(([, rg, tm, td]) => {
+    regions = rg ? (Array.isArray(rg) ? rg : (rg.regions || [])) : [];
+    teamsMeta = tm ? (tm.rules || (Array.isArray(tm) ? tm : [])) : [];
+    teamsDir = (td && td.teams) || {};
+    if ($('vfilters')) { $('vfilters').dataset.built = ''; renderFilters(); paintBoard(true); }
+  });
   apiGet('/contest/balloons?contest=' + enc(CID), {}).then((b) => { balloons = (b && (b.balloons || b)) || {}; paintBoard(true); }).catch(() => {});
   if (logged()) {
     try { const d = await apiGet('/treino/virtual/info?contest=' + enc(CID), A); info = d; setMe(d.me); } catch { me = null; }
@@ -317,6 +415,6 @@ async function boot() {
   await enter();
   setInterval(() => { paintHead(); if (me && me.state === 'running') paintBoard(); }, 1000);
   setInterval(() => { if (me && ['running', 'judging', 'scheduled'].includes(me.state) && !document.hidden) refreshRun(); }, 10000);
-  document.addEventListener('moj:lang', () => { headState = ''; $('vprobs').dataset.built = ''; $('vreplay').dataset.built = ''; $('vreplay').innerHTML = ''; $('vsubs').dataset.sig = ''; enter(); });
+  document.addEventListener('moj:lang', () => { headState = ''; $('vprobs').dataset.built = ''; $('vreplay').dataset.built = ''; $('vreplay').innerHTML = ''; $('vfilters').dataset.built = ''; $('vsubs').dataset.sig = ''; enter(); });
 }
 boot();
