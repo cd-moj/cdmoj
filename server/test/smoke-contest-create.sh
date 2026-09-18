@@ -81,6 +81,12 @@ ck "enunciado do banco"     '[[ -f "$FIX/test-create/enunciados/bankprob.html" ]
 ck "enunciado custom (x#custom)" '[[ -f "$FIX/test-create/enunciados/x#custom.html" ]]'
 
 echo "== validações =="
+# spec SEM `name` (montado à mão / pela API): o nome é o TÍTULO do banco, não o id (relato 2026-09-18)
+call /treino/contest-create/create POST "{\"id\":\"semnome\",\"name\":\"Sem Nome\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"bank_id\":\"apc#vet\"},{\"problem_id\":\"apc/mat\",\"title\":\"Meu Título\"},{\"problem_id\":\"x/naoexiste\"}]}" reg
+ck "create sem name: sucesso"                 '[[ "$(jq -r .success <<<"$BODY")" == true ]]'
+ck "…nome = título do banco"                  'grep -q "PROBS=.*Vetores" "$FIX/semnome/conf"'
+ck "…title do spec vale como nome"          'grep -q "Meu\\\\ Título\|Meu Título" "$FIX/semnome/conf"'
+ck "…fora do banco: cai no id (como antes)"   'grep -q "x#naoexiste x#naoexiste\|x#naoexiste C" "$FIX/semnome/conf" || grep -q "x\\\\#naoexiste" "$FIX/semnome/conf"'
 call /treino/contest-create/create POST "{\"id\":\"treino\",\"name\":\"X\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "id reservado 409"       '[[ "$OUT" == *"Status: 409"* ]]'
 call /treino/contest-create/create POST "$SPEC" reg

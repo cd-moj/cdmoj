@@ -56,6 +56,7 @@ cat <<'JSON'
   "teams_meta": [ { "regex": "^br-", "country": "BR", "school": "UnB" } ],
   "allow_empty": false,
   "_allow_empty": "true = cria o contest SEM problemas (os problemas entram depois pelo painel ou por `moj contest -c <id> problems add`; na CLI e a flag --empty). Com problems[] vazio e sem isto, a criacao responde 422 no_problems",
+  "_problems": "name (ou title) e OPCIONAL: sem ele o nome do problema no contest e o TITULO do banco; letter tambem e opcional (A, B, C... na ordem)",
   "problems": [
     { "_dica": "do banco publico: informe bank_id (id do problema no treino, com # no lugar de /)", "bank_id": "monitores#ola-no-mundo-das-regex", "name": "Ola no Mundo das RegEx", "letter": "A" },
     { "_dica": "problema NAO publico: informe source e problem_id (voce precisa ter acesso: dono/colaborador)", "source": "cdmoj", "problem_id": "secreto/meu-problema", "name": "Meu Problema", "letter": "B", "languages": ["c"], "_languages": "whitelist POR problema (opcional; vazio herda do contest)" },

@@ -1083,6 +1083,13 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `contest_is_secret`, que roda em TODA rota pública de contest, gastava um `grep | cut` (2
   processos) p/ ler `SECRET=`. `$(<arquivo)`/`read` são builtins. Não confundir com
   `load_contest_conf`: no caminho de auth o conf **não pode** ser *sourced*.
+- **NOME DO PROBLEMA NO CONTEST = o do spec, senão o TÍTULO DO BANCO — nunca o id** (2026-09-18, relato do
+  Daniel Saad: contest criado pela API com um JSON sem `name` mostrava "saad-problems#knight-moves" na
+  sanfona). `cc_prob_title` (`lib/contest-create.sh`) serve as DUAS cópias do laço de problemas
+  (`cc_create` e `cc_build_probs` — mexeu numa, mexa na outra); o spec aceita `name` ou `title`. Para os
+  contests que JÁ nasceram com o id como nome, o `/contest/problems` troca o nome-que-é-só-o-id pelo título
+  do banco na regeração do cache (nome de verdade nunca é trocado). Testes: `smoke-contest-problem-title.sh`
+  e a seção "sem name" do `smoke-contest-create.sh`.
 - **CARIMBO DO CHECKSUM FRESCO (`tl_fresh_*`, `lib/tl-store.sh`, 2026-09-18)** — o `tl_checksum` do índice de
   donos só se refaz em background (30 min + a varredura); entre "editei + recalibrei" e o índice alcançar,
   o checksum de `run/tl` (novo) ≠ o do índice (velho) e o `/contest/problems` servia **`time_limits:{}`** —

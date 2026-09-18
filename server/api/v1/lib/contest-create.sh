@@ -227,14 +227,15 @@ cc_create(){
     [[ -z "$pid" && -n "$bankid" ]] && pid="${bankid//#//}"
     pid="${pid//\//#}"   # id canônico 'coleção#problema' (igual ao treino; '#' é o que o juiz exige)
     src="$(jq -r '.source // "cdmoj"' <<<"$p")"
-    pname="$(jq -r '.name // ""' <<<"$p")"
+    pname="$(jq -r '.name // .title // ""' <<<"$p")"
     letter="$(jq -r '.letter // ""' <<<"$p")"
     stmt_b64="$(jq -r '.statement_b64 // ""' <<<"$p")"
     stmt_file="$(jq -r '.statement_file // ""' <<<"$p")"
     pdf_b64="$(jq -r '.statement_pdf_b64 // ""' <<<"$p")"
     pdf_file="$(jq -r '.statement_pdf_file // ""' <<<"$p")"
-    [[ -z "$pname" ]] && pname="$pid"
     [[ -n "$pid" ]] || { rm -rf "$stg"; fail 422 "Problema sem id" "prob_no_id"; }
+    # sem `name`/`title` no spec: o TÍTULO do banco, nunca o id cru na sanfona (cc_prob_title)
+    [[ -n "$pname" ]] || pname="$(cc_prob_title "${bankid:-${pid//\//#}}" "$pid")"
     { [[ "$pid" =~ ^[A-Za-z0-9._/#@+-]+$ ]] && [[ "$pid" != *..* ]]; } || { rm -rf "$stg"; fail 422 "id de problema inválido: $pid" "prob_id_invalid"; }
     [[ "$src" =~ ^[A-Za-z0-9._-]+$ ]] || { rm -rf "$stg"; fail 422 "source de problema inválido" "src_invalid"; }
     (( ${#pname} <= 160 )) || { rm -rf "$stg"; fail 422 "nome de problema muito longo" "pname_long"; }
@@ -689,6 +690,15 @@ cc_del_conf_var(){
 # `enunciados/<skey>.html`. Sem isso, um problema sem `statement_b64` no spec faz o helper
 # baixar o enunciado do banco e SOBRESCREVER o que o admin subiu à mão (a troca de rodada
 # aplica a lista da rodada e clobberaria os enunciados finais da prova).
+# cc_prob_title <bank-id|skey> <id-de-fallback> — NOME do problema quando o spec não traz `name`/`title`:
+# o TÍTULO do banco (json servível, público ou privado), e só em último caso o id. Spec montado à mão /
+# pela API sem o campo deixava "org#id" no lugar do título na sanfona (relato do Daniel Saad, 2026-09-18).
+cc_prob_title(){
+  local bf t=""
+  bf="$(cs_bank_json "$1" 2>/dev/null)" && t="$(cs_bank_title "$bf" pt)"
+  t="${t//[$'\r\n\t']/ }"; t="${t:0:160}"
+  printf '%s' "${t:-$2}"
+}
 cc_build_probs(){
   local tdir="$1" spec="$2" enun="${3:-}" probs="PROBS=(" i=0
   local letterauto=( {A..Z} {A..Z}{A..Z} )   # A..Z, depois AA,AB,…
@@ -699,10 +709,9 @@ cc_build_probs(){
     pid="$(jq -r '.problem_id // ""' <<<"$p")"; bankid="$(jq -r '.bank_id // ""' <<<"$p")"
     [[ -z "$pid" && -n "$bankid" ]] && pid="${bankid//#//}"
     pid="${pid//\//#}"   # id canônico 'coleção#problema'
-    src="$(jq -r '.source // "cdmoj"' <<<"$p")"; pname="$(jq -r '.name // ""' <<<"$p")"
+    src="$(jq -r '.source // "cdmoj"' <<<"$p")"; pname="$(jq -r '.name // .title // ""' <<<"$p")"
     letter="$(jq -r '.letter // ""' <<<"$p")"; stmt_b64="$(jq -r '.statement_b64 // ""' <<<"$p")"
     stmt_file="$(jq -r '.statement_file // ""' <<<"$p")"
-    [[ -z "$pname" ]] && pname="$pid"
     [[ -n "$pid" ]] || { ((i++)); continue; }
     { [[ "$pid" =~ ^[A-Za-z0-9._/#@+-]+$ ]] && [[ "$pid" != *..* ]]; } || return 1
     [[ "$src" =~ ^[A-Za-z0-9._-]+$ ]] || return 1
@@ -710,6 +719,8 @@ cc_build_probs(){
     [[ "$letter" =~ ^[A-Za-z0-9]{1,3}$ ]] || return 1
     skey="${pid//\//#}"
     { [[ "$skey" =~ ^[A-Za-z0-9._#@+-]+$ ]] && [[ "$skey" != *..* ]]; } || return 1
+    # nome: o do spec (`name`/`title`); sem ele, o TÍTULO do banco (cc_prob_title)
+    [[ -n "$pname" ]] || pname="$(cc_prob_title "${bankid:-$skey}" "$pid")"
     html=""
     if [[ "${CC_KEEP_STATEMENTS:-0}" == 1 && -z "$stmt_b64" && -z "$stmt_file" \
           && -s "$tdir/enunciados/$skey.html" ]]; then

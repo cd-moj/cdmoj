@@ -170,6 +170,12 @@ for (( i=0; i<${#PROBS[@]}; i+=5 )); do
   FULLNAME="${PROBS[$((i+2))]}"
   SHORTNAME="${PROBS[$((i+3))]}"
   STATEMENT="${PROBS[$((i+4))]}"
+  # contest criado por spec SEM `name` gravava o id como nome ("saad-problems#knight-moves" na
+  # sanfona): quando o nome é só o id, mostra o TÍTULO do banco. Só na regeração do cache, e só p/
+  # quem está nessa situação (o conserto de verdade é na criação — cc_build_probs).
+  if [[ -z "$FULLNAME" || "$FULLNAME" == "$PROBLEMID" || "$FULLNAME" == "${PROBS[$((i+1))]}" ]]; then
+    _tbf="$(cs_bank_json "$PROBLEMID" 2>/dev/null)" && _tt="$(cs_bank_title "$_tbf" pt)" && [[ -n "$_tt" ]] && FULLNAME="$_tt"
+  fi
 
   args=(); filt='{short_name:$short, full_name:$full, problem_id:$id, show:true'
   # só a EXISTÊNCIA: o corpo sai pelo /contest/statement (ver o cabeçalho deste arquivo)
