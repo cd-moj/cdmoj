@@ -898,7 +898,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   a importam — mudou regra de filtro, mude LÁ (o gêmeo inevitável segue sendo o script inline do
   relatório); COORTE recorta no MOTOR (`teamOk`: posição e ★ = as do placar próprio da visão; diferencial
   contra `placar-view-<id>.txt`), bandeira/universidade/sede/busca recortam LINHA no renderizador, a
-  virtual acompanha via `sliceVirtualPlaces` e NUNCA leva ★ (nem a do recorte — `sliceFts` a pula);
+  virtual acompanha via `sliceVirtualPlaces` e NUNCA leva ★ (nem a do recorte — `sliceFts` a pula); linha
+  virtual obedece a bandeira/universidade/busca mas IGNORA o filtro de SEDE (não fez em sede nenhuma —
+  é p/ se comparar com a sede; `keepFn` em `virtual.js`);
   o feed (v2) só traz coorte PÚBLICA com time no placar público; (8) `reset` no painel do dono devolve
   a tentativa (estado posto de lado, não apagado). Rota nova do virtual ⇒ `vr_gate` na 1ª linha
   **e** uma linha na matriz `smoke-virtual-leak.sh`. Testes: `smoke-virtual{,-leak}.sh`,

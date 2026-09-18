@@ -98,8 +98,9 @@ velho que isso não segura a finalização).
     recorte, o pequeno é a geral, e a ★ é a do recorte. A linha virtual acompanha
     (`sliceVirtualPlaces`) e nunca recebe ★.
   - **Virtuais: todos | só o meu | nenhum.** A linha de quem está com a run em andamento aparece
-    sempre. Os outros virtuais obedecem aos filtros de bandeira, universidade e busca; com filtro de
-    sede eles somem (conta do treino não tem sede).
+    sempre. Os outros virtuais obedecem aos filtros de bandeira, universidade e busca. O filtro de
+    **sede não os esconde**: o virtual não fez a prova em sede nenhuma, e quem escolhe uma sede quer
+    se comparar com ela. Para tirar os virtuais da tela, use "Virtuais: nenhum".
 - Sem run (ou depois dela) a página oferece o **Replay**: um controle de tempo sobre o mesmo motor.
 - Duas implementações da regra ICPC (bash e JS) ⇒ teste **diferencial**
   `smoke-virtual-board.gjs.sh`: motor em `t=∞` == `placar.txt`; motor em `t=T` == placar de history truncado.

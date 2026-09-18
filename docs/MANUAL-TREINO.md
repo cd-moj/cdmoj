@@ -348,7 +348,8 @@ placar oficial. Os times oficiais resolvem os problemas no mesmo minuto em que r
 **Filtros do placar.** A barra é a mesma do placar do contest: **Placar** (por exemplo, só os times
 oficiais, sem convidados), **Bandeira**, **Universidade**, **Sede** e a busca. Com filtro ativo, o
 número grande é a posição no recorte e o pequeno é a posição geral. A sua linha aparece sempre.
-O seletor **Virtuais** escolhe entre todos os participantes virtuais, só você, ou nenhum.
+O seletor **Virtuais** escolhe entre todos os participantes virtuais, só você, ou nenhum. O filtro de
+**Sede** não esconde os virtuais: assim você compara o seu resultado com os times daquela sede.
 
 **Desistir sem gravar:** o botão **Desistir** existe nos primeiros **15 minutos**, ou enquanto você
 não tiver **nenhum problema aceito**. Desistir devolve a tentativa, no máximo **2 vezes**. Depois

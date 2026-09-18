@@ -272,14 +272,17 @@ function viewFn() {
   if (flt.view === '!guests') return (tm) => !tm[5];
   return (tm) => (tm[6] || '') === flt.view;
 }
-// predicado de linha: bandeira/universidade/sede (score-filters) + busca. A MINHA linha fica sempre;
-// os outros virtuais obedecem ao que têm (bandeira/universidade/busca) — sede eles não têm.
+// predicado de linha: bandeira/universidade/sede (score-filters) + busca. A MINHA linha fica sempre.
+// Os outros virtuais obedecem ao que TÊM (bandeira/universidade/busca) e IGNORAM a sede: virtual não
+// fez a prova em sede nenhuma, e quem filtra uma sede quer justamente se comparar com ela — os
+// virtuais seguem na tela (decisão do Ribas, 2026-09-18; quem não os quer usa "Virtuais: nenhum").
 function keepFn() {
   const rf = F.rowFilter({ region: flt.region, country: flt.country, school: flt.school });
+  const rfv = F.rowFilter({ region: null, country: flt.country, school: flt.school });   // p/ linha virtual: sem a sede
   const q = (flt.q || '').trim().toLowerCase();
   if (!rf && !q) return null;
   const hit = (t) => !q || [t.username, t.teamName, t.univShort, t.univFull].some((x) => String(x || '').toLowerCase().includes(q));
-  return (t) => t.you || ((!rf || rf(t)) && hit(t));
+  return (t) => t.you || ((t.virtual ? (!rfv || rfv(t)) : (!rf || rf(t))) && hit(t));
 }
 function renderFilters() {
   const bar = $('vfilters'); if (!bar || !feed) return; bar.classList.remove('hidden');
