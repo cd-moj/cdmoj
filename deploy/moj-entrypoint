@@ -63,6 +63,12 @@ case "$role" in
     export BASIC_CACHE_TTL="${BASIC_CACHE_TTL:-300}"
     export NAV_CACHE_TTL="${NAV_CACHE_TTL:-60}"
     export ROUNDS_CACHE_TTL="${ROUNDS_CACHE_TTL:-60}"
+    # --- LOCK ÓRFÃO do gerador do índice de donos ---------------------------------------
+    # O gen-problem-owners.sh roda em background DENTRO deste container (ensure_owners_index):
+    # um restart o mata no meio e o lock (`mkdir`) fica para trás, segurando a próxima
+    # regeneração por 20 min. No arranque nenhum gerador está vivo — o lock é órfão por
+    # definição. (18/09/2026: 12 deploys no dia ⇒ índice 80 min velho ⇒ TL sumido de contest.)
+    rmdir "${CONTESTSDIR:-/data/contests}/treino/var/problem-owners.json.lock" 2>/dev/null || true
     # --- POOL DO MOLDE (workers bash persistentes) em background -----------------------
     # O shim (moj-molde-shim, compilado no build) abre o socket próprio e mantém N bash
     # pré-carregados; o nginx só o usa nas rotas com snippet em /etc/nginx/moj-molde-routes/

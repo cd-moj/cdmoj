@@ -141,6 +141,14 @@ juiz (repo judge/, agente moj-agent@)
    POST /judge/tl-report   ─▶ reporta o TL calibrado (run/tl/<id>.json)
 ```
 
+**O TL aparece no contest logo depois da calibração.** O `/contest/problems` não abre o pacote: ele
+compara o checksum de `run/tl/<id>.json` com o `tl_checksum` do índice de donos, e o índice só se refaz em
+background (30 min ou mais). Por isso o `/judge/tl-report` — que confere o checksum real do pacote antes de
+gravar — também **carimba** esse valor em `treino/var/tl-checksum-fresh.json`. O carimbo vence o índice no
+contest e no Painel. Ele sai quando o pacote muda de checksum (`problem_commit`), quando o problema é
+removido ou movido, e quando o índice alcança o mesmo valor. Sem o carimbo, "editei e recalibrei" deixava
+o contest sem TL até a próxima regeneração do índice (relato de 18/09/2026).
+
 `allowed_hosts` (pool de juízes do problema/contest) é respeitado no claim: com o pool
 offline o job **espera na fila** (o preflight/dashboard avisam). Protocolo completo em
 `server/judge-gw/PULL.md`.

@@ -17,7 +17,7 @@ ensure_owners_index(){
       bash "$MOJTOOLS_DIR/gen-problem-owners.sh" >/dev/null 2>&1
     # confere DE VERDADE: o exit code do gerador era descartado, então uma falha dele (MOJTOOLS_DIR
     # errado, var/ não gravável, morto pelo timeout) ficava invisível p/ sempre.
-    if [[ -s "$f" ]] && jq -e . "$f" >/dev/null 2>&1; then authored_prune; return 0; fi
+    if [[ -s "$f" ]] && jq -e . "$f" >/dev/null 2>&1; then authored_prune; _tl_fresh_prune_safe; return 0; fi
     return 1
   fi
   if [[ -n "$(find "$f" -mmin "+$PROBLEM_OWNERS_TTL_MIN" 2>/dev/null)" ]]; then
@@ -36,7 +36,7 @@ ensure_owners_index(){
     fi
   fi
   # poda oportunista do overlay (barata: mtime curto-circuita quando não há regen nova)
-  authored_prune
+  authored_prune; _tl_fresh_prune_safe
   return 0
 }
 
@@ -66,11 +66,17 @@ owners_merged(){
   # cliente recebe 200 com lista vazia (e o overlay é engolido junto). Por isso: (1) o índice é
   # VALIDADO antes (ensure_owners_index), (2) os dois arquivos entram por --slurpfile — que ERRA se o
   # arquivo não abre, em vez de deslocar — e (3) vazio aqui é ERRO (return 1), nunca lista vazia.
-  local ovf="$AUTHORED_INDEX" out
+  local ovf="$AUTHORED_INDEX" out frf
   # overlay corrompido não pode derrubar a listagem INTEIRA (ele é só "visibilidade imediata")
   jq -e . "$ovf" >/dev/null 2>&1 || ovf=/dev/null
-  out="$(jq -n --slurpfile idx "$OWNERS_INDEX" --slurpfile ov "$ovf" '
-    ($idx[0] // {problems:[]}) as $base
+  # CARIMBO do checksum fresco (lib/tl-store.sh `tl_fresh_*`): o /judge/tl-report sabe o tl_checksum
+  # real ANTES de o índice se refazer — sem isto o Painel dizia "precisa recalibrar" por dezenas de
+  # minutos depois de recalibrar (e o contest escondia o TL). Mesmo cuidado do overlay: lixo = ignora.
+  frf="$CONTESTSDIR/treino/var/tl-checksum-fresh.json"; jq -e 'type=="object"' "$frf" >/dev/null 2>&1 || frf=/dev/null
+  out="$(jq -n --slurpfile idx "$OWNERS_INDEX" --slurpfile ov "$ovf" --slurpfile fr "$frf" '
+    ((($fr[0]) // {})) as $fresh
+    | ($idx[0] // {problems:[]}) as $base0
+    | ($base0 | .problems = ((.problems // []) | map(if ($fresh[.id] // "") != "" then (. + {tl_checksum: $fresh[.id]}) else . end))) as $base
     | ((($ov[0]) // {}) | [to_entries[].value]) as $ovl
     | (($base.problems // []) | map({key:.id, value:.}) | from_entries) as $bmap
     | ($ovl | map(.id)) as $ids
@@ -216,6 +222,9 @@ authored_patch(){
       > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || rm -f "$tmp"
   ) 9>"$lk"
 }
+# poda dos carimbos de checksum fresco que o índice já alcançou (lib/tl-store.sh); tolerante a lib ausente
+_tl_fresh_prune_safe(){ declare -F tl_fresh_prune >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null; declare -F tl_fresh_prune >/dev/null && tl_fresh_prune; return 0; }
+
 # authored_prune — PODA do overlay: remove as entradas JÁ refletidas no índice de donos SEM
 # divergência nos campos de setter (owner/title/public/collections/collaborators). O overlay é
 # só a ponte de visibilidade imediata até o índice alcançar; sem poda ele crescia p/ sempre
@@ -277,6 +286,20 @@ problem_commit(){
   # quem grava DEPOIS dele (write_meta, o sidecar do Kattis: problem.yaml/.kattis.json) pegava o
   # `umask 007` do fcgiwrap e saía 660. Aqui nada escapa — o que vai p/ o commit está em 644/755.
   _pkg_canon_modes "$pkg"
+  # CARIMBO do checksum fresco (tl_fresh_*, lib/tl-store.sh): ele diz "o pacote ATUAL tem este
+  # checksum". Se esta escrita mudou o que o tl-checksum cobre (testes, sols/good, conf, scripts), o
+  # carimbo deixou de ser verdade e SAI — volta a valer o índice. Edição que não toca nisso (enunciado,
+  # metadados) mantém o carimbo: senão o TL sumiria de novo do contest a cada "Salvar" dentro da janela
+  # do índice. Só paga o checksum (memoizado por metadata) quem TEM carimbo — quase ninguém.
+  local _rel="${pkg#"${MOJ_PROBLEMS_DIR%/}/"}" _pid _st
+  if [[ "$_rel" != "$pkg" && "$_rel" == */* ]]; then
+    _pid="${_rel%%/*}#${_rel#*/}"
+    _st="$(jq -r --arg i "$_pid" '.[$i] // empty' "$CONTESTSDIR/treino/var/tl-checksum-fresh.json" 2>/dev/null)"
+    if [[ -n "$_st" ]]; then
+      declare -F tl_fresh_drop >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
+      [[ "$(pkg_tl_checksum "$pkg" "$_pid" 2>/dev/null)" == "$_st" ]] || tl_fresh_drop "$_pid"
+    fi
+  fi
   mkdir -p "${RUNDIR:-/home/ribas/moj/run}/locks" 2>/dev/null
   lk="${RUNDIR:-/home/ribas/moj/run}/locks/$(printf '%s' "$pkg" | md5sum 2>/dev/null | cut -c1-24).lock"
   (

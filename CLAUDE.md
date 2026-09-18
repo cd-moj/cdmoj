@@ -1083,6 +1083,20 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `contest_is_secret`, que roda em TODA rota pública de contest, gastava um `grep | cut` (2
   processos) p/ ler `SECRET=`. `$(<arquivo)`/`read` são builtins. Não confundir com
   `load_contest_conf`: no caminho de auth o conf **não pode** ser *sourced*.
+- **CARIMBO DO CHECKSUM FRESCO (`tl_fresh_*`, `lib/tl-store.sh`, 2026-09-18)** — o `tl_checksum` do índice de
+  donos só se refaz em background (30 min + a varredura); entre "editei + recalibrei" e o índice alcançar,
+  o checksum de `run/tl` (novo) ≠ o do índice (velho) e o `/contest/problems` servia **`time_limits:{}`** —
+  o TL SUMIA da prova (relato do Daniel Saad: `saad-problems#metro`; achou que era por ser rascunho, não
+  era) e o Painel seguia em "precisa recalibrar". O `/judge/tl-report` JÁ confere o checksum real do pacote,
+  então é ele quem carimba `treino/var/tl-checksum-fresh.json` (`{id:cks}`), ANTES do `tl_store_record` (o
+  `mv` em `run/tl` invalida o cache do contest — o carimbo tem de já estar lá). O carimbo VENCE o índice em
+  `tl_index_checksums` (contest) e em `owners_merged` (Painel). Morre no `problem_commit` **só se o checksum
+  mudou** (edição de enunciado o mantém — senão o TL sumiria a cada Salvar), em delete/move, e é podado
+  quando o índice alcança (`tl_fresh_prune`, junto do `authored_prune`). A fronteira segue de pé: escreve
+  rota de juiz/gestão; o contest só lê um json minúsculo (`sem-pacote.sh` inalterado). Teste:
+  `smoke-tl-fresh.sh`. Irmão: o `moj-entrypoint` tira o lock órfão do gerador no arranque da API (restart
+  matava o `gen-problem-owners.sh` no meio e o lock segurava a regeneração por 20 min — num dia de 12
+  deploys o índice ficou 80 min velho).
 - **Caches de problemas invalidam POR EVENTO, não por TTL** (2026-07-17): a lista do treino
   (`/treino/problems` → `var/problems.json`) é invalidada pelo stamp **`var/.treino-list-dirty`**
   — TODO ponto que cria/remove json servível TOCA o stamp (`index_problem_bg` pós-gen;

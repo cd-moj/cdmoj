@@ -24,6 +24,11 @@ if [[ -n "$cur" && "$cur" != "$cks" ]]; then
   # obsoleto: o pacote no servidor mudou desde a calibração -> o juiz recalibra
   ok_json '{recorded:false, stale:true, id:$id, current_checksum:$c}' --arg id "$id" --arg c "$cur"
 else
+  # CARIMBA o checksum fresco ANTES de gravar o TL: aqui o servidor acabou de conferir que o pacote
+  # ATUAL tem este checksum ($cur == $cks), e o índice de donos só vai saber disso na próxima varredura
+  # em background. O `mv` do tl_store_record é o que invalida o cache do /contest/problems — o carimbo
+  # tem de já estar no lugar quando ele for refeito (lib/tl-store.sh `tl_fresh_*`).
+  [[ -n "$cur" ]] && tl_fresh_set "$id" "$cks"
   tl_store_record "$host" "$id" "$cks" "$tl" || fail 500 "Could not store TL" "tl_store_fail"
   index_problem_bg "$id" 0
   audit_log "tl-report" "id=$id host=$host cks=${cks:0:8}"

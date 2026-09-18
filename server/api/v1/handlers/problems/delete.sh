@@ -21,6 +21,7 @@ unindex_problem "$id"
 rm -f "$CONTESTSDIR/treino/var/jsons-private/$id.json" 2>/dev/null
 rm -f "$RUNDIR/validation/$id.json" 2>/dev/null
 authored_remove "$id"
+tl_fresh_drop "$id"          # carimbo de checksum fresco do id que deixou de existir
 ( MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" \
     setsid bash "$MOJTOOLS_DIR/gen-problem-owners.sh" >/dev/null 2>&1 & ) 2>/dev/null
 audit_log "delete" "id=$id by=$SESSION_LOGIN"

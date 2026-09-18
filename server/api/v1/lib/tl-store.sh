@@ -128,17 +128,51 @@ pkg_tl_checksum(){
 # problemas, e ela já carimba o `tl_checksum` no índice — é exatamente o que o treino usa p/ servir
 # `time_limits` sem trabalho por requisição. Id fora do índice não sai daqui, e o chamador cai no
 # caminho lento (hashear), que é correto, só raro.
+# ===== CARIMBO DO CHECKSUM FRESCO — treino/var/tl-checksum-fresh.json  { "<id>": "<cks>" } =====
+# O `tl_checksum` do índice de donos só se refaz em BACKGROUND (TTL 30 min + a varredura; num dia de
+# muitos deploys, 80 min). Entre "editei + recalibrei" e o índice alcançar, o checksum de run/tl (novo)
+# não batia com o do índice (velho) e o contest servia `time_limits:{}` — o TL SUMIA da prova bem na
+# hora em que o professor a preparava (relato do Daniel Saad, 2026-09-18), e o Painel seguia dizendo
+# "precisa recalibrar". Mas o servidor JÁ SABE o valor novo nesse instante: o /judge/tl-report calcula
+# o checksum real do pacote e só grava o TL se ele bate. Então ELE carimba aqui, e o carimbo VENCE o
+# índice (tl_index_checksums, owners_merged). Ciclo de vida: nasce no tl-report · morre no
+# problem_commit (o pacote mudou: deixou de ser verdade) e em delete/move · é podado quando o índice
+# alcança o mesmo valor. A fronteira segue de pé: quem ESCREVE é rota de juiz/gestão (que já tocam o
+# pacote); a rota de contest só LÊ um json minúsculo. Arquivo por stdin/slurpfile, nunca argv.
+tl_fresh_file(){ printf '%s/treino/var/tl-checksum-fresh.json' "$CONTESTSDIR"; }
+_tl_fresh_edit(){   # <programa-jq> [args-jq…] — reescreve o arquivo sob flock; lixo = recomeça de {}
+  local f t prog="$1"; shift; f="$(tl_fresh_file)"; t="$f.tmp.$BASHPID"   # BASHPID resolvido ANTES do redirect
+  mkdir -p "${f%/*}" 2>/dev/null
+  ( flock -w 5 9 2>/dev/null
+    local cur; cur="$(cat "$f" 2>/dev/null)"; jq -e 'type=="object"' >/dev/null 2>&1 <<<"$cur" || cur='{}'
+    printf '%s' "$cur" | jq -c "$@" "$prog" > "$t" 2>/dev/null && [[ -s "$t" ]] && mv -f "$t" "$f" || rm -f "$t"
+    [[ "$(<"$f")" == '{}' ]] 2>/dev/null && rm -f "$f"      # vazio não fica para trás (o `-s` curto-circuita a poda)
+  ) 9>"$f.lock"
+}
+tl_fresh_set(){  [[ -n "$1" && "$2" =~ ^[a-f0-9]{6,64}$ ]] || return 0; _tl_fresh_edit '. + {($id): $c}' --arg id "$1" --arg c "$2"; }
+tl_fresh_drop(){ [[ -n "$1" && -s "$(tl_fresh_file)" ]] || return 0; _tl_fresh_edit 'del(.[$id])' --arg id "$1"; }
+# tl_fresh_prune — tira o carimbo que o índice JÁ alcançou (chamado junto do authored_prune)
+tl_fresh_prune(){
+  : "${OWNERS_INDEX:=$CONTESTSDIR/treino/var/problem-owners.json}"
+  [[ -s "$(tl_fresh_file)" && -s "$OWNERS_INDEX" ]] || return 0
+  _tl_fresh_edit '(($idx[0].problems // []) | map({key:.id, value:(.tl_checksum // "")}) | from_entries) as $by
+                  | with_entries(select(.value != ($by[.key] // "")))' --slurpfile idx "$OWNERS_INDEX"
+}
+
 tl_index_checksums(){
   (( $# )) || return 0
   # o caminho do índice mora no lib/problems.sh, que nem todo chamador sourceia — sem este
   # default a função voltaria VAZIA e o chamador cairia calado no caminho lento (hashear)
   : "${OWNERS_INDEX:=$CONTESTSDIR/treino/var/problem-owners.json}"
   [[ -s "$OWNERS_INDEX" ]] || return 0
-  printf '%s\n' "$@" | jq -Rrn --slurpfile idx "$OWNERS_INDEX" '
+  # o CARIMBO fresco (tl_fresh_*, acima) vence o índice; arquivo ausente/corrompido = sem carimbo
+  local fr; fr="$(tl_fresh_file)"; jq -e 'type=="object"' "$fr" >/dev/null 2>&1 || fr=/dev/null
+  printf '%s\n' "$@" | jq -Rrn --slurpfile idx "$OWNERS_INDEX" --slurpfile fr "$fr" '
     [inputs] as $want
+    | (($fr[0]) // {}) as $fresh
     | ($idx[0].problems // [])[]
     | select(.id as $i | $want | index($i))
-    | "\(.id)\t\(.tl_checksum // "")"' 2>/dev/null
+    | "\(.id)\t\($fresh[.id] // .tl_checksum // "")"' 2>/dev/null
   return 0
 }
 
