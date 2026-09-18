@@ -67,6 +67,10 @@ reg_rename_login "$old" "$new" || true
 # PARTICIPAÇÕES VIRTUAIS seguem o rename: o estado mora no dir do usuário (já foi no mv), mas o
 # snapshot publicado fica no contest, chaveado pelo login (lib/virtual.sh)
 source "$_LIBDIR/virtual.sh" 2>/dev/null && vr_rename_login "$old" "$new" || true
+# A POSSE segue o rename (lib/owner-rename.sh): dono de problema, de contest, de coleção e as permissões
+# de criar contest. `owner` CONCEDE acesso — dono apontando p/ login que deixou de existir é posse solta
+# (e os problemas somem de "Meus"). O barato vale JÁ; os metas dos pacotes (1 commit cada) vão destacados.
+source "$_LIBDIR/owner-rename.sh" 2>/dev/null && { owner_rename_fast "$old" "$new" >/dev/null; owner_rename_bg "$old" "$new" "$new"; } || true
 
 # TODAS as sessões do login seguem o novo nome — não só a que pediu a troca. A sessão da outra
 # aba/computador e o token do moj-cli continuavam valendo com o login VELHO: como a conta é um

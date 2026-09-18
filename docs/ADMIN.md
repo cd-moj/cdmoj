@@ -334,3 +334,21 @@ mantenha uma cópia (`contest-backup`) antes da data.
 Arquitetura: [`OVERVIEW.md`](OVERVIEW.md) · Fluxo de submissão: [`FLOW.md`](FLOW.md) · Rotas:
 [`API.md`](API.md) · Deploy técnico + nginx/subdomínios: [`DEPLOY.md`](DEPLOY.md) · Units bare-metal:
 `server/etc/systemd/README.md` · Juízes: `judge/README.md` · Pull/segredos: `server/judge-gw/PULL.md`.
+
+## 10. Posse que ficou num login antigo (troca de username)
+
+Desde 2026-09-18 a troca de username leva a **posse** junto: dono de problema, de contest, de coleção e as
+permissões de criar contest. Quem trocou de username **antes** disso ficou com a posse no login antigo: os
+problemas não aparecem em "Meus" e o dono dos contests é um login que não existe mais.
+
+Para consertar uma conta:
+
+1. Rode em **dry-run** e leia o que aponta para o login antigo:
+   `podman exec systemd-moj-api bash /opt/moj/cdmoj/server/bin/owner-rename.sh <login-antigo> <login-novo>`
+2. Rode de novo com `--apply`.
+3. Confira a última linha: tudo em zero.
+
+A ferramenta **recusa** quando o login novo não existe, e quando o login antigo **ainda existe**. No segundo
+caso não houve troca de username: são duas contas, e a posse entre contas diferentes não se transfere por
+aqui. Rodar duas vezes é inofensivo. Cada problema ganha um commit `dono: <antigo> -> <novo>`.
+

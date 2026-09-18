@@ -228,7 +228,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`orgs_rename_login` em lib/orgs.sh — sem isso a conta renomeada ficava órfã de TODAS as orgs;
   o nome da org e o `owner` histórico dos problemas não mudam: acesso vem da membership)
   **e as SESSÕES também** (`rename_contest_sessions`, resposta `sessions_updated`) **e as
-  INSCRIÇÕES** (`reg_rename_login`) **e os snapshots de participação virtual** (`vr_rename_login`). Item novo na cascata de rename ⇒ entra aqui, no
+  INSCRIÇÕES** (`reg_rename_login`) **e os snapshots de participação virtual** (`vr_rename_login`) **e a POSSE** (`lib/owner-rename.sh`,
+  2026-09-18: dono de problema — `.moj-meta.json` + índice + overlay —, de contest (`contests/<c>/owner`), de
+  coleção e as permissões de criar contest; o barato é síncrono, os metas — 1 commit por pacote — vão
+  destacados e são retomáveis. ⚠ `owner` CONCEDE acesso (`owners_visible`, `problems_denied_for`): dono
+  apontando p/ login que não existe mais é posse SOLTA, e os problemas somem de "Meus" — foi o relato do
+  Daniel Saad, 201 problemas + 87 contests no login antigo. Passado se conserta com
+  `server/bin/owner-rename.sh <antigo> <novo> [--apply]`, dry-run por padrão, que RECUSA se o antigo ainda
+  existe — aquilo é rename, não transferência entre contas. Teste: `smoke-owner-rename.sh`). Item novo na cascata de rename ⇒ entra aqui, no
   `username.sh` E no `smoke-profile.sh`.
 - **Inscrição em contest (`lib/registration.sh`)**: `contests/<c>/registrations.json` — **existir =
   ligado** (doutrina do `cohorts.json`: ausente = comportamento de sempre, custo zero). Vale só p/
