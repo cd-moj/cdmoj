@@ -215,7 +215,7 @@ function renderSubs() {
   const sig = JSON.stringify(runs); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
   box.innerHTML = '';
   if (!runs.length) { box.append(el('span', { class: 'muted small' }, T('Nenhuma submissão ainda.', 'No submissions yet.'))); return; }
-  box.append(el('table', { class: 'list' },
+  box.append(el('table', { class: 'moj' },
     el('thead', {}, el('tr', {}, el('th', { class: 'n' }, T('tempo', 'time')), el('th', {}, T('problema', 'problem')), el('th', {}, T('linguagem', 'language')), el('th', {}, T('veredicto', 'verdict')))),
     el('tbody', {}, ...runs.slice().reverse().map((r) => el('tr', {},
       el('td', { class: 'n' }, mmss(r[0])), el('td', {}, problems && problems[r[1]] ? problems[r[1]].letter : String(r[1])),

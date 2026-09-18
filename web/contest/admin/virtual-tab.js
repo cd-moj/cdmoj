@@ -66,7 +66,7 @@ export function makeVirtualTab(CONTEST) {
     swapIf(runs, sigOf(JSON.stringify(d.virtuals)), () => el('div', {},
       el('h3', {}, T('Participações gravadas', 'Recorded participations') + ' (' + (d.virtuals || []).length + ')'),
       !(d.virtuals || []).length ? el('p', { class: 'muted' }, T('Ninguém terminou uma participação virtual ainda.', 'Nobody has finished a virtual participation yet.'))
-        : el('table', { class: 'list' },
+        : el('table', { class: 'moj' },
           el('thead', {}, el('tr', {}, el('th', {}, 'login'), el('th', {}, T('nome', 'name')),
             el('th', { class: 'n' }, T('resolvidos', 'solved')), el('th', { class: 'n' }, T('penalidade', 'penalty')),
             el('th', {}, T('largada', 'started')), el('th', {}, ''))),
