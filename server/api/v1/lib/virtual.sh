@@ -32,6 +32,7 @@ source "$_LIBDIR/verdict.sh"
 : "${VR_MAX_DISCARDS:=2}"         # desistências que DEVOLVEM a tentativa; a largada seguinte é definitiva
 : "${VR_SCHEDULE_MAX_S:=604800}"  # agendar até 7 dias à frente
 : "${VR_PENDING_MAX_S:=3600}"     # pendente há mais que isto depois do fim não segura a finalização
+: "${VR_FRIENDS_MAX:=100}"         # teto da lista de "escolhidos" (virtuais que sempre aparecem)
 : "${SCOREDIR:=$_LIBDIR/../../../score}"
 
 vr_cid_ok(){ [[ "$1" =~ ^[a-z0-9][a-z0-9_-]{0,63}$ && "$1" != treino ]]; }
@@ -320,6 +321,26 @@ vr_board_json(){
   cat "$f"
 }
 
+# ---- "MEUS ESCOLHIDOS": virtuais que a pessoa quer ver SEMPRE no placar (amigos) ------------------
+# UMA lista por conta, p/ todos os contests: treino/users/<login>/virtual/_friends.json. O `_` inicial
+# garante que o arquivo NUNCA colide com o estado de um contest (vr_cid_ok exige [a-z0-9] no 1º
+# caractere) e que o vr_rename_login o pula; mora no dir do usuário ⇒ acompanha o rename do dono.
+# Não se confere se a conta escolhida EXISTE: seria oráculo de existência, e login que não existe
+# simplesmente nunca casa com linha nenhuma do placar.
+vr_friends_file(){ printf '%s/treino/users/%s/virtual/_friends.json' "$CONTESTSDIR" "$1"; }
+vr_friends_get(){   # <login> -> ["a","b"]
+  local f; f="$(vr_friends_file "$1")"
+  [[ -s "$f" ]] && jq -c '(.logins // []) | map(select(type=="string"))' "$f" 2>/dev/null || printf '[]'
+}
+# vr_friends_set <login> <lista-json> — grava (chamar sob vr_lock). Tira o próprio login e duplicatas.
+vr_friends_set(){
+  local login="$1" list="$2"
+  mkdir -p "$(vr_dir "$login")" || return 1
+  jq -c --arg me "$login" --argjson now "$EPOCHSECONDS" \
+    '{version:1, logins:(map(select(. != $me)) | unique), updated_at:$now}' <<<"$list" \
+    | _vr_write "$(vr_friends_file "$login")"
+}
+
 # vr_rename_login <old> <new> — chamado DEPOIS do mv do dir do usuário: os snapshots seguem o login
 vr_rename_login(){
   local old="$1" new="$2" sf cid snap
@@ -333,6 +354,15 @@ vr_rename_login(){
       && rm -f "$snap"
     touch "$CONTESTSDIR/$cid/virtual/runs" 2>/dev/null
   done < <(find "$CONTESTSDIR/treino/users/$new/virtual" -maxdepth 1 -name '*.json' -print0 2>/dev/null)
+  # quem tinha <old> entre os ESCOLHIDOS passa a ter <new>: uma varredura só, e só no rename
+  # (`find`, não glob — noglob; `grep -lF` com as aspas do JSON p/ não casar prefixo de outro login)
+  local ff ft
+  while IFS= read -r -d '' ff; do
+    grep -qF "\"$old\"" "$ff" 2>/dev/null || continue
+    ft="$ff.tmp.$BASHPID"
+    jq -c --arg o "$old" --arg n "$new" '.logins = ((.logins // []) | map(if . == $o then $n else . end) | unique)' "$ff" > "$ft" 2>/dev/null \
+      && mv -f "$ft" "$ff" || rm -f "$ft"
+  done < <(find "$CONTESTSDIR/treino/users" -mindepth 3 -maxdepth 3 -path '*/virtual/_friends.json' -print0 2>/dev/null)
   return 0
 }
 

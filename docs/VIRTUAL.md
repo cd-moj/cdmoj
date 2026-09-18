@@ -97,7 +97,15 @@ velho que isso não segura a finalização).
   - **Bandeira, universidade, sede e busca** recortam **linhas**: o número grande é a posição no
     recorte, o pequeno é a geral, e a ★ é a do recorte. A linha virtual acompanha
     (`sliceVirtualPlaces`) e nunca recebe ★.
-  - **Virtuais: todos | só o meu | nenhum.** A linha de quem está com a run em andamento aparece
+  - **Meus escolhidos (📌).** A pessoa escolhe virtuais que aparecem **sempre**, em qualquer filtro de
+    linha — serve para se comparar com amigos e, por exemplo, filtrar uma sede. Escolhe-se pelo **📌** na
+    linha virtual do placar ou pelo painel **📌 Escolhidos (N)** (busca por nome ou login, e "adicionar
+    pelo login" para quem ainda não fez o virtual desta prova). A lista é **uma por conta**, para todos
+    os contests: `GET/POST /treino/virtual/friends`, arquivo `treino/users/<login>/virtual/_friends.json`
+    (o `_` impede colisão com o estado de um contest). Sem login a lista fica no navegador e é mesclada
+    na conta no primeiro acesso logado. Teto de 100 logins. A rota não confere se a conta existe (seria
+    oráculo de existência). O rename de conta reescreve as listas que citam o login antigo.
+  - **Virtuais: todos | só os escolhidos | só o meu | nenhum.** A linha de quem está com a run em andamento aparece
     sempre. Os outros virtuais obedecem aos filtros de bandeira, universidade e busca. O filtro de
     **sede não os esconde**: o virtual não fez a prova em sede nenhuma, e quem escolhe uma sede quer
     se comparar com ela. Para tirar os virtuais da tela, use "Virtuais: nenhum".

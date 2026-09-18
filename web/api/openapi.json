@@ -1355,6 +1355,21 @@
         ]
       }
     },
+    "/treino/virtual/friends": {
+      "get": {
+        "tags": ["treino"],
+        "summary": "Meus escolhidos: virtuais que este login quer ver sempre no placar da participação virtual (amigos). Uma lista por conta, p/ todos os contests; só o próprio login lê e escreve",
+        "security": [{"bearerAuth": []}],
+        "responses": {"200": {"description": "{logins:[…], max:100}"}}
+      },
+      "post": {
+        "tags": ["treino"],
+        "summary": "Altera a lista de escolhidos: {add?,remove?} alterna (o 📌 da linha) ou {logins} substitui. Tira o próprio login e duplicatas; não confere existência da conta",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"add": {"type": "array", "items": {"type": "string"}}, "remove": {"type": "array", "items": {"type": "string"}}, "logins": {"type": "array", "items": {"type": "string"}}}}}}},
+        "responses": {"200": {"description": "{logins:[…], max:100}"}, "422": {"description": "friends_invalid | friends_limit"}}
+      }
+    },
     "/treino/virtual/feed": {
       "get": {
         "tags": [

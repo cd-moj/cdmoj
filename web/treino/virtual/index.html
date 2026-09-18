@@ -20,6 +20,8 @@
     .vr-send { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.6rem 0 }
     .vr-replay { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin:.4rem 0 .8rem }
     .vr-replay input[type=range] { flex:1 1 240px }
+    .vr-frlist { display:flex; flex-direction:column; gap:.2rem; max-height:16rem; overflow:auto }
+    .vr-fr { cursor:pointer }
     @media (max-width: 820px) { .vr-clock { font-size:1.3rem } }
   </style>
 </head>
@@ -48,6 +50,8 @@
       <h2 id="vboardtitle" data-en="Scoreboard">Placar</h2>
       <!-- a MESMA barra do placar oficial (coorte, bandeira, universidade, sede, busca) + "Virtuais" -->
       <div class="fbar hidden" id="vfilters"></div>
+      <!-- "meus escolhidos": virtuais que aparecem sempre (lista da conta; /treino/virtual/friends) -->
+      <div class="section hidden" id="vfriends" style="margin:.4rem 0 .8rem"></div>
       <div id="vreplay" class="vr-replay hidden"></div>
       <div id="vboard"></div>
     </div>

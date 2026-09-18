@@ -141,7 +141,9 @@ function cellSolved(v) { return /^\d+\/\d+\/?\*?$/.test(v); }  // tries/minutes[
 function cellWait(v) { return /^\d+\/-/.test(v); }             // tries/-
 
 export function renderICPC(parsed, opts) {
-  const { searchTerm = '', regionFn = null, genPlace = null, style = 'icon', showPhotos = false, classified = null } = opts || {};
+  // teamExtra(t): gancho OPCIONAL — nó anexado à célula do time (a Participação Virtual põe o 📌 de
+  // "escolhido" na linha virtual); o placar oficial não o usa.
+  const { searchTerm = '', regionFn = null, genPlace = null, style = 'icon', showPhotos = false, classified = null, teamExtra = null } = opts || {};
   let teams = filterTeams(parsed.teams, searchTerm);
   if (regionFn) teams = teams.filter(regionFn);
 
@@ -181,7 +183,7 @@ export function renderICPC(parsed, opts) {
   teams.forEach(t => {
     // linha VIRTUAL (shared/virtual-board.js): é um convidado com marca própria; `you` = quem está olhando
     const tr = el('tr', { id: 'tr-team-' + t.username.replace(/\W/g, '_'),
-      class: (t.guest ? 'guest-row' : '') + (t.virtual ? ' virtual-row' : '') + (t.you ? ' you-row' : '') });
+      class: (t.guest ? 'guest-row' : '') + (t.virtual ? ' virtual-row' : '') + (t.you ? ' you-row' : '') + (t.pinned ? ' pinned-row' : '') });
     // convidado não tem posição oficial: "–" — ou, com GUEST_NUMBERING (flag g), a posição na
     // SEQUÊNCIA PRÓPRIA dos convidados, em itálico (issue #25)
     const gcell = () => (t.gplace != null)
@@ -250,6 +252,7 @@ export function renderICPC(parsed, opts) {
       title: T('Time convidado (extra-oficial): não entra na classificação oficial.',
                'Guest team (unofficial): does not enter the official ranking.') },
       T('convidado', 'guest')));
+    if (teamExtra) { const x = teamExtra(t); if (x) teamTd.append(' ', x); }
     tr.append(teamTd);
     // problemas
     parsed.probShorts.forEach(sn => {

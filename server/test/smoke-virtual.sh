@@ -149,9 +149,31 @@ ck "…e pode largar de novo, não-definitiva"    '[[ "$(st)" == running && "$(j
 call adm /contest/admin/virtual POST contest=v1 '{"action":"reset","login":"ninguem"}'; ck "reset de quem não tem nada: 404" '[[ "$OUT" == *"Status: 404"* ]]'
 call ana /contest/admin/virtual POST contest=v1 '{"action":"reset","login":"beto"}';   ck "reset por não-admin: recusa" '[[ "$OUT" == *"Status: 403"* || "$OUT" == *"Status: 401"* ]]'
 
+echo "== MEUS ESCOLHIDOS: lista por conta (/treino/virtual/friends) =="
+call - /treino/virtual/friends GET "";            ck "sem Bearer: 401" '[[ "$OUT" == *"Status: 401"* ]]'
+call caio /treino/virtual/friends GET "";         ck "lista começa vazia, teto 100" '[[ "$(jq -c .logins <<<"$BODY")" == "[]" && "$(jq -r .max <<<"$BODY")" == 100 ]]'
+call caio /treino/virtual/friends POST "" '{"add":["ana","beto","ana","caio"]}'
+ck "add: dedupe e o PRÓPRIO login fica de fora" '[[ "$(jq -c .logins <<<"$BODY")" == "[\"ana\",\"beto\"]" ]]'
+call caio /treino/virtual/friends POST "" '{"remove":["beto"],"add":["zeh"]}'
+ck "add+remove no mesmo POST"                   '[[ "$(jq -c .logins <<<"$BODY")" == "[\"ana\",\"zeh\"]" ]]'
+call caio /treino/virtual/friends POST "" '{"add":["../x"]}';      ck "login com barra: 422 friends_invalid" '[[ "$(code)" == friends_invalid ]]'
+call caio /treino/virtual/friends POST "" '{"add":["a b"]}';       ck "login com espaço: 422"               '[[ "$(code)" == friends_invalid ]]'
+call caio /treino/virtual/friends POST "" '{"add":[42]}';          ck "não-string: 422"                     '[[ "$(code)" == friends_invalid ]]'
+BIG="$(jq -cn '[range(0;101)|"u\(.)"]')"
+call caio /treino/virtual/friends POST "" "{\"logins\":$BIG}";     ck "101 logins: 422 friends_limit"       '[[ "$(code)" == friends_limit ]]'
+call caio /treino/virtual/friends GET "";         ck "recusa não alterou a lista"                 '[[ "$(jq -c .logins <<<"$BODY")" == "[\"ana\",\"zeh\"]" ]]'
+call caio /treino/virtual/friends POST "" '{"logins":["beto","ana"]}'
+ck "logins:[…] substitui o conjunto"            '[[ "$(jq -c .logins <<<"$BODY")" == "[\"ana\",\"beto\"]" ]]'
+call beto /treino/virtual/friends GET "";         ck "cada conta só vê a PRÓPRIA lista"           '[[ "$(jq -c .logins <<<"$BODY")" == "[]" ]]'
+ck "arquivo _friends.json não é estado de contest" '[[ -s "$T/users/caio/virtual/_friends.json" ]] && ! ls "$T/users/caio/virtual/" | grep -qx "friends.json"'
+
 echo "== rename do login leva o snapshot =="
 ( _LIBDIR="$ROOT/api/v1/lib"; source "$_LIBDIR/common.sh" 2>/dev/null; source "$_LIBDIR/virtual.sh"
   mv "$T/users/ana" "$T/users/ana2"; vr_rename_login ana ana2 )
+ck "rename do AMIGO reescreve a lista de quem o escolheu" '[[ "$(jq -c .logins "$T/users/caio/virtual/_friends.json")" == "[\"ana2\",\"beto\"]" ]]'
+( _LIBDIR="$ROOT/api/v1/lib"; source "$_LIBDIR/common.sh" 2>/dev/null; source "$_LIBDIR/virtual.sh"
+  mv "$T/users/caio" "$T/users/caio9"; vr_rename_login caio caio9 )
+ck "rename do DONO leva a lista junto (e _friends não vira contest)" '[[ "$(jq -c .logins "$T/users/caio9/virtual/_friends.json")" == "[\"ana2\",\"beto\"]" && ! -e "$FIX/_friends" ]]'
 ck "snapshot renomeado"                        '[[ -f "$C/virtual/runs/ana2.json" && ! -f "$C/virtual/runs/ana.json" && "$(jq -r .login "$C/virtual/runs/ana2.json")" == ana2 ]]'
 
 echo; echo "RESULT: $pass passed, $fail failed"; (( fail == 0 ))

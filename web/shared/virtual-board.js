@@ -95,7 +95,7 @@ export function boardAt(feed, idx, virtuals, t, balloons, opts) {
     for (const r of (v.runs || [])) if (per[r[1]]) per[r[1]].push([r[0], r[2]]);
     const cells = per.map((rs) => cellOf(rs, t));
     rows.push({ id: '#' + v.login, flag: v.flag || '', univShort: v.univ || '', teamName: v.name || v.login, univFull: '',
-      guest: true, virtual: true, you: !!v.you, order: feed.teams.length + k, cells, ...rowOf(cells, pen) });
+      guest: true, virtual: true, you: !!v.you, pinned: !!v.pinned, login: v.login, order: feed.teams.length + k, cells, ...rowOf(cells, pen) });
   });
 
   rows.sort((a, b) => better(a, b) || (a.order - b.order));
@@ -127,7 +127,8 @@ export function boardAt(feed, idx, virtuals, t, balloons, opts) {
     });
     return { flag: r.flag, username: r.id, univShort: r.univShort, teamName: r.teamName, univFull: r.univFull,
       total: String(r.solved), penalty: String(r.penalty), lastac: String(r.lastmin),
-      guest: r.guest, cohort: r.cohort || '', virtual: r.virtual, you: r.you, place: r.place, gplace: r.gplace, probs, probSecs };
+      guest: r.guest, cohort: r.cohort || '', virtual: r.virtual, you: r.you, pinned: !!r.pinned, vlogin: r.login || '',
+      place: r.place, gplace: r.gplace, probs, probSecs };
   });
   return { mode: 'icpc', probShorts: letters, teams, balloons: balloons || {}, secs: true, guestNumbering: true };
 }
@@ -144,4 +145,17 @@ export function sliceVirtualPlaces(parsed, keep) {
   const off = parsed.teams.filter((x) => !x.guest && (!keep || keep(x)));
   parsed.teams.forEach((v) => { if (v.virtual) v.gplace = off.filter((o) => lt(o, v)).length + 1; });
   return parsed;
+}
+
+// "Virtuais:" — quais participações virtuais entram no placar. `friends` = Set de logins ESCOLHIDOS
+// (a lista "meus escolhidos" da conta): saem marcados `pinned` e a página os mantém na tela em
+// qualquer filtro de linha. Modos: all (todos) · friends (só os escolhidos) · mine (só `you`) · none.
+// A linha de uma run AO VIVO não passa por aqui — a página a acrescenta sempre.
+export function pickVirtuals(virtuals, mode, friends) {
+  const fr = friends || new Set();
+  const list = (virtuals || []).map((v) => ({ ...v, pinned: fr.has(v.login) }));
+  if (mode === 'none') return [];
+  if (mode === 'mine') return list.filter((v) => v.you);
+  if (mode === 'friends') return list.filter((v) => v.you || v.pinned);
+  return list;
 }

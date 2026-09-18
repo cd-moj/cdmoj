@@ -901,7 +901,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   virtual acompanha via `sliceVirtualPlaces` e NUNCA leva ★ (nem a do recorte — `sliceFts` a pula); linha
   virtual obedece a bandeira/universidade/busca mas IGNORA o filtro de SEDE (não fez em sede nenhuma —
   é p/ se comparar com a sede; `keepFn` em `virtual.js`);
-  o feed (v2) só traz coorte PÚBLICA com time no placar público; (8) `reset` no painel do dono devolve
+  o feed (v2) só traz coorte PÚBLICA com time no placar público; **"meus escolhidos"** = lista POR CONTA
+  (`/treino/virtual/friends`, `virtual/_friends.json` — o `_` impede colisão com cid e faz o rename pulá-lo)
+  de virtuais que ficam na tela em qualquer filtro de linha (`pickVirtuals` marca `pinned`; 📌 pelo gancho
+  `teamExtra` do `renderICPC`, que o placar oficial não usa); a rota NÃO confere existência da conta
+  (oráculo) e o rename reescreve as listas que citam o login antigo; (8) `reset` no painel do dono devolve
   a tentativa (estado posto de lado, não apagado). Rota nova do virtual ⇒ `vr_gate` na 1ª linha
   **e** uma linha na matriz `smoke-virtual-leak.sh`. Testes: `smoke-virtual{,-leak}.sh`,
   `smoke-virtual-board.gjs.sh`. Fora do v1: times, OBI, rodadas arquivadas, `moj-comp --virtual`.

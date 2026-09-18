@@ -11,7 +11,7 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { status, fileToBase64 } from '/shared/auth.js';
 import { el, verdictClass, isPending } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
-import { indexFeed, runsUpTo, boardAt, myRow, sliceVirtualPlaces } from '/shared/virtual-board.js';
+import { indexFeed, runsUpTo, boardAt, myRow, sliceVirtualPlaces, pickVirtuals } from '/shared/virtual-board.js';
 import { renderICPC } from '/contest/score/score-icpc.js';
 import * as F from '/contest/score/score-filters.js';   // a MESMA lógica de filtro do placar oficial
 import { flagName, flagNamesReady } from '/shared/flags.js';
@@ -36,6 +36,31 @@ const FKEY = 'moj_virtual_flt_' + CID;
 let flt = { view: '', country: '', school: '', region: null, q: '', virt: 'all' };
 try { flt = { ...flt, ...(JSON.parse(localStorage.getItem(FKEY) || '{}')) }; } catch { /* storage indisponível */ }
 const saveFlt = () => { try { localStorage.setItem(FKEY, JSON.stringify(flt)); } catch { /* idem */ } };
+// ---- "MEUS ESCOLHIDOS": virtuais que aparecem SEMPRE (amigos p/ se comparar). UMA lista por CONTA
+// (/treino/virtual/friends — acompanha a pessoa em qualquer máquina); sem login, fica no navegador.
+const LKEY = 'moj_virtual_friends';
+let friends = new Set();
+const localFriends = () => { try { const a = JSON.parse(localStorage.getItem(LKEY) || '[]'); return Array.isArray(a) ? a.filter((x) => typeof x === 'string') : []; } catch { return []; } };
+async function loadFriends() {
+  const loc = localFriends();
+  if (!logged()) { friends = new Set(loc); return; }
+  try {
+    let d = await apiGet('/treino/virtual/friends', A);
+    if (loc.length) {                       // escolheu sem login e depois entrou: mescla UMA vez
+      try { d = await apiPost('/treino/virtual/friends', { add: loc }, A); localStorage.removeItem(LKEY); } catch { /* fica p/ a próxima */ }
+    }
+    friends = new Set(d.logins || []);
+  } catch { friends = new Set(loc); }
+}
+async function setFriend(login, on) {
+  if (!login) return;
+  if (on) friends.add(login); else friends.delete(login);
+  paintBoard(true); paintFriendsUI();       // resposta na hora; o servidor confirma em seguida
+  if (!logged()) { try { localStorage.setItem(LKEY, JSON.stringify([...friends])); } catch { /* storage indisponível */ } return; }
+  try { const d = await apiPost('/treino/virtual/friends', on ? { add: [login] } : { remove: [login] }, A); friends = new Set(d.logins || []); }
+  catch (e) { if (on) friends.delete(login); else friends.add(login); alert(e.message); }
+  paintBoard(true); paintFriendsUI();
+}
 function mineChanged(vs) { const m = vs.find((v) => v.you); const k = m ? JSON.stringify((m.runs || []).map((r) => [r[1], r[2]])) : ''; const ch = k !== lastMine; lastMine = k; return ch; }
 const srvNow = () => (Date.now() + skew) / 1000;
 
@@ -243,9 +268,9 @@ function paintBoard(force) {
   const t = curT();
   const live = me && (me.state === 'running' || me.state === 'judging');
   // "Virtuais:" todos | só o meu | nenhum — a linha de uma run AO VIVO aparece sempre
-  const vs = (flt.virt === 'none' ? [] : virtuals.filter((v) => !(live && v.you) && (flt.virt === 'all' || v.you))).slice();
+  const vs = pickVirtuals(virtuals.filter((v) => !(live && v.you)), flt.virt, friends);
   if (live) vs.push({ login: who || T('você', 'you'), name: whoName || who || T('você', 'you'), runs: me.runs || [], you: true });
-  const sig = JSON.stringify(flt) + '|' + runsUpTo(idx, t) + '|' + vs.map((v) => v.login + ':' + (v.runs || []).filter((r) => r[0] <= t).map((r) => r[1] + r[2]).join('')).join(',') + '|' + (t === Infinity);
+  const sig = JSON.stringify(flt) + '|' + [...friends].sort().join(',') + '|' + runsUpTo(idx, t) + '|' + vs.map((v) => v.login + ':' + (v.runs || []).filter((r) => r[0] <= t).map((r) => r[1] + r[2]).join('')).join(',') + '|' + (t === Infinity);
   if (!force && sig === lastSig) return;
   // placar de 2000 times = tabela de 2000 linhas: o MOTOR custa ~8 ms, o DOM é que pesa. No pico de
   // uma prova grande "acontece" uma run por segundo — redesenha no máximo a cada 5 s (o relógio e a
@@ -257,7 +282,7 @@ function paintBoard(force) {
   F.applyTeamsDir(parsed, teamsDir, CID); F.applyTeamsMeta(parsed, teamsMeta);   // sede, brasão, bandeira por regra
   const keep = keepFn();
   if (keep) sliceVirtualPlaces(parsed, keep);      // a virtual acompanha a renumeração do recorte
-  const table = renderICPC(parsed, { style: 'icon', regionFn: keep });
+  const table = renderICPC(parsed, { style: 'icon', regionFn: keep, teamExtra: pinButton });
   const cnt = $('fCount');
   if (cnt) { const sh = Number(table.dataset.shown || 0), tot = Number(table.dataset.total || 0);
     cnt.textContent = (sh === tot && !keep) ? T(`${tot} linhas`, `${tot} rows`) : T(`Mostrando ${sh} de ${tot}`, `Showing ${sh} of ${tot}`) + (keep ? T(' · ★ = 1º do recorte', ' · ★ = 1st in selection') : ''); }
@@ -282,7 +307,53 @@ function keepFn() {
   const q = (flt.q || '').trim().toLowerCase();
   if (!rf && !q) return null;
   const hit = (t) => !q || [t.username, t.teamName, t.univShort, t.univFull].some((x) => String(x || '').toLowerCase().includes(q));
-  return (t) => t.you || ((t.virtual ? (!rfv || rfv(t)) : (!rf || rf(t))) && hit(t));
+  // ESCOLHIDO (📌) fica na tela em QUALQUER filtro de linha, como a minha própria linha
+  return (t) => t.you || t.pinned || ((t.virtual ? (!rfv || rfv(t)) : (!rf || rf(t))) && hit(t));
+}
+// 📌 na linha virtual (gancho teamExtra do renderizador): alterna o login nos escolhidos
+function pinButton(t) {
+  if (!t.virtual || t.you || !t.vlogin) return null;
+  const on = friends.has(t.vlogin);
+  return el('button', { class: 'pinbtn', type: 'button', 'aria-pressed': on ? 'true' : 'false',
+    title: on ? T('Tirar dos meus escolhidos', 'Remove from my picks') : T('Fixar: mostrar sempre esta pessoa no placar virtual', 'Pin: always show this person on the virtual scoreboard'),
+    onclick: (ev) => { ev.preventDefault(); ev.stopPropagation(); setFriend(t.vlogin, !on); } }, '📌');
+}
+// botão "📌 Escolhidos (N)" + caixa de gestão — atualizados EM LUGAR (a barra não é reconstruída)
+let friendsQ = '';
+function paintFriendsUI() {
+  const btn = $('fFriends'); if (btn) btn.textContent = '📌 ' + T('Escolhidos', 'Picks') + ' (' + friends.size + ')';
+  const box = $('vfriends'); if (!box || box.classList.contains('hidden')) return;
+  const list = box.querySelector('[data-k=list]'); if (!list) return;
+  const q = friendsQ.trim().toLowerCase();
+  const here = virtuals.filter((v) => !v.you && (!q || (v.login + ' ' + (v.name || '')).toLowerCase().includes(q)));
+  const hereSet = new Set(virtuals.map((v) => v.login));
+  const away = [...friends].filter((l) => !hereSet.has(l) && (!q || l.toLowerCase().includes(q))).sort();
+  list.replaceChildren(
+    ...here.map((v) => el('label', { class: 'vr-fr' },
+      el('input', { type: 'checkbox', checked: friends.has(v.login) ? '' : null, onchange: (e) => setFriend(v.login, e.target.checked) }),
+      ' ', v.name || v.login, ' ', el('span', { class: 'muted small' }, v.login + ' · ' + v.solved + ' / ' + v.penalty))),
+    ...(here.length ? [] : [el('p', { class: 'muted small' }, q ? T('Ninguém com esse nome fez o virtual desta prova.', 'Nobody with that name did this contest\'s virtual.') : T('Ninguém mais terminou o virtual desta prova ainda.', 'Nobody else has finished this contest\'s virtual yet.'))]),
+    ...(away.length ? [el('div', { class: 'muted small', style: 'margin-top:.5rem' }, T('Escolhidos que não fizeram o virtual DESTA prova:', 'Picks who have not done THIS contest\'s virtual:')),
+      el('div', { class: 'row', style: 'flex-wrap:wrap;gap:.3rem' }, ...away.map((l) => el('span', { class: 'pill' }, l, ' ',
+        el('button', { class: 'pinbtn', type: 'button', 'aria-pressed': 'true', title: T('tirar', 'remove'), onclick: () => setFriend(l, false) }, '✕'))))] : []));
+  // caixa marcada via atributo não reflete estado em nó novo: acerta a propriedade
+  list.querySelectorAll('input[type=checkbox]').forEach((c, i) => { c.checked = friends.has(here[i].login); });
+}
+function buildFriendsBox() {
+  const box = $('vfriends'); if (!box || box.dataset.built) return; box.dataset.built = '1'; box.innerHTML = '';
+  const q = el('input', { class: 'filter', type: 'search', placeholder: T('buscar por nome ou login…', 'search by name or login…') });
+  q.addEventListener('input', () => { friendsQ = q.value; paintFriendsUI(); });
+  const add = el('input', { class: 'filter', type: 'text', placeholder: T('adicionar pelo login…', 'add by login…'), style: 'width:12rem' });
+  const addBtn = el('button', { type: 'button', class: 'btn ghost small', onclick: () => {
+    const l = add.value.trim(); if (!/^[A-Za-z0-9._@+-]{1,64}$/.test(l)) { add.focus(); return; }
+    add.value = ''; setFriend(l, true);
+  } }, T('adicionar', 'add'));
+  add.addEventListener('keydown', (e) => { if (e.key === 'Enter') addBtn.click(); });
+  box.append(el('p', { class: 'small muted', style: 'margin:0 0 .5rem' }, T(
+    'Quem você escolher aparece SEMPRE no placar virtual, em qualquer filtro — para se comparar com os amigos. A lista é da sua conta e vale para todas as provas' + (logged() ? '.' : ' (sem entrar na conta, ela fica só neste navegador).'),
+    'Whoever you pick ALWAYS shows on the virtual scoreboard, under any filter — to compare yourself with friends. The list belongs to your account and applies to every contest' + (logged() ? '.' : ' (without logging in it stays in this browser only).'))),
+    el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem' }, q, add, addBtn),
+    el('div', { 'data-k': 'list', class: 'vr-frlist' }));
 }
 function renderFilters() {
   const bar = $('vfilters'); if (!bar || !feed) return; bar.classList.remove('hidden');
@@ -329,14 +400,18 @@ function renderFilters() {
     bar.append(lab(T('Sede:', 'Site:'), sel));
   } else flt.region = null;
   const vsel = el('select', { id: 'fVirt' }, el('option', { value: 'all' }, T('todos', 'all')),
+    el('option', { value: 'friends' }, T('só os escolhidos', 'only my picks')),
     el('option', { value: 'mine' }, T('só o meu', 'only mine')), el('option', { value: 'none' }, T('nenhum', 'none')));
-  if (!['all', 'mine', 'none'].includes(flt.virt)) flt.virt = 'all';
+  if (!['all', 'friends', 'mine', 'none'].includes(flt.virt)) flt.virt = 'all';
   vsel.value = flt.virt; on(vsel, (v) => { flt.virt = v; }); bar.append(lab(T('Virtuais:', 'Virtuals:'), vsel));
+  bar.append(el('button', { id: 'fFriends', type: 'button', title: T('Escolher quem aparece sempre no placar virtual', 'Choose who always shows on the virtual scoreboard'),
+    onclick: () => { const b = $('vfriends'); b.classList.toggle('hidden'); if (!b.classList.contains('hidden')) { buildFriendsBox(); paintFriendsUI(); } } }, '📌'));
   const q = el('input', { id: 'fQ', class: 'filter', type: 'search', placeholder: T('buscar time, universidade, login…', 'search team, university, login…') });
   q.value = flt.q || ''; q.addEventListener('input', () => { flt.q = q.value; saveFlt(); paintBoard(true); });
   bar.append(q, el('button', { id: 'fClear', type: 'button', onclick: () => {
     flt = { view: '', country: '', school: '', region: null, q: '', virt: 'all' }; saveFlt(); bar.dataset.built = ''; renderFilters(); paintBoard(true);
   } }, T('limpar filtros', 'clear filters')), el('span', { class: 'fcount', id: 'fCount' }, ''));
+  paintFriendsUI();
 }
 function renderReplay() {
   const box = $('vreplay'); box.classList.remove('hidden'); if (box.dataset.built) return; box.dataset.built = '1';
@@ -374,7 +449,7 @@ async function enter() {
   headState = ''; lastSig = '';
   $('vstart').classList.add('hidden'); $('varena').classList.add('hidden'); $('vreplay').classList.add('hidden');
   $('vboardsec').classList.remove('hidden');
-  await loadBoard();
+  await Promise.all([loadBoard(), loadFriends()]);
   if (st === 'running' || st === 'judging' || st === 'finished') {
     if (!problems) { try { problems = (await apiGet('/treino/virtual/problems?contest=' + enc(CID), A)).problems; } catch { problems = []; } }
     $('varena').classList.remove('hidden'); renderProblems(); renderSubs();
@@ -418,6 +493,6 @@ async function boot() {
   await enter();
   setInterval(() => { paintHead(); if (me && me.state === 'running') paintBoard(); }, 1000);
   setInterval(() => { if (me && ['running', 'judging', 'scheduled'].includes(me.state) && !document.hidden) refreshRun(); }, 10000);
-  document.addEventListener('moj:lang', () => { headState = ''; $('vprobs').dataset.built = ''; $('vreplay').dataset.built = ''; $('vreplay').innerHTML = ''; $('vfilters').dataset.built = ''; $('vsubs').dataset.sig = ''; enter(); });
+  document.addEventListener('moj:lang', () => { headState = ''; $('vprobs').dataset.built = ''; $('vreplay').dataset.built = ''; $('vreplay').innerHTML = ''; $('vfilters').dataset.built = ''; $('vfriends').dataset.built = ''; $('vsubs').dataset.sig = ''; enter(); });
 }
 boot();

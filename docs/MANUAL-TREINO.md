@@ -348,7 +348,13 @@ placar oficial. Os times oficiais resolvem os problemas no mesmo minuto em que r
 **Filtros do placar.** A barra é a mesma do placar do contest: **Placar** (por exemplo, só os times
 oficiais, sem convidados), **Bandeira**, **Universidade**, **Sede** e a busca. Com filtro ativo, o
 número grande é a posição no recorte e o pequeno é a posição geral. A sua linha aparece sempre.
-O seletor **Virtuais** escolhe entre todos os participantes virtuais, só você, ou nenhum. O filtro de
+**Meus escolhidos.** Clique no **📌** de uma linha virtual para fixar aquela pessoa: ela aparece sempre
+no placar, em qualquer filtro. O botão **📌 Escolhidos** abre a lista: busque por nome ou login, marque
+e desmarque, ou adicione um login de quem ainda não fez o virtual desta prova. A lista é da sua conta e
+vale para todas as provas. Exemplo de uso: escolha os seus amigos, selecione uma **Sede** e veja a
+posição de cada um entre os times daquela sede.
+
+O seletor **Virtuais** escolhe entre todos os participantes virtuais, só os escolhidos, só você, ou nenhum. O filtro de
 **Sede** não esconde os virtuais: assim você compara o seu resultado com os times daquela sede.
 
 **Desistir sem gravar:** o botão **Desistir** existe nos primeiros **15 minutos**, ou enquanto você

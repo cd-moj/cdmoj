@@ -101,6 +101,14 @@ print('virt_gplace=' + (me.gplace === ahead + 1 ? 'ok' : 'bad ' + me.gplace + ' 
 print('virt_nostar=' + (Object.values(me.probs).some((c) => /\*$/.test(c)) ? 'bad' : 'ok'));
 const early = boardAt(FEED, idx, V, 1700); const me2 = myRow(early);
 print('virt_t1700=' + (me2.total === '0' && me2.probs.A === '1/-' ? 'ok' : 'bad ' + me2.total + ' ' + me2.probs.A));
+// "Virtuais:" todos | só os escolhidos | só o meu | nenhum — e o `pinned` chega à linha do placar
+{ const VS = [{ login: 'ana', runs: [[100, 0, 'Y']], you: true }, { login: 'bia', runs: [[200, 0, 'Y']] }, { login: 'caio', runs: [] }];
+  const fr = new Set(['bia', 'zeh']); const ids = (m) => pickVirtuals(VS, m, fr).map((v) => v.login + (v.pinned ? '*' : '')).join(',');
+  print('pick=' + [ids('all'), ids('friends'), ids('mine'), ids('none')].join('|'));
+  const bb = boardAt(FEED, indexFeed(FEED), pickVirtuals(VS, 'all', fr), Infinity);
+  const row = (l) => bb.teams.find((x) => x.vlogin === l);
+  print('pinned_row=' + [row('bia').pinned, row('ana').pinned, row('caio').pinned, row('bia').username].join(','));
+  print('pick_pure=' + (VS.every((v) => v.pinned === undefined))); }
 print('upto=' + runsUpTo(idx, 900) + ',' + runsUpTo(idx, -1) + ',' + (runsUpTo(idx, 1e9) === FEED.runs.length));
 JS
 } > "$W/t.js"
@@ -121,6 +129,9 @@ check virt_noconsume ok "virtual NÃO desloca a numeração oficial"
 check virt_gplace ok    "virtual ganha a posição que OCUPARIA"
 check virt_nostar ok    "virtual nunca leva ★"
 check virt_t1700 ok     "no minuto 28 a virtual ainda não resolveu (1/-)"
+check pick "ana,bia*,caio|ana,bia*|ana|" "pickVirtuals: todos | só os escolhidos (+eu) | só o meu | nenhum"
+check pinned_row "true,false,false,#bia" "escolhido chega à linha do placar como pinned (com o login p/ o 📌)"
+check pick_pure true     "pickVirtuals não altera a lista recebida"
 check upto "7,0,true"   "runsUpTo (busca binária: 7 runs até o segundo 900)"
 grep -q "★\|\*" "$FIX/dfull/var/placar.txt" && echo "  (fixture tem ★ no TXT: $(grep -o '[0-9]*/[0-9]*\*' "$FIX/dfull/var/placar.txt" | tr '\n' ' '))"
 echo "RESULT: $PASS passed, $FAIL failed"; (( FAIL == 0 ))
