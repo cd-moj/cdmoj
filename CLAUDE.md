@@ -1277,6 +1277,13 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   *default* é seguro (o fallback é o próprio valor falsy) — o veneno é `//` com um sentinela.
   O portão da lista pública tem teste: `server/test/smoke-public-index.sh`; a rede de segurança é
   `server/bin/audit-public-index.sh`.
+- **`/submit` do TREINO confere a VISIBILIDADE do problema** (2026-09-18): público = um teste de
+  arquivo em `var/jsons/` (caminho quente intacto); não-público só passa p/ dono/colaborador/membro
+  da org (`problems_denied_for` + o id tem de CONSTAR do índice de donos — o "desconhecido não nega"
+  daquela função seria fail-open aqui). Privado alheio e inexistente = o MESMO `404
+  problem_notfound`, nada vai ao spool nem ao history. Antes, um id privado conhecido era julgado e
+  devolvia veredicto + report a qualquer conta. Teste: `server/test/smoke-submit-visibility.sh`.
+  Fixture de teste que submete no treino precisa do `var/jsons/<id>.json` público.
 - **NOME DE ARQUIVO DO ALUNO É ENTRADA HOSTIL, e ele viaja até um `/bin/sh`.** O `filename` do
   `/submit` vai no job, o agente do juiz materializa a fonte **preservando o nome**, o
   `build-and-test.sh` a copia p/ dentro da jaula e o `mojtools/lang/*/compile.sh` monta um

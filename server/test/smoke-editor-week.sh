@@ -12,6 +12,8 @@ fx_user "$T" ribas x "Ribas"
 fx_user "$T" alice x "Alice"
 jq '.favorite_editor="vim"' "$T/users/ribas/account.json" > "$T/users/ribas/account.json.n" && mv "$T/users/ribas/account.json.n" "$T/users/ribas/account.json"
 printf 'CONTEST=treino\nLOGIN=ribas\nLOGINAT=1\n' > "$SESS/tok"
+# o /submit do treino só aceita problema VISÍVEL ao login (smoke-submit-visibility.sh): p1 é público
+mkdir -p "$T/var/jsons"; printf '%s' '{"id":"p1","title":"P1","public":true}' > "$T/var/jsons/p1.json"
 
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="${5:-}" HTTP_AUTHORIZATION="Bearer ${4:-tok}" \
     CONTESTSDIR="$FIX" SESSIONDIR="$SESS" SPOOLDIR="$SPOOL" bash "$ROUTER" <<<"${3:-}" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }

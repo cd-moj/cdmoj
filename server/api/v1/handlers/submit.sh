@@ -31,6 +31,30 @@ jq -r '.code_b64 // empty' <<<"$body" | tr -d '\r\n' > "$B64F"
 b64sz="$(stat -c%s "$B64F" 2>/dev/null || echo 0)"
 [[ -n "$problem" && "$b64sz" -gt 0 ]] || fail 400 "Missing problem_id or code_b64" "submit_incomplete"
 valid_id "$problem" || fail 400 "Invalid problem id" "problem_invalid"
+
+# VISIBILIDADE DO PROBLEMA (só no TREINO — em contest o conjunto é o do conf): o login precisa
+# PODER VER o problema. Sem isto, um id privado conhecido era julgado e devolvia veredicto + report
+# a qualquer conta — uma sonda contra prova em elaboração (achado de 2026-09-18). Caminho quente:
+# público = UM teste de arquivo (estar em var/jsons/ já passou pelo portão do índice público).
+# Só o não-público paga o índice de donos: dono/colaborador/membro da org seguem submetendo
+# (autor testa o próprio problema). Privado alheio e inexistente saem IDÊNTICOS (404) — a
+# resposta não pode confirmar que o id existe. Índice quebrado = recusa (fail-closed).
+if [[ "$contest" == treino && ! -f "$CONTESTSDIR/treino/var/jsons/$problem.json" ]]; then
+  source "$_LIBDIR/problems.sh"
+  _vis=0
+  if [[ -f "$CONTESTSDIR/treino/var/jsons-private/$problem.json" ]]; then
+    if _den="$(problems_denied_for "$SESSION_LOGIN" "$(jq -cn --arg p "$problem" '[$p]')")"; then
+      [[ -z "$_den" ]] && _vis=1
+    fi
+    # ⚠ "desconhecido no índice NÃO nega" (contrato de problems_denied_for): aqui isso seria
+    # fail-open — privado que (ainda) não consta do índice de donos não passa p/ ninguém: sem a
+    # entrada não há como provar que o login é dono/colaborador/membro.
+    if (( _vis )) && ! owners_merged 2>/dev/null | jq -e --arg p "$problem"          '.problems | any(.id == $p)' >/dev/null 2>&1; then
+      _vis=0
+    fi
+  fi
+  (( _vis )) || fail 404 "Problem not found" "problem_notfound"
+fi
 [[ -n "$filename" ]] || filename="solution"
 # nome de arquivo do aluno é ENTRADA HOSTIL (ver safe_src_filename): o juiz o materializa e os
 # compile.sh de make o entregam ao /bin/sh. `l(1).cpp` — a marca de download repetido do
