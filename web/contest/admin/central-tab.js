@@ -101,9 +101,11 @@ export function makeCentralTab(CONTEST, opts = {}) {
     // ---------- 1. falta para começar ----------
     const checks = (pre && pre.checks) || [];
     const s = (pre && pre.summary) || { ok: 0, warn: 0, fail: 0 };
+    // O checklist é CONSULTIVO: o MOJ não impede login nem submissão por causa dele. O rótulo dizia
+    // "BLOQUEIAM a prova" e um professor entendeu (com razão) que o sistema travaria — não trava.
     const head = !pre ? el('span', { class: 'pill bad' }, T('não foi possível checar', 'could not check'))
-      : s.fail > 0 ? el('span', { class: 'pill bad' }, T(`${s.fail} item(ns) BLOQUEIAM a prova`, `${s.fail} item(s) BLOCK the contest`))
-        : s.warn > 0 ? el('span', { class: 'pill' }, T(`${s.warn} aviso(s) — nada bloqueia`, `${s.warn} warning(s) — nothing blocks`))
+      : s.fail > 0 ? el('span', { class: 'pill bad' }, T(`${s.fail} item(ns) crítico(s) — confira antes de começar`, `${s.fail} critical item(s) — check before you start`))
+        : s.warn > 0 ? el('span', { class: 'pill' }, T(`${s.warn} aviso(s) — nada crítico`, `${s.warn} warning(s) — nothing critical`))
           : el('span', { class: 'pill ok' }, T('tudo pronto', 'all clear'));
     const box1 = el('div', { class: 'section' },
       el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },

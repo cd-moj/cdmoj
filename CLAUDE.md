@@ -786,7 +786,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   do painel renderiza — `{id, level:ok|warn|fail, label, detail}` + `summary`. Feature de contest
   nova que possa dar errado no dia da prova **ganha uma checagem aqui**, com o `id` no mapa
   `TARGET` do `central-tab.js` (é o botão "resolver →") e uma asserção em
-  `server/test/smoke-preflight.sh`. `fail` significa BLOQUEIA a prova — use `warn` p/ escolha
+  `server/test/smoke-preflight.sh`. `fail` significa CRÍTICO (a prova não deveria começar assim) — mas o checklist é CONSULTIVO: nada no
+  login/submit o consulta, e a tela diz "crítico", não "bloqueia" (2026-09-18: um professor leu
+  "BLOQUEIAM a prova" e achou que o sistema travaria). Use `warn` p/ escolha
   legítima (isento de gate declarado, coorte privada) e nunca transforme configuração
   deliberada em aviso eterno. Libs pesadas (rodadas) só são `source`adas dentro do `if` que
   precisa delas: o handler roda a cada abertura da Central. **Checagem de MÓDULO só roda com o
