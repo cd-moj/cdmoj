@@ -121,6 +121,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Espelho disso: **conta renomeada arrasta TODAS as sessões** (`rename_contest_sessions`), não só
   o token da requisição — foi o furo que fez uma sessão velha submeter com o login antigo e
   RECRIAR o diretório do fantasma (`server/bin/user-merge.sh` conserta o resíduo).
+  **Derrubar as sessões de um login = `remove_contest_sessions[_v] <c> <login…>`** (`lib/auth.sh`): um `grep`
+  acha os arquivos com a linha `LOGIN=<login>` e só eles são confirmados por `source`. NUNCA um
+  `$( source "$f" )` por arquivo de sessão: a sessão não expira e o diretório só cresce (21.254 em
+  19/09/2026) — o "nova senha" das contas geridas levava 38 s e o admin desistia antes de ver a senha
+  (relato do Ribas, conta `zan`). Teste: `smoke-session-remove.sh`.
   Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.cstaff/.mon`).
   **`.cjudge`** = juiz-chefe: `is_judge` vale p/ ele (herda juiz) + `is_chief`/`is_admin_or_chief`
   p/ os extras escopados (editar notícias/respostas já dadas, Situação, Todas Submissões, resolver

@@ -17,13 +17,7 @@ mkdir -p "$dst" 2>/dev/null
 mv "$(user_dir treino "$login")" "$dst/${login}-$EPOCHSECONDS" \
   || fail 500 "Falha ao remover" "remove_fail"
 
-set +o noglob; shopt -s nullglob
-for f in "$SESSIONDIR"/*; do
-  [[ -f "$f" ]] || continue
-  lg="$( CONTEST=""; LOGIN=""; source "$f" 2>/dev/null; [[ "$CONTEST" == treino ]] && printf '%s' "$LOGIN" )"
-  [[ "$lg" == "$login" ]] && rm -f "$f"
-done
-shopt -u nullglob
+remove_contest_sessions treino "$login" >/dev/null       # lib/auth.sh (pré-filtro por texto)
 _score_dirty treino
 
 audit_log managed-remove "login=$login"

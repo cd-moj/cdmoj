@@ -13,14 +13,8 @@ user_exists treino "$login" || fail 404 "Usuário não encontrado" "user_notfoun
 pw="$(user_genpass)"
 user_set_password treino "$login" "$pw" || fail 500 "Falha ao trocar a senha" "save_fail"
 
-removed=0
-set +o noglob; shopt -s nullglob
-for f in "$SESSIONDIR"/*; do
-  [[ -f "$f" ]] || continue
-  lg="$( CONTEST=""; LOGIN=""; source "$f" 2>/dev/null; [[ "$CONTEST" == treino ]] && printf '%s' "$LOGIN" )"
-  [[ "$lg" == "$login" ]] && { rm -f "$f"; ((removed++)); }
-done
-shopt -u nullglob
+# sessões da conta caem (pré-filtro por texto: um grep, não um fork por arquivo — ver lib/auth.sh)
+removed="$(remove_contest_sessions treino "$login")"
 
 audit_log managed-reset "login=$login"
 ok_json '{reset:true, login:$l, password:$p, sessions_removed:$n}' \

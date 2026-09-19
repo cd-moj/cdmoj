@@ -17,14 +17,7 @@ for t in "${targets[@]}"; do
 done
 (( ${#LOCKED[@]} )) || fail 404 "Nenhum usuário válido para travar" "user_notfound"
 
-removed=0
-set +o noglob; shopt -s nullglob
-for f in "$SESSIONDIR"/*; do
-  [[ -f "$f" ]] || continue
-  lg="$( CONTEST=""; LOGIN=""; source "$f" 2>/dev/null; [[ "$CONTEST" == treino ]] && printf '%s' "$LOGIN" )"
-  if [[ -n "$lg" && -n "${LOCKED[$lg]:-}" ]]; then rm -f "$f"; ((removed++)); fi
-done
-shopt -u nullglob
+removed="$(remove_contest_sessions treino "${!LOCKED[@]}")"   # lib/auth.sh (pré-filtro por texto)
 users="$(printf '%s\n' "${!LOCKED[@]}" | jq -R . | jq -cs .)"
 audit_log lock-user "users=$(IFS=,; echo "${!LOCKED[*]}") removed=$removed"
 ok_json '{locked:true, users:$u, users_count:($u|length), sessions_removed:$n}' \

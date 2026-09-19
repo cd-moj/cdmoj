@@ -164,27 +164,42 @@ create_session() {
 }
 destroy_session(){ [[ -n "${1:-}" ]] && valid_id "$1" && rm -f "$SESSIONDIR/$1"; }
 
-# remove_contest_sessions <contest> [login] -> ecoa o nº de sessões removidas.
-# Sem <login>, remove todas do contest. Usado por deslogar/desabilitar usuário.
-# É a varredura COMPLETA (autoritativa) — o índice de lib/session-index.sh é só o atalho do
-# login; a entrada dele que ficar órfã é podada na leitura.
+# remove_contest_sessions <contest> [login…] -> ecoa o nº de sessões removidas.
+# Sem login, remove todas do contest. Usado por deslogar/desabilitar/travar/resetar senha.
+# É a varredura AUTORITATIVA (o índice de lib/session-index.sh é só o atalho do login; a entrada
+# dele que ficar órfã é podada na leitura).
 remove_contest_sessions(){
-  local n; n="$(remove_contest_sessions_v "$1" "${2:-}" | wc -l | tr -d '[:space:]')"
+  local n; n="$(remove_contest_sessions_v "$@" | wc -l | tr -d '[:space:]')"
   printf '%s' "${n:-0}"
 }
-# remove_contest_sessions_v <contest> [login] -> uma linha por sessão removida:
+# remove_contest_sessions_v <contest> [login…] -> uma linha por sessão removida:
 # token \t login \t mkey  (p/ quem precisa registrar o evento — logout-user, logout-mismatch)
+#
+# COM login: PRÉ-FILTRO POR TEXTO — UM `grep` sobre o diretório inteiro acha os arquivos com a linha
+# `LOGIN=<login>` (a forma que o create_session grava, `%q`, e a crua), e só ESSES são lidos por
+# `source` p/ a confirmação (contest e login exatos). A sessão NUNCA expira, então o diretório só
+# cresce: em 19/09/2026 eram 21.254 arquivos, e o "nova senha" das contas geridas — que lia um por
+# um, com um fork por arquivo — levava 38 s; o admin desistia antes de ver a senha gerada (relato do
+# Ribas, conta `zan`: 6 resets e nenhuma senha vista). Sem login (todas do contest), a varredura segue
+# completa. O source é no MESMO processo, com as variáveis da sessão LOCAIS (nada vaza p/ o handler).
 remove_contest_sessions_v(){
-  local c="$1" want="${2:-}" f CONTEST LOGIN MKEY
-  set +o noglob; shopt -s nullglob
-  for f in "$SESSIONDIR"/*; do
+  local c="$1"; shift
+  local -a want=(); local w q; for w in "$@"; do [[ -n "$w" ]] && want+=("$w"); done
+  local -A W=(); for w in "${want[@]}"; do W["$w"]=1; done
+  local f CONTEST LOGIN MKEY USERFULLNAME LOGINAT IP UA_B64 ACTOR
+  local -a pats=(); for w in "${want[@]}"; do printf -v q '%q' "$w"; pats+=(-e "LOGIN=$q" -e "LOGIN=$w"); done
+  while IFS= read -r -d '' f; do
     [[ -f "$f" ]] || continue
     CONTEST=""; LOGIN=""; MKEY=""; source "$f" 2>/dev/null
     [[ "$CONTEST" == "$c" ]] || continue
-    [[ -z "$want" || "$LOGIN" == "$want" ]] || continue
+    if (( ${#want[@]} )); then [[ -n "$LOGIN" && -n "${W[$LOGIN]:-}" ]] || continue; fi
     rm -f "$f" && printf '%s\t%s\t%s\n' "${f##*/}" "$LOGIN" "$MKEY"
-  done
-  shopt -u nullglob
+  done < <(if (( ${#want[@]} )); then
+             find "$SESSIONDIR" -maxdepth 1 -type f -print0 2>/dev/null | xargs -0 -r grep -lxZF "${pats[@]}" 2>/dev/null
+           else
+             find "$SESSIONDIR" -maxdepth 1 -type f -print0 2>/dev/null
+           fi)
+  return 0
 }
 
 # rename_contest_sessions <contest> <old> <new> -> ecoa o nº de sessões reescritas.

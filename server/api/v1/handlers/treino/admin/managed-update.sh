@@ -43,13 +43,7 @@ if jq -e 'has("disabled")' >/dev/null 2>&1 <<<"$body"; then
   if jq -e '.disabled == true' >/dev/null 2>&1 <<<"$body"; then
     user_set_password treino "$login" "!$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)" \
       || fail 500 "Falha ao desabilitar" "save_fail"
-    set +o noglob; shopt -s nullglob
-    for f in "$SESSIONDIR"/*; do
-      [[ -f "$f" ]] || continue
-      lg="$( CONTEST=""; LOGIN=""; source "$f" 2>/dev/null; [[ "$CONTEST" == treino ]] && printf '%s' "$LOGIN" )"
-      [[ "$lg" == "$login" ]] && rm -f "$f"
-    done
-    shopt -u nullglob
+    remove_contest_sessions treino "$login" >/dev/null     # lib/auth.sh (pré-filtro por texto)
     changes+=( "disabled" )
   else
     newpass="$(user_genpass)"

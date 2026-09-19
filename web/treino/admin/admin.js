@@ -1351,6 +1351,8 @@ function makeManagedTab() {
     (skipped || []).forEach(s => box.append(el('div', { class: 'small error-box', style: 'margin-top:.3rem' },
       `${s.fullname || s.login || '?'}: ${s.reason}`)));
     credsBox.append(box);
+    // a caixa nasce no TOPO da aba: traz p/ a vista (no celular, e com a lista longa, ela nascia fora da tela)
+    if (box.scrollIntoView) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   function renderList() {
@@ -1395,22 +1397,33 @@ function makeManagedTab() {
   async function post(path, payload) {
     return apiPost(path, payload, G());
   }
+  // um pedido de senha por vez: sem isto, cada clique a mais gerava OUTRA senha e só a última vale
+  let busy = false;
+  const working = (txt) => { msg.className = 'small'; msg.textContent = txt; };
   async function resetPw(u) {
+    if (busy) return;
     if (!confirm(T(`Gerar senha NOVA para ${u.login}? A atual deixa de valer e as sessões caem.`,
       `Generate a NEW password for ${u.login}? The current one stops working and sessions are dropped.`))) return;
+    busy = true; working(T(`⏳ Gerando senha nova para ${u.login}…`, `⏳ Generating a new password for ${u.login}…`));
     try { const j = await post('/treino/admin/managed-reset', { login: u.login });
+      msg.textContent = '';
       showCreds([{ login: j.login, password: j.password, fullname: u.fullname }]); }
     catch (e) { msg.className = 'small error-box'; msg.textContent = e.message; }
+    finally { busy = false; }
   }
   async function toggleDisabled(u) {
+    if (busy) return;
     const dis = !u.disabled;
     if (!confirm(dis ? T(`Desabilitar ${u.login}?`, `Disable ${u.login}?`)
       : T(`Reabilitar ${u.login}? Uma senha nova será gerada.`, `Enable ${u.login}? A new password will be generated.`))) return;
+    busy = true; working(dis ? T(`⏳ Desabilitando ${u.login}…`, `⏳ Disabling ${u.login}…`) : T(`⏳ Reabilitando ${u.login}…`, `⏳ Enabling ${u.login}…`));
     try {
       const j = await post('/treino/admin/managed-update', { login: u.login, disabled: dis });
+      msg.textContent = '';
       if (j.password) showCreds([{ login: u.login, password: j.password, fullname: u.fullname }]);
       await load();
     } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message; }
+    finally { busy = false; }
   }
   async function removeU(u) {
     if (!confirm(T(`REMOVER a conta ${u.login} (${u.fullname})? As submissões ficam arquivadas em .removed-users.`,
