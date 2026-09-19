@@ -263,7 +263,18 @@ function curT() {
   if (me && me.state === 'scheduled') return 0;
   return replayT;
 }
-function paintBoard(force) {
+// Pintura pedida pela PESSOA (arrastar a barra do replay): sempre acontece, no máximo UMA por quadro
+// (requestAnimationFrame) — arrastando, as posições intermediárias são puladas e a ÚLTIMA é pintada.
+// O teto de 5 s do paintBoard é só p/ o relógio da run ao vivo: aplicado à barra, ele descartava a
+// posição onde a pessoa soltou, e o placar só "andava" na interação SEGUINTE, mostrando a anterior
+// (relato do Roberto Sales, 19/09/2026: "na segunda interação carregava o conteúdo da primeira").
+let paintQueued = false;
+function paintSoon() {
+  if (paintQueued) return;
+  paintQueued = true;
+  (window.requestAnimationFrame || ((f) => setTimeout(f, 16)))(() => { paintQueued = false; paintBoard(false, true); });
+}
+function paintBoard(force, user) {
   if (!feed) return;
   const t = curT();
   const live = me && (me.state === 'running' || me.state === 'judging');
@@ -276,7 +287,7 @@ function paintBoard(force) {
   // uma prova grande "acontece" uma run por segundo — redesenha no máximo a cada 5 s (o relógio e a
   // minha situação seguem ao segundo; mudança MINHA força o redesenho).
   const nowMs = Date.now();
-  if (!force && playing === null && nowMs - lastPaint < 5000 && !mineChanged(vs)) return;
+  if (!force && !user && playing === null && nowMs - lastPaint < 5000 && !mineChanged(vs)) return;
   lastPaint = nowMs; lastSig = sig;
   const parsed = boardAt(feed, idx, vs, t, balloons, { teamOk: viewFn() });
   F.applyTeamsDir(parsed, teamsDir, CID); F.applyTeamsMeta(parsed, teamsMeta);   // sede, brasão, bandeira por regra
@@ -419,8 +430,9 @@ function renderReplay() {
   const rng = el('input', { type: 'range', min: '0', max: String(dur), step: '60', value: String(dur) });
   const lab = el('b', { style: 'font-variant-numeric:tabular-nums;min-width:5.5em' }, T('final', 'final'));
   const play = el('button', { class: 'btn ghost' }, '▶ ' + T('Replay', 'Replay'));
-  const set = (v) => { replayT = v >= dur ? Infinity : v; rng.value = String(Math.min(v, dur)); lab.textContent = v >= dur ? T('final', 'final') : hms(v); paintBoard(); };
+  const set = (v) => { replayT = v >= dur ? Infinity : v; rng.value = String(Math.min(v, dur)); lab.textContent = v >= dur ? T('final', 'final') : hms(v); paintSoon(); };
   rng.addEventListener('input', () => { stop(); set(Number(rng.value)); });
+  rng.addEventListener('change', () => set(Number(rng.value)));   // soltou a barra: garante a posição final
   const stop = () => { if (playing) { clearInterval(playing); playing = null; play.textContent = '▶ ' + T('Replay', 'Replay'); } };
   play.addEventListener('click', () => {
     if (playing) { stop(); return; }
