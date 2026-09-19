@@ -51,4 +51,19 @@ echo "== o helper direto =="
   printf '%s' "$(remove_contest_sessions outro)" > "$RUN/n.out" ) 
 ck "_v: token\\tlogin de cada removida (vários logins)" '[[ "$(cat "$RUN/v.out")" == "q1:zan,q2:ana,zo:zan," ]]'
 ck "sem login: remove TODAS do contest (nenhuma sobrou)" '[[ "$(cat "$RUN/n.out")" == 0 ]] && ! grep -rlq "CONTEST=outro" "$SESS"'
+echo "== aba \"Sessões ativas\" (GET /treino/admin/sessions): uma passada, mesma resposta de antes =="
+ses u1 treino 'Zé da Silva'; printf 'USERFULLNAME=%q\n' $'Nome com\nquebra' >> "$SESS/u1"
+UA="$(printf 'Mozilla/5.0 (X11) Firefox' | base64 -w0)"; sed -i "s/^UA_B64=.*/UA_B64=$UA/" "$SESS/u1"
+GET(){ local t0=$EPOCHREALTIME; OUT="$(PATH_INFO="$1" REQUEST_METHOD=GET QUERY_STRING= HTTP_AUTHORIZATION="Bearer tok-adm" bash "$ROUTER" 2>/dev/null)"
+  BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; ELAPSED="$(awk -v a="$t0" -v b="$EPOCHREALTIME" 'BEGIN{printf "%.2f", b-a}')"; }
+GET /treino/admin/sessions
+N="$(grep -rlx 'CONTEST=treino' "$SESS" | wc -l)"
+ck "lista TODAS as sessões do treino (e só elas)"     '[[ "$OUT" == *"Status: 200"* && "$(jq -r .count <<<"$BODY")" == "$N" ]]'
+ck "user-agent decodificado, nome sem quebrar a linha" '[[ "$(jq -r ".sessions[]|select(.login==\"Zé da Silva\")|.user_agent" <<<"$BODY")" == "Mozilla/5.0 (X11) Firefox" && "$(jq -r ".sessions[]|select(.login==\"Zé da Silva\")|.name" <<<"$BODY")" == "Nome com quebra" ]]'
+ck "ordenada pela hora de login (mais recente 1º)"   '[[ "$(jq -r "[.sessions[].login_at] | . == (sort|reverse)" <<<"$BODY")" == true ]]'
+ck "rápido com milhares de sessões (${ELAPSED}s)"     'awk -v e="$ELAPSED" "BEGIN{exit !(e < 4)}"'
+echo "== deslogar por IP =="
+ses i1 treino ana; ses i2 treino bia; ses i3 outro ana; sed -i 's/^IP=.*/IP=10.0.0.9/' "$SESS/i1" "$SESS/i2" "$SESS/i3"
+call /treino/admin/logout-ip '{"ip":"10.0.0.9"}'
+ck "caem as 2 do treino naquele IP; a de outro contest fica" '[[ "$(jq -r .sessions_removed <<<"$BODY")" == 2 && "$(jq -c ".users|sort" <<<"$BODY")" == "[\"ana\",\"bia\"]" ]] && ! has i1 && ! has i2 && has i3'
 echo; echo "RESULT: $pass passed, $fail failed"; (( fail == 0 ))

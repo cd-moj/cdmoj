@@ -125,7 +125,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   acha os arquivos com a linha `LOGIN=<login>` e só eles são confirmados por `source`. NUNCA um
   `$( source "$f" )` por arquivo de sessão: a sessão não expira e o diretório só cresce (21.254 em
   19/09/2026) — o "nova senha" das contas geridas levava 38 s e o admin desistia antes de ver a senha
-  (relato do Ribas, conta `zan`). Teste: `smoke-session-remove.sh`.
+  (relato do Ribas, conta `zan`). A LISTAGEM (`treino/admin/sessions`, 1ª aba do painel) e o deslogar por IP
+  seguem o mesmo molde: grep + `source` no mesmo processo + UM jq (a aba levava 69 s). Teste: `smoke-session-remove.sh`.
   Papéis por sufixo no login (`.admin/.judge/.cjudge/.staff/.cstaff/.mon`).
   **`.cjudge`** = juiz-chefe: `is_judge` vale p/ ele (herda juiz) + `is_chief`/`is_admin_or_chief`
   p/ os extras escopados (editar notícias/respostas já dadas, Situação, Todas Submissões, resolver
