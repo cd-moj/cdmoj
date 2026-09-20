@@ -5,6 +5,7 @@
 // (opções/visual) são cacheados em ctx.editors e sobrevivem à navegação; aplicar
 // template/duplicar reseta o cache (ctx.resetEditors) p/ recriá-los do draft novo.
 import { apiGet, apiPost, getToken } from '/shared/api.js';
+import { contestLoginHref } from '/shared/contest-guard.js';
 import { el, renderAuthArea } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { downloadCsv } from '/shared/users-batch.js';
@@ -90,6 +91,8 @@ function showResult(res) {
         : [T(' · senha: ', ' · password: '), el('span', { class: 'cred' }, res.admin_password)]));
   if (res._secret) card.append(el('div', { class: 'warn-box', style: 'margin:.4rem 0' },
     T('🕵️ SUPER SECRETO: o contest NÃO aparece na home/arquivo/status e o placar exige login — distribua o link ', '🕵️ SUPER SECRET: the contest does NOT appear on home/archive/status and the scoreboard requires login — share the link '), el('b', {}, res.url), T(' aos participantes.', ' with participants.')));
+  card.append(el('p', { class: 'small muted' }, T('É com essa conta que se entra no PAINEL do contest (o seu login comum entra como competidor).',
+    'That is the account that opens the contest ADMIN panel (your ordinary login enters as a competitor).')));
   if (res.users_from) card.append(el('p', { class: 'small muted' }, T('Usuários: compartilhados do "', 'Users: shared from "') + res.users_from + T('" (login com a conta do Treino Livre).', '" (log in with your Free Training account).')));
   if (res.users && res.users.length > 1) {
     card.append(el('p', {}, res.users.length + T(' contas criadas. ', ' accounts created. '),
@@ -97,7 +100,7 @@ function showResult(res) {
   }
   card.append(el('div', { class: 'row', style: 'margin-top:.7rem' },
     el('a', { class: 'btn', href: res.url }, T('Abrir contest →', 'Open contest →')),
-    el('a', { class: 'btn ghost', href: '/contest/admin/?c=' + encodeURIComponent(res.contest_id) }, T('⚙️ Admin do contest', '⚙️ Contest admin')),
+    el('a', { class: 'btn ghost', href: contestLoginHref(res.contest_id, '/contest/admin/?c=' + encodeURIComponent(res.contest_id)) }, T('⚙️ Admin do contest', '⚙️ Contest admin')),
     el('a', { class: 'btn ghost', href: res.scoreboard_url }, T('Placar', 'Scoreboard')),
     el('a', { class: 'btn ghost', href: '/treino/criar/' }, T('Criar outro', 'Create another'))));
   app.append(card);

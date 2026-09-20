@@ -12,6 +12,7 @@
 // As páginas AVULSAS (etiquetas, jplag, fila do staff, placar, revelação, todas as submissões)
 // continuam páginas próprias, linkadas da Central — não são painéis daqui.
 import { el } from '/shared/ui.js';
+import { contestLoginHref, hereAsNext } from '/shared/contest-guard.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { T } from '/shared/i18n.js';
 import { resolveHash, panelVisible, EVENT_GROUPS } from './nav.js';
@@ -124,7 +125,10 @@ async function boot() {
   if (!st || !st.logged_in || !st.is_admin) {
     app.innerHTML = '';
     app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Restricted access')),
-      el('a', { class: 'btn', href: '/contest/login/?c=' + enc(CONTEST) }, T('Login do contest', 'Contest login'))));
+      el('p', {}, T('Este painel é da ORGANIZAÇÃO. Entre neste contest com a conta de administração dele — o login de quem criou o contest com o sufixo ', 'This panel belongs to the ORGANIZATION. Log into this contest with its administration account — the login of whoever created the contest plus the suffix '),
+        el('code', {}, '.admin'),
+        T(' (a senha apareceu uma vez, na criação). O seu login comum entra como competidor.', ' (the password was shown once, at creation). Your ordinary login enters as a competitor.')),
+      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Entrar no contest', 'Log into the contest'))));
     return;
   }
   MODS = new Set((basic && basic.modules) || []);

@@ -7,6 +7,7 @@
 // isolado do app) e intercepta os links de dentro para navegar pela mesma rota — o gate continua
 // inteiro no servidor e o token nunca vai para a URL.
 import { apiGet, getToken } from '/shared/api.js';
+import { contestLoginHref, hereAsNext } from '/shared/contest-guard.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { T } from '/shared/i18n.js';
@@ -137,7 +138,7 @@ async function boot() {
   if (!st || !st.logged_in) {
     app.innerHTML = '';
     app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Log in to the contest')),
-      el('a', { class: 'btn', href: '/contest/login/?c=' + enc(CONTEST) }, T('Login do contest', 'Contest login'))));
+      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Login do contest', 'Contest login'))));
     return;
   }
   try {

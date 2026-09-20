@@ -13,6 +13,18 @@ window.__MOJ_CONTEST = _cid || '';
 // ele fica sem saber como se lê a entrada). Ela detecta o subdomínio e veste o topbar do contest.
 const ALLOW = ['/treino/ajuda'];
 
+// LOGIN do contest: a tela é a RAIZ `/contest/?c=<id>` — não existe `/contest/login/` (5 páginas
+// apontavam p/ lá e davam 404: o professor que criava um contest não tinha como entrar no painel,
+// relato do Arthur Botelho, 2026-09-20). `next` = p/ onde voltar DEPOIS de entrar (o contest.js o
+// honra via `safeNext`); sem ele, o login recarrega a home do contest, como sempre.
+export function contestLoginHref(contest, next) {
+  let h = '/contest/?c=' + encodeURIComponent(contest || '');
+  if (next) h += '&next=' + encodeURIComponent(next);
+  return h;
+}
+// a página ATUAL como destino de volta (caminho + querystring, sem host)
+export const hereAsNext = () => location.pathname + location.search;
+
 if (_cid) {
   const p = location.pathname;
   if (!(p === '/contest' || p.startsWith('/contest/') || ALLOW.some((a) => p.startsWith(a)))) {

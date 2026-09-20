@@ -11,6 +11,7 @@
 // execução troca só a barra de status e a lista — nunca recria a página inteira (regra do
 // auto-refresh em lugar: seleção e rolagem do juiz não somem).
 import { apiGet, apiPost, getToken } from '/shared/api.js';
+import { contestLoginHref, hereAsNext } from '/shared/contest-guard.js';
 import { el } from '/shared/ui.js';
 import { initContestShell } from '/shared/contest-shell.js';
 import { T } from '/shared/i18n.js';
@@ -200,7 +201,7 @@ async function boot() {
     app.innerHTML = '';
     app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Acesso restrito', '🔒 Access restricted')),
       el('p', { class: 'small muted' }, T('Esta página é do juiz, do juiz-chefe e do admin.', 'This page is for the judge, the chief judge and the admin.')),
-      el('a', { class: 'btn', href: '/contest/login/?c=' + enc(CONTEST) }, T('Login do contest', 'Contest login'))));
+      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Login do contest', 'Contest login'))));
     return;
   }
   loadFilter();

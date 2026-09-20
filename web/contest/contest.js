@@ -17,6 +17,17 @@ import { decorateSamples, downloadSamplesZip, SAMPLES_TAB_SCRIPT } from '/shared
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
+
+// safeNext(raw) — p/ onde voltar depois do login (`?next=`). SÓ caminho absoluto do PRÓPRIO site e
+// dentro de /contest/: recusa `//host` (protocolo-relativo), `http:`, `javascript:`, `/../` e
+// qualquer outra área. Função pura de propósito: é o que o smoke-contest-login-link.gjs.sh exercita.
+export function safeNext(raw) {
+  const v = String(raw || '');
+  if (!v.startsWith('/') || v.startsWith('//') || v.includes('\\')) return '';
+  if (v.includes('..')) return '';
+  const path = v.split(/[?#]/)[0];
+  return path === '/contest/' || path.startsWith('/contest/') ? v : '';
+}
 // modo "só editor" (janela dedicada aberta pelo botão ⧉ Nova janela) p/ UM problema.
 const EDITOR_ONLY = qs.get('editoronly') === '1';
 const ONLY_PROB = qs.get('prob') || '';
@@ -155,8 +166,14 @@ function renderLoginStatic() {
   document.getElementById('loginPassLbl').textContent = T('Senha', 'Password');
   document.getElementById('loginBtn').textContent = T('Entrar', 'Log in');
   document.getElementById('loginCountdownLbl').textContent = T('Abertura em', 'Opens in');
+  const ol = document.getElementById('orgLoginLink');
+  if (ol && !ol.dataset.wired) { ol.dataset.wired = '1'; ol.textContent = T('Organização? Entrar', 'Organization? Log in');
+    ol.addEventListener('click', (e) => { e.preventDefault(); ol.classList.add('hidden'); enableOrgLogin(); }); }
 }
 
+// a organização pede a tela de login antes da abertura (link discreto sob a contagem)
+let orgLogin = false;
+function enableOrgLogin() { orgLogin = true; updateLoginCountdown(); document.getElementById('loginPass')?.focus(); }
 function updateLoginCountdown() {
   clearTimeout(loginCountdownTimer);
   const now = Math.floor(Date.now() / 1000);
@@ -164,9 +181,16 @@ function updateLoginCountdown() {
   const left = loginStart - now;
   const box = document.getElementById('loginCountdown');
   const form = document.getElementById('loginForm');
-  if (left > 0) {
+  if (left > 0 && !orgLogin) {
     box.classList.remove('hidden');
     form.classList.add('hidden');
+    document.getElementById('loginCountdownTime').textContent = fmtLeft(left);
+    loginCountdownTimer = setTimeout(updateLoginCountdown, 1000);
+  } else if (left > 0) {
+    // ORGANIZAÇÃO antes da abertura: a API isenta conta de papel (.admin/.judge/.staff…) do
+    // LOGIN_START_TIME, mas a tela escondia o formulário de todo mundo — o organizador não tinha
+    // como entrar no próprio contest antes da prova. O time comum continua vendo só a contagem.
+    box.classList.remove('hidden'); form.classList.remove('hidden');
     document.getElementById('loginCountdownTime').textContent = fmtLeft(left);
     loginCountdownTimer = setTimeout(updateLoginCountdown, 1000);
   } else {
@@ -204,8 +228,10 @@ function bootLogin() {
     btn.disabled = true;
     try {
       await login(CONTEST, form.username.value.trim(), form.password.value);
-      // recarrega a página: agora logado, cai no fluxo principal
-      location.reload();
+      // `?next=` = a página de onde a pessoa veio (o painel do admin, clarifications…): volta p/ lá.
+      // Sem next válido, recarrega — agora logada, cai no fluxo principal.
+      const nx = safeNext(qs.get('next'));
+      if (nx) location.replace(nx); else location.reload();
     } catch (ex) {
       err.textContent = ex && ex.message ? ex.message : T('Erro de login, tente novamente', 'Login error, try again');
       // A PORTA do contest (roster/janela): a mensagem sozinha não resolve — quem não se

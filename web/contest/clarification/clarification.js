@@ -12,6 +12,7 @@
 // casa): cada cartão tem a própria assinatura; um cartão com resposta sendo digitada não é
 // refeito. Quebras de linha são preservadas (white-space:pre-wrap na pergunta e na resposta).
 import { apiGet, apiPost } from '/shared/api.js';
+import { contestLoginHref, hereAsNext } from '/shared/contest-guard.js';
 import { el } from '/shared/ui.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { initContestShell } from '/shared/contest-shell.js';
@@ -295,7 +296,7 @@ async function boot() {
   if (!st || !st.logged_in) {
     app.innerHTML = '';
     app.append(el('div', { class: 'section' }, el('h2', {}, T('🔒 Entre no contest', '🔒 Enter the contest')),
-      el('a', { class: 'btn', href: '/contest/login/?c=' + enc(CONTEST) }, T('Entrar no contest', 'Contest login'))));
+      el('a', { class: 'btn', href: contestLoginHref(CONTEST, hereAsNext()) }, T('Entrar no contest', 'Contest login'))));
     return;
   }
   myLogin = st.login || '';
