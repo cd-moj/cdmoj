@@ -71,6 +71,17 @@ ck "a resposta diz a versão atual do pacote"           '[[ "$(jq -r .version <<
 echo "== juiz ANTIGO (report sem versão) não é acusado de nada =="
 J /judge/calib-report "" POST mojw_smoketest '{"host":"juizvelho","id":"col#pa","log":"l"}' >/dev/null
 calibview; ck "sem versão no report ⇒ stale=false"     '[[ "$(jq -r ".hosts[]|select(.host==\"juizvelho\")|.stale" <<<"$BODY")" == false ]]'
+echo "== o report do juiz LIMPA o marcador de calibração dirigida (ponta a ponta, pelo handler) =="
+# o marcador nasce na ENTREGA do comando (cmd_claim, no heartbeat) e morre quando o juiz reporta —
+# aqui simulamos o marcador e exercitamos o /judge/tl-report de verdade (smoke-calib-queue.sh cobre
+# o resto do ciclo na lib).
+mkdir -p "$RUN/updates/inprogress/juiz1"
+jq -cn --argjson now "$EPOCHSECONDS" '{reqid:"cmd-deadbeef", kind:"calibrate", origin:"command",
+  target:"col#pa", requested_by:"autor", claimed_at:$now, requested_at:$now}' > "$RUN/updates/inprogress/juiz1/cmd-deadbeef.json"
+ck "marcador no lugar"  '[[ -f "$RUN/updates/inprogress/juiz1/cmd-deadbeef.json" ]]'
+tlrep juiz1 "$PV1" >/dev/null
+ck "tl-report apagou o marcador" '[[ ! -f "$RUN/updates/inprogress/juiz1/cmd-deadbeef.json" ]]'
+
 echo "== CHÃO: mojtools um pull atrás (sem --all-sols) cai no estreito, nunca em vazio =="
 # valor vazio aqui = `package-meta` sem checksum = o agente recusa o job ("sem checksum p/ <id>").
 OLDT="$RUN/oldtools"; mkdir -p "$OLDT"

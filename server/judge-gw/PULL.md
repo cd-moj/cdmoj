@@ -111,7 +111,15 @@ de um POST sem esses campos com o MESMO checksum (boot/agente velho não apagam 
   `upd_claim`), devolve o `reqid` existente e NÃO cria outro job. Re-disparar `moj calibrate`,
   re-validar ou publicar em massa nunca multiplica jobs. O caminho direcionado
   (`request-calibration` com `hosts`) dedupa os comandos ainda não entregues por host
-  (`cmd_find_calibrate`). E o **publish** (`/problems/set-public`) só enfileira calibração se o
+  (`cmd_find_calibrate`). ⚠ **Calibração DIRIGIDA entregue deixa um MARCADOR** em
+  `updates/inprogress/<host>/cmd-<cmdid>.json` (20/09/2026): o comando some do diretório ao ser
+  entregue, e sem o marcador o servidor esquecia que o juiz estava calibrando — Painel sem
+  "calibrando…", `calib_targeted` de volta a 0 e `moj judges show` dizendo "rodando: nada" por
+  minutos. O marcador é **só p/ aparecer**: o escalonamento o ignora (`origin=="command"` filtrado
+  no `upd_find_calibrate` e na serialização por target do `upd_claim`), o heartbeat **não** o
+  re-carimba e o `upd_reconcile` o **apaga** em vez de devolvê-lo à fila (o trabalho já foi
+  entregue). Quem o remove no caso feliz é o próprio juiz, ao reportar (`tl-report`/`calib-report`).
+  E o **publish** (`/problems/set-public`) só enfileira calibração se o
   `tl-checksum` atual difere do checksum calibrado servido (`run/tl/<id>.json`) — publicar sem
   mudança de pacote responde `calibration:"up_to_date"` e não toca a fila.
 - **Indexar** (`var/jsons`, HTML do enunciado) roda **no servidor** (`index_problem_bg`, via o
@@ -152,12 +160,13 @@ no servidor. Estados de um JOB (submissão): `spool/` → `queue/<banda>/` (q_en
 `q_done`) → `results/<id>.json`. De uma CALIBRAÇÃO: `updates/pending/` (`cal_request`,
 **idempotente**) → `updates/inprogress/<host>/` (upd_claim, carimbo `claimed_at`) → fechada por
 `/judge/update-report` (`upd_done`). Comandos por-host: `commands/<host>/` (`cmd_request`;
-urgentes kill|restart furam o gate de ocupado via `cmd_claim_urgent`).
+urgentes kill|restart furam o gate de ocupado via `cmd_claim_urgent`) — `calibrate` entregue vira
+o MARCADOR `inprogress/<host>/cmd-*.json` (display; some no report do juiz ou no TTL).
 
 | mecanismo | quando devolve à fila | roda onde |
 |---|---|---|
 | `q_reconcile` | host fora de `reg_live_hosts` (sem beat há `REG_TTL`=30s) OU `assigned_at` > `ASSIGN_TTL`=900s (teto p/ juiz VIVO: cabe a correção inteira, download incluso) | a cada heartbeat (throttle ~15s) |
-| `upd_reconcile` | host morto OU `claimed_at` > `UPD_TTL`=1800s | a cada heartbeat (throttle ~15s) |
+| `upd_reconcile` | host morto OU `claimed_at` > `UPD_TTL`=1800s (marcador `cmd-*` é APAGADO, não devolvido) | a cada heartbeat (throttle ~15s) |
 | `upd_touch_host` | (o oposto) re-carimba `claimed_at` das calibrações do host a cada beat de agente NOVO — calibração longa LEGÍTIMA não é re-enfileirada; o `UPD_TTL` vira proteção só de host morto/agente antigo | a cada heartbeat |
 | register `boot:true` | **na hora**: restart do agente devolve TUDO que estava atribuído ao host (`sched_requeue_host`) | no register de boot |
 | teto dinâmico do agente | o agente MATA o grupo de processos de um job/calibração presos (cap = TL×testes×margem) e reporta judge-error/calib-fail — o servidor fecha na hora (`q_done`/`upd_done`) | no juiz |

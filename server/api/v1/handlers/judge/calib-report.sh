@@ -69,5 +69,6 @@ tmp="$f.tmp.${BASHPID}"
     '{host:$h, checksum:$c, at:$now, log:(.log // ""), reports:$reps, sols:($sols[0] // [])}' \
     "$bf" ) > "$tmp" 2>/dev/null \
   && mv -f "$tmp" "$f" || { rm -f "$tmp"; fail 500 "Could not store calib log" "calib_store_fail"; }
+upd_cmd_clear "$host" "$id"   # calibração DIRIGIDA reportada: tira o marcador da tela
 audit_log "calib-report" "id=$id host=$host cks=${cks:0:8} reports=$(jq 'length' <<<"$names") sols=$(jq 'length' "$SOLSF")"
 ok_json '{recorded:true, id:$id, host:$h}' --arg id "$id" --arg h "$host"

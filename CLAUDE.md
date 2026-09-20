@@ -1170,7 +1170,12 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   (lê 1 history; 0,09s).
 - **Painel de status (`GET /problems/status`, aba "Painel" da gestão):** agrega, dos problemas de que
   o login é **dono, colaborador ou membro da org**, validação/calibração/time-limits + estados **"calibrando"**
-  (varredura única de `run/updates`+`run/commands` por `kind/action==calibrate` — `calibrating_set`) e
+  (varredura única de `run/updates`+`run/commands` por `kind/action==calibrate` — `calibrating_set`; a
+  calibração DIRIGIDA aparece pelo **marcador** que a entrega do comando deixa em
+  `run/updates/inprogress/<host>/cmd-*.json` — o comando some do diretório ao ser entregue e sem ele o
+  Painel/`calib_targeted`/`moj judges show` diziam "nada" enquanto o juiz calibrava por minutos, relato
+  do Ribas 20/09/2026; o marcador é DISPLAY-ONLY — não dedupa, não serializa, não volta p/ a fila e não
+  é re-carimbado pelo heartbeat, e quem o apaga é o report do juiz. Teste: `smoke-calib-queue.sh`) e
   **"precisa recalibrar"** (checksum calibrado em `run/tl/<id>.json` ≠ `tl_checksum` **carimbado no
   índice** por `mojtools/gen-problem-owners.sh`). A FRONTEIRA de acesso é **`owners_visible`** (extraído
   de `owners_emit` — UMA definição do filtro público∪dono∪colaborador∪membro-da-org; o handler

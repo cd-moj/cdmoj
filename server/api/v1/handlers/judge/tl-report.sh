@@ -35,6 +35,7 @@ else
   # tem de já estar no lugar quando ele for refeito (lib/tl-store.sh `tl_fresh_*`).
   [[ -n "$cur" ]] && tl_fresh_set "$id" "$tlc"
   tl_store_record "$host" "$id" "$tlc" "$tl" "$cks" || fail 500 "Could not store TL" "tl_store_fail"
+  upd_cmd_clear "$host" "$id"   # calibração DIRIGIDA terminou: tira o marcador da tela
   index_problem_bg "$id" 0
   audit_log "tl-report" "id=$id host=$host pkg=${cks:0:8} tl=${tlc:0:8}"
   ok_json '{recorded:true, stale:false, id:$id, served:$srv}' \

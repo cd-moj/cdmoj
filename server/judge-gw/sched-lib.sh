@@ -343,7 +343,7 @@ upd_find_calibrate() {
   local r
   r="$( { find "$UPDATESDIR/pending"    -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null
           find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null; } \
-        | jq -r --arg t "$1" 'select(.kind=="calibrate" and .target==$t) | .reqid' 2>/dev/null \
+        | jq -r --arg t "$1" 'select(.kind=="calibrate" and .target==$t and ((.origin // "") != "command")) | .reqid' 2>/dev/null \
         | head -n1)"
   printf '%s' "$r"
 }
@@ -382,8 +382,10 @@ upd_claim() {
       if jq -e '.kind=="calibrate"' "$f" >/dev/null 2>&1; then
         t="$(jq -r '.target // ""' "$f" 2>/dev/null)"
         if [[ -n "$t" ]]; then
+          # marcador de calibração DIRIGIDA (origin=="command") não serializa nada: ele só existe
+          # p/ aparecer na tela, e o caminho targeted sempre correu em paralelo com o genérico.
           busy="$(find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null \
-                  | jq -r --arg t "$t" 'select(.kind=="calibrate" and .target==$t) | .reqid' 2>/dev/null | head -n1)"
+                  | jq -r --arg t "$t" 'select(.kind=="calibrate" and .target==$t and ((.origin // "") != "command")) | .reqid' 2>/dev/null | head -n1)"
           [[ -n "$busy" ]] && continue   # já calibrando em algum lugar: espera a vez
         fi
       fi
@@ -399,6 +401,46 @@ upd_claim() {
 
 upd_done() { rm -f "$UPDATESDIR/inprogress/$1/$2.json" 2>/dev/null; }   # $1=host $2=reqid
 
+# ===== MARCADOR da calibração DIRECIONADA (`hosts:[…]`) — só p/ APARECER ========================
+# O comando `calibrate` SOME do diretório ao ser entregue no heartbeat, e a partir daí o servidor
+# não sabia mais que aquele juiz está calibrando: o Painel não dizia "calibrando…", o contador
+# `calib_targeted` voltava a 0 e o `moj judges show` dizia "rodando: nada" — enquanto o juiz gastava
+# minutos (relato do Ribas, 20/09/2026; medido: pedido às 20:19:57, contador nunca saiu de 0, os
+# juízes reportaram às 20:20:05). O agente não conta no heartbeat o que está rodando, então quem tem
+# de lembrar é quem entregou: `cmd_claim` deixa um `cmd-<cmdid>.json` em inprogress/<host>/, no MESMO
+# formato de um update, e as três telas passam a vê-lo sem uma linha de código novo.
+# ⚠ É DISPLAY-ONLY, e as três regras abaixo é que o mantêm inofensivo:
+#   1. o ESCALONAMENTO o ignora (`origin=="command"` é filtrado no dedup do cal_request e na
+#      serialização por target do upd_claim) — o caminho direcionado segue exatamente como era;
+#   2. o heartbeat NÃO o re-carimba (upd_touch_host pula `cmd-*`): marcador órfão (juiz morreu no
+#      meio, calibração falhou sem reportar) morre no UPD_TTL em vez de virar "calibrando…" eterno;
+#   3. NUNCA volta p/ `pending` (upd_reconcile o APAGA): o trabalho de verdade já foi entregue —
+#      re-enfileirar criaria uma calibração fantasma que ninguém pediu.
+# Quem o apaga no caso feliz é o próprio juiz, ao REPORTAR a calibração (tl-report/calib-report).
+upd_cmd_mark() {  # <host> <problem_id> <cmdid> [by]
+  local host="$1" id="$2" cmdid="$3" by="${4:-?}" d tmp
+  valid_hostname "$host" || return 0
+  [[ -n "$id" && -n "$cmdid" ]] || return 0
+  d="$UPDATESDIR/inprogress/$host"; mkdir -p "$d" 2>/dev/null || return 0
+  tmp="$d/.cmd-$cmdid.tmp"
+  jq -cn --arg r "cmd-$cmdid" --arg t "$id" --arg by "$by" --argjson now "$EPOCHSECONDS" \
+    '{reqid:$r, kind:"calibrate", origin:"command", repo:"", target:$t, requested_by:$by,
+      note:"calibrate dirigida", requested_at:$now, claimed_at:$now}' > "$tmp" 2>/dev/null \
+    && mv -f "$tmp" "$d/cmd-$cmdid.json" 2>/dev/null || rm -f "$tmp" 2>/dev/null
+  return 0
+}
+# upd_cmd_clear <host> <problem_id> : o juiz reportou a calibração -> o marcador cumpriu o papel.
+upd_cmd_clear() {
+  local host="$1" id="$2" f
+  valid_hostname "$host" || return 0
+  [[ -n "$id" && -d "$UPDATESDIR/inprogress/$host" ]] || return 0
+  while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    [[ "$(jq -r '.target // ""' "$f" 2>/dev/null)" == "$id" ]] && rm -f "$f"
+  done < <(find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name 'cmd-*.json' 2>/dev/null)
+  return 0
+}
+
 # upd_touch_host <host> : re-carimba o MTIME das calibrações em execução deste host.
 # Chamado a cada heartbeat de agente NOVO (que manda `status` e tem teto dinâmico + kill):
 # enquanto o juiz está VIVO, uma calibração longa LEGÍTIMA (que pode passar de UPD_TTL) não é
@@ -407,10 +449,12 @@ upd_done() { rm -f "$UPDATESDIR/inprogress/$1/$2.json" 2>/dev/null; }   # $1=hos
 # o arquivo quando o upd_done o removia entre a leitura e o mv — nascia um claim FANTASMA que,
 # re-tocado a cada beat, nunca expirava e (com a serialização por-target) bloqueava calibrações
 # futuras do problema. O claimed_at do JSON fica intacto (idade real na UI); o TTL lê o mtime.
+# ⚠ MARCADOR de dirigida (`cmd-*.json`) NÃO é tocado: ele não tem quem o feche em caso de falha
+# (o agente só reporta calibração que terminou), então tem de poder expirar sozinho.
 upd_touch_host() {
   local host="$1"
   [[ -d "$UPDATESDIR/inprogress/$host" ]] || return 0
-  find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' -exec touch -c {} + 2>/dev/null
+  find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' ! -name 'cmd-*.json' -exec touch -c {} + 2>/dev/null
   return 0
 }
 
@@ -439,7 +483,10 @@ upd_reconcile() {
         cat_at="$(stat -c %Y "$f" 2>/dev/null)"
         [[ "$cat_at" =~ ^[0-9]+$ ]] || cat_at="$(jq -r '.claimed_at // .requested_at // 0' "$f" 2>/dev/null)"
         if [[ "$live" != *" $host "* ]] || (( now - cat_at > UPD_TTL )); then
-          mv -f "$f" "$UPDATESDIR/pending/$base" 2>/dev/null
+          # marcador de dirigida: o trabalho JÁ foi entregue ao juiz — re-enfileirar criaria uma
+          # calibração que ninguém pediu. Vencido, ele só some da tela.
+          if [[ "$base" == cmd-*.json ]]; then rm -f "$f" 2>/dev/null
+          else mv -f "$f" "$UPDATESDIR/pending/$base" 2>/dev/null; fi
         fi
       done < <(find "$hostdir" -maxdepth 1 -name '*.json' 2>/dev/null)
     done < <(find "$UPDATESDIR/inprogress" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
@@ -491,17 +538,25 @@ cmd_claim_urgent() {  # <host> : reivindica 1 comando URGENTE (kill|restart), de
   ) 9>"$CMDDIR/$host/.lock"
 }
 cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove), atômico.
-  local host="$1" f
+  local host="$1" f out
   valid_hostname "$host" || return 1
   [[ -d "$CMDDIR/$host" ]] || return 0
   mkdir -p "$CMDDIR/$host" 2>/dev/null
-  (
+  out="$( (
     flock 9 || exit 0
     while IFS= read -r f; do
       [[ -f "$f" ]] || continue
       cat "$f"; rm -f "$f"; exit 0
     done < <(find "$CMDDIR/$host" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
-  ) 9>"$CMDDIR/$host/.lock"
+  ) 9>"$CMDDIR/$host/.lock" )"
+  [[ -n "$out" ]] || return 0
+  # calibrate ENTREGUE deixa MARCADOR (o comando some do diretório; sem isto ninguém mais sabe
+  # que este juiz está calibrando — ver upd_cmd_mark).
+  if [[ "$(jq -r '.action // ""' <<<"$out" 2>/dev/null)" == calibrate ]]; then
+    upd_cmd_mark "$host" "$(jq -r '.id // ""' <<<"$out" 2>/dev/null)" \
+                 "$(jq -r '.cmdid // ""' <<<"$out" 2>/dev/null)" "$(jq -r '.by // "?"' <<<"$out" 2>/dev/null)"
+  fi
+  printf '%s\n' "$out"
 }
 # cmd_find_calibrate <host> <problem_id> : ecoa o cmdid de um calibrate direcionado AINDA NÃO
 # entregue a esse host p/ o problema (dedup do caminho targeted; comando entregue some do dir,
