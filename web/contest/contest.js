@@ -167,11 +167,18 @@ function renderLoginStatic() {
   document.getElementById('loginBtn').textContent = T('Entrar', 'Log in');
   document.getElementById('loginCountdownLbl').textContent = T('Abertura em', 'Opens in');
   const ol = document.getElementById('orgLoginLink');
-  if (ol && !ol.dataset.wired) { ol.dataset.wired = '1'; ol.textContent = T('Organização? Entrar', 'Organization? Log in');
-    ol.addEventListener('click', (e) => { e.preventDefault(); ol.classList.add('hidden'); enableOrgLogin(); }); }
+  if (ol) {
+    ol.textContent = T('organização', 'organization');
+    ol.title = T('Entrar como organização (admin, juiz, staff) antes da abertura',
+                 'Log in as organization (admin, judge, staff) before the opening');
+    if (!ol.dataset.wired) { ol.dataset.wired = '1';
+      ol.addEventListener('click', (e) => { e.preventDefault(); enableOrgLogin(); }); }
+  }
 }
 
-// a organização pede a tela de login antes da abertura (link discreto sob a contagem)
+// a organização pede a tela de login antes da abertura. O link é uma PORTA DE SERVIÇO: canto
+// inferior direito, apagado, minúsculo — quem não é da organização não deve nem reparar nele
+// (pedido do Ribas, 20/09/2026: link visível = competidor clicando à toa antes da prova).
 let orgLogin = false;
 function enableOrgLogin() { orgLogin = true; updateLoginCountdown(); document.getElementById('loginPass')?.focus(); }
 function updateLoginCountdown() {
@@ -181,6 +188,10 @@ function updateLoginCountdown() {
   const left = loginStart - now;
   const box = document.getElementById('loginCountdown');
   const form = document.getElementById('loginForm');
+  const ol = document.getElementById('orgLoginLink');
+  // o link só existe enquanto a porta está fechada E ninguém o usou: depois some (o formulário
+  // já está na tela) e, com a prova aberta, não tem razão de ser.
+  if (ol) ol.classList.toggle('hidden', !(left > 0 && !orgLogin));
   if (left > 0 && !orgLogin) {
     box.classList.remove('hidden');
     form.classList.add('hidden');

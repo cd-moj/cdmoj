@@ -88,8 +88,6 @@
     <div class="countdown-big hidden" id="loginCountdown">
       <span class="countdown-lbl" id="loginCountdownLbl"></span>
       <span id="loginCountdownTime"></span>
-      <!-- a organização entra antes da abertura (a API isenta conta de papel); o time vê só a contagem -->
-      <a href="#" id="orgLoginLink" class="small" data-en="Organization? Log in">Organização? Entrar</a>
     </div>
     <form class="login-card hidden" id="loginForm" autocomplete="on">
       <div class="login-mini-brand">
@@ -111,6 +109,9 @@
       <a href="/" data-en="Home">Página Inicial</a> · <a href="/docs/" target="_blank" data-en="Documentation">Documentação</a>
       · <a href="/contest/cli.html" target="_blank" data-en="⌨ CLI (works through Internet outages)">⌨ CLI (funciona até sem Internet)</a>
     </div>
+    <!-- a organização entra ANTES da abertura (a API isenta conta de papel). Fica no CANTO, apagado:
+         é porta de serviço — o time tem de ver a contagem, não um botão para tentar à toa. -->
+    <a href="#" id="orgLoginLink" class="hidden" data-en="organization">organização</a>
   </div>
 
   <!-- ===== VIEW: contest principal (mostrada quando logado) ===== -->

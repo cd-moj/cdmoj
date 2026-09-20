@@ -572,8 +572,11 @@ table.score tr.guest-row .cl-place { color: var(--muted, #777); font-style: ital
 /* PARTICIPAÇÃO VIRTUAL (treino/virtual): linha virtual é um convidado com marca própria; `you` = quem olha */
 table.score tr.virtual-row { background: rgba(52,120,246,.07) }
 table.score tr.you-row { background: rgba(52,120,246,.18); outline: 2px solid rgba(52,120,246,.55); outline-offset: -2px }
-#orgLoginLink { display:block; margin-top:.5rem; font-size:.8rem; opacity:.75; color:inherit }
-#orgLoginLink:hover { opacity:1 }
+/* porta de serviço da organização na tela de login (antes da abertura): canto inferior direito,
+   apagada. NÃO pode chamar atenção — o competidor que clica à toa só se frustra. */
+#orgLoginLink { position:fixed; right:.5rem; bottom:.35rem; z-index:2; font-size:.68rem;
+  letter-spacing:.02em; color:inherit; opacity:.22; text-decoration:none; padding:.2rem .35rem }
+#orgLoginLink:hover, #orgLoginLink:focus-visible { opacity:.7; text-decoration:underline }
 .pinbtn { border: 0; background: transparent; cursor: pointer; padding: 0 .2rem; font-size: .95em; opacity: .35; filter: grayscale(1) }
 .pinbtn:hover, .pinbtn:focus-visible { opacity: .8 }
 .pinbtn[aria-pressed="true"] { opacity: 1; filter: none }
