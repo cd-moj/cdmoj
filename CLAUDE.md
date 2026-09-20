@@ -650,6 +650,19 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   linha do TXT `icpc s g` só na visão com coluna guest; `parseICPC(lines, balloons, secs, guestNum)`
   dá `gplace` (sequência própria, mesma regra de empate); placar/revelação/relatório (awk `GNUM`)
   mostram em itálico (`.gplace`). A revelação agora respeita convidado (antes numerava como oficial).
+- **A TELA DE LOGIN DO CONTEST É `/contest/?c=<id>` — `/contest/login/` NUNCA EXISTIU** (2026-09-20).
+  Cinco páginas (`admin`, `jplag`, `clarification`, `docs`, `rounds`) mandavam o não-logado para essa
+  rota e o nginx respondia **404**: quem criou um contest e clicou em "Admin do contest" batia num
+  beco (relato do Arthur Botelho). Fonte única: **`contestLoginHref(contest, next)`** +
+  `hereAsNext()` em `web/shared/contest-guard.js` — página nova de contest que precise de login usa
+  o helper, nunca monta a URL à mão (o teste `smoke-contest-login-link.gjs.sh` proíbe a string
+  `/contest/login/` em todo o `web/`). O `?next=` é honrado depois do login por **`safeNext`**
+  (`contest.js`, função PURA e testada): só caminho começando em `/contest/`, sem `//host`, sem
+  esquema, sem `..` — em caso de dúvida, `location.reload()` como antes. Duas armadilhas que vêm
+  junto: o formulário fica escondido antes de `login_start_time ?? start_time` (o link "Organização?
+  Entrar" o revela — a API já isenta conta de papel), e **quem administra um contest é
+  `<criador>.admin`**, conta LOCAL criada pelo wizard com senha mostrada UMA vez; `is_admin` é só o
+  sufixo do login, o `owner` do contest não dá poder nenhum na tela.
 - **Nav do contest SEM emoji** (issue #28, 2026-09-15): `navbuttons.sh` e `web/shared/nav-i18n.js`
   só texto ("Administração", "Avaliar", "Rodadas"…); emoji fica nos títulos de painel/seção e nas
   abas internas (chief, admin). Tutoriais/manuais citam os botões sem emoji. **Chip "Nome · login"**
@@ -1117,6 +1130,25 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   `smoke-tl-fresh.sh`. Irmão: o `moj-entrypoint` tira o lock órfão do gerador no arranque da API (restart
   matava o `gen-problem-owners.sh` no meio e o lock segurava a regeneração por 20 min — num dia de 12
   deploys o índice ficou 80 min velho).
+- **DUAS CHAVES DE PACOTE: `tl_checksum` (estreito) × `pkg_version` (largo)** (2026-09-20, relato do
+  Arthur Botelho). O carimbo estreito (`mojtools/tl-checksum.sh`: conf+tests/{input,output,score}+
+  sols/good+scripts) responde *"o TL medido ainda vale?"* — é o `checksum` de `run/tl`, do índice de
+  donos e do `/contest/problems`, e por isso **não pode** mudar quando o autor salva uma solução
+  `wrong` (o TL sumiria da prova — o furo que o `tl_fresh_*` acima consertou). O largo
+  (`tl-checksum.sh --all-sols`, + `sols/{pass,slow,wrong,upcoming}`; `pkg_judge_version` em
+  `lib/tl-store.sh`, memoizado em `run/tl/<id>.pkv` no molde do `pkg_tl_checksum`) responde *"o juiz
+  ainda tem o pacote certo?"* — é o `checksum` de `/judge/package-meta` e o `X-Moj-Checksum` do
+  `/judge/package`, **e o agente o trata como opaco**, então a troca valeu sem tocar no repo `judge/`.
+  Com uma chave só, mexer em `sols/{pass,slow,wrong}` não invalidava o cache do juiz e **o "Calibrar"
+  explícito rodava o `sols/` do pacote velho** (`moj-agent.sh`: "em full reaproveita o pacote do
+  cache") — julgando solução apagada, ignorando a nova, cada host com um conjunto diferente sob o
+  MESMO checksum. Consequências: `tl-report` VALIDA a versão reportada mas grava o TL sob o carimbo
+  estreito **calculado no servidor** (`tl_store_record` leva a `pkg_version` na entrada do host);
+  `/problems/calib` devolve `version` + `hosts[].{version,stale}` e **não serve `sols`/`reports` de
+  host stale** (o editor mostra "desatualizado — recalibre"). ⚠ Deploy que muda a FUNÇÃO de hash faz
+  o juiz re-baixar o pacote no 1º uso — **fora de horário de prova**. (Na estreia foi barato: pacote
+  SÓ com `sols/good` tem os dois carimbos IGUAIS, então só os que têm `pass|slow|wrong|upcoming`
+  re-baixam — 26 de 456 no checkout de dev.) Testes: `smoke-pkg-version.sh`, `smoke-calib-sols.sh`.
 - **Caches de problemas invalidam POR EVENTO, não por TTL** (2026-07-17): a lista do treino
   (`/treino/problems` → `var/problems.json`) é invalidada pelo stamp **`var/.treino-list-dirty`**
   — TODO ponto que cria/remove json servível TOCA o stamp (`index_problem_bg` pós-gen;

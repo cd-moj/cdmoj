@@ -20,7 +20,7 @@ d="$CALIB_DIR/$id"
 if [[ -d "$d" ]]; then
   find "$d" -maxdepth 1 -name '*.json' -type f -exec cat {} + 2>/dev/null \
     | jq -s -c 'map(select(.host)
-        | {(.host): {at:.at, checksum:.checksum, log:.log,
+        | {(.host): {at:.at, version:.checksum, log:.log,
                      reports:(.reports // []), sols:(.sols // [])}}) | add // {}' \
     > "$LOGF" 2>/dev/null
 fi
@@ -29,6 +29,10 @@ fi
 # linguagens das soluções good (extensão) — p/ apontar as que NÃO calibraram (falharam). O -o noglob
 # da API vale aqui -> uso find, não glob.
 pkg="$(pkg_path "$id")"; goodlangs='[]'
+# VERSÃO ATUAL do pacote (pkg_judge_version): quem calibrou outra versão entra como `stale` e SEM as
+# soluções — mostrar o `sols` de uma versão anterior é o que fazia o autor ver solução já removida
+# (e não ver a nova) como se fosse o estado de agora.
+pkgver="$(pkg_judge_version "$pkg" "$id" 2>/dev/null)"; pkgver="${pkgver//[^0-9a-f]/}"
 if [[ -n "$pkg" && -d "$pkg/sols/good" ]]; then
   # extensão -> linguagem canônica (lang_canon_ext: py2/py3 = py, cc/cxx/c++ = cpp), a chave do TL
   declare -F lang_canon_ext >/dev/null || source "$_LIBDIR/langs.sh"
@@ -42,7 +46,7 @@ fi
 # npy normaliza chaves de TL py3/py2 legadas (calibração pré-unificação) p/ 'py'.
 BODYF="$(mktemp)"; trap 'rm -f "$LOGF" "$BODYF"' EXIT
 jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs" \
-   --argjson ov "$(tl_conf_overrides "$pkg")" '
+   --arg pkgver "$pkgver" --argjson ov "$(tl_conf_overrides "$pkg")" '
   def npy: if .=="py3" or .=="py2" then "py" else . end;
   ($lg[0] // {}) as $logs
   | ($store.hosts // {}) as $h
@@ -58,19 +62,24 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
           | reduce $ks[] as $k ({}; .[$k] = ($ov[$k] // $ov["default"] // $cal[$k]))
           | with_entries(select(.value != null) | .value |= tostring)
      end) as $eff
-  | { success:true, id:($store.id // ""), checksum:($store.checksum // ""),
+  | { success:true, id:($store.id // ""), checksum:($store.checksum // ""), version:$pkgver,
       good_langs:$gl, tl_override:$ov,
       time_limits:$eff, time_limits_calibrated:$cal,
       missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host
       hosts: [ $hosts[] as $n
                | ($h[$n].tl // {}) as $htl
                | ($htl | keys | map(npy)) as $htlk
+               | ($logs[$n].version // "") as $hv
+               # desatualizado = calibrou OUTRA versão do pacote (só dá p/ afirmar quando as duas
+               # versões são conhecidas: juiz antigo/report sem versão não é acusado de nada)
+               | (($pkgver != "") and ($hv != "") and ($hv != $pkgver)) as $stale
                | { host:$n, tl:$htl,
                    missing:[ $gl[] | select(. as $g | ($htlk|index($g)|not)) ],  # sem TL NESTE host
                    at:($h[$n].at // $logs[$n].at // 0),
+                   version:$hv, stale:$stale,
                    log:($logs[$n].log // null),
-                   reports:($logs[$n].reports // []),
-                   sols:($logs[$n].sols // []) } ] }' > "$BODYF" 2>/dev/null
+                   reports:(if $stale then [] else ($logs[$n].reports // []) end),
+                   sols:(if $stale then [] else ($logs[$n].sols // []) end) } ] }' > "$BODYF" 2>/dev/null
 [[ -s "$BODYF" ]] || fail 500 "Falha ao montar a resposta" "calib_fail"
 emit_json 200 OK
 cat "$BODYF"

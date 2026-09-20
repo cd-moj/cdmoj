@@ -3,6 +3,9 @@
 # Garante: o /judge/calib-report aceita `sols` (projeção FECHADA — campo desconhecido morre
 # na borda), o /problems/calib o serve por host, e o RE-ENVIO DE BOOT do agente (sem sols,
 # sem reports, mesmo checksum) PRESERVA o que já estava — checksum novo zera.
+# ⚠ O `checksum` do relatório é a VERSÃO DO PACOTE (pkg_judge_version), a MESMA que o juiz leu
+# em /judge/package-meta — por isso o teste a pede à API em vez de inventar um valor: host que
+# calibrou outra versão é `stale` e o /problems/calib NÃO serve as sols dele (smoke-pkg-version.sh).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; RUN="$(mktemp -d)"; PROBS="$(mktemp -d)"
@@ -32,6 +35,11 @@ post(){ OUT="$(PATH_INFO=/judge/calib-report REQUEST_METHOD=POST \
 getcalib(){ OUT="$(PATH_INFO=/problems/calib REQUEST_METHOD=GET QUERY_STRING="id=col%23pa" \
     HTTP_AUTHORIZATION="Bearer $1" bash "$ROUTER" 2>/dev/null)"
   BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+# a versão do pacote como o AGENTE a obtém (é o que ele devolve no calib-report)
+OUT="$(PATH_INFO=/judge/package-meta REQUEST_METHOD=GET QUERY_STRING="id=col%23pa" \
+  HTTP_AUTHORIZATION="Bearer mojw_smoketest" bash "$ROUTER" 2>/dev/null)"
+CKS="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}' | jq -r '.checksum // ""')"
+[[ -n "$CKS" ]] || { echo "SETUP FAIL: package-meta sem checksum"; exit 1; }
 
 SOLS='[{"file":"sol.c","lang":"c","category":"good","verdict":"Accepted,100p",
         "tests":[{"name":"t1","code":"AC","time":0.12,"tl":5},{"name":"t2","code":"AC","time":"0.2","tl":5}],
@@ -39,8 +47,8 @@ SOLS='[{"file":"sol.c","lang":"c","category":"good","verdict":"Accepted,100p",
 RH="$(printf '<html>report</html>' | base64 -w0)"
 
 echo "== POST com sols + report: grava com projeção fechada =="
-post "$(jq -cn --argjson s "$SOLS" --arg rh "$RH" \
-  '{host:"juiz1", id:"col#pa", checksum:"aabbccdd", log:"AC solutions:\nsol.c:\n 0.12 0.2",
+post "$(jq -cn --argjson s "$SOLS" --arg rh "$RH" --arg c "$CKS" \
+  '{host:"juiz1", id:"col#pa", checksum:$c, log:"AC solutions:\nsol.c:\n 0.12 0.2",
     reports:[{name:"good-sol.c", html_b64:$rh}], sols:$s}')"
 ck "aceito"                          'grep -q "\"recorded\":true" <<<"$BODY"'
 F="$RUN/calib/col#pa/juiz1.json"
@@ -57,7 +65,7 @@ getcalib out
 ck "não-membro: 404 opaco"           'grep -q "not_found" <<<"$BODY"'
 
 echo "== re-envio de BOOT (sem sols/reports, MESMO checksum) preserva =="
-post '{"host":"juiz1","id":"col#pa","checksum":"aabbccdd","log":"boot resend"}'
+post "$(jq -cn --arg c "$CKS" '{host:"juiz1", id:"col#pa", checksum:$c, log:"boot resend"}')"
 ck "aceito"                          'grep -q "\"recorded\":true" <<<"$BODY"'
 ck "sols preservado"                 '[[ "$(jq -r ".sols | length" "$F")" == 1 ]]'
 ck "reports (nomes) preservados"     '[[ "$(jq -r ".reports | length" "$F")" == 1 ]]'
@@ -68,6 +76,8 @@ echo "== checksum NOVO sem sols zera (dado da versão velha engana) =="
 post '{"host":"juiz1","id":"col#pa","checksum":"eeff0011","log":"versao nova"}'
 ck "sols zerado"                     '[[ "$(jq -r ".sols | length" "$F")" == 0 ]]'
 ck "reports zerados"                 '[[ "$(jq -r ".reports | length" "$F")" == 0 ]]'
+getcalib aut
+ck "host de outra versão: stale"     'jq -e ".hosts[0].stale == true" <<<"$BODY" >/dev/null'
 
 echo "== sols acima do teto (1 MB) é descartado sem derrubar o report =="
 BIG="$(mktemp)"; jq -cn '[{file:"x.c",lang:"c",category:"good",verdict:"AC",

@@ -123,6 +123,48 @@ pkg_tl_checksum(){
   printf '%s' "$cks"
 }
 
+# ===== VERSÃO DO PACOTE (pkg_version) — a chave do CACHE DO JUIZ ================================
+# O `tl_checksum` acima é ESTREITO de propósito: só muda quando o TL/veredicto pode mudar, senão o
+# contest esconderia o tempo-limite a cada Salvar (ver o carimbo tl_fresh_*). Mas o JUIZ precisa de
+# uma chave LARGA: ele cacheia o pacote e só re-baixa quando ela muda — e com a estreita, mexer em
+# `sols/{pass,slow,wrong}` não chegava nele. Resultado (relato do Arthur Botelho, 2026-09-20): o
+# "Calibrar" rodava o `sols/` do cache velho — julgando solução apagada, ignorando a nova, e cada
+# juiz com um conjunto diferente sob o MESMO checksum. pkg_version = tl-checksum --all-sols.
+_PKGV_PATHS=("${_TLCKS_PATHS[@]}" sols/pass sols/slow sols/wrong sols/upcoming)
+_pkgv_sig(){
+  local s starts=()
+  for s in "${_PKGV_PATHS[@]}"; do starts+=("$1/$s"); done
+  find "${starts[@]}" -type f -printf '%p\t%m\t%s\t%T@\n' 2>/dev/null \
+    | LC_ALL=C sort | cksum | { read -r s _; printf '%s' "$s"; }
+}
+# pkg_judge_version <pkgdir> [id] — memo em run/tl/<id>.pkv (molde do pkg_tl_checksum; a assinatura
+# leva a versão do tl-checksum.sh, então mudar a função de hash re-hasheia uma vez e só).
+# ⚠ CHÃO DE COMPATIBILIDADE: `mojtools` é OUTRO repo e pode estar um pull atrás. Um tl-checksum.sh
+# sem `--all-sols` trata a flag como caminho de pacote e sai 1 (valor VAZIO) — e valor vazio aqui
+# derrubaria o juiz ("sem checksum p/ <id>": nenhum job julgado). Então, sem resposta, caímos no
+# carimbo ESTREITO: a chave volta a ser a de antes (não invalida nada), nada quebra.
+_pkgv_run(){
+  local v; v="$(bash "$MOJTOOLS_DIR/tl-checksum.sh" --all-sols "$1" 2>/dev/null)"; v="${v//[^0-9a-f]/}"
+  [[ -n "$v" ]] || v="$(pkg_tl_checksum "$1" "${2:-}")"
+  printf '%s' "$v"
+}
+pkg_judge_version(){
+  [[ -d "$1" ]] || return 0
+  local id="${2:-}" sig f cur v
+  if [[ -z "$id" ]]; then _pkgv_run "$1"; return; fi
+  sig="$(_pkgv_sig "$1").$(_tlcks_ver)"
+  f="$(tl_store_file "$id")"; f="${f%.json}.pkv"
+  if [[ -n "$sig" && -s "$f" ]]; then
+    cur="$(<"$f")"
+    [[ "${cur%%$'\t'*}" == "$sig" ]] && { printf '%s' "${cur#*$'\t'}"; return 0; }
+  fi
+  v="$(_pkgv_run "$1" "$id")"
+  local t="$f.tmp.$BASHPID"
+  [[ -n "$sig" && -n "$v" ]] && { mkdir -p "${f%/*}" 2>/dev/null
+    printf '%s\t%s' "$sig" "$v" > "$t" 2>/dev/null && mv -f "$t" "$f" 2>/dev/null || rm -f "$t" 2>/dev/null; }
+  printf '%s' "$v"
+}
+
 # tl_index_checksums <id>... -> "<id>\t<checksum>" p/ cada problema ACHADO no índice, num jq só.
 # O TL de exibição não precisa (nem deve) reabrir o pacote: quem conhece o problema é a gestão de
 # problemas, e ela já carimba o `tl_checksum` no índice — é exatamente o que o treino usa p/ servir
@@ -180,14 +222,18 @@ tl_index_checksums(){
 # Se o checksum difere do guardado, ZERA os hosts (versão nova do problema).
 # Chaves py3/py2 são LEGADAS (python unificado em 'py'): normaliza na gravação —
 # cobre agente com mojtools antigo ainda reportando py3.
+# tl_store_record <host> <id> <tl_checksum> <tl-json> [pkg_version] — o 5º arg é a VERSÃO do pacote
+# que aquele host calibrou (lib/tl-store.sh `pkg_judge_version`): o TL continua chaveado pelo
+# checksum ESTREITO, mas a entrada do host guarda de QUE versão veio, p/ a tela do autor saber que
+# a calibração daquele juiz é de antes da última mexida nas soluções.
 tl_store_record(){
-  local host="$1" id="$2" cks="$3" tl="$4" f cur tmp
+  local host="$1" id="$2" cks="$3" tl="$4" pkv="${5:-}" f cur tmp
   [[ -n "$host" && -n "$id" && -n "$cks" ]] || return 1
   jq -e . >/dev/null 2>&1 <<<"$tl" || tl='{}'
   mkdir -p "$TL_STORE_DIR" 2>/dev/null; f="$(tl_store_file "$id")"; tmp="$f.tmp.${BASHPID}"
   cur="$(cat "$f" 2>/dev/null)"; [[ -n "$cur" ]] || cur='{}'
   ( umask 077; jq -n --argjson cur "$cur" --arg id "$id" --arg h "$host" \
-      --arg cks "$cks" --argjson tl "$tl" --argjson now "$EPOCHSECONDS" '
+      --arg cks "$cks" --argjson tl "$tl" --arg pkv "$pkv" --argjson now "$EPOCHSECONDS" '
       ($tl | reduce to_entries[] as $e ({};
          ($e.key | if .=="py3" or .=="py2" then "py" elif .=="cc" or .=="cxx" or .=="c++" or .=="hpp" then "cpp" elif .=="h" then "c" else . end) as $k
          | .[$k] = (if has($k) and ((.[$k]|tonumber? // 0) >= ($e.value|tonumber? // 0))
@@ -195,7 +241,7 @@ tl_store_record(){
       | ($cur.checksum // "") as $old
       | (if $old==$cks then ($cur.hosts // {}) else {} end) as $hosts
       | {id:$id, checksum:$cks, updated_at:$now,
-         hosts: ($hosts + {($h): {tl:$ntl, at:$now}})}
+         hosts: ($hosts + {($h): ({tl:$ntl, at:$now} + (if $pkv=="" then {} else {pkg_version:$pkv} end))})}
     ' ) > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" || return 1
   tl_summary_upsert "$id"   # sumário do Painel segue o evento (nunca TTL)
 }

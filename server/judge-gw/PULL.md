@@ -12,8 +12,10 @@ inventário e **puxam jobs no heartbeat**. O escalonador é o próprio handler d
         ◀── {registered, config:{partition,reserve,disabled,cfg_hash}} ──
         (boot:true = restart do agente ⇒ o servidor RE-ENFILEIRA o que estava atribuído ao
          host — jobs e calibrações; e o agente adota a config ANTES do 1º heartbeat)
-  GET  /judge/package-meta?id ───────▶  handlers/judge/package-meta.sh ─▶ {checksum} (afeta-TL)
-  GET  /judge/package?id ────────────▶  handlers/judge/package.sh   ─▶ .tar.gz + X-Moj-Checksum
+  GET  /judge/package-meta?id ───────▶  handlers/judge/package-meta.sh ─▶ {checksum, tl_checksum}
+        (checksum = VERSÃO do pacote: tudo que afeta o TL + `sols/` INTEIRO — a chave do cache)
+  GET  /judge/package?id ────────────▶  handlers/judge/package.sh ─▶ .tar.gz + X-Moj-Checksum
+        (+ X-Moj-Tl-Checksum = o carimbo estreito, p/ diagnóstico)
   ...cacheia em ~/.cache/moj/problems/<id>, CALIBRA na 1ª vez (calibreitor → tl.<host>)...
   POST /judge/tl-report(id,checksum,tl)▶ handlers/judge/tl-report.sh ─▶ run/tl/<id>.json (por host)
   POST /judge/heartbeat(state,inv,free_slots,total_slots,cfg_hash,status) ─▶ heartbeat.sh = ESCALONADOR
@@ -40,14 +42,14 @@ inventário e **puxam jobs no heartbeat**. O escalonador é o próprio handler d
 | `server/api/v1/lib/tl-store.sh` | Store dos TLs reportados pelos juízes (`run/tl/<id>.json`, por host, por checksum); TL servível = **máx entre hosts**; `pkg_tl_checksum`, `index_problem_bg` (índice no servidor). |
 | `server/api/v1/lib/worker-auth.sh` | `require_worker`: Bearer `mojw_<token>` (compartilhado, 600). |
 | `server/api/v1/handlers/judge/register.sh` | Anuncia specs (CPU/mem/**GPU**) + inventário (problemas **em cache**) → `registry/<host>.json`. GPU só entra com **compute comprovado** (vendor nvidia/amd, do `nvidia-smi`/`rocm-smi`; lspci/erro de driver são descartados) e `capability=gpu` sem GPU real rebaixa p/ `pos`. |
-| `server/api/v1/handlers/judge/package{,-meta}.sh` | Serve o pacote do problema (.tar.gz) + checksum p/ o juiz cachear. |
-| `server/api/v1/handlers/judge/tl-report.sh` | Recebe o TL calibrado pelo juiz → `run/tl/<id>.json`; re-indexa o `var/jsons`. |
+| `server/api/v1/handlers/judge/package{,-meta}.sh` | Serve o pacote do problema (.tar.gz) + a **versão** (`pkg_judge_version`) p/ o juiz cachear; o `tl_checksum` estreito vai junto, p/ diagnóstico. |
+| `server/api/v1/handlers/judge/tl-report.sh` | Recebe o TL calibrado pelo juiz (valida a **versão** reportada) → `run/tl/<id>.json` sob o `tl_checksum`; re-indexa o `var/jsons`. |
 | `server/api/v1/handlers/judge/heartbeat.sh` | Pulso; reivindica 1 command OU 1 update OU um LOTE de até `free_slots` jobs (multi-slot) e devolve; entrega a CONFIG por juiz quando muda (`cfg_hash`). **É o escalonador.** |
 | `server/api/v1/handlers/judge/result.sh` | Recebe o veredicto do worker → spool "result" (judged finaliza). |
 | `server/api/v1/handlers/judge/update-report.sh` | Recebe o report de calibração (ok/log) → `registry.<host>.last_update`. |
 | `server/api/v1/handlers/ops/problemtl.sh` | (admin) TL de um problema, do store (máx entre hosts) + por host. |
 | `server/api/v1/handlers/judge/list.sh` | (admin) Dump dos juízes: specs + inventário + `last_update`. |
-| `mojtools/tl-checksum.sh` | Checksum (16 hex) dos arquivos que afetam o TL/compilação (conf+tests/input+sols/good+scripts/*, este último com o bit +x). |
+| `mojtools/tl-checksum.sh` | Checksum (16 hex) dos arquivos que afetam o TL/compilação (conf+tests/input+tests/output+tests/score+sols/good+scripts/*, este último com o bit +x). Com **`--all-sols`** soma `sols/{pass,slow,wrong,upcoming}` = a **versão do pacote** que o juiz usa como chave de cache. |
 | `judge/agent/moj-agent.sh` + `inventory.sh` | O agente (pull + **cache**). Roda 1 por capacidade. |
 | `server/etc/systemd/moj-agent@.service` | Unit do agente: `systemctl enable --now moj-agent@pos`. |
 
@@ -60,13 +62,26 @@ comando `result` e do `synctreino`. `contest-create.sh` ganhou `CONTEST_PRIORITY
 
 O juiz **não clona repositório**. Ele baixa o **pacote de cada problema** (sob demanda,
 no 1º job ou num pedido de calibração) p/ um **cache local** (`~/.cache/moj/problems/<id>`)
-e guarda, junto, o **checksum** dos arquivos que afetam o TL/compilação (`conf`+`tests/input`+
-`sols/good`+`scripts/*` da correção especial, este com o bit +x; via `mojtools/tl-checksum.sh`).
+e guarda, junto, o **`checksum`** que o `package-meta` devolveu — para o agente é um valor
+**opaco**: igual = cache bom, diferente = re-baixa.
+
+⚠ **Esse `checksum` é a VERSÃO do pacote** (`tl-checksum.sh --all-sols`: o conjunto que afeta o
+TL **mais `sols/` INTEIRO**), e não o `tl_checksum` estreito que amarra o TL (ver
+`docs/PACOTE.md` §10). Eram a mesma coisa até 2026-09-20, e aí mexer numa solução
+`pass`/`slow`/`wrong` não mudava nada para o juiz: o **Calibrar explícito também reaproveita o
+cache**, então o calibreitor varria o `sols/` do pacote **velho** (relato do Arthur Botelho —
+juiz rodando solução apagada, ignorando a nova, cada host com um conjunto diferente). Como o
+agente trata o valor como opaco, a troca valeu **sem mexer no repo `judge/`**.
+
 Na 1ª vez (ou quando o checksum muda) ele **calibra**
-(`calibreitor.sh` → `tl.<host>`) e **reporta** o TL ao MOJ (`POST /judge/tl-report`). O MOJ
-guarda o TL **por host, por checksum** (`run/tl/<id>.json`) e serve o **máximo entre os hosts**
-no `var/jsons` (conservador). Ao **relançar**, o agente re-reporta os TLs do cache (sem
-recalibrar). Se o problema muda, o checksum novo **descarta** o TL antigo (todos recalibram).
+(`calibreitor.sh` → `tl.<host>`) e **reporta** o TL ao MOJ (`POST /judge/tl-report`). O servidor
+CONFERE a versão reportada contra a atual (versão velha = `stale`, nada é gravado) e guarda o TL
+sob o **`tl_checksum` que ele mesmo calcula** (`run/tl/<id>.json`, por host — com a `pkg_version`
+ao lado, na entrada do host): é o carimbo estreito que diz se o TL vale, e ele **não** pode
+envelhecer porque alguém salvou uma solução `wrong`. Serve o **máximo entre os hosts** no
+`var/jsons` (conservador). Ao **relançar**, o agente re-reporta os TLs do cache (sem
+recalibrar). Se o pacote muda de verdade, o `tl_checksum` novo **descarta** o TL antigo (todos
+recalibram).
 O `POST /judge/calib-report` leva, além do log texto e dos `reports` (report.html por solução),
 o campo **`sols`** = o `.calib-sols.json` do calibreitor (a calibração POR EXTENSO:
 `[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]`, ≤300 KB; cópia em

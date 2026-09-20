@@ -6,6 +6,10 @@
 #   body: {host, id, checksum, log,
 #          reports:[{name, html_b64}],
 #          sols:[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]}   (sols: opcional)
+# ⚠ `checksum` aqui é a VERSÃO DO PACOTE (o que o /judge/package-meta deu ao juiz —
+# `pkg_judge_version`, com `sols/` inteiro): é ela que diz de QUE versão do pacote saiu esta
+# calibração. O /problems/calib compara com a versão atual e marca o host como desatualizado em vez
+# de mostrar soluções que não existem mais (relato do Arthur Botelho, 2026-09-20).
 # PRESERVAÇÃO: reports/sols AUSENTES no POST com o MESMO checksum preservam os anteriores —
 # o re-envio de boot do agente (só log) e o agente velho (sem sols) não apagam o dado.
 # Checksum NOVO zera o que não veio (dado da versão antiga engana).

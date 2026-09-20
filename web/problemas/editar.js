@@ -1061,7 +1061,13 @@ function renderVal() {
         el('span', { style: 'flex:1' }), toggle);
       // sols estruturado: solução a solução, teste a teste (cada linha já linka o seu report);
       // juiz antigo sem o vetor cai na lista de reports + log texto de sempre
-      const sols = solsBlock(h);
+      // juiz que calibrou OUTRA versão do pacote: não desenha a lista de soluções (ela é de antes da
+      // última mexida — foi o que fez um autor ver solução removida ainda sendo julgada, 20/09/2026)
+      const sols = h.stale ? null : solsBlock(h);
+      if (h.stale) head.append(el('span', { class: 'verdict v-warn', style: 'font-size:.72rem;padding:.1rem .45rem',
+        title: T('Este juiz calibrou uma versão anterior do pacote — as soluções mudaram desde então.',
+                 'This judge calibrated an earlier version of the package — the solutions changed since then.') },
+        T('desatualizado — recalibre', 'outdated — recalibrate')));
       const reps = el('div', { class: 'small', style: 'margin-top:.25rem' });
       if (!sols && (h.reports || []).length) {
         reps.append(el('span', { class: 'muted' }, T('report por solução: ', 'report per solution: ')));

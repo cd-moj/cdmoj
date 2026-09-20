@@ -19,7 +19,12 @@ cks="$(jq -r '.checksum // empty' <<<"$body")"
 [[ "$cks" =~ ^[a-f0-9]{6,64}$ ]] || fail 400 "Invalid checksum" "cks_invalid"
 tl="$(jq -c '.tl // {}' <<<"$body")"
 
-cur="$(pkg_tl_checksum "$(pkg_path "$id")")"
+# o juiz devolve a VERSÃO que baixou (package-meta.checksum = pkg_judge_version); o TL, porém, é
+# guardado sob o tl_checksum ESTREITO calculado AQUI — é ele que o índice/contest comparam, e uma
+# mexida em solução `wrong` não pode apagar o TL da prova (lib/tl-store.sh; commit 41ec3f6).
+_pkg="$(pkg_path "$id")"
+cur="$(pkg_judge_version "$_pkg" "$id")"
+tlc="$(pkg_tl_checksum "$_pkg" "$id")"
 if [[ -n "$cur" && "$cur" != "$cks" ]]; then
   # obsoleto: o pacote no servidor mudou desde a calibração -> o juiz recalibra
   ok_json '{recorded:false, stale:true, id:$id, current_checksum:$c}' --arg id "$id" --arg c "$cur"
@@ -28,10 +33,10 @@ else
   # ATUAL tem este checksum ($cur == $cks), e o índice de donos só vai saber disso na próxima varredura
   # em background. O `mv` do tl_store_record é o que invalida o cache do /contest/problems — o carimbo
   # tem de já estar no lugar quando ele for refeito (lib/tl-store.sh `tl_fresh_*`).
-  [[ -n "$cur" ]] && tl_fresh_set "$id" "$cks"
-  tl_store_record "$host" "$id" "$cks" "$tl" || fail 500 "Could not store TL" "tl_store_fail"
+  [[ -n "$cur" ]] && tl_fresh_set "$id" "$tlc"
+  tl_store_record "$host" "$id" "$tlc" "$tl" "$cks" || fail 500 "Could not store TL" "tl_store_fail"
   index_problem_bg "$id" 0
-  audit_log "tl-report" "id=$id host=$host cks=${cks:0:8}"
+  audit_log "tl-report" "id=$id host=$host pkg=${cks:0:8} tl=${tlc:0:8}"
   ok_json '{recorded:true, stale:false, id:$id, served:$srv}' \
-    --arg id "$id" --argjson srv "$(tl_store_served_for "$id" "$cks")"
+    --arg id "$id" --argjson srv "$(tl_store_served_for "$id" "$tlc")"
 fi

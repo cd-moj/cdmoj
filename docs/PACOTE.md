@@ -289,6 +289,9 @@ Na prática, ponha uma `good` em cada linguagem que você quer que o aluno possa
 calibrado **por linguagem**, e uma linguagem sem solução `good` aceita simplesmente não ganha
 tempo-limite naquele juiz (o aluno não consegue usá-la).
 
+**Salvar QUALQUER solução manda o juiz buscar o pacote de novo** (é o `pkg_version` da seção 10),
+então "Salvar" + "Calibrar" roda o `sols/` que você acabou de escrever. Só `good/` mexe no TL.
+
 ### `scripts/` (correção especial)
 
 Opcional. É como o problema **customiza** a compilação, a execução ou a comparação. O
@@ -690,23 +693,33 @@ disponível.
 
 ### O checksum, e o que dispara recalibração
 
-O campo `checksum` acima é o que amarra o TL ao pacote. Ele é calculado pelo `tl-checksum.sh` e cobre
-**só o que pode mudar o tempo de execução**:
+São **DOIS carimbos**, calculados pelo mesmo `tl-checksum.sh`, porque as duas perguntas são
+diferentes: *"o tempo-limite medido ainda vale?"* e *"o juiz ainda tem o pacote certo em cache?"*.
 
-| Entra no checksum | Não entra |
-|---|---|
-| `conf` | `docs/enunciado.*` |
-| `tests/input/*` | `tags` |
-| `tests/output/*` (não-vazios) e `tests/score` | `author` |
-| `sols/good/*` | `.moj-meta.json` (título/coleções/tags) |
-| `scripts/*` (conteúdo **e** bit de execução) | |
+| | `tl_checksum` (estreito) | `pkg_version` (largo) |
+|---|---|---|
+| Como se calcula | `tl-checksum.sh <pkg>` | `tl-checksum.sh --all-sols <pkg>` |
+| Cobre | `conf`, `tests/input/*`, `tests/output/*` (não-vazios), `tests/score`, `sols/good/*`, `scripts/*` (conteúdo **e** bit de execução) | tudo o que o estreito cobre **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming`** |
+| Para que serve | amarra o **TL** ao pacote: é o `checksum` de `run/tl/<id>.json`, o do índice de donos e o que o `/contest/problems` compara | é a **chave do cache do juiz** e a identidade de uma calibração: `/judge/package-meta` o devolve como `checksum` e o agente re-baixa quando muda |
+
+Nenhum dos dois cobre `docs/enunciado.*`, `tags`, `author` nem o `.moj-meta.json`
+(título/coleções/tags).
 
 > `tests/output/*` e `tests/score` entraram no checksum em 2026-07-19: sem eles, um gabarito ou
 > uma pontuação corrigida **nunca chegava ao juiz** (o cache do problema não invalidava).
+>
+> A separação em dois carimbos é de 2026-09-20 (relato do Arthur Botelho). Antes havia só o
+> estreito, e ele fazia os dois papéis: mexer numa solução `pass`/`slow`/`wrong` **não mudava a
+> chave**, então o juiz recalibrava o `sols/` do **cache velho** — julgando solução que o autor já
+> tinha apagado, ignorando a que ele acabou de escrever, e cada juiz com um conjunto diferente sob
+> o mesmo checksum. Alargar o carimbo estreito não serve: ele também é o que diz se o TL vale, e o
+> TL sumiria da prova a cada solução salva.
 
-Se o checksum do pacote deixa de bater com o guardado, o TL é considerado **velho** e some (o problema
-passa a aparecer como "precisa recalibrar"). Ou seja: **corrigir um typo no enunciado não força
-recalibração; trocar um teste, uma solução `good`, o `conf` ou um script força.**
+Se o `tl_checksum` do pacote deixa de bater com o guardado, o TL é considerado **velho** e some (o
+problema passa a aparecer como "precisa recalibrar"). Ou seja: **corrigir um typo no enunciado não
+força recalibração; trocar um teste, uma solução `good`, o `conf` ou um script força.** Salvar uma
+solução `pass`/`slow`/`wrong` **não** invalida o TL, mas manda o juiz buscar o pacote novo — é
+exatamente o que o "Calibrar" precisa para rodar o que você acabou de salvar.
 
 ### Publicação
 
