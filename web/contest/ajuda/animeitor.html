@@ -55,12 +55,13 @@
         <a href="#papel" data-en="1. What the role is">1. O que é o papel</a>
         <a href="#abas" data-en="2. Your tabs">2. Suas abas</a>
         <a href="#mesa" data-en="3. The desk">3. A mesa do telão</a>
-        <a href="#streaming" data-en="4. Streaming keys">4. Chaves de streaming</a>
-        <a href="#fotos" data-en="5. Photos and songs">5. Fotos e músicas</a>
-        <a href="#padrao" data-en="6. The default photo/song">6. A foto/música padrão</a>
-        <a href="#placar" data-en="7. Scoreboard and ceremony">7. Placar e cerimônia</a>
-        <a href="#vespera" data-en="8. Dress rehearsal: the eve and the warm-up">8. Ensaio geral: a véspera e o aquecimento</a>
-        <a href="#nao" data-en="9. What you cannot do">9. O que você não faz</a>
+        <a href="#api" data-en="4. Connecting the Animeitor">4. Ligar o Animeitor</a>
+        <a href="#streaming" data-en="5. Streaming keys (legacy)">5. Chaves de streaming (legado)</a>
+        <a href="#fotos" data-en="6. Photos and songs">6. Fotos e músicas</a>
+        <a href="#padrao" data-en="7. The default photo/song">7. A foto/música padrão</a>
+        <a href="#placar" data-en="8. Scoreboard and ceremony">8. Placar e cerimônia</a>
+        <a href="#vespera" data-en="9. Dress rehearsal: the eve and the warm-up">9. Ensaio geral: a véspera e o aquecimento</a>
+        <a href="#nao" data-en="10. What you cannot do">10. O que você não faz</a>
       </nav>
 
       <article class="tmain">
@@ -82,7 +83,7 @@
         <h2 id="abas" data-en="2. Your tabs">2. Suas abas</h2>
         <table class="cheat">
           <tr><th data-en="Tab">Aba</th><th data-en="What it is for">Para que serve</th></tr>
-          <tr><td>Score</td><td data-en="The scoreboard, ALWAYS unfrozen (see section 7).">O placar, SEMPRE descongelado (ver a seção 7).</td></tr>
+          <tr><td>Score</td><td data-en="The scoreboard, ALWAYS unfrozen (see section 8).">O placar, SEMPRE descongelado (ver a seção 8).</td></tr>
           <tr><td>Animeitor</td><td data-en="Your desk: streaming keys + photos and songs.">A sua mesa: chaves de streaming + fotos e músicas.</td></tr>
           <tr><td>📊 <span data-en="Statistics">Estatísticas</span></td><td data-en="Numbers of the contest — good filler material between rounds of the show.">Números da prova — bom material de intervalo durante o espetáculo.</td></tr>
           <tr><td>🏆 <span data-en="Reveal">Revelação</span></td><td data-en="The ceremony, available to you at any time (you rehearse it).">A cerimônia, disponível a qualquer momento (você ensaia).</td></tr>
@@ -98,7 +99,41 @@
           </figcaption>
         </figure>
 
-        <h2 id="streaming" data-en="4. Streaming keys">4. Chaves de streaming</h2>
+        <h2 id="api" data-en="4. Connecting the Animeitor">4. Ligar o Animeitor</h2>
+        <p data-en="The Animeitor has its own server. MOJ sends it the contest: the problems and the teams, the scoreboards, the submissions and the contest clock. You do this in the first section of the desk, 📡 Animeitor.">
+          O Animeitor tem um servidor próprio. O MOJ envia a ele a prova: os problemas e os times,
+          os placares, as submissões e o relógio. Você faz isso na primeira seção da mesa,
+          <b>📡 Animeitor</b>.
+        </p>
+        <ol>
+          <li data-en-html="<b>Connection.</b> Type the server address (https only), the user and the token that the Animeitor administrator gave you. Press <b>gravar e testar</b>. The token is saved on the server and never comes back to the page.">
+            <b>Conexão.</b> Digite o endereço do servidor (só https), o usuário e o token que o administrador do Animeitor passou. Aperte <b>gravar e testar</b>. O token fica gravado no servidor e nunca volta para a tela.</li>
+          <li data-en-html="<b>Scoreboards and sites.</b> MOJ proposes one scoreboard for the whole contest, one for each cohort and one for each country, with the sites of each. Each scoreboard is one big-screen view. Keep <b>automático</b> checked: the scoreboard follows the MOJ selection, and a team that enters later enters the scoreboard too. Set gold, silver and bronze (the last place that gets each medal) and press <b>salvar placares</b>.">
+            <b>Placares e sedes.</b> O MOJ propõe um placar para a prova inteira, um para cada coorte e um para cada país, com as sedes de cada um. Cada placar é uma tela do telão. Deixe <b>automático</b> marcado: o placar segue o recorte do MOJ, e o time que entrar depois entra no placar também. Ajuste ouro, prata e bronze (a última colocação que ganha cada medalha) e aperte <b>salvar placares</b>.</li>
+          <li data-en-html="<b>📡 publicar no telão</b> creates the event on the Animeitor server. You can publish again at any time: only what changed is sent.">
+            <b>📡 publicar no telão</b> cria o evento no servidor do Animeitor. Você pode publicar de novo a qualquer momento: só o que mudou é enviado.</li>
+          <li data-en-html="<b>▶ ligar o alimentador.</b> From this moment MOJ sends the clock every second and each new verdict about two seconds after the judge answers. Turn it on before the contest starts: the big screen shows the countdown. The line below the buttons shows the clock that was sent and the number of submissions; a red box tells you when something is wrong.">
+            <b>▶ ligar o alimentador.</b> A partir daí o MOJ manda o relógio a cada segundo e cada veredicto novo cerca de dois segundos depois de o juiz responder. Ligue antes do início da prova: o telão mostra a contagem regressiva. A linha abaixo dos botões mostra o relógio enviado e a quantidade de submissões; uma caixa vermelha avisa quando algo está errado.</li>
+          <li data-en-html="<b>mostrar os links do telão</b> lists the address of each scoreboard and, folded, the <b>reveal links</b>: one for each site.">
+            <b>mostrar os links do telão</b> lista o endereço de cada placar e, dobrados, os <b>links de revelação</b>: um para cada sede.</li>
+        </ol>
+        <div class="warn" data-en="A reveal link shows the real answers after the freeze. Treat it like a password: give each one only to the person in charge of that site. MOJ always sends the real answers; the Animeitor hides them on the public scoreboard after the freeze and runs the reveal.">
+          O link de revelação mostra as respostas reais depois do congelamento. Trate como senha:
+          entregue cada um só ao responsável daquela sede. O MOJ manda sempre as respostas reais; o
+          Animeitor as esconde no placar público depois do congelamento e conduz a revelação.
+        </div>
+        <div class="tip" data-en="If the Animeitor server goes down, the contest is not affected: MOJ keeps trying and catches up by itself when the server comes back. The name of the event is public on the Animeitor front page even before the contest starts.">
+          Se o servidor do Animeitor cair, a prova não é afetada: o MOJ continua tentando e põe tudo
+          em dia sozinho quando o servidor volta. O nome do evento é público na página inicial do
+          Animeitor mesmo antes do início da prova.
+        </div>
+
+        <h2 id="streaming" data-en="5. Streaming keys (legacy)">5. Chaves de streaming (legado)</h2>
+        <div class="tip" data-en="This is the old way: the Animeitor fetched a package from MOJ with a key. It still works, and the desk shows it folded under &quot;Webcast BOCA (legado)&quot;. Use it only if your Animeitor is an old version.">
+          Este é o jeito antigo: o Animeitor buscava um pacote no MOJ com uma chave. Continua
+          funcionando, e a mesa o mostra dobrado em &quot;Webcast BOCA (legado)&quot;. Use só se o seu
+          Animeitor for de uma versão antiga.
+        </div>
         <p data-en="A key turns into a URL. You paste that URL into the Animeitor (or any compatible display), and it fetches the scoreboard package in a loop. Each key declares WHICH board it serves — the general one, or the board of a specific cohort when the contest has guest teams.">
           Uma chave vira uma <b>URL</b>. Você cola essa URL no Animeitor (ou em qualquer exibidor
           compatível) e ele busca o pacote do placar em laço. Cada chave declara <b>qual</b>
@@ -121,7 +156,7 @@
           URL vazar, revogue e crie outra — o exibidor só precisa da URL nova.
         </div>
 
-        <h2 id="fotos" data-en="5. Photos and songs">5. Fotos e músicas</h2>
+        <h2 id="fotos" data-en="6. Photos and songs">6. Fotos e músicas</h2>
         <p data-en="Each team can have a photo (shown when they solve something) and an mp3 (played at that moment). The gallery opens filtered by ⚠ Pending — exactly the teams still missing a photo or a song, which is your whole to-do list.">
           Cada time pode ter uma <b>foto</b> (que aparece quando ele resolve algo) e um <b>mp3</b>
           (que toca nessa hora). A galeria abre filtrada em <b>⚠ Pendências</b> — exatamente os
@@ -138,7 +173,7 @@
           pendências.
         </div>
 
-        <h2 id="padrao" data-en="6. The default photo/song">6. A foto/música padrão</h2>
+        <h2 id="padrao" data-en="7. The default photo/song">7. A foto/música padrão</h2>
         <p data-en="A team with no photo does not break the show: MOJ answers with the contest's DEFAULT photo, and the same for the song. The card at the top of the gallery is where you change that default — an image with the event's identity, a jingle — or go back to the MOJ factory one.">
           Time sem foto não quebra o espetáculo: o MOJ responde com a foto <b>padrão</b> do
           contest, e o mesmo para a música. O cartão no topo da galeria é onde você troca esse
@@ -150,7 +185,7 @@
           times deles, mas não mexem no padrão do contest.
         </div>
 
-        <h2 id="placar" data-en="7. Scoreboard and ceremony">7. Placar e cerimônia</h2>
+        <h2 id="placar" data-en="8. Scoreboard and ceremony">8. Placar e cerimônia</h2>
         <figure class="shot">
           <img src="/contest/ajuda/img/animeitor-placar.png" alt="">
           <figcaption data-en="Your scoreboard: unfrozen from the first minute, including before the contest starts.">
@@ -181,11 +216,10 @@
           alimentar. Use a página do MOJ para ensaio, para uma sede pequena, ou como plano B se
           não der para montar o Animeitor; no evento de verdade, prefira o Animeitor.
         </div>
-        <p data-en-html="The official flow is the one from section 4: <b>create a streaming key</b> → point the Animeitor at that URL → run the whole show (contest and ceremony) from there. The Animeitor fetches the package in a loop, animates the turn and knows how to hold the freeze until the reveal.">
-          O fluxo oficial é o da seção 4: <b>criar uma chave de streaming</b> → apontar o
-          Animeitor para aquela URL → conduzir o espetáculo inteiro (prova e cerimônia) por lá. O
-          Animeitor busca o pacote em laço, anima a virada e sabe segurar o congelamento até a
-          revelação.
+        <p data-en-html="The official flow is the one from section 4: <b>connect the Animeitor</b> → publish the scoreboards → turn the feeder on → run the whole show (contest and ceremony) from the Animeitor. It animates the turn and holds the freeze until the reveal.">
+          O fluxo oficial é o da seção 4: <b>ligar o Animeitor</b> → publicar os placares → ligar o
+          alimentador → conduzir o espetáculo inteiro (prova e cerimônia) pelo Animeitor. Ele anima
+          a virada e segura o congelamento até a revelação.
         </p>
 
         <h3 data-en="Statistics: the material for the intervals">Estatísticas: o material dos intervalos</h3>
@@ -201,7 +235,7 @@
           telão na última hora é informação que os times não deveriam ter.
         </div>
 
-        <h2 id="vespera" data-en="8. Dress rehearsal: the eve and the warm-up">8. Ensaio geral: a véspera e o aquecimento</h2>
+        <h2 id="vespera" data-en="9. Dress rehearsal: the eve and the warm-up">9. Ensaio geral: a véspera e o aquecimento</h2>
         <p data-en-html="Before the contest there is a <b>warm-up</b> — a short round, at the same address, with the teams already seated. It is the dress rehearsal of the room, and therefore of the screen: the scoreboard fills up with real submissions, so this is the moment to point the projector, run the webcast key into Animeitor for real and see the photos and the songs come up on the wall. A screen that is only tested with an empty scoreboard is a screen that has not been tested.">
           Antes da prova acontece o <b>aquecimento</b> — uma rodada curta, no mesmo endereço, com
           os times já sentados. É o ensaio geral da sala e, portanto, do telão: o placar se enche
@@ -226,7 +260,7 @@
           <li data-en="After the event: revoke every key.">Depois do evento: revogue todas as chaves.</li>
         </ol>
 
-        <h2 id="nao" data-en="9. What you cannot do">9. O que você não faz</h2>
+        <h2 id="nao" data-en="10. What you cannot do">10. O que você não faz</h2>
         <table class="cheat">
           <tr><th data-en="Attempt">Tentativa</th><th data-en="Answer">Resposta</th></tr>
           <tr><td data-en="Submit a solution / see statements">Submeter uma solução / ver enunciados</td><td><code>403</code></td></tr>

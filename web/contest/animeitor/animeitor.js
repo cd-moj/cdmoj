@@ -1,7 +1,8 @@
 // contest/animeitor/animeitor.js — a mesa do operador do TELÃO (.animeitor; o admin também
-// entra). Duas seções: 📷 FOTOS E MÚSICAS dos times (galeria, trocar/remover, envio em lote pelo
-// nome do arquivo, pacote .zip) e 🎥 STREAMING (as chaves do webcast que o sistema Animeitor
-// busca em loop — ver docs/WEBCAST.md).
+// entra). Três seções: 📡 ANIMEITOR (a API nova: o MOJ empurra evento, placares/sedes, submissões e
+// relógio — api-section.js, docs/ANIMEITOR.md), 📷 FOTOS E MÚSICAS dos times (galeria, trocar/remover,
+// envio em lote pelo nome do arquivo, pacote .zip) e, dobrado como LEGADO, o 🎥 STREAMING por chave
+// (o zip no protocolo do BOCA que o Animeitor antigo buscava em loop — docs/WEBCAST.md).
 // A foto é gravada em WEBP pelo servidor (lib/team-photo.sh) e a música em MP3 como veio
 // (lib/team-music.sh, sem ffmpeg em produção); aqui só se manda o arquivo.
 import { apiGet, apiPost } from '/shared/api.js';
@@ -11,6 +12,7 @@ import { initContestShell } from '/shared/contest-shell.js';
 import { downloadAuthed, fmtDate, norm, debounce } from '/shared/admin-ui.js';
 import { T } from '/shared/i18n.js';
 import { setMediaSrc, mediaLink, setAudioSrc, releaseMedia } from '/shared/media-auth.js';
+import { makeApiSection } from './api-section.js';
 
 const qs = new URLSearchParams(location.search);
 const CONTEST = (window.__MOJ_CONTEST || qs.get('c') || '');
@@ -20,6 +22,7 @@ const enc = encodeURIComponent;
 
 let PHOTOS = null;   // {teams:[…], total, with_photo, with_music, scoped}
 let WC = null;       // {keys:[…], views:[…], url_path}
+let API = null;      // a seção da API do Animeitor ({node, load}) — só .animeitor/admin
 // A SEDE entra na MESMA tela com menos poder (molde do staff.js), e o recorte de quais times ela
 // vê é da API (staff-filters.json) — aqui só se esconde o que ela não pode:
 //   RO      (.cstaff e .staff) — sem as chaves do webcast e sem trocar o PADRÃO do contest;
@@ -511,7 +514,13 @@ function render() {
   app.innerHTML = '';
   // a seção de fotos tem hospedeiro FIXO: filtro/página redesenham só ela (renderPhotos),
   // sem tocar nas chaves do streaming (que o chefe de sede nem vê)
-  app.append(RO ? '' : streamSection(), el('div', { class: 'section', id: 'photosSec' }));
+  // o streaming por chave (zip do BOCA) é LEGADO: fica dobrado, abaixo da integração nova. O nó da
+  // seção nova é o MESMO a cada render (o estado dela — tabela em edição, timer — não se perde).
+  app.append(RO || !API ? '' : API.node,
+    RO ? '' : el('details', { class: 'section', open: (WC && (WC.keys || []).some((k) => !k.revoked_at)) ? true : null },
+      el('summary', { style: 'cursor:pointer' }, T('🎥 Webcast BOCA (legado): o pacote .zip que o Animeitor antigo busca por chave', '🎥 BOCA webcast (legacy): the .zip package the old Animeitor polls by key')),
+      streamSection()),
+    el('div', { class: 'section', id: 'photosSec' }));
   renderPhotos();
 }
 
@@ -535,5 +544,11 @@ async function boot() {
     app.innerHTML = '<div class="error-box">' + (e.message || e) + '</div>'; return;
   }
   render();
+  // a seção nova carrega DEPOIS e por conta própria: falha nela (servidor do telão fora do ar, rota
+  // ainda não deployada) não pode apagar a galeria
+  if (!RO) {
+    API = makeApiSection(CONTEST, G);
+    API.load().then(() => render()).catch((e) => { API.node.innerHTML = ''; API.node.append(el('h2', {}, T('📡 Animeitor (telão)', '📡 Animeitor (big screen)')), el('div', { class: 'error-box' }, e.message || String(e))); render(); });
+  }
 }
 boot();

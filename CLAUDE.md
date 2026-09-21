@@ -866,6 +866,22 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   determinística** (a parte "decorrida" depende do relógio — é arredondada a minuto cheio e
   `window_minutes` a fixa, senão o mesmo `seed` dá placares diferentes e ninguém reproduz bug de
   telão). Receita fim a fim em `docs/WEBCAST.md`; teste: `smoke-contest-seed.sh`.
+- **Telão: API do ANIMEITOR (2026-09-21)** — doc completa em `docs/ANIMEITOR.md`. O Animeitor 2.1.0 (Emilio) tem API
+  própria e o sentido INVERTEU: o MOJ EMPURRA evento/placares/sedes/runs/relógio (`lib/animeitor.sh`, rota
+  `/contest/animeitor/api`, gate `is_animeitor || is_admin`); o zip do BOCA (`docs/WEBCAST.md`) ficou LEGADO, dobrado
+  na tela. Regras que doem se quebrarem: (1) **nunca `PUT`** — é substituição total e zera o `salt` ⇒ troca os links
+  de revelação já entregues; é `POST` e, no 409, `PATCH`; (2) o servidor deles **não avança o relógio** ⇒
+  `daemons/animeitor-feed.sh` (relógio 1 s, runs 2 s só se algum `history` mudou, roster a cada 60 s por
+  assinatura), processo À PARTE — o `judged` nunca espera a rede do telão; (3) run tem **id inteiro estável**
+  (`var/animeitor-ids.tsv`, só apêndice; `score/telao-runs.sh` é a FONTE ÚNICA das runs/flags p/ a API e p/ o pacote
+  BOCA — duas cópias da regra Y/N/X/? seriam dois placares no telão); (4) `codes` = o regex existente SÓ se ele
+  reproduz o recorte do MOJ no roster, senão lista exata (coorte/sede por campo da conta não é regex); (5) evento
+  que já existe lá e não é nosso só com `adopt`, e `reset` só do que o `managed` diz que criamos — o servidor é
+  compartilhado; (6) credencial em `secrets/animeitor.cred` via `-K <(printf)`, links de revelação buscados ao vivo
+  e nunca gravados. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
+  `awk 'NR==FNR{…}' vazio arquivo` casa o 2º arquivo inteiro (1º arquivo por `getline`); `> "$f.tmp.$BASHPID"` num
+  pipeline expande no FILHO (resolver o nome ANTES). Mock ESTRITO `animeitor-mock.py`; servidor real só em evento
+  de teste próprio, apagado no fim.
 - **Integração NUTELLABOOT (máquinas mlinux, 2026-08-30)** — doc completa em
   `docs/NUTELLABOOT.md`. ⚠ **O serviço virou NutellaBoot 3 e o MOJ estava QUEBRADO contra ele
   (21/09/2026)**: comando por máquina ia a `POST …/machines/{mac}/commands`, que NÃO existe (405); o

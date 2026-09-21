@@ -1,0 +1,18 @@
+[Unit]
+Description=MOJ — alimentador do telão (API do Animeitor: relógio 1 s + submissões 2 s)
+Documentation=file:///home/ribas/moj/cdmoj/docs/ANIMEITOR.md
+After=network-online.target
+
+[Service]
+Type=simple
+# Em PRODUÇÃO quem sobe isto é o deploy/moj-entrypoint (container da API); esta unit é p/ o dev.
+# Override de caminhos, se quiser (senão usa server/etc/common.conf):
+# Environment=CONTESTSDIR=%h/moj/contests
+# Environment=RUNDIR=%h/moj/run
+ExecStart=/bin/bash %h/moj/cdmoj/server/daemons/animeitor-feed.sh
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

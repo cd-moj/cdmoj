@@ -4597,6 +4597,87 @@
         }
       }
     },
+    "/contest/animeitor/api": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "API do Animeitor (telão): estado da integração, proposta de placares/sedes (?proposal=1) e links (?links=1) — só .animeitor/admin",
+        "description": "O MOJ EMPURRA o contest para a API do Animeitor 2.1.0 (docs/ANIMEITOR.md). `{configured, has_cred, user, url, event, moj_base_url, enabled, feed, secret_contest, contests, managed, status, clock, feeder_alive_at, now}`; o token nunca volta. `proposal=1` acrescenta `proposal{teams_total, contests:[{name, source, n, codes, kind, sites}]}`; `links=1` acrescenta `links{public, revelation}` buscados ao vivo (os de revelação são credencial).",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposal",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          },
+          {
+            "name": "links",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "estado"
+          },
+          "403": {
+            "description": "animeitor_required"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "API do Animeitor: config (token write-only) / test / save / publish / push-runs / start / stop / reset",
+        "description": "`config {url?, user?, token?, event?, moj_base_url?}` · `test` → {ok, events, event_exists, managed} · `save {contests|null}` · `publish {adopt?}` → {result:{ok, event, contests, deleted}} (POST e, no 409, PATCH — nunca PUT) · `push-runs {full?}` → {runs:{total, sent, added, updated, ignored, removed}} · `start`/`stop` (alimentador: relógio 1 s + runs 2 s) · `reset {confirm}` apaga o evento no Animeitor.",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "resultado da ação"
+          },
+          "403": {
+            "description": "animeitor_required"
+          },
+          "409": {
+            "description": "not_configured / not_published / feeding / event_exists / not_managed"
+          },
+          "422": {
+            "description": "url_invalid / token_invalid / user_invalid / event_invalid / base_url_invalid / contests_invalid / name_duplicate / codes_missing / confirm_required"
+          },
+          "502": {
+            "description": "upstream_unauthorized / upstream_error"
+          }
+        }
+      }
+    },
     "/contest/animeitor/webcast": {
       "get": {
         "tags": [

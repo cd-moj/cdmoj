@@ -1,5 +1,10 @@
 # Webcast — o pacote de placar do Animeitor (e o papel `.animeitor`)
 
+> **LEGADO (21/09/2026).** O Animeitor 2.1.0 tem API própria e o MOJ passou a EMPURRAR evento, placares,
+> submissões e relógio — ver **`docs/ANIMEITOR.md`**. O pacote no protocolo do BOCA descrito aqui segue
+> funcionando (a tela o mostra dobrado, como legado) até o Emilio confirmar que ninguém mais o puxa. O
+> papel `.animeitor`, as fotos, as músicas e o pacote `.zip` deste documento continuam valendo.
+
 O **Animeitor** (de **Emílio Wuerges**) é o sistema autônomo que anima o placar no telão, e é a
 **ferramenta oficial de cerimônia** — a página `/contest/score/reveal.html` do próprio MOJ é
 **experimental** (ensaio, sede pequena, plano B). Ele foi feito para o BOCA:

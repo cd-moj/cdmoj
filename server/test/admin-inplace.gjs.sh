@@ -62,6 +62,35 @@ run(){ # <nome> <módulo> <corpo js> [módulos extras…] -> imprime as linhas "
 }
 kv(){ grep "^$2=" "$T/$1.out" | cut -d= -f2-; }
 
+# ------------------------------------------------ 📡 API do Animeitor (contest/animeitor/api-section.js) ---
+# o estado ao vivo (relógio/runs, timer de 3 s) NÃO pode reconstruir a tabela que o operador edita
+run anapi contest/animeitor/api-section.js '
+let N=0; let R={configured:true,has_cred:true,user:"moj",url:"https://a",event:"ev",moj_base_url:"https://m",enabled:true,feed:{},secret_contest:false,contests:null,
+  managed:{event:"ev",contests:[]},status:{runs:{total:3,added:3,updated:0}},clock:{at:100,time_seconds:60,http:"200"},now:101,
+  proposal:{teams_total:2,contests:[{name:"Geral",source:{kind:"view",id:"public"},n:2,codes:[".*"],kind:"regex",sites:[{name:"Sede",source:{kind:"region",id:"Sede"},n:2,codes:["^t"],kind:"regex"}]}]}};
+async function apiGet(p){ N++; return JSON.parse(JSON.stringify(R)); }
+globalThis.setInterval=(f)=>{ globalThis.__tick=f; return 1; };
+(async()=>{ const sec=makeApiSection("c",{}); await sec.load();
+  const kids0=[...sec.node.children]; const boards0=kids0[3].children[0]; const status0=kids0[6];
+  print("has_boards="+(boards0.querySelectorAll("tr").length>=2));
+  print("status_clock="+status0.textContent.includes("00:01:00"));
+  // o que o timer faz: GET sem proposta → só a caixa de estado muda
+  R.clock={at:105,time_seconds:65,http:"200"}; R.now=106; R.status.runs.updated=2;
+  print("timer_armed="+(typeof globalThis.__tick==="function"));
+  await globalThis.__tick();                       // o MESMO caminho do timer de 3 s
+  const kids1=[...sec.node.children];
+  print("same_skeleton="+kids0.every((n,i)=>n===kids1[i]));
+  print("status_updated="+(kids1[6].textContent.includes("00:01:05") && kids1[6].textContent.includes("2 corrigidas")));
+  print("boards_same_node="+(kids1[3].children[0]===boards0));
+})().catch(e=>print("ERRO "+e+"\n"+e.stack));' > "$T/anapi.out"
+check "$(kv anapi has_boards)" true "animeitor-api: tabela de placares montada a partir da proposta"
+check "$(kv anapi status_clock)" true "animeitor-api: estado mostra o relógio enviado (00:01:00)"
+check "$(kv anapi timer_armed)" true "animeitor-api: com o alimentador ligado o timer arma"
+check "$(kv anapi same_skeleton)" true "animeitor-api: o tique do timer mantém o esqueleto"
+check "$(kv anapi status_updated)" true "animeitor-api: …e atualiza relógio e contagens"
+check "$(kv anapi boards_same_node)" true "animeitor-api: …sem reconstruir a tabela em edição"
+check "$(grep -c "^ERRO" "$T/anapi.out")" 0 "animeitor-api: sem exceção"
+
 # ---------------------------------------------------------------- Situação (status-tab) -----
 run status status-tab.js '
 let D={submissions:{pending:1,max_wait_s:12,response:{avg_s:5,p95_s:9},pending_list:[{login:"a",problem:"A",submitted_at:1,waiting_s:12}],per_problem:[{problem:"A",submits:3,pending:1,accepted:1}],recent:[{at:1,login:"a",problem:"A",verdict:"Accepted"}],timeline:[{t:1,submits:2,avg_wait_s:3}]},

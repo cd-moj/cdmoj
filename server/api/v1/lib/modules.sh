@@ -83,6 +83,7 @@ mod_detect(){
     inscricoes)
       [[ -s "$d/registrations.json" ]] && { printf registrations.json; return 0; } ;;
     telao)
+      [[ -s "$d/animeitor.json" ]] && { printf animeitor.json; return 0; }
       [[ -s "$d/webcast.json" ]] && { printf webcast.json; return 0; }
       compgen -G "$d/users/*/photo.*" >/dev/null 2>&1 && { printf fotos; return 0; } ;;
     virtual)

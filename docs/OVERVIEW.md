@@ -470,6 +470,16 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   matriz). O **alerta de conflito** (banner + bip) é **global** (`shared/chief-alert.js`): segue o
   chief/admin em **qualquer página** do contest e abre a fila já filtrada em conflitos.
 
+### Telão: o MOJ alimenta o Animeitor pela API (`docs/ANIMEITOR.md`)
+O sistema do telão (Animeitor 2.1.0) deixou de puxar o zip no protocolo do BOCA (`docs/WEBCAST.md`, legado): agora
+**o MOJ empurra**. O `.animeitor` grava URL+usuário+token (`secrets/animeitor.cred`), revisa os **placares** (geral,
+coortes, países) e as **sedes** que o MOJ deriva de `cohorts.json`/`regions.json` e **publica** (`lib/animeitor.sh`:
+POST e, no 409, PATCH — nunca PUT, que trocaria os links de revelação). Um processo à parte,
+`daemons/animeitor-feed.sh`, manda o **relógio a cada 1 s** (o servidor do telão não o avança sozinho) e as
+**submissões a cada 2 s** (só o delta, id inteiro estável por submissão) — fora do caminho do julgamento. As respostas
+vão sempre reais; quem congela e revela é o Animeitor. `score/telao-runs.sh` é a fonte única das runs p/ os dois
+caminhos (API e pacote BOCA).
+
 ### Máquinas mlinux: integração NutellaBoot 3 (`docs/NUTELLABOOT.md`)
 O serviço que boota as máquinas da prova (uma **site-image** por sede) conversa com o MOJ nos DOIS sentidos.
 **MOJ → serviço** (`lib/nutella.sh`, chave em `secrets/`): o coletor `score/nutella-gen.sh` baixa máquinas e

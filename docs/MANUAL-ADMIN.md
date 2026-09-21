@@ -147,7 +147,7 @@ correspondentes; **desligar esconde, sem apagar nada** — religar restaura tudo
 | `baloes` | Evento › Balões; balões na fila do staff e na Situação; balões no freeze | `balloons.json` |
 | `coortes` | Evento › Coortes | `cohorts.json` |
 | `inscricoes` | Pessoas › Inscrições | `registrations.json` |
-| `telao` | cartões Revelação e Telão; Evento › Times (fotos) | `webcast.json`, fotos de time |
+| `telao` | cartões Revelação e Telão; Evento › Times (fotos) | `animeitor.json`, `webcast.json`, fotos de time |
 | `classificacao` | Evento › Classificação (seletor de algoritmo) | `classification.json` |
 | `virtual` | Evento › Virtual; botão **Virtual** no card do contest encerrado; link no placar (ver §6¾) | `virtual/runs/` |
 
@@ -338,7 +338,7 @@ Problemas; as demais ficam planejadas até você promover.
    (impressora, o **pop-up** liberado, kiosk, o trajeto), o **chefe de sede** (todo time da sede
    entrou pelo menos uma vez), os **juízes** (opções de veredicto, log/código, a dupla lendo
    igual), o **chefe** (nº de juízes, auto-veredicto, alarme de conflito) e o **telão** (projetor,
-   chave de webcast no Animeitor, fotos e músicas).
+   conexão com o Animeitor — publicar os placares e ligar o alimentador —, fotos e músicas).
 4. Quando terminar, clique **🚀 Promover**. O MOJ confere o checklist e, se estiver tudo pronto:
    - **arquiva** a rodada — submissões (com código-fonte), veredictos, log do juiz, placar,
      estatísticas, clarifications, notícias, tarefas do staff e os logs de acesso ficam guardados
