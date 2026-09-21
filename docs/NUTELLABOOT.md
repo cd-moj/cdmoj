@@ -17,10 +17,22 @@ máquina↔time** (roster/binding).
   núcleos, RAM), `sysresources`, `sysdisk`, `operations` (firewall, tela travada,
   `editors_time{<editor>: minutos}`), `binding` (o time vinculado — a correlação),
   `first/last_seen`, alertas.
-- `GET …/machines/{mac}/samples[?since=<epoch>&until=<epoch>]`: a série (`{t, mem (% usada),
-  ld (load1), sw (swap MB), hd (/home %), ed[] (editores abertos), fw}`) — o serviço devolve
-  **400 pontos REAMOSTRADOS sobre o intervalo pedido**. Sem `since/until` eles se espalham pela
-  vida da máquina (5 dias ⇒ 45 pontos na prova); o coletor pede a janela da coleta (~1/min).
+- **Séries — em LOTE, uma chamada por sede**: `GET /site-images/{i}/samples?since&until&limit&active_since`
+  devolve **NDJSON**, uma linha por máquina: `{mac, points[], native_points, resampled, interval_s, since,
+  until, truncated}`. `limit` vai até **5000** (o default, 400, REAMOSTRA a janela); `active_since` poupa
+  quem não apareceu. A rota por máquina (`…/machines/{mac}/samples`) devolve o mesmo objeto e segue
+  existindo — é o fallback do coletor quando o lote dá 404 (serviço antigo). Sem `since/until` os pontos
+  se espalham pela vida da máquina (5 dias ⇒ 45 pontos na prova).
+- **O ponto** (`points[]`): `t, mem (% usada), ld (load1), sw (swap MB), hd (/home %), ed[] (editores
+  abertos), fw, lk (tela travada)` — e, **só do agente novo** (set/2026): `psi_mem/psi_cpu/psi_io` (PSI
+  `some avg60`, % do tempo com processo PARADO esperando o recurso — pressão de verdade, não "% de memória
+  usada"), `oom` (OOM kills ACUMULADOS), `idle` (s sem teclado/mouse), `skew` (s de desvio do relógio),
+  `edm/eds` (minutos de editor acumulados desde `eds`). Frota MISTA é o caso real (em 21/09/2026 a `26tete`
+  tinha uma máquina de cada agente): todo campo novo é opcional, do coletor à tela.
+- **A máquina** ganhou `boot_id`, `boots`, `last_boot`, `editors_reset_at`, `status.t_agent` (hora do agente;
+  a presença dele = agente novo) e `status.hwinfo.{mac, hostname, dmi_uuid, product_vendor, product_name,
+  uptime_s, last_boot}`. Alertas têm `kind`: `identity.duplicate` (com `other_mac` — home clonada por
+  imagem de disco), `usb.storage|phone|network|other`; `kind` desconhecido é aceito.
 - `status.hwinfo.machine_id` (+ `boot_id`, `image`) é o que o navegador do mlinux manda no
   User-Agent (`Mozilla/5.0 (MLinux/<imagem>/<machine_id>/<boot_id>) …`) — o **elo
   máquina↔time** (abaixo). `editors_time` é ACUMULADO desde a instalação: não mede a prova.
@@ -58,12 +70,26 @@ máquina↔time** (roster/binding).
 - **Lib**: `server/api/v1/lib/nutella.sh` (`nb_configured`, `nb_curl`, `nb_url`,
   `nb_staff_regions`) — sourceada POR HANDLER (rota fria, fora do prelúdio do MOLDE).
 - **Coletor**: `server/score/nutella-gen.sh <c> [out] [--reaggregate]` (standalone,
-  destacado pelo painel) — baixa imagens/roster/máquinas/samples (xargs -P; ~2.6k requests
-  na Maratona; samples com `since/until` = janela [início−1h, fim+1h]), guarda o BRUTO em
-  `var/nutella-raw/` (`--reaggregate` refaz tudo dali, sem rede — mudança de view/agregado não
-  depende do buffer do serviço), agrega POR SEDE e faz os rollups pela árvore de
+  destacado pelo painel) — baixa imagens/roster/máquinas (xargs -P) e as séries **em lote, 1 request
+  por sede** (`limit=5000`, `active_since` = início da janela; janela = [início−1h, fim+1h]). Era 1 request
+  POR MÁQUINA: ~1.700 na Maratona, 1 min 16 s; o lote de uma sede de 29 máquinas volta em 0,15 s e a
+  coleta inteira dela em 0,6 s (medido em 21/09/2026). Guarda o BRUTO em `var/nutella-raw/`
+  (`samples/<sede>.ndjson`; `--reaggregate` refaz tudo dali, sem rede — mudança de view/agregado não
+  depende do buffer do serviço). O leitor junta os DOIS leiautes de bruto — o novo e o por máquina
+  (`samples/<sede>.<mac>.json`, o da LATAM 2026 e o do fallback) — e o smoke prende que dão o MESMO
+  cache. Agrega POR SEDE e faz os rollups pela árvore de
   `regions.json` (nó casa por regex contra os logins do roster — o idioma do stats-gen).
-  Sede da imagem = `.team.region` do store (fallback: fullname). Saída:
+  **Cadência** = `interval_s` do serviço quando `resampled:false` (20–600 s); senão a mediana dos `dt`.
+  **Quais sedes entram**: TIMES da imagem = (roster ∩ logins do contest) ∪ (logins FORA de todo roster que
+  entraram com o UA daquela imagem — `MLinux/<imagem>/…` no `var/access.log`; conta de papel fora). O
+  roster MANDA (time do roster da sede B que logou de uma máquina da A continua da B). Entra a imagem que
+  tem time **ou** que foi listada à mão em `NUTELLABOOT_IMAGES`. ⚠ Em 21/09/2026 o roster estava VAZIO em
+  todas as imagens do serviço, inclusive na do evento da semana: a regra antiga (só roster ∩ logins)
+  terminava em "nenhuma sede casa". Sede cujo `machines` não veio (rede, 403 do escopo) vai p/ `skipped`
+  do cache e o painel avisa; se NENHUMA veio, a coleta FALHA dizendo isso e o cache anterior fica — nunca
+  um `ok:true` todo zerado.
+  Sede da imagem = `.team.region` do store (fallback: fullname); país = bandeira do 1º time (fallback:
+  2 letras do id). Saída:
   `var/nutella.cache.json` (+ `var/nutella.status.json` com o progresso). TUDO que vira
   média é guardado como SOMA+N p/ o merge dos rollups ser exato.
 - **Relatório 2.0 (01/09) — o que o coletor deriva POR MÁQUINA, só dos pontos DENTRO da
@@ -96,6 +122,19 @@ máquina↔time** (roster/binding).
   re-rank pela posição global; a view só mostra com ≥ 30). `series[]` (10 min) ganhou
   `sw_sum/sw_n/fw_off`. Topo: `version:2`, `contest{start,end}`, `link{mode,linked,teams,present,
   coverage}`; `pop` ganha `present` por sede. Linhas por time (`_rows`) existem SÓ dentro do coletor e morrem antes de gravar.
+- **Telemetria do agente novo (NutellaBoot 3, 21/09)** — tudo SOMA+N/contagem (o rollup é um `madd`) e
+  tudo opcional. Por sede/nó/global: **`health{agent_new, psi_mem_sum, psi_cpu_sum, psi_io_sum, psi_n,
+  oom_machines, oom_kills, idle_pts, idle_hi, skew_n, skew_bad, reboots}`** — `agent_new` é o DENOMINADOR
+  ("0 OOM em 12 máquinas que medem"; sem ele "0 OOM" seria indistinguível de "ninguém mede"); `oom_kills`
+  = soma dos incrementos positivos do contador DENTRO da prova; `idle_hi` = pontos com `idle` > 300 s;
+  `skew_bad` = |mediana do `skew`| > 120 s; `reboots` = `last_boot` dentro de (início, fim] da prova.
+  `psi_mem_max`, **`model_tm{"<fabricante> <produto>": n}`** (máquinas de time; `hostname`, `dmi_uuid` e MAC
+  NÃO entram em agregado), **`alert_kinds{kind: n}`** ao lado da contagem `alerts`. `pressure{…}` ganha
+  `psi_sum/psi_n/psi_max` (e `psi_sum/psi_n` por bin de 30 min); `series[]` ganha `psi_sum/psi_n`;
+  `sedes[].machines[]` ganha `model`, `oom`, `agent_new`. Na view: seção **🩺 Saúde das máquinas na prova**
+  (só com `health.agent_new > 0`), "Modelo do equipamento" em Hardware, gráfico e colunas de PSI em Pressão,
+  alertas POR TIPO em Atenção e as definições no "Como ler" — cache antigo rende exatamente a tela de antes
+  (`smoke-mlinux-view.gjs.sh` renderiza os dois, pt e en).
   A **view** (`web/lib/mlinux-view.js`) infere fabricante/família/ano do modelo de CPU
   (`cpuInfo`, tabelas de ano dos scripts do artigo da Revista Maratona) e escreve as
   observações automáticas em STE pt/en. **Ranks** por sede: posição no país e no geral em RAM
@@ -122,9 +161,9 @@ máquina↔time** (roster/binding).
   gravar o MESMO UA em **`/etc/moj/user-agent`** (uma linha, legível por todos). É de lá que a
   `moj-comp` (e as outras CLIs) o lê e o manda na frente do seu marcador `moj-comp/<build>` —
   passa no gate por sede, herda a chave de máquina do browser e o servidor separa web × CLI.
-- **Quando coletar**: logo depois da prova (o serviço reamostra 400 pontos sobre a janela
-  pedida, então a resolução não depende de quando; mas máquinas religadas muito depois podem
-  perder histórico). Recoletar é barato; o bruto fica guardado p/ `--reaggregate`.
+- **Quando coletar**: logo depois da prova (com `limit=5000` a janela vem SEM reamostragem — ~500 pontos
+  nativos por máquina em 7 h; máquinas religadas muito depois podem perder histórico). Recoletar é
+  barato (1 request por sede); o bruto fica guardado p/ `--reaggregate`.
 
 ## Testes
 
@@ -132,8 +171,12 @@ máquina↔time** (roster/binding).
 (stdlib; serve fixtures com os shapes reais, REGISTRA POST/PUT e o GET de samples com a
 query) — cobre config, escopo, coleta ponta-a-ponta (since/until, elo por UA com conta de
 papel tentando roubar o vínculo, adoção/perfis/pressão/rank_ed, privacidade do cache,
-`--reaggregate` sem rede, modo proxy sem access.log), catálogo, gates de comando e
-push-roster. O relatório é coberto no `smoke-contest-report.sh` (página condicional, sem
+`--reaggregate` sem rede, modo proxy sem access.log), a coleta em LOTE (2 requests p/ 2 sedes,
+`limit=5000`), a telemetria nova com frota MISTA (agente novo × antigo), o bruto ANTIGO por máquina e o
+fallback sem a rota de lote reagregando IGUAL, roster VAZIO (sedes pelo UA do login · imagem listada à
+mão · erro claro sem nada), sede recusada ⇒ `skipped` e serviço mudo ⇒ falha, catálogo, gates de
+comando e push-roster. A view tem o seu: `smoke-mlinux-view.gjs.sh` (DOM falso no gjs, do jeito que o
+relatório a inlina; cache novo × antigo, pt × en). O relatório é coberto no `smoke-contest-report.sh` (página condicional, sem
 MAC/teams/_rows, view 2.0 embutida, invariantes). O jq do coletor vive em VARIÁVEIS
 (`AGG_JQ`), que o `jq-portability.sh` não vê: rode o coletor com o jq 1.7 da imagem
 (`--reaggregate` num bruto guardado) antes de deployar mudança nele.

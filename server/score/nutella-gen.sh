@@ -64,6 +64,7 @@ if ! declare -F conf_value >/dev/null 2>&1; then
   }
 fi
 source "$_LIBDIR/nutella.sh"
+mapfile -t CFGIDS < <(nb_images "$C")    # site-images listadas à mão (conf NUTELLABOOT_IMAGES)
 if (( ! REAGG )); then
   nb_configured "$C" || { echo "nutella-gen: integração não configurada (sem chave)" >&2; exit 1; }
 else
@@ -125,7 +126,6 @@ else
   # hospeda sedes de outros eventos; a interseção com os logins já as descartava, mas cada uma
   # custava 2 requests).
   prog "listando sedes"
-  mapfile -t CFGIDS < <(nb_images "$C")
   nbget site-images > "$W/images.json" 2>/dev/null
   if jq -e '.images | type == "array"' "$W/images.json" >/dev/null 2>&1; then
     if (( ${#CFGIDS[@]} )); then
@@ -149,19 +149,58 @@ else
     ' "$W" "$BASE"
 fi
 find "$CDIR/users" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort > "$W/logins.txt"
+# login -> IMAGEM de onde o time logou (o UA do mlinux diz: `MLinux/<imagem>/…`; último login vence,
+# conta de papel fora). É a 2ª fonte de "quem é desta sede", p/ quando o ROSTER do serviço está VAZIO
+# — em 21/09/2026 estava vazio em TODAS as imagens, inclusive na do evento da semana, e a regra
+# antiga (só roster ∩ logins) terminava em "nenhuma sede casa com os times".
+: > "$W/uaimg.tsv"
+if [[ -s "$CDIR/var/access.log" ]]; then
+  jq -Rrn --argjson b "$WEND" '
+    [ inputs | split("\t") | select(length >= 4)
+      | (.[0] | tonumber? // 0) as $t | select($t <= $b)
+      | .[1] as $lg
+      | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
+      | ((.[3] | try @base64d catch "") | capture("MLinux/(?<img>[A-Za-z0-9._-]+)/[0-9a-f]{32}/")? // null) as $m
+      | select($m != null) | {t: $t, lg: $lg, img: $m.img} ]
+    | sort_by(.t) | reduce .[] as $e ({}; .[$e.lg] = $e.img)
+    | to_entries[] | "\(.key)\t\(.value)"' "$CDIR/var/access.log" > "$W/uaimg.tsv" 2>/dev/null || : > "$W/uaimg.tsv"
+fi
 mapfile -t IDS < <(jq -r '.images[].id' "$W/images.json")
+# Sede cujo `machines` NÃO veio (rede, 401/403 do escopo da chave, URL errada) sai da coleta — e, se
+# não sobrar nenhuma, a coleta FALHA dizendo isso. Sem esta guarda, uma imagem listada à mão com o
+# serviço fora do ar rendia um cache `ok:true` todo zerado (o filtro antigo "roster ∩ logins"
+# escondia o caso atrás de "nenhuma sede casa"). Vale também p/ o bruto do --reaggregate.
+# A sede que falhou SOZINHA vai p/ `skipped` do cache, e o painel avisa — sumir calada não pode.
+_okids=(); NBAD=0
+for id in "${IDS[@]}"; do
+  if jq -e '.machines | type == "array"' "$W/machines.$id.json" >/dev/null 2>&1; then _okids+=("$id"); else NBAD=$((NBAD + 1)); echo "$id" >> "$W/skipped.txt"; fi
+done
+if (( ${#IDS[@]} && ! ${#_okids[@]} )); then
+  finish "o nutellaboot não devolveu as máquinas de nenhuma sede (URL, chave ou escopo da chave)"; trap - EXIT; exit 1
+fi
+IDS=("${_okids[@]}")
 NIMG="${#IDS[@]}"
 
 # --- 3. relevância + nome da sede --------------------------------------------------------
-# Imagem RELEVANTE = roster ∩ logins do contest (a de teste e as de outros eventos caem
-# fora). Nome da sede = .team.region (store) do 1º login do roster que tiver; fallback =
-# fullname da imagem. País = 2 letras do id (26brprcu → br).
+# TIMES da imagem = (roster ∩ logins do contest) ∪ (logins FORA DE TODO roster que entraram com o UA
+# DESTA imagem). O roster MANDA: quem está no roster de uma sede é dela, ainda que tenha logado de
+# uma máquina com a imagem de outra (senão o time contaria em duas sedes).
+# Imagem RELEVANTE = tem time OU foi listada à mão em NUTELLABOOT_IMAGES (a de teste e as de
+# outros eventos caem fora). Nome da sede = .team.region (store) do 1º time que tiver; fallback =
+# fullname da imagem. País = bandeira do 1º time que tiver; fallback = 2 letras do id (26brprcu → br).
 : > "$W/kept.tsv"    # id \t sede \t país \t fullname
 for id in "${IDS[@]}"; do
   [[ "$id" =~ ^[A-Za-z0-9._-]+$ ]] || continue
-  jq -r '.roster[]?.user_id // empty' "$W/roster.$id.json" 2>/dev/null | sort > "$W/rteams.$id.txt"
+  jq -r '.roster[]?.user_id // empty' "$W/roster.$id.json" 2>/dev/null
+done | sort -u > "$W/inroster.txt"
+for id in "${IDS[@]}"; do
+  [[ "$id" =~ ^[A-Za-z0-9._-]+$ ]] || continue
+  { jq -r '.roster[]?.user_id // empty' "$W/roster.$id.json" 2>/dev/null
+    awk -F'\t' -v i="$id" '$2 == i { print $1 }' "$W/uaimg.tsv" | sort | comm -23 - "$W/inroster.txt"
+  } | sort -u > "$W/rteams.$id.txt"
   comm -12 "$W/logins.txt" "$W/rteams.$id.txt" > "$W/teams.$id.txt"
-  [[ -s "$W/teams.$id.txt" ]] || continue
+  _listed=0; for _c in "${CFGIDS[@]}"; do [[ "$_c" == "$id" ]] && _listed=1; done
+  [[ -s "$W/teams.$id.txt" || $_listed -eq 1 ]] || continue
   sede=""
   while IFS= read -r lg; do
     sede="$(jq -r '.team.region // empty' "$(account_file "$C" "$lg")" 2>/dev/null)"
@@ -169,29 +208,51 @@ for id in "${IDS[@]}"; do
   done < "$W/teams.$id.txt"
   fullname="$(jq -r --arg i "$id" 'first(.images[] | select(.id == $i) | .fullname) // $i' "$W/images.json")"
   [[ -n "$sede" ]] || sede="$fullname"
-  pais="$(printf '%s' "$id" | sed -E 's/^[0-9]+//; s/^(..).*$/\1/')"
+  pais=""
+  while IFS= read -r lg; do
+    pais="$(jq -r '(.team.flag // "") | ascii_downcase | split("-")[0] // ""' "$(account_file "$C" "$lg")" 2>/dev/null)"
+    [[ "$pais" =~ ^[a-z]{2}$ ]] && break; pais=""
+  done < "$W/teams.$id.txt"
+  [[ -n "$pais" ]] || pais="$(printf '%s' "$id" | sed -E 's/^[0-9]+//; s/^(..).*$/\1/')"
   printf '%s\t%s\t%s\t%s\n' "$id" "$sede" "$pais" "$fullname" >> "$W/kept.tsv"
 done
 NKEPT="$(wc -l < "$W/kept.tsv" | tr -d '[:space:]')"
 (( NKEPT > 0 )) || { finish "nenhuma sede do nutellaboot casa com os times deste contest"; trap - EXIT; exit 1; }
 
-# --- 4. samples (a parte pesada: uma request por máquina VISTA na janela) ----------------
-# `since/until` = a janela: o serviço reamostra 400 pontos DENTRO dela (~1/min na prova).
+# --- 4. samples: UM request POR SEDE (lote NDJSON) ---------------------------------------
+# `GET /site-images/{i}/samples?since&until&limit&active_since` devolve uma linha por máquina, no
+# mesmo formato da rota individual: `{mac, points, native_points, resampled, interval_s, since,
+# until, truncated}`. Era um request POR MÁQUINA (~1.700 numa coleta da Maratona, 1 min 16 s); o
+# lote de uma sede de 29 máquinas volta em 0,15 s. `limit=5000` tira a reamostragem da janela da
+# prova (o agente manda ~1 ponto/50 s ⇒ ~500 pontos em 7 h), então `resampled:false` e a cadência é
+# a do agente (`interval_s`). `active_since` poupa as máquinas que não apareceram na janela.
+# Serviço antigo (404 no lote) cai no caminho por máquina — e o bruto por máquina (o da LATAM 2026,
+# `samples/<id>.<mac>.json`) continua sendo lido: o `--reaggregate` dele tem de dar o mesmo resultado.
 mkdir -p "$W/samples"
 if (( ! REAGG )); then
-  : > "$W/maclist.txt"
-  while IFS=$'\t' read -r id _rest; do
-    jq -r --argjson ws "$WSTART" \
-      '.machines[]? | select((.last_seen // 0) >= $ws) | .mac' "$W/machines.$id.json" 2>/dev/null \
-      | grep -E '^[A-Za-z0-9:-]+$' | sed "s/^/$id /"
-  done < "$W/kept.tsv" >> "$W/maclist.txt"
-  NSAMP="$(wc -l < "$W/maclist.txt" | tr -d '[:space:]')"
-  prog "baixando séries das máquinas" 0 "$NSAMP"
-  # posicionais: $0=W $1=BASE $2=since $3=until, e o xargs acrescenta $4=imagem $5=mac
-  xargs -P16 -n2 sh -c '
-    curl -s -m 20 -K "$0/cfg" "$1/api/v1/site-images/$4/machines/$5/samples?since=$2&until=$3" \
-      > "$0/samples/$4.$5.json" 2>/dev/null || true
-  ' "$W" "$BASE" "$WSTART" "$WEND" < "$W/maclist.txt" 2>/dev/null
+  : > "$W/nolote.txt"
+  prog "baixando séries das máquinas (lote por sede)" 0 "$NKEPT"
+  # posicionais: $0=W $1=BASE $2=since $3=until, e o xargs acrescenta $4=imagem
+  cut -f1 "$W/kept.tsv" | grep -E '^[A-Za-z0-9._-]+$' | xargs -P8 -n1 sh -c '
+    code=$(curl -s -m 180 -K "$0/cfg" -o "$0/samples/$4.ndjson" -w "%{http_code}" \
+      "$1/api/v1/site-images/$4/samples?since=$2&until=$3&limit=5000&active_since=$2" 2>/dev/null)
+    [ "$code" = 200 ] || { rm -f "$0/samples/$4.ndjson"; echo "$4" >> "$0/nolote.txt"; }
+  ' "$W" "$BASE" "$WSTART" "$WEND" 2>/dev/null
+  if [[ -s "$W/nolote.txt" ]]; then
+    : > "$W/maclist.txt"
+    while IFS= read -r id; do
+      jq -r --argjson ws "$WSTART" \
+        '.machines[]? | select((.last_seen // 0) >= $ws) | .mac' "$W/machines.$id.json" 2>/dev/null \
+        | grep -E '^[A-Za-z0-9:-]+$' | sed "s/^/$id /"
+    done < "$W/nolote.txt" >> "$W/maclist.txt"
+    NSAMP="$(wc -l < "$W/maclist.txt" | tr -d '[:space:]')"
+    prog "baixando séries (por máquina — serviço sem a rota de lote)" 0 "$NSAMP"
+    # posicionais: $0=W $1=BASE $2=since $3=until, e o xargs acrescenta $4=imagem $5=mac
+    xargs -P16 -n2 sh -c '
+      curl -s -m 20 -K "$0/cfg" "$1/api/v1/site-images/$4/machines/$5/samples?since=$2&until=$3&limit=5000" \
+        > "$0/samples/$4.$5.json" 2>/dev/null || true
+    ' "$W" "$BASE" "$WSTART" "$WEND" < "$W/maclist.txt" 2>/dev/null
+  fi
 fi
 prog "agregando" 0 "$NKEPT"
 
@@ -276,9 +337,13 @@ AGG_JQ='
   def cnt(f): (reduce f as $k ({}; .[$k] = ((.[$k] // 0) + 1)));
   def med($a): (($a | sort) as $s | ($s | length) as $n | if $n == 0 then null else $s[($n / 2) | floor] end);
   # derivação de UMA máquina a partir dos seus pontos na prova
-  def derive($p; $cs; $ce):
+  # $iv = `interval_s` do serviço, só quando ele disse `resampled:false` (pontos NATIVOS): aí a
+  # cadência é a do agente, medida por quem tem a série inteira. Reamostrado (ou bruto antigo,
+  # sem o campo) = a mediana dos deltas do que veio, como sempre.
+  def derive($p; $cs; $ce; $iv):
     ($p | length) as $n
-    | (if $n > 1 then ([ range(1; $n) as $i | ($p[$i].t - $p[$i - 1].t) ] | med(.)) else 60 end) as $cad0
+    | (if ($iv | type) == "number" and $iv >= 20 and $iv <= 600 then $iv
+       elif $n > 1 then ([ range(1; $n) as $i | ($p[$i].t - $p[$i - 1].t) ] | med(.)) else 60 end) as $cad0
     | (if $cad0 == null or $cad0 < 20 then 60 elif $cad0 > 600 then 600 else $cad0 end) as $cad
     | (cnt($p[] | (.ed // [])[])) as $edp
     | ($edp | with_entries(.value = ((.value * $cad / 60) | round))) as $edmin
@@ -301,9 +366,25 @@ AGG_JQ='
         ld_max:  ([ $p[] | (.ld // 0) ] | max // 0),
         mem0: ([ $p[] | select(.t < $cs + 1800) | (.mem // 0) ]),
         mem4: ([ $p[] | select(.t >= $ce - 3600) | (.mem // 0) ]),
-        bins: ([ $p[] | { b: (((.t - $cs) / 1800) | floor), mem: (.mem // 0), sw: (.sw // 0) } ]
+        # --- AGENTE NOVO (NutellaBoot 3): tudo OPCIONAL por ponto; máquina com agente antigo sai 0/null.
+        # PSI (some avg10 de /proc/pressure) é a medida DIRETA de pressão — swap era só a ponta visível;
+        # `oom` é contador desde o boot (reboot zera): soma só os incrementos; `idle` = s de sessão ociosa;
+        # `skew` = relógio do servidor − relógio da máquina (série deslocada no tempo da prova).
+        psi_mem_sum: ([ $p[] | .psi_mem // empty ] | add // 0),
+        psi_cpu_sum: ([ $p[] | .psi_cpu // empty ] | add // 0),
+        psi_io_sum:  ([ $p[] | .psi_io // empty ] | add // 0),
+        psi_n:   ([ $p[] | select(.psi_mem != null) ] | length),
+        psi_max: ([ $p[] | .psi_mem // empty ] | max // 0),
+        oom: (([ $p[] | .oom // empty ]) as $o
+              | reduce range(1; ($o | length)) as $i (0; . + ([ ($o[$i] - $o[$i - 1]), 0 ] | max))),
+        idle_pts: ([ $p[] | select(.idle != null) ] | length),
+        idle_hi:  ([ $p[] | select((.idle // 0) > 300) ] | length),
+        skew: (med([ $p[] | .skew // empty ])),
+        bins: ([ $p[] | { b: (((.t - $cs) / 1800) | floor), mem: (.mem // 0), sw: (.sw // 0), psi: (.psi_mem // null) } ]
                | group_by(.b) | map({ t: (.[0].b * 1800), mem_sum: ([ .[].mem ] | add), mem_n: length,
-                                      sw_sum: ([ .[].sw ] | add), sw_n: length })) };
+                                      sw_sum: ([ .[].sw ] | add), sw_n: length,
+                                      psi_sum: ([ .[].psi // empty ] | add // 0),
+                                      psi_n: ([ .[] | select(.psi != null) ] | length) })) };
   def sum(f): ([ f ] | add // 0);
   ($spf[0]) as $sp
   | ($tf[0]) as $teams
@@ -315,6 +396,7 @@ AGG_JQ='
   | [ $ms[] | select((.last_seen // 0) >= $ws) ] as $seen
   | ($sp | map(select((.points // []) | length > 0))) as $series_in
   | (reduce $series_in[] as $s ({}; .[$s.mac] = [ $s.points[] | select(.t >= $cs and .t <= $ce) ])) as $cpts
+  | (reduce $series_in[] as $s ({}; .[$s.mac] = (if $s.resampled == false then ($s.interval_s // null) else null end))) as $ivs
   # ---- por máquina + dedupe de time (um time = a máquina com mais pontos na prova) -------
   | ([ $seen[] | . as $x
        | ($x.status.hwinfo.machine_id // "") as $mid
@@ -322,8 +404,12 @@ AGG_JQ='
        | (if $mid == "" then null
           else ($link.k[$mid + "/" + $boot]
                 // (if ($dups[$mid] // false) == true then null else ($link.m[$mid] // null) end)) end) as $team
-       | derive(($cpts[$x.mac] // []); $cs; $ce)
+       | derive(($cpts[$x.mac] // []); $cs; $ce; ($ivs[$x.mac] // null))
          + { mac: $x.mac, online: ($x.online // false),
+             model: (((($x.status.hwinfo.product_vendor // "") + " " + ($x.status.hwinfo.product_name // ""))
+                      | gsub("^ +| +$"; "")) as $mo | if $mo == "" then null else $mo end),
+             agent_new: (($x.status.t_agent // null) != null),
+             last_boot: ($x.last_boot // $x.status.hwinfo.last_boot // 0),
              processor: ($x.status.hwinfo.processor // "?"),
              cores: ($x.status.hwinfo.cores // 0), mem_mb: ($x.status.hwinfo.memtotal_mb // 0),
              band: (band($x.status.hwinfo.memtotal_mb // 0)),
@@ -347,6 +433,19 @@ AGG_JQ='
       firewall_off: ([ $seen[] | select((.status.operations.firewall // true) == false) ] | length),
       screen_lock: ([ $seen[] | select((.status.operations.screen_lock // false) == true) ] | length),
       alerts: ([ $ms[] | (.alerts // []) | length ] | add // 0),
+      alert_kinds: (cnt($ms[] | (.alerts // [])[] | (.kind // "?"))),   # identity.duplicate, usb.storage…
+      # SAÚDE na prova — contadores ADITIVOS (o rollup é um madd). `agent_new` diz de quantas máquinas
+      # vem o resto: sem isso "0 OOM" seria indistinguível de "ninguém mede OOM".
+      health: { agent_new: ([ $mx[] | select(.agent_new) ] | length),
+                psi_mem_sum: (sum($tm[].psi_mem_sum)), psi_cpu_sum: (sum($tm[].psi_cpu_sum)),
+                psi_io_sum: (sum($tm[].psi_io_sum)), psi_n: (sum($tm[].psi_n)),
+                oom_machines: ([ $mx[] | select(.oom > 0) ] | length), oom_kills: (sum($mx[].oom)),
+                idle_pts: (sum($tm[].idle_pts)), idle_hi: (sum($tm[].idle_hi)),
+                skew_n: ([ $mx[] | select(.skew != null) ] | length),
+                skew_bad: ([ $mx[] | select(.skew != null) | select((.skew > 120) or (.skew < -120)) ] | length),
+                reboots: ([ $mx[] | select(.last_boot > $cs and .last_boot <= $ce) ] | length) },
+      psi_mem_max: ([ $tm[].psi_max ] | max // 0),
+      model_tm: (cnt($tm[] | .model // empty)),
       disk_high: ([ $seen[] | select((.status.sysdisk.home_pct // 0) >= 90) ] | length),
       bound: ([ $ms[] | select(.binding != null) ] | length),
       bindings: ([ $ms[] | select(.binding != null) | {mac, team: (.binding | if type == "object" then (.user_id // .team // tostring) else tostring end)} ]),
@@ -381,17 +480,20 @@ AGG_JQ='
                     mem_sum: (((.[$k] // {}).mem_sum // 0) + $x.mem_sum), mem_n: (((.[$k] // {}).mem_n // 0) + $x.pts),
                     sw_sum: (((.[$k] // {}).sw_sum // 0) + $x.sw_sum), sw_n: (((.[$k] // {}).sw_n // 0) + $x.pts),
                     sw_max: ([ ((.[$k] // {}).sw_max // 0), $x.sw_max ] | max),
+                    psi_sum: (((.[$k] // {}).psi_sum // 0) + $x.psi_mem_sum), psi_n: (((.[$k] // {}).psi_n // 0) + $x.psi_n),
+                    psi_max: ([ ((.[$k] // {}).psi_max // 0), $x.psi_max ] | max),
                     mem0_sum: (((.[$k] // {}).mem0_sum // 0) + ($x.mem0 | add // 0)), mem0_n: (((.[$k] // {}).mem0_n // 0) + ($x.mem0 | length)),
                     mem4_sum: (((.[$k] // {}).mem4_sum // 0) + ($x.mem4 | add // 0)), mem4_n: (((.[$k] // {}).mem4_n // 0) + ($x.mem4 | length)),
                     series: ((((.[$k] // {}).series // []) + $x.bins) | group_by(.t)
                              | map({ t: .[0].t, mem_sum: ([ .[].mem_sum ] | add), mem_n: ([ .[].mem_n ] | add),
-                                     sw_sum: ([ .[].sw_sum ] | add), sw_n: ([ .[].sw_n ] | add) })) })),
+                                     sw_sum: ([ .[].sw_sum ] | add), sw_n: ([ .[].sw_n ] | add),
+                                     psi_sum: ([ .[].psi_sum // 0 ] | add), psi_n: ([ .[].psi_n // 0 ] | add) })) })),
       _rows: ([ $mx[] | select(.chosen and .rank != null) | { l: .team, pts, rank, eds, band: (pband(.mem_mb)), prof } ]),
       machines: ([ $mx[] | { mac, online, processor, cores, mem_mb, editors_time, fw, sl, home_pct, binding, team, chosen,
-                             used, eds, prof, pts, edmax } ]),
+                             used, eds, prof, pts, edmax, model, oom, agent_new } ]),
       series: ([ $series_in[] | .mac as $mac | .points[]
                  | select(.t >= $ws and .t <= $we)
-                 | {b: ((.t / 600) | floor), mac: $mac, mem: (.mem // 0), ld: (.ld // 0), sw: (.sw // 0), fw: (.fw // 1), ed: (.ed // [])} ]
+                 | {b: ((.t / 600) | floor), mac: $mac, mem: (.mem // 0), ld: (.ld // 0), sw: (.sw // 0), fw: (.fw // 1), ed: (.ed // []), psi: (.psi_mem // null)} ]
                | group_by(.b)
                | map({ t: (.[0].b * 600),
                        act: ([ .[].mac ] | unique | length),
@@ -399,12 +501,15 @@ AGG_JQ='
                        ld_sum: ([ .[].ld ] | add // 0), ld_n: length,
                        ld_max: ([ .[].ld ] | max // 0),
                        sw_sum: ([ .[].sw ] | add // 0), sw_n: length,
+                       psi_sum: ([ .[].psi // empty ] | add // 0), psi_n: ([ .[] | select(.psi != null) ] | length),
                        fw_off: ([ .[] | select(.fw == 0 or .fw == false) | .mac ] | unique | length),
                        ed: (reduce (.[] | {m: .mac, e: .ed[]}) as $x ({}; (($x.e) as $k | .[$k] = ((.[$k] // []) + [$x.m])))
                            | with_entries(.value |= (unique | length))) }))
     }'
 while IFS=$'\t' read -r id sede pais fullname; do
-  cat "$W/samples/$id."*.json > "$W/spl.$id.raw" 2>/dev/null || : > "$W/spl.$id.raw"
+  # os DOIS leiautes do bruto: lote por sede (`<id>.ndjson`) e por máquina (`<id>.<mac>.json`, o
+  # das coletas anteriores a 21/09/2026). `jq -s` engole valores JSON concatenados, com ou sem \n.
+  { cat "$W/samples/$id.ndjson" 2>/dev/null; cat "$W/samples/$id."*.json 2>/dev/null; } > "$W/spl.$id.raw"
   jq -cs '[ .[] | select(type == "object") ]' "$W/spl.$id.raw" > "$W/spl.$id.json" 2>/dev/null \
     || printf '[]' > "$W/spl.$id.json"
   jq -Rcs 'split("\n") | map(select(length > 0))' "$W/teams.$id.txt" > "$W/tf.$id.json"
@@ -466,12 +571,14 @@ jq -cs --argjson ws "$WSTART" --argjson we "$WEND" --argjson cs "$CS" --argjson 
             act: ([ .[].act ] | add), mem_sum: ([ .[].mem_sum ] | add), mem_n: ([ .[].mem_n ] | add),
             ld_sum: ([ .[].ld_sum ] | add), ld_n: ([ .[].ld_n ] | add), ld_max: ([ .[].ld_max ] | max),
             sw_sum: ([ .[].sw_sum // 0 ] | add), sw_n: ([ .[].sw_n // 0 ] | add),
+            psi_sum: ([ .[].psi_sum // 0 ] | add), psi_n: ([ .[].psi_n // 0 ] | add),
             fw_off: ([ .[].fw_off // 0 ] | add),
             ed: (reduce .[] as $x ({}; madd(.; ($x.ed // {})))) });
   def merge_pseries($ss):
     ($ss | add // []) | group_by(.t)
     | map({ t: .[0].t, mem_sum: ([ .[].mem_sum ] | add), mem_n: ([ .[].mem_n ] | add),
-            sw_sum: ([ .[].sw_sum ] | add), sw_n: ([ .[].sw_n ] | add) });
+            sw_sum: ([ .[].sw_sum ] | add), sw_n: ([ .[].sw_n ] | add),
+            psi_sum: ([ .[].psi_sum // 0 ] | add), psi_n: ([ .[].psi_n // 0 ] | add) });
   def merge_pressure($ps):
     reduce ($ps[] | to_entries[]) as $e ({};
       (.[$e.key] // null) as $c
@@ -480,6 +587,8 @@ jq -cs --argjson ws "$WSTART" --argjson we "$WEND" --argjson cs "$CS" --argjson 
             mem_sum: ($c.mem_sum + $e.value.mem_sum), mem_n: ($c.mem_n + $e.value.mem_n),
             sw_sum: ($c.sw_sum + $e.value.sw_sum), sw_n: ($c.sw_n + $e.value.sw_n),
             sw_max: ([ $c.sw_max, $e.value.sw_max ] | max),
+            psi_sum: (($c.psi_sum // 0) + ($e.value.psi_sum // 0)), psi_n: (($c.psi_n // 0) + ($e.value.psi_n // 0)),
+            psi_max: ([ ($c.psi_max // 0), ($e.value.psi_max // 0) ] | max),
             mem0_sum: ($c.mem0_sum + $e.value.mem0_sum), mem0_n: ($c.mem0_n + $e.value.mem0_n),
             mem4_sum: ($c.mem4_sum + $e.value.mem4_sum), mem4_n: ($c.mem4_n + $e.value.mem4_n),
             series: (merge_pseries([ $c.series, $e.value.series ])) } end));
@@ -499,6 +608,10 @@ jq -cs --argjson ws "$WSTART" --argjson we "$WEND" --argjson cs "$CS" --argjson 
       firewall_off: ([ $list[].firewall_off ] | add // 0),
       screen_lock: ([ $list[].screen_lock ] | add // 0),
       alerts: ([ $list[].alerts ] | add // 0),
+      alert_kinds: (reduce $list[] as $s ({}; madd(.; ($s.alert_kinds // {})))),
+      health: (reduce $list[] as $s ({}; madd(.; ($s.health // {})))),
+      psi_mem_max: ([ $list[].psi_mem_max // 0 ] | max // 0),
+      model_tm: (reduce $list[] as $s ({}; madd(.; ($s.model_tm // {})))),
       disk_high: ([ $list[].disk_high ] | add // 0),
       bound: ([ $list[].bound ] | add // 0),
       pop: (reduce $list[] as $s ({}; madd(.; $s.pop))),

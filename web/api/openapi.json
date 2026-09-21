@@ -2367,6 +2367,7 @@
           "contest"
         ],
         "summary": "Panorama das máquinas mlinux (nutellaboot) — admin/chefe tudo; .cstaff/.staff a própria sede; ?catalog=<image> = catálogo de comandos",
+        "description": "`data` = cache da coleta (`var/nutella.cache.json`): `global`, `by_node`, `sedes[]` (cortado ao escopo do staff), `link`, `window`, `contest`, `skipped[]` (sedes que o serviço não devolveu). Com o agente novo do mlinux (NutellaBoot 3) cada agregado pode trazer, tudo opcional: `health{agent_new, psi_mem_sum, psi_cpu_sum, psi_io_sum, psi_n, oom_machines, oom_kills, idle_pts, idle_hi, skew_n, skew_bad, reboots}`, `psi_mem_max`, `model_tm{modelo: n}`, `alert_kinds{kind: n}` e `psi_sum/psi_n[/psi_max]` em `pressure` e `series`.",
         "responses": {
           "200": {
             "description": "{configured, url, key_kind:admin|service (a CLASSE da chave, nunca a chave), images:[ids de NUTELLABOOT_IMAGES], status, can_admin, scoped, data:{version:2, contest, link, global, by_node, sedes[]}} — agregados por recorte (pop, ram_bands, ed_adopt/ed_groups/ed_count/profiles, pressure, rank_ed, series); ver docs/NUTELLABOOT.md"

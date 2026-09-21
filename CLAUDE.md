@@ -890,7 +890,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `--reaggregate`), casa máquina↔time pelo `machine_id` do UA do login (`var/access.log`)
   e guarda por sede só somas/contagens (`pop`, `ram_bands`, `ed_adopt`, `profiles`,
   `pressure`, `rank_ed`); `sc_place_map` (score-common) é a posição no placar dos dois
-  consumidores (relatório e coletor). O jq do coletor mora em VARIÁVEIS — o
+  consumidores (relatório e coletor). **NutellaBoot 3 (21/09)**: séries em LOTE (1 request por sede, NDJSON,
+  `limit=5000` ⇒ sem reamostragem; fallback por máquina no 404; o leitor junta os DOIS leiautes de bruto e
+  o `--reaggregate` do bruto antigo tem de dar o MESMO cache), cadência pelo `interval_s`, e a telemetria
+  do agente novo (`health{…}` com `agent_new` de DENOMINADOR, `psi_*`, `model_tm`, `alert_kinds`) — tudo
+  SOMA+N e tudo OPCIONAL do coletor à tela (frota mista é o caso real; `smoke-mlinux-view.gjs.sh` prende
+  cache novo × antigo). Sedes da coleta = times do roster ∪ logins com o UA da imagem ∪ imagens listadas à
+  mão (o roster do serviço pode estar VAZIO — estava, em todas, em 21/09). ⚠ Lição: **filtro que descarta
+  o vazio esconde a falha** — "nenhuma sede casa" mascarava serviço mudo/URL errada; hoje sede sem resposta
+  vai p/ `skipped` (o painel avisa) e, sem nenhuma, a coleta FALHA e o cache anterior fica. O jq do coletor mora em VARIÁVEIS — o
   `jq-portability.sh` não o compila: rode os smokes com o jq 1.7 antes de deployar. Teste
   com mock: `smoke-contest-nutella.sh`. Comando novo se valida na imagem de TESTE `26tete`,
   nunca numa sede real.

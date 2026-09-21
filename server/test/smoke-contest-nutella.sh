@@ -58,6 +58,14 @@ jq -n --argjson a "$(mkmach $M1 "$TE" "Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz" 
 jq -n --argjson a "$(mkmach $M3 "$TE" "AMD Ryzen 5 PRO 4650GE with Radeon Graphics" 12 31000 '{"gedit":5,"total":5}' "$MID3" "$BOOT3")" \
       '{machines:[$a]}' > "$MOCKD/machines.26tscb.json"
 jq -n '{machines:[]}' > "$MOCKD/machines.26zzzz.json"
+# AGENTE NOVO só em M1 (t_agent, modelo do equipamento, reboot NO MEIO da prova); M2 segue com o
+# agente antigo e ganha um alerta `identity.duplicate` do servidor. Frota mista é o caso real
+# (conferido em 21/09/2026: a 26tete tinha uma máquina de cada).
+jq -c --argjson lb "$((T0+1000))" --arg m1 "$M1" '
+  .machines[0] |= (. + {last_boot:$lb, boots:2} | .status.t_agent = ($lb + 5)
+                   | .status.hwinfo += {mac:$m1, product_vendor:"Dell Inc.", product_name:"OptiPlex 3090", hostname:"lab-01"})
+  | .machines[1].alerts = [{id:"a1", kind:"identity.duplicate", detail:"machine_id repetido", other_mac:$m1, at:1}]' \
+  "$MOCKD/machines.26tsca.json" > "$MOCKD/m.tmp" && mv "$MOCKD/m.tmp" "$MOCKD/machines.26tsca.json"
 # séries: 40 pontos a cada 120 s desde o INÍCIO da prova (cadência 2 min ⇒ 1 ponto = 2 min de editor).
 #   M1: VS Code o tempo todo (80 min ⇒ usado), memória subindo, swap crescendo até 780 MB
 #   M2: Vim nos 30 primeiros pontos (60 min ⇒ usado), depois VS Code (20 min ⇒ não conta) ⇒ perfil leve
@@ -69,7 +77,12 @@ mksamp(){ jq -n --arg mac "$1" --argjson t0 "$2" --arg kind "$3" \
          sw: (if $kind == "code" then ($i * 20) else 0 end),
          ed: (if $kind == "code" then ["code"]
               elif $kind == "vim30" then (if $i < 30 then ["vim"] else ["code"] end)
-              else (if $i < 6 then ["gedit"] else [] end) end) } ]}'; }
+              else (if $i < 6 then ["gedit"] else [] end) end) }
+       # pontos do AGENTE NOVO (só na máquina "code" = M1): PSI subindo, 2 OOM kills no meio,
+       # ociosa 1 ponto em 4, relógio 5 min atrasado
+       + (if $kind == "code" then { psi_mem: ($i / 10), psi_cpu: 1, psi_io: 0.5,
+                                   oom: (if $i < 20 then 0 else 2 end),
+                                   idle: (if ($i % 4) == 0 then 600 else 5 end), skew: 300 } else {} end) ]}'; }
 mksamp "$M1" "$T0" code   > "$MOCKD/samples.26tsca.$M1.json"
 mksamp "$M2" "$T0" vim30  > "$MOCKD/samples.26tsca.$M2.json"
 mksamp "$M3" "$T0" gedit6 > "$MOCKD/samples.26tscb.$M3.json"
@@ -77,7 +90,9 @@ mksamp "$M3" "$T0" gedit6 > "$MOCKD/samples.26tscb.$M3.json"
 # alice→M1 · bob→M2 (MESMO machine_id de M1; só o boot_id separa) · carol→M3 às 10h, ANTES da
 # janela, e fica logada (sessão não expira: tem de valer) · nt.admin em M1 DEPOIS (papel: não
 # pode roubar o elo) · alice com Firefox comum (ignorado) · dave nunca loga (ausente)
-ua(){ printf 'Mozilla/5.0 (MLinux/26tsca/%s/%s) Gecko/20100101 Firefox/148.0' "$1" "$2" | base64 -w0; }
+# ⚠ carol está no roster da 26tscb mas o UA dela diz 26tsca (pendrive da sede vizinha): o ROSTER
+# manda — ela NÃO pode contar nas duas sedes.
+ua(){ printf 'Mozilla/5.0 (MLinux/%s/%s/%s) Gecko/20100101 Firefox/148.0' "${3:-26tsca}" "$1" "$2" | base64 -w0; }
 { printf '%s\talice\t10.0.0.1\t%s\n'      "$((T0+600))"   "$(ua $MID1 $BOOT1)"
   printf '%s\tbob\t10.0.0.2\t%s\n'        "$((T0+100))"   "$(ua $MID2 $BOOT2)"
   printf '%s\tcarol\t10.0.0.3\t%s\tcarol\n' "$((T0-5000))" "$(ua $MID3 $BOOT3)"
@@ -157,7 +172,38 @@ ck "rank_ed: 3 ranqueados; top30=3; quartil=1; code no all" '[[ "$(CJ ".global.r
 ck "rank_ed por nó e por sede"         '[[ "$(CJ ".by_node[\"País X\"].rank_ed.n")" == 3 && "$(CJ ".sedes[]|select(.name==\"Sede A\")|.rank_ed.n")" == 2 ]]'
 ck "papel NÃO rouba o elo (M1 = alice, não nt.admin)" '[[ "$(CJ ".sedes[]|select(.name==\"Sede A\")|.machines[]|select(.mac==\"aa-bb-01\")|.team")" == alice ]]'
 ck "PRIVACIDADE: sem _rows e sem machine_id no cache" '! grep -q "_rows" "$C/var/nutella.cache.json" && ! grep -q "$MID1" "$C/var/nutella.cache.json"'
-ck "bruto guardado (var/nutella-raw) com meta"  '[[ -s "$C/var/nutella-raw/meta.json" && -s "$C/var/nutella-raw/samples/26tsca.$M1.json" ]]'
+ck "bruto guardado (var/nutella-raw) com meta — 1 NDJSON por sede"  '[[ -s "$C/var/nutella-raw/meta.json" && -s "$C/var/nutella-raw/samples/26tsca.ndjson" && "$(wc -l < "$C/var/nutella-raw/samples/26tsca.ndjson")" == 2 ]]'
+
+echo "== coleta em LOTE (NutellaBoot 3) e a telemetria do agente novo =="
+ck "UM request de samples por sede (2), nenhum por máquina" '[[ "$(grep -c "/samples?" "$MOCKD/gets.log")" == 2 ]] && ! grep -q "/machines/.*/samples" "$MOCKD/gets.log"'
+ck "pede limit=5000 e active_since (sem reamostrar a janela)" 'grep -q "limit=5000&active_since=$((T0-3600))" "$MOCKD/gets.log"'
+ck "saúde: 1 máquina com agente novo; PSI somado só dela" '[[ "$(CJ ".global.health|[.agent_new,.psi_n,.psi_mem_sum]|join(\",\")")" == "1,40,78" ]]'
+ck "OOM: 2 kills em 1 máquina (incremento do contador, não o valor)" '[[ "$(CJ ".global.health|[.oom_machines,.oom_kills]|join(\",\")")" == "1,2" ]]'
+ck "ociosidade: 10 de 40 pontos > 5 min"   '[[ "$(CJ ".global.health|[.idle_pts,.idle_hi]|join(\",\")")" == "40,10" ]]'
+ck "relógio: 1 máquina com skew > 2 min"   '[[ "$(CJ ".global.health|[.skew_n,.skew_bad]|join(\",\")")" == "1,1" ]]'
+ck "reboot NO MEIO da prova contado"       '[[ "$(CJ .global.health.reboots)" == 1 ]]'
+ck "PSI entra na pressão por faixa×perfil" '[[ "$(CJ ".global.pressure[\"8|vscode\"]|[.psi_n,.psi_max]|join(\",\")")" == "40,3.9" && "$(CJ ".global.pressure[\"16|light\"].psi_n")" == 0 ]]'
+ck "modelo do equipamento (máquinas de time)" '[[ "$(CJ ".global.model_tm[\"Dell Inc. OptiPlex 3090\"]")" == 1 ]]'
+ck "alertas POR TIPO (identity.duplicate)"  '[[ "$(CJ ".global.alert_kinds[\"identity.duplicate\"]")" == 1 && "$(CJ .global.alerts)" == 1 ]]'
+ck "rollup por nó e por sede carregam a saúde" '[[ "$(CJ ".by_node[\"País X\"].health.oom_kills")" == 2 && "$(CJ ".sedes[]|select(.name==\"Sede B\")|.health.agent_new")" == 0 ]]'
+ck "série de 10 min ganhou PSI"            '[[ "$(CJ ".global.series|map(.psi_n)|add")" == 40 ]]'
+ck "PRIVACIDADE: hostname e MAC do hwinfo não entram no cache" '! grep -q "lab-01" "$C/var/nutella.cache.json"'
+# o bruto das coletas ANTERIORES (um arquivo por máquina — o da LATAM 2026) tem de reagregar IGUAL
+cp "$C/var/nutella.cache.json" "$MOCKD/cache.lote.json"
+RAWS="$C/var/nutella-raw/samples"
+for nd in "$RAWS"/*.ndjson; do id="$(basename "$nd" .ndjson)"
+  while IFS= read -r ln; do mac="$(jq -r .mac <<<"$ln")"; jq -c 'del(.native_points,.resampled,.interval_s,.since,.until)' <<<"$ln" > "$RAWS/$id.$mac.json"; done < "$nd"
+  rm -f "$nd"; done
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt --reaggregate >/dev/null 2>&1
+ck "bruto ANTIGO (por máquina, sem metadados) reagrega IGUAL ao lote" 'diff <(jq -S "del(.collected_at)" "$MOCKD/cache.lote.json") <(jq -S "del(.collected_at)" "$C/var/nutella.cache.json") >/dev/null'
+# serviço SEM a rota de lote (404): o coletor cai no caminho por máquina e chega ao mesmo lugar
+touch "$MOCKD/nolote"; : > "$MOCKD/gets.log"
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "fallback por máquina quando o lote dá 404" 'grep -q "/machines/aa-bb-01/samples" "$MOCKD/gets.log" && [[ -s "$C/var/nutella-raw/samples/26tsca.$M1.json" ]]'
+# (`window.end` fica de fora: prova ABERTA ⇒ é o "agora" de cada coleta, e são duas coletas)
+ck "…com o MESMO resultado"                'diff <(jq -S "del(.collected_at, .window.end)" "$MOCKD/cache.lote.json") <(jq -S "del(.collected_at, .window.end)" "$C/var/nutella.cache.json") >/dev/null'
+rm -f "$MOCKD/nolote"
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
 : > "$MOCKD/gets.log"
 CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt --reaggregate >/dev/null 2>&1
 ck "--reaggregate refaz do bruto SEM rede (mesmo resultado)" '[[ ! -s "$MOCKD/gets.log" && "$(CJ .global.rank_ed.n)" == 3 && "$(CJ .link.mode)" == ua ]]'
@@ -245,7 +291,32 @@ pf; ck "preflight com chave de SERVIÇO: ok (prova acesso lendo a 1ª sede)" '[[
 call /contest/nutella POST '{"action":"config","images":"26tsca 26tscb 26zzzz"}'
 call /contest/nutella POST '{"action":"command","op":"mlreboot","image":"26zzzz"}'
 ck "imagem fora do alcance da chave → 502" '[[ "$OUT" == *"Status: 502"* ]]'
+# …e na COLETA a sede que o serviço recusa não some calada nem zera o resto: vai p/ `skipped`
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "coleta: sede recusada (403) vai p/ skipped; as outras 2 seguem" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".skipped|join(\",\")")" == 26zzzz && "$(CJ ".sedes|length")" == 2 ]]'
+call /contest/nutella POST '{"action":"config","images":"26zzzz"}'
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "coleta: NENHUMA sede respondeu ⇒ falha dizendo o porquê (nunca um cache ok:true zerado)" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == false && "$(jq -r .error "$C/var/nutella.status.json")" == *"nenhuma sede"* && "$(CJ ".sedes|length")" == 2 ]]'
 call /contest/nutella POST '{"action":"config","key":"nb3a_mocktest123","images":""}'
 pf; ck "preflight com chave de ADMINISTRAÇÃO: ok pelo /whoami" '[[ "$(J ".checks[]|select(.id==\"mlinux\")|.level")" == ok ]]'
+
+echo "== ROSTER VAZIO no serviço (caso real de 21/09/2026: TODAS as imagens estavam assim) =="
+# Sem roster, quem diz "este time é desta sede" é o UA do login (`MLinux/<imagem>/…`); e a imagem
+# listada à mão em NUTELLABOOT_IMAGES fica mesmo sem time nenhum. Antes: "nenhuma sede casa".
+for r in 26tsca 26tscb; do cp "$MOCKD/roster.$r.json" "$MOCKD/roster.$r.bak"; jq -n '{roster:[]}' > "$MOCKD/roster.$r.json"; done
+cp "$C/var/access.log" "$MOCKD/access.bak"
+printf '%s\tcarol\t10.0.0.3\t%s\n' "$((T0-4000))" "$(ua $MID3 $BOOT3 26tscb)" >> "$C/var/access.log"
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "sem roster e sem lista: as sedes saem do UA dos logins (2 sedes, nome do store)" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".sedes|map(.name)|sort|join(\",\")")" == "Sede A,Sede B" ]]'
+ck "…times = quem logou da imagem (alice+bob na A, carol na B; dave, que nunca logou, fora)" '[[ "$(CJ ".sedes[]|select(.name==\"Sede A\")|.pop.teams")" == 2 && "$(CJ ".sedes[]|select(.name==\"Sede B\")|.pop.teams")" == 1 && "$(CJ .link.linked)" == 3 ]]'
+ck "…conta de papel não vira time da sede (nt.admin logou da 26tsca)" '[[ "$(CJ ".sedes[]|select(.name==\"Sede A\")|[.machines[].team]|index(\"nt.admin\")")" == null ]]'
+: > "$C/var/access.log"
+call /contest/nutella POST '{"action":"config","images":"26tscb"}'
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "sem roster E sem login: a imagem LISTADA À MÃO fica (nome = fullname da imagem)" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".sedes|length")" == 1 && "$(CJ ".sedes[0].id")" == 26tscb ]]'
+call /contest/nutella POST '{"action":"config","images":""}'
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "sem roster, sem login e sem lista: aí sim nenhuma sede (erro claro)" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == false ]]'
+cp "$MOCKD/access.bak" "$C/var/access.log"; for r in 26tsca 26tscb; do mv "$MOCKD/roster.$r.bak" "$MOCKD/roster.$r.json"; done
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

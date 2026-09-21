@@ -14,6 +14,11 @@
 // vinculados), pressão de memória (faixa de RAM × perfil) e observações automáticas. As
 // definições estão no `<details>` "Como ler" do fim — mantenha-o em dia com o coletor.
 //
+// NutellaBoot 3 (21/09): o agente novo manda PSI (pressão de verdade, não só "% de memória"), OOM
+// kills, ociosidade, desvio de relógio e o modelo do equipamento. Tudo aqui é CONDICIONAL à presença
+// do campo: cache antigo e frota com agente antigo rendem exatamente as telas de antes. `health.
+// agent_new` é o denominador honesto ("0 OOM em 12 máquinas que medem", nunca "0 OOM" solto).
+//
 // opts: { showMachines, contest:{start,end}, link:{mode,coverage}, data (o cache inteiro),
 //         tree (regions.json, só name/subregions), sel:{kind:'g'|'n'|'s', key} }
 import { el } from '/shared/dom.js';
@@ -307,6 +312,12 @@ function hardwareSection(a, cx) {
   two2.append(box(T('Modelos mais comuns', 'Most common models'),
     hBarChart(cs.top.slice(0, 10).map(([k, v]) => ({ label: k.replace(/\(R\)|\(TM\)|CPU|@.*$/g, '').replace(/\s+/g, ' ').trim(), value: v })), { total: cs.n })));
   secs.push(two2);
+  const models = Object.entries(a.model_tm || {}).sort((x, y) => y[1] - x[1]);
+  if (models.length) {
+    const nm = models.reduce((t, [, v]) => t + v, 0);
+    secs.push(box(T(`Modelo do equipamento (${nm} de ${tm} máquinas informam)`, `Equipment model (${nm} of ${tm} machines report it)`),
+      hBarChart(models.map(([k, v]) => ({ label: k, value: v })), { total: nm, maxRows: 10 })));
+  }
   const vend = cs.vendor;
   secs.push(el('p', { class: 'ml-note' },
     T(`Intel ${pctS(vend.intel, cs.n)} · AMD ${pctS(vend.amd, cs.n)}. Idade = ${cx.ref} menos o ano de lançamento do modelo.`,
@@ -427,8 +438,9 @@ function pressureSection(a, cx) {
   keys.forEach((k) => {
     const [b] = k.split('|'); byBand[b] = byBand[b] || { n: 0, bins: {} };
     byBand[b].n += pr[k].n || 0;
-    (pr[k].series || []).forEach((s) => { const t = byBand[b].bins[s.t] = byBand[b].bins[s.t] || { mem_sum: 0, mem_n: 0, sw_sum: 0, sw_n: 0 };
-      t.mem_sum += s.mem_sum || 0; t.mem_n += s.mem_n || 0; t.sw_sum += s.sw_sum || 0; t.sw_n += s.sw_n || 0; });
+    (pr[k].series || []).forEach((s) => { const t = byBand[b].bins[s.t] = byBand[b].bins[s.t] || { mem_sum: 0, mem_n: 0, sw_sum: 0, sw_n: 0, psi_sum: 0, psi_n: 0 };
+      t.mem_sum += s.mem_sum || 0; t.mem_n += s.mem_n || 0; t.sw_sum += s.sw_sum || 0; t.sw_n += s.sw_n || 0;
+      t.psi_sum += s.psi_sum || 0; t.psi_n += s.psi_n || 0; });
   });
   const line = (bins, f) => Object.keys(bins).map(Number).sort((x, y) => x - y).filter((t) => t >= 0 && t / 60 <= cx.dur)
     .map((t) => ({ x: t / 60 + 15, y: f(bins[t]) })).filter((p) => p.y != null);
@@ -444,6 +456,14 @@ function pressureSection(a, cx) {
         points: line(byBand[b].bins, (t) => (t.sw_n ? Math.round(t.sw_sum / t.sw_n) : null)) })),
       { step: false, xMax: cx.dur, height: 240 })));
     secs.push(two);
+    // PSI: só as faixas em que alguma máquina mede (agente novo)
+    const psiBands = bandsHere.filter((b) => Object.values(byBand[b].bins).some((t) => t.psi_n));
+    if (psiBands.length) {
+      secs.push(box(T('Tempo parado esperando memória (PSI, %) por RAM instalada', 'Time stalled waiting for memory (PSI, %) by installed RAM'),
+        multiLineChart(psiBands.map((b) => ({ label: b + ' GB', color: BAND_COLOR[b],
+          points: line(byBand[b].bins, (t) => (t.psi_n ? r1(t.psi_sum / t.psi_n) : null)) })),
+        { step: false, xMax: cx.dur, yUnit: '%', height: 220 })));
+    }
   }
   // 8 GB por perfil (onde a pressão aparece)
   const p8 = keys.filter((k) => k.split('|')[0] === '8' && pr[k].n >= 3 && k.split('|')[1] !== 'none');
@@ -458,13 +478,17 @@ function pressureSection(a, cx) {
   const rows = keys.map((k) => ({ k, v: pr[k], b: k.split('|')[0], p: k.split('|')[1] })).filter((x) => x.v.n >= 3)
     .sort((x, y) => (PBANDS.indexOf(x.b) - PBANDS.indexOf(y.b)) || (y.v.n - x.v.n));
   if (rows.length) {
+    const hasPsi = rows.some((x) => x.v.psi_n);
     secs.push(tbl([{ t: 'RAM' }, { t: T('Perfil', 'Profile') }, { t: 'N', n: true }, { t: T('Mem. início', 'Mem. start'), n: true },
-      { t: T('Mem. última hora', 'Mem. last hour'), n: true }, { t: T('Swap médio', 'Avg swap'), n: true }, { t: T('Swap máx.', 'Max swap'), n: true }],
+      { t: T('Mem. última hora', 'Mem. last hour'), n: true }, { t: T('Swap médio', 'Avg swap'), n: true }, { t: T('Swap máx.', 'Max swap'), n: true }]
+      .concat(hasPsi ? [{ t: T('PSI médio', 'Avg PSI'), n: true }, { t: T('PSI máx.', 'Max PSI'), n: true }] : []),
     rows.map((x) => row([x.b + ' GB', profName(x.p), { t: x.v.n, n: true },
       { t: x.v.mem0_n ? Math.round(x.v.mem0_sum / x.v.mem0_n) + '%' : '—', n: true },
       { t: x.v.mem4_n ? Math.round(x.v.mem4_sum / x.v.mem4_n) + '%' : '—', n: true },
       { t: x.v.sw_n ? Math.round(x.v.sw_sum / x.v.sw_n) + ' MB' : '—', n: true },
-      { t: (x.v.sw_max || 0) + ' MB', n: true }]))));
+      { t: (x.v.sw_max || 0) + ' MB', n: true }]
+      .concat(hasPsi ? [{ t: x.v.psi_n ? r1(x.v.psi_sum / x.v.psi_n) + '%' : '—', n: true },
+        { t: x.v.psi_n ? r1(x.v.psi_max || 0) + '%' : '—', n: true }] : [])))));
     secs.push(el('p', { class: 'ml-note' }, T('Grupos com menos de 3 máquinas não aparecem.', 'Groups with fewer than 3 machines are not shown.')));
   }
   return el('div', { class: 'section' }, ...secs);
@@ -484,18 +508,53 @@ function seriesCharts(series) {
       lineChart(pts((s) => (s.sw_n ? Math.round(s.sw_sum / s.sw_n) : 0)), { height: 180 })),
     box(T('Load médio', 'Average load'),
       lineChart(pts((s) => (s.ld_n ? Math.round((s.ld_sum / s.ld_n) * 100) / 100 : 0)), { height: 180 })));
+  if (series.some((s) => s.psi_n)) grid.append(box(T('Espera por memória (PSI, %)', 'Memory stall (PSI, %)'),
+    lineChart(pts((s) => (s.psi_n ? r1(s.psi_sum / s.psi_n) : 0)), { height: 180 })));
   if (series.some((s) => s.fw_off)) grid.append(box(T('Máquinas sem firewall', 'Machines without firewall'), lineChart(pts((s) => s.fw_off || 0), { height: 180 })));
   out.push(grid);
   return out;
 }
 
 // ---- 8. operação: frota vista, atenção, posição da sede, máquinas ------------------------------
+// tipos de alerta do nutellaboot (`kind`); o desconhecido aparece cru — nunca some
+const alertName = (k) => ({
+  'identity.duplicate': T('identidade repetida', 'duplicate identity'),
+  'usb.storage': T('pendrive ou HD externo', 'USB storage'), 'usb.phone': T('celular', 'phone'),
+  'usb.network': T('rede por USB', 'USB network'), 'usb.other': T('outro USB', 'other USB') }[k] || k);
+
+// Saúde NA PROVA (agente novo): reinícios, OOM, relógio, ociosidade, PSI. O denominador é
+// `agent_new` — com agente antigo na frota, "0" sem ele seria uma afirmação que ninguém mediu.
+function healthSection(a) {
+  const h = a.health || {}; if (!h.agent_new) return null;
+  const n = h.agent_new;
+  const items = [];
+  items.push(h.reboots ? T(`🔁 ${h.reboots} máquina(s) reiniciaram durante a prova`, `🔁 ${h.reboots} machine(s) rebooted during the contest`)
+    : T('🔁 nenhuma máquina reiniciou durante a prova', '🔁 no machine rebooted during the contest'));
+  items.push(h.oom_kills ? T(`💥 ${h.oom_kills} processo(s) mortos por falta de memória, em ${h.oom_machines} máquina(s)`,
+    `💥 ${h.oom_kills} process(es) killed for lack of memory, on ${h.oom_machines} machine(s)`)
+    : T('💥 nenhum processo morto por falta de memória', '💥 no process killed for lack of memory'));
+  if (h.skew_n) items.push(h.skew_bad ? T(`🕒 ${h.skew_bad} de ${h.skew_n} máquinas com o relógio mais de 2 min fora`, `🕒 ${h.skew_bad} of ${h.skew_n} machines with the clock more than 2 min off`)
+    : T(`🕒 relógio certo nas ${h.skew_n} máquinas medidas`, `🕒 clock correct on the ${h.skew_n} measured machines`));
+  if (h.psi_n) items.push(T(`🧠 espera média (PSI): memória ${r1(h.psi_mem_sum / h.psi_n)}% · CPU ${r1(h.psi_cpu_sum / h.psi_n)}% · disco ${r1(h.psi_io_sum / h.psi_n)}%`,
+    `🧠 average stall (PSI): memory ${r1(h.psi_mem_sum / h.psi_n)}% · CPU ${r1(h.psi_cpu_sum / h.psi_n)}% · disk ${r1(h.psi_io_sum / h.psi_n)}%`)
+    + (a.psi_mem_max ? T(` · pico de memória ${r1(a.psi_mem_max)}%`, ` · memory peak ${r1(a.psi_mem_max)}%`) : ''));
+  if (h.idle_pts) items.push(T(`💤 ${pctS(h.idle_hi, h.idle_pts)} do tempo das máquinas de time sem teclado nem mouse por mais de 5 min`,
+    `💤 ${pctS(h.idle_hi, h.idle_pts)} of team machine time with no keyboard or mouse for more than 5 min`));
+  return el('div', { class: 'section' }, el('h2', {}, T('🩺 Saúde das máquinas na prova', '🩺 Machine health in the contest')),
+    el('p', { class: 'ml-note' }, T(`Medido em ${n} máquina(s) com o agente novo do mlinux. As demais não informam estes dados.`,
+      `Measured on ${n} machine(s) with the new mlinux agent. The others do not report this data.`)),
+    el('ul', { style: 'margin:.2rem 0 0 1.1rem' }, ...items.map((x) => el('li', {}, x))));
+}
+
 function attentionSection(a) {
   const flags = [];
   if (a.firewall_off) flags.push(T(`🔥 ${a.firewall_off} sem firewall`, `🔥 ${a.firewall_off} without firewall`));
   if (a.screen_lock) flags.push(T(`🔒 ${a.screen_lock} com tela travada`, `🔒 ${a.screen_lock} screen-locked`));
   if (a.disk_high) flags.push(T(`💾 ${a.disk_high} com /home ≥90%`, `💾 ${a.disk_high} with /home ≥90%`));
-  if (a.alerts) flags.push(T(`⚠ ${a.alerts} alertas`, `⚠ ${a.alerts} alerts`));
+  if (a.alerts) {
+    const kinds = Object.entries(a.alert_kinds || {}).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${alertName(k)} ${v}`).join(' · ');
+    flags.push(T(`⚠ ${a.alerts} alertas`, `⚠ ${a.alerts} alerts`) + (kinds ? ` (${kinds})` : ''));
+  }
   if (!flags.length) return null;
   return el('div', { class: 'section' }, el('h2', {}, T('Atenção', 'Attention')),
     el('ul', { style: 'margin:.2rem 0 0 1.1rem' }, ...flags.map((x) => el('li', {}, x))));
@@ -530,7 +589,7 @@ function fleetSection(a, cx, opts) {
       .forEach((m) => {
         tb.append(el('tr', {},
           el('td', {}, el('code', {}, m.mac)),
-          el('td', {}, m.processor || '?'),
+          el('td', {}, m.processor || '?', m.model ? el('div', { class: 'small muted' }, m.model) : ''),
           el('td', { class: 'n' }, String(m.cores || 0)),
           el('td', { class: 'n' }, GB(m.mem_mb || 0) + ' GB'),
           el('td', {}, m.team ? String(m.team) + (m.chosen === false ? ' ' + T('(2ª máquina)', '(2nd machine)') : '')
@@ -539,7 +598,7 @@ function fleetSection(a, cx, opts) {
           el('td', {}, m.prof ? profName(m.prof) : '—'),
           el('td', { class: 'n' }, m.edmax != null ? fmtMin(m.edmax) : '—'),
           el('td', {}, [m.used ? '' : T('ociosa', 'idle'), m.fw === false ? '🔥' : '', m.sl ? '🔒' : '',
-            (m.home_pct || 0) >= 90 ? '💾' : ''].filter(Boolean).join(' '))));
+            (m.home_pct || 0) >= 90 ? '💾' : '', m.oom ? '💥' + m.oom : ''].filter(Boolean).join(' '))));
       });
     secs.push(el('h3', {}, T('Máquinas', 'Machines')));
     secs.push(el('div', { class: 'tblwrap', style: 'overflow-x:auto' },
@@ -579,6 +638,10 @@ function legend(opts) {
         'contest year minus the release year inferred from the model (Intel generation, Ryzen series). Models with no known year stay out of the mean.')),
       li(T('Top k', 'Top k'), T('os k times do recorte mais bem colocados no placar geral. O quadro só aparece com 30 ou mais times vinculados. Convidados não têm posição.',
         'the k best-placed teams of the selection on the overall scoreboard. The panel needs 30 or more linked teams. Guests have no position.')),
+      li('PSI', T('porcentagem do tempo em que algum processo ficou parado esperando o recurso (memória, CPU ou disco), medida pelo kernel. Memória usada alta com PSI perto de zero não é problema. PSI de memória alto é a máquina sofrendo. Só o agente novo do mlinux mede.',
+        'percentage of time in which some process was stalled waiting for the resource (memory, CPU or disk), measured by the kernel. High memory use with PSI near zero is not a problem. High memory PSI is a machine in trouble. Only the new mlinux agent measures it.')),
+      li(T('Saúde', 'Health'), T('reinício = boot da máquina dentro do horário da prova. OOM = processo morto pelo kernel por falta de memória, contado durante a prova. Relógio = desvio mediano entre a hora da máquina e a do servidor. Ocioso = mais de 5 minutos sem teclado nem mouse.',
+        'reboot = machine boot within the contest hours. OOM = process killed by the kernel for lack of memory, counted during the contest. Clock = median offset between machine time and server time. Idle = more than 5 minutes with no keyboard or mouse.')),
       li(T('Memória e swap', 'Memory and swap'), T('média das amostras da máquina na prova. Início = primeiros 30 minutos. Última hora = últimos 60 minutos.',
         'average of the machine samples in the contest. Start = first 30 minutes. Last hour = last 60 minutes.'))));
 }
@@ -591,6 +654,7 @@ export function mlinuxSections(a, opts = {}) {
   if (a.pop) {
     push(cardsSection(a, cx));
     push(attentionSection(a));
+    push(healthSection(a));
     push(observations(a, cx, opts));
     push(hardwareSection(a, cx));
     push(editorsSection(a, cx));

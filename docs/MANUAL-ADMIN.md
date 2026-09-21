@@ -108,7 +108,7 @@ painel dele) tem dois modos:
 |---|---|
 | **Gate & trava** | De onde cada time logou (IP e navegador) em cada rodada, com CSV; a configuração do **gate de navegador por sede** (esperado × visto por time) e a **trava de sede por IP** (IPs presos, bloqueios, prender/soltar). A seção 7 explica. |
 | **Anomalias** | O que está fora do lugar no uso das máquinas **durante a prova** (só com o gate de UA ligado): time com 2 sessões vivas, máquina compartilhada por 2 times, submissão vinda de outra máquina, UA fora da sede, sede com menos máquinas que times, trocas de máquina, a trilha da **sessão única** e os bloqueios da trava. Linha do tempo, tabela por time, CSV, deslogar, **deslogar UA divergente**. A seção 7½ explica. |
-| **mlinux** | O panorama das máquinas por sede que o nutellaboot coleta (hardware, RAM, editores, pressão), com a coleta e os comandos remotos. `docs/NUTELLABOOT.md` explica. |
+| **mlinux** | O panorama das máquinas por sede que o nutellaboot coleta (hardware e modelo do equipamento, RAM, editores, pressão de memória com PSI, saúde na prova: reinícios, processos mortos por falta de memória, relógio fora, ociosidade), com a coleta e os comandos remotos. Os dados de saúde e PSI só aparecem para máquinas com o agente novo do mlinux; a tela diz quantas são. `docs/NUTELLABOOT.md` explica. |
 
 > **Balão e o freeze.** Por padrão, acerto feito com o placar **congelado não gera tarefa de
 > balão** — e esses balões **não são entregues depois**: a tarefa não existe. É a regra de

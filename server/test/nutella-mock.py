@@ -12,7 +12,8 @@ Credenciais (env):
                    (/whoami, listar /site-images, POST /commands, webhooks → 401) nem em
                    GET /site-images/{i} (403); fora do glob de imagens → 403
   NB_MOCK_SIMAGES  globs de imagem da chave de serviço, separados por vírgula (default "*")
-  NB_MOCK_NOLOTE   "1" = o lote de samples não existe (404) — exercita o fallback por máquina
+  NB_MOCK_NOLOTE   "1" (ou o arquivo <fixdir>/nolote) = o lote de samples não existe (404) —
+                   exercita o fallback por máquina
 
 Uso: nutella-mock.py <fixdir> <portfile>   (escuta em 127.0.0.1:0 e grava a porta)
 Fixtures em <fixdir>:
@@ -170,7 +171,7 @@ class H(BaseHTTPRequestHandler):
             if not self._image_ok(who, m.group(1)):
                 return
             _log("gets.log", {"method": "GET", "path": self.path})
-            if NOLOTE:
+            if NOLOTE or os.path.exists(os.path.join(FIX, "nolote")):   # arquivo = liga/desliga sem reiniciar
                 return self._send(404, {"detail": "Not Found"})
             img, act = m.group(1), num("active_since")
             seen = {x.get("mac"): (x.get("last_seen") or 0)

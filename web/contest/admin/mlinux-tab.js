@@ -211,6 +211,10 @@ export function makeMlinuxTab(CONTEST) {
         + (lk.mode === 'ua' ? T(` · vínculo máquina-time: ${lk.linked}/${lk.present} times presentes (${lk.coverage}%)`, ` · machine-team link: ${lk.linked}/${lk.present} present teams (${lk.coverage}%)`)
           : d.version >= 2 ? T(' · sem vínculo máquina-time', ' · no machine-team link') : '')));
     const box = el('div', {});
+    // sede que o serviço NÃO devolveu nesta coleta (rede, escopo da chave): avisa — sumir calada não pode
+    if ((d.skipped || []).length) box.append(el('p', { class: 'ml-note', style: 'color:var(--warn,#b9770e)' },
+      T(`⚠ Sem dados nesta coleta: ${d.skipped.join(', ')}. Confira o escopo da chave e colete de novo.`,
+        `⚠ No data in this collection: ${d.skipped.join(', ')}. Check the key scope and collect again.`)));
     // a view recebe o cache INTEIRO + a árvore + o recorte: as tabelas "por recorte" comparam
     // os filhos do nó (subregiões com dado, ou as sedes dele) — mesmo contrato do relatório
     mlinuxSections(currentAgg(), { showMachines: sel.kind === 's', window: d.window, contest: d.contest,
