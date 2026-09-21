@@ -268,10 +268,13 @@ authored_prune(){
       | with_entries( .value as $v | ($by[$v.id] // null) as $p
           | select( ($p == null)
               or (($v.owner // "") != ($p.owner // ""))
-              # título só conta como divergência quando o overlay TEM um: desde 21/09/2026 ele pode
-              # não ter (o upsert não inventa mais), e comparar "" com o título do índice faria a
-              # entrada nunca podar — o overlay só cresceria.
-              or (($v | has("title")) and (($v.title // "") != ($p.title // "")))
+              # título só conta como divergência quando o overlay tem um TÍTULO DE VERDADE: desde
+              # 21/09/2026 ele pode não ter (o upsert não inventa mais), e o que ficou no disco do
+              # tempo em que inventava é o SLUG — a MESMA coisa que a mescla já ignora. Comparar
+              # esses dois com o título do índice faria a entrada nunca podar (foi o que manteve
+              # 21 entradas envenenadas vivas): o overlay só cresceria.
+              or ((($v.title // "") != "") and (($v.title // "") != ($v.prob // ""))
+                  and (($v.title // "") != ($p.title // "")))
               or (($v.public // false) != ($p.public // false))
               or ((($v.collections // [])|sort) != (($p.collections // [])|sort))
               or ((($v.collaborators // [])|sort) != (($p.collaborators // [])|sort)) ) )

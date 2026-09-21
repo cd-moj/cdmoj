@@ -126,6 +126,17 @@ printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,
 touch -d '-1 minute' "$OVL"; touch "$IDX"
 authored_prune
 chk "overlay sem título é podado"      "$(jq -r 'length' "$OVL")" "0"
+# o VENENO que ficou no disco (title = slug) também tem de poder sair — senão as 21 entradas de
+# produção viveriam para sempre, mesmo com a mescla já as ignorando
+printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"p","collections":["o"],"collaborators":[],"author":"Autor"}}\n' > "$OVL"
+touch -d '-1 minute' "$OVL"; touch "$IDX"
+authored_prune
+chk "overlay com título=slug é podado"  "$(jq -r 'length' "$OVL")" "0"
+# … mas um título de verdade que o índice ainda não tem SEGURA a entrada (é p/ isso que ela existe)
+printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"Nome novo","collections":["o"],"collaborators":[],"author":"Autor"}}\n' > "$OVL"
+touch -d '-1 minute' "$OVL"; touch "$IDX"
+authored_prune
+chk "título novo do autor NÃO é podado"  "$(jq -r 'length' "$OVL")" "1"
 
 echo "-- /problems/status: 'untitled' só quando não há título em lugar nenhum --"
 # o Painel marca o problema POR NOMEAR (hoje o índice carimba o slug no lugar do título, e um
