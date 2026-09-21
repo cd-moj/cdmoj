@@ -262,6 +262,24 @@ ck "runs: pendente vira ?"       'grep -q $'"'"'\x1ctime-b\x1cB\x1c?$'"'"' "$TMP
 ck "runs: id sequencial"         '[[ "$(cut -d$'"'"'\x1c'"'"' -f1 "$TMP/runs" | tr "\n" " ")" == "1 2 3 4 5 " ]]'
 ck "runs: conta de papel fora"   '! grep -q "telao.animeitor" "$TMP/runs"'
 
+echo "== telao-runs.sh: fonte única das runs + id INTEIRO ESTÁVEL (p/ a API do Animeitor) =="
+TR(){ CONTESTSDIR="$FIX" bash "$ROOT/score/telao-runs.sh" an "$@" 2>/dev/null; }
+ck "--probs: as letras na ordem do conf" '[[ "$(TR --probs | tr "\n" " ")" == "A B " ]]'
+ck "--teams: login, sigla e nome na ordem do placar; papel fora" '[[ "$(TR public --teams | grep -c .)" == 2 ]] && TR public --teams | grep -q $'"'"'^time-a\tUFRJ\tTime Alfa$'"'"' && ! TR public --teams | grep -q animeitor'
+ck "--runs: o MESMO conteúdo do pacote BOCA (flags e ordem)" '[[ "$(TR public --runs | cut -f2-4 | tr "\t" "\034")" == "$(cut -d$'"'"'\x1c'"'"' -f3-5 "$TMP/runs")" ]]'
+TR public --runs-ids > "$TMP/ids1.tsv"
+ck "--runs-ids: ids 1..5 e o mapa gravado (só subid e id)" '[[ "$(cut -f1 "$TMP/ids1.tsv" | tr "\n" " ")" == "1 2 3 4 5 " && "$(wc -l < "$C/var/animeitor-ids.tsv")" == 5 ]]'
+# submissão OFFLINE atrasada: carimbo ANTIGO (entra no começo da ordem cronológica). No pacote do BOCA
+# ela renumera tudo; aqui as 5 de antes têm de MANTER o id, e ela ganha o 6.
+cp "$C/users/time-b/history" "$TMP/hb.bak"
+printf '2:col#pa:C:Wrong Answer:%s:s-atrasada\n' $(( START + 120 )) >> "$C/users/time-b/history"
+TR public --runs-ids > "$TMP/ids2.tsv"
+ck "submissão atrasada: as antigas MANTÊM o id (o sequencial do BOCA mudaria)" '[[ "$(grep -v -P "^6\t" "$TMP/ids2.tsv" | sort)" == "$(sort "$TMP/ids1.tsv")" ]]'
+ck "…e ela ganha o próximo (6), mesmo sendo a mais antiga na ordem" '[[ "$(head -1 "$TMP/ids2.tsv" | cut -f1,3,5)" == $'"'"'6\ttime-b\tN'"'"' ]]'
+TR public --runs-ids > "$TMP/ids3.tsv"
+ck "rodar de novo não cria id (mapa idempotente)" 'cmp -s "$TMP/ids2.tsv" "$TMP/ids3.tsv" && [[ "$(wc -l < "$C/var/animeitor-ids.tsv")" == 6 ]]'
+cp "$TMP/hb.bak" "$C/users/time-b/history"
+
 echo "== webcast: gates =="
 call /contest/webcast GET '' 'contest=an&key=mojwc_errada'
 ck "chave errada → 404"          'grep -q "Status: 404" <<<"$OUT"'

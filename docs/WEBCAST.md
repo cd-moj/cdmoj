@@ -313,6 +313,7 @@ Detalhes da rota (parâmetros, limites, resposta): `docs/API.md`, `/contest/admi
 | arquivo | papel |
 |---|---|
 | `server/score/webcast-gen.sh` | monta os cinco arquivos e o zip |
+| `server/score/telao-runs.sh` | **fonte única** dos times da visão, das letras e das runs com o flag `Y/N/X/?` — a mesma que alimenta a API do Animeitor (`docs/ANIMEITOR.md`); `--runs-ids` dá o id inteiro ESTÁVEL por submissão (`var/animeitor-ids.tsv`, só apêndice) |
 | `server/api/v1/lib/webcast.sh` | chaves (criar/revogar/validar/contabilizar) |
 | `server/api/v1/handlers/contest/webcast.sh` | a rota **sem sessão** que o Animeitor busca |
 | `server/api/v1/handlers/contest/animeitor/*.sh` | fotos, músicas e chaves (gate `.animeitor`/admin) |
