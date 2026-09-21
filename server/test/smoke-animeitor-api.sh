@@ -169,6 +169,20 @@ echo "== relógio =="
 ck "PATCH /time com os segundos decorridos; var/animeitor.clock gravado" '(( $(ST ".events[\"ap-2026\"].state.time_seconds") >= 7200 )) && [[ "$(cut -d" " -f3 "$C/var/animeitor.clock")" == 200 ]]'
 ck "antes do início o relógio é NEGATIVO; depois do fim pára na duração" 'grep -qE "^pre=-(5[0-9][0-9]|600)$" "$MOCKD/clock.out" && grep -qx "pos=18000" "$MOCKD/clock.out"'
 
+echo "== prorrogação POR SEDE: p/ o telão a prova acaba quando acaba p/ a ÚLTIMA sede =="
+# a prova oficial acabou há 10 min (duração 2 h); Goiânia foi prorrogada em 30 min. Só p/ o Animeitor: o
+# relógio enviado continua andando até o fim da última sede (o evento dele tem um relógio só).
+( source "$ROOT/api/v1/lib/common.sh" 2>/dev/null; source "$ROOT/api/v1/lib/cohorts.sh"; source "$ROOT/api/v1/lib/animeitor.sh"
+  sed -i "s/^CONTEST_START=.*/CONTEST_START=$(( NOW - 7800 ))/; s/^CONTEST_END=.*/CONTEST_END=$(( NOW - 600 ))/" "$C/conf"
+  echo "sem=$(an_time_now ap)"
+  jq -n --argjson e "$(( NOW + 1200 ))" '[{regex:"^teambr002$", end:$e, note:"queda de energia"}]' > "$C/time-overrides.json"
+  _AN_EA_AT=(); echo "com=$(an_time_now ap)"
+  an_event_json ap "$MOCKD/ev-to.json" 1; echo "freeze=$(jq -r .score_freeze_time_seconds "$MOCKD/ev-to.json")"
+  rm -f "$C/time-overrides.json"; sed -i "s/^CONTEST_START=.*/CONTEST_START=$START/; s/^CONTEST_END=.*/CONTEST_END=$END/" "$C/conf" ) > "$MOCKD/to.out" 2>&1
+ck "sem prorrogação: relógio parado na duração oficial (7200)" 'grep -qx "sem=7200" "$MOCKD/to.out"'
+ck "com uma sede prorrogada: o relógio do telão SEGUE andando (≈7800, teto novo 9000)" '[[ "$(sed -n "s/^com=//p" "$MOCKD/to.out")" -ge 7800 && "$(sed -n "s/^com=//p" "$MOCKD/to.out")" -le 7900 ]]'
+ck "o congelamento NÃO muda de lugar (freeze do conf)" 'grep -qx "freeze=$(( FREEZE - (NOW - 7800) ))" "$MOCKD/to.out"'
+
 echo "== alimentador: liga/desliga =="
 call $A POST '{"action":"start"}'
 ck "start: marcador em run/animeitor/active + enabled" '[[ -e "$RUN/animeitor/active/ap" && "$(J .enabled)" == true ]]'

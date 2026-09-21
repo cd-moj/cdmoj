@@ -882,7 +882,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `GET /contest/animeitor/reveal` dá a cada `.cstaff`/`.staff` SÓ os links da sede dele (`staff_regions`, agora na
   `lib/print.sh` — fonte única com os comandos do mlinux), em todos os placares; **fail-closed** sem sede (link é
   credencial — diverge de propósito do "sem filtro = vê tudo" das telas de leitura); botão `Reveleitor` na barra
-  via marcador sem fork. ⚠ URL de botão da nav NÃO leva `#hash` (o `navHref` cola `?c=` depois) — use query. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
+  via marcador sem fork; (8) **prorrogação por sede é MASCARADA p/ o telão**: o relógio enviado tem teto no
+  `contest_end_all` (fim da ÚLTIMA sede), só p/ o Animeitor — o resto do MOJ não muda (memo de 5 s devolvido por
+  VARIÁVEL: por `$(…)` o memo morre no subshell e vira um jq por segundo). ⚠ URL de botão da nav NÃO leva `#hash` (o `navHref` cola `?c=` depois) — use query. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
   `awk 'NR==FNR{…}' vazio arquivo` casa o 2º arquivo inteiro (1º arquivo por `getline`); `> "$f.tmp.$BASHPID"` num
   pipeline expande no FILHO (resolver o nome ANTES). Mock ESTRITO `animeitor-mock.py`; servidor real só em evento
   de teste próprio, apagado no fim.

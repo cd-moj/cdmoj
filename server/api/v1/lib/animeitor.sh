@@ -99,9 +99,29 @@ an_fail_note(){ # <c> <onde> <http> <mensagem>
 }
 
 # --- tempos ---------------------------------------------------------------------------------
-_an_times(){ # <c> -> START END FREEZE PEN  (variáveis globais AN_*)
+# PRORROGAÇÃO POR SEDE (decisão do Ribas, 21/09/2026): o evento do Animeitor tem UM relógio só, e o MOJ
+# prorroga por sede (`time-overrides.json`). Para o telão a prova termina quando termina p/ a ÚLTIMA sede:
+# o fim que vale AQUI é o `contest_end_all` (o mesmo portão da cerimônia e do descongelar) — o relógio
+# enviado segue andando até lá e o "sem freeze = nunca congela" usa essa duração. Só p/ o Animeitor: nada
+# muda no placar, no aceite de submissão nem no relógio das outras sedes. Prorrogação criada NO MEIO da
+# prova vale na hora (o teto é relido; memo de 5 s p/ o alimentador não pagar um jq por segundo).
+declare -gA _AN_EA_AT=() _AN_EA_V=()
+_an_end_all(){ # <c> -> AN_EA = epoch do fim p/ TODAS as sedes (memo 5 s). Devolve por VARIÁVEL de propósito:
+  local c="$1"   # por `$(…)` rodaria em subshell e o memo nunca sobreviveria (um jq por segundo, em silêncio)
+  if (( EPOCHSECONDS - ${_AN_EA_AT[$c]:-0} >= 5 )); then
+    declare -F contest_end_all >/dev/null 2>&1 || source "$_AN_LIB/contest-gate.sh" 2>/dev/null
+    _AN_EA_V[$c]="$(contest_end_all "$c" 2>/dev/null)"; _AN_EA_AT[$c]="$EPOCHSECONDS"
+  fi
+  AN_EA="${_AN_EA_V[$c]:-0}"
+}
+_an_times(){ # <c> -> START END FREEZE PEN  (variáveis globais AN_*); AN_END = fim p/ TODAS as sedes
+  local ea
   AN_START="$(conf_value "$1" CONTEST_START)"; [[ "$AN_START" =~ ^[0-9]+$ ]] || AN_START=0
   AN_END="$(conf_value "$1" CONTEST_END)";     [[ "$AN_END" =~ ^[0-9]+$ ]] || AN_END=0
+  AN_END_CONF="$AN_END"
+  if [[ -s "$CONTESTSDIR/$1/time-overrides.json" ]] && (( AN_END > 0 )); then
+    _an_end_all "$1"; ea="$AN_EA"; [[ "$ea" =~ ^[0-9]+$ ]] && (( ea > AN_END )) && AN_END="$ea"
+  fi
   AN_FREEZE="$(conf_value "$1" FREEZE_TIME)";  [[ "$AN_FREEZE" =~ ^[0-9]+$ ]] || AN_FREEZE=0
   AN_PEN="$(conf_value "$1" PENALTY_MINUTES)"; [[ "$AN_PEN" =~ ^[0-9]+$ ]] || AN_PEN=20
   AN_DUR=$(( AN_END > AN_START ? AN_END - AN_START : 0 ))

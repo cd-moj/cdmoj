@@ -19,7 +19,7 @@ sentido: **o juiz empurra**. Este documento é a fonte única da integração.
 | **contest** (`/internal/contests/{e}/{c}`): um PLACAR. `codes` = regex de login (OR), `ouro/prata/bronze` (última colocação de cada medalha), `style`, `photo_url_format`/`sound_url_format` com `{team_login}` | proposta: **Geral** + um por **visão de coorte** (`ch_views`) + um por **nó de `regions.json` com subregiões** (um "país"). Editável. |
 | **site** (`/internal/sites/{e}/{c}/{s}`): uma SEDE, com regex e **link secreto de revelação** | as **folhas** de `regions.json` (no Geral, todas; no país, as dele) |
 | **run** `{id:int, team_login, prob, time_seconds, answer}` — reenviar o `id` CORRIGE | `id` = inteiro ESTÁVEL por submissão (`var/animeitor-ids.tsv`); `time_seconds` = `sub_epoch − início`; `answer`: `Y` aceito · `N` penaliza · `X` não conta (CE e o que estiver fora do `PENALTY_VERDICTS`, Judge Error, `(Ignored)`) · `?` pendente |
-| `time_seconds` do evento | `agora − início`: **negativo** antes (contagem regressiva), com **teto** na duração |
+| `time_seconds` do evento | `agora − início`: **negativo** antes (contagem regressiva), com **teto** na duração. **Prorrogação por sede** (`time-overrides.json`): o evento tem um relógio só, então p/ o telão a prova acaba quando acaba p/ a ÚLTIMA sede — o teto é o `contest_end_all` (o mesmo portão da cerimônia e do descongelar) e o relógio segue andando até lá. O freeze não muda de lugar. Vale SÓ p/ o Animeitor: placar, aceite de submissão e relógio das outras sedes não mudam; prorrogação criada no meio da prova vale em até 5 s |
 
 Três coisas do serviço mandam no desenho (todas conferidas no servidor real, 21/09/2026):
 
@@ -136,7 +136,7 @@ chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
 - `server/test/animeitor-mock.py` — mock **estrito**, escrito do OpenAPI e conferido no serviço real
   (401 sem Basic, 409, 404 sem pai, `PUT` zera o omitido, `PATCH` vazio/campo desconhecido = 400,
   `invalid_regex`, `unknown_team` com o texto real, problema desconhecido = 400 no lote, `keep_runs`).
-- `server/test/smoke-animeitor-api.sh` (87): gates, token write-only, proposta (regex × lista),
+- `server/test/smoke-animeitor-api.sh` (90, com a prorrogação por sede): gates, token write-only, proposta (regex × lista),
   publicação idempotente SEM `PUT` e com os salts preservados, evento alheio intocado, delta de runs
   com id estável, relógio negativo/teto, alimentador (`--once`: relógio, só-o-que-mudou, time tardio,
   serviço fora do ar, instância única, desliga em 24 h), rodada nova = evento novo, links, reveleitor nas sedes (antes/depois da liberação, region:, escopo por regex, sem sede, sede renomeada, recolher, botão na barra), reset. `smoke-animeitor.sh` prende
@@ -151,7 +151,7 @@ chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
 | 1 | O front interpola o relógio entre mensagens do `/timer`? | **Não: mantém o valor enviado.** | O relógio a **1 s** é necessário (`feed.clock_s: 1`). Ele também recomenda atualizações de 1 em 1 s. |
 | 2 | `DELETE` de UMA run | **Vai implementar.** | Hoje a submissão removida no MOJ é corrigida p/ `X`. Quando a rota existir, `an_push_runs` passa a apagar (as já marcadas `X` ficam como estão). |
 | 3 | `X` conta tentativa/penalidade? | **Não aplica penalidade, como no webcast.zip.** | Bate com o MOJ (CE e o que está fora do `PENALTY_VERDICTS`). Nada a mudar. |
-| 4 | Prorrogação POR SEDE | Ele **não sabia** que o MOJ tem relógio por sede. | **ABERTO.** O evento tem um relógio só: o MOJ manda o do contest (teto na duração oficial). Sede prorrogada continua submetendo depois do "fim" do telão — as runs vão com o tempo real. A combinar com ele. |
+| 4 | Prorrogação POR SEDE | Ele **não sabia** que o MOJ tem relógio por sede. | **Resolvido do lado do MOJ** (decisão do Ribas, 21/09): o relógio por sede é MASCARADO — o MOJ manda um relógio único que só pára quando a prova acaba p/ a última sede (`contest_end_all`). Nada a pedir ao Emilio. |
 | 5 | Links de revelação em `http://` | **Não é problema.** | Nada a mudar. |
 | 6 | Credencial do MOJ | **Pode criar uma credencial para o MOJ.** | Pendente do lado dele. A `bruno` é pessoal e não deve ir p/ produção. |
 | 7 | Rate limit / tamanho do lote | **Não há rate limit nos endpoints internos.** | Lotes de 500 e 1 `PATCH`/s por evento seguem como estão. |
