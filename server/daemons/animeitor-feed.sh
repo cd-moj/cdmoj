@@ -85,7 +85,15 @@ feed_one(){
     printf '{"time_seconds":%d}' "$t" > "$D/$c.time.json"
     st="$(an_status "$(AN_URL="${C_URL[$c]}" AN_TIMEOUT="${AN_CLOCK_TIMEOUT:-3}" an_curl "$c" PATCH "/internal/events/${C_EV[$c]}/time" "$D/$c.time.json")")"
     printf '%s %s %s\n' "$now" "$t" "${st:-000}" > "$d/var/animeitor.clock" 2>/dev/null
-    if [[ "$st" == 200 ]]; then _ok "$c"; else _fail "$c" relogio "${st:-000}" "o Animeitor não aceitou o relógio"; return 0; fi
+    if [[ "$st" == 200 ]]; then _ok "$c"
+    elif [[ "$st" == 404 ]]; then
+      # o evento SUMIU lá (alguém apagou no console do Animeitor, ou o servidor perdeu o estado): não adianta
+      # insistir no relógio — cai no bloco de configuração, que recria o evento (o managed diz que era nosso)
+      # (o managed local dizia que tudo estava lá: zera o hash do EVENTO p/ a publicação não pular por "nada mudou")
+      _fail "$c" relogio 404 "o evento não existe no Animeitor — republicando"; FORCE[$c]=1
+      [[ -s "$d/var/animeitor-managed.json" ]] && jq -c '.event_hash = "" | .contests = {}' "$d/var/animeitor-managed.json" > "$d/var/animeitor-managed.json.tmp" 2>/dev/null \
+        && mv -f "$d/var/animeitor-managed.json.tmp" "$d/var/animeitor-managed.json"; rm -f "$d/var/animeitor-sent.tsv" "$d/var/.animeitor-runs.stamp"
+    else _fail "$c" relogio "${st:-000}" "o Animeitor não aceitou o relógio"; return 0; fi
   fi
 
   # --- configuração (roster/placares): a cada 60 s, ou JÁ quando uma run voltou por time desconhecido

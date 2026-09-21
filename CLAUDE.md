@@ -884,7 +884,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   credencial — diverge de propósito do "sem filtro = vê tudo" das telas de leitura); botão `Reveleitor` na barra
   via marcador sem fork; (8) **prorrogação por sede é MASCARADA p/ o telão**: o relógio enviado tem teto no
   `contest_end_all` (fim da ÚLTIMA sede), só p/ o Animeitor — o resto do MOJ não muda (memo de 5 s devolvido por
-  VARIÁVEL: por `$(…)` o memo morre no subshell e vira um jq por segundo). ⚠ URL de botão da nav NÃO leva `#hash` (o `navHref` cola `?c=` depois) — use query. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
+  VARIÁVEL: por `$(…)` o memo morre no subshell e vira um jq por segundo). **Custo medido** (2.000 times): 4 % de um
+  núcleo por contest ocioso, 22 % em rajada de 10 veredictos/s, ZERO efeito na latência das rotas (processo à parte);
+  serial entre contests ⇒ ~4 simultâneos antes de o relógio pular segundos (aí: paralelizar por contest). 404 no
+  relógio = evento apagado lá ⇒ zera managed/sent e republica. ⚠ URL de botão da nav NÃO leva `#hash` (o `navHref` cola `?c=` depois) — use query. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
   `awk 'NR==FNR{…}' vazio arquivo` casa o 2º arquivo inteiro (1º arquivo por `getline`); `> "$f.tmp.$BASHPID"` num
   pipeline expande no FILHO (resolver o nome ANTES). Mock ESTRITO `animeitor-mock.py`; servidor real só em evento
   de teste próprio, apagado no fim.

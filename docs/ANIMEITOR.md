@@ -90,6 +90,24 @@ rede do telão; se o Animeitor cair, a prova não sente — recuo 1, 2, 4… at�
 - a cada **60 s**: assinatura barata (roster da visão `all` + mtime de `regions/cohorts/animeitor.json`
   + conta mexida); mudou ⇒ republica. `unknown_team` força na hora;
 - **24 h depois do fim** o contest sai sozinho (rejulgamento pós-prova ainda corrige runs).
+- **evento apagado lá** (alguém no console do Animeitor, servidor que perdeu o estado): o relógio dá 404 ⇒ o
+  alimentador zera o `managed`/`sent` locais e republica evento, placares, sedes e runs na mesma passada.
+
+### Custo (medido em 21/09/2026, Ryzen 5950X, contest de 2.000 times / 12 mil submissões, 11 placares, 60 sedes)
+
+| Operação | Custo |
+|---|---|
+| proposta (`an_derive`) | 1,2 s de CPU, sob demanda (abrir a tela) |
+| publicar 1ª vez (evento + 11 placares + 60 sedes) | 4,6 s; republicar sem mudança 2,7 s (é o hash de cada placar/sede — só a cada 60 s **e só se a assinatura mudou**) |
+| runs: 1ª carga (12 mil) | 1,7 s; sem novidade 0,18 s (nem roda: o detector `find -newer` custa 10 ms); 1 veredicto novo 0,29 s |
+| relógio (1 `PATCH`) | 80 ms de parede no mock; ~200 ms no servidor real (RTT + TLS), ~15 ms de CPU |
+| **regime ocioso** (relógio 1/s + detector) | **4 % de um núcleo por contest** (14 % com 3 contests) — mais ~1 %/contest de TLS no servidor real |
+| **rajada de 10 veredictos/s** (largada da 1ª fase) | **22 % de um núcleo**, 1 contest; 34 % com 3 contests (2 ociosos) |
+| latência das rotas de usuário (placar + status) | **19,9 ms sem × 19,6 ms com** o alimentador em rajada: zero efeito mensurável (processo à parte, sem lock compartilhado) |
+
+Teto prático: o alimentador é **serial** entre contests e o `PATCH` do relógio leva ~0,2 s no servidor real ⇒ até
+~4 contests simultâneos o relógio anda de 1 em 1 s; acima disso ele começa a pular segundos (nada quebra: só a
+cadência). Se um dia houver mais que isso, o passo é paralelizar por contest (um laço por marcador).
 
 Medido no servidor real: relógio público andando de 1 em 1 s, run nova no telão ~2 s depois do
 veredicto. Sobe pelo `deploy/moj-entrypoint` (laço com respawn; `ANIMEITOR_FEED_DISABLE=1` desliga;

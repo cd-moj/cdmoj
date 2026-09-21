@@ -9,7 +9,7 @@
 set -u
 HERE="$(dirname "$(readlink -f "$0")")"; ROOT="$(cd "$HERE/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 FIX="$(mktemp -d)"; SESS="$(mktemp -d)"; MOCKD="$(mktemp -d)"; RUN="$(mktemp -d)"; MOCKPID=""
-cleanup(){ [[ -n "$MOCKPID" ]] && kill "$MOCKPID" 2>/dev/null; rm -rf "$FIX" "$SESS" "$MOCKD" "$RUN"; }
+cleanup(){ [[ -n "$MOCKPID" ]] && kill "$MOCKPID" 2>/dev/null; [[ -n "${KEEP:-}" ]] && { echo "KEEP: $MOCKD $RUN"; return; }; rm -rf "$FIX" "$SESS" "$MOCKD" "$RUN"; }
 trap cleanup EXIT
 source "$HERE/fixture.sh"
 export CONTESTSDIR="$FIX" RUNDIR="$RUN" SESSIONDIR="$SESS"
@@ -207,6 +207,10 @@ mkteam tardio01 "Time Tardio" UNB "Brasília"; printf '50:col#pa:C:Accepted,100p
 bash "$ROOT/score/build.sh" ap >/dev/null 2>&1
 sleep 1; FEED; sleep 1; FEED
 ck "time inscrito no meio da prova: roster republicado sozinho e a run dele chega" '[[ "$(ST ".events[\"ap-2026\"].state.teams | length")" == 7 && "$(R tardio01 A .answer)" == Y ]]'
+# alguém APAGOU o evento no console do Animeitor: o relógio dá 404 e o alimentador recria o evento sozinho
+curl -s -u "moj:tok-super-secreto-123" -X DELETE "$MURL/internal/events/ap-2026" >/dev/null
+sleep 1; FEED; sleep 1; FEED; sleep 1; FEED
+ck "evento apagado lá: 404 no relógio ⇒ republica e o evento volta (com as runs de novo)" '[[ "$(ST ".events | has(\"ap-2026\")")" == true && "$(ST ".events[\"ap-2026\"].runs | length")" -ge 7 ]]'
 # o Animeitor cai: o alimentador não morre, anota o erro e recua
 kill "$MOCKPID" 2>/dev/null; wait "$MOCKPID" 2>/dev/null; MOCKPID=""
 sleep 1; FEED; rc=$?
