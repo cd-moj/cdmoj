@@ -867,7 +867,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `window_minutes` a fixa, senão o mesmo `seed` dá placares diferentes e ninguém reproduz bug de
   telão). Receita fim a fim em `docs/WEBCAST.md`; teste: `smoke-contest-seed.sh`.
 - **Integração NUTELLABOOT (máquinas mlinux, 2026-08-30)** — doc completa em
-  `docs/NUTELLABOOT.md`. O essencial: chave por contest em
+  `docs/NUTELLABOOT.md`. ⚠ **O serviço virou NutellaBoot 3 e o MOJ estava QUEBRADO contra ele
+  (21/09/2026)**: comando por máquina ia a `POST …/machines/{mac}/commands`, que NÃO existe (405); o
+  de frota ia sem `targets` a uma rota que ainda exige console (400/401); e só se aceitava chave
+  `nb3a_` (administração), quando a integração documentada usa `nb3s_` (**serviço**, com escopos e
+  glob de imagens — e que leva 401 em `/whoami` e na listagem `/site-images`). Hoje: comando SEMPRE
+  pela rota da sede (`{command, target:"all"|[mac]}`), "todas" = uma ordem por sede DO CONTEST (nunca
+  a frota do serviço, que tem sedes de outros eventos), `nb_key_kind`/`nb_images`
+  (`NUTELLABOOT_IMAGES` no conf) em `lib/nutella.sh`, preflight que não depende do `/whoami`.
+  **Lição: o mock aceitava qualquer POST/PUT e escondeu os dois comandos por semanas — o
+  `nutella-mock.py` agora é ESTRITO como o serviço (conferido na 26tete); mock permissivo de serviço
+  externo é dívida.** O essencial: chave por contest em
   `contests/<c>/secrets/nutellaboot.key` (600; **nunca** no conf nem em argv — o curl da
   `lib/nutella.sh` recebe o header por `-K <(printf …)`, molde do mojinho-api); coletor
   `score/nutella-gen.sh` agrega POR SEDE + rollups pela árvore de regions.json (idioma do

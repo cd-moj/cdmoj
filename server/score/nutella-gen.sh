@@ -113,16 +113,32 @@ if (( REAGG )); then
   fi
 else
   BASE="$(nb_url "$C")"
-  KEY="$(grep -aoE 'nb3a_[A-Za-z0-9]+' "$(nb_keyfile "$C")" 2>/dev/null | head -n1)"
-  # header via arquivo de config do curl (600 dentro do W 700) — chave nunca em argv
+  KEY="$(nb_key "$C")"      # a regra da chave (nb3a_ admin | nb3s_ serviço) mora na lib, num lugar só
+  # header via arquivo de config do curl (600 dentro do W 700) — chave nunca em argv. O arquivo
+  # (e não o `-K <(…)` do nb_curl) é o que deixa o `xargs -P … sh -c` buscar em paralelo.
   printf 'header = "Authorization: Bearer %s"\n' "$KEY" > "$W/cfg"; chmod 600 "$W/cfg"
   nbget(){ curl -s -m 30 -K "$W/cfg" "$BASE/api/v1/$1"; }   # caminho SEM segredo no argv
 
   # --- 1. imagens ------------------------------------------------------------------------
+  # Chave ADMIN lista `/site-images`; chave de SERVIÇO leva 401 ali (rota de console) — aí as
+  # sedes vêm de NUTELLABOOT_IMAGES. Com as duas coisas, a lista RESTRINGE a coleta (o serviço
+  # hospeda sedes de outros eventos; a interseção com os logins já as descartava, mas cada uma
+  # custava 2 requests).
   prog "listando sedes"
+  mapfile -t CFGIDS < <(nb_images "$C")
   nbget site-images > "$W/images.json" 2>/dev/null
-  jq -e '.images | type == "array"' "$W/images.json" >/dev/null 2>&1 \
-    || { finish "nutellaboot inacessível ou chave inválida"; trap - EXIT; exit 1; }
+  if jq -e '.images | type == "array"' "$W/images.json" >/dev/null 2>&1; then
+    if (( ${#CFGIDS[@]} )); then
+      printf '%s\n' "${CFGIDS[@]}" | jq -Rn '[inputs | select(length > 0)]' > "$W/cfgids.json"
+      jq -c --slurpfile k "$W/cfgids.json" '.images |= map(select(.id as $i | $k[0] | index($i)))' \
+        "$W/images.json" > "$W/images.f.json" 2>/dev/null && mv -f "$W/images.f.json" "$W/images.json"
+    fi
+  elif (( ${#CFGIDS[@]} )); then
+    printf '%s\n' "${CFGIDS[@]}" | jq -Rn '{images: [inputs | select(length > 0) | {id: ., fullname: .}]}' > "$W/images.json"
+  else
+    finish "nutellaboot inacessível, chave inválida ou — com chave de serviço — faltam as site-images do evento"
+    trap - EXIT; exit 1
+  fi
   mapfile -t IDS < <(jq -r '.images[].id' "$W/images.json")
   prog "baixando roster+máquinas" 0 "${#IDS[@]}"
   # --- 2. roster + machines por imagem (paralelo; id validado — vira nome de arquivo) ----

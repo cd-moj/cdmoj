@@ -62,11 +62,17 @@ export function makeMlinuxTab(CONTEST) {
     const url = el('input', { type: 'text', size: '38', value: (RESP && RESP.url) || '',
       placeholder: 'https://nutellaboot…' });
     const key = el('input', { type: 'password', size: '30', placeholder: RESP && RESP.configured
-      ? T('chave gravada — digite p/ trocar', 'key stored — type to replace') : 'nb3a_…' });
+      ? T('chave gravada — digite p/ trocar', 'key stored — type to replace') : 'nb3s_… / nb3a_…' });
+    // site-images do evento: OBRIGATÓRIO com chave de serviço (ela não lista as sedes do serviço);
+    // com chave de administração é opcional e só restringe a coleta. Pré-preenche com a última coleta.
+    const known = (RESP && RESP.images && RESP.images.length) ? RESP.images
+      : ((RESP && RESP.data && RESP.data.sedes) || []).map((x) => x.id);
+    const imgs = el('input', { type: 'text', size: '46', value: known.join(' '),
+      placeholder: T('ids das site-images, separados por espaço', 'site-image ids, space separated') });
     const save = async (remove) => {
       msg.textContent = '…';
       try {
-        const body = { action: 'config', url: url.value.trim() };
+        const body = { action: 'config', url: url.value.trim(), images: imgs.value.trim() };
         if (remove) body.key = '';
         else if (key.value.trim()) body.key = key.value.trim();
         const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), body, G);
@@ -80,10 +86,22 @@ export function makeMlinuxTab(CONTEST) {
           : el('span', { class: 'pill' }, T('sem chave', 'no key'))),
       el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center' },
         el('label', {}, 'URL ', url), el('label', {}, T('Chave ', 'Key '), key),
+        RESP && RESP.key_kind ? el('span', { class: 'pill ' + (RESP.key_kind === 'service' ? 'ok' : 'warn'),
+          title: RESP.key_kind === 'service'
+            ? T('Chave de serviço: só os escopos e as imagens que a administração do nutellaboot liberou.',
+                'Service key: only the scopes and images the nutellaboot administration granted.')
+            : T('Chave de ADMINISTRAÇÃO: faz tudo no nutellaboot, em todas as sedes. Prefira uma chave de serviço (nb3s_…) com machines:read, commands:write, bindings:write, roster:read e roster:write nas imagens do evento.',
+                'ADMINISTRATION key: can do anything in nutellaboot, on every site. Prefer a service key (nb3s_…) with machines:read, commands:write, bindings:write, roster:read and roster:write on the event images.') },
+          RESP.key_kind === 'service' ? T('chave de serviço', 'service key') : T('chave de administração', 'administration key')) : null),
+      el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.4rem' },
+        el('label', {}, T('Site-images do evento ', 'Event site-images '), imgs),
         el('button', { class: 'btn', onclick: () => save(false) }, T('Salvar', 'Save')),
         RESP && RESP.configured
           ? el('button', { class: 'btn ghost', onclick: () => save(true) }, T('remover chave', 'remove key')) : null,
-        msg));
+        msg),
+      el('div', { class: 'small muted', style: 'margin-top:.3rem' },
+        T('Com chave de serviço as site-images são obrigatórias: ela não lista as sedes do nutellaboot.',
+          'With a service key the site-images are required: it cannot list the nutellaboot sites.')));
   }
 
   // -- cartão de coleta (só admin) ------------------------------------------------------
@@ -112,7 +130,7 @@ export function makeMlinuxTab(CONTEST) {
     if (!d || !d.sedes || !d.sedes.length) return null;
     const msg = el('div', { class: 'small' });
     const selSede = el('select', {},
-      ...(RESP.can_admin ? [el('option', { value: 'all' }, T('🌐 FROTA INTEIRA', '🌐 WHOLE FLEET'))] : []),
+      ...(RESP.can_admin ? [el('option', { value: 'all' }, T('🌐 TODAS AS SEDES DO CONTEST', '🌐 ALL SITES OF THIS CONTEST'))] : []),
       ...d.sedes.map((s) => el('option', { value: s.id }, s.name + ' (' + s.id + ')')));
     if (RESP.can_admin && d.sedes.length) selSede.value = d.sedes[0].id;
     const selMac = el('select', {}, el('option', { value: '' }, T('todas as máquinas', 'all machines')));
@@ -137,7 +155,7 @@ export function makeMlinuxTab(CONTEST) {
       const op = selOp.value, img = selSede.value, mac = selMac.value;
       if (!op || !img) return;
       const sede = d.sedes.find((s) => s.id === img);
-      const alvo = img === 'all' ? T('TODAS as máquinas de TODAS as sedes', 'ALL machines in ALL sites')
+      const alvo = img === 'all' ? T(`TODAS as máquinas das ${d.sedes.length} sedes DESTE contest`, `ALL machines in the ${d.sedes.length} sites of THIS contest`)
         : mac ? T(`a máquina ${mac} (${sede ? sede.name : img})`, `machine ${mac} (${sede ? sede.name : img})`)
           : T(`as ${sede ? sede.seen : '?'} máquinas de ${sede ? sede.name : img}`, `the ${sede ? sede.seen : '?'} machines of ${sede ? sede.name : img}`);
       // eslint-disable-next-line no-alert
@@ -146,8 +164,13 @@ export function makeMlinuxTab(CONTEST) {
       try {
         const body = { action: 'command', op, image: img };
         if (mac) body.mac = mac;
-        await apiPost('/contest/nutella?contest=' + enc(CONTEST), body, G);
-        msg.className = 'small'; msg.textContent = T(`✓ "${op}" enviado`, `✓ "${op}" sent`);
+        const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), body, G);
+        // o servidor manda UMA ordem por sede e conta quem aceitou: sede recusada aparece pelo nome
+        const bad = Object.entries(r.sedes || {}).filter(([, v]) => !(v.status >= 200 && v.status < 300));
+        const nm = Object.values(r.sedes || {}).reduce((a, v) => a + (v.machines || 0), 0);
+        msg.className = 'small' + (bad.length ? ' error-box' : '');
+        msg.textContent = T(`✓ "${op}" enviado a ${nm} máquina(s) em ${r.ok || 0} sede(s)`, `✓ "${op}" sent to ${nm} machine(s) in ${r.ok || 0} site(s)`)
+          + (bad.length ? T(' — recusado em: ', ' — refused at: ') + bad.map(([k, v]) => k + ' (HTTP ' + v.status + (v.detail ? ': ' + v.detail : '') + ')').join(', ') : '');
       } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
     } }, T('▶ Enviar comando', '▶ Send command'));
     return el('div', { class: 'section' },

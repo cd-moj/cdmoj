@@ -25,23 +25,36 @@ máquina↔time** (roster/binding).
   User-Agent (`Mozilla/5.0 (MLinux/<imagem>/<machine_id>/<boot_id>) …`) — o **elo
   máquina↔time** (abaixo). `editors_time` é ACUMULADO desde a instalação: não mede a prova.
 - `GET /site-images/{i}/roster`: `user_id` **é o login MOJ** — a ponte entre os mundos.
-- Comandos: catálogo em `GET /site-images/{i}/commands` (`allowed`: cantouch,
-  cleanhomenow, disablefirewall, donottouch, enablefirewall, mlpoweroff, mlreboot,
-  precontest, resetcontaeditores); envio por POST **`{command: "<op>"}`** (campo `command`; resposta `{command_id, machines}`) em `/commands` (frota),
-  `/site-images/{i}/commands` (sede) ou `…/machines/{mac}/commands` (máquina) — a
-  máquina executa no próximo contato (poll).
-- Auth: `Authorization: Bearer nb3a_…`. **A chave é PODEROSA** (a de produção é admin).
-  O serviço sabe criar **service-keys ESCOPADAS** (`/api/v1/service-keys`: escopos
-  `machines:read`, `commands:write`, `roster:write`… + lista de imagens) — quando
-  houver uma por contest, troque: o MOJ só precisa de machines:read + commands:write +
-  roster:read/write nas imagens do evento.
+- Comandos: catálogo em `GET /site-images/{i}/commands` → `{allowed:[…], blocked:{comando: campo}}` (o que
+  ESTA credencial pode mandar: cantouch, cleanhomenow, disablefirewall, donottouch, enablefirewall,
+  mlpoweroff, mlreboot, precontest, resetcontaeditores). Envio: **sempre a rota DA SEDE**,
+  `POST /site-images/{i}/commands` com **`{command, target, args?, delay?}`** — `target` é `"all"` ou uma
+  LISTA de MACs — e a resposta é `{command_id, machines}`. A máquina busca no long-poll (segundos); ordem
+  que ninguém buscou **caduca em 10 min**. ⚠ **Não existe** `POST …/machines/{mac}/commands` (aquele caminho
+  só tem o GET do long-poll da própria máquina: **405**), e a rota de frota `POST /commands` exige
+  `targets:{sede: "all"|[macs]}` **e credencial de console**. O MOJ usou as duas erradas até 21/09/2026 e o
+  mock, que aceitava qualquer POST, escondeu — hoje o mock é estrito como o serviço.
+- Auth: `Authorization: Bearer …`, em duas classes que o MOJ aceita:
+  - **`nb3s_…` — chave de SERVIÇO, a recomendada.** Criada pela administração do nutellaboot em
+    `POST /service-keys {name, scopes, images}`; o MOJ precisa de `machines:read`, `commands:write`,
+    `bindings:write`, `roster:read`, `roster:write` nas imagens do evento (`images:["26*"]`). Ela **não entra
+    nas rotas de console**: `/whoami` e a listagem `/site-images` dão **401**, `GET /site-images/{i}` dá 403,
+    `POST /commands` (frota) dá 401 — por isso as sedes do evento vão no conf (`NUTELLABOOT_IMAGES`).
+  - `nb3a_…` — chave de ADMINISTRAÇÃO: faz tudo, em TODAS as sedes do serviço (que hospeda outros eventos).
+    Funciona, mas é mais poder do que a integração precisa; o painel a marca em amarelo.
 
 ## Como o MOJ guarda e usa
 
 - **Chave**: `contests/<c>/secrets/nutellaboot.key` (600) — NUNCA no conf (sourced/vai
   em export) e NUNCA em argv (o curl recebe o header por `-K <(printf …)`, molde do
-  mojinho-api.sh). Configurada pelo painel **Operação → mlinux** (write-only: o GET só
-  diz `configured`). A URL (não-segredo) vai no conf: `NUTELLABOOT_URL`.
+  mojinho-api.sh). Configurada pelo painel **Máquinas › mlinux** (write-only: o GET só
+  diz `configured` e a CLASSE da chave, `key_kind: admin|service`). Não-segredos vão no conf:
+  `NUTELLABOOT_URL` e **`NUTELLABOOT_IMAGES`** (ids das site-images do evento, separados por espaço —
+  obrigatório com chave de serviço; com chave admin é opcional e só RESTRINGE a coleta).
+- **"Todas as sedes" é do CONTEST, nunca do serviço**: o comando com `image:"all"` manda UMA ordem por
+  sede do evento (cache da coleta ∪ `NUTELLABOOT_IMAGES`) e responde `{ok, failed, sedes:{<id>:{status,
+  command_id, machines, detail?}}}` — a sede que recusou (cadeado do modelo = 403) aparece pelo nome, e as
+  outras seguem. A rota de frota do serviço atingiria sedes de OUTROS eventos.
 - **Lib**: `server/api/v1/lib/nutella.sh` (`nb_configured`, `nb_curl`, `nb_url`,
   `nb_staff_regions`) — sourceada POR HANDLER (rota fria, fora do prelúdio do MOLDE).
 - **Coletor**: `server/score/nutella-gen.sh <c> [out] [--reaggregate]` (standalone,

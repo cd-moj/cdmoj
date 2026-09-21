@@ -460,11 +460,30 @@ fi
 # chave abre a API (curl -m 5 — a Central é do admin e abre pouco).
 source "$_LIBDIR/nutella.sh"
 if mod_on "$contest" maquinas && nb_configured "$contest"; then
-  _nbr="$(nb_curl "$contest" GET /whoami)"
-  if [[ "$(nb_status "$_nbr")" == 200 ]]; then
-    add mlinux ok "Integração nutellaboot" "chave válida; panorama/coleta em Operação → mlinux"
+  # `/whoami` é rota de CONSOLE: só a chave ADMIN (nb3a_) entra. A de SERVIÇO (nb3s_, a
+  # recomendada) leva 401 ali mesmo estando perfeita — então ela prova acesso lendo as máquinas
+  # da 1ª sede do evento (exige `machines:read` + a imagem no glob da chave; `active_since=agora`
+  # devolve lista vazia: barato). Conferido contra o serviço real em 21/09/2026.
+  if [[ "$(nb_key_kind "$contest")" == service ]]; then
+    _nbi="$(nb_images "$contest" | head -n1)"
+    [[ -n "$_nbi" ]] || _nbi="$(jq -r '.sedes[0].id // empty' "$cdir/var/nutella.cache.json" 2>/dev/null)"
+    if [[ -z "$_nbi" ]]; then
+      add mlinux warn "nutellaboot: faltam as site-images" "chave de serviço não lista as sedes — informe os ids em Máquinas › mlinux"
+    else
+      _nbr="$(nb_curl "$contest" GET "/site-images/$_nbi/machines?active_since=$EPOCHSECONDS")"
+      case "$(nb_status "$_nbr")" in
+        200) add mlinux ok "Integração nutellaboot" "chave de serviço válida (lê $_nbi); panorama/coleta em Máquinas › mlinux" ;;
+        403) add mlinux warn "nutellaboot: chave sem alcance" "a chave de serviço não tem machines:read ou não enxerga a imagem $_nbi (HTTP 403)" ;;
+        *)   add mlinux warn "nutellaboot não responde" "chave inválida ou serviço fora (HTTP $(nb_status "$_nbr")) — Máquinas › mlinux" ;;
+      esac
+    fi
   else
-    add mlinux warn "nutellaboot não responde" "chave inválida ou serviço fora (HTTP $(nb_status "$_nbr")) — Operação → mlinux"
+    _nbr="$(nb_curl "$contest" GET /whoami)"
+    if [[ "$(nb_status "$_nbr")" == 200 ]]; then
+      add mlinux ok "Integração nutellaboot" "chave válida; panorama/coleta em Máquinas › mlinux"
+    else
+      add mlinux warn "nutellaboot não responde" "chave inválida ou serviço fora (HTTP $(nb_status "$_nbr")) — Máquinas › mlinux"
+    fi
   fi
   # sede com MENOS máquinas do que times (auditoria da Maratona 2026: Trinidad 1 máquina p/ 4
   # times, Tupiza 3 p/ 5 — os times se revezaram numa máquina). Lê o cache da última coleta.
