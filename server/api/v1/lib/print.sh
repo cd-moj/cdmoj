@@ -918,3 +918,27 @@ pr_balloons_release_frozen() {
   audit_log_to "$c" balloon-freeze-release "liberados=$n by=$by"
   printf '%s' "$n"
 }
+
+# staff_regions <c> — as SEDES (nomes de `.team.region`) do escopo de $SESSION_LOGIN, 1/linha.
+# rc=1 = SEM escopo explícito no staff-filters. Quem decide o que "sem escopo" significa é o chamador:
+# nas telas de LEITURA ausente = vê tudo; em AÇÃO e em CREDENCIAL (comando do mlinux, link do
+# reveleitor do Animeitor) é fail-CLOSED — sem sede definida, nada. Token `region:<sede>` responde
+# direto; escopo por regex é resolvido pelos logins visíveis (colhe a sede de cada um).
+staff_regions(){
+  local c="$1" f="$CONTESTSDIR/$1/print-requests/staff-filters.json" out
+  [[ -s "$f" ]] || return 1
+  jq -e --arg s "$SESSION_LOGIN" 'has($s) and ((.[$s] // []) | length > 0)' "$f" >/dev/null 2>&1 || return 1
+  out="$(jq -r --arg s "$SESSION_LOGIN" \
+    '(.[$s] // [])[] | select(startswith("region:")) | .[7:] | gsub("^ +| +$"; "")' "$f" 2>/dev/null)"
+  if [[ -n "$out" ]]; then printf '%s\n' "$out"; return 0; fi
+  # escopo por regex: resolve os logins visíveis e colhe as sedes deles
+  local logins
+  if logins="$(staff_visible_logins "$c" "$SESSION_LOGIN" 2>/dev/null)"; then
+    printf '%s\n' "$logins" | while IFS= read -r lg; do
+      [[ -n "$lg" ]] || continue
+      jq -r '.team.region // empty' "$(account_file "$c" "$lg")" 2>/dev/null
+    done | sort -u
+    return 0
+  fi
+  return 1
+}

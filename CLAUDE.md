@@ -878,7 +878,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   reproduz o recorte do MOJ no roster, senão lista exata (coorte/sede por campo da conta não é regex); (5) evento
   que já existe lá e não é nosso só com `adopt`, e `reset` só do que o `managed` diz que criamos — o servidor é
   compartilhado; (6) credencial em `secrets/animeitor.cred` via `-K <(printf)`, links de revelação buscados ao vivo
-  e nunca gravados. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
+  e nunca gravados; (7) **reveleitor nas sedes**: um interruptor do `.animeitor` (`reveal-release`) e aí
+  `GET /contest/animeitor/reveal` dá a cada `.cstaff`/`.staff` SÓ os links da sede dele (`staff_regions`, agora na
+  `lib/print.sh` — fonte única com os comandos do mlinux), em todos os placares; **fail-closed** sem sede (link é
+  credencial — diverge de propósito do "sem filtro = vê tudo" das telas de leitura); botão `Reveleitor` na barra
+  via marcador sem fork. ⚠ URL de botão da nav NÃO leva `#hash` (o `navHref` cola `?c=` depois) — use query. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
   `awk 'NR==FNR{…}' vazio arquivo` casa o 2º arquivo inteiro (1º arquivo por `getline`); `> "$f.tmp.$BASHPID"` num
   pipeline expande no FILHO (resolver o nome ANTES). Mock ESTRITO `animeitor-mock.py`; servidor real só em evento
   de teste próprio, apagado no fim.

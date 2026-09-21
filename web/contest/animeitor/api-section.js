@@ -195,22 +195,40 @@ export function makeApiSection(CONTEST, G) {
   }
   async function refresh(withLinks) {
     const s = await apiGet(A + (withLinks ? '&links=1' : ''), G);
-    ['status', 'clock', 'enabled', 'now', 'managed', 'configured', 'feeder_alive_at'].forEach((k) => { S[k] = s[k]; });
+    ['status', 'clock', 'enabled', 'now', 'managed', 'configured', 'feeder_alive_at', 'reveal'].forEach((k) => { S[k] = s[k]; });
     if (s.links) { S.links = s.links; drawLinks(); }
     drawStatus(); drawOpsBtn(); arm();
   }
   function drawLinks() {
     linksBox.innerHTML = '';
+    // o interruptor de liberar p/ as sedes fica SEMPRE à vista (é decisão de cerimônia, não detalhe dos links)
+    linksBox.append(el('h3', {}, T('Links do telão', 'Big-screen links')), revealSwitch());
     const L = S.links; if (!L) { linksBox.append(el('button', { class: 'btn ghost', disabled: !S.configured, onclick: () => refresh(true).catch((e) => say(e.message, 'error-box')) }, T('mostrar os links do telão', 'show the big-screen links'))); return; }
     const copy = (u) => el('button', { class: 'btn ghost', onclick: async () => { try { await navigator.clipboard.writeText(u); } catch { prompt(T('Copie:', 'Copy:'), u); } } }, T('copiar', 'copy'));
     const tbl = (rows) => el('table', { class: 'moj' }, el('tbody', {}, ...rows));
-    linksBox.append(el('h3', {}, T('Links do telão', 'Big-screen links')),
+    linksBox.append(
       tbl((L.public || []).map((x) => el('tr', {}, el('td', {}, x.contest), el('td', {}, el('a', { href: x.url, target: '_blank', rel: 'noopener' }, x.url)), el('td', {}, copy(x.url))))),
       el('p', { class: 'note' }, '⚠ ', T('Os links de REVELAÇÃO mostram as respostas depois do congelamento. Cada sede tem o seu. Trate como senha: entregue só ao responsável da sede.',
         'The REVEAL links show the answers after the freeze. Each site has its own. Treat them as passwords: give each one only to the person in charge of that site.')),
       el('details', {}, el('summary', {}, T(`${(L.revelation || []).length} links de revelação`, `${(L.revelation || []).length} reveal links`)),
         tbl((L.revelation || []).map((x) => el('tr', {}, el('td', {}, x.contest), el('td', {}, x.site), el('td', { class: 'small' }, el('code', {}, x.url.replace(/secret=[^&]+/, 'secret=…'))), el('td', {}, copy(x.url)))))));
   }
+  // o interruptor ÚNICO: liberar/recolher os links do reveleitor p/ as sedes (.cstaff/.staff veem só os da sede deles)
+  function revealSwitch() {
+    const rv = S.reveal || {}, on = !!rv.released;
+    return el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap;margin:.4rem 0' },
+      el('button', { class: on ? 'btn ghost danger' : 'btn', id: 'anRevealBtn', onclick: async () => {
+        if (!on && !confirm(T('Liberar os links de revelação para as sedes? Cada chefe de sede e cada staff passa a ver os links da sede dele (em todos os placares em que ela aparece). Quem não tem sede definida não vê nenhum.',
+          'Release the reveal links to the sites? Each site chief and each staff member will see the links of their own site (in every scoreboard that includes it). Accounts with no site defined see none.'))) return;
+        say('…');
+        try { await post({ action: on ? 'reveal-recall' : 'reveal-release' }); say(''); await refresh(); drawLinks(); }
+        catch (e) { say(e.message || T('falha', 'failed'), 'error-box'); }
+      } }, on ? T('recolher os links das sedes', 'take the links back from the sites') : T('🎬 liberar os links de revelação para as sedes', '🎬 release the reveal links to the sites')),
+      el('span', { class: 'small' + (on ? '' : ' muted') }, on
+        ? T('LIBERADO para as sedes', 'RELEASED to the sites') + (rv.at ? ' · ' + new Date(rv.at * 1000).toLocaleTimeString() : '') + (rv.by ? ' · ' + rv.by : '')
+        : T('as sedes ainda não veem nenhum link', 'the sites do not see any link yet')));
+  }
+
   function arm() {
     if (timer) { clearInterval(timer); timer = null; }
     if (S && S.enabled) timer = setInterval(() => (document.hidden ? null : refresh().catch(() => {})), 3000);

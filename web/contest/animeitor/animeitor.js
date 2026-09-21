@@ -23,6 +23,7 @@ const enc = encodeURIComponent;
 let PHOTOS = null;   // {teams:[…], total, with_photo, with_music, scoped}
 let WC = null;       // {keys:[…], views:[…], url_path}
 let API = null;      // a seção da API do Animeitor ({node, load}) — só .animeitor/admin
+let REVEAL = null;   // {released, scoped, sites[], links[]} — os links do REVELEITOR da sede (.cstaff/.staff)
 // A SEDE entra na MESMA tela com menos poder (molde do staff.js), e o recorte de quais times ela
 // vê é da API (staff-filters.json) — aqui só se esconde o que ela não pode:
 //   RO      (.cstaff e .staff) — sem as chaves do webcast e sem trocar o PADRÃO do contest;
@@ -509,6 +510,30 @@ function streamSection() {
   );
 }
 
+// ---------- 🎬 reveleitor da SEDE (.cstaff/.staff) ------------------------------
+// A revelação do Animeitor tem um link SECRETO por sede (mostra as respostas depois do congelamento).
+// O `.animeitor` libera; a API devolve a esta conta SÓ os da sede dela (staff-filters), em todos os
+// placares em que a sede aparece. Sem liberação o cartão não existe; sem sede definida, avisa.
+function revealCard() {
+  const R = REVEAL; if (!R || !R.released) return '';
+  const copy = (u) => el('button', { class: 'btn ghost', onclick: async () => { try { await navigator.clipboard.writeText(u); } catch { prompt(T('Copie:', 'Copy:'), u); } } }, T('copiar', 'copy'));
+  const body = [];
+  if (!R.scoped) body.push(el('div', { class: 'error-box' }, T('A sua conta não tem sede definida, então não há link para mostrar. Peça ao administrador do contest para definir a sua sede (Pessoas › escopo do staff).',
+    'Your account has no site defined, so there is no link to show. Ask the contest administrator to define your site (People › staff scope).')));
+  else if (!(R.links || []).length) body.push(el('p', { class: 'muted' }, T('Não há link de revelação para a sua sede (' + (R.sites || []).join(', ') + '). Avise o operador do telão.',
+    'There is no reveal link for your site (' + (R.sites || []).join(', ') + '). Tell the big-screen operator.')));
+  else body.push(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
+    el('thead', {}, el('tr', {}, el('th', {}, T('Placar', 'Scoreboard')), el('th', {}, T('Sede', 'Site')), el('th', {}, ''))),
+    el('tbody', {}, ...R.links.map((x) => el('tr', {}, el('td', {}, el('b', {}, x.contest)), el('td', {}, x.site),
+      el('td', {}, el('div', { class: 'row', style: 'gap:.4rem' },
+        el('a', { class: 'btn', href: x.url, target: '_blank', rel: 'noopener' }, T('abrir a revelação', 'open the reveal')), copy(x.url)))))))));
+  return el('div', { class: 'section', id: 'reveleitor' },
+    el('h2', {}, T('🎬 Reveleitor da sua sede', '🎬 Reveal for your site')),
+    el('p', { class: 'note' }, '⚠ ', T('Este link mostra as respostas reais depois do congelamento do placar. Abra só no computador do telão da sede, na hora da cerimônia, e não repasse.',
+      'This link shows the real answers after the scoreboard freeze. Open it only on the site big-screen computer, at ceremony time, and do not pass it on.')),
+    ...body);
+}
+
 // ---------- render ------------------------------------------------------------
 function render() {
   app.innerHTML = '';
@@ -516,7 +541,7 @@ function render() {
   // sem tocar nas chaves do streaming (que o chefe de sede nem vê)
   // o streaming por chave (zip do BOCA) é LEGADO: fica dobrado, abaixo da integração nova. O nó da
   // seção nova é o MESMO a cada render (o estado dela — tabela em edição, timer — não se perde).
-  app.append(RO || !API ? '' : API.node,
+  app.append(RO ? revealCard() : '', RO || !API ? '' : API.node,
     RO ? '' : el('details', { class: 'section', open: (WC && (WC.keys || []).some((k) => !k.revoked_at)) ? true : null },
       el('summary', { style: 'cursor:pointer' }, T('🎥 Webcast BOCA (legado): o pacote .zip que o Animeitor antigo busca por chave', '🎥 BOCA webcast (legacy): the .zip package the old Animeitor polls by key')),
       streamSection()),
@@ -537,9 +562,11 @@ async function boot() {
   NOWRITE = RO && !st.is_cstaff;                      // .staff puro: só olha e ouve
   try {
     // o cstaff NÃO pede as chaves (403 na API): pedir aqui derrubaria a página inteira no catch
-    [WC] = await Promise.all([
+    // (o reveleitor da sede é opcional: rota ainda não deployada ou telão fora do ar não derruba a galeria)
+    [WC, , REVEAL] = await Promise.all([
       RO ? Promise.resolve(null) : apiGet('/contest/animeitor/webcast?contest=' + enc(CONTEST), G),
-      loadPhotos()]);
+      loadPhotos(),
+      RO ? apiGet('/contest/animeitor/reveal?contest=' + enc(CONTEST), G).catch(() => null) : Promise.resolve(null)]);
   } catch (e) {
     app.innerHTML = '<div class="error-box">' + (e.message || e) + '</div>'; return;
   }

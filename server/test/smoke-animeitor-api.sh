@@ -233,12 +233,57 @@ ck "…nem o link de revelação fica gravado" '! grep -rq "secret=" "$C/var" "$
 
 curl -s -u "moj:tok-super-secreto-123" -H 'Content-Type: application/json' -X POST "$MURL/internal/events/regional-2026" \
   -d '{"name":"regional-2026","problems":["A"],"teams":[{"login":"x","escola":"e","nome":"n"}],"score_freeze_time_seconds":1,"penalty_seconds":1}' >/dev/null
+echo "== REVELEITOR nas sedes: o .animeitor libera, .cstaff/.staff recebem SÓ os da sede deles =="
+RV=/contest/animeitor/reveal
+fx_user "$C" goiania.staff p "Staff de Goiânia" >/dev/null; fx_user "$C" solto.staff p "Staff sem sede" >/dev/null; fx_user "$C" mx.cstaff p "Chefe México" >/dev/null
+mkdir -p "$C/print-requests"
+# sede.cstaff por token region: · goiania.staff idem (caixa diferente de propósito) · mx.cstaff por REGEX de login · solto.staff sem filtro
+jq -n '{"sede.cstaff":["region:Brasília"], "goiania.staff":["region:goiânia"], "mx.cstaff":["^teammx"]}' > "$C/print-requests/staff-filters.json"
+jq -c '.team.region = "CDMX"' "$C/users/teammx001/account.json" > "$C/t" && mv "$C/t" "$C/users/teammx001/account.json"
+for u in gst:goiania.staff sol:solto.staff mxc:mx.cstaff; do printf 'CONTEST=ap\nLOGIN=%s\nLOGINAT=1\n' "${u#*:}" > "$SESS/${u%%:*}"; done
+nav(){ OUT="$(PATH_INFO=/contest/navbuttons REQUEST_METHOD=GET QUERY_STRING="contest=ap" HTTP_AUTHORIZATION="Bearer $1" NAV_CACHE_TTL=0 bash "$ROUTER" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+call $RV GET '' usr; ck "competidor → 403"  '[[ "$OUT" == *"Status: 403"* ]]'
+n0="$(wc -l < "$MOCKD/requests.log")"
+call $RV GET '' cst
+ck "ANTES de liberar: released=false, zero links — e o servidor do telão nem é consultado" '[[ "$(J .released)" == false && "$(J ".links|length")" == 0 && "$(wc -l < "$MOCKD/requests.log")" == "$n0" ]]'
+nav cst; ck "…e a barra do .cstaff não tem o botão" '[[ "$BODY" != *Reveleitor* ]]'
+call $A POST '{"action":"reveal-release"}' cst
+ck "só o .animeitor/admin libera (.cstaff → 403)" '[[ "$OUT" == *"Status: 403"* ]]'
+call $A POST '{"action":"reveal-release"}'
+ck "libera: estado no animeitor.json (quem e quando) + marcador p/ a barra" '[[ "$(J .reveal.released)" == true && "$(J .reveal.by)" == telao.animeitor && -e "$C/var/animeitor-reveal.released" ]]'
+call $RV GET '' cst
+ck ".cstaff de Brasília: os links da sede dele em TODOS os placares em que ela aparece (Geral e Brasil)" \
+   '[[ "$(J "[.links[] | .contest + \"/\" + .site] | sort | join(\",\")")" == "Brasil/Brasília,Geral/Brasília" && "$(J ".links[0].url")" == *"secret="* && "$(J .scoped)" == true ]]'
+ck "…e NENHUM de outra sede" '[[ "$BODY" != *Goi* && "$BODY" != *CDMX* ]]'
+call $RV GET '' gst
+ck ".staff de Goiânia (region: em outra caixa): só Goiânia" '[[ "$(J "[.links[].site] | unique | join(\",\")")" == "Goiânia" && "$(J ".links|length")" == 2 ]]'
+call $RV GET '' mxc
+ck ".cstaff com escopo por REGEX de login: a sede sai dos times que ele enxerga (CDMX)" '[[ "$(J "[.links[] | .contest + \"/\" + .site] | sort | join(\",\")")" == "Geral/CDMX,México/CDMX" ]]'
+call $RV GET '' sol
+ck "staff SEM sede definida: fail-closed — liberado, mas zero links (scoped:false)" '[[ "$(J .released)" == true && "$(J .scoped)" == false && "$(J ".links|length")" == 0 ]]'
+call $RV GET '' ani
+ck ".animeitor vê todos"                 '[[ "$(J .all)" == true && "$(J ".links|length")" -ge 5 ]]'
+nav cst; ck "barra do .cstaff ganha o botão Reveleitor (leva à mesa do telão)" '[[ "$(J ".buttons[] | select(.label == \"Reveleitor\") | .url")" == "/contest/animeitor/?reveleitor=1" ]]'
+nav gst; ck "…e a do .staff também"      '[[ "$BODY" == *Reveleitor* ]]'
+nav usr; ck "…a do competidor NÃO"       '[[ "$BODY" != *Reveleitor* ]]'
+# sede RENOMEADA no telão pelo operador: o casamento é pela região de origem, não pelo nome exibido
+call $A GET '' ani 'proposal=1'; PR2="$(J '.proposal.contests')"
+call $A POST "$(jq -cn --argjson p "$PR2" '{action:"save", contests: [ $p[] | select(.name != "Convidados") | {name, source, codes:null, sites:[.sites[] | {name: (if .name == "Brasília" then "Sede DF" else .name end), source, codes:null}]} ]}')"
+call $A POST '{"action":"publish"}'
+call $RV GET '' cst
+ck "sede renomeada p/ \"Sede DF\" no telão: o .cstaff de Brasília continua recebendo (casa pela região de origem)" '[[ "$(J "[.links[].site] | unique | join(\",\")")" == "Sede DF" && "$(J ".links|length")" == 2 ]]'
+ck "a leitura do staff fica no audit (link é credencial)" 'grep -q "animeitor-reveal-read" "$C/var/admin-audit.log" 2>/dev/null || grep -rq "animeitor-reveal-read" "$C" 2>/dev/null'
+call $A POST '{"action":"reveal-recall"}'
+call $RV GET '' cst
+ck "recolher: some tudo de novo (links e botão)" '[[ "$(J .released)" == false && "$(J ".links|length")" == 0 && ! -e "$C/var/animeitor-reveal.released" ]] && { nav cst; [[ "$BODY" != *Reveleitor* ]]; }'
+call $A POST '{"action":"reveal-release"}'
+
 echo "== reset =="
 call $A POST '{"action":"reset"}'
 ck "reset sem confirmação → 422"       '[[ "$(J .error.code)" == confirm_required ]]'
 call $A POST '{"action":"reset","confirm":"ap-2026"}'
 ck "reset confirmado: evento apagado LÁ, estado local limpo, o alheio continua" \
-   '[[ "$(J .reset)" == true && "$(ST ".events | has(\"ap-2026\")")" == false && "$(ST ".events | has(\"regional-2026\")")" == true && ! -e "$C/var/animeitor-sent.tsv" ]]'
+   '[[ "$(J .reset)" == true && ! -e "$C/var/animeitor-reveal.released" && "$(ST ".events | has(\"ap-2026\")")" == false && "$(ST ".events | has(\"regional-2026\")")" == true && ! -e "$C/var/animeitor-sent.tsv" ]]'
 ck "o mapa de ids FICA (id é da submissão, não do evento)" '[[ -s "$C/var/animeitor-ids.tsv" ]]'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

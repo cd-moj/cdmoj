@@ -103,6 +103,25 @@ e `…/team-music…`. As duas rotas já são públicas e nunca dão 404 (devolv
 `docs/WEBCAST.md`, seções de fotos e músicas). A URL pública vai na configuração porque a tela do
 operador costuma estar no subdomínio do contest.
 
+## Reveleitor nas sedes (liberação dos links de revelação)
+
+O link de revelação de cada sede mostra as respostas reais depois do congelamento — é **credencial**. Ele
+chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
+
+- **Um interruptor só**, do `.animeitor`/admin: `POST /contest/animeitor/api {action:"reveal-release"}` (e
+  `reveal-recall`). Estado em `animeitor.json` (`reveal{released, at, by}`); o marcador
+  `var/animeitor-reveal.released` é só o atalho sem fork p/ o `navbuttons`. `reset` recolhe.
+- Liberado, `GET /contest/animeitor/reveal` devolve a cada conta **só os links da sede dela**, em **todos os
+  placares em que a sede aparece** (Geral, país…). A sede da conta é o `staff-filters.json` de sempre —
+  `staff_regions` (`lib/print.sh`, a MESMA regra dos comandos do mlinux): token `region:<sede>` ou, com escopo
+  por regex, as sedes dos times que ela enxerga. O casamento é pela **região de origem** do site (o operador pode
+  ter renomeado a sede no telão); site manual casa pelo nome; sem caixa.
+- **Fail-closed**: conta sem sede definida recebe `scoped:false` e ZERO links (nas telas de leitura "sem filtro =
+  vê tudo"; aqui seria a revelação do evento inteiro). Antes da liberação: `released:false`, sem nem consultar
+  o servidor do telão. Cada leitura atendida vai ao audit (`animeitor-reveal-read`).
+- Na tela: botão **Reveleitor** na barra do `.cstaff`/`.staff` (só depois da liberação) → mesa do telão, com o
+  cartão **🎬 Reveleitor da sua sede** no topo (abrir / copiar).
+
 ## Segurança
 
 - Credencial e links de revelação são segredo: a credencial só em `secrets/`; os links são buscados
@@ -117,20 +136,22 @@ operador costuma estar no subdomínio do contest.
 - `server/test/animeitor-mock.py` — mock **estrito**, escrito do OpenAPI e conferido no serviço real
   (401 sem Basic, 409, 404 sem pai, `PUT` zera o omitido, `PATCH` vazio/campo desconhecido = 400,
   `invalid_regex`, `unknown_team` com o texto real, problema desconhecido = 400 no lote, `keep_runs`).
-- `server/test/smoke-animeitor-api.sh` (70): gates, token write-only, proposta (regex × lista),
+- `server/test/smoke-animeitor-api.sh` (87): gates, token write-only, proposta (regex × lista),
   publicação idempotente SEM `PUT` e com os salts preservados, evento alheio intocado, delta de runs
   com id estável, relógio negativo/teto, alimentador (`--once`: relógio, só-o-que-mudou, time tardio,
-  serviço fora do ar, instância única, desliga em 24 h), rodada nova = evento novo, links, reset. `smoke-animeitor.sh` prende
+  serviço fora do ar, instância única, desliga em 24 h), rodada nova = evento novo, links, reveleitor nas sedes (antes/depois da liberação, region:, escopo por regex, sem sede, sede renomeada, recolher, botão na barra), reset. `smoke-animeitor.sh` prende
   a paridade do pacote BOCA e o mapa de ids. `admin-inplace.gjs.sh`: o estado ao vivo atualiza EM
   LUGAR sem reconstruir a tabela em edição.
 - Servidor real: só num evento de teste próprio, apagado no fim. **Nunca** tocar evento alheio.
 
-## Perguntas em aberto para o Emilio
+## O que o Emilio respondeu (21/09/2026) — e o que ainda está aberto
 
-1. O front interpola o relógio entre mensagens do `/timer`? (se sim, 1 s pode virar 5 s: `feed.clock_s`)
-2. `DELETE` de UMA run (submissão removida pelo admin): hoje só dá p/ corrigir p/ `X`.
-3. `X` conta tentativa/penalidade no cálculo do telão? No MOJ não conta — precisa bater.
-4. Prorrogação POR SEDE: o MOJ tem; o evento tem um relógio só.
-5. Os links de revelação saem em `http://` (o `public_url` do servidor): o segredo viaja em claro.
-6. A credencial `bruno` é pessoal: uma credencial do MOJ (ou uma por evento) seria melhor.
-7. Limite de tamanho do lote de runs e rate limit (o MOJ manda lotes de 500 e 1 PATCH/s por evento).
+| # | Pergunta | Resposta | Consequência no MOJ |
+|---|---|---|---|
+| 1 | O front interpola o relógio entre mensagens do `/timer`? | **Não: mantém o valor enviado.** | O relógio a **1 s** é necessário (`feed.clock_s: 1`). Ele também recomenda atualizações de 1 em 1 s. |
+| 2 | `DELETE` de UMA run | **Vai implementar.** | Hoje a submissão removida no MOJ é corrigida p/ `X`. Quando a rota existir, `an_push_runs` passa a apagar (as já marcadas `X` ficam como estão). |
+| 3 | `X` conta tentativa/penalidade? | **Não aplica penalidade, como no webcast.zip.** | Bate com o MOJ (CE e o que está fora do `PENALTY_VERDICTS`). Nada a mudar. |
+| 4 | Prorrogação POR SEDE | Ele **não sabia** que o MOJ tem relógio por sede. | **ABERTO.** O evento tem um relógio só: o MOJ manda o do contest (teto na duração oficial). Sede prorrogada continua submetendo depois do "fim" do telão — as runs vão com o tempo real. A combinar com ele. |
+| 5 | Links de revelação em `http://` | **Não é problema.** | Nada a mudar. |
+| 6 | Credencial do MOJ | **Pode criar uma credencial para o MOJ.** | Pendente do lado dele. A `bruno` é pessoal e não deve ir p/ produção. |
+| 7 | Rate limit / tamanho do lote | **Não há rate limit nos endpoints internos.** | Lotes de 500 e 1 `PATCH`/s por evento seguem como estão. |

@@ -20,7 +20,7 @@
 set -uo pipefail
 cd "$(dirname "$(readlink -f "$0")")/../.." || exit 1   # raiz do cdmoj
 ROOT="$PWD"
-OUT="$ROOT/web/contest/ajuda/img"
+OUT="${SHOT_OUT:-$ROOT/web/contest/ajuda/img}"   # SHOT_OUT=<dir>: fotos de conferência fora do repo
 : "${SHOT_DELAY_MS:=2600}"
 : "${SHOT_W:=1280}"
 : "${SHOT_H:=900}"
@@ -33,7 +33,7 @@ command -v firefox >/dev/null || { echo "firefox não encontrado (headless é ob
 command -v python3 >/dev/null || { echo "python3 não encontrado (servidor de captura)" >&2; exit 1; }
 
 FIX="$(mktemp -d)"; RUNF="$(mktemp -d)"; SESS="$(mktemp -d)"; PROF="$(mktemp -d)"
-cleanup(){ [[ -n "${SRV:-}" ]] && kill "$SRV" 2>/dev/null
+cleanup(){ [[ -n "${SRV:-}" ]] && kill "$SRV" 2>/dev/null; [[ -n "${ANMOCK:-}" ]] && kill "$ANMOCK" 2>/dev/null
   # p/ depurar uma tela vazia é preciso repetir a chamada do router à mão — e aí os TRÊS
   # diretórios importam (CONTESTSDIR, RUNDIR e SESSIONDIR), não só o do contest
   (( KEEP )) && { printf '>> mantidos: CONTESTSDIR=%s RUNDIR=%s SESSIONDIR=%s\n' "$FIX" "$RUNF" "$SESS"; return; }
@@ -49,7 +49,7 @@ mkdir -p "$C/var" "$C/users" "$C/print-requests" "$C/review" "$C/enunciados"
   # ⚠ LOCALE=en: as telas dos tutoriais saem em INGLÊS de propósito — o tutorial é lido por
   # quem compete em prova internacional, e captura em PT amarraria a documentação ao Brasil.
   # O texto do tutorial continua bilíngue; o que a foto mostra é a interface em inglês.
-  printf 'CONTEST_TYPE=icpc\nLOCALE=en\n'
+  printf 'CONTEST_TYPE=icpc\nLOCALE=%s\n' "${SHOT_LOCALE:-en}"     # SHOT_LOCALE=pt: conferir a tela em português
   # FREEZE_TIME é EPOCH ABSOLUTO (não minutos): congela na última hora
   printf 'CONTEST_START=%s\nCONTEST_END=%s\nFREEZE_TIME=%s\n' "$((NOW-7200))" "$((NOW+3600))" "$((NOW-1800))"
   printf 'PRINT=1\nMANUAL_VERDICT=1\nREVIEW_JUDGES=2\n'
@@ -440,6 +440,23 @@ jq -cn --argjson now "$NOW" \
            revoked_at:null, fetches:88, last_at:($now-95), last_ip:"10.0.0.31"}]}' \
   > "$C/webcast.json"
 
+# --- 📡 API do Animeitor: um MOCK do servidor do telão (server/test/animeitor-mock.py) + o contest já
+# configurado, PUBLICADO, com as runs enviadas, o alimentador "ligado" e o reveleitor LIBERADO p/ as
+# sedes — pelas MESMAS funções da rota (lib/animeitor.sh), p/ a tela sair com dado de verdade.
+jq -cn '[{name:"Brasil", subregions:[{name:"Curitiba"},{name:"São Paulo"}]}]' > "$C/regions.json"
+ANMD="$(mktemp -d)"; export AN_MOCK_USER=moj AN_MOCK_TOKEN=token-de-demonstracao
+python3 "$ROOT/server/test/animeitor-mock.py" "$ANMD" "$ANMD/port" & ANMOCK=$!
+for i in $(seq 1 40); do [[ -s "$ANMD/port" ]] && break; sleep 0.1; done
+if [[ -s "$ANMD/port" ]]; then
+  ( export CONTESTSDIR="$FIX" RUNDIR="$RUNF" SESSION_LOGIN=telao.animeitor
+    source "$ROOT/server/api/v1/lib/common.sh" 2>/dev/null; source "$ROOT/server/api/v1/lib/cohorts.sh"; source "$ROOT/server/api/v1/lib/animeitor.sh"
+    mkdir -p "$C/secrets"; ( umask 077; printf 'moj:token-de-demonstracao\n' > "$C/secrets/animeitor.cred" )
+    jq -cn --arg u "http://127.0.0.1:$(cat "$ANMD/port")" '{url:$u, event:"maratona-demo", moj_base_url:"https://moj.naquadah.com.br", enabled:true}' > "$C/animeitor.json"
+    an_publish demo "$ANMD/pub.json" 0 >/dev/null 2>&1; an_push_runs demo >/dev/null 2>&1; an_push_time demo >/dev/null 2>&1
+    an_reveal_set demo on telao.animeitor
+    mkdir -p "$RUNF/animeitor/active"; : > "$RUNF/animeitor/active/demo"; printf '%s\n' "$EPOCHSECONDS" > "$RUNF/animeitor/feed.alive" ) || true
+fi
+
 # --- fotos e músicas de alguns times (a galeria fica viva: uns com, outros sem)
 PH="$ROOT/server/etc/team-placeholder.webp"
 if [[ -s "$PH" ]]; then
@@ -553,7 +570,9 @@ shot cstaff-fila.png       s_cstaff  /contest/staff/
 shot cstaff-etiquetas.png  s_cstaff  /contest/badges/          1100
 shot cstaff-telao.png      s_cstaff  /contest/animeitor/       1100
 shot cstaff-placar.png     s_cstaff  /contest/score/
-shot animeitor-telao.png   s_anim    /contest/animeitor/       1250
+shot animeitor-telao.png   s_anim    /contest/animeitor/       2300
+shot animeitor-api.png     s_anim    "/contest/animeitor/?click=${SHOT_CLICK_LINKS:-show%20the%20big-screen%20links}" 1700
+shot cstaff-reveleitor.png s_cstaff  "/contest/animeitor/?reveleitor=1" 700
 shot animeitor-placar.png  s_anim    /contest/score/
 shot animeitor-cerimonia.png s_anim  "/contest/score/reveal.html?click=Step&times=4" 1000
 shot judge-fila.png        s_judge   /contest/judge/

@@ -13,6 +13,8 @@
 #   POST {action:"publish", adopt?}      -> cria/atualiza evento + placares + sedes LÁ (idempotente)
 #   POST {action:"push-runs", full?}     -> manda as runs (delta; full = tudo de novo)
 #   POST {action:"start"|"stop"}         -> liga/desliga o alimentador deste contest (relógio + runs)
+#   POST {action:"reveal-release"|"reveal-recall"}  -> libera/recolhe os links do REVELEITOR p/ as sedes: com
+#                            ele liberado, .cstaff/.staff leem os DA SEDE DELES em GET /contest/animeitor/reveal
 #   POST {action:"reset", confirm:"<evento>"}  -> APAGA o evento lá (só evento criado por este contest)
 # `.cstaff`/`.staff` não entram aqui (403): a tela deles é só a galeria da sede.
 contest="$(param contest)"
@@ -46,7 +48,7 @@ _an_state(){   # o estado SEM segredo (o token nunca volta; o usuário sim — �
      --argjson feeding "$([[ -e "$ACTIVE/$contest" ]] && echo true || echo false)" --argjson alive "$alive" '
     { configured: ($hc and ($cfg.url != "")), has_cred: $hc, user: $user, url: $cfg.url, event: $cfg.event,
       moj_base_url: $cfg.moj_base_url, enabled: ($cfg.enabled and $feeding), feed: $cfg.feed, secret_contest: $sec,
-      contests: $cfg.contests,
+      contests: $cfg.contests, reveal: $cfg.reveal,
       managed: {event: $man.event, contests: ($man.contests | to_entries | map({name: .key, sites: (.value.sites // {} | keys)}))},
       status: $st, clock: $clk, feeder_alive_at: $alive, now: $now }'
 }
@@ -177,6 +179,15 @@ start|stop)
   audit_log_to "$contest" animeitor-feed "$action"
   ok_json_slurp '$s[0]' s "$(_an_state)"
   ;;
+reveal-release|reveal-recall)
+  if [[ "$action" == reveal-release ]]; then
+    an_configured "$contest" || fail 409 "Grave a URL e a credencial primeiro" "not_configured"
+    [[ "$(jq -r .event <<<"$(an_managed "$contest")")" == "$(jq -r .event <<<"$(an_cfg "$contest")")" ]] || fail 409 "Publique o evento primeiro" "not_published"
+    an_reveal_set "$contest" on "$SESSION_LOGIN"
+  else an_reveal_set "$contest" off "$SESSION_LOGIN"; fi
+  audit_log_to "$contest" animeitor-reveal "$action by=$SESSION_LOGIN"
+  ok_json_slurp '$s[0]' s "$(_an_state)"
+  ;;
 reset)
   an_configured "$contest" || fail 409 "Grave a URL e a credencial primeiro" "not_configured"
   ev="$(jq -r .event <<<"$(an_cfg "$contest")")"
@@ -184,6 +195,7 @@ reset)
   # só apaga o que ESTE contest criou: o servidor do Animeitor é compartilhado com outros eventos
   [[ "$(jq -r .event <<<"$(an_managed "$contest")")" == "$ev" ]] || fail 409 "Este evento não foi criado por este contest" "not_managed"
   rm -f "$ACTIVE/$contest"; an_cfg_save "$contest" "$(jq -c '.enabled = false' <<<"$(an_cfg "$contest")")"
+  an_reveal_set "$contest" off "$SESSION_LOGIN"          # evento apagado = links mortos: recolhe
   r="$(an_curl "$contest" DELETE "/internal/events/$(an_enc "$ev")")"; st="$(an_status "$r")"
   [[ "$st" == 204 || "$st" == 404 ]] || fail 502 "O Animeitor recusou apagar o evento (HTTP ${st:-000})" "upstream_error"
   rm -f "$cdir/var/animeitor-managed.json" "$cdir/var/animeitor-sent.tsv" "$cdir/var/animeitor.clock" "$cdir/var/animeitor.status.json"

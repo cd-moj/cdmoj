@@ -78,22 +78,7 @@ nb_body(){ sed '$d' <<<"$1"; }
 # (.cstaff/.staff) enxerga, pelos tokens `region:` do staff-filters (idioma do badges.sh).
 # Escopo só-regex (sem region:) cai em staff_visible_logins → .team.region dos visíveis.
 # rc=1 = SEM escopo (arquivo/entrada ausente): convenção da casa é "vê tudo".
-nb_staff_regions(){
-  local c="$1" f="$CONTESTSDIR/$1/print-requests/staff-filters.json" out
-  [[ -s "$f" ]] || return 1
-  jq -e --arg s "$SESSION_LOGIN" 'has($s) and ((.[$s] // []) | length > 0)' "$f" >/dev/null 2>&1 || return 1
-  out="$(jq -r --arg s "$SESSION_LOGIN" \
-    '(.[$s] // [])[] | select(startswith("region:")) | .[7:] | gsub("^ +| +$"; "")' "$f" 2>/dev/null)"
-  if [[ -n "$out" ]]; then printf '%s\n' "$out"; return 0; fi
-  # escopo por regex: resolve os logins visíveis e colhe as sedes deles
-  source "$_LIBDIR/print.sh" 2>/dev/null || true
-  local logins
-  if logins="$(staff_visible_logins "$c" "$SESSION_LOGIN" 2>/dev/null)"; then
-    printf '%s\n' "$logins" | while IFS= read -r lg; do
-      [[ -n "$lg" ]] || continue
-      jq -r '.team.region // empty' "$(account_file "$c" "$lg")" 2>/dev/null
-    done | sort -u
-    return 0
-  fi
-  return 1
+nb_staff_regions(){   # a regra mora na lib/print.sh (staff_regions) — é a mesma do link do reveleitor
+  declare -F staff_regions >/dev/null 2>&1 || source "$_LIBDIR/print.sh" 2>/dev/null
+  staff_regions "$1"
 }

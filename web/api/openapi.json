@@ -4648,7 +4648,7 @@
           "contest"
         ],
         "summary": "API do Animeitor: config (token write-only) / test / save / publish / push-runs / start / stop / reset",
-        "description": "`config {url?, user?, token?, event?, moj_base_url?}` · `test` → {ok, events, event_exists, managed} · `save {contests|null}` · `publish {adopt?}` → {result:{ok, event, contests, deleted}} (POST e, no 409, PATCH — nunca PUT) · `push-runs {full?}` → {runs:{total, sent, added, updated, ignored, removed}} · `start`/`stop` (alimentador: relógio 1 s + runs 2 s) · `reset {confirm}` apaga o evento no Animeitor.",
+        "description": "`config {url?, user?, token?, event?, moj_base_url?}` · `test` → {ok, events, event_exists, managed} · `save {contests|null}` · `publish {adopt?}` → {result:{ok, event, contests, deleted}} (POST e, no 409, PATCH — nunca PUT) · `push-runs {full?}` → {runs:{total, sent, added, updated, ignored, removed}} · `reveal-release`/`reveal-recall` (libera/recolhe os links de revelação p/ as sedes) · `start`/`stop` (alimentador: relógio 1 s + runs 2 s) · `reset {confirm}` apaga o evento no Animeitor.",
         "parameters": [
           {
             "name": "contest",
@@ -4674,6 +4674,36 @@
           },
           "502": {
             "description": "upstream_unauthorized / upstream_error"
+          }
+        }
+      }
+    },
+    "/contest/animeitor/reveal": {
+      "get": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Reveleitor da sede: os links de revelação do Animeitor que cabem a esta conta (.cstaff/.staff; .animeitor/admin veem todos)",
+        "description": "`{released, scoped, sites[], links:[{contest, site, url}]}`. Só depois que o .animeitor libera (`POST /contest/animeitor/api {action:\"reveal-release\"}`). Cada conta recebe só os links da sede dela (staff-filters), em todos os placares em que a sede aparece; sem sede definida = `scoped:false` e zero links (fail-closed). O link é credencial: buscado ao vivo, nunca gravado, leitura auditada.",
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "links da sede"
+          },
+          "403": {
+            "description": "role_required"
+          },
+          "502": {
+            "description": "upstream_error"
           }
         }
       }

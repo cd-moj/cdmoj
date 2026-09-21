@@ -53,8 +53,9 @@ an_cfg(){
       event_set: (.event // ""),
       moj_base_url: (.moj_base_url // ""), enabled: (.enabled == true),
       feed: { clock_s: ((.feed.clock_s // 1) | if . < 1 then 1 else . end), runs_s: ((.feed.runs_s // 2) | if . < 1 then 1 else . end) },
+      reveal: { released: (.reveal.released == true), at: (.reveal.at // 0), by: (.reveal.by // "") },
       contests: (if (.contests | type) == "array" then .contests else null end) }' 2>/dev/null \
-  || jq -cn --arg c "$1" --arg du "$AN_DEFAULT_URL" '{version:1, url:$du, event:$c, event_set:"", moj_base_url:"", enabled:false, feed:{clock_s:1, runs_s:2}, contests:null}'
+  || jq -cn --arg c "$1" --arg du "$AN_DEFAULT_URL" '{version:1, url:$du, event:$c, event_set:"", moj_base_url:"", enabled:false, feed:{clock_s:1, runs_s:2}, reveal:{released:false, at:0, by:""}, contests:null}'
 }
 # (`event` no arquivo é o que o operador DIGITOU — vazio = nome-padrão, que o an_cfg resolve a cada leitura;
 #  gravar o nome resolvido congelaria `<contest>-<rodada>` na rodada errada)
@@ -216,11 +217,14 @@ an_resolved(){
               | { name: $x.name, source: ($x.source // {kind: "manual", id: ""}), codes: $codes,
                   ouro: ($x.ouro // 1), prata: ($x.prata // 2), bronze: ($x.bronze // 3), style: ($x.style // null),
                   sites: [ ($x.sites // [])[] | . as $s
-                           | { name: $s.name, codes: (if ($s.codes | type) == "array" then $s.codes
-                                                     else ((autosite($x.source // {}; $s.source // {}) // {codes: []}).codes) end) } ] } ] end) as $cs
+                           | { name: $s.name, source: ($s.source // {kind: "manual", id: ""}),
+                               codes: (if ($s.codes | type) == "array" then $s.codes
+                                       else ((autosite($x.source // {}; $s.source // {}) // {codes: []}).codes) end) } ] } ] end) as $cs
     | {contests: [ $cs[] | {name, codes, ouro, prata, bronze, style: (.style // null),
                             photo_url_format: $ph, sound_url_format: $so,
-                            sites: [ (.sites // [])[] | {name, codes} ]} ]}' > "$out"
+                            # `region` = a sede do MOJ de onde o site saiu (NÃO vai ao serviço — o an_publish manda
+                            # só {name, codes}); é o que casa o link de revelação com o escopo do staff
+                            sites: [ (.sites // [])[] | {name, codes, region: (if (.source.kind // "") == "region" then (.source.id // "") else "" end)} ]} ]}' > "$out"
   local rc=$?; rm -f "$pf"; return $rc
 }
 
@@ -299,7 +303,7 @@ an_publish(){
       ns="$(jq ".contests[$i].sites | length" "$W/res.json")"
       for (( j = 0; j < ns; j++ )); do
         sn="$(jq -r ".contests[$i].sites[$j].name" "$W/res.json")"; an_name_ok "$sn" || continue
-        jq -c ".contests[$i].sites[$j]" "$W/res.json" > "$W/s.json"; jq -c 'del(.name)' "$W/s.json" > "$W/s.patch.json"
+        jq -c ".contests[$i].sites[$j] | {name, codes}" "$W/res.json" > "$W/s.json"; jq -c 'del(.name)' "$W/s.json" > "$W/s.patch.json"
         local sh sa ss sm; sh="$(_an_hash "$W/s.json")"; sm=""
         if [[ "$(jq -r --arg k "$cn" --arg s "$sn" '.contests[$k].sites[$s] // ""' <<<"$man")" == "$sh" ]]; then sa=unchanged; ss=0
         else IFS=$'\t' read -r sa ss sm < <(_an_upsert "$c" "/internal/sites/$eenc/$cenc/$(an_enc "$sn")" "$W/s.json" "$W/s.patch.json"; echo); fi
@@ -416,4 +420,35 @@ an_links(){
     | (first($rv[].url | capture("^(?<o>https?://[^/]+)").o) // $api) as $origin
     | { revelation: $rv,
         public: [ ($man.contests | keys[]) | {contest: ., url: ($origin + "/animeitor/" + ($ev | @uri) + "/" + (. | @uri) + "/")} ] }'
+}
+
+# --- REVELEITOR nas sedes: o .animeitor LIBERA e o .cstaff/.staff recebe os links DA SEDE DELE ---------
+# O link de revelação mostra as respostas reais depois do freeze: é credencial. Fica trancado até o
+# operador do telão liberar (um interruptor só, p/ todas as sedes) e pode ser recolhido. O estado mora
+# no animeitor.json (`reveal{released, at, by}`); o marcador var/animeitor-reveal.released é só o atalho
+# SEM fork p/ o navbuttons decidir se mostra o botão.
+an_reveal_released(){ [[ -e "$CONTESTSDIR/$1/var/animeitor-reveal.released" ]]; }
+an_reveal_set(){ # <c> <on|off> <quem>
+  local c="$1" on="$2" by="${3:-}" cfg m="$CONTESTSDIR/$1/var/animeitor-reveal.released"
+  cfg="$(an_cfg "$c")"; mkdir -p "$CONTESTSDIR/$c/var"
+  if [[ "$on" == on ]]; then
+    an_cfg_save "$c" "$(jq -c --argjson t "$EPOCHSECONDS" --arg by "$by" '.reveal = {released:true, at:$t, by:$by}' <<<"$cfg")" && : > "$m"
+  else
+    an_cfg_save "$c" "$(jq -c --argjson t "$EPOCHSECONDS" --arg by "$by" '.reveal = {released:false, at:$t, by:$by}' <<<"$cfg")"; rm -f "$m"
+  fi
+}
+# an_reveal_links <c> <arquivo com as sedes do staff, 1/linha> -> [{contest, site, url}] — TODOS os placares
+# em que a sede aparece (o Geral e o do país). O casamento é pela REGIÃO de origem do site (o operador
+# pode ter renomeado a sede no telão); site manual casa pelo nome. Comparação sem caixa, como o staff-filters.
+an_reveal_links(){
+  local c="$1" regf="$2" rf lk; rf="$(mktemp)"
+  an_resolved "$c" "$rf" || { rm -f "$rf"; printf '[]'; return 1; }
+  lk="$(an_links "$c")" || { rm -f "$rf"; printf '[]'; return 1; }
+  jq -c --slurpfile r "$rf" --rawfile regs "$regf" '
+    ($regs | split("\n") | map(gsub("^ +| +$"; "") | ascii_downcase | select(length > 0))) as $mine
+    | ([ $r[0].contests[] | .name as $cn | .sites[]
+         | select(((if (.region // "") != "" then .region else .name end) | ascii_downcase) as $k | $mine | index($k))
+         | {contest: $cn, site: .name} ]) as $ok
+    | [ (.revelation // [])[] | . as $x | select($ok | index({contest: $x.contest, site: $x.site})) ]' <<<"$lk"
+  local rc=$?; rm -f "$rf"; return $rc
 }

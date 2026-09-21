@@ -25,7 +25,7 @@ else                    NBROLE=time; fi
 # a impressão quando o staff some: as duas dependem do RELÓGIO/do disco, então o TTL é curto.
 NBF="$CONTESTSDIR/$contest/var/nav-cache.$NBROLE.json"
 if resp_cache_fresh "$NBF" "${NAV_CACHE_TTL:-20}" "$CONTESTSDIR/$contest/conf" \
-     "$CONTESTSDIR/$contest/users" "$CONTESTSDIR/$contest/time-overrides.json"; then
+     "$CONTESTSDIR/$contest/users" "$CONTESTSDIR/$contest/time-overrides.json" "$CONTESTSDIR/$contest/animeitor.json"; then
   emit_json 200 OK; printf '%s' "$(<"$NBF")"; exit 0
 fi
 
@@ -52,7 +52,10 @@ cstaff)
             {label:"Rodadas", url:"/contest/rounds/"}]'
   if contest_over_for_all "$contest"; then
     buttons="$buttons + [{label:\"Revelação\", url:\"/contest/score/reveal.html\"}]"
-  fi ;;
+  fi
+  # REVELEITOR (a revelação do Animeitor): só depois que o .animeitor LIBERA os links p/ as sedes. O botão
+  # leva à mesa do telão, onde o cartão lista os links DA SEDE dele (a API corta — GET /contest/animeitor/reveal)
+  [[ -e "$CONTESTSDIR/$contest/var/animeitor-reveal.released" ]] && buttons="$buttons + [{label:\"Reveleitor\", url:\"/contest/animeitor/?reveleitor=1\"}]" ;;
 staff)
   # .staff: NÃO submete (sem Contest/Clarification). Vê o placar (congela no freeze, como
   # usuário normal), a área de tarefas de impressão recebidas e o TELÃO da sede dele em modo
@@ -62,7 +65,8 @@ staff)
             {label:"Impressão", url:"/contest/staff/"},
             {label:"Animeitor", url:"/contest/animeitor/"},
             {label:"Documentos", url:"/contest/docs/"},
-            {label:"Rodadas", url:"/contest/rounds/"}]' ;;
+            {label:"Rodadas", url:"/contest/rounds/"}]'
+  [[ -e "$CONTESTSDIR/$contest/var/animeitor-reveal.released" ]] && buttons="$buttons + [{label:\"Reveleitor\", url:\"/contest/animeitor/?reveleitor=1\"}]" ;;
 *)
   # base comum a usuário/monitor/judge/chefe/admin
   buttons='[{label:"Contest", url:"/"},
