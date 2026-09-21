@@ -1212,6 +1212,19 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   ficavam com "sem HTML" eterno no painel. O overlay é **PODADO** (`authored_prune`, chamado pelo
   `ensure_owners_index` com throttle por mtime): entrada já refletida no índice sem divergência nos
   campos de setter sai; divergente/não-indexada fica até o índice alcançar.
+  ⚠ **O MESMO FURO MORDEU O `title`** (21/09/2026): o `authored_upsert` gravava o **slug** quando o
+  título vinha vazio — e vazio é o caso NORMAL de todo chamador que lê `.display_title // ""` de um
+  pacote migrado sem o campo (set-public, set-collections, move, upload, import, `coll_bulk_retag`).
+  Overlay vence + divergente nunca poda = o Painel mostrando `obi2023f2pj_pizza` no lugar de "Pizza
+  da OBI", **para sempre**, em 21 problemas. Hoje: o upsert **não inventa título** (sem título, a
+  chave não entra), a mescla **descarta título de overlay vazio ou igual ao `prob`** quando o índice
+  tem um de verdade (cura o que já está no disco, sem migração), e a poda só compara título quando o
+  overlay **tem** um. Regra geral: **o overlay só escreve o que o setter realmente informou** — campo
+  inventado aqui vence o índice e não poda nunca. O título de verdade vem do índice, que o tira do
+  json servível (derivado do enunciado por `gen-problem-json.sh`); `read_problem_source` deriva igual,
+  p/ o editor nunca abrir com o campo em branco — era esse branco que o autor salvava. Problema sem
+  título em lugar nenhum sai com **`untitled:true`** no `/problems/status` e ganha o selo "sem título"
+  no Painel. Teste: `smoke-owners-index.sh`.
 
 - **Histórico git por problema** (`/problems/history` lista/diff, `/problems/download?sha=` versão
   antiga via `git archive`, `/problems/restore` = **commit NOVO por cima** — história nunca é

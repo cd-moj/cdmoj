@@ -85,6 +85,14 @@ const calibChip = (p) => {
   }
   return p.calibrated ? pill('ok', T('calibrado', 'calibrated')) : pill('mut', T('sem calibração', 'no calibration'));
 };
+// chip "sem título": não há título NENHUM (nem no pacote, nem no enunciado) e a lista cai no slug.
+// Não é erro — é um "por nomear": o dono abre o problema e escreve o nome. (Antes, um problema
+// SEM título era indistinguível de um problema COM título, porque o slug ocupava o lugar dele.)
+const untitledChip = (p) => !p.untitled ? '' :
+  el('span', { class: 'pill mut', style: 'margin-left:.35rem',
+    title: T('Este problema não tem título: nem no pacote (display_title) nem no enunciado. A lista mostra o identificador. Abra e dê um nome a ele.',
+             'This problem has no title: neither in the package (display_title) nor in the statement. The list shows the identifier. Open it and give it a name.') },
+    T('sem título', 'untitled'));
 // chip "precisa revisão": solução good sem TL (falhou em todas as máquinas), público não validado/calibrado
 const reviewChip = (p) => {
   if (!p.needs_review) return '';
@@ -146,6 +154,7 @@ function renderTable() {
   slice.forEach(p => {
     const cells = [
       el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openDetail(p.id); } }, p.title || p.prob || p.id),
+        untitledChip(p),
         el('div', { class: 'small muted2' }, p.id)),
       el('td', { class: 'small' }, p.author || '—'),
       el('td', { class: 'small' }, (p.collections || []).map(c =>
@@ -691,6 +700,7 @@ function renderPanel() {
   const tb = el('tbody');
   slice.forEach(p => tb.append(el('tr', {},
     el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openDetail(p.id); } }, p.title || p.prob || p.id),
+      untitledChip(p),
       el('div', { class: 'small muted2' }, p.id)),
     el('td', { class: 'small' }, p.author || '—'),
     el('td', {}, valChip(p)),

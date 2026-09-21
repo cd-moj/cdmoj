@@ -74,6 +74,79 @@ chk "overlay vence (public)"         "$(jq -r 'first(.problems[]|select(.id=="o#
 chk "índice sobrevive (tl_checksum)" "$(jq -r 'first(.problems[]|select(.id=="o#p")).tl_checksum' <<<"$out")" "abc"
 
 # ---------------------------------------------------------------------------------------------
+# TÍTULO: o overlay NÃO PODE ATROPELAR O TÍTULO BOM DO ÍNDICE COM O SLUG.
+# O upsert antigo, com título vazio (o caso NORMAL de todo chamador que lê `.display_title // ""`
+# de um pacote migrado sem o campo — set-public, set-collections, move, upload, import, retag),
+# gravava `title = <prob>`. Como o overlay vence a mescla e o authored_prune trata divergência como
+# "não podar", o Painel mostrava `obi2023f2pj_pizza` no lugar de "Pizza da OBI" — 21 problemas, e
+# para sempre (relato do Ribas, 21/09/2026).
+echo "-- título: overlay não inventa, e o slug nunca vence o índice --"
+printf '{"problems":[{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"Pizza da OBI","tl_checksum":"abc"}]}\n' > "$IDX"
+printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"p"}}\n' > "$OVL"
+out="$(owners_merged)"
+chk "overlay com título=slug PERDE"  "$(jq -r 'first(.problems[]|select(.id=="o#p")).title' <<<"$out")" "Pizza da OBI"
+printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":""}}\n' > "$OVL"
+chk "overlay com título VAZIO perde" "$(jq -r 'first(.problems[]|select(.id=="o#p")).title' <<<"$(owners_merged)")" "Pizza da OBI"
+printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"Nome do autor"}}\n' > "$OVL"
+chk "overlay com título DE VERDADE vence" "$(jq -r 'first(.problems[]|select(.id=="o#p")).title' <<<"$(owners_merged)")" "Nome do autor"
+# título legítimo IGUAL ao slug (o índice concorda) continua aparecendo
+printf '{"problems":[{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"p"}]}\n' > "$IDX"
+printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"p"}}\n' > "$OVL"
+chk "slug legítimo (índice concorda) fica" "$(jq -r 'first(.problems[]|select(.id=="o#p")).title' <<<"$(owners_merged)")" "p"
+
+echo "-- authored_upsert: título vazio NÃO vira slug --"
+rm -f "$OVL"
+authored_upsert "o#p" tester o p "" true '["o"]' "Autor"
+chk "sem título => a chave não entra"  "$(jq -r '.["o#p"]|has("title")' "$OVL")" "false"
+authored_upsert "o#p" tester o p "Pizza da OBI" true '["o"]' "Autor"
+chk "com título => grava"              "$(jq -r '.["o#p"].title' "$OVL")" "Pizza da OBI"
+authored_upsert "o#p" tester o p "" true '["o"]' "Autor"
+chk "título anterior é preservado"     "$(jq -r '.["o#p"].title' "$OVL")" "Pizza da OBI"
+# veneno velho no overlay (title==prob) não é preservado num upsert seguinte
+printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"p"}}\n' > "$OVL"
+authored_upsert "o#p" tester o p "" true '["o"]' "Autor"
+chk "veneno (title=slug) é descartado" "$(jq -r '.["o#p"]|has("title")' "$OVL")" "false"
+
+echo "-- read_problem_source: título do editor nunca vem em branco --"
+# pacote SEM display_title (todo o acervo OBI é assim): o editor abria com o campo vazio, o autor
+# salvava esse vazio e era ele que envenenava o overlay. Deriva do enunciado, como o gen-problem-json.
+PK="$MOJ_PROBLEMS_DIR/o/p"; mkdir -p "$PK/docs"
+printf '{"owner":"tester","public":true}\n' > "$PK/.moj-meta.json"
+printf '%% Pizza da OBI\n\nO prof. Carlos comprou pizzas...\n' > "$PK/docs/enunciado.md"
+chk "título derivado do enunciado"     "$(read_problem_source "$PK" | jq -r .title)" "Pizza da OBI"
+jq -c '. + {display_title:"Nome do autor"}' "$PK/.moj-meta.json" > "$PK/.m.t" && mv -f "$PK/.m.t" "$PK/.moj-meta.json"
+chk "display_title do pacote vence"    "$(read_problem_source "$PK" | jq -r .title)" "Nome do autor"
+printf '{"owner":"tester","public":true}\n' > "$PK/.moj-meta.json"
+printf 'Sem linha de título aqui.\n' > "$PK/docs/enunciado.md"
+chk "sem título em lugar nenhum => slug" "$(read_problem_source "$PK" | jq -r .title)" "p"
+
+echo "-- authored_prune: entrada sem título poda quando o índice já a reflete --"
+printf '{"problems":[{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"title":"Pizza da OBI","collections":["o"],"collaborators":[]}]}\n' > "$IDX"
+printf '{"o#p":{"id":"o#p","repo":"o","prob":"p","owner":"tester","public":true,"collections":["o"],"collaborators":[],"author":"Autor"}}\n' > "$OVL"
+touch -d '-1 minute' "$OVL"; touch "$IDX"
+authored_prune
+chk "overlay sem título é podado"      "$(jq -r 'length' "$OVL")" "0"
+
+echo "-- /problems/status: 'untitled' só quando não há título em lugar nenhum --"
+# o Painel marca o problema POR NOMEAR (hoje o índice carimba o slug no lugar do título, e um
+# problema sem nome ficava indistinguível de um com nome)
+mkdir -p "$RUNDIR/sessions" "$CONTESTSDIR/treino/users/tester"
+printf 'CONTEST=treino\nLOGIN=tester\nUSERFULLNAME=T\nLOGINAT=1\n' > "$RUNDIR/sessions/tk"; chmod 600 "$RUNDIR/sessions/tk"
+printf '{"login":"tester","password":"x","fullname":"T","status":"active"}' > "$CONTESTSDIR/treino/users/tester/account.json"
+jq -cn '{generated_at:0, count:2, problems:[
+   {id:"o#p", repo:"o", prob:"p", owner:"tester", collaborators:[], public:true, title:"Pizza da OBI", collections:["o"]},
+   {id:"o#q", repo:"o", prob:"q", owner:"tester", collaborators:[], public:true, title:"q", collections:["o"]}]}' > "$IDX"
+rm -f "$OVL"; touch "$IDX"
+STRESP="$(env PATH_INFO=/problems/status REQUEST_METHOD=GET QUERY_STRING="" \
+   HTTP_AUTHORIZATION="Bearer tk" CONTESTSDIR="$CONTESTSDIR" RUNDIR="$RUNDIR" \
+   SESSIONDIR="$RUNDIR/sessions" MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" MOJTOOLS_DIR="$MOJTOOLS_DIR" \
+   PROBLEM_OWNERS_TTL_MIN=30 bash "$API/router.sh" </dev/null 2>/dev/null)"
+STBODY="$(printf '%s' "$STRESP" | awk 'f{print} /^\r?$/{f=1}')"
+chk "com título => untitled false" "$(jq -r 'first(.problems[]|select(.id=="o#p")).untitled' <<<"$STBODY")" "false"
+chk "título = slug => untitled true" "$(jq -r 'first(.problems[]|select(.id=="o#q")).untitled' <<<"$STBODY")" "true"
+chk "e o título continua saindo"     "$(jq -r 'first(.problems[]|select(.id=="o#p")).title' <<<"$STBODY")" "Pizza da OBI"
+
+# ---------------------------------------------------------------------------------------------
 # REGEN EM BACKGROUND TEM DE SER BACKGROUND DE VERDADE.
 # O `ensure_owners_index` dispara a varredura da base (medida em produção: 39,8 s) quando o índice
 # passa do TTL. Ela é `setsid ... &` — mas o `>/dev/null 2>&1` estava DENTRO do `bash -c`, então o

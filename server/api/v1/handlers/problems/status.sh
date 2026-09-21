@@ -71,7 +71,10 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --argjson CAL "$c
       | (.public and ($cal|not)) as $pubuncal            # público mas SEM calibração (sem TL p/ o aluno)
       | (.public and ($vstate=="none")) as $pubunval     # público mas SEM relatório de validação
       | ($err or $gsnotl or $pubuncal or $pubunval) as $review
-      | { id:$id, title:(.title // .prob // $id), owner:.owner, author:.author, public:.public,
+      # `untitled` = não há título em lugar nenhum (nem no pacote, nem no enunciado — o índice então
+      # carimba o slug). O Painel marca esses p/ o dono nomear; não é erro, é um "por nomear".
+      | ((((.title // "") == "") or ((.title // "") == (.prob // ""))) ) as $untitled
+      | { id:$id, title:(.title // .prob // $id), untitled:$untitled, owner:.owner, author:.author, public:.public,
           collaborators:(.collaborators // []),
           validated:$vstate,
           calibrated:$cal,

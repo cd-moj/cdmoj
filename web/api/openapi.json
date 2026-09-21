@@ -6479,7 +6479,7 @@
           "problems"
         ],
         "summary": "Painel de status dos problemas do login (dono + colaborador + membro da org)",
-        "description": "Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo. time_limits é o EFETIVO (o TLOVERRIDE vem carimbado no índice de donos, então o Painel não abre pacote); time_limits_calibrated e tl_override vêm ao lado.",
+        "description": "Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo. time_limits é o EFETIVO (o TLOVERRIDE vem carimbado no índice de donos, então o Painel não abre pacote); time_limits_calibrated e tl_override vêm ao lado. untitled = o problema não tem título em lugar nenhum (nem display_title no pacote, nem linha de título no enunciado) e o title devolvido é o identificador — o Painel marca 'sem título'.",
         "security": [
           {
             "bearerAuth": []

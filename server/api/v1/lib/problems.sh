@@ -49,7 +49,11 @@ owners_merged(){
   # o overlay authored dá visibilidade IMEDIATA ao recém-criado/editado, mas NÃO pode APAGAR os campos
   # que só o índice calcula (tl_checksum, public_at — protegidos por o overlay não os escrever — e
   # `html`, DELETADO do overlay na mescla: o upsert antigo gravava html:false fixo e, antes da poda
-  # do authored_prune, 343 problemas públicos ficaram com "sem HTML" eterno no painel) — por isso é
+  # do authored_prune, 343 problemas públicos ficaram com "sem HTML" eterno no painel; e `title`
+  # quando é VAZIO ou o próprio SLUG, pelo mesmo motivo: o upsert antigo gravava o slug quando o
+  # título vinha vazio e o Painel mostrava `obi2023f2pj_pizza` no lugar de "Pizza da OBI" — 21
+  # problemas, relato do Ribas 21/09/2026. Curar na MESCLA é o que conserta o overlay que já está
+  # no disco, sem migração; o upsert já não escreve mais isso) — por isso é
   # MESCLADO sobre a entrada do índice (base + overlay, overlay vence campo-a-campo) em vez de
   # substituí-la. Sem isso, todo problema no overlay perdia tl_checksum/public_at (staleness e
   # heatmap de entrada sub-reportados).
@@ -80,8 +84,14 @@ owners_merged(){
     | ((($ov[0]) // {}) | [to_entries[].value]) as $ovl
     | (($base.problems // []) | map({key:.id, value:.}) | from_entries) as $bmap
     | ($ovl | map(.id)) as $ids
+    # título do overlay que é vazio OU o próprio slug NÃO vence um título de verdade do índice
     | { problems: ( (($base.problems // []) | map(select((.id as $i | $ids|index($i)) | not)))
-                    + ($ovl | map(($bmap[.id] // {}) + (. | del(.html)))) ) }
+                    + ($ovl | map(. as $o | ($bmap[$o.id] // {}) as $b
+                                  | ($b.title // "") as $bt
+                                  | (if (($o.title // "") == "" or ($o.title // "") == ($o.prob // ""))
+                                       and $bt != "" and $bt != ($o.prob // "")
+                                     then ($o | del(.title)) else $o end) as $ov2
+                                  | $b + ($ov2 | del(.html)))) ) }
   ' 2>/dev/null)" || return 1
   [[ -n "$out" ]] || return 1
   printf '%s' "$out"
@@ -196,18 +206,30 @@ authored_upsert(){
     # que VENCE a mescla com o valor pior): título sem \r/\t/\n (metas CRLF da migração serviam
     # "Título\r" nas listagens) e collections vazio = [org] (a convenção "o repo é a coleção-curso"
     # do gen-problem-owners — o [] literal atropelava a coleção-default do índice).
+    # ⚠ O OVERLAY NÃO INVENTA TÍTULO. Até 21/09/2026 esta linha era
+    #   title:(if $tc=="" then ($old.title // $p) else $tc end)
+    # — título vazio virava `$p`, o SLUG. E título vazio é o caso NORMAL de todo chamador que lê
+    # `.display_title // ""` de um pacote que não tem o campo (set-public, set-collections, move,
+    # upload, import, coll_bulk_retag): publicar um OBI migrado bastava. Como o overlay VENCE a
+    # mescla e o authored_prune trata divergência como "não pode podar", o slug passava a
+    # sobrescrever o título bom do índice PARA SEMPRE — 21 problemas assim no Painel (relato do
+    # Ribas). Sem título, a chave simplesmente NÃO ENTRA e o índice manda (que é quem sabe: ele lê
+    # o título do json servível, derivado do enunciado). Título anterior IGUAL AO SLUG é veneno
+    # velho: também não se preserva.
     ( umask 077; printf '%s' "$cur" | jq --arg id "$1" --arg o "$2" --arg r "$3" --arg p "$4" \
         --arg t "$5" --arg pub "$6" --argjson colls "${7:-[]}" --arg au "$8" --argjson cb "${9:-[]}" '
         . as $cur
         | ($cur[$id] // {}) as $old
         | ($t | gsub("[\r\n\t]"; "")) as $tc
-        | $cur + { ($id): ($old + {
+        | ($old.title // "") as $ot
+        | (if $tc != "" then $tc elif ($ot != "" and $ot != $p) then $ot else "" end) as $keep
+        | (if $keep == "" then {} else {title:$keep} end) as $ttl
+        | $cur + { ($id): (($old | del(.title)) + {
             id:$id, owner:$o, repo:$r, prob:$p,
-            title:(if $tc=="" then ($old.title // $p) else $tc end),
             author:($au | gsub("[\r\n\t]"; "")), author_norm:(($au | gsub("[\r\n\t]"; ""))|ascii_downcase),
             collaborators:$cb,
             collections:(if ($colls|length)==0 then [$r] else $colls end),
-            public:($pub=="true") }) }
+            public:($pub=="true") } + $ttl) }
       ' ) > "$tmp" 2>/dev/null && [[ -s "$tmp" ]] && mv -f "$tmp" "$f" || rm -f "$tmp"
   ) 9>"$lk"
 }
@@ -246,7 +268,10 @@ authored_prune(){
       | with_entries( .value as $v | ($by[$v.id] // null) as $p
           | select( ($p == null)
               or (($v.owner // "") != ($p.owner // ""))
-              or (($v.title // "") != ($p.title // ""))
+              # título só conta como divergência quando o overlay TEM um: desde 21/09/2026 ele pode
+              # não ter (o upsert não inventa mais), e comparar "" com o título do índice faria a
+              # entrada nunca podar — o overlay só cresceria.
+              or (($v | has("title")) and (($v.title // "") != ($p.title // "")))
               or (($v.public // false) != ($p.public // false))
               or ((($v.collections // [])|sort) != (($p.collections // [])|sort))
               or ((($v.collaborators // [])|sort) != (($p.collaborators // [])|sort)) ) )
@@ -998,6 +1023,12 @@ read_problem_source(){
   [[ -f "$pkg/docs/solucao.md" ]] && cat "$pkg/docs/solucao.md" > "$ted"   # editorial (só setters)
   local tags='[]'; [[ -f "$pkg/tags" ]] && tags="$(jq -R . "$pkg/tags" 2>/dev/null | jq -sc . 2>/dev/null)"; [[ -n "$tags" ]] || tags='[]'
   local meta='{}'; [[ -f "$pkg/.moj-meta.json" ]] && meta="$(cat "$pkg/.moj-meta.json" 2>/dev/null)"; [[ -n "$meta" ]] || meta='{}'
+  # TÍTULO NUNCA VEM EM BRANCO: pacote migrado/subido sem `display_title` (todo o acervo OBI é
+  # assim) abria o editor com o campo vazio — e era esse vazio que o autor salvava, envenenando o
+  # overlay com o slug (ver authored_upsert). Deriva do enunciado, a MESMA extração do
+  # gen-problem-json.sh (que é de onde o treino tira o título que ele mostra).
+  local dtitle; dtitle="$(jq -r '.display_title // empty' <<<"$meta" 2>/dev/null)"
+  [[ -n "$dtitle" ]] || dtitle="$(_derive_title "$pkg")"
   local score; score="$(_read_score "$pkg")"
   # scripts/ (correção especial: compare/compile por linguagem) -> caminhos relativos p/ a
   # árvore do editor web (campo `scripts`); o CONTEÚDO vai em `scripts_files` (round-trip)
@@ -1067,13 +1098,14 @@ read_problem_source(){
   jq -n --rawfile enun "$te" --rawfile author "$ta" --rawfile conf "$tc" --rawfile editorial "$ted" \
         --rawfile scr "$tscr" --rawfile scoretxt "$tsct" \
         --argjson tags "$tags" --argjson meta "$meta" --argjson score "$score" --arg fmt "$fmt" \
+        --arg dtitle "$dtitle" \
         --slurpfile exs "$d/exs" --slurpfile tss "$d/tss" --slurpfile scf "$d/scf" \
         --slurpfile dfl "$d/docsf" --slurpfile trs "$d/trans" \
         --slurpfile sg "$d/sg" --slurpfile ss "$d/ss" --slurpfile sw "$d/sw" --slurpfile sp "$d/sp" --slurpfile su "$d/su" '
     { format:$fmt, enunciado_md:$enun, author:($author|rtrimstr("\n")), conf_text:$conf,
       tags:$tags, public:($meta.public // false), collections:($meta.collections // []),
       languages:($meta.languages // []),
-      title:($meta.display_title // ""), titles:($meta.titles // {}),
+      title:$dtitle, titles:($meta.titles // {}),
       statement_langs:(["pt"] + ($trs | map(.key))), translations:($trs | from_entries),
       examples:$exs, tests:$tss, score:$score,
       tests_omitted:($tss | any(.omitted == true)),
