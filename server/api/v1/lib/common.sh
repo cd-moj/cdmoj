@@ -78,7 +78,7 @@ _reason() {
   case "$1" in
     200) echo OK;; 201) echo Created;; 400) echo "Bad Request";;
     401) echo Unauthorized;; 403) echo Forbidden;; 404) echo "Not Found";;
-    405) echo "Method Not Allowed";; 409) echo Conflict;;
+    405) echo "Method Not Allowed";; 409) echo Conflict;; 413) echo "Payload Too Large";;
     422) echo "Unprocessable Entity";; 500) echo "Internal Server Error";;
     *) echo Error;;
   esac

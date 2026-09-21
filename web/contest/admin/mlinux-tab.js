@@ -159,6 +159,37 @@ export function makeMlinuxTab(CONTEST) {
         msg));
   }
 
+  // -- alertas das máquinas em tempo real: webhook do nutellaboot → MOJ (só admin) --------
+  function hookCard() {
+    const w = RESP && RESP.webhook; if (!w || !(RESP && RESP.configured)) return null;
+    const msg = el('span', { class: 'small' });
+    // a rota do webhook não atende pelo subdomínio do contest: o palpite tira o "<contest>." da frente
+    const guess = String(location.origin || '').replace('//' + CONTEST + '.', '//');
+    const base = el('input', { type: 'text', value: guess, size: 34, 'aria-label': T('URL pública do MOJ', 'MOJ public URL') });
+    const act = async (body) => {
+      msg.className = 'small'; msg.textContent = '…';
+      try {
+        const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), Object.assign({ action: 'webhooks-install', base_url: base.value.trim() }, body), G);
+        msg.textContent = T(`${r.ok} sede(s) ok, ${r.failed} falharam`, `${r.ok} site(s) ok, ${r.failed} failed`); load();
+      } catch (e) {
+        if (e.code === 'foreign_webhooks' && confirm((e.message || '') + '\n\n' + T('Substituir mesmo assim?', 'Replace anyway?'))) return act(Object.assign({}, body, { force: true }));
+        msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed');
+      }
+    };
+    return el('div', { class: 'section' },
+      el('h2', {}, T('🔌 Alertas das máquinas em tempo real', '🔌 Real-time machine alerts')),
+      el('p', { class: 'ml-note' }, T('O nutellaboot avisa o MOJ quando uma máquina levanta um alerta (pendrive, celular, rede por USB, identidade repetida). O alerta aparece em Máquinas › Anomalias e, durante a prova, o dono do contest recebe no Telegram. Para instalar, a chave gravada acima tem de ser a de administração do nutellaboot.',
+        'Nutellaboot tells MOJ when a machine raises an alert (USB storage, phone, USB network, duplicate identity). The alert shows in Machines › Anomalies and, during the contest, the contest owner gets it on Telegram. To install it, the key saved above must be the nutellaboot administration key.')),
+      el('div', { class: 'small', style: 'margin:.2rem 0 .4rem' },
+        (w.installed ? T('instalado', 'installed') : T('não instalado', 'not installed')) + ' · ' + T(`${w.events} alertas recebidos`, `${w.events} alerts received`)
+        + (RESP.key_kind === 'service' ? T(' · a chave atual é de serviço: não instala nem remove', ' · the current key is a service key: it cannot install or remove') : '')),
+      el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
+        el('label', { class: 'small' }, T('URL pública do MOJ: ', 'MOJ public URL: '), base),
+        el('button', { class: 'btn ghost', onclick: () => act({}) }, w.installed ? T('reinstalar', 'reinstall') : T('instalar', 'install')),
+        w.installed ? el('button', { class: 'btn ghost', onclick: () => act({ remove: true }) }, T('remover', 'remove')) : null,
+        msg));
+  }
+
   // -- comandos (admin: qualquer sede + frota; c/staff: as próprias — a API corta) ------
   function commandCard() {
     const d = RESP && RESP.data;
@@ -260,9 +291,9 @@ export function makeMlinuxTab(CONTEST) {
 
   function skeleton() {
     SK.style = el('style', {}, MLINUX_CSS);
-    SK.err = el('div', {}); SK.cfg = el('div', {}); SK.collect = el('div', {}); SK.bind = el('div', {}); SK.cmd = el('div', {}); SK.pan = el('div', {});
+    SK.err = el('div', {}); SK.cfg = el('div', {}); SK.collect = el('div', {}); SK.bind = el('div', {}); SK.hook = el('div', {}); SK.cmd = el('div', {}); SK.pan = el('div', {});
     panel.innerHTML = '';
-    panel.append(SK.style, SK.err, SK.cfg, SK.collect, SK.bind, SK.cmd, SK.pan);
+    panel.append(SK.style, SK.err, SK.cfg, SK.collect, SK.bind, SK.hook, SK.cmd, SK.pan);
   }
 
   // cada caixa troca só quando a SUA assinatura muda; a coleta em andamento só mexe na dela
@@ -271,6 +302,7 @@ export function makeMlinuxTab(CONTEST) {
     swapIf(SK.cfg, sigOf(adm, RESP && RESP.configured, RESP && RESP.url), () => (adm ? configCard() : null));
     swapIf(SK.collect, sigOf(adm, RESP && RESP.configured, st), () => (adm ? collectCard() : null));
     swapIf(SK.bind, sigOf(adm, RESP && RESP.configured, RESP && RESP.bind), () => (adm ? bindCard() : null));
+    swapIf(SK.hook, sigOf(adm, RESP && RESP.configured, RESP && RESP.webhook, RESP && RESP.key_kind), () => (adm ? hookCard() : null));
     swapIf(SK.cmd, sigOf(adm, d && (d.sedes || []).map((s) => [s.id, s.name, s.seen, ((s.machines || []).map((m) => m.mac))])), () => commandCard());
     swapIf(SK.pan, sigOf(RESP && RESP.configured, d && d.collected_at, d && d.version, d && d.link, d && d.window, sel, RTREE), () => panorama());
     if (st && st.running && !pollT) pollT = setTimeout(() => { pollT = null; if (!panel.hidden) load(); }, 3000);

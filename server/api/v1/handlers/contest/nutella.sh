@@ -14,6 +14,12 @@
 #                                                feito com o UA do agente novo (o login publica sozinho —
 #                                                lib/nutella-bind.sh; isto é p/ quem logou ANTES de a
 #                                                integração existir, ou antes do push-roster).
+# POST {action:"webhooks-install", base_url?, force?, remove?}  (admin; exige chave de ADMINISTRAÇÃO do
+#         nutellaboot — webhooks são rota de console) instala em cada sede do contest o webhook de
+#         alertas apontando p/ POST /hooks/nutella?contest=<c> (handlers/hooks/nutella.sh), com um
+#         segredo por contest gerado AQUI (secrets/nutella-webhook.secret, 600, write-only).
+#         ⚠ O PUT do serviço SUBSTITUI a lista e o GET devolve os segredos mascarados: havendo webhook
+#         de OUTRO dono na sede, recusa (409) — só `force:true` passa por cima.
 # POST {action:"command", op, image, mac?}       admin: qualquer imagem, image:"all" = TODAS
 #         AS SEDES DO CONTEST (uma chamada por sede — nunca a frota do serviço, que tem sedes de
 #         outros eventos); .cstaff/.staff: SÓ imagem da própria sede (fail-CLOSED: sem escopo
@@ -77,15 +83,19 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   imgs="$(nb_images "$contest" | jq -Rcn '[inputs | select(length > 0)]' 2>/dev/null)"; [[ -n "$imgs" ]] || imgs='[]'
   kk="$(nb_key_kind "$contest")"
   bd="$(_nb_bind_json)"; jq -e . >/dev/null 2>&1 <<<"$bd" || bd='null'
+  # webhook de alertas: só EXISTÊNCIA do segredo e nº de eventos recebidos (o segredo é write-only)
+  _wn=0; [[ -s "$cdir/var/nutella-events.log" ]] && _wn="$(wc -l < "$cdir/var/nutella-events.log" | tr -d '[:space:]')"
+  bd="$(jq -c --argjson w "$([[ -s "$cdir/secrets/nutella-webhook.secret" ]] && echo true || echo false)" --argjson n "${_wn:-0}" \
+        '. as $b | {bind: $b, webhook: {installed: $w, events: $n}}' <<<"$bd")"
   if [[ ! -s "$CACHE" ]]; then
-    ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null), bind:$bd, data:null}' \
+    ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null), bind:$bd.bind, webhook:$bd.webhook, data:null}' \
       --argjson c "$cfg" --arg u "$(nb_url "$contest")" --argjson st "$st" \
       --argjson a "$adm" --argjson sc "$scope" --arg kk "$kk" --argjson im "$imgs" --argjson bd "$bd"
     exit 0
   fi
   # o corte de escopo acontece AQUI (API, nunca UI): .cstaff/.staff levam só as sedes
   # deles em `sedes[]` (com máquinas/MACs); os agregados seguem inteiros.
-  ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null), bind:$bd,
+  ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null), bind:$bd.bind, webhook:$bd.webhook,
             data:($d[0] | if $sc == null then .
                   else (.sedes |= map(select((.name | ascii_downcase) as $n | $sc | index($n)))) end)}' \
     --argjson c "$cfg" --arg u "$(nb_url "$contest")" --argjson st "$st" \
@@ -188,6 +198,58 @@ push-roster)
   done < <(jq -r '.sedes[].id' "$CACHE" 2>/dev/null)
   audit_log_to "$contest" nutella-push-roster "pushed=$pushed kept=$kept failed=$failed"
   ok_json '{pushed:$p, kept:$k, failed:$f}' --argjson p "$pushed" --argjson k "$kept" --argjson f "$failed"
+  ;;
+webhooks-install)
+  is_admin || fail 403 "Apenas o admin do contest" "admin_required"
+  nb_configured "$contest" || fail 409 "Integração não configurada" "not_configured"
+  [[ "$(nb_key_kind "$contest")" == admin ]] \
+    || fail 409 "Webhooks são rota de console do nutellaboot: grave uma chave de ADMINISTRAÇÃO (nb3a_) para instalar; depois pode voltar à de serviço" "admin_key_required"
+  force="$(jq -r '.force // false' <<<"$body")"; remove="$(jq -r '.remove // false' <<<"$body")"
+  base="$(jq -r '.base_url // ""' <<<"$body")"; base="${base%/}"
+  if [[ -z "$base" ]]; then
+    # pelo subdomínio do contest a rota /hooks é barrada (isolamento): aí a URL base tem de vir no pedido
+    [[ -z "${CONTEST_HOST:-}" && -n "${HTTP_HOST:-}" ]] || fail 422 "Informe base_url (a URL pública do MOJ, fora do subdomínio do contest)" "base_url_required"
+    base="https://${HTTP_HOST}"
+  fi
+  [[ "$base" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]] || fail 422 "base_url inválida" "base_url_invalid"
+  hook="$base/api/v1/hooks/nutella?contest=$contest"
+  mapfile -t _hs < <({ jq -r '.sedes[]?.id // empty' "$CACHE" 2>/dev/null; nb_images "$contest"; } | sort -u)
+  (( ${#_hs[@]} )) || fail 409 "Sem sedes: colete uma vez ou informe as site-images do evento" "no_sites"
+  secf="$cdir/secrets/nutella-webhook.secret"
+  # 1ª passada: só LÊ — webhook alheio em qualquer sede pára tudo antes de escrever em alguma
+  foreign=0; declare -A _cur=()
+  for _t in "${_hs[@]}"; do
+    [[ "$_t" =~ ^[A-Za-z0-9._-]+$ ]] || continue
+    r="$(nb_curl "$contest" GET "/site-images/$_t/webhooks")"
+    [[ "$(nb_status "$r")" == 200 ]] || fail 502 "nutellaboot recusou a leitura dos webhooks de $_t (HTTP $(nb_status "$r"))" "upstream_error"
+    n="$(jq -r --arg u "$hook" '[ (.webhooks // [])[] | select(.url != $u) ] | length' <<<"$(nb_body "$r")" 2>/dev/null)"
+    _cur["$_t"]="${n:-0}"; foreign=$(( foreign + ${n:-0} ))
+  done
+  if (( foreign > 0 )) && [[ "$force" != true ]]; then
+    fail 409 "Há $foreign webhook(s) de outro dono nas sedes; o nutellaboot só sabe SUBSTITUIR a lista (force:true apaga os deles)" "foreign_webhooks"
+  fi
+  if [[ "$remove" != true && ! -s "$secf" ]]; then
+    mkdir -p "$cdir/secrets"; chmod 700 "$cdir/secrets" 2>/dev/null
+    ( umask 077; LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 48 > "$secf.tmp"; printf '\n' >> "$secf.tmp" ) && mv -f "$secf.tmp" "$secf"
+  fi
+  bf="$(umask 077; mktemp)"
+  if [[ "$remove" == true ]]; then printf '{"webhooks":[]}' > "$bf"
+  else  # o segredo entra por --rawfile: nunca em argv
+    jq -cn --rawfile s "$secf" --arg u "$hook" \
+      '{webhooks: [{url: $u, secret: ($s | gsub("[\\r\\n]"; "")), events: ["alert.raised", "alert.dismissed"]}]}' > "$bf"
+  fi
+  okn=0; badn=0; res='{}'
+  for _t in "${_hs[@]}"; do
+    [[ -n "${_cur[$_t]+x}" ]] || continue
+    r="$(nb_curl "$contest" PUT "/site-images/$_t/webhooks" "$bf")"; st="$(nb_status "$r")"
+    if [[ "$st" == 2* ]]; then okn=$((okn+1)); else badn=$((badn+1)); fi
+    res="$(jq -c --arg k "$_t" --argjson s "${st:-0}" --argjson f "${_cur[$_t]}" '.[$k] = {status: $s, replaced_foreign: $f}' <<<"$res")"
+  done
+  rm -f "$bf"
+  [[ "$remove" == true && $badn -eq 0 ]] && rm -f "$secf"
+  audit_log_to "$contest" nutella-webhooks "$([[ "$remove" == true ]] && echo remove || echo install) ok=$okn failed=$badn foreign=$foreign force=$force"
+  ok_json '{installed:($rm | not), url:$u, ok:$o, failed:$f, sedes:$r}' --argjson rm "$remove" --arg u "$hook" \
+    --argjson o "$okn" --argjson f "$badn" --argjson r "$res"
   ;;
 push-bindings)
   is_admin || fail 403 "Apenas o admin do contest" "admin_required"

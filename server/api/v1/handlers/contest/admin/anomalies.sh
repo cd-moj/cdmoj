@@ -22,7 +22,8 @@ fi
 cdir="$CONTESTSDIR/$contest"
 cf="$cdir/var/.anomalies-cache.${round:-active}.json"
 if resp_cache_fresh "$cf" 15 "$cdir/var/access.log" "$cdir/var/submit-origin.log" \
-     "$cdir/var/session-events.log" "$cdir/ua-gate.json" "$cdir/var/nutella.cache.json"; then
+     "$cdir/var/session-events.log" "$cdir/ua-gate.json" "$cdir/var/nutella.cache.json" \
+     "$cdir/var/nutella-events.log"; then
   emit_json 200 OK; cat "$cf"; exit 0
 fi
 outf="$(mktemp)" || fail 500 "tmp" "tmp"

@@ -2361,13 +2361,58 @@
         }
       }
     },
+    "/hooks/nutella": {
+      "post": {
+        "tags": [
+          "contest"
+        ],
+        "summary": "Webhook do NutellaBoot 3 (alertas das máquinas mlinux) — sem Bearer, autenticado por HMAC do corpo cru",
+        "description": "Cabeçalho `X-NB-Signature: sha256=<HMAC-SHA256 do corpo cru com o segredo do contest>` (segredo gerado por `POST /contest/nutella {action:\"webhooks-install\"}`). Corpo `{event, image, at, data:{mac, id, kind, detail?, vendor?, other_mac?}}`. Só `alert.raised`/`alert.dismissed` viram registro (`var/nutella-events.log`) e entram em `/contest/admin/anomalies` como `machine_alert`; durante a prova o dono do contest é avisado por Telegram, com teto.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "contest",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-NB-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ok, logged, notified} · {ok, duplicate:true} (repetição) · {ok, ignored:true} (evento que não é alerta)"
+          },
+          "401": {
+            "description": "unauthorized — opaco: contest inexistente, sem segredo, assinatura errada, corpo adulterado ou `at` fora de −1 h…+5 min"
+          },
+          "404": {
+            "description": "image_unknown — a imagem não é sede deste contest"
+          },
+          "413": {
+            "description": "too_large — corpo > 64 KiB"
+          },
+          "422": {
+            "description": "mac_invalid"
+          }
+        }
+      }
+    },
     "/contest/nutella": {
       "get": {
         "tags": [
           "contest"
         ],
         "summary": "Panorama das máquinas mlinux (nutellaboot) — admin/chefe tudo; .cstaff/.staff a própria sede; ?catalog=<image> = catálogo de comandos",
-        "description": "`data` = cache da coleta (`var/nutella.cache.json`): `global`, `by_node`, `sedes[]` (cortado ao escopo do staff), `link`, `window`, `contest`, `skipped[]` (sedes que o serviço não devolveu). Com o agente novo do mlinux (NutellaBoot 3) cada agregado pode trazer, tudo opcional: `health{agent_new, psi_mem_sum, psi_cpu_sum, psi_io_sum, psi_n, oom_machines, oom_kills, idle_pts, idle_hi, skew_n, skew_bad, reboots}`, `psi_mem_max`, `model_tm{modelo: n}`, `alert_kinds{kind: n}` e `psi_sum/psi_n[/psi_max]` em `pressure` e `series`. `bind{enabled, published, queued, last_at, log{ok, noroster, image_unknown, retry, error}}` = estado da publicação do vínculo máquina↔time no login (só contagens).",
+        "description": "`data` = cache da coleta (`var/nutella.cache.json`): `global`, `by_node`, `sedes[]` (cortado ao escopo do staff), `link`, `window`, `contest`, `skipped[]` (sedes que o serviço não devolveu). Com o agente novo do mlinux (NutellaBoot 3) cada agregado pode trazer, tudo opcional: `health{agent_new, psi_mem_sum, psi_cpu_sum, psi_io_sum, psi_n, oom_machines, oom_kills, idle_pts, idle_hi, skew_n, skew_bad, reboots}`, `psi_mem_max`, `model_tm{modelo: n}`, `alert_kinds{kind: n}` e `psi_sum/psi_n[/psi_max]` em `pressure` e `series`. `bind{enabled, published, queued, last_at, log{ok, noroster, image_unknown, retry, error}}` = estado da publicação do vínculo máquina↔time no login (só contagens). `webhook{installed, events}` = webhook de alertas instalado e nº de eventos recebidos.",
         "responses": {
           "200": {
             "description": "{configured, url, key_kind:admin|service (a CLASSE da chave, nunca a chave), images:[ids de NUTELLABOOT_IMAGES], status, can_admin, scoped, data:{version:2, contest, link, global, by_node, sedes[]}} — agregados por recorte (pop, ram_bands, ed_adopt/ed_groups/ed_count/profiles, pressure, rank_ed, series); ver docs/NUTELLABOOT.md"
@@ -2384,7 +2429,7 @@
         "summary": "Ações da integração nutellaboot: config (chave write-only)/collect/push-roster/push-bindings (admin) e command (admin ou c/staff na própria sede, fail-closed)",
         "responses": {
           "200": {
-            "description": "config {url?, key? (nb3s_ de serviço ou nb3a_ de administração), images? (ids das site-images do evento; obrigatório com chave de serviço), bind? (false desliga a publicação do vínculo máquina↔time no login)}:{saved,configured,key_kind} · collect:{started} · push-roster:{pushed,kept,failed} · push-bindings:{queued,bind} (replay do access.log: o último login de cada MAC volta p/ a fila e o drenador faz o PUT do binding no serviço) · command {op, image, mac?}:{sent,op,image,mac,ok,failed,sedes:{<id>:{status,command_id,machines,detail?}},upstream} — image:\"all\" = uma ordem por sede DO CONTEST (nunca a frota do serviço); com mac, vai à rota da sede com target:[mac]"
+            "description": "config {url?, key? (nb3s_ de serviço ou nb3a_ de administração), images? (ids das site-images do evento; obrigatório com chave de serviço), bind? (false desliga a publicação do vínculo máquina↔time no login)}:{saved,configured,key_kind} · collect:{started} · push-roster:{pushed,kept,failed} · push-bindings:{queued,bind} (replay do access.log: o último login de cada MAC volta p/ a fila e o drenador faz o PUT do binding no serviço) · webhooks-install {base_url?, force?, remove?}:{installed,url,ok,failed,sedes:{<id>:{status,replaced_foreign}}} (exige chave de ADMINISTRAÇÃO do nutellaboot — 409 admin_key_required; webhook de outro dono na sede = 409 foreign_webhooks sem force) · command {op, image, mac?}:{sent,op,image,mac,ok,failed,sedes:{<id>:{status,command_id,machines,detail?}},upstream} — image:\"all\" = uma ordem por sede DO CONTEST (nunca a frota do serviço); com mac, vai à rota da sede com target:[mac]"
           },
           "403": {
             "description": "admin_required/site_forbidden/command_scope_required"

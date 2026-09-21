@@ -182,6 +182,26 @@ máquina↔time** (roster/binding).
 - **Roster**: `POST {action:"push-roster"}` PUBLICA o roster do STORE nas imagens (user_id=login, nome do
   time, universidade, país; os times de cada sede vêm da última coleta — que, com roster vazio, os tira do
   UA dos logins) — sem `force` ele NUNCA atropela roster já povoado (o da Maratona veio do ICPC).
+- **Alertas em tempo real (webhooks, 21/09)**: o serviço avisa por `POST` assinado (`X-NB-Signature:
+  sha256=<HMAC-SHA256 do corpo cru>`; até 3 tentativas, 5 s cada) — o MOJ recebe em **`POST /api/v1/hooks/
+  nutella?contest=<c>`** (`handlers/hooks/nutella.sh`), sem Bearer. Segredo POR CONTEST em
+  `secrets/nutella-webhook.secret` (600); a conferência é em **python3 stdlib** (`hmac.compare_digest`) lendo
+  segredo e corpo de ARQUIVO — `openssl dgst -hmac <segredo>` poria o segredo no `ps`. **401 opaco** p/ tudo que
+  não autentica (inclusive contest inexistente e evento velho: o `at` está no corpo assinado, janela −1 h…+5 min);
+  só depois vêm 404 (imagem que não é sede do contest), 422, `ignored` (evento que não é alerta) e `duplicate`.
+  `alert.raised`/`alert.dismissed` → `var/nutella-events.log` (JSONL, teto de 5 MB) com o TIME resolvido pelo elo
+  do login (`nutella-macs.tsv`; senão a última coleta) e `mkey = "m:" + md5(MAC)` — o machine_id do agente novo
+  É md5(MAC), então o alerta cai na MESMA chave de máquina do painel **Máquinas › Anomalias** (`events[]`,
+  `kind:"machine_alert"`, cartão próprio quando há algum). Aviso por Telegram (DM ao DONO do contest, outbox da
+  `lib/alerts.sh`) só `alert.raised`, só DURANTE a prova (início−1 h … fim: na montagem todo mundo espeta
+  pendrive) e com teto — 1 por máquina+tipo e 10 por contest a cada 10 min; o log não tem teto de aviso.
+  **Instalar**: `POST /contest/nutella {action:"webhooks-install", base_url?}` (cartão no painel) — exige chave
+  de ADMINISTRAÇÃO (webhooks são rota de console), gera o segredo, pede só os dois eventos de alerta. ⚠ O `PUT
+  …/webhooks` do serviço SUBSTITUI a lista e o `GET` mascara os segredos: havendo webhook de outro dono na sede o
+  MOJ recusa antes de escrever em qualquer sede (`force` passa por cima, apagando o deles). A rota não atende
+  pelo subdomínio do contest (isolamento), por isso a URL base vai no pedido. Depende de o nginx repassar o
+  cabeçalho `X-NB-Signature` (repassa por omissão — `fastcgi_pass_request_headers on`, como já acontece com
+  `If-None-Match`); conferir com um POST assinado depois do deploy.
 - **Anomalias e a identidade da máquina**: a chave GRAVADA (`MKEY` da sessão, `submit-origin.log`,
   `sess_machine_key`) segue `m:<machine_id>/<boot_id>` — trocar o formato no meio de uma prova faria sessão
   antiga e requisição nova divergirem. A normalização é na APURAÇÃO (`lib/anomalies.sh`): `machine_id` visto
@@ -210,7 +230,9 @@ comando e push-roster. A view tem o seu: `smoke-mlinux-view.gjs.sh` (DOM falso n
 relatório a inlina; cache novo × antigo, pt × en). O elo pelo MAC (clone de machine_id + reboot) e o
 binding de reserva estão no `smoke-contest-nutella.sh`; a publicação no login tem o `smoke-nutella-bind.sh`
 (o que publica e o que NÃO, dedup, reboot, 404 do roster, 503 ⇒ retry, replay, e o caminho DESTACADO de
-produção com o serviço lento); a identidade estável, no `smoke-contest-anomalies.sh`. O relatório é coberto no `smoke-contest-report.sh` (página condicional, sem
+produção com o serviço lento); a identidade estável, no `smoke-contest-anomalies.sh`; os webhooks, no
+`smoke-nutella-hook.sh` (opacidade do 401, corpo adulterado, outro segredo, frescor, 413, repetição, tetos de
+aviso, fora da prova, instalação com webhook alheio/`force`/remoção, e a trilha de Anomalias). O relatório é coberto no `smoke-contest-report.sh` (página condicional, sem
 MAC/teams/_rows, view 2.0 embutida, invariantes). O jq do coletor vive em VARIÁVEIS
 (`AGG_JQ`), que o `jq-portability.sh` não vê: rode o coletor com o jq 1.7 da imagem
 (`--reaggregate` num bruto guardado) antes de deployar mudança nele.

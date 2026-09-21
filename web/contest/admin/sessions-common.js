@@ -26,6 +26,8 @@ export const KINDS = () => ({
     hint: T('revogação pela sessão única, deslogar do admin ou deslogar UA divergente', 'revocation by single-session, admin logout or mismatched-UA logout') },
   site_lock: { icon: '🔒', label: T('trava de sede', 'site lock'),
     hint: T('IP da sede preso a este contest (reivindicação no login) ou pedido daquele IP a outro alvo bloqueado (403 site_locked)', 'site IP pinned to this contest (claim at login) or a request from that IP to another target blocked (403 site_locked)') },
+  machine_alert: { icon: '🔌', label: T('alerta da máquina', 'machine alert'),
+    hint: T('alerta que o agente do mlinux levantou na máquina e o nutellaboot avisou: pendrive, celular ou rede por USB, identidade repetida. Fica aberto até alguém dispensar no nutellaboot.', 'alert raised by the mlinux agent on the machine and reported by nutellaboot: USB storage, phone or USB network, duplicate identity. It stays open until someone dismisses it in nutellaboot.') },
 });
 export const SEV = () => ({ bad: T('grave', 'severe'), warn: T('atenção', 'attention'), info: T('info', 'info') });
 export const sevPill = (s) => el('span', { class: 'pill ' + (s === 'bad' ? 'bad' : s === 'warn' ? 'warn' : '') }, SEV()[s] || s);

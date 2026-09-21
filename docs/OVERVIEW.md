@@ -470,6 +470,16 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   matriz). O **alerta de conflito** (banner + bip) é **global** (`shared/chief-alert.js`): segue o
   chief/admin em **qualquer página** do contest e abre a fila já filtrada em conflitos.
 
+### Máquinas mlinux: integração NutellaBoot 3 (`docs/NUTELLABOOT.md`)
+O serviço que boota as máquinas da prova (uma **site-image** por sede) conversa com o MOJ nos DOIS sentidos.
+**MOJ → serviço** (`lib/nutella.sh`, chave em `secrets/`): o coletor `score/nutella-gen.sh` baixa máquinas e
+séries (em lote, 1 request por sede) e agrega por sede → `var/nutella.cache.json` (hardware, editores, pressão
+com PSI, saúde na prova), servido por `/contest/nutella` e embutido no relatório; comandos remotos por sede; e o
+**login publica o elo máquina↔time** (`lib/nutella-bind.sh`: fila + drenador destacado — o UA do agente novo
+traz o MAC). **Serviço → MOJ**: webhooks de alerta assinados por HMAC em `POST /hooks/nutella` (a única rota sem
+Bearer que escreve; 401 opaco) → `var/nutella-events.log` → Máquinas › Anomalias + Telegram ao dono durante a
+prova. Tudo atrás do módulo `maquinas`; nada disso está no caminho do julgamento.
+
 ### Juiz `.judge`, juiz-chefe `.cjudge` & veredicto manual
 **Papéis** (sufixo no login; ver `lib/auth.sh`): `.judge` submete a qualquer hora (fora do
 placar/estatísticas), responde clarifications e cria avisos; **`.cjudge`** (juiz-chefe) **herda**

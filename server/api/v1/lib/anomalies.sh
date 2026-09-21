@@ -68,6 +68,12 @@ an_build(){
       gsub(/["\\]/,"",$2); gsub(/["\\]/,"",$4)
       printf "{\"t\":%d,\"who\":\"%s\",\"action\":\"%s\",\"detail\":\"%s\"}\n", $1, $2, $3, $4 }' \
     "$cdir/var/admin-audit.log" > "$W/sl.json"
+  # --- alertas das MÁQUINAS (webhook do nutellaboot → var/nutella-events.log, JSONL) ---------
+  # pendrive/celular espetado, identidade repetida… já vem em JSON; só o recorte da janela. `mkey` =
+  # "m:" + md5(MAC) = o machine_id do agente novo ⇒ a MESMA chave de máquina do resto do painel.
+  : > "$W/nbev.json"
+  [[ -s "$cdir/var/nutella-events.log" ]] && jq -c --argjson a "$ws" --argjson b "$ce" \
+      'select(type == "object" and (.t // 0) >= $a and (.t // 0) <= $b)' "$cdir/var/nutella-events.log" > "$W/nbev.json" 2>/dev/null
   # --- sessões VIVAS do contest -------------------------------------------------------------
   # Pelo índice (barato: só os tokens deste contest). Sem índice semeado: varredura completa,
   # que semeia (só apêndice, flock -n) — a mesma doutrina do sessions.sh.
@@ -155,7 +161,7 @@ an_build(){
   # --- o jq único ----------------------------------------------------------------------------
   jq -n --slurpfile acc "$W/acc.json" --slurpfile sess "$W/sess.json" --slurpfile sub "$W/sub.json" \
         --slurpfile ev "$W/ev.json" --slurpfile users "$W/users.json" --slurpfile exp "$W/exp.json" \
-        --slurpfile nut "$W/nut.json" --slurpfile sl "$W/sl.json" \
+        --slurpfile nut "$W/nut.json" --slurpfile sl "$W/sl.json" --slurpfile nbev "$W/nbev.json" \
         --arg mode "$mode" --arg single "$single" --arg round "$s" \
         --argjson cs "$cs" --argjson ce "$ce" --argjson ws "$ws" --argjson now "$EPOCHSECONDS" '
     # sem regex nos caminhos quentes: jq recompila a regex a CADA chamada (test ≈ 6 µs, capture
@@ -252,7 +258,13 @@ an_build(){
            | {kind:"site_lock", severity:(if .action == "site-lock-block" then "bad" else "info" end), at:.t,
               login:(($d.login // "-") | if . == "-" then "" else . end), name:(nm(($d.login // "") | if . == "-" then "" else . end)), region:"",
               machine:("ip:" + ($d.ip // "")),
-              detail:{event:.action, ip:($d.ip // ""), target:($d.target // ""), route:($d.route // ""), until:($d.until // "")}} ]) as $EV
+              detail:{event:.action, ip:($d.ip // ""), target:($d.target // ""), route:($d.route // ""), until:($d.until // "")}} ]
+       + [ $nbev[] | (.event == "alert.raised") as $up
+           | {kind:"machine_alert",
+              severity:(if ($up | not) then "info" elif ((.kind // "") | startswith("usb.")) then "bad" else "warn" end),
+              at:.t, login:(.team // ""), name:(nm(.team // "")), region:(rg(.team // "")), machine:(.mkey // ""),
+              detail:{event:.event, alert:(.kind // ""), text:(.detail // ""), vendor:(.vendor // ""), image:(.image // ""),
+                      mac:(.mac // ""), other_mac:(.other_mac // ""), notified:(.notified // false)}} ]) as $EV
     | (if $active then ($MS + $SH + $SO + $UM + $SW + $SS) else [] end) as $AN
     | (($AN | map(.login) | map(split(", ")[]) | unique) + ($SESS | keys)) as $TL
     # --- última submissão por login ----------------------------------------------------------
@@ -276,7 +288,8 @@ an_build(){
                   switched: ([ $AN[] | select(.kind == "switched") ] | length),
                   revoked: ([ $ev[] | select(.event == "revoke") ] | length), events: ($ev | length),
                   site_lock_blocks: ([ $sl[] | select(.action == "site-lock-block") ] | length),
-                  site_lock_claims: ([ $sl[] | select(.action == "site-lock-claim") ] | length) },
+                  site_lock_claims: ([ $sl[] | select(.action == "site-lock-claim") ] | length),
+                  machine_alerts: ([ $nbev[] | select(.event == "alert.raised") ] | length) },
         anomalies: ($AN | sort_by(-.at)),
         events: ($EV | sort_by(-.at) | .[0:500]),
         # sem gate o painel esconde a tabela de times: não mandar 1.900 linhas (1,3 MB na LATAM)

@@ -40,7 +40,7 @@ globalThis.document={ createElement:(t)=>new FakeNode(t), createTextNode:(t)=>({
 function T(pt,en){ return pt; }
 globalThis.confirm=()=>false; globalThis.alert=()=>{}; globalThis.setInterval=(f,ms)=>1; globalThis.clearInterval=()=>{};
 globalThis.setTimeout=(f)=>1; globalThis.clearTimeout=()=>{};
-globalThis.location={hash:'', search:'', hostname:'x'}; globalThis.URL={createObjectURL:()=>'blob:x', revokeObjectURL:()=>{}}; globalThis.Blob=function(){};
+globalThis.location={hash:'', search:'', hostname:'x', origin:'https://c.x'}; globalThis.URL={createObjectURL:()=>'blob:x', revokeObjectURL:()=>{}}; globalThis.Blob=function(){};
 globalThis.window={open:()=>null, addEventListener:()=>{}}; globalThis.fetch=async()=>({ok:false,status:500});
 globalThis.URLSearchParams=class { constructor(){} get(){ return null; } toString(){ return ''; } };
 document.getElementById=(id)=>new FakeNode('div');
@@ -107,15 +107,17 @@ check "$(kv tasks cfg_rebuilt_clean)" true "tasks: config refeita depois que o t
 
 # ---------------------------------------------------------------- mlinux (mlinux-tab) -------
 run mlinux mlinux-tab.js '
-let R={configured:true,url:"https://nb",can_admin:true,bind:{enabled:true,published:3,queued:0,log:{}},status:{running:true,phase:"1/3"},data:{collected_at:1,version:2,link:{mode:"ua",linked:1,present:1,coverage:100},window:{},contest:"c",global:{},by_node:{},sedes:[{id:"26x",name:"X",seen:1,machines:[{mac:"aa"}]}]}};
+let R={configured:true,url:"https://nb",can_admin:true,bind:{enabled:true,published:3,queued:0,log:{}},webhook:{installed:false,events:0},status:{running:true,phase:"1/3"},data:{collected_at:1,version:2,link:{mode:"ua",linked:1,present:1,coverage:100},window:{},contest:"c",global:{},by_node:{},sedes:[{id:"26x",name:"X",seen:1,machines:[{mac:"aa"}]}]}};
 async function apiGet(p){ if(p.includes("/nutella")) return JSON.parse(JSON.stringify(R)); if(p.includes("/regions")) return []; return {}; }
-(async()=>{ const tab=makeMlinuxTab("c"); await tab.load(); const k0=[...tab.panel.children]; const cfg0=k0[2].children[0], col0=k0[3].children[0], bnd0=k0[4].children[0], cmd0=k0[5].children[0], pan0=k0[6].children[0];
+(async()=>{ const tab=makeMlinuxTab("c"); await tab.load(); const k0=[...tab.panel.children]; const cfg0=k0[2].children[0], col0=k0[3].children[0], bnd0=k0[4].children[0], hk0=k0[5].children[0], cmd0=k0[6].children[0], pan0=k0[7].children[0];
   R.status.phase="2/3"; await tab.load(); const k1=[...tab.panel.children];
-  print("same_skeleton="+k0.every((n,i)=>n===k1[i])); print("collect_changed="+(k1[3].children[0]!==col0)); print("cfg_kept="+(k1[2].children[0]===cfg0)); print("cmd_kept="+(k1[5].children[0]===cmd0)); print("pan_kept="+(k1[6].children[0]===pan0)); print("bind_kept="+(k1[4].children[0]===bnd0));
+  print("same_skeleton="+k0.every((n,i)=>n===k1[i])); print("collect_changed="+(k1[3].children[0]!==col0)); print("cfg_kept="+(k1[2].children[0]===cfg0)); print("cmd_kept="+(k1[6].children[0]===cmd0)); print("pan_kept="+(k1[7].children[0]===pan0)); print("bind_kept="+(k1[4].children[0]===bnd0)); print("hook_kept="+(k1[5].children[0]===hk0));
   R.status={running:false,ok:true,finished_at:2}; R.data.collected_at=2; await tab.load(); const k2=[...tab.panel.children];
-  print("pan_rebuilt_after_collect="+(k2[6].children[0]!==pan0)); print("cmd_kept2="+(k2[5].children[0]===cmd0));
+  print("pan_rebuilt_after_collect="+(k2[7].children[0]!==pan0)); print("cmd_kept2="+(k2[6].children[0]===cmd0));
   R.bind.published=4; await tab.load(); const k3=[...tab.panel.children];
-  print("bind_changed="+(k3[4].children[0]!==bnd0)); print("pan_kept_on_bind="+(k3[6].children[0]===k2[6].children[0]));
+  print("bind_changed="+(k3[4].children[0]!==bnd0)); print("pan_kept_on_bind="+(k3[7].children[0]===k2[7].children[0]));
+  R.webhook={installed:true,events:2}; await tab.load(); const k4=[...tab.panel.children];
+  print("hook_changed="+(k4[5].children[0]!==hk0)); print("bind_kept_on_hook="+(k4[4].children[0]===k3[4].children[0]));
 })().catch(e=>print("ERRO "+e+"\n"+e.stack));' > "$T/mlinux.out"
 check "$(kv mlinux same_skeleton)" true "mlinux: esqueleto idêntico durante a coleta"
 check "$(kv mlinux collect_changed)" true "mlinux: caixa de coleta atualizou (fase)"
@@ -127,6 +129,9 @@ check "$(kv mlinux cmd_kept2)" true "mlinux: comando ficou mesmo com coleta nova
 check "$(kv mlinux bind_kept)" true "mlinux: cartão do vínculo ficou durante a coleta"
 check "$(kv mlinux bind_changed)" true "mlinux: cartão do vínculo atualizou quando a contagem mudou"
 check "$(kv mlinux pan_kept_on_bind)" true "mlinux: …sem reconstruir o panorama"
+check "$(kv mlinux hook_kept)" true "mlinux: cartão do webhook ficou durante a coleta"
+check "$(kv mlinux hook_changed)" true "mlinux: cartão do webhook atualizou quando instalou"
+check "$(kv mlinux bind_kept_on_hook)" true "mlinux: …sem reconstruir o cartão do vínculo"
 
 # ------------------------------------------------------------ Sessões (sessions-tab, slim) -------
 run sessions sessions-tab.js '

@@ -908,7 +908,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   submit-origin): trocar formato no meio de uma prova faz sessão antiga × requisição nova divergirem — a
   identidade estável (`m:<mid>` quando o mid foi visto com MAC) é só na APURAÇÃO (`lib/anomalies.sh`);
   bash (`sess_machine_key`) e jq (`mkey`) continuam gêmeos. Teste de processo destacado: pergunte ao LOCK
-  (`flock -n`), não ao `pgrep -f` (ele casa com o shell que roda o teste). O jq do coletor mora em VARIÁVEIS — o
+  (`flock -n`), não ao `pgrep -f` (ele casa com o shell que roda o teste). **Webhooks de alerta**: `POST
+  /hooks/nutella?contest=<c>` (`handlers/hooks/nutella.sh`) é a ÚNICA rota sem Bearer que ESCREVE — autentica
+  por HMAC do corpo cru (python3 stdlib, segredo e corpo lidos de ARQUIVO; nunca `openssl -hmac <segredo>` em
+  argv), responde **401 opaco** p/ tudo que não autentica (rota pública não é oráculo de existência) e só
+  depois valida imagem/MAC; `at` do corpo assinado dá o frescor, (evento,id,mac) dá a idempotência. Alertas →
+  `var/nutella-events.log` → `events[]` do `/contest/admin/anomalies` (`machine_alert`, chave `m:md5(MAC)`) +
+  DM ao dono SÓ durante a prova e com teto. `webhooks-install` exige chave admin e recusa atropelar webhook
+  alheio (o PUT do serviço substitui a lista). O jq do coletor mora em VARIÁVEIS — o
   `jq-portability.sh` não o compila: rode os smokes com o jq 1.7 antes de deployar. Teste
   com mock: `smoke-contest-nutella.sh`. Comando novo se valida na imagem de TESTE `26tete`,
   nunca numa sede real.

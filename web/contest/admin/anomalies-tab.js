@@ -81,7 +81,9 @@ export function makeAnomaliesTab(CONTEST) {
       card(c.site_short || 0, K.site_short.label, 'site_short', true),
       card(c.switched || 0, K.switched.label, 'switched', false),
       card(c.revoked || 0, T('revogações', 'revocations'), 'session_event', false),
-      card(c.site_lock_blocks || 0, T('bloqueios da trava', 'lock blocks'), 'site_lock', true));
+      card(c.site_lock_blocks || 0, T('bloqueios da trava', 'lock blocks'), 'site_lock', true),
+      // só aparece quando o webhook do nutellaboot já entregou algum alerta (contest sem mlinux não ganha cartão vazio)
+      (c.machine_alerts ? card(c.machine_alerts, K.machine_alert.label, 'machine_alert', true) : null));
   }
 
   // --- 3. linha do tempo ------------------------------------------------------------------
@@ -122,6 +124,13 @@ export function makeAnomaliesTab(CONTEST) {
         case 'site_lock': return dd.event === 'site-lock-block'
           ? T(`BLOQUEADO: pedido a "${dd.target && dd.target !== '-' ? dd.target : 'treino/índice'}" (${dd.route}) de IP preso a este contest`, `BLOCKED: request to "${dd.target && dd.target !== '-' ? dd.target : 'training/index'}" (${dd.route}) from an IP pinned to this contest`)
           : T(`IP preso a este contest até ${fmtClock(+dd.until || 0)}`, `IP pinned to this contest until ${fmtClock(+dd.until || 0)}`);
+        case 'machine_alert': {
+          const an = ({ 'usb.storage': T('pendrive ou HD externo', 'USB storage'), 'usb.phone': T('celular', 'phone'), 'usb.network': T('rede por USB', 'USB network'),
+            'usb.other': T('outro dispositivo USB', 'other USB device'), 'identity.duplicate': T('identidade repetida', 'duplicate identity') })[dd.alert] || dd.alert;
+          return (dd.event === 'alert.dismissed' ? T('dispensado: ', 'dismissed: ') : '') + an + (dd.vendor ? ' (' + dd.vendor + ')' : '') + (dd.text ? ' — ' + dd.text : '')
+            + T(` · sede ${dd.image}, máquina ${dd.mac}`, ` · site ${dd.image}, machine ${dd.mac}`) + (dd.other_mac ? T(`, igual a ${dd.other_mac}`, `, same as ${dd.other_mac}`) : '')
+            + (dd.notified ? T(' · avisado por Telegram', ' · notified by Telegram') : '');
+        }
         default: return JSON.stringify(dd);
       }
     }
