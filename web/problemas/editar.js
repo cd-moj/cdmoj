@@ -39,7 +39,9 @@ let SCORE = { enabled: false, groups: [] };   // pontuação por grupos (espelho
 let VAL = { validated: 'na', calibrated: 'na' };   // estado p/ a barra de prontidão
 let LASTVAL = null, LASTINFO = null, LASTCALIB = null;   // últimos dados de validação/calibração
 let RUNNING = '';                                        // '', 'calibrate' ou 'publish' — em execução no juiz
-let calibTimer = null, calibPrevMax = 0;                 // polling do resultado (atualiza sozinho)
+let calibTimer = null, calibPollMs = 0, calibStart = 0, calibBusy = false;   // polling do resultado
+let CALIB_LIVE = [];                                     // [{host,since,state}] EM VOO agora, do servidor
+let SAVED_AT = 0;                                        // epoch do último Salvar (versão nova do pacote)
 let JUDGES = [];                                          // juízes do registro (calibração direcionada)
 const OPEN_LOGS = new Set();                              // hosts com "ver log" aberto (sobrevive ao re-render do polling)
 const OPEN_SOLS = new Set();                              // soluções com a tabela de testes aberta (idem)
@@ -372,7 +374,20 @@ function updateReady() {
   $('tabTestsMini').textContent = (nEx + nTs) ? `(${nEx}+${nTs})` : '';
   const ns = SOL_CATS.reduce((a, [c]) => a + (solEditors[c] || []).length, 0);
   $('tabSolsMini').textContent = ns ? `(${ns})` : '';
+  // CALIBRAR enquanto já há uma em voo: o servidor deduplica contra o que está na FILA, então o
+  // clique não faria nada — o botão diz isso em vez de fingir que disparou. Quem SALVOU depois do
+  // pedido continua podendo pedir (a que está rodando pegou a versão anterior).
+  const cb = $('calibrate');
+  if (cb) {
+    const busy = calibRunning() && !savedSinceCalib();
+    cb.disabled = !!busy;
+    cb.title = busy ? T('Já há uma calibração deste problema em andamento — o resultado aparece sozinho.',
+                        'A calibration of this problem is already running — the result shows up by itself.') : '';
+  }
 }
+// salvou DEPOIS que a calibração em voo começou? então pedir outra é legítimo (é outra versão)
+const savedSinceCalib = () => CALIB_LIVE.length > 0 && SAVED_AT > 0
+  && SAVED_AT > Math.min(...CALIB_LIVE.map(c => c.since || 0));
 
 // ---- exemplos (sample, aparecem no enunciado) --------------------------------------------
 function exampleRow(input = '', output = '', explanation = '') {
@@ -869,30 +884,69 @@ async function loadValidation() {
   const [val, info, calib] = await Promise.all([     // 3 GETs em paralelo (antes era sequencial)
     g('/problems/validation?id='), g('/problems/get?id='), g('/problems/calib?id='),
   ]);
-  LASTVAL = val; LASTINFO = info; LASTCALIB = calib;
-  const nHosts = ((calib && calib.hosts) || []).length;
-  VAL.validated = (RUNNING === 'publish') ? 'run' : ((val && Array.isArray(val.checks) && val.checks.length) ? (val.ok ? 'ok' : 'todo') : 'na');
-  VAL.calibrated = RUNNING ? 'run' : (nHosts ? 'ok' : 'na');
+  // ERRO DE REDE NÃO APAGA A TELA: um 500/timeout num tick deixava LASTCALIB=null e os cartões dos
+  // juízes SUMIAM até o tick seguinte (o `.catch(() => null)` acima é best-effort de propósito).
+  if (val) LASTVAL = val;
+  if (info) LASTINFO = info;
+  if (calib) { LASTCALIB = calib; CALIB_LIVE = Array.isArray(calib.calibrating) ? calib.calibrating : []; }
+  const nHosts = ((LASTCALIB && LASTCALIB.hosts) || []).length;
+  // o SERVIDOR é quem sabe se ainda está calibrando; 'publish' segue até os checks chegarem
+  if (RUNNING === 'calibrate' && !calibRunning()) RUNNING = '';
+  if (RUNNING === 'publish' && LASTVAL && Array.isArray(LASTVAL.checks) && LASTVAL.checks.length && !calibRunning()) RUNNING = '';
+  VAL.validated = (RUNNING === 'publish') ? 'run' : ((LASTVAL && Array.isArray(LASTVAL.checks) && LASTVAL.checks.length) ? (LASTVAL.ok ? 'ok' : 'todo') : 'na');
+  VAL.calibrated = (RUNNING || calibRunning()) ? 'run' : (nHosts ? 'ok' : 'na');
   maybeRenderVal(); updateReady();   // só reconstrói o painel se algo mudou (não a cada poll)
 }
 // dispara Calibrar/Validar e fica buscando o resultado sozinho (a calibração roda no juiz).
-// "pronto" = algum juiz reportou DEPOIS do disparo (independe do relógio do cliente).
-const maxCalibAt = () => Math.max(0, ...(((LASTCALIB && LASTCALIB.hosts) || []).map(h => h.at || 0)));
-function startPolling() {
-  if (calibTimer) { clearInterval(calibTimer); calibTimer = null; }
-  let tries = 0;
-  calibTimer = setInterval(async () => {
-    tries++;
-    await loadValidation();   // atualiza o painel ao vivo
-    const fresh = maxCalibAt() > calibPrevMax;
-    const validated = RUNNING === 'publish' && LASTVAL && Array.isArray(LASTVAL.checks) && LASTVAL.checks.length;
-    if (RUNNING && (fresh || validated)) { RUNNING = ''; updateReady(); renderVal(); setMsg(T('Resultado chegou ✓', 'Result arrived ✓'), 'v-ok'); }
-    if (tries >= 20) {        // ~80s: para de buscar (segue refrescando até lá p/ pegar todos os juízes)
-      clearInterval(calibTimer); calibTimer = null;
-      if (RUNNING) { RUNNING = ''; await loadValidation(); setMsg(T('Ainda processando — recarregue se faltar algum juiz.', 'Still processing — reload if some judge is missing.'), ''); }
-    }
-  }, 4000);
+//
+// QUEM DIZ QUE ACABOU É O SERVIDOR (`/problems/calib`: `being_calibrated` + `calibrating[]`), nunca
+// o relógio do cliente. Antes a parada era "20 ticks de 4 s" (80 s) + "algum juiz reportou um `at`
+// maior", e isso errava de quatro jeitos ao mesmo tempo (relatos do José Leite e do Arthur Botelho,
+// 21/09/2026): (1) calibração real leva MINUTOS — medi 3 a 7 min no acervo da Maratona —, então aos
+// 80 s o aviso sumia e o polling parava PARA SEMPRE, sem re-arme; (2) a âncora `calibPrevMax` lia o
+// LASTCALIB em memória, que é null enquanto o boot não terminou ⇒ o 1º tick achava "novo" o `at`
+// ANTIGO e declarava pronto em 4 s — era literalmente "a mensagem aparece e some"; (3) com N juízes,
+// o primeiro a reportar encerrava tudo; (4) calibração que termina SEM TL novo (good que falhou, o
+// caso de quem está consertando solução) não mexia no `at` e NUNCA era detectada.
+const calibRunning = () => CALIB_LIVE.length > 0;
+const CALIB_CEIL_MS = 15 * 60 * 1000;   // teto honesto: acima do UPD_TTL do servidor nada fica em voo
+function stopPolling() { if (calibTimer) { clearInterval(calibTimer); calibTimer = null; } }
+function armPolling(ms) { stopPolling(); calibPollMs = ms; calibTimer = setInterval(pollTick, ms); }
+// começa (ou mantém) o polling quando há algo em voo — inclusive ao ABRIR a página com uma
+// calibração já rodando, que antes não aparecia em lugar nenhum
+function ensurePolling() {
+  if (!(RUNNING || calibRunning())) { stopPolling(); return; }
+  if (!calibTimer) { calibStart = Date.now(); armPolling(4000); }
 }
+async function pollTick() {
+  if (calibBusy) return;                    // SERIALIZADO: resposta velha não sobrescreve a nova
+  calibBusy = true;
+  const was = RUNNING || calibRunning();
+  try { await loadValidation(); } catch { /* best-effort: a próxima volta tenta de novo */ }
+  finally { calibBusy = false; }
+  const now = RUNNING || calibRunning();
+  if (was && !now) {                        // transição rodando -> parado = acabou de verdade
+    stopPolling(); renderVal(); updateReady();
+    setMsg(T('Calibração concluída ✓', 'Calibration finished ✓'), 'v-ok');
+    return;
+  }
+  if (!now) { stopPolling(); return; }
+  const elapsed = Date.now() - calibStart;
+  if (elapsed > CALIB_CEIL_MS) {            // não some em silêncio: diz onde olhar (e volta no foco)
+    stopPolling();
+    setMsg(T('Ainda calibrando depois de 15 min — acompanhe no Painel de problemas.',
+             'Still calibrating after 15 min — follow it on the problems panel.'), '');
+    return;
+  }
+  if (elapsed > 60000 && calibPollMs === 4000) armPolling(8000);   // primeiro minuto rápido, depois calmo
+}
+function startPolling() { stopPolling(); calibStart = Date.now(); armPolling(4000); }
+// aba em segundo plano AFUNILA o setInterval (~1/min): ao voltar, confere na hora e re-arma — era
+// por isso que "às vezes funciona, às vezes não" dependia de a aba estar visível
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !ID) return;
+  loadValidation().then(() => { if (RUNNING || calibRunning()) { if (!calibTimer) { calibStart = Date.now(); armPolling(4000); } } });
+});
 const tlLine = (tl) => Object.entries(tl || {}).filter(([k]) => k !== 'default').map(([k, v]) => `${k}: ${v}s`).join(' · ');
 // abre o report.html (rico) de uma solução, gerado na calibração daquele juiz, numa nova aba
 async function openCalibReport(host, name) {
@@ -998,12 +1052,25 @@ function tlSummaryTable(hosts, served) {
 }
 // assinatura do que o painel mostra: só reconstrói quando MUDA — senão o polling (a cada 4s)
 // destruía o DOM e o scroll do log "voltava pro topo" / o botão de fechar brigava com o re-render.
+// "· judge-sp1, há 3 min" — de `calibrating[]` (fila + em execução, inclusive a dirigida)
+const minsSince = (t) => Math.max(0, Math.floor((Date.now() / 1000 - (t || 0)) / 60));
+function calibWhere() {
+  if (!CALIB_LIVE.length) return '';
+  const named = CALIB_LIVE.filter(c => c.host);
+  const parts = (named.length ? named : CALIB_LIVE).map(c => {
+    const m = c.since ? (T(', há ', ', ') + minsSince(c.since) + T(' min', ' min ago')) : '';
+    if (!c.host) return T('na fila', 'queued') + m;
+    return c.host + (c.state === 'queued' ? T(' (na fila)', ' (queued)') : '') + m;
+  });
+  return ' · ' + parts.join(' · ') + '.';
+}
 function valRenderSig() {
   const hosts = (LASTCALIB && LASTCALIB.hosts) || [];
   const checks = (LASTVAL && LASTVAL.checks) || [];
   const served = (LASTINFO && (LASTINFO.time_limits || LASTINFO.tl)) || {};
   return JSON.stringify({
     run: RUNNING,
+    live: CALIB_LIVE.map(c => `${c.host}|${c.state}|${minsSince(c.since)}`),
     checks: checks.map(c => `${c.name}:${c.ok}:${c.detail || ''}`),
     hosts: hosts.map(h => `${h.host}|${h.at}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}|${(h.sols || []).map(s => `${s.category}/${s.file}:${s.verdict}:${(s.tests || []).length}`).join(',')}`),
     served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
@@ -1019,11 +1086,14 @@ function renderVal() {
   const hosts = (calib && calib.hosts) || [];
   const served = (info && (info.time_limits || info.tl)) || {};   // o que o aluno vê (json servido)
   const checks = (val && Array.isArray(val.checks)) ? val.checks : [];
-  if (!ID || (!checks.length && !hosts.length && !RUNNING)) { box.style.display = 'none'; return; }
+  if (!ID || (!checks.length && !hosts.length && !RUNNING && !calibRunning())) { box.style.display = 'none'; return; }
   box.style.display = '';
   box.append(el('h3', {}, T('Validação & calibração', 'Validation & calibration')));
-  if (RUNNING) box.append(el('div', { class: 'running' }, el('span', { class: 'spin' }),
-    el('span', {}, (RUNNING === 'publish' ? T('Validando e calibrando no juiz…', 'Validating and calibrating on the judge…') : T('Calibrando no juiz…', 'Calibrating on the judge…')) + T(' a página atualiza sozinha quando terminar.', ' the page updates itself when done.'))));
+  // o aviso conta ONDE e HÁ QUANTO TEMPO: uma calibração leva minutos, e "Calibrando no juiz…" sem
+  // mais nada, por 7 min, é indistinguível de "travou" (relatos de 21/09/2026)
+  if (RUNNING || calibRunning()) box.append(el('div', { class: 'running' }, el('span', { class: 'spin' }),
+    el('span', {}, (RUNNING === 'publish' ? T('Validando e calibrando no juiz…', 'Validating and calibrating on the judge…') : T('Calibrando no juiz…', 'Calibrating on the judge…'))
+      + calibWhere() + T(' a página atualiza sozinha quando terminar.', ' the page updates itself when done.'))));
   // resultado do quality gate (botão Validar)
   if (checks.length) {
     const list = el('ul', { class: 'checks' });
@@ -1063,11 +1133,20 @@ function renderVal() {
       // juiz antigo sem o vetor cai na lista de reports + log texto de sempre
       // juiz que calibrou OUTRA versão do pacote: não desenha a lista de soluções (ela é de antes da
       // última mexida — foi o que fez um autor ver solução removida ainda sendo julgada, 20/09/2026)
-      const sols = h.stale ? null : solsBlock(h);
-      if (h.stale) head.append(el('span', { class: 'verdict v-warn', style: 'font-size:.72rem;padding:.1rem .45rem',
-        title: T('Este juiz calibrou uma versão anterior do pacote — as soluções mudaram desde então.',
-                 'This judge calibrated an earlier version of the package — the solutions changed since then.') },
-        T('desatualizado — recalibre', 'outdated — recalibrate')));
+      let sols = solsBlock(h);
+      if (h.stale) {
+        head.append(el('span', { class: 'verdict v-warn', style: 'font-size:.72rem;padding:.1rem .45rem',
+          title: T('Este juiz calibrou uma versão anterior do pacote — as soluções mudaram desde então.',
+                   'This judge calibrated an earlier version of the package — the solutions changed since then.') },
+          T('desatualizado — recalibre', 'outdated — recalibrate')));
+        // a lista NÃO pode aparecer como se fosse a de agora (é de antes do último Salvar: foi assim
+        // que um autor viu solução removida ainda sendo julgada, 20/09) — mas esconder tudo deixava a
+        // tela vazia depois de cada Salvar, e o autor lendo "nenhum log atualiza" (relato de 21/09).
+        // Fica DOBRADA e rotulada: quem quiser ver o que rodou antes, abre.
+        if (sols) sols = el('details', { class: 'small', style: 'margin-top:.25rem;opacity:.75' },
+          el('summary', {}, T('calibração da versão anterior', 'calibration of the previous version')
+            + (h.at ? (T(' · há ', ' · ') + minsSince(h.at) + T(' min', ' min ago')) : '')), sols);
+      }
       const reps = el('div', { class: 'small', style: 'margin-top:.25rem' });
       if (!sols && (h.reports || []).length) {
         reps.append(el('span', { class: 'muted' }, T('report por solução: ', 'report per solution: ')));
@@ -1075,7 +1154,7 @@ function renderVal() {
       }
       box.append(el('div', { class: 'judgecard' }, head, sols, reps, det));
     });
-  } else if (!RUNNING) box.append(el('p', { class: 'small muted' }, T('Ainda não calibrado — clique “Calibrar” na barra de baixo.', 'Not calibrated yet — click “Calibrate” on the bottom bar.')));
+  } else if (!RUNNING && !calibRunning()) box.append(el('p', { class: 'small muted' }, T('Ainda não calibrado — clique “Calibrar” na barra de baixo.', 'Not calibrated yet — click “Calibrate” on the bottom bar.')));
   // sem juízes calibrados mas com TL servido (legado): mostra o tempo-limite usado na correção
   if (!hosts.length && Object.keys(served).length) box.append(el('div', { class: 'small', style: 'margin-top:.4rem' }, T('Tempo-limite usado na correção: ', 'Time limit used for grading: ') + tlLine(served)));
   box.querySelectorAll('.caliblog').forEach(p => { if (CALIB_SCROLL[p.dataset.host]) p.scrollTop = CALIB_SCROLL[p.dataset.host]; });   // restaura o scroll
@@ -1326,6 +1405,8 @@ async function save() {
       fillRepoSelect();   // criado: a org vira selo fixo (parte do id) e "+ nova org" some
     } else await apiPost('/problems/edit', { id: ID, ...f }, { contest: CONTEST, auth: true });
     HIST_LOADED = false;   // salvar = commit novo; a aba Histórico recarrega na próxima abertura
+    SAVED_AT = Math.floor(Date.now() / 1000);   // versão NOVA do pacote: a calibração em voo ficou velha
+    updateReady();
     setMsg(T('Salvo ✓', 'Saved ✓'), 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
   } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save')) + (e.code ? ` (${e.code})` : ''), 'error'); }
   finally { $('save').disabled = false; }
@@ -1334,10 +1415,14 @@ async function act(action, label) {
   if (!ID) { setMsg(T('Salve o problema primeiro.', 'Save the problem first.'), 'error'); return; }
   setMsg(label + '…');
   try {
-    await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true });
+    const j = await apiPost('/problems/' + action, { id: ID }, { contest: CONTEST, auth: true });
     RUNNING = (action === 'validate') ? 'publish' : 'calibrate';   // 'publish' = nome interno do estado
-    calibPrevMax = maxCalibAt();
-    setMsg(label + T(' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', ' started ✓ — see progress in “Validation & calibration” (Publication tab).'), 'v-ok');
+    // o servidor DEDUPLICA (já havia calibração deste problema na fila) e dizia isso na resposta,
+    // que a tela jogava fora: o autor lia "iniciado ✓" 5 vezes seguidas e achava que nenhuma pegou
+    const dup = j && j.status === 'already_queued';
+    setMsg(dup ? T('Já havia uma calibração na fila para este problema — acompanhe abaixo.',
+                   'There was already a calibration queued for this problem — follow it below.')
+               : label + T(' iniciado ✓ — veja o andamento em “Validação & calibração” (aba Publicação).', ' started ✓ — see progress in “Validation & calibration” (Publication tab).'), 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
   } catch (e) { setMsg(e.message, 'error'); }
 }
@@ -1368,9 +1453,12 @@ async function calibrateHosts(hosts) {
   if (!hosts.length) { setMsg(T('Escolha ao menos um juiz online.', 'Choose at least one online judge.'), 'error'); return; }
   setMsg(T('Calibrando em ', 'Calibrating on ') + hosts.length + T(' juiz(es)…', ' judge(s)…'));
   try {
-    await apiPost('/problems/request-calibration', { id: ID, hosts }, { contest: CONTEST, auth: true });
-    RUNNING = 'calibrate'; calibPrevMax = maxCalibAt();
-    setMsg(T('Calibração disparada em ', 'Calibration triggered on ') + hosts.length + T(' juiz(es) — acompanhe abaixo.', ' judge(s) — follow below.'), 'v-ok');
+    const j = await apiPost('/problems/request-calibration', { id: ID, hosts }, { contest: CONTEST, auth: true });
+    RUNNING = 'calibrate';
+    const novos = ((j && j.hosts) || []).filter(h => h.status !== 'already_queued').length;
+    setMsg(novos ? (T('Calibração disparada em ', 'Calibration triggered on ') + novos + T(' juiz(es) — acompanhe abaixo.', ' judge(s) — follow below.'))
+                 : T('Esses juízes já tinham uma calibração deste problema na fila — acompanhe abaixo.',
+                     'Those judges already had a calibration of this problem queued — follow it below.'), 'v-ok');
     showTab('pub'); renderVal(); updateReady(); startPolling();
   } catch (e) { setMsg(e.message, 'error'); }
 }
@@ -1539,7 +1627,9 @@ async function boot() {
   } else if (!EDITABLE) { if ($('newCollBtn')) $('newCollBtn').disabled = true; }
 
   updateReady();
-  loadValidation();         // best-effort: painel de validação/calibração + prontidão
+  // se JÁ existe calibração em voo quando a página abre (o autor recarregou no meio, ou pediu pela
+  // CLI), a tela mostra e acompanha — antes recarregar deixava o autor sem sinal nenhum
+  loadValidation().then(ensurePolling);   // best-effort: painel de validação/calibração + prontidão
   loadJudges();             // lista de juízes p/ a calibração direcionada
 }
 boot();

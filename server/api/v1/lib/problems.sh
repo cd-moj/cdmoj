@@ -182,6 +182,36 @@ calibrating_set(){
   } 2>/dev/null | LC_ALL=C sort -u | jq -Rc -n '[inputs|select(length>0)]' 2>/dev/null || echo '[]'
 }
 
+# calibrating_for <id> -> [{host, since, state:"queued"|"running"}] — o que está EM VOO p/ ESTE
+# problema, com DETALHE (o calibrating_set responde só "algum id está calibrando?", e é o que o
+# Painel precisa; aqui é a tela do autor, que fica minutos olhando e merece saber ONDE e DESDE
+# QUANDO). Mesmas três filas, e a calibração DIRIGIDA entra pelo marcador que a entrega do comando
+# deixa em updates/inprogress/<host>/cmd-*.json. `queued` = ainda não reivindicada.
+# Vale o mesmo aviso do calibrating_set: `jq -n`, senão fila vazia (o normal) devolve "" e estoura
+# no --argjson de quem chama.
+calibrating_for(){
+  local id="$1" _ud="${UPDATESDIR:-${RUNDIR:-/home/ribas/moj/run}/updates}"
+  local _cd="${CMDDIR:-${RUNDIR:-/home/ribas/moj/run}/commands}" d h
+  [[ -n "$id" ]] || { printf '[]'; return 0; }
+  {
+    find "$_ud/pending" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+      | jq -c --arg t "$id" 'select(.kind=="calibrate" and .target==$t)
+          | {host:"", since:((.requested_at // 0)|tonumber? // 0), state:"queued"}'
+    # inprogress e commands são POR HOST: o host é o nome do diretório
+    for d in "$_ud/inprogress" "$_cd"; do
+      [[ -d "$d" ]] || continue
+      while IFS= read -r h; do
+        [[ -d "$h" ]] || continue
+        find "$h" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+          | jq -c --arg t "$id" --arg host "${h##*/}" '
+              select((.kind=="calibrate" and .target==$t) or (.action=="calibrate" and .id==$t))
+              | {host:$host, since:((.claimed_at // .at // .requested_at // 0)|tonumber? // 0),
+                 state:(if .action=="calibrate" then "queued" else "running" end)}'
+      done < <(find "$d" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+    done
+  } 2>/dev/null | jq -cn '[inputs] | sort_by(.since)' 2>/dev/null || printf '[]'
+}
+
 # _idx_lock <arquivo> — abre o fd 9 travado (flock) p/ o read-modify-write de um índice JSON.
 # SEM ISTO, dois pushes/saves simultâneos liam o MESMO estado, reconstruíam e gravavam: o último
 # vencia e a entrada do outro SUMIA da listagem. Pior: quando o `cat` devolvia vazio (janela do

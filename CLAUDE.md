@@ -1170,7 +1170,13 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   (lê 1 history; 0,09s).
 - **Painel de status (`GET /problems/status`, aba "Painel" da gestão):** agrega, dos problemas de que
   o login é **dono, colaborador ou membro da org**, validação/calibração/time-limits + estados **"calibrando"**
-  (varredura única de `run/updates`+`run/commands` por `kind/action==calibrate` — `calibrating_set`; a
+  (varredura única de `run/updates`+`run/commands` por `kind/action==calibrate` — `calibrating_set`, e
+  **`calibrating_for <id>`** com o detalhe `{host,since,state}` que a tela do AUTOR mostra: `/problems/calib`
+  devolve `being_calibrated`+`calibrating[]` e é com ISSO que o editor espera a calibração terminar,
+  nunca com o relógio — ele desistia em 80 s e uma calibração leva 3 a 7 min, então o aviso sumia, o
+  polling parava p/ sempre e o autor clicava de novo achando que não pegou (relatos do José Leite e do
+  Arthur Botelho, 21/09/2026; `smoke-calib-poll.gjs.sh` tranca as invariantes da tela: sem âncora de
+  relógio, erro de rede não apaga os cartões, poll serializado, re-arme no `visibilitychange`). A
   calibração DIRIGIDA aparece pelo **marcador** que a entrega do comando deixa em
   `run/updates/inprogress/<host>/cmd-*.json` — o comando some do diretório ao ser entregue e sem ele o
   Painel/`calib_targeted`/`moj judges show` diziam "nada" enquanto o juiz calibrava por minutos, relato

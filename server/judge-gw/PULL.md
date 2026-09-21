@@ -107,8 +107,13 @@ de um POST sem esses campos com o MESMO checksum (boot/agente velho não apagam 
   problemas novos/alterados (checksum ≠ o do TL guardado). `{all:true}` recalibra tudo.
 - **Calibração é IDEMPOTENTE** (lição do incidente 2026-07-15, quando 4 pedidos duplicados
   entupiram os 6 slots do juiz): `cal_request` é o choke-point único — se já existe calibração
-  **pendente ou em execução** p/ o mesmo problema (`upd_find_calibrate`, sob o lock do
-  `upd_claim`), devolve o `reqid` existente e NÃO cria outro job. Re-disparar `moj calibrate`,
+  **PENDENTE** p/ o mesmo problema (`upd_find_calibrate … pending`, sob o lock do
+  `upd_claim`), devolve o `reqid` existente e NÃO cria outro job. ⚠ **Só o pendente** desde
+  21/09/2026: quem está na fila ainda vai baixar a versão ATUAL quando for reivindicado, mas quem
+  **já está rodando** baixou a ANTERIOR — se o autor salva no meio (o fluxo de quem está
+  consertando solução) e pede outra, engolir o pedido significa que a versão nova nunca é
+  calibrada. No pior caso isto põe 1 job extra por job em voo, e a trava de verdade contra o
+  entupimento continua sendo o **dedup do agente** (full do mesmo checksum = pulada). Re-disparar `moj calibrate`,
   re-validar ou publicar em massa nunca multiplica jobs. O caminho direcionado
   (`request-calibration` com `hosts`) dedupa os comandos ainda não entregues por host
   (`cmd_find_calibrate`). ⚠ **Calibração DIRIGIDA entregue deixa um MARCADOR** em

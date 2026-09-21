@@ -71,6 +71,24 @@ ck "a resposta diz a versão atual do pacote"           '[[ "$(jq -r .version <<
 echo "== juiz ANTIGO (report sem versão) não é acusado de nada =="
 J /judge/calib-report "" POST mojw_smoketest '{"host":"juizvelho","id":"col#pa","log":"l"}' >/dev/null
 calibview; ck "sem versão no report ⇒ stale=false"     '[[ "$(jq -r ".hosts[]|select(.host==\"juizvelho\")|.stale" <<<"$BODY")" == false ]]'
+echo "== /problems/calib diz se AINDA está calibrando (é o que a tela do autor espera) =="
+mkdir -p "$RUN/updates/pending"
+jq -cn --argjson now "$EPOCHSECONDS" '{reqid:"r-live", kind:"calibrate", target:"col#pa", requested_at:$now}' > "$RUN/updates/pending/r-live.json"
+calibview
+ck "being_calibrated verdadeiro"       '[[ "$(jq -r .being_calibrated <<<"$BODY")" == true ]]'
+ck "e diz o estado (na fila)"          '[[ "$(jq -r ".calibrating[0].state" <<<"$BODY")" == queued ]]'
+rm -f "$RUN/updates/pending/r-live.json"
+calibview
+ck "acabou => being_calibrated falso"  '[[ "$(jq -r .being_calibrated <<<"$BODY")" == false && "$(jq -r ".calibrating|length" <<<"$BODY")" == 0 ]]'
+
+echo "== o campo at do host é o MAIOR entre store de TL e log (calibração sem TL novo não some) =="
+# só calib-report (log), sem tl-report: o carimbo do log tem de aparecer
+LOGJ="$RUN/calib/col#pa/juizlog.json"; mkdir -p "${LOGJ%/*}"
+jq -cn --argjson now "$((EPOCHSECONDS + 5))" --arg c "$PV1" '{host:"juizlog", checksum:$c, at:$now, log:"good falhou", reports:[], sols:[]}' > "$LOGJ"
+calibview
+ck "host só-com-log aparece com o at do log" '[[ "$(jq -r ".hosts[]|select(.host==\"juizlog\")|.at" <<<"$BODY")" -ge "$EPOCHSECONDS" ]]'
+rm -f "$LOGJ"
+
 echo "== o report do juiz LIMPA o marcador de calibração dirigida (ponta a ponta, pelo handler) =="
 # o marcador nasce na ENTREGA do comando (cmd_claim, no heartbeat) e morre quando o juiz reporta —
 # aqui simulamos o marcador e exercitamos o /judge/tl-report de verdade (smoke-calib-queue.sh cobre

@@ -336,13 +336,23 @@ upd_request() {  # $1=repo $2=requested_by [$3=note] [$4=kind] [$5=target] -> ec
   printf '%s' "$reqid"
 }
 
-# upd_find_calibrate <problem_id> : ecoa o reqid de uma calibração JÁ pendente ou em execução
-# p/ esse problema (ou nada). Base do dedup do cal_request. Conteúdo via stdin (find -exec cat),
+# upd_find_calibrate <problem_id> [pending] : ecoa o reqid de uma calibração JÁ pendente (e, sem o
+# 2º argumento, também em execução) p/ esse problema (ou nada). Conteúdo via stdin (find -exec cat),
 # nunca por argv — ARG_MAX-safe com qualquer tamanho de fila.
+#
+# ⚠ O DEDUP DO cal_request OLHA SÓ O PENDENTE (21/09/2026). O pedido que está na FILA ainda vai
+# baixar a versão ATUAL quando for reivindicado — deduplicar contra ele continua certo. Mas o que já
+# está EM EXECUÇÃO baixou a versão ANTERIOR: se o autor salva de novo no meio (o fluxo normal de quem
+# está consertando solução) e pede outra calibração, engolir o pedido significa que a versão nova
+# NUNCA é calibrada — o relatório que chega é da velha, a tela marca tudo `stale` e o autor fica
+# clicando sem entender (relatos do José Leite e do Arthur Botelho). No pior caso isto põe 1 job
+# extra por job em voo (o clique seguinte volta a deduplicar contra o pendente), e a trava de verdade
+# contra o entupimento de 15/07 segue sendo o dedup do AGENTE: full do MESMO checksum = "pedido
+# satisfeito", pulada sem rodar nada.
 upd_find_calibrate() {
   local r
-  r="$( { find "$UPDATESDIR/pending"    -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null
-          find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null; } \
+  r="$( { find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null
+          [[ "${2:-}" == pending ]] || find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null; } \
         | jq -r --arg t "$1" 'select(.kind=="calibrate" and .target==$t and ((.origin // "") != "command")) | .reqid' 2>/dev/null \
         | head -n1)"
   printf '%s' "$r"
@@ -357,7 +367,7 @@ cal_request() {
   mkdir -p "$UPDATESDIR/pending" 2>/dev/null
   (
     flock 9 || exit 1
-    local ex; ex="$(upd_find_calibrate "$2")"
+    local ex; ex="$(upd_find_calibrate "$2" pending)"
     if [[ -n "$ex" ]]; then printf '%s' "$ex"
     else upd_request "$1" "$3" "calibrate $2" calibrate "$2"; fi
   ) 9>"$UPDATESDIR/.lock"

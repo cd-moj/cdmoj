@@ -30,7 +30,11 @@ if (( $(jq 'length' <<<"$hosts") > 0 )); then
                                '. + [{host:$h, cmdid:$c, status:$s}]' <<<"$sent")"
   done < <(jq -r '.[]' <<<"$hosts")
   audit_log "calibrate" "id=$id targeted_hosts=$(jq 'length' <<<"$sent")"
-  ok_json '{action:"calibrate", id:$i, hosts:$h, status:"queued"}' --arg i "$id" --argjson h "$sent"
+  # o `status` do topo REFLETE os hosts: era a string fixa "queued" mesmo quando todos caíram no
+  # dedup, e o editor (que só lê o topo) dizia "Calibração disparada ✓" sem ter disparado nada —
+  # o autor clicava de novo achando que não pegou (relatos de 21/09/2026).
+  st="$(jq -r 'if length > 0 and (all(.[]; .status=="already_queued")) then "already_queued" else "queued" end' <<<"$sent")"
+  ok_json '{action:"calibrate", id:$i, hosts:$h, status:$s}' --arg i "$id" --argjson h "$sent" --arg s "${st:-queued}"
 else
   # DEDUP global: já há calibração pendente/em execução p/ o id => devolve o reqid existente
   # (cal_request também dedupa por dentro — aqui só distinguimos o status p/ o cliente avisar)

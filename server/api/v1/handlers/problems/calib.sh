@@ -33,6 +33,12 @@ pkg="$(pkg_path "$id")"; goodlangs='[]'
 # soluções — mostrar o `sols` de uma versão anterior é o que fazia o autor ver solução já removida
 # (e não ver a nova) como se fosse o estado de agora.
 pkgver="$(pkg_judge_version "$pkg" "$id" 2>/dev/null)"; pkgver="${pkgver//[^0-9a-f]/}"
+# EM VOO agora (fila + em execução, inclusive a dirigida pelo marcador): é o que faz a tela do autor
+# esperar de verdade em vez de desistir no relógio. Uma calibração leva MINUTOS (medido em produção,
+# 21/09/2026: 3 a 7 min conforme o nº de soluções × testes) e o editor desistia em 80 s, some com o
+# aviso e parava de buscar — relatos do José Leite e do Arthur Botelho. Array pequeno: pode ir por
+# --argjson sem risco de ARG_MAX.
+calibrating="$(calibrating_for "$id" 2>/dev/null)"; [[ -n "$calibrating" ]] || calibrating='[]'
 if [[ -n "$pkg" && -d "$pkg/sols/good" ]]; then
   # extensão -> linguagem canônica (lang_canon_ext: py2/py3 = py, cc/cxx/c++ = cpp), a chave do TL
   declare -F lang_canon_ext >/dev/null || source "$_LIBDIR/langs.sh"
@@ -46,7 +52,7 @@ fi
 # npy normaliza chaves de TL py3/py2 legadas (calibração pré-unificação) p/ 'py'.
 BODYF="$(mktemp)"; trap 'rm -f "$LOGF" "$BODYF"' EXIT
 jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs" \
-   --arg pkgver "$pkgver" --argjson ov "$(tl_conf_overrides "$pkg")" '
+   --arg pkgver "$pkgver" --argjson clive "$calibrating" --argjson ov "$(tl_conf_overrides "$pkg")" '
   def npy: if .=="py3" or .=="py2" then "py" else . end;
   ($lg[0] // {}) as $logs
   | ($store.hosts // {}) as $h
@@ -63,6 +69,7 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
           | with_entries(select(.value != null) | .value |= tostring)
      end) as $eff
   | { success:true, id:($store.id // ""), checksum:($store.checksum // ""), version:$pkgver,
+      being_calibrated:(($clive|length) > 0), calibrating:$clive,
       good_langs:$gl, tl_override:$ov,
       time_limits:$eff, time_limits_calibrated:$cal,
       missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host
@@ -75,7 +82,11 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
                | (($pkgver != "") and ($hv != "") and ($hv != $pkgver)) as $stale
                | { host:$n, tl:$htl,
                    missing:[ $gl[] | select(. as $g | ($htlk|index($g)|not)) ],  # sem TL NESTE host
-                   at:($h[$n].at // $logs[$n].at // 0),
+                   # o MAIOR entre o carimbo do store de TL e o do log: calibração que termina
+                   # SEM TL novo (good que falhou/TLE — justo o caso de quem está consertando
+                   # solução) só bumpa o log, e com o store vencendo ela ficava INVISÍVEL p/ quem
+                   # esperava "chegou algo mais novo"
+                   at:([($h[$n].at // 0), ($logs[$n].at // 0)] | max),
                    version:$hv, stale:$stale,
                    log:($logs[$n].log // null),
                    reports:(if $stale then [] else ($logs[$n].reports // []) end),

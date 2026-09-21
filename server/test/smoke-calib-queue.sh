@@ -71,4 +71,38 @@ echo "== comando que NÃO é calibrate (clearcache) não deixa marcador =="
 cmd_request juiz1 clearcache autor >/dev/null; cmd_claim juiz1 >/dev/null
 ck "sem marcador"                     '[[ "$(mark_count)" == 0 ]]'
 
+echo "== calibrating_for: o DETALHE que a tela do autor mostra (onde e desde quando) =="
+rm -rf "$UPDATESDIR/pending" "$UPDATESDIR/inprogress" "$CMDDIR"; mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress" "$CMDDIR"
+source "$ROOT/api/v1/lib/problems.sh" 2>/dev/null
+ck "nada em voo => []"                 '[[ "$(calibrating_for "col#pa")" == "[]" ]]'
+r="$(cal_request col "col#pa" autor)"
+DBG="$(calibrating_for "col#pa")"
+ck "pendente aparece como queued"      '[[ "$(jq -r ".[0].state" <<<"$(calibrating_for "col#pa")")" == queued ]]'
+ck "pendente ainda não tem host"       '[[ "$(jq -r ".[0].host" <<<"$(calibrating_for "col#pa")")" == "" ]]'
+upd_claim juiz1 >/dev/null
+ck "reivindicada: host + running"      '[[ "$(jq -r ".[0].host" <<<"$(calibrating_for "col#pa")")" == juiz1                                           && "$(jq -r ".[0].state" <<<"$(calibrating_for "col#pa")")" == running ]]'
+ck "o campo since é epoch"                 '[[ "$(jq -r ".[0].since" <<<"$(calibrating_for "col#pa")")" =~ ^[0-9]{9,} ]]'
+ck "outro problema não aparece"        '[[ "$(calibrating_for "col#outro")" == "[]" ]]'
+upd_done juiz1 "$r"
+ck "terminou => []"                    '[[ "$(calibrating_for "col#pa")" == "[]" ]]'
+# a DIRIGIDA entra pelo marcador (o comando some do diretório quando é entregue)
+cid3="$(cmd_request juiz1 calibrate autor 'col#pa')"
+ck "dirigida na fila aparece"          '[[ "$(jq -r ".[0].host" <<<"$(calibrating_for "col#pa")")" == juiz1 ]]'
+cmd_claim juiz1 >/dev/null
+ck "dirigida ENTREGUE continua visível" '[[ "$(jq -r ".[0].state" <<<"$(calibrating_for "col#pa")")" == running ]]'
+upd_cmd_clear juiz1 'col#pa'
+ck "reportou => []"                    '[[ "$(calibrating_for "col#pa")" == "[]" ]]'
+
+echo "== dedup: contra o PENDENTE sim; contra o que JÁ RODA, não =="
+rm -rf "$UPDATESDIR/pending" "$UPDATESDIR/inprogress"; mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress"
+a="$(cal_request col "col#pa" autor)"
+b="$(cal_request col "col#pa" autor)"
+ck "2 cliques seguidos = 1 job"        '[[ "$a" == "$b" && "$(upd_pending_kind_count calibrate)" == 1 ]]'
+upd_claim juiz1 >/dev/null              # agora está EM EXECUÇÃO (pegou a versão de então)
+ck "fila vazia, 1 em execução"         '[[ "$(upd_pending_kind_count calibrate)" == 0 && "$(upd_inprogress_kind_count calibrate)" == 1 ]]'
+c="$(cal_request col "col#pa" autor)"   # o autor salvou de novo e pediu outra
+ck "pedido novo ENTRA (versão nova)"   '[[ "$c" != "$a" && "$(upd_pending_kind_count calibrate)" == 1 ]]'
+d="$(cal_request col "col#pa" autor)"
+ck "e o clique seguinte dedupa"        '[[ "$d" == "$c" && "$(upd_pending_kind_count calibrate)" == 1 ]]'
+
 echo; echo "RESULT: $pass passed, $fail failed"; (( fail == 0 ))
