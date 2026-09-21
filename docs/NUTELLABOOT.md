@@ -34,8 +34,16 @@ máquina↔time** (roster/binding).
   uptime_s, last_boot}`. Alertas têm `kind`: `identity.duplicate` (com `other_mac` — home clonada por
   imagem de disco), `usb.storage|phone|network|other`; `kind` desconhecido é aceito.
 - `status.hwinfo.machine_id` (+ `boot_id`, `image`) é o que o navegador do mlinux manda no
-  User-Agent (`Mozilla/5.0 (MLinux/<imagem>/<machine_id>/<boot_id>) …`) — o **elo
-  máquina↔time** (abaixo). `editors_time` é ACUMULADO desde a instalação: não mede a prova.
+  User-Agent — o **elo máquina↔time** (abaixo). Agente antigo: `Mozilla/5.0 (MLinux/<imagem>/<machine_id>/
+  <boot_id>) …`. **Agente novo (set/2026): `…/<boot_id>/<mac>)`** — o MAC entra no FIM (quem lê por posição
+  continua lendo), no formato do `.mac` do serviço (`aa-bb-cc-dd-ee-ff`), e o `machine_id` passa a ser
+  **`md5(MAC estável)`**, regravado a cada boot: acabou o `/etc/machine-id` clonado por imagem de disco. Sem
+  MAC estável o campo vem vazio (e o MOJ trata como agente antigo). `editors_time` é ACUMULADO desde a
+  instalação: não mede a prova.
+- **Vínculo (`binding`)**: `PUT /site-images/{i}/machines/{mac}/binding {user_id, source?, at?, boot_id?,
+  note?}` (escopo `bindings:write`; **404 se o `user_id` não está no roster da imagem**), `DELETE`, `GET
+  …/binding/history`, `GET …/bindings`. Vinculada, a tela de bloqueio da máquina mostra o time. Vincular
+  máquina que ainda não reportou funciona, mas ela só aparece em `/bindings` depois do 1º boot.
 - `GET /site-images/{i}/roster`: `user_id` **é o login MOJ** — a ponte entre os mundos.
 - Comandos: catálogo em `GET /site-images/{i}/commands` → `{allowed:[…], blocked:{comando: campo}}` (o que
   ESTA credencial pode mandar: cantouch, cleanhomenow, disablefirewall, donottouch, enablefirewall,
@@ -98,15 +106,17 @@ máquina↔time** (roster/binding).
   puro** = um grupo (VS Code · JetBrains=idea/clion/pycharm · Code::Blocks · leves=vim/gedit/
   geany/emacs) em ≥ 60 % dos pontos (leve exige pesado ≤ 10 %; senão `mixed`/`none`), faixa de
   RAM, memória/swap/load (média, 1ª meia hora, última hora, janelas de 30 min).
-  **Elo máquina↔time**: `binding` do serviço vem vazio; o coletor casa
-  `status.hwinfo.machine_id/boot_id` com o par `machine_id/boot_id` do UA gravado em
-  `var/access.log` pelo login (1 jq com `@base64d`; TODO login até o fim da janela — sessão
-  não expira, quem logou às 10h é dono da máquina na prova; contas de papel fora; último
-  login vence; time com 2 máquinas fica com a de mais pontos — `chosen`). ⚠ O `boot_id` é
-  obrigatório na chave: na Maratona 2026, 62 `machine_id` eram CLONADOS (Salvador: 24
-  máquinas com o mesmo `/etc/machine-id`; Goiânia: 25; Rio: 39 pares) — só o `machine_id`
-  dava todas ao último time. Fallback por `machine_id` sozinho só quando ele é único na
-  frota (`dupmids`). `link.present` = times que logaram até o fim da janela; a cobertura é
+  **Elo máquina↔time** — o coletor casa a máquina com o UA gravado em `var/access.log` pelo login
+  (1 jq com `@base64d`; TODO login até o fim da janela — sessão não expira, quem logou às 10h é dono da
+  máquina na prova; contas de papel fora; último login vence; time com 2 máquinas fica com a de mais
+  pontos — `chosen`), em QUATRO degraus, do mais forte ao mais fraco:
+  1. **MAC do UA ↔ `.mac`** (agente novo) — exato; sobrevive a reboot e a machine-id clonado;
+  2. `machine_id/boot_id` (agente antigo). ⚠ O `boot_id` é obrigatório nesta chave: na Maratona 2026, 62
+     `machine_id` eram CLONADOS (Salvador: 24 máquinas com o mesmo `/etc/machine-id`; Goiânia: 25; Rio: 39
+     pares) — só o `machine_id` dava todas ao último time. Um reboot depois do login perde este elo;
+  3. `machine_id` sozinho, só quando ele é único na frota (`dupmids`);
+  4. o **`binding` do próprio serviço**, quando o UA não disse nada e o `user_id` é time DAQUELA sede (o
+     staff vinculou à mão, ou o access.log se perdeu). Binding de login alheio à sede é ignorado. `link.present` = times que logaram até o fim da janela; a cobertura é
   `linked/present` (quem nunca logou é ausente, não "sem vínculo"). Posição no placar via `sc_place_map`
   (score-common.sh; prefere `placar-view-all-full` › `placar-full` › `placar`; convidado sem
   posição). `link.mode`: `ua` quando o elo cobre ≥ 50 % dos times das sedes mantidas (população
@@ -152,11 +162,32 @@ máquina↔time** (roster/binding).
   ranks/séries; o "editores × colocação" é contagem por recorte). A view recebe o cache
   inteiro + a árvore (`name/view/subregions`) + o recorte, e compara os FILHOS do nó
   (subregiões com dado, ou as sedes dele); nós `view:true` ficam fora da comparação.
-- **Correlação**: o elo de verdade é o do coletor (UA do login × `machine_id`, acima). O
-  campo `binding` da máquina (lado nutellaboot) continua vazio e é consumido se um dia
-  existir; `POST {action:"push-roster"}` PUBLICA o roster do STORE nas imagens
-  (user_id=login, nome do time, universidade, país) — sem `force` ele NUNCA atropela
-  roster já povoado (o da Maratona veio do ICPC).
+- **O LOGIN publica o vínculo** (`lib/nutella-bind.sh`, 21/09): com o UA do agente novo, o login de um
+  time DIZ em que máquina ele está, e o MOJ faz o `PUT …/binding {user_id, source:"moj-login", at, boot_id}`.
+  **Custo zero no login**: o handler só acrescenta uma linha em `var/nutella-bind.queue` (`printf`, builtin;
+  as guardas — `*MLinux/*` no UA e a chave configurada — também) e, no máximo a cada 10 s, larga um
+  **drenador destacado** (molde `owner_rename_bg`: redirects no `setsid`; `MOJ_JOBS_SYNC=1` roda em linha nos
+  testes) — quem fala com o serviço é ele (`-m 8`), nunca o worker do login; medido com o serviço
+  respondendo em 2 s: login em 95 ms. Um drenador por contest (`flock`); ele carimba o INÍCIO de cada passada
+  e só sai com a fila vazia DEPOIS de dormir 10 s, e quem chega espera o lock (`flock -w`) — nenhuma entrada
+  fica órfã. Dedupa pelo último login de cada MAC e contra o que já publicou (`var/nutella-macs.tsv`: re-login
+  igual não vira request; boot novo republica); 000/429/5xx voltam p/ a fila até 3 vezes; tudo em
+  `var/nutella-bind.log` (`ok|noroster|image_unknown|retry|http <n>`). **Limites**: módulo `maquinas` + chave;
+  conta de PAPEL nunca; `NUTELLA_BIND=0` desliga (`config {bind:false}`); a imagem do UA tem de ser sede DO
+  CONTEST (`NUTELLABOOT_IMAGES` ∪ sedes da última coleta) — o UA é entrada do cliente e a chave admin alcança
+  outros eventos. **404 = time fora do roster da imagem** (`noroster`): `push-roster` e depois
+  **`push-bindings`**, que é o REPLAY do `access.log` pela mesma fila (serve também p/ quem logou antes do
+  deploy). O UA pode ser forjado — quem barra isso é o gate de UA por sede; o binding é informação p/ o staff,
+  não controle de acesso. `nutella-bind.log` e `nutella-macs.tsv` atravessam as rodadas (cópia no arquivo).
+- **Roster**: `POST {action:"push-roster"}` PUBLICA o roster do STORE nas imagens (user_id=login, nome do
+  time, universidade, país; os times de cada sede vêm da última coleta — que, com roster vazio, os tira do
+  UA dos logins) — sem `force` ele NUNCA atropela roster já povoado (o da Maratona veio do ICPC).
+- **Anomalias e a identidade da máquina**: a chave GRAVADA (`MKEY` da sessão, `submit-origin.log`,
+  `sess_machine_key`) segue `m:<machine_id>/<boot_id>` — trocar o formato no meio de uma prova faria sessão
+  antiga e requisição nova divergirem. A normalização é na APURAÇÃO (`lib/anomalies.sh`): `machine_id` visto
+  com MAC no UA é único por placa, então p/ ele a máquina é `m:<mid>` — reboot deixa de ser "trocou de
+  máquina"/"2 sessões em 2 máquinas", e dois times na MESMA máquina com um reboot no meio passam a aparecer
+  em `machine_shared`. Sem MAC (agente antigo, ids clonados) nada muda.
 - **Para a IMAGEM (mlinux)**: além do UA do navegador (`MLinux/<imagem>/<machine_id>/<boot_id>`),
   gravar o MESMO UA em **`/etc/moj/user-agent`** (uma linha, legível por todos). É de lá que a
   `moj-comp` (e as outras CLIs) o lê e o manda na frente do seu marcador `moj-comp/<build>` —
@@ -176,7 +207,10 @@ papel tentando roubar o vínculo, adoção/perfis/pressão/rank_ed, privacidade 
 fallback sem a rota de lote reagregando IGUAL, roster VAZIO (sedes pelo UA do login · imagem listada à
 mão · erro claro sem nada), sede recusada ⇒ `skipped` e serviço mudo ⇒ falha, catálogo, gates de
 comando e push-roster. A view tem o seu: `smoke-mlinux-view.gjs.sh` (DOM falso no gjs, do jeito que o
-relatório a inlina; cache novo × antigo, pt × en). O relatório é coberto no `smoke-contest-report.sh` (página condicional, sem
+relatório a inlina; cache novo × antigo, pt × en). O elo pelo MAC (clone de machine_id + reboot) e o
+binding de reserva estão no `smoke-contest-nutella.sh`; a publicação no login tem o `smoke-nutella-bind.sh`
+(o que publica e o que NÃO, dedup, reboot, 404 do roster, 503 ⇒ retry, replay, e o caminho DESTACADO de
+produção com o serviço lento); a identidade estável, no `smoke-contest-anomalies.sh`. O relatório é coberto no `smoke-contest-report.sh` (página condicional, sem
 MAC/teams/_rows, view 2.0 embutida, invariantes). O jq do coletor vive em VARIÁVEIS
 (`AGG_JQ`), que o `jq-portability.sh` não vê: rode o coletor com o jq 1.7 da imagem
 (`--reaggregate` num bruto guardado) antes de deployar mudança nele.

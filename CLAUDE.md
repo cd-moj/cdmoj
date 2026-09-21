@@ -898,7 +898,17 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   cache novo × antigo). Sedes da coleta = times do roster ∪ logins com o UA da imagem ∪ imagens listadas à
   mão (o roster do serviço pode estar VAZIO — estava, em todas, em 21/09). ⚠ Lição: **filtro que descarta
   o vazio esconde a falha** — "nenhuma sede casa" mascarava serviço mudo/URL errada; hoje sede sem resposta
-  vai p/ `skipped` (o painel avisa) e, sem nenhuma, a coleta FALHA e o cache anterior fica. O jq do coletor mora em VARIÁVEIS — o
+  vai p/ `skipped` (o painel avisa) e, sem nenhuma, a coleta FALHA e o cache anterior fica. **Elo pelo MAC +
+  binding no login**: o UA do agente novo termina no MAC (`…/<boot_id>/<mac>`, `machine_id = md5(MAC)`); o
+  coletor liga máquina↔time por MAC › mid/boot › mid único › `binding` do serviço (só se o time é da sede), e
+  o LOGIN publica o `binding` (`lib/nutella-bind.sh`: fila em `var/nutella-bind.queue` + drenador DESTACADO,
+  no máx. 1 a cada 10 s — o login nunca espera o serviço; dedup em `var/nutella-macs.tsv`; trilha em
+  `var/nutella-bind.log`; `NUTELLA_BIND=0` desliga; imagem do UA tem de ser sede DO contest; `push-bindings`
+  = replay do access.log). ⚠ **A chave de máquina GRAVADA não mudou** (`m:<mid>/<boot>` em sessão/
+  submit-origin): trocar formato no meio de uma prova faz sessão antiga × requisição nova divergirem — a
+  identidade estável (`m:<mid>` quando o mid foi visto com MAC) é só na APURAÇÃO (`lib/anomalies.sh`);
+  bash (`sess_machine_key`) e jq (`mkey`) continuam gêmeos. Teste de processo destacado: pergunte ao LOCK
+  (`flock -n`), não ao `pgrep -f` (ele casa com o shell que roda o teste). O jq do coletor mora em VARIÁVEIS — o
   `jq-portability.sh` não o compila: rode os smokes com o jq 1.7 antes de deployar. Teste
   com mock: `smoke-contest-nutella.sh`. Comando novo se valida na imagem de TESTE `26tete`,
   nunca numa sede real.

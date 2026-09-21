@@ -2367,7 +2367,7 @@
           "contest"
         ],
         "summary": "Panorama das máquinas mlinux (nutellaboot) — admin/chefe tudo; .cstaff/.staff a própria sede; ?catalog=<image> = catálogo de comandos",
-        "description": "`data` = cache da coleta (`var/nutella.cache.json`): `global`, `by_node`, `sedes[]` (cortado ao escopo do staff), `link`, `window`, `contest`, `skipped[]` (sedes que o serviço não devolveu). Com o agente novo do mlinux (NutellaBoot 3) cada agregado pode trazer, tudo opcional: `health{agent_new, psi_mem_sum, psi_cpu_sum, psi_io_sum, psi_n, oom_machines, oom_kills, idle_pts, idle_hi, skew_n, skew_bad, reboots}`, `psi_mem_max`, `model_tm{modelo: n}`, `alert_kinds{kind: n}` e `psi_sum/psi_n[/psi_max]` em `pressure` e `series`.",
+        "description": "`data` = cache da coleta (`var/nutella.cache.json`): `global`, `by_node`, `sedes[]` (cortado ao escopo do staff), `link`, `window`, `contest`, `skipped[]` (sedes que o serviço não devolveu). Com o agente novo do mlinux (NutellaBoot 3) cada agregado pode trazer, tudo opcional: `health{agent_new, psi_mem_sum, psi_cpu_sum, psi_io_sum, psi_n, oom_machines, oom_kills, idle_pts, idle_hi, skew_n, skew_bad, reboots}`, `psi_mem_max`, `model_tm{modelo: n}`, `alert_kinds{kind: n}` e `psi_sum/psi_n[/psi_max]` em `pressure` e `series`. `bind{enabled, published, queued, last_at, log{ok, noroster, image_unknown, retry, error}}` = estado da publicação do vínculo máquina↔time no login (só contagens).",
         "responses": {
           "200": {
             "description": "{configured, url, key_kind:admin|service (a CLASSE da chave, nunca a chave), images:[ids de NUTELLABOOT_IMAGES], status, can_admin, scoped, data:{version:2, contest, link, global, by_node, sedes[]}} — agregados por recorte (pop, ram_bands, ed_adopt/ed_groups/ed_count/profiles, pressure, rank_ed, series); ver docs/NUTELLABOOT.md"
@@ -2381,10 +2381,10 @@
         "tags": [
           "contest"
         ],
-        "summary": "Ações da integração nutellaboot: config (chave write-only)/collect/push-roster (admin) e command (admin ou c/staff na própria sede, fail-closed)",
+        "summary": "Ações da integração nutellaboot: config (chave write-only)/collect/push-roster/push-bindings (admin) e command (admin ou c/staff na própria sede, fail-closed)",
         "responses": {
           "200": {
-            "description": "config {url?, key? (nb3s_ de serviço ou nb3a_ de administração), images? (ids das site-images do evento; obrigatório com chave de serviço)}:{saved,configured,key_kind} · collect:{started} · push-roster:{pushed,kept,failed} · command {op, image, mac?}:{sent,op,image,mac,ok,failed,sedes:{<id>:{status,command_id,machines,detail?}},upstream} — image:\"all\" = uma ordem por sede DO CONTEST (nunca a frota do serviço); com mac, vai à rota da sede com target:[mac]"
+            "description": "config {url?, key? (nb3s_ de serviço ou nb3a_ de administração), images? (ids das site-images do evento; obrigatório com chave de serviço), bind? (false desliga a publicação do vínculo máquina↔time no login)}:{saved,configured,key_kind} · collect:{started} · push-roster:{pushed,kept,failed} · push-bindings:{queued,bind} (replay do access.log: o último login de cada MAC volta p/ a fila e o drenador faz o PUT do binding no serviço) · command {op, image, mac?}:{sent,op,image,mac,ok,failed,sedes:{<id>:{status,command_id,machines,detail?}},upstream} — image:\"all\" = uma ordem por sede DO CONTEST (nunca a frota do serviço); com mac, vai à rota da sede com target:[mac]"
           },
           "403": {
             "description": "admin_required/site_forbidden/command_scope_required"

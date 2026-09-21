@@ -260,10 +260,15 @@ prog "agregando" 0 "$NKEPT"
 # UA do mlinux: "Mozilla/5.0 (MLinux/<imagem>/<machine_id>/<boot_id>) …". Um jq p/ o arquivo
 # inteiro (@base64d), contas de PAPEL fora, ÚLTIMO login vence. TODO login até o fim da
 # janela conta (sessão do MOJ não expira: quem logou às 10h e ficou logado é dono da máquina
-# na prova). Duas chaves: `k` = machine_id/boot_id (a que vale — em sedes com imagem CLONADA
-# dezenas de máquinas têm o MESMO /etc/machine-id, e o boot_id as separa) e `m` = machine_id
-# sozinho (fallback SÓ quando o id é único na frota; ver dupmids).
-printf '{"k":{},"m":{}}' > "$W/link.json"
+# na prova). TRÊS chaves, da mais forte p/ a mais fraca:
+#   `a` = MAC — o agente novo (NutellaBoot 3) põe o MAC no FIM do UA (`…/<boot_id>/<mac>`) e ele casa
+#         EXATO com o `.mac` da máquina no serviço: sobrevive a reboot e a machine-id clonado;
+#   `k` = machine_id/boot_id (agente antigo — em sedes com imagem CLONADA dezenas de máquinas têm o
+#         MESMO /etc/machine-id, e só o boot_id as separa; um reboot depois do login perde o elo);
+#   `m` = machine_id sozinho (fallback SÓ quando o id é único na frota; ver dupmids).
+# Onde o UA não disse nada, vale o `binding` do PRÓPRIO serviço (o MOJ o publica no login — lib/
+# nutella-bind.sh — e o staff da sede pode vincular à mão), desde que o time seja da sede.
+printf '{"a":{},"k":{},"m":{}}' > "$W/link.json"
 if [[ -s "$CDIR/var/access.log" ]]; then
   jq -Rn --argjson b "$WEND" '
     [ inputs | split("\t") | select(length >= 4)
@@ -271,14 +276,15 @@ if [[ -s "$CDIR/var/access.log" ]]; then
       | select($t <= $b)
       | .[1] as $lg
       | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
-      | ((.[3] | try @base64d catch "") | capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/(?<boot>[0-9]+)")? // null) as $m
+      | ((.[3] | try @base64d catch "") | capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/(?<boot>[0-9]+)(/(?<mac>[0-9a-f]{2}([-:][0-9a-f]{2}){5}))?")? // null) as $m
       | select($m != null)
-      | {t: $t, lg: $lg, mid: $m.mid, boot: $m.boot} ]
+      | {t: $t, lg: $lg, mid: $m.mid, boot: $m.boot, mac: (($m.mac // "") | gsub(":"; "-"))} ]
     | sort_by(.t)
-    | { k: (reduce .[] as $e ({}; .[$e.mid + "/" + $e.boot] = $e.lg)),
+    | { a: (reduce (.[] | select(.mac != "")) as $e ({}; .[$e.mac] = $e.lg)),
+        k: (reduce .[] as $e ({}; .[$e.mid + "/" + $e.boot] = $e.lg)),
         m: (reduce .[] as $e ({}; .[$e.mid] = $e.lg)) }' "$CDIR/var/access.log" > "$W/link.json" 2>/dev/null \
-    || printf '{"k":{},"m":{}}' > "$W/link.json"
-  jq -e '.k | type == "object"' "$W/link.json" >/dev/null 2>&1 || printf '{"k":{},"m":{}}' > "$W/link.json"
+    || printf '{"a":{},"k":{},"m":{}}' > "$W/link.json"
+  jq -e '.k | type == "object"' "$W/link.json" >/dev/null 2>&1 || printf '{"a":{},"k":{},"m":{}}' > "$W/link.json"
 fi
 # machine_ids DUPLICADOS na frota mantida (imagem clonada): com eles só o par mid/boot vale
 : > "$W/mlist.txt"; while IFS=$'\t' read -r id _r; do printf '%s\n' "$W/machines.$id.json"; done < "$W/kept.tsv" > "$W/mlist.txt"
@@ -314,7 +320,10 @@ while IFS=$'\t' read -r id _r; do cat "$W/teams.$id.txt"; done < "$W/kept.tsv" |
 NTEAMS="$(wc -l < "$W/allteams.txt" | tr -d '[:space:]')"; NTEAMS="${NTEAMS:-0}"
 # times VINCULADOS = logins do elo que são times das sedes mantidas (o access.log tem o contest
 # inteiro; o elo de uma sede sem nutellaboot não conta); PRESENTES = idem p/ quem logou
-NLINK="$(jq -r '[ .k[], .m[] ] | unique | .[]' "$W/link.json" 2>/dev/null | sort -u | comm -12 - "$W/allteams.txt" | wc -l | tr -d '[:space:]')"
+# (o `binding` do serviço entra na conta: é elo também — o filtro por sede é o do agregador)
+NLINK="$( { jq -r '[ (.a // {})[], .k[], .m[] ] | unique | .[]' "$W/link.json" 2>/dev/null
+            xargs -a "$W/mlist.txt" jq -r '.machines[]? | .binding | objects | .user_id // empty' 2>/dev/null
+          } | sort -u | comm -12 - "$W/allteams.txt" | wc -l | tr -d '[:space:]')"
 NLINK="${NLINK//[^0-9]/}"; NLINK="${NLINK:-0}"
 NPRES="$(jq -r 'keys[]' "$W/present.json" 2>/dev/null | sort -u | comm -12 - "$W/allteams.txt" | wc -l | tr -d '[:space:]')"
 NPRES="${NPRES//[^0-9]/}"; NPRES="${NPRES:-0}"
@@ -401,9 +410,12 @@ AGG_JQ='
   | ([ $seen[] | . as $x
        | ($x.status.hwinfo.machine_id // "") as $mid
        | (($x.status.hwinfo.boot_id // "") | tostring) as $boot
-       | (if $mid == "" then null
-          else ($link.k[$mid + "/" + $boot]
-                // (if ($dups[$mid] // false) == true then null else ($link.m[$mid] // null) end)) end) as $team
+       | (($x.binding | objects | .user_id) // null) as $bound
+       | ((($link.a // {})[(($x.mac // "") | ascii_downcase | gsub(":"; "-"))])
+          // (if $mid == "" then null
+              else ($link.k[$mid + "/" + $boot]
+                    // (if ($dups[$mid] // false) == true then null else ($link.m[$mid] // null) end)) end)
+          // (if $bound != null and (($teams | index($bound)) != null) then $bound else null end)) as $team
        | derive(($cpts[$x.mac] // []); $cs; $ce; ($ivs[$x.mac] // null))
          + { mac: $x.mac, online: ($x.online // false),
              model: (((($x.status.hwinfo.product_vendor // "") + " " + ($x.status.hwinfo.product_name // ""))

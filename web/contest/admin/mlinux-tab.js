@@ -124,6 +124,41 @@ export function makeMlinuxTab(CONTEST) {
         el('span', { class: 'small muted' }, stTxt), msg));
   }
 
+  // -- vínculo máquina↔time publicado no login (só admin) --------------------------------
+  // O agente novo do mlinux põe o MAC no UA; o login do time diz em que máquina ele está e o MOJ
+  // publica isso no nutellaboot (lib/nutella-bind.sh). Aqui: o estado, o liga/desliga e a republicação.
+  function bindCard() {
+    const b = RESP && RESP.bind; if (!b || !(RESP && RESP.configured)) return null;
+    const msg = el('span', { class: 'small' });
+    const lg = b.log || {};
+    const act = async (body, okTxt) => {
+      msg.className = 'small'; msg.textContent = '…';
+      try { const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), body, G); msg.textContent = okTxt(r); load(); }
+      catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
+    };
+    const parts = [b.enabled ? T('ligado', 'on') : T('DESLIGADO', 'OFF'),
+      T(`${b.published} máquinas vinculadas`, `${b.published} machines linked`)];
+    if (b.queued) parts.push(T(`${b.queued} na fila`, `${b.queued} queued`));
+    if (lg.noroster) parts.push(T(`${lg.noroster} recusadas: time fora do roster da imagem`, `${lg.noroster} refused: team not in the image roster`));
+    if (lg.image_unknown) parts.push(T(`${lg.image_unknown} de imagem que não é deste contest`, `${lg.image_unknown} from an image not in this contest`));
+    if (lg.error) parts.push(T(`${lg.error} erros do serviço`, `${lg.error} service errors`));
+    return el('div', { class: 'section' },
+      el('h2', {}, T('🔗 Vínculo máquina-time', '🔗 Machine-team link')),
+      el('p', { class: 'ml-note' }, T('Quando um time faz login numa máquina do mlinux, o MOJ informa ao nutellaboot qual time está nela. A tela de bloqueio da máquina passa a mostrar o time. Só funciona com o agente novo do mlinux e com o time no roster da imagem.',
+        'When a team logs in on an mlinux machine, MOJ tells nutellaboot which team is on it. The machine lock screen then shows the team. It needs the new mlinux agent and the team in the image roster.')),
+      el('div', { class: 'small', style: 'margin:.2rem 0 .4rem' }, parts.join(' · ')),
+      el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
+        el('button', { class: 'btn ghost', onclick: () => act({ action: 'config', bind: !b.enabled }, () => '') },
+          b.enabled ? T('desligar', 'turn off') : T('ligar', 'turn on')),
+        el('button', { class: 'btn ghost', title: T('Envia ao nutellaboot os times de cada sede (da última coleta). Não mexe em roster já preenchido.', 'Sends the teams of each site (from the last collection) to nutellaboot. Does not touch a roster that already has entries.'),
+          onclick: () => act({ action: 'push-roster' }, (r) => T(`roster: ${r.pushed} enviadas, ${r.kept} mantidas, ${r.failed} falharam`, `roster: ${r.pushed} sent, ${r.kept} kept, ${r.failed} failed`)) },
+        T('📋 enviar roster', '📋 send roster')),
+        el('button', { class: 'btn ghost', title: T('Reenvia o vínculo de todo login já feito (use depois de enviar o roster).', 'Resends the link of every login already made (use it after sending the roster).'),
+          onclick: () => act({ action: 'push-bindings' }, (r) => T(`${r.queued} vínculos na fila de envio`, `${r.queued} links queued`)) },
+        T('🔁 republicar vínculos', '🔁 republish links')),
+        msg));
+  }
+
   // -- comandos (admin: qualquer sede + frota; c/staff: as próprias — a API corta) ------
   function commandCard() {
     const d = RESP && RESP.data;
@@ -225,9 +260,9 @@ export function makeMlinuxTab(CONTEST) {
 
   function skeleton() {
     SK.style = el('style', {}, MLINUX_CSS);
-    SK.err = el('div', {}); SK.cfg = el('div', {}); SK.collect = el('div', {}); SK.cmd = el('div', {}); SK.pan = el('div', {});
+    SK.err = el('div', {}); SK.cfg = el('div', {}); SK.collect = el('div', {}); SK.bind = el('div', {}); SK.cmd = el('div', {}); SK.pan = el('div', {});
     panel.innerHTML = '';
-    panel.append(SK.style, SK.err, SK.cfg, SK.collect, SK.cmd, SK.pan);
+    panel.append(SK.style, SK.err, SK.cfg, SK.collect, SK.bind, SK.cmd, SK.pan);
   }
 
   // cada caixa troca só quando a SUA assinatura muda; a coleta em andamento só mexe na dela
@@ -235,6 +270,7 @@ export function makeMlinuxTab(CONTEST) {
     const d = (RESP && RESP.data) || null, adm = !!(RESP && RESP.can_admin), st = (RESP && RESP.status) || null;
     swapIf(SK.cfg, sigOf(adm, RESP && RESP.configured, RESP && RESP.url), () => (adm ? configCard() : null));
     swapIf(SK.collect, sigOf(adm, RESP && RESP.configured, st), () => (adm ? collectCard() : null));
+    swapIf(SK.bind, sigOf(adm, RESP && RESP.configured, RESP && RESP.bind), () => (adm ? bindCard() : null));
     swapIf(SK.cmd, sigOf(adm, d && (d.sedes || []).map((s) => [s.id, s.name, s.seen, ((s.machines || []).map((m) => m.mac))])), () => commandCard());
     swapIf(SK.pan, sigOf(RESP && RESP.configured, d && d.collected_at, d && d.version, d && d.link, d && d.window, sel, RTREE), () => panorama());
     if (st && st.running && !pollT) pollT = setTimeout(() => { pollT = null; if (!panel.hidden) load(); }, 3000);

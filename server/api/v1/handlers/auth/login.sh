@@ -101,6 +101,12 @@ mkdir -p "$CONTESTSDIR/$contest/var"
 printf '%s\t%s\t%s\t%s%s\n' "$EPOCHSECONDS" "$u" "$(client_ip)" \
   "$(printf '%s' "${HTTP_USER_AGENT:-}" | base64 -w0)" "${actor:+$'\t'$actor}" \
   >> "$CONTESTSDIR/$contest/var/access.log" 2>/dev/null || true
+# NutellaBoot: o UA do agente novo do mlinux termina no MAC, então ESTE login diz em que máquina o
+# time está — vai p/ uma fila e um drenador destacado publica o `binding` no serviço (lib/
+# nutella-bind.sh; o login não espera rede). As duas guardas são builtin: login comum não paga nada.
+if [[ "${HTTP_USER_AGENT:-}" == *MLinux/* && -s "$CONTESTSDIR/$contest/secrets/nutellaboot.key" ]]; then
+  source "$_LIBDIR/nutella-bind.sh"; nb_bind_enqueue "$contest" "$u"
+fi
 # Contest (≠ treino): a resposta leva o kit da submissão OFFLINE do moj-comp — hora do
 # servidor (a CLI mede o desvio do relógio local), a chave PÚBLICA do contest e um beacon
 # de tempo assinado (piso do carimbo offline). Ver lib/contest-offline.sh e docs/API.md.

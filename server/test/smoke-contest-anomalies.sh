@@ -121,6 +121,25 @@ for i in $(seq 1 1500); do fx_user "$C" "$(printf 'teamzz%04d' $i)" x "Z $i" >/d
 call /contest/admin/anomalies GET '' adm 'contest=an'
 ck "1500 logins (access.log >128 KiB): corpo válido e contagens intactas" '[[ "$(J .success)" == true && "$(stat -c %s "$C/var/access.log")" -gt 131072 && "$(J .counts.multi_session)" == 1 && "$(J .counts.teams_live)" == 5 ]]'
 
+echo "== agente NOVO do mlinux: o UA traz o MAC ⇒ identidade ESTÁVEL (reboot não separa) =="
+# machine_id = md5(MAC), único por placa (NutellaBoot 3). 006 reinicia a M6 no meio da prova e loga de
+# novo: NÃO é troca de máquina. 007 senta na MESMA M6 depois de outro reboot: É compartilhada (antes as
+# três eram chaves diferentes e nada aparecia). O clone SEM MAC (005 × 002/003) segue separado pelo boot.
+MID6=66666666666666666666666666666666
+ua5(){ printf 'Mozilla/5.0 (MLinux/26aa/%s/%s/aa-bb-cc-00-00-06) Gecko Firefox/148.0' "$MID6" "$1"; }
+fx_user "$C" teamaa006 x "Time 6" >/dev/null; fx_user "$C" teamaa007 x "Time 7" >/dev/null
+{ printf '%s\tteamaa006\t10.0.0.6\t%s\n' "$((CS+300))"  "$(b64 "$(ua5 6001)")"
+  printf '%s\tteamaa006\t10.0.0.6\t%s\n' "$((CS+1200))" "$(b64 "$(ua5 6002)")"
+  printf '%s\tteamaa007\t10.0.0.6\t%s\n' "$((CS+1500))" "$(b64 "$(ua5 6003)")"; } >> "$C/var/access.log"
+call /contest/admin/anomalies GET '' adm 'contest=an'
+ck "reboot com MAC no UA NÃO é troca de máquina (006 fora de switched; 001 continua)" \
+   '[[ "$(J "[.anomalies[]|select(.kind==\"switched\")|.login]|join(\",\")")" == teamaa001 ]]'
+ck "dois times na MESMA máquina com reboot no meio ⇒ machine_shared (006+007), chave sem boot" \
+   '[[ "$(J ".anomalies[]|select(.kind==\"machine_shared\" and (.login|contains(\"teamaa006\")))|.machine")" == "m:$MID6" && "$(J ".anomalies[]|select(.kind==\"machine_shared\" and (.login|contains(\"teamaa006\")))|.login")" == *teamaa007* ]]'
+ck "…e o clone SEM MAC continua separado pelo boot (005 fora; M3 com boot na chave)" \
+   '[[ "$(J "[.anomalies[]|select(.kind==\"machine_shared\")|.login]|join(\" \")")" != *teamaa005* && "$(J ".machines[]|select(.key==\"m:$MIDC/3003\")|.shared")" == true ]]'
+ck "…sem mexer no resto (1 multi-sessão, 1 reboot de submissão)" '[[ "$(J ".counts|[.multi_session,.reboot,.machine_shared]|join(\",\")")" == "1,1,2" ]]'
+
 call /contest/admin/logout-all GET '' adm 'contest=an'
 ck "logout-all GET pelo ÍNDICE (semeado) bate com as classes" '[[ "$(J ".sessions|[.competitors,.staff,.privileged]|join(\",\")")" == "6,0,2" && "$(J .login_enabled)" == true ]]'
 

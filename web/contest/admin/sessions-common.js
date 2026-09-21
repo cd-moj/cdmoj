@@ -32,11 +32,12 @@ export const sevPill = (s) => el('span', { class: 'pill ' + (s === 'bad' ? 'bad'
 // chave de máquina legível: m:<mid>/<boot> -> "mid…/boot"; ip:x -> "ip x"
 export const mk = (k) => {
   if (!k) return '—';
-  if (k.startsWith('m:')) { const [mid, boot] = k.slice(2).split('/'); return el('code', { title: k }, (mid || '').slice(0, 8) + '…/' + (boot || '')); }
+  // `m:<mid>` sem boot = máquina de identidade ESTÁVEL (agente novo do mlinux: o id vem do MAC)
+  if (k.startsWith('m:')) { const [mid, boot] = k.slice(2).split('/'); return el('code', { title: k }, (mid || '').slice(0, 8) + '…' + (boot ? '/' + boot : '')); }
   if (k.startsWith('ip:')) return el('code', { title: k }, 'ip ' + k.slice(3));
   return el('code', {}, k);
 };
-export const mkText = (k) => (k || '').split(' → ').map((x) => x.startsWith('m:') ? x.slice(2, 10) + '…/' + x.split('/')[1] : x.replace(/^ip:/, 'ip ')).join(' → ');
+export const mkText = (k) => (k || '').split(' → ').map((x) => x.startsWith('m:') ? x.slice(2, 10) + '…' + (x.split('/')[1] ? '/' + x.split('/')[1] : '') : x.replace(/^ip:/, 'ip ')).join(' → ');
 
 // makeLogoutUser(CONTEST, G, reload) -> async (login) — confirma, chama logout-user e recarrega
 export function makeLogoutUser(CONTEST, G, reload) {

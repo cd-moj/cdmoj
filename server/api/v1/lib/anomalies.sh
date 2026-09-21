@@ -179,11 +179,23 @@ an_build(){
     | ([ $acc[].ua64, $sess[].ua64, $sub[].ua64, $sub[].sua64 ] | map(select(. != null and . != "")) | unique
        | map({key:., value:(try (. | @base64d) catch "?")}) | from_entries) as $DEC
     | ($DEC | with_entries(.value |= (if contains("MLinux/") then mkey(.) else null end))) as $MKM
-    | def mk($ip; $u64): ($MKM[$u64 // ""] // ("ip:" + $ip));   # (após um def vem um termo, sem "|")
+    # IDENTIDADE ESTÁVEL (NutellaBoot 3, 21/09/2026): o agente novo do mlinux deriva o machine_id do MAC
+    # (md5) e põe o MAC no FIM do UA — `MLinux/<img>/<mid>/<boot>/<mac>`. Um mid visto com MAC é ÚNICO por
+    # placa, então p/ ele a máquina é o `mid` e o boot_id deixa de separar: reboot não vira "trocou de
+    # máquina" nem "2 sessões em 2 máquinas", e dois times na MESMA máquina com um reboot no meio passam a
+    # aparecer em machine_shared (antes eram duas chaves). Sem o MAC (agente antigo, /etc/machine-id
+    # CLONADO em sedes inteiras) nada muda: só o par mid/boot separa. ⚠ A chave GRAVADA (MKEY da sessão,
+    # submit-origin.log, sess_machine_key) segue `m:<mid>/<boot>`: trocar o formato no meio de uma prova
+    # faria a sessão antiga e a requisição nova divergirem — a normalização é só AQUI, na apuração.
+    | ([ $DEC[] | select(contains("MLinux/"))
+         | (capture("MLinux/[^/]+/(?<mid>[0-9a-f]{32})/[0-9]+/[0-9a-f]{2}([-:][0-9a-f]{2}){5}") // null)
+         | select(. != null) | .mid ] | unique | map({key: ., value: true}) | from_entries) as $STB
+    | def idk($k): (if ism($k) then (mid($k) as $m | if ($STB[$m] // false) then ("m:" + $m) else $k end) else $k end);
+      def mk($ip; $u64): ($MKM[$u64 // ""] // ("ip:" + $ip));   # (após um def vem um termo, sem "|")
       ([ $acc[] | select(role(.login) | not)
-         | . + {ua:($DEC[.ua64] // ""), key:(mk(.ip; .ua64)), in:(.t >= $cs)} ]) as $A
+         | . + {ua:($DEC[.ua64] // ""), key:(idk(mk(.ip; .ua64))), in:(.t >= $cs)} ]) as $A
     | ([ $sess[] | select(role(.login) | not)
-         | . + {ua:($DEC[.ua64] // ""), key:(if (.mkey // "") != "" then .mkey else (mk(.ip; .ua64)) end)} ]) as $S
+         | . + {ua:($DEC[.ua64] // ""), key:(idk(if (.mkey // "") != "" then .mkey else (mk(.ip; .ua64)) end))} ]) as $S
     | ([ $sub[] | . + {ua:($DEC[.ua64] // ""), key:(mk(.ip; .ua64))}
          | . + {skey:(if (.smkey // "") != "" then .smkey
                       elif (.sua64 // "") != "" then (mk(.sip; .sua64)) else "" end)} ]) as $B

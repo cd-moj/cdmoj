@@ -319,4 +319,32 @@ CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
 ck "sem roster, sem login e sem lista: aí sim nenhuma sede (erro claro)" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == false ]]'
 cp "$MOCKD/access.bak" "$C/var/access.log"; for r in 26tsca 26tscb; do mv "$MOCKD/roster.$r.bak" "$MOCKD/roster.$r.json"; done
 
+echo "== ELO PELO MAC (agente novo: o UA termina no MAC) e o binding do serviço de reserva =="
+# M4 é CLONE de M1 (mesmo machine_id ⇒ o fallback por mid está vetado) e REINICIOU depois do login
+# (o boot_id do serviço já é outro ⇒ o par mid/boot não casa). Só o MAC liga erin à máquina.
+# M5 nunca teve login com UA do mlinux: vale o `binding` do serviço (fred) — e o binding de um login
+# que NÃO é time da sede (M6 → "intruso") é ignorado.
+M4=aa-bb-04; M5=aa-bb-05; M6=aa-bb-06
+cp "$MOCKD/machines.26tscb.json" "$MOCKD/machines.26tscb.bak"; cp "$MOCKD/roster.26tscb.json" "$MOCKD/roster.26tscb.bak2"; cp "$C/var/access.log" "$MOCKD/access.bak2"
+for u in erin fred; do fx_user "$C" $u x "Time $u" >/dev/null; fx_team $u "Sede B"; done
+jq -c '.roster += [{user_id:"erin", name:"Time Erin"}, {user_id:"fred", name:"Time Fred"}]' "$MOCKD/roster.26tscb.bak2" > "$MOCKD/roster.26tscb.json"
+jq -c --argjson m4 "$(mkmach $M4 "$TE" "Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz" 6 7812 '{}' "$MID1" 4444444499)" \
+      --argjson m5 "$(mkmach $M5 "$TE" "Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz" 6 7812 '{}' "55555555555555555555555555555555" 5555555555)" \
+      --argjson m6 "$(mkmach $M6 "$TE" "Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz" 6 7812 '{}' "66666666666666666666666666666666" 6666666666)" \
+      '.machines += [$m4, ($m5 | .binding = {user_id:"fred", source:"manual", at:1}), ($m6 | .binding = {user_id:"intruso", source:"manual", at:1})]' \
+      "$MOCKD/machines.26tscb.bak" > "$MOCKD/machines.26tscb.json"
+printf '%s\terin\t10.0.0.4\t%s\n' "$((T0+50))" "$(printf 'Mozilla/5.0 (MLinux/26tscb/%s/4444444411/AA:BB:04) Gecko' "$MID1" | base64 -w0)" >> "$C/var/access.log"
+printf '%s\terin\t10.0.0.4\t%s\n' "$((T0+60))" "$(printf 'Mozilla/5.0 (MLinux/26tscb/%s/4444444411/aa-bb-cc-dd-ee-04) Gecko' "$MID1" | base64 -w0)" >> "$C/var/access.log"
+# (o MAC da fixture é curto — "aa-bb-04" — e o UA real tem 6 octetos: a máquina M4 ganha o MAC real)
+jq -c '(.machines[] | select(.mac == "aa-bb-04") | .mac) = "aa-bb-cc-dd-ee-04"' "$MOCKD/machines.26tscb.json" > "$MOCKD/m.tmp" && mv "$MOCKD/m.tmp" "$MOCKD/machines.26tscb.json"
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+SB(){ CJ ".sedes[]|select(.name==\"Sede B\")|$1"; }
+ck "MAC liga erin à M4 apesar do clone de machine_id E do reboot" '[[ "$(SB ".machines[]|select(.mac==\"aa-bb-cc-dd-ee-04\")|.team")" == erin ]]'
+ck "…e o clone NÃO rouba o elo de alice (M1 segue dela)" '[[ "$(CJ ".sedes[]|select(.name==\"Sede A\")|.machines[]|select(.mac==\"aa-bb-01\")|.team")" == alice ]]'
+ck "sem UA: vale o binding do serviço (fred na M5)" '[[ "$(SB ".machines[]|select(.mac==\"aa-bb-05\")|.team")" == fred ]]'
+ck "binding de quem NÃO é time da sede é ignorado (M6 sem time)" '[[ "$(SB ".machines[]|select(.mac==\"aa-bb-06\")|.team")" == null ]]'
+ck "o elo conta os dois caminhos novos (erin pelo MAC, fred pelo binding): 5 vinculados" '[[ "$(CJ .link.linked)" == 5 ]]'
+ck "MAC continua FORA dos agregados (global/by_node)" '! jq -c "[.global, .by_node]" "$C/var/nutella.cache.json" | grep -q "aa-bb"'
+mv "$MOCKD/machines.26tscb.bak" "$MOCKD/machines.26tscb.json"; mv "$MOCKD/roster.26tscb.bak2" "$MOCKD/roster.26tscb.json"; cp "$MOCKD/access.bak2" "$C/var/access.log"
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

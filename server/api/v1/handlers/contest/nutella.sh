@@ -10,6 +10,10 @@
 # POST {action:"collect"}               (admin)  dispara o nutella-gen.sh destacado.
 # POST {action:"push-roster"}           (admin)  PUT do roster do STORE em cada imagem
 #                                                (correlação p/ provas futuras).
+# POST {action:"push-bindings"}         (admin)  REPUBLICA no serviço o elo máquina↔time de todo login já
+#                                                feito com o UA do agente novo (o login publica sozinho —
+#                                                lib/nutella-bind.sh; isto é p/ quem logou ANTES de a
+#                                                integração existir, ou antes do push-roster).
 # POST {action:"command", op, image, mac?}       admin: qualquer imagem, image:"all" = TODAS
 #         AS SEDES DO CONTEST (uma chamada por sede — nunca a frota do serviço, que tem sedes de
 #         outros eventos); .cstaff/.staff: SÓ imagem da própria sede (fail-CLOSED: sem escopo
@@ -38,6 +42,21 @@ _nb_scope_json(){   # ecoa array JSON de nomes de sede (minúsculos) ou "null" (
   fi
 }
 
+# resumo da publicação do elo no login (lib/nutella-bind.sh): contagens, nunca MAC nem login
+_nb_bind_json(){
+  local v en=true pub=0 q=0
+  v="$(conf_value "$contest" NUTELLA_BIND)"; [[ "$v" == 0 ]] && en=false
+  [[ -s "$cdir/var/nutella-macs.tsv" ]] && pub="$(wc -l < "$cdir/var/nutella-macs.tsv" | tr -d '[:space:]')"
+  [[ -s "$cdir/var/nutella-bind.queue" ]] && q="$(wc -l < "$cdir/var/nutella-bind.queue" | tr -d '[:space:]')"
+  { [[ -s "$cdir/var/nutella-bind.log" ]] && awk -F'\t' '{ k = ($5 ~ /^http/) ? "error" : $5; n[k]++; if ($1 > t) t = $1 }
+      END { for (k in n) printf "%s\t%d\n", k, n[k]; printf "_at\t%d\n", t }' "$cdir/var/nutella-bind.log"; } \
+    | jq -Rcn --argjson en "$en" --argjson pub "${pub:-0}" --argjson q "${q:-0}" '
+        (reduce (inputs | split("\t") | select(length == 2)) as $r ({}; .[$r[0]] = ($r[1] | tonumber))) as $m
+        | {enabled: $en, published: $pub, queued: $q, last_at: ($m._at // null),
+           log: {ok: ($m.ok // 0), noroster: ($m.noroster // 0), image_unknown: ($m.image_unknown // 0),
+                 retry: ($m.retry // 0), error: ($m.error // 0)}}' 2>/dev/null
+}
+
 if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   cfg=false; nb_configured "$contest" && cfg=true
   adm=false; is_admin && adm=true
@@ -57,19 +76,20 @@ if [[ "${REQUEST_METHOD:-GET}" == GET ]]; then
   scope="$(_nb_scope_json)"
   imgs="$(nb_images "$contest" | jq -Rcn '[inputs | select(length > 0)]' 2>/dev/null)"; [[ -n "$imgs" ]] || imgs='[]'
   kk="$(nb_key_kind "$contest")"
+  bd="$(_nb_bind_json)"; jq -e . >/dev/null 2>&1 <<<"$bd" || bd='null'
   if [[ ! -s "$CACHE" ]]; then
-    ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null), data:null}' \
+    ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null), bind:$bd, data:null}' \
       --argjson c "$cfg" --arg u "$(nb_url "$contest")" --argjson st "$st" \
-      --argjson a "$adm" --argjson sc "$scope" --arg kk "$kk" --argjson im "$imgs"
+      --argjson a "$adm" --argjson sc "$scope" --arg kk "$kk" --argjson im "$imgs" --argjson bd "$bd"
     exit 0
   fi
   # o corte de escopo acontece AQUI (API, nunca UI): .cstaff/.staff levam só as sedes
   # deles em `sedes[]` (com máquinas/MACs); os agregados seguem inteiros.
-  ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null),
+  ok_json '{configured:$c, url:$u, key_kind:$kk, images:$im, status:$st, can_admin:$a, scoped:($sc != null), bind:$bd,
             data:($d[0] | if $sc == null then .
                   else (.sedes |= map(select((.name | ascii_downcase) as $n | $sc | index($n)))) end)}' \
     --argjson c "$cfg" --arg u "$(nb_url "$contest")" --argjson st "$st" \
-    --argjson a "$adm" --slurpfile d "$CACHE" --argjson sc "$scope" --arg kk "$kk" --argjson im "$imgs"
+    --argjson a "$adm" --slurpfile d "$CACHE" --argjson sc "$scope" --arg kk "$kk" --argjson im "$imgs" --argjson bd "$bd"
   exit 0
 fi
 
@@ -109,6 +129,11 @@ config)
     source "$_LIBDIR/contest-create.sh"
     cc_set_conf_var "$contest" NUTELLABOOT_IMAGES "$imgl"
   fi
+  # publicar o elo máquina↔time no login (ligado por omissão; `bind:false` grava NUTELLA_BIND=0)
+  if jq -e 'has("bind")' >/dev/null 2>&1 <<<"$body"; then
+    source "$_LIBDIR/contest-create.sh"
+    if [[ "$(jq -r '.bind' <<<"$body")" == false ]]; then cc_set_conf_var "$contest" NUTELLA_BIND 0; else cc_del_conf_var "$contest" NUTELLA_BIND; fi
+  fi
   if [[ -n "$url" || -s "$(nb_keyfile "$contest")" ]]; then mod_enable "$contest" maquinas; fi
   audit_log_to "$contest" nutella-config "url=$([[ -n "$url" ]] && echo sim || echo nao) key=$(jq -r 'if has("key") then (if .key == "" then "removida" else "gravada" end) else "mantida" end' <<<"$body")"
   ok_json '{saved:true, configured:$c, key_kind:$kk}' --argjson c "$(nb_configured "$contest" && echo true || echo false)" \
@@ -120,9 +145,9 @@ collect)
   runner="$_DIR/../../score/nutella-gen.sh"
   [[ -f "$runner" ]] || fail 500 "coletor ausente" "runner_missing"
   jq -cn --argjson t "$EPOCHSECONDS" '{running:true, phase:"enfileirada", updated_at:$t}' > "$STF" 2>/dev/null
-  # destacado (molde jplag-run.sh): sobrevive ao fim da CGI; o gen tem flock próprio
-  CONTESTSDIR="$CONTESTSDIR" nohup bash "$runner" "$contest" </dev/null >/dev/null 2>&1 &
-  disown 2>/dev/null || true
+  # destacado, com os redirects NO SETSID (molde owner_rename_bg): um `nohup … &` herdava o socket do
+  # CGI e, sob o fcgiwrap, o cliente podia ficar esperando a coleta. O gen tem flock próprio.
+  ( setsid env CONTESTSDIR="$CONTESTSDIR" RUNDIR="${RUNDIR:-}" bash "$runner" "$contest" </dev/null >/dev/null 2>&1 & ) 2>/dev/null
   audit_log_to "$contest" nutella-collect "started"
   ok_json '{started:true}'
   ;;
@@ -163,6 +188,32 @@ push-roster)
   done < <(jq -r '.sedes[].id' "$CACHE" 2>/dev/null)
   audit_log_to "$contest" nutella-push-roster "pushed=$pushed kept=$kept failed=$failed"
   ok_json '{pushed:$p, kept:$k, failed:$f}' --argjson p "$pushed" --argjson k "$kept" --argjson f "$failed"
+  ;;
+push-bindings)
+  is_admin || fail 403 "Apenas o admin do contest" "admin_required"
+  nb_configured "$contest" || fail 409 "Integração não configurada" "not_configured"
+  [[ -s "$cdir/var/access.log" ]] || fail 409 "Nenhum login registrado ainda" "no_logins"
+  source "$_LIBDIR/nutella-bind.sh"
+  # REPLAY do access.log pela MESMA fila do login: último login de cada MAC (UA do agente novo),
+  # conta de papel fora. O drenador dedupa contra o que já foi publicado e aplica a lista de sedes.
+  qf="$(mktemp)"
+  jq -Rrn '
+    [ inputs | split("\t") | select(length >= 4)
+      | (.[0] | tonumber? // 0) as $t | .[1] as $lg
+      | select(($lg | test("\\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$")) | not)
+      | ((.[3] | try @base64d catch "")
+         | capture("MLinux/(?<img>[A-Za-z0-9._-]{1,64})/[0-9a-f]{32}/(?<boot>[0-9]{1,20})/(?<mac>[0-9a-f]{2}([-:][0-9a-f]{2}){5})")? // null) as $m
+      | select($m != null) | {t: $t, lg: $lg, img: $m.img, boot: $m.boot, mac: ($m.mac | gsub(":"; "-"))} ]
+    | sort_by(.t) | reduce .[] as $e ({}; .[$e.mac] = $e)
+    | .[] | "\(.t)\t\(.lg)\t\(.img)\t\(.mac)\t\(.boot)"' "$cdir/var/access.log" > "$qf" 2>/dev/null
+  nq="$(wc -l < "$qf" | tr -d '[:space:]')"; nq="${nq:-0}"
+  if (( nq > 0 )); then
+    cat "$qf" >> "$cdir/var/nutella-bind.queue"
+    if [[ "${MOJ_JOBS_SYNC:-0}" == 1 ]]; then nb_bind_drain "$contest"; else nb_bind_drain_bg "$contest"; fi
+  fi
+  rm -f "$qf"
+  audit_log_to "$contest" nutella-push-bindings "queued=$nq"
+  ok_json '{queued:$q, bind:$bd}' --argjson q "$nq" --argjson bd "$(_nb_bind_json)"
   ;;
 command)
   nb_configured "$contest" || fail 409 "Integração não configurada" "not_configured"

@@ -23,6 +23,8 @@ Fixtures em <fixdir>:
   samples.<img>.<mac>.json    GET …/machines/<mac>/samples  e, 1 por linha, no LOTE …/<img>/samples
   commands.json               GET …/site-images/<img>/commands (catálogo {allowed, blocked})
   bindings.<img>.json         estado dos vínculos (PUT/DELETE …/machines/<mac>/binding)
+  bind503                     (arquivo vazio) faz o PUT do binding responder 503 — teste do retry
+  bindslow                    (arquivo com N) atrasa o PUT do binding em N segundos — o login não pode esperar
   webhooks.<img>.json         GET|PUT …/site-images/<img>/webhooks
 Registros: posts.log (todo POST/PUT/DELETE ACEITO: {method,path,body}), rejected.log (os
 recusados, com o status) e gets.log (GETs de samples/machines COM a query).
@@ -260,6 +262,14 @@ class H(BaseHTTPRequestHandler):
             img, mac = m.group(1), m.group(2).lower().replace(":", "-")
             if not self._image_ok(who, img):
                 return
+            slow = os.path.join(FIX, "bindslow")                  # serviço LENTO: o arquivo traz os segundos
+            if os.path.exists(slow):
+                try:
+                    time.sleep(float(open(slow).read().strip() or 0))
+                except ValueError:
+                    pass
+            if os.path.exists(os.path.join(FIX, "bind503")):     # serviço fora do ar (p/ o teste do retry)
+                return self._reject(503, "indisponível", body)
             b = _load(f"bindings.{img}.json", {})
             if self.command == "DELETE":
                 b.pop(mac, None)

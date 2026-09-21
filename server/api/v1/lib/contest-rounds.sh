@@ -26,6 +26,7 @@
 #     review/ print-requests/ clarifications/ news.json news-files/ backups/ jplag/ docs/
 #     placar*.txt statistics.cache.json time-overrides.json resources.json
 #     access.log admin-audit.log editor-log offline-log submit-origin.log session-events.log
+#     nutella-bind.log nutella-macs.tsv
 #                                               (CÓPIAS: append-only, precisam continuar)
 #     conf.snapshot balloons.json machines.json meta.json
 #
@@ -405,7 +406,9 @@ rd_promote(){
     for f in "$cdir"/var/placar-view-*.txt; do mv -f "$f" "$ad/${f##*/}" 2>/dev/null; done )
   # append-only: COPIA (a trilha do contest precisa continuar; o access.log é a fonte do
   # mapa de máquinas e tem de atravessar as rodadas)
-  for x in access.log admin-audit.log editor-log offline-log submit-origin.log session-events.log; do
+  # (nutella-bind.log/nutella-macs.tsv: o elo máquina↔time publicado no nutellaboot — a máquina do time
+  # é a mesma no aquecimento e na prova, então o estado CONTINUA e a rodada guarda a cópia)
+  for x in access.log admin-audit.log editor-log offline-log submit-origin.log session-events.log nutella-bind.log nutella-macs.tsv; do
     [[ -e "$cdir/var/$x" ]] && cp -f "$cdir/var/$x" "$ad/$x" 2>/dev/null
   done
   rm -f "$cdir/var/.metrics-stamp" "$cdir/var/.pending-count" "$cdir/var/round-report.err" 2>/dev/null
