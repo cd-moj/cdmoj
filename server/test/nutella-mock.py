@@ -23,6 +23,10 @@ Fixtures em <fixdir>:
   samples.<img>.<mac>.json    GET …/machines/<mac>/samples  e, 1 por linha, no LOTE …/<img>/samples
   commands.json               GET …/site-images/<img>/commands (catálogo {allowed, blocked})
   bindings.<img>.json         estado dos vínculos (PUT/DELETE …/machines/<mac>/binding)
+  legacy                      (arquivo vazio) emula o serviço ANTERIOR a 21/09/2026: sem `code` nos erros,
+                              401 p/ chave de serviço em /whoami e na lista, sem webhooks por entrada, sem
+                              roster/{id}, sem bindings em lote, sem commands/{id}. Sem o arquivo = protocolo
+                              NOVO (fase 1 — o que está em produção), conferido no serviço real em 21/09.
   bind503                     (arquivo vazio) faz o PUT do binding responder 503 — teste do retry
   bindslow                    (arquivo com N) atrasa o PUT do binding em N segundos — o login não pode esperar
   webhooks.<img>.json         GET|PUT …/site-images/<img>/webhooks
@@ -34,6 +38,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 FIX = sys.argv[1]
 PORTFILE = sys.argv[2]
+SSCOPES = os.environ.get("NB_MOCK_SSCOPES", "machines:read commands:write bindings:write roster:read roster:write webhooks:write alerts:write").split()
+LEGACY = lambda: os.path.exists(os.path.join(FIX, "legacy"))
 KEY = os.environ.get("NB_MOCK_KEY", "nb3a_mock")
 SKEY = os.environ.get("NB_MOCK_SKEY", "nb3s_mock")
 SIMAGES = [g for g in os.environ.get("NB_MOCK_SIMAGES", "*").split(",") if g]
@@ -64,9 +70,11 @@ class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-    def _send(self, code, obj=None, ctype="application/json", raw=None):
+    def _send(self, code, obj=None, ctype="application/json", raw=None, headers=None):
         body = raw if raw is not None else (b"" if obj is None else json.dumps(obj).encode())
         self.send_response(code)
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -83,15 +91,18 @@ class H(BaseHTTPRequestHandler):
         return None
 
     def _console(self, who):
-        """Rotas de console: a chave de serviço leva 401 (foi o que o serviço real respondeu)."""
+        """Rotas de console: chave de serviço leva 403 console_only (antes de 21/09: 401 sem code)."""
         if who != "admin":
-            self._send(401, {"detail": "credencial ausente ou inválida"})
+            if LEGACY():
+                self._send(401, {"detail": "credencial ausente ou inválida"})
+            else:
+                self._send(403, {"detail": "esta rota é do console; chave de serviço não entra", "code": "console_only"})
             return False
         return True
 
     def _image_ok(self, who, img):
         if who == "service" and not any(fnmatch.fnmatch(img, g) for g in SIMAGES):
-            self._send(403, {"detail": "chave de serviço sem acesso a esta imagem"})
+            self._send(403, {"detail": "sem acesso a esta imagem", "code": "image_out_of_scope"})
             return False
         return True
 
@@ -99,10 +110,45 @@ class H(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length", "0") or 0)
         return self.rfile.read(n).decode("utf-8", "replace") if n else ""
 
-    def _reject(self, code, detail, body=""):
+    def _reject(self, code, detail, body="", ecode=None, headers=None):
         _log("rejected.log", {"method": self.command, "path": self.path.split("?")[0],
                               "status": code, "body": body})
-        self._send(code, {"detail": detail})
+        obj = {"detail": detail}
+        if ecode and not LEGACY():
+            obj["code"] = ecode
+        self._send(code, obj, headers=headers)
+
+    def _bind_one(self, who, img, mac, j):
+        """um vínculo; {ok, binding} ou {ok:false, code, detail}. `create_roster_entry` (protocolo novo) cria a
+        entrada marcada source:"binding" quando o time não está no roster."""
+        b = _load(f"bindings.{img}.json", {})
+        uid = j.get("user_id")
+        if not re.fullmatch(r"[0-9a-f]{2}(-[0-9a-f]{2}){5}", mac) or mac == "ff-ff-ff-ff-ff-ff":   # ff… = MAC reservado (teste)
+            return {"ok": False, "code": "invalid_mac", "detail": "mac malformado"}
+        rj = _load(f"roster.{img}.json", {"roster": []})
+        ros = [e.get("user_id") for e in rj["roster"]]
+        created = False
+        if uid and uid not in ros:
+            cre = j.get("create_roster_entry") if not LEGACY() else None
+            if not cre:
+                return {"ok": False, "code": "user_not_in_roster", "detail": f"user_id {uid} não está no roster desta imagem"}
+            e = {"user_id": uid, "source": "binding", "seat": ""}
+            if isinstance(cre, dict):
+                e.update({k: cre.get(k, "") for k in ("name", "display_name", "organization", "country")})
+            rj["roster"].append(e)
+            _save(f"roster.{img}.json", rj)
+            created = True
+        v = {"bound_at": int(time.time()), "by": who, "source": j.get("source") or ("service:mock" if who == "service" else "console"),
+             "user_id": uid, "seat": j.get("seat", "")}
+        if j.get("at") is not None:
+            v["client_at"] = int(float(j["at"]))
+        if j.get("boot_id"):
+            v["boot_id"] = str(j["boot_id"])
+        if created:
+            v["roster_entry_created"] = True
+        b[mac] = v
+        _save(f"bindings.{img}.json", b)
+        return {"ok": True, "binding": v}
 
     @staticmethod
     def _janela(d, since, until, limit):
@@ -126,13 +172,36 @@ class H(BaseHTTPRequestHandler):
         num = lambda k, d=0: float(q.get(k, d) or d)
 
         if path == "/api/v1/whoami":
+            if who == "service" and not LEGACY():
+                imgs = [i["id"] for i in _load("images.json", {"images": []})["images"] if any(fnmatch.fnmatch(i["id"], g) for g in SIMAGES)]
+                return self._send(200, {"kind": "service", "name": "mock-svc", "label": "mock-svc", "scopes": SSCOPES, "image_globs": SIMAGES, "images": imgs})
             return self._console(who) and self._send(200, {"kind": "admin", "label": "mock"})
         if path == "/api/v1/site-images":
+            if who == "service" and not LEGACY():
+                imgs = [dict(i, machines_total=len(_load(f"machines.{i['id']}.json", {"machines": []})["machines"]))
+                        for i in _load("images.json", {"images": []})["images"] if any(fnmatch.fnmatch(i["id"], g) for g in SIMAGES)]
+                return self._send(200, {"images": imgs})
             return self._console(who) and self._send(200, _load("images.json", {"images": []}))
+        if path == "/api/v1/events/types" and not LEGACY():
+            return self._send(200, {"events": ["machine.first_seen", "machine.rebooted", "machine.online", "machine.offline", "machine.status", "machine.locked", "machine.unlocked", "machine.bound", "machine.unbound", "command.sent", "command.acked", "command.expired", "config.updated", "alert.raised", "alert.dismissed", "webhook.test"], "error_codes": ["console_only", "insufficient_scope", "image_out_of_scope", "user_not_in_roster", "invalid_mac", "image_not_found", "rate_limited"]})
+        m = re.fullmatch(rf"/api/v1/site-images/{IMG}/commands/([A-Za-z0-9_-]+)", path)
+        if m and not LEGACY():
+            if not self._image_ok(who, m.group(1)):
+                return
+            cmds = _load(f"cmdstatus.{m.group(1)}.json", {})
+            c = cmds.get(m.group(2))
+            if not c:
+                return self._reject(404, "comando desconhecido", ecode="command_not_found")
+            return self._send(200, c)
         m = re.fullmatch(rf"/api/v1/site-images/{IMG}", path)
         if m:
-            if who == "service":      # a rota não tem escopo de serviço: 403
-                return self._send(403, {"detail": "sem escopo"})
+            if who == "service":
+                if LEGACY():      # antes de 21/09 a rota não tinha escopo de serviço: 403
+                    return self._send(403, {"detail": "sem escopo"})
+                if not self._image_ok(who, m.group(1)):
+                    return
+                img = next((i for i in _load("images.json", {"images": []})["images"] if i["id"] == m.group(1)), None)
+                return self._send(200, dict(img or {"id": m.group(1)}, machines_total=len(_load(f"machines.{m.group(1)}.json", {"machines": []})["machines"])))
             img = next((i for i in _load("images.json", {"images": []})["images"] if i["id"] == m.group(1)), None)
             return self._send(200, img) if img else self._send(404, {"detail": "Not Found"})
         m = re.fullmatch(rf"/api/v1/site-images/{IMG}/roster", path)
@@ -144,7 +213,7 @@ class H(BaseHTTPRequestHandler):
         if m:
             if not self._image_ok(who, m.group(1)):
                 return
-            _log("gets.log", {"method": "GET", "path": self.path})
+            _log("gets.log", {"method": "GET", "path": self.path, "accept_encoding": self.headers.get("Accept-Encoding", "")})
             d = _load(f"machines.{m.group(1)}.json")
             if d is None:
                 return self._send(404, {"detail": "Not Found"})
@@ -163,7 +232,7 @@ class H(BaseHTTPRequestHandler):
         if m:
             if not self._image_ok(who, m.group(1)):
                 return
-            _log("gets.log", {"method": "GET", "path": self.path})
+            _log("gets.log", {"method": "GET", "path": self.path, "accept_encoding": self.headers.get("Accept-Encoding", "")})
             d = _load(f"samples.{m.group(1)}.{m.group(2)}.json")
             if d is None:
                 return self._send(404, {"detail": "Not Found"})
@@ -172,7 +241,7 @@ class H(BaseHTTPRequestHandler):
         if m:
             if not self._image_ok(who, m.group(1)):
                 return
-            _log("gets.log", {"method": "GET", "path": self.path})
+            _log("gets.log", {"method": "GET", "path": self.path, "accept_encoding": self.headers.get("Accept-Encoding", "")})
             if NOLOTE or os.path.exists(os.path.join(FIX, "nolote")):   # arquivo = liga/desliga sem reiniciar
                 return self._send(404, {"detail": "Not Found"})
             img, act = m.group(1), num("active_since")
@@ -247,7 +316,14 @@ class H(BaseHTTPRequestHandler):
             alvo = macs if alvo == "all" else [str(x).lower().replace(":", "-") for x in (alvo or [])]
             if not alvo:
                 return self._reject(400, "nenhuma máquina alvo", body)
-            return ok({"command_id": "mock%06d" % (int(time.time()) % 1000000), "machines": len(alvo)})
+            cid = "mock%06d" % (int(time.time() * 1000) % 1000000)
+            if not LEGACY():   # status do comando (GET …/commands/{id}): 1ª máquina executou, o resto pendente
+                cs = _load(f"cmdstatus.{img}.json", {})
+                cs[cid] = {"command_id": cid, "command": cmd, "by": who, "created_at": int(time.time()), "expires_at": int(time.time()) + 600,
+                           "machines": len(alvo), "summary": {"acked": 1 if alvo else 0, "pending": max(len(alvo) - 1, 0), "expired": 0},
+                           "targets": [{"mac": mm, "state": ("acked" if i == 0 else "pending")} for i, mm in enumerate(alvo)]}
+                _save(f"cmdstatus.{img}.json", cs)
+            return ok({"command_id": cid, "machines": len(alvo)})
         m = re.fullmatch(rf"/api/v1/site-images/{IMG}/roster", path)
         if m and self.command == "PUT":
             if not self._image_ok(who, m.group(1)):
@@ -270,24 +346,104 @@ class H(BaseHTTPRequestHandler):
                     pass
             if os.path.exists(os.path.join(FIX, "bind503")):     # serviço fora do ar (p/ o teste do retry)
                 return self._reject(503, "indisponível", body)
+            if os.path.exists(os.path.join(FIX, "bind429")):     # rate limit com Retry-After (protocolo novo)
+                os.remove(os.path.join(FIX, "bind429"))
+                return self._reject(429, "devagar", body, ecode="rate_limited", headers={"Retry-After": "1"})
             b = _load(f"bindings.{img}.json", {})
             if self.command == "DELETE":
                 b.pop(mac, None)
                 _save(f"bindings.{img}.json", b)
                 return ok(None, 204)
-            uid = j.get("user_id")
-            ros = [e.get("user_id") for e in _load(f"roster.{img}.json", {"roster": []})["roster"]]
-            if uid and uid not in ros:
-                return self._reject(404, f"user_id {uid} não está no roster desta imagem", body)
-            v = {"bound_at": time.time(), "by": who, "source": j.get("source") or ("service:mock" if who == "service" else "console"),
-                 "user_id": uid, "seat": j.get("seat", "")}
-            if j.get("at") is not None:
-                v["client_at"] = float(j["at"])
-            if j.get("boot_id"):
-                v["boot_id"] = str(j["boot_id"])
-            b[mac] = v
-            _save(f"bindings.{img}.json", b)
-            return ok(v)
+            r = self._bind_one(who, img, mac, j)
+            if r.get("ok"):
+                return ok(r["binding"])
+            return self._reject(404, r["detail"], body, ecode=r["code"])
+        # ---- protocolo NOVO (≥ 21/09/2026) ----------------------------------------------------------
+        if not LEGACY():
+            m = re.fullmatch(rf"/api/v1/site-images/{IMG}/webhooks", path)
+            if m and self.command == "POST":
+                img = m.group(1)
+                if not self._image_ok(who, img):
+                    return
+                if who == "service" and "webhooks:write" not in SSCOPES:
+                    return self._reject(403, "falta escopo", body, ecode="insufficient_scope")
+                url, sec, ev = j.get("url", ""), j.get("secret", ""), j.get("events", [])
+                if not url.startswith(("https://", "http://")):
+                    return self._reject(400, "url", body, ecode="invalid_url")
+                if len(sec) < 16:
+                    return self._reject(400, "segredo curto", body, ecode="invalid_secret")
+                owner = "service:mock-svc" if who == "service" else "console"
+                w = _load(f"webhooks.{img}.json", {"webhooks": []})
+                mine = [x for x in w["webhooks"] if x.get("owner") == owner and x.get("url") == url]
+                if mine:
+                    mine[0].update({"secret": sec, "events": ev})
+                    _save(f"webhooks.{img}.json", w)
+                    return ok(dict(mine[0], secret="***", created=False), 200)
+                if who == "service" and len([x for x in w["webhooks"] if x.get("owner") == owner]) >= 5:
+                    return self._reject(400, "limite", body, ecode="webhook_limit")
+                e = {"id": "wh_" + os.urandom(6).hex(), "url": url, "secret": sec, "events": ev, "owner": owner, "created_at": int(time.time())}
+                w["webhooks"].append(e)
+                _save(f"webhooks.{img}.json", w)
+                return ok(dict(e, secret="***", created=True), 201)
+            m = re.fullmatch(rf"/api/v1/site-images/{IMG}/webhooks/(wh_[0-9a-f]+)", path)
+            if m and self.command in ("DELETE", "PUT"):
+                img, wid = m.group(1), m.group(2)
+                if not self._image_ok(who, img):
+                    return
+                owner = "service:mock-svc" if who == "service" else "console"
+                w = _load(f"webhooks.{img}.json", {"webhooks": []})
+                mine = [x for x in w["webhooks"] if x.get("id") == wid and (who == "admin" or x.get("owner") == owner)]
+                if not mine:
+                    return self._reject(404, "webhook", body, ecode="webhook_not_found")
+                if self.command == "DELETE":
+                    w["webhooks"] = [x for x in w["webhooks"] if x.get("id") != wid]
+                    _save(f"webhooks.{img}.json", w)
+                    return ok(None, 204)
+                mine[0].update({k: j[k] for k in ("secret", "events", "url") if k in j})
+                _save(f"webhooks.{img}.json", w)
+                return ok(dict(mine[0], secret="***"))
+            m = re.fullmatch(rf"/api/v1/site-images/{IMG}/roster", path)
+            if m and self.command == "POST":
+                img = m.group(1)
+                if not self._image_ok(who, img):
+                    return
+                if not j.get("user_id"):
+                    return self._reject(400, "user_id", body, ecode="invalid_roster_entry")
+                rj = _load(f"roster.{img}.json", {"roster": []})
+                cur = [e for e in rj["roster"] if e.get("user_id") == j["user_id"]]
+                e = {"user_id": j["user_id"], "name": j.get("name", ""), "display_name": j.get("display_name", ""),
+                     "organization": j.get("organization", {}), "country": j.get("country", ""), "seat": j.get("seat", "")}
+                if cur:
+                    cur[0].update(e)
+                else:
+                    rj["roster"].append(e)
+                _save(f"roster.{img}.json", rj)
+                return ok({"ok": True, "created": not cur, "entry": e})
+            m = re.fullmatch(rf"/api/v1/site-images/{IMG}/roster/([^/]+)", path)
+            if m and self.command == "DELETE":
+                img = m.group(1)
+                if not self._image_ok(who, img):
+                    return
+                rj = _load(f"roster.{img}.json", {"roster": []})
+                rj["roster"] = [e for e in rj["roster"] if e.get("user_id") != m.group(2)]
+                _save(f"roster.{img}.json", rj)
+                return ok(None, 204)
+            m = re.fullmatch(rf"/api/v1/site-images/{IMG}/bindings", path)
+            if m and self.command == "PUT":
+                img = m.group(1)
+                if not self._image_ok(who, img):
+                    return
+                lst = j.get("bindings")
+                if not isinstance(lst, list) or len(lst) > 1000:
+                    return self._reject(400, "bindings: lista de até 1000", body, ecode="bad_request")
+                res = []
+                for it in lst:
+                    it = dict(it)
+                    if "create_roster_entry" not in it and j.get("create_roster_entry"):
+                        it["create_roster_entry"] = j["create_roster_entry"]
+                    r = self._bind_one(who, img, str(it.get("mac", "")).lower().replace(":", "-"), it)
+                    res.append(dict(mac=it.get("mac"), **r))
+                return ok({"results": res, "bound": sum(1 for r in res if r["ok"]), "failed": sum(1 for r in res if not r["ok"])})
         m = re.fullmatch(rf"/api/v1/site-images/{IMG}/webhooks", path)
         if m and self.command == "PUT":
             if who != "admin":

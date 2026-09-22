@@ -55,11 +55,15 @@ máquina↔time** (roster/binding).
   `targets:{sede: "all"|[macs]}` **e credencial de console**. O MOJ usou as duas erradas até 21/09/2026 e o
   mock, que aceitava qualquer POST, escondeu — hoje o mock é estrito como o serviço.
 - Auth: `Authorization: Bearer …`, em duas classes que o MOJ aceita:
-  - **`nb3s_…` — chave de SERVIÇO, a recomendada.** Criada pela administração do nutellaboot em
-    `POST /service-keys {name, scopes, images}`; o MOJ precisa de `machines:read`, `commands:write`,
-    `bindings:write`, `roster:read`, `roster:write` nas imagens do evento (`images:["26*"]`). Ela **não entra
-    nas rotas de console**: `/whoami` e a listagem `/site-images` dão **401**, `GET /site-images/{i}` dá 403,
-    `POST /commands` (frota) dá 401 — por isso as sedes do evento vão no conf (`NUTELLABOOT_IMAGES`).
+  - **`nb3s_…` — chave de SERVIÇO, a recomendada: UMA POR EVENTO**, criada pelo Ribas na tela `/admin/` do
+    nutellaboot com os escopos `machines:read commands:write alerts:write bindings:write roster:read
+    roster:write webhooks:write` e o **glob das imagens do evento**. Desde o protocolo de 21/09/2026
+    (fase 1, em produção) ela responde `GET /whoami` (`{kind:"service", name, scopes[], image_globs[],
+    images[]}`) e lista `GET /site-images` pelo glob — o que ela lista É a lista do evento: `NUTELLABOOT_IMAGES`
+    virou opcional (só restringe). Rota de console com chave válida dá **403 `console_only`**; imagem fora
+    do glob, **403 `image_out_of_scope`**; todo erro traz `{detail, code}` (catálogo em `GET /events/types`)
+    e 429 vem com `Retry-After`. Serviço ANTERIOR a 21/09 (401 no `/whoami` de nb3s_): o MOJ continua
+    funcionando com a lista no conf — o mock emula os dois (`legacy`).
   - `nb3a_…` — chave de ADMINISTRAÇÃO: faz tudo, em TODAS as sedes do serviço (que hospeda outros eventos).
     Funciona, mas é mais poder do que a integração precisa; o painel a marca em amarelo.
 
@@ -162,6 +166,14 @@ máquina↔time** (roster/binding).
   ranks/séries; o "editores × colocação" é contagem por recorte). A view recebe o cache
   inteiro + a árvore (`name/view/subregions`) + o recorte, e compara os FILHOS do nó
   (subregiões com dado, ou as sedes dele); nós `view:true` ficam fora da comparação.
+- **Protocolo ≥ 21/09 no vínculo**: 404 só é "fora do roster" com `code:user_not_in_roster` (`invalid_mac`/
+  `image_not_found` são erro de verdade); 429 dorme o `Retry-After`; **`NUTELLA_BIND_ROSTER=1`** no conf (opt-in)
+  manda `create_roster_entry` (nome/universidade/país do `account.json`) e o serviço cria a entrada marcada
+  `source:"binding"` — um roster oficial enviado depois a sobrescreve; **`push-bindings` vai em LOTE**
+  (`PUT …/bindings`, até 1000 por request, resultado por item; serviço antigo sem a rota cai na fila de sempre).
+  `command-status {image, command_id}` lê `GET …/commands/{id}` (acked/pending/expired por MAC) — o painel
+  acompanha por 60 s depois de mandar uma ordem. `status.agent_version`/`capabilities` (camada 2026.09.2) marca o
+  agente novo; `t_agent` continua valendo p/ a 1ª leva.
 - **O LOGIN publica o vínculo** (`lib/nutella-bind.sh`, 21/09): com o UA do agente novo, o login de um
   time DIZ em que máquina ele está, e o MOJ faz o `PUT …/binding {user_id, source:"moj-login", at, boot_id}`.
   **Custo zero no login**: o handler só acrescenta uma linha em `var/nutella-bind.queue` (`printf`, builtin;
@@ -195,10 +207,16 @@ máquina↔time** (roster/binding).
   `kind:"machine_alert"`, cartão próprio quando há algum). Aviso por Telegram (DM ao DONO do contest, outbox da
   `lib/alerts.sh`) só `alert.raised`, só DURANTE a prova (início−1 h … fim: na montagem todo mundo espeta
   pendrive) e com teto — 1 por máquina+tipo e 10 por contest a cada 10 min; o log não tem teto de aviso.
-  **Instalar**: `POST /contest/nutella {action:"webhooks-install", base_url?}` (cartão no painel) — exige chave
-  de ADMINISTRAÇÃO (webhooks são rota de console), gera o segredo, pede só os dois eventos de alerta. ⚠ O `PUT
-  …/webhooks` do serviço SUBSTITUI a lista e o `GET` mascara os segredos: havendo webhook de outro dono na sede o
-  MOJ recusa antes de escrever em qualquer sede (`force` passa por cima, apagando o deles). A rota não atende
+  **Instalar**: `POST /contest/nutella {action:"webhooks-install", base_url?, remove?}` (cartão no painel) — **por
+  ENTRADA** (protocolo ≥ 21/09): `POST …/webhooks {url, secret, events}` cria (201) ou, com a mesma url do mesmo
+  dono, atualiza (200, mesmo id); `DELETE …/webhooks/{id}` remove SÓ o nosso (ids em `var/nutella-webhooks.json`).
+  Chave de serviço com `webhooks:write` basta; ela vê só os próprios webhooks, então o de outro dono na sede nem
+  aparece e nunca é tocado (o `force` de antes deixou de existir). Eventos assinados: `alert.raised`,
+  `alert.dismissed`, `machine.rebooted`, `machine.offline`, `machine.online` — nunca `events: []` (assinaria
+  `machine.status`, ~38/s na frota). O botão "testar" do serviço manda `webhook.test`: o receptor responde 200 e
+  não registra. Corpo ganhou `delivery` (dentro do HMAC, igual nas 3 tentativas — é a chave de dedup; sem ele,
+  o trio evento+id+mac) e `data.boot_id`/`data.binding.user_id` (o time sem lookup). Eventos de máquina viram
+  `kind:"machine_event"` na trilha de Anomalias (offline = atenção), sem aviso por Telegram. A rota não atende
   pelo subdomínio do contest (isolamento), por isso a URL base vai no pedido. Depende de o nginx repassar o
   cabeçalho `X-NB-Signature` (repassa por omissão — `fastcgi_pass_request_headers on`, como já acontece com
   `If-None-Match`); conferir com um POST assinado depois do deploy.
@@ -231,8 +249,9 @@ relatório a inlina; cache novo × antigo, pt × en). O elo pelo MAC (clone de m
 binding de reserva estão no `smoke-contest-nutella.sh`; a publicação no login tem o `smoke-nutella-bind.sh`
 (o que publica e o que NÃO, dedup, reboot, 404 do roster, 503 ⇒ retry, replay, e o caminho DESTACADO de
 produção com o serviço lento); a identidade estável, no `smoke-contest-anomalies.sh`; os webhooks, no
-`smoke-nutella-hook.sh` (opacidade do 401, corpo adulterado, outro segredo, frescor, 413, repetição, tetos de
-aviso, fora da prova, instalação com webhook alheio/`force`/remoção, e a trilha de Anomalias). O relatório é coberto no `smoke-contest-report.sh` (página condicional, sem
+`smoke-nutella-hook.sh` (opacidade do 401, corpo adulterado, outro segredo, frescor, 413, repetição por `delivery`,
+`webhook.test`, eventos de máquina, tetos de aviso, fora da prova, instalação por entrada com webhook alheio
+intocado/remoção, e a trilha de Anomalias). O relatório é coberto no `smoke-contest-report.sh` (página condicional, sem
 MAC/teams/_rows, view 2.0 embutida, invariantes). O jq do coletor vive em VARIÁVEIS
 (`AGG_JQ`), que o `jq-portability.sh` não vê: rode o coletor com o jq 1.7 da imagem
 (`--reaggregate` num bruto guardado) antes de deployar mudança nele.

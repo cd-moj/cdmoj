@@ -259,12 +259,17 @@ an_build(){
               login:(($d.login // "-") | if . == "-" then "" else . end), name:(nm(($d.login // "") | if . == "-" then "" else . end)), region:"",
               machine:("ip:" + ($d.ip // "")),
               detail:{event:.action, ip:($d.ip // ""), target:($d.target // ""), route:($d.route // ""), until:($d.until // "")}} ]
-       + [ $nbev[] | (.event == "alert.raised") as $up
+       + [ $nbev[] | select((.event // "") | startswith("alert.")) | (.event == "alert.raised") as $up
            | {kind:"machine_alert",
               severity:(if ($up | not) then "info" elif ((.kind // "") | startswith("usb.")) then "bad" else "warn" end),
               at:.t, login:(.team // ""), name:(nm(.team // "")), region:(rg(.team // "")), machine:(.mkey // ""),
               detail:{event:.event, alert:(.kind // ""), text:(.detail // ""), vendor:(.vendor // ""), image:(.image // ""),
-                      mac:(.mac // ""), other_mac:(.other_mac // ""), notified:(.notified // false)}} ]) as $EV
+                      mac:(.mac // ""), other_mac:(.other_mac // ""), notified:(.notified // false)}} ]
+       # eventos de MÁQUINA do webhook (≥ 21/09): reiniciou / sumiu / voltou — info, ao lado do time que estava nela
+       + [ $nbev[] | select((.event // "") | startswith("machine."))
+           | {kind:"machine_event", severity:(if .event == "machine.offline" then "warn" else "info" end),
+              at:.t, login:(.team // ""), name:(nm(.team // "")), region:(rg(.team // "")), machine:(.mkey // ""),
+              detail:({event:.event, image:(.image // ""), mac:(.mac // ""), boot_id:(.boot_id // "")} + (.extra // {}))} ]) as $EV
     | (if $active then ($MS + $SH + $SO + $UM + $SW + $SS) else [] end) as $AN
     | (($AN | map(.login) | map(split(", ")[]) | unique) + ($SESS | keys)) as $TL
     # --- última submissão por login ----------------------------------------------------------
@@ -289,7 +294,8 @@ an_build(){
                   revoked: ([ $ev[] | select(.event == "revoke") ] | length), events: ($ev | length),
                   site_lock_blocks: ([ $sl[] | select(.action == "site-lock-block") ] | length),
                   site_lock_claims: ([ $sl[] | select(.action == "site-lock-claim") ] | length),
-                  machine_alerts: ([ $nbev[] | select(.event == "alert.raised") ] | length) },
+                  machine_alerts: ([ $nbev[] | select(.event == "alert.raised") ] | length),
+                  machine_events: ([ $nbev[] | select((.event // "") | startswith("machine.")) ] | length) },
         anomalies: ($AN | sort_by(-.at)),
         events: ($EV | sort_by(-.at) | .[0:500]),
         # sem gate o painel esconde a tabela de times: não mandar 1.900 linhas (1,3 MB na LATAM)

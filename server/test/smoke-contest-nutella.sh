@@ -268,35 +268,60 @@ ck "sem force: roster povoado é PRESERVADO" '[[ "$(J .kept)" == 2 && "$(J .push
 call /contest/nutella POST '{"action":"push-roster","force":true}'
 ck "force: PUT do roster nas 2 imagens" '[[ "$(J .pushed)" == 2 ]] && grep -q "\"PUT\"" "$MOCKD/posts.log" && grep -q "Time Alice" "$MOCKD/posts.log"'
 
-echo "== CHAVE DE SERVIÇO (nb3s_): a recomendada — e ela NÃO entra nas rotas de console =="
-# Conferido no serviço real (21/09/2026): /whoami e a listagem /site-images dão 401 p/ chave de
-# serviço. Antes o MOJ nem ACEITAVA o prefixo nb3s_, só funcionava com a chave de administração.
+echo "== CHAVE DE SERVIÇO (nb3s_): a recomendada — protocolo NOVO (≥ 21/09/2026) =="
+# Desde 21/09 o serviço responde /whoami e lista /site-images pelo glob da chave de serviço; rota de
+# console dá 403 console_only; todo erro traz `code`. Antes o MOJ nem ACEITAVA o prefixo nb3s_.
 call /contest/nutella POST '{"action":"config","key":"nb3s_servicetest456","images":""}'
 ck "chave nb3s_ é aceita"            '[[ "$(J .saved)" == true && "$(J .key_kind)" == service ]]'
+rm -f "$C/var/nutella.cache.json"
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "SEM lista à mão a coleta funciona: as sedes vêm do glob da chave (2 de 3 do serviço)" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".sedes|length")" == 2 && "$(CJ .link.mode)" == ua ]]'
+# a chave de serviço é criada POR EVENTO: o que ela lista é a lista do evento — sede do glob sem roster nem
+# login ainda (véspera) ENTRA, como se estivesse em NUTELLABOOT_IMAGES (conferido na 26tete real: roster vazio)
+cp "$MOCKD/roster.26tscb.json" "$MOCKD/roster.26tscb.bak3"; jq -n '{roster:[]}' > "$MOCKD/roster.26tscb.json"; cp "$C/var/access.log" "$MOCKD/access.bak3"; : > "$C/var/access.log"
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "…sede do glob sem roster nem login (véspera) entra mesmo assim" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ "[.sedes[].id]|sort|join(\",\")")" == "26tsca,26tscb" ]]'
+mv "$MOCKD/roster.26tscb.bak3" "$MOCKD/roster.26tscb.json"; mv "$MOCKD/access.bak3" "$C/var/access.log"
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "…e o lote de samples foi pedido com gzip (Accept-Encoding)" 'grep -q "gzip" "$MOCKD/gets.log"'
+: > "$MOCKD/posts.log"
+call /contest/nutella POST '{"action":"command","op":"mlreboot","image":"all"}'
+ck "\"todas\" com chave de serviço (a rota de frota daria 403 console_only)" '[[ "$(J .ok)" == 2 ]]'
+CID="$(J '.sedes["26tsca"].command_id')"
+call /contest/nutella POST "$(jq -cn --arg c "$CID" '{action:"command-status", image:"26tsca", command_id:$c}')"
+ck "command-status: quem executou (1 acked, 1 pending)" '[[ "$(J .status.summary.acked)" == 1 && "$(J .status.summary.pending)" == 1 && "$(J ".status.targets|length")" == 2 ]]'
+call /contest/nutella POST "$(jq -cn --arg c "$CID" '{action:"command-status", image:"26tscb", command_id:$c}')" cst
+ck "…staff só acompanha ordem da PRÓPRIA sede (Sede B → 403)" '[[ "$OUT" == *"Status: 403"* ]]'
+call /contest/nutella POST "$(jq -cn --arg c "$CID" '{action:"command-status", image:"26tsca", command_id:$c}')" stf
+ck "…staff SEM escopo não acompanha nada (fail-closed)" '[[ "$OUT" == *"Status: 403"* ]]'
+pf(){ OUT="$(PATH_INFO=/contest/admin/preflight REQUEST_METHOD=GET QUERY_STRING="contest=nt" HTTP_AUTHORIZATION="Bearer adm" \
+  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+pf; ck "preflight com chave de SERVIÇO: ok pelo /whoami (escopos completos, 2 sedes)" '[[ "$(J ".checks[]|select(.id==\"mlinux\")|.level")" == ok && "$(J ".checks[]|select(.id==\"mlinux\")|.detail")" == *"2 sede"* ]]'
+# chave de serviço cujo glob NÃO cobre a imagem listada à mão: recusa clara no comando e `skipped` na coleta
+call /contest/nutella POST '{"action":"config","images":"26tsca 26tscb 26zzzz"}'
+call /contest/nutella POST '{"action":"command","op":"mlreboot","image":"26zzzz"}'
+ck "imagem fora do alcance da chave → 502" '[[ "$OUT" == *"Status: 502"* ]]'
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "coleta: imagem listada à mão que o serviço não devolve vai p/ skipped; as outras 2 seguem" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".skipped|join(\",\")")" == 26zzzz && "$(CJ ".sedes|length")" == 2 ]]'
+call /contest/nutella POST '{"action":"config","images":"26zzzz"}'
+CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
+ck "coleta: NENHUMA sede ⇒ falha dizendo o porquê (nunca um cache ok:true zerado)" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == false && "$(CJ ".sedes|length")" == 2 ]]'
+
+echo "== …e o serviço LEGADO (antes de 21/09): chave de serviço sem /whoami nem lista =="
+touch "$MOCKD/legacy"
+call /contest/nutella POST '{"action":"config","images":""}'
 rm -f "$C/var/nutella.cache.json"
 CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
 ck "sem a lista de site-images a coleta PÁRA e diz o porquê" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == false && "$(jq -r .error "$C/var/nutella.status.json")" == *site-images* ]]'
 call /contest/nutella POST '{"action":"config","images":"26tsca 26tscb"}'
 ck "lista de site-images gravada"    'call /contest/nutella GET ""; [[ "$(J ".images|join(\",\")")" == "26tsca,26tscb" ]]'
 CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
-ck "com a lista, a coleta funciona com chave de serviço" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".sedes|length")" == 2 && "$(CJ .link.mode)" == ua ]]'
-: > "$MOCKD/posts.log"
-call /contest/nutella POST '{"action":"command","op":"mlreboot","image":"all"}'
-ck "\"todas\" com chave de serviço (a rota de frota daria 401)" '[[ "$(J .ok)" == 2 ]]'
-# a Central (preflight) não pode acusar "chave inválida" só porque /whoami é rota de console
-pf(){ OUT="$(PATH_INFO=/contest/admin/preflight REQUEST_METHOD=GET QUERY_STRING="contest=nt" HTTP_AUTHORIZATION="Bearer adm" \
-  CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>&1)"; BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
-pf; ck "preflight com chave de SERVIÇO: ok (prova acesso lendo a 1ª sede)" '[[ "$(J ".checks[]|select(.id==\"mlinux\")|.level")" == ok && "$(J ".checks[]|select(.id==\"mlinux\")|.detail")" == *serviço* ]]'
-# chave de serviço cujo glob NÃO cobre a imagem: 403 do serviço vira recusa clara
+ck "com a lista, a coleta funciona"  '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".sedes|length")" == 2 ]]'
+pf; ck "preflight legado com chave de SERVIÇO: ok (prova acesso lendo a 1ª sede)" '[[ "$(J ".checks[]|select(.id==\"mlinux\")|.level")" == ok && "$(J ".checks[]|select(.id==\"mlinux\")|.detail")" == *"lê 26tsca"* ]]'
 call /contest/nutella POST '{"action":"config","images":"26tsca 26tscb 26zzzz"}'
-call /contest/nutella POST '{"action":"command","op":"mlreboot","image":"26zzzz"}'
-ck "imagem fora do alcance da chave → 502" '[[ "$OUT" == *"Status: 502"* ]]'
-# …e na COLETA a sede que o serviço recusa não some calada nem zera o resto: vai p/ `skipped`
 CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
-ck "coleta: sede recusada (403) vai p/ skipped; as outras 2 seguem" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".skipped|join(\",\")")" == 26zzzz && "$(CJ ".sedes|length")" == 2 ]]'
-call /contest/nutella POST '{"action":"config","images":"26zzzz"}'
-CONTESTSDIR="$FIX" bash "$ROOT/score/nutella-gen.sh" nt >/dev/null 2>&1
-ck "coleta: NENHUMA sede respondeu ⇒ falha dizendo o porquê (nunca um cache ok:true zerado)" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == false && "$(jq -r .error "$C/var/nutella.status.json")" == *"nenhuma sede"* && "$(CJ ".sedes|length")" == 2 ]]'
+ck "coleta legada: sede recusada (403) vai p/ skipped; as outras 2 seguem" '[[ "$(jq -r .ok "$C/var/nutella.status.json")" == true && "$(CJ ".skipped|join(\",\")")" == 26zzzz && "$(CJ ".sedes|length")" == 2 ]]'
+rm -f "$MOCKD/legacy"
 call /contest/nutella POST '{"action":"config","key":"nb3a_mocktest123","images":""}'
 pf; ck "preflight com chave de ADMINISTRAÇÃO: ok pelo /whoami" '[[ "$(J ".checks[]|select(.id==\"mlinux\")|.level")" == ok ]]'
 

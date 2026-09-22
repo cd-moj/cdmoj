@@ -42,35 +42,42 @@ sys.exit(0 if (sec and hmac.compare_digest(want, sys.argv[3])) else 1)
 ' "$secf" "$bf" "${HTTP_X_NB_SIGNATURE:-}" 2>/dev/null || _hk_deny
 
 # --- daqui p/ baixo o corpo é do serviço (assinado), mas segue sendo entrada externa: tudo via jq ---
-IFS=$'\t' read -r ev img at mac aid kind < <(jq -r '
+IFS=$'\t' read -r ev img at mac aid kind dlv < <(jq -r '
   [ (.event // ""), (.image // ""), ((.at // 0) | floor), ((.data.mac // "") | ascii_downcase | gsub(":"; "-")),
-    ((.data.id // "") | tostring), (.data.kind // "") ] | map(tostring | gsub("[\t\n\r]"; " ")) | @tsv' "$bf" 2>/dev/null)
+    ((.data.id // "") | tostring), (.data.kind // ""), ((.delivery // "") | tostring) ] | map(tostring | gsub("[\t\n\r]"; " ")) | @tsv' "$bf" 2>/dev/null)
 [[ "$at" =~ ^[0-9]+$ ]] || at=0
 # frescor: `at` está DENTRO do corpo assinado — evento de mais de 1 h (ou do futuro) não entra
 (( at >= EPOCHSECONDS - 3600 && at <= EPOCHSECONDS + 300 )) || _hk_deny
+# `webhook.test` = o botão "testar" do serviço: assinado e aceito, sem registro (ele só quer um 2xx nosso)
+[[ "$ev" == webhook.test ]] && { ok_json '{ok:true, ignored:true, test:true}'; exit 0; }
 [[ "$img" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || fail 404 "unknown image" "image_unknown"
 source "$_LIBDIR/nutella.sh"
 { nb_images "$contest"; jq -r '.sedes[]?.id // empty' "$cdir/var/nutella.cache.json" 2>/dev/null; } | grep -qxF -- "$img" \
   || fail 404 "unknown image" "image_unknown"
+# alertas E os eventos de máquina que valem uma linha na trilha de Anomalias durante a prova
 case "$ev" in
-  alert.raised|alert.dismissed) ;;
+  alert.raised|alert.dismissed|machine.rebooted|machine.offline|machine.online) ;;
   *) ok_json '{ok:true, ignored:true}'; exit 0 ;;
 esac
 [[ "$mac" =~ ^[0-9a-f]{2}(-[0-9a-f]{2}){5}$ ]] || fail 422 "mac inválido" "mac_invalid"
 [[ "$aid" =~ ^[A-Za-z0-9._:-]{1,64}$ ]] || aid=""
+[[ "$dlv" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || dlv=""
 
 LOGF="$cdir/var/nutella-events.log"; mkdir -p "$cdir/var"
 exec {_hkfd}>"$cdir/var/.nutella-events.lock" 2>/dev/null && flock -w 5 "$_hkfd" 2>/dev/null
-# repetição: o mesmo (evento, alerta, máquina) já está no log
-if [[ -n "$aid" && -s "$LOGF" ]] && tail -n 2000 "$LOGF" | jq -e --arg e "$ev" --arg i "$aid" --arg m "$mac" \
-     -s 'any(.[]; .event == $e and .id == $i and .mac == $m)' >/dev/null 2>&1; then
-  ok_json '{ok:true, duplicate:true}'; exit 0
+# repetição (o serviço tenta 3×): pelo `delivery` do corpo assinado quando existe (NutellaBoot ≥ 21/09/2026),
+# senão pelo trio (evento, alerta, máquina) — evento de máquina sem `id` só dedupa por delivery
+if [[ -s "$LOGF" ]]; then
+  if [[ -n "$dlv" ]]; then tail -n 2000 "$LOGF" | jq -e --arg d "$dlv" -s 'any(.[]; .delivery == $d)' >/dev/null 2>&1 && { ok_json '{ok:true, duplicate:true}'; exit 0; }
+  elif [[ -n "$aid" ]]; then tail -n 2000 "$LOGF" | jq -e --arg e "$ev" --arg i "$aid" --arg m "$mac" -s 'any(.[]; .event == $e and .id == $i and .mac == $m)' >/dev/null 2>&1 && { ok_json '{ok:true, duplicate:true}'; exit 0; }
+  fi
 fi
 # teto de enchente: o log pára em 5 MB (o serviço já dedupa alerta aberto; isto é cinto de segurança)
 if [[ -e "$LOGF" && "$(stat -c %s "$LOGF" 2>/dev/null || echo 0)" -gt 5242880 ]]; then ok_json '{ok:true, dropped:true}'; exit 0; fi
 
-team=""
-[[ -s "$cdir/var/nutella-macs.tsv" ]] && team="$(awk -F'\t' -v m="$mac" '$1 == m { print $2; exit }' "$cdir/var/nutella-macs.tsv")"
+# o time: o próprio corpo já traz `data.binding.user_id` (≥ 21/09); senão o elo publicado no login; senão a coleta
+team="$(jq -r '(.data.binding.user_id // "") | tostring' "$bf" 2>/dev/null)"; valid_id "${team:-x}" || team=""
+[[ -n "$team" || ! -s "$cdir/var/nutella-macs.tsv" ]] || team="$(awk -F'\t' -v m="$mac" '$1 == m { print $2; exit }' "$cdir/var/nutella-macs.tsv")"
 [[ -n "$team" ]] || team="$(jq -r --arg m "$mac" 'first(.sedes[]?.machines[]? | select(.mac == $m) | .team // empty) // ""' "$cdir/var/nutella.cache.json" 2>/dev/null)"
 valid_id "${team:-x}" || team=""
 mkey="m:$(printf '%s' "$mac" | md5sum | cut -c1-32)"
@@ -106,10 +113,11 @@ if [[ "$notify" == true ]]; then
 fi
 
 jq -c --argjson t "$EPOCHSECONDS" --argjson at "$at" --arg mac "$mac" --arg mkey "$mkey" --arg id "$aid" \
-   --arg team "$team" --argjson n "$notify" '
+   --arg team "$team" --argjson n "$notify" --arg dlv "$dlv" '
   def s($n): (. // "") | tostring | .[0:$n];
-  {t: $t, at: $at, event: (.event | s(40)), image: (.image | s(64)), mac: $mac, mkey: $mkey, id: $id,
+  {t: $t, at: $at, event: (.event | s(40)), image: (.image | s(64)), mac: $mac, mkey: $mkey, id: $id, delivery: $dlv,
    kind: (.data.kind | s(40)), detail: (.data.detail | s(300)), vendor: (.data.vendor | s(80)),
-   other_mac: (.data.other_mac | s(32)), team: $team, notified: $n}' "$bf" >> "$LOGF" 2>/dev/null \
+   other_mac: (.data.other_mac | s(32)), boot_id: (.data.boot_id | s(20)), team: $team, notified: $n,
+   extra: (if (.event | startswith("machine.")) then ({offline_for: .data.offline_for, last_seen: .data.last_seen, previous_boot_id: .data.previous_boot_id, boots: .data.boots} | with_entries(select(.value != null))) else null end)}' "$bf" >> "$LOGF" 2>/dev/null \
   || fail 500 "log" "log_failed"
 ok_json '{ok:true, logged:true, notified:$n}' --argjson n "$notify"

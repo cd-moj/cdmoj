@@ -116,6 +116,32 @@ printf 'CONTEST=nb\nLOGIN=alice\nLOGINAT=1\n' > "$SESS/usr"
 OUT="$(PATH_INFO=/contest/nutella REQUEST_METHOD=POST QUERY_STRING="contest=nb" HTTP_AUTHORIZATION="Bearer usr" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<'{"action":"push-bindings"}' 2>&1)"
 ck "push-bindings por competidor → 403" '[[ "$OUT" == *"Status: 403"* ]]'
 
+echo "== protocolo novo (≥ 21/09): code nos erros, Retry-After, roster automático, lote =="
+# 404 que NÃO é "fora do roster": imagem/máquina inexistente vem com code próprio e é erro de verdade
+login alice "$(ua5 26tsca 1001 ff-ff-ff-ff-ff-ff)"
+ck "MAC que o serviço recusa (invalid_mac) NÃO vira noroster: é erro com o code" 'grep -q "invalid_mac" "$C/var/nutella-bind.log" && [[ "$(LOGN noroster)" == 1 ]]'
+touch "$MOCKD/bind429"; n0="$(puts)"
+login bob "$(ua5 26tsca 1001 aa-bb-cc-00-00-08)"; login alice "$(ua5 26tsca 1001 aa-bb-cc-00-00-04)"   # o 2º login drena a fila de novo
+ck "429 com Retry-After: volta p/ a fila e a passada seguinte entrega" '[[ "$(B ".[\"aa-bb-cc-00-00-08\"].user_id")" == bob ]]'
+# NUTELLA_BIND_ROSTER=1: o binding leva create_roster_entry (nome/univ/país do account.json) e o serviço
+# cria a entrada marcada source:"binding" — carol, que levou 404 antes, entra sem push-roster
+fx_user "$C" dave pw "Time Dave" >/dev/null; jq -c '.team={name:"Time Dave", univ_short:"UFPR", univ_full:"Universidade Federal do Paraná", flag:"br"}' "$C/users/dave/account.json" > "$C/t" && mv "$C/t" "$C/users/dave/account.json"
+printf 'NUTELLA_BIND_ROSTER=1\n' >> "$C/conf"
+login dave "$(ua5 26tsca 1001 aa-bb-cc-00-00-0a)"
+ck "roster automático (opt-in): vínculo ok e a entrada nasce com nome/univ/país e source binding" \
+   '[[ "$(B ".[\"aa-bb-cc-00-00-0a\"].roster_entry_created")" == true && "$(jq -r ".roster[]|select(.user_id==\"dave\")|[.source,.name,.organization.name,.country]|join(\"|\")" "$MOCKD/roster.26tsca.json")" == "binding|Time Dave|Universidade Federal do Paraná|BR" ]]'
+sed -i '/^NUTELLA_BIND_ROSTER=/d' "$C/conf"
+# push-bindings em LOTE (PUT …/bindings): 1 request por sede, resultado por item
+: > "$MOCKD/posts.log"; : > "$C/var/nutella-macs.tsv"
+fx_user "$C" erin pw "Time Erin" >/dev/null; login erin "$(ua5 26tsca 1001 aa-bb-cc-00-00-0b)"; : > "$MOCKD/posts.log"; : > "$C/var/nutella-macs.tsv"
+call /contest/nutella POST '{"action":"push-bindings"}'
+ck "push-bindings vai em LOTE: 1 PUT …/bindings p/ a sede, com resultado por item" '[[ "$(grep -c "\"PUT\".*/bindings\"" "$MOCKD/posts.log")" == 1 && "$(J .batch.sent)" -ge 5 && "$(J .batch.bound)" -ge 4 && "$(J .batch.noroster)" -ge 1 ]]'
+ck "…e o mapa mac→time e o log refletem o lote (erin fora do roster = noroster, não erro)" '[[ "$(grep -c . "$C/var/nutella-macs.tsv")" -ge 4 ]] && grep -q "erin.*noroster" "$C/var/nutella-bind.log"'
+touch "$MOCKD/legacy"; : > "$MOCKD/posts.log"; : > "$C/var/nutella-macs.tsv"
+call /contest/nutella POST '{"action":"push-bindings"}'
+ck "serviço LEGADO (sem a rota de lote): cai na fila, 1 PUT por máquina" '[[ "$(J .batch)" == null && "$(grep -c "\"PUT\".*/binding\"" "$MOCKD/posts.log")" -ge 4 ]]'
+rm -f "$MOCKD/legacy"
+
 echo "== caminho de PRODUÇÃO: drenador DESTACADO (sem MOJ_JOBS_SYNC) =="
 # o serviço demora 2 s p/ responder (bindslow): o login NÃO pode esperar por ele
 printf '2' > "$MOCKD/bindslow"; rm -f "$C/var/.nutella-bind.stamp"

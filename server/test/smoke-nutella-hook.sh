@@ -63,28 +63,25 @@ ck "contest inexistente → o MESMO 401 (não é oráculo de existência)" '[[ "
 OUT="$(PATH_INFO=/hooks/nutella REQUEST_METHOD=GET QUERY_STRING="contest=hk" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>&1)"
 ck "GET → 405"                        '[[ "$OUT" == *"Status: 405"* ]]'
 
-echo "== instalar o webhook (chave ADMIN do nutellaboot) =="
+echo "== instalar o webhook (por ENTRADA — chave de SERVIÇO com webhooks:write basta) =="
 ( umask 077; printf 'nb3s_servicetest456\n' > "$C/secrets/nutellaboot.key" )
-call /contest/nutella POST '{"action":"webhooks-install"}'
-ck "com chave de SERVIÇO: 409 admin_key_required" '[[ "$OUT" == *"Status: 409"* && "$(J .error.code)" == admin_key_required ]]'
-( umask 077; printf 'nb3a_mocktest123\n' > "$C/secrets/nutellaboot.key" )
 call /contest/nutella POST '{"action":"webhooks-install"}' usr
 ck "competidor → 403"                 '[[ "$OUT" == *"Status: 403"* ]]'
 call /contest/nutella POST '{"action":"webhooks-install","base_url":"javascript:alert(1)"}'
 ck "base_url inválida → 422"          '[[ "$OUT" == *"Status: 422"* ]]'
-jq -n '{webhooks:[{url:"https://outro.exemplo/hook", secret:"deles", events:[]}]}' > "$MOCKD/webhooks.26tsca.json"
+# webhook de OUTRO dono já na sede: com entradas por dono ele nem aparece p/ a chave de serviço e fica INTOCADO
+jq -n '{webhooks:[{id:"wh_deles0000", url:"https://outro.exemplo/hook", secret:"deles-deles-deles", events:[], owner:"service:outro"}]}' > "$MOCKD/webhooks.26tsca.json"
 call /contest/nutella POST '{"action":"webhooks-install"}'
-ck "webhook de OUTRO dono na sede: recusa (409) e NÃO escreve nada" \
-   '[[ "$(J .error.code)" == foreign_webhooks && "$(jq -r ".webhooks[0].url" "$MOCKD/webhooks.26tsca.json")" == "https://outro.exemplo/hook" && ! -e "$C/secrets/nutella-webhook.secret" ]]'
-call /contest/nutella POST '{"action":"webhooks-install","force":true}'
-ck "force: instala (1 sede ok) com a URL do hook deste contest" \
-   '[[ "$(J .ok)" == 1 && "$(J .url)" == "https://moj.exemplo/api/v1/hooks/nutella?contest=hk" && "$(jq -r ".webhooks|length" "$MOCKD/webhooks.26tsca.json")" == 1 ]]'
-ck "só os dois eventos de alerta são pedidos" '[[ "$(jq -r ".webhooks[0].events|sort|join(\",\")" "$MOCKD/webhooks.26tsca.json")" == "alert.dismissed,alert.raised" ]]'
+ck "instala com chave de SERVIÇO (1 sede ok) e guarda o id" \
+   '[[ "$(J .ok)" == 1 && "$(J .url)" == "https://moj.exemplo/api/v1/hooks/nutella?contest=hk" && "$(J ".sedes[\"26tsca\"].id")" == wh_* && "$(jq -r ".[\"26tsca\"]" "$C/var/nutella-webhooks.json")" == wh_* ]]'
+ck "o webhook alheio da sede continua lá, intocado" '[[ "$(jq -r ".webhooks|length" "$MOCKD/webhooks.26tsca.json")" == 2 && "$(jq -r ".webhooks[0].url" "$MOCKD/webhooks.26tsca.json")" == "https://outro.exemplo/hook" ]]'
+ck "eventos pedidos: os 2 alertas + reiniciou/sumiu/voltou (nunca events:[] — seria machine.status a 38/s)" '[[ "$(jq -r ".webhooks[1].events|sort|join(\",\")" "$MOCKD/webhooks.26tsca.json")" == "alert.dismissed,alert.raised,machine.offline,machine.online,machine.rebooted" ]]'
 SEC="$C/secrets/nutella-webhook.secret"
-ck "segredo: 48 caracteres, 600, e é o que foi ao serviço" '[[ "$(stat -c %a "$SEC")" == 600 && "$(tr -d "\n" < "$SEC" | wc -c)" == 48 && "$(jq -r ".webhooks[0].secret" "$MOCKD/webhooks.26tsca.json")" == "$(tr -d "\n" < "$SEC")" ]]'
+ck "segredo: 48 caracteres, 600, e é o que foi ao serviço" '[[ "$(stat -c %a "$SEC")" == 600 && "$(tr -d "\n" < "$SEC" | wc -c)" == 48 && "$(jq -r ".webhooks[1].secret" "$MOCKD/webhooks.26tsca.json")" == "$(tr -d "\n" < "$SEC")" ]]'
 ck "o segredo NÃO volta na resposta nem no GET" '[[ "$BODY" != *"$(tr -d "\n" < "$SEC")"* ]] && { call /contest/nutella GET ""; [[ "$BODY" != *"$(tr -d "\n" < "$SEC")"* && "$(J .webhook.installed)" == true ]]; }'
-S0="$(cat "$SEC")"; call /contest/nutella POST '{"action":"webhooks-install"}'
-ck "reinstalar mantém o segredo (o hook nosso não conta como alheio)" '[[ "$(J .ok)" == 1 && "$(cat "$SEC")" == "$S0" ]]'
+S0="$(cat "$SEC")"; W0="$(jq -r '.["26tsca"]' "$C/var/nutella-webhooks.json")"; call /contest/nutella POST '{"action":"webhooks-install"}'
+ck "reinstalar = upsert pela url: mesmo id, mesmo segredo, sem duplicar" '[[ "$(J .ok)" == 1 && "$(cat "$SEC")" == "$S0" && "$(jq -r ".[\"26tsca\"]" "$C/var/nutella-webhooks.json")" == "$W0" && "$(jq -r ".webhooks|length" "$MOCKD/webhooks.26tsca.json")" == 2 ]]'
+( umask 077; printf 'nb3a_mocktest123\n' > "$C/secrets/nutellaboot.key" )
 
 echo "== assinatura =="
 B="$(ev alert.raised $M1 a1 usb.storage)"
@@ -126,6 +123,21 @@ ck "MAC malformado → 422"             '[[ "$OUT" == *"Status: 422"* && "$(LOGN
 for i in $(seq 1 12); do hook hk "$(ev alert.raised "aa-bb-cc-00-01-$(printf '%02d' $i)" "t$i" usb.phone)"; done
 ck "enchente: 12 máquinas em segundos ⇒ todas registradas, avisos no TETO de 10 por 10 min" '[[ "$(LOGN)" == 15 && "$(OUTBOX)" == 10 ]]'
 
+echo "== protocolo novo: delivery, webhook.test e eventos de máquina =="
+DB="$(ev alert.raised $M1 d1 usb.phone | jq -c '. + {delivery:"dlv-0001"} | .data += {boot_id:"7777", binding:{user_id:"alice"}}')"
+hook hk "$DB"; hook hk "$(jq -c '.data.id = "d1-outro"' <<<"$DB")"
+ck "mesmo delivery (3 tentativas do serviço) = 1 registro, mesmo com corpo levemente diferente" '[[ "$(J .duplicate)" == true && "$(tail -1 "$C/var/nutella-events.log" | jq -r .delivery)" == dlv-0001 ]]'
+ck "o time vem do binding do PRÓPRIO corpo (sem lookup) e o boot_id fica no registro" '[[ "$(tail -1 "$C/var/nutella-events.log" | jq -r "[.team,.boot_id]|join(\",\")")" == "alice,7777" ]]'
+hook hk "$(jq -cn --argjson at "$EPOCHSECONDS" '{event:"webhook.test", image:"26tsca", at:$at, delivery:"t1", data:{}}')"
+ck "webhook.test (botão testar do serviço): 200 e nada registrado" '[[ "$(J .test)" == true && "$(tail -1 "$C/var/nutella-events.log" | jq -r .event)" != webhook.test ]]'
+n0="$(LOGN)"
+hook hk "$(jq -cn --argjson at "$EPOCHSECONDS" --arg m "$M1" '{event:"machine.rebooted", image:"26tsca", at:$at, delivery:"r1", data:{mac:$m, boot_id:"8888", previous_boot_id:"7777", boots:3, last_boot:$at}}')"
+hook hk "$(jq -cn --argjson at "$EPOCHSECONDS" --arg m "$M1" '{event:"machine.offline", image:"26tsca", at:$at, delivery:"o1", data:{mac:$m, last_seen:($at-120)}}')"
+hook hk "$(jq -cn --argjson at "$EPOCHSECONDS" --arg m "$M1" '{event:"machine.online", image:"26tsca", at:$at, delivery:"n1", data:{mac:$m, offline_for:600}}')"
+ck "reiniciou / sumiu / voltou: 3 registros, NENHUM aviso (evento de máquina não é alerta)" '[[ "$(( $(LOGN) - n0 ))" == 3 && "$(tail -1 "$C/var/nutella-events.log" | jq -r ".notified")" == false && "$(tail -3 "$C/var/nutella-events.log" | jq -r ".extra | keys[]" | sort | tr "\n" ",")" == "boots,last_seen,offline_for,previous_boot_id," ]]'
+call /contest/admin/anomalies GET ''
+ck "Anomalias: os 3 viram machine_event (offline = atenção), ao lado do time da máquina" '[[ "$(J .counts.machine_events)" == 3 && "$(J "[.events[]|select(.kind==\"machine_event\")|.severity]|sort|join(\",\")")" == "info,info,warn" && "$(J "[.events[]|select(.kind==\"machine_event\")|.login]|unique|join(\",\")")" == alice ]]'
+
 echo "== contest que ainda não começou: registra, não avisa =="
 cp "$SEC" "$FIX/fora/secrets/nutella-webhook.secret"; n0="$(OUTBOX)"
 hook fora "$(ev alert.raised $M1 f1 usb.storage)"
@@ -133,7 +145,7 @@ ck "fora da prova: logged, notified:false" '[[ "$(J .logged)" == true && "$(J .n
 
 echo "== Máquinas › Anomalias =="
 call /contest/admin/anomalies GET ''
-ck "trilha traz os alertas (tipo machine_alert), contados" '[[ "$(J .counts.machine_alerts)" == 14 && "$(J "[.events[]|select(.kind==\"machine_alert\")]|length")" == 15 ]]'
+ck "trilha traz os alertas (tipo machine_alert), contados" '[[ "$(J .counts.machine_alerts)" == 15 && "$(J "[.events[]|select(.kind==\"machine_alert\")]|length")" == 16 ]]'
 ck "pendrive = grave; dispensado = info; time e a chave m:md5(MAC)" \
    '[[ "$(J "[.events[]|select(.kind==\"machine_alert\" and .detail.alert==\"usb.storage\" and .detail.event==\"alert.raised\")][0]|[.severity,.login,.machine]|join(\",\")")" == "bad,alice,m:$(printf "%s" "$M1" | md5sum | cut -c1-32)" && "$(J "[.events[]|select(.kind==\"machine_alert\" and .detail.event==\"alert.dismissed\")][0].severity")" == info ]]'
 OUT="$(PATH_INFO=/contest/admin/anomalies REQUEST_METHOD=GET QUERY_STRING="contest=hk" HTTP_AUTHORIZATION="Bearer usr" CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" 2>&1)"
@@ -141,7 +153,7 @@ ck "competidor não lê a trilha (403)"  '[[ "$OUT" == *"Status: 403"* ]]'
 
 echo "== remover =="
 call /contest/nutella POST '{"action":"webhooks-install","remove":true}'
-ck "remove: lista vazia no serviço, segredo apagado, rota volta a 401" \
-   '[[ "$(jq -r ".webhooks|length" "$MOCKD/webhooks.26tsca.json")" == 0 && ! -e "$SEC" ]] && { hook hk "$B" "sha256=00"; [[ "$OUT" == *"Status: 401"* ]]; }'
+ck "remove: SÓ o nosso sai (o alheio fica), segredo e ids apagados, rota volta a 401" \
+   '[[ "$(jq -r ".webhooks|length" "$MOCKD/webhooks.26tsca.json")" == 1 && "$(jq -r ".webhooks[0].owner" "$MOCKD/webhooks.26tsca.json")" == "service:outro" && ! -e "$SEC" && ! -e "$C/var/nutella-webhooks.json" ]] && { hook hk "$B" "sha256=00"; [[ "$OUT" == *"Status: 401"* ]]; }'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

@@ -121,17 +121,23 @@ else
   nbget(){ curl -s -m 30 -K "$W/cfg" "$BASE/api/v1/$1"; }   # caminho SEM segredo no argv
 
   # --- 1. imagens ------------------------------------------------------------------------
-  # Chave ADMIN lista `/site-images`; chave de SERVIÇO leva 401 ali (rota de console) — aí as
-  # sedes vêm de NUTELLABOOT_IMAGES. Com as duas coisas, a lista RESTRINGE a coleta (o serviço
-  # hospeda sedes de outros eventos; a interseção com os logins já as descartava, mas cada uma
-  # custava 2 requests).
+  # `/site-images` lista as sedes: com chave ADMIN todas as do serviço, com chave de SERVIÇO (desde
+  # 21/09/2026) só as do glob dela. Serviço ANTIGO dava 401 à chave de serviço — aí as sedes vêm de
+  # NUTELLABOOT_IMAGES. Com as duas coisas, a lista RESTRINGE a coleta (o serviço hospeda sedes de outros
+  # eventos; a interseção com os logins já as descartava, mas cada uma custava 2 requests). Imagem
+  # listada à mão que o serviço NÃO devolve (fora do glob da chave, ou não existe) vai p/ `skipped`.
   prog "listando sedes"
   nbget site-images > "$W/images.json" 2>/dev/null
   if jq -e '.images | type == "array"' "$W/images.json" >/dev/null 2>&1; then
     if (( ${#CFGIDS[@]} )); then
       printf '%s\n' "${CFGIDS[@]}" | jq -Rn '[inputs | select(length > 0)]' > "$W/cfgids.json"
+      jq -r --slurpfile k "$W/cfgids.json" '$k[0] - [.images[].id] | .[]' "$W/images.json" 2>/dev/null >> "$W/skipped.txt"
       jq -c --slurpfile k "$W/cfgids.json" '.images |= map(select(.id as $i | $k[0] | index($i)))' \
         "$W/images.json" > "$W/images.f.json" 2>/dev/null && mv -f "$W/images.f.json" "$W/images.json"
+    elif [[ "$(nb_key_kind "$C")" == service ]]; then
+      # chave de SERVIÇO é criada POR EVENTO, com o glob das imagens dele: o que ela lista é a lista do
+      # evento — vale como se estivesse em NUTELLABOOT_IMAGES (a sede entra mesmo sem roster/login ainda)
+      mapfile -t CFGIDS < <(jq -r '.images[].id' "$W/images.json" 2>/dev/null)
     fi
   elif (( ${#CFGIDS[@]} )); then
     printf '%s\n' "${CFGIDS[@]}" | jq -Rn '{images: [inputs | select(length > 0) | {id: ., fullname: .}]}' > "$W/images.json"
@@ -234,7 +240,7 @@ if (( ! REAGG )); then
   prog "baixando séries das máquinas (lote por sede)" 0 "$NKEPT"
   # posicionais: $0=W $1=BASE $2=since $3=until, e o xargs acrescenta $4=imagem
   cut -f1 "$W/kept.tsv" | grep -E '^[A-Za-z0-9._-]+$' | xargs -P8 -n1 sh -c '
-    code=$(curl -s -m 180 -K "$0/cfg" -o "$0/samples/$4.ndjson" -w "%{http_code}" \
+    code=$(curl -s --compressed -m 180 -K "$0/cfg" -o "$0/samples/$4.ndjson" -w "%{http_code}" \
       "$1/api/v1/site-images/$4/samples?since=$2&until=$3&limit=5000&active_since=$2" 2>/dev/null)
     [ "$code" = 200 ] || { rm -f "$0/samples/$4.ndjson"; echo "$4" >> "$0/nolote.txt"; }
   ' "$W" "$BASE" "$WSTART" "$WEND" 2>/dev/null
@@ -420,7 +426,9 @@ AGG_JQ='
          + { mac: $x.mac, online: ($x.online // false),
              model: (((($x.status.hwinfo.product_vendor // "") + " " + ($x.status.hwinfo.product_name // ""))
                       | gsub("^ +| +$"; "")) as $mo | if $mo == "" then null else $mo end),
-             agent_new: (($x.status.t_agent // null) != null),
+             # agente novo: `status.agent_version` (camada 2026.09.2) — ou, no agente da 1ª leva, a presença de t_agent
+             agent_new: ((($x.status.agent_version // null) != null) or (($x.status.t_agent // null) != null)),
+             agent_version: ($x.status.agent_version // null),
              last_boot: ($x.last_boot // $x.status.hwinfo.last_boot // 0),
              processor: ($x.status.hwinfo.processor // "?"),
              cores: ($x.status.hwinfo.cores // 0), mem_mb: ($x.status.hwinfo.memtotal_mb // 0),

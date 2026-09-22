@@ -100,8 +100,8 @@ export function makeMlinuxTab(CONTEST) {
           ? el('button', { class: 'btn ghost', onclick: () => save(true) }, T('remover chave', 'remove key')) : null,
         msg),
       el('div', { class: 'small muted', style: 'margin-top:.3rem' },
-        T('Com chave de serviço as site-images são obrigatórias: ela não lista as sedes do nutellaboot.',
-          'With a service key the site-images are required: it cannot list the nutellaboot sites.')));
+        T('Site-images: opcional — o nutellaboot lista as sedes do glob da chave; preencha só para restringir.',
+          'Site-images: optional — nutellaboot lists the sites of the key glob; fill it only to restrict.')));
   }
 
   // -- cartão de coleta (só admin) ------------------------------------------------------
@@ -172,17 +172,16 @@ export function makeMlinuxTab(CONTEST) {
         const r = await apiPost('/contest/nutella?contest=' + enc(CONTEST), Object.assign({ action: 'webhooks-install', base_url: base.value.trim() }, body), G);
         msg.textContent = T(`${r.ok} sede(s) ok, ${r.failed} falharam`, `${r.ok} site(s) ok, ${r.failed} failed`); load();
       } catch (e) {
-        if (e.code === 'foreign_webhooks' && confirm((e.message || '') + '\n\n' + T('Substituir mesmo assim?', 'Replace anyway?'))) return act(Object.assign({}, body, { force: true }));
         msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed');
       }
     };
     return el('div', { class: 'section' },
       el('h2', {}, T('🔌 Alertas das máquinas em tempo real', '🔌 Real-time machine alerts')),
-      el('p', { class: 'ml-note' }, T('O nutellaboot avisa o MOJ quando uma máquina levanta um alerta (pendrive, celular, rede por USB, identidade repetida). O alerta aparece em Máquinas › Anomalias e, durante a prova, o dono do contest recebe no Telegram. Para instalar, a chave gravada acima tem de ser a de administração do nutellaboot.',
-        'Nutellaboot tells MOJ when a machine raises an alert (USB storage, phone, USB network, duplicate identity). The alert shows in Machines › Anomalies and, during the contest, the contest owner gets it on Telegram. To install it, the key saved above must be the nutellaboot administration key.')),
+      el('p', { class: 'ml-note' }, T('O nutellaboot avisa o MOJ quando uma máquina levanta um alerta (pendrive, celular, rede por USB, identidade repetida) e quando reinicia, some ou volta. Tudo aparece em Máquinas › Anomalias; os alertas, durante a prova, chegam ao dono do contest pelo Telegram. A chave gravada acima precisa do escopo webhooks:write.',
+        'Nutellaboot tells MOJ when a machine raises an alert (USB storage, phone, USB network, duplicate identity) and when it reboots, disappears or comes back. Everything shows in Machines › Anomalies; alerts reach the contest owner on Telegram during the contest. The key saved above needs the webhooks:write scope.')),
       el('div', { class: 'small', style: 'margin:.2rem 0 .4rem' },
         (w.installed ? T('instalado', 'installed') : T('não instalado', 'not installed')) + ' · ' + T(`${w.events} alertas recebidos`, `${w.events} alerts received`)
-        + (RESP.key_kind === 'service' ? T(' · a chave atual é de serviço: não instala nem remove', ' · the current key is a service key: it cannot install or remove') : '')),
+),
       el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
         el('label', { class: 'small' }, T('URL pública do MOJ: ', 'MOJ public URL: '), base),
         el('button', { class: 'btn ghost', onclick: () => act({}) }, w.installed ? T('reinstalar', 'reinstall') : T('instalar', 'install')),
@@ -237,6 +236,22 @@ export function makeMlinuxTab(CONTEST) {
         msg.className = 'small' + (bad.length ? ' error-box' : '');
         msg.textContent = T(`✓ "${op}" enviado a ${nm} máquina(s) em ${r.ok || 0} sede(s)`, `✓ "${op}" sent to ${nm} machine(s) in ${r.ok || 0} site(s)`)
           + (bad.length ? T(' — recusado em: ', ' — refused at: ') + bad.map(([k, v]) => k + ' (HTTP ' + v.status + (v.detail ? ': ' + v.detail : '') + ')').join(', ') : '');
+        // quem EXECUTOU: pergunta ao serviço por 60 s (as máquinas buscam a ordem no long-poll, em segundos);
+        // atualiza EM LUGAR a linha de acompanhamento — serviço antigo (sem a rota) só não mostra
+        const ids = Object.entries(r.sedes || {}).filter(([, v]) => v.command_id).map(([k, v]) => [k, v.command_id]);
+        if (ids.length) {
+          const line = el('div', { class: 'small muted' }); msg.append(el('br'), line);
+          let n = 0; const tick = async () => {
+            const parts = [];
+            for (const [k, cid] of ids) {
+              try { const s = (await apiPost('/contest/nutella?contest=' + enc(CONTEST), { action: 'command-status', image: k, command_id: cid }, G)).status || {}; const sm = s.summary || {};
+                parts.push(`${k}: ${sm.acked || 0}/${s.machines || 0}` + T(' executaram', ' executed') + (sm.expired ? T(`, ${sm.expired} caducaram`, `, ${sm.expired} expired`) : '')); }
+              catch (e) { parts.push(k + ': ' + (e.code === 'upstream_error' ? T('sem acompanhamento (serviço antigo)', 'no tracking (old service)') : (e.message || '?'))); return; }
+            }
+            line.textContent = parts.join(' · ');
+            if (++n < 12 && parts.some((p) => !/^(\S+): (\d+)\/\2 /.test(p))) setTimeout(tick, 5000);
+          }; tick();
+        }
       } catch (e) { msg.className = 'small error-box'; msg.textContent = e.message || T('falha', 'failed'); }
     } }, T('▶ Enviar comando', '▶ Send command'));
     return el('div', { class: 'section' },

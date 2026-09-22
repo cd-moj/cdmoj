@@ -83,7 +83,8 @@ export function makeAnomaliesTab(CONTEST) {
       card(c.revoked || 0, T('revogações', 'revocations'), 'session_event', false),
       card(c.site_lock_blocks || 0, T('bloqueios da trava', 'lock blocks'), 'site_lock', true),
       // só aparece quando o webhook do nutellaboot já entregou algum alerta (contest sem mlinux não ganha cartão vazio)
-      (c.machine_alerts ? card(c.machine_alerts, K.machine_alert.label, 'machine_alert', true) : null));
+      (c.machine_alerts ? card(c.machine_alerts, K.machine_alert.label, 'machine_alert', true) : null),
+      (c.machine_events ? card(c.machine_events, K.machine_event.label, 'machine_event', false) : null));
   }
 
   // --- 3. linha do tempo ------------------------------------------------------------------
@@ -130,6 +131,12 @@ export function makeAnomaliesTab(CONTEST) {
           return (dd.event === 'alert.dismissed' ? T('dispensado: ', 'dismissed: ') : '') + an + (dd.vendor ? ' (' + dd.vendor + ')' : '') + (dd.text ? ' — ' + dd.text : '')
             + T(` · sede ${dd.image}, máquina ${dd.mac}`, ` · site ${dd.image}, machine ${dd.mac}`) + (dd.other_mac ? T(`, igual a ${dd.other_mac}`, `, same as ${dd.other_mac}`) : '')
             + (dd.notified ? T(' · avisado por Telegram', ' · notified by Telegram') : '');
+        }
+        case 'machine_event': {
+          const ev = ({ 'machine.rebooted': T('reiniciou', 'rebooted'), 'machine.offline': T('parou de reportar', 'stopped reporting'), 'machine.online': T('voltou', 'came back') })[dd.event] || dd.event;
+          return ev + T(` · sede ${dd.image}, máquina ${dd.mac}`, ` · site ${dd.image}, machine ${dd.mac}`)
+            + (dd.event === 'machine.rebooted' && dd.boots ? T(` · ${dd.boots}º boot`, ` · boot #${dd.boots}`) : '')
+            + (dd.event === 'machine.online' && dd.offline_for ? T(` · ficou ${Math.round(dd.offline_for / 60)} min fora`, ` · was ${Math.round(dd.offline_for / 60)} min away`) : '');
         }
         default: return JSON.stringify(dd);
       }

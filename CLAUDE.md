@@ -940,7 +940,16 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   depois valida imagem/MAC; `at` do corpo assinado dá o frescor, (evento,id,mac) dá a idempotência. Alertas →
   `var/nutella-events.log` → `events[]` do `/contest/admin/anomalies` (`machine_alert`, chave `m:md5(MAC)`) +
   DM ao dono SÓ durante a prova e com teto. `webhooks-install` exige chave admin e recusa atropelar webhook
-  alheio (o PUT do serviço substitui a lista). O jq do coletor mora em VARIÁVEIS — o
+  alheio (o PUT do serviço substitui a lista). **Protocolo fase 1 (em produção desde 21/09 à noite)**: `/whoami`
+  e `/site-images` respondem à chave de serviço (o que ela lista É a lista do evento — `NUTELLABOOT_IMAGES`
+  opcional); erros com `code` (`nb_code`; 404 só é noroster com `user_not_in_roster`); 429 + `Retry-After`;
+  webhooks POR ENTRADA (POST/DELETE por id, `var/nutella-webhooks.json`; sem chave admin, sem `force`); `delivery`
+  no corpo = chave de dedup; `webhook.test` → 200 sem registro; `machine.rebooted/offline/online` na trilha
+  (`machine_event`); `NUTELLA_BIND_ROSTER=1` = `create_roster_entry` opt-in; `push-bindings` em LOTE
+  (`PUT …/bindings`); `command-status`; `agent_version`; gzip no lote. Mock: sem o arquivo `legacy` é o protocolo
+  novo. ⚠ Duas vezes a mesma armadilha: função chamada por `$(…)` roda em SUBSHELL — variável global
+  "de retorno" (NB_BIND_CODE) morre lá: devolva por stdout; e `for f in "$W"/*.tsv` sob `noglob` = literal
+  (`find`). O jq do coletor mora em VARIÁVEIS — o
   `jq-portability.sh` não o compila: rode os smokes com o jq 1.7 antes de deployar. Teste
   com mock: `smoke-contest-nutella.sh`. Comando novo se valida na imagem de TESTE `26tete`,
   nunca numa sede real.

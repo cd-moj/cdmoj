@@ -42,8 +42,8 @@ nb_key_kind(){
 }
 
 # nb_images <contest> -> ids das site-images do evento, 1/linha. Fonte: conf NUTELLABOOT_IMAGES
-# (ids separados por espaço). É o que permite trabalhar com chave de SERVIÇO, que não lista
-# `/site-images`; com chave admin a lista é opcional (o coletor descobre sozinho).
+# (ids separados por espaço). Com chave de SERVIÇO a lista é OPCIONAL desde 21/09/2026: o serviço passou a
+# listar `/site-images` pelo glob da chave (e o `/whoami` traz `images`) — a lista à mão só RESTRINGE.
 nb_images(){
   local v i; v="$(conf_value "$1" NUTELLABOOT_IMAGES)"; v="${v//\\/}"
   for i in $v; do [[ "$i" =~ ^[A-Za-z0-9._-]{1,64}$ ]] && printf '%s\n' "$i"; done
@@ -60,19 +60,33 @@ nb_curl(){
   key="$(nb_key "$c")"
   [[ -n "$key" ]] || { printf 'HTTP 000'; return 1; }
   [[ "$tmo" =~ ^[0-9]+$ ]] || tmo=30
+  # --compressed: o lote de samples de uma sede grande são vários MB — o serviço comprime quando pedido
+  local hdr=(); [[ "${NB_HEADERS:-0}" == 1 ]] && hdr=(-D -)
   if [[ -n "$bodyf" ]]; then
-    curl -s -m "$tmo" -w $'\nHTTP %{http_code}' -X "$method" \
+    curl -s --compressed -m "$tmo" -w $'\nHTTP %{http_code}' "${hdr[@]}" -X "$method" \
       -H 'Content-Type: application/json' -d @"$bodyf" \
       -K <(printf 'header = "Authorization: Bearer %s"\nurl = "%s/api/v1%s"\n' \
            "$key" "$(nb_url "$c")" "$path")
   else
-    curl -s -m "$tmo" -w $'\nHTTP %{http_code}' -X "$method" \
+    curl -s --compressed -m "$tmo" -w $'\nHTTP %{http_code}' "${hdr[@]}" -X "$method" \
       -K <(printf 'header = "Authorization: Bearer %s"\nurl = "%s/api/v1%s"\n' \
            "$key" "$(nb_url "$c")" "$path")
   fi
 }
 nb_status(){ tail -n1 <<<"$1" | awk '{print $2}'; }
-nb_body(){ sed '$d' <<<"$1"; }
+# (com NB_HEADERS=1 a resposta vem com os cabeçalhos na frente: pula até a linha vazia)
+nb_body(){ sed '$d' <<<"$1" | awk 'NR==1 && /^HTTP\// {h=1} h && /^\r?$/ {h=0; next} !h'; }
+# nb_code <resposta> -> o `code` legível por máquina do erro (NutellaBoot ≥ 21/09/2026: todo erro traz
+# {detail, code}; catálogo em GET /events/types). Vazio em sucesso ou em serviço antigo — quem decide
+# pelo código tem de ter um fallback pelo HTTP.
+nb_code(){ nb_body "$1" | jq -r '.code // empty' 2>/dev/null; }
+# nb_retry_after <resposta> -> segundos do Retry-After (429) ou vazio. O -w do curl não traz cabeçalho: quem
+# precisa dele chama com NB_HEADERS=1 e o cabeçalho vem antes do corpo (nb_body continua valendo: o corpo
+# JSON é a última linha antes do "HTTP").
+nb_retry_after(){ grep -im1 '^retry-after:' <<<"$1" | tr -dc '0-9'; }
+# nb_whoami <contest> -> JSON de /whoami (chave admin E de serviço — desde 21/09/2026 a de serviço também
+# responde: {kind:"service", name, scopes[], image_globs[], images[]}) ou vazio
+nb_whoami(){ local r; r="$(nb_curl "$1" GET /whoami)"; [[ "$(nb_status "$r")" == 200 ]] && nb_body "$r" | jq -c . 2>/dev/null; }
 
 # nb_staff_regions <contest> — ecoa (1/linha) os NOMES de sede que o SESSION_LOGIN
 # (.cstaff/.staff) enxerga, pelos tokens `region:` do staff-filters (idioma do badges.sh).
