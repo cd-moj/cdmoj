@@ -1,6 +1,9 @@
 # POST /problems/edit   (Bearer)   body: {id, enunciado_md?, author?, tags?, conf_text?,
 #                                          examples?, tests?, good_sol?, title?, collections?, languages?,
-#                                          translations?, titles?}   (idiomas: ver docs/PACOTE.md)
+#                                          translations?, titles?, base_rev?, force?}   (idiomas: ver docs/PACOTE.md)
+# TRAVA DE EDIÇÃO CONCORRENTE: `base_rev` = o `rev` que o cliente carregou (source/get). Se o pacote
+# mudou desde então → 409 `stale_rev` {current_rev, changed_by, changed_at}; `force:true` passa por cima.
+# Sem `base_rev` (cliente antigo) não confere. Conferência + escrita + commit sob o lock do problema.
 # Edita um problema existente (repo git LOCAL da org). Commit autorado pelo login (sem Gitea).
 #
 # O CORPO VEM EM ARQUIVO (read_body_file), nunca em variável: um pacote de 84 MB vira ~100 MB de JSON,
@@ -22,7 +25,9 @@ eval "$(jq -r '
     "H_HASCOLLS=\(if has("collections") then 1 else 0 end)",
     "H_COLLS=\(((.collections // []) | tojson) | @sh)",
     "H_HASLANGS=\(if has("languages") then 1 else 0 end)",
-    "H_LANGS=\(((.languages // []) | tojson) | @sh)"
+    "H_LANGS=\(((.languages // []) | tojson) | @sh)",
+    "H_BASEREV=\((.base_rev // "") | tostring | @sh)",
+    "H_FORCE=\(if .force == true then 1 else 0 end)"
   ' < "$bodyf" 2>/dev/null)"
 
 id="$H_ID"
@@ -48,15 +53,20 @@ title="$H_TITLE"
 # (não mexe) de "mandou []" (limpa) — mesmo padrão do collections acima.
 langs=""; (( H_HASLANGS )) && langs="$H_LANGS"
 
+# seção crítica: conferir o rev, escrever e commitar sem que outra gravação entre no meio
+exec {_lkfd}>"$(problem_lockfile "$pdir")"; flock "$_lkfd"; export _PC_LOCK_HELD=1
+[[ "${H_BASEREV:-}" =~ ^[0-9a-f]{0,40}$ ]] || fail 400 "base_rev inválido" "bad_rev"
+pkg_rev_guard "$pdir" "${H_BASEREV:-}" "${H_FORCE:-0}"
 apply_problem_fields "$pdir" "$bodyf" || fail 400 "Corpo do problema ilegível" "bad_body"
 write_meta "$pdir" "$owner" "$org" "" "$colls" "$title" "$langs"
 bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true  # Kattis-aware
 
 sha="$(problem_commit "$pdir" "$SESSION_LOGIN" "edita $prob")"
+rev="$(pkg_rev "$pdir")"; exec {_lkfd}>&-; unset _PC_LOCK_HELD
 # atualiza o overlay (mantém public; título/coleções/autor do que está no pacote)
 pub_now="$(jq -r 'if .public==true then "true" else "false" end' "$pdir/.moj-meta.json" 2>/dev/null)"
 colls_now="$(jq -c '.collections // []' "$pdir/.moj-meta.json" 2>/dev/null)"
 author_txt="$(head -1 "$pdir/author" 2>/dev/null)"
 authored_upsert "$id" "$owner" "$org" "$prob" "$title" "${pub_now:-false}" "${colls_now:-[]}" "$author_txt" '[]'
 audit_log "problem-edit" "id=$id by=$SESSION_LOGIN"
-ok_json '{action:"edit", id:$id, sha:$s}' --arg id "$id" --arg s "${sha:0:12}"
+ok_json '{action:"edit", id:$id, sha:$s, rev:$r}' --arg id "$id" --arg s "${sha:0:12}" --arg r "$rev"

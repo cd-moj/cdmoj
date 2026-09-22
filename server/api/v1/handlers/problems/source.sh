@@ -38,8 +38,10 @@ srcf="$(mktemp)"; outf="$(mktemp)"
 trap 'rm -f "$srcf" "$outf"' EXIT
 read_problem_source "$pkg" > "$srcf"
 [[ -s "$srcf" ]] || fail 500 "Falha ao ler o pacote do problema" "read_fail"
-jq -cn --arg id "$id" --arg o "$owner" --slurpfile s "$srcf" \
-  '{success:true, id:$id, owner:$o, editable:true} + $s[0]' > "$outf" || fail 500 "Falha ao serializar o pacote" "read_fail"
+# `rev` = revisão do conteúdo (trava de edição concorrente: o cliente devolve como `base_rev` no edit)
+rev="$(pkg_rev "$pkg")"; _who="$(pkg_rev_who "$pkg")"; _rat="${_who##*$'\t'}"; [[ "$_rat" =~ ^[0-9]+$ ]] || _rat=0
+jq -cn --arg id "$id" --arg o "$owner" --slurpfile s "$srcf" --arg rev "$rev" --arg rby "${_who%%$'\t'*}" --argjson rat "$_rat" \
+  '{success:true, id:$id, owner:$o, editable:true} + $s[0] + {rev:$rev, rev_by:$rby, rev_at:$rat}' > "$outf" || fail 500 "Falha ao serializar o pacote" "read_fail"
 [[ -s "$outf" ]] || fail 500 "Falha ao serializar o pacote" "read_fail"
 
 emit_json 200 OK

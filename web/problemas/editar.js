@@ -42,6 +42,10 @@ let RUNNING = '';                                        // '', 'calibrate' ou '
 let calibTimer = null, calibPollMs = 0, calibStart = 0, calibBusy = false;   // polling do resultado
 let CALIB_LIVE = [];                                     // [{host,since,state}] EM VOO agora, do servidor
 let SAVED_AT = 0;                                        // epoch do último Salvar (versão nova do pacote)
+// REVISÃO do pacote que este editor carregou (source.rev). Vai como `base_rev` no Salvar e no envio de
+// .tar: se outra pessoa (web ou CLI) mudou o problema depois, o servidor responde 409 `stale_rev` e a
+// tela oferece recarregar ou salvar por cima — ninguém apaga o trabalho do outro sem saber.
+let REV = '';
 let JUDGES = [];                                          // juízes do registro (calibração direcionada)
 const OPEN_LOGS = new Set();                              // hosts com "ver log" aberto (sobrevive ao re-render do polling)
 const OPEN_SOLS = new Set();                              // soluções com a tabela de testes aberta (idem)
@@ -1262,7 +1266,7 @@ async function loadHistory(force) {
 async function uploadTar(file) {
   if (!file) return;
   let body;
-  if (ID) body = { id: ID };
+  if (ID) body = { id: ID, ...(REV ? { base_rev: REV } : {}) };
   else {
     const prob = $('prob').value.trim(); REPO = $('repo').value;
     if (!REPO || !/^[a-z0-9][a-z0-9._-]*$/.test(prob)) { setMsg(T('Para enviar um .tar novo, escolha o diretório e o nome do problema.', 'To upload a new .tar, choose the directory and the problem name.'), 'error'); return; }
@@ -1275,7 +1279,12 @@ async function uploadTar(file) {
     ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
     $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
     await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓'), 'v-ok');
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha no upload', 'Upload failed')) + (e.code ? ` (${e.code})` : ''), 'error'); }
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'stale_rev') {
+      setMsg(T('Não enviado: o problema mudou desde que você o abriu.', 'Not uploaded: the problem changed since you opened it.'), 'error');
+      showConflict(e, async () => { try { await apiPost('/problems/upload', { ...body, force: true }, { contest: CONTEST, auth: true }); await loadSource(ID); HIST_LOADED = false; setMsg(T('Pacote enviado e recarregado ✓', 'Package uploaded and reloaded ✓'), 'v-ok'); } catch (x) { setMsg(x.message || String(x), 'error'); } });
+    } else setMsg((e instanceof ApiError ? e.message : T('Falha no upload', 'Upload failed')) + (e.code ? ` (${e.code})` : ''), 'error');
+  }
 }
 
 // ---- compartilhamento ---------------------------------------------------------------------
@@ -1384,7 +1393,32 @@ async function togglePublic() {
 }
 
 // ---- salvar / ações -----------------------------------------------------------------------
-async function save() {
+// ---- conflito de edição (409 stale_rev) --------------------------------------------------------
+function hideConflict() { const b = $('revConflict'); if (b) b.remove(); }
+// a caixa fica logo acima da mensagem do Salvar: quem mudou, quando, e as duas saídas
+function showConflict(e, retry) {
+  hideConflict();
+  const d = (e && e.data) || {}, who = d.changed_by || T('outra pessoa', 'someone else');
+  const when = d.changed_at ? new Date(d.changed_at * 1000).toLocaleString() : '';
+  const box = el('div', { id: 'revConflict', class: 'error-box', style: 'margin:.5rem 0' },
+    el('b', {}, T('Este problema foi alterado depois que você o abriu.', 'This problem was changed after you opened it.')),
+    el('div', { class: 'small', style: 'margin:.25rem 0 .5rem' },
+      T(`Quem alterou: ${who}` + (when ? ` · ${when}` : '') + '. Se você salvar agora, as mudanças dessa pessoa se perdem.',
+        `Changed by: ${who}` + (when ? ` · ${when}` : '') + '. If you save now, their changes are lost.')),
+    el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap' },
+      el('button', { class: 'btn', onclick: async () => {
+        if (!confirm(T('Recarregar o problema? As SUAS alterações não salvas se perdem.', 'Reload the problem? YOUR unsaved changes are lost.'))) return;
+        try { await loadSource(ID); setMsg(T('Recarregado com a versão atual ✓', 'Reloaded with the current version ✓'), 'v-ok'); }
+        catch (x) { setMsg(x.message || String(x), 'error'); }
+      } }, T('Recarregar (perde as suas mudanças)', 'Reload (discard your changes)')),
+      el('button', { class: 'btn ghost danger', onclick: async () => {
+        if (!confirm(T(`Salvar por cima? As mudanças de ${who} se perdem.`, `Save over it? The changes by ${who} are lost.`))) return;
+        hideConflict(); await retry();
+      } }, T('Salvar por cima', 'Save over it'))));
+  const m = $('msg'); m.parentNode.insertBefore(box, m);
+}
+
+async function save(opts = {}) {
   REPO = $('repo').value;
   if (!REPO) {
     showTab('enun'); const fld = $('repo'); if (fld) flash(fld.closest('.field') || fld);
@@ -1403,12 +1437,21 @@ async function save() {
       ID = j.id; MODE = 'edit'; history.replaceState({}, '', '?id=' + encodeURIComponent(ID));
       $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
       fillRepoSelect();   // criado: a org vira selo fixo (parte do id) e "+ nova org" some
-    } else await apiPost('/problems/edit', { id: ID, ...f }, { contest: CONTEST, auth: true });
+      REV = j.rev || '';
+    } else {
+      const j = await apiPost('/problems/edit', { id: ID, ...f, ...(REV ? { base_rev: REV } : {}), ...(opts.force ? { force: true } : {}) },
+        { contest: CONTEST, auth: true });
+      REV = j.rev || REV;
+    }
+    hideConflict();
     HIST_LOADED = false;   // salvar = commit novo; a aba Histórico recarrega na próxima abertura
     SAVED_AT = Math.floor(Date.now() / 1000);   // versão NOVA do pacote: a calibração em voo ficou velha
     updateReady();
     setMsg(T('Salvo ✓', 'Saved ✓'), 'v-ok');   // SALVAR não mexe em público — publicar é ação explícita (botão na aba Publicação)
-  } catch (e) { setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save')) + (e.code ? ` (${e.code})` : ''), 'error'); }
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'stale_rev') { setMsg(T('Não salvo: o problema mudou desde que você o abriu.', 'Not saved: the problem changed since you opened it.'), 'error'); showConflict(e, () => save({ force: true })); }
+    else setMsg((e instanceof ApiError ? e.message : T('Falha ao salvar', 'Failed to save')) + (e.code ? ` (${e.code})` : ''), 'error');
+  }
   finally { $('save').disabled = false; }
 }
 async function act(action, label) {
@@ -1502,7 +1545,7 @@ async function delProblem() {
 
 async function loadSource(id, j) {
   if (!j) j = await apiGet('/problems/source?id=' + encodeURIComponent(id), { contest: CONTEST, auth: true });
-  EDITABLE = j.editable; OWNER = j.owner || ''; REPO = id.split('#')[0];
+  EDITABLE = j.editable; OWNER = j.owner || ''; REPO = id.split('#')[0]; REV = j.rev || ''; hideConflict();
   $('title').textContent = T('Editar: ', 'Edit: ') + id;
   $('prob').value = id.split('#').slice(1).join('#'); $('prob').disabled = true;
   fillRepoSelect(); await renderForm(j);
@@ -1520,7 +1563,7 @@ function bindHandlers() {
   $('addex').onclick = () => addExample();
   $('addtest').onclick = addTest;
   $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
-  $('save').onclick = save;
+  $('save').onclick = () => save();   // (sem o evento como opts)
   if ($('delprob')) $('delprob').onclick = delProblem;
   $('publish').onclick = () => act('validate', T('Validar', 'Validate'));   // rota nova (publish = alias deprecado)
   $('calibrate').onclick = () => act('request-calibration', T('Calibração', 'Calibration'));

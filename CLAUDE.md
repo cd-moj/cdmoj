@@ -1301,6 +1301,22 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   título em lugar nenhum sai com **`untitled:true`** no `/problems/status` e ganha o selo "sem título"
   no Painel. Teste: `smoke-owners-index.sh`.
 
+- **TRAVA DE EDIÇÃO CONCORRENTE (`rev`, 2026-09-22; pedido do Daniel Saad + decisão do Ribas: "a trava
+  também na web").** `pkg_rev <pkg>` (`lib/problems.sh`) = hash de `git ls-tree HEAD` SEM a linha do
+  `.moj-meta.json` + `jq -cS` dos campos de autoria do meta (`display_title`/`titles`/`languages`/
+  `collections`). NÃO é o sha do HEAD de propósito: `set-public`, `move` e `owner-rename` commitam só
+  metadado e travariam todo mundo à toa; coleção ENTRA porque o push manda a lista inteira (sem isso o
+  push velho a apagaria calado). `source`/`get`/`create` devolvem `rev` (source também `rev_by`/`rev_at`
+  via `pkg_rev_who`, que pula os commits de sistema); `edit`/`upload` aceitam `base_rev`+`force` e
+  `pkg_rev_guard` responde **409 `stale_rev`** com `current_rev/changed_by/changed_at` DENTRO do
+  `error` (`FAIL_EXTRA` = objeto JSON que o `fail()` mescla no `error`). Conferência + escrita + commit
+  sob o MESMO flock por problema (`problem_lockfile`), e o `problem_commit` não trava de novo com
+  `_PC_LOCK_HELD=1` (nunca aninhe o flock — lição do owner-rename). Sem `base_rev` = comportamento
+  antigo (CLI velha, scripts). Clientes no MESMO trabalho: editor web (`REV` do `loadSource`, caixa
+  `#revConflict` com Recarregar / Salvar por cima → `force:true`; `ApiError.data` traz o `error`
+  inteiro) e `moj-cli` (`push`/`upload` + `--overwrite`, `moj pull`). Testes: `smoke-problem-rev.sh`
+  (inclui a corrida de dois edits com o mesmo `base_rev`: um 200, um 409) e
+  `smoke-editor-conflict.gjs.sh`; ponta a ponta: `moj-cli/test/pull-push.sh`.
 - **Histórico git por problema** (`/problems/history` lista/diff, `/problems/download?sha=` versão
   antiga via `git archive`, `/problems/restore` = **commit NOVO por cima** — história nunca é
   reescrita e o `.moj-meta.json` é PRESERVADO no restore, senão um meta antigo republicaria prova

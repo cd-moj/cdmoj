@@ -1,4 +1,5 @@
-# POST /problems/upload   (Bearer)   body: {id? | repo(=org),prob, tar_b64}
+# POST /problems/upload   (Bearer)   body: {id? | repo(=org),prob, tar_b64, base_rev?, force?}
+# `base_rev`/`force`: a trava de edição concorrente (ver edit.sh e pkg_rev_guard em lib/problems.sh).
 # Sobe um .tar(.gz)/.zip do pacote e ATUALIZA TUDO (substitui o conteúdo do problema). Commit LOCAL
 # autorado pelo login (sem Gitea). Novo problema exige permissão de criação. Acesso = membro da org.
 require_method POST
@@ -49,6 +50,10 @@ if [[ ! -d "$pdir" ]]; then   # problema NOVO via tar -> exige permissão de cri
   cc_can_create "$SESSION_LOGIN" || fail 403 "Sem permissão para criar novos problemas (mesma regra de criar contest)" "create_forbidden"
 fi
 mkdir -p "$pdir"
+# seção crítica: conferir o rev, gravar o pacote e commitar sem outra gravação no meio
+exec {_lkfd}>"$(problem_lockfile "$pdir")"; flock "$_lkfd"; export _PC_LOCK_HELD=1
+_brev="$(jq -r '(.base_rev // "") | tostring' <<<"$body")"; [[ "$_brev" =~ ^[0-9a-f]{0,40}$ ]] || fail 400 "base_rev inválido" "bad_rev"
+pkg_rev_guard "$pdir" "$_brev" "$(jq -r 'if .force == true then 1 else 0 end' <<<"$body")"
 # O `.moj-meta.json` é ARQUIVO DO SERVIDOR — o cliente não manda nem apaga:
 #  - o `public` só o /problems/set-public escreve (é o único que checa a trava da org). Se viesse do
 #    tar, bastava baixar um problema público, adaptá-lo p/ uma prova numa org privada e dar `moj
@@ -114,10 +119,11 @@ _pkg_canon_modes "$pdir"   # 644/755 — o mesmo modo do caminho do push (o tl-c
 [[ -f "$pdir/problem.yaml" ]] || bash "$MOJTOOLS_DIR/kattis/sidecar.sh" "$pdir" "$id" "$org" >/dev/null 2>&1 || true
 
 sha="$(problem_commit "$pdir" "$SESSION_LOGIN" "upload do pacote: $prob")"
+rev="$(pkg_rev "$pdir")"; exec {_lkfd}>&-; unset _PC_LOCK_HELD
 pub="$(jq -r 'if .public==true then "true" else "false" end' "$pdir/.moj-meta.json" 2>/dev/null)"
 colls="$(jq -c '.collections // []' "$pdir/.moj-meta.json" 2>/dev/null)"
 title="$(jq -r '.display_title // ""' "$pdir/.moj-meta.json" 2>/dev/null)"
 author="$(head -1 "$pdir/author" 2>/dev/null)"
 authored_upsert "$id" "$owner" "$org" "$prob" "$title" "${pub:-false}" "${colls:-[]}" "$author" '[]'
 audit_log "upload" "id=$id by=$SESSION_LOGIN"
-ok_json '{action:"upload", id:$id, sha:$s}' --arg id "$id" --arg s "${sha:0:12}"
+ok_json '{action:"upload", id:$id, sha:$s, rev:$r}' --arg id "$id" --arg s "${sha:0:12}" --arg r "$rev"

@@ -337,6 +337,44 @@ _need_orgs(){ declare -F org_is_member >/dev/null || source "$(dirname "${BASH_S
 
 # problem_commit <pkgdir> <login> <msg> -> HEAD sha. git init idempotente + add -A + commit autorado
 # pelo login. flock POR-PROBLEMA (dois saves no mesmo problema não corrompem a árvore/índice git).
+# problem_lockfile <pkg> -> o arquivo de lock POR PROBLEMA (o do problem_commit; quem precisa de uma seção
+# crítica maior — conferir o `rev` antes de escrever — pega o MESMO lock e exporta _PC_LOCK_HELD=1)
+problem_lockfile(){
+  mkdir -p "${RUNDIR:-/home/ribas/moj/run}/locks" 2>/dev/null
+  printf '%s/locks/%s.lock' "${RUNDIR:-/home/ribas/moj/run}" "$(printf '%s' "$1" | md5sum 2>/dev/null | cut -c1-24)"
+}
+
+# pkg_rev <pkg> -> a REVISÃO DO CONTEÚDO do pacote (16 hex; vazio sem repo). É a trava de edição
+# concorrente: o editor web e a CLI mandam o `rev` que carregaram (`base_rev`) e o edit/upload recusa com
+# 409 `stale_rev` se o pacote mudou desde então. Não é o sha do HEAD de propósito: publicar
+# (`set-public`), trocar o dono (`owner-rename`) e mover de org também commitam, e isso não é mudança no
+# que o autor edita — travaria o push de todo mundo à toa. Então: `git ls-tree HEAD` SEM a linha do
+# .moj-meta.json (o git já tem o hash de cada subárvore: barato mesmo num pacote de 300 MB) + só os
+# campos de AUTORIA do meta (título, títulos, linguagens, coleções — o push e o "Salvar" mandam os quatro).
+pkg_rev(){
+  local pkg="$1" t m
+  [[ -d "$pkg/.git" ]] || return 0
+  t="$(git -C "$pkg" ls-tree HEAD 2>/dev/null | grep -v $'\t\.moj-meta\.json$')"
+  m="$(jq -cS '{t: (.display_title // ""), ts: (.titles // {}), l: (.languages // []), c: (.collections // [])}' "$pkg/.moj-meta.json" 2>/dev/null)"
+  printf '%s\n%s' "$t" "$m" | md5sum | cut -c1-16
+}
+# pkg_rev_who <pkg> -> "autor\tepoch" do último commit que NÃO foi só de metadado de sistema (publicar,
+# dono, mover) — é quem o 409 aponta como "alterou depois que você abriu"
+pkg_rev_who(){
+  git -C "$1" log -1 --format='%an%x09%at' --invert-grep --grep='^set public=' --grep='^dono: ' --grep='^move: ' 2>/dev/null
+}
+# pkg_rev_guard <pkg> <base_rev> <force 0|1> — morre com 409 `stale_rev` se o pacote mudou desde `base_rev`.
+# Chame SEGURANDO o lock do problema (ver problem_lockfile). base_rev vazio = cliente antigo: não confere.
+pkg_rev_guard(){
+  local pkg="$1" base="$2" force="${3:-0}" cur who by at
+  [[ -n "$base" && "$force" != 1 ]] || return 0
+  cur="$(pkg_rev "$pkg")"
+  [[ -z "$cur" || "$cur" == "$base" ]] && return 0
+  who="$(pkg_rev_who "$pkg")"; by="${who%%$'\t'*}"; at="${who##*$'\t'}"; [[ "$at" =~ ^[0-9]+$ ]] || at=0
+  FAIL_EXTRA="$(jq -cn --arg r "$cur" --arg b "$by" --argjson a "$at" '{current_rev: $r, changed_by: $b, changed_at: $a}')" \
+    fail 409 "O problema foi alterado${by:+ por $by} depois que você o abriu — recarregue (moj pull) antes de enviar, ou envie por cima" "stale_rev"
+}
+
 problem_commit(){
   local pkg="$1" login="${2:-moj}" msg="${3:-update}" em="${2:-moj}@moj.local" lk
   [[ -d "$pkg" ]] || return 1
@@ -358,10 +396,12 @@ problem_commit(){
       [[ "$(pkg_tl_checksum "$pkg" "$_pid" 2>/dev/null)" == "$_st" ]] || tl_fresh_drop "$_pid"
     fi
   fi
-  mkdir -p "${RUNDIR:-/home/ribas/moj/run}/locks" 2>/dev/null
-  lk="${RUNDIR:-/home/ribas/moj/run}/locks/$(printf '%s' "$pkg" | md5sum 2>/dev/null | cut -c1-24).lock"
+  lk="$(problem_lockfile "$pkg")"
   (
-    flock 9 2>/dev/null
+    # quem já segura o lock deste problema (edit/upload: conferir o `rev` + escrever + commitar numa
+    # seção crítica só) avisa por _PC_LOCK_HELD — um 2º flock no MESMO arquivo, noutro fd do mesmo
+    # processo, esperaria para sempre
+    [[ "${_PC_LOCK_HELD:-0}" == 1 ]] || flock 9 2>/dev/null
     cd "$pkg" || exit 1
     if [[ ! -d .git ]]; then
       git -c init.defaultBranch=master init -q 2>/dev/null

@@ -6591,7 +6591,7 @@
         ],
         "responses": {
           "200": {
-            "description": "índice + validation (relatório do portão) + statement_html_b64/tags/time_limits. Inclui `languages` (whitelist de submissão; vazio = todas as padrão)"
+            "description": "índice + validation (relatório do portão) + statement_html_b64/tags/time_limits. Inclui `languages` (whitelist de submissão; vazio = todas as padrão) e `rev` (revisão do conteúdo — a base da trava de edição concorrente; o `moj pull` a compara antes de baixar o pacote)"
           },
           "404": {
             "description": "não encontrado"
@@ -7228,6 +7228,18 @@
                         "editable": {
                           "type": "boolean"
                         },
+                        "rev": {
+                          "type": "string",
+                          "description": "Trava de edição concorrente: rev = revisão do CONTEÚDO do pacote (git ls-tree sem o .moj-meta.json + display_title/titles/languages/collections do meta; set-public/move/owner-rename NÃO mudam o rev). Devolva-o como base_rev no /problems/edit e no /problems/upload."
+                        },
+                        "rev_by": {
+                          "type": "string",
+                          "description": "Autor do último commit de conteúdo (quem gerou este rev)."
+                        },
+                        "rev_at": {
+                          "type": "integer",
+                          "description": "EPOCH do último commit de conteúdo."
+                        },
                         "scripts": {
                           "type": "array",
                           "items": {
@@ -7397,6 +7409,14 @@
                   },
                   "tar_b64": {
                     "type": "string"
+                  },
+                  "base_rev": {
+                    "type": "string",
+                    "description": "O rev que o cliente tinha (source/get). Diferente do atual e sem force => 409 stale_rev, nada gravado. Ausente = grava por cima (compatível)."
+                  },
+                  "force": {
+                    "type": "boolean",
+                    "description": "Grava por cima mesmo com o rev mudado (moj upload --overwrite)."
                   }
                 },
                 "required": [
@@ -7408,7 +7428,10 @@
         },
         "responses": {
           "200": {
-            "description": "{id,sha}"
+            "description": "{id,sha,rev}"
+          },
+          "409": {
+            "description": "stale_rev: o problema mudou depois do base_rev — {error:{code:\"stale_rev\",message,current_rev,changed_by,changed_at}}; nada gravado"
           }
         }
       }
@@ -7547,7 +7570,7 @@
         },
         "responses": {
           "200": {
-            "description": "{id,sha}"
+            "description": "{id,sha,rev}"
           }
         },
         "description": "docs_files = round-trip das imagens de docs/ ([{name,content_b64}]); examples[].explanation vive em docs/notes/<sample>.md (legado sample-notes.json só leitura)."
@@ -7583,6 +7606,14 @@
                     "properties": {
                       "id": {
                         "type": "string"
+                      },
+                      "base_rev": {
+                        "type": "string",
+                        "description": "Trava de edição concorrente: rev = revisão do CONTEÚDO do pacote (git ls-tree sem o .moj-meta.json + display_title/titles/languages/collections do meta; set-public/move/owner-rename NÃO mudam o rev). O rev que o cliente tinha; diferente do atual e sem force => 409 stale_rev e nada é gravado. Ausente = grava por cima (compatível)."
+                      },
+                      "force": {
+                        "type": "boolean",
+                        "description": "Grava por cima mesmo com o rev mudado (editor: Salvar por cima; moj push --overwrite)."
                       }
                     },
                     "required": [
@@ -7596,7 +7627,13 @@
         },
         "responses": {
           "200": {
-            "description": "{id,sha}"
+            "description": "{action,id,sha,rev}"
+          },
+          "400": {
+            "description": "bad_rev: base_rev não é hex"
+          },
+          "409": {
+            "description": "stale_rev: o problema mudou depois do base_rev — {error:{code:\"stale_rev\",message,current_rev,changed_by,changed_at}}; nada gravado"
           }
         },
         "description": "docs_files = round-trip das imagens de docs/ ([{name,content_b64}]); examples[].explanation vive em docs/notes/<sample>.md (legado sample-notes.json só leitura)."

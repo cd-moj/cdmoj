@@ -11,6 +11,8 @@ valid_id "$id" || fail 400 "Invalid id" "id_invalid"
 require_problem_view "$id"   # privado só p/ dono/colaborador (corta na API; não revela a existência)
 base="$(owners_merged | jq -c --arg id "$id" 'first(.problems[]|select(.id==$id)) // empty' 2>/dev/null)"
 [[ -n "$base" ]] || base="$(jq -cn --arg id "$id" '{id:$id, unknown:true}')"
+# `rev` = revisão do conteúdo (a trava de edição concorrente; o push da CLI confere contra o do clone)
+_pp="$(pkg_path "$id" 2>/dev/null)"; [[ -n "$_pp" && -d "$_pp" ]] && base="$(jq -c --arg r "$(pkg_rev "$_pp")" '. + {rev:$r}' <<<"$base")"
 
 vf="$RUNDIR/validation/$id.json"; val='null'; [[ -f "$vf" ]] && val="$(cat "$vf" 2>/dev/null)"
 [[ -n "$val" ]] || val='null'

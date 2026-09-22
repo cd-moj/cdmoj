@@ -491,7 +491,7 @@ ida e volta. O `moj push` **exclui** este arquivo do que sobe.
 
 ```json
 { "id": "apc#seno", "repo": "apc", "prob": "seno", "title": "Seno por série de Taylor",
-  "format": "md", "collections": ["problemas-apc"], "public": true }
+  "format": "md", "collections": ["problemas-apc"], "public": true, "base_rev": "9f2c61d0a8b37e14" }
 ```
 
 | Campo | O que é |
@@ -503,6 +503,21 @@ ida e volta. O `moj push` **exclui** este arquivo do que sobe.
 | `format` | `md`, `org` ou `tex`, o formato do enunciado deste clone |
 | `collections`, `languages`, `public` | espelhos locais dos campos do `.moj-meta.json`, com ida e volta pelo `push` (e o `moj upload` de diretório leva título/coleções/languages num meta **sintetizado** a partir daqui; `public` nunca sobe). `moj languages <dir>` edita a whitelist sem abrir o arquivo |
 | `scripts_rt` | marca que este clone sabe fazer ida e volta de `scripts/` e `tests/score`. Sem essa marca, o `push` não tem permissão de **apagar** esses arquivos no servidor (protege clones antigos de destruir a correção especial sem querer) |
+| `base_rev` | a revisão do servidor (`rev`) no último `clone`, `pull` ou `push` desta pasta. O `push` e o `upload` a mandam como `base_rev`: se o problema mudou no servidor desde então (editor web, outro autor), o servidor recusa com 409 e nada é gravado. `moj push --overwrite` envia por cima. Vazio = pasta de antes desta trava (o `push` grava por cima, como sempre) |
+
+Ao lado do `.moj-id` a CLI grava o **`.moj-base`**, a *linha de base* da pasta: uma linha
+`<hash>\t<caminho>` para cada arquivo do pacote (o conjunto que o `push` envia), mais uma linha
+`<hash>\t.moj-id` com os campos de autoria do `.moj-id` (título, títulos, linguagens, coleções). É ele
+que o `moj pull` usa para saber o que **você** mudou desde o último `clone`/`pull`/`push`:
+
+- pasta sem mudança sua e servidor com versão nova: o `pull` troca os arquivos do pacote (inclusive
+  apaga os que sumiram no servidor) e mantém os que não são do pacote (um `gerador.py`, por exemplo);
+- pasta com mudança sua: o `pull` **recusa** e lista os arquivos; `moj pull --force` copia a pasta
+  inteira para `<pasta>.local-AAAAMMDD-HHMMSS` e então traz a versão do servidor;
+- pasta sem `.moj-base` (clonada antes do `pull` existir): o `pull` compara com o servidor; se forem
+  iguais, só grava a linha de base; se não, recusa (não dá para saber quem mudou) e sugere `--force`.
+
+O `.moj-base` também não sobe (nem no `push`, nem no tar do `moj upload`).
 
 Resumindo a diferença:
 
@@ -510,7 +525,7 @@ Resumindo a diferença:
 |---|---|---|
 | Onde vive | dentro do pacote, no servidor | no clone local do autor |
 | Quem escreve | o servidor | o `moj-cli` |
-| Vai para o servidor? | **é** o do servidor | **não**, é excluído do envio |
+| Vai para o servidor? | **é** o do servidor | **não**, é excluído do envio (e o `.moj-base` também) |
 | Para que serve | ser o metadado canônico | lembrar de qual problema é o diretório e levar os campos de ida e volta |
 
 Os 336 `.moj-id` que aparecem hoje dentro de `moj-problems/` são **resíduo** de migrações antigas que
@@ -759,6 +774,16 @@ português continua obrigatório.
 
 **Onde fica a dificuldade do problema?**
 Em lugar nenhum do pacote. Ela é calculada da taxa de acerto real dos alunos.
+
+**Editei na web. Como trago para a minha pasta?**
+Rode `moj pull` dentro da pasta do problema. Se a pasta tem mudanças suas que não foram enviadas, o
+`pull` recusa. Envie antes (`moj push`) ou rode `moj pull --force`, que guarda a sua pasta numa cópia.
+
+**O `moj push` disse que o problema mudou no servidor.**
+Alguém salvou o problema (web ou outro clone) depois do seu último `clone`/`pull`/`push`. Nada foi
+enviado. Rode `moj pull --force` para trazer a versão nova e reaplique as suas mudanças a partir da
+cópia `.local-*`, ou rode `moj push --overwrite` para enviar a sua versão por cima. O editor web tem a
+mesma trava: ele avisa quem mudou e oferece "Recarregar" ou "Salvar por cima".
 
 **Qual é a diferença entre `.moj-meta.json` e `.moj-id`?**
 Ver a tabela no fim da seção 6. Em uma frase: o primeiro é o metadado do servidor, o segundo é um

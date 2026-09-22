@@ -3,7 +3,9 @@ import './contest-guard.js';   // isolamento por subdomínio (roda em toda pági
 export const API_BASE = '/api/v1';
 
 export class ApiError extends Error {
-  constructor(status, message, code) { super(message); this.status = status; this.code = code; }
+  // `data` = o objeto `error` inteiro da resposta: alguns erros trazem campos a mais (o 409 `stale_rev`
+  // do editor de problemas diz quem mudou e quando — changed_by/changed_at/current_rev)
+  constructor(status, message, code, data) { super(message); this.status = status; this.code = code; this.data = data || {}; }
 }
 
 // --- token por contest (localStorage) -------------------------------------
@@ -23,7 +25,7 @@ async function unwrap(r) {
   catch { throw new ApiError(r.status, 'Resposta inválida do servidor'); }
   if (!r.ok || j.success === false) {
     const err = j && j.error ? j.error : {};
-    throw new ApiError(r.status, err.message || ('HTTP ' + r.status), err.code);
+    throw new ApiError(r.status, err.message || ('HTTP ' + r.status), err.code, err);
   }
   return j;
 }

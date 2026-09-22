@@ -73,5 +73,5 @@ sha="$(problem_commit "$pdir" "$SESSION_LOGIN" "novo problema: $prob")"
 author_txt="$(head -1 "$pdir/author" 2>/dev/null)"
 authored_upsert "$id" "$SESSION_LOGIN" "$org" "$prob" "$title" false "$colls" "$author_txt" '[]'
 audit_log "problem-create" "id=$id org=$org owner=$SESSION_LOGIN"
-ok_json '{action:"create", id:$id, repo:$r, prob:$p, owner:$o, sha:$s}' \
-  --arg id "$id" --arg r "$org" --arg p "$prob" --arg o "$SESSION_LOGIN" --arg s "${sha:0:12}"
+ok_json '{action:"create", id:$id, repo:$r, prob:$p, owner:$o, sha:$s, rev:$rv}' \
+  --arg id "$id" --arg r "$org" --arg p "$prob" --arg o "$SESSION_LOGIN" --arg s "${sha:0:12}" --arg rv "$(pkg_rev "$pdir")"

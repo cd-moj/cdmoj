@@ -86,11 +86,14 @@ _reason() {
 
 # fail <http-status> <message> [error-code] — envelope de erro + encerra.
 fail() {
-  local code="${1:-400}" msg="$2" ecode="${3:-$1}"
+  local code="${1:-400}" msg="$2" ecode="${3:-$1}" x="${FAIL_EXTRA:-}"
   # CLI ANTIGA (sem marcador no UA, não lê cabeçalho): a dica "rode moj update" vai NA mensagem
   type cli_status_compute &>/dev/null && { cli_status_compute; msg="$msg${CLI_HINT:-}"; }
+  # FAIL_EXTRA (objeto JSON, opcional): campos a mais DENTRO de `error` — o 409 stale_rev do editor
+  # diz quem mudou e quando. JSON inválido é ignorado (o erro sai assim mesmo).
+  jq -e 'type == "object"' >/dev/null 2>&1 <<<"${x:-x}" || x='{}'
   emit_json "$code" "$(_reason "$code")"
-  jq -cn --arg m "$msg" --arg c "$ecode" '{success:false, error:{message:$m, code:$c}}'
+  jq -cn --arg m "$msg" --arg c "$ecode" --argjson x "$x" '{success:false, error:({message:$m, code:$c} + $x)}'
   exit 0
 }
 
