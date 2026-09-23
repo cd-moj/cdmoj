@@ -520,7 +520,8 @@ function seriesCharts(series) {
 const alertName = (k) => ({
   'identity.duplicate': T('identidade repetida', 'duplicate identity'),
   'usb.storage': T('pendrive ou HD externo', 'USB storage'), 'usb.phone': T('celular', 'phone'),
-  'usb.network': T('rede por USB', 'USB network'), 'usb.other': T('outro USB', 'other USB') }[k] || k);
+  'usb.network': T('rede por USB', 'USB network'), 'usb.other': T('outro USB', 'other USB'),
+  'display.multiple': T('mais de um monitor', 'more than one monitor') }[k] || k);
 
 // Saúde NA PROVA (agente novo): reinícios, OOM, relógio, ociosidade, PSI. O denominador é
 // `agent_new` — com agente antigo na frota, "0" sem ele seria uma afirmação que ninguém mediu.

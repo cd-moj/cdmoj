@@ -22,7 +22,7 @@ jq -n '
     pressure: {"8|vscode": {n:4, mem0_sum:160, mem0_n:4, mem4_sum:280, mem4_n:4, sw_sum:400, sw_n:4, sw_max:780, series: ser}},
     series: [ range(0; 4) | {t: (. * 10), act: 5, mem_sum: 200, mem_n: 5, sw_sum: 0, sw_n: 5, ld_sum: 2, ld_n: 5} ],
     machines: [ {mac:"aa-bb-01", processor:"i5-10500", cores:6, mem_mb:8192, team:"alice", used:true, pts:40} ] }' > "$W/old.json"
-jq '. + { alert_kinds: {"identity.duplicate": 1, "usb.storage": 2},
+jq '. + { alert_kinds: {"identity.duplicate": 1, "usb.storage": 2, "display.multiple": 2},
           health: {agent_new: 4, psi_mem_sum: 40, psi_cpu_sum: 20, psi_io_sum: 10, psi_n: 20,
                    oom_machines: 1, oom_kills: 2, idle_pts: 40, idle_hi: 10, skew_n: 4, skew_bad: 1, reboots: 1},
           psi_mem_max: 3.9, model_tm: {"Dell Inc. OptiPlex 3090": 3, "Lenovo ThinkCentre M70q": 1} }
@@ -77,13 +77,14 @@ ck "saúde com o DENOMINADOR (4 máquinas com o agente novo)" 'n "Medido em 4 m�
 ck "reinícios, OOM e relógio"          'n "1 máquina(s) reiniciaram" && n "2 processo(s) mortos por falta de memória, em 1 máquina" && n "1 de 4 máquinas com o relógio"'
 ck "PSI médio por recurso + pico"      'n "memória 2% · CPU 1% · disco 0.5%" && n "pico de memória 3.9%"'
 ck "ociosidade em % do tempo"          'n "25% do tempo"'
-ck "alertas POR TIPO, com nome legível" 'n "3 alertas (pendrive ou HD externo 2 · identidade repetida 1)"'
+ck "alertas POR TIPO, com nome legível" 'n "3 alertas (pendrive ou HD externo 2 · mais de um monitor 2 · identidade repetida 1)"'
+ck "tipo novo do NutellaBoot (display.multiple) nunca sai cru" '! n "display.multiple" && ! n "display.multiple" en'
 ck "modelo do equipamento com o denominador" 'n "Modelo do equipamento (4 de 5 máquinas informam)" && n "OptiPlex 3090"'
 ck "pressão: gráfico e colunas de PSI" 'n "esperando memória (PSI, %)" && n "PSI médio" && n "PSI máx"'
 ck "…são 2 colunas a mais na tabela, e só no cache novo" '[[ "$(sed -n "s/^OLD_TH \([0-9]*\) NEW_TH \([0-9]*\)/\1 \2/p" "$W/pt.out" | awk "{print \$2-\$1}")" == 2 ]]'
 ck "série de 10 min ganha PSI"         'n "Espera por memória (PSI, %)"'
 ck "tabela de máquinas: modelo e OOM"  'n "i5-10500Dell Inc. OptiPlex 3090" && n "💥2"'
 echo "== bilíngue =="
-ck "en: saúde, PSI, modelo e alertas em inglês" 'n "Machine health in the contest" en && n "rebooted during the contest" en && n "Equipment model (4 of 5" en && n "USB storage 2 · duplicate identity 1" en'
+ck "en: saúde, PSI, modelo e alertas em inglês" 'n "Machine health in the contest" en && n "rebooted during the contest" en && n "Equipment model (4 of 5" en && n "USB storage 2 · more than one monitor 2 · duplicate identity 1" en'
 ck "en: nada da seção nova ficou em português" '! n "reiniciaram" en && ! n "Medido em" en && ! n "informam" en'
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

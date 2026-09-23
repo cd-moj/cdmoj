@@ -127,7 +127,8 @@ export function makeAnomaliesTab(CONTEST) {
           : T(`IP preso a este contest até ${fmtClock(+dd.until || 0)}`, `IP pinned to this contest until ${fmtClock(+dd.until || 0)}`);
         case 'machine_alert': {
           const an = ({ 'usb.storage': T('pendrive ou HD externo', 'USB storage'), 'usb.phone': T('celular', 'phone'), 'usb.network': T('rede por USB', 'USB network'),
-            'usb.other': T('outro dispositivo USB', 'other USB device'), 'identity.duplicate': T('identidade repetida', 'duplicate identity') })[dd.alert] || dd.alert;
+            'usb.other': T('outro dispositivo USB', 'other USB device'), 'identity.duplicate': T('identidade repetida', 'duplicate identity'),
+            'display.multiple': T('mais de um monitor', 'more than one monitor') })[dd.alert] || dd.alert;
           return (dd.event === 'alert.dismissed' ? T('dispensado: ', 'dismissed: ') : '') + an + (dd.vendor ? ' (' + dd.vendor + ')' : '') + (dd.text ? ' — ' + dd.text : '')
             + T(` · sede ${dd.image}, máquina ${dd.mac}`, ` · site ${dd.image}, machine ${dd.mac}`) + (dd.other_mac ? T(`, igual a ${dd.other_mac}`, `, same as ${dd.other_mac}`) : '')
             + (dd.notified ? T(' · avisado por Telegram', ' · notified by Telegram') : '');

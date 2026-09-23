@@ -31,8 +31,13 @@ máquina↔time** (roster/binding).
   tinha uma máquina de cada agente): todo campo novo é opcional, do coletor à tela.
 - **A máquina** ganhou `boot_id`, `boots`, `last_boot`, `editors_reset_at`, `status.t_agent` (hora do agente;
   a presença dele = agente novo) e `status.hwinfo.{mac, hostname, dmi_uuid, product_vendor, product_name,
-  uptime_s, last_boot}`. Alertas têm `kind`: `identity.duplicate` (com `other_mac` — home clonada por
-  imagem de disco), `usb.storage|phone|network|other`; `kind` desconhecido é aceito.
+  uptime_s, last_boot}` (desde 22/09 também `monitors` e `monitor_outputs`: monitores acesos e os conectores
+  deles — telemetria que o MOJ ainda não agrega). Alertas têm `kind`: `identity.duplicate` (com `other_mac` —
+  home clonada por imagem de disco), `usb.storage|phone|network|other` e `display.multiple` (22/09: mais
+  monitores acesos que o campo **Monitores permitidos** do modelo, `MAXMONITORS`, padrão 1; o `detail` diz
+  quantos e em quais saídas, ex. `2 monitores: DP-1, HDMI-A-1`). `kind` desconhecido é aceito e aparece
+  cru; tipo conhecido ganha rótulo pt/en nos DOIS mapas da tela (`alertName` de `web/lib/mlinux-view.js`
+  e o caso `machine_alert` de `web/contest/admin/anomalies-tab.js`).
 - `status.hwinfo.machine_id` (+ `boot_id`, `image`) é o que o navegador do mlinux manda no
   User-Agent — o **elo máquina↔time** (abaixo). Agente antigo: `Mozilla/5.0 (MLinux/<imagem>/<machine_id>/
   <boot_id>) …`. **Agente novo (set/2026): `…/<boot_id>/<mac>)`** — o MAC entra no FIM (quem lê por posição
