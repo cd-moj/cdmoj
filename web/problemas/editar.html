@@ -236,7 +236,8 @@
       <!-- ================= ABA: TESTES & PONTUAÇÃO ================= -->
       <section class="tabpane" data-pane="tests" hidden>
         <div class="section">
-          <h3 data-en="Samples (input / output) — always visible in the statement">Exemplos (entrada / saída) — sempre visíveis no enunciado</h3>
+          <h3 data-en="Samples (input / output) — visible in the statement">Exemplos (entrada / saída) — visíveis no enunciado</h3>
+          <div id="sampleOffNote" class="notice" style="margin:.4rem 0" hidden><span data-en="This problem is marked as having no samples (">Este problema está marcado como sem exemplos (</span><code>SAMPLE=no</code><span data-en=", Limits tab). The statement shows no sample box and there is nothing to download, even with the samples below — they still grade, like any test. Put the example in the statement text (section ## Example).">, aba Limites). O enunciado não mostra a caixa de exemplos e não há exemplo para baixar, mesmo com os exemplos abaixo — eles continuam corrigindo, como qualquer teste. Ponha o exemplo no texto do enunciado (seção ## Exemplo).</span></div>
           <div id="examples"></div>
           <button id="addex" class="btn ghost" type="button" data-en="+ add sample">+ adicionar exemplo</button>
         </div>
@@ -378,6 +379,14 @@
               <label><input type="checkbox" id="cf_tlererun"> <span data-en="re-run isolated TLE">reexecutar TLE isolado</span> <code>TLERERUN</code></label>
               <label><input type="checkbox" id="cf_allowtle"> <span data-en="accept good's TLE during calibration">aceitar TLE da good na calibração</span> <code>ALLOWTLEDURINGCALIBRATION</code></label>
             </div>
+          </div>
+
+          <div class="lcard">
+            <h4 data-en="📄 Samples in the statement">📄 Exemplos no enunciado</h4>
+            <div class="ltoggles">
+              <label><input type="checkbox" id="cf_nosample"> <span data-en="this problem has no samples">este problema não tem exemplos</span> <code>SAMPLE=no</code></label>
+            </div>
+            <span class="small muted" data-en="For function submission, interactive problems, custom languages, or any problem where a sample input/output makes no sense to the student. The statement shows no sample box and no sample can be downloaded. Explain the example in the statement text (section ## Example). A hidden test is never shown as a sample. Changing this does not require recalibration.">Para submissão de função, problema interativo, linguagem própria, ou qualquer problema em que entrada e saída de exemplo não fazem sentido para o aluno. O enunciado não mostra a caixa de exemplos e nenhum exemplo pode ser baixado. Explique o exemplo no texto do enunciado (seção ## Exemplo). Teste oculto nunca aparece como exemplo. Mudar esta opção não pede recalibração.</span>
           </div>
 
           <div class="lcard">

@@ -95,17 +95,27 @@ function confUpsert(text, key, value) {
 const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS']];
 const CF_YN = [['cf_allowparallel', 'ALLOWPARALLELTEST'], ['cf_tlererun', 'TLERERUN'], ['cf_stopwa', 'STOPWHEN_WA'], ['cf_stoptle', 'STOPWHEN_TLE'], ['cf_stopre', 'STOPWHEN_RE']];
 const CF_FLAG = [['cf_allowtle', 'ALLOWTLEDURINGCALIBRATION']];   // y ou ausente
+// SAMPLE=no: o problema declara que NÃO tem exemplos (função, interativo, linguagem própria…) — o
+// enunciado não mostra a caixa e não há exemplo p/ baixar; ausente = tem exemplos (sample*). A
+// mesma regra do mojtools/statement-langs.sh (stmt_no_samples) — mexeu numa, mexa na outra.
+const sampleOff = (text) => /^(no|n|nao|não|false|0)$/i.test((confVal(text, 'SAMPLE') || '').trim());
+function applySampleMode() {
+  const off = $('cf_nosample').checked;
+  if ($('sampleOffNote')) $('sampleOffNote').hidden = !off;
+}
 function confToFields(text) {
   CF_TEXT.forEach(([id, k]) => { $(id).value = confVal(text, k) || ''; });
   CF_YN.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
   CF_FLAG.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
+  $('cf_nosample').checked = sampleOff(text); applySampleMode();
 }
 function syncConfFromFields() {
   let c = $('confRaw').value;
   CF_TEXT.forEach(([id, k]) => { c = confUpsert(c, k, $(id).value.trim()); });
   CF_YN.forEach(([id, k]) => { c = confUpsert(c, k, $(id).checked ? 'y' : 'n'); });
   CF_FLAG.forEach(([id, k]) => { c = confUpsert(c, k, $(id).checked ? 'y' : null); });
-  $('confRaw').value = c;
+  c = confUpsert(c, 'SAMPLE', $('cf_nosample').checked ? 'no' : null);
+  $('confRaw').value = c; applySampleMode();
 }
 const hiddenFile = (multiple) => { const i = el('input', { type: 'file' }); if (multiple) i.multiple = true; i.hidden = true; return i; };
 function langSelect(value) { const s = el('select', { class: 'small' }); LANG_OPTS.forEach(([id, l]) => s.append(el('option', { value: id }, l))); s.value = value || ''; return s; }
@@ -358,7 +368,9 @@ function readyItems() {
   const limOK = !!($('cf_memlimit').value.trim() || $('cf_calibrafactor').value.trim());
   const items = [
     { tab: 'enun', label: T('Enunciado', 'Statement'), s: hasEnun ? 'ok' : 'todo' },
-    { tab: 'tests', label: T('Exemplos', 'Samples'), s: nEx ? 'ok' : 'todo' },
+    $('cf_nosample').checked
+      ? { tab: 'limits', label: T('Sem exemplos (SAMPLE=no)', 'No samples (SAMPLE=no)'), s: 'na' }
+      : { tab: 'tests', label: T('Exemplos', 'Samples'), s: nEx ? 'ok' : 'todo' },
     { tab: 'tests', label: T('Testes', 'Tests'), s: nTs ? 'ok' : 'todo' },
     { tab: 'sols', label: T('Solução good', 'good solution'), s: nGood ? 'ok' : 'todo' },
   ];
@@ -866,7 +878,7 @@ async function preview() {
     // id junto: o servidor semeia as IMAGENS de docs/ do pacote no render — `![](fig.png)`
     // aparece no preview igual ao servido (imagem colada é data:URI e nunca dependeu disso)
     // idioma ativo: texto, título e explicações traduzidas (ausente = a PT, como o servido faz)
-    const l = curStmtLang; const exs = collectExamples();
+    const l = curStmtLang; const exs = $('cf_nosample').checked ? [] : collectExamples();   // SAMPLE=no: o servido não tem exemplos
     if (l !== 'pt') { const nt = collectTransNotes(l); exs.forEach((e, i) => { if (nt['sample' + (i + 1)]) e.explanation = nt['sample' + (i + 1)]; }); }
     const pbody = l === 'pt'
       ? { enunciado_md: currentStatement(), enunciado_format: FMT, examples: exs, title: $('ptitle').value.trim(), lang: 'pt' }
@@ -1578,7 +1590,7 @@ function bindHandlers() {
   $('uploadTar').addEventListener('change', (e) => { uploadTar(e.target.files[0]); e.target.value = ''; });
   $('repo').onchange = async () => { REPO = $('repo').value; updateRepoHint(); renderPubState(); await loadShare(); };
   $('shareAdd').onclick = async () => { const u = $('shareLogin').value.trim(); if (u) { await share([u], []); $('shareLogin').value = ''; } };
-  [...CF_TEXT, ...CF_YN, ...CF_FLAG].forEach(([id]) => $(id).addEventListener('change', () => { syncConfFromFields(); updateReady(); }));
+  [...CF_TEXT, ...CF_YN, ...CF_FLAG, ['cf_nosample']].forEach(([id]) => $(id).addEventListener('change', () => { syncConfFromFields(); updateReady(); }));
   $('confRaw').addEventListener('change', () => { confToFields($('confRaw').value); updateReady(); });
   $('newCollBtn').onclick = newColl;
   $('pcolls').addEventListener('change', () => { renderCollChips(); renderCollManage(); });

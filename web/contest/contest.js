@@ -592,7 +592,7 @@ async function downloadSamples(p, link) {
   if (link) link.textContent = '…';
   try {
     const s = (await fetchSamples(p)).filter((x) => x && !x.too_big);   // too_big: acima do teto, sem bytes
-    if (!s.length) { alert(T('Este problema não tem exemplos como arquivo (o enunciado foi enviado pronto). Copie os exemplos do texto.', 'This problem has no samples as files (the statement was uploaded ready-made). Copy the samples from the text.')); return; }
+    if (!s.length) { alert(T('Este problema não tem exemplos para baixar. Se ele tem exemplo, está no texto do enunciado.', 'This problem has no samples to download. If it has an example, it is in the statement text.')); return; }
     const L = String(p.short_name || 'X').replace(/[^A-Za-z0-9._-]/g, '_');
     downloadSamplesZip(s, L, L + '-exemplos.zip');
   } catch (e) { alert(T('Não deu para baixar os exemplos: ', 'Could not download the samples: ') + (e.message || '')); }
@@ -647,8 +647,10 @@ function renderProblems() {
     if (p.url) linksWrap.append(el('a', { href: p.url, target: '_blank' }, T('Enunciado', 'Statement')));
     if (p.has_statement_html) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openHtmlTab(p); } }, 'HTML'));
     if (p.has_statement_pdf) linksWrap.append(el('a', { href: '#', onclick: (e) => { e.preventDefault(); openPdfTab(p); } }, 'PDF'));
-    // ⬇ Exemplos: /contest/samples (o MESMO conjunto que o enunciado mostra; gate do enunciado) num zip
-    if (p.has_statement_html || p.has_statement_pdf) linksWrap.append(el('a', { href: '#', title: T('Baixa entrada e saída de cada exemplo (.in/.out) num zip', 'Downloads each sample input and output (.in/.out) in a zip'),
+    // ⬇ Exemplos: /contest/samples (o MESMO conjunto que o enunciado mostra; gate do enunciado) num zip.
+    // has_samples:false = o problema não tem exemplo p/ baixar (SAMPLE=no ou sem sample*): sem link.
+    // Ausente (enunciado enviado à mão, servidor antigo) = o link fica, como antes.
+    if ((p.has_statement_html || p.has_statement_pdf) && p.has_samples !== false) linksWrap.append(el('a', { href: '#', title: T('Baixa entrada e saída de cada exemplo (.in/.out) num zip', 'Downloads each sample input and output (.in/.out) in a zip'),
       onclick: (e) => { e.preventDefault(); downloadSamples(p, e.currentTarget); } }, T('Exemplos', 'Samples')));
 
     // form de submit ao lado (editor abre no detalhe; aqui só upload rápido + botão)

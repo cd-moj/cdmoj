@@ -199,6 +199,20 @@ ck "traversal: 404"                        '[[ "$(code)" == "404 Not Found" ]]'
 call /contest/samples GET sl.judge "contest=sl&problem=A"
 ck "juiz também pega"                      '[[ "$(code)" == "200 OK" ]]'
 
+echo "== SAMPLE=no: sem exemplo para baixar (has_samples:false, samples vazio) =="
+call /contest/problems GET time01 "contest=sl"
+ck "com sample*: has_samples true"         '[[ "$(jq -r ".problems[0].has_samples" <<<"$BODY")" == true ]]'
+cp -p "$J" "$J.bak"; printf 'SAMPLE=no\n' >> "$P/conf"
+TREINO_JSONS="$FIX/treino/var/jsons" MOJ_TL_STORE="$RUN/tl" bash "$MOJTOOLS_DIR/gen-problem-json.sh" "$P" "col#pa" >/dev/null 2>&1
+rm -f "$C"/var/problems-cache.*; touch "$C/var/.problems-dirty"
+call /contest/problems GET time01 "contest=sl"
+ck "SAMPLE=no: has_samples false"          '[[ "$(jq -r ".problems[0].has_samples" <<<"$BODY")" == false ]]'
+call /contest/samples GET time01 "contest=sl&problem=A"
+ck "SAMPLE=no: /contest/samples 200 e vazio (nem os sample* que existem)" '[[ "$(code)" == "200 OK" && "$(jq -c ".samples" <<<"$BODY")" == "[]" ]]'
+PT2="$(jq -r .statement_html_b64 "$J" | base64 -d)"
+ck "SAMPLE=no: enunciado servido sem a seção de exemplos" '! grep -q "<section class=\"moj-exemplos" <<<"$PT2" && ! grep -q "<h2>Exemplos</h2>" <<<"$PT2" && grep -q "Leia N e imprima N" <<<"$PT2"'
+sed -i '/^SAMPLE=/d' "$P/conf"; mv -f "$J.bak" "$J"; ln -f "$J" "$FIX/treino/var/jsons-private/col#pa.json"; rm -f "$C"/var/problems-cache.*; touch "$C/var/.problems-dirty"
+
 echo "== admin envia HTML PRÓPRIO em ES; refresh limpa todos os idiomas =="
 call /contest/admin/problems POST sl.admin "contest=sl" "{\"action\":\"statement\",\"letter\":\"A\",\"lang\":\"es\",\"html_b64\":\"$(printf '<html><body><p>Lea N. PROPIO</p></body></html>' | base64 -w0)\"}"
 ck "upload es: 200 e arquivo <skey>.es.html" '[[ "$(code)" == "200 OK" && -s "$C/enunciados/col#pa.es.html" && "$(jq -r .lang <<<"$BODY")" == es ]]'

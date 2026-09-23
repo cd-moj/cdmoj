@@ -1917,7 +1917,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{problems:[{short_name,full_name,problem_id,has_statement_html,has_statement_pdf,statement_langs,time_limits,languages}], statement_langs, default_statement_lang} (statement_langs do envelope = idiomas que a prova OFERECE, conf STATEMENT_LANGS via /contest/admin/statement-langs, ausente = [pt]; default_statement_lang = LOCALE se oferecido, senao o 1o; statement_langs por problema = oferecidos com arquivo ou traducao no banco; time_limits = MAX entre juízes; com pool de juízes definido — problem-judges.json -> CONTEST_JUDGES — só entre os hosts do pool efetivo. languages = ids permitidos: override por-problema-no-contest -> whitelist do contest -> default do próprio pacote (.moj-meta.json) -> [] (todas))"
+            "description": "{problems:[{short_name,full_name,problem_id,has_statement_html,has_statement_pdf,statement_langs,has_samples?,time_limits,languages}], statement_langs, default_statement_lang} (has_samples = ha exemplo para baixar: false com SAMPLE=no no conf do pacote ou sem tests/input/sample*, e a pagina esconde o link Exemplos; ausente quando o problema nao vem do banco; statement_langs do envelope = idiomas que a prova OFERECE, conf STATEMENT_LANGS via /contest/admin/statement-langs, ausente = [pt]; default_statement_lang = LOCALE se oferecido, senao o 1o; statement_langs por problema = oferecidos com arquivo ou traducao no banco; time_limits = MAX entre juízes; com pool de juízes definido — problem-judges.json -> CONTEST_JUDGES — só entre os hosts do pool efetivo. languages = ids permitidos: override por-problema-no-contest -> whitelist do contest -> default do próprio pacote (.moj-meta.json) -> [] (todas))"
           }
         }
       }

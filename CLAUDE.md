@@ -1386,6 +1386,15 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
 - `lib/problems.sh` (`apply_problem_fields` / `read_problem_source` / `write_meta` / `problem_commit`
   = commit git LOCAL por problema, sem Gitea) + `lib/orgs.sh` (acesso por org). Handlers em
   `handlers/problems/` (+ `handlers/orgs/`).
+- **PROBLEMA SEM EXEMPLO = `SAMPLE=no` no `conf` do pacote** (2026-09-23, pergunta recorrente — Daniel
+  Saad, problemas de função). Exemplo é SÓ `tests/input/sample*`; teste oculto NUNCA vira exemplo (o
+  fallback de legado que mostrava os 2 primeiros testes e o arquivo `samples` saíram do mojtools). Com a
+  flag: enunciado sem a caixa, `samples:[]` no json servível (treino sem botão, `/contest/samples` vazio,
+  `/contest/problems` `has_samples:false` ⇒ `contest.js` esconde o link), validação passa sem `sample*`.
+  Editor: aba **Limites**, "este problema não tem exemplos" (`cf_nosample`/`sampleOff`, preview sem
+  exemplos, prontidão "Sem exemplos"). A linha NÃO entra no tl-checksum (não recalibra). Pacotes antigos:
+  `server/bin/sample-flag-migrate.sh [--apply]` (dry-run; põe a linha no COMEÇO do conf, tira o `samples`,
+  commita como `moj` e reindexa). Teste: `smoke-sample-flag.sh` + seção SAMPLE=no do `smoke-statement-langs.sh`.
 - **Pacote canônico**: o formato é descrito, por inteiro e num lugar só, em **`docs/PACOTE.md`**
   (arquivos do pacote, `.moj-meta.json`, `.moj-id`, ORG, COLEÇÃO, ciclo validar→calibrar→publicar).
   **Mudou o pacote? Atualize o `docs/PACOTE.md` no MESMO commit** — é a fonte única, e os outros

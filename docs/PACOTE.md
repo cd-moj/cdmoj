@@ -135,7 +135,9 @@ Três regras que o portão de qualidade cobra:
    (seção 5), e o renderizador injeta um `<h1>` a partir dele.
 3. **Os exemplos não vão no texto.** Eles são montados a partir de `tests/input/sample*` e
    `tests/output/sample*` e injetados no fim do HTML. Se você escrever um exemplo à mão dentro do
-   enunciado, ele vai aparecer duplicado. (A validação avisa, mas não bloqueia.)
+   enunciado, ele vai aparecer duplicado. (A validação avisa, mas não bloqueia.) A exceção é o
+   problema **sem exemplo** (`SAMPLE=no` no `conf`, seção 4, "Problema sem exemplo"): nele o
+   exemplo vai no texto, numa seção `## Exemplo`, e a validação não avisa.
 
 **Imagens — dois jeitos, ambos viram HTML autocontido** (o renderizador roda com
 `--embed-resources` e embute tudo em base64):
@@ -212,8 +214,8 @@ Um exemplo com mais de **256 KB** entra truncado no HTML do enunciado (só o com
 para ler: teste grande é teste oculto.
 
 O índice leva também **`samples`**: `[{name, input, output}]`, o texto dos exemplos. A seleção é a
-MESMA do HTML do enunciado (`stmt_sample_names` em `mojtools/statement-langs.sh`: arquivo `samples`,
-senão `tests/input/sample*`). Um teste oculto nunca entra nesse campo. É o que alimenta o botão
+MESMA do HTML do enunciado (`stmt_sample_names` em `mojtools/statement-langs.sh`: os
+`tests/input/sample*`, ou nenhum com `SAMPLE=no`). Um teste oculto nunca entra nesse campo. É o que alimenta o botão
 **⬇ Exemplos** e o `moj-comp samples`/`fetch`, pela rota `/treino/problem` e pela `/contest/samples`.
 
 Na API de autoria, as traduções viajam no campo `translations` de `/problems/source` e
@@ -237,8 +239,41 @@ O nome do arquivo decide o papel do teste:
 | qualquer outro nome | **teste oculto**: só corrige, o aluno nunca vê |
 
 Os exemplos são todos os arquivos que começam com `sample`, ordenados por `ls -1v` (ou seja,
-`sample2` vem antes de `sample10`, e não depois). É preciso ter **pelo menos um par** de teste, e na
-prática pelo menos um exemplo.
+`sample2` vem antes de `sample10`, e não depois). A validação exige **pelo menos um exemplo**, ou a
+declaração de que o problema não tem exemplo (`SAMPLE=no`, abaixo). **Teste oculto nunca aparece
+como exemplo**, nem quando falta `sample*`.
+
+#### Problema sem exemplo: `SAMPLE=no`
+
+Em alguns problemas, entrada e saída de exemplo não fazem sentido para o aluno:
+
+- **submissão de função**: a entrada do teste é o formato interno do driver, que o aluno não lê;
+- **problema interativo**: a entrada é o cenário secreto do árbitro, e a saída é um marcador;
+- **linguagem própria** (PDDL, SAS, gramáticas): o "exemplo" não é um par entrada/saída;
+- qualquer outro caso em que o exemplo se explica melhor em texto ou figura.
+
+Nesses problemas:
+
+1. Não crie `tests/input/sample*`.
+2. Ponha a linha `SAMPLE=no` no `conf`. No editor web, é a opção **este problema não tem
+   exemplos** da aba **Limites**. Na CLI, `moj edit` → 8 (conf) → 6. O `moj interactive` já grava a
+   linha.
+3. Explique o exemplo no texto do enunciado, numa seção `## Exemplo`: uma figura, uma chamada da
+   função e o que ela devolve, a transcrição da conversa com o árbitro.
+
+O efeito de `SAMPLE=no`:
+
+- o enunciado não mostra a caixa de exemplos;
+- o campo `samples` do índice fica vazio: não há botão **⬇ Exemplos** no treino, nem link
+  **Exemplos** no contest (`has_samples:false` em `/contest/problems`), e o `moj-comp samples` não
+  baixa nada. Vale mesmo se existirem arquivos `sample*`: eles continuam corrigindo, como qualquer
+  teste, mas nenhum deles vira exemplo;
+- a linha `SAMPLE` **não** entra no tl-checksum: marcar ou desmarcar não pede recalibração.
+
+Valores aceitos: `no`, `n`, `nao`, `não`, `false`, `0` (com ou sem aspas). Sem a linha, o problema
+tem exemplos (`tests/input/sample*`). Até 2026-09-23 existiam dois legados que saíram: o arquivo
+`samples` na raiz do pacote (vazio = sem exemplos) e o fallback que mostrava os dois primeiros testes
+quando faltava `sample*` — em problema de função ele exibia o formato interno do driver.
 
 O nome dos testes ocultos é livre. As convenções que aparecem no acervo são `test-001`, `test-002`
 (estilo APC) e `<prob>_1_1`, `<prob>_1_2` (estilo OBI, que agrupa por subtarefa; ver `tests/score`).
@@ -380,6 +415,7 @@ Todas as chaves que o `build-and-test.sh` entende:
 | `TLERERUN` | `y` | repete o teste uma vez antes de confirmar um TLE (evita TLE por ruído da máquina) | 0 |
 | `CALIBRATIONTL` | `5` | tempo-limite usado **durante** a calibração, antes de existir um TL real | 0 |
 | `ALLOWTLEDURINGCALIBRATION` | desligado | `y` aceita solução `good` com TLE como "calibrou" (a linguagem ganha TL mesmo estourando o `CALIBRATIONTL` — casos raros de good deliberadamente no limite) | 0 |
+| `SAMPLE` | exemplos = `tests/input/sample*` | `no` declara que o problema **não tem exemplos** (seção 4, "Problema sem exemplo"): o enunciado sai sem a caixa e nada é oferecido para baixar. Não é lido pelo juiz e não entra no tl-checksum (não pede recalibração) | 0 |
 | `TLOVERRIDE[<lang>]` / `TLOVERRIDE[default]` | sem override | **o autor decide o TL na marra** (segundos, por linguagem + default). A calibração continua rodando (e o histórico dela fica visível), mas o valor FINAL — no julgamento (o juiz aplica DEPOIS dos `TLMOD`, então ele vence tudo) e em TODA exibição (treino, contest, folha de TL da prova, `/problems/tl`) — é `TLOVERRIDE[lang] // TLOVERRIDE[default] // calibrado[lang]`. Só valor numérico literal (`TLOVERRIDE[java]=2.5`); o servidor lê por grep, nunca executa o conf. ⚠ **Use `TLOVERRIDE[py]`, nunca `py3`/`py2`** — são chaves LEGADAS: o servidor as normaliza para `py` ao exibir e o juiz também (desde 2026-08-24), mas antes disso um `TLOVERRIDE[py3]` era EXIBIDO e não era JULGADO. A **gestão de problemas** (Painel, editor, `/problems/{get,status,calib,tl}`) também mostra o efetivo — com um selo ⚡ e o calibrado ao lado; os tempos dos cartões de calibração seguem sendo a MEDIÇÃO, porque a calibração ignora o override de propósito. ⚠ mudar o override muda o tl-checksum ⇒ dispara uma recalibração (inofensiva — o override vence de qualquer jeito) | 0 |
 
 A coluna "uso hoje" conta em quantos dos 453 `conf` do acervo a chave aparece. Um zero não quer dizer
@@ -777,6 +813,11 @@ português continua obrigatório.
 
 **Onde fica a dificuldade do problema?**
 Em lugar nenhum do pacote. Ela é calculada da taxa de acerto real dos alunos.
+
+**Meu problema é de função (ou interativo). Mostrar a entrada não faz sentido.**
+Não crie `sample*`, ponha `SAMPLE=no` no `conf` (no editor web: aba Limites, "este problema não tem
+exemplos") e explique o exemplo no texto do enunciado, numa seção `## Exemplo`. Ver seção 4,
+"Problema sem exemplo".
 
 **Editei na web. Como trago para a minha pasta?**
 Rode `moj pull` dentro da pasta do problema. Se a pasta tem mudanças suas que não foram enviadas, o
