@@ -38,8 +38,20 @@
 # De carona, o mesmo defeito de versão em NOME DE FUNÇÃO (`fix_names`): no pandoc 3.1 da imagem
 # `\log` vem como `<mo>log</mo>` e o LibreOffice 25.2 desenha só "l" — vira `<mi>log</mi>`.
 #
+# E a TIPOGRAFIA da fórmula (`fix_settings`; relato de 24/09/2026: "o texto entre $ sai com outro
+# tamanho"): o pandoc grava cada fórmula como objeto do LibreOffice Math com um `settings.xml` que
+# só diz `IsTextMode`, e o Math desenha com os DEFAULTS dele — 12pt em Liberation Serif, que a
+# imagem não tem: caía no DejaVu Serif (largo, x-height alto) no meio do Latin Modern 11pt do
+# corpo. O objeto NÃO herda nada do parágrafo nem do reference-doc; por isso cada settings.xml de
+# fórmula recebe o tamanho e a família do CORPO, lidos da default-style de parágrafo do styles.xml
+# do próprio ODT — a do `etc/caderno-reference.odt` (mudou o corpo lá, a fórmula acompanha) — e
+# índices/limites a 70% (o \scriptsize do LaTeX a 11pt é 8pt; os 60% do Math deixavam o
+# `\sum_{d|n}` ilegível). ⚠ ORDEM: `FontName…` recria a fonte SEM itálico — o
+# `FontVariablesIsItalic` tem de vir DEPOIS (antes dele o `n` saía em pé).
+#
 # Uso: odt-math-bars.py <arquivo.odt>   — reescreve NO LUGAR (tmp + os.replace), só as fórmulas
-#        que mudam; mimetype PRIMEIRO e sem compressão (senão o LibreOffice recusa calado). Erro =
+#        que mudam; mimetype PRIMEIRO e sem compressão (senão o LibreOffice recusa calado). Imprime
+#        quantas fórmulas tiveram o MathML reescrito (a tipografia do settings.xml não conta). Erro =
 #        ODT intacto e saída ≠ 0 (quem chama segue: no pior caso o PDF sai como antes). Idempotente.
 #      odt-math-bars.py --roles        — TESTE: lê HTML/MathML no stdin e imprime, por <math>, o
 #        papel de cada barra (O abre, C fecha, M meio, L solta; prefixo D = dupla).
@@ -50,9 +62,15 @@ import sys
 import tempfile
 import zipfile
 import xml.etree.ElementTree as ET
+from xml.sax.saxutils import escape
 
 M = 'http://www.w3.org/1998/Math/MathML'
 ET.register_namespace('', M)
+NS_STYLE = 'urn:oasis:names:tc:opendocument:xmlns:style:1.0'
+NS_FO = 'urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0'
+NS_SVG = 'urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0'
+BODY_FALLBACK = ('Latin Modern Roman', 11)   # o corpo do etc/caderno-reference.odt
+SCRIPT_PCT = 70                              # índices e limites, % do corpo
 
 BARS = {'|': 's', '∣': 's', '∥': 'd', '‖': 'd'}   # | ∣ ∥ ‖
 OPENB = set('([{⟨⌊⌈')                             # ( [ { ⟨ ⌊ ⌈
@@ -241,14 +259,87 @@ def fix_formula(data):
     return None if out == data else out
 
 
+def is_math(data):
+    try:
+        return ET.fromstring(data).tag == '{%s}math' % M
+    except ET.ParseError:
+        return False
+
+
+def body_font(zi):
+    """(família, pt) do corpo: text-properties da default-style de parágrafo do styles.xml."""
+    fam, pt = BODY_FALLBACK
+    try:
+        root = ET.fromstring(zi.read('styles.xml'))
+    except (KeyError, ET.ParseError):
+        return fam, pt
+    faces = {f.get('{%s}name' % NS_STYLE): f.get('{%s}font-family' % NS_SVG)
+             for f in root.iter('{%s}font-face' % NS_STYLE)}
+    for d in root.iter('{%s}default-style' % NS_STYLE):
+        if d.get('{%s}family' % NS_STYLE) != 'paragraph':
+            continue
+        tp = d.find('{%s}text-properties' % NS_STYLE)
+        if tp is not None:
+            f = faces.get(tp.get('{%s}font-name' % NS_STYLE))
+            if f:
+                fam = f.strip('\'"')
+            m = re.fullmatch(r'([\d.]+)pt', tp.get('{%s}font-size' % NS_FO) or '')
+            if m:
+                pt = max(1, round(float(m.group(1))))
+        break
+    return fam, pt
+
+
+def settings_items(fam, pt):
+    return [('BaseFontHeight', 'short', str(pt)),
+            ('FontNameVariables', 'string', fam),
+            ('FontVariablesIsItalic', 'boolean', 'true'),   # DEPOIS do nome (o nome zera o itálico)
+            ('FontNameFunctions', 'string', fam),
+            ('FontNameNumbers', 'string', fam),
+            ('FontNameText', 'string', fam),
+            ('FontNameSerif', 'string', fam),
+            ('RelativeFontHeightIndices', 'short', str(SCRIPT_PCT)),
+            ('RelativeFontHeightLimits', 'short', str(SCRIPT_PCT))]
+
+
+def fix_settings(data, items):
+    """settings.xml de uma fórmula com a tipografia do corpo. None = já estava assim, ou não tem
+    o conjunto `ooo:configuration-settings` que o pandoc grava (fica como veio)."""
+    s = data.decode('utf-8')
+    names = '|'.join(n for n, _, _ in items)
+    s2 = re.sub(r'<config:config-item config:name="(?:%s)"[^>]*>[^<]*</config:config-item>' % names, '', s)
+    xml = ''.join('<config:config-item config:name="%s" config:type="%s">%s</config:config-item>'
+                  % (n, t, escape(v)) for n, t, v in items)
+    s2, k = re.subn(r'(<config:config-item-set config:name="ooo:configuration-settings">.*?)'
+                    r'(</config:config-item-set>)', lambda m: m.group(1) + xml + m.group(2),
+                    s2, count=1, flags=re.S)
+    if not k or s2 == s:
+        return None
+    return s2.encode('utf-8')
+
+
 def fix_odt(path):
     with zipfile.ZipFile(path) as zi:
         infos = zi.infolist()
+        names = set(zi.namelist())
         new = {}
+        mathdirs = set()
         for info in infos:
             n = info.filename
             if n.endswith('/content.xml'):
-                out = fix_formula(zi.read(n))
+                data = zi.read(n)
+                if is_math(data):
+                    mathdirs.add(n[:-len('content.xml')])
+                out = fix_formula(data)
+                if out is not None:
+                    new[n] = out
+        fixed = len(new)
+        items = None
+        for info in infos:
+            n = info.filename
+            if n.endswith('/settings.xml') and n[:-len('settings.xml')] in mathdirs:
+                items = items or settings_items(*body_font(zi))
+                out = fix_settings(zi.read(n), items)
                 if out is not None:
                     new[n] = out
         if not new:
@@ -272,7 +363,7 @@ def fix_odt(path):
         except BaseException:
             os.unlink(tmp)
             raise
-    return len(new)
+    return fixed
 
 
 def main(argv):

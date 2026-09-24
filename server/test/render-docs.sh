@@ -16,7 +16,8 @@
 # E as FÓRMULAS COM BARRA (2026-09-24, relato do Arthur Botelho): o pandoc marca todo `|` do
 # MathML como `form="prefix"` e o LibreOffice Math desenhava um `¿` vermelho em volta dele no
 # caderno e no editorial — o `lib/odt-math-bars.py` reescreve as barras no ODT (ver
-# `smoke-odt-math-bars.sh`); aqui se afirma o papel: nenhum `¿` e a fórmula presente.
+# `smoke-odt-math-bars.sh`); aqui se afirma o papel: nenhum `¿` e a fórmula presente. E a fórmula
+# na fonte do corpo (nenhum DejaVu Serif no PDF — o fallback do LibreOffice Math sem settings).
 set -u
 # ROOT pelo caminho do script — mas o jeito de rodar isto é copiando o arquivo para dentro da
 # imagem (`podman cp … :/tmp/`), e aí o caminho derivado não acha as libs: cai no /opt do container.
@@ -148,6 +149,12 @@ ck "caderno EN: nenhum ¿"               '! grep -qF "¿" <<<"$CT_EN"'
 ck "editorial PT: |P| está lá, sem ¿"   'tr -d " " <<<"$ED_PT" | grep -qF "|P|" && ! grep -qF "¿" <<<"$ED_PT"'
 # nome de função inteiro: no pandoc 3.1 + LibreOffice 25.2 da imagem `O(n \log n)` saía "O(n l n)"
 ck "editorial PT: \\log sai inteiro"       'tr -d " " <<<"$ED_PT" | grep -qF "nlog"'
+# fórmula na fonte do CORPO: sem o settings.xml de fórmula (odt-math-bars.py) o LibreOffice Math
+# usa o default dele, Liberation Serif — ausente na imagem, cai no DejaVu Serif, maior e largo.
+# No caderno só o regular/itálico conta: o `DejaVuSerif-Bold` é o `≤`/`⁹` do <strong> em TEXTO do
+# fixture (o Latin Modern Roman Bold não tem esses glifos) — não é fórmula.
+ck "caderno PT: fórmula sem DejaVu Serif" '! pdffonts "$(doc_file rd contest pt pdf)" 2>/dev/null | grep -Eqi "DejaVuSerif(-Italic)?[[:space:]]"'
+ck "editorial PT: fórmula sem DejaVu Serif" '! pdffonts "$(doc_file rd editorial pt pdf)" 2>/dev/null | grep -qi "DejaVuSerif"'
 
 echo "== ambiente de julgamento: título novo, linhas de compilação, veredictos, penalidade =="
 IP="$(doc_file rd info-sheet en pdf)"; IT="$(pdftotext -layout "$IP" - 2>/dev/null)"
