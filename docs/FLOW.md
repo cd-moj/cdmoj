@@ -153,6 +153,17 @@ o contest sem TL até a próxima regeneração do índice (relato de 18/09/2026)
 offline o job **espera na fila** (o preflight/dashboard avisam). Protocolo completo em
 `server/judge-gw/PULL.md`.
 
+**Largura (24/09/2026).** Os juízes oficiais são slots de 1 CPU e um problema pode pedir **k CPUs
+por teste** (`CPUNEEDED=k` no `conf`, `SAMENUMA=y` = no mesmo nó NUMA). O claim é **por largura**:
+o job só cabe num juiz com `k_slots` livres (num nó, se numa; a memória por slot também conta),
+senão é pulado e os de 1 slot passam na frente; o agente junta os slots num grupo por teste e
+devolve os que sobram no fim do job (`released`). Um largo pendente há 20 s **segura** um juiz
+(`run/hold/<host>.json`: nada novo entra nele até caber); sem juiz capaz por 120 s vira Judge
+Error. O agente que não conseguir alocar **recusa** (`POST /judge/decline`) e o job volta à fila.
+Testes **em paralelo** (vários testes da mesma submissão ao mesmo tempo, cada um nas suas k CPUs)
+só com a política global `auto` e fila vazia — em prova, `off`. Guia do autor:
+`mojtools/docs/problema-paralelo.md`; conf em `PACOTE.md`.
+
 **Test-run de autoria** (`POST /problems/test-run`, `moj testrun`): o autor roda UMA solução
 avulsa no juiz real — o job entra na MESMA fila (banda `040-lista-privada`) com o contest
 **sentinela `_testrun`**, o juiz o julga como submissão normal, e o `ingest_result` do judged

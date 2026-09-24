@@ -479,6 +479,25 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   status). No editor, `slotOfPath('validator.cpp')` = `validator` (compõe com todos os slots; sem isso
   caía em `run` e dava falso conflito com submissão de função). `.validator-cache/` fica fora do git do
   pacote (`problem_commit`) e do `moj upload`.
+- **ESCALONADOR POR LARGURA (`CPUNEEDED`/`SAMENUMA`/testes em paralelo, 24/09/2026)** —
+  `server/judge-gw/sched-lib.sh` + `handlers/judge/{heartbeat,register,decline}.sh`; doc
+  completa em `judge-gw/PULL.md` ("Largura k"). Os juízes oficiais são slots de 1 CPU; um job de
+  `CPUNEEDED=k` ocupa `k_slots = ceil(k/slot_cpus)` do MESMO juiz. O `conf` do pacote é lido por
+  REGEX (`sched_pkg_par`; nunca sourced) e memoizado no sidecar `.cmeta` **v2** (12 campos; v1 é
+  reescrito). `q_claim` é por largura: `k_slots ≤ livres`, `SAMENUMA` ⇒ `≤ max_free_group`, memória
+  por slot; não cabe ⇒ pula (backfill). Env `QC_*` do heartbeat (slot_cpus, max_free_group,
+  total/mem, política) — juiz LEGADO (beat sem `slot_cpus`) só k=1 e sem campos novos. `par_max`
+  (testes em paralelo) SÓ com política `"*".parallel=auto` (judges-config; fora do `cfg_hash`),
+  fila vazia e nada pulado por porta de tempo/largura: sobra além do colchão, rodízio, teto
+  `min(MAXPARALLELTESTS, parallel_max)` e `share_max×total`. **HOLD** (`run/hold/<host>.json`)
+  segura um juiz p/ o largo faminto (1 por juiz; 1 global com `020-prova` não vazia; TTL 600 s);
+  **decline** (`/judge/decline`) devolve o que o agente não alocou (epoch novo, backoff 60 s, 3ª =
+  Judge Error); job largo sem juiz capaz há 120 s = Judge Error pelo spool (`sched_spool_judge_error`,
+  host `scheduler`). `upd_claim`/`cmd_claim` também são por largura (calibração = k_slots, P=1).
+  ⚠ A ordem dos campos do cmeta é `…m\x01memmb\x01enq\x01decl` — os TRÊS leitores (`q_claim`,
+  `_wide_jobs`, `q_claim_id`) fazem o mesmo `read`; o smoke pegou um `enq`/`memmb` trocado que
+  fazia toda regra de memória comparar com o epoch. Testes: `smoke-sched-width.sh` (68),
+  `smoke-judge-config.sh` (rode também com o jq 1.7).
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +

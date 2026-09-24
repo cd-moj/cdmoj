@@ -66,9 +66,11 @@ while IFS= read -r rf; do
   else
     ((jslots++)); [[ "$(jq -r '.state // ""' "$rf" 2>/dev/null)" == busy ]] && ((jbusy++))
   fi
-  # nº de núcleos vem de .ncpu (o .cpu é o NOME do modelo; o register descartava o ncpu
-  # do agente e esta soma vivia em 0 — corrigido junto com o gpu estrito)
-  c="$(jq -r '.ncpu // 0' "$rf" 2>/dev/null)"; [[ "$c" =~ ^[0-9]+$ ]] && ((cpus+=c))
+  # nº de CPUs A SERVIÇO: Σ total_slots×slot_cpus do agente novo (cpus fora dos slots — reserve,
+  # resto de fatia — não julgam); agente antigo: .ncpu (o .cpu é o NOME do modelo; o register
+  # descartava o ncpu do agente e esta soma vivia em 0 — corrigido junto com o gpu estrito)
+  c="$(jq -r 'if ((.slot_cpus // 0) >= 1) then ((.total_slots // 1) * .slot_cpus) else (.ncpu // 0) end' "$rf" 2>/dev/null)"
+  [[ "$c" =~ ^[0-9]+$ ]] && ((cpus+=c))
   # GPU só conta com COMPUTE comprovado (vendor nvidia/amd, do nvidia-smi/rocm-smi) —
   # registro de agente antigo pode ter lspci (vendor "other") ou a MENSAGEM DE ERRO do
   # nvidia-smi como names (driver quebrado); nenhum dos dois é GPU de compute.

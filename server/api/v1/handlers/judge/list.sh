@@ -23,6 +23,8 @@ emit_json 200 OK
       langs:(.langs // []), cage_root:(.cage_root // null),
       problems_count:(.problems_count // ((.problems//{})|length)),
       state, last_seen, online:((.last_seen//0) >= ($now-$ttl)),
+      total_slots:(.total_slots//1), free_slots:(.free_slots//null), slot_cpus:(.slot_cpus//null),
+      slots_by_node:(.slots_by_node//{}), smt:((.smt//false)==true), partition:(.partition//"off"),
       tl_summary:($tl[.host] // {calibrated:0, langs:[]}),
       last_update:(.last_update//null)
     }' "$f" 2>/dev/null

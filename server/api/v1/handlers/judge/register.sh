@@ -2,8 +2,11 @@
 # Anuncia/atualiza a capacidade + inventário de um worker (juiz). Grava
 # $REGISTRYDIR/<host>.json. Chamado pelo agent ao subir e quando o inventário muda.
 # body: {host, capability, arch, cpu, mem_kb, gpu, problems:{id:mtime,...}, langs, toolchain,
-#        inv_hash, boot?}   (`toolchain` = {lang: versão medida DENTRO da jaula; alimenta a
-#        info sheet da prova — lib/contest-docs.sh)
+#        inv_hash, boot?, total_slots?, partition?, topology?, slot_cpus?, slots_by_node?, smt?}
+#   (`toolchain` = {lang: versão medida DENTRO da jaula; alimenta a info sheet da prova —
+#    lib/contest-docs.sh}; `slot_cpus` = cpus do MENOR slot, `slots_by_node` = {"<nó>": n},
+#    `smt` = hyperthreading — a LARGURA (CPUNEEDED) do escalonador lê os três; agente antigo
+#    não os manda e é tratado como legado: só jobs k=1)
 #   boot:true (só no BOOT do agente) => o servidor RE-ENFILEIRA na hora o que estava atribuído
 #   a este host (jobs + calibrações — os processos morreram no restart; nada espera TTL).
 # resp inclui `config` (a vigente do judges-config.json) — o agente a adota ANTES do 1º
@@ -48,6 +51,10 @@ reg="$(jq -c --argjson now "$EPOCHSECONDS" '
     free_slots:(.total_slots // 1),
     partition:(.partition // "off"),
     topology:(.topology // []),
+    slot_cpus:(.slot_cpus // null),
+    slots_by_node:(.slots_by_node // {}),
+    smt:((.smt // false) == true),
+    max_free_group:(((.slots_by_node // {}) | [.[]] | max) // (.total_slots // 1)),
     state:   "free",
     last_seen: $now,
     registered_at: $now,

@@ -417,11 +417,13 @@ Todas as chaves que o `build-and-test.sh` entende:
 | `ULIMITS[-u]` | `1024` | número máximo de processos. Java e outras runtimes precisam de mais (o acervo usa `10000`) | 453 |
 | `ULIMITS[-s]` | `131072` (128 MB, em KB) | tamanho da pilha. Prefira `STACKLIMITMB` | 0 |
 | `ULIMITS[-f]` | `256000` | tamanho máximo de arquivo que o programa pode escrever | 0 |
-| `ALLOWPARALLELTEST` | ligado | `n` força os testes a rodarem um de cada vez (necessário quando o problema é sensível a tempo) | 453 |
+| `ALLOWPARALLELTEST` | ligado (ausente = `y`) | `y` = o juiz **pode** rodar vários testes desta submissão ao mesmo tempo, cada um nas suas k CPUs, quando tem CPU ociosa (política do admin; em prova fica desligada); `n` = um teste por vez. **Não muda o tempo-limite**: a calibração é sempre um teste por vez. Ver "Problemas paralelos" abaixo | 453 |
 | `STACKLIMITMB` | 128 | pilha em MB. Vence o `ULIMITS[-s]`. A JVM espelha isso no `-Xss` | 0 |
 | `MEMLIMITMB` | sem limite por RSS | limite de memória em MB, medido pelo **pico de RSS**. Ligar isso desliga o limite de memória virtual (que penalizaria injustamente JVM e Go). A JVM usa este valor no `-Xmx` | 0 |
 | `COMPILEMEMLIMIT` | `2048` | memória em MB liberada para a **compilação** (o `kotlinc` passa de 600 MB) | 0 |
-| `MAXPARALLELTESTS` | nº de CPUs | teto de testes em paralelo | 0 |
+| `MAXPARALLELTESTS` | teto do juiz (4) | teto de testes ao mesmo tempo deste problema (inteiro ≥ 1); nunca passa do teto do juiz (`parallel_max`, default 4) nem de `nproc/k` rodando à mão | 0 |
+| `CPUNEEDED` | `1` | **CPUs que cada teste precisa** (1..64; problema paralelo — OpenMP/MPI/pthreads). O juiz junta k slots para cada teste e a jaula entra com `MOJ_TEST_CPUS`/`OMP_NUM_THREADS` = k. Mudar recalibra. Ver "Problemas paralelos" | 0 |
+| `SAMENUMA` | `n` | com `CPUNEEDED>1`, `y` = as k CPUs de cada teste no mesmo nó NUMA | 0 |
 | `STOPWHEN_WA` | não para | `y` interrompe no primeiro Wrong Answer | 0 |
 | `STOPWHEN_TLE` | não para | `y` interrompe no primeiro Time Limit Exceeded | 0 |
 | `STOPWHEN_RE` | não para | `y` interrompe no primeiro Runtime Error | 0 |
@@ -437,6 +439,35 @@ tiver um motivo (um problema que exige muita memória, ou uma linguagem que prec
 
 `PUBLIC=no` no `conf` é **legado**. Hoje quem decide se o problema é público é o campo `public` do
 `.moj-meta.json`.
+
+#### Problemas paralelos (`CPUNEEDED`, `SAMENUMA`) e testes em paralelo
+
+Duas coisas diferentes com a mesma palavra:
+
+| | O que é | Chave |
+|---|---|---|
+| **teste paralelo** | UM teste usa **k CPUs** ao mesmo tempo (o programa do aluno é paralelo) | `CPUNEEDED=k`, `SAMENUMA=y` |
+| **testes em paralelo** | o juiz roda **vários testes** da mesma submissão ao mesmo tempo, cada um nas suas k CPUs | `ALLOWPARALLELTEST`, `MAXPARALLELTESTS` |
+
+Os juízes oficiais são particionados em **slots de 1 CPU**. Um problema com `CPUNEEDED=k`:
+
+- só é entregue a um juiz com **k slots livres** (com `SAMENUMA=y`, k slots livres **no mesmo nó**);
+  o agente os junta num grupo, pina o teste nele (dentro da jaula `nproc` = k) e os separa no fim;
+- é **calibrado com k CPUs, um teste por vez** — o tempo-limite só vale com o mesmo k, por isso
+  mudar `CPUNEEDED`/`SAMENUMA` recalibra (o `conf` entra no checksum);
+- entrega à jaula `MOJ_TEST_CPUS` e `OMP_NUM_THREADS` (= k, exportados pelo `binfile.sh`): OpenMP se
+  dimensiona sozinho; o `run.sh` de MPI faz `mpirun -np "$MOJ_TEST_CPUS"` — **nunca um `-np` fixo**.
+  Templates prontos: `paralelo-openmp` e `paralelo-mpi` (seletor do editor);
+- com hyperthreading e k ≥ 2 o grupo é de **núcleos inteiros**, na calibração e no julgamento;
+- sem juiz capaz (k maior que qualquer juiz, ou que qualquer nó com `SAMENUMA=y`) o julgamento
+  espera e, passado um tempo, recebe **Judge Error** com o motivo — o Validar avisa antes.
+
+`ALLOWPARALLELTEST` ligado (o default) só diz que o juiz **pode** rodar vários testes ao mesmo
+tempo quando tem CPU ociosa (a política global do admin decide; em prova fica desligada). Cada
+teste continua sozinho nas suas CPUs, o tempo é medido como sempre e um TLE visto assim é refeito
+serialmente antes de valer; `MAXPARALLELTESTS` é o teto por problema. O relatório da submissão
+diz o que aconteceu: "Paralelismo: P teste(s) ao mesmo tempo × k CPU(s) por teste". A validação
+reprova valor inválido nas quatro chaves. Guia completo: `mojtools/docs/problema-paralelo.md`.
 
 ### `author`
 
@@ -768,6 +799,10 @@ O tempo-limite **servido** ao aluno é o **maior entre as máquinas**, para que 
 reprovada por ter caído num juiz mais lento. Uma linguagem só ganha tempo-limite se alguma solução
 `good` naquela linguagem foi **aceita** em algum juiz. Sem tempo-limite, a linguagem não fica
 disponível.
+
+A calibração roda **um teste por vez** e, num problema paralelo, cada teste com as **k CPUs** do
+`CPUNEEDED` — exatamente a forma em que o julgamento roda cada teste (por isso o TL de k=2 não
+vale para k=4 e mudar a chave recalibra).
 
 O "Calibrar" explícito (editor, `moj calibrate`, publicar) roda **todas** as soluções. A calibração
 sob demanda, que um juiz faz sozinho na 1ª submissão de um pacote novo, roda **só as `good`** (é

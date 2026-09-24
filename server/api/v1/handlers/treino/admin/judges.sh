@@ -43,10 +43,10 @@ while IFS= read -r rf; do
   cur='null'; curs='[]'
   if [[ "$on" == true ]]; then
     curs="$(find "$ASSIGNEDDIR/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
-      | jq -sc 'map({kind:"submission", problem_id:(.problem_id//.id//""), login:(.login//""), contest:(.contest//""), lang:(.lang//""), since:(.assigned_at//null)})' 2>/dev/null)"
+      | jq -sc 'map({kind:"submission", problem_id:(.problem_id//.id//""), login:(.login//""), contest:(.contest//""), lang:(.lang//""), since:(.assigned_at//null), slots:(.slots//1), test_cpus:(.test_cpus//1), par_max:(.par_max//1)})' 2>/dev/null)"
     [[ -n "$curs" ]] || curs='[]'
     upf="$(find "$UPDATESDIR/inprogress/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
-      | jq -sc 'map({kind:(.kind//"update"), problem_id:(.target//""), by:(.requested_by//""), since:(.claimed_at//null)})' 2>/dev/null)"
+      | jq -sc 'map({kind:(.kind//"update"), problem_id:(.target//""), by:(.requested_by//""), since:(.claimed_at//null), slots:(.slots//1), test_cpus:(.test_cpus//1)})' 2>/dev/null)"
     [[ -n "$upf" && "$upf" != '[]' ]] && curs="$(jq -c --argjson u "$upf" '. + $u' <<<"$curs" 2>/dev/null)"
     if [[ "$curs" == '[]' && "$bz" == true ]]; then
       # busy sem job atribuído: agente novo DIZ o porquê (draining/disabled); sem status
@@ -63,15 +63,19 @@ while IFS= read -r rf; do
   # calibrações DIRECIONADAS na fila do host — só action=="calibrate" (a pasta também tem clearcache).
   qcal="$(find "$CMDDIR/$host" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null | jq -s '[.[]|select(.action=="calibrate")]|length' 2>/dev/null)"; qcal="${qcal//[^0-9]/}"; qcal="${qcal:-0}"
   jcfg="$(jq -c --arg h "$host" '.[$h] // null' "$JCONF" 2>/dev/null)"; [[ -n "$jcfg" ]] || jcfg='null'
+  # HOLD: juiz segurado p/ um job largo (run/hold/<host>.json) — o painel mostra o porquê de "livre e parado"
+  hold='null'; [[ -f "${HOLDDIR:-$RUNDIR/hold}/$host.json" ]] && { hold="$(jq -c . "${HOLDDIR:-$RUNDIR/hold}/$host.json" 2>/dev/null)"; [[ -n "$hold" ]] || hold='null'; }
   ms+=("$(jq -c --argjson on "$on" --argjson bz "$bz" --argjson tl "$tlsum" --argjson cur "$cur" \
-          --argjson curs "$curs" --argjson qcal "$qcal" --argjson jcfg "$jcfg" --arg ast "$ast" '{
+          --argjson curs "$curs" --argjson qcal "$qcal" --argjson jcfg "$jcfg" --arg ast "$ast" --argjson hold "$hold" '{
       host:.host, port:null, online:$on, busy:$bz, last_seen:(.last_seen//0),
       status:(if $ast=="" then null else $ast end),
       langs:(.langs // []), cage_root:(.cage_root // null),
       cache:{problems:(.problems_count // ((.problems//{})|length)), bytes:(.cache_bytes // 0)},
       tl:($tl[.host] // {calibrated:0, langs:[]}),
       current:$cur, current_jobs:$curs, queued_calibrate:$qcal,
-      slots:{free:(.free_slots // null), total:(.total_slots // 1)},
+      slots:{free:(.free_slots // null), total:(.total_slots // 1), cpus:(.slot_cpus // null),
+             by_node:(.slots_by_node // {}), smt:((.smt // false) == true), max_free_group:(.max_free_group // null)},
+      hold:$hold,
       partition:(.partition // "off"), topology:(.topology // []),
       config:$jcfg,
       report:{hostname:.host, arch:.arch, cpu:((.cpu // "")|tostring), memory:.mem_kb,
@@ -80,8 +84,11 @@ done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
 machines='[]'; ((${#ms[@]})) && machines="$(printf '%s\n' "${ms[@]}" | jq -cs 'sort_by(.online|not)')"
 online=false; (( online_count > 0 )) && online=true
 
+# política GLOBAL de paralelismo (chave "*" do judges-config) — o admin vê/edita na aba Máquinas
+policy="$(jq -c '(.["*"] // {}) | {parallel:(.parallel // "off"), cushion:(.cushion // 0.25), share_max:(.share_max // 0.5)}' "$JCONF" 2>/dev/null)"
+[[ -n "$policy" ]] || policy='{"parallel":"off","cushion":0.25,"share_max":0.5}'
 ok_json '{online:$on, busy:$busy, master:null, master_host:"pull", master_port:null, model:"pull",
           has_machine_list:true, machines:$machines, machines_count:$tc, machines_online:$oc,
-          configured_workers:[], configured_count:0}' \
+          configured_workers:[], configured_count:0, policy:$pol}' \
   --argjson on "$online" --argjson busy "$busy_any" --argjson machines "$machines" \
-  --argjson tc "$total" --argjson oc "$online_count"
+  --argjson tc "$total" --argjson oc "$online_count" --argjson pol "$policy"

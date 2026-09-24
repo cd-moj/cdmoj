@@ -34,6 +34,10 @@
       "name": "ops"
     },
     {
+      "name": "judge",
+      "description": "Rotas do AGENTE de juiz (modelo pull; Bearer mojw_<token> de worker). Protocolo e ciclo de vida em server/judge-gw/PULL.md; campos de LARGURA (CPUNEEDED) são opcionais — ausência = agente/servidor legado."
+    },
+    {
       "name": "treino-admin"
     },
     {
@@ -974,7 +978,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{online,busy,machines:[{host,online,busy,status,langs,cage_root,cache,tl,current,current_jobs,queued_calibrate,slots,partition,topology,config,report}]} — current_jobs = TODOS os jobs em execução (um por slot ocupado, {kind:submission|calibrate|index|draining|disabled|unknown_busy, problem_id, since:epoch-do-claim, ...}); current = o 1º (compat); status = auto-relato do agente (ok|draining|disabled, null=agente antigo); slots:{free,total}; cache = pacotes EM DISCO (não RAM); queued_calibrate = calibrações direcionadas na fila do host"
+            "description": "{online,busy,policy:{parallel,cushion,share_max},machines:[{host,online,busy,status,langs,cage_root,cache,tl,current,current_jobs,queued_calibrate,slots:{free,total,cpus,by_node,smt,max_free_group},hold,partition,topology,config,report}]} — current_jobs = TODOS os jobs em execução (um por slot ocupado, {kind:submission|calibrate|index|draining|disabled|unknown_busy, problem_id, since:epoch-do-claim, slots, test_cpus, par_max, ...}); current = o 1º (compat); status = auto-relato do agente (ok|draining|disabled, null=agente antigo); slots.cpus = cpus do MENOR slot (null = agente antigo), by_node = slots por nó NUMA, smt = hyperthreading, max_free_group = maior nº de slots livres num nó; hold = {job,k_slots,numa,since} quando o juiz está SEGURADO p/ um job largo (CPUNEEDED), senão null; policy = política global de testes em paralelo (chave \"*\" do judges-config); cache = pacotes EM DISCO (não RAM); queued_calibrate = calibrações direcionadas na fila do host"
           }
         }
       }
@@ -3427,7 +3431,7 @@
             "description": "{queue,judge:{online,total,busy,healthy,cpus_online,gpus_online},alert,daemons} — cache 20s; gpus_online = só GPU de compute comprovada (nvidia-smi/rocm-smi); daemons.judged = processo local ou heartbeat run/judged.alive (deploy em container) + bot:{alive,last_poll_age_s}|null (mojinho; null = sem bot)"
           }
         },
-        "description": "judge.slots = capacidade total em SLOTS (multi-slot); judge.busy = slots ocupados."
+        "description": "judge.slots = capacidade total em SLOTS (multi-slot); judge.busy = slots ocupados; judge.cpus_online = Σ total_slots×slot_cpus dos juízes online (as CPUs a serviço; agente antigo: ncpu)."
       }
     },
     "/treino/contest-create/permission": {
@@ -8767,7 +8771,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{success, configs:{<host>:{partition,reserve,disabled,updated_at,by}}}"
+            "description": "{success, configs:{<host>:{partition,reserve,disabled,parallel_max?,updated_at,by}, \"*\"?:{parallel,cushion,share_max}}} — a chave \"*\" é a política GLOBAL de testes em paralelo"
           }
         }
       },
@@ -8776,7 +8780,7 @@
           "ops"
         ],
         "summary": "Define a config de um juiz",
-        "description": "Body {host, partition?: off|numa|cpus:<X>, reserve?: int, disabled?: bool}. FUNDE na entrada do host (campos não enviados são preservados). partition particiona a máquina em SLOTS de cpus disjuntas (o agente corrige N problemas ao mesmo tempo, cada job pinado no seu cpuset; cpus:<X> fatia dentro de cada nó NUMA); reserve tira as N primeiras cpus dos slots; disabled drena e para de receber trabalho.",
+        "description": "Body {host, partition?: off|numa|cpus:<X>, reserve?: int, disabled?: bool, parallel_max?: int 1..64} — FUNDE na entrada do host (campos não enviados são preservados). partition particiona a máquina em SLOTS de cpus disjuntas (o agente corrige N problemas ao mesmo tempo, cada job pinado no seu cpuset; cpus:<X> fatia dentro de cada nó NUMA); reserve tira as N primeiras cpus dos slots; disabled drena e para de receber trabalho; parallel_max = teto de testes ao mesmo tempo por job NESTE juiz (só o servidor lê; fora do cfg_hash). OU {host:\"*\", parallel?: off|auto, cushion?: 0..1, share_max?: 0..1} = POLÍTICA GLOBAL de testes em paralelo: off = todo job com par_max 1 (recomendado em prova); auto = a sobra de slots além do colchão ceil(total×cushion) vira testes em paralelo, até share_max×total slots por job.",
         "security": [
           {
             "bearerAuth": []
@@ -8785,6 +8789,48 @@
         "responses": {
           "200": {
             "description": "{success, action, host, config}"
+          }
+        }
+      }
+    },
+    "/judge/register": {
+      "post": {
+        "tags": [
+          "judge"
+        ],
+        "summary": "O agente anuncia capacidade + inventário (worker)",
+        "description": "Bearer mojw_<token>. Body {host, capability, arch, cpu, ncpu, mem_kb, gpu, problems:{id:checksum}, langs[], toolchain, os, cage_root, cache_bytes, inv_hash, total_slots, partition, topology[], boot?, slot_cpus?, slots_by_node?:{<nó>:n}, smt?}. boot:true (só no boot do agente) re-enfileira o que estava atribuído ao host. slot_cpus = cpus do MENOR slot (1 em produção), slots_by_node e smt alimentam o claim por LARGURA (CPUNEEDED); agente antigo não os manda = legado (só jobs k=1). Resposta: {registered, ttl, config:{partition,reserve,disabled,cfg_hash}}.",
+        "responses": {
+          "200": {
+            "description": "{success, host, registered, ttl, config}"
+          }
+        }
+      }
+    },
+    "/judge/heartbeat": {
+      "post": {
+        "tags": [
+          "judge"
+        ],
+        "summary": "Pulso do agente = o ESCALONADOR (worker)",
+        "description": "Bearer mojw_<token>. Body {host, state:free|busy, inv_hash, free_slots?, total_slots?, cfg_hash?, status?:ok|draining|disabled, slot_cpus?, max_free_group?}. Reivindica 1 comando OU 1 update OU um LOTE de até free_slots SLOTS de jobs (capacidade + pool + linguagem + cache + LARGURA: job de CPUNEEDED=k ocupa k_slots=ceil(k/slot_cpus) do mesmo juiz; SAMENUMA ⇒ k_slots ≤ max_free_group; memória por slot). Cada job leva test_cpus, same_numa, slots (grupos×k_slots), par_max (testes ao mesmo tempo concedidos — só com política auto, fila vazia e nada pulado por porta de tempo) e par_cap; update/command de calibração levam test_cpus/same_numa/slots. Sem slot_cpus o juiz é LEGADO (só k=1, sem os campos). config só vem quando o cfg_hash difere; comando URGENTE kill|restart é entregue MESMO ocupado; holding:true = juiz segurado p/ um job largo (run/hold/<host>.json): não recebe jobs/updates até ter k_slots livres (comandos do admin passam).",
+        "responses": {
+          "200": {
+            "description": "{success, assigned:[job…]|job|null, update, command, reregister, config?, holding?}"
+          }
+        }
+      }
+    },
+    "/judge/decline": {
+      "post": {
+        "tags": [
+          "judge"
+        ],
+        "summary": "O agente devolve trabalho que não conseguiu alocar (worker)",
+        "description": "Bearer mojw_<token>. Body {host, reason, id} (job) | {host, reason, reqid} (calibração) | {host, reason, command} (comando). Corrida entre o claim do heartbeat e a alocação de slots/CPUs no juiz: o job volta à banda de origem com epoch novo e declined.<host> (o host o pula por DECLINE_BACKOFF=60 s); na DECLINE_MAX=3ª recusa vira Judge Error pelo spool (host scheduler); calibração volta a updates/pending; comando é reenfileirado com cmdid novo.",
+        "responses": {
+          "200": {
+            "description": "{success, host, result:requeued|judge_error|notfound}"
           }
         }
       }

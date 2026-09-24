@@ -37,6 +37,16 @@
                                             # consistência de hardware); >0 = qualquer juiz
                                             # pega após esse tempo (fallback)
 
+# ----- largura (CPUNEEDED) / paralelismo por slot (24/09/2026) -----
+: "${HOLDDIR:=$RUNDIR/hold}"                 # run/hold/<host>.json — juiz SEGURADO p/ um job largo
+: "${HOLD_AFTER:=20}"                        # s pendente antes de segurar um juiz p/ um job largo
+: "${HOLD_TTL:=600}"                         # s; hold vence (recriado se o job segue pendente)
+: "${INFEASIBLE_AFTER:=120}"                 # s pendente sem juiz vivo com a largura ⇒ Judge Error
+: "${DECLINE_BACKOFF:=60}"                   # s; host que recusou (decline) pula o job por isso
+: "${DECLINE_MAX:=3}"                        # recusas ⇒ Judge Error
+: "${PARALLEL_MAX_DEFAULT:=4}"               # teto de testes ao mesmo tempo por job (por juiz)
+: "${SWEEP_THROTTLE:=5}"                     # s entre varreduras de hold/infactível
+
 # bandas, prioridade ALTA -> BAIXA. 'rejulgar' entre privada e pública.
 SCHED_BANDS=(000-super 020-prova 040-lista-privada 060-rejulgar 080-lista-publica)
 
@@ -151,6 +161,76 @@ reg_live_hosts() {
   done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
 }
 
+
+# ============================ LARGURA k / paralelismo (24/09/2026) ============================
+# Vocabulário (cdmoj/docs/PACOTE.md "Problemas paralelos" e judge-gw/PULL.md): k = CPUNEEDED (CPUs por
+# teste), slot_cpus = cpus do MENOR slot do juiz (1 em produção), k_slots = ceil(k/slot_cpus) = slots
+# que UM grupo ocupa; P = grupos (testes ao mesmo tempo); par_max = P concedido por este servidor.
+# Juiz LEGADO (heartbeat sem slot_cpus): só jobs k=1, sem campos novos no job.
+
+# sched_pkg_par <problem_id> : ecoa "k\x01numa\x01par\x01m\x01memmb" lidos do conf do PACOTE por
+# regex (conf de autor NUNCA é sourced no servidor). Sem pacote/MOJ_PROBLEMS_DIR ⇒ defaults.
+sched_pkg_par() {
+  local id="${1//\//#}" dir conf c k=1 numa=n par=y m="" mem=0 re v
+  if [[ -n "${MOJ_PROBLEMS_DIR:-}" && "$id" == *#* ]]; then
+    dir="$MOJ_PROBLEMS_DIR/${id%%#*}/${id#*#}"; conf="$dir/conf"
+    if [[ -f "$conf" ]]; then
+      c=$'\n'"$(<"$conf")"
+      re=$'\n[[:space:]]*CPUNEEDED=["\x27]?([0-9]+)';        [[ "$c" =~ $re ]] && k="${BASH_REMATCH[1]}"
+      re=$'\n[[:space:]]*SAMENUMA=["\x27]?([a-zA-Z]+)';      [[ "$c" =~ $re ]] && numa="${BASH_REMATCH[1]}"
+      re=$'\n[[:space:]]*ALLOWPARALLELTEST=["\x27]?([a-zA-Z]+)'; [[ "$c" =~ $re ]] && par="${BASH_REMATCH[1]}"
+      re=$'\n[[:space:]]*MAXPARALLELTESTS=["\x27]?([0-9]+)'; [[ "$c" =~ $re ]] && m="${BASH_REMATCH[1]}"
+      re=$'\n[[:space:]]*MEMLIMITMB=["\x27]?([0-9]+)';       [[ "$c" =~ $re ]] && mem="${BASH_REMATCH[1]}"
+    fi
+  fi
+  [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 && "$k" -le 64 ]] || k=1
+  [[ "$numa" == y ]] || numa=n
+  [[ "$par" == n ]] && par=n || par=y
+  [[ "$m" =~ ^[0-9]+$ && "$m" -ge 1 ]] || m=""
+  [[ "$mem" =~ ^[0-9]+$ ]] || mem=0
+  printf '%s\x01%s\x01%s\x01%s\x01%s' "$k" "$numa" "$par" "$m" "$mem"
+}
+# _kslots <k> <slot_cpus> -> ceil(k/slot_cpus) (slot_cpus<1 ⇒ 1)
+_kslots() { local k="$1" sc="$2"; [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1; printf '%s' "$(( (k + sc - 1) / sc ))"; }
+
+# sched_policy <host> : ecoa "parallel\x01cushion\x01share_max\x01parallel_max" de judges-config.json:
+# a chave "*" guarda a política global {parallel:off|auto, cushion, share_max}; a entrada do host,
+# `parallel_max`. Nada disso vai ao agente (fora do cfg_hash — ver judges_config_for).
+sched_policy() {
+  local host="$1" jconf out
+  jconf="${JUDGES_CONFIG_FILE:-$CONTESTSDIR/treino/var/judges-config.json}"
+  out="$(jq -j --arg h "$host" --argjson pmd "$PARALLEL_MAX_DEFAULT" '
+      [ ((.["*"].parallel // "off") | if . == "auto" then "auto" else "off" end),
+        ((.["*"].cushion // 0.25) | tonumber? // 0.25 | tostring),
+        ((.["*"].share_max // 0.5) | tonumber? // 0.5 | tostring),
+        ((.[$h].parallel_max // $pmd) | tonumber? // $pmd | floor | if . < 1 then 1 else . end | tostring) ]
+      | join("\u0001")' "$jconf" 2>/dev/null)"
+  [[ -n "$out" ]] || out=$'off\x010.25\x010.5\x01'"$PARALLEL_MAX_DEFAULT"
+  printf '%s' "$out"
+}
+
+# _cmeta_v2 <jobfile> : (re)escreve e ecoa o sidecar v2 do job:
+#   v2\x01prob\x01need\x01lang\x01hosts\x01k\x01numa\x01par\x01m\x01memmb\x01enq\x01decl
+# (decl = "host:epoch,…" das recusas). k/numa/par/m/memmb do conf do pacote (memo por problema,
+# PKGPAR — o chamador declara `local -A PKGPAR` p/ o escopo de um claim).
+_cmeta_v2() {
+  local f="$1" base prob need jl hosts enq decl pp
+  base="$(jq -j '[ (.problem_id // ""), (.need_capability // ""), ((.lang // "") | ascii_downcase),
+                   ((.allowed_hosts // []) | join(",")), ((.enqueued_at // "") | tostring),
+                   ((.declined // {}) | to_entries | map("\(.key):\(.value)") | join(",")) ]
+                 | join("\u0001")' "$f" 2>/dev/null)" || return 1
+  IFS=$'\x01' read -r prob need jl hosts enq decl <<<"$base"
+  if [[ -n "${PKGPAR[$prob]+x}" ]]; then pp="${PKGPAR[$prob]}"
+  else pp="$(sched_pkg_par "$prob")"; PKGPAR[$prob]="$pp"; fi
+  [[ "$enq" =~ ^[0-9]+$ ]] || { enq="${f##*/}"; enq="${enq%%_*}"; [[ "$enq" =~ ^[0-9]+$ ]] || enq=0; }
+  local meta; meta="$(printf 'v2\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s' "$prob" "$need" "$jl" "$hosts" "$pp" "$enq" "$decl")"
+  printf '%s' "$meta" > "$f.cmeta" 2>/dev/null
+  printf '%s' "$meta"
+}
+
+# _hardmem <memmb> -> MB que a jaula pode pedir ao cgroup (regra do cage-run/b-a-t: max(600, MEMLIMITMB+64))
+_hardmem() { local m="$1"; [[ "$m" =~ ^[0-9]+$ ]] || m=0; local h=$(( m + 64 )); (( h < 600 )) && h=600; printf '%s' "$h"; }
+
 # ------------------------------------------------------------------- fila de jobs
 # q_enqueue <id> <priority> <job-json> : enfileira na banda da prioridade.
 q_enqueue() {
@@ -162,23 +242,36 @@ q_enqueue() {
   printf '%s' "$json" > "$tmp" && mv -f "$tmp" "$QUEUEDIR/$band/$base"
 }
 
-# q_claim <host> <capability> <problems-json> [langs-json] [max=1] : reivindica até MAX
-# jobs que o worker pode rodar (capacidade + pool + linguagem + cache), atômico sob
+# q_claim <host> <capability> <problems-json> [langs-json] [max=1] : reivindica até MAX SLOTS de
+# jobs que o worker pode rodar (capacidade + pool + linguagem + cache + LARGURA), atômico sob
 # flock. Ecoa um job POR LINHA (jq -c; o enqueue grava single-line).
 #
 # COMPLEXIDADE (a lição da bancada, 30/08): a versão original fazia 2-6 jq POR JOB
 # EXAMINADO e recomeçava a varredura DO ZERO a cada job reivindicado — com um prefixo de
 # jobs presos por pool (o retrato da Maratona: 500 presos na frente), o custo era
 # O(prefixo) POR CLAIM e a vazão medida caiu a 30 veredictos/min. Agora:
-#   1. a decisão ESTÁTICA de cada job (problema, capacidade, pool, linguagem) mora num
-#      sidecar `<job>.cmeta` escrito na PRIMEIRA visita (self-heal: 1 jq por job NA VIDA;
-#      requeue/promote que renomeiam o .json só custam mais uma visita) — as varreduras
-#      seguintes leem o sidecar com $(<…), ZERO processos por job pulado;
-#   2. o claim é em LOTE: UMA varredura por chamada colhe até MAX jobs (o heartbeat pedia
-#      1 por vez e re-varria o prefixo p/ cada slot);
+#   1. a decisão ESTÁTICA de cada job (problema, capacidade, pool, linguagem, LARGURA k/numa/
+#      par/m/mem do conf do pacote, época de entrada, recusas) mora num sidecar `<job>.cmeta`
+#      v2 escrito na PRIMEIRA visita (self-heal: 1 jq por job NA VIDA; sidecar v1 é reescrito);
+#      as varreduras seguintes leem o sidecar com $(<…), ZERO processos por job pulado;
+#   2. o claim é em LOTE: UMA varredura por chamada colhe até MAX SLOTS (era MAX jobs);
 #   3. glob ordenado (epoch de 10 dígitos ⇒ ordem lexical = cronológica) no lugar de
-#      find|sort. Os GRACEs (relógio) continuam no bash. Semântica dos gates preservada
-#      1:1 — provada pelos testes de gate e pelo smoke do pipeline.
+#      find|sort. Os GRACEs (relógio) continuam no bash.
+#
+# LARGURA (24/09/2026; env do chamador — o heartbeat as tira do registro/beat/judges-config):
+#   QC_SLOT_CPUS       cpus do menor slot do juiz (vazio/0 = juiz LEGADO: só k=1, sem campos novos)
+#   QC_MAX_FREE_GROUP  maior nº de slots livres num nó (job SAMENUMA só cabe se k_slots ≤ isso)
+#   QC_TOTAL_SLOTS / QC_MEM_KB   p/ a regra de memória: HARDMEM ≤ (mem−4 GB)×k_slots/total_slots
+#   QC_POLICY (off|auto) QC_CUSHION QC_SHARE_MAX QC_PARALLEL_MAX   → par_max (expansão)
+# Um job cabe se passa nas 4 portas de sempre E k_slots ≤ slots restantes (E nó, E memória);
+# não cabe ⇒ pula (backfill: um job mais estreito passa na frente — o HOLD cuida do largo).
+# SEM teto de varredura (pular custa zero forks; teto deixaria a fila atrás de um prefixo preso).
+# Job reivindicado leva {test_cpus, same_numa, slots (= P×k_slots), par_max, par_cap}; a soma
+# de `.slots` dos ecoados é o que o juiz ocupou. par_max > 1 SÓ com política auto, job que
+# permite (ALLOWPARALLELTEST), varredura terminada com a FILA VAZIA e sem job pulado por porta de
+# TEMPO/largura (quem foi pulado vai querer slot em segundos): a sobra além do colchão
+# (ceil(total×cushion)) é repartida em rodízio (+k_slots por vez) até min(m, parallel_max) grupos
+# e share_max×total slots por job. Fora disso par_max = 1.
 q_claim() {
   local host="$1" cap="$2" probs="$3" langs="${4:-[]}" max="${5:-1}"
   valid_hostname "$host" || return 1
@@ -187,8 +280,17 @@ q_claim() {
   (
     flock 9 || exit 0
     set +o noglob   # subshell: o noglob da API não vaza; glob = listagem ordenada s/ fork
-    local band f dest base ts meta prob need jl hosts probhot
-    local claimed=0 pk v
+    local band f dest base ts meta ver prob need jl hosts probhot k numa par m enq memmb decl
+    local pk v ks now=$EPOCHSECONDS
+    local slots_left="$max" skipped_time=0 queue_empty=1 legacy=0 sc="${QC_SLOT_CPUS:-0}"
+    local mfg="${QC_MAX_FREE_GROUP:-}" tot="${QC_TOTAL_SLOTS:-}" memkb="${QC_MEM_KB:-}"
+    [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || { legacy=1; sc=1; }
+    [[ "$mfg" =~ ^[0-9]+$ ]] || mfg=""
+    [[ "$tot" =~ ^[0-9]+$ && "$tot" -ge 1 ]] || tot=""
+    [[ "$memkb" =~ ^[0-9]+$ ]] || memkb=""
+    local -A PKGPAR=()
+    # lote reivindicado (p/ o par_max no fim): dest, k_slots, k, numa, par, m
+    local -a C_DEST=() C_KS=() C_K=() C_NUMA=() C_PAR=() C_M=() C_GROUPS=()
     # conjuntos do JUIZ, calculados UMA vez por chamada (2 jq no total)
     local -A PH=()
     while IFS= read -r pk; do [[ -n "$pk" ]] && PH["$pk"]=1; done \
@@ -203,19 +305,11 @@ q_claim() {
     for band in "${SCHED_BANDS[@]}"; do
       for f in "$QUEUEDIR/$band"/*.json; do
         [[ -f "$f" ]] || continue
-        (( claimed >= max )) && break 2
-        # sidecar de decisão estática: prob \x01 need \x01 lang \x01 hosts-csv
-        if [[ -s "$f.cmeta" ]]; then
-          meta="$(<"$f.cmeta")"
-        else
-          meta="$(jq -j '[ (.problem_id // ""),
-                           (.need_capability // ""),
-                           ((.lang // "") | ascii_downcase),
-                           ((.allowed_hosts // []) | join(",")) ] | join("\u0001")' "$f" 2>/dev/null)" \
-            || continue
-          printf '%s' "$meta" > "$f.cmeta" 2>/dev/null
-        fi
-        IFS=$'\x01' read -r prob need jl hosts <<<"$meta"
+        (( slots_left <= 0 )) && { queue_empty=0; break 2; }
+        # sidecar de decisão estática (v2); v1/ausente ⇒ reescrito (1 jq + conf do pacote)
+        meta=""; [[ -s "$f.cmeta" ]] && meta="$(<"$f.cmeta")"
+        [[ "$meta" == v2$'\x01'* ]] || { meta="$(_cmeta_v2 "$f")" || continue; }
+        IFS=$'\x01' read -r ver prob need jl hosts k numa par m memmb enq decl <<<"$meta"
         [[ -z "$need" || "$need" == "$cap" ]] || continue
         base="${f##*/}"
         # pool de juízes (allowed_hosts): ESTRITO por default (POOL_GRACE=0) — pool
@@ -223,14 +317,14 @@ q_claim() {
         if [[ -n "$hosts" && ",$hosts," != *",$host,"* ]]; then
           ts="${base%%_*}"
           { (( POOL_GRACE > 0 )) && [[ "$ts" =~ ^[0-9]+$ ]] \
-              && (( EPOCHSECONDS - ts > POOL_GRACE )); } || continue
+              && (( now - ts > POOL_GRACE )); } || continue
         fi
         # route by language: sem o toolchain espera LANG_GRACE; depois pega como fallback.
         if [[ -n "$LSET" ]]; then
           case "$jl" in py2|py3) jl=py;; esac
           if [[ -n "$jl" && "$LSET" != *" $jl "* ]]; then
             ts="${base%%_*}"
-            [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= LANG_GRACE )) && continue
+            [[ "$ts" =~ ^[0-9]+$ ]] && (( now - ts <= LANG_GRACE )) && { skipped_time=1; continue; }
           fi
         fi
         # modelo cache: juiz "quente" (tem o problema) reivindica na hora; frio espera
@@ -242,24 +336,69 @@ q_claim() {
         [[ -n "${PH[$v]:-}" ]] && probhot=1
         if (( probhot == 0 )); then
           ts="${base%%_*}"
-          [[ "$ts" =~ ^[0-9]+$ ]] && (( EPOCHSECONDS - ts <= COLD_GRACE )) && continue
+          [[ "$ts" =~ ^[0-9]+$ ]] && (( now - ts <= COLD_GRACE )) && { skipped_time=1; continue; }
+        fi
+        # recusa recente DESTE host (decline): pula por DECLINE_BACKOFF
+        if [[ -n "$decl" && ",$decl," == *",$host:"* ]]; then
+          v=",$decl"; v="${v##*,$host:}"; v="${v%%,*}"
+          [[ "$v" =~ ^[0-9]+$ ]] && (( now - v < DECLINE_BACKOFF )) && { skipped_time=1; continue; }
+        fi
+        # LARGURA: juiz legado só k=1; k_slots ≤ sobra; SAMENUMA ⇒ ≤ maior grupo livre; memória
+        [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
+        (( legacy && k > 1 )) && continue
+        ks="$(_kslots "$k" "$sc")"
+        (( ks > slots_left )) && { skipped_time=1; continue; }
+        [[ "$numa" == y && -n "$mfg" ]] && (( ks > mfg )) && { skipped_time=1; continue; }
+        if [[ -n "$tot" && -n "$memkb" ]] && [[ "$memmb" =~ ^[0-9]+$ ]] && (( memmb > 0 )); then
+          v=$(( (memkb / 1024 - 4096) * ks / tot ))
+          (( $(_hardmem "$memmb") > v )) && { skipped_time=1; continue; }
         fi
         mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null
         dest="$ASSIGNEDDIR/$host/$base"
         if mv "$f" "$dest" 2>/dev/null; then
           rm -f "$f.cmeta" 2>/dev/null
-          local tmp="$dest.tmp"
-          jq -c --arg h "$host" --argjson now "$EPOCHSECONDS" \
-             '. + {assigned_to:$h, assigned_at:$now}' "$dest" > "$tmp" 2>/dev/null \
-             && mv -f "$tmp" "$dest"
-          cat "$dest"; printf '\n'
-          claimed=$(( claimed + 1 ))
+          C_DEST+=("$dest"); C_KS+=("$ks"); C_K+=("$k"); C_NUMA+=("$numa"); C_PAR+=("$par"); C_M+=("$m"); C_GROUPS+=(1)
+          slots_left=$(( slots_left - ks ))
+          [[ "$numa" == y && -n "$mfg" ]] && mfg=$(( mfg - ks ))
         fi
       done
       # sidecar órfão (job saiu por requeue/promote sem levar o cmeta): gc barato
       for f in "$QUEUEDIR/$band"/*.cmeta; do
         [[ -e "$f" && ! -f "${f%.cmeta}" ]] && rm -f "$f" 2>/dev/null
       done
+    done
+    # ---- par_max: expansão SÓ com política auto, fila vazia e nada pulado por tempo/largura ----
+    local n=${#C_DEST[@]} i pmax="${QC_PARALLEL_MAX:-$PARALLEL_MAX_DEFAULT}" cushion sobra share limit grew
+    [[ "$pmax" =~ ^[0-9]+$ && "$pmax" -ge 1 ]] || pmax=$PARALLEL_MAX_DEFAULT
+    if (( n > 0 && legacy == 0 )) && [[ "${QC_POLICY:-off}" == auto ]] && (( queue_empty && skipped_time == 0 )) && [[ -n "$tot" ]]; then
+      cushion="$(awk -v t="$tot" -v c="${QC_CUSHION:-0.25}" 'BEGIN{x=t*c; printf "%d", (x==int(x))?x:int(x)+1}')"
+      share="$(awk -v t="$tot" -v s="${QC_SHARE_MAX:-0.5}" 'BEGIN{printf "%d", t*s}')"
+      sobra=$(( slots_left - cushion ))
+      grew=1
+      while (( sobra > 0 && grew )); do
+        grew=0
+        for (( i=0; i<n; i++ )); do
+          [[ "${C_PAR[i]}" == y ]] || continue
+          limit="${C_M[i]:-$pmax}"; (( limit > pmax )) && limit=$pmax
+          (( C_GROUPS[i] >= limit )) && continue
+          (( (C_GROUPS[i] + 1) * C_KS[i] > share )) && continue
+          (( sobra < C_KS[i] )) && continue
+          C_GROUPS[i]=$(( C_GROUPS[i] + 1 )); sobra=$(( sobra - C_KS[i] )); grew=1
+        done
+      done
+    fi
+    # ---- carimba e ecoa (campos novos só p/ juiz NOVO) ----
+    for (( i=0; i<n; i++ )); do
+      dest="${C_DEST[i]}"; local tmp="$dest.tmp" cap_i="${C_M[i]:-$pmax}"
+      (( cap_i > pmax )) && cap_i=$pmax
+      if (( legacy )); then
+        jq -c --arg h "$host" --argjson now "$now" '. + {assigned_to:$h, assigned_at:$now}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+      else
+        jq -c --arg h "$host" --argjson now "$now" --argjson k "${C_K[i]}" --argjson nm "$([[ "${C_NUMA[i]}" == y ]] && echo true || echo false)" \
+           --argjson sl "$(( C_GROUPS[i] * C_KS[i] ))" --argjson pm "${C_GROUPS[i]}" --argjson pc "$cap_i" \
+           '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:$pm, par_cap:$pc}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+      fi
+      cat "$dest"; printf '\n'
     done
     exit 0
   ) 9>"$QUEUEDIR/.lock"
@@ -386,14 +525,21 @@ idx_request() { upd_request "$1" "$3" "index $2" index "$2"; }
 # tempo (duplicata pendente só sai depois, e o agente a resolve num skip se o pedido for
 # mais velho que a calibração concluída). O loop segue p/ o próximo pendente (outro problema
 # não é bloqueado).
+# LARGURA (24/09/2026): calibração de problema com CPUNEEDED=k ocupa k_slots (um teste por vez em
+# k CPUs); só é entregue se cabe (env QC_SLOT_CPUS/QC_FREE/QC_MAX_FREE_GROUP do heartbeat; juiz
+# legado só k=1) e sai com {test_cpus, same_numa, slots}. Não cabe ⇒ segue p/ o próximo pendente.
 upd_claim() {
-  local host="$1" f base dest t busy
+  local host="$1" f base dest t busy k numa par m mem ks legacy=0 sc="${QC_SLOT_CPUS:-0}" free="${QC_FREE:-1}" mfg="${QC_MAX_FREE_GROUP:-}"
   valid_hostname "$host" || return 1
+  [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || { legacy=1; sc=1; }
+  [[ "$free" =~ ^[0-9]+$ ]] || free=1
+  [[ "$mfg" =~ ^[0-9]+$ ]] || mfg=""
   mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress/$host" 2>/dev/null
   (
     flock 9 || exit 0
     while IFS= read -r f; do
       [[ -f "$f" ]] || continue
+      k=1; numa=n
       if jq -e '.kind=="calibrate"' "$f" >/dev/null 2>&1; then
         t="$(jq -r '.target // ""' "$f" 2>/dev/null)"
         if [[ -n "$t" ]]; then
@@ -402,12 +548,22 @@ upd_claim() {
           busy="$(find "$UPDATESDIR/inprogress" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null \
                   | jq -r --arg t "$t" 'select(.kind=="calibrate" and .target==$t and ((.origin // "") != "command")) | .reqid' 2>/dev/null | head -n1)"
           [[ -n "$busy" ]] && continue   # já calibrando em algum lugar: espera a vez
+          IFS=$'\x01' read -r k numa par m mem < <(sched_pkg_par "$t")
+          (( legacy && k > 1 )) && continue
+          ks="$(_kslots "$k" "$sc")"
+          (( ks > free )) && continue
+          [[ "$numa" == y && -n "$mfg" ]] && (( ks > mfg )) && continue
         fi
       fi
       base="$(basename "$f")"; dest="$UPDATESDIR/inprogress/$host/$base"
       if mv "$f" "$dest" 2>/dev/null; then
         local tmp="$dest.tmp"   # carimba claimed_at p/ o upd_reconcile detectar pedido preso
-        jq -c --argjson now "$EPOCHSECONDS" '. + {claimed_at:$now}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+        if (( legacy )); then
+          jq -c --argjson now "$EPOCHSECONDS" '. + {claimed_at:$now}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+        else
+          jq -c --argjson now "$EPOCHSECONDS" --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" \
+             --argjson sl "$(_kslots "$k" "$sc")" '. + {claimed_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+        fi
         cat "$dest"; exit 0
       fi
     done < <(find "$UPDATESDIR/pending" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
@@ -553,14 +709,30 @@ cmd_claim_urgent() {  # <host> : reivindica 1 comando URGENTE (kill|restart), de
   ) 9>"$CMDDIR/$host/.lock"
 }
 cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove), atômico.
-  local host="$1" f out
+  # LARGURA: `calibrate` de problema com CPUNEEDED=k só sai se k_slots cabe (QC_* do heartbeat);
+  # não cabe ⇒ fica no diretório e o próximo comando é examinado. Sai com {test_cpus,same_numa,slots}.
+  local host="$1" f out k numa par m mem ks legacy=0 sc="${QC_SLOT_CPUS:-0}" free="${QC_FREE:-1}" mfg="${QC_MAX_FREE_GROUP:-}"
   valid_hostname "$host" || return 1
   [[ -d "$CMDDIR/$host" ]] || return 0
+  [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || { legacy=1; sc=1; }
+  [[ "$free" =~ ^[0-9]+$ ]] || free=1
+  [[ "$mfg" =~ ^[0-9]+$ ]] || mfg=""
   mkdir -p "$CMDDIR/$host" 2>/dev/null
   out="$( (
     flock 9 || exit 0
     while IFS= read -r f; do
       [[ -f "$f" ]] || continue
+      if [[ "$(jq -r '.action // ""' "$f" 2>/dev/null)" == calibrate ]]; then
+        IFS=$'\x01' read -r k numa par m mem < <(sched_pkg_par "$(jq -r '.id // ""' "$f" 2>/dev/null)")
+        (( legacy && k > 1 )) && continue
+        ks="$(_kslots "$k" "$sc")"
+        (( ks > free )) && continue
+        [[ "$numa" == y && -n "$mfg" ]] && (( ks > mfg )) && continue
+        if (( legacy )); then cat "$f"
+        else jq -c --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" --argjson sl "$ks" \
+               '. + {test_cpus:$k, same_numa:$nm, slots:$sl}' "$f" 2>/dev/null; fi
+        rm -f "$f"; exit 0
+      fi
       cat "$f"; rm -f "$f"; exit 0
     done < <(find "$CMDDIR/$host" -maxdepth 1 -name '*.json' 2>/dev/null | sort)
   ) 9>"$CMDDIR/$host/.lock" )"
@@ -589,3 +761,226 @@ cmd_pending_count() { find "$CMDDIR/$1" -maxdepth 1 -name '*.json' 2>/dev/null |
 cmd_action_count() { local n
   n="$(find "$CMDDIR" -mindepth 2 -name '*.json' -exec cat {} + 2>/dev/null \
        | jq -s --arg a "$1" '[.[]|select(.action==$a)]|length' 2>/dev/null)"; n="${n//[^0-9]/}"; printf '%s' "${n:-0}"; }
+
+# =========================== HOLD / DECLINE / INFACTÍVEL (largura k, 24/09/2026) ===================
+# Job largo (k_slots > 1) nunca acha k slots livres num juiz que vive cheio de jobs de 1 slot: o
+# claim por largura o PULA (backfill) e ele morreria de fome. O HOLD segura UM juiz: enquanto há
+# `run/hold/<host>.json {job,k_slots,numa,since}` o juiz não recebe jobs/updates novos (comandos de
+# admin passam) e, assim que tem `k_slots` livres (no nó, se numa), recebe o job segurado. Regras:
+# 1 hold por juiz; com a banda 020-prova não vazia, 1 hold no total (prova é delicada); solta
+# quando o job foi reivindicado por qualquer juiz, o juiz saiu de reg_live_hosts ou HOLD_TTL
+# venceu (recriado se o job segue pendente). Juiz único: um hold pausa o claim por até a duração
+# de um job — é o preço de não deixar o largo morrer.
+# INFACTÍVEL: job largo pendente há INFEASIBLE_AFTER com ≥1 juiz vivo e NENHUM juiz vivo com a
+# capacidade (total_slots×slot_cpus ≥ k; numa: maior nó ≥ k) ⇒ Judge Error pelo spool, como o
+# /judge/result faria (host "scheduler"). Sem juiz vivo nenhum: espera, como sempre.
+
+# _reg_rows : uma linha por juiz do registry, "host\x01cap\x01langs\x01total\x01free\x01slot_cpus\x01maxnode\x01mfg\x01status\x01live"
+# (langs separadas por espaço; slot_cpus 0 = legado; maxnode = maior slots_by_node; live 1|0)
+_reg_rows() {
+  local now=$EPOCHSECONDS
+  find "$REGISTRYDIR" -maxdepth 1 -name '*.json' -exec cat {} + 2>/dev/null \
+    | jq -r --argjson now "$now" --argjson ttl "$REG_TTL" '
+        [ .host, (.capability // "pos"), ((.langs // []) | map(if .=="py2" or .=="py3" then "py" else . end) | join(" ")),
+          ((.total_slots // 1)|tostring), ((.free_slots // 0)|tostring), ((.slot_cpus // 0)|tostring),
+          (((.slots_by_node // {}) | [.[]] | max) // (.total_slots // 1) | tostring),
+          ((.max_free_group // 0)|tostring), (.status // ""),
+          (if (.last_seen // 0) >= ($now - $ttl) then "1" else "0" end) ] | join("\u0001")' 2>/dev/null
+}
+
+# _wide_jobs : jobs LARGOS (k>1) pendentes, "file\x01prob\x01need\x01lang\x01hosts\x01k\x01numa\x01enq" (cmeta v2)
+_wide_jobs() {
+  local band f meta ver prob need jl hosts k numa par m enq memmb decl
+  local -A PKGPAR=()
+  set +o noglob
+  for band in "${SCHED_BANDS[@]}"; do
+    for f in "$QUEUEDIR/$band"/*.json; do
+      [[ -f "$f" ]] || continue
+      meta=""; [[ -s "$f.cmeta" ]] && meta="$(<"$f.cmeta")"
+      [[ "$meta" == v2$'\x01'* ]] || { meta="$(_cmeta_v2 "$f")" || continue; }
+      IFS=$'\x01' read -r ver prob need jl hosts k numa par m memmb enq decl <<<"$meta"
+      [[ "$k" =~ ^[0-9]+$ && "$k" -gt 1 ]] || continue
+      printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' "$f" "$prob" "$need" "$jl" "$hosts" "$k" "$numa" "$enq"
+    done
+  done
+}
+
+# hold_get <host> : ecoa o hold do host (JSON) se ele ainda vale; poda hold vencido ou cujo job
+# já saiu da fila. Nada ecoado = sem hold.
+hold_get() {
+  local host="$1" f="$HOLDDIR/$1.json" id since now=$EPOCHSECONDS
+  [[ -f "$f" ]] || return 0
+  id="$(jq -r '.job // ""' "$f" 2>/dev/null)"; since="$(jq -r '.since // 0' "$f" 2>/dev/null)"
+  [[ "$since" =~ ^[0-9]+$ ]] || since=0
+  if [[ -z "$id" ]] || (( now - since > HOLD_TTL )) || [[ -z "$(find "$QUEUEDIR" -mindepth 2 -name "*_$id.json" -print -quit 2>/dev/null)" ]]; then
+    rm -f "$f" 2>/dev/null; return 0
+  fi
+  cat "$f"
+}
+hold_clear() { rm -f "$HOLDDIR/$1.json" 2>/dev/null; return 0; }
+
+# q_claim_id <host> <id> : reivindica UM job específico da fila (o job segurado), com largura
+# k_slots do QC_SLOT_CPUS, par_max 1 — e o ecoa. Nada ecoado = o job não está mais na fila.
+q_claim_id() {
+  local host="$1" id="$2" f dest base meta ver prob need jl hosts k numa par m enq memmb decl ks tmp
+  local sc="${QC_SLOT_CPUS:-1}"; [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || sc=1
+  local -A PKGPAR=()
+  valid_hostname "$host" || return 1
+  (
+    flock 9 || exit 0
+    f="$(find "$QUEUEDIR" -mindepth 2 -name "*_$id.json" -print -quit 2>/dev/null)"
+    [[ -n "$f" && -f "$f" ]] || exit 0
+    meta=""; [[ -s "$f.cmeta" ]] && meta="$(<"$f.cmeta")"
+    [[ "$meta" == v2$'\x01'* ]] || meta="$(_cmeta_v2 "$f")"
+    IFS=$'\x01' read -r ver prob need jl hosts k numa par m memmb enq decl <<<"$meta"
+    [[ "$k" =~ ^[0-9]+$ && "$k" -ge 1 ]] || k=1
+    ks="$(_kslots "$k" "$sc")"
+    base="${f##*/}"; mkdir -p "$ASSIGNEDDIR/$host" 2>/dev/null; dest="$ASSIGNEDDIR/$host/$base"
+    mv "$f" "$dest" 2>/dev/null || exit 0
+    rm -f "$f.cmeta" 2>/dev/null
+    tmp="$dest.tmp"
+    jq -c --arg h "$host" --argjson now "$EPOCHSECONDS" --argjson k "$k" --argjson nm "$([[ "$numa" == y ]] && echo true || echo false)" \
+       --argjson sl "$ks" --argjson pc "${m:-$PARALLEL_MAX_DEFAULT}" \
+       '. + {assigned_to:$h, assigned_at:$now, test_cpus:$k, same_numa:$nm, slots:$sl, par_max:1, par_cap:$pc}' "$dest" > "$tmp" 2>/dev/null && mv -f "$tmp" "$dest"
+    cat "$dest"; printf '\n'
+  ) 9>"$QUEUEDIR/.lock"
+}
+
+# hold_sweep : cria holds p/ jobs largos famintos (throttle SWEEP_THROTTLE). Ver o cabeçalho.
+hold_sweep() {
+  local stamp="$HOLDDIR/.sweep-stamp" now=$EPOCHSECONDS last=0
+  mkdir -p "$HOLDDIR" 2>/dev/null
+  [[ -f "$stamp" ]] && last="$(<"$stamp")"; [[ "$last" =~ ^[0-9]+$ ]] || last=0
+  (( now - last < SWEEP_THROTTLE )) && return 0
+  printf '%s' "$now" > "$stamp"
+  local wide; wide="$(_wide_jobs)"; [[ -n "$wide" ]] || return 0
+  local rows; rows="$(_reg_rows)"; [[ -n "$rows" ]] || return 0
+  local prova=0; [[ -n "$(find "$QUEUEDIR/020-prova" -maxdepth 1 -name '*.json' -print -quit 2>/dev/null)" ]] && prova=1
+  local nholds; nholds="$(find "$HOLDDIR" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l)"
+  local -A HELD=()
+  local hf; for hf in $(find "$HOLDDIR" -maxdepth 1 -name '*.json' 2>/dev/null); do HELD[$(jq -r '.job // ""' "$hf" 2>/dev/null)]=1; done
+  local f prob need jl hosts k numa enq id
+  local host cap langs total free sc maxnode mfg status live
+  while IFS=$'\x01' read -r f prob need jl hosts k numa enq; do
+    [[ "$enq" =~ ^[0-9]+$ ]] && (( now - enq >= HOLD_AFTER )) || continue
+    id="${f##*_}"; id="${id%.json}"
+    [[ -n "${HELD[$id]:-}" ]] && continue
+    (( prova && nholds >= 1 )) && break
+    case "$jl" in py2|py3) jl=py;; esac
+    local best="" bestfree=-1 fits=0 ks
+    while IFS=$'\x01' read -r host cap langs total free sc maxnode mfg status live; do
+      [[ "$live" == 1 && "$status" != draining && "$status" != disabled ]] || continue
+      [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || continue                      # legado: nunca largo
+      [[ -z "$need" || "$need" == "$cap" ]] || continue
+      [[ -z "$hosts" || ",$hosts," == *",$host,"* ]] || continue
+      [[ -z "$jl" || -z "$langs" || " $langs " == *" $jl "* ]] || (( now - enq > LANG_GRACE )) || continue
+      ks="$(_kslots "$k" "$sc")"
+      (( total >= ks )) || continue
+      [[ "$numa" == y ]] && (( maxnode < ks )) && continue
+      if (( free >= ks )) && { [[ "$numa" != y ]] || (( mfg >= ks )); }; then fits=1; break; fi
+      [[ -f "$HOLDDIR/$host.json" ]] && continue
+      (( free > bestfree )) && { best="$host"; bestfree=$free; }
+    done <<<"$rows"
+    (( fits )) && continue
+    [[ -n "$best" ]] || continue
+    ks="$(_kslots "$k" "$(awk -F$'\x01' -v h="$best" '$1==h{print $6}' <<<"$rows")")"
+    jq -cn --arg j "$id" --argjson ks "$ks" --arg nm "$numa" --argjson now "$now" \
+       '{job:$j, k_slots:$ks, numa:($nm=="y"), since:$now}' > "$HOLDDIR/.$best.tmp" 2>/dev/null \
+      && mv -f "$HOLDDIR/.$best.tmp" "$HOLDDIR/$best.json"
+    HELD[$id]=1; nholds=$((nholds+1))
+  done <<<"$wide"
+  return 0
+}
+
+# sched_spool_judge_error <jobfile> <mensagem> : fecha um job da FILA com Judge Error pelo spool,
+# no formato do /judge/result (host "scheduler"); o judged ingere como qualquer resultado.
+sched_spool_judge_error() {
+  local f="$1" why="$2" login sd name id contest prob tmp
+  [[ -f "$f" ]] || return 1
+  declare -F spool_shard_dir >/dev/null 2>&1 || source "$(dirname "${BASH_SOURCE[0]}")/../api/v1/lib/spool-shard.sh" 2>/dev/null
+  IFS=$'\x01' read -r id contest prob login < <(jq -j '[(.id // ""), (.contest // ""), (.problem_id // ""), (.login // "")] | join("\u0001")' "$f" 2>/dev/null)
+  [[ -n "$id" && -n "$contest" ]] || return 1
+  mkdir -p "$SPOOLDIR" 2>/dev/null
+  sd="$(spool_shard_dir "$login")"; name="$contest:$EPOCHSECONDS:$id:scheduler:result:$prob"
+  tmp="$sd/.in.result.$id.${BASHPID}"
+  jq -c --arg w "$why" '{host:"scheduler", id, contest, problem_id, login, lang:(.lang // ""),
+      verdict:("Judge Error (" + $w + ")"), verdict_canon:"Judge Error", score:0, score_max:0, score_kind:"tests",
+      correct:0, total_tests:0, duration_s:0, tl_used:null, tests:[], report_html_b64:null}' "$f" > "$tmp" 2>/dev/null \
+    && mv -f "$tmp" "$sd/$name" && { rm -f "$f" "$f.cmeta" 2>/dev/null; return 0; }
+  rm -f "$tmp" 2>/dev/null; return 1
+}
+
+# infeasible_sweep : Judge Error p/ job largo sem juiz vivo capaz há INFEASIBLE_AFTER (throttle).
+infeasible_sweep() {
+  local stamp="$QUEUEDIR/.infeasible-stamp" now=$EPOCHSECONDS last=0
+  [[ -f "$stamp" ]] && last="$(<"$stamp")"; [[ "$last" =~ ^[0-9]+$ ]] || last=0
+  (( now - last < SWEEP_THROTTLE )) && return 0
+  printf '%s' "$now" > "$stamp"
+  local wide; wide="$(_wide_jobs)"; [[ -n "$wide" ]] || return 0
+  local rows; rows="$(_reg_rows)"; [[ -n "$rows" ]] || return 0
+  local f prob need jl hosts k numa enq host cap langs total free sc maxnode mfg status live any cap_ok
+  while IFS=$'\x01' read -r f prob need jl hosts k numa enq; do
+    [[ "$enq" =~ ^[0-9]+$ ]] && (( now - enq >= INFEASIBLE_AFTER )) || continue
+    any=0; cap_ok=0
+    while IFS=$'\x01' read -r host cap langs total free sc maxnode mfg status live; do
+      [[ "$live" == 1 ]] || continue
+      any=1
+      [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || continue
+      [[ -z "$need" || "$need" == "$cap" ]] || continue
+      [[ -z "$hosts" || ",$hosts," == *",$host,"* ]] || continue
+      if [[ "$numa" == y ]]; then (( maxnode * sc >= k )) && cap_ok=1
+      else (( total * sc >= k )) && cap_ok=1; fi
+      (( cap_ok )) && break
+    done <<<"$rows"
+    (( any && cap_ok == 0 )) || continue
+    (
+      flock 9 || exit 0
+      [[ -f "$f" ]] || exit 0
+      sched_spool_judge_error "$f" "nenhum juiz com $k CPU(s)$([[ "$numa" == y ]] && printf ' num nó NUMA') p/ este problema"
+    ) 9>"$QUEUEDIR/.lock"
+  done <<<"$wide"
+  return 0
+}
+
+# sched_decline_job <host> <id> <motivo> : o juiz não conseguiu alocar o job (corrida entre o claim e
+# a alocação). Volta p/ a banda de origem com epoch novo e `declined.<host>=epoch` (o host o pula
+# por DECLINE_BACKOFF); na DECLINE_MAX-ésima recusa vira Judge Error. Ecoa requeued|judge_error|notfound.
+sched_decline_job() {
+  local host="$1" id="$2" why="$3" f prio band n now=$EPOCHSECONDS
+  valid_hostname "$host" || return 1
+  f="$(find "$ASSIGNEDDIR/$host" -maxdepth 1 -name "*_$id.json" -print -quit 2>/dev/null)"
+  [[ -n "$f" && -f "$f" ]] || { printf 'notfound'; return 0; }
+  n="$(jq -r '(.declined // {}) | [.[]] | length' "$f" 2>/dev/null)"; [[ "$n" =~ ^[0-9]+$ ]] || n=0
+  if (( n + 1 >= DECLINE_MAX )); then
+    ( flock 9; sched_spool_judge_error "$f" "recusado por $((n+1)) juízes: $why" ) 9>"$QUEUEDIR/.lock" && { printf 'judge_error'; return 0; }
+  fi
+  prio="$(jq -r '.priority // "lista-publica"' "$f" 2>/dev/null)"; band="$(sched_band_of "$prio")"
+  (
+    flock 9 || exit 1
+    jq -c --arg h "$host" --argjson now "$now" 'del(.assigned_to, .assigned_at, .test_cpus, .same_numa, .slots, .par_max, .par_cap)
+        | .declined = ((.declined // {}) + {($h): $now})' "$f" > "$f.tmp" 2>/dev/null \
+      && mv -f "$f.tmp" "$QUEUEDIR/$band/${now}_${id}.json" && rm -f "$f"
+  ) 9>"$QUEUEDIR/.lock" && { printf 'requeued'; return 0; }
+  printf 'error'; return 1
+}
+# sched_decline_update <host> <reqid> : a calibração volta p/ pending (o pedido continua valendo).
+sched_decline_update() {
+  local host="$1" reqid="$2" f="$UPDATESDIR/inprogress/$1/$2.json"
+  valid_hostname "$host" || return 1
+  [[ -f "$f" ]] || { printf 'notfound'; return 0; }
+  ( flock 9; jq -c 'del(.claimed_at, .test_cpus, .same_numa, .slots)' "$f" > "$f.tmp" 2>/dev/null \
+      && mv -f "$f.tmp" "$UPDATESDIR/pending/$reqid.json" && rm -f "$f" ) 9>"$UPDATESDIR/.lock" \
+    && { upd_cmd_clear "$host" "$(jq -r '.target // ""' "$UPDATESDIR/pending/$reqid.json" 2>/dev/null)"; printf 'requeued'; return 0; }
+  printf 'error'; return 1
+}
+# sched_decline_command <host> <command-json> : o comando (calibrate dirigido) é reenfileirado
+# com cmdid novo; o marcador da entrega anterior sai.
+sched_decline_command() {
+  local host="$1" c="$2" action id by
+  valid_hostname "$host" || return 1
+  IFS=$'\x01' read -r action id by < <(jq -j '[(.action // ""), (.id // ""), (.by // "?")] | join("\u0001")' <<<"$c" 2>/dev/null)
+  [[ -n "$action" ]] || { printf 'error'; return 1; }
+  [[ -n "$id" ]] && upd_cmd_clear "$host" "$id"
+  cmd_request "$host" "$action" "$by" "$id" >/dev/null && { printf 'requeued'; return 0; }
+  printf 'error'; return 1
+}
