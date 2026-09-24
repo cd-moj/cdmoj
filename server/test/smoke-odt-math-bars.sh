@@ -25,7 +25,8 @@
 #      `rel-width` (passo `--html-widths`, antes do pandoc), fórmula intocada, idempotente.
 #   6. PARÊNTESES/SINTAXE (--fix): par comum sem esticar (`(x_1, y_1)`, `|a_i|`), esticado só em volta
 #      de conteúdo alto (fração, \binom, vmatrix); `[l, r)` com delimitadores literais (era ¿); `cases`
-#      com o fecho vazio (era a chave espelhada); `\#`/`\&`/`\_` como texto (eram ¿ / ∧ / índice).
+#      com o fecho vazio (era a chave espelhada); `\#`/`\&`/`\_` como texto (eram ¿ / ∧ / índice);
+#      relação na ponta do grupo (`$\le 10^9$`, `aligned`) com o grupo vazio `{}` (era ¿).
 # O papel impresso (nenhum `¿` no pdftotext) é afirmado pelo render-docs.sh, que roda o soffice.
 # Precisa de pandoc + python3 (dev e imagem têm); senão SKIP. Roda também dentro da imagem.
 set -u
@@ -273,7 +274,14 @@ X="$(fx 'f(n) = \begin{cases} 1 & n = 0 \\ 2 & n > 0 \end{cases}')"; DBG="$X"
 ck "cases: fecho vazio depois da tabela (right none)" 'grep -qE "</mtable><mo [^>]*form=\"postfix\"[^>]*(/>|></mo>)" <<<"$X"'
 X="$(fx 'a \# b + c \& d + x\_i')";            DBG="$X"; ck "\\# \\& \\_ viram texto"                 'grep -qF "<mtext>#</mtext>" <<<"$X" && grep -qF "<mtext>&amp;</mtext>" <<<"$X" && grep -qF "<mtext>_</mtext>" <<<"$X"'
 X="$(fx '\text{se "a" vale}')";                DBG="$X"; ck "aspas retas no \\text viram curvas"      'grep -qF "“a”" <<<"$X"'
-ALL="$(mml '(x_1, y_1) + [l, r) + |a| + \binom{n}{2} + \begin{cases} 1 & n = 0 \end{cases} + a \# b')"
+# relação na ponta do grupo: o StarMath exige operando dos dois lados (`$\le 10^9$` era ¿) — ganha
+# o grupo vazio `{}`; sinal/fatorial, que podem abrir/fechar, não
+X="$(fx '\le 10^9')";                          DBG="$X"; ck "\\le 10^9: grupo vazio antes do ≤"       'grep -qF "<mrow /><mo>≤</mo>" <<<"$X"'
+X="$(fx 'x =')";                               DBG="$X"; ck "x =: grupo vazio depois do ="            'grep -qF "<mo>=</mo><mrow />" <<<"$X"'
+X="$(fx '\le')";                               DBG="$X"; ck "\\le sozinho: um grupo só na raiz"       'grep -qF "<mrow><mrow /><mo>≤</mo><mrow /></mrow>" <<<"$X"'
+X="$(fx '\begin{aligned} S &= a \\ &= 10 \end{aligned}')"; DBG="$X"; ck "aligned: a coluna que começa com = ganha o vazio" '[[ "$(grep -o "<mrow /><mo>=</mo>" <<<"$X" | wc -l)" == 2 ]]'
+X="$(fx '-x + n!')";                           DBG="$X"; ck "-x e n!: sem grupo vazio"               'grep -q "<math" <<<"$X" && ! grep -qF "<mrow />" <<<"$X"'
+ALL="$(mml '(x_1, y_1) + [l, r) + |a| + \binom{n}{2} + \begin{cases} 1 & n = 0 \end{cases} + a \# b + \le')"
 X1="$(python3 "$PY" --fix <<<"$ALL")"; X2="$(python3 "$PY" --fix <<<"$X1")"; DBG="$X1 ≠ $X2"
 ck "2ª passada não muda nada"                      'grep -q "<mtext>\[</mtext>" <<<"$X1" && [[ "$X1" == "$X2" ]]'
 

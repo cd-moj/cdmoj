@@ -62,7 +62,9 @@
 #     sintaxe no StarMath (¿): vira caractere literal. O `cases` (abre sem fechar) ganha o fecho
 #     vazio — sem ele o LibreOffice inventava a chave espelhada à direita;
 #   SINTAXE (`fix_syntax`): `#`, `&`, `_`, `^`, `%`… num <mi>/<mo> são comandos do StarMath (`a \# b`
-#     saía ¿ ¿, `a \& b` virava a ∧ b): viram texto.
+#     saía ¿ ¿, `a \& b` virava a ∧ b): viram texto;
+#   OPERANDO (`fix_operands`): relação/binário precisa de operando dos dois lados — `$\le 10^9$`,
+#     `$= 0$` e a coluna `&= …` do `aligned` saíam ¿; ganham o grupo vazio `{}` (sem largura).
 # Sem conserto por aqui: ACENTOS (`\bar`, `\hat`, `\vec`, `\overline`…) — o importador do 25.2 monta
 # o acento mas o escreve SEM NOME no StarMath, e ele some; como `csup` (o que sai hoje) o sinal fica
 # alto e pequeno. O PRIMO (`f'`) sai do DejaVu Sans (nem o CMU Serif nem o Latin Modern têm o `′`).
@@ -312,6 +314,47 @@ def fix_syntax(root):
     return n
 
 
+# operador na PONTA de um grupo: no StarMath relação/binário precisa de operando dos DOIS lados —
+# `$\le 10^9$` ("valores $\le 10^9$"), `$= 0$`, `$x =$` e a 2ª coluna do `aligned` (`&= …`) saíam ¿.
+# Quem pode abrir (sinal, ¬, ∀, ∑…) ou fechar (`!`, `′`…) uma expressão fica como está.
+CAN_START = set('+-−±∓¬∀∃∄∂∇√') | BIGOPS | OPENB
+CAN_END = set('!′″‴%°') | CLOSEB
+
+
+def fix_operands(root):
+    """relação/binário sem operando na ponta do grupo ganha o grupo VAZIO do StarMath (`{} <= 10^9`,
+    sem largura). Roda por ÚLTIMO: as outras passadas olham o 1º/último filho do grupo."""
+    def bare(e, ok):
+        return tag(e) == 'mo' and text(e) and text(e) not in ok and text(e) not in BARS and e.get('fence') != 'true'
+    n = 0
+    for row in list(root.iter()):
+        if tag(row) not in ROWLIKE:
+            continue
+        kids = [c for c in row if tag(c) not in ('mspace', 'annotation', 'annotation-xml')]
+        if not kids:
+            continue
+        o, c = kids[0], kids[-1]
+        pre, post = bare(o, CAN_START), bare(c, CAN_END)
+        if not (pre or post):
+            continue
+        if tag(row) in ('math', 'semantics'):
+            # na RAIZ cada filho vira uma LINHA do StarMath (`{ } newline <= newline { }`, ¿):
+            # embrulha tudo num grupo só antes
+            w = ET.Element('{%s}mrow' % M)
+            row.insert(list(row).index(o), w)
+            for k in kids:
+                row.remove(k)
+                w.append(k)
+            row = w
+        if pre:
+            row.insert(list(row).index(o), ET.Element('{%s}mrow' % M))
+            n += 1
+        if post:
+            row.insert(list(row).index(c) + 1, ET.Element('{%s}mrow' % M))
+            n += 1
+    return n
+
+
 def _opener(e):
     """`(`/`[`/`{`…, ou o `<mo>` VAZIO de prefixo (o `\\left.` do TeX)."""
     return tag(e) == 'mo' and e.get('form') != 'postfix' and (
@@ -405,9 +448,10 @@ def fix_formula(data):
     brackets = fix_brackets(root)
     tall = {}
     role = roles_of(root, tall)
-    if not role and not names and not syntax and not brackets:
-        return None
     rewrite(root, role, tall)
+    operands = fix_operands(root)    # por ÚLTIMO (as outras olham o 1º/último filho do grupo)
+    if not role and not names and not syntax and not brackets and not operands:
+        return None
     out = ('<?xml version="1.0" encoding="UTF-8"?>' + ET.tostring(root, encoding='unicode')).encode('utf-8')
     return None if out == data else out
 
