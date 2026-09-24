@@ -38,7 +38,9 @@
 
     @page { size: A4 portrait; margin: 0; }
     @media print {
-      header, nav, main.container, .no-print { display:none !important; }
+      /* o rodapé do site e o alerta do juiz-chefe também: a grade Pimaco começa no topo da folha
+         (@page margin 0) e qualquer linha antes dela desloca e corta etiquetas (Daniel Saad, 24/09) */
+      header, nav, main.container, .no-print, footer, .sitefoot, #mojChiefAlert { display:none !important; }
       body { margin:0; padding:0; background:#fff; }
       #sheets { margin:0; }
       .sheet { margin:0; box-shadow:none; }
@@ -66,6 +68,9 @@
     <div id="app"><p class="muted" data-en="Loading…">carregando…</p></div>
   </main>
   <div id="sheets"></div>
+  <!-- o rodapé mora DEPOIS das folhas (o site-footer.js usa este elemento; sem ele entraria colado no
+       <main>, ENTRE os controles e as folhas) -->
+  <footer id="siteFooter" class="sitefoot"></footer>
   <script type="module" src="/shared/i18n-dom.js"></script>
   <script type="module" src="./badges.js"></script>
 </body>

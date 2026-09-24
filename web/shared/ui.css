@@ -591,6 +591,10 @@ table.score tr.pinned-row { background: rgba(245,166,35,.13) }
 .sitefoot-in a { color: var(--muted); text-decoration: underline; }
 .sitefoot-credits { margin-left: auto; }
 @media (max-width: 640px) { .sitefoot-credits { margin-left: 0; } }
+/* o CROMO do site nunca vai ao PAPEL (relato do Daniel Saad, 24/09/2026): o rodapé entra DEPOIS do
+   <main> e, nas etiquetas de credenciais, saía no topo da 1ª folha empurrando a grade Pimaco; o alerta
+   do juiz-chefe é fixo e sairia no topo de TODA folha. Teste: server/test/smoke-print-chrome.sh */
+@media print { .sitefoot, #mojChiefAlert { display: none !important; } }
 @media (prefers-color-scheme: dark) { table.score tr.guest-row { background: rgba(255,255,255,.05) } }
 
 /* ---- primitivas de painel (admin de contest e afins) ----

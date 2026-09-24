@@ -640,7 +640,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   limiar, `localStorage` por contest) e atualiza EM LUGAR (nunca `app.innerHTML=''` no poll).
   Link no nav de admin, chefe e juiz (`navbuttons.sh`). Teste: `smoke-contest-jplag.sh` (sem
   java/jar roda os handlers sobre fixture sintética).
-- **Rodapé** (`web/shared/site-footer.js`, issue #20): versão de `/version.json` (gravado por
+- **Rodapé** (`web/shared/site-footer.js`, issue #20) — ⚠ **o rodapé e o alerta do juiz-chefe NUNCA
+  vão ao papel** (`@media print` no `ui.css`; relato do Daniel Saad, 24/09/2026: nas etiquetas o rodapé
+  entrava entre o `<main>` e as folhas e empurrava a grade Pimaco, cortando etiquetas — página que
+  imprime tem de esconder o cromo e pôr o `<footer id="siteFooter">` onde ele deve ficar; teste
+  `smoke-print-chrome.sh`): versão de `/version.json` (gravado por
   `make deploy` → alvo `version-json`, gitignored; `MOJ_CONTACT` vira o link contato), repositório,
   issues e atribuição das bandeiras; páginas do site carregam o módulo, as de contest chamam
   `mountSiteFooter()` via `contest-shell`/`contest-chrome`/`contest.js`/`score.js`.
