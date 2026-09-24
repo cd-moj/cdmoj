@@ -18,6 +18,7 @@
 # caderno e no editorial — o `lib/odt-math-bars.py` reescreve as barras no ODT (ver
 # `smoke-odt-math-bars.sh`); aqui se afirma o papel: nenhum `¿` e a fórmula presente. E a fórmula
 # na fonte do corpo (nenhum DejaVu Serif no PDF — o fallback do LibreOffice Math sem settings).
+# E as IMAGENS: nenhuma além da área útil do papel (o LibreOffice cortava a que passava da página).
 set -u
 # ROOT pelo caminho do script — mas o jeito de rodar isto é copiando o arquivo para dentro da
 # imagem (`podman cp … :/tmp/`), e aí o caminho derivado não acha as libs: cai no /opt do container.
@@ -74,6 +75,21 @@ MATHP="$(printf '%s\n' 'Barras: $1 \leq |S| \leq 10^5$, $|a-b|$, $\|v\|$, $a \mi
 for f in "$C/enunciados/col#pa.html" "$C/enunciados/col#pa.en.html"; do
   M="$MATHP" awk '$0 == "@@MATH@@" { print ENVIRON["M"]; next } { print }' "$f" > "$f.tmp" && mv -f "$f.tmp" "$f"
 done
+# IMAGENS GRANDES no enunciado PT do A (24/09/2026: "não podem ficar gigantes nem sair da página"): um
+# PNG de 1561 px sem DPI (o `rede-anel-estelar` da produção) e um de 700×3000 (mais alto que a página).
+# Sem o passo de imagens do odt-math-bars.py o pandoc os punha a 1 px = 1 pt e o LibreOffice os CORTAVA.
+python3 - "$C/enunciados/col#pa.html" <<'PY'
+import sys, zlib, struct, base64
+def png(w, h):
+    raw = b''.join(b'\x00' + b'\x30\x70\xb0' * w for _ in range(h))
+    ch = lambda t, d: struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+    return (b'\x89PNG\r\n\x1a\n' + ch(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
+            + ch(b'IDAT', zlib.compress(raw, 9)) + ch(b'IEND', b''))
+u = lambda b: 'data:image/png;base64,' + base64.b64encode(b).decode()
+p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+img = '<p><img src="%s" alt="larga"></p>\n<p><img src="%s" alt="alta"></p>\n' % (u(png(1561, 1561)), u(png(700, 3000)))
+open(p, 'w', encoding='utf-8').write(s.replace('<h2>Entrada</h2>', img + '<h2>Entrada</h2>', 1))
+PY
 mkdir -p "$FIX/treino/var/jsons"
 jq -cn --arg h "$(base64 -w0 < "$C/enunciados/col#pa.html")" --arg e "$(base64 -w0 < "$C/enunciados/col#pa.en.html")" \
   '{id:"col#pa", title:"Soma Simples", public:true, statement_html_b64:$h, statement_langs:["pt","en"], statements:{en:{title:"Simple Sum", html_b64:$e}}}' \
@@ -155,6 +171,14 @@ ck "editorial PT: \\log sai inteiro"       'tr -d " " <<<"$ED_PT" | grep -qF "nl
 # fixture (o Latin Modern Roman Bold não tem esses glifos) — não é fórmula.
 ck "caderno PT: fórmula sem DejaVu Serif" '! pdffonts "$(doc_file rd contest pt pdf)" 2>/dev/null | grep -Eqi "DejaVuSerif(-Italic)?[[:space:]]"'
 ck "editorial PT: fórmula sem DejaVu Serif" '! pdffonts "$(doc_file rd editorial pt pdf)" 2>/dev/null | grep -qi "DejaVuSerif"'
+
+echo "== imagens: nenhuma sai da página (tamanho DESENHADO = px ÷ ppi, pelo pdfimages) =="
+# área útil do caderno-reference.odt: 16 cm = 6,30 pol de largura; altura máx. de imagem 591,26 pt =
+# 8,21 pol (90% do corpo). 2% de folga p/ o ppi que o pdfimages arredonda. Antes: 21,7 pol, cortada.
+IMGS="$(pdfimages -list "$(doc_file rd contest pt pdf)" 2>/dev/null | awk '$3=="image" && $13>0 && $14>0 {printf "%.3f %.3f\n", $4/$13, $5/$14}')"
+DBG="$IMGS"
+ck "caderno PT: as 2 imagens grandes estão lá"   '[[ "$(grep -c . <<<"$IMGS")" -ge 2 ]]'
+ck "caderno PT: nenhuma imagem além da área útil" '[[ -z "$(awk '"'"'$1 > 6.30*1.02 || $2 > 8.21*1.02'"'"' <<<"$IMGS")" ]]'
 
 echo "== ambiente de julgamento: título novo, linhas de compilação, veredictos, penalidade =="
 IP="$(doc_file rd info-sheet en pdf)"; IT="$(pdftotext -layout "$IP" - 2>/dev/null)"

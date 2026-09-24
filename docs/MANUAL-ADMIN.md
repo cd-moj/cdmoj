@@ -306,6 +306,10 @@ imprimiu ficou com a versão velha (é para isso que serve o campo *versão do c
 > vermelho no PDF, é defeito do gerador, não do enunciado: reporte (com o problema) e, enquanto
 > isso, envie o PDF pronto daquele caderno. Um caderno gerado antes de um conserto não se refaz
 > sozinho — gere de novo.
+>
+> 🖼 **Imagens do enunciado cabem na página.** No PDF, cada imagem sai no máximo do tamanho que tem
+> na página web e nunca maior que a área útil (imagem grande é reduzida, mantendo a proporção). A
+> largura que o autor pediu no enunciado (`![](figura.png){width=50%}`) vale também no PDF.
 
 > 🔒 **O caderno é conteúdo de prova.** Antes de publicar, só `.admin` e `.cjudge` o baixam.
 > Publicado, antes do início só os juízes (`.judge`) somam-se a eles. Para a sede e os times a

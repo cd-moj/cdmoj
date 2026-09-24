@@ -56,10 +56,12 @@ import re, sys
 p = sys.argv[1]; s = open(p, encoding='utf-8').read()
 open(p, 'w', encoding='utf-8').write(re.sub(r'<title>.*?</title>', '', s, flags=re.S))
 PY
+    # largura pedida no `style=` da <img> vira atributo (o leitor de HTML do pandoc ignora o style)
+    python3 "$ROOT/server/api/v1/lib/odt-math-bars.py" --html-widths "$WORK/ensaio/$l.html" >/dev/null 2>&1 || true
     if pandoc -f html -t odt --resource-path="$WORK/ensaio" \
               --reference-doc="$ROOT/server/etc/caderno-reference.odt" \
               "$WORK/ensaio/$l.html" -o "$WORK/ensaio/$l.odt" 2>/dev/null; then
-      # barras das fórmulas (o ¿ do LibreOffice Math) — o mesmo passo do _doc_html2pdf_odt
+      # fórmulas (barras, tipografia) e imagens na área útil — o mesmo passo do _doc_html2pdf_odt
       python3 "$ROOT/server/api/v1/lib/odt-math-bars.py" "$WORK/ensaio/$l.odt" >/dev/null 2>&1 || true
       soffice --headless -env:UserInstallation="file://$WORK/lo" --convert-to pdf \
               --outdir "$WORK/ensaio" "$WORK/ensaio/$l.odt" >/dev/null 2>&1

@@ -18,6 +18,10 @@
 #   4. TIPOGRAFIA: o settings.xml de TODA fórmula (com barra ou não) sai com o tamanho e a família do
 #      corpo do reference-doc (11pt, Latin Modern Roman) e o itálico das variáveis DEPOIS do nome —
 #      sem isso o LibreOffice Math desenhava a fórmula em 12pt e no DejaVu Serif, no meio do texto.
+#   5. IMAGENS: no menor entre o tamanho da web (px × 0,75 pt) e o do DPI do arquivo (nunca cresce),
+#      nunca além da área útil (a imagem de 1561 px
+#      saía com 1561 pt e o LibreOffice a CORTAVA), proporção mantida, `{width=50%}` do autor vira
+#      `rel-width` (passo `--html-widths`, antes do pandoc), fórmula intocada, idempotente.
 # O papel impresso (nenhum `¿` no pdftotext) é afirmado pelo render-docs.sh, que roda o soffice.
 # Precisa de pandoc + python3 (dev e imagem têm); senão SKIP. Roda também dentro da imagem.
 set -u
@@ -179,6 +183,71 @@ ck "<mo>log</mo> e <mo>lim</mo> viram <mi>"        'grep -q "<mi>log</mi>" <<<"$
 ck "operador e parêntese ficam <mo>"               'grep -qF "<mo>≤</mo>" <<<"$fx" && grep -qF "<mo>(</mo>" <<<"$fx"'
 ck "as barras nuas saem em par"                    '[[ "$(grep -o "fence=\"true\"" <<<"$fx" | wc -l)" == 2 ]]'
 ck "2ª passada não muda nada"                      '[[ "$(python3 "$PY" "$FIX/fn.odt")" == 0 ]]'
+
+echo "== imagens: tamanho da web (px × 0,75 pt) ou do DPI, teto na área útil, largura do autor =="
+# Área útil do caderno-reference.odt: A4 com margens de 2,5 cm = 453,54 pt de largura; altura do corpo
+# (menos o rodapé de 0,6 pol) × 0,9 = 591,26 pt. Mudou o reference-doc? Mude aqui.
+MAXW=453.54; MAXH=591.26
+python3 - "$FIX/img.html" "$(mml 'x^2 + |y|')" <<'PY'
+import sys, zlib, struct, base64
+def png(w, h, dpi=None):
+    raw = b''.join(b'\x00' + b'\x80\x40\x40' * w for _ in range(h))
+    ch = lambda t, d: struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+    o = b'\x89PNG\r\n\x1a\n' + ch(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
+    if dpi: o += ch(b'pHYs', struct.pack('>IIB', round(dpi / 0.0254), round(dpi / 0.0254), 1))
+    return o + ch(b'IDAT', zlib.compress(raw, 9)) + ch(b'IEND', b'')
+u = lambda b, t='image/png': 'data:%s;base64,%s' % (t, base64.b64encode(b).decode())
+svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="600"><rect width="2000" height="600" fill="#48c"/></svg>'
+big = u(png(1561, 1561))
+h = '<html><body>\n'
+h += '<p>i1 <img src="%s" alt="larga"></p>\n' % big                       # 1561x1561 sem DPI
+h += '<p>i2 <img src="%s" alt="alta"></p>\n' % u(png(700, 3000))          # mais alta que a página
+h += '<p>i3 <img src="%s" alt="pequena"></p>\n' % u(png(300, 200))        # cabe: tamanho da web
+h += '<p>i4 <img src="%s" alt="a4-300dpi"></p>\n' % u(png(2481, 3508, 300))
+h += '<p>i5 <img src="%s" alt="svg"></p>\n' % u(svg, 'image/svg+xml')
+h += '<p>i6 <img src="%s" style="width:50.0%%" alt="autor"></p>\n' % big   # {width=50%} do autor
+h += '<figure><img src="%s" alt="fig"><figcaption>Legenda</figcaption></figure>\n' % big
+h += '<p>i8 <img src="%s" alt="obi-300dpi"></p>\n' % u(png(600, 300, 300))   # DPI de impressão: não cresce
+h += '<p>fórmula %s fim.</p>\n</body></html>\n' % sys.argv[2]
+open(sys.argv[1], 'w').write(h)
+PY
+nh="$(python3 "$PY" --html-widths "$FIX/img.html")"
+DBG="nh=$nh"
+ck "--html-widths: só a <img> com style muda (1)"   '[[ "$nh" == 1 ]] && grep -q "width=\"50.0%\"" "$FIX/img.html"'
+pandoc -f html -t odt "${refodt[@]}" "$FIX/img.html" -o "$FIX/img.odt"
+cp "$FIX/img.odt" "$FIX/img0.odt"
+python3 "$PY" "$FIX/img.odt" >/dev/null
+fr="$(python3 - "$FIX/img0.odt" "$FIX/img.odt" <<'PY'
+import sys, zipfile, re
+a, b = zipfile.ZipFile(sys.argv[1]), zipfile.ZipFile(sys.argv[2])
+xa, xb = a.read('content.xml').decode(), b.read('content.xml').decode()
+pt = lambda v: float(re.sub('pt$', '', v)) if v.endswith('pt') else float('nan')
+for m in re.finditer(r'<draw:frame\b([^>]*)>\s*<draw:(image|object)\b', xb):
+    at = dict(re.findall(r'([\w:-]+)="([^"]*)"', m.group(1)))
+    print(at.get('draw:name'), m.group(2), '%.2f' % pt(at.get('svg:width', '')), '%.2f' % pt(at.get('svg:height', '')),
+          at.get('style:rel-width', '-'))
+obj = lambda x: re.findall(r'<draw:frame\b[^>]*>\s*<draw:object\b[^>]*>', x)
+print('formula-intocada', obj(xa) == obj(xb) and len(obj(xa)) > 0)
+PY
+)"
+DBG="$fr"
+fdim(){ awk -v n="$1" '$1==n{print $3, $4, $5}' <<<"$fr"; }
+ck "todo quadro de imagem ≤ largura útil e ≤ altura máx." \
+  '[[ -z "$(awk -v W=$MAXW -v H=$MAXH '"'"'$2=="image" && ($3>W+0.05 || $4>H+0.05)'"'"' <<<"$fr")" ]]'
+ck "1561×1561: quadrado na largura útil"             '[[ "$(fdim img1)" == "453.54 453.54 -" ]]'
+ck "700×3000: altura máx., proporção 3000/700"        'awk -v H=$MAXH '"'"'{exit !($2==H && ($2/$1-3000/700)^2 < 0.0001)}'"'"' <<<"$(fdim img2)"'
+ck "300×200: tamanho da WEB (225×150 pt)"              '[[ "$(fdim img3)" == "225.00 150.00 -" ]]'
+ck "2481×3508 a 300 dpi: cabe e mantém a proporção"   'awk -v H=$MAXH '"'"'{exit !($2<=H+0.05 && ($2/$1-3508/2481)^2 < 0.0001)}'"'"' <<<"$(fdim img4)"'
+ck "SVG 2000×600: na largura útil, proporção 0,3"     'awk -v W=$MAXW '"'"'{exit !($1==W && ($2/$1-0.3)^2 < 0.0001)}'"'"' <<<"$(fdim img5)"'
+ck "{width=50%} do autor: rel-width 50%"              '[[ "$(fdim img6 | cut -d" " -f3)" == "50.0%" ]]'
+ck "figura com legenda também cabe"                   '[[ "$(fdim img7)" == "453.54 453.54 -" ]]'
+# (o pandoc arredonda o DPI do pHYs: dá ~144,5 pt; o da web seria 450 pt — não pode crescer)
+ck "600×300 a 300 dpi: fica no tamanho do DPI (~144 pt)" 'awk '"'"'{exit !($1>143 && $1<146 && ($2*2-$1)^2 < 0.01)}'"'"' <<<"$(fdim img8)"'
+ck "quadro de fórmula intocado"                       'grep -qx "formula-intocada True" <<<"$fr"'
+si="$(sha "$FIX/img.odt")"; python3 "$PY" "$FIX/img.odt" >/dev/null
+ck "imagens: 2ª passada não muda nada"               '[[ "$(sha "$FIX/img.odt")" == "$si" ]]'
+python3 "$PY" --html-widths "$FIX/img.html" >/dev/null; hh="$(python3 "$PY" --html-widths "$FIX/img.html")"
+ck "--html-widths idempotente"                         '[[ "$hh" == 0 ]]'
 
 echo; echo "RESULT: $pass passed, $fail failed"
 (( fail == 0 ))

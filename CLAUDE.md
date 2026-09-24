@@ -820,9 +820,19 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   ausente na imagem, caía no **DejaVu Serif**. O script grava em cada `Formula-N/settings.xml` o
   tamanho e a família do corpo (lidos da default-style do `styles.xml`, isto é, do
   `caderno-reference.odt`) e índices/limites a 70%; ⚠ `FontVariablesIsItalic` DEPOIS do
-  `FontNameVariables` (o nome zera o itálico). Fail-open
+  `FontNameVariables` (o nome zera o itálico). E as **IMAGENS** (`fix_images` + `--html-widths`,
+  24/09/2026 — "não podem ficar gigantes nem sair da página"): ODT ignora o `img{max-width:100%}` da
+  web, o pandoc punha PNG sem DPI a 1 px = 1 pt e o LibreOffice CORTAVA o que passava da página (13 das
+  72 imagens de pacote da produção passavam do A4). Hoje o tamanho natural é o MENOR entre o do pandoc
+  (DPI do arquivo) e o da web (px × 0,75 pt) — nunca maior do que já saía — com teto na área útil da
+  página mestra do reference-doc (largura; altura a 90% do corpo); o `{width=50%}` do autor (que chega
+  como `style=`, ignorado pelo leitor de HTML do pandoc) vira atributo ANTES do pandoc e sai como
+  `rel-width`. Edita só a tag de abertura do `draw:frame` com `draw:image` (regex; fórmula é
+  `draw:object`). A rota `_doc_html2pdf` (soffice direto no HTML) ainda corta imagem grande — hoje sem
+  imagem nos documentos que a usam. Fail-open
   (erro = PDF como antes); o `build-ensaio-pdf.sh` faz o mesmo passo. Testes: `smoke-odt-math-bars.sh`
-  (papéis + zip) e `render-docs.sh` (nenhum `¿` no pdftotext). Sem conserto conhecido: `\overline`
+  (papéis, tipografia, imagens) e `render-docs.sh` (nenhum `¿` e nenhuma imagem além da área útil, no
+  papel). Sem conserto conhecido: `\overline`
   some no PDF. O ESTILO da rota
   ODT vem do **`etc/caderno-reference.odt`** (`--reference-doc`; ODT ignora CSS): corpo
   JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos) — receita de

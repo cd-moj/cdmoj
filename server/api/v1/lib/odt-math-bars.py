@@ -49,15 +49,24 @@
 # `\sum_{d|n}` ilegível). ⚠ ORDEM: `FontName…` recria a fonte SEM itálico — o
 # `FontVariablesIsItalic` tem de vir DEPOIS (antes dele o `n` saía em pé).
 #
+# E as IMAGENS (`fix_images` + `--html-widths`; pedido de 24/09/2026: "não podem ficar gigantes nem
+# sair da página"): nunca maior que o tamanho da página WEB (px × 0,75 pt) nem que o do DPI do
+# arquivo, com teto na área útil da página mestra do reference-doc; a largura pedida pelo autor volta
+# a valer. Ver a seção IMAGENS. É por isso que este
+# script é o passo de pós-processamento do ODT do caderno, não só das barras (o nome ficou).
+#
 # Uso: odt-math-bars.py <arquivo.odt>   — reescreve NO LUGAR (tmp + os.replace), só as fórmulas
 #        que mudam; mimetype PRIMEIRO e sem compressão (senão o LibreOffice recusa calado). Imprime
 #        quantas fórmulas tiveram o MathML reescrito (a tipografia do settings.xml não conta). Erro =
 #        ODT intacto e saída ≠ 0 (quem chama segue: no pior caso o PDF sai como antes). Idempotente.
 #      odt-math-bars.py --roles        — TESTE: lê HTML/MathML no stdin e imprime, por <math>, o
 #        papel de cada barra (O abre, C fecha, M meio, L solta; prefixo D = dupla).
+#      odt-math-bars.py --html-widths <arquivo.html> — ANTES do pandoc: `style="width:…"` de <img> vira
+#        atributo (no lugar, atômico); imprime quantas <img> mudaram.
 # Teste: server/test/smoke-odt-math-bars.sh; a cadeia real: server/test/render-docs.sh.
 import os
 import re
+import struct
 import sys
 import tempfile
 import zipfile
@@ -318,6 +327,193 @@ def fix_settings(data, items):
     return s2.encode('utf-8')
 
 
+# ---------- IMAGENS ------------------------------------------------------------------------------
+# Tamanho natural = o MENOR entre o do pandoc (que usa o DPI gravado no arquivo e, sem DPI, 72 = 1 px/pt)
+# e o da página WEB (pixel CSS = 1/96 pol = 0,75 pt): sem DPI a imagem fica do tamanho da web; com DPI de
+# impressão (as da OBI, a 300 dpi) fica o que o autor pretendeu — nunca maior do que já saía. E nunca
+# maior que a área útil: é o `img{max-width:100%}` da web, que a rota ODT não enxerga (ODT ignora CSS). Sem isto o pandoc punha PNG sem DPI a 1 px = 1 pt e o LibreOffice CORTAVA
+# o que passava da página (1561 px → 1561 pt numa área útil de 453 pt; 13 das 72 imagens de pacote da
+# produção passavam do A4). Largura pedida pelo autor (`{width=50%}` → `style="width:50.0%"`, que o
+# leitor de HTML do pandoc ignora) volta como ATRIBUTO no passo `--html-widths`, antes do pandoc, e chega
+# aqui como `style:rel-width`: fica relativa, só a altura é conferida.
+UNIT_PT = {'pt': 1.0, 'in': 72.0, 'cm': 72 / 2.54, 'mm': 72 / 25.4, 'pc': 12.0, 'px': 0.75}
+PAGE_FALLBACK = (21 / 2.54 * 72, 29.7 / 2.54 * 72, 2.5 / 2.54 * 72)   # A4, margens de 2,5 cm
+IMG_HEIGHT_FRAC = 0.9          # altura máx. = 90% do corpo: cabe numa página com a linha de cima
+IMG_FRAME = re.compile(r'<draw:frame\b([^>]*)>(\s*<draw:image\b[^>]*>)', re.S)
+
+
+def to_pt(v):
+    m = re.fullmatch(r'\s*(-?[\d.]+)\s*(pt|in|cm|mm|pc|px)?\s*', v or '')
+    if not m:
+        return None
+    try:
+        return float(m.group(1)) * UNIT_PT[m.group(2) or 'pt']
+    except ValueError:
+        return None
+
+
+def text_box(zi):
+    """(largura útil, altura máxima de imagem) em pt: a página mestra `Standard` do styles.xml, menos
+    margens, cabeçalho e rodapé. Sem leitura: A4 com margens de 2,5 cm."""
+    pw, ph, mg = PAGE_FALLBACK
+    w, h = pw - 2 * mg, ph - 2 * mg
+    try:
+        root = ET.fromstring(zi.read('styles.xml'))
+    except (KeyError, ET.ParseError):
+        return w, h * IMG_HEIGHT_FRAC
+    st = lambda k: '{%s}%s' % (NS_STYLE, k)
+    fo = lambda k: '{%s}%s' % (NS_FO, k)
+    masters = list(root.iter(st('master-page')))
+    mp = next((m for m in masters if m.get(st('name')) == 'Standard'), masters[0] if masters else None)
+    lay = None
+    if mp is not None:
+        lay = next((p for p in root.iter(st('page-layout'))
+                    if p.get(st('name')) == mp.get(st('page-layout-name'))), None)
+    if lay is None:
+        return w, h * IMG_HEIGHT_FRAC
+    pp = lay.find(st('page-layout-properties'))
+    if pp is not None:
+        g = lambda k, d: (to_pt(pp.get(fo(k))) if pp.get(fo(k)) else None) or d
+        pw, ph = g('page-width', pw), g('page-height', ph)
+        w = pw - (to_pt(pp.get(fo('margin-left'))) or 0) - (to_pt(pp.get(fo('margin-right'))) or 0)
+        h = ph - (to_pt(pp.get(fo('margin-top'))) or 0) - (to_pt(pp.get(fo('margin-bottom'))) or 0)
+    # cabeçalho/rodapé só ocupam o corpo quando a página mestra os TEM
+    for part, gap in (('header', 'margin-bottom'), ('footer', 'margin-top')):
+        if mp is None or mp.find(st(part)) is None:
+            continue
+        hf = lay.find(st(part + '-style'))
+        hp = hf.find(st('header-footer-properties')) if hf is not None else None
+        if hp is not None:
+            h -= (to_pt(hp.get(fo('min-height'))) or 0) + (to_pt(hp.get(fo(gap))) or 0)
+    return w, h * IMG_HEIGHT_FRAC
+
+
+def img_px(b):
+    """(largura, altura) em pixels pelo CABEÇALHO do arquivo (PNG, GIF, JPEG, WebP); None se não sabe."""
+    try:
+        if b[:8] == b'\x89PNG\r\n\x1a\n':
+            return struct.unpack('>II', b[16:24])
+        if b[:6] in (b'GIF87a', b'GIF89a'):
+            return struct.unpack('<HH', b[6:10])
+        if b[:2] == b'\xff\xd8':
+            i = 2
+            while i + 9 < len(b):
+                if b[i] != 0xFF:
+                    i += 1
+                    continue
+                mk = b[i + 1]
+                if mk == 0xFF:                         # preenchimento entre marcadores
+                    i += 1
+                    continue
+                if mk in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                    hh, ww = struct.unpack('>HH', b[i + 5:i + 9])
+                    return ww, hh
+                if mk in (0xD8, 0x01) or 0xD0 <= mk <= 0xD7:
+                    i += 2
+                    continue
+                i += 2 + struct.unpack('>H', b[i + 2:i + 4])[0]
+            return None
+        if b[:4] == b'RIFF' and b[8:12] == b'WEBP':
+            kind = b[12:16]
+            if kind == b'VP8X':
+                return (int.from_bytes(b[24:27], 'little') + 1, int.from_bytes(b[27:30], 'little') + 1)
+            if kind == b'VP8L':
+                v = int.from_bytes(b[21:25], 'little')
+                return ((v & 0x3FFF) + 1, ((v >> 14) & 0x3FFF) + 1)
+            if kind == b'VP8 ':
+                return (int.from_bytes(b[26:28], 'little') & 0x3FFF, int.from_bytes(b[28:30], 'little') & 0x3FFF)
+    except Exception:
+        return None
+    return None
+
+
+def fix_images(zi, data, box):
+    """content.xml principal -> bytes novos, ou None. Só a tag de ABERTURA de cada `draw:frame` que
+    contém `draw:image` muda (regex, sem reescrever o XML — o ElementTree mexeria nos prefixos);
+    fórmula é `draw:object` e fica de fora. Proporcional, nunca aumenta, idempotente."""
+    maxw, maxh = box
+    s = data.decode('utf-8')
+
+    def attr(a, k):
+        m = re.search(r'\b%s="([^"]*)"' % re.escape(k), a)
+        return m.group(1) if m else None
+
+    def setattr_(a, k, v):
+        return re.sub(r'\b%s="[^"]*"' % re.escape(k), '%s="%s"' % (k, v), a)
+
+    def one(m):
+        a, img = m.group(1), m.group(2)
+        w, h = to_pt(attr(a, 'svg:width')), to_pt(attr(a, 'svg:height'))
+        if not w or not h:
+            return m.group(0)
+        rel = attr(a, 'style:rel-width')
+        if rel and rel.endswith('%'):
+            # largura do AUTOR, relativa à área útil: fica; só a altura é conferida
+            try:
+                pct = float(rel[:-1])
+            except ValueError:
+                return m.group(0)
+            ew = maxw * pct / 100
+            eh = ew * h / w
+            if eh > maxh:
+                pct = pct * maxh / eh
+                ew, eh = maxw * pct / 100, maxh
+            a2 = setattr_(a, 'style:rel-width', '%.1f%%' % pct)
+            a2 = setattr_(setattr_(a2, 'svg:width', '%.2fpt' % ew), 'svg:height', '%.2fpt' % eh)
+            return m.group(0) if a2 == a else '<draw:frame%s>%s' % (a2, img)
+        href = re.search(r'xlink:href="([^"]+)"', img)
+        nw, nh = w, h
+        if href and not href.group(1).lower().endswith('.svg'):
+            try:
+                px = img_px(zi.read(href.group(1))[:1 << 20])
+            except KeyError:
+                px = None
+            if px and px[0] > 0 and px[1] > 0:
+                # o MENOR entre o do pandoc (DPI do arquivo; sem DPI ele usa 72 = 1 px/pt) e o da web
+                # (px × 0,75 pt): sem DPI cai no tamanho da web; com DPI de impressão (OBI a 300 dpi)
+                # fica o que o autor pretendeu. Nunca maior do que já saía.
+                f = min(1.0, px[0] * 0.75 / w)
+                nw, nh = w * f, h * f
+        k = min(1.0, maxw / nw, maxh / nh)
+        fw, fh = nw * k, nh * k
+        if abs(fw - w) < 0.01 and abs(fh - h) < 0.01:
+            return m.group(0)
+        a2 = setattr_(setattr_(a, 'svg:width', '%.2fpt' % fw), 'svg:height', '%.2fpt' % fh)
+        return '<draw:frame%s>%s' % (a2, img)
+
+    s2 = IMG_FRAME.sub(one, s)
+    return None if s2 == s else s2.encode('utf-8')
+
+
+def html_widths(s):
+    """`<img style="width:X%">` -> `<img width="X%">` (e height, px, cm…): o leitor de HTML do pandoc
+    lê o ATRIBUTO e ignora o `style` — era assim que o `{width=50%}` do enunciado se perdia no PDF."""
+    def one(m):
+        t = m.group(0)
+        st = re.search(r'\sstyle\s*=\s*"([^"]*)"', t)
+        if not st:
+            return t
+        decl = {}
+        for d in st.group(1).split(';'):
+            if ':' in d:
+                k, v = d.split(':', 1)
+                decl[k.strip().lower()] = v.strip()
+        add = []
+        for prop in ('width', 'height'):
+            v = decl.get(prop)
+            if not v or re.search(r'\s%s\s*=' % prop, t):
+                continue
+            mv = re.fullmatch(r'([\d.]+)\s*(%|px|cm|mm|in|pt)?', v)
+            if mv:
+                unit = mv.group(2) or ''
+                add.append('%s="%s%s"' % (prop, mv.group(1), '' if unit == 'px' else unit))
+        if not add:
+            return t
+        end = '/>' if t.endswith('/>') else '>'
+        return t[:-len(end)].rstrip() + ' ' + ' '.join(add) + ' ' + end
+    return re.sub(r'<img\b[^>]*>', one, s, flags=re.I)
+
+
 def fix_odt(path):
     with zipfile.ZipFile(path) as zi:
         infos = zi.infolist()
@@ -342,6 +538,10 @@ def fix_odt(path):
                 out = fix_settings(zi.read(n), items)
                 if out is not None:
                     new[n] = out
+        if 'content.xml' in names:                  # imagens do documento (não contam na saída)
+            out = fix_images(zi, zi.read('content.xml'), text_box(zi))
+            if out is not None:
+                new['content.xml'] = out
         if not new:
             return 0
         fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(path)), suffix='.odt')
@@ -376,8 +576,21 @@ def main(argv):
             print(' '.join(('D' if BARS[text(e)] == 'd' else '') + code[role[e]]
                            for e in root.iter() if e in role))
         return 0
+    if len(argv) == 3 and argv[1] == '--html-widths':
+        # ANTES do pandoc: a largura do autor vira atributo (reescreve no lugar, atômico)
+        p = argv[2]
+        s = open(p, encoding='utf-8', errors='surrogateescape').read()
+        s2 = html_widths(s)
+        if s2 != s:
+            fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(p)), suffix='.html')
+            with os.fdopen(fd, 'w', encoding='utf-8', errors='surrogateescape') as f:
+                f.write(s2)
+            os.replace(tmp, p)
+        imgs = lambda x: re.findall(r'<img\b[^>]*>', x, flags=re.I)
+        print(sum(1 for a, b in zip(imgs(s), imgs(s2)) if a != b))   # quantas <img> mudaram
+        return 0
     if len(argv) != 2:
-        print('uso: odt-math-bars.py <arquivo.odt> | --roles', file=sys.stderr)
+        print('uso: odt-math-bars.py <arquivo.odt> | --roles | --html-widths <arquivo.html>', file=sys.stderr)
         return 2
     print(fix_odt(argv[1]))
     return 0

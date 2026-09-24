@@ -692,16 +692,26 @@ _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
 # com fence, a do meio vira ∣). O mesmo passo dá a cada fórmula a fonte e o tamanho do CORPO
 # (o objeto do Math não herda o parágrafo: saía 12pt em DejaVu Serif no meio do Latin Modern 11pt).
 # Fail-open: se o python falhar, o PDF sai como sairia sem ele.
-# Testes: smoke-odt-math-bars.sh (papéis) e render-docs.sh (nenhum ¿ no papel). Fora: `\overline`
-# também some no PDF (nenhuma grafia de MathML que o LibreOffice aceite foi achada).
+# E as IMAGENS (24/09/2026, "não podem ficar gigantes nem sair da página"): ODT ignora o
+# `img{max-width:100%}` da web; o pandoc punha PNG sem DPI a 1 px = 1 pt e o LibreOffice CORTAVA o que
+# passava da página. Antes do pandoc, `_doc_html_img_widths` passa o `{width=50%}` do autor (que chega
+# como `style=`, ignorado pelo leitor de HTML do pandoc) para ATRIBUTO; depois dele, o mesmo script põe
+# cada imagem no menor entre o tamanho da web (px × 0,75 pt) e o do DPI do arquivo, com teto na área
+# útil do reference-doc — nunca maior do que já saía.
+# Testes: smoke-odt-math-bars.sh (papéis, tipografia, imagens) e render-docs.sh (nenhum ¿ e nenhuma
+# imagem fora da página, no papel). Fora: `\overline` também some no PDF (nenhuma grafia de MathML que
+# o LibreOffice aceite foi achada); a rota `_doc_html2pdf` (soffice direto no HTML — capa, errata, info
+# sheet, TL, e enunciado sem pandoc) também corta imagem grande, e hoje nenhum desses tem imagem.
 _doc_odt_fix_math(){ python3 "$_DIR/lib/odt-math-bars.py" "$1" >/dev/null 2>&1 || true; }
+_doc_html_img_widths(){ python3 "$_DIR/lib/odt-math-bars.py" --html-widths "$1" >/dev/null 2>&1 || true; }
 _doc_html2pdf_odt(){
   local src="$1" out="$2" work rf refodt=()
   command -v pandoc >/dev/null 2>&1 || return 1
   work="$(mktemp -d)"
   rf="$_DIR/../../etc/caderno-reference.odt"; [[ -f "$rf" ]] || rf="$_DIR/etc/caderno-reference.odt"
   [[ -f "$rf" ]] && refodt=( --reference-doc="$rf" )
-  if pandoc -f html -t odt "${refodt[@]}" "$src" -o "$work/doc.odt" 2>/dev/null; then
+  cp -f "$src" "$work/in.html" && _doc_html_img_widths "$work/in.html"   # cópia: o src é do chamador
+  if pandoc -f html -t odt "${refodt[@]}" "$work/in.html" -o "$work/doc.odt" 2>/dev/null; then
     _doc_odt_fix_math "$work/doc.odt"
     soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
             --outdir "$work" "$work/doc.odt" >/dev/null 2>&1
