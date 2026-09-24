@@ -402,10 +402,16 @@ ALLOWPARALLELTEST=y
 
 Todas as chaves que o `build-and-test.sh` entende:
 
+> **Tolerância (drift) no relatório.** Um teste aceito com tempo acima do limite passou pela tolerância.
+> O `report.html` mostra esse tempo em **amarelo**, com quanto passou (`0.98s (+0.16s na tolerância)`).
+> Azul é dentro do limite e a cor de TLE é estouro. A tabela de testes do editor (test-run e
+> calibração) usa o mesmo amarelo.
+
 | Chave | Default | O que faz | Uso hoje |
 |---|---|---|---|
 | `TLMOD[calibrafactor]` | `1.35` | multiplicador aplicado ao tempo da solução `good` para virar o tempo-limite. Subir dá folga ao aluno | 453 |
-| `TLMOD[<lang>.drift]` | `0` | tolerância de variação de tempo naquela linguagem antes de dar TLE | 404 (`java`) |
+| `TLMOD[<lang>.drift]` | `0` | tolerância (em segundos) acima do tempo-limite antes de dar TLE, naquela linguagem: o teste só é TLE quando `tempo − TL > tolerância` | 404 (`java`) |
+| `TLMOD[default.drift]` | — | a mesma tolerância para **toda** linguagem que não tem a sua (`TLMOD[<lang>.drift]` vence). Vale no julgamento e na conferência das soluções da calibração (uma `good` dentro da tolerância não é "divergente") | 0 |
 | `TLMOD[<lang>.sum]` | `0` | soma um valor fixo (em segundos) ao tempo-limite daquela linguagem | 405 (`spim`) |
 | `TLMOD[<lang>.mult]` | `1` | multiplica o tempo-limite daquela linguagem | 0 |
 | `ULIMITS[-u]` | `1024` | número máximo de processos. Java e outras runtimes precisam de mais (o acervo usa `10000`) | 453 |

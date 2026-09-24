@@ -52,6 +52,7 @@ fi
 # as soluções que o pacote tem HOJE (o `missing` do sumário) + o ALLOWTLEDURINGCALIBRATION do conf
 pfiles="$(calx_pkg_files "$pkg")"; [[ -n "$pfiles" ]] || pfiles='[]'
 allowtle="$(calx_allowtle "$pkg")"
+drift="$(calx_drift "$pkg")"; [[ -n "$drift" ]] || drift='{}'   # TLMOD[<lang>|default.drift] do conf
 
 # CORPO ANTES DO CABEÇALHO (pode ser grande: log + sols por host — sai p/ arquivo).
 # npy normaliza chaves de TL py3/py2 legadas (calibração pré-unificação) p/ 'py'.
@@ -61,7 +62,7 @@ allowtle="$(calx_allowtle "$pkg")"
 BODYF="$(mktemp)"; trap 'rm -f "$LOGF" "$BODYF"' EXIT
 jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs" \
    --arg pkgver "$pkgver" --argjson clive "$calibrating" --argjson ov "$(tl_conf_overrides "$pkg")" \
-   --argjson pfiles "$pfiles" --argjson allowtle "$allowtle" "$CALX_JQ"'
+   --argjson pfiles "$pfiles" --argjson allowtle "$allowtle" --argjson drift "$drift" "$CALX_JQ"'
   def npy: if .=="py3" or .=="py2" then "py" else . end;
   ($lg[0] // {}) as $logs
   | ($store.hosts // {}) as $h
@@ -81,14 +82,14 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
       | ($logs[$n].version // "") as $hv
       | { host:$n,
           stale:(($pkgver != "") and ($hv != "") and ($hv != $pkgver)),
-          sols:(($logs[$n].sols // []) | map(. + {expect: calx($eff; $allowtle)})) } ] as $hx
+          sols:(($logs[$n].sols // []) | map(. + {expect: calx($eff; $allowtle; $drift)})) } ] as $hx
   | ($hx | map({(.host): .}) | add // {}) as $hxm
   | { success:true, id:($store.id // ""), checksum:($store.checksum // ""), version:$pkgver,
       being_calibrated:(($clive|length) > 0), calibrating:$clive,
       good_langs:$gl, tl_override:$ov,
       time_limits:$eff, time_limits_calibrated:$cal,
       missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host
-      allow_tle:$allowtle,
+      allow_tle:$allowtle, drift:$drift,
       summary:calx_sum([ $hx[] | select(.stale | not) ]; $pfiles),
       hosts: [ $hosts[] as $n
                | ($h[$n].tl // {}) as $htl

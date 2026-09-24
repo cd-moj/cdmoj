@@ -19,13 +19,19 @@ const OK_CODES = new Set(['AC', 'AC,PE']);
 const secs = (v) => (v == null || v === '' || !Number.isFinite(+v)) ? '—' : (+(+v).toFixed(4)) + 's';
 
 // tabela de testes {name, code, time, tl} — o MESMO visual da calibração por extenso (solsBlock do
-// editar.js usa esta função; uma implementação só)
+// editar.js usa esta função; uma implementação só). Teste ACEITO com tempo acima do TL passou pela
+// tolerância do conf (TLMOD[<lang>|default.drift]): o tempo fica em amarelo, com a explicação no title —
+// sem isso lia-se "passou do limite e deu AC?" (relato do Daniel Saad sobre o report.html, 24/09/2026).
+const overTol = (t) => OK_CODES.has(t.code) && t.time != null && t.tl != null && +t.time > +t.tl;
 export function testsTable(tests) {
   const tb = el('tbody', {});
   (tests || []).forEach(t => tb.append(el('tr', {},
     el('td', {}, t.name || ''),
     el('td', { class: OK_CODES.has(t.code) ? '' : 'bad' }, t.code || '—'),
-    el('td', { class: 'num' }, t.time == null ? '—' : (+t.time).toFixed(2) + 's'),
+    el('td', overTol(t)
+      ? { class: 'num drift', title: T('Acima do tempo-limite, mas aceito pela tolerância do conf (TLMOD[<linguagem>.drift] ou TLMOD[default.drift]).',
+                                         'Above the time limit, but accepted by the conf tolerance (TLMOD[<language>.drift] or TLMOD[default.drift]).') }
+      : { class: 'num' }, t.time == null ? '—' : (+t.time).toFixed(2) + 's'),
     el('td', { class: 'num' }, t.tl == null ? '—' : secs(t.tl)))));
   return el('table', { class: 'soltests' },
     el('thead', {}, el('tr', {},

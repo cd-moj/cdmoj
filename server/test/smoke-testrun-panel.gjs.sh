@@ -117,6 +117,13 @@ const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve()
   // 10. localStorage quebrado não derruba
   STORE_BROKEN = true; const tr3 = mk(); tr3.refresh(); await flush();
   ck('localStorage quebrado: lista vazia, sem exceção', cardsOf(tr3).length === 0);
+  // testsTable: teste ACEITO acima do TL (passou pela tolerância do conf) = tempo em amarelo com explicação;
+  // TLE e AC dentro do limite não (relato do Daniel Saad, 24/09/2026)
+  const tt = testsTable([{name:'a',code:'AC',time:0.5,tl:0.82},{name:'b',code:'AC',time:0.98,tl:0.82},{name:'c',code:'TLE',time:1.3,tl:0.82},{name:'d',code:'AC,PE',time:0.9,tl:0.82}]);
+  const timeCells = all(tt).filter(n => n.tagName==='TD' && n._cls.has('num') && /s$/.test(txt(n)) && !/^0\.82/.test(txt(n)));
+  const cls = (i) => timeCells[i]._cls.has('drift');
+  ck('testsTable: AC dentro do TL sem destaque; AC acima do TL em amarelo; TLE não; AC,PE acima também', timeCells.length === 4 && !cls(0) && cls(1) && !cls(2) && cls(3));
+  ck('testsTable: o amarelo explica a tolerância no title', /tolerância/.test(timeCells[1].attrs.title || ''));
   print(`RESULT: ${PASS} passed, ${FAIL} failed`);
 })().catch(e => { print('EXCEÇÃO: ' + e + '\n' + (e.stack || '')); print('RESULT: 0 passed, 1 failed'); });
 JS

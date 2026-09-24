@@ -50,8 +50,11 @@ export function expectGot(ex) {
   const wrongish = (n.WA || 0) + (n.RE || 0) + (n.MLE || 0);
   switch (ex.why) {
     case 'all_ac': return T('aceita em todos os testes', 'accepted on every test');
-    case 'over_tl': return T(`aceita, mas levou ${s2(ex.tmax)} — acima do tempo-limite de ${s2(ex.tl)} que o juiz cobra (TLOVERRIDE baixo demais?). No julgamento ela tomaria TLE.`,
-                             `accepted, but took ${s2(ex.tmax)} — above the ${s2(ex.tl)} time limit the judge enforces (TLOVERRIDE too low?). On real judging it would get TLE.`);
+    case 'over_tl': {
+      const tol = ex.drift > 0 ? T(` + ${s2(ex.drift)} de tolerância`, ` + ${s2(ex.drift)} tolerance`) : '';
+      return T(`aceita, mas levou ${s2(ex.tmax)} — acima do tempo-limite de ${s2(ex.tl)}${tol} que o juiz cobra (TLOVERRIDE baixo demais?). No julgamento ela tomaria TLE.`,
+               `accepted, but took ${s2(ex.tmax)} — above the ${s2(ex.tl)}${tol} time limit the judge enforces (TLOVERRIDE too low?). On real judging it would get TLE.`);
+    }
     case 'failed': return T('não foi aceita: ', 'not accepted: ') + cnt;
     case 'tle_allowed': return T('estourou o tempo, e o conf permite (ALLOWTLEDURINGCALIBRATION=y)', 'exceeded the time, and the conf allows it (ALLOWTLEDURINGCALIBRATION=y)');
     case 'tle': return T('estourou o tempo — o tempo-limite pega esta solução', 'exceeded the time — the time limit catches this solution');

@@ -41,6 +41,7 @@ ck('sem expect = sem pílula', expectPill(undefined)===null && expectPill({state
 ck('wrong com TLE: diz o motivo e não lista o AC', (()=>{ const g=expectGot({state:'note',why:'failed_other',counts:{AC:2,TLE:1}}); return g.includes('TLE 1') && !g.includes('AC'); })());
 ck('slow com WA: conta os testes errados', expectGot({state:'note',why:'tle_and_wrong',counts:{TLE:1,WA:2}}).includes('2 testes'));
 ck('good acima do override: mostra tempo e TL', (()=>{ const g=expectGot({why:'over_tl',tmax:0.9,tl:0.5}); return g.includes('0.9s') && g.includes('0.5s'); })());
+ck('over_tl com tolerância: cita a tolerância', expectGot({why:'over_tl',tmax:0.9,tl:0.5,drift:0.1}).includes('0.5s + 0.1s de tolerância') && !expectGot({why:'over_tl',tmax:0.9,tl:0.5,drift:0}).includes('tolerância'));
 ck('o que cada categoria pede', ['good','pass','slow','wrong'].every(c=>expectWant(c).startsWith('esperado')) && expectWant('upcoming')==='');
 ck('pendências com número', pendingLabel('sols_divergent:2')==='2 soluções divergentes' && pendingLabel('issues_open:1')==='1 issue aberta');
 ck('pendência com lista de linguagens', pendingLabel('good_no_tl:c,py').endsWith('c,py'));

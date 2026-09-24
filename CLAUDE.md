@@ -462,6 +462,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   lia a string do veredicto); publicar com pendência pede confirmação (editor, Painel e `moj public on`),
   nada bloqueia (decisão do Ribas). ⚠ O jq mora em variável: rode `smoke-calib-expect.sh` também com o
   jq 1.7. Testes: `smoke-calib-expect.sh`, `smoke-sols-expect.gjs.sh`.
+  **Tolerância (drift)**: o `over_tl` compara com TL efetivo + tolerância do conf (`calx_drift`, grep de
+  `TLMOD[<lang>.drift]` › `TLMOD[default.drift]`) — a MESMA conta do `mojtools/build-and-test.sh`; mexeu
+  numa, mexa na outra. Na tabela de testes do editor (`testsTable`) e no `report.html`, teste aceito acima
+  do TL = amarelo (relato do Daniel Saad, 24/09: saía vermelho, a cor do WA).
   **Issues por problema** (`lib/problem-issues.sh` + `/problems/issues`, aba 🐞 do editor =
   `web/problemas/issues.js`, `moj issues`): loja FORA do pacote em `contests/treino/var/problem-issues/
   <org>/<prob>.json` (dentro do repo a issue mudaria o `pkg_rev` e daria 409 à toa, sumiria no upload e

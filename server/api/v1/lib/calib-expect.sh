@@ -13,6 +13,7 @@
 #   categoria │ ok (✓)                        │ note (≈ certo, outro motivo)  │ bad (✗)
 #   good      │ todos AC, tempo ≤ TL efetivo  │ TLE com ALLOWTLE…=y           │ algum não-AC · tempo > TL efetivo
 #   pass      │ todos AC, tempo ≤ TL efetivo  │ —                             │ algum não-AC · tempo > TL efetivo
+#   (TL efetivo = TLOVERRIDE › calibrado, MAIS a tolerância TLMOD[<lang>|default.drift] — a conta do juiz)
 #   slow      │ ≥1 TLE, o resto AC            │ ≥1 TLE + WA/RE/MLE em outros  │ nenhum TLE
 #   wrong     │ ≥1 WA                         │ falhou só por TLE/MLE/RE      │ todos AC
 #   qualquer  │ norun: CE, UE, linguagem indisponível, sem veredicto (a solução não exercitou os testes)
@@ -30,8 +31,10 @@ def calx_cls: if . == "AC" or . == "AC,PE" then "AC" elif . == "WA" then "WA" el
   elif . == "MLE" then "MLE" elif . == "RE" or . == "RE_NZEC" or . == "TMT" then "RE"
   elif . == "UE" then "UE" else "X" end;
 def calx_num: if type == "number" then . elif . == null then null else (tostring | tonumber? // null) end;
-# calx($eff; $allowtle): a expectativa de UMA solução. $eff = TL efetivo {lang:"seg"}; $allowtle = bool.
-def calx($eff; $allowtle):
+# calx($eff; $allowtle; $drift): a expectativa de UMA solução. $eff = TL efetivo {lang:"seg"}; $allowtle =
+# bool; $drift = a TOLERÂNCIA do conf {lang|default: seg} (calx_drift) — o juiz só dá TLE acima de TL +
+# tolerância (mojtools/build-and-test.sh), então "good mais lenta que o TL" também só é divergente acima dela.
+def calx($eff; $allowtle; $drift):
   (.category // "") as $cat
   | [ (.tests // [])[] | {c: ((.code // "") | calx_cls), t: (.time | calx_num)} ] as $ts
   | ($ts | reduce .[] as $x ({AC: 0, WA: 0, TLE: 0, MLE: 0, RE: 0, UE: 0, X: 0}; .[$x.c] += 1)) as $n
@@ -39,7 +42,9 @@ def calx($eff; $allowtle):
   | (.verdict // "" | tostring) as $v
   | ([ $ts[] | select(.c == "AC") | (.t // 0) ] | max) as $tmax
   | ((($eff // {})[(.lang // "")] // ($eff // {})["default"]) | calx_num) as $tl
-  | (($tl != null) and ($tmax != null) and ($tmax > $tl)) as $over
+  | (((($drift // {})[(.lang // "")] // ($drift // {})["default"] // 0) | calx_num) // 0) as $d
+  # a folga de 1e-9 é a da aritmética: o juiz decide em decimal exato (bc), o jq em ponto flutuante
+  | (($tl != null) and ($tmax != null) and ($tmax > ($tl + $d + 0.000000001))) as $over
   | ($n.WA + $n.RE + $n.MLE) as $wrongish
   | (if ($cat | IN("good", "pass", "slow", "wrong") | not) then {state: "skip", why: "category"}
      elif ($v | test("^Compilation Error")) then {state: "norun", why: "ce"}
@@ -60,7 +65,7 @@ def calx($eff; $allowtle):
         elif ($n.TLE + $n.MLE + $n.RE) > 0 then {state: "note", why: "failed_other"}
         else {state: "bad", why: "accepted"} end)
      end)
-  + {counts: ($n | del(.X) | with_entries(select(.value > 0))), tmax: $tmax, tl: $tl};
+  + {counts: ($n | del(.X) | with_entries(select(.value > 0))), tmax: $tmax, tl: $tl, drift: $d};
 # calx_val: o resultado do VALIDADOR DE ENTRADA de um host (entrada category=="validator" do sols).
 #   verdict: none (pacote sem validador) | ok | invalid | error (não compilou / infra)
 def calx_val:
@@ -104,6 +109,18 @@ calx_allowtle(){
     && { echo true; return; }
   echo false
 }
+# calx_drift <pkgdir> -> {lang: seg, default: seg}: a TOLERÂNCIA acima do TL antes de TLE, das linhas
+# TLMOD[<lang>.drift] / TLMOD[default.drift] do conf (a específica vence no calx; a última linha vence entre
+# repetidas, como no `source` do juiz). Por grep, como o tl_conf_overrides — o conf é código do autor.
+calx_drift(){
+  local conf="$1/conf" c=""
+  [[ -n "$1" && -f "$conf" ]] && c="$(<"$conf")" 2>/dev/null
+  [[ "$c" == *drift* ]] || { echo '{}'; return; }
+  sed -nE 's/^[[:space:]]*TLMOD\[([A-Za-z0-9]{1,16})\.drift\]=["'"'"']?([0-9]+\.?[0-9]*|\.[0-9]+)["'"'"']?[[:space:]]*(#.*)?$/\1\t\2/p' "$conf" 2>/dev/null \
+    | jq -Rnc '[inputs | split("\t") | select(length == 2)
+                | {((.[0] | if . == "py3" or . == "py2" then "py" elif . == "cc" or . == "cxx" or . == "c++" or . == "hpp" then "cpp" elif . == "h" then "c" else . end)): (.[1] | tonumber)}]
+               | add // {}'
+}
 # calx_pkg_files <pkgdir> -> ["good/a.cpp", …] — as soluções que a calibração deve rodar. O calibreitor
 # percorre sols/<cat>/* (o glob não pega arquivo oculto); a API roda com noglob, então é find.
 calx_pkg_files(){
@@ -123,20 +140,21 @@ calx_summary_ensure(){ mkdir -p "$CALX_SUM_DIR" 2>/dev/null; _summary_ensure "$C
 # que calibraram a VERSÃO ATUAL do pacote (a mesma regra de `stale` do /problems/calib). Chamado pelo
 # /judge/calib-report (rota de juiz: pode abrir o pacote) e pelo bin/calib-summary-rebuild.sh.
 calx_summary_write(){
-  local id="$1" pkg ver eff allow files d out t
+  local id="$1" pkg ver eff allow drift files d out t
   pkg="$(pkg_path "$id")"; [[ -n "$pkg" && -d "$pkg" ]] || return 0
   d="$CALIB_DIR/$id"; [[ -d "$d" ]] || return 0
   ver="$(pkg_judge_version "$pkg" "$id" 2>/dev/null)"; ver="${ver//[^0-9a-f]/}"
   eff="$(tl_store_served "$id" 2>/dev/null)"; jq -e 'type == "object"' >/dev/null 2>&1 <<<"$eff" || eff='{}'
   allow="$(calx_allowtle "$pkg")"
+  drift="$(calx_drift "$pkg")"; [[ -n "$drift" ]] || drift='{}'
   files="$(calx_pkg_files "$pkg")"; [[ -n "$files" ]] || files='[]'
   mkdir -p "$CALX_SUM_DIR" 2>/dev/null
   out="$(calx_summary_file "$id")"; t="$out.tmp.${BASHPID}"   # nome resolvido ANTES do redirect
   find "$d" -maxdepth 1 -name '*.json' -type f -exec cat {} + 2>/dev/null \
-    | jq -sc --arg id "$id" --arg ver "$ver" --argjson eff "$eff" --argjson allow "$allow" \
+    | jq -sc --arg id "$id" --arg ver "$ver" --argjson eff "$eff" --argjson allow "$allow" --argjson drift "$drift" \
         --argjson files "$files" --argjson now "$EPOCHSECONDS" "$CALX_JQ"'
         map(select(.host) | select(($ver == "") or ((.checksum // "") == "") or (.checksum == $ver))
-            | {host, sols: ((.sols // []) | map(. + {expect: calx($eff; $allow)}))})
+            | {host, sols: ((.sols // []) | map(. + {expect: calx($eff; $allow; $drift)}))})
         | calx_sum(.; $files) + {id: $id, version: $ver, at: $now, stale: false}' > "$t" 2>/dev/null \
     && [[ -s "$t" ]] && mv -f "$t" "$out" || { rm -f "$t"; return 1; }
   calx_summary_upsert "$id"

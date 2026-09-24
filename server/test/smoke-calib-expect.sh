@@ -26,15 +26,15 @@ echo "jq: $(jq --version)"
 
 # ---------------------------------------------------------------------------------------------------
 echo "== 1. a tabela (categoria × códigos por teste) =="
-# ex <categoria> <códigos separados por espaço> [verdict] [tempos] [eff-json] [allowtle] -> "state/why"
-ex(){ local cat="$1" codes="$2" v="${3:-x}" times="${4:-}" eff="${5:-{\}}" allow="${6:-false}"
+# ex <categoria> <códigos separados por espaço> [verdict] [tempos] [eff-json] [allowtle] [drift-json] -> "state/why"
+ex(){ local cat="$1" codes="$2" v="${3:-x}" times="${4:-}" eff="${5:-{\}}" allow="${6:-false}" drift="${7:-{\}}"
   jq -nr --arg cat "$cat" --arg codes "$codes" --arg v "$v" --arg times "$times" --argjson eff "$eff" \
-     --argjson allow "$allow" "$CALX_JQ"'
+     --argjson allow "$allow" --argjson drift "$drift" "$CALX_JQ"'
      ($codes | split(" ") | map(select(length > 0))) as $cs
      | ($times | split(" ") | map(select(length > 0) | tonumber)) as $tt
      | {category:$cat, lang:"cpp", verdict:$v,
         tests:[ range(0; $cs|length) as $i | {name:("t\($i)"), code:$cs[$i], time:($tt[$i] // 0.1)} ]}
-     | calx($eff; $allow) | "\(.state)/\(.why)"' 2>&1; }
+     | calx($eff; $allow; $drift) | "\(.state)/\(.why)"' 2>&1; }
 BODY=""
 ck "good: todos AC = ok"                         '[[ "$(ex good "AC AC,PE AC")" == ok/all_ac ]]'
 ck "good: um WA = bad"                           '[[ "$(ex good "AC WA")" == bad/failed ]]'
@@ -44,6 +44,11 @@ ck "good: TLE+WA com ALLOWTLE = bad"             '[[ "$(ex good "TLE WA" x "" "{
 ck "good acima do TLOVERRIDE = bad/over_tl (o AC que estoura o TL)" \
    '[[ "$(ex good "AC AC" x "0.3 0.9" "{\"cpp\":\"0.5\"}")" == bad/over_tl ]]'
 ck "good abaixo do TL efetivo = ok"              '[[ "$(ex good "AC AC" x "0.3 0.4" "{\"cpp\":\"0.5\"}")" == ok/all_ac ]]'
+ck "tolerância default: 0,86 s com TL 0,82 s + 0,1 = ok" '[[ "$(ex good "AC" x "0.86" "{\"cpp\":\"0.82\"}" false "{\"default\":0.1}")" == ok/all_ac ]]'
+ck "sem tolerância: o mesmo tempo é over_tl"        '[[ "$(ex good "AC" x "0.86" "{\"cpp\":\"0.82\"}")" == bad/over_tl ]]'
+ck "no limite exato de TL + tolerância: ok (o juiz usa >)" '[[ "$(ex good "AC" x "0.98" "{\"cpp\":\"0.82\"}" false "{\"cpp\":0.16}")" == ok/all_ac ]]'
+ck "java.drift não vale p/ cpp"                     '[[ "$(ex good "AC" x "0.86" "{\"cpp\":\"0.82\"}" false "{\"java\":0.1}")" == bad/over_tl ]]'
+ck "a da linguagem vence a default"                 '[[ "$(ex good "AC" x "0.86" "{\"cpp\":\"0.82\"}" false "{\"cpp\":0.01,\"default\":0.5}")" == bad/over_tl ]]'
 ck "TL efetivo cai no default sem a linguagem"   '[[ "$(ex pass "AC" x "0.9" "{\"default\":\"0.5\"}")" == bad/over_tl ]]'
 ck "pass: todos AC = ok"                         '[[ "$(ex pass "AC AC")" == ok/all_ac ]]'
 ck "pass: TLE = bad (mesmo com ALLOWTLE)"        '[[ "$(ex pass "AC TLE" x "" "{}" true)" == bad/failed ]]'
@@ -62,7 +67,7 @@ ck "linguagem indisponível = norun"              '[[ "$(ex wrong "" "Language '
 ck "UE num teste = norun"                        '[[ "$(ex wrong "WA UE")" == norun/ue ]]'
 ck "sem teste nem veredicto = norun"             '[[ "$(ex good "" "")" == norun/noverdict ]]'
 ck "categoria desconhecida = skip"               '[[ "$(ex upcoming "AC")" == skip/category ]]'
-CNT="$(jq -nc "$CALX_JQ"'{category:"slow",lang:"c",verdict:"x",tests:[{code:"TLE",time:1},{code:"WA",time:0.1},{code:"AC",time:0.2}]} | calx({}; false) | .counts')"
+CNT="$(jq -nc "$CALX_JQ"'{category:"slow",lang:"c",verdict:"x",tests:[{code:"TLE",time:1},{code:"WA",time:0.1},{code:"AC",time:0.2}]} | calx({}; false; {}) | .counts')"
 ck "counts por classe (sem zeros)"               '[[ "$CNT" == "{\"AC\":1,\"WA\":1,\"TLE\":1}" ]]'
 SUM="$(jq -nc "$CALX_JQ"'
   [ {host:"j1", sols:[ {category:"good",file:"a.cpp",expect:{state:"ok"}}, {category:"wrong",file:"w.py",expect:{state:"note"}},
@@ -141,6 +146,10 @@ get /problems/status "id=col%23pa" aut
 ck "status ?id= estreita a um problema"           '[[ "$(jq -r ".problems|length" <<<"$BODY")" == 1 ]]'
 get /problems/status "id=col%23outro" aut
 ck "status ?id= de problema alheio/inexistente = vazio" '[[ "$(jq -r ".problems|length" <<<"$BODY")" == 0 ]]'
+
+D="$(mktemp -d)"; printf 'TLMOD[java.drift]=0.02\n#TLMOD[cpp.drift]=9\nTLMOD[default.drift]="0.1"\nTLMOD[py3.drift]=.3\nTLMOD[java.drift]=0.05\n' > "$D/conf"
+BODY="$(calx_drift "$D")"; rm -rf "$D"
+ck "calx_drift: grep do conf (comentário fora, py3->py, última vence, aspas ok)" '[[ "$BODY" == "{\"java\":0.05,\"default\":0.1,\"py\":0.3}" ]]'
 
 echo "== 3. problem_commit: mexeu no que a calibração exercita => sumário velho =="
 printf 'y\n' > "$P/docs/enunciado.md"; problem_commit "$P" autor "só enunciado" >/dev/null
