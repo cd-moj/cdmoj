@@ -89,13 +89,86 @@ As operações são:
 
 **Citação**: comece a linha com `> `.
 
-**Imagem**: `![legenda](figura.png)`, com a figura em `docs/`, ao lado do `enunciado.md` (ou cole a
-imagem no editor web). Regras de nome e tamanho no [PACOTE](PACOTE.md). Para fixar a largura, em % da
-largura do texto: `![legenda](figura.png){width=50%}` — vale no site e no PDF. Sem ela, a imagem sai no
-tamanho natural, sem passar da página. **Grafo** desenhado a partir de DOT:
-`mojtools/docs/enunciado-grafos.md`.
+**Texto centralizado**: o bloco `::: center` (seção 3, "Centralizar") vale para texto também.
 
-## 3. Fórmulas: as regras
+**Imagens**: seção 3.
+
+### Tipografia
+
+| Você escreve | Sai | PDF |
+|---|---|---|
+| `1--10` (meia-risca, para intervalos) | 1–10 | ✓ |
+| `pausa --- assim` (travessão) | pausa — assim | ✓ |
+| `"aspas"` e `'simples'` (viram curvas sozinhas) | “aspas” e ‘simples’ | ✓ |
+| `...` | … | ✓ |
+| `10\ km` (espaço que não quebra a linha) | 10 km | ✓ |
+| `~~tachado~~` | ~~tachado~~ | ✓ |
+| `[sublinhado]{.underline}` | <u>sublinhado</u> | ✓ |
+| `H~2~O`, `2^10^` (índice e expoente no **texto**; em fórmula use `$…$`) | H<sub>2</sub>O, 2<sup>10</sup> | ✓ |
+| `<!-- anotação do autor -->` | (não aparece) | ✓ |
+| `---` numa linha própria, com linha em branco antes | linha horizontal | ✓ |
+| linha terminada em `\` (quebra de linha forçada) | quebra a linha | ⚠ a linha antes da quebra sai esticada (o PDF é justificado); prefira parágrafos separados ou uma lista |
+| nota de rodapé: `texto[^1]` e, depois, `[^1]: a nota` | nota no fim | ⚠ **o texto da nota some no PDF**; escreva a observação no próprio texto ou numa seção `## Notas` |
+
+## 3. Imagens
+
+### Adicionar
+
+Ponha o arquivo em `docs/`, ao lado do `enunciado.md`, e cite pelo nome:
+
+```markdown
+![Mapa das cidades](mapa.png)
+```
+
+(ou cole/arraste a imagem no editor web: ela vai embutida no texto). Nomes simples (letras, dígitos,
+`.`, `_`, `-`), formatos png, jpg, jpeg, gif, svg ou webp, até 2 MB — detalhes no [PACOTE](PACOTE.md).
+
+O que você põe entre os colchetes decide o que sai:
+
+| Você escreve | Sai |
+|---|---|
+| `![Mapa das cidades](mapa.png)` sozinha no parágrafo | **figura**: a imagem e, embaixo, a legenda "Mapa das cidades" (em itálico no PDF) |
+| `![](mapa.png)` sozinha no parágrafo | a imagem, sem legenda |
+| `… o símbolo ![](seta.png) indica …` no meio da frase | a imagem dentro da linha — só para ícones pequenos |
+
+### Tamanho
+
+Sem nada, a imagem sai no tamanho natural, sem passar da largura do texto (no site) nem da página
+(no PDF). Para escolher, dê a largura **em %** da largura do texto:
+
+```markdown
+![Mapa das cidades](mapa.png){width=50%}
+```
+
+Vale no site e no PDF, e a altura acompanha (a proporção é mantida).
+
+### Centralizar
+
+Por padrão a imagem (e a figura) fica à **esquerda**. Para centralizar, ponha dentro de um bloco
+`::: center`, com uma linha em branco antes:
+
+```markdown
+A rede fica assim:
+
+::: center
+![Mapa das cidades](mapa.png){width=60%}
+:::
+```
+
+Vale no site (a página do problema, a prova, a aba HTML e o Pré-visualizar do editor) e no PDF, com a
+legenda centralizada junto. Dentro do bloco pode ir mais de uma imagem, e texto também. (O
+`moj preview` da linha de comando ainda mostra o bloco à esquerda.)
+
+| Não funciona | Por quê |
+|---|---|
+| `![Mapa](mapa.png){.center}` | classe na **imagem** não centraliza (o `.center` é para o bloco) |
+| `<center>…</center>` ou `<div style="text-align:center">…</div>` | HTML cru: centraliza no site, mas **não no PDF** |
+
+### Grafo
+
+Um grafo desenhado a partir de DOT, em vez de imagem colada: `mojtools/docs/enunciado-grafos.md`.
+
+## 4. Fórmulas: as regras
 
 - **Na linha**: `$...$`. **Em destaque** (centralizada, no próprio parágrafo): `$$...$$`.
 - **Nada de espaço colado no `$`**: `$ x $` **não** é fórmula (sai o texto `$ x $`). Escreva `$x$`.
@@ -107,7 +180,7 @@ tamanho natural, sem passar da página. **Grafo** desenhado a partir de DOT:
 - **Macros** funcionam: `\newcommand{\abs}[1]{\left|#1\right|}` num parágrafo próprio, e depois
   `$\abs{x}$`.
 
-## 4. Fórmulas: a cola
+## 5. Fórmulas: a cola
 
 Cada linha: o que você escreve, como sai no site, e como sai no PDF do caderno.
 
@@ -183,7 +256,7 @@ Cada linha: o que você escreve, como sai no site, e como sai no PDF do caderno.
 Com acento, se o PDF importa, prefira outro nome (`$m$` para a média em vez de `$\bar{x}$`,
 `$g$` em vez de `$f'$`). No site, tudo sai certo.
 
-## 5. Parênteses, colchetes e barras
+## 6. Parênteses, colchetes e barras
 
 Escreva como no TeX; o tamanho se resolve sozinho:
 
@@ -198,7 +271,7 @@ Escreva como no TeX; o tamanho se resolve sozinho:
   `$a \nmid b$` → $a \nmid b$, `$P(A \mid B)$` → $P(A \mid B)$.
 - **Ângulo**: `$\langle a, b \rangle$` → $\langle a, b \rangle$.
 
-## 6. Estruturas: casos, matrizes, alinhamento
+## 7. Estruturas: casos, matrizes, alinhamento
 
 Definição por casos:
 
@@ -226,7 +299,7 @@ $$\begin{aligned} S &= a_1 + a_2 + \cdots + a_n \\ &= \frac{n(n+1)}{2} \end{alig
 
 Todas saem certas no PDF (✓).
 
-## 7. O que evitar
+## 8. O que evitar
 
 | Evite | Por quê | Escreva |
 |---|---|---|
@@ -236,8 +309,10 @@ Todas saem certas no PDF (✓).
 | exemplo copiado no texto | aparece duplicado (os exemplos vêm de `tests/`) | `tests/input/sample1` + `docs/notes/sample1.md` |
 | `$\bar{x}$`, `$f'$` quando o PDF importa | ver a tabela "Onde o PDF difere" | outro nome |
 | `{…}` para mostrar chaves | `{` só agrupa em TeX | `\{…\}` |
+| `<center>`, `<div style=…>` para centralizar | no PDF não centraliza | `::: center` (seção 3) |
+| nota de rodapé (`[^1]`) | no PDF o texto da nota some | a observação no texto ou em `## Notas` |
 
-## 8. Um enunciado completo
+## 9. Um enunciado completo
 
 ```markdown
 Uma loja registra o preço $p_i$ de cada um dos $N$ dias de uma temporada. Para um intervalo de
@@ -264,7 +339,7 @@ Para cada consulta, imprima uma linha com $L(l, r)$.
 | 2         | 70     | sem restrições adicionais |
 ```
 
-## 9. Como conferir
+## 10. Como conferir
 
 - **Site**: o botão **Pré-visualizar** do editor, ou `moj preview` na CLI (o mesmo renderizador
   do HTML que o aluno lê).
@@ -276,6 +351,8 @@ Para cada consulta, imprima uma linha com $L(l, r)$.
 *Para quem mantém o MOJ*: o PDF do caderno sai por `pandoc -f html -t odt` → `soffice`. O
 LibreOffice não desenha o MathML — traduz para StarMath e lê esse texto — e o
 `server/api/v1/lib/odt-math-bars.py` conserta o MathML no meio do caminho (tamanho e fonte da
-fórmula, delimitadores, caracteres de sintaxe, relação sem operando; e o tamanho das imagens). A coluna **PDF** desta página
+fórmula, delimitadores, caracteres de sintaxe, relação sem operando; e o tamanho das imagens); o
+`server/api/v1/lib/odt-center.lua` centraliza o bloco `::: center` (estilo `Center` do
+`server/etc/caderno-reference.odt`). A coluna **PDF** desta página
 foi medida com pandoc 3.1.11 e LibreOffice 25.2 (as versões da imagem); os testes que a sustentam
 são `server/test/smoke-odt-math-bars.sh` e `server/test/render-docs.sh`.
