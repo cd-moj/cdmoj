@@ -304,8 +304,27 @@ Regras:
 - Linha começando com `#` é **comentário**. Qualquer outra linha que não seja
   `<globs> - <N> pontos` é **ignorada com aviso** no log do juiz — não vire grupo.
 - O casamento teste→grupo é por **glob mesmo** (`aula_*` casa `aula_2_1`), e **todo teste
-  precisa cair num grupo** (teste órfão zera a submissão; grupo de peso>0 sem teste derruba o
-  veredicto). O `validate-problem.sh` confere tudo isso no upload (check `score_file_sane`).
+  precisa cair num grupo**. O `validate-problem.sh` confere tudo isso no upload (check
+  `score_file_sane`): teste sem grupo, ou grupo de peso>0 sem nenhum teste, é pacote quebrado —
+  se chegar ao juiz mesmo assim, a submissão sai **Judge Error** com nota 0 (erro do pacote, não
+  do aluno). Grupo de **peso 0** sem teste (ex.: `sample* - 0 pontos` num problema `SAMPLE=no`) é
+  aceito e não derruba nada.
+
+**O veredicto é o do pior teste; os grupos decidem só a nota.** Um grupo que caiu por estouro de
+tempo sai **Time Limit Exceeded** com a nota dos grupos que passaram (e não "resposta errada"): é o
+mesmo veredicto que os testes dariam sem grupos. A string que o juiz devolve (e que o history guarda)
+é `<veredicto canônico>,<pontos>p. Pontos | <por grupo> | [quantitativos <código>(<n>) …]`:
+
+```
+Accepted,100p. Pontos | 30 | 70 |
+Time Limit Exceeded,30p. Pontos | 30 | 0 | quantitativos TLE(2) AC(8)
+Judge Error,0p. teste 'extra1' sem grupo em tests/score (erro do pacote)
+```
+
+O que o aluno lê é o prefixo (o servidor o canoniza na leitura) e a nota é o primeiro `NNp` da
+string. Até 24/09/2026 toda falha de grupo saía `Wrong,<n>p` — um TLE chegava ao aluno como "Wrong
+Answer". O histórico gravado antes disso fica como está (`Wrong,…` e o legado `Wrong. Pontos | …`
+seguem lidos como Wrong Answer); um rejulgamento traz o veredicto real.
 
 Quem interpreta é o `mojtools/score-summary.sh`, no juiz. Editar o `tests/score` (ou um
 `tests/output/*`) muda o checksum do pacote — o juiz re-baixa e recalibra sozinho.
@@ -830,8 +849,9 @@ Duas regras que mudaram em 22/09/2026 (antes o juízo era só da tela e olhava a
   `slow` assim é ≈, e uma `wrong` assim é ✓ (tem WA);
 - uma `wrong` que **não compila** era "ok" (não foi aceita). Hoje é ✗ **não rodou**.
 
-Em problema pontuado (`tests/score`) a string vira `Wrong,Np` mesmo quando a solução estourou o
-tempo; como o juízo olha os testes, uma `slow` com TLE é ✓.
+Em problema pontuado (`tests/score`) a string traz o veredicto do pior teste e a nota dos grupos
+(`Time Limit Exceeded,30p. Pontos | …`; até 24/09/2026 era sempre `Wrong,Np`). De qualquer jeito o
+juízo olha os testes: uma `slow` com TLE é ✓.
 
 O resultado vale para a **versão** do pacote que foi calibrada. Salvar algo que a calibração exercita
 (`sols/`, `tests/`, `scripts/`, `conf`) marca as soluções como **"não conferidas desde a última

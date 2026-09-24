@@ -499,7 +499,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   fazia toda regra de memória comparar com o epoch. Testes: `smoke-sched-width.sh` (68),
   `smoke-judge-config.sh` (rode também com o jq 1.7).
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
-  `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
+  `Accepted,100p` — gerado por `mojtools/build-and-test.sh`; com grupos,
+  `Time Limit Exceeded,30p. Pontos | 30 | 0 | quantitativos …`: o prefixo é o veredicto do PIOR teste,
+  nunca mais o `Wrong,<n>p` fixo de antes de 24/09/2026, e pacote quebrado é `Judge Error,0p. …` — o
+  aluno lê esse prefixo pelo `canon_team`, então prefixo e `verdict_canon` andam juntos; contrato preso
+  em `smoke-verdict-scored.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +
   **`groups`** (subtarefas: `[{earned,max},…]` na ordem do `tests/score`, quando o problema
   pontua por grupos; ausente = sem grupos). Fonte única = `report.env` do mojtools (os dois

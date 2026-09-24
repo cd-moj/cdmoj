@@ -76,8 +76,9 @@ function filteredSubs() {
   });
 }
 
-// head do veredicto: `Accepted,100p` e `Accepted,PE` viram "Accepted"; `Wrong,60p. Pontos | 30 |`
-// vira "Wrong". É o mesmo corte que o `by_verdict` das métricas usa (split na vírgula/ponto).
+// head do veredicto: `Accepted,100p` e `Accepted,PE` viram "Accepted"; `Time Limit Exceeded,30p. Pontos | 30 |`
+// (problema com grupos) vira "Time Limit Exceeded" e o legado `Wrong,60p. …` vira "Wrong". É o mesmo
+// corte que o `by_verdict` das métricas usa (split na vírgula/ponto).
 // (`classe¦texto` do veredicto manual: filtra pela CLASSE; a célula mostra "classe ¦ texto")
 function vHead(v) { return String(v || '').split('¦')[0].split(',')[0].split('.')[0].trim(); }
 const vShow = (v) => String(v || '').replace('¦', ' ¦ ');

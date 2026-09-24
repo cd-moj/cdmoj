@@ -4,7 +4,8 @@
 # problema seguia "validado" com solução de veredicto errado. O juízo morava só no navegador (`solOk` do
 # editor), lia a STRING do veredicto e errava em três casos:
 #   - com TLE e WA na mesma solução, o TLE vence a string e o WA some;
-#   - em problema pontuado a string é `Wrong,Np` e um slow que deu TLE aparecia "revisar";
+#   - em problema pontuado a string era `Wrong,Np` (até 24/09/2026 — hoje traz o pior teste) e um slow
+#     que deu TLE aparecia "revisar";
 #   - wrong com CE/UE/"linguagem indisponível" contava como ok (não prova nada sobre os testes).
 # E nada disso chegava ao Painel. Aqui o juízo olha o CÓDIGO DE CADA TESTE (`tests[].code`) e o TL
 # EFETIVO (o servido, com TLOVERRIDE): a calibração mede sem o override (MOJ_CALIBRATING=1), então uma

@@ -1,7 +1,9 @@
 # lib/verdict.sh — política de EXIBIÇÃO do veredicto ao competidor (fonte ÚNICA).
 #
 # O history em disco guarda a string de DISPLAY completa (com score embutido, ex.
-# "Wrong,60p. Pontos | 30 | 0 |") e NÃO muda — a canonização é só na LEITURA. O que o
+# "Time Limit Exceeded,30p. Pontos | 30 | 0 |" — com grupos, o prefixo é o pior teste; o legado
+# "Wrong,60p. …"/"Wrong. Pontos …", de antes de 24/09/2026, segue lido como Wrong Answer) e NÃO
+# muda — a canonização é só na LEITURA. O que o
 # competidor recebe nos endpoints de history é sempre o rótulo CANÔNICO
 # (Accepted/Wrong Answer/Time Limit Exceeded/Memory Limit Exceeded/Runtime Error/
 # Compilation Error/Judge Error); o DETALHE (score/grupos/testes) sai só pelo
