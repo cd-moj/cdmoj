@@ -5,7 +5,11 @@
 # cada report em run/calib/<id>/r/<host>/<nome>.html — p/ o autor inspecionar no editor.
 #   body: {host, id, checksum, log,
 #          reports:[{name, html_b64}],
-#          sols:[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]}   (sols: opcional)
+#          sols:[{file,lang,category,verdict,tests:[{name,code,time,tl,msg?}]}]}   (sols: opcional)
+# Uma entrada de `sols` pode ser o VALIDADOR DE ENTRADA (category "validator", tests[].code OK|INVALID|
+# FAIL + `msg` da testlib) — o agente repassa `sols` inteiro, então o repo do juiz não precisou mudar.
+# Depois de gravar, o sumário do Painel (run/calib-sum + run/calib-summary.json, lib/calib-expect.sh)
+# é refeito a partir dos hosts da versão ATUAL.
 # ⚠ `checksum` aqui é a VERSÃO DO PACOTE (o que o /judge/package-meta deu ao juiz —
 # `pkg_judge_version`, com `sols/` inteiro): é ela que diz de QUE versão do pacote saiu esta
 # calibração. O /problems/calib compara com a versão atual e marca o host como desatualizado em vez
@@ -16,6 +20,7 @@
 require_method POST
 require_worker
 source "$_DIR/../../judge-gw/sched-lib.sh"   # valid_hostname
+source "$_DIR/lib/tl-store.sh"; source "$_DIR/lib/problems.sh"; source "$_DIR/lib/calib-expect.sh"
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${CALIB_DIR:=$RUNDIR/calib}"
 
 bf="$(read_body_file)"; trap 'rm -f "$bf"' EXIT
@@ -56,7 +61,8 @@ if jq -e '(.sols // null) | type == "array"' "$bf" >/dev/null 2>&1 \
               category:(.category // "" | tostring), verdict:(.verdict // "" | tostring),
               tests:[ (.tests // [])[]
                       | {name:(.name // "" | tostring), code:(.code // "" | tostring),
-                         time:(.time | (tonumber? // null)), tl:(.tl | (tonumber? // null))} ]} ]' \
+                         time:(.time | (tonumber? // null)), tl:(.tl | (tonumber? // null))}
+                        + (if (.msg // null) == null then {} else {msg:(.msg | tostring | .[0:300])} end) ]} ]' \
     "$bf" > "$SOLSF" 2>/dev/null
 elif (( same )); then
   jq -c '.sols // []' "$f" > "$SOLSF" 2>/dev/null
@@ -70,5 +76,6 @@ tmp="$f.tmp.${BASHPID}"
     "$bf" ) > "$tmp" 2>/dev/null \
   && mv -f "$tmp" "$f" || { rm -f "$tmp"; fail 500 "Could not store calib log" "calib_store_fail"; }
 upd_cmd_clear "$host" "$id"   # calibração DIRIGIDA reportada: tira o marcador da tela
+calx_summary_write "$id" || true   # sumário do Painel (soluções conforme/divergentes, validador)
 audit_log "calib-report" "id=$id host=$host cks=${cks:0:8} reports=$(jq 'length' <<<"$names") sols=$(jq 'length' "$SOLSF")"
 ok_json '{recorded:true, id:$id, host:$h}' --arg id "$id" --arg h "$host"

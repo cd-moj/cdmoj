@@ -7,6 +7,7 @@ import { el, renderAuthArea, fmtDate } from '/shared/ui.js';
 import { hBarChart } from '/lib/charts.js';
 import { T } from '/shared/i18n.js';
 import { decorateSamples } from '/shared/statement-samples.js';
+import { pendingLabel } from '/problemas/readiness.js';
 
 async function downloadAuthed(path, filename) {
   try {
@@ -49,6 +50,9 @@ const PANEL_PREDS = {
   needs_recalibration: (p) => p.needs_recalibration,
   good_sol_no_tl: (p) => p.good_sol_no_tl,
   needs_review: (p) => p.needs_review,
+  ready: (p) => p.ready,
+  sols_divergent: (p) => p.sols && p.sols.state === 'bad',
+  inputs_invalid: (p) => p.inputs && (p.inputs.state === 'invalid' || p.inputs.state === 'error'),
 };
 const scard = (n, l, hl, fkey) => {
   const a = { class: 'scard' + (hl ? ' hl' : '') + (fkey ? ' clickable' : '') + (fkey && PANEL_FILTER === fkey ? ' on' : '') };
@@ -74,7 +78,39 @@ const tlCell = (p) => {
   return box;
 };
 const sevOf = (p) => p.needs_review ? 3 : p.needs_recalibration ? 2 : p.being_calibrated ? 1 : 0;
-const valChip = (p) => p.validated === 'ok' ? pill('ok', T('validado', 'validated')) : p.validated === 'error' ? pill('no', T('reprovado', 'rejected')) : pill('mut', T('não validado', 'not validated'));
+// PACOTE (era "validado"): a conferência ESTÁTICA do validate-problem.sh — arquivos, enunciado,
+// exemplos, testes emparelhados. Não roda solução; quem roda é a calibração (colunas ao lado). O rótulo
+// antigo fazia o autor achar que as soluções estavam conferidas (relato do Arthur Botelho, 22/09/2026).
+const PKG_TITLE = () => T('Conferência estática do pacote (enunciado, exemplos, testes emparelhados, solução good presente). Não roda solução — isso é a calibração.',
+  'Static check of the package (statement, samples, paired tests, good solution present). It runs no solution — that is calibration.');
+const valChip = (p) => p.validated === 'ok' ? pill('ok', T('pacote ok', 'package ok'), PKG_TITLE())
+  : p.validated === 'error' ? pill('no', T('pacote com erro', 'package error'), PKG_TITLE())
+  : pill('mut', T('pacote não conferido', 'package not checked'), PKG_TITLE());
+// SOLUÇÕES × o que a categoria pede (lib/calib-expect.sh no servidor) + ENTRADAS (validador)
+const solsChip = (p) => {
+  const s = p.sols || {}, out = [];
+  if (s.state === 'ok') out.push(pill('ok', T('✓ conforme', '✓ as expected')));
+  else if (s.state === 'note') out.push(pill('ok', T('✓ conforme', '✓ as expected'),
+    T(`${s.note} solução(ões) reprovada(s)/lenta(s) por outro motivo — abra o problema para ver.`, `${s.note} solution(s) rejected/slow for another reason — open the problem to see.`)));
+  else if (s.state === 'bad') out.push(pill('no', T(`${s.bad} divergente${s.bad === 1 ? '' : 's'}`, `${s.bad} diverging`),
+    T('Solução que não fez o que a categoria pede (good/pass reprovada ou acima do TL, slow sem TLE, wrong aceita, ou não rodou).',
+      'Solution that did not do what its category requires (good/pass rejected or above the TL, slow without TLE, wrong accepted, or did not run).')));
+  else if (s.state === 'partial') out.push(pill('warn', T('parcial', 'partial'), pendingLabel('sols_unchecked')));
+  else if (s.state === 'stale') out.push(pill('warn', T('a conferir', 'to check'), pendingLabel('sols_unchecked')));
+  else out.push(pill('mut', '—', T('Ainda sem resultado das soluções (calibre).', 'No solution results yet (calibrate).')));
+  const i = p.inputs || {};
+  if (i.state === 'invalid') out.push(' ', pill('no', T(`${i.invalid} entrada${i.invalid === 1 ? '' : 's'} inválida${i.invalid === 1 ? '' : 's'}`, `${i.invalid} invalid input(s)`)));
+  else if (i.state === 'error') out.push(' ', pill('no', T('validador falhou', 'validator failed')));
+  else if (i.state === 'ok') out.push(' ', pill('ok', T('entradas ✓', 'inputs ✓'), T('O validador de entrada aprovou todos os testes.', 'The input validator accepted every test.')));
+  return out;
+};
+// PRONTO = nenhuma pendência (o `pending` do servidor). Não pronto mostra quantas, com a lista no title.
+const readyChip = (p) => {
+  if (!Array.isArray(p.pending)) return '';
+  if (p.ready) return el('span', { class: 'pill ok', style: 'margin-left:.35rem' }, T('✓ pronto', '✓ ready'));
+  return el('span', { class: 'pill mut', style: 'margin-left:.35rem', title: p.pending.map(pendingLabel).join('\n') },
+    T(`${p.pending.length} pendência${p.pending.length === 1 ? '' : 's'}`, `${p.pending.length} pending`));
+};
 const calibChip = (p) => {
   if (p.being_calibrated) return pill('warn', T('calibrando…', 'calibrating…'));
   if (p.needs_recalibration) {
@@ -93,14 +129,23 @@ const untitledChip = (p) => !p.untitled ? '' :
     title: T('Este problema não tem título: nem no pacote (display_title) nem no enunciado. A lista mostra o identificador. Abra e dê um nome a ele.',
              'This problem has no title: neither in the package (display_title) nor in the statement. The list shows the identifier. Open it and give it a name.') },
     T('sem título', 'untitled'));
+// review_reasons em texto: os códigos novos são os mesmos do `pending`; os antigos têm rótulo próprio
+const pendingOrReason = (r) => r === 'validation_failed' ? pendingLabel('package_failed')
+  : r === 'public_unvalidated' ? T('público e o pacote nunca foi conferido', 'public and the package was never checked')
+  : r === 'public_uncalibrated' ? T('público e sem calibração', 'public and not calibrated')
+  : r === 'good_sol_rejected' ? T('solução good reprovada', 'good solution rejected')
+  : r.startsWith('good_sol_no_tl:') ? pendingLabel('good_no_tl:' + r.slice(15)) : pendingLabel(r);
 // chip "precisa revisão": solução good sem TL (falhou em todas as máquinas), público não validado/calibrado
 const reviewChip = (p) => {
   if (!p.needs_review) return '';
-  const rs = p.review_reasons || [];
+  // soluções/entradas têm a coluna própria (solsChip): aqui só o resto, senão o mesmo alarme sai duas vezes
+  const rs = (p.review_reasons || []).filter(r => !r.startsWith('sols_') && !r.startsWith('inputs_'));
+  if (!rs.length) return '';
   const label = rs.some(r => r.startsWith('good_sol_no_tl')) ? (T('good sem TL: ', 'good without TL: ') + (p.good_sol_missing_langs || []).join(','))
-    : rs.includes('public_unvalidated') ? T('público não validado', 'public unvalidated')
+    : rs.includes('validation_failed') ? T('pacote com erro', 'package error')
+    : rs.includes('public_unvalidated') ? T('público sem conferir o pacote', 'public, package not checked')
     : rs.includes('public_uncalibrated') ? T('público sem calibração', 'public uncalibrated') : T('revisar', 'review');
-  return el('span', { class: 'pill no', style: 'margin-left:.35rem', title: rs.join(', ') }, label);
+  return el('span', { class: 'pill no', style: 'margin-left:.35rem', title: rs.map(pendingOrReason).join('\n') }, label);
 };
 
 function stateBadges(p) {
@@ -496,8 +541,9 @@ async function openDetail(id) {
 
   const v = j.validation;
   const vbox = el('div', { style: 'margin-top:.6rem' });
-  vbox.append(el('h4', { style: 'margin:.4rem 0' }, T('Validação ', 'Validation '),
-    v ? (v.ok ? pill('ok', T('aprovado', 'passed')) : pill('no', T('reprovado', 'rejected'))) : pill('mut', T('não validado', 'not validated'))));
+  vbox.append(el('h4', { style: 'margin:.4rem 0' }, T('Pacote ', 'Package '),
+    v ? (v.ok ? pill('ok', T('ok', 'ok')) : pill('no', T('com erro', 'has errors'))) : pill('mut', T('não conferido', 'not checked'))),
+    el('div', { class: 'small muted2' }, PKG_TITLE()));
   if (v) {
     if (v.at) vbox.append(el('div', { class: 'small muted2' }, T('em ', 'on ') + fmtDate(v.at)));
     const ul = el('ul', { class: 'checks' });
@@ -506,7 +552,7 @@ async function openDetail(id) {
     vbox.append(ul);
     if (v.render_warnings) vbox.append(el('div', { class: 'small' }, pill('warn', T('avisos de render', 'render warnings')), ' ' + v.render_warnings));
   } else {
-    vbox.append(el('div', { class: 'small muted' }, T('Clique em “Validar & Publicar” para rodar o portão de qualidade num juiz.', 'Click “Validate & Publish” to run the quality gate on a judge.')));
+    vbox.append(el('div', { class: 'small muted' }, T('Clique em “Validar” para conferir o pacote (e pedir uma calibração, que roda as soluções num juiz).', 'Click “Validate” to check the package (and request a calibration, which runs the solutions on a judge).')));
   }
 
   const stmt = el('div', { style: 'margin-top:.6rem' });
@@ -572,7 +618,21 @@ async function openDetail(id) {
     } catch { calbox.innerHTML = ''; }
   })();
 
-  d.innerHTML = ''; d.append(head, vbox, calbox, stmt);
+  // PRONTO? — as pendências da linha do Painel (o `pending` do /problems/status: pacote, calibração,
+  // soluções × categoria, entradas, issues). É a mesma lista que o editor mostra ao publicar.
+  const prow = ((PANEL && PANEL.problems) || []).find(x => x.id === id);
+  const rbox = el('div', { style: 'margin-top:.6rem' });
+  if (prow && Array.isArray(prow.pending)) {
+    rbox.append(el('h4', { style: 'margin:.4rem 0' }, T('Pronto? ', 'Ready? '),
+      prow.ready ? pill('ok', T('✓ pronto', '✓ ready')) : pill('warn', T('ainda não', 'not yet'))));
+    if (prow.pending.length) {
+      const ul = el('ul', { class: 'checks' });
+      prow.pending.forEach(c => ul.append(el('li', {}, '✗ ' + pendingLabel(c))));
+      rbox.append(ul, el('div', { class: 'small muted2' },
+        el('a', { href: '/problemas/editar.html?id=' + encodeURIComponent(id) + '#pub' }, T('abrir no editor ✎ (Validação & calibração mostra cada solução)', 'open in the editor ✎ (Validation & calibration shows each solution)'))));
+    }
+  }
+  d.innerHTML = ''; d.append(head, rbox, vbox, calbox, stmt);
 }
 
 async function doAction(action, id) {
@@ -590,6 +650,16 @@ async function doAction(action, id) {
 // publica/despublica DE VERDADE (set-public checa a trava public_allowed da org — o 403 vira
 // mensagem explicando; validar é outro botão, portão de qualidade apenas).
 async function setPublic(id, on) {
+  // NÃO PRONTO sinaliza e confirma (decisão do Ribas, 24/09/2026): as pendências frescas do servidor
+  if (on) {
+    let pend = null;
+    try {
+      const st = await apiGet('/problems/status?id=' + encodeURIComponent(id), { contest: CONTEST, auth: true });
+      const row = (st.problems || []).find(x => x.id === id); pend = row ? row.pending : null;
+    } catch { /* sem o status, segue só com a confirmação de sempre */ }
+    if (Array.isArray(pend) && pend.length && !confirm(T('O problema ainda NÃO está pronto:\n\n', 'The problem is NOT ready yet:\n\n')
+        + pend.map(c => '• ' + pendingLabel(c)).join('\n') + T('\n\nPublicar mesmo assim?', '\n\nPublish anyway?'))) return;
+  }
   if (on && !confirm(T('⚠ TORNAR PÚBLICO publica "', '⚠ MAKING PUBLIC publishes "') + id +
       T('" no TREINO LIVRE — fica visível a TODOS.\n\nProblemas de prova devem ficar PRIVADOS até a prova passar. Confirmar a publicação?',
         '" in FREE TRAINING — visible to EVERYONE.\n\nExam problems must stay PRIVATE until the exam is over. Confirm publication?'))) return;
@@ -660,8 +730,11 @@ function renderPanel() {
   const cards = el('div', { class: 'scards' },
     scard(PANEL.total, T('acessíveis', 'accessible')),
     scard(c.being_calibrated || 0, T('calibrando', 'calibrating'), false, 'being_calibrated'),
-    scard(c.validated || 0, T('validados', 'validated'), false, 'validated'),
+    scard(c.ready || 0, T('prontos', 'ready'), false, 'ready'),
+    scard(c.validated || 0, T('pacote ok', 'package ok'), false, 'validated'),
     scard(c.calibrated || 0, T('calibrados', 'calibrated'), false, 'calibrated'),
+    scard(c.sols_divergent || 0, T('soluções divergentes', 'diverging solutions'), (c.sols_divergent || 0) > 0, 'sols_divergent'),
+    scard(c.inputs_invalid || 0, T('entradas inválidas', 'invalid inputs'), (c.inputs_invalid || 0) > 0, 'inputs_invalid'),
     scard(c.needs_recalibration || 0, T('precisa recalibrar', 'needs recalibration'), (c.needs_recalibration || 0) > 0, 'needs_recalibration'),
     scard(c.good_sol_no_tl || 0, T('good sem TL', 'good without TL'), (c.good_sol_no_tl || 0) > 0, 'good_sol_no_tl'),
     scard(c.needs_review || 0, T('precisa revisar', 'needs review'), (c.needs_review || 0) > 0, 'needs_review'));
@@ -696,15 +769,17 @@ function renderPanel() {
   const arrow = (key) => PANEL_SORT.key === key ? (PANEL_SORT.dir > 0 ? ' ▲' : ' ▼') : '';
   const th = (label, key) => el('th', { class: 'sortable', onclick: () => setPanelSort(key) }, label + arrow(key));
   const head = el('tr', {}, th(T('Problema', 'Problem'), 'title'), th(T('Autor', 'Author'), 'author'),
-    th(T('Validação', 'Validation'), 'validated'), th(T('Calibração', 'Calibration'), 'sev'), el('th', {}, T('Tempo-limite', 'Time limits')), th(T('Atualizado', 'Updated'), 'updated'));
+    th(T('Pacote', 'Package'), 'validated'), th(T('Calibração', 'Calibration'), 'sev'), el('th', {}, T('Soluções', 'Solutions')),
+    el('th', {}, T('Tempo-limite', 'Time limits')), th(T('Atualizado', 'Updated'), 'updated'));
   const tb = el('tbody');
   slice.forEach(p => tb.append(el('tr', {},
     el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openDetail(p.id); } }, p.title || p.prob || p.id),
-      untitledChip(p),
+      untitledChip(p), readyChip(p),
       el('div', { class: 'small muted2' }, p.id)),
     el('td', { class: 'small' }, p.author || '—'),
     el('td', {}, valChip(p)),
     el('td', {}, calibChip(p), reviewChip(p)),
+    el('td', {}, ...solsChip(p)),
     el('td', { class: 'small', style: 'font-family:var(--mono,monospace)' }, tlCell(p)),
     el('td', { class: 'small muted2' }, p.updated_at ? fmtDate(p.updated_at) : '—'))));
 

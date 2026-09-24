@@ -61,6 +61,10 @@ ck "sem sample* e sem flag: examples_present REPROVA com a dica" '[[ "$(ex)" == 
 val o/off
 ck "SAMPLE=no: examples_present passa (sem exemplos)"            '[[ "$(ex)" == "true sem exemplos (SAMPLE=no no conf)" ]]'
 ck "SAMPLE=no: sem aviso exemplo-no-texto; aviso de sample* escondido" '! jq -r "tostring" "$V" | grep -q "exemplo-no-texto" && jq -r "tostring" "$V" | grep -q "sample-oculto-por-SAMPLE=no(1)"'
+# bloco de código no texto COM SAMPLE=no: a precedência do `||` escapava da condição e avisava mesmo assim
+mkpkg o/cod 'SAMPLE=no\n'; printf '\n```\nf(3) = 9\n```\n' >> "$MOJ_PROBLEMS_DIR/o/cod/docs/enunciado.md"
+val o/cod
+ck "SAMPLE=no + bloco de código no texto: sem aviso exemplo-no-texto" '! jq -r "tostring" "$V" | grep -q "exemplo-no-texto"'
 val o/std
 ck "com sample1: passa (1 exemplo) e avisa o exemplo no texto"  '[[ "$(ex)" == "true 1 exemplo(s)" ]] && jq -r "tostring" "$V" | grep -q "exemplo-no-texto"'
 

@@ -395,6 +395,18 @@ problem_commit(){
       declare -F tl_fresh_drop >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
       [[ "$(pkg_tl_checksum "$pkg" "$_pid" 2>/dev/null)" == "$_st" ]] || tl_fresh_drop "$_pid"
     fi
+    # SUMÁRIO DAS SOLUÇÕES (lib/calib-expect.sh): se esta escrita mexe no que a calibração exercita
+    # (sols/, tests/, scripts/, conf), o "conforme/divergente" que o Painel mostra deixou de ser o de
+    # AGORA — vira "não conferido desde a última edição" até a próxima calibração. Só paga o
+    # `git status` quem já tem sumário.
+    declare -F calx_mark_stale >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/calib-expect.sh" 2>/dev/null
+    if declare -F calx_summary_file >/dev/null && [[ -s "$(calx_summary_file "$_pid")" ]]; then
+      if [[ ! -d "$pkg/.git" ]] \
+         || [[ -n "$(git -C "$pkg" status --porcelain -- sols tests scripts conf 2>/dev/null)" ]]; then
+        declare -F _summary_upsert >/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/tl-store.sh" 2>/dev/null
+        calx_mark_stale "$_pid"
+      fi
+    fi
   fi
   lk="$(problem_lockfile "$pkg")"
   (

@@ -53,6 +53,13 @@
     table.soltests th{background:var(--card,#1b1f26);font-weight:600}
     table.soltests td.num{text-align:right;font-variant-numeric:tabular-nums}
     table.soltests td.bad{color:#ff8a8a}
+    table.soltests td.vmsg{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;max-width:38rem}
+    /* o que a CATEGORIA pede × o que aconteceu (texto do servidor: lib/calib-expect.sh) */
+    .solexp{flex-basis:100%;margin:0 0 0 .2rem;font-size:.78rem;opacity:.85;line-height:1.35}
+    .solexp .got{color:#e0a64b;opacity:1}
+    .solsum{margin:.2rem 0 .4rem;padding:.3rem .6rem;border-radius:.4rem;font-size:.86rem;border:1px solid var(--border,#2a2a2a)}
+    .solsum.ok{border-color:#2e6b44} .solsum.todo{border-color:#8a6a2a} .solsum.bad{border-color:#8a2e2e;background:rgba(224,86,75,.08)}
+    .rdy.seal{font-weight:600;margin-left:.4rem}
     /* indicador de "executando no juiz" (calibração/validação em andamento) */
     .rdy.run .dot{background:#e0a64b;animation:moj-pulse 1s ease-in-out infinite}
     @keyframes moj-pulse{0%,100%{opacity:1}50%{opacity:.25}}
@@ -83,6 +90,7 @@
     .ex .exexpl-trans label{display:block;margin-top:.3rem}
     .pill{display:inline-block;padding:.05rem .5rem;border-radius:999px;font-size:.78rem}
     .pill.ok{background:#173d23;color:#7ee2a0} .pill.no{background:#3d1717;color:#ffb0b0} .pill.mut{background:#22262e;color:#9fb0c8}
+    .pill.warn{background:#3d3217;color:#ffd98a}
     #msg{min-height:1.2rem}
     .checks li{margin:.1rem 0}
 
@@ -281,9 +289,10 @@
       <section class="tabpane" data-pane="sols" hidden>
         <div class="section">
           <h3 data-en="Solutions &amp; Grading">Soluções &amp; Correção</h3>
-          <p class="small muted"><span data-en="Each category defines the">Cada categoria define o</span> <b data-en="result the solution must obtain">resultado que a solução deve obter</b> <span data-en="on the judge. Calibration and validation run these solutions and check that each behaves as expected — this ensures your tests are strong. Edit in the editor (with a language selector) or upload files. In the sub-tab">no juiz.
-            A calibração e a validação rodam essas soluções e conferem se cada uma se comporta como o esperado
-            — assim você garante que os testes estão fortes. Edite no editor (com seletor de linguagem) ou envie arquivos.
+          <p class="small muted"><span data-en="Each category defines the">Cada categoria define o</span> <b data-en="result the solution must obtain">resultado que a solução deve obter</b> <span data-en="on the judge. The calibration (the Calibrate button) runs these solutions on a judge and checks that each one does what its category requires — the result per solution appears in “Validation &amp; calibration” (Publishing tab). This is how you know your tests are strong. Edit in the editor (with a language selector) or upload files. In the sub-tab">no juiz.
+            A calibração (botão Calibrar) roda essas soluções num juiz e confere se cada uma faz o que a categoria
+            pede — o resultado por solução aparece em “Validação &amp; calibração” (aba Publicação). É assim que você
+            sabe que os testes estão fortes. Edite no editor (com seletor de linguagem) ou envie arquivos.
             Na sub-aba</span> <b data-en="⚙ grading">⚙ correção</b> <span data-en="you change the">você muda o</span> <b data-en="grading mode">modo de correção</b> <span data-en="(checker, comparator, interactive…).">(checker, comparador, interativo…).</span></p>
           <div id="solsWrap"></div>
           <!-- painel da CORREÇÃO ESPECIAL: vive FORA do #solsWrap (o renderSols o reconstrói e
@@ -499,8 +508,8 @@
       <!-- barra de ações (fixa, visível em todas as abas) -->
       <div class="bar2">
         <button id="save" class="btn" title="Grava o problema na org escolhida. Marque “tornar público” na aba Publicação para entrar no treino livre." data-en-title="Saves the problem to the chosen org. Check “make public” in the Publishing tab to enter free practice." data-en="Save">Salvar</button>
-        <button id="calibrate" class="btn ghost" title="Mede o tempo-limite: um juiz roda as soluções good e calcula o TL por linguagem. O resultado aparece em “Validação & calibração”." data-en-title="Measures the time limit: a judge runs the good solutions and computes the TL per language. The result appears in “Validation & calibration”." data-en="Calibrate">Calibrar</button>
-        <button id="publish" class="btn ghost" title="Roda o quality gate (o enunciado compila? exemplos visíveis? testes pareados? a solução good é aceita?), gera o enunciado/índice e calibra — deixa o problema pronto. Tornar PÚBLICO no treino livre é a opção “tornar público” + Salvar." data-en-title="Runs the quality gate (does the statement compile? samples visible? tests paired? is the good solution accepted?), generates the statement/index and calibrates — makes the problem ready. Making it PUBLIC in free practice is the “make public” option + Save." data-en="Validate">Validar</button>
+        <button id="calibrate" class="btn ghost" title="Um juiz roda TODAS as soluções: as good medem o tempo-limite por linguagem; pass, slow e wrong conferem se cada uma faz o que a categoria pede; o validador de entrada (se houver) confere os testes. O resultado aparece em “Validação & calibração”." data-en-title="A judge runs ALL solutions: the good ones measure the time limit per language; pass, slow and wrong check that each does what its category requires; the input validator (if any) checks the tests. The result appears in “Validation & calibration”." data-en="Calibrate">Calibrar</button>
+        <button id="publish" class="btn ghost" title="Confere o PACOTE (o enunciado compila? há exemplos? os testes têm entrada e saída? há solução good?), gera o enunciado e o índice e pede uma calibração. Esta conferência não roda solução: quem roda é a calibração, e o resultado dela aparece nas linhas Soluções e Entradas." data-en-title="Checks the PACKAGE (does the statement compile? are there samples? do the tests have input and output? is there a good solution?), generates the statement and the index and requests a calibration. This check runs no solution: calibration does, and its result appears in the Solutions and Inputs items." data-en="Validate">Validar</button>
         <span class="spacer"></span>
         <button id="delprob" class="btn ghost" type="button" style="display:none;color:#e66;border-color:#a44" title="Remove o problema do treino e do repositório do problema (irreversível; pede o id para confirmar)." data-en-title="Removes the problem from practice and from the problem repository (irreversible; asks for the id to confirm)." data-en="🗑 Remove problem">🗑 Remover problema</button>
         <span id="msg" class="small"></span>

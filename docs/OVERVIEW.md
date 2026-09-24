@@ -175,7 +175,14 @@ só agregados (sem logins, sem nomes de contests) — não vaza prova privada.
   (`pkg/.calib-sols.json`) que o juiz sobe no `/judge/calib-report` e o `GET /problems/calib`
   serve por host: `[{file,lang,category,verdict,tests:[{name,code,time,tl}]}]` — o **mesmo**
   formato do vetor `tests` de uma submissão. O editor o renderiza no cartão de cada juiz, e a CLI
-  o entrega cru (`moj calib --json`) para ferramentas externas.
+  o entrega cru (`moj calib --json`) para ferramentas externas. **O juízo "a solução fez o que a
+  categoria pede?" é do SERVIDOR** (`lib/calib-expect.sh`, 2026-09-24): pelos códigos de cada teste
+  contra o TL efetivo, cada solução ganha `expect` (✓ conforme · ≈ outro motivo · ✗ divergente ·
+  ✗ não rodou) e o `/judge/calib-report` grava um sumário por problema (`run/calib-sum/<id>.json` +
+  o mapa `run/calib-summary.json`, upsert por evento; o `problem_commit` o marca velho quando o
+  pacote muda em `sols/ tests/ scripts/ conf`). O Painel (`/problems/status`) lê dali as colunas
+  **Soluções** e **Entradas** e o estado **pronto** (`ready` + `pending`); "Validado" virou
+  **Pacote**, porque é só a conferência estática. Tabela das regras: `PACOTE.md` §10.
 - **`TLOVERRIDE[<lang>|default]` no conf do PACOTE**: o autor decide o TL na marra. O efetivo
   (`override[lang] // override[default] // calibrado`) vence **no julgamento** (o juiz aplica
   depois dos `TLMOD`) e em **toda exibição** (treino, contest, folha de TL, `/problems/tl`, que

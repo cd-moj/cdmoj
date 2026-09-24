@@ -315,13 +315,16 @@ As soluções de referência, separadas por categoria. **A extensão do arquivo 
 linguagem** (`sol.c` é C, `sol.cpp` é C++, `Main.java` é Java, e assim por diante). C++ aceita
 quatro extensões: `.cpp`, `.cc`, `.cxx` e `.c++`. O julgador trata as quatro como `cpp`.
 
-| Diretório | O que é | Para que serve |
+| Diretório | O que é | O que a calibração exige dela |
 |---|---|---|
-| `good/` | soluções **corretas** | **obrigatório, pelo menos uma.** É o que a calibração roda para descobrir o tempo-limite, e o que a validação exige que seja aceito |
-| `wrong/` | soluções **erradas** de propósito | conferir que os testes pegam o erro |
-| `slow/` | soluções **lentas** de propósito | conferir que o tempo-limite realmente reprova a solução ruim |
-| `pass/` | soluções que devem passar **raspando** | conferir que o tempo-limite não é apertado demais |
-| `upcoming/` | rascunhos | não entram na conferência |
+| `good/` | soluções **corretas** | **obrigatório, pelo menos uma.** Aceita em todos os testes, dentro do tempo-limite **efetivo** (o que o juiz cobra, com `TLOVERRIDE`). É a que a calibração usa para medir o tempo-limite |
+| `wrong/` | soluções **erradas** de propósito | **reprovada**, de preferência por resposta errada (WA): prova que os testes pegam o erro |
+| `slow/` | soluções **lentas** de propósito | **TLE** em pelo menos 1 teste e aceita nos outros: prova que o tempo-limite reprova a solução ruim |
+| `pass/` | soluções que devem passar **raspando** | aceita em todos os testes, dentro do tempo-limite efetivo: prova que o limite não é apertado demais |
+| `upcoming/` | rascunhos | não roda |
+
+A calibração confere cada solução contra essa tabela (seção 10, "Soluções") e o resultado aparece no
+editor, no Painel e no `moj calib`/`moj check`.
 
 Na prática, ponha uma `good` em cada linguagem que você quer que o aluno possa usar. O tempo-limite é
 calibrado **por linguagem**, e uma linguagem sem solução `good` aceita simplesmente não ganha
@@ -686,19 +689,29 @@ Em uma frase: **a org diz quem manda no problema, a coleção diz onde ele apare
 ## 10. Ciclo de vida de um problema
 
 ```
-  rascunho  ──►  validação  ──►  calibração  ──►  público
- (org privada)   (portão)        (nos juízes)    (treino livre)
+  rascunho  ──►  pacote conferido  ──►  calibrado  ──►  PRONTO  ──►  público
+ (org privada)   (botão Validar:       (no juiz: TL,    (nenhuma      (treino livre)
+                  estático)             soluções,        pendência)
+                                        entradas)
 ```
+
+"Pronto" não é um passo que alguém executa: é o nome do estado em que **todas** as dimensões abaixo
+estão verdes. Publicar continua possível sem ele, mas pede confirmação (subseção "Publicação").
 
 ### Rascunho
 
 O problema nasce na sua org (a pessoal, se você não escolher outra). Ele é privado: ninguém além dos
 membros da org vê que ele existe.
 
-### Validação (o portão de qualidade)
+### Pacote conferido (o botão Validar)
 
-Roda `mojtools/validate-problem.sh`, que grava um relatório em `run/validation/<id>.json`. **Todas**
-as checagens abaixo precisam passar (não existe checagem "opcional" que reprove pela metade):
+Roda `mojtools/validate-problem.sh`, que grava um relatório em `run/validation/<id>.json`. É uma
+conferência **estática** do conteúdo do pacote: arquivos, seções do enunciado, exemplos, testes
+emparelhados. **Não roda solução nenhuma.** Quem roda as soluções é a calibração (abaixo). Por isso a
+tela diz **"Pacote"**, e não mais "Validado": o nome antigo fazia o autor achar que as soluções
+estavam conferidas (relato do Arthur Botelho, 22/09/2026).
+
+**Todas** as checagens abaixo precisam passar (não existe checagem "opcional" que reprove pela metade):
 
 | Checagem | O que exige |
 |---|---|
@@ -717,9 +730,9 @@ Alguns avisos são **informativos** e não reprovam: LaTeX vazando na prosa do e
 escrito à mão dentro do texto, e checker commitado como binário (padrão antigo, deprecado: mande o
 fonte `scripts/checker.cpp` e deixe a bridge compilar).
 
-Sobre o `good_sol_accepts`: rodar as soluções exige um sandbox de verdade. Na máquina de
-desenvolvimento o `bwrap` é um no-op (`fbwrap`), então a validação **adia** essa checagem para a
-calibração, que roda num juiz real. Isso não é bug.
+Sobre o `good_sol_accepts`: rodar as soluções exige um sandbox de verdade, e o servidor não tem. A
+conferência do pacote **adia** essa checagem para a calibração, que roda num juiz real (o relatório diz
+"verificado na calibração"). O resultado de cada solução aparece na dimensão **Soluções**.
 
 Se a validação passa, ela **indexa** o problema (chama o `gen-problem-json.sh`), que gera o JSON que o
 aluno de fato consome, com o enunciado já em HTML.
@@ -744,6 +757,37 @@ O tempo-limite **servido** ao aluno é o **maior entre as máquinas**, para que 
 reprovada por ter caído num juiz mais lento. Uma linguagem só ganha tempo-limite se alguma solução
 `good` naquela linguagem foi **aceita** em algum juiz. Sem tempo-limite, a linguagem não fica
 disponível.
+
+O "Calibrar" explícito (editor, `moj calibrate`, publicar) roda **todas** as soluções. A calibração
+sob demanda, que um juiz faz sozinho na 1ª submissão de um pacote novo, roda **só as `good`** (é
+rápida de propósito): depois dela, as outras categorias aparecem "sem resultado".
+
+### Soluções: cada uma faz o que a categoria pede?
+
+A calibração devolve, por juiz e por solução, o código de **cada teste** (`AC`, `WA`, `TLE`, `MLE`,
+`RE`, `UE`). O **servidor** compara com a categoria (`server/api/v1/lib/calib-expect.sh`, a fonte
+única; o editor, o Painel e a CLI só mostram o resultado) e dá um de quatro estados:
+
+| Estado | Quando |
+|---|---|
+| ✓ **conforme** | a solução fez exatamente o que a categoria pede (tabela da seção `sols/`) |
+| ≈ **conforme, outro motivo** | fez o que a categoria pede, mas não do jeito típico: `wrong` reprovada só por TLE/MLE/RE (sem WA); `slow` com TLE, mas também com WA/RE em outros testes; `good` com TLE e `ALLOWTLEDURINGCALIBRATION=y` |
+| ✗ **divergente** | não fez: `good`/`pass` reprovada **ou mais lenta que o tempo-limite efetivo** (ex.: `TLOVERRIDE` abaixo do tempo medido — no julgamento ela tomaria TLE); `slow` sem TLE; `wrong` aceita |
+| ✗ **não rodou** | CE, UE (erro do corretor/juiz), linguagem indisponível no juiz, ou sem veredicto: a solução não exercitou os testes, então não prova nada |
+
+Duas regras que mudaram em 22/09/2026 (antes o juízo era só da tela e olhava a *string* do veredicto):
+
+- com TLE e WA na mesma solução, a string dizia só "Time Limit Exceeded" e o WA sumia. Hoje uma
+  `slow` assim é ≈, e uma `wrong` assim é ✓ (tem WA);
+- uma `wrong` que **não compila** era "ok" (não foi aceita). Hoje é ✗ **não rodou**.
+
+Em problema pontuado (`tests/score`) a string vira `Wrong,Np` mesmo quando a solução estourou o
+tempo; como o juízo olha os testes, uma `slow` com TLE é ✓.
+
+O resultado vale para a **versão** do pacote que foi calibrada. Salvar algo que a calibração exercita
+(`sols/`, `tests/`, `scripts/`, `conf`) marca as soluções como **"não conferidas desde a última
+edição"** até a próxima calibração. Salvar o enunciado não marca.
+
 
 ### O checksum, e o que dispara recalibração
 
@@ -775,11 +819,31 @@ força recalibração; trocar um teste, uma solução `good`, o `conf` ou um scr
 solução `pass`/`slow`/`wrong` **não** invalida o TL, mas manda o juiz buscar o pacote novo — é
 exatamente o que o "Calibrar" precisa para rodar o que você acabou de salvar.
 
+### Pronto
+
+O problema está **pronto** quando o `/problems/status` não tem nenhuma **pendência** (`pending`):
+
+| Pendência | Significa |
+|---|---|
+| `package_failed` / `package_unchecked` | a conferência do pacote reprovou / nunca rodou (botão Validar) |
+| `uncalibrated` / `needs_recalibration` | sem calibração / o pacote mudou desde a calibração |
+| `good_no_tl:<langs>` | solução `good` sem tempo-limite nessas linguagens (falhou em todos os juízes) |
+| `sols_divergent:<n>` | *n* soluções divergentes ou que não rodaram |
+| `sols_unchecked` | há solução sem resultado (calibração rápida) ou o pacote mudou desde a calibração |
+| `inputs_invalid:<n>` / `inputs_error` | o validador de entrada (`scripts/validator.cpp`) reprovou *n* testes / não rodou |
+
+O editor mostra o selo "✓ Pronto" ou "N pendências" na barra de cima. O Painel tem o card "prontos"
+e a coluna Soluções. `moj check` diz "pronto: SIM" ou lista as pendências.
+
 ### Publicação
 
-Publicar (`moj publish`, ou o botão no editor) faz o servidor **validar e calibrar**. O problema só
-entra no treino livre se os dois passarem. E, antes de tudo isso, a **org** precisa ter
-`public_allowed: true` (seção 7).
+Publicar (`moj publish`, ou o botão no editor) faz o servidor **conferir o pacote e calibrar**. O
+problema entra no treino livre quando a conferência do pacote passa (é ela que gera o enunciado
+servido). E, antes de tudo isso, a **org** precisa ter `public_allowed: true` (seção 7).
+
+**Publicar um problema que ainda não está pronto pede confirmação** com a lista de pendências (no
+editor, no Painel e no `moj publish`/`moj public on`; `--yes` só mostra a lista e segue). Nada
+**bloqueia** a publicação: é decisão de quem publica.
 
 ## 11. Perguntas frequentes
 

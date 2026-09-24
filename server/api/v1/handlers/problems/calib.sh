@@ -5,6 +5,7 @@
 require_method GET
 require_auth
 source "$_DIR/lib/tl-store.sh"; source "$_DIR/lib/orgs.sh"; source "$_DIR/lib/problems.sh"
+source "$_DIR/lib/calib-expect.sh"   # CALX_JQ: o que cada categoria tem de fazer (fonte única)
 : "${RUNDIR:=/home/ribas/moj/run}"; : "${CALIB_DIR:=$RUNDIR/calib}"
 
 id="$(param id)"
@@ -48,11 +49,19 @@ if [[ -n "$pkg" && -d "$pkg/sols/good" ]]; then
   [[ -n "$goodlangs" ]] || goodlangs='[]'
 fi
 
+# as soluções que o pacote tem HOJE (o `missing` do sumário) + o ALLOWTLEDURINGCALIBRATION do conf
+pfiles="$(calx_pkg_files "$pkg")"; [[ -n "$pfiles" ]] || pfiles='[]'
+allowtle="$(calx_allowtle "$pkg")"
+
 # CORPO ANTES DO CABEÇALHO (pode ser grande: log + sols por host — sai p/ arquivo).
 # npy normaliza chaves de TL py3/py2 legadas (calibração pré-unificação) p/ 'py'.
+# Cada solução ganha `expect` (lib/calib-expect.sh, contra o TL EFETIVO) e a resposta ganha `summary`
+# (o mesmo sumário que o /judge/calib-report grava p/ o Painel). A entrada category=="validator" (o
+# validador de entrada) sai de `sols` e vai p/ `hosts[].validator`.
 BODYF="$(mktemp)"; trap 'rm -f "$LOGF" "$BODYF"' EXIT
 jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs" \
-   --arg pkgver "$pkgver" --argjson clive "$calibrating" --argjson ov "$(tl_conf_overrides "$pkg")" '
+   --arg pkgver "$pkgver" --argjson clive "$calibrating" --argjson ov "$(tl_conf_overrides "$pkg")" \
+   --argjson pfiles "$pfiles" --argjson allowtle "$allowtle" "$CALX_JQ"'
   def npy: if .=="py3" or .=="py2" then "py" else . end;
   ($lg[0] // {}) as $logs
   | ($store.hosts // {}) as $h
@@ -68,11 +77,19 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
           | reduce $ks[] as $k ({}; .[$k] = ($ov[$k] // $ov["default"] // $cal[$k]))
           | with_entries(select(.value != null) | .value |= tostring)
      end) as $eff
+  | [ $hosts[] as $n
+      | ($logs[$n].version // "") as $hv
+      | { host:$n,
+          stale:(($pkgver != "") and ($hv != "") and ($hv != $pkgver)),
+          sols:(($logs[$n].sols // []) | map(. + {expect: calx($eff; $allowtle)})) } ] as $hx
+  | ($hx | map({(.host): .}) | add // {}) as $hxm
   | { success:true, id:($store.id // ""), checksum:($store.checksum // ""), version:$pkgver,
       being_calibrated:(($clive|length) > 0), calibrating:$clive,
       good_langs:$gl, tl_override:$ov,
       time_limits:$eff, time_limits_calibrated:$cal,
       missing_langs:[ $gl[] | select(. as $g | ($served|index($g)|not)) ],     # sem TL em NENHUM host
+      allow_tle:$allowtle,
+      summary:calx_sum([ $hx[] | select(.stale | not) ]; $pfiles),
       hosts: [ $hosts[] as $n
                | ($h[$n].tl // {}) as $htl
                | ($htl | keys | map(npy)) as $htlk
@@ -90,7 +107,11 @@ jq -cn --argjson store "$store" --slurpfile lg "$LOGF" --argjson gl "$goodlangs"
                    version:$hv, stale:$stale,
                    log:($logs[$n].log // null),
                    reports:(if $stale then [] else ($logs[$n].reports // []) end),
-                   sols:(if $stale then [] else ($logs[$n].sols // []) end) } ] }' > "$BODYF" 2>/dev/null
+                   sols:(if $stale then [] else [ $hxm[$n].sols[] | select(.category != "validator") ] end),
+                   validator:(if $stale then null
+                              else ([ $hxm[$n].sols[] | select(.category == "validator") ] | .[0]
+                                    | if . == null then null
+                                      else (calx_val + {file: (.file // ""), tests: (.tests // [])}) end) end) } ] }' > "$BODYF" 2>/dev/null
 [[ -s "$BODYF" ]] || fail 500 "Falha ao montar a resposta" "calib_fail"
 emit_json 200 OK
 cat "$BODYF"

@@ -439,7 +439,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   do `.calib-sols.json` do calibreitor via `/judge/calib-report` — que PRESERVA sols/reports
   quando o POST vem sem eles com o MESMO checksum: re-envio de boot/agente velho não apagam;
   o editor web o renderiza no cartão de cada juiz — `solsBlock` em `web/problemas/editar.js`,
-  linha por solução com expectativa da categoria + tabela de testes expansível; host sem sols
+  linha por solução com o `expect` do servidor (✓/≈/✗ + "esperado · obtido") + tabela de testes expansível; host sem sols
   cai no fluxo antigo de log/reports);
   (2) **`TLOVERRIDE[<lang>|default]`** no conf do PACOTE = o autor manda no TL — julgamento
   (build-and-test) e TODA exibição usam o efetivo (`tl_store_served` aplica; servidor lê por
@@ -448,6 +448,20 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   avulsa no juiz com o contest **sentinela `_testrun`** (id de contest criável começa com
   `[a-z0-9]` — sentinela inatingível), desviado p/ `run/testrun/` no `ingest_result` — nunca
   history. Gate de tudo: `require_problem_edit`. Testes: `smoke-{tl-override,calib-sols,testrun}.sh`.
+- **"PRONTO" = pacote × calibração × soluções × entradas × issues** (relato do Arthur Botelho,
+  22/09/2026: "validado" seguia verde com solução de veredicto errado). "Validado" era só a conferência
+  ESTÁTICA do `validate-problem.sh` — virou **Pacote** nas telas e na CLI. O juízo "cada solução fez o que
+  a categoria pede?" é do SERVIDOR: **`lib/calib-expect.sh`** (`CALX_JQ`: `calx` por solução pelos
+  códigos de CADA teste contra o TL **efetivo**, `calx_sum` por problema, `calx_val` do validador de
+  entrada). O `/problems/calib` serve `expect` + `summary` + `hosts[].validator`; o `/judge/calib-report`
+  grava `run/calib-sum/<id>.json` + o mapa `run/calib-summary.json` (upsert por evento, rebuild a frio
+  sem abrir pacote); o **`problem_commit` marca o sumário velho** (`calx_mark_stale`) quando o commit
+  toca `sols/ tests/ scripts/ conf` (`git status --porcelain`, só p/ quem tem sumário); delete/move
+  chamam `calx_drop`. O `/problems/status` devolve `sols`, `inputs`, `pending` (códigos) e `ready`, e
+  aceita `?id=`. Web: `web/problemas/readiness.js` só TRADUZ os códigos (o `solOk` do editor saiu — ele
+  lia a string do veredicto); publicar com pendência pede confirmação (editor, Painel e `moj public on`),
+  nada bloqueia (decisão do Ribas). ⚠ O jq mora em variável: rode `smoke-calib-expect.sh` também com o
+  jq 1.7. Testes: `smoke-calib-expect.sh`, `smoke-sols-expect.gjs.sh`.
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +

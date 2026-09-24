@@ -12,6 +12,7 @@ import { T } from '/shared/i18n.js';
 import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
 import { makeTestRun, testsTable } from '/problemas/testrun.js';
+import { expectPill, expectWant, expectGot, summaryText, validatorText, pendingLabel } from '/problemas/readiness.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
@@ -39,6 +40,7 @@ let CAN_CREATE = false;
 let FMT = 'md';                       // formato do enunciado (md|org|tex) — preservado no save
 let SCORE = { enabled: false, groups: [] };   // pontuação por grupos (espelho do DOM)
 let VAL = { validated: 'na', calibrated: 'na' };   // estado p/ a barra de prontidão
+let PSTAT = null;   // a linha deste problema no /problems/status?id= (ready/pending/sols/inputs)
 let LASTVAL = null, LASTINFO = null, LASTCALIB = null;   // últimos dados de validação/calibração
 let RUNNING = '';                                        // '', 'calibrate' ou 'publish' — em execução no juiz
 let calibTimer = null, calibPollMs = 0, calibStart = 0, calibBusy = false;   // polling do resultado
@@ -399,16 +401,56 @@ function readyItems() {
   ];
   if (SCORE.enabled) items.push({ tab: 'tests', label: T('Pontuação', 'Scoring'), s: (SCORE.groups.length && scoreSum() > 0) ? 'ok' : 'todo' });
   items.push({ tab: 'limits', label: T('Limites', 'Limits'), s: limOK ? 'ok' : 'na' });
-  items.push({ tab: 'pub', label: T('Validado', 'Validated'), s: VAL.validated });
-  items.push({ tab: 'pub', label: T('Calibrado', 'Calibrated'), s: VAL.calibrated });
+  // "Validado" enganava: é a conferência ESTÁTICA do pacote (arquivos, seções, testes emparelhados,
+  // exemplos) — não roda solução nenhuma. Quem roda é a calibração: TL + Soluções + Entradas.
+  items.push({ tab: 'pub', label: T('Pacote', 'Package'), s: VAL.validated === 'todo' ? 'bad' : VAL.validated,
+    title: T('Conferência estática do pacote: enunciado, exemplos, testes emparelhados, solução good presente. Não roda nada — quem roda as soluções é a calibração.',
+             'Static check of the package: statement, samples, paired tests, good solution present. It runs nothing — calibration is what runs the solutions.') });
+  items.push({ tab: 'pub', label: T('Calibrado', 'Calibrated'), s: VAL.calibrated,
+    title: T('Um juiz mediu o tempo-limite rodando as soluções good.', 'A judge measured the time limit by running the good solutions.') });
+  items.push({ tab: 'pub', ...solsReady() });
+  const inp = inputsReady(); if (inp) items.push({ tab: 'pub', ...inp });
   items.push({ tab: 'pub', label: T('Público', 'Public'), s: loadedPublic ? 'ok' : 'na' });
   return items;
+}
+// SOLUÇÕES × o que a categoria pede (o `sols` do /problems/status, calculado no servidor)
+function solsReady() {
+  const st = PSTAT && PSTAT.sols && PSTAT.sols.state;
+  const title = T('Cada solução fez o que a categoria dela pede? (good/pass aceitas no tempo, slow estoura o tempo, wrong é reprovada) — conferido na calibração.',
+                  'Did each solution do what its category requires? (good/pass accepted in time, slow exceeds the time, wrong is rejected) — checked by calibration.');
+  const label = T('Soluções', 'Solutions');
+  if (VAL.calibrated === 'run') return { label, s: 'run', title };
+  if (st === 'ok' || st === 'note') return { label, s: 'ok', title };
+  if (st === 'bad') return { label: label + ` (${PSTAT.sols.bad} ✗)`, s: 'bad', title };
+  if (st === 'partial' || st === 'stale') return { label, s: 'todo', title: title + '\n' + pendingLabel('sols_unchecked') };
+  return { label, s: 'na', title };
+}
+// ENTRADAS: o validador de entrada (scripts/validator.cpp) que a calibração rodou; sem validador = cinza
+function inputsReady() {
+  const i = PSTAT && PSTAT.inputs; if (!i) return null;
+  const label = T('Entradas', 'Inputs');
+  const title = T('O validador de entrada (scripts/validator.cpp, testlib) aprovou todos os testes?', 'Did the input validator (scripts/validator.cpp, testlib) accept every test?');
+  if (i.state === 'ok') return { label, s: 'ok', title };
+  if (i.state === 'invalid') return { label: label + ` (${i.invalid} ✗)`, s: 'bad', title };
+  if (i.state === 'error') return { label, s: 'bad', title: validatorText(i) };
+  if (i.state === 'none') return { label, s: 'na', title: validatorText(i) };
+  return { label, s: 'na', title };
+}
+// o selo final: PRONTO ou a lista de pendências (as mesmas que a confirmação de publicar mostra)
+function readySeal() {
+  if (!ID || !PSTAT || !Array.isArray(PSTAT.pending)) return null;
+  const p = PSTAT.pending;
+  if (!p.length) return el('span', { class: 'rdy seal ok', title: T('Pacote conferido, calibrado, soluções e entradas conforme, sem issue aberta.', 'Package checked, calibrated, solutions and inputs as expected, no open issue.') },
+    el('span', { class: 'dot' }), el('span', {}, T('✓ Pronto', '✓ Ready')));
+  return el('span', { class: 'rdy seal todo', title: p.map(pendingLabel).join('\n') },
+    el('span', { class: 'dot' }), el('span', {}, T(`${p.length} pendência${p.length === 1 ? '' : 's'}`, `${p.length} pending`)));
 }
 function updateReady() {
   const box = $('ready'); if (!box) return;
   box.innerHTML = '';
-  readyItems().forEach(it => box.append(el('span', { class: 'rdy ' + it.s, title: T('ir para a aba', 'go to the tab'), onclick: () => showTab(it.tab) },
+  readyItems().forEach(it => box.append(el('span', { class: 'rdy ' + it.s, title: it.title || T('ir para a aba', 'go to the tab'), onclick: () => showTab(it.tab) },
     el('span', { class: 'dot' }), el('span', {}, it.label))));
+  const seal = readySeal(); if (seal) { seal.onclick = () => showTab('pub'); box.append(seal); }
   const nEx = $('examples').querySelectorAll('.ex').length, nTs = $('tests').querySelectorAll('.ex').length;
   $('tabTestsMini').textContent = (nEx + nTs) ? `(${nEx}+${nTs})` : '';
   const ns = SOL_CATS.reduce((a, [c]) => a + (solEditors[c] || []).length, 0);
@@ -924,11 +966,13 @@ async function preview() {
 
 // ---- validação & calibração (painel + prontidão, best-effort) -----------------------------
 async function loadValidation() {
-  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; LASTVAL = LASTINFO = LASTCALIB = null; renderVal(); updateReady(); return; }
+  if (!ID) { VAL = { validated: 'na', calibrated: 'na' }; LASTVAL = LASTINFO = LASTCALIB = PSTAT = null; renderVal(); updateReady(); return; }
   const g = (pfx) => apiGet(pfx + encodeURIComponent(ID), { contest: CONTEST, auth: true }).catch(() => null);
-  const [val, info, calib] = await Promise.all([     // 3 GETs em paralelo (antes era sequencial)
-    g('/problems/validation?id='), g('/problems/get?id='), g('/problems/calib?id='),
+  const [val, info, calib, st] = await Promise.all([     // 4 GETs em paralelo (antes era sequencial)
+    g('/problems/validation?id='), g('/problems/get?id='), g('/problems/calib?id='), g('/problems/status?id='),
   ]);
+  // a linha deste problema no Painel: sols/inputs/pending/ready (a MESMA regra que o Painel e a CLI usam)
+  if (st && Array.isArray(st.problems)) PSTAT = st.problems.find(p => p.id === ID) || PSTAT;
   // ERRO DE REDE NÃO APAGA A TELA: um 500/timeout num tick deixava LASTCALIB=null e os cartões dos
   // juízes SUMIAM até o tick seguinte (o `.catch(() => null)` acima é best-effort de propósito).
   if (val) LASTVAL = val;
@@ -1010,15 +1054,6 @@ const TL_LANG_NAME = { c: 'C', cpp: 'C++', cc: 'C++', cxx: 'C++', py: 'Python', 
   asm: 'Assembly', gas: 'Assembly', default: T('default (demais)', 'default (others)') };
 const tlLangName = (k) => TL_LANG_NAME[k] || k;
 const tlSecs = (v) => { if (v == null || v === '') return '—'; const n = +v; return (Number.isFinite(n) ? +n.toFixed(4) : v) + 's'; };
-// a solução se comportou como a CATEGORIA espera? (good/pass aceitam; wrong falha; slow estoura
-// o tempo). null = sem expectativa (categoria desconhecida). O mesmo juízo do calibreitor.
-function solOk(s) {
-  const v = s.verdict || '';
-  if (s.category === 'good' || s.category === 'pass') return v.startsWith('Accepted');
-  if (s.category === 'wrong') return !v.startsWith('Accepted');
-  if (s.category === 'slow') return v.includes('Time Limit');
-  return null;
-}
 // calibração POR EXTENSO de um juiz (h.sols): solução a solução, teste a teste — o mesmo
 // vetor do `moj calib` / `moj --json calib` (integração com ferramentas externas).
 function solsBlock(h) {
@@ -1028,7 +1063,8 @@ function solsBlock(h) {
   sols.forEach(s => {
     const key = h.host + '|' + (s.category || '?') + '/' + (s.file || '?');
     const tests = s.tests || [];
-    const ok = solOk(s);
+    // o juízo é do SERVIDOR (lib/calib-expect.sh: código de cada teste × categoria × TL efetivo)
+    const pill = expectPill(s.expect);
     const tdet = el('div', { style: 'display:' + (OPEN_SOLS.has(key) ? '' : 'none') });
     if (tests.length) tdet.append(testsTable(tests));   // o MESMO visual do test-run (problemas/testrun.js)
     else tdet.append(el('p', { class: 'muted', style: 'margin:.1rem 0 .3rem 1.2rem' }, T('sem testes registrados.', 'no recorded tests.')));
@@ -1040,16 +1076,40 @@ function solsBlock(h) {
       tdet.style.display = open ? '' : 'none'; tg.textContent = lbl(open);
     } }, lbl(OPEN_SOLS.has(key)));
     const repName = (s.category || '') + '-' + (s.file || '');
+    const want = expectWant(s.category), got = expectGot(s.expect);
     box.append(el('div', { class: 'solrow' },
-      ok == null ? el('span', { class: 'muted' }, '•') : el('span', { class: 'pill ' + (ok ? 'ok' : 'no') }, ok ? 'ok' : T('revisar', 'review')),
+      pill ? el('span', { class: 'pill ' + pill.cls, title: pill.title || '' }, pill.label) : el('span', { class: 'muted' }, '•'),
       el('b', {}, (s.category || '?') + '/' + (s.file || '?')),
       el('span', { class: 'muted' }, s.verdict || ''),
       tg,
       (h.reports || []).includes(repName)
         ? el('a', { href: '#', style: 'white-space:nowrap', onclick: (e) => { e.preventDefault(); openCalibReport(h.host, repName); } }, '📄 report')
-        : null), tdet);
+        : null,
+      // o que a categoria pede × o que aconteceu, DENTRO da caixa da solução (quebra de linha no flex)
+      (want || got) ? el('div', { class: 'solexp' },
+        want ? el('div', {}, want) : null,
+        got ? el('div', { class: s.expect && s.expect.state === 'ok' ? '' : 'got' }, T('obtido: ', 'got: ') + got) : null) : null),
+      tdet);
   });
   return box;
+}
+// VALIDADOR DE ENTRADA de um juiz (hosts[].validator): a linha de resumo + as entradas reprovadas com a
+// mensagem da testlib (dobradas). null = o juiz não rodou validador (calibração rápida / mojtools velho).
+function validatorBlock(h) {
+  const v = h.validator; if (!v) return null;
+  const bad = (v.tests || []).filter(t => t.code !== 'OK');
+  const cls = v.state === 'ok' ? 'ok' : (v.state === 'none' ? '' : 'no');
+  const line = el('div', { class: 'solrow' },
+    cls ? el('span', { class: 'pill ' + cls }, v.state === 'ok' ? '✓' : '✗') : el('span', { class: 'muted' }, '•'),
+    el('b', {}, T('Entradas', 'Inputs')), el('span', { class: v.state === 'none' ? 'muted' : '' }, validatorText(v)));
+  if (!bad.length) return el('div', { class: 'small', style: 'margin-top:.3rem' }, line);
+  const tb = el('tbody', {});
+  bad.forEach(t => tb.append(el('tr', {}, el('td', {}, t.name || ''), el('td', { class: 'bad' }, t.code || ''),
+    el('td', { class: 'vmsg' }, t.msg || ''))));
+  return el('div', { class: 'small', style: 'margin-top:.3rem' }, line,
+    el('details', { style: 'margin-left:1.2rem' }, el('summary', {}, T('entradas reprovadas', 'rejected inputs') + ` (${bad.length})`),
+      el('table', { class: 'soltests' }, el('thead', {}, el('tr', {}, el('th', {}, T('teste', 'test')),
+        el('th', {}, T('resultado', 'result')), el('th', {}, T('mensagem do validador', 'validator message')))), tb)));
 }
 // quadro-resumo: tempo-limite por linguagem em cada juiz; o "servido" (o que o aluno vê) em negrito
 function tlSummaryTable(hosts, served) {
@@ -1106,7 +1166,8 @@ function valRenderSig() {
     run: RUNNING,
     live: CALIB_LIVE.map(c => `${c.host}|${c.state}|${minsSince(c.since)}`),
     checks: checks.map(c => `${c.name}:${c.ok}:${c.detail || ''}`),
-    hosts: hosts.map(h => `${h.host}|${h.at}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}|${(h.sols || []).map(s => `${s.category}/${s.file}:${s.verdict}:${(s.tests || []).length}`).join(',')}`),
+    hosts: hosts.map(h => `${h.host}|${h.at}|${h.stale}|${(h.log || '').length}|${(h.reports || []).length}|${tlLine(h.tl)}|${(h.sols || []).map(s => `${s.category}/${s.file}:${s.verdict}:${(s.tests || []).length}:${(s.expect || {}).why}`).join(',')}|${JSON.stringify(h.validator || null)}`),
+    summary: JSON.stringify((LASTCALIB && LASTCALIB.summary) || null),
     served: Object.entries(served).map(([k, v]) => `${k}=${v}`),
     ovr: Object.entries((LASTINFO && LASTINFO.tl_override) || {}).map(([k, v]) => `${k}=${v}`),
   });
@@ -1128,8 +1189,12 @@ function renderVal() {
   if (RUNNING || calibRunning()) box.append(el('div', { class: 'running' }, el('span', { class: 'spin' }),
     el('span', {}, (RUNNING === 'publish' ? T('Validando e calibrando no juiz…', 'Validating and calibrating on the judge…') : T('Calibrando no juiz…', 'Calibrating on the judge…'))
       + calibWhere() + T(' a página atualiza sozinha quando terminar.', ' the page updates itself when done.'))));
-  // resultado do quality gate (botão Validar)
+  // resultado do quality gate (botão Validar) — é do PACOTE: o "validado" antigo levava o autor a achar
+  // que as soluções tinham sido conferidas (relato do Arthur Botelho, 22/09/2026)
   if (checks.length) {
+    box.append(el('div', { class: 'small', style: 'margin:.3rem 0 0' }, el('b', {}, T('Pacote', 'Package')), ' — ',
+      T('conferência estática: enunciado, exemplos, testes com entrada e saída, solução good presente. Não roda solução nenhuma — quem roda é a calibração (abaixo).',
+        'static check: statement, samples, tests with input and output, good solution present. It runs no solution — calibration does (below).')));
     const list = el('ul', { class: 'checks' });
     checks.forEach(c => list.append(el('li', {}, el('span', { class: 'pill ' + (c.ok ? 'ok' : 'no') }, c.ok ? 'ok' : T('falha', 'fail')), ' ' + (c.name || '') + (c.detail ? (' — ' + c.detail) : ''))));
     box.append(list);
@@ -1149,6 +1214,13 @@ function renderVal() {
         T('É ele que o juiz cobra e que o estudante lê. Os tempos dos cartões abaixo são a MEDIÇÃO da calibração, que roda sem o override de propósito — servem para você ver a folga de cada solução.',
           'That is what the judge enforces and what the student reads. The times in the cards below are the calibration MEASUREMENT, which deliberately runs without the override — they show you the headroom of each solution.'))));
     box.append(el('div', { class: 'small muted', style: 'margin:.5rem 0 .2rem' }, `${T('Calibrado em ', 'Calibrated on ')}${hosts.length} ${T('juiz(es) — abra "ver log" para o comportamento de cada solução:', 'judge(s) — open "view log" to see each solution behavior:')}`));
+    // SOLUÇÕES × o que a categoria pede, somado entre os juízes da versão atual (o mesmo número do Painel)
+    const smt = summaryText(calib && calib.summary);
+    if (smt) {
+      const sm = calib.summary;
+      box.append(el('div', { class: 'solsum ' + (sm.bad ? 'bad' : ((sm.missing || []).length ? 'todo' : 'ok')) },
+        el('b', {}, T('Soluções: ', 'Solutions: ')), smt));
+    }
     hosts.forEach(h => {
       const isOpen = OPEN_LOGS.has(h.host);
       const det = el('div', { style: 'margin-top:.3rem;display:' + (isOpen ? '' : 'none') });
@@ -1186,7 +1258,7 @@ function renderVal() {
         reps.append(el('span', { class: 'muted' }, T('report por solução: ', 'report per solution: ')));
         h.reports.forEach(rn => reps.append(el('a', { href: '#', style: 'margin-right:.7rem;white-space:nowrap', onclick: (e) => { e.preventDefault(); openCalibReport(h.host, rn); } }, '📄 ' + rn)));
       }
-      box.append(el('div', { class: 'judgecard' }, head, sols, reps, det));
+      box.append(el('div', { class: 'judgecard' }, head, sols, h.stale ? null : validatorBlock(h), reps, det));
     });
   } else if (!RUNNING && !calibRunning()) box.append(el('p', { class: 'small muted' }, T('Ainda não calibrado — clique “Calibrar” na barra de baixo.', 'Not calibrated yet — click “Calibrate” on the bottom bar.')));
   // sem juízes calibrados mas com TL servido (legado): mostra o tempo-limite usado na correção
@@ -1412,6 +1484,18 @@ function renderPubState() {
 async function togglePublic() {
   if (MODE !== 'edit' || !ID) { setMsg(T('Salve o problema primeiro para poder publicar.', 'Save the problem first to be able to publish.'), 'error'); return; }
   const makePublic = !loadedPublic;
+  // NÃO PRONTO sinaliza e confirma (decisão do Ribas, 24/09/2026): nada bloqueia, mas quem publica vê
+  // as pendências antes (as do /problems/status, frescas — o Painel pode ter mudado desde o load)
+  if (makePublic) {
+    try {
+      const st = await apiGet('/problems/status?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true });
+      PSTAT = (st.problems || []).find(p => p.id === ID) || PSTAT; updateReady();
+    } catch { /* sem o status, segue só com a confirmação de sempre */ }
+    const pend = (PSTAT && PSTAT.pending) || [];
+    if (pend.length && !confirm(T('O problema ainda NÃO está pronto:\n\n', 'The problem is NOT ready yet:\n\n')
+        + pend.map(c => '• ' + pendingLabel(c)).join('\n')
+        + T('\n\nPublicar mesmo assim?', '\n\nPublish anyway?'))) return;
+  }
   if (makePublic && !confirm(T('⚠ TORNAR PÚBLICO publica "', '⚠ MAKING PUBLIC publishes "') + ID + T('" no TREINO LIVRE — fica visível a TODOS.\n\nProblemas de prova devem ficar PRIVADOS até a prova passar. Confirmar a publicação?', '" in FREE TRAINING — visible to EVERYONE.\n\nExam problems must stay PRIVATE until the exam is over. Confirm publication?'))) return;
   const btn = $('pubToggle'); btn.disabled = true;
   try {
