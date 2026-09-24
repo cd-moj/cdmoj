@@ -811,8 +811,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `vmatrix` como `<mi>∣</mi>…<mo>∣</mo>`, e `x | |x|` agrupado num `mrow` que põe a barra do meio na
   borda (vira solta). Por isso TODA barra é candidata e os dois testes rodam DENTRO do container
   depois do deploy (receita: copiar o `server/` para um temporário do container, sobrepor os arquivos
-  novos e rodar com `MOJ_SERVER_ROOT` — valida ANTES de subir). Fail-open (erro =
-  PDF como antes); o `build-ensaio-pdf.sh` faz o mesmo passo. Testes: `smoke-odt-math-bars.sh`
+  novos e rodar com `MOJ_SERVER_ROOT` — valida ANTES de subir). O mesmo passo conserta o **NOME DE
+  FUNÇÃO** (`fix_names`): no pandoc 3.1 `\log`/`\sin`/`\max` vêm como `<mo>log</mo>` e o LibreOffice
+  25.2 desenhava só a 1ª letra (`O(n \log n)` → "O(n l n)" no caderno); sai `<mi>log</mi>`. Fail-open
+  (erro = PDF como antes); o `build-ensaio-pdf.sh` faz o mesmo passo. Testes: `smoke-odt-math-bars.sh`
   (papéis + zip) e `render-docs.sh` (nenhum `¿` no pdftotext). Sem conserto conhecido: `\overline`
   some no PDF. O ESTILO da rota
   ODT vem do **`etc/caderno-reference.odt`** (`--reference-doc`; ODT ignora CSS): corpo

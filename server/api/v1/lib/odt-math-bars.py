@@ -35,6 +35,9 @@
 # e o render-docs.sh rodam DENTRO do container depois do deploy — o 1º deploy deste conserto
 # passou no dev e deixou ¿ na produção (barra dupla e vmatrix).
 #
+# De carona, o mesmo defeito de versão em NOME DE FUNÇÃO (`fix_names`): no pandoc 3.1 da imagem
+# `\log` vem como `<mo>log</mo>` e o LibreOffice 25.2 desenha só "l" — vira `<mi>log</mi>`.
+#
 # Uso: odt-math-bars.py <arquivo.odt>   — reescreve NO LUGAR (tmp + os.replace), só as fórmulas
 #        que mudam; mimetype PRIMEIRO e sem compressão (senão o LibreOffice recusa calado). Erro =
 #        ODT intacto e saída ≠ 0 (quem chama segue: no pior caso o PDF sai como antes). Idempotente.
@@ -206,6 +209,21 @@ def rewrite(root, role):
             e.attrib.clear()
 
 
+FNAME = re.compile(r'^[A-Za-z]{2,}$')
+
+
+def fix_names(root):
+    """NOME DE FUNÇÃO (`\\log`, `\\sin`, `\\max`, `\\lim`…): o pandoc 3.1 da imagem o emite como
+    `<mo>log</mo>` e o LibreOffice 25.2 desenha só a 1ª LETRA — `O(n \\log n)` saía "O(n l n)" no
+    caderno. Como `<mi>` (o que o pandoc 3.7 do dev já emite) sai inteiro. Devolve quantos trocou."""
+    n = 0
+    for e in root.iter('{%s}mo' % M):
+        if FNAME.match(text(e)):
+            e.tag = '{%s}mi' % M
+            n += 1
+    return n
+
+
 def fix_formula(data):
     """bytes do content.xml de uma fórmula -> bytes novos, ou None se não muda nada."""
     try:
@@ -214,8 +232,9 @@ def fix_formula(data):
         return None
     if root.tag != '{%s}math' % M:
         return None
+    names = fix_names(root)          # ANTES dos papéis: `\log|x|` vê o nome como operando
     role = roles_of(root)
-    if not role:
+    if not role and not names:
         return None
     rewrite(root, role)
     out = ('<?xml version="1.0" encoding="UTF-8"?>' + ET.tostring(root, encoding='unicode')).encode('utf-8')
@@ -261,6 +280,7 @@ def main(argv):
         code = {'open': 'O', 'close': 'C', 'infix': 'M', 'lone': 'L'}
         for m in re.findall(r'<math\b.*?</math>', sys.stdin.read(), flags=re.S):
             root = ET.fromstring(m)
+            fix_names(root)
             role = roles_of(root)
             print(' '.join(('D' if BARS[text(e)] == 'd' else '') + code[role[e]]
                            for e in root.iter() if e in role))

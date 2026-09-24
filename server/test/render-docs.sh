@@ -51,7 +51,7 @@ HTML
 # pacotes com docs/solucao.md (editorial) — pkg_path lê MOJ_PROBLEMS_DIR
 export MOJ_PROBLEMS_DIR="$FIX/problems"
 for p in pa pb; do mkdir -p "$FIX/problems/col/$p/docs"; done
-printf '# Ideia\n\nSome os dois números.\n\n## Complexidade\n\n$O(1)$, e com barras: $O(n \\cdot |P|)$.\n' > "$FIX/problems/col/pa/docs/solucao.md"
+printf '# Ideia\n\nSome os dois números.\n\n## Complexidade\n\n$O(1)$, e com barras: $O(n \\cdot |P|)$; ordenar é $O(n \\log n)$.\n' > "$FIX/problems/col/pa/docs/solucao.md"
 printf 'Subtraia. Texto sem título interno.\n' > "$FIX/problems/col/pb/docs/solucao.md"
 # IDIOMAS (2026-09-15): o problema A tem tradução EN — enunciado no contest (<skey>.en.html), editorial
 # no pacote (solucao.en.md) e título no banco (statements.en.title); o B só PT. O caderno/editorial
@@ -146,6 +146,8 @@ ck "caderno PT: a fórmula |S| está lá"  'tr -d " " <<<"$CT_PT" | grep -qF "|S
 ck "caderno PT: nenhum ¿"               '! grep -qF "¿" <<<"$CT_PT"'
 ck "caderno EN: nenhum ¿"               '! grep -qF "¿" <<<"$CT_EN"'
 ck "editorial PT: |P| está lá, sem ¿"   'tr -d " " <<<"$ED_PT" | grep -qF "|P|" && ! grep -qF "¿" <<<"$ED_PT"'
+# nome de função inteiro: no pandoc 3.1 + LibreOffice 25.2 da imagem `O(n \log n)` saía "O(n l n)"
+ck "editorial PT: \\log sai inteiro"       'tr -d " " <<<"$ED_PT" | grep -qF "nlog"'
 
 echo "== ambiente de julgamento: título novo, linhas de compilação, veredictos, penalidade =="
 IP="$(doc_file rd info-sheet en pdf)"; IT="$(pdftotext -layout "$IP" - 2>/dev/null)"

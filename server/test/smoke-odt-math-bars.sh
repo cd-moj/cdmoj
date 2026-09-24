@@ -13,6 +13,8 @@
 #      container depois do deploy: o 1º deploy deste conserto passou no dev e deixou ¿ na produção;
 #   2. o ZIP: mimetype 1º e sem compressão, o resto intacto, nenhuma barra sem `fence`, idempotente,
 #      documento sem barra intocado, ODT quebrado = arquivo intacto e saída ≠ 0 (fail-open).
+#   3. NOME DE FUNÇÃO: `<mo>log</mo>` (pandoc 3.1 da imagem; o LibreOffice 25.2 desenhava só "l",
+#      `O(n \log n)` virava "O(n l n)") sai `<mi>log</mi>`.
 # O papel impresso (nenhum `¿` no pdftotext) é afirmado pelo render-docs.sh, que roda o soffice.
 # Precisa de pandoc + python3 (dev e imagem têm); senão SKIP. Roda também dentro da imagem.
 set -u
@@ -137,6 +139,26 @@ python3 "$PY" "$FIX/q.odt" >/dev/null 2>&1; rcq=$?
 DBG="rc=$rcq"
 ck "ODT quebrado: saída ≠ 0 e arquivo intacto"      '[[ $rcq != 0 && "$(sha "$FIX/q.odt")" == "$sq" ]]'
 ck "…sem temporário largado no diretório"            '[[ -z "$(find "$FIX" -name "tmp*.odt")" ]]'
+
+echo "== nome de função (o pandoc 3.1 da imagem emite <mo>log</mo>; o LibreOffice 25.2 desenha só \"l\") =="
+# ODT feito à mão no formato do pandoc 3.1 — o pandoc do dev (3.7) já emite <mi>log</mi> e não o produz
+python3 - "$FIX/fn.odt" <<'PY'
+import sys, zipfile
+x = ('<?xml version=\'1.0\' ?>\n<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><mrow>'
+     '<mi>O</mi><mo>(</mo><mi>n</mi><mo>log</mo><mi>n</mi><mo>)</mo><mo>+</mo>'
+     '<munder><mo>lim</mo><mi>x</mi></munder><mo>≤</mo><mo>|</mo><mi>x</mi><mo>|</mo></mrow></math>')
+with zipfile.ZipFile(sys.argv[1], 'w') as z:
+    z.writestr('mimetype', 'application/vnd.oasis.opendocument.text', compress_type=zipfile.ZIP_STORED)
+    z.writestr('Formula-1/content.xml', x, compress_type=zipfile.ZIP_DEFLATED)
+PY
+nf="$(python3 "$PY" "$FIX/fn.odt")"
+fx="$(python3 -c 'import sys,zipfile; print(zipfile.ZipFile(sys.argv[1]).read("Formula-1/content.xml").decode())' "$FIX/fn.odt")"
+DBG="n=$nf xml=$fx"
+ck "reescreve a fórmula"                           '[[ "$nf" == 1 ]]'
+ck "<mo>log</mo> e <mo>lim</mo> viram <mi>"        'grep -q "<mi>log</mi>" <<<"$fx" && grep -q "<mi>lim</mi>" <<<"$fx" && ! grep -qE "<mo>[A-Za-z]{2,}</mo>" <<<"$fx"'
+ck "operador e parêntese ficam <mo>"               'grep -qF "<mo>≤</mo>" <<<"$fx" && grep -qF "<mo>(</mo>" <<<"$fx"'
+ck "as barras nuas saem em par"                    '[[ "$(grep -o "fence=\"true\"" <<<"$fx" | wc -l)" == 2 ]]'
+ck "2ª passada não muda nada"                      '[[ "$(python3 "$PY" "$FIX/fn.odt")" == 0 ]]'
 
 echo; echo "RESULT: $pass passed, $fail failed"
 (( fail == 0 ))
