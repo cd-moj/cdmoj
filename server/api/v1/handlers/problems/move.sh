@@ -45,6 +45,7 @@ authored_remove "$id"
 tl_fresh_drop "$id"          # carimbo de checksum fresco do id que deixou de existir
 declare -F calx_drop >/dev/null || source "$_DIR/lib/calib-expect.sh"
 calx_drop "$id"              # sumário das soluções (Painel) do id que deixou de existir
+source "$_DIR/lib/problem-issues.sh"; pi_move "$id" "$newid"   # as issues seguem o problema
 colls="$(jq -c '.collections // []' "$dst/.moj-meta.json" 2>/dev/null)"; [[ -n "$colls" ]] || colls='[]'
 title="$(jq -r '.display_title // ""' "$dst/.moj-meta.json" 2>/dev/null)"
 author_txt="$(head -1 "$dst/author" 2>/dev/null)"

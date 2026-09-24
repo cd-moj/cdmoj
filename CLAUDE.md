@@ -462,6 +462,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   lia a string do veredicto); publicar com pendência pede confirmação (editor, Painel e `moj public on`),
   nada bloqueia (decisão do Ribas). ⚠ O jq mora em variável: rode `smoke-calib-expect.sh` também com o
   jq 1.7. Testes: `smoke-calib-expect.sh`, `smoke-sols-expect.gjs.sh`.
+  **Issues por problema** (`lib/problem-issues.sh` + `/problems/issues`, aba 🐞 do editor =
+  `web/problemas/issues.js`, `moj issues`): loja FORA do pacote em `contests/treino/var/problem-issues/
+  <org>/<prob>.json` (dentro do repo a issue mudaria o `pkg_rev` e daria 409 à toa, sumiria no upload e
+  iria ao juiz); sumário `problem-issues-summary.json` p/ o Painel; gate `require_problem_edit` (404 igual
+  ao de inexistente); move/delete chamam `pi_move`/`pi_drop`. O `by` é texto histórico e NÃO entra na
+  cascata de rename (não concede acesso — como o autor de um commit). Texto do usuário só por arquivo no
+  jq; na tela, `textContent`. Testes: `smoke-problem-issues.sh`, `smoke-issues-panel.gjs.sh`.
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +

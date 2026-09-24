@@ -9,6 +9,7 @@ require_auth
 source "$_DIR/lib/problems.sh"
 source "$_DIR/lib/tl-store.sh"
 source "$_DIR/lib/calib-expect.sh"   # sumário das soluções/validador (run/calib-summary.json)
+source "$_DIR/lib/problem-issues.sh" # sumário das issues abertas (treino/var/problem-issues-summary.json)
 source "$_DIR/../../judge-gw/sched-lib.sh"
 
 # 1) FRONTEIRA DE SEGURANÇA (owners_visible) + estreitamento a dono/colaborador (tira público-só:
@@ -48,15 +49,16 @@ sup="$(find "${REGISTRYDIR:-$RUNDIR/registry}" -maxdepth 1 -name '*.json' -exec 
 tl_summary_ensure; val_summary_ensure; calx_summary_ensure
 tlmap="$TL_SUMMARY"; valmap="$VAL_SUMMARY"; calmap="$CAL_SUMMARY"
 [[ -s "$calmap" ]] || calmap=/dev/null   # sem sumário ainda = nenhum problema conferido (não é erro)
+pi_summary_ensure; issmap="$PI_SUMMARY"; [[ -s "$issmap" ]] || issmap=/dev/null
 
 # 5) JOIN + AGREGADOS. JSON grande (vis) via stdin; mapas via --slurpfile; conjunto calib via
 #    --argjson (é pequeno) — nada de JSON grande no argv (ARG_MAX).
 # O CORPO É MONTADO ANTES DO CABEÇALHO: com o `emit_json 200` já enviado, o único destino de um jq
 # quebrado era um board VAZIO (o antigo `|| jq -cn '{total:0,…}'`) — silencioso e indistinguível de
 # "você não tem problema nenhum". Agora falha vira 500 COM a mensagem do jq.
-out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$calmap" \
+out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$calmap" --slurpfile ISS "$issmap" \
           --argjson CAL "$calib" --argjson SUP "$sup" '
-  ($TL[0] // {}) as $tl | ($VAL[0] // {}) as $val | ($CX[0] // {}) as $cx
+  ($TL[0] // {}) as $tl | ($VAL[0] // {}) as $val | ($CX[0] // {}) as $cx | ($ISS[0] // {}) as $iss
   | ($CAL | map({(.):true}) | add // {}) as $calset
   | (.generated_at // 0) as $idx_at
   | [ .problems[]
@@ -92,7 +94,9 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
       | (if $cs == null or (($cs.stale // false) or $stale) then "unknown" else ($cv.state // "unknown") end) as $istate
       | ($sstate == "bad") as $solbad
       | ($istate == "invalid" or $istate == "error") as $inbad
-      | ($err or $gsnotl or $pubuncal or $pubunval or $solbad or $inbad) as $review
+      # ISSUES abertas (lib/problem-issues.sh): a revisão da banca — aberta = o problema não está pronto
+      | (($iss[$id] // 0) | tonumber? // 0) as $nis
+      | ($err or $gsnotl or $pubuncal or $pubunval or $solbad or $inbad or ($nis > 0)) as $review
       # `untitled` = não há título em lugar nenhum (nem no pacote, nem no enunciado — o índice então
       # carimba o slug). O Painel marca esses p/ o dono nomear; não é erro, é um "por nomear".
       | ((((.title // "") == "") or ((.title // "") == (.prob // ""))) ) as $untitled
@@ -103,6 +107,7 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
           sols:{state:$sstate, bad:($cs.bad // 0), note:($cs.note // 0), missing:($cs.missing // 0),
                 total:($cs.total // 0), at:($cs.at // null)},
           inputs:{state:$istate, invalid:($cv.invalid // 0), total:($cv.total // 0)},
+          open_issues:$nis,
           being_calibrated:(($calset[$id]) // false),
           stale:$stale,
           needs_recalibration:($cal and $stale),
@@ -119,7 +124,8 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
                             (if $solbad then ("sols_divergent:" + (($cs.bad // 0)|tostring)) else empty end),
                             (if $inbad then (if $istate == "error" then "inputs_error"
                                              else ("inputs_invalid:" + (($cv.invalid // 0)|tostring)) end)
-                             else empty end) ]),
+                             else empty end),
+                            (if $nis > 0 then ("issues_open:" + ($nis|tostring)) else empty end) ]),
           # PENDÊNCIAS p/ o problema estar PRONTO (o selo do editor, o card "prontos" do Painel e a
           # confirmação de publicar). Diferente de review_reasons, entra também o que NÃO foi conferido
           # (pacote/soluções sem resultado): pronto é afirmação, não ausência de alarme.
@@ -131,7 +137,8 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
                         then "sols_unchecked" else empty end),
                      (if $inbad then (if $istate == "error" then "inputs_error"
                                       else ("inputs_invalid:" + (($cv.invalid // 0)|tostring)) end)
-                      else empty end) ]),
+                      else empty end),
+                     (if $nis > 0 then ("issues_open:" + ($nis|tostring)) else empty end) ]),
           error_reasons:([ (if $vstate=="error" then "validation_failed" else empty end),
                            (if $gsbad then "good_sol_rejected" else empty end) ]),
           # TL EFETIVO: o `tl` do sumário é o CALIBRADO CRU (a projeção só lê hosts[].tl) — sem
@@ -169,6 +176,7 @@ out="$(jq -c --slurpfile TL "$tlmap" --slurpfile VAL "$valmap" --slurpfile CX "$
         sols_divergent:     ([$rows[]|select(.sols.state=="bad")]|length),
         sols_unchecked:     ([$rows[]|select(.pending|index("sols_unchecked"))]|length),
         inputs_invalid:     ([$rows[]|select(.inputs.state=="invalid" or .inputs.state=="error")]|length),
+        issues_open:        ([$rows[]|select(.open_issues > 0)]|length),
         errors:             ([$rows[]|select(.error)]|length) },
       calibrating_ids:[$rows[]|select(.being_calibrated)|.id],
       attention_ids:  [$rows[]|select(.needs_review or .needs_recalibration)|.id],

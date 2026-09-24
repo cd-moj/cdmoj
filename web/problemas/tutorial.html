@@ -290,6 +290,13 @@ moj collection add apc2026#fibonacci "APC 2026.1"</pre>
         <p data-en="Two people on the same problem: each one runs moj pull before editing and moj push after. If the other person sent first, your push refuses and tells you who. Run moj pull, then push again.">Duas pessoas no mesmo problema: cada uma roda <code>moj pull</code> antes de editar e <code>moj push</code> depois. Se a outra pessoa enviou antes, o seu <code>push</code> recusa e diz quem foi. Rode <code>moj pull</code> e envie de novo.</p>
         <p data-en="ORG = access (one per problem, the id prefix). COLLECTION = label for browsing/curation, many per problem. Students filter the training by collection.">ORG = acesso (uma por problema, o prefixo do id). COLEÇÃO = rótulo de navegação/curadoria, várias por problema. O aluno filtra o treino por coleção.</p>
 
+        <h3 data-en="Review with the team: issues">Revisar em equipe: issues</h3>
+        <pre>moj issues new apc2026#fibonacci "Teste 7 fora do limite" -m "n=1296, o enunciado diz N &lt;= 1000"
+moj issues apc2026#fibonacci            # as abertas (--all inclui as fechadas)
+moj issues comment apc2026#fibonacci 1 -m "conferi: é o gerador"
+moj issues close apc2026#fibonacci 1 -m "t7 regerado"   # dentro da pasta, o id é opcional</pre>
+        <p data-en="An issue is a note that the problem needs a fix: a suspicious test, a diverging solution, an ambiguous sentence. Every member of the org sees, comments and closes them — in the CLI or in the 🐞 Issues tab of the web editor. While there is an open issue, the problem is not ready (moj check and the Dashboard say so). Issues are not part of the package: they do not travel in moj push/clone. Long text: -F file.txt (-F - reads the standard input).">Issue é uma nota de que o problema precisa de conserto: um teste suspeito, uma solução que diverge, uma frase ambígua. Todos os membros da org veem, comentam e fecham — na CLI ou na aba <b>🐞 Issues</b> do editor web. Enquanto houver issue aberta, o problema não está pronto (o <code>moj check</code> e o Painel dizem isso). Issues não fazem parte do pacote: não viajam no <code>moj push</code>/<code>clone</code>. Texto longo: <code>-F arquivo.txt</code> (<code>-F -</code> lê a entrada padrão).</p>
+
         <h3 data-en="Keep an eye on everything">De olho em tudo</h3>
         <pre>moj board                    # seus problemas: pacote? calibrado? soluções? PRONTO?
 moj check apc2026#fibonacci  # o porquê de cada estado, juiz por juiz
@@ -324,6 +331,7 @@ moj testrun ... --report out.html       # e ainda baixa o report.html do julgame
           <tr><td>moj upload/download [&lt;id&gt;]</td><td data-en="whole package as tarball (download --sha = old version)">pacote inteiro via tarball (<code>download --sha</code> = versão antiga)</td></tr>
           <tr><td>moj validate [&lt;id&gt;]</td><td data-en="quality gate + calibration — STAYS private (exam mode)">portão + calibração — CONTINUA privado (modo prova)</td></tr>
           <tr><td>moj check [&lt;id&gt;]</td><td data-en="QA: package, per-judge TLs, solutions, inputs, ready or what is missing, why it needs recalibration">QA: pacote, TLs por juiz, soluções, entradas, pronto ou o que falta, o porquê da recalibração</td></tr>
+          <tr><td>moj issues [&lt;id&gt;] · new · comment · close · reopen</td><td data-en="the problem issues (team review); an open issue = not ready">as issues do problema (revisão da banca); issue aberta = não está pronto</td></tr>
           <tr><td>moj calib [&lt;id&gt;]</td><td data-en="calibration in FULL: per judge/solution/test, each solution with expected × got (--json for scripts)">a calibração POR EXTENSO: por juiz/solução/teste, cada solução com esperado × obtido (<code>--json</code> p/ scripts)</td></tr>
           <tr><td>moj calib-report [&lt;id&gt;]</td><td data-en="report.html of one calibrated solution (no args = list)">report.html de uma solução calibrada (sem args = lista)</td></tr>
           <tr><td>moj testrun [&lt;id|dir&gt;] &lt;sol&gt;</td><td data-en="run ONE loose solution on the REAL judge, outside the history (edit permission). On the web: Solutions &amp; Grading › 🧪 test on the judge">roda UMA solução avulsa no juiz REAL, fora do histórico (permissão de edição). Na web: Soluções &amp; Correção › 🧪 testar no juiz</td></tr>

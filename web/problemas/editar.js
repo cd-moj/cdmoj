@@ -13,6 +13,7 @@ import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
 import { makeTestRun, testsTable } from '/problemas/testrun.js';
 import { expectPill, expectWant, expectGot, summaryText, validatorText, pendingLabel } from '/problemas/readiness.js';
+import { makeIssues } from '/problemas/issues.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
@@ -33,6 +34,7 @@ let curStmtLang = 'pt', curEdLang = 'pt';                     // idioma ativo na
 let transEd = {}, transEdEd = {};                             // lang -> CodeMirror (enunciado / editorial traduzidos)
 let scrEntries = [];   // scripts/ (correção especial) — EDITÁVEL na sub-aba "⚙ correção" (Soluções & Correção) via `scripts_files` (round-trip completo: conteúdo/exec/symlink; binário preservado)
 let SCR_TEMPLATES = null;   // cache de GET /problems/script-templates (carrega 1x)
+let ISSUES = null;          // aba "🐞 Issues" (problemas/issues.js): a revisão da banca; issue aberta = não pronto
 let TRUN = null;            // sub-aba "🧪 testar no juiz" (problemas/testrun.js): solução avulsa no juiz, fora do pacote
 let COLLS = [];
 let collFilter = { q: '', mine: false, manage: false, course: false };  // filtro dos chips de coleção
@@ -134,6 +136,7 @@ function showTab(name) {
   document.querySelectorAll('.tabpane').forEach(p => { p.hidden = (p.dataset.pane !== name); });
   if (name === 'resol') { ensureEditorial(); renderEdLangBar(); }   // editor da resolução é carregado ao abrir a aba
   if (name === 'hist') loadHistory();        // histórico git é carregado ao abrir a aba
+  if (name === 'issues' && ISSUES) ISSUES.load();   // issues: carregadas ao abrir a aba
 }
 
 // ---- enunciado: um editor só (padrão) ou seções separadas (opt-in), em QUALQUER idioma ---------
@@ -410,8 +413,21 @@ function readyItems() {
     title: T('Um juiz mediu o tempo-limite rodando as soluções good.', 'A judge measured the time limit by running the good solutions.') });
   items.push({ tab: 'pub', ...solsReady() });
   const inp = inputsReady(); if (inp) items.push({ tab: 'pub', ...inp });
+  if (ID && PSTAT) {
+    const ni = PSTAT.open_issues || 0;
+    items.push({ tab: 'issues', label: ni ? T(`Issues (${ni} abertas)`, `Issues (${ni} open)`) : 'Issues', s: ni ? 'bad' : 'ok',
+      title: T('Issues abertas precisam ser resolvidas (fechadas) para o problema ficar pronto.', 'Open issues must be resolved (closed) for the problem to be ready.') });
+  }
   items.push({ tab: 'pub', label: T('Público', 'Public'), s: loadedPublic ? 'ok' : 'na' });
   return items;
+}
+// relê a linha deste problema no Painel (pending/ready) — depois de mexer nas issues
+async function refreshPstat() {
+  if (!ID) return;
+  try {
+    const st = await apiGet('/problems/status?id=' + encodeURIComponent(ID), { contest: CONTEST, auth: true });
+    PSTAT = (st.problems || []).find(p => p.id === ID) || PSTAT; updateReady();
+  } catch { /* best-effort: a barra fica como estava */ }
 }
 // SOLUÇÕES × o que a categoria pede (o `sols` do /problems/status, calculado no servidor)
 function solsReady() {
@@ -973,6 +989,7 @@ async function loadValidation() {
   ]);
   // a linha deste problema no Painel: sols/inputs/pending/ready (a MESMA regra que o Painel e a CLI usam)
   if (st && Array.isArray(st.problems)) PSTAT = st.problems.find(p => p.id === ID) || PSTAT;
+  if (PSTAT && $('tabIssuesMini')) $('tabIssuesMini').textContent = PSTAT.open_issues ? `(${PSTAT.open_issues})` : '';
   // ERRO DE REDE NÃO APAGA A TELA: um 500/timeout num tick deixava LASTCALIB=null e os cartões dos
   // juízes SUMIAM até o tick seguinte (o `.catch(() => null)` acima é best-effort de propósito).
   if (val) LASTVAL = val;
@@ -1689,6 +1706,17 @@ function bindHandlers() {
     openHtmlReport, createEditor, cmFor, fileToBase64, textToBase64, hiddenFile: () => hiddenFile(false),
   });
   $('scrPanel').after(TRUN.panel); TRUN.refresh();
+  // 🐞 issues: a aba tem o painel do módulo; mexer numa issue muda o "pronto" (relê o status)
+  ISSUES = makeIssues({
+    id: () => ID,
+    apiGet: (p) => apiGet(p, { contest: CONTEST, auth: true }),
+    apiPost: (p, b) => apiPost(p, b, { contest: CONTEST, auth: true }),
+    onCount: (n) => {
+      $('tabIssuesMini').textContent = n ? `(${n})` : '';
+      if (!PSTAT || (PSTAT.open_issues || 0) !== n) refreshPstat();
+    },
+  });
+  $('issuesPane').append(ISSUES.panel);
   $('edRemove').onclick = removeEdLang;
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') TRUN.onVisible(); });
   $('addex').onclick = () => addExample();
@@ -1747,6 +1775,7 @@ async function boot() {
   bindHandlers();           // 1) liga TUDO antes de qualquer await de dados
   setupTabs();
   if (location.hash === '#hist') showTab('hist');   // link direto p/ a aba Histórico (painel)
+  if (location.hash === '#issues') showTab('issues');   // link direto p/ as issues (chip 🐞 do Painel)
   if (location.hash === '#pub') {                   // link direto p/ Publicação (gestão → "editar linguagens")
     showTab('pub');
     setTimeout(() => { const p = $('plangs'); if (p) p.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);

@@ -24,6 +24,7 @@ authored_remove "$id"
 tl_fresh_drop "$id"          # carimbo de checksum fresco do id que deixou de existir
 declare -F calx_drop >/dev/null || source "$_DIR/lib/calib-expect.sh"
 calx_drop "$id"              # sumário das soluções (Painel) do id que deixou de existir
+source "$_DIR/lib/problem-issues.sh"; pi_drop "$id"   # as issues vão junto com o problema
 ( MOJ_PROBLEMS_DIR="$MOJ_PROBLEMS_DIR" CONTESTSDIR="$CONTESTSDIR" \
     setsid bash "$MOJTOOLS_DIR/gen-problem-owners.sh" >/dev/null 2>&1 & ) 2>/dev/null
 audit_log "delete" "id=$id by=$SESSION_LOGIN"

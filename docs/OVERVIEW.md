@@ -182,7 +182,9 @@ só agregados (sem logins, sem nomes de contests) — não vaza prova privada.
   o mapa `run/calib-summary.json`, upsert por evento; o `problem_commit` o marca velho quando o
   pacote muda em `sols/ tests/ scripts/ conf`). O Painel (`/problems/status`) lê dali as colunas
   **Soluções** e **Entradas** e o estado **pronto** (`ready` + `pending`); "Validado" virou
-  **Pacote**, porque é só a conferência estática. Tabela das regras: `PACOTE.md` §10.
+  **Pacote**, porque é só a conferência estática. Tabela das regras: `PACOTE.md` §10. **Issues por
+  problema** (`/problems/issues`, `lib/problem-issues.sh`): a revisão da banca, fora do pacote
+  (`contests/treino/var/problem-issues/`); issue aberta é pendência do "pronto".
 - **`TLOVERRIDE[<lang>|default]` no conf do PACOTE**: o autor decide o TL na marra. O efetivo
   (`override[lang] // override[default] // calibrado`) vence **no julgamento** (o juiz aplica
   depois dos `TLMOD`) e em **toda exibição** (treino, contest, folha de TL, `/problems/tl`, que

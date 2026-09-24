@@ -60,6 +60,15 @@
     .solsum{margin:.2rem 0 .4rem;padding:.3rem .6rem;border-radius:.4rem;font-size:.86rem;border:1px solid var(--border,#2a2a2a)}
     .solsum.ok{border-color:#2e6b44} .solsum.todo{border-color:#8a6a2a} .solsum.bad{border-color:#8a2e2e;background:rgba(224,86,75,.08)}
     .rdy.seal{font-weight:600;margin-left:.4rem}
+    /* issues do problema (problemas/issues.js): texto do usuário sempre como TEXTO, quebras preservadas */
+    details.issue{border:1px solid var(--border,#2a2a2a);border-radius:.5rem;padding:.35rem .6rem;margin:.35rem 0}
+    details.issue.closed{opacity:.75}
+    details.issue > summary{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap}
+    .issue-text{white-space:pre-wrap;word-break:break-word;margin:.35rem 0;line-height:1.45}
+    .issue-comment{border-left:3px solid var(--border,#2a2a2a);padding-left:.6rem;margin:.45rem 0 .45rem .2rem}
+    .issue-reply textarea, .issue-new textarea, .issue-new input{width:100%;box-sizing:border-box}
+    .issue-reply{margin-top:.4rem;display:flex;flex-direction:column;gap:.35rem}
+    details.issue-new{margin:.4rem 0}
     /* indicador de "executando no juiz" (calibração/validação em andamento) */
     .rdy.run .dot{background:#e0a64b;animation:moj-pulse 1s ease-in-out infinite}
     @keyframes moj-pulse{0%,100%{opacity:1}50%{opacity:.25}}
@@ -180,6 +189,7 @@
         <button class="tab" type="button" data-tab="resol" data-en="Editorial">Resolução</button>
         <button class="tab" type="button" data-tab="limits" data-en="Limits">Limites</button>
         <button class="tab" type="button" data-tab="pub" data-en="Publishing &amp; Package">Publicação &amp; Pacote</button>
+        <button class="tab" type="button" data-tab="issues"><span data-en="🐞 Issues">🐞 Issues</span> <span class="mini" id="tabIssuesMini"></span></button>
         <button class="tab" type="button" data-tab="hist" data-en="🕘 History">🕘 Histórico</button>
       </div>
 
@@ -499,6 +509,9 @@
       </section>
 
       <!-- 🕘 Histórico git do problema (cada save/upload é um commit autorado) -->
+      <!-- ================= ABA: ISSUES (problemas/issues.js monta o painel) ================= -->
+      <section class="tabpane" data-pane="issues" id="issuesPane" hidden></section>
+
       <section class="tabpane" data-pane="hist" hidden>
         <div class="section-head" data-en="Version history (git)">Histórico de versões (git)</div>
         <p class="small muted" data-en="Every save/upload is a commit. Restoring creates a NEW commit on top (history is never rewritten); public flag and collections are preserved.">Todo salvar/enviar é um commit. Restaurar cria um commit NOVO por cima (a história nunca é reescrita); o flag de público e as coleções são preservados.</p>

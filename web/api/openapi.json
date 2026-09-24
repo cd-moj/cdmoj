@@ -6636,7 +6636,7 @@
           "problems"
         ],
         "summary": "Painel de status dos problemas do login (dono + colaborador + membro da org): pacote, calibração, soluções, entradas, pronto",
-        "description": "validated é o estado do PACOTE (conferência estática do validate-problem.sh — não roda solução). sols = as soluções × o que a categoria delas pede (sumário run/calib-summary.json, regra em lib/calib-expect.sh): state none|stale|bad|partial|note|ok. inputs = o validador de entrada: state unknown|none|ok|invalid|error. pending = o que falta p/ o problema estar PRONTO (package_failed, package_unchecked, uncalibrated, needs_recalibration, good_no_tl:<langs>, sols_divergent:<n>, sols_unchecked, inputs_invalid:<n>, inputs_error); ready = pending vazio. review_reasons ganha sols_divergent:<n>, inputs_invalid:<n> e inputs_error. ?id= estreita a um problema (vazio se o login não o opera). Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo. time_limits é o EFETIVO (o TLOVERRIDE vem carimbado no índice de donos, então o Painel não abre pacote); time_limits_calibrated e tl_override vêm ao lado. untitled = o problema não tem título em lugar nenhum (nem display_title no pacote, nem linha de título no enunciado) e o title devolvido é o identificador — o Painel marca 'sem título'.",
+        "description": "validated é o estado do PACOTE (conferência estática do validate-problem.sh — não roda solução). sols = as soluções × o que a categoria delas pede (sumário run/calib-summary.json, regra em lib/calib-expect.sh): state none|stale|bad|partial|note|ok. inputs = o validador de entrada: state unknown|none|ok|invalid|error. pending = o que falta p/ o problema estar PRONTO (package_failed, package_unchecked, uncalibrated, needs_recalibration, good_no_tl:<langs>, sols_divergent:<n>, sols_unchecked, inputs_invalid:<n>, inputs_error, issues_open:<n>); ready = pending vazio. open_issues = issues abertas (/problems/issues). review_reasons ganha sols_divergent:<n>, inputs_invalid:<n>, inputs_error e issues_open:<n>. ?id= estreita a um problema (vazio se o login não o opera). Agrega validação, calibração, time_limits e 'precisa recalibrar' dos problemas de que o login é dono OU colaborador. FRONTEIRA de acesso: problema privado de terceiro NÃO aparece (owners_visible). Sem hash de pacote por request — stale vem do checksum carimbado no índice (≤30 min de atraso); use /problems/tl p/ o valor exato ao vivo. time_limits é o EFETIVO (o TLOVERRIDE vem carimbado no índice de donos, então o Painel não abre pacote); time_limits_calibrated e tl_override vêm ao lado. untitled = o problema não tem título em lugar nenhum (nem display_title no pacote, nem linha de título no enunciado) e o title devolvido é o identificador — o Painel marca 'sem título'.",
         "security": [
           {
             "bearerAuth": []
@@ -6658,7 +6658,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{total,counts:{validated,validation_error,unvalidated,calibrated,uncalibrated,being_calibrated,needs_recalibration,good_sol_no_tl,public_unvalidated,needs_review,ready,sols_divergent,sols_unchecked,inputs_invalid,errors},calibrating_ids,attention_ids,problems:[{id,title,owner,author,public,collaborators,validated,calibrated,sols:{state,bad,note,missing,total,at},inputs:{state,invalid,total},ready,pending,being_calibrated,stale,needs_recalibration,good_sol_no_tl,good_sol_missing_langs,public_unvalidated,error,needs_review,review_reasons,time_limits,updated_at,validated_at}]} — good_sol_no_tl = solução good sem TL (linguagem que falhou em todos os juízes); needs_review = precisa revisão"
+            "description": "{total,counts:{validated,validation_error,unvalidated,calibrated,uncalibrated,being_calibrated,needs_recalibration,good_sol_no_tl,public_unvalidated,needs_review,ready,sols_divergent,sols_unchecked,inputs_invalid,issues_open,errors},calibrating_ids,attention_ids,problems:[{id,title,owner,author,public,collaborators,validated,calibrated,sols:{state,bad,note,missing,total,at},inputs:{state,invalid,total},open_issues,ready,pending,being_calibrated,stale,needs_recalibration,good_sol_no_tl,good_sol_missing_langs,public_unvalidated,error,needs_review,review_reasons,time_limits,updated_at,validated_at}]} — good_sol_no_tl = solução good sem TL (linguagem que falhou em todos os juízes); needs_review = precisa revisão"
           }
         }
       }
@@ -6792,6 +6792,75 @@
         "responses": {
           "200": {
             "description": "{id,checksum,version,being_calibrated,calibrating:[{host,since,state}],good_langs,missing_langs,tl_override,time_limits,time_limits_calibrated,allow_tle,summary:{hosts,total,bad,note,bad_files,note_files,missing,validator},hosts:[{host,tl,missing,at,version,stale,log,reports,sols,validator}]} — sols[].expect = o juízo do SERVIDOR (lib/calib-expect.sh, pelos códigos de CADA teste contra o TL efetivo): {state:ok|note|bad|norun|skip, why, counts:{AC,WA,TLE,MLE,RE,UE}, tmax, tl}; why ∈ all_ac, over_tl, failed, tle_allowed, tle, tle_and_wrong, wrong_no_tle, no_tle, wa, failed_other, accepted, ce, lang, ue, noverdict. hosts[].validator = o validador de entrada daquele juiz {state:none|ok|invalid|error,total,invalid,failed,file,tests:[{name,code:OK|INVALID|FAIL,msg}]} (null = não rodou; a entrada category=validator sai de sols). summary = o sumário das soluções somado entre os hosts da versão atual (o mesmo do Painel). allow_tle = o conf tem ALLOWTLEDURINGCALIBRATION=y. — being_calibrated/calibrating dizem o que está EM VOO agora para este problema (fila + em execução, inclusive a dirigida; state queued|running, host vazio = pendente não reivindicada): é o sinal que a tela do autor usa para esperar a calibração terminar, que leva minutos; hosts[].at é o maior entre o carimbo do store de TL e o do log; version = versão ATUAL do pacote (pkg_judge_version: inclui sols/ inteiro) e hosts[].version = a que aquele juiz calibrou; diferentes => stale:true e o host vem SEM sols nem reports (tl e log ficam), para a tela nunca mostrar solução de uma versão que não existe mais; report sem versão (juiz antigo) nunca é marcado stale; missing_langs = linguagem good sem TL em NENHUM host (solução good falhou em todas as máquinas); hosts[].missing = faltantes naquele juiz; sols = calibração POR EXTENSO estruturada [{file,lang,category:good|pass|slow|wrong,verdict,tests:[{name,code,time,tl}]}] (mesmo formato do vetor tests da submissão normal; [] = juiz antigo); tl_override = TLOVERRIDE do conf do pacote ({} sem override); hosts[].tl e sols[].tests[].tl são a MEDIÇÃO da calibração (que roda com MOJ_CALIBRATING=1 e ignora o override de propósito) — time_limits é o efetivo, para a tela poder avisar que o julgamento usa outro número"
+          }
+        }
+      }
+    },
+    "/problems/issues": {
+      "get": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Issues do problema (a revisão da banca); só quem edita",
+        "description": "Loja FORA do pacote (contests/treino/var/problem-issues/<org>/<prob>.json): não muda o rev, não some no upload, não vai ao juiz. Quem não edita recebe o MESMO 404 de problema inexistente. Abertas primeiro. Issue aberta = pendência issues_open:<n> no /problems/status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id, open, issues:[{n,title,body,state:open|closed,by,at,updated_at,closed_by,closed_at,comments:[{by,at,body}]}]}"
+          },
+          "404": {
+            "description": "problema inexistente ou o login não o edita"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "problems"
+        ],
+        "summary": "Abre, comenta, fecha ou reabre uma issue",
+        "description": "{id, action:open|comment|close|reopen, n?, title?, body?}. open: title 1..200, body opcional; comment: n + body; close/reopen: n (body, se vier, entra como comentário). Corpo ≤ 20000 caracteres, ≤ 200 comentários por issue, ≤ 500 issues por problema.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id, open, issue}"
+          },
+          "400": {
+            "description": "issue_invalid (a mensagem diz o quê)"
+          },
+          "404": {
+            "description": "problema inexistente/sem acesso, ou issue_notfound"
+          },
+          "409": {
+            "description": "issue_state: fechar fechada ou reabrir aberta"
+          },
+          "422": {
+            "description": "issue_limit: teto de issues ou de comentários"
           }
         }
       }

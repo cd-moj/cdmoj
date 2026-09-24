@@ -691,8 +691,9 @@ Em uma frase: **a org diz quem manda no problema, a coleção diz onde ele apare
 ```
   rascunho  ──►  pacote conferido  ──►  calibrado  ──►  PRONTO  ──►  público
  (org privada)   (botão Validar:       (no juiz: TL,    (nenhuma      (treino livre)
-                  estático)             soluções,        pendência)
-                                        entradas)
+                  estático)             soluções,        pendência,
+                                        entradas)        nenhuma issue
+                                                         aberta)
 ```
 
 "Pronto" não é um passo que alguém executa: é o nome do estado em que **todas** as dimensões abaixo
@@ -831,9 +832,19 @@ O problema está **pronto** quando o `/problems/status` não tem nenhuma **pend�
 | `sols_divergent:<n>` | *n* soluções divergentes ou que não rodaram |
 | `sols_unchecked` | há solução sem resultado (calibração rápida) ou o pacote mudou desde a calibração |
 | `inputs_invalid:<n>` / `inputs_error` | o validador de entrada (`scripts/validator.cpp`) reprovou *n* testes / não rodou |
+| `issues_open:<n>` | *n* issues abertas (subseção "Issues") |
 
 O editor mostra o selo "✓ Pronto" ou "N pendências" na barra de cima. O Painel tem o card "prontos"
 e a coluna Soluções. `moj check` diz "pronto: SIM" ou lista as pendências.
+
+### Issues
+
+A revisão da banca fica em **issues por problema**: qualquer membro da org abre uma issue ("o teste 7
+está fora do limite do enunciado", "o TL do Python está apertado"), comenta e fecha. Enquanto houver
+issue aberta, o problema não está pronto. Web: aba **🐞 Issues** do editor (o Painel mostra 🐞N com link);
+CLI: `moj issues`. As issues **não fazem parte do pacote**: ficam no servidor
+(`contests/treino/var/problem-issues/`), então não mudam o `rev`, não somem num `moj upload` e não vão
+ao juiz. Mover o problema de org leva as issues; apagar o problema as apaga.
 
 ### Publicação
 

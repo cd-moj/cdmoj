@@ -53,6 +53,7 @@ const PANEL_PREDS = {
   ready: (p) => p.ready,
   sols_divergent: (p) => p.sols && p.sols.state === 'bad',
   inputs_invalid: (p) => p.inputs && (p.inputs.state === 'invalid' || p.inputs.state === 'error'),
+  issues_open: (p) => (p.open_issues || 0) > 0,
 };
 const scard = (n, l, hl, fkey) => {
   const a = { class: 'scard' + (hl ? ' hl' : '') + (fkey ? ' clickable' : '') + (fkey && PANEL_FILTER === fkey ? ' on' : '') };
@@ -104,6 +105,11 @@ const solsChip = (p) => {
   else if (i.state === 'ok') out.push(' ', pill('ok', T('entradas ✓', 'inputs ✓'), T('O validador de entrada aprovou todos os testes.', 'The input validator accepted every test.')));
   return out;
 };
+// 🐞 issues abertas (a revisão da banca): link direto p/ a aba Issues do editor
+const issuesChip = (p) => !(p.open_issues > 0) ? '' :
+  el('a', { class: 'pill no', style: 'margin-left:.35rem;text-decoration:none', href: '/problemas/editar.html?id=' + encodeURIComponent(p.id) + '#issues',
+    title: T('Issues abertas: o problema só fica pronto quando todas forem fechadas.', 'Open issues: the problem is only ready when all of them are closed.') },
+    `🐞 ${p.open_issues}`);
 // PRONTO = nenhuma pendência (o `pending` do servidor). Não pronto mostra quantas, com a lista no title.
 const readyChip = (p) => {
   if (!Array.isArray(p.pending)) return '';
@@ -139,7 +145,7 @@ const pendingOrReason = (r) => r === 'validation_failed' ? pendingLabel('package
 const reviewChip = (p) => {
   if (!p.needs_review) return '';
   // soluções/entradas têm a coluna própria (solsChip): aqui só o resto, senão o mesmo alarme sai duas vezes
-  const rs = (p.review_reasons || []).filter(r => !r.startsWith('sols_') && !r.startsWith('inputs_'));
+  const rs = (p.review_reasons || []).filter(r => !r.startsWith('sols_') && !r.startsWith('inputs_') && !r.startsWith('issues_'));
   if (!rs.length) return '';
   const label = rs.some(r => r.startsWith('good_sol_no_tl')) ? (T('good sem TL: ', 'good without TL: ') + (p.good_sol_missing_langs || []).join(','))
     : rs.includes('validation_failed') ? T('pacote com erro', 'package error')
@@ -735,6 +741,7 @@ function renderPanel() {
     scard(c.calibrated || 0, T('calibrados', 'calibrated'), false, 'calibrated'),
     scard(c.sols_divergent || 0, T('soluções divergentes', 'diverging solutions'), (c.sols_divergent || 0) > 0, 'sols_divergent'),
     scard(c.inputs_invalid || 0, T('entradas inválidas', 'invalid inputs'), (c.inputs_invalid || 0) > 0, 'inputs_invalid'),
+    scard(c.issues_open || 0, T('com issue aberta', 'with open issue'), (c.issues_open || 0) > 0, 'issues_open'),
     scard(c.needs_recalibration || 0, T('precisa recalibrar', 'needs recalibration'), (c.needs_recalibration || 0) > 0, 'needs_recalibration'),
     scard(c.good_sol_no_tl || 0, T('good sem TL', 'good without TL'), (c.good_sol_no_tl || 0) > 0, 'good_sol_no_tl'),
     scard(c.needs_review || 0, T('precisa revisar', 'needs review'), (c.needs_review || 0) > 0, 'needs_review'));
@@ -774,7 +781,7 @@ function renderPanel() {
   const tb = el('tbody');
   slice.forEach(p => tb.append(el('tr', {},
     el('td', {}, el('a', { href: '#', onclick: (e) => { e.preventDefault(); openDetail(p.id); } }, p.title || p.prob || p.id),
-      untitledChip(p), readyChip(p),
+      untitledChip(p), readyChip(p), issuesChip(p),
       el('div', { class: 'small muted2' }, p.id)),
     el('td', { class: 'small' }, p.author || '—'),
     el('td', {}, valChip(p)),
