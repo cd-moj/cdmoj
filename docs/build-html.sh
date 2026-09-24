@@ -30,7 +30,7 @@ blockquote{border-left:4px solid var(--ac);margin:1rem 0;padding:.2rem 1rem;colo
 #TOC::before{content:"Conteúdo";font-weight:700;color:var(--mut);font-size:.85em}
 CSS
 
-ORDER=(OVERVIEW.md FLOW.md API.md PACOTE.md MANUAL-ORGS-COLECOES.md SCOREBOARD.md VIRTUAL.md DEPLOY.md ADMIN.md MANUAL-ADMIN.md MANUAL-TREINO.md MANUAL-CONTEST.md MANUAL-LINGUAGENS.md MANUAL-STAFF.md MANUAL-JUIZ.md MANUAL-ANIMEITOR.md WEBCAST.md PLAN.md README.md)
+ORDER=(OVERVIEW.md FLOW.md API.md PACOTE.md ENUNCIADO.md MANUAL-ORGS-COLECOES.md SCOREBOARD.md VIRTUAL.md DEPLOY.md ADMIN.md MANUAL-ADMIN.md MANUAL-TREINO.md MANUAL-CONTEST.md MANUAL-LINGUAGENS.md MANUAL-STAFF.md MANUAL-JUIZ.md MANUAL-ANIMEITOR.md WEBCAST.md PLAN.md README.md)
 title_of(){ local t; t="$(grep -m1 '^# ' "$1" 2>/dev/null | sed 's/^#\+ //')"; printf '%s' "${t:-$(basename "$1" .md)}"; }
 
 # lista final de docs: ORDER primeiro, depois o resto em ordem alfabética (sem duplicar)
@@ -44,7 +44,9 @@ NAV="$OUT/.nav.html"
   printf '</nav>'; } > "$NAV"
 
 for m in "${DOCLIST[@]}"; do
-  pandoc "$DOCS/$m" -f gfm -t html5 -s --toc --toc-depth=2 \
+  # --mathml: as fórmulas ($…$) saem como MathML, desenhadas pelo navegador — sem ele o pandoc
+  # aproxima em texto e deixa `\frac` e cia. como TeX cru (o ENUNCIADO.md é feito de fórmulas)
+  pandoc "$DOCS/$m" -f gfm -t html5 -s --mathml --toc --toc-depth=2 \
     --lua-filter "$DOCS/md2html-links.lua" \
     --metadata title="$(title_of "$DOCS/$m") — MOJ docs" \
     -c moj-docs.css -B "$NAV" -o "$OUT/${m%.md}.html" \
