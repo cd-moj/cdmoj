@@ -141,9 +141,15 @@ de X cpus); `reserve` tira as N primeiras cpus dos slots (SO/agente); `disabled`
 
 - **Config por juiz** = `contests/treino/var/judges-config.json` (estado DESEJADO do admin;
   NUNCA no registry — o register o sobrescreve). Editada por `POST /ops/judge-config`
-  (`moj judges config <host> …` na CLI, ou a aba 🖥️ Máquinas). O heartbeat compara o
-  `cfg_hash` do agente com o vigente e entrega `config` quando difere; o agente **drena**
-  (espera os jobs em andamento) e aplica.
+  (`moj judges config <host> …` na CLI, ou a aba 🖥️ Máquinas), que **FUNDE** campos na entrada
+  do host (nunca a substitui). O heartbeat compara o `cfg_hash` do agente com o vigente e entrega
+  `config` quando difere; o agente **drena** (espera os jobs em andamento) e aplica. O `cfg_hash`
+  (`judges_config_for`) cobre **só `{partition,reserve,disabled}` normalizados** — nunca a entrada
+  inteira (`updated_at`/`by` e campos de escalonamento que só o servidor lê): hashear tudo fazia
+  qualquer edição drenar o juiz p/ reaplicar a mesma partição (bug (d), 24/09/2026). O agente, por
+  sua vez, adota sem drenar uma config igual à aplicada com hash novo, e **despacha o lote que veio
+  no mesmo beat da config** (antes descartava e os jobs esperavam o ASSIGN_TTL em assigned/).
+  Teste: `smoke-judge-config.sh`.
 - **Heartbeat multi-slot**: agente manda `free_slots`/`total_slots`; o handler entrega um
   **lote `assigned:[…]`** de até `free_slots` jobs (agente ANTIGO sem `free_slots` recebe o
   escalar de sempre). O registro guarda `free_slots`/`total_slots` p/ os painéis
@@ -174,7 +180,7 @@ o MARCADOR `inprogress/<host>/cmd-*.json` (display; some no report do juiz ou no
 | `upd_reconcile` | host morto OU `claimed_at` > `UPD_TTL`=1800s (marcador `cmd-*` é APAGADO, não devolvido) | a cada heartbeat (throttle ~15s) |
 | `upd_touch_host` | (o oposto) re-carimba `claimed_at` das calibrações do host a cada beat de agente NOVO — calibração longa LEGÍTIMA não é re-enfileirada; o `UPD_TTL` vira proteção só de host morto/agente antigo | a cada heartbeat |
 | register `boot:true` | **na hora**: restart do agente devolve TUDO que estava atribuído ao host (`sched_requeue_host`) | no register de boot |
-| teto dinâmico do agente | o agente MATA o grupo de processos de um job/calibração presos (cap = TL×testes×margem) e reporta judge-error/calib-fail — o servidor fecha na hora (`q_done`/`upd_done`) | no juiz |
+| teto dinâmico do agente | o LAÇO do agente MATA a ÁRVORE de processos de um job/calibração presos (`_kill_tree`, por parentesco — atravessa grupos de processos; cap = TL×testes×margem, prazo em `$TMPDIR/.deadline` do slot) e reporta judge-error/calib-fail — o servidor fecha na hora (`q_done`/`upd_done`) | no juiz |
 
 Corolário: nada se perde num restart (de qualquer peça) — no pior caso um job re-executa
 (idempotente por id em `results/`). E os reconciles só rodam DENTRO de um heartbeat: com TODOS
@@ -191,7 +197,9 @@ os agentes mortos a fila simplesmente pausa (nada expira errado).
    checksum NOVO sempre recalibra — pedido novo deliberado também). O `tl.<host>`/`tl` do
    pacote são substituídos ATOMICAMENTE pelo calibreitor (leitor nunca vê placeholder/tabela
    rasgada) e a tabela de trabalho da calibração é privada (`MOJ_TLFILE`).
-3. **Nenhum job roda sem teto**: wall-clock dinâmico + SIGKILL do process group no agente.
+3. **Nenhum job roda sem teto**: wall-clock dinâmico + `_kill_tree` (SIGSTOP+SIGKILL na árvore
+   inteira, por parentesco) no agente — o SIGKILL no process group não alcançava a subárvore
+   do `timeout` (pgroup próprio) e o job "morto" seguia nas CPUs do slot seguinte.
 4. **Recuperação sem SSH**: `/ops/judge-reset` (kill|restart, furando o gate de ocupado) +
    `/ops/calib-cancel` (purga pendentes). `disable` continua sendo só drenagem (não é recovery).
 5. **Config por juiz nunca diverge no restart**: precedência servidor (register) > estado

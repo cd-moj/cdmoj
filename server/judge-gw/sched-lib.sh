@@ -94,14 +94,19 @@ reg_get() { local f="$REGISTRYDIR/$1.json"; [[ -f "$f" ]] && cat "$f"; }
 # judges_config_for <host> : ecoa a config VIGENTE do juiz {partition,reserve,disabled,cfg_hash}
 # (de judges-config.json; sem entrada => defaults com hash ""). Fonte única p/ heartbeat E
 # register — os dois entregam exatamente o mesmo objeto/hash.
+# ⚠ O `cfg_hash` cobre SÓ os três campos que o agente APLICA (normalizados) — nunca a entrada
+# inteira: ela carrega `updated_at`/`by` (e, desde 24/09/2026, campos de escalonamento como
+# `parallel_max`, que são do SERVIDOR), e hashear tudo fazia QUALQUER edição da entrada DRENAR
+# o juiz p/ reaplicar a mesma partição (bug (d)).
 judges_config_for() {
-  local host="$1" jconf entry srv_hash
+  local host="$1" jconf entry norm srv_hash
   jconf="${JUDGES_CONFIG_FILE:-$CONTESTSDIR/treino/var/judges-config.json}"
   entry="$(jq -c --arg h "$host" '.[$h] // empty' "$jconf" 2>/dev/null)"
-  if [[ -n "$entry" ]]; then srv_hash="$(printf '%s' "$entry" | md5sum | cut -c1-16)"; else srv_hash=""; fi
-  jq -cn --argjson e "${entry:-null}" --arg hh "$srv_hash" \
-    '{partition:($e.partition // "off"), reserve:($e.reserve // 0),
-      disabled:($e.disabled // false), cfg_hash:$hh}'
+  norm="$(jq -cS '{partition:(.partition // "off"), reserve:((.reserve // 0) | tonumber? // 0),
+                   disabled:((.disabled // false) == true)}' <<<"${entry:-null}" 2>/dev/null)"
+  [[ -n "$norm" ]] || norm='{"disabled":false,"partition":"off","reserve":0}'
+  if [[ -n "$entry" ]]; then srv_hash="$(printf '%s' "$norm" | md5sum | cut -c1-16)"; else srv_hash=""; fi
+  jq -c --arg hh "$srv_hash" '. + {cfg_hash:$hh}' <<<"$norm"
 }
 
 # sched_requeue_host <host> : devolve à fila TUDO que estava atribuído ao host — jobs

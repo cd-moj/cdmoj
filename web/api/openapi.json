@@ -8750,7 +8750,7 @@
           "ops"
         ],
         "summary": "Config fina por juiz (multi-slot): particionamento/reserve/disabled",
-        "description": "Admin. Config DESEJADA por host (contests/treino/var/judges-config.json); o heartbeat entrega ao agente quando muda e ele aplica após drenar os jobs. ?host= filtra.",
+        "description": "Admin. Config DESEJADA por host (contests/treino/var/judges-config.json); o heartbeat entrega ao agente quando muda (cfg_hash = hash SÓ de {partition,reserve,disabled} normalizados — updated_at/by e campos do servidor não drenam o juiz) e ele aplica após drenar os jobs. ?host= filtra.",
         "security": [
           {
             "bearerAuth": []
@@ -8776,7 +8776,7 @@
           "ops"
         ],
         "summary": "Define a config de um juiz",
-        "description": "Body {host, partition?: off|numa|cpus:<X>, reserve?: int, disabled?: bool}. partition particiona a máquina em SLOTS de cpus disjuntas (o agente corrige N problemas ao mesmo tempo, cada job pinado no seu cpuset); reserve tira as N primeiras cpus dos slots; disabled drena e para de receber trabalho.",
+        "description": "Body {host, partition?: off|numa|cpus:<X>, reserve?: int, disabled?: bool}. FUNDE na entrada do host (campos não enviados são preservados). partition particiona a máquina em SLOTS de cpus disjuntas (o agente corrige N problemas ao mesmo tempo, cada job pinado no seu cpuset; cpus:<X> fatia dentro de cada nó NUMA); reserve tira as N primeiras cpus dos slots; disabled drena e para de receber trabalho.",
         "security": [
           {
             "bearerAuth": []
