@@ -301,6 +301,12 @@ imprimiu ficou com a versão velha (é para isso que serve o campo *versão do c
 > problema sai traduzido quando o pacote tem o título naquele idioma. Prova bilíngue com
 > enunciado pronto por fora continua entrando pelo **PDF enviado**.
 
+> ∑ **As fórmulas saem no PDF como no enunciado da página**, inclusive a barra vertical (`|x|`,
+> `a | b`) — o autor não precisa escapar nada. Se algum símbolo de fórmula sair com um `¿`
+> vermelho no PDF, é defeito do gerador, não do enunciado: reporte (com o problema) e, enquanto
+> isso, envie o PDF pronto daquele caderno. Um caderno gerado antes de um conserto não se refaz
+> sozinho — gere de novo.
+
 > 🔒 **O caderno é conteúdo de prova.** Antes de publicar, só `.admin` e `.cjudge` o baixam.
 > Publicado, antes do início só os juízes (`.judge`) somam-se a eles. Para a sede e os times a
 > API responde **404** até o início — não é uma trava de interface.

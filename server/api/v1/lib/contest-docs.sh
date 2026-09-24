@@ -685,6 +685,14 @@ _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
 # estilos Text_20_body (fo:text-align=justify) e Preformatted_20_Text
 # (fo:background-color/fo:padding/fo:border) e rezipar com o mimetype PRIMEIRO (zip -0).
 # O html de entrada NÃO deve ter <title> (o pandoc o promoveria a título órfão no topo).
+# ⚠ BARRA VERTICAL (relato do Arthur Botelho, 24/09/2026: "o `|` sai com um ¿ em volta"): o pandoc
+# marca todo `|` da fórmula como `form="prefix"`, inclusive o que fecha, e o LibreOffice Math desenha
+# o erro de sintaxe (¿ vermelho). O enunciado está CERTO — o autor não escapa nada. Entre o pandoc e
+# o soffice, `_doc_odt_fix_math` reescreve as barras no ODT (lib/odt-math-bars.py: abre/fecha em PAR
+# com fence, a do meio vira ∣). Fail-open: se o python falhar, o PDF sai como sairia sem ele.
+# Testes: smoke-odt-math-bars.sh (papéis) e render-docs.sh (nenhum ¿ no papel). Fora: `\overline`
+# também some no PDF (nenhuma grafia de MathML que o LibreOffice aceite foi achada).
+_doc_odt_fix_math(){ python3 "$_DIR/lib/odt-math-bars.py" "$1" >/dev/null 2>&1 || true; }
 _doc_html2pdf_odt(){
   local src="$1" out="$2" work rf refodt=()
   command -v pandoc >/dev/null 2>&1 || return 1
@@ -692,6 +700,7 @@ _doc_html2pdf_odt(){
   rf="$_DIR/../../etc/caderno-reference.odt"; [[ -f "$rf" ]] || rf="$_DIR/etc/caderno-reference.odt"
   [[ -f "$rf" ]] && refodt=( --reference-doc="$rf" )
   if pandoc -f html -t odt "${refodt[@]}" "$src" -o "$work/doc.odt" 2>/dev/null; then
+    _doc_odt_fix_math "$work/doc.odt"
     soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
             --outdir "$work" "$work/doc.odt" >/dev/null 2>&1
     [[ -s "$work/doc.pdf" ]] && { mv -f "$work/doc.pdf" "$out"; rm -rf "$work"; return 0; }

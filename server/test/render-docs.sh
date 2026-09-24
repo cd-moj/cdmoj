@@ -13,6 +13,10 @@
 #    podman exec <container> bash /opt/moj/cdmoj/server/test/render-docs.sh
 # Cobre também o EDITORIAL (2026-09-14): capa na página 1, UM problema por página, e o título
 # interno da solução (`# Ideia`) NÃO abre página.
+# E as FÓRMULAS COM BARRA (2026-09-24, relato do Arthur Botelho): o pandoc marca todo `|` do
+# MathML como `form="prefix"` e o LibreOffice Math desenhava um `¿` vermelho em volta dele no
+# caderno e no editorial — o `lib/odt-math-bars.py` reescreve as barras no ODT (ver
+# `smoke-odt-math-bars.sh`); aqui se afirma o papel: nenhum `¿` e a fórmula presente.
 set -u
 # ROOT pelo caminho do script — mas o jeito de rodar isto é copiando o arquivo para dentro da
 # imagem (`podman cp … :/tmp/`), e aí o caminho derivado não acha as libs: cai no /opt do container.
@@ -36,6 +40,7 @@ cat > "$C/enunciados/col#pa.html" <<'HTML'
 <p>Dados dois inteiros <em>a</em> e <em>b</em>, com <strong>1 ≤ a, b ≤ 10⁹</strong>, escreva a
 soma. Este parágrafo existe para haver texto suficiente para o justificado mostrar a que veio,
 com pelo menos três linhas de corpo em A4.</p>
+@@MATH@@
 <h2>Entrada</h2><p>Uma linha com <em>a</em> e <em>b</em>.</p>
 <h2>Saída</h2><p>Uma linha com a soma.</p>
 <pre>2 3
@@ -46,7 +51,7 @@ HTML
 # pacotes com docs/solucao.md (editorial) — pkg_path lê MOJ_PROBLEMS_DIR
 export MOJ_PROBLEMS_DIR="$FIX/problems"
 for p in pa pb; do mkdir -p "$FIX/problems/col/$p/docs"; done
-printf '# Ideia\n\nSome os dois números.\n\n## Complexidade\n\nO(1).\n' > "$FIX/problems/col/pa/docs/solucao.md"
+printf '# Ideia\n\nSome os dois números.\n\n## Complexidade\n\n$O(1)$, e com barras: $O(n \\cdot |P|)$.\n' > "$FIX/problems/col/pa/docs/solucao.md"
 printf 'Subtraia. Texto sem título interno.\n' > "$FIX/problems/col/pb/docs/solucao.md"
 # IDIOMAS (2026-09-15): o problema A tem tradução EN — enunciado no contest (<skey>.en.html), editorial
 # no pacote (solucao.en.md) e título no banco (statements.en.title); o B só PT. O caderno/editorial
@@ -58,8 +63,16 @@ cat > "$C/enunciados/col#pa.en.html" <<'HTML'
 <p>Given two integers <em>a</em> and <em>b</em>, write their sum. ENGLISHTEXT.</p>
 <h2>Input</h2><p>One line with <em>a</em> and <em>b</em>.</p>
 <h2>Output</h2><p>One line with the sum.</p>
+@@MATH@@
 </body></html>
 HTML
+# fórmulas com barra no MathML de VERDADE (o `pandoc --mathml` do render-statement.sh), nas duas
+# línguas do A: as formas que os pacotes usam (|S|, |a-b|, fração, O(n·|P|)) + a dupla e o \mid
+MATHP="$(printf '%s\n' 'Barras: $1 \leq |S| \leq 10^5$, $|a-b|$, $\|v\|$, $a \mid b$, $\dfrac{|T - B|}{2}$ e $O(n \cdot |P|)$.' \
+  | pandoc -f markdown -t html5 --mathml 2>/dev/null)"
+for f in "$C/enunciados/col#pa.html" "$C/enunciados/col#pa.en.html"; do
+  M="$MATHP" awk '$0 == "@@MATH@@" { print ENVIRON["M"]; next } { print }' "$f" > "$f.tmp" && mv -f "$f.tmp" "$f"
+done
 mkdir -p "$FIX/treino/var/jsons"
 jq -cn --arg h "$(base64 -w0 < "$C/enunciados/col#pa.html")" --arg e "$(base64 -w0 < "$C/enunciados/col#pa.en.html")" \
   '{id:"col#pa", title:"Soma Simples", public:true, statement_html_b64:$h, statement_langs:["pt","en"], statements:{en:{title:"Simple Sum", html_b64:$e}}}' \
@@ -125,6 +138,13 @@ ck "editorial EN: solucao.en.md do A"   'grep -q "Add the two numbers" <<<"$ED_E
 ck "editorial EN: B cai no PT"          'grep -q "Subtraia" <<<"$ED_EN"'
 TL_EN="$(pdftotext -layout "$(doc_file rd times en pdf)" - 2>/dev/null)"
 ck "folha de TL EN: nome do A traduzido" 'grep -q "Simple Sum" <<<"$TL_EN"'
+
+echo "== fórmulas com barra: sem o ¿ do LibreOffice Math (caderno pt/en e editorial) =="
+ED_PT="$(pdftotext -layout "$(doc_file rd editorial pt pdf)" - 2>/dev/null)"
+ck "caderno PT: a fórmula |S| está lá"  'grep -qF "|S|" <<<"$CT_PT"'
+ck "caderno PT: nenhum ¿"               '! grep -qF "¿" <<<"$CT_PT"'
+ck "caderno EN: nenhum ¿"               '! grep -qF "¿" <<<"$CT_EN"'
+ck "editorial PT: |P| está lá, sem ¿"   'grep -qF "|P|" <<<"$ED_PT" && ! grep -qF "¿" <<<"$ED_PT"'
 
 echo "== ambiente de julgamento: título novo, linhas de compilação, veredictos, penalidade =="
 IP="$(doc_file rd info-sheet en pdf)"; IT="$(pdftotext -layout "$IP" - 2>/dev/null)"

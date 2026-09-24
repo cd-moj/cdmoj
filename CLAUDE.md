@@ -797,7 +797,18 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Writer NÃO o entende (achatava as fórmulas + duplicava o TeX do `<annotation>`) — por isso o
   enunciado do caderno vai por **`pandoc -f html -t odt` → soffice** (fórmula ODF de verdade;
   a imagem tem `libreoffice-math`), com fallback soffice-HTML + strip de `<annotation>`
-  (`_doc_strip_annotation`, aplicado também em `_doc_html2pdf` p/ capa/errata). O ESTILO da rota
+  (`_doc_strip_annotation`, aplicado também em `_doc_html2pdf` p/ capa/errata). ⚠ **BARRA `|` NA
+  FÓRMULA** (relato do Arthur Botelho, 24/09/2026: "sai com um ¿ em volta, tem que escapar?" — NÃO):
+  o pandoc marca TODO `|` do MathML como `form="prefix"`, inclusive o que fecha, e o LibreOffice Math
+  desenha o erro de sintaxe (¿ vermelho); não há grafia do lado do autor que escape (`\lvert`,
+  `\left|`, `\vert`, `\|` quebram igual). Entre o pandoc e o soffice, **`_doc_odt_fix_math`** roda o
+  `lib/odt-math-bars.py` no ODT: barra que abre/fecha vira `fence="true"` prefix/postfix EM PAR, a do
+  meio vira `∣` (o `\mid`), a sem par vira `<mtext>` — papel pela vizinhança numa linha achatada (a
+  base de `msup` entra: `|x|^2`). Armadilhas do texmath que o teste prende: `-` depois de barra sai
+  `<mi>−</mi>`, e `\bigr|` sai `form="prefix"` (só o postfix esticável é confiável). Fail-open (erro =
+  PDF como antes); o `build-ensaio-pdf.sh` faz o mesmo passo. Testes: `smoke-odt-math-bars.sh`
+  (papéis + zip) e `render-docs.sh` (nenhum `¿` no pdftotext). Sem conserto conhecido: `\overline`
+  some no PDF. O ESTILO da rota
   ODT vem do **`etc/caderno-reference.odt`** (`--reference-doc`; ODT ignora CSS): corpo
   JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos) — receita de
   regeneração comentada no `contest-docs.sh`. O caderno prefere o **PDF próprio** do problema; a **capa** tem 3 modos (PDF enviado ›

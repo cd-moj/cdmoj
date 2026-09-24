@@ -59,6 +59,8 @@ PY
     if pandoc -f html -t odt --resource-path="$WORK/ensaio" \
               --reference-doc="$ROOT/server/etc/caderno-reference.odt" \
               "$WORK/ensaio/$l.html" -o "$WORK/ensaio/$l.odt" 2>/dev/null; then
+      # barras das fórmulas (o ¿ do LibreOffice Math) — o mesmo passo do _doc_html2pdf_odt
+      python3 "$ROOT/server/api/v1/lib/odt-math-bars.py" "$WORK/ensaio/$l.odt" >/dev/null 2>&1 || true
       soffice --headless -env:UserInstallation="file://$WORK/lo" --convert-to pdf \
               --outdir "$WORK/ensaio" "$WORK/ensaio/$l.odt" >/dev/null 2>&1
       [[ -s "$WORK/ensaio/$l.pdf" ]] && ok=1
