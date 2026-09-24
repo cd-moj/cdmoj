@@ -46,8 +46,28 @@
 # fórmula recebe o tamanho e a família do CORPO, lidos da default-style de parágrafo do styles.xml
 # do próprio ODT — a do `etc/caderno-reference.odt` (mudou o corpo lá, a fórmula acompanha) — e
 # índices/limites a 70% (o \scriptsize do LaTeX a 11pt é 8pt; os 60% do Math deixavam o
-# `\sum_{d|n}` ilegível). ⚠ ORDEM: `FontName…` recria a fonte SEM itálico — o
-# `FontVariablesIsItalic` tem de vir DEPOIS (antes dele o `n` saía em pé).
+# `\sum_{i=1}^{n}` ilegível). ⚠ ORDEM: `FontName…` recria a fonte SEM itálico — o
+# `FontVariablesIsItalic` tem de vir DEPOIS (antes dele o `n` saía em pé). A FAMÍLIA é o CMU Serif
+# (fonts-cmu, MATH_FONTS) quando instalado: o Latin Modern Roman não tem grego, e o `\alpha` caía
+# no DejaVu Serif; sem o CMU, fica a do corpo.
+#
+# COMO O LIBREOFFICE LÊ O MATHML (o que explica todo o resto): ele NÃO desenha o MathML — traduz
+# para StarMath (a linguagem de fórmula dele) e LÊ ESSE TEXTO de novo. Para ver o que ele entendeu,
+# salve o ODT pelo soffice (`--convert-to odt`) e leia o `<annotation encoding="StarMath 5.0">` de
+# cada fórmula. Daí:
+#   PARÊNTESES (`fix_brackets`): par com `stretchy="true"` vira `left ( … right )`, que estica até
+#     a altura do conteúdo, e o pandoc 3.1 marca assim até o `(` COMUM do TeX — `(x_1, y_1)` saía
+#     com parênteses maiores que o texto. Só estica em volta de conteúdo ALTO (fração, `\binom`,
+#     matriz, ∑); as BARRAS seguem a mesma regra (`rewrite`). Par TROCADO (`[l, r)`) é erro de
+#     sintaxe no StarMath (¿): vira caractere literal. O `cases` (abre sem fechar) ganha o fecho
+#     vazio — sem ele o LibreOffice inventava a chave espelhada à direita;
+#   SINTAXE (`fix_syntax`): `#`, `&`, `_`, `^`, `%`… num <mi>/<mo> são comandos do StarMath (`a \# b`
+#     saía ¿ ¿, `a \& b` virava a ∧ b): viram texto;
+#   OPERANDO (`fix_operands`): relação/binário precisa de operando dos dois lados — `$\le 10^9$`,
+#     `$= 0$` e a coluna `&= …` do `aligned` saíam ¿; ganham o grupo vazio `{}` (sem largura).
+# Sem conserto por aqui: ACENTOS (`\bar`, `\hat`, `\vec`, `\overline`…) — o importador do 25.2 monta
+# o acento mas o escreve SEM NOME no StarMath, e ele some; como `csup` (o que sai hoje) o sinal fica
+# alto e pequeno. O PRIMO (`f'`) sai do DejaVu Sans (nem o CMU Serif nem o Latin Modern têm o `′`).
 #
 # E as IMAGENS (`fix_images` + `--html-widths`; pedido de 24/09/2026: "não podem ficar gigantes nem
 # sair da página"): nunca maior que o tamanho da página WEB (px × 0,75 pt) nem que o do DPI do
@@ -63,10 +83,13 @@
 #        papel de cada barra (O abre, C fecha, M meio, L solta; prefixo D = dupla).
 #      odt-math-bars.py --html-widths <arquivo.html> — ANTES do pandoc: `style="width:…"` de <img> vira
 #        atributo (no lugar, atômico); imprime quantas <img> mudaram.
+#      odt-math-bars.py --fix          — TESTE: lê HTML/MathML no stdin e imprime, uma por linha,
+#        cada <math> como sai daqui (o que o LibreOffice vai receber).
 # Teste: server/test/smoke-odt-math-bars.sh; a cadeia real: server/test/render-docs.sh.
 import os
 import re
 import struct
+import subprocess
 import sys
 import tempfile
 import zipfile
@@ -79,16 +102,24 @@ NS_STYLE = 'urn:oasis:names:tc:opendocument:xmlns:style:1.0'
 NS_FO = 'urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0'
 NS_SVG = 'urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0'
 BODY_FALLBACK = ('Latin Modern Roman', 11)   # o corpo do etc/caderno-reference.odt
+# fonte das FÓRMULAS: o Latin Modern Roman do corpo NÃO tem grego (o `\alpha` caía no DejaVu Serif);
+# o CMU Serif (fonts-cmu) é o mesmo desenho COM grego. A 1ª instalada vence; nenhuma = a do corpo.
+MATH_FONTS = ('CMU Serif',)
 SCRIPT_PCT = 70                              # índices e limites, % do corpo
 
 BARS = {'|': 's', '∣': 's', '∥': 'd', '‖': 'd'}   # | ∣ ∥ ‖
 OPENB = set('([{⟨⌊⌈')                             # ( [ { ⟨ ⌊ ⌈
 CLOSEB = set(')]}⟩⌋⌉')
+MATCH = dict(zip('([{⟨⌊⌈', ')]}⟩⌋⌉'))
 POSTOP = set('′″‴!')                                # ′ ″ ‴ !
 # operador que o texmath às vezes emite como <mi> (o `-` depois de uma barra sai `<mi>−</mi>`)
 OPS = set('+-−=<>≤≥≠±∓×÷⋅·*/,;:'
           '∈∉⊂⊆∪∩∧∨¬→←↔⇒⇔'
           '∑∏∫…')
+# conteúdo ALTO: o único caso em que o par de delimitadores estica (fração e \binom, matriz/cases,
+# operador grande — o ∑ com limites). Ver fix_brackets.
+TALL = {'mfrac', 'mtable'}
+BIGOPS = set('∑∏∐∫∬∭∮⋃⋂⨁⨂')
 SCRIPTS = {'msub', 'msup', 'msubsup', 'munder', 'mover', 'munderover', 'mmultiscripts'}
 GROUP = {'mrow', 'mstyle', 'mpadded', 'mphantom'}
 LEAF = {'mi', 'mn', 'mo', 'mtext', 'mspace', 'ms'}
@@ -150,11 +181,16 @@ def kind(e, role):
     return 'operand'
 
 
-def process(row, role):
+def is_tall(e):
+    return any(tag(d) in TALL or (tag(d) == 'mo' and text(d) in BIGOPS) for d in e.iter())
+
+
+def process(row, role, tall):
     seq, rows = [], []
     flatten(row, seq, rows)
     toks = [e for e in seq if kind(e, {}) != 'skip']
     stack = {'s': [], 'd': []}
+    pos = {}
     for i, e in enumerate(toks):
         if not is_bar(e):
             continue
@@ -181,9 +217,11 @@ def process(row, role):
             r = 'lone'
         if r == 'open':
             stack[b].append(e)
+            pos[e] = i
         elif r == 'close':
             if stack[b]:
-                stack[b].pop()
+                o = stack[b].pop()
+                tall[o] = tall[e] = any(is_tall(f) for f in toks[pos[o] + 1:i])
             else:
                 r = 'lone'
         role[e] = r
@@ -192,15 +230,16 @@ def process(row, role):
             role[e] = 'lone'
     for c in rows:   # sub-linhas (índices, frações, raízes, células): independentes
         if tag(c) not in LEAF:
-            process(c, role)
+            process(c, role, tall)
 
 
 ROWLIKE = GROUP | {'math', 'mtd', 'msqrt', 'menclose', 'semantics'}
 
 
-def roles_of(root):
+def roles_of(root, tall=None):
+    """papel de cada barra; `tall` (se dado) recebe, para cada barra de PAR, se o par é alto."""
     role = {}
-    process(root, role)
+    process(root, role, {} if tall is None else tall)
     # a do MEIO precisa de vizinho dos DOIS lados no grupo REAL (o LibreOffice monta cada <mrow> à
     # parte): o pandoc 3.1 põe `{x | |x|` como `x <mrow>| |</mrow>` e um `∣` na borda do grupo vira
     # operador sem operando (¿). Sem os dois vizinhos ela sai SOLTA (texto), que sempre monta.
@@ -215,10 +254,10 @@ def roles_of(root):
     return role
 
 
-def rewrite(root, role):
+def rewrite(root, role, tall):
     for e, r in role.items():
         b = BARS[text(e)]
-        st = 'true' if e.get('stretchy') == 'true' else 'false'
+        st = 'true' if tall.get(e) else 'false'   # estica só em volta de conteúdo alto (fix_brackets)
         for a in ATTRS:
             e.attrib.pop(a, None)
         if r != 'lone':
@@ -251,6 +290,151 @@ def fix_names(root):
     return n
 
 
+# caracteres que são SINTAXE no StarMath (o LibreOffice reescreve a fórmula em StarMath e a lê de
+# novo): `#` separa colunas, `&` é o "e" lógico, `_`/`^` são índice/expoente, `%` abre nome de
+# símbolo, `~`/`` ` `` são espaços, `\` escapa. Num <mi>/<mo>/<mn> saíam ¿ (`\#`, `\underline`) ou,
+# pior, OUTRA COISA calada (`a \& b` virava a ∧ b; `x\_i`, x com índice i).
+SYNTAX = set('#&_^%~`\\')
+
+
+def fix_syntax(root):
+    """caractere de sintaxe do StarMath vira TEXTO (`<mtext>`, que o LibreOffice põe entre aspas);
+    aspa reta DENTRO do texto fecharia essas aspas — vira curva, como o TeX a desenha."""
+    n = 0
+    for e in root.iter():
+        t, s = tag(e), e.text or ''
+        if t in ('mi', 'mo', 'mn') and any(ch in SYNTAX for ch in s):
+            e.tag = '{%s}mtext' % M
+            e.attrib.clear()
+            n += 1
+        elif t == 'mtext' and '"' in s:
+            parts = s.split('"')
+            e.text = parts[0] + ''.join(('“' if i % 2 == 0 else '”') + p for i, p in enumerate(parts[1:]))
+            n += 1
+    return n
+
+
+# operador na PONTA de um grupo: no StarMath relação/binário precisa de operando dos DOIS lados —
+# `$\le 10^9$` ("valores $\le 10^9$"), `$= 0$`, `$x =$` e a 2ª coluna do `aligned` (`&= …`) saíam ¿.
+# Quem pode abrir (sinal, ¬, ∀, ∑…) ou fechar (`!`, `′`…) uma expressão fica como está.
+CAN_START = set('+-−±∓¬∀∃∄∂∇√') | BIGOPS | OPENB
+CAN_END = set('!′″‴%°') | CLOSEB
+
+
+def fix_operands(root):
+    """relação/binário sem operando na ponta do grupo ganha o grupo VAZIO do StarMath (`{} <= 10^9`,
+    sem largura). Roda por ÚLTIMO: as outras passadas olham o 1º/último filho do grupo."""
+    def bare(e, ok):
+        return tag(e) == 'mo' and text(e) and text(e) not in ok and text(e) not in BARS and e.get('fence') != 'true'
+    n = 0
+    for row in list(root.iter()):
+        if tag(row) not in ROWLIKE:
+            continue
+        kids = [c for c in row if tag(c) not in ('mspace', 'annotation', 'annotation-xml')]
+        if not kids:
+            continue
+        o, c = kids[0], kids[-1]
+        pre, post = bare(o, CAN_START), bare(c, CAN_END)
+        if not (pre or post):
+            continue
+        if tag(row) in ('math', 'semantics'):
+            # na RAIZ cada filho vira uma LINHA do StarMath (`{ } newline <= newline { }`, ¿):
+            # embrulha tudo num grupo só antes
+            w = ET.Element('{%s}mrow' % M)
+            row.insert(list(row).index(o), w)
+            for k in kids:
+                row.remove(k)
+                w.append(k)
+            row = w
+        if pre:
+            row.insert(list(row).index(o), ET.Element('{%s}mrow' % M))
+            n += 1
+        if post:
+            row.insert(list(row).index(c) + 1, ET.Element('{%s}mrow' % M))
+            n += 1
+    return n
+
+
+def _opener(e):
+    """`(`/`[`/`{`…, ou o `<mo>` VAZIO de prefixo (o `\\left.` do TeX)."""
+    return tag(e) == 'mo' and e.get('form') != 'postfix' and (
+        text(e) in OPENB or (text(e) == '' and e.get('form') == 'prefix'))
+
+
+def _closer(e):
+    return tag(e) == 'mo' and e.get('form') != 'prefix' and (
+        text(e) in CLOSEB or (text(e) == '' and e.get('form') == 'postfix'))
+
+
+def _literal(e):
+    e.tag = '{%s}mtext' % M          # o LibreOffice lê `"["`: o caractere, sem agrupar
+    e.attrib.clear()
+
+
+def fix_brackets(root):
+    """PARÊNTESES E COLCHETES. O LibreOffice monta cada grupo (`<mrow>`) como um grupo do StarMath,
+    onde `( … )` e `[ … ]` só existem EM PAR do mesmo tipo e `left … right` estica até a altura do
+    conteúdo. Os delimitadores de cada grupo são casados numa pilha:
+      par do mesmo tipo ..... o pandoc 3.1 da imagem emite o `(` COMUM do TeX igual ao `\\left(`
+        (`stretchy="true"`), e `(x_1, y_1)`/`O(n \\log n)` saíam com parênteses maiores que o texto.
+        No TeX `(` comum nunca estica, mas no MathML a diferença se perde: decide o CONTEÚDO — só
+        estica em volta de fração (e `\\binom`), matriz ou operador grande (is_tall). As BARRAS
+        seguem a mesma regra no rewrite;
+      par TROCADO ........... o intervalo `[l, r)`: `[ … )` é erro de sintaxe no StarMath (¿).
+        Vira caractere literal; com conteúdo alto e ocupando o grupo, `left [ … right )` (vale);
+      abre esticável sem fechar, no início do grupo ... o `cases` (`{` + tabela, sem fecho): o
+        LibreOffice inventava `right lbrace` (a chave espelhada à direita). Ganha o fecho VAZIO
+        (`right none`); o simétrico (`\\right)` sem `\\left`) ganha a abertura vazia;
+      sem par .............. literal (antes, ¿).
+    Devolve quantos delimitadores mudou."""
+    n = 0
+    for row in list(root.iter()):
+        if tag(row) in LEAF:
+            continue
+        kids = [c for c in row if tag(c) != 'mspace']
+        stack, lone = [], []
+        for i, c in enumerate(kids):
+            if _opener(c):
+                stack.append(i)
+                continue
+            if not _closer(c):
+                continue
+            if not stack:
+                lone.append(i)
+                continue
+            j = stack.pop()
+            o = kids[j]
+            whole = j == 0 and i == len(kids) - 1
+            tall = any(is_tall(k) for k in kids[j + 1:i])
+            if text(o) == '' or text(c) == '' or MATCH.get(text(o)) == text(c):
+                if o.get('stretchy') == 'true' and not tall:
+                    for e in (o, c):
+                        if e.get('stretchy') != 'false':
+                            e.set('stretchy', 'false')
+                            n += 1
+            elif whole and tall:
+                for e in (o, c):
+                    e.set('stretchy', 'true')
+                n += 2
+            else:
+                _literal(o)
+                _literal(c)
+                n += 2
+        lone += stack
+        for i in lone:
+            e = kids[i]
+            if e.get('stretchy') == 'true' and _opener(e) and i == 0 and text(e):
+                ET.SubElement(row, '{%s}mo' % M, stretchy='true', form='postfix')
+            elif e.get('stretchy') == 'true' and _closer(e) and i == len(kids) - 1 and text(e):
+                row.insert(0, ET.Element('{%s}mo' % M, stretchy='true', form='prefix'))
+            elif text(e):
+                _literal(e)
+            else:
+                continue
+            n += 1
+    return n
+
+
 def fix_formula(data):
     """bytes do content.xml de uma fórmula -> bytes novos, ou None se não muda nada."""
     try:
@@ -260,10 +444,14 @@ def fix_formula(data):
     if root.tag != '{%s}math' % M:
         return None
     names = fix_names(root)          # ANTES dos papéis: `\log|x|` vê o nome como operando
-    role = roles_of(root)
-    if not role and not names:
+    syntax = fix_syntax(root)
+    brackets = fix_brackets(root)
+    tall = {}
+    role = roles_of(root, tall)
+    rewrite(root, role, tall)
+    operands = fix_operands(root)    # por ÚLTIMO (as outras olham o 1º/último filho do grupo)
+    if not role and not names and not syntax and not brackets and not operands:
         return None
-    rewrite(root, role)
     out = ('<?xml version="1.0" encoding="UTF-8"?>' + ET.tostring(root, encoding='unicode')).encode('utf-8')
     return None if out == data else out
 
@@ -297,6 +485,19 @@ def body_font(zi):
                 pt = max(1, round(float(m.group(1))))
         break
     return fam, pt
+
+
+def formula_family(body):
+    """a 1ª de MATH_FONTS que o fontconfig tem COM grego (U+03B1); senão a família do corpo."""
+    for f in MATH_FONTS:
+        try:
+            out = subprocess.run(['fc-list', '%s:charset=3b1' % f, 'family'],
+                                 capture_output=True, text=True, timeout=20).stdout
+        except (OSError, subprocess.SubprocessError):
+            break
+        if out.strip():
+            return f
+    return body
 
 
 def settings_items(fam, pt):
@@ -534,7 +735,9 @@ def fix_odt(path):
         for info in infos:
             n = info.filename
             if n.endswith('/settings.xml') and n[:-len('settings.xml')] in mathdirs:
-                items = items or settings_items(*body_font(zi))
+                if items is None:
+                    fam, pt = body_font(zi)
+                    items = settings_items(formula_family(fam), pt)
                 out = fix_settings(zi.read(n), items)
                 if out is not None:
                     new[n] = out
@@ -572,6 +775,8 @@ def main(argv):
         for m in re.findall(r'<math\b.*?</math>', sys.stdin.read(), flags=re.S):
             root = ET.fromstring(m)
             fix_names(root)
+            fix_syntax(root)
+            fix_brackets(root)
             role = roles_of(root)
             print(' '.join(('D' if BARS[text(e)] == 'd' else '') + code[role[e]]
                            for e in root.iter() if e in role))
@@ -589,8 +794,13 @@ def main(argv):
         imgs = lambda x: re.findall(r'<img\b[^>]*>', x, flags=re.I)
         print(sum(1 for a, b in zip(imgs(s), imgs(s2)) if a != b))   # quantas <img> mudaram
         return 0
+    if len(argv) == 2 and argv[1] == '--fix':
+        for m in re.findall(r'<math\b.*?</math>', sys.stdin.read(), flags=re.S):
+            out = fix_formula(m.encode('utf-8'))
+            print((out.decode('utf-8') if out else m).replace('\n', ' '))
+        return 0
     if len(argv) != 2:
-        print('uso: odt-math-bars.py <arquivo.odt> | --roles | --html-widths <arquivo.html>', file=sys.stderr)
+        print('uso: odt-math-bars.py <arquivo.odt> | --roles | --fix | --html-widths <arquivo.html>', file=sys.stderr)
         return 2
     print(fix_odt(argv[1]))
     return 0

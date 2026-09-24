@@ -15,13 +15,18 @@
 #      documento sem barra intocado, ODT quebrado = arquivo intacto e saída ≠ 0 (fail-open).
 #   3. NOME DE FUNÇÃO: `<mo>log</mo>` (pandoc 3.1 da imagem; o LibreOffice 25.2 desenhava só "l",
 #      `O(n \log n)` virava "O(n l n)") sai `<mi>log</mi>`.
-#   4. TIPOGRAFIA: o settings.xml de TODA fórmula (com barra ou não) sai com o tamanho e a família do
-#      corpo do reference-doc (11pt, Latin Modern Roman) e o itálico das variáveis DEPOIS do nome —
-#      sem isso o LibreOffice Math desenhava a fórmula em 12pt e no DejaVu Serif, no meio do texto.
+#   4. TIPOGRAFIA: o settings.xml de TODA fórmula (com barra ou não) sai com o tamanho do corpo do
+#      reference-doc (11pt), a família CMU Serif (fonts-cmu; sem ele, a do corpo, Latin Modern Roman)
+#      e o itálico das variáveis DEPOIS do nome — sem isso o LibreOffice Math desenhava a fórmula em
+#      12pt e no DejaVu Serif, no meio do texto.
 #   5. IMAGENS: no menor entre o tamanho da web (px × 0,75 pt) e o do DPI do arquivo (nunca cresce),
 #      nunca além da área útil (a imagem de 1561 px
 #      saía com 1561 pt e o LibreOffice a CORTAVA), proporção mantida, `{width=50%}` do autor vira
 #      `rel-width` (passo `--html-widths`, antes do pandoc), fórmula intocada, idempotente.
+#   6. PARÊNTESES/SINTAXE (--fix): par comum sem esticar (`(x_1, y_1)`, `|a_i|`), esticado só em volta
+#      de conteúdo alto (fração, \binom, vmatrix); `[l, r)` com delimitadores literais (era ¿); `cases`
+#      com o fecho vazio (era a chave espelhada); `\#`/`\&`/`\_` como texto (eram ¿ / ∧ / índice);
+#      relação na ponta do grupo (`$\le 10^9$`, `aligned`) com o grupo vazio `{}` (era ¿).
 # O papel impresso (nenhum `¿` no pdftotext) é afirmado pelo render-docs.sh, que roda o soffice.
 # Precisa de pandoc + python3 (dev e imagem têm); senão SKIP. Roda também dentro da imagem.
 set -u
@@ -109,8 +114,10 @@ DBG="rc=$rc1 n=$n1"
 ck "reescreve as 3 fórmulas com barra (a sem barra fica)" '[[ $rc1 == 0 && "$n1" == 3 ]]'
 # inspeção: mimetype 1º/stored; mesmas entradas; só content.xml de fórmula mudou; nenhuma barra
 # `|`/`‖` sem fence; a do meio virou ∣
-insp="$(python3 - "$FIX/a0.odt" "$FIX/a.odt" <<'PY'
-import sys, zipfile, re
+# família das fórmulas: CMU Serif (fonts-cmu, tem grego) quando instalado; senão a do corpo
+MFAM='Latin Modern Roman'; [[ -n "$(fc-list 'CMU Serif:charset=3b1' family 2>/dev/null)" ]] && MFAM='CMU Serif'
+insp="$(MFAM="$MFAM" python3 - "$FIX/a0.odt" "$FIX/a.odt" <<'PY'
+import os, sys, zipfile, re
 a, b = zipfile.ZipFile(sys.argv[1]), zipfile.ZipFile(sys.argv[2])
 ib = b.infolist()
 print('first', ib[0].filename, ib[0].compress_type == zipfile.ZIP_STORED)
@@ -126,7 +133,7 @@ for n in b.namelist():
     item = lambda k: re.search(r'config:name="%s"[^>]*>([^<]*)<' % k, x)
     iv, ii = item('FontNameVariables'), item('FontVariablesIsItalic')
     if (item('BaseFontHeight') and item('BaseFontHeight').group(1) == '11' and iv and ii
-            and iv.group(1) == 'Latin Modern Roman' and ii.group(1) == 'true' and iv.start() < ii.start()
+            and iv.group(1) == os.environ['MFAM'] and ii.group(1) == 'true' and iv.start() < ii.start()
             and 'IsTextMode' in x):
         typo += 1
 print('typo', typo, total)
@@ -145,7 +152,7 @@ DBG="$insp"
 ck "mimetype é a 1ª entrada, sem compressão"       'grep -qx "first mimetype True" <<<"$insp"'
 ck "as mesmas entradas"                              'grep -qx "names True" <<<"$insp"'
 ck "só mudou fórmula: MathML de 3, e settings.xml"   'grep -qx "changed True 3" <<<"$insp"'
-ck "tipografia do corpo nas 4 fórmulas (11pt, LM)"   'grep -qx "typo 4 4" <<<"$insp"'
+ck "tipografia nas 4 fórmulas (11pt, $MFAM)"       'grep -qx "typo 4 4" <<<"$insp"'
 ck "nenhuma barra de par sem fence"                  'grep -qx "bad 0" <<<"$insp"'
 ck "a do meio virou ∣"                               'grep -qx "mid 1" <<<"$insp"'
 ck "zip íntegro"                                     'grep -qx "test True" <<<"$insp"'
@@ -248,6 +255,64 @@ si="$(sha "$FIX/img.odt")"; python3 "$PY" "$FIX/img.odt" >/dev/null
 ck "imagens: 2ª passada não muda nada"               '[[ "$(sha "$FIX/img.odt")" == "$si" ]]'
 python3 "$PY" --html-widths "$FIX/img.html" >/dev/null; hh="$(python3 "$PY" --html-widths "$FIX/img.html")"
 ck "--html-widths idempotente"                         '[[ "$hh" == 0 ]]'
+
+echo "== parênteses, colchetes e sintaxe (o que o LibreOffice recebe: --fix) =="
+# o LibreOffice lê `stretchy="true"` como `left ( … right )`, que estica até a altura do conteúdo;
+# `[ … )` é erro de sintaxe no StarMath; `#`/`&`/`_` num <mi> são comandos dele
+fx(){ mml "$1" | python3 "$PY" --fix 2>&1; }
+nost(){ grep -q '<math' <<<"$1" && ! grep -q 'stretchy="true"' <<<"$1"; }   # saída de erro não conta
+X="$(fx '(x_1, y_1)')";                        DBG="$X"; ck "(x_1, y_1): parênteses sem esticar"       'nost "$X"'
+X="$(fx 'O(n \log n)')";                       DBG="$X"; ck "O(n \\log n): parênteses sem esticar"     'nost "$X"'
+X="$(fx '|a_i| \le 10^9')";                    DBG="$X"; ck "|a_i|: barras sem esticar"                'nost "$X" && [[ "$(grep -o "fence=\"true\"" <<<"$X" | wc -l)" == 2 ]]'
+X="$(fx '\left( \frac{a}{b} \right)')";        DBG="$X"; ck "\\left( fração \\right): estica"          '[[ "$(grep -o "stretchy=\"true\"" <<<"$X" | wc -l)" == 2 ]]'
+X="$(fx '\binom{n}{2}')";                      DBG="$X"; ck "\\binom: estica"                          'grep -q "stretchy=\"true\"" <<<"$X"'
+X="$(fx '\begin{vmatrix}a&b\\c&d\end{vmatrix}')"; DBG="$X"; ck "vmatrix: barras esticam em volta da matriz" '[[ "$(grep -oE "<mo[^>]*(fence=\"true\"[^>]*stretchy=\"true\"|stretchy=\"true\"[^>]*fence=\"true\")" <<<"$X" | wc -l)" == 2 ]]'
+X="$(fx '[l, r)')";                            DBG="$X"; ck "[l, r): colchete e parêntese literais"    'grep -qF "<mtext>[</mtext>" <<<"$X" && grep -qF "<mtext>)</mtext>" <<<"$X"'
+X="$(fx 'x \in [0, 1)')";                      DBG="$X"; ck "x \\in [0, 1): literais no meio da linha" 'grep -qF "<mtext>[</mtext>" <<<"$X" && grep -qF "<mtext>)</mtext>" <<<"$X"'
+X="$(fx '\left[ \frac{a}{b} \right)')";        DBG="$X"; ck "\\left[ fração \\right): par trocado alto estica" '! grep -q "<mtext>" <<<"$X" && [[ "$(grep -o "stretchy=\"true\"" <<<"$X" | wc -l)" == 2 ]]'
+X="$(fx 'f(n) = \begin{cases} 1 & n = 0 \\ 2 & n > 0 \end{cases}')"; DBG="$X"
+ck "cases: fecho vazio depois da tabela (right none)" 'grep -qE "</mtable><mo [^>]*form=\"postfix\"[^>]*(/>|></mo>)" <<<"$X"'
+X="$(fx 'a \# b + c \& d + x\_i')";            DBG="$X"; ck "\\# \\& \\_ viram texto"                 'grep -qF "<mtext>#</mtext>" <<<"$X" && grep -qF "<mtext>&amp;</mtext>" <<<"$X" && grep -qF "<mtext>_</mtext>" <<<"$X"'
+X="$(fx '\text{se "a" vale}')";                DBG="$X"; ck "aspas retas no \\text viram curvas"      'grep -qF "“a”" <<<"$X"'
+# relação na ponta do grupo: o StarMath exige operando dos dois lados (`$\le 10^9$` era ¿) — ganha
+# o grupo vazio `{}`; sinal/fatorial, que podem abrir/fechar, não
+X="$(fx '\le 10^9')";                          DBG="$X"; ck "\\le 10^9: grupo vazio antes do ≤"       'grep -qF "<mrow /><mo>≤</mo>" <<<"$X"'
+X="$(fx 'x =')";                               DBG="$X"; ck "x =: grupo vazio depois do ="            'grep -qF "<mo>=</mo><mrow />" <<<"$X"'
+X="$(fx '\le')";                               DBG="$X"; ck "\\le sozinho: um grupo só na raiz"       'grep -qF "<mrow><mrow /><mo>≤</mo><mrow /></mrow>" <<<"$X"'
+X="$(fx '\begin{aligned} S &= a \\ &= 10 \end{aligned}')"; DBG="$X"; ck "aligned: a coluna que começa com = ganha o vazio" '[[ "$(grep -o "<mrow /><mo>=</mo>" <<<"$X" | wc -l)" == 2 ]]'
+X="$(fx '-x + n!')";                           DBG="$X"; ck "-x e n!: sem grupo vazio"               'grep -q "<math" <<<"$X" && ! grep -qF "<mrow />" <<<"$X"'
+ALL="$(mml '(x_1, y_1) + [l, r) + |a| + \binom{n}{2} + \begin{cases} 1 & n = 0 \end{cases} + a \# b + \le')"
+X1="$(python3 "$PY" --fix <<<"$ALL")"; X2="$(python3 "$PY" --fix <<<"$X1")"; DBG="$X1 ≠ $X2"
+ck "2ª passada não muda nada"                      'grep -q "<mtext>\[</mtext>" <<<"$X1" && [[ "$X1" == "$X2" ]]'
+
+echo "== bloco center (odt-center.lua): o '::: center' do enunciado centralizado também no PDF =="
+# no site o `.center` do ui.css centraliza; na rota do caderno o pandoc descartava a classe do bloco
+LUA="$ROOT/api/v1/lib/odt-center.lua"
+python3 - "$FIX/ctr.html" <<'PY'
+import sys, zlib, struct, base64
+raw = b''.join(b'\x00' + b'\x80\x40\x40' * 40 for _ in range(20))
+ch = lambda t, d: struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+png = b'\x89PNG\r\n\x1a\n' + ch(b'IHDR', struct.pack('>IIBBBBB', 40, 20, 8, 2, 0, 0, 0)) + ch(b'IDAT', zlib.compress(raw)) + ch(b'IEND', b'')
+u = 'data:image/png;base64,' + base64.b64encode(png).decode()
+open(sys.argv[1], 'w').write(
+    '<html><body><p>antes</p>'
+    '<div class="center"><figure><img src="%s" alt="leg"><figcaption>Legenda dentro</figcaption></figure>'
+    '<p>texto dentro</p></div>'
+    '<figure><img src="%s" alt="fora"><figcaption>Legenda fora</figcaption></figure></body></html>' % (u, u))
+PY
+pandoc -f html -t odt "${refodt[@]}" --lua-filter="$LUA" "$FIX/ctr.html" -o "$FIX/ctr.odt" 2>/dev/null
+cst="$(python3 - "$FIX/ctr.odt" <<'PY'
+import sys, zipfile, re
+x = zipfile.ZipFile(sys.argv[1]).read('content.xml').decode()
+paras = re.findall(r'<text:p text:style-name="([^"]+)"[^>]*>(.*?)</text:p>', x, re.S)
+tag = lambda body: 'img' if 'draw:image' in body else re.sub(r'<[^>]+>', '', body).strip()
+for st, body in paras: print(st + '|' + tag(body))
+PY
+)"
+DBG="$cst"
+ck "dentro do bloco: imagem, legenda e texto no estilo Center" '[[ "$(grep -c "^Center|" <<<"$cst")" == 3 ]] && grep -qx "Center|Legenda dentro" <<<"$cst" && grep -qx "Center|texto dentro" <<<"$cst"'
+ck "fora do bloco: a figura fica como era"            'grep -q "^FigureWithCaption|img" <<<"$cst" && grep -qx "FigureCaption|Legenda fora" <<<"$cst"'
+ck "reference-doc: o estilo Center é centralizado"    'unzip -p "$ROOT/etc/caderno-reference.odt" styles.xml | tr -d "\n" | grep -qE "style:name=\"Center\"[^>]*>[^<]*<style:paragraph-properties[^>]*fo:text-align=\"center\""'
 
 echo; echo "RESULT: $pass passed, $fail failed"
 (( fail == 0 ))

@@ -822,9 +822,19 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   cada fórmula é um objeto do LibreOffice Math que NÃO herda nada do parágrafo nem do reference-doc;
   o `settings.xml` do pandoc só diz `IsTextMode`, e o Math desenhava em 12pt Liberation Serif —
   ausente na imagem, caía no **DejaVu Serif**. O script grava em cada `Formula-N/settings.xml` o
-  tamanho e a família do corpo (lidos da default-style do `styles.xml`, isto é, do
-  `caderno-reference.odt`) e índices/limites a 70%; ⚠ `FontVariablesIsItalic` DEPOIS do
-  `FontNameVariables` (o nome zera o itálico). E as **IMAGENS** (`fix_images` + `--html-widths`,
+  tamanho do corpo (lido da default-style do `styles.xml`, isto é, do `caderno-reference.odt`), a
+  família **CMU Serif** (`fonts-cmu`, asserção de build: o Latin Modern não tem grego e o `\alpha`
+  caía no DejaVu Serif; sem o CMU, a do corpo) e índices/limites a 70%; ⚠ `FontVariablesIsItalic`
+  DEPOIS do `FontNameVariables` (o nome zera o itálico). **Chave para depurar**: o LibreOffice NÃO
+  desenha o MathML — traduz para StarMath e lê esse texto; `soffice --convert-to odt` e o
+  `<annotation encoding="StarMath 5.0">` de cada fórmula mostram o que ele entendeu. Daí os
+  **DELIMITADORES** (`fix_brackets`): `stretchy="true"` vira `left ( … right )`, que estica, e o
+  pandoc 3.1 marca assim até o `(` comum — só estica em volta de conteúdo alto (fração, `\binom`,
+  matriz, ∑), barras idem; par trocado (`[l, r)`, era ¿) vira literal; o `cases` ganha o fecho vazio
+  (era a chave espelhada). E a **SINTAXE** (`fix_syntax`): `\#` (¿), `\&` (virava ∧), `\_` viram
+  texto; e o **OPERANDO** (`fix_operands`): relação na ponta do grupo (`$\le 10^9$`, `$= 0$`, a
+  coluna `&= …` do `aligned`, eram ¿) ganha o grupo vazio `{}` — na RAIZ, embrulhado num grupo só
+  (lá cada filho vira uma linha do StarMath). E as **IMAGENS** (`fix_images` + `--html-widths`,
   24/09/2026 — "não podem ficar gigantes nem sair da página"): ODT ignora o `img{max-width:100%}` da
   web, o pandoc punha PNG sem DPI a 1 px = 1 pt e o LibreOffice CORTAVA o que passava da página (13 das
   72 imagens de pacote da produção passavam do A4). Hoje o tamanho natural é o MENOR entre o do pandoc
@@ -835,9 +845,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `draw:object`). A rota `_doc_html2pdf` (soffice direto no HTML) ainda corta imagem grande — hoje sem
   imagem nos documentos que a usam. Fail-open
   (erro = PDF como antes); o `build-ensaio-pdf.sh` faz o mesmo passo. Testes: `smoke-odt-math-bars.sh`
-  (papéis, tipografia, imagens) e `render-docs.sh` (nenhum `¿` e nenhuma imagem além da área útil, no
-  papel). Sem conserto conhecido: `\overline`
-  some no PDF. O ESTILO da rota
+  (papéis, tipografia, `--fix`, imagens) e `render-docs.sh` (nenhum `¿` e nenhuma imagem além da área
+  útil, no papel). Sem conserto pelo MathML:
+  **acentos** (`\bar`, `\hat`, `\vec`, `\overline`…) — o importador do 25.2 escreve o acento SEM NOME
+  no StarMath e ele some (hoje sai como sinal solto acima, `csup`); o **primo** (`f'`) vem do DejaVu
+  Sans (nenhuma fonte Computer Modern da imagem tem o `′`). O **`::: center`** do enunciado (`<div class="center">`; no site é o `.center` do ui.css) o
+  pandoc DESCARTA no ODT — tudo saía à esquerda: o `lib/odt-center.lua` (`--lua-filter` do
+  `_doc_html2pdf_odt` e do `build-ensaio-pdf.sh`) dá ao bloco o `custom-style` `Center` (parágrafo
+  do reference-doc: centralizado, sem recuo) e desmonta a figura de dentro em imagem + legenda em
+  itálico (o estilo de figura não aceita `custom-style`). O ESTILO da rota
   ODT vem do **`etc/caderno-reference.odt`** (`--reference-doc`; ODT ignora CSS): corpo
   JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos) — receita de
   regeneração comentada no `contest-docs.sh`. O caderno prefere o **PDF próprio** do problema; a **capa** tem 3 modos (PDF enviado ›

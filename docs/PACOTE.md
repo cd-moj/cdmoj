@@ -123,6 +123,9 @@ Dois arquivos aparecem no acervo mas **não** fazem parte do formato:
 O texto do problema. Aceita três formatos, procurados nesta ordem: `enunciado.md`, `enunciado.org`,
 `enunciado.tex`. O `.md` é o canônico e o recomendado.
 
+**Como escrever o texto** — Markdown, fórmulas em TeX, parênteses, casos, matrizes, o que evitar e
+como cada construção sai no PDF do caderno, com exemplos: **[ENUNCIADO](ENUNCIADO.md)**.
+
 Três regras que o portão de qualidade cobra:
 
 1. **As seções `## Entrada` e `## Saída` são obrigatórias.** Sem elas o problema não passa na

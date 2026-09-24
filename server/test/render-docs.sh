@@ -71,6 +71,9 @@ HTML
 # fórmulas com barra no MathML de VERDADE (o `pandoc --mathml` do render-statement.sh), nas duas
 # línguas do A: as formas que os pacotes usam (|S|, |a-b|, fração, O(n·|P|)) + a dupla e o \mid
 MATHP="$(printf '%s\n' 'Barras: $1 \leq |S| \leq 10^5$, $|a-b|$, $\|v\|$, $a \mid b$, $\dfrac{|T - B|}{2}$, $O(n \cdot |P|)$ e $\begin{vmatrix}a&b\\c&d\end{vmatrix}$.' \
+  'Delimitadores: $(x_1, y_1)$, $[l, r)$, $x \in [0, 1)$, $a \# b$, $\alpha + \beta$ e $f(n) = \begin{cases} 1 & n = 0 \\ 2 & n > 0 \end{cases}$.' \
+  'Valores $\le 10^9$ e $\begin{aligned} S &= a \\ &= 10 \end{aligned}$.' \
+  '' '::: center' 'Linha QZXW centralizada' ':::' \
   | pandoc -f markdown -t html5 --mathml 2>/dev/null)"
 for f in "$C/enunciados/col#pa.html" "$C/enunciados/col#pa.en.html"; do
   M="$MATHP" awk '$0 == "@@MATH@@" { print ENVIRON["M"]; next } { print }' "$f" > "$f.tmp" && mv -f "$f.tmp" "$f"
@@ -169,7 +172,26 @@ ck "editorial PT: \\log sai inteiro"       'tr -d " " <<<"$ED_PT" | grep -qF "nl
 # usa o default dele, Liberation Serif — ausente na imagem, cai no DejaVu Serif, maior e largo.
 # No caderno só o regular/itálico conta: o `DejaVuSerif-Bold` é o `≤`/`⁹` do <strong> em TEXTO do
 # fixture (o Latin Modern Roman Bold não tem esses glifos) — não é fórmula.
-ck "caderno PT: fórmula sem DejaVu Serif" '! pdffonts "$(doc_file rd contest pt pdf)" 2>/dev/null | grep -Eqi "DejaVuSerif(-Italic)?[[:space:]]"'
+# o grego do fixture (`\alpha`) só tem fonte com o fonts-cmu (CMU Serif); sem ele cai no DejaVu Serif
+if [[ -n "$(fc-list 'CMU Serif:charset=3b1' family 2>/dev/null)" ]]; then
+  ck "caderno PT: fórmula sem DejaVu Serif" '! pdffonts "$(doc_file rd contest pt pdf)" 2>/dev/null | grep -Eqi "DejaVuSerif(-Italic)?[[:space:]]"'
+else
+  echo "  SKIP: caderno PT: fórmula sem DejaVu Serif — falta o fonts-cmu (o grego cai no DejaVu Serif)"
+fi
+# delimitadores (odt-math-bars.py, fix_brackets/fix_syntax): `[l, r)` e `\#` eram ¿ — o "nenhum ¿" acima
+# já cobre; aqui, que saem MESMO
+ck "caderno PT: [l, r) e [0, 1) saem"    'tr -d " " <<<"$CT_PT" | grep -qF "[l,r)" && tr -d " " <<<"$CT_PT" | grep -qF "[0,1)"'
+ck "caderno PT: a # b sai"               'tr -d " " <<<"$CT_PT" | grep -qF "a#b"'
+# `::: center` (odt-center.lua + o estilo Center do reference-doc): a linha fica no MEIO da área útil
+# (A4, margens iguais: o meio da página), medido no papel pelas caixas das palavras
+ctr_off(){ pdftotext -bbox "$1" - 2>/dev/null | python3 -c '
+import re, sys
+s = sys.stdin.read(); W = float(re.search(r"<page width=\"([\d.]+)\"", s).group(1))
+w = {m.group(3): (float(m.group(1)), float(m.group(2))) for m in re.finditer(r"<word xMin=\"([\d.]+)\" yMin=\"[\d.]+\" xMax=\"([\d.]+)\" yMax=\"[\d.]+\">([^<]*)</word>", s)}
+a, b = w.get("Linha"), w.get("centralizada")
+print("%.1f" % abs((a[0] + b[1]) / 2 - W / 2) if a and b else "sem-linha")'; }
+CO="$(ctr_off "$(doc_file rd contest pt pdf)")"
+ck "caderno PT: ::: center no meio da página (desvio $CO pt)" '[[ "$CO" != sem-linha ]] && awk -v d="$CO" "BEGIN{exit !(d < 3)}"'
 ck "editorial PT: fórmula sem DejaVu Serif" '! pdffonts "$(doc_file rd editorial pt pdf)" 2>/dev/null | grep -qi "DejaVuSerif"'
 
 echo "== imagens: nenhuma sai da página (tamanho DESENHADO = px ÷ ppi, pelo pdfimages) =="
