@@ -469,6 +469,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   ao de inexistente); move/delete chamam `pi_move`/`pi_drop`. O `by` é texto histórico e NÃO entra na
   cascata de rename (não concede acesso — como o autor de um commit). Texto do usuário só por arquivo no
   jq; na tela, `textContent`. Testes: `smoke-problem-issues.sh`, `smoke-issues-panel.gjs.sh`.
+  **Validador de ENTRADA** (`scripts/validator.cpp`, testlib): quem roda é o juiz, na calibração completa
+  (`mojtools/testlib/validator-run.sh`); a linha `category:"validator"` chega no `sols` do calib-report (o
+  agente não mudou) e o `calib-expect.sh` a separa (`hosts[].validator`, `summary.validator`, `inputs` do
+  status). No editor, `slotOfPath('validator.cpp')` = `validator` (compõe com todos os slots; sem isso
+  caía em `run` e dava falso conflito com submissão de função). `.validator-cache/` fica fora do git do
+  pacote (`problem_commit`) e do `moj upload`.
 - **Contrato do resultado do juiz**: além do `verdict` de display (com o score embutido, ex.
   `Accepted,100p` — gerado por `mojtools/build-and-test.sh`), o JSON traz **`verdict_canon`**
   (canônico, **sem** score) + `score/score_max/score_kind/correct/total_tests` +

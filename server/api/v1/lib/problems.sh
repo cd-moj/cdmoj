@@ -422,7 +422,7 @@ problem_commit(){
     # checker testlib (.checker-cache) e do árbitro interativo (.arbitro-cache) — são ELFs de
     # vários MB que um `git add -A` commitaria dentro do pacote. Idempotente de propósito: repo
     # criado antes destas linhas também as ganha (antes, o exclude só era escrito no `git init`).
-    for _ex in 'tl' 'tl.*' '.checker-cache/' '.arbitro-cache/'; do
+    for _ex in 'tl' 'tl.*' '.checker-cache/' '.arbitro-cache/' '.validator-cache/'; do
       grep -qxF "$_ex" .git/info/exclude 2>/dev/null || printf '%s\n' "$_ex" >> .git/info/exclude 2>/dev/null
     done
     git add -A 2>/dev/null

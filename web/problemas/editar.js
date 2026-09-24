@@ -774,6 +774,7 @@ async function loadScriptTemplates() {
 // os demais; dois do MESMO slot = o último vence naquele slot)
 function slotOfPath(p) {
   if (p === 'compare.sh' || p === 'checker.cpp') return 'compare';
+  if (p === 'validator.cpp') return 'validator';   // validador de ENTRADA: não julga, compõe com tudo
   if (p === 'summary.sh') return 'summary';
   if (/\/compile\.sh$/.test(p)) return 'compile';
   if (/\/(run|prep)\.sh$/.test(p) || !p.includes('/')) return 'run';   // symlink de lang = run

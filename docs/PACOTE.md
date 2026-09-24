@@ -106,6 +106,7 @@ moj-problems/<org>/<prob>/
 │   └── upcoming/             soluções em rascunho                              1  (opcional)
 └── scripts/                  correção especial                               79  (opcional)
     ├── compare.sh            comparador próprio (checker)                    18
+    ├── validator.cpp         validador de ENTRADA (testlib)                  opcional
     └── <lang>/compile.sh     compilação própria (submissão de função)       201
 ```
 
@@ -347,6 +348,7 @@ Os usos mais comuns:
 | `scripts/compare.sh` | **checker**: a resposta não é única (tolerância de ponto flutuante, várias respostas válidas), então o problema traz o próprio comparador | 18 |
 | `scripts/checker.cpp` | o **fonte** do checker quando ele é [testlib](https://github.com/MikeMirzayanov/testlib) (padrão Polygon/Maratona). Vem junto de um `compare.sh` de 10 linhas — o **stub** — instalado por `mojtools/testlib/install-checker.sh`. **O `testlib.h` NÃO vai no pacote** (é vendorado no mojtools) e o binário do checker **nunca** é commitado (a *bridge* do mojtools o compila no juiz, sob demanda, e cacheia FORA de `scripts/`). |
 | `scripts/arbitro.{cpp,py,sh}` + `scripts/c/{prep,run}.sh` | **problema interativo** (`mojtools/interactive/install-interactive.sh`) | — |
+| `scripts/validator.cpp` | **validador de ENTRADA** ([testlib](https://github.com/MikeMirzayanov/testlib) `registerValidation`, o padrão do Polygon): confere se cada `tests/input/*` segue o formato e os limites do enunciado. **Não julga solução nenhuma.** A calibração completa o roda no juiz (dimensão **Entradas**, seção 10); na sua máquina, `moj validator`. Fica fora do `tl_checksum` (mexer nele não recalibra) e dentro da versão do pacote. Guia: `mojtools/docs/validador-testlib.md` | — |
 
 O contrato do comparador: recebe `$1` = saída do aluno, `$2` = saída esperada, `$3` = entrada, e
 responde pelo código de saída (`4` = aceito, `5` = aceito com erro de formatação, `6` = resposta
@@ -371,11 +373,13 @@ caminhos (`moj push` e `moj upload`) — não é o umask do processo que decide.
 `tl-checksum` inclui o **modo** de `scripts/*`: se o mesmo conteúdo entrar com modo diferente conforme
 o caminho, o juiz vê "pacote mudou" e **recalibra à toa**.
 
-**Mexer em `scripts/` obriga a recalibrar** (seção 10).
+**Mexer em `scripts/` obriga a recalibrar** (seção 10) — exceto no `scripts/validator.cpp`, que não
+muda o julgamento.
 
 Os arquivos de `scripts/` formam **4 slots independentes que COMPÕEM** — compile
 (submissão de função/ban), run (interativo), compare (checker/tolerância), summary (pontuação)
-— então função + checker especial é combinação normal; só o interativo não mistura.
+— então função + checker especial é combinação normal; só o interativo não mistura. O
+`validator.cpp` não ocupa slot nenhum: compõe com todos.
 O guia-hub é `mojtools/docs/correcao-especial.md` (proibir funções da biblioteca, visão geral);
 os guias longos: `mojtools/docs/submissao-de-funcao.md` (**submissão de função** — templates
 prontos via `moj fn` ou pelo editor web, com a sentinela anti-IO), `checker-testlib.md` e
@@ -798,7 +802,7 @@ diferentes: *"o tempo-limite medido ainda vale?"* e *"o juiz ainda tem o pacote 
 | | `tl_checksum` (estreito) | `pkg_version` (largo) |
 |---|---|---|
 | Como se calcula | `tl-checksum.sh <pkg>` | `tl-checksum.sh --all-sols <pkg>` |
-| Cobre | `conf`, `tests/input/*`, `tests/output/*` (não-vazios), `tests/score`, `sols/good/*`, `scripts/*` (conteúdo **e** bit de execução) | tudo o que o estreito cobre **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming`** |
+| Cobre | `conf` (menos a linha `SAMPLE`), `tests/input/*`, `tests/output/*` (não-vazios), `tests/score`, `sols/good/*`, `scripts/*` (conteúdo **e** bit de execução) **menos `scripts/validator.cpp`** | tudo o que o estreito cobre **+ `sols/pass`, `sols/slow`, `sols/wrong`, `sols/upcoming` + `scripts/validator.cpp`** |
 | Para que serve | amarra o **TL** ao pacote: é o `checksum` de `run/tl/<id>.json`, o do índice de donos e o que o `/contest/problems` compara | é a **chave do cache do juiz** e a identidade de uma calibração: `/judge/package-meta` o devolve como `checksum` e o agente re-baixa quando muda |
 
 Nenhum dos dois cobre `docs/enunciado.*`, `tags`, `author` nem o `.moj-meta.json`
@@ -820,6 +824,16 @@ força recalibração; trocar um teste, uma solução `good`, o `conf` ou um scr
 solução `pass`/`slow`/`wrong` **não** invalida o TL, mas manda o juiz buscar o pacote novo — é
 exatamente o que o "Calibrar" precisa para rodar o que você acabou de salvar.
 
+### Entradas: o validador de entrada
+
+Se o pacote tem `scripts/validator.cpp` (seção `scripts/`), a calibração completa o roda no juiz,
+antes das soluções, sobre cada `tests/input/*`: a testlib reprova a entrada que foge do formato ou dos
+limites, com uma mensagem que diz onde (`FAIL Integer parameter [name=N] equals to 1296, violates the
+range [1, 1000]`). O resultado aparece no cartão de cada juiz (linha **Entradas**), no Painel e no
+`moj check`/`moj calib`. Entrada inválida, ou validador que não rodou (não compilou, passou de 5 s numa
+entrada ou de 60 s no total), deixa o problema não pronto. Pacote **sem** validador não é pendência —
+só aparece como "sem validador". A calibração rápida da 1ª submissão não roda o validador.
+
 ### Pronto
 
 O problema está **pronto** quando o `/problems/status` não tem nenhuma **pendência** (`pending`):
@@ -831,7 +845,7 @@ O problema está **pronto** quando o `/problems/status` não tem nenhuma **pend�
 | `good_no_tl:<langs>` | solução `good` sem tempo-limite nessas linguagens (falhou em todos os juízes) |
 | `sols_divergent:<n>` | *n* soluções divergentes ou que não rodaram |
 | `sols_unchecked` | há solução sem resultado (calibração rápida) ou o pacote mudou desde a calibração |
-| `inputs_invalid:<n>` / `inputs_error` | o validador de entrada (`scripts/validator.cpp`) reprovou *n* testes / não rodou |
+| `inputs_invalid:<n>` / `inputs_error` | o validador de entrada (`scripts/validator.cpp`, subseção "Entradas") reprovou *n* testes / não rodou |
 | `issues_open:<n>` | *n* issues abertas (subseção "Issues") |
 
 O editor mostra o selo "✓ Pronto" ou "N pendências" na barra de cima. O Painel tem o card "prontos"
