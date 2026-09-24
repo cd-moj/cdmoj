@@ -340,7 +340,8 @@ function renderEdLangBar() {
   });
   const rm = $('edRemove');
   if (rm) {
-    rm.hidden = curEdLang === 'pt';
+    // style.display, não só `hidden`: o display do .btn vence o atributo e sobrava um botão vazio em PT
+    rm.hidden = curEdLang === 'pt'; rm.style.display = rm.hidden ? 'none' : '';
     if (curEdLang !== 'pt') rm.textContent = T(`✕ remover o editorial em ${STMT_SHORT[curEdLang]}`, `✕ remove the ${STMT_SHORT[curEdLang]} editorial`);
   }
 }

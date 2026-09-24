@@ -62,8 +62,7 @@ export function makeTestRun(ctx) {
   const msg = el('div', { class: 'small', style: 'margin:.3rem 0;min-height:1.1em' });
   const setMsg = (t, bad) => { msg.textContent = t || ''; msg.style.color = bad ? '#ff8a8a' : ''; };
   const fnInput = el('input', { type: 'text', placeholder: 'sol.cpp', style: 'max-width:14rem' });
-  const mount = el('div', { class: 'editor-mount' });
-  mount.style.minHeight = '12rem';
+  const mount = el('div', { class: 'editor-mount sec' });   // o tamanho menor do editor (13rem, redimensionável)
   const fi = ctx.hiddenFile(false);
   const pickBtn = el('button', { class: 'btn ghost', type: 'button', onclick: () => fi.click() }, T('📁 escolher arquivo', '📁 choose file'));
   const runBtn = el('button', { class: 'btn', type: 'button', onclick: () => submit() }, T('▶ Rodar no juiz', '▶ Run on the judge'));
@@ -126,11 +125,13 @@ export function makeTestRun(ctx) {
   }
 
   // ---- cartões (em lugar) ----
-  const sigOf = (r) => r ? JSON.stringify([r.status, r.verdict, r.correct, r.total_tests, r.duration_s, r.tl_used, r.report, (r.tests || []).length]) : 'none';
+  const sigOf = (r) => r ? JSON.stringify([r.status, r.lang, r.verdict, r.correct, r.total_tests, r.duration_s, r.tl_used, r.report, (r.tests || []).length]) : 'none';
+  const LANG_NAME = { C: 'C', CPP: 'C++', PY: 'Python', JAVA: 'Java', RS: 'Rust', GO: 'Go', JS: 'JavaScript', HS: 'Haskell', PAS: 'Pascal', SH: 'Shell', KT: 'Kotlin', CS: 'C#' };
   function headOf(it, r) {
     const when = new Date(it.at || 0);
     const hh = String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0');
-    return [el('b', {}, it.filename || r && r.filename || '?'), el('span', { class: 'muted' }, ' · ' + ((r && r.lang) || '') + ' · ' + hh)];
+    const lang = r && r.lang ? (LANG_NAME[r.lang] || r.lang) : '';
+    return [el('b', {}, it.filename || (r && r.filename) || '?'), el('span', { class: 'muted' }, [lang, hh].filter(Boolean).map(x => ' · ' + x).join(''))];
   }
   function waitingText(r) {
     const since = r && r.requested_at ? Math.max(0, Math.floor((now() / 1000 - r.requested_at) / 60)) : 0;
@@ -163,10 +164,12 @@ export function makeTestRun(ctx) {
           onclick: () => { runs = runs.filter(x => x.run !== it.run); saveRuns(curId, runs); recs.delete(it.run); render(); } }, '✕');
         const root = el('div', { class: 'solrow trun-card', style: 'display:block' }, el('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, head, el('span', { style: 'flex:1' }), drop), body);
         c = { root, head, body, sig: null }; cards.set(it.run, c);
-        head.append(...headOf(it, r));
       }
       const s = sigOf(r);
-      if (s !== c.sig) { c.body.innerHTML = ''; c.body.append(...bodyOf(it, r).filter(Boolean)); c.sig = s; }
+      if (s !== c.sig) {
+        c.head.innerHTML = ''; c.head.append(...headOf(it, r));
+        c.body.innerHTML = ''; c.body.append(...bodyOf(it, r).filter(Boolean)); c.sig = s;
+      }
       else if (r && r.status !== 'done' && r.status !== 'expired') { const w = c.body.querySelector ? c.body.querySelector('.trun-wait') : null; if (w) w.textContent = waitingText(r); }
       // ordem: a lista manda (mais nova em cima); só move se estiver fora do lugar
       if (list.children[i] !== c.root) list.insertBefore ? list.insertBefore(c.root, list.children[i] || null) : list.append(c.root);

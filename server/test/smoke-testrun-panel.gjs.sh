@@ -84,6 +84,7 @@ const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve()
   const nsch = SCHED.length; await SCHED[SCHED.length-1][0](); await flush();
   cards = cardsOf(tr);
   ck('done: MESMO nó do cartão (em lugar)', cards.length === 1 && cards[0] === card1);
+  ck('cabeçalho: nome legível da linguagem, sem "· ·" vazio', txt(card1).includes('sol.cpp · C++ · ') && !txt(card1).includes('· ·'));
   ck('done: veredicto, 3/3 testes, duração e TL', txt(card1).includes('Accepted,100p') && txt(card1).includes('3/3 testes') && txt(card1).includes('1.25s') && txt(card1).includes('TL 1s'));
   ck('done: tabela de testes (soltests) com 3 linhas', all(card1).filter(n => n.tagName==='TABLE' && n._cls.has('soltests')).length === 1 && all(card1).filter(n => n.tagName==='TR').length === 4);
   ck('tudo terminou: poll NÃO re-arma', SCHED.length === nsch);

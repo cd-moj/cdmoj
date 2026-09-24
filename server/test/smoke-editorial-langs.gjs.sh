@@ -39,10 +39,10 @@ let PASS=0, FAIL=0; const ck=(n,c)=>{ if (c) PASS++; else { FAIL++; print('FALHO
 const chips = () => NODES.edLangBar.children.filter(n => n.nodeType===1).map(n => n.textContent + (n._cls.has('active') ? '*' : ''));
 renderEdLangBar();
 ck('sem tradução: PT ativo + "+ EN" + "+ ES" (antes a barra sumia)', JSON.stringify(chips()) === JSON.stringify(['PT*', '+ EN', '+ ES']));
-ck('em PT o "remover" fica escondido', NODES.edRemove.hidden === true);
+ck('em PT o "remover" fica escondido (e com display:none — o .btn vence o atributo hidden)', NODES.edRemove.hidden === true && NODES.edRemove.style.display === 'none');
 NODES.edLangBar.children[1].click();
 ck('clicar "+ EN": cria a tradução e ativa EN', !!TRANS.en && curEdLang === 'en' && JSON.stringify(chips()) === JSON.stringify(['PT', 'EN*', '+ ES']));
-ck('"remover o editorial em EN" aparece', NODES.edRemove.hidden === false && NODES.edRemove.textContent.includes('EN'));
+ck('"remover o editorial em EN" aparece', NODES.edRemove.hidden === false && NODES.edRemove.style.display === '' && NODES.edRemove.textContent.includes('EN'));
 let setv = null; transEdEd.en = { setValue: (v) => { setv = v; } }; TRANS.en.editorial_md = 'x'; TRANS.en.enunciado_md = 'enunciado EN';
 removeEdLang();
 ck('remover: zera SÓ o editorial (a tradução e o enunciado ficam)', setv === '' && TRANS.en.editorial_md === '' && TRANS.en.enunciado_md === 'enunciado EN' && PKG === 1);
