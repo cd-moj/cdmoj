@@ -690,7 +690,8 @@ _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
 # o erro de sintaxe (¿ vermelho). O enunciado está CERTO — o autor não escapa nada. Entre o pandoc e
 # o soffice, `_doc_odt_fix_math` reescreve as barras no ODT (lib/odt-math-bars.py: abre/fecha em PAR
 # com fence, a do meio vira ∣). O mesmo passo dá a cada fórmula a fonte e o tamanho do CORPO
-# (o objeto do Math não herda o parágrafo: saía 12pt em DejaVu Serif no meio do Latin Modern 11pt).
+# (o objeto do Math não herda o parágrafo: saía 12pt em DejaVu Serif no meio do Latin Modern 11pt),
+# só estica parêntese/barra em volta de conteúdo alto, e desarma `[l, r)`, `cases` e `\#`/`\&`.
 # Fail-open: se o python falhar, o PDF sai como sairia sem ele.
 # E as IMAGENS (24/09/2026, "não podem ficar gigantes nem sair da página"): ODT ignora o
 # `img{max-width:100%}` da web; o pandoc punha PNG sem DPI a 1 px = 1 pt e o LibreOffice CORTAVA o que
@@ -698,10 +699,11 @@ _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
 # como `style=`, ignorado pelo leitor de HTML do pandoc) para ATRIBUTO; depois dele, o mesmo script põe
 # cada imagem no menor entre o tamanho da web (px × 0,75 pt) e o do DPI do arquivo, com teto na área
 # útil do reference-doc — nunca maior do que já saía.
-# Testes: smoke-odt-math-bars.sh (papéis, tipografia, imagens) e render-docs.sh (nenhum ¿ e nenhuma
-# imagem fora da página, no papel). Fora: `\overline` também some no PDF (nenhuma grafia de MathML que
-# o LibreOffice aceite foi achada); a rota `_doc_html2pdf` (soffice direto no HTML — capa, errata, info
-# sheet, TL, e enunciado sem pandoc) também corta imagem grande, e hoje nenhum desses tem imagem.
+# Testes: smoke-odt-math-bars.sh (papéis, tipografia, delimitadores, imagens) e render-docs.sh (nenhum ¿
+# e nenhuma imagem fora da página, no papel). Fora: ACENTOS (`\bar`, `\hat`, `\overline`…) — nenhuma
+# grafia de MathML que o LibreOffice 25.2 aceite foi achada; a rota `_doc_html2pdf` (soffice direto no
+# HTML — capa, errata, info sheet, TL, e enunciado sem pandoc) também corta imagem grande, e hoje nenhum
+# desses tem imagem.
 _doc_odt_fix_math(){ python3 "$_DIR/lib/odt-math-bars.py" "$1" >/dev/null 2>&1 || true; }
 _doc_html_img_widths(){ python3 "$_DIR/lib/odt-math-bars.py" --html-widths "$1" >/dev/null 2>&1 || true; }
 _doc_html2pdf_odt(){

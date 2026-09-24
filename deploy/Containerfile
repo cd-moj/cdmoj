@@ -70,7 +70,7 @@ RUN set -eux; \
       fcgiwrap \
       pandoc graphviz \
       inotify-tools socat \
-      imagemagick ghostscript poppler-utils qpdf paps fonts-dejavu-core fonts-lmodern; \
+      imagemagick ghostscript poppler-utils qpdf paps fonts-dejavu-core fonts-lmodern fonts-cmu; \
     if [ "$WITH_OFFICE" = "1" ]; then \
       apt-get install -y --no-install-recommends libreoffice-core libreoffice-writer libreoffice-calc libreoffice-math; \
     fi; \
@@ -151,6 +151,9 @@ RUN set -eux; \
     # imagem (fonts-dejavu-core) e sai com inclinação sintética, a assinatura do "cara de Word".
     fc-list : family | grep -qi 'Latin Modern Roman'; \
     fc-list 'Latin Modern Roman' : style | grep -qi 'Italic'; \
+    # CMU SERIF = a fonte das FÓRMULAS do caderno (lib/odt-math-bars.py): o mesmo desenho do Latin
+    # Modern, mas COM grego — sem ela o `\alpha` da fórmula cai no DejaVu Serif, no meio do resto.
+    fc-list 'CMU Serif:charset=3b1' : style | grep -qi 'Italic'; \
     bash -n /opt/moj/cdmoj/server/api/v1/router.sh
 
 # Caminhos: todos os defaults do server são `: "${VAR:=…}"` ⇒ o ENV vence (zero edição de código).
