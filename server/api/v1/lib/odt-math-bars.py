@@ -5,10 +5,11 @@
 # Por que existe (relato do Arthur Botelho, 24/09/2026 — "a barra vertical fica com um ¿ em
 # volta; a gente tem que escapar?"): o caderno e o editorial da prova vão por
 # `pandoc -f html -t odt` → `soffice --convert-to pdf` (lib/contest-docs.sh, _doc_html2pdf_odt).
-# O pandoc (texmath) marca TODO `|` do MathML como `<mo stretchy="false" form="prefix">|</mo>`,
-# inclusive o que FECHA; o importador de MathML do LibreOffice não consegue montar isso e
-# desenha o erro de sintaxe (¿). O enunciado está certo (o navegador desenha o MathML) e não há
-# contorno do lado do autor: `\lvert…\rvert`, `\left|…\right|`, `\vert` e `\|` quebram igual.
+# O pandoc (texmath) não diz qual barra abre e qual fecha (o 3.7 marca TODO `|` como
+# `<mo stretchy="false" form="prefix">|</mo>`, inclusive o que FECHA) e o importador de MathML do
+# LibreOffice não consegue montar isso: desenha o erro de sintaxe (¿). O enunciado está certo (o
+# navegador desenha o MathML) e não há contorno do lado do autor: `\lvert…\rvert`, `\left|…\right|`,
+# `\vert` e `\|` quebram igual.
 # O que o LibreOffice aceita (testado variante por variante): a barra que ABRE como
 # `<mo fence="true" form="prefix">`, a que FECHA como `<mo fence="true" form="postfix">`, EM PAR;
 # a do MEIO (`a|b`, `P(A|B)`) como `<mo>∣</mo>` (U+2223, o `\mid`, que já funcionava).
@@ -23,7 +24,16 @@
 #   operando dos dois lados: fecha se há par aberto; senão abre se ela e as seguintes do mesmo
 #     tipo somam um número PAR (`|x| \text{ e } |y|`), senão é a do meio (`a|b`)
 #   par que sobra aberto / fecho sem abertura ................... solta (`<mtext>|</mtext>`)
-# Índices, frações, raízes e células são linhas próprias (recursão).
+#   a do meio sem vizinho dos dois lados no grupo REAL ........... solta (o LibreOffice monta cada
+#     <mrow> à parte: `∣` na borda do grupo é operador sem operando)
+# Índices, frações, raízes e células são linhas próprias (recursão). Toda barra é candidata
+# (`|`, `∣`, `∥`, `‖`, em <mo> ou <mi>, com ou sem atributo); o `\mid` do autor sai do meio de novo.
+# ⚠ O MathML MUDA com a versão do pandoc — e a IMAGEM não tem o pandoc do dev: o 3.7 (dev) marca todo
+# `|` com `stretchy="false" form="prefix"`; o 3.1.11 (Debian trixie, produção) já emite `|x|` como
+# par esticável, o `\|` como `<mo>∥</mo>` nu, o `vmatrix` como `<mi>∣</mi>…<mo>∣</mo>` e agrupa
+# `x | |x|` como `x <mrow>| |</mrow>`. O LibreOffice também muda (26.2 × 25.2). Por isso o smoke
+# e o render-docs.sh rodam DENTRO do container depois do deploy — o 1º deploy deste conserto
+# passou no dev e deixou ¿ na produção (barra dupla e vmatrix).
 #
 # Uso: odt-math-bars.py <arquivo.odt>   — reescreve NO LUGAR (tmp + os.replace), só as fórmulas
 #        que mudam; mimetype PRIMEIRO e sem compressão (senão o LibreOffice recusa calado). Erro =
@@ -64,7 +74,10 @@ def text(e):
 
 
 def is_bar(e):
-    return tag(e) == 'mo' and text(e) in BARS and any(e.get(a) is not None for a in ATTRS)
+    # TODA barra é candidata, com ou sem atributo, em <mo> ou <mi>: o pandoc da imagem (3.1) emite o
+    # `\|` como `<mo>∥</mo>` nu e o `vmatrix` como `<mi>∣</mi> … <mo>∣</mo>`, e o LibreOffice 25.2
+    # desenha ¿ nos dois. O `\mid` do autor (`<mo>∣</mo>` entre operandos) sai do meio de novo.
+    return tag(e) in ('mo', 'mi') and text(e) in BARS
 
 
 def flatten(row, seq, rows):
@@ -152,9 +165,23 @@ def process(row, role):
             process(c, role)
 
 
+ROWLIKE = GROUP | {'math', 'mtd', 'msqrt', 'menclose', 'semantics'}
+
+
 def roles_of(root):
     role = {}
     process(root, role)
+    # a do MEIO precisa de vizinho dos DOIS lados no grupo REAL (o LibreOffice monta cada <mrow> à
+    # parte): o pandoc 3.1 põe `{x | |x|` como `x <mrow>| |</mrow>` e um `∣` na borda do grupo vira
+    # operador sem operando (¿). Sem os dois vizinhos ela sai SOLTA (texto), que sempre monta.
+    parent = {c: p for p in root.iter() for c in p}
+    for e, r in role.items():
+        if r != 'infix':
+            continue
+        p = parent.get(e)
+        sib = [c for c in p if tag(c) != 'mspace'] if p is not None else []
+        if p is None or tag(p) not in ROWLIKE or sib[0] is e or sib[-1] is e:
+            role[e] = 'lone'
     return role
 
 
@@ -164,6 +191,8 @@ def rewrite(root, role):
         st = 'true' if e.get('stretchy') == 'true' else 'false'
         for a in ATTRS:
             e.attrib.pop(a, None)
+        if r != 'lone':
+            e.tag = '{%s}mo' % M          # o `<mi>∣</mi>` do vmatrix do pandoc 3.1 vira operador
         if r in ('open', 'close'):
             e.text = '|' if b == 's' else '‖'
             e.set('fence', 'true')

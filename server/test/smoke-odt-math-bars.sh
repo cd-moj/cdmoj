@@ -7,7 +7,10 @@
 # o soffice (`_doc_html2pdf_odt`). Este teste prende:
 #   1. o PAPEL de cada barra (abre/fecha/meio/solta) sobre o MathML DE VERDADE do `pandoc --mathml`
 #      — as formas que os pacotes usam e as armadilhas do texmath (`<mi>−</mi>` depois de barra;
-#      `\bigr|` saindo `form="prefix"`);
+#      `\bigr|` saindo `form="prefix"`; no pandoc 3.1 da IMAGEM, `\|` nu e `vmatrix` com `<mi>∣</mi>`).
+#      ⚠ O pandoc do dev (3.7) e o da imagem (3.1.11) agrupam diferente as entradas AMBÍGUAS; ali a
+#      coluna aceita as duas leituras (`A / B`) — as duas desenham as barras sem ¿. Rode DENTRO do
+#      container depois do deploy: o 1º deploy deste conserto passou no dev e deixou ¿ na produção;
 #   2. o ZIP: mimetype 1º e sem compressão, o resto intacto, nenhuma barra sem `fence`, idempotente,
 #      documento sem barra intocado, ODT quebrado = arquivo intacto e saída ≠ 0 (fail-open).
 # O papel impresso (nenhum `¿` no pdftotext) é afirmado pelo render-docs.sh, que roda o soffice.
@@ -29,8 +32,10 @@ echo "== papéis (O abre, C fecha, M meio, L solta; D = barra dupla) =="
 while IFS=$'\t' read -r tex want; do
   [[ -z "$tex" || "$tex" == \#* ]] && continue
   got="$(mml "$tex" | python3 "$PY" --roles 2>&1)"
+  hit=0; IFS='/' read -ra alts <<<"$want"; (( ${#alts[@]} )) || alts=('')
+  for a in "${alts[@]}"; do a="${a# }"; a="${a% }"; [[ "$got" == "$a" ]] && hit=1; done
   DBG="got='$got'"
-  ck "$(printf '%-34s → %s' "$tex" "${want:-(nenhuma)}")" '[[ "$got" == "$want" ]]'
+  ck "$(printf '%-34s → %s' "$tex" "${want:-(nenhuma)}")" '(( hit ))'
 done <<'EOF'
 # as formas que os pacotes do dev usam
 |x|	O C
@@ -43,11 +48,14 @@ E \cdot |c| \le 10^4	O C
 a|b	M
 P(A|B)	M
 x\vert y	M
-\{x \mid x>0\}
-\{x | |x|<5\}	M O C
-\{x\mid|x|<5\}	O C
+x \mid y	M
+P(A \mid B)	M
+\{x \mid x>0\}	M
+# o pandoc 3.1 agrupa `x | |x|` como `x <mrow>| |</mrow>`: a do meio na borda do grupo sai solta
+\{x | |x|<5\}	M O C / L L L
+\{x\mid|x|<5\}	M O C
 # aninhadas / em sequência — o `-` depois de barra vem como <mi>−</mi>
-||x|-|y||	O O C O C C
+||x|-|y||	O O C O C C / O C L L O C
 |a|+|b|	O C O C
 |x|-|y|	O C O C
 |S_1|+|S_2|\le|S|	O C O C O C
@@ -64,11 +72,14 @@ x\vert y	M
 \|v\|	DO DC
 \lVert v\rVert	DO DC
 \left\|v\right\|	DO DC
+a \parallel b	DM
+a \| b	DM
 # esticáveis — o `\bigr|` sai `form="prefix"` no texmath: só o postfix é confiável
 \left| \frac{a}{b} \right|	O C
 a \left| b \right|	O C
 \bigl| x \bigr|	O C
 \left.f(x)\right|_0^1	L
+\vert x \vert	O C
 \begin{vmatrix}a&b\\c&d\end{vmatrix}	O C
 # texto não é fórmula
 \text{a|b}

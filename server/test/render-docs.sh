@@ -68,7 +68,7 @@ cat > "$C/enunciados/col#pa.en.html" <<'HTML'
 HTML
 # fórmulas com barra no MathML de VERDADE (o `pandoc --mathml` do render-statement.sh), nas duas
 # línguas do A: as formas que os pacotes usam (|S|, |a-b|, fração, O(n·|P|)) + a dupla e o \mid
-MATHP="$(printf '%s\n' 'Barras: $1 \leq |S| \leq 10^5$, $|a-b|$, $\|v\|$, $a \mid b$, $\dfrac{|T - B|}{2}$ e $O(n \cdot |P|)$.' \
+MATHP="$(printf '%s\n' 'Barras: $1 \leq |S| \leq 10^5$, $|a-b|$, $\|v\|$, $a \mid b$, $\dfrac{|T - B|}{2}$, $O(n \cdot |P|)$ e $\begin{vmatrix}a&b\\c&d\end{vmatrix}$.' \
   | pandoc -f markdown -t html5 --mathml 2>/dev/null)"
 for f in "$C/enunciados/col#pa.html" "$C/enunciados/col#pa.en.html"; do
   M="$MATHP" awk '$0 == "@@MATH@@" { print ENVIRON["M"]; next } { print }' "$f" > "$f.tmp" && mv -f "$f.tmp" "$f"
@@ -141,10 +141,11 @@ ck "folha de TL EN: nome do A traduzido" 'grep -q "Simple Sum" <<<"$TL_EN"'
 
 echo "== fórmulas com barra: sem o ¿ do LibreOffice Math (caderno pt/en e editorial) =="
 ED_PT="$(pdftotext -layout "$(doc_file rd editorial pt pdf)" - 2>/dev/null)"
-ck "caderno PT: a fórmula |S| está lá"  'grep -qF "|S|" <<<"$CT_PT"'
+# o pdftotext do LibreOffice 25.2 (imagem) põe espaço dentro da barra ("|S |"): compara sem espaços
+ck "caderno PT: a fórmula |S| está lá"  'tr -d " " <<<"$CT_PT" | grep -qF "|S|"'
 ck "caderno PT: nenhum ¿"               '! grep -qF "¿" <<<"$CT_PT"'
 ck "caderno EN: nenhum ¿"               '! grep -qF "¿" <<<"$CT_EN"'
-ck "editorial PT: |P| está lá, sem ¿"   'grep -qF "|P|" <<<"$ED_PT" && ! grep -qF "¿" <<<"$ED_PT"'
+ck "editorial PT: |P| está lá, sem ¿"   'tr -d " " <<<"$ED_PT" | grep -qF "|P|" && ! grep -qF "¿" <<<"$ED_PT"'
 
 echo "== ambiente de julgamento: título novo, linhas de compilação, veredictos, penalidade =="
 IP="$(doc_file rd info-sheet en pdf)"; IT="$(pdftotext -layout "$IP" - 2>/dev/null)"

@@ -805,7 +805,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `lib/odt-math-bars.py` no ODT: barra que abre/fecha vira `fence="true"` prefix/postfix EM PAR, a do
   meio vira `∣` (o `\mid`), a sem par vira `<mtext>` — papel pela vizinhança numa linha achatada (a
   base de `msup` entra: `|x|^2`). Armadilhas do texmath que o teste prende: `-` depois de barra sai
-  `<mi>−</mi>`, e `\bigr|` sai `form="prefix"` (só o postfix esticável é confiável). Fail-open (erro =
+  `<mi>−</mi>`, e `\bigr|` sai `form="prefix"` (só o postfix esticável é confiável). ⚠ **A IMAGEM NÃO
+  TEM O PANDOC NEM O LIBREOFFICE DO DEV** (pandoc 3.1.11 × 3.7, LibreOffice 25.2 × 26.2): o 1º deploy
+  deste conserto passou no dev e deixou `¿` na produção — lá o `\|` vem como `<mo>∥</mo>` nu, o
+  `vmatrix` como `<mi>∣</mi>…<mo>∣</mo>`, e `x | |x|` agrupado num `mrow` que põe a barra do meio na
+  borda (vira solta). Por isso TODA barra é candidata e os dois testes rodam DENTRO do container
+  depois do deploy (receita: copiar o `server/` para um temporário do container, sobrepor os arquivos
+  novos e rodar com `MOJ_SERVER_ROOT` — valida ANTES de subir). Fail-open (erro =
   PDF como antes); o `build-ensaio-pdf.sh` faz o mesmo passo. Testes: `smoke-odt-math-bars.sh`
   (papéis + zip) e `render-docs.sh` (nenhum `¿` no pdftotext). Sem conserto conhecido: `\overline`
   some no PDF. O ESTILO da rota
