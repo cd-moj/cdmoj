@@ -72,6 +72,7 @@ HTML
 # línguas do A: as formas que os pacotes usam (|S|, |a-b|, fração, O(n·|P|)) + a dupla e o \mid
 MATHP="$(printf '%s\n' 'Barras: $1 \leq |S| \leq 10^5$, $|a-b|$, $\|v\|$, $a \mid b$, $\dfrac{|T - B|}{2}$, $O(n \cdot |P|)$ e $\begin{vmatrix}a&b\\c&d\end{vmatrix}$.' \
   'Delimitadores: $(x_1, y_1)$, $[l, r)$, $x \in [0, 1)$, $a \# b$, $\alpha + \beta$ e $f(n) = \begin{cases} 1 & n = 0 \\ 2 & n > 0 \end{cases}$.' \
+  'Índice sozinho: $t \in \mathbb{R}^+$ e $w \in \Sigma^*$.' \
   'Valores $\le 10^9$ e $\begin{aligned} S &= a \\ &= 10 \end{aligned}$.' \
   '' '::: center' 'Linha QZXW centralizada' ':::' \
   | pandoc -f markdown -t html5 --mathml 2>/dev/null)"

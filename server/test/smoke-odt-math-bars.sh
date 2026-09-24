@@ -26,7 +26,8 @@
 #   6. PARÊNTESES/SINTAXE (--fix): par comum sem esticar (`(x_1, y_1)`, `|a_i|`), esticado só em volta
 #      de conteúdo alto (fração, \binom, vmatrix); `[l, r)` com delimitadores literais (era ¿); `cases`
 #      com o fecho vazio (era a chave espelhada); `\#`/`\&`/`\_` como texto (eram ¿ / ∧ / índice);
-#      relação na ponta do grupo (`$\le 10^9$`, `aligned`) com o grupo vazio `{}` (era ¿).
+#      relação na ponta do grupo (`$\le 10^9$`, `aligned`) com o grupo vazio `{}` (era ¿); operador
+#      sozinho no índice/expoente (`\mathbb{R}^+`, `\Sigma^*`) como texto (era ¿).
 # O papel impresso (nenhum `¿` no pdftotext) é afirmado pelo render-docs.sh, que roda o soffice.
 # Precisa de pandoc + python3 (dev e imagem têm); senão SKIP. Roda também dentro da imagem.
 set -u
@@ -281,6 +282,11 @@ X="$(fx 'x =')";                               DBG="$X"; ck "x =: grupo vazio de
 X="$(fx '\le')";                               DBG="$X"; ck "\\le sozinho: um grupo só na raiz"       'grep -qF "<mrow><mrow /><mo>≤</mo><mrow /></mrow>" <<<"$X"'
 X="$(fx '\begin{aligned} S &= a \\ &= 10 \end{aligned}')"; DBG="$X"; ck "aligned: a coluna que começa com = ganha o vazio" '[[ "$(grep -o "<mrow /><mo>=</mo>" <<<"$X" | wc -l)" == 2 ]]'
 X="$(fx '-x + n!')";                           DBG="$X"; ck "-x e n!: sem grupo vazio"               'grep -q "<math" <<<"$X" && ! grep -qF "<mrow />" <<<"$X"'
+# operador SOZINHO no índice/expoente: no StarMath `ℝ^{+}` é binário sem operando (¿ — achado em
+# compiladores#analisador-lexico-pascal); vira texto. O primo, o `-1` e o índice comum ficam.
+X="$(fx '\mathbb{R}^+ \cup \Sigma^* \cup x^- \cup a_+')"; DBG="$X"
+ck "^+ ^* ^- _+: o operador do índice vira texto" 'grep -qF "<mtext>+</mtext></msup>" <<<"$X" && grep -qF "<mtext>*</mtext></msup>" <<<"$X" && grep -qF "<mtext>−</mtext></msup>" <<<"$X" && grep -qF "<mtext>+</mtext></msub>" <<<"$X"'
+X="$(fx "f' + f^{-1} + x_i^2")";               DBG="$X"; ck "f', f^{-1} e x_i^2: intocados"          'grep -q "<math" <<<"$X" && ! grep -q "<mtext>" <<<"$X"'
 ALL="$(mml '(x_1, y_1) + [l, r) + |a| + \binom{n}{2} + \begin{cases} 1 & n = 0 \end{cases} + a \# b + \le')"
 X1="$(python3 "$PY" --fix <<<"$ALL")"; X2="$(python3 "$PY" --fix <<<"$X1")"; DBG="$X1 ≠ $X2"
 ck "2ª passada não muda nada"                      'grep -q "<mtext>\[</mtext>" <<<"$X1" && [[ "$X1" == "$X2" ]]'

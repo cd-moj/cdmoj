@@ -63,6 +63,7 @@
 #     vazio — sem ele o LibreOffice inventava a chave espelhada à direita;
 #   SINTAXE (`fix_syntax`): `#`, `&`, `_`, `^`, `%`… num <mi>/<mo> são comandos do StarMath (`a \# b`
 #     saía ¿ ¿, `a \& b` virava a ∧ b): viram texto;
+#   ÍNDICE (`fix_scripts`): operador sozinho no índice/expoente (`\mathbb{R}^+`, `\Sigma^*`) era ¿: texto;
 #   OPERANDO (`fix_operands`): relação/binário precisa de operando dos dois lados — `$\le 10^9$`,
 #     `$= 0$` e a coluna `&= …` do `aligned` saíam ¿; ganham o grupo vazio `{}` (sem largura).
 # Sem conserto por aqui: ACENTOS (`\bar`, `\hat`, `\vec`, `\overline`…) — o importador do 25.2 monta
@@ -314,6 +315,30 @@ def fix_syntax(root):
     return n
 
 
+# operador SOZINHO num índice/expoente (`\mathbb{R}^+`, `\Sigma^*`, `x^-`, `a_+`, `L^{=}`): no StarMath
+# vira `ℝ^{+}`, um binário sem operando — ¿ (achado na validação do PR #32 em 40 enunciados públicos:
+# `compiladores#analisador-lexico-pascal`; o `\Sigma^*` é o fecho de Kleene de todo problema de
+# linguagens formais). Como o `\#`, vira TEXTO. Só em msub/msup/msubsup: munder/mover são limites e
+# ACENTOS (`\hat`, `\overline`), que têm outra conta. O primo (`f'`) e o fatorial ficam: montam.
+SCRIPT_SLOTS = {'msub', 'msup', 'msubsup'}
+
+
+def fix_scripts(root):
+    n = 0
+    for e in root.iter():
+        if tag(e) not in SCRIPT_SLOTS:
+            continue
+        for k in list(e)[1:]:
+            t = k[0] if tag(k) == 'mrow' and len(k) == 1 else k
+            x = text(t)
+            if (tag(t) == 'mo' and x and x not in POSTOP and x not in BARS and x not in OPENB
+                    and x not in CLOSEB and x not in BIGOPS and t.get('fence') != 'true'):
+                t.tag = '{%s}mtext' % M
+                t.attrib.clear()
+                n += 1
+    return n
+
+
 # operador na PONTA de um grupo: no StarMath relação/binário precisa de operando dos DOIS lados —
 # `$\le 10^9$` ("valores $\le 10^9$"), `$= 0$`, `$x =$` e a 2ª coluna do `aligned` (`&= …`) saíam ¿.
 # Quem pode abrir (sinal, ¬, ∀, ∑…) ou fechar (`!`, `′`…) uma expressão fica como está.
@@ -444,7 +469,7 @@ def fix_formula(data):
     if root.tag != '{%s}math' % M:
         return None
     names = fix_names(root)          # ANTES dos papéis: `\log|x|` vê o nome como operando
-    syntax = fix_syntax(root)
+    syntax = fix_syntax(root) + fix_scripts(root)
     brackets = fix_brackets(root)
     tall = {}
     role = roles_of(root, tall)
@@ -776,6 +801,7 @@ def main(argv):
             root = ET.fromstring(m)
             fix_names(root)
             fix_syntax(root)
+            fix_scripts(root)
             fix_brackets(root)
             role = roles_of(root)
             print(' '.join(('D' if BARS[text(e)] == 'd' else '') + code[role[e]]

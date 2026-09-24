@@ -834,7 +834,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (era a chave espelhada). E a **SINTAXE** (`fix_syntax`): `\#` (¿), `\&` (virava ∧), `\_` viram
   texto; e o **OPERANDO** (`fix_operands`): relação na ponta do grupo (`$\le 10^9$`, `$= 0$`, a
   coluna `&= …` do `aligned`, eram ¿) ganha o grupo vazio `{}` — na RAIZ, embrulhado num grupo só
-  (lá cada filho vira uma linha do StarMath). E as **IMAGENS** (`fix_images` + `--html-widths`,
+  (lá cada filho vira uma linha do StarMath). E o **ÍNDICE SOZINHO** (`fix_scripts`): operador que
+  ocupa sozinho um índice/expoente (`\mathbb{R}^+`, `\Sigma^*`, `x^-`) era ¿ — vira texto; só em
+  msub/msup (munder/mover são limites e acentos). E as **IMAGENS** (`fix_images` + `--html-widths`,
   24/09/2026 — "não podem ficar gigantes nem sair da página"): ODT ignora o `img{max-width:100%}` da
   web, o pandoc punha PNG sem DPI a 1 px = 1 pt e o LibreOffice CORTAVA o que passava da página (13 das
   72 imagens de pacote da produção passavam do A4). Hoje o tamanho natural é o MENOR entre o do pandoc
