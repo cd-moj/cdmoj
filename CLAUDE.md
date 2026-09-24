@@ -1452,6 +1452,16 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   fallback textarea), gráficos SVG, bandeiras/assets offline.
 - Editar e recarregar vale na hora (sem bundler). Validar: `node --check web/**/<arquivo>.js`.
 - Editor de problema: `web/problemas/editar.{html,js}` (abas; chama `/problems/*`).
+  **🧪 testar no juiz** (2026-09-24): sub-aba de Soluções & Correção = o `moj testrun` na web — módulo
+  `web/problemas/testrun.js` (`makeTestRun(ctx)`; API injetada por `ctx`, testável no gjs:
+  `smoke-testrun-panel.gjs.sh`), painel `#trunPanel` fora do `#solsWrap` como o `#scrPanel`; arquivo
+  escolhido e não editado vai com os BYTES (`fileToBase64`), colado vai como texto; lista de runs por
+  problema no `localStorage` (`moj_testruns_<id>`), cartões EM LUGAR, poll serializado; o 🧪 de cada
+  solução testa a versão do editor sem salvar. `testsTable` (tabela `soltests`) é a fonte única da tabela
+  de testes — o `solsBlock` da calibração usa a mesma. **Editorial por idioma**: a barra da aba Resolução
+  tem os chips "+ EN/+ ES" (`renderEdLangBar` → `addTransLang`) sem exigir enunciado traduzido — o
+  servidor grava só `docs/solucao.<l>.md`; "✕ remover o editorial em X" zera só o editorial
+  (`smoke-editorial-langs.gjs.sh`).
 - **i18n pt/en (mecanismo ÚNICO, `shared/i18n.js`)**: `T('texto pt','text en')` é o jeito
   canônico de escrever QUALQUER string de exibição no JS; o par do HTML estático é o atributo
   **`data-en`** (+ `data-en-ph`/`-title`/`-html`/`<html data-en-doctitle>`), traduzido por

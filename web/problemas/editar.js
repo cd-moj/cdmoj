@@ -11,6 +11,7 @@ import { openHtmlReport } from '/shared/submission-links.js';
 import { T } from '/shared/i18n.js';
 import { STMT_LANGS, STMT_SHORT, stmtName } from '/shared/statement-langs.js';
 import { decorateSamples } from '/shared/statement-samples.js';
+import { makeTestRun, testsTable } from '/problemas/testrun.js';
 
 const CONTEST = 'treino';
 let MODE = 'new', ID = '', REPO = '', OWNER = '', EDITABLE = true, REPOS = [], loadedPublic = false;
@@ -31,6 +32,7 @@ let curStmtLang = 'pt', curEdLang = 'pt';                     // idioma ativo na
 let transEd = {}, transEdEd = {};                             // lang -> CodeMirror (enunciado / editorial traduzidos)
 let scrEntries = [];   // scripts/ (correção especial) — EDITÁVEL na sub-aba "⚙ correção" (Soluções & Correção) via `scripts_files` (round-trip completo: conteúdo/exec/symlink; binário preservado)
 let SCR_TEMPLATES = null;   // cache de GET /problems/script-templates (carrega 1x)
+let TRUN = null;            // sub-aba "🧪 testar no juiz" (problemas/testrun.js): solução avulsa no juiz, fora do pacote
 let COLLS = [];
 let collFilter = { q: '', mine: false, manage: false, course: false };  // filtro dos chips de coleção
 let CAN_CREATE = false;
@@ -324,12 +326,32 @@ const collectTranslations = () => {
   TRANS_REMOVED.forEach(l => { if (!TRANS[l]) out[l] = null; });
   return out;
 };
-// editorial por idioma (aba Resolução): PT = editMount; traduções = um mount por idioma
+// editorial por idioma (aba Resolução): PT = editMount; traduções = um mount por idioma. A barra é a
+// MESMA do enunciado (pedido do Ribas, 24/09): PT + os idiomas que existem + "+ EN/+ ES" p/ os que
+// faltam — adicionar aqui cria a tradução (addTransLang) sem exigir o enunciado traduzido; o servidor
+// grava só docs/solucao.<l>.md. (Antes a barra só listava idiomas com enunciado e sumia sem eles.)
 function renderEdLangBar() {
   const bar = $('edLangBar'); if (!bar) return; bar.innerHTML = '';
-  const langs = transLangs(); if (!langs.length) { curEdLang = 'pt'; switchEdLang('pt'); return; }
+  if (curEdLang !== 'pt' && !TRANS[curEdLang]) curEdLang = 'pt';
   bar.append(stmtChip('pt', curEdLang === 'pt', () => switchEdLang('pt')));
-  langs.forEach(l => bar.append(stmtChip(l, curEdLang === l, () => switchEdLang(l))));
+  STMT_LANGS.filter(l => l !== 'pt').forEach(l => {
+    if (TRANS[l]) bar.append(stmtChip(l, curEdLang === l, () => switchEdLang(l)));
+    else bar.append(stmtChip(l, false, () => { addTransLang(l); switchEdLang(l); }, true));
+  });
+  const rm = $('edRemove');
+  if (rm) {
+    rm.hidden = curEdLang === 'pt';
+    if (curEdLang !== 'pt') rm.textContent = T(`✕ remover o editorial em ${STMT_SHORT[curEdLang]}`, `✕ remove the ${STMT_SHORT[curEdLang]} editorial`);
+  }
+}
+// esvazia SÓ o editorial do idioma ativo (enunciado, notas e título traduzidos ficam — apagar a tradução
+// inteira é o "✕ remover este idioma" da aba Enunciado). Vazio = o servidor apaga docs/solucao.<l>.md.
+function removeEdLang() {
+  const l = curEdLang; if (l === 'pt' || !TRANS[l]) return;
+  if (!confirm(T(`Apagar o editorial em ${STMT_SHORT[l]}? O enunciado traduzido fica. Efetiva ao salvar.`, `Delete the ${STMT_SHORT[l]} editorial? The translated statement stays. Applied on save.`))) return;
+  if (transEdEd[l]) transEdEd[l].setValue('');
+  TRANS[l].editorial_md = '';
+  updatePkgInfo();
 }
 async function switchEdLang(l) {
   if (l !== 'pt' && !TRANS[l]) l = 'pt';
@@ -562,6 +584,7 @@ function showSolCat(cat) {
   solTab = cat;
   document.querySelectorAll('.subtab').forEach(t => t.classList.toggle('on', t.dataset.cat === cat));
   document.querySelectorAll('.solpanel').forEach(p => { p.hidden = (p.dataset.cat !== cat); });
+  if (cat === 'trun' && TRUN) TRUN.show();
 }
 function updateSolCounts() {
   SOL_CATS.forEach(([cat]) => { const e = $('solcount-' + cat); if (e) { const n = (solEditors[cat] || []).length; e.textContent = n ? String(n) : ''; } });
@@ -581,7 +604,10 @@ async function renderSols(sols) {
   // o painel (#scrPanel, data-cat="scr") vive FORA do wrap p/ sobreviver ao re-render
   nav.append(el('span', { class: 'subsep' }, '·'),
     el('button', { class: 'subtab', type: 'button', 'data-cat': 'scr', title: T('modo de correção: checker, comparador, interativo… (scripts/ do pacote)', 'grading mode: checker, comparator, interactive… (package scripts/)'), onclick: () => showSolCat('scr') },
-      el('span', { class: 'sol-badge sb-scr' }, T('⚙ correção', '⚙ grading')), el('span', { class: 'subcount', id: 'solcount-scr' })));
+      el('span', { class: 'sol-badge sb-scr' }, T('⚙ correção', '⚙ grading')), el('span', { class: 'subcount', id: 'solcount-scr' })),
+    // sub-aba do TEST-RUN (solução avulsa no juiz, fora do pacote): painel #trunPanel, também fora do wrap
+    el('button', { class: 'subtab', type: 'button', 'data-cat': 'trun', title: T('roda uma solução avulsa no juiz, fora do pacote (o moj testrun da CLI)', 'runs a loose solution on the judge, outside the package (the CLI moj testrun)'), onclick: () => showSolCat('trun') },
+      el('span', { class: 'sol-badge sb-scr' }, T('🧪 testar no juiz', '🧪 test on the judge'))));
   wrap.append(nav);
   for (const [cat] of SOL_CATS) {
     const [, btxt] = SOL_BADGE[cat] || ['', ''];
@@ -615,6 +641,8 @@ async function addSol(cat, fn, code, expand) {
   fnInput.addEventListener('change', () => { langSel.value = cmFor(fnInput.value); remount(); updatePkgInfo(); });
   const row = el('div', { class: 'solrow' },
     el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' }, expandBtn, el('span', { class: 'small muted' }, T('arquivo', 'file')), fnInput, langSel,
+      el('button', { class: 'btn ghost', type: 'button', title: T('testar esta versão no juiz, sem salvar (sub-aba 🧪)', 'test this version on the judge, without saving (🧪 sub-tab)'),
+        onclick: async () => { if (!TRUN) return; showSolCat('trun'); await TRUN.prefill(fnInput.value.trim(), entry.ed ? entry.ed.getValue() : entry.code); } }, '🧪'),
       el('button', { class: 'btn ghost', type: 'button', onclick: () => { row.remove(); solEditors[cat] = (solEditors[cat] || []).filter(x => x !== entry); updateSolCounts(); updatePkgInfo(); } }, T('remover', 'remove'))),
     mount);
   entry.row = row;
@@ -1001,19 +1029,8 @@ function solsBlock(h) {
     const tests = s.tests || [];
     const ok = solOk(s);
     const tdet = el('div', { style: 'display:' + (OPEN_SOLS.has(key) ? '' : 'none') });
-    if (tests.length) {
-      const tb = el('tbody', {});
-      tests.forEach(t => tb.append(el('tr', {},
-        el('td', {}, t.name || ''),
-        el('td', { class: (t.code === 'AC' || t.code === 'AC,PE') ? '' : 'bad' }, t.code || '—'),
-        el('td', { class: 'num' }, t.time == null ? '—' : (+t.time).toFixed(2) + 's'),
-        el('td', { class: 'num' }, t.tl == null ? '—' : tlSecs(t.tl)))));
-      tdet.append(el('table', { class: 'soltests' },
-        el('thead', {}, el('tr', {},
-          el('th', {}, T('teste', 'test')), el('th', {}, T('resultado', 'result')),
-          el('th', {}, T('tempo', 'time')), el('th', {}, 'TL'))),
-        tb));
-    } else tdet.append(el('p', { class: 'muted', style: 'margin:.1rem 0 .3rem 1.2rem' }, T('sem testes registrados.', 'no recorded tests.')));
+    if (tests.length) tdet.append(testsTable(tests));   // o MESMO visual do test-run (problemas/testrun.js)
+    else tdet.append(el('p', { class: 'muted', style: 'margin:.1rem 0 .3rem 1.2rem' }, T('sem testes registrados.', 'no recorded tests.')));
     const lbl = (open) => (open ? T('ocultar testes', 'hide tests') : T('testes', 'tests')) + ' (' + tests.length + ')';
     const tg = el('a', { href: '#', onclick: (e) => {
       e.preventDefault();
@@ -1450,6 +1467,7 @@ async function save(opts = {}) {
       $('prob').disabled = true; $('title').textContent = T('Editar: ', 'Edit: ') + ID;
       fillRepoSelect();   // criado: a org vira selo fixo (parte do id) e "+ nova org" some
       REV = j.rev || '';
+      if (TRUN) TRUN.refresh();   // com id, o test-run fica disponível
     } else {
       const j = await apiPost('/problems/edit', { id: ID, ...f, ...(REV ? { base_rev: REV } : {}), ...(opts.force ? { force: true } : {}) },
         { contest: CONTEST, auth: true });
@@ -1561,6 +1579,7 @@ async function loadSource(id, j) {
   $('title').textContent = T('Editar: ', 'Edit: ') + id;
   $('prob').value = id.split('#').slice(1).join('#'); $('prob').disabled = true;
   fillRepoSelect(); await renderForm(j);
+  if (TRUN) TRUN.refresh();   // execuções lembradas DESTE problema
   if ($('delprob')) $('delprob').style.display = EDITABLE ? '' : 'none';   // remover só p/ quem pode editar
   if (!EDITABLE) {
     showNote('⚠ ' + (j.note || T('Somente leitura.', 'Read only.')) + T(' Os botões de salvar estão desativados (mas dá p/ baixar o pacote).', ' The save buttons are disabled (but you can download the package).'));
@@ -1572,6 +1591,21 @@ async function loadSource(id, j) {
 // ---- ligação de eventos (SEMPRE antes do carregamento async; uma falha de load nunca
 //      desliga os botões — era a causa do "nenhum botão faz nada") ---------------------------
 function bindHandlers() {
+  // 🧪 testar no juiz: o painel vive ao lado do #scrPanel (fora do #solsWrap, que o renderSols refaz)
+  TRUN = makeTestRun({
+    id: () => ID,
+    get: (p) => apiGet(p, { contest: CONTEST, auth: true }),
+    post: (p, b) => apiPost(p, b, { contest: CONTEST, auth: true }),
+    report: async (run) => {
+      const r = await fetch('/api/v1/problems/test-run-report?run=' + encodeURIComponent(run), { headers: { Authorization: 'Bearer ' + getToken(CONTEST) } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    },
+    openHtmlReport, createEditor, cmFor, fileToBase64, textToBase64, hiddenFile: () => hiddenFile(false),
+  });
+  $('scrPanel').after(TRUN.panel); TRUN.refresh();
+  $('edRemove').onclick = removeEdLang;
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') TRUN.onVisible(); });
   $('addex').onclick = () => addExample();
   $('addtest').onclick = addTest;
   $('testpair').addEventListener('change', (e) => loadTestPairs(e.target.files));
