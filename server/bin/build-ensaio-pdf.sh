@@ -60,6 +60,7 @@ PY
     python3 "$ROOT/server/api/v1/lib/odt-math-bars.py" --html-widths "$WORK/ensaio/$l.html" >/dev/null 2>&1 || true
     if pandoc -f html -t odt --resource-path="$WORK/ensaio" \
               --reference-doc="$ROOT/server/etc/caderno-reference.odt" \
+              --lua-filter="$ROOT/server/api/v1/lib/odt-center.lua" \
               "$WORK/ensaio/$l.html" -o "$WORK/ensaio/$l.odt" 2>/dev/null; then
       # fórmulas (barras, tipografia) e imagens na área útil — o mesmo passo do _doc_html2pdf_odt
       python3 "$ROOT/server/api/v1/lib/odt-math-bars.py" "$WORK/ensaio/$l.odt" >/dev/null 2>&1 || true

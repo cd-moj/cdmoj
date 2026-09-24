@@ -285,5 +285,34 @@ ALL="$(mml '(x_1, y_1) + [l, r) + |a| + \binom{n}{2} + \begin{cases} 1 & n = 0 \
 X1="$(python3 "$PY" --fix <<<"$ALL")"; X2="$(python3 "$PY" --fix <<<"$X1")"; DBG="$X1 ≠ $X2"
 ck "2ª passada não muda nada"                      'grep -q "<mtext>\[</mtext>" <<<"$X1" && [[ "$X1" == "$X2" ]]'
 
+echo "== bloco center (odt-center.lua): o '::: center' do enunciado centralizado também no PDF =="
+# no site o `.center` do ui.css centraliza; na rota do caderno o pandoc descartava a classe do bloco
+LUA="$ROOT/api/v1/lib/odt-center.lua"
+python3 - "$FIX/ctr.html" <<'PY'
+import sys, zlib, struct, base64
+raw = b''.join(b'\x00' + b'\x80\x40\x40' * 40 for _ in range(20))
+ch = lambda t, d: struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+png = b'\x89PNG\r\n\x1a\n' + ch(b'IHDR', struct.pack('>IIBBBBB', 40, 20, 8, 2, 0, 0, 0)) + ch(b'IDAT', zlib.compress(raw)) + ch(b'IEND', b'')
+u = 'data:image/png;base64,' + base64.b64encode(png).decode()
+open(sys.argv[1], 'w').write(
+    '<html><body><p>antes</p>'
+    '<div class="center"><figure><img src="%s" alt="leg"><figcaption>Legenda dentro</figcaption></figure>'
+    '<p>texto dentro</p></div>'
+    '<figure><img src="%s" alt="fora"><figcaption>Legenda fora</figcaption></figure></body></html>' % (u, u))
+PY
+pandoc -f html -t odt "${refodt[@]}" --lua-filter="$LUA" "$FIX/ctr.html" -o "$FIX/ctr.odt" 2>/dev/null
+cst="$(python3 - "$FIX/ctr.odt" <<'PY'
+import sys, zipfile, re
+x = zipfile.ZipFile(sys.argv[1]).read('content.xml').decode()
+paras = re.findall(r'<text:p text:style-name="([^"]+)"[^>]*>(.*?)</text:p>', x, re.S)
+tag = lambda body: 'img' if 'draw:image' in body else re.sub(r'<[^>]+>', '', body).strip()
+for st, body in paras: print(st + '|' + tag(body))
+PY
+)"
+DBG="$cst"
+ck "dentro do bloco: imagem, legenda e texto no estilo Center" '[[ "$(grep -c "^Center|" <<<"$cst")" == 3 ]] && grep -qx "Center|Legenda dentro" <<<"$cst" && grep -qx "Center|texto dentro" <<<"$cst"'
+ck "fora do bloco: a figura fica como era"            'grep -q "^FigureWithCaption|img" <<<"$cst" && grep -qx "FigureCaption|Legenda fora" <<<"$cst"'
+ck "reference-doc: o estilo Center é centralizado"    'unzip -p "$ROOT/etc/caderno-reference.odt" styles.xml | tr -d "\n" | grep -qE "style:name=\"Center\"[^>]*>[^<]*<style:paragraph-properties[^>]*fo:text-align=\"center\""'
+
 echo; echo "RESULT: $pass passed, $fail failed"
 (( fail == 0 ))

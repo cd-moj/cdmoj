@@ -712,6 +712,8 @@ _doc_html2pdf_odt(){
   work="$(mktemp -d)"
   rf="$_DIR/../../etc/caderno-reference.odt"; [[ -f "$rf" ]] || rf="$_DIR/etc/caderno-reference.odt"
   [[ -f "$rf" ]] && refodt=( --reference-doc="$rf" )
+  # `::: center` do enunciado: o pandoc descarta a classe do bloco; o filtro o centraliza (odt-center.lua)
+  [[ -f "$_DIR/lib/odt-center.lua" ]] && refodt+=( --lua-filter="$_DIR/lib/odt-center.lua" )
   cp -f "$src" "$work/in.html" && _doc_html_img_widths "$work/in.html"   # cópia: o src é do chamador
   if pandoc -f html -t odt "${refodt[@]}" "$work/in.html" -o "$work/doc.odt" 2>/dev/null; then
     _doc_odt_fix_math "$work/doc.odt"

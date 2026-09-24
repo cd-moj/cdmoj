@@ -849,7 +849,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   útil, no papel). Sem conserto pelo MathML:
   **acentos** (`\bar`, `\hat`, `\vec`, `\overline`…) — o importador do 25.2 escreve o acento SEM NOME
   no StarMath e ele some (hoje sai como sinal solto acima, `csup`); o **primo** (`f'`) vem do DejaVu
-  Sans (nenhuma fonte Computer Modern da imagem tem o `′`). O ESTILO da rota
+  Sans (nenhuma fonte Computer Modern da imagem tem o `′`). O **`::: center`** do enunciado (`<div class="center">`; no site é o `.center` do ui.css) o
+  pandoc DESCARTA no ODT — tudo saía à esquerda: o `lib/odt-center.lua` (`--lua-filter` do
+  `_doc_html2pdf_odt` e do `build-ensaio-pdf.sh`) dá ao bloco o `custom-style` `Center` (parágrafo
+  do reference-doc: centralizado, sem recuo) e desmonta a figura de dentro em imagem + legenda em
+  itálico (o estilo de figura não aceita `custom-style`). O ESTILO da rota
   ODT vem do **`etc/caderno-reference.odt`** (`--reference-doc`; ODT ignora CSS): corpo
   JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos) — receita de
   regeneração comentada no `contest-docs.sh`. O caderno prefere o **PDF próprio** do problema; a **capa** tem 3 modos (PDF enviado ›
