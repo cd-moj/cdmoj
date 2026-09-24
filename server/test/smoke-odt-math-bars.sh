@@ -15,6 +15,9 @@
 #      documento sem barra intocado, ODT quebrado = arquivo intacto e saída ≠ 0 (fail-open).
 #   3. NOME DE FUNÇÃO: `<mo>log</mo>` (pandoc 3.1 da imagem; o LibreOffice 25.2 desenhava só "l",
 #      `O(n \log n)` virava "O(n l n)") sai `<mi>log</mi>`.
+#   4. TIPOGRAFIA: o settings.xml de TODA fórmula (com barra ou não) sai com o tamanho e a família do
+#      corpo do reference-doc (11pt, Latin Modern Roman) e o itálico das variáveis DEPOIS do nome —
+#      sem isso o LibreOffice Math desenhava a fórmula em 12pt e no DejaVu Serif, no meio do texto.
 # O papel impresso (nenhum `¿` no pdftotext) é afirmado pelo render-docs.sh, que roda o soffice.
 # Precisa de pandoc + python3 (dev e imagem têm); senão SKIP. Roda também dentro da imagem.
 set -u
@@ -109,7 +112,20 @@ ib = b.infolist()
 print('first', ib[0].filename, ib[0].compress_type == zipfile.ZIP_STORED)
 print('names', sorted(a.namelist()) == sorted(b.namelist()))
 changed = [n for n in a.namelist() if a.read(n) != b.read(n)]
-print('changed', all(re.match(r'^[^/]+/content\.xml$', n) for n in changed), len(changed))
+print('changed', all(re.match(r'^[^/]+/(content|settings)\.xml$', n) for n in changed),
+      sum(n.endswith('/content.xml') for n in changed))
+# tipografia: todo settings.xml de fórmula com o corpo do reference-doc, itálico depois do nome
+typo = total = 0
+for n in b.namelist():
+    if not re.match(r'^[^/]+/settings\.xml$', n): continue
+    total += 1; x = b.read(n).decode('utf-8')
+    item = lambda k: re.search(r'config:name="%s"[^>]*>([^<]*)<' % k, x)
+    iv, ii = item('FontNameVariables'), item('FontVariablesIsItalic')
+    if (item('BaseFontHeight') and item('BaseFontHeight').group(1) == '11' and iv and ii
+            and iv.group(1) == 'Latin Modern Roman' and ii.group(1) == 'true' and iv.start() < ii.start()
+            and 'IsTextMode' in x):
+        typo += 1
+print('typo', typo, total)
 bad = mid = 0
 for n in b.namelist():
     if not n.endswith('/content.xml'): continue
@@ -124,7 +140,8 @@ PY
 DBG="$insp"
 ck "mimetype é a 1ª entrada, sem compressão"       'grep -qx "first mimetype True" <<<"$insp"'
 ck "as mesmas entradas"                              'grep -qx "names True" <<<"$insp"'
-ck "só mudou content.xml de fórmula (3)"             'grep -qx "changed True 3" <<<"$insp"'
+ck "só mudou fórmula: MathML de 3, e settings.xml"   'grep -qx "changed True 3" <<<"$insp"'
+ck "tipografia do corpo nas 4 fórmulas (11pt, LM)"   'grep -qx "typo 4 4" <<<"$insp"'
 ck "nenhuma barra de par sem fence"                  'grep -qx "bad 0" <<<"$insp"'
 ck "a do meio virou ∣"                               'grep -qx "mid 1" <<<"$insp"'
 ck "zip íntegro"                                     'grep -qx "test True" <<<"$insp"'
@@ -133,7 +150,10 @@ DBG="n2=$n2"
 ck "idempotente: 2ª passada não muda nada"           '[[ "$n2" == 0 && "$(sha "$FIX/a.odt")" == "$s1" ]]'
 n3="$(python3 "$PY" "$FIX/b.odt")"
 DBG="n3=$n3"
-ck "documento sem barra fica byte a byte"            '[[ "$n3" == 0 && "$(sha "$FIX/b.odt")" == "$(sha "$FIX/b0.odt")" ]]'
+# sem barra, o MathML fica intacto; só a tipografia (settings.xml da fórmula) muda
+dch="$(python3 -c 'import sys,zipfile; a,b=zipfile.ZipFile(sys.argv[1]),zipfile.ZipFile(sys.argv[2]); print(" ".join(n for n in a.namelist() if a.read(n)!=b.read(n)))' "$FIX/b0.odt" "$FIX/b.odt")"
+DBG="n3=$n3 changed=$dch"
+ck "documento sem barra: só a tipografia muda"       '[[ "$n3" == 0 && "$dch" =~ ^Formula-[0-9]+/settings\.xml$ ]]'
 head -c 3000 "$FIX/a0.odt" > "$FIX/q.odt"; sq="$(sha "$FIX/q.odt")"
 python3 "$PY" "$FIX/q.odt" >/dev/null 2>&1; rcq=$?
 DBG="rc=$rcq"

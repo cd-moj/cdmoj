@@ -813,7 +813,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   depois do deploy (receita: copiar o `server/` para um temporário do container, sobrepor os arquivos
   novos e rodar com `MOJ_SERVER_ROOT` — valida ANTES de subir). O mesmo passo conserta o **NOME DE
   FUNÇÃO** (`fix_names`): no pandoc 3.1 `\log`/`\sin`/`\max` vêm como `<mo>log</mo>` e o LibreOffice
-  25.2 desenhava só a 1ª letra (`O(n \log n)` → "O(n l n)" no caderno); sai `<mi>log</mi>`. Fail-open
+  25.2 desenhava só a 1ª letra (`O(n \log n)` → "O(n l n)" no caderno); sai `<mi>log</mi>`. E a
+  **TIPOGRAFIA da fórmula** (`fix_settings`, 24/09/2026 — "o texto entre $ sai com outro tamanho"):
+  cada fórmula é um objeto do LibreOffice Math que NÃO herda nada do parágrafo nem do reference-doc;
+  o `settings.xml` do pandoc só diz `IsTextMode`, e o Math desenhava em 12pt Liberation Serif —
+  ausente na imagem, caía no **DejaVu Serif**. O script grava em cada `Formula-N/settings.xml` o
+  tamanho e a família do corpo (lidos da default-style do `styles.xml`, isto é, do
+  `caderno-reference.odt`) e índices/limites a 70%; ⚠ `FontVariablesIsItalic` DEPOIS do
+  `FontNameVariables` (o nome zera o itálico). Fail-open
   (erro = PDF como antes); o `build-ensaio-pdf.sh` faz o mesmo passo. Testes: `smoke-odt-math-bars.sh`
   (papéis + zip) e `render-docs.sh` (nenhum `¿` no pdftotext). Sem conserto conhecido: `\overline`
   some no PDF. O ESTILO da rota
