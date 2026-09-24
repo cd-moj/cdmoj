@@ -98,8 +98,13 @@ function confUpsert(text, key, value) {
   else { const v = /[\s+]/.test(value) ? `"${value}"` : value, line = key + '=' + v; if (idx >= 0) lines[idx] = line; else lines.push(line); }
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
-const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS']];
-const CF_YN = [['cf_allowparallel', 'ALLOWPARALLELTEST'], ['cf_tlererun', 'TLERERUN'], ['cf_stopwa', 'STOPWHEN_WA'], ['cf_stoptle', 'STOPWHEN_TLE'], ['cf_stopre', 'STOPWHEN_RE']];
+const CF_TEXT = [['cf_memlimit', 'MEMLIMITMB'], ['cf_stack', 'STACKLIMITMB'], ['cf_calibrafactor', 'TLMOD[calibrafactor]'], ['cf_calibrationtl', 'CALIBRATIONTL'], ['cf_ulimit_u', 'ULIMITS[-u]'], ['cf_ulimit_f', 'ULIMITS[-f]'], ['cf_maxparallel', 'MAXPARALLELTESTS'], ['cf_cpuneeded', 'CPUNEEDED']];
+// [id, chave, DEFAULT quando a chave está AUSENTE] — TRI-ESTADO (24/09/2026): chave ausente = o default
+// do juiz (ALLOWPARALLELTEST/TLERERUN ausentes = ligados; STOPWHEN/SAMENUMA ausentes = desligados). O
+// checkbox mostra o efetivo, e salvar só ESCREVE a chave quando o valor difere do default ou quando ela
+// já estava no conf — antes, qualquer clique na aba gravava TODOS os checkboxes como =y/=n explícitos
+// (e um ALLOWPARALLELTEST ausente aparecia DESMARCADO, embora signifique ligado).
+const CF_YN = [['cf_allowparallel', 'ALLOWPARALLELTEST', 'y'], ['cf_tlererun', 'TLERERUN', 'y'], ['cf_stopwa', 'STOPWHEN_WA', 'n'], ['cf_stoptle', 'STOPWHEN_TLE', 'n'], ['cf_stopre', 'STOPWHEN_RE', 'n'], ['cf_samenuma', 'SAMENUMA', 'n']];
 const CF_FLAG = [['cf_allowtle', 'ALLOWTLEDURINGCALIBRATION']];   // y ou ausente
 // SAMPLE=no: o problema declara que NÃO tem exemplos (função, interativo, linguagem própria…) — o
 // enunciado não mostra a caixa e não há exemplo p/ baixar; ausente = tem exemplos (sample*). A
@@ -109,16 +114,20 @@ function applySampleMode() {
   const off = $('cf_nosample').checked;
   if ($('sampleOffNote')) $('sampleOffNote').hidden = !off;
 }
+const ynOf = (text, k, def) => { const v = (confVal(text, k) || '').trim().toLowerCase(); return v === 'y' || v === 'n' ? v : def; };
 function confToFields(text) {
   CF_TEXT.forEach(([id, k]) => { $(id).value = confVal(text, k) || ''; });
-  CF_YN.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
+  CF_YN.forEach(([id, k, def]) => { $(id).checked = ynOf(text, k, def) === 'y'; });
   CF_FLAG.forEach(([id, k]) => { $(id).checked = (confVal(text, k) || '').toLowerCase() === 'y'; });
   $('cf_nosample').checked = sampleOff(text); applySampleMode();
 }
 function syncConfFromFields() {
   let c = $('confRaw').value;
   CF_TEXT.forEach(([id, k]) => { c = confUpsert(c, k, $(id).value.trim()); });
-  CF_YN.forEach(([id, k]) => { c = confUpsert(c, k, $(id).checked ? 'y' : 'n'); });
+  CF_YN.forEach(([id, k, def]) => {
+    const v = $(id).checked ? 'y' : 'n', present = confVal(c, k) !== null;
+    c = confUpsert(c, k, (v === def && !present) ? null : v);   // igual ao default e ausente: fica ausente
+  });
   CF_FLAG.forEach(([id, k]) => { c = confUpsert(c, k, $(id).checked ? 'y' : null); });
   c = confUpsert(c, 'SAMPLE', $('cf_nosample').checked ? 'no' : null);
   $('confRaw').value = c; applySampleMode();

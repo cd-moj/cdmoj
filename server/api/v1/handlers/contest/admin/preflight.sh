@@ -97,7 +97,9 @@ fi
 # --- juízes online + linguagens ------------------------------------------------
 judges="$( { find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null | while IFS= read -r jf; do
       jq -c --argjson now "$now" --argjson ttl "$REG_TTL" \
-        'select((.last_seen//0) >= ($now-$ttl)) | {host, langs:(.langs//[]), problems:(.problems//{})}' \
+        'select((.last_seen//0) >= ($now-$ttl)) | {host, langs:(.langs//[]), problems:(.problems//{}),
+          cpus:(if ((.slot_cpus // 0) >= 1) then ((.total_slots // 1) * .slot_cpus) else 0 end),
+          node_cpus:(if ((.slot_cpus // 0) >= 1) then ((((.slots_by_node // {}) | [.[]] | max) // (.total_slots // 1)) * .slot_cpus) else 0 end)}' \
         "$jf" 2>/dev/null
     done; } | jq -cs '.')"
 [[ -n "$judges" ]] || judges='[]'
@@ -106,6 +108,33 @@ if (( njudges > 0 )); then
   add judges ok "Juízes online" "$njudges juiz(es): $(jq -r 'map(.host)|join(", ")' <<<"$judges")"
 else
   add judges fail "NENHUM juiz online" "sem juiz, nada é corrigido — verifique moj-agent nas máquinas"
+fi
+
+# --- problemas PARALELOS (CPUNEEDED>1) × largura dos juízes do pool ---------------
+# O json servível do banco carrega cpu_needed/same_numa (gen-problem-json.sh; sem abrir pacote).
+# Um problema que pede k CPUs por teste só é julgado por juiz NOVO (manda slot_cpus) com
+# total_slots×slot_cpus ≥ k (com SAMENUMA, o maior nó); sem um, o job espera e vira Judge Error.
+declare -F cs_bank_json >/dev/null 2>&1 || source "$_DIR/lib/contest-statement.sh" 2>/dev/null
+par_probs=""; par_bad=""
+pjm0='{}'; [[ -f "$cdir/problem-judges.json" ]] && pjm0="$(jq -c . "$cdir/problem-judges.json" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$pjm0" || pjm0='{}'
+for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
+  pid="${PROBS[i+4]}"; bj="$(cs_bank_json "$pid" 2>/dev/null)" || continue
+  IFS=$'\x01' read -r pk pn < <(jq -j '[((.cpu_needed // 1)|tostring), ((.same_numa // false)|tostring)] | join("\u0001")' "$bj" 2>/dev/null)
+  [[ "$pk" =~ ^[0-9]+$ && "$pk" -gt 1 ]] || continue
+  par_probs+=" ${PROBS[i+3]}"
+  # pool efetivo do problema: override → CONTEST_JUDGES → todos os online
+  pool="$(jq -r --arg p "$pid" '([$p, ($p|gsub("#";"/")), ($p|gsub("/";"#"))] | unique) as $vs | ([ $vs[] | .[$vs[]] ] | .[0]) // [] | join(" ")' <<<"$pjm0" 2>/dev/null)"
+  [[ -n "$pool" ]] || pool="${CONTEST_JUDGES:-}"
+  fit="$(jq -r --arg pool "$pool" --argjson k "$pk" --arg nm "$pn" '
+      [ .[] | select(($pool == "") or (($pool | split(" ")) | index(.host)))
+            | select((if $nm == "true" then .node_cpus else .cpus end) >= $k) ] | length' <<<"$judges" 2>/dev/null)"
+  [[ "$fit" =~ ^[0-9]+$ && "$fit" -gt 0 ]] || par_bad+=" ${PROBS[i+3]}(${pk} CPUs$([[ "$pn" == true ]] && printf ', NUMA'))"
+done
+if [[ -n "$par_bad" ]]; then
+  add judges_cpus warn "Problema paralelo sem juiz com as CPUs" \
+    "nenhum juiz online do pool serve:$par_bad — o julgamento espera e vira Judge Error (CPUNEEDED do conf; juiz antigo sem slot_cpus não conta)"
+elif [[ -n "$par_probs" ]]; then
+  add judges_cpus ok "Problemas paralelos com juiz" "CPUNEEDED>1 em:$par_probs — há juiz online com as CPUs"
 fi
 
 # --- pool de juízes (contest + overrides por problema) ----------------------------

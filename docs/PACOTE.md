@@ -467,7 +467,10 @@ tempo quando tem CPU ociosa (a política global do admin decide; em prova fica d
 teste continua sozinho nas suas CPUs, o tempo é medido como sempre e um TLE visto assim é refeito
 serialmente antes de valer; `MAXPARALLELTESTS` é o teto por problema. O relatório da submissão
 diz o que aconteceu: "Paralelismo: P teste(s) ao mesmo tempo × k CPU(s) por teste". A validação
-reprova valor inválido nas quatro chaves. Guia completo: `mojtools/docs/problema-paralelo.md`.
+reprova valor inválido nas quatro chaves. O json servível (`var/jsons/<id>.json`) carrega
+`cpu_needed` e `same_numa` — é por ele que o checklist pré-prova do contest (`judges_cpus`) avisa
+quando nenhum juiz do pool tem as CPUs, sem abrir pacote. Guia completo:
+`mojtools/docs/problema-paralelo.md`.
 
 ### `author`
 

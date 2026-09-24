@@ -646,30 +646,65 @@ function makeJudgesTab() {
     if (data.has_machine_list && (data.machines || []).length) {
       body.append(el('div', { class: 'section-head', style: 'margin-top:1rem' },
         T('Juízes — ', 'Judges — ') + data.machines_online + '/' + data.machines_count + ' online'));
-      // célula de SLOTS: partição vigente (do agente) + form da config desejada (o agente
-      // drena os jobs em andamento e aplica; 'moj judges config' faz o mesmo pela CLI)
+      // POLÍTICA GLOBAL de testes em paralelo (judges-config chave "*"): off = todo job com par_max 1
+      // (o recomendado em prova); auto = a sobra de slots além do colchão vira testes em paralelo.
+      // Nada disso vai ao agente (fora do cfg_hash): mudar aqui NÃO drena juiz nenhum.
+      const pol = data.policy || {};
+      const polSel = el('select', { class: 'small' });
+      [['off', T('desligado (recomendado em prova)', 'off (recommended in contests)')], ['auto', T('auto (sobra de slots vira testes em paralelo)', 'auto (spare slots become parallel tests)')]]
+        .forEach(([v, l]) => polSel.append(el('option', { value: v }, l)));
+      polSel.value = pol.parallel === 'auto' ? 'auto' : 'off';
+      const polCus = el('input', { type: 'text', value: String(pol.cushion != null ? pol.cushion : 0.25), style: 'width:3.5rem', title: T('colchão: fração dos slots que NUNCA vira teste em paralelo (0..1)', 'cushion: fraction of the slots that NEVER becomes parallel tests (0..1)') });
+      const polShare = el('input', { type: 'text', value: String(pol.share_max != null ? pol.share_max : 0.5), style: 'width:3.5rem', title: T('fração máxima dos slots do juiz que UM job pode tomar (0..1)', 'max fraction of a judge\'s slots ONE job may take (0..1)') });
+      const polBtn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Aplicar', 'Apply'));
+      polBtn.onclick = async () => {
+        polBtn.disabled = true; polBtn.textContent = '…';
+        try {
+          await apiPost('/ops/judge-config', { host: '*', parallel: polSel.value, cushion: parseFloat(polCus.value) || 0, share_max: parseFloat(polShare.value) || 0 }, G());
+          setTimeout(load, 1500);
+        } catch (e) { alert(T('Falha na política: ', 'Policy failed: ') + e); polBtn.disabled = false; polBtn.textContent = T('Aplicar', 'Apply'); }
+      };
+      body.append(el('div', { class: 'row small', style: 'gap:.4rem;align-items:center;flex-wrap:wrap;margin:.3rem 0 .5rem' },
+        el('b', {}, T('Testes em paralelo:', 'Parallel tests:')), polSel,
+        el('span', { class: 'muted' }, T('colchão', 'cushion')), polCus,
+        el('span', { class: 'muted' }, T('máx. por job', 'max per job')), polShare, polBtn,
+        el('span', { class: 'muted' }, T('— só vale p/ problemas com ALLOWPARALLELTEST; não drena juiz (fora do cfg_hash)', '— only for problems with ALLOWPARALLELTEST; never drains a judge (outside cfg_hash)'))));
+      // célula de SLOTS: partição vigente (do agente) + LARGURA (cpus do menor slot, slots por nó,
+      // SMT, hold) + form da config desejada (o agente drena os jobs em andamento e aplica;
+      // 'moj judges config' faz o mesmo pela CLI; parallel_max NÃO drena — é só do servidor)
       const slotsCell = (mc) => {
         const cfg = mc.config || {};
         const cur = mc.partition || 'off';
+        const sl = mc.slots || {};
         const wrap = el('div', {});
-        wrap.append(el('div', {}, (((mc.slots && mc.slots.total) || 1) + ' slot(s) · ' + cur)
+        wrap.append(el('div', {}, ((sl.total || 1) + ' slot(s) · ' + cur)
+          + (sl.cpus != null ? (' · ' + sl.cpus + T(' CPU/slot', ' CPU/slot')) : '')
           + (cfg.partition && cfg.partition !== cur ? ' → ' + cfg.partition + T(' (aplicando…)', ' (applying…)') : '')
           + (cfg.disabled ? T(' · ⛔ desabilitado', ' · ⛔ disabled') : '')));
+        const byNode = sl.by_node && Object.keys(sl.by_node).length > 1
+          ? Object.entries(sl.by_node).map(([n, k]) => T('nó ', 'node ') + n + ': ' + k).join(' · ') : '';
+        if (byNode || sl.smt) wrap.append(el('div', { class: 'muted', style: 'font-size:.82em' },
+          byNode + (sl.smt ? (byNode ? ' · ' : '') + 'SMT' : '')
+          + (sl.max_free_group != null && byNode ? T(' · maior grupo livre ', ' · largest free group ') + sl.max_free_group : '')));
+        if (mc.hold && mc.hold.job) wrap.append(el('div', { class: 'small', style: 'color:#9a6700', title: T('juiz SEGURADO: não recebe trabalho novo até ter os slots livres p/ este job largo (CPUNEEDED)', 'judge HELD: gets no new work until it has the free slots for this wide job (CPUNEEDED)') },
+          '⏳ ' + T('segurado p/ ', 'held for ') + mc.hold.job + ' (' + mc.hold.k_slots + ' slots' + (mc.hold.numa ? ', NUMA' : '') + ')'));
         const sel = el('select', { class: 'small', style: 'max-width:8rem' });
-        ['off', 'numa', 'cpus:4', 'cpus:8', 'cpus:16'].forEach(v => sel.append(el('option', { value: v }, v)));
-        sel.value = ['off', 'numa', 'cpus:4', 'cpus:8', 'cpus:16'].includes(cfg.partition || cur) ? (cfg.partition || cur) : 'off';
+        ['off', 'numa', 'cpus:1', 'cpus:2', 'cpus:4', 'cpus:8', 'cpus:16'].forEach(v => sel.append(el('option', { value: v }, v)));
+        sel.value = ['off', 'numa', 'cpus:1', 'cpus:2', 'cpus:4', 'cpus:8', 'cpus:16'].includes(cfg.partition || cur) ? (cfg.partition || cur) : 'off';
         const res = el('input', { type: 'text', value: String(cfg.reserve || 0), title: T('cpus reservadas p/ o SO (fora dos slots)', 'cpus reserved for the OS (outside the slots)'), style: 'width:3rem' });
+        const pmax = el('input', { type: 'text', value: String(cfg.parallel_max || 4), title: T('teto de testes ao mesmo tempo por job NESTE juiz (parallel_max; só o servidor lê — não drena)', 'ceiling of tests at once per job ON THIS judge (parallel_max; server-side only — no drain)'), style: 'width:2.6rem' });
         const dis = el('input', { type: 'checkbox', title: T('desabilitar (drena e para de receber trabalho)', 'disable (drains and stops receiving work)') }); dis.checked = !!cfg.disabled;
         const btn = el('button', { class: 'btn ghost', type: 'button', style: 'font-size:.82em;padding:.1rem .5rem' }, T('Aplicar', 'Apply'));
         btn.onclick = async () => {
           btn.disabled = true; btn.textContent = '…';
           try {
-            await apiPost('/ops/judge-config', { host: mc.host, partition: sel.value, reserve: parseInt(res.value, 10) || 0, disabled: dis.checked }, G());
+            await apiPost('/ops/judge-config', { host: mc.host, partition: sel.value, reserve: parseInt(res.value, 10) || 0, disabled: dis.checked, parallel_max: parseInt(pmax.value, 10) || 4 }, G());
             setTimeout(load, 2500);
           } catch (e) { alert(T('Falha na config: ', 'Config failed: ') + e); btn.disabled = false; btn.textContent = T('Aplicar', 'Apply'); }
         };
         wrap.append(el('div', { class: 'row', style: 'gap:.25rem;align-items:center;flex-wrap:wrap;margin-top:.2rem' },
-          sel, res, el('label', { class: 'row', style: 'gap:.15rem' }, dis, el('span', { class: 'muted', style: 'font-size:.8em' }, 'off')), btn));
+          sel, res, el('span', { class: 'muted', style: 'font-size:.8em' }, T('P≤', 'P≤')), pmax,
+          el('label', { class: 'row', style: 'gap:.15rem' }, dis, el('span', { class: 'muted', style: 'font-size:.8em' }, 'off')), btn));
         return wrap;
       };
       const tb = el('tbody');

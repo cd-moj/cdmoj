@@ -30,7 +30,7 @@ const TARGET = {
   users: ['pessoas', 'contas'],
   registration: ['pessoas', 'inscricoes'], reg_invites: ['pessoas', 'inscricoes'], reg_source: ['pessoas', 'inscricoes'],
   print: ['operacao', 'staff'], staff_filters: ['operacao', 'staff'],
-  judges: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
+  judges: ['operacao', 'situacao'], judges_cpus: ['operacao', 'situacao'], daemon: ['operacao', 'situacao'], manual: ['operacao', 'juizes'],
   // módulos de evento
   next_round: ['evento', 'rodadas'], reg_warmup: ['evento', 'rodadas'],
   docs: ['evento', 'documentos'], balloons: ['evento', 'baloes'],

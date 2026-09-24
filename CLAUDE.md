@@ -1512,6 +1512,13 @@ O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `se
   tem os chips "+ EN/+ ES" (`renderEdLangBar` → `addTransLang`) sem exigir enunciado traduzido — o
   servidor grava só `docs/solucao.<l>.md`; "✕ remover o editorial em X" zera só o editorial
   (`smoke-editorial-langs.gjs.sh`).
+- **Aba Limites do editor = TRI-ESTADO (24/09/2026)**: `CF_YN = [[id, chave, default]]` — chave AUSENTE
+  no conf = o default do juiz (`ALLOWPARALLELTEST`/`TLERERUN` ausentes = ligados; `STOPWHEN_*`/`SAMENUMA`
+  ausentes = desligados); o checkbox mostra o EFETIVO e salvar só escreve a chave quando difere do default
+  ou já existia. Antes um `ALLOWPARALLELTEST` ausente aparecia desmarcado e qualquer clique gravava todos
+  os checkboxes como `=y/=n`. Card **🧩 Problemas paralelos** (`CPUNEEDED`, `SAMENUMA`). Teste:
+  `smoke-limits-tab.gjs.sh`. **Máquinas** (treino/admin): linha da política global de testes em paralelo
+  (`host:"*"`), `P≤` = `parallel_max` por juiz, largura/SMT/nó/hold na célula de slots.
 - **i18n pt/en (mecanismo ÚNICO, `shared/i18n.js`)**: `T('texto pt','text en')` é o jeito
   canônico de escrever QUALQUER string de exibição no JS; o par do HTML estático é o atributo
   **`data-en`** (+ `data-en-ph`/`-title`/`-html`/`<html data-en-doctitle>`), traduzido por

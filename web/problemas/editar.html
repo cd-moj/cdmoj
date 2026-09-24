@@ -390,16 +390,29 @@
             <div class="limits-grid">
               <div class="lfield"><label><span data-en="Processes">Processos</span> <code>ULIMITS[-u]</code></label>
                 <span class="lrow"><input id="cf_ulimit_u" type="text" placeholder="10000"><span class="unit">proc</span></span>
-                <span class="small muted" data-en="raise for interactive problems (referee + player)">suba p/ problemas interativos (árbitro + jogador)</span></div>
-              <div class="lfield"><label><span data-en="Parallel tests">Testes em paralelo</span> <code>MAXPARALLELTESTS</code></label>
-                <span class="lrow"><input id="cf_maxparallel" type="text" placeholder="(auto)"><span class="unit" data-en="max">máx</span></span>
-                <span class="small muted" data-en="ceiling on test parallelism at the judge">teto do paralelismo de testes no juiz</span></div>
+                <span class="small muted" data-en="raise for interactive problems (referee + player) and MPI (mpirun spawns helpers)">suba p/ problemas interativos (árbitro + jogador) e MPI (o mpirun cria auxiliares)</span></div>
+              <div class="lfield"><label><span data-en="Tests at the same time, at most">Testes ao mesmo tempo, no máximo</span> <code>MAXPARALLELTESTS</code></label>
+                <span class="lrow"><input id="cf_maxparallel" type="text" inputmode="numeric" placeholder="(teto do juiz: 4)" data-en-ph="(judge ceiling: 4)"><span class="unit" data-en="tests">testes</span></span>
+                <span class="small muted" data-en="ceiling for this problem; empty = the judge's ceiling (4). Never changes the time limit">teto deste problema; vazio = o teto do juiz (4). Nunca muda o tempo-limite</span></div>
             </div>
             <div class="ltoggles">
-              <label><input type="checkbox" id="cf_allowparallel"> <span data-en="run tests in parallel">rodar testes em paralelo</span> <code>ALLOWPARALLELTEST</code></label>
+              <label><input type="checkbox" id="cf_allowparallel"> <span data-en="tests in parallel">testes em paralelo</span> <code>ALLOWPARALLELTEST</code> <span class="small muted" data-en="— when the judge has idle CPUs it runs several tests of this submission at once, each in its own CPUs; it never takes CPU from another submission. Unchecked = one test at a time">— quando o juiz tem CPU ociosa, roda vários testes desta submissão ao mesmo tempo, cada um nas suas CPUs; nunca tira CPU de outra submissão. Desmarcado = um teste por vez</span></label>
               <label><input type="checkbox" id="cf_tlererun"> <span data-en="re-run isolated TLE">reexecutar TLE isolado</span> <code>TLERERUN</code></label>
               <label><input type="checkbox" id="cf_allowtle"> <span data-en="accept good's TLE during calibration">aceitar TLE da good na calibração</span> <code>ALLOWTLEDURINGCALIBRATION</code></label>
             </div>
+          </div>
+
+          <div class="lcard">
+            <h4 data-en="🧩 Parallel problems (OpenMP / MPI / threads)">🧩 Problemas paralelos (OpenMP / MPI / threads)</h4>
+            <div class="limits-grid">
+              <div class="lfield"><label><span data-en="CPUs per test">CPUs por teste</span> <code>CPUNEEDED</code></label>
+                <span class="lrow"><input id="cf_cpuneeded" type="text" inputmode="numeric" placeholder="1"><span class="unit">CPUs</span></span>
+                <span class="small muted" data-en="1..64. Each test runs alone in this many CPUs; changing it recalibrates">1..64. Cada teste roda sozinho nesse nº de CPUs; mudar recalibra</span></div>
+            </div>
+            <div class="ltoggles">
+              <label><input type="checkbox" id="cf_samenuma"> <span data-en="the CPUs of each test in the same NUMA node">as CPUs de cada teste no mesmo nó NUMA</span> <code>SAMENUMA</code></label>
+            </div>
+            <span class="small muted"><span data-en="The judge joins CPUs per test, measures the time limit that way (one test at a time, with this many CPUs) and hands the count to the jail:">O juiz junta CPUs por teste, mede o tempo-limite assim (um teste por vez, com esse nº de CPUs) e entrega o número à jaula:</span> <code>MOJ_TEST_CPUS</code>/<code>OMP_NUM_THREADS</code>. <span data-en="OpenMP sizes itself; an MPI run.sh does">OpenMP se dimensiona sozinho; um <code>run.sh</code> de MPI faz</span> <code>mpirun -np "$MOJ_TEST_CPUS"</code> <span data-en="(never a fixed -np). Templates">(nunca um <code>-np</code> fixo). Templates</span> <b>paralelo-openmp</b>/<b>paralelo-mpi</b> <span data-en="in the grading sub-tab; restrict">na sub-aba correção; restrinja</span> <code>languages</code> <span data-en="to c/cpp. Guide:">a c/cpp. Guia:</span> <code>mojtools/docs/problema-paralelo.md</code>.</span>
           </div>
 
           <div class="lcard">

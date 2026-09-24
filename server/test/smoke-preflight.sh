@@ -194,5 +194,30 @@ check "nenhum módulo => só o básico: sem ua_gate/docs/next_round/balloons/tov
 check "nenhum módulo => mode não cobra icpc (ok) e modules avisa os dados existentes" '[[ "$(lvl mode)" == ok && "$(lvl modules)" == warn ]]'
 sed -i '1a CONTEST_MODULES=sedes,maquinas,rodadas,documentos,baloes,coortes,inscricoes,telao,classificacao' "$C/conf"
 
+echo "== problema PARALELO (CPUNEEDED>1) × largura dos juízes (judges_cpus) =="
+# o json servível do banco leva cpu_needed/same_numa (gen-problem-json.sh); o juiz NOVO manda slot_cpus
+mkdir -p "$FIX/treino/var/jsons"
+printf '{"id":"col#p0","title":"P0","cpu_needed":4,"same_numa":false,"public":true}' > "$FIX/treino/var/jsons/col#p0.json"
+jq -cn --argjson now "$NOW" '{host:"j1",last_seen:$now,langs:["c"],problems:{},total_slots:2,free_slots:2,slot_cpus:1,slots_by_node:{"0":2}}' > "$REG/j1.json"
+run
+check "juiz com 2 slots×1 cpu p/ um problema de 4 CPUs => warn" '[[ "$(lvl judges_cpus)" == warn && "$(det judges_cpus)" == *"A(4 CPUs)"* ]]'
+jq -cn --argjson now "$NOW" '{host:"j1",last_seen:$now,langs:["c"],problems:{},total_slots:8,free_slots:8,slot_cpus:1,slots_by_node:{"0":3,"1":5}}' > "$REG/j1.json"
+run
+check "juiz com 8 slots => ok"                                     '[[ "$(lvl judges_cpus)" == ok && "$(det judges_cpus)" == *"A"* ]]'
+printf '{"id":"col#p0","title":"P0","cpu_needed":4,"same_numa":true,"public":true}' > "$FIX/treino/var/jsons/col#p0.json"
+jq -cn --argjson now "$NOW" '{host:"j1",last_seen:$now,langs:["c"],problems:{},total_slots:6,free_slots:6,slot_cpus:1,slots_by_node:{"0":3,"1":3}}' > "$REG/j1.json"
+run
+check "SAMENUMA com nós de 3: warn cita NUMA"                       '[[ "$(lvl judges_cpus)" == warn && "$(det judges_cpus)" == *"NUMA"* ]]'
+jq -cn --argjson now "$NOW" '{host:"j1",last_seen:$now,langs:["c"],problems:{},total_slots:8,free_slots:8}' > "$REG/j1.json"
+run
+check "juiz ANTIGO (sem slot_cpus) não conta => warn"               '[[ "$(lvl judges_cpus)" == warn ]]'
+printf 'CONTEST_JUDGES=j2\n' >> "$C/conf"
+jq -cn --argjson now "$NOW" '{host:"j1",last_seen:$now,langs:["c"],problems:{},total_slots:8,free_slots:8,slot_cpus:1,slots_by_node:{"0":8}}' > "$REG/j1.json"
+run
+check "pool do contest (j2) sem o juiz capaz (j1) => warn"          '[[ "$(lvl judges_cpus)" == warn ]]'
+sed -i '/^CONTEST_JUDGES=/d' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json"
+run
+check "sem problema paralelo => checagem ausente (sem ruído)"       '[[ "$(lvl judges_cpus)" == "(ausente)" ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"
 exit $(( fail > 0 ? 1 : 0 ))
