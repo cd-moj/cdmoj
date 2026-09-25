@@ -62,9 +62,27 @@ sched_band_of() {  # $1 = CONTEST_PRIORITY -> nome da banda
 
 valid_hostname() { [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]] && [[ "$1" != *..* ]]; }
 
+# Só cria o que falta, e num mkdir só: roda em TODO heartbeat (via q_claim e amigos), e os `mkdir -p`
+# incondicionais daqui, do upd_claim e do upd_reconcile eram 20 forks por beat (XIV Maratona UnB,
+# 25/09/2026: 54.668 beats no dia, mediana de 0,21 s no servidor).
+_mkd() {  # <dir…> : mkdir -p só dos que faltam (existência por builtin; nenhum fork no caso comum)
+  local d miss=()
+  for d in "$@"; do [[ -d "$d" ]] || miss+=("$d"); done
+  (( ${#miss[@]} )) && mkdir -p "${miss[@]}" 2>/dev/null
+  return 0
+}
 sched_init_dirs() {
-  mkdir -p "$REGISTRYDIR" "$ASSIGNEDDIR" "$RESULTSDIR" "$QUEUEDIR" 2>/dev/null
-  local b; for b in "${SCHED_BANDS[@]}"; do mkdir -p "$QUEUEDIR/$b" 2>/dev/null; done
+  local b bands=()
+  for b in "${SCHED_BANDS[@]}"; do bands+=("$QUEUEDIR/$b"); done
+  _mkd "$REGISTRYDIR" "$ASSIGNEDDIR" "$RESULTSDIR" "$QUEUEDIR" "${bands[@]}"
+}
+
+# q_has_jobs : 0 se há ao menos um job em alguma banda da fila. Glob do bash (zero fork) — é o que deixa o
+# heartbeat de fila VAZIA (o caso comum) pular o registro inteiro e o q_claim.
+q_has_jobs() {
+  local b
+  for b in "${SCHED_BANDS[@]}"; do compgen -G "$QUEUEDIR/$b/*.json" >/dev/null && return 0; done
+  return 1
 }
 
 # ----------------------------------------------------------- registro de workers
@@ -77,14 +95,15 @@ reg_write() {
   printf '%s' "$json" > "$tmp" && mv -f "$tmp" "$REGISTRYDIR/$host.json"
 }
 
-# reg_touch_state <host> <state> : atualiza state + last_seen, preservando o resto.
-# Retorna 1 se o host não está registrado.
+# reg_touch_state <host> <state> [status] : atualiza state + last_seen (e o `status` do agente novo, se
+# vier — ok|draining|disabled), preservando o resto. Retorna 1 se o host não está registrado.
 reg_touch_state() {
-  local host="$1" state="$2" f="$REGISTRYDIR/$host.json"
+  local host="$1" state="$2" status="${3:-}" f="$REGISTRYDIR/$host.json"
   valid_hostname "$host" || return 1
   [[ -f "$f" ]] || return 1
   local tmp="$REGISTRYDIR/.$host.$$.tmp"
-  jq -c --arg s "$state" --argjson now "$EPOCHSECONDS" '.state=$s | .last_seen=$now' "$f" \
+  jq -c --arg s "$state" --arg st "$status" --argjson now "$EPOCHSECONDS" \
+     '.state=$s | .last_seen=$now | if $st != "" then .status=$st else . end' "$f" \
     > "$tmp" 2>/dev/null && mv -f "$tmp" "$f"
 }
 
@@ -534,7 +553,7 @@ upd_claim() {
   [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || { legacy=1; sc=1; }
   [[ "$free" =~ ^[0-9]+$ ]] || free=1
   [[ "$mfg" =~ ^[0-9]+$ ]] || mfg=""
-  mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress/$host" 2>/dev/null
+  _mkd "$UPDATESDIR/pending" "$UPDATESDIR/inprogress/$host"      # todo beat com slot livre
   (
     flock 9 || exit 0
     while IFS= read -r f; do
@@ -633,7 +652,7 @@ upd_touch_host() {
 # host morreu (reiniciou no meio) ou passou de UPD_TTL sem terminar. Sem isto, uma calibração
 # interrompida trava p/ sempre e a fila seca ("calibração não é refeita"). Auto-throttle (~15s).
 upd_reconcile() {
-  mkdir -p "$UPDATESDIR/pending" "$UPDATESDIR/inprogress" 2>/dev/null
+  _mkd "$UPDATESDIR/pending" "$UPDATESDIR/inprogress"                 # todo beat (antes do throttle)
   local now=$EPOCHSECONDS stamp="$UPDATESDIR/.reconcile-stamp" last=0
   [[ -f "$stamp" ]] && last="$(<"$stamp")"
   (( now - last < 15 )) && return 0
@@ -717,7 +736,7 @@ cmd_claim() {  # <host> : reivindica 1 comando pendente do host (ecoa + remove),
   [[ "$sc" =~ ^[0-9]+$ && "$sc" -ge 1 ]] || { legacy=1; sc=1; }
   [[ "$free" =~ ^[0-9]+$ ]] || free=1
   [[ "$mfg" =~ ^[0-9]+$ ]] || mfg=""
-  mkdir -p "$CMDDIR/$host" 2>/dev/null
+  _mkd "$CMDDIR/$host"
   out="$( (
     flock 9 || exit 0
     while IFS= read -r f; do
@@ -849,7 +868,7 @@ q_claim_id() {
 # hold_sweep : cria holds p/ jobs largos famintos (throttle SWEEP_THROTTLE). Ver o cabeçalho.
 hold_sweep() {
   local stamp="$HOLDDIR/.sweep-stamp" now=$EPOCHSECONDS last=0
-  mkdir -p "$HOLDDIR" 2>/dev/null
+  _mkd "$HOLDDIR"                                                  # todo beat (antes do throttle)
   [[ -f "$stamp" ]] && last="$(<"$stamp")"; [[ "$last" =~ ^[0-9]+$ ]] || last=0
   (( now - last < SWEEP_THROTTLE )) && return 0
   printf '%s' "$now" > "$stamp"

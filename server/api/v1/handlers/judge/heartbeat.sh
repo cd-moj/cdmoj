@@ -41,13 +41,12 @@ batch=true   # agente novo (manda free_slots) recebe assigned como ARRAY; antigo
 [[ "$slot_cpus" =~ ^[0-9]+$ && "$slot_cpus" -ge 1 ]] || slot_cpus=""   # vazio = juiz LEGADO
 [[ "$mfg" =~ ^[0-9]+$ ]] || mfg=""
 
-# worker desconhecido (registro expirou) -> pede re-registro
-if ! reg_touch_state "$host" "$state"; then
+# worker desconhecido (registro expirou) -> pede re-registro. O `status` honesto do agente novo (UI/CLI
+# mostram "drenando" em vez de unknown_busy) vai na MESMA regravação do registro (eram duas).
+if ! reg_touch_state "$host" "$state" "$agent_status"; then
   ok_json '{assigned:null, reregister:true}'
   exit 0
 fi
-# status honesto do agente novo (UI/CLI mostram "drenando" em vez de unknown_busy)
-[[ -n "$agent_status" ]] && reg_set "$host" '.status=$s' --arg s "$agent_status" 2>/dev/null || true
 
 # manutenção barata e auto-throttled (promove famintos, requeue de jobs E calibrações de mortos,
 # holds p/ jobs largos famintos, Judge Error p/ job largo sem juiz capaz)
@@ -123,26 +122,32 @@ if [[ "$command" == null && "$disabled" != true ]] && (( free_slots > 0 )); then
     update="$upd"; claimed="$(jq -r '.slots // 1' <<<"$upd")"; [[ "$claimed" =~ ^[0-9]+$ ]] || claimed=1
   else
     # 2) LOTE: reivindica até free_slots SLOTS da fila de prioridade (o segurado, se houve, já
-    #    está no arquivo e conta no `claimed`).
+    #    está no arquivo e conta no `claimed`). Fila VAZIA (o caso comum) nem lê o registro: eram 3 jq
+    #    nele (75 KB no juiz com 1.487 problemas) + o q_claim montando o mapa de problemas do juiz —
+    #    ~60 ms por beat p/ não achar nada (XIV Maratona UnB, 25/09/2026).
     # Os jobs agregam por ARQUIVO (1/linha + jq -s), NUNCA por --argjson: job com fonte
     # grande (base64 >128 KiB) estourava o teto por-argumento do jq, o beat saía 200 com
     # corpo VAZIO e o job — que o q_claim JÁ tinha movido p/ assigned/ — quicava
     # assigned→TTL→fila p/ sempre (4ª instância da classe ARG_MAX, pega pela prova de
     # fogo do incidente 2026-08-19: fonte de 200 KiB julgável de ponta a ponta).
-    cap="$(jq -r '.capability // "pos"' "$REGISTRYDIR/$host.json" 2>/dev/null)"
-    probs="$(jq -c '.problems // {}' "$REGISTRYDIR/$host.json" 2>/dev/null)"
-    langs="$(jq -c '.langs // []' "$REGISTRYDIR/$host.json" 2>/dev/null)"
-    left_for_claim=$(( free_slots - claimed )); (( left_for_claim < 0 )) && left_for_claim=0
-    # claim em LOTE (2026-08-30): UMA varredura colhe até free_slots — o laço antigo
-    # re-varria a fila (e o prefixo preso por pool) p/ CADA slot; um job por linha
-    if (( left_for_claim > 0 )); then
-      q_claim "$host" "$cap" "$probs" "$langs" "$left_for_claim" 2>/dev/null \
-        | while IFS= read -r job; do
-            [[ -n "$job" ]] || continue
-            jq -e . >/dev/null 2>&1 <<<"$job" && printf '%s\n' "$job"
-          done >> "$JOBSF"
+    if q_has_jobs; then
+      { IFS= read -r cap; IFS= read -r probs; IFS= read -r langs; } \
+        < <(jq -r '(.capability // "pos" | tostring), (.problems // {} | tojson), (.langs // [] | tojson)' \
+              "$REGISTRYDIR/$host.json" 2>/dev/null)
+      left_for_claim=$(( free_slots - claimed )); (( left_for_claim < 0 )) && left_for_claim=0
+      # claim em LOTE (2026-08-30): UMA varredura colhe até free_slots — o laço antigo
+      # re-varria a fila (e o prefixo preso por pool) p/ CADA slot; um job por linha
+      if (( left_for_claim > 0 )); then
+        q_claim "$host" "$cap" "$probs" "$langs" "$left_for_claim" 2>/dev/null \
+          | while IFS= read -r job; do
+              [[ -n "$job" ]] || continue
+              jq -e . >/dev/null 2>&1 <<<"$job" && printf '%s\n' "$job"
+            done >> "$JOBSF"
+      fi
     fi
-    claimed="$(jq -s 'map(.slots // 1) | add // 0' "$JOBSF" 2>/dev/null)"; claimed="${claimed//[^0-9]/}"; claimed="${claimed:-0}"
+    # sem nada no arquivo o claimed é 0 (nem o segurado veio) — o jq só roda se há o que somar
+    [[ -s "$JOBSF" ]] && { claimed="$(jq -s 'map(.slots // 1) | add // 0' "$JOBSF" 2>/dev/null)"; claimed="${claimed//[^0-9]/}"; }
+    claimed="${claimed:-0}"
   fi
 fi
 if [[ -s "$JOBSF" ]]; then
@@ -154,11 +159,12 @@ rm -f "$JOBSF"
 # estado no registro: busy quando não sobra slot; guarda free/total/slot_cpus/max_free_group p/ os painéis
 left=$(( free_slots - claimed )); (( left < 0 )) && left=0
 st=free; { (( left == 0 )) || [[ "$disabled" == true ]]; } && st=busy
-reg_touch_state "$host" "$st"
-reg_set "$host" '.free_slots=$f | .total_slots=$t
+# UMA regravação (eram duas: touch + slots) — o touch do começo já foi o sinal de vida do beat
+reg_set "$host" '.state=$s | .last_seen=$now | .free_slots=$f | .total_slots=$t
    | (if $sc == "" then . else .slot_cpus=($sc|tonumber) end)
    | (if $mfg == "" then . else .max_free_group=($mfg|tonumber) end)' \
-  --argjson f "$left" --argjson t "$total_slots" --arg sc "$slot_cpus" --arg mfg "$mfg" 2>/dev/null || true
+  --arg s "$st" --argjson now "$EPOCHSECONDS" --argjson f "$left" --argjson t "$total_slots" \
+  --arg sc "$slot_cpus" --arg mfg "$mfg" 2>/dev/null || true
 
 # assigned entra por --slurpfile (ok_json_slurp): pode passar de 128 KiB e o corpo é
 # montado ANTES do cabeçalho — falha do jq vira 500 build_fail, nunca 200 vazio.
