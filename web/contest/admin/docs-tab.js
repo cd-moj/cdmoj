@@ -91,7 +91,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
         if (!readOnly && d.odt_bytes) line.append(el('button', { class: 'btn ghost',
           title: T('o documento editável: ajuste no LibreOffice (ou Word), exporte em PDF e suba em “subir PDF” — o enviado vence o gerado',
             'the editable document: adjust it in LibreOffice (or Word), export to PDF and upload it with “upload PDF” — the uploaded file wins'),
-          onclick: () => download(t.id, lang, 'odt') }, T('✎ .odt', '✎ .odt')));
+          onclick: () => download(t.id, lang, 'odt') }, '✎ .odt'));
         line.append(el('button', { class: 'btn ghost', onclick: () => openDoc(t.id, lang, 'pdf') }, T('abrir', 'open')));
         if (d.published) line.append(el('span', { class: 'pill ok' }, T('publicado', 'published')));
       } else {
