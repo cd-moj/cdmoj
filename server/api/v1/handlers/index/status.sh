@@ -53,32 +53,60 @@ spool=0; [[ -d "$SPOOLDIR" ]] && spool="$(find "$SPOOLDIR" -type f ! -name '.*' 
 # --- juízes (modelo PULL): online = heartbeat fresco; ocupado = state busy ---
 : "${REGISTRYDIR:=$RUNDIR/registry}"; : "${QUEUEDIR:=$RUNDIR/queue}"; : "${REG_TTL:=30}"
 jonline=0; jbusy=0; jtotal=0; jslots=0; cpus=0; gpus=0
-while IFS= read -r rf; do
-  ((jtotal++))
-  ls="$(jq -r '.last_seen // 0' "$rf" 2>/dev/null)"; [[ "$ls" =~ ^[0-9]+$ ]] || ls=0
-  (( ls >= now - REG_TTL )) || continue
-  ((jonline++))
-  # ocupação em SLOTS (juiz multi-slot): busy = Σ(total-free); slots = Σ total.
-  # Agente antigo (sem slots no registro): state busy = 1 slot ocupado de 1.
-  read -r _f _t < <(jq -r '"\(.free_slots // "-") \(.total_slots // "-")"' "$rf" 2>/dev/null)
-  if [[ "$_f" =~ ^[0-9]+$ && "$_t" =~ ^[0-9]+$ ]]; then
-    ((jslots+=_t)); ((jbusy += _t - _f))
-  else
-    ((jslots++)); [[ "$(jq -r '.state // ""' "$rf" 2>/dev/null)" == busy ]] && ((jbusy++))
-  fi
-  # nº de CPUs A SERVIÇO: Σ total_slots×slot_cpus do agente novo (cpus fora dos slots — reserve,
-  # resto de fatia — não julgam); agente antigo: .ncpu (o .cpu é o NOME do modelo; o register
-  # descartava o ncpu do agente e esta soma vivia em 0 — corrigido junto com o gpu estrito)
-  c="$(jq -r 'if ((.slot_cpus // 0) >= 1) then ((.total_slots // 1) * .slot_cpus) else (.ncpu // 0) end' "$rf" 2>/dev/null)"
-  [[ "$c" =~ ^[0-9]+$ ]] && ((cpus+=c))
-  # GPU só conta com COMPUTE comprovado (vendor nvidia/amd, do nvidia-smi/rocm-smi) —
-  # registro de agente antigo pode ter lspci (vendor "other") ou a MENSAGEM DE ERRO do
-  # nvidia-smi como names (driver quebrado); nenhum dos dois é GPU de compute.
-  [[ "$(jq -r 'if ((.gpu.vendor // "") | IN("nvidia","amd"))
-                  and ((.gpu.names // "") != "")
-                  and ((.gpu.names // "") | test("failed|error|couldn.t communicate"; "i") | not)
-               then "y" else "n" end' "$rf" 2>/dev/null)" == y ]] && ((gpus++))
-done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
+# UM jq sobre todos os registros (XIV Maratona UnB, 25/09/2026: a rota levava 1,6 s — eram 4–5 jq POR
+# registro de juiz). As regras são as do laço de antes (_reg_slow, abaixo): online = heartbeat no TTL; slots
+# só se free/total forem inteiros (senão, `state` busy = 1 de 1); ncpu inteiro; GPU só nvidia/amd com nomes
+# e sem mensagem de erro. O jq lê os arquivos como UM fluxo e um registro corrompido derrubaria a leitura
+# inteira: aí vale o laço antigo, arquivo a arquivo (a página de saúde não pode sumir por um arquivo ruim).
+_reg_slow(){
+  jonline=0; jbusy=0; jtotal=0; jslots=0; cpus=0; gpus=0
+  while IFS= read -r rf; do
+    ((jtotal++))
+    ls="$(jq -r '.last_seen // 0' "$rf" 2>/dev/null)"; [[ "$ls" =~ ^[0-9]+$ ]] || ls=0
+    (( ls >= now - REG_TTL )) || continue
+    ((jonline++))
+    # ocupação em SLOTS (juiz multi-slot): busy = Σ(total-free); slots = Σ total.
+    # Agente antigo (sem slots no registro): state busy = 1 slot ocupado de 1.
+    read -r _f _t < <(jq -r '"\(.free_slots // "-") \(.total_slots // "-")"' "$rf" 2>/dev/null)
+    if [[ "$_f" =~ ^[0-9]+$ && "$_t" =~ ^[0-9]+$ ]]; then
+      ((jslots+=_t)); ((jbusy += _t - _f))
+    else
+      ((jslots++)); [[ "$(jq -r '.state // ""' "$rf" 2>/dev/null)" == busy ]] && ((jbusy++))
+    fi
+    # nº de CPUs A SERVIÇO: Σ total_slots×slot_cpus do agente novo (cpus fora dos slots — reserve,
+    # resto de fatia — não julgam); agente antigo: .ncpu (o .cpu é o NOME do modelo; o register
+    # descartava o ncpu do agente e esta soma vivia em 0 — corrigido junto com o gpu estrito)
+    c="$(jq -r 'if ((.slot_cpus // 0) >= 1) then ((.total_slots // 1) * .slot_cpus) else (.ncpu // 0) end' "$rf" 2>/dev/null)"
+    [[ "$c" =~ ^[0-9]+$ ]] && ((cpus+=c))
+    # GPU só conta com COMPUTE comprovado (vendor nvidia/amd, do nvidia-smi/rocm-smi) —
+    # registro de agente antigo pode ter lspci (vendor "other") ou a MENSAGEM DE ERRO do
+    # nvidia-smi como names (driver quebrado); nenhum dos dois é GPU de compute.
+    [[ "$(jq -r 'if ((.gpu.vendor // "") | IN("nvidia","amd"))
+                    and ((.gpu.names // "") != "")
+                    and ((.gpu.names // "") | test("failed|error|couldn.t communicate"; "i") | not)
+                 then "y" else "n" end' "$rf" 2>/dev/null)" == y ]] && ((gpus++))
+  done < <(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' 2>/dev/null)
+}
+_rg="$(set -o pipefail; find "$REGISTRYDIR" -maxdepth 1 -name '*.json' -print0 2>/dev/null \
+  | xargs -0 -r cat 2>/dev/null | jq -rs --argjson now "$now" --argjson ttl "$REG_TTL" '
+    def num: if type == "number" and . == floor and . >= 0 then .
+             elif type == "string" and test("^[0-9]+$") then tonumber else null end;
+    (map(select(((.last_seen // 0) | num // 0) >= ($now - $ttl)))) as $on
+    | [ length, ($on | length),
+        ($on | map(if (.free_slots | num) != null and (.total_slots | num) != null then (.total_slots | num) else 1 end) | add // 0),
+        ($on | map(if (.free_slots | num) != null and (.total_slots | num) != null then ((.total_slots | num) - (.free_slots | num))
+                   elif (.state // "") == "busy" then 1 else 0 end) | add // 0),
+        ($on | map(if ((.slot_cpus | num) // 0) >= 1 then ((.total_slots | num) // 1) * (.slot_cpus | num)
+                   else (.ncpu // 0 | num // 0) end) | add // 0),
+        ($on | map(select(((.gpu.vendor // "") | IN("nvidia","amd")) and ((.gpu.names // "") != "")
+                          and ((.gpu.names // "") | test("failed|error|couldn.t communicate"; "i") | not))) | length) ] | @tsv' 2>/dev/null)"
+if [[ $? -eq 0 && "$_rg" =~ ^[0-9]+$'\t'[0-9]+$'\t'-?[0-9]+$'\t'-?[0-9]+$'\t'[0-9]+$'\t'[0-9]+$ ]]; then
+  IFS=$'\t' read -r jtotal jonline jslots jbusy cpus gpus <<<"$_rg"
+  # total = nº de ARQUIVOS (como o laço contava — um registro vazio não aparece no fluxo do jq)
+  jtotal="$(find "$REGISTRYDIR" -maxdepth 1 -name '*.json' -printf . 2>/dev/null | wc -c)"
+else
+  _reg_slow
+fi
 
 # --- daemons (liveness: processo local OU heartbeat, se estiver em outro container) ---
 dj=false; daemon_judged_alive && dj=true
