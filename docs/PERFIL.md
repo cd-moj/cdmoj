@@ -53,7 +53,8 @@ O dono controla em `/treino/perfil/` (🔒 Privacidade). `public != false` = pú
 | `.admin` | tudo (sem cód/log — são do dono) | tudo (privilégio da API) |
 
 Perfil privado também **não aparece** nas listas públicas da home (`top_users` e
-`recent_solved` do `/index/open_training` pulam para o próximo).
+`recent_solved` do `/index/open_training` pulam para o próximo) — nem conta gerida de menor,
+mesmo que o `public` dela diga o contrário.
 
 ## 4. Conquistas
 
