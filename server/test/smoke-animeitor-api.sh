@@ -92,7 +92,13 @@ ck "publica: evento criado + 5 placares + sedes" '[[ "$(J .result.ok)" == true &
 ck "evento lá: nome editado, letras, roster {login, escola, nome}, freeze e penalidade em SEGUNDOS" \
    '[[ "$(ST ".events[\"ap-2026\"].state | [(.problems|join(\"\")), (.teams|length), .score_freeze_time_seconds, .penalty_seconds] | join(\",\")")" == "AB,5,3600,1200" && "$(ST ".events[\"ap-2026\"].state.teams[] | select(.login==\"teambr001\") | [.escola,.nome] | join(\"|\")")" == "UNB|Time Um" ]]'
 ck "relógio inicial ~7200 s (a prova começou há 2 h)" '(( $(ST ".events[\"ap-2026\"].state.time_seconds") >= 7200 && $(ST ".events[\"ap-2026\"].state.time_seconds") <= 7300 ))'
-ck "mídia: template com a URL pública do MOJ e {team_login}" '[[ "$(ST ".events[\"ap-2026\"].contests.Geral.config.photo_url_format")" == "https://moj.exemplo/api/v1/contest/team-photo?contest=ap&user={team_login}" && "$(ST ".events[\"ap-2026\"].contests.Geral.config.sound_url_format")" == *"/team-music?contest=ap&user={team_login}" ]]'
+# MÍDIA (Animeitor 2.1.0, 24/09/2026): os templates são do EVENTO ("shared by all contests"); o contest
+# ficou estrito e um template nele é 400 invalid_json — foi o que parou a publicação em produção
+ck "mídia: template no EVENTO, com a URL pública do MOJ e {team_login}" '[[ "$(ST ".events[\"ap-2026\"].state.photo_url_format")" == "https://moj.exemplo/api/v1/contest/team-photo?contest=ap&user={team_login}" && "$(ST ".events[\"ap-2026\"].state.sound_url_format")" == *"/team-music?contest=ap&user={team_login}" ]]'
+ck "…e NENHUM contest leva template de mídia (contest estrito desde a 2.1.0)" '[[ "$(ST "[.events[\"ap-2026\"].contests[].config | has(\"photo_url_format\") or has(\"sound_url_format\")] | any")" == false ]]'
+MC="$(curl -s -u "moj:tok-super-secreto-123" -H 'Content-Type: application/json' -X POST "$MURL/internal/contests/ap-2026/Velho" \
+  -d '{"name":"Velho","codes":[".*"],"photo_url_format":"x/{team_login}"}' -w '\n%{http_code}')"
+ck "o mock recusa contest com template, como o serviço (400 invalid_json)" '[[ "$(tail -1 <<<"$MC")" == 400 && "$MC" == *"invalid_json"* && "$MC" == *"unknown field"* ]]'
 ck "nome com acento/espaço vai percent-encoded e chega inteiro" '[[ "$(ST ".events[\"ap-2026\"].contests.Brasil.sites | keys | join(\",\")")" == "Brasília,Goiânia" ]]'
 n0="$(wc -l < "$MOCKD/requests.log")"
 call $A POST '{"action":"publish"}'

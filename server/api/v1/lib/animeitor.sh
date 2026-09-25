@@ -132,17 +132,22 @@ an_time_now(){ _an_times "$1"; local t=$(( EPOCHSECONDS - AN_START )); (( t > AN
 # --- o EVENTO (problemas + roster + tempos) -------------------------------------------------
 # an_event_json <c> <saída> [com-relógio 0|1]
 an_event_json(){
-  local c="$1" out="$2" withtime="${3:-1}" ev fz
-  _an_times "$c"; ev="$(jq -r .event <<<"$(an_cfg "$c")")"
+  local c="$1" out="$2" withtime="${3:-1}" ev fz cfg
+  cfg="$(an_cfg "$c")"; _an_times "$c"; ev="$(jq -r .event <<<"$cfg")"
   fz=$AN_DUR; (( AN_FREEZE > AN_START )) && fz=$(( AN_FREEZE - AN_START )); (( fz > AN_DUR )) && fz=$AN_DUR
   bash "$AN_RUNS_SH" "$c" all --teams 2>/dev/null > "$out.teams" || { rm -f "$out.teams"; return 1; }
   [[ -s "$out.teams" ]] || { rm -f "$out.teams"; return 1; }
   bash "$AN_RUNS_SH" "$c" all --probs 2>/dev/null > "$out.probs"
+  # MÍDIA (Animeitor 2.1.0, 24/09/2026): `photo_url_format`/`sound_url_format` são do EVENTO, "shared by
+  # all contests" — o contest ficou estrito e um template nele é 400 invalid_json (foi o que parou a
+  # publicação). Sem `moj_base_url`, null = o padrão do serviço (`photos/{team_login}.webp` na origem dele).
   jq -Rn --arg n "$ev" --argjson fz "$fz" --argjson pen "$(( AN_PEN * 60 ))" --argjson t "$(an_time_now "$c")" \
-     --argjson wt "$withtime" --rawfile probs "$out.probs" '
-    { name: $n, problems: ($probs | split("\n") | map(select(length > 0))),
+     --argjson wt "$withtime" --rawfile probs "$out.probs" --arg b "$(jq -r '.moj_base_url // ""' <<<"$cfg")" --arg c "$c" '
+    (if $b == "" then null else ($b + "/api/v1/contest/team-photo?contest=" + ($c | @uri) + "&user={team_login}") end) as $ph
+    | (if $b == "" then null else ($b + "/api/v1/contest/team-music?contest=" + ($c | @uri) + "&user={team_login}") end) as $so
+    | { name: $n, problems: ($probs | split("\n") | map(select(length > 0))),
       teams: [ inputs | split("\t") | select(length >= 1 and .[0] != "") | {login: .[0], escola: (.[1] // ""), nome: (.[2] // .[0])} ],
-      score_freeze_time_seconds: $fz, penalty_seconds: $pen }
+      score_freeze_time_seconds: $fz, penalty_seconds: $pen, photo_url_format: $ph, sound_url_format: $so }
     + (if $wt == 1 then {time_seconds: $t} else {} end)' "$out.teams" > "$out"
   local rc=$?; rm -f "$out.teams" "$out.probs"; return $rc
 }
@@ -219,7 +224,9 @@ an_derive(){
 }
 
 # an_resolved <c> <saída> -> o que VAI ao serviço: {contests:[{name, codes, ouro, prata, bronze, style,
-# photo_url_format, sound_url_format, sites:[{name, codes}]}]}. `codes:null` (automático) é resolvido
+# sites:[{name, codes}]}]} — o contest é ESTRITO desde o Animeitor 2.1.0 (`name, codes, salt, style,
+# ouro, prata, bronze`); os templates de mídia moraram aqui até lá e hoje são do evento (an_event_json).
+# `codes:null` (automático) é resolvido
 # pela proposta de agora — entrou time novo na sede, o placar acompanha na próxima publicação.
 an_resolved(){
   local c="$1" out="$2" cfg pf; cfg="$(an_cfg "$c")"; pf="$(mktemp)"
@@ -228,10 +235,7 @@ an_resolved(){
     ($p[0].contests) as $P
     | def auto($src): first($P[] | select(.source == $src)) // null;
       def autosite($csrc; $ssrc): first((auto($csrc) // {sites: []}).sites[] | select(.source == $ssrc)) // null;
-    ($cfg.moj_base_url // "") as $b
-    | (if $b == "" then null else ($b + "/api/v1/contest/team-photo?contest=" + ($c | @uri) + "&user={team_login}") end) as $ph
-    | (if $b == "" then null else ($b + "/api/v1/contest/team-music?contest=" + ($c | @uri) + "&user={team_login}") end) as $so
-    | (if $cfg.contests == null then [ $P[] | . + {ouro: 1, prata: 2, bronze: 3, style: null} ]
+    (if $cfg.contests == null then [ $P[] | . + {ouro: 1, prata: 2, bronze: 3, style: null} ]
        else [ $cfg.contests[] | . as $x
               | (if ($x.codes | type) == "array" then $x.codes else ((auto($x.source // {}) // {codes: []}).codes) end) as $codes
               | { name: $x.name, source: ($x.source // {kind: "manual", id: ""}), codes: $codes,
@@ -241,7 +245,6 @@ an_resolved(){
                                codes: (if ($s.codes | type) == "array" then $s.codes
                                        else ((autosite($x.source // {}; $s.source // {}) // {codes: []}).codes) end) } ] } ] end) as $cs
     | {contests: [ $cs[] | {name, codes, ouro, prata, bronze, style: (.style // null),
-                            photo_url_format: $ph, sound_url_format: $so,
                             # `region` = a sede do MOJ de onde o site saiu (NÃO vai ao serviço — o an_publish manda
                             # só {name, codes}); é o que casa o link de revelação com o escopo do staff
                             sites: [ (.sites // [])[] | {name, codes, region: (if (.source.kind // "") == "region" then (.source.id // "") else "" end)} ]} ]}' > "$out"

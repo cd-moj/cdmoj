@@ -61,9 +61,14 @@ def _regexes(codes):
 
 
 EVENT_REQ = ["name", "problems", "teams", "score_freeze_time_seconds", "penalty_seconds"]
-EVENT_FIELDS = EVENT_REQ + ["salt", "time_seconds"]
-CONTEST_FIELDS = ["name", "codes", "ouro", "prata", "bronze", "style", "photo_url_format", "sound_url_format", "salt"]
-CONTEST_DEF = {"ouro": 1, "prata": 2, "bronze": 3, "style": None, "photo_url_format": None, "sound_url_format": None, "salt": None}
+# Animeitor 2.1.0 (24/09/2026): os templates de MÍDIA são do EVENTO ("shared by all contests") e o
+# contest ficou estrito — `photo_url_format` num contest é 400 invalid_json, o erro que parou a
+# publicação em produção. Conferir o /internal/openapi.json do serviço a cada versão: este mock É a
+# cópia do contrato (foi por ele ter ficado velho que o smoke não pegou a mudança).
+EVENT_FIELDS = EVENT_REQ + ["salt", "time_seconds", "photo_url_format", "sound_url_format"]
+EVENT_DEF = {"salt": None, "time_seconds": 0, "photo_url_format": None, "sound_url_format": None}
+CONTEST_FIELDS = ["name", "codes", "salt", "style", "ouro", "prata", "bronze"]
+CONTEST_DEF = {"ouro": 1, "prata": 2, "bronze": 3, "style": None, "salt": None}
 SITE_FIELDS = ["name", "codes", "salt"]
 NULLABLE = {"salt", "style", "photo_url_format", "sound_url_format"}
 
@@ -80,12 +85,18 @@ def _check_teams(teams):
         seen.add(t["login"])
 
 
+def _unknown(k, fields):
+    # a MESMA forma do serviço (serde): 400 invalid_json "… unknown field `k`, expected one of …"
+    raise Err(400, "invalid_json", "Failed to deserialize the JSON body into the target type: %s: unknown field "
+              "`%s`, expected one of %s" % (k, k, ", ".join("`%s`" % f for f in fields)))
+
+
 def _full(body, fields, req, defaults, name):
     if not isinstance(body, dict):
         raise Err(400, "invalid_json", "esperava objeto")
     for k in body:
         if k not in fields:
-            raise Err(400, "invalid_value", f"campo desconhecido: {k}")
+            _unknown(k, fields)
     for k in req:
         if k not in body or body[k] is None:
             raise Err(400, "missing_field", k)
@@ -102,7 +113,7 @@ def _patch(cur, body, fields, req):
         raise Err(400, "invalid_value", "patch vazio")
     for k, v in body.items():
         if k not in fields:
-            raise Err(400, "invalid_value", f"campo desconhecido: {k}")
+            _unknown(k, fields)
         if v is None and k not in NULLABLE:
             raise Err(400, "invalid_value", f"{k} não aceita null")
     if "name" in body and body["name"] != cur["name"]:
@@ -206,7 +217,7 @@ class H(BaseHTTPRequestHandler):
             if m == "POST":
                 if name in ev:
                     raise Err(409, "conflict", "evento já existe")
-                st = _full(body, EVENT_FIELDS, EVENT_REQ, {"salt": None, "time_seconds": 0}, name)
+                st = _full(body, EVENT_FIELDS, EVENT_REQ, EVENT_DEF, name)
                 _check_teams(st["teams"])
                 ev[name] = {"state": st, "contests": {}, "runs": {}}
                 return 201, st, None
@@ -214,7 +225,7 @@ class H(BaseHTTPRequestHandler):
             if m == "GET":
                 return 200, e["state"], None
             if m == "PUT":
-                st = _full(body, EVENT_FIELDS, EVENT_REQ, {"salt": None, "time_seconds": 0}, name)
+                st = _full(body, EVENT_FIELDS, EVENT_REQ, EVENT_DEF, name)
                 _check_teams(st["teams"])
                 e["state"] = st
                 return 200, st, None

@@ -15,8 +15,8 @@ sentido: **o juiz empurra**. Este documento é a fonte única da integração.
 
 | Animeitor | No MOJ |
 |---|---|
-| **evento** (`/internal/events/{e}`): problemas, roster `{login, escola, nome}`, `score_freeze_time_seconds`, `penalty_seconds`, `time_seconds`, runs | o **contest**. Nome = id do contest (editável); com **rodadas**, o padrão é `<contest>-<rodada ativa>` — a promoção zera os `history` e a API não limpa o histórico do stream, então rodada nova é EVENTO novo (publicar num evento novo zera o `sent`: as runs da rodada anterior não vão p/ ele como `X`). Problemas = letras do `PROBS`. Roster = times do placar da visão `all` (conta de papel nunca está lá); `escola` = sigla. Freeze = `FREEZE_TIME − início` (sem freeze = duração). Penalidade = `PENALTY_MINUTES × 60`. |
-| **contest** (`/internal/contests/{e}/{c}`): um PLACAR. `codes` = regex de login (OR), `ouro/prata/bronze` (última colocação de cada medalha), `style`, `photo_url_format`/`sound_url_format` com `{team_login}` | proposta: **Geral** + um por **visão de coorte** (`ch_views`) + um por **nó de `regions.json` com subregiões** (um "país"). Editável. |
+| **evento** (`/internal/events/{e}`): problemas, roster `{login, escola, nome}`, `score_freeze_time_seconds`, `penalty_seconds`, `time_seconds`, `photo_url_format`/`sound_url_format` com `{team_login}` (os templates de mídia, compartilhados por todos os placares), runs | o **contest**. Nome = id do contest (editável); com **rodadas**, o padrão é `<contest>-<rodada ativa>` — a promoção zera os `history` e a API não limpa o histórico do stream, então rodada nova é EVENTO novo (publicar num evento novo zera o `sent`: as runs da rodada anterior não vão p/ ele como `X`). Problemas = letras do `PROBS`. Roster = times do placar da visão `all` (conta de papel nunca está lá); `escola` = sigla. Freeze = `FREEZE_TIME − início` (sem freeze = duração). Penalidade = `PENALTY_MINUTES × 60`. |
+| **contest** (`/internal/contests/{e}/{c}`): um PLACAR. `codes` = regex de login (OR), `ouro/prata/bronze` (última colocação de cada medalha), `style` — só isso: o contest é ESTRITO (campo desconhecido = 400 `invalid_json`) | proposta: **Geral** + um por **visão de coorte** (`ch_views`) + um por **nó de `regions.json` com subregiões** (um "país"). Editável. |
 | **site** (`/internal/sites/{e}/{c}/{s}`): uma SEDE, com regex e **link secreto de revelação** | as **folhas** de `regions.json` (no Geral, todas; no país, as dele) |
 | **run** `{id:int, team_login, prob, time_seconds, answer}` — reenviar o `id` CORRIGE | `id` = inteiro ESTÁVEL por submissão (`var/animeitor-ids.tsv`); `time_seconds` = `sub_epoch − início`; `answer`: `Y` aceito · `N` penaliza · `X` não conta (CE e o que estiver fora do `PENALTY_VERDICTS`, Judge Error, `(Ignored)`) · `?` pendente |
 | `time_seconds` do evento | `agora − início`: **negativo** antes (contagem regressiva), com **teto** na duração. **Prorrogação por sede** (`time-overrides.json`): o evento tem um relógio só, então p/ o telão a prova acaba quando acaba p/ a ÚLTIMA sede — o teto é o `contest_end_all` (o mesmo portão da cerimônia e do descongelar) e o relógio segue andando até lá. O freeze não muda de lugar. Vale SÓ p/ o Animeitor: placar, aceite de submissão e relógio das outras sedes não mudam; prorrogação criada no meio da prova vale em até 5 s |
@@ -116,8 +116,13 @@ A tela avisa quando o marcador está ligado e o processo não bate o ponto há 1
 
 ## Mídia
 
-`photo_url_format`/`sound_url_format` = `<URL pública do MOJ>/api/v1/contest/team-photo?contest=<c>&user={team_login}`
-e `…/team-music…`. As duas rotas já são públicas e nunca dão 404 (devolvem o padrão do contest —
+`photo_url_format`/`sound_url_format` — no **evento** — = `<URL pública do MOJ>/api/v1/contest/team-photo?contest=<c>&user={team_login}`
+e `…/team-music…` (sem a URL pública configurada vai `null`, e o serviço usa o padrão dele,
+`photos/{team_login}.webp` na própria origem). **Mudou na versão do serviço de 24/09/2026**: até
+então os templates eram de cada contest; o serviço passou a recusar o contest com eles
+(`unknown field photo_url_format`) e a publicação parou — conserto em `an_event_json`/`an_resolved`. O mock
+`server/test/animeitor-mock.py` é a cópia do contrato: a cada versão do serviço, confira o
+`/internal/openapi.json` (autenticado) contra ele — foi por o mock ter ficado velho que o smoke não pegou. As duas rotas já são públicas e nunca dão 404 (devolvem o padrão do contest —
 `docs/WEBCAST.md`, seções de fotos e músicas). A URL pública vai na configuração porque a tela do
 operador costuma estar no subdomínio do contest.
 

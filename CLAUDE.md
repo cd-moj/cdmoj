@@ -924,7 +924,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   determinística** (a parte "decorrida" depende do relógio — é arredondada a minuto cheio e
   `window_minutes` a fixa, senão o mesmo `seed` dá placares diferentes e ninguém reproduz bug de
   telão). Receita fim a fim em `docs/WEBCAST.md`; teste: `smoke-contest-seed.sh`.
-- **Telão: API do ANIMEITOR (2026-09-21)** — doc completa em `docs/ANIMEITOR.md`. O Animeitor 2.1.0 (Emilio) tem API
+- **Telão: API do ANIMEITOR (2026-09-21)** — doc completa em `docs/ANIMEITOR.md`. ⚠ **24/09/2026: o serviço mudou o
+  contrato** — os templates de mídia (`photo_url_format`/`sound_url_format`) passaram do contest para o **EVENTO** e o
+  contest ficou estrito (`unknown field` = 400 `invalid_json`, a publicação parou): `an_event_json` os manda, `an_resolved`
+  não. O mock ESTRITO é a cópia do contrato — a cada versão do serviço confira o `/internal/openapi.json` contra ele. O Animeitor 2.1.0 (Emilio) tem API
   própria e o sentido INVERTEU: o MOJ EMPURRA evento/placares/sedes/runs/relógio (`lib/animeitor.sh`, rota
   `/contest/animeitor/api`, gate `is_animeitor || is_admin`); o zip do BOCA (`docs/WEBCAST.md`) ficou LEGADO, dobrado
   na tela. Regras que doem se quebrarem: (1) **nunca `PUT`** — é substituição total e zera o `salt` ⇒ troca os links
