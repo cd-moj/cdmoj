@@ -21,8 +21,7 @@ jq -e '(.from_login != null) or ((.by_region|length) > 0) or ((.by_regex|length)
   || fail 422 "Configure o gate de UA primeiro (ua-gate.json ou LOGIN_UA_SUBSTRING)" "no_substring"
 
 removed=0
-set +o noglob; shopt -s nullglob
-for f in "$SESSIONDIR"/*; do
+while IFS= read -r -d '' f; do
   [[ -f "$f" ]] || continue
   CONTEST=""; LOGIN=""; UA_B64=""; MKEY=""; source "$f" 2>/dev/null
   [[ "$CONTEST" == "$contest" ]] || continue
@@ -31,7 +30,6 @@ for f in "$SESSIONDIR"/*; do
   ug_ok "$contest" "$LOGIN" "$ua" && continue
   rm -f "$f"; ((removed++))
   sess_event "$contest" "$LOGIN" mismatch-logout "$MKEY" "" "${f##*/}" "$SESSION_LOGIN"
-done
-shopt -u nullglob
+done < <(sess_files_of "$contest")
 audit_log_to "$contest" logout-mismatch "por-sede removed=$removed"
 ok_json '{logged_out:true, sessions_removed:$n}' --argjson n "${removed:-0}"

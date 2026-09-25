@@ -99,15 +99,14 @@ an_build(){
   else
     local sd sfd seed=0; sd="$(_sidx_dir "$c")"; mkdir -p "$sd" 2>/dev/null; chmod 700 "$sd" 2>/dev/null
     if exec {sfd}>"$sd/.seed.lock" 2>/dev/null && flock -n "$sfd" 2>/dev/null; then seed=1; fi
-    ( set +o noglob; shopt -s nullglob
-      for f in "$SESSIONDIR"/*; do
+    ( while IFS= read -r -d '' f; do
         [[ -f "$f" ]] || continue
         CONTEST=""; LOGIN=""; IP=""; UA_B64=""; LOGINAT=""; MKEY=""; source "$f" 2>/dev/null
         [[ "$CONTEST" == "$c" && -n "$LOGIN" ]] || continue
         (( seed )) && valid_id "$LOGIN" && printf '%s\n' "${f##*/}" >> "$sd/$LOGIN" 2>/dev/null
         t="${f##*/}"
         printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' "$LOGIN" "${t:0:8}" "$IP" "$UA_B64" "${LOGINAT:-0}" "$MKEY"
-      done ) > "$W/sess.txt"
+      done < <(sess_files_of "$c") ) > "$W/sess.txt"
     (( seed )) && : > "$sd/.seeded"
     [[ -n "${sfd:-}" ]] && eval "exec ${sfd}>&-"
   fi

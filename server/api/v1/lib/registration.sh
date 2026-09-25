@@ -554,14 +554,14 @@ reg_sweep_unregistered(){
     < <(reg_get "$c" | jq -r '((.entries // {}) | keys[]), ((.teams // {}) | keys[])' 2>/dev/null)
   set +o noglob; shopt -s nullglob
   local CONTEST LOGIN
-  for f in "$SESSIONDIR"/*; do
+  while IFS= read -r -d '' f; do
     [[ -f "$f" ]] || continue
     CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
     [[ "$CONTEST" == "$c" && -n "$LOGIN" ]] || continue
     is_reserved_role_login "$LOGIN" && continue
     [[ -n "${_REGOK[$LOGIN]:-}" ]] && continue
     rm -f "$f"; ns=$(( ns + 1 ))
-  done
+  done < <(sess_files_of "$c")
   for d in "$CONTESTSDIR/$c/users"/*/; do
     u="${d%/}"; u="${u##*/}"
     is_reserved_role_login "$u" && continue

@@ -33,12 +33,12 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
       case "$(_cls "$LOGIN")" in competitor) nc=$((nc+n));; staff) ns=$((ns+n));; *) np=$((np+n));; esac
     done
   else
-    for f in "$SESSIONDIR"/*; do
+    while IFS= read -r -d '' f; do
       [[ -f "$f" ]] || continue
       CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
       [[ "$CONTEST" == "$contest" && -n "$LOGIN" ]] || continue
       case "$(_cls "$LOGIN")" in competitor) nc=$((nc+1));; staff) ns=$((ns+1));; *) np=$((np+1));; esac
-    done
+    done < <(sess_files_of "$contest")
   fi
   shopt -u nullglob
   le=false; _login_enabled && le=true
@@ -58,8 +58,7 @@ close="$(jq -r '.close_login == true' <<<"$body")"; open="$(jq -r '.open_login =
 
 nc=0; ns=0
 if [[ -n "$scope" ]]; then
-  set +o noglob; shopt -s nullglob
-  for f in "$SESSIONDIR"/*; do
+  while IFS= read -r -d '' f; do
     [[ -f "$f" ]] || continue
     CONTEST=""; LOGIN=""; MKEY=""; source "$f" 2>/dev/null
     [[ "$CONTEST" == "$contest" && -n "$LOGIN" ]] || continue
@@ -69,8 +68,7 @@ if [[ -n "$scope" ]]; then
     # ⚠ `((nc++))` devolve 1 quando nc era 0 — o `&&…||…` mandava o 1º competidor p/ o staff
     if [[ "$cls" == competitor ]]; then nc=$((nc+1)); else ns=$((ns+1)); fi
     sess_event "$contest" "$LOGIN" logout "$MKEY" "" "${f##*/}" "$SESSION_LOGIN"
-  done
-  shopt -u nullglob
+  done < <(sess_files_of "$contest")
 fi
 source "$_DIR/lib/users.sh"; source "$_DIR/lib/contest-create.sh"
 lstate="-"

@@ -68,6 +68,19 @@ sess_unlock(){ [[ -n "${1:-}" ]] && eval "exec ${1}>&-" 2>/dev/null; return 0; }
 # sess_index_seeded <contest> -> 0 se o índice já foi semeado (vale usar)
 sess_index_seeded(){ [[ -e "$(_sidx_dir "$1")/.seeded" ]]; }
 
+# sess_files_of <contest> -> os arquivos de sessão do contest, separados por NUL. É a varredura
+# AUTORITATIVA (o índice acima só tem o que passou pelo create_session) com PRÉ-FILTRO POR TEXTO: UM
+# grep acha as linhas `CONTEST=<contest>` (a forma `%q` que o create_session grava, e a crua) e só
+# esses arquivos vão p/ o `source` de quem chama — que CONFERE o CONTEST (o grep só descarta).
+# A sessão não expira: em 25/09/2026 eram 21.606 arquivos, e o `source` de cada um custava 1,2 s por
+# chamada do painel de Sessões do admin (a aba pola); o grep, ~0,1 s.
+sess_files_of(){
+  local q; printf -v q 'CONTEST=%q' "$1"
+  find "$SESSIONDIR" -maxdepth 1 -type f ! -name '.*' -print0 2>/dev/null \
+    | xargs -0 -r grep -lxZF -e "$q" -e "CONTEST=$1" 2>/dev/null
+  return 0
+}
+
 # sess_seed_index <contest> [--force] -> semeia o índice do contest a partir de TODO o
 # $SESSIONDIR (uma vez; flock -n: se outro está semeando, retorna 1 sem esperar). Só apêndice.
 sess_seed_index(){
@@ -77,14 +90,13 @@ sess_seed_index(){
   [[ "${2:-}" == --force ]] || { [[ -e "$d/.seeded" ]] && return 0; }
   exec {lfd}>"$d/.seed.lock" 2>/dev/null || return 1
   if ! flock -n "$lfd" 2>/dev/null; then eval "exec ${lfd}>&-"; return 1; fi
-  ( set +o noglob; shopt -s nullglob
-    for f in "$SESSIONDIR"/*; do
+  ( while IFS= read -r -d '' f; do
       [[ -f "$f" ]] || continue
       CONTEST=""; LOGIN=""; source "$f" 2>/dev/null
       [[ "$CONTEST" == "$c" && -n "$LOGIN" ]] || continue
       valid_id "$LOGIN" || continue
       printf '%s\n' "${f##*/}" >> "$d/$LOGIN" 2>/dev/null
-    done )
+    done < <(sess_files_of "$c") )
   : > "$d/.seeded"
   eval "exec ${lfd}>&-"
   return 0

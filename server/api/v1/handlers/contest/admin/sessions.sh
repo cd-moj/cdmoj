@@ -6,7 +6,9 @@
 # então são milhares de arquivos; o painel do admin pola e cada poll prendia um worker por
 # meio minuto). O laço sourceia cada arquivo NO SHELL DO HANDLER (mesma confiança do
 # load_session: sessão é escrita com printf %q), acumula linhas \x01 e UM jq no final monta
-# tudo — o UA sai em base64 e o decode é @base64d dentro do jq.
+# tudo — o UA sai em base64 e o decode é @base64d dentro do jq. E só as sessões DESTE contest
+# chegam ao source (sess_files_of: um grep pela linha CONTEST=): com 21.606 sessões na XIV
+# Maratona UnB (25/09/2026), o source de todas custava 1,2 s por poll.
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -21,9 +23,8 @@ if ! sess_index_seeded "$contest"; then
   _sd="$(_sidx_dir "$contest")"; mkdir -p "$_sd" 2>/dev/null; chmod 700 "$_sd" 2>/dev/null
   if exec {_sfd}>"$_sd/.seed.lock" 2>/dev/null && flock -n "$_sfd" 2>/dev/null; then _seed=1; fi
 fi
-set +o noglob; shopt -s nullglob
 tmpf="$(mktemp)"
-for f in "$SESSIONDIR"/*; do
+while IFS= read -r -d '' f; do
   [[ -f "$f" ]] || continue
   CONTEST=""; LOGIN=""; USERFULLNAME=""; LOGINAT=""; IP=""; UA_B64=""; MKEY=""
   source "$f" 2>/dev/null
@@ -31,8 +32,7 @@ for f in "$SESSIONDIR"/*; do
   [[ "$LOGINAT" =~ ^[0-9]+$ ]] || LOGINAT=0
   (( _seed )) && valid_id "$LOGIN" && printf '%s\n' "${f##*/}" >> "$_sd/$LOGIN" 2>/dev/null
   printf '%s\x01%s\x01%s\x01%s\x01%s\x01%s\n' "$LOGIN" "$USERFULLNAME" "$IP" "$UA_B64" "$LOGINAT" "$MKEY" >> "$tmpf"
-done
-shopt -u nullglob
+done < <(sess_files_of "$contest")
 if (( _seed )); then : > "$_sd/.seeded"; fi
 [[ -n "$_sfd" ]] && eval "exec ${_sfd}>&-"
 

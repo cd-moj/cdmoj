@@ -4,15 +4,9 @@ is_admin || fail 403 "Apenas administradores do treino" "admin_required"
 T="$CONTESTSDIR/treino"
 users="$(list_users treino | wc -l)"; users="${users//[!0-9]/}"; users="${users:-0}"
 
-# sessões ativas do treino
-sess=0
-set +o noglob; shopt -s nullglob
-for f in "$SESSIONDIR"/*; do
-  [[ -f "$f" ]] || continue
-  ( CONTEST=""; source "$f" 2>/dev/null; [[ "$CONTEST" == treino ]] && exit 7; exit 0 )
-  [[ $? -eq 7 ]] && ((sess++))
-done
-shopt -u nullglob
+# sessões ativas do treino: os arquivos com a linha CONTEST=treino (sess_files_of — um grep). Era
+# um subshell com source POR SESSÃO do diretório global: 21.606 subshells em 25/09/2026.
+sess="$(sess_files_of treino | tr -cd '\0' | wc -c)"; sess="${sess//[!0-9]/}"; sess="${sess:-0}"
 
 cut=$(( EPOCHSECONDS - 30*86400 ))
 # agrupa por dia (UTC) = floor(epoch/86400)*86400; o front formata a data

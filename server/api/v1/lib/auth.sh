@@ -180,8 +180,8 @@ remove_contest_sessions(){
 # `source` p/ a confirmação (contest e login exatos). A sessão NUNCA expira, então o diretório só
 # cresce: em 19/09/2026 eram 21.254 arquivos, e o "nova senha" das contas geridas — que lia um por
 # um, com um fork por arquivo — levava 38 s; o admin desistia antes de ver a senha gerada (relato do
-# Ribas, conta `zan`: 6 resets e nenhuma senha vista). Sem login (todas do contest), a varredura segue
-# completa. O source é no MESMO processo, com as variáveis da sessão LOCAIS (nada vaza p/ o handler).
+# Ribas, conta `zan`: 6 resets e nenhuma senha vista). Sem login (todas do contest), o pré-filtro é
+# pela linha `CONTEST=` (sess_files_of, lib/session-index.sh). O source é no MESMO processo, com as variáveis da sessão LOCAIS (nada vaza p/ o handler).
 remove_contest_sessions_v(){
   local c="$1"; shift
   local -a want=(); local w q; for w in "$@"; do [[ -n "$w" ]] && want+=("$w"); done
@@ -197,7 +197,7 @@ remove_contest_sessions_v(){
   done < <(if (( ${#want[@]} )); then
              find "$SESSIONDIR" -maxdepth 1 -type f -print0 2>/dev/null | xargs -0 -r grep -lxZF "${pats[@]}" 2>/dev/null
            else
-             find "$SESSIONDIR" -maxdepth 1 -type f -print0 2>/dev/null
+             sess_files_of "$c"
            fi)
   return 0
 }
