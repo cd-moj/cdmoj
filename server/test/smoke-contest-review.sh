@@ -170,4 +170,24 @@ printf '{"id":"q99","login":"alu' > "$C2/review/q99.json"     # truncado (o jq o
 call /contest/review/list GET '' j1b 'contest=rv2'
 ck "arquivo truncado: 200 e os outros 40 itens (arquivo a arquivo), sem derrubar a lista" '[[ "$OUT" == *"Status: 200"* || "$OUT" != *"Status:"* ]] && [[ "$(jq ".items|length" <<<"$BODY")" == 40 && "$(jq -r .my_active <<<"$BODY")" == q07 ]]'
 
+echo "== conflicts: o alerta do chefe, pela mesma passada (rv_scan) =="
+# chamado pelo shared/chief-alert.js a cada 8–12 s em cada aba de chefe/admin; era um jq + um grep no conf
+# POR ARQUIVO. A fila rv2 tem 40 abertos + o q99 truncado; entram 2 conflitos (q41 antes de q42).
+fx_user "$C2" cj.cjudge p Chefe >/dev/null
+printf 'CONTEST=rv2\nLOGIN=cj.cjudge\nUSERFULLNAME=x\nLOGINAT=1\n' > "$SESS/cjb"
+for k in 41 42; do
+  printf '{"id":"q%s","login":"aluno1","problem_id":"apc#p1","lang":"C","computed_verdict":"Accepted","status":"conflict","conflict":true,"created_at":%s,"sub_epoch":%s,"claimants":[],"votes":[{"by":"j1.judge","label":"1 - YES","verdict":"Accepted"},{"by":"j2.judge","label":"5 - NO - Wrong answer","verdict":"Wrong Answer"}]}' \
+    "$k" "$(( OLD + k ))" "$OLD" > "$C2/review/q$k.json"
+done
+call /contest/review/conflicts GET '' j1b 'contest=rv2'
+ck "conflicts: juiz comum não vê (403)" '[[ "$OUT" == *"Status: 403"* ]]'
+mv "$C2/review/q99.json" "$FIX/q99.fora"        # fila SÃ p/ contar os jq (com o truncado ela cai no caminho lento)
+P0="$PATH"; PATH="$SHIM:$PATH"; : > "$SHIM/n"; call /contest/review/conflicts GET '' cjb 'contest=rv2'; PATH="$P0"
+NJQ="$(wc -l < "$SHIM/n")"
+ck "conflicts: o nº de jq por chamada não cresce com a fila (≤ 8) [$NJQ]" '(( NJQ <= 8 ))'
+mv "$FIX/q99.fora" "$C2/review/q99.json"
+call /contest/review/conflicts GET '' cjb 'contest=rv2'
+ck "conflicts: o chefe vê os 2, em ordem, com os votos (mesmo com o q99 truncado na fila)" '[[ "$(jq .n <<<"$BODY")" == 2 && "$(jq -r "[.conflicts[].id] | join(\",\")" <<<"$BODY")" == "q41,q42" && "$(jq -r ".conflicts[0].votes | map(.verdict) | join(\"|\")" <<<"$BODY")" == "Accepted|Wrong Answer" ]]'
+ck "…e o caminho lento AVISA no log (arquivo ruim não fica escondido)" '[[ "$OUT" == *"rv_scan: ilegível"*q99.json* ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

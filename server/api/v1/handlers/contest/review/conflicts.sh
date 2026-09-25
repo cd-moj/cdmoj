@@ -10,15 +10,16 @@ is_admin_or_chief || fail 403 "Apenas o admin ou o juiz-chefe" "chief_required"
 source "$_LIBDIR/review.sh"
 
 now="$EPOCHSECONDS"
-items=()
-while IFS= read -r rf; do
-  [[ -n "$rf" ]] || continue
-  p="$(jq -c --argjson now "$now" --argjson q "$(rv_quorum "$contest")" "$(rv_expire_filter)
+# UMA passada de jq sobre a fila (rv_scan) — era um jq POR ARQUIVO e, em cada volta, um `$(rv_quorum)` (grep
+# no conf). O alerta do chefe (shared/chief-alert.js) chama esta rota a cada 8–12 s em CADA aba aberta: na
+# XIV Maratona UnB (25/09/2026) foi a 2ª rota mais cara, com p95 de 1,3 s e crescendo com a fila.
+out="$(rv_scan "$(rv_dir "$contest")" "$(rv_expire_filter)
     | $(rv_recompute)
     | select(.conflict == true)
     | { id, login, problem_id, lang, sub_epoch, computed_verdict, created_at,
-        votes:[ (.votes // [])[] | {by, label, verdict} ] }" "$rf" 2>/dev/null)"
-  [[ -n "$p" && "$p" != null ]] && items+=("$p")
-done < <(find "$(rv_dir "$contest")" -maxdepth 1 -name '*.json' 2>/dev/null)
-out="$( ((${#items[@]})) && printf '%s\n' "${items[@]}" | jq -cs 'sort_by(.created_at)' || echo '[]')"
-ok_json '{conflicts:$c, n:($c|length), options:$o}' --argjson c "$out" --argjson o "$(rv_options "$contest")"
+        votes:[ (.votes // [])[] | {by, label, verdict} ] }" \
+  --argjson now "$now" --argjson q "$(rv_quorum "$contest")" \
+  | jq -cs 'sort_by(.created_at, .id)')"
+[[ -n "$out" ]] || out='[]'
+# a lista cresce com o evento ⇒ por arquivo (ok_json_slurp), nunca por --argjson (teto de 128 KiB por argumento)
+ok_json_slurp '{conflicts:$c[0], n:($c[0]|length), options:$o}' c "$out" --argjson o "$(rv_options "$contest")"

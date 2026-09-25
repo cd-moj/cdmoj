@@ -29,7 +29,9 @@ rv_scan() {
   out="$(set -o pipefail; find "$dir" -maxdepth 1 -name '*.json' -print0 2>/dev/null \
          | xargs -0 -r jq -c "$@" "$flt" 2>/dev/null)"; rc=$?
   if (( rc == 0 )); then [[ -n "$out" ]] && printf '%s\n' "$out"; return 0; fi
-  while IFS= read -r -d '' f; do jq -c "$@" "$flt" "$f" 2>/dev/null; done \
+  # caminho lento: fica assim até o arquivo ruim ser consertado — avisa no error.log p/ alguém ver
+  printf 'rv_scan: leitura única falhou em %s (arquivo corrompido?) — lendo arquivo a arquivo\n' "$dir" >&2
+  while IFS= read -r -d '' f; do jq -c "$@" "$flt" "$f" 2>/dev/null || printf 'rv_scan: ilegível: %s\n' "$f" >&2; done \
     < <(find "$dir" -maxdepth 1 -name '*.json' -print0 2>/dev/null)
   return 0
 }
