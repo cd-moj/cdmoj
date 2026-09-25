@@ -390,10 +390,12 @@ count_pending(){
   # ATENÇÃO: `grep -c` IMPRIME "0" E SAI 1 quando não há match. NUNCA usar
   # `grep -c … || echo 0` (retorna "0\n0" → estoura (( )) e inunda o stderr → trava o worker
   # fcgiwrap). Capturar direto (o exit 1 é inofensivo dentro de $()) e sanear a dígitos.
-  local m; m="$( set +o noglob; shopt -s nullglob
-    local n=0 hf; for hf in "$d"/*/history; do
-      g="$(grep -cE "$re" "$hf" 2>/dev/null)"; n=$(( n + ${g//[^0-9]/} + 0 ))
-    done; echo "$n" )"
+  # UM grep p/ todos os history (find|xargs), somado no awk — era um `grep -c` POR CONTA: no treino (~1.000
+  # contas) mil processos a cada vez que o cache sujava, isto é, a cada submissão (XIV Maratona UnB, 25/09/2026:
+  # o /treino/admin/queue chegou a 8,6 s). Mesma contagem: `-c` conta linhas por arquivo e o awk soma.
+  local m; m="$(find "$d" -mindepth 2 -maxdepth 2 -name history -type f -print0 2>/dev/null \
+      | xargs -0 -r grep -chE "$re" 2>/dev/null | awk '{ s += $1 } END { print s + 0 }')"
+  m="${m//[^0-9]/}"; m="${m:-0}"
   mkdir -p "$CONTESTSDIR/$c/var" 2>/dev/null
   printf '%s\n' "$m" > "$cache.tmp.${BASHPID}" 2>/dev/null && mv -f "$cache.tmp.${BASHPID}" "$cache" 2>/dev/null
   echo "$m"

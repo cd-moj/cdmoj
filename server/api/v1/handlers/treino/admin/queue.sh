@@ -95,7 +95,7 @@ fi
 want_details="$(param details)"
 set +o noglob; shopt -s nullglob
 declare -a LISTS; total=0
-DETF="$(mktemp)"; trap 'rm -f "$DETF"' EXIT
+DETF="$(mktemp)"; trap 'rm -f "$DETF" "$DETF.tsv"' EXIT; : > "$DETF.tsv"; ndet=0
 # ⚠ .pending-count de TODOS num awk só (doutrina do index/status.sh, 24/08): o laço fazia
 # `$(count_pending)` POR CONTEST — ~1.500 forks p/ ler caches de 2 bytes; o count_pending de
 # verdade fica p/ quem está sujo/sem cache (comparação -nt, builtin).
@@ -119,29 +119,29 @@ for cdir in "$CONTESTSDIR"/*/; do
     ((total+=n))
     # detalhe: QUAIS são (teto de 100 no total — pendência de verdade é rara; o teto evita
     # que um acidente com milhares vire uma resposta gigante)
-    if [[ "$want_details" == 1 ]]; then
-      for hf in "$cdir"/users/*/history; do
-        (( $(wc -l < "$DETF" 2>/dev/null || echo 0) < 100 )) || break
-        grep -qE "$_PENDING_RE" "$hf" 2>/dev/null || continue
-        login="${hf%/history}"; login="${login##*/}"
-        while IFS= read -r line; do
-          IFS=$'\x01' read -r se id prob lang \
-            <<<"$(awk -F: '{printf "%s\x01%s\x01%s\x01%s", $(NF-1), $NF, $2, $3}' <<<"$line")"
-          [[ "$se" =~ ^[0-9]+$ ]] || continue
-          llang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
-          src="$(user_dir "$cid" "$login")/submissions/$id.${llang:-txt}"
-          jq -cn --arg c "$cid" --arg l "$login" --arg p "$prob" --arg lg "$lang" --arg i "$id" \
-             --argjson se "$se" --argjson age "$(( EPOCHSECONDS - se ))" \
-             --arg st "$(_sub_state "$id")" \
-             --argjson hs "$([[ -s "$src" ]] && echo true || echo false)" \
-             '{contest:$c, login:$l, problem:$p, lang:$lg, id:$i, since:$se, age_s:$age,
-               state:$st, has_source:$hs}' >> "$DETF"
-        done < <(grep -E "$_PENDING_RE" "$hf" 2>/dev/null)
-      done
+    if [[ "$want_details" == 1 ]] && (( ndet < 100 )); then
+      # UM grep -H p/ os history do contest, parseado num awk — era, POR CONTA, um `$(wc -l)` + grep, e POR
+      # LINHA pendente, awk + tr + jq (XIV Maratona UnB, 25/09/2026: 8,6 s). Ordem = a do glob antigo (contas
+      # em ordem de nome no locale C da API, linhas na ordem do arquivo), então o recorte de 100 é o mesmo.
+      while IFS=$'\t' read -r login se id prob lang; do
+        (( ndet < 100 )) || break
+        [[ "$se" =~ ^[0-9]+$ ]] || continue
+        llang="${lang,,}"; src="$cdir/users/$login/submissions/$id.${llang:-txt}"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$cid" "$login" "$prob" "$lang" "$id" "$se" "$(_sub_state "$id")" \
+          "$([[ -s "$src" ]] && echo true || echo false)" >> "$DETF.tsv"
+        ((ndet++))
+      done < <(find "$cdir/users" -mindepth 2 -maxdepth 2 -name history -type f -print0 2>/dev/null | LC_ALL=C sort -z \
+               | xargs -0 -r grep -HE "$_PENDING_RE" 2>/dev/null \
+               | awk '{ p = index($0, ":"); path = substr($0, 1, p - 1); line = substr($0, p + 1)
+                        n = split(path, a, "/"); m = split(line, f, ":")
+                        printf "%s\t%s\t%s\t%s\t%s\n", a[n - 1], f[m - 1], f[m], f[2], f[3] }')
     fi
   fi
 done
 shopt -u nullglob
+# os detalhes viram JSON num jq SÓ (era um jq por linha pendente)
+jq -Rc 'split("\t") | {contest:.[0], login:.[1], problem:.[2], lang:.[3], id:.[4], since:(.[5]|tonumber),
+         age_s:(now - (.[5]|tonumber) | floor), state:.[6], has_source:(.[7] == "true")}' "$DETF.tsv" > "$DETF" 2>/dev/null
 spool=0
 [[ -d "$SPOOLDIR" ]] && spool="$(find "$SPOOLDIR" -type f ! -name '.*' 2>/dev/null | wc -l)"
 # fila de CALIBRAÇÃO (mesmo pool de juízes, filas à parte de run/queue): pendente (kind=calibrate,
