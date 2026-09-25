@@ -13,10 +13,27 @@
 # ⚠ O MOJ manda a resposta REAL de toda run (como o webcast fazia): quem congela e revela é o
 #   Animeitor (a API pública dele mascara `?` depois do freeze; a real só sai com a chave da sede).
 #
+# CREDENCIAL (25/09/2026): o MOJ tem a SUA chave no servidor padrão ($ANIMEITOR_CRED_FILE, fora de todo
+#   contest) e ela vale p/ todo contest que não gravou a própria — sem nunca aparecer na tela. O
+#   `.animeitor`/admin pode gravar uma chave PRÓPRIA (vence a do MOJ; apagar volta p/ a do MOJ). A chave do
+#   MOJ SÓ vai ao servidor padrão ($ANIMEITOR_URL): URL digitada pelo operador exige chave própria (senão
+#   qualquer contest mandaria a credencial do MOJ a um servidor qualquer). Com uma chave COMPARTILHADA por
+#   todos os contests, "de quem é o evento" deixa de ser garantido pela credencial: o registro
+#   $RUNDIR/animeitor/events.json ({url:{evento:contest}}) é quem diz — nome de evento de OUTRO contest é
+#   recusado antes de qualquer request, e a chave do MOJ só assume (`adopt`) evento que o registro diz ser
+#   deste contest.
+#
+# CONFERÊNCIA (an_verify): a rota PÚBLICA `GET /api/events/{e}/contests/{c}/runs_secret`, com
+#   `Authorization: Bearer <chave da sede>` (o `secret` do link de revelação), devolve as runs DAQUELA sede
+#   com a resposta real. O MOJ compara com o que ele tem (id, time, problema, tempo, resposta), reenvia o
+#   que falta ou diverge e grava o resultado — o alimentador confere durante a prova e, com a prova
+#   encerrada p/ todas as sedes e nada pendente, faz a conferência FINAL (o "validado" que o reveleitor
+#   mostra). Antes do início o serviço responde 403 not_started (nada a conferir).
+#
 # ARQUIVOS DO CONTEST
-#   secrets/animeitor.cred      600, write-only: "usuario:token" (HTTP Basic). Vai ao curl por
-#                               `-K <(printf …)` — nunca argv, log, GET nem conf.
-#   animeitor.json              não-segredo: {url, event, moj_base_url, enabled, feed:{clock_s,runs_s},
+#   secrets/animeitor.cred      600, write-only: "usuario:token" (HTTP Basic) — a chave PRÓPRIA do contest.
+#                               Vai ao curl por `-K <(printf …)` — nunca argv, log, GET nem conf.
+#   animeitor.json              não-segredo: {url, event, moj_base_url, enabled, feed:{clock_s,runs_s,verify_s},
 #                               contests: null | [{name, source:{kind:view|region|manual, id}, codes|null,
 #                               ouro, prata, bronze, style, sites:[{name, source, codes|null}]}]}
 #                               (`contests:null` = ainda não revisado ⇒ vale a PROPOSTA; `codes:null`
@@ -25,15 +42,27 @@
 #   var/animeitor-sent.tsv      último estado ENVIADO de cada run ⇒ só o delta viaja
 #   var/animeitor-managed.json  o que ESTE contest criou lá (só isso ele altera/apaga)
 #   var/animeitor.status.json   último sync/erro/contagens · var/animeitor.clock  último relógio enviado
+#   var/animeitor-verify.json   a última conferência (contagens e ids — nunca chave de sede nem resposta)
 #
 # Requer: lib/common.sh (conf_value, valid_id), lib/cohorts.sh. Sourceada POR HANDLER (rota fria).
-AN_DEFAULT_URL="https://animeitor.naquadah.com.br"
+AN_DEFAULT_URL="${ANIMEITOR_URL:-https://animeitor.naquadah.com.br}"; AN_DEFAULT_URL="${AN_DEFAULT_URL%/}"
 _AN_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AN_RUNS_SH="$_AN_LIB/../../../score/telao-runs.sh"
 
 an_cfg_file(){ printf '%s/%s/animeitor.json' "$CONTESTSDIR" "$1"; }
-an_credfile(){ printf '%s/%s/secrets/animeitor.cred' "$CONTESTSDIR" "$1"; }
-an_has_cred(){ [[ -s "$(an_credfile "$1")" ]]; }
+an_credfile(){ printf '%s/%s/secrets/animeitor.cred' "$CONTESTSDIR" "$1"; }     # a PRÓPRIA do contest (escrita)
+an_moj_credfile(){ printf '%s' "${ANIMEITOR_CRED_FILE:-${RUNDIR:-/home/ribas/moj/run}/secrets/animeitor.cred}"; }
+# an_cred_source <c> [url] -> contest | moj | none. A do MOJ só vale no servidor padrão.
+an_cred_source(){
+  local u="${2:-}"
+  if [[ -s "$(an_credfile "$1")" ]]; then printf contest; return 0; fi
+  [[ -n "$u" ]] || u="$(jq -r .url <<<"$(an_cfg "$1")")"
+  if [[ -s "$(an_moj_credfile)" && "${u%/}" == "$AN_DEFAULT_URL" ]]; then printf moj; return 0; fi
+  printf none
+}
+an_has_cred(){ [[ "$(an_cred_source "$1" "${2:-}")" != none ]]; }
+# a chave do MOJ existe (p/ a tela dizer "usar a chave do MOJ" mesmo com URL própria gravada)
+an_moj_cred_available(){ [[ -s "$(an_moj_credfile)" ]]; }
 
 # só HTTPS (o serviço responde 426 em claro — e Basic em claro é credencial na rede); a exceção é
 # o loopback, p/ o mock dos testes
@@ -52,22 +81,28 @@ an_cfg(){
     { version: 1, url: ((.url // "") | if . == "" then $du else . end), event: ((.event // "") | if . == "" then $c else . end),
       event_set: (.event // ""),
       moj_base_url: (.moj_base_url // ""), enabled: (.enabled == true),
-      feed: { clock_s: ((.feed.clock_s // 1) | if . < 1 then 1 else . end), runs_s: ((.feed.runs_s // 2) | if . < 1 then 1 else . end) },
+      feed: { clock_s: ((.feed.clock_s // 1) | if . < 1 then 1 else . end), runs_s: ((.feed.runs_s // 2) | if . < 1 then 1 else . end),
+              verify_s: ((.feed.verify_s // 300) | if . < 30 then 30 else . end) },
       reveal: { released: (.reveal.released == true), at: (.reveal.at // 0), by: (.reveal.by // "") },
       contests: (if (.contests | type) == "array" then .contests else null end) }' 2>/dev/null \
-  || jq -cn --arg c "$1" --arg du "$AN_DEFAULT_URL" '{version:1, url:$du, event:$c, event_set:"", moj_base_url:"", enabled:false, feed:{clock_s:1, runs_s:2}, reveal:{released:false, at:0, by:""}, contests:null}'
+  || jq -cn --arg c "$1" --arg du "$AN_DEFAULT_URL" '{version:1, url:$du, event:$c, event_set:"", moj_base_url:"", enabled:false, feed:{clock_s:1, runs_s:2, verify_s:300}, reveal:{released:false, at:0, by:""}, contests:null}'
 }
 # (`event` no arquivo é o que o operador DIGITOU — vazio = nome-padrão, que o an_cfg resolve a cada leitura;
 #  gravar o nome resolvido congelaria `<contest>-<rodada>` na rodada errada)
 an_cfg_save(){ local f; f="$(an_cfg_file "$1")"; printf '%s\n' "$2" | jq '.event = (.event_set // .event // "") | del(.event_set)' > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"; }
-an_configured(){ an_has_cred "$1" && an_url_ok "$(jq -r .url <<<"$(an_cfg "$1")")"; }
+an_configured(){ local u; u="$(jq -r .url <<<"$(an_cfg "$1")")"; an_url_ok "$u" && an_has_cred "$1" "$u"; }
 
 # an_curl <c> <METHOD> </internal/…> [arquivo-do-corpo] -> corpo + última linha "HTTP <code>"
 an_curl(){
   local c="$1" method="$2" path="$3" bodyf="${4:-}" cred u t base tmo="${AN_TIMEOUT:-20}"
   base="${AN_URL:-}"; [[ -n "$base" ]] || base="$(jq -r .url <<<"$(an_cfg "$c")")"
   an_url_ok "$base" || { printf '\nHTTP 000'; return 1; }
-  IFS= read -r cred < "$(an_credfile "$c")" 2>/dev/null || { printf '\nHTTP 000'; return 1; }
+  # a chave do contest; senão a do MOJ — e esta SÓ p/ o servidor padrão (a URL de fato usada, não a gravada)
+  case "$(an_cred_source "$c" "$base")" in
+    contest) IFS= read -r cred < "$(an_credfile "$c")" 2>/dev/null || { printf '\nHTTP 000'; return 1; } ;;
+    moj)     IFS= read -r cred < "$(an_moj_credfile)" 2>/dev/null || { printf '\nHTTP 000'; return 1; } ;;
+    *)       printf '\nHTTP 000'; return 1 ;;
+  esac
   u="${cred%%:*}"; t="${cred#*:}"
   # o arquivo de config do curl é entre ASPAS: usuário/token com aspas ou barra invertida quebrariam
   [[ "$u" =~ ^[A-Za-z0-9._@-]{1,64}$ && "$t" =~ ^[A-Za-z0-9._~+/=-]{8,256}$ ]] || { printf '\nHTTP 000'; return 1; }
@@ -264,6 +299,40 @@ _an_hash(){ jq -cS . "$1" 2>/dev/null | md5sum | cut -c1-32; }
 an_managed(){ local f="$CONTESTSDIR/$1/var/animeitor-managed.json"; { [[ -s "$f" ]] && cat "$f" || printf '{}'; } | jq -c '{event:(.event // ""), event_hash:(.event_hash // ""), contests:(.contests // {})}' 2>/dev/null || printf '{"event":"","event_hash":"","contests":{}}'; }
 _an_managed_save(){ local f="$CONTESTSDIR/$1/var/animeitor-managed.json"; mkdir -p "$CONTESTSDIR/$1/var"; printf '%s\n' "$2" > "$f.tmp" && mv -f "$f.tmp" "$f"; }
 
+# --- DE QUEM É O EVENTO (registro do servidor inteiro) -------------------------------------------
+# Com a chave do MOJ todos os contests falam com o Animeitor com a MESMA credencial: o serviço não sabe
+# mais separar o evento de um contest do de outro. $RUNDIR/animeitor/events.json = {url: {evento: contest}},
+# gravado no create (201) e em todo PATCH de evento que o `managed` do contest diz ser dele; apagado no
+# reset. É server-side (nenhum cliente o escreve) e vale p/ qualquer chave: um nome de evento de OUTRO
+# contest do MOJ é recusado antes de qualquer request (senão o relógio e as runs de dois contests iriam
+# p/ o mesmo evento).
+an_reg_file(){ printf '%s/animeitor/events.json' "${RUNDIR:-/home/ribas/moj/run}"; }
+an_reg_owner(){ # <url> <evento> -> o contest dono ("" = ninguém do MOJ)
+  local f; f="$(an_reg_file)"; [[ -s "$f" ]] || return 0
+  jq -r --arg u "${1%/}" --arg e "$2" '.[$u][$e] // empty' "$f" 2>/dev/null
+}
+# an_reg_set <url> <evento> <contest> <claim|release> — sob flock; claim de evento de OUTRO contest = rc 1;
+# release só apaga se o dono é este contest
+an_reg_set(){
+  local u="${1%/}" e="$2" c="$3" op="$4" f d fd tmp cur rc=0
+  f="$(an_reg_file)"; d="${f%/*}"; mkdir -p "$d" 2>/dev/null
+  exec {fd}>"$d/.events.lock" || return 1
+  flock -w 10 "$fd" || { exec {fd}>&-; return 1; }
+  cur=""; [[ -s "$f" ]] && cur="$(jq -r --arg u "$u" --arg e "$e" '.[$u][$e] // empty' "$f" 2>/dev/null)"
+  tmp="$f.tmp.$BASHPID"          # resolvido ANTES do jq (BASHPID no alvo do redirect expandiria no filho)
+  if [[ "$op" == claim ]]; then
+    if [[ -n "$cur" && "$cur" != "$c" ]]; then rc=1
+    elif [[ -z "$cur" ]]; then
+      { [[ -s "$f" ]] && cat "$f" || printf '{}'; } | jq -c --arg u "$u" --arg e "$e" --arg c "$c" '.[$u][$e] = $c' > "$tmp" 2>/dev/null \
+        && mv -f "$tmp" "$f" || { rm -f "$tmp"; rc=1; }
+    fi
+  elif [[ "$cur" == "$c" ]]; then
+    jq -c --arg u "$u" --arg e "$e" 'del(.[$u][$e]) | with_entries(select(.value | length > 0))' "$f" > "$tmp" 2>/dev/null \
+      && mv -f "$tmp" "$f" || { rm -f "$tmp"; rc=1; }
+  fi
+  exec {fd}>&-; return $rc
+}
+
 # _an_upsert <c> <caminho> <arquivo-completo> <arquivo-do-patch> -> "created|updated HTTP" ou "error HTTP msg"
 _an_upsert(){
   local c="$1" path="$2" full="$3" patch="$4" r st
@@ -280,10 +349,19 @@ _an_upsert(){
 # Idempotente: o que não mudou (hash) não gera request. Evento que JÁ existe lá e não foi criado por
 # este contest só é tocado com adopt=1 (o servidor é compartilhado com outros eventos).
 an_publish(){
-  local c="$1" out="$2" adopt="${3:-0}" W ev eenc man mev res act st msg h rc=0
+  local c="$1" out="$2" adopt="${3:-0}" W ev eenc man mev res act st msg h rc=0 base owner csrc code=""
   W="$(mktemp -d)" || return 1
   ev="$(jq -r .event <<<"$(an_cfg "$c")")"; eenc="$(an_enc "$ev")"
   an_name_ok "$ev" || { rm -rf "$W"; jq -cn '{ok:false, error:"nome de evento inválido"}' > "$out"; return 1; }
+  base="${AN_URL:-$(jq -r .url <<<"$(an_cfg "$c")")}"; csrc="$(an_cred_source "$c" "$base")"
+  # evento de OUTRO contest do MOJ: recusado antes de qualquer request (o registro é o dono de verdade
+  # quando a credencial é compartilhada). Não diz QUAL contest (o id pode ser de uma prova secreta).
+  owner="$(an_reg_owner "$base" "$ev")"
+  if [[ -n "$owner" && "$owner" != "$c" ]]; then
+    rm -rf "$W"
+    jq -cn --arg n "$ev" '{ok:false, event:{name:$n, action:"error", http:"409", code:"event_taken", error:"este nome de evento já é de outro contest do MOJ: escolha outro nome"}}' > "$out"
+    an_fail_note "$c" publish 409 "nome de evento de outro contest"; return 1
+  fi
   man="$(an_managed "$c")"; mev="$(jq -r .event <<<"$man")"
   if [[ "$mev" != "$ev" ]]; then
     # evento NOVO (renomeado, ou rodada nova): começa do zero lá — inclusive as runs. Sem zerar o `sent`,
@@ -303,7 +381,12 @@ an_publish(){
     local r; r="$(an_curl "$c" POST "/internal/events/$eenc" "$W/ev.json")"; st="$(an_status "$r")"; msg=""
     if [[ "$st" == 201 ]]; then act=created
     elif [[ "$st" == 409 ]]; then
-      if [[ "$(jq -r .event <<<"$man")" != "$ev" && "$adopt" != 1 ]]; then act=error; msg="o evento já existe no Animeitor e não foi criado por este contest (adote-o para assumir)"; st=409
+      if [[ "$(jq -r .event <<<"$man")" != "$ev" && "$adopt" != 1 ]]; then act=error; code=event_exists; msg="o evento já existe no Animeitor e não foi criado por este contest (adote-o para assumir)"; st=409
+      elif [[ "$(jq -r .event <<<"$man")" != "$ev" && "$csrc" == moj && "$owner" != "$c" ]]; then
+        # a chave do MOJ é de todos os contests: assumir um evento que ninguém do MOJ criou seria mexer, com
+        # a credencial do MOJ, no evento de outra pessoa (o regional de exemplo do Emilio, outro sistema…)
+        act=error; code=adopt_forbidden; st=409
+        msg="com a chave do MOJ só dá para assumir evento criado por este contest; para um evento de fora, grave uma chave própria"
       else
         jq -c 'del(.name)' "$W/ev.patch.json" > "$W/ev.p2.json"
         r="$(an_curl "$c" PATCH "/internal/events/$eenc?keep_runs=true" "$W/ev.p2.json")"; st="$(an_status "$r")"
@@ -311,7 +394,11 @@ an_publish(){
       fi
     else act=error; msg="$(an_err "$r")"; fi
   fi
-  res="$(jq -c --arg n "$ev" --arg a "$act" --arg h "$st" --arg m "$msg" '.event = {name:$n, action:$a, http:$h} + (if $m == "" then {} else {error:$m} end)' <<<"$res")"
+  # o evento agora é deste contest: grava no registro (seed dos que nasceram antes dele, via PATCH)
+  if [[ "$act" != error ]] && ! an_reg_set "$base" "$ev" "$c" claim; then
+    act=error; code=event_taken; st=409; msg="este nome de evento já é de outro contest do MOJ: escolha outro nome"
+  fi
+  res="$(jq -c --arg n "$ev" --arg a "$act" --arg h "$st" --arg m "$msg" --arg k "$code" '.event = {name:$n, action:$a, http:$h} + (if $m == "" then {} else {error:$m} end) + (if $k == "" then {} else {code:$k} end)' <<<"$res")"
   if [[ "$act" == error ]]; then
     jq -c '. + {ok:false}' <<<"$res" > "$out"; an_fail_note "$c" publish "$st" "$msg"; rm -rf "$W"; return 1
   fi
@@ -451,6 +538,164 @@ an_links(){
     | (first($rv[].url | capture("^(?<o>https?://[^/]+)").o) // $api) as $origin
     | { revelation: $rv,
         public: [ ($man.contests | keys[]) | {contest: ., url: ($origin + "/animeitor/" + ($ev | @uri) + "/" + (. | @uri) + "/")} ] }'
+}
+
+# --- CONFERÊNCIA: o Animeitor tem TODAS as runs? -------------------------------------------------
+# an_curl_site <c> <caminho /api/…> <chave da sede> -> corpo + "HTTP <code>". GET na API PÚBLICA com
+# `Authorization: Bearer <chave>`; a chave vai por `-K <(printf …)` como a credencial (nunca argv/log).
+an_curl_site(){
+  local c="$1" path="$2" key="$3" base tmo="${AN_TIMEOUT:-20}"
+  base="${AN_URL:-}"; [[ -n "$base" ]] || base="$(jq -r .url <<<"$(an_cfg "$c")")"
+  an_url_ok "$base" || { printf '\nHTTP 000'; return 1; }
+  [[ "$key" =~ ^[A-Za-z0-9._~+/=-]{8,512}$ ]] || { printf '\nHTTP 000'; return 1; }
+  [[ "$tmo" =~ ^[0-9]+$ ]] || tmo=20
+  curl -s -m "$tmo" -w $'\nHTTP %{http_code}' -K <(printf 'header = "Authorization: Bearer %s"\nurl = "%s%s"\n' "$key" "$base" "$path")
+}
+an_verify_file(){ printf '%s/%s/var/animeitor-verify.json' "$CONTESTSDIR" "$1"; }
+# an_verify_summary <c> -> o resumo SEM ids (o que .cstaff/.staff e a tela ao vivo leem); {} se nunca conferiu
+an_verify_summary(){
+  local f; f="$(an_verify_file "$1")"
+  { [[ -s "$f" ]] && cat "$f" || printf '{}'; } | jq -c 'del(.sample)' 2>/dev/null || printf '{}'
+}
+
+# _an_sent_fix <c> <W> — sob o MESMO lock do an_push_runs. Arquivos em <W>:
+#   fix.drop  ids VIVOS que faltam/divergem lá ⇒ saem do sent (o próximo push os manda de novo)
+#   fix.rex   ids REMOVIDOS no MOJ (X no sent) que lá não estão como X ⇒ flag vira "?" (o push manda o X de novo)
+#   fix.add   runs que SÓ o Animeitor tem (id que o MOJ não conhece, resposta ≠ X) ⇒ entram no sent com
+#             a resposta de lá: sem estar no MOJ, o push as corrige p/ X (não contam)
+_an_sent_fix(){
+  local c="$1" W="$2" d="$CONTESTSDIR/$1/var" fd
+  mkdir -p "$d"; exec {fd}>"$d/.animeitor-push.lock" || return 1
+  flock -w 30 "$fd" || { exec {fd}>&-; return 1; }
+  { [[ -s "$d/animeitor-sent.tsv" ]] && cat "$d/animeitor-sent.tsv" || :; } \
+    | awk -F'\t' -v D="$W/fix.drop" -v R="$W/fix.rex" 'BEGIN{OFS="\t"; while ((getline l < D) > 0) K[l]=1; while ((getline l < R) > 0) X[l]=1 }
+        ($1 in K) { next } ($1 in X) { $5 = "?" } { print }' > "$W/sent.new"
+  [[ -s "$W/fix.add" ]] && cat "$W/fix.add" >> "$W/sent.new"
+  sort -u "$W/sent.new" > "$d/animeitor-sent.tsv.tmp" && mv -f "$d/animeitor-sent.tsv.tmp" "$d/animeitor-sent.tsv"
+  rm -f "$d/.animeitor-runs.stamp"          # o alimentador manda o delta na passada seguinte
+  exec {fd}>&-
+}
+
+# an_verify <c> <saída> [repair 0|1] — pergunta ao Animeitor, SEDE a SEDE (runs_secret com a chave de cada
+# uma, buscada ao vivo e nunca gravada), quais runs ele tem, e compara com o MOJ: id, time, problema, tempo e
+# resposta REAL. As runs do MOJ são as vivas + as removidas (que lá devem estar como X). O filtro de cada sede
+# é o regex dela (o mesmo que o serviço aplica ao `team_login`); sedes com o MESMO regex em placares
+# diferentes dão a mesma resposta ⇒ uma consulta só. Grava var/animeitor-verify.json:
+#   {at, event, state: ok|diverge|not_started|no_sites|error, ok, over, pending, final, final_at, runs,
+#    checked, uncovered, missing, wrong, extra, repair, sites:[{contest, site, http, expected, got,
+#    missing, wrong, extra}], sample:{missing:[ids], wrong:[ids], extra:[ids]}, error?}
+# `final` = tudo bate, a prova acabou p/ TODAS as sedes e nada está pendente (`?`) — é o "validado".
+# Com repair=1 o que falta/diverge é marcado p/ reenvio (_an_sent_fix); quem chama decide se já manda.
+an_verify(){
+  local c="$1" out="$2" repair="${3:-1}" d="$CONTESTSDIR/$1/var" W cfg ev eenc lk r st i=0 cn sn key
+  W="$(mktemp -d)" || return 1
+  cfg="$(an_cfg "$c")"; ev="$(jq -r .event <<<"$cfg")"; eenc="$(an_enc "$ev")"
+  _an_times "$c"
+  local over=false; (( AN_END > 0 && EPOCHSECONDS >= AN_END )) && over=true
+  _an_vdone(){ # <state> [erro] — monta o JSON final a partir dos arquivos em $W
+    local state="$1" err="${2:-}" prev pf
+    touch "$W/sites.jsonl" "$W/miss.ids" "$W/wrong.ids" "$W/extra.ids" "$W/covered.ids"
+    prev="$(an_verify_file "$c")"; pf='{}'; [[ -s "$prev" ]] && pf="$(jq -c '{final_at: (.final_at // 0), final}' "$prev" 2>/dev/null || printf '{}')"
+    jq -n --arg st "$state" --arg err "$err" --arg ev "$ev" --argjson now "$EPOCHSECONDS" --argjson over "$over" \
+       --argjson runs "$(wc -l < "$W/exp.tsv" | tr -d '[:space:]')" \
+       --argjson pend "$(awk -F'\t' '$5 == "?"' "$W/cur.tsv" 2>/dev/null | wc -l | tr -d '[:space:]')" \
+       --argjson checked "$(sort -u "$W/covered.ids" | wc -l | tr -d '[:space:]')" \
+       --argjson repair "$(cat "$W/fix.n" 2>/dev/null || echo 0)" \
+       --argjson prev "$pf" --slurpfile sites "$W/sites.jsonl" \
+       --rawfile mi "$W/miss.ids" --rawfile wr "$W/wrong.ids" --rawfile ex "$W/extra.ids" '
+      def ids($s): $s | split("\n") | map(select(length > 0)) | unique;
+      (ids($mi)) as $M | (ids($wr)) as $Wr | (ids($ex)) as $E
+      | ($st == "ok" and $over and $pend == 0) as $final
+      | { at: $now, event: $ev, state: $st, ok: ($st == "ok"), over: $over, pending: $pend, final: $final,
+          final_at: (if $final then (if ($prev.final == true and ($prev.final_at // 0) > 0) then $prev.final_at else $now end) else 0 end),
+          runs: $runs, checked: $checked, uncovered: (if $st == "ok" or $st == "diverge" then ([$runs - $checked, 0] | max) else 0 end),
+          missing: ($M | length), wrong: ($Wr | length), extra: ($E | length), repair: $repair,
+          sites: $sites, sample: {missing: ($M | .[0:20] | map(tonumber? // .)), wrong: ($Wr | .[0:20] | map(tonumber? // .)), extra: ($E | .[0:20] | map(tonumber? // .))} }
+        + (if $err == "" then {} else {error: $err} end)' > "$W/out.json" 2>"$W/jq.err" \
+      || jq -cn --arg e "$(head -c 200 "$W/jq.err")" --argjson now "$EPOCHSECONDS" '{at:$now, state:"error", ok:false, final:false, error:("montagem: " + $e)}' > "$W/out.json"
+    cp "$W/out.json" "$out"
+    mkdir -p "$d"; local vf; vf="$(an_verify_file "$c")"
+    cp "$W/out.json" "$vf.tmp.$BASHPID" 2>/dev/null && mv -f "$vf.tmp.$BASHPID" "$vf"
+    rm -rf "$W"
+    [[ "$state" == ok ]]
+  }
+  : > "$W/cur.tsv"; : > "$W/exp.tsv"
+  [[ "$(jq -r .event <<<"$(an_managed "$c")")" == "$ev" ]] || { _an_vdone error "o evento ainda não foi publicado"; return 1; }
+  # 1. o que o MOJ tem: vivas (id login letra segundos resposta) + removidas (X no sent, fora das vivas)
+  bash "$AN_RUNS_SH" "$c" all --runs-ids 2>/dev/null \
+    | awk -F'\t' -v S="$AN_START" 'BEGIN{OFS="\t"} { t=$2-S; if (t<0) t=0; print $1, $3, $4, t, $5 }' | sort > "$W/cur.tsv"
+  { [[ -s "$d/animeitor-sent.tsv" ]] && sort "$d/animeitor-sent.tsv" || :; } > "$W/sent.tsv"
+  awk -F'\t' -v F="$W/cur.tsv" 'BEGIN{OFS="\t"; while ((getline l < F) > 0) { split(l, a, "\t"); C[a[1]]=1 } }
+      !($1 in C) && $5 == "X"' "$W/sent.tsv" > "$W/gone.tsv"
+  sort "$W/cur.tsv" "$W/gone.tsv" > "$W/exp.tsv"
+  cut -f2 "$W/exp.tsv" | sort -u > "$W/logins.txt"
+  # 2. as sedes: o regex de cada uma (o que foi publicado) e a chave (do link de revelação, ao vivo)
+  an_resolved "$c" "$W/res.json" || { _an_vdone error "falha ao derivar placares e sedes"; return 1; }
+  lk="$(an_links "$c")" || { _an_vdone error "o Animeitor não entregou os links de revelação (HTTP $(jq -r '.http // "000"' <<<"$lk" 2>/dev/null))"; return 1; }
+  jq -r --slurpfile r "$W/res.json" '
+      ($r[0].contests) as $R
+      | (.revelation // [])[]
+      | . as $x
+      | (first($R[] | select(.name == $x.contest) | .sites[] | select(.name == $x.site) | .codes) // null) as $codes
+      | select($codes != null)
+      # base64 em cada campo: o @tsv ESCAPA a barra invertida (`\-` do login escapado virava `\\-` e o regex
+      # da sede não casava ninguém — "todas as 0 submissões" com sede por campo da conta)
+      | [ ($x.contest | @base64), ($x.site | @base64), ((($x.url | capture("[?&]secret=(?<k>[^&#]+)") | .k) // "") | @base64), ($codes | tojson | @base64) ] | @tsv' <<<"$lk" > "$W/links.tsv" 2>/dev/null
+  [[ -s "$W/links.tsv" ]] || { _an_vdone no_sites; return 1; }
+  # 3. sede a sede
+  declare -A seen=()
+  : > "$W/fix.drop"; : > "$W/fix.rex"; : > "$W/fix.add"
+  while IFS=$'\t' read -r cn sn key codes; do
+    cn="$(base64 -d <<<"$cn")"; sn="$(base64 -d <<<"$sn")"; key="$(base64 -d <<<"$key")"; codes="$(base64 -d <<<"$codes")"
+    [[ -n "$key" ]] || continue
+    [[ "$key" == *%* ]] && { key="${key//%/\\x}"; printf -v key '%b' "$key"; }
+    if [[ -n "${seen[$codes]:-}" ]]; then        # mesmo regex já conferido em outro placar: mesma resposta
+      jq -c --arg c "$cn" --arg s "$sn" '. + {contest:$c, site:$s, same_as:.site}' <<<"${seen[$codes]}" >> "$W/sites.jsonl"; continue
+    fi
+    (( i++ ))
+    # quem é da sede: o regex dela sobre os logins (PCRE ≈ o dialeto Rust do serviço p/ o que o MOJ gera)
+    jq -r '"(?:" + join(")|(?:") + ")"' <<<"$codes" > "$W/rx"
+    grep -P -f "$W/rx" "$W/logins.txt" > "$W/mem.$i" 2>/dev/null || { [[ $? -eq 1 ]] || grep -E -f "$W/rx" "$W/logins.txt" > "$W/mem.$i" 2>/dev/null; }
+    awk -F'\t' -v F="$W/mem.$i" 'BEGIN{ while ((getline l < F) > 0) M[l]=1 } ($2 in M)' "$W/exp.tsv" > "$W/exp.$i"
+    cut -f1 "$W/exp.$i" >> "$W/covered.ids"
+    r="$(an_curl_site "$c" "/api/events/$eenc/contests/$(an_enc "$cn")/runs_secret" "$key")"; st="$(an_status "$r")"
+    if [[ "$st" == 403 && "$(an_body "$r" | jq -r '(.errors // [])[0].code // ""' 2>/dev/null)" == not_started ]]; then
+      _an_vdone not_started; return 1
+    fi
+    if [[ "$st" != 200 ]]; then
+      local line; line="$(jq -cn --arg c "$cn" --arg s "$sn" --arg h "${st:-000}" --arg e "$(an_err "$r")" --argjson n "$(wc -l < "$W/exp.$i")" \
+        '{contest:$c, site:$s, http:$h, expected:$n, got:null, missing:null, wrong:null, extra:null, error:$e}')"
+      printf '%s\n' "$line" >> "$W/sites.jsonl"; seen[$codes]="$line"; printf 'x\n' >> "$W/fail.flag"; continue
+    fi
+    an_body "$r" | jq -r '(.data.runs // [])[] | [(.id | tostring), .team_login, .prob, (.time_seconds | tostring), .answer] | @tsv' 2>/dev/null | sort > "$W/got.$i"
+    # faltando (no MOJ, não lá) · divergente (mesmo id, outro conteúdo) · sobrando (lá, não no MOJ desta sede)
+    awk -F'\t' -v G="$W/got.$i" -v MI="$W/miss.$i" -v WR="$W/wrong.$i" -v EX="$W/extra.$i" '
+      BEGIN{ while ((getline l < G) > 0) { split(l, a, "\t"); GL[a[1]] = l } }
+      { if (!($1 in GL)) print $1 > MI; else { if (GL[$1] != $0) print $1 > WR; delete GL[$1] } }
+      END{ for (k in GL) print GL[k] > EX; close(MI); close(WR); close(EX) }' "$W/exp.$i"
+    touch "$W/miss.$i" "$W/wrong.$i" "$W/extra.$i"
+    cat "$W/miss.$i" >> "$W/miss.ids"; cat "$W/wrong.$i" >> "$W/wrong.ids"
+    # sobrando: id que o MOJ NÃO conhece (em lugar nenhum) com resposta ≠ X conta (o telão mostra uma run que
+    # não existe); id conhecido é só outro recorte (ex.: time renomeado — a correção do "faltando" resolve)
+    awk -F'\t' -v F="$W/exp.tsv" 'BEGIN{ while ((getline l < F) > 0) { split(l, a, "\t"); K[a[1]]=1 } } !($1 in K) && $5 != "X"' "$W/extra.$i" > "$W/xu.$i"
+    cut -f1 "$W/xu.$i" >> "$W/extra.ids"; cat "$W/xu.$i" >> "$W/fix.add"
+    local line; line="$(jq -cn --arg c "$cn" --arg s "$sn" --argjson n "$(wc -l < "$W/exp.$i")" --argjson g "$(wc -l < "$W/got.$i")" \
+      --argjson m "$(wc -l < "$W/miss.$i")" --argjson w "$(wc -l < "$W/wrong.$i")" --argjson x "$(wc -l < "$W/xu.$i")" \
+      '{contest:$c, site:$s, http:"200", expected:$n, got:$g, missing:$m, wrong:$w, extra:$x}')"
+    printf '%s\n' "$line" >> "$W/sites.jsonl"; seen[$codes]="$line"
+  done < "$W/links.tsv"
+  # 4. reparo: marca p/ reenvio (vivas saem do sent; removidas voltam a "?" p/ o X ir de novo; as só-de-lá entram)
+  sort -u "$W/miss.ids" "$W/wrong.ids" > "$W/bad.ids"
+  awk -F'\t' -v F="$W/bad.ids" 'BEGIN{ while ((getline l < F) > 0) B[l]=1 } ($1 in B) { print $1 }' "$W/cur.tsv" > "$W/fix.drop"
+  awk -F'\t' -v F="$W/bad.ids" 'BEGIN{ while ((getline l < F) > 0) B[l]=1 } ($1 in B) { print $1 }' "$W/gone.tsv" > "$W/fix.rex"
+  sort -u -o "$W/fix.add" "$W/fix.add"
+  local nfix; nfix=$(( $(wc -l < "$W/fix.drop") + $(wc -l < "$W/fix.rex") + $(wc -l < "$W/fix.add") ))
+  if (( repair == 1 && nfix > 0 )); then _an_sent_fix "$c" "$W" && printf '%s' "$nfix" > "$W/fix.n"; fi
+  if [[ -s "$W/fail.flag" ]]; then _an_vdone error "alguma sede não respondeu"; return 1; fi
+  # nenhuma sede cobre time nenhum (sede sem time, regex que não casa): "ok" com 0 conferidas enganaria
+  if [[ ! -s "$W/covered.ids" && -s "$W/exp.tsv" ]]; then _an_vdone no_sites "nenhuma sede publicada cobre os times"; return 1; fi
+  if [[ -s "$W/bad.ids" || -s "$W/extra.ids" ]]; then _an_vdone diverge; return 1; fi
+  _an_vdone ok
 }
 
 # --- REVELEITOR nas sedes: o .animeitor LIBERA e o .cstaff/.staff recebe os links DA SEDE DELE ---------

@@ -441,18 +441,21 @@ jq -cn --argjson now "$NOW" \
   > "$C/webcast.json"
 
 # --- 📡 API do Animeitor: um MOCK do servidor do telão (server/test/animeitor-mock.py) + o contest já
-# configurado, PUBLICADO, com as runs enviadas, o alimentador "ligado" e o reveleitor LIBERADO p/ as
-# sedes — pelas MESMAS funções da rota (lib/animeitor.sh), p/ a tela sair com dado de verdade.
+# configurado, PUBLICADO, com as runs enviadas, CONFERIDO, o alimentador "ligado" e o reveleitor LIBERADO
+# p/ as sedes — pelas MESMAS funções da rota (lib/animeitor.sh), p/ a tela sair com dado de verdade. A
+# chave é a DO MOJ (run/secrets, servidor padrão = o mock), como num contest novo em produção.
 jq -cn '[{name:"Brasil", subregions:[{name:"Curitiba"},{name:"São Paulo"}]}]' > "$C/regions.json"
 ANMD="$(mktemp -d)"; export AN_MOCK_USER=moj AN_MOCK_TOKEN=token-de-demonstracao
 python3 "$ROOT/server/test/animeitor-mock.py" "$ANMD" "$ANMD/port" & ANMOCK=$!
 for i in $(seq 1 40); do [[ -s "$ANMD/port" ]] && break; sleep 0.1; done
 if [[ -s "$ANMD/port" ]]; then
+  export ANIMEITOR_URL="http://127.0.0.1:$(cat "$ANMD/port")"      # o servidor das capturas herda
+  mkdir -p "$RUNF/secrets"; ( umask 077; printf 'moj:token-de-demonstracao\n' > "$RUNF/secrets/animeitor.cred" )
   ( export CONTESTSDIR="$FIX" RUNDIR="$RUNF" SESSION_LOGIN=telao.animeitor
     source "$ROOT/server/api/v1/lib/common.sh" 2>/dev/null; source "$ROOT/server/api/v1/lib/cohorts.sh"; source "$ROOT/server/api/v1/lib/animeitor.sh"
-    mkdir -p "$C/secrets"; ( umask 077; printf 'moj:token-de-demonstracao\n' > "$C/secrets/animeitor.cred" )
-    jq -cn --arg u "http://127.0.0.1:$(cat "$ANMD/port")" '{url:$u, event:"maratona-demo", moj_base_url:"https://moj.naquadah.com.br", enabled:true}' > "$C/animeitor.json"
+    jq -cn --arg u "$ANIMEITOR_URL" '{url:$u, event:"maratona-demo", moj_base_url:"https://moj.naquadah.com.br", enabled:true}' > "$C/animeitor.json"
     an_publish demo "$ANMD/pub.json" 0 >/dev/null 2>&1; an_push_runs demo >/dev/null 2>&1; an_push_time demo >/dev/null 2>&1
+    an_verify demo "$ANMD/ver.json" 1 >/dev/null 2>&1
     an_reveal_set demo on telao.animeitor
     mkdir -p "$RUNF/animeitor/active"; : > "$RUNF/animeitor/active/demo"; printf '%s\n' "$EPOCHSECONDS" > "$RUNF/animeitor/feed.alive" ) || true
 fi

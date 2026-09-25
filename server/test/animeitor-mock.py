@@ -19,7 +19,13 @@ mock que aceita qualquer coisa esconde bug — este recusa o que o serviço recu
 Envelope: {"data":…[, "warnings":[…]]} | {"errors":[{code,message}]}. 204 sem corpo.
 Estado em <dir>/state.json (regravado a cada escrita); <dir>/requests.log = uma linha JSON por
 requisição (método, caminho, query, corpo) — é por ele que o smoke conta requests e prova que a
-credencial e o PUT não aparecem. Rotas públicas mínimas: /api/events e …/contests/{c}/contest.
+credencial e o PUT não aparecem. Rotas públicas mínimas: /api/events, …/contests/{c}/contest e
+…/contests/{c}/runs_secret (a CONFERÊNCIA, lida do /api/openapi.json público em 25/09/2026): Bearer = a
+chave da sede (o `secret` do link de revelação); antes do início 403 not_started; chave ausente/errada
+(inclusive contest desconhecido) 403 invalid_key; evento inexistente 404; devolve as runs que o regex da
+SEDE seleciona no evento, com a resposta real, ordenadas por (time_seconds, id). A chave muda com o salt.
+Para o smoke provocar divergência há um botão de TESTE fora do contrato: DELETE /mock/runs/{e}/{id} e
+PATCH /mock/runs/{e}/{id} (corpo = campos a trocar) mexem numa run sem passar pela API.
 """
 import base64, json, os, re, sys, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -154,7 +160,10 @@ class H(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
         n = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(n) if n else b""
-        _log({"m": self.command, "path": u.path, "q": u.query, "body": raw.decode("utf-8", "replace")[:400], "len": n})
+        _log({"m": self.command, "path": u.path, "q": u.query, "body": raw.decode("utf-8", "replace")[:400], "len": n,
+              "auth": (self.headers.get("Authorization", "").split(" ")[0])})
+        if parts[:1] == ["mock"]:
+            return self._mock(parts[1:], raw)
         if parts[:1] == ["api"]:
             return self._public(parts[1:])
         if parts[:1] != ["internal"]:
@@ -183,11 +192,48 @@ class H(BaseHTTPRequestHandler):
 
     do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = _handle
 
+    # ---------------------------------------------------------------- botão de TESTE ------------
+    def _mock(self, p, raw):
+        # fora do contrato: o smoke simula o Animeitor que perdeu/estragou uma run
+        with LOCK:
+            e = STATE["events"].get(p[1]) if len(p) == 3 and p[0] == "runs" else None
+            if not e or p[2] not in e["runs"]:
+                return self._send(404, {"errors": [{"code": "not_found", "message": "run"}]})
+            if self.command == "DELETE":
+                del e["runs"][p[2]]
+            elif self.command == "PATCH":
+                e["runs"][p[2]].update(json.loads(raw or b"{}"))
+            _save()
+        return self._send(204)
+
+    @staticmethod
+    def _site_key(ev, cn, sn, e):
+        salt = "|".join(str(x) for x in (e["state"].get("salt"), e["contests"][cn]["config"].get("salt"),
+                                         e["contests"][cn]["sites"][sn].get("salt")))
+        return base64.urlsafe_b64encode(f"{ev}/{cn}/{sn}/{salt}".encode()).decode().rstrip("=")
+
     # ---------------------------------------------------------------- público (mínimo) ----------
     def _public(self, p):
         ev = STATE["events"]
         if p == ["events"]:
             return self._send(200, {"data": sorted(ev)})
+        if len(p) == 5 and p[0] == "events" and p[2] == "contests" and p[4] == "runs_secret":
+            e = ev.get(p[1])
+            if not e:
+                return self._send(404, {"errors": [{"code": "not_found", "message": "evento"}]})
+            if e["state"].get("time_seconds", 0) < 0:
+                return self._send(403, {"errors": [{"code": "not_started", "message": "x"}]})
+            h = self.headers.get("Authorization", "")
+            key = h[7:] if h.startswith("Bearer ") else ""
+            site = None
+            if key and p[3] in e["contests"]:
+                for sn in e["contests"][p[3]]["sites"]:
+                    if self._site_key(p[1], p[3], sn, e) == key:
+                        site = e["contests"][p[3]]["sites"][sn]
+            if site is None:
+                return self._send(403, {"errors": [{"code": "invalid_key", "message": "chave"}]})
+            runs = [r for r in e["runs"].values() if any(re.search(c, r["team_login"]) for c in site["codes"])]
+            return self._send(200, {"data": {"runs": sorted(runs, key=lambda r: (r["time_seconds"], r["id"]))}})
         if len(p) == 5 and p[0] == "events" and p[2] == "contests" and p[4] == "contest":
             e = ev.get(p[1])
             if not e or p[3] not in e["contests"]:
@@ -259,9 +305,7 @@ class H(BaseHTTPRequestHandler):
                 out = []
                 for cn in sorted(e["contests"]):
                     for sn in sorted(e["contests"][cn]["sites"]):
-                        salt = "|".join(str(x) for x in (e["state"].get("salt"), e["contests"][cn]["config"].get("salt"),
-                                                         e["contests"][cn]["sites"][sn].get("salt")))
-                        key = base64.urlsafe_b64encode(f"{p[1]}/{cn}/{sn}/{salt}".encode()).decode().rstrip("=")
+                        key = self._site_key(p[1], cn, sn, e)
                         out.append({"contest": cn, "site": sn, "url": f"https://telao.exemplo/animeitor/{p[1]}/{cn}/?secret={key}&sede={sn}"})
                 return 200, out, None
             if p[2] == "runs" and m == "DELETE":

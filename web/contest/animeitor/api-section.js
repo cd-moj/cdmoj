@@ -3,10 +3,11 @@
 // `.animeitor` e o admin (a API corta o resto). Substitui o streaming por chave (webcast BOCA), que
 // fica na página como legado.
 //
-// Três blocos: CONEXÃO (URL, usuário, token write-only, URL pública do MOJ p/ foto/música, nome do
-// evento) · PLACARES E SEDES (a proposta do MOJ — geral, coortes, países; sedes = folhas de
+// Três blocos: CONEXÃO (URL, a CHAVE — a do MOJ por padrão, invisível; ou uma própria, usuário + token
+// write-only —, URL pública do MOJ p/ foto/música, nome do evento) · PLACARES E SEDES (a proposta do MOJ — geral, coortes, países; sedes = folhas de
 // regions.json — editável: nome, medalhas, regex ou "automático") · OPERAÇÃO (publicar, mandar
-// submissões, ligar/desligar o alimentador, estado ao vivo, links).
+// submissões, ligar/desligar o alimentador, CONFERIR se o Animeitor tem todas as submissões, estado ao
+// vivo, links). A conferência (runs_secret, sede a sede) também roda antes de liberar o reveleitor.
 // ⚠ O estado ao vivo atualiza EM LUGAR (só a caixa dele, a cada 3 s com o alimentador ligado): a
 // tabela que o operador está editando nunca é reconstruída por timer.
 import { apiGet, apiPost } from '/shared/api.js';
@@ -33,6 +34,21 @@ export function makeApiSection(CONTEST, G) {
   const fromProposal = (p) => ((p && p.contests) || []).map((c) => ({ name: c.name, source: c.source, codes: null, ouro: 1, prata: 2, bronze: 3, style: null,
     sites: (c.sites || []).map((s) => ({ name: s.name, source: s.source, codes: null })) }));
   const propOf = (src) => ((S.proposal && S.proposal.contests) || []).find((c) => JSON.stringify(c.source) === JSON.stringify(src));
+  const hm = (e) => new Date(e * 1000).toLocaleTimeString();
+  // o resultado da CONFERÊNCIA em uma frase (o mesmo texto no estado ao vivo, no botão e antes de liberar)
+  const verifyText = (v) => {
+    if (!v || !v.at) return [T('ainda não conferido', 'not checked yet'), 'muted'];
+    const at = hm(v.at);
+    if (v.state === 'not_started') return [T('a prova ainda não começou: o Animeitor só deixa conferir depois do início', 'the contest has not started: the Animeitor only allows checking after the start'), 'muted'];
+    if (v.state === 'no_sites') return [T('nenhuma sede publicada cobre os times: a conferência é feita sede a sede (publique com as sedes)', 'no published site covers the teams: the check is done site by site (publish with the sites)'), 'error-box'];
+    if (v.state === 'error') return [T(`a conferência falhou (${at}): `, `the check failed (${at}): `) + (v.error || ''), 'error-box'];
+    const unc = v.uncovered ? T(` · ${v.uncovered} de times fora de qualquer sede não entram na conferência`, ` · ${v.uncovered} from teams outside every site are not checked`) : '';
+    if (v.state === 'ok' && v.final) return ['✓ ' + T(`VALIDADO (${hm(v.final_at || v.at)}): a prova acabou e o Animeitor tem as ${v.checked} submissões`, `VALIDATED (${hm(v.final_at || v.at)}): the contest is over and the Animeitor has all ${v.checked} submissions`) + unc, ''];
+    if (v.state === 'ok') return ['✓ ' + T(`conferido às ${at}: o Animeitor tem as ${v.checked} submissões`, `checked at ${at}: the Animeitor has all ${v.checked} submissions`)
+      + (v.pending ? T(` (${v.pending} ainda em julgamento)`, ` (${v.pending} still being judged)`) : '') + unc, ''];
+    return ['⚠ ' + T(`divergência às ${at}: ${v.missing} faltando, ${v.wrong} diferentes, ${v.extra} a mais no Animeitor — já reenviadas; o alimentador confere de novo`,
+      `mismatch at ${at}: ${v.missing} missing, ${v.wrong} different, ${v.extra} extra on the Animeitor — already resent; the feeder checks again`), 'error-box'];
+  };
 
   async function load() {
     S = await apiGet(A + '&proposal=1', G);
@@ -45,8 +61,9 @@ export function makeApiSection(CONTEST, G) {
   function connCard() {
     const url = el('input', { type: 'text', value: S.url || '', size: 34, 'aria-label': 'URL' });
     const user = el('input', { type: 'text', value: S.user || '', size: 14, autocomplete: 'off', 'aria-label': T('usuário', 'user') });
+    const own = S.cred_source === 'contest';
     const tok = el('input', { type: 'password', size: 22, autocomplete: 'new-password',
-      placeholder: S.has_cred ? T('(gravado — digite p/ trocar)', '(saved — type to replace)') : 'token', 'aria-label': 'token' });
+      placeholder: own ? T('(gravado — digite p/ trocar)', '(saved — type to replace)') : 'token', 'aria-label': 'token' });
     const ev = el('input', { type: 'text', value: S.event || CONTEST, size: 24, 'aria-label': T('evento', 'event') });
     // a foto/música do time são buscadas pelo TELÃO direto no MOJ: precisa da URL pública, que não é a
     // do subdomínio do contest
@@ -70,10 +87,33 @@ export function makeApiSection(CONTEST, G) {
     };
     const row = (lbl, inp, hint) => el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap;margin:.25rem 0' },
       el('label', { class: 'small', style: 'min-width:11rem' }, lbl), inp, hint ? el('span', { class: 'small muted' }, hint) : '');
+    // a CHAVE: a do MOJ vale por padrão (e nunca aparece); a própria vence e pode ser apagada (volta p/ a do MOJ)
+    const backToMoj = async () => {
+      if (!confirm(T('Apagar a chave própria deste contest e voltar a usar a chave do MOJ?', 'Delete this contest\'s own key and go back to the MOJ key?'))) return;
+      say('…'); try { await post({ action: 'config', user: '', token: '' }); await load(); say(T('Usando a chave do MOJ.', 'Using the MOJ key.')); } catch (e) { say(e.message || T('falha', 'failed'), 'error-box'); }
+    };
+    const credFields = el('span', { class: 'row', style: 'gap:.4rem' }, user, tok);
+    let keyRow;
+    if (S.cred_source === 'moj') {
+      keyRow = el('div', { style: 'margin:.25rem 0' },
+        el('div', { class: 'small' }, '🔑 ', el('b', {}, T('Chave do MOJ', 'MOJ key')), ' — ',
+          T('o MOJ já tem uma chave neste servidor do Animeitor; não há nada a configurar.', 'MOJ already has a key on this Animeitor server; there is nothing to configure.')),
+        el('details', { style: 'margin-top:.2rem' }, el('summary', { class: 'small' }, T('usar uma chave própria', 'use your own key')),
+          row(T('Usuário e token:', 'User and token:'), credFields, T('vence a do MOJ; o token nunca volta para a tela', 'overrides the MOJ key; the token is never sent back to the page'))));
+    } else if (own) {
+      keyRow = el('div', {},
+        row(T('Chave própria:', 'Own key:'), credFields, T('o token nunca volta para a tela', 'the token is never sent back to the page')),
+        S.moj_cred ? el('div', { class: 'small', style: 'margin:.1rem 0 .3rem' }, el('button', { class: 'btn ghost', onclick: backToMoj }, T('apagar e usar a chave do MOJ', 'delete it and use the MOJ key'))) : '');
+    } else {
+      keyRow = el('div', {},
+        S.moj_cred && S.url !== S.default_url ? el('p', { class: 'note' }, T(`A chave do MOJ só vale no servidor padrão (${S.default_url}). Para este servidor, grave uma chave própria — ou volte ao servidor padrão.`,
+          `The MOJ key only works on the default server (${S.default_url}). For this server, save your own key — or go back to the default server.`)) : '',
+        row(T('Usuário e token:', 'User and token:'), credFields, T('o token nunca volta para a tela', 'the token is never sent back to the page')));
+    }
     return el('div', {},
       el('h3', {}, T('Conexão', 'Connection')),
       row(T('Servidor do Animeitor:', 'Animeitor server:'), url, T('só https', 'https only')),
-      row(T('Usuário e token:', 'User and token:'), el('span', { class: 'row', style: 'gap:.4rem' }, user, tok), T('o token nunca volta para a tela', 'the token is never sent back to the page')),
+      keyRow,
       row(T('Nome do evento lá:', 'Event name there:'), ev, S.secret_contest ? T('⚠ contest secreto: este NOME fica público na página inicial do Animeitor', '⚠ secret contest: this NAME is public on the Animeitor landing page') : ''),
       row(T('URL pública do MOJ:', 'MOJ public URL:'), base, T('de onde o telão busca a foto e a música de cada time', 'where the big screen fetches each team photo and music')),
       el('div', { class: 'row', style: 'gap:.5rem;margin:.4rem 0' },
@@ -167,6 +207,13 @@ export function makeApiSection(CONTEST, G) {
       el('div', { class: 'row', style: 'gap:.5rem;align-items:center;flex-wrap:wrap' },
         el('button', { class: 'btn', disabled: !S.configured, onclick: () => publish(false) }, T('📡 publicar no telão', '📡 publish to the big screen')),
         el('button', { class: 'btn ghost', disabled: !S.configured, onclick: () => busy(async () => { const r = await post({ action: 'push-runs' }); say(T(`Submissões: ${r.runs.sent} enviadas (${r.runs.added} novas, ${r.runs.updated} corrigidas).`, `Submissions: ${r.runs.sent} sent (${r.runs.added} new, ${r.runs.updated} corrected).`) + (r.runs.error ? ' ' + r.runs.error : ''), r.runs.error ? 'error-box' : ''); await refresh(); }) }, T('mandar submissões agora', 'send submissions now')),
+        el('button', { class: 'btn ghost', disabled: !S.configured, onclick: () => busy(async () => {
+          say(T('Conferindo sede a sede…', 'Checking site by site…'));
+          const r = await verifyNow();
+          const [t, cls] = verifyText(r.verify);
+          const b = r.before ? T(` (antes: ${r.before.missing} faltando, ${r.before.wrong} diferentes, ${r.before.extra} a mais — reenviadas)`, ` (before: ${r.before.missing} missing, ${r.before.wrong} different, ${r.before.extra} extra — resent)`) : '';
+          say(t + b, cls === 'muted' ? '' : cls); await refresh();
+        }) }, T('🔎 conferir agora', '🔎 check now')),
         el('button', { class: 'btn ghost', disabled: !S.configured, id: 'anFeedBtn', onclick: () => busy(async () => { await post({ action: S.enabled ? 'stop' : 'start' }); say(''); await refresh(); drawOpsBtn(); }) }, ''),
         el('button', { class: 'btn ghost danger', disabled: !S.configured, onclick: () => busy(async () => {
           const ev = S.event; const typed = prompt(T(`Isto APAGA o evento "${ev}" no servidor do Animeitor, com placares, sedes e submissões. Digite o nome do evento para confirmar:`, `This DELETES the event "${ev}" on the Animeitor server, with scoreboards, sites and submissions. Type the event name to confirm:`));
@@ -187,6 +234,10 @@ export function makeApiSection(CONTEST, G) {
     if (st.runs) parts.push(T(`submissões: ${st.runs.total} no MOJ, ${st.runs.added || 0} criadas e ${st.runs.updated || 0} corrigidas lá`, `submissions: ${st.runs.total} in MOJ, ${st.runs.added || 0} created and ${st.runs.updated || 0} corrected there`) + (st.runs.ignored ? T(` · ${st.runs.ignored} recusadas (time fora do evento: publique de novo)`, ` · ${st.runs.ignored} refused (team not in the event: publish again)`) : ''));
     statusBox.innerHTML = '';
     statusBox.append(el('div', {}, parts.join(' · ')));
+    if (S.managed && S.managed.event) {
+      const [vt, vc] = verifyText(S.verify);
+      statusBox.append(el('div', { class: vc === 'error-box' ? 'error-box' : (vc === 'muted' ? 'muted' : ''), style: 'margin-top:.3rem', id: 'anVerify' }, T('Conferência: ', 'Check: ') + vt));
+    }
     if (dead) statusBox.append(el('div', { class: 'error-box', style: 'margin-top:.3rem' },
       T('O processo alimentador não está rodando no servidor do MOJ: o relógio do telão está PARADO. Avise o administrador do servidor (serviço animeitor-feed).',
         'The feeder process is not running on the MOJ server: the big-screen clock is STOPPED. Tell the server administrator (animeitor-feed service).')));
@@ -195,7 +246,7 @@ export function makeApiSection(CONTEST, G) {
   }
   async function refresh(withLinks) {
     const s = await apiGet(A + (withLinks ? '&links=1' : ''), G);
-    ['status', 'clock', 'enabled', 'now', 'managed', 'configured', 'feeder_alive_at', 'reveal'].forEach((k) => { S[k] = s[k]; });
+    ['status', 'clock', 'enabled', 'now', 'managed', 'configured', 'feeder_alive_at', 'reveal', 'verify'].forEach((k) => { S[k] = s[k]; });
     if (s.links) { S.links = s.links; drawLinks(); }
     drawStatus(); drawOpsBtn(); arm();
   }
@@ -224,8 +275,15 @@ export function makeApiSection(CONTEST, G) {
     const rv = S.reveal || {}, on = !!rv.released;
     return el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap;margin:.4rem 0' },
       el('button', { class: on ? 'btn ghost danger' : 'btn', id: 'anRevealBtn', onclick: async () => {
-        if (!on && !confirm(T('Liberar os links de revelação para as sedes? Cada chefe de sede e cada staff passa a ver os links da sede dele (em todos os placares em que ela aparece). Quem não tem sede definida não vê nenhum.',
-          'Release the reveal links to the sites? Each site chief and each staff member will see the links of their own site (in every scoreboard that includes it). Accounts with no site defined see none.'))) return;
+        // antes de liberar, CONFERE: o reveleitor revela o que o Animeitor tem — e o operador precisa saber se é tudo
+        let vt = '';
+        if (!on) {
+          say(T('Conferindo sede a sede antes de liberar…', 'Checking site by site before releasing…'));
+          try { const r = await verifyNow(); vt = verifyText(r.verify)[0]; } catch (e) { vt = '⚠ ' + T('a conferência falhou: ', 'the check failed: ') + (e.message || ''); }
+          say('');
+        }
+        if (!on && !confirm(T('Conferência: ', 'Check: ') + vt + '\n\n' + T('Liberar os links de revelação para as sedes? Cada chefe de sede e cada staff passa a ver os links da sede dele (em todos os placares em que ela aparece), com o resultado da conferência. Quem não tem sede definida não vê nenhum.',
+          'Release the reveal links to the sites? Each site chief and each staff member will see the links of their own site (in every scoreboard that includes it), with the check result. Accounts with no site defined see none.'))) return;
         say('…');
         try { await post({ action: on ? 'reveal-recall' : 'reveal-release' }); say(''); await refresh(); drawLinks(); }
         catch (e) { say(e.message || T('falha', 'failed'), 'error-box'); }
@@ -234,6 +292,8 @@ export function makeApiSection(CONTEST, G) {
         ? T('LIBERADO para as sedes', 'RELEASED to the sites') + (rv.at ? ' · ' + new Date(rv.at * 1000).toLocaleTimeString() : '') + (rv.by ? ' · ' + rv.by : '')
         : T('as sedes ainda não veem nenhum link', 'the sites do not see any link yet')));
   }
+
+  async function verifyNow() { const r = await post({ action: 'verify' }); S.verify = r.verify; return r; }
 
   function arm() {
     if (timer) { clearInterval(timer); timer = null; }

@@ -185,6 +185,20 @@ Você conduz a cerimônia de revelação da sua sede, no estilo ICPC (de baixo p
 
 Descongelar tudo e publicar o placar global são ações do **administrador**, não suas (ele faz isso pelo botão **🏁 Encerrar evento**, na Central do painel — ver `MANUAL-ADMIN.md` §6½).
 
+### Reveleitor do telão (Animeitor)
+
+Quando a cerimônia é no **telão do Animeitor**, a revelação da sua sede é um **link** que o operador do telão
+libera. Depois que ele libera, aparece o botão **Reveleitor** na sua barra, com o cartão **🎬 Reveleitor da sua
+sede** (abrir / copiar). O cartão traz o **selo da conferência** — o MOJ pergunta ao Animeitor se ele tem todas as
+submissões da sua sede:
+
+- **✓ Validado**: a prova acabou para todas as sedes, nada está em julgamento e o Animeitor tem tudo. Pode começar.
+- **✓ Conferido**: bateu na última conferência; a validação final sai quando a prova acabar para todas as sedes.
+- **⚠**: faltava alguma coisa na última conferência. O MOJ já reenviou; espere o "Validado" ou fale com o operador.
+
+O link mostra as respostas depois do congelamento: abra só no computador do telão da sede e não repasse. Conta sem
+sede definida não recebe link.
+
 ### Aquecimento: o ensaio da sede
 
 O aquecimento é quando as credenciais que você entregou passam pelo único teste que vale. O que

@@ -5,8 +5,8 @@ fotos e músicas que animam a virada, e a cerimônia de revelação.
 
 > **Tutorial web com screenshots** (PT/EN): `/contest/ajuda/animeitor.html` — abre pelo botão
 > **📖 Como funciona este papel** na própria tela do telão.
-> **Documento técnico** (protocolo do pacote, formato BOCA, mapa de arquivos):
-> [WEBCAST.md](WEBCAST.md).
+> **Documento técnico**: a integração pela API do Animeitor em [ANIMEITOR.md](ANIMEITOR.md); o pacote
+> legado (formato BOCA) em [WEBCAST.md](WEBCAST.md).
 
 ## Como o papel funciona
 
@@ -14,8 +14,8 @@ O papel vem do **sufixo do login**: uma conta terminada em `.animeitor` é a mes
 criada pelo administrador (painel **Pessoas › Contas**); ninguém vira `.animeitor` por
 auto-cadastro.
 
-A conta existe para alimentar o telão com três coisas: o **placar** (por uma chave de streaming),
-as **fotos** dos times e as **músicas** dos times. Ela fica **fora** do placar, da lista de times,
+A conta existe para alimentar o telão com três coisas: o **placar** (o MOJ o envia ao Animeitor pela
+API — seção 📡 abaixo), as **fotos** dos times e as **músicas** dos times. Ela fica **fora** do placar, da lista de times,
 das estatísticas, dos balões e das etiquetas — não é um competidor.
 
 O **administrador entra na mesma tela com os mesmos poderes**, pelo cartão *🎥 Telão* da Central
@@ -27,7 +27,7 @@ essa é a **única** porta para subir foto/música.
 | Aba | Para que serve |
 |---|---|
 | **Score** | O placar, **sempre descongelado** — inclusive antes de a prova começar. É o sentido do papel: quem anima a virada precisa ver a classificação real. |
-| **Animeitor** | A sua mesa: chaves de streaming + fotos e músicas dos times. |
+| **Animeitor** | A sua mesa: 📡 o envio ao Animeitor (placares, sedes, alimentador, conferência, reveleitor), fotos e músicas dos times e, dobradas, as chaves de streaming legadas. |
 | **Estatísticas** | Números da prova (submissões por problema, linguagens, linha do tempo) — bom material de intervalo. |
 | **Revelação** | A cerimônia **experimental do MOJ** (ver o aviso abaixo). Disponível a **qualquer** momento para você, para ensaiar antes da plateia chegar. |
 | **Sair** | Encerra a sessão. |
@@ -39,11 +39,33 @@ ensaio, para uma sede pequena, ou como plano B se não der para montar o Animeit
 oficial de um evento é conduzida pelo **Animeitor, de Emílio Wuerges** — o sistema que este papel
 inteiro existe para alimentar.
 
-O fluxo oficial é: **criar uma chave de streaming** (seção abaixo) → apontar o Animeitor para
-aquela URL → conduzir prova e cerimônia por lá. O Animeitor busca o pacote em laço, anima a virada
-e sabe segurar o congelamento até a hora da revelação.
+O fluxo oficial é a seção **📡 Animeitor (telão)** da sua mesa: o MOJ **empurra** o evento, os placares, as
+submissões e o relógio ao servidor do Animeitor, e a revelação de cada sede sai de lá. O Animeitor anima a
+virada e segura o congelamento até a hora da revelação.
 
-## 🎥 Chaves de streaming
+## 📡 Animeitor pela API (o jeito atual)
+
+1. **Conexão.** O MOJ já tem uma **chave própria no Animeitor** (a *chave do MOJ*): a tela diz "Chave do MOJ —
+   não há nada a configurar". Ela nunca aparece na tela. Se o seu evento usa outro servidor do Animeitor, ou se
+   você recebeu uma chave sua, abra "usar uma chave própria" e grave usuário e token — a sua vence a do MOJ, e
+   "apagar e usar a chave do MOJ" volta atrás. A chave do MOJ só vale no servidor padrão.
+2. **URL pública do MOJ.** É de onde o telão busca a foto e a música de cada time; confira.
+3. **Placares e sedes.** O MOJ propõe o geral, um por coorte e um por país, com as sedes; ajuste nomes e
+   medalhas e salve. Prova de uma sede só ganha a sede "Geral" (sem sede não há link de revelação).
+4. **📡 publicar no telão** e **▶ ligar o alimentador** (relógio a cada segundo e submissões a cada 2 s). O nome
+   do evento é o id do contest; um nome que já é de outro contest do MOJ é recusado.
+5. **Conferência.** O MOJ pergunta ao Animeitor, sede a sede, se ele tem **todas** as submissões, com a resposta
+   certa — sozinho, a cada 5 minutos durante a prova e, depois do fim, até a **conferência final**. O que faltar
+   ou divergir é reenviado sozinho. A linha "Conferência" do estado diz o último resultado; **🔎 conferir agora**
+   confere na hora. "✓ VALIDADO" = a prova acabou para todas as sedes, nada está em julgamento e o Animeitor
+   tem tudo. Runs de times fora de qualquer sede não entram na conferência (a tela diz quantas).
+6. **🎬 Liberar os links de revelação para as sedes.** Antes de liberar, a mesa confere e mostra o resultado na
+   pergunta. Cada chefe de sede (e cada staff) passa a ver o link da sede dele, **com o selo da conferência**
+   ("✓ Validado", "Conferido" ou "⚠"). O link mostra as respostas depois do congelamento: trate como senha.
+
+## 🎥 Chaves de streaming (legado)
+
+O pacote no formato do BOCA, que o Animeitor antigo buscava por chave, continua na mesa, dobrado.
 
 Cada chave vira uma **URL** que o sistema Animeitor (ou outro exibidor compatível) busca em laço e
 recebe o pacote do placar. Cada chave declara **qual** placar serve: o geral, ou o de uma coorte
@@ -107,14 +129,16 @@ não testado.
 
 A lista da véspera, em ordem:
 
-1. Crie **uma chave por tela** e teste cada URL na máquina que vai projetar.
+1. Confira a **conexão** (chave do MOJ ou a sua), **publique** e ligue o **alimentador**; abra o link público de
+   cada placar na máquina que vai projetar.
 2. Abra a galeria em **⚠ Pendências** e persiga as fotos que faltam (peça aos chefes de sede).
 3. Defina a **foto e a música padrão** com a identidade do evento.
 4. Baixe o **.zip** e guarde na máquina do espetáculo como plano B.
 5. **Ensaie** a página de revelação e teste o som no áudio da sala.
-6. Durante o **aquecimento**: ponha a tela de verdade na parede e veja-a encher — chave, fotos,
-   música e placar, tudo junto.
-7. Depois do evento: **revogue todas as chaves**.
+6. Durante o **aquecimento**: ponha a tela de verdade na parede e veja-a encher — fotos, música, placar e a linha
+   **Conferência** batendo.
+7. Na hora da cerimônia: espere o **✓ VALIDADO** e **libere os links de revelação** para as sedes.
+8. Se usou chaves de streaming legadas: **revogue todas** depois do evento.
 
 ## O que o `.animeitor` NÃO faz
 
@@ -139,14 +163,17 @@ A lista da véspera, em ordem:
 | Enviar/trocar/remover foto e música | Sim | Sim (só a sede) | **Não** |
 | Baixar o pacote `.zip` | Completo | Recortado na sede | **Não** |
 | Trocar a foto/música **padrão** do contest | **Sim** | Não | Não |
-| Ver/criar/revogar **chaves de webcast** | **Sim** | Não | Não |
+| Publicar no Animeitor, alimentador, **conferência** | **Sim** | Não | Não |
+| Liberar os links de revelação | **Sim** | Recebe o da sede, com o selo da conferência | Idem |
+| Ver/criar/revogar **chaves de webcast** (legado) | **Sim** | Não | Não |
 | Placar | Sempre descongelado | Congelado | Congelado |
 | Estatísticas | Sim | Não | Não |
 
 ## Ponteiros
 
-- **[WEBCAST.md](WEBCAST.md)**: o protocolo do pacote (formato do BOCA), o que ficou diferente, o
-  mapa de arquivos e as decisões técnicas.
+- **[ANIMEITOR.md](ANIMEITOR.md)**: a integração pela API (chave do MOJ, placares/sedes, alimentador,
+  conferência, reveleitor) e as decisões técnicas.
+- **[WEBCAST.md](WEBCAST.md)**: o protocolo do pacote legado (formato do BOCA).
 - **[MANUAL-STAFF.md](MANUAL-STAFF.md)**: a equipe de sala e o chefe de sede — quem divide a tela
   do telão com você.
 - **[MANUAL-ADMIN.md](MANUAL-ADMIN.md)**: o organizador — quem cria a sua conta e publica os

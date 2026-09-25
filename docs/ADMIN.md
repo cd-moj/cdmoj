@@ -131,7 +131,7 @@ Em produção prefira os **units systemd de usuário** (`server/etc/systemd/`,
 
 ## 4. Segredos (resumo)
 
-Dois tokens **compartilhados** (600, sob `run/secrets/`), nunca versionados, nunca na imagem:
+Tokens **compartilhados** (600, sob `run/secrets/`), nunca versionados, nunca na imagem:
 
 - **`worker.token`** (`mojw_…`) — autentica os **juízes** (`Authorization: Bearer mojw_…`). Gere no
   host da API (§2) e **espelhe o MESMO valor** em cada juiz (`judge/etc/worker.token`). Sem ele os
@@ -142,6 +142,20 @@ Dois tokens **compartilhados** (600, sob `run/secrets/`), nunca versionados, nun
     > /home/ribas/moj/run/secrets/bot.token && chmod 600 /home/ribas/moj/run/secrets/bot.token
   ```
   (O bot ainda precisa do token da API do Telegram em `mojinho-bot/token` e de `mojinho-bot/bot.conf`.)
+- **`animeitor.cred`** (`usuario:token`, **a chave do MOJ no Animeitor**) — quem cria a credencial é o
+  dono do Animeitor (Emilio Wuerges; do lado dele é uma entrada `[[tokens]]` com `name = "moj"`). Com o
+  arquivo presente, **todo contest** fala com o telão (`$ANIMEITOR_URL`, padrão
+  `https://animeitor.naquadah.com.br`) sem configurar nada, e a chave **nunca aparece** na tela; o
+  `.animeitor`/admin pode gravar uma chave própria, que vence. A chave do MOJ **só** vai ao servidor
+  padrão. Instalar (no host, no `run/` que os containers montam — a API e o alimentador leem o mesmo
+  arquivo; `ANIMEITOR_CRED_FILE` muda o caminho):
+  ```bash
+  install -Dm600 <(printf 'moj:%s\n' "<token>") <raiz>/run/secrets/animeitor.cred
+  chown <dono do run> <raiz>/run/secrets/animeitor.cred
+  ```
+  O token vem por canal privado e **nunca** entra em repo, doc, commit ou mensagem de grupo. Trocar =
+  sobrescrever o arquivo (vale na próxima requisição e na próxima volta do alimentador). Ver
+  `docs/ANIMEITOR.md` › Chave do MOJ.
 - **Chave do webcast** (`mojwc_…`) — NÃO se gera à mão: sai da página `/contest/animeitor/`
   (guardada em `contests/<c>/webcast.json`, modo 600), que é da conta `.animeitor` **e também do
   admin do contest** — a porta do admin é o cartão *🎥 Telão (Animeitor)* na Central › Gerar (ou o

@@ -139,8 +139,8 @@ R(){ ST ".events[\"ap-2026\"].runs | to_entries[] | select(.value.team_login == 
 ck "AC→Y · WA→N · CE→X (não penaliza) · pendente→?" '[[ "$(R teambr001 A .answer)$(R teambr001 B .answer)$(R teambr002 A .answer)$(R teambr002 B .answer)" == "YNX?" ]]'
 ck "tempo em SEGUNDOS desde o início (600 s, não 10 min)" '[[ "$(R teambr001 A .time_seconds)" == 600 ]]'
 ck "resposta REAL pós-freeze vai (quem congela é o Animeitor)" '[[ "$(R teambr001 B .time_seconds)" == 3660 && "$(R teambr001 B .answer)" == N ]]'
-n0="$(REQ '/runs')"; call $A POST '{"action":"push-runs"}'
-ck "sem novidade: NENHUM request de runs" '[[ "$(J .runs.sent)" == 0 && "$(REQ "/runs")" == "$n0" ]]'
+n0="$(REQ '/runs"')"; call $A POST '{"action":"push-runs"}'
+ck "sem novidade: NENHUM request de runs" '[[ "$(J .runs.sent)" == 0 && "$(REQ "/runs\"")" == "$n0" ]]'
 # o juiz responde a pendente (vira AC) e chega uma submissão OFFLINE com carimbo ANTIGO
 sed -i 's/Not Answered Yet/Accepted,100p/' "$C/users/teambr002/history"
 printf '2:col#pa:C:Wrong Answer:%s:s-offline\n' $(( START + 120 )) >> "$C/users/zeta/history"
@@ -204,10 +204,10 @@ call $A POST '{"action":"start"}'
 ck "1ª passada: manda o relógio (PATCH /time) e bate o ponto" '[[ "$(REQ "/time")" == 1 && -s "$RUN/animeitor/feed.alive" && "$(cut -d" " -f3 "$C/var/animeitor.clock")" == 200 ]]'
 ck "…e as runs: nada novo desde o push manual ⇒ o serviço não cria nem corrige nada" '[[ "$(ST ".events[\"ap-2026\"].runs | length")" == 6 ]]'
 : > "$MOCKD/requests.log"; sleep 1; FEED
-ck "2ª passada sem novidade: só o relógio viaja (nenhum history mudou ⇒ zero request de runs)" '[[ "$(REQ "/time")" == 1 && "$(REQ "/runs")" == 0 ]]'
+ck "2ª passada sem novidade: só o relógio viaja (nenhum history mudou ⇒ zero request de runs)" '[[ "$(REQ "/time")" == 1 && "$(REQ "/runs\"")" == 0 ]]'
 sleep 1; printf '40:col#pb:C:Accepted,100p:%s:s-feed\n' $(( START + 2400 )) >> "$C/users/zeta/history"
 : > "$MOCKD/requests.log"; FEED
-ck "veredicto novo: a passada seguinte leva SÓ essa run" '[[ "$(REQ "/runs")" == 1 && "$(R zeta B .answer)" == Y ]] && grep "/runs" "$MOCKD/requests.log" | grep -q "\"len\": [0-9]\{2,3\}[,}]"'
+ck "veredicto novo: a passada seguinte leva SÓ essa run" '[[ "$(REQ "/runs\"")" == 1 && "$(R zeta B .answer)" == Y ]] && grep "/runs\"" "$MOCKD/requests.log" | grep -q "\"len\": [0-9]\{2,3\}[,}]"'
 # time novo com run ANTES de o roster ir: a run volta por unknown_team ⇒ a passada seguinte republica e reenvia
 mkteam tardio01 "Time Tardio" UNB "Brasília"; printf '50:col#pa:C:Accepted,100p:%s:s-tardio\n' $(( START + 3000 )) > "$C/users/tardio01/history"
 bash "$ROOT/score/build.sh" ap >/dev/null 2>&1

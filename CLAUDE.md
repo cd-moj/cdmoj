@@ -949,7 +949,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   precisa delas: o handler roda a cada abertura da Central. **Checagem de MÓDULO só roda com o
   módulo ligado** (`mod_on`: `ua_gate site_lock session_single mlinux site_short`=maquinas,
   `next_round reg_warmup`=rodadas, `docs`=documentos, `balloons balloons_freeze`=baloes,
-  `cohorts reg_cohorts`=coortes, `registration reg_*`=inscricoes, `tov`=sedes) e a checagem
+  `cohorts reg_cohorts`=coortes, `registration reg_*`=inscricoes, `tov`=sedes, `telao`=telao — chave do Animeitor e última conferência) e a checagem
   `modules` avisa módulo DESLIGADO com dados (`mod_detect`). Checagem nova de módulo entra
   dentro do `if mod_on`, e o fixture do `smoke-preflight.sh` liga todos. **Checagem nova nasce
   bilíngue**: `add2 <id> <level> <label> <detail> <label_en> <detail_en> [action]` (a Central usa
@@ -1024,7 +1024,21 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   VARIÁVEL: por `$(…)` o memo morre no subshell e vira um jq por segundo). **Custo medido** (2.000 times): 4 % de um
   núcleo por contest ocioso, 22 % em rajada de 10 veredictos/s, ZERO efeito na latência das rotas (processo à parte);
   serial entre contests ⇒ ~4 simultâneos antes de o relógio pular segundos (aí: paralelizar por contest). 404 no
-  relógio = evento apagado lá ⇒ zera managed/sent e republica. ⚠ URL de botão da nav NÃO leva `#hash` (o `navHref` cola `?c=` depois) — use query. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
+  relógio = evento apagado lá ⇒ zera managed/sent e republica. (9) **CHAVE DO MOJ** (25/09/2026):
+  `$ANIMEITOR_CRED_FILE` (`run/secrets/animeitor.cred`) vale p/ todo contest SEM chave própria e SÓ no servidor padrão
+  (`$ANIMEITOR_URL`; `an_cred_source` decide pela URL que a requisição de fato usa) — nunca volta p/ a tela, nem o
+  usuário; a própria do contest vence. Credencial COMPARTILHADA ⇒ o serviço não separa mais os contests: o registro
+  `run/animeitor/events.json` (`an_reg_set`, flock) é o dono de verdade — nome de evento de outro contest = 409
+  `event_taken` ANTES de qualquer request, e a chave do MOJ não faz `adopt` de evento de fora (`adopt_forbidden`).
+  Caminho novo que toca evento lá ⇒ passa pelo registro. (10) **CONFERÊNCIA** (`an_verify`): rota PÚBLICA
+  `runs_secret` com Bearer = a chave da sede (o `secret` do `revelation_urls`, ao vivo, nunca gravado); compara as runs
+  vivas + as removidas (X) sede a sede (regex da sede por `grep -P` sobre os logins; mesmo regex = 1 consulta), marca
+  p/ reenvio sob o lock do push (`_an_sent_fix`) e grava `var/animeitor-verify.json` SEM chave nem resposta; `final` =
+  ok + prova encerrada p/ todas as sedes + nada pendente (o "validado" do reveleitor). O alimentador a roda DESTACADA
+  (um GET por sede não pode segurar o relógio dos outros contests). ⚠ Campo com regex/nome indo de jq p/ bash: **nunca
+  `@tsv`** (ele escapa a barra invertida e o `\-` do login escapado virava `\\-` — a sede não casava ninguém e a
+  conferência dizia "ok, 0 conferidas"): `@base64` por campo. Testes: `smoke-animeitor-verify.sh`,
+  `smoke-animeitor-key-verify.gjs.sh`. ⚠ URL de botão da nav NÃO leva `#hash` (o `navHref` cola `?c=` depois) — use query. Armadilhas pagas aqui: `for b in "$W"/b.*` não expande (os handlers rodam com `noglob` ⇒ `find`);
   `awk 'NR==FNR{…}' vazio arquivo` casa o 2º arquivo inteiro (1º arquivo por `getline`); `> "$f.tmp.$BASHPID"` num
   pipeline expande no FILHO (resolver o nome ANTES). Mock ESTRITO `animeitor-mock.py`; servidor real só em evento
   de teste próprio, apagado no fim.

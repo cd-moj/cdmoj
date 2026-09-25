@@ -16,6 +16,12 @@
 #     `history` mudou (find -newer carimbo) — e só o delta (lib/animeitor.sh: an_push_runs); a cada
 #     60 s: se o roster/regiões/coortes/config mudaram, republica (an_publish é idempotente por hash).
 #     Run recusada por `unknown_team` força a republicação na hora.
+#   · CONFERÊNCIA (an_verify: o Animeitor tem todas as runs? — sede a sede, pelo runs_secret): durante a
+#     prova a cada `feed.verify_s` (300 s); com a prova encerrada p/ TODAS as sedes, a cada 60 s até a
+#     conferência FINAL passar (tudo bate e nada pendente = o "validado" do reveleitor) e, depois dela, só
+#     quando algum `history` mudar (rejulgamento). Roda DESTACADA (um GET por sede pode levar segundos e o
+#     relógio dos outros contests não espera) sob `flock -n` por contest; o que faltar/divergir volta ao
+#     delta e a passada de runs seguinte o manda.
 #   · 24 h depois do fim da prova o contest sai sozinho (rejulgamento pós-prova ainda corrige runs).
 #
 # Sobe pelo deploy/moj-entrypoint (laço com respawn; ANIMEITOR_FEED_DISABLE=1 desliga) e, no dev,
@@ -40,15 +46,15 @@ log(){ printf '%s %s\n' "$(date '+%F %T')" "$*" >> "$LOG" 2>/dev/null
 exec {LK}>"$D/feed.lock" || exit 1
 flock -n "$LK" || { echo "animeitor-feed: já há um alimentador rodando" >&2; exit 0; }
 
-declare -A T_CLOCK=() T_RUNS=() T_CFG=() FAILS=() HOLD=() SIG=() CFG_MT=() C_URL=() C_EV=() C_CK=() C_RN=() FORCE=()
+declare -A T_CLOCK=() T_RUNS=() T_CFG=() T_VERIFY=() FAILS=() HOLD=() SIG=() CFG_MT=() C_URL=() C_EV=() C_CK=() C_RN=() C_VF=() FORCE=()
 
 _cfg_load(){ # cacheia url/evento/cadência por contest; relê só quando o animeitor.json muda (mtime)
   local c="$1" f mt j; f="$(an_cfg_file "$c")"; mt="$(stat -c %Y "$f" 2>/dev/null || echo 0)"
   [[ "${CFG_MT[$c]:-}" == "$mt" ]] && return 0
   j="$(an_cfg "$c")"
   C_URL[$c]="$(jq -r .url <<<"$j")"; C_EV[$c]="$(an_enc "$(jq -r .event <<<"$j")")"
-  C_CK[$c]="$(jq -r .feed.clock_s <<<"$j")"; C_RN[$c]="$(jq -r .feed.runs_s <<<"$j")"
-  [[ "${C_CK[$c]}" =~ ^[0-9]+$ ]] || C_CK[$c]=1; [[ "${C_RN[$c]}" =~ ^[0-9]+$ ]] || C_RN[$c]=2
+  C_CK[$c]="$(jq -r .feed.clock_s <<<"$j")"; C_RN[$c]="$(jq -r .feed.runs_s <<<"$j")"; C_VF[$c]="$(jq -r .feed.verify_s <<<"$j")"
+  [[ "${C_CK[$c]}" =~ ^[0-9]+$ ]] || C_CK[$c]=1; [[ "${C_RN[$c]}" =~ ^[0-9]+$ ]] || C_RN[$c]=2; [[ "${C_VF[$c]}" =~ ^[0-9]+$ ]] || C_VF[$c]=300
   CFG_MT[$c]="$mt"
 }
 
@@ -128,6 +134,32 @@ feed_one(){
       fi
     fi
   fi
+
+  # --- conferência: o Animeitor tem todas as runs? (destacada) ------------------------------------
+  (( now >= AN_START )) || return 0                                   # antes do início o serviço responde not_started
+  local vfile due=0 vfin=false vat=0
+  vfile="$(an_verify_file "$c")"
+  if [[ -s "$vfile" ]]; then read -r vat vfin < <(jq -r '"\(.at // 0) \(.final == true)"' "$vfile" 2>/dev/null); fi
+  [[ "$vat" =~ ^[0-9]+$ ]] || vat=0
+  (( ${T_VERIFY[$c]:-0} > vat )) && vat=${T_VERIFY[$c]}
+  if (( AN_END == 0 || now < AN_END )); then (( now - vat >= ${C_VF[$c]} )) && due=1
+  elif [[ "$vfin" != true ]]; then (( now - vat >= 60 )) && due=1
+  else
+    # já validada: só de novo se algum history mudou depois da conferência (rejulgamento pós-prova)
+    (( now - vat >= 60 )) && [[ -n "$(find "$d/users" -mindepth 2 -maxdepth 2 -name history -newer "$vfile" -print -quit 2>/dev/null)" ]] && due=1
+  fi
+  (( due )) || return 0
+  T_VERIFY[$c]="$now"
+  # (redirect FORA do subshell: com ele dentro o filho herdaria os fds do pai — mesma regra do setsid dos handlers)
+  ( exec {vl}>"$d/var/.animeitor-verify.lock" || exit 0; flock -n "$vl" || exit 0
+    of="$(mktemp)"; AN_URL="${C_URL[$c]}" an_verify "$c" "$of" 1
+    v="$(cat "$of" 2>/dev/null)"; rm -f "$of"
+    case "$(jq -r .state <<<"$v" 2>/dev/null)" in
+      ok)       [[ "$(jq -r .final <<<"$v")" == true ]] && log "$c: conferência FINAL ok — o Animeitor tem as $(jq -r .runs <<<"$v") runs" ;;
+      diverge)  log "$c: conferência: $(jq -c '{missing, wrong, extra, repair}' <<<"$v") — reenviando" ;;
+      error)    log "$c: conferência falhou — $(jq -r '.error // ""' <<<"$v")" ;;
+    esac ) </dev/null >/dev/null 2>&1 &
+  return 0
 }
 
 log "alimentador no ar (pid $$, once=$ONCE)"

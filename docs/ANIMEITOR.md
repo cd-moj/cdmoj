@@ -7,6 +7,8 @@ sentido: **o juiz empurra**. Este documento é a fonte única da integração.
 
 - API pública (leitura, WebSocket): `https://animeitor.naquadah.com.br/api/docs`
 - API interna (configuração e ingestão; **só HTTPS, HTTP Basic**): `…/internal/docs`
+- A pública também tem a rota da **conferência**: `GET /api/events/{e}/contests/{c}/runs_secret` (Bearer = a
+  chave da sede) — ver [Conferência](#conferência-o-animeitor-tem-todas-as-submissões)
 - No MOJ: `lib/animeitor.sh` · `handlers/contest/animeitor/api.sh` · `daemons/animeitor-feed.sh` ·
   `score/telao-runs.sh` · `web/contest/animeitor/api-section.js`. Módulo `telao`. Quem opera é o
   **`.animeitor`** (o admin também); `.cstaff`/`.staff` não entram.
@@ -46,16 +48,46 @@ cada publicação, então time que entra na sede entra no placar sozinho.
 
 | Arquivo | O que é |
 |---|---|
-| `secrets/animeitor.cred` | `usuario:token` (HTTP Basic), **600, write-only**. Vai ao curl por `-K <(printf …)` — nunca argv, log, GET nem conf. Formato validado (o arquivo de config do curl é entre aspas). |
+| `secrets/animeitor.cred` | a chave **PRÓPRIA** do contest: `usuario:token` (HTTP Basic), **600, write-only**. Vence a chave do MOJ. Vai ao curl por `-K <(printf …)` — nunca argv, log, GET nem conf. Formato validado (o arquivo de config do curl é entre aspas). |
 | `animeitor.json` | não-segredo: `{url, event, moj_base_url, enabled, feed:{clock_s:1, runs_s:2}, contests: null \| [{name, source:{kind:view\|region\|manual, id}, codes\|null, ouro, prata, bronze, style, sites:[{name, source, codes\|null}]}]}`. `contests:null` = ainda vale a proposta. |
 | `var/animeitor-ids.tsv` | `subid → id inteiro`, **só apêndice**, sob flock (`telao-runs.sh --runs-ids`). O sequencial do pacote BOCA renumera tudo quando chega uma submissão offline atrasada — inútil numa API que corrige POR id. Sobrevive ao `reset` (o id é da submissão, não do evento). |
 | `var/animeitor-sent.tsv` | o que o serviço JÁ tem de cada run ⇒ só o **delta** viaja |
 | `var/animeitor-managed.json` | o que ESTE contest criou lá, com o hash do que mandou: é o que torna a publicação idempotente (nada mudou = zero request) e o que limita o que ele altera/apaga |
 | `var/animeitor.status.json` · `var/animeitor.clock` | último sync/erro/contagens · último relógio enviado (`epoch segundos http`, gravado com `printf`: é 1×/s) |
+| `var/animeitor-verify.json` | a última **conferência** (contagens por sede e até 20 ids de amostra; **nunca** chave de sede nem resposta de run) |
+| `$RUNDIR/secrets/animeitor.cred` | a **chave do MOJ** (`$ANIMEITOR_CRED_FILE`), fora de todo contest — ver abaixo |
+| `$RUNDIR/animeitor/events.json` | o **registro de posse**: `{url: {evento: contest}}` — de qual contest do MOJ é cada evento |
 | `$RUNDIR/animeitor/active/<contest>` · `feed.alive` · `feed.log` | marcador do alimentador ligado · batimento do processo · log (teto de 1 MB) |
 
 A URL tem de ser `https://` — o serviço devolve `426` em claro e Basic em claro é credencial na
 rede; a única exceção é `http://127.0.0.1` (o mock dos testes).
+
+## Chave do MOJ (25/09/2026)
+
+O Emilio criou uma credencial do MOJ no Animeitor (do lado dele, uma entrada `[[tokens]]` com `name = "moj"`).
+Ela mora em `$RUNDIR/secrets/animeitor.cred` (`moj:<token>`, 600; `ANIMEITOR_CRED_FILE` muda o caminho;
+instalação em `docs/ADMIN.md` › Segredos) e:
+
+- **vale p/ todo contest que não gravou a própria** — a mesa do telão diz "Chave do MOJ: não há nada a
+  configurar"; o `GET` responde `cred_source:"moj"` e **nem o usuário** dela volta p/ a tela;
+- **a chave PRÓPRIA do contest vence** (`config {user, token}` → `secrets/animeitor.cred` do contest); apagá-la
+  (`user:"", token:""`, botão "apagar e usar a chave do MOJ") volta p/ a do MOJ;
+- **só vai ao servidor padrão** (`$ANIMEITOR_URL`, `https://animeitor.naquadah.com.br`). URL digitada pelo operador
+  exige chave própria — senão qualquer contest mandaria a credencial do MOJ a um servidor qualquer. A conferência
+  é feita na URL que a requisição de fato usa (o alimentador passa a dele), não só na gravada.
+
+**Com uma credencial compartilhada, o serviço não sabe mais de qual contest é cada evento.** Quem diz é o
+registro `$RUNDIR/animeitor/events.json` (`{url: {evento: contest}}`, sob flock), que só o servidor escreve:
+
+- o evento entra no registro quando o contest o **cria** (201) e em todo PATCH de evento que o `managed` do
+  contest já dizia ser dele (é o que semeia os eventos publicados antes do registro existir);
+- nome de evento que o registro dá a **OUTRO** contest = `409 event_taken` **antes de qualquer request**, com ou
+  sem `adopt` (a mensagem não diz de qual contest: o id pode ser de prova secreta). Sem isso o relógio e as runs
+  de dois contests iriam p/ o mesmo evento;
+- com a chave do MOJ, `adopt` de evento que ninguém do MOJ criou = `409 adopt_forbidden` (seria mexer, com a
+  credencial do MOJ, no evento de outra pessoa — o `regional-2026` de exemplo do Emilio). Com chave própria pode,
+  como antes (a credencial é do operador);
+- o `reset` libera o nome.
 
 ## Publicar (`an_publish`)
 
@@ -114,6 +146,51 @@ veredicto. Sobe pelo `deploy/moj-entrypoint` (laço com respawn; `ANIMEITOR_FEED
 `$RUNDIR/animeitor-feed.err`) e, no dev, pela unit `server/etc/systemd/moj-animeitor-feed.service`.
 A tela avisa quando o marcador está ligado e o processo não bate o ponto há 15 s.
 
+## Conferência: o Animeitor tem todas as submissões?
+
+A rota **pública** `GET /api/events/{e}/contests/{c}/runs_secret`, com `Authorization: Bearer <chave da sede>`
+(o `secret` da URL de revelação — `/internal/events/{e}/revelation_urls`), devolve as runs que o regex DAQUELA sede
+seleciona no evento, **com a resposta real** (sem máscara de freeze), ordenadas por `(time_seconds, id)`. Antes do
+início: `403 not_started`; chave ausente/errada: `403 invalid_key`; evento inexistente: `404`. Girar o salt invalida a
+chave na hora. (Lido do `/api/openapi.json` público em 25/09/2026; o mock implementa igual.)
+
+`an_verify` (`lib/animeitor.sh`) confere **sede a sede**:
+
+1. o que o MOJ tem: as runs vivas (`telao-runs.sh --runs-ids`, como o `an_push_runs`) **mais** as removidas no MOJ
+   (que lá têm de estar como `X`);
+2. as chaves das sedes vêm do `revelation_urls` **ao vivo** e nunca são gravadas; o filtro de cada sede é o regex
+   publicado (o mesmo que o serviço aplica ao `team_login`; o MOJ o aplica com `grep -P`, que cobre o que ele gera).
+   Sedes com o **mesmo regex** em placares diferentes dão a mesma resposta ⇒ **uma** consulta (a LATAM tem cada
+   sede no Geral e no país);
+3. compara `id`, time, problema, tempo e resposta: **faltando** (no MOJ, não lá), **diferente** (mesmo id, outro
+   conteúdo) e **a mais** (só lá, com resposta ≠ `X`, e id que o MOJ não conhece — o telão mostraria uma run que
+   não existe; id conhecido em outra sede é só outro recorte, ex. time renomeado);
+4. **reparo**: faltando/diferente viva sai do `sent` (o próximo push a manda de novo); removida que voltou a contar
+   lá tem a flag do `sent` trocada p/ `?` (o push manda o `X` de novo); a "a mais" entra no `sent` com a resposta de
+   lá, e o push a corrige p/ `X`. Tudo sob o MESMO lock do `an_push_runs`;
+5. grava `var/animeitor-verify.json`: `{at, state: ok|diverge|not_started|no_sites|error, runs, checked, uncovered,
+   missing, wrong, extra, repair, pending, over, final, final_at, sites:[…], sample:{ids}}`. `uncovered` = runs de
+   times fora de qualquer sede (não dá p/ conferir sem chave de sede; a tela diz quantas).
+
+**`final` — o "validado"**: tudo bate, a prova acabou p/ **todas** as sedes (`contest_end_all`) e nada está
+pendente (`?`). `final_at` guarda a hora da 1ª validação (conferir de novo não a move). Rejulgamento depois disso
+dispara nova conferência.
+
+Quem confere:
+
+- **o alimentador**, sozinho, **destacado** (um GET por sede pode levar segundos e o relógio dos outros contests
+  não espera; `flock -n` por contest): durante a prova a cada `feed.verify_s` (300 s); depois do fim p/ todas as
+  sedes, a cada 60 s até a conferência final passar; depois dela, só quando algum `history` muda. O que a
+  conferência marca p/ reenvio vai na passada de runs seguinte;
+- **o operador**: `POST {action:"verify"}` ("🔎 conferir agora"): confere, reenvia NA HORA o que faltou (republica se
+  um time não estava no evento) e confere de novo — a resposta traz o `before` (o que a 1ª achou);
+- **antes de liberar o reveleitor**: a mesa confere e põe o resultado na pergunta de confirmação;
+- **a sede**: o `GET /contest/animeitor/reveal` devolve a conferência SÓ das sedes do `.cstaff`/`.staff`, e o
+  cartão "🎬 Reveleitor da sua sede" mostra "✓ Validado" (final e as sedes dele batendo), "Conferido" ou "⚠".
+
+A Central do admin (preflight `telao`, com o módulo ligado) avisa: telão sem chave (inclusive URL fora do padrão
+com só a chave do MOJ), última conferência com divergência, e "Telão validado" quando a final passou.
+
 ## Mídia
 
 `photo_url_format`/`sound_url_format` — no **evento** — = `<URL pública do MOJ>/api/v1/contest/team-photo?contest=<c>&user={team_login}`
@@ -147,8 +224,11 @@ chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
 
 ## Segurança
 
-- Credencial e links de revelação são segredo: a credencial só em `secrets/`; os links são buscados
-  **ao vivo** (`?links=1`) e nunca gravados. Na tela o `secret` aparece mascarado; "copiar" leva o inteiro.
+- Credencial e links de revelação são segredo: a credencial só em `secrets/` (a do MOJ em `$RUNDIR/secrets/`, e ela
+  nunca volta p/ a tela, nem o usuário); os links são buscados **ao vivo** (`?links=1`) e nunca gravados. Na tela o
+  `secret` aparece mascarado; "copiar" leva o inteiro. A conferência usa as chaves de sede em memória e grava só
+  contagens e ids — nunca chave nem resposta.
+- A chave do MOJ só vai ao servidor padrão; o registro de posse impede um contest de usar o evento de outro.
 - O **nome** do evento e dos placares é público na página inicial do Animeitor mesmo antes do início
   (o estado e as runs dão `403 not_started`). Contest `SECRET=1` ganha um aviso na tela.
 - O `/config` público de cada placar expõe os `codes` — com lista exata, os logins dos times.
@@ -159,12 +239,18 @@ chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
 - `server/test/animeitor-mock.py` — mock **estrito**, escrito do OpenAPI e conferido no serviço real
   (401 sem Basic, 409, 404 sem pai, `PUT` zera o omitido, `PATCH` vazio/campo desconhecido = 400,
   `invalid_regex`, `unknown_team` com o texto real, problema desconhecido = 400 no lote, `keep_runs`).
-- `server/test/smoke-animeitor-api.sh` (90, com a prorrogação por sede): gates, token write-only, proposta (regex × lista),
+- `server/test/smoke-animeitor-api.sh` (96, com a prorrogação por sede): gates, token write-only, proposta (regex × lista),
   publicação idempotente SEM `PUT` e com os salts preservados, evento alheio intocado, delta de runs
   com id estável, relógio negativo/teto, alimentador (`--once`: relógio, só-o-que-mudou, time tardio,
   serviço fora do ar, instância única, desliga em 24 h), rodada nova = evento novo, links, reveleitor nas sedes (antes/depois da liberação, region:, escopo por regex, sem sede, sede renomeada, recolher, botão na barra), reset. `smoke-animeitor.sh` prende
   a paridade do pacote BOCA e o mapa de ids. `admin-inplace.gjs.sh`: o estado ao vivo atualiza EM
   LUGAR sem reconstruir a tabela em edição.
+- `server/test/smoke-animeitor-verify.sh` (37): chave do MOJ (padrão invisível, própria vence, apagar volta, nunca
+  vai a outra URL), registro de posse (`event_taken` sem request, `adopt_forbidden`, própria pode, reset libera),
+  conferência (antes do início, ok, perdida/diferente/a mais/removida reparadas e 2ª conferência ok, mesmo regex =
+  1 consulta, final × pendente, `final_at` estável, reveleitor da sede, alimentador destacado, nada secreto em disco).
+  `smoke-animeitor-key-verify.gjs.sh`: a mesa (chave do MOJ × própria × URL fora do padrão, estado da conferência,
+  "conferir agora", conferência antes de liberar) e o selo da sede. `smoke-preflight.sh`: o item `telao`.
 - Servidor real: só num evento de teste próprio, apagado no fim. **Nunca** tocar evento alheio.
 
 ## O que o Emilio respondeu (21/09/2026) — e o que ainda está aberto
@@ -176,5 +262,6 @@ chega ao `.cstaff`/`.staff` assim (decisões do Ribas, 21/09/2026):
 | 3 | `X` conta tentativa/penalidade? | **Não aplica penalidade, como no webcast.zip.** | Bate com o MOJ (CE e o que está fora do `PENALTY_VERDICTS`). Nada a mudar. |
 | 4 | Prorrogação POR SEDE | Ele **não sabia** que o MOJ tem relógio por sede. | **Resolvido do lado do MOJ** (decisão do Ribas, 21/09): o relógio por sede é MASCARADO — o MOJ manda um relógio único que só pára quando a prova acaba p/ a última sede (`contest_end_all`). Nada a pedir ao Emilio. |
 | 5 | Links de revelação em `http://` | **Não é problema.** | Nada a mudar. |
-| 6 | Credencial do MOJ | **Pode criar uma credencial para o MOJ.** | Pendente do lado dele. A `bruno` é pessoal e não deve ir p/ produção. |
+| 6 | Credencial do MOJ | **Criada em 25/09/2026** (`[[tokens]]`, `name = "moj"`). | É a **chave do MOJ** (acima): vale p/ todo contest no servidor padrão. O token vive só em `run/secrets/` do servidor. A `bruno` é pessoal e não vai p/ produção. |
+| 8 | Conferir se o Animeitor tem tudo | (25/09) **`GET …/runs_secret`** com a chave da sede. | É a **conferência** (acima): o alimentador confere e reenvia, e o reveleitor mostra "validado". |
 | 7 | Rate limit / tamanho do lote | **Não há rate limit nos endpoints internos.** | Lotes de 500 e 1 `PATCH`/s por evento seguem como estão. |

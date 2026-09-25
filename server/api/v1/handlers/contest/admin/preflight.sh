@@ -590,6 +590,34 @@ if mod_on "$contest" maquinas && nb_configured "$contest"; then
   fi
 fi
 
+# --- telão (Animeitor) -------------------------------------------------------------------
+# Só com o módulo telao. Sem rede: a chave (a do MOJ vale por padrão no servidor padrão) e a última
+# CONFERÊNCIA gravada (o alimentador confere sozinho; o "validado" é o que a sede vê no reveleitor).
+if mod_on "$contest" telao; then
+  source "$_LIBDIR/cohorts.sh"; source "$_LIBDIR/animeitor.sh"
+  _anu="$(jq -r .url <<<"$(an_cfg "$contest")")"; _ans="$(an_cred_source "$contest" "$_anu")"
+  _anv="$(an_verify_summary "$contest")"; _anst="$(jq -r '.state // ""' <<<"$_anv")"
+  if [[ "$_ans" == none ]]; then
+    add2 telao warn "Telão sem chave do Animeitor" \
+      "$( an_moj_cred_available && echo "a chave do MOJ só vale no servidor padrão ($AN_DEFAULT_URL) — grave uma chave própria na mesa do telão ou volte ao padrão" || echo "grave usuário e token na mesa do telão (/contest/animeitor/)" )" \
+      "Big screen without an Animeitor key" \
+      "$( an_moj_cred_available && echo "the MOJ key only works on the default server ($AN_DEFAULT_URL) — save your own key on the big-screen page or go back to the default" || echo "save user and token on the big-screen page (/contest/animeitor/)" )"
+  elif [[ "$_anst" == diverge || "$_anst" == error ]]; then
+    add2 telao warn "Telão: o Animeitor não tem todas as submissões" \
+      "na última conferência: $(jq -r '"\(.missing // 0) faltando, \(.wrong // 0) diferentes, \(.extra // 0) a mais\(if .error then " — " + .error else "" end)"' <<<"$_anv") — o alimentador já reenviou; confira de novo na mesa do telão" \
+      "Big screen: the Animeitor does not have every submission" \
+      "at the last check: $(jq -r '"\(.missing // 0) missing, \(.wrong // 0) different, \(.extra // 0) extra\(if .error then " — " + .error else "" end)"' <<<"$_anv") — the feeder has already resent them; check again on the big-screen page"
+  elif [[ "$(jq -r '.final == true' <<<"$_anv")" == true ]]; then
+    add2 telao ok "Telão validado" "o Animeitor tem todas as submissões e a prova acabou (conferência final)" \
+      "Big screen validated" "the Animeitor has every submission and the contest is over (final check)"
+  else
+    add2 telao ok "Telão com chave $( [[ "$_ans" == moj ]] && echo "do MOJ" || echo "própria" )" \
+      "$( [[ "$_anst" == ok ]] && echo "a última conferência bateu" || echo "publique e ligue o alimentador na mesa do telão; ele confere sozinho durante a prova" )" \
+      "Big screen with $( [[ "$_ans" == moj ]] && echo "the MOJ key" || echo "its own key" )" \
+      "$( [[ "$_anst" == ok ]] && echo "the last check matched" || echo "publish and start the feeder on the big-screen page; it checks by itself during the contest" )"
+  fi
+fi
+
 ok_json '{checks:$c, summary:{ok:($c|map(select(.level=="ok"))|length),
                               warn:($c|map(select(.level=="warn"))|length),
                               fail:($c|map(select(.level=="fail"))|length)}}' \

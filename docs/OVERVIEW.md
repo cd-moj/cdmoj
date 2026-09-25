@@ -482,13 +482,19 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
 
 ### Telão: o MOJ alimenta o Animeitor pela API (`docs/ANIMEITOR.md`)
 O sistema do telão (Animeitor 2.1.0) deixou de puxar o zip no protocolo do BOCA (`docs/WEBCAST.md`, legado): agora
-**o MOJ empurra**. O `.animeitor` grava URL+usuário+token (`secrets/animeitor.cred`), revisa os **placares** (geral,
+**o MOJ empurra**. A **chave do MOJ** (`run/secrets/animeitor.cred`) vale p/ todo contest no servidor padrão —
+nada a configurar, e ela nunca aparece na tela; o `.animeitor` pode gravar uma própria (`secrets/animeitor.cred` do
+contest), que vence. Com a credencial compartilhada, o registro `run/animeitor/events.json` é quem diz de qual contest é
+cada evento. O `.animeitor` revisa os **placares** (geral,
 coortes, países) e as **sedes** que o MOJ deriva de `cohorts.json`/`regions.json` e **publica** (`lib/animeitor.sh`:
 POST e, no 409, PATCH — nunca PUT, que trocaria os links de revelação). Um processo à parte,
 `daemons/animeitor-feed.sh`, manda o **relógio a cada 1 s** (o servidor do telão não o avança sozinho) e as
 **submissões a cada 2 s** (só o delta, id inteiro estável por submissão) — fora do caminho do julgamento. As respostas
 vão sempre reais; quem congela e revela é o Animeitor. `score/telao-runs.sh` é a fonte única das runs p/ os dois
-caminhos (API e pacote BOCA).
+caminhos (API e pacote BOCA). O MOJ também **CONFERE** se o Animeitor tem todas as submissões: sede a sede, pela rota
+pública `runs_secret` (com a chave de cada sede, tirada do link de revelação), reenviando o que faltar ou divergir —
+o alimentador confere durante a prova e, com a prova encerrada p/ todas as sedes e nada pendente, faz a conferência
+FINAL, o **"validado"** que o reveleitor da sede mostra.
 
 ### Máquinas mlinux: integração NutellaBoot 3 (`docs/NUTELLABOOT.md`)
 O serviço que boota as máquinas da prova (uma **site-image** por sede) conversa com o MOJ nos DOIS sentidos.

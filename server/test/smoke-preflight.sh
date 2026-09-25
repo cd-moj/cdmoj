@@ -219,5 +219,22 @@ sed -i '/^CONTEST_JUDGES=/d' "$C/conf"; rm -f "$FIX/treino/var/jsons/col#p0.json
 run
 check "sem problema paralelo => checagem ausente (sem ruído)"       '[[ "$(lvl judges_cpus)" == "(ausente)" ]]'
 
+echo "== telão (Animeitor): chave e conferência =="
+run
+check "módulo telao sem chave nenhuma => warn"                      '[[ "$(lvl telao)" == warn && "$(det telao)" == *"usuário e token"* ]]'
+mkdir -p "$RUN/secrets"; ( umask 077; printf 'moj:chave-de-teste-123\n' > "$RUN/secrets/animeitor.cred" )
+run
+check "com a chave do MOJ no servidor => ok \"com chave do MOJ\""  '[[ "$(lvl telao)" == ok && "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"telao\")|.label)")" == *"do MOJ"* ]]'
+check "…e a chave não aparece em lugar nenhum da resposta"          '[[ "$BODY" != *chave-de-teste-123* ]]'
+printf '{"url":"https://outro.exemplo"}' > "$C/animeitor.json"; run
+check "URL fora do padrão: a chave do MOJ não vale lá => warn"       '[[ "$(lvl telao)" == warn && "$(det telao)" == *"só vale no servidor padrão"* ]]'
+rm -f "$C/animeitor.json"
+jq -cn --argjson t "$NOW" '{at:$t, state:"diverge", ok:false, final:false, missing:2, wrong:0, extra:1, sample:{missing:[1,2]}}' > "$C/var/animeitor-verify.json"; run
+check "última conferência com divergência => warn com as contagens" '[[ "$(lvl telao)" == warn && "$(det telao)" == *"2 faltando, 0 diferentes, 1 a mais"* ]]'
+jq -cn --argjson t "$NOW" '{at:$t, state:"ok", ok:true, final:true, final_at:$t}' > "$C/var/animeitor-verify.json"; run
+check "conferência final => ok \"Telão validado\""                 '[[ "$(lvl telao)" == ok && "$(printf "%s" "$BODY" | jq -r "first(.checks[]|select(.id==\"telao\")|.label)")" == "Telão validado" ]]'
+sed -i 's/,telao,/,/' "$C/conf"; run
+check "módulo telao desligado => checagem ausente"                   '[[ "$(lvl telao)" == "(ausente)" ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"
 exit $(( fail > 0 ? 1 : 0 ))

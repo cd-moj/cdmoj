@@ -23,7 +23,7 @@ const enc = encodeURIComponent;
 let PHOTOS = null;   // {teams:[…], total, with_photo, with_music, scoped}
 let WC = null;       // {keys:[…], views:[…], url_path}
 let API = null;      // a seção da API do Animeitor ({node, load}) — só .animeitor/admin
-let REVEAL = null;   // {released, scoped, sites[], links[]} — os links do REVELEITOR da sede (.cstaff/.staff)
+let REVEAL = null;   // {released, scoped, sites[], links[], verify} — os links do REVELEITOR da sede (.cstaff/.staff)
 // A SEDE entra na MESMA tela com menos poder (molde do staff.js), e o recorte de quais times ela
 // vê é da API (staff-filters.json) — aqui só se esconde o que ela não pode:
 //   RO      (.cstaff e .staff) — sem as chaves do webcast e sem trocar o PADRÃO do contest;
@@ -514,6 +514,17 @@ function streamSection() {
 // A revelação do Animeitor tem um link SECRETO por sede (mostra as respostas depois do congelamento).
 // O `.animeitor` libera; a API devolve a esta conta SÓ os da sede dela (staff-filters), em todos os
 // placares em que a sede aparece. Sem liberação o cartão não existe; sem sede definida, avisa.
+// `verify` = a CONFERÊNCIA do MOJ só das sedes dela: o Animeitor tem todas as submissões? "Validado" = a
+// prova acabou p/ todas as sedes, nada pendente e tudo bate — é o sinal verde p/ a cerimônia.
+function verifyBadge(v) {
+  if (!v || !v.at) return el('p', { class: 'muted small' }, T('O MOJ ainda não conferiu o Animeitor para a sua sede.', 'MOJ has not checked the Animeitor for your site yet.'));
+  const at = new Date((v.final ? (v.final_at || v.at) : v.at) * 1000).toLocaleTimeString();
+  if (v.final) return el('p', { class: 'small', style: 'color:var(--ok,#1e7e34);font-weight:600' }, '✓ ', T(`Validado (${at}): a prova acabou e o Animeitor tem todas as submissões da sua sede.`, `Validated (${at}): the contest is over and the Animeitor has every submission of your site.`));
+  if (v.ok) return el('p', { class: 'small' }, '✓ ', T(`Conferido às ${at}: o Animeitor tem todas as submissões da sua sede. A validação final sai quando a prova acabar para todas as sedes e nada estiver em julgamento.`,
+    `Checked at ${at}: the Animeitor has every submission of your site. The final validation comes when the contest is over for every site and nothing is being judged.`));
+  return el('p', { class: 'error-box' }, '⚠ ', T(`Na última conferência (${at}) o Animeitor NÃO tinha todas as submissões da sua sede. O MOJ já reenviou e confere de novo em instantes; espere o "validado" antes da cerimônia ou fale com o operador do telão.`,
+    `At the last check (${at}) the Animeitor did NOT have every submission of your site. MOJ has already resent them and checks again shortly; wait for "validated" before the ceremony or talk to the big-screen operator.`));
+}
 function revealCard() {
   const R = REVEAL; if (!R || !R.released) return '';
   const copy = (u) => el('button', { class: 'btn ghost', onclick: async () => { try { await navigator.clipboard.writeText(u); } catch { prompt(T('Copie:', 'Copy:'), u); } } }, T('copiar', 'copy'));
@@ -531,6 +542,7 @@ function revealCard() {
     el('h2', {}, T('🎬 Reveleitor da sua sede', '🎬 Reveal for your site')),
     el('p', { class: 'note' }, '⚠ ', T('Este link mostra as respostas reais depois do congelamento do placar. Abra só no computador do telão da sede, na hora da cerimônia, e não repasse.',
       'This link shows the real answers after the scoreboard freeze. Open it only on the site big-screen computer, at ceremony time, and do not pass it on.')),
+    R.scoped && (R.links || []).length ? verifyBadge(R.verify) : '',
     ...body);
 }
 

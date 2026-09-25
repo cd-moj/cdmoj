@@ -2,15 +2,24 @@
 # A integração com a API do ANIMEITOR (telão): o MOJ empurra evento, placares/sedes, runs e relógio.
 # Doc: docs/ANIMEITOR.md · lib: lib/animeitor.sh · alimentador: server/daemons/animeitor-feed.sh.
 #
-#   GET                  -> {configured, has_cred, user, url, event, moj_base_url, enabled, feed, secret_contest,
-#                            contests (o que está salvo; null = ainda vale a proposta), managed, status, clock,
+#   GET                  -> {configured, has_cred, cred_source (contest|moj|none), moj_cred (o servidor tem a
+#                            chave do MOJ), default_url, user (só da chave PRÓPRIA), url, event, moj_base_url,
+#                            enabled, feed, secret_contest, contests (o que está salvo; null = ainda vale a
+#                            proposta), managed, status, clock, verify (a última conferência, sem ids),
 #                            feeder_alive_at (batimento do processo alimentador), now}
+#   A CHAVE DO MOJ ($ANIMEITOR_CRED_FILE) vale p/ todo contest sem chave própria, no servidor padrão, e nunca
+#   volta p/ a tela (nem o usuário dela). Chave própria: {action:"config", user, token}; {user:"", token:""}
+#   apaga a própria e volta p/ a do MOJ.
 #   GET ?proposal=1      -> + proposal {teams_total, contests:[{name, source, n, codes, kind, sites}]}
 #   GET ?links=1         -> + links {public:[…], revelation:[…]}  (os de revelação são CREDENCIAL)
 #   POST {action:"config", url?, user?, token?, event?, moj_base_url?}   token write-only (secrets/, 600)
 #   POST {action:"test"}                 -> prova a credencial (GET /internal/events) e diz se o evento existe
 #   POST {action:"save", contests:[…]|null}   grava os placares/sedes revisados (null = voltar à proposta)
-#   POST {action:"publish", adopt?}      -> cria/atualiza evento + placares + sedes LÁ (idempotente)
+#   POST {action:"publish", adopt?}      -> cria/atualiza evento + placares + sedes LÁ (idempotente). 409:
+#                            event_exists (existe lá e não é deste contest: `adopt`), event_taken (o nome é de
+#                            OUTRO contest do MOJ), adopt_forbidden (a chave do MOJ só assume evento deste contest)
+#   POST {action:"verify"}               -> CONFERE sede a sede (runs_secret) se o Animeitor tem todas as runs;
+#                            o que falta/diverge é reenviado na hora e conferido de novo -> {verify, before?, runs?}
 #   POST {action:"push-runs", full?}     -> manda as runs (delta; full = tudo de novo)
 #   POST {action:"start"|"stop"}         -> liga/desliga o alimentador deste contest (relógio + runs)
 #   POST {action:"reveal-release"|"reveal-recall"}  -> libera/recolhe os links do REVELEITOR p/ as sedes: com
@@ -37,16 +46,21 @@ _an_state(){   # o estado SEM segredo (o token nunca volta; o usuário sim — �
     local a b h; read -r a b h < "$cdir/var/animeitor.clock"
     [[ "$a" =~ ^[0-9]+$ && "$b" =~ ^-?[0-9]+$ ]] && clk="$(jq -cn --argjson a "$a" --argjson b "$b" --arg h "${h:-}" '{at:$a, time_seconds:$b, http:$h}')"
   fi
-  if an_has_cred "$contest"; then IFS= read -r user < "$(an_credfile "$contest")"; user="${user%%:*}"; fi
+  local csrc; csrc="$(an_cred_source "$contest" "$(jq -r .url <<<"$cfg")")"
+  # o usuário só volta da chave PRÓPRIA (é o que o operador digitou); a do MOJ não aparece nem pelo nome
+  if [[ -s "$(an_credfile "$contest")" ]]; then IFS= read -r user < "$(an_credfile "$contest")"; user="${user%%:*}"; fi
   # o PROCESSO alimentador (daemons/animeitor-feed.sh) bate o ponto a cada volta: marcador ligado com
   # o processo morto é o caso que o operador precisa VER ("liguei e o relógio não anda")
   local alive=0; [[ -r "${ACTIVE%/active}/feed.alive" ]] && read -r alive < "${ACTIVE%/active}/feed.alive"; [[ "$alive" =~ ^[0-9]+$ ]] || alive=0
   jq -cn --argjson cfg "$cfg" --argjson st "$st" --argjson clk "$clk" --arg user "$user" \
-     --argjson hc "$(an_has_cred "$contest" && echo true || echo false)" \
+     --arg cs "$csrc" --argjson mc "$(an_moj_cred_available && echo true || echo false)" --arg du "$AN_DEFAULT_URL" \
+     --argjson vf "$(an_verify_summary "$contest")" \
+     --argjson hc "$([[ "$csrc" != none ]] && echo true || echo false)" \
      --argjson sec "$(contest_is_secret "$contest" && echo true || echo false)" \
      --argjson man "$(an_managed "$contest")" --argjson now "$EPOCHSECONDS" \
      --argjson feeding "$([[ -e "$ACTIVE/$contest" ]] && echo true || echo false)" --argjson alive "$alive" '
-    { configured: ($hc and ($cfg.url != "")), has_cred: $hc, user: $user, url: $cfg.url, event: $cfg.event,
+    { configured: ($hc and ($cfg.url != "")), has_cred: $hc, cred_source: $cs, moj_cred: $mc, default_url: $du,
+      user: $user, url: $cfg.url, event: $cfg.event, verify: $vf,
       moj_base_url: $cfg.moj_base_url, enabled: ($cfg.enabled and $feeding), feed: $cfg.feed, secret_contest: $sec,
       contests: $cfg.contests, reveal: $cfg.reveal,
       managed: {event: $man.event, contests: ($man.contests | to_entries | map({name: .key, sites: (.value.sites // {} | keys)}))},
@@ -114,11 +128,12 @@ test)
   r="$(an_curl "$contest" GET "/internal/events")"; st="$(an_status "$r")"
   case "$st" in
     200) ev="$(jq -r .event <<<"$(an_cfg "$contest")")"
-         ok_json '{ok:true, http:200, events:$n, event_exists:$x, managed:$m}' \
+         ok_json '{ok:true, http:200, events:$n, event_exists:$x, managed:$m, cred_source:$cs}' --arg cs "$(an_cred_source "$contest")" \
            --argjson n "$(an_body "$r" | jq '(.data // []) | length' 2>/dev/null || echo 0)" \
            --argjson x "$(an_body "$r" | jq --arg e "$ev" '(.data // []) | index($e) != null' 2>/dev/null || echo false)" \
            --argjson m "$([[ "$(jq -r .event <<<"$(an_managed "$contest")")" == "$ev" ]] && echo true || echo false)" ;;
-    401) fail 502 "O Animeitor recusou o usuário/token (401)" "upstream_unauthorized" ;;
+    401) if [[ "$(an_cred_source "$contest")" == moj ]]; then fail 502 "O Animeitor recusou a chave do MOJ (401): avise o administrador do servidor" "upstream_unauthorized"
+         else fail 502 "O Animeitor recusou o usuário/token (401)" "upstream_unauthorized"; fi ;;
     *)   fail 502 "Animeitor inacessível (HTTP ${st:-000})" "upstream_error" ;;
   esac
   ;;
@@ -154,7 +169,7 @@ publish)
   res="$(cat "$of" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$res" || res='{"ok":false,"error":"falha"}'
   audit_log_to "$contest" animeitor-publish "ok=$(jq -r .ok <<<"$res") adopt=$adopt"
   if [[ $prc -ne 0 && "$(jq -r '.event.action // ""' <<<"$res")" == error && "$(jq -r '.event.http // ""' <<<"$res")" == 409 ]]; then
-    fail 409 "$(jq -r '.event.error' <<<"$res")" "event_exists"
+    fail 409 "$(jq -r '.event.error' <<<"$res")" "$(jq -r '.event.code // "event_exists"' <<<"$res")"
   fi
   ok_json_slurp '{result: $r[0]}' r "$res"
   ;;
@@ -165,6 +180,27 @@ push-runs)
   res="$(an_push_runs "$contest" "$full")"; jq -e . >/dev/null 2>&1 <<<"$res" || res='{"error":"falha"}'
   audit_log_to "$contest" animeitor-runs "full=${full:-no} $(jq -r '"sent=\(.sent // 0) added=\(.added // 0) updated=\(.updated // 0)"' <<<"$res")"
   ok_json_slurp '{runs: $r[0]}' r "$res"
+  ;;
+verify)
+  an_configured "$contest" || fail 409 "Grave a URL e a credencial primeiro" "not_configured"
+  [[ "$(jq -r .event <<<"$(an_managed "$contest")")" == "$(jq -r .event <<<"$(an_cfg "$contest")")" ]] || fail 409 "Publique o evento primeiro" "not_published"
+  vf="$(mktemp)"; trap 'rm -f "$vf"' EXIT
+  an_verify "$contest" "$vf" 1
+  v1="$(cat "$vf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$v1" || v1='{"state":"error","ok":false}'
+  extra='{}'
+  if [[ "$(jq -r '.repair // 0' <<<"$v1")" != 0 ]]; then
+    # o que faltava/divergia já saiu do `sent`: manda agora (time novo recusado ⇒ republica e manda de novo)
+    pr="$(an_push_runs "$contest")"; jq -e . >/dev/null 2>&1 <<<"$pr" || pr='{}'
+    if [[ "$(jq -r '.ignored // 0' <<<"$pr")" != 0 ]]; then
+      pf="$(mktemp)"; an_publish "$contest" "$pf" 0 >/dev/null 2>&1; rm -f "$pf"
+      pr="$(an_push_runs "$contest")"; jq -e . >/dev/null 2>&1 <<<"$pr" || pr='{}'
+    fi
+    an_verify "$contest" "$vf" 1
+    v2="$(cat "$vf" 2>/dev/null)"; jq -e . >/dev/null 2>&1 <<<"$v2" || v2='{"state":"error","ok":false}'
+    extra="$(jq -cn --argjson a "$v1" --argjson r "$pr" '{before: ($a | {missing, wrong, extra}), runs: $r}')"; v1="$v2"
+  fi
+  audit_log_to "$contest" animeitor-verify "$(jq -r '"state=\(.state) runs=\(.runs // 0) missing=\(.missing // 0) wrong=\(.wrong // 0) extra=\(.extra // 0) final=\(.final // false)"' <<<"$v1")"
+  ok_json_slurp '{verify: ($v[0] | del(.sample)), sample: ($v[0].sample // null)} + $x' v "$v1" --argjson x "$extra"
   ;;
 start|stop)
   if [[ "$action" == start ]]; then
@@ -185,7 +221,7 @@ reveal-release|reveal-recall)
     [[ "$(jq -r .event <<<"$(an_managed "$contest")")" == "$(jq -r .event <<<"$(an_cfg "$contest")")" ]] || fail 409 "Publique o evento primeiro" "not_published"
     an_reveal_set "$contest" on "$SESSION_LOGIN"
   else an_reveal_set "$contest" off "$SESSION_LOGIN"; fi
-  audit_log_to "$contest" animeitor-reveal "$action by=$SESSION_LOGIN"
+  audit_log_to "$contest" animeitor-reveal "$action by=$SESSION_LOGIN verify=$(jq -r '"\(.state // "nunca")/final=\(.final // false)"' <<<"$(an_verify_summary "$contest")")"
   ok_json_slurp '$s[0]' s "$(_an_state)"
   ;;
 reset)
@@ -198,7 +234,8 @@ reset)
   an_reveal_set "$contest" off "$SESSION_LOGIN"          # evento apagado = links mortos: recolhe
   r="$(an_curl "$contest" DELETE "/internal/events/$(an_enc "$ev")")"; st="$(an_status "$r")"
   [[ "$st" == 204 || "$st" == 404 ]] || fail 502 "O Animeitor recusou apagar o evento (HTTP ${st:-000})" "upstream_error"
-  rm -f "$cdir/var/animeitor-managed.json" "$cdir/var/animeitor-sent.tsv" "$cdir/var/animeitor.clock" "$cdir/var/animeitor.status.json"
+  an_reg_set "$(jq -r .url <<<"$(an_cfg "$contest")")" "$ev" "$contest" release
+  rm -f "$cdir/var/animeitor-managed.json" "$cdir/var/animeitor-sent.tsv" "$cdir/var/animeitor.clock" "$cdir/var/animeitor.status.json" "$cdir/var/animeitor-verify.json"
   audit_log_to "$contest" animeitor-reset "event=$ev http=$st"
   ok_json '{reset:true, event:$e}' --arg e "$ev"
   ;;
