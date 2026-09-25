@@ -6,7 +6,9 @@
 # - info-sheet: publicado = visível (logística);
 # - EDITORIAL: publicar exige contest_over_for_all (e o download do time idem — prorrogação
 #   por sede segura o editorial); notícia anexando caderno antes do início é recusada.
-# Os arquivos de doc são FAKES gravados direto (a geração real é coberta em produção).
+# - .odt (o intermediário editável, 25/09/2026): SÓ admin/juiz-chefe baixam (juiz, sede e time = 403);
+# - a CAPA abre com o template padrão (não vazia); salvar o padrão sem mexer não cria cópia no contest.
+# Os arquivos de doc são FAKES gravados direto (a geração real é coberta pelo render-docs.sh).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"; ROUTER="$ROOT/api/v1/router.sh"
 source "$(dirname "$(readlink -f "$0")")/fixture.sh"
@@ -169,6 +171,39 @@ call /contest/resources GET '' tok-cstaff
 ck "sede NÃO vê o caderno pré-início" '[[ "$(J "[.items[]|select(.type==\"contest\")]|length")" == 0 ]]'
 call /contest/resources GET '' tok-judge
 ck "juiz vê o caderno (organização)"  '[[ "$(J "[.items[]|select(.type==\"contest\")]|length")" -ge 1 ]]'
+
+echo "== .odt editável: só a organização =="
+fx_user "$C" chefe.cjudge st "Chefe"; mkses chefe.cjudge tok-chief
+printf 'PK-fake-odt' > "$C/docs/contest.pt.odt"
+call /contest/doc GET '' tok-adm 'type=contest&lang=pt&fmt=odt'
+ck "admin baixa o .odt (ODT, attachment)" '[[ "$OUT" == *"Status: 200"* && "$OUT" == *"application/vnd.oasis.opendocument.text"* && "$OUT" == *attachment* && "$OUT" == *PK-fake-odt* ]]'
+call /contest/doc GET '' tok-chief 'type=contest&lang=pt&fmt=odt'
+ck "juiz-chefe baixa o .odt"            '[[ "$OUT" == *"Status: 200"* && "$OUT" == *PK-fake-odt* ]]'
+call /contest/doc GET '' tok-judge 'type=contest&lang=pt&fmt=odt'
+ck "juiz NÃO (mesmo publicado) -> 403"  '[[ "$OUT" == *"Status: 403"* && "$BODY" == *odt_org_only* ]]'
+conf "$((NOW-3600))" "$((NOW+3600))"         # prova em andamento: o PDF já é do time — o .odt não
+call /contest/doc GET '' tok-time 'type=contest&lang=pt&fmt=pdf'
+ck "(controle) time baixa o PDF do caderno na prova" '[[ "$OUT" == *"Status: 200"* ]]'
+call /contest/doc GET '' tok-time 'type=contest&lang=pt&fmt=odt'
+ck "time NÃO baixa o .odt -> 403"       '[[ "$OUT" == *"Status: 403"* ]]'
+call /contest/doc GET '' tok-cstaff 'type=contest&lang=pt&fmt=odt'
+ck "sede NÃO baixa o .odt -> 403"       '[[ "$OUT" == *"Status: 403"* ]]'
+call /contest/doc GET '' tok-adm 'type=times&lang=pt&fmt=odt'
+ck ".odt não gerado -> 404"             '[[ "$OUT" == *"Status: 404"* ]]'
+conf "$((NOW+3600))" "$((NOW+10800))"
+
+echo "== capa: o editor abre com o template padrão =="
+call /contest/admin/docs GET '' tok-adm
+ck "capa pt = template padrão (com marcadores), custom=false" '[[ "$(J .templates.cover.pt)" == *"{{CONTEST_NAME}}"* && "$(J .templates.cover.pt)" == *"{.session}"* && "$(J .custom.cover.pt)" == false ]]'
+ck "capa en/es e info sheet também vêm (padrão)" '[[ "$(J .templates.cover.en)" == *"Contest Session"* && "$(J .templates.cover.es)" == *"Cuadernillo"* && "$(J .custom.info_sheet.pt)" == false && -n "$(J .templates.info_sheet.pt)" ]]'
+DEF="$(J .templates.cover.pt)"
+adm "$(jq -cn --arg v "$DEF" '{action:"config", cover_pt:$v}')"
+ck "salvar o padrão sem mexer NÃO cria cópia (segue o padrão)" '[[ ! -e "$C/docs/cover.pt.md" ]]'
+adm "$(jq -cn --arg v "$DEF" '{action:"config", cover_pt:($v + "\nLinha nova da capa\n")}')"
+call /contest/admin/docs GET '' tok-adm
+ck "editou: a cópia do contest vale (custom=true)" '[[ -s "$C/docs/cover.pt.md" && "$(J .custom.cover.pt)" == true && "$(J .templates.cover.pt)" == *"Linha nova da capa"* ]]'
+adm '{"action":"config","cover_pt":""}'
+ck "vazio = volta ao padrão"            '[[ ! -e "$C/docs/cover.pt.md" ]]'
 
 echo; echo "passed=$pass failed=$fail"
 (( fail == 0 ))

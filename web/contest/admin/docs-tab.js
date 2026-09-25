@@ -7,11 +7,18 @@
 // Idioma: PT/EN/ES vale para capa, títulos e tabelas. O corpo do ENUNCIADO sai no idioma em
 // que foi escrito — o MOJ não traduz enunciado (dito na própria tela, para não enganar); para
 // prova traduzida existe o PDF ENVIADO, que vence o gerado.
+//
+// .odt (25/09/2026): todo PDF gerado tem o gêmeo .odt — o intermediário editável. A organização
+// (admin/juiz-chefe; a API corta os demais) baixa, ajusta no LibreOffice o que o Markdown deixou torto
+// (espaço entre elementos, imagem grande), exporta PDF e sobe em "subir PDF" (o enviado vence o gerado).
+// Os TEMPLATES (capa e info sheet) usam o editor do MOJ (realce + números de linha), uma ABA por idioma
+// como na gestão de problemas, e já abrem com o texto padrão (a capa também, desde que virou template).
 import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { fileToBase64 } from '/shared/auth.js';
 import { T } from '/shared/i18n.js';
 import { fmtEpoch as fmtDate, fmtKB } from '/shared/admin-ui.js';
+import { createEditor } from '/shared/editor.js';
 
 const enc = encodeURIComponent;
 const LANGS = ['pt', 'en', 'es'];           // idioma dos DOCUMENTOS (a interface segue pt/en)
@@ -80,6 +87,11 @@ export function makeDocsTab(CONTEST, opts = {}) {
           : el('span', { class: 'small muted' }, `${T('gerado', 'generated')} ${fmtDate(d.generated_at)} · PDF ${fmtKB(d.pdf_bytes)} · HTML ${fmtKB(d.html_bytes)}`),
           el('button', { class: 'btn ghost', onclick: () => download(t.id, lang, 'pdf') }, 'PDF'));
         if (!d.uploaded && d.html_bytes) line.append(el('button', { class: 'btn ghost', onclick: () => download(t.id, lang, 'html') }, 'HTML'));
+        // o .odt editável é da ORGANIZAÇÃO (a API devolve 403 p/ os demais); só existe p/ o que foi gerado
+        if (!readOnly && d.odt_bytes) line.append(el('button', { class: 'btn ghost',
+          title: T('o documento editável: ajuste no LibreOffice (ou Word), exporte em PDF e suba em “subir PDF” — o enviado vence o gerado',
+            'the editable document: adjust it in LibreOffice (or Word), export to PDF and upload it with “upload PDF” — the uploaded file wins'),
+          onclick: () => download(t.id, lang, 'odt') }, T('✎ .odt', '✎ .odt')));
         line.append(el('button', { class: 'btn ghost', onclick: () => openDoc(t.id, lang, 'pdf') }, T('abrir', 'open')));
         if (d.published) line.append(el('span', { class: 'pill ok' }, T('publicado', 'published')));
       } else {
@@ -160,42 +172,78 @@ export function makeDocsTab(CONTEST, opts = {}) {
     } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
   }
 
-  function coverBox() {
+  // editor de TEMPLATE com uma aba por idioma (as mesmas fichas da gestão de problemas): o editor do
+  // MOJ (CodeMirror: realce de Markdown + números de linha), montado sob demanda e mantido ao trocar de
+  // aba — trocar de idioma não perde o que foi digitado; "Salvar" grava TODOS os idiomas alterados.
+  // O texto é o do contest, senão o PADRÃO do MOJ (a API manda o padrão; `custom` diz qual é).
+  function templateBox(kind, title, help, extraFor) {
     const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' });
-    box.append(el('h3', { style: 'margin:.1rem 0 .4rem' }, T('🎨 Capa do caderno', '🎨 Problem set cover')),
-      el('p', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
-        T('Três modos, nesta ordem de precedência: PDF enviado › texto editado › capa padrão. Marcadores do texto: {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}}.',
-          'Three modes, in this precedence: uploaded PDF › edited text › default cover. Text markers: {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}}.')));
-    LANGS.forEach(lang => {
-      const up = (DATA.cover_uploaded || {})[lang];
-      const ta = el('textarea', { rows: '6', style: 'width:100%;font-family:var(--mono);font-size:.86rem' },
-        ((DATA.templates || {}).cover || {})[lang] || (DATA.templates || {})['cover_' + lang] || '');
-      const file = el('input', { type: 'file', accept: 'application/pdf', style: 'display:none' });
-      file.addEventListener('change', () => {
-        const f = file.files && file.files[0]; if (!f) return;
-        sendPdf('cover', { lang }, f, T('✓ capa enviada — gere o caderno de novo', '✓ cover uploaded — generate the problem set again'));
-      });
-      box.append(el('div', { style: 'margin-top:.5rem' },
-        el('div', { class: 'row', style: 'gap:.5rem;align-items:center' },
-          el('b', {}, lang.toUpperCase()),
-          up ? el('span', { class: 'pill ok' }, T('PDF enviado (vence o texto)', 'uploaded PDF (overrides text)')) : el('span', { class: 'small muted' }, T('sem PDF enviado', 'no uploaded PDF')),
-          el('button', { class: 'btn ghost', onclick: () => file.click() }, T('enviar PDF…', 'upload PDF…')),
+    const chips = el('div', { class: 'stmt-chips', title: T('idioma do documento', 'document language') });
+    const status = el('span', { class: 'small muted' });
+    const extra = el('div', {});
+    const area = el('div', {});
+    const mounts = {}, eds = {}, orig = {};
+    const tpl = (l) => (((DATA.templates || {})[kind] || {})[l]) || (DATA.templates || {})[kind + '_' + l] || '';
+    const custom = (l) => !!(((DATA.custom || {})[kind] || {})[l]);
+    let cur = LANGS[0];
+    function paintChips() {
+      chips.innerHTML = '';
+      LANGS.forEach(l => chips.append(el('button', { type: 'button', class: 'stmt-chip' + (l === cur ? ' active' : ''),
+        onclick: () => show(l) }, l.toUpperCase())));
+    }
+    async function show(l) {
+      cur = l; paintChips();
+      Object.entries(mounts).forEach(([k, m]) => { m.style.display = k === l ? '' : 'none'; });
+      status.textContent = custom(l) ? T('texto editado neste contest', 'text edited in this contest')
+                                     : T('texto padrão do MOJ', 'MOJ default text');
+      extra.innerHTML = ''; if (extraFor) { const x = extraFor(l); if (x) extra.append(x); }
+      if (!mounts[l]) {
+        const m = el('div', { class: 'editor-mount' }); area.append(m); mounts[l] = m;
+        orig[l] = tpl(l);
+        eds[l] = await createEditor(m, { doc: orig[l], cm: 'markdown' });
+      }
+    }
+    const save = el('button', { class: 'btn', onclick: async () => {
+      const body = { action: 'config' }; let n = 0;
+      Object.keys(eds).forEach(l => { const v = eds[l].getValue(); if (v !== orig[l]) { body[kind + '_' + l] = v; n++; } });
+      if (!n) { setMsg(T('Nada mudou.', 'Nothing changed.')); return; }
+      try { await api('/contest/admin/docs?contest=' + enc(CONTEST), body); setMsg(T('✓ salvo — gere o documento de novo', '✓ saved — generate the document again')); await load(); }
+      catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
+    } }, T('Salvar', 'Save'));
+    const reset = el('button', { class: 'btn ghost', onclick: async () => {
+      if (!confirm(T(`Voltar o ${cur.toUpperCase()} ao texto padrão do MOJ?`, `Restore the ${cur.toUpperCase()} text to the MOJ default?`))) return;
+      try { await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'config', [kind + '_' + cur]: '' }); setMsg(T('✓ voltou ao padrão', '✓ back to the default')); await load(); }
+      catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
+    } }, T('voltar ao padrão', 'restore default'));
+    box.append(el('h3', { style: 'margin:.1rem 0 .4rem' }, title), el('p', { class: 'small muted', style: 'margin:.1rem 0 .5rem' }, help),
+      el('div', { class: 'row', style: 'gap:.6rem;align-items:center;margin-bottom:.4rem' }, chips, status), extra, area,
+      el('div', { class: 'row', style: 'gap:.4rem;margin-top:.4rem' }, save, reset));
+    show(cur);
+    return box;
+  }
+
+  function coverBox() {
+    return templateBox('cover', T('🎨 Capa do caderno', '🎨 Problem set cover'),
+      T('Dois modos, nesta ordem de precedência: PDF enviado › este texto (que já vem com o padrão do MOJ). Marcadores: {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}} {{NOTE}}. {{N_PAGES}}, {{SITES}} e {{NOTE}} são opcionais: o bloco em que um deles fica vazio some.',
+        'Two modes, in this precedence: uploaded PDF › this text (which starts as the MOJ default). Markers: {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}} {{NOTE}}. {{N_PAGES}}, {{SITES}} and {{NOTE}} are optional: a block where one of them is empty disappears.'),
+      (lang) => {
+        const up = (DATA.cover_uploaded || {})[lang];
+        const file = el('input', { type: 'file', accept: 'application/pdf', style: 'display:none' });
+        file.addEventListener('change', () => {
+          const f = file.files && file.files[0]; if (!f) return;
+          sendPdf('cover', { lang }, f, T('✓ capa enviada — gere o caderno de novo', '✓ cover uploaded — generate the problem set again'));
+        });
+        return el('div', { class: 'row', style: 'gap:.5rem;align-items:center;margin:.2rem 0 .4rem' },
+          up ? el('span', { class: 'pill ok' }, T('PDF de capa enviado (vence o texto)', 'uploaded cover PDF (overrides the text)'))
+             : el('span', { class: 'small muted' }, T('sem capa em PDF enviada', 'no uploaded cover PDF')),
+          el('button', { class: 'btn ghost', onclick: () => file.click() }, up ? T('trocar PDF de capa…', 'replace cover PDF…') : T('enviar PDF de capa…', 'upload cover PDF…')),
           up ? el('button', { class: 'btn ghost', onclick: async () => {
             if (!confirm(T('Remover o PDF de capa?', 'Remove the cover PDF?'))) return;
             await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'cover', lang, remove: true });
             await load();
           } }, T('remover', 'remove')) : null,
-          file),
-        el('div', { class: 'small muted', style: 'margin:.3rem 0 .15rem' }, T('ou edite o texto da capa:', 'or edit the cover text:')),
-        ta,
-        el('button', { class: 'btn ghost', style: 'margin-top:.3rem', onclick: async () => {
-          try {
-            await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'config', ['cover_' + lang]: ta.value });
-            setMsg(T('✓ capa salva', '✓ cover saved')); await load();
-          } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
-        } }, T('salvar capa ' + lang.toUpperCase(), 'save ' + lang.toUpperCase() + ' cover'))));
-    });
-    return box;
+          file);
+      });
   }
 
   function configBox() {
@@ -206,7 +254,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
     const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' },
       el('h3', { style: 'margin:.1rem 0 .4rem' }, T('⚙️ Dados dos documentos', '⚙️ Document data')),
       el('div', { class: 'row', style: 'gap:.5rem;align-items:center' }, el('span', { class: 'small' }, T('versão do caderno', 'problem set version')), ver),
-      el('div', { class: 'small', style: 'margin-top:.4rem' }, T('nota da capa (Markdown, capa padrão)', 'cover note (Markdown, default cover)')), note,
+      el('div', { class: 'small', style: 'margin-top:.4rem' }, T('nota da capa (Markdown; entra no marcador {{NOTE}} da capa)', 'cover note (Markdown; fills the {{NOTE}} marker of the cover)')), note,
       el('div', { class: 'small', style: 'margin-top:.4rem' }, T('errata (aparece na folha de time limits)', 'errata (shown on the time limits sheet)')), err,
       el('button', { class: 'btn', style: 'margin-top:.4rem', onclick: async () => {
         try {
@@ -219,24 +267,9 @@ export function makeDocsTab(CONTEST, opts = {}) {
   }
 
   function infoSheetBox() {
-    const box = el('div', { class: 'subcard', style: 'margin:.6rem 0' });
-    box.append(el('h3', { style: 'margin:.1rem 0 .4rem' }, T('📝 Texto do info sheet', '📝 Info sheet text')),
-      el('p', { class: 'small muted', style: 'margin:.1rem 0 .4rem' },
-        T('Markdown. Os marcadores {{TOOLCHAIN}} {{TL_TABLE}} {{LANGS_TABLE}} {{MEMLIMIT}} {{STACK}} {{CONTEST_NAME}} {{DATE}} são preenchidos na geração. Deixe em branco para voltar ao texto padrão.',
-          'Markdown. Markers {{TOOLCHAIN}} {{TL_TABLE}} {{LANGS_TABLE}} {{MEMLIMIT}} {{STACK}} {{CONTEST_NAME}} {{DATE}} are filled in at generation time. Leave empty to restore the default text.')));
-    LANGS.forEach(lang => {
-      const ta = el('textarea', { rows: '10', style: 'width:100%;font-family:var(--mono);font-size:.85rem' },
-        ((DATA.templates || {}).info_sheet || {})[lang] || (DATA.templates || {})['info_sheet_' + lang] || '');
-      box.append(el('div', { style: 'margin-top:.5rem' },
-        el('b', {}, lang.toUpperCase()), ta,
-        el('button', { class: 'btn ghost', style: 'margin-top:.3rem', onclick: async () => {
-          try {
-            await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'config', ['info_sheet_' + lang]: ta.value });
-            setMsg(T('✓ texto salvo', '✓ text saved')); await load();
-          } catch (e) { setMsg(e.message || T('falha', 'failed'), 'error-box'); }
-        } }, T('salvar ' + lang.toUpperCase(), 'save ' + lang.toUpperCase()))));
-    });
-    return box;
+    return templateBox('info_sheet', T('📝 Texto do info sheet', '📝 Info sheet text'),
+      T('Markdown. Os marcadores {{TOOLCHAIN}} {{TL_TABLE}} {{LANGS_TABLE}} {{MEMLIMIT}} {{STACK}} {{CONTEST_NAME}} {{DATE}} são preenchidos na geração.',
+        'Markdown. Markers {{TOOLCHAIN}} {{TL_TABLE}} {{LANGS_TABLE}} {{MEMLIMIT}} {{STACK}} {{CONTEST_NAME}} {{DATE}} are filled in at generation time.'));
   }
 
   function render() {
@@ -258,6 +291,9 @@ export function makeDocsTab(CONTEST, opts = {}) {
         el('p', { class: 'small muted' },
           T('⚠️ O idioma vale para capa, títulos e tabelas. O enunciado sai no idioma em que foi escrito — para prova traduzida, use “subir PDF” (o enviado vence o gerado).',
             '⚠️ The language applies to cover, headings and tables. Statements come out in the language they were written in — for a translated set, use “upload PDF” (the uploaded file wins).')),
+        el('p', { class: 'small muted' },
+          T('✎ Algo torto no PDF gerado (espaço demais ou de menos entre os elementos, imagem grande)? Baixe o “✎ .odt”, ajuste no LibreOffice (ou Word), exporte em PDF e suba em “subir PDF” — o enviado vence o gerado e é ele que os times baixam.',
+            '✎ Something off in the generated PDF (too much or too little space between elements, an oversized image)? Download the “✎ .odt”, adjust it in LibreOffice (or Word), export to PDF and upload it with “upload PDF” — the uploaded file wins and is what teams download.')),
         el('div', { class: 'row', style: 'gap:.5rem;margin:.5rem 0' },
           el('button', { class: 'btn', onclick: () => generate(TYPES.map(t => t.id), LANGS) },
             T('⚙️ Gerar todos (pt+en+es)', '⚙️ Generate all (pt+en+es)')),

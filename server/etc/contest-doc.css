@@ -55,6 +55,8 @@ table.doc-tbl td.c, table.doc-tbl th.c { text-align: center; }
 
 /* capa */
 .cover { text-align: center; page-break-after: always; }
+/* capa por TEMPLATE (etc/cover.<lang>.md): o Markdown põe <p> dentro das divs — sem recuo, como a capa de antes */
+.cover p, .center p { text-indent: 0; }
 .cover h1 { font-size: 20pt; margin-top: 4cm; }
 .cover .session { font-size: 15pt; margin: 2.2cm 0 1.4cm; font-weight: normal; font-style: italic; }
 .cover .note { margin: 1.2cm 2cm; text-align: center; text-indent: 0; }

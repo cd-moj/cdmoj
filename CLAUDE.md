@@ -923,9 +923,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   itálico (o estilo de figura não aceita `custom-style`). O ESTILO da rota
   ODT vem do **`etc/caderno-reference.odt`** (`--reference-doc`; ODT ignora CSS): corpo
   JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos) — receita de
-  regeneração comentada no `contest-docs.sh`. O caderno prefere o **PDF próprio** do problema; a **capa** tem 3 modos (PDF enviado ›
-  markdown editado com marcadores `{{…}}` › gerada) e é **regerada no fim** com o total real de
-  páginas. **O corpo TAMBÉM segue o idioma do documento** (2026-09-15, revoga o "PT/EN é só o
+  regeneração comentada no `contest-docs.sh`. O caderno prefere o **PDF próprio** do problema; a **capa** tem 2 modos (PDF enviado ›
+  markdown com marcadores `{{…}}`) — desde 25/09/2026 a capa PADRÃO também é template (`etc/cover.<lang>.md`,
+  reproduz a de antes pixel a pixel; blocos com `{{N_PAGES}}`/`{{SITES}}`/`{{NOTE}}` vazio somem) — e é
+  **regerada no fim** com o total real de páginas. **Todo PDF gerado tem o gêmeo `.odt`** (`fmt=odt`,
+  só admin/chefe): a rota HTML virou HTML→ODT→PDF (o `.odt` É o intermediário; medido: PDF idêntico ao
+  direto) e a rota pandoc guarda o ODT dela (`_doc_html2odt` = a metade pandoc, a MESMA do miolo); o do
+  caderno traz a capa editável (Title/Subtitle/Center) + os enunciados. Templates (capa, info sheet) no
+  editor do MOJ com aba por idioma; salvar o texto IGUAL ao padrão (ou só espaço) apaga a cópia do
+  contest. Testes: `render-docs.sh` (real), `smoke-contest-docs.sh`, `smoke-docs-tab.gjs.sh`. **O corpo TAMBÉM segue o idioma do documento** (2026-09-15, revoga o "PT/EN é só o
   chrome"): `_doc_probs_l`/`_doc_stmt_file` pegam `enunciados/<skey>.<lang>.html|pdf` › tradução do
   banco › PT, o editorial lê `docs/solucao.<lang>.md` › `solucao.md`, o título vem de
   `titles[<lang>]` — idioma sem tradução CAI NO PT, nunca sai só a capa localizada.

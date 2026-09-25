@@ -1,4 +1,6 @@
-# GET /contest/doc?contest=<c>[&type=<info-sheet|contest|times|editorial>&lang=<pt|en>&fmt=<pdf|html>]
+# GET /contest/doc?contest=<c>[&type=<info-sheet|contest|times|editorial>&lang=<pt|en|es>&fmt=<pdf|html|odt>]
+# fmt=odt = o INTERMEDIÁRIO editável do PDF gerado (25/09/2026): SÓ admin/juiz-chefe (403 p/ os demais,
+# publicado ou não) — é p/ a organização ajustar no LibreOffice e subir o PDF final, não p/ circular.
 # SEM `type`  -> LISTA os documentos que o login pode baixar (JSON).
 # COM `type`  -> baixa o arquivo.
 # ACESSO (cortado AQUI, nunca só na UI):
@@ -54,7 +56,8 @@ fi
 
 case "$t" in info-sheet|contest|times|editorial) ;; *) fail 400 "type inválido" "type_invalid";; esac
 doc_lang_ok "$l" || fail 400 "lang deve ser um de: $DOC_LANGS" "lang_invalid"
-case "$f" in pdf|html) ;; *) f=pdf;; esac
+case "$f" in pdf|html|odt) ;; *) f=pdf;; esac
+[[ "$f" == odt ]] && ! is_admin_or_chief && fail 403 "O .odt editável é só da organização (admin ou juiz-chefe)" "odt_org_only"
 
 if ! is_admin_or_chief; then
   jq -e --arg k "$t.$l" '((.published // []) | index($k)) != null' <<<"$(doc_conf_get "$contest")" >/dev/null 2>&1 \
@@ -65,11 +68,15 @@ fi
 # PDF: o ENVIADO pelo admin vence o gerado (doc_pdf_served). HTML é sempre o gerado —
 # documento enviado é PDF pronto, não tem versão HTML.
 if [[ "$f" == pdf ]]; then file="$(doc_pdf_served "$contest" "$t" "$l")"
-else file="$(doc_file "$contest" "$t" "$l" html)"; fi
+else file="$(doc_file "$contest" "$t" "$l" "$f")"; fi
 [[ -n "$file" && -s "$file" ]] || fail 404 "Documento não gerado" "not_generated"
 
 name="$contest-$t.$l.$f"
-if [[ "$f" == pdf ]]; then ct="application/pdf"; disp="inline"; else ct="text/html; charset=utf-8"; disp="inline"; fi
+case "$f" in
+  pdf) ct="application/pdf"; disp="inline";;
+  odt) ct="application/vnd.oasis.opendocument.text"; disp="attachment";;
+  *)   ct="text/html; charset=utf-8"; disp="inline";;
+esac
 printf 'Status: 200 OK\r\n'
 printf 'Content-Type: %s\r\n' "$ct"
 printf 'Content-Disposition: %s; filename="%s"\r\n' "$disp" "$name"

@@ -262,20 +262,33 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
 
 1. **Preencha os dados** (⚙️ *Dados dos documentos*): versão do caderno (`v1.0`), nota da capa
    e errata. Salve.
-2. **Ajuste a capa**, se quiser (🎨 *Capa do caderno*). São três modos, nesta ordem de
-   precedência: **PDF enviado** › **texto editado** › **capa padrão**. O texto editado é
-   Markdown e aceita marcadores substituídos na geração: `{{CONTEST_NAME}}`, `{{DATE}}`,
-   `{{N_PROBLEMS}}`, `{{N_PAGES}}`, `{{SITES}}`, `{{VERSION}}`. Envie um PDF quando a capa for
-   arte pronta do evento — ela entra como está e o resto do caderno é anexado depois dela.
+2. **Ajuste a capa**, se quiser (🎨 *Capa do caderno*). São dois modos, nesta ordem de
+   precedência: **PDF enviado** › **texto**. O texto já abre com a **capa padrão do MOJ** — é
+   ela, escrita em Markdown —, então você edita só o que quiser mudar. Os marcadores são
+   substituídos na geração: `{{CONTEST_NAME}}`, `{{DATE}}`, `{{N_PROBLEMS}}`, `{{N_PAGES}}`,
+   `{{SITES}}`, `{{VERSION}}` e `{{NOTE}}` (a nota da capa). `{{N_PAGES}}`, `{{SITES}}` e
+   `{{NOTE}}` são opcionais: o bloco em que um deles fica vazio some. Envie um PDF quando a capa
+   for arte pronta do evento — ela entra como está e o resto do caderno é anexado depois dela.
 3. **Ajuste o texto do info sheet**, se quiser (📝): também Markdown, com os marcadores
    `{{TOOLCHAIN}}`, `{{TL_TABLE}}`, `{{LANGS_TABLE}}`, `{{MEMLIMIT}}`, `{{STACK}}`,
-   `{{CONTEST_NAME}}` e `{{DATE}}`. Apagar o texto volta ao padrão embarcado.
+   `{{CONTEST_NAME}}` e `{{DATE}}`.
+
+   Os dois textos usam o **editor do MOJ** (cores do Markdown e números de linha) com **uma aba
+   por idioma** (PT · EN · ES), como na gestão de problemas. *Salvar* grava todos os idiomas
+   alterados; *voltar ao padrão* devolve o idioma da aba ao texto do MOJ.
 4. **Gere** (botão de cada linha, ou *Gerar todos (pt+en+es)*), **ou envie um PDF pronto**
    (botão *subir PDF* da linha). O PDF enviado é um documento completo: ele vence o gerado em
    tudo que o MOJ serve e pode ser publicado sem gerar. *Voltar ao gerado* apaga só o enviado.
    Converter os PDFs leva alguns segundos — o caderno é o mais demorado, porque junta um PDF
    por problema.
 5. **Confira**: cada linha tem **PDF**, **HTML** e **abrir**. Reveja antes de publicar.
+   **Algo torto no PDF gerado** — espaço demais ou de menos entre os elementos, uma imagem
+   grande — que o Markdown do enunciado causou? Cada documento gerado tem também o **✎ .odt**,
+   o arquivo editável que deu origem ao PDF. Baixe, ajuste no LibreOffice (ou Word), exporte em
+   PDF e suba em *subir PDF*: o enviado vence o gerado e é ele que todo mundo baixa. O `.odt`
+   do caderno traz a capa como página editável seguida dos enunciados; se a capa é um PDF
+   enviado, ou um problema tem enunciado em PDF próprio, o `.odt` marca o lugar e você junta o
+   PDF ao exportar. Só o admin e o juiz-chefe baixam o `.odt`.
 6. **Publique**. Publicar faz duas coisas: o documento passa a aparecer na seção **Prova** da
    página do contest e em **Documentos**. Quem vê o quê:
    - **Ambiente de julgamento**: publicado = visível para todos os papéis (é logística).

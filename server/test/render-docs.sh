@@ -9,6 +9,8 @@
 #   (1) toda página em A4;  (2) Latin Modern EMBARCADA no PDF;  (3) o texto sai mesmo
 #   (pdftotext não-vazio, com os rótulos no idioma pedido, inclusive es).
 #
+# E o .odt (25/09/2026): todo PDF gerado tem o gêmeo editável, o da rota HTML exporta de volta no MESMO
+# PDF, o do caderno traz a capa editável + os enunciados; e a capa padrão sai do template etc/cover.<lang>.md.
 # Precisa de pandoc + soffice + poppler (o dev tem; senão SKIP). Também roda DENTRO da imagem:
 #    podman exec <container> bash /opt/moj/cdmoj/server/test/render-docs.sh
 # Cobre também o EDITORIAL (2026-09-14): capa na página 1, UM problema por página, e o título
@@ -116,6 +118,7 @@ for l in pt en es; do
     e="$(doc_build rd "$t" "$l" 2>/dev/null)"
     p="$(doc_file rd "$t" "$l" pdf)"
     ck "$t/$l gera PDF"        '[[ -s "$p" ]]'
+    ck "$t/$l informa odt_bytes (p/ a tela mostrar o ✎ .odt)" '[[ "$(jq -r ".odt_bytes // 0" <<<"$e")" -gt 0 ]]'
     [[ -s "$p" ]] || continue
     # A4 = 595 x 842 pt (o Letter que vinha do reference.odt é 612 x 792)
     ck "$t/$l em A4"           'pages_a4 "$p"'
@@ -131,6 +134,30 @@ for l in pt en es; do
   esac
   ck "times/$l no idioma certo" 'pdftotext "$(doc_file rd times "$l" pdf)" - 2>/dev/null | grep -qF "$want"'
 done
+
+echo "== .odt: todo PDF gerado tem o gêmeo editável (25/09/2026) =="
+# a organização baixa o .odt, ajusta no LibreOffice o que o Markdown deixou torto e sobe o PDF final
+for l in pt en es; do for t in info-sheet times contest editorial; do
+  o="$(doc_file rd "$t" "$l" odt)"
+  ck "$t/$l gera .odt (ODT de texto)" '[[ -s "$o" && "$(unzip -p "$o" mimetype 2>/dev/null)" == application/vnd.oasis.opendocument.text ]]'
+done; done
+# o .odt da rota HTML (info sheet) É o intermediário: exportado de volta, dá o MESMO PDF
+ox="$(mktemp -d)"
+soffice --headless -env:UserInstallation="file://$ox/lo" --convert-to pdf --outdir "$ox" "$(doc_file rd info-sheet pt odt)" >/dev/null 2>&1
+ck "info-sheet: o .odt exportado = mesmas páginas e mesmo texto do PDF" '[[ "$(pdfinfo "$ox/info-sheet.pt.pdf" 2>/dev/null | awk "/^Pages:/{print \$2}")" == "$(pdfinfo "$(doc_file rd info-sheet pt pdf)" | awk "/^Pages:/{print \$2}")" && "$(pdftotext "$ox/info-sheet.pt.pdf" - 2>/dev/null | tr -d "[:space:]")" == "$(pdftotext "$(doc_file rd info-sheet pt pdf)" - 2>/dev/null | tr -d "[:space:]")" ]]'
+rm -rf "$ox"
+# caderno: UM .odt com a capa editável (Title/Subtitle/Center) + os enunciados pela MESMA rota do miolo
+CX="$(unzip -p "$(doc_file rd contest pt odt)" content.xml 2>/dev/null)"
+ck "caderno .odt: capa com o nome em Title e a sessão em Subtitle" 'grep -q "style-name=\"Title\">Prova de Renderização" <<<"$CX" && grep -q "style-name=\"Subtitle\">Caderno de Problemas" <<<"$CX"'
+ck "caderno .odt: os dois enunciados, com a linha centralizada em Center" 'grep -q "Soma Simples" <<<"$CX" && grep -q "Subtração" <<<"$CX" && grep -q "style-name=\"Center\">Linha QZXW" <<<"$CX"'
+ck "caderno .odt: as fórmulas passaram pelo conserto das barras (nenhuma barra solta prefixa)" '[[ "$(unzip -p "$(doc_file rd contest pt odt)" "Object 1/content.xml" 2>/dev/null | grep -c "form=\"prefix\">|<")" == 0 ]]'
+
+echo "== capa padrão = template (etc/cover.<lang>.md) =="
+CV="$(pdftotext -f 1 -l 1 -layout "$(doc_file rd contest pt pdf)" - 2>/dev/null)"
+ck "capa PT: nome, sessão, contagem com as páginas e versão" 'grep -q "Prova de Renderização" <<<"$CV" && grep -q "Caderno de Problemas" <<<"$CV" && grep -q "contém 2 problemas; páginas numeradas de 1 a" <<<"$CV" && grep -q "v1.0" <<<"$CV"'
+ck "capa PT: sem sedes nem nota, os blocos opcionais somem" '! grep -q "Sedes participantes" <<<"$CV"'
+CVE="$(pdftotext -f 1 -l 1 -layout "$(doc_file rd contest es pdf)" - 2>/dev/null)"
+ck "capa ES: no idioma" 'grep -q "Cuadernillo de Problemas" <<<"$CVE"'
 
 echo "== caderno: capa + problema no mesmo tamanho de página =="
 sizes="$(pdfinfo -l 99 "$(doc_file rd contest pt pdf)" 2>/dev/null | grep -c 'x 792 pts')"

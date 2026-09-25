@@ -2600,7 +2600,7 @@
           "contest"
         ],
         "summary": "Documentos da prova em pt/en/es: lista (sem type) ou download (com type; o PDF enviado pelo admin vence o gerado)",
-        "description": "Sem `type`: lista os documentos que o login pode baixar. Com `type`: serve o arquivo (PDF/HTML). Idiomas pt/en/es. Em fmt=pdf o documento ENVIADO pelo admin (docs/<tipo>.<lang>.uploaded.pdf) vence o gerado; fmt=html e sempre o gerado. Admin e juiz-chefe sempre; qualquer outro login so o que estiver PUBLICADO (404 not_published).",
+        "description": "Sem `type`: lista os documentos que o login pode baixar. Com `type`: serve o arquivo (PDF/HTML). Idiomas pt/en/es. Em fmt=pdf o documento ENVIADO pelo admin (docs/<tipo>.<lang>.uploaded.pdf) vence o gerado; fmt=html e sempre o gerado. fmt=odt = o intermediário EDITÁVEL do PDF gerado (attachment) — só admin/juiz-chefe (403 odt_org_only p/ os demais). Admin e juiz-chefe sempre; qualquer outro login so o que estiver PUBLICADO (404 not_published).",
         "security": [
           {
             "bearerAuth": []
@@ -2643,7 +2643,8 @@
               "default": "pdf",
               "enum": [
                 "pdf",
-                "html"
+                "html",
+                "odt"
               ]
             }
           }
@@ -6061,7 +6062,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{docs, config, templates:{info_sheet_pt,info_sheet_en,cover_pt,cover_en}, cover_uploaded:{pt,en}, problems:[{letter,name,has_pdf,has_html}]}"
+            "description": "{docs (com odt_bytes), config, templates:{info_sheet:{lang:md}, cover:{lang:md}} (o texto do contest, senão o PADRÃO embarcado — a capa também), custom:{info_sheet:{lang:bool}, cover:{lang:bool}}, cover_uploaded:{lang:bool}, problems:[{letter,name,has_pdf,has_html}]}"
           },
           "403": {
             "description": "admin_required"

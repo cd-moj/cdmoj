@@ -2,8 +2,12 @@
 # Documentos da prova: info sheet, caderno (com capa customizável) e folha de time limits,
 # em HTML+PDF e nos dois idiomas. Ver lib/contest-docs.sh e docs/MANUAL-CONTEST.md.
 #
-# GET  -> {docs:[…], config:{…}, templates:{info_sheet_pt,info_sheet_en,cover_pt,cover_en},
-#          cover_uploaded:{pt,en}, problems:[{letter,name,has_pdf,has_html}]}
+# GET  -> {docs:[…], config:{…}, templates:{info_sheet:{<lang>:md}, cover:{<lang>:md}, (+ as chaves planas
+#          antigas)}, custom:{info_sheet:{<lang>:bool}, cover:{<lang>:bool}}, cover_uploaded:{<lang>:bool},
+#          problems:[{letter,name,has_pdf,has_html}]}
+#          templates = o texto EDITADO do contest, senão o PADRÃO embarcado (server/etc/{info-sheet,cover}.<lang>.md)
+#          — a capa também (25/09/2026: antes vinha vazia e o editor não mostrava o que a capa continha);
+#          custom diz qual dos dois é.
 # POST {action}:
 #   config    {caderno_version?, cover_note?, errata?, info_sheet_pt?, info_sheet_en?,
 #              cover_pt?, cover_en?}          — textos/campos editáveis
@@ -43,13 +47,13 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   # o mesmo teto de 128 KiB POR ARGUMENTO que derruba jq no exec (a armadilha clássica da casa).
   tmpm="$(mktemp -d)" || fail 500 "tmp" "tmp"
   trap 'rm -rf "$tmpm"' EXIT
-  printf '{}' > "$tmpm/t.json"; printf '{}' > "$tmpm/c.json"; umap='{}'
+  printf '{}' > "$tmpm/t.json"; printf '{}' > "$tmpm/c.json"; umap='{}'; cust='{"info_sheet":{},"cover":{}}'
   for L in $DOC_LANGS; do
-    tf="$D/info-sheet.$L.md"; [[ -s "$tf" ]] || tf="$_DIR/../../etc/info-sheet.$L.md"
-    [[ -s "$tf" ]] || tf=/dev/null
+    ic=true; tf="$D/info-sheet.$L.md"; [[ -s "$tf" ]] || { ic=false; tf="$(doc_default_tpl info-sheet "$L")" || tf=/dev/null; }
     jq -c --arg l "$L" --rawfile v "$tf" '.[$l] = $v' "$tmpm/t.json" > "$tmpm/t.new" \
       && mv -f "$tmpm/t.new" "$tmpm/t.json"
-    cf="$(doc_cover_md "$contest" "$L")"; [[ -s "$cf" ]] || cf=/dev/null
+    cc=true; cf="$(doc_cover_md "$contest" "$L")"; [[ -s "$cf" ]] || { cc=false; cf="$(doc_default_tpl cover "$L")" || cf=/dev/null; }
+    cust="$(jq -c --arg l "$L" --argjson i "$ic" --argjson c "$cc" '.info_sheet[$l] = $i | .cover[$l] = $c' <<<"$cust")"
     jq -c --arg l "$L" --rawfile v "$cf" '.[$l] = $v' "$tmpm/c.json" > "$tmpm/c.new" \
       && mv -f "$tmpm/c.new" "$tmpm/c.json"
     cu=false; [[ -s "$(doc_cover_pdf "$contest" "$L")" ]] && cu=true
@@ -60,12 +64,12 @@ if [[ "$REQUEST_METHOD" == GET ]]; then
   emit_json 200 OK
   jq -cn --slurpfile docs "$tmpm/docs.json" --argjson cfg "$(doc_conf_get "$contest")" \
      --slurpfile probs "$tmpm/probs.json" --slurpfile tm "$tmpm/t.json" --slurpfile cm "$tmpm/c.json" \
-     --argjson um "$umap" --arg langs "$DOC_LANGS" \
+     --argjson um "$umap" --argjson cust "$cust" --arg langs "$DOC_LANGS" \
      '{success:true, docs:$docs[0], config:$cfg, problems:$probs[0], langs:($langs | split(" ")),
        templates:({info_sheet_pt:($tm[0].pt // ""), info_sheet_en:($tm[0].en // ""),
                    cover_pt:($cm[0].pt // ""), cover_en:($cm[0].en // "")}
                   + {info_sheet:$tm[0], cover:$cm[0]}),
-       cover_uploaded:$um}'
+       custom:$cust, cover_uploaded:$um}'
   exit 0
 fi
 
@@ -86,12 +90,18 @@ case "$action" in
     done
     printf '%s\n' "$cfg" > "$D/config.json.tmp" && mv -f "$D/config.json.tmp" "$D/config.json"
     # textos longos (templates) vão para arquivo próprio — nunca por --arg (ARG_MAX)
-    pairs=(); for L in $DOC_LANGS; do pairs+=( "info_sheet_$L:info-sheet.$L.md" "cover_$L:cover.$L.md" ); done
+    pairs=(); for L in $DOC_LANGS; do pairs+=( "info_sheet_$L:info-sheet.$L.md:info-sheet:$L" "cover_$L:cover.$L.md:cover:$L" ); done
     for pair in "${pairs[@]}"; do
-      key="${pair%%:*}"; fn="${pair##*:}"
+      IFS=: read -r key fn kind L <<<"$pair"
       if jq -e --arg k "$key" 'has($k)' "$bodyf" >/dev/null 2>&1; then
         jq -r --arg k "$key" '.[$k] // ""' "$bodyf" > "$D/$fn.tmp" && mv -f "$D/$fn.tmp" "$D/$fn"
-        [[ -s "$D/$fn" ]] || rm -f "$D/$fn"       # vazio = volta ao default embarcado
+        # vazio OU igual ao padrão embarcado = volta ao padrão (o editor mostra o padrão: salvar sem mexer
+        # não pode congelar a cópia de hoje e deixar o contest de fora quando o padrão melhorar). "Vazio" é
+        # SÓ ESPAÇO: o `jq -r` de "" grava uma quebra de linha — o `-s` de antes nunca apagava nada.
+        dft="$(doc_default_tpl "$kind" "$L")" || dft=""
+        if [[ -z "$(tr -d '[:space:]' < "$D/$fn")" ]] || { [[ -n "$dft" ]] && [[ "$(<"$D/$fn")" == "$(<"$dft")" ]]; }; then
+          rm -f "$D/$fn"
+        fi
       fi
     done
     mod_enable "$contest" documentos

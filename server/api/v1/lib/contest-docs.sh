@@ -25,7 +25,7 @@
 #   contests/<c>/docs/config.json            {caderno_version, cover_note, errata,
 #                                             editorial_note, published:[…]}
 #   contests/<c>/docs/info-sheet.<lang>.md   template editável (default: server/etc/)
-#   contests/<c>/docs/<tipo>.<lang>.{html,pdf}
+#   contests/<c>/docs/<tipo>.<lang>.{html,pdf,odt}  (.odt = o intermediário editável do PDF — organização)
 #   contests/<c>/docs/<tipo>.<lang>.uploaded.pdf   PDF pronto enviado pelo admin (vence)
 #   contests/<c>/docs/index.json             [{type,lang,fmt,bytes,generated_at,by}]
 : "${DOC_TYPES:=info-sheet contest times editorial}"
@@ -140,6 +140,13 @@ _doc_t(){
     pt:file_ext)  printf 'Extensão do arquivo';;     en:file_ext)  printf 'File extension';;      es:file_ext)  printf 'Extensión del archivo';;
     pt:no_versions) printf 'nenhum juiz reportou versões ainda';; en:no_versions) printf 'no judge reported versions yet';; es:no_versions) printf 'ningún juez ha reportado versiones todavía';;
     pt:no_statement) printf 'enunciado indisponível';; en:no_statement) printf 'statement unavailable';; es:no_statement) printf 'enunciado no disponible';;
+    # só no .odt do caderno (o que a organização baixa p/ ajustar): o que o ODT não consegue embutir
+    pt:odt_cover_pdf) printf '[Capa: a capa em PDF enviada substitui esta página — junte-a ao exportar o PDF.]';;
+    en:odt_cover_pdf) printf '[Cover: the uploaded cover PDF replaces this page — merge it when exporting the PDF.]';;
+    es:odt_cover_pdf) printf '[Portada: la portada en PDF enviada reemplaza esta página — únala al exportar el PDF.]';;
+    pt:odt_stmt_pdf) printf '[Este problema tem enunciado em PDF próprio — junte o PDF ao exportar.]';;
+    en:odt_stmt_pdf) printf '[This problem has its own statement PDF — merge it when exporting.]';;
+    es:odt_stmt_pdf) printf '[Este problema tiene su propio PDF de enunciado — únalo al exportar.]';;
     pt:news_doc) printf 'Documento da prova disponível para download.';;
     en:news_doc) printf 'Contest document available for download.';;
     es:news_doc) printf 'Documento de la competencia disponible para descargar.';;
@@ -537,6 +544,45 @@ _doc_html_times(){
 doc_cover_pdf(){ printf '%s/cover.%s.pdf' "$(doc_dir "$1")" "$2"; }   # <c> <lang>
 doc_cover_md(){  printf '%s/cover.%s.md'  "$(doc_dir "$1")" "$2"; }
 
+# CAPA POR TEMPLATE (25/09/2026): a capa padrão É um template Markdown — server/etc/cover.<lang>.md —, o
+# MESMO formato da capa editada pelo admin. Assim a área de Documentos mostra o texto da capa no editor
+# (como já fazia com o info sheet) e editar uma palavra muda só aquela palavra. O template usa as
+# classes do contest-doc.css (::: sub, {.session}, ::: center …) e reproduz a capa de antes (conferido
+# pixel a pixel no PDF).
+# doc_default_tpl <nome> <lang> -> caminho do template EMBARCADO (info-sheet|cover), idioma → pt
+doc_default_tpl(){
+  local f
+  for f in "$_DIR/../../etc/$1.$2.md" "$_DIR/etc/$1.$2.md" "$_DIR/../../etc/$1.pt.md" "$_DIR/etc/$1.pt.md"; do
+    [[ -s "$f" ]] && { printf '%s' "$f"; return 0; }
+  done
+  return 1
+}
+# _doc_cover_tpl <c> <lang> -> o template da capa: o EDITADO do contest, senão o padrão
+_doc_cover_tpl(){
+  local f; f="$(doc_cover_md "$1" "$2")"
+  [[ -s "$f" ]] && { printf '%s' "$f"; return 0; }
+  doc_default_tpl cover "$2"
+}
+# _doc_cover_fill <tpl> <c> <lang> <n_problems> <n_pages> <note> <sites> <version> -> Markdown da capa.
+# Marcadores: {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}} {{NOTE}}.
+# OPCIONAIS — {{N_PAGES}} (só o PDF sabe as páginas), {{SITES}} (regions.json) e {{NOTE}} (nota da capa):
+# o BLOCO (texto entre linhas em branco) com um deles vazio SOME inteiro, com o ::: em volta. Substituição
+# em python (valor com '|', '&' ou barra não quebra nada, ao contrário do sed); nome/sedes/versão entram
+# escapados em HTML, a nota entra como Markdown.
+_doc_cover_fill(){
+  local tpl="$1" c="$2" l="$3"
+  _doc_meta "$c"
+  V_CONTEST_NAME="$(_doc_escs "$CNAME")" V_DATE="$(_doc_date "$CDATE" "$l" "$c")" V_N_PROBLEMS="$4" \
+  V_N_PAGES="$5" V_NOTE="$6" V_SITES="$(_doc_escs "$7")" V_VERSION="$(_doc_escs "$8")" python3 -c '
+import os, re, sys
+t = open(sys.argv[1], encoding="utf-8").read()
+v = {k[2:]: os.environ.get(k, "") for k in os.environ if k.startswith("V_")}
+opt = [k for k in ("N_PAGES", "SITES", "NOTE") if not v.get(k, "").strip()]
+blocks = [b for b in re.split(r"\n[ \t]*\n", t) if not any("{{%s}}" % k in b for k in opt)]
+t = "\n\n".join(blocks)
+sys.stdout.write(re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: v.get(m.group(1), m.group(0)), t))' "$tpl"
+}
+
 # _doc_html_cover <c> <lang> <n_problems> <n_pages>  (n_pages vazio = sem a linha de páginas)
 _doc_html_cover(){
   local c="$1" l="$2" np="$3" pg="$4" cfg note ver sites md
@@ -544,22 +590,16 @@ _doc_html_cover(){
   note="$(jq -r '.cover_note // ""' <<<"$cfg")"; ver="$(jq -r '.caderno_version // "v1.0"' <<<"$cfg")"
   sites="$(jq -r '[.[].name] | join(", ")' "$CONTESTSDIR/$c/regions.json" 2>/dev/null)"
 
-  # modo 2: capa EDITADA pelo admin (markdown próprio, com os marcadores substituídos)
-  md="$(doc_cover_md "$c" "$l")"
-  if [[ -s "$md" ]]; then
+  # o template da capa (o editado pelo admin, senão o padrão embarcado) com os marcadores preenchidos
+  if md="$(_doc_cover_tpl "$c" "$l")"; then
     _doc_html_head "$CNAME"
     printf '<div class="cover">'
-    sed -e "s|{{CONTEST_NAME}}|$(_doc_escs "$CNAME")|g" \
-        -e "s|{{DATE}}|$(_doc_date "$CDATE" "$l" "$c")|g" \
-        -e "s|{{N_PROBLEMS}}|$np|g" \
-        -e "s|{{N_PAGES}}|${pg:-?}|g" \
-        -e "s|{{SITES}}|$(_doc_escs "$sites")|g" \
-        -e "s|{{VERSION}}|$(_doc_escs "$ver")|g" "$md" \
-      | render_markdown_html 2>/dev/null
+    _doc_cover_fill "$md" "$c" "$l" "$np" "$pg" "$note" "$sites" "$ver" | render_markdown_html 2>/dev/null
     printf '</div>\n'
     _doc_html_foot
     return 0
   fi
+  # sem template nenhum (instalação sem server/etc): a capa montada à mão de sempre
 
   _doc_html_head "$CNAME"
   printf '<div class="cover"><h1>%s</h1><div class="sub">%s</div>\n' "$(_doc_escs "$CNAME")" "$(_doc_date "$CDATE" "$l" "$c")"
@@ -664,14 +704,32 @@ _doc_strip_annotation(){
   python3 -c 'import re,sys; sys.stdout.write(re.sub(r"<annotation[^>]*>.*?</annotation>", "", sys.stdin.read(), flags=re.S))' 2>/dev/null || cat
 }
 
-# _doc_html2pdf <html-file> <pdf-out> -> 0/1 (soffice; único engine da imagem)
+# _doc_html2pdf <html-file> <pdf-out> [odt-out] -> 0/1 (soffice; único engine da imagem)
+# HTML → ODT → PDF: o ODT é o intermediário DE VERDADE — o PDF é a exportação dele —, e é ele que a
+# organização baixa p/ ajustar espaçamento/imagem no LibreOffice e subir o PDF final (25/09/2026).
+# Medido antes de trocar a rota: PDF idêntico ao da conversão direta HTML→PDF (0 px de diferença na
+# folha de TL e na capa; 7 px em 6 páginas no info sheet — antialiasing). Se o passo do ODT falhar,
+# cai na conversão direta (o PDF nunca deixa de sair por causa do ODT).
 _doc_html2pdf(){
-  local src="$1" out="$2" work; work="$(mktemp -d)"
+  local src="$1" out="$2" odt="${3:-}" work; work="$(mktemp -d)"
   _doc_strip_annotation < "$src" > "$work/doc.html"
   [[ -s "$work/doc.html" ]] || cp -f "$src" "$work/doc.html"
-  soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
+  soffice --headless -env:UserInstallation="file://$work/lo" --convert-to odt \
           --outdir "$work" "$work/doc.html" >/dev/null 2>&1
-  if [[ -s "$work/doc.pdf" ]]; then mv -f "$work/doc.pdf" "$out"; rm -rf "$work"; return 0; fi
+  if [[ -s "$work/doc.odt" ]]; then
+    soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
+            --outdir "$work" "$work/doc.odt" >/dev/null 2>&1
+  fi
+  if [[ ! -s "$work/doc.pdf" ]]; then
+    rm -f "$work/doc.odt"   # o ODT que não gerou o PDF não é o intermediário deste PDF
+    soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
+            --outdir "$work" "$work/doc.html" >/dev/null 2>&1
+  fi
+  if [[ -s "$work/doc.pdf" ]]; then
+    mv -f "$work/doc.pdf" "$out"
+    [[ -n "$odt" && -s "$work/doc.odt" ]] && mv -f "$work/doc.odt" "$odt"
+    rm -rf "$work"; return 0
+  fi
   rm -rf "$work"; return 1
 }
 _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
@@ -706,7 +764,24 @@ _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
 # desses tem imagem.
 _doc_odt_fix_math(){ python3 "$_DIR/lib/odt-math-bars.py" "$1" >/dev/null 2>&1 || true; }
 _doc_html_img_widths(){ python3 "$_DIR/lib/odt-math-bars.py" --html-widths "$1" >/dev/null 2>&1 || true; }
-_doc_html2pdf_odt(){
+_doc_html2pdf_odt(){   # <html> <pdf-out> [odt-out: guarda o ODT que gerou o PDF — o que a organização baixa]
+  local src="$1" out="$2" odt="${3:-}" work
+  work="$(mktemp -d)"
+  if _doc_html2odt "$src" "$work/doc.odt"; then
+    soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
+            --outdir "$work" "$work/doc.odt" >/dev/null 2>&1
+    if [[ -s "$work/doc.pdf" ]]; then
+      mv -f "$work/doc.pdf" "$out"; [[ -n "$odt" ]] && mv -f "$work/doc.odt" "$odt"
+      rm -rf "$work"; return 0
+    fi
+  fi
+  rm -rf "$work"; return 1
+}
+
+# _doc_html2odt <html> <odt-out> -> 0/1 — a METADE pandoc da rota acima (reference-doc, `::: center`,
+# largura das imagens, conserto das barras), sem o PDF. É a MESMA função que faz o miolo do PDF, então o
+# .odt do caderno sai com a mesma cara dos enunciados no papel.
+_doc_html2odt(){
   local src="$1" out="$2" work rf refodt=()
   command -v pandoc >/dev/null 2>&1 || return 1
   work="$(mktemp -d)"
@@ -715,16 +790,30 @@ _doc_html2pdf_odt(){
   # `::: center` do enunciado: o pandoc descarta a classe do bloco; o filtro o centraliza (odt-center.lua)
   [[ -f "$_DIR/lib/odt-center.lua" ]] && refodt+=( --lua-filter="$_DIR/lib/odt-center.lua" )
   cp -f "$src" "$work/in.html" && _doc_html_img_widths "$work/in.html"   # cópia: o src é do chamador
-  if pandoc -f html -t odt "${refodt[@]}" "$work/in.html" -o "$work/doc.odt" 2>/dev/null; then
-    _doc_odt_fix_math "$work/doc.odt"
-    soffice --headless -env:UserInstallation="file://$work/lo" --convert-to pdf \
-            --outdir "$work" "$work/doc.odt" >/dev/null 2>&1
-    [[ -s "$work/doc.pdf" ]] && { mv -f "$work/doc.pdf" "$out"; rm -rf "$work"; return 0; }
+  if pandoc -f html -t odt "${refodt[@]}" "$work/in.html" -o "$work/doc.odt" 2>/dev/null && [[ -s "$work/doc.odt" ]]; then
+    _doc_odt_fix_math "$work/doc.odt"; mv -f "$work/doc.odt" "$out"; rm -rf "$work"; return 0
   fi
   rm -rf "$work"; return 1
 }
 
-# _doc_pdf_contest <c> <lang> <out.pdf> — caderno: capa + (PDF custom | enunciado renderizado),
+# _doc_cover_odt_styles — a capa (HTML com as classes do contest-doc.css) p/ a rota ODT, que IGNORA CSS:
+# cada peça vira um estilo de parágrafo do Writer (custom-style do pandoc): o nome → Title, data e sessão
+# → Subtitle, o resto → Center. É o ponto de partida EDITÁVEL da capa no .odt do caderno.
+_doc_cover_odt_styles(){
+  python3 -c '
+import re, sys
+s = sys.stdin.read()
+st = lambda n: "<div custom-style=\"" + n + "\">"
+s = re.sub(r"<h1[^>]*>(.*?)</h1>", lambda m: st("Title") + "<p>" + m.group(1) + "</p></div>", s, flags=re.S | re.I)
+s = re.sub(r"<h2[^>]*>(.*?)</h2>", lambda m: st("Subtitle") + "<p>" + m.group(1) + "</p></div>", s, flags=re.S | re.I)
+s = re.sub(r"<div class=\"sub\"[^>]*>", lambda m: st("Subtitle"), s)
+s = re.sub(r"<div class=\"(?:center|note|sites|ver)[^\"]*\"[^>]*>", lambda m: st("Center"), s)
+s = re.sub(r"<p class=\"[^\"]*\"[^>]*>(.*?)</p>", lambda m: st("Center") + "<p>" + m.group(1) + "</p></div>", s, flags=re.S)
+s = re.sub(r"<div class=\"cover\"[^>]*>", "<div>", s)
+sys.stdout.write(s)' 2>/dev/null || cat
+}
+
+# _doc_pdf_contest <c> <lang> <out.pdf> [out.odt] — caderno: capa + (PDF custom | enunciado renderizado),
 # unidos com pdfunite; capa REGERADA no fim com o total real de páginas.
 # _doc_body_inner <arquivo-html> -> só o miolo do <body>, sem o título do próprio enunciado.
 # Duas armadilhas que apareceram no PDF: (1) enunciado gerado em UMA LINHA fazia o `sed` de
@@ -744,7 +833,7 @@ _doc_body_inner(){
 # `fo:break-before="page"` do Heading 1 no caderno-reference.odt. Com PDF próprio no meio, não há
 # como renumerar (não temos pdftk/cpdf na imagem): volta ao caminho por-problema.
 _doc_pdf_contest(){
-  local c="$1" l="$2" out="$3" probs n i skey work parts=() pdf tot=0 custom=""
+  local c="$1" l="$2" out="$3" odtout="${4:-}" probs n i skey work parts=() pdf tot=0 custom=""
   work="$(mktemp -d)"; probs="$(_doc_probs_l "$c" "$l")"; n="$(jq -r 'length' <<<"$probs")"
   [[ "$n" =~ ^[0-9]+$ ]] || n=0
   local _DOC_TMPD="$work"   # os HTML do banco materializados por _doc_stmt_file morrem com o work
@@ -818,6 +907,30 @@ _doc_pdf_contest(){
   fi
   if (( ${#parts[@]} )); then pdfunite "$work/cover.pdf" "${parts[@]}" "$out" 2>/dev/null || cp -f "$work/cover.pdf" "$out"
   else cp -f "$work/cover.pdf" "$out"; fi
+  # .odt DO CADERNO (25/09/2026) — p/ a organização ajustar no LibreOffice o que o Markdown do enunciado
+  # deixou torto (espaço demais/de menos, imagem grande) e subir o PDF final ("subir PDF" vence o gerado).
+  # UM documento: a capa como página editável (Title/Subtitle/Center) + os enunciados pela MESMA rota
+  # pandoc→ODT do miolo do PDF (mesmo reference-doc, mesmo conserto das barras). O que o ODT não embute —
+  # capa enviada em PDF, enunciado em PDF próprio — vira um aviso no lugar ("junte ao exportar").
+  if [[ -n "$odtout" && -s "$out" ]]; then
+    local oh="$work/odt.html" letter name f
+    { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+      if [[ -s "$upl" ]]; then printf '<div custom-style="Center"><p><i>%s</i></p></div>' "$(_doc_t "$l" odt_cover_pdf)"
+      else _doc_body_inner "$work/cover.html" | _doc_cover_odt_styles; fi
+      for ((i=0; i<n; i++)); do
+        skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
+        letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
+        name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
+        printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+        if cs_file "$c" "$skey" "$l" pdf >/dev/null 2>&1; then printf '<p><i>%s</i></p>' "$(_doc_t "$l" odt_stmt_pdf)"
+        else
+          f="$(_doc_stmt_file "$c" "$skey" "$l")" || f=""
+          if [[ -n "$f" && -f "$f" ]]; then _doc_body_inner "$f"; else printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)"; fi
+        fi
+      done
+      printf '</body></html>'; } > "$oh"
+    _doc_html2odt "$oh" "$odtout" || rm -f "$odtout"
+  fi
   rm -rf "$work"; [[ -s "$out" ]]
 }
 
@@ -826,7 +939,8 @@ _doc_pdf_contest(){
 doc_build(){
   local c="$1" t="$2" l="$3" d; d="$(doc_dir "$c")"
   mkdir -p "$d" 2>/dev/null
-  local html="$d/$t.$l.html" pdf="$d/$t.$l.pdf" tmp="$d/.$t.$l.tmp.html"
+  local html="$d/$t.$l.html" pdf="$d/$t.$l.pdf" odt="$d/$t.$l.odt" tmp="$d/.$t.$l.tmp.html"
+  rm -f "$odt.tmp"
   # tmp dos enunciados materializados do banco (_doc_stmt_file); morre com o build
   local _DOC_TMPD; _DOC_TMPD="$(mktemp -d)"
   case "$t" in
@@ -838,23 +952,27 @@ doc_build(){
   esac
   [[ -s "$tmp" ]] || { rm -f "$tmp"; return 1; }
   mv -f "$tmp" "$html"
-  if [[ "$t" == contest ]]; then _doc_pdf_contest "$c" "$l" "$pdf.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"
+  # todo PDF gerado ganha o GÊMEO .odt (o intermediário editável — só a organização baixa; ver doc.sh)
+  if [[ "$t" == contest ]]; then _doc_pdf_contest "$c" "$l" "$pdf.tmp" "$odt.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"
   elif [[ "$t" == editorial ]]; then
     # um documento só, pela rota ODT (as soluções têm math); miolo sem <title>
     local mini="$d/.$t.$l.odtin.html"
     { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
       sed -n '/<body[^>]*>/,/<\/body>/p' "$html" | sed -e 's|.*<body[^>]*>||' -e 's|</body>.*||'
       printf '</body></html>'; } > "$mini"
-    _doc_html2pdf_odt "$mini" "$pdf.tmp" || _doc_html2pdf "$html" "$pdf.tmp" || true
+    _doc_html2pdf_odt "$mini" "$pdf.tmp" "$odt.tmp" || _doc_html2pdf "$html" "$pdf.tmp" "$odt.tmp" || true
     rm -f "$mini"
     if [[ -s "$pdf.tmp" ]]; then mv -f "$pdf.tmp" "$pdf"; else rm -f "$pdf.tmp"; fi
-  else _doc_html2pdf "$html" "$pdf.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"; fi
+  else _doc_html2pdf "$html" "$pdf.tmp" "$odt.tmp" && mv -f "$pdf.tmp" "$pdf" || rm -f "$pdf.tmp"; fi
+  # o .odt acompanha o PDF DESTA geração; um .odt velho de outra geração não pode sobrar ao lado do PDF novo
+  if [[ -s "$odt.tmp" ]]; then mv -f "$odt.tmp" "$odt"; else rm -f "$odt.tmp" "$odt"; fi
   rm -rf "$_DOC_TMPD" 2>/dev/null
   jq -cn --arg t "$t" --arg l "$l" \
      --argjson bh "$(stat -c%s "$html" 2>/dev/null || echo 0)" \
      --argjson bp "$(stat -c%s "$pdf" 2>/dev/null || echo 0)" \
+     --argjson bo "$(stat -c%s "$odt" 2>/dev/null || echo 0)" \
      --argjson at "$EPOCHSECONDS" --arg by "${SESSION_LOGIN:-}" \
-     '{type:$t, lang:$l, html_bytes:$bh, pdf_bytes:$bp, generated_at:$at, by:$by}'
+     '{type:$t, lang:$l, html_bytes:$bh, pdf_bytes:$bp, odt_bytes:$bo, generated_at:$at, by:$by}'
 }
 
 # doc_index <c> -> [{type,lang,html_bytes,pdf_bytes,generated_at,by,published}]
