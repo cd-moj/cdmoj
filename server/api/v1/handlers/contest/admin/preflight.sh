@@ -31,7 +31,7 @@ add2(){ # add2 <id> <level> <label> <detail> <label_en> <detail_en> [action] —
 
 # conf num subshell-safe: só os campos que precisamos
 CONTEST_TYPE=""; CONTEST_START=0; CONTEST_END=0; FREEZE_TIME=""; LANGUAGES=""
-PRINT=""; MANUAL_VERDICT=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""
+PRINT=""; MANUAL_VERDICT=""; REVIEW_JUDGES=""; PROBS=(); CONTEST_JUDGES=""; DEMO=""
 load_contest_conf "$contest"
 mode="$(contest_score_mode "$contest")"
 # MÓDULOS (lib/modules.sh): checagem de feature de evento só roda com o módulo LIGADO — contest
@@ -330,8 +330,33 @@ if mod_any "$contest"; then
 else
   add mode ok "Modo do placar" "$mode"
 fi
-[[ "${MANUAL_VERDICT:-}" == 1 ]] && add manual ok "Veredicto manual LIGADO" "2 juízes decidem cada submissão" \
-                                 || add manual ok "Veredicto manual desligado" "veredicto automático direto ao aluno"
+# veredicto manual: desde a regra OPT-OUT (lib/review-rules.sh, 25/09/2026) "ligado" com a tabela vazia não
+# revisa NADA — tudo sai automático. O item diz quanto vai para revisão e avisa o vazio e o ilegível.
+if [[ "${MANUAL_VERDICT:-}" == 1 ]]; then
+  source "$_LIBDIR/review-rules.sh"
+  _rq="${REVIEW_JUDGES:-2}"; [[ "$_rq" =~ ^[1-5]$ ]] || _rq=2
+  _rst="$(rr_state "$contest")"
+  if [[ "$_rst" == invalid ]]; then
+    add2 manual warn "Regras de revisão ilegíveis" "o auto-verdicts.json não é JSON válido, então TUDO vai para revisão — salve a tabela em Juízes › O que vai para revisão" \
+      "Unreadable review rules" "auto-verdicts.json is not valid JSON, so EVERYTHING goes to review — save the table in Judges › What goes to review"
+  else
+    _cids="$(for ((i=0; i+4<${#PROBS[@]}; i+=5)); do c="${PROBS[i+4]}"; [[ "$c" == *"#"* ]] || c="${PROBS[i+1]//\//#}"; printf '%s\n' "$c"; done | jq -R . | jq -cs 'map(select(length > 0))')"
+    _rv='{"review":{},"langs":[]}'
+    [[ "$_rst" != missing ]] && _rv="$(jq -c --argjson cids "${_cids:-[]}" "$RR_JQ_DEFS rr_view(\$cids)" "$cdir/auto-verdicts.json" 2>/dev/null || echo '{"review":{},"langs":[]}')"
+    read -r _rn _rx < <(jq -r '"\([.review[] | length] | add // 0) \([.langs[] | select(.to != "auto")] | length)"' <<<"$_rv")
+    if (( ${_rn:-0} + ${_rx:-0} == 0 )); then
+      add2 manual warn "Veredicto manual ligado, mas nada vai para revisão" \
+        "a tabela \"O que vai para revisão\" está vazia: todo veredicto sai automático (só erro do juiz é revisado). Marque o que os juízes revisam em Juízes › O que vai para revisão ou no painel do juiz-chefe" \
+        "Manual verdict is on, but nothing goes to review" \
+        "the \"What goes to review\" table is empty: every verdict is automatic (only judge errors are reviewed). Check what the judges review in Judges › What goes to review or in the chief judge panel"
+    else
+      add2 manual ok "Veredicto manual LIGADO" "${_rn:-0} combinação(ões) problema×veredicto vão para revisão$( (( ${_rx:-0} )) && echo " + ${_rx} exceção(ões) por linguagem"), com $_rq juiz(es) por decisão; o resto sai automático" \
+        "Manual verdict ON" "${_rn:-0} problem×verdict combination(s) go to review$( (( ${_rx:-0} )) && echo " + ${_rx} per-language exception(s)"), $_rq judge(s) per decision; the rest is automatic"
+    fi
+  fi
+else
+  add2 manual ok "Veredicto manual desligado" "veredicto automático direto ao aluno" "Manual verdict off" "automatic verdict straight to the team"
+fi
 tov="$cdir/time-overrides.json"
 ntov=0; [[ -s "$tov" ]] && ntov="$(jq -r 'length' "$tov" 2>/dev/null)"; ntov="${ntov//[^0-9]/}"; ntov="${ntov:-0}"
 if ! mod_on "$contest" sedes; then :   # prorrogação por sede é do módulo sedes

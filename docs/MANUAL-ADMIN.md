@@ -87,7 +87,7 @@ painel dele) tem dois modos:
 |---|---|
 | **Situação** | O dashboard ao vivo (atualiza em lugar a cada ~12s): logados, juízes online/ocupados, fila, pendentes, latência, timeline, avaliação manual, e as **ações sugeridas** quando algo está fora do lugar. Balões pendentes/retidos só com o módulo `baloes`. |
 | **Staff** | Panorama e ação sobre a fila de impressão (+ balões com o módulo), desempenho por staff e o **escopo** de cada staff/chefe de sede (regex ou `region:<sede>`). |
-| **Juízes** | A fila da correção manual: quem pegou cada submissão, votos, idade; decidir/resolver na hora; e a configuração do veredicto manual (opções de rótulo + matriz de auto-veredicto). |
+| **Juízes** | A fila da correção manual: quem pegou cada submissão, votos, idade; decidir/resolver na hora; e a configuração do veredicto manual (opções de rótulo + **🔎 o que vai para revisão**: uma tabela problema × veredicto — o marcado vai para os juízes, o resto sai automático; sem nada marcado, tudo sai automático — com exceções por linguagem e o botão de liberar retidos que a tabela nova solta). |
 | **Auditoria** | Feed unificado de tudo que aconteceu (ações de admin, logins, submissões, veredictos) com filtros e CSV, mais os **backups** que os usuários subiram (por usuário, com ZIP). |
 
 ### 🏟️ Evento — o que uma prova de várias sedes tem a mais
@@ -207,7 +207,7 @@ operações em massa (reset de senha, desabilitar) **pulam** contas privilegiada
 |---|---|---|---|
 | **Administrador** | `.admin` | Tudo: painel ⚙, submeter a qualquer hora, ver problemas antes da largada, placar sem freeze, votar como juiz, resolver conflitos, responder clarifications. | Aparecer no placar (nenhum papel aparece). |
 | **Juiz (humano)** | `.judge` | Aba **Avaliar** (correção manual), submeter/ver problemas a qualquer hora (testar a prova!), placar sem freeze, responder clarifications, Estatísticas. | Resolver conflitos; painel admin. |
-| **Juiz-chefe** | `.cjudge` | Tudo do `.judge` **+** painel **Juiz-chefe**: resolver conflitos de votos, editar respostas de clarification já dadas, ver o login e o nome de quem perguntou, liberar a reserva de outro juiz (botão próprio, com confirmação), opções e auto-veredicto. | Painel admin (Configurações etc.). Reservar uma clarification que outro juiz já reservou. |
+| **Juiz-chefe** | `.cjudge` | Tudo do `.judge` **+** painel **Juiz-chefe**: resolver conflitos de votos, editar respostas de clarification já dadas, ver o login e o nome de quem perguntou, liberar a reserva de outro juiz (botão próprio, com confirmação), opções e o que vai para revisão. | Painel admin (Configurações etc.). Reservar uma clarification que outro juiz já reservou. |
 | **Staff** | `.staff` | Fila de **🖨️ impressão e balões** (pegar/imprimir/entregar, modo automático de quiosque). | Ver problemas ou submeter (nunca); etiquetas; placar sem freeze. |
 | **Chefe de sede** | `.cstaff` | Observar a fila do staff da sua sede (somente leitura), **Etiquetas** de credenciais dos competidores e do **`.staff`** da sua sede (com senha — exceto em contest que usa contas do treino, onde a senha é pessoal e não sai na etiqueta; a credencial do próprio chefe também não sai em etiqueta), o **🎥 telão** da sede e a **🏆 revelação por sede** depois do fim. | Agir na fila de impressão; ver problemas/submeter; não herda `.staff`. |
 | **Monitor** | `.mon` | Submeter DURANTE a prova (sem aparecer no placar), **responder clarifications**, Todas as Submissões e Estatísticas. | Ver problemas antes da largada; correção manual. |
@@ -347,7 +347,7 @@ Problemas; as demais ficam planejadas até você promover.
    problema, enviar de propósito, clarification, impressão, backup, placar), a **equipe de sala**
    (impressora, o **pop-up** liberado, kiosk, o trajeto), o **chefe de sede** (todo time da sede
    entrou pelo menos uma vez), os **juízes** (opções de veredicto, log/código, a dupla lendo
-   igual), o **chefe** (nº de juízes, auto-veredicto, alarme de conflito) e o **telão** (projetor,
+   igual), o **chefe** (nº de juízes, o que vai para revisão, alarme de conflito) e o **telão** (projetor,
    conexão com o Animeitor — publicar os placares e ligar o alimentador —, fotos e músicas).
 4. Quando terminar, clique **🚀 Promover**. O MOJ confere o checklist e, se estiver tudo pronto:
    - **arquiva** a rodada — submissões (com código-fonte), veredictos, log do juiz, placar,
@@ -398,7 +398,7 @@ risco, só assume que você sabe o que está fazendo. O único que o `--force` *
 > real (aquecimento + prova com as contas do treino).
 
 **O que NÃO muda na promoção:** contas e senhas, times/sedes/bandeiras, escopo do staff, cores de
-balão, regiões, time limits calibrados, linguagens, pool de juízes, matriz de auto-veredicto e os
+balão, regiões, time limits calibrados, linguagens, pool de juízes, a tabela do que vai para revisão e os
 textos/capa dos documentos. **O que zera:** placar, histórico e submissões dos times (arquivados,
 não perdidos), balões, numeração de impressão, prorrogações, e a lista de documentos publicados.
 

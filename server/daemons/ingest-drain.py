@@ -44,31 +44,103 @@ def contest_cfg(c):
                     manual = s.split("=", 1)[1].strip().strip("'\"") == "1"
     except OSError:
         pass
-    matrix = {}
+    # MISSING = arquivo ausente (v2 vazio: tudo automático); INVALID = ilegível (segura tudo)
     try:
         with open(os.path.join(CONTESTS, c, "auto-verdicts.json")) as f:
-            matrix = json.load(f)
+            rules = json.load(f)
+    except FileNotFoundError:
+        rules = MISSING
     except Exception:
-        matrix = {}
-    _conf[c] = (manual, matrix)
+        rules = INVALID
+    _conf[c] = (manual, rules)
     return _conf[c]
 
 
-def auto_allows(matrix, prob, lang, vcanon):
-    m = matrix.get(prob) or matrix.get(prob.replace("/", "#")) or {}
-    allowed = (m.get(lang.lower()) or []) + (m.get("*") or [])
-    return vcanon in allowed
+# ---- o que vai para revisão: ESPELHO de lib/review-rules.sh (rr_hold) — mexeu lá, mexa aqui ----
+# (smoke-review-rules.sh compara os dois caso a caso). Na dúvida este lado SEGURA: segurar aqui só
+# deixa o item no spool para o bash tratar; liberar o que o bash seguraria vazaria o veredicto.
+MISSING = object()
+INVALID = object()
+CLASSES = ("Accepted", "Wrong Answer", "Time Limit Exceeded", "Memory Limit Exceeded",
+           "Runtime Error", "Compilation Error")
+
+
+def _alt(v, d):  # o `//` do jq: null/false caem no default
+    return d if v is None or v is False else v
+
+
+def _lang(l):
+    l = str(l).lower()
+    return "py" if l in ("py2", "py3") else ("cpp" if l in ("cc", "cxx", "c++", "hpp") else ("c" if l == "h" else l))
+
+
+def _is_v2(r):
+    v = _alt(r.get("version"), 1)
+    if isinstance(v, bool):
+        return False
+    try:
+        return float(v) >= 2
+    except (TypeError, ValueError):
+        return False
+
+
+def rules_hold(r, cid, lang, v):
+    """True = vai para REVISÃO."""
+    if r is MISSING:
+        return v not in CLASSES
+    if r is INVALID or not isinstance(r, dict):
+        return True
+    c2 = cid.replace("/", "#")
+    if _is_v2(r):
+        if v not in CLASSES:
+            return True
+        langs = _alt(r.get("langs"), [])
+        langs = list(langs.values()) if isinstance(langs, dict) else (langs if isinstance(langs, list) else [])
+        l = _lang(lang)
+        m = []
+        for x in langs:
+            if not isinstance(x, dict):
+                continue
+            vs = _alt(x.get("verdicts"), [])
+            if not isinstance(vs, list) or v not in vs:
+                continue
+            if _lang(_alt(x.get("lang"), "")) != l:
+                continue
+            if _alt(x.get("problem"), "*") not in (cid, c2, "*"):
+                continue
+            m.append(x)
+        sp = [x for x in m if _alt(x.get("problem"), "*") != "*"]
+        w = sp or m
+        if w:
+            return any(_alt(x.get("to"), "review") != "auto" for x in w)
+        rv = _alt(r.get("review"), {})
+        if not isinstance(rv, dict):
+            return True
+        lst = _alt(rv.get(cid), None)
+        if lst is None:
+            lst = _alt(rv.get(c2), [])
+        return isinstance(lst, list) and v in lst
+    # v1 (opt-in): o que NÃO está listado vai para revisão
+    m = _alt(r.get(cid), None)
+    if m is None:
+        m = _alt(r.get(c2), {})
+    if not isinstance(m, dict):
+        return True
+    a, b = _alt(m.get(lang.lower()), []), _alt(m.get("*"), [])
+    if not isinstance(a, list) or not isinstance(b, list):
+        return True
+    return v not in (a + b)
 
 
 def should_hold(c, login, prob, lang, verdict, vcanon):
-    manual, matrix = contest_cfg(c)
+    manual, rules = contest_cfg(c)
     if not manual:
         return False
     if login.endswith(ROLE_SUFFIX):
         return False
     if verdict in TRANSIENT:
         return False
-    return not auto_allows(matrix, prob, lang, vcanon)
+    return rules_hold(rules, prob, lang, vcanon)
 
 
 

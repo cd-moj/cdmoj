@@ -111,7 +111,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     chk(T('Mostrar o tempo-limite dos problemas aos usuários', "Show problems' time limit to users"), showTL),
     chk(T('Permitir backup de arquivos pelos usuários', 'Allow file backup by users'), allowBackup),
     chk(T('Permitir pedidos de impressão pelos usuários (.staff)', 'Allow print requests by users (.staff)'), allowPrint),
-    chk(T('Veredicto manual (juízes validam cada veredicto; o daemon o segura até o acordo)', 'Manual verdict (judges validate each verdict; the daemon holds it until agreement)'), manualVerdict),
+    chk(T('Veredicto manual (os juízes validam o que a tabela "O que vai para revisão" marca — painel Juízes; o resto sai automático)', 'Manual verdict (the judges validate what the "What goes to review" table checks — Judges panel; the rest is automatic)'), manualVerdict),
     field(T('Nº de juízes que validam cada veredicto (1–5; 1 = revisão simples)', 'Judges required to validate each verdict (1–5; 1 = single review)'), revJudges),
     chk(T('Placar anônimo (esconde desempenho individual)', 'Anonymous scoreboard (hides individual performance)'), scoreAnon),
     chk(T('🕵️ SUPER SECRETO — fora da home/arquivo/status; placar e visual exigem login (a tela de login continua funcionando p/ quem tem o link)', '🕵️ SUPER SECRET — off the home/archive/status; scoreboard and view require login (the login screen still works for whoever has the link)'), secret),

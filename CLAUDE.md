@@ -520,8 +520,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `SHOWLOG` explícito no conf manda; **ausente = OCULTO em modo icpc** (anti-vazamento de prova)
   e visível nos demais modos. Religar em icpc = o settings POST grava `SHOWLOG=1` explícito.
 - **Veredicto manual** (`MANUAL_VERDICT`, opt-in): o **daemon** (`daemons/judged.sh`) SEGURA o
-  veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) salvo o que
-  a matriz `auto-verdicts.json` (problema×lang×veredicto, casada pelo **canônico**) libera; **erros
+  veredicto computado (grava `contests/<c>/review/<id>.json`, history fica provisório) SÓ p/ o que
+  `auto-verdicts.json` manda p/ revisão — regra **OPT-OUT** desde 25/09/2026 (`lib/review-rules.sh`, fonte
+  única de daemon+API; **espelhada em Python no `ingest-drain.py`** — mexeu numa, mexa na outra, o
+  `smoke-review-rules.sh` compara caso a caso): grade problema × classe + exceções por linguagem, casada
+  pelo **canônico**; sem arquivo = tudo automático; ilegível = tudo em revisão; o v1 (opt-in) vale até
+  ser salvo de novo; tela "🔎 O que vai para revisão" com "liberar" os retidos que a regra nova solta; **erros
   de juiz também são segurados** (o competidor só vê `Not Answered Yet`); **N `.judge` decidem** —
   N = `REVIEW_JUDGES` do conf (1..5, default 2; settings `review_judges`; `rv_quorum` em
   `lib/review.sh` — N votos unânimes liberam, divergência = conflito p/ o chief)

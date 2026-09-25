@@ -11,7 +11,7 @@ O juiz-chefe **herda** tudo o que o juiz faz. Ou seja, leia a Parte 1 mesmo se v
 
 ## Quando este manual vale
 
-Tudo aqui só acontece quando a prova está em modo de **veredicto manual** (a organização liga a opção `MANUAL_VERDICT`). Nesse modo, as submissões param numa fila esperando o olho de um juiz antes de o resultado chegar ao competidor.
+Tudo aqui só acontece quando a prova está em modo de **veredicto manual** (a organização liga a opção `MANUAL_VERDICT`). Nesse modo, as submissões que a tabela **🔎 O que vai para revisão** marca param numa fila esperando o olho de um juiz antes de o resultado chegar ao competidor. O que a tabela não marca sai automático, direto da máquina — e erro do juiz sempre vai para a fila.
 
 Sem essa opção ligada, a correção é **automática**: a máquina calcula o veredicto e entrega direto ao competidor. Nesse caso não há fila e não há nada para o juiz fazer. Se você abrir a aba de avaliação e ela estiver vazia ou ausente, provavelmente a prova não está em veredicto manual.
 
@@ -89,7 +89,7 @@ vaza, para a prova.
 |---|---|
 | Ver a fila de avaliação e os contadores. | Resolver conflitos. |
 | Pegar e reservar submissões (máx. 2 por submissão, 5 min). | Liberar um veredicto sem os dois votos. |
-| Ver referência, log, código e votar. | Editar a lista de veredictos ou o auto-veredicto. |
+| Ver referência, log, código e votar. | Editar a lista de veredictos ou o que vai para revisão. |
 | Pedir +5 min ou desistir. | Ver o painel de chefia. |
 | Ver o texto cru do veredicto. | Acessar administração, times, usuários. |
 | Ver o resultado do **jplag** (pares só com o login; sem nome do time). | Rodar o jplag. |
@@ -114,7 +114,7 @@ O painel fica em `/contest/chief/` e tem estas abas:
 1. **📊 Situação.** Mostra cartões de resumo, a **fila completa** (com filtros e mostrando os votos dos outros juízes) e uma tabela **"Desempenho por juiz"** com: votos dados, tempo médio entre pegar e votar, concordâncias e conflitos. Cada linha da fila traz um botão **Decidir/Resolver**, que libera o veredicto **na hora**, sem esperar os dois votos (essa decisão fica registrada).
 2. **⚖️ Conflitos.** Lista as submissões em conflito, mostrando os **dois votos** que divergiram, o log e a fonte, com um botão para resolver cada uma.
 3. **🏷️ Opções.** Edita a lista de veredictos que os juízes escolhem ao votar. Cada opção tem três campos. O primeiro é o texto que o juiz vê. O segundo é a classe: uma das seis classes canônicas (Accepted, Wrong Answer, Time Limit Exceeded, Memory Limit Exceeded, Runtime Error, Compilation Error). A classe define a pontuação, a penalidade e a cor no placar. O terceiro é o texto que o time vê. Deixe o terceiro campo vazio para mostrar a classe. A classe Accepted não tem texto próprio.
-4. **⚙️ Auto-veredicto.** Edita a **matriz** (problema x linguagem x veredicto) que decide quais veredictos calculados pela máquina **pulam** a revisão manual e vão direto ao competidor.
+4. **🔎 O que revisar.** Uma tabela: cada linha é um problema (letra e título), cada coluna um veredicto (AC, WA, TLE, MLE, RTE, CE). **Marque o que os juízes revisam**; o que não estiver marcado sai automático, direto da máquina. Sem nada marcado, tudo sai automático (só erro do juiz vai para a fila). A linha "Todos os problemas" marca ou desmarca uma coluna inteira, e a caixa ao lado de cada problema marca ou desmarca a linha; **Revisar tudo** e **Nada em revisão** fazem a tabela inteira. Um uso comum: deixar CE automático (não precisa de julgamento e entope a fila no começo) e revisar TLE. As **exceções por linguagem** (recolhidas) valem para uma linguagem e vencem a tabela — por exemplo, "Python · TLE · vai para revisão" com o TLE automático na tabela. Se você mudar a tabela no meio da prova e houver submissões já retidas que agora sairiam automáticas (sem voto e sem conflito), a tela oferece **Liberar agora**; ela não libera sozinha.
 5. **🌐 Idiomas.** Decide os idiomas do enunciado que a sanfona oferece ao competidor. **Automático** (padrão): cada problema oferece todos os idiomas que tem. **Só estes idiomas**: marque a lista (português, inglês, espanhol); só PT = prova só em português. A tabela mostra, por problema, quais traduções existem. Um idioma oferecido sem tradução em um problema mostra o português nesse problema. O admin tem o mesmo painel em Prova › Problemas.
 
 ### Alerta de conflito
@@ -131,7 +131,7 @@ Em **qualquer página do contest**, o juiz-chefe recebe um **aviso vermelho pisc
 
 O aquecimento é o único momento em que a mesa inteira roda com submissões de verdade e nada em
 jogo. É ali que você confere o que só você muda: **quantos juízes** um veredicto exige, quais
-veredictos a matriz de **auto-veredicto** libera sozinha, e se o **alarme de conflito** chega
+veredictos vão para **revisão** (o resto sai sozinho), e se o **alarme de conflito** chega
 mesmo até você. Conflito que ninguém vê no aquecimento é conflito que ninguém verá na prova.
 
 É também onde você vê a fila drenar — porque a promoção para a prova oficial é **recusada**
@@ -164,7 +164,7 @@ Os poderes dele se limitam a: julgamento, veredictos, notícias/respostas, estat
 | Resolver **conflitos**. | |
 | **Rodar o jplag** e ver os pares com nome do time (link `jplag` na barra). | |
 | Editar a lista de veredictos (🏷️ Opções). | Mudar configurações do contest. |
-| Editar o **auto-veredicto** (matriz problema x linguagem x veredicto). | Gerenciar times ou usuários. |
+| Editar **o que vai para revisão** (tabela problema x veredicto + exceções por linguagem). | Gerenciar times ou usuários. |
 | Ver **Todas as Submissões** com usuário/time e veredicto cru. | |
 | Responder clarifications. Reserve antes. O autor fica anônimo para você. | Reservar uma pergunta que outro juiz já reservou. |
 | Editar respostas e notícias. | |

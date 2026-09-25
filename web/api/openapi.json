@@ -2939,7 +2939,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Matriz de veredicto automático problema×lang×veredicto (judge)",
+        "summary": "O que vai para revisão no veredicto manual (judge). Regra v2 OPT-OUT: tudo automático menos a grade problema×classe marcada e as exceções por linguagem; v1 (opt-in, formato anterior) chega convertido",
         "security": [
           {
             "bearerAuth": []
@@ -2952,7 +2952,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{matrix,problems,verdicts}"
+            "description": "{version:2, state:missing|invalid|v1|v2, rules:{review:{cid:[classe]}, langs:[{lang,problem,verdicts,to}]}, items:[{id,letter,title}], verdicts, langs, manual_verdict, releasable, problems (legado), matrix (legado: o v1 cru)}"
           }
         }
       },
@@ -2960,7 +2960,7 @@
         "tags": [
           "contest"
         ],
-        "summary": "Grava a matriz auto (admin/chief): {matrix:{cid:{lang|*:[verdict]}}}",
+        "summary": "admin/chief: {rules:{review,langs}} grava v2 saneado; {action:\"release\"} libera os retidos sem voto/conflito que as regras soltam; {matrix} (cliente antigo) grava v1",
         "security": [
           {
             "bearerAuth": []
@@ -2973,7 +2973,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{saved,matrix}; 403 config_forbidden"
+            "description": "{saved,rules,releasable} | {released,left} | {saved,matrix}; 403 config_forbidden; 422 rules_invalid/lang_invalid; 409 rules_invalid (release com arquivo ilegível)/review_busy"
           }
         }
       }

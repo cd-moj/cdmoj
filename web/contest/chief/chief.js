@@ -74,7 +74,7 @@ const TABS = () => [
   { id: 'sit', label: T('📊 Situação', '📊 Status'), make: situacaoTab },
   { id: 'conf', label: T('⚖️ Conflitos', '⚖️ Conflicts'), make: conflitosTab },
   { id: 'opts', label: T('🏷️ Opções', '🏷️ Options'), make: optionsTab },
-  { id: 'auto', label: T('⚙️ Auto-veredicto', '⚙️ Auto-verdict'), make: autoTab },
+  { id: 'auto', label: T('🔎 O que revisar', '🔎 What to review'), make: autoTab },   // id 'auto' = hash antigo
   // idiomas do enunciado que a sanfona oferece — o chefe prepara a prova junto com o admin
   { id: 'langs', label: T('🌐 Idiomas', '🌐 Languages'), make: () => makeStatementLangsPanel(CONTEST) },
   ...(MODS.has('documentos') ? [{ id: 'docs', label: T('📄 Documentos', '📄 Documents'), make: () => makeDocsTab(CONTEST) }] : []),

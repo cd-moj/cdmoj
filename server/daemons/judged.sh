@@ -59,6 +59,8 @@ source "$SERVER_DIR/judge-gw/sched-lib.sh"
 source "$SERVER_DIR/api/v1/lib/users.sh"
 # partição do escritor por hash(login) — a MESMA lib dos handlers (shard_of_login)
 source "$SERVER_DIR/api/v1/lib/spool-shard.sh"
+# o que vai para revisão no veredicto manual — a MESMA regra da API/tela (rr_file_hold)
+source "$SERVER_DIR/api/v1/lib/review-rules.sh"
 
 # ===== SHARDS do escritor (2026-08-30) =====================================================
 # JUDGED_SHARDS=K (>1) particiona o daemon em K workers por hash(login) — o teto serial de
@@ -275,15 +277,11 @@ intake_enqueue() {
 
 # ===== Veredicto MANUAL (.judge): segura o veredicto computado p/ revisão de 2 juízes ======
 
-# auto_allows <contest> <cid> <lang> <verdict> : 0 se a matriz auto-verdicts.json permite que
-# este (problema, linguagem, veredicto) saia AUTOMÁTICO (lang minúsculo ou '*' = qualquer).
-auto_allows() {
-  local f="$CONTESTSDIR/$1/auto-verdicts.json"; [[ -f "$f" ]] || return 1
-  local lang_lc; lang_lc="$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')"
-  jq -e --arg p "$2" --arg pp "${2//\//#}" --arg l "$lang_lc" --arg v "$4" '
-    ((.[$p] // .[$pp] // {})) as $m
-    | (($m[$l] // []) + ($m["*"] // [])) | index($v)' "$f" >/dev/null 2>&1
-}
+# auto_allows <contest> <cid> <lang> <verdict> : 0 se este (problema, linguagem, veredicto) sai
+# AUTOMÁTICO. A regra mora em lib/review-rules.sh (rr_file_hold): v2 = OPT-OUT (auto-verdicts.json
+# lista o que vai para REVISÃO; sem arquivo, tudo automático; erro do juiz sempre revisão); v1 (o
+# formato antigo, opt-in) segue valendo até alguém salvar pela tela nova. Arquivo ilegível = segura.
+auto_allows() { ! rr_file_hold "$@"; }
 
 # should_hold <contest> <login> <cid> <lang> <verdict> : 0 se deve SEGURAR p/ revisão manual.
 # Condições: MANUAL_VERDICT=1 no conf, submissor NÃO-privilegiado, veredicto real (não erro de

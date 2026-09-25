@@ -510,9 +510,11 @@ sufixo (auth/score-common/stats-gen/login) p/ ficar fora do placar e isento da j
 
 **Veredicto manual** (opt-in por contest, `MANUAL_VERDICT`): quando ligado, o **daemon segura** o
 veredicto computado p/ revisão humana — grava `contests/<c>/review/<id>.json` e deixa o history
-provisório (o aluno segue vendo "julgando"); a exceção é a **matriz `auto-verdicts.json`**
-(problema × linguagem × veredicto, editável por admin/chief) que libera combinações automáticas. O
-casamento da matriz é pelo **veredicto canônico** (`verdict_canon`, **sem** o sufixo de score `,Np`
+provisório (o aluno segue vendo "julgando") — mas só o que **`auto-verdicts.json`** manda p/ revisão:
+desde 25/09/2026 a regra é **OPT-OUT** (`lib/review-rules.sh`: grade problema × classe + exceções por
+linguagem, editável por admin/chief na tela "🔎 O que vai para revisão"; sem arquivo, tudo sai
+automático; o formato anterior, opt-in, segue valendo até ser salvo de novo; o `ingest-drain.py` espelha
+a regra em Python). O casamento é pelo **veredicto canônico** (`verdict_canon`, **sem** o sufixo de score `,Np`
 que o juiz embute), e **erros de juiz** (`Judge Error`/`No_Servers`) **também são segurados** — o
 competidor vê só `Not Answered Yet` (nenhuma mensagem de erro vaza); o juiz vê o erro no painel e
 re-julga.

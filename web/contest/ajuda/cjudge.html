@@ -57,7 +57,7 @@
         <a href="#conflitos" data-en="3. Resolving conflicts">3. Resolvendo conflitos</a>
         <a href="#alerta" data-en="4. The conflict alarm">4. O alarme de conflito</a>
         <a href="#situacao" data-en="5. Watching the queue">5. Vigiando a fila</a>
-        <a href="#config" data-en="6. Verdict options and auto-verdict">6. Opções e auto-veredicto</a>
+        <a href="#config" data-en="6. Verdict options and what goes to review">6. Opções e o que vai para revisão</a>
         <a href="#extras" data-en="7. Your other powers">7. Seus outros poderes</a>
         <a href="#prova" data-en="8. Beyond judging: what only you do">8. Além de julgar: o que só você faz</a>
         <a href="#aquecimento" data-en="9. The warm-up is the rehearsal of the judging desk">9. O aquecimento é o ensaio da mesa</a>
@@ -99,9 +99,9 @@
             votos mostrados com nome.
           </figcaption>
         </figure>
-        <p data-en="The panel has six tabs: Situation (the whole queue), Conflicts (only what needs you), Options and Auto-verdict (configuration), Documents and Rounds.">
+        <p data-en="The panel has six tabs: Situation (the whole queue), Conflicts (only what needs you), Options and What to review (configuration), Documents and Rounds.">
           O painel tem seis abas: <b>Status</b> (a fila inteira), <b>Conflicts</b> (só o que
-          precisa de você), <b>Opções</b> e <b>Auto-veredicto</b> (configuração), <b>Documents</b>
+          precisa de você), <b>Opções</b> e <b>O que revisar</b> (configuração), <b>Documents</b>
           e <b>Rodadas</b>.
         </p>
 
@@ -148,11 +148,11 @@
           ou quem está votando rápido demais — não para ranquear gente.
         </p>
 
-        <h2 id="config" data-en="6. Verdict options and auto-verdict">6. Opções e auto-veredicto</h2>
+        <h2 id="config" data-en="6. Verdict options and what goes to review">6. Opções e o que vai para revisão</h2>
         <p data-en="Two configuration tabs are yours:">Duas abas de configuração são suas:</p>
         <ul>
           <li data-en-html="<b>🏷️ Options</b> — the list of verdicts the judges can vote. Each option has three fields. The first field is the text the judge sees. The second field is the class: one of the six canonical classes (<i>Accepted</i>, <i>Wrong Answer</i>, <i>Time Limit Exceeded</i>, <i>Memory Limit Exceeded</i>, <i>Runtime Error</i>, <i>Compilation Error</i>). The class sets the score, the penalty and the color on the scoreboard. The third field is the text the team sees. Leave the third field empty to show the class. Change the list here and every judge sees the new list."><b>🏷️ Opções</b> — a lista de veredictos que os juízes podem votar. Cada opção tem três campos. O primeiro campo é o texto que o juiz vê. O segundo campo é a classe: uma das seis classes canônicas (<i>Accepted</i>, <i>Wrong Answer</i>, <i>Time Limit Exceeded</i>, <i>Memory Limit Exceeded</i>, <i>Runtime Error</i>, <i>Compilation Error</i>). A classe define a pontuação, a penalidade e a cor no placar. O terceiro campo é o texto que o time vê. Deixe o terceiro campo vazio para mostrar a classe. Mude a lista aqui e todos os juízes veem a lista nova.</li>
-          <li data-en-html="<b>⚙️ Auto-verdict</b> — the matrix that lets some results skip the queue. The classic use is releasing <i>Compilation Error</i> automatically: it does not need human judgement and it floods the queue in the first minutes."><b>⚙️ Auto-veredicto</b> — a matriz que deixa alguns resultados pularem a fila. O uso clássico é liberar <i>Compilation Error</i> automaticamente: não precisa de julgamento humano e entope a fila nos primeiros minutos.</li>
+          <li data-en-html="<b>🔎 What to review</b> — a table: one row per problem (letter and title), one column per verdict (AC, WA, TLE, MLE, RTE, CE). <b>Check what the judges review</b>; whatever is not checked goes to the team automatically, straight from the machine. With nothing checked, everything is automatic (only judge errors go to the queue). The <i>All problems</i> row checks a whole column and the box next to each problem checks its row. A common setup: leave <i>Compilation Error</i> automatic (it needs no human judgement and floods the queue in the first minutes) and review <i>Time Limit Exceeded</i>. The per-language exceptions (collapsed) apply to one language and override the table — e.g. <i>Python · TLE · goes to review</i>. If you change the table during the contest and there are held submissions that would now be automatic (no vote, no conflict), the screen offers <b>Release now</b> — it never releases on its own."><b>🔎 O que revisar</b> — uma tabela: uma linha por problema (letra e título), uma coluna por veredicto (AC, WA, TLE, MLE, RTE, CE). <b>Marque o que os juízes revisam</b>; o que não estiver marcado sai para o time automaticamente, direto da máquina. Sem nada marcado, tudo sai automático (só erro do juiz vai para a fila). A linha <i>Todos os problemas</i> marca uma coluna inteira, e a caixa ao lado de cada problema marca a linha. Um uso comum: deixar <i>Compilation Error</i> automático (não precisa de julgamento humano e entope a fila nos primeiros minutos) e revisar <i>Time Limit Exceeded</i>. As exceções por linguagem (recolhidas) valem para uma linguagem e vencem a tabela — por exemplo, <i>Python · TLE · vai para revisão</i>. Se você mudar a tabela durante a prova e houver submissões retidas que agora sairiam automáticas (sem voto e sem conflito), a tela oferece <b>Liberar agora</b> — ela nunca libera sozinha.</li>
         </ul>
         <div class="warn" data-en-html="Turning the manual verdict itself ON or OFF, and choosing how many judges are needed, belongs to the administrator — not to you. When they turn it OFF, MOJ releases the leftovers nobody had contested (with the machine verdict) and <b>leaves you the ones with a vote or in conflict</b>: those stay in Situação for you to decide, one by one.">
           Ligar ou desligar o veredicto manual, e escolher de quantos juízes ele precisa, é do
@@ -283,11 +283,11 @@
         </div>
 
 <h2 id="aquecimento" data-en="9. The warm-up is the rehearsal of the judging desk">9. O aquecimento é o ensaio da mesa</h2>
-        <p data-en-html="The <b>warm-up</b> — the short round before the contest, at the same address — is the only moment when the whole judging desk runs with real submissions and nothing is at stake. It is where you check what only you can change: how many judges a verdict needs, which verdicts the auto-verdict matrix releases on its own, and whether the conflict alarm actually reaches you. A conflict that nobody sees in the warm-up is a conflict nobody will see in the contest either.">
+        <p data-en-html="The <b>warm-up</b> — the short round before the contest, at the same address — is the only moment when the whole judging desk runs with real submissions and nothing is at stake. It is where you check what only you can change: how many judges a verdict needs, which verdicts go to review (the rest goes out on its own), and whether the conflict alarm actually reaches you. A conflict that nobody sees in the warm-up is a conflict nobody will see in the contest either.">
           O <b>aquecimento</b> — a rodada curta antes da prova, no mesmo endereço — é o único
           momento em que a mesa inteira roda com submissões de verdade e nada em jogo. É ali que
-          você confere o que só você muda: quantos juízes um veredicto exige, quais veredictos a
-          matriz de auto-veredicto libera sozinha, e se o alarme de conflito chega mesmo até
+          você confere o que só você muda: quantos juízes um veredicto exige, quais veredictos
+          vão para revisão (o resto sai sozinho), e se o alarme de conflito chega mesmo até
           você. Conflito que ninguém vê no aquecimento é conflito que ninguém verá na prova.
         </p>
         <p data-en-html="It is also where you watch the queue drain — because <b>the promotion to the official round is refused</b> while there is an item without a released verdict, a job in flight or a pending verdict in the history. The panel's <b>📊 Status</b> tab is the screen that tells you when the desk is clean enough for the organizers to switch rounds.">

@@ -111,7 +111,8 @@ e servidos pelo `/submission/summary`. **Ao competidor o veredicto servido é SE
 canônico** (todos os modos; `lib/verdict.sh` canoniza os endpoints de history na leitura — o
 history em disco não muda) e o summary é **redigido por modo**: treino/lista = tudo;
 obi/heurístico/outro = score/grupos/heur; icpc/ausente = só o canônico. No **modo veredicto manual**, o
-casamento da matriz de auto-veredicto usa o **`verdict_canon`** (não a string com score), e os
+casamento das regras de revisão (`auto-verdicts.json`, `lib/review-rules.sh`: OPT-OUT desde 25/09/2026 —
+tudo automático menos o marcado) usa o **`verdict_canon`** (não a string com score), e os
 **erros de juiz** (`Judge Error`/`No_Servers`) também são **segurados** p/ revisão — o competidor
 vê só `Not Answered Yet` até um veredicto sair.
 
