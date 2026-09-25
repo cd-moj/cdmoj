@@ -44,6 +44,11 @@ function beep() {
 
 // startChiefAlert(contest, st) — só p/ chief/admin; idempotente. Faz poll do nº de conflitos e
 // mostra/atualiza/esconde o banner; bipa só quando o número SOBE (não a cada poll).
+// ABA OCULTA (XIV Maratona UnB, 25/09/2026: 677 polls em 15 min, a maioria de abas esquecidas do
+// chefe/admin): o poll ESPAÇA p/ 30–40 s — não para, porque o bip existe justamente p/ chamar quem não
+// está olhando — e volta a consultar NA HORA quando a aba reaparece. Uma cadeia de timers só: cada
+// poll leva um número de geração, e só o mais novo agenda o próximo (o poke/visibilidade no meio de
+// uma requisição em voo duplicava a cadeia).
 export function startChiefAlert(contest, st) {
   if (_started) return;
   if (!st || !(st.is_chief || st.is_admin)) return;   // a trava real é da API; aqui é só não poluir
@@ -64,17 +69,20 @@ export function startChiefAlert(contest, st) {
   };
   const hide = () => { const b = document.getElementById('mojChiefAlert'); if (b) { b.classList.remove('show'); b.textContent = ''; } };
 
+  let gen = 0;
+  const delay = () => (document.hidden ? 30000 + Math.random() * 10000 : 8000 + Math.random() * 4000);
   const poll = async () => {
     clearTimeout(timer);
+    const my = ++gen;
     try {
       const r = await apiGet('/contest/review/conflicts?contest=' + enc(contest), G);
       const n = r.n || 0;
-      if (n > 0) { show(n); if (n > last) beep(); } else hide();
-      last = n;
+      if (my === gen) { if (n > 0) { show(n); if (n > last) beep(); } else hide(); last = n; }
     } catch { /* silencioso: rede/permissão */ }
-    timer = setTimeout(poll, 8000 + Math.random() * 4000);
+    if (my === gen) timer = setTimeout(poll, delay());
   };
   _poke = poll;   // reavaliar já (sem rebipar: 'last' é preservado)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
   poll();
 }
 
