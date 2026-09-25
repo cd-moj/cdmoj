@@ -355,7 +355,8 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   Documentos e Rodadas assim). Helpers comuns (CSV, download autenticado, formatação, `field/chk`)
   em **`shared/admin-ui.js`**. A **🏁 Central** é a porta de entrada: *Falta para começar* (o
   `preflight` como lista ACIONÁVEL — cada item com botão que abre o painel exato, mapa `id→painel`
-  no front), *Gerar* (cartões dos artefatos com o estado atual), *Ao vivo* (resumo do `dashboard`,
+  no front; o item `judges_warm` mostra juiz a juiz quem ainda não calibrou cada problema e traz o
+  botão **🔥 Aquecer juízes**, `POST /contest/admin/warm-judges`), *Gerar* (cartões dos artefatos com o estado atual), *Ao vivo* (resumo do `dashboard`,
   o único bloco com auto-refresh — re-renderiza só ele p/ não apagar o que está sendo digitado) e
   *Regras da prova* (janela/freeze inline). Os painéis:
   **👥 Times** (gerência POR-USUÁRIO da identidade dos times — **o NOME é campo único:

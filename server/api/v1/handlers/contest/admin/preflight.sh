@@ -3,7 +3,9 @@
 # surpresa e devolve verde/amarelo/vermelho por item — janela, SHOWLOG (anti-vazamento de
 # testes em icpc), freeze, juízes online, toolchain das linguagens permitidas, TL calibrado
 # de cada problema (+ cache nos juízes online), staff de impressão, contas, spool travado.
-# -> {checks:[{id,level:ok|warn|fail,label,detail}], summary:{ok,warn,fail}}
+# -> {checks:[{id,level:ok|warn|fail,label,detail[,label_en,detail_en][,action]}], summary:{ok,warn,fail}}
+#    label/detail em PT (legado); item com `label_en`/`detail_en` é bilíngue na Central. `action` = o
+#    botão que a Central põe no item (hoje: "warm_judges" → POST /contest/admin/warm-judges).
 contest="$(param contest)"
 [[ -n "$contest" ]] || fail 400 "Missing contest" "contest_missing"
 require_contest "$contest"
@@ -11,6 +13,7 @@ require_auth_contest "$contest"
 is_admin_or_chief || fail 403 "Apenas o admin ou o juiz-chefe" "admin_required"
 source "$_DIR/../../judge-gw/sched-lib.sh"
 source "$_DIR/lib/tl-store.sh"
+source "$_DIR/lib/judge-warm.sh"      # juiz quente × frio por problema (item judges_warm)
 source "$_LIBDIR/contest-gate.sh"
 source "$_LIBDIR/langs.sh"          # lang_canon_ext (cc/cxx/c++ = cpp, py3 = py) p/ a whitelist
 
@@ -20,6 +23,10 @@ CHECKS='[]'
 add(){ # add <id> <level> <label> <detail>
   CHECKS="$(jq -c --arg i "$1" --arg lv "$2" --arg lb "$3" --arg d "$4" \
     '. + [{id:$i, level:$lv, label:$lb, detail:$d}]' <<<"$CHECKS")"
+}
+add2(){ # add2 <id> <level> <label> <detail> <label_en> <detail_en> [action] — item BILÍNGUE (+ botão)
+  CHECKS="$(jq -c --arg i "$1" --arg lv "$2" --arg lb "$3" --arg d "$4" --arg le "$5" --arg de "$6" --arg a "${7:-}" \
+    '. + [{id:$i, level:$lv, label:$lb, detail:$d, label_en:$le, detail_en:$de} + (if $a == "" then {} else {action:$a} end)]' <<<"$CHECKS")"
 }
 
 # conf num subshell-safe: só os campos que precisamos
@@ -189,8 +196,11 @@ else
   add langs warn "Linguagens sem whitelist" "todas as linguagens do MOJ ficam liberadas (Configurações → Linguagens)"
 fi
 
-# --- problemas: TL calibrado + cache nos juízes online (do pool EFETIVO, se houver) ----
-noTL=""; noCache=""; noPool=""; nprob=0
+# --- problemas: TL calibrado (do pool EFETIVO, se houver) ------------------------------
+# O "está no cache de algum juiz" que morava aqui saiu: lia o inventário do registro, que o agente só
+# refaz ao re-registrar, e bastava UM juiz ter o problema. Quem responde "este juiz vai calibrar na 1ª
+# submissão?" é o item judges_warm, logo abaixo, juiz por juiz.
+noTL=""; noPool=""; nprob=0
 for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
   id="${PROBS[i+4]}"; (( nprob++ ))
   # pool efetivo do problema: override (problem-judges.json) -> pool do contest -> todos
@@ -205,24 +215,44 @@ for ((i=0; i+4<${#PROBS[@]}; i+=5)); do
     # calibrado = algum host DO POOL reportou TL p/ o problema
     jq -e --arg p "$ppool" '(.hosts // {}) | keys | any(. as $h | ($p|split(" ")|index($h)))' \
       "$(tl_store_file "$id")" >/dev/null 2>&1 || { noTL+=" $id"; continue; }
-    jq -e --arg id "$id" --arg p " $ppool " \
-      'any(.[]; .host as $h | ($p | contains(" "+$h+" ")) and (.problems | has($id)))' \
-      >/dev/null 2>&1 <<<"$judges" || noCache+=" $id"
   else
     if [[ ! -s "$(tl_store_file "$id")" ]]; then noTL+=" $id"; continue; fi
-    jq -e --arg id "$id" 'any(.[]; .problems | has($id))' >/dev/null 2>&1 <<<"$judges" || noCache+=" $id"
   fi
 done
 if (( nprob == 0 )); then
   add problems fail "Sem problemas" "o contest não tem problemas no conf"
 elif [[ -n "$noTL" ]]; then
   add problems fail "Problema sem TL calibrado$([[ -n "$pool_all" ]] && echo ' no pool')" "sem calibração:$noTL — dispare /ops/updateproblemset e aguarde os juízes"
-elif [[ -n "$noCache" ]]; then
-  add problems warn "Problema fora do cache dos juízes online" "será baixado+calibrado na 1ª submissão (lento):$noCache"
 else
-  add problems ok "Problemas calibrados" "$nprob problema(s) com TL reportado e em cache"
+  add problems ok "Problemas calibrados" "$nprob problema(s) com TL reportado"
 fi
 [[ -n "$noPool" ]] && add pool_problems fail "Problema com pool de juízes offline" "nenhum juiz do pool destes problemas está online (fila presa):$noPool"
+
+# --- juízes aquecidos: CADA juiz online do pool já calibrou CADA problema? (lib/judge-warm.sh) -------
+# O TL é por máquina: juiz frio baixa e calibra na 1ª submissão, e ela espera — 7,3 min na XIV Maratona
+# UnB (25/09/2026). O botão da Central (action warm_judges) manda a calibração dirigida só aos pares frios.
+if (( njudges > 0 && nprob > 0 )); then
+  wm="$(jw_matrix "$contest")"
+  if [[ -n "$wm" ]] && jq -e '.counts' >/dev/null 2>&1 <<<"$wm"; then
+    { read -r w_warm; read -r w_ing; read -r w_cold; read -r w_nh; } \
+      < <(jq -r '.counts.warm, .counts.warming, .counts.cold, (.online | length)' <<<"$wm")
+    g_cold="$(jw_group "$wm" cold)"; g_ing="$(jw_group "$wm" warming)"
+    if (( w_warm + w_ing + w_cold == 0 )); then :   # nenhum juiz do pool online: é o item pool/pool_problems
+    elif (( w_cold > 0 )); then
+      add2 judges_warm warn "Juízes FRIOS para problemas da prova" \
+        "$w_cold par(es) juiz×problema sem calibração da versão atual — $g_cold. A 1ª submissão de cada par espera o juiz baixar e calibrar o problema inteiro (minutos). Aqueça antes do início: cada calibração ocupa um slot do juiz.$([[ -n "$g_ing" ]] && echo " Aquecendo: $g_ing.")" \
+        "Judges not warmed up for contest problems" \
+        "$w_cold judge×problem pair(s) not calibrated for the current version — $g_cold. The first submission of each pair waits while the judge downloads and calibrates the whole problem (minutes). Warm them up before the start: each calibration takes one judge slot.$([[ -n "$g_ing" ]] && echo " Warming up: $g_ing.")" \
+        warm_judges
+    elif (( w_ing > 0 )); then
+      add2 judges_warm warn "Juízes aquecendo" "$w_ing calibração(ões) na fila ou em andamento — $g_ing. Rode de novo daqui a alguns minutos." \
+        "Judges warming up" "$w_ing calibration(s) queued or running — $g_ing. Check again in a few minutes."
+    else
+      add2 judges_warm ok "Juízes aquecidos" "todo juiz online que pode julgar cada problema já o calibrou na versão atual ($w_warm par(es) juiz×problema, $w_nh juiz(es) online)" \
+        "Judges warmed up" "every online judge that may judge each problem has already calibrated it for the current version ($w_warm judge×problem pair(s), $w_nh online judge(s))"
+    fi
+  fi
+fi
 
 # --- staff de impressão -----------------------------------------------------------
 staff_n="$(find "$cdir/users" -maxdepth 1 -type d -name '*.staff' 2>/dev/null | wc -l | tr -d '[:space:]')"

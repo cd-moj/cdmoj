@@ -48,6 +48,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
   const mods = typeof opts.mods === 'function' ? opts.mods : () => [];
   const panel = el('div', {});
   let timer = null;
+  let lastSt = null;   // /contest/admin/settings do último load (o aquecer avisa se a prova já começou)
 
   const gcard = (title, state, ...actions) => el('div', { class: 'gen-card' },
     el('h4', {}, title), el('span', { class: 'st' }, state),
@@ -77,11 +78,45 @@ export function makeCentralTab(CONTEST, opts = {}) {
     return box;
   }
 
+  // "🔥 Aquecer juízes" (item judges_warm): calibração dirigida SÓ p/ os pares juiz×problema frios.
+  // Cada uma ocupa um slot do juiz por alguns minutos — depois do início, a confirmação diz isso.
+  async function warmJudges(btn, msg) {
+    const started = !!(lastSt && lastSt.start && Math.floor(Date.now() / 1000) >= lastSt.start);
+    const ask = started
+      ? T('A prova já começou. Cada calibração ocupa um slot do juiz por alguns minutos, e as submissões esperam atrás dela. Aquecer mesmo assim?',
+          'The contest has already started. Each calibration takes one judge slot for a few minutes, and submissions wait behind it. Warm up anyway?')
+      : T('Mandar cada juiz frio calibrar os problemas que ainda não calibrou? Cada calibração ocupa um slot do juiz por alguns minutos.',
+          'Ask each cold judge to calibrate the problems it has not calibrated yet? Each calibration takes one judge slot for a few minutes.');
+    if (!confirm(ask)) return;
+    btn.disabled = true; msg.textContent = T('⏳ pedindo…', '⏳ requesting…');
+    try {
+      const r = await apiPost('/contest/admin/warm-judges?contest=' + enc(CONTEST), {}, G);
+      const n = (r.sent || []).length;
+      msg.textContent = n
+        ? T(`✓ ${n} calibração(ões) pedida(s) — os juízes pegam no próximo heartbeat; rode o checklist de novo (↻) em alguns minutos.`,
+            `✓ ${n} calibration(s) requested — the judges pick them up on the next heartbeat; run the checklist again (↻) in a few minutes.`)
+        : T('Nada a pedir: os pares frios já estão aquecendo.', 'Nothing to request: the cold pairs are already warming up.');
+    } catch (e) {
+      msg.textContent = T('Falhou: ', 'Failed: ') + ((e && e.message) || T('erro de rede', 'network error'));
+      btn.disabled = false;
+    }
+  }
+
   function checkEl(c) {
     const t = TARGET[c.id];
+    // label/detail vêm do servidor em PT; item com label_en/detail_en é bilíngue (preflight.sh add2)
+    const label = c.label_en ? T(c.label, c.label_en) : c.label;
+    const detail = c.detail_en ? T(c.detail || '', c.detail_en) : (c.detail || '');
+    let act = null;
+    if (c.action === 'warm_judges') {
+      const msg = el('span', { class: 'small muted' });
+      const btn = el('button', { class: 'btn' }, T('🔥 Aquecer juízes', '🔥 Warm up judges'));
+      btn.onclick = () => warmJudges(btn, msg);
+      act = el('div', { class: 'row', style: 'gap:.35rem;flex-wrap:wrap;align-items:center;margin-top:.35rem' }, btn, msg);
+    }
     return el('div', { class: 'ck' },
       el('span', { class: 'ico' }, ICON[c.level] || '•'),
-      el('span', { class: 'txt' }, el('b', {}, c.label), el('span', { class: 'small muted' }, c.detail || '')),
+      el('span', { class: 'txt' }, el('b', {}, label), el('span', { class: 'small muted' }, detail), act),
       t && visible(t[1]) ? el('button', { class: 'btn ghost', onclick: () => go(t[0], t[1]) }, T('resolver →', 'fix →')) : null);
   }
 
@@ -98,6 +133,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
       apiGet('/contest/admin/finish?contest=' + enc(CONTEST), G).catch((e) => ({ _err: (e && e.message) || T('falha de rede', 'network error') })),
     ]);
 
+    lastSt = st || null;
     // ---------- 1. falta para começar ----------
     const checks = (pre && pre.checks) || [];
     const s = (pre && pre.summary) || { ok: 0, warn: 0, fail: 0 };

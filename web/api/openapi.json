@@ -2270,7 +2270,36 @@
         ],
         "responses": {
           "200": {
-            "description": "{checks:[{id,level:ok|warn|fail,label,detail}], summary:{ok,warn,fail}} — ids: window, show_log, freeze, judges, pool, langs, problems, pool_problems, print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs"
+            "description": "{checks:[{id,level:ok|warn|fail,label,detail[,label_en,detail_en][,action]}], summary:{ok,warn,fail}} — ids: window, show_log, freeze, judges, pool, langs, problems, pool_problems, judges_warm (juiz a juiz: calibrou a versão atual de cada problema? action warm_judges quando há frio), print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs. label_en/detail_en = item bilíngue; action = botão da Central"
+          }
+        }
+      }
+    },
+    "/contest/admin/warm-judges": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "🔥 Aquecer juízes: calibrate DIRIGIDO a cada par juiz×problema FRIO do item judges_warm do preflight (quente não recebe nada; aquecendo não repete; sob flock). Cada calibração ocupa um slot do juiz — use antes do início",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{sent:[{host,id,letter,cmdid}], before:{warm,warming,cold}}"
+          },
+          "403": {
+            "description": "admin_required (só admin ou juiz-chefe do contest)"
+          },
+          "409": {
+            "description": "warm_busy (outro pedido de aquecimento do contest em andamento)"
           }
         }
       }

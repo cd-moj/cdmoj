@@ -249,5 +249,32 @@ check "$(kv clar details_kept)" true "clar: <details> fechado ficou fechado"
 check "$(kv clar only_changed_rebuilt)" true "clar: só o cartão que mudou foi refeito"
 check "$(kv clar moved_same_node)" true "clar: cartão respondido muda de seção com o mesmo nó"
 
+# ------------------------------------------- 🏁 Central: item judges_warm + botão Aquecer (central-tab) ---
+# o item do preflight com label_en/detail_en e action warm_judges ganha o botão; o clique pede
+# confirmação (recusou = nada) e mostra o resultado do POST (aqui o stub devolve sent vazio)
+run central central-tab.js '
+const toLocalDT=()=>"", dtToEpoch=()=>0;
+const PRE={checks:[{id:"judges_warm",level:"warn",label:"Juízes FRIOS",detail:"h2: B",label_en:"Cold judges",detail_en:"h2: B (en)",action:"warm_judges"},
+                   {id:"window",level:"ok",label:"Janela",detail:"x"}],summary:{ok:1,warn:1,fail:0}};
+async function apiGet(p){ if(p.includes("/preflight")) return JSON.parse(JSON.stringify(PRE)); if(p.includes("/settings")) return {start:1,end:2};
+  if(p.includes("/finish")) return {}; return {}; }
+function find(n,f,out){ if(!n||n.nodeType!==1) return out; if(f(n)) out.push(n); (n.children||[]).forEach(c=>find(c,f,out)); return out; }
+(async()=>{ const tab=makeCentralTab("c",{}); await tab.load();
+  const btns=find(tab.panel,n=>n.tagName==="button" && n.textContent.includes("Aquecer"),[]);
+  print("warm_btn="+btns.length);
+  print("pt_label="+tab.panel.textContent.includes("Juízes FRIOS"));
+  let asked=0; globalThis.confirm=()=>{ asked++; return false; };
+  await btns[0].onclick(); print("declined_noop="+(asked===1 && !btns[0].disabled));
+  globalThis.confirm=()=>true; await btns[0].onclick();
+  print("after_post="+(btns[0].disabled && tab.panel.textContent.includes("Nada a pedir")));
+  T=(pt,en)=>en; await tab.load(); print("en_label="+(tab.panel.textContent.includes("Cold judges") && tab.panel.textContent.includes("h2: B (en)")));
+})().catch(e=>print("ERRO "+e+"\n"+e.stack));' modules.js > "$T/central.out"
+check "$(kv central warm_btn)" 1 "central: judges_warm com action ganha o botão Aquecer"
+check "$(kv central pt_label)" true "central: rótulo PT por padrão"
+check "$(kv central declined_noop)" true "central: confirmação recusada não faz nada"
+check "$(kv central after_post)" true "central: confirmado, POST feito e o resultado aparece"
+check "$(kv central en_label)" true "central: em inglês usa label_en/detail_en"
+check "$(grep -c "^ERRO" "$T/central.out")" 0 "central: sem exceção"
+
 grep -h "^ERRO" "$T"/*.out >&2 || true
 echo "admin-inplace: PASS=$PASS FAIL=$FAIL"; exit $(( FAIL>0 ))

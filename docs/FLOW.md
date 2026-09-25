@@ -198,6 +198,11 @@ Uma máquina de juiz clona só `judge/` + `mojtools/` (não o `cdmoj`) e sobe o 
 heartbeat, baixa o pacote sob demanda p/ um **cache local**, calibra na 1ª vez e **reporta o
 TL**, e roda a solução em sandbox **bubblewrap** (`mojtools/cage-run.sh` +
 `lang/<lang>/{compile,run}.sh`, tipicamente sobre um rootfs `moj-sysroot`). Ver `judge/README.md`.
+"Na 1ª vez" é por MÁQUINA: o juiz que nunca calibrou o problema (ou calibrou outra versão) baixa e
+calibra DENTRO da 1ª submissão, que espera — 7,3 min na XIV Maratona UnB (2026-09-25). O preflight
+do contest mostra isso juiz a juiz (item `judges_warm`, `lib/judge-warm.sh`: `run/tl/<id>.json` ×
+`run/tl/<id>.pkv`) e o `POST /contest/admin/warm-judges` manda o `calibrate` dirigido só aos pares
+frios, antes do início.
 
 A API expõe o estado dos juízes por `handlers/treino/admin/judges.sh` (painel admin, `model:"pull"`)
 e a página pública `/status/` (`handlers/index/status.sh`) agrega fila + juízes + liveness do daemon.

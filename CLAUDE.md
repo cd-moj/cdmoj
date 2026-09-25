@@ -941,7 +941,12 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `next_round reg_warmup`=rodadas, `docs`=documentos, `balloons balloons_freeze`=baloes,
   `cohorts reg_cohorts`=coortes, `registration reg_*`=inscricoes, `tov`=sedes) e a checagem
   `modules` avisa módulo DESLIGADO com dados (`mod_detect`). Checagem nova de módulo entra
-  dentro do `if mod_on`, e o fixture do `smoke-preflight.sh` liga todos.
+  dentro do `if mod_on`, e o fixture do `smoke-preflight.sh` liga todos. **Checagem nova nasce
+  bilíngue**: `add2 <id> <level> <label> <detail> <label_en> <detail_en> [action]` (a Central usa
+  `label_en`/`detail_en` em inglês; o `add` antigo é só-PT, legado). `action` põe um BOTÃO no item —
+  hoje só `warm_judges` (`judges_warm`: juiz frio × problema, `lib/judge-warm.sh`, e o
+  `POST /contest/admin/warm-judges`; teste `smoke-judge-warm.sh` + caso `central` do
+  `admin-inplace.gjs.sh`).
 - **MÓDULOS DO CONTEST (`lib/modules.sh`, 2026-09-05)** — grupos de recursos que o admin LIGA por
   contest (`CONTEST_MODULES=a,b` no conf, `%q` escapa a vírgula ⇒ `mod_raw` tira as barras; ausente
   = nenhum). Catálogo ÚNICO `MODULES=(sedes maquinas rodadas documentos baloes coortes inscricoes
