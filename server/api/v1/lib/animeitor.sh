@@ -156,6 +156,8 @@ an_event_json(){
 # an_derive <c> <saída> -> {teams_total, contests:[{name, source, n, codes, kind:regex|list, sites:[…]}]}
 #   · uma por VISÃO de placar (public = "Geral"; all = "Geral com convidados", só se difere; coortes)
 #   · uma por nó de `regions.json` que tem subregiões (um "país"); as sedes são as FOLHAS da árvore
+#   · sem sede nenhuma (prova de sede única, sem regions.json): o Geral leva UMA sede "Geral" com os mesmos
+#     times — sem sede o Animeitor não gera link de revelação
 # `codes`: o regex que JÁ existe (coorte/região) quando ele seleciona, no roster do evento, exatamente
 # os times daquele recorte no MOJ; senão a lista exata `^(a|b|…)$`. Coorte e sede também se definem por
 # CAMPO da conta (não regex), e o placar do telão TEM de bater com o do MOJ. Regex com look-around ou
@@ -208,7 +210,13 @@ an_derive(){
         | pick(($co.regex // ""); $s) as $p
         | { name: ((if $id == "public" then "Geral" elif $id == "all" then "Geral com convidados" else ($co.name // $id) end) | clean),
             source: {kind: "view", id: $id}, n: ($s | unique | length), codes: $p.codes, kind: $p.kind,
-            sites: (if ($id == "public" or $id == "all") then sites($LV; $s) else [] end) } ]
+            # SEDE ÚNICA (sem regions.json/folhas): uma sede "Geral" com os times do placar — o link de revelação
+            # do Animeitor é POR SEDE, e sem sede nenhuma não há link (XIV Maratona UnB, 25/09/2026: o .animeitor
+            # liberou o reveleitor e a tela mostrou "0 links de revelação").
+            sites: (if ($id == "public" or $id == "all") then
+                      (if ($LV | length) > 0 then sites($LV; $s)
+                       else [ {name: "Geral", source: {kind: "whole", id: $id}, n: ($s | unique | length), codes: $p.codes, kind: $p.kind} ] end)
+                    else [] end) } ]
       + [ $tree[0][] | select(((.subregions // []) | length) > 0) | . as $n
           | (nodeset($n) - (nodeset($n) - $base)) as $s | select(($s | length) > 0)
           | pick(($n.regex // ""); $s) as $p

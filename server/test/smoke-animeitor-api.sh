@@ -310,4 +310,15 @@ ck "reset confirmado: evento apagado LÁ, estado local limpo, o alheio continua"
    '[[ "$(J .reset)" == true && ! -e "$C/var/animeitor-reveal.released" && "$(ST ".events | has(\"ap-2026\")")" == false && "$(ST ".events | has(\"regional-2026\")")" == true && ! -e "$C/var/animeitor-sent.tsv" ]]'
 ck "o mapa de ids FICA (id é da submissão, não do evento)" '[[ -s "$C/var/animeitor-ids.tsv" ]]'
 
+echo "== sede única (sem regions.json): o Geral leva UMA sede — sem sede não há link de revelação =="
+# XIV Maratona UnB (25/09/2026): prova numa sede só, sem regions.json ⇒ o Geral saía SEM sede, o Animeitor não
+# gerava link de revelação e liberar o reveleitor não liberava nada ("0 links de revelação").
+mv "$C/regions.json" "$C/regions.json.fora"
+call $A GET '' ani 'proposal=1'
+ck "sem regions: o Geral tem 1 sede \"Geral\" com os mesmos times do placar (.*)" '[[ "$(P Geral "[.sites[].name] | join(\",\")")" == Geral && "$(P Geral ".sites[0].codes[0]")" == "$(P Geral ".codes[0]")" && "$(P Geral ".sites[0].codes[0]")" == ".*" ]]'
+ck "…e os outros placares (coortes) continuam sem sede" '[[ "$(J "[.proposal.contests[] | select(.name != \"Geral\") | .sites | length] | add // 0")" == 0 ]]'
+mv "$C/regions.json.fora" "$C/regions.json"
+call $A GET '' ani 'proposal=1'
+ck "com regions: as sedes voltam a ser as folhas (nenhuma sede \"Geral\")" '[[ "$(P Geral "[.sites[].name] | join(\",\")")" == "Brasília,Goiânia,CDMX" ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

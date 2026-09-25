@@ -212,6 +212,12 @@ export function makeApiSection(CONTEST, G) {
         'The REVEAL links show the answers after the freeze. Each site has its own. Treat them as passwords: give each one only to the person in charge of that site.')),
       el('details', {}, el('summary', {}, T(`${(L.revelation || []).length} links de revelação`, `${(L.revelation || []).length} reveal links`)),
         tbl((L.revelation || []).map((x) => el('tr', {}, el('td', {}, x.contest), el('td', {}, x.site), el('td', { class: 'small' }, el('code', {}, x.url.replace(/secret=[^&]+/, 'secret=…'))), el('td', {}, copy(x.url)))))));
+    // ZERO links: o link de revelação do Animeitor é POR SEDE — placar publicado sem sede não gera link, e
+    // liberar o reveleitor não tem o que liberar (XIV Maratona UnB, 25/09/2026, prova de sede única).
+    if (!(L.revelation || []).length) {
+      linksBox.append(el('p', { class: 'error-box' }, T('Nenhum link de revelação: os placares publicados não têm SEDE, e o link de revelação é por sede. Numa prova de sede única, abra "Placares e sedes", use "+ sede" no placar Geral (nome, ex.: Geral; códigos: .*) e publique de novo.',
+        'No reveal links: the published scoreboards have no SITE, and reveal links are per site. In a single-site contest, open "Scoreboards and sites", use "+ site" on the Geral scoreboard (name, e.g. Geral; codes: .*) and publish again.')));
+    }
   }
   // o interruptor ÚNICO: liberar/recolher os links do reveleitor p/ as sedes (.cstaff/.staff veem só os da sede deles)
   function revealSwitch() {
