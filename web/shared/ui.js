@@ -90,7 +90,10 @@ export function avatarEl(login, name, size = 26, hasPhoto) {
     span.textContent = initialsOf(name, login);
   };
   if (!login || hasPhoto === false) { showInitials(); return span; }
-  const img = el('img', { alt: '', src: '/api/v1/treino/profile/photo?user=' + encodeURIComponent(login) });
+  // `loading` ANTES do `src` (o el() aplica na ordem): com o src primeiro o navegador já começa a baixar.
+  // Preguiçoso porque lista GRANDE de avatares derrubava o treino: a aba Sessões do /treino/admin/ pedia a
+  // foto de 1.201 contas num minuto e o anteparo do nginx (treino ≤ 16) devolveu 429 a 1.040 (25/09/2026).
+  const img = el('img', { alt: '', loading: 'lazy', decoding: 'async', src: '/api/v1/treino/profile/photo?user=' + encodeURIComponent(login) });
   img.addEventListener('error', showInitials);
   span.append(img);
   return span;
