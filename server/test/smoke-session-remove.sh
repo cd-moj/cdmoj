@@ -62,6 +62,13 @@ ck "lista TODAS as sessões do treino (e só elas)"     '[[ "$OUT" == *"Status: 
 ck "user-agent decodificado, nome sem quebrar a linha" '[[ "$(jq -r ".sessions[]|select(.login==\"Zé da Silva\")|.user_agent" <<<"$BODY")" == "Mozilla/5.0 (X11) Firefox" && "$(jq -r ".sessions[]|select(.login==\"Zé da Silva\")|.name" <<<"$BODY")" == "Nome com quebra" ]]'
 ck "ordenada pela hora de login (mais recente 1º)"   '[[ "$(jq -r "[.sessions[].login_at] | . == (sort|reverse)" <<<"$BODY")" == true ]]'
 ck "rápido com milhares de sessões (${ELAPSED}s)"     'awk -v e="$ELAPSED" "BEGIN{exit !(e < 4)}"'
+# has_photo (XIV Maratona UnB, 25/09/2026): sem ele o painel pedia a foto de TODA sessão — 1.201 GET num minuto,
+# 429 do anteparo do nginx. Conta com photo.png ⇒ true; sem ⇒ false; login forjado com ../ não sai do diretório.
+mkdir -p "$CONTESTSDIR/treino/users/ana"; : > "$CONTESTSDIR/treino/users/ana/photo.png"
+ses ph1 treino ana; ses ph2 treino bia; ses ph3 treino '../../etc'; mkdir -p "$CONTESTSDIR/etc"; : > "$CONTESTSDIR/etc/photo.png"
+GET /treino/admin/sessions
+ck "has_photo: ana (com photo.png) true, bia false" '[[ "$(jq -r "[.sessions[]|select(.login==\"ana\")|.has_photo]|unique|join(\",\")" <<<"$BODY")" == true && "$(jq -r "[.sessions[]|select(.login==\"bia\")|.has_photo]|unique|join(\",\")" <<<"$BODY")" == false ]]'
+ck "has_photo: login com ../ não escapa do diretório (false)" '[[ "$(jq -r "[.sessions[]|select(.login==\"../../etc\")|.has_photo]|unique|join(\",\")" <<<"$BODY")" == false ]]'
 echo "== deslogar por IP =="
 ses i1 treino ana; ses i2 treino bia; ses i3 outro ana; sed -i 's/^IP=.*/IP=10.0.0.9/' "$SESS/i1" "$SESS/i2" "$SESS/i3"
 call /treino/admin/logout-ip '{"ip":"10.0.0.9"}'

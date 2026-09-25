@@ -855,7 +855,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{count,sessions:[{login,name,ip,user_agent,login_at}]}"
+            "description": "{count,sessions:[{login,name,ip,user_agent,login_at,has_photo}]} — has_photo: a conta tem foto (o painel só pede a foto de quem tem)"
           },
           "403": {
             "description": "não-admin"

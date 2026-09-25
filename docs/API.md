@@ -98,7 +98,7 @@ Acesso registra **IP** (`X-Forwarded-For`/`REMOTE_ADDR`) e **User-Agent** na ses
 
 | Rota | Método | Ação |
 |---|---|---|
-| `/treino/admin/sessions` | GET | sessões ativas `{count,sessions:[{login,name,ip,user_agent,login_at}]}` |
+| `/treino/admin/sessions` | GET | sessões ativas `{count,sessions:[{login,name,ip,user_agent,login_at,has_photo}]}` (`has_photo`: a conta tem foto — o painel só pede a foto de quem tem) |
 | `/treino/admin/managed-users` | GET | contas GERIDAS (menores, sem Telegram — [`CONTAS-GERIDAS.md`](CONTAS-GERIDAS.md)): `{users:[{login,fullname,by,note,birthdate,minor,expires_at,disabled,created_at}]}` |
 | `/treino/admin/managed-create` | POST | cria contas geridas `{users:[{fullname,birthdate,login?,note?,expires_at?}]}` (1..500; login vazio = slug do nome com dedup; sufixo de papel recusado) → `{created:[{login,password,fullname,birthdate}],skipped:[{…,reason}]}` — **senhas só nesta resposta**; audit `managed-create` |
 | `/treino/admin/managed-reset` | POST | `{login}` (só gerida) → senha nova (user_genpass) devolvida UMA vez + derruba sessões; audit `managed-reset` |

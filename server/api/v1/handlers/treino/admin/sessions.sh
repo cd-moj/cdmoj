@@ -8,19 +8,22 @@ require_auth_contest treino
 is_admin || fail 403 "Apenas administradores do treino" "admin_required"
 _US=$'\x1f'   # separador de campos; \n separa sessões — nenhum dos dois pode sobrar dentro de um valor
 _sess_rows(){
-  local f CONTEST LOGIN USERFULLNAME LOGINAT IP UA_B64 MKEY ACTOR
+  local f CONTEST LOGIN USERFULLNAME LOGINAT IP UA_B64 MKEY ACTOR ph
   while IFS= read -r -d '' f; do
     CONTEST=""; LOGIN=""; USERFULLNAME=""; LOGINAT=""; IP=""; UA_B64=""
     source "$f" 2>/dev/null
     [[ "$CONTEST" == treino ]] || continue
-    printf '%s\n' "${LOGIN//[$_US$'\n']/ }$_US${USERFULLNAME//[$_US$'\n']/ }$_US${IP//[$_US$'\n']/ }$_US${UA_B64//[$_US$'\n']/}$_US${LOGINAT//[^0-9]/}"
+    # has_photo: `[[ -f ]]` é builtin (zero processo). Sem ele o painel pedia a foto de TODA sessão (1.201
+    # contas num minuto na XIV Maratona UnB ⇒ 429 do anteparo) e cada conta sem foto dava 404.
+    ph=0; [[ -n "$LOGIN" && "$LOGIN" != */* && "$LOGIN" != .* && -f "$CONTESTSDIR/treino/users/$LOGIN/photo.png" ]] && ph=1
+    printf '%s\n' "${LOGIN//[$_US$'\n']/ }$_US${USERFULLNAME//[$_US$'\n']/ }$_US${IP//[$_US$'\n']/ }$_US${UA_B64//[$_US$'\n']/}$_US${LOGINAT//[^0-9]/}$_US$ph"
   done < <(find "$SESSIONDIR" -maxdepth 1 -type f -print0 2>/dev/null | xargs -0 -r grep -lxZF 'CONTEST=treino' 2>/dev/null)
 }
 body="$(_sess_rows | jq -R -s -c '
   split("\n") | map(select(length > 0) | split("")
     | {login:(.[0] // ""), name:(.[1] // ""), ip:(.[2] // ""),
        user_agent:((.[3] // "") | (try @base64d catch "")),
-       login_at:((.[4] // "0") | (tonumber? // 0))})
+       login_at:((.[4] // "0") | (tonumber? // 0)), has_photo:((.[5] // "0") == "1")})
   | {success:true, count:length, sessions:(sort_by(-.login_at))}' 2>/dev/null)"
 [[ -n "$body" ]] || fail 500 "Falha ao listar as sessões" "build_fail"
 emit_json 200 OK

@@ -114,7 +114,7 @@ function makeSessionsTab() {
       tb.append(el('tr', {},
         el('td', {}, cb),
         el('td', {}, el('div', { class: 'cell-user' },
-          avatarEl(s.login, s.name, 28),
+          avatarEl(s.login, s.name, 28, s.has_photo),   // sem foto = iniciais, sem pedir (era 1 GET/sessão)
           el('div', {},
             el('div', {}, s.name || s.login || '—'),
             el('div', { class: 'lg' }, '~' + (s.login || '?'))))),
