@@ -318,7 +318,8 @@ if (( APPLY )); then
   # (e) placar gera com o modo certo
   placar_out="$(CONTESTSDIR="$FROM" bash "$_DIR/../score/build.sh" "$CONTEST" 2>&1)" || { say "  FALHA: build.sh: $placar_out"; ok=0; }
   m1="$(head -1 "$CDIR/var/placar.txt" 2>/dev/null)"
-  case "$m1" in icpc|obi|treino|heuristic|outro) say "  ok: placar gerado (modo=$m1)";;
+  # a linha 1 é o modo + flags opcionais (`icpc s` = células em segundos, desde 30/08) — vale a 1ª palavra
+  case "${m1%% *}" in icpc|obi|treino|heuristic|outro) say "  ok: placar gerado (modo=$m1)";;
     *) say "  FALHA: placar sem modo válido ('$m1')"; ok=0;; esac
   if (( ok )); then
     mv -T "$CDIR" "$TARGET_ROOT/$CONTEST" || { say "FALHA ao publicar em $TARGET_ROOT/$CONTEST"; exit 1; }
