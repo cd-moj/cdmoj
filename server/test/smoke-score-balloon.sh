@@ -65,13 +65,13 @@ gen(){ rm -rf "${EXT:?}"/*; callf /contest/admin/report adm 'contest=bs' "$FIX/r
   tar -xzf "$FIX/rel.tar.gz" -C "$EXT" 2>/dev/null; }
 gen
 R="$EXT/relatorio-bs"
-ck "icon: célula neutra"             'grep -q "cell ok\" style=\"background:#e2ffe9" "$R/index.html"'
+ck "icon: célula neutra"             'grep -qE "cell ok\"( data-sec=\"[0-9]+\")? style=\"background:#e2ffe9" "$R/index.html"'
 ck "icon: ponto com a cor BRANCA"    'grep -q -- "--bdot:#FFFFFF" "$R/index.html"'
 ck "icon: e o contorno do ponto"     'grep -qE -- "--bdot-edge:#8[0-9A-F]{5}" "$R/index.html"'
 ck "cabeçalho: balão, não barra"     'grep -q "th class=\"prob\"><svg class=\"balloon-svg\"" "$R/index.html" && ! grep -q "border-bottom:4px solid" "$R/index.html"'
 call /contest/admin/settings POST '{"balloon_style":"fill"}' adm 'contest=bs'
 gen
-ck "fill: célula com a cor do balão" 'grep -q "cell ok\" style=\"background:#FFFFFF" "$R/index.html"'
+ck "fill: célula com a cor do balão" 'grep -qE "cell ok\"( data-sec=\"[0-9]+\")? style=\"background:#FFFFFF" "$R/index.html"'
 ck "fill: com o contorno (não some)" 'grep -qE "background:#FFFFFF;color:#222;box-shadow:inset 0 0 0 1px #8[0-9A-F]{5}" "$R/index.html"'
 ck "fill: o anel do ★ ainda vence"   'grep -q "box-shadow:inset 0 0 0 2px currentColor" "$R/index.html"'
 

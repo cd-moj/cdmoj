@@ -47,30 +47,30 @@ a1cells(){ grep ":aluno1:" <<<"$BODY" | head -1; }
 echo "== placar: cstaff default = congelado COMPLETO (sem recorte) =="
 call /contest/score GET cst 'contest=cs'
 ck "vê aluno2 (sem recorte)"          '[[ "$BODY" == *":aluno2:"* ]]'
-ck "congelado (sem o AC pós-freeze)"  '[[ -n "$(a1cells)" && "$(a1cells)" != *"1/61"* ]]'
+ck "congelado (sem o AC pós-freeze)"  '[[ -n "$(a1cells)" && "$(a1cells)" != *"1/3660"* ]]'
 ck "conta de papel fora do placar"    '[[ "$BODY" != *":sede1.cstaff:"* ]]'
 
 echo "== scope=mine: recorte por sede nas DUAS visões =="
 call /contest/score GET cst 'contest=cs&view=public&scope=mine'
 ck "frozen recortado: sem aluno2"     '[[ "$BODY" != *":aluno2:"* && "$BODY" == *":aluno1:"* ]]'
-ck "modo+header intactos"             '[[ "$(head -1 <<<"$BODY")" == icpc && "$(sed -n 2p <<<"$BODY")" == *username* ]]'
+ck "modo+header intactos"             '[[ "$(head -1 <<<"$BODY")" == "icpc s" && "$(sed -n 2p <<<"$BODY")" == *username* ]]'
 call /contest/score GET cst 'contest=cs&scope=mine'
-ck "pós-fim: full recortado (1/61)"   '[[ "$(a1cells)" == *"1/61"* && "$BODY" != *":aluno2:"* ]]'
+ck "pós-fim: full recortado (1/3660 s)"   '[[ "$(a1cells)" == *"1/3660"* && "$BODY" != *":aluno2:"* ]]'
 
 echo "== prorrogação segura o full; allowlist SCORE_FULL_USERS libera =="
 printf '[{"regex":"^aluno2","end":%s,"reason":"queda de energia"}]' $(( NOW + 1800 )) > "$C/time-overrides.json"
 call /contest/score GET cst 'contest=cs&scope=mine'
-ck "sede prorrogada: volta o frozen"  '[[ -n "$(a1cells)" && "$(a1cells)" != *"1/61"* ]]'
+ck "sede prorrogada: volta o frozen"  '[[ -n "$(a1cells)" && "$(a1cells)" != *"1/3660"* ]]'
 printf 'SCORE_FULL_USERS=sede1.cstaff\n' >> "$C/conf"
 call /contest/score GET cst 'contest=cs&scope=mine'
-ck "allowlist: full mesmo prorrogado" '[[ "$(a1cells)" == *"1/61"* ]]'
+ck "allowlist: full mesmo prorrogado" '[[ "$(a1cells)" == *"1/3660"* ]]'
 call /contest/score GET cst 'contest=cs'
-ck "allowlist sem scope: full inteiro" '[[ "$(a1cells)" == *"1/61"* && "$BODY" == *":aluno2:"* ]]'
+ck "allowlist sem scope: full inteiro" '[[ "$(a1cells)" == *"1/3660"* && "$BODY" == *":aluno2:"* ]]'
 rm -f "$C/time-overrides.json"
 
 echo "== scope=mine de não-cstaff é ignorado =="
 call /contest/score GET alu 'contest=cs&scope=mine'
-ck "aluno: sem recorte e congelado"   '[[ "$BODY" == *":aluno2:"* && -n "$(a1cells)" && "$(a1cells)" != *"1/61"* ]]'
+ck "aluno: sem recorte e congelado"   '[[ "$BODY" == *":aluno2:"* && -n "$(a1cells)" && "$(a1cells)" != *"1/3660"* ]]'
 
 # etiqueta é do .staff (fica na mesa); a credencial do CHEFE — que abre esta tela — não sai
 # em adesivo, nem a dele próprio
