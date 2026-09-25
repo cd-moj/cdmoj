@@ -122,6 +122,10 @@ contest. **Coleção não dá acesso a nada** — é puramente organização.
 O registro de coleções é **curado**: para marcar um problema numa coleção, ela precisa **existir**
 (você cria a coleção primeiro). Cada coleção tem um **dono** (quem a criou).
 
+**Problema sem coleção marcada fica na coleção da org** — a que tem o mesmo nome da org (`grub`
+para a org `grub`), criada junto com ela. Vale em todo lugar: na Gestão, no Treino Livre e no
+sorteio da criação de contest. Para tirar um problema da coleção da org, marque outra coleção.
+
 ### Criar uma coleção
 
 | Web | CLI |

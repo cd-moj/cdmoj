@@ -60,7 +60,13 @@ mkdir -p "$pdir"
 [[ -f "$pdir/conf" ]] || printf 'ULIMITS[-u]=10000\nALLOWPARALLELTEST=y\n' > "$pdir/conf"
 apply_problem_fields "$pdir" "$bodyf" || fail 400 "Corpo do problema ilegível" "bad_body"
 [[ -s "$pdir/author" ]] || printf '%s\n' "$SESSION_NAME" > "$pdir/author"
-colls="$H_COLLS"; (( H_HASCOLLS )) || colls="$(jq -cn --arg r "$org" '[$r]')"   # default: a coleção homônima da org
+# default: a coleção homônima da org — também quando o cliente manda a lista VAZIA (o editor web com o
+# campo em branco e o `moj new` mandam `collections: []`). Até 25/09/2026 só o campo AUSENTE caía no
+# default: o [] ia p/ o meta, a gestão mostrava o problema na coleção da org (o índice de donos aplica o
+# default) e o treino não (o json servível copiava o []) — a coleção "grub" sumiu do treino assim.
+colls="$H_COLLS"
+{ (( H_HASCOLLS )) && [[ "$(jq -c 'map(select(type == "string" and length > 0))' <<<"$colls" 2>/dev/null)" != '[]' ]]; } \
+  || colls="$(jq -cn --arg r "$org" '[$r]')"
 coll_register "$org" "$SESSION_LOGIN"   # a coleção homônima da org (agrupamento default) fica válida
 title="$H_TITLE"
 # languages: restrição de submissão por-problema ([]/ausente = todas)

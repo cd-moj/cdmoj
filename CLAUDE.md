@@ -1181,6 +1181,13 @@ navegação/curadoria, sem acesso. Registro CURADO em `collections.json` (`lib/p
 `{name:{owner,created_by,at}}`, nome é TEXTO LIVRE, pode ter espaços); marcar exige que a coleção
 exista (`set-collections`/`edit` validam). `/problems/collection*` = coleção-tag; `/orgs/*` = acesso.
 O aluno navega por coleção no treino (`web/treino` `?searchcol=`). Semear: `server/bin/seed-collections.sh`.
+**SEM coleção (`[]`/ausente/lixo) = a coleção homônima da ORG, em TODO leitor** — o índice de donos
+(`mojtools/gen-problem-owners.sh`, a gestão) e o json servível (`mojtools/gen-problem-json.sh`, o treino e o
+sorteio do wizard) aplicam a MESMA regra, e o `/problems/create` grava a da org quando a lista chega vazia.
+Divergiram até 25/09/2026 (o json copiava o `[]`): a gestão dizia "grub" e o treino não listava a coleção
+(21 públicos em 5 orgs). O `smoke-colecao-org.sh` compara os dois geradores caso a caso — mexeu numa regra,
+mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre: a vírgula de antes partia
+"A, B" em duas).
 
 - **Acesso a problema (helpers centrais em `lib/problems.sh`):** ver **source/pacote/soluções/
   calibração** = só **membro da ORG** (`require_problem_edit` → `org_is_member`,
