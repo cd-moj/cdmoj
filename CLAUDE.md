@@ -537,6 +537,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `t+1` deixava um `\xA6` solto na frente do texto do time; o `smoke-contest-review.sh` só pega
   isso rodado com `LC_ALL=C` (revisão de 15/09). O balão (`pr_reconcile_balloons`) decide pela
   CLASSE (`Accepted*` depois de cortar o `¦…`), nunca por `*Accepted*` na string crua.
+  ⚠ **A FILA SE LÊ NUMA PASSADA** (`rv_scan` em `lib/review.sh`, 25/09/2026): rota que percorre `review/*.json`
+  usa o `rv_scan <dir> <filtro> [args]` — um jq só, com fallback arquivo a arquivo se um arquivo estiver
+  corrompido. NUNCA um jq (ou `$(…)`) por arquivo dentro de laço: na XIV Maratona UnB o `review/list` levava
+  1,13 s por chamada com 81 arquivos (~63% de um núcleo só nele, crescendo a prova inteira); com o rv_scan,
+  0,06 s (81) e 0,11 s (500), saída idêntica. Guarda no `smoke-contest-review.sh` (nº de jq por chamada).
   `set-verdict` legado só aceita label/classe
   da lista. Teste: `smoke-contest-review.sh`. O **voto é permanente e libera o juiz**
   (pega outra na hora); o **alerta de conflito é global** (`web/shared/chief-alert.js`, disparado pelo

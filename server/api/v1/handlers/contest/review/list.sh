@@ -19,11 +19,10 @@ options="$(rv_options "$contest")"
 Q="$(rv_quorum "$contest")"   # nº de juízes que validam (REVIEW_JUDGES, default 2)
 dir="$(rv_dir "$contest")"
 
-set +o noglob; shopt -s nullglob
-items=()
-for f in "$dir"/*.json; do
-  [[ -f "$f" ]] || continue
-  proj="$(jq -c --argjson now "$now" --arg me "$me" --argjson chief "$chief" --argjson q "$Q" "$(rv_expire_filter)
+# UMA passada de jq sobre toda a fila (rv_scan) — era um jq + 2 subshells POR ARQUIVO, e o custo crescia a
+# prova inteira (XIV Maratona UnB, 25/09/2026: 1,13 s por chamada com 81 arquivos, ~63% de um núcleo só
+# nesta rota). Ordem = a de antes: o glob ia em ordem de id e o sort_by era estável ⇒ (created_at, id).
+list="$(rv_scan "$dir" "$(rv_expire_filter)
     | $(rv_recompute)
     | select((.status // \"open\") != \"released\")
     | { id, login: (if \$chief then .login else null end),
@@ -31,12 +30,10 @@ for f in "$dir"/*.json; do
         claimants: [ (.claimants // [])[] | {by, elapsed_s:(\$now - (.at // 0)), expires_in_s:((.expires_at // 0) - \$now)} ],
         votes_n: ((.votes // [])|length),
         my_vote: (((.votes // [])[] | select(.by==\$me) | .verdict) // null),
-        votes: (if \$chief then (.votes // []) else null end) }" "$f" 2>/dev/null)"
-  [[ -n "$proj" && "$proj" != null ]] && items+=("$proj")
-done
-shopt -u nullglob
-
-list="$( ((${#items[@]})) && printf '%s\n' "${items[@]}" | jq -cs 'sort_by(.created_at)' || echo '[]')"
+        votes: (if \$chief then (.votes // []) else null end) }" \
+  --argjson now "$now" --arg me "$me" --argjson chief "$chief" --argjson q "$Q" \
+  | jq -cs 'sort_by(.created_at, .id)')"
+[[ -n "$list" ]] || list='[]'
 # awaiting_second (nome mantido p/ compat): com voto(s) mas AINDA abaixo do quórum $Q
 counts="$(jq -c --argjson q "$Q" '{
   not_evaluated:   ([.[]|select((.claimants|length)==0 and ((.votes_n//0)==0))]|length),

@@ -146,4 +146,28 @@ ck "a sem voto saiu com o computado" '[[ "$(jq -r .status "$C/review/r3.json")" 
 ck "o conflito NÃO foi atropelado"   '[[ "$(jq -r .status "$C/review/r4.json")" != released ]]'
 ck "o setverdict foi p/ o spool"     'grep -lF "\"id\":\"r3\"" "$SPOOL"/rv:*:setverdict:* >/dev/null 2>&1 || grep -rlF "r3" "$SPOOL" >/dev/null 2>&1'
 
+echo "== desempenho: a fila inteira numa passada (rv_scan; XIV Maratona UnB, 25/09/2026) =="
+# o review/list rodava um jq + 2 subshells POR ARQUIVO (e o rv_active_claim_by, mais um): 1,13 s por
+# chamada com 81 arquivos, crescendo a prova inteira. Aqui: o nº de jq por chamada NÃO cresce com a fila,
+# e um arquivo truncado (o jq lê os arquivos como UM fluxo) não derruba a lista — refaz arquivo a arquivo.
+C2="$FIX/rv2"; mkdir -p "$C2/review" "$C2/var"
+printf 'CONTEST_ID=rv2\nCONTEST_TYPE=icpc\nCONTEST_START=%s\nCONTEST_END=%s\nMANUAL_VERDICT=1\n' "$((NOW-3600))" "$((NOW+3600))" > "$C2/conf"
+fx_user "$C2" j1.judge p "Juiz Um" >/dev/null
+printf 'CONTEST=rv2\nLOGIN=j1.judge\nUSERFULLNAME=x\nLOGINAT=1\n' > "$SESS/j1b"
+for i in $(seq -w 1 40); do
+  printf '{"id":"q%s","login":"aluno1","problem_id":"apc#p1","lang":"C","computed_verdict":"Wrong Answer","status":"open","conflict":false,"created_at":%s,"sub_epoch":%s,"claimants":[],"votes":[]}' \
+    "$i" "$(( OLD + 10#$i ))" "$OLD" > "$C2/review/q$i.json"
+done
+printf '{"id":"q07","login":"aluno1","problem_id":"apc#p1","lang":"C","computed_verdict":"Wrong Answer","status":"claimed","conflict":false,"created_at":%s,"sub_epoch":%s,"claimants":[{"by":"j1.judge","at":%s,"expires_at":%s}],"votes":[]}' \
+  "$(( OLD + 7 ))" "$OLD" "$NOW" "$(( NOW + 300 ))" > "$C2/review/q07.json"
+SHIM="$FIX/shim"; mkdir -p "$SHIM"; REALJQ="$(command -v jq)"
+printf '#!/bin/bash\necho x >> "%s/n"\nexec "%s" "$@"\n' "$SHIM" "$REALJQ" > "$SHIM/jq"; chmod +x "$SHIM/jq"
+P0="$PATH"; PATH="$SHIM:$PATH"; : > "$SHIM/n"; call /contest/review/list GET '' j1b 'contest=rv2'; PATH="$P0"
+NJQ="$(wc -l < "$SHIM/n")"
+ck "40 na fila: 40 itens, em ordem, e a MINHA avaliação aberta (q07)" '[[ "$(jq ".items|length" <<<"$BODY")" == 40 && "$(jq -r ".items[0].id + .items[39].id" <<<"$BODY")" == q01q40 && "$(jq -r .my_active <<<"$BODY")" == q07 ]]'
+ck "o nº de jq por chamada não cresce com a fila (≤ 8; eram ~2 por arquivo = 80+) [$NJQ]" '(( NJQ <= 8 ))'
+printf '{"id":"q99","login":"alu' > "$C2/review/q99.json"     # truncado (o jq o cola no seguinte)
+call /contest/review/list GET '' j1b 'contest=rv2'
+ck "arquivo truncado: 200 e os outros 40 itens (arquivo a arquivo), sem derrubar a lista" '[[ "$OUT" == *"Status: 200"* || "$OUT" != *"Status:"* ]] && [[ "$(jq ".items|length" <<<"$BODY")" == 40 && "$(jq -r .my_active <<<"$BODY")" == q07 ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))
