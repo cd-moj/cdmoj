@@ -181,7 +181,6 @@ async function boot() {
       allow_backup: o.allow_backup !== false, allow_print: o.allow_print !== false,
       score_anon: !!o.score_anon, manual_verdict: !!o.manual_verdict,
       ...(o.secret ? { secret: true } : {}),
-      ...(o.allow_late !== undefined ? { allow_late: !!o.allow_late } : {}),
       ...(o.login_ua_substring ? { login_ua_substring: o.login_ua_substring } : {}),
       ...((o.score_full_users || []).length ? { score_full_users: o.score_full_users } : {}),
       ...((o.judges || []).length ? { judges: o.judges } : {}),
@@ -230,7 +229,7 @@ async function boot() {
     d.start = st; d.end = st + (spec.duration || 10800);
     const o = { ...d.opts };
     ['priority', 'locale', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
-      'allow_print', 'score_anon', 'manual_verdict', 'allow_late', 'login_ua_substring',
+      'allow_print', 'score_anon', 'manual_verdict', 'login_ua_substring',
       'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
     if (spec.login_lead) o.login_start = st - spec.login_lead;
     if (spec.freeze_before_end) o.freeze = d.end - spec.freeze_before_end;
@@ -251,7 +250,7 @@ async function boot() {
     d.start = st; d.end = st + dur;
     const o = { ...newDraft(perm).opts };
     ['priority', 'locale', 'login_enabled', 'show_log', 'show_editor', 'show_tl', 'allow_backup',
-      'allow_print', 'score_anon', 'manual_verdict', 'allow_late', 'login_ua_substring',
+      'allow_print', 'score_anon', 'manual_verdict', 'login_ua_substring',
       'score_full_users', 'languages', 'judges', 'penalty_minutes', 'penalty_verdicts'].forEach((k) => { if (spec[k] !== undefined) o[k] = spec[k]; });
     if (spec.login_start && spec.start && spec.start > spec.login_start) o.login_start = st - (spec.start - spec.login_start);
     if (spec.freeze && spec.end && spec.end > spec.freeze) o.freeze = d.end - (spec.end - spec.freeze);

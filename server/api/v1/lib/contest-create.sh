@@ -90,7 +90,6 @@ cc_settings_conf_lines(){
   v="$(jq -r '.allow_print' <<<"$spec")";    [[ "$v" == false ]] && printf 'PRINT=%q\n' 0
   v="$(jq -r '.score_anon' <<<"$spec")";     [[ "$v" == true ]] && printf 'SCORE_ANON=%q\n' 1
   v="$(jq -r '.manual_verdict' <<<"$spec")"; [[ "$v" == true ]] && printf 'MANUAL_VERDICT=%q\n' 1
-  v="$(jq -r '.allow_late' <<<"$spec")";     [[ "$v" == true ]] && printf 'ALLOWLATEUSER=%q\n' y
   v="$(jq -r '.secret' <<<"$spec")";         [[ "$v" == true ]] && printf 'SECRET=%q\n' 1
   # DEMO=1 é TRAVA, não modo: nada no sistema muda de comportamento por causa dele. Ele existe
   # para o `/contest/admin/seed` (dados sintéticos) poder recusar QUALQUER contest que não seja
@@ -389,8 +388,6 @@ cc_create(){
     [[ "$b_lenabled" == n ]] && printf 'LOGIN_ENABLED=%q\n' "n"
     [[ "$b_freeze" =~ ^[0-9]+$ ]] && printf 'FREEZE_TIME=%q\n' "$b_freeze"
     cc_settings_conf_lines "$spec"
-    # allow_late explícito no spec vence o automático de mode=treino (false => sem a var)
-    [[ "$mode" == treino && "$(jq -r '.allow_late' <<<"$spec")" == null ]] && printf 'ALLOWLATEUSER=y\n'
   } > "$stg/conf"
   printf '%s\n' "$creator" > "$stg/owner"
   printf '%s\t%s\t%s\n' "$creator" "$EPOCHSECONDS" "$mode" > "$stg/created-by"
@@ -825,7 +822,7 @@ cc_tpl_relativize(){
     (.start|tonumber? // 0) as $st | (.end|tonumber? // 0) as $en
     | (.login_start|tonumber? // 0) as $ls | (.freeze|tonumber? // 0) as $fz
     | pick(["mode","priority","languages","show_log","show_editor","show_tl",
-            "allow_backup","allow_print","score_anon","manual_verdict","allow_late","secret",
+            "allow_backup","allow_print","score_anon","manual_verdict","secret",
             "login_ua_substring","score_full_users","locale","login_enabled",
             "penalty_minutes","penalty_verdicts",
             "colors","regions","teams_meta","modules"])
@@ -850,7 +847,7 @@ cc_export_spec(){
   confjson="$(
     CONTEST_NAME=""; CONTEST_TYPE=""; CONTEST_PRIORITY=""; CONTEST_START=""; CONTEST_END=""
     LANGUAGES=""; USERS_FROM=""; LOCALE=""; LOGIN_START_TIME=""; LOGIN_ENABLED=""
-    FREEZE_TIME=""; ALLOWLATEUSER=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
+    FREEZE_TIME=""; SHOWLOG=""; SHOWEDITOR=""; SHOWTL=""; SCORE_ANON=""
     BACKUP=""; PRINT=""; MANUAL_VERDICT=""; LOGIN_UA_SUBSTRING=""; SCORE_FULL_USERS=""; SECRET=""
     PENALTY_MINUTES=""; PENALTY_VERDICTS="__unset"; CONTEST_JUDGES=""; CONTEST_MODULES=""
     . "$cdir/conf" 2>/dev/null
@@ -859,7 +856,7 @@ cc_export_spec(){
       --arg start "$CONTEST_START" --arg end "$CONTEST_END" --arg langs "$LANGUAGES" \
       --arg users_from "$USERS_FROM" --arg locale "$LOCALE" \
       --arg lstart "$LOGIN_START_TIME" --arg lenabled "$LOGIN_ENABLED" --arg freeze "$FREEZE_TIME" \
-      --arg late "$ALLOWLATEUSER" --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
+      --arg showlog "$SHOWLOG" --arg showeditor "$SHOWEDITOR" \
       --arg showtl "$SHOWTL" --arg anon "$SCORE_ANON" --arg backup "$BACKUP" --arg prnt "$PRINT" \
       --arg manual "$MANUAL_VERDICT" --arg ua "$LOGIN_UA_SUBSTRING" --arg sfu "$SCORE_FULL_USERS" \
       --arg secret "$SECRET" --arg pmin "$PENALTY_MINUTES" --arg pvd "$PENALTY_VERDICTS" \
@@ -874,7 +871,6 @@ cc_export_spec(){
       + (if (($lstart|tonumber?) // 0) > 0 then {login_start:($lstart|tonumber)} else {} end)
       + (if $lenabled == "n" then {login_enabled:false} else {} end)
       + (if (($freeze|tonumber?) // 0) > 0 then {freeze:($freeze|tonumber)} else {} end)
-      + (if $late == "y" then {allow_late:true} else {} end)
       + (if $showlog == "0" then {show_log:false} else {} end)
       + (if $showeditor == "0" then {show_editor:false} else {} end)
       + (if $showtl == "0" then {show_tl:false} else {} end)

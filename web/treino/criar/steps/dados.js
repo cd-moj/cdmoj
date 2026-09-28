@@ -24,11 +24,7 @@ export function makeStepDados(ctx) {
   const mode = el('select', {}, ...modes.map((m) => el('option', { value: m }, MODE_LABEL[m] || m)));
   if (modes.includes(d.mode)) mode.value = d.mode;
   d.mode = mode.value;
-  mode.addEventListener('change', () => {
-    d.mode = mode.value;
-    // treino liga auto-cadastro por padrão (o usuário pode desligar no passo Opções)
-    if (mode.value === 'treino' && !ctx.editors.settings && d.opts.allow_late === undefined) d.opts.allow_late = true;
-  });
+  mode.addEventListener('change', () => { d.mode = mode.value; });
   const start = el('input', { type: 'datetime-local', value: toLocalDT(d.start) });
   start.addEventListener('input', () => { const e = dtToEpoch(start.value); if (e) d.start = e; });
   const end = el('input', { type: 'datetime-local', value: toLocalDT(d.end) });

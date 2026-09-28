@@ -20,15 +20,17 @@ export function makeSettingsTab(CONTEST, opts = {}) {
 
   // rótulo + índices dos filhos do editor (modo admin) + começa aberta?
   // (2026-09-18: a caixa "mostrar o código a todos" — antigo índice 6 — foi REMOVIDA; tudo acima dele desceu 1)
+  // (2026-09-28: a caixa "auto-cadastro (late users)" — antigo índice 5 — foi REMOVIDA; idem, desceu 1.
+  //  smoke-settings-groups.gjs.sh confere que cada campo cai na seção certa e nenhum sobra)
   const GROUPS = () => [
-    // 27,28,29 = o bloco do FUSO da prova, acrescentado no fim do editor (ver a nota lá:
+    // 26,27,28 = o bloco do FUSO da prova, acrescentado no fim do editor (ver a nota lá:
     // campo novo entra no fim justamente para não deslocar estes índices)
-    { label: T('🕒 Identidade e janela', '🕒 Identity and window', '🕒 Identidad y ventana'), idx: [0, 1, 2, 3, 27, 28, 29], open: true },
-    { label: T('👁 O que o time vê durante a prova', '👁 What the team sees during the contest', '👁 Lo que el equipo ve durante la competencia'), idx: [6, 7, 8, 9, 10, 11] },
-    { label: T('⚖️ Julgamento (linguagens, pool, veredicto manual)', '⚖️ Judging (languages, pool, manual verdict)', '⚖️ Evaluación (lenguajes, pool, veredicto manual)'), idx: [12, 13, 18, 19, 20, 21, 22, 23] },
-    // 30,31,32 = o bloco "balões durante o freeze", também acrescentado no fim do editor
-    { label: T('🏅 Placar, freeze e penalidade', '🏅 Scoreboard, freeze and penalty', '🏅 Marcador, congelamiento y penalización'), idx: [14, 17, 24, 25, 26, 30, 31, 32, 33, 34, 35] },
-    { label: T('🔒 Acesso ao contest', '🔒 Contest access', '🔒 Acceso a la competencia'), idx: [4, 5, 15, 16] },
+    { label: T('🕒 Identidade e janela', '🕒 Identity and window', '🕒 Identidad y ventana'), idx: [0, 1, 2, 3, 26, 27, 28], open: true },
+    { label: T('👁 O que o time vê durante a prova', '👁 What the team sees during the contest', '👁 Lo que el equipo ve durante la competencia'), idx: [5, 6, 7, 8, 9, 10] },
+    { label: T('⚖️ Julgamento (linguagens, pool, veredicto manual)', '⚖️ Judging (languages, pool, manual verdict)', '⚖️ Evaluación (lenguajes, pool, veredicto manual)'), idx: [11, 12, 17, 18, 19, 20, 21, 22] },
+    // 29,30,31 = o bloco "balões durante o freeze", também acrescentado no fim do editor
+    { label: T('🏅 Placar, freeze e penalidade', '🏅 Scoreboard, freeze and penalty', '🏅 Marcador, congelamiento y penalización'), idx: [13, 16, 23, 24, 25, 29, 30, 31, 32, 33, 34] },
+    { label: T('🔒 Acesso ao contest', '🔒 Contest access', '🔒 Acceso a la competencia'), idx: [4, 14, 15] },
   ];
 
   async function load() {

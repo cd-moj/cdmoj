@@ -177,7 +177,6 @@ pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).
 - **Ver log de execução** — o relatório teste-a-teste. ⚠ Em prova valendo nota, deixar o log visível pode **vazar os testes** (o aluno vê entrada/saída) — o clássico "SHOWLOG" — desligue.
 - **Editor no browser** — o editor lado a lado com o enunciado.
 - **Mostrar time-limit** — exibe os TLs por linguagem no enunciado.
-- **Aceitar atrasados** — permite login de conta criada depois da largada.
 - **Backup** / **Impressão** — habilitam o upload de backup pelo aluno e os pedidos de impressão (que caem na fila do staff).
 - **Placar anônimo** — esconde o desempenho individual (só a posição do próprio aluno).
 - **Gate de login por UA** — só navegadores cuja identificação contém a substring conseguem logar (máquina de prova travada). Papéis privilegiados são isentos.

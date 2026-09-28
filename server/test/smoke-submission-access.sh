@@ -13,7 +13,7 @@ export CONTESTSDIR="$FIX" SESSIONDIR="$SESS" RUNDIR="$RUN"
 NOW="$EPOCHSECONDS"; C="$FIX/sa"; mkdir -p "$C/var"
 mkdir -p "$FIX/treino/var"; printf 'CONTEST_ID=treino\n' > "$FIX/treino/conf"
 { printf 'CONTEST_ID=sa\nCONTEST_NAME=Acesso\nCONTEST_TYPE=obi\nCONTEST_START=%s\nCONTEST_END=%s\n' "$((NOW-3600))" "$((NOW+3600))"
-  printf 'SHOWCODE=1\nSHOWLOG=1\nPROBS=( x col/pa Alfa A col#pa )\n'; } > "$C/conf"
+  printf 'SHOWCODE=1\nALLOWLATEUSER=y\nSHOWLOG=1\nPROBS=( x col/pa Alfa A col#pa )\n'; } > "$C/conf"
 for u in dona outro sa.judge sa.admin; do fx_user "$C" "$u" s "$u"
   printf 'CONTEST=%q\nLOGIN=%q\nUSERFULLNAME=%q\nLOGINAT=%q\n' sa "$u" "$u" "$NOW" > "$SESS/tok-$u"; done
 SID=0123456789abcdef0123456789abcdef
@@ -42,6 +42,10 @@ call sa.admin /contest/admin/settings "";  ck "settings GET sem show_code"  '[[ 
 call sa.admin /contest/admin/settings "" POST '{"show_code":true,"show_log":true}'
 ck "POST com show_code: 200 (chave ignorada — cliente antigo manda o formulário inteiro)" '[[ "$OUT" == *"Status: 200"* ]]'
 ck "…não gravou, e a linha morta SAIU do conf"  '! grep -q "^SHOWCODE=" "$C/conf"'
+# ALLOWLATEUSER ("Permitir auto-cadastro", o adduser do bot antigo) — REMOVIDO em 28/09/2026, mesmo molde
+call sa.admin /contest/admin/settings ""; ck "settings GET sem allow_late" '[[ "$(jq -r "has(\"allow_late\")" <<<"$BODY")" == false ]]'
+call sa.admin /contest/admin/settings "" POST '{"allow_late":true,"show_log":true}'
+ck "POST com allow_late: 200, ignorado, e a linha ALLOWLATEUSER legada SAIU do conf" '[[ "$OUT" == *"Status: 200"* ]] && ! grep -q "^ALLOWLATEUSER" "$C/conf"'
 call outro /submission/source "id=$SID";   ck "…e continua fechado depois do POST" '[[ "$OUT" == *"Status: 403"* ]]'
 call dona /contest/userinfo "";            ck "userinfo sem show_code" '[[ "$OUT" == *"Status: 200"* && "$(jq -r "has(\"show_code\")" <<<"$BODY")" == false ]]'
 call sa.admin /contest/admin/preflight ""; ck "preflight sem a checagem show_code" '[[ "$OUT" == *"Status: 200"* && "$(jq -r "[.checks[]?.id]|index(\"show_code\")" <<<"$BODY")" == null ]]'

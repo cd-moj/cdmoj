@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:56a8fbba348cb41e635b2e3887113bf90f28b7b4 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:89b2d01237a992981ff6df8dfce0da6d89c240c1 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -185,7 +185,6 @@ one time from the files that they already have (`server/bin/contest-modules-dete
 - **User can see the judging log**: the test-by-test report. ⚠ In a graded contest, a visible log can **leak the tests** (the student sees the input/output). This is the classic "SHOWLOG". Turn it off.
 - **In-browser code editor available**: the editor side by side with the statement.
 - **Show problems' time limit to users**: shows the TLs per language in the statement.
-- **Allow self-registration of new users (late users)**: lets an account created after the start log in.
 - **Allow file backup by users** / **Allow print requests by users (.staff)**: enable the backup upload by the student and the print requests (which go to the staff queue).
 - **Anonymous scoreboard**: hides the individual performance (the student sees only his or her own position).
 - **Login gate by UA substring**: only browsers whose identification contains the substring can log in (locked contest machine). Privileged roles are exempt.

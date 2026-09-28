@@ -1219,8 +1219,14 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   código — que sempre foi visível. Linha `SHOWCODE` em conf antigo é morta (o settings POST a apaga e
   aceita-e-ignora a chave; spec de criação com `showcode` idem). Não reintroduza um "abrir soluções" sem
   um pedido explícito. ⚠ A tela **Regras** agrupa os campos do `settings-editor.js` por ÍNDICE: tirar um
-  campo do MEIO desloca −1 todos os seguintes no `GROUPS` de `settings-tab.js`. Teste:
+  campo do MEIO desloca −1 todos os seguintes no `GROUPS` de `settings-tab.js` (guarda:
+  `smoke-settings-groups.gjs.sh` monta o editor e confere seção por seção). Teste:
   `smoke-submission-access.sh` (parte do conf LEGADO com `SHOWCODE=1`).
+- **`ALLOWLATEUSER`/`allow_late` ("Permitir auto-cadastro de novos usuários (late users)") REMOVIDA em
+  2026-09-28**, mesmo molde: era o `adduser` do bot do MOJ antigo (`mojinho.sh`, gitignorado — só o ramo
+  morto dele ainda cita a var) e nada a lia desde o store por-usuário — a caixa não fazia nada. Settings POST e criação
+  aceitam e ignoram a chave; a linha do conf sai no primeiro save. Quem entra num contest compartilhado
+  é decidido pela INSCRIÇÃO (módulo `inscricoes`), não por ela.
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a

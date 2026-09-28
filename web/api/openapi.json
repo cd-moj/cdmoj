@@ -3593,9 +3593,6 @@
                   "manual_verdict": {
                     "type": "boolean"
                   },
-                  "allow_late": {
-                    "type": "boolean"
-                  },
                   "secret": {
                     "type": "boolean",
                     "description": "SUPER SECRETO: fora das listagens públicas; placar/visual exigem login no contest"

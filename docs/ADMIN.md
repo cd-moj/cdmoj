@@ -183,13 +183,11 @@ cat > /home/ribas/moj/contests/treino/conf <<'EOF'
 CONTEST_ID=treino
 CONTEST_NAME="Treino Livre"
 CONTEST_TYPE=lista-publica
-ALLOWLATEUSER=y
 CONTEST_END="$(date --date="next year" +%s)"
 EOF
 ```
 
 - `CONTEST_TYPE=lista-publica` → placar em modo **treino** (mostra detalhe cheio dos veredictos).
-- `ALLOWLATEUSER=y` → sem lista fechada de inscritos (o treino é aberto).
 - `CONTEST_END="$(date …)"` → fim no futuro (o heredoc é `'EOF'` **entre aspas** de propósito: a
   string é gravada **literal** e o `date` roda a cada leitura do `conf`, mantendo o contest sempre "ativo").
 

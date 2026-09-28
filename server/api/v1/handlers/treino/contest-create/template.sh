@@ -31,8 +31,6 @@ cat <<'JSON'
   "manual_verdict": false,
   "secret": false,
   "_secret": "SUPER SECRETO: fora das listagens publicas (home/arquivo/status) e o placar/visual exigem login no contest. A tela de login continua funcionando p/ quem tem o link",
-  "allow_late": false,
-  "_allow_late": "auto-cadastro de atrasados; mode=treino liga sozinho se voce nao mandar o campo",
   "login_ua_substring": "",
   "_login_ua_substring": "gate de login por substring do User-Agent (ex.: MOJBOX); vazio = sem gate",
   "score_full_users": [],

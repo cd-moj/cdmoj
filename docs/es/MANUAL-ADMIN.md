@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:56a8fbba348cb41e635b2e3887113bf90f28b7b4 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:89b2d01237a992981ff6df8dfce0da6d89c240c1 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -180,7 +180,6 @@ por los archivos que ya tienen (`server/bin/contest-modules-detect.sh`).
 - **El usuario puede ver el registro de evaluación**: el informe prueba por prueba. ⚠ En una competencia que vale nota, dejar el registro visible puede **filtrar las pruebas** (el alumno ve la entrada/salida): es el clásico "SHOWLOG". Desactívalo.
 - **Editor de código en el navegador disponible**: el editor lado a lado con el enunciado.
 - **Mostrar el tiempo límite de los problemas a los usuarios**: muestra los TL por lenguaje en el enunciado.
-- **Permitir el autorregistro de nuevos usuarios (usuarios tardíos)**: permite el inicio de sesión de cuentas creadas después del inicio.
 - **Permitir el backup de archivos por los usuarios** / **Permitir solicitudes de impresión por los usuarios (.staff)**: habilitan la subida de respaldos por el alumno y las solicitudes de impresión (que van a la cola del staff).
 - **Marcador anónimo**: oculta el desempeño individual (solo la posición del propio alumno).
 - **Filtro de inicio de sesión por substring de UA**: solo los navegadores cuya identificación contiene la substring pueden iniciar sesión (máquina de competencia bloqueada). Los roles privilegiados están exentos.

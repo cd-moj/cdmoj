@@ -43,7 +43,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   priority.value = prios.includes(s.priority) ? s.priority : 'lista-publica';
   const loginEnabled = mkBool(s.login_enabled !== false),
     showLog = mkBool(s.show_log !== false), showEditor = mkBool(s.show_editor !== false),
-    allowLate = mkBool(s.allow_late), scoreAnon = mkBool(s.score_anon),
+    scoreAnon = mkBool(s.score_anon),
     showTL = mkBool(s.show_tl !== false), allowBackup = mkBool(s.allow_backup !== false),
     allowPrint = mkBool(s.allow_print !== false), manualVerdict = mkBool(s.manual_verdict === true),
     secret = mkBool(s.secret === true), balloonsFreeze = mkBool(s.balloons_during_freeze === true);
@@ -104,7 +104,6 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
     el('div', { class: 'grid2' }, field(T('Abertura do login (tela de espera)', 'Login opening (waiting screen)', 'Apertura del login (pantalla de espera)'), loginStart), field(T('Freeze do placar', 'Scoreboard freeze', 'Congelamiento del marcador'), freeze)),
     isCreate ? el('div', { class: 'grid2' }, field(T('Idioma', 'Language', 'Idioma'), locale), field(T('Prioridade no julgamento', 'Judging priority', 'Prioridad en la evaluación'), priority)) : field(T('Idioma', 'Language', 'Idioma'), locale),
     chk(T('Login habilitado', 'Login enabled', 'Inicio de sesión habilitado'), loginEnabled),
-    chk(T('Permitir auto-cadastro de novos usuários (late users)', 'Allow self-registration of new users (late users)', 'Permitir el autorregistro de nuevos usuarios (usuarios tardíos)'), allowLate),
     chk(T('Usuário pode ver o log de julgamento', 'User can see the judging log', 'El usuario puede ver el registro de evaluación'), showLog),
     showLogHint,
     chk(T('Editor de código no browser disponível', 'In-browser code editor available', 'Editor de código en el navegador disponible'), showEditor),
@@ -164,7 +163,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
       freeze: freeze.value ? dtToEpoch(freeze.value) : 0,
       locale: locale.value, tz: tz.value.trim(), login_enabled: loginEnabled.checked,
       show_log: showLog.checked, show_editor: showEditor.checked,
-      allow_late: allowLate.checked, score_anon: scoreAnon.checked, show_tl: showTL.checked,
+      score_anon: scoreAnon.checked, show_tl: showTL.checked,
       allow_backup: allowBackup.checked, allow_print: allowPrint.checked,
       manual_verdict: manualVerdict.checked, secret: secret.checked, login_ua_substring: ua.value,
       balloons_during_freeze: balloonsFreeze.checked, balloon_style: blnStyle.value,
