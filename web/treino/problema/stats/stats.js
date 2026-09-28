@@ -105,7 +105,7 @@ async function boot() {
       fs ? factCard(fsName + ' · ' + fdate(fs.epoch), T('primeiro a resolver', 'first to solve', 'primero en resolver')) : null,
       f.peak_day ? factCard(fdateStr(f.peak_day.date) + ' (' + f.peak_day.n + ')', T('dia de pico', 'peak day', 'día pico')) : null,
       factCard(fdate(f.last_sub_epoch), T('última submissão', 'last submission', 'último envío')),
-      s.tries_median != null ? factCard(String(s.tries_median), T('mediana de tentativas até o aceite', 'median tries until accept', 'mediana de intentos hasta el aceite')) : null,
+      s.tries_median != null ? factCard(String(s.tries_median), T('mediana de tentativas até o aceite', 'median tries until accept', 'mediana de intentos hasta la aceptación')) : null,
       s.t2s_median != null ? factCard(fdur(s.t2s_median), T('tempo mediano até resolver', 'median time to solve', 'tiempo mediano hasta resolver')) : null)));
 
   // --- linha do tempo: histograma mensal completo + curvas de crescimento ---
@@ -182,9 +182,9 @@ async function boot() {
         barChart(slData, { width: 460, height: 240, color: '#216097', rotateLabels: true })),
       rateData.length ? chartCard(T('Taxa de aceitação por linguagem', 'Acceptance rate by language', 'Tasa de aceptación por lenguaje'),
         hBarChart(rateData, { total: 0, fmt: (v) => v + '%' })) : null,
-      triesData.some((d) => d.value) ? chartCard(T('Submissões até o 1º aceite', 'Submissions until first accept', 'Envíos hasta el primer aceite'),
+      triesData.some((d) => d.value) ? chartCard(T('Submissões até o 1º aceite', 'Submissions until first accept', 'Envíos hasta la primera aceptación'),
         hBarChart(triesData, {})) : null,
-      t2sData.some((d) => d.value) ? chartCard(T('Tempo entre a 1ª tentativa e o aceite', 'Time from first try to accept', 'Tiempo entre el primer intento y el aceite'),
+      t2sData.some((d) => d.value) ? chartCard(T('Tempo entre a 1ª tentativa e o aceite', 'Time from first try to accept', 'Tiempo entre el primer intento y la aceptación'),
         hBarChart(t2sData, {})) : null,
       eData.length ? chartCard(T('⌨ Editores de quem resolveu', '⌨ Editors of those who solved', '⌨ Editores de quienes resolvieron'),
         pieChart(eData, { size: 240 })) : null)));

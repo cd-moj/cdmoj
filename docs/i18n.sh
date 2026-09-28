@@ -14,7 +14,7 @@
 #
 # Este arquivo é a LISTA ÚNICA (lida pelo build-html.sh e pelo lint); o espelho em JS é o
 # DOCS_I18N de web/shared/i18n.js — paridade conferida pelo lint.
-DOCS_I18N=(MANUAL-CONTEST MANUAL-TREINO MANUAL-JUIZ MANUAL-STAFF MANUAL-ANIMEITOR)
+DOCS_I18N=(MANUAL-CONTEST MANUAL-TREINO MANUAL-JUIZ MANUAL-STAFF MANUAL-ANIMEITOR ENUNCIADO ESTATISTICAS-PROBLEMA CONTAS-GERIDAS)
 DOC_LANGS_I18N=(en es)
 
 # carimbo esperado p/ o PT de <DOC> (blob do git da ÁRVORE DE TRABALHO; vai no mesmo commit)
