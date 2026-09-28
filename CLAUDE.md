@@ -140,6 +140,13 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `admin/users` lista também quem só tem dir (`shared`, `dir_only`); `users-set-password` recusa (409
   `shared_users`). ⚠ **Criar conta nunca zera um `history` que já existe** (`user_create`, `users-bulk`,
   `_cc_stage_user`: `[[ -f history ]] || : > history`) — era como "converter na mão" apagava o histórico.
+  **DESFAZER o compartilhamento** = `POST /contest/admin/users-convert` (`lib/users-convert.sh`, invariantes
+  I1–I5 no cabeçalho): prévia (`dry_run`, nada gravado, `plan_id`) → execução com o `plan_id` + confirmação
+  (id do contest digitado se a prova já começou). População SÓ do contest (dirs, roster, **sessões vivas**,
+  `access.log`) — nunca varrer o treino; senha NOVA (da fonte só `fullname`); TIME vira UMA conta (a `!<uuid>`
+  do `time-<slug>` vira senha real; membro com history = conta local desabilitada); roster arquivado em
+  `var/`; ponto de commit = tirar `USERS_FROM` (retomável: conta com `converted_at` não ganha outra senha).
+  Nada de processo por conta (2000 contas ≈ 4 s no smoke). Teste: `smoke-users-convert.sh`.
   Rename no treino leva o dir de TODO contest compartilhado (`shared_rename_login`, + as sessões dele;
   submissão pendente lá = 409). `duplicate` não herda `users_from`. Teste: `smoke-shared-accounts.sh`.
   **Derrubar as sessões de um login = `remove_contest_sessions[_v] <c> <login…>`** (`lib/auth.sh`): um `grep`

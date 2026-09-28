@@ -12,6 +12,8 @@ fi
 : "${MOJ_CONF:=$_LIBDIR/../../../etc/common.conf}"
 [[ -f "$MOJ_CONF" ]] && source "$MOJ_CONF"
 : "${CONTESTSDIR:=/home/ribas/moj/contests}"
+# senhas legíveis (palavra + 4 dígitos): a lista viaja com o código (a imagem copia o mojinho-bot/)
+: "${PASSWORD_WORDLIST:=${_LIBDIR%/server/api/v1/lib}/mojinho-bot/palavras-para-senha}"
 : "${SESSIONDIR:=/home/ribas/moj/run/sessions}"
 : "${SPOOLDIR:=/home/ribas/moj/run/spool/submissions}"
 # defaults DERIVADOS do próprio checkout (_LIBDIR = server/api/v1/lib), nunca caminho de dev

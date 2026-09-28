@@ -6369,6 +6369,62 @@
         }
       }
     },
+    "/contest/admin/users-convert": {
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Converte contas compartilhadas (USERS_FROM) em contas PRÓPRIAS: prévia (dry_run, padrão) e execução com plan_id + confirmação (id digitado se a prova já começou)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dry_run": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "plan_id": {
+                    "type": "string",
+                    "description": "o plan_id da prévia (obrigatório ao executar)"
+                  },
+                  "confirm": {
+                    "description": "true antes da prova; o id do contest (string) durante/depois",
+                    "oneOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "logout_all": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{preview:{contest,phase,plan_id,sessions_live,registration,counts,samples,admin,warnings[]}} | {converted:true,credentials:[{login,fullname,kind,password?,team?,resumed?,late?}],counts,sessions_removed,registrations_archived}"
+          },
+          "409": {
+            "description": "not_shared | already_converted (error.converted) | plan_changed (error.preview) | confirm_required (error.need) | busy"
+          }
+        }
+      }
+    },
     "/contest/admin/user-disqualify": {
       "post": {
         "tags": ["contest-admin"],

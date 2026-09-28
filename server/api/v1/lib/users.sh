@@ -134,7 +134,7 @@ user_create(){
 
 # user_genpass — senha legível: palavra do dicionário + 4 dígitos (igual cc_genpass).
 user_genpass(){
-  local wl="${PASSWORD_WORDLIST:-/home/ribas/moj/cdmoj/mojinho-bot/palavras-para-senha}" w=""
+  local wl="${PASSWORD_WORDLIST:-}" w=""
   [[ -f "$wl" ]] && w="$(shuf -n1 "$wl" 2>/dev/null | tr -cd 'a-z0-9')"
   [[ -n "$w" ]] || w="$(head -c8 /dev/urandom | base64 | tr -dc 'a-z0-9' | head -c6)"
   printf '%s%04d' "$w" "$(( RANDOM % 10000 ))"

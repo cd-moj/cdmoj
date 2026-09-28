@@ -218,6 +218,9 @@ username = `mv` do diretório** e a maioria dos scripts de conta/julgamento só 
 (`lib/users.sh`, `emit_history_stream`). Os handlers de usuário do **admin do contest**
 (`user-add`/`user-disable`/`user-remove`/`users-set-password`) escrevem no `account.json` (fonte
 da verdade); remover = `mv` do diretório p/ `.removed-users/` (submissões preservadas).
+Um contest compartilhado (`USERS_FROM`) pode virar de **contas próprias** a qualquer momento
+(`POST /contest/admin/users-convert`: prévia → confirmação; senhas novas, histórico e placar
+preservados, cada time vira uma conta) — sem volta.
 ### Inscrição em contest (roster, janela e TIMES de contas do treino)
 Contest que usa as contas do treino (`USERS_FROM=treino`) pode exigir **inscrição prévia**:
 `contests/<c>/registrations.json` — **existir = ligado** (mesma doutrina do `cohorts.json`).

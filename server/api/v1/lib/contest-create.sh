@@ -48,7 +48,7 @@ cc_solved_count(){ metrics_solved_count treino "$1"; }
 
 # cc_genpass — senha legível: uma palavra de palavras-para-senha + 4 dígitos (ex.: tartaruga7823).
 cc_genpass(){
-  local wl="${PASSWORD_WORDLIST:-/home/ribas/moj/cdmoj/mojinho-bot/palavras-para-senha}" w=""
+  local wl="${PASSWORD_WORDLIST:-}" w=""
   [[ -f "$wl" ]] && w="$(shuf -n1 "$wl" 2>/dev/null | tr -cd 'a-z0-9')"
   [[ -n "$w" ]] || w="$(head -c 8 /dev/urandom | base64 | tr -dc 'a-z0-9' | head -c 6)"
   printf '%s%04d' "$w" "$(( RANDOM % 10000 ))"
