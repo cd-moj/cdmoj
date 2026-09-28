@@ -27,6 +27,7 @@ pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo 
 
 echo "== fila: admin vê tudo (impressão + balão gerado do history) =="
 call /contest/staff/queue GET '' adm 'contest=sc'
+ck "admin: a fila NÃO tem linha fantasma do staff-filters.json (só tarefa com id)" '[[ "$(jq -r "[.requests[] | select((.id // \"\") == \"\")] | length" <<<"$BODY")" == 0 ]]'
 ck "admin vê a impressão pr1"    '[[ "$(jq -r ".requests[]|select(.id==\"pr1\").login" <<<"$BODY")" == aluno2 ]]'
 BLN="$(jq -r '.requests[]|select(.kind=="balloon").id' <<<"$BODY")"
 ck "balão do aluno1 foi gerado"  '[[ -n "$BLN" && "$(jq -r ".requests[]|select(.kind==\"balloon\").login" <<<"$BODY")" == aluno1 ]]'
