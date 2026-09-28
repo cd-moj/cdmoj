@@ -61,7 +61,7 @@ if (( ${#pm_items[@]} )); then probmeta="$(printf '%s\n' "${pm_items[@]}" | jq -
 # recorte correspondente (o agregado global não muda). Contest com USERS_FROM sem overlay
 # local não tem .team ⇒ dimensões vazias, comportamento de sempre.
 MAPF="$(mktemp)"; RGF="$(mktemp)"
-trap 'rm -f "$TMP" "${_HT:-}" "${MAPF:-}" "${RGF:-}"' EXIT
+trap 'rm -f "$TMP" "${_HT:-}" "${MAPF:-}" "${RGF:-}" "${VWF:-}"' EXIT
 find "$CONTESTSDIR/$C/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
   | xargs -0 -r jq -r '[ (((input_filename | split("/"))[-2]) // ""),
                          ((.team.region // "") | gsub("[\t\n]"; " ")),
@@ -70,25 +70,22 @@ find "$CONTESTSDIR/$C/users" -mindepth 2 -maxdepth 2 -name account.json -print0 
                          ((.team.name // .fullname // "") | gsub("[\t\n]"; " ")) ] | @tsv' \
       2>/dev/null > "$MAPF"
 
-# Nós da ÁRVORE de regions.json (país › região/supersede › sede): a estatística oferece o
-# MESMO seletor de Sede do placar, e os nós de cima só existem AGREGANDO por regex de login
-# (o regionMatch do placar: regex no login OU nome == .team.region). Cada nó vira um
-# recorte `r:<nome>` em by_region. Regex inválida p/ ERE é descartada (o placar a ignora
-# igual, via safeRe). Sem regions.json = só as sedes do .team.region, como antes.
-if [[ -s "$CONTESTSDIR/$C/regions.json" ]]; then
-  # 3ª coluna: a flag `view` do nó (recorte SOBREPOSTO — supersede/femininos): a fatia
-  # existe p/ VISUALIZAR, e somá-la com as sedes conta times em dobro. O flag viaja até o
-  # by_region (campo `view:true`) e a UI avisa. ⚠ fatias são chaveadas por NOME: nó-view
-  # com o MESMO nome de um nó real marcaria os dois — dê nomes próprios aos recortes.
-  jq -r 'def flat: .[]? | ([(.name // ""), (.regex // ""), ((.view // false)|tostring)] | @tsv), ((.subregions // []) | flat); flat' \
-      "$CONTESTSDIR/$C/regions.json" 2>/dev/null \
-  | while IFS=$'\t' read -r _nm _re _vw; do
-      [[ -n "$_nm" ]] || continue
-      if [[ -n "$_re" ]]; then
-        printf '' | grep -qE -- "$_re" 2>/dev/null; (( $? == 2 )) && continue
-      fi
-      printf '%s\t%s\t%s\n' "$_nm" "$_re" "$_vw"
-    done > "$RGF"
+# SEDE e PERTENÇA pela regra ÚNICA (lib/regions.sh, 28/09/2026): cada nó do regions.json em que o login
+# ESTÁ (a sede — gravada ou pela regex mais funda —, os ancestrais, nó com o mesmo nome e recortes) vira um
+# recorte `r:<nome>` em by_region; a sede vai no teams_idx.r e a lista de nós no teams_idx.rs (a web filtra
+# por ela, sem regex). Antes: regex no login OU nome == .team.region, nó a nó, em ERE diferenciando
+# maiúsculas — e "curitiba" gravado e o nó "Curitiba" viravam DUAS fatias. Recorte `view` segue marcado
+# (a fatia existe p/ VISUALIZAR; somá-la com as sedes conta em dobro). ⚠ fatias chaveadas por NOME.
+# RGF: login \t sede \t nomes dos nós (separados por \036) ; VWF: nomes de nós-recorte
+VWF="$(mktemp)"
+source "$(cd "$(dirname "$(readlink -f "$0")")" && pwd)/../api/v1/lib/regions.sh"
+if RGM="$(rg_map "$C" 2>/dev/null)"; then
+  jq -Rrn --slurpfile n "$CONTESTSDIR/$C/var/regions-nodes.json" '
+    inputs | split("\t") | (.[1] | tonumber) as $s
+    | [ .[0], (if $s >= 0 then $n[0][$s].name else "" end),
+        ([ .[2] | split(",")[] | select(length > 0) | $n[0][tonumber].name ] | unique | join("\u001e")) ]
+    | map(gsub("[\t\n]"; " ")) | join("\t")' "$RGM" > "$RGF" 2>/dev/null || : > "$RGF"
+  jq -r '.[] | select(.view) | .name' "$CONTESTSDIR/$C/var/regions-nodes.json" > "$VWF" 2>/dev/null || : > "$VWF"
 fi
 
 START_VAL="${CONTEST_START:-0}"; [[ "$START_VAL" =~ ^[0-9]+$ ]] || START_VAL=0
@@ -99,7 +96,7 @@ if [[ -s "$CONTESTSDIR/$C/cohorts.json" ]]; then
   UNRX="$(jq -r '[(.cohorts // [])[] | select(.unranked == true) | .regex | select(. != "")] | join("|")' \
     "$CONTESTSDIR/$C/cohorts.json" 2>/dev/null)"
 fi
-awk -F: -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" -v PEN="${PENALTY_MINUTES:-20}" -v UNRX="$UNRX" '
+awk -F: -v START="$START_VAL" -v MF="$MAPF" -v RF="$RGF" -v VF="$VWF" -v PEN="${PENALTY_MINUTES:-20}" -v UNRX="$UNRX" '
 # R2: cada submissão alimenta N ESCOPOS — g (global), r=<sede/nó da árvore>, c=<país> — e o
 # END emite as mesmas linhas de sempre prefixadas por "<kind>\t<val>\t". O escopo vira ID
 # inteiro (sid): a chave composta id SUBSEP x é separável no END mesmo com sede livre.
@@ -110,17 +107,14 @@ function sid(kind, val,   k) {
 }
 # escopos de UM login (g/r/c + nós da árvore), memoizados em us_/uscn — usados pela
 # passada de INSCRITOS (BEGIN) e pelo corpo por-submissão (o cache é compartilhado)
-function calc_scopes(user,   r_, s_, i_, hit, useen) {
+function calc_scopes(user,   s_, i_, nm_, useen, nms_) {
   split("", useen)
   n_u = 0; us_[user, ++n_u] = sid("g", "")
-  r_ = reg[user]
-  if (r_ != "") { s_ = sid("r", r_); useen[s_] = 1; us_[user, ++n_u] = s_ }
   if (cty[user] != "") us_[user, ++n_u] = sid("c", cty[user])
-  for (i_ = 1; i_ <= nrg; i_++) {
-    hit = 0
-    if (rgre[i_] != "" && user ~ rgre[i_]) hit = 1
-    else if (r_ != "" && tolower(rgname[i_]) == tolower(r_)) hit = 1
-    if (hit) { s_ = sid("r", rgname[i_]); if (!(s_ in useen)) { useen[s_] = 1; us_[user, ++n_u] = s_ } }
+  nm_ = (user in rmem) ? split(rmem[user], nms_, "\036") : 0      # os nós em que o login ESTÁ
+  for (i_ = 1; i_ <= nm_; i_++) {
+    if (nms_[i_] == "") continue
+    s_ = sid("r", nms_[i_]); if (!(s_ in useen)) { useen[s_] = 1; us_[user, ++n_u] = s_ }
   }
   uscn[user] = n_u
 }
@@ -135,15 +129,18 @@ BEGIN{
     }
   }
   close(MF)
-  # nós da árvore de regions.json: nome \t regex \t view (regex já validada pelo gerador)
+  # sede e pertença (lib/regions.sh): login \t sede \t nós (\036). A sede canônica substitui a gravada
+  # SÓ p/ quem tem conta (a população de inscritos continua a das contas).
   while ((getline mline < RF) > 0) {
     n = split(mline, ma, "\t")
     if (n >= 1 && ma[1] != "") {
-      nrg++; rgname[nrg] = ma[1]; rgre[nrg] = (n >= 2 ? ma[2] : "")
-      if (n >= 3 && ma[3] == "true") viewname[ma[1]] = 1
+      if (ma[1] in reg) reg[ma[1]] = (n >= 2 ? ma[2] : "")
+      if (n >= 3 && ma[3] != "") rmem[ma[1]] = ma[3]
     }
   }
   close(RF)
+  while ((getline mline < VF) > 0) if (mline != "") viewname[mline] = 1
+  close(VF)
   # PASSADA DE INSCRITOS (2026-08-31, relato do Carlos na LATAM): a página contava só quem
   # SUBMETEU (users[] nasce de linha de history) — 43 zeros no placar viravam 2 na
   # estatística. Todo login NÃO-privilegiado do mapa de contas conta como INSCRITO em cada
@@ -210,7 +207,7 @@ END{
   }
   # NM (não T: T é a timeline!): identidade de TODO time com AC, convidado incluso
   for(u_ in usolv2)
-    printf "g\t\tNM\t%s\t%s\t%s\t%s\n", u_, (u_ in tnm ? tnm[u_] : u_), cty[u_], reg[u_]
+    printf "g\t\tNM\t%s\t%s\t%s\t%s\t%s\n", u_, (u_ in tnm ? tnm[u_] : u_), cty[u_], reg[u_], rmem[u_]
   for(u_ in usolv2){
     if (UNRX != "" && u_ ~ UNRX) continue   # convidado (coorte unranked) fora do ranking oficial
     printf "g\t\tU\t%s\t%d\t%d\t%d\t%s\n", u_, usolv2[u_], upen[u_], ufst[u_], (u_ in tnm ? tnm[u_] : u_)
@@ -272,7 +269,8 @@ END{
         penalty_minutes: $penm,
         unranked_regex: $unrx,
         teams_idx: ([ $g[] | select(.[0]=="NM")
-                    | {key:.[1], value:{n:(.[2] // .[1]), c:(.[3] // ""), r:(.[4] // "")}} ] | from_entries),
+                    | {key:.[1], value:{n:(.[2] // .[1]), c:(.[3] // ""), r:(.[4] // ""),
+                                        rs:((.[5] // "") | split("\u001e") | map(select(length > 0)))}} ] | from_entries),
         top_teams: ($UU | sort_by([-.solved, .penalty]) | .[:10] | map({login, name, solved, penalty})),
         performance: (if ($UU|length)==0 then null else
           { teams_with_ac: ($UU|length),

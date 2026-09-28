@@ -13,12 +13,14 @@
 # A SEDE de um login (uma só):
 #   1. `.team.region` gravado na conta VENCE — casa o NOME (minúsculas ASCII, sem espaço nas pontas) do
 #      1º nó NÃO-recorte em pré-ordem; nome que não existe na árvore vira uma sede SINTÉTICA `orphan`
-#      (contest sem regions.json com sedes só gravadas continua funcionando; a prévia lista as órfãs);
+#      (contest sem regions.json com sedes só gravadas continua funcionando; a prévia lista as órfãs) —
+#      e a órfã fica PENDURADA no nó que a regex daria (gravada "Buenos Aires" + regex do nó Argentina:
+#      a sede é Buenos Aires e ela conta na Argentina);
 #   2. senão, o nó NÃO-recorte MAIS FUNDO cuja regex casa o login (sem diferenciar maiúsculas); empate =
 #      o 1º em pré-ordem. Se ele não é folha, o login "parou no pai" (flag p — a prévia mostra);
 #   3. senão, sem sede.
 # PERTENÇA (quem está "em" cada nó), direto:
-#   • a própria sede;
+#   • a própria sede (e, se ela é órfã, o nó que a regex daria);
 #   • nó comum com o MESMO NOME da sede (árvores que repetem a sede em ramos paralelos SEM `view` — o
 #     mdp-teste-2026 tem Brasil › DF, Brasília e também Centro-Oeste › DF, Brasília);
 #   • recorte COM regex: a regex casa o login; recorte SEM regex: o nome é o da sede. (Recorte com regex
@@ -145,12 +147,15 @@ rg_flatten(){
     end' "$f" 2>/dev/null || printf '[]\n'
 }
 
+# a IDENTIDADE da árvore e do roster (inode:tamanho:mtime; "-" = não existe). Não basta `-nt`: devolver um
+# regions.json com `mv`/`cp -p`/restauração de backup traz o mtime ANTIGO e o cache ficaria com o mapa velho.
+_rg_stamp(){ local d="$CONTESTSDIR/$1" f o=""
+  for f in regions.json registrations.json; do o+="$(stat -c '%i:%s:%Y' "$d/$f" 2>/dev/null || printf -- '-')|"; done
+  printf '%s' "$o"; }
 _rg_stale(){  # <c> <arquivo> — 0 se o cache precisa ser refeito
   local d="$CONTESTSDIR/$1" f="$2"
   [[ -s "$f" ]] || return 0
-  [[ -e "$d/regions.json" && "$d/regions.json" -nt "$f" ]] && return 0
-  [[ ! -e "$d/regions.json" && -e "$d/var/.regions-had-tree" ]] && return 0
-  [[ -e "$d/registrations.json" && "$d/registrations.json" -nt "$f" ]] && return 0   # (des)materialize some com account.json
+  [[ "$(cat "$d/var/.regions-map.stamp" 2>/dev/null)" == "$(_rg_stamp "$1")" ]] || return 0   # árvore/roster mudou
   [[ -d "$d/users" ]] || return 1
   [[ -n "$(find "$d/users" -maxdepth 0 -newer "$f" -print -quit 2>/dev/null)" ]] && return 0
   [[ -n "$(find "$d/users" -mindepth 2 -maxdepth 2 -name account.json -newer "$f" -print -quit 2>/dev/null)" ]] && return 0
@@ -169,7 +174,10 @@ rg_inputs(){
         | [(input_filename | split("/") | .[-2]), ($r | rg_key), ($r | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; ""))] | join("\t")'
   find "$d/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
     | xargs -0 -r jq -r "$jqp" 2>/dev/null > "$w/explicit"
-  src="$(declare -F _users_source >/dev/null && _users_source "$1" || printf '%s' "$1")"
+  # USERS_FROM lido do conf por sed (como o sc_users): o mapa é o MESMO seja quem for que o reconstrua —
+  # a API (com auth.sh) ou o stats-gen/classify (sem) — senão o cache mudaria conforme o último a gravar
+  src="$(sed -n 's/^[[:space:]]*USERS_FROM=//p' "$d/conf" 2>/dev/null | tail -1)"; src="${src//\'/}"; src="${src//\"/}"
+  [[ -n "$src" && "$src" =~ ^[A-Za-z0-9._-]+$ && "$src" != *..* ]] || src="$1"
   if [[ -n "$src" && "$src" != "$1" && -d "$CONTESTSDIR/$src/users" ]]; then
     while IFS= read -r l; do
       [[ -f "$d/users/$l/account.json" || ! -f "$CONTESTSDIR/$src/users/$l/account.json" ]] || printf '%s\0' "$CONTESTSDIR/$src/users/$l/account.json"
@@ -201,11 +209,12 @@ rg_build(){
   local c="$1" d="$CONTESTSDIR/$1" w rc=0
   mkdir -p "$d/var" 2>/dev/null
   w="$(mktemp -d)" || return 1
-  if [[ -e "$d/regions.json" ]]; then : > "$d/var/.regions-had-tree"; else rm -f "$d/var/.regions-had-tree"; fi
+  local st; st="$(_rg_stamp "$c")"                     # ANTES de ler: mudou durante o build = refaz na próxima
   rg_inputs "$c" "$w"
   rg_compute "$d/regions.json" "$w/dirs" "$w/explicit" "$w/out" || rc=1
   if (( rc == 0 )); then
-    mv -f "$w/out/nodes.json" "$d/var/regions-nodes.json" && mv -f "$w/out/map.tsv" "$d/var/regions-map.tsv" || rc=1
+    mv -f "$w/out/nodes.json" "$d/var/regions-nodes.json" && mv -f "$w/out/map.tsv" "$d/var/regions-map.tsv" \
+      && printf '%s' "$st" > "$d/var/.regions-map.stamp" || rc=1
   fi
   rm -rf "$w"; return "$rc"
 }
@@ -238,10 +247,11 @@ END {
     i = I[j]; if (vw[i] == 1 || re[i] == "") continue
     r = re[i]; d = dep[i] + 0
     for (k = 1; k <= u; k++) {
-      if (fl[k] == "x" || fl[k] == "o") continue
-      if ((site[k] < 0 || d > bd[k]) && L[k] ~ r) { site[k] = i; bd[k] = d }
+      if (fl[k] == "x") continue                          # a órfã (o) também: é onde ela fica pendurada
+      if (!((k) in dv) || d > bd[k]) { if (L[k] ~ r) { dv[k] = i; bd[k] = d } }
     }
   }
+  for (k = 1; k <= u; k++) if (fl[k] == "-" && (k in dv)) site[k] = dv[k]
   for (j = 1; j <= nv; j++) { v = V[j]; if (re[v] == "") continue; r = re[v]
     for (k = 1; k <= u; k++) if (L[k] ~ r) own[v, k] = 1 }
   IGNORECASE = 0
@@ -249,12 +259,13 @@ END {
     if (fl[k] == "-" && site[k] >= 0) fl[k] = (lf[site[k]] == 1) ? "r" : "p"
     delete mem; delete inv
     s = site[k] + 0; sk = (s < 0) ? "" : ((s >= n) ? synkey[s] : key[s])
+    a2 = (fl[k] == "o" && (k in dv)) ? dv[k] + 0 : -1; ak = (a2 >= 0) ? key[a2] : ""   # onde a órfã pendura
     if (s >= n) mem[s] = 1                              # órfã: fora da árvore
     for (j = n; j >= 1; j--) {                          # filhos antes dos pais (pré-ordem ao contrário)
       i = I[j]
       if (!inv[i]) {
-        if (vw[i] == 0) inv[i] = (s >= 0 && (i + 0 == s || (sk != "" && key[i] == sk)))
-        else inv[i] = (re[i] != "") ? ((i, k) in own) : (sk != "" && key[i] == sk)
+        if (vw[i] == 0) inv[i] = (s >= 0 && (i + 0 == s || (sk != "" && key[i] == sk))) || (a2 >= 0 && (i + 0 == a2 || key[i] == ak))
+        else inv[i] = (re[i] != "") ? ((i, k) in own) : ((sk != "" && key[i] == sk) || (ak != "" && key[i] == ak))
       }
       if (inv[i]) { mem[i] = 1; p = par[i] + 0; if (p >= 0 && !(vw[i] == 1 && vw[p] == 0)) inv[p] = 1 }
     }

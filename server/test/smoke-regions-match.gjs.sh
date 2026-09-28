@@ -36,6 +36,7 @@ mkcase classify '[
 for l in teamsp01 teamsp03 teamsp05 teamrj01 teamrj03 teamam01 teamac01 teampe01 TEAMSP09 outro01; do u classify $l; done
 u classify x-rio '  rj, RIO '; u classify x-br 'Brasil'; u classify x-orf 'Atlântida'; u classify x-orf2 'ATLÂNTIDA'
 u classify x-orf3 'atlântida '; u classify x-view '3 competidoras'
+u classify teamsp08 'Nova Sede'     # gravada fora da árvore + login que a regex põe em SP
 
 mkcase admintree '[{"name":"Brasil","regex":"^br-","subregions":[{"name":"DF","regex":"^br-df-"},{"name":"GO"}]},
   {"name":"Femininos","view":true,"subregions":[{"name":"F3","regex":"^f3"}]}]'
@@ -142,7 +143,8 @@ ck "teamsp03: Times femininos › 3 competidoras › Brasil(recorte), e NÃO no 
 ck "teamam01: Supersede Norte (recorte que repete nomes) + Times femininos › 2 competidoras" '[[ "$(innames classify teamam01)" == "Brasil|Norte|AM, Manaus|Supersede Norte|AM, Manaus|Times femininos|2 competidoras|Brasil|" ]]'
 ck "sede gravada vence, caixa/espaços não importam: \"  rj, RIO \" → RJ, Rio (x)" '[[ "$(site classify x-rio)" == "RJ, Rio" && "$(flag classify x-rio)" == x ]]'
 ck "gravada = nó interno (Brasil): fica nele (x), sem recorte \"Brasil\" dos femininos" '[[ "$(innames classify x-br)" == "Brasil|" ]]'
-ck "órfã: Atlântida e \"atlântida \" = UMA sede órfã (o); ATLÂNTIDA (maiúscula não-ASCII) é outra" '[[ "$(row classify x-orf | cut -f2)" == "$(row classify x-orf3 | cut -f2)" && "$(row classify x-orf2 | cut -f2)" != "$(row classify x-orf | cut -f2)" && "$(flag classify x-orf)" == o && "$(jq "[.[] | select(.orphan)] | length" "$CONTESTSDIR/classify/var/regions-nodes.json")" == 3 ]]'
+ck "órfã: Atlântida e \"atlântida \" = UMA sede órfã (o); ATLÂNTIDA (maiúscula não-ASCII) é outra" '[[ "$(row classify x-orf | cut -f2)" == "$(row classify x-orf3 | cut -f2)" && "$(row classify x-orf2 | cut -f2)" != "$(row classify x-orf | cut -f2)" && "$(flag classify x-orf)" == o && "$(jq "[.[] | select(.orphan)] | length" "$CONTESTSDIR/classify/var/regions-nodes.json")" == 4 ]]'
+ck "órfã PENDURADA: teamsp08 (\"Nova Sede\", fora da árvore) tem a sede órfã e conta em SP › Sudeste › Brasil" '[[ "$(site classify teamsp08)" == "Nova Sede" && "$(flag classify teamsp08)" == o && "$(innames classify teamsp08)" == "Brasil|Sudeste|SP, Capital|Nova Sede|" ]]'
 ck "nome de RECORTE gravado não é sede: vira órfã, e o recorte com regex não a puxa" '[[ "$(flag classify x-view)" == o && "$(innames classify x-view)" == "3 competidoras|" ]]'
 ck "sem sede: outro01 (-)" '[[ "$(flag classify outro01)" == - && "$(row classify outro01 | cut -f3)" == "" ]]'
 ck "contas de papel fora do mapa" '! grep -qE "^(classify\.admin|juiz\.judge)	" "$CONTESTSDIR/classify/var/regions-map.tsv"'

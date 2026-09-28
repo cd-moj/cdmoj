@@ -128,31 +128,35 @@ export function rgAssign(tree, users) {
   });
   const rx = nodes.slice(0, n).map((nd) => (nd.regex ? new RegExp(nd.regex, 'i') : null));
   const bd = new Array(rows.length).fill(-1);
+  const dv = new Array(rows.length).fill(-1);         // o nó que a regex daria (a órfã pendura nele)
   for (let j = 0; j < n; j++) {                       // o nó mais fundo; pré-ordem desempata
     const nd = nodes[j];
     if (nd.view || !rx[j]) continue;
     rows.forEach((r, k) => {
-      if (r.flag === 'x' || r.flag === 'o') return;
-      if ((r.site < 0 || nd.depth > bd[k]) && rx[j].test(r.login)) { r.site = nd.i; bd[k] = nd.depth; }
+      if (r.flag === 'x') return;
+      if ((dv[k] < 0 || nd.depth > bd[k]) && rx[j].test(r.login)) { dv[k] = nd.i; bd[k] = nd.depth; }
     });
   }
-  for (const r of rows) {
+  rows.forEach((r, k) => { if (r.flag === '-' && dv[k] >= 0) r.site = dv[k]; });
+  rows.forEach((r, k) => {
     if (r.flag === '-' && r.site >= 0) r.flag = nodes[r.site].leaf ? 'r' : 'p';
     const mem = new Set();
     const s = r.site;
     const sk = s >= 0 ? nodes[s].key : '';
+    const a2 = r.flag === 'o' ? dv[k] : -1;
+    const ak = a2 >= 0 ? nodes[a2].key : '';
     if (s >= n) mem.add(s);                           // órfã: fora da árvore
     const inv = {};
     for (let j = n - 1; j >= 0; j--) {                // filhos antes dos pais (pré-ordem ao contrário)
       const nd = nodes[j];
       if (!inv[j]) {
-        inv[j] = nd.view ? (nd.regex ? rx[j].test(r.login) : (sk !== '' && nd.key === sk))
-          : (s >= 0 && (j === s || (sk !== '' && nd.key === sk)));
+        inv[j] = nd.view ? (nd.regex ? rx[j].test(r.login) : ((sk !== '' && nd.key === sk) || (ak !== '' && nd.key === ak)))
+          : ((s >= 0 && (j === s || (sk !== '' && nd.key === sk))) || (a2 >= 0 && (j === a2 || nd.key === ak)));
       }
       if (inv[j]) { mem.add(j); const p = nd.parent; if (p >= 0 && !(nd.view && !nodes[p].view)) inv[p] = true; }
     }
     r.nodes = [...mem].sort((a, b) => a - b);
-  }
+  });
   return { nodes, rows };
 }
 

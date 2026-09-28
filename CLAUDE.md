@@ -1241,8 +1241,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `moj-contest regions`. `cc_regions_ok` (config.sh/criação) recusa regex fora do subconjunto (`error.nodes`).
   F3a (28/09) migrou escopo do staff (`region:<nó>` = PERTENÇA, pai cobre as sedes filhas), `staff_regions`,
   etiquetas, gate de UA (o LOTE agora usa a mesma sede derivada do login e lê de ARQUIVO — `--argjson` com o
-  mapa de ~2.300 contas beirava o ARG_MAX), materialize de times e balão 1º da sede. Estatística/Nutella/
-  classificação/Animeitor/relatório/placar web ainda nas regras antigas (F3b+). `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
+  mapa de ~2.300 contas beirava o ARG_MAX), materialize de times e balão 1º da sede. F3b: estatística
+  (`teams_idx.rs`), Nutella, classificação, Animeitor e capa do caderno. Relatório/placar web: F3c/F4.
+  A órfã (gravada fora da árvore) PENDURA no nó que a regex daria. Cache válido por IDENTIDADE (inode:
+  tamanho:mtime) do regions.json/registrations.json — `mv`/restauração com mtime antigo refaz. `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
   em cada consumidor antigo — rodar na produção antes de migrar (em 28/09: zero diferenças nos 3 reais).
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o

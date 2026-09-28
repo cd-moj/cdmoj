@@ -195,6 +195,17 @@ NIMG="${#IDS[@]}"
 # outros eventos caem fora). Nome da sede = .team.region (store) do 1º time que tiver; fallback =
 # fullname da imagem. País = bandeira do 1º time que tiver; fallback = 2 letras do id (26brprcu → br).
 : > "$W/kept.tsv"    # id \t sede \t país \t fullname
+# SEDE e PERTENÇA pela regra ÚNICA (lib/regions.sh): sites.tsv = login \t sede (gravada ou pela regex);
+# mem.tsv = login \t nome de cada nó em que ele está. Lidos UMA vez (antes: um jq por time p/ a sede
+# gravada e um grep por imagem × nó da árvore).
+source "$_LIBDIR/regions.sh"
+: > "$W/sites.tsv"; : > "$W/mem.tsv"
+if RGM="$(rg_map "$C" 2>/dev/null)"; then
+  jq -Rrn --slurpfile n "$CDIR/var/regions-nodes.json" 'inputs | split("\t") | (.[1] | tonumber) as $s
+      | select($s >= 0) | "\(.[0])\t\($n[0][$s].name)"' "$RGM" > "$W/sites.tsv" 2>/dev/null
+  jq -Rrn --slurpfile n "$CDIR/var/regions-nodes.json" 'inputs | split("\t") | .[0] as $l
+      | ([.[2] | split(",")[] | select(length > 0) | $n[0][tonumber].name] | unique[]) | "\($l)\t\(.)"' "$RGM" > "$W/mem.tsv" 2>/dev/null
+fi
 for id in "${IDS[@]}"; do
   [[ "$id" =~ ^[A-Za-z0-9._-]+$ ]] || continue
   jq -r '.roster[]?.user_id // empty' "$W/roster.$id.json" 2>/dev/null
@@ -207,11 +218,7 @@ for id in "${IDS[@]}"; do
   comm -12 "$W/logins.txt" "$W/rteams.$id.txt" > "$W/teams.$id.txt"
   _listed=0; for _c in "${CFGIDS[@]}"; do [[ "$_c" == "$id" ]] && _listed=1; done
   [[ -s "$W/teams.$id.txt" || $_listed -eq 1 ]] || continue
-  sede=""
-  while IFS= read -r lg; do
-    sede="$(jq -r '.team.region // empty' "$(account_file "$C" "$lg")" 2>/dev/null)"
-    [[ -n "$sede" ]] && break
-  done < "$W/teams.$id.txt"
+  sede="$(awk -F'\t' 'NR == FNR { s[$1] = $2; next } ($1 in s) && s[$1] != "" { print s[$1]; exit }' "$W/sites.tsv" "$W/teams.$id.txt")"
   fullname="$(jq -r --arg i "$id" 'first(.images[] | select(.id == $i) | .fullname) // $i' "$W/images.json")"
   [[ -n "$sede" ]] || sede="$fullname"
   pais=""
@@ -547,20 +554,16 @@ while IFS=$'\t' read -r id sede pais fullname; do
 done < "$W/kept.tsv"
 [[ -s "$W/aggs.jsonl" ]] || { finish "agregação falhou ($(head -c 200 "$W/agg.err" 2>/dev/null))"; trap - EXIT; exit 1; }
 
-# --- 6. nós da árvore (regions.json): imagem pertence ao nó cujo regex casa um login -----
+# --- 6. nós da árvore (regions.json): a imagem está em todo nó em que algum time dela ESTÁ (regra única,
+# mem.tsv) — e no nó cujo nome é o da sede da imagem (sede sem time com sede: o fullname da imagem) -----
 : > "$W/nodemap.tsv"   # id \t nó
 if [[ -s "$CDIR/regions.json" ]]; then
-  jq -r 'def flat: .[]? | ([(.name // ""), (.regex // "")] | @tsv), ((.subregions // []) | flat); flat' \
-      "$CDIR/regions.json" 2>/dev/null > "$W/nodes.tsv"
+  jq -r '.[] | select(.orphan | not) | .name' "$CDIR/var/regions-nodes.json" 2>/dev/null > "$W/nodenames.txt"
   while IFS=$'\t' read -r id sede _rest; do
-    while IFS=$'\t' read -r nm re; do
-      [[ -n "$nm" ]] || continue
-      if [[ -n "$re" ]] && grep -qE -- "$re" "$W/teams.$id.txt" 2>/dev/null; then
-        printf '%s\t%s\n' "$id" "$nm" >> "$W/nodemap.tsv"
-      elif [[ "${nm,,}" == "${sede,,}" ]]; then
-        printf '%s\t%s\n' "$id" "$nm" >> "$W/nodemap.tsv"
-      fi
-    done < "$W/nodes.tsv"
+    { awk -F'\t' 'NR == FNR { t[$1] = 1; next } ($1 in t) { print $2 }' "$W/teams.$id.txt" "$W/mem.tsv" \
+        | awk 'NR == FNR { ok[$0] = 1; next } ($0 in ok)' "$W/nodenames.txt" -      # só nós da ÁRVORE (órfã fora)
+      awk -v s="${sede,,}" 'tolower($0) == s' "$W/nodenames.txt"
+    } | sort -u | while IFS= read -r nm; do [[ -n "$nm" ]] && printf '%s\t%s\n' "$id" "$nm"; done >> "$W/nodemap.tsv"
   done < "$W/kept.tsv"
 fi
 jq -Rcs '[ split("\n")[] | select(length > 0) | split("\t") | {id: .[0], node: .[1]} ]' \

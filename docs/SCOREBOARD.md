@@ -342,8 +342,12 @@ Maratona inclusive, com `MOJ_REGIONS_EXTRA`) exigindo saída idêntica:
 
 **Fases:** F3a (28/09) migrou os consumidores de escopo e credencial — escopo do staff (`region:<nó>` =
 pertença), `staff_regions`, etiquetas, gate de UA (login E lote de Máquinas/anomalias/preflight, agora com
-a MESMA sede), materialize de times e balão "1º da sede" (`smoke-regions-consumers.sh`). Estatística,
-Nutella, classificação, Animeitor, relatório e o placar da web seguem nas regras antigas até F3b/F3c/F4.
+a MESMA sede), materialize de times e balão "1º da sede" (`smoke-regions-consumers.sh`). F3b (28/09) migrou
+os geradores: estatística (as fatias `r:` = pertença; `teams_idx.r` = a sede, `teams_idx.rs` = os nós, e o
+`statistics.js` filtra por eles, sem regex), Nutella (sede da imagem + nós da imagem), classificação (região =
+pertença ao nó; sede = a canônica — a gravada passa a valer; "parou no pai" = sem sede; auditoria ›
+CLASSIFICAÇÃO: zero diferença na LATAM), Animeitor (times de cada nó; o Geral sem folhas de recorte) e a capa
+do caderno. Relatório (F3c) e o placar da web (F4) seguem nas regras antigas.
 `server/bin/regions-audit.sh <c>` mostra o que muda (sede no gate/materialize e nas etiquetas, membros
 de cada nó no placar e na estatística, e quem cada `.staff`/`.cstaff` com `region:<nome>` passa a ver).
 Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zero** diferenças.

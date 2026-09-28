@@ -38,8 +38,8 @@ ck "rg_nodes aponta o nodes.json (68 nós, sem órfã)" '[[ "$(jq length "$(rg_n
 echo "== o cache só é refeito quando precisa =="
 stamp(){ stat -c %Y.%y "$M"; }
 # o relógio do teste: tudo o que existe fica 2 min no passado e o cache 1 min — só o que mudar DEPOIS conta
+# (a árvore e o roster NÃO: a identidade deles — inode/tamanho/mtime — fica gravada junto do mapa)
 old(){ find "$C/users" -maxdepth 2 \( -name account.json -o -type d \) -exec touch -d '-2 min' {} +
-       touch -d '-2 min' "$C"/regions.json "$C"/registrations.json 2>/dev/null
        touch -d '-1 min' "$M" "$C/var/regions-nodes.json"; }
 old; s0="$(stamp)"
 l=t00x12; printf '1:A:C:Accepted:1:x\n' >> "$C/users/$l/history"; printf '{}' > "$C/users/$l/metrics.json.tmp"; mv "$C/users/$l/metrics.json.tmp" "$C/users/$l/metrics.json"
@@ -52,6 +52,9 @@ old; s0="$(stamp)"; jq '.[0].name = "Pais Zero"' "$C/regions.json" > "$C/r.tmp" 
 ck "regions.json mudado refaz" '[[ "$(stamp)" != "$s0" ]] && jq -e "any(.[]; .name == \"Pais Zero\")" "$C/var/regions-nodes.json" >/dev/null'
 old; echo '{}' > "$C/registrations.json"; s0="$(stamp)"; rg_map big >/dev/null
 ck "registrations.json mudado refaz (desmaterializar apaga account.json sem mexer em users/)" '[[ "$(stamp)" != "$s0" ]]'
+old; cp -p "$C/regions.json" "$T/r.bak"; jq '.[1].name = "P1 novo"' "$C/regions.json" > "$C/r.tmp" && mv "$C/r.tmp" "$C/regions.json"
+touch -d '-3 min' "$C/regions.json"; rg_map big >/dev/null; s0="$(stamp)"; mv "$T/r.bak" "$C/regions.json"; rg_map big >/dev/null
+ck "regions.json DEVOLVIDO com mv (mtime antigo) também refaz" '[[ "$(stamp)" != "$s0" ]] && ! jq -e "any(.[]; .name == \"P1 novo\")" "$C/var/regions-nodes.json" >/dev/null'
 old; s0="$(stamp)"; rm -f "$C/regions.json"; rg_map big >/dev/null
 ck "regions.json apagado refaz: só as gravadas (órfãs), o resto sem sede" '[[ "$(stamp)" != "$s0" && "$(jq "[.[] | select(.orphan | not)] | length" "$C/var/regions-nodes.json")" == 0 && "$(rg_site_of big t00x0)" == "P1-0" && -z "$(rg_site_of big t01x1)" ]]'
 old; s0="$(stamp)"; rg_map big >/dev/null; ck "…e depois disso não refaz à toa" '[[ "$(stamp)" == "$s0" ]]'

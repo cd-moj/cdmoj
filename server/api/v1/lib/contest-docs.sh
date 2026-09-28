@@ -591,7 +591,8 @@ _doc_html_cover(){
   local c="$1" l="$2" np="$3" pg="$4" cfg note ver sites md
   _doc_meta "$c"; cfg="$(doc_conf_get "$c")"
   note="$(jq -r '.cover_note // ""' <<<"$cfg")"; ver="$(jq -r '.caderno_version // "v1.0"' <<<"$cfg")"
-  sites="$(jq -r '[.[].name] | join(", ")' "$CONTESTSDIR/$c/regions.json" 2>/dev/null)"
+  # as sedes da capa = os nós do TOPO que não são recorte (`view`: supersede/femininos repetem os times)
+  sites="$(jq -r '[.[]? | objects | select(.view != true) | .name // empty] | join(", ")' "$CONTESTSDIR/$c/regions.json" 2>/dev/null)"
 
   # o template da capa (o editado pelo admin, senão o padrão embarcado) com os marcadores preenchidos
   if md="$(_doc_cover_tpl "$c" "$l")"; then

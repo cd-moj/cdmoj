@@ -66,6 +66,22 @@ jq -r '
     for (i=1;i<=n;i++) if (m[i] ~ /^team/) print cat "\t" m[i]
   }' | sort -u > "$W/fem.tsv"
 
+# --- sede e região pela regra ÚNICA (lib/regions.sh) ------------------------------------------
+# Quem está na REGIÃO = pertença ao nó da região (1º nó do topo, não-recorte, com esse nome); a SEDE de
+# cada time = a sede canônica (a gravada vence; senão a regex mais funda) — "parou no pai" = sem sede.
+# Até 28/09/2026: a regex do nó da região (diferenciando maiúsculas) e a 1ª folha pela regex, ignorando a
+# sede gravada. A auditoria (server/bin/regions-audit.sh › CLASSIFICAÇÃO) mostrou zero diferença na LATAM.
+source "$(cd "$(dirname "$(readlink -f "$0")")" && pwd)/../api/v1/lib/regions.sh"
+: > "$W/sites.tsv"
+if RGM="$(rg_map "$C" 2>/dev/null)"; then
+  jq -Rrn --slurpfile n "$CD/var/regions-nodes.json" --arg R "$REGION" '
+    (first($n[0][] | select(.depth == 0 and (.view | not) and .name == $R) | .i) // -1) as $ri
+    | inputs | split("\t") | (.[1] | tonumber) as $s
+    | [ .[0], (if $s >= 0 and .[3] != "p" then $n[0][$s].name else "" end),
+        (if $ri >= 0 and ((.[2] | split(",")) | index($ri | tostring)) != null then "1" else "0" end) ] | join("\t")' \
+    "$RGM" > "$W/sites.tsv" 2>/dev/null || : > "$W/sites.tsv"
+fi
+
 # --- config → TSVs ------------------------------------------------------------------------
 jq -r '(.sedes // {}) | to_entries[] | [.key, (.value|tostring)] | @tsv' "$CFG" > "$W/cfg-sedes.tsv"
 jq -r '(.supersedes // {}) | to_entries[] | [.key, (.value|tostring)] | @tsv' "$CFG" > "$W/cfg-super.tsv"
@@ -75,11 +91,11 @@ F3="$(jq -r '.r4.f3 // 3' "$CFG")"; F2="$(jq -r '.r4.f2 // 2' "$CFG")"; F1="$(jq
 # --- ranking da REGIÃO (place de COMPETIÇÃO; sem convidado) -------------------------------
 # TXT: cabeçalho pode ter desc/asc; dados começam na flag. Campos pelo FIM (23 colunas):
 # NF-3=Total NF-2=Penalty NF-1=LastAC NF=guest; 2=login 3=univ_short 4=team_name.
-RRX="$(cut -f2 "$W/region.tsv" 2>/dev/null)"; [[ -n "$RRX" ]] || RRX="$(awk -F'\t' 'NR==1{print $2}' "$W/nodes.tsv")"
-awk -F: -v RRX="$RRX" 'NR<=2{next} {
+awk -F: -v STF="$W/sites.tsv" 'BEGIN { while ((getline l < STF) > 0) { split(l, a, "\t"); if (a[3] == "1") INR[a[1]] = 1 } close(STF) }
+  NR<=2{next} {
   login=$2; guest=$NF
   if (guest=="1") next
-  if (RRX != "" && login !~ RRX) next
+  if (!(login in INR)) next
   tot=$(NF-3)+0; pen=$(NF-2)+0; lac=$(NF-1)
   seen++
   if (seen>1 && tot==pt && pen==pp && lac==pl) place=pv; else place=seen
@@ -90,7 +106,7 @@ awk -F: -v RRX="$RRX" 'NR<=2{next} {
 # --- o MOTOR (awk: estado sequencial das regras) ------------------------------------------
 awk -F'\t' -v R1="$R1" -v F3="$F3" -v F2="$F2" -v F1="$F1" \
     -v LF="$W/leaves.tsv" -v SF="$W/super.tsv" -v CS="$W/cfg-sedes.tsv" \
-    -v CU="$W/cfg-super.tsv" -v FEMF="$W/fem.tsv" '
+    -v CU="$W/cfg-super.tsv" -v FEMF="$W/fem.tsv" -v STF="$W/sites.tsv" '
 BEGIN{
   while ((getline l < LF) > 0) { split(l, a, "\t"); nleaf++; lname[nleaf]=a[1]; lre[nleaf]=a[2] }
   close(LF)
@@ -104,12 +120,13 @@ BEGIN{
   close(SF)
   while ((getline l < FEMF) > 0) { split(l, a, "\t"); fem[a[2], a[1]]=1 }
   close(FEMF)
+  while ((getline l < STF) > 0) { split(l, a, "\t"); SEDEOF[a[1]] = a[2] }
+  close(STF)
 }
 {
   n++; place[n]=$1; login[n]=$2; univ[n]=$3; team[n]=$4; tot[n]=$5+0
-  # sede pela 1ª folha que casa; campeão = 1º da sede no ranking
-  sd=""
-  for (i=1; i<=nleaf; i++) if (login[n] ~ lre[i]) { sd=lname[i]; break }
+  # sede canônica (lib/regions.sh); campeão = 1º da sede no ranking
+  sd = (login[n] in SEDEOF) ? SEDEOF[login[n]] : ""
   sede[n]=sd
   if (sd != "" && !(sd in champ)) champ[sd]=n
 }

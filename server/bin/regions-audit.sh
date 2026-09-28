@@ -12,6 +12,10 @@
 #   MEMBROS de cada nó:
 #     placar (filtro)  — a regex do próprio nó casa (sem maiúsculas) OU a gravada tem o nome dele;
 #     estatística      — idem, diferenciando maiúsculas na regex.
+#   CLASSIFICAÇÃO (score/classify-br.sh, região = config.region, padrão "Brasil"): quem entra no ranking da
+#     região (a regex do nó da região, diferenciando maiúsculas) e a sede de cada um (a 1ª FOLHA não-recorte
+#     da região cuja regex casa — a sede GRAVADA é ignorada) × o NOVO (pertença ao nó da região; a sede
+#     canônica).
 #   QUEM O STAFF VÊ (print-requests/staff-filters.json): `region:<nome>` =
 #     etiquetas (senha!) — o nome é o da sede gravada OU a derivada das etiquetas;
 #     impressão/fila   — o nome é o da sede GRAVADA;
@@ -20,6 +24,7 @@
 set -u
 C="${1:-}"; [[ -n "$C" ]] || { echo "uso: $0 <contest> [--examples N]" >&2; exit 2; }
 EX=8; [[ "${2:-}" == --examples ]] && EX="${3:-8}"
+REGION="$(jq -r '.config.region // .region // empty' "$CONTESTSDIR/$C/classification.json" 2>/dev/null)"; REGION="${REGION:-Brasil}"
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 source "$HERE/../api/v1/lib/common.sh" 2>/dev/null || true
 source "$HERE/../api/v1/lib/regions.sh"
@@ -42,7 +47,7 @@ find "$D/users" -mindepth 2 -maxdepth 2 -name account.json -print0 | xargs -0 -r
 F="$(pr_dir "$C" 2>/dev/null || printf '%s/print-requests' "$D")/staff-filters.json"
 if [[ -s "$F" ]]; then jq -r 'to_entries[] | .key as $k | .value[]? | [$k, tostring] | join("\t")' "$F" > "$W/staff.tsv"; else : > "$W/staff.tsv"; fi
 
-gawk -F'\t' -v EX="$EX" -v C="$C" '
+gawk -F'\t' -v EX="$EX" -v C="$C" -v REGION="$REGION" '
 function lc(s) { gsub(/^ +| +$/, "", s); return tolower(s) }
 function addex(k, s) { if (++nex[k] <= EX) exs[k] = exs[k] "\n      " s }
 FILENAME == ARGV[1] { n++; dep[n-1] = $1; vw[n-1] = $2; nm[n-1] = $3; rx[n-1] = $4; nv += $2; next }  # nós crus (i = n-1)
@@ -87,6 +92,24 @@ END {
     if (ad2 || rm2) { dst++; addex("st", sprintf("%-48s estatística %4d → NOVO %4d  (+%d −%d)", lab, o2, nw, ad2, rm2)) }
   }
   printf "\n  MEMBROS: %d nó(s) mudam no filtro do placar, %d na estatística%s%s\n", dnodes, dst, exs["nd"], exs["st"]
+  # --- CLASSIFICAÇÃO (classify-br): região + sede = 1ª folha da região pela regex (cs), gravada ignorada
+  ri = -1; for (i = 0; i < n; i++) if (dep[i] == 0 && nm[i] == REGION && vw[i] == 0) { ri = i; break }
+  if (ri >= 0) {
+    nl = 0; seenl[""] = 1
+    for (i = ri + 1; i < n && dep[i] > 0; i++) {
+      leaf = (i + 1 >= n || dep[i + 1] <= dep[i])
+      if (vw[i] == 0 && leaf && rx[i] != "" && !(nm[i] in seenl)) { seenl[nm[i]] = 1; LR[++nl] = rx[i]; LN[nl] = nm[i] }
+    }
+    for (k = 1; k <= u; k++) {
+      l = L[k]; oin = (rx[ri] != "" && l ~ rx[ri]); nin = ((l, ri) in MEM)
+      if (oin != nin) { dcin++; addex("ci", sprintf("%-22s na região \"%s\": %s → NOVO %s", l, REGION, (oin ? "sim" : "não"), (nin ? "sim" : "não"))) }
+      if (!oin || !nin) continue
+      os = ""; for (j = 1; j <= nl; j++) if (l ~ LR[j]) { os = LN[j]; break }
+      ns = (FL[l] == "p") ? "" : NN[SITE[l]]            # parou no pai = sem sede p/ a classificação
+      if (lc(os) != lc(ns)) { dcs++; addex("cs", sprintf("%-22s sede na classificação: %-26s NOVO: %s", l, "\"" os "\"", "\"" ns "\"")) }
+    }
+    printf "\n  CLASSIFICAÇÃO (região \"%s\"): %d login(s) entram/saem da região, %d mudam de sede%s%s\n", REGION, dcin, dcs, exs["ci"], exs["cs"]
+  } else printf "\n  CLASSIFICAÇÃO: sem nó \"%s\" no topo — nada a comparar\n", REGION
   # --- STAFF: quem cada um vê (region:<nome>; entradas regex valem igual nos três)
   for (x in MEM) { split(x, pp, SUBSEP); LK[pp[1], lc(NN[pp[2]])] = 1 }     # login × nome de nó em que ele está
   for (s = 1; s <= st; s++) { w = SL[s]; who[w] = 1; tk = ST[s]
