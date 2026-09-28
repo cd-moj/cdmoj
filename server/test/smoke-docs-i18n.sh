@@ -8,7 +8,8 @@
 #   3. a ESTRUTURA diverge: títulos por nível, blocos de código, tabelas, imagens;
 #   4. um COMANDO diverge: bloco bash/sh/console/conf/json igual ao PT tirando só os comentários
 #      (`(^|\s)#…` — nunca `#…` cru: `col#pa`, `<org>#<prob>` são ids, não comentário);
-#   5. link relativo que não resolve, ou /docs/X.html de doc que não existe;
+#   5. link relativo que não resolve, /docs/X.html de doc que não existe, ou âncora interna (#x) que
+#      não é o id de um título da TRADUÇÃO (o id nasce do título traduzido, não do PT);
 #   6. o espanhol tem marca de português FORA de código (bloco e `em linha`, onde o PT é legítimo:
 #      saída da CLI, nome de exemplo) — mesma heurística do i18n-coverage.sh;
 #   7. o DOCS_I18N do docs/i18n.sh ≠ o do web/shared/i18n.js.
@@ -70,6 +71,28 @@ def parse(path):
     links = re.findall(r'(?<!!)\[[^\]]*\]\(([^)\s]+)', text)
     return heads, blocks, tables, imgs, links, text
 
+import unicodedata
+def slugs(path):
+    """ids dos títulos como o pandoc (gfm_auto_identifiers) / GitHub geram — fora de blocos de código"""
+    ids, seen, fence = set(), {}, None
+    for l in open(path, encoding='utf-8'):
+        m = re.match(r'^\s*(```+|~~~+)', l)
+        if m:
+            fence = None if fence and m.group(1).startswith(fence[:3]) else (fence or m.group(1)); continue
+        if fence: continue
+        h = re.match(r'^#{1,6}\s+(.*?)\s*#*\s*$', l)
+        if not h: continue
+        t = h.group(1)
+        t = re.sub(r'`([^`]*)`', r'\1', t); t = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', t)
+        t = re.sub(r'[*_]{1,3}([^*_]+)[*_]{1,3}', r'\1', t)
+        t = t.lower()
+        t = ''.join(c for c in t if c.isalnum() or c in ' -_' or unicodedata.category(c) in ('Mn',))
+        s = t.replace(' ', '-')
+        if s in seen: seen[s] += 1; s = '%s-%d' % (s, seen[s])
+        else: seen[s] = 0
+        ids.add(s)
+    return ids
+
 def strip_comments(t):
     out = []
     for l in t.split('\n'):
@@ -125,7 +148,11 @@ for doc in lst:
                 if a != c:
                     d1 = [x for x in c.split('\n') if x not in a.split('\n')][:2]
                     errs.append('4: %s bloco de comando #%d difere do PT (só comentário se traduz): %s' % (tag, k + 1, d1))
+        ids = slugs(f)
         for t in ln1:
+            if t.startswith('#') and t[1:] not in ids:
+                errs.append('5: %s âncora interna %s não existe — o id vem do título TRADUZIDO' % (tag, t))
+                continue
             p = t.split('#')[0].split('?')[0]
             if not p or re.match(r'^[a-z]+:', p) or p.startswith('//'):
                 continue
@@ -169,7 +196,7 @@ printf "export const DOCS_I18N = ['GUIA'];\n" > "$F/web/i18n.js"
 cat > "$F/docs/GUIA.md" <<'MD'
 # Guia
 
-Texto em português, com `saída da CLI` e o link [outro](OUTRO.md).
+Texto em português, com `saída da CLI` e o link [outro](OUTRO.md). Veja [o passo](#passo).
 
 ## Passo
 
@@ -191,7 +218,7 @@ mk(){ # <lang> <título> <passo> <comentário> <frase>
 
 > The CLI speaks Portuguese.
 
-$5, with \`saída da CLI\` and the link [other](OUTRO.md).
+$5, with \`saída da CLI\` and the link [other](OUTRO.md). See [the step](#${3,,}).
 
 ## $3
 
@@ -235,6 +262,10 @@ sed -i 's/col#pb/col#pa/' "$F/docs/en/GUIA.md"
 sed -i '/^## Step$/d' "$F/docs/en/GUIA.md"
 O="$(chk)"; r=$?; ck "título faltando ⇒ reprova (paridade)" '[[ $r != 0 && "$O" == *"3: en/GUIA.md títulos"* ]]' "$O"
 mk en Guide Step "comment in English" "Text in English"; bash "$F/docs/i18n.sh" stamp GUIA en >/dev/null
+
+sed -i 's/(#step)/(#passo)/' "$F/docs/en/GUIA.md"
+O="$(chk)"; r=$?; ck "âncora interna com o id do título PT (não do traduzido) ⇒ reprova" '[[ $r != 0 && "$O" == *"5: en/GUIA.md âncora interna #passo"* ]]' "$O"
+sed -i 's/(#passo)/(#step)/' "$F/docs/en/GUIA.md"
 
 printf "export const DOCS_I18N = [];\n" > "$F/web/i18n.js"
 O="$(chk)"; r=$?; ck "lista JS ≠ lista do i18n.sh ⇒ reprova" '[[ $r != 0 && "$O" == *"7: DOCS_I18N difere"* ]]' "$O"

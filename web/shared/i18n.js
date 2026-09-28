@@ -57,7 +57,7 @@ function applyHtmlLang() {
 
 // DOCUMENTAÇÃO traduzida (docs/I18N.md, "Documentação"): os docs de USUÁRIO que existem em
 // /docs/en/ e /docs/es/. ESPELHO do DOCS_I18N de docs/i18n.sh (paridade no smoke-docs-i18n.sh).
-export const DOCS_I18N = [];
+export const DOCS_I18N = ['MANUAL-CONTEST', 'MANUAL-TREINO', 'MANUAL-JUIZ', 'MANUAL-STAFF', 'MANUAL-ANIMEITOR'];
 // docHref('MANUAL-ADMIN') — o link do doc no idioma da tela (o LOCALE do contest manda, como no T());
 // doc não traduzido (ou pt) = o PT de sempre. No HTML estático o par é data-en-href/data-es-href.
 export function docHref(name) {

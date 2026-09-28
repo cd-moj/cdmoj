@@ -30,7 +30,7 @@ Você é a pessoa que fica na sala cuidando das impressões e dos balões. Você
 | **Animeitor** | A mesa do telão em modo **somente leitura**: as fotos e músicas dos times da sua sede. Você olha e escuta; não envia, não troca, não baixa o pacote. |
 | **Documentos** | Os documentos que a organização publicou (info sheet, caderno da prova, folha de time limits) para você baixar e imprimir. |
 | **Rodadas** | O placar e as submissões das rodadas encerradas (o aquecimento, por exemplo). |
-| **Sair** | Encerra a sua sessão. |
+| **Logout** | Encerra a sua sessão. |
 
 ### A fila de impressão (`/contest/staff/`)
 
@@ -49,7 +49,7 @@ A tela de impressão é uma tabela com **duas coisas na mesma fila**:
 > atravessando a sala conta à plateia exatamente o que o freeze existe para esconder: quem acabou de
 > resolver. Então acerto feito com o placar congelado **não vira tarefa** e **não é entregue depois**;
 > a tarefa simplesmente não existe. Se a organização preferir o clássico (balão andando durante o
-> freeze), o `.admin` liga isso nas Configurações — e aí eles aparecem normalmente.
+> freeze), o `.admin` liga isso em **Central › Regras** — e aí eles aparecem normalmente.
 >
 > **Pedido de impressão não muda**: o time continua imprimindo a qualquer momento, freeze ou não.
 
@@ -134,7 +134,7 @@ Você supervisiona uma sede. Você acompanha a fila da sua sede, imprime as etiq
 | **Animeitor** | A mesa do telão recortada na sua sede: aqui você **escreve** (envia/troca/remove foto e música dos seus times, e baixa o pacote .zip da sede). Não troca o padrão do contest nem vê chaves de webcast. |
 | **Documentos** | Os documentos publicados da prova, para baixar e imprimir na sede. |
 | **Rodadas** | O placar e as submissões das rodadas já encerradas. |
-| **Sair** | Encerra a sua sessão. |
+| **Logout** | Encerra a sua sessão. |
 | **Revelação** | A cerimônia de revelação da sua sede. Só aparece **depois que a prova encerra para todas as sedes**. |
 
 ### Impressão, somente leitura (`/contest/staff/`)
@@ -145,7 +145,7 @@ Você supervisiona uma sede. Você acompanha a fila da sua sede, imprime as etiq
 
 Aqui está o que a `.staff` não tem: as folhas de credenciais prontas para imprimir (modelo Pimaco A4), com **nome, login, senha, sede e instituição** de cada conta.
 
-- Você vê só a **sua sede** — e só as contas **`.staff`** dela: a sua própria credencial (de chefe) **não** sai em etiqueta, porque é ela que abre esta tela.
+- Você vê só a **sua sede**: os times dela e, das contas de papel, só as **`.staff`**. A sua própria credencial (de chefe) **não** sai em etiqueta, porque é ela que abre esta tela.
 - Serve para imprimir as etiquetas das mesas e as credenciais dos times da sua sede.
 - As opções de administração (escolher o arquivo de outra sede, incluir contas desabilitadas) **não aparecem** para você.
 - **Contest que usa as contas do Treino Livre não tem senha na etiqueta**: a credencial é pessoal
@@ -165,7 +165,7 @@ Aqui ficam os documentos que a organização **publicou**, prontos para você ba
 | **Caderno da prova** | Capa + todos os enunciados. É o que vai impresso na mesa de cada time. |
 | **Folha de time limits** | A tabela `letra · nome · tempo limite` (com errata, se houver). |
 
-Cada um sai em **PDF** (para imprimir) e **HTML**, em **português e em inglês** — escolha a linha do idioma que a sua sede usa. O botão **abrir** mostra o arquivo na hora, para conferir antes de mandar para a impressora.
+Cada um sai em **PDF** (para imprimir) e **HTML**, em **português, inglês e espanhol** — escolha a linha do idioma que a sua sede usa. O botão **abrir** mostra o arquivo na hora, para conferir antes de mandar para a impressora.
 
 - Você só vê o que já foi **publicado**. Antes disso, o caderno é conteúdo de prova e nem aparece — inclusive para você.
 - Se a lista estiver vazia, a organização ainda não publicou nada: volte mais perto da prova.

@@ -59,7 +59,7 @@ export function makeSessionsTab(CONTEST, opts = {}) {
         open ? el('button', { class: 'btn ghost', onclick: () => run({ close_login: true }, T('Fechar o login (sem derrubar ninguém)?', 'Close login (without logging anyone out)?', '¿Cerrar login (sin desconectar a nadie)?')) }, T('🔒 Fechar login', '🔒 Close login', '🔒 Cerrar login'))
           : el('button', { class: 'btn', onclick: () => run({ open_login: true }, T('Reabrir o login para os times?', 'Reopen login for the teams?', '¿Reabrir login para los equipos?')) }, T('🔓 Reabrir login', '🔓 Reopen login', '🔓 Reabrir login'))),
       el('div', { class: 'row', style: 'gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:.4rem' },
-        scopeBtn('competitors', T('competidores', 'competitors', 'competidores'), T('toda conta que não é de papel', 'every non-role account', 'toda cuenta que no es de papel')),
+        scopeBtn('competitors', T('competidores', 'competitors', 'competidores'), T('toda conta que não é de papel', 'every non-role account', 'toda cuenta que no es de rol')),
         scopeBtn('staff', T('staff e chefes de sede', 'staff and site chiefs', 'staff y jefes de sede'), '.staff + .cstaff'),
         scopeBtn('all', T('competidores + staff', 'competitors + staff', 'competidores + staff'), ''),
         el('label', { class: 'small', style: 'display:inline-flex;gap:.3rem;align-items:center' }, closeChk, T('e fechar o login junto', 'and close login as well', 'y cerrar login también')),

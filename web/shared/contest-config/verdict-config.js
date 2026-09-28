@@ -216,7 +216,7 @@ export function makeAutoVerdictEditor(contest) {
     if (r.manual_verdict === false) banner.append(el('div', { class: 'notice small', style: 'margin:.3rem 0' },
       T('O veredicto manual está DESLIGADO neste contest: tudo sai automático e esta tabela só passa a valer quando o admin ligar o veredicto manual (Central › Regras).',
         'Manual verdict is OFF in this contest: everything is automatic, and this table only takes effect once the admin turns manual verdict on (Home › Rules).',
-        'El veredicto manual está DESACTIVADO en esta competencia: todo sale automático y esta tabla solo entra en vigor cuando el admin active el veredicto manual (Central › Configuración).')));
+        'El veredicto manual está DESACTIVADO en esta competencia: todo sale automático y esta tabla solo entra en vigor cuando el admin active el veredicto manual (Central › Reglas).')));
     if (r.state === 'invalid') banner.append(el('div', { class: 'error-box small', style: 'margin:.3rem 0' },
       T('O arquivo de regras está ilegível, então TUDO está indo para revisão. Salve a tabela para corrigir.',
         'The rules file is unreadable, so EVERYTHING is going to review. Save the table to fix it.',

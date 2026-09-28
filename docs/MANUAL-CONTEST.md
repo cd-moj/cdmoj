@@ -29,7 +29,7 @@ Se você só quer saber como enviar em cada linguagem e como funciona a entrada 
 Boa parte das competições do MOJ usa as **contas do Treino Livre** — você compete com o mesmo
 login e a mesma senha que usa para treinar. Nesses contests, **entrar exige inscrição prévia**:
 tentar logar sem estar inscrito devolve um recado (*você não está inscrito*, *as inscrições ainda
-não abriram* ou *já fecharam*) com o link da página certa.
+não abriram* ou *já fecharam*). Quando ainda dá para se inscrever, o recado traz o link da página de inscrição.
 
 A inscrição fica no **site principal**, não no endereço da prova: `/contests/inscricao/?c=<id>`
 (o subdomínio do contest não enxerga a sua sessão do treino — é por isso que são endereços
@@ -68,7 +68,7 @@ O que aparece depois disso depende do momento:
 | O login ainda não abriu | Uma **contagem regressiva** com "Abertura em HH:MM:SS". A página se atualiza sozinha, então, se a organização adiar ou adiantar a abertura, a mudança aparece na hora. |
 | O login abriu | Um cartão de login com os campos **Usuário** e **Senha** e o botão **Entrar**. |
 
-O idioma da tela é definido pelo contest e pode estar em inglês.
+O idioma da tela é definido pelo contest e pode estar em português, inglês ou espanhol.
 
 Quando a organização abre o login **antes** do início da prova, você entra e vê a tela "A
 competição ainda não começou", com uma contagem regressiva. Não é preciso ficar recarregando:
@@ -89,7 +89,7 @@ No topo há uma barra com:
   O **horário de término vem do servidor**, mas quem faz a contagem é o relógio da sua máquina:
   num computador com a hora errada, a contagem sai errada junto. Quem decide é o servidor —
   submissão que chega depois do fim não conta, diga o que disser a sua tela.
-- O botão **Sair**.
+- O botão **Logout**.
 
 Logo abaixo há um menu de navegação com **Contest**, **Score** (placar), **Clarification** e, às vezes, **Backup** e **Impressão**.
 
@@ -117,13 +117,13 @@ encerradas** em *Arquivos & Recursos*), quando a organização os publica.
 
 Quando existirem, aparecem também as seções **Informações & Notícias** e **Arquivos & Recursos**.
 Em **Arquivos & Recursos** é onde a organização publica os documentos da prova quando quer que
-você os tenha em mãos. São até quatro: o **ambiente de julgamento** (sistema, versões de
-compilador, limites, linhas de compilação e execução, veredictos e penalidade), o **caderno da
-prova**, a **folha de time limits** e o
-**editorial** (as soluções — esse só aparece depois que a prova acaba para *todas* as sedes).
+você os tenha em mãos. São até quatro: o **📋 Ambiente de julgamento** (sistema, versões de
+compilador, limites, linhas de compilação e execução, veredictos e penalidade), o **📘 Caderno de
+problemas**, os **⏱️ Limites de tempo** e o
+**📝 Editorial** (as soluções — esse só aparece depois que a prova acaba para *todas* as sedes).
 
 Cada documento é uma linha com o nome à esquerda e os **idiomas como botões**: `PT`, `EN`, `ES`.
-O nome não é clicável — clique no idioma que você quer. Caderno e folha de time limits só abrem
+O nome não é clicável — clique no idioma que você quer. O caderno e os limites de tempo só abrem
 **a partir do início da prova**, mesmo que já apareçam na lista; se a organização não publicou
 nada, a seção nem aparece.
 
@@ -174,7 +174,7 @@ Para enviar uma solução:
 > problema aceita: nenhum juiz do mundo roda um `.exe`, e antes essa submissão entrava na fila e
 > ficava pendente para sempre. O tamanho do código é limitado a **1 MB**.
 >
-> Se a resposta for um erro em vez de "enviada", **leia a mensagem**: ela diz exatamente o que
+> Se a resposta for um erro em vez de "✓ Enviado!", **leia a mensagem**: ela diz exatamente o que
 > houve. Uma submissão só é aceita quando o servidor confirma — não existe "sumiu no caminho".
 
 ## 4. Minhas submissões
