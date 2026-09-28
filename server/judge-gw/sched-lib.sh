@@ -98,7 +98,7 @@ reg_write() {
 # reg_touch_state <host> <state> [status] : atualiza state + last_seen (e o `status` do agente novo, se
 # vier — ok|draining|disabled), preservando o resto. Retorna 1 se o host não está registrado.
 reg_touch_state() {
-  local host="$1" state="$2" status="${3:-}" f="$REGISTRYDIR/$host.json"
+  local host="$1" state="$2" status="${3:-}"; local f="$REGISTRYDIR/$host.json"   # (dois `local`: ver judged.sh route_root_file)
   valid_hostname "$host" || return 1
   [[ -f "$f" ]] || return 1
   local tmp="$REGISTRYDIR/.$host.$$.tmp"

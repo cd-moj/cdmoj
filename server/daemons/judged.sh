@@ -78,7 +78,9 @@ fi
 # login por KIND: submit/rejulgar = campo 4 do NOME (zero forks); result/setverdict = 1
 # extração do JSON (só no caminho legado — os produtores quentes já gravam no shard certo).
 route_root_file() {
-  local f="$1" base="${f##*/}" login="" k
+  # (dois `local`: numa declaração só, o `${f##*/}` expandiria ANTES de o `f` receber o $1 — só dava certo
+  # porque quem chama tem um `f` com o mesmo arquivo; ver o incidente do agente em 28/09/2026)
+  local f="$1"; local base="${f##*/}" login="" k
   local _f1 _f2 _f3 _f4 _f5
   IFS=: read -r _f1 _f2 _f3 _f4 _f5 _ <<<"$base"
   case "$_f5" in
