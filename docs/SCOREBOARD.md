@@ -347,7 +347,9 @@ os geradores: estatística (as fatias `r:` = pertença; `teams_idx.r` = a sede, 
 `statistics.js` filtra por eles, sem regex), Nutella (sede da imagem + nós da imagem), classificação (região =
 pertença ao nó; sede = a canônica — a gravada passa a valer; "parou no pai" = sem sede; auditoria ›
 CLASSIFICAÇÃO: zero diferença na LATAM), Animeitor (times de cada nó; o Geral sem folhas de recorte) e a capa
-do caderno. Relatório (F3c) e o placar da web (F4) seguem nas regras antigas.
+do caderno. F3c: o relatório offline embute a árvore com o índice de cada nó (`RTREE`, sem regex) e
+`RMEM` (login → nós, calculado no servidor); placar, runs, staff e a análise da estatística filtram por eles.
+O placar da web (F4) segue na regra antiga.
 `server/bin/regions-audit.sh <c>` mostra o que muda (sede no gate/materialize e nas etiquetas, membros
 de cada nó no placar e na estatística, e quem cada `.staff`/`.cstaff` com `region:<nome>` passa a ver).
 Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zero** diferenças.
@@ -373,7 +375,7 @@ Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zer
   habilita **filtro por país/escola**. O logo é um data-URL embutido (offline). Editável na
   criação e no admin do contest.
 - **Relatório estático (31/08)**: o placar, o runs e o staff do relatório filtram por
-  sede com a MESMA árvore do placar ao vivo (`RTREE` com regex; nó de cima casa por login);
+  sede com a MESMA árvore do placar ao vivo (`RTREE` + `RMEM`: a pertença pela regra única de sedes, calculada no servidor);
   os documentos levados são os PUBLICADOS com o PDF ENVIADO vencendo o gerado e aparecem
   também no topo do index; a aba infra saiu. O FREEZE sobrevive ao encerramento: o
   `finish` grava `var/freeze-final.json` + copia os `placar*.txt` congelados p/

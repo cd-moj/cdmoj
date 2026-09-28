@@ -526,6 +526,21 @@ ACCT_JQ='[.login//"", ((.team.name // .fullname // "")|gsub("[:\t\n]";" ")),
     done
   fi
 } > "$W/names.tsv"
+# a SEDE (6º campo) e a PERTENÇA pela regra ÚNICA (lib/regions.sh): a sede canônica de cada login (a gravada,
+# senão a regex mais funda) no lugar da gravada, e RMEM = {login: [índices dos nós em que ele está]} — os
+# filtros do relatório casam por eles, SEM regex no HTML (até 28/09/2026: regex do nó no data-login OU nome
+# gravado, cada página do seu jeito)
+source "$(cd "$(dirname "$(readlink -f "$0")")" && pwd)/../api/v1/lib/regions.sh"
+RMEM_JSON='{}'; : > "$W/rg-sites.tsv"
+if RGM="$(rg_map "$C" 2>/dev/null)"; then
+  jq -Rrn --slurpfile n "$CDIR/var/regions-nodes.json" 'inputs | split("\t") | (.[1] | tonumber) as $s
+      | "\(.[0])\t\(if $s >= 0 then ($n[0][$s].name | gsub("[:\t\n]"; " ")) else "" end)"' "$RGM" > "$W/rg-sites.tsv" 2>/dev/null
+  awk -F'\t' -v OFS='\t' 'NR == FNR { s[$1] = $2; next } ($1 in s) { while (NF < 6) $(NF + 1) = ""; $6 = s[$1] } { print }' \
+    "$W/rg-sites.tsv" "$W/names.tsv" > "$W/names.tsv.2" && mv -f "$W/names.tsv.2" "$W/names.tsv"
+  RMEM_JSON="$(jq -Rn '[inputs | split("\t") | {key: .[0], value: [.[2] | split(",")[] | select(length > 0) | tonumber]}] | from_entries' \
+                "$RGM" 2>/dev/null | rep_js_json)"
+  [[ -n "$RMEM_JSON" ]] || RMEM_JSON='{}'
+fi
 
 # --- fotos dos times em fotos/<login>.webp: QUALIDADE ORIGINAL (31/08) ------------------
 # O R5 embarcava a miniatura 320px; o pedido é a foto CHEIA (LATAM: 342 fotos, 17 MB —
@@ -758,11 +773,11 @@ CSSEOF
 # UMA construção p/ TODOS os consumidores: filtro de sede do placar/runs/staff (novo,
 # 31/08 — "mesma hierarquia do placar"), select da estatística e do mlinux. `r` = regex do
 # nó (nó de cima casa times por regex de login, como o regionMatch do placar ao vivo).
+# `i` = o índice do nó no mapa de sedes (RMEM), `v` = recorte, `o` = sede ÓRFÃ (gravada fora da árvore —
+# entra no fim, como as sedes "fora da árvore" entravam); sem regex: quem casa é o RMEM
 RTREE_JSON='[]'
-if [[ -s "$CDIR/regions.json" ]]; then
-  RTREE_JSON="$(jq -c 'def flat($d): .[]? | {n:(.name // ""), d:$d, r:(.regex // "")},
-                                     ((.subregions // []) | flat($d+1));
-               [flat(0)] | map(select(.n != ""))' "$CDIR/regions.json" 2>/dev/null)"
+if [[ -s "$CDIR/var/regions-nodes.json" ]]; then
+  RTREE_JSON="$(jq -c '[.[] | select(.name != "") | {i, n: .name, d: .depth, v: .view, o: .orphan}]' "$CDIR/var/regions-nodes.json" 2>/dev/null)"
   [[ -n "$RTREE_JSON" ]] || RTREE_JSON='[]'
   RTREE_JSON="$(printf '%s' "$RTREE_JSON" | rep_js_json)"   # nome de sede/região vai dentro de <script>
 fi
@@ -1204,7 +1219,7 @@ rep_filter_bar(){
 # rep_filter_js — vai DEPOIS dos placares: script inline roda na hora em que é parseado, e antes
 # das <section> existirem o querySelectorAll voltava vazio (a barra ficava decorativa).
 rep_filter_js(){
-  printf '<script>var RTREE=%s;\n' "${RTREE_JSON:-[]}"
+  printf '<script>var RTREE=%s, RMEM=%s;\n' "${RTREE_JSON:-[]}" "${RMEM_JSON:-{\}}"
   cat <<'FBAREOF'
 (function(){
   var bar=document.getElementById('fbar'); if(!bar) return;
@@ -1253,18 +1268,15 @@ rep_filter_js(){
     selF.value = seen[cur]?cur:'';
     if(selF.parentNode) selF.parentNode.style.display = opts.length?'':'none';
   }
-  // SEDE = a ÁRVORE do regions.json (mesma hierarquia/ordem/indentação do placar ao vivo):
-  // nó de cima casa o time por REGEX no data-login; folha também casa por nome == data-region.
-  // Sede vista nas linhas e fora da árvore entra no fim (valor "x:<nome>").
-  function safeRe(x){ try{ return x?new RegExp(x):null }catch(e){ return null } }
-  var RT=(typeof RTREE!=='undefined'&&RTREE)?RTREE:[], RTRE=RT.map(function(t){ return safeRe(t.r) });
+  // SEDE = a ÁRVORE do regions.json (mesma hierarquia/ordem/indentação do placar ao vivo); o time está
+  // no nó pela regra única de sedes (RMEM, calculado no servidor — lib/regions.sh). Sede vista nas linhas e
+  // fora da árvore entra no fim (valor "x:<nome>").
+  var RT=(typeof RTREE!=='undefined'&&RTREE)?RTREE:[], RM=(typeof RMEM!=='undefined'&&RMEM)?RMEM:{};
   function regionOk(r,g){
     if(!g) return true;
     if(g.slice(0,2)==='x:') return r.getAttribute('data-region')===g.slice(2);
     var i=+g, t=RT[i]; if(!t) return true;
-    var lg=r.getAttribute('data-login')||'';
-    if(RTRE[i]&&RTRE[i].test(lg)) return true;
-    return (r.getAttribute('data-region')||'').toLowerCase()===t.n.toLowerCase();
+    return (RM[r.getAttribute('data-login')||'']||[]).indexOf(t.i)>=0;
   }
   function fillRegion(){
     if(!selR) return;
@@ -1675,13 +1687,12 @@ dur_label(){ local s=$1; (( s<=0 )) && { printf '—'; return; }; printf '%dh%02
 # Emite <script> com RTREE + treeFilterInit(tableId, selectId, countId): popula o select
 # (indentado, ordem do regions.json; sedes fora da árvore no fim) e devolve matcher(row).
 rep_tree_core_js(){
-  printf '<script>var RTREE=%s;\n' "${RTREE_JSON:-[]}"
+  printf '<script>var RTREE=%s, RMEM=%s;\n' "${RTREE_JSON:-[]}" "${RMEM_JSON:-{\}}"
   cat <<'TREEEOF'
 function treeFilterInit(tid, sid, apply){
   var t=document.getElementById(tid), sel=document.getElementById(sid);
   if(!t||!sel) return function(){ return true };
-  function safeRe(x){ try{ return x?new RegExp(x):null }catch(e){ return null } }
-  var RT=RTREE||[], RTRE=RT.map(function(x){ return safeRe(x.r) });
+  var RT=RTREE||[], RM=RMEM||{};
   var extra={}, have={};
   Array.prototype.forEach.call(t.tBodies[0].rows,function(r){
     var v=r.getAttribute('data-region'); if(v) extra[v]=1; });
@@ -1695,9 +1706,7 @@ function treeFilterInit(tid, sid, apply){
     var g=sel.value; if(!g) return true;
     if(g.slice(0,2)==='x:') return r.getAttribute('data-region')===g.slice(2);
     var i=+g, x=RT[i]; if(!x) return true;
-    var lg=r.getAttribute('data-login')||'';
-    if(RTRE[i]&&RTRE[i].test(lg)) return true;
-    return (r.getAttribute('data-region')||'').toLowerCase()===x.n.toLowerCase();
+    return (RM[r.getAttribute('data-login')||'']||[]).indexOf(x.i)>=0;   // pertença (lib/regions.sh)
   }
   sel.addEventListener('change', apply);
   return ok;
@@ -1838,18 +1847,18 @@ rep_stats_bundle(){
 (function(){
   var host=document.getElementById('stats'); if(!host) return;
   // analytics do RECORTE (01/09): corrida/comparação/desempenho saem dos ac_events
-  // GLOBAIS filtrados — região casa pela regex do nó do RTREE no login OU por
-  // teams_idx[login].r; país por teams_idx[login].c (paridade com a página ao vivo).
+  // GLOBAIS filtrados — região pela pertença teams_idx[login].rs (regra única de sedes, a mesma das
+  // fatias by_region); país por teams_idx[login].c (paridade com a página ao vivo). Estatística sem `rs`
+  // (gerada antes de 28/09/2026) cai no casamento antigo.
   var AIDX=STATS.teams_idx||{}, AUNR=null;
   try{ AUNR=STATS.unranked_regex?new RegExp(STATS.unranked_regex):null }catch(e){ AUNR=null }
   function anFor(kind,key){
     if(!STATS.ac_events) return null;
     var filter=null;
     if(kind==='r'){
-      var rx=null, t=(RTREE||[]).filter(function(x){ return x.n===key && x.r })[0];
-      try{ rx=t?new RegExp(t.r):null }catch(e){ rx=null }
-      var kl=String(key).toLowerCase();
-      filter=function(lg){ return (rx&&rx.test(lg)) || String((AIDX[lg]&&AIDX[lg].r)||'').toLowerCase()===kl };
+      var kl=String(key).toLowerCase(), hasRs=Object.keys(AIDX).some(function(k){ return AIDX[k]&&AIDX[k].rs });
+      if(hasRs) filter=function(lg){ return ((AIDX[lg]&&AIDX[lg].rs)||[]).some(function(n){ return String(n).toLowerCase()===kl }) };
+      else filter=function(lg){ return String((AIDX[lg]&&AIDX[lg].r)||'').toLowerCase()===kl };
     } else if(kind==='c'){
       filter=function(lg){ return ((AIDX[lg]&&AIDX[lg].c)||'')===key };
     }

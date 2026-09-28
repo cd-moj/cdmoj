@@ -180,8 +180,10 @@ ck "estatísticas: selects sede/país"       'grep -q "id=\"sRegion\"" "$R/stati
 ck "estatísticas: recortes embutidos"      'grep -q "by_region" "$R/statistics.html"'
 ck "estatísticas 2.0: ac_events/top_teams embutidos" \
   'grep -q "ac_events" "$R/statistics.html" && grep -q "top_teams" "$R/statistics.html"'
-ck "estatísticas: árvore de sedes (RTREE, com nó agregador)" \
-  'grep -q "const RTREE=\[{\"n\":\"Brasil\",\"d\":0,\"r\":" "$R/statistics.html"'
+ck "estatísticas: árvore de sedes (RTREE, com nó agregador) — com o índice do mapa e SEM regex" \
+  'grep -q "const RTREE=\[{\"i\":0,\"n\":\"Brasil\",\"d\":0," "$R/statistics.html" && ! grep -q "\"r\":\"^" "$R/statistics.html"'
+ck "placar/runs: RMEM (login → nós, regra única de sedes) embutido; o filtro não compila regex" \
+  'grep -q "var RTREE=.*, RMEM={" "$R/index.html" && grep -q "var RTREE=.*, RMEM={" "$R/runs.html" && ! grep -q "safeRe" "$R/index.html"'
 # --- mlinux.html (nutellaboot) ---
 ck "mlinux: página gerada do cache"        '[[ -s "$R/mlinux.html" ]]'
 ck "mlinux: entra na NAV das outras"       'grep -q "mlinux.html" "$R/index.html"'
