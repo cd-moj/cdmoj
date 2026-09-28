@@ -62,6 +62,13 @@ call /contest/admin/regions GET '' adm 'contest=sr&login=a2'; ck "a2 agora em B 
 call /contest/admin/regions POST '{"assign":[{"login":"a2","region":""}]}' adm 'contest=sr'
 ck "\"\" tira a sede gravada: a2 volta p/ A pela regex" '[[ "$(jq -r ".team.region // \"-\"" "$C/users/a2/account.json")" == - ]] && call /contest/admin/regions GET "" adm "contest=sr&login=a2" && [[ "$(J .site.name)" == A && "$(J .flag)" == r ]]'
 
+echo "== Central: checagem regions =="
+call /contest/admin/preflight GET '' adm 'contest=sr'
+ck "Central: sedes ok (todos os times com sede), pt/en/es" '[[ "$(J ".checks[] | select(.id == \"regions\") | .level")" == ok && -n "$(J ".checks[] | select(.id == \"regions\") | .detail_es")" ]]'
+fx_user "$C" zz9 s "Nome zz9" >/dev/null
+call /contest/admin/preflight GET '' adm 'contest=sr'
+ck "Central: time sem sede vira aviso (1 de 4)" '[[ "$(J ".checks[] | select(.id == \"regions\") | .level")" == warn && "$(J ".checks[] | select(.id == \"regions\") | .detail")" == *"1 de 4 time(s) sem sede"* ]]'
+
 echo "== config.sh e criação também conferem a regex =="
 call /contest/admin/config POST '{"regions":[{"name":"X","regex":"(?=x)"}]}' adm 'contest=sr'
 ck "config.sh: 422 regions_invalid com error.nodes (group_ext)" '[[ "$(st)" == 422 && "$(J ".error.nodes[0].err")" == group_ext && "$(jq length "$C/regions.json")" == 2 ]]'

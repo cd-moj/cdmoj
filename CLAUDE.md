@@ -1245,6 +1245,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (`teams_idx.rs`), Nutella, classificação, Animeitor e capa do caderno. F3c: relatório (`RTREE` com `i` + `RMEM`,
   sem regex no HTML). F4: placar ao vivo/virtual (`score-filters.js` › `regionOptions` com `_mem` + memo),
   prévia de escopo das Tarefas, listas de sede de Times/Máquinas/semear (a árvore inteira, não só o topo).
+  F5: painel de sedes em 3 MODOS (`sites-tab.js` + modelo puro `sites-model.js`; gjs `smoke-sites-model`/
+  `smoke-sites-tab`): a árvore é a verdade, modo = vista; `rule` no nó é SÓ p/ a interface (descartado se não
+  gera mais a regex exata); prévia = rgAssign sobre `?map=1` + pendências; renomear leva os times GRAVADOS
+  (delta visível antes de salvar). Central: item `regions` (regex recusada/órfã/parou no pai/sem sede).
   A órfã (gravada fora da árvore) PENDURA no nó que a regex daria. Cache válido por IDENTIDADE (inode:
   tamanho:mtime) do regions.json/registrations.json — `mv`/restauração com mtime antigo refaz. `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
   em cada consumidor antigo — rodar na produção antes de migrar (em 28/09: zero diferenças nos 3 reais).

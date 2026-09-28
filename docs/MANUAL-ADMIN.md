@@ -100,7 +100,7 @@ painel dele) tem dois modos:
 | **Classificação** (`classificacao`) | Quem se classifica para a próxima fase, por **algoritmo** escolhido no painel (hoje: SBC 1ª fase → Final Brasileira; a regra da PDA entra como outro algoritmo): rascunho, revisão, promoção pelo comitê e publicação (chip ↑BR no placar). `docs/CLASSIFICACAO.md` explica. |
 | **Times** (`sedes` ou `telao`) | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
 | **Coortes** (`coortes`) | Times **convidados** (extra-oficiais, "CCL") separados dos oficiais: quem aparece no placar público, quem vê quem, e o **🔓 Liberar resultados** do pós-cerimônia. A seção 8 explica. |
-| **Sedes & escolas** (`sedes`) | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas, **as fotos/músicas que cada chefe de sede gere no telão** e o gate por sede —, as regras de país/escola por regex e a **⏱ prorrogação por sede/grupo** (regex → novo fim; só estende, nunca encurta). |
+| **Sedes & escolas** (`sedes`) | As sedes (nome + regex no login) — que alimentam o filtro do placar, o escopo do staff, as etiquetas, **as fotos/músicas que cada chefe de sede gere no telão** e o gate por sede —, as regras de país/escola por regex e a **⏱ prorrogação por sede/grupo** (regex → novo fim; só estende, nunca encurta). Em **três modos** (Simples, Intermediário, Avançado) com prévia — seção 7¼. |
 
 ### 🖥️ Máquinas — quando a prova roda em Maratona Linux (módulo `maquinas`)
 
@@ -563,6 +563,43 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
   login novo em **outra máquina derruba a sessão anterior** do time. Trocar de máquina por defeito
   continua funcionando (o time loga na nova e a velha perde a sessão); recarregar a página na mesma
   máquina não derruba nada. Cada queda vira um evento em Máquinas › Anomalias.
+
+## 7¼. Sedes (Evento › Sedes & escolas — módulo `sedes`)
+
+A sede de cada time alimenta o filtro do placar, o escopo do staff (`region:<nome>`), as etiquetas, o
+gate de navegador por sede, a estatística, a classificação e o telão. Todos usam a **mesma regra**:
+
+1. a sede **gravada** no time vence (o nome, sem diferenciar maiúsculas);
+2. senão, a **regex mais funda** que casa o login (sem diferenciar maiúsculas);
+3. um grupo/país **soma** as sedes abaixo dele; um nó com o mesmo nome da sede também a conta;
+4. uma sede gravada que não existe na árvore aparece como "fora da árvore" e conta no nó que a regex daria;
+5. um **recorte** (`view`: supersede, times femininos) agrupa times que já estão nas sedes e nunca é a sede
+   de ninguém.
+
+O painel tem **três modos**. Escolha o que der conta do seu contest; dá para subir de modo a qualquer
+momento. Um modo que não cabe na árvore atual fica desabilitado e diz por quê.
+
+- **Simples** — uma lista de sedes. Cada sede tem "logins que começam com" (vírgula separa). Para atribuir
+  times, cole a lista de logins e escolha a sede, ou escolha a sede de cada time sem sede. Renomear uma sede
+  leva junto os times gravados com o nome velho (a prévia mostra quantos antes de salvar). Por IP da
+  máquina da prova: Máquinas › Gate.
+- **Intermediário** — grupos (país, região) › sedes. Cada sede tem regras: começa com, contém, termina com,
+  ou é um destes (lista).
+- **Avançado** — a árvore inteira: subregiões, recortes `view` e regex livre.
+
+A **prévia** embaixo mostra o que o placar, as etiquetas e o escopo do staff vão ver: quantos times cada
+sede tem, quem ficou sem sede, quem parou num grupo/país (a regex casou o grupo e nenhuma sede dele), quem
+casa em duas sedes e as sedes gravadas fora da árvore. "A salvar" resume a mudança. Se outra aba ou a CLI
+mudou as sedes depois que você abriu a tela, o salvar recusa: recarregue e refaça.
+
+Time **inscrito** guarda a sede na inscrição: ela não some quando o time muda. A Central mostra o item
+**Sedes** quando há algo a conferir.
+
+A regex segue um subconjunto que casa igual no navegador e no servidor: `\d \w \s` e `(?:` servem;
+`\b`, `(?=`, `[[:classe:]]`, quantificador preguiçoso, hífen ambíguo dentro de `[ ]` e acento não servem
+(o login não tem acento). O salvar diz qual sede e por quê.
+
+Na CLI: `moj-contest -c <id> regions show|who|assign|set|map`.
 
 ## 7½. Anomalias de máquina (Máquinas › Anomalias) e Sessões (Pessoas › Sessões)
 

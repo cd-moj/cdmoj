@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:f8014ca34a826a592bba1b8e5e0f476dca3d1b77 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:d1f563d87f58483f5be81d3a4fe8b23bb97953f1 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -103,7 +103,7 @@ su panel) tiene dos modos:
 | **Clasificación** (`classificacao`) | Quién se clasifica para la fase siguiente, por el **algoritmo** elegido en el panel (hoy: SBC 1.ª fase → Final Brasileña; la regla de la PDA entra como otro algoritmo): borrador, revisión, promoción por el comité y publicación (chip ↑BR en el marcador). `docs/CLASSIFICACAO.md` lo explica. |
 | **Equipos** (`sedes` o `telao`) | Identidad de cada cuenta en el marcador: nombre del equipo, país/bandera, sede, universidad, escudo y foto. Carga por CSV y "materializar coincidencias". |
 | **Cohortes** (`coortes`) | Equipos **invitados** (extraoficiales, "CCL") separados de los oficiales: quién aparece en el marcador público, quién ve a quién, y el **🔓 Liberar resultados** de después de la ceremonia. La sección 8 lo explica. |
-| **Sedes y escuelas** (`sedes`) | Las sedes (nombre + regex sobre el login), que alimentan el filtro del marcador, el alcance del staff, las etiquetas, **las fotos/músicas que cada jefe de sede gestiona en la pantalla** y el gate por sede; las reglas de país/escuela por regex; y la **⏱ prórroga por sede/grupo** (regex → nuevo fin; solo extiende, nunca acorta). |
+| **Sedes y escuelas** (`sedes`) | Las sedes (nombre + regex sobre el login), que alimentan el filtro del marcador, el alcance del staff, las etiquetas, **las fotos/músicas que cada jefe de sede gestiona en la pantalla** y el gate por sede; las reglas de país/escuela por regex; y la **⏱ prórroga por sede/grupo** (regex → nuevo fin; solo extiende, nunca acorta). En **tres modos** (Simple, Intermedio, Avanzado) con vista previa — sección 7¼. |
 
 ### 🖥️ Máquinas: cuando la competencia corre en Maratona Linux (módulo `maquinas`)
 
@@ -569,6 +569,46 @@ rol (siempre entra) › regla por regex › **override de la sede** › captura 
   nuevo inicio de sesión en **otra máquina cierra la sesión anterior** del equipo. Cambiar de máquina por una falla
   sigue funcionando (el equipo inicia sesión en la nueva y la vieja pierde la sesión); recargar la página en la misma
   máquina no cierra nada. Cada cierre se convierte en un evento en Máquinas › Anomalías.
+
+## 7¼. Sedes (Evento › Sedes y escuelas — módulo `sedes`)
+
+La sede de cada equipo alimenta el filtro del marcador, el alcance del staff (`region:<nombre>`), las
+etiquetas, el gate de navegador por sede, las estadísticas, la clasificación y la pantalla. Todos usan la
+**misma regla**:
+
+1. gana la sede **grabada** en el equipo (el nombre, sin distinguir mayúsculas);
+2. si no, la **regex más profunda** que coincide con el usuario (sin distinguir mayúsculas);
+3. un grupo/país **suma** las sedes debajo de él; un nodo con el mismo nombre de la sede también la cuenta;
+4. una sede grabada que no existe en el árbol aparece como "fuera del árbol" y cuenta en el nodo que daría
+   la regex;
+5. un **recorte** (`view`: supersede, equipos femeninos) agrupa equipos que ya están en las sedes y nunca es
+   la sede de nadie.
+
+El panel tiene **tres modos**. Elige el que sirva para tu competencia; se puede subir de modo en cualquier
+momento. Un modo que no cabe en el árbol actual queda deshabilitado y dice por qué.
+
+- **Simple** — una lista de sedes. Cada sede tiene "usuarios que empiezan con" (separados por coma). Para
+  asignar equipos, pega la lista de usuarios y elige la sede, o elige la sede de cada equipo sin sede.
+  Renombrar una sede se lleva los equipos grabados con el nombre viejo (la vista previa muestra cuántos antes
+  de guardar). Por la IP de la máquina de la competencia: Máquinas › Gate.
+- **Intermedio** — grupos (país, región) › sedes. Cada sede tiene reglas: empieza con, contiene, termina
+  con, o es uno de (lista).
+- **Avanzado** — el árbol completo: subregiones, recortes `view` y regex libre.
+
+La **vista previa** de abajo muestra lo que verán el marcador, las etiquetas y el alcance del staff: cuántos
+equipos tiene cada sede, quién quedó sin sede, quién se quedó en un grupo/país (la regex coincidió con el
+grupo y con ninguna de sus sedes), quién coincide con dos sedes y las sedes grabadas fuera del árbol. "Por
+guardar" resume el cambio. Si otra pestaña o la CLI cambió las sedes después de que abriste la pantalla, el
+guardado se rechaza: recarga y rehazlo.
+
+Un equipo **inscrito** guarda la sede en la inscripción: no desaparece cuando el equipo cambia. La Central
+muestra el ítem **Sedes** cuando hay algo por revisar.
+
+La regex sigue un subconjunto que coincide igual en el navegador y en el servidor: `\d \w \s` y `(?:`
+sirven; `\b`, `(?=`, `[[:clase:]]`, cuantificadores perezosos, un guion ambiguo dentro de `[ ]` y las letras
+con acento no (el usuario no lleva acentos). El guardado dice qué sede y por qué.
+
+En la CLI: `moj-contest -c <id> regions show|who|assign|set|map`.
 
 ## 7½. Anomalías de máquina (Máquinas › Anomalías) y Sesiones (Personas › Sesiones)
 

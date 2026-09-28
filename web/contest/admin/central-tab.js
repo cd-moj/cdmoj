@@ -35,7 +35,7 @@ const TARGET = {
   next_round: ['evento', 'rodadas'], reg_warmup: ['evento', 'rodadas'],
   docs: ['evento', 'documentos'], balloons: ['evento', 'baloes'],
   cohorts: ['evento', 'coortes'], reg_cohorts: ['evento', 'coortes'],
-  tov: ['evento', 'sedes'], classificacao: ['evento', 'classificacao'],
+  tov: ['evento', 'sedes'], regions: ['evento', 'sedes'], classificacao: ['evento', 'classificacao'],
   ua_gate: ['maquinas', 'gate'], session_single: ['maquinas', 'gate'], site_lock: ['maquinas', 'gate'],
   site_short: ['maquinas', 'mlinux'], mlinux: ['maquinas', 'mlinux'],
 };

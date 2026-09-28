@@ -490,6 +490,32 @@ else
   add3 manual ok "Veredicto manual desligado" "veredicto automático direto ao aluno" "Manual verdict off" "automatic verdict straight to the team" \
     "Veredicto manual desactivado" "veredicto automático directo al equipo"
 fi
+# --- sedes pela regra única (lib/regions.sh): o que o painel de sedes mostra na prévia, em uma linha ------
+if mod_on "$contest" sedes && [[ -s "$cdir/regions.json" ]]; then
+  source "$_LIBDIR/regions.sh"
+  if rgm="$(rg_map "$contest" 2>/dev/null)"; then
+    rgs="$(rg_summary "$cdir/var/regions-nodes.json" "$rgm" 2>/dev/null)"
+    IFS=$'\t' read -r rg_n rg_none rg_stop rg_orph rg_err rg_nodes < <(jq -r '[.logins, .counts.none, .counts.stopped,
+        (.orphans | length), ([.nodes[] | select(.err != null)] | length), ([.nodes[] | select(.orphan | not)] | length)] | map(tostring) | join("\t")' <<<"$rgs")
+    rg_errn="$(jq -r '[.nodes[] | select(.err != null) | .name] | .[0:5] | join(", ")' <<<"$rgs")"
+    rg_orn="$(jq -r '.orphans[0:5] | join(", ")' <<<"$rgs")"
+    if (( ${rg_err:-0} + ${rg_orph:-0} + ${rg_stop:-0} + ${rg_none:-0} > 0 )); then
+      d_pt=""; d_en=""; d_es=""
+      (( rg_err > 0 ))  && { d_pt+="$rg_err sede(s) com regex recusada ($rg_errn); "; d_en+="$rg_err site(s) with a rejected regex ($rg_errn); "; d_es+="$rg_err sede(s) con regex rechazada ($rg_errn); "; }
+      (( rg_orph > 0 )) && { d_pt+="sede gravada fora da árvore: $rg_orn; "; d_en+="site stored outside the tree: $rg_orn; "; d_es+="sede grabada fuera del árbol: $rg_orn; "; }
+      (( rg_stop > 0 )) && { d_pt+="$rg_stop time(s) pararam num grupo/país; "; d_en+="$rg_stop team(s) stopped at a group/country; "; d_es+="$rg_stop equipo(s) se quedaron en un grupo/país; "; }
+      (( rg_none > 0 )) && { d_pt+="$rg_none de $rg_n time(s) sem sede; "; d_en+="$rg_none of $rg_n team(s) without a site; "; d_es+="$rg_none de $rg_n equipo(s) sin sede; "; }
+      add3 regions warn "Sedes a conferir" "${d_pt%; } — Evento › Sedes & escolas mostra quem" \
+        "Sites to check" "${d_en%; } — Event › Sites & schools shows who" \
+        "Sedes por revisar" "${d_es%; } — Evento › Sedes y escuelas muestra quiénes"
+    else
+      add3 regions ok "Sedes" "$rg_nodes sede(s)/região(ões); todos os $rg_n times têm sede" \
+        "Sites" "$rg_nodes site(s)/region(s); all $rg_n teams have a site" \
+        "Sedes" "$rg_nodes sede(s)/región(es); los $rg_n equipos tienen sede"
+    fi
+  fi
+fi
+
 tov="$cdir/time-overrides.json"
 ntov=0; [[ -s "$tov" ]] && ntov="$(jq -r 'length' "$tov" 2>/dev/null)"; ntov="${ntov//[^0-9]/}"; ntov="${ntov:-0}"
 if ! mod_on "$contest" sedes; then :   # prorrogação por sede é do módulo sedes

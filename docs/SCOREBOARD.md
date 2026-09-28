@@ -350,7 +350,12 @@ CLASSIFICAÇÃO: zero diferença na LATAM), Animeitor (times de cada nó; o Gera
 do caderno. F3c: o relatório offline embute a árvore com o índice de cada nó (`RTREE`, sem regex) e
 `RMEM` (login → nós, calculado no servidor); placar, runs, staff e a análise da estatística filtram por eles.
 F4 (28/09): o placar ao vivo, a participação virtual, a prévia de escopo das Tarefas e as listas de
-sede (Times, Máquinas, semear escopo) usam a mesma regra (`smoke-score-regions.gjs.sh`).
+sede (Times, Máquinas, semear escopo) usam a mesma regra (`smoke-score-regions.gjs.sh`). F5 (28/09): o painel
+**Evento › Sedes & escolas** em três modos — Simples (lista + "começa com" + atribuir colando), Intermediário
+(grupos › sedes, regras começa/contém/termina/lista) e Avançado (a árvore) —, vistas da MESMA árvore
+(`web/contest/admin/sites-model.js`, modo que não cabe fica desabilitado com o motivo; a regex é a verdade e o
+campo `rule` do nó só serve p/ a interface voltar do jeito que foi escrita), prévia no navegador com o gêmeo
+e salvar pelo `POST /contest/admin/regions`; a Central ganhou o item `regions`.
 `server/bin/regions-audit.sh <c>` mostra o que muda (sede no gate/materialize e nas etiquetas, membros
 de cada nó no placar e na estatística, e quem cada `.staff`/`.cstaff` com `region:<nome>` passa a ver).
 Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zero** diferenças.

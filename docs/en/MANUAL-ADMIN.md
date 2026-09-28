@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:f8014ca34a826a592bba1b8e5e0f476dca3d1b77 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:d1f563d87f58483f5be81d3a4fe8b23bb97953f1 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -105,7 +105,7 @@ the **🌐 Languages** tab of the chief judge panel) has two modes:
 | **Qualification** (`classificacao`) | Who qualifies for the next phase, by an **algorithm** that you select in the panel (now: SBC 1st phase → Brazilian Final; the PDA rule will be another algorithm): draft, review, promotion by the committee and publication (the ↑BR chip on the scoreboard). `docs/CLASSIFICACAO.md` explains it. |
 | **Teams** (`sedes` or `telao`) | The identity of each account on the scoreboard: team name, country/flag, site, university, crest and photo. Load from CSV and "materialize matches". |
 | **Cohorts** (`coortes`) | **Guest** teams (unofficial, "CCL") separated from the official teams: who appears on the public scoreboard, who sees whom, and the **🔓 Release results** of the post-ceremony. Section 8 explains it. |
-| **Sites & schools** (`sedes`) | The sites (name + regex on the login). The sites feed the scoreboard filter, the staff scope, the badges, **the photos/music that each site chief manages on the big screen** and the gate by site. It also has the country/school rules by regex and the **⏱ extension by site/group** (regex → new end; it only extends, it never shortens). |
+| **Sites & schools** (`sedes`) | The sites (name + regex on the login). The sites feed the scoreboard filter, the staff scope, the badges, **the photos/music that each site chief manages on the big screen** and the gate by site. It also has the country/school rules by regex and the **⏱ extension by site/group** (regex → new end; it only extends, it never shortens). In **three modes** (Simple, Intermediate, Advanced) with a preview — section 7¼. |
 
 ### 🖥️ Machines: when the contest runs on Maratona Linux (module `maquinas`)
 
@@ -602,6 +602,46 @@ usual `login_ua_substring`, which continues to apply as the last option).
   machine because of a defect continues to work (the team logs in on the new machine, and the old
   one loses the session). A page reload on the same machine ends nothing. Each ended session
   becomes an event in Machines › Anomalies.
+
+## 7¼. Sites (Event › Sites & schools — module `sedes`)
+
+The site of each team feeds the scoreboard filter, the staff scope (`region:<name>`), the badges, the
+per-site browser gate, the statistics, the classification and the big screen. All of them use the **same
+rule**:
+
+1. the site **stored** on the team wins (the name, not case-sensitive);
+2. otherwise, the **deepest regex** that matches the login (not case-sensitive);
+3. a group/country **adds up** the sites below it; a node with the same name as the site also counts it;
+4. a stored site that does not exist in the tree shows as "outside the tree" and counts in the node that the
+   regex gives;
+5. a **cut** (`view`: super-site, women teams) groups teams that are already in the sites, and it is never
+   the site of a team.
+
+The panel has **three modes**. Choose the mode that is sufficient for your contest; you can go up a mode at
+any time. A mode that does not fit the current tree is disabled and tells you why.
+
+- **Simple** — a list of sites. Each site has "logins that start with" (comma-separated). To assign teams,
+  paste the list of logins and choose the site, or choose the site of each team without a site. When you
+  rename a site, the teams stored with the old name move with it (the preview shows how many before you
+  save). By the IP of the contest machine: Machines › Gate.
+- **Intermediate** — groups (country, region) › sites. Each site has rules: starts with, contains, ends with,
+  or is one of (list).
+- **Advanced** — the whole tree: sub-regions, `view` cuts and free regex.
+
+The **preview** below shows what the scoreboard, the badges and the staff scope will see: how many teams each
+site has, who has no site, who stopped at a group/country (the regex matched the group and none of its
+sites), who matches two sites, and the stored sites that are outside the tree. "To save" summarizes the
+change. If another tab or the CLI changed the sites after you opened the screen, the save refuses: reload
+and do it again.
+
+A **registered** team keeps its site in the registration: the site does not disappear when the team
+changes. The Home shows the item **Sites** when there is something to check.
+
+The regex follows a subset that matches the same in the browser and on the server: `\d \w \s` and `(?:`
+are accepted; `\b`, `(?=`, `[[:class:]]`, lazy quantifiers, an ambiguous hyphen inside `[ ]` and accented
+letters are not (logins have no accents). The save tells you which site and why.
+
+In the CLI: `moj-contest -c <id> regions show|who|assign|set|map`.
 
 ## 7½. Machine anomalies (Machines › Anomalies) and Sessions (People › Sessions)
 
