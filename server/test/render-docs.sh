@@ -192,6 +192,8 @@ ck "corpo em CMU Serif, sem DejaVu Serif" 'pdffonts "$CP" 2>/dev/null | grep -q 
 SX="$(unzip -p "$(doc_file rd contest pt odt)" styles.xml 2>/dev/null | tr '\n' ' ')"
 ck "ODT: hifenização ligada e idioma pt-BR (antes en-US p/ tudo)" 'grep -q "fo:hyphenate=\"true\"" <<<"$SX" && grep -q "fo:language=\"pt\"" <<<"$SX" && grep -q "fo:country=\"BR\"" <<<"$SX"'
 ck "ODT es: idioma es" 'unzip -p "$(doc_file rd contest es odt)" styles.xml 2>/dev/null | grep -q "fo:language=\"es\""'
+# ⚠ prova PRESENÇA, não desenho: no dev (Fedora) a fonte é COLRv1 e sai embutida mas em branco; a prova
+# visual vale DENTRO da imagem (Debian: CBDT, que o LibreOffice exporta como Type 3 com o bitmap)
 if [[ -n "$(fc-list :charset=1f332 family 2>/dev/null)" ]]; then
   ck "emoji com fonte de emoji (🌲 não some)" 'pdffonts "$CP" 2>/dev/null | grep -qi "emoji"'
 else echo "  (sem fonte de emoji no sistema — pulei)"; fi

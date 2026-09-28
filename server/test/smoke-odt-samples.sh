@@ -56,7 +56,7 @@ ck "logo no cabeçalho + Pictures + manifesto"       'grep -q "draw:name=\"MojLo
 ck "logo: 1,6 cm de altura, proporção 400×80"        'grep -q "svg:width=\"8.000cm\" svg:height=\"1.600cm\"" <<<"$S"'
 ck "1ª página: o 1º título recomeça em 7"            'grep -q "style:page-number=\"7\"" <<<"$C" && grep -q "<text:h text:style-name=\"MojFirstPage\"" <<<"$C"'
 ck "parágrafo com imagem ganha entrelinha 100%"      'grep -q "<text:p text:style-name=\"MojImg_" <<<"$C" && grep -q "fo:line-height=\"100%\"" <<<"$C"'
-ck "idempotente (2ª passada não duplica)"            'python3 "$L/odt-caderno.py" "$T/pt.odt" --event "Maratona <Teste> & Cia" --logo "$T/logo.png" --first-page 7 >/dev/null; [[ "$(unzip -p "$T/pt.odt" styles.xml | grep -o "MojLogo\"" | wc -l)" == 1 && "$(unzip -p "$T/pt.odt" content.xml | grep -o "style:name=\"MojSampleTbl\"" | wc -l)" == 1 ]]'
+ck "idempotente (2ª passada não duplica)"            'python3 "$L/odt-caderno.py" "$T/pt.odt" --event "Maratona <Teste> & Cia" --logo "$T/logo.png" --first-page 7 >/dev/null; [[ "$(unzip -p "$T/pt.odt" styles.xml | grep -o "MojLogo\"" | wc -l)" == 1 && "$(unzip -p "$T/pt.odt" content.xml | grep -o "style:name=\"MojSampleTbl\"" | wc -l)" == 1 ]] && ! unzip -p "$T/pt.odt" content.xml | grep -q "MojImg_MojImg_"'
 ck "mimetype 1º e sem compressão"                   'python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); i=z.infolist()[0]; sys.exit(not (i.filename==\"mimetype\" and i.compress_type==0))" "$T/pt.odt"'
 ck "sem --event/--logo: nada de evento nem logo"      'odt pt "$T/b.odt"; python3 "$L/odt-caderno.py" "$T/b.odt" >/dev/null; ! unzip -p "$T/b.odt" styles.xml | grep -q "MojFooterEvent\|MojLogo"'
 

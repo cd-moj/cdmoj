@@ -868,7 +868,9 @@ _doc_body_inner(){
 # capa anunciando "páginas numeradas de 1 a N" que não existia). A quebra entre problemas vem do
 # `fo:break-before="page"` do Heading 1 no caderno-reference.odt. Com PDF próprio no meio, volta ao
 # caminho por-problema: cada parte GERADA começa na página certa (`DOC_ODT_FIRST_PAGE`); o PDF do
-# setter fica com a numeração dele. A capa não é numerada: "páginas de 1 a N" conta só o miolo.
+# setter fica com a numeração dele. A capa não é numerada: "páginas de 1 a N" conta as páginas FÍSICAS
+# do miolo — no caminho só-gerado é o último rodapé; com PDF de setter no meio, o N é físico e o
+# rodapé do setter é o dele (não o renumeramos).
 # MOLDE (28/09/2026, depois da XIV Maratona UnB — "pouca cara de LaTeX"): o da Maratona SBC — título do
 # problema em Latin Modern Sans centralizado, corpo sem recuo com respiro entre parágrafos, entrelinha
 # do LaTeX 11pt, hifenização no idioma do documento, exemplos em tabela de 2 colunas (odt-samples.lua),
