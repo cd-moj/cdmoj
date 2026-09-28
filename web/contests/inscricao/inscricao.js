@@ -113,7 +113,7 @@ function warmupBox() {
       el('b', {}, T('🔥 Aquecimento no ar — entrada livre', '🔥 Warm-up running — open door', '🔥 Calentamiento en vivo — entrada libre')),
       el('span', {}, T(' Qualquer conta do Treino Livre entra e treina agora, sem inscrição. Para a PROVA você precisa estar inscrito',
                        ' Anyone with a Free Training account can come in and practice now, no registration needed. For the CONTEST you must be registered',
-                       ' Cualquier cuenta de Entrenamiento Libre puede entrar y practicar ahora, sin inscripción. Para la COMPETENCIA necesitas estar inscrito')),
+                       ' Cualquier cuenta de Entrenamiento libre puede entrar y practicar ahora, sin inscripción. Para la COMPETENCIA necesitas estar inscrito')),
       w.official_start ? el('span', {}, T(' — ela começa em ', ' — it starts on ', ' — empieza el ') + fmtDate(w.official_start) + '.') : el('span', {}, '.'));
   }
   return el('div', { class: 'notice', style: 'margin:.6rem 0' },
@@ -133,7 +133,7 @@ function meBox() {
     s.append(el('h2', {}, T('Como você quer participar?', 'How do you want to take part?', '¿Cómo quieres participar?')),
       el('p', { class: 'small muted' },
         T('Escolha uma das duas: individual ou em time de até ', 'Pick one: individually or in a team of up to ', 'Elige una: individual o en equipo de hasta ')
-        + (st.team_max || 3) + T(' pessoas com conta no Treino Livre.', ' people with a Free Training account.', ' personas con cuenta en Entrenamiento Libre.')),
+        + (st.team_max || 3) + T(' pessoas com conta no Treino Livre.', ' people with a Free Training account.', ' personas con cuenta en Entrenamiento libre.')),
       el('div', { class: 'notice', style: 'margin:.3rem 0 .6rem' },
         el('b', {}, T('⚠️ Escolha com calma: ', '⚠️ Choose carefully: ', '⚠️ Elige con calma: ')),
         T('depois de inscrito, o modo de participação (individual ou time) é definitivo — para qualquer mudança, fale com a organização.',
@@ -178,7 +178,7 @@ function meBox() {
   if (kind === 'individual') {
     s.append(el('h2', {}, T('✅ Você está inscrito (individual)', '✅ You are registered (individual)', '✅ Estás inscrito (individual)')),
       el('p', { class: 'small muted' },
-        T('Entre no contest com o SEU login e senha do Treino Livre.', 'Log into the contest with YOUR Free Training username and password.', 'Entra a la competencia con TU usuario y contraseña del Entrenamiento Libre.')),
+        T('Entre no contest com o SEU login e senha do Treino Livre.', 'Log into the contest with YOUR Free Training username and password.', 'Entra a la competencia con TU usuario y contraseña del Entrenamiento libre.')),
       late ? el('p', { class: 'small' }, T('⏰ Inscrição atrasada: você aparece no placar sem ocupar posição oficial.',
                                            '⏰ Late registration: you appear on the scoreboard without taking an official position.',
                                            '⏰ Inscripción tardía: apareces en el marcador sin ocupar una posición oficial.')) : '');
@@ -219,7 +219,7 @@ function meBox() {
     el('p', { class: 'small muted' },
       T('Na prova, cada um entra com o PRÓPRIO login e senha do Treino Livre — as submissões contam para o time.',
         'During the contest each of you logs in with THEIR OWN Free Training credentials — submissions count for the team.',
-        'Durante la competencia cada uno entra con SUS PROPIAS credenciales del Entrenamiento Libre — los envíos cuentan para el equipo.')),
+        'Durante la competencia cada uno entra con SUS PROPIAS credenciales del Entrenamiento libre — los envíos cuentan para el equipo.')),
     late ? el('p', { class: 'small' }, T('⏰ Time inscrito atrasado: aparece no placar sem ocupar posição oficial.',
                                          '⏰ Late team: it appears on the scoreboard without taking an official position.',
                                          '⏰ Equipo tardío: aparece en el marcador sin ocupar una posición oficial.')) : '');
@@ -232,7 +232,7 @@ function meBox() {
   if (isCap && canAct()) {
     const room = (st.team_max || 3) - ((t.members || []).length + (t.invited || []).length);
     if (room > 0) {
-      const who = el('input', { placeholder: T('login no Treino Livre', 'Free Training username', 'usuario del Entrenamiento Libre'), style: 'min-width:14rem' });
+      const who = el('input', { placeholder: T('login no Treino Livre', 'Free Training username', 'usuario del Entrenamiento libre'), style: 'min-width:14rem' });
       s.append(el('div', { class: 'row', style: 'gap:.4rem; margin:.4rem 0' }, who,
         el('button', { class: 'btn ghost',
           onclick: () => act({ action: 'team-invite', login: who.value.trim() },
@@ -320,7 +320,7 @@ function render() {
     c.append(el('div', { class: 'notice', style: 'margin:.8rem 0' },
       T('Este contest não pede inscrição — é só entrar com a sua conta do Treino Livre.',
         'This contest does not require registration — just log in with your Free Training account.',
-        'Esta competencia no pide inscripción — solo entra con tu cuenta del Entrenamiento Libre.')),
+        'Esta competencia no pide inscripción — solo entra con tu cuenta del Entrenamiento libre.')),
       el('a', { class: 'btn', href: contestUrl() }, T('Ir para o contest →', 'Go to the contest →', 'Ir a la competencia →')));
     return;
   }
@@ -340,7 +340,7 @@ async function load(quiet) {
     c.innerHTML = '<div class="notice" style="margin-top:1rem">'
       + T('Entre com a sua conta do Treino Livre (no topo da página) para se inscrever neste contest.',
           'Log in with your Free Training account (top of the page) to register for this contest.',
-          'Entra con tu cuenta del Entrenamiento Libre (arriba de la página) para inscribirte en esta competencia.') + '</div>';
+          'Entra con tu cuenta del Entrenamiento libre (arriba de la página) para inscribirte en esta competencia.') + '</div>';
     return;
   }
   window.__MOJ_LOGIN = s.login;

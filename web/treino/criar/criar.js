@@ -73,7 +73,7 @@ function showDenied(p) {
       T('Você resolveu ', 'You solved ', 'Resolviste ') + (p.solved_count || 0) + T(' problemas', ' problems', ' problemas') +
       (p.threshold > 0 ? (T(' — o limite automático para liberar é ', ' — the automatic threshold to unlock is ', ' — el umbral automático para desbloquear es ') + p.threshold) : '') +
       T('. Um administrador pode liberar seu acesso na lista de criadores.', '. An administrator can grant your access in the creators list.', '. Un administrador puede habilitar tu acceso en la lista de creadores.'))
-      : el('p', {}, T('Faça login no Treino Livre primeiro.', 'Log in to Free Training first.', 'Inicia sesión en Entrenamiento Libre primero.')),
+      : el('p', {}, T('Faça login no Treino Livre primeiro.', 'Log in to Free Training first.', 'Inicia sesión en Entrenamiento libre primero.')),
     el('a', { class: 'btn ghost', href: '/treino/' }, T('← Voltar ao treino', '← Back to training', '← Volver al entrenamiento'))));
 }
 
@@ -87,14 +87,14 @@ function showResult(res) {
       T('⚠ Guarde as credenciais abaixo — as senhas só são exibidas agora.', '⚠ Save the credentials below — passwords are only shown now.', '⚠ Guarda las credenciales de abajo — las contraseñas solo se muestran ahora.')),
     el('p', {}, T('Admin do contest: ', 'Contest admin: ', 'Admin de la competencia: '), el('span', { class: 'cred' }, res.admin_login),
       res.admin_reused
-        ? el('span', { class: 'small muted' }, T(' · conta existente reutilizada — use sua senha atual do Treino Livre.', ' · existing account reused — use your current Free Training password.', ' · cuenta existente reutilizada — usa tu contraseña actual de Entrenamiento Libre.'))
+        ? el('span', { class: 'small muted' }, T(' · conta existente reutilizada — use sua senha atual do Treino Livre.', ' · existing account reused — use your current Free Training password.', ' · cuenta existente reutilizada — usa tu contraseña actual de Entrenamiento libre.'))
         : [T(' · senha: ', ' · password: ', ' · contraseña: '), el('span', { class: 'cred' }, res.admin_password)]));
   if (res._secret) card.append(el('div', { class: 'warn-box', style: 'margin:.4rem 0' },
     T('🕵️ SUPER SECRETO: o contest NÃO aparece na home/arquivo/status e o placar exige login — distribua o link ', '🕵️ SUPER SECRET: the contest does NOT appear on home/archive/status and the scoreboard requires login — share the link ', '🕵️ SUPER SECRETO: la competencia NO aparece en la portada/archivo/estado y el marcador exige inicio de sesión — comparte el enlace '), el('b', {}, res.url), T(' aos participantes.', ' with participants.', ' con los participantes.')));
   card.append(el('p', { class: 'small muted' }, T('É com essa conta que se entra no PAINEL do contest (o seu login comum entra como competidor).',
     'That is the account that opens the contest ADMIN panel (your ordinary login enters as a competitor).',
     'Con esta cuenta se entra al PANEL de la competencia (tu usuario común entra como competidor).')));
-  if (res.users_from) card.append(el('p', { class: 'small muted' }, T('Usuários: compartilhados do "', 'Users: shared from "', 'Usuarios: compartidos de "') + res.users_from + T('" (login com a conta do Treino Livre).', '" (log in with your Free Training account).', '" (inicia sesión con tu cuenta de Entrenamiento Libre).')));
+  if (res.users_from) card.append(el('p', { class: 'small muted' }, T('Usuários: compartilhados do "', 'Users: shared from "', 'Usuarios: compartidos de "') + res.users_from + T('" (login com a conta do Treino Livre).', '" (log in with your Free Training account).', '" (inicia sesión con tu cuenta de Entrenamiento libre).')));
   if (res.users && res.users.length > 1) {
     card.append(el('p', {}, res.users.length + T(' contas criadas. ', ' accounts created. ', ' cuentas creadas. '),
       el('button', { class: 'btn ghost', onclick: () => downloadCsv(res.contest_id + '-credenciais.csv', res.users) }, T('⬇ baixar credenciais (CSV)', '⬇ download credentials (CSV)', '⬇ descargar credenciales (CSV)'))));

@@ -46,7 +46,7 @@ export function makeStepUsuarios(ctx) {
   const root = el('div', { class: 'section' },
     el('h2', {}, T('3 · Usuários', '3 · Users', '3 · Usuarios')),
     el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, ownRadio, T(' Criar usuários próprios do contest', " Create the contest's own users", " Crear los propios usuarios de la competencia"))),
-    el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, sharedRadio, T(' Compartilhar usuários do Treino Livre (sem gerência; login com a conta do treino)', ' Share Free Training users (no management; login with the training account)', ' Compartir usuarios de Entrenamiento Libre (sin gestión; inicia sesión con la cuenta del entrenamiento)'))),
+    el('div', { class: 'field' }, el('label', { style: 'font-weight:400' }, sharedRadio, T(' Compartilhar usuários do Treino Livre (sem gerência; login com a conta do treino)', ' Share Free Training users (no management; login with the training account)', ' Compartir usuarios de Entrenamiento libre (sin gestión; inicia sesión con la cuenta del entrenamiento)'))),
     ownBox);
   return { el: root };
 }

@@ -29,7 +29,7 @@ Si solo quieres saber cómo enviar en cada lenguaje y cómo funcionan la entrada
 
 ## 1. Antes que nada: la inscripción
 
-Buena parte de las competencias del MOJ usa las **cuentas del Entrenamiento Libre**: compites con el
+Buena parte de las competencias del MOJ usa las **cuentas del Entrenamiento libre**: compites con el
 mismo usuario y la misma contraseña que usas para entrenar. En esas competencias, **entrar exige
 inscripción previa**. Si intentas iniciar sesión sin estar inscrito, recibes un aviso. Cuando todavía es posible inscribirse, el aviso trae el enlace a la página de inscripción.
 El servidor muestra uno de estos avisos, en portugués:

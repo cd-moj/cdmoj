@@ -161,7 +161,7 @@ cores, coortes, gate, rodadas, documentos, janela de inscrição, telão, classi
 devolve a mesma seção, sem segredos. Contests criados antes dos módulos são detectados uma vez
 pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).
 
-## 2. Configurações — opção por opção
+## 2. Regras (Central › Regras) — opção por opção
 
 **Identidade e janela**
 

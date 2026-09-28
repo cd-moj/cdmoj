@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:0ea19d6ad53a7e5cfd831153a4612e36885558ed -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:474fa84b23b4d19cbe7bb2ab7dc8a28bea53e367 -->
 # MOJ: Manual del organizador (el panel .admin de la competencia)
 
 > **Nota de traducción.** Este manual es una traducción del original en portugués. Las herramientas de línea de comandos (`moj`, `moj-contest`, `moj-comp`) muestran sus mensajes en portugués, y los ejemplos de comandos son idénticos al original.
@@ -164,7 +164,7 @@ colores, cohortes, gate, rondas, documentos, ventana de inscripción, pantalla, 
 devuelve la misma sección, sin secretos. Las competencias creadas antes de los módulos se detectan una vez
 por los archivos que ya tienen (`server/bin/contest-modules-detect.sh`).
 
-## 2. Configuraciones: opción por opción
+## 2. Reglas (Central › Reglas): opción por opción
 
 **Identidad y ventana**
 
@@ -674,7 +674,7 @@ prácticas:
 
 ## 8½. Inscripción previa y equipos de 3 cuentas del entrenamiento
 
-Vale para las competencias creadas con **"Compartir usuarios de Entrenamiento Libre"**. Al activar la inscripción
+Vale para las competencias creadas con **"Compartir usuarios de Entrenamiento libre"**. Al activar la inscripción
 (Personas › Inscripciones → **Activar**), la competencia pasa a tener una **puerta**: quien no
 se inscribió **no entra** (la API rechaza el inicio de sesión; no es solo la pantalla).
 

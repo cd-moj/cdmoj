@@ -186,7 +186,7 @@ export async function renderAuthArea(mount, contest, onChange) {
   if (contest === 'treino') {
     kids.push(el('a', {
       class: 'small', href: '/treino/cadastro/',
-      title: T('Criar uma conta no Treino Livre', 'Create a Free Training account', 'Crear una cuenta en el Entrenamiento Libre'), style: 'font-weight:700',
+      title: T('Criar uma conta no Treino Livre', 'Create a Free Training account', 'Crear una cuenta en el Entrenamiento libre'), style: 'font-weight:700',
     }, t('create_account')));
   }
   mount.append(...kids);

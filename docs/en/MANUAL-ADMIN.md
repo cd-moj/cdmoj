@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:0ea19d6ad53a7e5cfd831153a4612e36885558ed -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:474fa84b23b4d19cbe7bb2ab7dc8a28bea53e367 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -169,7 +169,7 @@ rounds, documents, registration window, big screen, qualification). The `export`
 same section, without secrets. For contests created before the modules, MOJ detects the modules
 one time from the files that they already have (`server/bin/contest-modules-detect.sh`).
 
-## 2. Settings: option by option
+## 2. Rules (Home › Rules): option by option
 
 **Identity and window**
 

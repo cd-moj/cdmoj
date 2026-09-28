@@ -54,7 +54,7 @@ async function boot() {
 
   content.append(el('div', { class: 'section' },
     el('h1', { style: 'margin:0;color:var(--blue-dark)' }, '📊 ', s.title || ID),
-    el('p', { class: 'small muted', style: 'margin:.3rem 0 0' }, T('Problema do Treino Livre · ', 'Free Training problem · ', 'Problema de Entrenamiento Libre · '),
+    el('p', { class: 'small muted', style: 'margin:.3rem 0 0' }, T('Problema do Treino Livre · ', 'Free Training problem · ', 'Problema de Entrenamiento libre · '),
       el('a', { href: '/treino/problema/?id=' + encodeURIComponent(ID) }, T('abrir o problema →', 'open the problem →', 'abrir el problema →')),
       ' · ', el('a', { href: docHref('ESTATISTICAS-PROBLEMA'), target: '_blank' },
         T('ⓘ como calculamos estas estatísticas', 'ⓘ how these statistics are computed', 'ⓘ cómo calculamos estas estadísticas')))));
