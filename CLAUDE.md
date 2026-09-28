@@ -866,7 +866,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
     - **logo** opcional no cabeçalho (`docs/header-logo.png`, ação `logo` do `admin/docs`, `moj-contest docs logo`);
     - 1ª página certa no caminho por-problema;
     - entrelinha 100% no parágrafo com imagem (a 89% ela subia sobre o texto).
-  - Emoji pela `fonts-noto-color-emoji` (CBDT vira Type 3 no PDF; o COLRv1 do Fedora sai em branco).
+  - Emoji pela `fonts-noto-color-emoji` (CBDT vira Type 3 no PDF; o COLRv1 do Fedora sai em branco) — provado no LibreOffice 25.2 da imagem (build de teste de 28/09, asserção exige Type 3).
+  - Símbolo de matemática que a CMU não tem (⊕ ⋅ ≤ ∑ ∣ ∈ ′…) cai na **Latin Modern Math** (já vem no `fonts-lmodern`) pela regra `deploy/fontconfig/60-moj-cmu-math.conf`, instalada em `/etc/fonts/conf.d/` pela imagem. Sem ela, o fontconfig dava o serif padrão: DejaVu Serif no LO 25.2 da imagem, DejaVu Sans no 26.2 do dev. Asserção de build + "nenhum DejaVu" no `render-docs.sh` quando a regra está ativa.
   - A capa não é numerada: "páginas de 1 a N" conta o miolo.
 
   Regenerar o ODT: receita no cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO
