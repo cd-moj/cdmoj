@@ -6,7 +6,7 @@
 # tipografia apodreceu sem ninguém ver: capa em A4 e miolo em US Letter no MESMO caderno,
 # `Heading 1` MENOR que o `Heading 2`, e itálico sintético porque a fonte do corpo não tinha
 # itálico na imagem. Este teste afirma o que se vê no papel:
-#   (1) toda página em A4;  (2) Latin Modern EMBARCADA no PDF;  (3) o texto sai mesmo
+#   (1) toda página em A4;  (2) Computer Modern (CMU) ou Latin Modern EMBARCADA no PDF;  (3) o texto sai mesmo
 #   (pdftotext não-vazio, com os rótulos no idioma pedido, inclusive es).
 #
 # E o .odt (25/09/2026): todo PDF gerado tem o gêmeo editável, o da rota HTML exporta de volta no MESMO
@@ -46,9 +46,13 @@ soma. Este parágrafo existe para haver texto suficiente para o justificado most
 com pelo menos três linhas de corpo em A4.</p>
 @@MATH@@
 <h2>Entrada</h2><p>Uma linha com <em>a</em> e <em>b</em>.</p>
-<h2>Saída</h2><p>Uma linha com a soma.</p>
-<pre>2 3
-5</pre>
+<h2>Saída</h2><p>Uma linha com a soma. Paralelepípedo inconstitucionalíssimo, otorrinolaringologista,
+anticonstitucionalissimamente e desproporcionalidades — palavras longas p/ a hifenização ter onde agir. 🌲</p>
+<section class="moj-exemplos"><h2>Exemplos</h2>
+<div class="moj-exemplo"><h3>Entrada</h3><pre data-sample="sample1" data-kind="input">2 3</pre>
+<h3>Saída</h3><pre data-sample="sample1" data-kind="output">5</pre>
+<div class="moj-exemplo-nota"><h3>Explicação</h3><p>2 + 3 = 5.</p></div></div>
+</section>
 </body></html>
 HTML
 
@@ -96,6 +100,11 @@ p = sys.argv[1]; s = open(p, encoding='utf-8').read()
 img = '<p><img src="%s" alt="larga"></p>\n<p><img src="%s" alt="alta"></p>\n' % (u(png(1561, 1561)), u(png(700, 3000)))
 open(p, 'w', encoding='utf-8').write(s.replace('<h2>Entrada</h2>', img + '<h2>Entrada</h2>', 1))
 PY
+# B: só PROSA, sem fórmula nem imagem — é nele que a entrelinha do corpo é medida (fórmula inline
+# parte a linha do pdftotext e não serve de régua)
+{ printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><h1 class="moj-title">Subtração</h1><p>'
+  for i in 1 2 3 4 5 6; do printf 'Subtraia os dois números dados e escreva o resultado numa linha só, sem espaços sobrando no fim e com a quebra de linha que todo juiz espera. '; done
+  printf '</p></body></html>'; } > "$C/enunciados/col#pb.html"
 mkdir -p "$FIX/treino/var/jsons"
 jq -cn --arg h "$(base64 -w0 < "$C/enunciados/col#pa.html")" --arg e "$(base64 -w0 < "$C/enunciados/col#pa.en.html")" \
   '{id:"col#pa", title:"Soma Simples", public:true, statement_html_b64:$h, statement_langs:["pt","en"], statements:{en:{title:"Simple Sum", html_b64:$e}}}' \
@@ -122,7 +131,7 @@ for l in pt en es; do
     [[ -s "$p" ]] || continue
     # A4 = 595 x 842 pt (o Letter que vinha do reference.odt é 612 x 792)
     ck "$t/$l em A4"           'pages_a4 "$p"'
-    ck "$t/$l com Latin Modern" 'pdffonts "$p" 2>/dev/null | grep -qi "LMRoman\|LatinModern\|LMMono"'
+    ck "$t/$l com Computer Modern (CMU) ou Latin Modern" 'pdffonts "$p" 2>/dev/null | grep -qi "CMUSerif\|CMUTypewriter\|LMRoman\|LatinModern\|LMMono"'
     # a folha de time limits é curta de propósito (uma tabela); o resto tem prosa
     ck "$t/$l com texto"       '[[ "$(pdftotext "$p" - 2>/dev/null | tr -d "[:space:]" | wc -c)" -gt 60 ]]'
   done
@@ -158,6 +167,42 @@ ck "capa PT: nome, sessão, contagem com as páginas e versão" 'grep -q "Prova 
 ck "capa PT: sem sedes nem nota, os blocos opcionais somem" '! grep -q "Sedes participantes" <<<"$CV"'
 CVE="$(pdftotext -f 1 -l 1 -layout "$(doc_file rd contest es pdf)" - 2>/dev/null)"
 ck "capa ES: no idioma" 'grep -q "Cuadernillo de Problemas" <<<"$CVE"'
+
+echo "== molde dos cadernos da SBC (28/09/2026: \"pouca cara de LaTeX\" na XIV Maratona UnB) =="
+CP="$(doc_file rd contest pt pdf)"
+NP="$(pdfinfo "$CP" 2>/dev/null | awk '/^Pages:/{print $2}')"
+ck "capa: \"páginas de 1 a N\" = as numeradas (a capa não conta)" 'grep -q "numeradas de 1 a $(( NP - 1 ))" <<<"$CV"'
+# entrelinha do corpo = a do LaTeX 11pt (13,6pt); a "simples" do LibreOffice com Latin Modern dava 15,6
+PITCH="$(pdftotext -f "$NP" -l "$NP" -bbox-layout "$CP" /dev/stdout 2>/dev/null | python3 -c '
+import re, sys, collections
+g = collections.Counter()
+for pg in sys.stdin.read().split("<page ")[1:]:
+    # só linha LONGA de corpo (> 300pt): a do exemplo é curta e tem outra entrelinha (mono a 100%)
+    ys = sorted(float(y2) for x1, y1, x2, y2 in re.findall(r"<line xMin=\"([\d.]+)\" yMin=\"([\d.]+)\" xMax=\"([\d.]+)\" yMax=\"([\d.]+)\"", pg) if float(x2) - float(x1) > 300)
+    g.update(round(b - a, 1) for a, b in zip(ys, ys[1:]) if 10 < b - a < 17)
+print(g.most_common(1)[0][0] if g else 0)')"
+ck "entrelinha do corpo ≈ 13,6pt (LaTeX 11pt), não os 15,6 de antes (medida: $PITCH)" 'awk -v p="$PITCH" "BEGIN{exit !(p >= 12.8 && p <= 14.2)}"'
+L2="$(pdftotext -f 2 -l "$NP" -layout "$CP" - 2>/dev/null)"
+ck "exemplos em TABELA: entrada e saída lado a lado" 'grep -q "Exemplo de entrada 1 *Exemplo de saída 1" <<<"$L2"'
+ck "explicação: \"Explicação do exemplo 1\"" 'grep -q "Explicação do exemplo 1" <<<"$L2"'
+ck "título \"Exemplos\" não aparece mais" '! grep -qx " *Exemplos *" <<<"$L2"'
+ck "rodapé: \"evento – Problema A – título\" e a página à direita" 'grep -q "Prova de Renderização – Problema A – Soma Simples *1 *$" <<<"$L2"'
+ck "título do problema em sans (CMU Sans)" 'pdffonts "$CP" 2>/dev/null | grep -q "CMUSansSerif"'
+ck "corpo em CMU Serif, sem DejaVu Serif" 'pdffonts "$CP" 2>/dev/null | grep -q "CMUSerif-Roman" && ! pdffonts "$CP" 2>/dev/null | grep -q "DejaVuSerif"'
+SX="$(unzip -p "$(doc_file rd contest pt odt)" styles.xml 2>/dev/null | tr '\n' ' ')"
+ck "ODT: hifenização ligada e idioma pt-BR (antes en-US p/ tudo)" 'grep -q "fo:hyphenate=\"true\"" <<<"$SX" && grep -q "fo:language=\"pt\"" <<<"$SX" && grep -q "fo:country=\"BR\"" <<<"$SX"'
+ck "ODT es: idioma es" 'unzip -p "$(doc_file rd contest es odt)" styles.xml 2>/dev/null | grep -q "fo:language=\"es\""'
+if [[ -n "$(fc-list :charset=1f332 family 2>/dev/null)" ]]; then
+  ck "emoji com fonte de emoji (🌲 não some)" 'pdffonts "$CP" 2>/dev/null | grep -qi "emoji"'
+else echo "  (sem fonte de emoji no sistema — pulei)"; fi
+# logo no cabeçalho (Evento › Documentos): o caderno e a capa ganham a imagem
+magick -size 600x120 xc:'#1d4e89' "$C/docs/header-logo.png" 2>/dev/null
+NI0="$(pdfimages -list "$CP" 2>/dev/null | awk 'NR>2' | wc -l)"
+doc_build rd contest pt >/dev/null 2>&1
+NI1="$(pdfimages -list "$CP" 2>/dev/null | awk 'NR>2' | wc -l)"
+ck "logo: capa + uma por página numerada ($NI0 → $NI1 imagens)" '(( NI1 >= NI0 + NP ))'
+ck "logo: o .odt tem a imagem em Pictures/" 'unzip -l "$(doc_file rd contest pt odt)" 2>/dev/null | grep -q "Pictures/moj-header-logo.png"'
+rm -f "$C/docs/header-logo.png"; doc_build rd contest pt >/dev/null 2>&1
 
 echo "== caderno: capa + problema no mesmo tamanho de página =="
 sizes="$(pdfinfo -l 99 "$(doc_file rd contest pt pdf)" 2>/dev/null | grep -c 'x 792 pts')"
@@ -223,12 +268,12 @@ ck "caderno PT: ::: center no meio da página (desvio $CO pt)" '[[ "$CO" != sem-
 ck "editorial PT: fórmula sem DejaVu Serif" '! pdffonts "$(doc_file rd editorial pt pdf)" 2>/dev/null | grep -qi "DejaVuSerif"'
 
 echo "== imagens: nenhuma sai da página (tamanho DESENHADO = px ÷ ppi, pelo pdfimages) =="
-# área útil do caderno-reference.odt: 16 cm = 6,30 pol de largura; altura máx. de imagem 591,26 pt =
-# 8,21 pol (90% do corpo). 2% de folga p/ o ppi que o pdfimages arredonda. Antes: 21,7 pol, cortada.
+# área útil do caderno-reference.odt: 16 cm = 6,30 pol de largura; altura máx. de imagem 619,94 pt =
+# 8,61 pol (90% do corpo, margem inferior de 1,8 cm desde o molde SBC). 2% de folga p/ o ppi que o pdfimages arredonda. Antes: 21,7 pol, cortada.
 IMGS="$(pdfimages -list "$(doc_file rd contest pt pdf)" 2>/dev/null | awk '$3=="image" && $13>0 && $14>0 {printf "%.3f %.3f\n", $4/$13, $5/$14}')"
 DBG="$IMGS"
 ck "caderno PT: as 2 imagens grandes estão lá"   '[[ "$(grep -c . <<<"$IMGS")" -ge 2 ]]'
-ck "caderno PT: nenhuma imagem além da área útil" '[[ -z "$(awk '"'"'$1 > 6.30*1.02 || $2 > 8.21*1.02'"'"' <<<"$IMGS")" ]]'
+ck "caderno PT: nenhuma imagem além da área útil" '[[ -z "$(awk '"'"'$1 > 6.30*1.02 || $2 > 8.61*1.02'"'"' <<<"$IMGS")" ]]'
 
 echo "== ambiente de julgamento: título novo, linhas de compilação, veredictos, penalidade =="
 IP="$(doc_file rd info-sheet en pdf)"; IT="$(pdftotext -layout "$IP" - 2>/dev/null)"

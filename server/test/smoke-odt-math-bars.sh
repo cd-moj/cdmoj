@@ -193,9 +193,10 @@ ck "as barras nuas saem em par"                    '[[ "$(grep -o "fence=\"true\
 ck "2ª passada não muda nada"                      '[[ "$(python3 "$PY" "$FIX/fn.odt")" == 0 ]]'
 
 echo "== imagens: tamanho da web (px × 0,75 pt) ou do DPI, teto na área útil, largura do autor =="
-# Área útil do caderno-reference.odt: A4 com margens de 2,5 cm = 453,54 pt de largura; altura do corpo
-# (menos o rodapé de 0,6 pol) × 0,9 = 591,26 pt. Mudou o reference-doc? Mude aqui.
-MAXW=453.54; MAXH=591.26
+# Área útil do caderno-reference.odt: A4 com margens laterais de 2,5 cm = 453,54 pt de largura; altura
+# do corpo (margens 2,5/1,8 cm, menos o rodapé: 0,5 cm + 0,6 cm) × 0,9 = 619,94 pt. Mudou o
+# reference-doc? Mude aqui (o valor sai de `text_box` do próprio script).
+MAXW=453.54; MAXH=619.94
 python3 - "$FIX/img.html" "$(mml 'x^2 + |y|')" <<'PY'
 import sys, zlib, struct, base64
 def png(w, h, dpi=None):

@@ -252,6 +252,38 @@ export function makeDocsTab(CONTEST, opts = {}) {
       });
   }
 
+  // LOGO do cabeçalho (molde dos cadernos da SBC): uma imagem só p/ todos os idiomas; o servidor a
+  // reprocessa em PNG com altura limitada e ela entra no topo de cada página do caderno/editorial e na capa
+  function logoBox() {
+    const lg = DATA.logo || {};
+    const file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/svg+xml', style: 'display:none' });
+    file.addEventListener('change', async () => {
+      const f = file.files && file.files[0]; if (!f) return;
+      if (f.size > 5 * 1024 * 1024) { setMsg(T('Imagem muito grande (máx 5MB).', 'Image too large (max 5MB).', 'Imagen demasiado grande (máx 5MB).'), 'error-box'); return; }
+      setMsg(T('Enviando o logo…', 'Uploading the logo…', 'Subiendo el logo…'));
+      try {
+        await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'logo', image_b64: await fileToBase64(f) });
+        setMsg(T('✓ logo enviado — gere o caderno de novo', '✓ logo uploaded — generate the problem set again', '✓ logo subido — genera el cuadernillo de nuevo')); await load();
+      } catch (e) { setMsg(e.message || T('falha', 'failed', 'fallido'), 'error-box'); }
+    });
+    return el('div', { class: 'subcard', style: 'margin:.6rem 0' },
+      el('h3', { style: 'margin:.1rem 0 .4rem' }, T('🏷️ Logo do cabeçalho', '🏷️ Header logo', '🏷️ Logo del encabezado')),
+      el('p', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
+        T('Opcional. Uma faixa com os logos do evento (PNG, JPEG, WebP ou SVG, até 5MB) no topo de cada página do caderno e do editorial, e na capa gerada — como nos cadernos da Maratona SBC. Vale para os três idiomas.',
+          'Optional. A strip with the event logos (PNG, JPEG, WebP or SVG, up to 5MB) at the top of every page of the problem set and the editorial, and on the generated cover — like the Maratona SBC booklets. Applies to all three languages.',
+          'Opcional. Una franja con los logos del evento (PNG, JPEG, WebP o SVG, hasta 5MB) en la parte superior de cada página del cuadernillo y del editorial, y en la portada generada — como en los cuadernillos de la Maratona SBC. Vale para los tres idiomas.')),
+      el('div', { class: 'row', style: 'gap:.5rem;align-items:center' },
+        lg.present ? el('span', { class: 'pill ok' }, T('logo enviado', 'logo uploaded', 'logo subido'))
+                   : el('span', { class: 'small muted' }, T('sem logo', 'no logo', 'sin logo')),
+        el('button', { class: 'btn ghost', onclick: () => file.click() }, lg.present ? T('trocar logo…', 'replace logo…', 'reemplazar logo…') : T('enviar logo…', 'upload logo…', 'subir logo…')),
+        lg.present ? el('button', { class: 'btn ghost', onclick: async () => {
+          if (!confirm(T('Remover o logo?', 'Remove the logo?', '¿Eliminar el logo?'))) return;
+          try { await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'logo', remove: true }); await load(); }
+          catch (e) { setMsg(e.message || T('falha', 'failed', 'fallido'), 'error-box'); }
+        } }, T('remover', 'remove', 'quitar')) : null,
+        file));
+  }
+
   function configBox() {
     const cfg = DATA.config || {};
     const ver = el('input', { value: cfg.caderno_version || 'v1.0', style: 'width:7rem' });
@@ -323,7 +355,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
         T(`${probs.length} problema(s) · ${probs.filter(p => p.has_pdf).length} com PDF próprio`,
           `${probs.length} problem(s) · ${probs.filter(p => p.has_pdf).length} with their own PDF`,
           `${probs.length} problema(s) · ${probs.filter(p => p.has_pdf).length} con PDF propio`)));
-      panel.append(configBox(), coverBox(), infoSheetBox());
+      panel.append(configBox(), coverBox(), logoBox(), infoSheetBox());
     }
   }
 

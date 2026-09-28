@@ -542,6 +542,9 @@ _doc_html_times(){
 #   3. GERADA        (default) o layout abaixo
 # Marcadores da capa editada: {{CONTEST_NAME}} {{DATE}} {{N_PROBLEMS}} {{N_PAGES}} {{SITES}} {{VERSION}}
 doc_cover_pdf(){ printf '%s/cover.%s.pdf' "$(doc_dir "$1")" "$2"; }   # <c> <lang>
+# LOGO do cabeçalho do documento impresso (opcional; Evento › Documentos › "logo"): PNG já reprocessado
+# no upload (magick, altura limitada). Vazio = sem logo. Vale para caderno, editorial e capa gerada.
+doc_logo_file(){ local f; f="$(doc_dir "$1")/header-logo.png"; [[ -s "$f" ]] && printf '%s' "$f"; return 0; }
 doc_cover_md(){  printf '%s/cover.%s.md'  "$(doc_dir "$1")" "$2"; }
 
 # CAPA POR TEMPLATE (25/09/2026): a capa padrão É um template Markdown — server/etc/cover.<lang>.md —, o
@@ -594,6 +597,14 @@ _doc_html_cover(){
   if md="$(_doc_cover_tpl "$c" "$l")"; then
     _doc_html_head "$CNAME"
     printf '<div class="cover">'
+    # logo (opcional) no alto da capa, como a faixa de logos dos cadernos da SBC; o ODT gêmeo o tira
+    # (lá o logo já vem pelo cabeçalho da página, lib/odt-caderno.py)
+    # (o import de HTML do soffice ignora a altura por CSS: vai em ATRIBUTO, px a 96 dpi — 1,6 cm = 60 px)
+    local lg lw lh; lg="$(doc_logo_file "$c")"
+    if [[ -n "$lg" ]] && read -r lw lh < <(magick identify -format '%w %h\n' "$lg" 2>/dev/null) \
+       && [[ "$lw" =~ ^[0-9]+$ && "$lh" =~ ^[0-9]+$ ]] && (( lh > 0 )); then
+      printf '<p class="logo"><img src="file://%s" alt="" width="%d" height="60"></p>' "$lg" "$(( lw * 60 / lh > 605 ? 605 : lw * 60 / lh ))"
+    fi
     _doc_cover_fill "$md" "$c" "$l" "$np" "$pg" "$note" "$sites" "$ver" | render_markdown_html 2>/dev/null
     printf '</div>\n'
     _doc_html_foot
@@ -737,11 +748,18 @@ _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
 # _doc_html2pdf_odt <html-file> <pdf-out> -> 0/1 — ROTA PREFERIDA p/ conteúdo com MathML:
 # pandoc html→odt + soffice odt→pdf. O import HTML do Writer NÃO entende MathML (achatava
 # as fórmulas); via ODT elas viram fórmulas ODF de verdade — exige o libreoffice-math da
-# imagem. O ESTILO vem do reference-doc etc/caderno-reference.odt (ODT ignora CSS): Text
-# Body JUSTIFICADO + Preformatted Text com fundo/borda (a caixa dos exemplos). Receita p/
-# regenerar: `pandoc --print-default-data-file reference.odt`, retocar no styles.xml os
-# estilos Text_20_body (fo:text-align=justify) e Preformatted_20_Text
-# (fo:background-color/fo:padding/fo:border) e rezipar com o mimetype PRIMEIRO (zip -0).
+# imagem. O ESTILO vem do reference-doc etc/caderno-reference.odt (ODT ignora CSS), no molde dos
+# cadernos da Maratona SBC (28/09/2026): corpo CMU Serif 11pt JUSTIFICADO, entrelinha proporcional
+# 89% (= os 13,6pt do LaTeX 11pt: a "simples" do LibreOffice soma o lineGap da fonte e nenhuma opção
+# o tira — AddExternalLeading/UnxForceZeroExtLeading testadas), Text_20_body sem recuo com 0,16cm
+# depois, hifenização LIGADA (o idioma vem do `-M lang=` por documento; `hyphen-*` na imagem), Heading 1
+# (o "Problema A – Nome") em CMU Sans 17pt centralizado com quebra de página, Heading 2 12pt,
+# Preformatted_20_Text (bloco de código que não é exemplo) em CMU Typewriter 10pt com a caixa e
+# contextual-spacing, MojSampleHead/MojSampleText (a tabela de exemplos, lib/odt-samples.lua),
+# MojFooter/MojHeader (rodapé "evento – capítulo · página" e faixa do logo, lib/odt-caderno.py) e
+# margem inferior de 1,8cm. Os nomes internos das fontes (LMRoman/LMMono/LMSans) ficaram; só a família
+# mudou. Regenerar: descompactar, retocar o styles.xml e rezipar com o mimetype PRIMEIRO (zip -0) —
+# e rodar o render-docs.sh (dev e DENTRO da imagem).
 # O html de entrada NÃO deve ter <title> (o pandoc o promoveria a título órfão no topo).
 # ⚠ BARRA VERTICAL (relato do Arthur Botelho, 24/09/2026: "o `|` sai com um ¿ em volta"): o pandoc
 # marca todo `|` da fórmula como `form="prefix"`, inclusive o que fecha, e o LibreOffice Math desenha
@@ -763,6 +781,18 @@ _doc_pages(){ pdfinfo "$1" 2>/dev/null | awk '/^Pages:/{print $2; exit}'; }
 # HTML — capa, errata, info sheet, TL, e enunciado sem pandoc) também corta imagem grande, e hoje nenhum
 # desses tem imagem.
 _doc_odt_fix_math(){ python3 "$_DIR/lib/odt-math-bars.py" "$1" >/dev/null 2>&1 || true; }
+# _doc_odt_page <odt> — o passo de PÁGINA (lib/odt-caderno.py): estilos da tabela de exemplos, evento no
+# rodapé, logo no cabeçalho, 1ª página do problema no caminho por-problema. Os parâmetros vêm do chamador
+# por variável local (DOC_ODT_EVENT/LOGO/FIRST_PAGE, escopo dinâmico). Fail-open, como o de cima.
+_doc_odt_page(){
+  local a=( "$1" )
+  [[ -n "${DOC_ODT_EVENT:-}" ]] && a+=( --event "$DOC_ODT_EVENT" )
+  [[ -n "${DOC_ODT_LOGO:-}" && -s "${DOC_ODT_LOGO:-}" ]] && a+=( --logo "$DOC_ODT_LOGO" )
+  [[ "${DOC_ODT_FIRST_PAGE:-}" =~ ^[0-9]+$ ]] && a+=( --first-page "$DOC_ODT_FIRST_PAGE" )
+  python3 "$_DIR/lib/odt-caderno.py" "${a[@]}" >/dev/null 2>&1 || true
+}
+# idioma do documento p/ o pandoc (hifenização e revisor do LibreOffice): pt-BR | en-US | es-ES
+_doc_lang_tag(){ case "$1" in en) printf 'en-US';; es) printf 'es-ES';; *) printf 'pt-BR';; esac; }
 _doc_html_img_widths(){ python3 "$_DIR/lib/odt-math-bars.py" --html-widths "$1" >/dev/null 2>&1 || true; }
 _doc_html2pdf_odt(){   # <html> <pdf-out> [odt-out: guarda o ODT que gerou o PDF — o que a organização baixa]
   local src="$1" out="$2" odt="${3:-}" work
@@ -789,9 +819,14 @@ _doc_html2odt(){
   [[ -f "$rf" ]] && refodt=( --reference-doc="$rf" )
   # `::: center` do enunciado: o pandoc descarta a classe do bloco; o filtro o centraliza (odt-center.lua)
   [[ -f "$_DIR/lib/odt-center.lua" ]] && refodt+=( --lua-filter="$_DIR/lib/odt-center.lua" )
+  # exemplos em TABELA de 2 colunas no papel (odt-samples.lua; o site segue empilhado) e o IDIOMA do
+  # documento: sem `lang` o reference-doc fixava en-US e o português hifenizava com regras inglesas
+  [[ -f "$_DIR/lib/odt-samples.lua" ]] && refodt+=( --lua-filter="$_DIR/lib/odt-samples.lua" )
+  refodt+=( -M "moj-lang=${DOC_ODT_LANG:-pt}" -M "lang=$(_doc_lang_tag "${DOC_ODT_LANG:-pt}")" )
   cp -f "$src" "$work/in.html" && _doc_html_img_widths "$work/in.html"   # cópia: o src é do chamador
   if pandoc -f html -t odt "${refodt[@]}" "$work/in.html" -o "$work/doc.odt" 2>/dev/null && [[ -s "$work/doc.odt" ]]; then
-    _doc_odt_fix_math "$work/doc.odt"; mv -f "$work/doc.odt" "$out"; rm -rf "$work"; return 0
+    _doc_odt_fix_math "$work/doc.odt"; _doc_odt_page "$work/doc.odt"
+    mv -f "$work/doc.odt" "$out"; rm -rf "$work"; return 0
   fi
   rm -rf "$work"; return 1
 }
@@ -803,6 +838,7 @@ _doc_cover_odt_styles(){
   python3 -c '
 import re, sys
 s = sys.stdin.read()
+s = re.sub(r"<p class=\"logo\">.*?</p>", "", s, flags=re.S)   # o logo vem pelo cabeçalho do ODT
 st = lambda n: "<div custom-style=\"" + n + "\">"
 s = re.sub(r"<h1[^>]*>(.*?)</h1>", lambda m: st("Title") + "<p>" + m.group(1) + "</p></div>", s, flags=re.S | re.I)
 s = re.sub(r"<h2[^>]*>(.*?)</h2>", lambda m: st("Subtitle") + "<p>" + m.group(1) + "</p></div>", s, flags=re.S | re.I)
@@ -830,8 +866,13 @@ _doc_body_inner(){
 # CADERNO. Quando NENHUM problema tem PDF próprio, os enunciados viram UM ODT só — é o que dá
 # NUMERAÇÃO CONTÍNUA (antes cada problema era um PDF e a página voltava a "1" em cada um, com a
 # capa anunciando "páginas numeradas de 1 a N" que não existia). A quebra entre problemas vem do
-# `fo:break-before="page"` do Heading 1 no caderno-reference.odt. Com PDF próprio no meio, não há
-# como renumerar (não temos pdftk/cpdf na imagem): volta ao caminho por-problema.
+# `fo:break-before="page"` do Heading 1 no caderno-reference.odt. Com PDF próprio no meio, volta ao
+# caminho por-problema: cada parte GERADA começa na página certa (`DOC_ODT_FIRST_PAGE`); o PDF do
+# setter fica com a numeração dele. A capa não é numerada: "páginas de 1 a N" conta só o miolo.
+# MOLDE (28/09/2026, depois da XIV Maratona UnB — "pouca cara de LaTeX"): o da Maratona SBC — título do
+# problema em Latin Modern Sans centralizado, corpo sem recuo com respiro entre parágrafos, entrelinha
+# do LaTeX 11pt, hifenização no idioma do documento, exemplos em tabela de 2 colunas (odt-samples.lua),
+# rodapé "evento – Problema X – título · página" e, se enviado, o logo no cabeçalho (odt-caderno.py).
 _doc_pdf_contest(){
   local c="$1" l="$2" out="$3" odtout="${4:-}" probs n i skey work parts=() pdf tot=0 custom=""
   work="$(mktemp -d)"; probs="$(_doc_probs_l "$c" "$l")"; n="$(jq -r 'length' <<<"$probs")"
@@ -850,7 +891,7 @@ _doc_pdf_contest(){
         letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
         name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
         f="$(_doc_stmt_file "$c" "$skey" "$l")" || f=""
-        printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+        printf '<h1>%s %s – %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
         if [[ -n "$f" && -f "$f" ]]; then _doc_body_inner "$f"; else printf '<p><i>%s</i></p>' "$(_doc_t "$l" no_statement)"; fi
       done
       printf '</body></html>'; } > "$allf"
@@ -881,15 +922,16 @@ _doc_pdf_contest(){
       fi
       # rota preferida: pandoc→odt→pdf (MathML vira fórmula ODF; ver _doc_html2pdf_odt)
       { printf '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
-        printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+        printf '<h1>%s %s – %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
         cat "$bodyf"; printf '</body></html>'; } > "$work/o$i.html"
+      local DOC_ODT_FIRST_PAGE=$(( tot + 1 ))   # a numeração segue a do caderno (odt-caderno.py)
       _doc_html2pdf_odt "$work/o$i.html" "$work/p$i.pdf" && okpdf=1
       # FALLBACK (sem pandoc / pandoc falhou): soffice direto no HTML — o strip de
       # <annotation> do _doc_html2pdf ao menos evita o TeX duplicado.
       if [[ -z "$okpdf" ]]; then
         local h="$work/p$i.html"
         { _doc_html_head "x"; printf '<div class="prob">';
-          printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+          printf '<h1>%s %s – %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
           cat "$bodyf"
           printf '</div>'; _doc_html_foot; } > "$h"
         _doc_html2pdf "$h" "$work/p$i.pdf" || continue
@@ -902,7 +944,7 @@ _doc_pdf_contest(){
   if [[ -s "$upl" ]]; then
     cp -f "$upl" "$work/cover.pdf"
   else
-    _doc_html_cover "$c" "$l" "$n" "$(( tot + 1 ))" > "$work/cover.html"
+    _doc_html_cover "$c" "$l" "$n" "$tot" > "$work/cover.html"
     _doc_html2pdf "$work/cover.html" "$work/cover.pdf" || { rm -rf "$work"; return 1; }
   fi
   if (( ${#parts[@]} )); then pdfunite "$work/cover.pdf" "${parts[@]}" "$out" 2>/dev/null || cp -f "$work/cover.pdf" "$out"
@@ -921,7 +963,7 @@ _doc_pdf_contest(){
         skey="$(jq -r --argjson i "$i" '.[$i].statement_key // ""' <<<"$probs")"
         letter="$(jq -r --argjson i "$i" '.[$i].letter // ""' <<<"$probs")"
         name="$(jq -r --argjson i "$i" '.[$i].name // ""' <<<"$probs")"
-        printf '<h1>%s %s — %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
+        printf '<h1>%s %s – %s</h1>' "$(_doc_t "$l" problem)" "$(_doc_escs "$letter")" "$(_doc_escs "$name")"
         if cs_file "$c" "$skey" "$l" pdf >/dev/null 2>&1; then printf '<p><i>%s</i></p>' "$(_doc_t "$l" odt_stmt_pdf)"
         else
           f="$(_doc_stmt_file "$c" "$skey" "$l")" || f=""
@@ -943,6 +985,9 @@ doc_build(){
   rm -f "$odt.tmp"
   # tmp dos enunciados materializados do banco (_doc_stmt_file); morre com o build
   local _DOC_TMPD; _DOC_TMPD="$(mktemp -d)"
+  # parâmetros da rota ODT (idioma, evento no rodapé, logo no cabeçalho) — lidos por _doc_html2odt
+  local DOC_ODT_LANG="$l" DOC_ODT_EVENT="" DOC_ODT_LOGO="" DOC_ODT_FIRST_PAGE=""
+  _doc_meta "$c"; DOC_ODT_EVENT="${CNAME:-}"; DOC_ODT_LOGO="$(doc_logo_file "$c")"
   case "$t" in
     info-sheet) _doc_html_infosheet "$c" "$l" > "$tmp" ;;
     times)      _doc_html_times "$c" "$l"    > "$tmp" ;;

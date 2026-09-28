@@ -72,7 +72,8 @@ RUN set -eux; \
       inotify-tools socat \
       imagemagick ghostscript poppler-utils qpdf paps fonts-dejavu-core fonts-lmodern fonts-cmu; \
     if [ "$WITH_OFFICE" = "1" ]; then \
-      apt-get install -y --no-install-recommends libreoffice-core libreoffice-writer libreoffice-calc libreoffice-math; \
+      apt-get install -y --no-install-recommends libreoffice-core libreoffice-writer libreoffice-calc libreoffice-math \
+        hyphen-pt-br hyphen-en-us hyphen-es fonts-noto-color-emoji; \
     fi; \
     if [ "$WITH_JPLAG" = "1" ]; then \
       apt-get install -y --no-install-recommends default-jre-headless; \
@@ -154,6 +155,23 @@ RUN set -eux; \
     # CMU SERIF = a fonte das FÓRMULAS do caderno (lib/odt-math-bars.py): o mesmo desenho do Latin
     # Modern, mas COM grego — sem ela o `\alpha` da fórmula cai no DejaVu Serif, no meio do resto.
     fc-list 'CMU Serif:charset=3b1' : style | grep -qi 'Italic'; \
+    # MOLDE DOS CADERNOS DA SBC (28/09/2026): o CORPO do caderno/editorial é CMU Serif (o Latin Modern tem
+    # métrica vertical larga e a entrelinha do LibreOffice abria demais), exemplos em CMU Typewriter, título
+    # em CMU Sans; hifenização no idioma do documento (dicionários hyphen-*) e emoji pela Noto Color Emoji
+    # (CBDT: o LibreOffice exporta o glifo como bitmap numa fonte Type 3). A asserção roda a cadeia de
+    # verdade — pandoc + reference-doc + soffice — e olha o PDF: fonte presente não prova que o soffice a usa.
+    fc-list 'CMU Typewriter Text' : family | grep -q . ; fc-list 'CMU Sans Serif' : family | grep -q . ; \
+    if command -v soffice >/dev/null 2>&1; then \
+      fc-list ':charset=1f332' family | grep -qi emoji || { echo 'FALTA: fonte de emoji (fonts-noto-color-emoji)' >&2; exit 1; }; \
+      { [ -s /usr/share/hyphen/hyph_pt_BR.dic ] && [ -s /usr/share/hyphen/hyph_en_US.dic ] && ls /usr/share/hyphen | grep -q '^hyph_es'; } \
+        || { echo 'FALTA: hifenizacao pt-BR/en-US/es (hyphen-*)' >&2; exit 1; }; \
+      printf '<p>Otorrinolaringologista anticonstitucionalissimamente, arvore \360\237\214\262 fim.</p>' > /tmp/_e.html; \
+      pandoc -f html -t odt --reference-doc=/opt/moj/cdmoj/server/etc/caderno-reference.odt -M lang=pt-BR /tmp/_e.html -o /tmp/_e.odt; \
+      HOME=/tmp soffice --headless -env:UserInstallation=file:///tmp/_lo --convert-to pdf --outdir /tmp /tmp/_e.odt >/dev/null 2>&1; \
+      { pdffonts /tmp/_e.pdf | grep -q CMUSerif && pdffonts /tmp/_e.pdf | grep -qi emoji; } \
+        || { echo 'FALTA: PDF do caderno sem CMU Serif ou sem o emoji' >&2; exit 1; }; \
+      rm -rf /tmp/_e.html /tmp/_e.odt /tmp/_e.pdf /tmp/_lo; \
+    fi; \
     bash -n /opt/moj/cdmoj/server/api/v1/router.sh
 
 # Caminhos: todos os defaults do server são `: "${VAR:=…}"` ⇒ o ENV vence (zero edição de código).

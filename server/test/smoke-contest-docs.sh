@@ -121,6 +121,24 @@ ck "time baixa o es -> 200"           '[[ "$OUT" == *"Status: 200"* ]]'
 call /contest/doc GET '' tok-time 'type=info-sheet&lang=de&fmt=pdf'
 ck "idioma fora da lista -> 400"      '[[ "$OUT" == *"Status: 400"* && "$BODY" == *lang_invalid* ]]'
 
+echo "== LOGO do cabeçalho (molde SBC): envio, GET, MIME recusado, remoção e gate =="
+if command -v magick >/dev/null 2>&1; then
+  LOGO64="$(magick -size 800x200 xc:'#1d4e89' png:- 2>/dev/null | base64 -w0)"
+  adm "{\"action\":\"logo\",\"image_b64\":\"data:image/png;base64,$LOGO64\"}"
+  ck "logo: envio (data: URI) salvo"          '[[ "$(J .saved)" == true && -s "$C/docs/header-logo.png" ]]'
+  ck "logo: reprocessado com altura ≤ 360 px" '[[ "$(magick identify -format %h "$C/docs/header-logo.png" 2>/dev/null)" -le 360 ]]'
+  call /contest/admin/docs GET '' tok-adm
+  ck "logo: GET diz que há logo"              '[[ "$(J .logo.present)" == true && "$(J .logo.bytes)" -gt 0 ]]'
+  adm "{\"action\":\"logo\",\"image_b64\":\"$(printf 'nao sou imagem' | base64 -w0)\"}"
+  ck "logo: MIME que não é imagem → 400"      '[[ "$OUT" == *"Status: 400"* && "$(J .error.code)" == image_invalid ]]'
+  call /contest/admin/docs POST "{\"action\":\"logo\",\"image_b64\":\"$LOGO64\"}" tok-staff
+  ck "logo: .staff não envia (403)"           '[[ "$OUT" == *"Status: 403"* ]]'
+  adm '{"action":"logo","remove":true}'
+  ck "logo: remoção"                          '[[ "$(J .removed)" == true && ! -e "$C/docs/header-logo.png" ]]'
+  call /contest/admin/docs GET '' tok-adm
+  ck "logo: GET sem logo"                     '[[ "$(J .logo.present)" == false ]]'
+else echo "  (sem magick — pulei o logo)"; fi
+
 echo "== PDF ENVIADO: vence o gerado, e publica mesmo sem gerar =="
 # PDF de verdade (o handler valida por file --mime-type; %PDF-fake não passa)
 PDF64="$(printf '%%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%%%EOF\n' | base64 -w0)"

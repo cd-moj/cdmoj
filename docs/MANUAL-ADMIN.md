@@ -254,7 +254,7 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
 | Documento | O que sai | De onde vêm os dados |
 |---|---|---|
 | **Ambiente de julgamento** (*info sheet*; era "Informações do ambiente") | No padrão da folha da Maratona SBC: sistema operacional e versões dos compiladores, linguagens aceitas com as extensões, limites de memória, tempo, tamanho de fonte, saída e compilação, as **linhas de compilação e execução** de cada linguagem (as mesmas do juiz), os veredictos, as notas de julgamento, a penalidade e os tempos de resposta. | Texto editável (Markdown) + dados vivos: `run/registry` (o que os juízes reportam), o `conf` do contest e o TL calibrado. |
-| **Caderno da prova** | Capa + um enunciado por problema, na ordem das letras. Onde o problema tem **PDF próprio** no contest, é esse PDF que entra (diagramação preservada); senão o enunciado é renderizado. | `PROBS` do contest, `enunciados/<chave>.{pdf,html}` e, se faltar, o enunciado do banco. |
+| **Caderno da prova** | Capa + um enunciado por problema, na ordem das letras. Onde o problema tem **PDF próprio** no contest, é esse PDF que entra (diagramação preservada); senão o enunciado é renderizado no molde dos cadernos da Maratona SBC: Computer Modern com entrelinha e hifenização de LaTeX, título do problema centralizado, exemplos numa tabela "Exemplo de entrada · Exemplo de saída" e rodapé "evento – Problema X – título" com o número da página. | `PROBS` do contest, `enunciados/<chave>.{pdf,html}` e, se faltar, o enunciado do banco. |
 | **Folha de time limits** | Tabela `letra · nome · tempo limite por teste`. Se o limite é o mesmo em todas as linguagens, sai uma coluna e a nota "não depende da linguagem". Se difere, sai uma coluna por linguagem. Mais a **errata** que você escrever. | O TL **calibrado e servido** aos juízes (`run/tl`). |
 | **Editorial** | Uma capa (título, data, nota introdutória e índice dos problemas) e a **solução** de cada problema, na ordem das letras, cada problema em uma página nova. Gere e revise quando quiser; o servidor **só deixa PUBLICAR depois do fim da prova** (contando prorrogações por sede) — e o time só o baixa com a prova encerrada. | O `docs/solucao.md` do **pacote** de cada problema (o texto que o autor escreveu e que nunca vai ao aluno). |
 
@@ -269,6 +269,10 @@ prova — cada um em **PDF e HTML**, em **português, inglês e espanhol**:
    `{{SITES}}`, `{{VERSION}}` e `{{NOTE}}` (a nota da capa). `{{N_PAGES}}`, `{{SITES}}` e
    `{{NOTE}}` são opcionais: o bloco em que um deles fica vazio some. Envie um PDF quando a capa
    for arte pronta do evento — ela entra como está e o resto do caderno é anexado depois dela.
+
+   **Logo** (🏷️ *Logo do cabeçalho*, opcional): uma faixa com os logos do evento (PNG, JPEG,
+   WebP ou SVG, até 5 MB) que sai no topo de cada página do caderno e do editorial e na capa
+   gerada, como nos cadernos da Maratona SBC. Vale para os três idiomas; *remover* tira.
 3. **Ajuste o texto do info sheet**, se quiser (📝): também Markdown, com os marcadores
    `{{TOOLCHAIN}}`, `{{TL_TABLE}}`, `{{LANGS_TABLE}}`, `{{MEMLIMIT}}`, `{{STACK}}`,
    `{{CONTEST_NAME}}` e `{{DATE}}`.

@@ -854,12 +854,25 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `render-docs.sh` roda no dev (tem pandoc/soffice) e afirma tudo isso.
   ⚠ **Tipografia**: `server/etc/contest-doc.css` (rota HTML→soffice) e `server/etc/caderno-reference.odt`
   (rota pandoc→ODT, que IGNORA CSS) descrevem o MESMO documento por caminhos diferentes — mexeu num,
-  confira o outro. Ambos em **A4 + Latin Modern** (a cara de LaTeX; `fonts-lmodern` é asserção de
-  build). Antes divergiam: capa A4 + miolo US Letter no mesmo caderno, `Heading 1` menor que o
-  `Heading 2` e itálico SINTÉTICO (o DejaVu da imagem não tem itálico). Regenerar o ODT: receita no
-  cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO recusa calado.
-  Renderização real (pandoc+soffice) só é exercida por `server/test/render-docs.sh` (dev ou
-  DENTRO da imagem; A4 em toda página, Latin Modern embarcada, texto extraído, páginas do editorial). **Gates de FASE no `/contest/doc`** (e no `/contest/resources`)
+  confira o outro. Ambos em **A4 + Computer Modern (CMU)**. Antes divergiam: capa A4 + miolo US Letter no
+  mesmo caderno, `Heading 1` menor que o `Heading 2` e itálico SINTÉTICO (o DejaVu da imagem não tem itálico).
+  **MOLDE DOS CADERNOS DA SBC (28/09/2026, "pouca cara de LaTeX" na XIV Maratona UnB)**:
+  - Corpo em **CMU Serif** 11pt com entrelinha proporcional 89% = os 13,6pt do LaTeX 11pt. O Latin Modern tem métrica vertical de 1,417 em e a "simples" do LibreOffice dava 15,6pt. Não há opção que tire o lineGap no Linux: `AddExternalLeading` e `UnxForceZeroExtLeading` foram testadas.
+  - Parágrafo sem recuo e com respiro entre parágrafos; **hifenização** no idioma do documento (`-M lang=` do pandoc + `hyphen-*` na imagem; antes era en-US para tudo).
+  - Título do problema "Problema A – Nome" em CMU Sans centralizado.
+  - Exemplos em **TABELA** "Exemplo de entrada N | Exemplo de saída N", pelo `lib/odt-samples.lua`. A transformação é a jusante: o HTML do site segue empilhado e o `stmt_samples_html` do mojtools não muda. A tabela sai crua e os estilos de célula entram pelo passo Python, porque o LO só aplica estilo AUTOMÁTICO em célula.
+  - `lib/odt-caderno.py` faz o resto:
+    - rodapé "evento – Problema X – título · página", via `text:chapter`;
+    - **logo** opcional no cabeçalho (`docs/header-logo.png`, ação `logo` do `admin/docs`, `moj-contest docs logo`);
+    - 1ª página certa no caminho por-problema;
+    - entrelinha 100% no parágrafo com imagem (a 89% ela subia sobre o texto).
+  - Emoji pela `fonts-noto-color-emoji` (CBDT vira Type 3 no PDF; o COLRv1 do Fedora sai em branco).
+  - A capa não é numerada: "páginas de 1 a N" conta o miolo.
+
+  Regenerar o ODT: receita no cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO
+  recusa calado. Renderização real (pandoc+soffice) só é exercida por `server/test/render-docs.sh` (dev ou
+  DENTRO da imagem): A4, CMU embarcada, entrelinha ≈13,6pt, exemplos lado a lado, rodapé, capa × última
+  página, emoji, logo. A metade sem soffice (filtro + passo de página) está em `smoke-odt-samples.sh`. **Gates de FASE no `/contest/doc`** (e no `/contest/resources`)
   — organização = SÓ admin/chefe/juiz; `.staff`/`.cstaff`/`.mon` esperam a fase como o time
   (decisão do Ribas, 2026-09-15: a sede não recebe o caderno antes da prova — é a mesma regra do
   `can_see_problems`): `contest`/`times` publicados só a partir do INÍCIO (`contest_phase`),

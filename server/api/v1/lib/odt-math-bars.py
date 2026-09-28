@@ -107,6 +107,7 @@ BODY_FALLBACK = ('Latin Modern Roman', 11)   # o corpo do etc/caderno-reference.
 # o CMU Serif (fonts-cmu) é o mesmo desenho COM grego. A 1ª instalada vence; nenhuma = a do corpo.
 MATH_FONTS = ('CMU Serif',)
 SCRIPT_PCT = 70                              # índices e limites, % do corpo
+SPACING_PCT = 16                             # espaço variável×operador (default do Math: 10)
 
 BARS = {'|': 's', '∣': 's', '∥': 'd', '‖': 'd'}   # | ∣ ∥ ‖
 OPENB = set('([{⟨⌊⌈')                             # ( [ { ⟨ ⌊ ⌈
@@ -534,7 +535,10 @@ def settings_items(fam, pt):
             ('FontNameText', 'string', fam),
             ('FontNameSerif', 'string', fam),
             ('RelativeFontHeightIndices', 'short', str(SCRIPT_PCT)),
-            ('RelativeFontHeightLimits', 'short', str(SCRIPT_PCT))]
+            ('RelativeFontHeightLimits', 'short', str(SCRIPT_PCT)),
+            # espaço entre variável e operador (o default do Math é 10%: `1≤N≤10^5` saía colado;
+            # 25% abre a relação como o \thickmuskip do LaTeX mas separa `f (x)` e `a_i b_i`)
+            ('RelativeSpacing', 'short', str(SPACING_PCT))]
 
 
 def fix_settings(data, items):

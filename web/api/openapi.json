@@ -6049,7 +6049,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Documentos da prova: estado, textos, capa e PDF PRONTO enviado (admin ou juiz-chefe); pt/en/es. upload {type,lang,pdf_b64|remove_upload} = PDF pronto que vence o gerado e publica sem gerar (listado mesmo sem index.json). info-sheet = Ambiente de julgamento e submissão (padrão SBC); editorial = capa + um problema por página",
+        "summary": "Documentos da prova: estado, textos, capa e PDF PRONTO enviado (admin ou juiz-chefe); pt/en/es. upload {type,lang,pdf_b64|remove_upload} = PDF pronto que vence o gerado e publica sem gerar (listado mesmo sem index.json). info-sheet = Ambiente de julgamento e submissão (padrão SBC); editorial = capa + um problema por página; logo:{present,bytes} = logo do cabeçalho enviado; o caderno segue o molde da SBC (CMU, exemplos em tabela, rodapé evento – Problema X – título)",
         "security": [
           {
             "bearerAuth": []
@@ -6073,7 +6073,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "config | cover | upload (PDF pronto: vence o gerado; remove_upload volta) | generate | publish | unpublish",
+        "summary": "config | cover | logo ({image_b64}|{remove:true}: logo no topo das páginas do caderno/editorial e na capa gerada; PNG/JPEG/WebP/SVG até 5MB, 400 image_invalid) | upload (PDF pronto: vence o gerado; remove_upload volta) | generate | publish | unpublish",
         "security": [
           {
             "bearerAuth": []
