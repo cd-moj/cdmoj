@@ -158,7 +158,8 @@ RUN set -eux; \
     # MOLDE DOS CADERNOS DA SBC (28/09/2026): o CORPO do caderno/editorial é CMU Serif (o Latin Modern tem
     # métrica vertical larga e a entrelinha do LibreOffice abria demais), exemplos em CMU Typewriter, título
     # em CMU Sans; hifenização no idioma do documento (dicionários hyphen-*) e emoji pela Noto Color Emoji
-    # (CBDT: o LibreOffice exporta o glifo como bitmap numa fonte Type 3). A asserção roda a cadeia de
+    # (CBDT: o LibreOffice exporta o glifo como bitmap numa fonte Type 3; a COLRv1 sai embutida mas EM
+    # BRANCO, por isso exige-se Type 3, não só o nome da fonte). A asserção roda a cadeia de
     # verdade — pandoc + reference-doc + soffice — e olha o PDF: fonte presente não prova que o soffice a usa.
     fc-list 'CMU Typewriter Text' : family | grep -q . ; fc-list 'CMU Sans Serif' : family | grep -q . ; \
     if command -v soffice >/dev/null 2>&1; then \
@@ -168,8 +169,8 @@ RUN set -eux; \
       printf '<p>Otorrinolaringologista anticonstitucionalissimamente, arvore \360\237\214\262 fim.</p>' > /tmp/_e.html; \
       pandoc -f html -t odt --reference-doc=/opt/moj/cdmoj/server/etc/caderno-reference.odt -M lang=pt-BR /tmp/_e.html -o /tmp/_e.odt; \
       HOME=/tmp soffice --headless -env:UserInstallation=file:///tmp/_lo --convert-to pdf --outdir /tmp /tmp/_e.odt >/dev/null 2>&1; \
-      { pdffonts /tmp/_e.pdf | grep -q CMUSerif && pdffonts /tmp/_e.pdf | grep -qi emoji; } \
-        || { echo 'FALTA: PDF do caderno sem CMU Serif ou sem o emoji' >&2; exit 1; }; \
+      { pdffonts /tmp/_e.pdf | grep -q CMUSerif && pdffonts /tmp/_e.pdf | grep -i emoji | grep -q 'Type 3'; } \
+        || { echo 'FALTA: PDF do caderno sem CMU Serif ou com emoji nao desenhado (precisa Type 3; COLRv1 sai em branco)' >&2; exit 1; }; \
       rm -rf /tmp/_e.html /tmp/_e.odt /tmp/_e.pdf /tmp/_lo; \
     fi; \
     bash -n /opt/moj/cdmoj/server/api/v1/router.sh

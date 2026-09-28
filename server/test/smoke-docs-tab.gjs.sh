@@ -85,8 +85,17 @@ const btn=(root,txt)=>root.all().filter(n=>n.tagName==='button' && n.textContent
   ck('"voltar ao padrão" manda o idioma da aba vazio', JSON.stringify(POSTS[POSTS.length-1])===JSON.stringify({action:'config', cover_pt:''}), JSON.stringify(POSTS[POSTS.length-1]));
   const info=P.all().filter(n=>n.className==='subcard' && n.textContent.includes('Texto do info sheet')).pop();
   ck('info sheet: mesmas abas e editor do MOJ', info.all().filter(n=>n.tagName==='button' && n.className.startsWith('stmt-chip')).length===3 && EDS.some(e=>e.init==='info pt' && e.cm==='markdown'));
+  // exemplos em tabela: opt-in (padrão desmarcado); marcar grava samples_table:true na hora
+  const cbs=P.all().filter(n=>n.tagName==='input' && n.attrs.type==='checkbox' && n.parentNode && n.parentNode.textContent.includes('exemplos do caderno em tabela'));
+  ck('checkbox "exemplos do caderno em tabela" existe e nasce desmarcado', cbs.length===1 && !cbs[0].checked, String(cbs.length));
+  cbs[0].checked=true; await cbs[0].fire('change'); await flush();
+  ck('marcar manda {action:config, samples_table:true}', JSON.stringify(POSTS[POSTS.length-1])===JSON.stringify({action:'config', samples_table:true}), JSON.stringify(POSTS[POSTS.length-1]));
+  DATA.config={samples_table:true}; const tabT=makeDocsTab('c'); await tabT.load(); await flush();
+  const cbT=tabT.panel.all().filter(n=>n.tagName==='input' && n.attrs.type==='checkbox' && n.parentNode && n.parentNode.textContent.includes('exemplos do caderno em tabela'));
+  ck('com samples_table no config, abre marcado', cbT.length===1 && cbT[0].checked);
+  DATA.config={};
   LANG='en'; EDS.length=0; const tabEN=makeDocsTab('c'); await tabEN.load(); await flush();
-  ck('em inglês', tabEN.panel.textContent.includes('Problem set cover') && tabEN.panel.textContent.includes('MOJ default text') && tabEN.panel.textContent.includes('Download the “✎ .odt”'));
+  ck('em inglês', tabEN.panel.textContent.includes('Problem set cover') && tabEN.panel.textContent.includes('MOJ default text') && tabEN.panel.textContent.includes('Download the “✎ .odt”') && tabEN.panel.textContent.includes('problem set samples as a table'));
 })().catch(e=>{ print('  FAIL: exceção '+e+'\n'+e.stack); fail++; }).finally(()=>{ print(''); print('RESULT: '+pass+' passed, '+fail+' failed'); if (fail) imports.system.exit(1); });
 EOF
 } > "$JS"

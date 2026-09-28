@@ -94,6 +94,12 @@ case "$action" in
         cfg="$(jq -c --arg k "$k" --arg v "$v" '.[$k] = $v' <<<"$cfg")"
       fi
     done
+    # exemplos em TABELA no caderno (opt-in; default = empilhados, como no site). Booleano de verdade:
+    # só `true` liga — "false", 0 e lixo desligam.
+    if jq -e 'has("samples_table")' "$bodyf" >/dev/null 2>&1; then
+      b="$(jq -r '.samples_table == true' "$bodyf")"
+      cfg="$(jq -c --argjson b "$b" '.samples_table = $b' <<<"$cfg")"
+    fi
     printf '%s\n' "$cfg" > "$D/config.json.tmp" && mv -f "$D/config.json.tmp" "$D/config.json"
     # textos longos (templates) vão para arquivo próprio — nunca por --arg (ARG_MAX)
     pairs=(); for L in $DOC_LANGS; do pairs+=( "info_sheet_$L:info-sheet.$L.md:info-sheet:$L" "cover_$L:cover.$L.md:cover:$L" ); done

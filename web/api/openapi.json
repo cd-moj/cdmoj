@@ -6114,6 +6114,10 @@
                   "errata": {
                     "type": "string"
                   },
+                  "samples_table": {
+                    "type": "boolean",
+                    "description": "Exemplos do caderno em tabela \"Exemplo de entrada N | Exemplo de saída N\" (molde SBC). Opt-in; padrão = caixas empilhadas, como no site."
+                  },
                   "info_sheet_pt": {
                     "type": "string"
                   },

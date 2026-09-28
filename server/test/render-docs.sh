@@ -183,19 +183,35 @@ for pg in sys.stdin.read().split("<page ")[1:]:
 print(g.most_common(1)[0][0] if g else 0)')"
 ck "entrelinha do corpo ≈ 13,6pt (LaTeX 11pt), não os 15,6 de antes (medida: $PITCH)" 'awk -v p="$PITCH" "BEGIN{exit !(p >= 12.8 && p <= 14.2)}"'
 L2="$(pdftotext -f 2 -l "$NP" -layout "$CP" - 2>/dev/null)"
-ck "exemplos em TABELA: entrada e saída lado a lado" 'grep -q "Exemplo de entrada 1 *Exemplo de saída 1" <<<"$L2"'
-ck "explicação: \"Explicação do exemplo 1\"" 'grep -q "Explicação do exemplo 1" <<<"$L2"'
-ck "título \"Exemplos\" não aparece mais" '! grep -qx " *Exemplos *" <<<"$L2"'
+# exemplos: PADRÃO = empilhados como no site (decisão do Ribas: exemplo com linha longa quebra na meia
+# página da célula); a tabela da SBC é opt-in do contest (`samples_table` no docs/config.json)
+ck "exemplos (padrão): empilhados, sem tabela" 'grep -qx " *Exemplos *" <<<"$L2" && ! grep -q "Exemplo de entrada 1" <<<"$L2" && ! unzip -p "$(doc_file rd contest pt odt)" content.xml 2>/dev/null | grep -q "MojSampleTbl"'
+cp -f "$C/docs/config.json" "$C/docs/config.json.bak" 2>/dev/null
+jq -c '.samples_table = true' "$C/docs/config.json.bak" > "$C/docs/config.json" 2>/dev/null \
+  || printf '{"samples_table":true}\n' > "$C/docs/config.json"
+doc_build rd contest pt >/dev/null 2>&1
+NPT="$(pdfinfo "$CP" 2>/dev/null | awk '/^Pages:/{print $2}')"
+LT="$(pdftotext -f 2 -l "$NPT" -layout "$CP" - 2>/dev/null)"
+ck "exemplos (samples_table): TABELA, entrada e saída lado a lado" 'grep -q "Exemplo de entrada 1 *Exemplo de saída 1" <<<"$LT"'
+ck "exemplos (samples_table): \"Explicação do exemplo 1\"" 'grep -q "Explicação do exemplo 1" <<<"$LT"'
+ck "exemplos (samples_table): título \"Exemplos\" some" '! grep -qx " *Exemplos *" <<<"$LT"'
+if [[ -f "$C/docs/config.json.bak" ]]; then mv -f "$C/docs/config.json.bak" "$C/docs/config.json"; else rm -f "$C/docs/config.json"; fi
+doc_build rd contest pt >/dev/null 2>&1
 ck "rodapé: \"evento – Problema A – título\" e a página à direita" 'grep -q "Prova de Renderização – Problema A – Soma Simples *1 *$" <<<"$L2"'
 ck "título do problema em sans (CMU Sans)" 'pdffonts "$CP" 2>/dev/null | grep -q "CMUSansSerif"'
 ck "corpo em CMU Serif, sem DejaVu Serif" 'pdffonts "$CP" 2>/dev/null | grep -q "CMUSerif-Roman" && ! pdffonts "$CP" 2>/dev/null | grep -q "DejaVuSerif"'
 SX="$(unzip -p "$(doc_file rd contest pt odt)" styles.xml 2>/dev/null | tr '\n' ' ')"
 ck "ODT: hifenização ligada e idioma pt-BR (antes en-US p/ tudo)" 'grep -q "fo:hyphenate=\"true\"" <<<"$SX" && grep -q "fo:language=\"pt\"" <<<"$SX" && grep -q "fo:country=\"BR\"" <<<"$SX"'
 ck "ODT es: idioma es" 'unzip -p "$(doc_file rd contest es odt)" styles.xml 2>/dev/null | grep -q "fo:language=\"es\""'
-# ⚠ prova PRESENÇA, não desenho: no dev (Fedora) a fonte é COLRv1 e sai embutida mas em branco; a prova
-# visual vale DENTRO da imagem (Debian: CBDT, que o LibreOffice exporta como Type 3 com o bitmap)
+# Emoji: a fonte COLRv1 (Fedora, o dev) sai embutida como TrueType mas EM BRANCO — o LibreOffice não
+# desenha COLRv1 no PDF; a CBDT (Debian `fonts-noto-color-emoji`, a da imagem) sai como Type 3 com o
+# bitmap colorido. Com CBDT no sistema exige-se Type 3 (desenhado); sem ela, só a presença.
+EMF="$(fc-list ':charset=1f332' file family 2>/dev/null | grep -i 'emoji' | sort -t: -k2,2 | grep -i -m1 'color' | cut -d: -f1)"
 if [[ -n "$(fc-list :charset=1f332 family 2>/dev/null)" ]]; then
   ck "emoji com fonte de emoji (🌲 não some)" 'pdffonts "$CP" 2>/dev/null | grep -qi "emoji"'
+  if [[ -f "$EMF" ]] && head -c 1024 "$EMF" | grep -qa CBDT; then
+    ck "emoji DESENHADO (fonte CBDT → Type 3 no PDF)" 'pdffonts "$CP" 2>/dev/null | grep -i "emoji" | grep -q "Type 3"'
+  else echo "  (fonte de emoji não é CBDT (${EMF:-?}; COLRv1 sai em branco no PDF) — a prova do desenho é na imagem)"; fi
 else echo "  (sem fonte de emoji no sistema — pulei)"; fi
 # logo no cabeçalho (Evento › Documentos): o caderno e a capa ganham a imagem
 magick -size 600x120 xc:'#1d4e89' "$C/docs/header-logo.png" 2>/dev/null

@@ -1,6 +1,6 @@
 #!/bin/bash
 # smoke-odt-samples.sh — o molde SBC do documento impresso, na metade que NÃO precisa do LibreOffice:
-#   lib/odt-samples.lua  — exemplos (`section.moj-exemplos`) viram TABELA "Exemplo de entrada N | Exemplo
+#   lib/odt-samples.lua  — (opt-in do contest, `samples_table`) exemplos (`section.moj-exemplos`) viram TABELA "Exemplo de entrada N | Exemplo
 #                          de saída N", rótulos no idioma do documento, explicação "… do exemplo N",
 #                          espaço/TAB do exemplo preservados, o título "Exemplos" some;
 #   lib/odt-caderno.py   — estilos automáticos da tabela (célula só pega estilo AUTOMÁTICO), evento no

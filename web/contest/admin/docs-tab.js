@@ -304,6 +304,27 @@ export function makeDocsTab(CONTEST, opts = {}) {
     return box;
   }
 
+  // exemplos do caderno em tabela "entrada | saída" (molde SBC) — opt-in: exemplo com linha longa quebra
+  // dentro da meia página da célula, então o padrão segue sendo as caixas empilhadas
+  function samplesTableToggle() {
+    const cb = el('input', { type: 'checkbox' });
+    cb.checked = !!(DATA.config || {}).samples_table;
+    cb.addEventListener('change', async () => {
+      cb.disabled = true;
+      try {
+        await api('/contest/admin/docs?contest=' + enc(CONTEST), { action: 'config', samples_table: cb.checked });
+        DATA.config = { ...(DATA.config || {}), samples_table: cb.checked };
+        setMsg(T('✓ salvo — gere o caderno de novo', '✓ saved — generate the problem set again', '✓ guardado — genera el cuadernillo de nuevo'));
+      } catch (e) { cb.checked = !cb.checked; setMsg(e.message || T('falha', 'failed', 'fallido'), 'error-box'); }
+      cb.disabled = false;
+    });
+    return el('label', { class: 'small', style: 'display:inline-flex;gap:.35rem;align-items:center',
+      title: T('No caderno, cada exemplo vira uma tabela “Exemplo de entrada N | Exemplo de saída N”, como nos cadernos da Maratona SBC. Desligado, os exemplos saem em caixas empilhadas, como no site. Exemplo com linhas longas fica melhor empilhado.',
+        'In the problem set, each sample becomes a “Sample input N | Sample output N” table, like the Maratona SBC booklets. Off, samples come out as stacked boxes, like on the site. Samples with long lines look better stacked.',
+        'En el cuadernillo, cada ejemplo se convierte en una tabla “Ejemplo de entrada N | Ejemplo de salida N”, como en los cuadernillos de la Maratona SBC. Desactivado, los ejemplos salen en cajas apiladas, como en el sitio. Los ejemplos con líneas largas quedan mejor apilados.') },
+      cb, T('exemplos do caderno em tabela (entrada | saída)', 'problem set samples as a table (input | output)', 'ejemplos del cuadernillo en tabla (entrada | salida)'));
+  }
+
   function infoSheetBox() {
     return templateBox('info_sheet', T('📝 Texto do info sheet', '📝 Info sheet text', '📝 Texto del info sheet'),
       T('Markdown. Os marcadores {{TOOLCHAIN}} {{TL_TABLE}} {{LANGS_TABLE}} {{MEMLIMIT}} {{STACK}} {{CONTEST_NAME}} {{DATE}} são preenchidos na geração.',
@@ -338,10 +359,11 @@ export function makeDocsTab(CONTEST, opts = {}) {
           T('✎ Algo torto no PDF gerado (espaço demais ou de menos entre os elementos, imagem grande)? Baixe o “✎ .odt”, ajuste no LibreOffice (ou Word), exporte em PDF e suba em “subir PDF” — o enviado vence o gerado e é ele que os times baixam.',
             '✎ Something off in the generated PDF (too much or too little space between elements, an oversized image)? Download the “✎ .odt”, adjust it in LibreOffice (or Word), export to PDF and upload it with “upload PDF” — the uploaded file wins and is what teams download.',
             '✎ ¿Algo torcido en el PDF generado (demasiado espacio o muy poco entre los elementos, una imagen grande)? Descarga el “✎ .odt”, ajústalo en LibreOffice (o Word), expórtalo a PDF y súbelo con “subir PDF” — el archivo subido gana al generado y es lo que descargan los equipos.')),
-        el('div', { class: 'row', style: 'gap:.5rem;margin:.5rem 0' },
+        el('div', { class: 'row', style: 'gap:.5rem;margin:.5rem 0;align-items:center;flex-wrap:wrap' },
           el('button', { class: 'btn', onclick: () => generate(TYPES.map(t => t.id), LANGS) },
             T('⚙️ Gerar todos (pt+en+es)', '⚙️ Generate all (pt+en+es)', '⚙️ Generar todo (pt+en+es)')),
-          el('button', { class: 'btn ghost', onclick: load }, '↻')));
+          el('button', { class: 'btn ghost', onclick: load }, '↻'),
+          samplesTableToggle()));
     }
     panel.append(msg);
     TYPES.forEach(t => panel.append(docRow(t)));

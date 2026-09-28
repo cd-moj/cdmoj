@@ -860,7 +860,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   - Corpo em **CMU Serif** 11pt com entrelinha proporcional 89% = os 13,6pt do LaTeX 11pt. O Latin Modern tem métrica vertical de 1,417 em e a "simples" do LibreOffice dava 15,6pt. Não há opção que tire o lineGap no Linux: `AddExternalLeading` e `UnxForceZeroExtLeading` foram testadas.
   - Parágrafo sem recuo e com respiro entre parágrafos; **hifenização** no idioma do documento (`-M lang=` do pandoc + `hyphen-*` na imagem; antes era en-US para tudo).
   - Título do problema "Problema A – Nome" em CMU Sans centralizado.
-  - Exemplos em **TABELA** "Exemplo de entrada N | Exemplo de saída N", pelo `lib/odt-samples.lua`. A transformação é a jusante: o HTML do site segue empilhado e o `stmt_samples_html` do mojtools não muda. A tabela sai crua e os estilos de célula entram pelo passo Python, porque o LO só aplica estilo AUTOMÁTICO em célula.
+  - Exemplos em **TABELA** "Exemplo de entrada N | Exemplo de saída N", pelo `lib/odt-samples.lua` — **OPT-IN** (`samples_table` no `docs/config.json`, checkbox no painel, `moj-contest docs set samples_table=true`; decisão do Ribas: exemplo com linha longa quebra na meia página e ficava pior). Padrão = as caixas empilhadas de sempre. A transformação é a jusante: o HTML do site segue empilhado e o `stmt_samples_html` do mojtools não muda. A tabela sai crua e os estilos de célula entram pelo passo Python, porque o LO só aplica estilo AUTOMÁTICO em célula.
   - `lib/odt-caderno.py` faz o resto:
     - rodapé "evento – Problema X – título · página", via `text:chapter`;
     - **logo** opcional no cabeçalho (`docs/header-logo.png`, ação `logo` do `admin/docs`, `moj-contest docs logo`);

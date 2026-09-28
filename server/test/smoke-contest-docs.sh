@@ -139,6 +139,21 @@ if command -v magick >/dev/null 2>&1; then
   ck "logo: GET sem logo"                     '[[ "$(J .logo.present)" == false ]]'
 else echo "  (sem magick — pulei o logo)"; fi
 
+echo "== exemplos em TABELA: opt-in (samples_table), padrão empilhado =="
+call /contest/admin/docs GET '' tok-adm
+ck "samples_table: padrão desligado"        '[[ "$(J ".config.samples_table // false")" == false ]]'
+adm '{"action":"config","samples_table":true}'
+call /contest/admin/docs GET '' tok-adm
+ck "samples_table: liga (bool no config)"   '[[ "$(J ".config.samples_table")" == true && "$(J ".config.caderno_version")" != null ]]'
+adm '{"action":"config","caderno_version":"v2"}'
+call /contest/admin/docs GET '' tok-adm
+ck "samples_table: outra chave não desliga" '[[ "$(J ".config.samples_table")" == true && "$(J ".config.caderno_version")" == v2 ]]'
+adm '{"action":"config","samples_table":"true"}'
+call /contest/admin/docs GET '' tok-adm
+ck "samples_table: string \"true\" não liga (só booleano)" '[[ "$(J ".config.samples_table")" == false ]]'
+call /contest/admin/docs POST '{"action":"config","samples_table":true}' tok-staff
+ck "samples_table: .staff não mexe (403)"   '[[ "$OUT" == *"Status: 403"* ]]'
+
 echo "== PDF ENVIADO: vence o gerado, e publica mesmo sem gerar =="
 # PDF de verdade (o handler valida por file --mime-type; %PDF-fake não passa)
 PDF64="$(printf '%%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%%%EOF\n' | base64 -w0)"

@@ -23,7 +23,7 @@
 #
 # Layout em disco:
 #   contests/<c>/docs/config.json            {caderno_version, cover_note, errata,
-#                                             editorial_note, published:[…]}
+#                                             editorial_note, samples_table, published:[…]}
 #   contests/<c>/docs/info-sheet.<lang>.md   template editável (default: server/etc/)
 #   contests/<c>/docs/<tipo>.<lang>.{html,pdf,odt}  (.odt = o intermediário editável do PDF — organização)
 #   contests/<c>/docs/<tipo>.<lang>.uploaded.pdf   PDF pronto enviado pelo admin (vence)
@@ -819,9 +819,13 @@ _doc_html2odt(){
   [[ -f "$rf" ]] && refodt=( --reference-doc="$rf" )
   # `::: center` do enunciado: o pandoc descarta a classe do bloco; o filtro o centraliza (odt-center.lua)
   [[ -f "$_DIR/lib/odt-center.lua" ]] && refodt+=( --lua-filter="$_DIR/lib/odt-center.lua" )
-  # exemplos em TABELA de 2 colunas no papel (odt-samples.lua; o site segue empilhado) e o IDIOMA do
-  # documento: sem `lang` o reference-doc fixava en-US e o português hifenizava com regras inglesas
-  [[ -f "$_DIR/lib/odt-samples.lua" ]] && refodt+=( --lua-filter="$_DIR/lib/odt-samples.lua" )
+  # exemplos em TABELA de 2 colunas no papel (odt-samples.lua; o site segue empilhado) — OPT-IN do
+  # contest (`samples_table` no docs/config.json): exemplo com linha longa quebra dentro da meia
+  # página da célula e fica pior que as caixas empilhadas, então o padrão segue sendo empilhado.
+  # E o IDIOMA do documento: sem `lang` o reference-doc fixava en-US e o português hifenizava com
+  # regras inglesas.
+  [[ "${DOC_ODT_SAMPLES_TABLE:-}" == true && -f "$_DIR/lib/odt-samples.lua" ]] \
+    && refodt+=( --lua-filter="$_DIR/lib/odt-samples.lua" )
   refodt+=( -M "moj-lang=${DOC_ODT_LANG:-pt}" -M "lang=$(_doc_lang_tag "${DOC_ODT_LANG:-pt}")" )
   cp -f "$src" "$work/in.html" && _doc_html_img_widths "$work/in.html"   # cópia: o src é do chamador
   if pandoc -f html -t odt "${refodt[@]}" "$work/in.html" -o "$work/doc.odt" 2>/dev/null && [[ -s "$work/doc.odt" ]]; then
@@ -872,9 +876,9 @@ _doc_body_inner(){
 # do miolo — no caminho só-gerado é o último rodapé; com PDF de setter no meio, o N é físico e o
 # rodapé do setter é o dele (não o renumeramos).
 # MOLDE (28/09/2026, depois da XIV Maratona UnB — "pouca cara de LaTeX"): o da Maratona SBC — título do
-# problema em Latin Modern Sans centralizado, corpo sem recuo com respiro entre parágrafos, entrelinha
-# do LaTeX 11pt, hifenização no idioma do documento, exemplos em tabela de 2 colunas (odt-samples.lua),
-# rodapé "evento – Problema X – título · página" e, se enviado, o logo no cabeçalho (odt-caderno.py).
+# problema em CMU Sans centralizado, corpo sem recuo com respiro entre parágrafos, entrelinha
+# do LaTeX 11pt, hifenização no idioma do documento, exemplos em tabela de 2 colunas se o contest optar
+# (`samples_table`, odt-samples.lua; padrão = empilhados), rodapé "evento – Problema X – título · página" e, se enviado, o logo no cabeçalho (odt-caderno.py).
 _doc_pdf_contest(){
   local c="$1" l="$2" out="$3" odtout="${4:-}" probs n i skey work parts=() pdf tot=0 custom=""
   work="$(mktemp -d)"; probs="$(_doc_probs_l "$c" "$l")"; n="$(jq -r 'length' <<<"$probs")"
@@ -988,8 +992,9 @@ doc_build(){
   # tmp dos enunciados materializados do banco (_doc_stmt_file); morre com o build
   local _DOC_TMPD; _DOC_TMPD="$(mktemp -d)"
   # parâmetros da rota ODT (idioma, evento no rodapé, logo no cabeçalho) — lidos por _doc_html2odt
-  local DOC_ODT_LANG="$l" DOC_ODT_EVENT="" DOC_ODT_LOGO="" DOC_ODT_FIRST_PAGE=""
+  local DOC_ODT_LANG="$l" DOC_ODT_EVENT="" DOC_ODT_LOGO="" DOC_ODT_FIRST_PAGE="" DOC_ODT_SAMPLES_TABLE=""
   _doc_meta "$c"; DOC_ODT_EVENT="${CNAME:-}"; DOC_ODT_LOGO="$(doc_logo_file "$c")"
+  DOC_ODT_SAMPLES_TABLE="$(doc_conf_get "$c" | jq -r '.samples_table == true' 2>/dev/null)"
   case "$t" in
     info-sheet) _doc_html_infosheet "$c" "$l" > "$tmp" ;;
     times)      _doc_html_times "$c" "$l"    > "$tmp" ;;
