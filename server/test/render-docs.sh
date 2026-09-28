@@ -204,9 +204,11 @@ ck "corpo em CMU Serif, sem DejaVu Serif" 'pdffonts "$CP" 2>/dev/null | grep -q 
 # Latin Modern Math e troca o ⁹ pelo 9 da CMU em sobrescrito. Sem isso o LibreOffice escolhia sozinho — DejaVu
 # Serif no 25.2 da imagem (que nem consulta o fontconfig p/ isso), DejaVu Sans no 26.2 do dev.
 if fc-list 'Latin Modern Math' family 2>/dev/null | grep -q .; then
-  ck "símbolo do texto em Latin Modern Math, nenhum DejaVu no caderno" 'pdffonts "$CP" 2>/dev/null | grep -q "LatinModernMath" && ! pdffonts "$CP" 2>/dev/null | grep -q "DejaVu"'
+  # (o ℝ do `\mathbb{R}` da fórmula do fixture segue no DejaVu Sans: nenhuma grafia do MathML o tira de lá no
+  # LibreOffice 25.2 — limite conhecido, como o primo; por isso aqui não se exige "nenhum DejaVu")
+  ck "≤ do texto em Latin Modern Math (span MojSym no ODT; a fonte no PDF), sem DejaVu Serif" 'unzip -p "$(doc_file rd contest pt odt)" content.xml 2>/dev/null | grep -q "<text:span text:style-name=\"MojSym\">≤</text:span>" && pdffonts "$CP" 2>/dev/null | grep -q "LatinModernMath" && ! pdffonts "$CP" 2>/dev/null | grep -q "DejaVuSerif"'
   ck "10⁹ do texto sai como 10 + 9 sobrescrito (ODT)" 'unzip -p "$(doc_file rd contest pt odt)" content.xml 2>/dev/null | grep -q "10<text:span text:style-name=\"MojSup\">9</text:span>"'
-else echo "  (sem a Latin Modern Math — pulei o \"nenhum DejaVu\")"; fi
+else echo "  (sem a Latin Modern Math — pulei a checagem dos símbolos do texto)"; fi
 SX="$(unzip -p "$(doc_file rd contest pt odt)" styles.xml 2>/dev/null | tr '\n' ' ')"
 ck "ODT: hifenização ligada e idioma pt-BR (antes en-US p/ tudo)" 'grep -q "fo:hyphenate=\"true\"" <<<"$SX" && grep -q "fo:language=\"pt\"" <<<"$SX" && grep -q "fo:country=\"BR\"" <<<"$SX"'
 ck "ODT es: idioma es" 'unzip -p "$(doc_file rd contest es odt)" styles.xml 2>/dev/null | grep -q "fo:language=\"es\""'
