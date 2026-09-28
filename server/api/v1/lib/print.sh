@@ -103,23 +103,26 @@ pr_next_seq() {
 # --- escopo: este staff/cstaff pode ver as tarefas deste aluno? ------------
 # Keyed pelo LOGIN (vale igual p/ .staff e .cstaff). admin vê tudo; lista vazia/ausente
 # = vê tudo; senão cada entrada é:
-#   "region:<nome>" — casa com o `.team.region` do account.json do aluno (igualdade,
-#                     case-insensitive) — o jeito "por sede" sem regex;
+#   "region:<nome>" — o aluno ESTÁ num nó com esse nome, pela regra única de sedes (lib/regions.sh):
+#                     a sede dele (gravada ou pela regex) e os ancestrais — `region:Nordeste` cobre as
+#                     sedes do Nordeste — e os recortes. Nome sem diferenciar maiúsculas. (Até 28/09/2026
+#                     era só "o .team.region gravado é igual": sede derivada pela regex e nó pai não valiam.)
 #   qualquer outra   — regex testada no LOGIN do aluno (comportamento clássico).
 staff_can_see() {  # <c> <staff_login> <student_login>
-  local c="$1" staff="$2" who="$3" f reg
+  local c="$1" staff="$2" who="$3" f keys
   is_admin && return 0
   f="$(pr_dir "$c")/staff-filters.json"
   [[ -f "$f" ]] || return 0
-  reg="$(_pr_acct "$c" "$who" '.team.region')"
-  jq -e --arg w "$who" --arg s "$staff" --arg reg "$reg" '
+  declare -F rg_keys_of >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+  keys="$(rg_keys_of "$c" "$who" 2>/dev/null | jq -Rsc 'split("\n") | map(select(length > 0))')"
+  [[ -n "$keys" ]] || keys='[]'
+  jq -e --arg w "$who" --arg s "$staff" --argjson K "$keys" "$(rg_norm_jq)"'
     ($w|ascii_downcase) as $wl
-    | ($reg|ascii_downcase) as $rg
     | (.[$s] // [])
     | if length==0 then true
       else any(.[]; . as $r
         | if ($r|startswith("region:"))
-          then ($rg != "" and (($r[7:] | ascii_downcase | gsub("^ +| +$"; "")) == $rg))
+          then (($r[7:] | rg_key) as $k | ($K | index($k)) != null)
           else (try ($wl|test($r;"i")) catch false) end)
       end
   ' "$f" >/dev/null 2>&1
@@ -150,36 +153,22 @@ staff_visible_logins() {
       cat "$cf"; return 0
     fi
   fi
-  src="$(_users_source "$c")"
-  # POPULAÇÃO = quem tem diretório NESTE contest. A fonte USERS_FROM entra só como tabela de
-  # região (participante compartilhado sem account.json local) — nunca como população: um escopo
-  # com regex de login (`^tg`, `.`) puxaria contas de fora do contest para a lista. Mesma regra
-  # que o /contest/badges aprendeu no incidente de 2026-08-18.
+  # POPULAÇÃO = quem tem diretório NESTE contest (o login é o nome do DIRETÓRIO — rename é `mv`). A fonte
+  # USERS_FROM entra só como tabela de sede (lib/regions.sh: rg_inputs, por caminho) — nunca como
+  # população: um escopo com regex de login (`^tg`, `.`) puxaria contas de fora do contest para a lista.
+  # Mesma regra que o /contest/badges aprendeu no incidente de 2026-08-18. `region:<nome>` = pertença pela
+  # regra ÚNICA de sedes (as chaves dos nós de cada login, num arquivo — nada de mapa em argv).
+  declare -F rg_keys_json >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
   loc="$(mktemp)" || return 1
   find "$CONTESTSDIR/$c/users" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null > "$loc"
-  # o login é IMPLÍCITO no nome do diretório (rename de conta é `mv`): o campo .login é só uma
-  # cópia e pode faltar (conta escrita à mão, store migrado). Sem o fallback pelo caminho, a
-  # conta sumia da lista — e "lista vazia" viraria escopo que não casa ninguém.
-  { find "$CONTESTSDIR/$c/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-      | xargs -0 -r jq -c '{login:(if (.login//"") == "" then (input_filename|split("/")|.[-2]) else .login end),
-                            region:(.team.region//""), prio:0}' 2>/dev/null
-    if [[ "$src" != "$c" ]]; then
-      find "$CONTESTSDIR/$src/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-        | xargs -0 -r jq -c '{login:(if (.login//"") == "" then (input_filename|split("/")|.[-2]) else .login end),
-                              region:(.team.region//""), prio:1}' 2>/dev/null
-    fi
-    true
-  } | jq -rs --slurpfile ff "$f" --arg s "$who" --rawfile loc "$loc" '
+  rg_keys_json "$c" "$loc.keys" 2>/dev/null || printf '{}' > "$loc.keys"
+  jq -rn --slurpfile ff "$f" --arg s "$who" --rawfile loc "$loc" --slurpfile K "$loc.keys" "$(rg_norm_jq)"'
       ($ff[0][$s] // []) as $scope
-      | ($loc | split("\n") | map(select(length > 0)) | map({(.): true}) | add // {}) as $LOC
-      | map(select(.login != "")) | group_by(.login) | map(min_by(.prio))
-      | map(select($LOC[.login]))                       # só quem é DESTE contest
-      | map(select(. as $u | any($scope[]; . as $r
-          | if ($r|startswith("region:"))
-            then (($u.region // "") != ""
-                  and ((($u.region)|ascii_downcase) == ($r[7:] | ascii_downcase | gsub("^ +| +$"; ""))))
-            else (try ($u.login | ascii_downcase | test($r;"i")) catch false) end)))
-      | .[].login' 2>/dev/null > "$loc.out"
+      | [ $scope[] | select(startswith("region:")) | .[7:] | rg_key ] as $RK
+      | [ $scope[] | select(startswith("region:") | not) ] as $RX
+      | $loc | split("\n")[] | select(length > 0 and (startswith(".") | not)) | . as $l
+      | select(any(($K[0][$l] // [])[]; . as $k | $RK | index($k) != null)
+               or any($RX[]; . as $r | (try ($l | ascii_downcase | test($r; "i")) catch false)))' 2>/dev/null > "$loc.out"
   rc=$?
   if (( rc == 0 )); then
     # publica no cache (atômico — vários workers concorrem) e ecoa. Lista VAZIA também é
@@ -192,7 +181,7 @@ staff_visible_logins() {
     fi
     cat "$loc.out"
   fi
-  rm -f "$loc" "$loc.out"; return "$rc"
+  rm -f "$loc" "$loc.out" "$loc.keys"; return "$rc"
 }
 
 # pr_filter_board <c> <login> — filtra um placar TXT (stdin→stdout) às linhas cujo username
@@ -737,12 +726,13 @@ pr_build_balloon() {
 # O `min_by([epoch, login])` dá o DESEMPATE determinístico quando dois times da mesma sede têm o
 # mesmo epoch — sem ele sairiam duas estrelas para o mesmo problema na mesma sede.
 pr_site_first_map() {
-  local c="$1" d
+  local c="$1" d s
   d="$CONTESTSDIR/$c/users"; [[ -d "$d" ]] || return 0
-  { find "$d" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-      | xargs -0 -r jq -c '{k:"r",
-          login:(if (.login//"") == "" then (input_filename|split("/")|.[-2]) else .login end),
-          region:(.team.region // "")}' 2>/dev/null
+  # a sede de cada login pela regra ÚNICA (gravada ou pela regex — antes só a gravada contava)
+  declare -F rg_sites_json >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+  s="$(mktemp)" || return 1
+  rg_sites_json "$c" "$s" 2>/dev/null || printf '{}' > "$s"
+  { jq -c 'to_entries[] | {k:"r", login:.key, region:.value}' "$s" 2>/dev/null
     find "$d" -mindepth 2 -maxdepth 2 -name metrics.json -print0 2>/dev/null \
       | xargs -0 -r jq -c '(input_filename|split("/")|.[-2]) as $l
           | (.by_problem // {}) | to_entries[]
@@ -770,6 +760,7 @@ pr_site_first_map() {
       # duas famílias de linha na MESMA varredura: `R` dá a sede de cada login (o candidato
       # precisa saber a própria), `S` dá o mínimo por (sede, problema).
       | (($R | map(["R", .login, .region])) + $S) | .[] | @tsv' 2>/dev/null
+  rm -f "$s"
 }
 
 # pr_balloon_freeze_gate <c> -> ecoa "<freeze_time> <permitido>" (0 0 = sem freeze / sem gate).
@@ -1008,13 +999,15 @@ staff_regions(){
   out="$(jq -r --arg s "$SESSION_LOGIN" \
     '(.[$s] // [])[] | select(startswith("region:")) | .[7:] | gsub("^ +| +$"; "")' "$f" 2>/dev/null)"
   if [[ -n "$out" ]]; then printf '%s\n' "$out"; return 0; fi
-  # escopo por regex: resolve os logins visíveis e colhe as sedes deles
-  local logins
+  # escopo por regex: resolve os logins visíveis e colhe a SEDE de cada um (regra única: gravada ou pela
+  # regex) — um jq só, lendo o mapa de sedes de arquivo (antes: um jq por login e só a sede gravada)
+  local logins w
   if logins="$(staff_visible_logins "$c" "$SESSION_LOGIN" 2>/dev/null)"; then
-    printf '%s\n' "$logins" | while IFS= read -r lg; do
-      [[ -n "$lg" ]] || continue
-      jq -r '.team.region // empty' "$(account_file "$c" "$lg")" 2>/dev/null
-    done | sort -u
+    declare -F rg_sites_json >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+    w="$(mktemp)" || return 1
+    rg_sites_json "$c" "$w" 2>/dev/null || printf '{}' > "$w"
+    printf '%s\n' "$logins" | jq -Rr --slurpfile S "$w" 'select(length > 0) | $S[0][.] // empty' | sort -u
+    rm -f "$w"
     return 0
   fi
   return 1

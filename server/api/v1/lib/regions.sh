@@ -158,15 +158,23 @@ _rg_stale(){  # <c> <arquivo> — 0 se o cache precisa ser refeito
 }
 
 # rg_inputs <c> <dir> — a população do contest: <dir>/dirs (logins, menos papéis) e <dir>/explicit
-# (login \t chave \t nome da sede GRAVADA). join, NÃO @tsv (ver rg_compute).
+# (login \t chave \t nome da sede GRAVADA). join, NÃO @tsv (ver rg_compute). Contest COMPARTILHADO: quem só
+# tem dir (sem account.json local) herda a sede gravada da conta na FONTE — consultada por caminho, só p/
+# esses logins (nunca varrer o treino).
 rg_inputs(){
-  local d="$CONTESTSDIR/$1" w="$2"
+  local d="$CONTESTSDIR/$1" w="$2" src
   find "$d/users" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | grep -v '^\.' | grep -vE "$RG_ROLE_RE" \
     | LC_ALL=C sort > "$w/dirs"
+  local jqp="$(rg_norm_jq)"' ((.team.region // "") | tostring) as $r
+        | [(input_filename | split("/") | .[-2]), ($r | rg_key), ($r | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; ""))] | join("\t")'
   find "$d/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
-    | xargs -0 -r jq -r "$(rg_norm_jq)"' ((.team.region // "") | tostring) as $r
-        | [(input_filename | split("/") | .[-2]), ($r | rg_key), ($r | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; ""))] | join("\t")' \
-      2>/dev/null > "$w/explicit"
+    | xargs -0 -r jq -r "$jqp" 2>/dev/null > "$w/explicit"
+  src="$(declare -F _users_source >/dev/null && _users_source "$1" || printf '%s' "$1")"
+  if [[ -n "$src" && "$src" != "$1" && -d "$CONTESTSDIR/$src/users" ]]; then
+    while IFS= read -r l; do
+      [[ -f "$d/users/$l/account.json" || ! -f "$CONTESTSDIR/$src/users/$l/account.json" ]] || printf '%s\0' "$CONTESTSDIR/$src/users/$l/account.json"
+    done < "$w/dirs" | xargs -0 -r jq -r "$jqp" 2>/dev/null | gawk -F'\t' '$2 != ""' >> "$w/explicit"
+  fi
 }
 
 # rg_compute <tree.json|""> <dirs> <explicit> <out> — o casamento, sem tocar em contest nenhum:
@@ -333,7 +341,7 @@ rg_resolve(){
       e = (l !~ /^[A-Za-z0-9._@#+-]+$/ || index(l, "..")) ? "login_invalid" : ((l ~ role) ? "role_login" : "")
       print l, r, e }' "$in" > "$w/in"
   if [[ -s "$d/registrations.json" ]]; then
-    declare -F reg_get >/dev/null || source "$_LIBDIR/registration.sh"
+    declare -F reg_get >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/registration.sh"
     reg_get "$c" | jq -r '(.teams | keys[] | [., ., "team"]), (.entries | to_entries[]
         | if .value.kind == "team" and ((.value.team // "") != "") then [.key, .value.team, "team"]
           elif .value.kind == "individual" then [.key, .key, "individual"] else empty end) | join("\t")' > "$w/roster"
@@ -354,11 +362,11 @@ rg_resolve(){
 rg_assign_many(){
   local c="$1" in="$2" res="$3" d="$CONTESTSDIR/$1" w l t r k e
   w="$(mktemp -d)" || return 1
-  declare -F account_merge >/dev/null || source "$_LIBDIR/users.sh"
+  declare -F account_merge >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/users.sh"
   rg_resolve "$c" "$in" "$w/rv"
   : > "$res"
   if gawk -F'\037' '$4 == "team" || $4 == "individual" { f = 1 } END { exit !f }' "$w/rv"; then
-    declare -F reg_get >/dev/null || source "$_LIBDIR/registration.sh"
+    declare -F reg_get >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/registration.sh"
     gawk -F'\037' '($4 == "team" || $4 == "individual") { print $2 "\037" $3 "\037" $4 }' "$w/rv" > "$w/roster-upd"
     reg_save "$c" "$(reg_get "$c" | jq -c --rawfile u "$w/roster-upd" '
         reduce ($u | split("\n")[] | select(length > 0) | split("\u001f")) as $x (.;
@@ -400,4 +408,27 @@ rg_preview(){
   fi
   rg_compute "$tree" "$w/dirs" "$w/explicit" "$o"; local rc=$?
   rm -rf "$w"; return "$rc"
+}
+
+# --- p/ os CONSUMIDORES (lidos de arquivo: nada de mapa grande em argv) ---------------------------------
+# rg_sites_json <c> <out> — {login: nome da sede} de quem TEM sede (gravada ou pela regex)
+rg_sites_json(){
+  local m; m="$(rg_map "$1")" || { printf '{}' > "$2"; return 1; }
+  jq -Rn --slurpfile n "$CONTESTSDIR/$1/var/regions-nodes.json" '
+    [inputs | split("\t") | select((.[1] | tonumber) >= 0) | {key: .[0], value: $n[0][.[1] | tonumber].name}] | from_entries' \
+    "$m" > "$2" 2>/dev/null || { printf '{}' > "$2"; return 1; }
+}
+# rg_keys_json <c> <out> — {login: [chaves dos nós em que está]} (o `region:<nome>` do escopo casa aqui)
+rg_keys_json(){
+  local m; m="$(rg_map "$1")" || { printf '{}' > "$2"; return 1; }
+  jq -Rn --slurpfile n "$CONTESTSDIR/$1/var/regions-nodes.json" '
+    [inputs | split("\t") | {key: .[0], value: [.[2] | split(",")[] | select(length > 0) | $n[0][tonumber].key] | unique}] | from_entries' \
+    "$m" > "$2" 2>/dev/null || { printf '{}' > "$2"; return 1; }
+}
+# rg_keys_of <c> <login> — as chaves dos nós em que <login> está, 1/linha
+rg_keys_of(){
+  local m ns; m="$(rg_map "$1")" || return 1
+  ns="$(gawk -F'\t' -v l="$2" '$1 == l { print $3; exit }' "$m")"
+  [[ -n "$ns" ]] || return 0
+  jq -r --arg ns "$ns" '. as $n | $ns | split(",")[] | $n[tonumber].key' "$CONTESTSDIR/$1/var/regions-nodes.json" | sort -u
 }

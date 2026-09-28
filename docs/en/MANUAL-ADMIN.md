@@ -1,4 +1,4 @@
-<!-- i18n-source: MANUAL-ADMIN.md blob:89b2d01237a992981ff6df8dfce0da6d89c240c1 -->
+<!-- i18n-source: MANUAL-ADMIN.md blob:f8014ca34a826a592bba1b8e5e0f476dca3d1b77 -->
 # MOJ: Organizer manual (the contest .admin panel)
 
 > **Translation note.** This manual is a translation of the Portuguese original. The command-line tools (`moj`, `moj-contest`, `moj-comp`) print their messages in Portuguese, and the command examples below are identical to the original.
@@ -91,7 +91,7 @@ the **🌐 Languages** tab of the chief judge panel) has two modes:
 | Panel | What it does |
 |---|---|
 | **Status** | The live dashboard (it refreshes in place every ~12 s): logged-in users, online/busy judges, queue, pending, latency, timeline, manual evaluation, and the **suggested actions** when something is wrong. Pending/held balloons only with the `baloes` module. |
-| **Staff** | Overview of the print queue, and actions on it (+ balloons with the module). Performance per staff member, and the **scope** of each staff member / site chief (regex or `region:<site>`). |
+| **Staff** | Overview of the print queue, and actions on it (+ balloons with the module). Performance per staff member, and the **scope** of each staff member / site chief (regex or `region:<site>`). `region:<name>` covers everything that is **in that node** of Event › Sites & schools: the site and, if it is a parent node, all the sites below it (`region:Nordeste` sees the sites of Nordeste), and also a cut (`view`) by its name. The site stored on the team applies or, without it, the regex. A regex in the scope is tested on the login. |
 | **Judges** | The manual review queue: who claimed each submission, votes, age. Decide/resolve immediately. It also has the manual verdict configuration: the label options and **🔎 What goes to review**. This is a problem × verdict table: a checked cell goes to the judges, and the rest goes out automatically. With no cell checked, everything goes out automatically. The table has exceptions per language, and a button to release the held submissions that the new table no longer holds. |
 | **Audit** | A unified feed of all events (admin actions, logins, submissions, verdicts) with filters and CSV. It also has the **backups** that the users uploaded (per user, with ZIP). |
 

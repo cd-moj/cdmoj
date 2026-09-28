@@ -340,7 +340,10 @@ Maratona inclusive, com `MOJ_REGIONS_EXTRA`) exigindo saída idêntica:
   refeitos quando muda o `regions.json`, o `registrations.json`, a lista de contas ou um `account.json`
   — submissão não refaz. 2000 contas × 68 nós ≈ 0,1 s (regex compilada uma vez por nó).
 
-**Fase F1/F1b:** a lib existe e está testada, mas os consumidores ainda usam as regras antigas.
+**Fases:** F3a (28/09) migrou os consumidores de escopo e credencial — escopo do staff (`region:<nó>` =
+pertença), `staff_regions`, etiquetas, gate de UA (login E lote de Máquinas/anomalias/preflight, agora com
+a MESMA sede), materialize de times e balão "1º da sede" (`smoke-regions-consumers.sh`). Estatística,
+Nutella, classificação, Animeitor, relatório e o placar da web seguem nas regras antigas até F3b/F3c/F4.
 `server/bin/regions-audit.sh <c>` mostra o que muda (sede no gate/materialize e nas etiquetas, membros
 de cada nó no placar e na estatística, e quem cada `.staff`/`.cstaff` com `region:<nome>` passa a ver).
 Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zero** diferenças.

@@ -282,6 +282,13 @@ rd_machines(){
         | {key:$l, value:{name:(.fullname // .team.name // $l), region:((.team.region) // "")}}' 2>/dev/null \
     | jq -cs 'from_entries' > "$tmpu"
   [[ -s "$tmpu" ]] || printf '{}' > "$tmpu"
+  # a SEDE pela regra única (gravada ou pela regex — lib/regions.sh), não só a gravada
+  declare -F rg_sites_json >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
+  if rg_sites_json "$c" "$tmpu.sites" 2>/dev/null; then
+    jq -c --slurpfile S "$tmpu.sites" 'with_entries(.value.region = ($S[0][.key] // .value.region))' "$tmpu" > "$tmpu.2" \
+      && mv -f "$tmpu.2" "$tmpu"
+  fi
+  rm -f "$tmpu.sites"
 
   # rodada anterior (a última arquivada) p/ marcar quem MUDOU de máquina
   prev="$(rd_sync_active "$c" | jq -r --arg s "$s" \
@@ -297,8 +304,7 @@ rd_machines(){
   # aquecimento, antes de o gate barrar alguém na prova.
   local tmpe; tmpe="$(mktemp)"; printf '{}' > "$tmpe"
   if declare -F ug_expected_map >/dev/null; then
-    ug_expected_map "$c" "$(jq -sc '[.[].login] | unique' "$tmpj" 2>/dev/null || echo '[]')" \
-      "$(jq -c 'with_entries(.value |= .region)' "$tmpu" 2>/dev/null || echo '{}')" > "$tmpe" 2>/dev/null \
+    ug_expected_map "$c" "$(jq -sc '[.[].login] | unique' "$tmpj" 2>/dev/null || echo '[]')" > "$tmpe" 2>/dev/null \
       || printf '{}' > "$tmpe"
     [[ -s "$tmpe" ]] || printf '{}' > "$tmpe"
   fi

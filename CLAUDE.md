@@ -249,9 +249,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   (regex→campos vazios). **O NOME é campo ÚNICO: `fullname` = nome do time** (usuário de
   contest É o time); `.team.name` existe só como LEGADO da migração — os leitores fazem
   `.team.name // .fullname` e a API nunca o escreve.
-  `.team.region` = SEDE (texto; casa com o `name` de regions.json): o placar filtra por nome,
-  os badges preferem-na à derivação regex e o `staff_can_see` aceita entradas
-  **`region:<nome>`** no staff-filters. Assets por-time: `users/<login>/{photo,logo}.png`
+  `.team.region` = SEDE GRAVADA (texto; casa com o `name` de regions.json e vence a regex — regra única
+  de sedes, `lib/regions.sh`); o `staff_can_see` aceita entradas **`region:<nome>`** no staff-filters
+  (= o aluno ESTÁ nesse nó: a sede, um ancestral dela ou um recorte). Assets por-time: `users/<login>/{photo,logo}.png`
   (upload admin `/contest/admin/team-assets`, servidos por `/contest/team-{photo,logo}` com o
   gate do placar; `/contest/teams` = diretório que o placar mescla ANTES do teams-meta).
 - **Telegram (overlay só do treino) + alertas**: `lib/telegram.sh` (índice `var/telegram/{by-tgid,by-login}`,
@@ -1239,7 +1239,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   API: `/contest/admin/regions` (árvore + sede por login; inscrito grava no ROSTER — `region` em
   `teams[t]`/`entries[l]`, levada ao `.team.region` pelo materialize; `dry_run`; `expect_sig`) e a CLI
   `moj-contest regions`. `cc_regions_ok` (config.sh/criação) recusa regex fora do subconjunto (`error.nodes`).
-  ⚠ Em 28/09 NENHUM consumidor usa a lib ainda. `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
+  F3a (28/09) migrou escopo do staff (`region:<nó>` = PERTENÇA, pai cobre as sedes filhas), `staff_regions`,
+  etiquetas, gate de UA (o LOTE agora usa a mesma sede derivada do login e lê de ARQUIVO — `--argjson` com o
+  mapa de ~2.300 contas beirava o ARG_MAX), materialize de times e balão 1º da sede. Estatística/Nutella/
+  classificação/Animeitor/relatório/placar web ainda nas regras antigas (F3b+). `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
   em cada consumidor antigo — rodar na produção antes de migrar (em 28/09: zero diferenças nos 3 reais).
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o

@@ -86,7 +86,7 @@ painel dele) tem dois modos:
 | Painel | O que faz |
 |---|---|
 | **Situação** | O dashboard ao vivo (atualiza em lugar a cada ~12s): logados, juízes online/ocupados, fila, pendentes, latência, timeline, avaliação manual, e as **ações sugeridas** quando algo está fora do lugar. Balões pendentes/retidos só com o módulo `baloes`. |
-| **Staff** | Panorama e ação sobre a fila de impressão (+ balões com o módulo), desempenho por staff e o **escopo** de cada staff/chefe de sede (regex ou `region:<sede>`). |
+| **Staff** | Panorama e ação sobre a fila de impressão (+ balões com o módulo), desempenho por staff e o **escopo** de cada staff/chefe de sede (regex ou `region:<sede>`). `region:<nome>` cobre tudo o que está **naquele nó** de Evento › Sedes & escolas: a sede e, se for um nó pai, todas as sedes abaixo dele (`region:Nordeste` vê as sedes do Nordeste), e também um recorte (`view`) pelo nome. Vale a sede gravada no time ou, sem ela, a regex. A regex no escopo é testada no login. |
 | **Juízes** | A fila da correção manual: quem pegou cada submissão, votos, idade; decidir/resolver na hora; e a configuração do veredicto manual (opções de rótulo + **🔎 o que vai para revisão**: uma tabela problema × veredicto — o marcado vai para os juízes, o resto sai automático; sem nada marcado, tudo sai automático — com exceções por linguagem e o botão de liberar retidos que a tabela nova solta). |
 | **Auditoria** | Feed unificado de tudo que aconteceu (ações de admin, logins, submissões, veredictos) com filtros e CSV, mais os **backups** que os usuários subiram (por usuário, com ZIP). |
 

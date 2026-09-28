@@ -706,7 +706,7 @@ cc_regions_ok(){
             and (((.subregions // []) | type) == "array")
             and all((.subregions // [])[]; ok);
          type == "array" and all(.[]; ok)' >/dev/null 2>&1 <<<"$1" || return 1
-  declare -F rg_tree_errors >/dev/null || source "$_LIBDIR/regions.sh"
+  declare -F rg_tree_errors >/dev/null || source "${_LIBDIR:-${BASH_SOURCE[0]%/*}}/regions.sh"
   local f; f="$(mktemp)" || return 1
   printf '%s' "$1" > "$f"
   CC_REGIONS_ERRORS="$(rg_tree_errors "$f" | jq -c '.[0:50] | map(.regex |= .[0:200])' 2>/dev/null)"

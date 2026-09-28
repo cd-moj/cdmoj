@@ -29,10 +29,15 @@ cdir="$CONTESTSDIR/$contest"
 if [[ "$(jq -r '.action // empty' <<<"$body")" == materialize ]]; then
   rules="$(jq -c '.rules // (if type=="array" then . else [] end)' "$cdir/teams-meta.json" 2>/dev/null)"
   [[ -n "$rules" ]] || rules='[]'
-  # regiões achatadas (inclui subregions) -> [{name,regex}]
-  regions="$(jq -c '[.. | objects | select(has("regex") and (.regex // "") != "") | {name:(.name // .regex), regex}]' \
-    "$cdir/regions.json" 2>/dev/null)"
-  [[ -n "$regions" ]] || regions='[]'
+  # a SEDE derivada pela regra ÚNICA (lib/regions.sh: a regex mais FUNDA — antes a 1ª em pré-ordem, e o
+  # pai vencia a folha: teamsp01 era carimbado "Brasil"), carregada UMA vez; só vale p/ quem não tem gravada
+  source "$_LIBDIR/regions.sh"
+  declare -A SITE=()
+  if m="$(rg_map "$contest" 2>/dev/null)"; then
+    while IFS=$'\t' read -r l nm; do [[ -n "$l" ]] && SITE[$l]="$nm"; done < <(
+      jq -Rrn --slurpfile n "$cdir/var/regions-nodes.json" \
+        'inputs | split("\t") | select(.[3] == "r" or .[3] == "p") | "\(.[0])\t\($n[0][.[1] | tonumber].name)"' "$m" 2>/dev/null)
+  fi
   filled='{}'; nfill=0
   while IFS= read -r d; do
     login="${d##*/}"
@@ -40,10 +45,10 @@ if [[ "$(jq -r '.action // empty' <<<"$body")" == materialize ]]; then
     [[ -f "$d/account.json" ]] || continue
     # jq: BINDA .regex antes do test ($l|test(.regex) leria .regex de $l — armadilha de
     # contexto de args); try/catch protege de regex inválida. 1ª regra/região que casa vence.
-    delta="$(jq -c --arg l "$login" --argjson rules "$rules" --argjson regions "$regions" '
+    delta="$(jq -c --arg l "$login" --argjson rules "$rules" --arg site "${SITE[$login]:-}" '
       (.team // {}) as $tm
       | ($rules   | map(.regex as $rr | select($rr != null and $rr != "" and (try ($l|test($rr;"i")) catch false))) | first // {}) as $r
-      | ($regions | map(.regex as $rr | select(try ($l|test($rr;"i")) catch false)) | first // {}) as $g
+      | {name: $site} as $g
       | ({}
          + (if ($tm.flag // "") == ""       and ($r.country // "") != ""     then {flag:$r.country} else {} end)
          + (if ($tm.univ_short // "") == "" and ($r.school // "") != ""      then {univ_short:$r.school} else {} end)
