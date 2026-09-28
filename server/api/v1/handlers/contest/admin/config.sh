@@ -33,6 +33,11 @@ jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
 # locale inválido recusa ANTES de qualquer escrita (antes era descartado mudo)
 bl="$(jq -r '.basic.locale // empty' <<<"$body")"
 [[ -z "$bl" ]] || contest_locale_ok "$bl" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"
+# sedes com a forma errada também recusam ANTES de qualquer escrita (cores, times…)
+if jq -e 'has("regions") and .regions != null and .regions != []' >/dev/null 2>&1 <<<"$body"; then
+  cc_regions_ok "$(jq -c '.regions' <<<"$body")" \
+    || fail 422 "Sedes (regions) inválidas: lista de {name, regex?, subregions?}" "regions_invalid"
+fi
 
 # colors: objeto com chaves = grava (substitui o arquivo inteiro: o editor manda todas as letras +
 # enableSonic true/false); {} = NÃO MEXE (o editor devolve {} quando nada mudou — apagar aqui
@@ -49,7 +54,14 @@ if jq -e 'has("colors")' >/dev/null 2>&1 <<<"$body"; then
 fi
 if jq -e 'has("regions")' >/dev/null 2>&1 <<<"$body"; then
   r="$(jq -c '.regions' <<<"$body")"
-  if [[ "$(jq 'length' <<<"$r" 2>/dev/null)" -gt 0 ]]; then printf '%s' "$r" > "$cdir/regions.json"; mod_enable "$contest" sedes; else rm -f "$cdir/regions.json"; fi
+  # [] ou null = remover as sedes (decisão explícita do editor); qualquer outra coisa tem de ter a forma
+  # certa — antes um objeto/texto era gravado cru e quebrava calado os leitores. Recusa ANTES de gravar.
+  # (a forma já foi conferida no topo, antes de qualquer escrita)
+  if [[ "$r" == null || "$r" == "[]" ]]; then rm -f "$cdir/regions.json"
+  else
+    printf '%s' "$r" > "$cdir/regions.json.tmp" && mv -f "$cdir/regions.json.tmp" "$cdir/regions.json"
+    mod_enable "$contest" sedes
+  fi
 fi
 if jq -e 'has("teams_meta")' >/dev/null 2>&1 <<<"$body"; then
   t="$(jq -c '.teams_meta' <<<"$body")"

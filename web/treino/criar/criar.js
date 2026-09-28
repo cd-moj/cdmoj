@@ -279,6 +279,8 @@ async function boot() {
     if (!(d.name || '').trim()) { msg.className = 'small error-box'; msg.textContent = T('Informe o nome (passo 1).', 'Enter the name (step 1).', 'Ingresa el nombre (paso 1).'); return; }
     if (!(d.admin.login || '').trim()) { msg.className = 'small error-box'; msg.textContent = T('Defina o login do admin (passo 4).', 'Set the admin login (step 4).', 'Define el usuario del admin (paso 4).'); return; }
     if (!allowEmpty && !d.problems.length) { msg.className = 'small error-box'; msg.textContent = T('Adicione problemas (passo 2), ou use "Criar vazio".', 'Add problems (step 2), or use "Create empty".', 'Agrega problemas (paso 2), o usa "Crear vacía".'); return; }
+    const rbad = ctx.editors.regions && ctx.editors.regions.validate ? ctx.editors.regions.validate() : '';
+    if (rbad) { msg.className = 'small error-box'; msg.textContent = T('Sedes (passo 6 · Visual): ', 'Sites (step 6 · Appearance): ', 'Sedes (paso 6 · Apariencia): ') + rbad; return; }
     msg.className = 'small'; msg.textContent = T('Criando…', 'Creating…', 'Creando…');
     try {
       const spec = buildSpec(allowEmpty);

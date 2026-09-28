@@ -4888,7 +4888,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Grava config do contest (basic.locale fora de pt|en|es = 422 locale_invalid antes de qualquer escrita)",
+        "summary": "Grava config do contest (basic.locale fora de pt|en|es = 422 locale_invalid; regions com a forma errada = 422 regions_invalid — ambos antes de qualquer escrita; regions:[] remove)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"

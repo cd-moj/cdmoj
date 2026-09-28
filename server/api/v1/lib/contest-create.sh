@@ -396,7 +396,10 @@ cc_create(){
   regions_j="$(jq -c '.modules.sedes.regions // .regions // empty' <<<"$spec" 2>/dev/null)"
   teams_j="$(jq -c '.modules.sedes.teams_meta // .teams_meta // empty' <<<"$spec" 2>/dev/null)"
   [[ -n "$colors_j"  && "$colors_j"  != null ]] && printf '%s' "$colors_j"  > "$stg/balloons.json"
-  [[ -n "$regions_j" && "$regions_j" != null ]] && printf '%s' "$regions_j" > "$stg/regions.json"
+  if [[ -n "$regions_j" && "$regions_j" != null ]]; then
+    cc_regions_ok "$regions_j" || { rm -rf "$stg"; fail 422 "Sedes (regions) inválidas: lista de {name, regex?, subregions?}" "regions_invalid"; }
+    printf '%s' "$regions_j" > "$stg/regions.json"
+  fi
   [[ -n "$teams_j"   && "$teams_j"   != null ]] && jq -cn --argjson r "$teams_j" '{rules:$r}' > "$stg/teams-meta.json"
   cc_apply_modules_spec "$spec" "$stg" "$creator" || { rm -rf "$stg"; fail 422 "Seção de módulo inválida no spec (${CC_MOD_ERR:-modules})" "modules_spec_invalid"; }
 
@@ -683,6 +686,19 @@ cc_del_conf_var(){
   tmp="$(mktemp "${cf}.XXXXXX")" || return 1
   grep -v "^$2=" "$cf" 2>/dev/null > "$tmp"
   cat "$tmp" > "$cf" && rm -f "$tmp"
+}
+
+# cc_regions_ok <json> — o regions.json tem a FORMA certa? Lista de nós {name, regex?, subregions?, view?}:
+# name texto não-vazio, regex texto, subregions lista (recursivo). É o portão de config.sh e da criação —
+# antes nada conferia, e um objeto/texto gravado ali quebrava em silêncio os ~13 leitores (placar, escopo
+# do staff, etiquetas, gate, telão…). A regex em si é conferida pela lib de sedes (lib/regions.sh).
+cc_regions_ok(){
+  jq -e 'def ok: type == "object"
+            and ((.name | type) == "string") and ((.name | gsub("^\\s+|\\s+$"; "") | length) > 0)
+            and (((.regex // "") | type) == "string")
+            and (((.subregions // []) | type) == "array")
+            and all((.subregions // [])[]; ok);
+         type == "array" and all(.[]; ok)' >/dev/null 2>&1 <<<"$1"
 }
 
 # cc_build_probs <target_dir> <problems_json_array> [enun_src_dir] -> ecoa "PROBS=(...)"

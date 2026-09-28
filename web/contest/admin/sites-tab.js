@@ -34,6 +34,9 @@ export function makeSitesTab(CONTEST) {
     const msg = el('div', { class: 'small', style: 'margin:.5rem 0' });
     const save = el('button', { class: 'btn' }, T('Salvar sedes e escolas', 'Save sites and schools', 'Guardar sedes y escuelas'));
     save.addEventListener('click', async () => {
+      // JSON inválido nunca é salvo (antes caía calado na lista simples e perdia a árvore)
+      const bad = regionsEd.validate();
+      if (bad) { msg.className = 'small error-box'; msg.textContent = bad; return; }
       save.disabled = true; msg.className = 'small'; msg.textContent = T('Salvando…', 'Saving…', 'Guardando…');
       try {
         await apiPost('/contest/admin/config?contest=' + enc(CONTEST),
