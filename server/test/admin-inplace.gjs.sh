@@ -47,7 +47,7 @@ document.getElementById=(id)=>new FakeNode('div');
 const getToken=()=>''; const apiPost=async()=>({}); const mlinuxSections=()=>[el('div',{},'sec')]; const MLINUX_CSS='';
 const initContestShell=async()=>({});
 EOF
-strip "$W/shared/dom.js"; strip "$W/shared/admin-ui.js"; }
+strip "$W/shared/dom.js"; strip "$W/shared/admin-ui.js"; strip "$W/shared/regions-match.js"; }
 
 check(){ if [[ "$1" == "$2" ]]; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); echo "FALHOU: $3 (got '$1', want '$2')" >&2; fi; }
 run(){ # <nome> <módulo> <corpo js> [módulos extras…] -> imprime as linhas "k=v" do corpo

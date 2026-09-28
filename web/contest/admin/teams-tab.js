@@ -14,6 +14,7 @@ import { parseRichCsv } from '/shared/users-batch.js';
 import { T } from '/shared/i18n.js';
 import { setMediaSrc, mediaLink } from '/shared/media-auth.js';
 import { PRIV_RE } from '/shared/admin-ui.js';
+import { rgFlatten } from '/shared/regions-match.js';
 
 const enc = encodeURIComponent;
 // lista CANÔNICA de sufixos de papel (a mesma de users-tab/sites-tab/machines-tab/cohorts-tab):
@@ -151,7 +152,9 @@ export function makeTeamsTab(CONTEST) {
 
     const teams = (teamsR && teamsR.teams) || {};
     const rg = (regionsR && (regionsR.regions || regionsR)) || [];
-    REGIONS = (Array.isArray(rg) ? rg : []).map((x) => x && x.name).filter(Boolean);
+    // as sedes possíveis = todo nó NÃO-recorte com nome, na pré-ordem (antes: só os do topo — a sede de um time
+    // costuma ser uma FOLHA, "DF, Brasília", e não "Brasil")
+    REGIONS = [...new Set(rgFlatten(Array.isArray(rg) ? rg : []).filter((nd) => !nd.view && nd.name).map((nd) => nd.name))];
     ROWS = (usersR.users || [])
       .filter((u) => !u.admin && !PRIV_RE.test(u.login))
       .map((u) => {

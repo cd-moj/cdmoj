@@ -32,6 +32,7 @@ let lastPaint = 0, lastMine = '';
 // ---- filtros do placar: os MESMOS do placar oficial (coorte, bandeira, universidade, sede, busca)
 // + "Virtuais" (todos | só o meu | nenhum). Estado lembrado por contest no navegador.
 let regions = [], teamsMeta = [], teamsDir = {};
+let vRops = [];     // opções de sede (com os logins de cada nó) — montadas no renderFilters, do placar final inteiro
 const FKEY = 'moj_virtual_flt_' + CID;
 let flt = { view: '', country: '', school: '', region: null, q: '', virt: 'all' };
 try { flt = { ...flt, ...(JSON.parse(localStorage.getItem(FKEY) || '{}')) }; } catch { /* storage indisponível */ }
@@ -317,7 +318,9 @@ function viewFn() {
 // fez a prova em sede nenhuma, e quem filtra uma sede quer justamente se comparar com ela — os
 // virtuais seguem na tela (decisão do Ribas, 2026-09-18; quem não os quer usa "Virtuais: nenhum").
 function keepFn() {
-  const rf = F.rowFilter({ region: flt.region, country: flt.country, school: flt.school });
+  // a sede guardada ({name, regex}) resolvida p/ a opção da árvore (com os logins do nó — regra única de sedes)
+  const reg = flt.region ? (F.regionResolve(vRops, flt.region) || flt.region) : null;
+  const rf = F.rowFilter({ region: reg, country: flt.country, school: flt.school });
   const rfv = F.rowFilter({ region: null, country: flt.country, school: flt.school });   // p/ linha virtual: sem a sede
   const q = (flt.q || '').trim().toLowerCase();
   if (!rf && !q) return null;
@@ -406,10 +409,11 @@ function renderFilters() {
     sel.value = flt.school; on(sel, (v) => { flt.school = v; }); bar.append(lab(T('Universidade:', 'University:', 'Universidad:'), sel));
   } else flt.school = '';
   const rops = F.regionOptions(regions, full.teams);
+  vRops = rops;
   if (rops.length) {
     const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all', 'todas')),
       ...rops.map((r, i) => el('option', { value: String(i) }, '\u00a0'.repeat(r.depth * 2) + (r.name || r.regex))));
-    const cur = rops.findIndex((r) => flt.region && (r.name || '') === (flt.region.name || '') && (r.regex || '') === (flt.region.regex || ''));
+    const cur = flt.region ? rops.indexOf(F.regionResolve(rops, flt.region)) : -1;
     if (cur < 0) flt.region = null;
     sel.value = cur >= 0 ? String(cur) : '';
     on(sel, (v) => { flt.region = v === '' ? null : { name: rops[Number(v)].name, regex: rops[Number(v)].regex }; });

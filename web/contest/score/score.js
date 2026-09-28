@@ -106,9 +106,10 @@ function startCountdown() {
 }
 
 // ---- regiões -----------------------------------------------------------------
-// t casa com a região ativa? Por NOME (t._region, vindo do /contest/teams, == sede
-// explícita do time) OU pelo regex no login (clássico) — qualquer um serve.
-function regionMatch(t) { return F.regionMatch(t, activeRegion); }
+// t está na sede ativa? Pela regra ÚNICA de sedes (score-filters.js › regionOptions: a sede gravada
+// vence, senão a regex mais funda; pai = soma dos filhos). A sede guardada ({name, regex}) é resolvida
+// para a opção da árvore atual (que traz os logins do nó); sem opção correspondente, o casamento antigo.
+function curRegion() { return activeRegion ? (F.regionResolve(regionOptions(), activeRegion) || activeRegion) : null; }
 function setRegion(r) {
   activeRegion = (r && (r.name || r.regex)) ? { name: r.name || '', regex: r.regex || '' } : null;
   if (activeRegion) localStorage.setItem('moj_score_region_' + CONTEST, JSON.stringify(activeRegion));
@@ -139,8 +140,9 @@ const eqi = F.eqi;
 function countryMatch(t) { return F.countryMatch(t, activeCountry); }
 function combinedFilterFn() {
   if (!activeRegion && !activeCountry && !activeSchool) return null;
+  const ar = curRegion();
   return (t) => {
-    if (!regionMatch(t)) return false;
+    if (ar && !F.regionMatch(t, ar)) return false;
     if (!countryMatch(t)) return false;
     if (activeSchool && !eqi(t._school, activeSchool)) return false;
     return true;
@@ -214,8 +216,7 @@ function renderFilters() {
       const sel = el('select', { id: 'fRegion' }, el('option', { value: '' }, T('todas', 'all', 'todas')),
         ...rops.map((r, i) => el('option', { value: String(i) },
           ' '.repeat(r.depth * 2) + (r.name || r.regex))));
-      const cur = rops.findIndex(r => (r.name || '') === ((activeRegion && activeRegion.name) || '') &&
-                                      (r.regex || '') === ((activeRegion && activeRegion.regex) || ''));
+      const cur = rops.indexOf(F.regionResolve(rops, activeRegion));
       sel.value = activeRegion && cur >= 0 ? String(cur) : '';
       sel.addEventListener('change', () => setRegion(sel.value === '' ? null : rops[Number(sel.value)]));
       bar.append(fLabel(T('Sede:', 'Site:', 'Sede:'), sel));
@@ -244,8 +245,7 @@ function renderFilters() {
     setv('fFlag', activeCountry); setv('fUniv', activeSchool); setv('fQ', searchTerm);
     const rr = realBar.querySelector('#fRegion');
     if (rr) {
-      const cur = rops.findIndex(r => (r.name || '') === ((activeRegion && activeRegion.name) || '') &&
-                                      (r.regex || '') === ((activeRegion && activeRegion.regex) || ''));
+      const cur = rops.indexOf(F.regionResolve(rops, activeRegion));
       const want = activeRegion && cur >= 0 ? String(cur) : '';
       if (rr.value !== want) rr.value = want;
     }

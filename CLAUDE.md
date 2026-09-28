@@ -1243,7 +1243,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   etiquetas, gate de UA (o LOTE agora usa a mesma sede derivada do login e lê de ARQUIVO — `--argjson` com o
   mapa de ~2.300 contas beirava o ARG_MAX), materialize de times e balão 1º da sede. F3b: estatística
   (`teams_idx.rs`), Nutella, classificação, Animeitor e capa do caderno. F3c: relatório (`RTREE` com `i` + `RMEM`,
-  sem regex no HTML). Placar web: F4.
+  sem regex no HTML). F4: placar ao vivo/virtual (`score-filters.js` › `regionOptions` com `_mem` + memo),
+  prévia de escopo das Tarefas, listas de sede de Times/Máquinas/semear (a árvore inteira, não só o topo).
   A órfã (gravada fora da árvore) PENDURA no nó que a regex daria. Cache válido por IDENTIDADE (inode:
   tamanho:mtime) do regions.json/registrations.json — `mv`/restauração com mtime antigo refaz. `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
   em cada consumidor antigo — rodar na produção antes de migrar (em 28/09: zero diferenças nos 3 reais).

@@ -349,7 +349,8 @@ pertença ao nó; sede = a canônica — a gravada passa a valer; "parou no pai"
 CLASSIFICAÇÃO: zero diferença na LATAM), Animeitor (times de cada nó; o Geral sem folhas de recorte) e a capa
 do caderno. F3c: o relatório offline embute a árvore com o índice de cada nó (`RTREE`, sem regex) e
 `RMEM` (login → nós, calculado no servidor); placar, runs, staff e a análise da estatística filtram por eles.
-O placar da web (F4) segue na regra antiga.
+F4 (28/09): o placar ao vivo, a participação virtual, a prévia de escopo das Tarefas e as listas de
+sede (Times, Máquinas, semear escopo) usam a mesma regra (`smoke-score-regions.gjs.sh`).
 `server/bin/regions-audit.sh <c>` mostra o que muda (sede no gate/materialize e nas etiquetas, membros
 de cada nó no placar e na estatística, e quem cada `.staff`/`.cstaff` com `region:<nome>` passa a ver).
 Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zero** diferenças.
@@ -402,9 +403,11 @@ Em 28/09/2026, sobre os dados de produção (LATAM, mdp-teste e esquenta): **zer
   estatística (`by_region[...].view:true`) e a UI avisa que somar recortes com sedes conta
   em dobro. Sem a flag o nó se comporta como sempre (a LATAM 2026 tinha 307 times em ≥2
   fatias e a soma "sede a sede" dava 1.272 onde havia 965).
-- **Filtro por região** (`regions.json`, `GET /contest/regions`): árvore hierárquica; cada
-  entrada casa por **nome** (igualdade com a sede `.team.region` do time) **ou** pelo `regex`
-  no login (clássico).
+- **Filtro por região** (`regions.json`, `GET /contest/regions`): árvore hierárquica; o time
+  está no nó pela **regra única de sedes** (seção Sedes acima; `score-filters.js` roda o gêmeo JS
+  com a sede gravada de cada time, do `/contest/teams`): a sede gravada vence, senão a regex mais
+  funda; o pai soma os filhos; recorte pela regex. Sede guardada no navegador ({nome, regex}) é
+  resolvida p/ o nó; sem nó correspondente, vale o casamento antigo (nome OU regex).
 - **Modo anônimo** (`SCORE_ANON=1` no conf, ou toggle local): esconde o desempenho individual e
   mostra agregado — participantes, **quartis** por nº de problemas resolvidos, distribuição e
   resolvedores por problema. Forçado para não-admins quando `SCORE_ANON=1`.

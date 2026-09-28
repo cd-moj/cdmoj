@@ -11,6 +11,7 @@ import { apiGet, apiPost, getToken } from '/shared/api.js';
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
 import { fmtDate, fmtS, toCsv, downloadText, swapIf, sigOf, everyVisible } from '/shared/admin-ui.js';
+import { rgAssign, rgFlatten, rgKey } from '/shared/regions-match.js';
 
 const enc = encodeURIComponent;
 const nowE = () => Math.floor(Date.now() / 1000);
@@ -32,12 +33,29 @@ export function makeTasksTab(CONTEST, opts = {}) {
   // has(mod): o shell diz quais módulos estão ligados (balões e sedes mudam o que se mostra)
   const has = typeof opts.has === 'function' ? opts.has : () => true;
 
-  // uma entrada de escopo casa com o aluno? "region:<nome>" = igualdade com a sede do time
-  // (via /contest/teams); outra coisa = regex no login (mesma semântica do staff_can_see).
+  // uma entrada de escopo casa com o aluno? "region:<nome>" = o aluno ESTÁ num nó com esse nome, pela
+  // regra única de sedes (a sede gravada ou pela regex, os ancestrais, recortes — web/shared/regions-match.js,
+  // o gêmeo do staff_can_see); outra coisa = regex no login. Pertença calculada uma vez por (árvore, times).
+  let MEMO = { key: '', keys: new Map() };
+  function memKeys(login) {
+    const regions = (SF && SF.regions) || [];
+    const key = JSON.stringify(regions).length + '|' + Object.keys(TEAMS).length;
+    if (MEMO.key !== key) {
+      const res = rgAssign(regions, Object.keys(TEAMS).map((l) => ({ login: l, region: (TEAMS[l] || {}).region || '' })));
+      const keys = new Map();
+      res.rows.forEach((r) => keys.set(r.login, new Set(r.nodes.map((i) => res.nodes[i].key))));
+      MEMO = { key, keys, regions };
+    }
+    if (!MEMO.keys.has(login)) {                     // login fora do /contest/teams: só a regex decide
+      const r1 = rgAssign(regions, [{ login, region: '' }]);
+      MEMO.keys.set(login, new Set(r1.rows[0].nodes.map((i) => r1.nodes[i].key)));
+    }
+    return MEMO.keys.get(login);
+  }
   function scopeMatch(entry, login) {
     if (entry.startsWith('region:')) {
-      const want = entry.slice(7).trim().toLowerCase();
-      return want !== '' && ((TEAMS[login] || {}).region || '').toLowerCase() === want;
+      const want = rgKey(entry.slice(7));
+      return want !== '' && memKeys(login || '').has(want);
     }
     const re = safeRe(entry);
     return re ? re.test(login || '') : false;
@@ -199,15 +217,16 @@ export function makeTasksTab(CONTEST, opts = {}) {
       const ta = el('textarea', { rows: '3', style: 'width:100%; font-family:monospace' });
       ta.value = (filters[s.login] || []).join('\n'); ta.dataset.orig = ta.value;
       blocks[s.login] = ta;
+      // semear: a ÁRVORE inteira num seletor (a da LATAM tem 211 nós — botão por nó não cabe). O token
+      // region:<nome> cobre o nó e tudo abaixo dele (region:Nordeste = as sedes do Nordeste).
       const chips = el('div', { class: 'row', style: 'flex-wrap:wrap; gap:.3rem; margin:.3rem 0' });
-      regions.forEach((rg) => { if (!rg || (!rg.name && !rg.regex)) return;
-        // com nome, semeia o token region:<nome> (legível, casa com a sede do time);
-        // região sem nome cai no regex clássico
-        const entry = rg.name ? ('region:' + rg.name) : rg.regex;
-        chips.append(el('button', { class: 'btn ghost', style: 'padding:.1rem .45rem', type: 'button',
-          onclick: () => { const cur = ta.value.trim(); const lines = cur ? cur.split(/\n+/) : [];
-            if (!lines.includes(entry)) { lines.push(entry); ta.value = lines.join('\n'); } } },
-          '+ ' + (rg.name || rg.regex))); });
+      const pick = el('select', { style: 'max-width:22rem' }, el('option', { value: '' }, T('— escolha uma sede ou região —', '— choose a site or region —', '— elige una sede o región —')),
+        ...rgFlatten(regions).filter((nd) => nd.name).map((nd) => el('option', { value: 'region:' + nd.name },
+          '\u00a0'.repeat(nd.depth * 2) + nd.name + (nd.view ? T(' (recorte)', ' (cut)', ' (recorte)') : ''))));
+      chips.append(pick, el('button', { class: 'btn ghost', style: 'padding:.1rem .45rem', type: 'button',
+        onclick: () => { const entry = pick.value; if (!entry) return; const cur = ta.value.trim(); const lines = cur ? cur.split(/\n+/) : [];
+          if (!lines.includes(entry)) { lines.push(entry); ta.value = lines.join('\n'); } pick.value = ''; } },
+        T('+ semear', '+ seed', '+ sembrar')));
       box.append(el('div', { class: 'field', style: 'border-top:1px solid var(--line); padding-top:.5rem' },
         el('label', {}, el('b', {}, s.login), (s.fullname ? el('span', { class: 'small muted' }, ' — ' + s.fullname) : ''),
           (s.disabled ? el('span', { class: 'small', style: 'margin-left:.4rem; color:#a00' }, T('(desabilitado)', '(disabled)', '(deshabilitado)')) : '')),
