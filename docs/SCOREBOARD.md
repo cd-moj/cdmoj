@@ -316,6 +316,31 @@ Antes era um `span` inline antes do ponto do balão e do número: em coluna fixa
 não cabiam e o número vazava para a coluna vizinha (issue #24). O número (`.pv`) continua
 inteiro e sem quebra; no celular a ★ some e a informação fica no `title`.
 
+## Sedes: a regra ÚNICA (`lib/regions.sh` ⇄ `web/shared/regions-match.js`)
+
+Até 28/09/2026 uns 30 consumidores do `regions.json` casavam time→sede cada um do seu jeito (4 famílias
+de regra, 3 dialetos de regex, maiúsculas às vezes). A regra agora é uma só, com dois corpos — bash
+(jq + gawk) e JS — que o `smoke-regions-match.gjs.sh` compara sobre as mesmas árvores (as reais da
+Maratona inclusive, com `MOJ_REGIONS_EXTRA`) exigindo saída idêntica:
+
+- **Árvore** achatada em pré-ordem; nó identificado pelo **índice** (nomes se repetem). Nó com
+  `view:true` (ou filho de um) é **recorte**: nunca é a sede de ninguém.
+- **Sede** (uma por login): a **gravada** (`.team.region`) vence — casa o nome do 1º nó não-recorte
+  (minúsculas ASCII, sem espaço nas pontas); nome fora da árvore vira sede **órfã** sintética. Senão, o
+  nó não-recorte **mais fundo** cuja regex casa o login, sem diferenciar maiúsculas (empate: o 1º em
+  pré-ordem); se ele não é folha, o login "parou no pai" (flag `p`).
+- **Pertença**: a sede + todos os ancestrais (**pai = soma dos filhos**) + os recortes — recorte com
+  regex entra pela regex; sem regex, pelo nome da sede; recorte pai soma os filhos.
+- **Regex** = subconjunto seguro que casa igual em JS, jq, gawk e PCRE (`\d`/`\w`/`\s` viram classes,
+  `(?:` vira `(`; `\b`, lookaround, classes POSIX, preguiçosos, hífen ambíguo em `[...]` e não-ASCII são
+  recusados). Nó com regex recusada fica sem regex e com `err` no `nodes.json`.
+- **Cache**: `var/regions-nodes.json` + `var/regions-map.tsv` (`login \t sede \t nós \t flag`),
+  refeitos quando muda o `regions.json`, o `registrations.json`, a lista de contas ou um `account.json`
+  — submissão não refaz. 2000 contas × 68 nós ≈ 0,1 s (regex compilada uma vez por nó).
+
+**Fase F1:** a lib existe e está testada, mas os consumidores ainda usam as regras antigas. Eles
+migram depois da auditoria na produção (F1b), que mostra o que muda em cada um.
+
 ## Recursos do placar (web/contest/score/)
 
 - **Bandeiras locais (offline):** a coluna `flag` (código de país ISO-2 ou estado `BR-SP`)

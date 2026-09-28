@@ -695,7 +695,8 @@ cc_del_conf_var(){
 # cc_regions_ok <json> — o regions.json tem a FORMA certa? Lista de nós {name, regex?, subregions?, view?}:
 # name texto não-vazio, regex texto, subregions lista (recursivo). É o portão de config.sh e da criação —
 # antes nada conferia, e um objeto/texto gravado ali quebrava em silêncio os ~13 leitores (placar, escopo
-# do staff, etiquetas, gate, telão…). A regex em si é conferida pela lib de sedes (lib/regions.sh).
+# do staff, etiquetas, gate, telão…). A regex em si (o subconjunto seguro, `rg_norm` de lib/regions.sh)
+# ainda NÃO é conferida no salvar — isso é o F2 da regra única de sedes.
 cc_regions_ok(){
   jq -e 'def ok: type == "object"
             and ((.name | type) == "string") and ((.name | gsub("^\\s+|\\s+$"; "") | length) > 0)

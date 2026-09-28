@@ -1227,6 +1227,15 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   morto dele ainda cita a var) e nada a lia desde o store por-usuário — a caixa não fazia nada. Settings POST e criação
   aceitam e ignoram a chave; a linha do conf sai no primeiro save. Quem entra num contest compartilhado
   é decidido pela INSCRIÇÃO (módulo `inscricoes`), não por ela.
+- **SEDE (time → sede) = UMA regra** (28/09/2026): `server/api/v1/lib/regions.sh` (jq + gawk) e o gêmeo
+  `web/shared/regions-match.js` — mudou um, muda o outro no MESMO commit; `smoke-regions-match.gjs.sh`
+  compara os dois (rode com `MOJ_REGIONS_EXTRA=<dir>` apontando árvores reais de produção, que NÃO vão
+  para o repo). Gravada vence (órfã vira sede sintética), senão a regex mais FUNDA (pai perdia para a
+  folha: o gate de UA dava "Brasil" p/ teamsp01), pai = soma dos filhos, recorte (`view`) nunca é sede.
+  Regex no subconjunto seguro (`rg_norm`); casamento no **gawk** (chame `gawk`, não `awk` — a imagem pode
+  ter mawk; laço nó × logins p/ compilar cada regex uma vez; `@tsv` dobra a barra invertida da regex —
+  use `join("\t")`). Cache `var/regions-{nodes.json,map.tsv}`. Detalhes: `docs/SCOREBOARD.md` (Sedes).
+  ⚠ Em 28/09 NENHUM consumidor usa a lib ainda (fases F3/F4 depois da auditoria F1b na produção).
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve
   conteúdo/metadados/**existência** de um recurso CORTA na própria API (`fail 403/404`) quando o
   login não tem permissão. Assuma que clientes (`moj-cli`, `curl`, scripts) vão tentar burlar — a
