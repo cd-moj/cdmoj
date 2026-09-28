@@ -5,7 +5,8 @@
 #   1. falta docs/en ou docs/es de um doc da lista (docs/i18n.sh DOCS_I18N), ou há tradução fora dela;
 #   2. o CARIMBO da tradução (1ª linha, blob do git do PT) ≠ o blob atual do PT — tradução ATRASADA
 #      (a mensagem diz o comando: bash docs/i18n.sh diff <DOC>);
-#   3. a ESTRUTURA diverge: títulos por nível, blocos de código, tabelas, imagens;
+#   3. a ESTRUTURA diverge: títulos por nível, blocos de código, tabelas (e as COLUNAS de cada linha —
+#      um `|` sem escape numa célula traduzida quebra a tabela), imagens;
 #   4. um COMANDO diverge: bloco bash/sh/console/conf/json igual ao PT tirando só os comentários
 #      (`(^|\s)#…` — nunca `#…` cru: `col#pa`, `<org>#<prob>` são ids, não comentário);
 #   5. link relativo que não resolve, /docs/X.html de doc que não existe, ou âncora interna (#x) que
@@ -93,6 +94,23 @@ def slugs(path):
         ids.add(s)
     return ids
 
+def table_cols(path):
+    """nº de colunas de cada LINHA de tabela, por tabela (| escapado não conta) — fora de blocos de código"""
+    out, cur, fence = [], None, None
+    for l in open(path, encoding='utf-8'):
+        m = re.match(r'^\s*(```+|~~~+)', l)
+        if m:
+            fence = None if fence else m.group(1); continue
+        if fence: continue
+        s = l.strip()
+        if s.startswith('|'):
+            n = len(re.findall(r'(?<!\\)\|', s)) - 1
+            if cur is None: cur = []; out.append(cur)
+            cur.append(n)
+        else:
+            cur = None
+    return out
+
 def strip_comments(t):
     out = []
     for l in t.split('\n'):
@@ -140,6 +158,7 @@ for doc in lst:
         if len(bl1) != len(bl0): errs.append('3: %s tem %d blocos de código × PT %d' % (tag, len(bl1), len(bl0)))
         if tb1 != tb0: errs.append('3: %s tem %d tabelas × PT %d' % (tag, tb1, tb0))
         if im1 != im0: errs.append('3: %s imagens %s × PT %s' % (tag, im1, im0))
+        if table_cols(f) != table_cols(src): errs.append('3: %s colunas das tabelas diferem do PT (um | sem escape numa célula?): %s × PT %s' % (tag, [t for t in table_cols(f) if t not in table_cols(src)][:2], [t for t in table_cols(src) if t not in table_cols(f)][:2]))
         cmd1 = [strip_comments(t) for (lg, t) in bl1 if lg in CMDL]
         if len(cmd1) != len(cmd0):
             errs.append('4: %s tem %d blocos de comando × PT %d' % (tag, len(cmd1), len(cmd0)))
@@ -270,6 +289,10 @@ sed -i 's/(#passo)/(#step)/' "$F/docs/en/GUIA.md"
 printf "export const DOCS_I18N = [];\n" > "$F/web/i18n.js"
 O="$(chk)"; r=$?; ck "lista JS ≠ lista do i18n.sh ⇒ reprova" '[[ $r != 0 && "$O" == *"7: DOCS_I18N difere"* ]]' "$O"
 printf "export const DOCS_I18N = ['GUIA'];\n" > "$F/web/i18n.js"
+
+sed -i 's/^| 1 | 2 |$/| 1 (a | b) | 2 |/' "$F/docs/es/GUIA.md"
+O="$(chk)"; r=$?; ck "| sem escape numa célula (coluna a mais) ⇒ reprova" '[[ $r != 0 && "$O" == *"3: es/GUIA.md colunas"* ]]' "$O"
+cp "$T/es.bak" "$F/docs/es/GUIA.md"
 
 sed -i 's/(OUTRO.md)/(SUMIU.md)/' "$F/docs/es/GUIA.md"
 O="$(chk)"; r=$?; ck "link relativo que não resolve ⇒ reprova" '[[ $r != 0 && "$O" == *"5: es/GUIA.md"* ]]' "$O"

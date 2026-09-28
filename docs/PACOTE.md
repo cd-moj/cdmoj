@@ -130,7 +130,7 @@ como cada construção sai no PDF do caderno, com exemplos: **[ENUNCIADO](ENUNCI
 Três regras que o portão de qualidade cobra:
 
 1. **As seções `## Entrada` e `## Saída` são obrigatórias.** Sem elas o problema não passa na
-   validação. (O validador também aceita `## Input` e `## Output`, e de um a três `#`.)
+   validação. (O validador também aceita `## Input`, `## Output` e `## Salida`, e de um a três `#`.)
 2. **O título não vai no texto.** Uma primeira linha `% Título do problema` é **legado**: o
    renderizador a remove. O título verdadeiro é o campo `display_title` do `.moj-meta.json`
    (seção 5), e o renderizador injeta um `<h1>` a partir dele.
@@ -796,7 +796,7 @@ fonte `scripts/checker.cpp` e deixe a bridge compilar).
 
 Sobre o `good_sol_accepts`: rodar as soluções exige um sandbox de verdade, e o servidor não tem. A
 conferência do pacote **adia** essa checagem para a calibração, que roda num juiz real (o relatório diz
-"verificado na calibração"). O resultado de cada solução aparece na dimensão **Soluções**.
+"verificado na calibração (juiz)"). O resultado de cada solução aparece na dimensão **Soluções**.
 
 Se a validação passa, ela **indexa** o problema (chama o `gen-problem-json.sh`), que gera o JSON que o
 aluno de fato consome, com o enunciado já em HTML.

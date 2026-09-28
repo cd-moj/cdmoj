@@ -53,6 +53,7 @@ painel de módulo **desligado** cai em **Central › Módulos** com um aviso diz
 | Painel | O que faz |
 |---|---|
 | **Problemas** | A prova em si: renomear/reordenar/remover, **editar o identificador** (a "letra" — pode ser `W1`, `Q`…; reordenar preserva identificador customizado e a cor do balão migra junto), restringir linguagens ou o pool de juízes POR problema, atualizar o enunciado a partir do banco (ou enviar HTML/PDF, **por idioma**), o painel **🌐 Idiomas do enunciado** (abaixo) e **🏦 Adicionar do banco** (busca e sorteio). |
+| **Relatório** | O relatório estático da prova num lugar só: baixar o `tar.gz` navegável, **publicar como histórico** em `/relatorio/<contest>/` (republicar, despublicar) e publicar o relatório de cada rodada arquivada. A seção 6½ explica. |
 
 **🌐 Idiomas do enunciado.** Um problema do banco pode ter o enunciado em português, inglês e
 espanhol (o autor escreve `docs/enunciado.en.md` e `docs/enunciado.es.md` no pacote). O painel
@@ -71,7 +72,6 @@ painel dele) tem dois modos:
   **Enviar HTML** / **Enviar PDF**. O arquivo vale só para aquele idioma.
 - O caderno e o editorial em EN/ES usam a tradução de cada problema. Um problema sem tradução sai
   em português no caderno. O título do problema também sai traduzido.
-| **Relatório** | O relatório estático da prova num lugar só: baixar o `tar.gz` navegável, **publicar como histórico** em `/relatorio/<contest>/` (republicar, despublicar) e publicar o relatório de cada rodada arquivada. A seção 6½ explica. |
 
 ### 👥 Pessoas — quem entra, quem é quem
 
@@ -95,7 +95,7 @@ painel dele) tem dois modos:
 | Painel (módulo) | O que faz |
 |---|---|
 | **Rodadas** (`rodadas`) | **Aquecimento e prova oficial no MESMO contest**: planeja cada rodada (janela + problemas), mostra o checklist e promove — arquivando tudo o que aconteceu. A seção 6 explica. |
-| **Documentos** (`documentos`) | Gera, em PDF e HTML nos três idiomas (pt/en/es), os documentos da prova: **informações do ambiente** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (só publica depois do FIM da prova). A seção 5 explica. |
+| **Documentos** (`documentos`) | Gera, em PDF e HTML nos três idiomas (pt/en/es), os documentos da prova: **ambiente de julgamento** (info sheet), **caderno da prova** (capa + enunciados), **folha de time limits** e o **editorial** (só publica depois do FIM da prova). A seção 5 explica. |
 | **Balões** (`baloes`) | A cor de cada letra — é o que sai desenhado na folha do balão. O default cobre A–O; com mais de 15 problemas, defina as demais (senão saem cinza). São as cores da rodada no ar. Para dar cores próprias a outra rodada, use Evento › Rodadas. |
 | **Classificação** (`classificacao`) | Quem se classifica para a próxima fase, por **algoritmo** escolhido no painel (hoje: SBC 1ª fase → Final Brasileira; a regra da PDA entra como outro algoritmo): rascunho, revisão, promoção pelo comitê e publicação (chip ↑BR no placar). `docs/CLASSIFICACAO.md` explica. |
 | **Times** (`sedes` ou `telao`) | Identidade de cada conta no placar: nome do time, país/bandeira, sede, universidade, brasão e foto. Carga por CSV e "materializar matches". |
@@ -171,10 +171,9 @@ pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).
 - **Freeze** — congela o placar público a partir deste horário (estilo ICPC). Juízes e admin seguem vendo tudo; a revelação acontece na cerimônia.
 - **Idioma** — português, inglês ou espanhol. Fixa o idioma das telas de todo mundo no contest (sem seletor) e também o do **papel impresso** (folha de rosto da impressão e folha de balão), do **relatório** final e das mensagens de convite no Telegram (em inglês ou espanhol, a mensagem leva o português junto). Os enunciados e documentos têm idioma próprio (🌐 Idiomas do enunciado, Evento › Documentos).
 
-**O que o aluno vê/pode**
+**👁 O que o time vê durante a prova**
 
 - **Login habilitado** — desliga p/ trancar a porta (quem já está dentro continua).
-- **Ver código das submissões** — o aluno rever o próprio código enviado.
 - **Ver log de execução** — o relatório teste-a-teste. ⚠ Em prova valendo nota, deixar o log visível pode **vazar os testes** (o aluno vê entrada/saída) — o clássico "SHOWLOG" — desligue.
 - **Editor no browser** — o editor lado a lado com o enunciado.
 - **Mostrar time-limit** — exibe os TLs por linguagem no enunciado.
@@ -184,7 +183,7 @@ pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).
 - **Gate de login por UA** — só navegadores cuja identificação contém a substring conseguem logar (máquina de prova travada). Papéis privilegiados são isentos.
 - **🕵️ SUPER SECRETO** — o contest some da home/arquivo/status e até o placar exige login. Para provas que não podem nem constar que existem.
 
-**Julgamento**
+**⚖️ Julgamento (linguagens, pool, veredicto manual)**
 
 - **Linguagens** — a lista permitida no contest (cada problema pode restringir mais, em Prova › Problemas).
 - **Pool de juízes (máquinas)** — quais MÁQUINAS de julgamento atendem este contest (vazio = qualquer juiz online). Não confundir com juízes HUMANOS (seção 4).
@@ -198,8 +197,7 @@ Pela CLI, tudo isso é `moj contest -c <cid> settings set chave=valor` (ex.:
 
 ## 3. Papéis especiais — o que são e como habilitar
 
-**Habilitar um papel é só criar a conta com o sufixo certo no login** — na aba *Usuários &
-sessões* (ou `moj contest -c <cid> users add fulano.judge`). Não há caixinha de permissão: o
+**Habilitar um papel é só criar a conta com o sufixo certo no login** — no painel *Pessoas › Contas* (ou `moj contest -c <cid> users add fulano.judge`). Não há caixinha de permissão: o
 sufixo É o papel. O auto-cadastro público nunca cria conta com esses sufixos (reservados), e
 operações em massa (reset de senha, desabilitar) **pulam** contas privilegiadas de propósito.
 
@@ -207,7 +205,7 @@ operações em massa (reset de senha, desabilitar) **pulam** contas privilegiada
 |---|---|---|---|
 | **Administrador** | `.admin` | Tudo: painel ⚙, submeter a qualquer hora, ver problemas antes da largada, placar sem freeze, votar como juiz, resolver conflitos, responder clarifications. | Aparecer no placar (nenhum papel aparece). |
 | **Juiz (humano)** | `.judge` | Aba **Avaliar** (correção manual), submeter/ver problemas a qualquer hora (testar a prova!), placar sem freeze, responder clarifications, Estatísticas. | Resolver conflitos; painel admin. |
-| **Juiz-chefe** | `.cjudge` | Tudo do `.judge` **+** painel **Juiz-chefe**: resolver conflitos de votos, editar respostas de clarification já dadas, ver o login e o nome de quem perguntou, liberar a reserva de outro juiz (botão próprio, com confirmação), opções e o que vai para revisão. | Painel admin (Configurações etc.). Reservar uma clarification que outro juiz já reservou. |
+| **Juiz-chefe** | `.cjudge` | Tudo do `.judge` **+** painel **Juiz-chefe**: resolver conflitos de votos, editar respostas de clarification já dadas, ver o login e o nome de quem perguntou, liberar a reserva de outro juiz (botão próprio, com confirmação), opções e o que vai para revisão. | Painel admin (Central › Regras etc.). Reservar uma clarification que outro juiz já reservou. |
 | **Staff** | `.staff` | Fila de **🖨️ impressão e balões** (pegar/imprimir/entregar, modo automático de quiosque). | Ver problemas ou submeter (nunca); etiquetas; placar sem freeze. |
 | **Chefe de sede** | `.cstaff` | Observar a fila do staff da sua sede (somente leitura), **Etiquetas** de credenciais dos competidores e do **`.staff`** da sua sede (com senha — exceto em contest que usa contas do treino, onde a senha é pessoal e não sai na etiqueta; a credencial do próprio chefe também não sai em etiqueta), o **🎥 telão** da sede e a **🏆 revelação por sede** depois do fim. | Agir na fila de impressão; ver problemas/submeter; não herda `.staff`. |
 | **Monitor** | `.mon` | Submeter DURANTE a prova (sem aparecer no placar), **responder clarifications**, Todas as Submissões e Estatísticas. | Ver problemas antes da largada; correção manual. |
@@ -366,7 +364,7 @@ Problemas; as demais ficam planejadas até você promover.
    entrou pelo menos uma vez), os **juízes** (opções de veredicto, log/código, a dupla lendo
    igual), o **chefe** (nº de juízes, o que vai para revisão, alarme de conflito) e o **telão** (projetor,
    conexão com o Animeitor — publicar os placares e ligar o alimentador —, fotos e músicas).
-4. Quando terminar, clique **🚀 Promover**. O MOJ confere o checklist e, se estiver tudo pronto:
+4. Quando terminar, clique **🚀 Promover agora**. O MOJ confere o checklist e, se estiver tudo pronto:
    - **arquiva** a rodada — submissões (com código-fonte), veredictos, log do juiz, placar,
      estatísticas, clarifications, notícias, tarefas do staff e os logs de acesso ficam guardados
      em `rounds/<rodada>/`, mais um **relatório navegável** da rodada;
@@ -420,7 +418,7 @@ textos/capa dos documentos. **O que zera:** placar, histórico e submissões dos
 não perdidos), balões, numeração de impressão, prorrogações, e a lista de documentos publicados.
 
 > ⚠️ **Cores de balão são por LETRA.** Se o problema A do aquecimento e o A da prova são
-> diferentes, a cor do balão A é a mesma nas duas rodadas. Confira em 🎨 Aparência antes da prova.
+> diferentes, a cor do balão A é a mesma nas duas rodadas. Confira em Evento › Balões antes da prova.
 
 **Na CLI:** `moj contest -c <cid> rounds ls | add | set | problems | promote | publish | archive`.
 
@@ -432,7 +430,7 @@ passa a mostrar o bloco **"Depois da prova"** com o checklist do que ainda está
 botão **🏁 Encerrar evento**, que faz de uma vez as duas coisas que todo mundo esquece:
 
 1. **abre o placar** — tira o congelamento (`FREEZE_TIME=0`), então o resultado final fica
-   público (é o mesmo efeito do botão "🔓 Descongelar tudo" da cerimônia de revelação).
+   público (é o mesmo efeito do botão "🔓 Descongelar tudo (público)" da cerimônia de revelação).
    O MOJ só aceita descongelar a partir do **fim da prova para todas as sedes + 1 minuto**. A
    prorrogação de uma sede conta. A regra vale para todos os caminhos: este botão, a cerimônia,
    o campo de freeze na Central e a promoção de rodada. A tela mostra a hora a partir da qual o
@@ -451,16 +449,15 @@ segunda vez ele não faz nada.
 Fecha o ciclo com o **relatório final** (Prova › Relatório): o `tar.gz` navegável leva o
 placar aberto, as submissões, as estatísticas completas, os enunciados **e** os documentos
 publicados — é o pacote que se manda para os participantes e para o arquivo do evento.
-Ao lado do download há **📢 Publicar relatório**: o mesmo site passa a existir em
+Ao lado do download há **📢 Publicar como histórico**: o mesmo site passa a existir em
 `https://moj…/relatorio/<contest>/` e o card do contest na página inicial e no `/contests/`
 ganha o botão **📑 Relatório** — é o **histórico** do evento. A geração roda em segundo plano
 (~1–2 min numa prova grande; o painel mostra "publicando…" e troca sozinho quando termina).
 É público: o relatório não carrega código-fonte, log de juiz nem senha, e as clarifications
 saem anônimas, mas mostra nomes de times, runs e estatísticas — publique quando tudo já foi
-divulgado. **Republicar** gera de novo e troca o site inteiro de uma vez (quem estiver lendo
+divulgado. **🔄 Republicar** gera de novo e troca o site inteiro de uma vez (quem estiver lendo
 não vê meio-caminho); **Despublicar** apaga o endereço e o botão dos cards. As **rodadas
-arquivadas** (aquecimento, por exemplo) têm o próprio botão em Prova › Relatório: **🌐 publicar
-relatório (público)** coloca o relatório gerado na promoção em
+arquivadas** (aquecimento, por exemplo) têm o próprio botão em Prova › Relatório: **🌐 publicar** coloca o relatório gerado na promoção em
 `/relatorio/<contest>/rodada/<slug>/` — e a página inicial do relatório principal, ao ser
 (re)publicada, passa a linkar as rodadas públicas em "Rodadas anteriores deste evento".
 
@@ -545,11 +542,11 @@ papel (sempre entra) › regra por regex › **override da sede** › captura no
 
 - Quem não casa é **barrado no login** (403) — a decisão foi barrar, com a lista de **isentos**
   como margem. `--mode off` desliga o gate sem apagar a configuração.
-- O painel Máquinas & gate mostra **UA esperado × UA visto** por time e conta quantos estão fora da
+- O painel Máquinas › Gate & trava mostra **UA esperado × UA visto** por time e conta quantos estão fora da
   imagem da sede: é assim que se conserta a sala **no aquecimento**, antes de o gate barrar
   alguém na prova.
-- Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (Pessoas › Sessões &
-  anomalias), que compara cada sessão com o esperado **daquele** time.
+- Quem já está logado com o navegador errado sai com **"Deslogar UA divergente"** (Máquinas ›
+  Anomalias), que compara cada sessão com o esperado **daquele** time.
 - **Trava de sede por IP** (chave na mesma seção 🔒, DESLIGADA por padrão — ligue na prova): o gate
   e o isolamento por subdomínio não seguram `curl --resolve moj…:443:<IP>` da máquina de prova ao
   site base (treino, backups que o aluno subiu antes, outro contest). Com a trava, cada login de
@@ -593,7 +590,7 @@ avisa e mostra só as sessões e o log de acessos.
 - **🔒 Trava de sede**: os IPs presos a esta prova (logins, bloqueios, até quando), os bloqueios
   registrados (quando, IP, alvo, rota, sessão) e os botões **soltar** e **prender IPs já vistos**.
   O cartão "bloqueios da trava" e os eventos 🔒 da linha do tempo vêm do audit. A seção 7 explica.
-- **Canais**: quantos logins e submissões da prova vieram da **web**, da **CLI** (`moj-comp`) e de
+- **Canal dos pedidos na prova**: quantos logins e submissões da prova vieram da **web**, da **CLI** (`moj-comp`) e de
   **pacotes offline**. Vale mesmo sem gate. A CLI se identifica no User-Agent (`moj-comp/<build>`) e,
   na máquina de prova, manda na frente o **mesmo User-Agent do navegador da imagem** (lido de
   `/etc/moj/user-agent`, gravado pela imagem): é assim que ela passa no gate por sede e fica com a
@@ -713,7 +710,7 @@ diferem, a caixa da janela mostra também o horário no fuso da prova, para não
 — o seletor "Placar: Geral | Times | Individual" aparece sozinho na página do placar. Se o
 contest já tinha coortes configuradas, o checklist pré-prova avisa que faltam essas duas.
 
-**Com AQUECIMENTO (o esquenta que fica dias no ar):** planeje as duas rodadas em *Prova → Rodadas*
+**Com AQUECIMENTO (o esquenta que fica dias no ar):** planeje as duas rodadas em *Evento › Rodadas*
 (aquecimento agora, prova oficial na data real). Por padrão **o aquecimento também exige
 inscrição** — é nele que o competidor resolve login, submissão e placar; deixar entrar sem
 inscrição só empurra o problema para o dia da prova. A inscrição fecha sozinha **no início da
@@ -782,9 +779,9 @@ um contest com esse id. O assistente avisa antes e a API recusa.
 **Quem pode criar contests e problemas.** A mesma permissão vale para criar contests e para criar
 problemas e coleções na Gestão de Problemas. Contas `.admin` sempre podem. Para as demais:
 
-- **Liberados**: digite o login e uma nota opcional e clique em **Liberar**. A conta precisa existir
+- **✅ Liberados**: digite o login e uma nota opcional e clique em **✅ Liberar**. A conta precisa existir
   no treino. Cada linha mostra a pessoa, quem liberou e quando.
-- **Bloqueados**: mesma coisa com **Bloquear**. Um bloqueio vence o limite automático.
+- **⛔ Bloqueados**: mesma coisa com **⛔ Bloquear**. Um bloqueio vence o limite automático.
 - **Limite automático**: quem resolveu pelo menos N problemas pode criar. Zero desativa.
 
 ## 10. Referências
