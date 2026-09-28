@@ -56,12 +56,12 @@ reg_get(){
                        invited:((.invited // []) | map(tostring)),
                        cohort:(.cohort // "times"), created_at:(.created_at // 0),
                        univ:(.univ // ""), ai:(if has("ai") then .ai else null end),
-                       flag:(.flag // "")})),
+                       flag:(.flag // ""), region:(.region // "")})),
              entries: ((.entries // {}) | with_entries(.value |= {
                        kind:(.kind // "individual"), team:(.team // null),
                        cohort:(.cohort // ""), at:(.at // 0),
                        univ:(.univ // ""), ai:(if has("ai") then .ai else null end),
-                       flag:(.flag // "")})) }' "$f" 2>/dev/null \
+                       flag:(.flag // ""), region:(.region // "")})) }' "$f" 2>/dev/null \
       || printf '{"version":1,"teams":{},"entries":{}}'
   else printf '{"version":1,"teams":{},"entries":{}}'; fi
 }
@@ -230,14 +230,16 @@ reg_materialize_login(){
   d="$(user_dir "$c" "$l")"; f="$d/account.json"
   mkdir -p "$d/submissions" "$d/mojlog" "$d/results" 2>/dev/null || return 1
   [[ -f "$d/history" ]] || : > "$d/history"
-  # meta declarada na ENTRY do roster (univ/ai/flag do individual) — a fonte é SEMPRE o
+  # meta declarada na ENTRY do roster (univ/ai/flag do individual, e a SEDE que o admin atribui —
+  # rg_assign em lib/regions.sh) — a fonte é SEMPRE o
   # roster (o overlay é reescrito a cada materialize; edição manual do account.json não vale)
   local meta
   meta="$(reg_get "$c" | jq -c --arg l "$l" '
     (.entries[$l] // {}) as $e
     | (if ($e.univ // "") != "" then {univ_short:$e.univ} else {} end)
     + (if ($e.flag // "") != "" then {flag:$e.flag} else {} end)
-    + (if (($e | has("ai")) and ($e.ai != null)) then {ai:$e.ai} else {} end)' 2>/dev/null)"
+    + (if (($e | has("ai")) and ($e.ai != null)) then {ai:$e.ai} else {} end)
+    + (if ($e.region // "") != "" then {region:$e.region} else {} end)' 2>/dev/null)"
   [[ -n "$meta" ]] || meta='{}'
   if [[ -f "$f" ]] && [[ -n "$(jq -r '.password // empty' "$f" 2>/dev/null)" ]]; then
     # conta LOCAL de verdade (criada pelo admin): não sobrescreve credencial, só marca a
@@ -299,7 +301,8 @@ reg_materialize_team(){
         team:({cohort:($x.cohort // "times"), members:($x.members), captain:($x.captain)}
               + (if $u != "" then {univ_short:$u} else {} end)
               + (if (($x.flag // "") != "") then {flag:$x.flag} else {} end)
-              + (if ($x.ai != null) then {ai:$x.ai} else {} end))}' \
+              + (if ($x.ai != null) then {ai:$x.ai} else {} end)
+              + (if (($x.region // "") != "") then {region:$x.region} else {} end))}' \
     > "$f.tmp" 2>/dev/null && mv -f "$f.tmp" "$f"
   _score_dirty "$c"
 }

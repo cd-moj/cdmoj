@@ -401,7 +401,7 @@ cc_create(){
   teams_j="$(jq -c '.modules.sedes.teams_meta // .teams_meta // empty' <<<"$spec" 2>/dev/null)"
   [[ -n "$colors_j"  && "$colors_j"  != null ]] && printf '%s' "$colors_j"  > "$stg/balloons.json"
   if [[ -n "$regions_j" && "$regions_j" != null ]]; then
-    cc_regions_ok "$regions_j" || { rm -rf "$stg"; fail 422 "Sedes (regions) inválidas: lista de {name, regex?, subregions?}" "regions_invalid"; }
+    cc_regions_ok "$regions_j" || { rm -rf "$stg"; cc_regions_fail; }
     printf '%s' "$regions_j" > "$stg/regions.json"
   fi
   [[ -n "$teams_j"   && "$teams_j"   != null ]] && jq -cn --argjson r "$teams_j" '{rules:$r}' > "$stg/teams-meta.json"
@@ -695,15 +695,34 @@ cc_del_conf_var(){
 # cc_regions_ok <json> — o regions.json tem a FORMA certa? Lista de nós {name, regex?, subregions?, view?}:
 # name texto não-vazio, regex texto, subregions lista (recursivo). É o portão de config.sh e da criação —
 # antes nada conferia, e um objeto/texto gravado ali quebrava em silêncio os ~13 leitores (placar, escopo
-# do staff, etiquetas, gate, telão…). A regex em si (o subconjunto seguro, `rg_norm` de lib/regions.sh)
-# ainda NÃO é conferida no salvar — isso é o F2 da regra única de sedes.
+# do staff, etiquetas, gate, telão…). E a REGEX de cada nó tem de estar no subconjunto seguro (rg_norm de
+# lib/regions.sh: casa igual em JS, jq e gawk). Falhou por regex: CC_REGIONS_ERRORS = [{i,path,name,regex,err}]
+# (≤ 50, regex cortada em 200 — cabe no FAIL_EXTRA) e cc_regions_fail monta o 422.
 cc_regions_ok(){
+  CC_REGIONS_ERRORS='[]'
   jq -e 'def ok: type == "object"
             and ((.name | type) == "string") and ((.name | gsub("^\\s+|\\s+$"; "") | length) > 0)
             and (((.regex // "") | type) == "string")
             and (((.subregions // []) | type) == "array")
             and all((.subregions // [])[]; ok);
-         type == "array" and all(.[]; ok)' >/dev/null 2>&1 <<<"$1"
+         type == "array" and all(.[]; ok)' >/dev/null 2>&1 <<<"$1" || return 1
+  declare -F rg_tree_errors >/dev/null || source "$_LIBDIR/regions.sh"
+  local f; f="$(mktemp)" || return 1
+  printf '%s' "$1" > "$f"
+  CC_REGIONS_ERRORS="$(rg_tree_errors "$f" | jq -c '.[0:50] | map(.regex |= .[0:200])' 2>/dev/null)"
+  rm -f "$f"
+  [[ -n "$CC_REGIONS_ERRORS" ]] || CC_REGIONS_ERRORS='[]'
+  [[ "$CC_REGIONS_ERRORS" == '[]' ]]
+}
+# cc_regions_fail — o 422 depois de um cc_regions_ok que falhou (forma OU regex). `error.nodes` = os nós
+# com regex recusada e o código (a web traduz: regions.js; a CLI mostra o caminho)
+cc_regions_fail(){
+  if [[ "${CC_REGIONS_ERRORS:-[]}" != '[]' ]]; then
+    local m; m="$(jq -r '.[0] | "a regex de \"\(.path)\" está fora do subconjunto seguro (\(.err))"' <<<"$CC_REGIONS_ERRORS")"
+    FAIL_EXTRA="$(jq -cn --argjson e "$CC_REGIONS_ERRORS" '{nodes:$e}')" \
+      fail 422 "Sedes (regions): $m" "regions_invalid"
+  fi
+  fail 422 "Sedes (regions) inválidas: lista de {name, regex?, subregions?}" "regions_invalid"
 }
 
 # cc_build_probs <target_dir> <problems_json_array> [enun_src_dir] -> ecoa "PROBS=(...)"

@@ -35,8 +35,7 @@ bl="$(jq -r '.basic.locale // empty' <<<"$body")"
 [[ -z "$bl" ]] || contest_locale_ok "$bl" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"
 # sedes com a forma errada também recusam ANTES de qualquer escrita (cores, times…)
 if jq -e 'has("regions") and .regions != null and .regions != []' >/dev/null 2>&1 <<<"$body"; then
-  cc_regions_ok "$(jq -c '.regions' <<<"$body")" \
-    || fail 422 "Sedes (regions) inválidas: lista de {name, regex?, subregions?}" "regions_invalid"
+  cc_regions_ok "$(jq -c '.regions' <<<"$body")" || cc_regions_fail
 fi
 
 # colors: objeto com chaves = grava (substitui o arquivo inteiro: o editor manda todas as letras +

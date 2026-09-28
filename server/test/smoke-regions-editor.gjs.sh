@@ -28,7 +28,7 @@ Object.defineProperty(N.prototype,'value',{set(v){this._v=String(v)},get(){ retu
 globalThis.document={ createElement:(t)=>new N(t), createTextNode:(t)=>({nodeType:3,text:String(t),textContent:String(t)}) };
 function T(pt){ return pt; }
 EOF
-  strip "$WEB/shared/dom.js"; strip "$WEB/shared/contest-config/regions.js"
+  strip "$WEB/shared/dom.js"; strip "$WEB/shared/regions-match.js"; strip "$WEB/shared/contest-config/regions.js"
   cat <<'EOF'
 let pass=0, fail=0; const ck=(m,ok,d)=>{ if (ok) { print('  ok: '+m); pass++; } else { print('  FAIL: '+m+' :: '+(d||'')); fail++; } };
 const J=(x)=>JSON.stringify(x);
@@ -53,6 +53,10 @@ ta.value='{"name":"x"}';
 ck('JSON que não é lista: validate recusa', /lista/.test(e1.validate()));
 ta.value='[{"regex":"^a"}]';
 ck('nó sem name: validate recusa', /sem "name"/.test(e1.validate()));
+ta.value='[{"name":"BR","regex":"^br\\\\b"}]';
+ck('regex fora do subconjunto seguro (\\b): validate explica, igual ao servidor', /fronteira de palavra/.test(e1.validate()), e1.validate());
+ta.value='[{"name":"BR","regex":"^br\\\\d+"}]';
+ck('\\d é aceito (vira [0-9] no servidor)', e1.validate()==='', e1.validate());
 // 2) lista simples: sede SEM regex é mantida
 const e2=makeRegionsEditor({initial:[{name:'DF',regex:'^df'},{name:'GO'}]});
 ck('lista simples abre na lista (sem JSON)', !shown(find(e2,'textarea')[0]));

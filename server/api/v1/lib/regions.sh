@@ -57,6 +57,12 @@ RG_ROLE_RE='\.(admin|judge|cjudge|staff|cstaff|mon|animeitor)$'
 # o normalizador (jq). Espelho exato: rgNorm em web/shared/regions-match.js.
 rg_norm_jq(){ cat <<'JQ'
 def rg_key: tostring | ascii_downcase | gsub("[\t\r\n]"; " ") | gsub("^ +| +$"; "");
+# o percurso em PRÉ-ORDEM (o índice de cada nó sai daqui): item que não é objeto é pulado; subregions que
+# não é lista também. parent = -2 nos filhos (rg_flatten acerta depois).
+def rg_flat($p; $d; $v):
+  .[]? | select(type == "object") | (($v or (.view == true))) as $vv
+  | ({name: ((.name // "") | tostring), rx: ((.regex // "") | tostring), view: $vv, parent: $p, depth: $d}),
+    ((.subregions // []) | if type == "array" then rg_flat(-2; $d + 1; $vv) else empty end);
 def rg_norm:
   # bk = o último item DENTRO de [...]: "" início, "c" caractere, "r" intervalo fechado, "k" classe (\d…),
   # "d" hífen de intervalo pendente. Hífen depois de intervalo/classe é ambíguo entre os motores (o gawk
@@ -125,14 +131,10 @@ rg_flatten(){
   local f="$1"
   [[ -s "$f" ]] || { printf '[]\n'; return 0; }
   jq -c "$(rg_norm_jq)"'
-    def flat($p; $d; $v):
-      .[]? | select(type == "object") | (($v or (.view == true))) as $vv
-      | ({name: ((.name // "") | tostring), rx: ((.regex // "") | tostring), view: $vv, parent: $p, depth: $d}),
-        ((.subregions // []) | if type == "array" then flat(-2; $d + 1; $vv) else empty end);
     if type != "array" then []
     else
-      # índices e pais: a pré-ordem vem do flat; o pai de cada nó = o último nó de profundidade d-1 antes dele
-      [flat(-1; 0; false)]
+      # índices e pais: a pré-ordem vem do rg_flat; o pai de cada nó = o último nó de profundidade d-1 antes dele
+      [rg_flat(-1; 0; false)]
       | reduce range(0; length) as $k (.; .[$k].i = $k
           | if .[$k].depth > 0 then .[$k].parent = ([range(0; $k) as $j | select(.[$j].depth == (.[$k].depth - 1)) | $j] | last) else . end)
       | . as $all
@@ -155,34 +157,47 @@ _rg_stale(){  # <c> <arquivo> — 0 se o cache precisa ser refeito
   return 1
 }
 
-# rg_build <c> — reconstrói var/regions-{nodes.json,map.tsv}. Escrita atômica (tmp + mv): dois builds
-# simultâneos produzem o mesmo resultado, o último mv vence.
-rg_build(){
-  local c="$1" d="$CONTESTSDIR/$1" w rc=0
-  command -v gawk >/dev/null 2>&1 || return 1          # `awk` pode ser o mawk na imagem
-  mkdir -p "$d/var" 2>/dev/null
-  w="$(mktemp -d)" || return 1
-  rg_flatten "$d/regions.json" > "$w/base.json"
-  if [[ -e "$d/regions.json" ]]; then : > "$d/var/.regions-had-tree"; else rm -f "$d/var/.regions-had-tree"; fi
-  # join, NÃO @tsv: o @tsv dobra a barra invertida e estragaria a regex (a chave não tem tab: rg_key)
-  jq -r '.[] | [.i, .parent, .depth, (if .view then 1 else 0 end), .key, .regex, (if .leaf then 1 else 0 end)] | map(tostring) | join("\t")' \
-    "$w/base.json" > "$w/nodes.tsv"
-  # população: os dirs (menos papéis) + a sede GRAVADA de quem tem account.json
+# rg_inputs <c> <dir> — a população do contest: <dir>/dirs (logins, menos papéis) e <dir>/explicit
+# (login \t chave \t nome da sede GRAVADA). join, NÃO @tsv (ver rg_compute).
+rg_inputs(){
+  local d="$CONTESTSDIR/$1" w="$2"
   find "$d/users" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | grep -v '^\.' | grep -vE "$RG_ROLE_RE" \
     | LC_ALL=C sort > "$w/dirs"
   find "$d/users" -mindepth 2 -maxdepth 2 -name account.json -print0 2>/dev/null \
     | xargs -0 -r jq -r "$(rg_norm_jq)"' ((.team.region // "") | tostring) as $r
         | [(input_filename | split("/") | .[-2]), ($r | rg_key), ($r | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; ""))] | join("\t")' \
       2>/dev/null > "$w/explicit"
-  : > "$w/synth.tsv"
-  gawk -v synthf="$w/synth.tsv" -f <(_rg_gawk) "$w/nodes.tsv" "$w/explicit" "$w/dirs" > "$w/map.tsv" || rc=1
-  if (( rc == 0 )); then
-    jq -c --rawfile s "$w/synth.tsv" '. + [($s | split("\n")[] | select(length > 0) | split("\t")
+}
+
+# rg_compute <tree.json|""> <dirs> <explicit> <out> — o casamento, sem tocar em contest nenhum:
+# <out>/nodes.json + <out>/map.tsv. É o que o rg_build grava e o que a PRÉVIA (dry_run) mostra.
+rg_compute(){
+  local tree="$1" dirs="$2" expl="$3" o="$4" rc=0
+  command -v gawk >/dev/null 2>&1 || return 1          # `awk` pode ser o mawk na imagem
+  mkdir -p "$o" || return 1
+  rg_flatten "$tree" > "$o/base.json"
+  # join, NÃO @tsv: o @tsv dobra a barra invertida e estragaria a regex (a chave não tem tab: rg_key)
+  jq -r '.[] | [.i, .parent, .depth, (if .view then 1 else 0 end), .key, .regex, (if .leaf then 1 else 0 end)] | map(tostring) | join("\t")' \
+    "$o/base.json" > "$o/nodes.tsv"
+  : > "$o/synth.tsv"
+  gawk -v synthf="$o/synth.tsv" -f <(_rg_gawk) "$o/nodes.tsv" "$expl" "$dirs" > "$o/map.tsv" || rc=1
+  (( rc == 0 )) && jq -c --rawfile s "$o/synth.tsv" '. + [($s | split("\n")[] | select(length > 0) | split("\t")
           | {i: (.[0] | tonumber), parent: -1, depth: 0, name: .[2], key: .[1], regex: "", err: null,
-             view: false, leaf: true, orphan: true})]' "$w/base.json" > "$w/nodes.json" || rc=1
-  fi
+             view: false, leaf: true, orphan: true})]' "$o/base.json" > "$o/nodes.json" || rc=1
+  return "$rc"
+}
+
+# rg_build <c> — reconstrói var/regions-{nodes.json,map.tsv}. Escrita atômica (tmp + mv): dois builds
+# simultâneos produzem o mesmo resultado, o último mv vence.
+rg_build(){
+  local c="$1" d="$CONTESTSDIR/$1" w rc=0
+  mkdir -p "$d/var" 2>/dev/null
+  w="$(mktemp -d)" || return 1
+  if [[ -e "$d/regions.json" ]]; then : > "$d/var/.regions-had-tree"; else rm -f "$d/var/.regions-had-tree"; fi
+  rg_inputs "$c" "$w"
+  rg_compute "$d/regions.json" "$w/dirs" "$w/explicit" "$w/out" || rc=1
   if (( rc == 0 )); then
-    mv -f "$w/nodes.json" "$d/var/regions-nodes.json" && mv -f "$w/map.tsv" "$d/var/regions-map.tsv" || rc=1
+    mv -f "$w/out/nodes.json" "$d/var/regions-nodes.json" && mv -f "$w/out/map.tsv" "$d/var/regions-map.tsv" || rc=1
   fi
   rm -rf "$w"; return "$rc"
 }
@@ -266,4 +281,123 @@ rg_site_of(){  # <c> <login>
 rg_members(){  # <c> <i>
   local m; m="$(rg_map "$1")" || return 1
   gawk -F'\t' -v i="$2" '{ n = split($3, a, ","); for (k = 1; k <= n; k++) if (a[k] == i) { print $1; break } }' "$m"
+}
+
+# rg_tree_errors <tree.json> — os nós cuja regex saiu do subconjunto seguro: [{i, path, name, regex, err}].
+# Vazio = ok (a FORMA é o cc_regions_ok). `path` = os nomes da raiz até o nó ("Brasil › DF").
+rg_tree_errors(){
+  local f="$1" w; w="$(mktemp)" || return 1
+  rg_flatten "$f" > "$w"
+  jq -c --slurpfile n "$w" "$(rg_norm_jq)"'
+    (if type == "array" then [rg_flat(-1; 0; false) | .rx] else [] end) as $rx | $n[0] as $n
+    | [ $n[] | select(.err != null) | . as $x
+        | {i, name, regex: $rx[.i], err,
+           path: ([ $x | recurse(if .parent >= 0 then $n[.parent] else empty end) | .name ] | reverse | join(" › "))} ]' "$f" 2>/dev/null     || printf '[]
+'
+  rm -f "$w"
+}
+
+# rg_sig <c> — assinatura do regions.json (a trava do salvar: expect_sig ≠ = alguém mudou antes)
+rg_sig(){
+  local f="$CONTESTSDIR/$1/regions.json"
+  if [[ -f "$f" ]]; then sha1sum < "$f" | cut -c1-16; else printf 'none'; fi
+}
+
+# rg_summary <nodes.json> <map.tsv> — o resumo da prévia: contagem por flag, membros por nó, órfãs,
+# quem parou no pai e quem ficou sem sede (≤ 50 de cada)
+rg_summary(){
+  jq -c --rawfile m "$2" '
+    ($m | split("\n") | map(select(length > 0) | split("\t"))) as $r
+    | (reduce $r[] as $x ({}; reduce ($x[2] | split(",")[] | select(length > 0)) as $i (.; .[$i] += 1))) as $cnt
+    | {logins: ($r | length),
+       counts: {explicit: ([$r[] | select(.[3] == "x")] | length), orphan: ([$r[] | select(.[3] == "o")] | length),
+                regex: ([$r[] | select(.[3] == "r")] | length), stopped: ([$r[] | select(.[3] == "p")] | length),
+                none: ([$r[] | select(.[3] == "-")] | length)},
+       nodes: [ .[] | {i, name, parent, depth, view, orphan, err, members: ($cnt[.i | tostring] // 0)} ],
+       orphans: [ .[] | select(.orphan) | .name ],
+       stopped: ([ $r[] | select(.[3] == "p") | .[0] ] | .[0:50]),
+       none: ([ $r[] | select(.[3] == "-") | .[0] ] | .[0:50])}' "$1"
+}
+
+# rg_resolve <c> <in.tsv> <out> — quem RECEBE cada atribuição. Saída separada por \x1f (NÃO tab: o tab é
+# espaço p/ o IFS do `read`, e campo vazio — a sede "" que TIRA — sumiria e escorregaria os outros):
+#   login ␟ alvo ␟ sede ␟ tipo ␟ erro
+#   tipo team = time inscrito (membro de time → o time); individual = inscrito individual (os dois vão no
+#   ROSTER: o overlay de inscrição é reescrito a cada materialize); account = tem account.json; overlay =
+#   compartilhado que só tem DIR (ganha overlay); erro = login_invalid | role_login | login_not_in_contest.
+#   A sede é saneada como o team_fields_json (sem tab/quebra/":", ≤ 120).
+rg_resolve(){
+  local c="$1" in="$2" out="$3" d="$CONTESTSDIR/$1" w; w="$(mktemp -d)" || return 1
+  RG_ROLE_RE="$RG_ROLE_RE" gawk -F'\t' 'BEGIN { OFS = "\t"; role = ENVIRON["RG_ROLE_RE"] }   # ENVIRON: -v/var= processaria o \.
+    { l = $1; r = $2; gsub(/[\t\r\n:]/, " ", r); gsub(/^ +| +$/, "", r); r = substr(r, 1, 120)
+      e = (l !~ /^[A-Za-z0-9._@#+-]+$/ || index(l, "..")) ? "login_invalid" : ((l ~ role) ? "role_login" : "")
+      print l, r, e }' "$in" > "$w/in"
+  if [[ -s "$d/registrations.json" ]]; then
+    declare -F reg_get >/dev/null || source "$_LIBDIR/registration.sh"
+    reg_get "$c" | jq -r '(.teams | keys[] | [., ., "team"]), (.entries | to_entries[]
+        | if .value.kind == "team" and ((.value.team // "") != "") then [.key, .value.team, "team"]
+          elif .value.kind == "individual" then [.key, .key, "individual"] else empty end) | join("\t")' > "$w/roster"
+  else : > "$w/roster"; fi
+  gawk -F'\t' -v D="$d/users" 'BEGIN { OFS = "\037" }
+    FILENAME == ARGV[1] { tgt[$1] = $2; kd[$1] = $3; next }
+    { l = $1; r = $2; e = $3
+      if (e != "") { print l, "", r, "", e; next }
+      if (l in tgt) { print l, tgt[l], r, kd[l], ""; next }
+      if ((getline x < (D "/" l "/account.json")) >= 0) { close(D "/" l "/account.json"); print l, l, r, "account", ""; next }
+      if (system("test -d \"" D "/" l "\"") == 0) { print l, l, r, "overlay", ""; next }
+      print l, "", r, "", "login_not_in_contest" }' "$w/roster" "$w/in" > "$out"
+  rm -rf "$w"
+}
+
+# rg_assign_many <c> <in.tsv> <res.tsv> — GRAVA as sedes (login \t sede; sede "" = tira). res.tsv: login \t
+# alvo \t erro (vazio = ok). O roster muda num jq só e só os afetados são re-materializados; conta = merge.
+rg_assign_many(){
+  local c="$1" in="$2" res="$3" d="$CONTESTSDIR/$1" w l t r k e
+  w="$(mktemp -d)" || return 1
+  declare -F account_merge >/dev/null || source "$_LIBDIR/users.sh"
+  rg_resolve "$c" "$in" "$w/rv"
+  : > "$res"
+  if gawk -F'\037' '$4 == "team" || $4 == "individual" { f = 1 } END { exit !f }' "$w/rv"; then
+    declare -F reg_get >/dev/null || source "$_LIBDIR/registration.sh"
+    gawk -F'\037' '($4 == "team" || $4 == "individual") { print $2 "\037" $3 "\037" $4 }' "$w/rv" > "$w/roster-upd"
+    reg_save "$c" "$(reg_get "$c" | jq -c --rawfile u "$w/roster-upd" '
+        reduce ($u | split("\n")[] | select(length > 0) | split("\u001f")) as $x (.;
+          if $x[2] == "team" then .teams[$x[0]].region = $x[1] else .entries[$x[0]].region = $x[1] end)')" \
+      || { gawk -F'\037' '{ print $1 "\t" $2 "\t" (($4 == "team" || $4 == "individual") ? "save_failed" : $5) }' "$w/rv" > "$res"; rm -rf "$w"; return 1; }
+    sort -u "$w/roster-upd" | while IFS=$'\037' read -r t r k; do
+      if [[ "$k" == team ]]; then reg_materialize_team "$c" "$t" >/dev/null 2>&1
+      else
+        reg_materialize_login "$c" "$t" "$(reg_get "$c" | jq -r --arg l "$t" '.entries[$l].cohort // "individual"')" >/dev/null 2>&1
+        # conta LOCAL inscrita: o materialize só acrescenta — limpar tem de apagar no account também
+        [[ -z "$r" && -f "$d/users/$t/account.json" ]] && account_merge "$c" "$t" 'del(.team.region)'
+      fi
+    done
+  fi
+  while IFS=$'\037' read -r l t r k e; do
+    if [[ -n "$e" || "$k" == team || "$k" == individual ]]; then printf '%s\t%s\t%s\n' "$l" "$t" "$e" >> "$res"; continue; fi
+    if [[ "$k" == overlay ]] && ! shared_overlay_ensure "$c" "$t"; then printf '%s\t\tlogin_not_in_contest\n' "$l" >> "$res"; continue; fi
+    if [[ -n "$r" ]]; then account_merge "$c" "$t" '.team = ((.team // {}) + {region: $r}) | .updated_at = $t' --arg r "$r" --argjson t "$EPOCHSECONDS"
+    else account_merge "$c" "$t" 'del(.team.region) | .updated_at = $t' --argjson t "$EPOCHSECONDS"; fi \
+      && printf '%s\t%s\t\n' "$l" "$t" >> "$res" || printf '%s\t%s\tsave_failed\n' "$l" "$t" >> "$res"
+  done < "$w/rv"
+  declare -F _score_dirty >/dev/null && _score_dirty "$c"
+  rm -rf "$w"
+}
+
+# rg_preview <c> <tree.json|""> <assign.tsv|""> <out> — a PRÉVIA sem gravar nada: a árvore proposta (ou a
+# atual) + as atribuições propostas sobre a sede gravada de hoje → <out>/{nodes.json,map.tsv}
+rg_preview(){
+  local c="$1" tree="$2" as="$3" o="$4" w; w="$(mktemp -d)" || return 1
+  [[ -n "$tree" ]] || tree="$CONTESTSDIR/$c/regions.json"
+  rg_inputs "$c" "$w"
+  if [[ -n "$as" && -s "$as" ]]; then
+    rg_resolve "$c" "$as" "$w/rv"
+    gawk -F'\037' '$5 == "" { print $2 "\t" $3 }' "$w/rv" | jq -Rr "$(rg_norm_jq)"' split("\t") | [.[0], (.[1] // "" | rg_key),
+        (.[1] // "" | gsub("[\t\n\r]"; " ") | gsub("^ +| +$"; ""))] | join("\t")' > "$w/ovr"
+    gawk -F'\t' 'FILENAME == ARGV[1] { o[$1] = $0; next } !($1 in o) { print } END { for (l in o) { split(o[l], a, "\t"); if (a[2] != "") print o[l] } }' \
+      "$w/ovr" "$w/explicit" > "$w/explicit2"
+    mv -f "$w/explicit2" "$w/explicit"
+  fi
+  rg_compute "$tree" "$w/dirs" "$w/explicit" "$o"; local rc=$?
+  rm -rf "$w"; return "$rc"
 }

@@ -1236,6 +1236,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   Regex no subconjunto seguro (`rg_norm`); casamento no **gawk** (chame `gawk`, não `awk` — a imagem pode
   ter mawk; laço nó × logins p/ compilar cada regex uma vez; `@tsv` dobra a barra invertida da regex —
   use `join("\t")`). Cache `var/regions-{nodes.json,map.tsv}`. Detalhes: `docs/SCOREBOARD.md` (Sedes).
+  API: `/contest/admin/regions` (árvore + sede por login; inscrito grava no ROSTER — `region` em
+  `teams[t]`/`entries[l]`, levada ao `.team.region` pelo materialize; `dry_run`; `expect_sig`) e a CLI
+  `moj-contest regions`. `cc_regions_ok` (config.sh/criação) recusa regex fora do subconjunto (`error.nodes`).
   ⚠ Em 28/09 NENHUM consumidor usa a lib ainda. `server/bin/regions-audit.sh <c>` (só lê) diz o que muda
   em cada consumidor antigo — rodar na produção antes de migrar (em 28/09: zero diferenças nos 3 reais).
 - **ACESSO É RESPONSABILIDADE DA API, NUNCA SÓ DA INTERFACE.** Todo endpoint que devolve

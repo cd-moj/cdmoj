@@ -6366,6 +6366,119 @@
         }
       }
     },
+    "/contest/admin/regions": {
+      "get": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Sedes pela regra única: árvore, sig, resumo; ?login= a sede de um login; ?map=1 login → sede de todos",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          },
+          {
+            "name": "login",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "map",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{tree, sig, mode, summary} | {login, flag, site, nodes} | {map:[{login,site,flag}]}"
+          },
+          "404": {
+            "description": "login_not_in_contest"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "contest-admin"
+        ],
+        "summary": "Grava árvore e/ou sedes por login (inscrito no roster); dry_run = prévia; expect_sig = trava",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/contest"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tree": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "description": "lista de {name, regex?, subregions?, view?} — regex no subconjunto seguro"
+                  },
+                  "assign": {
+                    "type": "array",
+                    "maxItems": 5000,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "login": {
+                          "type": "string"
+                        },
+                        "region": {
+                          "type": "string",
+                          "description": "\"\" tira"
+                        }
+                      },
+                      "required": [
+                        "login"
+                      ]
+                    }
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "simple",
+                      "rules",
+                      "tree"
+                    ]
+                  },
+                  "dry_run": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "expect_sig": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{saved|dry_run, sig, summary, assigned:[{login,target}], failed:[{login,code}]}"
+          },
+          "409": {
+            "description": "regions_changed (error.sig) | busy"
+          },
+          "422": {
+            "description": "regions_invalid (error.nodes) | assign_invalid | assign_too_many | mode_invalid"
+          }
+        }
+      }
+    },
     "/contest/admin/users-convert": {
       "post": {
         "tags": [

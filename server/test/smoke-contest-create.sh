@@ -91,6 +91,8 @@ call /treino/contest-create/create POST "{\"id\":\"treino\",\"name\":\"X\",\"mod
 ck "id reservado 409"       '[[ "$OUT" == *"Status: 409"* ]]'
 call /treino/contest-create/create POST "$SPEC" reg
 ck "id duplicado 409"       '[[ "$OUT" == *"Status: 409"* ]]'
+call /treino/contest-create/create POST "{\"id\":\"rgbad\",\"name\":\"Sedes ruins\",\"mode\":\"icpc\",\"end\":$FUT,\"modules\":{\"sedes\":{\"regions\":[{\"name\":\"BR\",\"regex\":\"^br\\\\b\"}]}},\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
+ck "regex de sede fora do subconjunto seguro na criação -> 422 regions_invalid, nada criado" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == regions_invalid && "$(jq -r ".error.nodes[0].err" <<<"$BODY")" == word_boundary && ! -d "$FIX/rgbad" ]]'
 call /treino/contest-create/create POST "{\"name\":\"\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "sem nome 422"           '[[ "$OUT" == *"Status: 422"* ]]'
 call /treino/contest-create/create POST "{\"id\":\"loc-es\",\"name\":\"Loc ES\",\"mode\":\"icpc\",\"locale\":\"es\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg

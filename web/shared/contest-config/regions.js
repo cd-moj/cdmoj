@@ -12,6 +12,7 @@
 //     passo de revisão do assistente o chama fora de try).
 import { el } from '/shared/ui.js';
 import { T } from '/shared/i18n.js';
+import { rgNorm } from '/shared/regions-match.js';
 
 const SIMPLE_KEYS = new Set(['name', 'regex']);
 
@@ -24,13 +25,36 @@ export function regionsFitSimple(tree) {
 }
 
 // validação estrutural (a regex é conferida no servidor): array de nós {name, regex?, subregions?, view?}
+// o porquê de uma regex recusada (os códigos são os do servidor: rg_norm em server/api/v1/lib/regions.sh — a
+// regex tem de casar IGUAL no navegador, no jq e no gawk do placar/estatística)
+export function regexErrText(code) {
+  const M = {
+    word_boundary: T('\\b (fronteira de palavra) não é aceito — no placar ele vira outra coisa; use ^ e $', '\\b (word boundary) is not accepted — the scoreboard reads it as something else; use ^ and $', '\\b (límite de palabra) no se acepta — el marcador lo interpreta como otra cosa; usa ^ y $'),
+    escape: T('escape não aceito (\\p, \\k, \\1, \\x…); use só \\d \\w \\s ou escape de pontuação', 'escape not accepted (\\p, \\k, \\1, \\x…); use only \\d \\w \\s or punctuation escapes', 'escape no aceptado (\\p, \\k, \\1, \\x…); usa solo \\d \\w \\s o escapes de puntuación'),
+    group_ext: T('(?=, (?!, (?<, (?i)… não são aceitos; só ( ) e (?: )', '(?=, (?!, (?<, (?i)… are not accepted; only ( ) and (?: )', '(?=, (?!, (?<, (?i)… no se aceptan; solo ( ) y (?: )'),
+    posix_class: T('[[:classe:]] não é aceito; use [a-z], [0-9]…', '[[:class:]] is not accepted; use [a-z], [0-9]…', '[[:clase:]] no se acepta; usa [a-z], [0-9]…'),
+    lazy: T('quantificador preguiçoso (*? +? ??) não é aceito', 'lazy quantifier (*? +? ??) is not accepted', 'cuantificador perezoso (*? +? ??) no se acepta'),
+    double_quantifier: T('dois quantificadores seguidos (a**, a+*…)', 'two quantifiers in a row (a**, a+*…)', 'dos cuantificadores seguidos (a**, a+*…)'),
+    brace: T('{ } só como repetição {m} ou {m,n}, com números até 100', '{ } only as repetition {m} or {m,n}, with numbers up to 100', '{ } solo como repetición {m} o {m,n}, con números hasta 100'),
+    ambiguous_range: T('hífen ambíguo dentro de [ ] (depois de um intervalo ou de \\d/\\w); ponha o - no fim: [a-z0-9-]', 'ambiguous hyphen inside [ ] (after a range or \\d/\\w); put the - at the end: [a-z0-9-]', 'guion ambiguo dentro de [ ] (después de un rango o de \\d/\\w); pon el - al final: [a-z0-9-]'),
+    class_intersection: T('&& dentro de [ ] não é aceito', '&& inside [ ] is not accepted', '&& dentro de [ ] no se acepta'),
+    negated_class_in_bracket: T('\\D \\W \\S dentro de [ ] não são aceitos', '\\D \\W \\S inside [ ] are not accepted', '\\D \\W \\S dentro de [ ] no se aceptan'),
+    non_ascii: T('só caracteres ASCII (login não tem acento)', 'ASCII characters only (logins have no accents)', 'solo caracteres ASCII (el usuario no lleva acentos)'),
+    control_char: T('caractere de controle (tab, quebra de linha)', 'control character (tab, line break)', 'carácter de control (tab, salto de línea)'),
+    trailing_backslash: T('termina com \\ sozinha', 'ends with a lone \\', 'termina con una \\ sola'),
+    unclosed_bracket: T('[ sem ]', '[ without ]', '[ sin ]'),
+    invalid: T('regex inválida', 'invalid regex', 'regex inválida'),
+  };
+  return M[code] || (T('regex recusada', 'regex rejected', 'regex rechazada') + ' (' + code + ')');
+}
+
 export function regionsError(tree) {
   if (!Array.isArray(tree)) return T('O JSON das sedes tem de ser uma lista […].', 'The sites JSON must be a list […].', 'El JSON de las sedes debe ser una lista […].');
   const bad = (n, path) => {
     if (!n || typeof n !== 'object' || Array.isArray(n)) return path + ': ' + T('cada sede é um objeto {"name": …}', 'each site is an object {"name": …}', 'cada sede es un objeto {"name": …}');
     if (typeof n.name !== 'string' || !n.name.trim()) return path + ': ' + T('sede sem "name"', 'site without "name"', 'sede sin "name"');
     if (n.regex !== undefined && typeof n.regex !== 'string') return n.name + ': ' + T('"regex" tem de ser texto', '"regex" must be text', '"regex" debe ser texto');
-    if (n.regex) { try { new RegExp(n.regex, 'i'); } catch { return n.name + ': ' + T('regex inválida', 'invalid regex', 'regex inválida'); } }
+    if (n.regex) { const r = rgNorm(n.regex); if (r.err) return n.name + ': ' + regexErrText(r.err); }
     if (n.subregions !== undefined) {
       if (!Array.isArray(n.subregions)) return n.name + ': ' + T('"subregions" tem de ser uma lista', '"subregions" must be a list', '"subregions" debe ser una lista');
       for (let i = 0; i < n.subregions.length; i++) { const e = bad(n.subregions[i], n.name + ' › #' + (i + 1)); if (e) return e; }
