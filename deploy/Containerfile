@@ -96,9 +96,6 @@ COPY mojtools     /opt/moj/mojtools
 COPY --from=jplag /opt/moj/jplag /opt/moj/jplag
 COPY cdmoj/deploy/moj-entrypoint /opt/moj/bin/moj-entrypoint
 COPY --from=moldeshim /moj-molde-shim /opt/moj/bin/moj-molde-shim
-# Símbolo de matemática que a CMU não tem (⊕ ⋅ ≤ ∑ …) cai na Latin Modern Math, não no DejaVu Serif
-# (ver o comentário do próprio arquivo; asserção lá embaixo, junto das do caderno)
-COPY cdmoj/deploy/fontconfig/60-moj-cmu-math.conf /etc/fonts/conf.d/60-moj-cmu-math.conf
 RUN chmod +x /opt/moj/bin/moj-entrypoint \
       /opt/moj/cdmoj/server/api/v1/router.sh 2>/dev/null || true
 
@@ -165,15 +162,16 @@ RUN set -eux; \
     # BRANCO, por isso exige-se Type 3, não só o nome da fonte). A asserção roda a cadeia de
     # verdade — pandoc + reference-doc + soffice — e olha o PDF: fonte presente não prova que o soffice a usa.
     fc-list 'CMU Typewriter Text' : family | grep -q . ; fc-list 'CMU Sans Serif' : family | grep -q . ; \
-    # fallback dos símbolos de matemática = Latin Modern Math (deploy/fontconfig/60-moj-cmu-math.conf)
-    fc-match 'CMU Serif:charset=2295' family | grep -qx 'Latin Modern Math' \
-      || { echo 'FALTA: fallback CMU -> Latin Modern Math (fontconfig/fonts-lmodern)' >&2; exit 1; }; \
+    # símbolo que a CMU não tem (⊕ ⋅ ≤ …) vai em Latin Modern Math (lib/odt-caderno.py, span MojSym)
+    fc-list 'Latin Modern Math' : family | grep -q . \
+      || { echo 'FALTA: Latin Modern Math (fonts-lmodern) p/ os simbolos do caderno' >&2; exit 1; }; \
     if command -v soffice >/dev/null 2>&1; then \
       fc-list ':charset=1f332' family | grep -qi emoji || { echo 'FALTA: fonte de emoji (fonts-noto-color-emoji)' >&2; exit 1; }; \
       { [ -s /usr/share/hyphen/hyph_pt_BR.dic ] && [ -s /usr/share/hyphen/hyph_en_US.dic ] && ls /usr/share/hyphen | grep -q '^hyph_es'; } \
         || { echo 'FALTA: hifenizacao pt-BR/en-US/es (hyphen-*)' >&2; exit 1; }; \
       printf '<p>Otorrinolaringologista anticonstitucionalissimamente, arvore \360\237\214\262 fim, a \342\212\225 b.</p>' > /tmp/_e.html; \
       pandoc -f html -t odt --reference-doc=/opt/moj/cdmoj/server/etc/caderno-reference.odt -M lang=pt-BR /tmp/_e.html -o /tmp/_e.odt; \
+      python3 /opt/moj/cdmoj/server/api/v1/lib/odt-caderno.py /tmp/_e.odt >/dev/null; \
       HOME=/tmp soffice --headless -env:UserInstallation=file:///tmp/_lo --convert-to pdf --outdir /tmp /tmp/_e.odt >/dev/null 2>&1; \
       { pdffonts /tmp/_e.pdf | grep -q CMUSerif && pdffonts /tmp/_e.pdf | grep -i emoji | grep -q 'Type 3' \
         && pdffonts /tmp/_e.pdf | grep -q LatinModernMath && ! pdffonts /tmp/_e.pdf | grep -q DejaVu; } \

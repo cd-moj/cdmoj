@@ -22,7 +22,15 @@
 #   5. PRIMEIRA PÁGINA (`--first-page N`): no caminho por-problema do caderno (há enunciado em PDF
 #      próprio no meio) cada problema é um ODT à parte; o 1º título ganha `style:page-number=N` e a
 #      numeração segue a do caderno em vez de voltar a 1 em cada problema.
-import os, re, struct, sys, tempfile, zipfile
+#   6. SÍMBOLO QUE A CMU NÃO TEM (⊕ ⋅ ≤ ∑ ∈ … digitados no TEXTO, fora de `$…$`): ganha um span com a
+#      fonte Latin Modern Math (fonts-lmodern, a matemática do LaTeX). Sem isso o LibreOffice escolhe o
+#      substituto sozinho — DejaVu Serif no 25.2 da imagem, DejaVu Sans no 26.2 do dev — e o 25.2 NEM
+#      CONSULTA o fontconfig para isso (FC_DEBUG, 28/09/2026: regra de fontconfig não adianta). A cobertura
+#      das duas fontes vem do fontconfig (`fc-match -f %{charset}`); sem ele ou sem a fonte, nada muda.
+#      Sobrescrito/subscrito Unicode (`10⁹`) que nenhuma das duas tem vira o dígito da CMU em posição
+#      de índice (o `10^9` do LaTeX).
+#      Fórmula (objeto do LibreOffice Math) não passa por aqui: lá os símbolos são da OpenSymbol.
+import os, re, struct, subprocess, sys, tempfile, zipfile
 from xml.sax.saxutils import escape
 
 LOGO_H_CM = 1.6          # altura da faixa do logo
@@ -106,6 +114,132 @@ def img_lines(s):
     return s3 if k else s
 
 
+SYM_FONT = 'Latin Modern Math'
+SYM_BODY = 'CMU Serif'
+# só blocos de SÍMBOLO (setas, operadores, técnicos, geométricos, delimitadores, alfanuméricos
+# matemáticos) — letra, pontuação e emoji ficam com quem já os desenha
+SYM_BLOCKS = ((0x2030, 0x205F), (0x2100, 0x2BFF), (0x1D400, 0x1D7FF))
+# sobrescrito/subscrito Unicode (`10⁹`, `x₁`) que a CMU não tem — nem a Latin Modern Math: vira o
+# caractere comum da própria CMU em posição de índice, como o LaTeX desenha `10^9` (sem isso, DejaVu)
+SUPS = dict(zip('⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁱⁿ', '0123456789+−=()in'))
+SUBS = dict(zip('₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₒₓₕₖₗₘₙₚₛₜ', '0123456789+−=()aeoxhklmnpst'))
+TEXT_PARENTS = {'text:p', 'text:h', 'text:span', 'text:a'}
+
+
+def fc_charset(family):
+    """conjunto de code points da fonte (fontconfig), ou None se a família não existe/sem fc-match."""
+    try:
+        r = subprocess.run(['fc-match', '-f', '%{family}\n%{charset}', family + ':charset=20'],
+                           capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    fam, _, cs = r.stdout.partition('\n')
+    if r.returncode != 0 or family not in fam.split(','):
+        return None
+    out = set()
+    for tok in cs.split():
+        a, _, b = tok.partition('-')
+        try:
+            lo = int(a, 16); hi = int(b, 16) if b else lo
+        except ValueError:
+            continue
+        out.update(range(lo, hi + 1))
+    return out
+
+
+_SYM = None
+
+
+def sym_set():
+    """{code point: ('MojSym', o mesmo char) | ('MojSup'|'MojSub', o char comum)} — só o que a CMU não tem."""
+    global _SYM
+    if _SYM is None:
+        body, sym = fc_charset(SYM_BODY), fc_charset(SYM_FONT)
+        _SYM = {}
+        if body and sym:
+            for c in sym - body:
+                if any(lo <= c <= hi for lo, hi in SYM_BLOCKS):
+                    _SYM[c] = ('MojSym', chr(c))
+            for tab, st in ((SUPS, 'MojSup'), (SUBS, 'MojSub')):
+                for k, v in tab.items():
+                    if ord(k) not in body and all(ord(x) in body for x in v):
+                        _SYM[ord(k)] = (st, v)
+    return _SYM
+
+
+SYM_STYLES = {
+    'MojSym': '<style:text-properties style:font-name="MojMath" style:font-name-asian="MojMath" style:font-name-complex="MojMath"/>',
+    'MojSup': '<style:text-properties style:text-position="super 58%"/>',
+    'MojSub': '<style:text-properties style:text-position="sub 58%"/>',
+}
+
+
+def _ins_auto(s, st):
+    if '<office:automatic-styles/>' in s:
+        return s.replace('<office:automatic-styles/>', '<office:automatic-styles>' + st + '</office:automatic-styles>', 1)
+    s2, k = re.subn(r'</office:automatic-styles>', lambda m: st + m.group(0), s, count=1)
+    if k:
+        return s2
+    return re.sub(r'<office:body>', lambda m: '<office:automatic-styles>' + st + '</office:automatic-styles>' + m.group(0), s, count=1)
+
+
+def sym_spans(s, syms=None):
+    """content.xml: texto de parágrafo/título com caractere de `syms` vira span MojSym (Latin Modern
+    Math) ou MojSup/MojSub (índice com o char comum). Só texto cujo pai é text:p/h/span/a (nunca
+    atributo, título de figura, etc.); idempotente."""
+    syms = sym_set() if syms is None else syms
+    b = s.find('<office:body>')
+    if not syms or b < 0 or not any(ord(ch) in syms for ch in s[b:] if ord(ch) > 0x206F):
+        return s
+    out, stack, used = [s[:b]], [], set()
+    for m in re.finditer(r'<[^>]*>|[^<]+', s[b:]):
+        t = m.group(0)
+        if t[0] == '<':
+            out.append(t)
+            if t.startswith('</'):
+                if stack:
+                    stack.pop()
+            elif t[1] in '?!' or t.endswith('/>'):
+                pass
+            else:
+                name = t[1:].split(None, 1)[0].rstrip('>')
+                stack.append((name, re.search(r'text:style-name="Moj(Sym|Sup|Sub)"', t) is not None))
+            continue
+        if not stack or stack[-1][0] not in TEXT_PARENTS or stack[-1][1]:
+            out.append(t); continue
+        if not any(ord(ch) in syms for ch in t):
+            out.append(t); continue
+        run_st, run = None, []
+        def flush():
+            if run_st:
+                out.append('<text:span text:style-name="%s">%s</text:span>' % (run_st, ''.join(run)))
+            else:
+                out.append(''.join(run))
+        for ch in t:
+            st, rep = syms.get(ord(ch), (None, ch))
+            if st != run_st:
+                flush(); run_st, run = st, []
+            run.append(rep)
+        flush()
+        used.update(st for st, _ in (syms.get(ord(ch), (None, None)) for ch in t) if st)
+    s2 = ''.join(out)
+    if s2 == s:
+        return s
+    if 'MojSym' in used and 'style:name="MojMath"' not in s2:
+        face = ('<style:font-face style:name="MojMath" svg:font-family="&apos;%s&apos;" '
+                'style:font-family-generic="roman" style:font-pitch="variable"/>' % SYM_FONT)
+        if '<office:font-face-decls/>' in s2:
+            s2 = s2.replace('<office:font-face-decls/>', '<office:font-face-decls>' + face + '</office:font-face-decls>', 1)
+        elif '</office:font-face-decls>' in s2:
+            s2 = s2.replace('</office:font-face-decls>', face + '</office:font-face-decls>', 1)
+        else:
+            s2 = re.sub(r'(<office:(automatic-styles|body)[ />])', lambda m: '<office:font-face-decls>' + face + '</office:font-face-decls>' + m.group(1), s2, count=1)
+    for st in sorted(used):
+        if 'style:name="%s"' % st not in s2:
+            s2 = _ins_auto(s2, '<style:style style:name="%s" style:family="text">%s</style:style>' % (st, SYM_STYLES[st]))
+    return s2
+
+
 def fix_content(s):
     """content.xml: estilos automáticos da tabela de exemplos (idempotente)."""
     if 'table:style-name="MojSampleTbl"' not in s or 'style:name="MojSampleTbl"' in s:
@@ -162,6 +296,7 @@ def fix_odt(path, event=None, logo=None, first=None):
         c = fix_content(c0)
         c = img_lines(c if c is not None else c0)
         c = first_page(c, first)
+        c = sym_spans(c)
         if c != c0:
             new['content.xml'] = c.encode('utf-8')
         lg = None

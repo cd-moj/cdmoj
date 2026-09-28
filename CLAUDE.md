@@ -867,7 +867,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
     - 1ª página certa no caminho por-problema;
     - entrelinha 100% no parágrafo com imagem (a 89% ela subia sobre o texto).
   - Emoji pela `fonts-noto-color-emoji` (CBDT vira Type 3 no PDF; o COLRv1 do Fedora sai em branco) — provado no LibreOffice 25.2 da imagem (build de teste de 28/09, asserção exige Type 3).
-  - Símbolo de matemática que a CMU não tem (⊕ ⋅ ≤ ∑ ∣ ∈ ′…) cai na **Latin Modern Math** (já vem no `fonts-lmodern`) pela regra `deploy/fontconfig/60-moj-cmu-math.conf`, instalada em `/etc/fonts/conf.d/` pela imagem. Sem ela, o fontconfig dava o serif padrão: DejaVu Serif no LO 25.2 da imagem, DejaVu Sans no 26.2 do dev. Asserção de build + "nenhum DejaVu" no `render-docs.sh` quando a regra está ativa.
+  - Símbolo de matemática que a CMU não tem, digitado no TEXTO (⊕ ⋅ ≤ ≠ ∑ ∈ ′…, fora de `$…$`), é marcado pelo `odt-caderno.py` com um span na **Latin Modern Math** (já vem no `fonts-lmodern`); sobrescrito/subscrito Unicode (`10⁹`, `x₁`), que nenhuma das duas tem, vira o dígito da CMU em posição de índice. Sem isso o LibreOffice escolhia o substituto sozinho: DejaVu Serif no 25.2 da imagem, DejaVu Sans no 26.2 do dev. ⚠ **Regra de fontconfig NÃO resolve**: o 25.2 nem consulta o fontconfig para esse glifo (provado com `FC_DEBUG` no build de teste de 28/09). A cobertura das fontes vem do `fc-match -f %{charset}`. Dentro de FÓRMULA os símbolos são da OpenSymbol (limite do LibreOffice Math). Testes: `smoke-odt-samples.sh` (unidade) e `render-docs.sh` ("nenhum DejaVu no caderno").
   - A capa não é numerada: "páginas de 1 a N" conta o miolo.
 
   Regenerar o ODT: receita no cabeçalho do `_doc_html2pdf_odt` — **mimetype primeiro, `zip -0`**, senão o LO

@@ -5,7 +5,8 @@
 #                          espaço/TAB do exemplo preservados, o título "Exemplos" some;
 #   lib/odt-caderno.py   — estilos automáticos da tabela (célula só pega estilo AUTOMÁTICO), evento no
 #                          rodapé, logo no cabeçalho, 1ª página do problema e entrelinha 100% no
-#                          parágrafo com imagem (o corpo tem 89% e a imagem subia sobre o texto).
+#                          parágrafo com imagem (o corpo tem 89% e a imagem subia sobre o texto) e os
+#                          símbolos que a CMU não tem (Latin Modern Math; 10⁹ → 10 + 9 sobrescrito).
 # O papel (PDF) é conferido no render-docs.sh, que roda com o soffice (dev e DENTRO da imagem).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
@@ -59,5 +60,23 @@ ck "parágrafo com imagem ganha entrelinha 100%"      'grep -q "<text:p text:sty
 ck "idempotente (2ª passada não duplica)"            'python3 "$L/odt-caderno.py" "$T/pt.odt" --event "Maratona <Teste> & Cia" --logo "$T/logo.png" --first-page 7 >/dev/null; [[ "$(unzip -p "$T/pt.odt" styles.xml | grep -o "MojLogo\"" | wc -l)" == 1 && "$(unzip -p "$T/pt.odt" content.xml | grep -o "style:name=\"MojSampleTbl\"" | wc -l)" == 1 ]] && ! unzip -p "$T/pt.odt" content.xml | grep -q "MojImg_MojImg_"'
 ck "mimetype 1º e sem compressão"                   'python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); i=z.infolist()[0]; sys.exit(not (i.filename==\"mimetype\" and i.compress_type==0))" "$T/pt.odt"'
 ck "sem --event/--logo: nada de evento nem logo"      'odt pt "$T/b.odt"; python3 "$L/odt-caderno.py" "$T/b.odt" >/dev/null; ! unzip -p "$T/b.odt" styles.xml | grep -q "MojFooterEvent\|MojLogo"'
+
+echo "== símbolos que a CMU não tem (odt-caderno.py sym_spans; conjunto injetado, sem fontconfig) =="
+SY="$(python3 - "$L/odt-caderno.py" <<'PY'
+import importlib.util, sys
+sp = importlib.util.spec_from_file_location('oc', sys.argv[1]); m = importlib.util.module_from_spec(sp); sp.loader.exec_module(m)
+syms = {0x2264: ('MojSym', '≤'), 0x2079: ('MojSup', '9'), 0x2081: ('MojSub', '1')}
+c = ('<office:document-content><office:font-face-decls/><office:automatic-styles/><office:body>'
+     '<text:p text:style-name="P1">1 ≤ a ≤ 10⁹, x₁ &amp; → <text:span text:style-name="T">b≤c</text:span></text:p>'
+     '<draw:frame><svg:title>a ≤ b</svg:title></draw:frame></office:body></office:document-content>')
+r = m.sym_spans(c, syms)
+print(r); print('IDEMP=%s' % (m.sym_spans(r, syms) == r)); print('VAZIO=%s' % (m.sym_spans(c, {}) == c))
+PY
+)"
+ck "≤ vira span MojSym (Latin Modern Math), dentro de span também"   'grep -q "1 <text:span text:style-name=\"MojSym\">≤</text:span> a" <<<"$SY" && grep -q "b<text:span text:style-name=\"MojSym\">≤</text:span>c" <<<"$SY"'
+ck "10⁹ vira 10 + 9 sobrescrito; x₁ vira x + 1 subscrito"          'grep -q "10<text:span text:style-name=\"MojSup\">9</text:span>" <<<"$SY" && grep -q "x<text:span text:style-name=\"MojSub\">1</text:span>" <<<"$SY"'
+ck "fonte e estilos declarados (MojMath, super/sub 58%)"            'grep -q "style:name=\"MojMath\" svg:font-family=\"&apos;Latin Modern Math&apos;\"" <<<"$SY" && grep -q "text-position=\"super 58%\"" <<<"$SY"'
+ck "título de figura (svg:title) e entidade intactos"               'grep -q "<svg:title>a ≤ b</svg:title>" <<<"$SY" && grep -q "&amp; →" <<<"$SY"'
+ck "idempotente; sem fontconfig (conjunto vazio) não mexe"          'grep -q "IDEMP=True" <<<"$SY" && grep -q "VAZIO=True" <<<"$SY"'
 
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

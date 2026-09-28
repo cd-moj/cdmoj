@@ -200,11 +200,13 @@ doc_build rd contest pt >/dev/null 2>&1
 ck "rodapé: \"evento – Problema A – título\" e a página à direita" 'grep -q "Prova de Renderização – Problema A – Soma Simples *1 *$" <<<"$L2"'
 ck "título do problema em sans (CMU Sans)" 'pdffonts "$CP" 2>/dev/null | grep -q "CMUSansSerif"'
 ck "corpo em CMU Serif, sem DejaVu Serif" 'pdffonts "$CP" 2>/dev/null | grep -q "CMUSerif-Roman" && ! pdffonts "$CP" 2>/dev/null | grep -q "DejaVuSerif"'
-# símbolo que a CMU não tem (⊕ ≤ ⋅ …) cai na Latin Modern Math pela regra deploy/fontconfig/60-moj-cmu-math.conf
-# (na imagem; o LibreOffice 25.2 pegava o DejaVu Serif, o 26.2 do dev o DejaVu Sans). Com a regra ativa, NADA de DejaVu.
-if [[ "$(fc-match -f '%{family}' 'CMU Serif:charset=2295' 2>/dev/null)" == "Latin Modern Math" ]]; then
-  ck "símbolos de matemática em Latin Modern Math (nenhum DejaVu no caderno)" '! pdffonts "$CP" 2>/dev/null | grep -q "DejaVu"'
-else echo "  (sem a regra de fallback CMU→Latin Modern Math no fontconfig — pulei o \"nenhum DejaVu\")"; fi
+# símbolo que a CMU não tem, digitado no TEXTO (o `1 ≤ a, b ≤ 10⁹` do fixture): o odt-caderno.py marca ≤ com a
+# Latin Modern Math e troca o ⁹ pelo 9 da CMU em sobrescrito. Sem isso o LibreOffice escolhia sozinho — DejaVu
+# Serif no 25.2 da imagem (que nem consulta o fontconfig p/ isso), DejaVu Sans no 26.2 do dev.
+if fc-list 'Latin Modern Math' family 2>/dev/null | grep -q .; then
+  ck "símbolo do texto em Latin Modern Math, nenhum DejaVu no caderno" 'pdffonts "$CP" 2>/dev/null | grep -q "LatinModernMath" && ! pdffonts "$CP" 2>/dev/null | grep -q "DejaVu"'
+  ck "10⁹ do texto sai como 10 + 9 sobrescrito (ODT)" 'unzip -p "$(doc_file rd contest pt odt)" content.xml 2>/dev/null | grep -q "10<text:span text:style-name=\"MojSup\">9</text:span>"'
+else echo "  (sem a Latin Modern Math — pulei o \"nenhum DejaVu\")"; fi
 SX="$(unzip -p "$(doc_file rd contest pt odt)" styles.xml 2>/dev/null | tr '\n' ' ')"
 ck "ODT: hifenização ligada e idioma pt-BR (antes en-US p/ tudo)" 'grep -q "fo:hyphenate=\"true\"" <<<"$SX" && grep -q "fo:language=\"pt\"" <<<"$SX" && grep -q "fo:country=\"BR\"" <<<"$SX"'
 ck "ODT es: idioma es" 'unzip -p "$(doc_file rd contest es odt)" styles.xml 2>/dev/null | grep -q "fo:language=\"es\""'
