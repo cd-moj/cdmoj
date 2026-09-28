@@ -1332,7 +1332,8 @@ async function downloadAt(sha) {
 }
 async function restoreAt(sha) {
   const ok = confirm(T('Restaurar a versão ' + sha.slice(0, 7) + '?\nIsso cria um commit NOVO por cima (a história não é reescrita). O flag de público e as coleções atuais são preservados.',
-    'Restore version ' + sha.slice(0, 7) + '?\nThis creates a NEW commit on top (history is not rewritten). Current public flag and collections are preserved.'));
+    'Restore version ' + sha.slice(0, 7) + '?\nThis creates a NEW commit on top (history is not rewritten). Current public flag and collections are preserved.',
+    '¿Restaurar la versión ' + sha.slice(0, 7) + '?\nEsto crea un commit NUEVO encima (la historia no se reescribe). Se conservan la marca de público y las colecciones actuales.'));
   if (!ok) return;
   try {
     const j = await apiPost('/problems/restore', { id: ID, sha, confirm: sha }, { contest: CONTEST, auth: true });
@@ -1545,7 +1546,8 @@ function showConflict(e, retry) {
     el('b', {}, T('Este problema foi alterado depois que você o abriu.', 'This problem was changed after you opened it.')),
     el('div', { class: 'small', style: 'margin:.25rem 0 .5rem' },
       T(`Quem alterou: ${who}` + (when ? ` · ${when}` : '') + '. Se você salvar agora, as mudanças dessa pessoa se perdem.',
-        `Changed by: ${who}` + (when ? ` · ${when}` : '') + '. If you save now, their changes are lost.')),
+        `Changed by: ${who}` + (when ? ` · ${when}` : '') + '. If you save now, their changes are lost.',
+        `Modificado por: ${who}` + (when ? ` · ${when}` : '') + '. Si guardas ahora, se pierden los cambios de esa persona.')),
     el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap' },
       el('button', { class: 'btn', onclick: async () => {
         if (!confirm(T('Recarregar o problema? As SUAS alterações não salvas se perdem.', 'Reload the problem? YOUR unsaved changes are lost.'))) return;

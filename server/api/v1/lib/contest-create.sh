@@ -184,6 +184,8 @@ cc_create(){
   [[ -z "$langs" || "$langs" =~ ^[A-Za-z0-9\ +._-]+$ ]] || fail 422 "Lista de linguagens inválida" "langs_invalid"
   local ua_sub; ua_sub="$(jq -r '.login_ua_substring // ""' <<<"$spec")"; ua_sub="${ua_sub//$'\n'/}"
   (( ${#ua_sub} <= 200 )) || fail 422 "login_ua_substring muito longa" "ua_long"
+  local loc_in; loc_in="$(jq -r '.locale // empty' <<<"$spec")"
+  [[ -z "$loc_in" ]] || contest_locale_ok "$loc_in" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"
   # penalidade do placar ICPC (opcional; só válida em conjunto — a gravação fica no conf_lines)
   local pmin; pmin="$(jq -r '.penalty_minutes // empty' <<<"$spec")"
   if [[ -n "$pmin" ]]; then
@@ -375,7 +377,7 @@ cc_create(){
     printf '%s\n' "$probs"
     [[ -n "$langs" ]] && printf 'LANGUAGES=%q\n' "$langs"
     [[ -n "$shared" ]] && printf 'USERS_FROM=%q\n' "$shared"
-    [[ "$b_locale" =~ ^(pt|en)$ ]] && printf 'LOCALE=%q\n' "$b_locale"
+    [[ -n "$b_locale" ]] && contest_locale_ok "$b_locale" && printf 'LOCALE=%q\n' "$b_locale"
     [[ "$b_lstart" =~ ^[0-9]+$ ]] && printf 'LOGIN_START_TIME=%q\n' "$b_lstart"
     [[ "$b_lenabled" == n ]] && printf 'LOGIN_ENABLED=%q\n' "n"
     [[ "$b_freeze" =~ ^[0-9]+$ ]] && printf 'FREEZE_TIME=%q\n' "$b_freeze"

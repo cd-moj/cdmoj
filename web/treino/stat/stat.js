@@ -81,9 +81,10 @@ function fmtAgoDays(epoch) {
 }
 const MONTHS_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 function fmtMonthYear(epoch) {
   const d = new Date(epoch * 1000);
-  return T(MONTHS_PT[d.getMonth()], MONTHS_EN[d.getMonth()]) + '/' + d.getFullYear();
+  return T(MONTHS_PT[d.getMonth()], MONTHS_EN[d.getMonth()], MONTHS_ES[d.getMonth()]) + '/' + d.getFullYear();
 }
 
 // ---- cálculo das estatísticas ----------------------------------------------
@@ -348,7 +349,7 @@ function renderDashboard(stats) {
       el('p', { class: 'small muted', style: 'margin:.1rem 0 .5rem' },
         T('pela taxa por usuário de cada problema (resolveram ÷ tentaram)', 'by each problem’s per-user rate (solved ÷ attempted)')),
       hBarChart(Object.entries(dcounts).filter(([, v]) => v > 0)
-        .map(([k, v]) => ({ label: T(DIFF_META[k].pt, DIFF_META[k].en), value: v, color: DIFF_META[k].color })))),
+        .map(([k, v]) => ({ label: T(DIFF_META[k].pt, DIFF_META[k].en, DIFF_META[k].es), value: v, color: DIFF_META[k].color })))),
     chartCard(T('📚 Progresso por coleção', '📚 Progress by collection'), collBox)));
 
   // tags | em aberto
@@ -383,9 +384,9 @@ function renderDashboard(stats) {
     if (evald.length) {
       const strip = el('div', { class: 'badge-strip' });
       evald.filter(x => x.r.got).forEach(({ a, r }) => strip.append(el('span', { class: 'abadge', title: a.id },
-        `${a.icon} ${T(a.pt, a.en)}` + (r.sub ? ` ${r.sub}` : ''))));
+        `${a.icon} ${T(a.pt, a.en, a.es || a.en)}` + (r.sub ? ` ${r.sub}` : ''))));
       evald.filter(x => !x.r.got).forEach(({ a, r }) => strip.append(el('span', { class: 'abadge lock', title: a.id },
-        `🔒 ${T(a.pt, a.en)}` + (r.sub ? ` — ${r.sub}` : ''))));
+        `🔒 ${T(a.pt, a.en, a.es || a.en)}` + (r.sub ? ` — ${r.sub}` : ''))));
       dash.append(el('div', { class: 'section' }, el('h2', {}, T('🏅 Conquistas', '🏅 Achievements')), strip));
     }
   }

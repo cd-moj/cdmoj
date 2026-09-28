@@ -31,10 +31,10 @@ export function makeVirtualTab(CONTEST) {
 
   async function act(action, login) {
     const msg = action === 'reset'
-      ? T('Devolver a tentativa de ' + login + '? A linha gravada some do placar virtual e a conta pode largar de novo neste contest. As submissões continuam no histórico do treino.', 'Give ' + login + ' the attempt back? The recorded row leaves the virtual scoreboard and the account may start again in this contest. The submissions stay in the training history.')
+      ? T('Devolver a tentativa de ' + login + '? A linha gravada some do placar virtual e a conta pode largar de novo neste contest. As submissões continuam no histórico do treino.', 'Give ' + login + ' the attempt back? The recorded row leaves the virtual scoreboard and the account may start again in this contest. The submissions stay in the training history.', '¿Devolverle el intento a ' + login + '? La fila registrada sale del marcador virtual y la cuenta puede empezar de nuevo en esta competencia. Los envíos siguen en el historial de entrenamiento.')
       : action === 'remove'
-      ? T('Tirar ' + login + ' do placar virtual? O registro fica guardado e pode ser devolvido.', 'Remove ' + login + ' from the virtual scoreboard? The record is kept and can be restored.')
-      : T('Devolver ' + login + ' ao placar virtual?', 'Restore ' + login + ' to the virtual scoreboard?');
+      ? T('Tirar ' + login + ' do placar virtual? O registro fica guardado e pode ser devolvido.', 'Remove ' + login + ' from the virtual scoreboard? The record is kept and can be restored.', '¿Quitar a ' + login + ' del marcador virtual? El registro se guarda y puede devolverse.')
+      : T('Devolver ' + login + ' ao placar virtual?', 'Restore ' + login + ' to the virtual scoreboard?', '¿Devolver a ' + login + ' al marcador virtual?');
     if (!confirm(msg)) return;
     try { await apiPost('/contest/admin/virtual?contest=' + enc(CONTEST), { action, login }, G); } catch (e) { alert(e.message); }
     load();

@@ -119,13 +119,18 @@ rd_review_pending(){
   printf '%s' "${n//[^0-9]/}"
 }
 
-# rd_promote_blockers <c> -> [{code,detail}] — o checklist que a UI mostra ao vivo
+# rd_promote_blockers <c> -> [{code,detail,detail_en,detail_es}] — o checklist que a UI mostra ao vivo
+#   (detail = PT, nome de campo legado; `code` é o identificador de máquina — nunca traduza)
 rd_promote_blockers(){
   local c="$1" out='[]' n next uf
-  _add(){ out="$(jq -c --argjson o "$out" --arg k "$1" --arg d "$2" '$o + [{code:$k, detail:$d}]' <<<'null')"; }
+  # _add <code> <detail_pt> <detail_en> <detail_es>
+  _add(){ out="$(jq -c --argjson o "$out" --arg k "$1" --arg d "$2" --arg de "$3" --arg ds "$4" \
+    '$o + [{code:$k, detail:$d, detail_en:$de, detail_es:$ds}]' <<<'null')"; }
 
   next="$(rd_next "$c")"
-  [[ -n "$next" ]] || _add no_next_round "nenhuma rodada planejada: crie a próxima antes de promover"
+  [[ -n "$next" ]] || _add no_next_round "nenhuma rodada planejada: crie a próxima antes de promover" \
+    "no round planned: create the next one before promoting" \
+    "ninguna ronda planificada: crea la siguiente antes de promover"
 
   # (ERA um bloqueador: "USERS_FROM ⇒ arquivar mexeria no store de outro contest". Não mexe —
   #  o arquivamento itera `$cdir/users/*/`, que são os diretórios LOCAIS deste contest, e a
@@ -134,13 +139,18 @@ rd_promote_blockers(){
   #  intacto da promoção.)
 
   if declare -F contest_over_for_all >/dev/null && ! contest_over_for_all "$c"; then
-    _add round_running "a rodada ativa ainda não terminou (inclusive prorrogações por sede)"
+    _add round_running "a rodada ativa ainda não terminou (inclusive prorrogações por sede)" \
+      "the active round has not ended yet (including per-site extensions)" \
+      "la ronda activa aún no terminó (incluidas las prórrogas por sede)"
   fi
   # freeze em vigor: promover re-aponta/apaga o FREEZE_TIME = descongela. Só a partir do fim
   # geral + 1 min — e este é DURO (o `force` da promoção não passa por cima; ver rounds.sh).
   local _fz; _fz="$(conf_value "$c" FREEZE_TIME)"; _fz="${_fz//[^0-9]/}"
   if [[ -n "$_fz" ]] && (( _fz > 0 )) && declare -F freeze_release_ok >/dev/null && ! freeze_release_ok "$c"; then
-    _add freeze_locked "o placar está congelado e só pode ser descongelado a partir de $(fmt_epoch "$(freeze_release_at "$c")" '%d/%m %H:%M' "$c") (fim para todas as sedes + 1 min)"
+    local _rel; _rel="$(fmt_epoch "$(freeze_release_at "$c")" '%d/%m %H:%M' "$c")"
+    _add freeze_locked "o placar está congelado e só pode ser descongelado a partir de $_rel (fim para todas as sedes + 1 min)" \
+      "the scoreboard is frozen and can only be unfrozen from $_rel on (end for all sites + 1 min)" \
+      "el marcador está congelado y solo puede descongelarse a partir del $_rel (fin para todas las sedes + 1 min)"
   fi
   # problema PRIVADO que o DONO do contest não pode ver na rodada planejada: DURO (o `force` não
   # passa). É a última porta antes de `cc_build_probs` materializar o enunciado do jsons-private —
@@ -154,20 +164,37 @@ rd_promote_blockers(){
     if [[ -n "$_pids" && "$_pids" != '[]' ]]; then
       _owner="$(head -1 "$CONTESTSDIR/$c/owner" 2>/dev/null)"
       if _den="$(problems_denied_for "${_owner:-}" "$_pids")"; then
-        [[ -n "$_den" ]] && _add problem_denied "a rodada '$next' tem $(wc -w <<<"$_den") problema(s) privado(s) que o dono do contest não pode ver — tire-o(s) da rodada"
-      else _add problem_denied "índice de problemas indisponível — não dá para conferir o acesso aos problemas da rodada"; fi
+        if [[ -n "$_den" ]]; then
+          local _nden; _nden="$(wc -w <<<"$_den")"
+          _add problem_denied "a rodada '$next' tem $_nden problema(s) privado(s) que o dono do contest não pode ver — tire-o(s) da rodada" \
+            "round '$next' has $_nden private problem(s) the contest owner cannot see — remove them from the round" \
+            "la ronda '$next' tiene $_nden problema(s) privado(s) que el dueño de la competencia no puede ver — quítalo(s) de la ronda"
+        fi
+      else
+        _add problem_denied "índice de problemas indisponível — não dá para conferir o acesso aos problemas da rodada" \
+          "problem index unavailable — cannot check access to the round's problems" \
+          "índice de problemas no disponible — no se puede verificar el acceso a los problemas de la ronda"
+      fi
     fi
   fi
   n="$(rd_jobs_in_flight "$c")"
-  (( n > 0 )) && _add jobs_in_flight "$n job(s) deste contest no spool/fila do juiz — espere drenar"
+  (( n > 0 )) && _add jobs_in_flight "$n job(s) deste contest no spool/fila do juiz — espere drenar" \
+    "$n job(s) of this contest in the spool/judge queue — wait for it to drain" \
+    "$n job(s) de esta competencia en el spool/cola del juez — espera a que se vacíe"
   n="$(rd_review_pending "$c")"
-  (( n > 0 )) && _add review_pending "$n submissão(ões) na correção manual sem veredicto liberado"
+  (( n > 0 )) && _add review_pending "$n submissão(ões) na correção manual sem veredicto liberado" \
+    "$n submission(s) in manual review without a released verdict" \
+    "$n envío(s) en revisión manual sin veredicto liberado"
   if declare -F count_pending >/dev/null; then
     n="$(count_pending "$c")"; n="${n//[^0-9]/}"
-    (( ${n:-0} > 0 )) && _add pending_verdicts "${n} submissão(ões) ainda sem veredicto no history"
+    (( ${n:-0} > 0 )) && _add pending_verdicts "${n} submissão(ões) ainda sem veredicto no history" \
+      "${n} submission(s) still without a verdict in the history" \
+      "${n} envío(s) aún sin veredicto en el history"
   fi
   if declare -F daemon_judged_alive >/dev/null && ! daemon_judged_alive; then
-    _add judged_down "o daemon de julgamento não está vivo — nada drenaria a fila"
+    _add judged_down "o daemon de julgamento não está vivo — nada drenaria a fila" \
+      "the judging daemon is not alive — nothing would drain the queue" \
+      "el daemon de evaluación no está vivo — nada vaciaría la cola"
   fi
   printf '%s' "$out"
 }

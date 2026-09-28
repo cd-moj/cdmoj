@@ -5,7 +5,7 @@ import { toLocalDT, dtToEpoch } from './util.js';
 
 export function makeBasicEditor(opts = {}) {
   const i = opts.initial || {};
-  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'));
+  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'), el('option', { value: 'es' }, 'Español'));
   locale.value = i.locale || 'pt';
   const loginStart = el('input', { type: 'datetime-local' }); if (i.login_start) loginStart.value = toLocalDT(i.login_start);
   const loginEnabled = el('input', { type: 'checkbox' }); loginEnabled.checked = i.login_enabled !== false;

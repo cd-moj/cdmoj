@@ -106,7 +106,8 @@ function render(p, st) {
         !canUnlink && nextStr ? ' ' + T(`Próxima troca disponível em ${nextStr}.`, `Next change available on ${nextStr}.`) : ''),
       el('button', { class: 'btn ghost', disabled: !canUnlink, onclick: async () => {
         if (!confirm(T('Desvincular o Telegram desta conta? Você deixa de receber senha/alertas por DM' + (free ? '' : ' e esta é sua troca do ano') + '.',
-                       'Unlink Telegram from this account? You will stop receiving passwords/alerts via DM' + (free ? '' : ' and this uses your yearly change') + '.'))) return;
+                       'Unlink Telegram from this account? You will stop receiving passwords/alerts via DM' + (free ? '' : ' and this uses your yearly change') + '.',
+                       '¿Desvincular Telegram de esta cuenta? Dejarás de recibir contraseñas/alertas por DM' + (free ? '' : ' y este es tu cambio del año') + '.'))) return;
         tgM.className = 'small'; tgM.textContent = T('Desvinculando…', 'Unlinking…');
         try { await apiPost('/treino/telegram/unlink', {}, { contest: CONTEST, auth: true }); ok(tgM, T('✓ Desvinculado', '✓ Unlinked')); setTimeout(load, 800); }
         catch (e) { err(tgM, e.message || T('falha', 'failed')); }

@@ -35,7 +35,7 @@ export function makeSettingsEditor({ value = {}, mode = 'admin', isAdmin = false
   const end = el('input', { type: 'datetime-local', value: s.end ? toLocalDT(s.end) : '' });
   const loginStart = el('input', { type: 'datetime-local', value: s.login_start ? toLocalDT(s.login_start) : '' });
   const freeze = el('input', { type: 'datetime-local', value: s.freeze ? toLocalDT(s.freeze) : '' });
-  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'));
+  const locale = el('select', {}, el('option', { value: 'pt' }, 'Português'), el('option', { value: 'en' }, 'English'), el('option', { value: 'es' }, 'Español'));
   locale.value = s.locale || 'pt';
   const prios = ['lista-publica', 'lista-privada', 'prova', ...(isAdmin ? ['super'] : [])];
   const PL = PRIORITY_LABEL();

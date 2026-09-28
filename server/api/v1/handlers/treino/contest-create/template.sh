@@ -38,6 +38,7 @@ cat <<'JSON'
   "score_full_users": [],
   "_score_full_users": "logins que veem o placar COMPLETO (sem freeze) alem de .admin/.judge",
   "locale": "pt",
+  "_locale": "idioma da interface do contest: pt, en ou es (fixa o idioma p/ todos; impressao e relatorio seguem)",
   "login_start": 0,
   "_login_start": "abertura do login (EPOCH); 0/omitido = sempre aberto",
   "login_enabled": true,

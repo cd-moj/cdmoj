@@ -267,8 +267,9 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   roster: `reg_get` normaliza e DESCARTA chave desconhecida) com `dm` (qualquer aviso, dá o
   intervalo mínimo) × `warn` (o automático já disparado, garante "uma vez") — cutucar à mão não
   pode cancelar o aviso da véspera. Texto em HTML ⇒ **escapar `&<>`** de nome de time/contest.
-  Idioma: contest `LOCALE=en` manda **EN + PT no mesmo texto** (DM não tem seletor como a web, e
-  contest `en` é o que mistura gente de fora com brasileiros); contest pt manda só PT.
+  Idioma: contest `LOCALE=en` (ou `es`) manda **EN + PT (ou ES + PT) no mesmo texto** (DM não tem
+  seletor como a web, e contest `en`/`es` é o que mistura gente de fora com brasileiros; data com o
+  mês por TABELA, nunca `%b`); contest pt manda só PT.
   **A porta é a API** (`auth/login.sh`): `LOGIN_ENABLED`/`LOGIN_START_TIME`
   — que eram só desenho de tela — e o roster valem lá; papel nunca é barrado. **TIME = conta local**
   (`users/time-<slug>/`, senha `!<uuid>`) e o membro entra com a credencial DELE: o login faz o
@@ -335,8 +336,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   o site gerado na promoção — auditoria, não se regenera), servido em `/relatorio/<c>/rodada/<slug>/`
   (regex do nginx ANTES da genérica); a index principal só linka rodadas quando gerada com
   `REPORT_PUBLISH=1` (no tar.gz offline o link não teria destino).
-  **É bilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
-  do contest — string nova entra na tabela, e bloco awk/jq recebe o rótulo já traduzido por
+  **É trilíngue como qualquer tela**: `rep_t <chave>` (molde do `_doc_t`) resolve pelo `LOCALE`
+  do contest (`pt|en|es`; chave sem `es` cai no `en`) — string nova entra na tabela nos TRÊS, e bloco awk/jq recebe o rótulo já traduzido por
   `-v`/`--arg` (nunca literal no meio do programa).
   **Placar do relatório = UM placar por VISÃO de coorte** (`rep_score_boards`, uma `<section
   class="board-view">` por `placar-view-*.txt` que o `build.sh` já gerou; o seletor troca qual
@@ -614,6 +615,10 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `users/<login>/history`; vale auto+manual), dedup por id determinístico, gateado pelo mtime de
   **`var/.score-dirty`**, **sem mudar o daemon**. Folha via `pr_build_balloon` (cor por `balloons.json`/default ICPC + tabela
   hex→nome). Escopo por `staff_can_see`; auditar `balloon-*`. Balão **não** vai p/ a lista do aluno.
+  **O PAPEL segue o `LOCALE` do contest** (folha de rosto da impressão e folha de balão, pt/en/es —
+  `_pr_t`/`pr_lang`/`pr_color_name <hex> <lang>`): o meta carimba `sheet_lang` e o idioma entra na
+  validade do cache (trocou o LOCALE, a folha se refaz); o nome da cor é gravado na criação no idioma
+  do contest (`color_name` + `color_lang`). Ver `docs/I18N.md`.
   **`first_site`**: a tarefa avisa se é o PRIMEIRO balão daquela cor **na SEDE** do time (★ +
   "first to solve" na fila e numa faixa da folha A4). A sede sai do `.team.region`; o mapa
   `(sede × problema)` é **uma varredura** (`pr_site_first_map`: `find|xargs jq` sobre account+metrics)
@@ -761,7 +766,7 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   faixa ou fórmula inline: era isso que dava "fácil" na busca e "difícil" na estatística
   (`acceptance_rate` por submissão fica só como número). Pós-deploy: `touch contests/treino/conf`
   força o recompute em massa dos metrics (ganha `tries_to_ac`).
-- **ENUNCIADO EM VÁRIOS IDIOMAS (2026-09-15)** — é OUTRO eixo que o `i18n.js` (interface pt|en):
+- **ENUNCIADO EM VÁRIOS IDIOMAS (2026-09-15)** — é OUTRO eixo que o `i18n.js` (interface pt|en|es):
   o eixo dos DOCUMENTOS (pt/en/es). Fonte única da descoberta de arquivo: `mojtools/statement-langs.sh`
   (`stmt_file`/`stmt_langs_of`/`stmt_note_file`/`stmt_samples_html` — o ÚNICO gerador do HTML dos
   exemplos, usado pelo `gen-problem-json` E pelo `problems/preview`); pacote em `docs/PACOTE.md`
@@ -825,8 +830,8 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
 - **Documentos da prova** (`lib/contest-docs.sh` + `handlers/contest/{admin/docs,doc}.sh`, painel
   **Evento › Documentos** do admin (módulo `documentos`) e aba 📄 do `.cjudge`): info sheet, caderno (capa + enunciados), folha de
   time limits e **EDITORIAL** (o `docs/solucao.md` do PACOTE de cada problema, via `pkg_path` —
-  o campo que nunca vai ao aluno), em **PDF+HTML × pt/en/es** (`DOC_LANGS`; a INTERFACE segue pt/en —
-  são eixos diferentes), tudo derivado do que o contest já tem (conf, `PROBS`, `enunciados/`,
+  o campo que nunca vai ao aluno), em **PDF+HTML × pt/en/es** (`DOC_LANGS`; a INTERFACE também é pt/en/es,
+  mas é OUTRO eixo), tudo derivado do que o contest já tem (conf, `PROBS`, `enunciados/`,
   `run/tl`, `run/registry`) — nada de dado novo. **Toda string do documento sai do `_doc_t`**:
   ternário `[[ $l == pt ]] && … || …` solto é o que travava um 3º idioma.
   **PDF PRONTO enviado** (`action:upload` → `docs/<tipo>.<lang>.uploaded.pdf`) **vence o gerado**
@@ -952,8 +957,11 @@ Deploy: `docs/DEPLOY.md`. Docs em HTML: `bash docs/build-html.sh`.
   `cohorts reg_cohorts`=coortes, `registration reg_*`=inscricoes, `tov`=sedes, `telao`=telao — chave do Animeitor e última conferência) e a checagem
   `modules` avisa módulo DESLIGADO com dados (`mod_detect`). Checagem nova de módulo entra
   dentro do `if mod_on`, e o fixture do `smoke-preflight.sh` liga todos. **Checagem nova nasce
-  bilíngue**: `add2 <id> <level> <label> <detail> <label_en> <detail_en> [action]` (a Central usa
-  `label_en`/`detail_en` em inglês; o `add` antigo é só-PT, legado). `action` põe um BOTÃO no item —
+  TRILÍNGUE**: `add3 <id> <level> <label> <detail> <label_en> <detail_en> <label_es> <detail_es> [action]`
+  (a Central escolhe pelo idioma da interface; o `add`/`add2` antigos SAÍRAM — o `finish.sh` usa o mesmo
+  `add3` e os bloqueadores de rodada, `_add <code> <pt> <en> <es>`; parte de texto que vem de `$(…)` é
+  calculada UMA vez em variável e montada por idioma; `i18n-coverage.sh` barra a volta do helper só-PT).
+  `action` põe um BOTÃO no item —
   hoje só `warm_judges` (`judges_warm`: juiz frio × problema, `lib/judge-warm.sh`, e o
   `POST /contest/admin/warm-judges`; teste `smoke-judge-warm.sh` + caso `central` do
   `admin-inplace.gjs.sh`).
@@ -1566,14 +1574,16 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   os checkboxes como `=y/=n`. Card **🧩 Problemas paralelos** (`CPUNEEDED`, `SAMENUMA`). Teste:
   `smoke-limits-tab.gjs.sh`. **Máquinas** (treino/admin): linha da política global de testes em paralelo
   (`host:"*"`), `P≤` = `parallel_max` por juiz, largura/SMT/nó/hold na célula de slots.
-- **i18n pt/en (mecanismo ÚNICO, `shared/i18n.js`)**: `T('texto pt','text en')` é o jeito
-  canônico de escrever QUALQUER string de exibição no JS; o par do HTML estático é o atributo
-  **`data-en`** (+ `data-en-ph`/`-title`/`-html`/`<html data-en-doctitle>`), traduzido por
+- **i18n pt/en/es (mecanismo ÚNICO, `shared/i18n.js`; doc + GLOSSÁRIO do espanhol em
+  `docs/I18N.md`)**: `T('texto pt','text en','texto es')` é o jeito canônico de escrever QUALQUER
+  string de exibição no JS (es ausente cai no en, en ausente no pt; datas por `uiLocale()`); o HTML
+  estático leva os atributos **`data-en`/`data-es`** (+ `-ph`/`-title`/`-html`/`<html
+  data-en-doctitle data-es-doctitle>`), traduzidos por
   `shared/i18n-dom.js` (inclua o `<script>` na página). Um só `LANG` de módulo governa tudo, com
-  **precedência**: **LOCALE do contest** (explícito, via `setLang(loc)` sem persist nas páginas de
-  contest — `basic.locale` de `/contest/basic`) **> `?lang=` na URL > seletor pt/en do usuário**
+  **precedência**: **LOCALE do contest** (`pt|en|es`, explícito, via `setLang(loc)` sem persist nas páginas de
+  contest — `basic.locale` de `/contest/basic`) **> `?lang=` na URL > seletor PT · EN · ES do usuário**
   (header do site, `setLang(l,{persist:true})`, localStorage `moj_lang`) **> idioma do browser**
-  (`navigator.language` não-pt ⇒ en). Os botões PT · EN são **`shared/lang-toggle.js`** (fonte única): no
+  (`es-*` ⇒ es, outro não-pt ⇒ en). Os botões PT · EN · ES são **`shared/lang-toggle.js`** (fonte única): no
   `site-header.js` recarregam a página; nos **tutoriais de papel** (`contest/ajuda/_tutorial.js`) trocam EM
   LUGAR (o `i18n-dom.js` é reversível) — e o `?lang=` da URL acompanha o clique, senão um reload com
   `?lang=en` na barra desfaria o PT escolhido (teste `smoke-lang-toggle.gjs.sh`). Dentro do contest o
@@ -1581,8 +1591,8 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   MANDA — e-mail de convocação p/ sede de fora, tutorial passado adiante: sem ele quem escreve o
   e-mail não tem como garantir a versão que o destinatário vai abrir. Ele **grava** (senão o
   idioma se perderia no primeiro clique) e **perde para o LOCALE do contest**, igual ao seletor.
-  Tag que não comece por `pt` cai em `en` (mesma regra do navegador), então `?lang=es` abre em
-  inglês — que é o que existe. **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
+  Tag `es*` abre em espanhol; outra que não comece por `pt` cai em `en` (mesma regra do
+  navegador). **NÃO** traduzir: **veredictos** (string vem do servidor — só o rótulo à
   volta), enunciados, **títulos de problema/nomes de contest/time**, corpo de notícias, tags.
 - **AUTO-REFRESH É EM LUGAR — a página NUNCA pode parecer que recarregou** (regra do Ribas,
   2026-09-02; já tinha acontecido antes e voltou no painel Sessões & anomalias, que fechava os
@@ -1598,8 +1608,9 @@ mexa na outra. O índice separa as coleções por `\u001f` (nome é texto livre:
   ainda refaz o DOM — pendente. **Teste**: `server/test/admin-inplace.gjs.sh` (FakeNode + dom.js +
   admin-ui.js + o painel sem imports; `load()` 2× com o mesmo dado mantém a identidade dos nós,
   `<details>` aberto e o texto digitado) — painel novo com timer ganha um caso lá.
-- **Toda tela/string nova NASCE nos DOIS idiomas** (`T('pt','en')` no JS, `data-en` no HTML) — deixar
-  só em PT é **bug**, igual doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`.
+- **Toda tela/string nova NASCE nos TRÊS idiomas** (`T('pt','en','es')` no JS, `data-en` + `data-es` no
+  HTML; espanhol latino-americano neutro, glossário em `docs/I18N.md`) — deixar só em PT é **bug**, igual
+  doc atrasada; nunca renderize texto de exibição sem passar pelo `T`/`data-en`/`data-es`.
 - ⚠️ **Campo de data/hora: SEMPRE o par `toLocalDT`/`dtToEpoch`** (`shared/contest-config/util.js`),
   NUNCA `toISOString()`. `<input type="datetime-local">` é lido por `Date.parse` em hora **LOCAL**;
   preencher com `toISOString()` (**UTC**) não fecha o ida-e-volta e **cada Salvar empurra o valor

@@ -113,8 +113,9 @@ ck "caderno + news pós-início ok"     '[[ "$(J .ok)" == true ]]'
 
 echo "== ESPANHOL: 3º idioma de ponta a ponta =="
 printf '%%PDF-fake' > "$C/docs/info-sheet.es.pdf"
-adm '{"action":"publish","type":"info-sheet","lang":"es"}'
-ck "publica em es"                    '[[ "$(J .ok)" == true ]]'
+adm '{"action":"publish","type":"info-sheet","lang":"es","news":true}'
+ck "publica em es"                    '[[ "$(J .ok)" == true && "$(J .news)" == true ]]'
+ck "notícia do doc es em espanhol"    '[[ "$(jq -r "last.text" "$C/news.json")" == "Documento de la competencia disponible para descargar." ]]'
 call /contest/doc GET '' tok-time 'type=info-sheet&lang=es&fmt=pdf'
 ck "time baixa o es -> 200"           '[[ "$OUT" == *"Status: 200"* ]]'
 call /contest/doc GET '' tok-time 'type=info-sheet&lang=de&fmt=pdf'

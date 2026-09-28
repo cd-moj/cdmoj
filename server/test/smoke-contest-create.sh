@@ -93,6 +93,10 @@ call /treino/contest-create/create POST "$SPEC" reg
 ck "id duplicado 409"       '[[ "$OUT" == *"Status: 409"* ]]'
 call /treino/contest-create/create POST "{\"name\":\"\",\"mode\":\"icpc\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "sem nome 422"           '[[ "$OUT" == *"Status: 422"* ]]'
+call /treino/contest-create/create POST "{\"id\":\"loc-es\",\"name\":\"Loc ES\",\"mode\":\"icpc\",\"locale\":\"es\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
+ck "create: locale es gravado" '[[ "$(jq -r .success <<<"$BODY")" == true ]] && grep -q "^LOCALE=es$" "$FIX/loc-es/conf"'
+call /treino/contest-create/create POST "{\"id\":\"loc-xx\",\"name\":\"Loc XX\",\"mode\":\"icpc\",\"locale\":\"de\",\"end\":$FUT,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
+ck "create: locale inválido 422 (nada criado)" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == locale_invalid && ! -e "$FIX/loc-xx" ]]'
 call /treino/contest-create/create POST "{\"name\":\"Y\",\"mode\":\"icpc\",\"end\":$PAST,\"problems\":[{\"problem_id\":\"a/b\",\"name\":\"AB\"}]}" reg
 ck "fim no passado 422"     '[[ "$OUT" == *"Status: 422"* ]]'
 # privado alheio no TOPO e numa RODADA PLANEJADA do spec unificado: 404 (sem listar o id)

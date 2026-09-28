@@ -13,11 +13,11 @@ import { T } from '/shared/i18n.js';
 
 export const DIFF_KEYS = ['veasy', 'easy', 'med', 'hard', 'new'];
 export const DIFF_META = {
-  veasy: { pt: 'muito fácil', en: 'very easy', cls: 'diff-easy', color: '#15803d' },
-  easy:  { pt: 'fácil',       en: 'easy',      cls: 'diff-easy', color: '#4ca464' },
-  med:   { pt: 'médio',       en: 'medium',    cls: 'diff-med',  color: '#9a6700' },
-  hard:  { pt: 'difícil',     en: 'hard',      cls: 'diff-hard', color: '#be1241' },
-  new:   { pt: 'novo',        en: 'new',       cls: '',          color: '#64748b' },
+  veasy: { pt: 'muito fácil', en: 'very easy', es: 'muy fácil', cls: 'diff-easy', color: '#15803d' },
+  easy:  { pt: 'fácil',       en: 'easy',      es: 'fácil',     cls: 'diff-easy', color: '#4ca464' },
+  med:   { pt: 'médio',       en: 'medium',    es: 'medio',     cls: 'diff-med',  color: '#9a6700' },
+  hard:  { pt: 'difícil',     en: 'hard',      es: 'difícil',   cls: 'diff-hard', color: '#be1241' },
+  new:   { pt: 'novo',        en: 'new',       es: 'nuevo',     cls: '',          color: '#64748b' },
 };
 export const DIFF_VEASY = 0.9, DIFF_EASY = 0.7, DIFF_MED = 0.5;
 
@@ -34,7 +34,7 @@ export function diffKeyOf(p) {
   if (!a) return 'new';
   return diffKeyFromRate((p.solved_count || p.distinct_solved || 0) / a);
 }
-export function diffLabel(key) { const m = DIFF_META[key] || DIFF_META.new; return T(m.pt, m.en); }
+export function diffLabel(key) { const m = DIFF_META[key] || DIFF_META.new; return T(m.pt, m.en, m.es); }
 export function diffClass(key) { return (DIFF_META[key] || DIFF_META.new).cls; }
 export function diffColor(key) { return (DIFF_META[key] || DIFF_META.new).color; }
 // {key,label,cls,color} de um problema — o pacote que as telas pintam

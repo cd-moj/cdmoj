@@ -54,11 +54,13 @@ export function makeReportTab(CONTEST, opts = {}) {
           onclick: () => act('publish') }, T('🔄 Republicar', '🔄 Republish')),
         el('button', { class: 'btn ghost danger',
           onclick: () => act('unpublish', T('Despublicar o relatório? O endereço /relatorio/' + CONTEST + '/ deixa de existir e o botão sai da página inicial.',
-                                            'Unpublish the report? /relatorio/' + CONTEST + '/ stops existing and the button leaves the home page.')) }, T('Despublicar', 'Unpublish')));
+                                            'Unpublish the report? /relatorio/' + CONTEST + '/ stops existing and the button leaves the home page.',
+                                            '¿Despublicar el informe? La dirección /relatorio/' + CONTEST + '/ deja de existir y el botón sale de la página de inicio.')) }, T('Despublicar', 'Unpublish')));
     } else {
       pubBox.append(el('button', { class: 'btn',
         onclick: () => act('publish', T('Publicar o relatório estático em /relatorio/' + CONTEST + '/? Fica PÚBLICO (placar, runs, estatísticas, clarifications anônimas) e listado na página inicial e no /contests/.',
-                                       'Publish the static report at /relatorio/' + CONTEST + '/? It becomes PUBLIC (scoreboard, runs, statistics, anonymous clarifications) and is listed on the home page and /contests/.')) },
+                                       'Publish the static report at /relatorio/' + CONTEST + '/? It becomes PUBLIC (scoreboard, runs, statistics, anonymous clarifications) and is listed on the home page and /contests/.',
+                                       '¿Publicar el informe estático en /relatorio/' + CONTEST + '/? Queda PÚBLICO (marcador, envíos, estadísticas, aclaraciones anónimas) y aparece en la página de inicio y en /contests/.')) },
         T('📢 Publicar como histórico', '📢 Publish as history')),
         el('span', { class: 'muted small' }, T('ainda não publicado', 'not published yet')));
     }

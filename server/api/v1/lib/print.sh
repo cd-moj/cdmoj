@@ -322,13 +322,79 @@ _pr_text2pdf() {  # <src> <out.pdf> <nome-do-arquivo> <rodapé> <workdir> [<err>
   [[ -s "$out" ]]
 }
 
+# --- IDIOMA DO PAPEL: as folhas (rosto da impressão e entrega de balão) seguem o LOCALE do contest --
+# pr_lang <c> -> pt|en|es (ausente/inválido = pt). Lido SEM source e sem depender do common.sh: esta
+# lib também é sourceada STANDALONE (smokes, report-gen).
+pr_lang() {
+  local f="$CONTESTSDIR/$1/conf" line v=""
+  if [[ -r "$f" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      [[ "$line" == LOCALE=* ]] || continue
+      v="${line#LOCALE=}"; v="${v//\'/}"; v="${v//\"/}"; break
+    done < "$f"
+  fi
+  case "$v" in en|es) printf '%s' "$v" ;; *) printf 'pt' ;; esac
+}
+# _pr_t <lang> <chave> — TODA string impressa sai daqui (molde do _doc_t do contest-docs.sh).
+# Espanhol latino-americano neutro (glossário em docs/I18N.md). `%s` = o número de páginas.
+# ⚠ `foot` vai ao carimbo do rodapé, que passa pelo filtro ASCII do _pr_text2pdf — sem acento.
+_pr_t() {
+  local l="$1" k="$2"
+  case "$l:$k" in
+    pt:team)       printf 'EQUIPE' ;;
+    en:team)       printf 'TEAM' ;;
+    es:team)       printf 'EQUIPO' ;;
+    pt:noteam)     printf '(sem nome de time)' ;;
+    en:noteam)     printf '(no team name)' ;;
+    es:noteam)     printf '(sin nombre de equipo)' ;;
+    pt:login)      printf 'login' ;;
+    en:login)      printf 'login' ;;
+    es:login)      printf 'usuario' ;;
+    pt:taskno)     printf 'TAREFA Nº  (confira com o sistema)' ;;
+    en:taskno)     printf 'TASK No.  (check it against the system)' ;;
+    es:taskno)     printf 'TAREA N.º  (verifícala con el sistema)' ;;
+    pt:pages)      printf '%s página(s)  —  não conte esta folha de rosto' "$3" ;;
+    en:pages)      printf '%s page(s)  —  do not count this cover sheet' "$3" ;;
+    es:pages)      printf '%s página(s)  —  no cuentes esta portada' "$3" ;;
+    pt:convfail)   printf 'ATENÇÃO: não foi possível converter — imprima o anexo cru' ;;
+    en:convfail)   printf 'WARNING: could not convert — print the raw attachment' ;;
+    es:convfail)   printf 'ATENCIÓN: no se pudo convertir — imprime el archivo original' ;;
+    pt:sign)       printf 'Assinatura de quem entregou:' ;;
+    en:sign)       printf 'Delivered by (signature):' ;;
+    es:sign)       printf 'Firma de quien entregó:' ;;
+    pt:when)       printf 'Hora da entrega:' ;;
+    en:when)       printf 'Delivery time:' ;;
+    es:when)       printf 'Hora de entrega:' ;;
+    pt:foot)       printf 'tarefa' ;;
+    en:foot)       printf 'task' ;;
+    es:foot)       printf 'tarea' ;;
+    pt:balloon)    printf 'ENTREGA DE BALÃO' ;;
+    en:balloon)    printf 'BALLOON DELIVERY' ;;
+    es:balloon)    printf 'ENTREGA DE GLOBO' ;;
+    pt:problem)    printf 'PROBLEMA' ;;
+    en:problem)    printf 'PROBLEM' ;;
+    es:problem)    printf 'PROBLEMA' ;;
+    pt:color)      printf 'COR DO BALÃO' ;;
+    en:color)      printf 'BALLOON COLOR' ;;
+    es:color)      printf 'COLOR DEL GLOBO' ;;
+    pt:first)      printf 'PRIMEIRO DA SEDE' ;;
+    en:first)      printf 'FIRST AT THIS SITE' ;;
+    es:first)      printf 'PRIMERO DE LA SEDE' ;;
+    pt:firstsub)   printf 'primeiro time da sede a resolver este problema' ;;
+    en:firstsub)   printf 'first team at this site to solve this problem' ;;
+    es:firstsub)   printf 'primer equipo de la sede en resolver este problema' ;;
+    *)             _pr_t pt "$k" "${3:-}" ;;
+  esac
+}
+
 # --- render interno: produz <id>.combined.pdf (chamado SOB flock) ---------
 # Persiste pages/build_ok no meta. Folha de rosto (capa) sempre é a página 1.
 _pr_render() {  # <c> <id> <src> <meta> <cache>
   local c="$1" id="$2" src="$3" meta="$4" cache="$5"
   local work; work="$(mktemp -d)" || return 1
   trap 'rm -rf "$work"' RETURN
-  local doc="$work/doc.pdf" docok=0 mime enc fn ext inp errf foot lg sq
+  local doc="$work/doc.pdf" docok=0 mime enc fn ext inp errf foot lg sq L
+  L="$(pr_lang "$c")"
   # o stderr das conversões vai para <id>.err quando algo falha — antes ia todo p/ /dev/null,
   # e a única pista de um pedido que não converteu era o "ATENÇÃO" impresso na capa
   errf="${meta%.json}.err"; : > "$errf"
@@ -337,7 +403,7 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   # É o que identifica a folha que se separou da capa na mesa da sala.
   lg="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
   sq="$(jq -r '.seq // 0' "$meta" 2>/dev/null)"
-  foot="$(printf '%s  -  %s  -  tarefa #%s' "${lg:-?}" "$fn" "${sq:-0}" | tr -d '\n')"
+  foot="$(printf '%s  -  %s  -  %s #%s' "${lg:-?}" "$fn" "$(_pr_t "$L" foot)" "${sq:-0}" | tr -d '\n')"
 
   mime="$(file -b --mime-type "$src" 2>/dev/null)"
   case "$mime" in
@@ -378,14 +444,14 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
   # se o nome do time for longo). Fontes DejaVu (acentos garantidos). ---
   local seq team univ login pagesline FB FR
   seq="$(jq -r '.seq // 0' "$meta" 2>/dev/null)"
-  team="$(jq -r '.team // ""' "$meta" 2>/dev/null)"; [[ -n "$team" ]] || team="(sem nome de time)"
+  team="$(jq -r '.team // ""' "$meta" 2>/dev/null)"; [[ -n "$team" ]] || team="$(_pr_t "$L" noteam)"
   univ="$(jq -r '.univ // ""' "$meta" 2>/dev/null)"
   login="$(jq -r '.login // ""' "$meta" 2>/dev/null)"
   # caption faz expansão de %; neutraliza e evita leitura de @arquivo (dados do passwd)
   cap_esc(){ local s="${1//%/%%}"; [[ "$s" == @* ]] && s=" $s"; printf '%s' "$s"; }
   team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"
-  if (( docok )); then pagesline="$pages página(s)  —  não conte esta folha de rosto"
-  else pagesline="ATENÇÃO: não foi possível converter — imprima o anexo cru"; fi
+  if (( docok )); then pagesline="$(_pr_t "$L" pages "$pages")"
+  else pagesline="$(_pr_t "$L" convfail)"; fi
   FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans-Bold$/{print $2; exit}')"
   [[ -n "$FB" ]] || FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: /{print $2; exit}')"
   FR="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans$/{print $2; exit}')"
@@ -398,19 +464,19 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
     [[ -n "$7" ]] && cov+=( -weight "$7" )
     cov+=( -gravity "$8" "caption:$9" ')' -gravity northwest -geometry "+${3}+${4}" -composite )
   }
-  addcap 1080  46  80   78 '#555' "$FR" ''   center "EQUIPE  /  TEAM"
+  addcap 1080  46  80   78 '#555' "$FR" ''   center "$(_pr_t "$L" team)"
   addcap 1080 210  80  130 black  "$FB" 700  center "$team"
   [[ -n "$univ" ]] && addcap 1080 64 80 352 '#333' "$FR" '' center "$univ"
-  addcap 1080  44  80  430 '#555' "$FR" ''   center "login"
+  addcap 1080  44  80  430 '#555' "$FR" ''   center "$(_pr_t "$L" login)"
   addcap 1080 100  80  478 black  "$FB" 700  center "$login"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,620 1160,620" -stroke none )
-  addcap 1080  56  80  664 '#555' "$FR" ''   center "TAREFA Nº  (confira com o sistema)"
+  addcap 1080  56  80  664 '#555' "$FR" ''   center "$(_pr_t "$L" taskno)"
   addcap 1080 220  80  724 black  "$FB" 800  center "$seq"
   addcap 1080  74  80  966 black  "$FR" ''   center "$pagesline"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1080 1160,1080" -stroke none )
-  addcap  600  46  80 1500 black  "$FR" ''   west   "Assinatura de quem entregou:"
+  addcap  600  46  80 1500 black  "$FR" ''   west   "$(_pr_t "$L" sign)"
   cov+=( -fill none -stroke black -strokewidth 2 -draw "line 80,1600 700,1600" -stroke none )
-  addcap  320  46 760 1500 black  "$FR" ''   west   "Hora da entrega:"
+  addcap  320  46 760 1500 black  "$FR" ''   west   "$(_pr_t "$L" when)"
   cov+=( -fill none -stroke black -strokewidth 2 -draw "line 760,1600 1160,1600" -stroke none )
   cov+=( -units PixelsPerInch -density 150 "$work/cover.pdf" )
   local covok=0
@@ -428,7 +494,7 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
 
   # --- persiste pages/build_ok no meta (sob o mesmo flock do chamador) ---
   local okjson; okjson="$([[ $docok -eq 1 ]] && echo true || echo false)"
-  jq --argjson p "${pages:-0}" --argjson ok "$okjson" '.pages=$p | .build_ok=$ok' "$meta" \
+  jq --argjson p "${pages:-0}" --argjson ok "$okjson" --arg l "$L" '.pages=$p | .build_ok=$ok | .sheet_lang=$l' "$meta" \
     > "$work/meta.json" 2>/dev/null && mv -f "$work/meta.json" "$meta"
   # deu certo: o log de erro não serve mais (e não vira lixo permanente no print-requests/)
   (( docok )) && rm -f "$errf"
@@ -451,12 +517,14 @@ _pr_render() {  # <c> <id> <src> <meta> <cache>
 # rodapé com o login, numeração, capa — e o pedido antigo se refaz sozinho na próxima
 # impressão, sem ninguém apagar `.combined.pdf` à mão. Custo: um rebuild por pedido depois de
 # um deploy que MEXA nesta lib; impressão é ritmo humano, isso não pesa.
-_pr_cache_ok() {  # <cache> <src> <meta>
+_pr_cache_ok() {  # <cache> <src> <meta> [lang]
   [[ -f "$1" && "$1" -nt "$2" && "$1" -nt "${BASH_SOURCE[0]}" ]] || return 1
   # ⚠ `.build_ok // true` NÃO serve: o `//` do jq trata **false como vazio** e devolveria
   # `true` justamente no caso que interessa (ver a armadilha do `//` no CLAUDE.md). O teste
   # de booleano é por igualdade explícita.
-  ! jq -e '.build_ok == false' "$3" >/dev/null 2>&1
+  # O IDIOMA do papel também faz parte da validade: o admin trocou o LOCALE ⇒ a folha de rosto
+  # se refaz no idioma novo (meta sem `sheet_lang` = papel de antes do espanhol, era pt).
+  ! jq -e --arg l "${4:-pt}" '.build_ok == false or ((.sheet_lang // "pt") != $l)' "$3" >/dev/null 2>&1
 }
 
 # _pr_render_slot <cmd...> — SEMÁFORO das renderizações de PDF. magick/paps custam SEGUNDOS de
@@ -484,11 +552,12 @@ _pr_render_slot() {
 }
 pr_build_pdf() {
   local c="$1" id="$2" dir src meta cache
+  local L; L="$(pr_lang "$c")"
   dir="$(pr_dir "$c")"; src="$dir/$id.src"; meta="$dir/$id.json"; cache="$dir/$id.combined.pdf"
   [[ -f "$src" && -f "$meta" ]] || return 1
-  if _pr_cache_ok "$cache" "$src" "$meta"; then printf '%s' "$cache"; return 0; fi
+  if _pr_cache_ok "$cache" "$src" "$meta" "$L"; then printf '%s' "$cache"; return 0; fi
   ( flock -w 30 9 || exit 1
-    _pr_cache_ok "$cache" "$src" "$meta" && exit 0          # double-check após o lock
+    _pr_cache_ok "$cache" "$src" "$meta" "$L" && exit 0     # double-check após o lock
     _pr_render_slot _pr_render "$c" "$id" "$src" "$meta" "$cache" || exit 1
   ) 9>"$dir/$id.lock"
   [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
@@ -525,47 +594,47 @@ pr_balloon_color() {
   printf '%s' "$col"
 }
 
-# pr_color_name <RRGGBB> : nome da cor por extenso em PT (tabela dos 15 defaults; fora dela, a cor
-# nomeada mais próxima por distância RGB, com o hex entre parênteses).
+# pr_color_name <RRGGBB> [lang] : nome da cor por extenso no idioma do contest (pt|en|es; default pt).
+# Tabela dos 15 defaults ICPC; fora dela, a cor nomeada mais próxima por distância RGB, com o hex
+# entre parênteses. Em pt e es o nome inglês vai junto — o balão físico costuma vir rotulado em
+# inglês e o staff casa pelo rótulo.
 pr_color_name() {
-  local hex; hex="$(printf '%s' "$1" | tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F')"; hex="${hex:0:6}"
-  [[ "${#hex}" -eq 6 ]] || { printf 'cor'; return; }
-  # nomes ICPC padrão (PT + inglês p/ o staff casar com o balão físico, geralmente rotulado em inglês)
-  case "$hex" in
-    FFFFFF) printf 'branco (white)'; return;;        000000) printf 'preto (black)'; return;;
-    FF0000) printf 'vermelho (red)'; return;;        800000) printf 'vinho (maroon)'; return;;
-    FFFF00) printf 'amarelo (yellow)'; return;;      008000) printf 'verde (green)'; return;;
-    0000FF) printf 'azul (blue)'; return;;           000080) printf 'azul-marinho (navy blue)'; return;;
-    FF00FF) printf 'rosa (pink)'; return;;           800080) printf 'roxo (purple)'; return;;
-    00FF00) printf 'verde-limão (lime green)'; return;;  00FFFF) printf 'azul-claro (light blue)'; return;;
-    C0C0C0) printf 'prata (silver)'; return;;        FF8000) printf 'laranja (orange)'; return;;
-    A3794D) printf 'marrom (brown)'; return;;
-  esac
+  local hex L="${2:-pt}"; hex="$(printf '%s' "$1" | tr -cd '0-9A-Fa-f' | tr 'a-f' 'A-F')"; hex="${hex:0:6}"
+  case "$L" in en|es) ;; *) L=pt ;; esac
+  [[ "${#hex}" -eq 6 ]] || { case "$L" in en) printf 'color' ;; es) printf 'color' ;; *) printf 'cor' ;; esac; return; }
+  # hex  pt  en  es  (uma linha por cor; `_` = espaço)
+  local tab='FFFFFF branco white blanco
+000000 preto black negro
+FF0000 vermelho red rojo
+800000 vinho maroon vino
+FFFF00 amarelo yellow amarillo
+008000 verde green verde
+0000FF azul blue azul
+000080 azul-marinho navy_blue azul_marino
+FF00FF rosa pink rosa
+800080 roxo purple morado
+00FF00 verde-limão lime_green verde_lima
+00FFFF azul-claro light_blue celeste
+C0C0C0 prata silver plateado
+FF8000 laranja orange naranja
+A3794D marrom brown marrón'
+  local h npt nen nes nm
+  while read -r h npt nen nes; do
+    [[ "$h" == "$hex" ]] || continue
+    nen="${nen//_/ }"; nes="${nes//_/ }"
+    case "$L" in en) printf '%s' "$nen" ;; es) printf '%s (%s)' "$nes" "$nen" ;; *) printf '%s (%s)' "$npt" "$nen" ;; esac
+    return
+  done <<<"$tab"
   local r=$((16#${hex:0:2})) g=$((16#${hex:2:2})) b=$((16#${hex:4:2}))
-  local best='cor' bestd=999999999 h name hr hg hb d
-  while read -r h name; do
+  local best='' bestd=999999999 hr hg hb d
+  while read -r h npt nen nes; do
     [[ -n "$h" ]] || continue
     hr=$((16#${h:0:2})); hg=$((16#${h:2:2})); hb=$((16#${h:4:2}))
     d=$(( (r-hr)*(r-hr) + (g-hg)*(g-hg) + (b-hb)*(b-hb) ))
-    (( d < bestd )) && { bestd=$d; best="$name"; }
-  done <<'NAMES'
-FFFFFF branco
-000000 preto
-FF0000 vermelho
-800000 vinho
-FFFF00 amarelo
-008000 verde
-0000FF azul
-000080 azul-marinho
-FF00FF rosa
-800080 roxo
-00FF00 verde-limão
-00FFFF azul-claro
-C0C0C0 prata
-FF8000 laranja
-A3794D marrom
-NAMES
-  printf '%s (#%s)' "$best" "$hex"
+    case "$L" in en) nm="${nen//_/ }" ;; es) nm="${nes//_/ }" ;; *) nm="$npt" ;; esac
+    (( d < bestd )) && { bestd=$d; best="$nm"; }
+  done <<<"$tab"
+  printf '%s (#%s)' "${best:-cor}" "$hex"
 }
 
 # _pr_render_balloon <c> <id> <meta> <cache> : folha A4 da entrega do balão (sob flock do chamador).
@@ -573,14 +642,18 @@ _pr_render_balloon() {
   local c="$1" id="$2" meta="$3" cache="$4"
   local work; work="$(mktemp -d)" || return 1
   trap 'rm -rf "$work"' RETURN
-  local seq team univ login short colorhex colorname FB FR
+  local seq team univ login short colorhex colorname FB FR L
+  L="$(pr_lang "$c")"
   seq="$(jq -r '.seq // 0' "$meta")"
-  team="$(jq -r '.team // ""' "$meta")"; [[ -n "$team" ]] || team="(sem nome de time)"
+  team="$(jq -r '.team // ""' "$meta")"; [[ -n "$team" ]] || team="$(_pr_t "$L" noteam)"
   univ="$(jq -r '.univ // ""' "$meta")"
   login="$(jq -r '.login // ""' "$meta")"
   short="$(jq -r '.short // "?"' "$meta")"
   colorhex="$(jq -r '.color_hex // "CCCCCC"' "$meta")"
-  colorname="$(jq -r '.color_name // ""' "$meta")"; [[ -n "$colorname" ]] || colorname="$(pr_color_name "$colorhex")"
+  # o nome foi gravado na criação, no idioma do contest daquele momento (`color_lang`; ausente =
+  # pt). Trocou o LOCALE depois: o papel usa o nome no idioma novo, a fila mantém o gravado.
+  colorname="$(jq -r --arg l "$L" 'if (.color_lang // "pt") == $l then (.color_name // "") else "" end' "$meta")"
+  [[ -n "$colorname" ]] || colorname="$(pr_color_name "$colorhex" "$L")"
   cap_esc(){ local s="${1//%/%%}"; [[ "$s" == @* ]] && s=" $s"; printf '%s' "$s"; }
   team="$(cap_esc "$team")"; univ="$(cap_esc "$univ")"; login="$(cap_esc "$login")"; colorname="$(cap_esc "$colorname")"; short="$(cap_esc "$short")"
   FB="$(magick -list font 2>/dev/null | awk -F': ' '/Font: DejaVu-Sans-Bold$/{print $2; exit}')"
@@ -589,22 +662,22 @@ _pr_render_balloon() {
 
   local -a cov=( magick -size 1240x1754 xc:white )
   addcap(){ cov+=( '(' -size "${1}x${2}" -background white -fill "$5" ); [[ -n "$6" ]] && cov+=( -font "$6" ); [[ -n "$7" ]] && cov+=( -weight "$7" ); cov+=( -gravity "$8" "caption:$9" ')' -gravity northwest -geometry "+${3}+${4}" -composite ); }
-  addcap 1080  46  80   66 '#555' "$FR" ''   center "ENTREGA DE BALÃO  /  BALLOON"
+  addcap 1080  46  80   66 '#555' "$FR" ''   center "$(_pr_t "$L" balloon)"
   addcap 1080 150  80  120 black  "$FB" 700  center "$team"
   [[ -n "$univ" ]] && addcap 1080 54 80 280 '#333' "$FR" '' center "$univ"
-  addcap 1080  40  80  346 '#555' "$FR" ''   center "login"
+  addcap 1080  40  80  346 '#555' "$FR" ''   center "$(_pr_t "$L" login)"
   addcap 1080  78  80  388 black  "$FB" 700  center "$login"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,500 1160,500" -stroke none )
-  addcap 540  52  80  528 '#555' "$FR" ''   center "PROBLEMA"
+  addcap 540  52  80  528 '#555' "$FR" ''   center "$(_pr_t "$L" problem)"
   addcap 540 200  80  590 black  "$FB" 800  center "$short"
-  addcap 540  52 620  528 '#555' "$FR" ''   center "COR DO BALÃO"
+  addcap 540  52 620  528 '#555' "$FR" ''   center "$(_pr_t "$L" color)"
   cov+=( -fill "#$colorhex" -stroke '#333' -strokewidth 2 )
   cov+=( -draw "translate 890,690 ellipse 0,0 78,98 0,360" )
   cov+=( -draw "translate 890,690 polygon -12,96 12,96 0,122" )
   cov+=( -fill none -stroke none )
   addcap 540  72 620  812 black  "$FB" 700  center "$colorname"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,910 1160,910" -stroke none )
-  addcap 1080  54  80  956 '#555' "$FR" ''   center "TAREFA Nº  (confira com o sistema)"
+  addcap 1080  54  80  956 '#555' "$FR" ''   center "$(_pr_t "$L" taskno)"
   addcap 1080 200  80 1016 black  "$FB" 800  center "$seq"
   cov+=( -fill none -stroke '#999' -strokewidth 2 -draw "line 80,1300 1160,1300" -stroke none )
   # PRIMEIRO DA SEDE: faixa entre a linha e a assinatura (o espaço livre da folha). Só aparece
@@ -620,28 +693,34 @@ _pr_render_balloon() {
     cov+=( -fill '#B8860B' -stroke '#7A5C00' -strokewidth 1
            -draw "translate 168,1391 polygon 0.0,-26.0 6.2,-8.5 24.7,-8.0 10.0,3.2 15.3,21.0 0.0,10.5 -15.3,21.0 -10.0,3.2 -24.7,-8.0 -6.2,-8.5" )
     cov+=( -fill none -stroke none )
-    addcap 880 56 220 1344 '#7A5C00' "$FB" 800 west "PRIMEIRO DA SEDE"
-    addcap 880 32 220 1406 '#7A5C00' "$FR" ''  west "first to solve at this site"
+    addcap 880 56 220 1344 '#7A5C00' "$FB" 800 west "$(_pr_t "$L" first)"
+    addcap 880 32 220 1406 '#7A5C00' "$FR" ''  west "$(_pr_t "$L" firstsub)"
   fi
-  addcap  600  46  80 1500 black  "$FR" ''   west   "Assinatura de quem entregou:"
+  addcap  600  46  80 1500 black  "$FR" ''   west   "$(_pr_t "$L" sign)"
   cov+=( -fill none -stroke black -strokewidth 2 -draw "line 80,1600 700,1600" -stroke none )
-  addcap  320  46 760 1500 black  "$FR" ''   west   "Hora da entrega:"
+  addcap  320  46 760 1500 black  "$FR" ''   west   "$(_pr_t "$L" when)"
   cov+=( -fill none -stroke black -strokewidth 2 -draw "line 760,1600 1160,1600" -stroke none )
   cov+=( -units PixelsPerInch -density 150 "$work/balloon.pdf" )
   "${cov[@]}" 2>/dev/null && [[ -s "$work/balloon.pdf" ]] || return 1
   mv -f "$work/balloon.pdf" "$cache"
-  jq '.build_ok=true' "$meta" > "$work/m.json" 2>/dev/null && mv -f "$work/m.json" "$meta"
+  jq --arg l "$L" '.build_ok=true | .sheet_lang=$l' "$meta" > "$work/m.json" 2>/dev/null && mv -f "$work/m.json" "$meta"
   return 0
 }
 
-# pr_build_balloon <c> <id> : ecoa o combined.pdf da folha do balão (build-once; conteúdo imutável).
+# pr_build_balloon <c> <id> : ecoa o combined.pdf da folha do balão (build-once; conteúdo imutável —
+# salvo o IDIOMA: trocou o LOCALE do contest, a folha se refaz no idioma novo).
+_pr_balloon_cache_ok() {  # <cache> <meta> <lang>
+  [[ -f "$1" ]] || return 1
+  jq -e --arg l "$3" '(.sheet_lang // "pt") == $l' "$2" >/dev/null 2>&1
+}
 pr_build_balloon() {
-  local c="$1" id="$2" dir meta cache
+  local c="$1" id="$2" dir meta cache L
+  L="$(pr_lang "$c")"
   dir="$(pr_dir "$c")"; meta="$dir/$id.json"; cache="$dir/$id.combined.pdf"
   [[ -f "$meta" ]] || return 1
-  [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
+  _pr_balloon_cache_ok "$cache" "$meta" "$L" && { printf '%s' "$cache"; return 0; }
   ( flock -w 30 9 || exit 1
-    [[ -f "$cache" ]] && exit 0
+    _pr_balloon_cache_ok "$cache" "$meta" "$L" && exit 0
     _pr_render_slot _pr_render_balloon "$c" "$id" "$meta" "$cache" || exit 1
   ) 9>"$dir/$id.lock"
   [[ -f "$cache" ]] && { printf '%s' "$cache"; return 0; }
@@ -751,6 +830,7 @@ pr_reconcile_balloons() {
     # caches: sem eles o laço refazia POR LINHA o que só depende do problema (letra/cor) ou do
     # time (nome/universidade) — 9 forks por balão. Com eles são 12 problemas e N times, uma vez.
     declare -A C_SHORT=() C_HEX=() C_NAME=() C_TEAM=() C_UNIV=() C_FULL=()
+    local C_LANG; C_LANG="$(pr_lang "$c")"      # o nome da cor é gravado no idioma do contest
     read -r fz allow < <(pr_balloon_freeze_gate "$c")
     declare -A FROZEN=()                           # lápides já registradas (id -> 1)
     held="$dir/.balloon-frozen"
@@ -819,7 +899,7 @@ pr_reconcile_balloons() {
       if [[ -z "${C_SHORT[$cid]+x}" ]]; then
         C_SHORT[$cid]="$(pr_short_of "$c" "$cid")"; [[ -n "${C_SHORT[$cid]}" ]] || C_SHORT[$cid]="?"
         C_HEX[$cid]="$(pr_balloon_color "$c" "${C_SHORT[$cid]}")"
-        C_NAME[$cid]="$(pr_color_name "${C_HEX[$cid]}")"
+        C_NAME[$cid]="$(pr_color_name "${C_HEX[$cid]}" "$C_LANG")"
       fi
       short="${C_SHORT[$cid]}"
       if (( fz > 0 )) && [[ "$allow" != 1 ]] && (( ${sub_epoch:-0} >= fz )); then
@@ -841,10 +921,10 @@ pr_reconcile_balloons() {
       seq="$(pr_next_seq "$c")"
       jq -cn --arg id "$id" --argjson seq "$seq" --arg login "$login" --arg fn "$fullname" \
         --arg team "$team" --arg univ "$univ" --arg prob "$cid" --arg short "$short" \
-        --arg ch "$colorhex" --arg cn "$colorname" --argjson time "$EPOCHSECONDS" \
+        --arg ch "$colorhex" --arg cn "$colorname" --arg cl "$C_LANG" --argjson time "$EPOCHSECONDS" \
         --argjson fs "$fs" \
         '{id:$id, seq:$seq, kind:"balloon", login:$login, fullname:$fn, team:$team, univ:$univ,
-          problem:$prob, short:$short, color_hex:$ch, color_name:$cn, first_site:$fs,
+          problem:$prob, short:$short, color_hex:$ch, color_name:$cn, color_lang:$cl, first_site:$fs,
           time:$time, status:"pending",
           claimed_by:"", claimed_at:0, processed_by:"", processed_at:0, delivered_by:"", delivered_at:0}' \
         > "$dir/$id.json.tmp" && mv -f "$dir/$id.json.tmp" "$dir/$id.json"

@@ -167,7 +167,8 @@ function renderScheduled() {
 
 async function discard() {
   if (!confirm(T('Desistir desta participação? Nada será gravado no placar e você poderá largar de novo (restam ' + me.discards_left + ' desistências). As submissões continuam no seu histórico do treino.',
-    'Give up this participation? Nothing is recorded and you may start again (' + me.discards_left + ' give-ups left). The submissions stay in your training history.'))) return;
+    'Give up this participation? Nothing is recorded and you may start again (' + me.discards_left + ' give-ups left). The submissions stay in your training history.',
+    '¿Abandonar esta participación? No se registra nada en el marcador y podrás empezar de nuevo (te quedan ' + me.discards_left + ' abandonos). Los envíos siguen en tu historial de entrenamiento.'))) return;
   try { const d = await apiPost('/treino/virtual/run', { contest: CID, action: 'discard' }, A); setMe(d.me); await enter(); } catch (e) { alert(e.message); }
 }
 async function finish() {
@@ -362,7 +363,8 @@ function buildFriendsBox() {
   add.addEventListener('keydown', (e) => { if (e.key === 'Enter') addBtn.click(); });
   box.append(el('p', { class: 'small muted', style: 'margin:0 0 .5rem' }, T(
     'Quem você escolher aparece SEMPRE no placar virtual, em qualquer filtro — para se comparar com os amigos. A lista é da sua conta e vale para todas as provas' + (logged() ? '.' : ' (sem entrar na conta, ela fica só neste navegador).'),
-    'Whoever you pick ALWAYS shows on the virtual scoreboard, under any filter — to compare yourself with friends. The list belongs to your account and applies to every contest' + (logged() ? '.' : ' (without logging in it stays in this browser only).'))),
+    'Whoever you pick ALWAYS shows on the virtual scoreboard, under any filter — to compare yourself with friends. The list belongs to your account and applies to every contest' + (logged() ? '.' : ' (without logging in it stays in this browser only).'),
+    'Quien elijas aparece SIEMPRE en el marcador virtual, con cualquier filtro — para compararte con tus amigos. La lista es de tu cuenta y vale para todas las competencias' + (logged() ? '.' : ' (sin iniciar sesión, queda solo en este navegador).'))),
     el('div', { class: 'row', style: 'gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem' }, q, add, addBtn),
     el('div', { 'data-k': 'list', class: 'vr-frlist' }));
 }

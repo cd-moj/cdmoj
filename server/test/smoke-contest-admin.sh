@@ -70,6 +70,11 @@ ck "conf LOCALE=en"     'grep -q "^LOCALE=en" "$FIX/ac-c/conf"'
 ck "conf LOGIN_ENABLED=n" 'grep -q "^LOGIN_ENABLED=n" "$FIX/ac-c/conf"'
 call /contest/basic GET '' cadm 'contest=ac-c'
 ck "basic.sh reflete en/login_enabled" '[[ "$(jq -r .locale <<<"$BODY")" == "en" && "$(jq -r .login_enabled <<<"$BODY")" == "false" ]]'
+call /contest/admin/config POST '{"basic":{"locale":"es"}}' cadm 'contest=ac-c'
+ck "config: locale es aceito" 'grep -q "^LOCALE=es" "$FIX/ac-c/conf"'
+call /contest/admin/config POST '{"colors":{"A":"123456"},"basic":{"locale":"xx"}}' cadm 'contest=ac-c'
+ck "config: locale inválido → 422 ANTES de gravar" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == locale_invalid ]] && grep -q "^LOCALE=es" "$FIX/ac-c/conf" && [[ "$(jq -r .A "$FIX/ac-c/balloons.json")" != 123456 ]]'
+call /contest/admin/config POST '{"basic":{"locale":"en"}}' cadm 'contest=ac-c'
 
 echo "== usuários =="
 call /contest/admin/users GET '' cadm 'contest=ac-c'

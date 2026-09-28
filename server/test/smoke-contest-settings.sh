@@ -37,6 +37,16 @@ call /contest/admin/settings GET '' adm 'contest=sc'
 ck "GET reflete login_enabled false/show_editor false" '[[ "$(jq -r .login_enabled <<<"$BODY")" == "false" && "$(jq -r .show_editor <<<"$BODY")" == "false" ]]'
 ck "auditoria settings" 'grep -q "	settings	" "$C/var/admin-audit.log"'
 
+echo "== idioma do contest (LOCALE pt|en|es) =="
+call /contest/admin/settings POST '{"locale":"es"}' adm 'contest=sc'
+ck "locale es aceito"         '[[ "$(jq -r .saved <<<"$BODY")" == "true" ]] && grep -q "^LOCALE=es$" "$C/conf"'
+call /contest/admin/settings GET '' adm 'contest=sc'
+ck "GET locale=es"            '[[ "$(jq -r .locale <<<"$BODY")" == es ]]'
+call /contest/admin/settings POST '{"locale":"fr"}' adm 'contest=sc'
+ck "locale fr → 422 locale_invalid" '[[ "$OUT" == *"Status: 422"* && "$(jq -r .error.code <<<"$BODY")" == locale_invalid ]] && grep -q "^LOCALE=es$" "$C/conf"'
+call /contest/admin/settings POST '{"locale":"pt"}' adm 'contest=sc'
+ck "volta a pt"               'grep -q "^LOCALE=pt$" "$C/conf"'
+
 echo "== penalidade ICPC (PENALTY_MINUTES / PENALTY_VERDICTS) =="
 call /contest/admin/settings GET '' adm 'contest=sc'
 ck "GET mode=icpc"            '[[ "$(jq -r .mode <<<"$BODY")" == "icpc" ]]'

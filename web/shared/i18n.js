@@ -1,26 +1,29 @@
-// shared/i18n.js — internacionalização pt/en UNIFICADA (mecanismo único da web).
+// shared/i18n.js — internacionalização pt/en/es UNIFICADA (mecanismo único da web).
 //
-// `T(pt, en)` é o jeito canônico de escrever QUALQUER string de exibição no JS
-// (o par HTML é o atributo `data-en` + shared/i18n-dom.js). Um só `LANG` de módulo
+// `T(pt, en, es)` é o jeito canônico de escrever QUALQUER string de exibição no JS
+// (o par HTML são os atributos `data-en`/`data-es` + shared/i18n-dom.js). Um só `LANG` de módulo
 // governa tudo. Precedência de idioma:
 //   1. LOCALE do contest (explícito, em página de contest) — via setLang(loc) sem persist;
 //   2. `?lang=` na URL — link explícito, e vale como escolha do usuário (grava);
-//   3. escolha manual do usuário (seletor pt/en no header) — localStorage 'moj_lang';
-//   4. idioma do browser (navigator.language): não-português => inglês.
-// Regra do projeto: TODA tela/string nova nasce nos DOIS idiomas (PT-only = bug).
+//   3. escolha manual do usuário (seletor PT · EN · ES no header) — localStorage 'moj_lang';
+//   4. idioma do browser (navigator.language): pt* ⇒ pt, es* ⇒ es, o resto ⇒ en.
+// Regra do projeto: TODA tela/string nova nasce nos TRÊS idiomas (faltar um = bug; ver docs/I18N.md,
+// que tem o glossário do espanhol). `es` ausente cai no `en` (e o `en` ausente no `pt`) — nunca vazio.
 //
 // O `?lang=` existe para o link que alguém MANDA: o e-mail de convocação p/ uma sede de fora,
 // o tutorial passado adiante. Sem ele o destinatário abre no idioma do navegador DELE, e não
-// há como quem escreve o e-mail garantir a versão certa. Duas decisões:
+// há como quem escreve o e-mail garantir a versão certa. Três decisões:
 //   • ele GRAVA (como o seletor do header) — senão o idioma se perderia no primeiro clique
 //     dentro da página, que é o contrário do que quem abriu o link pediu;
 //   • ele PERDE para o LOCALE do contest, exatamente como o seletor: dentro de uma prova quem
-//     manda no idioma é a prova. Um só valor governa a tela toda.
-// Qualquer tag que não comece por `pt` cai em `en` (mesma regra do navegador) — então
-// `?lang=es` abre em inglês, que é o que existe. Valor vazio/ausente não mexe em nada.
+//     manda no idioma é a prova. Um só valor governa a tela toda;
+//   • ele tem UM sentido só — o idioma da visita: vale p/ a interface E p/ o enunciado (o
+//     statement-langs.js lê o mesmo parâmetro p/ escolher a aba do enunciado).
+// Tag fora de pt/es cai em `en` (mesma regra do navegador). Valor vazio/ausente não mexe em nada.
 
 const STORE_KEY = 'moj_lang';
-const norm = (v) => (String(v || '').toLowerCase().startsWith('pt') ? 'pt' : 'en');
+export const LANGS = ['pt', 'en', 'es'];
+const norm = (v) => { const x = String(v || '').toLowerCase(); return x.startsWith('pt') ? 'pt' : (x.startsWith('es') ? 'es' : 'en'); };
 const browserLang = () => norm(navigator.language || 'pt');
 const urlLang = () => {
   try {
@@ -31,7 +34,7 @@ const urlLang = () => {
 
 const forced = urlLang();
 let LANG = forced || localStorage.getItem(STORE_KEY) || browserLang();
-if (LANG !== 'pt' && LANG !== 'en') LANG = 'pt';
+if (!LANGS.includes(LANG)) LANG = 'pt';
 if (forced) { try { localStorage.setItem(STORE_KEY, forced); } catch (_) {} }
 applyHtmlLang();
 
@@ -40,7 +43,7 @@ export function getLang() { return LANG; }
 // setLang(l, {persist}) — persist:true = escolha do usuário (grava e vale em todo o site);
 // persist:false (default) = idioma imposto pelo contest, EFÊMERO (não vaza p/ páginas públicas).
 export function setLang(l, { persist = false } = {}) {
-  if (l !== 'pt' && l !== 'en') return;
+  if (!LANGS.includes(l)) return;
   LANG = l;
   if (persist) { try { localStorage.setItem(STORE_KEY, l); } catch (_) {} }
   applyHtmlLang();
@@ -49,14 +52,22 @@ export function setLang(l, { persist = false } = {}) {
 }
 
 function applyHtmlLang() {
-  try { document.documentElement.lang = LANG === 'en' ? 'en' : 'pt-br'; } catch (_) {}
+  try { document.documentElement.lang = LANG === 'pt' ? 'pt-br' : LANG; } catch (_) {}
 }
 
-// T(pt, en) — O mecanismo. `en` ausente cai no `pt` (nunca renderiza vazio).
-export function T(pt, en) { return LANG === 'en' ? (en == null ? pt : en) : pt; }
+// uiLocale() — a tag do Intl p/ datas/números no idioma da INTERFACE (toLocaleString(uiLocale(), …)).
+// es-419 = espanhol da América Latina (o público das provas em espanhol).
+export function uiLocale() { return LANG === 'pt' ? 'pt-BR' : (LANG === 'es' ? 'es-419' : 'en-US'); }
+
+// T(pt, en, es) — O mecanismo. `es` ausente cai no `en`; `en` ausente cai no `pt` (nunca vazio).
+export function T(pt, en, es) {
+  if (LANG === 'es') return es != null ? es : (en != null ? en : pt);
+  if (LANG === 'en') return en != null ? en : pt;
+  return pt;
+}
 
 // --- compat: dicionário keyed `t(key)`, agora reescrito sobre T (mesmo LANG). ----------
-// Usado só pelo widget de auth (ui.js). Novos textos usam T('pt','en') direto.
+// Usado só pelo widget de auth (ui.js). Novos textos usam T('pt','en','es') direto.
 const STR = {
   pt: {
     login: 'Entrar', logout: 'Sair', user: 'Usuário', password: 'Senha',
@@ -84,5 +95,18 @@ const STR = {
     datetime: 'Date/Time', file: 'File', wrong_login: 'Wrong user or password',
     create_account: 'Create account',
   },
+  es: {
+    login: 'Ingresar', logout: 'Salir', user: 'Usuario', password: 'Contraseña',
+    submit: 'Enviar', send_code: 'Enviar solución', upload: 'Elegir archivo',
+    problems: 'Problemas', search: 'Buscar', tags: 'Etiquetas', score: 'Marcador',
+    contest: 'Competencia', news: 'Noticias', training: 'Entrenamiento libre', docs: 'Documentación',
+    home: 'Inicio', solved: 'Resueltos', attempted: 'Intentados',
+    not_logged: 'No has iniciado sesión', loading: 'cargando…',
+    open: 'Abiertas', upcoming: 'Próximas', closed: 'Finalizadas',
+    statement: 'Enunciado', show: 'mostrar', hide: 'ocultar',
+    history: 'Historial de envíos', status: 'Estado', language: 'Lenguaje',
+    datetime: 'Fecha/Hora', file: 'Archivo', wrong_login: 'Usuario o contraseña incorrectos',
+    create_account: 'Crear cuenta',
+  },
 };
-export function t(k) { return T(STR.pt[k] || k, STR.en[k] || STR.pt[k] || k); }
+export function t(k) { return T(STR.pt[k] || k, STR.en[k] || STR.pt[k] || k, STR.es[k] || STR.en[k] || STR.pt[k] || k); }

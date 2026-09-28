@@ -104,9 +104,10 @@ export function makeCentralTab(CONTEST, opts = {}) {
 
   function checkEl(c) {
     const t = TARGET[c.id];
-    // label/detail vêm do servidor em PT; item com label_en/detail_en é bilíngue (preflight.sh add2)
-    const label = c.label_en ? T(c.label, c.label_en) : c.label;
-    const detail = c.detail_en ? T(c.detail || '', c.detail_en) : (c.detail || '');
+    // label/detail vêm do servidor em PT + label_en/detail_en + label_es/detail_es (preflight.sh e
+    // finish.sh, add3); T() faz a cascata es → en → pt, então campo ausente cai no idioma seguinte.
+    const label = T(c.label, c.label_en || null, c.label_es || null);
+    const detail = T(c.detail || '', c.detail_en || null, c.detail_es || null);
     let act = null;
     if (c.action === 'warm_judges') {
       const msg = el('span', { class: 'small muted' });
@@ -234,7 +235,7 @@ export function makeCentralTab(CONTEST, opts = {}) {
       el('div', { class: 'tcards' },
         !has('documentos') ? null : gcard(T('📄 Documentos da prova', '📄 Contest documents'),
           nd ? T(`${nd} gerado(s) · ${npub} publicado(s)`, `${nd} generated · ${npub} published`)
-            : T('info sheet, caderno e folha de time limits (PDF+HTML, pt/en)', 'info sheet, booklet and time-limits sheet (PDF+HTML, pt/en)'),
+            : T('info sheet, caderno e folha de time limits (PDF+HTML, pt/en/es)', 'info sheet, booklet and time-limits sheet (PDF+HTML, pt/en/es)'),
           el('button', { class: 'btn', onclick: () => go('evento', 'documentos') }, T('abrir', 'open'))),
         gcard(T('🏷️ Etiquetas de credenciais', '🏷️ Credential badges'),
           T('folhas Pimaco A4 com login e senha', 'Pimaco A4 sheets with login and password'),

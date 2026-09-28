@@ -1,5 +1,5 @@
 // shared/statement-langs.js — IDIOMA DO ENUNCIADO (pt/en/es), o eixo dos DOCUMENTOS — não o da
-// interface (i18n.js é só pt|en). O pacote pode trazer docs/enunciado.<lang>.md; o treino serve
+// interface (i18n.js, também pt|en|es, mas é outra escolha). O pacote pode trazer docs/enunciado.<lang>.md; o treino serve
 // `statement_langs` + `statements{<lang>:{title,html_b64}}`; o contest oferece a lista
 // `STATEMENT_LANGS` e o corpo sai de /contest/statement?lang=. Aqui mora o que as três telas
 // (treino, contest, editor) repetem: a allowlist, os rótulos, a escolha lembrada e os chips.
@@ -21,7 +21,7 @@ export function pickStmtLang(avail, def) {
   const list = (avail && avail.length) ? avail : ['pt'];
   const ok = (l) => l && list.includes(l);
   let q = ''; try { q = new URLSearchParams(location.search).get('lang') || ''; } catch { /* */ }
-  for (const c of [q, remembered(), def, getLang() === 'en' ? 'en' : 'pt']) if (ok(c)) return c;
+  for (const c of [q, remembered(), def, getLang()]) if (ok(c)) return c;
   return list[0];
 }
 

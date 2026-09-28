@@ -201,7 +201,7 @@ case "$action" in
         nf="$CONTESTSDIR/$contest/news-files/$nid"; mkdir -p "$nf" 2>/dev/null
         fname="$t.$l.pdf"; cp -f "$pdf" "$nf/$fname"
         nj="$CONTESTSDIR/$contest/news.json"; [[ -s "$nj" ]] || printf '[]' > "$nj"
-        jq -c --arg id "$nid" --arg ti "$label" --arg tx "$([[ "$l" == pt ]] && printf 'Documento da prova disponível para download.' || printf 'Contest document available for download.')" \
+        jq -c --arg id "$nid" --arg ti "$label" --arg tx "$(_doc_t "$l" news_doc)" \
            --arg fn "$fname" --argjson sz "$(stat -c%s "$nf/$fname" 2>/dev/null || echo 0)" --argjson dt "$EPOCHSECONDS" \
            '. + [{id:$id, title:$ti, text:$tx, date:$dt, file:{name:$fn, size:$sz}}]' "$nj" > "$nj.tmp" \
           && mv -f "$nj.tmp" "$nj" && news_created=true

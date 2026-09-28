@@ -54,7 +54,7 @@ if [[ -n "$BCVAR" ]] && resp_cache_fresh "$BCF" "${BASIC_CACHE_TTL:-20}" \
 fi
 
 [[ -n "$LOGIN_START_TIME" ]] || LOGIN_START_TIME="$CONTEST_START"
-# locale CRU: "" quando não setado (o front cai no seletor/idioma do browser); "pt"/"en"
+# locale CRU: "" quando não setado (o front cai no seletor/idioma do browser); "pt"/"en"/"es"
 # explícitos IMPÕEM o idioma da interface do contest (competidor estrangeiro não se perde).
 le="$([[ "$LOGIN_ENABLED" == n ]] && echo false || echo true)"
 sa="$([[ "$SCORE_ANON" == 1 ]] && echo true || echo false)"

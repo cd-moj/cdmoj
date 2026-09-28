@@ -5,7 +5,8 @@
 # existia na página da cerimônia de revelação). Aqui:
 #
 #   GET  -> checklist do que ainda está fechado, no MESMO formato do preflight
-#           ({checks:[{id,level,label,detail}], summary}) — o front deep-linka pelo id.
+#           ({checks:[{id,level,label,detail,label_en,detail_en,label_es,detail_es}], summary};
+#           label/detail = PT, nome de campo legado) — o front deep-linka pelo id.
 #   POST {action:"finish"} -> AGE em duas coisas (decisão do dono da plataforma):
 #           1. descongela o placar (FREEZE_TIME=0) — o build repõe as métricas porque o conf
 #              fica mais novo que var/.metrics-stamp, e apaga o placar-full;
@@ -47,46 +48,73 @@ _docs_pending_json(){   # [{type,lang}] dos gerados-e-não-publicados
 
 if [[ "$REQUEST_METHOD" != POST ]]; then
   CHECKS='[]'
-  add(){ CHECKS="$(jq -c --arg i "$1" --arg lv "$2" --arg lb "$3" --arg d "$4" \
-        '. + [{id:$i, level:$lv, label:$lb, detail:$d}]' <<<"$CHECKS")"; }
+  # add3 <id> <level> <label_pt> <detail_pt> <label_en> <detail_en> <label_es> <detail_es> — item TRILÍNGUE
+  add3(){ CHECKS="$(jq -c --arg i "$1" --arg lv "$2" --arg lb "$3" --arg d "$4" --arg le "$5" --arg de "$6" \
+        --arg ls "$7" --arg ds "$8" \
+        '. + [{id:$i, level:$lv, label:$lb, detail:$d, label_en:$le, detail_en:$de, label_es:$ls, detail_es:$ds}]' <<<"$CHECKS")"; }
 
   # --- fim da prova -----------------------------------------------------------
   if contest_over_for_all "$contest"; then
-    add fim ok "Prova encerrada" "terminou em $(fmt_epoch "$(contest_end_all "$contest")" '%d/%m/%Y %H:%M' "$contest")"
+    _endall="$(fmt_epoch "$(contest_end_all "$contest")" '%d/%m/%Y %H:%M' "$contest")"
+    add3 fim ok "Prova encerrada" "terminou em $_endall" \
+      "Contest over" "ended at $_endall" \
+      "Competencia terminada" "terminó el $_endall"
   else
-    add fim warn "Prova ainda em andamento" "o encerramento só roda depois do fim para TODAS as sedes"
+    add3 fim warn "Prova ainda em andamento" "o encerramento só roda depois do fim para TODAS as sedes" \
+      "Contest still running" "closing only runs after the end for ALL sites" \
+      "Competencia aún en curso" "el cierre solo corre después del fin para TODAS las sedes"
   fi
 
   # --- o que o botão resolve --------------------------------------------------
   if [[ "${FREEZE_TIME:-0}" =~ ^[0-9]+$ ]] && (( FREEZE_TIME > 0 )); then
+    _fzh="$(fmt_epoch "$FREEZE_TIME" '%H:%M' "$contest")"
     if freeze_release_ok "$contest"; then
-      add freeze fail "Placar CONGELADO" "o público vê o placar de $(fmt_epoch "$FREEZE_TIME" '%H:%M' "$contest") — encerrar o evento abre o resultado final"
+      add3 freeze fail "Placar CONGELADO" "o público vê o placar de $_fzh — encerrar o evento abre o resultado final" \
+        "Scoreboard FROZEN" "the public sees the scoreboard as of $_fzh — finishing the event opens the final result" \
+        "Marcador CONGELADO" "el público ve el marcador de las $_fzh — cerrar el evento abre el resultado final"
     else
-      add freeze fail "Placar CONGELADO" "o público vê o placar de $(fmt_epoch "$FREEZE_TIME" '%H:%M' "$contest") — pode ser descongelado a partir de $(fmt_epoch "$(freeze_release_at "$contest")" '%H:%M' "$contest") (fim para todas as sedes + 1 min)"
+      _relh="$(fmt_epoch "$(freeze_release_at "$contest")" '%H:%M' "$contest")"
+      add3 freeze fail "Placar CONGELADO" "o público vê o placar de $_fzh — pode ser descongelado a partir de $_relh (fim para todas as sedes + 1 min)" \
+        "Scoreboard FROZEN" "the public sees the scoreboard as of $_fzh — it can be unfrozen from $_relh on (end for all sites + 1 min)" \
+        "Marcador CONGELADO" "el público ve el marcador de las $_fzh — puede descongelarse a partir de las $_relh (fin para todas las sedes + 1 min)"
     fi
   else
-    add freeze ok "Placar aberto" "sem congelamento em vigor"
+    add3 freeze ok "Placar aberto" "sem congelamento em vigor" \
+      "Scoreboard open" "no freeze in effect" \
+      "Marcador abierto" "sin congelamiento vigente"
   fi
   pend="$(_docs_pending_json)"; npend="$(jq -r 'length' <<<"$pend")"
   if ! mod_on "$contest" documentos; then :   # módulo desligado: nada a publicar aqui
   elif (( npend > 0 )); then
-    add docs fail "$npend documento(s) gerado(s) sem publicar" \
-      "$(jq -r 'map(.type + "." + .lang) | join(", ")' <<<"$pend")"
+    _pdocs="$(jq -r 'map(.type + "." + .lang) | join(", ")' <<<"$pend")"
+    add3 docs fail "$npend documento(s) gerado(s) sem publicar" "$_pdocs" \
+      "$npend generated document(s) not published" "$_pdocs" \
+      "$npend documento(s) generado(s) sin publicar" "$_pdocs"
   else
-    add docs ok "Documentos publicados" "nada gerado esperando publicação"
+    add3 docs ok "Documentos publicados" "nada gerado esperando publicação" \
+      "Documents published" "nothing generated waiting to be published" \
+      "Documentos publicados" "nada generado esperando publicación"
   fi
 
   # --- informativos: o botão NÃO mexe, mas o organizador precisa ver ----------
   if [[ "$(showlog_effective "$contest")" == 1 ]]; then
-    add show_log ok "Times veem o relatório de correção" "SHOWLOG ligado"
+    add3 show_log ok "Times veem o relatório de correção" "SHOWLOG ligado" \
+      "Teams see the judging report" "SHOWLOG on" \
+      "Los equipos ven el informe de evaluación" "SHOWLOG activado"
   else
-    add show_log warn "Times NÃO veem o relatório de correção" "em modo prova é o padrão; depois costuma-se liberar em ⚙️ Regras"
+    add3 show_log warn "Times NÃO veem o relatório de correção" "em modo prova é o padrão; depois costuma-se liberar em ⚙️ Regras" \
+      "Teams do NOT see the judging report" "that is the default in contest mode; afterwards it is usually released in ⚙️ Settings" \
+      "Los equipos NO ven el informe de evaluación" "es lo predeterminado en modo competencia; después se suele liberar en ⚙️ Configuración"
   fi
   source "$_LIBDIR/cohorts.sh" 2>/dev/null || true
   if mod_on "$contest" coortes && declare -F ch_released >/dev/null 2>&1 && ! ch_released "$contest"; then
-    add cohorts warn "Coortes não liberadas" "convidados/extra-oficiais seguem fora do placar público (Pessoas › Coortes)"
+    add3 cohorts warn "Coortes não liberadas" "convidados/extra-oficiais seguem fora do placar público (Pessoas › Coortes)" \
+      "Cohorts not released" "guests/unofficial teams remain off the public scoreboard (People › Cohorts)" \
+      "Cohortes no liberadas" "los invitados/extraoficiales siguen fuera del marcador público (Personas › Cohortes)"
   fi
-  add report ok "Relatório final" "baixe o pacote offline em Operação › Situação"
+  add3 report ok "Relatório final" "baixe o pacote offline em Operação › Situação" \
+    "Final report" "download the offline package in Operations › Status" \
+    "Informe final" "descarga el paquete offline en Operación › Situación"
 
   ok_json '{checks:$c, summary:{ok:$o, warn:$w, fail:$f}, can_finish:$cf, can_act:$ca, pending_docs:$pd,
             freeze_release_at:$fra}' \

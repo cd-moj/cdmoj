@@ -1,45 +1,46 @@
 // shared/i18n-dom.js — traduz o texto ESTÁTICO do HTML (o que não é renderizado por JS).
 //
-// Anote a versão inglesa direto no markup e este módulo troca quando LANG==='en':
-//   <span data-en="Home">Início</span>                     -> textContent
-//   <input data-en-ph="Search…" placeholder="Buscar…">     -> placeholder
-//   <a data-en-title="Edit profile" title="Editar perfil"> -> title
-//   <h1 data-en-html="Welcome <b>back</b>">Bem-vindo…</h1>  -> innerHTML (raro)
-//   <html data-en-doctitle="MOJ — Home">                   -> document.title
-// O PT fica no conteúdo/atributo normal (idioma base) e é CAPTURADO em data-pt-* na
-// primeira aplicação — assim a troca é REVERSÍVEL (EN→PT restaura; antes, abrir com
+// Anote as versões inglesa e espanhola direto no markup e este módulo troca conforme o LANG:
+//   <span data-en="Home" data-es="Inicio">Início</span>                        -> textContent
+//   <input data-en-ph="Search…" data-es-ph="Buscar…" placeholder="Buscar…">    -> placeholder
+//   <a data-en-title="Edit profile" data-es-title="Editar perfil" title="…">   -> title
+//   <h1 data-en-html="Welcome <b>back</b>" data-es-html="…">Bem-vindo…</h1>     -> innerHTML (raro)
+//   <html data-en-doctitle="MOJ — Home" data-es-doctitle="MOJ — Inicio">       -> document.title
+// O PT fica no conteúdo/atributo normal (idioma base) e é CAPTURADO em data-pt-* na primeira
+// aplicação — assim a troca é REVERSÍVEL (qualquer idioma → PT restaura; antes, abrir com
 // moj_lang=en e cair num contest LOCALE=pt deixava o estático preso em inglês).
+// Mesma cascata do T(): em espanhol, `data-es*` ausente cai no `data-en*` (e este no PT).
 //
 // Uso: inclua ANTES do <script> da página (módulos são deferred, rodam em ordem):
 //   <script type="module" src="/shared/i18n-dom.js"></script>
 import { getLang } from '/shared/i18n.js';
 
+// [sufixo do atributo, chave do data-pt-*, como ler o PT, como escrever]
+const KINDS = [
+  ['', 'pt', (e) => e.textContent, (e, v) => { e.textContent = v; }],
+  ['-html', 'ptHtml', (e) => e.innerHTML, (e, v) => { e.innerHTML = v; }],
+  ['-ph', 'ptPh', (e) => e.getAttribute('placeholder') || '', (e, v) => e.setAttribute('placeholder', v)],
+  ['-title', 'ptTitle', (e) => e.getAttribute('title') || '', (e, v) => e.setAttribute('title', v)],
+];
+
 export function i18nDOM(root = document) {
-  const en = getLang() === 'en';
-  root.querySelectorAll('[data-en]').forEach((e) => {
-    if (e.dataset.pt === undefined) e.dataset.pt = e.textContent;
-    e.textContent = en ? e.getAttribute('data-en') : e.dataset.pt;
-  });
-  root.querySelectorAll('[data-en-html]').forEach((e) => {
-    if (e.dataset.ptHtml === undefined) e.dataset.ptHtml = e.innerHTML;
-    e.innerHTML = en ? e.getAttribute('data-en-html') : e.dataset.ptHtml;
-  });
-  root.querySelectorAll('[data-en-ph]').forEach((e) => {
-    if (e.dataset.ptPh === undefined) e.dataset.ptPh = e.getAttribute('placeholder') || '';
-    e.setAttribute('placeholder', en ? e.getAttribute('data-en-ph') : e.dataset.ptPh);
-  });
-  root.querySelectorAll('[data-en-title]').forEach((e) => {
-    if (e.dataset.ptTitle === undefined) e.dataset.ptTitle = e.getAttribute('title') || '';
-    e.setAttribute('title', en ? e.getAttribute('data-en-title') : e.dataset.ptTitle);
-  });
-  // doctitle: só alterna entre os DOIS títulos estáticos — título dinâmico (ex.: nome do
-  // contest, posto depois pelo app) não é tocado.
+  const lang = getLang();
+  for (const [suf, key, read, write] of KINDS) {
+    root.querySelectorAll(`[data-en${suf}],[data-es${suf}]`).forEach((e) => {
+      if (e.dataset[key] === undefined) e.dataset[key] = read(e);
+      const pt = e.dataset[key], en = e.getAttribute(`data-en${suf}`), es = e.getAttribute(`data-es${suf}`);
+      write(e, lang === 'es' ? (es ?? en ?? pt) : (lang === 'en' ? (en ?? pt) : pt));
+    });
+  }
+  // doctitle: só alterna entre os títulos ESTÁTICOS — título dinâmico (ex.: nome do contest, posto
+  // depois pelo app) não é tocado.
   const de = document.documentElement;
-  const dt = de.getAttribute('data-en-doctitle');
-  if (dt) {
+  const dEn = de.getAttribute('data-en-doctitle'), dEs = de.getAttribute('data-es-doctitle');
+  if (dEn || dEs) {
     if (de.dataset.ptDoctitle === undefined) de.dataset.ptDoctitle = document.title;
-    if (en) { if (document.title === de.dataset.ptDoctitle) document.title = dt; }
-    else if (document.title === dt) document.title = de.dataset.ptDoctitle;
+    const pt = de.dataset.ptDoctitle, statics = [pt, dEn, dEs].filter((x) => x != null);
+    const want = lang === 'es' ? (dEs ?? dEn ?? pt) : (lang === 'en' ? (dEn ?? pt) : pt);
+    if (statics.includes(document.title)) document.title = want;
   }
 }
 

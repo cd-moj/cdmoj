@@ -427,8 +427,8 @@ function makeQueueTab() {
         const age = Number(w.alive_age_s);
         let alive;
         if (age < 0) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ morto (nunca bateu)', '⚠ dead (never beat)'));
-        else if (age > 120) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ parado há ' + age + 's', '⚠ stalled for ' + age + 's'));
-        else alive = el('span', { style: 'color:var(--ok,#1a7f37)' }, T('🟢 vivo (há ' + age + 's)', '🟢 alive (' + age + 's ago)'));
+        else if (age > 120) alive = el('span', { style: 'color:var(--err,#c00);font-weight:600' }, T('⚠ parado há ' + age + 's', '⚠ stalled for ' + age + 's', '⚠ detenido hace ' + age + 's'));
+        else alive = el('span', { style: 'color:var(--ok,#1a7f37)' }, T('🟢 vivo (há ' + age + 's)', '🟢 alive (' + age + 's ago)', '🟢 vivo (hace ' + age + 's)'));
         const warn = (n) => n > 0 ? el('b', { style: 'color:var(--warn,#a66a00)' }, String(n)) : el('span', { class: 'muted' }, '0');
         wtb.append(el('tr', {},
           el('td', {}, el('code', {}, 's' + w.shard)),
@@ -440,7 +440,7 @@ function makeQueueTab() {
       const box = el('div', { style: 'margin:.6rem 0' },
         el('div', { class: 'chart-title' },
           T('✍ Roteamento do escritor — ', '✍ Writer routing — ') +
-          (rt.shards > 1 ? T(rt.shards + ' shards por hash(login)', rt.shards + ' shards by hash(login)') : T('escritor único', 'single writer'))),
+          (rt.shards > 1 ? T(rt.shards + ' shards por hash(login)', rt.shards + ' shards by hash(login)', rt.shards + ' shards por hash(login)') : T('escritor único', 'single writer'))),
         el('div', { class: 'chart-wrap' }, el('table', { class: 'moj narrow' },
           el('thead', {}, el('tr', {},
             el('th', {}, 'Shard'),
@@ -455,7 +455,8 @@ function makeQueueTab() {
       if (num(rt.orphans) > 0) {
         box.append(el('div', { class: 'error-box', style: 'margin-top:.3rem' },
           T('⚠ ' + num(rt.orphans) + ' arquivo(s) em shard ÓRFÃO (JUDGED_SHARDS da API ≠ daemon?) — o worker 0 devolve à raiz em ≤30 s; se persistir, confira o env dos dois containers.',
-            '⚠ ' + num(rt.orphans) + ' file(s) in ORPHAN shard (API JUDGED_SHARDS ≠ daemon?) — worker 0 returns them to the root in ≤30 s; if it persists, check both containers’ env.')));
+            '⚠ ' + num(rt.orphans) + ' file(s) in ORPHAN shard (API JUDGED_SHARDS ≠ daemon?) — worker 0 returns them to the root in ≤30 s; if it persists, check both containers’ env.',
+            '⚠ ' + num(rt.orphans) + ' archivo(s) en shard HUÉRFANO (¿JUDGED_SHARDS de la API ≠ daemon?) — el worker 0 los devuelve a la raíz en ≤30 s; si persiste, revisa el env de los dos contenedores.')));
       }
       s1.append(box);
     }
@@ -467,7 +468,7 @@ function makeQueueTab() {
         if (!since) return '';
         const s = Math.max(0, Math.floor(Date.now() / 1000 - since));
         const mm = Math.floor(s / 60);
-        return mm >= 1 ? T(' · há ' + mm + 'm', ' · for ' + mm + 'm') : T(' · há ' + s + 's', ' · for ' + s + 's');
+        return mm >= 1 ? T(' · há ' + mm + 'm', ' · for ' + mm + 'm', ' · hace ' + mm + 'm') : T(' · há ' + s + 's', ' · for ' + s + 's', ' · hace ' + s + 's');
       };
       machines.forEach(m => {
         // TODOS os segmentos/slots (current_jobs) — m.current é só o 1º (compat) e escondia o resto
@@ -1189,15 +1190,15 @@ function makeContestsTab() {
 // + POST /treino/admin/achievements (salvar/restaurar). Conquista de um tipo (kind)
 // existente é só DADO; kind novo é código — ver docs/PERFIL.md.
 const ACH_KINDS = {
-  solved_gte:          { pt: 'Resolvidos ≥ n', en: 'Solved ≥ n', fields: [['n', 'number']] },
-  submissions_gte:     { pt: 'Envios ≥ n', en: 'Submissions ≥ n', fields: [['n', 'number']] },
-  streak_gte:          { pt: 'Maior streak ≥ dias', en: 'Longest streak ≥ days', fields: [['days', 'number']] },
-  langs_gte:           { pt: 'Linguagens distintas ≥ n', en: 'Distinct languages ≥ n', fields: [['n', 'number']] },
-  oneshots_gte:        { pt: 'ACs de primeira ≥ n', en: 'First-try ACs ≥ n', fields: [['n', 'number']] },
-  collection_complete: { pt: 'Alguma coleção 100% (≥ min_size)', en: 'Any collection 100% (≥ min_size)', fields: [['min_size', 'number']] },
-  collection_named:    { pt: 'Coleção específica 100%', en: 'Specific collection 100%', fields: [['collection', 'text']] },
-  tag_solved_gte:      { pt: 'Resolvidos numa tag ≥ n', en: 'Solved in a tag ≥ n', fields: [['tag', 'text'], ['n', 'number']] },
-  diff_solved_gte:     { pt: 'Resolvidos por dificuldade ≥ n', en: 'Solved by difficulty ≥ n', fields: [['diff', 'select'], ['n', 'number']] },
+  solved_gte:          { pt: 'Resolvidos ≥ n', en: 'Solved ≥ n', es: 'Resueltos ≥ n', fields: [['n', 'number']] },
+  submissions_gte:     { pt: 'Envios ≥ n', en: 'Submissions ≥ n', es: 'Envíos ≥ n', fields: [['n', 'number']] },
+  streak_gte:          { pt: 'Maior streak ≥ dias', en: 'Longest streak ≥ days', es: 'Racha más larga ≥ días', fields: [['days', 'number']] },
+  langs_gte:           { pt: 'Linguagens distintas ≥ n', en: 'Distinct languages ≥ n', es: 'Lenguajes distintos ≥ n', fields: [['n', 'number']] },
+  oneshots_gte:        { pt: 'ACs de primeira ≥ n', en: 'First-try ACs ≥ n', es: 'AC al primer intento ≥ n', fields: [['n', 'number']] },
+  collection_complete: { pt: 'Alguma coleção 100% (≥ min_size)', en: 'Any collection 100% (≥ min_size)', es: 'Alguna colección al 100% (≥ min_size)', fields: [['min_size', 'number']] },
+  collection_named:    { pt: 'Coleção específica 100%', en: 'Specific collection 100%', es: 'Colección específica al 100%', fields: [['collection', 'text']] },
+  tag_solved_gte:      { pt: 'Resolvidos numa tag ≥ n', en: 'Solved in a tag ≥ n', es: 'Resueltos en una etiqueta ≥ n', fields: [['tag', 'text'], ['n', 'number']] },
+  diff_solved_gte:     { pt: 'Resolvidos por dificuldade ≥ n', en: 'Solved by difficulty ≥ n', es: 'Resueltos por dificultad ≥ n', fields: [['diff', 'select'], ['n', 'number']] },
 };
 function makeAchievementsTab() {
   const panel = el('div', { class: 'section' });
@@ -1220,7 +1221,7 @@ function makeAchievementsTab() {
   let CUSTOM = false;
 
   const paramsText = (a) => Object.entries(a.params || {}).map(([k, v]) => `${k}=${v}`).join(' ');
-  const kindLabel = (k) => (ACH_KINDS[k] ? T(ACH_KINDS[k].pt, ACH_KINDS[k].en) : k);
+  const kindLabel = (k) => (ACH_KINDS[k] ? T(ACH_KINDS[k].pt, ACH_KINDS[k].en, ACH_KINDS[k].es) : k);
 
   function renderList() {
     srcSpan.textContent = CUSTOM
@@ -1235,7 +1236,7 @@ function makeAchievementsTab() {
       tb.append(el('tr', {},
         el('td', { style: 'font-size:1.2rem' }, a.icon || ''),
         el('td', { class: 'small', style: 'font-family:var(--mono)' }, a.id),
-        el('td', {}, a.pt, el('div', { class: 'small muted' }, a.en)),
+        el('td', {}, a.pt, el('div', { class: 'small muted' }, a.en), a.es ? el('div', { class: 'small muted' }, a.es) : null),
         el('td', { class: 'small' }, kindLabel(a.kind), el('div', { class: 'muted', style: 'font-family:var(--mono)' }, paramsText(a))),
         el('td', {}, en),
         el('td', { class: 'small', style: 'white-space:nowrap' },
@@ -1255,6 +1256,7 @@ function makeAchievementsTab() {
     if (editing) id.disabled = true;
     const pt = el('input', { value: editing ? (a.pt || '') : '', placeholder: T('Nome em português', 'Name in Portuguese'), style: 'width:100%' });
     const enI = el('input', { value: editing ? (a.en || '') : '', placeholder: T('Nome em inglês', 'Name in English'), style: 'width:100%' });
+    const esI = el('input', { value: editing ? (a.es || '') : '', placeholder: T('Nome em espanhol (opcional: vazio = o inglês)', 'Name in Spanish (optional: empty = English)', 'Nombre en español (opcional: vacío = el inglés)'), style: 'width:100%' });
     const kind = el('select', { onchange: renderParams }, ...Object.keys(ACH_KINDS).map(k =>
       el('option', { value: k }, `${k} — ${kindLabel(k)}`)));
     if (editing) kind.value = a.kind;
@@ -1277,7 +1279,7 @@ function makeAchievementsTab() {
     renderParams();
     const ferr = el('span', { class: 'small error-box hidden' });
     const saveB = el('button', { class: 'btn', onclick: () => {
-      const item = { id: id.value.trim(), icon: icon.value.trim(), pt: pt.value.trim(), en: enI.value.trim(),
+      const item = { id: id.value.trim(), icon: icon.value.trim(), pt: pt.value.trim(), en: enI.value.trim(), es: esI.value.trim(),
         kind: kind.value, params: {}, enabled: editing ? a.enabled !== false : true };
       for (const inp of paramsBox.querySelectorAll('[data-p]')) {
         const v = inp.type === 'number' ? Number(inp.value) : inp.value.trim();
@@ -1296,7 +1298,7 @@ function makeAchievementsTab() {
     formBox.innerHTML = '';
     formBox.append(el('div', { class: 'subcard', style: 'margin:.5rem 0' },
       el('div', { class: 'row' }, icon, id, kind),
-      el('div', { class: 'row', style: 'margin-top:.4rem' }, pt), el('div', { class: 'row' }, enI),
+      el('div', { class: 'row', style: 'margin-top:.4rem' }, pt), el('div', { class: 'row' }, enI), el('div', { class: 'row' }, esI),
       el('div', { style: 'margin-top:.4rem' }, paramsBox),
       el('div', { class: 'row', style: 'margin-top:.5rem' }, saveB,
         el('button', { class: 'btn ghost', onclick: () => { formBox.innerHTML = ''; } }, T('Cancelar', 'Cancel')), ferr)));

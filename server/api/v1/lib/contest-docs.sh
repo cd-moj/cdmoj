@@ -93,8 +93,8 @@ doc_pdf_served(){
 _doc_esc(){ sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 _doc_escs(){ printf '%s' "${1:-}" | _doc_esc; }
 
-# IDIOMAS dos documentos: pt/en/es. É separado do LOCALE do contest (que veste a INTERFACE e
-# segue pt|en) — aqui o idioma é PARÂMETRO: cada documento é gerado em cada idioma pedido.
+# IDIOMAS dos documentos: pt/en/es. É separado do LOCALE do contest (que veste a INTERFACE,
+# também pt|en|es) — aqui o idioma é PARÂMETRO: cada documento é gerado em cada idioma pedido.
 : "${DOC_LANGS:=pt en es}"
 # teto do PDF que o admin SOBE (capa e documento pronto). O nginx do subdomínio corta antes,
 # mas aqui a recusa tem código e mensagem do MOJ em vez de um 413 cru do nginx.

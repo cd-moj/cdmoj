@@ -77,10 +77,10 @@ const filtered = () => ALL.filter((p) => matchColl(p) && matchTags(p) && matchDi
 
 // ---- ordenação ----------------------------------------------------------------------------
 const SORTS = [
-  { key: 'solved', pt: 'Mais resolvidos', en: 'Most solved' },
-  { key: 'az', pt: 'A–Z', en: 'A–Z' },
-  { key: 'diff', pt: 'Dificuldade', en: 'Difficulty' },
-  { key: 'new', pt: 'Novidades', en: 'Newest' },       // exige public_at na lista (fase 2)
+  { key: 'solved', pt: 'Mais resolvidos', en: 'Most solved', es: 'Más resueltos' },
+  { key: 'az', pt: 'A–Z', en: 'A–Z', es: 'A–Z' },
+  { key: 'diff', pt: 'Dificuldade', en: 'Difficulty', es: 'Dificultad' },
+  { key: 'new', pt: 'Novidades', en: 'Newest', es: 'Novedades' },       // exige public_at na lista (fase 2)
 ];
 const byTitle = (a, b) => (a.title || a.id).localeCompare(b.title || b.id, 'pt', { numeric: true, sensitivity: 'base' });
 function sortRows(rows) {
@@ -282,17 +282,17 @@ function renderRail() {
       attempted: base.filter((p) => attempted.has(p.id) && !solved.has(p.id)).length,
     };
     const OPTS = [
-      { key: 'all', pt: 'Todos', en: 'All' },
-      { key: 'unsolved', pt: 'A resolver', en: 'To solve' },
-      { key: 'solved', pt: '✓ Resolvidos', en: '✓ Solved' },
-      { key: 'attempted', pt: '… Tentados', en: '… Attempted' },
+      { key: 'all', pt: 'Todos', en: 'All', es: 'Todos' },
+      { key: 'unsolved', pt: 'A resolver', en: 'To solve', es: 'Por resolver' },
+      { key: 'solved', pt: '✓ Resolvidos', en: '✓ Solved', es: '✓ Resueltos' },
+      { key: 'attempted', pt: '… Tentados', en: '… Attempted', es: '… Intentados' },
     ];
     const box = $('fStatus'); box.innerHTML = '';
     OPTS.forEach((o) => {
       const inp = el('input', { type: 'radio', name: 'fstatus',
         onchange: () => { FSTATUS = o.key; page = 0; syncURL(); renderAll(); } });
       inp.checked = FSTATUS === o.key;
-      box.append(el('label', { class: 'fitem' }, inp, T(o.pt, o.en),
+      box.append(el('label', { class: 'fitem' }, inp, T(o.pt, o.en, o.es),
         el('span', { class: 'cnt2' }, String(counts[o.key]))));
     });
   }
@@ -308,7 +308,7 @@ function renderRail() {
     } });
     inp.checked = selDiffs.has(d.key);
     box.append(el('label', { class: 'fitem' }, inp,
-      el('span', { class: 'diff ' + d.cls }, T(d.pt, d.en)),
+      el('span', { class: 'diff ' + d.cls }, T(d.pt, d.en, d.es)),
       el('span', { class: 'cnt2' }, String(counts.get(d.key) || 0))));
   });
 }
@@ -329,7 +329,7 @@ function renderActive() {
     (TAGS.get(k) || { label: '#' + k }).label, el('span', { class: 'chip-x' }, '×'))));
   selDiffs.forEach((k) => { const d = diffByKey(k); if (d) box.append(el('span', { class: 'fchip on',
     style: 'font-size:.75rem', onclick: () => { selDiffs.delete(k); page = 0; syncURL(); renderAll(); } },
-    T(d.pt, d.en), el('span', { class: 'chip-x' }, '×'))); });
+    T(d.pt, d.en, d.es), el('span', { class: 'chip-x' }, '×'))); });
   if (FSTATUS !== 'all') box.append(el('span', { class: 'fchip on', style: 'font-size:.75rem',
     onclick: () => { FSTATUS = 'all'; page = 0; syncURL(); renderAll(); } },
     FSTATUS === 'solved' ? T('resolvidos', 'solved') : FSTATUS === 'attempted' ? T('tentados', 'attempted') : T('a resolver', 'to solve'),
@@ -590,7 +590,7 @@ function renderSorts() {
   const hasPub = ALL.some((p) => p.public_at);         // servidor antigo sem o campo: sem a aba
   SORTS.filter((s) => s.key !== 'new' || hasPub)
     .forEach((s) => box.append(el('a', { class: SORT === s.key ? 'on' : '',
-      onclick: () => { SORT = s.key; page = 0; syncURL(); renderBrowse(); } }, T(s.pt, s.en))));
+      onclick: () => { SORT = s.key; page = 0; syncURL(); renderBrowse(); } }, T(s.pt, s.en, s.es))));
 }
 function renderPager(box, pages) {
   box.innerHTML = '';

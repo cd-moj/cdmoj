@@ -63,7 +63,7 @@ export function makeRoundsTab(CONTEST, opts = {}) {
           '✓ all clear: round ended, judge queue empty, no pending verdict.')));
     } else {
       (pr.blockers || []).forEach(b => ul.append(el('li', { class: 'small' },
-        el('b', {}, '⛔ ' + b.code), ' — ' + (b.detail || ''))));
+        el('b', {}, '⛔ ' + b.code), ' — ' + T(b.detail || '', b.detail_en || null, b.detail_es || null))));
     }
     box.append(ul);
     if (readOnly) return box;

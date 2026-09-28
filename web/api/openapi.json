@@ -677,7 +677,7 @@
         "summary": "Registro de conquistas do perfil (custom do admin ou default embarcado; avaliação no cliente — docs/PERFIL.md)",
         "responses": {
           "200": {
-            "description": "{custom, version, achievements:[{id,icon,pt,en,kind,params,enabled}]}"
+            "description": "{custom, version, achievements:[{id,icon,pt,en,es?,kind,params,enabled}]} (es opcional; ausente = a tela cai no en)"
           }
         }
       }
@@ -2270,7 +2270,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{checks:[{id,level:ok|warn|fail,label,detail[,label_en,detail_en][,action]}], summary:{ok,warn,fail}} — ids: window, show_log, freeze, judges, pool, langs, problems, pool_problems, judges_warm (juiz a juiz: calibrou a versão atual de cada problema? action warm_judges quando há frio), print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs. label_en/detail_en = item bilíngue; action = botão da Central"
+            "description": "{checks:[{id,level:ok|warn|fail,label,detail,label_en,detail_en,label_es,detail_es[,action]}], summary:{ok,warn,fail}} — ids: window, show_log, freeze, judges, pool, langs, problems, pool_problems, judges_warm (juiz a juiz: calibrou a versão atual de cada problema? action warm_judges quando há frio), print, staff_filters, balloons, users, daemon, mode, manual, tov, cohorts, ua_gate, next_round, docs. label/detail = PT; *_en/*_es = inglês e espanhol; action = botão da Central"
           }
         }
       }
@@ -2487,7 +2487,7 @@
         "summary": "Checklist pós-prova (o que ainda está fechado) — admin ou juiz-chefe; freeze_release_at = fim geral + 1 min (POST antes disso com freeze = 409 freeze_locked)",
         "responses": {
           "200": {
-            "description": "{checks:[{id,level,label,detail}], summary:{ok,warn,fail}, can_finish, can_act (true só p/ o admin — o POST é dele), pending_docs:[{type,lang}]}"
+            "description": "{checks:[{id,level,label,detail,label_en,detail_en,label_es,detail_es}], summary:{ok,warn,fail}, can_finish, can_act (true só p/ o admin — o POST é dele), pending_docs:[{type,lang}]}"
           },
           "403": {
             "description": "admin_required (nem admin nem juiz-chefe)"
@@ -4888,7 +4888,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Grava config do contest",
+        "summary": "Grava config do contest (basic.locale fora de pt|en|es = 422 locale_invalid antes de qualquer escrita)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5237,7 +5237,7 @@
         "tags": [
           "contest-admin"
         ],
-        "summary": "Atualiza configurações (auditado; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
+        "summary": "Atualiza configurações (auditado; locale = pt|en|es — idioma da interface, do papel impresso e do relatório; outro valor = 422 locale_invalid; tz = fuso IANA da prova, 422 tz_invalid se não existir no zoneinfo e null/vazio volta ao padrão da instalação; judges[] = pool de juízes — hostnames do registro, vazio remove: escalonador ESTRITO, pool offline segura a fila; penalty_minutes int default 20, penalty_verdicts array de wa/tle/mle/rte/ce — editar em prova recomputa o placar; show_log:true grava SHOWLOG=1 explícito — religa o log mesmo em modo icpc)",
         "parameters": [
           {
             "$ref": "#/components/parameters/contest"
@@ -5558,7 +5558,7 @@
         ],
         "responses": {
           "200": {
-            "description": "{active, rounds[], next, promote_ready:{ok,blockers}}"
+            "description": "{active, rounds[], next, promote_ready:{ok,blockers:[{code,detail,detail_en,detail_es}]}}"
           },
           "403": {
             "description": "admin_required"

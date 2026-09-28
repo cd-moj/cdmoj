@@ -74,7 +74,7 @@ export function makeStatusTab(CONTEST, opts = {}) {
       const age = Number(w.alive_age_s);
       const dead = age < 0 || age > 120;
       const st = dead
-        ? (age < 0 ? T('morto', 'dead') : T('parado ' + age + 's', 'stalled ' + age + 's'))
+        ? (age < 0 ? T('morto', 'dead') : T('parado ' + age + 's', 'stalled ' + age + 's', 'detenido ' + age + 's'))
         : (age + 's');
       return el('span', { class: 'small', style: 'display:inline-block;margin:.15rem .35rem .15rem 0;padding:.2rem .55rem;border-radius:1rem;border:1px solid ' + (dead ? '#c00' : 'var(--line)') },
         's' + w.shard + ' ' + (dead ? '⚠ ' : '🟢 ') + st +

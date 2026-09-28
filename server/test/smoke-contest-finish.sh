@@ -29,9 +29,26 @@ printf '%%PDF-1.4 caderno\n' > "$C/docs/contest.pt.pdf"
 printf '%%PDF-1.4 tl\n'      > "$C/docs/times.pt.pdf"
 jq -cn '{caderno_version:"v1.0",published:[]}' > "$C/docs/config.json"
 
+# TRILÍNGUE (pt/en/es): todo item de todo checklist (GET) leva label_en/detail_en/label_es/detail_es,
+# label não-vazio, detail vazio só se vazio nos três, e nada de português no en/es (acumula por chamada).
+I18N_BAD=""; I18N_N=0
+i18n_scan(){
+  printf '%s' "$BODY" | jq -e '.checks' >/dev/null 2>&1 || return 0
+  local bad
+  bad="$(printf '%s' "$BODY" | jq -r '.checks[]
+      | select(([.label_en, .detail_en, .label_es, .detail_es] | map(type == "string") | all | not)
+               or ((.label_en // "") == "") or ((.label_es // "") == "")
+               or (((.detail // "") == "") != ((.detail_en // "") == ""))
+               or (((.detail // "") == "") != ((.detail_es // "") == ""))
+               or ([.label_en, .detail_en, .label_es, .detail_es] | map(tostring) | join(" ")
+                   | test("[ãõç]|ção|ções|não|você|também"; "i")))
+      | .id' 2>/dev/null)"
+  [[ -n "$bad" ]] && I18N_BAD+=" $(printf '%s' "$bad" | tr '\n' ' ')"
+  I18N_N=$(( I18N_N + $(printf '%s' "$BODY" | jq -r '.checks | length' 2>/dev/null || echo 0) ))
+}
 call(){ OUT="$(PATH_INFO="$1" REQUEST_METHOD="$2" QUERY_STRING="contest=fin" HTTP_AUTHORIZATION="Bearer ${4:-adm}" \
   CONTESTSDIR="$FIX" SESSIONDIR="$SESS" bash "$ROUTER" <<<"${3:-}" 2>&1)"
-  BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; }
+  BODY="$(printf '%s' "$OUT" | awk 'f{print} /^\r?$/{f=1}')"; i18n_scan; }
 pass=0; fail=0; ck(){ if eval "$2"; then echo "  ok: $1"; ((pass++)); else echo "  FAIL: $1"; echo "      $BODY"; ((fail++)); fi; }
 J(){ printf '%s' "$BODY" | jq -r "$1" 2>/dev/null; }
 
@@ -82,6 +99,10 @@ call /contest/admin/finish POST '{"action":"finish"}'
 ck "2ª vez não faz nada"              '[[ "$(J ".done|length")" == 0 ]] && [[ "$(J "[.skipped[].item]|index(\"placar\")")" != null ]]'
 call /contest/admin/finish GET ''
 ck "checklist agora está verde"       '[[ "$(J .summary.fail)" == 0 ]]'
+
+echo "== trilíngue: todo item dos checklists acima leva en + es (sem português) =="
+ck "varredura viu itens (${I18N_N})"  '(( I18N_N >= 10 ))'
+ck "nenhum item sem label_en/detail_en/label_es/detail_es ou com PT no en/es" '[[ -z "${I18N_BAD// /}" ]] || { echo "      ids:$I18N_BAD"; false; }'
 
 echo "== action inválida =="
 call /contest/admin/finish POST '{"action":"boom"}'

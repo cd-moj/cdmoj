@@ -37,7 +37,7 @@ Object.defineProperty(FakeNode.prototype,'selectedIndex',{get(){return 0}});
 Object.defineProperty(FakeNode.prototype,'disabled',{get(){return !!this._d},set(v){this._d=v}});
 globalThis.document={ createElement:(t)=>new FakeNode(t), createTextNode:(t)=>({nodeType:3,text:String(t),textContent:String(t)}),
   createElementNS:(ns,t)=>new FakeNode(t), activeElement:null, body:new FakeNode('body') };
-function T(pt,en){ return pt; }
+function T(pt,en,es){ return pt; } function uiLocale(){ return 'pt-BR'; } function getLang(){ return 'pt'; }
 globalThis.confirm=()=>false; globalThis.alert=()=>{}; globalThis.setInterval=(f,ms)=>1; globalThis.clearInterval=()=>{};
 globalThis.setTimeout=(f)=>1; globalThis.clearTimeout=()=>{};
 globalThis.location={hash:'', search:'', hostname:'x', origin:'https://c.x'}; globalThis.URL={createObjectURL:()=>'blob:x', revokeObjectURL:()=>{}}; globalThis.Blob=function(){};

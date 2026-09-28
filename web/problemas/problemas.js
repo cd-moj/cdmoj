@@ -752,7 +752,8 @@ function renderPanel() {
       T('⚙ Recalibrar todos (', '⚙ Recalibrate all (') + nStale + ')');
     btn.onclick = async () => {
       if (!confirm(T(nStale + ' calibração(ões) entrarão na fila dos juízes (pedidos duplicados são deduplicados; um problema por vez por juiz). Continuar?',
-        nStale + ' calibration(s) will be queued to the judges (duplicates are deduped; one problem at a time per judge). Continue?'))) return;
+        nStale + ' calibration(s) will be queued to the judges (duplicates are deduped; one problem at a time per judge). Continue?',
+        nStale + ' calibración(es) entrarán en la cola de los jueces (los pedidos duplicados se descartan; un problema a la vez por juez). ¿Continuar?'))) return;
       btn.disabled = true; btn.textContent = T('Enviando…', 'Submitting…');
       try {
         const ids = (PANEL.problems || []).filter(p => p.needs_recalibration).map(p => p.id);

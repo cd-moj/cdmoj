@@ -21,20 +21,24 @@ import { fmtEpoch as fmtDate, fmtKB } from '/shared/admin-ui.js';
 import { createEditor } from '/shared/editor.js';
 
 const enc = encodeURIComponent;
-const LANGS = ['pt', 'en', 'es'];           // idioma dos DOCUMENTOS (a interface segue pt/en)
+const LANGS = ['pt', 'en', 'es'];           // idioma dos DOCUMENTOS (outro eixo que o da interface)
 const PDF_MAX_MB = 60;                       // o mesmo teto do handler (DOC_PDF_MAX_MB)
 
 const TYPES = [
   { id: 'info-sheet', pt: 'Ambiente de julgamento', en: 'Judging environment',
     hpt: 'Sistema, compiladores, linguagens, limites, linhas de compilação e execução, veredictos e penalidade. Envie um PDF pronto ou gere.',
-    hen: 'System, compilers, languages, limits, compile and run lines, verdicts and penalty. Upload a ready PDF or generate.' },
+    hen: 'System, compilers, languages, limits, compile and run lines, verdicts and penalty. Upload a ready PDF or generate.',
+    es: 'Entorno de evaluación', hes: 'Sistema, compiladores, lenguajes, límites, líneas de compilación y ejecución, veredictos y penalización. Sube un PDF listo o genéralo.' },
   { id: 'contest', pt: 'Caderno da prova', en: 'Problem set',
-    hpt: 'Capa + enunciados (usa o PDF do problema quando existir).', hen: 'Cover + statements (uses each problem PDF when present).' },
+    hpt: 'Capa + enunciados (usa o PDF do problema quando existir).', hen: 'Cover + statements (uses each problem PDF when present).',
+    es: 'Cuadernillo de la competencia', hes: 'Portada + enunciados (usa el PDF de cada problema cuando existe).' },
   { id: 'times', pt: 'Folha de time limits', en: 'Time limits sheet',
-    hpt: 'Tabela letra · nome · tempo limite (+ errata).', hen: 'Table letter · name · time limit (+ errata).' },
+    hpt: 'Tabela letra · nome · tempo limite (+ errata).', hen: 'Table letter · name · time limit (+ errata).',
+    es: 'Hoja de límites de tiempo', hes: 'Tabla letra · nombre · límite de tiempo (+ fe de erratas).' },
   { id: 'editorial', pt: 'Editorial', en: 'Editorial',
     hpt: 'A solução de cada problema (docs/solucao.md do pacote). Gere e revise quando quiser; SÓ PUBLICA depois do fim da prova (todas as sedes).',
-    hen: 'Each problem’s solution write-up (the package’s docs/solucao.md). Generate and review anytime; it can only be PUBLISHED after the contest ends (all sites).' },
+    hen: 'Each problem’s solution write-up (the package’s docs/solucao.md). Generate and review anytime; it can only be PUBLISHED after the contest ends (all sites).',
+    es: 'Editorial', hes: 'La solución de cada problema (docs/solucao.md del paquete). Genérala y revísala cuando quieras; SOLO se PUBLICA después del fin de la competencia (todas las sedes).' },
 ];
 
 export function makeDocsTab(CONTEST, opts = {}) {
@@ -70,7 +74,7 @@ export function makeDocsTab(CONTEST, opts = {}) {
   function docRow(t) {
     const row = el('div', { class: 'subcard', style: 'margin:.5rem 0' });
     row.append(el('div', { class: 'row', style: 'gap:.6rem;align-items:baseline' },
-      el('b', {}, T(t.pt, t.en)), el('span', { class: 'small muted' }, T(t.hpt, t.hen))));
+      el('b', {}, T(t.pt, t.en, t.es)), el('span', { class: 'small muted' }, T(t.hpt, t.hen, t.hes))));
     LANGS.forEach(lang => {
       const d = (DATA.docs || []).find(x => x.type === t.id && x.lang === lang);
       const line = el('div', { class: 'row', style: 'gap:.5rem;margin-top:.35rem;align-items:center' },

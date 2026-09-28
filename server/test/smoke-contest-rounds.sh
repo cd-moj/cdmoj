@@ -67,6 +67,9 @@ ck "rodada planejada ficou com os 2 (org + dono)" '[[ "$(J ".rounds[] | select(.
 jq -c '.rounds |= map(if .slug=="prova" then .problems += [{"bank_id":"priv#other","letter":"Z"}] else . end)' "$C/rounds.json" > "$C/rounds.json.t" && mv -f "$C/rounds.json.t" "$C/rounds.json"
 call /contest/admin/rounds GET '' cadm "$Q"
 ck "promoção bloqueada por problem_denied" '[[ "$(J ".promote_ready.blockers | map(.code) | index(\"problem_denied\")")" != null ]]'
+# bloqueador TRILÍNGUE: detail (PT) + detail_en + detail_es, sem português no en/es
+BLK_I18N='[.promote_ready.blockers[] | select((.detail_en // "") == "" or (.detail_es // "") == "" or ((.detail_en + " " + .detail_es) | test("[ãõç]|ção|não|você|também"; "i")))] | length'
+ck "bloqueador traz detail_en + detail_es (sem PT)" '[[ "$(J "[.promote_ready.blockers[] | select(.code==\"problem_denied\") | .detail_en, .detail_es] | map(select(length > 0)) | length")" == 2 && "$(J "$BLK_I18N")" == 0 ]]'
 RD '{"action":"promote","to":"prova","force":true}'
 ck "force NÃO passa por cima do problem_denied" '[[ "$OUT" == *"Status: 409"* && "$(J ".blockers | map(.code) | index(\"problem_denied\")")" != null ]]'
 ck "e nada foi materializado do privado alheio" '[[ ! -f "$C/enunciados/priv#other.html" ]]'
@@ -187,6 +190,7 @@ call /contest/admin/settings GET '' cadm "$Q"
 ck "settings expõe freeze_release_at" '[[ "$(J .freeze_release_at)" == '"$((NOW+30))"' ]]'
 call /contest/admin/rounds GET '' cadm "$Q"
 ck "promoção bloqueada por freeze_locked" '[[ "$(J ".promote_ready.blockers | map(.code) | index(\"freeze_locked\")")" != null ]]'
+ck "freeze_locked trilíngue (detail_en + detail_es, sem PT)" '[[ "$(J "[.promote_ready.blockers[] | select(.code==\"freeze_locked\") | .detail_en, .detail_es] | map(select(length > 0)) | length")" == 2 && "$(J "$BLK_I18N")" == 0 ]]'
 RD '{"action":"promote","to":"prox","force":true}'
 ck "force NÃO passa por cima"      '[[ "$OUT" == *"Status: 409"* && "$(J ".blockers | map(.code) | join(\",\")")" == freeze_locked ]]'
 # sede prorrogada empurra o mínimo: fim geral = +20 min

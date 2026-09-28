@@ -107,7 +107,12 @@ NOW="$EPOCHSECONDS"
 # nasce nos DOIS idiomas como qualquer tela (regra do CLAUDE.md). Mesma mecânica do
 # lib/contest-docs.sh (_doc_t): uma tabela de chaves, nada de string solta no meio do HTML.
 # Blocos awk/jq recebem os rótulos já traduzidos por -v/--arg.
-LOC="${LOCALE:-pt}"; [[ "$LOC" == en ]] || LOC=pt
+LOC="${LOCALE:-pt}"; case "$LOC" in en|es) ;; *) LOC=pt ;; esac
+# o T() dos módulos inlinados (stats-view/charts/…): MESMA cascata do web/shared/i18n.js
+# (es ausente cai no en, que cai no pt). uiLocale() idem — as datas do Intl.
+REP_JS_T='function T(pt,en,es){if(LANG==="es")return es!=null?es:(en!=null?en:pt);if(LANG==="en")return en!=null?en:pt;return pt}
+function uiLocale(){return LANG==="es"?"es-419":(LANG==="en"?"en-US":"pt-BR")}
+function getLang(){return LANG}' 
 rep_t(){ case "$LOC:$1" in
   # chrome
   pt:tab_score) printf '🏆 Placar';;              en:tab_score) printf '🏆 Scoreboard';;
@@ -290,6 +295,205 @@ rep_t(){ case "$LOC:$1" in
   pt:gen_place_t) printf 'Posição no placar geral';; en:gen_place_t) printf 'Position in the overall scoreboard';;
   pt:cohort_note) printf 'Placar da coorte <b>%s</b>: a posição grande é dentro dela; o número menor, cinza, é a posição no placar geral.' "$2";;
   en:cohort_note) printf 'Cohort <b>%s</b> scoreboard: the large number is the position within it; the smaller grey one is the position in the overall scoreboard.' "$2";;
+  # textos soltos que eram ternário pt/en no meio do HTML
+  pt:runs_note) printf '%s' 'Todas as submissões da prova (sem código-fonte e sem logs do juiz; veredicto canônico). Clique num cabeçalho para ordenar.';;
+  en:runs_note) printf '%s' 'All submissions (no source code, no judge logs; canonical verdict). Click a header to sort.';;
+  es:runs_note) printf '%s' 'Todos los envíos de la competencia (sin código fuente y sin registros del juez; veredicto canónico). Haz clic en un encabezado para ordenar.';;
+  pt:clar_note) printf '%s' 'Perguntas e respostas da prova. Quem perguntou e quem respondeu ficam anônimos.';;
+  en:clar_note) printf '%s' 'Questions and answers. Who asked and who answered stay anonymous.';;
+  es:clar_note) printf '%s' 'Preguntas y respuestas de la competencia. Quien preguntó y quien respondió quedan anónimos.';;
+  pt:clar_general) printf '%s' 'Geral';;
+  en:clar_general) printf '%s' 'General';;
+  es:clar_general) printf '%s' 'General';;
+  pt:clar_noans) printf '%s' '— sem resposta —';;
+  en:clar_noans) printf '%s' '— no answer —';;
+  es:clar_noans) printf '%s' '— sin respuesta —';;
+  pt:st_solvedp) printf '%s' 'problemas resolvidos';;
+  en:st_solvedp) printf '%s' 'problems solved';;
+  es:st_solvedp) printf '%s' 'problemas resueltos';;
+  pt:st_langc) printf '%s' 'Linguagem';;
+  en:st_langc) printf '%s' 'Language';;
+  es:st_langc) printf '%s' 'Lenguaje';;
+  pt:staff_note) printf '%s' 'Fila atendida pelo staff durante a prova: impressões (🖨️, só METADADOS — o arquivo enviado não é publicado) e balões (🎈).';;
+  en:staff_note) printf '%s' 'Queue handled by the staff during the contest: printing (🖨️, METADATA only — the uploaded file is not published) and balloons (🎈).';;
+  es:staff_note) printf '%s' 'Cola atendida por el staff durante la competencia: impresiones (🖨️, solo METADATOS — el archivo enviado no se publica) y globos (🎈).';;
+  pt:task_prob) printf '%s' 'problema';;
+  en:task_prob) printf '%s' 'problem';;
+  es:task_prob) printf '%s' 'problema';;
+  pt:task_deliv) printf '%s' 'entregue';;
+  en:task_deliv) printf '%s' 'delivered';;
+  es:task_deliv) printf '%s' 'entregado';;
+  pt:task_proc) printf '%s' 'processada';;
+  en:task_proc) printf '%s' 'processed';;
+  es:task_proc) printf '%s' 'procesada';;
+  pt:task_pend) printf '%s' 'pendente';;
+  en:task_pend) printf '%s' 'pending';;
+  es:task_pend) printf '%s' 'pendiente';;
+  pt:task_by) printf '%s' 'por';;
+  en:task_by) printf '%s' 'by';;
+  es:task_by) printf '%s' 'por';;
+  # espanhol (latino-americano neutro; glossário em docs/I18N.md) — chave sem es cai no inglês
+  es:tab_score) printf '🏆 Marcador';;
+  es:tab_runs) printf '📨 Envíos';;
+  es:tab_clar) printf '💬 Aclaraciones';;
+  es:tab_stats) printf '📊 Estadísticas';;
+  es:tab_docs) printf '📄 Documentos';;
+  es:tab_mlinux) printf '🖥 Máquinas';;
+  es:page_mlinux) printf 'Máquinas mlinux (nutellaboot)';;
+  es:ml_all) printf '— general —';;
+  es:ml_sel) printf 'Selección:';;
+  es:ml_note) printf 'Recopilado de nutellaboot el %s — especificaciones, editores y comportamiento de las máquinas de las sedes durante la competencia.' "$2";;
+  es:tab_staff) printf '🖨️ Tareas del staff';;
+  es:docs_top) printf 'Documentos de la competencia';;
+  es:tab_frozen) printf '❄ Marcador congelado';;
+  es:subtitle) printf 'informe de la competencia';;
+  es:footer) printf 'Generado el';;
+  es:by_moj) printf 'por MOJ';;
+  es:page_index) printf 'Marcador e información';;
+  es:contest) printf 'Competencia';;
+  es:start) printf 'Inicio';;
+  es:end) printf 'Fin';;
+  es:duration) printf 'Duración';;
+  es:mode) printf 'Modo';;
+  es:penalty) printf 'Penalización';;
+  es:penalty_val) printf 'min por intento rechazado';;
+  es:freeze) printf 'Congelamiento';;
+  es:freeze_none) printf 'sin congelamiento';;
+  es:freeze_at) printf 'a los';;
+  es:min_w) printf 'min';;
+  es:guest_pos) printf 'posición entre los equipos invitados (fuera de la clasificación oficial)';;
+  es:teams) printf 'Equipos';;
+  es:subs) printf 'Envíos';;
+  es:problems) printf 'Problemas';;
+  es:letter) printf 'Letra';;
+  es:problem) printf 'Problema';;
+  es:author) printf 'Autor';;
+  es:statement) printf 'Enunciado';;
+  es:ext_link) printf 'enlace externo';;
+  es:final_score) printf 'Marcador final (abierto)';;
+  es:no_score) printf 'No se generó ningún marcador.';;
+  es:frozen_title) printf 'Marcador congelado';;
+  es:rounds_note) printf '📚 Rondas anteriores de este evento:';;
+  es:frozen_note) printf 'Vista CONGELADA a los %s min (%s) — es lo que el público vio durante la competencia. El marcador final abierto está en la pestaña' "$2" "$3";;
+  es:open_note) printf 'El marcador de abajo está ABIERTO (sin congelamiento). La vista congelada a los %s min está en' "$2";;
+  es:team_col) printf 'Equipo';;
+  es:total) printf 'Total';;
+  es:pen_col) printf 'Pen.';;
+  es:guest) printf 'invitado';;
+  es:guest_title) printf 'Equipo invitado (no oficial): fuera de la clasificación oficial';;
+  es:fts) printf 'Primero en resolver';;
+  es:mode_icpc) printf 'ICPC';;
+  es:mode_obi) printf 'OBI (puntos)';;
+  es:mode_heur) printf 'Heurístico';;
+  es:mode_list) printf 'Lista/práctica';;
+  es:mode_custom) printf 'Personalizado';;
+  es:page_runs) printf 'Envíos — todas las soluciones enviadas';;
+  es:filter_ph) printf 'filtrar por equipo, usuario, problema…';;
+  es:hour) printf 'Hora';;
+  es:team) printf 'Equipo';;
+  es:univ) printf 'Univ';;
+  es:prob) printf 'Prob';;
+  es:lang) printf 'Leng';;
+  es:verdict) printf 'Veredicto';;
+  es:minute) printf 'Min';;
+  es:page_clar) printf 'Aclaraciones';;
+  es:notice) printf 'Aviso';;
+  es:public) printf 'Pública';;
+  es:private) printf 'Privada';;
+  es:none_clar) printf 'Sin aclaraciones.';;
+  es:page_stats) printf 'Estadísticas';;
+  es:no_charts) printf 'Faltan los módulos de gráficos (sin web/).';;
+  es:by_problem) printf 'Por problema';;
+  es:by_lang) printf 'Por lenguaje';;
+  es:by_verdict) printf 'Por veredicto';;
+  es:timeline) printf 'Línea de tiempo (ventanas de 10 min)';;
+  es:dist) printf 'Distribución de problemas resueltos';;
+  es:name_w) printf 'Nombre';;
+  es:accepted) printf 'Aceptados';;
+  es:solved_col) printf 'Resueltos';;
+  es:rate) printf 'Tasa de aceptación';;
+  es:first_solve) printf 'Primero en resolver';;
+  es:solvers) printf 'Equipos que resolvieron';;
+  es:occurrences) printf 'Cantidad';;
+  es:solved_w) printf 'Resueltos';;
+  es:stats_fail) printf 'No se pudieron mostrar las estadísticas.';;
+  es:stats_none) printf 'No se generaron estadísticas.';;
+  es:page_staff) printf 'Tareas del staff';;
+  es:type) printf 'Tipo';;
+  es:detail) printf 'Detalle';;
+  es:status) printf 'Estado';;
+  es:service) printf 'Atención';;
+  es:balloon) printf 'globo';;
+  es:printing) printf 'impresión';;
+  es:pages_sfx) printf 'páginas';;
+  es:none_tasks) printf 'No hay tareas registradas.';;
+  es:snapshot) printf 'Instantánea tomada al generar el informe (%s) + métricas de atención de toda la competencia.' "$2";;
+  es:avg_wait) printf 'espera promedio';;
+  es:max_w) printf 'máx.';;
+  es:coverage) printf 'Cobertura: %s de %s envíos con tiempo de respuesta registrado.' "$2" "$3";;
+  es:wait_by_prob) printf 'Espera promedio por problema';;
+  es:judged) printf 'Juzgados';;
+  es:by_judge) printf 'Juzgamientos por juez';;
+  es:judge_host) printf 'Juez (host)';;
+  es:judgements) printf 'Juzgamientos';;
+  es:avg_dur) printf 'Tiempo promedio de juzgamiento';;
+  es:registered) printf 'Jueces registrados (instantánea)';;
+  es:queue_now) printf 'Cola al generar: %s trabajo(s) en espera.' "$2";;
+  es:host) printf 'Host';;
+  es:state) printf 'Estado';;
+  es:online) printf 'En línea';;
+  es:last_hb) printf 'Último heartbeat';;
+  es:langs) printf 'Lenguajes';;
+  es:cached) printf 'Problemas en caché';;
+  es:page_docs) printf 'Documentos de la competencia';;
+  es:docs_note) printf 'Los documentos publicados para los equipos, tal como se entregaron. Abre el paquete <b>descomprimido</b> (los enlaces relativos no abren dentro del visor de rondas).';;
+  es:doc_col) printf 'Documento';;
+  es:lang_col) printf 'Idioma';;
+  es:file) printf 'Archivo';;
+  es:size) printf 'Tamaño';;
+  es:doc_contest) printf '📕 Cuadernillo de problemas';;
+  es:doc_times) printf '⏱ Límites de tiempo';;
+  es:doc_info) printf 'ℹ️ Entorno de evaluación';;
+  es:doc_editorial) printf '📝 Editorial (soluciones)';;
+  es:f_board) printf 'Marcador:';;
+  es:f_flag) printf 'Bandera:';;
+  es:f_flag_all) printf 'todas';;
+  es:f_univ) printf 'Universidad:';;
+  es:f_univ_all) printf 'todas';;
+  es:f_region) printf 'Sede:';;
+  es:f_region_all) printf 'todas';;
+  es:f_search) printf 'buscar equipo, universidad, usuario…';;
+  es:f_clear) printf 'limpiar filtros';;
+  es:f_count) printf '%s' 'Mostrando %s de %s equipos';;
+  es:f_none) printf 'Ningún equipo coincide con el filtro.';;
+  es:f_slice_note) printf '· ★ = 1.º en la selección';;
+  es:f_slice_t) printf 'Posición en el marcador completo (sin el filtro)';;
+  es:fts_sel) printf 'Primero en resolver en la selección';;
+  es:photo_t) printf 'Ver la foto del equipo';;
+  es:st_country) printf 'País:';;
+  es:st_all) printf 'todos';;
+  es:st_sel) printf '%s' 'Selección: %s — %s de %s participantes';;
+  es:st_glob) printf '%s' '%s participantes';;
+  es:view_public) printf 'General (todos)';;
+  es:view_all) printf 'Todos, incl. invitados';;
+  es:view_of) printf 'Como lo ve la cohorte %s' "$2";;
+  es:gen_place) printf 'General';;
+  es:tab_qual) printf '🏅 Clasificados';;
+  es:qual_title) printf '🎓 Clasificados — próxima fase';;
+  es:qual_note) printf 'Equipos clasificados a <b>%s</b> por las reglas de la primera fase (chip ↑BR en el marcador). Se pueden sumar después las vacantes del comité.' "$2";;
+  es:qual_chip) printf 'Clasificado';;
+  es:via_regra1) printf 'Regla 1 — mejores en general';;
+  es:via_regra2) printf 'Regla 2 — vacantes por sede';;
+  es:via_regra4) printf 'Regla 4 — participación femenina';;
+  es:via_comite) printf 'Comité (regla 3 / promociones)';;
+  es:q_place) printf 'Posición';;
+  es:q_team) printf 'Equipo';;
+  es:q_school) printf 'Escuela';;
+  es:q_sede) printf 'Sede';;
+  es:q_detail) printf 'Detalle';;
+  es:gen_place_t) printf 'Posición en el marcador general';;
+  es:cohort_note) printf 'Marcador de la cohorte <b>%s</b>: el número grande es la posición dentro de ella; el número menor, gris, es la posición en el marcador general.' "$2";;
+  es:*) LOC=en rep_t "$@";;
   *) printf '%s' "$1";;
 esac; }
 
@@ -614,7 +818,7 @@ rep_head(){ # <título> <id-da-aba-ativa>
     tabs+="<a href=\"score-frozen.html\"$([[ "$active" == frozen ]] && printf ' class="on"')>$(rep_t tab_frozen)</a>"
   cat <<EOF
 <!DOCTYPE html>
-<html lang="$([[ "${LOCALE:-pt}" == en ]] && printf 'en' || printf 'pt-BR')">
+<html lang="$(case "$LOC" in en) printf 'en' ;; es) printf 'es' ;; *) printf 'pt-BR' ;; esac)">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1296,7 +1500,7 @@ if (( NAV_DOCS )); then
   mkdir -p "$OUTD/documentos"
   : > "$W/docs.tsv"
   while IFS= read -r key; do
-    [[ "$key" =~ ^([a-z-]+)\.(pt|en)$ ]] || continue
+    [[ "$key" =~ ^([a-z-]+)\.(pt|en|es)$ ]] || continue   # DOC_LANGS (o es sumia do pacote)
     dt="${BASH_REMATCH[1]}"; dl="${BASH_REMATCH[2]}"
     # SÓ PDF (31/08): o HTML não tem versão enviada — copiá-lo levava o GERADO mesmo
     # quando o publicado era um PDF enviado. O que o time viu = o PDF servido.
@@ -1354,8 +1558,7 @@ if (( NAV_ML )); then
     printf '<div class="fbar"><label>%s <select id="mlSel"></select></label></div>\n' "$(esc "$(rep_t ml_sel)")"
     printf '<div id="ml"></div>\n'
     printf '<script>\n'
-    printf 'const LANG=%s;\nfunction T(pt,en){return LANG==="en"?en:pt}\n' \
-      "$([[ "${LOCALE:-pt}" == en ]] && printf '"en"' || printf '"pt"')"
+    printf 'const LANG="%s";\n%s\n' "$LOC" "$REP_JS_T"
     for _mlf in "$MOJ_WEB/shared/dom.js" "$MOJ_WEB/lib/charts.js" "$MOJ_WEB/lib/mlinux-view.js"; do
       [[ -s "$_mlf" ]] || continue
       sed -E '/^import /d; s/^export (function|const|let|class) /\1 /; /^export \{/d' "$_mlf"
@@ -1380,7 +1583,7 @@ if (( NAV_ML )); then
   walk(RTREE, 0);
   (d.sedes||[]).map(function(s){return s.name}).sort().forEach(function(n){
     if(!seen[n.toLowerCase()]) opts.push({kind:'s', key:n, depth:0}); });
-  var o0=document.createElement('option'); o0.value='g|'; o0.textContent=T('— geral —','— overall —'); sel.add(o0);
+  var o0=document.createElement('option'); o0.value='g|'; o0.textContent=T('— geral —','— overall —','— general —'); sel.add(o0);
   opts.forEach(function(o){ var e=document.createElement('option'); e.value=o.kind+'|'+o.key;
     e.textContent=new Array(o.depth+1).join('  ')+o.key; sel.add(e); });
   function cur(){ var v=sel.value.split('|'); return {kind:v[0], key:v.slice(1).join('|')}; }
@@ -1506,7 +1709,7 @@ TREEEOF
 # --- runs.html ---------------------------------------------------------------------------
 {
   rep_head "$(rep_t page_runs)" runs
-  printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'All submissions (no source code, no judge logs; canonical verdict). Click a header to sort.' || printf 'Todas as submissões da prova (sem código-fonte e sem logs do juiz; veredicto canônico). Clique num cabeçalho para ordenar.')"
+  printf '<p class="note">%s</p>\n' "$(rep_t runs_note)"
   printf '<label>%s <select id="frg"><option value="">%s</option></select></label> ' \
     "$(esc "$(rep_t f_region)")" "$(esc "$(rep_t f_region_all)")"
   printf '<input class="filter" id="fq" type="search" placeholder="%s">\n' "$(rep_t filter_ph)"
@@ -1565,14 +1768,14 @@ EOF
 # --- clarifications.html -----------------------------------------------------------------
 {
   rep_head "$(rep_t page_clar)" clar
-  printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'Questions and answers. Who asked and who answered stay anonymous.' || printf 'Perguntas e respostas da prova. Quem perguntou e quem respondeu ficam anônimos.')"
+  printf '<p class="note">%s</p>\n' "$(rep_t clar_note)"
   ncl=0
   if [[ -d "$CDIR/clarifications" ]]; then
     find "$CDIR/clarifications" -maxdepth 1 -name '*.json' -print0 2>/dev/null \
       | xargs -0 -r jq -c 'del(.login, .answered_by, .answer_claim)' 2>/dev/null \
       | jq -rs --argjson start "$START" --arg t_notice "$(rep_t notice)" --arg t_pub "$(rep_t public)" \
-             --arg t_priv "$(rep_t private)" --arg t_gen "$([[ "$LOC" == en ]] && printf 'General' || printf 'Geral')" \
-             --arg t_noans "$([[ "$LOC" == en ]] && printf '— no answer —' || printf '— sem resposta —')" \
+             --arg t_priv "$(rep_t private)" --arg t_gen "$(rep_t clar_general)" \
+             --arg t_noans "$(rep_t clar_noans)" \
              --arg dtfmt "$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M' || printf '%%d/%%m %%H:%%M')" 'sort_by(.time) | .[] |
           (if .broadcast==true then "<span class=\"badge org\">" + $t_notice + "</span>"
            elif .public==true then "<span class=\"badge pub\">" + $t_pub + "</span>"
@@ -1622,7 +1825,7 @@ rep_stats_bundle(){
   printf '<span class="fcount" id="sCount"></span>\n</div>\n'
   printf '<div id="stats"></div>\n'
   printf '<script>\n'
-  printf 'const LANG=%s;\nfunction T(pt,en){return LANG==="en"?en:pt}\n' "$([[ "${LOCALE:-pt}" == en ]] && printf '"en"' || printf '"pt"')"
+  printf 'const LANG="%s";\n%s\n' "$LOC" "$REP_JS_T"
   # (difficulty.js ANTES do stats-view: ele importa dali; o T global de cima substitui o i18n)
   for f in "$MOJ_WEB/shared/dom.js" "$MOJ_WEB/shared/difficulty.js" "$MOJ_WEB/lib/charts.js" "$MOJ_WEB/lib/stats-view.js"; do
     [[ -s "$f" ]] || return 1
@@ -1707,11 +1910,11 @@ STEOF
     rep_stats_bundle "$SJ" || printf '<p class="note">%s</p>\n' "$(rep_t no_charts)"
     printf '<noscript>\n'
     jq -r --arg t_subs "$(rep_t subs)" --arg t_acc "$(rep_t accepted)" --arg t_teams "$(rep_t teams)" \
-          --arg t_solvedp "$([[ "$LOC" == en ]] && printf 'problems solved' || printf 'problemas resolvidos')" \
+          --arg t_solvedp "$(rep_t st_solvedp)" \
           --arg t_byprob "$(rep_t by_problem)" --arg t_prob "$(rep_t prob)" --arg t_name "$(rep_t name_w)" \
           --arg t_solvedc "$(rep_t solved_col)" --arg t_rate "$(rep_t rate)" --arg t_first "$(rep_t first_solve)" \
           --arg t_min "$(rep_t minute)" --arg t_bylang "$(rep_t by_lang)" --arg t_lang "$(rep_t by_lang)" \
-          --arg t_langc "$([[ "$LOC" == en ]] && printf 'Language' || printf 'Linguagem')" \
+          --arg t_langc "$(rep_t st_langc)" \
           --arg t_solvers "$(rep_t solvers)" --arg t_byverd "$(rep_t by_verdict)" --arg t_verd "$(rep_t verdict)" \
           --arg t_occ "$(rep_t occurrences)" --arg t_tl "$(rep_t timeline)" --arg t_dist "$(rep_t dist)" \
           --arg t_solvedw "$(rep_t solved_w)" '
@@ -1749,7 +1952,7 @@ STEOF
 # --- staff-tasks.html ---------------------------------------------------------------------
 {
   rep_head "$(rep_t page_staff)" staff
-  printf '<p class="note">%s</p>\n' "$([[ "$LOC" == en ]] && printf 'Queue handled by the staff during the contest: printing (🖨️, METADATA only — the uploaded file is not published) and balloons (🎈).' || printf 'Fila atendida pelo staff durante a prova: impressões (🖨️, só METADADOS — o arquivo enviado não é publicado) e balões (🎈).')"
+  printf '<p class="note">%s</p>\n' "$(rep_t staff_note)"
   PRD="$CDIR/print-requests"
   nst=0
   if [[ -d "$PRD" ]]; then
@@ -1765,11 +1968,11 @@ STEOF
     find "$PRD" -maxdepth 1 -name '*.json' ! -name badges.json ! -name staff-filters.json -print0 2>/dev/null \
       | xargs -0 -r jq -c 'select((.seq? // null) != null)' 2>/dev/null \
       | jq -rs --slurpfile rm "$W/regmap.json" --arg t_balloon "$(rep_t balloon)" --arg t_print "$(rep_t printing)" --arg t_pages "$(rep_t pages_sfx)" \
-             --arg t_prob "$([[ "$LOC" == en ]] && printf 'problem' || printf 'problema')" \
-             --arg t_deliv "$([[ "$LOC" == en ]] && printf 'delivered' || printf 'entregue')" \
-             --arg t_proc "$([[ "$LOC" == en ]] && printf 'processed' || printf 'processada')" \
-             --arg t_pend "$([[ "$LOC" == en ]] && printf 'pending' || printf 'pendente')" \
-             --arg t_by "$([[ "$LOC" == en ]] && printf 'by' || printf 'por')" \
+             --arg t_prob "$(rep_t task_prob)" \
+             --arg t_deliv "$(rep_t task_deliv)" \
+             --arg t_proc "$(rep_t task_proc)" \
+             --arg t_pend "$(rep_t task_pend)" \
+             --arg t_by "$(rep_t task_by)" \
              --arg dtfmt "$([[ "$LOC" == en ]] && printf '%%m-%%d %%H:%%M' || printf '%%d/%%m %%H:%%M')" 'sort_by(.seq) | .[] |
           ((.kind // "print")) as $k
           | ((.time // 0) | strflocaltime($dtfmt)) as $h

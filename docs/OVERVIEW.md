@@ -84,7 +84,8 @@ moj/
 
 Vanilla ES modules, **sem build**, servido estático. `shared/` concentra o cliente de API
 (fetch + Bearer + envelope), auth/token (localStorage), `ui.js` (`el()`, avatares, i18n
-pt/en — idioma pelo LOCALE do contest › **`?lang=` na URL** › seletor do header › navegador;
+pt/en/es — idioma pelo LOCALE do contest › **`?lang=` na URL** › seletor do header › navegador;
+mecanismo e glossário do espanhol em [`I18N.md`](I18N.md);
 o `?lang=` é o que faz um link mandado por e-mail abrir na versão certa), o editor
 **CodeMirror 6** (bundle **vendorizado** em `shared/vendor/codemirror/` —
 sem CDN, contest roda em LAN isolada; fallback textarea), os gráficos SVG
@@ -424,7 +425,7 @@ na aba Configurações do admin e por `moj-contest extend --group`, auditado). T
   é ali que se descobre de onde cada um vem, quem divide IP e, na prova, **quem trocou de
   máquina**; alimenta a sede do time e o gate de UA pelos endpoints que já existem);
   **Documentos** (`web/contest/admin/docs-tab.js` — os três documentos impressos da prova em
-  **PDF+HTML × pt/en**: *info sheet* (versões de compilador do `run/registry`, memória/pilha do
+  **PDF+HTML × pt/en/es**: *info sheet* (versões de compilador do `run/registry`, memória/pilha do
   conf, TL calibrado, linguagens), **caderno** (capa + enunciados; usa o **PDF próprio** do
   problema quando existe e junta com `pdfunite`, capa regerada no fim com o total real de páginas)
   **folha de time limits** e **EDITORIAL** (a solução de cada problema, lida do `docs/solucao.md` do

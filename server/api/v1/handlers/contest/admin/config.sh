@@ -30,6 +30,9 @@ require_method POST
 source "$_LIBDIR/contest-create.sh"
 body="$(read_body)"
 jq -e . >/dev/null 2>&1 <<<"$body" || fail 400 "JSON inválido" "bad_json"
+# locale inválido recusa ANTES de qualquer escrita (antes era descartado mudo)
+bl="$(jq -r '.basic.locale // empty' <<<"$body")"
+[[ -z "$bl" ]] || contest_locale_ok "$bl" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"
 
 # colors: objeto com chaves = grava (substitui o arquivo inteiro: o editor manda todas as letras +
 # enableSonic true/false); {} = NÃO MEXE (o editor devolve {} quando nada mudou — apagar aqui
@@ -53,7 +56,7 @@ if jq -e 'has("teams_meta")' >/dev/null 2>&1 <<<"$body"; then
   if [[ "$(jq 'length' <<<"$t" 2>/dev/null)" -gt 0 ]]; then jq -cn --argjson r "$t" '{rules:$r}' > "$cdir/teams-meta.json"; mod_enable "$contest" sedes; else rm -f "$cdir/teams-meta.json"; fi
 fi
 if jq -e 'has("basic")' >/dev/null 2>&1 <<<"$body"; then
-  bl="$(jq -r '.basic.locale // empty' <<<"$body")"; [[ "$bl" =~ ^(pt|en)$ ]] && cc_set_conf_var "$contest" LOCALE "$bl"
+  [[ -n "$bl" ]] && cc_set_conf_var "$contest" LOCALE "$bl"
   bs="$(jq -r '.basic.login_start // empty' <<<"$body")"; [[ "$bs" =~ ^[0-9]+$ ]] && cc_set_conf_var "$contest" LOGIN_START_TIME "$bs"
   bf="$(jq -r '.basic.freeze // empty' <<<"$body")"
   if [[ "$bf" =~ ^[0-9]+$ ]] && [[ "$bf" != "$(conf_value "$contest" FREEZE_TIME)" ]]; then

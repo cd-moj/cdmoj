@@ -241,7 +241,8 @@ function performanceSection(s, an) {
   if (teams.length < MIN_RANK_TEAMS) {
     sec.append(el('p', { class: 'muted' },
       T('Esta seleção tem ' + teams.length + ' time(s) com AC. Este quadro aparece com ' + MIN_RANK_TEAMS + ' ou mais times. Use o placar com o filtro de sede para ver poucos times.',
-        'This selection has ' + teams.length + ' team(s) with an AC. This panel needs ' + MIN_RANK_TEAMS + ' or more teams. Use the scoreboard with the site filter to see few teams.')));
+        'This selection has ' + teams.length + ' team(s) with an AC. This panel needs ' + MIN_RANK_TEAMS + ' or more teams. Use the scoreboard with the site filter to see few teams.',
+        'Esta selección tiene ' + teams.length + ' equipo(s) con AC. Este cuadro aparece con ' + MIN_RANK_TEAMS + ' o más equipos. Usa el marcador con el filtro de sede para ver pocos equipos.')));
     return sec;
   }
   const so = teams.map((t) => t.solved).sort((a, b) => a - b);

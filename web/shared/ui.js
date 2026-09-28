@@ -1,5 +1,5 @@
 // shared/ui.js — helpers de DOM, formatação e área de autenticação (compartilhados).
-import { t, T } from './i18n.js';
+import { t, T, uiLocale } from './i18n.js';
 import { status, login, logout, getToken } from './auth.js';
 import { apiGet } from './api.js';
 
@@ -65,7 +65,7 @@ export function resumoText(s) {
 }
 export function fmtDate(epoch) {
   const d = new Date(Number(epoch) * 1000);
-  return isNaN(d.getTime()) ? '-' : d.toLocaleString();
+  return isNaN(d.getTime()) ? '-' : d.toLocaleString(uiLocale());
 }
 
 // --- avatar do treino: foto de perfil ou círculo de iniciais (cor estável) ---

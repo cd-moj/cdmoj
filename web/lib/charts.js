@@ -293,16 +293,17 @@ export function heatmap(countsByDate, opts = {}) {
   };
 
   // dias da semana (Seg, Qua, Sex)
-  const DOW = ['', T('Seg', 'Mon'), '', T('Qua', 'Wed'), '', T('Sex', 'Fri'), ''];
+  const DOW = ['', T('Seg', 'Mon', 'Lun'), '', T('Qua', 'Wed', 'Mié'), '', T('Sex', 'Fri', 'Vie'), ''];
   DOW.forEach((lbl, r) => {
     if (!lbl) return;
     const tx = svgEl('text', { x: 2, y: padTop + r * (cell + gap) + cell - 2, 'font-size': 10, fill: '#5b6b7d' });
     tx.textContent = lbl; svg.append(tx);
   });
 
-  const MONTHS = T('pt', 'en') === 'en'
-    ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    : ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  // (T devolve o ARRAY do idioma — a detecção antiga por T('pt','en')==='en' dava PT em espanhol)
+  const MONTHS = T(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
+    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']);
   let lastMonth = -1;
   const cur = new Date(start);
   for (let c = 0; c < cols; c++) {
@@ -353,9 +354,9 @@ export function heatmapGrid(cells, opts = {}) {
   const cell = opts.cell || 22, gap = opts.gap || 4;
   const base = opts.color || '#c4314b';
   const fmt = opts.fmt || ((v) => T('média ', 'avg ') + v + 's');
-  const DAYS = T('pt', 'en') === 'en'
-    ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    : ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const DAYS = T(['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']);
   const wrap = document.createElement('div');
 
   // grade[dow][hour] = {value, n}

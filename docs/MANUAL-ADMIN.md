@@ -169,7 +169,7 @@ pelos arquivos que já têm (`server/bin/contest-modules-detect.sh`).
 - **Início / Fim** — a janela da prova. Antes do início: contagem regressiva; depois do fim: ninguém mais submete (exceto papéis de juiz). Prorrogação fina é na seção ⏱ (por regex de login — ex.: só uma sala que ficou sem luz).
 - **Abertura do login** — a partir de quando o aluno consegue LOGAR (antes disso, contagem regressiva na tela de login). Útil p/ liberar o login minutos antes da largada.
 - **Freeze** — congela o placar público a partir deste horário (estilo ICPC). Juízes e admin seguem vendo tudo; a revelação acontece na cerimônia.
-- **Idioma** — o idioma default das telas do competidor.
+- **Idioma** — português, inglês ou espanhol. Fixa o idioma das telas de todo mundo no contest (sem seletor) e também o do **papel impresso** (folha de rosto da impressão e folha de balão), do **relatório** final e das mensagens de convite no Telegram (em inglês ou espanhol, a mensagem leva o português junto). Os enunciados e documentos têm idioma próprio (🌐 Idiomas do enunciado, Evento › Documentos).
 
 **O que o aluno vê/pode**
 

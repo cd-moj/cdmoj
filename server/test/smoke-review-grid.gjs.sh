@@ -34,7 +34,7 @@ Object.defineProperty(N.prototype,'value',{set(v){this._v=String(v)},get(){
   return this.attrs.value || ''; }});
 for (const p of ['checked','indeterminate','disabled','open']) Object.defineProperty(N.prototype,p,{set(v){this['_'+p]=!!v},get(){return !!this['_'+p]}});
 globalThis.document={ createElement:(t)=>new N(t), createTextNode:(t)=>({nodeType:3,text:String(t),textContent:String(t)}) };
-let LANG='pt'; function T(pt,en){ return LANG==='en' ? en : pt; }
+let LANG='pt'; function T(pt,en,es){ if(LANG==='es') return es!=null?es:(en!=null?en:pt); return LANG==='en' ? (en!=null?en:pt) : pt; }
 let GETR=null, POSTS=[], POSTR={saved:true, releasable:0};
 async function apiGet(p){ return JSON.parse(JSON.stringify(GETR)); }
 async function apiPost(p,b){ POSTS.push({p, b:JSON.parse(JSON.stringify(b))}); return JSON.parse(JSON.stringify(POSTR)); }

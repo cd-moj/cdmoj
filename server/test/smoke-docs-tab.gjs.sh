@@ -29,7 +29,7 @@ Object.defineProperty(N.prototype,'textContent',{set(v){this._text=String(v);thi
 Object.defineProperty(N.prototype,'value',{set(v){this._v=String(v)},get(){ return this._v!==undefined ? this._v : (this.attrs.value||''); }});
 for (const p of ['checked','disabled','hidden']) Object.defineProperty(N.prototype,p,{set(v){this['_'+p]=!!v},get(){return !!this['_'+p]}});
 globalThis.document={ createElement:(t)=>new N(t), createTextNode:(t)=>({nodeType:3,text:String(t),textContent:String(t)}), body:new N('body') };
-let LANG='pt'; function T(pt,en){ return LANG==='en' ? en : pt; }
+let LANG='pt'; function T(pt,en,es){ if(LANG==='es') return es!=null?es:(en!=null?en:pt); return LANG==='en' ? (en!=null?en:pt) : pt; }
 let DATA=null, POSTS=[], FETCHES=[];
 async function apiGet(p){ return JSON.parse(JSON.stringify(DATA)); }
 async function apiPost(p,b){ POSTS.push(JSON.parse(JSON.stringify(b))); return {}; }

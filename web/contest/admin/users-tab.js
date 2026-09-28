@@ -63,7 +63,7 @@ export function makeUsersTab(CONTEST) {
       el('thead', {}, el('tr', {}, el('th', {}, 'Login'), el('th', {}, T('Nome', 'Name')), el('th', {}, 'Email'), el('th', {}, T('Ações', 'Actions')))), tb)));
     if (!showAll && items.length > CAP) list.append(el('div', { style: 'margin:.4rem 0' },
       el('button', { class: 'btn ghost', onclick: () => { showAll = true; renderList(); } }, T('mostrar todos (', 'show all (') + items.length + ')'),
-      el('span', { class: 'small muted' }, T(' — exibindo os ' + CAP + ' primeiros', ' — showing the first ' + CAP))));
+      el('span', { class: 'small muted' }, T(' — exibindo os ' + CAP + ' primeiros', ' — showing the first ' + CAP, ' — mostrando los primeros ' + CAP))));
   }
   async function loadList() {
     let r;

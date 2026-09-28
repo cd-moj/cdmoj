@@ -3,12 +3,12 @@
 // é UMA definição. Sem estado e sem DOM próprio: só formatação, CSV e download.
 import { el } from './ui.js';
 import { getToken } from './api.js';
-import { T } from './i18n.js';
+import { T, uiLocale } from './i18n.js';
 
 // --- formatação -------------------------------------------------------------
 export const pad2 = (n) => String(n).padStart(2, '0');
-export const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString();
-export const fmtClock = (e) => new Date((+e || 0) * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+export const fmtDate = (e) => new Date((+e || 0) * 1000).toLocaleString(uiLocale());
+export const fmtClock = (e) => new Date((+e || 0) * 1000).toLocaleTimeString(uiLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 // fmtS COM HORAS: a versão antiga mostrava "80min" (a do tasks.js era a certa — uma cópia só agora)
 export const fmtS = (s) => {
   s = Math.max(0, Math.round(+s || 0));

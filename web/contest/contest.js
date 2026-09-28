@@ -477,9 +477,9 @@ function renderNotifyBanner() {
   bar.className = 'notify-banner' + (cU > 0 ? ' urgent' : '');   // pisca enquanto houver clarification não lida
   const links = [];
   if (nU) links.push(el('a', { href: '#', onclick: (e) => { e.preventDefault(); markSeen('news'); const s = document.getElementById('newsSection'); if (s) { show('newsSection'); s.scrollIntoView({ behavior: 'smooth' }); } } },
-    '📢 ' + nU + ' ' + T(nU > 1 ? 'novas notícias' : 'nova notícia', nU > 1 ? 'new posts' : 'new post')));
+    '📢 ' + nU + ' ' + T(nU > 1 ? 'novas notícias' : 'nova notícia', nU > 1 ? 'new posts' : 'new post', nU > 1 ? 'noticias nuevas' : 'noticia nueva')));
   if (cU) links.push(el('a', { href: '/contest/clarification/?c=' + encodeURIComponent(CONTEST), onclick: () => markSeen('clar') },
-    '💬 ' + cU + ' ' + T(cU > 1 ? 'clarifications respondidas' : 'clarification respondida', cU > 1 ? 'answered clarifications' : 'answered clarification')));
+    '💬 ' + cU + ' ' + T(cU > 1 ? 'clarifications respondidas' : 'clarification respondida', cU > 1 ? 'answered clarifications' : 'answered clarification', cU > 1 ? 'aclaraciones respondidas' : 'aclaración respondida')));
   const sep = links.length > 1 ? [links[0], ' · ', links[1]] : links;
   bar.append(el('span', {}, T('Novidades: ', 'Updates: ')), ...sep,
     el('button', { class: 'btn ghost', type: 'button', style: 'margin-left:auto', title: T('Marcar tudo como visto', 'Mark all as seen'),

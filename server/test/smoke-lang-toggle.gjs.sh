@@ -1,8 +1,9 @@
 #!/bin/bash
-# smoke-lang-toggle.gjs.sh — os botões PT · EN (web/shared/lang-toggle.js) em página estática:
+# smoke-lang-toggle.gjs.sh — os botões PT · EN · ES (web/shared/lang-toggle.js) em página estática:
 # clicar troca o LANG (setLang persist), reaplica o i18n-dom (data-en ⇄ PT capturado, reversível),
 # grava em localStorage e carimba ?lang= na URL (o link copiado carrega o idioma e o reload não
-# desfaz o clique). Roda o módulo real fora do browser com o gjs. Sem gjs: pula (rc 0).
+# desfaz o clique). ES (28/09/2026): data-es ⇄ PT, data-es ausente cai no data-en, T de 3 argumentos,
+# navegador es-* abre em espanhol. Roda o módulo real fora do browser com o gjs. Sem gjs: pula (rc 0).
 set -u
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"
 W="$ROOT/web"; T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
@@ -18,7 +19,7 @@ FakeNode.prototype.getAttribute=function(k){ return k in this.attrs ? this.attrs
 FakeNode.prototype.addEventListener=function(t,f){ (this._ev[t]=this._ev[t]||[]).push(f); };
 FakeNode.prototype.click=function(){ for (const f of (this._ev.click||[])) f({}); };
 FakeNode.prototype._all=function(){ const o=[]; for (const c of this.children) if (c.nodeType===1){ o.push(c); o.push(...c._all()); } return o; };
-FakeNode.prototype.querySelectorAll=function(sel){ const m=sel.match(/^\[([a-z-]+)\]$/); if (m) return this._all().filter(n=>m[1] in n.attrs); const cls=sel.replace(/^\./,''); return this._all().filter(n=>n._cls.has(cls)); };
+FakeNode.prototype.querySelectorAll=function(sel){ const parts=sel.split(',').map(x=>x.trim()); const hit=(n)=>parts.some(p=>{ const m=p.match(/^\[([a-z-]+)\]$/); return m ? (m[1] in n.attrs) : n._cls.has(p.replace(/^\./,'')); }); return this._all().filter(hit); };
 FakeNode.prototype.querySelector=function(sel){ return this.querySelectorAll(sel)[0]||null; };
 Object.defineProperty(FakeNode.prototype,'className',{set(v){this.setAttribute('class',v)},get(){return [...this._cls].join(' ')}});
 Object.defineProperty(FakeNode.prototype,'classList',{get(){ const s=this._cls; return { contains:(c)=>s.has(c), toggle:(c,on)=>{ if(on===undefined) on=!s.has(c); on?s.add(c):s.delete(c); return on; }, add:(c)=>s.add(c), remove:(c)=>s.delete(c) }; }});
@@ -40,8 +41,9 @@ JS
   strip "$W/shared/i18n.js"; strip "$W/shared/dom.js"; strip "$W/shared/i18n-dom.js"; strip "$W/shared/lang-toggle.js"
   cat <<'JS'
 // a página: um <span data-en> e um <html data-en-doctitle>, como nos tutoriais
-root.setAttribute('data-en-doctitle','MOJ — the competitor');
-const span=new FakeNode('span'); span.setAttribute('data-en','Getting in'); span.textContent='Entrar'; root.append(span);
+root.setAttribute('data-en-doctitle','MOJ — the competitor'); root.setAttribute('data-es-doctitle','MOJ — el competidor');
+const span=new FakeNode('span'); span.setAttribute('data-en','Getting in'); span.setAttribute('data-es','Ingresando'); span.textContent='Entrar'; root.append(span);
+const only=new FakeNode('span'); only.setAttribute('data-en','Only English'); only.textContent='Só PT e EN'; root.append(only);
 i18nDOM();   // 1ª aplicação: a página abriu com ?lang=en
 print('start=' + getLang() + ' text0=' + span.textContent + ' title0=' + document.title + ' stored0=' + localStorage.getItem('moj_lang'));
 const tog=mkLangToggle({ reload:false }); const btn=(l)=>tog.children.find(b=>b.dataset.lang===l);
@@ -53,6 +55,10 @@ btn('en').click(); print('noop_en=' + getLang());
 // modo header (reload): a URL com ?lang= acompanha o clique, senão o reload desfaria a escolha
 const tog2=mkLangToggle({ reload:true }); tog2.children.find(b=>b.dataset.lang==='pt').click();
 print('hdr=' + getLang() + ' hdr_url=' + location.href + ' reloads=' + (globalThis.RELOADED||0));
+// ESPANHOL: o botão ES, a cascata es → en → pt no estático e no T()
+btn('es').click(); print('after_es=' + getLang() + ' text_es=' + span.textContent + ' only_es=' + only.textContent.replace(/ /g,'_') + ' title_es=' + document.title.replace(/ /g,'_') + ' url_es=' + location.href + ' active_es=' + active() + ' html_es=' + root.lang);
+print('t3=' + T('a','b','c') + ' t2=' + T('a','b') + ' loc=' + uiLocale() + ' tkey=' + t('login'));
+btn('pt').click(); print('back_pt_text=' + span.textContent + ' back_pt_only=' + only.textContent.replace(/ /g,'_') + ' back_pt_title=' + document.title.replace(/ /g,'_'));
 JS
 } > "$T/lt.js"
 out="$(gjs "$T/lt.js" 2>&1)" || { echo "$out" >&2; echo "lang-toggle: gjs falhou"; exit 1; }
@@ -75,4 +81,25 @@ check "$(kv noop_en)" en "clicar no ativo não faz nada"
 check "$(kv hdr)" pt "header: troca"
 check "$(kv hdr_url)" "https://moj.example/contest/ajuda/competidor.html?lang=pt" "header: ?lang= presente acompanha"
 check "$(sed -n 's/^.*hdr_url.* reloads=\([0-9]*\).*$/\1/p' <<<"$out")" 1 "header: recarrega"
+check "$(kv after_es)" es "clicar ES troca o LANG"
+check "$(kv text_es)" "Ingresando" "texto estático em ES (data-es)"
+check "$(kv only_es)" "Only_English" "sem data-es: cai no data-en"
+check "$(kv title_es)" "MOJ_—_el_competidor" "título do documento em ES"
+check "$(kv url_es)" "https://moj.example/contest/ajuda/competidor.html?lang=es" "?lang=es acompanha o clique"
+check "$(kv active_es)" es "botão ES ativo"
+check "$(kv html_es)" es "<html lang=es>"
+check "$(kv t3)" c "T(pt,en,es) em ES devolve o es"
+check "$(kv t2)" b "T sem es em ES cai no en"
+check "$(kv loc)" es-419 "uiLocale() = es-419"
+check "$(kv tkey)" Ingresar "t(key) tem espanhol"
+check "$(kv back_pt_text)" Entrar "ES → PT restaura o PT"
+check "$(kv back_pt_only)" "Só_PT_e_EN" "ES → PT restaura o PT (elemento só com data-en)"
+check "$(kv back_pt_title)" "MOJ_—_o_competidor" "título volta ao PT"
+# navegador em espanhol, sem ?lang= nem escolha gravada: abre em ES; francês abre em EN
+for NAVL in es-AR:es fr-FR:en pt-PT:pt; do
+  { printf 'globalThis.navigator={language:"%s"}; globalThis.localStorage={getItem(){return null},setItem(){}}; globalThis.location={search:""}; globalThis.document={documentElement:{}, addEventListener(){}, dispatchEvent(){}}; globalThis.CustomEvent=class{};\n' "${NAVL%%:*}"
+    printf 'globalThis.URLSearchParams=class{ constructor(){} get(){ return null; } };\n'
+    strip "$W/shared/i18n.js"; echo 'print("nav=" + getLang());'; } > "$T/nav.js"
+  check "$(gjs "$T/nav.js" 2>&1 | sed -n 's/^nav=//p')" "${NAVL#*:}" "navegador ${NAVL%%:*} → ${NAVL#*:}"
+done
 echo "lang-toggle: $PASS ok, $FAIL falhas"; [[ $FAIL -eq 0 ]]

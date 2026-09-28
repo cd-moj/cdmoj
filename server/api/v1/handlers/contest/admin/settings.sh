@@ -86,7 +86,7 @@ for pair in start:CONTEST_START end:CONTEST_END login_start:LOGIN_START_TIME fre
     [[ "$k" == freeze ]] && freeze_change_guard "$contest" "$v"
     setvar "$var" "$v"; }
 done
-has locale && { v="$(jq -r '.locale' <<<"$body")"; [[ "$v" =~ ^(pt|en)$ ]] || fail 422 "locale inválido" "locale_invalid"; setvar LOCALE "$v"; }
+has locale && { v="$(jq -r '.locale' <<<"$body")"; contest_locale_ok "$v" || fail 422 "locale inválido (pt, en ou es)" "locale_invalid"; setvar LOCALE "$v"; }
 # FUSO da prova: governa TODA hora que o servidor escreve p/ gente sobre este contest (DM do
 # convite, checklist pré-prova, caderno, relatório). Vazio = volta ao padrão da instalação
 # (MOJ_TZ). Validado contra o zoneinfo: nome errado faria o `date` cair mudo em UTC.

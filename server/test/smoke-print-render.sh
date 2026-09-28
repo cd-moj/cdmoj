@@ -162,4 +162,37 @@ bmeta="$C/print-requests/reqb.json"
 ck "ainda sai a folha de rosto"  '[[ $rc -eq 0 && -s "$out" ]]'
 ck "meta coerente com o PDF"     '[[ "$(jq -r .build_ok "$bmeta")" == true ]] && (( $(pages "$out") >= 2 )) || { [[ "$(jq -r .build_ok "$bmeta")" == false ]] && (( $(pages "$out") == 1 )); }'
 
+echo "== IDIOMA do papel = LOCALE do contest (pt|en|es) =="
+# O texto da folha é raster (caption do magick) — o pdftotext não o lê. O que se prende é a
+# TABELA (_pr_t/pr_color_name), o idioma carimbado no meta e o cache que se refaz na troca.
+ck "pr_lang sem LOCALE = pt"                    '[[ "$(pr_lang pr)" == pt ]]'
+for l in pt en es; do
+  for k in team noteam login taskno convfail sign when foot balloon problem color first firstsub; do
+    v="$(_pr_t "$l" "$k")"
+    [[ -n "$v" ]] || { echo "  FAIL: _pr_t $l $k vazio"; ((fail++)); }
+  done
+done
+ck "es: rótulos em espanhol"                    '[[ "$(_pr_t es team)" == EQUIPO && "$(_pr_t es balloon)" == "ENTREGA DE GLOBO" && "$(_pr_t es pages 4)" == "4 página(s)"* ]]'
+ck "en: rótulos em inglês (sem o bilíngue antigo)" '[[ "$(_pr_t en team)" == TEAM && "$(_pr_t pt team)" == EQUIPE ]]'
+ck "es: sem português vazando na tabela"        '! for k in team noteam login taskno convfail sign when foot balloon problem color first firstsub; do _pr_t es $k; echo; done | grep -Eqi "ção|não|equipe|tarefa|balão|assinatura"'
+ck "rodapé do carimbo é ASCII nos 3 idiomas"    '[[ "$(_pr_t pt foot)$(_pr_t en foot)$(_pr_t es foot)" =~ ^[A-Za-z]+$ ]]'
+ck "cor: pt/en/es (+ inglês junto do pt e es)"  '[[ "$(pr_color_name FF0000 pt)" == "vermelho (red)" && "$(pr_color_name FF0000 en)" == red && "$(pr_color_name FF0000 es)" == "rojo (red)" ]]'
+ck "cor fora da tabela: a mais próxima + hex"   '[[ "$(pr_color_name 123456 es)" == "azul marino (#123456)" && "$(pr_color_name 123456)" == "azul-marinho (#123456)" ]]'
+ck "meta carimba sheet_lang=pt"                 '[[ "$(jq -r .sheet_lang "$meta")" == pt ]]'
+printf 'LOCALE=es\n' >> "$C/conf"
+ck "pr_lang lê o LOCALE=es"                     '[[ "$(pr_lang pr)" == es ]]'
+m1="$(stat -c %Y "$cache")"; sleep 1; out="$(pr_build_pdf pr "$id")"
+ck "trocou o LOCALE: a folha de rosto se refaz" '[[ "$(stat -c %Y "$cache")" -gt "$m1" && "$(jq -r .sheet_lang "$meta")" == es ]]'
+m1="$(stat -c %Y "$cache")"; sleep 1; pr_build_pdf pr "$id" >/dev/null
+ck "e fica em cache no idioma novo"             '[[ "$(stat -c %Y "$cache")" == "$m1" ]]'
+# folha de balão: o nome da cor gravado em pt (color_lang ausente) e o contest agora em es
+jq -cn '{id:"blnx", seq:9, kind:"balloon", login:"time-x", team:"Time X", univ:"", problem:"p#a",
+         short:"C", color_hex:"FF0000", color_name:"vermelho (red)", first_site:true, time:1, status:"pending"}' \
+  > "$C/print-requests/blnx.json"
+bout="$(pr_build_balloon pr blnx)"; brc=$?
+ck "balão: folha gerada no idioma do contest"   '[[ $brc -eq 0 && -s "$bout" && "$(jq -r .sheet_lang "$C/print-requests/blnx.json")" == es ]]'
+m1="$(stat -c %Y "$bout")"; sleep 1
+sed -i 's/^LOCALE=es$/LOCALE=en/' "$C/conf"; pr_build_balloon pr blnx >/dev/null
+ck "balão: trocou o LOCALE, a folha se refaz"   '[[ "$(stat -c %Y "$bout")" -gt "$m1" && "$(jq -r .sheet_lang "$C/print-requests/blnx.json")" == en ]]'
+
 echo ""; echo "RESULT: $pass passed, $fail failed"; exit $(( fail>0?1:0 ))

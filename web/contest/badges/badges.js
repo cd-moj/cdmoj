@@ -99,7 +99,7 @@ function labelNode(u, d) {
           T('conta desabilitada', 'account disabled'))
       : u.shared_credential
       ? el('div', { class: 'cred shared', style: 'font-size:' + mm(credSz * 0.85) },
-          T('use sua senha do ' + (DATA.shared || 'treino'), 'use your ' + (DATA.shared || 'training') + ' password'))
+          T('use sua senha do ' + (DATA.shared || 'treino'), 'use your ' + (DATA.shared || 'training') + ' password', 'usa tu contraseña de ' + (DATA.shared || 'entrenamiento')))
       : el('div', { class: 'cred', style: 'font-size:' + mm(credSz) }, u.password || ''));
   }
   const tag = (S.fRegion && u.region ? u.region : '') + (role ? (S.fRegion && u.region ? ' · ' : '') + role : '');

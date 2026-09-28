@@ -4,12 +4,12 @@ import { el, avatarEl, renderAuthArea } from '/shared/ui.js';
 import { barChart, pieChart, hBarChart, lineChart, heatmap, heatmapGrid, verdictColor } from '/lib/charts.js';
 import { langById } from '/shared/languages.js';
 import { editorLabel } from '/shared/editors.js';
-import { T } from '/shared/i18n.js';
+import { T, uiLocale } from '/shared/i18n.js';
 import { diffKeyOf, diffLabel, diffClass, dirtText, dirtTone, dirtHelp, difficultyHelp } from '/shared/difficulty.js';
 
 const CONTEST = 'treino';
 const ID = new URLSearchParams(location.search).get('id') || '';
-const LOCALE = T('pt-BR', 'en-US');
+const LOCALE = uiLocale();
 const langLabel = (l) => (langById(String(l || '').toLowerCase()) || {}).label || l || '?';
 const pct = (x) => Math.round((x || 0) * 100) + '%';
 const fdate = (e) => (e ? new Date(e * 1000).toLocaleDateString(LOCALE) : '—');

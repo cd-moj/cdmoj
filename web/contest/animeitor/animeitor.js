@@ -532,7 +532,8 @@ function revealCard() {
   if (!R.scoped) body.push(el('div', { class: 'error-box' }, T('A sua conta não tem sede definida, então não há link para mostrar. Peça ao administrador do contest para definir a sua sede (Pessoas › escopo do staff).',
     'Your account has no site defined, so there is no link to show. Ask the contest administrator to define your site (People › staff scope).')));
   else if (!(R.links || []).length) body.push(el('p', { class: 'muted' }, T('Não há link de revelação para a sua sede (' + (R.sites || []).join(', ') + '). Avise o operador do telão.',
-    'There is no reveal link for your site (' + (R.sites || []).join(', ') + '). Tell the big-screen operator.')));
+    'There is no reveal link for your site (' + (R.sites || []).join(', ') + '). Tell the big-screen operator.',
+    'No hay enlace de revelación para tu sede (' + (R.sites || []).join(', ') + '). Avisa al operador de la pantalla.')));
   else body.push(el('div', { class: 'chart-wrap' }, el('table', { class: 'moj' },
     el('thead', {}, el('tr', {}, el('th', {}, T('Placar', 'Scoreboard')), el('th', {}, T('Sede', 'Site')), el('th', {}, ''))),
     el('tbody', {}, ...R.links.map((x) => el('tr', {}, el('td', {}, el('b', {}, x.contest)), el('td', {}, x.site),

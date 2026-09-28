@@ -46,9 +46,9 @@ export function makeRegistrationsTab(CONTEST) {
     if (!at) return '';
     const s = Math.max(0, Math.floor(Date.now() / 1000) - at);
     const d = Math.floor(s / 86400), h = Math.floor(s / 3600);
-    if (d >= 1) return T('há ' + d + ' d', d + 'd ago');
-    if (h >= 1) return T('há ' + h + ' h', h + 'h ago');
-    return T('há ' + Math.floor(s / 60) + ' min', Math.floor(s / 60) + 'm ago');
+    if (d >= 1) return T('há ' + d + ' d', d + 'd ago', 'hace ' + d + ' d');
+    if (h >= 1) return T('há ' + h + ' h', h + 'h ago', 'hace ' + h + ' h');
+    return T('há ' + Math.floor(s / 60) + ' min', Math.floor(s / 60) + 'm ago', 'hace ' + Math.floor(s / 60) + ' min');
   }
 
   const STATE = () => ({
@@ -197,11 +197,13 @@ export function makeRegistrationsTab(CONTEST) {
               title: T('o mojinho manda uma DM a cada convidado que ainda não respondeu',
                        'mojinho sends a DM to every invitee who has not answered yet'),
               onclick: () => confirm(T('Mandar lembrete para os ' + t.invites + ' convites pendentes?',
-                                       'Send a reminder to the ' + t.invites + ' pending invites?'))
+                                       'Send a reminder to the ' + t.invites + ' pending invites?',
+                                       '¿Enviar un recordatorio a las ' + t.invites + ' invitaciones pendientes?'))
                 && act({ action: 'invite-remind-all' }, (d) => {
                   const r = d.remind_result || {}; const k = (r.skipped || []).length;
                   return T('Lembrete a caminho para ' + (r.sent || 0) + '.' + (k ? ' ' + k + ' sem Telegram vinculado.' : ''),
-                           'Reminder on its way to ' + (r.sent || 0) + '.' + (k ? ' ' + k + ' without a linked Telegram.' : ''));
+                           'Reminder on its way to ' + (r.sent || 0) + '.' + (k ? ' ' + k + ' without a linked Telegram.' : ''),
+                           'Recordatorio en camino a ' + (r.sent || 0) + '.' + (k ? ' ' + k + ' sin Telegram vinculado.' : ''));
                 }) }, T('🔔 Lembrar todos', '🔔 Remind all'))
           : '',
         el('button', { class: 'btn ghost', onclick: () => act({ action: 'materialize' }, T('Store reescrito a partir do roster.', 'Store rewritten from the roster.')) },
@@ -221,7 +223,8 @@ export function makeRegistrationsTab(CONTEST) {
         + (t.invites || 0) + T(' convites pendentes', ' pending invites')
         + ((t.invites_no_tg || 0) > 0
             ? T(' (' + t.invites_no_tg + ' sem Telegram vinculado — nenhum lembrete os alcança)',
-                ' (' + t.invites_no_tg + ' without a linked Telegram — no reminder reaches them)')
+                ' (' + t.invites_no_tg + ' without a linked Telegram — no reminder reaches them)',
+                ' (' + t.invites_no_tg + ' sin Telegram vinculado — ningún recordatorio les llega)')
             : '')
         + T('. A pessoa se inscreve em ', '. People register at ')
         + '/contests/inscricao/?c=' + CONTEST),

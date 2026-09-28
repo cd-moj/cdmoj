@@ -8,7 +8,7 @@
 // DUAS visões aos usuários da sede dele (staff-filters) e só libera o full depois que o
 // contest termina para TODAS as sedes; a cerimônia local revela só a sede.
 import { el } from '/shared/ui.js';
-import { T } from '/shared/i18n.js';
+import { T, setLang } from '/shared/i18n.js';
 import { apiGet, apiGetText, apiPost, getToken } from '/shared/api.js';
 import { status } from '/shared/auth.js';
 import { parseICPC } from './score-icpc.js';
@@ -157,6 +157,11 @@ async function unfreezeAll() {
 async function main() {
   if (!CONTEST) { app.textContent = T('Faltou ?c=<contest>', 'Missing ?c=<contest>'); return; }
   if (!getToken(CONTEST)) { app.textContent = T('Faça login no contest primeiro (admin/juiz/chefe de sede).', 'Log in to the contest first (admin/judge/site chief).'); return; }
+  // /contest/basic UMA vez, antes de qualquer texto: o LOCALE do contest impõe o idioma (como nas
+  // outras páginas de contest) e dele saem também o estilo do balão, a penalidade e o fim.
+  let basic = null;
+  try { basic = await apiGet('/contest/basic?contest=' + enc(CONTEST), G); } catch { basic = null; }
+  if (basic && basic.locale) setLang(basic.locale, { persist: false });
   let st = {};
   try { st = await status(CONTEST) || {}; } catch { st = {}; }
   const CSTAFF = !!(st.logged_in && st.is_cstaff && !st.is_judge && !st.is_admin);
@@ -180,15 +185,13 @@ async function main() {
   try { const bc = await apiGet('/contest/balloons?contest=' + enc(CONTEST), G); balloons = (bc && bc.balloons) || {}; } catch { balloons = {}; }
   // o modo de pintura vale p/ TODOS os papéis que abrem a cerimônia (a leitura de PEN abaixo é
   // só p/ não-cstaff); falhou = fica no default 'icon', que é o legível
-  try { const bb = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);
-        if (bb && bb.balloon_style === 'fill') BSTYLE = 'fill'; } catch { /* default */ }
+  if (basic && basic.balloon_style === 'fill') BSTYLE = 'fill';
   if (!CSTAFF) {
     // a penalidade vem do /contest/basic (todo login do contest lê). Antes vinha do
     // /contest/admin/settings, que é admin-only: p/ .animeitor/.judge/.cstaff o fetch dava
     // 403 e PEN caía em 20 — em prova com penalidade diferente, a coluna Penal. E A ORDEM
     // das linhas saíam erradas justamente no telão da cerimônia.
-    try { const b = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);
-          if (Number.isInteger(b.penalty_minutes)) PEN = b.penalty_minutes; } catch { /* fallback 20 */ }
+    if (basic && Number.isInteger(basic.penalty_minutes)) PEN = basic.penalty_minutes;
   }
   const frozen = parseICPC(fl.slice(1), balloons, modeWords(fl[0]).includes('s'), modeWords(fl[0]).includes('g'));
   const full = parseICPC(ul.slice(1), balloons, modeWords(ul[0]).includes('s'), modeWords(ul[0]).includes('g'));
@@ -212,13 +215,11 @@ async function main() {
   // cstaff antes do fim-para-todos: a API serviu frozen nas duas chamadas (0 pendências).
   // Conveniência de UX — a garantia é o gate do /contest/score.
   if (CSTAFF && totalPend === 0) {
-    try {
-      const b = await apiGet('/contest/basic?contest=' + enc(CONTEST), G);
-      if ((b.end_time || 0) > Math.floor(Date.now() / 1000)) {
-        app.textContent = T('A revelação da sua sede abre quando o contest termina para todas as sedes.', "Your site's reveal opens when the contest ends for all sites.");
-        return;
-      }
-    } catch { /* segue: 0 pendências com contest encerrado é cerimônia vazia legítima */ }
+    // sem basic: segue (0 pendências com contest encerrado é cerimônia vazia legítima)
+    if (basic && (basic.end_time || 0) > Math.floor(Date.now() / 1000)) {
+      app.textContent = T('A revelação da sua sede abre quando o contest termina para todas as sedes.', "Your site's reveal opens when the contest ends for all sites.");
+      return;
+    }
   }
 
   app.innerHTML = '';

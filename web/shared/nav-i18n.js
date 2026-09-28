@@ -8,22 +8,22 @@
 import { T } from '/shared/i18n.js';
 
 const MAP = {
-  '/contest/score/reveal.html': ['Revelação', 'Reveal'],
-  '/contest/admin/':            ['Administração', 'Administration'],
-  '/contest/allsubmissions/':   ['Todas Submissões', 'All Submissions'],
-  '/contest/submissions/':      ['Minhas submissões', 'My submissions'],
-  '/contest/statistics/':       ['Estatísticas', 'Statistics'],
-  '/contest/rounds/':           ['Rodadas', 'Rounds'],
-  '/contest/judge/':            ['Avaliar', 'Judge'],
-  '/contest/chief/':            ['Juiz-chefe', 'Chief judge'],
-  '/contest/staff/':            ['Impressão', 'Print queue'],
-  '/contest/badges/':           ['Etiquetas', 'Badges'],
-  '/contest/docs/':             ['Documentos', 'Documents'],
-  '/contest/print/':            ['Impressão', 'Printing'],
+  '/contest/score/reveal.html': ['Revelação', 'Reveal', 'Revelación'],
+  '/contest/admin/':            ['Administração', 'Administration', 'Administración'],
+  '/contest/allsubmissions/':   ['Todas Submissões', 'All Submissions', 'Todos los envíos'],
+  '/contest/submissions/':      ['Minhas submissões', 'My submissions', 'Mis envíos'],
+  '/contest/statistics/':       ['Estatísticas', 'Statistics', 'Estadísticas'],
+  '/contest/rounds/':           ['Rodadas', 'Rounds', 'Rondas'],
+  '/contest/judge/':            ['Avaliar', 'Judge', 'Evaluar'],
+  '/contest/chief/':            ['Juiz-chefe', 'Chief judge', 'Juez principal'],
+  '/contest/staff/':            ['Impressão', 'Print queue', 'Cola de impresión'],
+  '/contest/badges/':           ['Etiquetas', 'Badges', 'Etiquetas'],
+  '/contest/docs/':             ['Documentos', 'Documents', 'Documentos'],
+  '/contest/print/':            ['Impressão', 'Printing', 'Impresión'],
 };
 
 export function navLabel(url, serverLabel) {
   const p = String(url || '').split('?')[0].split('#')[0];
   const pair = MAP[p] || MAP[p.replace(/\/*$/, '/')];
-  return pair ? T(pair[0], pair[1]) : (serverLabel || p);
+  return pair ? T(pair[0], pair[1], pair[2]) : (serverLabel || p);
 }
